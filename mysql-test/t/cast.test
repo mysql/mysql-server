@@ -10,10 +10,17 @@ select cast(-5 as unsigned) -1, cast(-5 as unsigned) + 1;
 select ~5, cast(~5 as signed);
 explain extended select ~5, cast(~5 as signed);
 select cast(5 as unsigned) -6.0;
+select cast(NULL as signed), cast(1/0 as signed); 
+select cast(NULL as unsigned), cast(1/0 as unsigned); 
 select cast("A" as binary) = "a", cast(BINARY "a" as CHAR) = "A";
 select cast("2001-1-1" as DATE), cast("2001-1-1" as DATETIME);
 select cast("1:2:3" as TIME);
 select CONVERT("2004-01-22 21:45:33",DATE);
+select CONVERT(DATE "2004-01-22 21:45:33" USING latin1);
+select CONVERT(DATE "2004-01-22 21:45:33",CHAR);
+select CONVERT(DATE "2004-01-22 21:45:33",CHAR(4));
+select CONVERT(DATE "2004-01-22 21:45:33",CHAR(4) BINARY);
+select CAST(DATE "2004-01-22 21:45:33" AS CHAR(4) BINARY);
 
 #
 # Character set convertion
@@ -21,6 +28,8 @@ select CONVERT("2004-01-22 21:45:33",DATE);
 set names binary;
 select cast(_latin1'test' as char character set latin2);
 select cast(_koi8r'тест' as char character set cp1251);
+select convert(_latin1'test', "latin1_german1_ci", "latin1_swedish_ci");
+select convert(_koi8r'тест', "koi8r_general_ci", "cp1251_general_ci");
 create table t1 select cast(_koi8r'тест' as char character set cp1251) as t;
 show create table t1;
 drop table t1;

@@ -677,12 +677,24 @@ bool select_send::send_eof()
 }
 
 
-/***************************************************************************
-** Export of select to textfile
-***************************************************************************/
+/************************************************************************
+  Handling writing to file
+************************************************************************/
+
+void select_to_file::send_error(uint errcode,const char *err)
+{
+  ::send_error(thd,errcode,err);
+  if (file > 0)
+  {
+    (void) end_io_cache(&cache);
+    (void) my_close(file,MYF(0));
+    (void) my_delete(path,MYF(0));		// Delete file on error
+    file= -1;
+  }
+}
 
 
-select_export::~select_export()
+select_to_file::~select_to_file()
 {
   if (file >= 0)
   {					// This only happens in case of error
@@ -690,55 +702,77 @@ select_export::~select_export()
     (void) my_close(file,MYF(0));
     file= -1;
   }
+}
+
+/***************************************************************************
+** Export of select to textfile
+***************************************************************************/
+
+select_export::~select_export()
+{
   thd->sent_row_count=row_count;
 }
 
 
-static int create_file(THD *thd, char *path, sql_exchange *exchange,
-		       File *file, IO_CACHE *cache)
+/*
+  Create file with IO cache
+
+  SYNOPSIS
+    create_file()
+    thd			Thread handle
+    path		File name
+    exchange		Excange class
+    cache		IO cache
+
+  RETURN
+    >= 0 	File handle
+   -1		Error
+*/
+
+
+static File create_file(THD *thd, char *path, sql_exchange *exchange,
+			IO_CACHE *cache)
 {
-  uint option= 4;
+  File file;
+  uint option= MY_UNPACK_FILENAME;
 
 #ifdef DONT_ALLOW_FULL_LOAD_DATA_PATHS
-  option|= 1;					// Force use of db directory
+  option|= MY_REPLACE_DIR;			// Force use of db directory
 #endif
   (void) fn_format(path, exchange->file_name, thd->db ? thd->db : "", "",
 		   option);
   if (!access(path, F_OK))
   {
     my_error(ER_FILE_EXISTS_ERROR, MYF(0), exchange->file_name);
-    return 1;
+    return -1;
   }
   /* Create the file world readable */
-  if ((*file= my_create(path, 0666, O_WRONLY, MYF(MY_WME))) < 0)
-    return 1;
+  if ((file= my_create(path, 0666, O_WRONLY, MYF(MY_WME))) < 0)
+    return file;
 #ifdef HAVE_FCHMOD
-  (void) fchmod(*file, 0666);			// Because of umask()
+  (void) fchmod(file, 0666);			// Because of umask()
 #else
   (void) chmod(path, 0666);
 #endif
-  if (init_io_cache(cache, *file, 0L, WRITE_CACHE, 0L, 1, MYF(MY_WME)))
+  if (init_io_cache(cache, file, 0L, WRITE_CACHE, 0L, 1, MYF(MY_WME)))
   {
-    my_close(*file, MYF(0));
+    my_close(file, MYF(0));
     my_delete(path, MYF(0));  // Delete file on error, it was just created 
-    *file= -1;
-    end_io_cache(cache);
-    return 1;
+    return -1;
   }
-  return 0;
+  return file;
 }
 
 
 int
 select_export::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
 {
-  char path[FN_REFLEN];
   bool blob_flag=0;
   unit= u;
   if ((uint) strlen(exchange->file_name) + NAME_LEN >= FN_REFLEN)
     strmake(path,exchange->file_name,FN_REFLEN-1);
 
-  if (create_file(thd, path, exchange, &file, &cache))
+  if ((file= create_file(thd, path, exchange, &cache)) < 0)
     return 1;
   /* Check if there is any blobs in data */
   {
@@ -910,14 +944,6 @@ err:
 }
 
 
-void select_export::send_error(uint errcode, const char *err)
-{
-  ::send_error(thd,errcode,err);
-  (void) my_close(file,MYF(0));
-  file= -1;
-}
-
-
 bool select_export::send_eof()
 {
   int error=test(end_io_cache(&cache));
@@ -935,24 +961,12 @@ bool select_export::send_eof()
 ***************************************************************************/
 
 
-select_dump::~select_dump()
-{
-  if (file >= 0)
-  {					// This only happens in case of error
-    (void) end_io_cache(&cache);
-    (void) my_close(file,MYF(0));
-    file= -1;
-  }
-}
-
 int
 select_dump::prepare(List<Item> &list __attribute__((unused)),
 		     SELECT_LEX_UNIT *u)
 {
   unit= u;
-  if (create_file(thd, path, exchange, &file, &cache))
-    return 1;
-  return 0;
+  return (int) ((file= create_file(thd, path, exchange, &cache)) < 0);
 }
 
 
@@ -995,13 +1009,6 @@ err:
 }
 
 
-void select_dump::send_error(uint errcode,const char *err)
-{
-  ::send_error(thd,errcode,err);
-  (void) my_close(file,MYF(0));
-  file= -1;
-}
-
 bool select_dump::send_eof()
 {
   int error=test(end_io_cache(&cache));
@@ -1013,10 +1020,12 @@ bool select_dump::send_eof()
   return error;
 }
 
+
 select_subselect::select_subselect(Item_subselect *item_arg)
 {
   item= item_arg;
 }
+
 
 bool select_singlerow_subselect::send_data(List<Item> &items)
 {
@@ -1039,6 +1048,7 @@ bool select_singlerow_subselect::send_data(List<Item> &items)
   it->assigned(1);
   DBUG_RETURN(0);
 }
+
 
 bool select_max_min_finder_subselect::send_data(List<Item> &items)
 {
@@ -1145,8 +1155,9 @@ bool select_exists_subselect::send_data(List<Item> &items)
 
 
 /***************************************************************************
-** Dump  of select to variables
+  Dump of select to variables
 ***************************************************************************/
+
 int select_dumpvar::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
 {
   List_iterator_fast<Item> li(list);
@@ -1163,7 +1174,8 @@ int select_dumpvar::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
   {
     ls= gl++;
     Item_func_set_user_var *xx = new Item_func_set_user_var(*ls,item);
-    xx->fix_fields(thd,(TABLE_LIST*) thd->lex->select_lex.table_list.first,&item);
+    xx->fix_fields(thd,(TABLE_LIST*) thd->lex->select_lex.table_list.first,
+		   &item);
     xx->fix_length_and_dec();
     vars.push_back(xx);
   }

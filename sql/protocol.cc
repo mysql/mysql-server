@@ -123,7 +123,7 @@ void send_error(THD *thd, uint sql_errno, const char *err)
 
   /* Abort multi-result sets */
   thd->lex->found_colon= 0;
-  thd->server_status= ~SERVER_MORE_RESULTS_EXISTS;
+  thd->server_status&= ~SERVER_MORE_RESULTS_EXISTS;
   DBUG_VOID_RETURN;
 }
 
@@ -356,7 +356,7 @@ send_eof(THD *thd, bool no_flush)
 	other queries (see the if test in dispatch_command / COM_QUERY)
       */
       if (thd->is_fatal_error)
-	thd->server_status= ~SERVER_MORE_RESULTS_EXISTS;
+	thd->server_status&= ~SERVER_MORE_RESULTS_EXISTS;
       int2store(buff+3, thd->server_status);
       VOID(my_net_write(net,(char*) buff,5));
       VOID(net_flush(net));

@@ -19,9 +19,6 @@
 */
 
 #include "fulltext.h"
-#ifdef	__WIN__
-#include <errno.h>
-#endif
 
 int mi_delete_table(const char *name)
 {

@@ -370,12 +370,23 @@ SQL_SELECT::SQL_SELECT() :quick(0),cond(0),free_cond(0)
 }
 
 
-SQL_SELECT::~SQL_SELECT()
+void SQL_SELECT::cleanup()
 {
   delete quick;
+  quick= 0;
   if (free_cond)
+  {
+    free_cond=0;
     delete cond;
+    cond= 0;
+  }    
   close_cached_file(&file);
+}
+
+
+SQL_SELECT::~SQL_SELECT()
+{
+  cleanup();
 }
 
 #undef index					// Fix for Unixware 7
@@ -994,7 +1005,7 @@ get_mm_leaf(PARAM *param, COND *conf_func, Field *field, KEY_PART *key_part,
   }
 
   /*
-    We can't use an index when comparing stings of 
+    We can't use an index when comparing strings of 
     different collations 
   */
   if (field->result_type() == STRING_RESULT &&
@@ -2195,6 +2206,7 @@ check_quick_select(PARAM *param,uint idx,SEL_ARG *tree)
     param->table->quick_rows[key]=records;
     param->table->quick_key_parts[key]=param->max_key_part+1;
   }
+  DBUG_PRINT("exit", ("Records: %lu", (ulong) records));
   DBUG_RETURN(records);
 }
 
@@ -2569,12 +2581,7 @@ int QUICK_SELECT::get_next()
     int result;
     if (range)
     {						// Already read through key
-/*       result=((range->flag & EQ_RANGE) ?
-	       file->index_next_same(record, (byte*) range->min_key,
-				     range->min_length) :
-	       file->index_next(record));
-*/
-       result=((range->flag & (EQ_RANGE | GEOM_FLAG) ) ?
+       result=((range->flag & (EQ_RANGE | GEOM_FLAG)) ?
 	       file->index_next_same(record, (byte*) range->min_key,
 				     range->min_length) :
 	       file->index_next(record));

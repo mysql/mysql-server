@@ -2126,14 +2126,12 @@ void Item_func_conv_charset::print(String *str)
 
 String *Item_func_conv_charset3::val_str(String *str)
 {
-  my_wc_t wc;
-  int cnvres;
-  const uchar *s, *se;
-  uchar *d, *d0, *de;
-  uint32 dmaxlen;
+  char cs1[30], cs2[30];
+  String to_cs_buff(cs1, sizeof(cs1), default_charset_info);
+  String from_cs_buff(cs2, sizeof(cs2), default_charset_info);
   String *arg= args[0]->val_str(str);
-  String *to_cs= args[1]->val_str(str);
-  String *from_cs= args[2]->val_str(str);
+  String *to_cs= args[1]->val_str(&to_cs_buff);
+  String *from_cs= args[2]->val_str(&from_cs_buff);
   CHARSET_INFO *from_charset;
   CHARSET_INFO *to_charset;
 
@@ -2143,51 +2141,17 @@ String *Item_func_conv_charset3::val_str(String *str)
       !(from_charset=get_charset_by_name(from_cs->ptr(), MYF(MY_WME))) ||
       !(to_charset=get_charset_by_name(to_cs->ptr(), MYF(MY_WME))))
   {
-    null_value=1;
+    null_value= 1;
     return 0;
   }
 
-  s=(const uchar*)arg->ptr();
-  se=s+arg->length();
-
-  dmaxlen=arg->length()*to_charset->mbmaxlen+1;
-  str->alloc(dmaxlen);
-  d0=d=(unsigned char*)str->ptr();
-  de=d+dmaxlen;
-
-  while (1)
+  if (str_value.copy(arg->ptr(), arg->length(), from_charset, to_charset))
   {
-    cnvres=from_charset->cset->mb_wc(from_charset,&wc,s,se);
-    if (cnvres>0)
-    {
-      s+=cnvres;
-    }
-    else if (cnvres==MY_CS_ILSEQ)
-    {
-      s++;
-      wc='?';
-    }
-    else
-      break;
-
-outp:
-    cnvres=to_charset->cset->wc_mb(to_charset,wc,d,de);
-    if (cnvres>0)
-    {
-      d+=cnvres;
-    }
-    else if (cnvres==MY_CS_ILUNI && wc!='?')
-    {
-        wc='?';
-        goto outp;
-    }
-    else
-      break;
-  };
-
-  str->length((uint32) (d-d0));
-  str->set_charset(to_charset);
-  return str;
+    null_value= 1;
+    return 0;
+  }
+  null_value= 0;
+  return &str_value;
 }
 
 

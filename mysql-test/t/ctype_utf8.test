@@ -60,3 +60,4 @@ set names koi8r;
 create table t1 (s1 char(1) character set utf8);
 insert into t1 values (_koi8r'аб');
 select s1,hex(s1),char_length(s1),octet_length(s1) from t1;
+drop table t1;

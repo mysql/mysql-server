@@ -4058,12 +4058,13 @@ void Field_datetime::sql_type(String &res) const
 int Field_string::store(const char *from,uint length,CHARSET_INFO *cs)
 {
   int error= 0;
+  uint32 not_used;
   char buff[80];
   String tmpstr(buff,sizeof(buff), &my_charset_bin);
   uint copy_length;
 
   /* Convert character set if nesessary */
-  if (String::needs_conversion(from, length, cs, field_charset))
+  if (String::needs_conversion(length, cs, field_charset, &not_used))
   { 
     tmpstr.copy(from, length, cs, field_charset);
     from= tmpstr.ptr();
@@ -4071,7 +4072,7 @@ int Field_string::store(const char *from,uint length,CHARSET_INFO *cs)
   }
 
   /* 
-    Make sure we don't break a multybite sequence
+    Make sure we don't break a multibyte sequence
     as well as don't copy a malformed data.
   */
   copy_length= field_charset->cset->wellformedlen(field_charset,
@@ -4083,8 +4084,7 @@ int Field_string::store(const char *from,uint length,CHARSET_INFO *cs)
     field_charset->cset->fill(field_charset,ptr+copy_length,
 			      field_length-copy_length,' ');
   
-  
-  if (current_thd->count_cuted_fields && (copy_length < length))
+  if ((copy_length < length) && current_thd->count_cuted_fields)
   {					// Check if we loosed some info
     const char *end=from+length;
     from+= copy_length;
@@ -4252,10 +4252,12 @@ uint Field_string::max_packed_col_length(uint max_length)
 int Field_varstring::store(const char *from,uint length,CHARSET_INFO *cs)
 {
   int error= 0;
+  uint32 not_used;
   char buff[80];
   String tmpstr(buff,sizeof(buff), &my_charset_bin);
+
   /* Convert character set if nesessary */
-  if (String::needs_conversion(from, length, cs, field_charset))
+  if (String::needs_conversion(length, cs, field_charset, &not_used))
   { 
     tmpstr.copy(from, length, cs, field_charset);
     from= tmpstr.ptr();
@@ -4571,10 +4573,11 @@ int Field_blob::store(const char *from,uint length,CHARSET_INFO *cs)
     bool was_conversion;
     char buff[80];
     String tmpstr(buff,sizeof(buff), &my_charset_bin);
+    uint32 not_used;
 
     /* Convert character set if nesessary */
-    if ((was_conversion= String::needs_conversion(from, length,
-						  cs, field_charset)))
+    if ((was_conversion= String::needs_conversion(length, cs, field_charset,
+						  &not_used)))
     { 
       tmpstr.copy(from, length, cs, field_charset);
       from= tmpstr.ptr();
@@ -5085,10 +5088,12 @@ void Field_enum::store_type(ulonglong value)
 int Field_enum::store(const char *from,uint length,CHARSET_INFO *cs)
 {
   int err= 0;
+  uint32 not_used;
   char buff[80];
   String tmpstr(buff,sizeof(buff), &my_charset_bin);
+
   /* Convert character set if nesessary */
-  if (String::needs_conversion(from, length, cs, field_charset))
+  if (String::needs_conversion(length, cs, field_charset, &not_used))
   { 
     tmpstr.copy(from, length, cs, field_charset);
     from= tmpstr.ptr();
@@ -5265,11 +5270,12 @@ int Field_set::store(const char *from,uint length,CHARSET_INFO *cs)
   int err= 0;
   char *not_used;
   uint not_used2;
+  uint32 not_used_offset;
   char buff[80];
   String tmpstr(buff,sizeof(buff), &my_charset_bin);
 
   /* Convert character set if nesessary */
-  if (String::needs_conversion(from, length, cs, field_charset))
+  if (String::needs_conversion(length, cs, field_charset, &not_used_offset))
   { 
     tmpstr.copy(from, length, cs, field_charset);
     from= tmpstr.ptr();
