@@ -1304,6 +1304,9 @@ inline int ha_ndbcluster::next_result(byte *buf)
   int res;
   DBUG_ENTER("next_result");
     
+  if (!m_active_cursor)
+    DBUG_RETURN(HA_ERR_END_OF_FILE);
+  
   if((res= fetch_next(m_active_cursor)) == 0)
   {
     DBUG_PRINT("info", ("One more record found"));    
