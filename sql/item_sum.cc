@@ -790,12 +790,12 @@ String *Item_std_field::val_str(String *str)
 
 static int simple_raw_key_cmp(void* arg, byte* key1, byte* key2)
 {
-  return memcmp(key1, key2, (int) arg);
+  return memcmp(key1, key2, *(uint*) arg);
 }
 
 static int simple_str_key_cmp(void* arg, byte* key1, byte* key2)
 {
-  return my_sortcmp(key1, key2, (int) arg);
+  return my_sortcmp(key1, key2, *(uint*) arg);
 }
 
 /*
@@ -904,7 +904,6 @@ bool Item_sum_count_distinct::setup(THD *thd)
   {
     qsort_cmp2 compare_key;
     void* cmp_arg;
-    int key_len;
 
     // to make things easier for dump_leaf if we ever have to dump to MyISAM
     restore_record(table,2);
@@ -937,7 +936,8 @@ bool Item_sum_count_distinct::setup(THD *thd)
 	compare_key = (qsort_cmp2)simple_raw_key_cmp;
 	break;
       }
-      cmp_arg = (void*)(key_len = field->pack_length());
+      key_length = field->pack_length();
+      cmp_arg = (void*) &key_length;
       rec_offset = 1;
     }
     else // too bad, cannot cheat - there is more than one field
@@ -950,38 +950,38 @@ bool Item_sum_count_distinct::setup(THD *thd)
 	    (uint32*) thd->alloc(sizeof(uint32) * table->fields)))
 	return 1;
 
-      for (key_len = 0, lengths=field_lengths; field < field_end; ++field)
+      for (key_length = 0, lengths=field_lengths; field < field_end; ++field)
       {
 	uint32 length= (*field)->pack_length();
-	key_len += length;
+	key_length += length;
 	*lengths++ = length;
 	if (!(*field)->binary())
 	  all_binary = 0;			// Can't break loop here
       }
-      rec_offset = table->reclength - key_len;
+      rec_offset = table->reclength - key_length;
       if (all_binary)
       {
 	compare_key = (qsort_cmp2)simple_raw_key_cmp;
-	cmp_arg = (void*)key_len;
+	cmp_arg = (void*) &key_length;
       }
       else
       {
 	compare_key = (qsort_cmp2) composite_key_cmp ;
-	cmp_arg = (void*)this;
+	cmp_arg = (void*) this;
       }
     }
 
     init_tree(&tree, min(max_heap_table_size, sortbuff_size/16), 0,
-	      key_len, compare_key, 0, NULL, cmp_arg);
+	      key_length, compare_key, 0, NULL, cmp_arg);
     use_tree = 1;
 
     /*
-      The only time key_len could be 0 is if someone does
+      The only time key_length could be 0 is if someone does
       count(distinct) on a char(0) field - stupid thing to do,
       but this has to be handled - otherwise someone can crash
       the server with a DoS attack
     */
-    max_elements_in_tree = ((key_len) ? max_heap_table_size/key_len :
+    max_elements_in_tree = ((key_length) ? max_heap_table_size/key_length :
 			    1);
   }
   return 0;

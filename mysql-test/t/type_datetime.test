@@ -30,3 +30,12 @@ CREATE TABLE t1 (a datetime not null);
 insert into t1 values (0);
 select * from t1 where a is null;
 drop table t1;
+
+#
+# Test with bug when propagating DATETIME to integer and WHERE optimization
+#
+
+create table t1 (id int, dt datetime);
+insert into t1 values (1,"2001-08-14 00:00:00"),(2,"2001-08-15 00:00:00"),(3,"2001-08-16 00:00:00");
+select * from t1 where dt='2001-08-14 00:00:00' and dt =  if(id=1,'2001-08-14 00:00:00','1999-08-15');
+drop table t1;

@@ -25,20 +25,33 @@
 #include "sql_select.h"
 
 
-int mysql_union(THD *thd, LEX *lex,select_result *create_insert=(select_result *)NULL)
+int mysql_union(THD *thd, LEX *lex,select_result *result)
 {
   SELECT_LEX *sl, *last_sl;
   ORDER *order;
   List<Item> item_list;
-/*  TABLE_LIST *s=(TABLE_LIST*) lex->select_lex.table_list.first; */
   TABLE *table;
   TABLE_LIST *first_table, result_table_list;
   TMP_TABLE_PARAM tmp_table_param;
-  select_result *result;
   select_union *union_result;
   int res;
   uint elements;
   DBUG_ENTER("mysql_union");
+
+  if (lex->select_lex.options & SELECT_DESCRIBE)
+  {
+    my_error(ER_WRONG_USAGE,MYF(0),"DESCRIBE","UNION");
+    return -1;
+  } 
+
+  /* Fix tables--to-be-unioned-from list to point at opened tables */
+  for (sl=&lex->select_lex; sl; sl=sl->next)
+  {
+    for (TABLE_LIST *cursor= (TABLE_LIST *)sl->table_list.first;
+	 cursor;
+	 cursor=cursor->next)
+      cursor->table= ((TABLE_LIST*) cursor->table)->table;
+  }
 
   /* Find last select part as it's here ORDER BY and GROUP BY is stored */
   elements= lex->select_lex.item_list.elements;
@@ -60,7 +73,6 @@ int mysql_union(THD *thd, LEX *lex,select_result *create_insert=(select_result *
 
     /* Create a list of items that will be in the result set */
     first_table= (TABLE_LIST*) lex->select_lex.table_list.first;
-		if (create_insert) first_table=first_table->next;
     while ((item= it++))
       if (item_list.push_back(item))
 	DBUG_RETURN(-1);
@@ -96,8 +108,7 @@ int mysql_union(THD *thd, LEX *lex,select_result *create_insert=(select_result *
     if (thd->select_limit == HA_POS_ERROR)
       sl->options&= ~OPTION_FOUND_ROWS;
 
-    res=mysql_select(thd,(sl == &lex->select_lex) ? first_table : 
-				 (TABLE_LIST*) sl->table_list.first,
+    res=mysql_select(thd, (TABLE_LIST*) sl->table_list.first,
 		     sl->item_list,
 		     sl->where,
 		     sl->ftfunc_list,
@@ -116,19 +127,9 @@ int mysql_union(THD *thd, LEX *lex,select_result *create_insert=(select_result *
     goto exit;
   }
   delete union_result;
-	if (create_insert)
-		result=create_insert;
-  else if (lex->exchange)
-  {
-    if (lex->exchange->dumpfile)
-      result=new select_dump(lex->exchange);
-    else
-      result=new select_export(lex->exchange);
-  }
-  else
-    result=new select_send();
+
+  /* Send result to 'result' */
   res =-1;
-  if (result)
   {
     /* Create a list of fields in the temporary table */
     List_iterator<Item> it(item_list);
@@ -146,9 +147,6 @@ int mysql_union(THD *thd, LEX *lex,select_result *create_insert=(select_result *
 		       item_list, NULL, ftfunc_list, order,
 		       (ORDER*) NULL, NULL, (ORDER*) NULL,
 		       thd->options, result);
-    if (res)
-      result->abort();
-    delete result;
   }
 
 exit:
