@@ -56,11 +56,11 @@ else
   ledir=@libexecdir@
 fi
 
-pid_file=$DATADIR/`/bin/hostname`.pid
+pid_file=$DATADIR/`@HOSTNAME@`.pid
 MYSQL_UNIX_PORT=@MYSQL_UNIX_ADDR@
 MYSQL_TCP_PORT=@MYSQL_TCP_PORT@
-log=$DATADIR/`/bin/hostname`.log
-err_log=$DATADIR/`/bin/hostname`.err
+log=$DATADIR/`@HOSTNAME@`.log
+err_log=$DATADIR/`@HOSTNAME@`.err
 user=@MYSQLD_USER@
 
 # Get first arguments from the my.cfg file, groups [mysqld] and [safe_mysqld]
