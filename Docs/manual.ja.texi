@@ -23949,7 +23949,7 @@ Uptime: 10077  Threads: 1  Questions: 9  Slow queries: 0  Opens: 6  Flush tables
 @item Max memory used @tab mysqld のコードによって直接割り当てられる最大メモリー量 (only available when @strong{MySQL} is compiled with --with-debug)
 @end multitable
 
-If you do @code{myslqadmin shutdown} on a socket (in other words, on a
+If you do @code{mysqladmin shutdown} on a socket (in other words, on a
 the computer where @code{mysqld} is running), @code{mysqladmin} will
 wait until the @code{MySQL} @code{pid-file} is removed to ensure that
 the @code{mysqld server} has stopped properly.
