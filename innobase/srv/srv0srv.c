@@ -1739,6 +1739,7 @@ srv_conc_enter_innodb(
 	trx_t*	trx)	/* in: transaction object associated with the
 			thread */
 {
+	ibool			has_slept = FALSE;
 	srv_conc_slot_t*	slot;
 	ulint			i;
 	char                    err_buf[1000];
@@ -1759,7 +1760,7 @@ srv_conc_enter_innodb(
 	}
 
 	os_fast_mutex_lock(&srv_conc_mutex);
-
+retry:
 	if (trx->declared_to_be_inside_innodb) {
 	        ut_print_timestamp(stderr);
 
@@ -1783,6 +1784,28 @@ srv_conc_enter_innodb(
 
 		return;
 	}
+
+	/* If the transaction is not holding resources, let it sleep for 50
+	milliseconds, and try again then */
+ 
+	if (!has_slept && !trx->has_search_latch
+	    && NULL == UT_LIST_GET_FIRST(trx->trx_locks)) {
+
+	        has_slept = TRUE; /* We let is sleep only once to avoid
+				  starvation */
+
+		srv_conc_n_waiting_threads++;
+
+		os_fast_mutex_unlock(&srv_conc_mutex);
+
+		os_thread_sleep(50000);
+
+		os_fast_mutex_lock(&srv_conc_mutex);
+
+		srv_conc_n_waiting_threads--;
+
+		goto retry;
+	}   
 
 	/* Too many threads inside: put the current thread to a queue */
 
