@@ -180,10 +180,7 @@ check_connections(THD *thd)
 #if !defined(HAVE_SYS_UN_H) || defined(HAVE_mit_thread)
     /* Fast local hostname resolve for Win32 */
     if (!strcmp(thd->ip,"127.0.0.1"))
-    {
-      if (!(thd->host=my_strdup("localhost",MYF(0))))
-	return (ER_OUT_OF_RESOURCES);
-    }
+      thd->host=(char*) localhost;
     else
 #endif
     if (!(specialflag & SPECIAL_NO_RESOLVE))
@@ -199,9 +196,9 @@ check_connections(THD *thd)
     if (acl_check_host(thd->host,thd->ip))
       return(ER_HOST_NOT_PRIVILEGED);
   }
-  else /* No hostname means that the connection was on a socket */
+  else /* Hostname given means that the connection was on a socket */
   {
-    DBUG_PRINT("general",("Host: localhost"));
+    DBUG_PRINT("general",("Host: %s",thd->host));
     thd->ip=0;
     bzero((char*) &thd->remote,sizeof(struct sockaddr));
   }
@@ -561,7 +558,7 @@ bool do_command(THD *thd)
   {
     packet=(char*) net->read_pos;
     command = (enum enum_server_command) (uchar) packet[0];
-    DBUG_PRINT("general",("Command on socket %s = %d (%s)",
+    DBUG_PRINT("general",("Command on %s = %d (%s)",
 			  vio_description(net->vio), command,
 			  command_name[command]));
   }
