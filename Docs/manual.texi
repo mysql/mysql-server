@@ -34542,15 +34542,6 @@ options, MySQL simply renames the files that correspond to the table
 @xref{RENAME TABLE,, @code{RENAME TABLE}}.
 
 @item
-Since @strong{MySQL 4.0} the above feature can be activated explicitly.
-@code{ALTER TABLE ... DISABLE KEYS} makes MySQL to stop updating
-non-unique indexes for @code{MyISAM} table.
-@code{ALTER TABLE ... ENABLE KEYS} then should be used to recreate missing
-indexes. As MySQL does it with special algorithm which is much
-faster then inserting keys one by one, disabling keys could give a
-considerable speedup on bulk inserts.
-
-@item
 @code{create_definition} clauses use the same syntax for @code{ADD} and
 @code{CHANGE} as for @code{CREATE TABLE}.  Note that this syntax includes
 the column name, not just the column type.
@@ -34648,6 +34639,15 @@ performance.
 If you use @code{ALTER TABLE} on a @code{MyISAM} table, all non-unique
 indexes are created in a separate batch (like in @code{REPAIR}).
 This should make @code{ALTER TABLE} much faster when you have many indexes.
+
+@item
+Since @strong{MySQL 4.0} the above feature can be activated explicitly.
+@code{ALTER TABLE ... DISABLE KEYS} makes MySQL to stop updating
+non-unique indexes for @code{MyISAM} table.
+@code{ALTER TABLE ... ENABLE KEYS} then should be used to recreate missing
+indexes. As MySQL does it with special algorithm which is much
+faster then inserting keys one by one, disabling keys could give a
+considerable speedup on bulk inserts.
 
 @item
 @findex mysql_info()
