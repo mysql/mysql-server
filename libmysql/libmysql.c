@@ -3932,19 +3932,40 @@ mysql_prepare(MYSQL  *mysql, const char *query, ulong length)
 
 unsigned int alloc_stmt_fields(MYSQL_STMT *stmt)
 {
-  MYSQL_FIELD *fields;
+  MYSQL_FIELD *fields, *field, *end;
+  MEM_ROOT *alloc= &stmt->mem_root;
   
   if (!stmt->mysql->field_count)
     return 0;
-  stmt->field_count= stmt->mysql->field_count;
-  fields= stmt->mysql->fields;
   
-  if (!(stmt->fields= (MYSQL_FIELD *) alloc_root(&stmt->mem_root, 
-        sizeof(fields))) || 
-      !(stmt->bind= (MYSQL_BIND *) alloc_root(&stmt->mem_root, 
+  stmt->field_count= stmt->mysql->field_count;
+  
+  /*
+    Get the field information for non-select statements 
+    like SHOW and DESCRIBE commands
+  */
+  if (!(stmt->fields= (MYSQL_FIELD *) alloc_root(alloc, 
+        sizeof(MYSQL_FIELD) * stmt->field_count)) || 
+      !(stmt->bind= (MYSQL_BIND *) alloc_root(alloc, 
         sizeof(MYSQL_BIND ) * stmt->field_count)))
     return 0;
-  memcpy((char *)stmt->fields, (char *)fields, sizeof(fields));
+  
+  for (fields= stmt->mysql->fields, end= fields+stmt->field_count, 
+       field= stmt->fields;
+       field && fields < end; fields++, field++)
+  {
+    field->db       = strdup_root(alloc,fields->db);
+    field->table    = strdup_root(alloc,fields->table);
+    field->org_table= strdup_root(alloc,fields->org_table);
+    field->name     = strdup_root(alloc,fields->name);
+    field->org_name = strdup_root(alloc,fields->org_name);
+    field->length   = fields->length;
+    field->type     = fields->type;
+    field->flags    = fields->flags;
+    field->decimals = fields->decimals;
+    field->def      = fields->def ? strdup_root(alloc,fields->def): 0;
+    field->max_length= 0;
+  }
   return stmt->field_count;
 }
 
