@@ -1,4 +1,4 @@
-group client_pch =
+group client_global_pch =
             'os2.h',
             'assert.h', 'direct.h', 'errno.h', 'nerrno.h',
             'limits.h', 'io.h', 'math.h',
@@ -9,17 +9,46 @@ group client_pch =
             'my_base.h', 'config-os2.h', 'my_dir.h',
             'global.h', 'thr_alarm.h', 'm_string.h',
             'mysql.h', 'zconf.h', 'zlib.h', 'mysys_err.h',
-            //'my_os2dirsrch.h',
-            'm_ctype.h',
-            'mysqld_error.h',
+            'm_ctype.h', 'mysqld_error.h',
             'my_list.h', 'my_sys.h', 'my_net.h',
-            'myisam.h', 'myisampack.h', '.\myisam\myisamdef.h'
+            'myisam.h', 'myisampack.h', '.\myisam\myisamdef.h',
+            '.\regex\regex.h'
+
+group server_global_pch =
+            'os2.h',
+            'string.h', 'assert.h', 'share.h', 'stdarg.h', 'stdio.h',
+            'stdlib.h', 'stddef.h', 'math.h', 'io.h', 'limits.h',
+            'process.h', 'errno.h', 'nerrno.h', 'sys/types.h',
+            'sys/time.h', 'sys/stat.h', 'sys/param.h', 'sys/ioccom.h',
+            'sys/filio.h', 'sys/sockio.h', 'sys/ioctlos2.h','sys/ioctl.h', 'types.h',
+            'sys/utime.h', 'sys/select.h', 'sys/un.h',
+            'netinet/in_systm.h', 'netinet/tcp.h',
+
+            'global.h', 'my_base.h', 'config-os2.h',
+            'my_dir.h', 'my_sys.h', 'mysql.h',
+            'my_bitmap.h', 'violite.h', 'mysql_priv.h',
+            'm_string.h', 'm_ctype.h',
+            'myisam.h', 'myisampack.h', '.\myisam\myisamdef.h',
+            'sql_string.h', 'item.h', 'unireg.h',
+            'field.h', 'sql_lex.h', 'sql_list.h',
+            'md5.h', 'sql_acl.h', 'slave.h',
+            'ha_myisam.h', 'procedure.h', 'sql_select.h',
+            'errmsg.h', 't_ctype.h', 'direct.h',
+            'mysys_err.h', 'zconf.h', 'zlib.h',
+            'my_tree.h', '..\mysys\my_static.h', 'netdb.h',
+            'thr_alarm.h', 'heap.h', '..\myisam\fulltext.h',
+            '..\myisam\ftdefs.h', 'myisammrg.h',
+            '.\regex\regex.h'
+
+group server_pch =
+            'ha_heap.h', 'ha_myisammrg.h', 'opt_ft.h',
+            'hash_filo.h', 'mini_client.h', 'sql_repl.h',
+            'sql_analyse.h', 'item_create.h', '..\mysys\mysys_priv.h'
 
 group mysqlclientlib =
                "..\\client\\readline.cc",
                "..\\client\\sql_string.cc",
                "..\\client\\completion_hash.cc",
-               //"..\\libmysql\\dll.c",
                "..\\libmysql\\libmysql.c",
                "..\\libmysql\\errmsg.c",
                "..\\libmysql\\get_password.c",
@@ -28,17 +57,17 @@ group mysqlclientlib =
                "..\\libmysql\\violite.c"
 
 group zlib =
-               "\\rd\\mysql\\zlib-1.1.3\\compress.c", "\\rd\\mysql\\zlib-1.1.3\\crc32.c",
-               "\\rd\\mysql\\zlib-1.1.3\\deflate.c", "\\rd\\mysql\\zlib-1.1.3\\gzio.c", "\\rd\\mysql\\zlib-1.1.3\\infblock.c",
-               "\\rd\\mysql\\zlib-1.1.3\\infcodes.c", "\\rd\\mysql\\zlib-1.1.3\\inffast.c",
-               "\\rd\\mysql\\zlib-1.1.3\\inflate.c", "\\rd\\mysql\\zlib-1.1.3\\inftrees.c",
-               "\\rd\\mysql\\zlib-1.1.3\\infutil.c", "\\rd\\mysql\\zlib-1.1.3\\trees.c", "\\rd\\mysql\\zlib-1.1.3\\uncompr.c",
-               "\\rd\\mysql\\zlib-1.1.3\\zutil.c", "\\rd\\mysql\\zlib-1.1.3\\adler32.c"
+               "..\\..\\zlib-1.1.3\\compress.c", "..\\..\\zlib-1.1.3\\crc32.c",
+               "..\\..\\zlib-1.1.3\\deflate.c", "..\\..\\zlib-1.1.3\\gzio.c", "..\\..\\zlib-1.1.3\\infblock.c",
+               "..\\..\\zlib-1.1.3\\infcodes.c", "..\\..\\zlib-1.1.3\\inffast.c",
+               "..\\..\\zlib-1.1.3\\inflate.c", "..\\..\\zlib-1.1.3\\inftrees.c",
+               "..\\..\\zlib-1.1.3\\infutil.c", "..\\..\\zlib-1.1.3\\trees.c", "..\\..\\zlib-1.1.3\\uncompr.c",
+               "..\\..\\zlib-1.1.3\\zutil.c", "..\\..\\zlib-1.1.3\\adler32.c"
 
 group ufc =
-               "\\rd\\mysql\\ufc\\crypt.c",
-               "\\rd\\mysql\\ufc\\crypt_util.c",
-               "\\rd\\mysql\\ufc\\crypt-entry.c"
+               "..\\..\\ufc\\crypt.c",
+               "..\\..\\ufc\\crypt_util.c",
+               "..\\..\\ufc\\crypt-entry.c"
 
 group sql =
                "..\\sql\\convert.cc",
@@ -106,7 +135,7 @@ group sql =
                "..\\sql\\sql_test.cc",
                "..\\sql\\sql_update.cc",
                "..\\sql\\sql_udf.cc",
-               "..\\sql\\sql_yacc.cc",
+               "..\\sql\\sql_yacc.c",
                "..\\sql\\table.cc",
                "..\\sql\\thr_malloc.cc",
                "..\\sql\\time.cc",
@@ -140,8 +169,6 @@ group strings =
                "..\\strings\\ctype-sjis.c",
                "..\\strings\\ctype-tis620.c",
                "..\\strings\\ctype-ujis.c",
-               "..\\strings\\ctype_extra_sources.c",
-               "..\\strings\\ctype_autoconf.c",
                "..\\strings\\ctype.c",
                "..\\strings\\int2str.c",
                "..\\strings\\is_prefix.c",
@@ -162,6 +189,8 @@ group strings =
                "..\\strings\\strxmov.c",
                "..\\strings\\strxnmov.c"
 
+/*
+*/
 
    group heap = "..\\heap\\hp_block.c", "..\\heap\\hp_clear.c",
                 "..\\heap\\hp_close.c", "..\\heap\\hp_create.c", "..\\heap\\hp_delete.c",
@@ -242,7 +271,8 @@ group strings =
                    "..\\mysys\\my_thr_init.c", "..\\mysys\\my_vsnprintf.c",
                    "..\\mysys\\my_write.c", "..\\mysys\\ptr_cmp.c",
                    "..\\mysys\\queues.c", "..\\mysys\\raid.cc",
-                   "..\\mysys\\safemalloc.c", "..\\mysys\\string.c",
+                   //"..\\mysys\\safemalloc.c",
+                   "..\\mysys\\string.c",
                    "..\\mysys\\thr_alarm.c",
                    "..\\mysys\\thr_mutex.c", "..\\mysys\\thr_rwlock.c",
                    "..\\mysys\\tree.c", "..\\mysys\\typelib.c"
@@ -254,11 +284,13 @@ group strings =
                   "..\\myisam\\ft_search.c", "..\\myisam\\ft_static.c",
                   "..\\myisam\\ft_stopwords.c", "..\\myisam\\ft_update.c",
                   "..\\myisam\\mi_cache.c", "..\\myisam\\mi_changed.c",
-                  "..\\myisam\\mi_check.c", "..\\myisam\\mi_checksum.c",
+                  //"..\\myisam\\mi_check.c",
+                  "..\\myisam\\mi_checksum.c",
                   "..\\myisam\\mi_close.c", "..\\myisam\\mi_create.c",
                   "..\\myisam\\mi_dbug.c", "..\\myisam\\mi_delete.c",
                   "..\\myisam\\mi_delete_all.c", "..\\myisam\\mi_delete_table.c",
                   "..\\myisam\\mi_dynrec.c", "..\\myisam\\mi_extra.c",
+                  //"..\\myisam\\mi_error.c",
                   "..\\myisam\\mi_info.c", "..\\myisam\\mi_key.c",
                   "..\\myisam\\mi_locking.c", "..\\myisam\\mi_log.c",
                   "..\\myisam\\mi_open.c", "..\\myisam\\mi_packrec.c",
@@ -271,8 +303,8 @@ group strings =
                   "..\\myisam\\mi_rsamepos.c", "..\\myisam\\mi_scan.c",
                   "..\\myisam\\mi_search.c", "..\\myisam\\mi_static.c",
                   "..\\myisam\\mi_statrec.c", "..\\myisam\\mi_unique.c",
-                  "..\\myisam\\mi_update.c", "..\\myisam\\mi_write.c",
-                  "..\\myisam\\sort.c"
+                  "..\\myisam\\mi_update.c", "..\\myisam\\mi_write.c"
+                  //"..\\myisam\\sort.c"
 
    group dbug =   "..\\dbug\\dbug.c", "..\\dbug\\factorial.c", "..\\dbug\\sanity.c"
 
@@ -293,6 +325,7 @@ group strings =
                           //"..\\readline\\vi_keymap.c",
                           "..\\readline\\vi_mode.c", "..\\readline\\xmalloc.c"
 
-group regex =     "..\\regex\\regcomp.c", "..\\regex\\regerror.c",
-                  "..\\regex\\regexec.c", "..\\regex\\regfree.c", "..\\regex\\reginit.c"
+   group regex =     "..\\regex\\regcomp.c", "..\\regex\\regerror.c",
+                     "..\\regex\\regexec.c", "..\\regex\\regfree.c", "..\\regex\\reginit.c"
 
+   group BldLevelInfo = 'os2\BldLevel.rc'

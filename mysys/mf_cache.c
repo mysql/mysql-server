@@ -37,11 +37,11 @@ static my_bool cache_remove_open_tmp(IO_CACHE *cache, const char *name)
 #else
   int length;
   if (!(cache->file_name=
-	(char*) my_malloc((length=strlen(name)+1),MYF(MY_WME)))
+	(char*) my_malloc((length=strlen(name)+1),MYF(MY_WME))))
   {
     my_close(cache->file,MYF(0));
     cache->file = -1;
-    errno=my_error=ENOMEM;
+    errno=my_errno=ENOMEM;
     return 1;
   }
   memcpy(cache->file_name,name,length);

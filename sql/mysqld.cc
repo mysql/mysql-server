@@ -1220,7 +1220,7 @@ the thread stack. Please read http://www.mysql.com/doc/L/i/Linux.html\n\n",
 Some pointers may be invalid and cause the dump to abort...\n");
     safe_print_str("thd->query", thd->query, 1024);
     fprintf(stderr, "thd->thread_id=%ld\n", thd->thread_id);
-    fprintf(stderr, "\n
+    fprintf(stderr, "\n\
 Successfully dumped variables, if you ran with --log, take a look at the\n\
 details of what thread %ld did to cause the crash.  In some cases of really\n\
 bad corruption, the values shown above may be invalid\n\n",
@@ -2721,6 +2721,8 @@ static struct option long_options[] = {
   {0, 0, 0, 0}
 };
 
+#define LONG_TIMEOUT ((ulong) 3600L*24L*365L)
+
 CHANGEABLE_VAR changeable_vars[] = {
   { "back_log",                (long*) &back_log, 
       50, 1, 65535, 0, 1 },
@@ -2738,15 +2740,15 @@ CHANGEABLE_VAR changeable_vars[] = {
   { "binlog_cache_size",       (long*) &binlog_cache_size,
       32*1024L, IO_SIZE, ~0L, 0, IO_SIZE },
   { "connect_timeout",         (long*) &connect_timeout,
-      CONNECT_TIMEOUT, 2, 65535, 0, 1 },
+      CONNECT_TIMEOUT, 2, LONG_TIMEOUT, 0, 1 },
   { "delayed_insert_timeout",  (long*) &delayed_insert_timeout, 
-      DELAYED_WAIT_TIMEOUT, 1, ~0L, 0, 1 },
+      DELAYED_WAIT_TIMEOUT, 1, LONG_TIMEOUT, 0, 1 },
   { "delayed_insert_limit",    (long*) &delayed_insert_limit, 
       DELAYED_LIMIT, 1, ~0L, 0, 1 },
   { "delayed_queue_size",      (long*) &delayed_queue_size,
       DELAYED_QUEUE_SIZE, 1, ~0L, 0, 1 },
   { "flush_time",              (long*) &flush_time,
-      FLUSH_TIME, 0, ~0L, 0, 1 },
+      FLUSH_TIME, 0, LONG_TIMEOUT, 0, 1 },
 #ifdef HAVE_GEMINI_DB
   { "gemini_buffer_cache",     (long*) &gemini_buffer_cache,
       128 * 8192, 16, LONG_MAX, 0, 1 },
@@ -2791,13 +2793,13 @@ CHANGEABLE_VAR changeable_vars[] = {
      (long*) &innobase_force_recovery, 0, 0, 6, 0, 1},
 #endif
   { "interactive_timeout",     (long*) &net_interactive_timeout,
-      NET_WAIT_TIMEOUT, 1, 31*24*60*60, 0, 1 },
+      NET_WAIT_TIMEOUT, 1, LONG_TIMEOUT, 0, 1 },
   { "join_buffer_size",        (long*) &join_buff_size,
       128*1024L, IO_SIZE*2+MALLOC_OVERHEAD, ~0L, MALLOC_OVERHEAD, IO_SIZE },
   { "key_buffer_size",         (long*) &keybuff_size,
       KEY_CACHE_SIZE, MALLOC_OVERHEAD, (long) ~0, MALLOC_OVERHEAD, IO_SIZE },
   { "long_query_time",         (long*) &long_query_time,
-      10, 1, ~0L, 0, 1 },
+      10, 1, LONG_TIMEOUT, 0, 1 },
   { "lower_case_table_names",  (long*) &lower_case_table_names,
       IF_WIN(1,0), 0, 1, 0, 1 },
   { "max_allowed_packet",      (long*) &max_allowed_packet,
@@ -2836,9 +2838,9 @@ CHANGEABLE_VAR changeable_vars[] = {
   { "net_retry_count",         (long*) &mysqld_net_retry_count,
       MYSQLD_NET_RETRY_COUNT, 1, ~0L, 0, 1 },
   { "net_read_timeout",        (long*) &net_read_timeout, 
-      NET_READ_TIMEOUT, 1, 65535, 0, 1 },
+      NET_READ_TIMEOUT, 1, LONG_TIMEOUT, 0, 1 },
   { "net_write_timeout",       (long*) &net_write_timeout,
-      NET_WRITE_TIMEOUT, 1, 65535, 0, 1 },
+      NET_WRITE_TIMEOUT, 1, LONG_TIMEOUT, 0, 1 },
   { "open_files_limit",        (long*) &open_files_limit,
       0, 0, 65535, 0, 1},
   { "query_buffer_size",       (long*) &query_buff_size,
@@ -2848,9 +2850,9 @@ CHANGEABLE_VAR changeable_vars[] = {
   { "record_rnd_buffer",           (long*) &record_rnd_cache_size,
       0, IO_SIZE*2+MALLOC_OVERHEAD, ~0L, MALLOC_OVERHEAD, IO_SIZE },
   { "slave_net_timeout",        (long*) &slave_net_timeout, 
-      SLAVE_NET_TIMEOUT, 1, 65535, 0, 1 },
+      SLAVE_NET_TIMEOUT, 1, LONG_TIMEOUT, 0, 1 },
   { "slow_launch_time",        (long*) &slow_launch_time, 
-      2L, 0L, ~0L, 0, 1 },
+      2L, 0L, LONG_TIMEOUT, 0, 1 },
   { "sort_buffer",             (long*) &sortbuff_size,
       MAX_SORT_MEMORY, MIN_SORT_MEMORY+MALLOC_OVERHEAD*2, ~0L, MALLOC_OVERHEAD, 1 },
   { "table_cache",             (long*) &table_cache_size,
@@ -2864,7 +2866,7 @@ CHANGEABLE_VAR changeable_vars[] = {
   { "thread_stack",            (long*) &thread_stack,
       DEFAULT_THREAD_STACK, 1024*32, ~0L, 0, 1024 },
   { "wait_timeout",            (long*) &net_wait_timeout,
-      NET_WAIT_TIMEOUT, 1, ~0L, 0, 1 },
+      NET_WAIT_TIMEOUT, 1, LONG_TIMEOUT, 0, 1 },
   { NullS, (long*) 0, 0, 0, 0, 0, 0}
 };
 
