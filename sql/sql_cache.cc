@@ -1022,7 +1022,7 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
 			ALIGN_SIZE(sizeof(Query_cache_result))));
 
     Query_cache_result *result = result_block->result();
-#ifndef EMBEDDED_LIBRARY
+#ifndef EMBEDDED_LIBRARY   /* TODO query cache in embedded library*/
     if (net_real_write(&thd->net, result->data(),
 		       result_block->used -
 		       result_block->headers_len() -

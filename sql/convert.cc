@@ -457,18 +457,6 @@ bool CONVERT::store(String *packet,const char *from,uint length)
     return 1;
   char *to=(char*) net_store_length((char*) packet->ptr()+packet_length,
 				    (ulonglong)length);
-
-  for (const char *end=from+length ; from != end ; from++)
-    *to++= to_map[(uchar) *from];
-  packet->length((uint) (to-packet->ptr()));
+  packet->length((uint) (store_dest(to, from, length)-packet->ptr()));
   return 0;
 }
-
-#ifdef EMBEDDED_LIBRARY
-void CONVERT::convert_back(char *dest, const char *source, uint length) const
-{
-  for (char *end= dest+length; dest < end; dest++, source++)
-    *dest= to_map[*source];
-}
-#endif
-

@@ -687,15 +687,8 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
     field_list.push_back(new Item_empty_string("Comment",255));
   }
         // Send first number of fields and records
-#ifndef EMBEDDED_LIBRARY
-  {
-    char *pos;
-    pos=net_store_length(tmp, (uint) field_list.elements);
-    pos=net_store_length(pos,(ulonglong) file->records);
-    (void) my_net_write(&thd->net,tmp,(uint) (pos-tmp));
-  }
-#endif
-  if (protocol->send_fields(&field_list,0))
+  if (protocol->send_records_num(&field_list, (ulonglong)file->records) ||
+      protocol->send_fields(&field_list,0))
     DBUG_RETURN(1);
   restore_record(table,2);      // Get empty record
 
@@ -963,9 +956,7 @@ mysqld_list_fields(THD *thd, TABLE_LIST *table_list, const char *wild)
   restore_record(table,2);              // Get empty record
   if (thd->protocol->send_fields(&field_list,2))
     DBUG_VOID_RETURN;
-#ifndef EMBEDDED_LIBRARY
   VOID(net_flush(&thd->net));
-#endif
   DBUG_VOID_RETURN;
 }
 
@@ -982,7 +973,6 @@ mysqld_dump_create_info(THD *thd, TABLE *table, int fd)
   if (store_create_info(thd, table, packet))
     DBUG_RETURN(-1);
 
-#ifndef EMBEDDED_LIBRARY
   if (protocol->convert)
     protocol->convert->convert((char*) packet->ptr(), packet->length());
   if (fd < 0)
@@ -997,7 +987,6 @@ mysqld_dump_create_info(THD *thd, TABLE *table, int fd)
 		 MYF(MY_WME)))
       DBUG_RETURN(-1);
   }
-#endif
   DBUG_RETURN(0);
 }
 

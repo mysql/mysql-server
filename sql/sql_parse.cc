@@ -857,7 +857,6 @@ extern "C" pthread_handler_decl(handle_bootstrap,arg)
 		 TRANS_MEM_ROOT_BLOCK_SIZE, TRANS_MEM_ROOT_PREALLOC);
   while (fgets(buff, thd->net.max_packet, file))
   {
-    printf("%s", buff);
     uint length=(uint) strlen(buff);
     while (length && (my_isspace(system_charset_info, buff[length-1]) ||
            buff[length-1] == ';'))
@@ -940,9 +939,7 @@ int mysql_table_dump(THD* thd, char* db, char* tbl_name, int fd)
     my_error(ER_GET_ERRNO, MYF(0));
     goto err;
   }
-#ifndef EMBEDDED_LIBRARY
   net_flush(&thd->net);
-#endif
   if ((error = table->file->dump(thd,fd)))
     my_error(ER_GET_ERRNO, MYF(0));
 
@@ -3239,7 +3236,7 @@ mysql_parse(THD *thd, char *inBuf, uint length)
 	else
 	{
 	  mysql_execute_command(thd);
-#ifndef EMBEDDED_LIBRARY
+#ifndef EMBEDDED_LIBRARY  /* TODO query cache in embedded library*/
 	  query_cache_end_of_result(&thd->net);
 #endif
 	}
@@ -3249,7 +3246,7 @@ mysql_parse(THD *thd, char *inBuf, uint length)
     {
       DBUG_PRINT("info",("Command aborted. Fatal_error: %d",
 			 thd->fatal_error));
-#ifndef EMBEDDED_LIBRARY
+#ifndef EMBEDDED_LIBRARY   /* TODO query cache in embedded library*/
       query_cache_abort(&thd->net);
 #endif
     }

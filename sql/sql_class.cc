@@ -516,9 +516,6 @@ bool select_send::send_fields(List<Item> &list,uint flag)
   return thd->protocol->send_fields(&list,flag);
 }
 
-
-#ifndef EMBEDDED_LIBRARY
-
 /* Send data to client. Returns 0 if ok */
 
 bool select_send::send_data(List<Item> &items)
@@ -551,7 +548,6 @@ bool select_send::send_data(List<Item> &items)
     DBUG_RETURN(protocol->write());
   DBUG_RETURN(1);
 }
-#endif /* EMBEDDED_LIBRARY */
 
 bool select_send::send_eof()
 {

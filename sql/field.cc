@@ -4589,7 +4589,7 @@ void Field_geom::get_key_image(char *buff,uint length,CHARSET_INFO *cs, imagetyp
 
 void Field_geom::set_key_image(char *buff,uint length,CHARSET_INFO *cs)
 {
-  Field_blob::set_key_image(buff, length);
+  Field_blob::set_key_image(buff, length, cs);
 }
 
 void Field_geom::sql_type(String &res) const
