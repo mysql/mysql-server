@@ -277,9 +277,9 @@ NdbScanOperation::fix_receivers(Uint32 parallel){
 void
 NdbScanOperation::receiver_delivered(NdbReceiver* tRec){
   if(theError.code == 0){
-  if(DEBUG_NEXT_RESULT)
-    ndbout_c("receiver_delivered");
-
+    if(DEBUG_NEXT_RESULT)
+      ndbout_c("receiver_delivered");
+    
     Uint32 idx = tRec->m_list_index;
     Uint32 last = m_sent_receivers_count - 1;
     if(idx != last){
@@ -492,6 +492,9 @@ int NdbScanOperation::nextResult(bool fetchAllowed)
   Uint32 nodeId = theNdbCon->theDBnode;
   TransporterFacade* tp = TransporterFacade::instance();
   Guard guard(tp->theMutexPtr);
+  if(theError.code)
+    return -1;
+
   Uint32 seq = theNdbCon->theNodeSequence;
   if(seq == tp->getNodeSequence(nodeId) && send_next_scan(idx, false) == 0){
       
@@ -685,10 +688,8 @@ void NdbScanOperation::closeScan()
 
 void
 NdbScanOperation::execCLOSE_SCAN_REP(){
-  m_api_receivers_count = 0;
   m_conf_receivers_count = 0;
   m_sent_receivers_count = 0;
-  m_current_api_receiver = m_ordered ? theParallelism : 0;
 }
 
 void NdbScanOperation::release()
@@ -1333,6 +1334,8 @@ NdbIndexScanOperation::next_result_ordered(bool fetchAllowed){
       if(DEBUG_NEXT_RESULT) ndbout_c("performing fetch...");
       TransporterFacade* tp = TransporterFacade::instance();
       Guard guard(tp->theMutexPtr);
+      if(theError.code)
+	return -1;
       Uint32 seq = theNdbCon->theNodeSequence;
       Uint32 nodeId = theNdbCon->theDBnode;
       if(seq == tp->getNodeSequence(nodeId) && !send_next_scan_ordered(s_idx)){
@@ -1346,6 +1349,13 @@ NdbIndexScanOperation::next_result_ordered(bool fetchAllowed){
 	    continue;
 	  }
 	  if(DEBUG_NEXT_RESULT) ndbout_c("return -1");
+	  setErrorCode(4028);
+	  return -1;
+	}
+	
+	if(theError.code){
+	  setErrorCode(theError.code);
+	  if(DEBUG_NEXT_RESULT) ndbout_c("return -1");
 	  return -1;
 	}
 	
@@ -1355,11 +1365,9 @@ NdbIndexScanOperation::next_result_ordered(bool fetchAllowed){
 	memcpy(arr, m_conf_receivers, u_last * sizeof(char*));
 	
 	if(DEBUG_NEXT_RESULT) ndbout_c("sent: %d recv: %d", tmp, u_last);
-	if(theError.code){
-	  setErrorCode(theError.code);
-	  if(DEBUG_NEXT_RESULT) ndbout_c("return -1");
-	  return -1;
-	}
+      } else {
+	setErrorCode(4028);
+	return -1;
       }
     } else {
       if(DEBUG_NEXT_RESULT) ndbout_c("return 2");
@@ -1496,6 +1504,13 @@ NdbScanOperation::close_impl(TransporterFacade* tp){
       return -1;
     }
   }
+
+  if(theError.code)
+  {
+    m_api_receivers_count = 0;
+    m_current_api_receiver = m_ordered ? theParallelism : 0;
+  }
+
 
   /**
    * move all conf'ed into api
