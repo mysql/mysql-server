@@ -1739,7 +1739,6 @@ static void mysql_once_init()
 
 #define strdup_if_not_null(A) (A) == 0 ? 0 : my_strdup((A),MYF(MY_WME))
 
-#ifdef HAVE_OPENSSL
 my_bool STDCALL
 mysql_ssl_set(MYSQL *mysql __attribute__((unused)) ,
 	      const char *key __attribute__((unused)),
@@ -1748,14 +1747,15 @@ mysql_ssl_set(MYSQL *mysql __attribute__((unused)) ,
 	      const char *capath __attribute__((unused)),
 	      const char *cipher __attribute__((unused)))
 {
+#ifdef HAVE_OPENSSL
   mysql->options.ssl_key=    strdup_if_not_null(key);
   mysql->options.ssl_cert=   strdup_if_not_null(cert);
   mysql->options.ssl_ca=     strdup_if_not_null(ca);
   mysql->options.ssl_capath= strdup_if_not_null(capath);
   mysql->options.ssl_cipher= strdup_if_not_null(cipher);
+#endif /* HAVE_OPENSSL */
   return 0;
 }
-#endif
 
 
 /**************************************************************************
@@ -3927,26 +3927,7 @@ mysql_prepare(MYSQL  *mysql, const char *query, ulong length)
 /*
   Returns prepared meta information in the form of resultset
   to client.
-TODO : Return param information also
 */
-
-MYSQL_RES *prepare_result(MYSQL_FIELD *fields, unsigned long count)
-{
-  MYSQL_RES *result;
-  
-  if (!count || !fields)
-    return 0;
-
-  if (!(result=(MYSQL_RES*) my_malloc(sizeof(*result)+
-				      sizeof(ulong)*count,
-				      MYF(MY_WME | MY_ZEROFILL))))
-    return 0;
-
-  result->eof=1;	/* Marker for buffered */
-  result->fields=	fields;
-  result->field_count=	count;
-  return result;
-}
 
 MYSQL_RES * STDCALL
 mysql_prepare_result(MYSQL_STMT *stmt)
@@ -4430,6 +4411,327 @@ mysql_send_long_data(MYSQL_STMT *stmt, uint param_number,
 ****************************************************************************/
 
 
+static ulong get_field_length(uint type)
+{
+  ulong length;
+
+  switch (type) {
+
+  case MYSQL_TYPE_TINY:
+    length= 1;
+    break;
+  case MYSQL_TYPE_SHORT:
+  case MYSQL_TYPE_YEAR:
+    length= 2;
+    break;
+  case MYSQL_TYPE_LONG:
+  case MYSQL_TYPE_FLOAT:
+    length= 4;
+    break;
+  case MYSQL_TYPE_LONGLONG:
+  case MYSQL_TYPE_DOUBLE:
+    length= 8;
+    break;
+  default:
+    length= 0;
+  }
+  return length;
+}
+
+static void send_data_long(MYSQL_BIND *param, longlong value)
+{  
+  char *buffer= param->buffer;
+  
+  *param->length= get_field_length(param->buffer_type);
+  switch(param->buffer_type) {
+
+  case MYSQL_TYPE_TINY:
+    *param->buffer= (uchar) value;
+    break;
+  case MYSQL_TYPE_SHORT:
+    int2store(buffer, (short)value);
+    break;
+  case MYSQL_TYPE_LONG:
+    int4store(buffer, (int32)value);
+    break;
+  case MYSQL_TYPE_LONGLONG:
+    int8store(buffer, (longlong)value);
+    break;
+  case MYSQL_TYPE_FLOAT:
+    {
+      float data= (float)value;
+      float4store(buffer, data);
+      break;
+    }
+  case MYSQL_TYPE_DOUBLE:
+    {
+      double data= (double)value;
+      float8store(buffer, data);
+      break;
+    }
+  default:
+    {
+      uint length= sprintf(buffer,"%lld",value);
+      *param->length= length;
+      buffer[length]='\0';
+    }
+  } 
+}
+
+static void send_data_double(MYSQL_BIND *param, double value)
+{  
+  char *buffer= param->buffer;
+
+  *param->length= get_field_length(param->buffer_type);
+  switch(param->buffer_type) {
+
+  case MYSQL_TYPE_TINY:
+    *buffer= (uchar)value;
+    break;
+  case MYSQL_TYPE_SHORT:
+    int2store(buffer, (short)value);
+    break;
+  case MYSQL_TYPE_LONG:
+    int4store(buffer, (int32)value);
+    break;
+  case MYSQL_TYPE_LONGLONG:
+    int8store(buffer, (longlong)value);
+    break;
+  case MYSQL_TYPE_FLOAT:
+    {
+      float data= (float)value;
+      float4store(buffer, data);
+      break;
+    }
+  case MYSQL_TYPE_DOUBLE:
+    {
+      double data= (double)value;
+      float8store(buffer, data);
+      break;
+    }
+  default:
+    {
+      uint length= sprintf(buffer,"%g",value);
+      *param->length= length;
+      buffer[length]='\0';
+    }
+  } 
+}
+
+static void send_data_str(MYSQL_BIND *param, char *value, uint src_length)
+{  
+  char *buffer= param->buffer;
+
+  *param->length= get_field_length(param->buffer_type);
+  switch(param->buffer_type) {
+
+  case MYSQL_TYPE_TINY:
+    *buffer= (char)*value;
+    break;
+  case MYSQL_TYPE_SHORT:
+  {
+    short data= (short)sint2korr(value);
+    int2store(buffer, data);
+    break;
+  }
+  case MYSQL_TYPE_LONG:
+  {
+    int32 data= (int32)sint4korr(value);
+    int4store(buffer, data);    
+    break;
+  }
+  case MYSQL_TYPE_LONGLONG:
+  {
+    longlong data= sint8korr(value);
+    int8store(buffer, data);
+    break;
+  }
+  case MYSQL_TYPE_FLOAT:
+  {
+    float data;
+    float4get(data, value);
+    float4store(buffer, data);
+    break;
+  }
+  case MYSQL_TYPE_DOUBLE:
+  {
+    double data;
+    float8get(data, value);
+    float8store(buffer, data);
+    break;
+  }
+  default:
+    *param->length= src_length;
+    memcpy(buffer, value, src_length);
+    buffer[src_length]='\0';
+  } 
+}
+
+static my_bool fetch_results(MYSQL_STMT *stmt, MYSQL_BIND *param,
+                             uint field_type, uchar **row)
+{
+  ulong length;
+
+  length= get_field_length(field_type);
+  switch (field_type) {
+
+  case MYSQL_TYPE_TINY:
+  {
+    uchar value= (uchar) **row;
+    send_data_long(param,(longlong)value);
+    break;
+  }
+  case MYSQL_TYPE_SHORT:
+  case MYSQL_TYPE_YEAR:
+  {
+    short value= (short)sint2korr(*row);
+    send_data_long(param,(longlong)value);
+    break;
+  }
+  case MYSQL_TYPE_LONG:
+  {
+    int32 value= (int32)sint4korr(*row);
+    send_data_long(param,(int32)value);
+    break;
+  }
+  case MYSQL_TYPE_LONGLONG:
+  {
+    longlong value= (longlong)sint8korr(*row);
+    send_data_long(param,value);
+    break;
+  }
+  case MYSQL_TYPE_FLOAT:
+  {
+    float value;
+    float4get(value,*row);
+    send_data_double(param,(double)value);
+    break;
+  }
+  case MYSQL_TYPE_DOUBLE:
+  {
+    double value;
+    float8get(value,*row);
+    send_data_double(param,(double)value);
+    break;
+  }
+  case MYSQL_TYPE_DATE:
+  case MYSQL_TYPE_DATETIME:
+  case MYSQL_TYPE_TIMESTAMP:
+  {
+    uchar month,day;
+    short year;
+    int   arg_length;
+    char  ts[50],frac[10],time[20],date[20];
+    
+    if (!(length= net_field_length(row)))
+    {
+      *param->length= 0;
+      break;
+    }
+    if (param->buffer_type < MYSQL_TYPE_VAR_STRING ||
+	      param->buffer_type > MYSQL_TYPE_STRING)
+    {
+      /*
+        Don't allow fetching of date/time/ts to non-string types 
+        TODO: Allow fetching of date or time to long types.              
+      */
+      sprintf(stmt->last_error, 
+              ER(stmt->last_errno= CR_UNSUPPORTED_PARAM_TYPE),
+	            param->buffer_type, param->param_number);
+      return 1;
+    }
+    
+    arg_length= 0;
+    if (length > 7)
+    {
+      int sec_part= sint4korr(*row+7);
+      sprintf(frac,".%04d", sec_part);      
+      arg_length+= 5;
+    }
+    if (length == 7)
+    { 
+      uchar hour, minute, sec;
+      hour= *(*row+4);
+      minute= *(*row+5);
+      sec= *(*row+6);
+      sprintf((char *)time," %02d:%02d:%02d",hour,minute,sec);
+      arg_length+= 9;
+    }
+    
+    year= sint2korr(*row);
+    month= *(*row+2);
+    day= *(*row+3);
+    sprintf((char*) date,"%04d-%02d-%02d",year,month,day);
+    arg_length+= 10;
+
+    if (arg_length != 19)
+      time[0]='\0';
+    if (arg_length != 24)
+      frac[0]='\0';    
+    
+    strxmov(ts,date,time,frac,NullS);
+    send_data_str(param,ts,arg_length);    
+    break;
+  }
+  case MYSQL_TYPE_TIME:
+  {
+    int day, arg_length;
+    uchar hour, minute, sec;
+    char ts[255], frac[20], time[20];
+    const char *sign= "";
+    
+    if (!(length= net_field_length(row)))
+    {
+      *param->length= 0;
+      break;
+    }
+    if (param->buffer_type < MYSQL_TYPE_VAR_STRING ||
+	      param->buffer_type > MYSQL_TYPE_STRING)
+    {
+      /*
+        Don't allow fetching of date/time/ts to non-string types 
+
+        TODO: Allow fetching of time to long types without 
+              any conversion.
+      */      
+      sprintf(stmt->last_error, 
+              ER(stmt->last_errno= CR_UNSUPPORTED_PARAM_TYPE),
+	            param->buffer_type, param->param_number);
+      return 1;
+    }
+    arg_length= 0;
+    if (length > 8)
+    {
+      int sec_part= sint4korr(*row+8);
+      sprintf(frac,".%04d", sec_part);      
+      arg_length+= 5;
+    }
+
+    if (**row)
+      sign="-";
+
+    day= sint4korr(*row); /* TODO: how to handle this case */
+    hour= *(*row+5);
+    minute= *(*row+6);
+    sec= *(*row+7);
+    arg_length+= sprintf((char *)time,"%s%02d:%02d:%02d",sign,hour,minute,sec);
+
+    if (arg_length <= 9)
+      frac[0]='\0';    
+    
+    strxmov(ts,time,frac,NullS);
+    send_data_str(param,ts,arg_length);    
+    break;
+  }
+  default:      
+    length= net_field_length(row); 
+    send_data_str(param,*row,length);
+    break;
+  }
+  *row+= length;
+  return 0;
+}
+
 static void fetch_result_tinyint(MYSQL_BIND *param, uchar **row)
 {
   *param->buffer= (uchar) **row;
@@ -4438,23 +4740,23 @@ static void fetch_result_tinyint(MYSQL_BIND *param, uchar **row)
 
 static void fetch_result_short(MYSQL_BIND *param, uchar **row)
 {
-  short value= (short)**row;
-  int2store(param->buffer, value); 
-  *row+=2;
+  short value = (short)sint2korr(*row);
+  int2store(param->buffer, value);
+  *row+= 2;
 }
 
 static void fetch_result_int32(MYSQL_BIND *param, uchar **row)
 {
-  int32 value= (int32)**row;
+  int32 value= (int32)sint4korr(*row);
   int4store(param->buffer, value);
-  *row+=4;
+  *row+= 4;
 }
 
 static void fetch_result_int64(MYSQL_BIND *param, uchar **row)
-{
-  longlong value= (longlong)**row;
+{  
+  longlong value= (longlong)sint8korr(*row);
   int8store(param->buffer, value);
-  *row+=8;
+  *row+= 8;
 }
 
 static void fetch_result_float(MYSQL_BIND *param, uchar **row)
@@ -4462,7 +4764,7 @@ static void fetch_result_float(MYSQL_BIND *param, uchar **row)
   float value;
   float4get(value,*row);
   float4store(param->buffer, value);
-  *row+=4;
+  *row+= 4;
 }
 
 static void fetch_result_double(MYSQL_BIND *param, uchar **row)
@@ -4470,16 +4772,16 @@ static void fetch_result_double(MYSQL_BIND *param, uchar **row)
   double value;
   float8get(value,*row);
   float8store(param->buffer, value);
-  *row+=8;
+  *row+= 8;
 }
 
 static void fetch_result_str(MYSQL_BIND *param, uchar **row)
 {
   ulong length= net_field_length(row);
   memcpy(param->buffer, (char *)*row, length);
-  *(param->buffer+length)= '\0'; /* do we need this for all cases.. I doubt */
+  *(param->buffer+length)= '\0';
   *param->length= length;
-  *row+=length;
+  *row+= length;
 }
 
 /*
@@ -4535,9 +4837,10 @@ my_bool STDCALL mysql_bind_result(MYSQL_STMT *stmt, MYSQL_BIND *bind)
     case MYSQL_TYPE_TINY_BLOB:
     case MYSQL_TYPE_MEDIUM_BLOB:
     case MYSQL_TYPE_LONG_BLOB:
+    case MYSQL_TYPE_BLOB:
     case MYSQL_TYPE_VAR_STRING:
     case MYSQL_TYPE_STRING:
-      param->length= &param->buffer_length;
+      param->bind_length= 0;        
       param->fetch_result= fetch_result_str;
       break;
     default:
@@ -4560,7 +4863,7 @@ static void
 stmt_fetch_row(MYSQL_STMT *stmt, uchar *row)
 {
   MYSQL_BIND  *bind, *end;
-  MYSQL_FIELD *field;
+  MYSQL_FIELD *field, *field_end;
   uchar *null_ptr, bit;
   
   null_ptr= row; 
@@ -4569,15 +4872,20 @@ stmt_fetch_row(MYSQL_STMT *stmt, uchar *row)
   
   /* Copy complete row to application buffers */
   for (bind= stmt->bind, end= (MYSQL_BIND *) bind + stmt->field_count, 
-       field= stmt->fields;
-       bind < end && field;
+       field= stmt->fields, 
+       field_end= (MYSQL_FIELD *)stmt->fields+stmt->field_count;
+       bind < end && field < field_end;
        bind++, field++)
   {         
     if (*null_ptr & bit)
       *bind->length= MYSQL_NULL_DATA;
     else
-      /* TODO: Add conversion routines code here */
-      (*bind->fetch_result)(bind, &row);
+    { 
+      if (field->type == bind->buffer_type)
+        (*bind->fetch_result)(bind, &row);
+      else if (fetch_results(stmt, bind, field->type, &row))
+        break;
+    }
     if (! (bit<<=1) & 255)
     {
       bit= 1;					/* To next byte */
