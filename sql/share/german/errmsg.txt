@@ -258,7 +258,7 @@ character-set=latin1
 "Schlüssel- und Tabellenverweis passen nicht zusammen",
 "Operand solle %d Spalte(n) enthalten",
 "Unterabfrage lieferte mehr als einen Datensatz zurück",
-"Unbekannter Prepared-Statement-Handler (%ld) für %s angegeben",
+"Unbekannter Prepared-Statement-Handler (%.*s) für %s angegeben",
 "Die Hilfe-Datenbank ist beschädigt oder existiert nicht",
 "Zyklischer Verweis in Unterabfragen",
 "Spalte '%s' wird von %s nach %s umgewandelt",
