@@ -107,13 +107,8 @@ then
   fi
 fi
 
-# Try to determine the fully qualified domain name (FQDN)
-HOSTNAME="@HOSTNAME@"
-if $HOSTNAME -f > /dev/null 2>&1 ; then
-	hostname=`$HOSTNAME -f`
-else
-	hostname=`$HOSTNAME`
-fi
+# Try to determine the hostname
+hostname=`@HOSTNAME@`
 
 # Check if hostname is valid
 if test "$IN_RPM" -eq 0 -a $force -eq 0
