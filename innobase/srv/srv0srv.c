@@ -856,6 +856,7 @@ srv_release_max_if_no_queries(void)
 	mutex_exit(&kernel_mutex);
 }
 
+#ifdef notdefined
 /***********************************************************************
 Releases one utility thread if no queries are active and
 the high-water mark 2 for the utility is exceeded. */
@@ -890,7 +891,6 @@ srv_release_one_if_no_queries(void)
 	mutex_exit(&kernel_mutex);
 }
 
-#ifdef notdefined
 /***********************************************************************
 Decrements the utility meter by the value given and suspends the calling
 thread, which must be an utility thread of the type given, if necessary. */
@@ -1000,6 +1000,8 @@ srv_communication_init(
 	
 	ut_a(ret == 0);
 }
+
+#ifdef notdefined
 	
 /*************************************************************************
 Implements the recovery utility. */
@@ -1060,6 +1062,7 @@ srv_purge_thread(
 
 	return(0);
 }
+#endif /* notdefined */
 
 /*************************************************************************
 Creates the utility threads. */
@@ -1090,6 +1093,7 @@ srv_create_utility_threads(void)
 	ut_a(thread); */
 }
 
+#ifdef notdefined
 /*************************************************************************
 Implements the communication threads. */
 static
@@ -1139,6 +1143,7 @@ srv_com_thread(
 
 	return(0);
 }
+#endif
 
 /*************************************************************************
 Creates the communication threads. */
@@ -1159,6 +1164,7 @@ srv_create_com_threads(void)
 	}
 }
 
+#ifdef notdefined
 /*************************************************************************
 Implements the worker threads. */
 static
@@ -1203,6 +1209,7 @@ srv_worker_thread(
 
 	return(0);
 }
+#endif
 
 /*************************************************************************
 Creates the worker threads. */
@@ -1693,7 +1700,17 @@ srv_init(void)
 		ut_a(conc_slot->event);
 	}
 }	
-	
+
+/*************************************************************************
+Frees the OS fast mutex created in srv_init(). */
+
+void
+srv_free(void)
+/*==========*/
+{
+	os_fast_mutex_free(&srv_conc_mutex);
+}
+
 /*************************************************************************
 Initializes the synchronization primitives, memory system, and the thread
 local storage. */
@@ -1702,67 +1719,14 @@ void
 srv_general_init(void)
 /*==================*/
 {
+	os_sync_init();
 	sync_init();
 	mem_init(srv_mem_pool_size);
 	thr_local_init();
 }
 
-
-#if defined(__NETWARE__) || defined(SAFE_MUTEX_DETECT_DESTROY)
-/* NetWare requires some cleanup of mutexes */
-
-/*************************************************************************
-Deinitializes the synchronization primitives, memory system, and the thread
-local storage. */
-
-void
-srv_general_free(void)
-/*==================*/
-{
-  sync_close();
-}
-#endif /* __NETWARE__ */
-
-
 /*======================= InnoDB Server FIFO queue =======================*/
 
-#if defined(__NETWARE__) || defined(SAFE_MUTEX_DETECT_DESTROY)
-/* NetWare requires some cleanup of mutexes */
-
-/*************************************************************************
-Deinitializes the server. */
-
-void
-srv_free(void)
-/*==========*/
-{
-  srv_conc_slot_t* conc_slot;
-  srv_slot_t* slot;
-  ulint i;
-
-  for (i = 0; i < OS_THREAD_MAX_N; i++)
-  {
-    slot = srv_table_get_nth_slot(i);
-    os_event_free(slot->event);
-  }
-
-  /* TODO: free(srv_sys->threads); */
-
-  for (i = 0; i < OS_THREAD_MAX_N; i++)
-  {
-    slot = srv_mysql_table + i;
-    os_event_free(slot->event);
-  }
-
-  /* TODO: free(srv_mysql_table); */
-
-  for (i = 0; i < OS_THREAD_MAX_N; i++)
-  {
-    conc_slot = srv_conc_slots + i;
-    os_event_free(conc_slot->event);
-  }
-}
-#endif /* __NETWARE__ */
 
 /*************************************************************************
 Puts an OS thread to wait if there are too many concurrent threads
@@ -2499,6 +2463,10 @@ srv_lock_timeout_and_monitor_thread(
 	char*		buf;
 	ulint		i;
 
+#ifdef UNIV_DEBUG_THREAD_CREATION
+	printf("Lock timeout thread starts\n");
+	printf("Thread id %lu\n", os_thread_pf(os_thread_get_curr_id()));
+#endif
 	UT_NOT_USED(arg);
 	srv_last_monitor_time = time(NULL);
 	last_table_monitor_time = time(NULL);
@@ -2639,6 +2607,10 @@ loop:
 exit_func:
 	srv_lock_timeout_and_monitor_active = FALSE;
 
+	/* We count the number of threads in os_thread_exit(). A created
+	thread should always use that to exit and not use return() to exit. */
+
+	os_thread_exit(NULL);
 #ifndef __WIN__
         return(NULL);
 #else
@@ -2664,6 +2636,10 @@ srv_error_monitor_thread(
 	ulint	cnt	= 0;
 
 	UT_NOT_USED(arg);
+#ifdef UNIV_DEBUG_THREAD_CREATION
+	printf("Error monitor thread starts\n");
+	printf("Thread id %lu\n", os_thread_pf(os_thread_get_curr_id()));
+#endif
 loop:
 	srv_error_monitor_active = TRUE;
 
@@ -2699,6 +2675,11 @@ loop:
 	}
 
 	srv_error_monitor_active = FALSE;
+
+	/* We count the number of threads in os_thread_exit(). A created
+	thread should always use that to exit and not use return() to exit. */
+
+	os_thread_exit(NULL);
 
 #ifndef __WIN__
         return(NULL);
@@ -2778,6 +2759,10 @@ srv_master_thread(
 	
 	UT_NOT_USED(arg);
 
+#ifdef UNIV_DEBUG_THREAD_CREATION
+	printf("Master thread starts\n");
+	printf("Thread id %lu\n", os_thread_pf(os_thread_get_curr_id()));
+#endif
 	srv_main_thread_process_no = os_proc_get_number();
 	srv_main_thread_id = os_thread_pf(os_thread_get_curr_id());
 	
@@ -3013,6 +2998,15 @@ background_loop:
 
 	n_tables_to_drop = row_drop_tables_for_mysql_in_background();
 
+	if (n_tables_to_drop > 0) {
+	        /* Do not monopolize the CPU even if there are tables waiting
+		in the background drop queue. (It is essentially a bug if
+		MySQL tries to drop a table while there are still open handles
+		to it and we had to put it to the background drop queue.) */
+
+		os_thread_sleep(100000);
+	}
+ 
 	srv_main_thread_op_info = (char*)"purging";
 
 	if (srv_fast_shutdown && srv_shutdown_state > 0) {
@@ -3139,10 +3133,24 @@ suspend_thread:
 
 	os_event_wait(event);
 
+	if (srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS) {
+	        /* This is only extra safety, the thread should exit
+		already when the event wait ends */
+
+	        os_thread_exit(NULL);
+	}
+
 	/* When there is user activity, InnoDB will set the event and the main
 	thread goes back to loop: */
 
 	goto loop;
+
+	/* We count the number of threads in os_thread_exit(). A created
+	thread should always use that to exit and not use return() to exit.
+	The thread actually never comes here because it is exited in an
+	os_event_wait(). */
+	
+	os_thread_exit(NULL);
 
 #ifndef __WIN__
         return(NULL);

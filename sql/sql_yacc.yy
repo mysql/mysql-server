@@ -3397,6 +3397,7 @@ keyword:
 	| USE_FRM		{}
 	| VARIABLES		{}
 	| WORK_SYM		{}
+	| X509_SYM		{}
 	| YEAR_SYM		{};
 
 /* Option functions */
