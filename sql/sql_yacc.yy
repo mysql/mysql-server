@@ -2750,13 +2750,12 @@ simple_expr:
           }
 	| LAST_INSERT_ID '(' ')'
 	  {
-	    $$= get_system_var(YYTHD, OPT_SESSION, "last_insert_id", 14,
-			      "last_insert_id()");
+	    $$= new Item_func_last_insert_id();
 	    Lex->safe_to_cache_query= 0;
 	  }
 	| LAST_INSERT_ID '(' expr ')'
 	  {
-	    $$= new Item_func_set_last_insert_id($3);
+	    $$= new Item_func_last_insert_id($3);
 	    Lex->safe_to_cache_query= 0;
 	  }
 	| LEFT '(' expr ',' expr ')'

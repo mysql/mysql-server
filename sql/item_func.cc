@@ -2139,13 +2139,22 @@ longlong Item_func_release_lock::val_int()
 }
 
 
-longlong Item_func_set_last_insert_id::val_int()
+longlong Item_func_last_insert_id::val_int()
 {
   DBUG_ASSERT(fixed == 1);
-  longlong value=args[0]->val_int();
-  current_thd->insert_id(value);
-  null_value=args[0]->null_value;
-  return value;
+  if (arg_count)
+  {
+    longlong value=args[0]->val_int();
+    current_thd->insert_id(value);
+    null_value=args[0]->null_value;
+    return value;
+  }
+  else
+  {
+    Item *it= get_system_var(current_thd, OPT_SESSION, "last_insert_id", 14,
+			     "last_insert_id()");
+    return it->val_int();
+  }
 }
 
 /* This function is just used to test speed of different functions */
