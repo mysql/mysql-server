@@ -24191,7 +24191,7 @@ The most common bottlenecks are:
 @item Disk seeks.
 It takes time for the disk to find a piece of data. With modern disks in
 1999, the mean time for this is usually lower than 10ms, so we can in
-theory do about 1000 seeks a second. This time improves slowly with new
+theory do about 100 seeks a second. This time improves slowly with new
 disks and is very hard to optimize for a single table. The way to
 optimize this is to spread the data on more than one disk.
 
