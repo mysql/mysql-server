@@ -871,7 +871,6 @@ extern "C" void unireg_abort(int exit_code)
     sql_print_error("Aborting\n");
   clean_up(1); /* purecov: inspected */
   DBUG_PRINT("quit",("done with cleanup in unireg_abort"));
-  my_thread_end();
   clean_up_mutexes();
   my_end(opt_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
   exit(exit_code); /* purecov: inspected */
