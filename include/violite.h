@@ -32,7 +32,11 @@ extern "C" {
 #endif /* __cplusplus */
 
 enum enum_vio_type { VIO_CLOSED, VIO_TYPE_TCPIP, VIO_TYPE_SOCKET,
-		     VIO_TYPE_NAMEDPIPE, VIO_TYPE_SSL,VIO_TYPE_SHARED_MEMORY};
+		     VIO_TYPE_NAMEDPIPE, VIO_TYPE_SSL,VIO_TYPE_SHARED_MEMORY
+#ifdef EMBEDDED_LIBRARY
+		     , VIO_TYPE_BUFFER
+#endif
+};
 
 #ifndef __WIN__
 #define HANDLE void *

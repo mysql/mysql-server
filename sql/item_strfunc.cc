@@ -1379,6 +1379,10 @@ String *Item_func_user::val_str(String *str)
   const char   *host=thd->host ? thd->host : thd->ip ? thd->ip : "";
   uint32       res_length=(strlen(thd->user)+strlen(host)+10) * cs->mbmaxlen;
   
+#ifdef EMBEDDED_LIBRARY
+  if (str->copy("localuser@localhost", (uint)strlen("localuser@localhost")))
+    return &empty_string;
+#else
   if (str->alloc(res_length))
   {
       null_value=1;
@@ -1388,6 +1392,7 @@ String *Item_func_user::val_str(String *str)
   str->length(res_length);
   str->set_charset(cs);
   return str;
+#endif
 }
 
 void Item_func_soundex::fix_length_and_dec()
