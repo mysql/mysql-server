@@ -3488,7 +3488,8 @@ select * from temporary_table, temporary_table as t2;
 @end example
 
 @item
-@code{RENAME} doesn't work with @code{TEMPORARY} tables.
+@code{RENAME} doesn't work with @code{TEMPORARY} tables or tables used in a
+@code{MERGE} table.
 
 @item
 The optimiser may handle @code{DISTINCT} differently if you are using
@@ -3584,6 +3585,7 @@ Minimum respective maximum possible @code{double} value.
 
 @item
 @code{LIMIT} on negative numbers are treated as big positive numbers.
+
 @item
 If you use @code{ALTER TABLE} to first add an @code{UNIQUE} index to a
 table used in a @code{MERGE} table and then use @code{ALTER TABLE} to
@@ -3731,6 +3733,9 @@ able to choose the right index when there is many to choose from. We should
 also extend the info interface to get the key distribution for each index,
 of @code{analyze} is run on all sub tables.
 @item
+@code{RENAME TABLE} on a table used in an active @code{MERGE} table may
+corrupt the table.
+@item
 @code{SET SQL_DEFAULT_TABLE_TYPE=[MyISAM | INNODB | BDB | HEAP]}.
 @end itemize
 
@@ -3799,8 +3804,6 @@ in microseconds.
 @item
 Add a configurable prompt to the @code{mysql} command line client, with
 options like database in use, time and date...
-@item
-Add range checking to @code{MERGE} tables.
 @item
 Link the @code{myisampack} code into the server.
 @item
@@ -7833,6 +7836,10 @@ Multithreaded clients should use @code{mysql_thread_init()} and
 If you want to recompile the perl DBD-MySQL module, you must get
 Msql-Mysql-modules version 1.2218 or newer, because the older DBD modules
 used the deprecated @code{drop_db()} call.
+@item
+@code{RAND(seed)} returns a different random number series in 4.0 than in
+3.23;  This was done to get @code{RAND(seed)} and @code{RAND(seed+1)} more
+different.
 @end itemize
 
 @node Upgrading-from-3.22, Upgrading-from-3.21, Upgrading-from-3.23, Upgrade
@@ -9181,12 +9188,14 @@ from usage by other threads.  This has to do with the fact that on Windows,
 you can't delete a file that is in use by another threads.  (In the future,
 we may find some way to work around this problem.)
 
-@item @code{DROP TABLE} on a table that is in use by a @code{MERGE} table will not work
-The @code{MERGE} handler does its table mapping hidden from MySQL.
-Because Windows doesn't allow you to drop files that are open, you first
-must flush all @code{MERGE} tables (with @code{FLUSH TABLES}) or drop the
-@code{MERGE} table before dropping the table.  We will fix this at the same 
-time we introduce @code{VIEW}s.
+@item
+@code{DROP TABLE} on a table that is in use by a @code{MERGE} table will
+not work on windows becasue @code{MERGE} handler does the table mapping
+hidden from the upper layer of MySQL.  Because Windows doesn't allow you
+to drop files that are open, you first must flush all @code{MERGE}
+tables (with @code{FLUSH TABLES}) or drop the @code{MERGE} table before
+dropping the table.  We will fix this at the same time we introduce
+@code{VIEW}s.
 @item
 @code{DATA DIRECTORY} and @code{INDEX DIRECTORY} directives in
 @code{CREATE TABLE} is ignored on windows, because windows doesn't support
@@ -13130,7 +13139,7 @@ DROP TABLE tmp;
 @end example
 
 The above way to solve this query is in effect a @code{UNION} of two queries.
-
+@xref{UNION}.
 
 @node Calculating days, example-AUTO_INCREMENT, Searching on two keys, Examples
 @subsection Calculating visits per day
@@ -25148,9 +25157,9 @@ option to @code{DELETE} may help. @xref{DELETE, , @code{DELETE}}.
 * MySQL indexes::               How MySQL Uses Indexes
 * Indexes::                     Column Indexes
 * Multiple-column indexes::     Multiple-Column Indexes
+* Open tables::                 Why So Many Open tables?
 * Table cache::                 How MySQL Opens and Closes Tables
 * Creating many tables::        Drawbacks to Creating Large Numbers of Tables in the Same Database
-* Open tables::                 Why So Many Open tables?
 @end menu
 
 
@@ -25495,7 +25504,7 @@ created only from @code{VARCHAR} and @code{TEXT} columns.
 Indexing always happens over the entire column and partial indexing is not
 supported. See @ref{Fulltext Search} for details.
 
-@node Multiple-column indexes, Table cache, Indexes, Optimising Database Structure
+@node Multiple-column indexes, Open tables, Indexes, Optimising Database Structure
 @subsection Multiple-Column Indexes
 
 @cindex multi-column indexes
@@ -25556,8 +25565,31 @@ For more information on the manner in which MySQL uses indexes to
 improve query performance, see @ref{MySQL indexes, , MySQL
 indexes}.
 
+@node Open tables, Table cache, Multiple-column indexes, Optimising Database Structure
+@subsection Why So Many Open tables?
 
-@node Table cache, Creating many tables, Multiple-column indexes, Optimising Database Structure
+@cindex tables, open
+@cindex open tables
+
+When you run @code{mysqladmin status}, you'll see something like this:
+
+@example
+Uptime: 426 Running threads: 1 Questions: 11082 Reloads: 1 Open tables: 12
+@end example
+
+This can be somewhat perplexing if you only have 6 tables.
+
+MySQL is multithreaded, so it may have many queries on the same table
+simultaneously. To minimise the problem with two threads having
+different states on the same file, the table is opened independently by
+each concurrent thread. This takes some memory but will normaly increase
+performance.  Wth ISAM and MyISAM tables this also requires one extra file
+descriptor for the data file. With these table types the index file
+descriptor is shared between all threads.
+
+You can read more about this topic in the next section. @xref{Table cache}.
+
+@node Table cache, Creating many tables, Open tables, Optimising Database Structure
 @subsection How MySQL Opens and Closes Tables
 
 @findex table_cache
@@ -25592,11 +25624,27 @@ in increase the number of file descriptors available for MySQL with
 the @code{--open-files-limit=#} startup option. @xref{Not enough file
 handles}.
 
-The cache of open tables can grow to a maximum of @code{table_cache}
-(default 64; this can be changed with the @code{-O table_cache=#}
-option to @code{mysqld}).  A table is never closed, except when the
-cache is full and another thread tries to open a table or if you use
-@code{mysqladmin refresh} or @code{mysqladmin flush-tables}.
+The cache of open tables will be keept at a level of @code{table_cache}
+entries (default 64; this can be changed with the @code{-O
+table_cache=#} option to @code{mysqld}).  Note that in MySQL may
+temporarly open even more tables to be able to execute queries.
+
+A not used table is closed and removed from the table cache under the
+following circumstances:
+
+@itemize @bullet
+@item
+When the cache is full and a thread tries to open a table that is not in
+the cache.
+@item
+When the cache contains more than @code{table_cache} entires and
+a thread is not anymore using a table.
+@item
+When someone executes @code{mysqladmin refresh} or
+@code{mysqladmin flush-tables}.
+@item
+When someone executes 'FLUSH TABLES'
+@end itemize
 
 When the table cache fills up, the server uses the following procedure
 to locate a cache entry to use:
@@ -25627,15 +25675,16 @@ If you are opening a table with the @code{HANDLER table_name OPEN}
 statement, a dedicated table object is allocated for the thread.
 This table object is not shared by other threads an will not be closed
 until the thread calls @code{HANDLER table_name CLOSE} or the thread dies.
-@xref{HANDLER}.
+@xref{HANDLER}.  When this happens, the table is put back in the table_cache
+(if it isn't full).
 
 You can check if your table cache is too small by checking the mysqld
-variable @code{opened_tables}.  If this is quite big, even if you
+variable @code{Opened_tables}.  If this is quite big, even if you
 haven't done a lot of @code{FLUSH TABLES}, you should increase your table
 cache. @xref{SHOW STATUS}.
 
 
-@node Creating many tables, Open tables, Table cache, Optimising Database Structure
+@node Creating many tables,  , Table cache, Optimising Database Structure
 @subsection Drawbacks to Creating Large Numbers of Tables in the Same Database
 
 @cindex tables, too many
@@ -25645,28 +25694,6 @@ be slow.  If you execute @code{SELECT} statements on many different tables,
 there will be a little overhead when the table cache is full, because for
 every table that has to be opened, another must be closed. You can reduce
 this overhead by making the table cache larger.
-
-
-@node Open tables,  , Creating many tables, Optimising Database Structure
-@subsection Why So Many Open tables?
-
-@cindex tables, open
-@cindex open tables
-
-When you run @code{mysqladmin status}, you'll see something like this:
-
-@example
-Uptime: 426 Running threads: 1 Questions: 11082 Reloads: 1 Open tables: 12
-@end example
-
-This can be somewhat perplexing if you only have 6 tables.
-
-MySQL is multithreaded, so it may have many queries on the same
-table simultaneously. To minimise the problem with two threads having
-different states on the same file, the table is opened independently by
-each concurrent thread. This takes some memory and one extra file
-descriptor for the data file. The index file descriptor is shared
-between all threads.
 
 
 @node Optimising the Server, Disk issues, Optimising Database Structure, MySQL Optimisation
@@ -30358,16 +30385,17 @@ Returns a random floating-point value in the range @code{0} to @code{1.0}.
 If an integer argument @code{N} is specified, it is used as the seed value:
 @example
 mysql> select RAND();
-        -> 0.5925
+        -> 0.9233482386203
 mysql> select RAND(20);
-        -> 0.1811
+        -> 0.15888261251047
 mysql> select RAND(20);
-        -> 0.1811
+        -> 0.15888261251047
 mysql> select RAND();
-        -> 0.2079
+        -> 0.63553050033332
 mysql> select RAND();
-        -> 0.7888
+        -> 0.70100469486881
 @end example
+
 You can't use a column with @code{RAND()} values in an @code{ORDER BY}
 clause, because @code{ORDER BY} would evaluate the column multiple times.
 In MySQL Version 3.23, you can, however, do:
@@ -30378,6 +30406,10 @@ table1,table2 WHERE a=b AND c<d ORDER BY RAND() LIMIT 1000}.
 
 Note that a @code{RAND()} in a @code{WHERE} clause will be re-evaluated
 every time the @code{WHERE} is executed.
+
+@code{RAND()} is not meant to be a perfect random generator, but instead a
+fast way to generate add-hook random numbers that will be portable between
+platforms for the same MySQL version.
 
 @findex LEAST()
 @item LEAST(X,Y,...)
@@ -35465,17 +35497,59 @@ Change the @code{.MRG} file and issue a @code{FLUSH TABLE} on the
 read the new definition file.
 @end itemize
 
+@menu
+* MERGE table problems::        
+@end menu
+
+@node MERGE table problems,  , MERGE, MERGE
+@subsection MERGE table problems.
+
+The following are the known problems with @code{MERGE} tables:
+
+@itemize @bullet
+@item
+@code{DELETE FROM merge_table} used without a @code{WHERE}
+will only clear the mapping for the table, not delete everything in the
+mapped tables.
+@item
+@code{RENAME TABLE} on a table used in an active @code{MERGE} table may
+corrupt the table.  This will be fixed in MySQL 4.0.x.
+@item
+Creation of a table of type @code{MERGE} doesn't check if the underlying
+tables are of compatible types.  If you use @code{MERGE} tables in this
+fasion you are very likely to run into strange problems.
+@item
+If you use @code{ALTER TABLE} to first add an @code{UNIQUE} index to a
+table used in a @code{MERGE} table and then use @code{ALTER TABLE} to
+add a normal index on the @code{MERGE} table, the key order will be
+different for the tables if there was an old not-unique key in the
+table. This is because @code{ALTER TABLE} puts @code{UNIQUE} keys before
+normal keys to be able to detect duplicate keys as early as possible.
+@item
+The range optimizer can't yet use @code{MERGE} table efficiently and may
+sometimes produce not optimal joins.  This will be fixed in MySQL 4.0.x.
+@item
+@code{DROP TABLE} on a table that is in use by a @code{MERGE} table will
+not work on windows becasue @code{MERGE} handler does the table mapping
+hidden from the upper layer of MySQL.  Because Windows doesn't allow you
+to drop files that are open, you first must flush all @code{MERGE}
+tables (with @code{FLUSH TABLES}) or drop the @code{MERGE} table before
+dropping the table.  We will fix this at the same time we introduce
+@code{VIEW}s.
+@end itemize
+
 @node ISAM, HEAP, MERGE, Table types
 @section ISAM Tables
 
 @cindex tables, ISAM
 
 You can also use the deprecated ISAM table type. This will disappear
-rather soon because @code{MyISAM} is a better implementation of the same
-thing. ISAM uses a @code{B-tree} index. The index is stored in a file
-with the @code{.ISM} extension, and the data is stored in a file with the
-@code{.ISD} extension.  You can check/repair ISAM tables with the
-@code{isamchk} utility. @xref{Crash recovery}.
+rather soon (probably in MySQL 4.1) because @code{MyISAM} is a better
+implementation of the same thing. ISAM uses a @code{B-tree} index. The
+index is stored in a file with the @code{.ISM} extension, and the data
+is stored in a file with the @code{.ISD} extension.  You can
+check/repair ISAM tables with the @code{isamchk} utility. @xref{Crash
+recovery}.
 
 @code{ISAM} has the following features/properties:
 
@@ -35508,6 +35582,7 @@ TABLE} statement:
 mysql> ALTER TABLE tbl_name TYPE = MYISAM;
 @end example
 
+The embedded MySQL versions doesn't support ISAM tables.
 
 @node HEAP, InnoDB, ISAM, Table types
 @section HEAP Tables
@@ -46759,6 +46834,14 @@ not yet 100% confident in this code.
 @appendixsubsec Changes in release 3.23.45
 @itemize @bullet
 @item
+Fix a bug which could cause InnoDB to complain if it cannot find free blocks
+from the buffer cache during recovery.
+@item
+Fixed a bug in InnoDB insert buffer B-tree handling that could cause crashes.
+@item
+Fixed bug in @code{OPTIMIZE TABLE} that reset index cardinality if it
+was up to date.
+@item
 Fixed problem with @code{t1 LEFT_JOIN t2 ... WHERE t2.date_column IS NULL} when
 date_column was declared as @code{NOT NULL}.
 @item
@@ -50636,7 +50719,7 @@ Fixed bug in record caches; for some queries, you could get
 Added user level lock functions @code{GET_LOCK(string,timeout)},
 @code{RELEASE_LOCK(string)}.
 @item
-Added @code{opened_tables} to @code{show status}.
+Added @code{Opened_tables} to @code{show status}.
 @item
 Changed connect timeout to 3 seconds to make it somewhat harder
 for crackers to kill @code{mysqld} through telnet + TCP/IP.
