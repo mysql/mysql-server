@@ -209,7 +209,11 @@ SHOW_COMP_OPTION have_openssl=SHOW_OPTION_YES;
 SHOW_COMP_OPTION have_openssl=SHOW_OPTION_NO;
 #endif
 SHOW_COMP_OPTION have_symlink=SHOW_OPTION_YES;
-
+#ifdef HAVE_QUERY_CACHE
+SHOW_COMP_OPTION have_query_cache=SHOW_OPTION_YES;
+#else
+SHOW_COMP_OPTION have_query_cache=SHOW_OPTION_NO;
+#endif
 
 bool opt_skip_slave_start = 0; // If set, slave is not autostarted
 static bool opt_do_pstack = 0;
@@ -276,7 +280,11 @@ ulong keybuff_size,sortbuff_size,max_item_sort_length,table_cache_size,
 ulong com_stat[(uint) SQLCOM_END], com_other;
 ulong slave_net_timeout;
 ulong thread_cache_size=0, binlog_cache_size=0, max_binlog_cache_size=0;
-ulong query_cache_size=0, query_cache_limit=0, query_cache_startup_type=1; 
+#ifdef HAVE_QUERY_CACHE
+ulong query_cache_size=0, query_cache_limit=0, query_cache_startup_type=1;
+Query_cache query_cache;
+#endif
+
 volatile ulong cached_thread_count=0;
 
 // replication parameters, if master_host is not NULL, we are a slave
@@ -369,8 +377,6 @@ pthread_mutex_t LOCK_mysql_create_db, LOCK_Acl, LOCK_open, LOCK_thread_count,
 		LOCK_crypt, LOCK_bytes_sent, LOCK_bytes_received,
 	        LOCK_server_id,
 		LOCK_user_conn, LOCK_slave_list, LOCK_active_mi;
-
-Query_cache query_cache;
 
 pthread_cond_t COND_refresh,COND_thread_count,COND_binlog_update,
   COND_slave_stopped, COND_slave_start;
@@ -765,7 +771,7 @@ void clean_up(bool print_message)
     bitmap_free(&slave_error_mask);
   acl_free(1);
   grant_free();
-  query_cache.destroy();
+  query_cache_destroy();
   table_cache_free();
   hostname_cache_free();
   item_user_lock_free();
@@ -1870,8 +1876,8 @@ int main(int argc, char **argv)
   server_init();
   table_cache_init();
   hostname_cache_init();
-  query_cache.result_size_limit(query_cache_limit);
-  query_cache.resize(query_cache_size);
+  query_cache_result_size_limit(query_cache_limit);
+  query_cache_resize(query_cache_size);
   randominit(&sql_rand,(ulong) start_time,(ulong) start_time/2);
   reset_floating_point_exceptions();
   init_thr_lock();
@@ -3001,12 +3007,14 @@ CHANGEABLE_VAR changeable_vars[] = {
       0, 0, 65535, 0, 1},
   { "query_buffer_size",       (long*) &query_buff_size,
       0, MALLOC_OVERHEAD, (long) ~0, MALLOC_OVERHEAD, IO_SIZE },
+#ifdef HAVE_QUERY_CACHE
   { "query_cache_limit",       (long*) &query_cache_limit,
      1024*1024L, 0, ULONG_MAX, 0, 1},
   { "query_cache_size",        (long*) &query_cache_size,
       0, 0, ULONG_MAX, 0, 1},
   { "query_cache_startup_type",(long*) &query_cache_startup_type,
       1, 0, 2, 0, 1},
+#endif /*HAVE_QUERY_CACHE*/
   { "record_buffer",           (long*) &my_default_record_cache_size,
       128*1024L, IO_SIZE*2+MALLOC_OVERHEAD, ~0L, MALLOC_OVERHEAD, IO_SIZE },
   { "record_rnd_buffer",           (long*) &record_rnd_cache_size,
@@ -3068,6 +3076,7 @@ struct show_var_st init_vars[]= {
   {"have_raid",		      (char*) &have_raid,		    SHOW_HAVE},
   {"have_symlink",            (char*) &have_symlink,         	    SHOW_HAVE},
   {"have_openssl",	      (char*) &have_openssl,		    SHOW_HAVE},
+  {"have_query_cache",        (char*) &have_query_cache,            SHOW_HAVE},
   {"init_file",               (char*) &opt_init_file,               SHOW_CHAR_PTR},
 #ifdef HAVE_INNOBASE_DB
   {"innodb_additional_mem_pool_size", (char*) &innobase_additional_mem_pool_size, SHOW_LONG },
@@ -3135,9 +3144,11 @@ struct show_var_st init_vars[]= {
   {"record_rnd_buffer",       (char*) &record_rnd_cache_size,	    SHOW_LONG},
   {"rpl_recovery_rank",       (char*) &rpl_recovery_rank,           SHOW_LONG},
   {"query_buffer_size",       (char*) &query_buff_size,		    SHOW_LONG},
+#ifdef HAVE_QUERY_CACHE
   {"query_cache_limit",       (char*) &query_cache.query_cache_limit, SHOW_LONG},
   {"query_cache_size",        (char*) &query_cache.query_cache_size, SHOW_LONG},
   {"query_cache_startup_type",(char*) &query_cache_startup_type,    SHOW_LONG},
+#endif /*HAVE_QUERY_CACHE*/
   {"safe_show_database",      (char*) &opt_safe_show_db,            SHOW_BOOL},
   {"server_id",               (char*) &server_id,		    SHOW_LONG},
   {"slave_net_timeout",       (char*) &slave_net_timeout,	    SHOW_LONG},
@@ -3268,6 +3279,7 @@ struct show_var_st status_vars[]= {
   {"Open_streams",             (char*) &my_stream_opened,       SHOW_INT_CONST},
   {"Opened_tables",            (char*) &opened_tables,          SHOW_LONG},
   {"Questions",                (char*) 0,                       SHOW_QUESTION},
+#ifdef HAVE_QUERY_CACHE
   {"Qcache_queries_in_cache",  (char*) &query_cache.queries_in_cache, SHOW_LONG_CONST},
   {"Qcache_inserts",           (char*) &query_cache.inserts,    SHOW_LONG},
   {"Qcache_hits",              (char*) &query_cache.hits,       SHOW_LONG},
@@ -3278,6 +3290,7 @@ struct show_var_st status_vars[]= {
    SHOW_LONG_CONST},
   {"Qcache_total_blocks",      (char*) &query_cache.total_blocks,
    SHOW_LONG_CONST},
+#endif /*HAVE_QUERY_CACHE*/
   {"Rpl_status",               (char*) 0,                 SHOW_RPL_STATUS},
   {"Select_full_join",         (char*) &select_full_join_count, SHOW_LONG},
   {"Select_full_range_join",   (char*) &select_full_range_join_count, SHOW_LONG},
@@ -3883,7 +3896,9 @@ static void get_options(int argc,char **argv)
       my_use_symdir=0;
       have_symlink=SHOW_OPTION_DISABLED;
       ha_open_options&= ~HA_OPEN_ABORT_IF_CRASHED;
+#ifdef HAVE_QUERY_CACHE
       query_cache_size=0;
+#endif
       break;
     case (int) OPT_SAFE:
       opt_specialflag|= SPECIAL_SAFE_MODE;

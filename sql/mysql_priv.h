@@ -251,7 +251,33 @@ inline THD *_current_thd(void)
 #include "item.h"
 #include "sql_class.h"
 #include "opt_range.h"
+
+#ifdef HAVE_QUERY_CACHE
 #include "sql_cache.h"
+#define query_cache_store_query(A, B) query_cache.store_query(A, B)
+#define query_cache_destroy() query_cache.destroy()
+#define query_cache_result_size_limit(A) query_cache.result_size_limit(A)
+#define query_cache_resize(A) query_cache.resize(A)
+#define query_cache_invalidate3(A, B, C) query_cache.invalidate(A, B, C)
+#define query_cache_invalidate1(A) query_cache.invalidate(A)
+#define query_cache_send_result_to_client(A, B, C) \
+  query_cache.send_result_to_client(A, B, C)
+#define query_cache_invalidate_by_MyISAM_filename_ref \
+  &query_cache_invalidate_by_MyISAM_filename
+#else
+#define query_cache_store_query(A, B)
+#define query_cache_destroy()
+#define query_cache_result_size_limit(A)
+#define query_cache_resize(A)
+#define query_cache_invalidate3(A, B, C)
+#define query_cache_invalidate1(A)
+#define query_cache_send_result_to_client(A, B, C) 0
+#define query_cache_invalidate_by_MyISAM_filename_ref NULL
+
+#define query_cache_abort(A)
+#define query_cache_end_of_result(A)
+#define query_cache_invalidate_by_MyISAM_filename_ref NULL
+#endif /*HAVE_QUERY_CACHE*/
 
 int mysql_create_db(THD *thd, char *db, uint create_info, bool silent);
 int mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent);

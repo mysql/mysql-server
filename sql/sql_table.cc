@@ -161,7 +161,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
   }
   if (some_tables_deleted)
   {
-    query_cache.invalidate(thd, tables, 0);
+    query_cache_invalidate3(thd, tables, 0);
     if (!dont_log_query)
     {
       mysql_update_log.write(thd, thd->query,thd->query_length);
@@ -1774,7 +1774,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   VOID(pthread_cond_broadcast(&COND_refresh));
   VOID(pthread_mutex_unlock(&LOCK_open));
   table_list->table=0;				// For query cache
-  query_cache.invalidate(thd, table_list, 0);
+  query_cache_invalidate3(thd, table_list, 0);
 
 end_temporary:
   sprintf(tmp_name,ER(ER_INSERT_INFO),(ulong) (copied+deleted),

@@ -46,7 +46,7 @@ int ha_myisammrg::open(const char *name, int mode, uint test_if_locked)
     return (my_errno ? my_errno : -1);
   }
   DBUG_PRINT("info", ("ha_myisammrg::open myrg_extrafunc..."))
-  myrg_extrafunc(file, &query_cache_invalidate_by_MyISAM_filename);
+  myrg_extrafunc(file, query_cache_invalidate_by_MyISAM_filename_ref);
   if (!(test_if_locked == HA_OPEN_WAIT_IF_LOCKED ||
 	test_if_locked == HA_OPEN_ABORT_IF_LOCKED))
     myrg_extra(file,HA_EXTRA_NO_WAIT_LOCK);
