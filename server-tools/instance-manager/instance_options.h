@@ -37,22 +37,31 @@ class Instance_options
 {
 public:
   Instance_options() :
-    mysqld_socket(0), mysqld_datadir(0), mysqld_bind_address(0),
-    mysqld_pid_file(0), mysqld_port(0), mysqld_path(0), mysqld_user(0),
-    mysqld_password(0), is_guarded(0), filled_default_options(0)
+    mysqld_socket(0), mysqld_datadir(0),
+    mysqld_bind_address(0), mysqld_pid_file(0), mysqld_port(0),
+    mysqld_port_val(0), mysqld_path(0), nonguarded(0), shutdown_delay(0),
+    shutdown_delay_val(0), filled_default_options(0)
   {}
   ~Instance_options();
   /* fills in argv */
-  int complete_initialization(const char *default_path,
-                              const char *default_user,
-                              const char *default_password);
+  int complete_initialization(const char *default_path, int only_instance);
 
   int add_option(const char* option);
   int init(const char *instance_name_arg);
+  pid_t get_pid();
+  int get_pid_filename(char *result);
+  int unlink_pidfile();
+  void print_argv();
 
 public:
-  enum { MAX_NUMBER_OF_DEFAULT_OPTIONS= 1 };
+  /*
+    We need this value to be greater or equal then FN_REFLEN found in
+    my_global.h to use my_load_path()
+  */
+  enum { MAX_PATH_LEN= 512 };
+  enum { MAX_NUMBER_OF_DEFAULT_OPTIONS= 2 };
   enum { MEM_ROOT_BLOCK_SIZE= 512 };
+  char pid_file_with_path[MAX_PATH_LEN];
   char **argv;
   /* We need the some options, so we store them as a separate pointers */
   const char *mysqld_socket;
@@ -60,15 +69,19 @@ public:
   const char *mysqld_bind_address;
   const char *mysqld_pid_file;
   const char *mysqld_port;
-  uint instance_name_len;
+  uint mysqld_port_val;
   const char *instance_name;
+  uint instance_name_len;
   const char *mysqld_path;
-  const char *mysqld_user;
-  const char *mysqld_password;
-  const char *is_guarded;
+  const char *nonguarded;
+  const char *shutdown_delay;
+  uint shutdown_delay_val;
+  /* this value is computed and cashed here */
   DYNAMIC_ARRAY options_array;
 private:
   int add_to_argv(const char *option);
+  int get_default_option(char *result, size_t result_len,
+                         const char *option_name);
 private:
   uint filled_default_options;
   MEM_ROOT alloc;
