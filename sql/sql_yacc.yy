@@ -1863,8 +1863,10 @@ optional_braces:
 	| '(' ')' {};
 
 /* all possible expressions */
-expr:	expr_expr	{ $$= $1; }
-	| simple_expr	{ $$= $1; };
+expr:	
+	expr_expr	{ $$= $1; }
+	| simple_expr	{ $$= $1; }
+	;
 
 comp_op:  EQ		{ $$ = &comp_eq_creator; }
 	| GE		{ $$ = &comp_ge_creator; }
@@ -1880,7 +1882,7 @@ all_or_any: ALL     { $$ = 1; }
 
 /* expressions that begin with 'expr' */
 expr_expr:
-	  expr IN_SYM '(' expr_list ')'
+	 expr IN_SYM '(' expr_list ')'
 	  { $$= new Item_func_in($1,*$4); }
 	| expr NOT IN_SYM '(' expr_list ')'
 	  { $$= new Item_func_not(new Item_func_in($1,*$5)); }
@@ -2087,6 +2089,8 @@ simple_expr:
 	  { $$= new Item_func_conv_charset($3,$5); }
 	| CONVERT_SYM '(' expr ',' expr ',' expr ')'
 	  { $$= new Item_func_conv_charset3($3,$7,$5); }
+	| DEFAULT '(' simple_ident ')'
+	  { $$= new Item_default_value($3); }
 	| FUNC_ARG0 '(' ')'
 	  { $$= ((Item*(*)(void))($1.symbol->create_func))();}
 	| FUNC_ARG1 '(' expr ')'
@@ -3178,7 +3182,7 @@ values:
 
 expr_or_default:
 	expr	  { $$= $1;}
-	| DEFAULT {$$= new Item_default(); }
+	| DEFAULT {$$= new Item_default_value(); }
 	;
 
 opt_insert_update:
@@ -3216,12 +3220,12 @@ update:
 	;
 
 update_list:
-	update_list ',' simple_ident equal expr
+	update_list ',' simple_ident equal expr_or_default
 	{
 	  if (add_item_to_list(YYTHD, $3) || add_value_to_list(YYTHD, $5))
 	    YYABORT;
 	}
-	| simple_ident equal expr
+	| simple_ident equal expr_or_default
 	  {
 	    if (add_item_to_list(YYTHD, $1) || add_value_to_list(YYTHD, $3))
 	      YYABORT;
