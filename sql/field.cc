@@ -1652,11 +1652,10 @@ int Field_long::store(const char *from,uint len,CHARSET_INFO *cs)
   long tmp;
   int error= 0;
   char *end;
-  /* TODO: Make multi-byte-character safe */
-  while (len && my_isspace(cs,*from))
-  {
-    len--; from++;
-  }
+  
+  tmp= cs->scan(cs, from, from+len, MY_SEQ_SPACES);
+  len-= tmp;
+  from+= tmp;
   my_errno=0;
   if (unsigned_flag)
   {
@@ -1910,11 +1909,10 @@ int Field_longlong::store(const char *from,uint len,CHARSET_INFO *cs)
   longlong tmp;
   int error= 0;
   char *end;
-  /* TODO:  Make multi byte safe */
-  while (len && my_isspace(cs,*from))
-  {						// For easy error check
-    len--; from++;
-  }
+  
+  tmp= cs->scan(cs, from, from+len, MY_SEQ_SPACES);
+  len-= tmp;
+  from+= tmp;
   my_errno=0;
   if (unsigned_flag)
   {
