@@ -20,13 +20,13 @@ Created 9/30/1995 Heikki Tuuri
 How to get AWE to compile on Windows?
 -------------------------------------
 
-the Visual C++ has to be relatively recent and _WIN32_WINNT has to be
-defined to a value >= 0x0500 when windows.h is included. An easy way
-to accomplish that is to put
+In the project settings of the innobase project the Visual C++ source,
+__WIN2000__ has to be defined.
+
+The Visual C++ has to be relatively recent and _WIN32_WINNT has to be
+defined to a value >= 0x0500 when windows.h is included.
 
 #define _WIN32_WINNT	0x0500
-
-to the start of file \mysql\include\config-win.h
 
 Where does AWE work?
 -------------------
@@ -62,7 +62,7 @@ to a mapped 'physical page' for each 4 kB page in the AWE window */
 byte**		os_awe_simulate_map;
 #endif
 
-#ifdef __NT__
+#ifdef __WIN2000__
 os_awe_t*	os_awe_page_info;
 ulint		os_awe_n_pages;
 byte*		os_awe_window;
@@ -84,7 +84,7 @@ os_awe_enable_lock_pages_in_mem(void)
 
 	return(TRUE);
 
-#elif defined(__NT__)
+#elif defined(__WIN2000__)
   	struct {
     	DWORD 			Count;
     	LUID_AND_ATTRIBUTES 	Privilege[1];
@@ -187,7 +187,7 @@ os_awe_allocate_physical_mem(
 
 	return(TRUE);
 
-#elif defined(__NT__)
+#elif defined(__WIN2000__)
 	BOOL		bResult;
   	os_awe_t 	NumberOfPages;		/* Question: why does Windows
   						use the name ULONG_PTR for
@@ -318,7 +318,7 @@ os_awe_allocate_virtual_mem_window(
 
 	return(os_awe_simulate_window);
 	
-#elif defined(__NT__)
+#elif defined(__WIN2000__)
 	byte*	ptr;
 
 	if (size > 0x7FFFFFFFFF) {
@@ -424,7 +424,7 @@ os_awe_map_physical_mem_to_window(
 
 	return(TRUE);
 	
-#elif defined(__NT__)
+#elif defined(__WIN2000__)
 	BOOL		bResult;
 	os_awe_t	n_pages;
 

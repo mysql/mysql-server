@@ -1855,6 +1855,17 @@ static int my_strnncoll_utf8(CHARSET_INFO *cs,
   return ( (se-s) - (te-t) );
 }
 
+static
+int my_strnncollsp_utf8(CHARSET_INFO * cs, 
+			const uchar *s, uint slen, 
+			const uchar *t, uint tlen)
+{
+  for ( ; slen && my_isspace(cs, s[slen-1]) ; slen--);
+  for ( ; tlen && my_isspace(cs, t[tlen-1]) ; tlen--);
+  return my_strnncoll_utf8(cs,s,slen,t,tlen);
+}
+
+
 static int my_strncasecmp_utf8(CHARSET_INFO *cs,
 		const char *s, const char *t,  uint len)
 {
@@ -1979,6 +1990,7 @@ CHARSET_INFO my_charset_utf8 =
     NULL,		/* tab_from_uni */
     1,			/* strxfrm_multiply */
     my_strnncoll_utf8,	/* strnncoll    */
+    my_strnncollsp_utf8,
     my_strnxfrm_utf8,	/* strnxfrm     */
     my_like_range_simple,/* like_range   */
     my_wildcmp_mb,	/* wildcmp      */
@@ -1986,6 +1998,8 @@ CHARSET_INFO my_charset_utf8 =
     my_ismbchar_utf8,	/* ismbchar     */
     my_ismbhead_utf8,	/* ismbhead     */
     my_mbcharlen_utf8,	/* mbcharlen    */
+    my_numchars_mb,
+    my_charpos_mb,
     my_utf8_uni,	/* mb_wc        */
     my_uni_utf8,	/* wc_mb        */
     my_caseup_str_utf8,
@@ -3052,6 +3066,21 @@ cnv:
   return (int) (dst-db);
 }
 
+static
+uint my_numchars_ucs2(CHARSET_INFO *cs __attribute__((unused)),
+		      const char *b, const char *e)
+{
+  return (e-b)/2;
+}
+
+static
+uint my_charpos_ucs2(CHARSET_INFO *cs __attribute__((unused)),
+		     const char *b  __attribute__((unused)),
+		     const char *e  __attribute__((unused)),
+		     uint pos)
+{
+  return pos*2;
+}
 
 CHARSET_INFO my_charset_ucs2 =
 {
@@ -3068,6 +3097,7 @@ CHARSET_INFO my_charset_ucs2 =
     NULL,		/* tab_from_uni */
     1,			/* strxfrm_multiply */
     my_strnncoll_ucs2,	/* strnncoll    */
+    my_strnncoll_ucs2,
     my_strnxfrm_ucs2,	/* strnxfrm     */
     my_like_range_simple,/* like_range   */
     my_wildcmp_mb,	/* wildcmp      */
@@ -3075,6 +3105,8 @@ CHARSET_INFO my_charset_ucs2 =
     my_ismbchar_ucs2,	/* ismbchar     */
     my_ismbhead_ucs2,	/* ismbhead     */
     my_mbcharlen_ucs2,	/* mbcharlen    */
+    my_numchars_ucs2,
+    my_charpos_ucs2,
     my_ucs2_uni,	/* mb_wc        */
     my_uni_ucs2,	/* wc_mb        */
     my_caseup_str_ucs2,

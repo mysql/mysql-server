@@ -396,6 +396,10 @@ void init_update_queries(void)
   uc_update_queries[SQLCOM_UPDATE_MULTI]=1;
 }
 
+bool is_update_query(enum enum_sql_command command)
+{
+  return uc_update_queries[command];
+}
 
 /*
   Check if maximum queries per hour limit has been reached
@@ -1225,6 +1229,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       }
       thd->query_length= length;
       thd->query= packet;
+      thd->net.last_error[0]= '\0';
       VOID(pthread_mutex_lock(&LOCK_thread_count));
       thd->query_id= query_id++;
       VOID(pthread_mutex_unlock(&LOCK_thread_count));
@@ -2709,7 +2714,7 @@ mysql_execute_command(THD *thd)
     if (check_access(thd,DELETE_ACL,"mysql",0,1))
       break;
 #ifdef HAVE_DLOPEN
-    if (!(res = mysql_drop_function(thd,lex->udf.name)))
+    if (!(res = mysql_drop_function(thd,&lex->udf.name)))
       send_ok(thd);
 #else
     res= -1;
@@ -3157,6 +3162,9 @@ mysql_init_query(THD *thd)
   thd->sent_row_count= thd->examined_row_count= 0;
   thd->is_fatal_error= thd->rand_used= 0;
   thd->server_status &= ~SERVER_MORE_RESULTS_EXISTS;
+  if (opt_bin_log)
+    reset_dynamic(&thd->user_var_events);
+
   DBUG_VOID_RETURN;
 }
 

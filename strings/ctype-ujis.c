@@ -8444,7 +8444,8 @@ CHARSET_INFO my_charset_ujis =
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
     0,			/* strxfrm_multiply */
-    NULL,		/* strnncoll    */
+    my_strnncoll_simple,/* strnncoll    */
+    my_strnncollsp_simple,
     my_strnxfrm_simple,	/* strnxfrm     */
     my_like_range_simple,/* like_range   */
     my_wildcmp_mb,	/* wildcmp      */
@@ -8452,6 +8453,8 @@ CHARSET_INFO my_charset_ujis =
     ismbchar_ujis,
     ismbhead_ujis,
     mbcharlen_ujis,
+    my_numchars_mb,
+    my_charpos_mb,
     my_mb_wc_euc_jp,	 /* mb_wc       */
     my_wc_mb_euc_jp,	 /* wc_mb       */
     my_caseup_str_mb,

@@ -25,8 +25,7 @@ enum Item_udftype {UDFTYPE_FUNCTION=1,UDFTYPE_AGGREGATE};
 
 typedef struct st_udf_func
 {
-  char *name;
-  int name_length;
+  LEX_STRING name;
   Item_result returns;
   Item_udftype type;
   char *dl;
@@ -61,7 +60,7 @@ class udf_handler :public Sql_alloc
     initialized(0)
   {}
   ~udf_handler();
-  const char *name() const { return u_d ? u_d->name : "?"; }
+  const char *name() const { return u_d ? u_d->name.str : "?"; }
   Item_result result_type () const
   { return u_d	? u_d->returns : STRING_RESULT;}
   bool get_arguments();
@@ -140,5 +139,5 @@ void udf_init(void),udf_free(void);
 udf_func *find_udf(const char *name, uint len=0,bool mark_used=0);
 void free_udf(udf_func *udf);
 int mysql_create_function(THD *thd,udf_func *udf);
-int mysql_drop_function(THD *thd,const char *name);
+int mysql_drop_function(THD *thd,const LEX_STRING *name);
 #endif

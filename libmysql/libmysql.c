@@ -3932,19 +3932,40 @@ mysql_prepare(MYSQL  *mysql, const char *query, ulong length)
 
 unsigned int alloc_stmt_fields(MYSQL_STMT *stmt)
 {
-  MYSQL_FIELD *fields;
+  MYSQL_FIELD *fields, *field, *end;
+  MEM_ROOT *alloc= &stmt->mem_root;
   
   if (!stmt->mysql->field_count)
     return 0;
-  stmt->field_count= stmt->mysql->field_count;
-  fields= stmt->mysql->fields;
   
-  if (!(stmt->fields= (MYSQL_FIELD *) alloc_root(&stmt->mem_root, 
-        sizeof(fields))) || 
-      !(stmt->bind= (MYSQL_BIND *) alloc_root(&stmt->mem_root, 
+  stmt->field_count= stmt->mysql->field_count;
+  
+  /*
+    Get the field information for non-select statements 
+    like SHOW and DESCRIBE commands
+  */
+  if (!(stmt->fields= (MYSQL_FIELD *) alloc_root(alloc, 
+        sizeof(MYSQL_FIELD) * stmt->field_count)) || 
+      !(stmt->bind= (MYSQL_BIND *) alloc_root(alloc, 
         sizeof(MYSQL_BIND ) * stmt->field_count)))
     return 0;
-  memcpy((char *)stmt->fields, (char *)fields, sizeof(fields));
+  
+  for (fields= stmt->mysql->fields, end= fields+stmt->field_count, 
+       field= stmt->fields;
+       field && fields < end; fields++, field++)
+  {
+    field->db       = strdup_root(alloc,fields->db);
+    field->table    = strdup_root(alloc,fields->table);
+    field->org_table= strdup_root(alloc,fields->org_table);
+    field->name     = strdup_root(alloc,fields->name);
+    field->org_name = strdup_root(alloc,fields->org_name);
+    field->length   = fields->length;
+    field->type     = fields->type;
+    field->flags    = fields->flags;
+    field->decimals = fields->decimals;
+    field->def      = fields->def ? strdup_root(alloc,fields->def): 0;
+    field->max_length= 0;
+  }
   return stmt->field_count;
 }
 
@@ -4356,6 +4377,7 @@ my_ulonglong STDCALL mysql_stmt_affected_rows(MYSQL_STMT *stmt)
 static my_bool int_is_null_true= 1;		/* Used for MYSQL_TYPE_NULL */
 static my_bool int_is_null_false= 0;
 static my_bool int_is_null_dummy;
+static unsigned long param_length_is_dummy;
 
 /*
   Setup the parameter data buffers from application
@@ -5041,7 +5063,7 @@ my_bool STDCALL mysql_bind_result(MYSQL_STMT *stmt, MYSQL_BIND *bind)
       param->is_null= &int_is_null_dummy;
 
     if (!param->length)
-      param->length= &param->buffer_length;
+      param->length= &param_length_is_dummy;
 
     param->param_number= param_count++;
     /* Setup data copy functions for the different supported types */
@@ -5318,22 +5340,42 @@ int STDCALL mysql_stmt_store_result(MYSQL_STMT *stmt)
 */
 static my_bool stmt_close(MYSQL_STMT *stmt, my_bool skip_list)
 {
+  MYSQL *mysql;
   my_bool error= 0;
   DBUG_ENTER("mysql_stmt_close");
 
   DBUG_ASSERT(stmt != 0);
+  
+  mysql= stmt->mysql;
+  if (mysql->status != MYSQL_STATUS_READY)
+  {
+    /* Clear the current execution status */
+    DBUG_PRINT("warning",("Not all packets read, clearing them"));
+    for (;;)
+    {
+      ulong pkt_len;
+      if ((pkt_len= net_safe_read(mysql)) == packet_error)
+        break;
+      if (pkt_len <= 8 && mysql->net.read_pos[0] == 254)
+        break;	
+    }
+    mysql->status= MYSQL_STATUS_READY;
+  }
   if (stmt->state == MY_ST_PREPARE || stmt->state == MY_ST_EXECUTE)
   {
     char buff[4];
     int4store(buff, stmt->stmt_id);
-    error= simple_command(stmt->mysql, COM_CLOSE_STMT, buff, 4, 1);
+    error= simple_command(mysql, COM_CLOSE_STMT, buff, 4, 1);
   }
-  mysql_free_result(stmt->result);
-  free_root(&stmt->mem_root, MYF(0));
-  if (!skip_list)
-    stmt->mysql->stmts= list_delete(stmt->mysql->stmts, &stmt->list);
-  stmt->mysql->status= MYSQL_STATUS_READY;
-  my_free((gptr) stmt, MYF(MY_WME));
+  if (!error)
+  {
+    mysql_free_result(stmt->result);
+    free_root(&stmt->mem_root, MYF(0));
+    if (!skip_list)
+      mysql->stmts= list_delete(mysql->stmts, &stmt->list);
+    mysql->status= MYSQL_STATUS_READY;
+    my_free((gptr) stmt, MYF(MY_WME));
+  }
   DBUG_RETURN(error);
 }
 

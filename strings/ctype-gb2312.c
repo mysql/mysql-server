@@ -5704,6 +5704,7 @@ CHARSET_INFO my_charset_gb2312 =
     NULL,		/* tab_from_uni */
     0,			/* strxfrm_multiply */
     my_strnncoll_simple,/* strnncoll  */
+    my_strnncollsp_simple,
     my_strnxfrm_simple,	/* strnxfrm   */
     my_like_range_simple,/* like_range */
     my_wildcmp_mb,	/* wildcmp    */
@@ -5711,6 +5712,8 @@ CHARSET_INFO my_charset_gb2312 =
     ismbchar_gb2312,
     ismbhead_gb2312,
     mbcharlen_gb2312,
+    my_numchars_mb,
+    my_charpos_mb,
     my_mb_wc_gb2312,	/* mb_wc      */
     my_wc_mb_gb2312,	/* wc_mb      */
     my_caseup_str_mb,

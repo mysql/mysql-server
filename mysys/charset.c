@@ -59,6 +59,7 @@ static void simple_cs_init_functions(CHARSET_INFO *cs)
   
   cs->strnxfrm    = my_strnxfrm_simple;
   cs->strnncoll   = my_strnncoll_simple;
+  cs->strnncollsp = my_strnncollsp_simple;
   cs->like_range  = my_like_range_simple;
   cs->wildcmp     = my_wildcmp_8bit;
   cs->mb_wc       = my_mb_wc_8bit;
@@ -83,6 +84,8 @@ static void simple_cs_init_functions(CHARSET_INFO *cs)
   cs->strntod     = my_strntod_8bit;
   cs->scan	  = my_scan_8bit;
   cs->mbmaxlen    = 1;
+  cs->numchars    = my_numchars_8bit;
+  cs->charpos     = my_charpos_8bit;
 }
 
 

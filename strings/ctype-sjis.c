@@ -227,6 +227,16 @@ static int my_strnncoll_sjis(CHARSET_INFO *cs __attribute__((unused)),
   return len1 - len2;
 }
 
+static
+int my_strnncollsp_sjis(CHARSET_INFO * cs, 
+			const uchar *s, uint slen, 
+			const uchar *t, uint tlen)
+{
+  for ( ; slen && my_isspace(cs, s[slen-1]) ; slen--);
+  for ( ; tlen && my_isspace(cs, t[tlen-1]) ; tlen--);
+  return my_strnncoll_sjis(cs,s,slen,t,tlen);
+}
+
 static int my_strnxfrm_sjis(CHARSET_INFO *cs __attribute__((unused)),
                      uchar *dest, uint len,
                      const uchar *src, uint srclen)
@@ -4478,6 +4488,7 @@ CHARSET_INFO my_charset_sjis =
     NULL,		/* tab_from_uni */
     1,			/* strxfrm_multiply */
     my_strnncoll_sjis,
+    my_strnncollsp_sjis,
     my_strnxfrm_sjis,
     my_like_range_sjis,
     my_wildcmp_mb,	/* wildcmp  */
@@ -4485,6 +4496,8 @@ CHARSET_INFO my_charset_sjis =
     ismbchar_sjis,
     ismbhead_sjis,
     mbcharlen_sjis,
+    my_numchars_mb,
+    my_charpos_mb,
     my_mb_wc_sjis,	/* mb_wc */
     my_wc_mb_sjis,	/* wc_mb */
     my_caseup_str_8bit,

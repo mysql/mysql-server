@@ -593,6 +593,18 @@ static MY_UNI_IDX idx_uni_8859_2[]={
   {0,0,NULL}
 };
 
+
+static
+int my_strnncollsp_czech(CHARSET_INFO * cs, 
+			const uchar *s, uint slen, 
+			const uchar *t, uint tlen)
+{
+  for ( ; slen && my_isspace(cs, s[slen-1]) ; slen--);
+  for ( ; tlen && my_isspace(cs, t[tlen-1]) ; tlen--);
+  return my_strnncoll_czech(cs,s,slen,t,tlen);
+}
+
+
 CHARSET_INFO my_charset_czech =
 {
     2,			/* number */
@@ -608,6 +620,7 @@ CHARSET_INFO my_charset_czech =
     idx_uni_8859_2,	/* tab_from_uni */
     4,			/* strxfrm_multiply */
     my_strnncoll_czech,
+    my_strnncollsp_czech,
     my_strnxfrm_czech,
     my_like_range_czech,
     my_wildcmp_8bit,
@@ -615,6 +628,8 @@ CHARSET_INFO my_charset_czech =
     NULL,		/* ismbchar  */
     NULL,		/* ismbhead  */
     NULL,		/* mbcharlen */
+    my_numchars_8bit,
+    my_charpos_8bit,
     my_mb_wc_8bit,	/* mb_wc   */
     my_wc_mb_8bit,	/* wc_mb   */
     my_caseup_str_8bit,

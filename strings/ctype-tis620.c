@@ -551,6 +551,17 @@ int my_strnncoll_tis620(CHARSET_INFO *cs __attribute__((unused)),
   return(i);
 }
 
+static
+int my_strnncollsp_tis620(CHARSET_INFO * cs, 
+			const uchar *s, uint slen, 
+			const uchar *t, uint tlen)
+{
+  for ( ; slen && my_isspace(cs, s[slen-1]) ; slen--);
+  for ( ; tlen && my_isspace(cs, t[tlen-1]) ; tlen--);
+  return my_strnncoll_tis620(cs,s,slen,t,tlen);
+}
+
+
 /* strnxfrm replacment, convert Thai string to sortable string
    Arg: Destination buffer, source string, dest length and source length
    Ret: Conveted string size
@@ -700,6 +711,7 @@ CHARSET_INFO my_charset_tis620 =
     NULL,		/* tab_from_uni */
     4,			/* strxfrm_multiply */
     my_strnncoll_tis620,
+    my_strnncollsp_tis620,
     my_strnxfrm_tis620,
     my_like_range_tis620,
     my_wildcmp_8bit,	/* wildcmp   */
@@ -707,6 +719,8 @@ CHARSET_INFO my_charset_tis620 =
     NULL,		/* ismbchar  */
     NULL,		/* ismbhead  */
     NULL,		/* mbcharlen */
+    my_numchars_8bit,
+    my_charpos_8bit,
     my_mb_wc_8bit,	/* mb_wc     */
     my_wc_mb_8bit,	/* wc_mb     */
     my_caseup_str_8bit,

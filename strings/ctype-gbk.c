@@ -2608,6 +2608,16 @@ int my_strnncoll_gbk(CHARSET_INFO *cs __attribute__((unused)),
   return (int) (len1-len2);
 }
 
+static
+int my_strnncollsp_gbk(CHARSET_INFO * cs, 
+			const uchar *s, uint slen, 
+			const uchar *t, uint tlen)
+{
+  for ( ; slen && my_isspace(cs, s[slen-1]) ; slen--);
+  for ( ; tlen && my_isspace(cs, t[tlen-1]) ; tlen--);
+  return my_strnncoll_gbk(cs,s,slen,t,tlen);
+}
+
 
 int my_strnxfrm_gbk(CHARSET_INFO *cs __attribute__((unused)),
                     uchar * dest, uint len,
@@ -9891,6 +9901,7 @@ CHARSET_INFO my_charset_gbk =
     NULL,		/* tab_from_uni */
     1,			/* strxfrm_multiply */
     my_strnncoll_gbk,
+    my_strnncollsp_gbk,
     my_strnxfrm_gbk,
     my_like_range_gbk,
     my_wildcmp_mb,	/* wildcmp  */
@@ -9898,6 +9909,8 @@ CHARSET_INFO my_charset_gbk =
     ismbchar_gbk,
     ismbhead_gbk,
     mbcharlen_gbk,
+    my_numchars_mb,
+    my_charpos_mb,
     my_mb_wc_gbk,	/* mb_wc      */
     my_wc_mb_gbk,	/* wc_mb      */
     my_caseup_str_mb,

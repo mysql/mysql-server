@@ -92,6 +92,8 @@ typedef struct charset_info_st
   uint      strxfrm_multiply;
   int     (*strnncoll)(struct charset_info_st *,
 		       const uchar *, uint, const uchar *, uint);
+  int     (*strnncollsp)(struct charset_info_st *,
+		       const uchar *, uint, const uchar *, uint);
   int     (*strnxfrm)(struct charset_info_st *,
 		      uchar *, uint, const uchar *, uint);
   my_bool (*like_range)(struct charset_info_st *,
@@ -110,6 +112,8 @@ typedef struct charset_info_st
   int     (*ismbchar)(struct charset_info_st *, const char *, const char *);
   my_bool (*ismbhead)(struct charset_info_st *, uint);
   int     (*mbcharlen)(struct charset_info_st *, uint);
+  uint    (*numchars)(struct charset_info_st *, const char *b, const char *e);
+  uint    (*charpos)(struct charset_info_st *, const char *b, const char *e, uint pos);
   
   /* Unicode convertion */
   int (*mb_wc)(struct charset_info_st *cs,my_wc_t *wc,
@@ -189,6 +193,9 @@ extern int  my_strnxfrm_simple(CHARSET_INFO *, uchar *, uint, const uchar *,
 extern int  my_strnncoll_simple(CHARSET_INFO *, const uchar *, uint,
 				const uchar *, uint);
 
+extern int  my_strnncollsp_simple(CHARSET_INFO *, const uchar *, uint,
+				const uchar *, uint);
+
 extern uint my_hash_caseup_simple(CHARSET_INFO *cs,
 				  const byte *key, uint len);
 				  
@@ -247,6 +254,9 @@ int my_wildcmp_8bit(CHARSET_INFO *,
 		    const char *wildstr,const char *wildend,
 		    int escape, int w_one, int w_many);
 
+uint my_numchars_8bit(CHARSET_INFO *, const char *b, const char *e);
+uint my_charpos_8bit(CHARSET_INFO *, const char *b, const char *e, uint pos);
+
 
 #ifdef USE_MB
 /* Functions for multibyte charsets */
@@ -261,6 +271,9 @@ int my_wildcmp_mb(CHARSET_INFO *,
 		  const char *str,const char *str_end,
 		  const char *wildstr,const char *wildend,
 		  int escape, int w_one, int w_many);
+uint my_numchars_mb(CHARSET_INFO *, const char *b, const char *e);
+uint my_charpos_mb(CHARSET_INFO *, const char *b, const char *e, uint pos);
+
 #endif
 
 #define	_U	01	/* Upper case */

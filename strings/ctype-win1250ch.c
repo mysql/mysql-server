@@ -503,6 +503,17 @@ static int my_strnncoll_win1250ch(CHARSET_INFO *cs __attribute__((unused)),
 	return 0;
 }
 
+static
+int my_strnncollsp_win1250ch(CHARSET_INFO * cs, 
+			const uchar *s, uint slen, 
+			const uchar *t, uint tlen)
+{
+  for ( ; slen && my_isspace(cs, s[slen-1]) ; slen--);
+  for ( ; tlen && my_isspace(cs, t[tlen-1]) ; tlen--);
+  return my_strnncoll_win1250ch(cs,s,slen,t,tlen);
+}
+
+
 static int my_strnxfrm_win1250ch(CHARSET_INFO * cs  __attribute__((unused)),
 			  uchar * dest, uint len, 
 			  const uchar * src, uint srclen) {
@@ -644,6 +655,7 @@ CHARSET_INFO my_charset_win1250ch =
     idx_uni_cp1250,		/* tab_from_uni */
     2,				/* strxfrm_multiply */
     my_strnncoll_win1250ch,
+    my_strnncollsp_win1250ch,
     my_strnxfrm_win1250ch,
     my_like_range_win1250ch,
     my_wildcmp_8bit,		/* wildcmp   */
@@ -651,6 +663,8 @@ CHARSET_INFO my_charset_win1250ch =
     NULL,			/* ismbchar  */
     NULL,			/* ismbhead  */
     NULL,			/* mbcharlen */
+    my_numchars_8bit,
+    my_charpos_8bit,
     my_mb_wc_8bit,		/* mb_wc     */
     my_wc_mb_8bit,		/* wc_mb     */
     my_caseup_str_8bit,

@@ -2820,6 +2820,7 @@ CHARSET_INFO compiled_charsets[] = {
     idx_uni_8859_1,	/* tab_from_uni */
     0,			/* strxfrm_multiply */
     my_strnncoll_simple,/* strnncoll  */
+    my_strnncollsp_simple,/* strnncollsp  */
     my_strnxfrm_simple,	/* strnxfrm   */
     my_like_range_simple,/* like_range */
     my_wildcmp_8bit,	/* wildcmp    */
@@ -2827,6 +2828,8 @@ CHARSET_INFO compiled_charsets[] = {
     NULL,		/* ismbchar   */
     NULL,		/* ismbhead   */
     NULL,		/* mbcharlen  */
+    my_numchars_8bit,
+    my_charpos_8bit,
     my_mb_wc_8bit,	/* mb_wc   */
     my_wc_mb_8bit,	/* wc_mb   */
     my_caseup_str_8bit,
@@ -2868,6 +2871,7 @@ CHARSET_INFO compiled_charsets[] = {
     idx_uni_cp1251,	/* tab_from_uni */
     0,			/* strxfrm_multiply */
     my_strnncoll_simple,/* strnncoll  */
+    my_strnncollsp_simple,/* strnncollsp  */
     my_strnxfrm_simple,	/* strnxfrm   */
     my_like_range_simple,/* like_range */
     my_wildcmp_8bit,	/* wildcmp    */
@@ -2875,6 +2879,8 @@ CHARSET_INFO compiled_charsets[] = {
     NULL,		/* ismbchar   */
     NULL,		/* ismbhead   */
     NULL,		/* mbcharlen  */
+    my_numchars_8bit,
+    my_charpos_8bit,
     my_mb_wc_8bit,	/* mb_wc      */
     my_wc_mb_8bit,	/* wc_mb      */
     my_caseup_str_8bit,
@@ -2915,6 +2921,7 @@ CHARSET_INFO compiled_charsets[] = {
     idx_uni_cp1257,	/* tab_from_uni */
     0,			/* strxfrm_multiply */
     my_strnncoll_simple,/* strnncoll  */
+    my_strnncollsp_simple,/* strnncollsp  */
     my_strnxfrm_simple,	/* strnxfrm   */
     my_like_range_simple,/* like_range */
     my_wildcmp_8bit,	/* wildcmp    */
@@ -2922,6 +2929,8 @@ CHARSET_INFO compiled_charsets[] = {
     NULL,		/* ismbchar  */
     NULL,		/* ismbhead  */
     NULL,		/* mbcharlen */
+    my_numchars_8bit,
+    my_charpos_8bit,
     my_mb_wc_8bit,	/* mb_wc   */
     my_wc_mb_8bit,	/* wc_mb   */
     my_caseup_str_8bit,
@@ -2962,6 +2971,7 @@ CHARSET_INFO compiled_charsets[] = {
     idx_uni_8859_2,	/* tab_from_uni */
     0,			/* strxfrm_multiply */
     my_strnncoll_simple,/* strnncoll  */
+    my_strnncollsp_simple,/* strnncollsp  */
     my_strnxfrm_simple,	/* strnxfrm   */
     my_like_range_simple,/* like_range */
     my_wildcmp_8bit,	/* wildcmp    */
@@ -3010,6 +3020,7 @@ CHARSET_INFO compiled_charsets[] = {
     idx_uni_8859_1,	/* tab_from_uni */
     0,			/* strxfrm_multiply */
     my_strnncoll_simple,/* strnncoll  */
+    my_strnncollsp_simple,/* strnncollsp  */
     my_strnxfrm_simple,	/* strnxfrm   */
     my_like_range_simple,/* like_range */
     my_wildcmp_8bit,	/* wildcmp    */
@@ -3057,6 +3068,7 @@ CHARSET_INFO compiled_charsets[] = {
     NULL,		/* tab_from_uni */
     0,			/* strxfrm_multiply */
     my_strnncoll_simple,/* strnncoll  */
+    my_strnncollsp_simple,/* strnncollsp  */
     my_strnxfrm_simple,	/* strnxfrm   */
     my_like_range_simple,/* like_range */
     my_wildcmp_8bit,	/* wildcmp    */
@@ -3104,6 +3116,7 @@ CHARSET_INFO compiled_charsets[] = {
     NULL,		/* tab_from_uni */
     0,			/* strxfrm_multiply */
     my_strnncoll_simple,/* strnncoll  */
+    my_strnncollsp_simple,/* strnncollsp  */
     my_strnxfrm_simple,	/* strnxfrm   */
     my_like_range_simple,/* like_range */
     my_wildcmp_8bit,	/* wildcmp    */
@@ -3151,6 +3164,7 @@ CHARSET_INFO compiled_charsets[] = {
     NULL,		/* tab_from_uni */
     0,			/* strxfrm_multiply */
     my_strnncoll_simple,/* strnncoll  */
+    my_strnncollsp_simple,/* strnncollsp  */
     my_strnxfrm_simple,	/* strnxfrm   */
     my_like_range_simple,/* like_range */
     my_wildcmp_8bit,	/* wildcmp    */
@@ -3199,6 +3213,7 @@ CHARSET_INFO compiled_charsets[] = {
     idx_uni_8859_1,	/* tab_from_uni */
     0,			/* strxfrm_multiply */
     my_strnncoll_simple,/* strnncoll  */
+    my_strnncollsp_simple,/* strnncollsp  */
     my_strnxfrm_simple,	/* strnxfrm   */
     my_like_range_simple,/* like_range */
     my_wildcmp_8bit,	/* wildcmp    */
@@ -3246,6 +3261,7 @@ CHARSET_INFO compiled_charsets[] = {
     NULL,		/* tab_from_uni */
     0,			/* strxfrm_multiply */
     my_strnncoll_simple,/* strnncoll  */
+    my_strnncollsp_simple,/* strnncollsp  */
     my_strnxfrm_simple,	/* strnxfrm   */
     my_like_range_simple,/* like_range */
     my_wildcmp_8bit,	/* wildcmp    */
@@ -3293,6 +3309,7 @@ CHARSET_INFO compiled_charsets[] = {
     NULL,		/* tab_from_uni */
     0,			/* strxfrm_multiply */
     my_strnncoll_simple,/* strnncoll  */
+    my_strnncollsp_simple,/* strnncollsp  */
     my_strnxfrm_simple,	/* strnxfrm   */
     my_like_range_simple,/* like_range */
     my_wildcmp_8bit,	/* wildcmp    */
@@ -3340,6 +3357,7 @@ CHARSET_INFO compiled_charsets[] = {
     NULL,		/* tab_from_uni */
     0,			/* strxfrm_multiply */
     my_strnncoll_simple,/* strnncoll  */
+    my_strnncollsp_simple,/* strnncollsp  */
     my_strnxfrm_simple,	/* strnxfrm   */
     my_like_range_simple,/* like_range */
     my_wildcmp_8bit,	/* wildcmp    */
@@ -3387,6 +3405,7 @@ CHARSET_INFO compiled_charsets[] = {
     idx_uni_8859_2,	/* tab_from_uni */
     0,			/* strxfrm_multiply */
     my_strnncoll_simple,/* strnncoll  */
+    my_strnncollsp_simple,/* strnncollsp  */
     my_strnxfrm_simple,	/* strnxfrm   */
     my_like_range_simple,/* like_range */
     my_wildcmp_8bit,	/* wildcmp    */
@@ -3434,6 +3453,7 @@ CHARSET_INFO compiled_charsets[] = {
     idx_uni_koi8_r,	/* tab_from_uni */
     0,			/* strxfrm_multiply */
     my_strnncoll_simple,/* strnncoll  */
+    my_strnncollsp_simple,/* strnncollsp  */
     my_strnxfrm_simple,	/* strnxfrm   */
     my_like_range_simple,/* like_range */
     my_wildcmp_8bit,	/* wildcmp    */
@@ -3481,6 +3501,7 @@ CHARSET_INFO compiled_charsets[] = {
     idx_uni_koi8_u,	/* tab_from_uni */
     0,			/* strxfrm_multiply */
     my_strnncoll_simple,/* strnncoll  */
+    my_strnncollsp_simple,/* strnncollsp  */
     my_strnxfrm_simple,	/* strnxfrm   */
     my_like_range_simple,/* like_range */
     my_wildcmp_8bit,	/* wildcmp    */
@@ -3529,6 +3550,7 @@ CHARSET_INFO compiled_charsets[] = {
     idx_uni_8859_2,	/* tab_from_uni */
     0,			/* strxfrm_multiply */
     my_strnncoll_simple,/* strnncoll  */
+    my_strnncollsp_simple,/* strnncollsp  */
     my_strnxfrm_simple,	/* strnxfrm   */
     my_like_range_simple,/* like_range */
     my_wildcmp_8bit,	/* wildcmp    */
@@ -3576,6 +3598,7 @@ CHARSET_INFO compiled_charsets[] = {
     idx_uni_8859_9,	/* tab_from_uni */
     0,			/* strxfrm_multiply */
     my_strnncoll_simple,/* strnncoll  */
+    my_strnncollsp_simple,/* strnncollsp  */
     my_strnxfrm_simple,	/* strnxfrm   */
     my_like_range_simple,/* like_range */
     my_wildcmp_8bit,	/* wildcmp    */
@@ -3624,6 +3647,7 @@ CHARSET_INFO compiled_charsets[] = {
     NULL,		/* tab_from_uni */
     0,			/* strxfrm_multiply */
     my_strnncoll_simple,/* strnncoll  */
+    my_strnncollsp_simple,/* strnncollsp  */
     my_strnxfrm_simple,	/* strnxfrm   */
     my_like_range_simple,/* like_range */
     my_wildcmp_8bit,	/* wildcmp    */
@@ -3672,6 +3696,7 @@ CHARSET_INFO compiled_charsets[] = {
     idx_uni_us_ascii,	/* tab_from_uni */
     0,			/* strxfrm_multiply */
     my_strnncoll_simple,/* strnncoll  */
+    my_strnncollsp_simple,/* strnncollsp  */
     my_strnxfrm_simple,	/* strnxfrm   */
     my_like_range_simple,/* like_range */
     my_wildcmp_8bit,	/* wildcmp    */
@@ -3719,6 +3744,7 @@ CHARSET_INFO compiled_charsets[] = {
     idx_uni_cp1250,	/* tab_from_uni */
     0,			/* strxfrm_multiply */
     my_strnncoll_simple,/* strnncoll  */
+    my_strnncollsp_simple,/* strnncollsp  */
     my_strnxfrm_simple,	/* strnxfrm   */
     my_like_range_simple,/* like_range */
     my_wildcmp_8bit,	/* wildcmp    */
@@ -3766,6 +3792,7 @@ CHARSET_INFO compiled_charsets[] = {
     idx_uni_cp1251,	/* tab_from_uni */
     0,			/* strxfrm_multiply */
     my_strnncoll_simple,/* strnncoll  */
+    my_strnncollsp_simple,/* strnncollsp  */
     my_strnxfrm_simple,	/* strnxfrm   */
     my_like_range_simple,/* like_range */
     my_wildcmp_8bit,	/* wildcmp    */
@@ -3813,6 +3840,7 @@ CHARSET_INFO compiled_charsets[] = {
     idx_uni_armscii_8,	/* tab_from_uni */
     0,			/* strxfrm_multiply */
     my_strnncoll_simple,/* strnncoll  */
+    my_strnncollsp_simple,/* strnncollsp  */
     my_strnxfrm_simple,	/* strnxfrm   */
     my_like_range_simple,/* like_range */
     my_wildcmp_8bit,	/* wildcmp    */
@@ -3860,6 +3888,7 @@ CHARSET_INFO compiled_charsets[] = {
     idx_uni_cp1251,	/* tab_from_uni */
     0,			/* strxfrm_multiply */
     my_strnncoll_simple,/* strnncoll  */
+    my_strnncollsp_simple,/* strnncollsp  */
     my_strnxfrm_simple,	/* strnxfrm   */
     my_like_range_simple,/* like_range */
     my_wildcmp_8bit,	/* wildcmp    */
@@ -3906,6 +3935,7 @@ CHARSET_INFO compiled_charsets[] = {
     NULL,		/* tab_from_uni */
     0,
     NULL,		/* strnncoll    */
+    NULL,		/* strnncollsp  */
     NULL,		/* strnxfrm     */
     NULL,		/* like_range   */
     NULL,		/* wildcmp      */
@@ -3913,7 +3943,8 @@ CHARSET_INFO compiled_charsets[] = {
     NULL,
     NULL,
     NULL,
-
+    NULL,
+    NULL,
     NULL,		 /* mb_wc      */
     NULL,		 /* wc_mb      */
     

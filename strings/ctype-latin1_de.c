@@ -295,6 +295,16 @@ static int my_strnncoll_latin1_de(CHARSET_INFO *cs __attribute__((unused)),
   return s1 < e1 ? 1 : s2 < e2 ? -1 : 0;
 }
 
+static
+int my_strnncollsp_latin1_de(CHARSET_INFO * cs, 
+			const uchar *s, uint slen, 
+			const uchar *t, uint tlen)
+{
+  for ( ; slen && my_isspace(cs, s[slen-1]) ; slen--);
+  for ( ; tlen && my_isspace(cs, t[tlen-1]) ; tlen--);
+  return my_strnncoll_latin1_de(cs,s,slen,t,tlen);
+}
+
 
 static int my_strnxfrm_latin1_de(CHARSET_INFO *cs __attribute__((unused)),
                           uchar * dest, uint len,
@@ -336,81 +346,6 @@ static int my_strnxfrm_latin1_de(CHARSET_INFO *cs __attribute__((unused)),
   return dest - dest_orig;
 }
 
-
-/*
- * Calculate min_str and max_str that ranges a LIKE string.
- * Arguments:
- * ptr		IN: Pointer to LIKE string.
- * ptr_length	IN: Length of LIKE string.
- * escape	IN: Escape character in LIKE.  (Normally '\').
- *		No escape characters should appear in min_str or max_str
- * res_length   IN: Length of min_str and max_str.
- * min_str      IN/OUT: Smallest case sensitive string that ranges LIKE.
- *		Should be space padded to res_length.
- * max_str	IN/OUT: Largest case sensitive string that ranges LIKE.
- *		Normally padded with the biggest character sort value.
- * min_length	OUT: Length of min_str without space padding.
- * max_length	OUT: Length of max_str without space padding.
- *
- * The function should return 0 if ok and 1 if the LIKE string can't be
- * optimized !
- */
-
-#define min_sort_char ((char) 0)
-#define max_sort_char ((char) 255)
-
-static my_bool my_like_range_latin1_de(CHARSET_INFO *cs __attribute__((unused)),
-				const char *ptr, uint ptr_length,
-				int escape, int w_one, int w_many,
-				uint res_length,
-				char *min_str, char *max_str,
-				uint *min_length, uint *max_length)
-{
-  const char *end = ptr + ptr_length;
-  char *min_org = min_str;
-  char *min_end = min_str + res_length;
-
-  for (; ptr != end && min_str != min_end; ptr++)
-  {
-    if (*ptr == escape && ptr + 1 != end)
-    {
-      ptr++;				/* Skip escape */
-      *min_str++ = *max_str++ = *ptr;
-      continue;
-    }
-    if (*ptr == w_one)		/* '_' in SQL */
-    {
-      *min_str++ = min_sort_char;
-      *max_str++ = max_sort_char;
-      continue;
-    }
-    if (*ptr == w_many)		/* '%' in SQL */
-    {
-      *min_length = (uint)(min_str - min_org);
-      *max_length = res_length;
-      do {
-	*min_str++ = ' ';			/* Because if key compression */
-	*max_str++ = max_sort_char;
-      } while (min_str != min_end);
-      return 0;
-    }
-    *min_str++ = *max_str++ = *ptr;
-  }
-  *min_length = *max_length = (uint) (min_str - min_org);
-
-  /* Temporary fix for handling w_one at end of string (key compression) */
-  {
-    char *tmp;
-    for (tmp= min_str ; tmp > min_org && tmp[-1] == '\0';)
-      *--tmp=' ';
-  }
-
-  while (min_str != min_end)
-    *min_str++ = *max_str++ = ' ';		/* Because if key compression */
-  return 0;
-}
-
-
 CHARSET_INFO my_charset_latin1_de =
 {
     31,			/* number    */
@@ -426,13 +361,16 @@ CHARSET_INFO my_charset_latin1_de =
     idx_uni_8859_1,	/* tab_from_uni */
     2,			/* strxfrm_multiply */
     my_strnncoll_latin1_de,
+    my_strnncollsp_latin1_de,
     my_strnxfrm_latin1_de,
-    my_like_range_latin1_de,
+    my_like_range_simple,
     my_wildcmp_8bit,	/* wildcmp   */
     1,			/* mbmaxlen  */
     NULL,		/* ismbchar  */
     NULL,		/* ismbhead  */
     NULL,		/* mbcharlen */
+    my_numchars_8bit,
+    my_charpos_8bit,
     my_mb_wc_8bit,	/* mb_wc     */
     my_wc_mb_8bit,	/* wc_mb     */
     my_caseup_str_8bit,

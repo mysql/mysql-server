@@ -870,12 +870,11 @@ create:
 	    lex->name=$4.str;
             lex->create_info.options=$3;
 	  }
-	| CREATE udf_func_type UDF_SYM ident
+	| CREATE udf_func_type UDF_SYM IDENT
 	  {
 	    LEX *lex=Lex;
 	    lex->sql_command = SQLCOM_CREATE_FUNCTION;
-	    lex->udf.name=$4.str;
-	    lex->udf.name_length=$4.length;
+	    lex->udf.name = $4;
 	    lex->udf.type= $2;
 	  }
 	  UDF_RETURNS_SYM udf_type UDF_SONAME_SYM TEXT_STRING
@@ -3016,11 +3015,11 @@ drop:
 	    lex->drop_if_exists=$3;
 	    lex->name=$4.str;
 	 }
-	| DROP UDF_SYM ident
+	| DROP UDF_SYM IDENT
 	  {
 	    LEX *lex=Lex;
 	    lex->sql_command = SQLCOM_DROP_FUNCTION;
-	    lex->udf.name=$3.str;
+	    lex->udf.name = $3;
 	  };
 
 

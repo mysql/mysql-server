@@ -242,6 +242,16 @@ static int my_strnncoll_big5(CHARSET_INFO *cs __attribute__((unused)),
   return (int) (len1-len2);
 }
 
+static
+int my_strnncollsp_big5(CHARSET_INFO * cs, 
+			const uchar *s, uint slen, 
+			const uchar *t, uint tlen)
+{
+  for ( ; slen && my_isspace(cs, s[slen-1]) ; slen--);
+  for ( ; tlen && my_isspace(cs, t[tlen-1]) ; tlen--);
+  return my_strnncoll_big5(cs,s,slen,t,tlen);
+}
+
 static int my_strnxfrm_big5(CHARSET_INFO *cs __attribute__((unused)),
                      uchar * dest, uint len, 
                      const uchar * src, uint srclen)
@@ -6236,6 +6246,7 @@ CHARSET_INFO my_charset_big5 =
     NULL,		/* tab_from_uni */
     1,			/* strxfrm_multiply */
     my_strnncoll_big5,
+    my_strnncollsp_big5,
     my_strnxfrm_big5,
     my_like_range_big5,
     my_wildcmp_mb,
@@ -6243,6 +6254,8 @@ CHARSET_INFO my_charset_big5 =
     ismbchar_big5,
     ismbhead_big5,
     mbcharlen_big5,
+    my_numchars_mb,
+    my_charpos_mb,
     my_mb_wc_big5,	/* mb_wc       */
     my_wc_mb_big5,	/* wc_mb       */
     my_caseup_str_mb,
