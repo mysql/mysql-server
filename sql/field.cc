@@ -4786,16 +4786,10 @@ int Field_enum::store(const char *from,uint length,CHARSET_INFO *cs)
     if (length < 6)			// Can't be more than 99999 enums
     {
       /* This is for reading numbers with LOAD DATA INFILE */
-      char buff[7], *end;
-      const char *conv=from;
-      if (from[length])
-      {
-	strmake(buff, from, length);
-	conv=buff;
-      }
+      char *end;
       my_errno=0;
-      tmp=(uint) strtoul(conv,&end,10);
-      if (my_errno || end != conv+length || tmp > typelib->count)
+      tmp=(uint) my_strntoul(cs,from,length,&end,10);
+      if (my_errno || end != from+length || tmp > typelib->count)
       {
 	tmp=0;
 	current_thd->cuted_fields++;
@@ -4990,16 +4984,10 @@ int Field_set::store(const char *from,uint length,CHARSET_INFO *cs)
   if (!tmp && length && length < 22)
   {
     /* This is for reading numbers with LOAD DATA INFILE */
-    char buff[22], *end;
-    const char *conv=from;
-    if (from[length])
-    {
-      strmake(buff, from, length);
-      conv=buff;
-    }
+    char *end;
     my_errno=0;
-    tmp=strtoull(conv,&end,10);
-    if (my_errno || end != conv+length ||
+    tmp=my_strntoull(cs,from,length,&end,10);
+    if (my_errno || end != from+length ||
 	tmp > (ulonglong) (((longlong) 1 << typelib->count) - (longlong) 1))
     {
       tmp=0;
