@@ -1217,6 +1217,60 @@ bool field_is_equal_to_item(Field *field,Item *item)
   return result == field->val_real();
 }
 
+Item_cache* Item_cache::get_cache(Item_result type)
+{
+  switch (type)
+  {
+  case INT_RESULT:
+    return new Item_cache_int();
+  case REAL_RESULT:
+    return new Item_cache_real();
+  case STRING_RESULT:
+    return new Item_cache_str();
+  default:
+    // should never be in real life
+    DBUG_ASSERT(0);
+    return 0;
+  }
+}
+
+void Item_cache_str::store(Item *item)
+{
+  str_value.set(buffer, sizeof(buffer), item->charset());
+  value= item->str_result(&str_value);
+  if ((null_value= item->null_value))
+    value= 0;
+  else if (value != &str_value)
+  {
+    /*
+      We copy string value to avoid changing value if 'item' is table field
+      in queries like following (where t1.c is varchar):
+      select a, 
+             (select a,b,c from t1 where t1.a=t2.a) = ROW(a,2,'a'),
+             (select c from t1 where a=t2.a)
+        from t2;
+    */
+    str_value.copy(*value);
+    value= &str_value;
+  }
+
+}
+double Item_cache_str::val()
+{ 
+  if (value)
+    return my_strntod(value->charset(), value->ptr(),
+		      value->length(), (char**)0);
+  else
+    return (double)0;
+}
+longlong Item_cache_str::val_int()
+{
+  if (value)
+    return my_strntoll(value->charset(), value->ptr(),
+		       value->length(), (char**) 0, 10);
+  else
+    return (longlong)0;
+}
 
 /*****************************************************************************
 ** Instantiate templates

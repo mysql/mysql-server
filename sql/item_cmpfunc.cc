@@ -247,6 +247,8 @@ int Arg_comparator::compare_e_int()
 int Arg_comparator::compare_row()
 {
   int res= 0;
+  (*a)->bring_value();
+  (*b)->bring_value();
   uint n= (*a)->cols();
   for (uint i= 0; i<n; i++)
   {
@@ -261,6 +263,8 @@ int Arg_comparator::compare_row()
 int Arg_comparator::compare_e_row()
 {
   int res= 0;
+  (*a)->bring_value();
+  (*b)->bring_value();
   uint n= (*a)->cols();
   for (uint i= 0; i<n; i++)
   {
@@ -1219,6 +1223,7 @@ void cmp_item_row::store_value(Item *item)
   n= item->cols();
   if ((comparators= (cmp_item **) thd->alloc(sizeof(cmp_item *)*n)))
   {
+    item->bring_value();
     item->null_value= 0;
     for (uint i=0; i < n; i++)
       if ((comparators[i]= cmp_item::get_comparator(item->el(i))))
@@ -1252,6 +1257,7 @@ void cmp_item_row::store_value_by_template(cmp_item *t, Item *item)
   n= tmpl->n;
   if ((comparators= (cmp_item **) sql_alloc(sizeof(cmp_item *)*n)))
   {
+    item->bring_value();
     item->null_value= 0;
     for (uint i=0; i < n; i++)
       if ((comparators[i]= tmpl->comparators[i]->make_same()))
@@ -1284,6 +1290,7 @@ int cmp_item_row::cmp(Item *arg)
     return 1;
   }
   bool was_null= 0;
+  arg->bring_value();
   for (uint i=0; i < n; i++)
     if (comparators[i]->cmp(arg->el(i)))
     {

@@ -931,8 +931,9 @@ bool select_singleval_subselect::send_data(List<Item> &items)
     DBUG_RETURN(0);
   }
   List_iterator_fast<Item> li(items);
-  Item *val_item= li++;                   // Only one (single value subselect)
-  it->store(val_item);
+  Item *val_item;
+  for (uint i= 0; (val_item= li++); i++)
+    it->store(i, val_item);
   it->assigned(1);
   DBUG_RETURN(0);
 }
