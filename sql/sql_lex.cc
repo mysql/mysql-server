@@ -694,10 +694,9 @@ int yylex(void *arg, void *yythd)
       char quote_char= c;                       // Used char
       lex->tok_start=lex->ptr;			// Skip first `
       while ((c=yyGet()))
-      {  
-#ifdef USE_MB
-	if (my_mbcharlen(cs, c) == 1)
-#endif
+      {
+	int l;
+	if ((l= my_mbcharlen(cs, c)) == 1)
 	{
 	  if (c == (uchar) NAMES_SEP_CHAR)
 	    break; /* Old .frm format can't handle this char */
@@ -711,15 +710,12 @@ int yylex(void *arg, void *yythd)
 	  }
 	}
 #ifdef USE_MB
-	else
+	else if (l > 1)
 	{
-	  int l;
-	  if ((l = my_ismbchar(cs,
-			       (const char *)lex->ptr-1,
-			       (const char *)lex->end_of_query)) == 0)
-	    break;
 	  lex->ptr += l-1;
 	}
+	else
+	  break;
 #endif
       }
       if (double_quotes)
