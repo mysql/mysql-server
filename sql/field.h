@@ -799,9 +799,10 @@ public:
     binary_flag(binary_arg)
     {
       if (binary_arg)
-	flags|=BINARY_FLAG;
+	flags|= BINARY_FLAG;
     }
-  Field_varstring(uint32 len_arg,bool maybe_null_arg, const char *field_name_arg,
+  Field_varstring(uint32 len_arg,bool maybe_null_arg,
+		  const char *field_name_arg,
 		  struct st_table *table_arg, bool binary_arg)
     :Field_str((char*) 0,len_arg, maybe_null_arg ? (uchar*) "": 0,0,
 	       NONE, field_name_arg, table_arg),
@@ -856,7 +857,7 @@ public:
     {
       flags|= BLOB_FLAG;
       if (binary_arg)
-	flags|=BINARY_FLAG;
+	flags|= BINARY_FLAG;
     }
   enum_field_types type() const { return FIELD_TYPE_BLOB;}
   enum ha_base_keytype key_type() const

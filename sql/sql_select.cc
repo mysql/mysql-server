@@ -1261,7 +1261,8 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
 	  } while (keyuse->table == table && keyuse->key == key);
 
 	  if (eq_part == PREV_BITS(uint,table->key_info[key].key_parts) &&
-	      (table->key_info[key].flags & HA_NOSAME) &&
+	      ((table->key_info[key].flags & (HA_NOSAME | HA_END_SPACE_KEY)) ==
+	       HA_NOSAME) &&
               !table->fulltext_searched)
 	  {
 	    if (const_ref == eq_part)
@@ -2020,7 +2021,8 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 	  if (found_part == PREV_BITS(uint,keyinfo->key_parts))
 	  {				/* use eq key */
 	    max_key_part= (uint) ~0;
-	    if ((keyinfo->flags & (HA_NOSAME | HA_NULL_PART_KEY)) == HA_NOSAME)
+	    if ((keyinfo->flags & (HA_NOSAME | HA_NULL_PART_KEY |
+				   HA_END_SPACE_KEY)) == HA_NOSAME)
 	    {
 	      tmp=prev_record_reads(join,found_ref);
 	      records=1.0;
@@ -2520,8 +2522,8 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
   if (j->type == JT_FT)  /* no-op */;
   else if (j->type == JT_CONST)
     j->table->const_table=1;
-  else if (((keyinfo->flags & (HA_NOSAME | HA_NULL_PART_KEY))
-	    != HA_NOSAME) ||
+  else if (((keyinfo->flags & (HA_NOSAME | HA_NULL_PART_KEY |
+			       HA_END_SPACE_KEY)) != HA_NOSAME) ||
 	   keyparts != keyinfo->key_parts)
     j->type=JT_REF;				/* Must read with repeat */
   else if (ref_key == j->ref.key_copy)
@@ -5814,7 +5816,7 @@ part_of_refkey(TABLE *table,Field *field)
 
     for (uint part=0 ; part < ref_parts ; part++,key_part++)
       if (field->eq(key_part->field) &&
-	  !(key_part->key_part_flag & HA_PART_KEY))
+	  !(key_part->key_part_flag & HA_PART_KEY_SEG))
 	return table->reginfo.join_tab->ref.items[part];
   }
   return (Item*) 0;

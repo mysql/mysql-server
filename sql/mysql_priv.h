@@ -364,6 +364,7 @@ void mysql_execute_command(void);
 bool do_command(THD *thd);
 bool dispatch_command(enum enum_server_command command, THD *thd,
 		      char* packet, uint packet_length);
+bool check_dup(const char *db, const char *name, TABLE_LIST *tables);
 #ifndef EMBEDDED_LIBRARY
 bool check_stack_overrun(THD *thd,char *dummy);
 #else

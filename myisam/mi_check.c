@@ -126,7 +126,7 @@ int chk_status(MI_CHECK *param, register MI_INFO *info)
 int chk_del(MI_CHECK *param, register MI_INFO *info, uint test_flag)
 {
   reg2 ha_rows i;
-  uint j,delete_link_length;
+  uint delete_link_length;
   my_off_t empty,next_link,old_link;
   char buff[22],buff2[22];
   DBUG_ENTER("chk_del");
