@@ -573,6 +573,9 @@ bool Protocol::send_fields(List<Item> *list, uint flag)
     client_field->org_name_length=	strlen(client_field->org_name);
     client_field->org_table_length=	strlen(client_field->org_table);
     client_field->charsetnr=		server_field.charsetnr;
+
+    client_field->catalog= strdup_root(field_alloc, "std");
+    client_field->catalog_length= 3;
     
     if (INTERNAL_NUM_FIELD(client_field))
       client_field->flags|= NUM_FLAG;
@@ -583,9 +586,15 @@ bool Protocol::send_fields(List<Item> *list, uint flag)
       String tmp(buff, sizeof(buff), default_charset_info), *res;
 
       if (!(res=item->val_str(&tmp)))
+      {
 	client_field->def= strdup_root(field_alloc, "");
+	client_field->def_length= 0;
+      }
       else
+      {
 	client_field->def= strdup_root(field_alloc, tmp.ptr());
+	client_field->def_length= tmp.length();
+      }
     }
     else
       client_field->def=0;
