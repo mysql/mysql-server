@@ -39,7 +39,7 @@
 "Kann Datensatz nicht finden.",
 "Falsche Information in Datei: '%-.64s'",
 "Falsche Schlüssel-Datei für Tabelle '%-.64s'. Versuche zu reparieren!",
-"Alte Schlüssel-Datei für Tabelle '%-.64s'. Repariere!
+"Alte Schlüssel-Datei für Tabelle '%-.64s'. Repariere!",
 "'%-.64s' ist nur lesbar.",
 "Kein Speicher (benötigt %d bytes). Server neu starten.",
 "Kein Speicher zum Sortieren. Server Sortier-Buffer erhöhen.",
@@ -162,7 +162,7 @@
 "Fehler von fcntl()",
 "Empfangenes Paket ist nicht in Reihenfolge",
 "Communikation-Packet läßt sich nicht entpacken",
-"Fehler beim Lesen eines Communication-Packets"
+"Fehler beim Lesen eines Communication-Packets",
 "Timeout beim Lesen eines Communication-Packets",
 "Fehler beim Schreiben eines Communication-Packets",
 "Timeout beim Schreiben eines Communication-Packets",
@@ -201,7 +201,7 @@
 "Tabelle '%-.64s' ist als defekt makiert und sollte repariert werden",
 "Tabelle '%-.64s' ist als defekt makiert und der letzte (automatische) Reparaturversuch schlug fehl.",
 "Warnung:  Das Rollback konnte bei einigen Tabellen, die nicht mittels Transaktionen geändert wurden, nicht ausgeführt werden.",
-"Multi-Statement Transaktionen benötigen mehr als 'max_binlog_cache_size' Bytes An Speicher. Diese mysqld-Variabel vergrössern und nochmal versuchen.',
+"Multi-Statement Transaktionen benötigen mehr als 'max_binlog_cache_size' Bytes An Speicher. Diese mysqld-Variabel vergrössern und nochmal versuchen.",
 "Diese Operation kann nicht bei einem aktiven Slave durchgeführt werden. Das Kommand SLAVE STOP muss zuerst ausgeführt werden.",
 "Diese Operationbenötigt einen aktiven Slave. Slave konfigurieren und mittels SLAVE START aktivieren.",
 "Der Server ist nicht als Slave konfigiriert. Im Konfigurations-File oder mittel CHANGE MASTER TO beheben.",
