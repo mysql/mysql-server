@@ -1173,6 +1173,13 @@ mysql_execute_command(void)
       res = purge_master_logs(thd, lex->to_log);
       break;
     }
+  case SQLCOM_SHOW_NEW_MASTER:
+  {
+    if(check_access(thd, FILE_ACL, any_db))
+      goto error;
+    res = show_new_master(thd);
+    break;
+  }
   case SQLCOM_SHOW_SLAVE_HOSTS:
   {
     if(check_access(thd, FILE_ACL, any_db))

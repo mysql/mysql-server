@@ -36,3 +36,13 @@ show master logs;
 show binlog events in 'slave-bin.001' from 4;
 show binlog events in 'slave-bin.002' from 4;
 show slave status;
+show new master for slave with master_log_file='master-bin.001' and
+ master_log_pos=4 and master_log_seq=1 and master_server_id=1;
+show new master for slave with master_log_file='master-bin.001' and
+ master_log_pos=79 and master_log_seq=2 and master_server_id=1;
+show new master for slave with master_log_file='master-bin.001' and
+ master_log_pos=311 and master_log_seq=6 and master_server_id=1;
+show new master for slave with master_log_file='master-bin.002' and
+ master_log_pos=4 and master_log_seq=1 and master_server_id=1;
+show new master for slave with master_log_file='master-bin.002' and
+ master_log_pos=137 and master_log_seq=3 and master_server_id=1;
