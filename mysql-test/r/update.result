@@ -219,3 +219,10 @@ select * from t1;
 id	id_str
 1	test1
 drop table t1;
+create table t1 (a int, b char(255), key(a, b(20)));
+insert into t1 values (0, '1');
+update t1 set b = b + 1 where a = 0;
+select * from t1;
+a	b
+0	2
+drop table t1;
