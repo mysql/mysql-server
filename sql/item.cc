@@ -40,7 +40,7 @@ void item_init(void)
 }
 
 Item::Item():
-  fixed(0)
+  name_length(0), fixed(0)
 {
   marker= 0;
   maybe_null=null_value=with_sum_func=unsigned_flag=0;
@@ -122,6 +122,7 @@ void Item::set_name(const char *str, uint length, CHARSET_INFO *cs)
   {
     /* Empty string, used by AS or internal function like last_insert_id() */
     name= (char*) str;
+    name_length= 0;
     return;
   }
   while (length && !my_isgraph(cs,*str))
@@ -132,12 +133,12 @@ void Item::set_name(const char *str, uint length, CHARSET_INFO *cs)
   if (!my_charset_same(cs, system_charset_info))
   {
     uint32 res_length;
-    name= sql_strmake_with_convert(str, length, cs,
+    name= sql_strmake_with_convert(str, name_length= length, cs,
 				   MAX_ALIAS_NAME, system_charset_info,
 				   &res_length);
   }
   else
-    name=sql_strmake(str, min(length,MAX_ALIAS_NAME));
+    name= sql_strmake(str, (name_length= min(length,MAX_ALIAS_NAME)));
 }
 
 

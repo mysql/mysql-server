@@ -1459,11 +1459,16 @@ udf_handler::fix_fields(THD *thd, TABLE_LIST *tables, Item_result_field *func,
       const_item_cache&=item->const_item();
       f_args.arg_type[i]=item->result_type();
     }
+    //TODO: why all folowing memory is not allocated with 1 call of sql_alloc?
     if (!(buffers=new String[arg_count]) ||
 	!(f_args.args= (char**) sql_alloc(arg_count * sizeof(char *))) ||
-	!(f_args.lengths=(ulong*) sql_alloc(arg_count * sizeof(long))) ||
-	!(f_args.maybe_null=(char*) sql_alloc(arg_count * sizeof(char))) ||
-	!(num_buffer= (char*) sql_alloc(ALIGN_SIZE(sizeof(double))*arg_count)))
+	!(f_args.lengths= (ulong*) sql_alloc(arg_count * sizeof(long))) ||
+	!(f_args.maybe_null= (char*) sql_alloc(arg_count * sizeof(char))) ||
+	!(num_buffer= (char*) sql_alloc(arg_count *
+					ALIGN_SIZE(sizeof(double)))) ||
+	!(f_args.attributes= (char**) sql_alloc(arg_count * sizeof(char *))) ||
+	!(f_args.attribute_lengths= (ulong*) sql_alloc(arg_count *
+						       sizeof(long))))
     {
       free_udf(u_d);
       DBUG_RETURN(1);
@@ -1482,8 +1487,10 @@ udf_handler::fix_fields(THD *thd, TABLE_LIST *tables, Item_result_field *func,
     for (uint i=0; i < arg_count; i++)
     {
       f_args.args[i]=0;
-      f_args.lengths[i]=arguments[i]->max_length;
-      f_args.maybe_null[i]=(char) arguments[i]->maybe_null;
+      f_args.lengths[i]= arguments[i]->max_length;
+      f_args.maybe_null[i]= (char) arguments[i]->maybe_null;
+      f_args.attributes[i]= arguments[i]->name;
+      f_args.attribute_lengths[i]= arguments[i]->name_length;
 
       switch(arguments[i]->type()) {
       case Item::STRING_ITEM:			// Constant string !

@@ -650,13 +650,14 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %type <item>
 	literal text_literal insert_ident order_ident
 	simple_ident select_item2 expr opt_expr opt_else sum_expr in_sum_expr
-	table_wild no_in_expr expr_expr simple_expr no_and_expr
+	table_wild no_in_expr expr_expr simple_expr no_and_expr udf_expr
 	using_list expr_or_default set_expr_or_default interval_expr
 	param_marker singlerow_subselect singlerow_subselect_init
 	exists_subselect exists_subselect_init sp_opt_default
 
 %type <item_list>
-	expr_list udf_expr_list when_list ident_list ident_list_arg
+	expr_list sp_expr_list udf_expr_list udf_expr_list2 when_list
+	ident_list ident_list_arg
 
 %type <key_type>
 	key_type opt_unique_or_fulltext
@@ -722,7 +723,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	select_item_list select_item values_list no_braces
 	opt_limit_clause delete_limit_clause fields opt_values values
 	procedure_list procedure_list2 procedure_item
-	when_list2 expr_list2  handler
+	when_list2 expr_list2 udf_expr_list3 handler
 	opt_precision opt_ignore opt_column opt_restrict
 	grant revoke set lock unlock string_list field_options field_option
 	field_opt_list opt_binary table_lock_list table_lock
@@ -3503,7 +3504,7 @@ simple_expr:
 	  { $$= new Item_func_round($3,$5,1); }
 	| TRUE_SYM
 	  { $$= new Item_int((char*) "TRUE",1,1); }
-	| SP_FUNC '(' udf_expr_list ')'
+	| SP_FUNC '(' sp_expr_list ')'
 	  {
 	    sp_add_fun_to_lex(Lex, $1);
 	    if ($3)
@@ -3593,9 +3594,42 @@ simple_expr:
 	| EXTRACT_SYM '(' interval FROM expr ')'
 	{ $$=new Item_extract( $3, $5); };
 
-udf_expr_list:
+sp_expr_list:
 	/* empty */	{ $$= NULL; }
 	| expr_list	{ $$= $1;};
+
+udf_expr_list:
+	/* empty */	 { $$= NULL; }
+	| udf_expr_list2 { $$= $1;}
+	;
+
+udf_expr_list2:
+	{ Select->expr_list.push_front(new List<Item>); }
+	udf_expr_list3
+	{ $$= Select->expr_list.pop(); }
+	;
+
+udf_expr_list3:
+	udf_expr 
+	  {
+	    Select->expr_list.head()->push_back($1);
+	  }
+	| udf_expr_list3 ',' udf_expr 
+	  {
+	    Select->expr_list.head()->push_back($3);
+	  }
+	;
+
+udf_expr:
+	remember_name expr remember_end select_alias
+	{
+	  if ($4.str)
+	    $2->set_name($4.str,$4.length,system_charset_info);
+	  else
+	    $2->set_name($1,(uint) ($3 - $1), YYTHD->charset());
+	  $$= $2;
+	}
+	;
 
 sum_expr:
 	AVG_SYM '(' in_sum_expr ')'
