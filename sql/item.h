@@ -260,22 +260,7 @@ public:
 
   virtual bool remove_dependence_processor(byte * arg) { return 0; }
   virtual bool remove_fixed(byte * arg) { fixed= 0; return 0; }
-  /*
-    All collect_* methods are used as arguments to walk() to collect
-    specific types items.
-    TODO:
-    A more generic implementation would add a special class
-    Collect_processor_param that can store arbitrary sets of item kinds
-    (currently specified as enums), along with a list to store items of the
-    specified kinds. This would allow to collect combinations of items of
-    arbitrary kinds without having to add a new collect method each time.
-    There can be one generic collect_processor method that checks the item type
-    and compares it with the item types in Collect_processor_param.
-  */
   virtual bool collect_item_field_processor(byte * arg) { return 0; }
-  virtual bool collect_item_sum_min_processor(byte * arg) { return 0; }
-  virtual bool collect_item_sum_max_processor(byte * arg) { return 0; }
-  virtual bool has_non_min_max_sum_processor(byte * arg) { return 0; }
   
   virtual Item *this_item() { return this; } /* For SPs mostly. */
   virtual Item *this_const_item() const { return const_cast<Item*>(this); } /* For SPs mostly. */
