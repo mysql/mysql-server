@@ -438,11 +438,7 @@ simple_command(MYSQL *mysql,enum enum_server_command command, const char *arg,
   if (mysql->net.vio == 0)
   {						/* Do reconnect if possible */
     if (mysql_reconnect(mysql))
-    {
-      net->last_errno=CR_SERVER_GONE_ERROR;
-      strmov(net->last_error,ER(net->last_errno));
       goto end;
-    }
   }
   if (mysql->status != MYSQL_STATUS_READY)
   {
@@ -1610,6 +1606,8 @@ static my_bool mysql_reconnect(MYSQL *mysql)
   {
    /* Allov reconnect next time */
     mysql->server_status&= ~SERVER_STATUS_IN_TRANS;
+    mysql->net.last_errno= CR_SERVER_GONE_ERROR;
+    strmov(mysql->net.last_error, ER(mysql->net.last_errno));
     DBUG_RETURN(1);
   }
   mysql_init(&tmp_mysql);
