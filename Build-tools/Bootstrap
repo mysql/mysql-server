@@ -42,6 +42,7 @@ $opt_suffix= "";
 $opt_test= undef;
 $opt_skip_check= undef;
 $opt_skip_manual= undef;
+$opt_win_dist= undef;
 $version= "unknown";
 
 GetOptions(
@@ -60,7 +61,8 @@ GetOptions(
 	"skip-manual",
 	"suffix=s",
 	"test|t",
-	"verbose|v"
+	"verbose|v",
+	"win-dist|w"
 ) || print_help("");
 
 #
@@ -300,7 +302,17 @@ $command= "make dist";
 &run_command($command, "make dist failed!");
 
 #
-# Run "make distcheck" to verify the source archive 
+# Package the Windows source
+#
+if ($opt_win_dist)
+{
+	&logger ("Creating Windows source package");
+	$command= "./scripts/make_win_src_distibution";
+	&run_command($command, "make_win_src_distribution failed!");
+}
+
+#
+# Run "make distcheck" to verify the source archive
 #
 if (!$opt_skip_check)
 {
@@ -327,7 +339,7 @@ sub print_help
 		print "ERROR: $message\n";
 	}
 	print <<EOF;
-	
+
 Usage: Bootstrap [options] <bk repository>
 
 Checks out (exports) a clear-text version of the given local BitKeeper
@@ -373,6 +385,7 @@ Options:
                            (e.g. "-20020518").
 -t, --test                 Run the test suite after build
 -v, --verbose              Be verbose
+-w, --win-dist             Also make Windows source distribution
 
 Example:
 
