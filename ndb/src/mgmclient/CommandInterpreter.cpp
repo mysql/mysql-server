@@ -611,9 +611,9 @@ CommandInterpreter::executeHelp(char* parameters)
 	   << endl;
 
     ndbout << "<category> = ";
-    for(Uint32 i = 0; i<EventLogger::noOfEventCategoryNames; i++){
-      ndbout << EventLogger::eventCategoryNames[i].name;
-      if (i < EventLogger::noOfEventCategoryNames - 1) {
+    for(int i = 0; i<CFG_MIN_LOGLEVEL; i++){
+      ndbout << ndb_mgm_get_event_category_string((ndb_mgm_event_category)i);
+      if (i < CFG_MIN_LOGLEVEL - 1) {
 	ndbout << " | ";
       }
     }
@@ -1247,55 +1247,40 @@ CommandInterpreter::executeLogLevel(int processId, const char* parameters,
 {
   connect();
   (void) all;
-  (void) parameters;
   
-  SetLogLevelOrd logLevel; logLevel.clear();
-  LogLevel::EventCategory cat;  
-  int level;
-  if (emptyString(parameters) || (strcmp(parameters, "ALL") == 0)) {
-    for(Uint32 i = 0; i<EventLogger::noOfEventCategoryNames; i++)
-      logLevel.setLogLevel(EventLogger::eventCategoryNames[i].category, 7);
-  } else {
-    
-    char * tmpString = strdup(parameters);
-    char * tmpPtr = 0;
-    char * item = strtok_r(tmpString, ", ", &tmpPtr);
-    while(item != NULL){
-      char categoryTxt[255];
-      const int m = sscanf(item, "%[^=]=%d", categoryTxt, &level);
-      if(m != 2){
-	free(tmpString);
-	ndbout << "Invalid loglevel specification category=level" << endl;
-	return;
-      }
-
-      if(!EventLogger::matchEventCategory(categoryTxt,
-			     &cat)){
-	ndbout << "Invalid loglevel specification, unknown category: " 
-	       << categoryTxt << endl;
-	free(tmpString);
-	return ;
-      }
-      if(level < 0 || level > 15){
-	ndbout << "Invalid loglevel specification row, level 0-15" << endl;
-	free(tmpString);
-	return ;
-      }
-      logLevel.setLogLevel(cat, level);	
-      
-      item = strtok_r(NULL, ", ", &tmpPtr);
-    }
-    free(tmpString);
+  BaseString tmp(parameters);
+  Vector<BaseString> spec;
+  tmp.split(spec, "=");
+  if(spec.size() != 2){
+    ndbout << "Invalid loglevel specification: " << parameters << endl;
+    return;
   }
 
+  spec[0].trim().ndb_toupper();
+  int category = ndb_mgm_match_event_category(spec[0].c_str());
+  if(category == NDB_MGM_ILLEGAL_EVENT_CATEGORY){
+    category = atoi(spec[0].c_str());
+    if(category < NDB_MGM_MIN_EVENT_CATEGORY ||
+       category > NDB_MGM_MAX_EVENT_CATEGORY){
+      ndbout << "Unknown category: \"" << spec[0].c_str() << "\"" << endl;
+      return;
+    }
+  }
+  
+  int level = atoi(spec[1].c_str());
+  if(level < 0 || level > 15){
+    ndbout << "Invalid level: " << spec[1].c_str() << endl;
+    return;
+  }
+  
   struct ndb_mgm_reply reply;
   int result;
   result = ndb_mgm_set_loglevel_node(m_mgmsrv, 
-				     processId,  // fast fix - pekka
-				     (char*)EventLogger::getEventCategoryName(cat),
+				     processId,
+				     (ndb_mgm_event_category)category,
 				     level, 
 				     &reply);
-
+  
   if (result < 0) {
     ndbout_c("Executing LOGLEVEL on node %d failed.", processId);
     printError();
@@ -1303,7 +1288,7 @@ CommandInterpreter::executeLogLevel(int processId, const char* parameters,
     ndbout << "Executing LOGLEVEL on node " << processId << " OK!" 
 	   << endl;
   }  
-
+  
 }
 
 //*****************************************************************************
@@ -1633,54 +1618,41 @@ CommandInterpreter::executeEventReporting(int processId,
 					  bool all) 
 {
   connect();
-  SetLogLevelOrd logLevel; logLevel.clear();
-  char categoryTxt[255];
-  int level;  
-  LogLevel::EventCategory cat;
-  if (emptyString(parameters) || (strcmp(parameters, "ALL") == 0)) {
-    for(Uint32 i = 0; i<EventLogger::noOfEventCategoryNames; i++)
-      logLevel.setLogLevel(EventLogger::eventCategoryNames[i].category, 7);
-  } else {
 
-    char * tmpString = strdup(parameters);
-    char * tmpPtr = 0;
-    char * item = strtok_r(tmpString, ", ", &tmpPtr);
-    while(item != NULL){
-      const int m = sscanf(item, "%[^=]=%d", categoryTxt, &level);
-      if(m != 2){
-	free(tmpString);
-	ndbout << "Invalid loglevel specification category=level" << endl;
-	return;
-      }
-      
-      if(!EventLogger::matchEventCategory(categoryTxt,
-					  &cat)){
-	ndbout << "Invalid loglevel specification, unknown category: " 
-	       << categoryTxt << endl;
-	free(tmpString);
-	return ;
-      }
-      if(level < 0 || level > 15){
-	ndbout << "Invalid loglevel specification row, level 0-15" << endl;
-	free(tmpString);
-	return ;
-      }
-      logLevel.setLogLevel(cat, level);	
-      
-      item = strtok_r(NULL, ", ", &tmpPtr);
-    }
-    free(tmpString);
+  BaseString tmp(parameters);
+  Vector<BaseString> spec;
+  tmp.split(spec, "=");
+  if(spec.size() != 2){
+    ndbout << "Invalid loglevel specification: " << parameters << endl;
+    return;
   }
+
+  spec[0].trim().ndb_toupper();
+  int category = ndb_mgm_match_event_category(spec[0].c_str());
+  if(category == NDB_MGM_ILLEGAL_EVENT_CATEGORY){
+    category = atoi(spec[0].c_str());
+    if(category < NDB_MGM_MIN_EVENT_CATEGORY ||
+       category > NDB_MGM_MAX_EVENT_CATEGORY){
+      ndbout << "Unknown category: \"" << spec[0].c_str() << "\"" << endl;
+      return;
+    }
+  }
+  
+  int level = atoi(spec[1].c_str());
+  if(level < 0 || level > 15){
+    ndbout << "Invalid level: " << spec[1].c_str() << endl;
+    return;
+  }
+  
+
   struct ndb_mgm_reply reply;
   int result;
 
-  result = 
-    ndb_mgm_set_loglevel_clusterlog(m_mgmsrv, 
-				    processId, // fast fix - pekka
-				    (char*)
-                                      EventLogger::getEventCategoryName(cat),
-				    level, 
-				    &reply);
+  result = ndb_mgm_set_loglevel_clusterlog(m_mgmsrv, 
+					   processId, // fast fix - pekka
+					   (ndb_mgm_event_category)category,
+					   level, 
+					   &reply);
   
   if (result != 0) {
     ndbout_c("Executing CLUSTERLOG on node %d failed", processId);

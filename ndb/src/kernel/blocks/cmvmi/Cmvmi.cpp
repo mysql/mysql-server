@@ -97,7 +97,7 @@ Cmvmi::Cmvmi(const Configuration & conf) :
   const ndb_mgm_configuration_iterator * db = theConfig.getOwnConfigIterator();
   for(unsigned j = 0; j<LogLevel::LOGLEVEL_CATEGORIES; j++){
     Uint32 logLevel;
-    if(!ndb_mgm_get_int_parameter(db, LogLevel::MIN_LOGLEVEL_ID+j, &logLevel)){
+    if(!ndb_mgm_get_int_parameter(db, CFG_MIN_LOGLEVEL+j, &logLevel)){
       clogLevel.setLogLevel((LogLevel::EventCategory)j, 
 			    logLevel);
     }

@@ -611,7 +611,7 @@ MgmtSrvr::MgmtSrvr(NodeId nodeId,
   {
     MgmStatService::StatListener se;
     se.m_socket = -1;
-    for(size_t t = 0; t<_LOGLEVEL_CATEGORIES; t++)
+    for(size_t t = 0; t<LogLevel::LOGLEVEL_CATEGORIES; t++)
       se.m_logLevel.setLogLevel((LogLevel::EventCategory)t, 7);
     se.m_logLevel.setLogLevel(LogLevel::llError, 15);
     m_statisticsListner.m_clients.push_back(se);

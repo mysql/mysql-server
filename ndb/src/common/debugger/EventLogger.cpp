@@ -113,26 +113,6 @@ const EventLoggerBase::EventRepLogLevelMatrix EventLoggerBase::matrix[] = {
 const Uint32 EventLoggerBase::matrixSize = sizeof(EventLoggerBase::matrix)/
                                        sizeof(EventRepLogLevelMatrix);
 
-/**
- * Specifies allowed event categories/log levels that can be set from
- * the Management API/interactive shell.
- */
-const EventLoggerBase::EventCategoryName 
-EventLoggerBase::eventCategoryNames[] = {
-  { LogLevel::llStartUp,     "STARTUP"     },
-  { LogLevel::llStatistic,   "STATISTICS"  },
-  { LogLevel::llCheckpoint,  "CHECKPOINT"  },
-  { LogLevel::llNodeRestart, "NODERESTART" },
-  { LogLevel::llConnection,  "CONNECTION"  },
-  { LogLevel::llInfo,        "INFO"        },
-  { LogLevel::llGrep,        "GREP"        }
-};
-
-const Uint32 
-EventLoggerBase::noOfEventCategoryNames = 
-  sizeof(EventLoggerBase::eventCategoryNames)/
-  sizeof(EventLoggerBase::EventCategoryName);
-
 const char*
 EventLogger::getText(char * m_text, size_t m_text_len, 
 		     int type,
@@ -1286,41 +1266,6 @@ EventLogger::getText(char * m_text, size_t m_text_len,
   }
   return m_text;
 }
-
-bool
-EventLoggerBase::matchEventCategory(const char * str, 
-				LogLevel::EventCategory * cat,
-				bool exactMatch){
-  unsigned i;
-  if(cat == 0 || str == 0)
-    return false;
-
-  char * tmp = strdup(str);
-  for(i = 0; i<strlen(tmp); i++)
-    tmp[i] = toupper(tmp[i]);
-  
-  for(i = 0; i<noOfEventCategoryNames; i++){
-    if(strcmp(tmp, eventCategoryNames[i].name) == 0){
-      * cat = eventCategoryNames[i].category;
-      free(tmp);
-      return true;
-    }
-  }
-  free(tmp);
-  return false;
-}
-
-const char *
-EventLoggerBase::getEventCategoryName(LogLevel::EventCategory cat){
-  
-  for(unsigned i = 0; i<noOfEventCategoryNames; i++){
-    if(cat == eventCategoryNames[i].category){
-      return eventCategoryNames[i].name;
-    }
-  }
-  return 0;
-}
-
 
 EventLogger::EventLogger() : m_filterLevel(15)
 {
