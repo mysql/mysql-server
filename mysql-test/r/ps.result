@@ -297,3 +297,14 @@ execute stmt;
 'abc' like convert('abc' using utf8)
 1
 deallocate prepare stmt;
+create table t1 ( a bigint );
+prepare stmt from 'select a from t1 where a between ? and ?';
+set @a=1;
+execute stmt using @a, @a;
+a
+execute stmt using @a, @a;
+a
+execute stmt using @a, @a;
+a
+drop table t1;
+deallocate prepare stmt;
