@@ -159,6 +159,7 @@ int mysql_update(THD *thd,
   
   if (select && select->quick)
   {
+    used_index= select->quick->index;
     used_key_is_modified= (!select->quick->unique_key_range() &&
                           select->quick->check_if_keys_used(&fields));
   }
@@ -173,7 +174,7 @@ int mysql_update(THD *thd,
       matching rows before updating the table!
     */
     table->file->extra(HA_EXTRA_RETRIEVE_ALL_COLS);
-    if (old_used_keys.is_set(used_index))
+    if ( (used_index != MAX_KEY) && old_used_keys.is_set(used_index))
     {
       table->key_read=1;
       table->file->extra(HA_EXTRA_KEYREAD);
