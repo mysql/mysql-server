@@ -52,28 +52,28 @@
   }
 
 //
-//  CONERROR prints all error info regarding an NdbConnection
+//  TRANSERROR prints all error info regarding an NdbTransaction
 //
-#define CONERROR(ndbConnection) \
-  { NdbError error = ndbConnection->getNdbError(); \
-    std::cout << "CON ERROR: " << error.code << " " << error.message \
+#define TRANSERROR(ndbTransaction) \
+  { NdbError error = ndbTransaction->getNdbError(); \
+    std::cout << "TRANS ERROR: " << error.code << " " << error.message \
               << std::endl \
               << "           " << "Status: " << error.status \
               << ", Classification: " << error.classification << std::endl \
               << "           " << "File: " << __FILE__ \
               << " (Line: " << __LINE__ << ")" << std::endl \
               ; \
-    printTransactionError(ndbConnection); \
+    printTransactionError(ndbTransaction); \
   }
 
-void printTransactionError(NdbConnection *ndbConnection) {
+void printTransactionError(NdbTransaction *ndbTransaction) {
   const NdbOperation *ndbOp = NULL;
   int i=0;
 
   /****************************************************************
    * Print NdbError object of every operations in the transaction *
    ****************************************************************/
-  while ((ndbOp = ndbConnection->getNextCompletedOperation(ndbOp)) != NULL) {
+  while ((ndbOp = ndbTransaction->getNextCompletedOperation(ndbOp)) != NULL) {
     NdbError error = ndbOp->getNdbError();
     std::cout << "           OPERATION " << i+1 << ": " 
 	      << error.code << " " << error.message << std::endl
@@ -87,14 +87,14 @@ void printTransactionError(NdbConnection *ndbConnection) {
 //
 //  Example insert
 //  @param myNdb         Ndb object representing NDB Cluster
-//  @param myConnection  NdbConnection used for transaction
+//  @param myTransaction  NdbTransaction used for transaction
 //  @param error         NdbError object returned in case of errors
 //  @return -1 in case of failures, 0 otherwise
 //
-int insert(int transactionId, NdbConnection* myConnection) {
+int insert(int transactionId, NdbTransaction* myTransaction) {
   NdbOperation	 *myOperation;          // For other operations
 
-  myOperation = myConnection->getNdbOperation("MYTABLENAME");
+  myOperation = myTransaction->getNdbOperation("MYTABLENAME");
   if (myOperation == NULL) return -1;
   
   if (myOperation->insertTuple() ||  
@@ -104,7 +104,7 @@ int insert(int transactionId, NdbConnection* myConnection) {
     exit(-1);
   }
 
-  return myConnection->execute(NoCommit);
+  return myTransaction->execute(NoCommit);
 }
 
 
@@ -116,7 +116,7 @@ int insert(int transactionId, NdbConnection* myConnection) {
 int executeInsertTransaction(int transactionId, Ndb* myNdb) {
   int result = 0;                       // No result yet
   int noOfRetriesLeft = 10;
-  NdbConnection	 *myConnection;         // For other transactions
+  NdbTransaction	 *myTransaction;         // For other transactions
   NdbError ndberror;
   
   while (noOfRetriesLeft > 0 && !result) {
@@ -124,16 +124,16 @@ int executeInsertTransaction(int transactionId, Ndb* myNdb) {
     /*********************************
      * Start and execute transaction *
      *********************************/
-    myConnection = myNdb->startTransaction();
-    if (myConnection == NULL) {
+    myTransaction = myNdb->startTransaction();
+    if (myTransaction == NULL) {
       APIERROR(myNdb->getNdbError());
       ndberror = myNdb->getNdbError();
       result = -1;  // Failure
-    } else if (insert(transactionId, myConnection) || 
-	       insert(10000+transactionId, myConnection) ||
-	       myConnection->execute(Commit)) {
-      CONERROR(myConnection);
-      ndberror = myConnection->getNdbError();
+    } else if (insert(transactionId, myTransaction) || 
+	       insert(10000+transactionId, myTransaction) ||
+	       myTransaction->execute(Commit)) {
+      TRANSERROR(myTransaction);
+      ndberror = myTransaction->getNdbError();
       result = -1;  // Failure
     } else {
       result = 1;   // Success
@@ -164,8 +164,8 @@ int executeInsertTransaction(int transactionId, Ndb* myNdb) {
     /*********************
      * Close transaction *
      *********************/
-    if (myConnection != NULL) {
-      myNdb->closeTransaction(myConnection);
+    if (myTransaction != NULL) {
+      myNdb->closeTransaction(myTransaction);
     }
   }
 
@@ -181,6 +181,22 @@ int main()
   Ndb_cluster_connection *cluster_connection=
     new Ndb_cluster_connection(); // Object representing the cluster
 
+  int r= cluster_connection->connect(5 /* retries               */,
+				     3 /* delay between retries */,
+				     1 /* verbose               */);
+  if (r > 0)
+  {
+    std::cout
+      << "Cluster connect failed, possibly resolved with more retries.\n";
+    exit(-1);
+  }
+  else if (r < 0)
+  {
+    std::cout
+      << "Cluster connect failed.\n";
+    exit(-1);
+  }
+					   
   if (cluster_connection->wait_until_ready(30,30))
   {
     std::cout << "Cluster was not ready within 30 secs." << std::endl;
@@ -190,19 +206,11 @@ int main()
   Ndb* myNdb = new Ndb( cluster_connection,
 			"TEST_DB_1" );  // Object representing the database
   
-  /*******************************************
-   * Initialize NDB and wait until its ready *
-   *******************************************/
   if (myNdb->init() == -1) { 
     APIERROR(myNdb->getNdbError());
     exit(-1);
   }
 
-  if (myNdb->waitUntilReady(30) != 0) {
-    std::cout << "NDB was not ready within 30 secs." << std::endl;
-    exit(-1);
-  }
-  
   /************************************
    * Execute some insert transactions *
    ************************************/
