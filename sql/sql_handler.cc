@@ -86,7 +86,7 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
   if (!table)
   {
     my_printf_error(ER_UNKNOWN_TABLE,ER(ER_UNKNOWN_TABLE),MYF(0),
-        tables->name,"HANDLER");
+		    tables->name,"HANDLER");
     return -1;
   }
   tables->table=table;

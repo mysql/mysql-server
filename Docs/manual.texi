@@ -2817,7 +2817,7 @@ Use of @code{REPLACE} instead of @code{DELETE} + @code{INSERT}.
 @xref{REPLACE, , @code{REPLACE}}.
 
 @item
-The @code{FLUSH flush_option} statement.
+The @code{FLUSH}, @code{RESET} and @code{DO} statements.
 
 @item
 The ability to set variables in a statement with @code{:=}:
@@ -32040,6 +32040,9 @@ and @code{NULL} if the named lock didn't exist.  The lock will not exist if
 it was never obtained by a call to @code{GET_LOCK()} or if it already has
 been released.
 
+The @code{DO} statement is convinient to use with @code{RELEASE_LOCK()}.
+@xref{DO}.
+
 @findex BENCHMARK()
 @item BENCHMARK(count,expr)
 The @code{BENCHMARK()} function executes the expression @code{expr}
@@ -32270,6 +32273,7 @@ mysql> SELECT id,FLOOR(value/100) FROM tbl_name ORDER BY RAND();
 * TRUNCATE::                    @code{TRUNCATE} Syntax
 * REPLACE::                     @code{REPLACE} Syntax
 * LOAD DATA::                   @code{LOAD DATA INFILE} Syntax
+* DO::                          @code{DO} Syntax
 @end menu
 
 @node SELECT, HANDLER, Data Manipulation, Data Manipulation
@@ -33346,7 +33350,7 @@ The above makes it easy to check if @code{REPLACE} added or replaced a
 row.
 
 
-@node LOAD DATA,  , REPLACE, Data Manipulation
+@node LOAD DATA, DO, REPLACE, Data Manipulation
 @subsection @code{LOAD DATA INFILE} Syntax
 
 @findex LOAD DATA INFILE
@@ -33840,6 +33844,23 @@ you can only do the above with @code{LOAD DATA LOCAL INFILE}.
 For more information about the efficiency of @code{INSERT} versus
 @code{LOAD DATA INFILE} and speeding up @code{LOAD DATA INFILE},
 @xref{Insert speed}.
+
+
+@node DO,  , LOAD DATA, Data Manipulation
+@subsection @code{DO} Syntax
+
+@findex DO
+
+@example
+DO expression, [expression, ...]
+@end example
+
+Execute the expression but don't return any results.  This is a
+shorthand of @code{SELECT expression, expression}, but has the advantage
+that it's slightly faster when you don't care about the result.
+
+This is mainly useful with functions that has side effects, like
+@code{RELEASE_LOCK}.
 
 
 @node Data Definition, Basic User Commands, Data Manipulation, Reference
@@ -48059,6 +48080,10 @@ not yet 100% confident in this code.
 @node News-3.23.47, News-3.23.46, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.47
 @itemize @bullet
+@item
+Fixed core-dump bug in replication when using SELECT RELEASE_LOCK();
+@item
+Added new statement DO expression,[expression].
 @item
 Added @code{slave-skip-errors} option
 @item

@@ -1713,6 +1713,12 @@ show full columns from t2 from test like 's%';
 show keys from t2;
 
 #
+# Test of DO
+
+DO 1;
+DO benchmark(100,1+1),1,1;
+
+#
 # Drop the test tables
 #
 

@@ -123,6 +123,7 @@ static SYMBOL symbols[] = {
   { "DISABLE",		SYM(DISABLE_SYM),0,0},
   { "DISTINCT",		SYM(DISTINCT),0,0},
   { "DISTINCTROW",	SYM(DISTINCT),0,0},	/* Access likes this */
+  { "DO",		SYM(DO_SYM),0,0},
   { "DOUBLE",		SYM(DOUBLE_SYM),0,0},
   { "DROP",		SYM(DROP),0,0},
   { "DUMPFILE",		SYM(DUMPFILE),0,0},
@@ -498,9 +499,9 @@ static SYMBOL sql_functions[] = {
   { "TO_DAYS",		SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_to_days)},
   { "TRIM",		SYM(TRIM),0,0},
   { "UCASE",		SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_ucase)},
-  { "UPPER",		SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_ucase)},
   { "UNIQUE_USERS",	SYM(UNIQUE_USERS),0,0},
   { "UNIX_TIMESTAMP",	SYM(UNIX_TIMESTAMP),0,0},
+  { "UPPER",		SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_ucase)},
   { "USER",		SYM(USER),0,0},
   { "VERSION",		SYM(FUNC_ARG0),0,CREATE_FUNC(create_func_version)},
   { "WEEK",		SYM(WEEK_SYM),0,0},

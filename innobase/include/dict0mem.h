@@ -348,20 +348,20 @@ struct dict_table_struct{
 				database pages */
 	ulint		stat_sum_of_other_index_sizes;
 				/* other indexes in database pages */
-	ulint		stat_last_estimate_counter;
-				/* when the estimates were last time
-				calculated; a value (ulint)-1 denotes that
-				they have not yet been calculated for this
-				table (or the counter has wrapped over) */
-	ulint		stat_modif_counter;
+	ibool           stat_initialized; /* TRUE if statistics have
+				been calculated the first time
+			        after database startup or table creation */
+	ulint		stat_modified_counter;
 				/* when a row is inserted, updated, or deleted,
 				we add the row length to this number; we
 				calculate new estimates for the stat_...
 				values for the table and the indexes at an
-				interval of DICT_STAT_CALCULATE_INTERVAL,
-				but for small tables more often, also
+				interval of 2 GB or when about 1 / 16 of table
+				has been modified; also
 				when the estimate operation is called
-				for MySQL SHOW TABLE STATUS; this counter
+				for MySQL SHOW TABLE STATUS; the counter is
+				reset to zero at statistics calculation;
+				this counter
 				is not protected by any latch, because this
 				is only used for heuristics */
 	/*----------------------*/
@@ -377,10 +377,6 @@ struct dict_table_struct{
 	ulint		magic_n;/* magic number */
 };
 #define	DICT_TABLE_MAGIC_N	76333786
-
-/* Statistics are calculated at least with this interval; see the struct
-above */
-#define DICT_STAT_CALCULATE_INTERVAL	(UNIV_PAGE_SIZE * 8)
 					
 /* Data structure for a stored procedure */
 struct dict_proc_struct{
