@@ -119,7 +119,7 @@ int clear_table(Ndb* pNdb, const NdbDictionary::Table* pTab, int parallelism)
   const int            retryMax = 10;
   int deletedRows = 0;
   int check;
-  NdbConnection *pTrans;
+  NdbTransaction *pTrans;
   NdbScanOperation *pOp;
   NdbError err;
 
