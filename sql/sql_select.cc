@@ -4907,6 +4907,7 @@ end_write_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
     }
     if (idx < (int) join->send_group_parts)
     {
+      copy_fields(&join->tmp_table_param);
       copy_funcs(join->tmp_table_param.funcs);
       init_sum_functions(join->sum_funcs);
       if (join->procedure)

@@ -104,7 +104,7 @@ rm -f $BASE/share/mysql/Makefile* $BASE/share/mysql/*/*.OLD
 $CP mysql-test/mysql-test-run mysql-test/install_test_db $BASE/mysql-test/
 $CP mysql-test/README $BASE/mysql-test/README
 $CP mysql-test/include/*.inc $BASE/mysql-test/include
-$CP mysql-test/std_data/*.dat $BASE/mysql-test/std_data
+$CP mysql-test/std_data/*.dat mysql-test/std_data/*.001 $BASE/mysql-test/std_data
 $CP mysql-test/t/*.test mysql-test/t/*.opt mysql-test/t/*.sh $BASE/mysql-test/t
 $CP mysql-test/r/*.result mysql-test/r/*.require $BASE/mysql-test/r
 
