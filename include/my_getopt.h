@@ -50,11 +50,11 @@ struct my_option
 extern char *disabled_my_option;
 extern my_bool my_getopt_print_errors;
 
+typedef my_bool (* hoGetOneOption) (int, const struct my_option *, char * );
+typedef void (* hoErrorReporter) (const char *format, va_list args );
+
 extern int handle_options (int *argc, char ***argv, 
-			   const struct my_option *longopts, 
-			   my_bool (*get_one_option)(int,
-						     const struct my_option *,
-						     char *));
+			   const struct my_option *longopts, hoGetOneOption, hoErrorReporter );
 extern void my_print_help(const struct my_option *options);
 extern void my_print_variables(const struct my_option *options);
 

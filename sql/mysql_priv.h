@@ -639,9 +639,27 @@ void key_unpack(String *to,TABLE *form,uint index);
 bool check_if_key_used(TABLE *table, uint idx, List<Item> &fields);
 void init_errmessage(void);
 
+void vprint_msg_to_log( long errType, my_bool timestamp, const char *format, va_list args );
+void print_msg_to_log( long errType, my_bool timestamp, const char *format, ... );
 void sql_perror(const char *message);
-void sql_print_error(const char *format,...)
-	        __attribute__ ((format (printf, 1, 2)));
+	       /* __attribute__ ((format (printf, 1, 2)));
+*/
+
+#define MY_ERROR_TYPE       0x0001
+#define MY_WARNING_TYPE     0x0002
+#define MY_INFORMATION_TYPE 0x0004
+
+/*void sql_init_perror(const char *message);*/
+/*void sql_fprintf(const char *format,...)
+	                  __attribute__ ((format (printf, 1, 2)));*/
+
+/*#define sql_fprintf(format, args...) fprintf (stderr, format, ##args) */
+void sql_print_error( const char *format, ... );
+void sql_print_warning( const char *format, ...); 
+void sql_print_information( const char *format, ...); 
+
+
+
 bool fn_format_relative_to_data_home(my_string to, const char *name,
 				     const char *dir, const char *extension);
 bool open_log(MYSQL_LOG *log, const char *hostname,
