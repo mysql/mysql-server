@@ -158,7 +158,7 @@ static int ch2x(int ch)
   if (ch >= 'a' && ch <= 'f')
     return 10 + ch - 'a';
   
-  if (ch >= 'A' && ch <= 'Z')
+  if (ch >= 'A' && ch <= 'F')
     return 10 + ch - 'A';
   
   return -1;

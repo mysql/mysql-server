@@ -733,7 +733,7 @@ os_file_create_directory(
 	if (!(rcode != 0 ||
 		   (GetLastError() == ERROR_FILE_EXISTS && !fail_if_exists))) {
 		/* failure */
-		os_file_handle_error(Npathname, "CreateDirectory");
+		os_file_handle_error(pathname, "CreateDirectory");
 
 		return(FALSE);
 	}
