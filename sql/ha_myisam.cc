@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+/* Copyright (C) 2000,2004 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -810,46 +810,145 @@ int ha_myisam::preload_keys(THD* thd, HA_CHECK_OPT *check_opt)
   }
 }
 
+
 /*
-  disable indexes, making it persistent if requested
+  Disable indexes, making it persistent if requested.
+
   SYNOPSIS
-    disable_indexes(all, save)
-    all         disable all indexes
-                if not set only non-unique indexes will be disabled
-                [all=1 is NOT IMPLEMENTED YET]
-    save        save the disabled state, so that it will persist
-                between queries/threads/reboots
-                [save=0 is NOT IMPLEMENTED YET]
+    disable_indexes()
+    mode        mode of operation:
+                HA_KEY_SWITCH_NONUNIQ      disable all non-unique keys
+                HA_KEY_SWITCH_ALL          disable all keys
+                HA_KEY_SWITCH_NONUNIQ_SAVE dis. non-uni. and make persistent
+                HA_KEY_SWITCH_ALL_SAVE     dis. all keys and make persistent
+
+  IMPLEMENTATION
+    HA_KEY_SWITCH_NONUNIQ       is not implemented.
+    HA_KEY_SWITCH_ALL_SAVE      is not implemented.
+
+  RETURN
+    0  ok
+    HA_ERR_WRONG_COMMAND  mode not implemented.
 */
-int ha_myisam::disable_indexes(bool all, bool save)
-{
-  mi_extra(file, HA_EXTRA_NO_KEYS, 0);
-  info(HA_STATUS_CONST);                        // Read new key info
-  return 0;
-}
 
-int ha_myisam::enable_indexes()
+int ha_myisam::disable_indexes(uint mode)
 {
-  if (file->s->state.key_map == set_bits(ulonglong, file->s->base.keys))
-    return 0;
+  int error;
 
-  int error=0;
-  THD *thd=current_thd;
-  MI_CHECK param;
-  const char *save_proc_info=thd->proc_info;
-  thd->proc_info="Creating index";
-  myisamchk_init(&param);
-  param.op_name = (char*) "recreating_index";
-  param.testflag = (T_SILENT | T_REP_BY_SORT | T_QUICK |
-                    T_CREATE_MISSING_KEYS);
-  param.myf_rw&= ~MY_WAIT_IF_FULL;
-  param.sort_buffer_length=  thd->variables.myisam_sort_buff_size;
-  param.tmpdir=&mysql_tmpdir_list;
-  error=repair(thd,param,0) != HA_ADMIN_OK;
-  info(HA_STATUS_CONST);
-  thd->proc_info=save_proc_info;
+  if (mode == HA_KEY_SWITCH_ALL)
+  {
+    /* call a storage engine function to switch the key map */
+    error= mi_disable_indexes(file);
+  }
+  else if (mode == HA_KEY_SWITCH_NONUNIQ_SAVE)
+  {
+    mi_extra(file, HA_EXTRA_NO_KEYS, 0);
+    info(HA_STATUS_CONST);                        // Read new key info
+    error= 0;
+  }
+  else
+  {
+    /* mode not implemented */
+    error= HA_ERR_WRONG_COMMAND;
+  }
   return error;
 }
+
+
+/*
+  Enable indexes, making it persistent if requested.
+
+  SYNOPSIS
+    enable_indexes()
+    mode        mode of operation:
+                HA_KEY_SWITCH_NONUNIQ      enable all non-unique keys
+                HA_KEY_SWITCH_ALL          enable all keys
+                HA_KEY_SWITCH_NONUNIQ_SAVE en. non-uni. and make persistent
+                HA_KEY_SWITCH_ALL_SAVE     en. all keys and make persistent
+
+  DESCRIPTION
+    Enable indexes, which might have been disabled by disable_index() before.
+    The modes without _SAVE work only if both data and indexes are empty,
+    since the MyISAM repair would enable them persistently.
+    To be sure in these cases, call handler::delete_all_rows() before.
+
+  IMPLEMENTATION
+    HA_KEY_SWITCH_NONUNIQ       is not implemented.
+    HA_KEY_SWITCH_ALL_SAVE      is not implemented.
+
+  RETURN
+    0  ok
+    !=0  Error, among others:
+    HA_ERR_CRASHED  data or index is non-empty. Delete all rows and retry.
+    HA_ERR_WRONG_COMMAND  mode not implemented.
+*/
+
+int ha_myisam::enable_indexes(uint mode)
+{
+  int error;
+
+  if (file->s->state.key_map == set_bits(ulonglong, file->s->base.keys))
+  {
+    /* All indexes are enabled already. */
+    return 0;
+  }
+
+  if (mode == HA_KEY_SWITCH_ALL)
+  {
+    error= mi_enable_indexes(file);
+    /*
+       Do not try to repair on error,
+       as this could make the enabled state persistent,
+       but mode==HA_KEY_SWITCH_ALL forbids it.
+    */
+  }
+  else if (mode == HA_KEY_SWITCH_NONUNIQ_SAVE)
+  {
+    THD *thd=current_thd;
+    MI_CHECK param;
+    const char *save_proc_info=thd->proc_info;
+    thd->proc_info="Creating index";
+    myisamchk_init(&param);
+    param.op_name = (char*) "recreating_index";
+    param.testflag = (T_SILENT | T_REP_BY_SORT | T_QUICK |
+                      T_CREATE_MISSING_KEYS);
+    param.myf_rw&= ~MY_WAIT_IF_FULL;
+    param.sort_buffer_length=  thd->variables.myisam_sort_buff_size;
+    param.tmpdir=&mysql_tmpdir_list;
+    error=repair(thd,param,0) != HA_ADMIN_OK;
+    info(HA_STATUS_CONST);
+    thd->proc_info=save_proc_info;
+  }
+  else
+  {
+    /* mode not implemented */
+    error= HA_ERR_WRONG_COMMAND;
+  }
+  return error;
+}
+
+
+/*
+  Test if indexes are disabled.
+
+
+  SYNOPSIS
+    indexes_are_disabled()
+      no parameters
+
+
+  RETURN
+    0  indexes are not disabled
+    1  all indexes are disabled
+   [2  non-unique indexes are disabled - NOT YET IMPLEMENTED]
+*/
+
+int ha_myisam::indexes_are_disabled(void)
+{
+  
+  return mi_indexes_are_disabled(file);
+}
+
 
 /*
   prepare for a many-rows insert operation
@@ -898,7 +997,8 @@ int ha_myisam::end_bulk_insert()
 {
   mi_end_bulk_insert(file);
   int err=mi_extra(file, HA_EXTRA_NO_CACHE, 0);
-  return err ? err : can_enable_indexes ? enable_indexes() : 0;
+  return err ? err : can_enable_indexes ?
+                     enable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE) : 0;
 }
 
 

@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+/* Copyright (C) 2000,2004 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -97,6 +97,7 @@ extern uint hp_rb_null_key_length(HP_KEYDEF *keydef, const byte *key);
 extern my_bool hp_if_null_in_key(HP_KEYDEF *keyinfo, const byte *record);
 extern int hp_close(register HP_INFO *info);
 extern void hp_clear(HP_SHARE *info);
+extern void hp_clear_keys(HP_SHARE *info);
 extern uint hp_rb_pack_key(HP_KEYDEF *keydef, uchar *key, const uchar *old, 
 			   uint k_len);
 #ifdef THREAD

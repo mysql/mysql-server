@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+/* Copyright (C) 2000,2004 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -61,6 +61,7 @@ class ha_heap: public handler
 
   int open(const char *name, int mode, uint test_if_locked);
   int close(void);
+  void set_keys_for_scanning(void);
   int write_row(byte * buf);
   int update_row(const byte * old_data, byte * new_data);
   int delete_row(const byte * buf);
@@ -82,6 +83,9 @@ class ha_heap: public handler
   int extra(enum ha_extra_function operation);
   int external_lock(THD *thd, int lock_type);
   int delete_all_rows(void);
+  int disable_indexes(uint mode);
+  int enable_indexes(uint mode);
+  int indexes_are_disabled(void);
   ha_rows records_in_range(int inx, const byte *start_key,uint start_key_len,
 			   enum ha_rkey_function start_search_flag,
 			   const byte *end_key,uint end_key_len,

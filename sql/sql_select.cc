@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+/* Copyright (C) 2000-2004 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -5545,6 +5545,8 @@ bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
     goto err2;
   if (open_tmp_table(&new_table))
     goto err1;
+  if (table->file->indexes_are_disabled())
+    new_table.file->disable_indexes(HA_KEY_SWITCH_ALL);
   table->file->index_end();
   table->file->rnd_init();
   if (table->no_rows)

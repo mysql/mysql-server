@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+/* Copyright (C) 2000,2004 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -89,6 +89,13 @@
 #define HA_ONLY_WHOLE_INDEX	16	/* Can't use part key searches */
 #define HA_NOT_READ_PREFIX_LAST	32	/* No support for index_read_last() */
 #define HA_KEY_READ_ONLY	64	/* Support HA_EXTRA_KEYREAD */
+
+
+/* operations for disable/enable indexes */
+#define HA_KEY_SWITCH_NONUNIQ      0
+#define HA_KEY_SWITCH_ALL          1
+#define HA_KEY_SWITCH_NONUNIQ_SAVE 2
+#define HA_KEY_SWITCH_ALL_SAVE     3
 
 
 /*
@@ -371,8 +378,9 @@ public:
   */
   virtual int restore(THD* thd, HA_CHECK_OPT* check_opt);
   virtual int dump(THD* thd, int fd = -1) { return ER_DUMP_NOT_IMPLEMENTED; }
-  virtual int disable_indexes(bool all, bool save) { return HA_ERR_WRONG_COMMAND; }
-  virtual int enable_indexes() { return HA_ERR_WRONG_COMMAND; }
+  virtual int disable_indexes(uint mode) { return HA_ERR_WRONG_COMMAND; }
+  virtual int enable_indexes(uint mode) { return HA_ERR_WRONG_COMMAND; }
+  virtual int indexes_are_disabled(void) {return 0;}
   virtual void start_bulk_insert(ha_rows rows) {}
   virtual int end_bulk_insert() {return 0; }
   virtual int discard_or_import_tablespace(my_bool discard) {return -1;}

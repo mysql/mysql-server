@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+/* Copyright (C) 2000,2004 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -47,12 +47,7 @@ int ha_heap::open(const char *name, int mode, uint test_if_locked)
   if (file)
   {
     /* Initialize variables for the opened table */
-    btree_keys.clear_all();
-    for (uint i= 0 ; i < table->keys ; i++)
-    {
-      if (table->key_info[i].algorithm == HA_KEY_ALG_BTREE)
-	btree_keys.set_bit(i);
-    }
+    set_keys_for_scanning();
   }
   return (file ? 0 : 1);
 }
@@ -60,6 +55,33 @@ int ha_heap::open(const char *name, int mode, uint test_if_locked)
 int ha_heap::close(void)
 {
   return heap_close(file);
+}
+
+
+/*
+  Compute which keys to use for scanning
+
+  SYNOPSIS
+    set_keys_for_scanning()
+    no parameter
+
+  DESCRIPTION
+    Set the bitmap btree_keys, which is used when the upper layers ask
+    which keys to use for scanning. For each btree index the
+    corresponding bit is set.
+
+  RETURN
+    void
+*/
+
+void ha_heap::set_keys_for_scanning(void)
+{
+  btree_keys.clear_all();
+  for (uint i= 0 ; i < table->keys ; i++)
+  {
+    if (table->key_info[i].algorithm == HA_KEY_ALG_BTREE)
+      btree_keys.set_bit(i);
+  }
 }
 
 int ha_heap::write_row(byte * buf)
@@ -205,6 +227,114 @@ int ha_heap::delete_all_rows()
 int ha_heap::external_lock(THD *thd, int lock_type)
 {
   return 0;					// No external locking
+}
+
+
+/*
+  Disable indexes.
+
+  SYNOPSIS
+    disable_indexes()
+    mode        mode of operation:
+                HA_KEY_SWITCH_NONUNIQ      disable all non-unique keys
+                HA_KEY_SWITCH_ALL          disable all keys
+                HA_KEY_SWITCH_NONUNIQ_SAVE dis. non-uni. and make persistent
+                HA_KEY_SWITCH_ALL_SAVE     dis. all keys and make persistent
+
+  DESCRIPTION
+    Disable indexes and clear keys to use for scanning.
+
+  IMPLEMENTATION
+    HA_KEY_SWITCH_NONUNIQ       is not implemented.
+    HA_KEY_SWITCH_NONUNIQ_SAVE  is not implemented with HEAP.
+    HA_KEY_SWITCH_ALL_SAVE      is not implemented with HEAP.
+
+  RETURN
+    0  ok
+    HA_ERR_WRONG_COMMAND  mode not implemented.
+*/
+
+int ha_heap::disable_indexes(uint mode)
+{
+  int error;
+
+  if (mode == HA_KEY_SWITCH_ALL)
+  {
+    if (!(error= heap_disable_indexes(file)))
+      set_keys_for_scanning();
+  }
+  else
+  {
+    /* mode not implemented */
+    error= HA_ERR_WRONG_COMMAND;
+  }
+  return error;
+}
+
+
+/*
+  Enable indexes.
+
+  SYNOPSIS
+    enable_indexes()
+    mode        mode of operation:
+                HA_KEY_SWITCH_NONUNIQ      enable all non-unique keys
+                HA_KEY_SWITCH_ALL          enable all keys
+                HA_KEY_SWITCH_NONUNIQ_SAVE en. non-uni. and make persistent
+                HA_KEY_SWITCH_ALL_SAVE     en. all keys and make persistent
+
+  DESCRIPTION
+    Enable indexes and set keys to use for scanning.
+    The indexes might have been disabled by disable_index() before.
+    The function works only if both data and indexes are empty,
+    since the heap storage engine cannot repair the indexes.
+    To be sure, call handler::delete_all_rows() before.
+
+  IMPLEMENTATION
+    HA_KEY_SWITCH_NONUNIQ       is not implemented.
+    HA_KEY_SWITCH_NONUNIQ_SAVE  is not implemented with HEAP.
+    HA_KEY_SWITCH_ALL_SAVE      is not implemented with HEAP.
+
+  RETURN
+    0  ok
+    HA_ERR_CRASHED  data or index is non-empty. Delete all rows and retry.
+    HA_ERR_WRONG_COMMAND  mode not implemented.
+*/
+
+int ha_heap::enable_indexes(uint mode)
+{
+  int error;
+
+  if (mode == HA_KEY_SWITCH_ALL)
+  {
+    if (!(error= heap_enable_indexes(file)))
+      set_keys_for_scanning();
+  }
+  else
+  {
+    /* mode not implemented */
+    error= HA_ERR_WRONG_COMMAND;
+  }
+  return error;
+}
+
+
+/*
+  Test if indexes are disabled.
+
+  SYNOPSIS
+    indexes_are_disabled()
+    no parameters
+
+  RETURN
+    0  indexes are not disabled
+    1  all indexes are disabled
+   [2  non-unique indexes are disabled - NOT YET IMPLEMENTED]
+*/
+
+int ha_heap::indexes_are_disabled(void)
+{
+  return heap_indexes_are_disabled(file);
 }
 
 THR_LOCK_DATA **ha_heap::store_lock(THD *thd,
