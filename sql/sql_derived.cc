@@ -124,10 +124,16 @@ int mysql_derived_prepare(THD *thd, LEX *lex, TABLE_LIST *orig_table_list)
     /*
       Temp table is created so that it hounours if UNION without ALL is to be 
       processed
+
+      As 'distinct' parameter we always pass FALSE (0), because underlying
+      query will control distinct condition by itself. Correct test of
+      distinct underlying query will be is_union &&
+      !unit->union_distinct->next_select() (i.e. it is union and last distinct
+      SELECT is last SELECT of UNION).
     */
     if (!(table= create_tmp_table(thd, &derived_result->tmp_table_param,
 				  unit->types, (ORDER*) 0,
-				  is_union && unit->union_distinct, 1,
+				  FALSE, 1,
 				  (first_select->options | thd->options |
 				   TMP_TABLE_ALL_COLUMNS),
 				  HA_POS_ERROR,
