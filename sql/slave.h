@@ -199,7 +199,8 @@ typedef struct st_relay_log_info
   /*
     Handling of the relay_log_space_limit optional constraint.
     ignore_log_space_limit is used to resolve a deadlock between I/O and SQL
-    threads, it makes the I/O thread temporarily forget about the constraint
+    threads, the SQL thread sets it to unblock the I/O thread and make it
+    temporarily forget about the constraint.
   */
   ulonglong log_space_limit,log_space_total;
   bool ignore_log_space_limit;
@@ -211,6 +212,8 @@ typedef struct st_relay_log_info
     END of the current log event
   */
   int event_len;
+
+  time_t last_master_timestamp; 
 
   /*
     Needed for problems when slave stops and we want to restart it
@@ -389,6 +392,16 @@ typedef struct st_master_info
   enum enum_binlog_formats old_format;
   volatile bool abort_slave, slave_running;
   volatile ulong slave_run_id;
+  /* 
+     The difference in seconds between the clock of the master and the clock of
+     the slave (second - first). It must be signed as it may be <0 or >0.
+     clock_diff_with_master is computed when the I/O thread starts; for this the
+     I/O thread does a SELECT UNIX_TIMESTAMP() on the master.
+     "how late the slave is compared to the master" is computed like this:
+     clock_of_slave - last_timestamp_executed_by_SQL_thread - clock_diff_with_master
+
+  */
+  long clock_diff_with_master; 
   
   st_master_info()
     :ssl(0), fd(-1),  io_thd(0), inited(0), old_format(BINLOG_FORMAT_CURRENT),
@@ -478,9 +491,9 @@ int start_slave_thread(pthread_handler h_func, pthread_mutex_t* start_lock,
 int mysql_table_dump(THD* thd, const char* db,
 		     const char* tbl_name, int fd = -1);
 
-/* retrieve non-exitent table from master */
+/* retrieve table from master and copy to slave*/
 int fetch_master_table(THD* thd, const char* db_name, const char* table_name,
-		       MASTER_INFO* mi, MYSQL* mysql);
+		       MASTER_INFO* mi, MYSQL* mysql, bool overwrite);
 
 void table_rule_ent_hash_to_str(String* s, HASH* h);
 void table_rule_ent_dynamic_array_to_str(String* s, DYNAMIC_ARRAY* a);
@@ -511,7 +524,7 @@ void slave_print_error(RELAY_LOG_INFO* rli, int err_code, const char* msg, ...);
 void end_slave(); /* clean up */
 void init_master_info_with_options(MASTER_INFO* mi);
 void clear_until_condition(RELAY_LOG_INFO* rli);
-void clear_last_slave_error(RELAY_LOG_INFO* rli);
+void clear_slave_error_timestamp(RELAY_LOG_INFO* rli);
 int init_master_info(MASTER_INFO* mi, const char* master_info_fname,
 		     const char* slave_info_fname,
 		     bool abort_if_no_master_info_file);

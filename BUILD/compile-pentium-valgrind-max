@@ -11,3 +11,17 @@ extra_configs="$pentium_configs $debug_configs"
 extra_configs="$extra_configs --with-berkeley-db --with-innodb --without-isam --with-embedded-server --with-openssl"
 
 . "$path/FINISH.sh"
+
+if test -z "$just_print"
+then
+  echo "\
+******************************************************************************
+Note that by default BUILD/compile-pentium-valgrind-max calls 'configure' with
+--enable-assembler. When Valgrind detects an error involving an assembly
+function (for example an uninitialized value used as an argument of an
+assembly function), Valgrind will not print the stacktrace and 'valgrind
+--gdb-attach=yes' will not work either. If you need a stacktrace in those
+cases, you have to run BUILD/compile-pentium-valgrind-max with the
+--disable-assembler argument.
+******************************************************************************"
+fi

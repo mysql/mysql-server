@@ -1,4 +1,4 @@
-This is a release of MySQL 4.0.11a-gamma for Win32.
+This is a release of MySQL @VERSION@ for Win32.
 
 NOTE: If you install MySQL in a folder other than
 C:\MYSQL or you intend to start MySQL on NT/Win2000

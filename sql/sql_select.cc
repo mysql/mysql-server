@@ -171,6 +171,8 @@ int handle_select(THD *thd, LEX *lex, select_result *result)
 {
   int res;
   register SELECT_LEX *select_lex = &lex->select_lex;
+  DBUG_ENTER("handle_select");
+
   fix_tables_pointers(lex->all_selects_list);
   if (select_lex->next_select())
     res=mysql_union(thd, lex, result, &lex->unit, 0);
@@ -187,16 +189,25 @@ int handle_select(THD *thd, LEX *lex, select_result *result)
 		      (ORDER*) lex->proc_list.first,
 		      select_lex->options | thd->options,
 		      result, &(lex->unit), &(lex->select_lex), 0);
-  if (res && result)
-    result->abort();
 
-  if (res || thd->net.report_error)
-  {
-    send_error(thd, 0, NullS);
+  /* Don't set res if it's -1 as we may want this later */
+  DBUG_PRINT("info",("res: %d  report_error: %d", res,
+		     thd->net.report_error));
+  if (thd->net.report_error)
     res= 1;
+  if (res)
+  {
+    if (result)
+    {
+      result->send_error(0, NullS);
+      result->abort();
+    }
+    else
+      send_error(thd, 0, NullS);
+    res= 1;					// Error sent to client
   }
   delete result;
-  return res;
+  DBUG_RETURN(res);
 }
 
 
@@ -2574,7 +2585,7 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
       best=best_time=records=DBL_MAX;
       KEYUSE *best_key=0;
       uint best_max_key_part=0;
-      my_bool found_constrain= 0;
+      my_bool found_constraint= 0;
 
       if (s->keyuse)
       {						/* Use key if possible */
@@ -2639,7 +2650,7 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
           }
           else
           {
-	  found_constrain= 1;
+	  found_constraint= 1;
 	  /*
 	    Check if we found full key
 	  */
@@ -2801,29 +2812,50 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 	    s->table->used_keys && best_key) &&
 	  !(s->table->force_index && best_key))
       {						// Check full join
-	ha_rows rnd_records= s->found_records;
-	if (s->on_expr)
-	{
-	  tmp=rows2double(rnd_records);		// Can't use read cache
-	}
-	else
-	{
-	  tmp=(double) s->read_time;
-	  /* Calculate time to read previous rows through cache */
-	  tmp*=(1.0+floor((double) cache_record_length(join,idx)*
-			  record_count /
-			  (double) thd->variables.join_buff_size));
-	}
+        ha_rows rnd_records= s->found_records;
+        /* Estimate cost of reading table. */
+        tmp= s->table->file->scan_time();
+        /*
+          If there is a restriction on the table, assume that 25% of the
+          rows can be skipped on next part.
+          This is to force tables that this table depends on before this
+          table
+        */
+        if (found_constraint)
+          rnd_records-= rnd_records/4;
 
-	/*
-	  If there is a restriction on the table, assume that 25% of the
-	  rows can be skipped on next part.
-	  This is to force tables that this table depends on before this
-	  table
-	*/
-	if (found_constrain)
-	  rnd_records-= rnd_records/4;
+        if (s->on_expr)                         // Can't use join cache
+        {
+          tmp= record_count *
+               /* We have to read the whole table for each record */
+               (tmp +     
+               /*
+                 And we have to skip rows which does not satisfy join
+                 condition for each record.
+               */
+               (s->records - rnd_records)/(double) TIME_FOR_COMPARE);
+        }
+        else
+        {
+          /* We read the table as many times as join buffer becomes full. */
+          tmp*= (1.0 + floor((double) cache_record_length(join,idx) *
+                             record_count /
+                             (double) thd->variables.join_buff_size));
+          /* 
+            We don't make full cartesian product between rows in the scanned
+            table and existing records because we skip all rows from the
+            scanned table, which does not satisfy join condition when 
+            we read the table (see flush_cached_records for details). Here we
+            take into account cost to read and skip these records.
+          */
+          tmp+= (s->records - rnd_records)/(double) TIME_FOR_COMPARE;
+        }
 
+        /*
+          We estimate the cost of evaluating WHERE clause for found records
+          as record_count * rnd_records + TIME_FOR_COMPARE. This cost plus
+          tmp give us total cost of using TABLE SCAN
+        */
 	if (best == DBL_MAX ||
 	    (tmp  + record_count/(double) TIME_FOR_COMPARE*rnd_records <
 	     best + record_count/(double) TIME_FOR_COMPARE*records))
@@ -4453,6 +4485,8 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
 	new_field->field_name=item->name;
       if (org_field->maybe_null())
 	new_field->flags&= ~NOT_NULL_FLAG;	// Because of outer join
+      if (org_field->type()==FIELD_TYPE_VAR_STRING)
+	table->db_create_options|= HA_OPTION_PACK_RECORD;
     }
     return new_field;
   }
@@ -5299,7 +5333,7 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
       HAVING will be chcked after processing aggregate functions,
       But WHERE should checkd here (we alredy have read tables)
     */
-    if(!join->conds || join->conds->val_int())
+    if (!join->conds || join->conds->val_int())
     {
       if (!(error=(*end_select)(join,join_tab,0)) || error == -3)
 	error=(*end_select)(join,join_tab,1);

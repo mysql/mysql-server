@@ -49,7 +49,7 @@ strip sql/mysqld"
   fi
 fi
 
-if test -z "$nonono"
+if test -z "$just_print"
 then
   eval "set -x; $commands"
 else

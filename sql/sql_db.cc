@@ -393,16 +393,16 @@ exit:
   start_waiting_global_read_lock(thd);
   /*
     If this database was the client's selected database, we silently change the
-    client's selected database to nothing (to have an empty SELECT DATABASE() in
-    the future). For this we free() thd->db and set it to 0. But we don't do
+    client's selected database to nothing (to have an empty SELECT DATABASE()
+    in the future). For this we free() thd->db and set it to 0. But we don't do
     free() for the slave thread. Indeed, doing a x_free() on it leads to nasty
     problems (i.e. long painful debugging) because in this thread, thd->db is
     the same as data_buf and db of the Query_log_event which is dropping the
-    database. So if you free() thd->db, you're freeing data_buf. You set thd->db
-    to 0 but not data_buf (thd->db and data_buf are two distinct pointers which
-    point to the same place). Then in ~Query_log_event(), we have
-    'if (data_buf) free(data_buf)'
-    data_buf is !=0 so this makes a DOUBLE free().
+    database. So if you free() thd->db, you're freeing data_buf. You set
+    thd->db to 0 but not data_buf (thd->db and data_buf are two distinct
+    pointers which point to the same place). Then in ~Query_log_event(), we
+    have 'if (data_buf) free(data_buf)' data_buf is !=0 so this makes a
+    DOUBLE free().
     Side effects of this double free() are, randomly (depends on the machine),
     when the slave is replicating a DROP DATABASE: 
     - garbage characters in the error message:

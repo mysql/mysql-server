@@ -20,6 +20,7 @@
 #
 ##################### Standard benchmark inits ##############################
 
+use Cwd;
 use DBI;
 use Getopt::Long;
 use Benchmark;
@@ -30,7 +31,7 @@ $opt_small_loop_count=10;
 $opt_regions=6;
 $opt_groups=100;
 
-chomp($pwd = `pwd`); $pwd = "." if ($pwd eq '');
+$pwd = cwd(); $pwd = "." if ($pwd eq '');
 require "$pwd/bench-init.pl" || die "Can't read Configuration file: $!\n";
 
 $columns=min($limits->{'max_columns'},500,($limits->{'query_size'}-50)/24,
@@ -356,7 +357,8 @@ if ($limits->{'group_distinct_functions'})
     timestr(timediff($end_time, $loop_time),"all") . "\n";
 
 #  Workaround mimer's behavior
-  if (limits->{'multi_distinct'} == 1 ) {
+  if ($limits->{'multi_distinct'})
+  {
     $loop_time=new Benchmark;
     $rows=$estimated=$count=0;
     for ($i=0 ; $i < $opt_medium_loop_count ; $i++)
@@ -370,7 +372,7 @@ if ($limits->{'group_distinct_functions'})
     print_time($estimated);
     print " for count_distinct_2 ($count:$rows): " .
       timestr(timediff($end_time, $loop_time),"all") . "\n";
-  }    
+  }
 
   $loop_time=new Benchmark;
   $rows=$estimated=$count=0;

@@ -72,8 +72,8 @@ static int safe_sleep(THD* thd, int sec, CHECK_KILLED_FUNC thread_killed,
 		      void* thread_killed_arg);
 static int request_table_dump(MYSQL* mysql, const char* db, const char* table);
 static int create_table_from_dump(THD* thd, MYSQL *mysql, const char* db,
-				  const char* table_name);
-static int check_master_version(MYSQL* mysql, MASTER_INFO* mi);
+				  const char* table_name, bool overwrite);
+static int check_master_version_and_clock(MYSQL* mysql, MASTER_INFO* mi);
 
 
 /*
@@ -1071,7 +1071,7 @@ static int init_intvar_from_file(int* var, IO_CACHE* f, int default_val)
 }
 
 
-static int check_master_version(MYSQL* mysql, MASTER_INFO* mi)
+static int get_master_version_and_clock(MYSQL* mysql, MASTER_INFO* mi)
 {
   const char* errmsg= 0;
   
@@ -1094,6 +1094,33 @@ static int check_master_version(MYSQL* mysql, MASTER_INFO* mi)
     break;
   }
 
+  MYSQL_RES *master_clock_res;
+  MYSQL_ROW master_clock_row;
+  time_t slave_clock;
+
+  if (mysql_real_query(mysql, "SELECT UNIX_TIMESTAMP()", 23))
+    errmsg= "\"SELECT UNIX_TIMESTAMP()\" failed on master"; 
+  else if (!(master_clock_res= mysql_store_result(mysql)))
+  {
+    errmsg= "Could not read the result of \"SELECT UNIX_TIMESTAMP()\" on \
+master"; 
+  }
+  else 
+  {
+    if (!(master_clock_row= mysql_fetch_row(master_clock_res)))
+      errmsg= "Could not read a row from the result of \"SELECT \
+UNIX_TIMESTAMP()\" on master"; 
+    else
+    {
+      slave_clock= time((time_t*) 0);
+      mi->clock_diff_with_master= (long) (slave_clock -
+                                          strtoul(master_clock_row[0], 0, 10));
+      DBUG_PRINT("info",("slave_clock=%lu, master_clock=%s",
+                         slave_clock, master_clock_row[0]));
+    }
+  mysql_free_result(master_clock_res);
+  }
+
   if (errmsg)
   {
     sql_print_error(errmsg);
@@ -1102,12 +1129,22 @@ static int check_master_version(MYSQL* mysql, MASTER_INFO* mi)
   return 0;
 }
 
+/*
+  Used by fetch_master_table (used by LOAD TABLE tblname FROM MASTER and LOAD
+  DATA FROM MASTER). Drops the table (if 'overwrite' is true) and recreates it
+  from the dump. Honours replication inclusion/exclusion rules.
+
+  RETURN VALUES
+    0           success
+    1           error
+*/
 
 static int create_table_from_dump(THD* thd, MYSQL *mysql, const char* db,
-				  const char* table_name)
+				  const char* table_name, bool overwrite)
 {
   ulong packet_len;
   char *query;
+  char* save_db;
   Vio* save_vio;
   HA_CHECK_OPT check_opt;
   TABLE_LIST tables;
@@ -1115,12 +1152,13 @@ static int create_table_from_dump(THD* thd, MYSQL *mysql, const char* db,
   handler *file;
   ulong save_options;
   NET *net= &mysql->net;
-  
+  DBUG_ENTER("create_table_from_dump");  
+
   packet_len= my_net_read(net); // read create table statement
   if (packet_len == packet_error)
   {
     send_error(thd, ER_MASTER_NET_READ);
-    return 1;
+    DBUG_RETURN(1);
   }
   if (net->read_pos[0] == 255) // error from master
   {
@@ -1129,7 +1167,7 @@ static int create_table_from_dump(THD* thd, MYSQL *mysql, const char* db,
 				       CLIENT_PROTOCOL_41) ?
 				      3+SQLSTATE_LENGTH+1 : 3);
     net_printf(thd, ER_MASTER, err_msg);
-    return 1;
+    DBUG_RETURN(1);
   }
   thd->command = COM_TABLE_DUMP;
   thd->query_length= packet_len;
@@ -1138,18 +1176,29 @@ static int create_table_from_dump(THD* thd, MYSQL *mysql, const char* db,
   {
     sql_print_error("create_table_from_dump: out of memory");
     net_printf(thd, ER_GET_ERRNO, "Out of memory");
-    return 1;
+    DBUG_RETURN(1);
   }
   thd->query= query;
   thd->query_error = 0;
   thd->net.no_send_ok = 1;
 
-  /* we do not want to log create table statement */
+  bzero((char*) &tables,sizeof(tables));
+  tables.db = (char*)db;
+  tables.alias= tables.real_name= (char*)table_name;
+  /* Drop the table if 'overwrite' is true */
+  if (overwrite && mysql_rm_table(thd,&tables,1,0)) /* drop if exists */
+  {
+    send_error(thd);
+    sql_print_error("create_table_from_dump: failed to drop the table");
+    goto err;
+  }
+
+  /* Create the table. We do not want to log the "create table" statement */
   save_options = thd->options;
   thd->options &= ~(ulong) (OPTION_BIN_LOG);
   thd->proc_info = "Creating table from master dump";
   // save old db in case we are creating in a different database
-  char* save_db = thd->db;
+  save_db = thd->db;
   thd->db = (char*)db;
   mysql_parse(thd, thd->query, packet_len); // run create table
   thd->db = save_db;		// leave things the way the were before
@@ -1158,11 +1207,8 @@ static int create_table_from_dump(THD* thd, MYSQL *mysql, const char* db,
   if (thd->query_error)
     goto err;			// mysql_parse took care of the error send
 
-  bzero((char*) &tables,sizeof(tables));
-  tables.db = (char*)db;
-  tables.alias= tables.real_name= (char*)table_name;
-  tables.lock_type = TL_WRITE;
   thd->proc_info = "Opening master dump table";
+  tables.lock_type = TL_WRITE;
   if (!open_ltable(thd, &tables, TL_WRITE))
   {
     send_error(thd,0,0);			// Send error from open_ltable
@@ -1172,10 +1218,11 @@ static int create_table_from_dump(THD* thd, MYSQL *mysql, const char* db,
   
   file = tables.table->file;
   thd->proc_info = "Reading master dump table data";
+  /* Copy the data file */
   if (file->net_read_dump(net))
   {
     net_printf(thd, ER_MASTER_NET_READ);
-    sql_print_error("create_table_from_dump::failed in\
+    sql_print_error("create_table_from_dump: failed in\
  handler::net_read_dump()");
     goto err;
   }
@@ -1190,6 +1237,7 @@ static int create_table_from_dump(THD* thd, MYSQL *mysql, const char* db,
   */
   save_vio = thd->net.vio;
   thd->net.vio = 0;
+  /* Rebuild the index file from the copied data file (with REPAIR) */
   error=file->repair(thd,&check_opt) != 0;
   thd->net.vio = save_vio;
   if (error)
@@ -1198,12 +1246,12 @@ static int create_table_from_dump(THD* thd, MYSQL *mysql, const char* db,
 err:
   close_thread_tables(thd);
   thd->net.no_send_ok = 0;
-  return error; 
+  DBUG_RETURN(error); 
 }
 
 
 int fetch_master_table(THD *thd, const char *db_name, const char *table_name,
-		       MASTER_INFO *mi, MYSQL *mysql)
+		       MASTER_INFO *mi, MYSQL *mysql, bool overwrite)
 {
   int error= 1;
   const char *errmsg=0;
@@ -1235,8 +1283,9 @@ int fetch_master_table(THD *thd, const char *db_name, const char *table_name,
     errmsg= "Failed on table dump request";
     goto err;
   }
-  if (create_table_from_dump(thd, mysql, db_name, table_name))
-    goto err;    // create_table_from_dump will have sent the error already
+  if (create_table_from_dump(thd, mysql, db_name,
+			     table_name, overwrite))
+    goto err;    // create_table_from_dump have sent the error already
   error = 0;
 
  err:
@@ -1575,14 +1624,18 @@ void init_master_info_with_options(MASTER_INFO* mi)
     strmake(mi->ssl_key, master_ssl_key, sizeof(mi->ssl_key)-1);
 }
 
-
-void clear_last_slave_error(RELAY_LOG_INFO* rli)
+static void clear_slave_error(RELAY_LOG_INFO* rli)
 {
-  //Clear the errors displayed by SHOW SLAVE STATUS
-  rli->last_slave_error[0]=0;
-  rli->last_slave_errno=0;
+  /* Clear the errors displayed by SHOW SLAVE STATUS */
+  rli->last_slave_error[0]= 0;
+  rli->last_slave_errno= 0;
 }
 
+void clear_slave_error_timestamp(RELAY_LOG_INFO* rli)
+{
+  rli->last_master_timestamp= 0;
+  clear_slave_error(rli);
+}
 
 /*
     Reset UNTIL condition for RELAY_LOG_INFO
@@ -1886,6 +1939,8 @@ int show_master_info(THD* thd, MASTER_INFO* mi)
   Protocol *protocol= thd->protocol;
   DBUG_ENTER("show_master_info");
 
+  field_list.push_back(new Item_empty_string("Slave_IO_State",
+						     14));
   field_list.push_back(new Item_empty_string("Master_Host",
 						     sizeof(mi->host)));
   field_list.push_back(new Item_empty_string("Master_User",
@@ -1936,6 +1991,8 @@ int show_master_info(THD* thd, MASTER_INFO* mi)
                                              sizeof(mi->ssl_cipher)));
   field_list.push_back(new Item_empty_string("Master_SSL_Key", 
                                              sizeof(mi->ssl_key)));
+  field_list.push_back(new Item_return_int("Seconds_behind_master", 10,
+                                           MYSQL_TYPE_LONGLONG));
   
   if (protocol->send_fields(&field_list, 1))
     DBUG_RETURN(-1);
@@ -1948,6 +2005,8 @@ int show_master_info(THD* thd, MASTER_INFO* mi)
   
     pthread_mutex_lock(&mi->data_lock);
     pthread_mutex_lock(&mi->rli.data_lock);
+
+    protocol->store(mi->io_thd ? mi->io_thd->proc_info : "", &my_charset_bin);
     protocol->store(mi->host, &my_charset_bin);
     protocol->store(mi->user, &my_charset_bin);
     protocol->store((uint32) mi->port);
@@ -2003,7 +2062,15 @@ int show_master_info(THD* thd, MASTER_INFO* mi)
     protocol->store(mi->ssl_cert, &my_charset_bin);
     protocol->store(mi->ssl_cipher, &my_charset_bin);
     protocol->store(mi->ssl_key, &my_charset_bin);
-    
+
+    if (mi->rli.last_master_timestamp)
+      protocol->store((ulonglong) 
+                      (long)((time_t)time((time_t*) 0)
+                             - mi->rli.last_master_timestamp)
+                      - mi->clock_diff_with_master);
+    else
+      protocol->store_null();
+
     pthread_mutex_unlock(&mi->rli.data_lock);
     pthread_mutex_unlock(&mi->data_lock);
   
@@ -2046,9 +2113,10 @@ bool flush_master_info(MASTER_INFO* mi)
 st_relay_log_info::st_relay_log_info()
   :info_fd(-1), cur_log_fd(-1), save_temporary_tables(0),
    cur_log_old_open_count(0), group_master_log_pos(0), log_space_total(0),
-   ignore_log_space_limit(0), slave_skip_counter(0), abort_pos_wait(0),
-   slave_run_id(0), sql_thd(0), last_slave_errno(0), inited(0), abort_slave(0),
-   slave_running(0), until_condition(UNTIL_NONE), until_log_pos(0)
+   ignore_log_space_limit(0), last_master_timestamp(0), slave_skip_counter(0),
+   abort_pos_wait(0), slave_run_id(0), sql_thd(0), last_slave_errno(0),
+   inited(0), abort_slave(0), slave_running(0), until_condition(UNTIL_NONE),
+   until_log_pos(0)
 {
   group_relay_log_name[0]= event_relay_log_name[0]= group_master_log_name[0]= 0;
   last_slave_error[0]=0; until_log_name[0]= 0;
@@ -2754,7 +2822,7 @@ connected:
 
   thd->slave_net = &mysql->net;
   thd->proc_info = "Checking master version";
-  if (check_master_version(mysql, mi))
+  if (get_master_version_and_clock(mysql, mi))
     goto err;
   if (!mi->old_format)
   {
@@ -3035,9 +3103,13 @@ slave_begin:
   /*
     Reset errors for a clean start (otherwise, if the master is idle, the SQL
     thread may execute no Query_log_event, so the error will remain even
-    though there's no problem anymore).
+    though there's no problem anymore). Do not reset the master timestamp
+    (imagine the slave has caught everything, the STOP SLAVE and START SLAVE: as
+    we are not sure that we are going to receive a query, we want to remember
+    the last master timestamp (to say how many seconds behind we are now.
+    But the master timestamp is reset by RESET SLAVE & CHANGE MASTER.
   */
-  clear_last_slave_error(rli);
+  clear_slave_error(rli);
 
   //tell the I/O thread to take relay_log_space_limit into account from now on
   pthread_mutex_lock(&rli->log_space_lock);
@@ -3421,15 +3493,15 @@ int queue_event(MASTER_INFO* mi,const char* buf, ulong event_len)
   case STOP_EVENT:
     /*
       We needn't write this event to the relay log. Indeed, it just indicates a
-      master server shutdown. The only thing this does is cleaning. But cleaning
-      is already done on a per-master-thread basis (as the master server is
-      shutting down cleanly, it has written all DROP TEMPORARY TABLE and DO
-      RELEASE_LOCK; prepared statements' deletion are TODO).
+      master server shutdown. The only thing this does is cleaning. But
+      cleaning is already done on a per-master-thread basis (as the master
+      server is shutting down cleanly, it has written all DROP TEMPORARY TABLE
+      and DO RELEASE_LOCK; prepared statements' deletion are TODO).
       
-      We don't even increment mi->master_log_pos, because we may be just after a
-      Rotate event. Btw, in a few milliseconds we are going to have a Start
-      event from the next binlog (unless the master is presently running without
-      --log-bin).
+      We don't even increment mi->master_log_pos, because we may be just after
+      a Rotate event. Btw, in a few milliseconds we are going to have a Start
+      event from the next binlog (unless the master is presently running
+      without --log-bin).
     */
     goto err;
   case ROTATE_EVENT:
@@ -3455,8 +3527,8 @@ int queue_event(MASTER_INFO* mi,const char* buf, ulong event_len)
   /* 
      If this event is originating from this server, don't queue it. 
      We don't check this for 3.23 events because it's simpler like this; 3.23
-     will be filtered anyway by the SQL slave thread which also tests the server
-     id (we must also keep this test in the SQL thread, in case somebody
+     will be filtered anyway by the SQL slave thread which also tests the
+     server id (we must also keep this test in the SQL thread, in case somebody
      upgrades a 4.0 slave which has a not-filtered relay log).
 
      ANY event coming from ourselves can be ignored: it is obvious for queries;

@@ -42,7 +42,7 @@
 
 **********************************************************************/
 
-#define MTEST_VERSION "1.30"
+#define MTEST_VERSION "2.0"
 
 #include <my_global.h>
 #include <mysql_embed.h>
@@ -78,6 +78,7 @@
 #ifndef MYSQL_MANAGER_PORT
 #define MYSQL_MANAGER_PORT 23546
 #endif
+#define MAX_SERVER_ARGS 20
 
 /*
   Sometimes in a test the client starts before
@@ -122,11 +123,20 @@ static int  *block_ok_stack_end;
 static int *cur_block, *block_stack_end;
 static int block_stack[BLOCK_STACK_DEPTH];
 
-
 static int block_ok_stack[BLOCK_STACK_DEPTH];
 static uint global_expected_errno[MAX_EXPECTED_ERRORS], global_expected_errors;
-
 static CHARSET_INFO *charset_info= &my_charset_latin1;
+
+static int embedded_server_arg_count=0;
+static char *embedded_server_args[MAX_SERVER_ARGS];
+
+static const char *embedded_server_groups[] = {
+  "server",
+  "embedded",
+  "mysqltest_SERVER",
+  NullS
+};
+
 DYNAMIC_ARRAY q_lines;
 
 #include "sslopt-vars.h"
@@ -343,18 +353,8 @@ void mysql_disable_rpl_parse(MYSQL* mysql __attribute__((unused))) {}
 int mysql_rpl_parse_enabled(MYSQL* mysql __attribute__((unused))) { return 1; }
 my_bool mysql_rpl_probe(MYSQL *mysql __attribute__((unused))) { return 1; }
 #endif
-
-#define MAX_SERVER_ARGS 20
-
-static int embedded_server_arg_count=0;
-static char *embedded_server_args[MAX_SERVER_ARGS];
-
-static const char *embedded_server_groups[] = {
-  "server",
-  "embedded",
-  "mysqltest_SERVER",
-  NullS
-};
+static void replace_dynstr_append_mem(DYNAMIC_STRING *ds, const char *val,
+				      int len);
 
 static void do_eval(DYNAMIC_STRING* query_eval, const char* query)
 {
@@ -717,7 +717,7 @@ int do_wait_for_slave_to_stop(struct st_query* q __attribute__((unused)))
   MYSQL* mysql = &cur_con->mysql;
   for (;;)
   {
-    MYSQL_RES* res;
+    MYSQL_RES *res;
     MYSQL_ROW row;
     int done;
     LINT_INIT(res);
@@ -771,9 +771,7 @@ int do_server_op(struct st_query* q,const char* op)
   if (!*p)
     die("Missing server name in server_%s\n",op);
   while (*p && !my_isspace(charset_info,*p))
-  {
-   *com_p++=*p++;
-  }
+   *com_p++= *p++;
   *com_p++=' ';
   com_p=int10_to_str(manager_wait_timeout,com_p,10);
   *com_p++ = '\n';
@@ -881,8 +879,12 @@ int do_exec(struct st_query* q)
   if (!(res_file= popen(cmd, "r")) && q->abort_on_error)
     die("popen() failed\n");
   while (fgets(buf, sizeof(buf), res_file))
-    dynstr_append(ds, buf);
+    replace_dynstr_append_mem(ds, buf, strlen(buf));
   pclose(res_file);
+  
+  if (glob_replace)
+    free_replace();
+
   if (record)
   {
     if (!q->record_file[0] && !result_file)
