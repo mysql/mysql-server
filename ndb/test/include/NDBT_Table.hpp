@@ -50,13 +50,12 @@ public:
   
   NDBT_Table(const char* name, 
 	     int noOfAttributes,
-	     const NdbDictionary::Column attributes[],
-	     bool stored = true)
+	     const NdbDictionary::Column attributes[])
     : NdbDictionary::Table(name)
   {
     assert(name != 0);
     
-    setStoredTable(stored);
+    //setStoredTable(stored);
     for(int i = 0; i<noOfAttributes; i++)
       addColumn(attributes[i]);
   }
