@@ -4,6 +4,10 @@
 
 <charset name="greek">
 
+<!-- It's ISO Greek rahter than WIN Greek  because                   -->
+<!-- 0xB6 is marked as upper letter, it's true for ISO Greek version -->
+<!-- In Windows version this character is PILCROW SIGN               -->
+
 <ctype>
 <map>
  00
