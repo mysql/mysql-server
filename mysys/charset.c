@@ -44,13 +44,6 @@ struct simpleconfig_buf_st {
   char *p;
 };
 
-/* Defined in strings/ctype.c */
-
-CHARSET_INFO *find_compiled_charset(uint cs_number);
-uint compiled_charset_number(const char *name);
-const char *compiled_charset_name(uint charset_number);
-
-
 static uint num_from_csname(CS_ID **cs, const char *name)
 {
   CS_ID **c;
@@ -264,22 +257,22 @@ static my_bool read_charset_file(uint cs_number, CHARSET_INFO *set,
 
 uint get_charset_number(const char *charset_name)
 {
-  my_bool error;
-  error = init_available_charsets(MYF(0));	/* If it isn't initialized */
-  if (error)
-    return compiled_charset_number(charset_name);
-  else
-    return num_from_csname(available_charsets, charset_name);
+  uint number=compiled_charset_number(charset_name);
+  if (number)
+    return number;
+  if (init_available_charsets(MYF(0)))	/* If it isn't initialized */
+    return 0;
+  return num_from_csname(available_charsets, charset_name);
 }
 
 const char *get_charset_name(uint charset_number)
 {
-  my_bool error;
-  error = init_available_charsets(MYF(0));	/* If it isn't initialized */
-  if (error)
-    return compiled_charset_name(charset_number);
-  else
-    return name_from_csnum(available_charsets, charset_number);
+  char *name=compiled_charset_name(charset_number);
+  if (*name != '?')
+    return name;
+  if (init_available_charsets(MYF(0)))	/* If it isn't initialized */
+    return "?";
+  return name_from_csnum(available_charsets, charset_number);
 }
 
 
@@ -293,8 +286,8 @@ static CHARSET_INFO *find_charset(CHARSET_INFO **table, uint cs_number,
   return NULL;
 }
 
-static CHARSET_INFO *find_charset_by_name(CHARSET_INFO **table, const char *name,
-					  size_t tablesz)
+static CHARSET_INFO *find_charset_by_name(CHARSET_INFO **table,
+					  const char *name, size_t tablesz)
 {
   uint i;
   for (i = 0; i < tablesz; ++i)

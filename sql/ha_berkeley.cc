@@ -90,7 +90,7 @@ const char *berkeley_lock_names[] =
 { "DEFAULT", "OLDEST","RANDOM","YOUNGEST",0 };
 u_int32_t berkeley_lock_types[]=
 { DB_LOCK_DEFAULT, DB_LOCK_OLDEST, DB_LOCK_RANDOM };
-TYPELIB berkeley_lock_typelib= {array_elements(berkeley_lock_names),"",
+TYPELIB berkeley_lock_typelib= {array_elements(berkeley_lock_names)-1,"",
 				berkeley_lock_names};
 
 static void berkeley_print_error(const char *db_errpfx, char *buffer);

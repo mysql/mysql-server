@@ -690,8 +690,7 @@ fi
 
 AC_DEFUN(MYSQL_CHECK_VIO, [
   AC_ARG_WITH([vio],
-              [\
-  --with-vio          Include the Virtual IO support],
+              [  --with-vio          Include the Virtual IO support],
               [vio="$withval"],
               [vio=no])
 
@@ -712,26 +711,25 @@ AC_DEFUN(MYSQL_CHECK_VIO, [
 AC_DEFUN(MYSQL_CHECK_OPENSSL, [
 AC_MSG_CHECKING(for OpenSSL)
   AC_ARG_WITH([openssl],
-              [\
-  --with-openssl          Include the OpenSSL support],
+              [  --with-openssl          Include the OpenSSL support],
               [openssl="$withval"],
               [openssl=no])
 
+  openssl_libs=""
+  openssl_includes=""
   if test "$openssl" = "yes"
   then
     if test -n "$vio_dir"
     then
       AC_MSG_RESULT(yes)
-      openssl_libs="-lssl -lcrypto -L/usr/local/ssl/lib"
+      openssl_libs="-L/usr/local/ssl/lib -lssl -lcrypto"
       openssl_includes="-I/usr/local/ssl/include"
+      AC_DEFINE(HAVE_OPENSSL)
     else
-      AC_MSG_ERROR([OpenSSL requires Virtual IO support (--with-vio)])
+      AC_MSG_RESULT(disabled because --with-vio wasn not used)
     fi
-    AC_DEFINE(HAVE_OPENSSL)
   else
     AC_MSG_RESULT(no)
-    openssl_libs=""
-    openssl_includes=""
   fi
   NON_THREADED_CLIENT_LIBS="$NON_THREADED_CLIENT_LIBS $openssl_libs"
   AC_SUBST(openssl_libs)
@@ -750,16 +748,19 @@ dnl Call MYSQL_CHECK_ORBIT even if mysqlfs == no, so that @orbit_*@
 dnl get substituted.
   MYSQL_CHECK_ORBIT
 
+  AC_MSG_CHECKING(if we should build MySQLFS)
+  fs_dirs=""
   if test "$mysqlfs" = "yes"
   then
     if test -n "$orbit_exec_prefix"
     then
       fs_dirs=fs
+      AC_MSG_RESULT([yes])
     else
-      AC_MSG_ERROR([mysqlfs requires ORBit, the CORBA ORB])
+      AC_MSG_RESULT(disabled because ORBIT, the CORBA ORB, was not found)
     fi
   else
-    fs_dirs=
+    AC_MSG_RESULT([no])
   fi
   AC_SUBST([fs_dirs])
 ])
@@ -1250,7 +1251,7 @@ changequote([, ])dnl
 AC_DEFUN(AC_SYS_LARGEFILE,
   [AC_REQUIRE([AC_CANONICAL_HOST])
    AC_ARG_ENABLE(largefile,
-     [  --disable-large-files   Omit support for large files])
+     [  --disable-largefile    Omit support for large files])
    if test "$enable_largefile" != no; then
      AC_CHECK_TOOL(GETCONF, getconf)
      AC_SYS_LARGEFILE_FLAGS(CFLAGS)

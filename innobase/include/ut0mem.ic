@@ -28,13 +28,6 @@ ut_memcmp(void* str1, void* str2, ulint n)
 }
 
 UNIV_INLINE
-void
-ut_free(void* ptr)
-{
-	free(ptr);
-}
-
-UNIV_INLINE
 char*
 ut_strcpy(char* dest, char* sour)
 {

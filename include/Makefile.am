@@ -16,8 +16,8 @@
 # MA 02111-1307, USA
 
 BUILT_SOURCES =		mysql_version.h m_ctype.h my_config.h
-pkginclude_HEADERS =	dbug.h m_string.h my_sys.h mysql.h mysql_com.h \
-			mysqld_error.h my_list.h \
+pkginclude_HEADERS =	dbug.h m_string.h my_sys.h my_list.h \
+			mysql.h mysql_com.h mysqld_error.h mysql_embed.h \
 		        my_pthread.h my_no_pthread.h raid.h errmsg.h \
 			my_global.h my_net.h \
 			sslopt-case.h sslopt-longopts.h sslopt-usage.h \

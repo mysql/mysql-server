@@ -160,6 +160,7 @@ os_fast_mutex_trylock(
 						was reserved by another
 						thread */
 	os_fast_mutex_t*	fast_mutex);	/* in: mutex to acquire */
+#endif
 /**************************************************************
 Releases ownership of a fast mutex. */
 UNIV_INLINE
@@ -188,7 +189,6 @@ void
 os_fast_mutex_free(
 /*===============*/
 	os_fast_mutex_t*	fast_mutex);	/* in: mutex to free */
-#endif
 	
 #ifndef UNIV_NONINL
 #include "os0sync.ic"

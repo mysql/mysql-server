@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+/* Copyright (C) 2001 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
    
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,19 +14,17 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/* Common defines for all clients */
+/* Write a row to a MyISAM MERGE table */
 
-#include <my_global.h>
-#include <my_sys.h> 
-#include <m_string.h>
-#include <mysql_embed.h>
-#include <mysql.h>
-#include <errmsg.h>
-#include <getopt.h>
+#include "mymrgdef.h"
 
-/* We have to define 'enum options' identical in all files to keep OS2 happy */
-
-enum options { OPT_CHARSETS_DIR=256, OPT_DEFAULT_CHARSET,
-	       OPT_PAGER, OPT_NOPAGER, OPT_TEE, OPT_NOTEE,
-	       OPT_LOW_PRIORITY, OPT_AUTO_REPAIR, OPT_COMPRESS,
-	       OPT_FTB, OPT_LTB, OPT_ENC, OPT_O_ENC, OPT_ESC, OPT_TABLES};
+int myrg_write(register MYRG_INFO *info, byte *rec)
+{
+  /* [phi] MERGE_WRITE_DISABLED is handled by the else case */
+  if (info->merge_insert_method == MERGE_INSERT_TO_FIRST)
+    return mi_write(info->open_tables[0].table,rec);
+  else if (info->merge_insert_method == MERGE_INSERT_TO_LAST)
+    return mi_write(info->end_table[-1].table,rec);
+  else /* unsupported insertion method */
+    return (my_errno=HA_ERR_WRONG_COMMAND); 
+}

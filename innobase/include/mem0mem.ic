@@ -170,7 +170,9 @@ mem_heap_alloc(
 	buf = (byte*)buf + MEM_FIELD_HEADER_SIZE;
 
 	#endif
-
+#ifdef UNIV_SET_MEM_TO_ZERO
+	memset(buf, '\0', n);
+#endif
 	return(buf);
 }
 
@@ -494,8 +496,14 @@ mem_alloc_func(
 	)
 {
 	#ifndef UNIV_MEM_DEBUG
+	void* buf;
 
-	return(mem_area_alloc(n, mem_comm_pool));
+	buf = mem_area_alloc(n, mem_comm_pool);
+
+#ifdef UNIV_SET_MEM_TO_ZERO
+	memset(buf, '\0', n);
+#endif
+	return(buf);
 	
 	#else
 	

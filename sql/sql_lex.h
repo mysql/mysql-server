@@ -22,7 +22,7 @@ class Table_ident;
 class sql_exchange;
 class LEX_COLUMN;
 
-// The following hack is neaded because mysql_yacc.cc does not define
+// The following hack is needed because mysql_yacc.cc does not define
 // YYSTYPE before including this file
 
 #ifdef MYSQL_YACC
