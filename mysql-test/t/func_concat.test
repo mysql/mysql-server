@@ -1,0 +1,24 @@
+#
+# Test of problem with CONCAT_WS() and long separators.
+#
+
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 ( number INT NOT NULL, alpha CHAR(6) NOT NULL );
+INSERT INTO t1 VALUES (1413006,'idlfmv'),
+(1413065,'smpsfz'),(1413127,'sljrhx'),(1413304,'qerfnd');
+
+SELECT number, alpha, CONCAT_WS('<---->',number,alpha) AS new
+FROM t1 GROUP BY number;
+
+SELECT CONCAT_WS('<---->',number,alpha) AS new
+FROM t1 GROUP BY new LIMIT 1;
+
+SELECT number, alpha, CONCAT_WS('<->',number,alpha) AS new
+FROM t1 GROUP BY new LIMIT 1;
+
+SELECT number, alpha, CONCAT_WS('-',number,alpha,alpha,alpha,alpha,alpha,alpha,alpha) AS new
+FROM t1 GROUP BY new LIMIT 1;
+
+SELECT number, alpha, CONCAT_WS('<------------------>',number,alpha) AS new
+FROM t1 GROUP BY new LIMIT 1;
+drop table t1;
