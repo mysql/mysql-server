@@ -471,13 +471,14 @@ double Item_sum_hybrid::val()
 {
   DBUG_ASSERT(fixed == 1);
   int err;
+  char *end_not_used;
   if (null_value)
     return 0.0;
   switch (hybrid_type) {
   case STRING_RESULT:
     String *res;  res=val_str(&str_value);
     return (res ? my_strntod(res->charset(), (char*) res->ptr(),res->length(),
-			     (char**) 0, &err) : 0.0);
+			     &end_not_used, &err) : 0.0);
   case INT_RESULT:
     if (unsigned_flag)
       return ulonglong2double(sum_int);
