@@ -229,7 +229,7 @@ int Arg_comparator::set_compare_func(Item_bool_func2 *item, Item_result type)
     uint n= (*a)->cols();
     if (n != (*b)->cols())
     {
-      my_error(ER_CARDINALITY_COL, MYF(0), n);
+      my_error(ER_OPERAND_COLUMNS, MYF(0), n);
       comparators= 0;
       return 1;
     }
@@ -239,7 +239,7 @@ int Arg_comparator::set_compare_func(Item_bool_func2 *item, Item_result type)
     {
       if ((*a)->el(i)->cols() != (*b)->el(i)->cols())
       {
-	my_error(ER_CARDINALITY_COL, MYF(0), (*a)->el(i)->cols());
+	my_error(ER_OPERAND_COLUMNS, MYF(0), (*a)->el(i)->cols());
 	return 1;
       }
       comparators[i].set_cmp_func(owner, (*a)->addr(i), (*b)->addr(i));
@@ -423,7 +423,7 @@ bool Item_in_optimizer::fix_fields(THD *thd, struct st_table_list *tables,
   Item_in_subselect * sub= (Item_in_subselect *)args[1];
   if (args[0]->cols() != sub->engine->cols())
   {
-    my_error(ER_CARDINALITY_COL, MYF(0), args[0]->cols());
+    my_error(ER_OPERAND_COLUMNS, MYF(0), args[0]->cols());
     return 1;
   }
   if (args[1]->maybe_null)
@@ -1351,7 +1351,7 @@ void cmp_item_row::store_value_by_template(cmp_item *t, Item *item)
   cmp_item_row *tmpl= (cmp_item_row*) t;
   if (tmpl->n != item->cols())
   {
-    my_error(ER_CARDINALITY_COL, MYF(0), tmpl->n);
+    my_error(ER_OPERAND_COLUMNS, MYF(0), tmpl->n);
     return;
   }
   n= tmpl->n;
@@ -1378,7 +1378,7 @@ int cmp_item_row::cmp(Item *arg)
   arg->null_value= 0;
   if (arg->cols() != n)
   {
-    my_error(ER_CARDINALITY_COL, MYF(0), n);
+    my_error(ER_OPERAND_COLUMNS, MYF(0), n);
     return 1;
   }
   bool was_null= 0;
