@@ -22,6 +22,8 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) default NULL,
-  UNIQUE KEY `constraint_1` (`a`)
+  UNIQUE KEY `constraint_1` (`a`),
+  UNIQUE KEY `key_1` (`a`),
+  UNIQUE KEY `key_2` (`a`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
