@@ -25,7 +25,7 @@ Geometry::Class_info *Geometry::ci_collection[Geometry::wkb_end]=
 };
 
 static Geometry::Class_info **ci_collection_end=
-                                Geometry::ci_collection+Geometry::wkb_end;
+                                Geometry::ci_collection+Geometry::wkb_end + 1;
 
 Geometry::Class_info::Class_info(const char *name, int type_id,
 					 void(*create_func)(void *)):
