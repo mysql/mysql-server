@@ -3844,6 +3844,10 @@ int ndbcluster_find_files(THD *thd,const char *db,const char *path,
     NdbDictionary::Dictionary::List::Element& t= list.elements[i];
     DBUG_PRINT("info", ("Found %s/%s in NDB", t.database, t.name));     
 
+    // Add only tables that belongs to db
+    if (my_strcasecmp(system_charset_info, t.database, db))
+      continue;
+
     // Apply wildcard to list of tables in NDB
     if (wild)
     {
@@ -3938,8 +3942,8 @@ int ndbcluster_find_files(THD *thd,const char *db,const char *path,
   while ((file_name=it2++))
   {  
     DBUG_PRINT("info", ("Table %s need discovery", name));
-    ha_create_table_from_engine(thd, db, file_name, true);    
-    files->push_back(thd->strdup(file_name)); 
+    if (ha_create_table_from_engine(thd, db, file_name, true) == 0)
+      files->push_back(thd->strdup(file_name)); 
   }
 
   pthread_mutex_unlock(&LOCK_open);      
