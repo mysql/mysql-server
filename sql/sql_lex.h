@@ -447,15 +447,21 @@ typedef struct st_lex
   SELECT_LEX *all_selects_list;
   uchar *ptr,*tok_start,*tok_end,*end_of_query;
   char *length,*dec,*change,*name;
+  char *help_arg;
   char *backup_dir;				/* For RESTORE/BACKUP */
   char* to_log;                                 /* For PURGE MASTER LOGS TO */
   time_t purge_time;                            /* For PURGE MASTER LOGS BEFORE */
   char* x509_subject,*x509_issuer,*ssl_cipher;
   char* found_colon;                            /* For multi queries - next query */
-  enum SSL_type ssl_type;			/* defined in violite.h */
   String *wild;
   sql_exchange *exchange;
   select_result *result;
+  Item *default_value, *comment;
+  LEX_USER *grant_user;
+  gptr yacc_yyss,yacc_yyvs;
+  THD *thd;
+  CHARSET_INFO *charset;
+  SQL_LIST *gorder_list;
 
   List<key_part_spec> col_list;
   List<key_part_spec> ref_list;
@@ -473,11 +479,6 @@ typedef struct st_lex
   SQL_LIST	      proc_list, auxilliary_table_list;
   TYPELIB	      *interval;
   create_field	      *last_field;
-  Item *default_value, *comment;
-  uint uint_geom_type;
-  LEX_USER *grant_user;
-  gptr yacc_yyss,yacc_yyvs;
-  THD *thd;
   udf_func udf;
   HA_CHECK_OPT   check_opt;			// check/repair options
   HA_CREATE_INFO create_info;
@@ -486,6 +487,7 @@ typedef struct st_lex
   ulong thread_id,type;
   enum_sql_command sql_command;
   thr_lock_type lock_option;
+  enum SSL_type ssl_type;			/* defined in violite.h */
   enum my_lex_states next_state;
   enum enum_duplicates duplicates;
   enum enum_tx_isolation tx_isolation;
@@ -493,17 +495,15 @@ typedef struct st_lex
   enum ha_rkey_function ha_rkey_mode;
   enum enum_enable_or_disable alter_keys_onoff;
   enum enum_var_type option_type;
+  uint uint_geom_type;
   uint grant, grant_tot_col, which_columns;
   uint fk_delete_opt, fk_update_opt, fk_match_option;
   uint param_count;
+  uint slave_thd_opt;
   bool drop_primary, drop_if_exists, drop_temporary, local_file;
   bool in_comment, ignore_space, verbose, simple_alter, no_write_to_binlog;
   bool derived_tables, describe;
   bool safe_to_cache_query;
-  uint slave_thd_opt;
-  CHARSET_INFO *charset;
-  char *help_arg;
-  SQL_LIST *gorder_list;
   st_lex() {}
   inline void uncacheable()
   {

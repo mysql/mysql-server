@@ -2349,7 +2349,7 @@ static void optimize_keyuse(JOIN *join, DYNAMIC_ARRAY *keyuse_array)
       Constant tables are ignored.
       To avoid bad matches, we don't make ref_table_rows less than 100.
     */
-    keyuse->ref_table_rows= ~(table_map) 0;	// If no ref
+    keyuse->ref_table_rows= ~(ha_rows) 0;	// If no ref
     if (keyuse->used_tables &
 	(map= (keyuse->used_tables & ~join->const_table_map &
 	       ~OUTER_REF_TABLE_BIT)))
