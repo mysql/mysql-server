@@ -715,3 +715,18 @@ CREATE TABLE t2 ( SYAIN_NO char(5) NOT NULL default '',STR_DATE char(8) NOT NULL
 select T1.KINMU_DATE from t1 T1 ,t2 T2 where  T1.SYAIN_NO = '12345' and T1.KINMU_DATE = '200106' and T2.SYAIN_NO = T1.SYAIN_NO;
 select T1.KINMU_DATE from t1 T1 ,t2 T2 where  T1.SYAIN_NO = '12345' and T1.KINMU_DATE = '200106' and T2.SYAIN_NO = T1.SYAIN_NO;
 DROP TABLE t1,t2;
+
+#
+# Test problem with joining table to itself on a multi-part unique key
+#
+
+drop table if exists t;
+create table t (a int(11) not null, b int(11) not null, unique (a,b)) type=bdb;
+
+insert into t values (1,1), (1,2);
+
+select * from t where a = 1;
+select t1.*, t2.* from t t1, t t2 where t1.a = t2.a and t2.a = 1;
+select * from t where a = 1;
+
+drop table t;
