@@ -384,7 +384,6 @@ select * from mysql.db;
 enable_result_log;
 show status like "Qcache_queries_in_cache";
 
-
 #
 # simple rename test
 #
@@ -397,3 +396,14 @@ select * from t1 where id=2;
 drop table t2;
 -- error 1146
 select * from t1 where id=2;
+
+#
+# Load data invalidation test
+#
+
+create table t1 (word char(20) not null);
+select * from t1;
+show status like "Qcache_queries_in_cache";
+load data infile '../../std_data/words.dat' into table t1;
+show status like "Qcache_queries_in_cache";
+drop table t1;
