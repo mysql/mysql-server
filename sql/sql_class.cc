@@ -141,6 +141,7 @@ THD::THD():user_time(0),fatal_error(0),last_insert_id_used(0),
 	    (void (*)(void*)) free_var,0);
 #ifdef USING_TRANSACTIONS
   bzero((char*) &transaction,sizeof(transaction));
+  user_connect=(UC *)0;
   if (opt_using_transactions)
   {
     if (open_cached_file(&transaction.trans_log,
