@@ -735,7 +735,7 @@ static int myisamchk(MI_CHECK *param, my_string filename)
     case HA_ERR_CRASHED:
       mi_check_print_error(param,"'%s' doesn't have a correct index definition. You need to recreate it before you can do a repair",filename);
       break;
-    case HA_ERR_WRONG_TABLE_DEF:
+    case HA_ERR_NOT_A_TABLE:
       mi_check_print_error(param,"'%s' is not a MyISAM-table",filename);
       break;
     case HA_ERR_CRASHED_ON_USAGE:

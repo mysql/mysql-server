@@ -117,7 +117,7 @@ void mi_check_print_warning(MI_CHECK *param, const char *fmt,...)
 }
 
 const char **ha_myisam::bas_ext() const
-{ static const char *ext[]= { ".MYD",".MYI", NullS }; return ext; }
+{ static const char *ext[]= { ".MYI",".MYD", NullS }; return ext; }
 
 
 const char *ha_myisam::index_type(uint key_number)
