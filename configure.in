@@ -2861,12 +2861,10 @@ then
   AC_DEFINE([THREAD], [1],
             [Define if you want to have threaded code. This may be undef on client code])
   # Avoid _PROGRAMS names
-  THREAD_LPROGRAMS="test_thr_alarm\$(EXEEXT) test_thr_lock\$(EXEEXT)"
-  AC_SUBST(THREAD_LPROGRAMS)
   THREAD_LOBJECTS="thr_alarm.o thr_lock.o thr_mutex.o thr_rwlock.o my_pthread.o my_thr_init.o"
   AC_SUBST(THREAD_LOBJECTS)
   server_scripts="mysqld_safe mysql_install_db"
-  sql_server_dirs="strings dbug mysys extra regex"
+  sql_server_dirs="strings mysys dbug extra regex"
 
 
   #

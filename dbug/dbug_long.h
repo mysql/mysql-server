@@ -1,3 +1,4 @@
+#error This file is not used in MySQL - see ../include/my_dbug.h instead
 /******************************************************************************
  *									      *
  *				   N O T I C E				      *
