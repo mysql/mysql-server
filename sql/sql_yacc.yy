@@ -1199,7 +1199,8 @@ field_spec:
 	 {
 	   LEX *lex=Lex;
 	   lex->length=lex->dec=0; lex->type=0; lex->interval=0;
-	   lex->default_value=lex->comment=0;
+	   lex->default_value=0;
+	   lex->comment=0;
 	   lex->charset=NULL;
 	 }
 	type opt_attribute
@@ -1411,7 +1412,7 @@ attribute:
 	| opt_primary KEY_SYM { Lex->type|= PRI_KEY_FLAG | NOT_NULL_FLAG; }
 	| UNIQUE_SYM	  { Lex->type|= UNIQUE_FLAG; }
 	| UNIQUE_SYM KEY_SYM { Lex->type|= UNIQUE_KEY_FLAG; }
-	| COMMENT_SYM text_literal { Lex->comment= $2; }
+	| COMMENT_SYM TEXT_STRING_sys { Lex->comment= &$2; }
 	| COLLATE_SYM collation_name
 	  {
 	    if (Lex->charset && !my_charset_same(Lex->charset,$2))
@@ -1668,7 +1669,8 @@ alter_list_item:
           {
             LEX *lex=Lex;
             lex->length=lex->dec=0; lex->type=0; lex->interval=0;
-            lex->default_value=lex->comment=0;
+            lex->default_value=0;
+	    lex->comment=0;
 	    lex->charset= NULL;
             lex->simple_alter=0;
           }

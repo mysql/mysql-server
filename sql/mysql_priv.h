@@ -598,7 +598,8 @@ void set_item_name(Item *item,char *pos,uint length);
 bool add_field_to_list(THD *thd, char *field_name, enum enum_field_types type,
 		       char *length, char *decimal,
 		       uint type_modifier,
-		       Item *default_value, Item *comment,
+		       Item *default_value,
+		       LEX_STRING *comment,
 		       char *change, TYPELIB *interval,CHARSET_INFO *cs,
 		       uint uint_geom_type);
 void store_position_for_column(const char *name);
