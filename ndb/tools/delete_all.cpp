@@ -24,7 +24,11 @@
 
 static int clear_table(Ndb* pNdb, const NdbDictionary::Table* pTab, int parallelism=240);
 
-static const char* opt_connect_str= 0;
+enum ndb_delete_all {
+  NDB_STD_OPTS_OPTIONS
+};
+NDB_STD_OPTS_VARS;
+
 static const char* _dbname = "TEST_DB";
 static struct my_option my_long_options[] =
 {
