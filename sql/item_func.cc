@@ -2334,7 +2334,7 @@ Item *get_system_var(enum_var_type var_type, LEX_STRING name)
   THD *thd=current_thd;
   Item *item;
   sys_var *var;
-  char buff[MAX_SYS_VAR_LENGTH+3];
+  char buff[MAX_SYS_VAR_LENGTH+3+8], *pos;
 
   if (!(var= find_sys_var(name.str)))
   {
@@ -2346,8 +2346,14 @@ Item *get_system_var(enum_var_type var_type, LEX_STRING name)
   thd->safe_to_cache_query=0;
   buff[0]='@';
   buff[1]='@';
-  memcpy(buff+2, var->name, var->name_length+1);
-  item->set_name(buff,var->name_length+2);	// Will allocate name
+  pos=buff+2;
+  if (var_type == OPT_SESSION)
+    pos=strmov(pos,"session.");
+  else if (var_type == OPT_GLOBAL)
+    pos=strmov(pos,"global.");
+  memcpy(pos, var->name, var->name_length+1);
+  // set_name() will allocate the name
+  item->set_name(buff,(uint) (pos-buff)+var->name_length);
   return item;
 }
 

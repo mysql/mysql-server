@@ -126,13 +126,14 @@ extern int NEAR my_errno;		/* Last error in mysys */
 	/* defines when allocating data */
 
 #ifdef SAFEMALLOC
-#define my_malloc(SZ,FLAG) _mymalloc( SZ, __FILE__, __LINE__, FLAG )
-#define my_malloc_ci(SZ,FLAG) _mymalloc( SZ, sFile, uLine, FLAG )
-#define my_realloc(PTR,SZ,FLAG) _myrealloc( PTR, SZ, __FILE__, __LINE__, FLAG )
+#define my_malloc(SZ,FLAG) _mymalloc((SZ), __FILE__, __LINE__, FLAG )
+#define my_malloc_ci(SZ,FLAG) _mymalloc((SZ), sFile, uLine, FLAG )
+#define my_realloc(PTR,SZ,FLAG) _myrealloc((PTR), (SZ), __FILE__, __LINE__, FLAG )
 #define my_checkmalloc() _sanity( __FILE__, __LINE__ )
-#define my_free(PTR,FLAG) _myfree( PTR, __FILE__, __LINE__,FLAG)
-#define my_memdup(A,B,C) _my_memdup(A,B,__FILE__,__LINE__,C)
-#define my_strdup(A,C) _my_strdup(A,__FILE__,__LINE__,C)
+#define my_free(PTR,FLAG) _myfree((PTR), __FILE__, __LINE__,FLAG)
+#define my_memdup(A,B,C) _my_memdup((A),(B), __FILE__,__LINE__,C)
+#define my_strdup(A,C) _my_strdup((A), __FILE__,__LINE__,C)
+#define my_strdup_with_length(A,B,C) _my_strdup_with_length((A),(B),__FILE__,__LINE__,C)
 #define QUICK_SAFEMALLOC sf_malloc_quick=1
 #define NORMAL_SAFEMALLOC sf_malloc_quick=0
 extern uint sf_malloc_prehunc,sf_malloc_endhunc,sf_malloc_quick;
@@ -153,6 +154,8 @@ extern gptr my_realloc(gptr oldpoint,uint Size,myf MyFlags);
 extern void my_no_flags_free(gptr ptr);
 extern gptr my_memdup(const byte *from,uint length,myf MyFlags);
 extern my_string my_strdup(const char *from,myf MyFlags);
+extern my_string my_strdup_with_length(const char *from,uint length,
+				       myf MyFlags);
 #define my_free(PTR,FG) my_no_flags_free(PTR)
 #define CALLER_INFO_PROTO   /* nothing */
 #define CALLER_INFO         /* nothing */
@@ -550,6 +553,10 @@ extern gptr _my_memdup(const byte *from,uint length,
 		       const char *sFile, uint uLine,myf MyFlag);
 extern my_string _my_strdup(const char *from, const char *sFile, uint uLine,
 			    myf MyFlag);
+extern my_string _my_strdup_with_length(const char *from, uint length,
+					const char *sFile, uint uLine,
+					myf MyFlag);
+
 #ifndef TERMINATE
 extern void TERMINATE(FILE *file);
 #endif

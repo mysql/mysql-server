@@ -538,3 +538,17 @@ my_string _my_strdup(const char *from, const char *sFile, uint uLine,
     memcpy((byte*) ptr, (byte*) from,(size_t) length);
   return((my_string) ptr);
 } /* _my_strdup */
+
+
+my_string _my_strdup_with_length(const char *from, uint length,
+				 const char *sFile, uint uLine,
+				 myf MyFlags)
+{
+  gptr ptr;
+  if ((ptr=_mymalloc(length+1,sFile,uLine,MyFlags)) != 0)
+  {
+    memcpy((byte*) ptr, (byte*) from,(size_t) length);
+    ptr[length]=0;
+  }
+  return((my_string) ptr);
+}

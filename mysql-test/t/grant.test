@@ -8,6 +8,7 @@ flush privileges;
 grant select on mysqltest.* to mysqltest_1@localhost require cipher "EDH-RSA-DES-CBC3-SHA";
 show grants for mysqltest_1@localhost;
 grant delete on mysqltest.* to mysqltest_1@localhost;
+select * from mysql.user where user="mysqltest_1";
 show grants for mysqltest_1@localhost;
 revoke delete on mysqltest.* from mysqltest_1@localhost;
 show grants for mysqltest_1@localhost;
