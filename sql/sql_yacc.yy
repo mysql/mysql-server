@@ -523,7 +523,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 
 %type <lex_str>
 	IDENT TEXT_STRING REAL_NUM FLOAT_NUM NUM LONG_NUM HEX_NUM LEX_HOSTNAME
-	ULONGLONG_NUM field_ident select_alias ident ident_or_text UNDERSCORE_CHARSET
+	ULONGLONG_NUM field_ident select_alias ident ident_or_text  UNDERSCORE_CHARSET
 
 %type <lex_str_ptr>
 	opt_table_alias
@@ -632,7 +632,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	handler_rkey_function handler_read_or_scan
 	single_multi table_wild_list table_wild_one opt_wild union union_list
 	precision union_option opt_on_delete_item subselect_start opt_and
-	subselect_end
+	subselect_end select_var_list
 END_OF_INPUT
 
 %type <NONE>
@@ -1544,6 +1544,7 @@ select_part2:
 select_into:
 	limit_clause {}
 	| select_from
+        | opt_into
 	| opt_into select_from
 	| select_from opt_into;
 
@@ -2287,11 +2288,11 @@ select_part3:
 	  mysql_init_select(lex);
 	  lex->select->linkage= DERIVED_TABLE_TYPE;
 	}
-        select_options select_item_list select_intoto
+        select_options select_item_list select_intoto;
 
 select_intoto:
 	limit_clause {}
-	| select_from
+	| select_from;
 
 opt_outer:
 	/* empty */	{}
@@ -2544,8 +2545,20 @@ procedure_item:
 	      $2->set_name($1,(uint) ((char*) Lex->tok_end - $1));
 	  };
 
+select_var_list:
+	   select_var_list ',' '@' ident_or_text
+           {
+	     if (Lex->select_into_var_list.push_back((LEX_STRING*) sql_memdup(&$4,sizeof(LEX_STRING))))
+	       YYABORT;
+	   }
+           |  '@' ident_or_text
+           {
+	     if (Lex->select_into_var_list.push_back((LEX_STRING*) sql_memdup(&$2,sizeof(LEX_STRING))))
+	       YYABORT;
+	   };
+
 opt_into:
-	INTO OUTFILE TEXT_STRING
+        INTO OUTFILE TEXT_STRING
 	{
 	  if (!(Lex->exchange= new sql_exchange($3.str,0)))
 	    YYABORT;
@@ -2555,6 +2568,10 @@ opt_into:
 	{
 	  if (!(Lex->exchange= new sql_exchange($3.str,1)))
 	    YYABORT;
+	}
+        | INTO select_var_list
+	{
+	  current_thd->safe_to_cache_query=0;
 	};
 
 /*
@@ -3225,7 +3242,7 @@ param_marker:
             yyerror("You have an error in your SQL syntax");
             YYABORT;
           }
-        }
+        };
 literal:
 	text_literal	{ $$ =	$1; }
 	| NUM		{ $$ =	new Item_int($1.str, (longlong) atol($1.str),$1.length); }
@@ -3565,7 +3582,7 @@ option_value:
 	| PASSWORD FOR_SYM user equal text_or_password
 	  {
 	    Lex->var_list.push_back(new set_var_password($3,$5));
-	  }
+	  };
 
 internal_variable_name:
 	ident
@@ -3574,7 +3591,7 @@ internal_variable_name:
 	  if (!tmp)
 	    YYABORT;
 	  $$=tmp;
-	}
+	};
 
 isolation_types:
 	READ_SYM UNCOMMITTED_SYM	{ $$= ISO_READ_UNCOMMITTED; }
@@ -3933,7 +3950,7 @@ require_clause: /* empty */
 	| REQUIRE_SYM NONE_SYM
 	  {
 	    Lex->ssl_type=SSL_TYPE_NONE;
-	  }
+	  };
 
 grant_options:
 	/* empty */ {}
@@ -4076,4 +4093,4 @@ subselect_end:
 	{
 	  LEX *lex=Lex;
 	  lex->select = lex->select->outer_select();
-	}
+	};
