@@ -22,7 +22,7 @@ typedef	byte	dict_hdr_t;
 
 /**************************************************************************
 Gets a pointer to the dictionary header and x-latches its page. */
-UNIV_INLINE
+
 dict_hdr_t*
 dict_hdr_get(
 /*=========*/
@@ -31,7 +31,7 @@ dict_hdr_get(
 	mtr_t*	mtr);	/* in: mtr */
 /**************************************************************************
 Returns a new row, table, index, or tree id. */
-UNIV_INLINE
+
 dulint
 dict_hdr_get_new_id(
 /*================*/

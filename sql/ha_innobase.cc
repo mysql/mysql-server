@@ -79,13 +79,14 @@ ulong 	innobase_cache_size 	= 0;
 long innobase_mirrored_log_groups, innobase_log_files_in_group,
      innobase_log_file_size, innobase_log_buffer_size,
      innobase_buffer_pool_size, innobase_additional_mem_pool_size,
-     innobase_file_io_threads, innobase_lock_wait_timeout;
+     innobase_file_io_threads, innobase_lock_wait_timeout,
+  innobase_thread_concurrency, innobase_force_recovery;
 
 char *innobase_data_home_dir;
 char *innobase_log_group_home_dir, *innobase_log_arch_dir;
 char *innobase_unix_file_flush_method;
 bool innobase_flush_log_at_trx_commit, innobase_log_archive,
-     innobase_use_native_aio;
+     innobase_use_native_aio, innobase_fast_shutdown;
 
 /*
   Set default InnoDB size to 64M, to let users use InnoDB without having
@@ -165,19 +166,19 @@ convert_error_code_to_mysql(
 
  	} else if (error == (int) DB_LOCK_WAIT_TIMEOUT) {
 
-    		return(1000001);
+    		return(HA_ERR_LOCK_WAIT_TIMEOUT);
 
  	} else if (error == (int) DB_NO_REFERENCED_ROW) {
 
-    		return(1000010);
+    		return(HA_ERR_NO_REFERENCED_ROW);
 
  	} else if (error == (int) DB_ROW_IS_REFERENCED) {
 
-    		return(1000011);
+    		return(HA_ERR_ROW_IS_REFERENCED);
 
  	} else if (error == (int) DB_CANNOT_ADD_CONSTRAINT) {
 
-    		return(1000012);
+    		return(HA_ERR_CANNOT_ADD_FOREIGN);
 
  	} else if (error == (int) DB_OUT_OF_FILE_SPACE) {
 
@@ -352,12 +353,6 @@ innobase_parse_data_file_paths_and_sizes(void)
 			str++;
 		} else {
 		        str++;
-		}
-
-		if (size >= 4096) {
-		  fprintf(stderr,
-		     "InnoDB: error: data file size must not be >= 4096M\n");
-		  return(FALSE);
 		}
 
 	        if (strlen(str) >= 6
@@ -566,8 +561,10 @@ innobase_init(void)
 	        srv_query_thread_priority = QUERY_PRIOR;
 	}
 
-	/* Set InnoDB initialization parameters according to the values
-	read from MySQL .cnf file */
+	/*
+	  Set InnoDB initialization parameters according to the values
+	  read from MySQL .cnf file
+	*/
 
 	// Make a copy of innobase_data_file_path to not modify the original
 	internal_innobase_data_file_path=my_strdup(innobase_data_file_path,
@@ -604,7 +601,7 @@ innobase_init(void)
 
 	srv_log_archive_on = (ulint) innobase_log_archive;
 	srv_log_buffer_size = (ulint) innobase_log_buffer_size;
-	srv_flush_log_at_trx_commit = (ulint) innobase_flush_log_at_trx_commit;
+	srv_flush_log_at_trx_commit = (ibool) innobase_flush_log_at_trx_commit;
 
 	srv_use_native_aio = 0;
 
@@ -614,6 +611,10 @@ innobase_init(void)
 	srv_n_file_io_threads = (ulint) innobase_file_io_threads;
 
 	srv_lock_wait_timeout = (ulint) innobase_lock_wait_timeout;
+	srv_thread_concurrency = (ulint) innobase_thread_concurrency;
+	srv_force_recovery = (ulint) innobase_force_recovery;
+
+	srv_fast_shutdown = (ibool) innobase_fast_shutdown;
 
 	srv_print_verbose_log = mysql_embedded ? 0 : 1;
 	if (strcmp(default_charset_info->name, "latin1") == 0) {
@@ -713,11 +714,14 @@ innobase_commit(
 	trx = check_trx_exists(thd);
 
 	if (trx_handle != (void*)&innodb_dummy_stmt_trx_handle) {
+		srv_conc_enter_innodb(trx);
+
 		trx_commit_for_mysql(trx);
-		trx_mark_sql_stat_end_do_not_start_new(trx);
-	} else {
-		trx_mark_sql_stat_end(trx);
+
+		srv_conc_exit_innodb();
 	}
+
+	trx_mark_sql_stat_end(trx);
 
 #ifndef DBUG_OFF
 	if (error) {
@@ -751,13 +755,17 @@ innobase_rollback(
 
 	trx = check_trx_exists(thd);
 
+	srv_conc_enter_innodb(trx);
+
 	if (trx_handle != (void*)&innodb_dummy_stmt_trx_handle) {
 		error = trx_rollback_for_mysql(trx);
-		trx_mark_sql_stat_end_do_not_start_new(trx);
 	} else {
 		error = trx_rollback_last_sql_stat_for_mysql(trx);
-		trx_mark_sql_stat_end(trx);
 	}
+
+	srv_conc_exit_innodb();
+	
+	trx_mark_sql_stat_end(trx);
 
 	DBUG_RETURN(convert_error_code_to_mysql(error));
 }
@@ -908,10 +916,11 @@ ha_innobase::open(
  	if (NULL == (ib_table = dict_table_get(norm_name, NULL))) {
 
 	  fprintf(stderr,
-"InnoDB: Cannot find table %s from the internal data dictionary\n"
+"InnoDB: Error: cannot find table %s from the internal data dictionary\n"
 "InnoDB: of InnoDB though the .frm file for the table exists. Maybe you\n"
 "InnoDB: have deleted and recreated InnoDB data files but have forgotten\n"
-"InnoDB: to delete the corresponding .frm files of InnoDB tables?\n",
+"InnoDB: to delete the corresponding .frm files of InnoDB tables, or you\n"
+"InnoDB: have moved .frm files to another database?\n",
 		  norm_name);
 
 	        free_share(share);
@@ -956,7 +965,9 @@ ha_innobase::open(
 		dbug_assert(key_used_on_scan == MAX_KEY);
 	}
 
- 	/* Init table lock structure */
+	auto_inc_counter_for_this_stat = 0;
+
+	/* Init table lock structure */
 	thr_lock_data_init(&share->lock,&lock,(void*) 0);
 
   	info(HA_STATUS_NO_LOCK | HA_STATUS_VARIABLE | HA_STATUS_CONST);
@@ -1253,14 +1264,20 @@ build_template(
 	Field*		field;
 	ulint		n_fields;
 	ulint		n_requested_fields	= 0;
+	ibool		fetch_all_in_key	= FALSE;
 	ulint		i;
 
 	clust_index = dict_table_get_first_index_noninline(prebuilt->table);
 
 	if (!prebuilt->in_update_remember_pos) {
-		/* We are building a temporary table: fetch all columns */
-
-		templ_type = ROW_MYSQL_WHOLE_ROW;
+		if (prebuilt->read_just_key) {
+			fetch_all_in_key = TRUE;
+		} else {
+			/* We are building a temporary table: fetch all
+			columns */
+		
+			templ_type = ROW_MYSQL_WHOLE_ROW;
+		}
 	}
 
 	if (prebuilt->select_lock_type == LOCK_X) {
@@ -1269,7 +1286,6 @@ build_template(
 
 	        templ_type = ROW_MYSQL_WHOLE_ROW;
 	}
-
 
 	if (templ_type == ROW_MYSQL_REC_FIELDS) {
 
@@ -1310,6 +1326,9 @@ build_template(
 		field = table->field[i];
 
 		if (templ_type == ROW_MYSQL_REC_FIELDS
+			&& !(fetch_all_in_key &&
+				ULINT_UNDEFINED != dict_index_get_nth_col_pos(
+								index, i))
 			&& thd->query_id != field->query_id
 			&& thd->query_id != (field->query_id ^ MAX_ULONG_BIT)
 			&& thd->query_id !=
@@ -1408,9 +1427,6 @@ ha_innobase::write_row(
 	}
 
   	if (table->next_number_field && record == table->record[0]) {
-	        /* Set the 'in_update_remember_pos' flag to FALSE to
-	        make sure all columns are fetched in the select done by
-	        update_auto_increment */
 
 	        /* Fetch the value the user possibly has set in the
 	        autoincrement field */
@@ -1420,12 +1436,29 @@ ha_innobase::write_row(
 		/* In replication and also otherwise the auto-inc column 
 		can be set with SET INSERT_ID. Then we must look at
 		user_thd->next_insert_id. If it is nonzero and the user
-		has not supplied a value, we must use it. */
+		has not supplied a value, we must use it, and use values
+		incremented by 1 in all subsequent inserts within the
+		same SQL statement! */
 
 		if (auto_inc == 0 && user_thd->next_insert_id != 0) {
 		        auto_inc = user_thd->next_insert_id;
+		        auto_inc_counter_for_this_stat = auto_inc;
 		}
 
+		if (auto_inc == 0 && auto_inc_counter_for_this_stat) {
+			/* The user set the auto-inc counter for
+			this SQL statement with SET INSERT_ID. We must
+			assign sequential values from the counter. */
+
+			auto_inc_counter_for_this_stat++;
+
+			auto_inc = auto_inc_counter_for_this_stat;
+
+			/* We give MySQL a new value to place in the
+			auto-inc column */
+			user_thd->next_insert_id = auto_inc;
+		}
+		
 		if (auto_inc != 0) {
 			/* This call will calculate the max of the
 			current value and the value supplied by the user, if
@@ -1449,11 +1482,14 @@ ha_innobase::write_row(
 			
 			dict_table_autoinc_update(prebuilt->table, auto_inc);
 		} else {
+			srv_conc_enter_innodb(prebuilt->trx);
+
 			if (!prebuilt->trx->auto_inc_lock) {
 
 				error = row_lock_table_autoinc_for_mysql(
 								prebuilt);
 				if (error != DB_SUCCESS) {
+					srv_conc_exit_innodb();
 			
 					error = convert_error_code_to_mysql(
 								error);
@@ -1462,6 +1498,7 @@ ha_innobase::write_row(
 			}	
 
 			auto_inc = dict_table_autoinc_get(prebuilt->table);
+			srv_conc_exit_innodb();
 
 			/* If auto_inc is now != 0 the autoinc counter
 			was already initialized for the table: we can give
@@ -1472,6 +1509,10 @@ ha_innobase::write_row(
 			}
 		}
 	        
+	        /* Set the 'in_update_remember_pos' flag to FALSE to
+	        make sure all columns are fetched in the select done by
+	        update_auto_increment */
+
 	        prebuilt->in_update_remember_pos = FALSE;
 	        
     		update_auto_increment();
@@ -1482,6 +1523,14 @@ ha_innobase::write_row(
 
 	        	auto_inc = table->next_number_field->val_int();
 
+			error = row_lock_table_autoinc_for_mysql(prebuilt);
+
+			if (error != DB_SUCCESS) {
+			
+				error = convert_error_code_to_mysql(error);
+				goto func_exit;
+			}	
+			
 			dict_table_autoinc_initialize(prebuilt->table,
 								auto_inc);
 		}
@@ -1510,7 +1559,11 @@ ha_innobase::write_row(
 	        prebuilt->trx->ignore_duplicates_in_insert = FALSE;
 	}
 
+	srv_conc_enter_innodb(prebuilt->trx);
+
 	error = row_insert_for_mysql((byte*) record, prebuilt);
+
+	srv_conc_exit_innodb();
 
 	prebuilt->trx->ignore_duplicates_in_insert = FALSE;
 
@@ -1725,7 +1778,11 @@ ha_innobase::update_row(
 		assert(prebuilt->template_type == ROW_MYSQL_WHOLE_ROW);
 	}
 
+	srv_conc_enter_innodb(prebuilt->trx);
+
 	error = row_update_for_mysql((byte*) old_row, prebuilt);
+
+	srv_conc_exit_innodb();
 
 	error = convert_error_code_to_mysql(error);
 
@@ -1765,7 +1822,11 @@ ha_innobase::delete_row(
 	prebuilt->upd_node->is_delete = TRUE;
 	prebuilt->in_update_remember_pos = TRUE;
 
+	srv_conc_enter_innodb(prebuilt->trx);
+
 	error = row_update_for_mysql((byte*) record, prebuilt);
+
+	srv_conc_exit_innodb();
 
 	error = convert_error_code_to_mysql(error);
 
@@ -1789,7 +1850,7 @@ ha_innobase::index_init(
 	int 	error	= 0;
   	DBUG_ENTER("index_init");
 
-	change_active_index(keynr);
+	error = change_active_index(keynr);
 
   	DBUG_RETURN(error);
 }
@@ -1905,7 +1966,11 @@ ha_innobase::index_read(
 
 	last_match_mode = match_mode;
 
+	srv_conc_enter_innodb(prebuilt->trx);
+
 	ret = row_search_for_mysql((byte*) buf, mode, prebuilt, match_mode, 0);
+
+	srv_conc_exit_innodb();
 
 	if (ret == DB_SUCCESS) {
 		error = 0;
@@ -1956,11 +2021,20 @@ ha_innobase::change_active_index(
 							prebuilt->table);
 	}
 
+	if (!prebuilt->index) {
+		fprintf(stderr,
+	"InnoDB: Could not find key n:o %u with name %s from dict cache\n"
+	"InnoDB: for table %s\n", keynr, key->name, prebuilt->table->name);
+
+		return(1);
+	}
+	
+	assert(prebuilt->search_tuple);
+
 	dtuple_set_n_fields(prebuilt->search_tuple, prebuilt->index->n_fields);
 
  	dict_index_copy_types(prebuilt->search_tuple, prebuilt->index,
 						prebuilt->index->n_fields);
-	assert(prebuilt->index);
 
 	/* Maybe MySQL changes the active index for a handle also
 	during some queries, we do not know: then it is safest to build
@@ -1989,7 +2063,10 @@ ha_innobase::index_read_idx(
 	uint		key_len,	/* in: key value length */
 	enum ha_rkey_function find_flag)/* in: search flags from my_base.h */
 {
-	change_active_index(keynr);
+	if (change_active_index(keynr)) {
+
+		return(1);
+	}
 
 	return(index_read(buf, key, key_len, find_flag));
 }
@@ -2015,8 +2092,11 @@ ha_innobase::general_fetch(
 
 	DBUG_ENTER("general_fetch");
 
-	ret = row_search_for_mysql((byte*)buf, 0, prebuilt,
-                       match_mode, direction);
+	srv_conc_enter_innodb(prebuilt->trx);
+	
+	ret = row_search_for_mysql((byte*)buf, 0, prebuilt, match_mode,
+								direction);
+	srv_conc_exit_innodb();
 
 	if (ret == DB_SUCCESS) {
 		error = 0;
@@ -2148,17 +2228,19 @@ ha_innobase::rnd_init(
 			/* out: 0 or error number */
 	bool	scan)	/* in: ???????? */
 {
+	int	err;
+	
 	row_prebuilt_t*	prebuilt = (row_prebuilt_t*) innobase_prebuilt;
 
 	if (prebuilt->clust_index_was_generated) {
-		change_active_index(MAX_KEY);
+		err = change_active_index(MAX_KEY);
 	} else {
-		change_active_index(primary_key);
+		err = change_active_index(primary_key);
 	}
 
   	start_of_scan = 1;
 
- 	return(0);
+ 	return(err);
 }
 
 /*********************************************************************
@@ -2226,11 +2308,15 @@ ha_innobase::rnd_pos(
 		row reference is the row id, not any key value
 		that MySQL knows */
 
-		change_active_index(MAX_KEY);
+		error = change_active_index(MAX_KEY);
 	} else {
-		change_active_index(primary_key);
+		error = change_active_index(primary_key);
 	}
 
+	if (error) {
+		DBUG_RETURN(error);
+	}
+	
 	error = index_read(buf, pos, ref_stored_len, HA_READ_KEY_EXACT);
 
 	change_active_index(keynr);
@@ -2285,11 +2371,21 @@ ha_innobase::extra(
 	row_prebuilt_t*	prebuilt = (row_prebuilt_t*) innobase_prebuilt;
 
 	switch (operation) {
+ 		case HA_EXTRA_RESET:
+  		case HA_EXTRA_RESET_STATE:
+	        	prebuilt->read_just_key = 0;
+	        	break;
+		case HA_EXTRA_NO_KEYREAD:
+    			prebuilt->read_just_key = 0;
+    			break;
 	        case HA_EXTRA_DONT_USE_CURSOR_TO_UPDATE:
-				prebuilt->in_update_remember_pos = FALSE;
-				break;
-		default:	/* Do nothing */
-				;
+			prebuilt->in_update_remember_pos = FALSE;
+			break;
+	        case HA_EXTRA_KEYREAD:
+	        	prebuilt->read_just_key = 1;
+	        	break;
+		default:/* Do nothing */
+			;
 	}
 
 	return(0);
@@ -2327,6 +2423,8 @@ ha_innobase::external_lock(
 	prebuilt->sql_stat_start = TRUE;
 	prebuilt->in_update_remember_pos = TRUE;
 
+	prebuilt->read_just_key = 0;
+
 	if (lock_type == F_WRLCK) {
 
 		/* If this is a SELECT, then it is in UPDATE TABLE ...
@@ -2338,6 +2436,7 @@ ha_innobase::external_lock(
 		if (trx->n_mysql_tables_in_use == 0) {
 			trx_mark_sql_stat_end(trx);
 		}
+
 		thd->transaction.all.innodb_active_trans = 1;
 		trx->n_mysql_tables_in_use++;
 
@@ -2347,6 +2446,7 @@ ha_innobase::external_lock(
 		}
 	} else {
 		trx->n_mysql_tables_in_use--;
+		auto_inc_counter_for_this_stat = 0;
 
 		if (trx->n_mysql_tables_in_use == 0) {
 
@@ -2363,11 +2463,14 @@ ha_innobase::external_lock(
 				some table in this SQL statement, we release
 				it now */
 		  	
+				srv_conc_enter_innodb(trx);
 				row_unlock_table_autoinc_for_mysql(trx);
+				srv_conc_exit_innodb();
 			}
 
 		  	if (!(thd->options
 				 & (OPTION_NOT_AUTO_COMMIT | OPTION_BEGIN))) {
+
 		    		innobase_commit(thd, trx);
 		  	}
 		}
@@ -2636,6 +2739,12 @@ ha_innobase::create(
 
   	trx_commit_for_mysql(trx);
 
+	/* Flush the log to reduce probability that the .frm files and
+	the InnoDB data dictionary get out-of-sync if the user runs
+	with innodb_flush_log_at_trx_commit = 0 */
+	
+	log_flush_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP);
+
 	innobase_table = dict_table_get(norm_name, NULL);
 
 	assert(innobase_table);
@@ -2685,6 +2794,12 @@ ha_innobase::delete_table(
 
   	error = row_drop_table_for_mysql(norm_name, trx, FALSE);
 
+	/* Flush the log to reduce probability that the .frm files and
+	the InnoDB data dictionary get out-of-sync if the user runs
+	with innodb_flush_log_at_trx_commit = 0 */
+	
+	log_flush_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP);
+
 	/* Tell the InnoDB server that there might be work for
 	utility threads: */
 
@@ -2732,6 +2847,12 @@ innobase_drop_database(
 
   	error = row_drop_database_for_mysql(namebuf, trx);
 
+	/* Flush the log to reduce probability that the .frm files and
+	the InnoDB data dictionary get out-of-sync if the user runs
+	with innodb_flush_log_at_trx_commit = 0 */
+	
+	log_flush_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP);
+
 	/* Tell the InnoDB server that there might be work for
 	utility threads: */
 
@@ -2777,6 +2898,12 @@ ha_innobase::rename_table(
   	/* Rename the table in InnoDB */
 
   	error = row_rename_table_for_mysql(norm_from, norm_to, trx);
+
+	/* Flush the log to reduce probability that the .frm files and
+	the InnoDB data dictionary get out-of-sync if the user runs
+	with innodb_flush_log_at_trx_commit = 0 */
+	
+	log_flush_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP);
 
 	/* Tell the InnoDB server that there might be work for
 	utility threads: */
@@ -3062,31 +3189,41 @@ ha_innobase::check(
 }
 
 /*****************************************************************
-Adds information about free space in the InnoDB tablespace to a
-table comment which is printed out when a user calls SHOW TABLE STATUS. */
+Adds information about free space in the InnoDB tablespace to a table comment
+which is printed out when a user calls SHOW TABLE STATUS. Adds also info on
+foreign keys. */
 
 char*
 ha_innobase::update_table_comment(
 /*==============================*/
-        const char* comment)
+				/* out: table comment + InnoDB free space +
+				info on foreign keys */
+        const char*	comment)/* in: table comment defined by user */
 {
-  uint length=strlen(comment);
+	row_prebuilt_t* prebuilt = (row_prebuilt_t*)innobase_prebuilt;
+  	uint 		length 	= strlen(comment);
+  	char*		str 	= my_malloc(length + 200, MYF(0));
+  	char*		pos;
 
-  char *str=my_malloc(length + 100,MYF(0)), *pos;
+	if (!str) {
+    		return((char*)comment);
+	}
 
-  if (!str)
-    return (char*)comment;
+	pos = str;
+  	if (length) {
+    		pos=strmov(str, comment);
+    		*pos++=';';
+    		*pos++=' ';
+  	}
 
-  pos=str;
-  if (length)
-  {
-    pos=strmov(str,comment);
-    *pos++=';';
-    *pos++=' ';
-  }
-  sprintf(pos, "InnoDB free: %lu kB", (ulong) innobase_get_free_space());
+  	pos += sprintf(pos, "InnoDB free: %lu kB",
+					(ulong) innobase_get_free_space());
 
-  return(str);
+	/* We assume 150 bytes of space to print info */
+
+  	dict_print_info_on_foreign_keys(pos, 150, prebuilt->table);
+  
+  	return(str);
 }
 
 /****************************************************************************

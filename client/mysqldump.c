@@ -33,13 +33,14 @@
 ** Tõnu Samuel  <tonu@please.do.not.remove.this.spam.ee>
 **/
 
-#define DUMP_VERSION "8.17"
+#define DUMP_VERSION "8.18"
 
 #include <my_global.h>
 #include <my_sys.h>
 #include <m_string.h>
 #include <m_ctype.h>
 
+#include "client_priv.h"
 #include "mysql.h"
 #include "mysql_version.h"
 #include "mysqld_error.h"
@@ -95,12 +96,12 @@ static struct option long_options[] =
   {"add-drop-table",	no_argument,    0, 	OPT_DROP},
   {"add-locks",    	no_argument,    0,	OPT_LOCKS},
   {"allow-keywords",	no_argument,    0, 	OPT_KEYWORDS},
-  {"character-sets-dir",required_argument,0,    MD_OPT_CHARSETS_DIR},
+  {"character-sets-dir",required_argument,0,    OPT_CHARSETS_DIR},
   {"complete-insert",	no_argument,    0, 	'c'},
   {"compress",          no_argument,    0, 	'C'},
   {"databases",         no_argument,    0,      'B'},
   {"debug",		optional_argument, 	0, '#'},
-  {"default-character-set", required_argument,  0, MD_OPT_DEFAULT_CHARSET},
+  {"default-character-set", required_argument,  0, OPT_DEFAULT_CHARSET},
   {"delayed-insert",	no_argument,    0, 	OPT_DELAYED},
   {"extended-insert",   no_argument,    0, 	'e'},
   {"fields-terminated-by", required_argument,   0, (int) OPT_FTB},
@@ -318,10 +319,10 @@ static int get_options(int *argc,char ***argv)
     case 'A':
       opt_alldbs=1;
       break;
-    case MD_OPT_DEFAULT_CHARSET:
+    case OPT_DEFAULT_CHARSET:
       default_charset= optarg;
       break;
-    case MD_OPT_CHARSETS_DIR:
+    case OPT_CHARSETS_DIR:
       charsets_dir= optarg;
       break;
     case 'f':

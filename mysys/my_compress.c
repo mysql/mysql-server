@@ -20,8 +20,8 @@
 #include <my_global.h>
 #ifdef HAVE_COMPRESS
 #include <my_sys.h>
-#include <zlib.h>
 #include <m_string.h>
+#include <zlib.h>
 
 /*
 ** This replaces the packet with a compressed packet

@@ -277,7 +277,8 @@ row_ins_clust_index_entry_by_modify(
 	heap = mem_heap_create(1024);
 	
 	/* Build an update vector containing all the fields to be modified;
-	NOTE that this vector may contain also system columns! */
+	NOTE that this vector may NOT contain system columns trx_id or
+	roll_ptr */
 	
 	update = row_upd_build_difference_binary(cursor->index, entry, ext_vec,
 						n_ext_vec, rec, heap); 
@@ -1221,6 +1222,8 @@ row_ins_step(
 	
 	trx = thr_get_trx(thr);
 
+	trx_start_if_not_started(trx);
+	
 	node = thr->run_node;
 
 	ut_ad(que_node_get_type(node) == QUE_NODE_INSERT);
@@ -1241,8 +1244,6 @@ row_ins_step(
 		/* It may be that the current session has not yet started
 		its transaction, or it has been committed: */
 		
-		trx_start_if_not_started(trx);
-
 		if (UT_DULINT_EQ(trx->id, node->trx_id)) {
 			/* No need to do IX-locking or write trx id to buf */
 

@@ -22,7 +22,6 @@ void        _OS2errno( APIRET rc);
 longlong    _lseek64( int fd, longlong offset, int seektype);
 int         _lock64( int fd, int locktype, my_off_t start,
                      my_off_t length, myf MyFlags);
-int         _sopen64( const char *name, int oflag, int shflag, int mask);
 
 //
 // this class is used to define a global c++ variable, that
@@ -255,7 +254,7 @@ int         _lock64( int fd, int locktype, my_off_t start,
    return(-1);
 }
 
-int         _sopen64( const char *name, int oflag, int shflag, int mask)
+int         _sopen( const char *name, int oflag, int shflag, int mask)
 {
    int      fail_errno;
    APIRET   rc = 0;
@@ -325,17 +324,60 @@ int         _sopen64( const char *name, int oflag, int shflag, int mask)
    return hf;
 }
 
+int      read( int fd, void *buffer, unsigned int count)
+{
+   APIRET   rc;
+   ULONG    actual;
+
+   rc = DosRead( fd, (PVOID) buffer, count, &actual);
+
+   if (!rc)
+      return( actual);/* NO_ERROR */
+
+   // set errno
+   _OS2errno( rc);
+   // write failed
+   return(-1);
+}
+
+int      write( int fd, const void *buffer, unsigned int count)
+{
+   APIRET   rc;
+   ULONG    actual;
+
+   rc = DosWrite( fd, (PVOID) buffer, count, &actual);
+
+   if (!rc)
+      return( actual);/* NO_ERROR */
+
+   // set errno
+   _OS2errno( rc);
+   // write failed
+   return(-1);
+}
+
+int      close( int fd)
+{
+   APIRET   rc;
+   ULONG    actual;
+
+   rc = DosClose( fd);
+
+   if (!rc)
+      return( 0);/* NO_ERROR */
+
+   // set errno
+   _OS2errno( rc);
+   // write failed
+   return(-1);
+}
+
 inline int   open( const char *name, int oflag)
 {
-   return _sopen64( name, oflag, OPEN_SHARE_DENYNONE, S_IREAD | S_IWRITE);
+   return sopen( name, oflag, OPEN_SHARE_DENYNONE, S_IREAD | S_IWRITE);
 }
 
 inline int   open( const char *name, int oflag, int mask)
 {
-   return _sopen64( name, oflag, OPEN_SHARE_DENYNONE, mask);
-}
-
-inline int   sopen( const char *name, int oflag, int shflag, int mask)
-{
-   return _sopen64( name, oflag, shflag, mask);
+   return sopen( name, oflag, OPEN_SHARE_DENYNONE, mask);
 }

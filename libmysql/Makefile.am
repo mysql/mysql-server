@@ -18,7 +18,7 @@
 # This file is public domain and comes with NO WARRANTY of any kind
 
 target = libmysqlclient.la
-target_defs = -DUNDEF_THREADS_HACK -DDONT_USE_RAID -DMYSQL_CLIENT
+target_defs = -DUNDEF_THREADS_HACK -DDONT_USE_RAID @LIB_EXTRA_CCFLAGS@ -DMYSQL_CLIENT
 LIBS   = @CLIENT_LIBS@
 INCLUDES =	-I$(srcdir)/../include -I../include \
 		-I$(srcdir)/.. -I$(top_srcdir) -I.. $(openssl_includes)

@@ -94,6 +94,12 @@ trx_purge(void);
 /*===========*/
 				/* out: number of undo log pages handled in
 				the batch */
+/**********************************************************************
+Prints information of the purge system to stderr. */
+
+void
+trx_purge_sys_print(void);
+/*======================*/
 
 /* The control structure used in the purge operation */
 struct trx_purge_struct{

@@ -14,7 +14,7 @@ Created 9/6/1995 Heikki Tuuri
 #ifdef __WIN__
 
 #define os_fast_mutex_t CRITICAL_SECTION
-typedef void*			os_event_t;
+typedef void*		os_event_t;
 
 #else
 

@@ -1,4 +1,14 @@
 
+2001/09/16
+	- fixed creation directory of temporary files
+	- enabled cached list file for deleting temp open files
+
+2001/09/10
+	- Build source 3.23.42, released
+
+2001/09/08
+	- fixed file api
+
 2001/06/12
 	- fixed support for > 2GB file size, needs also DosOpenL
 	- mixed 64bit/32bit file size support, dinamic loading of

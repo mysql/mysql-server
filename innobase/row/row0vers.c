@@ -300,7 +300,7 @@ row_vers_old_has_index_entry(
 						if heap2 != NULL */
 		}
 
-		if ((err != DB_SUCCESS) || !prev_version) {
+		if (err != DB_SUCCESS || !prev_version) {
 			/* Versions end here */
 
 			mem_heap_free(heap);

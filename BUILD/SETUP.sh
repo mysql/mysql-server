@@ -35,12 +35,12 @@ AM_MAKEFLAGS="-j 4"
 # -Wshadow -Wunused  -Winline (The later isn't usable in C++ as
 # __attribute()__ doesn't work with gnu C++)
 global_warnings="-Wimplicit -Wreturn-type -Wid-clash-51 -Wswitch -Wtrigraphs -Wcomment -W -Wchar-subscripts -Wformat -Wimplicit-function-dec -Wimplicit-int -Wparentheses -Wsign-compare -Wwrite-strings"
-debug_extra_warnings="-Wuninitialized"
+#debug_extra_warnings="-Wuninitialized"
 c_warnings="$global_warnings -Wunused"
 cxx_warnings="$global_warnings -Woverloaded-virtual -Wextern-inline -Wsign-promo -Wreorder -Wctor-dtor-privacy -Wnon-virtual-dtor"
 
 alpha_cflags="-mcpu=ev6 -Wa,-mev6"	# Not used yet
-pentium_cflags=""
+pentium_cflags="-mcpu=pentiumpro"
 sparc_cflags=""
 
 # be as fast as we can be without losing our ability to backtrace
@@ -48,7 +48,7 @@ fast_cflags="-O3 -fno-omit-frame-pointer"
 # this is one is for someone who thinks 1% speedup is worth not being
 # able to backtrace
 reckless_cflags="-O3 -fomit-frame-pointer "
-debug_cflags="-DEXTRA_DEBUG -DFORCE_INIT_OF_VARS -DSAFEMALLOC -DSAFE_MUTEX -O2"
+debug_cflags="-DEXTRA_DEBUG -DFORCE_INIT_OF_VARS -DSAFEMALLOC -DSAFE_MUTEX -O1"
 
 base_cxxflags="-felide-constructors -fno-exceptions -fno-rtti"
 
@@ -65,4 +65,11 @@ then
   make=gmake
 else
   make=make
+fi
+
+if gcc -v 2>&1 | grep 'version 3' > /dev/null 2>&1
+then
+  CXX=c++
+else
+  CXX=gcc
 fi

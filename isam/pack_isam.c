@@ -288,7 +288,7 @@ static void usage(void)
   -?, --help		display this help and exit\n\
   -V, --version		output version information and exit\n");
   print_defaults("my",load_default_groups);
-};
+}
 
 	/* reads options */
 	/* Initiates DEBUG - but no debugging here ! */

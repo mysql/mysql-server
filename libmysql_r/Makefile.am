@@ -18,7 +18,7 @@
 
 
 target = libmysqlclient_r.la
-target_defs = -DDONT_USE_RAID
+target_defs = -DDONT_USE_RAID @LIB_EXTRA_CCFLAGS@
 ## LIBS = @LIBS@
 
 INCLUDES =	@MT_INCLUDES@ -I$(srcdir)/../include -I../include \

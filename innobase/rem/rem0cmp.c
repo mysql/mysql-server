@@ -84,7 +84,7 @@ cmp_collate(
 				record */
 {
 	ut_ad((type->mtype == DATA_CHAR) || (type->mtype == DATA_VARCHAR));
-
+	
 	return((ulint) srv_latin1_ordering[code]);
 }
 

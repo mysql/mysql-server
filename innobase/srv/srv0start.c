@@ -60,6 +60,10 @@ ibool           srv_startup_is_before_trx_rollback_phase = FALSE;
 ibool           srv_is_being_started = FALSE;
 ibool           srv_was_started      = FALSE;
 
+/* At a shutdown the value first climbs to SRV_SHUTDOWN_CLEANUP
+and then to SRV_SHUTDOWN_LAST_PHASE */
+ulint		srv_shutdown_state = 0;
+
 ibool		measure_cont	= FALSE;
 
 os_file_t	files[1000];
@@ -175,6 +179,34 @@ srv_add_path_separator_if_needed(
 }
 
 /*************************************************************************
+Calculates the low 32 bits when a file size which is given as a number
+database pages is converted to the number of bytes. */
+static
+ulint
+srv_calc_low32(
+/*===========*/
+				/* out: low 32 bytes of file size when
+				expressed in bytes */
+	ulint	file_size)	/* in: file size in database pages */
+{
+	return(0xFFFFFFFF & (file_size << UNIV_PAGE_SIZE_SHIFT));
+}
+
+/*************************************************************************
+Calculates the high 32 bits when a file size which is given as a number
+database pages is converted to the number of bytes. */
+static
+ulint
+srv_calc_high32(
+/*============*/
+				/* out: high 32 bytes of file size when
+				expressed in bytes */
+	ulint	file_size)	/* in: file size in database pages */
+{
+	return(file_size >> (32 - UNIV_PAGE_SIZE_SHIFT));
+}
+
+/*************************************************************************
 Creates or opens the log files. */
 static
 ulint
@@ -214,8 +246,7 @@ open_or_create_log_file(
 			return(DB_ERROR);
 		}
 
-		files[i] = os_file_create(
-					name, OS_FILE_OPEN, OS_FILE_AIO,
+		files[i] = os_file_create(name, OS_FILE_OPEN, OS_FILE_AIO,
 							OS_LOG_FILE, &ret);
 		if (!ret) {
 			fprintf(stderr,
@@ -227,8 +258,9 @@ open_or_create_log_file(
 		ret = os_file_get_size(files[i], &size, &size_high);
 		ut_a(ret);
 		
-		if (size != UNIV_PAGE_SIZE * srv_log_file_size
-							|| size_high != 0) {
+		if (size != srv_calc_low32(srv_log_file_size)
+		    || size_high != srv_calc_high32(srv_log_file_size)) {
+		    	
 			fprintf(stderr,
 			"InnoDB: Error: log file %s is of different size\n"
 			"InnoDB: than specified in the .cnf file!\n", name);
@@ -241,11 +273,13 @@ open_or_create_log_file(
 		fprintf(stderr,
 		"InnoDB: Log file %s did not exist: new to be created\n",
 									name);
-		fprintf(stderr, "InnoDB: Setting log file %s size to %lu\n",
-			             name, UNIV_PAGE_SIZE * srv_log_file_size);
+		fprintf(stderr, "InnoDB: Setting log file %s size to %lu MB\n",
+			             name, srv_log_file_size
+			>> (20 - UNIV_PAGE_SIZE_SHIFT));
 
 		ret = os_file_set_size(name, files[i],
-					UNIV_PAGE_SIZE * srv_log_file_size, 0);
+					srv_calc_low32(srv_log_file_size),
+					srv_calc_high32(srv_log_file_size));
 		if (!ret) {
 			fprintf(stderr,
 		"InnoDB: Error in creating %s: probably out of disk space\n",
@@ -277,8 +311,7 @@ open_or_create_log_file(
 	if (k == 0 && i == 0) {
 		arch_space_id = 2 * k + 1 + SRV_LOG_SPACE_FIRST_ID;
 
-	    	fil_space_create("arch_log_space", arch_space_id,
-								FIL_LOG);
+	    	fil_space_create("arch_log_space", arch_space_id, FIL_LOG);
 	} else {
 		arch_space_id = ULINT_UNDEFINED;
 	}
@@ -396,9 +429,14 @@ open_or_create_data_files(
 								&size_high);
 				ut_a(ret);
 		
-				if (size !=
-					UNIV_PAGE_SIZE * srv_data_file_sizes[i]
-		    					|| size_high != 0) {
+				/* File sizes in srv_... are given in
+				database pages */
+
+				if (size != srv_calc_low32(
+						srv_data_file_sizes[i])
+		    		    || size_high != srv_calc_high32(
+		    		    		srv_data_file_sizes[i])) {
+
 					fprintf(stderr,
 			"InnoDB: Error: data file %s is of different size\n"
 			"InnoDB: than specified in the .cnf file!\n", name);
@@ -426,14 +464,17 @@ open_or_create_data_files(
 				*create_new_db = TRUE;
 			}
 			
-			fprintf(stderr, "InnoDB: Setting file %s size to %lu\n",
-			       name, UNIV_PAGE_SIZE * srv_data_file_sizes[i]);
+			fprintf(stderr, 
+				"InnoDB: Setting file %s size to %lu MB\n",
+			       name, (srv_data_file_sizes[i]
+				      >> (20 - UNIV_PAGE_SIZE_SHIFT)));
 
 			fprintf(stderr,
 	    "InnoDB: Database physically writes the file full: wait...\n");
 
 			ret = os_file_set_size(name, files[i],
-				UNIV_PAGE_SIZE * srv_data_file_sizes[i], 0);
+				srv_calc_low32(srv_data_file_sizes[i]),
+				srv_calc_high32(srv_data_file_sizes[i]));
 
 			if (!ret) {
 				fprintf(stderr, 
@@ -673,16 +714,28 @@ innobase_start_or_create_for_mysql(void)
 		return(DB_ERROR);
 	}
 
-	sum_of_new_sizes = 0;
+	if (sizeof(ulint) == 4
+			&& srv_n_log_files * srv_log_file_size >= 262144) {
 
+		fprintf(stderr,
+		"InnoDB: Error: combined size of log files must be < 4 GB\n"
+		"InnoDB: on 32-bit computers\n");
+
+		return(DB_ERROR);
+	}
+
+	sum_of_new_sizes = 0;
+	
 	for (i = 0; i < srv_n_data_files; i++) {
-		if (srv_data_file_sizes[i] >= 262144) {
+#ifndef __WIN__
+		if (sizeof(off_t) < 5 && srv_data_file_sizes[i] >= 262144) {
 		 	fprintf(stderr,
-	"InnoDB: Error: file size must be < 4 GB, or on some OS's < 2 GB\n");
+	"InnoDB: Error: file size must be < 4 GB with this MySQL binary\n"
+	"InnoDB: and operating system combination, in some OS's < 2 GB\n");
 
 		  	return(DB_ERROR);
 		}
-
+#endif
 		sum_of_new_sizes += srv_data_file_sizes[i];
 	}
 
@@ -889,7 +942,6 @@ innobase_start_or_create_for_mysql(void)
 	/* Create the thread which warns of long semaphore waits */
 	os_thread_create(&srv_error_monitor_thread, NULL,
 					thread_ids + 3 + SRV_MAX_N_IO_THREADS);	
-
 	srv_was_started = TRUE;
 	srv_is_being_started = FALSE;
 
@@ -945,7 +997,7 @@ innobase_shutdown_for_mysql(void)
 	the tablespace header(s), and copy all log data to archive */
 
 	logs_empty_and_mark_files_at_shutdown();
-
+	
 	ut_free_all_mem();
 	
 	return((int) DB_SUCCESS);

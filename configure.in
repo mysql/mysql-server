@@ -4,7 +4,7 @@ dnl Process this file with autoconf to produce a configure script.
 AC_INIT(sql/mysqld.cc)
 AC_CANONICAL_SYSTEM
 # The Docs Makefile.am parses this line!
-AM_INIT_AUTOMAKE(mysql, 4.0.0-alpha)
+AM_INIT_AUTOMAKE(mysql, 4.0.1-alpha)
 AM_CONFIG_HEADER(config.h)
 
 PROTOCOL_VERSION=10
@@ -1317,6 +1317,12 @@ AC_ARG_WITH(client-ldflags,
     [CLIENT_EXTRA_LDFLAGS=$withval],
     [CLIENT_EXTRA_LDFLAGS=])
 AC_SUBST(CLIENT_EXTRA_LDFLAGS)
+
+AC_ARG_WITH(lib-ccflags,
+    [  --with-lib-ccflags      Extra CC options for libraries],
+    [LIB_EXTRA_CCFLAGS=$withval],
+    [LIB_EXTRA_CCFLAGS=])
+AC_SUBST(LIB_EXTRA_CCFLAGS)
 
 # Avoid stupid bug on some OS 
 AC_ARG_WITH(low-memory,

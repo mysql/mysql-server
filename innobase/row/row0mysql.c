@@ -571,6 +571,8 @@ row_insert_for_mysql(
 
 	trx->op_info = "inserting";
 
+	trx_start_if_not_started(trx);
+
 	if (node == NULL) {
 		row_get_prebuilt_insert_row(prebuilt);
 		node = prebuilt->ins_node;
@@ -753,6 +755,8 @@ row_update_for_mysql(
 	}
 
 	trx->op_info = "updating or deleting";
+
+	trx_start_if_not_started(trx);
 
 	node = prebuilt->upd_node;
 
@@ -947,6 +951,8 @@ row_create_table_for_mysql(
 
 	trx->op_info = "creating table";
 
+	trx_start_if_not_started(trx);
+
 	namelen = ut_strlen(table->name);
 
 	keywordlen = ut_strlen("innodb_monitor");
@@ -1034,7 +1040,7 @@ row_create_table_for_mysql(
      "InnoDB: Error: table %s already exists in InnoDB internal\n"
      "InnoDB: data dictionary. Have you deleted the .frm file\n"
      "InnoDB: and not used DROP TABLE? Have you used DROP DATABASE\n"
-     "InnoDB: for InnoDB tables in MySQL version <= 3.23.42?\n"
+     "InnoDB: for InnoDB tables in MySQL version <= 3.23.43?\n"
      "InnoDB: See the Restrictions section of the InnoDB manual.\n",
 				 table->name);
 			fprintf(stderr,
@@ -1076,6 +1082,8 @@ row_create_index_for_mysql(
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 	
 	trx->op_info = "creating index";
+
+	trx_start_if_not_started(trx);
 
 	/* Serialize data dictionary operations with dictionary mutex:
 	no deadlocks can occur then in these operations */
@@ -1145,6 +1153,8 @@ row_table_add_foreign_constraints(
 	ut_a(sql_string);
 	
 	trx->op_info = "adding foreign keys";
+
+	trx_start_if_not_started(trx);
 
 	/* Serialize data dictionary operations with dictionary mutex:
 	no deadlocks can occur then in these operations */
@@ -1217,6 +1227,8 @@ row_drop_table_for_mysql(
 	}
 
 	trx->op_info = "dropping table";
+
+	trx_start_if_not_started(trx);
 
 	namelen = ut_strlen(name);
 	keywordlen = ut_strlen("innodb_monitor");
@@ -1435,6 +1447,8 @@ row_drop_database_for_mysql(
 	
 	trx->op_info = "dropping database";
 	
+	trx_start_if_not_started(trx);
+
 	mutex_enter(&(dict_sys->mutex));
 
 	while (table_name = dict_get_first_table_name_in_db(name)) {
@@ -1454,6 +1468,8 @@ row_drop_database_for_mysql(
 
 	mutex_exit(&(dict_sys->mutex));
 	
+	trx_commit_for_mysql(trx);
+
 	trx->op_info = "";
 
 	return(err);
@@ -1496,6 +1512,7 @@ row_rename_table_for_mysql(
 	}
 
 	trx->op_info = "renaming table";
+	trx_start_if_not_started(trx);
 
 	str1 =
 	"PROCEDURE RENAME_TABLE_PROC () IS\n"
@@ -1602,6 +1619,7 @@ row_scan_and_check_index(
 	rec_t*		rec;
 	ibool		is_ok	= TRUE;
 	int		cmp;
+	char           	err_buf[1000];
 	
 	*n_rows = 0;
 	
@@ -1649,15 +1667,27 @@ loop:
 		if (cmp > 0) {
 			fprintf(stderr,
 			"Error: index records in a wrong order in index %s\n",
-			index->name);
+								index->name);
+
+	  		dtuple_sprintf(err_buf, 900, prev_entry);
+	  		fprintf(stderr, "InnoDB: prev record %s\n", err_buf);
+
+	  		rec_sprintf(err_buf, 900, rec);
+	  		fprintf(stderr, "InnoDB: record %s\n", err_buf);
 
 			is_ok = FALSE;
 		} else if ((index->type & DICT_UNIQUE)
 			   && matched_fields >=
 			   dict_index_get_n_ordering_defined_by_user(index)) {
-			fprintf(stderr,
-			"Error: duplicate key in index %s\n",
-			index->name);
+
+			fprintf(stderr, "Error: duplicate key in index %s\n",
+								index->name);
+
+	  		dtuple_sprintf(err_buf, 900, prev_entry);
+	  		fprintf(stderr, "InnoDB: prev record %s\n", err_buf);
+
+	  		rec_sprintf(err_buf, 900, rec);
+	  		fprintf(stderr, "InnoDB: record %s\n", err_buf);
 
 			is_ok = FALSE;			   	
 		}

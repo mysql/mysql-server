@@ -16,7 +16,6 @@
    MA 02111-1307, USA */
 
 #include <my_global.h>
-
 #include <m_ctype.h>
 #include <m_string.h>
 

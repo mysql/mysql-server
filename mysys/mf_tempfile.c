@@ -126,6 +126,9 @@ File create_temp_file(char *to, const char *dir, const char *prefix,
     // changing environ variable doesn't work with VACPP
     char  buffer[256];
     sprintf( buffer, "TMP=%s", dir);
+    // remove ending backslash
+    if (buffer[strlen(buffer)-1] == '\\')
+       buffer[strlen(buffer)-1] = '\0';
     putenv( buffer);
 #else
     old_env= (char**) environ;

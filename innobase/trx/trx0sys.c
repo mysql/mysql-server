@@ -518,6 +518,10 @@ trx_sys_init_at_db_start(void)
 		fprintf(stderr,
 	"InnoDB: %lu uncommitted transaction(s) which must be rolled back\n",
 				UT_LIST_GET_LEN(trx_sys->trx_list));
+
+		fprintf(stderr, "Trx id counter is %lu %lu\n", 
+			ut_dulint_get_high(trx_sys->max_trx_id),
+			ut_dulint_get_low(trx_sys->max_trx_id));
 	}
 
 	UT_LIST_INIT(trx_sys->view_list);

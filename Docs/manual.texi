@@ -5772,9 +5772,6 @@ Change sort to allocate memory in ``hunks'' to get better memory utilisation.
 @code{Field_decimal::store(const char *from,uint len)} must be recoded
 to fix this.
 @item
-Fix @code{mysql.cc} to do fewer @code{malloc()} calls when hashing field
-names.
-@item
 Functions:
 ADD_TO_SET(value,set) and REMOVE_FROM_SET(value,set)
 @item
@@ -5808,8 +5805,6 @@ Fix that @code{ON} and @code{USING} works with the @code{JOIN}
 join type.
 @item
 Oracle like @code{CONNECT BY PRIOR ...} to search hierarchy structures.
-@item
-@code{RENAME DATABASE}
 @item
 @code{mysqladmin copy database new-database}. -- Requires COPY command to be
 added to @code{mysqld}
@@ -24006,7 +24001,7 @@ By default, the @code{mysql.server} script starts the MySQL
 server with the @code{-l} option.  If you need better performance when
 you start using MySQL in a production environment, you can
 remove the @code{-l} option from @code{mysql.server} or change it to
-@code{--log-binary}.
+@code{--log-bin}.
 
 The entries in this log are written as @code{mysqld} receives the questions.
 This may be different than the order in which the statements are executed.
@@ -24080,8 +24075,8 @@ and the crash.
 @cindex binary log
 @cindex files, binary log
 
-In the future the binary log will replace the update log, so we
-recommend you to switch to this log format as soon as possible!
+The intention is that the binary log should replace the update log, so
+we recommend you to switch to this log format as soon as possible!
 
 The binary log contains all information that is available in the update
 log in a more efficient format. It also contains information about how long
@@ -24096,6 +24091,14 @@ file name is given, it defaults to the name of the host machine followed
 by @code{-bin}. If file name is given, but it doesn't contain a path, the
 file is written in the data directory.
 
+If you supply an extension to @code{--log-bin=filename.extension}, the
+extension will be silenty removed.
+
+To the binary log filename @code{mysqld} will append an extension that is a
+number that is incremented each time you execute @code{mysqladmin
+refresh}, execute @code{mysqladmin flush-logs}, execute the @code{FLUSH LOGS}
+statement or restart the server. 
+
 You can use the following options to @code{mysqld} to affect what is logged
 to the binary log:
 
@@ -24109,11 +24112,6 @@ exclude all others not explicitly mentioned.
 Tells the master that updates to the given database should not be logged
 to the binary log (Example: @code{binlog-ignore-db=some_database})
 @end multitable
-
-To the binary log filename @code{mysqld} will append an extension that is a
-number that is incremented each time you execute @code{mysqladmin
-refresh}, execute @code{mysqladmin flush-logs}, execute the @code{FLUSH LOGS}
-statement or restart the server.
 
 To be able to know which different binary log files have been used,
 @code{mysqld} will also create a binary log index file that
@@ -48950,6 +48948,7 @@ users use this code as the rest of the code and because of this we are
 not yet 100% confident in this code.
 
 @menu
+* News-3.23.45::                Changes in release 3.23.45
 * News-3.23.44::                Changes in release 3.23.44
 * News-3.23.43::                Changes in release 3.23.43
 * News-3.23.42::                Changes in release 3.23.42
@@ -48998,9 +48997,41 @@ not yet 100% confident in this code.
 * News-3.23.0::                 Changes in release 3.23.0
 @end menu
 
-@node News-3.23.44, News-3.23.43, News-3.23.x, News-3.23.x
+@node News-3.23.45, News-3.23.44, News-3.23.x, News-3.23.x
+@appendixsubsec Changes in release 3.23.45
+@itemize @bullet
+@item
+Fixed problem with @code{t1 LEFT_JOIN t2 ... WHERE t2.date_column IS NULL} when
+date_column was declared as @code{NOT NULL}.
+@item
+Fixed bug with BDB tables and keys on @code{BLOB}'s.
+@item
+Fixed bug in @code{MERGE} tables on OS with 32 bit file pointers.
+@item
+Fixed bug in @code{TIME_TO_SEC()} when using negative values.
+@end itemize
+
+@node News-3.23.44, News-3.23.43, News-3.23.45, News-3.23.x
 @appendixsubsec Changes in release 3.23.44
 @itemize @bullet
+@item
+Fixed @code{Rows_examined} count in slow query log.
+@item
+Fixed bug when using a reference to a @code{AVG()} column in @code{HAVING}.
+@item
+Fixed that date functions that require correct dates, like
+@code{DAYOFYEAR(column)} will return @code{NULL} for @code{0000-00-00} dates.
+@item
+Fixed bug in const-propagation when comparing columns of different
+types. (@code{SELECT * FROM date_col="2001-01-01" and date_col=time_col})
+@item
+Fixed bug that caused error message @code{Can't write, because of unique
+constraint} with some @code{GROUP BY} queries.
+@item
+Fixed problem with sjis character strings used within quoted table names.
+@item
+Fixed coredump when using @code{CREATE ... FULLTEXT} keys with other table
+handlers than MyISAM.
 @item
 Don't use @code{signal()} on windows because this appears to not be
 100 % reliable.
@@ -49011,9 +49042,62 @@ that had @code{NULL} values.
 Fixed bug when doing @code{LEFT JOIN ...  ON (column_name = constant) WHERE column_name = constant}.
 @item
 When using replications, aborted queries that contained @code{%} could cause
-a core dum.
+a core dump.
 @item
-TCP_NODELAY was not used on some systems. (Speed problem).
+@code{TCP_NODELAY} was not used on some systems. (Speed problem).
+@item
+Applied portability fixes for OS/2 (Patch by Yuri Dario).
+@end itemize
+
+The following changes are for @code{InnoDB} tables:
+
+@itemize @bullet
+@item
+Add missing @code{InnoDB} variables to @code{SHOW VARIABLES}.
+@item
+Foreign keys checking is now done for @code{InnoDB} tables.
+@item
+@code{DROP DATABASE} now works also for @code{InnoDB} tables.
+@item
+@code{InnoDB} now supports data files and raw disk partitions bigger
+than 4 GB on those operating systems which have big files.
+@item
+@code{InnoDB} calculates better table cardinality estimates for the
+MySQL optimizer.
+@item
+Accent characters in the default character set latin1 are ordered
+according to the MySQL ordering.
+
+NOTE: if you are using latin1 and have inserted characters whose code is >
+127 to an indexed CHAR column, you should run CHECK TABLE on your table when
+you upgrade to 3.23.44, and drop and reimport the table if CHECK TABLE
+reports an error!
+@item
+A new @file{my.cnf} parameter @code{innodb_thread_concurrency} helps in
+performance tuning in heavily concurrent environments.
+@item
+A new @code{my.cnf} parameter @code{innodb_fast_shutdown} speeds up
+server shutdown.
+@item
+A new @code{my.cnf} parameter @code{innodb_force_recovery} helps to save
+your data in case the disk image of the database becomes corrupt.
+@item
+@code{innodb_monitor} has been improved and a new
+@code{innodb_table_monitor} added.
+@item
+Increased maximum key length from 500 to 7000 bytes.
+@item
+Fixed a bug in replication of auto-inc columns with multiline inserts.
+@item
+Fixed a bug when the case of letters changes in an update of an indexed
+secondary column.
+@item
+Fixed a hang when there are > 24 data files.
+@item
+Fixed a crash when @code{MAX(col)} is selected from an empty table, and
+col is a not the first column in a multi-column index.
+@item
+Fixed a bug in purge which could cause crashes.
 @end itemize
 
 @node News-3.23.43, News-3.23.42, News-3.23.44, News-3.23.x
@@ -49117,15 +49201,15 @@ Fixed possible problem with @code{shutdown} on Solaris where the
 @item
 InnoDB now supports < 4 GB rows. The former limit was 8000 bytes.
 @item
-The @code{doublewrite} file flush method is used in InnoDB.
+The @code{doublewrite} file flush method is used in @code{InnoDB}.
 It reduces the need for Unix fsync calls to a fraction and
 improves performance on most Unix flavors.
 @item
-You can now use the InnoDB Monitor to print a lot of InnoDB state
+You can now use the @code{InnoDB} Monitor to print a lot of @code{InnoDB} state
 information, including locks, to the standard output; useful in
 performance tuning.
 @item
-Several bugs which could cause hangs in InnoDB have been fixed.
+Several bugs which could cause hangs in @code{InnoDB} have been fixed.
 @item
 Split @code{record_buffer} to @code{record_buffer} and
 @code{record_rnd_buffer}.  To make things compatible to previous MySQL
@@ -49239,7 +49323,7 @@ Extended argument length in option files from 256 to 512 chars.
 Fixed problem with shutdown when @code{INSERT DELAYED} was waiting for
 a @code{LOCK TABLE}.
 @item
-Fixed coredump bug in InnoDB when tablespace was full.
+Fixed coredump bug in @code{InnoDB} when tablespace was full.
 @item
 Fixed problem with @code{MERGE} tables and big tables (> 4G) when using
 @code{ORDER BY}.
@@ -49284,7 +49368,7 @@ New program @code{mysqlcheck}.
 Added database name to output for administrative commands like @code{CHECK},
 @code{REPAIR}, @code{OPTIMIZE}.
 @item
-Lots of portability fixes for InnoDB.
+Lots of portability fixes for @code{InnoDB}.
 @item
 Changed optimiser so that queries like
 @code{SELECT * FROM table_name,table_name2 ... ORDER BY key_part1 LIMIT #}
@@ -54880,15 +54964,15 @@ Make a second backup of the tables.
 Remove (or move away) any old log files from the MySQL data
 directory if you need more space.
 @item
-Start @code{mysqld} with @code{--log-binary}. @xref{Binary log}.
+Start @code{mysqld} with @code{--log-bin}. @xref{Binary log}.
 If you want to find a query that crashes @code{mysqld}, you should use
-@code{--log --log-binary}.
+@code{--log --log-bin}.
 @item
 When you have gotten a crashed table, stop the @code{mysqld server}.
 @item
 Restore the backup.
 @item
-Restart the @code{mysqld} server @strong{without} @code{--log-binary}
+Restart the @code{mysqld} server @strong{without} @code{--log-bin}
 @item
 Re-execute the commands with @code{mysqlbinlog update-log-file | mysql}.
 The update log is saved in the MySQL database directory with

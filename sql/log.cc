@@ -516,36 +516,46 @@ bool MYSQL_LOG::is_active(const char* log_file_name)
 
 void MYSQL_LOG::new_file(bool inside_mutex)
 {
-  // only rotate open logs that are marked non-rotatable
-  // (binlog with constant name are non-rotatable)
-  if (is_open() && ! no_rotate)
+  if (is_open())
   {
     char new_name[FN_REFLEN], *old_name=name;
     if (!inside_mutex)
       VOID(pthread_mutex_lock(&LOCK_log));
-    if (generate_new_name(new_name, name))
-    {
-      if (!inside_mutex)
-        VOID(pthread_mutex_unlock(&LOCK_log));
-      return;					// Something went wrong
-    }
-    if (log_type == LOG_BIN)
+
+    if (!no_rotate)
     {
       /*
-	We log the whole file name for log file as the user may decide
-	to change base names at some point.
+	only rotate open logs that are marked non-rotatable
+	(binlog with constant name are non-rotatable)
       */
-      THD* thd = current_thd;
-      Rotate_log_event r(thd,new_name+dirname_length(new_name));
-      r.set_log_seq(0, this);
-      // this log rotation could have been initiated by a master of
-      // the slave running with log-bin
-      // we set the flag on rotate event to prevent inifinite log rotation
-      // loop
-      if(thd && slave_thd && thd == slave_thd)
-	r.flags |= LOG_EVENT_FORCED_ROTATE_F;
-      r.write(&log_file);
-      VOID(pthread_cond_broadcast(&COND_binlog_update));
+      if (generate_new_name(new_name, name))
+      {
+	if (!inside_mutex)
+	  VOID(pthread_mutex_unlock(&LOCK_log));
+	return;					// Something went wrong
+      }
+      if (log_type == LOG_BIN)
+      {
+	/*
+	  We log the whole file name for log file as the user may decide
+	  to change base names at some point.
+	*/
+	THD* thd = current_thd;
+	Rotate_log_event r(thd,new_name+dirname_length(new_name));
+	r.set_log_seq(0, this);
+
+	/*
+	  This log rotation could have been initiated by a master of
+	  the slave running with log-bin we set the flag on rotate
+	  event to prevent inifinite log rotation loop
+	*/
+	if (thd && slave_thd && thd == slave_thd)
+	  r.flags |= LOG_EVENT_FORCED_ROTATE_F;
+	r.write(&log_file);
+	VOID(pthread_cond_broadcast(&COND_binlog_update));
+      }
+      else
+	strmov(new_name, old_name);		// Reopen old file name
     }
     name=0;
     close();
@@ -843,7 +853,7 @@ bool MYSQL_LOG::write(THD *thd,const char *query, uint query_length,
       {
 	/* For slow query log */
 	if (my_b_printf(&log_file,
-			"# Time: %lu  Lock_time: %lu  Rows_sent: %lu  Rows_examined: %lu\n",
+			"# Query_time: %lu  Lock_time: %lu  Rows_sent: %lu  Rows_examined: %lu\n",
 			(ulong) (current_time - query_start),
 			(ulong) (thd->time_after_lock - query_start),
 			(ulong) thd->sent_row_count,

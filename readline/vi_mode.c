@@ -138,7 +138,7 @@ _rl_vi_initialize_line ()
 {
   register uint i;
 
-  for (i = 0; i < sizeof (vi_mark_chars) / sizeof (int); i++)
+  for (i = 0; i < (int) sizeof (vi_mark_chars) / sizeof (int); i++)
     vi_mark_chars[i] = -1;
 }
 

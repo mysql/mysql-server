@@ -9,6 +9,7 @@ insert into t2 select * from t1;
 drop table if exists test.t3;
 create temporary table test.t3 (n int not null);
 alter table test.t3 add primary key(n);
+flush logs;
 insert into t3 values (100);
 insert into t2 select * from t3;
 drop table if exists test.t3;
