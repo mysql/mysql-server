@@ -246,7 +246,9 @@ void set_param_tiny(Item_param *param, uchar **pos, ulong len)
   if (len < 1)
     return;
 #endif
-  param->set_int((longlong)(**pos));
+  int8 value= (int8) **pos;
+  param->set_int(param->unsigned_flag ? (longlong) ((uint8) value) : 
+                                        (longlong) value); 
   *pos+= 1;
 }
 
@@ -256,7 +258,9 @@ void set_param_short(Item_param *param, uchar **pos, ulong len)
   if (len < 2)
     return;
 #endif
-  param->set_int((longlong)sint2korr(*pos));
+  int16 value= sint2korr(*pos);
+  param->set_int(param->unsigned_flag ? (longlong) ((uint16) value) :
+                                        (longlong) value);
   *pos+= 2;
 }
 
@@ -266,7 +270,9 @@ void set_param_int32(Item_param *param, uchar **pos, ulong len)
   if (len < 4)
     return;
 #endif
-  param->set_int((longlong)sint4korr(*pos));
+  int32 value= sint4korr(*pos);
+  param->set_int(param->unsigned_flag ? (longlong) ((uint32) value) :
+                                        (longlong) value);
   *pos+= 4;
 }
 
@@ -535,10 +541,16 @@ static bool setup_conversion_functions(Prepared_statement *stmt,
     Item_param **end= it + stmt->param_count;
     for (; it < end; ++it)
     {
+      ushort typecode;
+      const uint signed_bit= 1 << 15;
+
       if (read_pos >= data_end)
         DBUG_RETURN(1);
-      setup_one_conversion_function(*it, *read_pos);
+
+      typecode= sint2korr(read_pos);
       read_pos+= 2;
+      (**it).unsigned_flag= test(typecode & signed_bit);
+      setup_one_conversion_function(*it, (uchar) (typecode & ~signed_bit));
     }
   }
   *data= read_pos;
