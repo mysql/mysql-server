@@ -42845,6 +42845,8 @@ not yet 100% confident in this code.
 @appendixsubsec Changes in release 3.23.37
 @itemize @bullet
 @item
+Fixed bug when using indexes on @code{CHAR(255) NULL} columns.
+@item
 Slave thread will now be started even if @code{master-host} is not set, as
 long as @code{server-id} is set and valid @code{master.info} is present
 @item
