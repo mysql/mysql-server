@@ -1000,7 +1000,7 @@ ulong my_scan_8bit(CHARSET_INFO *cs, const char *str, const char *end, int sq)
     return 0;
 
   case MY_SEQ_SPACES:
-    for (; str != end ; str++)
+    for ( ; str < end ; str++)
     {
       if (!my_isspace(cs,*str))
         break;
@@ -1009,4 +1009,10 @@ ulong my_scan_8bit(CHARSET_INFO *cs, const char *str, const char *end, int sq)
   default:
     return 0;
   }
+}
+
+void my_fill_8bit(CHARSET_INFO *cs __attribute__((unused)),
+		   char *s, uint l, int fill)
+{
+  bfill(s,l,fill);
 }
