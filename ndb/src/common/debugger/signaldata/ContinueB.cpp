@@ -24,9 +24,9 @@ bool
 printCONTINUEB(FILE * output, const Uint32 * theData, Uint32 len, 
 	       Uint16 receiverBlockNo){
   if(receiverBlockNo == DBDIH){
-    return printCONTINUEB_DBDIH(output, theData, len);
+    return printCONTINUEB_DBDIH(output, theData, len, 0);
   } else if(receiverBlockNo == NDBFS) {
-    return printCONTINUEB_NDBFS(output, theData, len);
+    return printCONTINUEB_NDBFS(output, theData, len, 0);
   }
   
   return false;
