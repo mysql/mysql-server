@@ -76,6 +76,7 @@ check_insert_fields(THD *thd, TABLE_LIST *table_list, List<Item> &fields,
   else
   {						// Part field list
     TABLE_LIST *save_next= table_list->next_local;
+    int res;
     if (fields.elements != values.elements)
     {
       my_printf_error(ER_WRONG_VALUE_COUNT_ON_ROW,
@@ -86,12 +87,14 @@ check_insert_fields(THD *thd, TABLE_LIST *table_list, List<Item> &fields,
 
     table_list->next_local= 0;
     thd->dupp_field=0;
-    if (setup_fields(thd, 0, table_list, fields, 1, 0, 0))
+    thd->lex->select_lex.no_wrap_view_item= 1;
+    res= setup_fields(thd, 0, table_list, fields, 1, 0, 0);
+    thd->lex->select_lex.no_wrap_view_item= 0;
+    table_list->next_local= save_next;
+    if (res)
     {
-      table_list->next_local= save_next;
       return -1;
     }
-    table_list->next_local= save_next;
 
     if (check_unique && thd->dupp_field)
     {
