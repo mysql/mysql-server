@@ -2120,6 +2120,7 @@ static int get_actual_table_name(const char *old_table_name,
                                   char *new_table_name, 
                                   int buf_size)
 {
+  int retval;
   MYSQL_RES  *tableRes;
   MYSQL_ROW  row;
   char query[50 + 2*NAME_LEN];
@@ -2137,6 +2138,7 @@ static int get_actual_table_name(const char *old_table_name,
   }
 
   tableRes= mysql_store_result( sock );
+  retval = 1;
   if (tableRes != NULL)
   {
 	my_ulonglong numRows = mysql_num_rows(tableRes);
@@ -2144,12 +2146,11 @@ static int get_actual_table_name(const char *old_table_name,
 	{
 	  	row= mysql_fetch_row( tableRes );
 	  	strmake(new_table_name, row[0], buf_size-1);
-		return 0;
+		retval = 0;
 	}
   	mysql_free_result(tableRes);
-	return 1;
   }
-  return 1;
+  return retval;
 }
 
 
