@@ -20,6 +20,7 @@
 
 #include "instance.h"
 #include "mysql_manager_error.h"
+#include "log.h"
 #include <my_sys.h>
 #include <signal.h>
 #include <m_string.h>
@@ -43,6 +44,7 @@ int Instance::start()
 
   if (!is_running())
   {
+    log_info("trying to start instance %s", options.instance_name);
     switch (fork()) {
     case 0:
        if (fork()) /* zombie protection */

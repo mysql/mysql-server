@@ -129,8 +129,12 @@ void Listener_thread::run()
     thread_registry.request_shutdown();
     return;
   }
+      /* set the socket nonblocking */
   flags= fcntl(ip_socket, F_GETFL, 0);
   fcntl(ip_socket, F_SETFL, flags | O_NONBLOCK);
+    /* make shure that instances won't be listening our sockets */
+  flags= fcntl(ip_socket, F_GETFD, 0);
+  fcntl(ip_socket, F_SETFD, flags | FD_CLOEXEC);
 
   log_info("accepting connections on ip socket");
 
@@ -180,6 +184,9 @@ void Listener_thread::run()
       /* set the socket nonblocking */
     flags= fcntl(unix_socket, F_GETFL, 0);
     fcntl(unix_socket, F_SETFL, flags | O_NONBLOCK);
+      /* make shure that instances won't be listening our sockets */
+    flags= fcntl(unix_socket, F_GETFD, 0);
+    fcntl(unix_socket, F_SETFD, flags | FD_CLOEXEC);
   }
   log_info("accepting connections on unix socket %s",
            unix_socket_address.sun_path);

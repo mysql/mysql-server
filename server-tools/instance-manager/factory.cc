@@ -23,35 +23,35 @@
 
 Show_instances *Command_factory::new_Show_instances()
 {
-  return new Show_instances(this);
+  return new Show_instances(&instance_map);
 }
 
 Flush_instances *Command_factory::new_Flush_instances()
 {
-  return new Flush_instances(this);
+  return new Flush_instances(&instance_map);
 }
 
 Show_instance_status *Command_factory::
                       new_Show_instance_status(const char *name, uint len)
 {
-  return new Show_instance_status(this, name, len);
+  return new Show_instance_status(&instance_map, name, len);
 }
 
 Show_instance_options *Command_factory::
                        new_Show_instance_options(const char *name, uint len)
 {
-  return new Show_instance_options(this, name, len);
+  return new Show_instance_options(&instance_map, name, len);
 }
 
 Start_instance *Command_factory::
                 new_Start_instance(const char *name, uint len)
 {
-  return new Start_instance(this, name, len);
+  return new Start_instance(&instance_map, name, len);
 }
 
 Stop_instance *Command_factory::new_Stop_instance(const char *name, uint len)
 {
-  return new Stop_instance(this, name, len);
+  return new Stop_instance(&instance_map, name, len);
 }
 
 Syntax_error *Command_factory::new_Syntax_error()

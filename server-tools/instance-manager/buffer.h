@@ -35,7 +35,7 @@ private:
   enum { BUFFER_INITIAL_SIZE= 4096 };
   /* maximum buffer size is 16Mb */
   enum { MAX_BUFFER_SIZE= 16777216 };
-  uint buffer_size;
+  size_t buffer_size;
 public:
   Buffer()
   {
@@ -50,7 +50,7 @@ public:
 
 public:
   char *buffer;
-  int append(char *start_pos, const char *string, uint len_arg);
+  int append(uint position, const char *string, uint len_arg);
   int reserve(uint position, uint len_arg);
 };
 

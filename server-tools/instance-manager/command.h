@@ -24,7 +24,7 @@
 
 /* Class responsible for allocation of im commands. */
 
-class Command_factory;
+class Instance_map;
 
 /*
   Command - entry point for any command.
@@ -34,14 +34,14 @@ class Command_factory;
 class Command
 {
 public:
-  Command(Command_factory *factory_arg= 0);
+  Command(Instance_map *instance_map_arg= 0);
   virtual ~Command();
 
   /* method of executing: */
   virtual int execute(struct st_net *net, ulong connection_id) = 0;
 
 protected:
-  Command_factory *factory;
+  Instance_map *instance_map;
 };
 
 #endif /* INCLUDES_MYSQL_INSTANCE_MANAGER_COMMAND_H */
