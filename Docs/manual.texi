@@ -6597,13 +6597,19 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 @c EMAIL: noel@uni-bonn.de (Noel Koethe)
 @image{Flags/germany} Germany [Kernelnotes.de, Bonn] @
 @uref{http://www.kernelnotes.de/mysql/, WWW}
-@uref{ftp://ftp.kernelnotes.de/pub/mirror/mysql.org/, FTP}
+@uref{ftp://ftp.kernelnotes.de/mysql.com/, FTP}
 
 @item
 @c EMAIL: th@rz.fh-wolfenbuettel.de (Thorsten Ludewig)
 @image{Flags/germany} Germany [Wolfenbuettel] @
 @uref{http://www.fh-wolfenbuettel.de/ftp/pub/database/mysql/, WWW}
 @uref{ftp://ftp.fh-wolfenbuettel.de/pub/database/mysql/, FTP}
+
+@item
+@c EMAIL: emoenke@gwdg.de (Eberhard Moenkeberg)
+@image{Flags/germany} Germany [GWDG] @
+@uref{http://ftp.gwdg.de/pub/misc/mysql/, WWW}
+@uref{ftp://ftp.gwdg.de/pub/misc/mysql/, FTP}
 
 @c @item
 @c Ok 980114. Removed 981208 (down > 3 days) ok 981214
