@@ -36491,21 +36491,31 @@ Transactional @code{InnoDB} tables that have been changed will be invalidated
 when a @code{COMMIT} is performed.
 
 A query cannot be cached if it contains one of the functions:
-@multitable @columnfractions .25 .25 .25 .25
-@item @strong{Function} @tab @strong{Function}
- @tab @strong{Function} @tab @strong{Function}
-@item @code{User-Defined Functions} @tab @code{CONNECTION_ID}
- @tab @code{FOUND_ROWS} @tab @code{GET_LOCK}
-@item @code{RELEASE_LOCK} @tab @code{LOAD_FILE}
- @tab @code{MASTER_POS_WAIT} @tab @code{NOW}
-@item @code{SYSDATE} @tab @code{CURRENT_TIMESTAMP}
- @tab @code{CURDATE} @tab @code{CURRENT_DATE}
-@item @code{CURTIME} @tab @code{CURRENT_TIME}
- @tab @code{DATABASE} @tab @code{ENCRYPT} (with one parameter)
-@item @code{LAST_INSERT_ID} @tab @code{RAND}
- @tab @code{UNIX_TIMESTAMP} (without parameters) @tab @code{USER}
-@item @code{BENCHMARK} @tab
- @tab @tab
+@multitable @columnfractions .33 .33 .34
+@item @strong{Function}
+ @tab @strong{Function}
+ @tab @strong{Function}
+@item @code{User-Defined Functions}
+ @tab @code{CONNECTION_ID}
+ @tab @code{FOUND_ROWS}
+@item @code{GET_LOCK}
+ @tab @code{RELEASE_LOCK}
+ @tab @code{LOAD_FILE}
+@item @code{MASTER_POS_WAIT}
+ @tab @code{NOW}
+ @tab @code{SYSDATE}
+@item @code{CURRENT_TIMESTAMP}
+ @tab @code{CURDATE}
+ @tab @code{CURRENT_DATE}
+@item @code{CURTIME}
+ @tab @code{CURRENT_TIME}
+ @tab @code{DATABASE}
+@item @code{ENCRYPT} (with one parameter)
+ @tab @code{LAST_INSERT_ID}
+ @tab @code{RAND}
+@item @code{UNIX_TIMESTAMP} (without parameters)
+ @tab @code{USER}
+ @tab @code{BENCHMARK}
 @end multitable
 
 Nor can a query be cached if it contains user variables,
