@@ -95,7 +95,7 @@ show status like 'handler_discover%';
 Variable_name	Value
 Handler_discover	1
 SHOW TABLES FROM test;
-Tables_in_test
+Tables_in_test	table_type
 create table IF NOT EXISTS t3(
 id int not null primary key,
 id2 int not null,

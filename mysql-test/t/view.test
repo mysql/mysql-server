@@ -693,7 +693,7 @@ insert into v1 select c, b, a from t2;
 insert into v1 (z,y,x) select a+20,b+2,-100 from t2;
 insert into v2 select b+1, a+10 from t2;
 select * from t1;
-drop table t1;
+drop table t1, t2;
 drop view v1,v2,v3,v4,v5;
 
 #
@@ -943,3 +943,166 @@ select distinct first.col2 from t1 first where first.col2 in (select second.col2
 select distinct first.col2 from v1 first where first.col2 in (select second.col2 from t1 second where second.col1<>first.col1);
 drop view v1;
 drop table t1;
+
+#
+# Test of view updatebility in prepared statement
+#
+create table t1 (a int);
+create view v1 as select a from t1;
+insert into t1 values (1);
+
+#update
+SET @v0 = '2';
+PREPARE stmt FROM 'UPDATE v1 SET a = ?';
+EXECUTE stmt USING @v0;
+DEALLOCATE PREPARE stmt;
+
+#insert without field list
+SET @v0 = '3';
+PREPARE stmt FROM 'insert into v1 values (?)';
+EXECUTE stmt USING @v0;
+DEALLOCATE PREPARE stmt;
+
+#insert with field list
+SET @v0 = '4';
+PREPARE stmt FROM 'insert into v1 (a) values (?)';
+EXECUTE stmt USING @v0;
+DEALLOCATE PREPARE stmt;
+
+select * from t1;
+
+drop view v1;
+drop table t1;
+
+#
+# error on preparation
+#
+-- error 1096
+CREATE VIEW v02 AS SELECT * FROM DUAL;
+SHOW TABLES;
+
+#
+# EXISTS with UNION VIEW
+#
+CREATE VIEW v1 AS SELECT EXISTS (SELECT 1 UNION SELECT 2);
+select * from v1;
+drop view v1;
+
+#
+# using VIEW where table is required
+#
+create table t1 (col1 int,col2 char(22));
+create view v1 as select * from t1;
+-- error 1346
+create index i1 on v1 (col1);
+drop view v1;
+drop table t1;
+
+#
+# connection_id(), pi(), current_user(), version() representation test
+#
+CREATE VIEW v1 (f1,f2,f3,f4) AS SELECT connection_id(), pi(), current_user(), version();
+SHOW CREATE VIEW v1;
+drop view v1;
+
+#
+# VIEW built over UNION
+#
+create table t1 (s1 int);
+create table t2 (s2 int);
+insert into t1 values (1), (2);
+insert into t2 values (2), (3);
+create view v1 as select * from t1,t2 union all select * from t1,t2;
+select * from v1;
+drop view v1;
+drop tables t1, t2;
+
+#
+# Aggregate functions in view list
+#
+create table t1 (col1 int);
+insert into t1 values (1);
+create view v1 as select count(*) from t1;
+insert into t1 values (null);
+select * from v1;
+drop view v1;
+drop table t1;
+
+#
+# Showing VIEW with VIEWs in subquery
+#
+create table t1 (a int);
+create table t2 (a int);
+create view v1 as select a from t1;
+create view v2 as select a from t2 where a in (select a from v1);
+show create view v2;
+drop view v2, v1;
+drop table t1, t2;
+
+#
+# SHOW VIEW view with name with spaces
+#
+CREATE VIEW `v 1` AS select 5 AS `5`;
+show create view `v 1`;
+drop view `v 1`;
+
+#
+# Removing database with .frm archives
+#
+create database mysqltest;
+create table mysqltest.t1 (a int, b int);
+create view mysqltest.v1 as select a from mysqltest.t1;
+alter view mysqltest.v1 as select b from mysqltest.t1;
+alter view mysqltest.v1 as select a from mysqltest.t1;
+drop database mysqltest;
+
+#
+# VIEW with full text
+#
+CREATE TABLE t1 (c1 int not null auto_increment primary key, c2 varchar(20), fulltext(c2));
+insert into t1 (c2) VALUES ('real Beer'),('Water'),('Kossu'),('Coca-Cola'),('Vodka'),('Wine'),('almost real Beer');
+select * from t1 WHERE match (c2) against ('Beer');
+CREATE VIEW v1 AS SELECT  * from t1 WHERE match (c2) against ('Beer');
+select * from v1;
+drop view v1;
+drop table t1;
+
+#
+# distinct in temporary table with a VIEW
+#
+create table t1 (a int);
+insert into t1 values (1),(1),(2),(2),(3),(3);
+create view v1 as select a from t1;
+select distinct a from v1;
+select distinct a from v1 limit 2;
+select distinct a from t1 limit 2;
+prepare stmt1 from "select distinct a from v1 limit 2";
+execute stmt1;
+execute stmt1;
+deallocate prepare stmt1;
+drop view v1;
+drop table t1;
+
+#
+# aggregate function of aggregate function
+#
+create table t1 (tg_column bigint);
+create view v1 as select count(tg_column) as vg_column from t1;
+select avg(vg_column) from v1;
+drop view v1;
+drop table t1;
+
+#
+# VIEW of VIEW with column renaming
+#
+create table t1 (col1 bigint not null, primary key (col1));
+create table t2 (col1 bigint not null, key (col1));
+create view v1 as select * from t1;
+create view v2 as select * from t2;
+insert into v1 values (1);
+insert into v2 values (1);
+create view v3 (a,b) as select v1.col1 as a, v2.col1 as b from v1, v2 where v1.col1 = v2.col1;
+select * from v3;
+show create view v3;
+drop view v3, v2, v1;
+drop table t2, t1;

@@ -82,7 +82,7 @@ drop procedure if exists foo|
 --error 1304
 show create procedure foo|
 
-# LEAVE/ITERATE with no match
+# LEAVE/ITERATE/GOTO with no match
 --error 1307
 create procedure foo()
 foo: loop
@@ -97,6 +97,47 @@ end loop|
 create procedure foo()
 foo: begin
   iterate foo;
+end|
+--error 1307
+create procedure foo()
+begin
+  goto foo;
+end|
+--error 1307
+create procedure foo()
+begin
+  begin
+    label foo;
+  end;
+  goto foo;
+end|
+--error 1307
+create procedure foo()
+begin
+  goto foo;
+  begin
+    label foo;
+  end;
+end|
+--error 1307
+create procedure foo()
+begin
+  begin
+    goto foo;
+  end;
+  begin
+    label foo;
+  end;
+end|
+--error 1307
+create procedure foo()
+begin
+  begin
+    label foo;
+  end;
+  begin
+    goto foo;
+  end;
 end|
 
 # Redefining label
@@ -375,6 +416,18 @@ begin
   declare c cursor for select * from t1;
 end|
 
+--error 1357
+create procedure p()
+begin
+  declare continue handler for sqlexception
+    begin
+      goto L1;
+    end;
+
+  select field from t1;
+  label L1;
+end|
+
 #
 # BUG#1965
 #
@@ -394,16 +447,6 @@ drop procedure bug1965|
 #
 --error 1326
 select 1 into a|
-
-#
-# BUG#336
-#
---error 1334
-create procedure bug336(id char(16))
-begin
-  declare x int;
-  set x = (select sum(t.data) from test.t2 t);
-end|
 
 #
 # BUG#1654

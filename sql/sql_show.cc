@@ -1575,9 +1575,9 @@ view_store_create_info(THD *thd, TABLE_LIST *table, String *buff)
       buff->append("MERGE ", 6);
   }
   buff->append("VIEW ", 5);
-  buff->append(table->view_db.str, table->view_db.length);
+  append_identifier(thd, buff, table->view_db.str, table->view_db.length);
   buff->append('.');
-  buff->append(table->view_name.str, table->view_name.length);
+  append_identifier(thd, buff, table->view_name.str, table->view_name.length);
   buff->append(" AS ", 4);
   buff->append(table->query.str, table->query.length);
   return 0;

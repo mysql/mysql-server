@@ -397,6 +397,139 @@ id	data
 i	3
 delete from t1|
 drop procedure i|
+create procedure goto1()
+begin
+declare y int;
+label a;
+select * from t1;
+select count(*) into y from t1;
+if y > 2 then
+goto b;
+end if;
+insert into t1 values ("j", y);
+goto a;
+label b;
+end|
+call goto1()|
+id	data
+id	data
+j	0
+id	data
+j	0
+j	1
+id	data
+j	0
+j	1
+j	2
+drop procedure goto1|
+create procedure goto2(a int)
+begin
+declare x int default 0;
+declare continue handler for sqlstate '42S98' set x = 1;
+label a;
+select * from t1;
+b:
+while x < 2 do
+begin
+declare continue handler for sqlstate '42S99' set x = 2;
+if a = 0 then
+set x = x + 1;
+iterate b;
+elseif a = 1 then
+leave b;
+elseif a = 2 then
+set a = 1;
+goto a;
+end if;
+end;
+end while b;
+select * from t1;
+end|
+call goto2(0)|
+id	data
+j	0
+j	1
+j	2
+id	data
+j	0
+j	1
+j	2
+call goto2(1)|
+id	data
+j	0
+j	1
+j	2
+id	data
+j	0
+j	1
+j	2
+call goto2(2)|
+id	data
+j	0
+j	1
+j	2
+id	data
+j	0
+j	1
+j	2
+id	data
+j	0
+j	1
+j	2
+drop procedure goto2|
+delete from t1|
+create procedure goto3()
+begin
+label L1;
+begin
+end;
+goto L1;
+end|
+drop procedure goto3|
+create procedure goto4()
+begin
+begin
+label lab1;
+begin
+goto lab1;
+end;
+end;
+end|
+drop procedure goto4|
+create procedure goto5()
+begin
+begin
+begin
+goto lab1;
+end;
+label lab1;
+end;
+end|
+drop procedure goto5|
+create procedure goto6()
+begin
+label L1;
+goto L5;
+begin
+label L2;
+goto L1;
+goto L5;
+begin
+label L3;
+goto L1;
+goto L2;
+goto L3;
+goto L4;
+goto L5;
+end;
+goto L2;
+goto L4;
+label L4;
+end;
+label L5;
+goto L1;
+end|
+drop procedure goto6|
 insert into t1 values ("foo", 3), ("bar", 19)|
 insert into t2 values ("x", 9, 4.1), ("y", -1, 19.2), ("z", 3, 2.2)|
 create procedure sel1()
@@ -1454,12 +1587,8 @@ show errors;
 show columns from t1;
 show grants for 'root'@'localhost';
 show keys from t1;
-show master status;
 show open tables like 'foo';
 show privileges;
-show processlist;
-show slave hosts;
-show slave status;
 show status like 'foo';
 show tables like 'foo';
 show variables like 'foo';
@@ -1486,8 +1615,6 @@ data	int(11)			0
 Grants for root@localhost
 GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	22185		
 Database	Table	In_use	Name_locked
 Privilege	Context	Comment
 Alter	Tables	To alter the table
@@ -1513,10 +1640,6 @@ Shutdown	Server Admin	To shut down the server
 Super	Server Admin	To use KILL thread, SET GLOBAL, CHANGE MASTER, etc.
 Update	Tables	To update existing rows
 Usage	Server Admin	No privileges - allow connect only
-Id	User	Host	db	Command	Time	State	Info
-1	root	localhost	test	Query	0	query end	call bug4902()
-Server_id	Host	Port	Rpl_recovery_rank	Master_id
-Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_Retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_Do_DB	Replicate_Ignore_DB	Replicate_Do_Table	Replicate_Ignore_Table	Replicate_Wild_Do_Table	Replicate_Wild_Ignore_Table	Last_Errno	Last_Error	Skip_Counter	Exec_Master_Log_Pos	Relay_Log_Space	Until_Condition	Until_Log_File	Until_Log_Pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key	Seconds_Behind_Master
 Variable_name	Value
 Tables_in_test (foo)	table_type
 Variable_name	Value
@@ -1542,8 +1665,6 @@ data	int(11)			0
 Grants for root@localhost
 GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	22185		
 Database	Table	In_use	Name_locked
 Privilege	Context	Comment
 Alter	Tables	To alter the table
@@ -1569,15 +1690,22 @@ Shutdown	Server Admin	To shut down the server
 Super	Server Admin	To use KILL thread, SET GLOBAL, CHANGE MASTER, etc.
 Update	Tables	To update existing rows
 Usage	Server Admin	No privileges - allow connect only
-Id	User	Host	db	Command	Time	State	Info
-1	root	localhost	test	Query	0	query end	call bug4902()
-Server_id	Host	Port	Rpl_recovery_rank	Master_id
-Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_Retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_Do_DB	Replicate_Ignore_DB	Replicate_Do_Table	Replicate_Ignore_Table	Replicate_Wild_Do_Table	Replicate_Wild_Ignore_Table	Last_Errno	Last_Error	Skip_Counter	Exec_Master_Log_Pos	Relay_Log_Space	Until_Condition	Until_Log_File	Until_Log_Pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key	Seconds_Behind_Master
 Variable_name	Value
 Tables_in_test (foo)	table_type
 Variable_name	Value
 Level	Code	Message
 drop procedure bug4902|
+create procedure bug4902_2()
+begin
+show processlist;
+end|
+call bug4902_2()|
+Id	User	Host	db	Command	Time	State	Info
+#	root	localhost	test	Query	#	NULL	call bug4902_2()
+call bug4902_2()|
+Id	User	Host	db	Command	Time	State	Info
+#	root	localhost	test	Query	#	NULL	call bug4902_2()
+drop procedure bug4902_2|
 drop table if exists t3|
 create procedure bug4904()
 begin
@@ -1586,6 +1714,56 @@ create table t2 as select * from t;
 end|
 call bug4904()|
 drop procedure bug4904|
+create procedure bug336(out y int)
+begin
+declare x int;
+set x = (select sum(t.data) from test.t1 t);
+set y = x;
+end|
+insert into t1 values ("a", 2), ("b", 3)|
+call bug336(@y)|
+select @y|
+@y
+5
+delete from t1|
+drop procedure bug336|
+create procedure bug3157()
+begin
+if exists(select * from t1) then
+set @n= @n + 1;
+end if;
+if (select count(*) from t1) then
+set @n= @n + 1;
+end if;
+end|
+set @n = 0|
+insert into t1 values ("a", 1)|
+call bug3157()|
+select @n|
+@n
+2
+delete from t1|
+drop procedure bug3157|
+create procedure bug5251()
+begin
+end|
+select created into @c1 from mysql.proc
+where db='test' and name='bug5251'|
+alter procedure bug5251 comment 'foobar'|
+select count(*) from mysql.proc
+where  db='test' and name='bug5251' and created = @c1|
+count(*)
+1
+drop procedure bug5251|
+create procedure bug5251()
+checksum table t1|
+call bug5251()|
+Table	Checksum
+test.t1	0
+call bug5251()|
+Table	Checksum
+test.t1	0
+drop procedure bug5251|
 drop table if exists fac|
 create table fac (n int unsigned not null primary key, f bigint unsigned)|
 create procedure ifac(n int unsigned)
@@ -1808,3 +1986,8 @@ call p1();
 1
 drop procedure p1;
 drop table t1;
+create function `foo` () returns int return 5;
+select `foo` ();
+`foo` ()
+5
+drop function `foo`;

@@ -978,11 +978,19 @@ static int mysql_test_update(Prepared_statement *stmt,
 				    select->order_list.elements,
 				    (ORDER *) select->order_list.first)))
     {
-      if (setup_fields(thd, 0, table_list,
-		       select->item_list, 1, 0, 0) ||
-	  setup_fields(thd, 0, table_list,
-		       stmt->lex->value_list, 0, 0, 0))
-	res= -1;
+      thd->lex->select_lex.no_wrap_view_item= 1;
+      if (setup_fields(thd, 0, table_list, select->item_list, 1, 0, 0))
+      {
+        res= -1;
+        thd->lex->select_lex.no_wrap_view_item= 0;
+      }
+      else
+      {
+        thd->lex->select_lex.no_wrap_view_item= 0;
+        if (setup_fields(thd, 0, table_list,
+                         stmt->lex->value_list, 0, 0, 0))
+          res= -1;
+      }
     }
     stmt->lex->unit.cleanup();
   }
