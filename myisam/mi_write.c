@@ -753,7 +753,8 @@ int _mi_ck_write_tree(register MI_INFO *info, uint keynr, uchar *key,
   DBUG_ENTER("_mi_ck_write_tree");
 
   error= tree_insert(& info->bulk_insert[keynr], key,
-         key_length + info->s->rec_reflength) ? 0 : HA_ERR_OUT_OF_MEM ;
+         key_length + info->s->rec_reflength, 
+         info->bulk_insert[keynr].custom_arg) ? 0 : HA_ERR_OUT_OF_MEM ;
 
   DBUG_RETURN(error);
 } /* _mi_ck_write_tree */

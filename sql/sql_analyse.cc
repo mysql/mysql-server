@@ -309,10 +309,10 @@ void field_str::add()
   {
     if (res != &s)
       s.copy(*res);
-    if (!tree_search(&tree, (void*) &s)) // If not in tree
+    if (!tree_search(&tree, (void*) &s, tree.custom_arg)) // If not in tree
     {
       s.copy();        // slow, when SAFE_MALLOC is in use
-      if (!tree_insert(&tree, (void*) &s, 0))
+      if (!tree_insert(&tree, (void*) &s, 0, tree.custom_arg))
       {
 	room_in_tree = 0;      // Remove tree, out of RAM ?
 	delete_tree(&tree);
@@ -411,7 +411,7 @@ void field_real::add()
 
   if (room_in_tree)
   {
-    if (!(element = tree_insert(&tree, (void*) &num, 0)))
+    if (!(element = tree_insert(&tree, (void*) &num, 0, tree.custom_arg)))
     {
       room_in_tree = 0;    // Remove tree, out of RAM ?
       delete_tree(&tree);
@@ -464,7 +464,7 @@ void field_longlong::add()
 
   if (room_in_tree)
   {
-    if (!(element = tree_insert(&tree, (void*) &num, 0)))
+    if (!(element = tree_insert(&tree, (void*) &num, 0, tree.custom_arg)))
     {
       room_in_tree = 0;    // Remove tree, out of RAM ?
       delete_tree(&tree);
@@ -518,7 +518,7 @@ void field_ulonglong::add()
 
   if (room_in_tree)
   {
-    if (!(element = tree_insert(&tree, (void*) &num, 0)))
+    if (!(element = tree_insert(&tree, (void*) &num, 0, tree.custom_arg)))
     {
       room_in_tree = 0;    // Remove tree, out of RAM ?
       delete_tree(&tree);

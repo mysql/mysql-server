@@ -415,28 +415,6 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 	}
       }
 
-      if (keyinfo->name[0]=='S')
-	keyinfo->flags |= HA_SPATIAL;
-
-#ifdef BAR_DIRTY_HACK
-      keyinfo->key_alg=HA_KEY_ALG_BTREE;  // BAR : btree by default
-
-      // BAR FIXME: Dirty hack while waiting for new .frm format
-      switch(keyinfo->name[0]){
-        case 'R':
-          keyinfo->key_alg=HA_KEY_ALG_RTREE;
-          break;
-        case 'S':
-          keyinfo->key_alg = HA_KEY_ALG_RTREE;
-          keyinfo->flags |= HA_SPATIAL;
-          break;
-        case 'B':
-        default:
-          keyinfo->key_alg=HA_KEY_ALG_BTREE;
-          break;
-      }
-#endif
-
       for (i=0 ; i < keyinfo->key_parts ; key_part++,i++)
       {
 	if (new_field_pack_flag <= 1)

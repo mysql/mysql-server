@@ -115,7 +115,7 @@ static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
     sdoc.doc.dpos=aio->info->lastpos;
 
     /* saving document matched into dtree */
-    if(!(selem=tree_insert(&aio->dtree, &sdoc, 0))) return 1;
+    if(!(selem=tree_insert(&aio->dtree, &sdoc, 0, aio->dtree.custom_arg))) return 1;
 
     sptr=(FT_SUPERDOC *)ELEMENT_KEY((&aio->dtree), selem);
 

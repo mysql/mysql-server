@@ -36,7 +36,7 @@ int main(int argc, char **argv)
   char record[128],key[32];
   const char *filename;
   HP_KEYDEF keyinfo[10];
-  HP_KEYSEG keyseg[4];
+  MI_KEYSEG keyseg[4];
   MY_INIT(argv[0]);
 
   filename= "test1";
@@ -85,7 +85,7 @@ int main(int argc, char **argv)
   {
     if (i == remove_ant) { VOID(heap_close(file)) ; return (0) ; }
     sprintf(key,"%6d",(j=(int) ((rand() & 32767)/32767.*25)));
-    if ((error = heap_rkey(file,record,0,key)))
+    if ((error = heap_rkey(file,record,0,key,0,6)))
     {
       if (verbose || (flags[j] == 1 ||
 		      (error && my_errno != HA_ERR_KEY_NOT_FOUND)))
@@ -113,7 +113,7 @@ int main(int argc, char **argv)
     sprintf(key,"%6d",i);
     bmove(record+1,key,6);
     my_errno=0;
-    error=heap_rkey(file,record,0,key);
+    error=heap_rkey(file,record,0,key,0,6);
     if (verbose ||
 	(error == 0 && flags[i] != 1) ||
 	(error && (flags[i] != 0 || my_errno != HA_ERR_KEY_NOT_FOUND)))

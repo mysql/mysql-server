@@ -24,25 +24,33 @@
 
 void heap_clear(HP_INFO *info)
 {
-  _hp_clear(info->s);
+  hp_clear(info->s);
 }
 
-void _hp_clear(HP_SHARE *info)
+void hp_clear(HP_SHARE *info)
 {
   uint key;
-  DBUG_ENTER("_hp_clear");
+  DBUG_ENTER("hp_clear");
 
   if (info->block.levels)
-    VOID(_hp_free_level(&info->block,info->block.levels,info->block.root,
+    VOID(hp_free_level(&info->block,info->block.levels,info->block.root,
 			(byte*) 0));
   info->block.levels=0;
   for (key=0 ; key < info->keys ; key++)
   {
-    HP_BLOCK *block= &info->keydef[key].block;
-    if (block->levels)
-      VOID(_hp_free_level(block,block->levels,block->root,(byte*) 0));
-    block->levels=0;
-    block->last_allocated=0;
+    HP_KEYDEF *keyinfo = info->keydef + key;
+    if (keyinfo->algorithm == HA_KEY_ALG_BTREE)
+    {
+      delete_tree(&keyinfo->rb_tree);
+    }
+    else
+    {
+      HP_BLOCK *block= &keyinfo->block;
+      if (block->levels)
+        VOID(hp_free_level(block,block->levels,block->root,(byte*) 0));
+      block->levels=0;
+      block->last_allocated=0;
+    }
   }
   info->records=info->deleted=info->data_length=info->index_length=0;
   info->blength=1;

@@ -1106,7 +1106,7 @@ bool Item_sum_count_distinct::add()
       if(tree_to_myisam())
 	return 1;
     }
-    else if (!tree_insert(&tree, table->record[0] + rec_offset, 0))
+    else if (!tree_insert(&tree, table->record[0] + rec_offset, 0, tree.custom_arg))
       return 1;
   }
   else if ((error=table->file->write_row(table->record[0])))
