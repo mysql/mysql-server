@@ -144,6 +144,7 @@ SET TIMESTAMP=1579609943;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1;
 SET @@session.sql_mode=0;
 insert into t1 values(null, "f");
+ROLLBACK;
 
 --- offset --
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
@@ -171,6 +172,7 @@ SET TIMESTAMP=1579609943;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1;
 SET @@session.sql_mode=0;
 insert into t1 values(null, "f");
+ROLLBACK;
 
 --- start-position --
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
@@ -188,6 +190,7 @@ SET TIMESTAMP=1579609943;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1;
 SET @@session.sql_mode=0;
 insert into t1 values(null, "f");
+ROLLBACK;
 
 --- stop-position --
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
@@ -233,6 +236,7 @@ SET TIMESTAMP=1579609943;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1;
 SET @@session.sql_mode=0;
 insert into t1 values(null, "f");
+ROLLBACK;
 
 --- stop-datetime --
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;

@@ -179,6 +179,7 @@ master-bin.000001	96	User var	1	137	@`a b`=_latin1 0x68656C6C6F COLLATE latin1_s
 master-bin.000001	137	Query	1	223	use `test`; INSERT INTO t1 VALUES(@`a b`)
 master-bin.000001	223	User var	1	265	@`var1`=_latin1 0x273B616161 COLLATE latin1_swedish_ci
 master-bin.000001	265	Query	1	351	use `test`; insert into t1 values (@var1)
+flush logs;
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
 SET @`a b`:=_latin1 0x68656C6C6F COLLATE latin1_swedish_ci;
 use test;

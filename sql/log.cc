@@ -119,7 +119,7 @@ static int binlog_commit(THD *thd, bool all)
   }
 
   /* Update the binary log as we have cached some queries */
-  error= mysql_bin_log.write(thd, trans_log, 1);
+  error= mysql_bin_log.write(thd, trans_log);
   binlog_cleanup_trans(trans_log);
   DBUG_RETURN(error);
 }
@@ -142,7 +142,11 @@ static int binlog_rollback(THD *thd, bool all)
      non-transactional table inside a transaction...)
   */
   if (unlikely(thd->options & OPTION_STATUS_NO_TRANS_UPDATE))
-    error= mysql_bin_log.write(thd, trans_log, 0);
+  {
+    Query_log_event qev(thd, "ROLLBACK", 8, TRUE, FALSE);
+    qev.write(trans_log);
+    error= mysql_bin_log.write(thd, trans_log);
+  }
   binlog_cleanup_trans(trans_log);
   DBUG_RETURN(error);
 }
@@ -425,7 +429,6 @@ const char *MYSQL_LOG::generate_name(const char *log_name,
                                      const char *suffix,
                                      bool strip_ext, char *buff)
 {
-  DBUG_ASSERT(!strip_ext || (log_name && log_name[0]));
   if (!log_name || !log_name[0])
   {
     /*
@@ -611,6 +614,7 @@ bool MYSQL_LOG::open(const char *log_name,
         even if this is not the very first binlog.
       */
       Format_description_log_event s(BINLOG_VERSION);
+      s.flags|= LOG_EVENT_BINLOG_IN_USE_F;
       if (!s.is_valid())
         goto err;
       if (null_created_arg)
@@ -1779,8 +1783,6 @@ uint MYSQL_LOG::next_file_id()
     write()
     thd
     cache		The cache to copy to the binlog
-    is_commit           If true, will write "COMMIT" in the end, if false will
-                        write "ROLLBACK".
 
   NOTE
     - We only come here if there is something in the cache.
@@ -1799,7 +1801,7 @@ uint MYSQL_LOG::next_file_id()
       same updates are run on the slave.
 */
 
-bool MYSQL_LOG::write(THD *thd, IO_CACHE *cache, bool is_commit)
+bool MYSQL_LOG::write(THD *thd, IO_CACHE *cache)
 {
   VOID(pthread_mutex_lock(&LOCK_log));
   DBUG_ENTER("MYSQL_LOG::write(cache");
@@ -1809,18 +1811,10 @@ bool MYSQL_LOG::write(THD *thd, IO_CACHE *cache, bool is_commit)
     uint length;
 
     /*
-      Add the "BEGIN" and "COMMIT" in the binlog around transactions
-      which may contain more than 1 SQL statement. If we run with
-      AUTOCOMMIT=1, then MySQL immediately writes each SQL statement to
-      the binlog when the statement has been completed. No need to add
-      "BEGIN" ... "COMMIT" around such statements. Otherwise, MySQL uses
-      trans_log (that is thd->ha_data[binlog_hton.slot]) to cache
-      the SQL statements until the explicit commit, and at the commit writes
-      the contents in trans_log to the binlog.
-
-      We write the "BEGIN" mark first in the buffer (trans_log) where we
-      store the SQL statements for a transaction. At the transaction commit
-      we will add the "COMMIT mark and write the buffer to the binlog.
+      Log "BEGIN" at the beginning of the transaction.
+      which may contain more than 1 SQL statement.
+      There is no need to append "COMMIT", as  it's already in the 'cache'
+      (in fact, Xid_log_event is there which does the commit on slaves)
     */
     {
       Query_log_event qinfo(thd, "BEGIN", 5, TRUE, FALSE);
@@ -1846,6 +1840,7 @@ bool MYSQL_LOG::write(THD *thd, IO_CACHE *cache, bool is_commit)
     if (reinit_io_cache(cache, READ_CACHE, 0, 0, 0))
       goto err;
     length=my_b_bytes_in_cache(cache);
+    DBUG_EXECUTE_IF("half_binlogged_transaction", length-=100;);
     do
     {
       /* Write data to the binary log file */
@@ -1854,21 +1849,9 @@ bool MYSQL_LOG::write(THD *thd, IO_CACHE *cache, bool is_commit)
       cache->read_pos=cache->read_end;		// Mark buffer used up
     } while ((length=my_b_fill(cache)));
 
-    /*
-      We write the command "COMMIT" as the last SQL command in the
-      binlog segment cached for this transaction
-    */
-
-    {
-      Query_log_event qinfo(thd, 
-                            is_commit ? "COMMIT" : "ROLLBACK",
-                            is_commit ?  6       :  8,
-                            TRUE, FALSE);
-      qinfo.error_code= 0;
-      if (qinfo.write(&log_file) || flush_io_cache(&log_file) ||
-          sync_binlog(&log_file))
+    if (flush_io_cache(&log_file) || sync_binlog(&log_file))
 	goto err;
-    }
+    DBUG_EXECUTE_IF("half_binlogged_transaction", abort(););
     if (cache->error)				// Error on read
     {
       sql_print_error(ER(ER_ERROR_ON_READ), cache->file_name, errno);
@@ -2093,10 +2076,10 @@ void MYSQL_LOG::close(uint exiting)
     end_io_cache(&log_file);
 
     /* don't pwrite in a file opened with O_APPEND - it doesn't work */
-    if (log_file.type == WRITE_CACHE)
+    if (log_file.type == WRITE_CACHE && log_type == LOG_BIN)
     {
       my_off_t offset= BIN_LOG_HEADER_SIZE + FLAGS_OFFSET;
-      char flags=LOG_EVENT_BINLOG_CLOSED_F;
+      char flags=0; // clearing LOG_EVENT_BINLOG_IN_USE_F
       my_pwrite(log_file.file, &flags, 1, offset, MYF(0));
     }
 
@@ -2944,15 +2927,12 @@ int TC_LOG_BINLOG::open(const char *opt_name)
       goto err;
     }
 
-    if (((ev= Log_event::read_log_event(&log, 0, &fdle))) &&
-        (ev->get_type_code() == FORMAT_DESCRIPTION_EVENT))
-    {
-      if (ev->flags & LOG_EVENT_BINLOG_CLOSED_F)
-        error=0;
-      else
+    if ((ev= Log_event::read_log_event(&log, 0, &fdle)) &&
+        ev->get_type_code() == FORMAT_DESCRIPTION_EVENT &&
+        ev->flags & LOG_EVENT_BINLOG_IN_USE_F)
         error= recover(&log, (Format_description_log_event *)ev);
-    }
-    // else nothing to do (probably MySQL 4.x binlog)
+      else
+        error=0;
 
     delete ev;
     end_io_cache(&log);
@@ -3008,6 +2988,8 @@ int TC_LOG_BINLOG::recover(IO_CACHE *log, Format_description_log_event *fdle)
     goto err1;
 
   init_alloc_root(&mem_root, tc_log_page_size, tc_log_page_size);
+
+  fdle->flags&= ~LOG_EVENT_BINLOG_IN_USE_F; // abort on the first error
 
   while ((ev= Log_event::read_log_event(log,0,fdle)) && ev->is_valid())
   {

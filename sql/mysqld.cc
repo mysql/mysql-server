@@ -2684,7 +2684,7 @@ server.");
     ln= mysql_bin_log.generate_name(opt_bin_logname, "-bin", 1, buf);
     if (ln == buf)
     {
-      my_free(opt_bin_logname, MYF(0));
+      my_free(opt_bin_logname, MYF(MY_ALLOW_ZERO_PTR));
       opt_bin_logname=my_strdup(buf, MYF(0));
     }
     mysql_bin_log.open_index_file(opt_binlog_index_name, ln);

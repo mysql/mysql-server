@@ -670,11 +670,11 @@ int terminate_slave_thread(THD* thd, pthread_mutex_t* term_lock,
     }
   }
   DBUG_ASSERT(thd != 0);
+  THD_CHECK_SENTRY(thd);
   /*
-    Is is criticate to test if the slave is running. Otherwise, we might
+    Is is critical to test if the slave is running. Otherwise, we might
     be referening freed memory trying to kick it
   */
-  THD_CHECK_SENTRY(thd);
 
   while (*slave_running)			// Should always be true
   {
@@ -2935,8 +2935,7 @@ static ulong read_event(MYSQL* mysql, MASTER_INFO *mi, bool* suppress_warnings)
       *suppress_warnings= TRUE;
     }
     else
-      sql_print_error("Error reading packet from server: %s (\
-server_errno=%d)",
+      sql_print_error("Error reading packet from server: %s ( server_errno=%d)",
 		      mysql_error(mysql), mysql_errno(mysql));
     return packet_error;
   }
@@ -3167,7 +3166,21 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
     thd->set_time();				// time the query
     thd->lex->current_select= 0;
     if (!ev->when)
+    {
       ev->when = time(NULL);
+      /*
+        fake Rotate: it means that normal execution flow of statements is
+        interrupted.  Let's fake ROLLBACK to undo any half-executed transaction
+      */
+      if (ev->get_type_code() == ROTATE_EVENT &&
+          ev->flags & LOG_EVENT_FORCE_ROLLBACK_F)
+      {
+        ha_rollback_stmt(thd);
+        ha_rollback(thd);
+        thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE);
+        thd->server_status&= ~SERVER_STATUS_IN_TRANS;
+      }
+    }
     ev->thd = thd;
     exec_res = ev->exec_event(rli);
     DBUG_ASSERT(rli->sql_thd==thd);
@@ -3260,7 +3273,6 @@ slave_begin:
     goto err;
   }
   
-
   thd->proc_info = "Connecting to master";
   // we can get killed during safe_connect
   if (!safe_connect(thd, mysql, mi))
@@ -3354,9 +3366,9 @@ after reconnect");
       bool suppress_warnings= 0;    
       /* 
          We say "waiting" because read_event() will wait if there's nothing to
-         read. But if there's something to read, it will not wait. The important
-         thing is to not confuse users by saying "reading" whereas we're in fact
-         receiving nothing.
+         read. But if there's something to read, it will not wait. The
+         important thing is to not confuse users by saying "reading" whereas
+         we're in fact receiving nothing.
       */
       thd->proc_info = "Waiting for master to send event";
       ulong event_len = read_event(mysql, mi, &suppress_warnings);
@@ -3870,6 +3882,7 @@ static int process_io_rotate(MASTER_INFO *mi, Rotate_log_event *rev)
   if (disconnect_slave_event_count)
     events_till_disconnect++;
 #endif
+
   /*
     If description_event_for_queue is format <4, there is conversion in the
     relay log to the slave's format (4). And Rotate can mean upgrade or
@@ -3893,8 +3906,8 @@ static int process_io_rotate(MASTER_INFO *mi, Rotate_log_event *rev)
 }
 
 /*
-  Reads a 3.23 event and converts it to the slave's format. This code was copied
-  from MySQL 4.0.
+  Reads a 3.23 event and converts it to the slave's format. This code was
+  copied from MySQL 4.0.
 */
 static int queue_binlog_ver_1_event(MASTER_INFO *mi, const char *buf,
 			   ulong event_len)
@@ -4157,9 +4170,9 @@ int queue_event(MASTER_INFO* mi,const char* buf, ulong event_len)
       to write this event again).
     */
     /*
-      We are the only thread which reads/writes description_event_for_queue. The
-      relay_log struct does not move (though some members of it can change), so
-      we needn't any lock (no rli->data_lock, no log lock).
+      We are the only thread which reads/writes description_event_for_queue.
+      The relay_log struct does not move (though some members of it can
+      change), so we needn't any lock (no rli->data_lock, no log lock).
     */
     Format_description_log_event* tmp;
     const char* errmsg;
