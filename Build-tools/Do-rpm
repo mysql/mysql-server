@@ -67,6 +67,8 @@ else
 	die "ERROR: $LOGGER cannot be found!\n";
 }
 
+$subject= "RPM build for $SPECFILE failed" if $opt_mail;
+
 # Open the spec file and extract the version number
 open(SPEC, $SPECFILE) or &abort("Unable to open \"$ARGV[0]\": $!");
 @spec= <SPEC>;
@@ -192,7 +194,7 @@ $command.= "$SRCRPMDIR/MySQL*$VERSION*.src.rpm $PWD";
 
 $command= "mv";
 $command.= " -v " if ($opt_verbose);
-$command.= "$RPMDIR/$RPMARCH/MySQL*$VERSION*.$RPMARCH.rpm $PWD";
+$command.= " $RPMDIR/$RPMARCH/MySQL*$VERSION*.$RPMARCH.rpm $PWD";
 &logger("Moving binary RPMs to current dir.");
 &run_command($command, "Error moving binary RPMs!");
 
