@@ -3,7 +3,7 @@
 #
 
 --disable_warnings
-drop table if exists t1;
+drop table if exists t1, t2;
 --enable_warnings
 
 CREATE TABLE t1 (
@@ -174,18 +174,6 @@ select count(*) from t1 where art = 'j' or art = 'J';
 select count(*) from t1 where art = 'j';
 select count(*) from t1 where art = 'J';
 drop table t1;
-
-create table t1 ( id1 int not null, id2 int not null, idnull int null, c char(20), primary key (id1,id2));
-insert into t1 values (0,1,NULL,"aaa"), (1,1,NULL,"aaa"), (2,1,NULL,"aaa"),
-                      (3,1,NULL,"aaa"), (4,1,NULL,"aaa"), (5,1,NULL,"aaa"),
-                      (6,1,NULL,"aaa"), (7,1,NULL,"aaa"), (8,1,NULL,"aaa"),
-                      (9,1,NULL,"aaa"), (10,1,NULL,"aaa"), (11,1,NULL,"aaa"),
-                      (12,1,NULL,"aaa"), (13,1,NULL,"aaa"), (14,1,NULL,"aaa"),
-                      (15,1,NULL,"aaa"), (16,1,NULL,"aaa"), (17,1,NULL,"aaa"),
-                      (18,1,NULL,"aaa"), (19,1,NULL,"aaa"), (20,1,NULL,"aaa");
-select a.id1, b.idnull from t1 as a, t1 as b where a.id2=1 and a.id1=1 and b.id1=a.idnull order by b.id2 desc limit 1;
-drop table t1;
-
 #
 # BETWEEN problems
 #
@@ -225,3 +213,96 @@ insert into t1 values (1),(2),(3),(4),(5),(6),(7),(8),(9);
 select id from t1 where id in (2,5,9) ;
 select id from t1 where id=2 or id=5 or id=9 ;
 drop table t1;
+create table t1 ( id1 int not null, id2 int not null, idnull int null, c char(20), primary key (id1,id2));
+insert into t1 values (0,1,NULL,"aaa"), (1,1,NULL,"aaa"), (2,1,NULL,"aaa"),
+                      (3,1,NULL,"aaa"), (4,1,NULL,"aaa"), (5,1,NULL,"aaa"),
+                      (6,1,NULL,"aaa"), (7,1,NULL,"aaa"), (8,1,NULL,"aaa"),
+                      (9,1,NULL,"aaa"), (10,1,NULL,"aaa"), (11,1,NULL,"aaa"),
+                      (12,1,NULL,"aaa"), (13,1,NULL,"aaa"), (14,1,NULL,"aaa"),
+                      (15,1,NULL,"aaa"), (16,1,NULL,"aaa"), (17,1,NULL,"aaa"),
+                      (18,1,NULL,"aaa"), (19,1,NULL,"aaa"), (20,1,NULL,"aaa");
+select a.id1, b.idnull from t1 as a, t1 as b where a.id2=1 and a.id1=1 and b.id1=a.idnull order by b.id2 desc limit 1;
+drop table t1;
+
+
+#
+# Problem with optimizing !=
+#
+
+create table t1 (
+  id int not null auto_increment,
+  name char(1) not null,
+  uid int not null,
+  primary key (id),
+  index uid_index (uid));
+  
+create table t2 (
+  id int not null auto_increment,
+  name char(1) not null,
+  uid int not null,
+  primary key (id),
+  index uid_index (uid));
+  
+insert into t1(id, uid, name) values(1, 0, ' ');
+insert into t1(uid, name) values(0, ' ');
+
+insert into t2(uid, name) select uid, name from t1;
+insert into t1(uid, name) select uid, name from t2;
+insert into t2(uid, name) select uid, name from t1;
+insert into t1(uid, name) select uid, name from t2;
+insert into t2(uid, name) select uid, name from t1;
+insert into t1(uid, name) select uid, name from t2;
+insert into t2(uid, name) select uid, name from t1;
+insert into t1(uid, name) select uid, name from t2;
+insert into t2(uid, name) select uid, name from t1;
+insert into t1(uid, name) select uid, name from t2;
+insert into t2(uid, name) select uid, name from t1;
+insert into t2(uid, name) select uid, name from t1;
+insert into t2(uid, name) select uid, name from t1;
+insert into t2(uid, name) select uid, name from t1;
+insert into t1(uid, name) select uid, name from t2;
+
+delete from t2;
+insert into t2(uid, name) values 
+  (1, CHAR(64+1)),
+  (2, CHAR(64+2)),
+  (3, CHAR(64+3)),
+  (4, CHAR(64+4)),
+  (5, CHAR(64+5)),
+  (6, CHAR(64+6)),
+  (7, CHAR(64+7)),
+  (8, CHAR(64+8)),
+  (9, CHAR(64+9)),
+  (10, CHAR(64+10)),
+  (11, CHAR(64+11)),
+  (12, CHAR(64+12)),
+  (13, CHAR(64+13)),
+  (14, CHAR(64+14)),
+  (15, CHAR(64+15)),
+  (16, CHAR(64+16)),
+  (17, CHAR(64+17)),
+  (18, CHAR(64+18)),
+  (19, CHAR(64+19)),
+  (20, CHAR(64+20)),
+  (21, CHAR(64+21)),
+  (22, CHAR(64+22)),
+  (23, CHAR(64+23)),
+  (24, CHAR(64+24)),
+  (25, CHAR(64+25)),
+  (26, CHAR(64+26));
+
+insert into t1(uid, name) select uid, name from t2;
+
+delete from t2;
+insert into t2(id, uid, name) select id, uid, name from t1;
+
+select count(*) from t1;  
+select count(*) from t2;
+
+explain select * from t1, t2  where t1.uid=t2.uid AND t1.uid > 0;
+explain select * from t1, t2  where t1.uid=t2.uid AND t1.uid != 0;
+
+select * from t1, t2  where t1.uid=t2.uid AND t1.uid > 0;
+select * from t1, t2  where t1.uid=t2.uid AND t1.uid != 0;
+
+drop table t1,t2;
