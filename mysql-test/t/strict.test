@@ -370,7 +370,6 @@ drop table t1;
 
 #### Test INSERT with CONVERT to DATE/DATETIME into DATE/DATETIME/TIMESTAMP
 
-let $activate6145= 1;
 CREATE TABLE t1 (col1 date, col2 datetime, col3 timestamp);
 
 INSERT INTO t1 (col1) VALUES (CONVERT('2004-10-15',DATE));
