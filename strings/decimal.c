@@ -818,7 +818,8 @@ int decimal_bin_size(int precision, int scale)
 
 int decimal_round(decimal *from, decimal *to, int scale, decimal_round_mode mode)
 {
-  int frac0=ROUND_UP(scale), frac1=ROUND_UP(from->frac),
+  int frac0=scale>0 ? ROUND_UP(scale) : scale/DIG_PER_DEC1,
+      frac1=ROUND_UP(from->frac),
       intg0=ROUND_UP(from->intg), error=E_DEC_OK, len=to->len;
   dec1 *buf0=from->buf, *buf1=to->buf, x, y, carry=0;
 
@@ -1976,6 +1977,7 @@ main()
   test_ro("5678.123451",5,TRUNCATE);
   test_ro("5678.123451",6,TRUNCATE);
   test_ro("-5678.123451",-4,TRUNCATE);
+  test_ro("99999999999999999999999999999999999999",-31,TRUNCATE);
 
   printf("==== decimal_mod ====\n");
   test_md("234","10");
