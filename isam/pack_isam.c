@@ -284,9 +284,10 @@ static void print_version(void)
 static void usage(void)
 {
   print_version();
-  puts("Copyright (C) 1994-2000 TcX AB & Monty Program KB & Detron HB.");
-  puts("This is not free software. You must have a licence to use this program");
-  puts("This software comes with ABSOLUTELY NO WARRANTY\n");
+  puts("Copyright (C) 2002 MySQL AB");
+  puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,");
+  puts("and you are welcome to modify and redistribute it under the GPL license\n");
+
   puts("Pack a ISAM-table to take much smaller space");
   puts("Keys are not updated, so you must run isamchk -rq on any table");
   puts("that has keys after you have compressed it");
@@ -1958,7 +1959,7 @@ static void save_state(N_INFO *isam_file,MRG_INFO *mrg,my_off_t new_length,
   isam_file->update|=(HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
   isam_file->this_uniq=crc;		/* Save crc here */
   share->changed=1;			/* Force write of header */
-  VOID(my_chsize(share->kfile,share->state.key_file_length,
+  VOID(my_chsize(share->kfile, share->state.key_file_length, 0,
 		 MYF(0)));
   if (share->state.keys != share->base.keys)
     isamchk_neaded=1;

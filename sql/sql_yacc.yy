@@ -262,6 +262,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	NEW_SYM
 %token	NCHAR_SYM
 %token	NOT
+%token  NO_FOREIGN_KEY_CHECKS
 %token	NO_SYM
 %token	NULL_SYM
 %token	NUM
@@ -291,6 +292,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	REAL_NUM
 %token	REFERENCES
 %token	REGEXP
+%token  RELAXED_UNIQUE_CHECKS
 %token	RELOAD
 %token	RENAME
 %token	REPEATABLE_SYM
@@ -2709,6 +2711,8 @@ show_param:
 	  }
 	| STATUS_SYM wild
 	  { Lex->sql_command= SQLCOM_SHOW_STATUS; }
+        | INNOBASE_SYM STATUS_SYM
+          { Lex->sql_command = SQLCOM_SHOW_INNODB_STATUS;}
 	| opt_full PROCESSLIST_SYM
 	  { Lex->sql_command= SQLCOM_SHOW_PROCESSLIST;}
 	| opt_var_type VARIABLES wild

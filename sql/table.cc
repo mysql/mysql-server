@@ -776,7 +776,7 @@ ulong make_new_entry(File file, uchar *fileinfo, TYPELIB *formnames,
 
   int2store(fileinfo+8,names+1);
   int2store(fileinfo+4,n_length+length);
-  VOID(my_chsize(file,newpos,MYF(MY_WME)));	/* Append file with '\0' */
+  VOID(my_chsize(file, newpos, 0, MYF(MY_WME)));/* Append file with '\0' */
   DBUG_RETURN(newpos);
 } /* make_new_entry */
 

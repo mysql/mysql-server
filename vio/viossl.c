@@ -259,8 +259,10 @@ void sslaccept(struct st_VioSSLAcceptorFd* ptr, Vio* vio, long timeout)
   char *str;
   char buf[1024];
   X509* client_cert;
+  my_bool unused;
   DBUG_ENTER("sslaccept");
   DBUG_PRINT("enter", ("sd=%d ptr=%p", vio->sd,ptr));
+
   vio_reset(vio,VIO_TYPE_SSL,vio->sd,0,FALSE);
   vio->ssl_=0;
   vio->open_=FALSE; 
@@ -272,7 +274,7 @@ void sslaccept(struct st_VioSSLAcceptorFd* ptr, Vio* vio, long timeout)
   }
   DBUG_PRINT("info", ("ssl_=%p  timeout=%ld",vio->ssl_, timeout));
   SSL_clear(vio->ssl_);
-  vio_blocking(vio, FALSE);
+  vio_blocking(vio, FALSE, &unused);
   SSL_SESSION_set_timeout(SSL_get_session(vio->ssl_), timeout);
   SSL_set_fd(vio->ssl_,vio->sd);
   SSL_set_accept_state(vio->ssl_);
@@ -310,12 +312,15 @@ void sslaccept(struct st_VioSSLAcceptorFd* ptr, Vio* vio, long timeout)
   DBUG_VOID_RETURN;
 }
 
+
 void sslconnect(struct st_VioSSLConnectorFd* ptr, Vio* vio, long timeout)
 {
   char *str;
   X509*    server_cert;
+  my_bool unused;
   DBUG_ENTER("sslconnect");
   DBUG_PRINT("enter", ("sd=%d ptr=%p ctx: %p", vio->sd,ptr,ptr->ssl_context_));
+
   vio_reset(vio,VIO_TYPE_SSL,vio->sd,0,FALSE);
   vio->ssl_=0;
   vio->open_=FALSE; 
@@ -327,7 +332,7 @@ void sslconnect(struct st_VioSSLConnectorFd* ptr, Vio* vio, long timeout)
   }
   DBUG_PRINT("info", ("ssl_=%p  timeout=%ld",vio->ssl_, timeout));
   SSL_clear(vio->ssl_);
-  vio_blocking(vio, FALSE);
+  vio_blocking(vio, FALSE, &unused);
   SSL_SESSION_set_timeout(SSL_get_session(vio->ssl_), timeout);
   SSL_set_fd (vio->ssl_, vio->sd);
   SSL_set_connect_state(vio->ssl_);

@@ -47,7 +47,7 @@ struct st_relay_log_info;
 typedef struct st_log_info
 {
   char log_file_name[FN_REFLEN];
-  my_off_t index_file_offset;
+  my_off_t index_file_offset, index_file_start_offset;
   my_off_t pos;
   bool fatal; // if the purge happens to give us a negative offset
   pthread_mutex_t lock;
@@ -64,7 +64,7 @@ class MYSQL_LOG {
   ulonglong bytes_written;
   time_t last_time,query_start;
   IO_CACHE log_file;
-  File index_file;
+  IO_CACHE index_file;
   char *name;
   char time_buff[20],db[NAME_LEN+1];
   char log_file_name[FN_REFLEN],index_file_name[FN_REFLEN];
@@ -106,16 +106,14 @@ public:
   void signal_update() { pthread_cond_broadcast(&update_cond);}
   void wait_for_update(THD* thd);
   void set_need_start_event() { need_start_event = 1; }
-  void set_index_file_name(const char* index_file_name = 0);
   void init(enum_log_type log_type_arg,
 	    enum cache_type io_cache_type_arg = WRITE_CACHE,
 	    bool no_auto_events_arg = 0);
-  void open(const char *log_name,enum_log_type log_type,
-	    const char *new_name, enum cache_type io_cache_type_arg,
+  bool open(const char *log_name,enum_log_type log_type,
+	    const char *new_name, const char *index_file_name_arg,
+	    enum cache_type io_cache_type_arg,
 	    bool no_auto_events_arg);
-  void new_file(bool inside_mutex = 0);
-  bool open_index(int options);
-  void close_index();
+  void new_file(bool need_lock= 1);
   bool write(THD *thd, enum enum_server_command command,
 	     const char *format,...);
   bool write(THD *thd, const char *query, uint query_length,
@@ -135,13 +133,13 @@ public:
   bool is_active(const char* log_file_name);
   int purge_logs(THD* thd, const char* to_log);
   int purge_first_log(struct st_relay_log_info* rli); 
-  int reset_logs(THD* thd);
+  bool reset_logs(THD* thd);
   // if we are exiting, we also want to close the index file
   void close(bool exiting = 0);
 
   // iterating through the log index file
-  int find_first_log(LOG_INFO* linfo, const char* log_name,
-		     bool need_mutex=1);
+  int find_log_pos(LOG_INFO* linfo, const char* log_name,
+		   bool need_mutex=1);
   int find_next_log(LOG_INFO* linfo, bool need_mutex=1);
   int get_current_log(LOG_INFO* linfo);
   uint next_file_id();
@@ -154,7 +152,7 @@ public:
 
   inline void lock_index() { pthread_mutex_lock(&LOCK_index);}
   inline void unlock_index() { pthread_mutex_unlock(&LOCK_index);}
-  inline File get_index_file() { return index_file;}
+  inline IO_CACHE *get_index_file() { return &index_file;}
   inline uint32 get_open_count() { return open_count; }
 };
 

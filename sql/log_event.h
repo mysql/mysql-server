@@ -317,8 +317,8 @@ public:
 #ifndef MYSQL_CLIENT
   bool cache_stmt;
 
-  Query_log_event(THD* thd_arg, const char* query_arg,
-		 bool using_trans=0);
+  Query_log_event(THD* thd_arg, const char* query_arg, ulong query_length,
+		  bool using_trans=0);
   const char* get_db() { return db; }
   void pack_info(String* packet);
   int exec_event(struct st_relay_log_info* rli);

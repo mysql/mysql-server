@@ -970,8 +970,6 @@ rec_fold(
 	ut_ad(n_fields <= rec_get_n_fields(rec));
 	ut_ad((n_fields < rec_get_n_fields(rec)) || (n_bytes == 0));
 	ut_ad(n_fields + n_bytes > 0);
-	/* Only the page supremum and infimum records have 1 field: */
-	ut_ad(rec_get_n_fields(rec) > 1);
 	
 	n_fields_rec = rec_get_n_fields(rec);
 

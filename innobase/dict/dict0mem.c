@@ -65,6 +65,9 @@ dict_mem_table_create(
 		
 	table->cached = FALSE;
 	
+	table->mix_id = ut_dulint_zero;
+	table->mix_len = 0;
+	
 	table->cols = mem_heap_alloc(heap, (n_cols + DATA_N_SYS_COLS)
 							* sizeof(dict_col_t));
 	UT_LIST_INIT(table->indexes);

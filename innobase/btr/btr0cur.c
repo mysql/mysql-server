@@ -36,9 +36,16 @@ Created 10/16/1994 Heikki Tuuri
 #include "ibuf0ibuf.h"
 #include "lock0lock.h"
 
+/* If the following is set to TRUE, this module prints a lot of
+trace information of individual record operations */
+ibool	btr_cur_print_record_ops = FALSE;
+
 ulint	btr_cur_rnd	= 0;
 
 ulint	btr_cur_n_non_sea	= 0;
+ulint	btr_cur_n_sea		= 0;
+ulint	btr_cur_n_non_sea_old	= 0;
+ulint	btr_cur_n_sea_old	= 0;
 
 /* In the optimistic insert, if the insert does not fit, but this much space
 can be released by page reorganize, then it is reorganized */
@@ -187,11 +194,7 @@ btr_cur_search_to_nth_level(
 				tuple must be set so that it cannot get
 				compared to the node ptr page number field! */
 	ulint		mode,	/* in: PAGE_CUR_L, ...;
-				NOTE that if the search is made using a unique
-				prefix of a record, mode should be
-				PAGE_CUR_LE, not PAGE_CUR_GE, as the latter
-				may end up on the previous page relative to the
-				record! Inserts should always be made using
+				Inserts should always be made using
 				PAGE_CUR_LE to search the position! */
 	ulint		latch_mode, /* in: BTR_SEARCH_LEAF, ..., ORed with
 				BTR_INSERT and BTR_ESTIMATE;
@@ -268,7 +271,7 @@ btr_cur_search_to_nth_level(
 #ifdef UNIV_SEARCH_PERF_STAT
 	info->n_searches++;
 #endif	
-	if (btr_search_latch.writer != RW_LOCK_NOT_LOCKED
+	if (btr_search_latch.writer == RW_LOCK_NOT_LOCKED
 		&& latch_mode <= BTR_MODIFY_LEAF && info->last_hash_succ
 		&& !estimate
 	        && btr_search_guess_on_hash(index, info, tuple, mode,
@@ -283,14 +286,14 @@ btr_cur_search_to_nth_level(
 					|| mode != PAGE_CUR_LE);
 		ut_ad(cursor->low_match != ULINT_UNDEFINED
 					|| mode != PAGE_CUR_LE);
+		btr_cur_n_sea++;
+
 	        return;
 	}
 #endif
 #endif
-
-#ifdef UNIV_SEARCH_PERF_STAT
 	btr_cur_n_non_sea++;
-#endif
+
 	/* If the hash search did not succeed, do binary search down the
 	tree */
 
@@ -796,15 +799,28 @@ btr_cur_optimistic_insert(
 	ulint		data_size;
 	ulint		extra_size;
 	ulint		type;
-	ulint		err;
-	
-	ut_ad(dtuple_check_typed(entry));
+	ulint		err;	
 
 	*big_rec = NULL;
 
 	page = btr_cur_get_page(cursor);
 	index = cursor->index;
 
+	if (!dtuple_check_typed_no_assert(entry)) {
+		fprintf(stderr,
+"InnoDB: Error in a tuple to insert into table %lu index %lu\n",
+					index->table_name, index->name);
+	}
+	
+	if (btr_cur_print_record_ops && thr) {
+		printf(
+	"Trx with id %lu %lu going to insert to table %s index %s\n",
+		ut_dulint_get_high(thr_get_trx(thr)->id),
+		ut_dulint_get_low(thr_get_trx(thr)->id),
+		index->table_name, index->name);
+		dtuple_print(entry);
+	}
+	
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
 							MTR_MEMO_PAGE_X_FIX));
 	max_size = page_get_max_insert_size_after_reorganize(page, 1);
@@ -928,7 +944,7 @@ calculate_sizes_again:
 			buf_frame_get_page_no(page), max_size,
 					rec_size + PAGE_DIR_SLOT_SIZE, type);
 */	
-	if (!(type & (DICT_CLUSTERED | DICT_UNIQUE))) {
+	if (!(type & DICT_CLUSTERED)) {
 		/* We have added a record to page: update its free bits */
 		ibuf_update_free_bits_if_full(cursor->index, page, max_size,
 					rec_size + PAGE_DIR_SLOT_SIZE);
@@ -1258,6 +1274,15 @@ btr_cur_update_sec_rec_in_place(
 
 	rec = btr_cur_get_rec(cursor);
 	
+	if (btr_cur_print_record_ops && thr) {
+		printf(
+	"Trx with id %lu %lu going to update table %s index %s\n",
+		ut_dulint_get_high(thr_get_trx(thr)->id),
+		ut_dulint_get_low(thr_get_trx(thr)->id),
+		index->table_name, index->name);
+		rec_print(rec);
+	}
+
 	err = lock_sec_rec_modify_check_and_lock(0, rec, index, thr);
 
 	if (err != DB_SUCCESS) {
@@ -1312,6 +1337,15 @@ btr_cur_update_in_place(
 	index = cursor->index;
 	trx = thr_get_trx(thr);
 	
+	if (btr_cur_print_record_ops && thr) {
+		printf(
+	"Trx with id %lu %lu going to update table %s index %s\n",
+		ut_dulint_get_high(thr_get_trx(thr)->id),
+		ut_dulint_get_low(thr_get_trx(thr)->id),
+		index->table_name, index->name);
+		rec_print(rec);
+	}
+
 	/* Do lock checking and undo logging */
 	err = btr_cur_upd_lock_and_undo(flags, cursor, update, cmpl_info,
 							thr, &roll_ptr);
@@ -1323,6 +1357,12 @@ btr_cur_update_in_place(
 	block = buf_block_align(rec);
 
 	if (block->is_hashed) {
+	        if (row_upd_changes_ord_field_binary(NULL, index, update)) {
+
+		        /* Remove possible hash index pointer to this record */
+	                btr_search_update_hash_on_delete(cursor);
+	        }
+
 		rw_lock_x_lock(&btr_search_latch);
 	}
 
@@ -1398,6 +1438,15 @@ btr_cur_optimistic_update(
 	rec = btr_cur_get_rec(cursor);
 	index = cursor->index;
 	
+	if (btr_cur_print_record_ops && thr) {
+		printf(
+	"Trx with id %lu %lu going to update table %s index %s\n",
+		ut_dulint_get_high(thr_get_trx(thr)->id),
+		ut_dulint_get_low(thr_get_trx(thr)->id),
+		index->table_name, index->name);
+		rec_print(rec);
+	}
+
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
 							MTR_MEMO_PAGE_X_FIX));
 	if (!row_upd_changes_field_size(rec, index, update)) {
@@ -1973,6 +2022,15 @@ btr_cur_del_mark_set_clust_rec(
 	rec = btr_cur_get_rec(cursor);
 	index = cursor->index;
 	
+	if (btr_cur_print_record_ops && thr) {
+		printf(
+	"Trx with id %lu %lu going to del mark table %s index %s\n",
+		ut_dulint_get_high(thr_get_trx(thr)->id),
+		ut_dulint_get_low(thr_get_trx(thr)->id),
+		index->table_name, index->name);
+		rec_print(rec);
+	}
+
 	ut_ad(index->type & DICT_CLUSTERED);
 	ut_ad(rec_get_deleted_flag(rec) == FALSE);
 
@@ -2101,6 +2159,15 @@ btr_cur_del_mark_set_sec_rec(
 	ulint		err;
 
 	rec = btr_cur_get_rec(cursor);
+
+	if (btr_cur_print_record_ops && thr) {
+		printf(
+	"Trx with id %lu %lu going to del mark table %s index %s\n",
+		ut_dulint_get_high(thr_get_trx(thr)->id),
+		ut_dulint_get_low(thr_get_trx(thr)->id),
+		cursor->index->table_name, cursor->index->name);
+		rec_print(rec);
+	}
 
 	err = lock_sec_rec_modify_check_and_lock(flags, rec, cursor->index,
 									thr);

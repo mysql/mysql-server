@@ -53,6 +53,7 @@ void win_pthread_init(void)
 
 static pthread_handler_decl(pthread_start,param)
 {
+  DBUG_ENTER("pthread_start");
   pthread_handler func=((struct pthread_map *) param)->func;
   void *func_param=((struct pthread_map *) param)->param;
   my_thread_init();			/* Will always succeed in windows */
@@ -60,8 +61,10 @@ static pthread_handler_decl(pthread_start,param)
   win_pthread_self=((struct pthread_map *) param)->pthreadself;
   pthread_mutex_unlock(&THR_LOCK_thread);
   free((char*) param);			  /* Free param from create */
-  pthread_exit((void*) (*func)(func_param));
-  return 0;				  /* Safety */
+  //pthread_exit((void*) (*func)(func_param));
+  (*func)(func_param);
+  DBUG_RETURN(0);
+  //return 0;				  /* Safety */
 }
 
 

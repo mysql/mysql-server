@@ -27,7 +27,10 @@ C_MODE_START
 extern const char *raid_type_string[];
 C_MODE_END
 
-#if defined(USE_RAID) && !defined(DONT_USE_RAID)
+#ifdef DONT_USE_RAID
+#undef USE_RAID
+#endif
+#if defined(USE_RAID)
 
 #ifdef __GNUC__
 #pragma interface			/* gcc class implementation */
@@ -41,7 +44,7 @@ C_MODE_END
 #define my_write(A,B,C,D)    my_raid_write(A,B,C,D)
 #define my_pwrite(A,B,C,D,E) my_raid_pwrite(A,B,C,D,E)
 #define my_pread(A,B,C,D,E)  my_raid_pread(A,B,C,D,E)
-#define my_chsize(A,B,C)     my_raid_chsize(A,B,C)
+#define my_chsize(A,B,C,D)   my_raid_chsize(A,B,C,D)
 #define my_close(A,B)        my_raid_close(A,B)
 #define my_tell(A,B)         my_raid_tell(A,B)
 #define my_seek(A,B,C,D)     my_raid_seek(A,B,C,D)
@@ -82,7 +85,7 @@ extern "C" {
 
   int my_raid_lock(File,int locktype, my_off_t start, my_off_t length,
 		   myf MyFlags);
-  int my_raid_chsize(File fd, my_off_t newlength, myf MyFlags);
+  int my_raid_chsize(File fd, my_off_t newlength, int filler, myf MyFlags);
   int my_raid_close(File, myf MyFlags);
   int my_raid_fstat(int Filedes, struct stat *buf,  myf MyFlags);
 
@@ -113,7 +116,7 @@ class RaidFd {
     int Write(const byte *Buffer, uint Count, myf MyFlags);
     int Read(const byte *Buffer, uint Count, myf MyFlags);
     int Lock(int locktype, my_off_t start, my_off_t length, myf MyFlags);
-    int Chsize(File fd, my_off_t newlength, myf MyFlags);
+    int Chsize(File fd, my_off_t newlength, int filler, myf MyFlags);
     int Fstat(int fd, MY_STAT *stat_area, myf MyFlags );
     int Close(myf MyFlags);
     static bool IsRaid(File fd);
