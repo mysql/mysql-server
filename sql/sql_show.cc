@@ -1025,7 +1025,8 @@ mysqld_show_keys(THD *thd, TABLE_LIST *table_list)
       /* Check if we have a key part that only uses part of the field */
       if (!(key_info->flags & HA_FULLTEXT) && (!key_part->field ||
           key_part->length != table->field[key_part->fieldnr-1]->key_length()))
-        protocol->store_tiny((longlong) key_part->length);
+        protocol->store_tiny((longlong) key_part->length / 
+                             key_part->field->charset()->mbmaxlen);
       else
         protocol->store_null();
       protocol->store_null();                   // No pack_information yet
