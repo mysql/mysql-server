@@ -18,7 +18,6 @@
 #ifdef HAVE_REPLICATION
 
 #include "sql_repl.h"
-#include "sql_acl.h"
 #include "log_event.h"
 #include <my_dir.h>
 

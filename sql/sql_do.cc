@@ -18,7 +18,6 @@
 /* Execute DO statement */
 
 #include "mysql_priv.h"
-#include "sql_acl.h"
 
 int mysql_do(THD *thd, List<Item> &values)
 {
