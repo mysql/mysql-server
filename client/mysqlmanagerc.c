@@ -16,7 +16,7 @@
 
 #define MANAGER_CLIENT_VERSION "1.0"
 
-#include <global.h>
+#include <my_global.h>
 #include <my_sys.h>
 #include <m_string.h>
 #include <mysql.h>
