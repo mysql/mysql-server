@@ -1963,11 +1963,6 @@ mysql_execute_command(void)
       (void)add_item_to_list(new Item_field(auxi->db,auxi->real_name,"*"));
     }
     tables->grant.want_privilege=(SELECT_ACL & ~tables->grant.privilege);
-    if (add_item_to_list(new Item_null()))
-    {
-      res= -1;
-      break;
-    }
     thd->proc_info="init";
     if ((res=open_and_lock_tables(thd,tables)))
       break;
@@ -2896,6 +2891,7 @@ bool add_field_to_list(char *field_name, enum_field_types type,
   case FIELD_TYPE_STRING:
   case FIELD_TYPE_VAR_STRING:
   case FIELD_TYPE_NULL:
+  case FIELD_TYPE_GEOMETRY:
     break;
   case FIELD_TYPE_DECIMAL:
     if (!length)

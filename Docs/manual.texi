@@ -49343,6 +49343,13 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
+Fixed mutex bug in replication when reading from master fails.
+@item
+Added missing mutex in @code{TRUNCATE TABLE};  This fixes some core
+dump/hangup problems when using @code{TRUNCATE TABLE}.
+@item
+Fixed bug in multi-table @code{DELETE} when optimiser uses only indices
+@item
 Fixed that @code{ALTER TABLE table_name RENAME new_table_name} is as fast
 as @code{RENAME TABLE}.
 @item
@@ -49475,8 +49482,6 @@ Added @code{NO_UNSIGNED_SUBTRACTION} to the set of flags that may be
 specified with the @code{--sql-mode} option for @code{mysqld}.  It disables
 unsigned arithmetic rules when it comes to subtraction. (This will make
 MySQL 4.0 behave more closely to 3.23 with @code{UNSIGNED} columns).
-@item
-Added @code{WITH MAX_QUERIES_PER_HOUR=#} to @code{GRANT} command.
 @item
 The result returned for all bit functions (@code{|}, @code{<<}, ...) is now of
 type @code{unsigned integer}.
@@ -49777,6 +49782,7 @@ users use this code as the rest of the code and because of this we are
 not yet 100% confident in this code.
 
 @menu
+* News-3.23.52::                Changes in release 3.23.52
 * News-3.23.51::                Changes in release 3.23.51
 * News-3.23.50::                Changes in release 3.23.50 (21 Apr 2002)
 * News-3.23.49::                Changes in release 3.23.49
@@ -49832,7 +49838,18 @@ not yet 100% confident in this code.
 * News-3.23.0::                 Changes in release 3.23.0 (Sep 1999: Alpha)
 @end menu
 
-@node News-3.23.51, News-3.23.50, News-3.23.x, News-3.23.x
+@node News-3.23.52, News-3.23.51, News-3.23.x, News-3.23.x
+@appendixsubsec Changes in release 3.23.52
+@itemize @bullet
+@item
+Fixed possible problem in replication when doing @code{DROP DATABASE} on a
+database with InnoDB tables.
+@item
+Fixed that @code{mysql_info()} returns 0 for 'Duplicates' when using
+@code{INSERT DELAYED IGNORE}.
+@end itemize
+
+@node News-3.23.51, News-3.23.50, News-3.23.52, News-3.23.x
 @appendixsubsec Changes in release 3.23.51
 
 @itemize @bullet

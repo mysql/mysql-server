@@ -4628,7 +4628,7 @@ bool Field_num::eq_def(Field *field)
 *****************************************************************************/
 
 /*
-** Make a field from the .frm file info
+  Make a field from the .frm file info
 */
 
 uint32 calc_pack_length(enum_field_types type,uint32 length)
@@ -4657,6 +4657,7 @@ uint32 calc_pack_length(enum_field_types type,uint32 length)
   case FIELD_TYPE_LONG_BLOB:	return 4+portable_sizeof_char_ptr;
   case FIELD_TYPE_SET:
   case FIELD_TYPE_ENUM: abort(); return 0;	// This shouldn't happen
+  default: return 0;
   }
   return 0;					// This shouldn't happen
 }
