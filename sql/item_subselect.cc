@@ -824,6 +824,8 @@ int subselect_single_select_engine::exec()
 {
   DBUG_ENTER("subselect_single_select_engine::exec");
   char const *save_where= join->thd->where;
+  SELECT_LEX_NODE *save_select= join->thd->lex.current_select;
+  join->thd->lex.current_select= select_lex;
   if (!optimized)
   {
     optimized=1;
@@ -831,6 +833,7 @@ int subselect_single_select_engine::exec()
     {
       join->thd->where= save_where;
       executed= 1;
+      join->thd->lex.current_select= save_select;
       DBUG_RETURN(join->error?join->error:1);
     }
   }
@@ -839,6 +842,7 @@ int subselect_single_select_engine::exec()
     if (join->reinit())
     {
       join->thd->where= save_where;
+      join->thd->lex.current_select= save_select;
       DBUG_RETURN(1);
     }
     item->reset();
@@ -846,15 +850,14 @@ int subselect_single_select_engine::exec()
   }
   if (!executed)
   {
-    SELECT_LEX_NODE *save_select= join->thd->lex.current_select;
-    join->thd->lex.current_select= select_lex;
     join->exec();
-    join->thd->lex.current_select= save_select;
     executed= 1;
     join->thd->where= save_where;
+    join->thd->lex.current_select= save_select;
     DBUG_RETURN(join->error||thd->is_fatal_error);
   }
   join->thd->where= save_where;
+  join->thd->lex.current_select= save_select;
   DBUG_RETURN(0);
 }
 
