@@ -500,10 +500,10 @@ public:
   Item_func_conv(Item *a,Item *b,Item *c) :Item_str_func(a,b,c) {}
   const char *func_name() const { return "conv"; }
   String *val_str(String *);
-  void fix_length_and_dec() 
-  { 
+  void fix_length_and_dec()
+  {
     collation.set(default_charset());
-    decimals=0; max_length=64; 
+    decimals=0; max_length=64;
   }
 };
 
@@ -515,11 +515,26 @@ public:
   Item_func_hex(Item *a) :Item_str_func(a) {}
   const char *func_name() const { return "hex"; }
   String *val_str(String *);
-  void fix_length_and_dec() 
-  { 
+  void fix_length_and_dec()
+  {
     collation.set(default_charset());
     decimals=0;
     max_length=args[0]->max_length*2*collation.collation->mbmaxlen;
+  }
+};
+
+class Item_func_unhex :public Item_str_func
+{
+  String tmp_value;
+public:
+  Item_func_unhex(Item *a) :Item_str_func(a) {}
+  const char *func_name() const { return "unhex"; }
+  String *val_str(String *);
+  void fix_length_and_dec()
+  {
+    collation.set(&my_charset_bin);
+    decimals=0;
+    max_length=(1+args[0]->max_length)/2;
   }
 };
 
@@ -536,10 +551,10 @@ public:
       tmp->set_charset(&my_charset_bin);
     return tmp;
   }
-  void fix_length_and_dec() 
-  { 
-    collation.set(&my_charset_bin); 
-    max_length=args[0]->max_length; 
+  void fix_length_and_dec()
+  {
+    collation.set(&my_charset_bin);
+    max_length=args[0]->max_length;
   }
   void print(String *str);
 };
@@ -553,7 +568,7 @@ public:
   String *val_str(String *);
   const char *func_name() const { return "load_file"; }
   void fix_length_and_dec()
-  { 
+  {
     collation.set(&my_charset_bin, DERIVATION_COERCIBLE);
     maybe_null=1;
     max_length=MAX_BLOB_WIDTH;
