@@ -146,12 +146,17 @@ static inline int mysql_init_charset(MYSQL *mysql)
   return 0;
 }
 
+int check_embedded_connection(MYSQL *mysql);
+
 MYSQL * STDCALL
 mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
 		   const char *passwd, const char *db,
 		   uint port, const char *unix_socket,ulong client_flag)
 {
-  char          *db_name;
+  char *db_name;
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  char name_buff[USERNAME_LENGTH];
+#endif
   DBUG_ENTER("mysql_real_connect");
   DBUG_PRINT("enter",("host: %s  db: %s  user: %s",
 		      host ? host : "(Null)",
@@ -190,6 +195,29 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
   if (!db || !db[0])
     db=mysql->options.db;
 
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  if (!user || !user[0])
+    user=mysql->options.user;
+
+  if (!passwd)
+  {
+    passwd=mysql->options.password;
+#if !defined(DONT_USE_MYSQL_PWD)
+    if (!passwd)
+      passwd=getenv("MYSQL_PWD");		/* get it from environment */
+#endif
+  }
+  if (!user || !user[0])
+  {
+    read_user_name(name_buff);
+    if (!name_buff[0])
+      user= name_buff;
+  }
+
+  mysql->user=my_strdup(user,MYF(0));
+  mysql->passwd= passwd ? my_strdup(passwd,MYF(0)) : NULL;
+#endif /*!NO_EMBEDDED_ACCESS_CHECKS*/
+
   port=0;
   unix_socket=0;
   db_name = db ? my_strdup(db,MYF(MY_WME)) : NULL;
@@ -197,6 +225,11 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
   mysql->thd= create_embedded_thd(client_flag, db_name);
 
   init_embedded_mysql(mysql, client_flag, db_name);
+
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  if (check_embedded_connection(mysql))
+    goto error;
+#endif
 
   if (mysql_init_charset(mysql))
     goto error;
@@ -243,53 +276,5 @@ error:
     mysql->free_me=free_me;
   }
   DBUG_RETURN(0);
-}
-
-
-/*************************************************************************
-** Send a QUIT to the server and close the connection
-** If handle is alloced by mysql connect free it.
-*************************************************************************/
-
-void STDCALL mysql_close(MYSQL *mysql)
-{
-  DBUG_ENTER("mysql_close");
-  if (mysql)					/* Some simple safety */
-  {
-    if (mysql->methods != &embedded_methods)
-    {
-      cli_mysql_close(mysql);
-      DBUG_VOID_RETURN;
-    }
-
-    my_free(mysql->options.user,MYF(MY_ALLOW_ZERO_PTR));
-    my_free(mysql->options.host,MYF(MY_ALLOW_ZERO_PTR));
-    my_free(mysql->options.password,MYF(MY_ALLOW_ZERO_PTR));
-    my_free(mysql->options.unix_socket,MYF(MY_ALLOW_ZERO_PTR));
-    my_free(mysql->options.db,MYF(MY_ALLOW_ZERO_PTR));
-    my_free(mysql->options.my_cnf_file,MYF(MY_ALLOW_ZERO_PTR));
-    my_free(mysql->options.my_cnf_group,MYF(MY_ALLOW_ZERO_PTR));
-    my_free(mysql->options.charset_dir,MYF(MY_ALLOW_ZERO_PTR));
-    my_free(mysql->options.charset_name,MYF(MY_ALLOW_ZERO_PTR));
-    if (mysql->options.init_commands)
-    {
-      DYNAMIC_ARRAY *init_commands= mysql->options.init_commands;
-      char **ptr= (char**)init_commands->buffer;
-      char **end= ptr + init_commands->elements;
-      for (; ptr<end; ptr++)
-	my_free(*ptr,MYF(MY_WME));
-      delete_dynamic(init_commands);
-      my_free((char*)init_commands,MYF(MY_WME));
-    }
-    /* Clear pointers for better safety */
-    bzero((char*) &mysql->options,sizeof(mysql->options));
-#ifdef HAVE_OPENSSL
-    ((VioConnectorFd*)(mysql->connector_fd))->delete();
-    mysql->connector_fd = 0;
-#endif /* HAVE_OPENSSL */
-    if (mysql->free_me)
-      my_free((gptr) mysql,MYF(0));
-  }
-  DBUG_VOID_RETURN;
 }
 

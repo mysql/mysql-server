@@ -524,16 +524,18 @@ static bool mysql_test_insert_fields(PREP_STMT *stmt,
   List_item *values;
   DBUG_ENTER("mysql_test_insert_fields");
 
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
   my_bool update=(thd->lex.value_list.elements ? UPDATE_ACL : 0);
   ulong privilege= (thd->lex.duplicates == DUP_REPLACE ?
                     INSERT_ACL | DELETE_ACL : INSERT_ACL | update);
 
   if (check_access(thd,privilege,table_list->db,
-                   &table_list->grant.privilege) || 
-      (grant_option && check_grant(thd,privilege,table_list)) || 
-      open_and_lock_tables(thd, table_list))
+                   &table_list->grant.privilege,0,0) || 
+      (grant_option && check_grant(thd,privilege,table_list)))
     DBUG_RETURN(1); 
-  
+#endif  
+  if (open_and_lock_tables(thd, table_list))
+    DBUG_RETURN(1); 
   table= table_list->table;
 
   if ((values= its++))
@@ -581,12 +583,14 @@ static bool mysql_test_upd_fields(PREP_STMT *stmt, TABLE_LIST *table_list,
   THD *thd= stmt->thd;
   DBUG_ENTER("mysql_test_upd_fields");
 
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (check_access(thd,UPDATE_ACL,table_list->db,
-                   &table_list->grant.privilege) || 
-      (grant_option && check_grant(thd,UPDATE_ACL,table_list)) || 
-      open_and_lock_tables(thd, table_list))
+                   &table_list->grant.privilege,0,0) || 
+      (grant_option && check_grant(thd,UPDATE_ACL,table_list)))
     DBUG_RETURN(1);
-
+#endif
+  if (open_and_lock_tables(thd, table_list))
+    DBUG_RETURN(1);
   if (setup_tables(table_list) ||
       setup_fields(thd, 0, table_list, fields, 1, 0, 0) || 
       setup_conds(thd, table_list, &conds) || thd->net.report_error)      
@@ -627,15 +631,16 @@ static bool mysql_test_select_fields(PREP_STMT *stmt, TABLE_LIST *tables,
   select_result *result= thd->lex.result;
   DBUG_ENTER("mysql_test_select_fields");
 
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
   ulong privilege= lex->exchange ? SELECT_ACL | FILE_ACL : SELECT_ACL;
   if (tables)
   {
-    if (check_table_access(thd, privilege, tables))
+    if (check_table_access(thd, privilege, tables,0))
       DBUG_RETURN(1);
   }
-  else if (check_access(thd, privilege, "*any*"))
+  else if (check_access(thd, privilege, "*any*",0,0,0))
     DBUG_RETURN(1);
-
+#endif
   if ((&lex->select_lex != lex->all_selects_list &&
        lex->unit.create_total_list(thd, lex, &tables, 0)))
    DBUG_RETURN(1);
