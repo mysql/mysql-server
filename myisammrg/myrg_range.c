@@ -30,8 +30,10 @@ ha_rows myrg_records_in_range(MYRG_INFO *info, int inx, const byte *start_key,
     res=mi_records_in_range(table->table, inx,
                 start_key, start_key_len, start_search_flag,
                   end_key,   end_key_len,   end_search_flag);
-    if (res == HA_POS_ERROR || records > HA_POS_ERROR - res)
-      return res;
+    if (res == HA_POS_ERROR)
+      return HA_POS_ERROR; 
+    if (records > HA_POS_ERROR - res)
+      return HA_POS_ERROR-1;
     records+=res;
   }
   return records;
