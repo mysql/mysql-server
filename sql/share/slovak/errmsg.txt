@@ -287,7 +287,7 @@ character-set=latin2
 "%d line(s) were cut by GROUP_CONCAT()",
 "Row %ld doesn't contain data for all columns",
 "Row %ld was truncated; it contained more data than there were input columns",
-"Data truncated; NULL supplied to NOT NULL column '%s' at row %ld",
+"Column set to default value; NULL supplied to NOT NULL column '%s' at row %ld",
 "Out of range value adjusted for column '%s' at row %ld",
 "Data truncated for column '%s' at row %ld",
 "Using storage engine %s for table '%s'",
@@ -391,5 +391,6 @@ character-set=latin2
 "Field '%-.64s' doesn't have a default value",
 "Division by 0",
 "Incorrect %-.32s value: '%-.128s' for column '%.64s' at row %ld",
+"Illegal %s '%-.64s' value found during parsing",
 "CHECK OPTION on non-updatable view '%-.64s.%-.64s'"
 "CHECK OPTION failed '%-.64s.%-.64s'"

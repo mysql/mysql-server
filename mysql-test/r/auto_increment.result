@@ -232,7 +232,7 @@ a	b
 delete from t1 where a=0;
 update t1 set a=NULL where b=6;
 Warnings:
-Warning	1263	Data truncated; NULL supplied to NOT NULL column 'a' at row 4
+Warning	1263	Column set to default value; NULL supplied to NOT NULL column 'a' at row 4
 update t1 set a=300 where b=7;
 SET SQL_MODE='';
 insert into t1(a,b)values(NULL,8);
@@ -274,7 +274,7 @@ a	b
 delete from t1 where a=0;
 update t1 set a=NULL where b=13;
 Warnings:
-Warning	1263	Data truncated; NULL supplied to NOT NULL column 'a' at row 9
+Warning	1263	Column set to default value; NULL supplied to NOT NULL column 'a' at row 9
 update t1 set a=500 where b=14;
 select * from t1 order by b;
 a	b

@@ -4712,9 +4712,14 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
     new_field->comment.str=   (char*) comment->str;
     new_field->comment.length=comment->length;
   }
-  /* Set flag if this field doesn't have a default value */
+  /*
+    Set flag if this field doesn't have a default value
+    Enum values has always the first value as a default (set in
+    make_empty_rec().
+  */
   if (!default_value && !(type_modifier & AUTO_INCREMENT_FLAG) &&
-      (type_modifier & NOT_NULL_FLAG) && type != FIELD_TYPE_TIMESTAMP)
+      (type_modifier & NOT_NULL_FLAG) && type != FIELD_TYPE_TIMESTAMP &&
+      type != FIELD_TYPE_ENUM)
     new_field->flags|= NO_DEFAULT_VALUE_FLAG;
 
   if (length && !(new_field->length= (uint) atoi(length)))

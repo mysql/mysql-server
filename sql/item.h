@@ -707,13 +707,7 @@ class Item_real :public Item_num
 public:
   double value;
   // Item_real() :value(0) {}
-  Item_real(const char *str_arg, uint length) :value(my_atof(str_arg))
-  {
-    presentation= name=(char*) str_arg;
-    decimals=(uint8) nr_of_decimals(str_arg);
-    max_length=length;
-    fixed= 1;
-  }
+  Item_real(const char *str_arg, uint length);
   Item_real(const char *str,double val_arg,uint decimal_par,uint length)
     :value(val_arg)
   {

@@ -257,7 +257,7 @@ t2	BASE TABLE
 prepare stmt4 from ' show columns from t2 from test like ''a%'' ';
 execute stmt4;
 Field	Type	Null	Key	Default	Extra
-a	int(11)		PRI	0	
+a	int(11)		PRI		
 create index t2_idx on t2(b);
 prepare stmt4 from ' show index from t2 from test ';
 execute stmt4;
@@ -355,7 +355,7 @@ drop user drop_user@localhost;
 prepare stmt3 from ' describe t2 ';
 execute stmt3;
 Field	Type	Null	Key	Default	Extra
-a	int(11)		PRI	0	
+a	int(11)		PRI		
 b	char(10)	YES	MUL	NULL	
 drop table t2 ;
 execute stmt3;
