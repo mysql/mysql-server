@@ -4648,7 +4648,7 @@ innodb_show_status(
 	rewind(srv_monitor_file);
 	srv_printf_innodb_monitor(srv_monitor_file);
 	flen = ftell(srv_monitor_file);
-	my_chsize(fileno(srv_monitor_file), flen, 0, MYF(0));
+	os_file_set_eof(srv_monitor_file);
 	if(flen > 64000 - 1) {
 		flen = 64000 - 1;
 	}
