@@ -2403,15 +2403,13 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
   {
     if (table->on_expr)
     {
-      if (stmt)
-	thd->set_n_backup_item_arena(stmt, &backup);
       /* Make a join an a expression */
       thd->where="on clause";
       
       if (!table->on_expr->fixed &&
 	  table->on_expr->fix_fields(thd, tables, &table->on_expr) ||
 	  table->on_expr->check_cols(1))
-	goto err;
+	DBUG_RETURN(1);
       thd->lex->current_select->cond_count++;
 
       /*
@@ -2423,12 +2421,16 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
 	   !(specialflag & SPECIAL_NO_NEW_FUNC)))
       {
 	table->outer_join= 0;
-	if (!(*conds= and_conds(thd, *conds, table->on_expr, tables)))
-	  goto err;
+	if (stmt)
+	  thd->set_n_backup_item_arena(stmt, &backup);
+	*conds= and_conds(*conds, table->on_expr);
 	table->on_expr=0;
+	if (stmt)
+	  thd->restore_backup_item_arena(stmt, &backup);
+	if ((*conds) && !(*conds)->fixed &&
+	    (*conds)->fix_fields(thd, tables, conds))
+	  DBUG_RETURN(1);
       }
-      if (stmt)
-	thd->restore_backup_item_arena(stmt, &backup);
     }
     if (table->natural_join)
     {
@@ -2467,20 +2469,28 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
 
       if (!table->outer_join)			// Not left join
       {
-	if (!(*conds= and_conds(thd, *conds, cond_and, tables)) ||
-	    (*conds && !(*conds)->fixed &&
-	     (*conds)->fix_fields(thd, tables, conds)))
-	  goto err;
+	*conds= and_conds(*conds, cond_and);
+	// fix_fields() should be made with temporary memory pool
+	if (stmt)
+	  thd->restore_backup_item_arena(stmt, &backup);
+	if (*conds && !(*conds)->fixed)
+	{
+	  if ((*conds)->fix_fields(thd, tables, conds))
+	    DBUG_RETURN(1);
+	}
       }
       else
       {
-	table->on_expr= and_conds(thd, table->on_expr, cond_and, tables);
-	if (table->on_expr && !table->on_expr->fixed &&
-	    table->on_expr->fix_fields(thd, tables, &table->on_expr))
-	  goto err;
+	table->on_expr= and_conds(table->on_expr, cond_and);
+	// fix_fields() should be made with temporary memory pool
+	if (stmt)
+	  thd->restore_backup_item_arena(stmt, &backup);
+	if (table->on_expr && !table->on_expr->fixed)
+	{
+	  if (table->on_expr->fix_fields(thd, tables, &table->on_expr))
+	   DBUG_RETURN(1);
+	}
       }
-      if (stmt)
-	thd->restore_backup_item_arena(stmt, &backup);
     }
   }
 

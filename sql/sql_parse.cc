@@ -4389,11 +4389,10 @@ bool add_to_list(THD *thd, SQL_LIST &list,Item *item,bool asc)
   ORDER *order;
   Item	**item_ptr;
   DBUG_ENTER("add_to_list");
-  if (!(order = (ORDER *) thd->alloc(sizeof(ORDER)+sizeof(Item*))))
+  if (!(order = (ORDER *) thd->alloc(sizeof(ORDER))))
     DBUG_RETURN(1);
-  item_ptr = (Item**) (order+1);
-  *item_ptr=item;
-  order->item= item_ptr;
+  order->item_ptr= item;
+  order->item= &order->item_ptr;
   order->asc = asc;
   order->free_me=0;
   order->used=0;
