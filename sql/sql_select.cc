@@ -57,7 +57,7 @@ static store_key *get_store_key(THD *thd,
 static bool make_simple_join(JOIN *join,TABLE *tmp_table);
 static bool make_join_select(JOIN *join,SQL_SELECT *select,COND *item);
 static void make_join_readinfo(JOIN *join,uint options);
-static void join_free(JOIN *join);
+static void join_free(JOIN *join, bool full);
 static bool only_eq_ref_tables(JOIN *join,ORDER *order,table_map tables);
 static void update_depend_map(JOIN *join);
 static void update_depend_map(JOIN *join, ORDER *order);
@@ -403,8 +403,8 @@ JOIN::optimize()
   {
     // quick abort
     delete procedure;
-    error= thd->net.report_error ? -1 : 1; 
-    DBUG_RETURN(-1);				// Return without cleanup
+    error= thd->fatal_error ? -1 : 1; 
+    DBUG_RETURN(error);
   }
 
   if (cond_value == Item::COND_FALSE ||
@@ -900,7 +900,7 @@ JOIN::exec()
       DBUG_PRINT("info",("Creating group table"));
 
       /* Free first data from old join */
-      join_free(this);
+      join_free(this, 0);
       if (make_simple_join(this, exec_tmp_table))
 	DBUG_VOID_RETURN;
       calc_group_buffer(this, group_list);
@@ -951,7 +951,7 @@ JOIN::exec()
     if (exec_tmp_table->distinct)
       select_distinct=0;			/* Each row is unique */
 
-    join_free(this);				/* Free quick selects */
+    join_free(this, 0);				/* Free quick selects */
     if (select_distinct && ! group_list)
     {
       thd->proc_info="Removing duplicates";
@@ -1066,7 +1066,7 @@ JOIN::cleanup(THD *thd)
   DBUG_ENTER("JOIN::cleanup");
 
   lock=0;                                     // It's faster to unlock later
-  join_free(this);
+  join_free(this, 1);
   if (exec_tmp_table)
     free_tmp_table(thd, exec_tmp_table);
   delete select;
@@ -3033,7 +3033,7 @@ bool error_if_full_join(JOIN *join)
 
 
 static void
-join_free(JOIN *join)
+join_free(JOIN *join, bool full)
 {
   JOIN_TAB *tab,*end;
   DBUG_ENTER("join_free");
@@ -3046,7 +3046,7 @@ join_free(JOIN *join)
     */
     if (join->tables > join->const_tables) // Test for not-const tables
       free_io_cache(join->table[join->const_tables]);
-    if (join->select_lex->dependent)
+    if (join->select_lex->dependent && !full)
       for (tab=join->join_tab,end=tab+join->tables ; tab != end ; tab++)
       {
 	if (tab->table)
@@ -4678,7 +4678,7 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
     error=0;
     if (!table)					// If sending data to client
     {
-      join_free(join);				// Unlock all cursors
+      join_free(join, 0);				// Unlock all cursors
       if (join->result->send_eof())
 	error= 1;				// Don't send error
     }
