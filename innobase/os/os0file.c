@@ -163,7 +163,6 @@ os_file_handle_error(
 	os_file_t	file,	/* in: file pointer */
 	char*		name)	/* in: name of a file or NULL */
 {
-	int	input_char;
 	ulint	err;
 
 	UT_NOT_USED(file);
@@ -172,32 +171,19 @@ os_file_handle_error(
 	
 	if (err == OS_FILE_DISK_FULL) {
 ask_again:
-		printf("\n");
+		fprintf(stderr, "\n");
 		if (name) {
-			printf(
-			"Innobase encountered a problem with file %s.\n",
+		  fprintf(stderr,
+			"InnoDB: Encountered a problem with file %s.\n",
 									name);
 		}
-		printf("Disk is full. Try to clean the disk to free space\n");
-		printf("before answering the following: How to continue?\n");
-		printf("(Y == freed some space: try again)\n");
-		printf("(N == crash the database: will restart it)?\n");
-ask_with_no_question:
-		input_char = getchar();
+		fprintf(stderr,
+	   "InnoDB: Cannot continue operation.\n"
+	   "InnoDB: Disk is full. Try to clean the disk to free space.\n"
+	   "InnoDB: Delete possible created file %s and restart.\n");
 
-		if (input_char == (int) 'N') {
-			ut_error;
-		
-			return(FALSE);
-		} else if (input_char == (int) 'Y') {
+		exit(1);
 
-			return(TRUE);
-		} else if (input_char == (int) '\n') {
-
-			goto ask_with_no_question;
-		} else {
-			goto ask_again;
-		}
 	} else if (err == OS_FILE_AIO_RESOURCES_RESERVED) {
 
 		return(TRUE);
