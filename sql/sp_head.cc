@@ -377,9 +377,11 @@ sp_head::execute(THD *thd)
   DBUG_ENTER("sp_head::execute");
   char olddb[128];
   bool dbchanged;
-  sp_rcontext *ctx= thd->spcont;
+  sp_rcontext *ctx;
   int ret= 0;
   uint ip= 0;
+  Item_arena *old_arena;
+
 
 #ifndef EMBEDDED_LIBRARY
   if (check_stack_overrun(thd, olddb))
@@ -392,10 +394,12 @@ sp_head::execute(THD *thd)
   if ((ret= sp_use_new_db(thd, m_db.str, olddb, sizeof(olddb), 0, &dbchanged)))
     goto done;
 
-  if (ctx)
+  if ((ctx= thd->spcont))
     ctx->clear_handler();
   thd->query_error= 0;
+  old_arena= thd->current_arena;
   thd->current_arena= this;
+
   do
   {
     sp_instr *i;
@@ -433,13 +437,13 @@ sp_head::execute(THD *thd)
   } while (ret == 0 && !thd->killed && !thd->query_error &&
 	   !thd->net.report_error);
 
+  if (thd->current_arena)
+    cleanup_items(thd->current_arena->free_list);
+  thd->current_arena= old_arena;
+
  done:
   DBUG_PRINT("info", ("ret=%d killed=%d query_error=%d",
 		      ret, thd->killed, thd->query_error));
-
-  if (thd->current_arena)
-    cleanup_items(thd->current_arena->free_list);
-  thd->current_arena= 0;
 
   if (thd->killed || thd->query_error || thd->net.report_error)
     ret= -1;
