@@ -100,7 +100,7 @@ int my_pthread_create_detached=1;
 
 #if defined(HAVE_NONPOSIX_SIGWAIT) || defined(HAVE_DEC_3_2_THREADS)
 
-int my_sigwait(sigset_t *set,int *sig)
+int my_sigwait(const sigset_t *set,int *sig)
 {
   int signal=sigwait(set);
   if (signal < 0)
