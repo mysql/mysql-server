@@ -605,10 +605,11 @@ Options:
                    make sure you have mysqld in your PATH or fix mysqld_safe.
                    Using: $mysqld
                    Please note: Since mysqld_multi version 2.3 you can also
-                   give this option in groups [mysqld#]! This will be
-                   recognized as a special option and will not be passed
-                   to the mysqld. This will allow one to start different
-                   mysqld versions with mysqld_multi.
+                   give this option inside groups [mysqld#] in ~/.my.cnf,
+                   where '#' stands for an integer (number) of the group in
+                   question. This will be recognized as a special option and
+                   will not be passed to the mysqld. This will allow one to
+                   start different mysqld versions with mysqld_multi.
 --no-log           Print to stdout instead of the log file. By default the log
                    file is turned on.
 --password=...     Password for user for mysqladmin.
