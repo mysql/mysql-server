@@ -2538,6 +2538,12 @@ server.");
 
   if (opt_innodb_safe_binlog)
   {
+    if (have_innodb != SHOW_OPTION_YES)
+    {
+      sql_print_error("Error: --innodb-safe-binlog is meaningful only if "
+                      "the InnoDB storage engine is enabled in the server.");
+      unireg_abort(1);
+    }
     if (innobase_flush_log_at_trx_commit != 1)
     {
       sql_print_error("Warning: --innodb-safe-binlog is meaningful only if "
@@ -4641,9 +4647,8 @@ replicating a LOAD DATA INFILE command.",
     effect).
   */
   {"innodb_safe_binlog", OPT_INNODB_SAFE_BINLOG,
-   "After a crash recovery by InnoDB, truncate the binary log to the last \
-InnoDB committed transaction. Use only if this server updates ONLY InnoDB \
-tables.",
+   "After a crash recovery by InnoDB, truncate the binary log after the last "
+   "not-rolled-back statement/transaction.",
    (gptr*) &opt_innodb_safe_binlog, (gptr*) &opt_innodb_safe_binlog,
    0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 1, 0},
 #endif
