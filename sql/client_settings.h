@@ -33,4 +33,5 @@
 #undef _CUSTOMCONFIG_
 
 #define cli_list_fields NULL
+#define cli_read_prepare_result NULL
 

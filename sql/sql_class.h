@@ -422,6 +422,9 @@ class THD :public ilink
 public:
 #ifdef EMBEDDED_LIBRARY
   struct st_mysql  *mysql;
+  struct st_mysql_data *data;
+  unsigned long	 client_stmt_id;
+  unsigned long  client_param_count;
 #endif
   NET	  net;				// client connection descriptor
   LEX	  lex;				// parse tree descriptor
