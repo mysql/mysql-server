@@ -42,7 +42,7 @@
 
 **********************************************************************/
 
-#define MTEST_VERSION "1.27"
+#define MTEST_VERSION "1.28"
 
 #include <my_global.h>
 #include <mysql_embed.h>
@@ -221,6 +221,13 @@ const char *command_names[]=
   "connection",
   "query",
   "connect",
+  /* the difference between sleep and real_sleep is that sleep will use
+     the delay from command line (--sleep) if there is one.
+     real_sleep always uses delay from it's argument.
+     the logic is that sometimes delays are cpu-dependent (and --sleep
+     can be used to set this delay. real_sleep is used for cpu-independent
+     delays
+   */
   "sleep",
   "real_sleep",
   "inc",
@@ -845,7 +852,28 @@ int var_query_set(VAR* v, const char* p, const char** p_end)
   }
 
   if ((row = mysql_fetch_row(res)) && row[0])
-    eval_expr(v, row[0], 0);
+  {
+    /*
+      Concatenate all row results with tab in between to allow us to work
+      with results from many columns (for example from SHOW VARIABLES)
+    */
+    DYNAMIC_STRING result;
+    uint i;
+    ulong *lengths;
+    char *end;
+
+    init_dynamic_string(&result, "", 16384, 65536);
+    lengths= mysql_fetch_lengths(res);
+    for (i=0; i < mysql_num_fields(res); i++)
+    {
+      if (row[0])
+	dynstr_append_mem(&result, row[i], lengths[i]);
+      dynstr_append_mem(&result, "\t", 1);
+    }
+    end= result.str + result.length-1;
+    eval_expr(v, result.str, (const char**) &end);
+    dynstr_free(&result);
+  }
   else
     eval_expr(v, "", 0);
 
@@ -902,8 +930,6 @@ int eval_expr(VAR* v, const char* p, const char** p_end)
       return 0;
     }
 
-  if (p_end)
-    *p_end = 0;
   die("Invalid expr: %s", p);
   return 1;
 }
@@ -1197,7 +1223,7 @@ static char *get_string(char **to_ptr, char **from_ptr,
     VAR *var=var_get(start, &end, 0, 1);
     if (var && to == (char*) end+1)
     {
-      DBUG_PRINT("info",("var: %s -> %s", start, var->str_val));
+      DBUG_PRINT("info",("var: '%s' -> '%s'", start, var->str_val));
       DBUG_RETURN(var->str_val);	/* return found variable value */
     }
   }

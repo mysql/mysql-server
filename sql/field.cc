@@ -742,7 +742,7 @@ void Field_decimal::store(double nr)
   char buff[320];
 
   fyllchar = zerofill ? (char) '0' : (char) ' ';
-#ifdef HAVE_SNPRINTF_
+#ifdef HAVE_SNPRINTF
   buff[sizeof(buff)-1]=0;			// Safety
   snprintf(buff,sizeof(buff)-1, "%.*f",(int) dec,nr);
 #else
@@ -1836,8 +1836,15 @@ double Field_longlong::val_real(void)
   else
 #endif
     longlongget(j,ptr);
-  return unsigned_flag ? ulonglong2double((ulonglong) j) : (double) j;
+  /* The following is open coded to avoid a bug in gcc 3.3 */
+  if (unsigned_flag)
+  {
+    ulonglong tmp= (ulonglong) j;
+    return ulonglong2double(tmp);
+  }
+  return (double) j;
 }
+
 
 longlong Field_longlong::val_int(void)
 {
@@ -4147,8 +4154,11 @@ void Field_blob::store(const char *from,uint len)
 	}
       }
 #endif /* USE_TIS620 */
-      value.copy(from,len);
-      from=value.ptr();
+      if (from != value.ptr())			// For valgrind
+      {
+	value.copy(from, len);
+	from= value.ptr();
+      }
 #ifdef USE_TIS620
       my_free(th_ptr,MYF(MY_ALLOW_ZERO_PTR));
 #endif

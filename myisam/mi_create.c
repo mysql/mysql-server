@@ -286,7 +286,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
 	    keydef->seg[0].type == (int) HA_KEYTYPE_NUM)
 	  keydef->seg[0].flag&= ~HA_SPACE_PACK;
 
-	/* Only use HA_PACK_KEY if the first segment is a variable length key */
+	/* Only use HA_PACK_KEY when first segment is a variable length key */
 	if (!(keydef->seg[0].flag & (HA_SPACE_PACK | HA_BLOB_PART |
 				     HA_VAR_LENGTH)))
 	{

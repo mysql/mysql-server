@@ -3562,10 +3562,13 @@ int update_state_info(MI_CHECK *param, MI_INFO *info,uint update)
     uint i, key_parts= mi_uint2korr(share->state.header.key_parts);
     share->state.rec_per_key_rows=info->state->records;
     share->state.changed&= ~STATE_NOT_ANALYZED;
-    for (i=0; i<key_parts; i++)
+    if (info->state->records)
     {
-      if (!(share->state.rec_per_key_part[i]=param->rec_per_key_part[i]))
-        share->state.changed|= STATE_NOT_ANALYZED;
+      for (i=0; i<key_parts; i++)
+      {
+        if (!(share->state.rec_per_key_part[i]=param->rec_per_key_part[i]))
+          share->state.changed|= STATE_NOT_ANALYZED;
+      }
     }
   }
   if (update & (UPDATE_STAT | UPDATE_SORT | UPDATE_TIME | UPDATE_AUTO_INC))

@@ -1,0 +1,26 @@
+# See SHOW SLAVE STATUS displays well after RESET SLAVE (it should display the
+# --master-* options from mysqld, as this is what is going to be used next time
+# slave threads will be started). In bug 985, it displayed old values (of before
+# RESET SLAVE).
+
+source include/master-slave.inc;
+connection master;
+save_master_pos;
+connection slave;
+sync_with_master;
+--replace_result $MASTER_MYPORT MASTER_PORT
+show slave status;
+
+stop slave;
+change master to master_user='test';
+--replace_result $MASTER_MYPORT MASTER_PORT
+show slave status;
+
+reset slave;
+--replace_result $MASTER_MYPORT MASTER_PORT
+show slave status;
+
+start slave;
+sync_with_master;
+--replace_result $MASTER_MYPORT MASTER_PORT
+show slave status;

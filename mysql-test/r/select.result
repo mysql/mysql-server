@@ -3508,3 +3508,23 @@ aa	id	t2_id	id
 5	8303	2520	2520
 6	8304	2521	2521
 drop table t1,t2;
+create table t1 (id1 int NOT NULL);
+create table t2 (id2 int NOT NULL);
+create table t3 (id3 int NOT NULL);
+create table t4 (id4 int NOT NULL, id44 int NOT NULL, KEY (id4));
+insert into t1 values (1);
+insert into t1 values (2);
+insert into t2 values (1);
+insert into t4 values (1,1);
+explain select * from t1 left join t2 on id1 = id2 left join t3 on id1 = id3
+left join t4 on id3 = id4 where id2 = 1 or id4 = 1;
+table	type	possible_keys	key	key_len	ref	rows	Extra
+t3	system	NULL	NULL	NULL	NULL	0	const row not found
+t1	ALL	NULL	NULL	NULL	NULL	2	
+t2	ALL	NULL	NULL	NULL	NULL	1	
+t4	ALL	id4	NULL	NULL	NULL	1	Using where
+select * from t1 left join t2 on id1 = id2 left join t3 on id1 = id3
+left join t4 on id3 = id4 where id2 = 1 or id4 = 1;
+id1	id2	id3	id4	id44
+1	1	NULL	NULL	NULL
+drop table t1,t2,t3,t4;

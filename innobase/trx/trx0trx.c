@@ -1624,6 +1624,13 @@ trx_print(
 	}
 
 	buf += sprintf(buf, "\n");
+
+	if (trx->n_mysql_tables_in_use > 0 || trx->mysql_n_tables_locked > 0) {
+
+		buf += sprintf(buf, "mysql tables in use %lu, locked %lu\n",
+				    trx->n_mysql_tables_in_use,
+				    trx->mysql_n_tables_locked);
+	}
   	
 	start_of_line = buf;
 

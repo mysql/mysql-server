@@ -2158,7 +2158,10 @@ int main(int argc, char **argv)
 		  max_connections,table_cache_size));
       sql_print_error("Warning: Changed limits: max_connections: %ld  table_cache: %ld",max_connections,table_cache_size);
     }
+    open_files_limit= files;
   }
+#else
+  open_files_limit= 0;		/* Can't set or detect limit */
 #endif
   unireg_init(opt_specialflag); /* Set up extern variabels */
   init_errmessage();		/* Read error messages from file */
@@ -2506,6 +2509,19 @@ int mysql_service(void *p)
   return 0;
 }
 
+
+/* Quote string if it contains space, else copy */
+
+static char *add_quoted_string(char *to, const char *from, char *to_end)
+{
+  uint length= (uint) (to_end-to);
+
+  if (!strchr(from, ' '))
+    return strnmov(to, from, length);
+  return strxnmov(to, length, "\"", from, "\"", NullS);
+}
+
+
 /*
   Handle basic handling of services, like installation and removal
 
@@ -2515,25 +2531,41 @@ int mysql_service(void *p)
     servicename		Internal name of service
     displayname		Display name of service (in taskbar ?)
     file_path		Path to this program
+    startup_option	Startup option to mysqld
 
   RETURN VALUES
     0		option handled
     1		Could not handle option
  */
 
-bool default_service_handling(char **argv,
-			      const char *servicename,
-			      const char *displayname,
-			      const char *file_path)
+static bool
+default_service_handling(char **argv,
+			 const char *servicename,
+			 const char *displayname,
+			 const char *file_path,
+			 const char *extra_opt)
 {
+  char path_and_service[FN_REFLEN+FN_REFLEN+32], *pos, *end;
+  end= path_and_service + sizeof(path_and_service)-1;
+
+  /* We have to quote filename if it contains spaces */
+  pos= add_quoted_string(path_and_service, file_path, end);
+  if (*extra_opt)
+  {
+    /* Add (possible quoted) option after file_path */
+    *pos++= ' ';
+    pos= add_quoted_string(pos, extra_opt, end);
+  }
+  *pos= 0;					// Ensure end null
+
   if (Service.got_service_option(argv, "install"))
   {
-    Service.Install(1, servicename, displayname, file_path);
+    Service.Install(1, servicename, displayname, path_and_service);
     return 0;
   }
   if (Service.got_service_option(argv, "install-manual"))
   {
-    Service.Install(0, servicename, displayname, file_path);
+    Service.Install(0, servicename, displayname, path_and_service);
     return 0;
   }
   if (Service.got_service_option(argv, "remove"))
@@ -2559,12 +2591,12 @@ int main(int argc, char **argv)
   {
     char file_path[FN_REFLEN];
     my_path(file_path, argv[0], "");		      /* Find name in path */
-    fn_format(file_path,argv[0],file_path,"",1+4+16); /* Force full path */
-
+    fn_format(file_path,argv[0],file_path,"",MY_REPLACE_DIR+
+              MY_UNPACK_FILENAME | MY_RESOLVE_SYMLINKS);
     if (argc == 2)
     {	
-      if (!default_service_handling(argv,MYSQL_SERVICENAME, MYSQL_SERVICENAME,
-				   file_path))
+      if (!default_service_handling(argv, MYSQL_SERVICENAME, MYSQL_SERVICENAME,
+				   file_path, ""))
 	return 0;
       if (Service.IsService(argv[1]))
       {
@@ -2577,12 +2609,8 @@ int main(int argc, char **argv)
     }
     else if (argc == 3) /* install or remove any optional service */
     {
-      /* Add service name after filename */
-      uint length=strlen(file_path);
-      *strxnmov(file_path + length, sizeof(file_path)-length-2, " ",
-		argv[2], NullS)= '\0';
-
-      if (!default_service_handling(argv, argv[2], argv[2], file_path))
+      if (!default_service_handling(argv, argv[2], argv[2], file_path,
+				    argv[2]))
 	return 0;
       if (Service.IsService(argv[2]))
       {
@@ -2604,10 +2632,8 @@ int main(int argc, char **argv)
 	Install an optional service with optional config file
 	mysqld --install-manual mysqldopt --defaults-file=c:\miguel\my.ini
       */
-      uint length=strlen(file_path);
-      *strxnmov(file_path + length, sizeof(file_path)-length-2, " ",
-		argv[3], " ", argv[2], NullS)= '\0';
-      if (!default_service_handling(argv, argv[2], argv[2], file_path))
+      if (!default_service_handling(argv, argv[2], argv[2], file_path,
+				    argv[3]))
 	return 0;
     }
     else if (argc == 1 && Service.IsService(MYSQL_SERVICENAME))
@@ -3343,7 +3369,7 @@ struct my_option my_long_options[] =
    0, 0, 0},
   {"innodb_fast_shutdown", OPT_INNODB_FAST_SHUTDOWN,
    "Speeds up server shutdown process", (gptr*) &innobase_fast_shutdown,
-   (gptr*) &innobase_fast_shutdown, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
+   (gptr*) &innobase_fast_shutdown, 0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
   {"innodb_max_dirty_pages_pct", OPT_INNODB_MAX_DIRTY_PAGES_PCT,
    "Percentage of dirty pages allowed in bufferpool", (gptr*) &srv_max_buf_pool_modified_pct,
    (gptr*) &srv_max_buf_pool_modified_pct, 0, GET_ULONG, REQUIRED_ARG, 90, 0, 100, 0, 0, 0},
@@ -3810,7 +3836,7 @@ replicating a LOAD DATA INFILE command",
    "Max packetlength to send/receive from to server.",
    (gptr*) &global_system_variables.max_allowed_packet,
    (gptr*) &max_system_variables.max_allowed_packet, 0, GET_ULONG,
-   REQUIRED_ARG, 1024*1024L, 80, 1024L*1024L*1024L, MALLOC_OVERHEAD, 1024, 0},
+   REQUIRED_ARG, 1024*1024L, 1024, 1024L*1024L*1024L, MALLOC_OVERHEAD, 1024, 0},
   {"max_binlog_cache_size", OPT_MAX_BINLOG_CACHE_SIZE,
    "Can be used to restrict the total size used to cache a multi-transaction query.",
    (gptr*) &max_binlog_cache_size, (gptr*) &max_binlog_cache_size, 0,
@@ -4880,6 +4906,19 @@ static void fix_paths(void)
 }
 
 
+/*
+  set how many open files we want to be able to handle
+
+  SYNOPSIS
+    set_maximum_open_files()  
+    max_file_limit		Files to open
+
+  NOTES
+    The request may not fulfilled becasue of system limitations
+
+  RETURN
+    Files available to open
+*/
 
 #ifdef SET_RLIMIT_NOFILE
 static uint set_maximum_open_files(uint max_file_limit)

@@ -356,6 +356,7 @@ class Item_empty_string :public Item_string
 public:
   Item_empty_string(const char *header,uint length) :Item_string("",0)
     { name=(char*) header; max_length=length;}
+  void make_field(Send_field *field);
   unsigned int size_of() { return sizeof(*this);}  
 };
 

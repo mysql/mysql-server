@@ -256,3 +256,14 @@ select ref_mag from t1 where match ref_mag against ('+test' in boolean mode);
 ref_mag
 test
 drop table t1;
+create table t1 (t1_id int(11) primary key, name varchar(32));
+insert into t1 values (1, 'data1');
+insert into t1 values (2, 'data2');
+create table t2 (t2_id int(11) primary key, t1_id int(11), name varchar(32));
+insert into t2 values (1, 1, 'xxfoo');
+insert into t2 values (2, 1, 'xxbar');
+insert into t2 values (3, 1, 'xxbuz');
+select * from t1 join t2 using(`t1_id`) where match (t1.name, t2.name) against('xxfoo' in boolean mode);
+t1_id	name	t2_id	t1_id	name
+1	data1	1	1	xxfoo
+drop table t1,t2;

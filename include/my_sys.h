@@ -677,6 +677,8 @@ extern int _my_b_get(IO_CACHE *info);
 extern int _my_b_async_read(IO_CACHE *info,byte *Buffer,uint Count);
 extern int _my_b_write(IO_CACHE *info,const byte *Buffer,uint Count);
 extern int my_b_append(IO_CACHE *info,const byte *Buffer,uint Count);
+extern int my_b_safe_write(IO_CACHE *info,const byte *Buffer,uint Count);
+
 extern int my_block_write(IO_CACHE *info, const byte *Buffer,
 			  uint Count, my_off_t pos);
 extern int _flush_io_cache(IO_CACHE *info, int need_append_buffer_lock);

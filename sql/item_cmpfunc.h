@@ -28,7 +28,7 @@ public:
   Item_bool_func(Item *a) :Item_int_func(a) {}
   Item_bool_func(Item *a,Item *b) :Item_int_func(a,b) {}
   void fix_length_and_dec() { decimals=0; max_length=1; }
-  unsigned int size_of() { return sizeof(*this);}  
+  unsigned int size_of() { return sizeof(*this);}
 };
 
 class Item_bool_func2 :public Item_int_func
@@ -595,7 +595,7 @@ public:
   void print(String *str);
   void split_sum_func(List<Item> &fields);
   friend int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds);
-  unsigned int size_of() { return sizeof(*this);}  
+  unsigned int size_of() { return sizeof(*this);}
   void top_level_item() { abort_on_null=1; }
 };
 
@@ -634,12 +634,18 @@ inline Item *and_conds(Item *a,Item *b)
   return cond;
 }
 
+/*
+  XOR is Item_cond, not an Item_int_func bevause we could like to
+  optimize (a XOR b) later on. It's low prio, though
+*/
 class Item_cond_xor :public Item_cond
 {
 public:
   Item_cond_xor() :Item_cond() {}
   Item_cond_xor(Item *i1,Item *i2) :Item_cond(i1,i2) {}
   enum Functype functype() const { return COND_XOR_FUNC; }
+  /* TODO: remove the next line when implementing XOR optimization */
+  enum Type type() const { return FUNC_ITEM; }
   longlong val_int();
   const char *func_name() const { return "xor"; }
 };

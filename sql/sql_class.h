@@ -140,7 +140,7 @@ public:
   bool write(THD *thd, const char *query, uint query_length,
 	     time_t query_start=0);
   bool write(Log_event* event_info); // binary log write
-  bool write(THD *thd, IO_CACHE *cache);
+  bool write(THD *thd, IO_CACHE *cache, bool commit_or_rollback);
 
   /*
     v stands for vector
@@ -452,7 +452,6 @@ public:
   /* variables.transaction_isolation is reset to this after each commit */
   enum_tx_isolation session_tx_isolation;
   char	     scramble[9];
-  uint8	     query_cache_type;		// type of query cache processing
   bool       slave_thread;
   bool	     set_query_id,locked,count_cuted_fields,some_tables_deleted;
   bool	     no_errors, allow_sum_func, password, fatal_error;
@@ -473,7 +472,6 @@ public:
   */
   ulong	     slave_proxy_id;
   NET*       slave_net;			// network connection from slave -> m.
-  my_off_t   log_pos;
    
   /* Used by the sys_var class to store temporary values */
   union

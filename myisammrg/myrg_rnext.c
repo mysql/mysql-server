@@ -49,5 +49,5 @@ int myrg_rnext(MYRG_INFO *info, byte *buf, int inx)
 
   /* now, mymerge's read_next is as simple as one queue_top */
   mi=(info->current_table=(MYRG_TABLE *)queue_top(&(info->by_key)))->table;
-  return mi_rrnd(mi,buf,mi->lastpos);
+  return _myrg_mi_read_record(mi,buf);
 }

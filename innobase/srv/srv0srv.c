@@ -1798,7 +1798,11 @@ retry:
 
 		os_fast_mutex_unlock(&srv_conc_mutex);
 
+		trx->op_info = (char*)"sleeping before joining InnoDB queue";
+
 		os_thread_sleep(50000);
+
+		trx->op_info = (char*)"";
 
 		os_fast_mutex_lock(&srv_conc_mutex);
 
@@ -2299,6 +2303,7 @@ srv_sprintf_innodb_monitor(
 	char*	buf_end	= buf + len - 2000;
 	double	time_elapsed;
 	time_t	current_time;
+	ulint	n_reserved;
 
 	mutex_enter(&srv_innodb_monitor_mutex);
 
@@ -2414,8 +2419,16 @@ srv_sprintf_innodb_monitor(
 		       "ROW OPERATIONS\n"
 		       "--------------\n");
 	buf += sprintf(buf,
-	"%ld queries inside InnoDB, %ld queries in queue\n",
+	"%ld queries inside InnoDB, %lu queries in queue\n",
 			srv_conc_n_threads, srv_conc_n_waiting_threads);
+
+	n_reserved = fil_space_get_n_reserved_extents(0);
+	if (n_reserved > 0) {
+	        buf += sprintf(buf,
+	"%lu tablespace extents now reserved for B-tree split operations\n",
+						    n_reserved);
+	}
+
 #ifdef UNIV_LINUX
 	buf += sprintf(buf,
 	"Main thread process no. %lu, id %lu, state: %s\n",
