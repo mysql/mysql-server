@@ -1839,7 +1839,7 @@ Beginners @strong{MySQL} Tutorial on how to install and set up
 
 @item @uref{http://www.devshed.com/Server_Side/MySQL/, A lot of @strong{MySQL} tutorials}
 
-@item @uref{http://mysql.hitstar.com/, MySQL manual in Chinise}.
+@item @uref{http://mysql.hitstar.com/, MySQL manual in Chinese}.
 
 @item @uref{http://www.linuxplanet.com/linuxplanet/tutorials/1046/1/,
 Setting Up a @strong{MySQL}-Based Website}
@@ -5746,8 +5746,9 @@ If you are using gcc and have problems with loading @code{UDF} functions
 into @code{MySQL}, try adding @code{-lgcc} to the link line for the
 @code{UDF} function.
 
-For an automatic start of MySQL you can copy @file{support-files/mysql.server}
-to @file{/etc/init.d} and link from there to @code{/etc/rc3.d/S99mysql.server}.
+If you would like @strong{MySQL} to start automatically, you can copy 
+@file{support-files/mysql.server} to @file{/etc/init.d} and create a 
+symbolic link to it named @code{/etc/rc3.d/S99mysql.server}.
 
 @node Solaris 2.7, Solaris x86, Solaris, Source install system issues
 @subsection Solaris 2.7 / 2.8 notes
@@ -8987,7 +8988,7 @@ and @file{.frm} files to which the table corresponds.
 In SQL statements, you can access tables from different databases
 with the @code{db_name.tbl_name} syntax.  Some SQL servers provide
 the same functionality but call this @code{User space}.
-@strong{MySQL} dosen't support tablespaces like in:
+@strong{MySQL} doesn't support tablespaces like in:
 @code{create table ralph.my_table...IN my_tablespace}.
 
 @item
@@ -16820,7 +16821,7 @@ are automatically redirected to the new table without any failed updates.
 CHECK TABLE tbl_name[,tbl_name...] [TYPE = [QUICK | FAST | EXTEND | CHANGED]]
 @end example
 
-@code{CHECK TABLE} only works on @code{MyISAM} tables and is the same things
+@code{CHECK TABLE} only works on @code{MyISAM} tables and is the same thing
 as running @code{myisamchk -m table_name} on the table.
 
 Check the table(s) for errors and updates the key statistics for the table.
@@ -16834,18 +16835,18 @@ The command returns a table with the following columns:
 @end multitable
 
 Note that you can get many rows of information for each checked
-table. The last one row will be of @code{Msg_type status} and should
+table. The last row will be of @code{Msg_type status} and should
 normally be @code{OK}.  If you don't get @code{OK}, or @code{Not
 checked} you should normally run a repair of the table. @xref{Table
 maintenance}. @code{Not checked} means that the table the given @code{TYPE}
 told @code{MySQL} that there wasn't any need to check the table.
 
-The different check types stands for the following:
+The different check types stand for the following:
 
 @multitable @columnfractions .20 .80
 @item @code{QUICK} @tab Don't scan the rows for fixed size record tables.
-@item @code{FAST}  @tab Only check tables which hasn't been closed properly.
-@item @code{CHANGED} @tab Only check tables which has been changed since last check or hasn't been closed properly.
+@item @code{FAST}  @tab Only check tables which haven't been closed properly.
+@item @code{CHANGED} @tab Only check tables which have been changed since last check or haven't been closed properly.
 @item @code{EXTENDED} @tab Do a full key lookup for all keys for each row.  This enasures that the table is 100 % consistent, but will take a long time!
 @end multitable
 
@@ -18392,7 +18393,7 @@ The status variables listed above have the following meaning:
 @item @code{Bytes_received} @tab Number of bytes received from the client
 @item @code{Bytes_sent} @tab Number of bytes received from the client
 @item @code{Connections} @tab Number of connection attempts to the @strong{MySQL} server.
-@item @code{Created_tmp_tables} @tab Number of implicit temporary tables that has been created while executing statements.
+@item @code{Created_tmp_tables} @tab Number of implicit temporary tables that have been created while executing statements.
 @item @code{Delayed_insert_threads} @tab Number of delayed insert handler threads in use.
 @item @code{Delayed_writes} @tab Number of rows written with @code{INSERT DELAYED}.
 @item @code{Delayed_errors} @tab Number of rows written with @code{INSERT DELAYED} for which some error occurred (probably @code{duplicate key}).
@@ -18425,7 +18426,7 @@ have..
 @item @code{Open_tables} @tab Number of tables that are open.
 @item @code{Open_files} @tab  Number of files that are open.
 @item @code{Open_streams} @tab Number of streams that are open (used mainly for logging)
-@item @code{Opened_tables} @tab Number of tables that has been opened.
+@item @code{Opened_tables} @tab Number of tables that have been opened.
 @item @code{Questions} @tab Number of queries sent to the server.
 @item @code{Slow_launch_threads} @tab Number of threads that has taken more than @code{slow_launch_time} to connect.
 @item @code{Slow_queries} @tab Number of queries that has taken more than @code{long_query_time}
@@ -26436,9 +26437,9 @@ If you are using @code{--extended-check} and have much memory, you should
 increase the value of @code{key_buffer_size} a lot!
 
 @item -F or --fast
-Check only tables that hasn't been closed properly.
+Check only tables that haven't been closed properly.
 @item -C or --check-only-changed
-Check only tables that has changed since last check.
+Check only tables that have changed since last check.
 @item -f or --force
 Restart @code{myisamchk} with @code{-r} (repair) on the table, if
 @code{myisamchk} finds any errors in the table.
@@ -35351,9 +35352,9 @@ and will soon be declared beta, gamma and release.
 @itemize @bullet
 @item
 Changed @code{ALTER TABLE}, @code{LOAD DATA INFILE} on empty tables and
-@code{INSERT ... SELECT...} on empty tables to create non-unique indexs
+@code{INSERT ... SELECT...} on empty tables to create non-unique indexes
 in a separate batch with sorting. This will make the above calls much
-faster when you have many index.
+faster when you have many indexes.
 @item
 @code{ALTER TABLE} now logs the first used insert_id correctly.
 @item
@@ -35376,7 +35377,7 @@ Fixed that BDB tables work on part keys.
 @item
 Check table now updates key statistics for the table.
 @item
-@code{ANALYZE TABLE} will now only update tables that has been changed
+@code{ANALYZE TABLE} will now only update tables that have been changed
 since last @code{ANALYZE}. Note that this is a new feature and tables
 will not be marked to be analyzed until they are updated in any way with
 3.23.23 or newer.  For older tables, you have to do @code{CHECK TABLE}
