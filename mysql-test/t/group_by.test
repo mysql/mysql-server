@@ -455,4 +455,3 @@ select min(a) is null from t1;
 select min(a) is null or null from t1;
 select 1 and min(a) is null from t1;
 drop table t1;
-
