@@ -123,13 +123,12 @@ distribution for that version.
 * Regexp::                      Description of MySQL regular expression syntax
 * GPL license::                 GNU General Public License
 * LGPL license::                GNU Library General Public License
-* Placeholder::                 Pieces of the manual in transit
 * Function Index::              SQL command, type and function index
 * Concept Index::               Concept Index
 @end menu
 
 
-@node Introduction, Installing, Top, (dir)
+@node Introduction, Installing, Top, Top
 @chapter General Information About MySQL
 
 @cindex overview
@@ -5707,6 +5706,7 @@ Nothing;  In the long run we plan to be fully ANSI 92 / ANSI 99 compliant.
 * Post-installation::           Post-installation setup and testing
 * Upgrade::                     Upgrading/Downgrading MySQL
 * Operating System Specific Notes::  Operating System Specific Notes
+* Perl support::                
 @end menu
 
 This chapter describes how to obtain and install MySQL:
@@ -5916,6 +5916,7 @@ options that must be specified in your @file{my.ini} file! @xref{InnoDB start}.
 * Installation layouts::        Installation Layouts
 * Many versions::               How and When Updates Are Released
 * MySQL binaries::              MySQL Binaries Compiled by MySQL AB
+* Installing binary::           
 @end menu
 
 
@@ -7223,7 +7224,7 @@ add small things that ``almost surely will not affect anything that's
 already working.''
 
 
-@node MySQL binaries,  , Many versions, General Installation Issues
+@node MySQL binaries, Installing binary, Many versions, General Installation Issues
 @subsection MySQL Binaries Compiled by MySQL AB
 
 @cindex binary distributions
@@ -7281,6 +7282,223 @@ MySQL AB.
 If you want to compile a debug version of MySQL, you should add
 @code{--with-debug} or @code{--with-debug=full} to the above configure lines
 and remove any @code{-fomit-frame-pointer} options.
+
+
+@node Installing binary,  , MySQL binaries, General Installation Issues
+@subsection Installing a MySQL Binary Distribution
+
+@cindex installing, binary distribution
+@cindex binary distributions, installing
+
+@menu
+* Linux-RPM::                   Linux RPM files
+* Building clients::            Building client programs
+@end menu
+
+You need the following tools to install a MySQL binary distribution:
+
+@itemize @bullet
+@item
+GNU @code{gunzip} to uncompress the distribution.
+
+@item
+A reasonable @code{tar} to unpack the distribution. GNU @code{tar} is
+known to work.  Sun @code{tar} is known to have problems.
+@end itemize
+
+@cindex RPM, defined
+@cindex RedHat Package Manager
+An alternative installation method under Linux is to use RPM (RedHat Package
+Manager) distributions.  @xref{Linux-RPM}.
+
+@c texi2html fails to split chapters if I use strong for all of this.
+If you run into problems, @strong{PLEASE ALWAYS USE} @code{mysqlbug} when
+posting questions to @email{mysql@@lists.mysql.com}.  Even if the problem
+isn't a bug, @code{mysqlbug} gathers system information that will help others
+solve your problem.  By not using @code{mysqlbug}, you lessen the likelihood
+of getting a solution to your problem!  You will find @code{mysqlbug} in the
+@file{bin} directory after you unpack the distribution.  @xref{Bug reports}.
+
+@cindex commands, for binary distribution
+The basic commands you must execute to install and use a MySQL
+binary distribution are:
+
+@example
+shell> groupadd mysql
+shell> useradd -g mysql mysql
+shell> cd /usr/local
+shell> gunzip < /path/to/mysql-VERSION-OS.tar.gz | tar xvf -
+shell> ln -s mysql-VERSION-OS mysql
+shell> cd mysql
+shell> scripts/mysql_install_db
+shell> chown -R root  /usr/local/mysql
+shell> chown -R mysql /usr/local/mysql/data
+shell> chgrp -R mysql /usr/local/mysql
+shell> chown -R root /usr/local/mysql/bin
+shell> bin/safe_mysqld --user=mysql &
+@end example
+
+@cindex adding, new users
+@cindex new users, adding
+@cindex users, adding
+
+You can add new users using the @code{bin/mysql_setpermission} script if
+you install the @code{DBI} and @code{Msql-Mysql-modules} Perl modules.
+
+A more detailed description follows.
+
+To install a binary distribution, follow the steps below, then proceed
+to @ref{Post-installation}, for post-installation setup and testing:
+
+@enumerate
+@item
+Pick the directory under which you want to unpack the distribution, and move
+into it.  In the example below, we unpack the distribution under
+@file{/usr/local} and create a directory @file{/usr/local/mysql} into which
+MySQL is installed.  (The following instructions therefore assume
+you have permission to create files in @file{/usr/local}.  If that directory
+is protected, you will need to perform the installation as @code{root}.)
+
+@item
+Obtain a distribution file from one of the sites listed in
+@ref{Getting MySQL, , Getting MySQL}.
+
+MySQL binary distributions are provided as compressed @code{tar}
+archives and have names like @file{mysql-VERSION-OS.tar.gz}, where
+@code{VERSION} is a number (for example, @code{3.21.15}), and @code{OS}
+indicates the type of operating system for which the distribution is intended
+(for example, @code{pc-linux-gnu-i586}).
+
+@item
+If you see a binary distribution marked with the @code{-max} prefix, this
+means that the binary has support for transaction-safe tables and other
+features. @xref{mysqld-max, , @code{mysqld-max}}.  Note that all binaries
+are built from the same MySQL source distribution.
+
+@item
+Add a user and group for @code{mysqld} to run as:
+
+@example
+shell> groupadd mysql
+shell> useradd -g mysql mysql
+@end example
+
+These commands add the @code{mysql} group and the @code{mysql} user.  The
+syntax for @code{useradd} and @code{groupadd} may differ slightly on different
+versions of Unix.  They may also be called @code{adduser} and @code{addgroup}.
+You may wish to call the user and group something else instead of @code{mysql}.
+
+@item
+Change into the intended installation directory:
+
+@example
+shell> cd /usr/local
+@end example
+
+@item
+Unpack the distribution and create the installation directory:
+
+@example
+shell> gunzip < /path/to/mysql-VERSION-OS.tar.gz | tar xvf -
+shell> ln -s mysql-VERSION-OS mysql
+@end example
+
+The first command creates a directory named @file{mysql-VERSION-OS}.  The
+second command makes a symbolic link to that directory.  This lets you refer
+more easily to the installation directory as @file{/usr/local/mysql}.
+
+@item
+Change into the installation directory:
+
+@example
+shell> cd mysql
+@end example
+
+You will find several files and subdirectories in the @code{mysql} directory.
+The most important for installation purposes are the @file{bin} and
+@file{scripts} subdirectories.
+
+@table @file
+@item bin
+@tindex PATH environment variable
+@tindex environment variable, PATH
+This directory contains client programs and the server
+You should add the full pathname of this directory to your
+@code{PATH} environment variable so that your shell finds the MySQL
+programs properly. @xref{Environment variables}.
+
+@item scripts
+This directory contains the @code{mysql_install_db} script used to initialize
+the @code{mysql} database containing the grant tables that store the server
+access permissions.
+@end table
+
+@item
+If you would like to use @code{mysqlaccess} and have the MySQL
+distribution in some non-standard place, you must change the location where
+@code{mysqlaccess} expects to find the @code{mysql} client.  Edit the
+@file{bin/mysqlaccess} script at approximately line 18.  Search for a line
+that looks like this:
+
+@example
+$MYSQL     = '/usr/local/bin/mysql';    # path to mysql executable
+@end example
+
+Change the path to reflect the location where @code{mysql} actually is
+stored on your system.  If you do not do this, you will get a @code{Broken
+pipe} error when you run @code{mysqlaccess}.
+
+@item
+Create the MySQL grant tables (necessary only if you haven't
+installed MySQL before):
+@example
+shell> scripts/mysql_install_db
+@end example
+
+Note that MySQL versions older than Version 3.22.10 started the
+MySQL server when you run @code{mysql_install_db}.  This is no
+longer true!
+
+@item
+Change ownership of binaries to @code{root} and ownership of the data 
+directory to the user that you will run @code{mysqld} as:
+
+@example
+shell> chown -R root  /usr/local/mysql
+shell> chown -R mysql /usr/local/mysql/data
+shell> chgrp -R mysql /usr/local/mysql
+@end example
+
+The first command changes the @code{owner} attribute of the files to the
+@code{root} user, the second one changes the @code{owner} attribute of the 
+data directory to the @code{mysql} user, and the third one changes the
+@code{group} attribute to the @code{mysql} group.
+
+@item
+If you want to install support for the Perl @code{DBI}/@code{DBD} interface,
+see @ref{Perl support}.
+
+@item
+If you would like MySQL to start automatically when you boot your
+machine, you can copy @code{support-files/mysql.server} to the location where
+your system has its startup files.  More information can be found in the
+@code{support-files/mysql.server} script itself and in 
+@ref{Automatic start}.
+
+@end enumerate
+
+After everything has been unpacked and installed, you should initialize
+and test your distribution.
+
+You can start the MySQL server with the following command:
+
+@example
+shell> bin/safe_mysqld --user=mysql &
+@end example
+
+@xref{safe_mysqld, , @code{safe_mysqld}}.
+
+@xref{Post-installation}.
 
 
 @node Installing source, Post-installation, General Installation Issues, Installing
@@ -9276,7 +9494,7 @@ After you import the @code{mysql} database on the new machine, execute
 information.
 
 
-@node Operating System Specific Notes,  , Upgrade, Installing
+@node Operating System Specific Notes, Perl support, Upgrade, Installing
 @section Operating System Specific Notes
 
 @menu
@@ -11793,6 +12011,301 @@ a port.
 
 We are interested in finding someone to do a port, and we will help them
 with any technical questions they may have while doing the port.
+
+
+
+@node Perl support,  , Operating System Specific Notes, Installing
+@section Perl Installation Comments
+
+@cindex Perl, installing
+@cindex installing, Perl
+
+@menu
+* Perl installation::           Installing Perl on Unix
+* ActiveState Perl::            Installing ActiveState Perl on Windows
+* Windows Perl::                Installing the MySQL Perl distribution on Windows
+* Perl support problems::       Problems using the Perl @code{DBI}/@code{DBD} interface
+@end menu
+
+
+@node Perl installation, ActiveState Perl, Perl support, Perl support
+@subsection Installing Perl on Unix
+
+Perl support for MySQL is provided by means of the
+@code{DBI}/@code{DBD} client interface.  @xref{Perl}.  The Perl
+@code{DBD}/@code{DBI} client code requires Perl Version 5.004 or later.  The
+interface @strong{will not work} if you have an older version of Perl.
+
+MySQL Perl support also requires that you've installed
+MySQL client programming support.  If you installed MySQL
+from RPM files, client programs are in the client RPM, but client programming
+support is in the developer RPM.  Make sure you've installed the latter RPM.
+
+As of Version 3.22.8, Perl support is distributed separately from the main
+MySQL distribution.  If you want to install Perl support, the files
+you will need can be obtained from 
+@uref{http://www.mysql.com/Downloads/Contrib/}.
+
+The Perl distributions are provided as compressed @code{tar} archives and
+have names like @file{MODULE-VERSION.tar.gz}, where @code{MODULE} is the
+module name and @code{VERSION} is the version number.  You should get the
+@code{Data-Dumper}, @code{DBI}, and @code{Msql-Mysql-modules} distributions
+and install them in that order.  The installation procedure is shown below.
+The example shown is for the @code{Data-Dumper} module, but the procedure is
+the same for all three distributions:
+
+@enumerate
+@item
+Unpack the distribution into the current directory:
+@example
+shell> gunzip < Data-Dumper-VERSION.tar.gz | tar xvf -
+@end example
+This command creates a directory named @file{Data-Dumper-VERSION}.
+
+@item
+Change into the top-level directory of the unpacked distribution:
+@example
+shell> cd Data-Dumper-VERSION
+@end example
+
+@item
+Build the distribution and compile everything:
+@example
+shell> perl Makefile.PL
+shell> make
+shell> make test
+shell> make install
+@end example
+@end enumerate
+
+The @code{make test} command is important because it verifies that the
+module is working.  Note that when you run that command during the
+@code{Msql-Mysql-modules} installation to exercise the interface code, the
+MySQL server must be running or the test will fail.
+
+It is a good idea to rebuild and reinstall the @code{Msql-Mysql-modules}
+distribution whenever you install a new release of MySQL,
+particularly if you notice symptoms such as all your @code{DBI} scripts
+dumping core after you upgrade MySQL.
+
+If you don't have the right to install Perl modules in the system directory
+or if you to install local Perl modules, the following reference may help
+you:
+
+@example
+@uref{http://www.iserver.com/support/contrib/perl5/modules.html}
+@end example
+
+Look under the heading
+@code{Installing New Modules that Require Locally Installed Modules}.
+
+
+@node ActiveState Perl, Windows Perl, Perl installation, Perl support
+@subsection Installing ActiveState Perl on Windows
+
+@cindex installing, Perl on Windows
+@cindex Perl, installing on Windows
+@cindex ActiveState Perl
+
+To install the MySQL @code{DBD} module with ActiveState Perl on
+Windows, you should do the following:
+
+@itemize @bullet
+@item 
+Get ActiveState Perl from 
+@uref{http://www.activestate.com/Products/ActivePerl/index.html}
+and install it.
+
+@item
+Open a DOS shell.
+
+@item 
+If required, set the HTTP_proxy variable. For example, you might try:
+
+@example
+set HTTP_proxy=my.proxy.com:3128
+@end example
+
+@item
+Start the PPM program: 
+
+@example
+C:\> c:\perl\bin\ppm.pl
+@end example
+
+@item
+If you have not already done so, install @code{DBI}:
+
+@example
+ppm> install DBI
+@end example
+
+@item
+If this succeeds, run the following command:
+
+@example
+install ftp://ftp.de.uu.net/pub/CPAN/authors/id/JWIED/DBD-mysql-1.2212.x86.ppd
+@end example
+@end itemize
+
+The above should work at least with ActiveState Perl Version 5.6.
+
+If you can't get the above to work, you should instead install the
+@strong{MyODBC} driver and connect to MySQL server through
+ODBC:
+
+@example
+use DBI;
+$dbh= DBI->connect("DBI:ODBC:$dsn","$user","$password") ||
+  die "Got error $DBI::errstr when connecting to $dsn\n";
+@end example
+
+
+@node Windows Perl, Perl support problems, ActiveState Perl, Perl support
+@subsection Installing the MySQL Perl Distribution on Windows
+
+The MySQL Perl distribution contains @code{DBI},
+@code{DBD:MySQL} and @code{DBD:ODBC}.
+
+@itemize @bullet
+@item 
+Get the Perl distribution for Windows from
+@uref{http://www.mysql.com/download.html}.
+
+@item
+Unzip the distribution in @code{C:} so that you get a @file{C:\PERL} directory.
+
+@item
+Add the directory @file{C:\PERL\BIN} to your path.
+
+@item
+Add the directory @file{C:\PERL\BIN\MSWIN32-x86-thread} or
+@file{C:\PERL\BIN\MSWIN32-x86} to your path.
+
+@item
+Test that @code{perl} works by executing @code{perl -v} in a DOS shell.
+@end itemize
+
+
+@node Perl support problems,  , Windows Perl, Perl support
+@subsection Problems Using the Perl @code{DBI}/@code{DBD} Interface
+
+@cindex problems, installing Perl
+@cindex Perl DBI/DBD, installation problems
+
+If Perl reports that it can't find the @file{../mysql/mysql.so} module,
+then the problem is probably that Perl can't locate the shared library
+@file{libmysqlclient.so}.
+
+You can fix this by any of the following methods:
+
+@itemize @bullet
+@item
+Compile the @code{Msql-Mysql-modules} distribution with @code{perl
+Makefile.PL -static -config} rather than @code{perl Makefile.PL}.
+
+@item
+Copy @code{libmysqlclient.so} to the directory where your other shared
+libraries are located (probably @file{/usr/lib} or @file{/lib}).
+
+@item
+On Linux you can add the pathname of the directory where
+@file{libmysqlclient.so} is located to the @file{/etc/ld.so.conf} file.
+
+@tindex LD_RUN_PATH environment variable
+@tindex Environment variable, LD_RUN_PATH
+@item
+Add the pathname of the directory where @file{libmysqlclient.so} is located
+to the @code{LD_RUN_PATH} environment variable.
+@end itemize
+
+If you get the following errors from @code{DBD-mysql},
+you are probably using @code{gcc} (or using an old binary compiled with
+@code{gcc}):
+
+@example
+/usr/bin/perl: can't resolve symbol '__moddi3'
+/usr/bin/perl: can't resolve symbol '__divdi3'
+@end example
+
+Add @code{-L/usr/lib/gcc-lib/... -lgcc} to the link command when the
+@file{mysql.so} library gets built (check the output from @code{make} for
+@file{mysql.so} when you compile the Perl client).  The @code{-L} option
+should specify the pathname of the directory where @file{libgcc.a} is located
+on your system.
+
+Another cause of this problem may be that Perl and MySQL aren't both
+compiled with @code{gcc}.  In this case, you can solve the mismatch by
+compiling both with @code{gcc}.
+
+If you get the following error from @code{Msql-Mysql-modules}
+when you run the tests:
+
+@example
+t/00base............install_driver(mysql) failed: Can't load '../blib/arch/auto/DBD/mysql/mysql.so' for module DBD::mysql: ../blib/arch/auto/DBD/mysql/mysql.so: undefined symbol: uncompress at /usr/lib/perl5/5.00503/i586-linux/DynaLoader.pm line 169.
+@end example
+
+it means that you need to include the compression library, -lz, to the
+link line. This can be doing the following change in the file
+@file{lib/DBD/mysql/Install.pm}:
+
+@example
+$sysliblist .= " -lm";
+
+to
+
+$sysliblist .= " -lm -lz";
+@end example
+
+After this, you MUST run 'make realclean' and then proceed with the
+installation from the beginning.
+
+If you want to use the Perl module on a system that doesn't support dynamic
+linking (like SCO) you can generate a static version of Perl that includes
+@code{DBI} and @code{DBD-mysql}.  The way this works is that you generate a
+version of Perl with the @code{DBI} code linked in and install it on top of
+your current Perl.  Then you use that to build a version of Perl that
+additionally has the @code{DBD} code linked in, and install that.
+
+On SCO, you must have the following environment variables set:
+
+@example
+shell> LD_LIBRARY_PATH=/lib:/usr/lib:/usr/local/lib:/usr/progressive/lib
+or
+shell> LD_LIBRARY_PATH=/usr/lib:/lib:/usr/local/lib:/usr/ccs/lib:/usr/progressive/lib:/usr/skunk/lib
+shell> LIBPATH=/usr/lib:/lib:/usr/local/lib:/usr/ccs/lib:/usr/progressive/lib:/usr/skunk/lib
+shell> MANPATH=scohelp:/usr/man:/usr/local1/man:/usr/local/man:/usr/skunk/man:
+@end example
+
+First, create a Perl that includes a statically linked @code{DBI} by running
+these commands in the directory where your @code{DBI} distribution is
+located:
+
+@example
+shell> perl Makefile.PL -static -config
+shell> make
+shell> make install
+shell> make perl
+@end example
+
+Then you must install the new Perl. The output of @code{make perl} will
+indicate the exact @code{make} command you will need to execute to perform
+the installation.  On SCO, this is @code{make -f Makefile.aperl inst_perl
+MAP_TARGET=perl}.
+
+Next, use the just-created Perl to create another Perl that also includes a
+statically-linked @code{DBD::mysql} by running these commands in the
+directory where your @code{Msql-Mysql-modules} distribution is located:
+
+@example
+shell> perl Makefile.PL -static -config
+shell> make
+shell> make install
+shell> make perl
+@end example
+
+Finally, you should install this new Perl.  Again, the output of @code{make
+perl} indicates the command to use.
 
 
 
@@ -29428,6 +29941,7 @@ mysql> select MOD(29,9);
 * Numeric Functions::           Numeric Functions
 * Date and time functions::     Date and time functions
 * Other Functions::             Other Functions
+* Group by functions::          
 @end menu
 
 
@@ -31666,7 +32180,7 @@ mysql> select TIME_TO_SEC('00:39:38');
 @end table
 
 
-@node Other Functions,  , Date and time functions, Functions
+@node Other Functions, Group by functions, Date and time functions, Functions
 @subsection Other Functions
 
 @menu
@@ -32028,6 +32542,164 @@ wait to get to the specified position, or NULL in case of error. Useful for
 control of master-slave synchronization, but was originally written to
 facilitate replication testing.
 @end table
+
+
+@node Group by functions,  , Other Functions, Functions
+@subsection Functions for Use with @code{GROUP BY} Clauses
+
+@findex GROUP BY functions
+@findex functions, GROUP BY
+
+If you use a group function in a statement containing no @code{GROUP BY}
+clause, it is equivalent to grouping on all rows.
+
+@table @code
+@findex COUNT()
+@item COUNT(expr)
+Returns a count of the number of non-@code{NULL} values in the rows
+retrieved by a @code{SELECT} statement:
+
+@example
+mysql> select student.student_name,COUNT(*)
+           from student,course
+           where student.student_id=course.student_id
+           GROUP BY student_name;
+
+@end example
+
+@code{COUNT(*)} is somewhat different in that it returns a count of
+the number of rows retrieved, whether or not they contain @code{NULL}
+values.
+
+@code{COUNT(*)} is optimized to
+return very quickly if the @code{SELECT} retrieves from one table, no
+other columns are retrieved, and there is no @code{WHERE} clause.
+For example:
+
+@example
+mysql> select COUNT(*) from student;
+@end example
+
+@findex COUNT(DISTINCT)
+@findex DISTINCT
+@item COUNT(DISTINCT expr,[expr...])
+Returns a count of the number of different non-@code{NULL} values:
+
+@example
+mysql> select COUNT(DISTINCT results) from student;
+@end example
+
+In MySQL you can get the number of distinct expression
+combinations that don't contain NULL by giving a list of expressions.
+In ANSI SQL you would have to do a concatenation of all expressions
+inside @code{CODE(DISTINCT ..)}.
+
+@findex AVG()
+@item AVG(expr)
+Returns the average value of @code{expr}:
+
+@example
+mysql> select student_name, AVG(test_score)
+           from student
+           GROUP BY student_name;
+@end example
+
+@findex MIN()
+@findex MAX()
+@item MIN(expr)
+@itemx MAX(expr)
+Returns the minimum or maximum value of @code{expr}.  @code{MIN()} and
+@code{MAX()} may take a string argument; in such cases they return the
+minimum or maximum string value. @xref{MySQL indexes}.
+
+@example
+mysql> select student_name, MIN(test_score), MAX(test_score)
+           from student
+           GROUP BY student_name;
+@end example
+
+@findex SUM()
+@item SUM(expr)
+Returns the sum of @code{expr}.  Note that if the return set has no rows,
+it returns NULL!
+
+@findex STD()
+@findex STDDEV()
+@cindex Oracle compatibility
+@cindex compatibility, with Oracle
+@item STD(expr)
+@itemx STDDEV(expr)
+Returns the standard deviation of @code{expr}. This is an extension to
+ANSI SQL. The @code{STDDEV()} form of this function is provided for Oracle
+compatibility.
+
+@findex BIT_OR()
+@item BIT_OR(expr)
+Returns the bitwise @code{OR} of all bits in @code{expr}. The calculation is
+performed with 64-bit (@code{BIGINT}) precision.
+
+@findex BIT_AND()
+@item BIT_AND(expr)
+Returns the bitwise @code{AND} of all bits in @code{expr}. The calculation is
+performed with 64-bit (@code{BIGINT}) precision.
+@end table
+
+@cindex @code{GROUP BY}, extensions to ANSI SQL
+MySQL has extended the use of @code{GROUP BY}. You can use columns or
+calculations in the @code{SELECT} expressions that don't appear in
+the @code{GROUP BY} part. This stands for @emph{any possible value for this
+group}.  You can use this to get better performance by avoiding sorting and
+grouping on unnecessary items.  For example, you don't need to group on
+@code{customer.name} in the following query:
+
+@example
+mysql> select order.custid,customer.name,max(payments)
+       from order,customer
+       where order.custid = customer.custid
+       GROUP BY order.custid;
+@end example
+
+In ANSI SQL, you would have to add @code{customer.name} to the @code{GROUP
+BY} clause.  In MySQL, the name is redundant if you don't run in
+ANSI mode.
+
+@strong{Don't use this feature} if the columns you omit from the
+@code{GROUP BY} part aren't unique in the group!  You will get
+unpredictable results.
+
+In some cases, you can use @code{MIN()} and @code{MAX()} to obtain a specific
+column value even if it isn't unique. The following gives the value of
+@code{column} from the row containing the smallest value in the @code{sort}
+column:
+
+@example
+substr(MIN(concat(rpad(sort,6,' '),column)),7)
+@end example
+
+@xref{example-Maximum-column-group-row}.
+
+@cindex @code{ORDER BY}, aliases in
+@cindex aliases, in @code{ORDER BY} clauses
+@cindex @code{GROUP BY}, aliases in
+@cindex aliases, in @code{GROUP BY} clauses
+@cindex expression aliases
+@cindex aliases, for expressions
+Note that if you are using MySQL Version 3.22 (or earlier) or if
+you are trying to follow ANSI SQL, you can't use expressions in @code{GROUP
+BY} or @code{ORDER BY} clauses.  You can work around this limitation by
+using an alias for the expression:
+
+@example
+mysql> SELECT id,FLOOR(value/100) AS val FROM tbl_name
+           GROUP BY id,val ORDER BY val;
+@end example
+
+In MySQL Version 3.23 you can do:
+
+@example
+mysql> SELECT id,FLOOR(value/100) FROM tbl_name ORDER BY RAND();
+@end example
+
 
 
 @node Data Manipulation, Data Definition, Functions, Reference
@@ -54536,7 +55208,7 @@ Public License instead of this License.
 
 
 
-@node LGPL license, Placeholder, GPL license, Top
+@node LGPL license, Function Index, GPL license, Top
 @appendix GNU LESSER GENERAL PUBLIC LICENSE
 
 @cindex LGPL, Lesser General Public License
@@ -55107,690 +55779,7 @@ That's all there is to it!
 
 
 
-@node Placeholder, Function Index, LGPL license, Top
-@appendix Pieces of the manual in transit
-
-@menu
-* Installing binary::           Installing a MySQL Binary Distribution
-* Perl support::                Perl Installation Comments
-* Group by functions::          Functions for Use with @code{GROUP BY} Clauses
-@end menu
-
-
-@node Installing binary, Perl support, Placeholder, Placeholder
-@appendixsec Installing a MySQL Binary Distribution
-
-@cindex installing, binary distribution
-@cindex binary distributions, installing
-
-@menu
-* Linux-RPM::                   Linux RPM files
-* Building clients::            Building client programs
-@end menu
-
-You need the following tools to install a MySQL binary distribution:
-
-@itemize @bullet
-@item
-GNU @code{gunzip} to uncompress the distribution.
-
-@item
-A reasonable @code{tar} to unpack the distribution. GNU @code{tar} is
-known to work.  Sun @code{tar} is known to have problems.
-@end itemize
-
-@cindex RPM, defined
-@cindex RedHat Package Manager
-An alternative installation method under Linux is to use RPM (RedHat Package
-Manager) distributions.  @xref{Linux-RPM}.
-
-@c texi2html fails to split chapters if I use strong for all of this.
-If you run into problems, @strong{PLEASE ALWAYS USE} @code{mysqlbug} when
-posting questions to @email{mysql@@lists.mysql.com}.  Even if the problem
-isn't a bug, @code{mysqlbug} gathers system information that will help others
-solve your problem.  By not using @code{mysqlbug}, you lessen the likelihood
-of getting a solution to your problem!  You will find @code{mysqlbug} in the
-@file{bin} directory after you unpack the distribution.  @xref{Bug reports}.
-
-@cindex commands, for binary distribution
-The basic commands you must execute to install and use a MySQL
-binary distribution are:
-
-@example
-shell> groupadd mysql
-shell> useradd -g mysql mysql
-shell> cd /usr/local
-shell> gunzip < /path/to/mysql-VERSION-OS.tar.gz | tar xvf -
-shell> ln -s mysql-VERSION-OS mysql
-shell> cd mysql
-shell> scripts/mysql_install_db
-shell> chown -R root  /usr/local/mysql
-shell> chown -R mysql /usr/local/mysql/data
-shell> chgrp -R mysql /usr/local/mysql
-shell> chown -R root /usr/local/mysql/bin
-shell> bin/safe_mysqld --user=mysql &
-@end example
-
-@cindex adding, new users
-@cindex new users, adding
-@cindex users, adding
-
-You can add new users using the @code{bin/mysql_setpermission} script if
-you install the @code{DBI} and @code{Msql-Mysql-modules} Perl modules.
-
-A more detailed description follows.
-
-To install a binary distribution, follow the steps below, then proceed
-to @ref{Post-installation}, for post-installation setup and testing:
-
-@enumerate
-@item
-Pick the directory under which you want to unpack the distribution, and move
-into it.  In the example below, we unpack the distribution under
-@file{/usr/local} and create a directory @file{/usr/local/mysql} into which
-MySQL is installed.  (The following instructions therefore assume
-you have permission to create files in @file{/usr/local}.  If that directory
-is protected, you will need to perform the installation as @code{root}.)
-
-@item
-Obtain a distribution file from one of the sites listed in
-@ref{Getting MySQL, , Getting MySQL}.
-
-MySQL binary distributions are provided as compressed @code{tar}
-archives and have names like @file{mysql-VERSION-OS.tar.gz}, where
-@code{VERSION} is a number (for example, @code{3.21.15}), and @code{OS}
-indicates the type of operating system for which the distribution is intended
-(for example, @code{pc-linux-gnu-i586}).
-
-@item
-If you see a binary distribution marked with the @code{-max} prefix, this
-means that the binary has support for transaction-safe tables and other
-features. @xref{mysqld-max, , @code{mysqld-max}}.  Note that all binaries
-are built from the same MySQL source distribution.
-
-@item
-Add a user and group for @code{mysqld} to run as:
-
-@example
-shell> groupadd mysql
-shell> useradd -g mysql mysql
-@end example
-
-These commands add the @code{mysql} group and the @code{mysql} user.  The
-syntax for @code{useradd} and @code{groupadd} may differ slightly on different
-versions of Unix.  They may also be called @code{adduser} and @code{addgroup}.
-You may wish to call the user and group something else instead of @code{mysql}.
-
-@item
-Change into the intended installation directory:
-
-@example
-shell> cd /usr/local
-@end example
-
-@item
-Unpack the distribution and create the installation directory:
-
-@example
-shell> gunzip < /path/to/mysql-VERSION-OS.tar.gz | tar xvf -
-shell> ln -s mysql-VERSION-OS mysql
-@end example
-
-The first command creates a directory named @file{mysql-VERSION-OS}.  The
-second command makes a symbolic link to that directory.  This lets you refer
-more easily to the installation directory as @file{/usr/local/mysql}.
-
-@item
-Change into the installation directory:
-
-@example
-shell> cd mysql
-@end example
-
-You will find several files and subdirectories in the @code{mysql} directory.
-The most important for installation purposes are the @file{bin} and
-@file{scripts} subdirectories.
-
-@table @file
-@item bin
-@tindex PATH environment variable
-@tindex environment variable, PATH
-This directory contains client programs and the server
-You should add the full pathname of this directory to your
-@code{PATH} environment variable so that your shell finds the MySQL
-programs properly. @xref{Environment variables}.
-
-@item scripts
-This directory contains the @code{mysql_install_db} script used to initialize
-the @code{mysql} database containing the grant tables that store the server
-access permissions.
-@end table
-
-@item
-If you would like to use @code{mysqlaccess} and have the MySQL
-distribution in some non-standard place, you must change the location where
-@code{mysqlaccess} expects to find the @code{mysql} client.  Edit the
-@file{bin/mysqlaccess} script at approximately line 18.  Search for a line
-that looks like this:
-
-@example
-$MYSQL     = '/usr/local/bin/mysql';    # path to mysql executable
-@end example
-
-Change the path to reflect the location where @code{mysql} actually is
-stored on your system.  If you do not do this, you will get a @code{Broken
-pipe} error when you run @code{mysqlaccess}.
-
-@item
-Create the MySQL grant tables (necessary only if you haven't
-installed MySQL before):
-@example
-shell> scripts/mysql_install_db
-@end example
-
-Note that MySQL versions older than Version 3.22.10 started the
-MySQL server when you run @code{mysql_install_db}.  This is no
-longer true!
-
-@item
-Change ownership of binaries to @code{root} and ownership of the data 
-directory to the user that you will run @code{mysqld} as:
-
-@example
-shell> chown -R root  /usr/local/mysql
-shell> chown -R mysql /usr/local/mysql/data
-shell> chgrp -R mysql /usr/local/mysql
-@end example
-
-The first command changes the @code{owner} attribute of the files to the
-@code{root} user, the second one changes the @code{owner} attribute of the 
-data directory to the @code{mysql} user, and the third one changes the
-@code{group} attribute to the @code{mysql} group.
-
-@item
-If you want to install support for the Perl @code{DBI}/@code{DBD} interface,
-see @ref{Perl support}.
-
-@item
-If you would like MySQL to start automatically when you boot your
-machine, you can copy @code{support-files/mysql.server} to the location where
-your system has its startup files.  More information can be found in the
-@code{support-files/mysql.server} script itself and in 
-@ref{Automatic start}.
-
-@end enumerate
-
-After everything has been unpacked and installed, you should initialize
-and test your distribution.
-
-You can start the MySQL server with the following command:
-
-@example
-shell> bin/safe_mysqld --user=mysql &
-@end example
-
-@xref{safe_mysqld, , @code{safe_mysqld}}.
-
-@xref{Post-installation}.
-
-
-
-
-
-
-
-@node Perl support, Group by functions, Installing binary, Placeholder
-@appendixsec Perl Installation Comments
-
-@cindex Perl, installing
-@cindex installing, Perl
-
-@menu
-* Perl installation::           Installing Perl on Unix
-* ActiveState Perl::            Installing ActiveState Perl on Windows
-* Windows Perl::                Installing the MySQL Perl distribution on Windows
-* Perl support problems::       Problems using the Perl @code{DBI}/@code{DBD} interface
-@end menu
-
-
-@node Perl installation, ActiveState Perl, Perl support, Perl support
-@appendixsubsec Installing Perl on Unix
-
-Perl support for MySQL is provided by means of the
-@code{DBI}/@code{DBD} client interface.  @xref{Perl}.  The Perl
-@code{DBD}/@code{DBI} client code requires Perl Version 5.004 or later.  The
-interface @strong{will not work} if you have an older version of Perl.
-
-MySQL Perl support also requires that you've installed
-MySQL client programming support.  If you installed MySQL
-from RPM files, client programs are in the client RPM, but client programming
-support is in the developer RPM.  Make sure you've installed the latter RPM.
-
-As of Version 3.22.8, Perl support is distributed separately from the main
-MySQL distribution.  If you want to install Perl support, the files
-you will need can be obtained from 
-@uref{http://www.mysql.com/Downloads/Contrib/}.
-
-The Perl distributions are provided as compressed @code{tar} archives and
-have names like @file{MODULE-VERSION.tar.gz}, where @code{MODULE} is the
-module name and @code{VERSION} is the version number.  You should get the
-@code{Data-Dumper}, @code{DBI}, and @code{Msql-Mysql-modules} distributions
-and install them in that order.  The installation procedure is shown below.
-The example shown is for the @code{Data-Dumper} module, but the procedure is
-the same for all three distributions:
-
-@enumerate
-@item
-Unpack the distribution into the current directory:
-@example
-shell> gunzip < Data-Dumper-VERSION.tar.gz | tar xvf -
-@end example
-This command creates a directory named @file{Data-Dumper-VERSION}.
-
-@item
-Change into the top-level directory of the unpacked distribution:
-@example
-shell> cd Data-Dumper-VERSION
-@end example
-
-@item
-Build the distribution and compile everything:
-@example
-shell> perl Makefile.PL
-shell> make
-shell> make test
-shell> make install
-@end example
-@end enumerate
-
-The @code{make test} command is important because it verifies that the
-module is working.  Note that when you run that command during the
-@code{Msql-Mysql-modules} installation to exercise the interface code, the
-MySQL server must be running or the test will fail.
-
-It is a good idea to rebuild and reinstall the @code{Msql-Mysql-modules}
-distribution whenever you install a new release of MySQL,
-particularly if you notice symptoms such as all your @code{DBI} scripts
-dumping core after you upgrade MySQL.
-
-If you don't have the right to install Perl modules in the system directory
-or if you to install local Perl modules, the following reference may help
-you:
-
-@example
-@uref{http://www.iserver.com/support/contrib/perl5/modules.html}
-@end example
-
-Look under the heading
-@code{Installing New Modules that Require Locally Installed Modules}.
-
-
-@node ActiveState Perl, Windows Perl, Perl installation, Perl support
-@appendixsubsec Installing ActiveState Perl on Windows
-
-@cindex installing, Perl on Windows
-@cindex Perl, installing on Windows
-@cindex ActiveState Perl
-
-To install the MySQL @code{DBD} module with ActiveState Perl on
-Windows, you should do the following:
-
-@itemize @bullet
-@item 
-Get ActiveState Perl from 
-@uref{http://www.activestate.com/Products/ActivePerl/index.html}
-and install it.
-
-@item
-Open a DOS shell.
-
-@item 
-If required, set the HTTP_proxy variable. For example, you might try:
-
-@example
-set HTTP_proxy=my.proxy.com:3128
-@end example
-
-@item
-Start the PPM program: 
-
-@example
-C:\> c:\perl\bin\ppm.pl
-@end example
-
-@item
-If you have not already done so, install @code{DBI}:
-
-@example
-ppm> install DBI
-@end example
-
-@item
-If this succeeds, run the following command:
-
-@example
-install ftp://ftp.de.uu.net/pub/CPAN/authors/id/JWIED/DBD-mysql-1.2212.x86.ppd
-@end example
-@end itemize
-
-The above should work at least with ActiveState Perl Version 5.6.
-
-If you can't get the above to work, you should instead install the
-@strong{MyODBC} driver and connect to MySQL server through
-ODBC:
-
-@example
-use DBI;
-$dbh= DBI->connect("DBI:ODBC:$dsn","$user","$password") ||
-  die "Got error $DBI::errstr when connecting to $dsn\n";
-@end example
-
-
-@node Windows Perl, Perl support problems, ActiveState Perl, Perl support
-@appendixsubsec Installing the MySQL Perl Distribution on Windows
-
-The MySQL Perl distribution contains @code{DBI},
-@code{DBD:MySQL} and @code{DBD:ODBC}.
-
-@itemize @bullet
-@item 
-Get the Perl distribution for Windows from
-@uref{http://www.mysql.com/download.html}.
-
-@item
-Unzip the distribution in @code{C:} so that you get a @file{C:\PERL} directory.
-
-@item
-Add the directory @file{C:\PERL\BIN} to your path.
-
-@item
-Add the directory @file{C:\PERL\BIN\MSWIN32-x86-thread} or
-@file{C:\PERL\BIN\MSWIN32-x86} to your path.
-
-@item
-Test that @code{perl} works by executing @code{perl -v} in a DOS shell.
-@end itemize
-
-
-@node Perl support problems,  , Windows Perl, Perl support
-@appendixsubsec Problems Using the Perl @code{DBI}/@code{DBD} Interface
-
-@cindex problems, installing Perl
-@cindex Perl DBI/DBD, installation problems
-
-If Perl reports that it can't find the @file{../mysql/mysql.so} module,
-then the problem is probably that Perl can't locate the shared library
-@file{libmysqlclient.so}.
-
-You can fix this by any of the following methods:
-
-@itemize @bullet
-@item
-Compile the @code{Msql-Mysql-modules} distribution with @code{perl
-Makefile.PL -static -config} rather than @code{perl Makefile.PL}.
-
-@item
-Copy @code{libmysqlclient.so} to the directory where your other shared
-libraries are located (probably @file{/usr/lib} or @file{/lib}).
-
-@item
-On Linux you can add the pathname of the directory where
-@file{libmysqlclient.so} is located to the @file{/etc/ld.so.conf} file.
-
-@tindex LD_RUN_PATH environment variable
-@tindex Environment variable, LD_RUN_PATH
-@item
-Add the pathname of the directory where @file{libmysqlclient.so} is located
-to the @code{LD_RUN_PATH} environment variable.
-@end itemize
-
-If you get the following errors from @code{DBD-mysql},
-you are probably using @code{gcc} (or using an old binary compiled with
-@code{gcc}):
-
-@example
-/usr/bin/perl: can't resolve symbol '__moddi3'
-/usr/bin/perl: can't resolve symbol '__divdi3'
-@end example
-
-Add @code{-L/usr/lib/gcc-lib/... -lgcc} to the link command when the
-@file{mysql.so} library gets built (check the output from @code{make} for
-@file{mysql.so} when you compile the Perl client).  The @code{-L} option
-should specify the pathname of the directory where @file{libgcc.a} is located
-on your system.
-
-Another cause of this problem may be that Perl and MySQL aren't both
-compiled with @code{gcc}.  In this case, you can solve the mismatch by
-compiling both with @code{gcc}.
-
-If you get the following error from @code{Msql-Mysql-modules}
-when you run the tests:
-
-@example
-t/00base............install_driver(mysql) failed: Can't load '../blib/arch/auto/DBD/mysql/mysql.so' for module DBD::mysql: ../blib/arch/auto/DBD/mysql/mysql.so: undefined symbol: uncompress at /usr/lib/perl5/5.00503/i586-linux/DynaLoader.pm line 169.
-@end example
-
-it means that you need to include the compression library, -lz, to the
-link line. This can be doing the following change in the file
-@file{lib/DBD/mysql/Install.pm}:
-
-@example
-$sysliblist .= " -lm";
-
-to
-
-$sysliblist .= " -lm -lz";
-@end example
-
-After this, you MUST run 'make realclean' and then proceed with the
-installation from the beginning.
-
-If you want to use the Perl module on a system that doesn't support dynamic
-linking (like SCO) you can generate a static version of Perl that includes
-@code{DBI} and @code{DBD-mysql}.  The way this works is that you generate a
-version of Perl with the @code{DBI} code linked in and install it on top of
-your current Perl.  Then you use that to build a version of Perl that
-additionally has the @code{DBD} code linked in, and install that.
-
-On SCO, you must have the following environment variables set:
-
-@example
-shell> LD_LIBRARY_PATH=/lib:/usr/lib:/usr/local/lib:/usr/progressive/lib
-or
-shell> LD_LIBRARY_PATH=/usr/lib:/lib:/usr/local/lib:/usr/ccs/lib:/usr/progressive/lib:/usr/skunk/lib
-shell> LIBPATH=/usr/lib:/lib:/usr/local/lib:/usr/ccs/lib:/usr/progressive/lib:/usr/skunk/lib
-shell> MANPATH=scohelp:/usr/man:/usr/local1/man:/usr/local/man:/usr/skunk/man:
-@end example
-
-First, create a Perl that includes a statically linked @code{DBI} by running
-these commands in the directory where your @code{DBI} distribution is
-located:
-
-@example
-shell> perl Makefile.PL -static -config
-shell> make
-shell> make install
-shell> make perl
-@end example
-
-Then you must install the new Perl. The output of @code{make perl} will
-indicate the exact @code{make} command you will need to execute to perform
-the installation.  On SCO, this is @code{make -f Makefile.aperl inst_perl
-MAP_TARGET=perl}.
-
-Next, use the just-created Perl to create another Perl that also includes a
-statically-linked @code{DBD::mysql} by running these commands in the
-directory where your @code{Msql-Mysql-modules} distribution is located:
-
-@example
-shell> perl Makefile.PL -static -config
-shell> make
-shell> make install
-shell> make perl
-@end example
-
-Finally, you should install this new Perl.  Again, the output of @code{make
-perl} indicates the command to use.
-
-
-@node Group by functions,  , Perl support, Placeholder
-@appendixsec Functions for Use with @code{GROUP BY} Clauses
-
-@findex GROUP BY functions
-@findex functions, GROUP BY
-
-If you use a group function in a statement containing no @code{GROUP BY}
-clause, it is equivalent to grouping on all rows.
-
-@table @code
-@findex COUNT()
-@item COUNT(expr)
-Returns a count of the number of non-@code{NULL} values in the rows
-retrieved by a @code{SELECT} statement:
-
-@example
-mysql> select student.student_name,COUNT(*)
-           from student,course
-           where student.student_id=course.student_id
-           GROUP BY student_name;
-
-@end example
-
-@code{COUNT(*)} is somewhat different in that it returns a count of
-the number of rows retrieved, whether or not they contain @code{NULL}
-values.
-
-@code{COUNT(*)} is optimized to
-return very quickly if the @code{SELECT} retrieves from one table, no
-other columns are retrieved, and there is no @code{WHERE} clause.
-For example:
-
-@example
-mysql> select COUNT(*) from student;
-@end example
-
-@findex COUNT(DISTINCT)
-@findex DISTINCT
-@item COUNT(DISTINCT expr,[expr...])
-Returns a count of the number of different non-@code{NULL} values:
-
-@example
-mysql> select COUNT(DISTINCT results) from student;
-@end example
-
-In MySQL you can get the number of distinct expression
-combinations that don't contain NULL by giving a list of expressions.
-In ANSI SQL you would have to do a concatenation of all expressions
-inside @code{CODE(DISTINCT ..)}.
-
-@findex AVG()
-@item AVG(expr)
-Returns the average value of @code{expr}:
-
-@example
-mysql> select student_name, AVG(test_score)
-           from student
-           GROUP BY student_name;
-@end example
-
-@findex MIN()
-@findex MAX()
-@item MIN(expr)
-@itemx MAX(expr)
-Returns the minimum or maximum value of @code{expr}.  @code{MIN()} and
-@code{MAX()} may take a string argument; in such cases they return the
-minimum or maximum string value. @xref{MySQL indexes}.
-
-@example
-mysql> select student_name, MIN(test_score), MAX(test_score)
-           from student
-           GROUP BY student_name;
-@end example
-
-@findex SUM()
-@item SUM(expr)
-Returns the sum of @code{expr}.  Note that if the return set has no rows,
-it returns NULL!
-
-@findex STD()
-@findex STDDEV()
-@cindex Oracle compatibility
-@cindex compatibility, with Oracle
-@item STD(expr)
-@itemx STDDEV(expr)
-Returns the standard deviation of @code{expr}. This is an extension to
-ANSI SQL. The @code{STDDEV()} form of this function is provided for Oracle
-compatibility.
-
-@findex BIT_OR()
-@item BIT_OR(expr)
-Returns the bitwise @code{OR} of all bits in @code{expr}. The calculation is
-performed with 64-bit (@code{BIGINT}) precision.
-
-@findex BIT_AND()
-@item BIT_AND(expr)
-Returns the bitwise @code{AND} of all bits in @code{expr}. The calculation is
-performed with 64-bit (@code{BIGINT}) precision.
-@end table
-
-@cindex @code{GROUP BY}, extensions to ANSI SQL
-MySQL has extended the use of @code{GROUP BY}. You can use columns or
-calculations in the @code{SELECT} expressions that don't appear in
-the @code{GROUP BY} part. This stands for @emph{any possible value for this
-group}.  You can use this to get better performance by avoiding sorting and
-grouping on unnecessary items.  For example, you don't need to group on
-@code{customer.name} in the following query:
-
-@example
-mysql> select order.custid,customer.name,max(payments)
-       from order,customer
-       where order.custid = customer.custid
-       GROUP BY order.custid;
-@end example
-
-In ANSI SQL, you would have to add @code{customer.name} to the @code{GROUP
-BY} clause.  In MySQL, the name is redundant if you don't run in
-ANSI mode.
-
-@strong{Don't use this feature} if the columns you omit from the
-@code{GROUP BY} part aren't unique in the group!  You will get
-unpredictable results.
-
-In some cases, you can use @code{MIN()} and @code{MAX()} to obtain a specific
-column value even if it isn't unique. The following gives the value of
-@code{column} from the row containing the smallest value in the @code{sort}
-column:
-
-@example
-substr(MIN(concat(rpad(sort,6,' '),column)),7)
-@end example
-
-@xref{example-Maximum-column-group-row}.
-
-@cindex @code{ORDER BY}, aliases in
-@cindex aliases, in @code{ORDER BY} clauses
-@cindex @code{GROUP BY}, aliases in
-@cindex aliases, in @code{GROUP BY} clauses
-@cindex expression aliases
-@cindex aliases, for expressions
-Note that if you are using MySQL Version 3.22 (or earlier) or if
-you are trying to follow ANSI SQL, you can't use expressions in @code{GROUP
-BY} or @code{ORDER BY} clauses.  You can work around this limitation by
-using an alias for the expression:
-
-@example
-mysql> SELECT id,FLOOR(value/100) AS val FROM tbl_name
-           GROUP BY id,val ORDER BY val;
-@end example
-
-In MySQL Version 3.23 you can do:
-
-@example
-mysql> SELECT id,FLOOR(value/100) FROM tbl_name ORDER BY RAND();
-@end example
-
-
-@node Function Index, Concept Index, Placeholder, Top
+@node Function Index, Concept Index, LGPL license, Top
 @unnumbered SQL command, type and function index
 
 @printindex fn
