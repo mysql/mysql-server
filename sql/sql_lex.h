@@ -303,7 +303,7 @@ public:
   st_select_lex* outer_select();
   st_select_lex* first_select() { return (st_select_lex*) slave; }
   st_select_lex_unit* next_unit() { return (st_select_lex_unit*) next; }
-  void st_select_lex_unit::exclude_level();
+  void exclude_level();
 
   /* UNION methods */
   int prepare(THD *thd, select_result *result);

@@ -1,9 +1,51 @@
-Microsoft Developer Studio Workspace File, Format Version 6.00
+Microsoft Developer Studio Workspace File, Format Version 5.00
 # WARNING: DO NOT EDIT OR DELETE THIS WORKSPACE FILE!
 
 ###############################################################################
 
-Project: "build_all"=.\build_all.dsp - Package Owner=<4>
+Project: "DB_DLL"=.\db_dll.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+}}}
+
+###############################################################################
+
+Project: "DB_Static"=.\db_static.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+}}}
+
+###############################################################################
+
+Project: "db_archive"=.\db_archive.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name DB_DLL
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name DB_Static
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "db_buildall"=.\db_buildall.dsp - Package Owner=<4>
 
 Package=<5>
 {{{
@@ -83,25 +125,6 @@ Package=<4>
     Begin Project Dependency
     Project_Dep_Name excxx_tpcb
     End Project Dependency
-    Begin Project Dependency
-    Project_Dep_Name db_lib
-    End Project Dependency
-    Begin Project Dependency
-}}}
-
-###############################################################################
-
-Project: "db_archive"=.\db_archive.dsp - Package Owner=<4>
-
-Package=<5>
-{{{
-}}}
-
-Package=<4>
-{{{
-    Begin Project Dependency
-    Project_Dep_Name db_lib
-    End Project Dependency
 }}}
 
 ###############################################################################
@@ -115,7 +138,10 @@ Package=<5>
 Package=<4>
 {{{
     Begin Project Dependency
-    Project_Dep_Name db_lib
+    Project_Dep_Name DB_DLL
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name DB_Static
     End Project Dependency
 }}}
 
@@ -132,18 +158,9 @@ Package=<4>
     Begin Project Dependency
     Project_Dep_Name DB_DLL
     End Project Dependency
-}}}
-
-###############################################################################
-
-Project: "db_dll"=.\db_dll.dsp - Package Owner=<4>
-
-Package=<5>
-{{{
-}}}
-
-Package=<4>
-{{{
+    Begin Project Dependency
+    Project_Dep_Name DB_Static
+    End Project Dependency
 }}}
 
 ###############################################################################
@@ -157,7 +174,10 @@ Package=<5>
 Package=<4>
 {{{
     Begin Project Dependency
-    Project_Dep_Name db_lib
+    Project_Dep_Name DB_DLL
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name DB_Static
     End Project Dependency
 }}}
 
@@ -178,24 +198,6 @@ Package=<4>
 
 ###############################################################################
 
-Project: "db_lib"=.\db_lib.dsp - Package Owner=<4>
-
-Package=<5>
-{{{
-}}}
-
-Package=<4>
-{{{
-    Begin Project Dependency
-    Project_Dep_Name db_dll
-    End Project Dependency
-    Begin Project Dependency
-    Project_Dep_Name db_static
-    End Project Dependency
-}}}
-
-###############################################################################
-
 Project: "db_load"=.\db_load.dsp - Package Owner=<4>
 
 Package=<5>
@@ -205,22 +207,10 @@ Package=<5>
 Package=<4>
 {{{
     Begin Project Dependency
-    Project_Dep_Name db_lib
+    Project_Dep_Name DB_DLL
     End Project Dependency
-}}}
-
-###############################################################################
-
-Project: "db_perf"=.\db_perf.dsp - Package Owner=<4>
-
-Package=<5>
-{{{
-}}}
-
-Package=<4>
-{{{
     Begin Project Dependency
-    Project_Dep_Name db_lib
+    Project_Dep_Name DB_Static
     End Project Dependency
 }}}
 
@@ -235,7 +225,10 @@ Package=<5>
 Package=<4>
 {{{
     Begin Project Dependency
-    Project_Dep_Name db_lib
+    Project_Dep_Name DB_DLL
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name DB_Static
     End Project Dependency
 }}}
 
@@ -250,7 +243,10 @@ Package=<5>
 Package=<4>
 {{{
     Begin Project Dependency
-    Project_Dep_Name db_lib
+    Project_Dep_Name DB_DLL
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name DB_Static
     End Project Dependency
 }}}
 
@@ -265,20 +261,11 @@ Package=<5>
 Package=<4>
 {{{
     Begin Project Dependency
-    Project_Dep_Name db_lib
+    Project_Dep_Name DB_DLL
     End Project Dependency
-}}}
-
-###############################################################################
-
-Project: "db_static"=.\db_static.dsp - Package Owner=<4>
-
-Package=<5>
-{{{
-}}}
-
-Package=<4>
-{{{
+    Begin Project Dependency
+    Project_Dep_Name DB_Static
+    End Project Dependency
 }}}
 
 ###############################################################################
@@ -307,7 +294,7 @@ Package=<5>
 Package=<4>
 {{{
     Begin Project Dependency
-    Project_Dep_Name build_all
+    Project_Dep_Name db_buildall
     End Project Dependency
     Begin Project Dependency
     Project_Dep_Name db_tcl
@@ -325,7 +312,10 @@ Package=<5>
 Package=<4>
 {{{
     Begin Project Dependency
-    Project_Dep_Name db_lib
+    Project_Dep_Name DB_DLL
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name DB_Static
     End Project Dependency
 }}}
 
@@ -340,7 +330,10 @@ Package=<5>
 Package=<4>
 {{{
     Begin Project Dependency
-    Project_Dep_Name db_lib
+    Project_Dep_Name DB_DLL
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name DB_Static
     End Project Dependency
 }}}
 
@@ -355,7 +348,10 @@ Package=<5>
 Package=<4>
 {{{
     Begin Project Dependency
-    Project_Dep_Name db_lib
+    Project_Dep_Name DB_DLL
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name DB_Static
     End Project Dependency
 }}}
 
@@ -370,7 +366,10 @@ Package=<5>
 Package=<4>
 {{{
     Begin Project Dependency
-    Project_Dep_Name db_lib
+    Project_Dep_Name DB_Static
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name DB_DLL
     End Project Dependency
 }}}
 
@@ -385,7 +384,10 @@ Package=<5>
 Package=<4>
 {{{
     Begin Project Dependency
-    Project_Dep_Name db_lib
+    Project_Dep_Name DB_DLL
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name DB_Static
     End Project Dependency
 }}}
 
@@ -400,7 +402,10 @@ Package=<5>
 Package=<4>
 {{{
     Begin Project Dependency
-    Project_Dep_Name db_lib
+    Project_Dep_Name DB_DLL
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name DB_Static
     End Project Dependency
 }}}
 
@@ -415,7 +420,10 @@ Package=<5>
 Package=<4>
 {{{
     Begin Project Dependency
-    Project_Dep_Name db_lib
+    Project_Dep_Name DB_DLL
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name DB_Static
     End Project Dependency
 }}}
 
@@ -430,7 +438,10 @@ Package=<5>
 Package=<4>
 {{{
     Begin Project Dependency
-    Project_Dep_Name db_lib
+    Project_Dep_Name DB_DLL
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name DB_Static
     End Project Dependency
 }}}
 
@@ -445,7 +456,10 @@ Package=<5>
 Package=<4>
 {{{
     Begin Project Dependency
-    Project_Dep_Name db_lib
+    Project_Dep_Name DB_DLL
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name DB_Static
     End Project Dependency
 }}}
 
@@ -460,7 +474,10 @@ Package=<5>
 Package=<4>
 {{{
     Begin Project Dependency
-    Project_Dep_Name db_lib
+    Project_Dep_Name DB_DLL
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name DB_Static
     End Project Dependency
 }}}
 
@@ -475,7 +492,10 @@ Package=<5>
 Package=<4>
 {{{
     Begin Project Dependency
-    Project_Dep_Name db_lib
+    Project_Dep_Name DB_DLL
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name DB_Static
     End Project Dependency
 }}}
 
@@ -490,7 +510,10 @@ Package=<5>
 Package=<4>
 {{{
     Begin Project Dependency
-    Project_Dep_Name db_lib
+    Project_Dep_Name DB_DLL
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name DB_Static
     End Project Dependency
 }}}
 
@@ -505,7 +528,10 @@ Package=<5>
 Package=<4>
 {{{
     Begin Project Dependency
-    Project_Dep_Name db_lib
+    Project_Dep_Name DB_DLL
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name DB_Static
     End Project Dependency
 }}}
 
@@ -520,7 +546,10 @@ Package=<5>
 Package=<4>
 {{{
     Begin Project Dependency
-    Project_Dep_Name db_lib
+    Project_Dep_Name DB_DLL
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name DB_Static
     End Project Dependency
 }}}
 
@@ -537,4 +566,3 @@ Package=<3>
 }}}
 
 ###############################################################################
-

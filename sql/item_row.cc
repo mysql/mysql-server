@@ -15,7 +15,6 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include "mysql_priv.h"
-#include "assert.h"
 
 Item_row::Item_row(List<Item> &arg):
   Item(), used_tables_cache(0), array_holder(1), const_item_cache(1)

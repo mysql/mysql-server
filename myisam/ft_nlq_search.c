@@ -42,8 +42,6 @@ typedef struct st_all_in_one
   uint	      keynr;
   CHARSET_INFO *charset;
   uchar      *keybuff;
-  MI_KEYDEF  *keyinfo;
-  my_off_t    key_root;
   TREE	      dtree;
 } ALL_IN_ONE;
 
@@ -66,13 +64,14 @@ static int FT_SUPERDOC_cmp(void* cmp_arg __attribute__((unused)),
 
 static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
 {
+  int	       subkeys;
   uint	       keylen, r, doc_cnt;
-#ifdef EVAL_RUN
-  uint	       cnt;
-  double       sum, sum2, suml;
-#endif /* EVAL_RUN */
   FT_SUPERDOC  sdoc, *sptr;
   TREE_ELEMENT *selem;
+  MI_INFO      *info=aio->info;
+  uchar        *keybuff=aio->keybuff;
+  MI_KEYDEF    *keyinfo=info->s->keyinfo+aio->keynr;
+  my_off_t     key_root=info->s->state.key_root[aio->keynr];
 #if HA_FT_WTYPE == HA_KEYTYPE_FLOAT
   float tmp_weight;
 #else
@@ -83,45 +82,45 @@ static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
 
   word->weight=LWS_FOR_QUERY;
 
-  keylen=_ft_make_key(aio->info,aio->keynr,(char*) aio->keybuff,word,0);
-#ifdef EVAL_RUN
-  keylen-=1+HA_FT_WLEN;
-#else /* EVAL_RUN */
+  keylen=_ft_make_key(info,aio->keynr,(char*) keybuff,word,0);
   keylen-=HA_FT_WLEN;
-#endif /* EVAL_RUN */
-
-#ifdef EVAL_RUN
-  sum=sum2=suml=
-#endif /* EVAL_RUN */
   doc_cnt=0;
 
-  r=_mi_search(aio->info, aio->keyinfo, aio->keybuff, keylen,
-	       SEARCH_FIND | SEARCH_PREFIX, aio->key_root);
-  aio->info->update|= HA_STATE_AKTIV;  /* for _mi_test_if_changed() */
+  r=_mi_search(info, keyinfo, keybuff, keylen, SEARCH_FIND, key_root);
+  info->update|= HA_STATE_AKTIV;              /* for _mi_test_if_changed() */
 
   while (!r)
   {
-    if (mi_compare_text(aio->charset,
-			aio->info->lastkey,keylen,
-			aio->keybuff,keylen,0))
+
+    if (keylen &&
+        mi_compare_text(aio->charset,info->lastkey,keylen, keybuff,keylen,0))
      break;
 
+    subkeys=ft_sintXkorr(info->lastkey+keylen);
+    if (subkeys<0)
+    {
+      if (doc_cnt)
+        DBUG_RETURN(1); /* index is corrupted */
+      /*
+        TODO here: unsafe optimization, should this word
+        be skipped (based on subkeys) ?
+      */
+      keybuff+=keylen;
+      keyinfo=& info->s->ft2_keyinfo;
+      key_root=info->lastpos;
+      keylen=0;
+      r=_mi_search_first(info, keyinfo, key_root);
+      continue;
+    }
 #if HA_FT_WTYPE == HA_KEYTYPE_FLOAT
-#ifdef EVAL_RUN
-    mi_float4get(tmp_weight,aio->info->lastkey+keylen+1);
-#else /* EVAL_RUN */
-    mi_float4get(tmp_weight,aio->info->lastkey+keylen);
-#endif /* EVAL_RUN */
+    tmp_weight=*(float*)&subkeys;
 #else
 #error
 #endif
-    if(tmp_weight==0) DBUG_RETURN(doc_cnt); /* stopword, doc_cnt should be 0 */
+    if (tmp_weight==0)
+      DBUG_RETURN(doc_cnt); /* stopword, doc_cnt should be 0 */
 
-#ifdef EVAL_RUN
-    cnt=*(byte *)(aio->info->lastkey+keylen);
-#endif /* EVAL_RUN */
-
-    sdoc.doc.dpos=aio->info->lastpos;
+    sdoc.doc.dpos=info->lastpos;
 
     /* saving document matched into dtree */
     if (!(selem=tree_insert(&aio->dtree, &sdoc, 0, aio->dtree.custom_arg)))
@@ -138,20 +137,13 @@ static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
     sptr->tmp_weight=tmp_weight;
 
     doc_cnt++;
-#ifdef EVAL_RUN
-    sum +=cnt;
-    sum2+=cnt*cnt;
-    suml+=cnt*log(cnt);
-#endif /* EVAL_RUN */
 
-    if (_mi_test_if_changed(aio->info) == 0)
-	r=_mi_search_next(aio->info, aio->keyinfo, aio->info->lastkey,
-			  aio->info->lastkey_length, SEARCH_BIGGER,
-			  aio->key_root);
+    if (_mi_test_if_changed(info) == 0)
+	r=_mi_search_next(info, keyinfo, info->lastkey, info->lastkey_length,
+                          SEARCH_BIGGER, key_root);
     else
-	r=_mi_search(aio->info, aio->keyinfo, aio->info->lastkey,
-		     aio->info->lastkey_length, SEARCH_BIGGER,
-		     aio->key_root);
+	r=_mi_search(info, keyinfo, info->lastkey, info->lastkey_length,
+                     SEARCH_BIGGER, key_root);
   }
   if (doc_cnt)
   {
@@ -201,10 +193,8 @@ FT_INFO *ft_init_nlq_search(MI_INFO *info, uint keynr, byte *query,
 
   aio.info=info;
   aio.keynr=keynr;
-  aio.keyinfo=info->s->keyinfo+keynr;
-  aio.charset=aio.keyinfo->seg->charset;
+  aio.charset=info->s->keyinfo[keynr].seg->charset;
   aio.keybuff=info->lastkey+info->s->base.max_key_length;
-  aio.key_root=info->s->state.key_root[keynr];
 
   bzero(&allocated_wtree,sizeof(allocated_wtree));
 

@@ -24,6 +24,7 @@
 #include <thr_lock.h>
 #include <my_base.h>			/* Needed by field.h */
 #include <my_bitmap.h>
+#include <assert.h>
 
 #ifdef __EMX__
 #undef write  /* remove pthread.h macro definition for EMX */

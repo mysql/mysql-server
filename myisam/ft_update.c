@@ -31,7 +31,7 @@
 void _mi_ft_segiterator_init(MI_INFO *info, uint keynr, const byte *record,
 			     FT_SEG_ITERATOR *ftsi)
 {
-  ftsi->num=info->s->keyinfo[keynr].keysegs-FT_SEGS;
+  ftsi->num=info->s->keyinfo[keynr].keysegs;
   ftsi->seg=info->s->keyinfo[keynr].seg;
   ftsi->rec=record;
 }
@@ -113,7 +113,7 @@ FT_WORD * _mi_ft_parserecord(MI_INFO *info, uint keynr,
   if (_mi_ft_parse(&ptree, info, keynr, record))
     return NULL;
 
-  return ft_linearize(/*info, keynr, keybuf, */ &ptree);
+  return ft_linearize(&ptree);
 }
 
 static int _mi_ft_store(MI_INFO *info, uint keynr, byte *keybuf,
@@ -267,13 +267,7 @@ uint _ft_make_key(MI_INFO *info, uint keynr, byte *keybuf, FT_WORD *wptr,
 #error
 #endif
 
-#ifdef EVAL_RUN
-  *(buf+HA_FT_WLEN)=wptr->cnt;
-  int2store(buf+HA_FT_WLEN+1,wptr->len);
-  memcpy(buf+HA_FT_WLEN+3,wptr->pos,wptr->len);
-#else /* EVAL_RUN */
   int2store(buf+HA_FT_WLEN,wptr->len);
   memcpy(buf+HA_FT_WLEN+2,wptr->pos,wptr->len);
-#endif /* EVAL_RUN */
   return _mi_make_key(info,keynr,(uchar*) keybuf,buf,filepos);
 }

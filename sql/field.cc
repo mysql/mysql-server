@@ -2053,7 +2053,8 @@ String *Field_longlong::val_str(String *val_buffer,
 #endif
     longlongget(j,ptr);
 
-  length=(uint) cs->longlong10_to_str(cs,to,mlength,unsigned_flag ? 10 : -10, j);
+  length=(uint) (cs->longlong10_to_str)(cs,to,mlength,
+					unsigned_flag ? 10 : -10, j);
   val_buffer->length(length);
   if (zerofill)
     prepend_zeros(val_buffer);
@@ -3928,7 +3929,7 @@ int Field_string::store(longlong nr)
   char buff[64];
   int  l;
   CHARSET_INFO *cs=charset();
-  l=cs->longlong10_to_str(cs,buff,sizeof(buff),-10,nr);
+  l= (cs->longlong10_to_str)(cs,buff,sizeof(buff),-10,nr);
   return Field_string::store(buff,(uint)l,cs);
 }
 
@@ -4095,7 +4096,7 @@ int Field_varstring::store(longlong nr)
   char buff[64];
   int  l;
   CHARSET_INFO *cs=charset();
-  l=cs->longlong10_to_str(cs,buff,sizeof(buff),-10,nr);
+  l= (cs->longlong10_to_str)(cs,buff,sizeof(buff),-10,nr);
   return Field_varstring::store(buff,(uint)l,cs);
 }
 

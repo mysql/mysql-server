@@ -7,23 +7,23 @@
 CFG=db_static - Win32 Debug
 !MESSAGE This is not a valid makefile. To build this project using NMAKE,
 !MESSAGE use the Export Makefile command and run
-!MESSAGE 
+!MESSAGE
 !MESSAGE NMAKE /f "db_static.mak".
-!MESSAGE 
+!MESSAGE
 !MESSAGE You can specify a configuration when running NMAKE
 !MESSAGE by defining the macro CFG on the command line. For example:
-!MESSAGE 
+!MESSAGE
 !MESSAGE NMAKE /f "db_static.mak" CFG="db_static - Win32 Debug Static"
-!MESSAGE 
+!MESSAGE
 !MESSAGE Possible choices for configuration are:
-!MESSAGE 
+!MESSAGE
 !MESSAGE "db_static - Win32 Release" (based on "Win32 (x86) Static Library")
 !MESSAGE "db_static - Win32 Debug" (based on "Win32 (x86) Static Library")
 !MESSAGE "db_static - Win32 Release Static" (based on\
  "Win32 (x86) Static Library")
 !MESSAGE "db_static - Win32 Debug Static" (based on\
  "Win32 (x86) Static Library")
-!MESSAGE 
+!MESSAGE
 
 # Begin Project
 # PROP Scc_ProjName ""
@@ -114,7 +114,7 @@ LIB32=link.exe -lib
 # ADD BASE LIB32 /nologo /out:"Debug/libdb32sd.lib"
 # ADD LIB32 /nologo /out:"Debug_static/libdb32sd.lib"
 
-!ENDIF 
+!ENDIF
 
 # Begin Target
 
