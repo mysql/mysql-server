@@ -195,9 +195,9 @@ Ndb::~Ndb()
   NdbGlobalEventBuffer_drop(theGlobalEventBufferHandle);
 
   if (TransporterFacade::instance() != NULL && theNdbBlockNumber > 0){
-    TransporterFacade::instance()->close(theNdbBlockNumber);
+    TransporterFacade::instance()->close(theNdbBlockNumber, theFirstTransId);
   }
-
+  
   NdbMutex_Lock(&createNdbMutex);
 
   theNoOfNdbObjects -= 1;
