@@ -1221,14 +1221,11 @@ TransporterRegistry::start_clients_thread()
 
 
 	  if (result<0 && t->get_s_port()!=0)
-	  {
 	    ndbout_c("Error while trying to make connection (Node %u to"
 		     " %u via port %u) error: %d. Retrying...",
 		     t->getRemoteNodeId(),
 		     t->getLocalNodeId(),
 		     t->get_s_port());
-	    NdbSleep_MilliSleep(400); // wait before retrying
-	  }
 	  
 	  /**
 	   * If dynamic, get the port for connecting from the management server
