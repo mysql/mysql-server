@@ -448,7 +448,7 @@ HANDLE create_shared_memory(MYSQL *mysql,NET *net, uint connect_timeout)
   if (WaitForSingleObject(event_connect_answer,connect_timeout*1000) !=
       WAIT_OBJECT_0)
   {
-    error_allow = CR_SHARED_MEMORY_CONNECT_ABANDODED_ERROR;
+    error_allow = CR_SHARED_MEMORY_CONNECT_ABANDONED_ERROR;
     goto err;
   }
 
@@ -2528,7 +2528,7 @@ mysql_fetch_row(MYSQL_RES *res)
       {
         set_mysql_error(mysql,
                         res->unbuffered_fetch_cancelled ? 
-                        CR_FETCH_CANCELLED : CR_COMMANDS_OUT_OF_SYNC,
+                        CR_FETCH_CANCELED : CR_COMMANDS_OUT_OF_SYNC,
                         unknown_sqlstate);
       }
       else if (!(read_one_row(mysql, res->field_count, res->row, res->lengths)))
