@@ -3414,6 +3414,8 @@ ha_innobase::records_in_range(
 
 	update_thd(current_thd);
 
+	prebuilt->trx->op_info = (char*)"estimating records in index range";
+
 	/* In case MySQL calls this in the middle of a SELECT query, release
 	possible adaptive hash latch to avoid deadlocks of threads */
 
@@ -3451,6 +3453,8 @@ ha_innobase::records_in_range(
 
     	my_free((char*) key_val_buff2, MYF(0));
 
+	prebuilt->trx->op_info = (char*)"";
+
 	DBUG_RETURN((ha_rows) n_rows);
 }
 
@@ -3479,6 +3483,9 @@ ha_innobase::estimate_number_of_rows(void)
 
 	update_thd(current_thd);
 
+	prebuilt->trx->op_info = (char*)
+	                         "calculating upper bound for table rows";
+
 	/* In case MySQL calls this in the middle of a SELECT query, release
 	possible adaptive hash latch to avoid deadlocks of threads */
 
@@ -3496,6 +3503,8 @@ ha_innobase::estimate_number_of_rows(void)
 	of the formula below. */
 
 	estimate = 2 * local_data_file_length / dict_index_calc_min_rec_len(index);
+
+	prebuilt->trx->op_info = (char*)"";
 
 	DBUG_RETURN((ha_rows) estimate);
 }
@@ -3556,6 +3565,8 @@ ha_innobase::info(
 	/* In case MySQL calls this in the middle of a SELECT query, release
 	possible adaptive hash latch to avoid deadlocks of threads */
 
+	prebuilt->trx->op_info = (char*)"returning various info to MySQL";
+
 	trx_search_latch_release_if_reserved(prebuilt->trx);
 
  	ib_table = prebuilt->table;
@@ -3564,7 +3575,12 @@ ha_innobase::info(
  		/* In sql_show we call with this flag: update then statistics
  		so that they are up-to-date */
 
+	        prebuilt->trx->op_info = (char*)"updating table statistics";
+
  		dict_update_statistics(ib_table);
+
+		prebuilt->trx->op_info = (char*)
+		                          "returning various info to MySQL";
  	}
 
 	if (flag & HA_STATUS_VARIABLE) {
@@ -3632,6 +3648,8 @@ ha_innobase::info(
 				       trx_get_error_info(prebuilt->trx));
   	}
 
+	prebuilt->trx->op_info = (char*)"";
+
   	DBUG_VOID_RETURN;
 }
 
@@ -3695,12 +3713,16 @@ ha_innobase::update_table_comment(
 
 	update_thd(current_thd);
 
+	prebuilt->trx->op_info = (char*)"returning table comment";
+
 	/* In case MySQL calls this in the middle of a SELECT query, release
 	possible adaptive hash latch to avoid deadlocks of threads */
 
 	trx_search_latch_release_if_reserved(prebuilt->trx);
    	
 	if (!str) {
+	        prebuilt->trx->op_info = (char*)"";
+
     		return((char*)comment);
 	}
 
@@ -3724,6 +3746,8 @@ ha_innobase::update_table_comment(
 							prebuilt->table);
 	}
 
+        prebuilt->trx->op_info = (char*)"";
+
   	return(str);
 }
 
@@ -3740,29 +3764,28 @@ ha_innobase::get_foreign_key_create_info(void)
 	row_prebuilt_t* prebuilt = (row_prebuilt_t*)innobase_prebuilt;
 	char*	str;
 
+	ut_a(prebuilt != NULL);
+
 	/* We do not know if MySQL can call this function before calling
 	external_lock(). To be safe, update the thd of the current table
 	handle. */
 
 	update_thd(current_thd);
 
+        prebuilt->trx->op_info = (char*)"getting info on foreign keys";
+
 	/* In case MySQL calls this in the middle of a SELECT query, release
 	possible adaptive hash latch to avoid deadlocks of threads */
 
 	trx_search_latch_release_if_reserved(prebuilt->trx);
 	
-	if (prebuilt == NULL) {
-		fprintf(stderr,
-"InnoDB: Error: cannot get create info for foreign keys\n");
-
-		return(NULL);
-	}
-
 	str = (char*)ut_malloc(10000);
 
 	str[0] = '\0';
 	
   	dict_print_info_on_foreign_keys(TRUE, str, 9000, prebuilt->table);
+
+        prebuilt->trx->op_info = (char*)"";
 
   	return(str);
 }			
