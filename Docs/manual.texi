@@ -46892,6 +46892,8 @@ not yet 100% confident in this code.
 Fixed bug in complicated join with @code{const} tables.
 @item
 Added internal safety checks for InnoDB.
+@item
+@code{SHOW GRANTS} now shows @code{REFERENCES} instead of @code{REFERENCE}.
 @end itemize
 
 @node News-3.23.47, News-3.23.46, News-3.23.48, News-3.23.x
