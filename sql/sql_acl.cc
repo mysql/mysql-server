@@ -1824,10 +1824,9 @@ int mysql_grant (THD *thd, const char *db, List <LEX_USER> &list, uint rights,
 			    *Str,
 			    (!db ? rights : 0), what)))
       result= -1;
-    if (db)
-      if (( replace_db_table(tables[1].table, db, *Str, rights,
-			     what)))
-	result= -1;
+    if (db && replace_db_table(tables[1].table, db, *Str, rights & DB_ACLS,
+			       what))
+      result= -1;
   }
   VOID(pthread_mutex_unlock(&acl_cache->lock));
   pthread_mutex_unlock(&LOCK_grant);

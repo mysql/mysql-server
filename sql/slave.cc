@@ -735,6 +735,7 @@ static int init_slave_thread(THD* thd)
   thd->system_thread = thd->bootstrap = 1;
   thd->client_capabilities = 0;
   my_net_init(&thd->net, 0);
+  thd->net.timeout = slave_net_timeout;
   thd->max_packet_length=thd->net.max_packet;
   thd->master_access= ~0;
   thd->priv_user = 0;
@@ -1330,6 +1331,8 @@ pthread_handler_decl(handle_slave,arg __attribute__((unused)))
   thd->thread_stack = (char*)&thd; // remember where our stack is
   thd->temporary_tables = save_temporary_tables; // restore temp tables
   threads.append(thd);
+  glob_mi.pending = 0;  //this should always be set to 0 when the slave thread
+  // is started
   
   DBUG_PRINT("info",("master info: log_file_name=%s, position=%s",
 		     glob_mi.log_file_name, llstr(glob_mi.pos,llbuff)));

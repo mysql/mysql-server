@@ -871,6 +871,7 @@ static pthread_handler_decl(handle_delayed_insert,arg)
   /* Add thread to THD list so that's it's visible in 'show processlist' */
   pthread_mutex_lock(&LOCK_thread_count);
   thd->thread_id=thread_id++;
+  thd->end_time();
   threads.append(thd);
   pthread_mutex_unlock(&LOCK_thread_count);
 

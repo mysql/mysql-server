@@ -7,7 +7,7 @@ if [ -e $STAMPFILE ]; then
 fi
 
 #----------
-CLIENT1="msql2mysql mysql mysql_convert_table_format mysql_find_rows mysql_fix_privilege_tables mysql_setpermission mysql_zap mysqlaccess mysqladmin mysqlbug mysqldump mysqlhotcopy mysqlimport mysqlshow"
+CLIENT1="msql2mysql mysql mysql_convert_table_format mysql_find_rows mysql_fix_privilege_tables mysql_setpermission mysql_zap mysqlaccess mysqladmin mysqlbug mysqldump mysqlhotcopy mysqlimport mysqlshow mysql_config mysqltest my_print_defaults"
 
 # CLIENT2="add_file_priv add_func_table add_long_password make_binary_distribution"
 
@@ -20,7 +20,7 @@ for CHAR in build
 do
   #-----
   cp -Rpd debian/${CHAR}/usr debian/mysql-server/
-  cp -Rpd debian/${CHAR}-shared/usr/lib/mysql/libmysqlclient.so.* debian/libmysqlclient9/usr/lib/
+  cp -Rpd debian/${CHAR}-shared/usr/lib/mysql/libmysqlclient.so.* debian/libmysqlclient10/usr/lib/
 
   #----- mysql-server-shared ---
   cp -Rpd debian/${CHAR}-shared/usr/sbin/mysqld debian/mysql-server-shared/usr/sbin/mysqld-shared
@@ -31,20 +31,28 @@ do
   #----- mysql-server ---
   mv debian/mysql-server/usr/sbin/mysqld debian/mysql-server/usr/sbin/mysqld-static
 
+  #----- mysql-max-shared ---
+  cp -Rpd debian/${CHAR}-max-shared/usr/sbin/mysqld debian/mysql-max-shared/usr/sbin/mysqld-max-shared
+
+  #----- mysql-max-debug ---
+  cp -Rpd debian/${CHAR}-max-debug/usr/sbin/mysqld debian/mysql-max-debug/usr/sbin/mysqld-max-debug
+
+  #----- mysql-max ---
+  mv debian/${CHAR}-max/usr/sbin/mysqld debian/mysql-max/usr/sbin/mysqld-max-static
+
   #----- mysql-client ----
   cd ${P}/debian/mysql-server/usr/bin/ && mv $CLIENT1 ../../../mysql-client/usr/bin/
   cd ${P}
 
   mv -f debian/mysql-server/usr/{man,info} debian/mysql-client/usr/share/
-  mv debian/mysql-server/usr/share/mysql/my-example.cnf debian/mysql-client/usr/share/mysql/
+#  mv debian/mysql-server/usr/share/mysql/my-*.cnf debian/mysql-client/usr/share/mysql/
   mv -f debian/mysql-server/usr/bin/replace  debian/mysql-client/usr/bin/mysql_replace
 
   #----- mysql-server ---
   mv debian/mysql-server/usr/bin/* debian/mysql-server/usr/sbin/
-  mv debian/mysql-server/usr/sbin/my_print_defaults debian/mysql-server/usr/bin/
   mv debian/mysql-server/usr/sbin/comp_err debian/mysql-server/usr/bin/
-  mv debian/mysql-server/usr/sbin/perror debian/mysql-server/usr/bin/mysql_perror
-  mv debian/mysql-server/usr/sbin/resolveip debian/mysql-server/usr/bin/mysql_resolveip
+  mv debian/mysql-server/usr/sbin/perror debian/mysql-server/usr/bin/
+  mv debian/mysql-server/usr/sbin/resolveip debian/mysql-server/usr/bin/
 
   #----- mysql-dev ----
   cp -Rpd debian/${CHAR}-shared/usr/lib/mysql/libmysqlclient.so debian/mysql-dev/usr/lib/
@@ -67,6 +75,7 @@ cp -r COPYING* MIRRORS README* Docs/* debian/mysql-doc/usr/share/doc/mysql/
 
 #### sql-bench
 mv debian/mysql-server/usr/sql-bench \
+   debian/mysql-server/usr/mysql-test \
    debian/mysql-bench/var/mysql/
 
 touch $STAMPFILE

@@ -2758,8 +2758,8 @@ entity relationship diagram (ERD).
 @subheading Web Servers with @strong{MySQL} Tools
 
 @table @asis
-@item @uref{http://bourbon.netvision.net.il/mysql/mod_auth_mysql/}
-An Apache authentication module.
+@item @uref{ftp://ftp.kcilink.com/pub/}
+mod_auth_mysql, An Apache authentication module.
 
 @item @uref{http://www.roxen.com/}
 The Roxen Challenger Web server.
@@ -3169,6 +3169,10 @@ mailing list name rather than @code{mysql}.  For example, to subscribe to or
 unsubscribe from the @code{myodbc} list, send a message to
 @email{myodbc-subscribe@@lists.mysql.com} or
 @email{myodbc-unsubscribe@@lists.mysql.com}.
+
+If you can't get an answer for your questions from the mailing list, one
+option is to pay for support from @strong{MySQL AB}, which will put you
+in direct contact with @strong{MySQL} developers. @xref{Support}.
 
 The following table shows some @strong{MySQL} mailing in other languages than
 English.  Note that these are not operated by @strong{MySQL AB}, so we can't
@@ -3599,12 +3603,15 @@ A license is required if:
 
 @itemize @minus
 @item
-You link a part of the of @strong{MySQL} that has a GPL Copyright to a
-program that is not free software (embedded usage of the @strong{MySQL}
-server).  In this case your application would also become GPL through the
-clause in the GPL license that acts as a virus.  By licensing @strong{MySQL} 
-from us under a commercial license you will avoid this problem.
-
+You link a program, that is not free software, with code from the
+@strong{MySQL} server or clients that has the GPL copyright. This
+happens for example when you use @strong{MySQL} as an embedded server
+in your applications or when you add not free extensions to the
+@strong{MySQL} server.  In this case your application/code would also
+become GPL through the GPL license that acts as a virus.  By licensing
+@strong{MySQL} server from @strong{MySQL AB} under a commercial
+license you will avoid this problem.
+See @uref{http://www.gnu.org/copyleft/gpl-faq.html}.
 @item
 You have a commercial application that ONLY works with @strong{MySQL}
 and ships the application with the @strong{MySQL} server.  This is
@@ -6563,8 +6570,8 @@ shell> make
 
 A collection of our standard configure scripts is located in the
 @file{BUILD/} subdirectory.  If you are lazy, you can use
-@file{BUILD/compile-pentium-debug}.  It will actually work on a lot of
-non-x86 machines despite its name.
+@file{BUILD/compile-pentium-debug}. To compile on a different architecture,
+modify the script removing flags that are Pentium-specific.
 
 @item
 When the build is done, run @code{make install}.  Be careful with this
@@ -7608,7 +7615,7 @@ You should also add /etc/my.cnf:
 open_files_limit=8192
 @end example
 
-The above should allow @strong{MySQL} to create up to 8192 connections + files.
+The above should allow @strong{MySQL} to create up to 8192 connections/files.
 
 The @code{STACK_SIZE} constant in LinuxThreads controls the spacing of thread
 stacks in the address space.  It needs to be large enough so that there will
@@ -19305,7 +19312,7 @@ key that can have @code{NULL} values (In this case the packed key length will
 be stored in the same byte that is used to mark if a key is @code{NULL}.)
 
 @item
-If you specify a @code{SELECT} after the @code{CREATE STATEMENT},
+If you specify a @code{SELECT} after the @code{CREATE} statement,
 @strong{MySQL} will create new fields for all elements in the
 @code{SELECT}.  For example:
 
@@ -19315,9 +19322,37 @@ mysql> CREATE TABLE test (a int not null auto_increment,
            TYPE=MyISAM SELECT b,c from test2;
 @end example
 
-This will create a @code{MyISAM} table with 3 columns.  Note that the
-table will automatically be deleted if any errors occur while copying
-data into the table.
+This will create a @code{MyISAM} table with three columns, a, b, and c.
+Notice that the columns from the @code{SELECT} statement are appended to
+the right side of the table, not overlapped onto it.  Take the following
+example:
+
+@example
+mysql> select * from foo;
++---+
+| n |
++---+
+| 1 |
++---+           
+
+mysql> create table bar (m int) select n from foo;
+Query OK, 1 row affected (0.02 sec)
+Records: 1  Duplicates: 0  Warnings: 0
+ 
+mysql> select * from bar;
++------+---+
+| m    | n |
++------+---+
+| NULL | 1 |
++------+---+
+1 row in set (0.00 sec)                           
+@end example
+
+For each row in table @code{foo}, a row is inserted in @code{bar} with
+the values from @code{foo} and default values for the new columns.
+
+If any errors occur while copying the data to the table, it will 
+automatically be deleted. 
 
 To ensure that the update log/binary log can be used to re-create the
 original tables, @strong{MySQL} will not allow concurrent inserts during
@@ -19874,6 +19909,28 @@ bug you have found a bug in the @code{MyISAM} code.).
 still get strange errors from a table when @strong{MySQL} tries to
 update a row or find a row by key (this is VERY unlikely to happen if a
 normal check has succeeded!).
+
+Some things reported by check table, can't be corrected automaticly:
+
+@itemize @bullet
+@item
+@code{Found row where the auto_increment column has the value 0}.
+
+This means that you have in the table a row where the
+@code{auto_increment} index column contains the value 0.
+(It's possible to create a row where the auto_increment column is 0 by
+explicitely setting the column to 0 with an @code{UPDATE} statement)
+
+This isn't an error in itself, but could cause trouble if you decide to
+dump the table and restore it or do an @code{ALTER TABLE} on the
+table. In this case the auto_increment column will change value,
+according to the rules of auto_increment columns, which could cause
+problems like a duplicate key error.
+
+To get rid of the warning, just execute an @code{UPDATE} statement
+to set the column to some other value than 0.
+@end itemize
+
 
 @findex BACKUP TABLE
 @node BACKUP TABLE, RESTORE TABLE, CHECK TABLE, Reference
@@ -20534,8 +20591,6 @@ or  INSERT [LOW_PRIORITY | DELAYED] [IGNORE]
 or  INSERT [LOW_PRIORITY | DELAYED] [IGNORE]
         [INTO] tbl_name
         SET col_name=expression, col_name=expression, ...
-or  INSERT [LOW_PRIORITY] [IGNORE] [INTO] tbl_name
-        SELECT ...
 
 @end example
 
@@ -21478,7 +21533,8 @@ If you have specified the update log file or a binary log file without
 an extension, the extension number of the log file will be incremented
 by one relative to the previous file.  If you have used an extension in
 the file name, @strong{MySQL} will close and reopen the update log file.
-@xref{Update log}.
+@xref{Update log}. This is the same thing as sending the @code{SIGHUP}
+signal to the @code{mysqld} server.
 
 @item @code{PRIVILEGES} @tab Reloads the privileges from the grant tables in
 the @code{mysql} database.
@@ -21489,12 +21545,15 @@ the @code{mysql} database.
 
 @item @code{TABLES WITH READ LOCK} @tab Closes all open tables and locks all tables for all databases with a read until one executes @code{UNLOCK TABLES}. This is very convenient way to get backups if you have a file system, like Veritas,that can take snapshots in time.
 
-@item @code{STATUS} @tab Resets most status variables to zero.
+@item @code{STATUS} @tab Resets most status variables to zero. This is something one should only use when debugging a query.
 @end multitable
 
 You can also access each of the commands shown above with the @code{mysqladmin}
 utility, using the @code{flush-hosts}, @code{flush-logs}, @code{reload},
 or @code{flush-tables} commands.
+
+Take also a look at the @code{RESET} command used with
+replication. @xref{Replication SQL}.
 
 @cindex @code{mysqladmin}
 @findex KILL
@@ -22314,7 +22373,7 @@ is automatically enlarged, up to @code{max_allowed_packet} bytes.)
 @item @code{net_read_timeout}
 Number of seconds to wait for more data from a connection before aborting
 the read.  Note that when we don't expect data from a connection, the timeout
-is defined by @code{write_timeout}.
+is defined by @code{write_timeout}. See also @code{slave_read_timeout}.
 
 @item @code{net_retry_count}
 If a read on a communication port is interrupted, retry this many times
@@ -22371,6 +22430,10 @@ This prevents people from doing @code{SHOW DATABASES} if they don't have
 the @code{PROCESS_PRIV} privilege. This can improve security if you're
 concerned about people being able to see what databases other users
 have. See also @code{safe_show_databases}.
+
+@item @code{slave_read_timeout}
+Number of seconds to wait for more data from a master/slave connection
+before aborting the read.
 
 @item @code{slow_launch_time}
 If creating the thread takes longer than this value (in seconds), the
@@ -23211,7 +23274,8 @@ for replication of tables with fancy column names to work.
 
 @item TIMESTAMP = timestamp_value | DEFAULT
 Set the time for this client.  This is used to get the original timestamp if
-you use the update log to restore rows.
+you use the update log to restore rows.  @code{timestamp_value} should be a
+UNIX Epoch timestamp, not a @strong{MySQL} timestamp.
 
 @item LAST_INSERT_ID = #
 Set the value to be returned from @code{LAST_INSERT_ID()}. This is stored in
@@ -24773,7 +24837,7 @@ The meanings of the configuration parameters are the following:
 
 @multitable @columnfractions .30 .70
 @item @code{innodb_data_home_dir} @tab 
-The common part of the directory path for all innobase data files.
+The common part of the directory path for all InnoDB data files.
 @item @code{innodb_data_file_path} @tab 
 Paths to individual data files and their sizes. The full directory path
 to each data file is acquired by concatenating innodb_data_home_dir to
@@ -30209,14 +30273,14 @@ The following table has the options you can use for the @strong{MASTER}:
 @item @strong{Option} @tab @strong{Description}
 @item @code{log-bin=filename} @tab
 Write to a binary update log to the specified location. Note that if you
-give it a parameter with an extension
-(for example, @code{log-bin=/mysql/logs/replication.log} ) versions up to 3.23.24
-will not work right during replication if you do @code{FLUSH LOGS} . The
-problem is fixed in Version 3.23.25. If you are using this kind of log name,
-@code{FLUSH LOGS} will be ignored on binlog. To clear the log, run
+give it a parameter with an extension (for example,
+@code{log-bin=/mysql/logs/replication.log} ) versions up to 3.23.24 will
+not work right during replication if you do @code{FLUSH LOGS} . The
+problem is fixed in Version 3.23.25. If you are using this kind of log
+name, @code{FLUSH LOGS} will be ignored on binlog. To clear the log, run
 @code{FLUSH MASTER}, and do not forget to run @code{FLUSH SLAVE} on all
-slaves. In Version 3.23.26 and in later versions you should use @code{RESET MASTER}
-and @code{RESET SLAVE}
+slaves. In Version 3.23.26 and in later versions you should use
+@code{RESET MASTER} and @code{RESET SLAVE}
 
 @item @code{log-bin-index=filename} @tab
 Because the user could issue the @code{FLUSH LOGS} command, we need to
@@ -30307,7 +30371,6 @@ times, once for each table.(Example:
 @code{replicate-ignore-table=foo%.bar%} - will not upates to tables in all databases that start with foo and whose table names
 start with bar)
 
-
 @item @code{replicate-ignore-db=database_name} @tab
 Tells the slave thread to not replicate to the specified database. To
 specify more than one database to ignore, use the directive multiple
@@ -30328,7 +30391,6 @@ you have 3.23.28 or later, and use
 @code{replicate-wild-do-table=db_name.%}
 (Example: @code{replicate-do-db=some_db})
 
-
 @item @code{log-slave-updates} @tab
 Tells the slave to log the updates from the slave thread to the binary
 log. Off by default. You will need to turn it on if you plan to
@@ -30341,6 +30403,10 @@ Updates to a database with a different name than the original (Example:
 @item @code{skip-slave-start} @tab
 Tells the slave server not to start the slave on the startup.  The user
 can start it later with @code{SLAVE START}.
+
+@item @code{slave_read_timeout=#}
+Number of seconds to wait for more data from the master before aborting
+the read.
 @end multitable
 
 @cindex SQL commands, replication
@@ -30746,8 +30812,11 @@ query from the master.
 @item
 If you have decided you can skip the next query, do
 @code{SET SQL_SLAVE_SKIP_COUNTER=1; SLAVE START;} to skip a query that
-does not use auto_increment, last_insert_id or timestamp, or
-@code{SET SQL_SLAVE_SKIP_COUNTER=2; SLAVE START;} otherwise
+does not use auto_increment, or last_insert_id  or
+@code{SET SQL_SLAVE_SKIP_COUNTER=2; SLAVE START;} otherwise. The reason
+auto_increment/last_insert_id queries are different is that they take
+two events in the binary log of the master.
+
 @item
 If you are sure the slave started out perfectly in sync with the master,
 and no one has updated  the tables involved outside of slave thread,
@@ -31664,7 +31733,8 @@ method for changing the limit varies widely from system to system.
 @code{table_cache} is related to @code{max_connections}.  For example,
 for 200 concurrent running connections, you should have a table cache of
 at least @code{200 * n}, where @code{n} is the maximum number of tables
-in a join.
+in a join.  You also need to reserve some extra file descriptors for
+temporary tables and files.
 
 The cache of open tables can grow to a maximum of @code{table_cache}
 (default 64; this can be changed with the @code{-O table_cache=#}
@@ -46663,6 +46733,28 @@ not yet 100% confident in this code.
 Added option @code{--warnings} to @code{mysqld}. Now @code{mysqld}
 only prints the error @code{Aborted connection} if this option is used.
 @item
+Fixed problem with @code{--low-priority-updates} and @code{INSERT}'s.
+@item
+Fixed bug in slave thread when under some rare circumstances it could
+get 22 bytes ahead on the offset in the master
+@item
+Added @code{slave_wait_timeout} for replication.
+@item
+Fixed problem with @code{UPDATE} and BDB tables.
+@item
+Fixed hard bug in BDB tables when using key parts.
+@item
+Fixed problem when using the @code{GRANT FILE ON database.* ...}; Previously
+we added the @code{DROP} privilege for the database.
+@item
+Fixed that @code{DELETE FROM table_name ... LIMIT 0} and
+@code{UPDATE FROM table_name ... LIMIT 0} doesn't delete/update anything.
+@item
+@code{CHECK TABLE} now checks if an auto_increment column contains the value 0.
+@item
+Sending a @code{SIGHUP} to @code{mysqld} will now only flush the logs,
+not reset the replication.
+@item
 Fixed parser to allow floats of type @code{1.0e1} (no sign after @code{e}).
 @item
 Option @code{--force} to @code{myisamchk} now also updates states.
@@ -46684,6 +46776,9 @@ Fixed bug in @code{BDB} tables when querying empty tables.
 @item
 Fixed a bug when using @code{COUNT(DISTINCT)} with @code{LEFT JOIN} and
 there wasn't any matching rows.
+@item
+Removed all documentation referring to the @code{GEMINI} table
+type. @code{GEMINI} is not released under an Open Source license.
 @end itemize
 
 @node News-3.23.39, News-3.23.38, News-3.23.40, News-3.23.x
@@ -51731,15 +51826,19 @@ running not completed multi-statement transactions. (The transaction
 will probably be ignored).
 
 @item
+@code{ANALYZE TABLE}, @code{OPTIMIZE TABLE} and @code{REPAIR TABLE} may
+cause problems on tables for which you are using @code{INSERT DELAYED}.
+
+@item
 Doing a @code{LOCK TABLE ..} and @code{FLUSH TABLES ..} doesn't
 guarantee that there isn't a half-finished transaction in progress on the
 table.
 
 @item
-BDB tables are a bit slow to open from this. If you have many BDB tables
-in a database, it will take a long time to use the @code{mysql} client
-on the database if you are not using the @code{-A} option or if you are
-using @code{rehash}. This is especially notable when you have a big table
+BDB tables are a bit slow to open. If you have many BDB tables in a
+database, it will take a long time to use the @code{mysql} client on the
+database if you are not using the @code{-A} option or if you are using
+@code{rehash}. This is especially notable when you have a big table
 cache.
 
 @item
@@ -51894,6 +51993,8 @@ values in double. Using these will cause problems when trying to export
 and import data. We should as an intermediate solution change @code{NaN} to
 @code{NULL} (if possible) and @code{-Inf} and @code{Inf} to the
 Minimum respective maximum possible @code{double} value.
+@item
+@code{LIMIT} on negative numbers are treated as big positive numbers.
 @end itemize
 
 The following are known bugs in earlier versions of @strong{MySQL}:
@@ -52107,6 +52208,9 @@ Add @code{PREPARE} of statements and sending of parameters to @code{mysqld}.
 @item
 Make it possible to specify @code{long_query_time} with a granularity
 in microseconds.
+@item
+Add a configurable prompt to the @code{mysql} command line client, with
+options like database in use, time and date...
 @item
 Add range checking to @code{MERGE} tables.
 @item
