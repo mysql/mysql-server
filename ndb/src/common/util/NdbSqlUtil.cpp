@@ -179,6 +179,14 @@ NdbSqlUtil::m_typeList[] = {
   {
     Type::Time,
     cmpTime
+  },
+  {
+    Type::Year,
+    cmpYear
+  },
+  {
+    Type::Timestamp,
+    cmpTimestamp
   }
 };
 
@@ -588,6 +596,34 @@ NdbSqlUtil::cmpTime(const void* info, const Uint32* p1, const Uint32* p2, Uint32
   if (j1 < j2)
     return -1;
   if (j1 > j2)
+    return +1;
+  return 0;
+}
+
+int
+NdbSqlUtil::cmpYear(const void* info, const Uint32* p1, const Uint32* p2, Uint32 full, Uint32 size)
+{
+  assert(full >= size && size > 0);
+  union { const Uint32* p; const unsigned char* v; } u1, u2;
+  u1.p = p1;
+  u2.p = p2;
+  if (u1.v[0] < u2.v[0])
+    return -1;
+  if (u1.v[0] > u2.v[0])
+    return +1;
+  return 0;
+}
+
+int
+NdbSqlUtil::cmpTimestamp(const void* info, const Uint32* p1, const Uint32* p2, Uint32 full, Uint32 size)
+{
+  assert(full >= size && size > 0);
+  union { Uint32 p[1]; Uint32 v; } u1, u2;
+  u1.v = p1[0];
+  u2.v = p2[0];
+  if (u1.v < u2.v)
+    return -1;
+  if (u1.v > u2.v)
     return +1;
   return 0;
 }
