@@ -374,7 +374,7 @@ inline Query_cache_block * Query_cache_block_table::block()
   return (Query_cache_block *)(((byte*)this) -
 			       ALIGN_SIZE(sizeof(Query_cache_block_table)*n) -
 			       ALIGN_SIZE(sizeof(Query_cache_block)));
-};
+}
 
 /*****************************************************************************
    Query_cache_block method(s)

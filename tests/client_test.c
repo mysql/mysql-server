@@ -11320,7 +11320,7 @@ static void test_bug4172()
   MYSQL_ROW row;
   int rc;
   char f[100], d[100], e[100];
-  long f_len, d_len, e_len;
+  ulong f_len, d_len, e_len;
 
   myheader("test_bug4172");
 
@@ -11411,8 +11411,8 @@ static void test_conversion()
 
   mysql_stmt_bind_param(stmt, bind);
 
-  buff[0]= 0xC3;
-  buff[1]= 0xA0;
+  buff[0]= (uchar) 0xC3;
+  buff[1]= (uchar) 0xA0;
   length= 2;
 
   rc= mysql_stmt_execute(stmt);
