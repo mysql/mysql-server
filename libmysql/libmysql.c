@@ -3122,7 +3122,7 @@ static uint read_binary_date(MYSQL_TIME *tm, uchar **pos)
 static void send_data_long(MYSQL_BIND *param, MYSQL_FIELD *field,
 			   longlong value)
 {
-  char *buffer= param->buffer;
+  char *buffer= (char *)param->buffer;
   uint field_is_unsigned= (field->flags & UNSIGNED_FLAG);
 
   switch (param->buffer_type) {
@@ -3178,7 +3178,7 @@ static void send_data_long(MYSQL_BIND *param, MYSQL_FIELD *field,
 
 static void send_data_double(MYSQL_BIND *param, double value)
 {
-  char *buffer= param->buffer;
+  char *buffer= (char *)param->buffer;
 
   switch(param->buffer_type) {
   case MYSQL_TYPE_NULL: /* do nothing */
@@ -3231,7 +3231,7 @@ static void send_data_double(MYSQL_BIND *param, double value)
 
 static void send_data_str(MYSQL_BIND *param, char *value, uint length)
 {
-  char *buffer= param->buffer;
+  char *buffer= (char *)param->buffer;
   int err=0;
 
   switch(param->buffer_type) {
