@@ -3983,6 +3983,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   case 'h':
     strmake(mysql_real_data_home,argument, sizeof(mysql_real_data_home)-1);
+    /* Correct pointer set by my_getopt (for embedded library) */
+    mysql_data_home= mysql_real_data_home;
     break;
   case 'L':
     strmake(language, argument, sizeof(language)-1);
