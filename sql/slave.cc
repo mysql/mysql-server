@@ -324,6 +324,20 @@ void init_slave_skip_errors(const char* arg)
   }
 }
 
+void st_relay_log_info::close_temporary_tables()
+{
+  TABLE *table,*next;
+
+  for (table=save_temporary_tables ; table ; table=next)
+  {
+    next=table->next;
+    /*
+      Don't ask for disk deletion. For now, anyway they will be deleted when
+      slave restarts, but it is a better intention to not delete them.
+    */
+    close_temporary(table, 0);
+  }
+}
 
 /*
   We assume we have a run lock on rli and that both slave thread
@@ -790,6 +804,7 @@ static int end_slave_on_walk(MASTER_INFO* mi, gptr /*unused*/)
 
 void end_slave()
 {
+  /* This is called when the server terminates, in close_connections(). */
   if (active_mi)
   {
     /*
@@ -3092,6 +3107,12 @@ void end_relay_log_info(RELAY_LOG_INFO* rli)
   }
   rli->inited = 0;
   rli->relay_log.close(LOG_CLOSE_INDEX | LOG_CLOSE_STOP_EVENT);
+  /*
+    Delete the slave's temporary tables from memory.
+    In the future there will be other actions than this, to ensure persistance
+    of slave's temp tables after shutdown.
+  */
+  rli->close_temporary_tables();
   DBUG_VOID_RETURN;
 }
 

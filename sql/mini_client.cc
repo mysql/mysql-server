@@ -547,7 +547,7 @@ mc_mysql_connect(MYSQL *mysql,const char *host, const char *user,
 {
   char		buff[NAME_LEN+USERNAME_LENGTH+100],*end,*host_info;
   my_socket	sock;
-  uint32	ip_addr;
+  in_addr_t	ip_addr;
   struct	sockaddr_in sock_addr;
   ulong		pkt_length;
   NET		*net= &mysql->net;

@@ -90,7 +90,7 @@ MYSQL_MANAGER*  STDCALL mysql_manager_connect(MYSQL_MANAGER* con,
 {
   my_socket sock;
   struct sockaddr_in sock_addr;
-  uint32 ip_addr;
+  in_addr_t ip_addr;
   char msg_buf[MAX_MYSQL_MANAGER_MSG];
   int msg_len;
   Vio* vio;

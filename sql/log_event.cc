@@ -874,7 +874,7 @@ Query_log_event::Query_log_event(const char* buf, int event_len,
     return;
 
   memcpy(data_buf, buf + Q_DATA_OFFSET, data_len);
-  thread_id = uint4korr(buf + Q_THREAD_ID_OFFSET);
+  slave_proxy_id= thread_id= uint4korr(buf + Q_THREAD_ID_OFFSET);
   db = data_buf;
   db_len = (uint)buf[Q_DB_LEN_OFFSET];
   query=data_buf + db_len + 1;
@@ -955,8 +955,7 @@ int Query_log_event::write_data(IO_CACHE* file)
     SET PSEUDO_THREAD_ID=
     for each query using temp tables.
   */
-  int4store(buf + Q_THREAD_ID_OFFSET, (slave_proxy_id ? slave_proxy_id :
-                                       thread_id));
+  int4store(buf + Q_THREAD_ID_OFFSET, slave_proxy_id);
   int4store(buf + Q_EXEC_TIME_OFFSET, exec_time);
   buf[Q_DB_LEN_OFFSET] = (char) db_len;
   int2store(buf + Q_ERR_CODE_OFFSET, error_code);
@@ -1057,8 +1056,7 @@ void Rand_log_event::print(FILE* file, bool short_form, char* last_db)
 int Load_log_event::write_data_header(IO_CACHE* file)
 {
   char buf[LOAD_HEADER_LEN];
-  int4store(buf + L_THREAD_ID_OFFSET, (slave_proxy_id ? slave_proxy_id :
-                                       thread_id));
+  int4store(buf + L_THREAD_ID_OFFSET, slave_proxy_id);
   int4store(buf + L_EXEC_TIME_OFFSET, exec_time);
   int4store(buf + L_SKIP_LINES_OFFSET, skip_lines);
   buf[L_TBL_LEN_OFFSET] = (char)table_name_len;
@@ -1276,7 +1274,7 @@ int Load_log_event::copy_log_event(const char *buf, ulong event_len,
   char* buf_end = (char*)buf + event_len;
   uint header_len= old_format ? OLD_HEADER_LEN : LOG_EVENT_HEADER_LEN;
   const char* data_head = buf + header_len;
-  thread_id = uint4korr(data_head + L_THREAD_ID_OFFSET);
+  slave_proxy_id= thread_id= uint4korr(data_head + L_THREAD_ID_OFFSET);
   exec_time = uint4korr(data_head + L_EXEC_TIME_OFFSET);
   skip_lines = uint4korr(data_head + L_SKIP_LINES_OFFSET);
   table_name_len = (uint)data_head[L_TBL_LEN_OFFSET];

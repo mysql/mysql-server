@@ -323,6 +323,11 @@ bool THD::store_globals()
     return 1;
   mysys_var=my_thread_var;
   dbug_thread_id=my_thread_id();
+  /*
+    By default 'slave_proxy_id' is 'thread_id'. They may later become different
+    if this is the slave SQL thread.
+  */
+  slave_proxy_id= thread_id;
   return 0;
 }
 
