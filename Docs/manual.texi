@@ -16394,7 +16394,7 @@ to restart @code{mysqld} with @code{--skip-grant-tables} to run
 * Privilege changes::           When Privilege Changes Take Effect
 * Default privileges::          Setting Up the Initial MySQL Privileges
 * Adding users::                Adding New Users to MySQL
-* User resources::              
+* User resources::              Limiting user resources
 * Passwords::                   Setting Up Passwords
 * Password security::           Keeping Your Password Secure
 * Secure connections::          Using Secure Connections
@@ -19104,6 +19104,8 @@ memory.  This command will not remove any queries from the cache, unlike
 @item @code{TABLES WITH READ LOCK} @tab Closes all open tables and locks all tables for all databases with a read until one executes @code{UNLOCK TABLES}. This is very convenient way to get backups if you have a filesystem, like Veritas,that can take snapshots in time.
 
 @item @code{STATUS} @tab Resets most status variables to zero. This is something one should only use when debugging a query.
+
+@item @code{USER_RESOURCES} @tab Resets all user resources to zero. This will enalbe blocked users to login again. @xref{User resources}.
 @end multitable
 
 You can also access each of the commands shown above with the @code{mysqladmin}
@@ -49696,7 +49698,8 @@ Optimised queries of type:
 @item
 @code{LOAD DATA FROM MASTER} ``auto-magically'' sets up a slave.
 @item
-Renamed @code{safe_mysqld} to @code{mysqld_safe}.
+Renamed @code{safe_mysqld} to @code{mysqld_safe} to make this name more
+in line with other MySQL scripts/commands.
 @item
 Added support for symbolic links to @code{MyISAM} tables. Symlink handling is
 now enabled by default for Windows.
