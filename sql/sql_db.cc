@@ -488,7 +488,8 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
 	  my_dirend(dirp);
 	  DBUG_RETURN(-1);
 	}
-	raid_dirs.push_back(dir=new String(newpath, &my_charset_latin1));
+	raid_dirs.push_back(dir=new (&thd->mem_root)
+			    String(newpath, &my_charset_latin1));
 	dir->copy();
 	continue;
       }
