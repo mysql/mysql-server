@@ -92,3 +92,19 @@ t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL default '0',
   PRIMARY KEY  (`a`)
 ) TYPE=MyISAM
+Field	Type	Null	Key	Default	Extra
+a	decimal(9,2)	YES		NULL	
+b	decimal(9,0)	YES		NULL	
+e	double(9,2)	YES		NULL	
+f	double(5,0)	YES		NULL	
+h	float(3,2)	YES		NULL	
+i	float(3,0)	YES		NULL	
+Field	Type	Null	Key	Default	Extra
+c	decimal(10,0)	YES		NULL	
+d	double	YES		NULL	
+f	float	YES		NULL	
+r	double	YES		NULL	
+Field	Type	Null	Key	Default	Extra
+c	decimal(4,3)	YES		NULL	
+d	double(4,3)	YES		NULL	
+f	float(4,3)	YES		NULL	
