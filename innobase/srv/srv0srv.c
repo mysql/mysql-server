@@ -1979,7 +1979,7 @@ srv_normalize_init_values(void)
 
 	        srv_lock_table_size = 20 * srv_awe_window_size;
 	} else {
-	        srv_lock_table_size = 20 * srv_pool_size;
+	        srv_lock_table_size = 5 * srv_pool_size;
 	}
 
 	return(DB_SUCCESS);
@@ -2345,6 +2345,12 @@ srv_sprintf_innodb_monitor(
 	"Total memory allocated %lu; in additional pool allocated %lu\n",
 				ut_total_allocated_memory,
 				mem_pool_get_reserved(mem_comm_pool));
+
+	if (mem_out_of_mem_err_msg_count > 0) {
+	        buf += sprintf(buf,
+	"Mem allocation has spilled out of additional mem pool %lu times\n");
+	}
+
 	if (srv_use_awe) {
 		buf += sprintf(buf,
 	"In addition to that %lu MB of AWE memory allocated\n",
