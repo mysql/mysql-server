@@ -6865,6 +6865,12 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 @uref{http://mysql.gremlins.com.hk/, WWW}
 @uref{ftp://ftp.mirrors.gremlins.com.hk/mysql/, FTP}
 
+@item
+@c EMAIL: shell@linux.org.hk (Shell Hung)
+@image{Flags/china} China [shellhung.org/Hong Kong] @
+@uref{http://mysql.shellhung.org/, WWW}
+@uref{ftp://ftp.shellhung.org/pub/Mirror/mysql/, FTP}
+
 @c @item
 @c Not ok 20010308; Other content! (Tonu)
 @c EMAIL: xcyber@yahoo.com (xcyber)
