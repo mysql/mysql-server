@@ -351,6 +351,10 @@ typedef int	(*qsort_cmp)(const void *,const void *);
 typedef SOCKET_SIZE_TYPE size_socket;
 #endif
 
+#ifndef SOCKOPT_OPTLEN_TYPE
+#define SOCKOPT_OPTLEN_TYPE size_socket
+#endif
+
 /* file create flags */
 
 #ifndef O_SHARE
