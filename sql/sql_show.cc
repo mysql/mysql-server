@@ -159,7 +159,7 @@ int mysqld_show_tables(THD *thd,const char *db,const char *wild)
   len= FN_LEN - len;
   field_list.push_back(field);
   if (show_type)
-    field_list.push_back(new Item_empty_string("Type", 5));
+    field_list.push_back(new Item_empty_string("table_type", 10));
   if (protocol->send_fields(&field_list,1))
     DBUG_RETURN(1);
   if (mysql_find_files(thd,&files,db,path,wild,0))
@@ -175,14 +175,16 @@ int mysqld_show_tables(THD *thd,const char *db,const char *wild)
       switch (mysql_frm_type(path))
       {
       case FRMTYPE_ERROR:
-        protocol->store("error", system_charset_info);
+        protocol->store("ERROR", system_charset_info);
         break;
       case FRMTYPE_TABLE:
-        protocol->store("table", system_charset_info);
+        protocol->store("BASE TABLE", system_charset_info);
         break;
       case FRMTYPE_VIEW:
-        protocol->store("view", system_charset_info);
+        protocol->store("VIEW", system_charset_info);
         break;
+      default:
+        DBUG_ASSERT(0); // this should be impossible
       }
     }
     if (protocol->write())
