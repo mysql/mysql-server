@@ -95,6 +95,8 @@ extern ulong collstat;
 #define FTB_RBR   (ft_boolean_syntax[6])
 #define FTB_NEG   (ft_boolean_syntax[7])
 #define FTB_TRUNC (ft_boolean_syntax[8])
+#define FTB_LQUOT (ft_boolean_syntax[10])
+#define FTB_RQUOT (ft_boolean_syntax[11])
 
 typedef struct st_ft_word {
   byte * pos;
@@ -111,6 +113,7 @@ typedef struct st_ftb_param {
   int  plusminus;
   bool pmsign;
   bool trunc;
+  byte *quot;
 } FTB_PARAM;
 
 int is_stopword(char *word, uint len);
@@ -130,8 +133,9 @@ void _mi_ft_segiterator_init(MI_INFO *, uint, const byte *, FT_SEG_ITERATOR *);
 void _mi_ft_segiterator_dummy_init(const byte *, uint, FT_SEG_ITERATOR *);
 uint _mi_ft_segiterator(FT_SEG_ITERATOR *);
 
+void ft_parse_init(TREE *, CHARSET_INFO *);
 int ft_parse(TREE *, byte *, int);
-FT_WORD * ft_linearize(/*MI_INFO *, uint, byte *, */TREE *);
+FT_WORD * ft_linearize(TREE *);
 FT_WORD * _mi_ft_parserecord(MI_INFO *, uint, byte *, const byte *);
 uint _mi_ft_parse(TREE *parsed, MI_INFO *info, uint keynr, const byte *record);
 
