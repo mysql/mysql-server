@@ -6,7 +6,7 @@
 drop table if exists t1;
 --enable_warnings
 CREATE TABLE t1 (
-  ChargeID int(10) unsigned DEFAULT '0' NOT NULL auto_increment,
+  ChargeID int(10) unsigned NOT NULL auto_increment,
   ServiceID int(10) unsigned DEFAULT '0' NOT NULL,
   ChargeDate date DEFAULT '0000-00-00' NOT NULL,
   ChargeAmount decimal(20,2) DEFAULT '0.00' NOT NULL,

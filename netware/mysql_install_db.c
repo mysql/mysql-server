@@ -24,6 +24,7 @@
 #include <strings.h>
 #include <getopt.h>
 #include <screen.h>
+#include <errno.h>
 
 #include "my_config.h"
 #include "my_manage.h"
@@ -51,7 +52,7 @@ char default_option[PATH_MAX];
 
 void start_defaults(int, char*[]);
 void finish_defaults();
-void read_defaults(arg_list);
+void read_defaults(arg_list_t *);
 void parse_args(int, char*[]);
 void get_options(int, char*[]);
 void create_paths();
@@ -151,9 +152,9 @@ void finish_defaults()
 	Read the defaults.
 
 ******************************************************************************/
-void read_defaults(arg_list pal)
+void read_defaults(arg_list_t *pal)
 {
-  arg_list al;
+  arg_list_t al;
   char defaults_file[PATH_MAX];
   char mydefaults[PATH_MAX];
   char line[PATH_MAX];
@@ -167,15 +168,15 @@ void read_defaults(arg_list pal)
   snprintf(mydefaults, PATH_MAX, "%s/bin/my_print_defaults", basedir);
 	
   // args
-  init_args(al);
-  add_arg(al, mydefaults);
-  if (default_option[0]) add_arg(al, default_option);
-  add_arg(al, "mysqld");
-  add_arg(al, "mysql_install_db");
+  init_args(&al);
+  add_arg(&al, mydefaults);
+  if (default_option[0]) add_arg(&al, default_option);
+  add_arg(&al, "mysqld");
+  add_arg(&al, "mysql_install_db");
 
-	spawn(mydefaults, al, TRUE, NULL, defaults_file, NULL);
+	spawn(mydefaults, &al, TRUE, NULL, defaults_file, NULL);
 
-  free_args(al);
+  free_args(&al);
 
 	// gather defaults
 	if((fp = fopen(defaults_file, "r")) != NULL)
@@ -267,17 +268,17 @@ void parse_args(int argc, char *argv[])
 ******************************************************************************/
 void get_options(int argc, char *argv[])
 {
-  arg_list al;
+  arg_list_t al;
   
   // start defaults
   start_defaults(argc, argv);
 
   // default file arguments
-  init_args(al);
-  add_arg(al, "dummy");
-  read_defaults(al);
-  parse_args(al->argc, al->argv);
-  free_args(al);
+  init_args(&al);
+  add_arg(&al, "ignore");
+  read_defaults(&al);
+  parse_args(al.argc, al.argv);
+  free_args(&al);
   
   // command-line arguments
   parse_args(argc, argv);
@@ -323,7 +324,7 @@ void create_paths()
 ******************************************************************************/
 int mysql_install_db(int argc, char *argv[])
 {
-	arg_list al;
+	arg_list_t al;
 	int i, j, err;
 	char skip;
   
@@ -336,8 +337,8 @@ int mysql_install_db(int argc, char *argv[])
   };
   
 	// args
-	init_args(al);
-	add_arg(al, "%s", mysqld);
+	init_args(&al);
+	add_arg(&al, "%s", mysqld);
 	
 	// parent args
 	for(i = 1; i < argc; i++)
@@ -354,19 +355,19 @@ int mysql_install_db(int argc, char *argv[])
       }
     }
 		
-    if (!skip) add_arg(al, "%s", argv[i]);
+    if (!skip) add_arg(&al, "%s", argv[i]);
 	}
 	
-	add_arg(al, "--bootstrap");
-	add_arg(al, "--skip-grant-tables");
-	add_arg(al, "--skip-innodb");
-	add_arg(al, "--skip-bdb");
+	add_arg(&al, "--bootstrap");
+	add_arg(&al, "--skip-grant-tables");
+	add_arg(&al, "--skip-innodb");
+	add_arg(&al, "--skip-bdb");
 
   // spawn mysqld
-  err = spawn(mysqld, al, TRUE, sql_file, out_log, err_log);
+  err = spawn(mysqld, &al, TRUE, sql_file, out_log, err_log);
 
 	// free args
-	free_args(al);
+	free_args(&al);
   
   return err;
 }
@@ -384,6 +385,9 @@ int main(int argc, char **argv)
   // check for an autoclose option
   if (!autoclose) setscreenmode(SCR_NO_MODE);
   
+  // header
+  printf("MySQL Server %s, for %s (%s)\n\n", VERSION, SYSTEM_TYPE, MACHINE_TYPE);
+  
   // create paths
   create_paths();
 
@@ -391,6 +395,7 @@ int main(int argc, char **argv)
   if (mysql_install_db(argc, argv))
   {
     printf("ERROR - The database creation failed!\n");
+    printf("        %s\n", strerror(errno));
     printf("See the following log for more infomration:\n");
     printf("\t%s\n\n", err_log);
     exit(-1);

@@ -2178,6 +2178,20 @@ report("views","views",
  save_config_data('foreign_key',$result,"foreign keys");
 }
 
+if ($limits{'foreign_key'} eq 'yes')
+{
+  report("allows to update of foreign key values",'foreign_update',
+   "create table crash_me1 (a int not null primary key)",
+   "create table crash_me2 (a int not null," .
+      " foreign key (a) references crash_me1 (a))",
+   "insert into crash_me1 values (1)",
+   "insert into crash_me2 values (1)",
+   "update crash_me1 set a = 2",       ## <- must fail 
+   "drop table crash_me2 $drop_attr", 
+   "drop table crash_me1 $drop_attr" 
+  );
+}
+
 report("Create SCHEMA","create_schema",
        "create schema crash_schema create table crash_q (a int) ".
        "create table crash_q2(b int)",

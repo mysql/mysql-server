@@ -28,12 +28,13 @@ netware_build_files =           client/mysql.def client/mysqladmin.def \
                                 client/mysqlshow.def client/mysqltest.def \
                                 extra/mysql_install.def extra/my_print_defaults.def \
                                 extra/perror.def extra/replace.def \
-                                extra/resolveip.def isam/isamchk.def \
+                                extra/resolveip.def extra/comp_err.def \
+																isam/isamchk.def \
                                 isam/isamlog.def isam/pack_isam.def \
                                 libmysqld/libmysqld.def myisam/myisamchk.def \
                                 myisam/myisamlog.def myisam/myisampack.def \
-                                sql/mysqld.def sql/mysqld.xdc
-	
+                                sql/mysqld.def
+																
 link_sources:
 	set -x; \
 	for f in $(netware_build_files); do \
