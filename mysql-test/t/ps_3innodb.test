@@ -10,6 +10,8 @@
 
 use test;
 
+-- source include/have_innodb.inc
+
 let $type= 'InnoDB' ;
 -- source include/ps_create.inc
 -- source include/ps_renew.inc
