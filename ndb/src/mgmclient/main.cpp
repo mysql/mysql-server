@@ -17,6 +17,17 @@
 #include <ndb_global.h>
 #include <ndb_opts.h>
 
+// copied from mysql.cc to get readline
+extern "C" {
+#if defined( __WIN__) || defined(OS2)
+#include <conio.h>
+#elif !defined(__NETWARE__)
+#include <readline/readline.h>
+extern "C" int add_history(const char *command); /* From readline directory */
+#define HAVE_READLINE
+#endif
+}
+
 #include <NdbMain.h>
 #include <NdbHost.h>
 #include <mgmapi.h>
@@ -90,6 +101,39 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   return 0;
 }
 
+static int 
+read_and_execute(int _try_reconnect) 
+{
+  static char *line_read = (char *)NULL;
+
+  /* If the buffer has already been allocated, return the memory
+     to the free pool. */
+  if (line_read)
+  {
+    free (line_read);
+    line_read = (char *)NULL;
+  }
+#ifdef HAVE_READLINE
+  /* Get a line from the user. */
+  line_read = readline ("ndb_mgm> ");    
+  /* If the line has any text in it, save it on the history. */
+  if (line_read && *line_read)
+    add_history (line_read);
+#else
+  static char linebuffer[254];
+  fputs("ndb_mgm> ", stdout);
+  linebuffer[sizeof(linebuffer)-1]=0;
+  line_read = fgets(linebuffer, sizeof(linebuffer)-1, stdin);
+  if (line_read == linebuffer) {
+    char *q=linebuffer;
+    while (*q > 31) q++;
+    *q=0;
+    line_read= strdup(linebuffer);
+  }
+#endif
+  return com->execute(line_read,_try_reconnect);
+}
+
 int main(int argc, char** argv){
   NDB_INIT(argv[0]);
   const char *_host = 0;
@@ -128,7 +172,7 @@ int main(int argc, char** argv){
   signal(SIGPIPE, handler);
 
   com = new Ndb_mgmclient(buf);
-  while(com->read_and_execute(_try_reconnect));
+  while(read_and_execute(_try_reconnect));
   delete com;
   
   return 0;
