@@ -181,7 +181,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	ACTION
 %token	AGGREGATE_SYM
 %token	ALL
-%token	AND
+%token	AND_SYM
 %token	AS
 %token	ASC
 %token	AUTO_INC
@@ -305,6 +305,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	NAMES_SYM
 %token	NATIONAL_SYM
 %token	NATURAL
+%token  NDBCLUSTER_SYM
 %token	NEW_SYM
 %token	NCHAR_SYM
 %token	NCHAR_STRING
@@ -318,7 +319,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	OPEN_SYM
 %token	OPTION
 %token	OPTIONALLY
-%token	OR
+%token	OR_SYM
 %token	OR_OR_CONCAT
 %token	ORDER_SYM
 %token	OUTER
@@ -574,8 +575,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 
 %token  BEFORE_SYM
 %left   SET_VAR
-%left	OR_OR_CONCAT OR XOR
-%left	AND
+%left	OR_OR_CONCAT OR_SYM XOR
+%left	AND_SYM
 %left	BETWEEN_SYM CASE_SYM WHEN_SYM THEN_SYM ELSE
 %left	EQ EQUAL_SYM GE GT_SYM LE LT NE IS LIKE REGEXP IN_SYM
 %left	'|'
@@ -727,7 +728,7 @@ END_OF_INPUT
 
 %type <NONE>
 	'-' '+' '*' '/' '%' '(' ')'
-	',' '!' '{' '}' '&' '|' AND OR OR_OR_CONCAT BETWEEN_SYM CASE_SYM
+	',' '!' '{' '}' '&' '|' AND_SYM OR_SYM OR_OR_CONCAT BETWEEN_SYM CASE_SYM
 	THEN_SYM WHEN_SYM DIV_SYM MOD_SYM
 %%
 
@@ -2421,14 +2422,14 @@ expr_expr:
           {
             $$= new Item_func_not(new Item_in_subselect($1, $4));
           }
-	| expr BETWEEN_SYM no_and_expr AND expr
+	| expr BETWEEN_SYM no_and_expr AND_SYM expr
 	  { $$= new Item_func_between($1,$3,$5); }
-	| expr NOT BETWEEN_SYM no_and_expr AND expr
+	| expr NOT BETWEEN_SYM no_and_expr AND_SYM expr
 	  { $$= new Item_func_not(new Item_func_between($1,$4,$6)); }
 	| expr OR_OR_CONCAT expr { $$= or_or_concat(YYTHD, $1,$3); }
-	| expr OR expr		{ $$= new Item_cond_or($1,$3); }
+	| expr OR_SYM expr	{ $$= new Item_cond_or($1,$3); }
         | expr XOR expr		{ $$= new Item_cond_xor($1,$3); }
-	| expr AND expr		{ $$= new Item_cond_and($1,$3); }
+	| expr AND_SYM expr	{ $$= new Item_cond_and($1,$3); }
 	| expr SOUNDS_SYM LIKE expr
 	  {
 	    $$= new Item_func_eq(new Item_func_soundex($1),
@@ -2469,14 +2470,14 @@ expr_expr:
 
 /* expressions that begin with 'expr' that do NOT follow IN_SYM */
 no_in_expr:
-	no_in_expr BETWEEN_SYM no_and_expr AND expr
+	no_in_expr BETWEEN_SYM no_and_expr AND_SYM expr
 	  { $$= new Item_func_between($1,$3,$5); }
-	| no_in_expr NOT BETWEEN_SYM no_and_expr AND expr
+	| no_in_expr NOT BETWEEN_SYM no_and_expr AND_SYM expr
 	  { $$= new Item_func_not(new Item_func_between($1,$4,$6)); }
 	| no_in_expr OR_OR_CONCAT expr	{ $$= or_or_concat(YYTHD, $1,$3); }
-	| no_in_expr OR expr		{ $$= new Item_cond_or($1,$3); }
+	| no_in_expr OR_SYM expr	{ $$= new Item_cond_or($1,$3); }
         | no_in_expr XOR expr		{ $$= new Item_cond_xor($1,$3); }
-	| no_in_expr AND expr		{ $$= new Item_cond_and($1,$3); }
+	| no_in_expr AND_SYM expr	{ $$= new Item_cond_and($1,$3); }
 	| no_in_expr SOUNDS_SYM LIKE expr
 	  {
 	    $$= new Item_func_eq(new Item_func_soundex($1),
@@ -2527,12 +2528,12 @@ no_and_expr:
           {
             $$= new Item_func_not(new Item_in_subselect($1, $4));
           }
-	| no_and_expr BETWEEN_SYM no_and_expr AND expr
+	| no_and_expr BETWEEN_SYM no_and_expr AND_SYM expr
 	  { $$= new Item_func_between($1,$3,$5); }
-	| no_and_expr NOT BETWEEN_SYM no_and_expr AND expr
+	| no_and_expr NOT BETWEEN_SYM no_and_expr AND_SYM expr
 	  { $$= new Item_func_not(new Item_func_between($1,$4,$6)); }
 	| no_and_expr OR_OR_CONCAT expr	{ $$= or_or_concat(YYTHD, $1,$3); }
-	| no_and_expr OR expr		{ $$= new Item_cond_or($1,$3); }
+	| no_and_expr OR_SYM expr	{ $$= new Item_cond_or($1,$3); }
         | no_and_expr XOR expr		{ $$= new Item_cond_xor($1,$3); }
 	| no_and_expr SOUNDS_SYM LIKE expr
 	  {
@@ -4147,8 +4148,8 @@ show_param:
 	      YYABORT;
 	  }
         | NEW_SYM MASTER_SYM FOR_SYM SLAVE WITH MASTER_LOG_FILE_SYM EQ
-	  TEXT_STRING_sys AND MASTER_LOG_POS_SYM EQ ulonglong_num
-	  AND MASTER_SERVER_ID_SYM EQ
+	  TEXT_STRING_sys AND_SYM MASTER_LOG_POS_SYM EQ ulonglong_num
+	  AND_SYM MASTER_SERVER_ID_SYM EQ
 	ULONG_NUM
           {
 	    Lex->sql_command = SQLCOM_SHOW_NEW_MASTER;
@@ -4983,6 +4984,7 @@ keyword:
 	| NAMES_SYM		{}
 	| NATIONAL_SYM		{}
 	| NCHAR_SYM		{}
+	| NDBCLUSTER_SYM	{}
 	| NEXT_SYM		{}
 	| NEW_SYM		{}
 	| NO_SYM		{}
@@ -5434,7 +5436,7 @@ grant_privilege:
 
 opt_and:
 	/* empty */	{}
-	| AND		{}
+	| AND_SYM	{}
 	;
 
 require_list:
