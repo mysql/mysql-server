@@ -181,7 +181,7 @@ NdbColumnImpl::equal(const NdbColumnImpl& col) const
   case NdbDictionary::Column::Timespec:
     break;
   case NdbDictionary::Column::Blob:
-  case NdbDictionary::Column::Clob:
+  case NdbDictionary::Column::Text:
     if (m_precision != col.m_precision ||
         m_scale != col.m_scale ||
         m_length != col.m_length) {
@@ -1088,7 +1088,7 @@ columnTypeMapping[] = {
   { DictTabInfo::ExtDatetime,        NdbDictionary::Column::Datetime },
   { DictTabInfo::ExtTimespec,        NdbDictionary::Column::Timespec },
   { DictTabInfo::ExtBlob,            NdbDictionary::Column::Blob },
-  { DictTabInfo::ExtClob,            NdbDictionary::Column::Clob },
+  { DictTabInfo::ExtText,            NdbDictionary::Column::Text },
   { -1, -1 }
 };
 
@@ -1253,7 +1253,7 @@ NdbDictionaryImpl::createBlobTables(NdbTableImpl &t)
 {
   for (unsigned i = 0; i < t.m_columns.size(); i++) {
     NdbColumnImpl & c = *t.m_columns[i];
-    if (! c.getBlobType())
+    if (! c.getBlobType() || c.getPartSize() == 0)
       continue;
     NdbTableImpl bt;
     NdbBlob::getBlobTable(bt, &t, &c);
@@ -1622,7 +1622,7 @@ NdbDictionaryImpl::dropBlobTables(NdbTableImpl & t)
 {
   for (unsigned i = 0; i < t.m_columns.size(); i++) {
     NdbColumnImpl & c = *t.m_columns[i];
-    if (! c.getBlobType())
+    if (! c.getBlobType() || c.getPartSize() == 0)
       continue;
     char btname[NdbBlob::BlobTableNameSize];
     NdbBlob::getBlobTableName(btname, &t, &c);
