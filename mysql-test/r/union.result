@@ -424,7 +424,6 @@ create table t1 select a from t1 union select a from t2;
 INSERT TABLE 't1' isn't allowed in FROM table list
 select a from t1 union select a from t2 order by t2.a;
 Unknown column 't2.a' in 'ORDER BY'
-drop table t1;
 drop table t1,t2;
 select length(version()) > 1 as `*` UNION select 2;
 *
