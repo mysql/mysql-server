@@ -78,6 +78,17 @@ Item_func::fix_fields(THD *thd,TABLE_LIST *tables)
 	maybe_null=1;
       if ((*arg)->binary)
 	binary=1;
+      /*
+	Change charset to arg charset if it is not equal to 
+	default_charset_info. This will work for many cases, 
+	but generally this should be done more carefull. Each string 
+	function should have it's own fix_fields() method to correctly
+	setup it's result's character set taking in account arguments.
+	For example: left(a,b) should take in account only first argument,
+	but ignore the second one.
+      */
+      if ((*arg)->str_value.charset() != default_charset_info)
+	str_value.set_charset((*arg)->str_value.charset());
       with_sum_func= with_sum_func || (*arg)->with_sum_func;
       used_tables_cache|=(*arg)->used_tables();
       const_item_cache&= (*arg)->const_item();

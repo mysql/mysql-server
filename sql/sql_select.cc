@@ -3579,7 +3579,8 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
 				   item->name,table,item->binary);
       else
 	new_field= new Field_string(item->max_length,maybe_null,
-				    item->name,table,item->binary,default_charset_info);
+				    item->name,table,item->binary,
+				    item->str_value.charset());
       break;
     }
     if (copy_func)
