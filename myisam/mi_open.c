@@ -68,7 +68,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
   int lock_error,kfile,open_mode,save_errno;
   uint i,j,len,errpos,head_length,base_pos,offset,info_length,extra,keys,
     key_parts,unique_key_parts,tmp_length,uniques;
-  char name_buff[FN_REFLEN],*disk_cache,*disk_pos;
+  char name_buff[FN_REFLEN],*disk_cache,*disk_pos, *end_pos;
   MI_INFO info,*m_info,*old_info;
   MYISAM_SHARE share_buff,*share;
   ulong rec_per_key_part[MI_MAX_POSSIBLE_KEY*MI_MAX_KEY_SEG];
@@ -129,11 +129,12 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
     }
     info_length=mi_uint2korr(share->state.header.header_length);
     base_pos=mi_uint2korr(share->state.header.base_pos);
-    if (!(disk_cache=(char*) my_alloca(info_length)))
+    if (!(disk_cache=(char*) my_alloca(info_length+128)))
     {
       my_errno=ENOMEM;
       goto err;
     }
+    end_pos=disk_cache+info_length;
     errpos=2;
 
     VOID(my_seek(kfile,0L,MY_SEEK_SET,MYF(0)));
@@ -269,17 +270,28 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
 			     share->state.header.max_block_size));
     strmov(share->filename,name_buff);
 
+#define disk_pos_assert do                                      \
+                        {                                       \
+                            if (disk_pos > end_pos)             \
+                            {                                   \
+                              my_errno=HA_ERR_CRASHED;          \
+                              goto err;                         \
+                            }                                   \
+                        } while(0)
+
     share->blocksize=min(IO_SIZE,myisam_block_size);
     {
       MI_KEYSEG *pos=share->keyparts;
       for (i=0 ; i < keys ; i++)
       {
 	disk_pos=mi_keydef_read(disk_pos, &share->keyinfo[i]);
+        disk_pos_assert;
 	set_if_smaller(share->blocksize,share->keyinfo[i].block_length);
 	share->keyinfo[i].seg=pos;
 	for (j=0 ; j < share->keyinfo[i].keysegs; j++,pos++)
 	{
 	  disk_pos=mi_keyseg_read(disk_pos, pos);
+          disk_pos_assert;
 	  if (pos->type == HA_KEYTYPE_TEXT || pos->type == HA_KEYTYPE_VARTEXT)
 	  {
 	    if (!pos->language)
@@ -306,10 +318,12 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
       for (i=0 ; i < uniques ; i++)
       {
 	disk_pos=mi_uniquedef_read(disk_pos, &share->uniqueinfo[i]);
+        disk_pos_assert;
 	share->uniqueinfo[i].seg=pos;
 	for (j=0 ; j < share->uniqueinfo[i].keysegs; j++,pos++)
 	{
 	  disk_pos=mi_keyseg_read(disk_pos, pos);
+          disk_pos_assert;
 	  if (pos->type == HA_KEYTYPE_TEXT || pos->type == HA_KEYTYPE_VARTEXT)
 	  {
 	    if (!pos->language)
@@ -334,6 +348,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
     for (i=j=offset=0 ; i < share->base.fields ; i++)
     {
       disk_pos=mi_recinfo_read(disk_pos,&share->rec[i]);
+      disk_pos_assert;
       share->rec[i].pack_type=0;
       share->rec[i].huff_tree=0;
       share->rec[i].offset=offset;
