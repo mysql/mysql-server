@@ -9603,7 +9603,7 @@ shell> cd mysql_installation_directory
 shell> ./bin/safe_mysqld --user=mysql &
 @end example
 
-For a binary distribution, do this:
+For a binary distribution (not RPM or pkg packages), do this:
 
 @example
 shell> cd mysql_installation_directory
@@ -45459,6 +45459,8 @@ Slovak error messages.
 Romanian error messages.
 @item Peter Feher
 Hungarian error messages.
+@item Roberto M. Serqueira
+Portugise error messages.
 @item David Sacerdote @email{davids@@secnet.com}
 Ideas for secure checking of DNS hostnames.
 @item Wei-Jou Chen @email{jou@@nematic.ieo.nctu.edu.tw}
@@ -45724,6 +45726,8 @@ not yet 100% confident in this code.
 @node News-3.23.39, News-3.23.38, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.39
 @itemize @bullet
+@item
+Fixed problem that client 'hang' when @code{LOAD TABLE FROM MASTER} failed.
 @item
 Running @code{myisamchk --fast --force} will not anymore repair tables
 that only had the open count wrong.
