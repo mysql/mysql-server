@@ -1,4 +1,12 @@
 drop table if exists t1;
+set sql_mode="MySQL40";
+select @@sql_mode;
+@@sql_mode
+NO_FIELD_OPTIONS,MYSQL40
+set @@sql_mode="ANSI";
+select @@sql_mode;
+@@sql_mode
+REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI
 SELECT 'A' || 'B';
 'A' || 'B'
 AB
@@ -8,11 +16,4 @@ id	NULL	1	1.1	a
 SELECT id FROM t1 GROUP BY id2;
 ERROR 42000: 'test.t1.id' isn't in GROUP BY
 drop table t1;
-set sql_mode="MySQL40";
-select @@sql_mode;
-@@sql_mode
-NO_FIELD_OPTIONS,MYSQL40
-set sql_mode="ANSI";
-select @@sql_mode;
-@@sql_mode
-REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI
+SET @@SQL_MODE="";

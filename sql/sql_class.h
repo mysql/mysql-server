@@ -763,10 +763,7 @@ public:
   virtual bool send_fields(List<Item> &list,uint flag)=0;
   virtual bool send_data(List<Item> &items)=0;
   virtual bool initialize_tables (JOIN *join=0) { return 0; }
-  virtual void send_error(uint errcode,const char *err)
-  {
-    my_message(errcode, err, MYF(0));
-  }
+  virtual void send_error(uint errcode,const char *err);
   virtual bool send_eof()=0;
   virtual void abort() {}
 };
