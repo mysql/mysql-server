@@ -170,10 +170,32 @@ typedef struct st_relay_log_info
   /*
     Handling of the relay_log_space_limit optional constraint.
     ignore_log_space_limit is used to resolve a deadlock between I/O and SQL
-    threads, it makes the I/O thread temporarily forget about the constraint
+    threads, the SQL thread sets it to unblock the I/O thread and make it
+    temporarily forget about the constraint. It is declared volatile because we
+    have this loop in the I/O thread (slave.cc):
+     while (rli->log_space_limit < rli->log_space_total &&
+	    !(slave_killed=io_slave_killed(thd,mi)) &&
+            !rli->ignore_log_space_limit)
+       pthread_cond_wait(&rli->log_space_cond, &rli->log_space_lock);
+    According to Monty, on some systems pthread_cond_wait() could be inline,
+    and so the loop be optimized by the compiler, so rli->ignore_log_space_limit
+    could be considered constant and the loop never ends, even if the SQL thread
+    has set rli->ignore_log_space_limit to 1 (and called
+    pthread_cond_broadcast()) to break the loop in the I/O thread.
+    By declaring it volatile, we are sure that the variable will not be
+    considered constant and that the loop can be broken.
+    This is the same for all bool variables used by a thread to inform another
+    thread that something has changed: thd->killed, rli->abort_slave,
+    MYSQL_LOG::log_type; they are all volatile.
+    Quoting:
+    <serg> while (a>0) { wait_for_condition }
+    <serg> here a should be volatile ?
+    <monty> serg: in most system no, but on some yes
+    <serg> on what systems ?
+    <monty> On any system where pthread_mutex is a macro.
   */
   ulonglong log_space_limit,log_space_total;
-  bool ignore_log_space_limit;
+  volatile bool ignore_log_space_limit;
 
   /*
     InnoDB internally stores the master log position it has processed
