@@ -99,7 +99,7 @@
 "ALTER TABLE kasutades ei saa kustutada kõiki tulpasid. Kustuta tabel DROP TABLE abil",
 "Ei suuda kustutada '%-.64s'. Kontrolli kas tulp/võti eksisteerib",
 "Kirjeid: %ld  Kattuvaid: %ld  Hoiatusi: %ld",
-"INSERT TABLE '%-.64s' ei ole lubatud FROM tabelite nimekirjas",
+"You can't specify target table '%-.64s' for update in FROM clause",
 "Tundmatu lõim: %lu",
 "Ei ole lõime %lu omanik",
 "Ühtegi tabelit pole kasutusel",

@@ -1646,7 +1646,7 @@ mysql_execute_command(THD *thd)
       if (!(lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) &&
 	  find_real_table_in_list(tables->next, tables->db, tables->real_name))
       {
-	net_printf(thd,ER_INSERT_TABLE_USED,tables->real_name);
+	net_printf(thd,ER_UPDATE_TABLE_USED,tables->real_name);
 	DBUG_VOID_RETURN;
       }
       if (tables->next)
@@ -2021,7 +2021,7 @@ mysql_execute_command(THD *thd)
 
     if (find_real_table_in_list(tables->next, tables->db, tables->real_name))
     {
-      net_printf(thd,ER_INSERT_TABLE_USED,tables->real_name);
+      net_printf(thd,ER_UPDATE_TABLE_USED,tables->real_name);
       DBUG_VOID_RETURN;
     }
 
@@ -2122,7 +2122,7 @@ mysql_execute_command(THD *thd)
       {
 	if (find_real_table_in_list(t->table_list->next, t->db, t->real_name))
 	{
-	  my_error(ER_INSERT_TABLE_USED, MYF(0), t->real_name);
+	  my_error(ER_UPDATE_TABLE_USED, MYF(0), t->real_name);
 	  res= -1;
 	  break;
 	}

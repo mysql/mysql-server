@@ -94,7 +94,7 @@
 "Vous ne pouvez effacer tous les champs avec ALTER TABLE. Utilisez DROP TABLE",
 "Ne peut effacer (DROP) '%-.64s'. Vérifiez s'il existe",
 "Enregistrements: %ld  Doublons: %ld  Avertissements: %ld",
-"INSERT TABLE '%-.64s' n'est pas permis dans FROM liste des tables",
+"You can't specify target table '%-.64s' for update in FROM clause",
 "Numéro de tâche inconnu: %lu",
 "Vous n'êtes pas propriétaire de la tâche no: %lu",
 "Aucune table utilisée",

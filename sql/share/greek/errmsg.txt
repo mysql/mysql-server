@@ -94,7 +94,7 @@
 "Δεν είναι δυνατή η διαγραφή όλων των πεδίων με ALTER TABLE. Παρακαλώ χρησιμοποιείστε DROP TABLE",
 "Αδύνατη η διαγραφή (DROP) '%-.64s'. Παρακαλώ ελέγξτε αν το πεδίο/κλειδί υπάρχει",
 "Εγγραφές: %ld  Επαναλήψεις: %ld  Προειδοποιήσεις: %ld",
-"INSERT TABLE '%-.64s' δεν επιτρέπεται στο FROM table list",
+"You can't specify target table '%-.64s' for update in FROM clause",
 "Αγνωστο thread id: %lu",
 "Δεν είσθε owner του thread %lu",
 "Δεν χρησιμοποιήθηκαν πίνακες",

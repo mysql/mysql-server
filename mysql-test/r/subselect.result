@@ -412,7 +412,7 @@ a	b
 1	11
 2	12
 update t1 set b= (select b from t1);
-INSERT TABLE 't1' isn't allowed in FROM table list
+You can't specify target table 't1' for update in FROM clause
 update t1 set b= (select b from t2);
 Subselect returns more than 1 record
 update t1 set b= (select b from t2 where t1.a = t2.a);
@@ -435,7 +435,7 @@ select * from t1 where b = (select b from t2 where t1.a = t2.a);
 a	b
 2	12
 delete from t1 where b = (select b from t1);
-INSERT TABLE 't1' isn't allowed in FROM table list
+You can't specify target table 't1' for update in FROM clause
 delete from t1 where b = (select b from t2);
 Subselect returns more than 1 record
 delete from t1 where b = (select b from t2 where t1.a = t2.a);
@@ -462,7 +462,7 @@ a	b
 22	11
 2	12
 delete t11.*, t12.* from t11,t12 where t11.a = t12.a and t11.b = (select b from t12 where t11.a = t12.a);
-INSERT TABLE 't12' isn't allowed in FROM table list
+You can't specify target table 't12' for update in FROM clause
 delete t11.*, t12.* from t11,t12 where t11.a = t12.a and t11.b = (select b from t2);
 Subselect returns more than 1 record
 delete t11.*, t12.* from t11,t12 where t11.a = t12.a and t11.b = (select b from t2 where t11.a = t2.a);
@@ -481,7 +481,7 @@ create table t3 (a int);
 insert into t2 values (1);
 insert into t3 values (1),(2);
 INSERT INTO t1 (x) VALUES ((SELECT x FROM t1));
-INSERT TABLE 't1' isn't allowed in FROM table list
+You can't specify target table 't1' for update in FROM clause
 INSERT INTO t1 (x) VALUES ((SELECT a FROM t3));
 Subselect returns more than 1 record
 INSERT INTO t1 (x) VALUES ((SELECT a FROM t2));
@@ -502,7 +502,7 @@ x
 3
 3
 INSERT INTO t1 (x) select (SELECT SUM(x)+2 FROM t1) FROM t2;
-INSERT TABLE 't1' isn't allowed in FROM table list
+You can't specify target table 't1' for update in FROM clause
 INSERT DELAYED INTO t1 (x) VALUES ((SELECT SUM(x) FROM t2));
 select * from t1;
 x
@@ -520,7 +520,7 @@ insert into t3 values (1),(2);
 select * from t1;
 x	y
 replace into t1 (x, y) VALUES ((SELECT x FROM t1), (SELECT a+1 FROM t2));
-INSERT TABLE 't1' isn't allowed in FROM table list
+You can't specify target table 't1' for update in FROM clause
 replace into t1 (x, y) VALUES ((SELECT a FROM t3), (SELECT a+1 FROM t2));
 Subselect returns more than 1 record
 replace into t1 (x, y) VALUES ((SELECT a FROM t2), (SELECT a+1 FROM t2));
@@ -584,7 +584,7 @@ SELECT * FROM t WHERE id IN (SELECT 5 UNION SELECT 2);
 id
 2
 INSERT INTO t VALUES ((SELECT * FROM t));
-INSERT TABLE 't' isn't allowed in FROM table list
+You can't specify target table 't' for update in FROM clause
 SELECT * FROM t;
 id
 1

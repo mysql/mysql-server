@@ -94,7 +94,7 @@
 "Man kan inte radera alla fält med ALTER TABLE. Använd DROP TABLE istället",
 "Kan inte ta bort '%-.64s'. Kontrollera att fältet/nyckel finns",
 "Rader: %ld  Dubletter: %ld  Varningar: %ld",
-"INSERT table '%-.64s' får inte finnas i FROM tabell-listan",
+"You can't specify target table '%-.64s' for update in FROM clause",
 "Finns inget thread med id %lu",
 "Du är inte ägare till thread %lu",
 "Inga tabeller angivna",

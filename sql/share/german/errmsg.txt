@@ -97,7 +97,7 @@
 "Mit ALTER TABLE können nicht alle Felder auf einmal gelöscht werden. Verwende DROP TABLE stattdessen.",
 "Kann '%-.64s' nicht löschen (DROP). Existiert das Feld/der Schlüssel?",
 "Datensätze: %ld  Duplikate: %ld  Warnungen: %ld",
-"INSERT TABLE '%-.64s' nicht erlaubt im FROM Abschnitt.",
+"You can't specify target table '%-.64s' for update in FROM clause",
 "Unbekannte Thread-ID: %lu",
 "Nicht Besitzer des Threads %lu.",
 "Keine Tabellen in Verwendung.",

@@ -102,7 +102,7 @@
 "One nemô¾em zmaza» all fields with ALTER TABLE. Use DROP TABLE instead",
 "Nemô¾em zru¹i» (DROP) '%-.64s'. Skontrolujte, èi neexistujú záznamy/kµúèe",
 "Záznamov: %ld  Opakovaných: %ld  Varovania: %ld",
-"INSERT TABLE '%-.64s' nie je dovolené v zozname tabuliek FROM",
+"You can't specify target table '%-.64s' for update in FROM clause",
 "Neznáma identifikácia vlákna: %lu",
 "Nie ste vlastníkom vlákna %lu",
 "Nie je pou¾itá ¾iadna tabuµka",

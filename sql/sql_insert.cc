@@ -182,7 +182,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
   if (find_real_table_in_list(table_list->next, 
 			      table_list->db, table_list->real_name))
   {
-    my_error(ER_INSERT_TABLE_USED, MYF(0), table_list->real_name);
+    my_error(ER_UPDATE_TABLE_USED, MYF(0), table_list->real_name);
     goto abort;
   }
 

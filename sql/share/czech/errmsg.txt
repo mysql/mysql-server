@@ -103,7 +103,7 @@ v/*
 "Nen-Bí mo¾né vymazat v¹echny polo¾ky s ALTER TABLE. Pou¾ijte DROP TABLE",
 "Nemohu zru-B¹it '%-.64s' (provést DROP). Zkontrolujte, zda neexistují záznamy/klíèe",
 "Z-Báznamù: %ld  Zdvojených: %ld  Varování: %ld",
-"INSERT TABLE '%-.64s' nen-Bí dovoleno v seznamu tabulek FROM",
+"You can't specify target table '%-.64s' for update in FROM clause",
 "Nezn-Bámá identifikace threadu: %lu",
 "Nejste vlastn-Bíkem threadu %lu",
 "Nejsou pou-B¾ity ¾ádné tabulky",
