@@ -2950,6 +2950,7 @@ static int connect_to_master(THD* thd, MYSQL* mysql, MASTER_INFO* mi,
 	 (reconnect ? mysql_reconnect(mysql) != 0:
 	  !(mysql_options(mysql, MYSQL_OPT_CONNECT_TIMEOUT, 
 			  (char *)&thd->variables.net_read_timeout),
+	    mysql_options(mysql, MYSQL_SET_CHARSET_NAME, (char *)default_charset_info),
 	    mysql_real_connect(mysql, mi->host, mi->user, mi->password, 0,
 			      mi->port, 0, client_flag))))
   {

@@ -99,7 +99,6 @@ TYPELIB sql_protocol_typelib = {array_elements(sql_protocol_names_lib)-1,"",
   be changed
 */
 #define MAX_LONG_DATA_LENGTH 8192
-/*#define protocol_41(A) ((A)->server_capabilities & CLIENT_PROTOCOL_41)*/
 #define unsigned_field(A) ((A)->flags & UNSIGNED_FLAG)
 
 static void append_wild(char *to,char *end,const char *wild);
@@ -157,10 +156,6 @@ void STDCALL mysql_thread_end()
 #define reset_sigpipe(mysql)
 #endif
 
-/* TO DELETE
-#define _libmysql_c
-#include "../sql-common/client.c"
-*/
 static MYSQL* spawn_init(MYSQL* parent, const char* host,
 			 unsigned int port,
 			 const char* user,
@@ -986,6 +981,7 @@ mysql_query(MYSQL *mysql, const char *query)
 {
   return mysql_real_query(mysql,query, (uint) strlen(query));
 }
+
 
 static MYSQL* spawn_init(MYSQL* parent, const char* host,
 			 unsigned int port, const char* user,

@@ -15,19 +15,19 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
-#ifndef _client_settings_h
-#define _client_settings_h
 #include <thr_alarm.h>
-#include <mysql_embed.h>
-#include <mysql_com.h>
 
+extern char *mysql_unix_port;
 
-#define CLIENT_CAPABILITIES (CLIENT_LONG_PASSWORD | CLIENT_LONG_FLAG | \
-                             CLIENT_LOCAL_FILES | CLIENT_SECURE_CONNECTION)
+#define CLIENT_CAPABILITIES (CLIENT_LONG_PASSWORD | CLIENT_LONG_FLAG	  \
+                             | CLIENT_LOCAL_FILES | CLIENT_SECURE_CONNECTION)
 
 
 extern ulong slave_net_timeout;
 #define init_sigpipe_variables
 #define set_sigpipe(mysql)
 #define reset_sigpipe(mysql)
-#endif /* _client_settings_h */
+
+#ifdef HAVE_SMEM
+#undef HAVE_SMEM
+#endif

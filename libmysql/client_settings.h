@@ -15,8 +15,6 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
-#ifndef _client_settings_h
-#define _client_settings_h
 static my_bool	mysql_client_init=0;
 extern uint		mysql_port;
 extern my_string	mysql_unix_port;
@@ -58,4 +56,3 @@ my_bool send_file_to_server(MYSQL *mysql, const char *filename);
 #define set_sigpipe(mysql)
 #define reset_sigpipe(mysql)
 #endif
-#endif /* _client_settings_h */
