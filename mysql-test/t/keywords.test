@@ -8,3 +8,7 @@ insert into t1 values ("12:22:22","97:02:03","1997-01-02");
 select * from t1;
 select t1.time+0,t1.date+0,t1.timestamp+0,concat(date," ",time) from t1;
 drop table t1;
+create table events(binlog int);
+insert into events values(1);
+select events.binlog from events;
+drop table events;

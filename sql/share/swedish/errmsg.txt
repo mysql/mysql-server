@@ -223,3 +223,4 @@
 "Kan inte utföra kommandot emedan du har ett READ lås",
 "Blandning av transaktionella och icke-transaktionella tabeller är inaktiverat",
 "Option '%s' användes två gånger",
+"The used table type doesn't support FULLTEXT indexes",

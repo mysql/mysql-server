@@ -867,9 +867,10 @@ public:
   bool join_key;
   Item_func_match *master;
   FT_INFO * ft_handler;
+  byte *record;
 
   Item_func_match(List<Item> &a, Item *b): Item_real_func(b),
-       fields(a), table(0),  join_key(0), master(0), ft_handler(0) {}
+       fields(a), table(0), join_key(0), master(0), ft_handler(0) {}
   ~Item_func_match()
   {
     if (!master && ft_handler)
@@ -886,6 +887,7 @@ public:
   bool fix_fields(THD *thd,struct st_table_list *tlist);
   bool eq(const Item *) const;
   longlong val_int() { return val()!=0.0; }
+  double val();
 
   bool fix_index();
   void init_search(bool no_order);
@@ -896,7 +898,7 @@ class Item_func_match_nl :public Item_func_match
 public:
   Item_func_match_nl(List<Item> &a, Item *b): Item_func_match(a,b) {}
   const char *func_name() const { return "match_nl"; }
-  double val();
+//  double val();
   int ft_handler_init(const byte *query, uint querylen, bool presort)
    {
      ft_handler=table->file->ft_init_ext(FT_NL,key, query, querylen, presort);
@@ -909,7 +911,7 @@ class Item_func_match_bool :public Item_func_match
 public:
   Item_func_match_bool(List<Item> &a, Item *b): Item_func_match(a,b) {}
   const char *func_name() const { return "match_bool"; }
-  double val();
+//  double val();
   int ft_handler_init(const byte *query, uint querylen, bool presort)
    {
      ft_handler=table->file->ft_init_ext(FT_BOOL,key, query, querylen, presort);

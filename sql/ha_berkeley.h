@@ -90,7 +90,7 @@ class ha_berkeley: public handler
 		    HA_REC_NOT_IN_SEQ |
 		    HA_KEYPOS_TO_RNDPOS | HA_READ_ORDER | HA_LASTKEY_ORDER |
 		    HA_LONGLONG_KEYS | HA_NULL_KEY | HA_HAVE_KEY_READ_ONLY |
-		    HA_BLOB_KEY | HA_NOT_EXACT_COUNT |
+		    HA_BLOB_KEY | HA_NOT_EXACT_COUNT | HA_NO_FULLTEXT_KEY |
 		    HA_PRIMARY_KEY_IN_READ_INDEX | HA_DROP_BEFORE_CREATE |
 		    HA_AUTO_PART_KEY),
     changed_rows(0),last_dup_key((uint) -1),version(0),using_ignore(0)

@@ -673,9 +673,13 @@ start_master()
       "gdb -x $GDB_MASTER_INIT" $MYSQLD 
     elif [ x$DO_GDB = x1 ]
     then
-      $ECHO "set args $master_args" >  $GDB_MASTER_INIT
-      $ECHO "b mysql_parse"         >> $GDB_MASTER_INIT
-      $ECHO "r"                     >> $GDB_MASTER_INIT
+      $CAT <<__GDB_MASTER_INIT__  > $GDB_MASTER_INIT
+b mysql_parse
+commands 1
+dele 1
+end
+r $master_args
+__GDB_MASTER_INIT__
       manager_launch master $XTERM -display $DISPLAY \
       -title "Master" -e gdb -x $GDB_MASTER_INIT $MYSQLD 
     else	    

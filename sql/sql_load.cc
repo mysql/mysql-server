@@ -278,8 +278,11 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       ha_autocommit_or_rollback(thd,error);
     if (!opt_old_rpl_compat && mysql_bin_log.is_open())
     {
-      Delete_file_log_event d(thd);
-      mysql_bin_log.write(&d);
+      if (lf_info.wrote_create_file)
+      {
+        Delete_file_log_event d(thd);
+        mysql_bin_log.write(&d);
+      }
     }
     DBUG_RETURN(-1);				// Error on read
   }
@@ -303,8 +306,11 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     if (!opt_old_rpl_compat)
     {
       read_info.end_io_cache(); // make sure last block gets logged
-      Execute_load_log_event e(thd);
-      mysql_bin_log.write(&e);
+      if (lf_info.wrote_create_file)
+      {
+        Execute_load_log_event e(thd);
+        mysql_bin_log.write(&e);
+      }
     }
   }
   if (using_transactions)
@@ -534,6 +540,14 @@ READ_INFO::READ_INFO(File file_par, uint tot_length, String &field_term,
     }
     else 
     {
+      /* init_io_cache() will not initialize read_function member
+	 if the cache is READ_NET. The reason is explained in
+	 mysys/mf_iocache.c. So we work around the problem with a
+	 manual assignment
+      */
+      if (get_it_from_net)
+	cache.read_function = _my_b_net_read;
+      
       need_end_io_cache = 1;
       if (!opt_old_rpl_compat && mysql_bin_log.is_open())
 	cache.pre_read = cache.pre_close =
