@@ -891,7 +891,7 @@ static void init_stmt_execute(PREP_STMT *stmt)
   If parameter markers are found in the query, then store    
   the information using Item_param along with maintaining a  
   list in lex->param_list, so that a fast and direct         
-  retrieveal can be made without going through all field     
+  retrieval can be made without going through all field     
   items.                                                     
 */
 
