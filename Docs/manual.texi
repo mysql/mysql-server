@@ -501,6 +501,7 @@ MyISAM Tables
 
 * Key space::                   Space needed for keys
 * MyISAM table formats::        MyISAM table formats
+* MyISAM table problems::       
 
 MyISAM Table Formats
 
@@ -22893,7 +22894,8 @@ based on the @code{ISAM} code and has a lot of useful extensions.
 The index is stored in a file with the @code{.MYI} (MYIndex) extension,
 and the data is stored in a file with the @code{.MYD} (MYData) extension.
 You can check/repair @code{MyISAM} tables with the @code{myisamchk}
-utility. @xref{Crash recovery}.
+utility. @xref{Crash recovery}. You can compress @code{MyISAM} tables with 
+@code{myisampack} to take up much less space. @xref{myisampack}.
 
 The following is new in @code{MyISAM}:
 
@@ -23046,6 +23048,7 @@ backup media.
 @menu
 * Key space::                   Space needed for keys
 * MyISAM table formats::        MyISAM table formats
+* MyISAM table problems::       
 @end menu
 
 @cindex key space, MyISAM
@@ -23071,7 +23074,7 @@ In @code{MyISAM} tables, you can also prefix compress numbers by specifying
 many integer keys that have an identical prefix when the numbers are stored
 high-byte first.
 
-@node MyISAM table formats,  , Key space, MyISAM
+@node MyISAM table formats, MyISAM table problems, Key space, MyISAM
 @subsection MyISAM Table Formats
 
 @strong{MyISAM} supports 3 different table types. Two of them are chosen
@@ -23231,6 +23234,63 @@ Can handle fixed- or dynamic-length records, but not @code{BLOB} or @code{TEXT}
 columns.
 @item
 Can be uncompressed with @code{myisamchk}.
+@end itemize
+
+@node MyISAM table problems,  , MyISAM table formats, MyISAM
+@subsection MyISAM table problems.
+
+Each @code{MyISAM} @code{.MYI} file has in the header a counter that can
+be used to check if a table has been closed properly.
+
+If you get the following warning from @code{CHECK TABLE} or @code{myisamchk}:
+
+@example
+# clients is using or hasn't closed the table properly
+@end example
+
+this means that this counter has come out of sync.  This doesn't mean
+that the table is corrupted, but means that you should at least do a
+check on the table to verify that it's ok.
+
+The counter works as follows:
+
+@itemize @bullet
+@item
+The first time a table is updated in @strong{MySQL}, a counter in the
+header of the index files is incremented.
+@item
+The counter is not changed during further updates.
+@item
+When the last instance of a table is closed (because of a @code{FLUSH} or
+because there isn't room in the table cache) the counter is
+decremented if the table has been updated at any point.
+@item
+When you repair the table or check the table and it was ok,
+the counter is reset to 0.
+@item
+To avoid problems with interaction with other processes that may do a
+check on the table, the counter is not decremented on close if it was 0.
+@end itemize
+
+In other words, the only ways this can go out of sync are:
+
+@itemize @bullet
+@item
+The @code{MyISAM} tables are copied without a @code{LOCK} and
+@code{FLUSH TABLES}.
+@item
+@strong{MySQL} has crashed between an update and the final close
+(Note that the table may still be ok, as @strong{MySQL} always issues writes
+for everything between each statement).
+@item
+Someone has done a @code{myisamchk --repair} or @code{myisamchk --update-state}on a table that was in use by @code{mysqld}.
+@item
+Many @code{mysqld} servers are using the table and one has done a
+@code{REPAIR} or @code{CHECK} of the table while it was in use by
+another server.  In this setup the @code{CHECK} is safe to do (even if
+you will get the warning from other servers), but @code{REPAIR} should
+be avoided as it currently replaces the data file with a new one, which
+is not signaled to the other servers.
 @end itemize
 
 @cindex tables, merging
@@ -26779,7 +26839,7 @@ tables}.
 * Replication Options::         Replication Options in my.cnf
 * Replication SQL::             SQL Commands related to replication
 * Replication FAQ::             Frequently Asked Questions about replication
-* Replication Problems::	Troubleshooting Replication.
+* Replication Problems::        Troubleshooting Replication.
 @end menu
 
 @node Replication Intro, Replication Implementation, Replication, Replication
