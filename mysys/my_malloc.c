@@ -44,7 +44,7 @@ gptr my_malloc(unsigned int size, myf my_flags)
   }
   else if (my_flags & MY_ZEROFILL)
     bzero(point,size);
-  DBUG_PRINT("exit",("ptr: %lx",point));
+  DBUG_PRINT("exit",("ptr: 0x%lx",point));
   DBUG_RETURN(point);
 } /* my_malloc */
 
@@ -55,7 +55,7 @@ gptr my_malloc(unsigned int size, myf my_flags)
 void my_no_flags_free(gptr ptr)
 {
   DBUG_ENTER("my_free");
-  DBUG_PRINT("my",("ptr: %lx",ptr));
+  DBUG_PRINT("my",("ptr: 0x%lx",ptr));
   if (ptr)
     free(ptr);
   DBUG_VOID_RETURN;

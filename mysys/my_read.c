@@ -38,7 +38,7 @@ uint my_read(File Filedes, byte *Buffer, uint Count, myf MyFlags)
 {
   uint readbytes,save_count;
   DBUG_ENTER("my_read");
-  DBUG_PRINT("my",("Fd: %d  Buffer: %lx  Count: %u  MyFlags: %d",
+  DBUG_PRINT("my",("Fd: %d  Buffer: 0x%lx  Count: %u  MyFlags: %d",
 		   Filedes, Buffer, Count, MyFlags));
   save_count=Count;
 

@@ -23,7 +23,7 @@ uint32 my_lwrite(int Filedes, const byte *Buffer, uint32 Count, myf MyFlags)
 {
   uint32 writenbytes;
   DBUG_ENTER("my_lwrite");
-  DBUG_PRINT("my",("Fd: %d  Buffer: %lx  Count: %ld  MyFlags: %d",
+  DBUG_PRINT("my",("Fd: %d  Buffer: 0x%lx  Count: %ld  MyFlags: %d",
 		   Filedes, Buffer, Count, MyFlags));
 
   /* Temp hack to get count to int32 while write wants int */
