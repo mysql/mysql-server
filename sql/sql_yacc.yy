@@ -3359,7 +3359,6 @@ delete:
 	{
 	  LEX *lex= Lex;
 	  lex->sql_command= SQLCOM_DELETE;
-	  lex->select_lex.options= 0;
 	  lex->lock_option= lex->thd->update_lock_default;
 	  lex->select_lex.init_order();
 	}
