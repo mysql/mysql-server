@@ -1145,7 +1145,7 @@ static void server_init(void)
     WSADATA WsaData;
     if (SOCKET_ERROR == WSAStartup (0x0101, &WsaData))
     {
-      my_message(0,"WSAStartup Failed\n",MYF(0));
+      my_error(ER_WSAS_FAILED, MYF(0));
       unireg_abort(1);
     }
   }
@@ -1298,8 +1298,9 @@ void yyerror(const char *s)
   /* "parse error" changed into "syntax error" between bison 1.75 and 1.875 */
   if (strcmp(s,"parse error") == 0 || strcmp(s,"syntax error") == 0)
     s=ER(ER_SYNTAX_ERROR);
-  net_printf(thd,ER_PARSE_ERROR, s, yytext ? (char*) yytext : "",
-	     thd->lex->yylineno);
+  my_printf_error(ER_PARSE_ERROR,  ER(ER_PARSE_ERROR), MYF(0), s,
+                  (yytext ? (char*) yytext : ""),
+                  thd->lex->yylineno);
 }
 
 
@@ -2091,6 +2092,11 @@ extern "C" int my_message_sql(uint error, const char *str,
   THD *thd;
   DBUG_ENTER("my_message_sql");
   DBUG_PRINT("error", ("error: %u  message: '%s'", error, str));
+  /*
+    Put here following assertion when situation with EE_* error codes
+    will be fixed
+    DBUG_ASSERT(error != 0);
+  */
   if ((thd= current_thd))
   {
     if (thd->spcont &&
@@ -2098,6 +2104,9 @@ extern "C" int my_message_sql(uint error, const char *str,
     {
       DBUG_RETURN(0);
     }
+
+    thd->query_error=  1; // needed to catch query errors during replication
+
     /*
       thd->lex->current_select == 0 if lex structure is not inited
       (not query command (COM_QUERY))
@@ -2112,6 +2121,9 @@ extern "C" int my_message_sql(uint error, const char *str,
     {
       NET *net= &thd->net;
       net->report_error= 1;
+#ifndef EMBEDDED_LIBRARY  /* TODO query cache in embedded library*/
+      query_cache_abort(net);
+#endif
       if (!net->last_error[0])			// Return only first message
       {
 	strmake(net->last_error, str, sizeof(net->last_error)-1);
@@ -3381,7 +3393,7 @@ static void create_new_thread(THD *thd)
 		   ("Can't create thread to handle request (error %d)",
 		    error));
 	thread_count--;
-	thd->killed= THD::KILL_CONNECTION;				// Safety
+	thd->killed= THD::KILL_CONNECTION;			// Safety
 	(void) pthread_mutex_unlock(&LOCK_thread_count);
 	statistic_increment(aborted_connects,&LOCK_status);
 	net_printf(thd,ER_CANT_CREATE_THREAD,error);

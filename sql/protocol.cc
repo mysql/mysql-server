@@ -70,9 +70,6 @@ void send_error(THD *thd, uint sql_errno, const char *err)
   {
     DBUG_VOID_RETURN;
   }
-#ifndef EMBEDDED_LIBRARY  /* TODO query cache in embedded library*/
-  query_cache_abort(net);
-#endif
   thd->query_error=  1; // needed to catch query errors during replication
   if (!err)
   {
@@ -614,7 +611,7 @@ bool Protocol::send_fields(List<Item> *list, int flags)
   DBUG_RETURN(prepare_for_send(list));
 
 err:
-  send_error(thd,ER_OUT_OF_RESOURCES);		/* purecov: inspected */
+  my_error(ER_OUT_OF_RESOURCES, MYF(0));	/* purecov: inspected */
   DBUG_RETURN(1);				/* purecov: inspected */
 }
 
