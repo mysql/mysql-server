@@ -543,7 +543,6 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
     (void) outparam->file->close();
  err_not_open:
   x_free((gptr) disk_buff);
-  delete crypted;
   VOID(my_close(file,MYF(MY_WME)));
 
  err_end:					/* Here when no file */

@@ -54,7 +54,7 @@ cp -r -p sql/share/* $BASE/share/mysql; rm -f $BASE/share/mysql/Makefile* $BASE/
 cp -p scripts/* $BASE/bin
 rm -f $BASE/bin/Makefile* $BASE/bin/*.in $BASE/bin/*.sh $BASE/bin/mysql_install_db $BASE/bin/make_binary_distribution $BASE/bin/setsomevars $BASE/support-files/Makefile* $BASE/support-files/*.sh
 
-$BASE/bin/replace \@localstatedir\@ ./data \@bindir\@ ./bin \@scriptdir\@ ./bin \@libexecdir\@ ./bin \@prefix\@ . < $SOURCE/scripts/mysql_install_db.sh > $BASE/scripts/mysql_install_db
+$BASE/bin/replace \@localstatedir\@ ./data \@bindir\@ ./bin \@scriptdir\@ ./bin \@libexecdir\@ ./bin \@prefix\@ . \@HOSTNAME\@ @HOSTNAME@ < $SOURCE/scripts/mysql_install_db.sh > $BASE/scripts/mysql_install_db
 $BASE/bin/replace \@prefix\@ /usr/local/mysql \@bindir\@ ./bin \@MYSQLD_USER\@ root \@localstatedir\@ /usr/local/mysql/data < $SOURCE/support-files/mysql.server.sh > $BASE/support-files/mysql.server
 $BASE/bin/replace /my/gnu/bin/hostname /bin/hostname -- $BASE/bin/safe_mysqld
 

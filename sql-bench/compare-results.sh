@@ -301,7 +301,7 @@ EOF
 sub html_output
 {
   my $template="template.html";
-  my $title="MySQL Benchmark Results - Compare with $opt_cmp";
+  my $title="MySQL | | Information | Benchmarks | Compare with $opt_cmp";
   my $image="info.gif";
   $bar="";
 
@@ -318,17 +318,10 @@ sub html_output
       s|TITLE:SUBTITLE|$title|;
       print $_;
     }
-    elsif (m|/images/.gif|)
+    elsif (/TITLE:COMPARE/)
     {
-      s|/images/.gif|/images/$image|;
-      s|alt=""|alt="$title"|;
+      s|TITLE:COMPARE|$opt_cmp|;
       print $_;
-    }
-    # Find line to inactivate
-    elsif (m|<img src="/images/${text}1.gif" border="0" width="66" height="20" alt="$text">|)
-    {
-      # Print inactive thing
-      print '<td align="center" bgcolor="#310063"><img src="/images/zero.gif" border="0" width="66" height="20" alt=""></td>';
     }
     elsif (/ subchapter name /)
     {

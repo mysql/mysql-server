@@ -290,7 +290,7 @@ int sigwait(const sigset_t *set, int *sig);
 #ifndef HAVE_NONPOSIX_SIGWAIT
 #define my_sigwait(A,B) sigwait((A),(B))
 #else
-int my_sigwait(sigset_t *set,int *sig);
+int my_sigwait(const sigset_t *set,int *sig);
 #endif
 
 #ifdef HAVE_NONPOSIX_PTHREAD_MUTEX_INIT

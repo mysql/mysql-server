@@ -50,6 +50,9 @@
 /* READLINE: */
 #undef HAVE_BSD_SIGNALS
 
+/* ZLIB and compress: */
+#undef HAVE_COMPRESS
+
 /* Define if we are using OSF1 DEC threads */
 #undef HAVE_DEC_THREADS
 
