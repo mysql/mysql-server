@@ -26,7 +26,7 @@ EXTRA_DIST =		$(noinst_SCRIPTS) $(BUILT_SOURCES) mysqld_error.txt \
 
 all:			$(targets) txt_files
 
-txt_files:		../INSTALL-SOURCE ../COPYING ../COPYING.LIB \
+txt_files:		../INSTALL-SOURCE ../COPYING \
 			INSTALL-BINARY ../support-files/MacOSX/ReadMe.txt
 
 CLEAN_FILES:		$(BUILD_SOURCES)
