@@ -155,8 +155,8 @@ extern mutex_t*	kernel_mutex_temp;/* mutex protecting the server, trx structs,
 				
 /* Array of English strings describing the current state of an
 i/o handler thread */
-extern char* srv_io_thread_op_info[];
-extern char* srv_io_thread_function[];
+extern const char* srv_io_thread_op_info[];
+extern const char* srv_io_thread_function[];
 
 typedef struct srv_sys_struct	srv_sys_t;
 
@@ -233,6 +233,15 @@ ulint
 srv_get_thread_type(void);
 /*=====================*/
 			/* out: SRV_COM, ... */
+/*************************************************************************
+Sets the info describing an i/o thread current state. */
+
+void
+srv_set_io_thread_op_info(
+/*======================*/
+	ulint		i,	/* in: the 'segment' of the i/o thread */
+	const char*	str);	/* in: constant char string describing the
+				state */
 /*************************************************************************
 Releases threads of the type given from suspension in the thread table.
 NOTE! The server mutex has to be reserved by the caller! */
