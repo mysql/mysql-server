@@ -959,7 +959,7 @@ err:
 }
 
 int fetch_master_table(THD* thd, const char* db_name, const char* table_name,
-		   MASTER_INFO* mi, MYSQL* mysql)
+		       MASTER_INFO* mi, MYSQL* mysql)
 {
   int error = 1;
   int fetch_errno = 0;

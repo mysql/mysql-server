@@ -193,7 +193,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case '?':
     usage();
     exit(0);
-#include "sslopt-case.h"
   }
   return 0;
 }
@@ -348,6 +347,9 @@ static MYSQL *db_connect(char *host, char *database, char *user, char *passwd)
     mysql_options(&mysql_connection,MYSQL_OPT_LOCAL_INFILE,
 		  (char*) &opt_local_file);
 #ifdef HAVE_OPENSSL
+  if (opt_ssl_key || opt_ssl_cert || opt_ssl_ca || opt_ssl_capath ||
+      opt_ssl_cipher)
+    opt_use_ssl= 1;
   if (opt_use_ssl)
     mysql_ssl_set(&mysql_connection, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
 		  opt_ssl_capath, opt_ssl_cipher);
