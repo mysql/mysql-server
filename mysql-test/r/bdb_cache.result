@@ -98,3 +98,4 @@ commit;
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	1
+drop table if exists t1, t2, t3;
