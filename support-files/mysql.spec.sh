@@ -120,7 +120,6 @@ Este pacote contém medições de desempenho de scripts e dados do MySQL.
 
 %package devel
 Release: %{release}
-Requires: %{name}-client
 Summary: MySQL - Development header files and libraries
 Group: Applications/Databases
 Summary(pt_BR): MySQL - Medições de desempenho
@@ -568,6 +567,11 @@ fi
 # The spec file changelog only includes changes made to the spec file
 # itself
 %changelog 
+* Fri Nov 21 2003 Lenz Grimmer <lenz@mysql.com>
+
+- removed dependency on MySQL-client from the MySQL-devel subpackage
+  as it is not really required. (BUG 1610)
+
 * Fri Aug 29 2003 Lenz Grimmer <lenz@mysql.com>
 
 - Fixed BUG 1162 (removed macro names from the changelog)
