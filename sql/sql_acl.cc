@@ -1230,7 +1230,7 @@ bool change_password(THD *thd, const char *host, const char *user,
 		new_password));
   thd->clear_error();
   mysql_update_log.write(thd, buff, query_length);
-  Query_log_event qinfo(thd, buff, query_length, 0);
+  Query_log_event qinfo(thd, buff, query_length, 0, FALSE);
   mysql_bin_log.write(&qinfo);
   DBUG_RETURN(0);
 }
@@ -2035,7 +2035,7 @@ static int replace_column_table(GRANT_TABLE *g_t,
   {
     table->file->extra(HA_EXTRA_RETRIEVE_ALL_COLS);
     if (table->file->index_read(table->record[0], (byte*) table->field[0]->ptr,
-				table->key_info[0].key_length,
+                                key_length,
 				HA_READ_KEY_EXACT))
       goto end;
 

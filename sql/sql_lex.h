@@ -592,7 +592,6 @@ typedef struct st_lex
   List<set_var_base>  var_list;
   List<Item_param>    param_list;
   SQL_LIST	      proc_list, auxilliary_table_list, save_list;
-  TYPELIB	      *interval;
   create_field	      *last_field;
   char		      *savepoint_name;		// Transaction savepoint id
   udf_func udf;

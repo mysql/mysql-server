@@ -185,3 +185,13 @@ DELETE FROM t1 WHERE date<1101106546;
 SELECT * FROM t1;
 DROP TABLE t1;
 
+#
+# Bug #6878: a problem with small length records
+#
+
+create table t1(a char(2)) engine=memory;
+insert into t1 values (NULL), (NULL);
+delete from t1 where a is null;
+insert into t1 values ('2'), ('3');
+select * from t1;
+drop table t1;
