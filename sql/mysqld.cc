@@ -2871,7 +2871,7 @@ static struct my_option my_long_options[] =
    "Tells the master that updates to the given database should not be logged tothe binary log",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"bind-address", OPT_BIND_ADDRESS, "Ip address to bind to",
-   (gptr*) &my_bind_addr, (gptr*) &my_bind_addr, 0, GET_ULONG, REQUIRED_ARG, 0,
+   (gptr*) &my_bind_addr, (gptr*) &my_bind_addr, 0, GET_STR, REQUIRED_ARG, 0,
    0, 0, 0, 0, 0},
   {"bootstrap", OPT_BOOTSTRAP, "Used by mysql installation scripts", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
