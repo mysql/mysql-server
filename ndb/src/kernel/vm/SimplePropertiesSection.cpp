@@ -19,7 +19,7 @@
 #include "LongSignal.hpp"
 
 SimplePropertiesSectionReader::SimplePropertiesSectionReader
-(class SegmentedSectionPtr & ptr, class SectionSegmentPool & pool)
+(struct SegmentedSectionPtr & ptr, class SectionSegmentPool & pool)
   : m_pool(pool)
 {
   if(ptr.p == 0){
@@ -190,7 +190,7 @@ SimplePropertiesSectionWriter::putWords(const Uint32 * src, Uint32 len){
 }
 
 void
-SimplePropertiesSectionWriter::getPtr(class SegmentedSectionPtr & dst){
+SimplePropertiesSectionWriter::getPtr(struct SegmentedSectionPtr & dst){
   // Set last ptr and size
   if(m_pos >= 0){
     dst.p = m_head;

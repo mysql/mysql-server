@@ -256,9 +256,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "COMPUTER",
     "COMPUTER",
     "Computer section",
-    ConfigInfo::INTERNAL,
+    ConfigInfo::CI_INTERNAL,
     false,
-    ConfigInfo::SECTION,
+    ConfigInfo::CI_SECTION,
     0,
     0, 0 },
   
@@ -267,9 +267,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "Id",
     "COMPUTER",
     "Name of computer",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::STRING,
+    ConfigInfo::CI_STRING,
     MANDATORY,
     0, 0 },
 
@@ -278,9 +278,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "HostName",
     "COMPUTER",
     "Hostname of computer (e.g. mysql.com)",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::STRING,
+    ConfigInfo::CI_STRING,
     MANDATORY,
     0, 0 },
 
@@ -289,9 +289,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "ByteOrder",
     "COMPUTER",
     0,
-    ConfigInfo::DEPRICATED,
+    ConfigInfo::CI_DEPRICATED,
     false,
-    ConfigInfo::STRING,
+    ConfigInfo::CI_STRING,
     UNDEFINED,
     0,
     0 },
@@ -304,9 +304,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "SYSTEM",
     "SYSTEM",
     "System section",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::SECTION,
+    ConfigInfo::CI_SECTION,
     (const char *)CFG_SECTION_SYSTEM,
     0, 0 },
 
@@ -315,9 +315,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "Name",
     "SYSTEM",
     "Name of system (NDB Cluster)",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::STRING,
+    ConfigInfo::CI_STRING,
     MANDATORY,
     0, 0 },
   
@@ -326,9 +326,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "ReplicationRole",
     "SYSTEM",
     "Role in Global Replication (None, Primary, or Standby)",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::STRING,
+    ConfigInfo::CI_STRING,
     UNDEFINED,
     0, 0 },
   
@@ -337,9 +337,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "PrimaryMGMNode",
     "SYSTEM",
     "Node id of Primary "MGM_TOKEN_PRINT" node",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     "0",
     "0",
     STR_VALUE(MAX_INT_RNIL) },
@@ -349,9 +349,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "ConfigGenerationNumber",
     "SYSTEM",
     "Configuration generation number",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     "0",
     "0",
     STR_VALUE(MAX_INT_RNIL) },
@@ -364,9 +364,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     DB_TOKEN,
     DB_TOKEN,
     "Node section",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::SECTION,
+    ConfigInfo::CI_SECTION,
     (const char *)NODE_TYPE_DB, 
     0, 0
   },
@@ -376,9 +376,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "HostName",
     DB_TOKEN,
     "Name of computer for this node",
-    ConfigInfo::INTERNAL,
+    ConfigInfo::CI_INTERNAL,
     false,
-    ConfigInfo::STRING,
+    ConfigInfo::CI_STRING,
     UNDEFINED,
     0, 0 },
 
@@ -387,9 +387,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "System",
     DB_TOKEN,
     "Name of system for this node",
-    ConfigInfo::INTERNAL,
+    ConfigInfo::CI_INTERNAL,
     false,
-    ConfigInfo::STRING,
+    ConfigInfo::CI_STRING,
     UNDEFINED,
     0, 0 },
 
@@ -398,9 +398,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "Id",
     DB_TOKEN,
     "Number identifying the database node ("DB_TOKEN_PRINT")",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     MANDATORY,
     "1",
     STR_VALUE(MAX_NODES) },
@@ -410,9 +410,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "ServerPort",
     DB_TOKEN,
     "Port used to setup transporter",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     UNDEFINED,
     "1",
     STR_VALUE(MAX_INT_RNIL) },
@@ -422,9 +422,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "NoOfReplicas",
     DB_TOKEN,
     "Number of copies of all data in the database (1-4)",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     MANDATORY,
     "1",
     "4" },
@@ -434,9 +434,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "MaxNoOfAttributes",
     DB_TOKEN,
     "Total number of attributes stored in database. I.e. sum over all tables",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     "1000",
     "32",
     STR_VALUE(MAX_INT_RNIL) },
@@ -446,9 +446,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "MaxNoOfTables",
     DB_TOKEN,
     "Total number of tables stored in the database",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     "128",
     "8",
     STR_VALUE(MAX_INT_RNIL) },
@@ -458,9 +458,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "MaxNoOfOrderedIndexes",
     DB_TOKEN,
     "Total number of ordered indexes that can be defined in the system",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     "128",
     "0",
     STR_VALUE(MAX_INT_RNIL) },
@@ -470,9 +470,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "MaxNoOfUniqueHashIndexes",
     DB_TOKEN,
     "Total number of unique hash indexes that can be defined in the system",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     "64",
     "0",
     STR_VALUE(MAX_INT_RNIL) },
@@ -482,9 +482,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "MaxNoOfIndexes",
     DB_TOKEN,
     "Total number of indexes that can be defined in the system",
-    ConfigInfo::DEPRICATED,
+    ConfigInfo::CI_DEPRICATED,
     false,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     "128",
     "0",
     STR_VALUE(MAX_INT_RNIL) },
@@ -494,9 +494,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "MaxNoOfConcurrentIndexOperations",
     DB_TOKEN,
     "Total number of index operations that can execute simultaneously on one "DB_TOKEN_PRINT" node",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     "8K",
     "0",
     STR_VALUE(MAX_INT_RNIL) 
@@ -507,9 +507,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "MaxNoOfTriggers",
     DB_TOKEN,
     "Total number of triggers that can be defined in the system",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     "768",
     "0",
     STR_VALUE(MAX_INT_RNIL) },
@@ -519,9 +519,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "MaxNoOfFiredTriggers",
     DB_TOKEN,
     "Total number of triggers that can fire simultaneously in one "DB_TOKEN_PRINT" node",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     "4000",
     "0",
     STR_VALUE(MAX_INT_RNIL) },
@@ -531,9 +531,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "ExecuteOnComputer",
     DB_TOKEN,
     "String referencing an earlier defined COMPUTER",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::STRING,
+    ConfigInfo::CI_STRING,
     UNDEFINED,
     0, 0 },
   
@@ -542,9 +542,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "MaxNoOfSavedMessages",
     DB_TOKEN,
     "Max number of error messages in error log and max number of trace files",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     true,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     "25",
     "0",
     STR_VALUE(MAX_INT_RNIL) },
@@ -554,9 +554,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "LockPagesInMainMemory",
     DB_TOKEN,
     "If set to yes, then NDB Cluster data will not be swapped out to disk",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     true,
-    ConfigInfo::BOOL,
+    ConfigInfo::CI_BOOL,
     "false",
     "false",
     "true" },
@@ -566,9 +566,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "TimeBetweenWatchDogCheck",
     DB_TOKEN,
     "Time between execution checks inside a database node",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     true,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     "6000",
     "70",
     STR_VALUE(MAX_INT_RNIL) },
@@ -578,9 +578,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "StopOnError",
     DB_TOKEN,
     "If set to N, "DB_TOKEN_PRINT" automatically restarts/recovers in case of node failure",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     true,
-    ConfigInfo::BOOL,
+    ConfigInfo::CI_BOOL,
     "true",
     "false",
     "true" },
@@ -590,9 +590,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "RestartOnErrorInsert",
     DB_TOKEN,
     "See src/kernel/vm/Emulator.hpp NdbRestartType for details",
-    ConfigInfo::INTERNAL,
+    ConfigInfo::CI_INTERNAL,
     true,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     "2",
     "0",
     "4" },
@@ -602,9 +602,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "MaxNoOfConcurrentOperations",
     DB_TOKEN,
     "Max number of operation records in transaction coordinator",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     "32k",
     "32",
     STR_VALUE(MAX_INT_RNIL) },
@@ -614,9 +614,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "MaxNoOfLocalOperations",
     DB_TOKEN,
     "Max number of operation records defined in the local storage node",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     UNDEFINED,
     "32",
     STR_VALUE(MAX_INT_RNIL) },
@@ -626,9 +626,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "MaxNoOfLocalScans",
     DB_TOKEN,
     "Max number of fragment scans in parallel in the local storage node",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     UNDEFINED,
     "32",
     STR_VALUE(MAX_INT_RNIL) },
@@ -638,9 +638,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "BatchSizePerLocalScan",
     DB_TOKEN,
     "Used to calculate the number of lock records for scan with hold lock",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     STR_VALUE(DEF_BATCH_SIZE),
     "1",
     STR_VALUE(MAX_PARALLEL_OP_PER_SCAN) },
@@ -650,9 +650,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "MaxNoOfConcurrentTransactions",
     DB_TOKEN,
     "Max number of transaction executing concurrently on the "DB_TOKEN_PRINT" node",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     "4096",
     "32",
     STR_VALUE(MAX_INT_RNIL) },
@@ -662,9 +662,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "MaxNoOfConcurrentScans",
     DB_TOKEN,
     "Max number of scans executing concurrently on the "DB_TOKEN_PRINT" node",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     "256",
     "2",
     "500" },
@@ -674,9 +674,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "TransactionBufferMemory",
     DB_TOKEN,
     "Dynamic buffer space (in bytes) for key and attribute data allocated for each "DB_TOKEN_PRINT" node",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     "1M",
     "1K",
     STR_VALUE(MAX_INT_RNIL) },
@@ -686,9 +686,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "IndexMemory",
     DB_TOKEN,
     "Number bytes on each "DB_TOKEN_PRINT" node allocated for storing indexes",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::INT64,
+    ConfigInfo::CI_INT64,
     "18M",
     "1M",
     "1024G" },
@@ -698,9 +698,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "DataMemory",
     DB_TOKEN,
     "Number bytes on each "DB_TOKEN_PRINT" node allocated for storing data",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::INT64,
+    ConfigInfo::CI_INT64,
     "80M",
     "1M",
     "1024G" },
@@ -710,9 +710,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "UndoIndexBuffer",
     DB_TOKEN,
     "Number bytes on each "DB_TOKEN_PRINT" node allocated for writing UNDO logs for index part",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     "2M",
     "1M",
     STR_VALUE(MAX_INT_RNIL)},
@@ -722,9 +722,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "UndoDataBuffer",
     DB_TOKEN,
     "Number bytes on each "DB_TOKEN_PRINT" node allocated for writing UNDO logs for data part",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     "16M",
     "1M",
     STR_VALUE(MAX_INT_RNIL)},
@@ -734,9 +734,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "RedoBuffer",
     DB_TOKEN,
     "Number bytes on each "DB_TOKEN_PRINT" node allocated for writing REDO logs",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     "8M",
     "1M",
     STR_VALUE(MAX_INT_RNIL)},
@@ -746,9 +746,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "LongMessageBuffer",
     DB_TOKEN,
     "Number bytes on each "DB_TOKEN_PRINT" node allocated for internal long messages",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     "1M",
     "512k",
     STR_VALUE(MAX_INT_RNIL)},
@@ -758,9 +758,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "StartPartialTimeout",
     DB_TOKEN,
     "Time to wait before trying to start wo/ all nodes. 0=Wait forever",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     true,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     "30000",
     "0",
     STR_VALUE(MAX_INT_RNIL) },
@@ -770,9 +770,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "StartPartitionedTimeout",
     DB_TOKEN,
     "Time to wait before trying to start partitioned. 0=Wait forever",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     true,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     "60000",
     "0",
     STR_VALUE(MAX_INT_RNIL) },
@@ -782,9 +782,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "StartFailureTimeout",
     DB_TOKEN,
     "Time to wait before terminating. 0=Wait forever",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     true,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     "0",
     "0",
     STR_VALUE(MAX_INT_RNIL) },
@@ -794,9 +794,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "HeartbeatIntervalDbDb",
     DB_TOKEN,
     "Time between "DB_TOKEN_PRINT"-"DB_TOKEN_PRINT" heartbeats. "DB_TOKEN_PRINT" considered dead after 3 missed HBs",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     true,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     "1500",
     "10",
     STR_VALUE(MAX_INT_RNIL) },
@@ -806,9 +806,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "HeartbeatIntervalDbApi",
     DB_TOKEN,
     "Time between "API_TOKEN_PRINT"-"DB_TOKEN_PRINT" heartbeats. "API_TOKEN_PRINT" connection closed after 3 missed HBs",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     true,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     "1500",
     "100",
     STR_VALUE(MAX_INT_RNIL) },
@@ -818,9 +818,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "TimeBetweenLocalCheckpoints",
     DB_TOKEN,
     "Time between taking snapshots of the database (expressed in 2log of bytes)",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     true,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     "20",
     "0",
     "31" },
@@ -830,9 +830,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "TimeBetweenGlobalCheckpoints",
     DB_TOKEN,
     "Time between doing group commit of transactions to disk",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     true,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     "2000",
     "10",
     "32000" },
@@ -842,9 +842,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "NoOfFragmentLogFiles",
     DB_TOKEN,
     "No of 16 Mbyte Redo log files in each of 4 file sets belonging to "DB_TOKEN_PRINT" node",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     "8",
     "1",
     STR_VALUE(MAX_INT_RNIL) },
@@ -854,9 +854,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "MaxNoOfOpenFiles",
     DB_TOKEN,
     "Max number of files open per "DB_TOKEN_PRINT" node.(One thread is created per file)",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     "40",
     "20",
     "256" },
@@ -867,9 +867,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "TimeBetweenInactiveTransactionAbortCheck",
     DB_TOKEN,
     "Time between inactive transaction checks",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     true,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     "1000",
     "1000",
     STR_VALUE(MAX_INT_RNIL) },
@@ -883,9 +883,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "to execute or send another part (query, statement) of the transaction.\n"
     "If the application takes too long time, the transaction gets aborted.\n"
     "Timeout set to 0 means that we don't timeout at all on application wait.",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     true,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     STR_VALUE(MAX_INT_RNIL),
     "0",
     STR_VALUE(MAX_INT_RNIL) },
@@ -898,9 +898,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "This is the time the transaction coordinator waits for each database node\n"
     "of the transaction to execute a request. If the database node takes too\n"
     "long time, the transaction gets aborted.",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     true,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     "1200",
     "50",
     STR_VALUE(MAX_INT_RNIL) },
@@ -910,9 +910,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "NoOfDiskPagesToDiskDuringRestartTUP",
     DB_TOKEN,
     "?",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     true,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     "40",
     "1",
     STR_VALUE(MAX_INT_RNIL) },
@@ -922,9 +922,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "NoOfDiskPagesToDiskAfterRestartTUP",
     DB_TOKEN,
     "?",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     true,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     "40",
     "1",
     STR_VALUE(MAX_INT_RNIL) },
@@ -934,9 +934,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "NoOfDiskPagesToDiskDuringRestartACC",
     DB_TOKEN,
     "?",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     true,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     "20",
     "1",
     STR_VALUE(MAX_INT_RNIL) },
@@ -946,9 +946,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "NoOfDiskPagesToDiskAfterRestartACC",
     DB_TOKEN,
     "?",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     true,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     "20",
     "1",
     STR_VALUE(MAX_INT_RNIL) },
@@ -959,9 +959,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "Diskless",
     DB_TOKEN,
     "Run wo/ disk",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     true,
-    ConfigInfo::BOOL,
+    ConfigInfo::CI_BOOL,
     "false",
     "false",
     "true"},
@@ -971,9 +971,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "Discless",
     DB_TOKEN,
     "Diskless",
-    ConfigInfo::DEPRICATED,
+    ConfigInfo::CI_DEPRICATED,
     true,
-    ConfigInfo::BOOL,
+    ConfigInfo::CI_BOOL,
     "false",
     "false",
     "true"},
@@ -985,9 +985,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "ArbitrationTimeout",
     DB_TOKEN,
     "Max time (milliseconds) database partion waits for arbitration signal",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     "3000",
     "10",
     STR_VALUE(MAX_INT_RNIL) },
@@ -997,9 +997,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "DataDir",
     DB_TOKEN,
     "Data directory for this node",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::STRING,
+    ConfigInfo::CI_STRING,
     MYSQLCLUSTERDIR,
     0, 0 },
 
@@ -1008,9 +1008,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "FileSystemPath",
     DB_TOKEN,
     "Path to directory where the "DB_TOKEN_PRINT" node stores its data (directory must exist)",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::STRING,
+    ConfigInfo::CI_STRING,
     UNDEFINED,
     0, 0 },
 
@@ -1019,9 +1019,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "LogLevelStartup",
     DB_TOKEN,
     "Node startup info printed on stdout",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     "1",
     "0",
     "15" },
@@ -1031,9 +1031,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "LogLevelShutdown",
     DB_TOKEN,
     "Node shutdown info printed on stdout",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     "0",
     "0",
     "15" },
@@ -1043,9 +1043,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "LogLevelStatistic",
     DB_TOKEN,
     "Transaction, operation, transporter info printed on stdout",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     "0",
     "0",
     "15" },
@@ -1055,9 +1055,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "LogLevelCheckpoint",
     DB_TOKEN,
     "Local and Global checkpoint info printed on stdout",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     "0",
     "0",
     "15" },
@@ -1067,9 +1067,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "LogLevelNodeRestart",
     DB_TOKEN,
     "Node restart, node failure info printed on stdout",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     "0",
     "0",
     "15" },
@@ -1079,9 +1079,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "LogLevelConnection",
     DB_TOKEN,
     "Node connect/disconnect info printed on stdout",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     "0",
     "0",
     "15" },
@@ -1091,9 +1091,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "LogLevelError",
     DB_TOKEN,
     "Transporter, heartbeat errors printed on stdout",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     "0",
     "0",
     "15" },
@@ -1103,9 +1103,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "LogLevelInfo",
     DB_TOKEN,
     "Heartbeat and log info printed on stdout",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     "0",
     "0",
     "15" },
@@ -1118,9 +1118,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "ParallelBackups",
     DB_TOKEN,
     "Maximum number of parallel backups",
-    ConfigInfo::NOTIMPLEMENTED,
+    ConfigInfo::CI_NOTIMPLEMENTED,
     false,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     "1",
     "1",
     "1" },
@@ -1130,9 +1130,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "BackupDataDir",
     DB_TOKEN,
     "Path to where to store backups",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::STRING,
+    ConfigInfo::CI_STRING,
     UNDEFINED,
     0, 0 },
   
@@ -1141,9 +1141,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "BackupMemory",
     DB_TOKEN,
     "Total memory allocated for backups per node (in bytes)",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     "4M", // sum of BackupDataBufferSize and BackupLogBufferSize
     "0",
     STR_VALUE(MAX_INT_RNIL) },
@@ -1153,9 +1153,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "BackupDataBufferSize",
     DB_TOKEN,
     "Default size of databuffer for a backup (in bytes)",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     "2M", // remember to change BackupMemory
     "0",
     STR_VALUE(MAX_INT_RNIL) },
@@ -1165,9 +1165,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "BackupLogBufferSize",
     DB_TOKEN,
     "Default size of logbuffer for a backup (in bytes)",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     "2M", // remember to change BackupMemory
     "0",
     STR_VALUE(MAX_INT_RNIL) },
@@ -1177,9 +1177,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "BackupWriteSize",
     DB_TOKEN,
     "Default size of filesystem writes made by backup (in bytes)",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     "32K",
     "0",
     STR_VALUE(MAX_INT_RNIL) },
@@ -1192,9 +1192,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "REP",
     "REP",
     "Node section",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::SECTION,
+    ConfigInfo::CI_SECTION,
     (const char *)NODE_TYPE_REP, 
     0, 0
   },
@@ -1204,9 +1204,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "HostName",
     "REP",
     "Name of computer for this node",
-    ConfigInfo::INTERNAL,
+    ConfigInfo::CI_INTERNAL,
     false,
-    ConfigInfo::STRING,
+    ConfigInfo::CI_STRING,
     UNDEFINED,
     0, 0 },
 
@@ -1215,9 +1215,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "System",
     "REP",
     "Name of system for this node",
-    ConfigInfo::INTERNAL,
+    ConfigInfo::CI_INTERNAL,
     false,
-    ConfigInfo::STRING,
+    ConfigInfo::CI_STRING,
     UNDEFINED,
     0, 0 },
 
@@ -1226,9 +1226,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "Id",
     "REP",
     "Number identifying replication node (REP)",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     MANDATORY,
     "1",
     STR_VALUE(MAX_NODES) },
@@ -1238,9 +1238,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "ExecuteOnComputer",
     "REP",
     "String referencing an earlier defined COMPUTER",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::STRING,
+    ConfigInfo::CI_STRING,
     MANDATORY,
     0, 0 },
 
@@ -1249,9 +1249,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "HeartbeatIntervalRepRep",
     "REP",
     "Time between REP-REP heartbeats. Connection closed after 3 missed HBs",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     true,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     "3000",
     "100",
     STR_VALUE(MAX_INT_RNIL) },
@@ -1264,9 +1264,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     API_TOKEN,
     API_TOKEN,
     "Node section",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::SECTION,
+    ConfigInfo::CI_SECTION,
     (const char *)NODE_TYPE_API, 
     0, 0
   },
@@ -1276,9 +1276,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "HostName",
     API_TOKEN,
     "Name of computer for this node",
-    ConfigInfo::INTERNAL,
+    ConfigInfo::CI_INTERNAL,
     false,
-    ConfigInfo::STRING,
+    ConfigInfo::CI_STRING,
     UNDEFINED,
     0, 0 },
 
@@ -1287,9 +1287,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "System",
     API_TOKEN,
     "Name of system for this node",
-    ConfigInfo::INTERNAL,
+    ConfigInfo::CI_INTERNAL,
     false,
-    ConfigInfo::STRING,
+    ConfigInfo::CI_STRING,
     UNDEFINED,
     0, 0 },
 
@@ -1298,9 +1298,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "Id",
     API_TOKEN,
     "Number identifying application node ("API_TOKEN_PRINT")",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     MANDATORY,
     "1",
     STR_VALUE(MAX_NODES) },
@@ -1310,9 +1310,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "ExecuteOnComputer",
     API_TOKEN,
     "String referencing an earlier defined COMPUTER",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::STRING,
+    ConfigInfo::CI_STRING,
     UNDEFINED,
     0, 0 },
 
@@ -1321,9 +1321,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "ArbitrationRank",
     API_TOKEN,
     "If 0, then "API_TOKEN_PRINT" is not arbitrator. Kernel selects arbitrators in order 1, 2",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     "0",
     "0",
     "2" },
@@ -1333,9 +1333,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "ArbitrationDelay",
     API_TOKEN,
     "When asked to arbitrate, arbitrator waits this long before voting (msec)",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     "0",
     "0",
     STR_VALUE(MAX_INT_RNIL) },
@@ -1345,9 +1345,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "MaxScanBatchSize",
     "API",
     "The maximum collective batch size for one scan",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     STR_VALUE(MAX_SCAN_BATCH_SIZE),
     "32k",
     "16M" },
@@ -1357,9 +1357,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "BatchByteSize",
     "API",
     "The default batch size in bytes",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     STR_VALUE(SCAN_BATCH_SIZE),
     "1k",
     "1M" },
@@ -1369,9 +1369,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "BatchSize",
     "API",
     "The default batch size in number of records",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     STR_VALUE(DEF_BATCH_SIZE),
     "1",
     STR_VALUE(MAX_PARALLEL_OP_PER_SCAN) },
@@ -1384,9 +1384,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     MGM_TOKEN,
     MGM_TOKEN,
     "Node section",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::SECTION,
+    ConfigInfo::CI_SECTION,
     (const char *)NODE_TYPE_MGM, 
     0, 0
   },
@@ -1396,9 +1396,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "HostName",
     MGM_TOKEN,
     "Name of computer for this node",
-    ConfigInfo::INTERNAL,
+    ConfigInfo::CI_INTERNAL,
     false,
-    ConfigInfo::STRING,
+    ConfigInfo::CI_STRING,
     UNDEFINED,
     0, 0 },
 
@@ -1407,9 +1407,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "DataDir",
     MGM_TOKEN,
     "Data directory for this node",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::STRING,
+    ConfigInfo::CI_STRING,
     MYSQLCLUSTERDIR,
     0, 0 },
 
@@ -1418,9 +1418,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "System",
     MGM_TOKEN,
     "Name of system for this node",
-    ConfigInfo::INTERNAL,
+    ConfigInfo::CI_INTERNAL,
     false,
-    ConfigInfo::STRING,
+    ConfigInfo::CI_STRING,
     UNDEFINED,
     0, 0 },
 
@@ -1429,9 +1429,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "Id",
     MGM_TOKEN,
     "Number identifying the management server node ("MGM_TOKEN_PRINT")",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     MANDATORY,
     "1",
     STR_VALUE(MAX_NODES) },
@@ -1441,9 +1441,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "LogDestination",
     MGM_TOKEN,
     "String describing where logmessages are sent",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::STRING,
+    ConfigInfo::CI_STRING,
     0,
     0, 0 },
   
@@ -1452,9 +1452,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "ExecuteOnComputer",
     MGM_TOKEN,
     "String referencing an earlier defined COMPUTER",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::STRING,
+    ConfigInfo::CI_STRING,
     0,
     0, 0 },
 
@@ -1463,9 +1463,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "MaxNoOfSavedEvents",
     MGM_TOKEN,
     "",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     "100",
     "0",
     STR_VALUE(MAX_INT_RNIL) },
@@ -1475,9 +1475,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "PortNumber",
     MGM_TOKEN,
     "Port number to give commands to/fetch configurations from management server",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     NDB_BASE_PORT,
     "0",
     STR_VALUE(MAX_INT_RNIL) },
@@ -1487,9 +1487,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "PortNumberStats",
     MGM_TOKEN,
     "Port number used to get statistical information from a management server",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     "2199",
     "0",
     STR_VALUE(MAX_INT_RNIL) },
@@ -1499,9 +1499,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "ArbitrationRank",
     MGM_TOKEN,
     "If 0, then "MGM_TOKEN_PRINT" is not arbitrator. Kernel selects arbitrators in order 1, 2",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     "1",
     "0",
     "2" },
@@ -1511,9 +1511,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "ArbitrationDelay",
     MGM_TOKEN,
     "",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     "0",
     "0",
     STR_VALUE(MAX_INT_RNIL) },
@@ -1526,9 +1526,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "TCP",
     "TCP",
     "Connection section",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::SECTION,
+    ConfigInfo::CI_SECTION,
     (const char *)CONNECTION_TYPE_TCP, 
     0, 0
   },
@@ -1538,9 +1538,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "HostName1",
     "TCP",
     "Name/IP of computer on one side of the connection",
-    ConfigInfo::INTERNAL,
+    ConfigInfo::CI_INTERNAL,
     false,
-    ConfigInfo::STRING,
+    ConfigInfo::CI_STRING,
     UNDEFINED,
     0, 0 },
 
@@ -1549,9 +1549,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "HostName2",
     "TCP",
     "Name/IP of computer on one side of the connection",
-    ConfigInfo::INTERNAL,
+    ConfigInfo::CI_INTERNAL,
     false,
-    ConfigInfo::STRING,
+    ConfigInfo::CI_STRING,
     UNDEFINED,
     0, 0 },
 
@@ -1560,9 +1560,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "NodeId1",
     "TCP",
     "Id of node ("DB_TOKEN_PRINT", "API_TOKEN_PRINT" or "MGM_TOKEN_PRINT") on one side of the connection",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::STRING,
+    ConfigInfo::CI_STRING,
     MANDATORY,
     0, 0 },
 
@@ -1571,9 +1571,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "NodeId2",
     "TCP",
     "Id of node ("DB_TOKEN_PRINT", "API_TOKEN_PRINT" or "MGM_TOKEN_PRINT") on one side of the connection",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::STRING,
+    ConfigInfo::CI_STRING,
     MANDATORY,
     0, 0 },
 
@@ -1582,9 +1582,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "SendSignalId",
     "TCP",
     "Sends id in each signal.  Used in trace files.",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::BOOL,
+    ConfigInfo::CI_BOOL,
     "true",
     "false",
     "true" },
@@ -1595,9 +1595,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "Checksum",
     "TCP",
     "If checksum is enabled, all signals between nodes are checked for errors",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::BOOL,
+    ConfigInfo::CI_BOOL,
     "false",
     "false",
     "true" },
@@ -1607,9 +1607,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "PortNumber",
     "TCP",
     "Port used for this transporter",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     MANDATORY,
     "0",
     STR_VALUE(MAX_INT_RNIL) },
@@ -1619,9 +1619,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "SendBufferMemory",
     "TCP",
     "Bytes of buffer for signals sent from this node",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     "256K",
     "16K",
     STR_VALUE(MAX_INT_RNIL) },
@@ -1631,9 +1631,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "ReceiveBufferMemory",
     "TCP",
     "Bytes of buffer for signals received by this node",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     "64K",
     "16K",
     STR_VALUE(MAX_INT_RNIL) },
@@ -1643,9 +1643,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "Proxy",
     "TCP",
     "",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::STRING,
+    ConfigInfo::CI_STRING,
     UNDEFINED,
     0, 0 },
 
@@ -1654,9 +1654,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "NodeId1_System",
     "TCP",
     "System for node 1 in connection",
-    ConfigInfo::INTERNAL,
+    ConfigInfo::CI_INTERNAL,
     false,
-    ConfigInfo::STRING,
+    ConfigInfo::CI_STRING,
     UNDEFINED,
     0, 0 },
 
@@ -1665,9 +1665,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "NodeId2_System",
     "TCP",
     "System for node 2 in connection",
-    ConfigInfo::INTERNAL,
+    ConfigInfo::CI_INTERNAL,
     false,
-    ConfigInfo::STRING,
+    ConfigInfo::CI_STRING,
     UNDEFINED,
     0, 0 },
   
@@ -1680,9 +1680,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "SHM",
     "SHM",
     "Connection section",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::SECTION,
+    ConfigInfo::CI_SECTION,
     (const char *)CONNECTION_TYPE_SHM, 
     0, 0 },
 
@@ -1691,9 +1691,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "NodeId1",
     "SHM",
     "Id of node ("DB_TOKEN_PRINT", "API_TOKEN_PRINT" or "MGM_TOKEN_PRINT") on one side of the connection",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::STRING,
+    ConfigInfo::CI_STRING,
     MANDATORY,
     0, 0 },
   
@@ -1702,9 +1702,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "PortNumber",
     "SHM",
     "Port used for this transporter",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     MANDATORY,
     "0", 
     STR_VALUE(MAX_INT_RNIL) },
@@ -1714,9 +1714,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "NodeId2",
     "SHM",
     "Id of node ("DB_TOKEN_PRINT", "API_TOKEN_PRINT" or "MGM_TOKEN_PRINT") on one side of the connection",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::STRING,
+    ConfigInfo::CI_STRING,
     MANDATORY,
     0, 0 },
   
@@ -1725,9 +1725,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "SendSignalId",
     "SHM",
     "Sends id in each signal.  Used in trace files.",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::BOOL,
+    ConfigInfo::CI_BOOL,
     "false",
     "false",
     "true" },
@@ -1738,9 +1738,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "Checksum",
     "SHM",
     "If checksum is enabled, all signals between nodes are checked for errors",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::BOOL,
+    ConfigInfo::CI_BOOL,
     "true",
     "false",
     "true" },
@@ -1750,9 +1750,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "ShmKey",
     "SHM",
     "A shared memory key",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     MANDATORY,
     "0",
     STR_VALUE(MAX_INT_RNIL) },
@@ -1762,9 +1762,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "ShmSize",
     "SHM",
     "Size of shared memory segment",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     "1M",
     "4K",
     STR_VALUE(MAX_INT_RNIL) },
@@ -1774,9 +1774,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "NodeId1_System",
     "SHM",
     "System for node 1 in connection",
-    ConfigInfo::INTERNAL,
+    ConfigInfo::CI_INTERNAL,
     false,
-    ConfigInfo::STRING,
+    ConfigInfo::CI_STRING,
     UNDEFINED,
     0, 0 },
 
@@ -1785,9 +1785,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "NodeId2_System",
     "SHM",
     "System for node 2 in connection",
-    ConfigInfo::INTERNAL,
+    ConfigInfo::CI_INTERNAL,
     false,
-    ConfigInfo::STRING,
+    ConfigInfo::CI_STRING,
     UNDEFINED,
     0, 0 },
 
@@ -1799,9 +1799,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "SCI",
     "SCI",
     "Connection section",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::SECTION,
+    ConfigInfo::CI_SECTION,
     (const char *)CONNECTION_TYPE_SCI, 
     0, 0 
   },
@@ -1811,9 +1811,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "NodeId1",
     "SCI",
     "Id of node ("DB_TOKEN_PRINT", "API_TOKEN_PRINT" or "MGM_TOKEN_PRINT") on one side of the connection",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::STRING,
+    ConfigInfo::CI_STRING,
     MANDATORY,
     "0",
     STR_VALUE(MAX_INT_RNIL) },
@@ -1823,9 +1823,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "NodeId2",
     "SCI",
     "Id of node ("DB_TOKEN_PRINT", "API_TOKEN_PRINT" or "MGM_TOKEN_PRINT") on one side of the connection",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::STRING,
+    ConfigInfo::CI_STRING,
     MANDATORY,
     "0",
     STR_VALUE(MAX_INT_RNIL) },
@@ -1835,9 +1835,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "HostName1",
     "SCI",
     "Name/IP of computer on one side of the connection",
-    ConfigInfo::INTERNAL,
+    ConfigInfo::CI_INTERNAL,
     false,
-    ConfigInfo::STRING,
+    ConfigInfo::CI_STRING,
     UNDEFINED,
     0, 0 },
 
@@ -1846,9 +1846,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "HostName2",
     "SCI",
     "Name/IP of computer on one side of the connection",
-    ConfigInfo::INTERNAL,
+    ConfigInfo::CI_INTERNAL,
     false,
-    ConfigInfo::STRING,
+    ConfigInfo::CI_STRING,
     UNDEFINED,
     0, 0 },
 
@@ -1857,9 +1857,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "PortNumber",
     "SCI",
     "Port used for this transporter",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     MANDATORY,
     "0", 
     STR_VALUE(MAX_INT_RNIL) },
@@ -1869,9 +1869,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "Host1SciId0",
     "SCI",
     "SCI-node id for adapter 0 on Host1 (a computer can have two adapters)",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     MANDATORY,
     "0",
     STR_VALUE(MAX_INT_RNIL) },
@@ -1881,9 +1881,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "Host1SciId1",
     "SCI",
     "SCI-node id for adapter 1 on Host1 (a computer can have two adapters)",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     "0",
     "0",
     STR_VALUE(MAX_INT_RNIL) },
@@ -1893,9 +1893,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "Host2SciId0",
     "SCI",
     "SCI-node id for adapter 0 on Host2 (a computer can have two adapters)",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     MANDATORY,
     "0",
     STR_VALUE(MAX_INT_RNIL) },
@@ -1905,9 +1905,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "Host2SciId1",
     "SCI",
     "SCI-node id for adapter 1 on Host2 (a computer can have two adapters)",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     "0",
     "0",
     STR_VALUE(MAX_INT_RNIL) },
@@ -1917,9 +1917,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "SendSignalId",
     "SCI",
     "Sends id in each signal.  Used in trace files.",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::BOOL,
+    ConfigInfo::CI_BOOL,
     "true",
     "false",
     "true" },
@@ -1929,9 +1929,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "Checksum",
     "SCI",
     "If checksum is enabled, all signals between nodes are checked for errors",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::BOOL,
+    ConfigInfo::CI_BOOL,
     "false",
     "false",
     "true" },
@@ -1941,9 +1941,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "SendLimit",
     "SCI",
     "Transporter send buffer contents are sent when this no of bytes is buffered",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     "8K",
     "128",
     "32K" },
@@ -1953,9 +1953,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "SharedBufferSize",
     "SCI",
     "Size of shared memory segment",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     "1M",
     "64K",
     STR_VALUE(MAX_INT_RNIL) },
@@ -1965,9 +1965,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "NodeId1_System",
     "SCI",
     "System for node 1 in connection",
-    ConfigInfo::INTERNAL,
+    ConfigInfo::CI_INTERNAL,
     false,
-    ConfigInfo::STRING,
+    ConfigInfo::CI_STRING,
     UNDEFINED,
     0, 0 },
 
@@ -1976,9 +1976,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "NodeId2_System",
     "SCI",
     "System for node 2 in connection",
-    ConfigInfo::INTERNAL,
+    ConfigInfo::CI_INTERNAL,
     false,
-    ConfigInfo::STRING,
+    ConfigInfo::CI_STRING,
     UNDEFINED,
     0, 0 },
 
@@ -1990,9 +1990,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "OSE",
     "OSE",
     "Connection section",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::SECTION,
+    ConfigInfo::CI_SECTION,
     (const char *)CONNECTION_TYPE_OSE, 
     0, 0 
   },
@@ -2002,9 +2002,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "HostName1",
     "OSE",
     "Name of computer on one side of the connection",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::STRING,
+    ConfigInfo::CI_STRING,
     UNDEFINED,
     0, 0 },
 
@@ -2013,9 +2013,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "HostName2",
     "OSE",
     "Name of computer on one side of the connection",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::STRING,
+    ConfigInfo::CI_STRING,
     UNDEFINED,
     0, 0 },
 
@@ -2024,9 +2024,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "NodeId1",
     "OSE",
     "Id of node ("DB_TOKEN_PRINT", "API_TOKEN_PRINT" or "MGM_TOKEN_PRINT") on one side of the connection",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     MANDATORY,
     "0",
     STR_VALUE(MAX_INT_RNIL) },
@@ -2036,9 +2036,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "NodeId2",
     "OSE",
     "Id of node ("DB_TOKEN_PRINT", "API_TOKEN_PRINT" or "MGM_TOKEN_PRINT") on one side of the connection",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     UNDEFINED,
     "0",
     STR_VALUE(MAX_INT_RNIL) },
@@ -2048,9 +2048,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "SendSignalId",
     "OSE",
     "Sends id in each signal.  Used in trace files.",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::BOOL,
+    ConfigInfo::CI_BOOL,
     "true",
     "false",
     "true" },
@@ -2060,9 +2060,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "Checksum",
     "OSE",
     "If checksum is enabled, all signals between nodes are checked for errors",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::BOOL,
+    ConfigInfo::CI_BOOL,
     "false",
     "false",
     "true" },
@@ -2072,9 +2072,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "PrioASignalSize",
     "OSE",
     "Size of priority A signals (in bytes)",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     "1000",
     "0",
     STR_VALUE(MAX_INT_RNIL) },
@@ -2084,9 +2084,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "PrioBSignalSize",
     "OSE",
     "Size of priority B signals (in bytes)",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     "1000",
     "0",
     STR_VALUE(MAX_INT_RNIL) },
@@ -2096,9 +2096,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "ReceiveArraySize",
     "OSE",
     "Number of OSE signals checked for correct ordering (in no of OSE signals)",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::INT,
+    ConfigInfo::CI_INT,
     "10",
     "0",
     STR_VALUE(MAX_INT_RNIL) },
@@ -2108,9 +2108,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "NodeId1_System",
     "OSE",
     "System for node 1 in connection",
-    ConfigInfo::INTERNAL,
+    ConfigInfo::CI_INTERNAL,
     false,
-    ConfigInfo::STRING,
+    ConfigInfo::CI_STRING,
     UNDEFINED,
     0, 0 },
 
@@ -2119,9 +2119,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "NodeId2_System",
     "OSE",
     "System for node 2 in connection",
-    ConfigInfo::INTERNAL,
+    ConfigInfo::CI_INTERNAL,
     false,
-    ConfigInfo::STRING,
+    ConfigInfo::CI_STRING,
     UNDEFINED,
     0, 0 },
 };
@@ -2169,7 +2169,7 @@ ConfigInfo::ConfigInfo()
     }
 
     switch (param._type) {
-      case BOOL:
+      case CI_BOOL:
       {
 	bool tmp_bool;
 	require(InitConfigFileParser::convertStringToBool(param._min, tmp_bool));
@@ -2178,8 +2178,8 @@ ConfigInfo::ConfigInfo()
 	pinfo.put64("Max", tmp_bool);
 	break;
       }
-      case INT:
-      case INT64:
+      case CI_INT:
+      case CI_INT64:
       {
 	Uint64 tmp_uint64;
 	require(InitConfigFileParser::convertStringToUint64(param._min, tmp_uint64));
@@ -2188,10 +2188,10 @@ ConfigInfo::ConfigInfo()
 	pinfo.put64("Max", tmp_uint64);
 	break;
       }
-      case SECTION:
+      case CI_SECTION:
 	pinfo.put("SectionType", (Uint32)UintPtr(param._default));
 	break;
-      case STRING:
+      case CI_STRING:
 	break;
     }
 
@@ -2209,7 +2209,7 @@ ConfigInfo::ConfigInfo()
     // Replace section with modified section
     m_info.put(param._section, section, true);
     
-    if(param._type != ConfigInfo::SECTION){
+    if(param._type != ConfigInfo::CI_SECTION){
       Properties * p;
       if(!m_systemDefaults.getCopy(param._section, &p)){
 	p = new Properties(true);
@@ -2218,20 +2218,20 @@ ConfigInfo::ConfigInfo()
 	 param._default != MANDATORY){
 	switch (param._type)
         {
-	  case SECTION:
+	  case CI_SECTION:
 	    break;
-	  case STRING:
+	  case CI_STRING:
 	    require(p->put(param._fname, param._default));
 	    break;
-	  case BOOL:
+	  case CI_BOOL:
 	    {
 	      bool tmp_bool;
 	      require(InitConfigFileParser::convertStringToBool(param._default, default_bool));
 	      require(p->put(param._fname, default_bool));
 	      break;
 	    }
-	  case INT:
-	  case INT64:
+	  case CI_INT:
+	  case CI_INT64:
 	    {
 	      Uint64 tmp_uint64;
 	      require(InitConfigFileParser::convertStringToUint64(param._default, default_uint64));
@@ -2253,7 +2253,7 @@ ConfigInfo::ConfigInfo()
       exit(-1);
     }
     
-    if(m_ParamInfo[i]._type == ConfigInfo::SECTION)
+    if(m_ParamInfo[i]._type == ConfigInfo::CI_SECTION)
       continue;
 
     const Properties * p = getInfo(m_ParamInfo[i]._section);
@@ -2272,12 +2272,12 @@ ConfigInfo::ConfigInfo()
  * Getters
  ****************************************************************************/
 inline void warning(const char * src, const char * arg){
-  ndbout << "Illegal call to ConfigInfo::" << src << "() - " << arg << endl;
+  ndbout << "Illegal call to ConfigInfo::CI_" << src << "() - " << arg << endl;
   abort();
 }
 
 const Properties * 
-ConfigInfo::getInfo(const char * section) const {
+ConfigInfo::CI_getInfo(const char * section) const {
   const Properties * p;
   if(!m_info.get(section, &p)){
     return 0;
@@ -2391,41 +2391,41 @@ ConfigInfo::getType(const Properties * section, const char* fname) const {
   return (ConfigInfo::Type) getInfoInt(section, fname, "Type");
 }
 
-ConfigInfo::Status
-ConfigInfo::getStatus(const Properties * section, const char* fname) const {
-  return (ConfigInfo::Status) getInfoInt(section, fname, "Status");
+ConfigInfo::CI_Status
+ConfigInfo::CI_getStatus(const Properties * section, const char* fname) const {
+  return (ConfigInfo::CI_Status) getInfoInt(section, fname, "Status");
 }
 
 /****************************************************************************
  * Printers
  ****************************************************************************/
 
-void ConfigInfo::print() const {
+void ConfigInfo::CI_print() const {
   Properties::Iterator it(&m_info);
   for (const char* n = it.first(); n != NULL; n = it.next()) {
     print(n);
   }
 }
 
-void ConfigInfo::print(const char* section) const {
+void ConfigInfo::CI_print(const char* section) const {
   ndbout << "****** " << section << " ******" << endl << endl;
   const Properties * sec = getInfo(section);
   Properties::Iterator it(sec);
   for (const char* n = it.first(); n != NULL; n = it.next()) {
     // Skip entries with different F- and P-names
-    if (getStatus(sec, n) == ConfigInfo::INTERNAL) continue;
-    if (getStatus(sec, n) == ConfigInfo::DEPRICATED) continue;
-    if (getStatus(sec, n) == ConfigInfo::NOTIMPLEMENTED) continue;
+    if (getStatus(sec, n) == ConfigInfo::CI_INTERNAL) continue;
+    if (getStatus(sec, n) == ConfigInfo::CI_DEPRICATED) continue;
+    if (getStatus(sec, n) == ConfigInfo::CI_NOTIMPLEMENTED) continue;
     print(sec, n);
   }
 }
 
-void ConfigInfo::print(const Properties * section, 
+void ConfigInfo::CI_print(const Properties * section, 
 		       const char* parameter) const {
   ndbout << parameter;
   //  ndbout << getDescription(section, parameter) << endl;
   switch (getType(section, parameter)) {
-  case ConfigInfo::BOOL:
+  case ConfigInfo::CI_BOOL:
     ndbout << " (Boolean value)" << endl;
     ndbout << getDescription(section, parameter) << endl;
     if (getDefault(section, parameter) == false) {
@@ -2440,8 +2440,8 @@ void ConfigInfo::print(const Properties * section,
     ndbout << endl;
     break;    
     
-  case ConfigInfo::INT:
-  case ConfigInfo::INT64:
+  case ConfigInfo::CI_INT:
+  case ConfigInfo::CI_INT64:
     ndbout << " (Non-negative Integer)" << endl;
     ndbout << getDescription(section, parameter) << endl;
     if (getDefault(section, parameter) == (UintPtr)MANDATORY) {
@@ -2456,7 +2456,7 @@ void ConfigInfo::print(const Properties * section,
     ndbout << endl;
     break;
     
-  case ConfigInfo::STRING:
+  case ConfigInfo::CI_STRING:
     ndbout << " (String)" << endl;
     ndbout << getDescription(section, parameter) << endl;
     if (getDefault(section, parameter) == (UintPtr)MANDATORY) {
@@ -2466,7 +2466,7 @@ void ConfigInfo::print(const Properties * section,
     }
     ndbout << endl;
     break;
-  case ConfigInfo::SECTION:
+  case ConfigInfo::CI_SECTION:
     break;
   }
 }
@@ -2743,29 +2743,29 @@ applyDefaultValues(InitConfigFileParser::Context & ctx,
     Properties::Iterator it(defaults);
 
     for(const char * name = it.first(); name != NULL; name = it.next()){
-      ConfigInfo::Status st = ctx.m_info->getStatus(ctx.m_currentInfo, name);
+      ConfigInfo::CI_Status st = ctx.m_info->getStatus(ctx.m_currentInfo, name);
       if(!ctx.m_currentSection->contains(name)){
 	switch (ctx.m_info->getType(ctx.m_currentInfo, name)){
-	case ConfigInfo::INT:
-	case ConfigInfo::BOOL:{
+	case ConfigInfo::CI_INT:
+	case ConfigInfo::CI_BOOL:{
 	  Uint32 val = 0;
 	  ::require(defaults->get(name, &val));
 	  ctx.m_currentSection->put(name, val);
 	  break;
 	}
-	case ConfigInfo::INT64:{
+	case ConfigInfo::CI_INT64:{
 	  Uint64 val = 0;
 	  ::require(defaults->get(name, &val));
 	  ctx.m_currentSection->put64(name, val);
 	  break;
 	}
-	case ConfigInfo::STRING:{
+	case ConfigInfo::CI_STRING:{
 	  const char * val;
 	  ::require(defaults->get(name, &val));
 	  ctx.m_currentSection->put(name, val);
 	  break;
 	}
-	case ConfigInfo::SECTION:
+	case ConfigInfo::CI_SECTION:
 	  break;
 	}
       }
@@ -3163,9 +3163,9 @@ transform(InitConfigFileParser::Context & ctx,
   
   PropertiesType oldType;
   require(ctx.m_currentSection->getTypeOf(oldName, &oldType));
-  ConfigInfo::Type newType = ctx.m_info->getType(ctx.m_currentInfo, newName);  
+  ConfigInfo::CI_Type newType = ctx.m_info->getType(ctx.m_currentInfo, newName);  
   if(!((oldType == PropertiesType_Uint32 || oldType == PropertiesType_Uint64) 
-       && (newType == ConfigInfo::INT || newType == ConfigInfo::INT64 || newType == ConfigInfo::BOOL))){
+       && (newType == ConfigInfo::CI_INT || newType == ConfigInfo::CI_INT64 || newType == ConfigInfo::CI_BOOL))){
     ndbout << "oldType: " << (int)oldType << ", newType: " << (int)newType << endl;
     ctx.reportError("Unable to handle type conversion w.r.t deprication %s %s"
 		    "- [%s] starting at line: %d",
@@ -3185,9 +3185,9 @@ transform(InitConfigFileParser::Context & ctx,
     return false;
   }
 
-  if(newType == ConfigInfo::INT || newType == ConfigInfo::BOOL){
+  if(newType == ConfigInfo::CI_INT || newType == ConfigInfo::CI_BOOL){
     require(dst.put(newName, (Uint32)newVal));
-  } else if(newType == ConfigInfo::INT64) {
+  } else if(newType == ConfigInfo::CI_INT64) {
     require(dst.put64(newName, newVal));    
   }
   return true;
@@ -3269,7 +3269,7 @@ saveInConfigValues(InitConfigFileParser::Context & ctx, const char * data){
     require(sec->get("Status", &status));
     require(sec->get("SectionType", &typeVal));
     
-    if(id == KEY_INTERNAL || status == ConfigInfo::INTERNAL){
+    if(id == KEY_INTERNAL || status == ConfigInfo::CI_INTERNAL){
       ndbout_c("skipping section %s", ctx.fname);
       break;
     }
@@ -3326,7 +3326,7 @@ saveInConfigValues(InitConfigFileParser::Context & ctx, const char * data){
 }
 
 static bool
-sanity_checks(Vector<ConfigInfo::ConfigRuleSection>&sections, 
+sanity_checks(Vector<ConfigInfo::CI_ConfigRuleSection>&sections, 
 	      struct InitConfigFileParser::Context &ctx, 
 	      const char * rule_data)
 {
@@ -3349,7 +3349,7 @@ sanity_checks(Vector<ConfigInfo::ConfigRuleSection>&sections,
 }
 
 static bool
-add_node_connections(Vector<ConfigInfo::ConfigRuleSection>&sections, 
+add_node_connections(Vector<ConfigInfo::CI_ConfigRuleSection>&sections, 
 		   struct InitConfigFileParser::Context &ctx, 
 		   const char * rule_data)
 {
@@ -3401,7 +3401,7 @@ add_node_connections(Vector<ConfigInfo::ConfigRuleSection>&sections,
     for (Uint32 j= i+1;; j++){
       if(!p_db_nodes.get("", j, &nodeId2)) break;
       if(!p_connections2.get("", nodeId1+nodeId2<<16, &dummy)) {
-	ConfigInfo::ConfigRuleSection s;
+	ConfigInfo::CI_ConfigRuleSection s;
 	s.m_sectionType= BaseString("TCP");
 	s.m_sectionData= new Properties(true);
 	char buf[16];
@@ -3418,7 +3418,7 @@ add_node_connections(Vector<ConfigInfo::ConfigRuleSection>&sections,
     if(!p_connections.get("", nodeId1, &dummy)) {
       for (Uint32 j= 0;; j++){
 	if(!p_db_nodes.get("", j, &nodeId2)) break;
-	ConfigInfo::ConfigRuleSection s;
+	ConfigInfo::CI_ConfigRuleSection s;
 	s.m_sectionType= BaseString("TCP");
 	s.m_sectionData= new Properties(true);
 	char buf[16];
@@ -3435,7 +3435,7 @@ add_node_connections(Vector<ConfigInfo::ConfigRuleSection>&sections,
 }
 
 
-static bool add_server_ports(Vector<ConfigInfo::ConfigRuleSection>&sections, 
+static bool add_server_ports(Vector<ConfigInfo::CI_ConfigRuleSection>&sections, 
 		      struct InitConfigFileParser::Context &ctx, 
 		      const char * rule_data)
 {
@@ -3475,7 +3475,7 @@ static bool add_server_ports(Vector<ConfigInfo::ConfigRuleSection>&sections,
 }
 
 static bool
-check_node_vs_replicas(Vector<ConfigInfo::ConfigRuleSection>&sections, 
+check_node_vs_replicas(Vector<ConfigInfo::CI_ConfigRuleSection>&sections, 
 		       struct InitConfigFileParser::Context &ctx, 
 		       const char * rule_data)
 {
@@ -3602,4 +3602,4 @@ check_node_vs_replicas(Vector<ConfigInfo::ConfigRuleSection>&sections,
   return true;
 }
 
-template class Vector<ConfigInfo::ConfigRuleSection>;
+template class Vector<ConfigInfo::CI_ConfigRuleSection>;
