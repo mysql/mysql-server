@@ -4200,6 +4200,8 @@ enum options_mysqld
   OPT_INNODB_OPEN_FILES,
   OPT_INNODB_AUTOEXTEND_INCREMENT,
   OPT_INNODB_SYNC_SPIN_LOOPS,
+  OPT_INNODB_FREE_TICKETS_TO_ENTER,
+  OPT_INNODB_THREAD_SLEEP_DELAY,
   OPT_BDB_CACHE_SIZE,
   OPT_BDB_LOG_BUFFER_SIZE,
   OPT_BDB_MAX_LOCK,
@@ -5050,6 +5052,12 @@ log and this option does nothing anymore.",
    (gptr*) &srv_n_spin_wait_rounds,
    (gptr*) &srv_n_spin_wait_rounds,
    0, GET_LONG, REQUIRED_ARG, 20L, 0L, ~0L, 0, 1L, 0},
+  {"innodb_free_tickets_to_enter", OPT_INNODB_FREE_TICKETS_TO_ENTER,
+   "Number of times a thread is allowed to enter InnoDB within the same \
+    SQL query after it has once got the ticket",
+   (gptr*) &srv_n_free_tickets_to_enter,
+   (gptr*) &srv_n_free_tickets_to_enter,
+   0, GET_LONG, REQUIRED_ARG, 500L, 1L, ~0L, 0, 1L, 0},
 #ifdef HAVE_REPLICATION
   /*
     Disabled for the 4.1.3 release. Disabling just this paragraph of code is
@@ -5072,8 +5080,14 @@ log and this option does nothing anymore.",
 #endif
   {"innodb_thread_concurrency", OPT_INNODB_THREAD_CONCURRENCY,
    "Helps in performance tuning in heavily concurrent environments.",
-   (gptr*) &innobase_thread_concurrency, (gptr*) &innobase_thread_concurrency,
+   (gptr*) &srv_thread_concurrency, (gptr*) &srv_thread_concurrency,
    0, GET_LONG, REQUIRED_ARG, 8, 1, 1000, 0, 1, 0},
+  {"innodb_thread_sleep_delay", OPT_INNODB_THREAD_SLEEP_DELAY,
+   "Time of innodb thread sleeping before joining InnoDB queue (usec). Value 0"
+    " disable a sleep",
+   (gptr*) &srv_thread_sleep_delay,
+   (gptr*) &srv_thread_sleep_delay,
+   0, GET_LONG, REQUIRED_ARG, 10000L, 0L, ~0L, 0, 1L, 0},
 #endif /* HAVE_INNOBASE_DB */
   {"interactive_timeout", OPT_INTERACTIVE_TIMEOUT,
    "The number of seconds the server waits for activity on an interactive connection before closing it.",

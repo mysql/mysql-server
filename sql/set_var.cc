@@ -380,6 +380,12 @@ sys_var_long_ptr	sys_innodb_autoextend_increment("innodb_autoextend_increment",
 							&srv_auto_extend_increment);
 sys_var_long_ptr	sys_innodb_sync_spin_loops("innodb_sync_spin_loops",
                                              &srv_n_spin_wait_rounds);
+sys_var_long_ptr  sys_innodb_free_tickets_to_enter("innodb_free_tickets_to_enter",
+                                             &srv_n_free_tickets_to_enter);
+sys_var_long_ptr  sys_innodb_thread_sleep_delay("innodb_thread_sleep_delay",
+                                                &srv_thread_sleep_delay);
+sys_var_long_ptr  sys_innodb_thread_concurrency("innodb_thread_concurrency",
+                                                &srv_thread_concurrency);
 #endif
 
 #ifdef HAVE_NDBCLUSTER_DB
@@ -654,6 +660,9 @@ sys_var *sys_variables[]=
   &sys_innodb_max_purge_lag,
   &sys_innodb_autoextend_increment,
   &sys_innodb_sync_spin_loops,
+  &sys_innodb_free_tickets_to_enter,
+  &sys_innodb_thread_sleep_delay,
+  &sys_innodb_thread_concurrency,
 #endif  
 #ifdef HAVE_NDBCLUSTER_DB
   &sys_ndb_autoincrement_prefetch_sz,
@@ -752,6 +761,7 @@ struct show_var_st init_vars[]= {
   {"innodb_flush_log_at_trx_commit", (char*) &innobase_flush_log_at_trx_commit, SHOW_INT},
   {"innodb_flush_method",    (char*) &innobase_unix_file_flush_method, SHOW_CHAR_PTR},
   {"innodb_force_recovery", (char*) &innobase_force_recovery, SHOW_LONG },
+  {sys_innodb_free_tickets_to_enter.name, (char*) &sys_innodb_free_tickets_to_enter, SHOW_SYS},
   {"innodb_lock_wait_timeout", (char*) &innobase_lock_wait_timeout, SHOW_LONG },
   {"innodb_log_arch_dir",   (char*) &innobase_log_arch_dir, 	    SHOW_CHAR_PTR},
   {"innodb_log_archive",    (char*) &innobase_log_archive, 	    SHOW_MY_BOOL},
@@ -765,7 +775,8 @@ struct show_var_st init_vars[]= {
   {sys_innodb_max_purge_lag.name, (char*) &sys_innodb_max_purge_lag, SHOW_SYS},
   {"innodb_mirrored_log_groups", (char*) &innobase_mirrored_log_groups, SHOW_LONG},
   {"innodb_open_files", (char*) &innobase_open_files, SHOW_LONG },
-  {"innodb_thread_concurrency", (char*) &innobase_thread_concurrency, SHOW_LONG },
+  {sys_innodb_thread_concurrency.name, (char*) &sys_innodb_thread_concurrency, SHOW_SYS},
+  {sys_innodb_thread_sleep_delay.name, (char*) &sys_innodb_thread_sleep_delay, SHOW_SYS},
   {sys_innodb_sync_spin_loops.name, (char*) &sys_innodb_sync_spin_loops, SHOW_SYS},
 #endif
   {sys_interactive_timeout.name,(char*) &sys_interactive_timeout,   SHOW_SYS},
