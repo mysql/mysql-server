@@ -112,7 +112,7 @@ Item_sum_int::val_str(String *str)
 
 
 bool
-Item_sum_num::fix_fields(THD *thd,TABLE_LIST *tables)
+Item_sum_num::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
   if (!thd->allow_sum_func)
   {
@@ -124,7 +124,7 @@ Item_sum_num::fix_fields(THD *thd,TABLE_LIST *tables)
   maybe_null=0;
   for (uint i=0 ; i < arg_count ; i++)
   {
-    if (args[i]->fix_fields(thd,tables))
+    if (args[i]->fix_fields(thd, tables, args + i))
       return 1;
     if (decimals < args[i]->decimals)
       decimals=args[i]->decimals;
@@ -140,7 +140,7 @@ Item_sum_num::fix_fields(THD *thd,TABLE_LIST *tables)
 
 
 bool
-Item_sum_hybrid::fix_fields(THD *thd,TABLE_LIST *tables)
+Item_sum_hybrid::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
   Item *item=args[0];
   if (!thd->allow_sum_func)
@@ -149,7 +149,7 @@ Item_sum_hybrid::fix_fields(THD *thd,TABLE_LIST *tables)
     return 1;
   }
   thd->allow_sum_func=0;			// No included group funcs
-  if (item->fix_fields(thd,tables))
+  if (item->fix_fields(thd, tables, args))
     return 1;
   hybrid_type=item->result_type();
   if (hybrid_type == INT_RESULT)
@@ -930,9 +930,10 @@ Item_sum_count_distinct::~Item_sum_count_distinct()
 }
 
 
-bool Item_sum_count_distinct::fix_fields(THD *thd,TABLE_LIST *tables)
+bool Item_sum_count_distinct::fix_fields(THD *thd, TABLE_LIST *tables,
+					 Item **ref)
 {
-  if (Item_sum_num::fix_fields(thd,tables) ||
+  if (Item_sum_num::fix_fields(thd, tables, ref) ||
       !(tmp_table_param= new TMP_TABLE_PARAM))
     return 1;
   return 0;

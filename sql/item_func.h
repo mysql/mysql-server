@@ -99,7 +99,7 @@ public:
   }
   Item_func(List<Item> &list);
   ~Item_func() {} /* Nothing to do; Items are freed automaticly */
-  bool fix_fields(THD *,struct st_table_list *);
+  bool fix_fields(THD *,struct st_table_list *, Item **ref);
   void make_field(Send_field *field);
   table_map used_tables() const;
   void update_used_tables();
@@ -567,9 +567,10 @@ public:
   Item_func_field(Item *a,List<Item> &list) :Item_int_func(list),item(a) {}
   ~Item_func_field() { delete item; }
   longlong val_int();
-  bool fix_fields(THD *thd,struct st_table_list *tlist)
+  bool fix_fields(THD *thd,struct st_table_list *tlist, Item **ref)
   {
-    return (item->fix_fields(thd,tlist) || Item_func::fix_fields(thd,tlist));
+    return (item->fix_fields(thd, tlist, &item) ||
+	    Item_func::fix_fields(thd, tlist, ref));
   }
   void update_used_tables()
   {
@@ -708,11 +709,11 @@ public:
     :Item_func(list), udf(udf_arg) {}
   ~Item_udf_func() {}
   const char *func_name() const { return udf.name(); }
-  bool fix_fields(THD *thd,struct st_table_list *tables)
+  bool fix_fields(THD *thd, struct st_table_list *tables, Item **ref)
   {
-    bool res=udf.fix_fields(thd,tables,this,arg_count,args);
-    used_tables_cache=udf.used_tables_cache;
-    const_item_cache=udf.const_item_cache;
+    bool res= udf.fix_fields(thd, tables, this, arg_count, args);
+    used_tables_cache= udf.used_tables_cache;
+    const_item_cache= udf.const_item_cache;
     return res;
   }
   Item_result result_type () const { return udf.result_type(); }
@@ -867,7 +868,7 @@ public:
   void update_hash(void *ptr, uint length, enum Item_result type);
   bool update();
   enum Item_result result_type () const { return cached_result_type; }
-  bool fix_fields(THD *thd,struct st_table_list *tables);
+  bool fix_fields(THD *thd, struct st_table_list *tables, Item **ref);
   void fix_length_and_dec();
   void print(String *str);
   const char *func_name() const { return "set_user_var"; }
@@ -941,7 +942,7 @@ public:
   }
   enum Functype functype() const { return FT_FUNC; }
   void update_used_tables() {}
-  bool fix_fields(THD *thd,struct st_table_list *tlist);
+  bool fix_fields(THD *thd, struct st_table_list *tlist, Item **ref);
   bool eq(const Item *, bool binary_cmp) const;
   longlong val_int() { return val()!=0.0; }
   double val();

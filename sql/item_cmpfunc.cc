@@ -727,12 +727,12 @@ double Item_func_case::val()
 
 
 bool
-Item_func_case::fix_fields(THD *thd,TABLE_LIST *tables)
+Item_func_case::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
-  if (first_expr && first_expr->fix_fields(thd,tables) ||
-      else_expr && else_expr->fix_fields(thd,tables))
+  if (first_expr && first_expr->fix_fields(thd, tables, &first_expr) ||
+      else_expr && else_expr->fix_fields(thd, tables, &else_expr))
     return 1;
-  if (Item_func::fix_fields(thd,tables))
+  if (Item_func::fix_fields(thd, tables, ref))
     return 1;
   if (first_expr)
   {
@@ -1074,7 +1074,7 @@ longlong Item_func_bit_and::val_int()
 
 
 bool
-Item_cond::fix_fields(THD *thd,TABLE_LIST *tables)
+Item_cond::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
   List_iterator<Item> li(list);
   Item *item;
@@ -1096,7 +1096,7 @@ Item_cond::fix_fields(THD *thd,TABLE_LIST *tables)
 #endif
       item= *li.ref();				// new current item
     }
-    if (item->fix_fields(thd,tables))
+    if (item->fix_fields(thd, tables, li.ref()))
       return 1; /* purecov: inspected */
     used_tables_cache|=item->used_tables();
     with_sum_func= with_sum_func || item->with_sum_func;
@@ -1272,9 +1272,9 @@ Item_func::optimize_type Item_func_like::select_optimize() const
   return OPTIMIZE_NONE;
 }
 
-bool Item_func_like::fix_fields(THD *thd,struct st_table_list *tlist)
+bool Item_func_like::fix_fields(THD *thd, TABLE_LIST *tlist, Item ** ref)
 {
-  if (Item_bool_func2::fix_fields(thd, tlist))
+  if (Item_bool_func2::fix_fields(thd, tlist, ref))
     return 1;
 
   /*
@@ -1324,9 +1324,10 @@ bool Item_func_like::fix_fields(THD *thd,struct st_table_list *tlist)
 #ifdef USE_REGEX
 
 bool
-Item_func_regex::fix_fields(THD *thd,TABLE_LIST *tables)
+Item_func_regex::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
-  if (args[0]->fix_fields(thd,tables) || args[1]->fix_fields(thd,tables))
+  if (args[0]->fix_fields(thd, tables, args) ||
+      args[1]->fix_fields(thd,tables, args + 1))
     return 1;					/* purecov: inspected */
   with_sum_func=args[0]->with_sum_func || args[1]->with_sum_func;
   max_length=1; decimals=0;

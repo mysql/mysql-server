@@ -177,9 +177,10 @@ public:
   Item_func_interval(Item *a,List<Item> &list)
     :Item_int_func(list),item(a),intervals(0) {}
   longlong val_int();
-  bool fix_fields(THD *thd,struct st_table_list *tlist)
+  bool fix_fields(THD *thd, struct st_table_list *tlist, Item **ref)
   {
-    return (item->fix_fields(thd,tlist) || Item_func::fix_fields(thd,tlist));
+    return (item->fix_fields(thd, tlist, &item) || 
+	    Item_func::fix_fields(thd, tlist, ref));
   }
   void fix_length_and_dec();
   ~Item_func_interval() { delete item; }
@@ -259,7 +260,7 @@ public:
   enum Item_result result_type () const { return cached_result_type; }
   const char *func_name() const { return "case"; }
   void print(String *str);
-  bool fix_fields(THD *thd,struct st_table_list *tlist);
+  bool fix_fields(THD *thd, struct st_table_list *tlist, Item **ref);
   Item *find_item(String *str);
 };
 
@@ -409,9 +410,10 @@ class Item_func_in :public Item_int_func
   Item_func_in(Item *a,List<Item> &list)
     :Item_int_func(list),item(a),array(0),in_item(0) {}
   longlong val_int();
-  bool fix_fields(THD *thd,struct st_table_list *tlist)
+  bool fix_fields(THD *thd, struct st_table_list *tlist, Item **ref)
   {
-    return (item->fix_fields(thd,tlist) || Item_func::fix_fields(thd,tlist));
+    return (item->fix_fields(thd, tlist, &item) ||
+	    Item_func::fix_fields(thd, tlist, ref));
   }
   void fix_length_and_dec();
   ~Item_func_in() { delete item; delete array; delete in_item; }
@@ -505,7 +507,7 @@ public:
   cond_result eq_cmp_result() const { return COND_TRUE; }
   const char *func_name() const { return "like"; }
   void fix_length_and_dec();
-  bool fix_fields(THD *thd,struct st_table_list *tlist);
+  bool fix_fields(THD *thd, struct st_table_list *tlist, Item **ref);
 };
 
 #ifdef USE_REGEX
@@ -523,7 +525,7 @@ public:
     regex_compiled(0),regex_is_const(0) {}
   ~Item_func_regex();
   longlong val_int();
-  bool fix_fields(THD *thd,struct st_table_list *tlist);
+  bool fix_fields(THD *thd, struct st_table_list *tlist, Item **ref);
   const char *func_name() const { return "regex"; }
 };
 
@@ -552,7 +554,7 @@ public:
     { list.push_back(i1); list.push_back(i2); }
   ~Item_cond() { list.delete_elements(); }
   bool add(Item *item) { return list.push_back(item); }
-  bool fix_fields(THD *,struct st_table_list *);
+  bool fix_fields(THD *, struct st_table_list *, Item **ref);
 
   enum Type type() const { return COND_ITEM; }
   List<Item>* argument_list() { return &list; }
