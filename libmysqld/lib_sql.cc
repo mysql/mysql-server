@@ -80,10 +80,8 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
 
   if ((net->last_errno= thd->net.last_errno))
   {
-    memcpy(net->last_error, net->last_error, 
-	   sizeof(net->last_error));
-    memcpy(net->sqlstate, thd->net.sqlstate, 
-	   sizeof(net->sqlstate));
+    memcpy(net->last_error, thd->net.last_error, sizeof(net->last_error));
+    memcpy(net->sqlstate, thd->net.sqlstate, sizeof(net->sqlstate));
   }
   mysql->warning_count= ((THD*)mysql->thd)->total_warn_count;
   return result;
@@ -482,15 +480,16 @@ bool Protocol_simple::store_null()
 
 bool Protocol::net_store_data(const char *from, uint length)
 {
-  if (!(*next_field=alloc_root(alloc, length + 1)))
+  char *field_buf;
+  if (!(field_buf=alloc_root(alloc, length + sizeof(uint))))
     return true;
+  *(uint *)field_buf= length;
+  *next_field= field_buf + sizeof(uint);
   memcpy(*next_field, from, length);
-  (*next_field)[length]= 0;
   if (next_mysql_field->max_length < length)
     next_mysql_field->max_length=length;
   ++next_field;
   ++next_mysql_field;
-
   return false;
 }
 
