@@ -805,3 +805,11 @@ select * from t1;
 select * from t2;
 
 drop table t1,t2;
+CREATE TABLE t1 (col1 int(1))TYPE=InnoDB;
+CREATE TABLE t2 (col1 int(1),stamp TIMESTAMP(+0),INDEX stamp_idx
+(stamp))TYPE=InnoDB;
+insert into t1 values (1),(2),(3);
+insert into t2 values (1, 20020204130000),(2, 20020204130000),(4,20020204310000 );
+SELECT col1 FROM t1 UNION SELECT col1 FROM t2 WHERE stamp <
+'20020204120000' GROUP BY col1;
+drop table t1,t2;

@@ -124,10 +124,11 @@ int st_select_lex_unit::prepare(THD *thd, select_result *sel_result,
   prepared= 1;
   res= 0;
   found_rows_for_union= 0;
-  TMP_TABLE_PARAM *tmp_table_param= (TMP_TABLE_PARAM *)sql_calloc(sizeof(TMP_TABLE_PARAM));
+  TMP_TABLE_PARAM tmp_table_param;
   result= sel_result;
   t_and_f= tables_and_fields_initied;
-
+  
+  bzero((char *)&tmp_table_param,sizeof(TMP_TABLE_PARAM));
   thd->lex.current_select= select_cursor= first_select_in_union();
   /* Global option */
   if (((void*)(global_parameters)) == ((void*)this))
@@ -167,8 +168,8 @@ int st_select_lex_unit::prepare(THD *thd, select_result *sel_result,
     t_and_f= 1;
   }
 
-  tmp_table_param->field_count=item_list.elements;
-  if (!(table= create_tmp_table(thd, tmp_table_param, item_list,
+  tmp_table_param.field_count=item_list.elements;
+  if (!(table= create_tmp_table(thd, &tmp_table_param, item_list,
 				(ORDER*) 0, !union_option,
 				1, (select_cursor->options | thd->options |
 				    TMP_TABLE_ALL_COLUMNS),
@@ -185,7 +186,8 @@ int st_select_lex_unit::prepare(THD *thd, select_result *sel_result,
     goto err;
 
   union_result->not_describe=1;
-  union_result->tmp_table_param=tmp_table_param;
+  if (!(union_result->tmp_table_param=(TMP_TABLE_PARAM *)thd->memdup((char *)&tmp_table_param, sizeof(TMP_TABLE_PARAM))))
+    goto err;
 
   /*
     The following piece of code is placed here solely for the purpose of 
@@ -250,10 +252,8 @@ int st_select_lex_unit::exec()
 {
   int do_print_slow= 0;
   SELECT_LEX_NODE *lex_select_save= thd->lex.current_select;
-  SELECT_LEX *select_cursor=first_select_in_union(), *last_select;
+  SELECT_LEX *select_cursor=first_select_in_union();
   DBUG_ENTER("st_select_lex_unit::exec");
-
-  LINT_INIT(last_select);
 
   if (executed && !(dependent || uncacheable))
     DBUG_RETURN(0);
@@ -269,7 +269,6 @@ int st_select_lex_unit::exec()
     }
     for (SELECT_LEX *sl= select_cursor; sl; sl= sl->next_select())
     {
-      last_select=sl;
       if (optimized)
 	res= sl->join->reinit();
       else
@@ -335,8 +334,7 @@ int st_select_lex_unit::exec()
 
     if (!thd->is_fatal_error)			// Check if EOM
     {
-      SELECT_LEX *fake_select  = new SELECT_LEX();
-      fake_select->make_empty_select(last_select);
+      SELECT_LEX *fake_select  = new SELECT_LEX(&thd->lex);
       offset_limit_cnt= (select_cursor->braces ?
 			 global_parameters->offset_limit : 0);
       select_limit_cnt= (select_cursor->braces ?

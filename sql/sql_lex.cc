@@ -1365,6 +1365,17 @@ ulong st_select_lex::get_table_join_options()
   return table_join_options;
 }
 
+st_select_lex::st_select_lex(struct st_lex *lex)
+{
+  select_number= ++lex->thd->select_number;
+  init_query();
+  init_select();
+  include_neighbour(lex->current_select);
+  include_global((st_select_lex_node**)&lex->all_selects_list);
+  lex->current_select= this;
+}
+
+
 /*
   There are st_select_lex::add_table_to_list & 
   st_select_lex::set_lock_for_tables in sql_parse.cc

@@ -396,6 +396,8 @@ public:
   }
   
   friend void mysql_init_query(THD *thd);
+  st_select_lex(struct st_lex *lex);
+  st_select_lex() {;}
   void make_empty_select(st_select_lex *last_select)
   {
     select_number=INT_MAX;
@@ -478,7 +480,7 @@ typedef struct st_lex
   CHARSET_INFO *charset;
   char *help_arg;
   SQL_LIST *gorder_list;
-
+  st_lex() {;}
   inline void uncacheable()
   {
     safe_to_cache_query= 0;
