@@ -118,7 +118,7 @@ then
   if [ $? -ne 0 ]
   then
     resolved=`$bindir/resolveip localhost 2>&1`
-    if [ $? -eq 0 ]
+    if [ $? -ne 0 ]
     then
       echo "Neither host '$hostname' and 'localhost' could not be looked up with"
       echo "$bindir/resolveip"
