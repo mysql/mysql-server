@@ -702,6 +702,7 @@ String *Item_func_reverse::val_str(String *str)
 
 void Item_func_reverse::fix_length_and_dec()
 {
+  set_charset(args[0]->charset(),args[0]->coercibility);
   max_length = args[0]->max_length;
 }
 
@@ -860,6 +861,14 @@ null:
 
 void Item_func_insert::fix_length_and_dec()
 {
+  if (set_charset(args[0]->charset(), args[0]->coercibility,
+      		  args[3]->charset(), args[3]->coercibility))
+  {
+      my_error(ER_CANT_AGGREGATE_COLLATIONS,MYF(0),
+	     args[0]->charset()->name,coercion_name(args[0]->coercibility),
+	     args[3]->charset()->name,coercion_name(args[3]->coercibility),
+	     func_name());
+  }
   max_length=args[0]->max_length+args[3]->max_length;
   if (max_length > MAX_BLOB_WIDTH)
   {
@@ -1521,6 +1530,7 @@ String *Item_func_user::val_str(String *str)
 
 void Item_func_soundex::fix_length_and_dec()
 {
+  set_charset(args[0]->charset(), args[0]->coercibility);
   max_length=args[0]->max_length;
   set_if_bigger(max_length,4);
 }
@@ -1552,7 +1562,7 @@ String *Item_func_soundex::val_str(String *str)
 {
   String *res  =args[0]->val_str(str);
   char last_ch,ch;
-  CHARSET_INFO *cs= &my_charset_latin1;
+  CHARSET_INFO *cs= charset();
 
   if ((null_value=args[0]->null_value))
     return 0; /* purecov: inspected */
@@ -2538,6 +2548,7 @@ String *Item_func_quote::val_str(String *str)
   }
   *to= '\'';
   str->length(new_length);
+  str->set_charset(charset());
   return str;
 
 null:
