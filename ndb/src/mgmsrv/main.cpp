@@ -109,7 +109,7 @@ struct getargs args[] = {
     "Specify cluster configuration file", "filename" },
 #ifndef DBUG_OFF
   { "debug", 0, arg_string, &debug_option,
-    "Specify debug option e.d. d:t:i:o,out.trace", "options" },
+    "Specify debug options e.g. d:t:i:o,out.trace", "options" },
 #endif
   { "daemon", 'd', arg_flag, &glob.daemon,
     "Run ndb_mgmd in daemon mode" },
@@ -143,8 +143,8 @@ NDB_MAIN(mgmsrv){
     exit(1);
   }
 
-  my_init();
 #ifndef DBUG_OFF
+  my_init();
   if (debug_option)
     DBUG_PUSH(debug_option);
 #endif

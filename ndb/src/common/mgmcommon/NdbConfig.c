@@ -19,6 +19,8 @@
 #include <NdbEnv.h>
 #include <NdbMem.h>
 
+static char *datadir_path= 0;
+
 static char* 
 NdbConfig_AllocHomePath(int _len)
 {
@@ -27,17 +29,25 @@ NdbConfig_AllocHomePath(int _len)
   int path_len= 0;
   char *buf;
 
+  if (path == 0)
+    path= datadir_path;
+
   if (path)
     path_len= strlen(path);
 
   len+= path_len;
   buf= NdbMem_Allocate(len);
   if (path_len > 0)
-    snprintf(buf, len, "%s%c", path, DIR_SEPARATOR);
+    snprintf(buf, len, "%s%s", path, DIR_SEPARATOR);
   else
     buf[0]= 0;
 
   return buf;
+}
+
+void
+NdbConfig_SetPath(const char* path){
+  datadir_path= path;
 }
 
 char* 
