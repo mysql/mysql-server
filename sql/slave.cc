@@ -284,7 +284,7 @@ int init_master_info(MASTER_INFO* mi)
 {
   FILE* file;
   MY_STAT stat_area;
-  char fname[FN_REFLEN];
+  char fname[FN_REFLEN+128];
   fn_format(fname, master_info_file, mysql_data_home, "", 4+16+32);
   
   if(!mi->inited)
@@ -986,5 +986,6 @@ static void safe_reconnect(THD* thd, MYSQL* mysql, MASTER_INFO* mi)
 
 #ifdef __GNUC__
 template class I_List_iterator<i_string>;
+template class I_List_iterator<i_string_pair>;
 #endif
 
