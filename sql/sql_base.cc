@@ -806,8 +806,9 @@ TABLE *open_table(THD *thd,const char *db,const char *table_name,
 
   for (table=thd->temporary_tables; table ; table=table->next)
   {
-    if (table->key_length == key_length+8 &&
-	!memcmp(table->table_cache_key,key,key_length+8))
+    if (table->key_length == key_length + TMP_TABLE_KEY_EXTRA &&
+	!memcmp(table->table_cache_key, key,
+                key_length + TMP_TABLE_KEY_EXTRA))
     {
       if (table->query_id == thd->query_id)
       {
