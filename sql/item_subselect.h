@@ -109,6 +109,7 @@ public:
     engine_changed= 1;
     return eng == 0;
   }
+  enum_parsing_place place() { return parsing_place; }
 
   friend class select_subselect;
   friend class Item_in_optimizer;
