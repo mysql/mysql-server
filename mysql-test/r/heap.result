@@ -255,7 +255,7 @@ insert into t1 values('+ ', '+ ', '+ ');
 set @a=repeat(' ',20);
 insert into t1 values (concat('+',@a),concat('+',@a),concat('+',@a));
 Warnings:
-Warning	1265	Data truncated for column 'v' at row 1
+Note	1265	Data truncated for column 'v' at row 1
 select concat('*',v,'*',c,'*',t,'*') from t1;
 concat('*',v,'*',c,'*',t,'*')
 *+ *+*+ *
