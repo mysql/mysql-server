@@ -1937,14 +1937,10 @@ mysql_execute_command(void)
       goto error;
     // Set privilege for the WHERE clause
     tables->grant.want_privilege=(SELECT_ACL & ~tables->grant.privilege);
-    /* TRUNCATE ends previous transaction */
-    if (lex->sql_command == SQLCOM_TRUNCATE && end_active_trans(thd))
-      res= -1;
-    else
-      res = mysql_delete(thd,tables, select_lex->where,
-			 (ORDER*) select_lex->order_list.first,
-                         select_lex->select_limit, lex->lock_option,
-			 select_lex->options);
+    res = mysql_delete(thd,tables, select_lex->where,
+                       (ORDER*) select_lex->order_list.first,
+                       select_lex->select_limit, lex->lock_option,
+                       select_lex->options);
     break;
   }
   case SQLCOM_DELETE_MULTI:
