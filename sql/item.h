@@ -983,9 +983,9 @@ class Item_null_helper :public Item_ref_null_helper
 public:
   Item_null_helper(Item_in_subselect* master, Item *item,
 		   const char *table_name_par, const char *field_name_par)
-    :Item_ref_null_helper(master, &store, table_name_par, field_name_par),
+    :Item_ref_null_helper(master, &item, table_name_par, field_name_par),
      store(item)
-    {}
+    { ref= &store; }
   void print(String *str);
 };
 
