@@ -2315,30 +2315,28 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
       if (field->unireg_check == Field::NEXT_NUMBER)
         end=strmov(tmp,"auto_increment");
       table->field[16]->store(tmp, (uint) (end-tmp), cs);
-      if (thd->lex->verbose)
-      {
-        end=tmp;
+
+      end=tmp;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-        uint col_access;
-        check_access(thd,SELECT_ACL | EXTRA_ACL, base_name,
-                     &tables->grant.privilege, 0, 0);
-        col_access= get_column_grant(thd, &tables->grant, tables->db,
-                                     tables->real_name,
-                                     field->field_name) & COL_ACLS;
-        for (uint bitnr=0; col_access ; col_access>>=1,bitnr++)
+      uint col_access;
+      check_access(thd,SELECT_ACL | EXTRA_ACL, base_name,
+                   &tables->grant.privilege, 0, 0);
+      col_access= get_column_grant(thd, &tables->grant, tables->db,
+                                   tables->real_name,
+                                   field->field_name) & COL_ACLS;
+      for (uint bitnr=0; col_access ; col_access>>=1,bitnr++)
+      {
+        if (col_access & 1)
         {
-          if (col_access & 1)
-          {
-            *end++=',';
-            end=strmov(end,grant_types.type_names[bitnr]);
-          }
+          *end++=',';
+          end=strmov(end,grant_types.type_names[bitnr]);
         }
-#else
-        end=strmov(end,"");
-#endif
-        table->field[17]->store(tmp+1,end == tmp ? 0 : (uint) (end-tmp-1), cs);
-        table->field[18]->store(field->comment.str, field->comment.length, cs);
       }
+#else
+      end=strmov(end,"");
+#endif
+      table->field[17]->store(tmp+1,end == tmp ? 0 : (uint) (end-tmp-1), cs);
+      table->field[18]->store(field->comment.str, field->comment.length, cs);
       table->file->write_row(table->record[0]);
     }
   }
@@ -3111,6 +3109,7 @@ bool get_schema_tables_result(JOIN *join)
       break;
     TABLE_LIST *table_list= tab->table->pos_in_table_list;
     TABLE_LIST *save_next_global= table_list->next_global;
+    TABLE_LIST **query_tables_last= thd->lex->query_tables_last;
 
     if (table_list->schema_table && thd->fill_derived_tables())
     {
@@ -3126,12 +3125,14 @@ bool get_schema_tables_result(JOIN *join)
         thd->derived_tables= old_derived_tables;
         thd->lock= sql_lock;
         table_list->next_global= save_next_global;
+        thd->lex->query_tables_last= query_tables_last;
         DBUG_RETURN(TRUE);
       }
       thd->lock= sql_lock;
       thd->lex->sql_command= SQLCOM_SELECT;
       thd->derived_tables= old_derived_tables;
       table_list->next_global= save_next_global;
+      thd->lex->query_tables_last= query_tables_last;
     }
   }
   DBUG_RETURN(FALSE);
