@@ -377,3 +377,7 @@ select 1;
 1
 select @@session.key_buffer_size;
 Variable 'key_buffer_size' is a GLOBAL variable
+set global myisam_max_sort_file_size=4294967296;
+show global variables like 'myisam_max_sort_file_size';
+Variable_name	Value
+myisam_max_sort_file_size	4294967296

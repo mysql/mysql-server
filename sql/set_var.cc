@@ -965,11 +965,11 @@ bool sys_var_thd_ulonglong::update(THD *thd,  set_var *var)
 {
   ulonglong tmp= var->value->val_int();
 
-  if ((ulonglong) tmp > max_system_variables.*offset)
+  if (tmp > max_system_variables.*offset)
     tmp= max_system_variables.*offset;
 
   if (option_limits)
-    tmp= (ulong) getopt_ull_limit_value(tmp, option_limits);
+    tmp= getopt_ull_limit_value(tmp, option_limits);
   if (var->type == OPT_GLOBAL)
   {
     /* Lock is needed to make things safe on 32 bit systems */
