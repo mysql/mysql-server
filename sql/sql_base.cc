@@ -2262,7 +2262,7 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
       field makes some prepared query ambiguous and so erroneous, but we
       accept this trade off.
     */
-    if (item->cached_table->table)
+    if (item->cached_table->table && !item->cached_table->view)
     {
       found= find_field_in_real_table(thd, item->cached_table->table,
 				      name, length,
@@ -3047,15 +3047,19 @@ insert_fields(THD *thd, TABLE_LIST *tables, const char *db_name,
                                  &not_used_field_index, TRUE))
         {
           Item *item= iterator->item(thd);
+	  if (view && !thd->lex->current_select->no_wrap_view_item)
+	  {
+            /*
+              as far as we have view, then item point to view_iter, so we
+              can use it directly for this view specific operation
+            */
+	    item= new Item_ref(view_iter.item_ptr(), tables->view_name.str,
+                               field_name);
+	  }
           if (!found++)
             (void) it->replace(item);		// Replace '*'
           else
             it->after(item);
-	  if (view && !thd->lex->current_select->no_wrap_view_item)
-	  {
-	    item= new Item_ref(it->ref(), tables->view_name.str,
-			       field_name);
-	  }
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
           if (any_privileges)
           {
@@ -3328,7 +3332,8 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves, COND **conds)
               thd->restore_backup_item_arena(arena, &backup);
             if (embedded->on_expr && !embedded->on_expr->fixed)
             {
-              if (embedded->on_expr->fix_fields(thd, tables, &table->on_expr))
+              if (embedded->on_expr->fix_fields(thd, tables,
+                                                &embedded->on_expr))
                 goto err_no_arena;
             }
           }
