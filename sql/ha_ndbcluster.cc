@@ -1261,7 +1261,7 @@ int ha_ndbcluster::set_bounds(NdbIndexScanOperation *op,
   const uint key_parts= key_info->key_parts;
   uint key_tot_len[2];
   uint tot_len;
-  int i, j;
+  uint i, j;
 
   DBUG_ENTER("set_bounds");
   DBUG_PRINT("info", ("key_parts=%d", key_parts));
@@ -3877,13 +3877,14 @@ extern "C" byte* tables_get_key(const char *entry, uint *length,
 int ndbcluster_find_files(THD *thd,const char *db,const char *path,
 			  const char *wild, bool dir, List<char> *files)
 {
+  DBUG_ENTER("ndbcluster_find_files");
+  DBUG_PRINT("enter", ("db: %s", db));
+  { // extra bracket to avoid gcc 2.95.3 warning
   uint i;
   Ndb* ndb;
   char name[FN_REFLEN];
   HASH ndb_tables, ok_tables;
   NdbDictionary::Dictionary::List list;
-  DBUG_ENTER("ndbcluster_find_files");
-  DBUG_PRINT("enter", ("db: %s", db));
 
   if (!(ndb= check_ndb_in_thd(thd)))
     DBUG_RETURN(HA_ERR_NO_CONNECTION);
@@ -4023,6 +4024,7 @@ int ndbcluster_find_files(THD *thd,const char *db,const char *path,
   
   hash_free(&ok_tables);
   hash_free(&ndb_tables);
+  } // extra bracket to avoid gcc 2.95.3 warning
   DBUG_RETURN(0);    
 }
 
