@@ -163,7 +163,7 @@ os_fast_mutex_trylock(
 #endif
 /**************************************************************
 Releases ownership of a fast mutex. */
-UNIV_INLINE
+
 void
 os_fast_mutex_unlock(
 /*=================*/
