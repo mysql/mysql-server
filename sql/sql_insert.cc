@@ -433,7 +433,7 @@ abort:
   Prepare items in INSERT statement
 
   SYNOPSIS
-    mysql_prepare_update()
+    mysql_prepare_insert()
     thd			- thread handler
     table_list		- global table list
     insert_table_list	- local table list of INSERT SELECT_LEX

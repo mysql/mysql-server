@@ -5622,12 +5622,22 @@ static void test_bind_date_conv(uint row_count)
     {
       tm[i].neg= 0;   
       tm[i].second_part= second_part+count;
-      tm[i].year= year+count;
-      tm[i].month= month+count;
-      tm[i].day= day+count;
-      tm[i].hour= hour+count;
-      tm[i].minute= minute+count;
-      tm[i].second= sec+count;
+      if (bind[i].buffer_type != MYSQL_TYPE_TIME)
+      {
+        tm[i].year= year+count;
+        tm[i].month= month+count;
+        tm[i].day= day+count;
+      }
+      else
+        tm[i].year= tm[i].month= tm[i].day= 0;
+      if (bind[i].buffer_type != MYSQL_TYPE_DATE)
+      {
+        tm[i].hour= hour+count;
+        tm[i].minute= minute+count;
+        tm[i].second= sec+count;
+      }
+      else
+        tm[i].hour= tm[i].minute= tm[i].second = 0;
     }   
     rc = mysql_execute(stmt);
     check_execute(stmt, rc);    
@@ -9455,6 +9465,7 @@ select col1 FROM t1 where col1=2");
   myquery(rc);
 }
 
+
 /*
   This tests for various mysql_send_long_data bugs described in #1664
 */
@@ -9681,6 +9692,189 @@ static void test_union_param()
 
   mysql_stmt_close(stmt);
 }
+
+
+static void test_ps_i18n()
+{
+  MYSQL_STMT *stmt;
+  int rc;
+  const char *stmt_text;
+  MYSQL_BIND bind_array[2];
+
+  const char *koi8= "Ó’, ⁄¡ “Ÿ¬¡ÃÀ’";
+  const char *cp1251= "ÕÛ, Á‡ ˚·‡ÎÍÛ";
+  char buf1[16], buf2[16];
+  ulong buf1_len, buf2_len;
+
+
+  myheader("test_ps_i18n");
+
+  stmt_text= "DROP TABLE IF EXISTS t1";
+  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  myquery(rc);
+
+  /*
+    Create table with binary columns, set session character set to cp1251,
+    client character set to koi8, and make sure that there is conversion
+    on insert and no conversion on select 
+  */
+
+  stmt_text= "CREATE TABLE t1 (c1 VARBINARY(255), c2 VARBINARY(255))";
+
+  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  myquery(rc);
+  
+  stmt_text= "SET CHARACTER_SET_CLIENT=koi8r, "
+                 "CHARACTER_SET_CONNECTION=cp1251, "
+                 "CHARACTER_SET_RESULTS=koi8r";
+  
+  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  myquery(rc);
+  
+  bzero(bind_array, sizeof(bind_array));
+
+  bind_array[0].buffer_type= MYSQL_TYPE_STRING;
+  bind_array[0].buffer= (char*) koi8;
+  bind_array[0].buffer_length= strlen(koi8);
+  
+  bind_array[1].buffer_type= MYSQL_TYPE_STRING;
+  bind_array[1].buffer= (char*) koi8;
+  bind_array[1].buffer_length= strlen(koi8);
+  
+  stmt= mysql_stmt_init(mysql);
+  check_stmt(stmt);
+
+  stmt_text= "INSERT INTO t1 (c1, c2) VALUES (?, ?)";
+
+  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  check_execute(stmt, rc);
+
+  mysql_stmt_bind_param(stmt, bind_array);
+
+  mysql_stmt_send_long_data(stmt, 0, koi8, strlen(koi8));
+
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  stmt_text= "SELECT c1, c2 FROM t1";
+
+  /* c1 and c2 are binary so no conversion will be done on select */
+  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  check_execute(stmt, rc);
+
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  bind_array[0].buffer= buf1;
+  bind_array[0].buffer_length= sizeof(buf1);
+  bind_array[0].length= &buf1_len;
+
+  bind_array[1].buffer= buf2;
+  bind_array[1].buffer_length= sizeof(buf2);
+  bind_array[1].length= &buf2_len;
+
+  mysql_stmt_bind_result(stmt, bind_array);
+
+  rc= mysql_stmt_fetch(stmt);
+  check_execute(stmt, rc);
+
+  assert(buf1_len == strlen(cp1251));
+  assert(buf2_len == strlen(cp1251));
+  assert(!memcmp(buf1, cp1251, buf1_len));
+  assert(!memcmp(buf2, cp1251, buf1_len));
+
+  rc= mysql_stmt_fetch(stmt);
+  assert(rc == MYSQL_NO_DATA); 
+
+  stmt_text= "DROP TABLE IF EXISTS t1";
+  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  myquery(rc);
+
+  /*
+    Now create table with two cp1251 columns, set client character
+    set to koi8 and supply columns of one row as string and another as
+    binary data. Binary data must not be converted on insert, and both
+    columns must be converted to client character set on select.
+  */
+  
+  stmt_text= "CREATE TABLE t1 (c1 VARCHAR(255) CHARACTER SET cp1251, "
+                              "c2 VARCHAR(255) CHARACTER SET cp1251)";
+
+  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  myquery(rc);
+  
+  stmt_text= "INSERT INTO t1 (c1, c2) VALUES (?, ?)";
+
+  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  check_execute(stmt, rc);
+  
+  /* this data must be converted */
+  bind_array[0].buffer_type= MYSQL_TYPE_STRING;
+  bind_array[0].buffer= (char*) koi8;
+  bind_array[0].buffer_length= strlen(koi8);
+  
+  bind_array[1].buffer_type= MYSQL_TYPE_STRING;
+  bind_array[1].buffer= (char*) koi8;
+  bind_array[1].buffer_length= strlen(koi8);
+
+  mysql_stmt_bind_param(stmt, bind_array);
+
+  mysql_stmt_send_long_data(stmt, 0, koi8, strlen(koi8));
+
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+  
+  /* this data must not be converted */
+  bind_array[0].buffer_type= MYSQL_TYPE_BLOB;
+  bind_array[0].buffer= (char*) cp1251;
+  bind_array[0].buffer_length= strlen(cp1251);
+  
+  bind_array[1].buffer_type= MYSQL_TYPE_BLOB;
+  bind_array[1].buffer= (char*) cp1251;
+  bind_array[1].buffer_length= strlen(cp1251);
+  
+  mysql_stmt_bind_param(stmt, bind_array);
+
+  mysql_stmt_send_long_data(stmt, 0, cp1251, strlen(cp1251));
+
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  /* Fetch data and verify that rows are in koi8 */
+  
+  stmt_text= "SELECT c1, c2 FROM t1";
+
+  /* c1 and c2 are binary so no conversion will be done on select */
+  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  check_execute(stmt, rc);
+
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  bind_array[0].buffer= buf1;
+  bind_array[0].buffer_length= sizeof(buf1);
+  bind_array[0].length= &buf1_len;
+
+  bind_array[1].buffer= buf2;
+  bind_array[1].buffer_length= sizeof(buf2);
+  bind_array[1].length= &buf2_len;
+
+  mysql_stmt_bind_result(stmt, bind_array);
+
+  while ((rc= mysql_stmt_fetch(stmt)) == 0)
+  {
+    assert(buf1_len == strlen(koi8));
+    assert(buf2_len == strlen(koi8));
+    assert(!memcmp(buf1, koi8, buf1_len));
+    assert(!memcmp(buf2, koi8, buf1_len));
+  }
+  assert(rc == MYSQL_NO_DATA); 
+  mysql_stmt_close(stmt);
+
+  stmt_text= "DROP TABLE t1";
+  mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+}
+
 /*
   Read and parse arguments and MySQL options from my.cnf
 */
@@ -9825,7 +10019,6 @@ int main(int argc, char **argv)
    
     start_time= time((time_t *)0);
 
-    test_union_param();
     client_query();         /* simple client query test */
 #if NOT_YET_WORKING
     /* Used for internal new development debugging */
@@ -9967,8 +10160,10 @@ int main(int argc, char **argv)
     test_union2();	    /* repeatable execution of union (Bug #3577) */
     test_bug1664();         /* test for bugs in mysql_stmt_send_long_data() 
                                call (Bug #1664) */
+    test_union_param();
     test_order_param();	    /* ORDER BY with parameters in select list
 			       (Bug #3686 */
+    test_ps_i18n();         /* test for i18n support in binary protocol */
 
     end_time= time((time_t *)0);
     total_time+= difftime(end_time, start_time);
