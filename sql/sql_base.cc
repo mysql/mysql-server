@@ -740,7 +740,6 @@ TABLE *open_table(THD *thd,const char *db,const char *table_name,
     }
     table->prev->next=table->next;		/* Remove from unused list */
     table->next->prev=table->prev;
-    table->file->reset();
   }
   else
   {
