@@ -186,6 +186,7 @@ public:
   int strstr(const String &search,uint32 offset=0); // Returns offset to substring or -1
   int strstr_case(const String &s,uint32 offset=0);
   int strrstr(const String &search,uint32 offset=0); // Returns offset to substring or -1
+  bool replace(uint32 offset,uint32 arg_length,const char *to,uint32 length);
   bool replace(uint32 offset,uint32 arg_length,const String &to);
   inline bool append(char chr)
   {
