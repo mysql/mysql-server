@@ -41,6 +41,7 @@
 #define HA_ADMIN_CORRUPT         -3
 #define HA_ADMIN_INTERNAL_ERROR  -4
 #define HA_ADMIN_INVALID         -5
+#define HA_ADMIN_REJECT          -6
 
 /* Bits in table_flags() to show what database can do */
 #define HA_READ_RND_SAME        1       /* Read RND-record to KEY-record
