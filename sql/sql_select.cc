@@ -862,7 +862,8 @@ JOIN::optimize()
     We only need to do this when we have a simple_order or simple_group
     as in other cases the join is done before the sort.
   */
-  if ((order || group_list) && join_tab[const_tables].type != JT_ALL &&
+  if (const_tables != tables &&
+      (order || group_list) && join_tab[const_tables].type != JT_ALL &&
       join_tab[const_tables].type != JT_FT &&
       (order && simple_order || group_list && simple_group))
   {

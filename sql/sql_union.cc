@@ -377,11 +377,12 @@ int st_select_lex_unit::exec()
       offset_limit_cnt= global_parameters->offset_limit;
       select_limit_cnt= global_parameters->select_limit +
 	global_parameters->offset_limit;
+
       if (select_limit_cnt < global_parameters->select_limit)
 	select_limit_cnt= HA_POS_ERROR;		// no limit
       if (select_limit_cnt == HA_POS_ERROR)
 	options&= ~OPTION_FOUND_ROWS;
-      else if (found_rows_for_union && !describe)
+      else if (found_rows_for_union && !thd->lex.describe)
 	options|= OPTION_FOUND_ROWS;
       fake_select_lex->ftfunc_list= &empty_list;
       fake_select_lex->table_list.link_in_list((byte *)&result_table_list,
