@@ -351,30 +351,6 @@ public:
 };
 
 
-/* This is a struct as it's allocated in tree_insert */
-
-typedef struct st_prep_stmt
-{
-  THD *thd;
-  LEX  lex; 
-  Item_param **param;
-  Item *free_list;
-  MEM_ROOT mem_root;
-  String *query;
-  ulong stmt_id;
-  uint param_count;
-  uint last_errno;
-  char last_error[MYSQL_ERRMSG_SIZE];
-  bool error_in_prepare, long_data_used;
-  bool log_full_query;
-#ifndef EMBEDDED_LIBRARY
-  bool (*setup_params)(st_prep_stmt *stmt, uchar *pos, uchar *read_pos);
-#else
-  bool (*setup_params_data)(st_prep_stmt *stmt);
-#endif
-} PREP_STMT;
-
-
 class delayed_insert;
 class select_result;
 
@@ -452,6 +428,7 @@ struct system_variables
 
 void free_tmp_table(THD *thd, TABLE *entry);
 
+class Prepared_statement;
 
 /*
   State of a single command executed against this connection.
@@ -469,27 +446,29 @@ void free_tmp_table(THD *thd, TABLE *entry);
 
 class Statement
 {
+  Statement(const Statement &rhs);              /* not implemented: */
+  Statement &operator=(const Statement &rhs);   /* non-copyable */
 public:
   /* FIXME: must be private */
   LEX     main_lex;
 public:
   /*
     Uniquely identifies each statement object in thread scope; change during
-    statement lifetime.
+    statement lifetime. FIXME: must be const
   */
    ulong id;
 
   /*
-    Id of current query. Statement can be reused to execute several queries.
+    Id of current query. Statement can be reused to execute several queries
     query_id is global in context of the whole MySQL server.
-    Id is automatically generated from mutex-protected counter.
+    ID is automatically generated from mutex-protected counter.
     It's used in handler code for various purposes: to check which columns
     from table are necessary for this select, to check if it's necessary to
     update auto-updatable fields (like auto_increment and timestamp).
   */
   ulong query_id;
   /*
-    - if set_query_id == 1, we set field->query_id for all fields. In that case 
+    - if set_query_id=1, we set field->query_id for all fields. In that case 
     field list can not contain duplicates.
   */
   bool set_query_id;
@@ -507,8 +486,8 @@ public:
   */
   bool allow_sum_func;
   /*
-    Type of current query: COM_PREPARE, COM_QUERY, etc. Set from the
-    first byte of the incoming packet in do_command()
+    Type of current query: COM_PREPARE, COM_QUERY, etc. Set from 
+    first byte of the packet in do_command()
   */
   enum enum_server_command command;
 
@@ -527,21 +506,33 @@ public:
   Item *free_list;
   MEM_ROOT mem_root;
 
-protected:
+public:
+  /* We build without RTTI, so dynamic_cast can't be used. */
+  enum Type
+  {
+    STATEMENT,
+    PREPARED_STATEMENT
+  };
+
   /*
     This constructor is called when statement is a subobject of THD:
     some variables are initialized in THD::init due to locking problems
   */
   Statement();
-public:
+
   Statement(THD *thd);
   virtual ~Statement();
+
+  /* Assign execution context (note: not all members) of given stmt to self */
+  void set_statement(Statement *stmt);
+  /* return class type */
+  virtual Type type() const;
 };
 
 
 /*
   Used to seek all existing statements in the connection
-  Not responsible for statements memory.
+  Deletes all statements in destructor.
 */
 
 class Statement_map
@@ -551,20 +542,33 @@ public:
   
   int insert(Statement *statement)
   {
-    return my_hash_insert(&st_hash, (byte *) statement);
+    int rc= my_hash_insert(&st_hash, (byte *) statement);
+    if (rc == 0)
+      last_found_statement= statement;
+    return rc;
   }
-  Statement *seek(ulong id)
+
+  Statement *find(ulong id)
   {
-    return (Statement *) hash_search(&st_hash, (byte *) &id, sizeof(id));
+    if (last_found_statement == 0 || id != last_found_statement->id)
+      last_found_statement= (Statement *) hash_search(&st_hash, (byte *) &id,
+                                                      sizeof(id));
+    return last_found_statement;
   }
   void erase(Statement *statement)
   {
+    if (statement == last_found_statement)
+      last_found_statement= 0;
     hash_delete(&st_hash, (byte *) statement);
   }
 
-  ~Statement_map() { hash_free(&st_hash); }
+  ~Statement_map()
+  {
+    hash_free(&st_hash);
+  }
 private:
   HASH st_hash;
+  Statement *last_found_statement;
 };
 
 
@@ -592,13 +596,20 @@ public:
   Protocol_simple protocol_simple;	// Normal protocol
   Protocol_prep protocol_prep;		// Binary protocol
   HASH    user_vars;			// hash for user variables
-  TREE	  prepared_statements;
   String  packet;			// dynamic buffer for network I/O
   struct  sockaddr_in remote;		// client socket address
   struct  rand_struct rand;		// used for authentication
   struct  system_variables variables;	// Changeable local variables
   pthread_mutex_t LOCK_delete;		// Locked before thd is deleted
 
+  /* all prepared statements and cursors of this connection */
+  Statement_map stmt_map; 
+  /*
+    keeps THD state while it is used for active statement
+    Note, that double free_root() is safe, so we don't need to do any
+    special cleanup for it in THD destructor.
+  */
+  Statement stmt_backup;
   /*
     A pointer to the stack frame of handle_one_connection(),
     which is called first in the thread for handling a client
@@ -646,7 +657,6 @@ public:
      and are still in use by this thread
   */
   TABLE   *open_tables,*temporary_tables, *handler_tables, *derived_tables;
-  // TODO: document the variables below
   MYSQL_LOCK	*lock;				/* Current locks */
   MYSQL_LOCK	*locked_tables;			/* Tables locked with LOCK */
   /*
@@ -655,7 +665,6 @@ public:
     chapter 'Miscellaneous functions', for functions GET_LOCK, RELEASE_LOCK. 
   */
   ULL		*ull;
-  PREP_STMT	*last_prepared_stmt;
 #ifndef DBUG_OFF
   uint dbug_sentry; // watch out for memory corruption
 #endif
@@ -725,8 +734,8 @@ public:
   /*
     FIXME: this, and some other variables like 'count_cuted_fields'
     maybe should be statement/cursor local, that is, moved to Statement
-    class.  With current implementation warnings produced in each prepared
-    statement/ cursor settle here.
+    class. With current implementation warnings produced in each prepared
+    statement/cursor settle here.
   */
   List	     <MYSQL_ERROR> warn_list;
   uint	     warn_count[(uint) MYSQL_ERROR::WARN_LEVEL_END];

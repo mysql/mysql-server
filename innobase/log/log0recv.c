@@ -165,7 +165,8 @@ recv_sys_empty_hash(void)
 		fprintf(stderr,
 "InnoDB: Error: %lu pages with log records were left unprocessed!\n"
 "InnoDB: Maximum page number with log records on it %lu\n",
-			recv_sys->n_addrs, recv_max_parsed_page_no);
+			(ulong) recv_sys->n_addrs, 
+			(ulong) recv_max_parsed_page_no);
 		ut_a(0);
 	}
 	
@@ -480,8 +481,9 @@ recv_find_max_checkpoint(
 				if (log_debug_writes) {
 					fprintf(stderr, 
 	    "InnoDB: Checkpoint in group %lu at %lu invalid, %lu\n",
-						group->id, field,
-                                 mach_read_from_4(buf
+						(ulong) group->id,
+						(ulong) field,
+                                 (ulong) mach_read_from_4(buf
 					      + LOG_CHECKPOINT_CHECKSUM_1));
 
 				}
@@ -501,7 +503,8 @@ recv_find_max_checkpoint(
 			if (log_debug_writes) {
 				fprintf(stderr, 
 			"InnoDB: Checkpoint number %lu found in group %lu\n",
-				ut_dulint_get_low(checkpoint_no), group->id);
+				(ulong) ut_dulint_get_low(checkpoint_no),
+				(ulong) group->id);
 			}
 				
 			if (ut_dulint_cmp(checkpoint_no, max_no) >= 0) {
@@ -1136,8 +1139,9 @@ recv_recover_page(
 			if (log_debug_writes) {
 				fprintf(stderr, 
      "InnoDB: Applying log rec type %lu len %lu to space %lu page no %lu\n",
-			(ulint)recv->type, recv->len, recv_addr->space,
-				recv_addr->page_no);
+					(ulong) recv->type, (ulong) recv->len,
+					(ulong) recv_addr->space,
+					(ulong) recv_addr->page_no);
 			}
 					
 			recv_parse_or_apply_log_rec_body(recv->type, buf,
@@ -1327,7 +1331,7 @@ loop:
 		             / hash_get_n_cells(recv_sys->addr_hash)) {
 
 		        fprintf(stderr, "%lu ",
-			  (i * 100) / hash_get_n_cells(recv_sys->addr_hash));
+				(ulong) ((i * 100) / hash_get_n_cells(recv_sys->addr_hash)));
 		}
 	}
 
@@ -1833,19 +1837,19 @@ recv_report_corrupt_log(
 "InnoDB: ############### CORRUPT LOG RECORD FOUND\n"
 "InnoDB: Log record type %lu, space id %lu, page number %lu\n"
 "InnoDB: Log parsing proceeded successfully up to %lu %lu\n",
-	(ulint)type, space, page_no,
-	ut_dulint_get_high(recv_sys->recovered_lsn),
-	ut_dulint_get_low(recv_sys->recovered_lsn));
+	(ulong) type, (ulong) space, (ulong) page_no,
+	(ulong) ut_dulint_get_high(recv_sys->recovered_lsn),
+	(ulong) ut_dulint_get_low(recv_sys->recovered_lsn));
 
 	err_buf = ut_malloc(1000000);
 
 	fprintf(stderr,
 "InnoDB: Previous log record type %lu, is multi %lu\n"
 "InnoDB: Recv offset %lu, prev %lu\n",
-		recv_previous_parsed_rec_type,
-		recv_previous_parsed_rec_is_multi,
-		(ulint)(ptr - recv_sys->buf),
-		recv_previous_parsed_rec_offset);
+		(ulong) recv_previous_parsed_rec_type,
+		(ulong) recv_previous_parsed_rec_is_multi,
+		(ulong) (ptr - recv_sys->buf),
+		(ulong) recv_previous_parsed_rec_offset);
 
 	if ((ulint)(ptr - recv_sys->buf + 100)
 					> recv_previous_parsed_rec_offset
@@ -1959,7 +1963,8 @@ loop:
 		if (log_debug_writes) {
 			fprintf(stderr, 
 "InnoDB: Parsed a single log rec type %lu len %lu space %lu page no %lu\n",
-			(ulint)type, len, space, page_no);
+				(ulong) type, (ulong) len, (ulong) space,
+				(ulong) page_no);
 		}
 
 		if (type == MLOG_DUMMY_RECORD) {
@@ -2042,7 +2047,8 @@ loop:
 			if (log_debug_writes) {
 				fprintf(stderr, 
 "InnoDB: Parsed a multi log rec type %lu len %lu space %lu page no %lu\n",
-				(ulint)type, len, space, page_no);
+				(ulong) type, (ulong) len, (ulong) space,
+				(ulong) page_no);
 			}
 		
 			total_len += len;
@@ -2272,10 +2278,11 @@ recv_scan_log_recs(
 				fprintf(stderr,
 "InnoDB: Log block no %lu at lsn %lu %lu has\n"
 "InnoDB: ok header, but checksum field contains %lu, should be %lu\n",
-				no, ut_dulint_get_high(scanned_lsn),
-				ut_dulint_get_low(scanned_lsn),
-				log_block_get_checksum(log_block),
-				log_block_calc_checksum(log_block));
+				(ulong) no,
+				(ulong) ut_dulint_get_high(scanned_lsn),
+				(ulong) ut_dulint_get_low(scanned_lsn),
+				(ulong) log_block_get_checksum(log_block),
+				(ulong) log_block_calc_checksum(log_block));
 			}
 
 			/* Garbage or an incompletely written log block */
@@ -2380,8 +2387,8 @@ recv_scan_log_recs(
 
 			fprintf(stderr, 
 "InnoDB: Doing recovery: scanned up to log sequence number %lu %lu\n",
-				ut_dulint_get_high(*group_scanned_lsn),
-				ut_dulint_get_low(*group_scanned_lsn));
+				(ulong) ut_dulint_get_high(*group_scanned_lsn),
+				(ulong) ut_dulint_get_low(*group_scanned_lsn));
 		}
 	}
 
@@ -2451,9 +2458,9 @@ recv_group_scan_log_recs(
 	if (log_debug_writes) {
 		fprintf(stderr,
 	"InnoDB: Scanned group %lu up to log sequence number %lu %lu\n",
-				group->id,
-				ut_dulint_get_high(*group_scanned_lsn),
-				ut_dulint_get_low(*group_scanned_lsn));
+				(ulong) group->id,
+				(ulong) ut_dulint_get_high(*group_scanned_lsn),
+				(ulong) ut_dulint_get_low(*group_scanned_lsn));
 	}
 }
 
@@ -2597,12 +2604,12 @@ recv_recovery_from_checkpoint_start(
 "InnoDB: sequence numbers stamped to ibdata file headers are between\n"
 "InnoDB: %lu %lu and %lu %lu.\n"
 "InnoDB: ##########################################################\n",
-				ut_dulint_get_high(checkpoint_lsn),
-				ut_dulint_get_low(checkpoint_lsn),
-				ut_dulint_get_high(min_flushed_lsn),
-				ut_dulint_get_low(min_flushed_lsn),
-				ut_dulint_get_high(max_flushed_lsn),
-				ut_dulint_get_low(max_flushed_lsn));
+				(ulong) ut_dulint_get_high(checkpoint_lsn),
+				(ulong) ut_dulint_get_low(checkpoint_lsn),
+				(ulong) ut_dulint_get_high(min_flushed_lsn),
+				(ulong) ut_dulint_get_low(min_flushed_lsn),
+				(ulong) ut_dulint_get_high(max_flushed_lsn),
+				(ulong) ut_dulint_get_low(max_flushed_lsn));
 			}
 
 	    	   	recv_needed_recovery = TRUE;
@@ -2637,8 +2644,8 @@ recv_recovery_from_checkpoint_start(
 			fprintf(stderr, 
 "  InnoDB: Starting log scan based on checkpoint at\n"
 "InnoDB: log sequence number %lu %lu.\n",
-		 			ut_dulint_get_high(checkpoint_lsn),
-					ut_dulint_get_low(checkpoint_lsn));
+		 			(ulong) ut_dulint_get_high(checkpoint_lsn),
+					(ulong) ut_dulint_get_low(checkpoint_lsn));
 		} else {
 			/* Init the doublewrite buffer memory structure */
 			trx_sys_doublewrite_init_or_restore_pages(FALSE);
@@ -2722,10 +2729,10 @@ recv_recovery_from_checkpoint_start(
 "  InnoDB: ERROR: We were only able to scan the log up to\n"
 "InnoDB: %lu %lu, but a checkpoint was at %lu %lu.\n"
 "InnoDB: It is possible that the database is now corrupt!\n",
-			 ut_dulint_get_high(group_scanned_lsn),
-			 ut_dulint_get_low(group_scanned_lsn),
-			 ut_dulint_get_high(checkpoint_lsn),
-			 ut_dulint_get_low(checkpoint_lsn));
+			 (ulong) ut_dulint_get_high(group_scanned_lsn),
+			 (ulong) ut_dulint_get_low(group_scanned_lsn),
+			 (ulong) ut_dulint_get_high(checkpoint_lsn),
+			 (ulong) ut_dulint_get_low(checkpoint_lsn));
 	}
 
 	if (ut_dulint_cmp(group_scanned_lsn, recv_max_page_lsn) < 0) {
@@ -2734,10 +2741,10 @@ recv_recovery_from_checkpoint_start(
 "  InnoDB: ERROR: We were only able to scan the log up to %lu %lu\n"
 "InnoDB: but a database page a had an lsn %lu %lu. It is possible that the\n"
 "InnoDB: database is now corrupt!\n",
-			 ut_dulint_get_high(group_scanned_lsn),
-			 ut_dulint_get_low(group_scanned_lsn),
-			 ut_dulint_get_high(recv_max_page_lsn),
-			 ut_dulint_get_low(recv_max_page_lsn));
+			 (ulong) ut_dulint_get_high(group_scanned_lsn),
+			 (ulong) ut_dulint_get_low(group_scanned_lsn),
+			 (ulong) ut_dulint_get_high(recv_max_page_lsn),
+			 (ulong) ut_dulint_get_low(recv_max_page_lsn));
 	}
 
 	if (ut_dulint_cmp(recv_sys->recovered_lsn, checkpoint_lsn) < 0) {
@@ -2770,10 +2777,10 @@ recv_recovery_from_checkpoint_start(
 			fprintf(stderr,
 "InnoDB: Warning: we did not need to do crash recovery, but log scan\n"
 "InnoDB: progressed past the checkpoint lsn %lu %lu up to lsn %lu %lu\n",
-			 ut_dulint_get_high(checkpoint_lsn),
-			 ut_dulint_get_low(checkpoint_lsn),
-			 ut_dulint_get_high(recv_sys->recovered_lsn),
-			 ut_dulint_get_low(recv_sys->recovered_lsn));
+			 (ulong) ut_dulint_get_high(checkpoint_lsn),
+			 (ulong) ut_dulint_get_low(checkpoint_lsn),
+			 (ulong) ut_dulint_get_high(recv_sys->recovered_lsn),
+			 (ulong) ut_dulint_get_low(recv_sys->recovered_lsn));
 		}
 	} else {
 		srv_start_lsn = recv_sys->recovered_lsn;
@@ -2950,7 +2957,7 @@ recv_reset_log_files_for_backup(
 
 	for (i = 0; i < n_log_files; i++) {
 
-		sprintf(name, "%sib_logfile%lu", log_dir, i);
+		sprintf(name, "%sib_logfile%lu", log_dir, (ulong) i);
 
 		log_file = os_file_create_simple(name, OS_FILE_CREATE,
 						OS_FILE_READ_WRITE, &success);
@@ -2962,8 +2969,8 @@ recv_reset_log_files_for_backup(
 		}
 
 		printf(
-"Setting log file size to %lu %lu\n", ut_get_high32(log_file_size),
-						log_file_size & 0xFFFFFFFFUL);
+"Setting log file size to %lu %lu\n", (ulong) ut_get_high32(log_file_size),
+				      (ulong) (log_file_size & 0xFFFFFFFFUL));
 
 		success = os_file_set_size(name, log_file,
 					log_file_size & 0xFFFFFFFFUL,
@@ -2971,8 +2978,9 @@ recv_reset_log_files_for_backup(
 
 		if (!success) {
 			printf(
-"InnoDB: Cannot set %s size to %lu %lu\n", name, ut_get_high32(log_file_size),
-						log_file_size & 0xFFFFFFFFUL);
+"InnoDB: Cannot set %s size to %lu %lu\n", name,
+					  (ulong) ut_get_high32(log_file_size),
+					  (ulong) (log_file_size & 0xFFFFFFFFUL));
 			exit(1);
 		}
 
@@ -2987,7 +2995,7 @@ recv_reset_log_files_for_backup(
 	log_block_init_in_old_format(buf + LOG_FILE_HDR_SIZE, lsn);
 	log_block_set_first_rec_group(buf + LOG_FILE_HDR_SIZE,
 							LOG_BLOCK_HDR_SIZE);
-	sprintf(name, "%sib_logfile%lu", log_dir, 0UL);
+	sprintf(name, "%sib_logfile%lu", log_dir, (ulong) 0);
 
 	log_file = os_file_create_simple(name, OS_FILE_OPEN,
 						OS_FILE_READ_WRITE, &success);
@@ -3151,9 +3159,9 @@ ask_again:
 		if (log_debug_writes) {
 			fprintf(stderr, 
 "InnoDB: Archive read starting at lsn %lu %lu, len %lu from file %s\n",
-					ut_dulint_get_high(start_lsn),
-					ut_dulint_get_low(start_lsn),
-					len, name);
+					(ulong) ut_dulint_get_high(start_lsn),
+					(ulong) ut_dulint_get_low(start_lsn),
+					(ulong) len, name);
 		}
 
 		fil_io(OS_FILE_READ | OS_FILE_LOG, TRUE,
@@ -3234,7 +3242,7 @@ recv_recovery_from_archive_start(
 	if (!group) {
 		fprintf(stderr,
 		"InnoDB: There is no log group defined with id %lu!\n",
-								group_id);
+							   (ulong) group_id);
 		return(DB_ERROR);
 	}
 

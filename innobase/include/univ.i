@@ -65,12 +65,16 @@ Microsoft Visual C++ */
 #define HAVE_PWRITE
 #endif
 
-/* Apparently in some old SCO Unixes the return type of sprintf is not
-an integer as it should be according to the modern Posix standard. Because
-of that we define sprintf inside InnoDB code as our own function ut_sprintf */
-#undef  sprintf
-#define sprintf    ut_sprintf
+#endif /* #if (defined(WIN32) || ... */
 
+#ifdef NOT_USED
+/* On the 64-bit Windows we replace printf with ut_printf, etc. so that
+we can use the %lu format string to print a 64-bit ulint */
+#if defined(__WIN__) && (defined(WIN64) || defined(_WIN64))
+#define printf 		ut_printf
+#define sprintf 	ut_sprintf
+#define fprintf		ut_fprintf
+#endif
 #endif
 
 /*			DEBUG VERSION CONTROL

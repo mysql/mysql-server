@@ -509,7 +509,7 @@ ibuf_data_init_for_space(
 
 	ibuf_exit();
 
-	sprintf(buf, "SYS_IBUF_TABLE_%lu", space);
+	sprintf(buf, "SYS_IBUF_TABLE_%lu", (ulong) space);
 	
 	table = dict_mem_table_create(buf, space, 2);
 
@@ -1694,7 +1694,7 @@ ibuf_free_excess_pages(
 	
 	if (space != 0) {
 	        fprintf(stderr,
-"InnoDB: Error: calling ibuf_free_excess_pages for space %lu\n", space);
+"InnoDB: Error: calling ibuf_free_excess_pages for space %lu\n", (ulong) space);
 		return;
 	}
 
@@ -2714,8 +2714,8 @@ ibuf_insert_to_index_page(
 
 				fprintf(stderr,
 "InnoDB: Error: Insert buffer insert fails; page free %lu, dtuple size %lu\n",
-				page_get_max_insert_size(page, 1),
-				rec_get_converted_size(entry));
+				(ulong) page_get_max_insert_size(page, 1),
+				(ulong) rec_get_converted_size(entry));
 
 				dtuple_sprintf(errbuf, 900, entry);
 				
@@ -2733,7 +2733,7 @@ ibuf_insert_to_index_page(
 						buf_frame_get_page_no(page),
 						IBUF_BITMAP_FREE, mtr);
 
-				fprintf(stderr, "Bitmap bits %lu\n", old_bits);
+				fprintf(stderr, "Bitmap bits %lu\n", (ulong) old_bits);
 
 				fprintf(stderr,
 "InnoDB: Send a detailed bug report to mysql@lists.mysql.com!\n");
@@ -2801,7 +2801,8 @@ ibuf_delete_rec(
 		fprintf(stderr,
 "InnoDB: ERROR: Send the output to mysql@lists.mysql.com\n"
 "InnoDB: ibuf cursor restoration fails!\n"
-"InnoDB: ibuf record inserted to space %lu page %lu\n", space, page_no);
+"InnoDB: ibuf record inserted to space %lu page %lu\n", (ulong) space,
+			(ulong) page_no);
 		fflush(stderr);
 
 		rec_print(btr_pcur_get_rec(pcur));
@@ -2998,7 +2999,8 @@ ibuf_merge_or_delete_for_page(
 "InnoDB: to determine if they are corrupt after this.\n\n"
 "InnoDB: Please make a detailed bug report and send it to\n"
 "InnoDB: mysql@lists.mysql.com\n\n",
-				page_no, fil_page_get_type(page));
+				(ulong) page_no,
+				(ulong) fil_page_get_type(page));
 		}
 	}
 
@@ -3237,7 +3239,8 @@ leave_loop:
 
 	mutex_exit(&ibuf_mutex);
 
-	printf("Discarded %lu ibuf entries for space %lu\n", n_inserts, space);
+	printf("Discarded %lu ibuf entries for space %lu\n", (ulong) n_inserts,
+	       (ulong) space);
 
 	ibuf_exit();
 
@@ -3346,7 +3349,9 @@ ibuf_print(
 	while (data) {
 		buf += sprintf(buf,
   	"Ibuf for space %lu: size %lu, free list len %lu, seg size %lu,",
-		data->space, data->size, data->free_list_len, data->seg_size);
+			       (ulong) data->space, (ulong) data->size,
+			       (ulong) data->free_list_len,
+			       (ulong) data->seg_size);
 
 		if (data->empty) {
 			buf += sprintf(buf, " is empty\n");
@@ -3356,13 +3361,16 @@ ibuf_print(
 
 		buf += sprintf(buf,
 			"%lu inserts, %lu merged recs, %lu merges\n",
-			data->n_inserts, data->n_merged_recs, data->n_merges);
+			       (ulong) data->n_inserts,
+			       (ulong) data->n_merged_recs,
+			       (ulong) data->n_merges);
 #ifdef UNIV_IBUF_DEBUG
 		for (i = 0; i < IBUF_COUNT_N_PAGES; i++) {
 			if (ibuf_count_get(data->space, i) > 0) {
 
 				printf("Ibuf count for page %lu is %lu\n",
-					i, ibuf_count_get(data->space, i));
+				       (ulong) i,
+				       (ulong) ibuf_count_get(data->space, i));
 			}
 		}
 #endif

@@ -394,8 +394,8 @@ loop:
 	
 	if (trx->conc_state == TRX_COMMITTED_IN_MEMORY) {	
 		fprintf(stderr, "InnoDB: Cleaning up trx with id %lu %lu\n",
-					ut_dulint_get_high(trx->id),
-					ut_dulint_get_low(trx->id));
+					(ulong) ut_dulint_get_high(trx->id),
+					(ulong) ut_dulint_get_low(trx->id));
 
 		trx_cleanup_at_db_startup(trx);
 					
@@ -430,9 +430,9 @@ loop:
 
 	fprintf(stderr,
 "InnoDB: Rolling back trx with id %lu %lu, %lu%s rows to undo",
-					ut_dulint_get_high(trx->id),
-					ut_dulint_get_low(trx->id),
-					(ulint)rows_to_undo, unit);
+					(ulong) ut_dulint_get_high(trx->id),
+					(ulong) ut_dulint_get_low(trx->id),
+					(ulong) rows_to_undo, unit);
 	mutex_exit(&kernel_mutex);
 
 	if (trx->dict_operation) {
@@ -449,7 +449,7 @@ loop:
 
 		fprintf(stderr,
 		"InnoDB: Waiting for rollback of trx id %lu to end\n",
-						ut_dulint_get_low(trx->id));
+						(ulong) ut_dulint_get_low(trx->id));
 		os_thread_sleep(100000);
 
 		mutex_enter(&kernel_mutex);
@@ -463,8 +463,8 @@ loop:
 
 		fprintf(stderr,
 "InnoDB: Dropping table with id %lu %lu in recovery if it exists\n",
-			ut_dulint_get_high(trx->table_id),
-			ut_dulint_get_low(trx->table_id));
+			(ulong) ut_dulint_get_high(trx->table_id),
+			(ulong) ut_dulint_get_low(trx->table_id));
 
 		table = dict_table_get_on_id_low(trx->table_id, trx);
 
@@ -483,8 +483,8 @@ loop:
 	}
 
 	fprintf(stderr, "\nInnoDB: Rolling back of trx id %lu %lu completed\n",
-					ut_dulint_get_high(trx->id),
-					ut_dulint_get_low(trx->id));
+					(ulong) ut_dulint_get_high(trx->id),
+					(ulong) ut_dulint_get_low(trx->id));
 	mem_heap_free(heap);
 
 	goto loop;
@@ -853,10 +853,10 @@ try_again:
 		if (progress_pct != trx_roll_progress_printed_pct) {
 			if (trx_roll_progress_printed_pct == 0) {
 				fprintf(stderr,
-			"\nInnoDB: Progress in percents: %lu", progress_pct);
+			"\nInnoDB: Progress in percents: %lu", (ulong) progress_pct);
 			} else {
 				fprintf(stderr,
-				" %lu", progress_pct);
+				" %lu", (ulong) progress_pct);
 			}
 			fflush(stderr);
 			trx_roll_progress_printed_pct = progress_pct;
@@ -1130,7 +1130,7 @@ trx_finish_rollback_off_kernel(
 
 	if (lock_print_waits) {			
 		printf("Trx %lu rollback finished\n",
-						ut_dulint_get_low(trx->id));
+						(ulong) ut_dulint_get_low(trx->id));
 	}
 
 	trx_commit_off_kernel(trx);
