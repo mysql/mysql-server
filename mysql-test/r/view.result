@@ -448,7 +448,7 @@ create view v1 as select a+1 from t1;
 create table t2 select * from v1;
 show columns from t2;
 Field	Type	Null	Key	Default	Extra
-a+1	bigint(17)	YES		NULL	
+a+1	bigint(12)	YES		NULL	
 select * from t2;
 a+1
 2
@@ -889,10 +889,6 @@ ERROR HY000: View 'test.v1' references invalid table(s) or column(s) or function
 drop view v1;
 create view v1 (a,a) as select 'a','a';
 ERROR 42S21: Duplicate column name 'a'
-create procedure p1 () begin declare v int; create view v1 as select v; end;//
-call p1();
-ERROR HY000: View's SELECT contains a variable or parameter
-drop procedure p1;
 create table t1 (col1 int,col2 char(22));
 insert into t1 values(5,'Hello, world of views');
 create view v1 as select * from t1;
