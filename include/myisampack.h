@@ -212,7 +212,7 @@
 
 /* Fix to avoid warnings when sizeof(ha_rows) == sizeof(long) */
 
-#ifdef BIG_TABLE
+#ifdef BIG_TABLES
 #define mi_rowstore(T,A)    mi_int8store(T,A)
 #define mi_rowkorr(T,A)     mi_uint8korr(T)
 #else
