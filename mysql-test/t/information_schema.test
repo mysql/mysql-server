@@ -162,16 +162,7 @@ select * from information_schema.TABLE_CONSTRAINTS where
 TABLE_SCHEMA= "test";
 select * from information_schema.KEY_COLUMN_USAGE where
 TABLE_SCHEMA= "test";
-drop table t1;
 
-CREATE TABLE t1 (id INT NOT NULL, PRIMARY KEY (id)) ENGINE=INNODB;
-CREATE TABLE t2 (id INT PRIMARY KEY, t1_id INT, INDEX par_ind (t1_id),
-FOREIGN KEY (t1_id) REFERENCES t1(id)  ON DELETE CASCADE,
-FOREIGN KEY (t1_id) REFERENCES t1(id)  ON UPDATE CASCADE) ENGINE=INNODB;
-select * from information_schema.TABLE_CONSTRAINTS where
-TABLE_SCHEMA= "test";
-select * from information_schema.KEY_COLUMN_USAGE where
-TABLE_SCHEMA= "test";
 
 connect (user1,localhost,mysqltest_1,,);
 connection user1;
@@ -181,7 +172,6 @@ select ROUTINE_NAME from information_schema.ROUTINES;
 disconnect user1;
 connection default;
 delete from mysql.user where user='mysqltest_1';
-drop table t2;
 drop table t1;
 drop procedure sel2;
 drop function sub1;
