@@ -192,6 +192,16 @@ private:
 
   const char* m_pDateTimeFormat;
   int m_errorCode;
+
+  // for handling repeated messages
+  unsigned m_count_repeated_messages;
+  unsigned m_max_repeat_frequency;
+  time_t m_last_log_time;
+  char m_last_category_buf[16];
+  char m_last_message_buf[256];
+  char *m_last_category;
+  Logger::LoggerLevel m_last_level;
+  char *m_last_message;
 };
 
 #endif

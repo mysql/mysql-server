@@ -151,7 +151,7 @@ Transporter::getRemoteNodeId() const {
 inline
 NodeId
 Transporter::getLocalNodeId() const {
-  return remoteNodeId;
+  return localNodeId;
 }
 
 inline
