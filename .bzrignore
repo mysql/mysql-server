@@ -483,3 +483,4 @@ scripts/mysql_tableinfo
 libmysql/net.c
 libmysqld/sql_olap.cc
 myisam/myisam.log
+mysys/ste5KbMa
