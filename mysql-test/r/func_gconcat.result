@@ -457,3 +457,10 @@ group_concat(distinct b order by b)
 Warnings:
 Warning	1260	2 line(s) were cut by GROUP_CONCAT()
 drop table t1;
+create table t1 (a char(3), b char(20), primary key (a, b));
+insert into t1 values ('ABW', 'Dutch'), ('ABW', 'English');
+select group_concat(a) from t1 group by b;
+group_concat(a)
+ABW
+ABW
+drop table t1;
