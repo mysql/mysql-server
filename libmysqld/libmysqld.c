@@ -143,6 +143,9 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
 		      db ? db : "(Null)",
 		      user ? user : "(Null)"));
 
+  if (!host || !host[0])
+    host= mysql->options.host;
+
   if (mysql->options.methods_to_use == MYSQL_OPT_USE_REMOTE_CONNECTION ||
       (mysql->options.methods_to_use == MYSQL_OPT_GUESS_CONNECTION &&
        host && *host && strcmp(host,LOCAL_HOST)))
