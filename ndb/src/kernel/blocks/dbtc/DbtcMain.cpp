@@ -6074,11 +6074,17 @@ int Dbtc::releaseAndAbort(Signal* signal)
   UintR TnoLoops = tcConnectptr.p->noOfNodes;
   
   apiConnectptr.p->counter++;
+  bool prevAlive = false;
   for (Uint32 Ti = 0; Ti < TnoLoops ; Ti++) {
     localHostptr.i = tcConnectptr.p->tcNodedata[Ti];
     ptrCheckGuard(localHostptr, chostFilesize, hostRecord);
     if (localHostptr.p->hostStatus == HS_ALIVE) {
       jam();
+      if (prevAlive) {
+        // if previous is alive, its LQH forwards abort to this node
+        jam();
+        continue;
+      }
       /* ************< */
       /*    ABORT    < */
       /* ************< */
@@ -6088,15 +6094,16 @@ int Dbtc::releaseAndAbort(Signal* signal)
       signal->theData[2] = apiConnectptr.p->transid[0];
       signal->theData[3] = apiConnectptr.p->transid[1];
       sendSignal(tblockref, GSN_ABORT, signal, 4, JBB);
-      return 1;
+      prevAlive = true;
     } else {
       jam();
       signal->theData[0] = tcConnectptr.i;
       signal->theData[1] = apiConnectptr.p->transid[0];
       signal->theData[2] = apiConnectptr.p->transid[1];
-      signal->theData[3] = hostptr.i;
+      signal->theData[3] = localHostptr.i;
       signal->theData[4] = ZFALSE;
       sendSignal(cownref, GSN_ABORTED, signal, 5, JBB);
+      prevAlive = false;
     }//if
   }//for
   return 1;
