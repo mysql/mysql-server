@@ -45,7 +45,6 @@
 #include <ndb_version.h>
 
 #include <SocketServer.hpp>
-#include "NodeLogLevel.hpp"
 #include <NdbConfig.h>
 
 #include <NdbAutoPtr.hpp>
@@ -191,41 +190,49 @@ EventLogger g_EventLogger;
 void
 MgmtSrvr::logLevelThreadRun() 
 {
-  NdbMutex* threadMutex = NdbMutex_Create();
-
   while (!_isStopThread) {
-    if (_startedNodeId != 0) {
-      NdbMutex_Lock(threadMutex); 
+    /**
+     * Handle started nodes
+     */
+    EventSubscribeReq req;
+    req = m_statisticsListner.m_clients[0].m_logLevel;
+    req.blockRef = _ownReference;
 
-      // Local node
-      NodeLogLevel* n = NULL;
-      while ((n = _nodeLogLevelList->next()) != NULL) {
-	if (n->getNodeId() == _startedNodeId) {
-	  setNodeLogLevel(_startedNodeId, n->getLogLevelOrd(), true);
-	}
+    SetLogLevelOrd ord;
+    
+    m_started_nodes.lock();
+    while(m_started_nodes.size() > 0){
+      Uint32 node = m_started_nodes[0];
+      m_started_nodes.erase(0, false);
+      m_started_nodes.unlock();
+
+      setEventReportingLevelImpl(node, req);
+      
+      ord = m_nodeLogLevel[node];
+      setNodeLogLevelImpl(node, ord);
+      
+      m_started_nodes.lock();
+    }				 
+    m_started_nodes.unlock();
+    
+    m_log_level_requests.lock();
+    while(m_log_level_requests.size() > 0){
+      req = m_log_level_requests[0];
+      m_log_level_requests.erase(0, false);
+      m_log_level_requests.unlock();
+      
+      if(req.blockRef == 0){
+	req.blockRef = _ownReference;
+	setEventReportingLevelImpl(0, req);
+      } else {
+	ord = req;
+	setNodeLogLevelImpl(req.blockRef, ord);
       }
-      // Cluster log
-      while ((n = _clusterLogLevelList->next()) != NULL) {
-	if (n->getNodeId() == _startedNodeId) {
-	  setEventReportingLevel(_startedNodeId, n->getLogLevelOrd(), true);
-	}
-      }
-      _startedNodeId = 0;      
-
-      NdbMutex_Unlock(threadMutex);
-
-    } // if (_startedNodeId != 0) {    
-
+      m_log_level_requests.lock();
+    }      
+    m_log_level_requests.unlock();
     NdbSleep_MilliSleep(_logLevelThreadSleep);  
-  } // while (!_isStopThread)
-  
-  NdbMutex_Destroy(threadMutex);
-}
-
-void 
-MgmtSrvr::setStatisticsListner(StatisticsListner* listner) 
-{
-  m_statisticsListner = listner;
+  }
 }
 
 void
@@ -272,7 +279,7 @@ class ErrorItem
 {
 public:
   int _errorCode;
-  const BaseString _errorText;
+  const char * _errorText;
 };
 
 bool
@@ -485,23 +492,6 @@ MgmtSrvr::getPort() const {
   return port;
 }
 
-int 
-MgmtSrvr::getStatPort() const {
-#if 0
-  const Properties *mgmProps;
-  if(!getConfig()->get("Node", _ownNodeId, &mgmProps))
-    return -1;
-
-  int tmp = -1;
-  if(!mgmProps->get("PortNumberStats", (Uint32 *)&tmp))
-    return -1;
-
-  return tmp;
-#else
-  return -1;
-#endif
-}
-
 /* Constructor */
 MgmtSrvr::MgmtSrvr(NodeId nodeId,
 		   const BaseString &configFilename,
@@ -510,22 +500,19 @@ MgmtSrvr::MgmtSrvr(NodeId nodeId,
   _blockNumber(1), // Hard coded block number since it makes it easy to send
                    // signals to other management servers.
   _ownReference(0),
+  m_allocated_resources(*this),
   theSignalIdleList(NULL),
   theWaitState(WAIT_SUBSCRIBE_CONF),
-  theConfCount(0),
-  m_allocated_resources(*this) {
-
+  m_statisticsListner(this){
+    
   DBUG_ENTER("MgmtSrvr::MgmtSrvr");
 
   _config     = NULL;
-  _isStatPortActive = false;
-  _isClusterLogStatActive = false;
 
   _isStopThread        = false;
   _logLevelThread      = NULL;
   _logLevelThreadSleep = 500;
   m_signalRecvThread   = NULL;
-  _startedNodeId       = 0;
 
   theFacade = 0;
 
@@ -583,13 +570,7 @@ MgmtSrvr::MgmtSrvr(NodeId nodeId,
     ndb_mgm_destroy_iterator(iter);
   }
 
-  m_statisticsListner = NULL;
-  
-  _nodeLogLevelList    = new NodeLogLevelList();
-  _clusterLogLevelList = new NodeLogLevelList();
-
   _props = NULL;
-
   _ownNodeId= 0;
   NodeId tmp= nodeId;
   BaseString error_string;
@@ -608,6 +589,16 @@ MgmtSrvr::MgmtSrvr(NodeId nodeId,
       ndbout << cr.getErrorString() << endl;
       exit(-1);
     }
+  }
+
+  {
+    MgmStatService::StatListener se;
+    se.m_socket = -1;
+    for(size_t t = 0; t<_LOGLEVEL_CATEGORIES; t++)
+      se.m_logLevel.setLogLevel((LogLevel::EventCategory)t, 7);
+    se.m_logLevel.setLogLevel(LogLevel::llError, 15);
+    m_statisticsListner.m_clients.push_back(se);
+    m_statisticsListner.m_logLevel = se.m_logLevel;
   }
 
   DBUG_VOID_RETURN;
@@ -671,8 +662,6 @@ MgmtSrvr::start(BaseString &error_string)
   // Set the initial confirmation count for subscribe requests confirm
   // from NDB nodes in the cluster.
   //
-  theConfCount = getNodeCount(NDB_MGM_NODE_TYPE_NDB); 
-
   // Loglevel thread
   _logLevelThread = NdbThread_Create(logLevelThread_C,
 				     (void**)this,
@@ -713,9 +702,6 @@ MgmtSrvr::~MgmtSrvr()
   if(_config != NULL)
     delete _config;
 
-  delete _nodeLogLevelList;
-  delete _clusterLogLevelList;
-
   // End set log level thread
   void* res = 0;
   _isStopThread = true;
@@ -736,6 +722,9 @@ MgmtSrvr::~MgmtSrvr()
 
 int MgmtSrvr::okToSendTo(NodeId processId, bool unCond) 
 {
+  if(processId == 0)
+    return 0;
+
   if (getNodeType(processId) != NDB_MGM_NODE_TYPE_NDB)
     return WRONG_PROCESS_TYPE;
   
@@ -1540,175 +1529,72 @@ MgmtSrvr::status(int processId,
   
   return -1;
 }
- 
- 
-//****************************************************************************
-//****************************************************************************
-int 
-MgmtSrvr::startStatisticEventReporting(int level) 
-{
-  SetLogLevelOrd ll;
-  NodeId nodeId = 0;
-
-  ll.clear();
-  ll.setLogLevel(LogLevel::llStatistic, level);
-
-  if (level > 0) {
-    _isStatPortActive = true;
-  } else {
-    _isStatPortActive = false;
-
-    if (_isClusterLogStatActive) {
-      return 0;
-    }
-  }
-
-  while (getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_NDB)) {
-    setEventReportingLevelImpl(nodeId, ll);
-  }
-
-  return 0;
-}
-
-int 
-MgmtSrvr::setEventReportingLevel(int processId, const SetLogLevelOrd & ll,
-				 bool isResend) 
-{
-  for (Uint32 i = 0; i < ll.noOfEntries; i++) {
-    if (ll.theCategories[i] == LogLevel::llStatistic) {
-      if (ll.theLevels[i] > 0) {
-	_isClusterLogStatActive = true;
-	break;
-      } else {
-	_isClusterLogStatActive = false;    
-	
-	if (_isStatPortActive) {
-	  return 0;
-	}
-	break;
-      }
-    } // if (ll.theCategories
-  } // for (int i = 0
-
-  return setEventReportingLevelImpl(processId, ll, isResend);
-}
 
 int 
 MgmtSrvr::setEventReportingLevelImpl(int processId, 
-				     const SetLogLevelOrd & ll, 
-				     bool isResend) 
+				     const EventSubscribeReq& ll)
 {
-  Uint32 i;
-  for(i = 0; i<ll.noOfEntries; i++){
-    // Save log level for the cluster log
-    if (!isResend) {
-      NodeLogLevel* n = NULL;
-      bool found = false;
-      while ((n = _clusterLogLevelList->next()) != NULL) {
-	if (n->getNodeId() == processId &&
-	    n->getCategory() == ll.theCategories[i]) {
-	  
-	  n->setLevel(ll.theLevels[i]);
-	  found = true;
-	}
-      }
-      if (!found) {
-	_clusterLogLevelList->add(new NodeLogLevel(processId, ll));
-      }
-    }
-  }
-
+    
   int result = okToSendTo(processId, true);
   if (result != 0) {
     return result;
   }
 
-  NdbApiSignal* signal = getSignal();
-  if (signal == NULL) {
-    return COULD_NOT_ALLOCATE_MEMORY;
-  }
+  NdbApiSignal signal(_ownReference);
 
   EventSubscribeReq * dst = 
-    CAST_PTR(EventSubscribeReq, signal->getDataPtrSend());
-  for(i = 0; i<ll.noOfEntries; i++){
-    dst->theCategories[i] = ll.theCategories[i];
-    dst->theLevels[i] = ll.theLevels[i];
-  }
-
-  dst->noOfEntries = ll.noOfEntries;
-  dst->blockRef = _ownReference;
+    CAST_PTR(EventSubscribeReq, signal.getDataPtrSend());
   
-  signal->set(TestOrd::TraceAPI, CMVMI, GSN_EVENT_SUBSCRIBE_REQ,
-              EventSubscribeReq::SignalLength);
+  * dst = ll;
   
-  result = sendSignal(processId, WAIT_SUBSCRIBE_CONF, signal, true);
-  if (result == -1) {
-    return SEND_OR_RECEIVE_FAILED;
-  } 
-  else {
-    // Increment the conf counter
-    theConfCount++;
-  }
-
+  signal.set(TestOrd::TraceAPI, CMVMI, GSN_EVENT_SUBSCRIBE_REQ,
+	     EventSubscribeReq::SignalLength);
+  
+  theFacade->lock_mutex();
+  send(&signal, processId, NODE_TYPE_DB);
+  theFacade->unlock_mutex();
+  
   return 0;
 }
 
 //****************************************************************************
 //****************************************************************************
 int 
-MgmtSrvr::setNodeLogLevel(int processId, const SetLogLevelOrd & ll,
-			  bool isResend) 
+MgmtSrvr::setNodeLogLevelImpl(int processId, const SetLogLevelOrd & ll)
 {
-  Uint32 i;
-  for(i = 0; i<ll.noOfEntries; i++){
-    // Save log level for the cluster log
-    if (!isResend) {
-      NodeLogLevel* n = NULL;
-      bool found = false;
-      while ((n = _clusterLogLevelList->next()) != NULL) {
-	if (n->getNodeId() == processId &&
-	    n->getCategory() == ll.theCategories[i]) {
-	  
-	  n->setLevel(ll.theLevels[i]);
-	  found = true;
-	}
-      }
-      if (!found) {
-	_clusterLogLevelList->add(new NodeLogLevel(processId, ll));
-      }
-    }
-  }
-  
   int result = okToSendTo(processId, true);
   if (result != 0) {
     return result;
   }
 
-  NdbApiSignal* signal = getSignal();
-  if (signal == NULL) {
-    return COULD_NOT_ALLOCATE_MEMORY;
-  }
-
-  SetLogLevelOrd * dst = CAST_PTR(SetLogLevelOrd, signal->getDataPtrSend());
-
-  for(i = 0; i<ll.noOfEntries; i++){
-    dst->theCategories[i] = ll.theCategories[i];
-    dst->theLevels[i] = ll.theLevels[i];
-  }
+  NdbApiSignal signal(_ownReference);
   
-  dst->noOfEntries = ll.noOfEntries;
+  SetLogLevelOrd * dst = CAST_PTR(SetLogLevelOrd, signal.getDataPtrSend());
   
-  signal->set(TestOrd::TraceAPI, CMVMI, GSN_SET_LOGLEVELORD,
-              SetLogLevelOrd::SignalLength);
-
-  result = sendSignal(processId, NO_WAIT, signal, true);
-  if (result == -1) {
-    return SEND_OR_RECEIVE_FAILED;
-  } 
+  * dst = ll;
+  
+  signal.set(TestOrd::TraceAPI, CMVMI, GSN_SET_LOGLEVELORD,
+	     SetLogLevelOrd::SignalLength);
+  
+  theFacade->lock_mutex();
+  theFacade->sendSignalUnCond(&signal, processId);
+  theFacade->unlock_mutex();
 
   return 0;
 }
 
+int
+MgmtSrvr::send(NdbApiSignal* signal, Uint32 node, Uint32 node_type){
+  Uint32 max = (node == 0) ? MAX_NODES : node + 1;
+  
+  for(; node < max; node++){
+    while(nodeTypes[node] != node_type && node < max) node++;
+    if(nodeTypes[node] != node_type)
+      break;
+    theFacade->sendSignalUnCond(signal, node);
+  }
+  return 0;
+}
 
 //****************************************************************************
 //****************************************************************************
@@ -2003,27 +1889,12 @@ const char* MgmtSrvr::getErrorText(int errorCode)
 
   for (int i = 0; i < noOfErrorCodes; ++i) {
     if (errorCode == errorTable[i]._errorCode) {
-      return errorTable[i]._errorText.c_str();
+      return errorTable[i]._errorText;
     }
   }
   
   snprintf(text, 255, "Unknown management server error code %d", errorCode);
   return text;
-}
-
-/*****************************************************************************
- * Handle reception of various signals
- *****************************************************************************/
-
-int 
-MgmtSrvr::handleSTATISTICS_CONF(NdbApiSignal* signal) 
-{
-  //ndbout << "MgmtSrvr::handleSTATISTICS_CONF" << endl;
-
-  int x = signal->readData(1);
-  //ndbout << "MgmtSrvr::handleSTATISTICS_CONF, x: " << x << endl;
-  _statistics._test1 = x;
-  return 0;
 }
 
 void 
@@ -2049,51 +1920,7 @@ MgmtSrvr::handleReceivedSignal(NdbApiSignal* signal)
   }
     break;
     
-  case GSN_STATISTICS_CONF:
-    if (theWaitState != WAIT_STATISTICS) {
-      g_EventLogger.warning("MgmtSrvr::handleReceivedSignal, unexpected "
-			    "signal received, gsn %d, theWaitState = %d",
-			    gsn, theWaitState);
-      
-      return;
-    }
-    returnCode = handleSTATISTICS_CONF(signal);
-    if (returnCode != -1) {
-      theWaitState = NO_WAIT;
-    }
-    break;
-    
-    
-  case GSN_SET_VAR_CONF:
-    if (theWaitState != WAIT_SET_VAR) {
-      g_EventLogger.warning("MgmtSrvr::handleReceivedSignal, unexpected "
-			    "signal received, gsn %d, theWaitState = %d",
-			    gsn, theWaitState);
-      return;
-    }
-    theWaitState = NO_WAIT;
-    _setVarReqResult = 0;
-    break;
-
-  case GSN_SET_VAR_REF:
-    if (theWaitState != WAIT_SET_VAR) {
-      g_EventLogger.warning("MgmtSrvr::handleReceivedSignal, unexpected "
-			    "signal received, gsn %d, theWaitState = %d",
-			    gsn, theWaitState);
-      return;
-    }
-    theWaitState = NO_WAIT;
-    _setVarReqResult = -1;
-    break;
-
   case GSN_EVENT_SUBSCRIBE_CONF:
-    theConfCount--; // OK, we've received a conf message
-    if (theConfCount < 0) {
-      g_EventLogger.warning("MgmtSrvr::handleReceivedSignal, unexpected "
-			    "signal received, gsn %d, theWaitState = %d",
-			    gsn, theWaitState);
-      theConfCount = 0;
-    } 
     break;
 
   case GSN_EVENT_REP:
@@ -2276,20 +2103,19 @@ void
 MgmtSrvr::handleStatus(NodeId nodeId, bool alive)
 {
   if (alive) {
-    _startedNodeId = nodeId; // Used by logLevelThreadRun()
+    m_started_nodes.push_back(nodeId);
     Uint32 theData[25];
     theData[0] = EventReport::Connected;
     theData[1] = nodeId;
+    eventReport(_ownNodeId, theData);
   } else {
     handleStopReply(nodeId, 0);
-    theConfCount++; // Increment the event subscr conf count because
-
+    
     Uint32 theData[25];
     theData[0] = EventReport::Disconnected;
     theData[1] = nodeId;
-
+    
     eventReport(_ownNodeId, theData);
-    g_EventLogger.info("Lost connection to node %d", nodeId);
   }
 }
 
@@ -2370,7 +2196,7 @@ MgmtSrvr::alloc_node_id(NodeId * nodeId,
       continue;
     found_matching_id= true;
     if(iter.get(CFG_TYPE_OF_SECTION, &type_c)) abort();
-    if(type_c != type)
+    if(type_c != (unsigned)type)
       continue;
     found_matching_type= true;
     if (connected_nodes.get(tmp))
@@ -2483,77 +2309,18 @@ MgmtSrvr::getNextNodeId(NodeId * nodeId, enum ndb_mgm_node_type type) const
   return true;
 }
 
+#include "Services.hpp"
+
 void
 MgmtSrvr::eventReport(NodeId nodeId, const Uint32 * theData)
 {
   const EventReport * const eventReport = (EventReport *)&theData[0];
-
+  
   EventReport::EventType type = eventReport->getEventType();
-
-  if (type == EventReport::TransReportCounters || 
-      type == EventReport::OperationReportCounters) {
-
-    if (_isClusterLogStatActive) {
-      g_EventLogger.log(type, theData, nodeId);  
-    }
-
-    if (_isStatPortActive) {
-      char theTime[128];
-      struct tm* tm_now;
-      time_t now;
-      now = time((time_t*)NULL);
-#ifdef NDB_WIN32
-      tm_now = localtime(&now);
-#else
-      tm_now = gmtime(&now);
-#endif
-      
-      snprintf(theTime, sizeof(theTime),
-	       STATISTIC_DATE,
-	       tm_now->tm_year + 1900, 
-	       tm_now->tm_mon, 
-	       tm_now->tm_mday,
-	       tm_now->tm_hour,
-	       tm_now->tm_min,
-	       tm_now->tm_sec);
-      
-      char str[255];
-      
-      if (type == EventReport::TransReportCounters) {
-	snprintf(str, sizeof(str),
-		 STATISTIC_LINE,
-		 theTime,
-		 (int)now,
-		 nodeId, 
-		 theData[1], 
-		 theData[2], 
-		 theData[3], 
-		 //        theData[4], simple reads
-		 theData[5], 
-		 theData[6], 
-		 theData[7], 
-		 theData[8]);  
-      } else if (type == EventReport::OperationReportCounters) {
-	snprintf(str, sizeof(str),
-		 OP_STATISTIC_LINE,
-		 theTime,
-		 (int)now,
-		 nodeId, 
-		 theData[1]);
-      }        
-
-      if(m_statisticsListner != 0){
-	m_statisticsListner->println_statistics(str);      
-      }
-    }
-    
-    return;
-
-  } // if (type ==
 
   // Log event
   g_EventLogger.log(type, theData, nodeId);  
-      
+  m_statisticsListner.log(type, theData, nodeId);
 }
 
 /***************************************************************************
@@ -2981,3 +2748,7 @@ template class Vector<SigMatch>;
 #if __SUNPRO_CC != 0x560
 template bool SignalQueue::waitFor<SigMatch>(Vector<SigMatch>&, SigMatch*&, NdbApiSignal*&, unsigned);
 #endif
+
+template class MutexVector<unsigned short>;
+template class MutexVector<MgmStatService::StatListener>;
+template class MutexVector<EventSubscribeReq>;

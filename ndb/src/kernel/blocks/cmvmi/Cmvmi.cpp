@@ -250,17 +250,7 @@ Cmvmi::execEVENT_SUBSCRIBE_REQ(Signal * signal){
       sendSignal(subReq->blockRef, GSN_EVENT_SUBSCRIBE_REF, signal, 1, JBB);
       return;
     }
-    /**
-     * If it's a new subscription, clear the loglevel
-     *
-     * Clear only if noOfEntries is 0, this is needed beacuse we set
-     * the default loglevels for the MGMT nodes during the inital connect phase.
-     * See reportConnected().
-     */
-    if (subReq->noOfEntries == 0){
-      ptr.p->logLevel.clear();
-    }
-
+    ptr.p->logLevel.clear();
     ptr.p->blockRef = subReq->blockRef;    
   }
   
@@ -384,11 +374,6 @@ void Cmvmi::execCLOSE_COMREQ(Signal* signal)
       
       globalTransporterRegistry.setIOState(i, HaltIO);
       globalTransporterRegistry.do_disconnect(i);
-
-      /**
-       * Cancel possible event subscription
-       */
-      cancelSubscription(i);
     }
   }
   if (failNo != 0) {
@@ -494,6 +479,8 @@ void Cmvmi::execDISCONNECT_REP(Signal *signal)
     globalTransporterRegistry.do_connect(hostId);
   }
 
+  cancelSubscription(hostId);
+
   signal->theData[0] = EventReport::Disconnected;
   signal->theData[1] = hostId;
   sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
@@ -539,20 +526,6 @@ void Cmvmi::execCONNECT_REP(Signal *signal){
   if(type == NodeInfo::MGM){
     jam();
     globalTransporterRegistry.setIOState(hostId, NoHalt);
-    
-    EventSubscribeReq* dst = (EventSubscribeReq *)&signal->theData[0];
-    
-    for (Uint32 i = 0; i < EventLogger::defEventLogMatrixSize; i++) {
-      dst->theCategories[i] = EventLogger::defEventLogMatrix[i].eventCategory;
-      dst->theLevels[i]     = EventLogger::defEventLogMatrix[i].threshold;
-    }
-
-    dst->noOfEntries = EventLogger::defEventLogMatrixSize;
-    /* The BlockNumber is hardcoded as 1 in MgmtSrvr */
-    dst->blockRef = numberToRef(MIN_API_BLOCK_NO, hostId); 
-    
-    execEVENT_SUBSCRIBE_REQ(signal);
-    
   }
 
   //------------------------------------------
