@@ -3,6 +3,8 @@ dnl Define zlib paths to point at bundled zlib
 AC_DEFUN([MYSQL_USE_BUNDLED_ZLIB], [
 ZLIB_INCLUDES="-I\$(top_srcdir)/zlib"
 ZLIB_LIBS="\$(top_builddir)/zlib/libz.la"
+dnl Omit -L$pkglibdir as it's always in the list of mysql_config deps.
+ZLIB_DEPS="-lz"
 zlib_dir="zlib"
 AC_SUBST([zlib_dir])
 mysql_cv_compress="yes"
@@ -44,8 +46,13 @@ dnl   $prefix/lib. If zlib headers or binaries weren't found at $prefix, the
 dnl   macro bails out with error.
 dnl 
 dnl If the library was found, this function #defines HAVE_COMPRESS
-dnl and configure variables ZLIB_INCLUDES (i.e. -I/path/to/zlib/include) and
-dnl ZLIB_LIBS (i. e. -L/path/to/zlib/lib -lz).
+dnl and configure variables ZLIB_INCLUDES (i.e. -I/path/to/zlib/include),
+dnl ZLIB_LIBS (i. e. -L/path/to/zlib/lib -lz) and ZLIB_DEPS which is
+dnl used in mysql_config and is always the same as ZLIB_LIBS except to
+dnl when we use the bundled zlib. In the latter case ZLIB_LIBS points to the
+dnl build dir ($top_builddir/zlib), while mysql_config must point to the
+dnl installation dir ($pkglibdir), so ZLIB_DEPS is set to point to
+dnl $pkglibdir.
 
 AC_DEFUN([MYSQL_CHECK_ZLIB_WITH_COMPRESS], [
 AC_MSG_CHECKING([for zlib compression library])
@@ -94,7 +101,11 @@ case $SYSTEM_TYPE in
         ;;
     esac
     if test "$mysql_cv_compress" = "yes"; then
+      if test "x$ZLIB_DEPS" = "x"; then
+        ZLIB_DEPS="$ZLIB_LIBS"
+      fi
       AC_SUBST([ZLIB_LIBS])
+      AC_SUBST([ZLIB_DEPS])
       AC_SUBST([ZLIB_INCLUDES])
       AC_DEFINE([HAVE_COMPRESS], [1], [Define to enable compression support])
     fi

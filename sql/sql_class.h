@@ -1027,6 +1027,7 @@ public:
   bool	     charset_is_system_charset, charset_is_collation_connection;
   bool       slow_command;
   bool	     no_trans_update, abort_on_warning;
+  bool 	     got_warning;       /* Set on call to push_warning() */
   longlong   row_count_func;	/* For the ROW_COUNT() function */
   sp_rcontext *spcont;		// SP runtime context
   sp_cache   *sp_proc_cache;
