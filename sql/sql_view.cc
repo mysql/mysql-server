@@ -657,6 +657,7 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
     }
 
     table->effective_algorithm= VIEW_ALGORITHM_TMEPTABLE;
+    lex->select_lex.linkage= DERIVED_TABLE_TYPE;
     if (table->updatable)
     {
       //TOTO: warning: can't be updateable, .frm edited by hand. version
