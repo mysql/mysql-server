@@ -724,31 +724,34 @@ TABLE_LIST *find_table_in_list(TABLE_LIST *table,
 TABLE_LIST* unique_table(TABLE_LIST *table, TABLE_LIST *table_list)
 {
   TABLE_LIST *res;
-  const char *d_name= table->db, *t_name= table->table_name;
-  char d_name_buff[MAX_ALIAS_NAME], t_name_buff[MAX_ALIAS_NAME];
+  const char *d_name, *t_name;
   DBUG_ENTER("unique_table");
   DBUG_PRINT("enter", ("table alias: %s", table->alias));
-  /* temporary table is always unique */
-  if (table->table && table->table->s->tmp_table != NO_TMP_TABLE)
-    DBUG_RETURN(0);
-  if (table->view)
+
+  /*
+    If this function called for query which update table (INSERT/UPDATE/...)
+    then we have in table->table pointer to TABLE object which we are
+    updating even if it is VIEW so we need TABLE_LIST of this TABLE object
+    to get right names (even if lower_case_table_names used).
+
+    If this function called for CREATE command that we have not opened table
+    (table->table equal to 0) and right names is in current TABLE_LIST
+    object.
+  */
+  if (table->table)
   {
-    /* it is view and table opened */
-    if (lower_case_table_names)
-    {
-      strmov(t_name_buff, table->table->alias);
-      my_casedn_str(files_charset_info, t_name_buff);
-      t_name= t_name_buff;
-      strmov(d_name_buff, table->table->s->db);
-      my_casedn_str(files_charset_info, d_name_buff);
-      d_name= d_name_buff;
-    }
-    else
-    {
-      d_name= table->table->s->db;
-      t_name= table->table->alias;
-    }
+    /* temporary table is always unique */
+    if (table->table && table->table->s->tmp_table != NO_TMP_TABLE)
+      DBUG_RETURN(0);
+    table= table->find_underlying_table(table->table);
+    /*
+      as far as we have table->table we have to find real TABLE_LIST of
+      it in underlying tables
+    */
+    DBUG_ASSERT(table);
   }
+  d_name= table->db;
+  t_name= table->table_name;
 
   DBUG_PRINT("info", ("real table: %s.%s", d_name, t_name));
   for(;;)
