@@ -1466,13 +1466,13 @@ Error	1146	Table 'test.t4' doesn't exist
 checksum table t1, t2, t3;
 Table	Checksum
 test.t1	2948697075
-test.t2	968604391
-test.t3	968604391
+test.t2	1157260244
+test.t3	1157260244
 checksum table t1, t2, t3 extended;
 Table	Checksum
 test.t1	3092701434
-test.t2	968604391
-test.t3	968604391
+test.t2	1157260244
+test.t3	1157260244
 drop table t1,t2,t3;
 create table t1 (id int,  name char(10) not null,  name2 char(10) not null) engine=innodb;
 insert into t1 values(1,'first','fff'),(2,'second','sss'),(3,'third','ttt');
@@ -1809,6 +1809,5 @@ show variables like "innodb_thread_sleep_delay";
 Variable_name	Value
 innodb_thread_sleep_delay	10000
 create table t1 (v varchar(16384)) engine=innodb;
-ERROR 42000: Column length too big for column 'v' (max = 255); use BLOB instead
 create table t1 (a bit, key(a)) engine=innodb;
 ERROR 42000: The storage engine for the table doesn't support BIT FIELD
