@@ -44728,7 +44728,7 @@ By default, MySQL searches are case-insensitive (although there are
 some character sets that are never case insensitive, such as @code{czech}).
 That means that if you search with @code{col_name LIKE 'a%'}, you will get all
 column values that start with @code{A} or @code{a}. If you want to make this
-search case-sensitive, use something like @code{INDEX(col_name, "A")=0} to
+search case-sensitive, use something like @code{INSTR(col_name, "A")=1} to
 check a prefix. Or use @code{STRCMP(col_name, "A") = 0} if the column value
 must be exactly @code{"A"}.
 
