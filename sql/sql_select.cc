@@ -2489,7 +2489,8 @@ make_join_readinfo(JOIN *join,uint options)
       table->file->index_init(tab->ref.key);
       tab->read_first_record= join_read_key;
       tab->read_record.read_record= join_no_more_records;
-      if (table->used_keys & ((key_map) 1 << tab->ref.key))
+      if (table->used_keys & ((key_map) 1 << tab->ref.key) &&
+	  !table->no_keyread)
       {
 	table->key_read=1;
 	table->file->extra(HA_EXTRA_KEYREAD);
@@ -2507,7 +2508,8 @@ make_join_readinfo(JOIN *join,uint options)
       table->file->index_init(tab->ref.key);
       tab->read_first_record= join_read_always_key;
       tab->read_record.read_record= join_read_next;
-      if (table->used_keys & ((key_map) 1 << tab->ref.key))
+      if (table->used_keys & ((key_map) 1 << tab->ref.key) &&
+	  !table->no_keyread)
       {
 	table->key_read=1;
 	table->file->extra(HA_EXTRA_KEYREAD);
@@ -2568,18 +2570,21 @@ make_join_readinfo(JOIN *join,uint options)
 	    statistic_increment(select_full_join_count, &LOCK_status);
 	  }
 	}
-	if (tab->select && tab->select->quick &&
-	    table->used_keys & ((key_map) 1 << tab->select->quick->index))
+	if (!table->no_keyread)
 	{
-	  table->key_read=1;
-	  table->file->extra(HA_EXTRA_KEYREAD);
-	}
-	else if (table->used_keys && ! (tab->select && tab->select->quick))
-	{					// Only read index tree
-	  tab->index=find_shortest_key(table, table->used_keys);
-	  tab->table->file->index_init(tab->index);
-	  tab->read_first_record= join_init_read_first_with_key;
-	  tab->type=JT_NEXT;		// Read with index_first / index_next
+	  if (tab->select && tab->select->quick &&
+	      table->used_keys & ((key_map) 1 << tab->select->quick->index))
+	  {
+	    table->key_read=1;
+	    table->file->extra(HA_EXTRA_KEYREAD);
+	  }
+	  else if (table->used_keys && ! (tab->select && tab->select->quick))
+	  {					// Only read index tree
+	    tab->index=find_shortest_key(table, table->used_keys);
+	    tab->table->file->index_init(tab->index);
+	    tab->read_first_record= join_init_read_first_with_key;
+	    tab->type=JT_NEXT;		// Read with index_first / index_next
+	  }
 	}
       }
       break;
@@ -2640,7 +2645,8 @@ join_free(JOIN *join)
   }
   join->group_fields.delete_elements();
   join->tmp_table_param.copy_funcs.delete_elements();
-  delete [] join->tmp_table_param.copy_field;
+  if (join->tmp_table_param.copy_field)		// Because of bug in ecc
+    delete [] join->tmp_table_param.copy_field;
   join->tmp_table_param.copy_field=0;
   DBUG_VOID_RETURN;
 }
@@ -4556,7 +4562,8 @@ join_init_read_first_with_key(JOIN_TAB *tab)
 {
   int error;
   TABLE *table=tab->table;
-  if (!table->key_read && (table->used_keys & ((key_map) 1 << tab->index)))
+  if (!table->key_read && (table->used_keys & ((key_map) 1 << tab->index)) &&
+      !table->no_keyread)
   {
     table->key_read=1;
     table->file->extra(HA_EXTRA_KEYREAD);
@@ -6389,7 +6396,7 @@ setup_copy_fields(TMP_TABLE_PARAM *param,List<Item> &fields)
   DBUG_ENTER("setup_copy_fields");
 
   if (!(copy=param->copy_field= new Copy_field[param->field_count]))
-    goto err;
+    goto err2;
 
   param->copy_funcs.empty();
   while ((pos=li++))
@@ -6438,8 +6445,9 @@ setup_copy_fields(TMP_TABLE_PARAM *param,List<Item> &fields)
   DBUG_RETURN(0);
 
  err:
-  delete [] param->copy_field;
+  delete [] param->copy_field;			// This is never 0
   param->copy_field=0;
+err2:
   DBUG_RETURN(TRUE);
 }
 

@@ -23,9 +23,9 @@
 #include <m_ctype.h>
 #include "ha_myisammrg.h"
 #ifndef MASTER
-#include "../srclib/myisammrg/mymrgdef.h"
+#include "../srclib/myisammrg/myrg_def.h"
 #else
-#include "../myisammrg/mymrgdef.h"
+#include "../myisammrg/myrg_def.h"
 #endif
 
 /*****************************************************************************

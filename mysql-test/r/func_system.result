@@ -1,6 +1,6 @@
-select database(),user();
+select database(),user() like "%@%";
 database()	user()
-test	root@localhost
+test	1
 select version()>="3.23.29";
 version()>="3.23.29"
 1

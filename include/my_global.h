@@ -453,8 +453,7 @@ typedef SOCKET_SIZE_TYPE size_socket;
 	/* Some things that this system doesn't have */
 
 #define ONLY_OWN_DATABASES	/* We are using only databases by monty */
-#define NO_PISAM		/* Not needed anymore */
-#define NO_MISAM		/* Not needed anymore */
+#define HAVE_ISAM		/* TO BE DELETED */
 #define NO_HASH			/* Not needed anymore */
 #ifdef __WIN__
 #define NO_DIR_LIBRARY		/* Not standar dir-library */

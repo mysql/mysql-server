@@ -16,7 +16,7 @@
 
 /* open a MERGE-database */
 
-#include "mrgdef.h"
+#include "mrg_def.h"
 #include <stddef.h>
 #include <errno.h>
 #ifdef VMS

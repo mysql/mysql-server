@@ -3051,7 +3051,7 @@ static void refresh_status(void)
 
 static bool append_file_to_dir(char **filename_ptr, char *table_name)
 {
-  char buff[FN_REFLEN],*ptr;
+  char buff[FN_REFLEN],*ptr, *end;
   if (!*filename_ptr)
     return 0;					// nothing to do
 
@@ -3064,8 +3064,8 @@ static bool append_file_to_dir(char **filename_ptr, char *table_name)
   }
   /* Fix is using unix filename format on dos */
   strmov(buff,*filename_ptr);
-  convert_dirname(buff);
-  if (!(ptr=sql_alloc(strlen(buff)+strlen(table_name)+1)))
+  end=convert_dirname(buff, *filename_ptr, NullS);
+  if (!(ptr=sql_alloc((uint) (end-buff)+strlen(table_name)+1)))
     return 1;					// End of memory
   *filename_ptr=ptr;
   strxmov(ptr,buff,table_name,NullS);

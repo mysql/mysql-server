@@ -249,13 +249,13 @@ done
 
 MYRUN_DIR=$MYSQL_TEST_DIR/var/run
 MASTER_MYDDIR="$MYSQL_TEST_DIR/var/master-data"
-MASTER_MYSOCK="$MYSQL_TMP_DIR/mysql-master.sock"
+MASTER_MYSOCK="$MYSQL_TMP_DIR/master.sock"
 MASTER_MYPID="$MYRUN_DIR/mysqld.pid"
 MASTER_MYLOG="$MYSQL_TEST_DIR/var/log/mysqld.log"
 MASTER_MYERR="$MYSQL_TEST_DIR/var/log/mysqld.err"
 
 SLAVE_MYDDIR="$MYSQL_TEST_DIR/var/slave-data"
-SLAVE_MYSOCK="$MYSQL_TMP_DIR/mysql-slave.sock"
+SLAVE_MYSOCK="$MYSQL_TMP_DIR/slave.sock"
 SLAVE_MYPID="$MYRUN_DIR/mysqld-slave.pid"
 SLAVE_MYLOG="$MYSQL_TEST_DIR/var/log/mysqld-slave.log"
 SLAVE_MYERR="$MYSQL_TEST_DIR/var/log/mysqld-slave.err"
@@ -879,10 +879,10 @@ run_testcase ()
  if [ -f $tf ] ; then
     $RM -f r/$tname.*reject
     mysql_test_args="-R r/$tname.result $EXTRA_MYSQL_TEST_OPT"
-     if [ -z "$DO_CLIENT_GDB" ] ; then
-     mytime=`$TIME -p $MYSQL_TEST  $mysql_test_args < $tf 2> $TIMEFILE`
+    if [ -z "$DO_CLIENT_GDB" ] ; then
+      mytime=`$TIME -p $MYSQL_TEST  $mysql_test_args < $tf 2> $TIMEFILE`
     else
-     do_gdb_test "$mysql_test_args" "$tf"
+      do_gdb_test "$mysql_test_args" "$tf"
     fi
      
     res=$?

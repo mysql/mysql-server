@@ -34122,10 +34122,12 @@ detect duplicated @code{UNIQUE} keys.
 @item
 By using @code{DATA DIRECTORY="directory"} or @code{INDEX
 DIRECTORY="directory"} you can specify where the table handler should
-put it's table and index files.  This only works for @code{MyISAM} tables
-in @code{MySQL} 4.0, when you are not using the @code{--skip-symlink}
-option. @xref{Symbolic links to tables}.
+put it's table and index files.  Note that the directory should be a full
+path to the directory (not relative path).
 
+This only works for @code{MyISAM} tables in @code{MySQL} 4.0, when you
+are not using the @code{--skip-symlink} option. @xref{Symbolic links to
+tables}.
 @end itemize
 
 
@@ -41933,9 +41935,9 @@ You need to use the following functions when you want to create a
 threaded client. @xref{Threaded clients}.
 
 @menu
-* my_init::                       @code{my_init()}
-* mysql_thread_init::             @code{mysql_thread_init()}
-* mysql_thread_end::              @code{mysql_thread_end()}
+* my_init::                     @code{my_init()}
+* mysql_thread_init::           @code{mysql_thread_init()}
+* mysql_thread_end::            @code{mysql_thread_end()}
 @end menu
 
 @node my_init, mysql_thread_init, C Thread functions, C Thread functions
@@ -42012,7 +42014,7 @@ a stand-alone server without modifying any code.
 
 @findex @code{mysql_server_init()}
 
-@code{int mysql_server_init(int argc, const char **argv, const char **groups)}
+@code{int mysql_server_init(int argc, char **argv, char **groups)}
 
 @subsubheading Description
 
@@ -42032,8 +42034,8 @@ command-line arguments for the server.
 The @code{NULL}-terminated list of strings in @code{groups}
 selects which groups in the option files will be active.
 @xref{Option files}.  For convenience, @code{groups} may be
-@code{NULL}, in which case the @code{[server]} group will be
-active.
+@code{NULL}, in which case the @code{[server]} and @code{[emedded]} groups
+will be active.
 
 @subsubheading Example
 
@@ -42047,6 +42049,7 @@ static char *server_args[] = @{
   "--set-variable=key_buffer_size=32M"
 @};
 static char *server_groups[] = @{
+  "embedded",
   "server",
   "this_program_SERVER",
   (char *)NULL
@@ -42379,6 +42382,9 @@ included the thread libraries on the link/compile line.
 @menu
 * libmysqld overview::          Overview of the Embedded MySQL Server Library
 * libmysqld compiling::         Compiling Programs with @code{libmysqld}
+* libmysqld restrictions::      
+* libmysqld options::           
+* libmysqld TODO::              
 * libmysqld example::           A Simple Embedded Server Example
 * libmysqld licensing::         Licensing the Embedded Server
 @end menu
@@ -42391,21 +42397,100 @@ full-featured MySQL server inside the client application.  The
 main benefits are increased speed and more simple management for
 embedded applications.
 
-@node libmysqld compiling, libmysqld example, libmysqld overview, libmysqld
+The API is identical for the embedded MySQL version and MySQL
+client/server version.  To change an old threaded application to use the
+embedded library, on normall only have to add calls to the following
+functions:
+
+@multitable @columnfractions .25 .7
+@item @code{mysql_server_init()} @tab Should be called before any other other MySQL function is called, preferably early in the @code{main()} function.
+@item @code{mysql_server_end()} @tab Should be called before doing an exit of your program.
+@item @code{mysql_thread_init()} @tab Should be called in all threads you are created that will access MySQL.
+@item @code{mysql_thread_end()} @tab Should be called before calling @code{pthread_exit()}
+@end multitable
+
+and link your code with @code{libmysqld.a} instead of @code{libmysqlclient.a}.
+
+The above @code{mysql_server_xxx} functions are also included in
+@code{libmysqld.a} to allow you to change between the embedded and the
+client/server version by just linking your application with the right
+library. @xref{mysql_server_init}.
+
+
+@node libmysqld compiling, libmysqld restrictions, libmysqld overview, libmysqld
 @subsubsection Compiling Programs with @code{libmysqld}
 
-Currently, all of the support libraries must be explicitly
-listed when linking with @code{-lmysqld}.  In the future,
-@code{mysql_config --libmysqld-libs} will name the libraries to
-make this easier.  Also, all of the supporting libraries will
-probably be incorporated into libmysqld at some time to simplify
-this even more.
-
+When you link your program with @code{libmysqld}, you must also include
+the system specific @code{pthread} libraries and some libraries that
+@code{mysqld} uses.  You can get the full list of libraries by executing
+@code{mysql_config --libmysqld-libs}.
+ 
 The correct flags for compiling and linking a threaded program
 must be used, even if you do not directly call any thread
 functions in your code.
 
-@node libmysqld example, libmysqld licensing, libmysqld compiling, libmysqld
+@node libmysqld restrictions, libmysqld options, libmysqld compiling, libmysqld
+@subsubsection Restrictions when using the Embedded MySQL Server
+
+The embedded server has the following limitations:
+(Some of these limitations can be changed by editing the @code{mysql_embed.h}
+include files and recompiling MySQL)
+
+@itemize @bullet
+@item
+No support for ISAM tables. (This is mainly done to make the library smaller)
+@item
+No UDF functions.
+@item
+No stack trace on core dump.
+@item
+No internal RAID support.
+@end itemize
+
+@node libmysqld options, libmysqld TODO, libmysqld restrictions, libmysqld
+@subsubsection Using option files with the embedded server
+
+The following is the recommended way to use option files to make it easy
+to switch between a client/server application and one where MySQL is
+embedded. @xref{Option files}.
+
+@itemize @bullet
+@item
+Put common options in the @code{[server]} section. These will be read by
+both MySQL versions.
+@item
+Put client/server specific options in the @code{[mysqld]} section.
+@item
+Put embedded MySQL specific options in the @code{[embedded]} section.
+@item
+Put application specific options in a @code{[ApplicationName_SERVER]}
+section.
+@end itemize
+
+@node libmysqld TODO, libmysqld example, libmysqld options, libmysqld
+@subsubsection Things left to do in Embedded Server (TODO)
+
+@cindex TODO, embedded server
+
+@itemize @bullet
+@item
+Currently we only provide a static version of the @code{mysqld} library,
+in the future we will also provide a shared library for this.
+@item
+We are going to provide options to leave out some parts of MySQL to make
+the library smaller.
+@item
+There is still a lot of speed optimization to do.
+@item
+Errors are written to stderr.  We will add an option to specify a
+filename for these.
+@item
+We have to change InnoDB to not be so verbose when using in the embedded
+version.
+@end itemize
+
+
+@node libmysqld example, libmysqld licensing, libmysqld TODO, libmysqld
 @subsubsection A Simple Embedded Server Example
 
 This example program and makefile should work without any
@@ -42449,7 +42534,7 @@ main(int argc, char **argv)
   /* This must be called before any other mysql functions.
    *
    * You can use mysql_server_init(0, NULL, NULL), and it will
-   * initialize the server using groups = @{ "server", NULL @}.
+   * initialize the server using groups = @{ "server", "embedded", NULL @}.
    *
    * In your $HOME/.my.cnf file, you probably want to put:
 
@@ -42647,79 +42732,9 @@ else
 LDLIBS += -lpthread
 endif
 
+# Standard libraries.  This example assumes MySQL is in /usr/local/mysql
 
-# Standard libraries
-
-embed_libs := \
-        $m/libmysqld/.libs/libmysqld.a \
-        $m/isam/libnisam.a \
-        $m/myisam/libmyisam.a \
-        $m/heap/libheap.a \
-        $m/merge/libmerge.a \
-        $m/myisammrg/libmyisammrg.a
-
-
-# Optionally-built libraries
-
-ifneq (,$(shell test -r $m/innobase/usr/libusr.a && echo "yes"))
-embed_libs += \
-        $m/innobase/usr/libusr.a \
-        $m/innobase/odbc/libodbc.a \
-        $m/innobase/srv/libsrv.a \
-        $m/innobase/que/libque.a \
-        $m/innobase/srv/libsrv.a \
-        $m/innobase/dict/libdict.a \
-        $m/innobase/ibuf/libibuf.a \
-        $m/innobase/row/librow.a \
-        $m/innobase/pars/libpars.a \
-        $m/innobase/btr/libbtr.a \
-        $m/innobase/trx/libtrx.a \
-        $m/innobase/read/libread.a \
-        $m/innobase/usr/libusr.a \
-        $m/innobase/buf/libbuf.a \
-        $m/innobase/ibuf/libibuf.a \
-        $m/innobase/eval/libeval.a \
-        $m/innobase/log/liblog.a \
-        $m/innobase/fsp/libfsp.a \
-        $m/innobase/fut/libfut.a \
-        $m/innobase/fil/libfil.a \
-        $m/innobase/lock/liblock.a \
-        $m/innobase/mtr/libmtr.a \
-        $m/innobase/page/libpage.a \
-        $m/innobase/rem/librem.a \
-        $m/innobase/thr/libthr.a \
-        $m/innobase/com/libcom.a \
-        $m/innobase/sync/libsync.a \
-        $m/innobase/data/libdata.a \
-        $m/innobase/mach/libmach.a \
-        $m/innobase/ha/libha.a \
-        $m/innobase/dyn/libdyn.a \
-        $m/innobase/mem/libmem.a \
-        $m/innobase/sync/libsync.a \
-        $m/innobase/ut/libut.a \
-        $m/innobase/os/libos.a \
-        $m/innobase/ut/libut.a
-endif
-
-ifneq (,$(shell test -r $m/bdb/build_unix/libdb.a && echo "yes"))
-embed_libs += $m/bdb/build_unix/libdb.a
-endif
-
-
-# Support libraries
-
-embed_libs += \
-        $m/mysys/libmysys.a \
-        $m/strings/libmystrings.a \
-        $m/dbug/libdbug.a \
-        $m/regex/libregex.a
-
-
-# Optionally built support libraries
-
-ifneq (,$(shell test -r $m/readline/libreadline.a && echo "yes"))
-embed_libs += $m/readline/libreadline.a
-endif
+embed_libs := -L/usr/local/mysql/lib/mysql/ -lmysqld
 
 # This works for simple one-file test programs
 sources := $(wildcard *.c)
@@ -47449,6 +47464,8 @@ Changed @code{WEEK(#,0)} to match the calender in the USA.
 @item
 Speed up all internal list handling.
 @item
+Speed up @code{IS NULL()} and some other internal primitives.
+@item
 Creating full text indexes are now much faster.
 @item
 Tree-like cache to speed up bulk inserts and
@@ -47496,6 +47513,12 @@ Allow ANSI SQL syntax @code{X'hexadecimal-number'}
 Cleaned up global lock handling for @code{FLUSH TABLES WITH READ LOCK}
 @item
 Fixed problem with @code{DATETIME = constant} in @code{WHERE} optimization.
+@item
+Added options @code{--master-data} and @code{--no-autocommit} to
+@code{mysqldump} (Thanks to Brian Aker for this).
+@item
+Added script @code{mysql_explain_log.sh} to distribution.
+(Thanks to mobile.de).
 @end itemize
 
 

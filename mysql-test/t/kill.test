@@ -1,3 +1,11 @@
+# This test doesn't work with the embedded version as this code
+# assumes that one query is running while we are doing queries on
+# a second connection.
+# This would work if mysqltest run would be threaded and handle each
+# connection in a separate thread.
+#
+-- source include/not_embedded.inc
+
 connect (con1, localhost, root,,);
 connect (con2, localhost, root,,);
 

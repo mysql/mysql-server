@@ -14,33 +14,18 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/*
-  Extra functions we want to do with a database
-  - All flags, exept record-cache-flags, are set in all used databases
-    record-cache-flags are set in mrg_rrnd when we are changing database.
-*/
+/* Update last read record */
 
-#include "mrgdef.h"
+#include "mrg_def.h"
 
-int mrg_extra(
-MRG_INFO *info,
-enum ha_extra_function function)
+int mrg_update(
+register MRG_INFO *info,
+const byte *oldrec, const byte *newrec)
 {
-  MRG_TABLE *file;
-
-  if (function == HA_EXTRA_CACHE)
-    info->cache_in_use=1;
-  else
+  if (!info->current_table)
   {
-    if (function == HA_EXTRA_NO_CACHE || function == HA_EXTRA_RESET)
-      info->cache_in_use=0;
-    if (function == HA_EXTRA_RESET || function == HA_EXTRA_RESET_STATE)
-    {
-      info->current_table=0;
-      info->last_used_table=info->open_tables;
-    }
-    for (file=info->open_tables ; file != info->end_table ; file++)
-      nisam_extra(file->table,function);
+    my_errno=HA_ERR_NO_ACTIVE_RECORD;
+    return(-1);
   }
-  return 0;
+  return nisam_update(info->current_table->table,oldrec,newrec);
 }

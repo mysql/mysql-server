@@ -6,26 +6,19 @@
 # that will run on all platforms (or incorporate it into the
 # standard mysql-test-run).
 
-#test_data_dir=/tmp/mysql-data
-test_data_dir=../../mysql-test/var/master-data
-cd "$test_data_dir" || {
-  echo "can't cd to $test_data_dir" >&2
-  exit 1
-}
-
 # All paths below must be relative to $test_data_dir
-#top_builddir=/home/tim/my/4
-top_builddir=../../..
+top_builddir=../..
 mysql_test_dir=$top_builddir/mysql-test
 examples=$top_builddir/libmysqld/examples
 mysqltest=$examples/mysqltest
-testdir=./test
-
+datadir=$mysql_test_dir/var/master-data
+test_data_dir=test
 gdb=0
 list=0
 run=
 tests=
 start=
+clean=1
 
 cr="
 "
@@ -35,6 +28,7 @@ usage () {
     cat <<EOF
 usage: $0 [-g|-h|-r] [test-name ...]
 
+    -C | --noclean	Do not remove old innodb and bdb files at start.
     -g | --gdb          run $mysqltest in gdb
     -h | --help         show this help
     -l | --list )       list all available tests
@@ -58,6 +52,7 @@ do
         -l | --list ) list=1 ; shift ;;
         -r | --run ) run="${cr}run"; shift;;
         --debug)     init_args="$init_args --debug" ; shift ;;
+        -C | --noclean) clean=0 ; shift ;;
         -s | --start=* )
             test $argset -eq 0 && { shift; arg="$1"; }
             start="$arg"
@@ -68,24 +63,29 @@ do
     esac
 done
 
-test -d "$mysql_test_dir/t" -a -d "$mysql_test_dir/r" -a \
-     -f $mysqltest -a -d $testdir || {
-    echo "bad setup (is '$testdir', from '$test_data_dir', missing?)" >&2
+if test ! -d "$datadir/$test_data_dir"
+then
+    echo "bad setup (is '$datadir/$test_data_dir'', missing ?)" >&2
     exit 1
-}
+fi
 
 test -n "$tests" ||
     tests=`/bin/ls -1 "$mysql_test_dir"/t/*.test | grep -v '^.*/rpl[^/]*$' | \
         sed -e 's,^.*/,,' -e 's,.test$,,'`
 
-echo "cleaning data directory '$test_data_dir'"
-rm -f $test_data_dir/ib_* $test_data_dir/ibdata* log.*
-echo "cleaning test directory '$testdir'"
-rm -f $testdir/*
-
+echo "cleaning data directory '$datadir/$test_data_dir'"
+if test $clean = 1
+then
+  rm -f $datadir/ib_* $datadir/ibdata*
+  rm -f $datadir/log.00*
+fi
+rm -f $datadir/../tmp/*
 rm -f test-gdbinit
 
 TZ=GMT-3; export TZ
+
+# At least one of the tests needs the following environment variable
+MYSQL_TEST_DIR=`( cd $mysql_test_dir ; pwd )` ; export MYSQL_TEST_DIR
 
 skip=1
 test -z "$start" && skip=0
@@ -96,16 +96,20 @@ do
     test $skip -eq 1 && test -n "$start" && test "$start" = "$b" && skip=0
     test $skip -eq 1 && { echo "skipping '$b'"; continue; }
 
-    t="$mysql_test_dir/t/$b.test"
-    r="$mysql_test_dir/r/$b.result"
-    c="$mysql_test_dir/r/$b.reject"
+    t="t/$b.test"
+    r="r/$b.result"
 
     # Only test if $t exists; there is no $r for some tests
-    test -f $t || {
-        echo "test '$b' doesn't exist" >&2
+    test -f $mysql_test_dir/$t || {
+        echo "test '$mysql_test_dir/$t' doesn't exist" >&2
         continue
     }
-    args="$init_args -v -S /tmp/mysql.sock -R $r -x $t test"
+    args="$init_args -v --basedir=$mysql_test_dir/ -R $r -x $t --server-arg=--datadir=$datadir"
+    if test -f "$mysql_test_dir/t/$b-master.opt" ; then
+       args="$args --server-file=t/$b-master.opt"
+    fi
+
+    args="$args $test_data_dir"		# Add database last
     echo "set args $args$run" > test-gdbinit
     #if false && test -n "$run"
     if test -n "$run" -o $gdb -eq 1
@@ -129,5 +133,5 @@ do
         res=$?
     fi
 
-    test $res -eq 0 || echo "!!! error: $res"
+    test $res -eq 0 -o $res -eq 2 || echo "!!! error: $res"
 done

@@ -2641,9 +2641,11 @@ logs_empty_and_mark_files_at_shutdown(void)
 	dulint	lsn;
 	ulint	arch_log_no;
 
-	ut_print_timestamp(stderr);
-	fprintf(stderr, "  InnoDB: Starting shutdown...\n");
-
+	if (srv_print_verbose_log)
+	{
+	  ut_print_timestamp(stderr);
+	  fprintf(stderr, "  InnoDB: Starting shutdown...\n");
+	}
 	/* Wait until the master thread and all other operations are idle: our
 	algorithm only works if the server is idle at shutdown */
 loop:
@@ -2732,8 +2734,11 @@ loop:
 
 	fil_flush_file_spaces(FIL_TABLESPACE);
 
-	ut_print_timestamp(stderr);
-	fprintf(stderr, "  InnoDB: Shutdown completed\n");
+	if (srv_print_verbose_log)
+	{
+	  ut_print_timestamp(stderr);
+	  fprintf(stderr, "  InnoDB: Shutdown completed\n");
+	}
 }
 
 /**********************************************************

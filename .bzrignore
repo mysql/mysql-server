@@ -7,6 +7,7 @@
 *.la
 *.lo
 *.o
+*.reject
 *.spec
 */*_pure_*warnings
 */.pure
@@ -152,6 +153,7 @@ client/mysqlbinlog
 client/mysqlcheck
 client/mysqldump
 client/mysqlimport
+client/mysqlmanager-pwgen
 client/mysqlmanagerc
 client/mysqlshow
 client/mysqltest
@@ -214,6 +216,7 @@ libmysqld/examples/mysqltest.c
 libmysqld/examples/readline.cc
 libmysqld/examples/sql_string.cc
 libmysqld/examples/sql_string.h
+libmysqld/examples/test-gdbinit
 libmysqld/field.cc
 libmysqld/field_conv.cc
 libmysqld/filesort.cc
@@ -337,6 +340,7 @@ scripts/make_binary_distribution
 scripts/msql2mysql
 scripts/mysql_config
 scripts/mysql_convert_table_format
+scripts/mysql_explain_log
 scripts/mysql_find_rows
 scripts/mysql_fix_privilege_tables
 scripts/mysql_install_db
@@ -413,5 +417,3 @@ vio/test-ssl
 vio/test-sslclient
 vio/test-sslserver
 vio/viotest-ssl
-client/mysqlmanager-pwgen
-*.reject

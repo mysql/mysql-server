@@ -71,6 +71,8 @@ extern char *mysql_unix_port;
 typedef struct st_mysql_field {
   char *name;			/* Name of column */
   char *table;			/* Table of column if column was a field */
+  char *org_table;		/* Org table name if table was an alias */
+  char *db;			/* Database for table */
   char *def;			/* Default value (set by mysql_list_fields) */
   unsigned long length;		/* Width of column */
   unsigned long max_length;	/* Max width of selected set */
@@ -251,7 +253,7 @@ typedef struct st_mysql_manager
 /* Set up and bring down the server; to ensure that applications will
  * work when linked against either the standard client library or the
  * embedded server library, these functions should be called. */
-int mysql_server_init(int argc, const char **argv, const char **groups);
+int mysql_server_init(int argc, char **argv, char **groups);
 void mysql_server_end(void);
 
 /* Set up and bring down a thread; these function should be called
@@ -421,8 +423,8 @@ int		STDCALL mysql_drop_db(MYSQL *mysql, const char *DB);
 */
 
 int simple_command(MYSQL *mysql,enum enum_server_command command,
-		   const char *arg, ulong length, my_bool skipp_check);
-ulong net_safe_read(MYSQL* mysql);
+		   const char *arg, unsigned long length, my_bool skipp_check);
+unsigned long net_safe_read(MYSQL* mysql);
 
 #ifdef	__cplusplus
 }

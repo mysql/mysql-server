@@ -1063,7 +1063,8 @@ udf_handler::~udf_handler()
     }
     free_udf(u_d);
   }
-  delete [] buffers;
+  if (buffers)					// Because of bug in ecc
+    delete [] buffers;
 }
 
 
