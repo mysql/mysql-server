@@ -502,6 +502,7 @@ read_escaped_string(char *ptr, char *eol, LEX_STRING *str)
 	break;
       case '\'':
 	*write_pos= '\'';
+        break;
       default:
 	return TRUE;
       }
