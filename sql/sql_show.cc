@@ -923,7 +923,7 @@ mysqld_show_keys(THD *thd, TABLE_LIST *table_list)
       protocol->store((const char*) pos, system_charset_info);
       protocol->store(table->file->index_type(i), system_charset_info);
       /* Comment */
-      protocol->store("", 0);
+      protocol->store("", system_charset_info);
       if (protocol->write())
         DBUG_RETURN(1); /* purecov: inspected */
     }
