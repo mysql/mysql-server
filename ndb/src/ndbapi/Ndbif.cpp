@@ -1128,6 +1128,7 @@ Ndb::sendPrepTrans(int forceSend)
         a_con->theCommitStatus = NdbConnection::Aborted;
       }//if
     }//if
+    a_con->theReturnStatus = NdbConnection::ReturnFailure;
     a_con->theCompletionStatus = NdbConnection::CompletedFailure;
     a_con->handleExecuteCompletion();
     insert_completed_list(a_con);
