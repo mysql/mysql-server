@@ -403,7 +403,7 @@ innobase_init(void)
 			 default_path);
 
 	ret = (bool)
-		srv_parse_data_file_paths_and_sizes(innobase_data_file_path,
+		srv_parse_data_file_paths_and_sizes(internal_innobase_data_file_path,
 				&srv_data_file_names,
 				&srv_data_file_sizes,
 				&srv_data_file_is_raw_partition,
