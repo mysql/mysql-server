@@ -43943,6 +43943,9 @@ not yet 100% confident in this code.
 @appendixsubsec Changes in release 3.23.38
 @itemize @bullet
 @item
+Fixed problems with function returning empty string when using
+together with a group functions and a @code{WHERE} that didn't match any rows.
+@item
 New program @code{mysqlcheck}.
 @item
 Added database name to output for admin commands like @code{CHECK},

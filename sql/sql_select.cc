@@ -4643,7 +4643,11 @@ end_send_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	else
 	{
 	  if (!join->first_record)
+	  {
+	    /* No matching rows for group function */
 	    clear_tables(join);
+	    copy_fields(&join->tmp_table_param);
+	  }
 	  if (join->having && join->having->val_int() == 0)
 	    error= -1;				// Didn't satisfy having
 	  else
@@ -4875,7 +4879,11 @@ end_write_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
       if (idx < (int) join->send_group_parts)
       {
 	if (!join->first_record)
+	{
+	  /* No matching rows for group function */
 	  clear_tables(join);
+	  copy_fields(&join->tmp_table_param);
+	}
 	copy_sum_funcs(join->sum_funcs);
 	if (!join->having || join->having->val_int())
 	{
@@ -4899,7 +4907,6 @@ end_write_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
     }
     if (idx < (int) join->send_group_parts)
     {
-      copy_fields(&join->tmp_table_param);
       copy_funcs(join->tmp_table_param.funcs);
       init_sum_functions(join->sum_funcs);
       if (join->procedure)
