@@ -68,3 +68,11 @@ drop table t1;
 select TRUE,FALSE,NULL;
 TRUE	FALSE	NULL
 1	0	NULL
+create table t1 (a char(10)) character set latin1;
+select * from t1 where a=version();
+a
+select * from t1 where a=database();
+a
+select * from t1 where a=user();
+a
+drop table t1;

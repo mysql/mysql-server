@@ -31,8 +31,9 @@ void item_init(void);			/* Init item functions */
 
 enum Derivation
 {
-  DERIVATION_IGNORABLE= 4,
-  DERIVATION_COERCIBLE= 3,
+  DERIVATION_IGNORABLE= 5,
+  DERIVATION_COERCIBLE= 4,
+  DERIVATION_SYSCONST= 3,
   DERIVATION_IMPLICIT= 2,
   DERIVATION_NONE= 1,
   DERIVATION_EXPLICIT= 0
@@ -61,22 +62,16 @@ class DTCollation {
 public:
   CHARSET_INFO     *collation;
   enum Derivation derivation;
-  uint nagg;    // Total number of aggregated collations.
-  uint strong;  // Number of the strongest collation.
   
   DTCollation()
   {
     collation= &my_charset_bin;
     derivation= DERIVATION_NONE;
-    nagg= 0;
-    strong= 0;
   }
   DTCollation(CHARSET_INFO *collation_arg, Derivation derivation_arg)
   {
     collation= collation_arg;
     derivation= derivation_arg;
-    nagg= 0;
-    strong= 0;
   }
   void set(DTCollation &dt)
   { 
@@ -102,6 +97,7 @@ public:
       case DERIVATION_IGNORABLE: return "IGNORABLE";
       case DERIVATION_COERCIBLE: return "COERCIBLE";
       case DERIVATION_IMPLICIT:  return "IMPLICIT";
+      case DERIVATION_SYSCONST:  return "SYSCONST";
       case DERIVATION_EXPLICIT:  return "EXPLICIT";
       case DERIVATION_NONE:      return "NONE";
       default: return "UNKNOWN";
