@@ -508,5 +508,5 @@ drop table t1;
 create table t1 select load_file('../../std_data/words.dat');
 show full fields from t1;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
-load_file('../../std_data/words.dat')	mediumblob	NULL	YES		NULL		select,insert,update,references	
+load_file('../../std_data/words.dat')	longblob	NULL	YES		NULL		select,insert,update,references	
 drop table t1;

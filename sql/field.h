@@ -941,7 +941,7 @@ public:
 	     struct st_table *table_arg, CHARSET_INFO *cs)
     :Field_str((char*) 0,len_arg, maybe_null_arg ? (uchar*) "": 0,0,
 	       NONE, field_name_arg, table_arg, cs),
-    geom_flag(true), packlength(3)
+    geom_flag(true), packlength(4)
     {
       flags|= BLOB_FLAG;
     }
