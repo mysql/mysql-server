@@ -1699,13 +1699,15 @@ bool st_table_list::setup_ancestor(THD *thd, Item **conds,
   Field_translator *transl;
   SELECT_LEX *select= &view->select_lex;
   SELECT_LEX *current_select_save= thd->lex->current_select;
-  byte *main_table_list_save= thd->lex->select_lex.table_list.first;
+  byte *main_table_list_save= select_lex->table_list.first;
   Item *item;
   TABLE_LIST *tbl;
   List_iterator_fast<Item> it(select->item_list);
   uint i= 0;
+  enum sub_select_type linkage_save=
+    select_lex->master_unit()->first_select()->linkage;
   bool save_set_query_id= thd->set_query_id;
-  bool save_wrapper= thd->lex->select_lex.no_wrap_view_item;
+  bool save_wrapper= select_lex->no_wrap_view_item;
   bool save_allow_sum_func= thd->allow_sum_func;
   DBUG_ENTER("st_table_list::setup_ancestor");
 
@@ -1723,13 +1725,16 @@ bool st_table_list::setup_ancestor(THD *thd, Item **conds,
   {
     DBUG_PRINT("info", ("there are already translation table"));
     /*
-      prevent look up in SELECTs tree, and emulate main table list by
-      ancestor table list for subquery processing
+      Prevent look up in SELECTs tree (DERIVED_TABLE_TYPE is barrier for name
+      lookup) and emulate main table list by ancestor table list for
+      subquery processing
     */
-    thd->lex->current_select= &thd->lex->select_lex;
-    thd->lex->select_lex.table_list.first= (byte *)ancestor;
+    thd->lex->current_select= select_lex;
+    select_lex->table_list.first= (byte *)ancestor;
+    select_lex->master_unit()->first_select()->linkage= DERIVED_TABLE_TYPE;
 
-    thd->lex->select_lex.no_wrap_view_item= 1;
+    select_lex->no_wrap_view_item= 1;
+
     thd->set_query_id= 1;
     /* this view was prepared already on previous PS/SP execution */
     Field_translator *end= field_translation + select->item_list.elements;
@@ -1774,13 +1779,15 @@ bool st_table_list::setup_ancestor(THD *thd, Item **conds,
   }
 
   /*
-    prevent look up in SELECTs tree, and emulate main table list by ancestor
-    table list for subquery processing
+    Prevent look up in SELECTs tree (DERIVED_TABLE_TYPE is barrier for name
+    lookup) and emulate main table list by ancestor table list for
+    subquery processing
   */
-  thd->lex->current_select= &thd->lex->select_lex;
-  thd->lex->select_lex.table_list.first= (byte *)ancestor;
+  thd->lex->current_select= select_lex;
+  select_lex->table_list.first= (byte *)ancestor;
+  select_lex->master_unit()->first_select()->linkage= DERIVED_TABLE_TYPE;
 
-  thd->lex->select_lex.no_wrap_view_item= 1;
+  select_lex->no_wrap_view_item= 1;
 
   /*
     Resolve all view items against ancestor table.
@@ -1922,9 +1929,10 @@ bool st_table_list::setup_ancestor(THD *thd, Item **conds,
   }
 
 ok:
-  thd->lex->select_lex.no_wrap_view_item= save_wrapper;
+  select_lex->no_wrap_view_item= save_wrapper;
   thd->lex->current_select= current_select_save;
-  thd->lex->select_lex.table_list.first= main_table_list_save;
+  select_lex->table_list.first= main_table_list_save;
+  select_lex->master_unit()->first_select()->linkage= linkage_save;
   thd->set_query_id= save_set_query_id;
   thd->allow_sum_func= save_allow_sum_func;
   DBUG_RETURN(0);
@@ -1937,9 +1945,10 @@ err:
     thd->clear_error();
     my_error(ER_VIEW_INVALID, MYF(0), view_db.str, view_name.str);
   }
-  thd->lex->select_lex.no_wrap_view_item= save_wrapper;
+  select_lex->no_wrap_view_item= save_wrapper;
   thd->lex->current_select= current_select_save;
-  thd->lex->select_lex.table_list.first= main_table_list_save;
+  select_lex->table_list.first= main_table_list_save;
+  select_lex->master_unit()->first_select()->linkage= linkage_save;
   thd->set_query_id= save_set_query_id;
   thd->allow_sum_func= save_allow_sum_func;
   DBUG_RETURN(1);
