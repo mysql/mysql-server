@@ -255,6 +255,14 @@ static struct my_option my_long_options[] =
    "Option automatically turns --lock-tables off.",
    (gptr*) &opt_master_data, (gptr*) &opt_master_data, 0,
    GET_UINT, REQUIRED_ARG, 0, 0, MYSQL_OPT_MASTER_DATA_COMMENTED_SQL, 0, 0, 0},
+  {"max_allowed_packet", OPT_MAX_ALLOWED_PACKET, "",
+    (gptr*) &opt_max_allowed_packet, (gptr*) &opt_max_allowed_packet, 0,
+    GET_ULONG, REQUIRED_ARG, 24*1024*1024, 4096, 
+   (longlong) 2L*1024L*1024L*1024L, MALLOC_OVERHEAD, 1024, 0},
+  {"net_buffer_length", OPT_NET_BUFFER_LENGTH, "",
+    (gptr*) &opt_net_buffer_length, (gptr*) &opt_net_buffer_length, 0,
+    GET_ULONG, REQUIRED_ARG, 1024*1024L-1025, 4096, 16*1024L*1024L,
+   MALLOC_OVERHEAD-1024, 1024, 0},
   {"no-autocommit", OPT_AUTOCOMMIT,
    "Wrap tables with autocommit/commit statements.",
    (gptr*) &opt_autocommit, (gptr*) &opt_autocommit, 0, GET_BOOL, NO_ARG,
@@ -343,14 +351,7 @@ static struct my_option my_long_options[] =
    (gptr*) &where, (gptr*) &where, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"xml", 'X', "Dump a database as well formed XML.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"max_allowed_packet", OPT_MAX_ALLOWED_PACKET, "",
-    (gptr*) &opt_max_allowed_packet, (gptr*) &opt_max_allowed_packet, 0,
-    GET_ULONG, REQUIRED_ARG, 24*1024*1024, 4096, 
-   (longlong) 2L*1024L*1024L*1024L, MALLOC_OVERHEAD, 1024, 0},
-  {"net_buffer_length", OPT_NET_BUFFER_LENGTH, "",
-    (gptr*) &opt_net_buffer_length, (gptr*) &opt_net_buffer_length, 0,
-    GET_ULONG, REQUIRED_ARG, 1024*1024L-1025, 4096, 16*1024L*1024L,
-    MALLOC_OVERHEAD-1024, 1024, 0}
+  { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
 static const char *load_default_groups[]= { "mysqldump","client",0 };
@@ -1679,7 +1680,6 @@ static void dumpTable(uint numFields, char *table)
 	      else if (opt_hex_blob && is_blob)
               {
                 /* sakaik got the idea to to provide blob's in hex notation. */
-                ulong counter;
                 unsigned char *ptr= row[i], *end= ptr+ lengths[i];
                 fputs("0x", md_result_file);
                 for (; ptr < end ; ptr++)

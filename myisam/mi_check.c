@@ -658,10 +658,11 @@ static int chk_index(MI_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
           goto err;
         if (tmp_keys + subkeys)
         {
-          mi_check_print_error(param,"Number of words in the 2nd level tree "
-                                  "does not match the number in the header. "
-                                  "Parent word in on the page %s, offset %d",
-                                  llstr(page,llbuff), old_keypos-buff);
+          mi_check_print_error(param,
+                               "Number of words in the 2nd level tree "
+                               "does not match the number in the header. "
+                               "Parent word in on the page %s, offset %u",
+                               llstr(page,llbuff), (uint) (old_keypos-buff));
           goto err;
         }
         (*keys)+=tmp_keys-1;
