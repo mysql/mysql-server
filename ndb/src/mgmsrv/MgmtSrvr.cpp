@@ -396,59 +396,6 @@ MgmtSrvr::getPort() const {
 
   ndb_mgm_destroy_iterator(iter);
   
-  /*****************
-   * Set Stat Port *
-   *****************/
-#if 0
-  if (!mgmProps->get("PortNumberStats", &tmp)){
-    ndbout << "Could not find PortNumberStats in the configuration file." 
-	   << endl;
-    return false;
-  }
-  glob.port_stats = tmp;
-#endif
-
-#if 0
-  const char * host;
-  if(ndb_mgm_get_string_parameter(iter, mgmProps->get("ExecuteOnComputer", host)){
-    ndbout << "Failed to find \"ExecuteOnComputer\" for my node" << endl;
-    ndbout << "Unable to verify own hostname" << endl;
-    return false;
-  }
-
-  const char * hostname;
-  {
-    const Properties * p;
-    char buf[255];
-    snprintf(buf, sizeof(buf), "Computer_%s", host.c_str());
-    if(!glob.cluster_config->get(buf, &p)){
-      ndbout << "Failed to find computer " << host << " in config" << endl;
-      ndbout << "Unable to verify own hostname" << endl;
-      return false;
-    }
-    if(!p->get("HostName", &hostname)){
-      ndbout << "Failed to find \"HostName\" for computer " << host 
-	     << " in config" << endl;
-      ndbout << "Unable to verify own hostname" << endl;
-      return false;
-    }
-    if(NdbHost_GetHostName(buf) != 0){
-      ndbout << "Unable to get own hostname" << endl;
-      ndbout << "Unable to verify own hostname" << endl;
-      return false;
-    }
-  }
-  
-  const char * ip_address;
-  if(mgmProps->get("IpAddress", &ip_address)){
-    glob.use_specific_ip = true;
-    glob.interface_name = strdup(ip_address);
-    return true;
-  }
-  
-  glob.interface_name = strdup(hostname);
-#endif
-
   return port;
 }
 
@@ -2217,20 +2164,9 @@ MgmtSrvr::alloc_node_id(NodeId * nodeId,
 	}
 	// connecting through localhost
 	// check if config_hostname is local
-#if 1
 	if (!SocketServer::tryBind(0,config_hostname)) {
 	  continue;
 	}
-#else
-	char my_hostname[256];
-	if (gethostname(my_hostname, sizeof(my_hostname)) != 0)
-	  continue;
-	if(Ndb_getInAddr(&tmp_addr, my_hostname) != 0
-	   || memcmp(&tmp_addr, &config_addr, sizeof(config_addr)) != 0) {
-	  // no match
-	  continue;
-	}
-#endif
       }
     } else { // client_addr == 0
       if (!SocketServer::tryBind(0,config_hostname)) {
@@ -2308,7 +2244,8 @@ MgmtSrvr::alloc_node_id(NodeId * nodeId,
       if (found_matching_type)
 	if (found_free_node)
 	  error_string.appfmt("Connection done from wrong host ip %s.",
-			      inet_ntoa(((struct sockaddr_in *)(client_addr))->sin_addr));
+			      inet_ntoa(((struct sockaddr_in *)
+					 (client_addr))->sin_addr));
 	else
 	  error_string.appfmt("No free node id found for %s.",
 			      type_string.c_str());
