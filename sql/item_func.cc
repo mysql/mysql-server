@@ -1729,7 +1729,7 @@ bool udf_handler::get_arguments() { return 0; }
 pthread_mutex_t LOCK_user_locks;
 static HASH hash_user_locks;
 
-class ULL
+class User_level_lock
 {
   char *key;
   uint key_length;
@@ -1741,7 +1741,7 @@ public:
   pthread_t thread;
   ulong thread_id;
 
-  ULL(const char *key_arg,uint length, ulong id) 
+  User_level_lock(const char *key_arg,uint length, ulong id) 
     :key_length(length),count(1),locked(1), thread_id(id)
   {
     key=(char*) my_memdup((byte*) key_arg,length,MYF(0));
@@ -1755,7 +1755,7 @@ public:
       }
     }
   }
-  ~ULL()
+  ~User_level_lock()
   {
     if (key)
     {
@@ -1765,11 +1765,12 @@ public:
     pthread_cond_destroy(&cond);
   }
   inline bool initialized() { return key != 0; }
-  friend void item_user_lock_release(ULL *ull);
-  friend char *ull_get_key(const ULL *ull,uint *length,my_bool not_used);
+  friend void item_user_lock_release(User_level_lock *ull);
+  friend char *ull_get_key(const User_level_lock *ull, uint *length,
+                           my_bool not_used);
 };
 
-char *ull_get_key(const ULL *ull,uint *length,
+char *ull_get_key(const User_level_lock *ull, uint *length,
 		  my_bool not_used __attribute__((unused)))
 {
   *length=(uint) ull->key_length;
@@ -1797,7 +1798,7 @@ void item_user_lock_free(void)
   }
 }
 
-void item_user_lock_release(ULL *ull)
+void item_user_lock_release(User_level_lock *ull)
 {
   ull->locked=0;
   if (mysql_bin_log.is_open())
@@ -1853,7 +1854,7 @@ longlong Item_master_pos_wait::val_int()
 void debug_sync_point(const char* lock_name, uint lock_timeout)
 {
   THD* thd=current_thd;
-  ULL* ull;
+  User_level_lock* ull;
   struct timespec abstime;
   int lock_name_len,error=0;
   lock_name_len=strlen(lock_name);
@@ -1871,7 +1872,7 @@ void debug_sync_point(const char* lock_name, uint lock_timeout)
     this case, we will not be waiting, but rather, just waste CPU and
     memory on the whole deal
   */
-  if (!(ull= ((ULL*) hash_search(&hash_user_locks,lock_name,
+  if (!(ull= ((User_level_lock*) hash_search(&hash_user_locks, lock_name,
 				 lock_name_len))))
   {
     pthread_mutex_unlock(&LOCK_user_locks);
@@ -1932,7 +1933,7 @@ longlong Item_func_get_lock::val_int()
   longlong timeout=args[1]->val_int();
   struct timespec abstime;
   THD *thd=current_thd;
-  ULL *ull;
+  User_level_lock *ull;
   int error=0;
 
   pthread_mutex_lock(&LOCK_user_locks);
@@ -1951,10 +1952,11 @@ longlong Item_func_get_lock::val_int()
     thd->ull=0;
   }
 
-  if (!(ull= ((ULL*) hash_search(&hash_user_locks,(byte*) res->ptr(),
-				 res->length()))))
+  if (!(ull= ((User_level_lock *) hash_search(&hash_user_locks,
+                                              (byte*) res->ptr(),
+                                              res->length()))))
   {
-    ull=new ULL(res->ptr(),res->length(), thd->thread_id);
+    ull=new User_level_lock(res->ptr(),res->length(), thd->thread_id);
     if (!ull || !ull->initialized())
     {
       delete ull;
@@ -2023,7 +2025,7 @@ longlong Item_func_get_lock::val_int()
 longlong Item_func_release_lock::val_int()
 {
   String *res=args[0]->val_str(&value);
-  ULL *ull;
+  User_level_lock *ull;
   longlong result;
   if (!res || !res->length())
   {
@@ -2034,8 +2036,9 @@ longlong Item_func_release_lock::val_int()
 
   result=0;
   pthread_mutex_lock(&LOCK_user_locks);
-  if (!(ull= ((ULL*) hash_search(&hash_user_locks,(const byte*) res->ptr(),
-				 res->length()))))
+  if (!(ull= ((User_level_lock*) hash_search(&hash_user_locks,
+                                             (const byte*) res->ptr(),
+                                             res->length()))))
   {
     null_value=1;
   }
@@ -3042,7 +3045,7 @@ longlong Item_func_is_free_lock::val_int()
 {
   String *res=args[0]->val_str(&value);
   THD *thd=current_thd;
-  ULL *ull;
+  User_level_lock *ull;
 
   null_value=0;
   if (!res || !res->length())
@@ -3052,7 +3055,7 @@ longlong Item_func_is_free_lock::val_int()
   }
   
   pthread_mutex_lock(&LOCK_user_locks);
-  ull= (ULL*) hash_search(&hash_user_locks,(byte*) res->ptr(),
+  ull= (User_level_lock *) hash_search(&hash_user_locks, (byte*) res->ptr(),
 			  res->length());
   pthread_mutex_unlock(&LOCK_user_locks);
   if (!ull || !ull->locked)
@@ -3064,14 +3067,14 @@ longlong Item_func_is_used_lock::val_int()
 {
   String *res=args[0]->val_str(&value);
   THD *thd=current_thd;
-  ULL *ull;
+  User_level_lock *ull;
 
   null_value=1;
   if (!res || !res->length())
     return 0;
   
   pthread_mutex_lock(&LOCK_user_locks);
-  ull= (ULL*) hash_search(&hash_user_locks,(byte*) res->ptr(),
+  ull= (User_level_lock *) hash_search(&hash_user_locks, (byte*) res->ptr(),
 			  res->length());
   pthread_mutex_unlock(&LOCK_user_locks);
   if (!ull || !ull->locked)

@@ -657,7 +657,7 @@ public:
     points to a lock object if the lock is present. See item_func.cc and
     chapter 'Miscellaneous functions', for functions GET_LOCK, RELEASE_LOCK. 
   */
-  ULL		*ull;
+  User_level_lock *ull;
 #ifndef DBUG_OFF
   uint dbug_sentry; // watch out for memory corruption
 #endif

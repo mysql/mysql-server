@@ -95,6 +95,7 @@ functions */
 #define LONGLONG_MAX	((__int64) 0x7FFFFFFFFFFFFFFF)
 #define ULONGLONG_MAX	((unsigned __int64) 0xFFFFFFFFFFFFFFFF)
 #define LL(A)		((__int64) A)
+#define ULL(A)		((unsigned __int64) A)
 
 /* Type information */
 
