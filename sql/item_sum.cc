@@ -2671,11 +2671,11 @@ int dump_leaf_key(byte* key, uint32 count __attribute__((unused)),
   TABLE *table= item->table;
   char *record= (char*) table->record[0] + table->s->null_bytes;
   String tmp(table->record[1], table->s->reclength, default_charset_info), tmp2;
-  String &result= item->result;
+  String *result= &item->result;
   Item **arg= item->args, **arg_end= item->args + item->arg_count_field;
 
-  if (result.length())
-    result.append(*item->separator);
+  if (result->length())
+    result->append(*item->separator);
 
   tmp.length(0);
 
@@ -2702,14 +2702,14 @@ int dump_leaf_key(byte* key, uint32 count __attribute__((unused)),
     else
       res= (*arg)->val_str(&tmp);
     if (res)
-      result.append(*res);
+      result->append(*res);
   }
 
   /* stop if length of result more than max_length */
-  if (result.length() > item->max_length)
+  if (result->length() > item->max_length)
   {
     item->count_cut_values++;
-    result.length(item->max_length);
+    result->length(item->max_length);
     item->warning_for_row= TRUE;
     return 1;
   }
@@ -2910,8 +2910,6 @@ Item_func_group_concat::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
                MYF(0));
     return TRUE;
   }
-  if (!args)                      /* allocation in constructor may fail */
-    return TRUE;
 
   thd->allow_sum_func= 0;
   maybe_null= 0;
@@ -2972,12 +2970,10 @@ bool Item_func_group_concat::setup(THD *thd)
       if (item->null_value)
       {
         always_null= 1;
-        break;
+        DBUG_RETURN(FALSE);
       }
     }
   }
-  if (always_null)
-    DBUG_RETURN(FALSE);
 
   List<Item> all_fields(list);
   /*
