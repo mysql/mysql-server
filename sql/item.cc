@@ -1442,7 +1442,7 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
   max_length= (*ref)->max_length;
   maybe_null= (*ref)->maybe_null;
   decimals=   (*ref)->decimals;
-  set_charset((*ref)->charset());
+  collation.set((*ref)->collation);
   with_sum_func= (*ref)->with_sum_func;
   fixed= 1;
 
