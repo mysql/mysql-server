@@ -157,7 +157,8 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit,
 				  is_union && !unit->union_option, 1,
 				  (select_cursor->options | thd->options |
 				   TMP_TABLE_ALL_COLUMNS),
-				  HA_POS_ERROR)))
+				  HA_POS_ERROR,
+				  org_table_list->alias)))
     {
       res= -1;
       goto exit;

@@ -894,7 +894,8 @@ JOIN::optimize()
 			   group_list && simple_group,
 			   select_options,
 			   (order == 0 || skip_sort_order) ? select_limit :
-			   HA_POS_ERROR)))
+			   HA_POS_ERROR,
+			   (char *) "")))
       DBUG_RETURN(1);
 
     /*
@@ -1227,7 +1228,8 @@ JOIN::exec()
 						curr_join->select_distinct && 
 						!curr_join->group_list,
 						1, curr_join->select_options,
-						HA_POS_ERROR)))
+						HA_POS_ERROR,
+						(char *) "")))
 	  DBUG_VOID_RETURN;
 	curr_join->exec_tmp_table2= exec_tmp_table2;
       }
@@ -4447,7 +4449,8 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
 TABLE *
 create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 		 ORDER *group, bool distinct, bool save_sum_fields,
-		 ulong select_options, ha_rows rows_limit)
+		 ulong select_options, ha_rows rows_limit,
+		 char *table_alias)
 {
   TABLE *table;
   uint	i,field_count,reclength,null_count,null_pack_length,
@@ -4536,10 +4539,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   table->field=reg_field;
   table->blob_field= (Field_blob**) blob_field;
   table->real_name=table->path=tmpname;
-  /*
-    This must be "" as field may refer to it after tempory table is dropped
-  */
-  table->table_name= (char*) "";
+  table->table_name= table_alias;
   table->reginfo.lock_type=TL_WRITE;	/* Will be updated */
   table->db_stat=HA_OPEN_KEYFILE+HA_OPEN_RNDFILE;
   table->blob_ptr_size=mi_portable_sizeof_char_ptr;
