@@ -31,18 +31,24 @@
 void _mi_ft_segiterator_init(MI_INFO *info, uint keynr, const byte *record,
 			     FT_SEG_ITERATOR *ftsi)
 {
+  DBUG_ENTER("_mi_ft_segiterator_init");
+
   ftsi->num=info->s->keyinfo[keynr].keysegs;
   ftsi->seg=info->s->keyinfo[keynr].seg;
   ftsi->rec=record;
+  DBUG_VOID_RETURN;
 }
 
 void _mi_ft_segiterator_dummy_init(const byte *record, uint len,
 				   FT_SEG_ITERATOR *ftsi)
 {
+  DBUG_ENTER("_mi_ft_segiterator_dummy_init");
+
   ftsi->num=1;
   ftsi->seg=0;
   ftsi->pos=record;
   ftsi->len=len;
+  DBUG_VOID_RETURN;
 }
 
 /*
@@ -56,14 +62,16 @@ void _mi_ft_segiterator_dummy_init(const byte *record, uint len,
 
 uint _mi_ft_segiterator(register FT_SEG_ITERATOR *ftsi)
 {
-  if (!ftsi->num) return 0; else ftsi->num--;
-  if (!ftsi->seg) return 1; else ftsi->seg--;
+  DBUG_ENTER("_mi_ft_segiterator");
+
+  if (!ftsi->num) DBUG_RETURN(0) else ftsi->num--;
+  if (!ftsi->seg) DBUG_RETURN(1) else ftsi->seg--;
 
   if (ftsi->seg->null_bit &&
       (ftsi->rec[ftsi->seg->null_pos] & ftsi->seg->null_bit))
   {
       ftsi->pos=0;
-      return 1;
+      DBUG_RETURN(1);
   }
   ftsi->pos= ftsi->rec+ftsi->seg->start;
   if (ftsi->seg->flag & HA_VAR_LENGTH)
@@ -71,7 +79,7 @@ uint _mi_ft_segiterator(register FT_SEG_ITERATOR *ftsi)
     ftsi->len=uint2korr(ftsi->pos);
     ftsi->pos+=2;				 /* Skip VARCHAR length */
     set_if_smaller(ftsi->len,ftsi->seg->length);
-    return 1;
+    DBUG_RETURN(1);
   }
   if (ftsi->seg->flag & HA_BLOB_PART)
   {
@@ -79,10 +87,10 @@ uint _mi_ft_segiterator(register FT_SEG_ITERATOR *ftsi)
     memcpy_fixed((char*) &ftsi->pos, ftsi->pos+ftsi->seg->bit_start,
 		 sizeof(char*));
     set_if_smaller(ftsi->len,ftsi->seg->length);
-    return 1;
+    DBUG_RETURN(1);
   }
   ftsi->len=ftsi->seg->length;
-  return 1;
+  DBUG_RETURN(1);
 }
 
 
@@ -91,6 +99,8 @@ uint _mi_ft_segiterator(register FT_SEG_ITERATOR *ftsi)
 uint _mi_ft_parse(TREE *parsed, MI_INFO *info, uint keynr, const byte *record)
 {
   FT_SEG_ITERATOR ftsi;
+  DBUG_ENTER("_mi_ft_parse");
+
   _mi_ft_segiterator_init(info, keynr, record, &ftsi);
 
   ft_parse_init(parsed, info->s->keyinfo[keynr].seg->charset);
@@ -98,9 +108,9 @@ uint _mi_ft_parse(TREE *parsed, MI_INFO *info, uint keynr, const byte *record)
   {
     if (ftsi.pos)
       if (ft_parse(parsed, (byte *)ftsi.pos, ftsi.len))
-        return 1;
+        DBUG_RETURN(1);
   }
-  return 0;
+  DBUG_RETURN(0);
 }
 
 FT_WORD * _mi_ft_parserecord(MI_INFO *info, uint keynr,
@@ -108,32 +118,35 @@ FT_WORD * _mi_ft_parserecord(MI_INFO *info, uint keynr,
 			     const byte *record)
 {
   TREE ptree;
+  DBUG_ENTER("_mi_ft_parserecord");
 
   bzero((char*) &ptree, sizeof(ptree));
   if (_mi_ft_parse(&ptree, info, keynr, record))
-    return NULL;
+    DBUG_RETURN(NULL);
 
-  return ft_linearize(&ptree);
+  DBUG_RETURN(ft_linearize(&ptree));
 }
 
 static int _mi_ft_store(MI_INFO *info, uint keynr, byte *keybuf,
 			FT_WORD *wlist, my_off_t filepos)
 {
   uint key_length;
+  DBUG_ENTER("_mi_ft_store");
 
   for (; wlist->pos; wlist++)
   {
     key_length=_ft_make_key(info,keynr,keybuf,wlist,filepos);
     if (_mi_ck_write(info,keynr,(uchar*) keybuf,key_length))
-      return 1;
+      DBUG_RETURN(1);
    }
-   return 0;
+   DBUG_RETURN(0);
 }
 
 static int _mi_ft_erase(MI_INFO *info, uint keynr, byte *keybuf,
 			FT_WORD *wlist, my_off_t filepos)
 {
   uint key_length, err=0;
+  DBUG_ENTER("_mi_ft_erase");
 
   for (; wlist->pos; wlist++)
   {
@@ -141,7 +154,7 @@ static int _mi_ft_erase(MI_INFO *info, uint keynr, byte *keybuf,
     if (_mi_ck_delete(info,keynr,(uchar*) keybuf,key_length))
       err=1;
    }
-   return err;
+   DBUG_RETURN(err);
 }
 
 /*
@@ -156,6 +169,8 @@ int _mi_ft_cmp(MI_INFO *info, uint keynr, const byte *rec1, const byte *rec2)
 {
   FT_SEG_ITERATOR ftsi1, ftsi2;
   CHARSET_INFO *cs=info->s->keyinfo[keynr].seg->charset;
+  DBUG_ENTER("_mi_ft_cmp");
+
   _mi_ft_segiterator_init(info, keynr, rec1, &ftsi1);
   _mi_ft_segiterator_init(info, keynr, rec2, &ftsi2);
 
@@ -165,9 +180,9 @@ int _mi_ft_cmp(MI_INFO *info, uint keynr, const byte *rec1, const byte *rec2)
         (!ftsi1.pos || !ftsi2.pos ||
          mi_compare_text(cs, (uchar*) ftsi1.pos,ftsi1.len,
                          (uchar*) ftsi2.pos,ftsi2.len,0)))
-      return THOSE_TWO_DAMN_KEYS_ARE_REALLY_DIFFERENT;
+      DBUG_RETURN(THOSE_TWO_DAMN_KEYS_ARE_REALLY_DIFFERENT);
   }
-  return GEE_THEY_ARE_ABSOLUTELY_IDENTICAL;
+  DBUG_RETURN(GEE_THEY_ARE_ABSOLUTELY_IDENTICAL);
 }
 
 
@@ -181,6 +196,7 @@ int _mi_ft_update(MI_INFO *info, uint keynr, byte *keybuf,
   CHARSET_INFO *cs=info->s->keyinfo[keynr].seg->charset;
   uint key_length;
   int cmp, cmp2;
+  DBUG_ENTER("_mi_ft_update");
 
   if (!(old_word=oldlist=_mi_ft_parserecord(info, keynr, keybuf, oldrec)))
     goto err0;
@@ -219,7 +235,7 @@ err2:
 err1:
     my_free((char*) oldlist,MYF(0));
 err0:
-  return error;
+  DBUG_RETURN(error);
 }
 
 
@@ -230,13 +246,14 @@ int _mi_ft_add(MI_INFO *info, uint keynr, byte *keybuf, const byte *record,
 {
   int error= -1;
   FT_WORD *wlist;
+  DBUG_ENTER("_mi_ft_add");
 
   if ((wlist=_mi_ft_parserecord(info, keynr, keybuf, record)))
   {
     error=_mi_ft_store(info,keynr,keybuf,wlist,pos);
     my_free((char*) wlist,MYF(0));
   }
-  return error;
+  DBUG_RETURN(error);
 }
 
 
@@ -247,27 +264,34 @@ int _mi_ft_del(MI_INFO *info, uint keynr, byte *keybuf, const byte *record,
 {
   int error= -1;
   FT_WORD *wlist;
+  DBUG_ENTER("_mi_ft_del");
+  DBUG_PRINT("enter",("keynr: %d",keynr));
+
   if ((wlist=_mi_ft_parserecord(info, keynr, keybuf, record)))
   {
     error=_mi_ft_erase(info,keynr,keybuf,wlist,pos);
     my_free((char*) wlist,MYF(0));
   }
-  return error;
+  DBUG_PRINT("exit",("Return: %d",error));
+  DBUG_RETURN(error);
 }
 
 uint _ft_make_key(MI_INFO *info, uint keynr, byte *keybuf, FT_WORD *wptr,
 		  my_off_t filepos)
 {
   byte buf[HA_FT_MAXLEN+16];
+  DBUG_ENTER("_ft_make_key");
 
 #if HA_FT_WTYPE == HA_KEYTYPE_FLOAT
-  float weight=(float) ((filepos==HA_OFFSET_ERROR) ? 0 : wptr->weight);
-  mi_float4store(buf,weight);
+  {
+    float weight=(float) ((filepos==HA_OFFSET_ERROR) ? 0 : wptr->weight);
+    mi_float4store(buf,weight);
+  }
 #else
 #error
 #endif
 
   int2store(buf+HA_FT_WLEN,wptr->len);
   memcpy(buf+HA_FT_WLEN+2,wptr->pos,wptr->len);
-  return _mi_make_key(info,keynr,(uchar*) keybuf,buf,filepos);
+  DBUG_RETURN(_mi_make_key(info,keynr,(uchar*) keybuf,buf,filepos));
 }

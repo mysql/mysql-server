@@ -91,14 +91,14 @@ Grants for drop_user@localhost
 GRANT USAGE ON *.* TO 'drop_user'@'localhost'
 drop user drop_user@localhost;
 revoke all privileges, grant from drop_user@localhost;
-Can't revoke all privileges, grant for one or more of the requested users
+ERROR HY000: Can't revoke all privileges, grant for one or more of the requested users
 grant select(a) on test.t1 to drop_user1@localhost;
 grant select on test.t1 to drop_user2@localhost;
 grant select on test.* to drop_user3@localhost;
 grant select on *.* to drop_user4@localhost;
 drop user drop_user1@localhost, drop_user2@localhost, drop_user3@localhost,
 drop_user4@localhost;
-Can't drop one or more of the requested users
+ERROR HY000: Can't drop one or more of the requested users
 revoke all privileges, grant from drop_user1@localhost, drop_user2@localhost,
 drop_user3@localhost, drop_user4@localhost;
 drop user drop_user1@localhost, drop_user2@localhost, drop_user3@localhost,

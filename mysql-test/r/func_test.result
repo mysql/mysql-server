@@ -52,6 +52,63 @@ select 10 % 7, 10 mod 7, 10 div 3;
 select (1 << 64)-1, ((1 << 64)-1) DIV 1, ((1 << 64)-1) DIV 2;
 (1 << 64)-1	((1 << 64)-1) DIV 1	((1 << 64)-1) DIV 2
 18446744073709551615	18446744073709551615	9223372036854775807
+select _koi8r'a' = _koi8r'A';
+_koi8r'a' = _koi8r'A'
+1
+select _koi8r'a' = _koi8r'A' COLLATE koi8r_general_ci;
+_koi8r'a' = _koi8r'A' COLLATE koi8r_general_ci
+1
+select _koi8r'a' = _koi8r'A' COLLATE koi8r_bin;
+_koi8r'a' = _koi8r'A' COLLATE koi8r_bin
+0
+select _koi8r'a' COLLATE koi8r_general_ci = _koi8r'A';
+_koi8r'a' COLLATE koi8r_general_ci = _koi8r'A'
+1
+select _koi8r'a' COLLATE koi8r_bin = _koi8r'A';
+_koi8r'a' COLLATE koi8r_bin = _koi8r'A'
+0
+select _koi8r'a' COLLATE koi8r_bin = _koi8r'A' COLLATE koi8r_general_ci;
+ERROR HY000: Illegal mix of collations (koi8r_bin,EXPLICIT) and (koi8r_general_ci,EXPLICIT) for operation '='
+select _koi8r'a' = _latin1'A';
+ERROR HY000: Illegal mix of collations (koi8r_general_ci,COERCIBLE) and (latin1_swedish_ci,COERCIBLE) for operation '='
+select strcmp(_koi8r'a', _koi8r'A');
+strcmp(_koi8r'a', _koi8r'A')
+0
+select strcmp(_koi8r'a', _koi8r'A' COLLATE koi8r_general_ci);
+strcmp(_koi8r'a', _koi8r'A' COLLATE koi8r_general_ci)
+0
+select strcmp(_koi8r'a', _koi8r'A' COLLATE koi8r_bin);
+strcmp(_koi8r'a', _koi8r'A' COLLATE koi8r_bin)
+1
+select strcmp(_koi8r'a' COLLATE koi8r_general_ci, _koi8r'A');
+strcmp(_koi8r'a' COLLATE koi8r_general_ci, _koi8r'A')
+0
+select strcmp(_koi8r'a' COLLATE koi8r_bin, _koi8r'A');
+strcmp(_koi8r'a' COLLATE koi8r_bin, _koi8r'A')
+1
+select strcmp(_koi8r'a' COLLATE koi8r_general_ci, _koi8r'A' COLLATE koi8r_bin);
+ERROR HY000: Illegal mix of collations (koi8r_general_ci,EXPLICIT) and (koi8r_bin,EXPLICIT) for operation 'strcmp'
+select strcmp(_koi8r'a', _latin1'A');
+ERROR HY000: Illegal mix of collations (koi8r_general_ci,COERCIBLE) and (latin1_swedish_ci,COERCIBLE) for operation 'strcmp'
+select _koi8r'a' LIKE _koi8r'A';
+_koi8r'a' LIKE _koi8r'A'
+1
+select _koi8r'a' LIKE _koi8r'A' COLLATE koi8r_general_ci;
+_koi8r'a' LIKE _koi8r'A' COLLATE koi8r_general_ci
+1
+select _koi8r'a' LIKE _koi8r'A' COLLATE koi8r_bin;
+_koi8r'a' LIKE _koi8r'A' COLLATE koi8r_bin
+0
+select _koi8r'a' COLLATE koi8r_general_ci LIKE _koi8r'A';
+_koi8r'a' COLLATE koi8r_general_ci LIKE _koi8r'A'
+1
+select _koi8r'a' COLLATE koi8r_bin LIKE _koi8r'A';
+_koi8r'a' COLLATE koi8r_bin LIKE _koi8r'A'
+0
+select _koi8r'a' COLLATE koi8r_general_ci LIKE _koi8r'A' COLLATE koi8r_bin;
+ERROR HY000: Illegal mix of collations (koi8r_general_ci,EXPLICIT) and (koi8r_bin,EXPLICIT) for operation 'like'
+select _koi8r'a' LIKE _latin1'A';
+ERROR HY000: Illegal mix of collations (koi8r_general_ci,COERCIBLE) and (latin1_swedish_ci,COERCIBLE) for operation 'like'
 select 5 between 0 and 10 between 0 and 1,(5 between 0 and 10) between 0 and 1;
 5 between 0 and 10 between 0 and 1	(5 between 0 and 10) between 0 and 1
 0	1
