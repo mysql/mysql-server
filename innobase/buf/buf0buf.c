@@ -1833,6 +1833,28 @@ buf_get_n_pending_ios(void)
 }
 
 /*************************************************************************
+Returns the ratio in percents of modified pages in the buffer pool /
+database pages in the buffer pool. */
+
+ulint
+buf_get_modified_ratio_pct(void)
+/*============================*/
+{
+	ulint	ratio;
+
+	mutex_enter(&(buf_pool->mutex));
+
+	ratio = (100 * UT_LIST_GET_LEN(buf_pool->flush_list))
+		     / (1 + UT_LIST_GET_LEN(buf_pool->LRU));
+
+		       /* 1 + is there to avoid division by zero */   
+
+	mutex_exit(&(buf_pool->mutex));
+
+	return(ratio);
+}
+
+/*************************************************************************
 Prints info of the buffer i/o. */
 
 void
