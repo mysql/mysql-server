@@ -103,11 +103,21 @@ static int binlog_prepare(THD *thd, bool all)
   return 0;
 }
 
-static int binlog_commit(THD *thd, bool all)
+static int binlog_real_commit(THD *thd, IO_CACHE *trans_log)
 {
   int error;
+  DBUG_ENTER("binlog_real_commit");
+
+  /* Update the binary log as we have cached some queries */
+  error= mysql_bin_log.write(thd, trans_log);
+  binlog_cleanup_trans(trans_log);
+  DBUG_RETURN(error);
+}
+
+static int binlog_commit(THD *thd, bool all)
+{
   IO_CACHE *trans_log= (IO_CACHE*)thd->ha_data[binlog_hton.slot];
-  DBUG_ENTER("binlog_commit");
+  DBUG_ENTER("binlog_real_commit");
   DBUG_ASSERT(mysql_bin_log.is_open() &&
      (all || !(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))));
 
@@ -116,11 +126,10 @@ static int binlog_commit(THD *thd, bool all)
     // we're here because trans_log was flushed in MYSQL_LOG::log()
     DBUG_RETURN(0);
   }
+  Query_log_event qev(thd, "COMMIT", 6, TRUE, FALSE);
+  qev.write(trans_log);
 
-  /* Update the binary log as we have cached some queries */
-  error= mysql_bin_log.write(thd, trans_log);
-  binlog_cleanup_trans(trans_log);
-  DBUG_RETURN(error);
+  DBUG_RETURN(binlog_real_commit(thd, trans_log));
 }
 
 static int binlog_rollback(THD *thd, bool all)
@@ -2985,10 +2994,11 @@ void TC_LOG_BINLOG::close()
 int TC_LOG_BINLOG::log(THD *thd, my_xid xid)
 {
   Xid_log_event xle(thd, xid);
-  if (xle.write((IO_CACHE*)thd->ha_data[binlog_hton.slot]))
+  IO_CACHE *trans_log= (IO_CACHE*)thd->ha_data[binlog_hton.slot];
+  if (xle.write(trans_log))
     return 0;
   thread_safe_increment(prepared_xids, &LOCK_prep_xids);
-  return !binlog_commit(thd,1);                 // invert return value
+  return !binlog_real_commit(thd, trans_log);     // invert return value
 }
 
 void TC_LOG_BINLOG::unlog(ulong cookie, my_xid xid)
