@@ -50,7 +50,7 @@
  **/
 #define MAX_TUPLES_PER_PAGE 8191
 #define MAX_TUPLES_BITS 13 		/* 13 bits = 8191 tuples per page */
-//#define MAX_NO_OF_TUPLEKEY 16 Not currently used
+/*#define MAX_NO_OF_TUPLEKEY 16 Not currently used */
 #define MAX_TABLES 1600
 #define MAX_TAB_NAME_SIZE 128
 #define MAX_ATTR_NAME_SIZE 32
@@ -108,13 +108,13 @@
 /*
  * Ordered index constants.  Make configurable per index later.
  */
-#define MAX_TTREE_NODE_SIZE 64		// total words in node
-#define MAX_TTREE_PREF_SIZE 4		// words in min prefix
-#define MAX_TTREE_NODE_SLACK 2		// diff between max and min occupancy
+#define MAX_TTREE_NODE_SIZE 64	    /* total words in node */
+#define MAX_TTREE_PREF_SIZE 4	    /* words in min prefix */
+#define MAX_TTREE_NODE_SLACK 2	    /* diff between max and min occupancy */
 
 /*
  * Blobs.
  */
-#define NDB_BLOB_HEAD_SIZE 2            // sizeof(NdbBlob::Head) >> 2
+#define NDB_BLOB_HEAD_SIZE 2        /* sizeof(NdbBlob::Head) >> 2 */
 
 #endif

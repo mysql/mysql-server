@@ -14,7 +14,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-// define on IRIX to get posix compliant vsnprintf
+/* define on IRIX to get posix compliant vsnprintf */
 #define _XOPEN_SOURCE 500
 #include <stdio.h>
 #include <basestring_vsnprintf.h>
