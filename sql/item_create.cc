@@ -460,6 +460,7 @@ Item *create_func_cast(Item *a, Cast_target cast_type, int len,
 {
   Item *res;
   LINT_INIT(res);
+
   switch (cast_type) {
   case ITEM_CAST_BINARY: 	res= new Item_func_binary(a); break;
   case ITEM_CAST_SIGNED_INT:	res= new Item_func_signed(a); break;
