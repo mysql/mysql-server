@@ -315,14 +315,6 @@ case "x$am_cv_prog_cc_stdc" in
 esac
 ])
 
-# serial 1
-
-AC_DEFUN(AM_PROG_INSTALL,
-[AC_REQUIRE([AC_PROG_INSTALL])
-test -z "$INSTALL_SCRIPT" && INSTALL_SCRIPT='${INSTALL_PROGRAM}'
-AC_SUBST(INSTALL_SCRIPT)dnl
-])
-
 #
 # Check to make sure that the build environment is sane.
 #
@@ -527,7 +519,7 @@ fi
 ])dnl
 
 AC_DEFUN(MYSQL_STACK_DIRECTION,
- AC_CACHE_CHECK(stack direction for C alloca, ac_cv_c_stack_direction,
+ [AC_CACHE_CHECK(stack direction for C alloca, ac_cv_c_stack_direction,
  [AC_TRY_RUN([find_stack_direction ()
  {
    static char *addr = 0;
@@ -546,7 +538,7 @@ AC_DEFUN(MYSQL_STACK_DIRECTION,
  }], ac_cv_c_stack_direction=1, ac_cv_c_stack_direction=-1,
    ac_cv_c_stack_direction=0)])
  AC_DEFINE_UNQUOTED(STACK_DIRECTION, $ac_cv_c_stack_direction)
-)dnl
+])dnl
 
 AC_DEFUN(MYSQL_FUNC_ALLOCA,
 [
@@ -643,7 +635,8 @@ AC_MSG_RESULT($ac_cv_conv_longlong_to_float)
 ])
 
 AC_DEFUN(MYSQL_CHECK_CPU,
-AC_CACHE_CHECK([if compiler supports optimizations for current cpu], mysql_cv_cpu,[
+[AC_CACHE_CHECK([if compiler supports optimizations for current cpu],
+mysql_cv_cpu,[
 
 ac_save_CFLAGS="$CFLAGS"
 if test -r /proc/cpuinfo ; then
@@ -686,7 +679,7 @@ then
 else
   AC_MSG_RESULT($mysql_cv_cpu)
 fi
-]))
+]]))
 
 AC_DEFUN(MYSQL_CHECK_VIO, [
   AC_ARG_WITH([vio],
@@ -755,7 +748,19 @@ AC_MSG_CHECKING(for OpenSSL)
     openssl_libs="-L$OPENSSL_LIB -lssl -lcrypto"
     openssl_includes="-I$OPENSSL_INCLUDE"
     AC_DEFINE(HAVE_OPENSSL)
-  else
+
+    # openssl-devel-0.9.6 requires dlopen() and we can't link staticly
+    # on many platforms (We should actually test this here, but it's quite
+    # hard) to do as we are doing libtool for linking.
+    using_static=""
+    case "$CLIENT_EXTRA_LDFLAGS $MYSQLD_EXTRA_LDFLAGS" in
+	*-all-static*) using_static="yes" ;;
+    esac
+    if test $using_static = "yes"
+    then
+      echo "You can't use the --all-static link option when using openssl."
+      exit 1
+    fi
     AC_MSG_RESULT(no)
   fi
   NON_THREADED_CLIENT_LIBS="$NON_THREADED_CLIENT_LIBS $openssl_libs"
@@ -1258,9 +1263,9 @@ changequote([, ])dnl
      AC_DEFINE_UNQUOTED([$1], [$]$2, [$3])
    fi])
 
-AC_DEFUN(AC_SYS_LARGEFILE,
+AC_DEFUN(MYSQL_SYS_LARGEFILE,
   [AC_REQUIRE([AC_CANONICAL_HOST])
-   AC_ARG_ENABLE(largefile,
+  AC_ARG_ENABLE(largefile,
      [  --disable-largefile     Omit support for large files])
    if test "$enable_largefile" != no; then
      AC_CHECK_TOOL(GETCONF, getconf)

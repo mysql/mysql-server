@@ -2355,7 +2355,7 @@ static int sort_get_next_record(SORT_INFO *sort_info)
 	  continue;
 	}
 
-	if (!sort_info->fix_datafile && (b_type & BLOCK_DELETED))
+	if (!sort_info->fix_datafile)
 	  share->state.split++;
 	if (! found_record++)
 	{

@@ -18,6 +18,9 @@
 
 #include "myisamdef.h"
 #include "m_ctype.h"
+#ifdef HAVE_IEEEFP_H
+#include <ieeefp.h>
+#endif
 
 #define CHECK_KEYS
 
@@ -88,25 +91,28 @@ uint _mi_make_key(register MI_INFO *info, uint keynr, uchar *key,
     }
     else if (keyseg->flag & HA_SWAP_KEY)
     {						/* Numerical column */
-#ifdef NAN_TEST
-      float float_nr;
-      double dbl_nr;
+#ifdef HAVE_ISNAN
       if (type == HA_KEYTYPE_FLOAT)
       {
-	float_nr=float4get(pos);
-	if (float_nr == (float) FLT_MAX)
+	float nr;
+	float4get(nr,pos);
+	if (isnan(nr))
 	{
-	  float_nr= (float) FLT_MAX;
-	  pos= (byte*) &float_nr;
+	  /* Replace NAN with zero */
+ 	  bzero(key,length);
+	  key+=length;
+	  continue;
 	}
       }
       else if (type == HA_KEYTYPE_DOUBLE)
       {
-	dbl_nr=float8get(key);
-	if (dbl_nr == DBL_MAX)
+	double nr;
+	float8get(nr,pos);
+	if (isnan(nr))
 	{
-	  dbl_nr=DBL_MAX;
-	  pos=(byte*) &dbl_nr;
+ 	  bzero(key,length);
+	  key+=length;
+	  continue;
 	}
       }
 #endif

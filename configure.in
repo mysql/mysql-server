@@ -87,7 +87,7 @@ AC_SUBST(CXXLDFLAGS)
 AC_PREREQ(2.12)dnl		Minimum Autoconf version required.
 
 AM_MAINTAINER_MODE
-AC_ARG_PROGRAM
+#AC_ARG_PROGRAM			# Automaticly invoked by AM_INIT_AUTOMAKE
 AM_SANITY_CHECK
 # This is needed is SUBDIRS is set
 AC_PROG_MAKE_SET
@@ -151,8 +151,10 @@ AM_PROG_LIBTOOL
 
 #AC_LIBTOOL_DLOPEN AC_LIBTOOL_WIN32_DLL AC_DISABLE_FAST_INSTALL AC_DISABLE_SHARED AC_DISABLE_STATIC
 
-# AC_PROG_INSTALL We should only need a AM_PROG_INSTALL
+# AC_PROG_INSTALL
 AC_PROG_INSTALL
+test -z "$INSTALL_SCRIPT" && INSTALL_SCRIPT='${INSTALL_PROGRAM}'
+
 # Not critical since the generated file is distributed
 AC_PROG_YACC
 AC_CHECK_PROG(PDFMANUAL, pdftex, manual.pdf)
@@ -185,7 +187,8 @@ AC_DEFINE(SPRINTF_RETURNS_INT) AC_MSG_RESULT("int"),
  AC_DEFINE(SPRINTF_RETURNS_GARBAGE) AC_MSG_RESULT("garbage")))
    	
 
-# option, cache_name, variable
+# option, cache_name, variable,
+# code to execute if yes, code to exectute if fal
 AC_DEFUN(AC_SYS_COMPILER_FLAG,
 [
   AC_MSG_CHECKING($1)
@@ -294,6 +297,7 @@ AC_SUBST(CFLAGS)
 AC_SUBST(CXX)
 AC_SUBST(CXXFLAGS)
 AC_SUBST(LD)
+AC_SUBST(INSTALL_SCRIPT)
 
 export CC CFLAGS LD LDFLAGS
 
@@ -579,9 +583,8 @@ AC_ARG_WITH(mysqld-user,
     )
 AC_SUBST(MYSQLD_USER)
 
-# Use Paul Eggerts macros from GNU tar to check for large file
-# support.
-AC_SYS_LARGEFILE
+# Use Paul Eggerts macros from GNU tar to check for large file support.
+MYSQL_SYS_LARGEFILE
 
 # Types that must be checked AFTER large file support is checked
 AC_TYPE_SIZE_T
@@ -1482,7 +1485,7 @@ MYSQL_TYPE_QSORT
 AC_FUNC_UTIME_NULL
 AC_FUNC_VPRINTF
 AC_CHECK_FUNCS(alarm bmove \
- chsize ftruncate rint finite fpsetmask fpresetsticky\
+ chsize ftruncate rint finite isnan fpsetmask fpresetsticky\
  cuserid fcntl fconvert poll \
  getrusage getpwuid getcwd getrlimit getwd index stpcpy locking longjmp \
  perror pread realpath readlink rename \
