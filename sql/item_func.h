@@ -122,6 +122,11 @@ public:
   bool is_null() { (void) val_int(); return null_value; }
   friend class udf_handler;
   unsigned int size_of() { return sizeof(*this);}  
+  Field *tmp_table_field(TABLE *t_arg)
+  {
+    if (!t_arg) return result_field;
+    return (Field *) new Field_string(max_length,maybe_null, name,t_arg, binary);
+  }  
 };
 
 
