@@ -411,6 +411,20 @@ a	a
 2.1	2.2
 deallocate prepare stmt;
 create table t1 (a int);
+insert into t1 values (1),(2),(3);
+create table t2 select * from t1;
+prepare stmt FROM 'create table t2 select * from t1';
+drop table t2;
+execute stmt;
+drop table t2;
+execute stmt;
+execute stmt;
+ERROR 42S01: Table 't2' already exists
+drop table t2;
+execute stmt;
+drop table t1,t2;
+deallocate prepare stmt;
+create table t1 (a int);
 insert into t1 (a) values (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
 prepare stmt from "select sql_calc_found_rows * from t1 limit 2";
 execute stmt;
@@ -434,3 +448,5 @@ a
 select found_rows();
 found_rows()
 10
+deallocate prepare stmt;
+drop table t1;
