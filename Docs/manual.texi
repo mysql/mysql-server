@@ -152,12 +152,11 @@ database server.
 production systems as well as for embedding into mass-deployed software.
 @code{MySQL} is a trademark of @code{MySQL AB}.
 
-The @code{MySQL} software has @code{Dual Licensing}, which means you can use
-the @code{MySQL} software free of charge under the
-@code{GNU General Public License} (@uref{http://www.gnu.org/licenses/}).
-You can also purchase commercial @code{MySQL} licenses from
-@code{MySQL AB} if you do not wish to be bound by the terms of the
-@code{GPL}.
+The @code{MySQL} software is @code{Dual Licensed}. Users can choose to
+use the @code{MySQL} software as an @code{Open Source}/@code{Free Software} 
+product under the terms of the @code{GNU General Public License} 
+(@uref{http://www.gnu.org/licenses/}) or can purchase a standard 
+commercial license from @code{MySQL AB}.
 @xref{Licensing and Support}.
 
 The @code{MySQL} web site (@uref{http://www.mysql.com/}) provides the
@@ -215,6 +214,7 @@ For a list of all the contributors to this project, see @ref{Credits}.
 Reports of errors (often called bugs), as well as questions and comments,
 should be sent to the mailing list at @email{mysql@@lists.mysql.com}.
 @xref{Bug reports}.
+
 The @code{mysqlbug} script should be used to generate bug reports.
 @c FIX! RPMs are also binary
 For source distributions, the @code{mysqlbug} script can be found in the
@@ -271,7 +271,7 @@ The PostScript version is produced using @code{texi2dvi} and @code{dvips}.
 The PDF version is produced with @code{pdftex}.
 
 If you have a hard time finding information in the manual, you can try
-our searchable PHP version at @uref{http://www.mysql.com/doc/}.
+our searchable version at @uref{http://www.mysql.com/doc/}.
 
 If you have any suggestions concerning additions or corrections to this
 manual, please send them to the documentation team at @email{docs@@mysql.com}.
@@ -404,9 +404,9 @@ alternatives are listed within braces (@samp{@{} and @samp{@}}):
 @cindex MySQL, introduction
 
 @code{MySQL}, the most popular @code{Open Source} SQL database, is
-developed and provided by @code{MySQL AB}.  @code{MySQL AB} is a
-commercial company that builds its business providing services around
-the @code{MySQL} database.
+developed, distributed and supported by @code{MySQL AB}.  @code{MySQL AB} is a
+commercial company founded by the MySQL developers that builds its business 
+providing services around the @code{MySQL} database.
 @xref{What is MySQL AB}.
 
 The @code{MySQL} web site (@uref{http://www.mysql.com/})
