@@ -97,8 +97,20 @@ struct st_table {
   uint raid_type,raid_chunks;
   uint status;				/* Used by postfix.. */
   uint system;				/* Set if system record */
-  ulong time_stamp;			/* Set to offset+1 of record */
+
+  /* 
+    These two members hold offset in record + 1 for TIMESTAMP field
+    with NOW() as default value or/and with ON UPDATE NOW() option. 
+    If 0 then such field is absent in this table or auto-set for default
+    or/and on update should be temporaly disabled for some reason.
+    These values is setup to offset value for each statement in open_table()
+    and turned off in statement processing code (see mysql_update as example).
+  */
+  ulong timestamp_default_now;
+  ulong timestamp_on_update_now;
+  /* Index of auto-updated TIMESTAMP field in field array */
   uint timestamp_field_offset;
+  
   uint next_number_index;
   uint blob_ptr_size;			/* 4 or 8 */
   uint next_number_key_offset;

@@ -469,6 +469,7 @@ public:
   Item_func_now_local(Item *a) :Item_func_now(a) {}
   const char *func_name() const { return "now"; }
   void store_now_in_tm(time_t now, struct tm *now_tm);
+  virtual enum Functype functype() const { return NOW_FUNC; }
 };
 
 

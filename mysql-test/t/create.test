@@ -49,6 +49,16 @@ create table `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 create table a (`aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa` int);
 
 #
+# Some wrong defaults, so these creates should fail too
+#
+--error 1067
+create table test (a datetime default now());
+--error 1294
+create table test (a datetime on update now());
+--error 1067
+create table test (a int default 100 auto_increment);
+
+#
 # test of dummy table names
 #
 

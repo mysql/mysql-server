@@ -4001,7 +4001,8 @@ bool mysql_test_parse_for_slave(THD *thd, char *inBuf, uint length)
 bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
 		       char *length, char *decimals,
 		       uint type_modifier,
-		       Item *default_value, LEX_STRING *comment,
+		       Item *default_value, Item *on_update_value,
+                       LEX_STRING *comment,
 		       char *change, TYPELIB *interval, CHARSET_INFO *cs,
 		       uint uint_geom_type)
 {
@@ -4033,15 +4034,21 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
 
   if (default_value)
   {
-    /*
+    /* 
       Default value should be literal => basic constants =>
       no need fix_fields()
-
-      We allow specifying value for first TIMESTAMP column 
-      altough it is silently ignored. This should be fixed in 4.1
-      (by proper warning or real support for default values)
+      
+      We allow only one function as part of default value - 
+      NOW() as default for TIMESTAMP type.
     */
-    if (default_value->type() == Item::NULL_ITEM)
+    if (default_value->type() == Item::FUNC_ITEM && 
+        !(((Item_func*)default_value)->functype() == Item_func::NOW_FUNC &&
+         type == FIELD_TYPE_TIMESTAMP))
+    {
+      net_printf(thd, ER_INVALID_DEFAULT, field_name);
+      DBUG_RETURN(1);
+    }
+    else if (default_value->type() == Item::NULL_ITEM)
     {
       default_value=0;
       if ((type_modifier & (NOT_NULL_FLAG | AUTO_INCREMENT_FLAG)) ==
@@ -4057,6 +4064,13 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
       DBUG_RETURN(1);
     }
   }
+
+  if (on_update_value && type != FIELD_TYPE_TIMESTAMP)
+  {
+    net_printf(thd, ER_INVALID_ON_UPDATE, field_name);
+    DBUG_RETURN(1);
+  }
+    
   if (!(new_field=new create_field()))
     DBUG_RETURN(1);
   new_field->field=0;
@@ -4220,6 +4234,34 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
       new_field->length= min(new_field->length,14); /* purecov: inspected */
     }
     new_field->flags|= ZEROFILL_FLAG | UNSIGNED_FLAG | NOT_NULL_FLAG;
+    if (default_value)
+    {
+      /* Grammar allows only NOW() value for ON UPDATE clause */
+      if (default_value->type() == Item::FUNC_ITEM && 
+          ((Item_func*)default_value)->functype() == Item_func::NOW_FUNC)
+      {
+        new_field->unireg_check= (on_update_value?Field::TIMESTAMP_DNUN_FIELD:
+                                                  Field::TIMESTAMP_DN_FIELD);
+        /*
+          We don't need default value any longer moreover it is dangerous.
+          Everything handled by unireg_check further.
+        */
+        new_field->def= 0;
+      }
+      else
+        new_field->unireg_check= (on_update_value?Field::TIMESTAMP_UN_FIELD:
+                                                  Field::NONE);
+    }
+    else
+    {
+      /* 
+        We are setting TIMESTAMP_OLD_FIELD here only temporary, we will 
+        replace this value by TIMESTAMP_DNUN_FIELD or NONE later when 
+        information about all TIMESTAMP fields in table will be availiable.
+      */
+      new_field->unireg_check= on_update_value?Field::TIMESTAMP_UN_FIELD:
+                                               Field::TIMESTAMP_OLD_FIELD;
+    }
     break;
   case FIELD_TYPE_DATE:				// Old date type
     if (protocol_version != PROTOCOL_VERSION-1)

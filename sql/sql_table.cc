@@ -427,6 +427,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
   KEY	        *key_info,*key_info_buffer;
   KEY_PART_INFO *key_part_info;
   int		auto_increment=0;
+  int           timestamps= 0, timestamps_with_niladic= 0;
   handler	*file;
   int           field_no,dup_no;
   enum db_type	new_db_type;
@@ -621,8 +622,22 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
       sql_field->pack_flag=f_settype((uint) sql_field->sql_type);
       break;
     case FIELD_TYPE_TIMESTAMP:
-      sql_field->unireg_check=Field::TIMESTAMP_FIELD;
-      /* fall through */
+      /* We should replace old TIMESTAMP fields with their newer analogs */
+      if (sql_field->unireg_check == Field::TIMESTAMP_OLD_FIELD)
+      {
+        if (!timestamps)
+        {
+          sql_field->unireg_check= Field::TIMESTAMP_DNUN_FIELD;
+          ++timestamps_with_niladic;
+        }
+        else
+          sql_field->unireg_check= Field::NONE;
+      }
+      else if(sql_field->unireg_check != Field::NONE)
+        ++timestamps_with_niladic;
+      
+      ++timestamps;
+      /* fall-through */
     default:
       sql_field->pack_flag=(FIELDFLAG_NUMBER |
 			    (sql_field->flags & UNSIGNED_FLAG ? 0 :
@@ -639,6 +654,11 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
     if (MTYP_TYPENR(sql_field->unireg_check) == Field::NEXT_NUMBER)
       auto_increment++;
     pos+=sql_field->pack_length;
+  }
+  if (timestamps_with_niladic > 1)
+  {
+    my_error(ER_TOO_MUCH_AUTO_TIMESTAMP_COLS,MYF(0));
+    DBUG_RETURN(-1);
   }
   if (auto_increment > 1)
   {
@@ -2100,10 +2120,9 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   char tmp_name[80],old_name[32],new_name_buff[FN_REFLEN];
   char new_alias_buff[FN_REFLEN], *table_name, *db, *new_alias, *alias;
   char index_file[FN_REFLEN], data_file[FN_REFLEN];
-  bool use_timestamp=0;
   ha_rows copied,deleted;
   ulonglong next_insert_id;
-  uint save_time_stamp,db_create_options, used_fields;
+  uint db_create_options, used_fields;
   enum db_type old_db_type,new_db_type;
   DBUG_ENTER("mysql_alter_table");
 
@@ -2321,8 +2340,6 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     if (def)
     {						// Field is changed
       def->field=field;
-      if (def->sql_type == FIELD_TYPE_TIMESTAMP)
-	use_timestamp=1;
       if (!def->after)
       {
 	create_list.push_back(def);
@@ -2332,9 +2349,6 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     else
     {						// Use old field value
       create_list.push_back(def=new create_field(field,field));
-      if (def->sql_type == FIELD_TYPE_TIMESTAMP)
-	use_timestamp=1;
-
       alter_it.rewind();			// Change default if ALTER
       Alter_column *alter;
       while ((alter=alter_it++))
@@ -2587,9 +2601,13 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     goto err;
   }
 
-  save_time_stamp=new_table->time_stamp;
-  if (use_timestamp)
-    new_table->time_stamp=0;
+ 
+  /* 
+    We don't want update TIMESTAMP fields during ALTER TABLE 
+    and copy_data_between_tables uses only write_row() for new_table so
+    don't need to set up timestamp_on_update_now member.
+  */
+  new_table->timestamp_default_now= 0;
   new_table->next_number_field=new_table->found_next_number_field;
   thd->count_cuted_fields= CHECK_FIELD_WARN;	// calc cuted fields
   thd->cuted_fields=0L;
@@ -2602,7 +2620,6 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
 				   order_num, order, &copied, &deleted);
   thd->last_insert_id=next_insert_id;		// Needed for correct log
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;
-  new_table->time_stamp=save_time_stamp;
 
   if (table->tmp_table)
   {

@@ -52,9 +52,18 @@ public:
   ulong		query_id;		// For quick test of used fields
   /* Field is part of the following keys */
   key_map	key_start,part_of_key,part_of_sortkey;
+  /* 
+    We use three additional unireg types for TIMESTAMP to overcome limitation 
+    of current binary format of .frm file. We'd like to be able to support 
+    NOW() as default and on update value for such fields but unable to hold 
+    this info anywhere except unireg_check field. This issue will be resolved
+    in more clean way with transition to new text based .frm format.
+    See also comment for Field_timestamp::Field_timestamp().
+  */
   enum utype  { NONE,DATE,SHIELD,NOEMPTY,CASEUP,PNR,BGNR,PGNR,YES,NO,REL,
 		CHECK,EMPTY,UNKNOWN_FIELD,CASEDN,NEXT_NUMBER,INTERVAL_FIELD,
-		BIT_FIELD, TIMESTAMP_FIELD,CAPITALIZE,BLOB_FIELD};
+                BIT_FIELD, TIMESTAMP_OLD_FIELD, CAPITALIZE, BLOB_FIELD,
+                TIMESTAMP_DN_FIELD, TIMESTAMP_UN_FIELD, TIMESTAMP_DNUN_FIELD};
   enum geometry_type
   {
     GEOM_GEOMETRY = 0, GEOM_POINT = 1, GEOM_LINESTRING = 2, GEOM_POLYGON = 3,
@@ -644,7 +653,8 @@ public:
   void set_time();
   virtual void set_default()
   {
-    if (table->timestamp_field == this)
+    if (table->timestamp_field == this &&
+        unireg_check != TIMESTAMP_UN_FIELD)
       set_time();
     else
       Field::set_default();
@@ -662,6 +672,7 @@ public:
   bool get_date(TIME *ltime,uint fuzzydate);
   bool get_time(TIME *ltime);
   field_cast_enum field_cast_type() { return FIELD_CAST_TIMESTAMP; }
+  void set_timestamp_offsets();
 };
 
 

@@ -253,9 +253,8 @@ int ha_myisam::write_row(byte * buf)
   statistic_increment(ha_write_count,&LOCK_status);
 
   /* If we have a timestamp column, update it to the current time */
-
-  if (table->time_stamp)
-    update_timestamp(buf+table->time_stamp-1);
+  if (table->timestamp_default_now)
+    update_timestamp(buf+table->timestamp_default_now-1);
 
   /*
     If we have an auto_increment column and we are writing a changed row
@@ -937,8 +936,8 @@ bool ha_myisam::is_crashed() const
 int ha_myisam::update_row(const byte * old_data, byte * new_data)
 {
   statistic_increment(ha_update_count,&LOCK_status);
-  if (table->time_stamp)
-    update_timestamp(new_data+table->time_stamp-1);
+  if (table->timestamp_on_update_now)
+    update_timestamp(new_data+table->timestamp_on_update_now-1);
   return mi_update(file,old_data,new_data);
 }
 

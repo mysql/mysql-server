@@ -274,9 +274,9 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 
   if (!(error=test(read_info.error)))
   {
-    uint save_time_stamp=table->time_stamp;
     if (use_timestamp)
-      table->time_stamp=0;
+      table->timestamp_default_now= table->timestamp_on_update_now= 0;
+    
     table->next_number_field=table->found_next_number_field;
     VOID(table->file->extra_opt(HA_EXTRA_WRITE_CACHE,
 			    thd->variables.read_buff_size));
@@ -297,7 +297,6 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     if (table->file->activate_all_index(thd))
       error=1;					/* purecov: inspected */
     table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
-    table->time_stamp=save_time_stamp;
     table->next_number_field=0;
   }
   if (file >= 0)

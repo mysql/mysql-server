@@ -354,8 +354,12 @@ static bool pack_header(uchar *forminfo, enum db_type table_type,
 					   MTYP_NOEMPTY_BIT);
       no_empty++;
     }
-    if ((MTYP_TYPENR(field->unireg_check) == Field::TIMESTAMP_FIELD ||
-	 f_packtype(field->pack_flag) == (int) FIELD_TYPE_TIMESTAMP) &&
+    /* 
+      We mark first TIMESTAMP field with NOW() in DEFAULT or ON UPDATE 
+      as auto-update field.
+    */
+    if (field->sql_type == FIELD_TYPE_TIMESTAMP &&
+        MTYP_TYPENR(field->unireg_check) != Field::NONE &&
 	!time_stamp_pos)
       time_stamp_pos=(int) field->offset+1;
     length=field->pack_length;

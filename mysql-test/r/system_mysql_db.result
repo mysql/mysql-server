@@ -103,7 +103,7 @@ tables_priv	CREATE TABLE `tables_priv` (
   `User` char(16) character set latin1 collate latin1_bin NOT NULL default '',
   `Table_name` char(64) character set latin1 collate latin1_bin NOT NULL default '',
   `Grantor` char(77) NOT NULL default '',
-  `Timestamp` timestamp NOT NULL,
+  `Timestamp` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
   `Table_priv` set('Select','Insert','Update','Delete','Create','Drop','Grant','References','Index','Alter') NOT NULL default '',
   `Column_priv` set('Select','Insert','Update','References') NOT NULL default '',
   PRIMARY KEY  (`Host`,`Db`,`User`,`Table_name`),
@@ -117,7 +117,7 @@ columns_priv	CREATE TABLE `columns_priv` (
   `User` char(16) character set latin1 collate latin1_bin NOT NULL default '',
   `Table_name` char(64) character set latin1 collate latin1_bin NOT NULL default '',
   `Column_name` char(64) character set latin1 collate latin1_bin NOT NULL default '',
-  `Timestamp` timestamp NOT NULL,
+  `Timestamp` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
   `Column_priv` set('Select','Insert','Update','References') NOT NULL default '',
   PRIMARY KEY  (`Host`,`Db`,`User`,`Table_name`,`Column_name`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 COMMENT='Column privileges'

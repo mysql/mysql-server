@@ -939,6 +939,8 @@ TABLE *open_table(THD *thd,const char *db,const char *table_name,
   table->status=STATUS_NO_RECORD;
   table->keys_in_use_for_query= table->keys_in_use;
   table->used_keys= table->keys_for_keyread;
+  if (table->timestamp_field)
+    table->timestamp_field->set_timestamp_offsets();
   DBUG_ASSERT(table->key_read == 0);
   DBUG_RETURN(table);
 }

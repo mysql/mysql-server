@@ -54,7 +54,7 @@ ushort	smallint(5) unsigned zerofill	NULL		MUL	00000		select,insert,update,refer
 umedium	mediumint(8) unsigned	NULL		MUL	0		select,insert,update,references	
 ulong	int(11) unsigned	NULL		MUL	0		select,insert,update,references	
 ulonglong	bigint(13) unsigned	NULL		MUL	0		select,insert,update,references	
-time_stamp	timestamp	NULL	YES		NULL		select,insert,update,references	
+time_stamp	timestamp	NULL	YES		CURRENT_TIMESTAMP		select,insert,update,references	
 date_field	date	NULL	YES		NULL		select,insert,update,references	
 time_field	time	NULL	YES		NULL		select,insert,update,references	
 date_time	datetime	NULL	YES		NULL		select,insert,update,references	
@@ -222,7 +222,7 @@ ushort	smallint(5) unsigned zerofill	NULL			00000		select,insert,update,referenc
 umedium	mediumint(8) unsigned	NULL		MUL	0		select,insert,update,references	
 ulong	int(11) unsigned	NULL		MUL	0		select,insert,update,references	
 ulonglong	bigint(13) unsigned	NULL		MUL	0		select,insert,update,references	
-time_stamp	timestamp	NULL	YES		NULL		select,insert,update,references	
+time_stamp	timestamp	NULL	YES		CURRENT_TIMESTAMP		select,insert,update,references	
 date_field	varchar(10)	latin1_swedish_ci	YES		NULL		select,insert,update,references	
 time_field	time	NULL	YES		NULL		select,insert,update,references	
 date_time	datetime	NULL	YES		NULL		select,insert,update,references	
@@ -248,7 +248,7 @@ ushort	smallint(5) unsigned zerofill	NULL			00000		select,insert,update,referenc
 umedium	mediumint(8) unsigned	NULL			0		select,insert,update,references	
 ulong	int(11) unsigned	NULL			0		select,insert,update,references	
 ulonglong	bigint(13) unsigned	NULL			0		select,insert,update,references	
-time_stamp	timestamp	NULL	YES		NULL		select,insert,update,references	
+time_stamp	timestamp	NULL	YES		0000-00-00 00:00:00		select,insert,update,references	
 date_field	varchar(10)	latin1_swedish_ci	YES		NULL		select,insert,update,references	
 time_field	time	NULL	YES		NULL		select,insert,update,references	
 date_time	datetime	NULL	YES		NULL		select,insert,update,references	

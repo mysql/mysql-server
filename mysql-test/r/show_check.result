@@ -225,7 +225,7 @@ t1	CREATE TABLE `t1` (
   `empty_char` char(0) default NULL,
   `type_char` char(2) default NULL,
   `type_varchar` varchar(10) default NULL,
-  `type_timestamp` timestamp NOT NULL,
+  `type_timestamp` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
   `type_date` date NOT NULL default '0000-00-00',
   `type_time` time NOT NULL default '00:00:00',
   `type_datetime` datetime NOT NULL default '0000-00-00 00:00:00',

@@ -699,7 +699,6 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
         uint flags=field->flags;
         String type(tmp,sizeof(tmp), system_charset_info);
         uint col_access;
-        bool null_default_value=0;
 
 	protocol->prepare_for_resend();
         protocol->store(field->field_name, system_charset_info);
@@ -723,20 +722,24 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
                      (field->flags & MULTIPLE_KEY_FLAG) ? "MUL":"");
         protocol->store((char*) pos, system_charset_info);
 
-        /*
-          We handle first TIMESTAMP column in special way because its
-          default value is ignored and current timestamp used instead.
-        */
-        if (table->timestamp_field == field ||
-            field->unireg_check == Field::NEXT_NUMBER)
-          null_default_value=1;
-        if (!null_default_value && !field->is_null())
+        if (table->timestamp_field == field &&
+            field->unireg_check != Field::TIMESTAMP_UN_FIELD)
+        {
+          /*
+            We have NOW() as default value but we use CURRENT_TIMESTAMP form
+            because it is more SQL standard comatible
+          */
+          protocol->store("CURRENT_TIMESTAMP", system_charset_info);
+        }
+        else if (field->unireg_check != Field::NEXT_NUMBER && 
+                 !field->is_null())
         {                                               // Not null by default
           type.set(tmp, sizeof(tmp), field->charset());
           field->val_str(&type,&type);
           protocol->store(type.ptr(),type.length(),type.charset());
         }
-        else if (field->maybe_null() || null_default_value)
+        else if (field->unireg_check == Field::NEXT_NUMBER ||
+                 field->maybe_null())
           protocol->store_null();                       // Null as default
         else
           protocol->store("",0, system_charset_info);	// empty string
@@ -1232,6 +1235,7 @@ store_create_info(THD *thd, TABLE *table, String *packet)
   for (ptr=table->field ; (field= *ptr); ptr++)
   {
     bool has_default;
+    bool has_now_default;
     uint flags = field->flags;
 
     if (ptr != table->field)
@@ -1268,14 +1272,25 @@ store_create_info(THD *thd, TABLE *table, String *packet)
     if (flags & NOT_NULL_FLAG)
       packet->append(" NOT NULL", 9);
 
+
+    /* 
+      Again we are using CURRENT_TIMESTAMP instead of NOW becaus eit is
+      more standard 
+    */
+    has_now_default= table->timestamp_field == field && 
+                     field->unireg_check != Field::TIMESTAMP_UN_FIELD;
+    
     has_default= (field->type() != FIELD_TYPE_BLOB &&
-		  table->timestamp_field != field &&
-		  field->unireg_check != Field::NEXT_NUMBER);
+		  field->unireg_check != Field::NEXT_NUMBER &&
+                  !((foreign_db_mode || limited_mysql_mode) &&
+                    has_now_default));
 
     if (has_default)
     {
       packet->append(" default ", 9);
-      if (!field->is_null())
+      if (has_now_default)
+        packet->append("CURRENT_TIMESTAMP",17);
+      else if (!field->is_null())
       {                                             // Not null by default
         type.set(tmp, sizeof(tmp), field->charset());
         field->val_str(&type,&type);
@@ -1295,6 +1310,11 @@ store_create_info(THD *thd, TABLE *table, String *packet)
       else
         packet->append(tmp,0);
     }
+
+    if (!foreign_db_mode && !limited_mysql_mode &&
+        table->timestamp_field == field && 
+        field->unireg_check != Field::TIMESTAMP_DN_FIELD)
+      packet->append(" on update CURRENT_TIMESTAMP",28);
 
     if (field->unireg_check == Field::NEXT_NUMBER && !foreign_db_mode)
       packet->append(" auto_increment", 15 );
