@@ -54,7 +54,7 @@ void NdbMem_Free(void* ptr)
 
  
 int NdbMem_MemLockAll(){
-#ifdef HAVE_MLOCKALL
+#ifndef HAVE_MLOCKALL
   return -1;
 #else
   return mlockall(MCL_CURRENT);
@@ -62,7 +62,7 @@ int NdbMem_MemLockAll(){
 }
 
 int NdbMem_MemUnlockAll(){
-#ifdef HAVE_MLOCKALL
+#ifndef HAVE_MLOCKALL
   return -1;
 #else
   return munlockall();
