@@ -159,6 +159,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	SQL_THREAD
 %token	START_SYM
 %token	STD_SYM
+%token  VARIANCE_SYM
 %token	STOP_SYM
 %token	SUM_SYM
 %token	SUPER_SYM
@@ -2339,6 +2340,8 @@ sum_expr:
 	  { $$=new Item_sum_max($3); }
 	| STD_SYM '(' in_sum_expr ')'
 	  { $$=new Item_sum_std($3); }
+	| VARIANCE_SYM '(' in_sum_expr ')'
+	  { $$=new Item_sum_variance($3); }
 	| SUM_SYM '(' in_sum_expr ')'
 	  { $$=new Item_sum_sum($3); };
 
