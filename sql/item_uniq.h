@@ -57,4 +57,5 @@ public:
     return new Item_sum_unique_users(thd, this);
   }
   void print(String *str) { str->append("0.0", 3); }
+  Field *create_tmp_field(bool group, TABLE *table, uint convert_blob_length);
 };
