@@ -27,7 +27,7 @@
 class Show_instances : public Command
 {
 public:
-  Show_instances(Instance_map *imap_arg): Command(imap_arg)
+  Show_instances(Instance_map *instance_map_arg): Command(instance_map_arg)
   {}
 
   int do_command(struct st_net *net);
@@ -43,7 +43,7 @@ public:
 class Flush_instances : public Command
 {
 public:
-  Flush_instances(Instance_map *imap_arg): Command(imap_arg)
+  Flush_instances(Instance_map *instance_map_arg): Command(instance_map_arg)
   {}
 
   int execute(struct st_net *net, ulong connection_id);
@@ -59,7 +59,7 @@ class Show_instance_status : public Command
 {
 public:
 
-  Show_instance_status(Instance_map *imap_arg, const char *name, uint len);
+  Show_instance_status(Instance_map *instance_map_arg, const char *name, uint len);
   int do_command(struct st_net *net, const char *instance_name);
   int execute(struct st_net *net, ulong connection_id);
   const char *instance_name;
@@ -75,7 +75,7 @@ class Show_instance_options : public Command
 {
 public:
 
-  Show_instance_options(Instance_map *imap_arg, const char *name, uint len);
+  Show_instance_options(Instance_map *instance_map_arg, const char *name, uint len);
 
   int execute(struct st_net *net, ulong connection_id);
   int do_command(struct st_net *net, const char *instance_name);
@@ -91,7 +91,7 @@ public:
 class Start_instance : public Command
 {
 public:
-  Start_instance(Instance_map *imap_arg, const char *name, uint len);
+  Start_instance(Instance_map *instance_map_arg, const char *name, uint len);
 
   int execute(struct st_net *net, ulong connection_id);
   const char *instance_name;
@@ -107,7 +107,7 @@ public:
 class Stop_instance : public Command
 {
 public:
-  Stop_instance(Instance_map *imap_arg, const char *name, uint len);
+  Stop_instance(Instance_map *instance_map_arg, const char *name, uint len);
 
   Instance *instance;
   int execute(struct st_net *net, ulong connection_id);

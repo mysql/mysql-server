@@ -21,8 +21,8 @@
 #include "command.h"
 
 
-Command::Command(Instance_map *imap_arg)
-  :instance_map(imap_arg)
+Command::Command(Instance_map *instance_map_arg)
+  :instance_map(instance_map_arg)
 {}
 
 Command::~Command()

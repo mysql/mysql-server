@@ -107,7 +107,7 @@ void Guardian_thread::run()
 int Guardian_thread::start()
 {
   Instance *instance;
-  Imap_iterator iterator(instance_map);
+  Instance_map::Iterator iterator(instance_map);
 
   instance_map->lock();
   while (instance= iterator.next())
