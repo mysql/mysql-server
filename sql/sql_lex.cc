@@ -442,13 +442,13 @@ inline static uint int_token(const char *str,uint length)
 // STATE_OPERATOR_OR_IDENT ; last state was an ident, text or number
 // 			     (which can't be followed by a signed number)
 
-int yylex(void *arg)
+int yylex(void *arg, void *yythd)
 {
   reg1	uchar c;
   int	tokval;
   uint length;
   enum lex_states state,prev_state;
-  LEX	*lex=current_lex;
+  LEX	*lex= &(((THD *)yythd)->lex);
   YYSTYPE *yylval=(YYSTYPE*) arg;
 
   lex->yylval=yylval;			// The global state
