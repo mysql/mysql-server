@@ -949,7 +949,7 @@ int mysql_table_dump(THD* thd, char* db, char* tbl_name, int fd)
     goto err;
   }
   net_flush(&thd->net);
-  if ((error = table->file->dump(thd,fd)))
+  if ((error= table->file->dump(thd,fd)))
     my_error(ER_GET_ERRNO, MYF(0));
 
 err:
@@ -1054,7 +1054,6 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       tbl_name[tbl_len] = 0;
       if (mysql_table_dump(thd, db, tbl_name, -1))
 	send_error(thd); // dump to NET
-
       break;
     }
   case COM_CHANGE_USER:
