@@ -513,6 +513,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	type int_type real_type order_dir opt_field_spec lock_option
 	udf_type if_exists opt_local opt_table_options table_options
 	table_option opt_if_not_exists opt_var_type opt_var_ident_type
+	opt_temporary
 
 %type <ulong_num>
 	ULONG_NUM raid_types merge_insert_types
@@ -2383,11 +2384,12 @@ do:	DO_SYM
 */
 
 drop:
-	DROP TABLE_SYM if_exists table_list opt_restrict
+	DROP opt_temporary TABLE_SYM if_exists table_list opt_restrict
 	{
 	  LEX *lex=Lex;
 	  lex->sql_command = SQLCOM_DROP_TABLE;
-	  lex->drop_if_exists = $3;
+	  lex->drop_temporary= $2;
+	  lex->drop_if_exists= $4;
 	}
 	| DROP INDEX ident ON table_ident {}
 	  {
@@ -2424,8 +2426,13 @@ table_name:
 
 if_exists:
 	/* empty */ { $$=0; }
-	| IF EXISTS { $$= 1; };
+	| IF EXISTS { $$= 1; }
+	;
 
+opt_temporary:
+	/* empty */ { $$= 0; }
+	| TEMPORARY { $$= 1; }
+	;
 /*
 ** Insert : add new data to table
 */

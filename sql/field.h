@@ -1050,7 +1050,9 @@ public:
 
 Field *make_field(char *ptr, uint32 field_length,
 		  uchar *null_pos, uchar null_bit,
-		  uint pack_flag, Field::utype unireg_check,
+		  uint pack_flag,
+		  enum_field_types field_type,
+		  Field::utype unireg_check,
 		  TYPELIB *interval, const char *field_name,
 		  struct st_table *table);
 uint pack_length_to_packflag(uint type);
@@ -1073,6 +1075,7 @@ bool test_if_int(const char *str,int length);
 #define FIELDFLAG_INTERVAL		256
 #define FIELDFLAG_BITFIELD		512	// mangled with dec!
 #define FIELDFLAG_BLOB			1024	// mangled with dec!
+#define FIELDFLAG_GEOM			2048
 #define FIELDFLAG_LEFT_FULLSCREEN	8192
 #define FIELDFLAG_RIGHT_FULLSCREEN	16384
 #define FIELDFLAG_FORMAT_NUMBER		16384	// predit: ###,,## in output
@@ -1099,6 +1102,7 @@ bool test_if_int(const char *str,int length);
 #define f_is_enum(x)	((x) & FIELDFLAG_INTERVAL)
 #define f_is_bitfield(x)	((x) & FIELDFLAG_BITFIELD)
 #define f_is_blob(x)		(((x) & (FIELDFLAG_BLOB | FIELDFLAG_NUMBER)) == FIELDFLAG_BLOB)
+#define f_is_geom(x)		((x) & FIELDFLAG_GEOM)
 #define f_is_equ(x)		((x) & (1+2+FIELDFLAG_PACK+31*256))
 #define f_settype(x)		(((int) x) << FIELDFLAG_PACK_SHIFT)
 #define f_maybe_null(x)		(x & FIELDFLAG_MAYBE_NULL)
