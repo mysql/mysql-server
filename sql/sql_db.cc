@@ -271,9 +271,16 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *org_path,
   */
   if (!found_other_files)
   {
-    char tmp_path[FN_REFLEN];
+    char tmp_path[FN_REFLEN], lnk_path[FN_REFLEN];
     char *path=unpack_filename(tmp_path,org_path);
 #ifdef HAVE_READLINK
+    if (path[0] == FN_CURLIB)
+    {
+      int length = (strxmov(lnk_path,curr_dir,path + 2, NullS) - lnk_path) - 1;
+      path=lnk_path;
+      if (path[length] == FN_LIBCHAR)
+	path[length]='\0';
+    }
     int linkcount = readlink(path,filePath,sizeof(filePath)-1);
     if (linkcount > 0)			// If the path was a symbolic link
     {

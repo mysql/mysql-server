@@ -46771,6 +46771,8 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
+Fixed bug in DROP DATABASE with symlink
+@item
 Multi-table @code{DELETE}.
 @item
 Don't support old client protocols prior to MySQL 3.21 any more.
