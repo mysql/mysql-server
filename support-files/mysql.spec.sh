@@ -189,6 +189,7 @@ tar cf $RBR/all.tar .
 
 # Save shared libraries
 (cd libmysql/.libs; tar cf $RBR/shared-libs.tar *.so*)
+(cd libmysql_r/.libs; tar rf $RBR/shared-libs.tar *.so*)
 
 # Save manual to avoid rebuilding
 mv Docs/manual.ps Docs/manual.ps.save
@@ -352,6 +353,11 @@ fi
 %attr(-, root, root) /usr/share/sql-bench
 
 %changelog
+
+* Fri Aug 18 2000
+
+- Added separate libmysql_r directory; now both a threaded
+  and non-threaded library is shipped.
 
 * Wed Sep 28 1999 David Axmark <davida@mysql.com>
 
