@@ -6661,7 +6661,9 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
       usable_keys=0;
       break;
     }
-    usable_keys&=((Item_field*) (*tmp_order->item))->field->part_of_sortkey;
+    if (!(usable_keys&= (((Item_field*) (*tmp_order->item))->field->
+			 part_of_sortkey)))
+      break;					// No usable keys
   }
 
   ref_key= -1;
