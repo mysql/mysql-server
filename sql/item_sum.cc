@@ -867,6 +867,7 @@ bool Item_sum_count_distinct::setup(THD *thd)
 			       0, 0, current_lex->options | thd->options)))
     return 1;
   table->file->extra(HA_EXTRA_NO_ROWS);		// Don't update rows
+  table->no_rows=1;
 
   if(table->db_type == DB_TYPE_HEAP) // no blobs, otherwise it would be
     // MyISAM

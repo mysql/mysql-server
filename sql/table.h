@@ -89,7 +89,7 @@ struct st_table {
   my_bool copy_blobs;			/* copy_blobs when storing */
   my_bool null_row;			/* All columns are null */
   my_bool maybe_null,outer_join;	/* Used with OUTER JOIN */
-  my_bool distinct,const_table;
+  my_bool distinct,const_table,no_rows;
   my_bool key_read;
   my_bool crypted;
   my_bool db_low_byte_first;		/* Portable row format */
