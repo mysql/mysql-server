@@ -17,6 +17,10 @@ drop database if exists db1_secret;
 # Create our secret database
 create database db1_secret;
 
+# Can create a procedure in other db
+create procedure db1_secret.dummy() begin end;
+drop procedure db1_secret.dummy;
+
 use db1_secret;
 
 create table t1 ( u varchar(64), i int );
@@ -39,6 +43,7 @@ select db();
 connect (con2user1,localhost,user1,,);
 connect (con3anon,localhost,anon,,);
 
+
 #
 # User1 can
 #
@@ -52,6 +57,13 @@ select db1_secret.db();
 --error 1044
 select * from db1_secret.t1;
 
+# ...and not this
+--error 1049
+create procedure db1_secret.dummy() begin end;
+--error 1298
+drop procedure db1_secret.dummy;
+
+
 #
 # Anonymous can
 #
@@ -64,6 +76,13 @@ select db1_secret.db();
 # ...but not this
 --error 1044
 select * from db1_secret.t1;
+
+# ...and not this
+--error 1049
+create procedure db1_secret.dummy() begin end;
+--error 1298
+drop procedure db1_secret.dummy;
+
 
 #
 # Check it out

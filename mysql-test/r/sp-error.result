@@ -33,15 +33,15 @@ ERROR 42000: FUNCTION func1 already exists
 drop procedure proc1|
 drop function func1|
 alter procedure foo|
-ERROR 42000: PROCEDURE foo does not exist
+ERROR 42000: PROCEDURE test.foo does not exist
 alter function foo|
-ERROR 42000: FUNCTION foo does not exist
+ERROR 42000: FUNCTION test.foo does not exist
 drop procedure foo|
-ERROR 42000: PROCEDURE foo does not exist
+ERROR 42000: PROCEDURE test.foo does not exist
 drop function foo|
-ERROR 42000: FUNCTION foo does not exist
+ERROR 42000: FUNCTION test.foo does not exist
 call foo()|
-ERROR 42000: PROCEDURE foo does not exist
+ERROR 42000: PROCEDURE test.foo does not exist
 drop procedure if exists foo|
 Warnings:
 Warning	1298	PROCEDURE foo does not exist
@@ -193,7 +193,7 @@ call p()|
 ERROR 24000: Cursor is not open
 drop procedure p|
 alter procedure bar3 sql security invoker|
-ERROR 42000: PROCEDURE bar3 does not exist
+ERROR 42000: PROCEDURE test.bar3 does not exist
 alter procedure bar3 name
 AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA|
 ERROR 42000: Identifier name 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' is too long
@@ -395,4 +395,6 @@ select @x|
 0
 drop procedure bug3279|
 drop table t3|
+create procedure nodb.bug3339() begin end|
+ERROR 42000: Unknown database 'nodb'
 drop table t1|
