@@ -1104,7 +1104,6 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
     }
 
     case START_EVENT:
-      close_temporary_tables(thd);
       mi->inc_pos(event_len);
       flush_master_info(mi);
       delete ev;
