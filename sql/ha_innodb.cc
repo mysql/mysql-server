@@ -4694,7 +4694,7 @@ ha_innobase::external_lock(
 
 		if (prebuilt->select_lock_type != LOCK_NONE) {
 			if (thd->in_lock_tables &&
-			    !thd->variables.innodb_table_locks_old_behavior) {
+			    thd->variables.innodb_table_locks) {
 				ulint	error;
 				error = row_lock_table_for_mysql(prebuilt);
 

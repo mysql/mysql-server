@@ -3173,20 +3173,18 @@ void my_net_local_init(NET *net)
   trailing '. The caller must supply whichever of those is desired.
 */
 
-unsigned long
-mysql_hex_string(char *to, const char *from, unsigned long length)
+ulong mysql_hex_string(char *to, const char *from, ulong length)
 {
   char *to0= to;
   const char *end;
-  static char hex[]= "0123456789ABCDEF";
             
   for (end= from + length; from < end; from++)
   {
-    *to++= hex[((unsigned char) *from) >> 4];
-    *to++= hex[((unsigned char) *from) & 0x0F];
+    *to++= _dig_vec[((unsigned char) *from) >> 4];
+    *to++= _dig_vec[((unsigned char) *from) & 0x0F];
   }
   *to= '\0';
-  return to-to0;
+  return (ulong) (to-to0);
 }
 
 /*
