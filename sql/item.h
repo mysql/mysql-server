@@ -429,19 +429,13 @@ class Item_uint :public Item_int
 public:
   Item_uint(const char *str_arg, uint length) :
     Item_int(str_arg, (longlong) strtoull(str_arg,(char**) 0,10), length) 
-    { fixed= 0; }
+    { unsigned_flag= 1; }
   Item_uint(uint32 i) :Item_int((longlong) i, 10) 
-    { fixed= 0; }
+    { unsigned_flag= 1; }
   double val() { return ulonglong2double((ulonglong)value); }
   String *val_str(String*);
   Item *new_item() { return new Item_uint(name,max_length); }
   int save_in_field(Field *field, bool no_conversions);
-  bool fix_fields(THD *thd, struct st_table_list *list, Item **item)
-  {
-    bool res= Item::fix_fields(thd, list, item);
-    unsigned_flag= 1;
-    return res;
-  }
   void print(String *str);
 };
 
