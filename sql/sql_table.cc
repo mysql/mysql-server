@@ -798,7 +798,6 @@ static int send_check_errmsg(THD* thd, TABLE_LIST* table,
 
 static int prepare_for_restore(THD* thd, TABLE_LIST* table)
 {
-  String *packet = &thd->packet;
   DBUG_ENTER("prepare_for_restore");
 
   if (table->table) // do not overwrite existing tables on restore

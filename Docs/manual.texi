@@ -2224,6 +2224,9 @@ Apart from the following links, you can find and download a lot of
 @item @uref{http://www.4t2.com/mysql}@*
 Information about the German MySQL mailing list.
 
+@item @uref{http://www2.rent-a-database.de/mysql/}
+@strong{MySQL} manual in German.
+
 @item @uref{http://www.bitmover.com:8888//home/bk/mysql}@*
 Web access to the @strong{MySQL} BitKeeper repository.
 
@@ -3614,7 +3617,7 @@ Payment should be made to:
 Postgirot Bank AB
 105 06 STOCKHOLM, SWEDEN
 
-TCX DataKonsult AB
+MySQL AB
 BOX 6434
 11382 STOCKHOLM, SWEDEN
 
@@ -3631,7 +3634,7 @@ If you want to pay by check, make it payable to ``MySQL Finland AB'' and
 mail it to the address below:
 
 @example
-TCX DataKonsult AB
+MySQL AB
 BOX 6434, Torsgatan 21
 11382 STOCKHOLM, SWEDEN
 @end example
@@ -8905,17 +8908,19 @@ below:
 
 @example
 shell> BINDIR/mysqladmin version
-mysqladmin  Ver 6.3 Distrib 3.22.9-beta, for pc-linux-gnu on i686
-TCX Datakonsult AB, by Monty
+mysqladmin  Ver 8.14 Distrib 3.23.32, for linux on i586
+Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+This software comes with ABSOLUTELY NO WARRANTY. This is free software,
+and you are welcome to modify and redistribute it under the GPL license
 
-Server version          3.22.9-beta
+Server version          3.23.32-debug
 Protocol version        10
 Connection              Localhost via Unix socket
 TCP port                3306
 UNIX socket             /tmp/mysql.sock
 Uptime:                 16 sec
 
-Running threads: 1  Questions: 20  Reloads: 2  Open tables: 3
+Threads: 1  Questions: 9  Slow queries: 0  Opens: 7  Flush tables: 2  Open tables: 0 Queries per second avg: 0.000  Memory in use: 132K  Max memory used: 16773K
 @end example
 
 To get a feeling for what else you can do with @code{BINDIR/mysqladmin},
@@ -18530,7 +18535,7 @@ CHECK TABLE tbl_name[,tbl_name...] [option [option...]]
 option = QUICK | FAST | MEDIUM | EXTEND | CHANGED
 @end example
 
-@code{CHECK TABLE} only works on @code{MyISAM} and @code{BDB} tables. On
+@code{CHECK TABLE} only works on @code{MyISAM} tables. On
 @code{MyISAM} tables it's the same thing as running @code{myisamchk -m
 table_name} on the table.
 
@@ -18568,9 +18573,6 @@ The different check types stand for the following:
 For dynamic sized @code{MyISAM} tables a started check will always
 do a @code{MEDIUM} check. For static size rows we skip the row scan 
 for @code{QUICK} and @code{FAST} as the rows are very seldom corrupted.
-
-Note that for BDB tables the different check options doesn't affect the
-check in any way!
 
 You can combine check options as in:
 
