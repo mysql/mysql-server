@@ -11,7 +11,7 @@ void print(const Uint32 src[], Uint32 len, Uint32 pos = 0)
       printf("1");
     else
       printf("0");
-    if((i & 7) == 7)
+    if((i & 31) == 31)
       printf(" ");
   }
 }
@@ -19,42 +19,46 @@ void print(const Uint32 src[], Uint32 len, Uint32 pos = 0)
 #ifndef __TEST_BITMASK__
 void
 BitmaskImpl::getFieldImpl(const Uint32 src[],
-			  unsigned shift, unsigned len, Uint32 dst[])
+			  unsigned shiftL, unsigned len, Uint32 dst[])
 {
-  assert(shift < 32);
-
-  if(len <= (32 - shift))
+  assert(shiftL < 32);
+  
+  unsigned shiftR = 32 - shiftL;
+  while(len >= 32)
   {
-    * dst++ |= ((* src) & ((1 << len) - 1)) << shift;
+    * dst++ |= (* src) << shiftL;
+    * dst = shiftL ? (* src) >> shiftR : 0;
+    src++;
+    len -= 32;
   }
-  else
-  {
-    abort();
-    while(len > 32)
-    {
-      * dst++ |= (* src) << shift;
-      * dst = (* src++) >> (32 - shift);
-      len -= 32;
-    }
-  }
+  
+  * dst++ |= (* src) << shiftL;
+  * dst = shiftL ? ((* src) >> shiftR) & ((1 << len) - 1) : 0;
 }
 
 void
 BitmaskImpl::setFieldImpl(Uint32 dst[],
-			  unsigned shift, unsigned len, const Uint32 src[])
+			  unsigned shiftL, unsigned len, const Uint32 src[])
 {
-  assert(shift < 32);
+  /**
+   *
+   * abcd ef00
+   * 00ab cdef
+   */
+  assert(shiftL < 32);
+  unsigned shiftR = 32 - shiftL;
   
-  Uint32 mask;
-  if(len < (32 - shift))
+  while(len >= 32)
   {
-    mask = (1 << len) - 1;
-    * dst = (* dst & ~mask) | (((* src++) >> shift) & mask);
-  } 
-  else 
-  {
-    abort();
+    * dst = (* src++) >> shiftL;
+    * dst++ |= shiftL ? (* src) << shiftR : 0;
+    len -= 32;
   }
+  
+  Uint32 mask = ((1 << len) -1);
+  * dst = (* dst & ~mask);
+  * dst |= ((* src++) >> shiftL) & mask;
+  * dst |= shiftL ? ((* src) << shiftR) & mask : 0;
 }
 
 #else
@@ -85,6 +89,19 @@ static void require(bool b)
 {
   if(!b) abort();
 }
+
+static
+bool cmp(const Uint32 b1[], const Uint32 b2[], Uint32 len)
+{
+  Uint32 sz32 = (len + 31) >> 5;
+  for(int i = 0; i<len; i++)
+  {
+    if(BitmaskImpl::get(sz32, b1, i) ^ BitmaskImpl::get(sz32, b2, i))
+      return false;
+  }
+  return true;
+}
+
 
 static int val_pos = 0;
 static int val[] = { 384, 241, 32, 
@@ -128,21 +145,21 @@ void simple(int pos, int size)
 
   memset(src, 0x0, sz);
   memset(dst, 0x0, sz);
-  memset(mask, 0x0, sz);
+  memset(mask, 0xFF, sz);
   rand(src, size);
   BitmaskImpl::setField(sz32, mask, pos, size, src);
   BitmaskImpl::getField(sz32, mask, pos, size, dst);
   printf("src: "); print(src, size); printf("\n");
-  printf("msk: "); print(mask, size, pos); printf("\n");
+  printf("msk: "); print(mask, sz32 << 5); printf("\n");
   printf("dst: "); print(dst, size); printf("\n");
-  require(memcmp(src, dst, sz) == 0);
+  require(cmp(src, dst, size));
 };
 
 static void 
 do_test(int bitmask_size)
 {
 #if 0
-  simple(rand() % 33, (rand() % 31)+1);
+  simple(rand() % 33, (rand() % 63)+1);
 #else
   Vector<Alloc> alloc_list;
   bitmask_size = (bitmask_size + 31) & ~31;
@@ -186,10 +203,9 @@ do_test(int bitmask_size)
       {
 	printf("freeing [ %d %d ]", min, max);
 	printf("- mask: ");
-	for(size_t k = 0; k<(((max - min)+31)>>5); k++)
-	  printf("%.8x ", tmp.getBase()[k]);
-
-	printf("save: ");
+	print(tmp.getBase(), max - min);
+	
+	printf(" save: ");
 	size_t k;
 	Alloc& a = alloc_list[j];
 	for(k = 0; k<a.data.size(); k++)
@@ -197,7 +213,7 @@ do_test(int bitmask_size)
 	printf("\n");
       }
       int bytes = (max - min + 7) >> 3;
-      if(memcmp(tmp.getBase(), alloc_list[j].data.getBase(), bytes) != 0)
+      if(!cmp(tmp.getBase(), alloc_list[j].data.getBase(), max - min))
       {
 	abort();
       }
@@ -221,7 +237,6 @@ do_test(int bitmask_size)
 
       Uint32 sz = (lrand() % free); 
       sz = sz ? sz : 1;
-      sz = (sz > 31) ? 31 : sz;
       Alloc a;
       a.pos = pos;
       a.size = sz;
@@ -237,9 +252,7 @@ do_test(int bitmask_size)
       if(DEBUG)
       {
 	printf("- mask: ");
-	size_t k;
-	for(k = 0; k<a.data.size(); k++)
-	  printf("%.8x ", a.data[k]);
+	print(a.data.getBase(), sz);
 	printf("\n");
       }
       BitmaskImpl::setField(sz32, test_mask.getBase(), pos, sz, 
