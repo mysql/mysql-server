@@ -64,3 +64,23 @@ t9	CREATE TABLE `t9` (
   PRIMARY KEY  (`a`)
 ) TYPE=MyISAM DATA DIRECTORY='TEST_DIR/var/tmp/' INDEX DIRECTORY='TEST_DIR/var/run/'
 drop database mysqltest;
+create table t1 (a int not null) type=myisam;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL default '0'
+) TYPE=MyISAM
+alter table t1 add b int;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL default '0',
+  `b` int(11) default NULL
+) TYPE=MyISAM
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL default '0',
+  `b` int(11) default NULL
+) TYPE=MyISAM
+drop table t1;

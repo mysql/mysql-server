@@ -67,6 +67,7 @@ select quote('\'\"\\test');
 select quote(concat('abc\'', '\\cba'));
 select quote(1/0), quote('\0\Z');
 select length(quote(concat(char(0),"test")));
+select hex(quote(concat(char(224),char(227),char(230),char(231),char(232),char(234),char(235))));
 
 #
 # Wrong usage of functions
