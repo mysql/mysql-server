@@ -1285,7 +1285,20 @@ attribute:
 	| UNIQUE_SYM	  { Lex->type|= UNIQUE_FLAG; }
 	| UNIQUE_SYM KEY_SYM { Lex->type|= UNIQUE_KEY_FLAG; }
 	| COMMENT_SYM text_literal { Lex->comment= $2; }
-	| COLLATE_SYM collation_name { Lex->charset=$2; };
+	| COLLATE_SYM collation_name 
+	  { 
+	    if (Lex->charset && strcmp(Lex->charset->csname,$2->csname))
+	    {
+	      net_printf(YYTHD,ER_COLLATION_CHARSET_MISMATCH,
+			 $2->name,Lex->charset->csname);
+	      YYABORT;
+	    }
+	    else
+	    {
+	      Lex->charset=$2;
+	    }
+	  }
+	;
 
 
 charset_name:
