@@ -187,9 +187,10 @@ I_List<i_string> replicate_do_db, replicate_ignore_db;
 // allow the user to tell us which db to replicate and which to ignore
 I_List<i_string> binlog_do_db, binlog_ignore_db;
 
-uint32 server_id = 0; // server id for replication
-bool server_id_supplied = 0; // if we guessed server_id , we need to know
-// about it
+/* if we guessed server_id , we need to know about it */
+uint32 server_id = 0;
+bool server_id_supplied = 0;
+
 uint mysql_port;
 uint test_flags, select_errors=0, dropping_tables=0,ha_open_options=0;
 uint volatile thread_count=0, thread_running=0, kill_cached_threads=0,

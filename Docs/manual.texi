@@ -268,7 +268,7 @@ System-specific Issues
 * HP-UX 10.20::                 HP-UX 10.20 notes
 * HP-UX 11.x::                  HP-UX 11.x notes
 * Mac OS X::                    Mac OS X notes
-* BEOS::                        
+* BEOS::                        BeOS Notes
 
 Linux Notes (All Linux Versions)
 
@@ -279,7 +279,7 @@ Linux Notes (All Linux Versions)
 * Linux-Alpha::                 Linux-Alpha notes
 * MKLinux::                     MkLinux notes
 * Qube2::                       Qube2 Linux notes
-* Linux-Ia64::                  
+* Linux-Ia64::                  Linux-Ia64 notes
 
 BSD/OS Notes
 
@@ -510,7 +510,7 @@ Examples of Common Queries
 * example-Maximum-row::         The row holding the maximum of a certain column
 * example-Maximum-column-group::  Maximum of column per group
 * example-Maximum-column-group-row::  The rows holding the group-wise maximum of a certain field
-* example-user-variables::      
+* example-user-variables::      Using user variables
 * example-Foreign keys::        Using foreign keys
 
 Creating and Using a Database
@@ -594,7 +594,7 @@ Speed of Queries that Access or Update Data
 * Estimating performance::      Estimating query performance
 * SELECT speed::                Speed of @code{SELECT} queries
 * Where optimizations::         How MySQL optimizes @code{WHERE} clauses
-* DISTINCT optimization::       
+* DISTINCT optimization::       How MySQL Optimizes @code{DISTINCT}
 * LEFT JOIN optimization::      How MySQL optimizes @code{LEFT JOIN}
 * LIMIT optimization::          How MySQL optimizes @code{LIMIT}
 * Insert speed::                Speed of @code{INSERT} queries
@@ -604,7 +604,7 @@ Speed of Queries that Access or Update Data
 MySQL Utilites
 
 * Programs::                    What do the executables do?
-* safe_mysqld::                 
+* safe_mysqld::                 safe_mysqld, the wrapper around mysqld
 * mysqld_multi::                Program for managing multiple @strong{MySQL} servers
 * mysql::                       The command line tool
 * mysqladmin::                  Administering a @strong{MySQL} server
@@ -705,7 +705,7 @@ Some Common Errors When Using MySQL
 * Packet too large::            @code{Packet too large} error
 * Communication errors::        Communication errors / Aborted connection
 * Full table::                  @code{The table is full} error
-* Cannot create::               
+* Cannot create::               @code{Can't create/write to file} Error
 * Commands out of sync::        @code{Commands out of sync} error in client
 * Ignoring user::               @code{Ignoring user} error
 * Cannot find table::           @code{Table 'xxx' doesn't exist} error
@@ -715,7 +715,7 @@ Solving Some Common Problems with MySQL
 * Log Replication::             Database replication with  update log
 * Backup::                      Database backups
 * Update log::                  The update log
-* Binary log::                  
+* Binary log::                  The binary log
 * Slow query log::              Log of slow queries
 * Multiple servers::            Running multiple @strong{MySQL} servers on the same machine
 
@@ -831,15 +831,20 @@ Credits
 
 MySQL change history
 
+* News-4.0.x::                  Changes in release 4.0 (development release)
 * News-3.23.x::                 Changes in release 3.23.x (Recommended; Gamma)
 * News-3.22.x::                 Changes in release 3.22.x (Still supported)
 * News-3.21.x::                 Changes in release 3.21.x
 * News-3.20.x::                 Changes in release 3.20.x
 * News-3.19.x::                 Changes in release 3.19.x
 
+Changes in release 4.0 (Alpha)
+
+* News-4.0.0::                  Changes in release 4.0.0
+
 Changes in release 3.23.x  (Recommended; Gamma)
 
-* News-3.23.30::                
+* News-3.23.30::                Changes in release 3.23.30
 * News-3.23.29::                Changes in release 3.23.29
 * News-3.23.28::                Changes in release 3.23.28
 * News-3.23.27::                Changes in release 3.23.27
@@ -983,7 +988,7 @@ Comments on porting to other systems
 * Debugging server::            Debugging a @strong{MySQL} server
 * Debugging client::            Debugging a @strong{MySQL} client
 * The DBUG package::            The DBUG package
-* Locking methods::             
+* Locking methods::             Locking methods
 * RTS-threads::                 Comments about RTS threads
 * Thread packages::             Differences between different thread packages
 
@@ -6557,7 +6562,7 @@ distribution.
 * HP-UX 10.20::                 HP-UX 10.20 notes
 * HP-UX 11.x::                  HP-UX 11.x notes
 * Mac OS X::                    Mac OS X notes
-* BEOS::                        
+* BEOS::                        BeOS Notes
 @end menu
 
 
@@ -7004,7 +7009,7 @@ CC=fcc CFLAGS="-O -K fast -K lib -K omitfp -Kpreex -D_GNU_SOURCE -DCONST=const -
 * Linux-Alpha::                 Linux-Alpha notes
 * MKLinux::                     MkLinux notes
 * Qube2::                       Qube2 Linux notes
-* Linux-Ia64::                  
+* Linux-Ia64::                  Linux-Ia64 notes
 @end menu
 
 @node Linux-x86, Linux-RedHat50, Linux, Linux
@@ -13416,6 +13421,10 @@ the @code{FLOAT} and @code{DOUBLE} types described immediately below.
 In @strong{MySQL} Version 3.23, this is a true floating-point value.  In
 earlier @strong{MySQL} versions, @code{FLOAT(precision)} always has 2 decimals.
 
+Note that using @code{FLOAT} may give you some unexpected problems as
+all calculation in @code{MySQL} is done with double precision.
+@xref{No matching rows}.
+
 @cindex ODBC compatibility
 @cindex compatibility, with ODBC
 This syntax is provided for ODBC compatibility.
@@ -13455,17 +13464,18 @@ These are synonyms for @code{DOUBLE}.
 
 An unpacked floating-point number.  Cannot be unsigned.  Behaves like a
 @code{CHAR} column: ``unpacked'' means the number is stored as a string,
-using one character for each digit of the value.  The decimal point
-and, for negative numbers, the @samp{-} sign, are not counted in M.  If
-@code{D} is 0, values will have no decimal point or fractional part.
-The maximum range of @code{DECIMAL} values is the same as for
-@code{DOUBLE}, but the actual range for a given @code{DECIMAL} column
-may be constrained by the choice of @code{M} and @code{D}.
+using one character for each digit of the value.  The decimal point and,
+for negative numbers, the @samp{-} sign, are not counted in M (but space
+for these are reserved). If @code{D} is 0, values will have no decimal
+point or fractional part.  The maximum range of @code{DECIMAL} values is
+the same as for @code{DOUBLE}, but the actual range for a given
+@code{DECIMAL} column may be constrained by the choice of @code{M} and
+@code{D}.
 
 If @code{D} is left out it's set to 0. If @code{M} is left out it's set to 10.
 
-Note that in @strong{MySQL} Version 3.22 the @code{M} argument includes the
-sign and the decimal point.
+Note that in @strong{MySQL} Version 3.22 the @code{M} argument had to
+includes the space needed for the sign and the decimal point.
 
 @tindex NUMERIC
 @item NUMERIC(M,D) [ZEROFILL]
@@ -13478,7 +13488,7 @@ This is a synonym for @code{DECIMAL}.
 A date.  The supported range is @code{'1000-01-01'} to @code{'9999-12-31'}.
 @strong{MySQL} displays @code{DATE} values in @code{'YYYY-MM-DD'} format, but
 allows you to assign values to @code{DATE} columns using either strings or
-numbers.
+numbers. @xref{DATETIME}.
 
 @tindex DATETIME
 @item DATETIME
@@ -13487,6 +13497,7 @@ A date and time combination.  The supported range is @code{'1000-01-01
 00:00:00'} to @code{'9999-12-31 23:59:59'}.  @strong{MySQL} displays
 @code{DATETIME} values in @code{'YYYY-MM-DD HH:MM:SS'} format, but allows you
 to assign values to @code{DATETIME} columns using either strings or numbers.
+@xref{DATETIME}.
 
 @tindex TIMESTAMP
 @item TIMESTAMP[(M)]
@@ -13510,6 +13521,7 @@ Note that @code{TIMESTAMP(X)} columns where X is 8 or 14 are reported to
 be numbers while other @code{TIMESTAMP(X)} columns are reported to be
 strings.  This is just to ensure that one can reliably dump and restore
 the table with these types!
+@xref{DATETIME}.
 
 @tindex TIME
 @item TIME
@@ -13517,7 +13529,7 @@ the table with these types!
 A time.  The range is @code{'-838:59:59'} to @code{'838:59:59'}.
 @strong{MySQL} displays @code{TIME} values in @code{'HH:MM:SS'} format, but
 allows you to assign values to @code{TIME} columns using either strings or
-numbers.
+numbers. @xref{TIME}.
 
 @tindex YEAR
 @item YEAR[(2|4)]
@@ -13527,7 +13539,7 @@ are @code{1901} to @code{2155}, @code{0000} in the 4-digit year format,
 and 1970-2069 if you use the 2-digit format (70-69).  @strong{MySQL} displays
 @code{YEAR} values in @code{YYYY} format, but allows you to assign values to
 @code{YEAR} columns using either strings or numbers. (The @code{YEAR} type is
-new in @strong{MySQL} Version 3.22.)
+new in @strong{MySQL} Version 3.22.). @xref{YEAR}.
 
 @tindex NATIONAL CHAR
 @tindex NCHAR
@@ -13553,7 +13565,7 @@ some old applications that depend on the existence of a column but that do not
 actually use the value.  This is also quite nice when you need a
 column that only can take 2 values: A @code{CHAR(0)}, that is not defined
 as @code{NOT NULL}, will only occupy one bit and can only take 2 values:
-@code{NULL} or @code{""}.
+@code{NULL} or @code{""}. @xref{CHAR}.
 
 @tindex CHARACTER VARYING
 @tindex CHAR VARYING
@@ -13567,6 +13579,7 @@ compared in case-insensitive fashion unless the @code{BINARY} keyword is
 given. @xref{Silent column changes}.
 
 @code{VARCHAR} is a shorthand for @code{CHARACTER VARYING}.
+@xref{CHAR}.
 
 @tindex TINYBLOB
 @tindex TINYTEXT
@@ -13574,7 +13587,7 @@ given. @xref{Silent column changes}.
 @itemx TINYTEXT
 
 A @code{BLOB} or @code{TEXT} column with a maximum length of 255 (2^8 - 1)
-characters. @xref{Silent column changes}.
+characters. @xref{Silent column changes}. @xref{BLOB}.
 
 @tindex BLOB
 @tindex TEXT
@@ -13582,7 +13595,7 @@ characters. @xref{Silent column changes}.
 @itemx TEXT
 
 A @code{BLOB} or @code{TEXT} column with a maximum length of 65535 (2^16 - 1)
-characters. @xref{Silent column changes}.
+characters. @xref{Silent column changes}. @xref{BLOB}.
 
 @tindex MEDIUMBLOB
 @tindex MEDIUMTEXT
@@ -13590,7 +13603,7 @@ characters. @xref{Silent column changes}.
 @itemx MEDIUMTEXT
 
 A @code{BLOB} or @code{TEXT} column with a maximum length of 16777215
-(2^24 - 1) characters. @xref{Silent column changes}.
+(2^24 - 1) characters. @xref{Silent column changes}. @xref{BLOB}.
 
 @tindex LONGBLOB
 @tindex LONGTEXT
@@ -13601,22 +13614,22 @@ A @code{BLOB} or @code{TEXT} column with a maximum length of 4294967295
 (2^32 - 1) characters. @xref{Silent column changes}.  Note that because
 the server/client protocol and MyISAM tables has currently a limit of
 16M per communication packet / table row, you can't yet use this
-the whole range of this type.
+the whole range of this type. @xref{BLOB}.
 
 @tindex ENUM
 @item ENUM('value1','value2',...)
 
-An enumeration.
-A string object that can have only one value, chosen from the list of values
-@code{'value1'}, @code{'value2'}, @code{...}, or @code{NULL}.  An @code{ENUM}
-can have a maximum of 65535 distinct values.
+An enumeration.  A string object that can have only one value, chosen
+from the list of values @code{'value1'}, @code{'value2'}, @code{...},
+@code{NULL} or the special @code{""} error value.  An @code{ENUM} can
+have a maximum of 65535 distinct values. @xref{ENUM}.
 
 @tindex SET
 @item SET('value1','value2',...)
 
 A set.  A string object that can have zero or more values, each of which must
 be chosen from the list of values @code{'value1'}, @code{'value2'},
-@code{...} A @code{SET} can have a maximum of 64 members.
+@code{...} A @code{SET} can have a maximum of 64 members. @xref{SET}.
 @end table
 
 @menu
@@ -13640,7 +13653,7 @@ The storage requirements for each of the column types supported by
 
 @cindex numeric types
 @cindex types, numeric
-@subheading Numeric types
+@subheading Storage requirements for numeric types
 
 @multitable @columnfractions .5 .5
 @item @strong{Column type} @tab @strong{Storage required}
@@ -13655,15 +13668,15 @@ The storage requirements for each of the column types supported by
 @item @code{DOUBLE}        @tab 8 bytes
 @item @code{DOUBLE PRECISION} @tab 8 bytes
 @item @code{REAL}         @tab 8 bytes
-@item @code{DECIMAL(M,D)} @tab @code{M} bytes (@code{D}+2, if @code{M < D})
-@item @code{NUMERIC(M,D)} @tab @code{M} bytes (@code{D}+2, if @code{M < D})
+@item @code{DECIMAL(M,D)} @tab @code{M+2} bytes if D > 0, @code{M+1} bytes if D = 0 (@code{D}+2, if @code{M < D})
+@item @code{NUMERIC(M,D)} @tab @code{M+2} bytes if D > 0, @code{M+1} bytes if D = 0 (@code{D}+2, if @code{M < D})
 @end multitable
 
 @cindex date types
 @cindex time types
 @cindex types, date
 @cindex types, time
-@subheading Date and time types
+@subheading Storage requirements for date and time types
 
 @multitable @columnfractions .5 .5
 @item @strong{Column type} @tab @strong{Storage required}
@@ -13674,7 +13687,7 @@ The storage requirements for each of the column types supported by
 @item @code{YEAR}          @tab 1 byte
 @end multitable
 
-@subheading String types
+@subheading Storage requirements for string types
 
 @multitable @columnfractions .5 .5
 @item @strong{Column type} @tab @strong{Storage required}
@@ -13695,6 +13708,9 @@ the number of enumeration values (65535 values maximum)
 on the number of set members (64 members maximum)
 @end multitable
 
+@cindex BLOB, size
+@cindex TEXT, size
+@cindex VARCHAR, size
 @code{VARCHAR} and the @code{BLOB} and @code{TEXT} types are variable-length
 types, for which the storage requirements depend on the actual length of
 column values (represented by @code{L} in the preceding table), rather than
@@ -13706,21 +13722,24 @@ and the storage requirement is 5 bytes.
 
 The @code{BLOB} and @code{TEXT} types require 1, 2, 3, or 4 bytes to record
 the length of the column value, depending on the maximum possible length of
-the type.
+the type.  @xref{BLOB}.
 
 If a table includes any variable-length column types, the record format will
 also be variable-length.  Note that when a table is created, @strong{MySQL}
 may, under certain conditions, change a column from a variable-length type to a
 fixed-length type, or vice-versa.  @xref{Silent column changes}.
 
-The size of an @code{ENUM} object is determined by the number of different
-enumeration values.  One byte is used for enumerations with up to 255 possible
-values.  Two bytes are used for enumerations with up to 65535 values.
+@cindex ENUM, size
+The size of an @code{ENUM} object is determined by the number of
+different enumeration values.  One byte is used for enumerations with up
+to 255 possible values.  Two bytes are used for enumerations with up to
+65535 values. @xref{ENUM}.
 
+@cindex SET, size
 The size of a @code{SET} object is determined by the number of different
 set members.  If the set size is @code{N}, the object occupies @code{(N+7)/8}
 bytes, rounded up to 1, 2, 3, 4, or 8 bytes.  A @code{SET} can have a maximum
-of 64 members.
+of 64 members. @xref{SET}.
 
 @node Numeric types, Date and time types, Storage requirements, Column types
 @subsection Numeric Types
@@ -18535,11 +18554,26 @@ keys that compress very good.
 
 @example
 DELETE [LOW_PRIORITY] FROM tbl_name
-    [WHERE where_definition] [LIMIT rows]
+    [WHERE where_definition]
+@c    [ORDER BY ...]
+    [LIMIT rows]
 @end example
 
 @code{DELETE} deletes rows from @code{tbl_name} that satisfy the condition
 given by @code{where_definition}, and returns the number of records deleted.
+
+@c If an @code{ORDER BY} clause is used, the rows will be deleted in that order.
+@c This is really only useful in conjunction with @code{LIMIT}.  For example:
+
+@c @example
+@c DELETE FROM somelog
+@c WHERE user = 'jcole'
+@c ORDER BY timestamp
+@c LIMIT 1
+@c @end example
+
+@c This will delete the oldest entry (by @code{timestamp}) where the row matches
+@c the @code{WHERE} clause.
 
 If you issue a @code{DELETE} with no @code{WHERE} clause, all rows are
 deleted.  If you do this in @code{AUTOCOMMIT} mode, this works as
@@ -19728,14 +19762,19 @@ For more information about the efficiency of @code{INSERT} versus
 @section @code{UPDATE} Syntax
 
 @example
-UPDATE [LOW_PRIORITY] [IGNORE] tbl_name SET col_name1=expr1,col_name2=expr2,...
-    [WHERE where_definition] [LIMIT #]
+UPDATE [LOW_PRIORITY] [IGNORE] tbl_name
+    SET col_name1=expr1, [col_name2=expr2, ...]
+    [WHERE where_definition]
+    [ORDER BY ...]
+    [LIMIT #]
 @end example
 
-@code{UPDATE} updates columns in existing table rows with new values.  The
-@code{SET} clause indicates which columns to modify and the values they
-should be given.  The @code{WHERE} clause, if given, specifies which rows
-should be updated.  Otherwise all rows are updated.
+@code{UPDATE} updates columns in existing table rows with new values.
+The @code{SET} clause indicates which columns to modify and the values
+they should be given.  The @code{WHERE} clause, if given, specifies
+which rows should be updated.  Otherwise all rows are updated. If the
+@code{ORDER BY} clause is specified, the rows will be updated in the
+order that is specified.
 
 If you specify the keyword @code{LOW_PRIORITY}, execution of the
 @code{UPDATE} is delayed until no other clients are reading from the table.
@@ -20642,7 +20681,6 @@ file can be removed, or @code{IN USE} if the file is needed by the transaction
 subsystem)
 @end itemize
 
-
 @cindex threads, display
 @cindex processes, display
 @findex threads
@@ -21109,7 +21147,7 @@ a @code{COMMIT} before executing the command):
 @multitable @columnfractions .33 .33 .33
 @item @code{ALTER TABLE} @tab @code{BEGIN} @tab @code{CREATE INDEX}
 @item @code{DROP DATABASE} @tab @code{DROP TABLE} @tab @code{RENAME TABLE}
-@item @code{TRUNCATE} 
+@item @code{TRUNCATE}
 @end multitable
 
 @findex LOCK TABLES
@@ -23123,7 +23161,7 @@ SELECT * FROM shop
 * example-Maximum-row::         The row holding the maximum of a certain column
 * example-Maximum-column-group::  Maximum of column per group
 * example-Maximum-column-group-row::  The rows holding the group-wise maximum of a certain field
-* example-user-variables::      
+* example-user-variables::      Using user variables
 * example-Foreign keys::        Using foreign keys
 @end menu
 
@@ -24704,7 +24742,6 @@ each column reference is associated with.
 @findex DESCRIBE
 @node Getting information, Batch mode, Database use, Tutorial
 @section Getting Information About Databases and Tables
-
 
 What if you forget the name of a database or table, or what the structure of
 a given table is (for example, what its columns are called)?  @strong{MySQL}
@@ -27204,7 +27241,7 @@ great tool to find out if this is a problem with your query.
 * Estimating performance::      Estimating query performance
 * SELECT speed::                Speed of @code{SELECT} queries
 * Where optimizations::         How MySQL optimizes @code{WHERE} clauses
-* DISTINCT optimization::       
+* DISTINCT optimization::       How MySQL Optimizes @code{DISTINCT}
 * LEFT JOIN optimization::      How MySQL optimizes @code{LEFT JOIN}
 * LIMIT optimization::          How MySQL optimizes @code{LIMIT}
 * Insert speed::                Speed of @code{INSERT} queries
@@ -28151,7 +28188,7 @@ How big a @code{VARCHAR} column can be
 
 @menu
 * Programs::                    What do the executables do?
-* safe_mysqld::                 
+* safe_mysqld::                 safe_mysqld, the wrapper around mysqld
 * mysqld_multi::                Program for managing multiple @strong{MySQL} servers
 * mysql::                       The command line tool
 * mysqladmin::                  Administering a @strong{MySQL} server
@@ -28417,7 +28454,7 @@ list. Anything after a white space are ignored.
 
 @table @code
 @cindex config-file option
-@item --config-file=...  
+@item --config-file=...
 Alternative config file. NOTE: This will not affect this program's own
 options (group @code{[mysqld_multi]}), but only groups
 [mysqld#]. Without this option everything will be searched from the
@@ -32436,7 +32473,7 @@ sure that no other programs are using the dynamic libraries!
 * Packet too large::            @code{Packet too large} error
 * Communication errors::        Communication errors / Aborted connection
 * Full table::                  @code{The table is full} error
-* Cannot create::               
+* Cannot create::               @code{Can't create/write to file} Error
 * Commands out of sync::        @code{Commands out of sync} error in client
 * Ignoring user::               @code{Ignoring user} error
 * Cannot find table::           @code{Table 'xxx' doesn't exist} error
@@ -33536,7 +33573,7 @@ Drop or rename @code{old_table}.
 * Log Replication::             Database replication with  update log
 * Backup::                      Database backups
 * Update log::                  The update log
-* Binary log::                  
+* Binary log::                  The binary log
 * Slow query log::              Log of slow queries
 * Multiple servers::            Running multiple @strong{MySQL} servers on the same machine
 @end menu
@@ -37942,8 +37979,13 @@ Since Version 3.23.23, @strong{MySQL} has support for full-text indexing
 and searching. Full-text index in @strong{MySQL} is an
 index of type @code{FULLTEXT}. @code{FULLTEXT} indexes can be created from
 @code{VARCHAR} and @code{TEXT} columns at @code{CREATE TABLE} time or added
-later with @code{ALTER TABLE} or @code{CREATE INDEX}. Full-text search is
-performed with the @code{MATCH} function:
+later with @code{ALTER TABLE} or @code{CREATE INDEX}. For big datasets,
+adding @code{FULLTEXT} index with @code{ALTER TABLE}
+(or @code{CREATE INDEX}) would be much faster, than inserting rows into
+the empty table with @code{FULLTEXT} index.
+
+Full-text search is
+performed with the @code{MATCH} function.
 
 @example
 mysql> CREATE TABLE t (a VARCHAR(200), b TEXT, FULLTEXT (a,b));
@@ -39765,6 +39807,7 @@ find on the
 this means that the version has not yet been released!
 
 @menu
+* News-4.0.x::                  Changes in release 4.0 (development version)
 * News-3.23.x::                 Changes in release 3.23.x (Recommended; Gamma)
 * News-3.22.x::                 Changes in release 3.22.x (Still supported)
 * News-3.21.x::                 Changes in release 3.21.x
@@ -39772,7 +39815,26 @@ this means that the version has not yet been released!
 * News-3.19.x::                 Changes in release 3.19.x
 @end menu
 
-@node News-3.23.x, News-3.22.x, News, News
+@node News-4.0.x, News-3.23.x, News, News
+@appendixsec Changes in release 4.0 (Alpha)
+
+We have now started to work on MySQL 4.0.  We will update this section
+as we add new features so that other can follow our development.
+Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
+
+@menu
+* News-4.0.0::                  Changes in release 4.0
+@end menu
+
+@node News-4.0.0,  , News-4.0.x, News-4.0.x
+@appendixsubsec Changes in release 4.0
+
+@itemize @bullet
+@item
+Added @code{ORDER BY} to @code{DELETE}.
+@end itemize
+
+@node News-3.23.x, News-3.22.x, News-4.0.x, News
 @appendixsec Changes in release 3.23.x  (Recommended; Gamma)
 
 The 3.23 release has several major new features that are not
@@ -44541,11 +44603,14 @@ tell us what you want to have done more quickly. @xref{Licensing and Support}.
 @node TODO MySQL 4.0, TODO future, TODO, TODO
 @appendixsec Things that should be in 4.0
 
-We plan to make @strong{MySQL} Version 4.0 a 'quick' release where we only 
+We plan to make @strong{MySQL} Version 4.0 a 'quick' release where we only
 add some new stuff to enable others to help us with developing new features
 into Version 4.1.  The @strong{MySQL} 4.0 version should only take us about
 a month to make after which we want to stabilize it and start working on
 Version 4.1.  Version 4.0 should have the following new features:
+
+The news section for 4.0 includes a list of the features we have already
+implemented in the 4.0 tree. @xref{News-4.0.x}.
 
 @itemize @bullet
 @item
@@ -44570,6 +44635,9 @@ The @code{mysqld} will support all standard @strong{MySQL} features and
 one can use it in a threaded client to run different queries in each
 thread.
 @item
+@code{SHOW DATABASE} should only show the database which you have some kind
+of access privilege to.
+@item
 Online backup with very low performance penalty.  The online backup will
 make it easy to add a new replication slave without taking down the
 master.
@@ -44577,7 +44645,7 @@ master.
 @code{DELETE FROM table_name} will return the number of deleted rows. For
 fast execution one should use @code{TRUNCATE table_name}.
 @item
-Multi-table @code{DELETE} (cascading @code{DELETE} and multi-table 
+Multi-table @code{DELETE} (cascading @code{DELETE} and multi-table
 @code{DELETE}.
 @item
 Better replication.
@@ -44605,14 +44673,14 @@ New key cache
 @item
 Fail safe replication.
 @item
-Subqueries. 
+Subqueries.
 @code{select id from t where grp in (select grp from g where u > 100)}
 @item
 @code{INSERT SQL_CONCURRENT ...};  This will force the insert to happen at the
 end of the data file if the table is in use by an select to allow
 concurrent inserts.
 @item
-Don't allow more than a defined number of threads to run MyISAM recover 
+Don't allow more than a defined number of threads to run MyISAM recover
 at the same time.
 @item
 Change @code{INSERT ... SELECT} to use concurrent inserts.
@@ -44999,7 +45067,7 @@ will ensure that your thread installation has even a remote chance to work!
 * Debugging server::            Debugging a @strong{MySQL} server
 * Debugging client::            Debugging a @strong{MySQL} client
 * The DBUG package::            The DBUG package
-* Locking methods::             
+* Locking methods::             Locking methods
 * RTS-threads::                 Comments about RTS threads
 * Thread packages::             Differences between different thread packages
 @end menu
