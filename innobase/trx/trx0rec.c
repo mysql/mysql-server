@@ -329,7 +329,7 @@ trx_undo_rec_get_pars(
 
 /**************************************************************************
 Reads from an undo log record a stored column value. */
-UNIV_INLINE
+static
 byte*
 trx_undo_rec_get_col_val(
 /*=====================*/
@@ -374,13 +374,14 @@ trx_undo_rec_get_row_ref(
 	mem_heap_t*	heap)	/* in: memory heap from which the memory
 				needed is allocated */
 {
-	ulint		i;
 	dfield_t*	dfield;
 	byte*		field;
 	ulint		len;
 	ulint		ref_len;
+	ulint		i;
 	
 	ut_ad(index && ptr && ref && heap);
+	ut_a(index->type & DICT_CLUSTERED);
 	
 	ref_len = dict_index_get_n_unique(index);
 
@@ -411,12 +412,13 @@ trx_undo_rec_skip_row_ref(
 				record, at the start of the row reference */
 	dict_index_t*	index)	/* in: clustered index */
 {
-	ulint		i;
-	byte*		field;
-	ulint		len;
-	ulint		ref_len;
+	byte*	field;
+	ulint	len;
+	ulint	ref_len;
+	ulint	i;
 	
 	ut_ad(index && ptr);
+	ut_a(index->type & DICT_CLUSTERED);
 	
 	ref_len = dict_index_get_n_unique(index);
 
@@ -468,7 +470,7 @@ trx_undo_page_report_modify(
 	byte*		type_cmpl_ptr;
 	ulint		i;
 	
-	ut_ad(index->type & DICT_CLUSTERED);
+	ut_a(index->type & DICT_CLUSTERED);
 	ut_ad(mach_read_from_2(undo_page + TRX_UNDO_PAGE_HDR
 				+ TRX_UNDO_PAGE_TYPE) == TRX_UNDO_UPDATE);
 	table = index->table;
@@ -603,7 +605,7 @@ trx_undo_page_report_modify(
 			/* Notify purge that it eventually has to free the old
 			externally stored field */
 			
-			(trx->update_undo)->del_marks = TRUE;
+			trx->update_undo->del_marks = TRUE;
 
 			*type_cmpl_ptr = *type_cmpl_ptr | TRX_UNDO_UPD_EXTERN;
 		} else {
@@ -634,7 +636,7 @@ trx_undo_page_report_modify(
 
 	if (!update || !(cmpl_info & UPD_NODE_NO_ORD_CHANGE)) {	    
 
-	    (trx->update_undo)->del_marks = TRUE;
+	    trx->update_undo->del_marks = TRUE;
 
 	    if (trx_undo_left(undo_page, ptr) < 5) {
 
@@ -787,7 +789,9 @@ Builds an update vector based on a remaining part of an undo log record. */
 byte*
 trx_undo_update_rec_get_update(
 /*===========================*/
-				/* out: remaining part of the record */
+				/* out: remaining part of the record,
+				NULL if an error detected, which means that
+				the record is corrupted */
 	byte*		ptr,	/* in: remaining part in update undo log
 				record, after reading the row reference
 				NOTE that this copy of the undo log record must
@@ -816,6 +820,8 @@ trx_undo_update_rec_get_update(
 	ulint		field_no;
 	ulint		i;
 	
+	ut_a(index->type & DICT_CLUSTERED);
+
 	if (type != TRX_UNDO_DEL_MARK_REC) {
 		ptr = trx_undo_update_rec_get_n_upd_fields(ptr, &n_fields);
 	} else {
@@ -846,11 +852,28 @@ trx_undo_update_rec_get_update(
 									index);
 	dfield_set_data(&(upd_field->new_val), buf, DATA_ROLL_PTR_LEN);
 	
-	/* Store then the updated ordinary columns to update vector */
+	/* Store then the updated ordinary columns to the update vector */
 
 	for (i = 0; i < n_fields; i++) {
 
 		ptr = trx_undo_update_rec_get_field_no(ptr, &field_no);
+
+		if (field_no >= dict_index_get_n_fields(index)) {
+			fprintf(stderr,
+   "InnoDB: Error: trying to access update undo rec field %lu in table %s\n"
+   "InnoDB: index %s, but index has only %lu fields\n",
+			field_no, index->table_name, index->name,
+			dict_index_get_n_fields(index));
+  			fprintf(stderr,
+   "InnoDB: Send a detailed bug report to mysql@lists.mysql.com");
+   
+  			fprintf(stderr,
+   "InnoDB: Run also CHECK TABLE on table %s\n", index->table_name);
+  			fprintf(stderr,
+   "InnoDB: n_fields = %lu, i = %lu, ptr %lx\n", n_fields, i, (ulint)ptr);
+			return(NULL);
+		}
+
 		ptr = trx_undo_rec_get_col_val(ptr, &field, &len);
 
 		upd_field = upd_get_nth_field(update, i);
@@ -1005,7 +1028,7 @@ trx_undo_report_row_operation(
 					the update vector, otherwise NULL */
 	ulint		cmpl_info,	/* in: compiler info on secondary
 					index updates */
-	rec_t*		rec,		/* in: case of an update or delete
+	rec_t*		rec,		/* in: in case of an update or delete
 					marking, the record in the clustered
 					index, otherwise NULL */
 	dulint*		roll_ptr)	/* out: rollback pointer to the
@@ -1017,11 +1040,13 @@ trx_undo_report_row_operation(
 	trx_undo_t*	undo;
 	page_t*		undo_page;
 	ulint		offset;
-	mtr_t		mtr;
 	ulint		page_no;
 	ibool		is_insert;
 	trx_rseg_t*	rseg;
+	mtr_t		mtr;
 	
+	ut_a(index->type & DICT_CLUSTERED);
+
 	if (flags & BTR_NO_UNDO_LOG_FLAG) {
 
 		*roll_ptr = ut_dulint_zero;
@@ -1030,7 +1055,7 @@ trx_undo_report_row_operation(
 	}
 		
 	ut_ad(thr);
-	ut_ad(index->type & DICT_CLUSTERED);
+	ut_a(index->type & DICT_CLUSTERED);
 	ut_ad((op_type != TRX_UNDO_INSERT_OP)
 	      || (clust_entry && !update && !rec));
 	
@@ -1165,6 +1190,7 @@ trx_undo_get_undo_rec_low(
 	dulint		roll_ptr,	/* in: roll pointer to record */
 	mem_heap_t*	heap)		/* in: memory heap where copied */
 {
+	trx_undo_rec_t*	undo_rec;
 	ulint		rseg_id;
 	ulint		page_no;
 	ulint		offset;
@@ -1172,7 +1198,6 @@ trx_undo_get_undo_rec_low(
 	trx_rseg_t*	rseg;
 	ibool		is_insert;
 	mtr_t		mtr;
-	trx_undo_rec_t*	undo_rec;
 	
 	trx_undo_decode_roll_ptr(roll_ptr, &is_insert, &rseg_id, &page_no,
 								&offset);
@@ -1234,7 +1259,8 @@ trx_undo_prev_version_build(
 /*========================*/
 				/* out: DB_SUCCESS, or DB_MISSING_HISTORY if
 				the previous version is not >= purge_view,
-				which means that it may have been removed */
+				which means that it may have been removed,
+				DB_ERROR if corrupted record */
 	rec_t*		index_rec,/* in: clustered index record in the
 				index tree */
 	mtr_t*		index_mtr,/* in: mtr which contains the latch to
@@ -1255,6 +1281,7 @@ trx_undo_prev_version_build(
 	dulint		table_id;
 	dulint		trx_id;
 	dulint		roll_ptr;
+	dulint		old_roll_ptr;
 	upd_t*		update;
 	byte*		ptr;
 	ulint		info_bits;
@@ -1263,19 +1290,38 @@ trx_undo_prev_version_build(
 	byte*		buf;
 	ulint		err;
 	ulint		i;
+	char		err_buf[1000];
 
 	ut_ad(rw_lock_own(&(purge_sys->latch), RW_LOCK_SHARED));
 	ut_ad(mtr_memo_contains(index_mtr, buf_block_align(index_rec), 
 						MTR_MEMO_PAGE_S_FIX) ||
 	      mtr_memo_contains(index_mtr, buf_block_align(index_rec), 
 						MTR_MEMO_PAGE_X_FIX));
+	if (!(index->type & DICT_CLUSTERED)) {
+		fprintf(stderr,
+   	"InnoDB: Error: trying to access update undo rec for table %s\n"
+   	"InnoDB: index %s which is not a clustered index\n",
+			index->table_name, index->name);
+  		fprintf(stderr,
+   	"InnoDB: Send a detailed bug report to mysql@lists.mysql.com");
+
+		rec_sprintf(err_buf, 900, index_rec);
+		fprintf(stderr, "InnoDB: index record %s\n", err_buf);
+
+		rec_sprintf(err_buf, 900, rec);
+		fprintf(stderr, "InnoDB: record version %s\n", err_buf);
+
+   		return(DB_ERROR);
+   	}	
 
 	roll_ptr = row_get_rec_roll_ptr(rec, index);
+	old_roll_ptr = roll_ptr;
+	
+	*old_vers = NULL;
 
 	if (trx_undo_roll_ptr_is_insert(roll_ptr)) {
 
 		/* The record rec is the first inserted version */
-		*old_vers = NULL;
 
 		return(DB_SUCCESS);
 	}
@@ -1285,8 +1331,6 @@ trx_undo_prev_version_build(
 	err = trx_undo_get_undo_rec(roll_ptr, rec_trx_id, &undo_rec, heap);
 
 	if (err != DB_SUCCESS) {
-
-		*old_vers = NULL;
 
 		return(err);
 	}
@@ -1298,8 +1342,70 @@ trx_undo_prev_version_build(
 								&info_bits);
 	ptr = trx_undo_rec_skip_row_ref(ptr, index);
 
-	trx_undo_update_rec_get_update(ptr, index, type, trx_id, roll_ptr,
-						info_bits, heap, &update);
+	ptr = trx_undo_update_rec_get_update(ptr, index, type, trx_id,
+					roll_ptr, info_bits, heap, &update);
+
+	if (ut_dulint_cmp(table_id, index->table->id) != 0) {
+		ptr = NULL;
+
+		fprintf(stderr,
+   	"InnoDB: Error: trying to access update undo rec for table %s\n"
+   	"InnoDB: but the table id in the undo record is wrong\n",
+			index->table_name);
+  		fprintf(stderr,
+   	"InnoDB: Send a detailed bug report to mysql@lists.mysql.com\n");
+   
+  		fprintf(stderr,
+   	"InnoDB: Run also CHECK TABLE on table %s\n", index->table_name);
+	}
+
+	if (ptr == NULL) {
+		/* The record was corrupted, return an error; these printfs
+		should catch an elusive bug in row_vers_old_has_index_entry */
+
+		fprintf(stderr,
+			"InnoDB: Table name %s, index name %s, n_uniq %lu\n",
+			index->table_name, index->name,
+			dict_index_get_n_unique(index));
+		
+		fprintf(stderr,
+		"InnoDB: undo rec address %lx, type %lu cmpl_info %lu\n",
+					(ulint)undo_rec, type, cmpl_info);
+		fprintf(stderr,
+		"InnoDB: undo rec table id %lu %lu, index table id %lu %lu\n",
+			ut_dulint_get_high(table_id),
+			ut_dulint_get_low(table_id),
+			ut_dulint_get_high(index->table->id),
+			ut_dulint_get_low(index->table->id));
+		
+		ut_sprintf_buf(err_buf, undo_rec, 150);
+
+		fprintf(stderr, "InnoDB: dump of 150 bytes in undo rec: %s\n",
+								err_buf);
+		rec_sprintf(err_buf, 900, index_rec);
+		fprintf(stderr, "InnoDB: index record %s\n", err_buf);
+
+		rec_sprintf(err_buf, 900, rec);
+		fprintf(stderr, "InnoDB: record version %s\n", err_buf);
+
+		fprintf(stderr,
+	"InnoDB: Record trx id %lu %lu, update rec trx id %lu %lu\n",
+		 	ut_dulint_get_high(rec_trx_id),
+		 	ut_dulint_get_low(rec_trx_id),
+		 	ut_dulint_get_high(trx_id),
+		 	ut_dulint_get_low(trx_id));
+
+		fprintf(stderr,
+	"InnoDB: Roll ptr in rec %lu %lu, in update rec %lu %lu\n",
+		 	ut_dulint_get_high(old_roll_ptr),
+		 	ut_dulint_get_low(old_roll_ptr),
+		 	ut_dulint_get_high(roll_ptr),
+		 	ut_dulint_get_low(roll_ptr));
+		 
+		trx_purge_sys_print();
+		 
+		return(DB_ERROR);
+	}
 
 	if (row_upd_changes_field_size(rec, index, update)) {
 

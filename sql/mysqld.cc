@@ -2557,6 +2557,7 @@ enum options {
                OPT_INNODB_LOG_ARCH_DIR, 
                OPT_INNODB_LOG_ARCHIVE, 
                OPT_INNODB_FLUSH_LOG_AT_TRX_COMMIT, 
+               OPT_INNODB_FAST_SHUTDOWN, 
                OPT_INNODB_UNIX_FILE_FLUSH_METHOD,
                OPT_SAFE_SHOW_DB,
 	       OPT_GEMINI_SKIP, OPT_INNODB_SKIP,
@@ -2620,6 +2621,8 @@ static struct option long_options[] = {
      OPT_INNODB_LOG_ARCHIVE},
   {"innodb_flush_log_at_trx_commit", optional_argument, 0,
      OPT_INNODB_FLUSH_LOG_AT_TRX_COMMIT},
+  {"innodb_fast_shutdown", optional_argument, 0,
+     OPT_INNODB_FAST_SHUTDOWN},
   {"innodb_flush_method", required_argument, 0,
     OPT_INNODB_UNIX_FILE_FLUSH_METHOD},
 #endif
@@ -2782,6 +2785,10 @@ CHANGEABLE_VAR changeable_vars[] = {
   {"innodb_lock_wait_timeout",
      (long*) &innobase_lock_wait_timeout, 1024 * 1024 * 1024, 1,
 						1024 * 1024 * 1024, 0, 1},
+  {"innodb_thread_concurrency",
+     (long*) &innobase_thread_concurrency, 8, 1, 1000, 0, 1},
+  {"innodb_force_recovery",
+     (long*) &innobase_force_recovery, 0, 0, 6, 0, 1},
 #endif
   { "interactive_timeout",     (long*) &net_interactive_timeout,
       NET_WAIT_TIMEOUT, 1, 31*24*60*60, 0, 1 },
@@ -2910,7 +2917,10 @@ struct show_var_st init_vars[]= {
   {"innodb_data_file_path", (char*) &innobase_data_file_path,	    SHOW_CHAR_PTR},
   {"innodb_data_home_dir",  (char*) &innobase_data_home_dir,	    SHOW_CHAR_PTR},
   {"innodb_file_io_threads", (char*) &innobase_file_io_threads, SHOW_LONG },
+  {"innodb_force_recovery", (char*) &innobase_force_recovery, SHOW_LONG },
+  {"innodb_thread_concurrency", (char*) &innobase_thread_concurrency, SHOW_LONG },
   {"innodb_flush_log_at_trx_commit", (char*) &innobase_flush_log_at_trx_commit, SHOW_MY_BOOL},
+  {"innodb_fast_shutdown", (char*) &innobase_fast_shutdown, SHOW_MY_BOOL},
   {"innodb_flush_method",    (char*) &innobase_unix_file_flush_method, SHOW_CHAR_PTR},
   {"innodb_lock_wait_timeout", (char*) &innobase_lock_wait_timeout, SHOW_LONG },
   {"innodb_log_arch_dir",   (char*) &innobase_log_arch_dir, 	    SHOW_CHAR_PTR},
@@ -3816,6 +3826,8 @@ static void get_options(int argc,char **argv)
       break;
     case OPT_INNODB_FLUSH_LOG_AT_TRX_COMMIT:
       innobase_flush_log_at_trx_commit= optarg ? test(atoi(optarg)) : 1;
+    case OPT_INNODB_FAST_SHUTDOWN:
+      innobase_fast_shutdown= optarg ? test(atoi(optarg)) : 1;
       break;
     case OPT_INNODB_UNIX_FILE_FLUSH_METHOD:
       innobase_unix_file_flush_method=optarg;

@@ -53,6 +53,13 @@ read_view_sees_trx_id(
 				/* out: TRUE if sees */
 	read_view_t*	view,	/* in: read view */
 	dulint		trx_id);	/* in: trx id */
+/*************************************************************************
+Prints a read view to stderr. */
+
+void
+read_view_print(
+/*============*/
+	read_view_t*	view);	/* in: read view */
 
 
 /* Read view lists the trx ids of those transactions for which a consistent

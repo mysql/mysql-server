@@ -106,6 +106,10 @@ log. */
 #define OS_WIN95     2	
 #define OS_WINNT     3
 
+extern ulint	os_n_file_reads;
+extern ulint	os_n_file_writes;
+extern ulint	os_n_fsyncs;
+
 /***************************************************************************
 Gets the operating system version. Currently works only on Windows. */
 

@@ -63,7 +63,7 @@ class ha_innobase: public handler
 	uint		last_match_mode;/* match mode of the latest search:
 					ROW_SEL_EXACT, ROW_SEL_EXACT_PREFIX,
 					or undefined */
-
+	longlong	auto_inc_counter_for_this_stat;
 	ulong max_row_length(const byte *buf);
 
 	uint store_key_val_for_row(uint keynr, char* buff, const byte* record);
@@ -96,7 +96,10 @@ class ha_innobase: public handler
   	uint max_record_length() const { return HA_MAX_REC_LENGTH; }
   	uint max_keys()          const { return MAX_KEY; }
   	uint max_key_parts()     const { return MAX_REF_PARTS; }
-  	uint max_key_length()    const { return MAX_KEY_LENGTH; }
+				/* An InnoDB page must store >= 2 keys:
+				max key length is therefore set to 7000
+				bytes */
+  	uint max_key_length()    const { return 7000; }
   	bool fast_key_read()	 { return 1;}
   	bool has_transactions()  { return 1;}
 
@@ -161,11 +164,12 @@ extern long innobase_mirrored_log_groups, innobase_log_files_in_group;
 extern long innobase_log_file_size, innobase_log_buffer_size;
 extern long innobase_buffer_pool_size, innobase_additional_mem_pool_size;
 extern long innobase_file_io_threads, innobase_lock_wait_timeout;
+extern long innobase_force_recovery, innobase_thread_concurrency;
 extern char *innobase_data_home_dir, *innobase_data_file_path;
 extern char *innobase_log_group_home_dir, *innobase_log_arch_dir;
 extern char *innobase_unix_file_flush_method;
 extern bool innobase_flush_log_at_trx_commit, innobase_log_archive,
-		innobase_use_native_aio;
+            innobase_use_native_aio, innobase_fast_shutdown;
 
 extern TYPELIB innobase_lock_typelib;
 

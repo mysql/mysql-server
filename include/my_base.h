@@ -215,6 +215,9 @@ enum ha_base_keytype {
 #define HA_ERR_LOCK_TABLE_FULL   147
 #define HA_ERR_READ_ONLY_TRANSACTION 148 /* Updates not allowed */
 #define HA_ERR_LOCK_DEADLOCK	 149
+#define HA_ERR_CANNOT_ADD_FOREIGN 150    /* Cannot add a foreign key constr. */
+#define HA_ERR_NO_REFERENCED_ROW 151     /* Cannot add a child row */
+#define HA_ERR_ROW_IS_REFERENCED 152     /* Cannot delete a parent row */
 
 	/* Other constants */
 

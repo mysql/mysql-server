@@ -63,6 +63,45 @@ Assuming a page size of 8 kB, a typical index page of a secondary
 index contains 300 index entries, and the size of the page directory
 is 50 x 4 bytes = 200 bytes. */
 
+/******************************************************************
+Used to check the consistency of a directory slot. */
+static
+ibool
+page_dir_slot_check(
+/*================*/
+					/* out: TRUE if succeed */
+	page_dir_slot_t*	slot)	/* in: slot */
+{
+	page_t*	page;
+	ulint	n_slots;
+	ulint	n_owned;
+
+	ut_a(slot);
+
+	page = buf_frame_align(slot);
+
+	n_slots = page_header_get_field(page, PAGE_N_DIR_SLOTS);
+
+	ut_a(slot <= page_dir_get_nth_slot(page, 0));
+	ut_a(slot >= page_dir_get_nth_slot(page, n_slots - 1));
+
+	ut_a(page_rec_check(page + mach_read_from_2(slot)));
+
+	n_owned = rec_get_n_owned(page + mach_read_from_2(slot));
+
+	if (slot == page_dir_get_nth_slot(page, 0)) {
+		ut_a(n_owned == 1);
+	} else if (slot == page_dir_get_nth_slot(page, n_slots - 1)) {
+		ut_a(n_owned >= 1);
+		ut_a(n_owned <= PAGE_DIR_SLOT_MAX_N_OWNED);
+	} else {
+		ut_a(n_owned >= PAGE_DIR_SLOT_MIN_N_OWNED);
+		ut_a(n_owned <= PAGE_DIR_SLOT_MAX_N_OWNED);
+	}
+
+	return(TRUE);
+}
+
 /*****************************************************************
 Sets the max trx id field value. */
 
@@ -1228,7 +1267,6 @@ page_validate(
 	mem_heap_t*	heap;
 	page_cur_t 	cur;
 	byte*		buf;
-	ulint		i;
 	ulint		count;
 	ulint		own_count;
 	ulint		slot_no;
@@ -1238,6 +1276,8 @@ page_validate(
 	ulint		offs;
 	ulint		n_slots;
 	ibool		ret	= FALSE;
+	ulint		i;
+	char           	err_buf[1000];
 	
 	heap = mem_heap_create(UNIV_PAGE_SIZE);
 	
@@ -1285,9 +1325,14 @@ page_validate(
 		if ((count >= 2) && (!page_cur_is_after_last(&cur))) {
 			if (!(1 == cmp_rec_rec(rec, old_rec, index))) {
 				fprintf(stderr,
-				"Records in wrong order in index %s\n",
-				index->name);
-
+					"Records in wrong order in index %s\n",
+					index->name);
+	 		 	rec_sprintf(err_buf, 900, old_rec);
+	  			fprintf(stderr, "InnoDB: record %s\n", err_buf);
+				
+	 		 	rec_sprintf(err_buf, 900, rec);
+	  			fprintf(stderr, "InnoDB: record %s\n", err_buf);
+				
 				goto func_exit;
 			}
 		}

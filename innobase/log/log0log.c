@@ -20,6 +20,7 @@ Created 12/9/1995 Heikki Tuuri
 #include "fil0fil.h"
 #include "dict0boot.h"
 #include "srv0srv.h"
+#include "srv0start.h"
 #include "trx0sys.h"
 #include "trx0trx.h"
 
@@ -2654,6 +2655,8 @@ logs_empty_and_mark_files_at_shutdown(void)
 
 	/* Wait until the master thread and all other operations are idle: our
 	algorithm only works if the server is idle at shutdown */
+
+	srv_shutdown_state = SRV_SHUTDOWN_CLEANUP;
 loop:
 	os_thread_sleep(100000);
 
@@ -2735,7 +2738,21 @@ loop:
 
 		goto loop;
 	}
+
+	if (srv_lock_timeout_and_monitor_active) {
+
+		goto loop;
+	}
+
+	/* We now suspend also the InnoDB error monitor thread */
 	
+	srv_shutdown_state = SRV_SHUTDOWN_LAST_PHASE;
+
+	if (srv_error_monitor_active) {
+
+		goto loop;
+	}
+
 	fil_write_flushed_lsn_to_data_files(lsn, arch_log_no);	
 
 	fil_flush_file_spaces(FIL_TABLESPACE);

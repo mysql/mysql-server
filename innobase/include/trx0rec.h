@@ -127,7 +127,9 @@ Builds an update vector based on a remaining part of an undo log record. */
 byte*
 trx_undo_update_rec_get_update(
 /*===========================*/
-				/* out: remaining part of the record */
+				/* out: remaining part of the record,
+				NULL if an error detected, which means that
+				the record is corrupted */
 	byte*		ptr,	/* in: remaining part in update undo log
 				record, after reading the row reference
 				NOTE that this copy of the undo log record must
@@ -235,7 +237,8 @@ trx_undo_prev_version_build(
 /*========================*/
 				/* out: DB_SUCCESS, or DB_MISSING_HISTORY if
 				the previous version is not >= purge_view,
-				which means that it may have been removed */
+				which means that it may have been removed,
+				DB_ERROR if corrupted record */
 	rec_t*		index_rec,/* in: clustered index record in the
 				index tree */
 	mtr_t*		index_mtr,/* in: mtr which contains the latch to

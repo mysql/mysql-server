@@ -1076,7 +1076,7 @@ dict_create_or_check_foreign_constraint_tables(void)
 	}
 
 	fprintf(stderr,
-		"InnoDB: creating foreign key constraint system tables\n");
+		"InnoDB: Creating foreign key constraint system tables\n");
 
 	/* NOTE: in dict_load_foreigns we use the fact that
 	there are 2 secondary indexes on SYS_FOREIGN, and they
@@ -1112,6 +1112,8 @@ dict_create_or_check_foreign_constraint_tables(void)
 	error = trx->error_state;
 
 	if (error != DB_SUCCESS) {
+		fprintf(stderr, "InnoDB: error %lu in creation\n", error);
+		
 		ut_a(error == DB_OUT_OF_FILE_SPACE);
 
 		fprintf(stderr, "InnoDB: creation failed\n");
@@ -1133,7 +1135,7 @@ dict_create_or_check_foreign_constraint_tables(void)
 
   	if (error == DB_SUCCESS) {
 		fprintf(stderr,
-		"InnoDB: foreign key constraint system tables created\n");
+		"InnoDB: Foreign key constraint system tables created\n");
 	}
 
 	mutex_exit(&(dict_sys->mutex));

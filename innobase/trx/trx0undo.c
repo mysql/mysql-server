@@ -1220,8 +1220,14 @@ trx_undo_lists_init(
 	for (i = 0; i < TRX_RSEG_N_SLOTS; i++) {
 		page_no = trx_rsegf_get_nth_undo(rseg_header, i, &mtr);
 
-		if (page_no != FIL_NULL) {
+		/* In forced recovery: try to avoid operations which look
+		at database pages; undo logs are rapidly changing data, and
+		the probability that they are in an inconsistent state is
+		high */
 
+		if (page_no != FIL_NULL
+		    && srv_force_recovery < SRV_FORCE_NO_UNDO_LOG_SCAN) {
+		    
 			undo = trx_undo_mem_create_at_db_start(rseg, i,
 								page_no, &mtr);
 			size += undo->size;

@@ -107,20 +107,15 @@ buf_LRU_search_and_free_block(
 				means that we should search farther */
 {
 	buf_block_t*	block;
-	ulint		distance;
 	ibool		freed;
-	ulint		i;
 
 	mutex_enter(&(buf_pool->mutex));
 	
 	freed = FALSE;
 	
-	distance = BUF_LRU_FREE_SEARCH_LEN * (1 + n_iterations / 5);
-
-	i = 0;
 	block = UT_LIST_GET_LAST(buf_pool->LRU);
 
-	while (i < distance && block != NULL) {
+	while (block != NULL) {
 
 		if (buf_flush_ready_for_replace(block)) {
 
@@ -203,6 +198,8 @@ buf_LRU_get_free_block(void)
 	buf_block_t*	block		= NULL;
 	ibool		freed;
 	ulint		n_iterations	= 0;
+	ibool		mon_value_was;
+	ibool		started_monitor	= FALSE;
 loop:
 	mutex_enter(&(buf_pool->mutex));
 
@@ -222,7 +219,11 @@ loop:
 		block->state = BUF_BLOCK_READY_FOR_USE;
 
 		mutex_exit(&(buf_pool->mutex));
-		
+
+		if (started_monitor) {
+			srv_print_innodb_monitor = mon_value_was;
+		}	
+
 		return(block);
 	}
 	
@@ -237,14 +238,41 @@ loop:
 		goto loop;
 	}
 
-	/* No free block was found near the end of the list: try to flush
-	the LRU list */
+	if (n_iterations > 30) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+		" ***********************************************\n"
+		"InnoDB: Warning: difficult to find free blocks from\n"
+		"InnoDB: the buffer pool (%lu search iterations)! Consider\n"
+		"InnoDB: increasing the buffer pool size.\n",
+						n_iterations);
+		fprintf(stderr,
+		"InnoDB: It is also possible that in your Unix version\n"
+		"InnoDB: fsync is very slow, or completely frozen inside\n"
+		"InnoDB: the OS kernel. Then upgrading to a newer version\n"
+		"InnoDB: of your operating system may help. Look at the\n"
+		"InnoDB: number of fsyncs in diagnostic info below.\n");
+
+		fprintf(stderr,
+		"InnoDB: Pending flushes (fsync) log: %lu; buffer pool: %lu\n",
+	       			fil_n_pending_log_flushes,
+				fil_n_pending_tablespace_flushes);
+		fprintf(stderr,
+	"InnoDB: %lu OS file reads, %lu OS file writes, %lu OS fsyncs\n",
+			os_n_file_reads, os_n_file_writes, os_n_fsyncs);
+
+		fprintf(stderr,
+		"InnoDB: Starting InnoDB Monitor to print further\n"
+		"InnoDB: diagnostics to the standard output.\n");
+
+		mon_value_was = srv_print_innodb_monitor;
+		started_monitor = TRUE;
+		srv_print_innodb_monitor = TRUE;
+	}
+
+	/* No free block was found: try to flush the LRU list */
 
 	buf_flush_free_margin();
-
-	os_event_wait(buf_pool->no_flush[BUF_FLUSH_LRU]);
-
-	n_iterations++;
 
 	os_aio_simulated_wake_handler_threads();
 
@@ -253,18 +281,7 @@ loop:
 		os_thread_sleep(500000);
 	}
 
-	if (n_iterations > 20) {
-/*		buf_print();
-		os_aio_print();
-		rw_lock_list_print_info();
-*/
-		if (n_iterations > 30) {
-			fprintf(stderr,
-		"InnoDB: Warning: difficult to find free blocks from\n"
-		"InnoDB: the buffer pool (%lu search iterations)! Consider\n"
-		"InnoDB: increasing the buffer pool size.\n", n_iterations);
-		}
-	}
+	n_iterations++;
 
 	goto loop;	
 }	
