@@ -260,8 +260,8 @@ character-set=latin1
 "O slave já está rodando",
 "O slave já está parado",
 "Tamanho muito grande dos dados des comprimidos. O máximo tamanho é %d. (provavelmente, o comprimento dos dados descomprimidos está corrupto)",
-"Z_BUF_ERROR: Não suficiente memória disponível para zlib",
-"Z_MEM_ERROR: Não suficiente espaço no buffer emissor para zlib (provavelmente, o comprimento dos dados descomprimidos está corrupto)",
+"Z_MEM_ERROR: Não suficiente memória disponível para zlib",
+"Z_BUF_ERROR: Não suficiente espaço no buffer emissor para zlib (provavelmente, o comprimento dos dados descomprimidos está corrupto)",
 "Z_DATA_ERROR: Dados de entrada está corrupto para zlib",
 "%d linha(s) foi(foram) cortada(s) por group_concat()",
 "Record count is fewer than the column count at row %ld";
