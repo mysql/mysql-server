@@ -70,4 +70,5 @@ public:
   Item** addr(uint i) { return items + i; }
   bool check_cols(uint c);
   bool null_inside();
+  void bring_value();
 };

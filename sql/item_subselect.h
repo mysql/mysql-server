@@ -71,7 +71,7 @@ public:
   {
     null_value= 1;
   }
-  virtual void select_transformer(st_select_lex *select_lex);
+  virtual void select_transformer(st_select_lex_unit *unit);
   bool assigned() { return value_assigned; }
   void assigned(bool a) { value_assigned= a; }
   enum Type type() const;
@@ -86,51 +86,42 @@ public:
   bool check_loop(uint id);
 
   friend class select_subselect;
+  friend class Item_in_optimizer;
 };
 
 /* single value subselect */
 
-class Item_singleval_subselect :public Item_subselect
+class Item_cache;
+class Item_singlerow_subselect :public Item_subselect
 {
 protected:
-  longlong int_value; /* Here stored integer value of this item */
-  double real_value; /* Here stored real value of this item */
-  /* 
-     Here stored string value of this item.
-     (str_value used only as temporary buffer, because it can be changed 
-     by Item::save_field)
-  */
-  String string_value; 
-  enum Item_result res_type; /* type of results */
-  
+  Item_cache *value, **row;
 public:
-  Item_singleval_subselect(THD *thd, st_select_lex *select_lex);
-  Item_singleval_subselect(Item_singleval_subselect *item):
+  Item_singlerow_subselect(THD *thd, st_select_lex *select_lex);
+  Item_singlerow_subselect(Item_singlerow_subselect *item):
     Item_subselect(item)
   {
-    int_value= item->int_value;
-    real_value= item->real_value;
-    string_value.set(item->string_value, 0, item->string_value.length());
+    value= item->value;
     max_length= item->max_length;
     decimals= item->decimals;
-    res_type= item->res_type;
   }
-  virtual void reset() 
-  {
-    null_value= 1;
-    int_value= 0;
-    real_value= 0;
-    max_length= 4;
-    res_type= STRING_RESULT;
-  }
-  double val ();
+  void reset();
+  void store(uint i, Item* item);
+  double val();
   longlong val_int ();
   String *val_str (String *);
-  Item *new_item() { return new Item_singleval_subselect(this); }
-  enum Item_result result_type() const { return res_type; }
+  Item *new_item() { return new Item_singlerow_subselect(this); }
+  enum Item_result result_type() const;
   void fix_length_and_dec();
 
-  friend class select_singleval_subselect;
+  uint cols();
+  Item* el(uint i) { return (Item*)row[i]; }
+  Item** addr(uint i) { return (Item**)row + i; }
+  bool check_cols(uint c);
+  bool null_inside();
+  void bring_value();
+
+  friend class select_singlerow_subselect;
 };
 
 /* exists subselect */
@@ -149,7 +140,7 @@ public:
   }
   Item_exists_subselect(): Item_subselect() {}
 
-  virtual void reset() 
+  void reset() 
   {
     value= 0;
   }
@@ -181,9 +172,10 @@ public:
     null_value= 0;
     was_null= 0;
   }
-  virtual void select_transformer(st_select_lex *select_lex);
-  void single_value_transformer(st_select_lex *select_lex,
+  virtual void select_transformer(st_select_lex_unit *unit);
+  void single_value_transformer(st_select_lex_unit *unit,
 				Item *left_expr, compare_func_creator func);
+  void row_value_transformer(st_select_lex_unit *unit, Item *left_expr);
   longlong val_int();
   double val();
   String *val_str(String*);
@@ -202,22 +194,18 @@ public:
   Item_allany_subselect(THD *thd, Item * left_expr, compare_func_creator f,
 		     st_select_lex *select_lex);
   Item_allany_subselect(Item_allany_subselect *item);
-  virtual void select_transformer(st_select_lex *select_lex);
+  virtual void select_transformer(st_select_lex_unit *unit);
 };
 
-class subselect_engine
+class subselect_engine: public Sql_alloc
 {
 protected:
   select_subselect *result; /* results storage class */
   THD *thd; /* pointer to current THD */
   Item_subselect *item; /* item, that use this engine */
   enum Item_result res_type; /* type of results */
+  bool maybe_null; /* may be null (first item in select) */
 public:
-  static void *operator new(size_t size)
-  {
-    return (void*) sql_alloc((uint) size);
-  }
-  static void operator delete(void *ptr, size_t size) {}
 
   subselect_engine(THD *thd, Item_subselect *si, select_subselect *res) 
   {
@@ -225,16 +213,19 @@ public:
     item= si;
     this->thd= thd;
     res_type= STRING_RESULT;
+    maybe_null= 0;
   }
+  virtual ~subselect_engine() {}; // to satisfy compiler
 
   virtual int prepare()= 0;
-  virtual void fix_length_and_dec()= 0;
+  virtual void fix_length_and_dec(Item_cache** row)= 0;
   virtual int exec()= 0;
   virtual uint cols()= 0; /* return number of columnss in select */
   virtual bool depended()= 0; /* depended from outer select */
   enum Item_result type() { return res_type; }
   virtual bool check_loop(uint id)= 0;
   virtual void exclude()= 0;
+  bool may_be_null() { return maybe_null; };
 };
 
 class subselect_single_select_engine: public subselect_engine
@@ -249,7 +240,7 @@ public:
 				 select_subselect *result,
 				 Item_subselect *item);
   int prepare();
-  void fix_length_and_dec();
+  void fix_length_and_dec(Item_cache** row);
   int exec();
   uint cols();
   bool depended();
@@ -266,7 +257,7 @@ public:
 			 select_subselect *result,
 			 Item_subselect *item);
   int prepare();
-  void fix_length_and_dec();
+  void fix_length_and_dec(Item_cache** row);
   int exec();
   uint cols();
   bool depended();
