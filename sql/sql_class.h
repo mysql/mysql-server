@@ -520,7 +520,7 @@ public:
   ulong      row_count;  // Row counter, mainly for errors and warnings
   long	     dbug_thread_id;
   pthread_t  real_id;
-  uint	     current_tablenr,tmp_table,cond_count;
+  uint	     current_tablenr,tmp_table;
   uint	     server_status,open_options;
   uint32     query_length;
   uint32     db_length;
