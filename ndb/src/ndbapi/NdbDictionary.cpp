@@ -438,6 +438,11 @@ NdbDictionary::Table::getRowSizeInBytes() const {
 }
 
 int
+NdbDictionary::Table::getReplicaCount() const {  
+  return m_impl.m_replicaCount;
+}
+
+int
 NdbDictionary::Table::createTableInDb(Ndb* pNdb, bool equalOk) const {  
   const NdbDictionary::Table * pTab = 
     pNdb->getDictionary()->getTable(getName());
@@ -1005,6 +1010,7 @@ operator<<(NdbOut& out, const NdbDictionary::Column& col)
 }
 
 const NdbDictionary::Column * NdbDictionary::Column::FRAGMENT = 0;
+const NdbDictionary::Column * NdbDictionary::Column::FRAGMENT_MEMORY = 0;
 const NdbDictionary::Column * NdbDictionary::Column::ROW_COUNT = 0;
 const NdbDictionary::Column * NdbDictionary::Column::COMMIT_COUNT = 0;
 const NdbDictionary::Column * NdbDictionary::Column::ROW_SIZE = 0;
