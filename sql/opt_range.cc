@@ -2446,7 +2446,7 @@ int QUICK_SELECT::get_next()
     if (range->flag & GEOM_FLAG)
     {
       if ((result = file->index_read(record,
-				     (byte*) (range->min_key +1),
+				     (byte*) (range->min_key),
 				     range->min_length,
 				     (ha_rkey_function)(range->flag ^
 							GEOM_FLAG))))
