@@ -14,22 +14,25 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/* Wait a given time (On systems that dont have sleep !!; MSDOS) */
+/* Wait a given number of microseconds */
 
 #include "mysys_priv.h"
 #include <m_string.h>
 
-#ifdef _MSC_VER
-
-void sleep(sec)
-int sec;
+void my_sleep(ulong m_seconds)
 {
-  ulong start;
-  DBUG_ENTER("sleep");
-
-  start=(ulong) time((time_t*) 0);
+#ifdef __NETWARE__
+  delay(m_seconds/1000+1);
+#elif defined(OS2)
+  DosSleep(m_seconds/1000+1);
+#elif defined(HAVE_SELECT)
+  struct timeval t;
+  t.tv_sec=  m_seconds / 1000000L;
+  t.tv_usec= m_seconds % 1000000L;
+  select(0,0,0,0,&t); /* sleep */
+#else
+  uint sec=    (uint) (m_seconds / 1000000L);
+  ulong start= (ulong) time((time_t*) 0);
   while ((ulong) time((time_t*) 0) < start+sec);
-  DBUG_VOID_RETURN;
-} /* sleep */
-
-#endif /* MSDOS */
+#endif
+}

@@ -35,10 +35,10 @@ insert into t1 select NULL,message from t2;
 create table t3 (a int not null, b char(20), key(a)) type=MERGE UNION=(test.t1,test.t2);
 explain select * from t3 where a < 10;
 table	type	possible_keys	key	key_len	ref	rows	Extra
-t3	range	a	a	4	NULL	10	Using where
+t3	range	a	a	4	NULL	18	Using where
 explain select * from t3 where a > 10 and a < 20;
 table	type	possible_keys	key	key_len	ref	rows	Extra
-t3	range	a	a	4	NULL	10	Using where
+t3	range	a	a	4	NULL	16	Using where
 select * from t3 where a = 10;
 a	b
 10	Testing
@@ -258,7 +258,7 @@ t3	CREATE TABLE `t3` (
   `othr` int(11) NOT NULL default '0'
 ) TYPE=MRG_MyISAM UNION=(t1,t2)
 drop table t3,t2,t1;
-create table t1 (a int not null) type=merge;
+create table t1 (a int not null, key(a)) type=merge;
 select * from t1;
 a
 drop table t1;
@@ -536,7 +536,7 @@ INSERT INTO t2 VALUES (1,2), (2,2);
 CREATE TABLE t (  a int(11) NOT NULL default '0',  b int(11) NOT NULL default '0',  KEY a (a,b)) TYPE=MRG_MyISAM UNION=(t1,t2);
 select max(b) from t where a = 2;
 max(b)
-NULL
+2
 select max(b) from t1 where a = 2;
 max(b)
 1
@@ -561,3 +561,38 @@ a
 1
 2
 drop table if exists t1, t2, t3, t4, t5, t6;
+DROP TABLE IF EXISTS t1, t2;
+CREATE TABLE t1 (
+fileset_id tinyint(3) unsigned NOT NULL default '0',
+file_code varchar(32) NOT NULL default '',
+fileset_root_id tinyint(3) unsigned NOT NULL default '0',
+PRIMARY KEY  (fileset_id,file_code),
+KEY files (fileset_id,fileset_root_id)
+) TYPE=MyISAM;
+INSERT INTO t1 VALUES (2, '0000000111', 1), (2, '0000000112', 1), (2, '0000000113', 1),
+(2, '0000000114', 1), (2, '0000000115', 1), (2, '0000000116', 1), (2, '0000000117', 1),
+(2, '0000000118', 1), (2, '0000000119', 1), (2, '0000000120', 1);
+CREATE TABLE t2 (
+fileset_id tinyint(3) unsigned NOT NULL default '0',
+file_code varchar(32) NOT NULL default '',
+fileset_root_id tinyint(3) unsigned NOT NULL default '0',
+PRIMARY KEY  (fileset_id,file_code),
+KEY files (fileset_id,fileset_root_id)
+) TYPE=MRG_MyISAM UNION=(t1);
+EXPLAIN SELECT * FROM t2 IGNORE INDEX (files) WHERE fileset_id = 2
+AND file_code BETWEEN '0000000115' AND '0000000120' LIMIT 1;
+table	type	possible_keys	key	key_len	ref	rows	Extra
+t2	range	PRIMARY	PRIMARY	33	NULL	5	Using where
+EXPLAIN SELECT * FROM t2 WHERE fileset_id = 2
+AND file_code BETWEEN '0000000115' AND '0000000120' LIMIT 1;
+table	type	possible_keys	key	key_len	ref	rows	Extra
+t2	range	PRIMARY,files	PRIMARY	33	NULL	5	Using where
+EXPLAIN SELECT * FROM t1 WHERE fileset_id = 2
+AND file_code BETWEEN '0000000115' AND '0000000120' LIMIT 1;
+table	type	possible_keys	key	key_len	ref	rows	Extra
+t1	range	PRIMARY,files	PRIMARY	33	NULL	5	Using where
+EXPLAIN SELECT * FROM t2 WHERE fileset_id = 2
+AND file_code = '0000000115' LIMIT 1;
+table	type	possible_keys	key	key_len	ref	rows	Extra
+t2	const	PRIMARY,files	PRIMARY	33	const,const	1	
+DROP TABLE IF EXISTS t1, t2;

@@ -184,6 +184,7 @@ public:
   {
     return (item->fix_fields(thd,tlist) || Item_func::fix_fields(thd,tlist));
   }
+  void split_sum_func(List<Item> &fields);
   void fix_length_and_dec();
   ~Item_func_interval() { delete item; }
   const char *func_name() const { return "interval"; }
@@ -273,6 +274,7 @@ public:
   const char *func_name() const { return "case"; }
   void print(String *str);
   bool fix_fields(THD *thd,struct st_table_list *tlist);
+  void split_sum_func(List<Item> &fields);
   Item *find_item(String *str);
   unsigned int size_of() { return sizeof(*this);}  
 };
@@ -425,7 +427,9 @@ class Item_func_in :public Item_int_func
   longlong val_int();
   bool fix_fields(THD *thd,struct st_table_list *tlist)
   {
-    return (item->fix_fields(thd,tlist) || Item_func::fix_fields(thd,tlist));
+    bool res=  (item->fix_fields(thd,tlist) || Item_func::fix_fields(thd,tlist));
+    with_sum_func= with_sum_func || item->with_sum_func;
+    return res; 
   }
   void fix_length_and_dec();
   ~Item_func_in() { delete item; delete array; delete in_item; }
@@ -436,6 +440,7 @@ class Item_func_in :public Item_int_func
   enum Functype functype() const { return IN_FUNC; }
   const char *func_name() const { return " IN "; }
   void update_used_tables();
+  void split_sum_func(List<Item> &fields);
   unsigned int size_of() { return sizeof(*this);}  
 };
 
@@ -460,17 +465,18 @@ public:
   void update_used_tables()
   {
     if (!args[0]->maybe_null)
-      used_tables_cache=0;			/* is always false */
+    {
+      used_tables_cache= 0;			/* is always false */
+      cached_value= (longlong) 0;
+    }
     else
     {
       args[0]->update_used_tables();
-      used_tables_cache=args[0]->used_tables();
-    }
-    if (!used_tables_cache)
-    {
-      /* Remember if the value is always NULL or never NULL */
-      args[0]->val();
-      cached_value= args[0]->null_value ? (longlong) 1 : (longlong) 0;
+      if (!(used_tables_cache=args[0]->used_tables()))
+      {
+	/* Remember if the value is always NULL or never NULL */
+	cached_value= (longlong) args[0]->is_null();
+      }
     }
   }
   optimize_type select_optimize() const { return OPTIMIZE_NULL; }

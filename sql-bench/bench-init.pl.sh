@@ -48,7 +48,10 @@ $opt_optimization="None";
 $opt_hw="";
 $opt_threads=5;
 
-$opt_time_limit=10*60;		# Don't wait more than 10 min for some tests
+if (!defined($opt_time_limit))
+{
+  $opt_time_limit=10*60;	# Don't wait more than 10 min for some tests
+}
 
 $log_prog_args=join(" ", skip_arguments(\@ARGV,"comments","cmp","server",
 					"user", "host", "database", "password",

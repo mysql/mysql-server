@@ -459,20 +459,20 @@ public:
   const char *func_name() const { return truncate ? "truncate" : "round"; }
   double val();
   void fix_length_and_dec();
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
 class Item_func_rand :public Item_real_func
 {
+  struct rand_struct *rand;
 public:
   Item_func_rand(Item *a) :Item_real_func(a) {}
   Item_func_rand()	  :Item_real_func()  {}
   double val();
   const char *func_name() const { return "rand"; }
-  void fix_length_and_dec() { decimals=NOT_FIXED_DEC; max_length=float_length(decimals); }
   bool const_item() const { return 0; }
   table_map used_tables() const { return RAND_TABLE_BIT; }
+  void fix_length_and_dec();
 };
 
 
@@ -585,6 +585,7 @@ public:
   {
     return (item->fix_fields(thd,tlist) || Item_func::fix_fields(thd,tlist));
   }
+  void split_sum_func(List<Item> &fields);
   void update_used_tables()
   {
     item->update_used_tables() ; Item_func::update_used_tables();
@@ -865,9 +866,10 @@ class Item_master_pos_wait :public Item_int_func
   String value;
  public:
   Item_master_pos_wait(Item *a,Item *b) :Item_int_func(a,b) {}
+  Item_master_pos_wait(Item *a,Item *b,Item *c) :Item_int_func(a,b,c) {}
   longlong val_int();
   const char *func_name() const { return "master_pos_wait"; }
-  void fix_length_and_dec() { max_length=1; maybe_null=1;}
+  void fix_length_and_dec() { max_length=21; maybe_null=1;}
   unsigned int size_of() { return sizeof(*this);}  
 };
 
@@ -902,11 +904,10 @@ class Item_func_get_user_var :public Item_func
 {
   LEX_STRING name;
   user_var_entry *var_entry;
-  bool const_var_flag;
 
 public:
   Item_func_get_user_var(LEX_STRING a):
-    Item_func(), name(a), const_var_flag(1) {}
+    Item_func(), name(a) {}
   user_var_entry *get_entry();
   double val();
   longlong val_int();
@@ -915,9 +916,9 @@ public:
   void print(String *str);
   enum Item_result result_type() const;
   const char *func_name() const { return "get_user_var"; }
-  bool const_item() const { return const_var_flag; }
+  bool const_item() const;
   table_map used_tables() const
-  { return const_var_flag ? 0 : RAND_TABLE_BIT; }
+  { return const_item() ? 0 : RAND_TABLE_BIT; }
   bool eq(const Item *item, bool binary_cmp) const;
   unsigned int size_of() { return sizeof(*this);}  
 };
@@ -1003,7 +1004,7 @@ public:
 enum Item_cast
 {
   ITEM_CAST_BINARY, ITEM_CAST_SIGNED_INT, ITEM_CAST_UNSIGNED_INT,
-  ITEM_CAST_DATE, ITEM_CAST_TIME, ITEM_CAST_DATETIME
+  ITEM_CAST_DATE, ITEM_CAST_TIME, ITEM_CAST_DATETIME, ITEM_CAST_CHAR
 };
 
 Item *create_func_cast(Item *a, Item_cast cast_type);

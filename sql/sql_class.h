@@ -111,6 +111,7 @@ public:
   void init(enum_log_type log_type_arg,
 	    enum cache_type io_cache_type_arg = WRITE_CACHE,
 	    bool no_auto_events_arg = 0);
+  void cleanup();
   bool open(const char *log_name,enum_log_type log_type,
 	    const char *new_name, const char *index_file_name_arg,
 	    enum cache_type io_cache_type_arg,
@@ -284,13 +285,14 @@ struct system_variables
 {
   ulonglong myisam_max_extra_sort_file_size;
   ulonglong myisam_max_sort_file_size;
+  ha_rows select_limit;
+  ha_rows max_join_size;
   ulong bulk_insert_buff_size;
   ulong join_buff_size;
   ulong long_query_time;
   ulong max_allowed_packet;
   ulong max_heap_table_size;
   ulong max_sort_length;
-  ulong max_join_size;
   ulong max_tmp_tables;
   ulong myisam_sort_buff_size;
   ulong net_buffer_length;
@@ -302,7 +304,6 @@ struct system_variables
   ulong query_cache_type;
   ulong read_buff_size;
   ulong read_rnd_buff_size;
-  ulong select_limit;
   ulong sortbuff_size;
   ulong tmp_table_size;
   ulong tx_isolation;
@@ -320,7 +321,8 @@ struct system_variables
   a thread/connection descriptor
 */
 
-class THD :public ilink {
+class THD :public ilink
+{
 public:
   NET	  net;				// client connection descriptor
   LEX	  lex;				// parse tree descriptor
@@ -348,8 +350,9 @@ public:
     db - currently selected database
     ip - client IP
    */
-  
   char	  *host,*user,*priv_user,*db,*ip;
+  /* remote (peer) port */
+  uint16 peer_port;
   /* Points to info-string that will show in SHOW PROCESSLIST */
   const char *proc_info;
   /* points to host if host is available, otherwise points to ip */
@@ -358,7 +361,7 @@ public:
   uint client_capabilities;		/* What the client supports */
   /* Determines if which non-standard SQL behaviour should be enabled */
   uint sql_mode;
-  uint max_client_packet_length;
+  ulong max_client_packet_length;
   ulong master_access;			/* Global privileges from mysql.user */
   ulong db_access;			/* Privileges for current db */
 
@@ -478,7 +481,7 @@ public:
     active_vio = 0;
     pthread_mutex_unlock(&LOCK_delete);
   }
-  void THD::close_active_vio();
+  void close_active_vio();
 #endif  
   void awake(bool prepare_to_die);
   inline const char* enter_cond(pthread_cond_t *cond, pthread_mutex_t* mutex,
@@ -592,7 +595,7 @@ public:
   virtual int prepare(List<Item> &list) { return 0; }
   virtual bool send_fields(List<Item> &list,uint flag)=0;
   virtual bool send_data(List<Item> &items)=0;
-  virtual void initialize_tables (JOIN *join=0) {}
+  virtual bool initialize_tables (JOIN *join=0) { return 0; }
   virtual void send_error(uint errcode,const char *err)
   {
     ::send_error(&thd->net,errcode,err);
@@ -656,10 +659,10 @@ class select_insert :public select_result {
   List<Item> *fields;
   ulonglong last_insert_id;
   COPY_INFO info;
-  uint save_time_stamp;
 
   select_insert(TABLE *table_par,List<Item> *fields_par,enum_duplicates duplic)
-    :table(table_par),fields(fields_par), last_insert_id(0), save_time_stamp(0)  {
+    :table(table_par),fields(fields_par), last_insert_id(0)
+  {
     bzero((char*) &info,sizeof(info));
     info.handle_duplicates=duplic;
   }
@@ -703,8 +706,8 @@ class select_union :public select_result {
  public:
   TABLE *table;
   COPY_INFO info;
-  uint save_time_stamp;
   TMP_TABLE_PARAM *tmp_table_param;
+  bool not_describe;
 
   select_union(TABLE *table_par);
   ~select_union();
@@ -796,12 +799,7 @@ public:
 
  class multi_delete : public select_result {
    TABLE_LIST *delete_tables, *table_being_deleted;
-#ifdef SINISAS_STRIP
-   IO_CACHE **tempfiles;
-   byte *memory_lane;
-#else
    Unique  **tempfiles;
-#endif
    THD *thd;
    ha_rows deleted;
    uint num_of_tables;
@@ -814,37 +812,36 @@ public:
    bool send_fields(List<Item> &list,
  		   uint flag) { return 0; }
    bool send_data(List<Item> &items);
-   void initialize_tables (JOIN *join);
+   bool initialize_tables (JOIN *join);
    void send_error(uint errcode,const char *err);
    int  do_deletes (bool from_send_error);
    bool send_eof();
  };
 
- class multi_update : public select_result {
-   TABLE_LIST *update_tables, *table_being_updated;
-//   Unique  **tempfiles;
-   COPY_INFO *infos;
-   TABLE **tmp_tables;
-   THD *thd;
-   ha_rows updated, found;
-   List<Item> fields;
-   List <Item> **fields_by_tables;
-   enum enum_duplicates dupl;
-   uint num_of_tables, num_fields, num_updated, *save_time_stamps, *field_sequence;
-   int error;
-   bool do_update, not_trans_safe;
- public:
-   multi_update(THD *thd_arg, TABLE_LIST *ut, List<Item> &fs, 		 
-		enum enum_duplicates handle_duplicates,  
-		uint num);
-   ~multi_update();
-   int prepare(List<Item> &list);
-   bool send_fields(List<Item> &list,
- 		   uint flag) { return 0; }
-   bool send_data(List<Item> &items);
-   void initialize_tables (JOIN *join);
-   void send_error(uint errcode,const char *err);
-   int  do_updates (bool from_send_error);
-   bool send_eof();
- };
+class multi_update : public select_result
+{
+  TABLE_LIST *all_tables, *update_tables, *table_being_updated;
+  THD *thd;
+  TABLE **tmp_tables, *main_table;
+  TMP_TABLE_PARAM *tmp_table_param;
+  ha_rows updated, found;
+  List <Item> *fields, *values;
+  List <Item> **fields_for_table, **values_for_table;
+  uint table_count;
+  Copy_field *copy_field;
+  enum enum_duplicates handle_duplicates;
+  bool do_update, trans_safe, transactional_tables, log_delayed;
+
+public:
+  multi_update(THD *thd_arg, TABLE_LIST *ut, List<Item> *fields,
+	       List<Item> *values, enum_duplicates handle_duplicates);
+  ~multi_update();
+  int prepare(List<Item> &list);
+  bool send_fields(List<Item> &list, uint flag) { return 0; }
+  bool send_data(List<Item> &items);
+  bool initialize_tables (JOIN *join);
+  void send_error(uint errcode,const char *err);
+  int  do_updates (bool from_send_error);
+  bool send_eof();
+};
 

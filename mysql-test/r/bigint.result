@@ -6,7 +6,13 @@ select 9223372036854775807,-009223372036854775808;
 9223372036854775807	-9223372036854775808
 select +9999999999999999999,-9999999999999999999;
 +9999999999999999999	-9999999999999999999
-10000000000000000000	-10000000000000000000
+9999999999999999999	-10000000000000000000
+select cast(9223372036854775808 as unsigned)+1;
+cast(9223372036854775808 as unsigned)+1
+9223372036854775809
+select 9223372036854775808+1;
+9223372036854775808+1
+9223372036854775809
 drop table if exists t1;
 create table t1 (a bigint unsigned not null, primary key(a));
 insert into t1 values (18446744073709551615), (0xFFFFFFFFFFFFFFFE);
@@ -52,24 +58,12 @@ select min(big),max(big),max(big)-1 from t1 group by a;
 min(big)	max(big)	max(big)-1
 -1	9223372036854775807	9223372036854775806
 drop table t1;
-select CAST(1-2 AS UNSIGNED);
-CAST(1-2 AS UNSIGNED)
-18446744073709551615
-select CAST(CAST(1-2 AS UNSIGNED) AS SIGNED INTEGER);
-CAST(CAST(1-2 AS UNSIGNED) AS SIGNED INTEGER)
--1
-select CONVERT('-1',UNSIGNED);
-CONVERT('-1',UNSIGNED)
-18446744073709551615
-select cast(-5 as unsigned) | 1, cast(-5 as unsigned) & -1;
-cast(-5 as unsigned) | 1	cast(-5 as unsigned) & -1
-18446744073709551611	18446744073709551611
-select cast(-5 as unsigned) -1, cast(-5 as unsigned) + 1;
-cast(-5 as unsigned) -1	cast(-5 as unsigned) + 1
-18446744073709551610	18446744073709551612
-select ~5, cast(~5 as signed);
-~5	cast(~5 as signed)
-18446744073709551610	-6
-select cast(5 as unsigned) -6.0;
-cast(5 as unsigned) -6.0
--1.0
+create table t1 (id bigint auto_increment primary key, a int) auto_increment=9999999999;
+insert into t1 values (null,1);
+select * from t1;
+id	a
+9999999999	1
+select * from t1 limit 9999999999;
+id	a
+9999999999	1
+drop table t1;

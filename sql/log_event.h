@@ -417,9 +417,10 @@ public:
   const char* get_db() { return db; }
   int exec_event(struct st_relay_log_info* rli)
   {
-    return exec_event(thd->slave_net,rli);
+    return exec_event(thd->slave_net,rli,0);
   }
-  int exec_event(NET* net, struct st_relay_log_info* rli);
+  int exec_event(NET* net, struct st_relay_log_info* rli, 
+		 bool use_rli_only_for_errors);
 #else
   void print(FILE* file, bool short_form = 0, char* last_db = 0);
 #endif

@@ -1267,7 +1267,9 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
   {
     if (combo.password.length != HASH_PASSWORD_LENGTH)
     {
-      my_error(ER_PASSWORD_NO_MATCH,MYF(0));
+      my_printf_error(ER_PASSWORD_NO_MATCH,
+          "Password hash should be a %d-digit hexadecimal number",
+          MYF(0),HASH_PASSWORD_LENGTH);
       DBUG_RETURN(-1);
     }
     password=combo.password.str;
@@ -1870,7 +1872,7 @@ static int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
 			       ulong rights, ulong col_rights,
 			       bool revoke_grant)
 {
-  char grantor[HOSTNAME_LENGTH+1+USERNAME_LENGTH];
+  char grantor[HOSTNAME_LENGTH+USERNAME_LENGTH+2];
   int old_row_exists = 1;
   int error=0;
   ulong store_table_rights, store_col_rights;
@@ -2322,6 +2324,7 @@ my_bool grant_init(THD *org_thd)
   if (t_table->file->index_first(t_table->record[0]))
   {
     t_table->file->index_end();
+    return_val= 0;
     goto end_unlock;
   }
   grant_option= TRUE;
@@ -2762,8 +2765,6 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
   VOID(pthread_mutex_lock(&acl_cache->lock));
 
   /* Add first global access grants */
-  if (acl_user->access || acl_user->password ||
-      acl_user->ssl_type != SSL_TYPE_NONE)
   {
     want_access=acl_user->access;
     String global(buff,sizeof(buff));
@@ -2896,6 +2897,8 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
 
 	if (test_all_bits(want_access,(DB_ACLS & ~GRANT_ACL)))
 	  db.append("ALL PRIVILEGES",14);
+	else if (!(want_access & ~GRANT_ACL))
+	  db.append("USAGE",5);	
 	else
 	{
 	  int found=0, cnt;

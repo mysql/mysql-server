@@ -95,11 +95,11 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 
   if (my_read(file,(byte*) head,64,MYF(MY_NABP))) goto err_not_open;
   if (head[0] != (uchar) 254 || head[1] != 1 ||
-      (head[2] != FRM_VER && head[2] > FRM_VER+2))
+      (head[2] != FRM_VER && head[2] != FRM_VER+1 && head[2] != FRM_VER+3))
     goto err_not_open;				/* purecov: inspected */
   new_field_pack_flag=head[27];
   new_frm_ver= (head[2] - FRM_VER);
-  field_pack_length= new_frm_ver < 2 ? 11 : 15;
+  field_pack_length= new_frm_ver < 2 ? 11 : 17;
 
   error=3;
   if (!(pos=get_form_pos(file,head,(TYPELIB*) 0)))
@@ -143,8 +143,8 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
     goto err_not_open; /* purecov: inspected */
   bzero((char*) keyinfo,n_length);
   outparam->key_info=keyinfo;
-  outparam->max_key_length=0;
-  key_part= (KEY_PART_INFO*) (keyinfo+keys);
+  outparam->max_key_length= outparam->total_key_length= 0;
+  key_part= my_reinterpret_cast(KEY_PART_INFO*) (keyinfo+keys);
   strpos=disk_buff+6;
 
   ulong *rec_per_key;
@@ -154,7 +154,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 
   for (i=0 ; i < keys ; i++, keyinfo++)
   {
-    if (new_frm_ver == 2)
+    if (new_frm_ver == 3)
     {
       keyinfo->flags=	   (uint) uint2korr(strpos) ^ HA_NOSAME;
       keyinfo->key_length= (uint) uint2korr(strpos+2);
@@ -201,6 +201,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
     }
     set_if_bigger(outparam->max_key_length,keyinfo->key_length+
 		  keyinfo->key_parts);
+    outparam->total_key_length+= keyinfo->key_length;
     if (keyinfo->flags & HA_NOSAME)
       set_if_bigger(outparam->max_unique_length,keyinfo->key_length);
   }
@@ -342,28 +343,37 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 
   for (i=0 ; i < outparam->fields; i++, strpos+=field_pack_length, field_ptr++)
   {
-    uint pack_flag= uint2korr(strpos+6);
-    uint interval_nr= (uint) strpos[10];
+    uint pack_flag, interval_nr, unireg_type, recpos, field_length;
     enum_field_types field_type;
 
-    if (new_frm_ver == 2)
+    if (new_frm_ver == 3)
     {
       /* new frm file in 4.1 */
-      field_type=(enum_field_types) (uint) strpos[11];
+      field_length= uint2korr(strpos+3);
+      recpos=	    uint3korr(strpos+5);
+      pack_flag=    uint2korr(strpos+8);
+      unireg_type=  (uint) strpos[10];
+      interval_nr=  (uint) strpos[12];
+      field_type= (enum_field_types) (uint) strpos[13];
     }
     else
     {
       /* old frm file */
+      field_length= (uint) strpos[3];
+      recpos=	    uint2korr(strpos+4),
+      pack_flag=    uint2korr(strpos+6);
+      unireg_type=  (uint) strpos[8];
+      interval_nr=  (uint) strpos[10];
       field_type= (enum_field_types) f_packtype(pack_flag);
     }
 
     *field_ptr=reg_field=
-      make_field(record+uint2korr(strpos+4),
-		 (uint32) strpos[3],		// field_length
+      make_field(record+recpos,
+		 (uint32) field_length,
 		 null_pos,null_bit,
 		 pack_flag,
 		 field_type,
-		 (Field::utype) MTYP_TYPENR((uint) strpos[8]),
+		 (Field::utype) MTYP_TYPENR(unireg_type),
 		 (interval_nr ?
 		  outparam->intervals+interval_nr-1 :
 		  (TYPELIB*) 0),
@@ -1099,9 +1109,29 @@ char *get_field(MEM_ROOT *mem, TABLE *table, uint fieldnr)
   return to;
 }
 
-bool check_db_name(const char *name)
+
+/*
+  Check if database name is valid
+
+  SYNPOSIS
+    check_db_name()
+    name		Name of database
+
+  NOTES
+    If lower_case_table_names is set then database is converted to lower case
+
+  RETURN
+    0	ok
+    1   error
+*/
+
+bool check_db_name(char *name)
 {
-  const char *start=name;
+   char *start=name;
+
+  if (lower_case_table_names)
+    casedn_str(name);
+
   while (*name)
   {
 #if defined(USE_MB) && defined(USE_MB_IDENT)
@@ -1194,7 +1224,7 @@ db_type get_table_type(const char *name)
   error=my_read(file,(byte*) head,4,MYF(MY_NABP));
   my_close(file,MYF(0));
   if (error || head[0] != (uchar) 254 || head[1] != 1 ||
-      (head[2] != FRM_VER && head[2] != FRM_VER+1))
+      (head[2] != FRM_VER && head[2] != FRM_VER+1 && head[2] != FRM_VER+3))
     DBUG_RETURN(DB_TYPE_UNKNOWN);
   DBUG_RETURN(ha_checktype((enum db_type) (uint) *(head+3)));
 }

@@ -129,7 +129,7 @@ int main(int argc, char **argv)
     char buff[22],buff2[22];
     if (!(check_param.testflag & T_SILENT) || check_param.testflag & T_INFO)
       puts("\n---------\n");
-    printf("\nTotal of all %d ISAM-files:\nData records: %9s   Deleted blocks: %9s\n",check_param.total_files,llstr(check_param.total_records,buff),
+    printf("\nTotal of all %d MyISAM-files:\nData records: %9s   Deleted blocks: %9s\n",check_param.total_files,llstr(check_param.total_records,buff),
 	   llstr(check_param.total_deleted,buff2));
   }
   free_defaults(default_argv);
@@ -328,7 +328,7 @@ static void usage(void)
   print_version();
   puts("By Monty, for your professional use");
   puts("This software comes with NO WARRANTY: see the PUBLIC for details.\n");
-  puts("Description, check and repair of ISAM tables.");
+  puts("Description, check and repair of MyISAM tables.");
   puts("Used without options all tables on the command will be checked for errors");
   printf("Usage: %s [OPTIONS] tables[.MYI]\n", my_progname);
   puts("\nGlobal options:\n\
@@ -735,7 +735,7 @@ static int myisamchk(MI_CHECK *param, my_string filename)
     case HA_ERR_CRASHED:
       mi_check_print_error(param,"'%s' doesn't have a correct index definition. You need to recreate it before you can do a repair",filename);
       break;
-    case HA_ERR_WRONG_TABLE_DEF:
+    case HA_ERR_NOT_A_TABLE:
       mi_check_print_error(param,"'%s' is not a MyISAM-table",filename);
       break;
     case HA_ERR_CRASHED_ON_USAGE:
@@ -860,7 +860,7 @@ static int myisamchk(MI_CHECK *param, my_string filename)
   else
   {
     if (share->fulltext_index)
-      ft_init_stopwords(ft_precompiled_stopwords);       /* SerG */
+      ft_init_stopwords();
 
     if (!(param->testflag & T_READONLY))
       lock_type = F_WRLCK;			/* table is changed */
@@ -947,11 +947,11 @@ static int myisamchk(MI_CHECK *param, my_string filename)
 	  uint key;
 	  /*
 	    We can't update the index in mi_sort_records if we have a
-	    prefix compressed index
+	    prefix compressed or fulltext index
 	  */
 	  my_bool update_index=1;
 	  for (key=0 ; key < share->base.keys; key++)
-	    if (share->keyinfo[key].flag & HA_BINARY_PACK_KEY)
+	    if (share->keyinfo[key].flag & (HA_BINARY_PACK_KEY|HA_FULLTEXT))
 	      update_index=0;
 
 	  error=mi_sort_records(param,info,filename,param->opt_sort_key,
@@ -1402,6 +1402,13 @@ static int mi_sort_records(MI_CHECK *param,
     param->error_printed=0;
     DBUG_RETURN(-1);
   }
+  if (keyinfo->flag & HA_FULLTEXT)
+  {
+    mi_check_print_error(param,"Can't sort table '%s' on FULLTEXT key %d",
+		name,sort_key+1);
+    param->error_printed=0;
+    DBUG_RETURN(-1);
+  }
   if (!(param->testflag & T_SILENT))
   {
     printf("- Sorting records for MyISAM-table '%s'\n",name);
@@ -1674,7 +1681,7 @@ void mi_check_print_error(MI_CHECK *param, const char *fmt,...)
   if (!param->warning_printed && !param->error_printed)
   {
     if (param->testflag & T_SILENT)
-      fprintf(stderr,"%s: ISAM file %s\n",my_progname,param->isam_file_name);
+      fprintf(stderr,"%s: MyISAM file %s\n",my_progname,param->isam_file_name);
     param->out_flag|= O_DATA_LOST;
   }
   param->error_printed|=1;

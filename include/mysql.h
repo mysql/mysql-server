@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (C) 2000-2003 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -60,6 +60,10 @@ typedef int my_socket;
 extern unsigned int mysql_port;
 extern char *mysql_unix_port;
 
+#ifdef __NETWARE__
+#pragma pack(push, 8)		/* 8 byte alignment */
+#endif
+
 #define IS_PRI_KEY(n)	((n) & PRI_KEY_FLAG)
 #define IS_NOT_NULL(n)	((n) & NOT_NULL_FLAG)
 #define IS_BLOB(n)	((n) & BLOB_FLAG)
@@ -119,6 +123,7 @@ struct st_mysql_options {
   char *ssl_ca;					/* PEM CA file */
   char *ssl_capath;				/* PEM directory of CA-s? */
   char *ssl_cipher;				/* cipher to use */
+  unsigned long max_allowed_packet;
   my_bool use_ssl;				/* if to use SSL or not */
   my_bool compress,named_pipe;
  /*
@@ -417,6 +422,11 @@ int		STDCALL mysql_drop_db(MYSQL *mysql, const char *DB);
 int simple_command(MYSQL *mysql,enum enum_server_command command,
 		   const char *arg, unsigned long length, my_bool skipp_check);
 unsigned long net_safe_read(MYSQL* mysql);
+void mysql_once_init(void);
+
+#ifdef __NETWARE__
+#pragma pack(pop)		/* restore alignment */
+#endif
 
 #ifdef	__cplusplus
 }

@@ -12,7 +12,7 @@ Summary(pt_BR): MySQL: Um servidor SQL rápido e confiável.
 Group(pt_BR):	Aplicações/Banco_de_Dados
 Version:	@MYSQL_NO_DASH_VERSION@
 Release:	%{release}
-Copyright:	GPL / LGPL
+Copyright:	GPL
 Source:		http://www.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/mysql-%{mysql_version}.tar.gz
 Icon:		mysql.gif
 URL:		http://www.mysql.com/
@@ -28,6 +28,34 @@ BuildRoot:    %{_tmppath}/%{name}-%{version}-build
 
 # From the manual
 %description
+The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,
+and robust SQL (Structured Query Language) database server. MySQL Server
+is intended for mission-critical, heavy-load production systems as well
+as for embedding into mass-deployed software. MySQL is a trademark of
+MySQL AB.
+
+The MySQL software has Dual Licensing, which means you can use the MySQL
+software free of charge under the GNU General Public License
+(http://www.gnu.org/licenses/). You can also purchase commercial MySQL
+licenses from MySQL AB if you do not wish to be bound by the terms of
+the GPL. See the chapter "Licensing and Support" in the manual for
+further info.
+
+The MySQL web site (http://www.mysql.com/) provides the latest
+news and information about the MySQL software. Also please see the
+documentation and the manual for more information.
+
+%package server
+Release: %{release}
+Summary:	MySQL: a very fast and reliable SQL database server
+Group:		Applications/Databases
+Summary(pt_BR): MySQL: Um servidor SQL rápido e confiável.
+Group(pt_BR):	Aplicações/Banco_de_Dados
+Requires: fileutils sh-utils
+Provides:	msqlormysql mysql-server mysql MySQL
+Obsoletes:	MySQL mysql mysql-server
+
+%description server
 The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,
 and robust SQL (Structured Query Language) database server. MySQL Server
 is intended for mission-critical, heavy-load production systems as well
@@ -62,7 +90,7 @@ Obsoletes: mysql-client
 Provides: mysql-client
 
 %description client
-This package contains the standard MySQL clients. 
+This package contains the standard MySQL clients and administration tools. 
 
 %{see_base}
 
@@ -71,7 +99,7 @@ Este pacote contém os clientes padrão para o MySQL.
 
 %package bench
 Release: %{release}
-Requires: %{name}-client MySQL-DBI-perl-bin perl
+Requires: %{name}-client perl-DBI perl
 Summary: MySQL - Benchmarks and test system
 Group: Applications/Databases
 Summary(pt_BR): MySQL - Medições de desempenho
@@ -165,11 +193,9 @@ client/server version.
 BuildMySQL() {
 # The --enable-assembler simply does nothing on systems that does not
 # support assembler speedups.
-sh -c  "PATH=\"${MYSQL_BUILD_PATH:-/bin:/usr/bin}\" \
-	CC=\"${MYSQL_BUILD_CC:-gcc}\" \
-	CFLAGS=\"${MYSQL_BUILD_CFLAGS:- -O3}\" \
-	CXX=\"${MYSQL_BUILD_CXX:-gcc}\" \
-	CXXFLAGS=\"${MYSQL_BUILD_CXXFLAGS:- -O3 \
+sh -c  "PATH=\"${MYSQL_BUILD_PATH:-$PATH}\" \
+	CFLAGS=\"${MYSQL_BUILD_CFLAGS:-$RPM_OPT_FLAGS}\" \
+	CXXFLAGS=\"${MYSQL_BUILD_CXXFLAGS:-$RPM_OPT_FLAGS \
 	          -felide-constructors -fno-exceptions -fno-rtti \
 		  }\" \
 	./configure \
@@ -269,7 +295,7 @@ RBR=$RPM_BUILD_ROOT
 MBD=$RPM_BUILD_DIR/mysql-%{mysql_version}
 
 # Ensure that needed directories exists
-install -d $RBR/etc/{logrotate.d,rc.d/init.d}
+install -d $RBR/etc/{logrotate.d,init.d}
 install -d $RBR/var/lib/mysql/mysql
 install -d $RBR/usr/share/{sql-bench,mysql-test}
 install -d $RBR%{_mandir}
@@ -290,30 +316,48 @@ install -m644 $MBD/sql/mysqld.sym $RBR/usr/lib/mysql/mysqld.sym
 
 # Install logrotate and autostart
 install -m644 $MBD/support-files/mysql-log-rotate $RBR/etc/logrotate.d/mysql
-install -m755 $MBD/support-files/mysql.server $RBR/etc/rc.d/init.d/mysql
+install -m755 $MBD/support-files/mysql.server $RBR/etc/init.d/mysql
 
 # Create symbolic compatibility link safe_mysqld -> mysqld_safe
 # (safe_mysqld will be gone in MySQL 4.1)
 ln -sf ./mysqld_safe $RBR/usr/bin/safe_mysqld
 
-%pre
-if test -x /etc/rc.d/init.d/mysql
+# Touch the place where the my.cnf config file might be located
+# Just to make sure it's in the file list and marked as a config file
+touch $RBR/etc/my.cnf
+
+%pre server
+# Shut down a previously installed server first
+if test -x /etc/init.d/mysql
+then
+  /etc/init.d/mysql stop > /dev/null 2>&1
+  echo "Giving mysqld a couple of seconds to exit nicely"
+  sleep 5
+elif test -x /etc/rc.d/init.d/mysql
 then
   /etc/rc.d/init.d/mysql stop > /dev/null 2>&1
   echo "Giving mysqld a couple of seconds to exit nicely"
   sleep 5
 fi
 
-%post
+%post server
 mysql_datadir=/var/lib/mysql
 
 # Create data directory if needed
-if test ! -d $mysql_datadir;		then mkdir $mysql_datadir; fi
-if test ! -d $mysql_datadir/mysql;	then mkdir $mysql_datadir/mysql; fi
-if test ! -d $mysql_datadir/test;	then mkdir $mysql_datadir/test; fi
+if test ! -d $mysql_datadir; then mkdir -m755 $mysql_datadir; fi
+if test ! -d $mysql_datadir/mysql; then mkdir $mysql_datadir/mysql; fi
+if test ! -d $mysql_datadir/test; then mkdir $mysql_datadir/test; fi
 
 # Make MySQL start/shutdown automatically when the machine does it.
-/sbin/chkconfig --add mysql
+# use insserv for older SuSE Linux versions
+if test -x /sbin/insserv
+then
+	/sbin/insserv /etc/init.d/mysql
+# use chkconfig on Red Hat and newer SuSE releases
+elif test -x /sbin/chkconfig
+then
+	/sbin/chkconfig --add mysql
+fi
 
 # Create a MySQL user. Do not report any problems if it already
 # exists. This is redhat specific and should be handled more portable
@@ -334,31 +378,37 @@ chown -R mysql $mysql_datadir
 chmod -R og-rw $mysql_datadir/mysql
 
 # Restart in the same way that mysqld will be started normally.
-/etc/rc.d/init.d/mysql start
+/etc/init.d/mysql start
 
 # Allow safe_mysqld to start mysqld and print a message before we exit
 sleep 2
 
 %post Max
 # Restart mysqld, to use the new binary.
-# There may be a better way to handle this.
-/etc/rc.d/init.d/mysql stop > /dev/null 2>&1
-echo "Giving mysqld a couple of seconds to restart"
-sleep 5
-/etc/rc.d/init.d/mysql start
-sleep 2
+echo "Restarting mysqld."
+/etc/init.d/mysql restart > /dev/null 2>&1
 
-%preun
+%preun server
 if test $1 = 0
 then
-  if test -x /etc/rc.d/init.d/mysql
+	# Stop MySQL before uninstalling it
+  if test -x /etc/init.d/mysql
   then
-    /etc/rc.d/init.d/mysql stop > /dev/null
+    /etc/init.d/mysql stop > /dev/null
   fi
 
   # Remove autostart of mysql
-  /sbin/chkconfig --del mysql
+	# for older SuSE Linux versions
+	if test -x /sbin/insserv
+	then
+		/sbin/insserv -r /etc/init.d/mysql
+	# use chkconfig on Red Hat and newer SuSE releases
+	elif test -x /sbin/chkconfig
+	then
+		/sbin/chkconfig --del mysql
+	fi
 fi
+
 # We do not remove the mysql user since it may still own a lot of
 # database files.
 
@@ -366,7 +416,7 @@ fi
 %clean
 [ "$RBR" != "/" ] && [ -d $RBR ] && rm -rf $RBR;
 
-%files
+%files server
 %defattr(755 root, root)
 
 %doc %attr(644, root, root) COPYING COPYING.LIB README
@@ -383,6 +433,8 @@ fi
 %doc %attr(644, root, man) %{_mandir}/man1/mysqld_safe.1*
 %doc %attr(644, root, man) %{_mandir}/man1/perror.1*
 %doc %attr(644, root, man) %{_mandir}/man1/replace.1*
+
+%ghost %config(noreplace,missingok) /etc/my.cnf
 
 %attr(755, root, root) /usr/bin/isamchk
 %attr(755, root, root) /usr/bin/isamlog
@@ -412,7 +464,7 @@ fi
 %attr(644, root, root) /usr/lib/mysql/mysqld.sym
 
 %attr(644, root, root) /etc/logrotate.d/mysql
-%attr(755, root, root) /etc/rc.d/init.d/mysql
+%attr(755, root, root) /etc/init.d/mysql
 
 %attr(755, root, root) /usr/share/mysql/
 
@@ -420,6 +472,7 @@ fi
 %attr(755, root, root) /usr/bin/msql2mysql
 %attr(755, root, root) /usr/bin/mysql
 %attr(755, root, root) /usr/bin/mysql_find_rows
+%attr(755, root, root) /usr/bin/mysql_waitpid
 %attr(755, root, root) /usr/bin/mysqlaccess
 %attr(755, root, root) /usr/bin/mysqladmin
 %attr(755, root, root) /usr/bin/mysqlbinlog
@@ -481,6 +534,34 @@ fi
 %attr(644, root, root) /usr/lib/mysql/libmysqld.a
 
 %changelog 
+
+* Tue Feb 11 2003 Lenz Grimmer <lenz@mysql.com>
+
+- re-added missing pre- and post(un)install scripts to server subpackage
+- added config file /etc/my.cnf to the file list (just for completeness)
+- make sure to create the datadir with 755 permissions
+
+* Mon Jan 27 2003 Lenz Grimmer <lenz@mysql.com>
+
+- removed unused CC and CXX variables
+- CFLAGS and CXXFLAGS should honor RPM_OPT_FLAGS
+
+* Fri Jan 24 2003 Lenz Grimmer <lenz@mysql.com>
+
+- renamed package "MySQL" to "MySQL-server"
+- fixed Copyright tag
+- added mysql_waitpid to client subpackage (required for mysql-test-run)
+
+* Wed Nov 27 2002 Lenz Grimmer <lenz@mysql.com>
+
+- moved init script from /etc/rc.d/init.d to /etc/init.d (the majority of 
+  Linux distributions now support this scheme as proposed by the LSB either
+  directly or via a compatibility symlink)
+- Use new "restart" init script action instead of starting and stopping
+  separately
+- Be more flexible in activating the automatic bootup - use insserv (on
+  older SuSE versions) or chkconfig (Red Hat, newer SuSE versions and
+  others) to create the respective symlinks
 
 * Wed Sep 25 2002 Lenz Grimmer <lenz@mysql.com>
 

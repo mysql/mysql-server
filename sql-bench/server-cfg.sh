@@ -1,4 +1,5 @@
 #!@PERL@
+# -*- perl -*-
 # Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
 #
 # This library is free software; you can redistribute it and/or
@@ -69,11 +70,13 @@ sub get_server
   { $server= new db_db2($host,$database); }
   elsif ($name =~ /Mimer/i)
   { $server= new db_Mimer($host,$database); }
+  elsif ($name =~ /Sapdb/i)
+  { $server= new db_sapdb($host,$database); }
   elsif ($name =~ /interBase/i)
   { $server= new db_interbase($host,$database); }
   else
   {
-      die "Unknown sql server name used: $name\nUse one of: Access, Adabas, AdabasD, Empress, FrontBase, Oracle, Informix, InterBase, DB2, mSQL, Mimer, MS-SQL, MySQL, Pg, Solid or Sybase.\nIf the connection is done trough ODBC the name must end with _ODBC\n";
+      die "Unknown sql server name used: $name\nUse one of: Access, Adabas, AdabasD, Empress, FrontBase, Oracle, Informix, InterBase, DB2, mSQL, Mimer, MS-SQL, MySQL, Pg, Solid, SAPDB or Sybase.\nIf the connection is done trough ODBC the name must end with _ODBC\n";
   }
   if ($name =~ /_ODBC$/i || defined($odbc) && $odbc)
   {
@@ -94,7 +97,7 @@ sub get_server
 sub all_servers
 {
   return ["Access", "Adabas", "DB2", "Empress", "FrontBase", "Oracle",
-	  "Informix", "InterBase", "Mimer", "mSQL", "MS-SQL", "MySQL", "Pg",
+	  "Informix", "InterBase", "Mimer", "mSQL", "MS-SQL", "MySQL", "Pg","SAPDB",
 	  "Solid", "Sybase"];
 }
 
@@ -116,7 +119,6 @@ sub new
   $self->{'data_source'} .= ";mysql_socket=$socket" if($socket);
   $self->{'data_source'} .= ";$connect_options" if($connect_options);
   $self->{'limits'}		= \%limits;
-  $self->{'smds'}		= \%smds;
   $self->{'blob'}		= "blob";
   $self->{'text'}		= "text";
   $self->{'double_quotes'}	= 1; # Can handle:  'Walker''s'
@@ -168,6 +170,7 @@ sub new
   $limits{'unique_index'}	= 1; # Unique index works or not
   $limits{'working_all_fields'} = 1;
   $limits{'working_blobs'}	= 1; # If big varchar/blobs works
+  $limits{'multi_distinct'}     = 1; # allows select count(distinct a),count(distinct b).. 
 
   # Some fixes that depends on the environment
   if (defined($main::opt_create_options) &&
@@ -178,7 +181,6 @@ sub new
   if (defined($main::opt_create_options) &&
       $main::opt_create_options =~ /type=innodb/i)
   {
-    $limits{'max_text_size'}	= 8000; # Limit in Innobase
     $self->{'transactions'}	= 1;	# Transactions enabled
   }
   if (defined($main::opt_create_options) &&
@@ -215,7 +217,15 @@ sub version
     $version="MySQL $row[0]";
   }
   $sth->finish;
+
+  $sth = $dbh->prepare("show status like 'ssl_version'") or die $DBI::errstr;
+  if ($sth->execute && (@row = $sth->fetchrow_array))
+  {
+    $version .= "/$row[1]";
+  }
+  $sth->finish;
   $dbh->disconnect;
+  $version .= "/ODBC" if ($self->{'data_source'} =~ /:ODBC:/);
   return $version;
 }
 
@@ -251,7 +261,7 @@ sub create
   $query="create table $table_name (";
   foreach $field (@$fields)
   {
-    $field =~ s/ decimal/ double(10,2)/i;
+#    $field =~ s/ decimal/ double(10,2)/i;
     $field =~ s/ big_decimal/ double(10,2)/i;
     $query.= $field . ',';
   }
@@ -411,6 +421,7 @@ sub new
   $limits{'working_blobs'}	= 1; # If big varchar/blobs works
   $limits{'order_by_unused'}	= 1;
   $limits{'working_all_fields'} = 1;
+  $limits{'multi_distinct'}     = 1; # allows select count(distinct a),count(distinct b).. 
   return $self;
 }
 
@@ -431,6 +442,8 @@ sub version
       {				# Strip pre- and endspace
 	$tmp=$1;
 	$tmp =~ s/\s+/ /g;	# Remove unnecessary spaces
+	$tmp .= "/ODBC" if ($self->{'data_source'} =~ /:ODBC:/);
+
 	return $tmp;
       }
     }
@@ -610,6 +623,7 @@ sub new
   $limits{'unique_index'}	= 1; # Unique index works or not
   $limits{'working_all_fields'} = 1;
   $limits{'working_blobs'}	= 1; # If big varchar/blobs works
+  $limits{'multi_distinct'}     = 1; # allows select count(distinct a),count(distinct b).. 
 
   return $self;
 }
@@ -619,6 +633,7 @@ sub new
 sub version
 {
   my ($version,$dir);
+  $version = "PostgreSQL version ???";
   foreach $dir ($ENV{'PGDATA'},"/usr/local/pgsql/data", "/usr/local/pg/data")
   {
     if ($dir && -e "$dir/PG_VERSION")
@@ -627,11 +642,13 @@ sub version
       if ($? == 0)
       {
 	chomp($version);
+	$version .= "/ODBC" if ($self->{'data_source'} =~ /:ODBC:/);
 	return "PostgreSQL $version";
       }
     }
   }
-  return "PostgreSQL version ???";
+  $version .= "/ODBC" if ($self->{'data_source'} =~ /:ODBC:/);
+  return $version;
 }
 
 
@@ -665,9 +682,9 @@ sub create
     $field =~ s/int\(\d*\)/int/;
     $field =~ s/float\(\d*,\d*\)/float/;
     $field =~ s/ double/ float/;
-    $field =~ s/ decimal/ float/i;
-    $field =~ s/ big_decimal/ float/i;
-    $field =~ s/ date/ int/i;
+#    $field =~ s/ decimal/ float/i;
+#    $field =~ s/ big_decimal/ float/i;
+#    $field =~ s/ date/ int/i;
     # Pg doesn't have blob, it has text instead
     $field =~ s/ blob/ text/;
     $query.= $field . ',';
@@ -884,6 +901,7 @@ sub new
   $limits{'working_blobs'}	= 1; # If big varchar/blobs works
   $limits{'order_by_unused'}	= 1;
   $limits{'working_all_fields'} = 1;
+  $limits{'multi_distinct'}     = 1; # allows select count(distinct a),count(distinct b).. 
 
   return $self;
 }
@@ -895,6 +913,7 @@ sub new
 sub version
 {
   my ($version,$dir);
+  $version="Solid version ??";
   foreach $dir ($ENV{'SOLIDDIR'},"/usr/local/solid", "/my/local/solid")
   {
     if ($dir && -e "$dir/bin/solcon")
@@ -903,11 +922,13 @@ sub version
       if ($? == 0)
       {
 	chomp($version);
+	$version .= "/ODBC" if ($self->{'data_source'} =~ /:ODBC:/);
 	return $version;
       }
     }
   }
-  return "Solid version ???";
+  $version .= "/ODBC" if ($self->{'data_source'} =~ /:ODBC:/);
+  return $version;
 }
 
 sub connect
@@ -937,9 +958,9 @@ sub create
     $field =~ s/ double/ float/i;
     # Solid doesn't have blob, it has long varchar
     $field =~ s/ blob/ long varchar/;
-    $field =~ s/ decimal/ float/i;
-    $field =~ s/ big_decimal/ float/i;
-    $field =~ s/ date/ int/i;
+#    $field =~ s/ decimal/ float/i;
+#    $field =~ s/ big_decimal/ float/i;
+#    $field =~ s/ date/ int/i;
     $query.= $field . ',';
   }
   substr($query,-1)=")";		# Remove last ',';
@@ -1111,6 +1132,7 @@ sub new
   $limits{'working_blobs'}	= 1; # If big varchar/blobs works
   $limits{'order_by_unused'}	= 1;
   $limits{'working_all_fields'} = 1;
+  $limits{'multi_distinct'}     = 1; # allows select count(distinct a),count(distinct b).. 
 
   return $self;
 }
@@ -1136,6 +1158,8 @@ sub version
   {
     $version="Empress version ???";
   }
+
+  $version .= "/ODBC" if ($self->{'data_source'} =~ /:ODBC:/);
   return $version;
 }
 
@@ -1183,9 +1207,9 @@ sub create
     $field =~ s/ blob/ text/;
     $field =~ s/ varchar\((\d+)\)/ char($1,3)/;
     $field =~ s/ char\((\d+)\)/ char($1,3)/;
-    $field =~ s/ decimal/ float/i;
-    $field =~ s/ big_decimal/ longfloat/i;
-    $field =~ s/ date/ int/i;
+#    $field =~ s/ decimal/ float/i;
+#    $field =~ s/ big_decimal/ longfloat/i;
+#    $field =~ s/ date/ int/i;
     $field =~ s/ float(.*)/ float/i;
     if ($field =~ / int\((\d+)\)/) {
       if ($1 > 4) {
@@ -1380,6 +1404,7 @@ sub new
   $limits{'working_blobs'}	= 1; # If big varchar/blobs works
   $limits{'order_by_unused'}	= 1;
   $limits{'working_all_fields'} = 1;
+  $limits{'multi_distinct'}     = 1; # allows select count(distinct a),count(distinct b).. 
 
 
   return $self;
@@ -1403,6 +1428,7 @@ sub version
   }
   $sth->finish;
   $dbh->disconnect;
+  $version .= "/ODBC" if ($self->{'data_source'} =~ /:ODBC:/);
   return $version;
 }
 
@@ -1623,6 +1649,7 @@ sub new
   $limits{'working_blobs'}	= 1; # If big varchar/blobs works
   $limits{'order_by_unused'}	= 1;
   $limits{'working_all_fields'} = 1;
+  $limits{'multi_distinct'}     = 1; # allows select count(distinct a),count(distinct b).. 
 
   return $self;
 }
@@ -1647,6 +1674,7 @@ sub version
   }
   $sth->finish;
   $dbh->disconnect;
+  $version .= "/ODBC" if ($self->{'data_source'} =~ /:ODBC:/);
   return $version;
 }
 
@@ -1836,6 +1864,7 @@ sub new
   $limits{'working_blobs'}	= 1; # If big varchar/blobs works
   $limits{'order_by_unused'}	= 1;
   $limits{'working_all_fields'} = 1;
+  $limits{'multi_distinct'}     = 1; # allows select count(distinct a),count(distinct b).. 
   return $self;
 }
 
@@ -1846,7 +1875,9 @@ sub new
 sub version
 {
   my ($self)=@_;
-  return "Access 2000";		#DBI/ODBC can't return the server version
+  my $version="Access 2000";
+  $version .= "/ODBC" if ($self->{'data_source'} =~ /:ODBC:/);
+  return $version;		#DBI/ODBC can't return the server version
 }
 
 sub connect
@@ -2018,6 +2049,7 @@ sub new
   $limits{'working_blobs'}	= 1; # If big varchar/blobs works
   $limits{'order_by_unused'}	= 1;
   $limits{'working_all_fields'} = 1;
+  $limits{'multi_distinct'}     = 1; # allows select count(distinct a),count(distinct b).. 
   return $self;
 }
 
@@ -2028,7 +2060,8 @@ sub new
 sub version
 {
   my ($self)=@_;
-  my($sth,@row);
+  my($sth,@row, $version);
+  $version='MS SQL server ?';
   $dbh=$self->connect();
   $sth = $dbh->prepare("SELECT \@\@VERSION") or die $DBI::errstr;
   $sth->execute or die $DBI::errstr;
@@ -2036,10 +2069,11 @@ sub version
   if ($row[0]) {
      @server = split(/\n/,$row[0]);
      chomp(@server);
-     return "$server[0]";
-  } else {
-    return "Microsoft SQL server ?";
-  }
+     $version= "$server[0]";
+  } 
+  $sth->finish;
+  $version .= "/ODBC" if ($self->{'data_source'} =~ /:ODBC:/);
+  return $version;
 }
 
 sub connect
@@ -2211,6 +2245,7 @@ sub new
   $limits{'working_blobs'}	= 1; # If big varchar/blobs works
   $limits{'order_by_unused'}	= 1;
   $limits{'working_all_fields'} = 1;
+  $limits{'multi_distinct'}     = 1; # allows select count(distinct a),count(distinct b).. 
   return $self;
 }
 
@@ -2232,8 +2267,8 @@ sub version
   }
   $sth->finish;
   $dbh->disconnect;
+  $version .= "/ODBC" if ($self->{'data_source'} =~ /:ODBC:/);
   return $version;
-
 }
 
 sub connect
@@ -2442,6 +2477,7 @@ sub new
   $limits{'working_blobs'}	= 1; # If big varchar/blobs works
   $limits{'order_by_unused'}	= 1;
   $limits{'working_all_fields'} = 1;
+  $limits{'multi_distinct'}     = 1; # allows select count(distinct a),count(distinct b).. 
 
 
   return $self;
@@ -2466,6 +2502,7 @@ sub version
   }
   $sth->finish;
   $dbh->disconnect;
+  $version .= "/ODBC" if ($self->{'data_source'} =~ /:ODBC:/);
   return $version;
 }
 
@@ -2644,6 +2681,7 @@ sub new
   $limits{'working_blobs'}	= 1; # If big varchar/blobs works
   $limits{'order_by_unused'}	= 1;
   $limits{'working_all_fields'} = 1;
+  $limits{'multi_distinct'}     = 1; # allows select count(distinct a),count(distinct b).. 
   return $self;
 }
 
@@ -2798,7 +2836,7 @@ sub new
   $limits{'subqueries'}		= 1; # Supports sub-queries.
   $limits{'left_outer_join'}	= 1; # Supports left outer joins
   $limits{'table_wildcard'}	= 1; # Has SELECT table_name.*
-  $limits{'having_with_alias'}  = 1; # Can use aliases in HAVING
+  $limits{'having_with_alias'}  = 0; # Can use aliases in HAVING
   $limits{'having_with_group'}	= 1; # Can use group functions in HAVING
   $limits{'like_with_column'}	= 1; # Can use column1 LIKE column2
   $limits{'order_by_position'}  = 1; # Can use 'ORDER BY 1'
@@ -2807,6 +2845,7 @@ sub new
   $limits{'alter_add_multi_col'}= 0; # Have ALTER TABLE t add a int,add b int;
   $limits{'alter_table_dropcol'}= 1; # Have ALTER TABLE DROP column
   $limits{'insert_multi_value'} = 0; # Does not have INSERT ... values (1,2),(3,4)
+  $limits{'multi_distinct'}     = 0; # Does not allow select count(distinct a),count(distinct b).. 
 
   $limits{'group_func_extra_std'} = 0; # Does not have group function std().
 
@@ -2821,8 +2860,9 @@ sub new
   $limits{'unique_index'}	= 1; # Unique index works or not
   $limits{'insert_select'}	= 1;
   $limits{'working_blobs'}	= 1; # If big varchar/blobs works
-  $limits{'order_by_unused'}	= 1;
+  $limits{'order_by_unused'}	= 0;
   $limits{'working_all_fields'} = 1;
+  $limits{'multi_distinct'}     = 1; # allows select count(distinct a),count(distinct b).. 
 
   return $self;
 }
@@ -2842,6 +2882,7 @@ sub version
 #
   $version = $dbh->func(18, GetInfo);
   $dbh->disconnect;
+  $version .= "/ODBC" if ($self->{'data_source'} =~ /:ODBC:/);  
   return $version;
 }
 
@@ -2877,8 +2918,9 @@ sub create
   $query="create table $table_name (";
   foreach $field (@$fields)
   {
-    $field =~ s/ decimal/ double(10,2)/i;
-    $field =~ s/ big_decimal/ double(10,2)/i;
+#    $field =~ s/ decimal/ double(10,2)/i;
+#    $field =~ s/ big_decimal/ double(10,2)/i;
+    $field =~ s/ double/ double precision/i;  
     $field =~ s/ tinyint\(.*\)/ smallint/i;
     $field =~ s/ smallint\(.*\)/ smallint/i;
     $field =~ s/ mediumint/ integer/i;
@@ -2966,7 +3008,7 @@ sub new
   bless $self;
 
   $self->{'cmp_name'}		= "interbase";
-  $self->{'data_source'}	= "DBI:InterBase:database=$database:ib_dialect=3";
+  $self->{'data_source'}	= "DBI:InterBase:database=$database;ib_dialect=3";
   $self->{'limits'}		= \%limits;
   $self->{'blob'}		= "blob";
   $self->{'text'}		= "";
@@ -2981,7 +3023,7 @@ sub new
   $limits{'max_tables'}		= 65000;	# Should be big enough
   $limits{'max_text_size'}	= 15000; # Max size with default buffers.
   $limits{'query_size'}		= 1000000; # Max size with default buffers.
-  $limits{'max_index'}		= 31; # Max number of keys
+  $limits{'max_index'}		= 65000; # Max number of keys
   $limits{'max_index_parts'}	= 8; # Max segments/key
   $limits{'max_column_name'}	= 128; # max table and column name
 
@@ -3020,6 +3062,7 @@ sub new
   $limits{'working_blobs'}	= 1; # If big varchar/blobs works
   $limits{'order_by_unused'}	= 1;
   $limits{'working_all_fields'} = 1;
+  $limits{'multi_distinct'}     = 1; # allows select count(distinct a),count(distinct b).. 
 
   return $self;
 }
@@ -3031,16 +3074,14 @@ sub new
 sub version
 {
   my ($self)=@_;
-  my ($dbh,$sth,$version,@row);
-
+  my ($dbh,$version);
+  
+  $version='Interbase ?';
+  
   $dbh=$self->connect();
-#  $sth = $dbh->prepare("show version");
-#  $sth->execute;
-#  @row = $sth->fetchrow_array;
-#  $version = $row[0];
-#  $version =~ s/.*version \"(.*)\"$/$1/;
+  eval { $version =   $dbh->func('version','ib_database_info')->{'version'}; }; 
   $dbh->disconnect;
-  $version = "6.0Beta";
+  $version .= "/ODBC" if ($self->{'data_source'} =~ /:ODBC:/);
   return $version;
 }
 
@@ -3070,36 +3111,34 @@ sub connect
 sub create
 {
   my($self,$table_name,$fields,$index,$options) = @_;
-  my($query,@queries);
+  my($query,@queries,@keys,@indexes);
 
   $query="create table $table_name (";
   foreach $field (@$fields)
   {
-    $field =~ s/ big_decimal/ float/i;
-    $field =~ s/ double/ float/i;
+#    $field =~ s/ big_decimal/ decimal/i;
+    $field =~ s/ double/ double precision/i;
     $field =~ s/ tinyint/ smallint/i;
-    $field =~ s/ mediumint/ int/i;
-    $field =~ s/ integer/ int/i;
+    $field =~ s/ mediumint/ integer/i;
+    $field =~ s/\bint\b/integer/i;
     $field =~ s/ float\(\d,\d\)/ float/i;
-    $field =~ s/ date/ int/i;		# Because of tcp ?
     $field =~ s/ smallint\(\d\)/ smallint/i;
-    $field =~ s/ int\(\d\)/ int/i;
+    $field =~ s/ integer\(\d\)/ integer/i;
     $query.= $field . ',';
   }
   foreach $ind (@$index)
   {
-    my @index;
-    if ( $ind =~ /\bKEY\b/i ){
+    if ( $ind =~ /(\bKEY\b)|(\bUNIQUE\b)/i ){
       push(@keys,"ALTER TABLE $table_name ADD $ind");
     }else{
-      my @fields = split(' ',$index);
+      my @fields = split(' ',$ind);
       my $query="CREATE INDEX $fields[1] ON $table_name $fields[2]";
-      push(@index,$query);
+      push(@indexes,$query);
     }
   }
   substr($query,-1)=")";		# Remove last ',';
   $query.=" $options" if (defined($options));
-  push(@queries,$query);
+  push(@queries,$query,@keys,@indexes);
   return @queries;
 }
 
@@ -3226,6 +3265,7 @@ sub new
   $limits{'group_func_sql_min_str'} = 0;
   # If you do select f1,f2,f3...f200 from table, Frontbase dies.
   $limits{'working_all_fields'} = 0;
+  $limits{'multi_distinct'}     = 1; # allows select count(distinct a),count(distinct b).. 
 
   return $self;
 }
@@ -3246,6 +3286,7 @@ sub version
   #$version = $dbh->func(18, GetInfo);
   $version="FrontBase 3.3";
 #  $dbh->disconnect;
+  $version .= "/ODBC" if ($self->{'data_source'} =~ /:ODBC:/);
   return $version;
 }
 
@@ -3353,6 +3394,215 @@ sub small_rollback_segment
 sub reconnect_on_errors
 {
   return 1;
+}
+
+sub fix_for_insert
+{
+  my ($self,$cmd) = @_;
+  return $cmd;
+}
+
+#############################################################################
+#	     Configuration for SAPDB 
+#############################################################################
+
+package db_sapdb;
+
+sub new
+{
+  my ($type,$host,$database)= @_;
+  my $self= {};
+  my %limits;
+  bless $self;
+
+  $self->{'cmp_name'}		= "sapdb";
+  $self->{'data_source'}	= "DBI:SAP_DB:$database";
+  $self->{'limits'}		= \%limits;
+  $self->{'blob'}		= "LONG"; # *
+  $self->{'text'}		= "LONG"; # *
+  $self->{'double_quotes'}	= 1; # Can handle:  'Walker''s'
+  $self->{'drop_attr'}		= "";
+  $self->{'transactions'}	= 1; # Transactions enabled *
+  $self->{'char_null'}          = "";
+  $self->{'numeric_null'}       = "";
+
+  $limits{'max_conditions'}	= 9999; # (Actually not a limit) *
+  $limits{'max_columns'}	= 1023;	# Max number of columns in table *
+  $limits{'max_tables'}		= 65000;	# Should be big enough * unlimited actually
+  $limits{'max_text_size'}	= 15000; # Max size with default buffers. 
+  $limits{'query_size'}		= 64*1024; # Max size with default buffers. *64 kb by default. May be set by system variable 
+  $limits{'max_index'}		= 510; # Max number of keys *
+  $limits{'max_index_parts'}	= 16; # Max segments/key *
+  $limits{'max_column_name'}	= 32; # max table and column name * 
+
+  $limits{'join_optimizer'}	= 1; # Can optimize FROM tables *
+  $limits{'load_data_infile'}	= 0; # Has load data infile *
+  $limits{'lock_tables'}	= 1; # Has lock tables 
+  $limits{'functions'}		= 1; # Has simple functions (+/-) *
+  $limits{'group_functions'}	= 1; # Have group functions *
+  $limits{'group_func_sql_min_str'} = 1; # Can execute MIN() and MAX() on strings *
+  $limits{'group_distinct_functions'}= 1; # Have count(distinct)  *
+  $limits{'select_without_from'}= 0; # Cannot do 'select 1';  *
+  $limits{'multi_drop'}		= 0; # Drop table cannot take many tables *
+  $limits{'subqueries'}		= 1; # Supports sub-queries. *
+  $limits{'left_outer_join'}	= 1; # Supports left outer joins *
+  $limits{'table_wildcard'}	= 1; # Has SELECT table_name.*
+  $limits{'having_with_alias'}  = 0; # Can use aliases in HAVING *
+  $limits{'having_with_group'}	= 1; # Can use group functions in HAVING *
+  $limits{'like_with_column'}	= 1; # Can use column1 LIKE column2 *
+  $limits{'order_by_position'}  = 1; # Can use 'ORDER BY 1' *
+  $limits{'group_by_position'}  = 0; # Cannot use 'GROUP BY 1' *
+  $limits{'alter_table'}	= 1; # Have ALTER TABLE *
+  $limits{'alter_add_multi_col'}= 1; # Have ALTER TABLE t add a int,add b int; *
+  $limits{'alter_table_dropcol'}= 1; # Have ALTER TABLE DROP column  *
+  $limits{'insert_multi_value'} = 0; # INSERT ... values (1,2),(3,4) *
+
+  $limits{'group_func_extra_std'} = 0; # Does not have group function std().
+
+  $limits{'func_odbc_mod'}	= 0; # Have function mod. *
+  $limits{'func_extra_%'}	= 0; # Does not have % as alias for mod() *
+  $limits{'func_odbc_floor'}	= 1; # Has func_odbc_floor function *
+  $limits{'func_extra_if'}	= 0; # Does not have function if. *
+  $limits{'column_alias'}	= 1; # Alias for fields in select statement. *
+  $limits{'NEG'}		= 1; # Supports -id *
+  $limits{'func_extra_in_num'}	= 0; # Has function in *
+  $limits{'limit'}		= 0; # Does not support the limit attribute *
+  $limits{'working_blobs'}	= 1; # If big varchar/blobs works *
+  $limits{'order_by_unused'}	= 1; # 
+  $limits{'working_all_fields'} = 1; #
+  $limits{'multi_distinct'}     = 1; # allows select count(distinct a),count(distinct b).. 
+
+
+  return $self;
+}
+
+#
+# Get the version number of the database
+#
+
+sub version
+{
+  my ($self)=@_;
+  my ($dbh,$sth,$version,@row);
+
+  $dbh=$self->connect();
+  $sth = $dbh->prepare("SELECT KERNEL FROM VERSIONS") or die $DBI::errstr;
+  $version="SAP DB (unknown)";
+  if ($sth->execute && (@row = $sth->fetchrow_array)
+      && $row[0] =~ /([\d\.]+)/)
+  {
+    $version=$row[0];
+    $version =~ s/KERNEL/SAP DB/i; 
+  }
+  $sth->finish;
+  $dbh->disconnect;
+  $version .= "/ODBC" if ($self->{'data_source'} =~ /:ODBC:/);
+  return $version;
+}
+
+#
+# Connection with optional disabling of logging
+#
+
+sub connect
+{
+  my ($self)=@_;
+  my ($dbh);
+  $dbh=DBI->connect($self->{'data_source'}, $main::opt_user,
+		    $main::opt_password,{ PrintError => 0, AutoCommit => 1}) ||
+		      die "Got error: '$DBI::errstr' when connecting to " . $self->{'data_source'} ." with user: '$main::opt_user' password: '$main::opt_password'\n";
+
+  return $dbh;
+}
+
+#
+# Returns a list of statements to create a table
+# The field types are in ANSI SQL format.
+#
+
+sub create
+{
+  my($self,$table_name,$fields,$index,$options) = @_;
+  my($query,@queries,$nr);
+  my @index;
+  my @keys;
+
+  $query="create table $table_name (";
+  foreach $field (@$fields)
+  {
+    $field =~ s/\bmediumint\b/int/i;
+    $field =~ s/\btinyint\b/int/i;
+    $field =~ s/ int\(\d\)/ int/i;
+    $field =~ s/BLOB/LONG/i;
+    $field =~ s/INTEGER\s*\(\d+\)/INTEGER/i;
+    $field =~ s/SMALLINT\s*\(\d+\)/SMALLINT/i;
+    $field =~ s/FLOAT\s*\((\d+),\d+\)/FLOAT\($1\)/i;
+    $field =~ s/DOUBLE/FLOAT\(38\)/i;
+    $field =~ s/DOUBLE\s+PRECISION/FLOAT\(38\)/i;
+    $query.= $field . ',';
+  }
+  $nr=0;
+  foreach $ind (@$index)
+  {
+    if ( $ind =~ /\bKEY\b/i ){
+      push(@keys,"ALTER TABLE $table_name ADD $ind");
+    } elsif ($ind =~ /^unique.*\(([^\(]*)\)$/i)  {
+      $nr++;
+      my $query="create unique index ${table_name}_$nr on $table_name ($1)";
+      push(@index,$query);
+    }else{
+      my @fields = split(' ',$ind);
+      my $query="CREATE INDEX $fields[1] ON $table_name $fields[2]";
+      push(@index,$query);
+    }
+  }
+  substr($query,-1)=")";		# Remove last ',';
+  $query.=" $options" if (defined($options));
+  push(@queries,$query);
+  push(@queries,@keys);
+  push(@queries,@index);
+  return @queries;
+}
+
+sub insert_file {
+  my($self,$dbname, $file) = @_;
+  print "insert of an ascii file isn't supported by SAPDB\n";
+  return 0;
+}
+
+#
+# Do any conversions to the ANSI SQL query so that the database can handle it
+#
+
+sub query {
+  my($self,$sql) = @_;
+  return $sql;
+}
+
+sub drop_index {
+  my ($self,$table,$index) = @_;
+  return "DROP INDEX $index";
+}
+
+#
+# Abort if the server has crashed
+# return: 0 if ok
+#	  1 question should be retried
+#
+
+sub abort_if_fatal_error
+{
+  return 0;
+}
+
+sub small_rollback_segment
+{
+  return 0;
+}
+
+sub reconnect_on_errors
+{
+  return 0;
 }
 
 sub fix_for_insert

@@ -40,11 +40,28 @@ static int copy_data_between_tables(TABLE *from,TABLE *to,
                                     ORDER *order,
 				    ha_rows *copied,ha_rows *deleted);
 
-/*****************************************************************************
-** Remove all possbile tables and give a compact errormessage for all
-** wrong tables.
-** This will wait for all users to free the table before dropping it
-*****************************************************************************/
+/*
+ delete (drop) tables.
+
+  SYNOPSIS
+   mysql_rm_table()
+   thd			Thread handle
+   tables		List of tables to delete
+   if_exists		If 1, don't give error if one table doesn't exists
+
+  NOTES
+    Will delete all tables that can be deleted and give a compact error
+    messages for tables that could not be deleted.
+    If a table is in use, we will wait for all users to free the table
+    before dropping it
+
+    Wait if global_read_lock (FLUSH TABLES WITH READ LOCK) is set.
+
+  RETURN
+    0		ok.  In this case ok packet is sent to user
+    -1		Error  (Error message given but not sent to user)
+
+*/
 
 int mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists)
 {
@@ -74,7 +91,7 @@ int mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists)
   }
   error=mysql_rm_table_part2(thd,tables,if_exists,0);
 
- err:  
+ err:
   pthread_mutex_unlock(&LOCK_open);
   VOID(pthread_cond_broadcast(&COND_refresh)); // Signal to refresh
 
@@ -88,6 +105,26 @@ int mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists)
   send_ok(&thd->net);
   DBUG_RETURN(0);
 }
+
+
+/*
+ delete (drop) tables.
+
+  SYNOPSIS
+   mysql_rm_table_part2_with_lock()
+   thd			Thread handle
+   tables		List of tables to delete
+   if_exists		If 1, don't give error if one table doesn't exists
+   dont_log_query	Don't write query to log files
+
+ NOTES
+   Works like documented in mysql_rm_table(), but don't check
+   global_read_lock and don't send_ok packet to server.
+
+ RETURN
+  0	ok
+  1	error
+*/
 
 int mysql_rm_table_part2_with_lock(THD *thd,
 				   TABLE_LIST *tables, bool if_exists,
@@ -109,6 +146,7 @@ int mysql_rm_table_part2_with_lock(THD *thd,
   pthread_mutex_unlock(&thd->mysys_var->mutex);
   return error;
 }
+
 
 /*
   TODO:
@@ -136,6 +174,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
   for (table=tables ; table ; table=table->next)
   {
     char *db=table->db ? table->db : thd->db;
+    mysql_ha_closeall(thd, table);
     if (!close_temporary_table(thd, db, table->real_name))
     {
       tmp_table_deleted=1;
@@ -695,7 +734,6 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
 
   thd->proc_info="creating table";
 
-  create_info->create_statement = thd->query;
   create_info->table_options=db_options;
   if (rea_create_table(path, create_info, fields, key_count,
 		       key_info_buffer))
@@ -801,7 +839,7 @@ TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
       field=item->tmp_table_field(&tmp_table);
     else
       field=create_tmp_field(thd, &tmp_table, item, item->type(),
-				  (Item_result_field***) 0, &tmp_field,0,0);
+				  (Item ***) 0, &tmp_field,0,0);
     if (!field ||
 	!(cr_field=new create_field(field,(item->type() == Item::FIELD_ITEM ?
 					   ((Item_field *)item)->field :
@@ -1336,6 +1374,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     new_db=db;
   used_fields=create_info->used_fields;
 
+  mysql_ha_closeall(thd, table_list);
   if (!(table=open_ltable(thd,table_list,TL_WRITE_ALLOW_READ)))
     DBUG_RETURN(-1);
 
@@ -1433,6 +1472,8 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
       }
       send_ok(&thd->net);
     }
+    table_list->table=0;				// For query cache
+    query_cache_invalidate3(thd, table_list, 0);
     DBUG_RETURN(error);
   }
 
@@ -1772,8 +1813,11 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     /* We changed a temporary table */
     if (error)
     {
+      /*
+	The following function call will free the new_table pointer,
+	in close_temporary_table(), so we can safely directly jump to err
+      */
       close_temporary_table(thd,new_db,tmp_name);
-      my_free((gptr) new_table,MYF(0));
       goto err;
     }
     /* Close lock if this is a transactional table */
@@ -2093,7 +2137,6 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   if (to->file->external_lock(thd,F_UNLCK))
     error=1;
  err:
-  tmp_error = ha_recovery_logging(thd,TRUE);
   free_io_cache(from);
   *copied= found_count;
   *deleted=delete_count;

@@ -1926,7 +1926,19 @@ row_sel_convert_mysql_key_to_innobase(
 
 		if (key_ptr > key_end) {
 			/* The last field in key was not a complete
-			field but a prefix of it */
+			field but a prefix of it.
+
+		        Print a warning about this! HA_READ_PREFIX_LAST
+		        does not currently work in InnoDB with partial-field
+		        key value prefixes. Since MySQL currently uses a
+		        padding trick to calculate LIKE 'abc%' type queries
+		        there should never be partial-field prefixes
+		        in searches. */
+
+		        ut_print_timestamp(stderr);
+			
+			fprintf(stderr,
+  "  InnoDB: Warning: using a partial-field key prefix in search\n");
 
 			ut_ad(dfield_get_len(dfield) != UNIV_SQL_NULL);
 			
@@ -2415,6 +2427,7 @@ row_sel_push_cache_row_for_mysql(
 	row_prebuilt_t*	prebuilt,	/* in: prebuilt struct */
 	rec_t*		rec)		/* in: record to push */
 {
+	byte*	buf;
 	ulint	i;
 
 	ut_ad(prebuilt->n_fetch_cached < MYSQL_FETCH_CACHE_SIZE);
@@ -2424,8 +2437,18 @@ row_sel_push_cache_row_for_mysql(
 		/* Allocate memory for the fetch cache */
 
 		for (i = 0; i < MYSQL_FETCH_CACHE_SIZE; i++) {
-			prebuilt->fetch_cache[i] = mem_alloc(
-						prebuilt->mysql_row_len);
+
+			/* A user has reported memory corruption in these
+			buffers in Linux. Put magic numbers there to help
+			to track a possible bug. */
+			
+			buf = mem_alloc(prebuilt->mysql_row_len + 8);
+
+			prebuilt->fetch_cache[i] = buf + 4;
+				
+			mach_write_to_4(buf, ROW_PREBUILT_FETCH_MAGIC_N);
+			mach_write_to_4(buf + 4 + prebuilt->mysql_row_len,
+					ROW_PREBUILT_FETCH_MAGIC_N);
 		}
 	}
 
@@ -2437,7 +2460,7 @@ row_sel_push_cache_row_for_mysql(
 
 	prebuilt->n_fetch_cached++;
 }
-	
+
 /*************************************************************************
 Tries to do a shortcut to fetch a clustered index record with a unique key,
 using the hash index if possible (not always). We assume that the search
@@ -2702,14 +2725,22 @@ row_search_for_mysql(
 
 		unique_search_from_clust_index = TRUE;
 
-		if (prebuilt->select_lock_type == LOCK_NONE
+		if (trx->mysql_n_tables_locked == 0
+		    && prebuilt->select_lock_type == LOCK_NONE
 		    && trx->isolation_level > TRX_ISO_READ_UNCOMMITTED
 		    && trx->read_view) {
 
 			/* This is a SELECT query done as a consistent read,
 			and the read view has already been allocated:
 			let us try a search shortcut through the hash
-			index */
+			index.
+			NOTE that we must also test that
+			mysql_n_tables_locked == 0, because this might
+			also be INSERT INTO ... SELECT ... or
+			CREATE TABLE ... SELECT ... . Our algorithm is
+			NOT prepared to inserts interleaved with the SELECT,
+			and if we try that, we can deadlock on the adaptive
+			hash index semaphore! */
 			
 			if (btr_search_latch.writer != RW_LOCK_NOT_LOCKED) {
 			        /* There is an x-latch request: release

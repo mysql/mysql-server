@@ -117,7 +117,7 @@ void mi_check_print_warning(MI_CHECK *param, const char *fmt,...)
 }
 
 const char **ha_myisam::bas_ext() const
-{ static const char *ext[]= { ".MYD",".MYI", NullS }; return ext; }
+{ static const char *ext[]= { ".MYI",".MYD", NullS }; return ext; }
 
 
 const char *ha_myisam::index_type(uint key_number)
@@ -497,7 +497,7 @@ int ha_myisam::repair(THD* thd, HA_CHECK_OPT *check_opt)
 		      (uint) (T_RETRY_WITHOUT_QUICK | T_QUICK)))
     {
       param.testflag&= ~T_RETRY_WITHOUT_QUICK;
-      sql_print_error("Warning: Retrying repair of: '%s' without quick",
+      sql_print_error("Note: Retrying repair of: '%s' without quick",
 		      table->path);
       continue;
     }
@@ -505,7 +505,7 @@ int ha_myisam::repair(THD* thd, HA_CHECK_OPT *check_opt)
     if ((param.testflag & T_REP_BY_SORT))
     {
       param.testflag= (param.testflag & ~T_REP_BY_SORT) | T_REP;
-      sql_print_error("Warning: Retrying repair of: '%s' with keycache",
+      sql_print_error("Note: Retrying repair of: '%s' with keycache",
 		      table->path);
       continue;
     }
@@ -515,7 +515,7 @@ int ha_myisam::repair(THD* thd, HA_CHECK_OPT *check_opt)
       !(check_opt->flags & T_VERY_SILENT))
   {
     char llbuff[22],llbuff2[22];
-    sql_print_error("Warning: Found %s of %s rows when repairing '%s'",
+    sql_print_error("Note: Found %s of %s rows when repairing '%s'",
 		    llstr(file->state->records, llbuff),
 		    llstr(start_records, llbuff2),
 		    table->path);
@@ -628,7 +628,7 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool optimize)
       the following 'if', thought conceptually wrong,
       is a useful optimization nevertheless.
     */
-    if (file->state != &file->s->state.state);
+    if (file->state != &file->s->state.state)
       file->s->state.state = *file->state;
     if (file->s->base.auto_key)
       update_auto_increment_key(&param, file, 1);
@@ -682,12 +682,22 @@ void ha_myisam::deactivate_non_unique_index(ha_rows rows)
         mi_extra(file, HA_EXTRA_NO_KEYS, 0);
       else
       {
-	/* Only disable old index if the table was empty */
-	if (file->state->records == 0)
+	/*
+	  Only disable old index if the table was empty and we are inserting
+	  a lot of rows.
+	  We should not do this for only a few rows as this is slower and
+	  we don't want to update the key statistics based of only a few rows.
+	*/
+	if (file->state->records == 0 &&
+	    (!rows || rows >= MI_MIN_ROWS_TO_USE_BULK_INSERT))
 	  mi_disable_non_unique_index(file,rows);
-        ha_myisam::extra_opt(HA_EXTRA_BULK_INSERT_BEGIN,
-			     current_thd->variables.bulk_insert_buff_size);
-	table->bulk_insert= 1;
+        else
+        {
+          mi_init_bulk_insert(file,
+			      current_thd->variables.bulk_insert_buff_size,
+			      rows);
+	  table->bulk_insert= 1;
+	}
       }
     }
     enable_activate_all_index=1;
@@ -704,7 +714,7 @@ bool ha_myisam::activate_all_index(THD *thd)
   MYISAM_SHARE* share = file->s;
   DBUG_ENTER("activate_all_index");
 
-  mi_extra(file, HA_EXTRA_BULK_INSERT_END, 0);
+  mi_end_bulk_insert(file);
   table->bulk_insert= 0;
   if (enable_activate_all_index &&
      share->state.key_map != set_bits(ulonglong, share->base.keys))
@@ -945,13 +955,11 @@ int ha_myisam::extra(enum ha_extra_function operation)
 }
 
 
-/* To be used with WRITE_CACHE, EXTRA_CACHE and BULK_INSERT_BEGIN */
+/* To be used with WRITE_CACHE and EXTRA_CACHE */
 
 int ha_myisam::extra_opt(enum ha_extra_function operation, ulong cache_size)
 {
-  if ((specialflag & SPECIAL_SAFE_MODE) &
-      (operation == HA_EXTRA_WRITE_CACHE ||
-       operation == HA_EXTRA_BULK_INSERT_BEGIN))
+  if ((specialflag & SPECIAL_SAFE_MODE) && operation == HA_EXTRA_WRITE_CACHE)
     return 0;
   return mi_extra(file, operation, (void*) &cache_size);
 }
@@ -1013,7 +1021,7 @@ int ha_myisam::create(const char *name, register TABLE *table_arg,
 {
   int error;
   uint i,j,recpos,minpos,fieldpos,temp_length,length;
-  bool found_auto_increment=0;
+  bool found_auto_increment=0, found_real_auto_increment=0;
   enum ha_base_keytype type;
   char buff[FN_REFLEN];
   KEY *pos;
@@ -1083,11 +1091,11 @@ int ha_myisam::create(const char *name, register TABLE *table_arg,
 	keydef[i].seg[j].null_bit=0;
 	keydef[i].seg[j].null_pos=0;
       }
-      if (j == 0 && field->flags & AUTO_INCREMENT_FLAG &&
-	  !found_auto_increment)
+      if (field->flags & AUTO_INCREMENT_FLAG && !found_auto_increment)
       {
 	keydef[i].flag|=HA_AUTO_KEY;
 	found_auto_increment=1;
+        found_real_auto_increment=(j==0);
       }
       if (field->type() == FIELD_TYPE_BLOB)
       {
@@ -1169,6 +1177,7 @@ int ha_myisam::create(const char *name, register TABLE *table_arg,
   bzero((char*) &create_info,sizeof(create_info));
   create_info.max_rows=table_arg->max_rows;
   create_info.reloc_rows=table_arg->min_rows;
+  create_info.with_auto_increment=found_real_auto_increment;
   create_info.auto_increment=(info->auto_increment_value ?
 			      info->auto_increment_value -1 :
 			      (ulonglong) 0);
@@ -1213,8 +1222,7 @@ longlong ha_myisam::get_auto_increment()
   }
 
   if (table->bulk_insert)
-    mi_extra(file, HA_EXTRA_BULK_INSERT_FLUSH,
-	     (void*) &table->next_number_index);
+    mi_flush_bulk_insert(file, table->next_number_index);
 
   longlong nr;
   int error;

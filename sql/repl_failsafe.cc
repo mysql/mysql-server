@@ -57,13 +57,13 @@ static int init_failsafe_rpl_thread(THD* thd)
 {
   DBUG_ENTER("init_failsafe_rpl_thread");
   thd->system_thread = thd->bootstrap = 1;
+  thd->host_or_ip= "";
   thd->client_capabilities = 0;
   my_net_init(&thd->net, 0);
   thd->net.read_timeout = slave_net_timeout;
   thd->max_client_packet_length=thd->net.max_packet;
   thd->master_access= ~0;
   thd->priv_user = 0;
-  thd->system_thread = 1;
   pthread_mutex_lock(&LOCK_thread_count);
   thd->thread_id = thread_id++;
   pthread_mutex_unlock(&LOCK_thread_count);
@@ -75,14 +75,14 @@ static int init_failsafe_rpl_thread(THD* thd)
     DBUG_RETURN(-1);
   }
 
-#if !defined(__WIN__) && !defined(OS2)
+#if !defined(__WIN__) && !defined(OS2) && !defined(__NETWARE__)
   sigset_t set;
   VOID(sigemptyset(&set));			// Get mask in use
   VOID(pthread_sigmask(SIG_UNBLOCK,&set,&thd->block_signals));
 #endif
 
   thd->mem_root.free=thd->mem_root.used=0;	
-  if ((ulong) thd->variables.max_join_size == (ulong) HA_POS_ERROR)
+  if (thd->variables.max_join_size == HA_POS_ERROR)
     thd->options|= OPTION_BIG_SELECTS;
 
   thd->proc_info="Thread initialized";

@@ -11,9 +11,13 @@ done
 
 commands="\
 $make -k clean || true 
-/bin/rm -f */.deps/*.P config.cache innobase/config.cache bdb/build_unix/config.cache
+/bin/rm -rf */.deps/*.P config.cache innobase/config.cache bdb/build_unix/config.cache bdb/dist/autom4te.cache autom4te.cache innobase/autom4te.cache;
 
-aclocal && autoheader && aclocal && automake && autoconf
+aclocal    || (echo \"Can't execute aclocal\"     && exit 1)
+autoheader || (echo \"Can't execute autoheader\"  && exit 1)
+aclocal    || (echo \"Can't execute aclocal\"     && exit 1)
+automake   || (echo \"Can't execute automake\"    && exit 1)
+autoconf   || (echo \"Can't execute autoconf\"    && exit 1)
 (cd bdb/dist && sh s_all)
 (cd innobase && aclocal && autoheader && aclocal && automake && autoconf)
 if [ -d gemini ]

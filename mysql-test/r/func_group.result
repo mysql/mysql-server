@@ -42,8 +42,8 @@ insert into t1 values (null,null,'');
 select count(distinct a),count(distinct grp) from t1;
 count(distinct a)	count(distinct grp)
 6	3
-select sum(a),count(a),avg(a),std(a),bit_or(a),bit_and(a),min(a),max(a),min(c),max(c) from t1;
-sum(a)	count(a)	avg(a)	std(a)	bit_or(a)	bit_and(a)	min(a)	max(a)	min(c)	max(c)
+select sum(all a),count(all a),avg(all a),std(all a),bit_or(all a),bit_and(all a),min(all a),max(all a),min(all c),max(all c) from t1;
+sum(all a)	count(all a)	avg(all a)	std(all a)	bit_or(all a)	bit_and(all a)	min(all a)	max(all a)	min(all c)	max(all c)
 21	6	3.5000	1.7078	7	0	1	6		E
 select grp, sum(a),count(a),avg(a),std(a),bit_or(a),bit_and(a),min(a),max(a),min(c),max(c) from t1 group by grp;
 grp	sum(a)	count(a)	avg(a)	std(a)	bit_or(a)	bit_and(a)	min(a)	max(a)	min(c)	max(c)
@@ -151,3 +151,56 @@ sum(num)
 45.63
 51.80
 drop table t1;
+create table t1 (a1 int, a2 char(3), key k1(a1), key k2(a2));
+insert into t1 values(10,'aaa'), (10,null), (10,'bbb'), (20,'zzz');
+create table t2(a1 char(3), a2 int, a3 real, key k1(a1), key k2(a2, a1));
+select * from t1;
+a1	a2
+10	aaa
+10	NULL
+10	bbb
+20	zzz
+select min(a2) from t1;
+min(a2)
+aaa
+select max(t1.a1), max(t2.a2) from t1, t2;
+max(t1.a1)	max(t2.a2)
+NULL	NULL
+select max(t1.a1) from t1, t2;
+max(t1.a1)
+NULL
+select max(t2.a2), max(t1.a1) from t1, t2;
+max(t2.a2)	max(t1.a1)
+NULL	NULL
+explain select min(a2) from t1;
+Comment
+Select tables optimized away
+explain select max(t1.a1), max(t2.a2) from t1, t2;
+Comment
+No matching min/max row
+insert into t2 values('AAA', 10, 0.5);
+select max(t1.a1), max(t2.a1) from t1, t2 where t2.a2=9;
+max(t1.a1)	max(t2.a1)
+NULL	NULL
+select max(t2.a1), max(t1.a1) from t1, t2 where t2.a2=9;
+max(t2.a1)	max(t1.a1)
+NULL	NULL
+select t1.a1, t1.a2, t2.a1, t2.a2 from t1 left outer join t2 on t1.a1=10;
+a1	a2	a1	a2
+10	aaa	AAA	10
+10	NULL	AAA	10
+10	bbb	AAA	10
+20	zzz	NULL	NULL
+select max(t1.a2) from t1 left outer join t2 on t1.a1=10;
+max(t1.a2)
+zzz
+select max(t1.a2) from t1 left outer join t2 on t1.a1=10 where t1.a1=20;
+max(t1.a2)
+zzz
+select max(t1.a2) from t1 left outer join t2 on t1.a1=10 where t1.a1=10;
+max(t1.a2)
+bbb
+select max(t2.a1) from t1 left outer join t2 on t1.a2=t2.a1 and 1=0 where t2.a1='AAA';
+max(t2.a1)
+NULL
+drop table t1,t2;

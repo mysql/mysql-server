@@ -7,20 +7,20 @@
 CFG=db_java - Win32 Debug
 !MESSAGE This is not a valid makefile. To build this project using NMAKE,
 !MESSAGE use the Export Makefile command and run
-!MESSAGE 
+!MESSAGE
 !MESSAGE NMAKE /f "db_java.mak".
-!MESSAGE 
+!MESSAGE
 !MESSAGE You can specify a configuration when running NMAKE
 !MESSAGE by defining the macro CFG on the command line. For example:
-!MESSAGE 
+!MESSAGE
 !MESSAGE NMAKE /f "db_java.mak" CFG="db_java - Win32 Debug"
-!MESSAGE 
+!MESSAGE
 !MESSAGE Possible choices for configuration are:
-!MESSAGE 
+!MESSAGE
 !MESSAGE "db_java - Win32 Release" (based on\
  "Win32 (x86) Dynamic-Link Library")
 !MESSAGE "db_java - Win32 Debug" (based on "Win32 (x86) Dynamic-Link Library")
-!MESSAGE 
+!MESSAGE
 
 # Begin Project
 # PROP Scc_ProjName ""
@@ -60,20 +60,20 @@ InputPath=.\Release\libdb_java32.dll
 SOURCE=$(InputPath)
 
 "force_compilation.txt" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	cd $(ProjDir)\..\java\src\com\sleepycat\db 
-	mkdir ..\..\..\..\classes 
-	echo compiling Berkeley DB classes 
+	cd $(ProjDir)\..\java\src\com\sleepycat\db
+	mkdir ..\..\..\..\classes
+	echo compiling Berkeley DB classes
 	javac -d ../../../../classes -classpath "$(CLASSPATH);../../../../classes"\
-   *.java 
-	echo compiling examples 
-	cd ..\examples 
+   *.java
+	echo compiling examples
+	cd ..\examples
 	javac -d ../../../../classes -classpath "$(CLASSPATH);../../../../classes"\
-    *.java 
-	echo creating jar file 
+    *.java
+	echo creating jar file
 	cd ..\..\..\..\classes
-	jar cf db.jar com\sleepycat\db\*.class 
-	echo Java build finished 
-	
+	jar cf db.jar com\sleepycat\db\*.class
+	echo Java build finished
+
 # End Custom Build
 
 !ELSEIF  "$(CFG)" == "db_java - Win32 Debug"
@@ -108,23 +108,23 @@ InputPath=.\Debug\libdb_java32d.dll
 SOURCE=$(InputPath)
 
 "force_compilation.txt" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	cd $(ProjDir)\..\java\src\com\sleepycat\db 
-	mkdir ..\..\..\..\classes 
-	echo compiling Berkeley DB classes 
+	cd $(ProjDir)\..\java\src\com\sleepycat\db
+	mkdir ..\..\..\..\classes
+	echo compiling Berkeley DB classes
 	javac -g -d ../../../../classes -classpath "$(CLASSPATH);../../../../classes"\
-   *.java 
-	echo compiling examples 
+   *.java
+	echo compiling examples
 	javac -g -d ../../../../classes -classpath "$(CLASSPATH);../../../../classes"\
-    *.java 
-	cd ..\examples 
-	echo creating jar file 
+    *.java
+	cd ..\examples
+	echo creating jar file
 	cd ..\..\..\..\classes
-	jar cf db.jar com\sleepycat\db\*.class 
-	echo Java build finished 
-	
+	jar cf db.jar com\sleepycat\db\*.class
+	echo Java build finished
+
 # End Custom Build
 
-!ENDIF 
+!ENDIF
 
 # Begin Target
 

@@ -1,6 +1,9 @@
 select length(encrypt('foo', 'ff')) <> 0;
 length(encrypt('foo', 'ff')) <> 0
 1
-select password('test'),length(encrypt('test')),encrypt('test','aa');
-password('test')	length(encrypt('test'))	encrypt('test','aa')
-378b243e220ca493	13	aaqPiZY5xR5l.
+select old_password('test'), password('test');
+old_password('test')	password('test')
+378b243e220ca493	378b243e220ca493
+select length(encrypt('test')), encrypt('test','aa');
+length(encrypt('test'))	encrypt('test','aa')
+13	aaqPiZY5xR5l.

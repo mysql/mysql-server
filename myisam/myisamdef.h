@@ -358,7 +358,7 @@ struct st_myisam_info {
 #define MI_DYN_ALIGN_SIZE	4	/* Align blocks on this */
 #define MI_MAX_DYN_HEADER_BYTE	13	/* max header byte for dynamic rows */
 #define MI_MAX_BLOCK_LENGTH	((((ulong) 1 << 24)-1) & (~ (ulong) (MI_DYN_ALIGN_SIZE-1)))
-#define MI_REC_BUFF_OFFSET      ALIGN_SIZE(MI_DYN_DELETE_BLOCK_HEADER+sizeof(uint))
+#define MI_REC_BUFF_OFFSET      ALIGN_SIZE(MI_DYN_DELETE_BLOCK_HEADER+sizeof(uint32))
 
 #define MEMMAP_EXTRA_MARGIN	7	/* Write this as a suffix for file */
 
@@ -373,6 +373,7 @@ struct st_myisam_info {
 #define MI_MIN_KEYBLOCK_LENGTH	50         /* When to split delete blocks */
 
 #define MI_MIN_SIZE_BULK_INSERT_TREE 16384             /* this is per key */
+#define MI_MIN_ROWS_TO_USE_BULK_INSERT 100
 
 /* The UNIQUE check is done with a hashed long key */
 
@@ -528,7 +529,7 @@ extern byte *mi_alloc_rec_buff(MI_INFO *,ulong, byte**);
         ((((info)->s->options & HA_OPTION_PACK_RECORD) && (buf)) ? \
         (buf) - MI_REC_BUFF_OFFSET : (buf))
 #define mi_get_rec_buff_len(info,buf)                              \
-        (*((uint *)(mi_get_rec_buff_ptr(info,buf))))
+        (*((uint32 *)(mi_get_rec_buff_ptr(info,buf))))
 
 extern ulong _mi_rec_unpack(MI_INFO *info,byte *to,byte *from,
 			    ulong reclength);
@@ -607,8 +608,7 @@ extern "C" {
 
 extern uint _mi_get_block_info(MI_BLOCK_INFO *,File, my_off_t);
 extern uint _mi_rec_pack(MI_INFO *info,byte *to,const byte *from);
-extern uint _mi_pack_get_block_info(MI_INFO *mysql, MI_BLOCK_INFO *, File,
-				    my_off_t, char *rec_buf);
+extern uint _mi_pack_get_block_info(MI_INFO *, MI_BLOCK_INFO *, File, my_off_t);
 extern void _my_store_blob_length(byte *pos,uint pack_length,uint length);
 extern void _myisam_log(enum myisam_log_commands command,MI_INFO *info,
 		       const byte *buffert,uint length);
@@ -657,8 +657,6 @@ my_bool check_table_is_closed(const char *name, const char *where);
 int mi_open_datafile(MI_INFO *info, MYISAM_SHARE *share, File file_to_dup);
 int mi_open_keyfile(MYISAM_SHARE *share);
 void mi_setup_functions(register MYISAM_SHARE *share);
-
-int _mi_init_bulk_insert(MI_INFO *info, ulong cache_size);
 
     /* Functions needed by mi_check */
 void mi_check_print_error _VARARGS((MI_CHECK *param, const char *fmt,...));

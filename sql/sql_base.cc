@@ -549,7 +549,7 @@ void close_temporary_tables(THD *thd)
   query_buf_size= 50;   // Enough for DROP ... TABLE
 
   for (table=thd->temporary_tables ; table ; table=table->next)
-    query_buf_size += table->key_length;
+    query_buf_size+= table->key_length+1;
 
   if ((query = alloc_root(&thd->mem_root, query_buf_size)))
     end=strmov(query, "DROP /*!40005 TEMPORARY */ TABLE ");
@@ -752,7 +752,7 @@ TABLE *reopen_name_locked_table(THD* thd, TABLE_LIST* table_list)
   table->tablenr=thd->current_tablenr++;
   table->used_fields=0;
   table->const_table=0;
-  table->outer_join=table->null_row=table->maybe_null=0;
+  table->outer_join= table->null_row= table->maybe_null= table->force_index= 0;
   table->status=STATUS_NO_RECORD;
   table->keys_in_use_for_query= table->keys_in_use;
   table->used_keys= table->keys_for_keyread;
@@ -910,7 +910,7 @@ TABLE *open_table(THD *thd,const char *db,const char *table_name,
   table->tablenr=thd->current_tablenr++;
   table->used_fields=0;
   table->const_table=0;
-  table->outer_join=table->null_row=table->maybe_null=0;
+  table->outer_join= table->null_row= table->maybe_null= table->force_index= 0;
   table->status=STATUS_NO_RECORD;
   table->keys_in_use_for_query= table->keys_in_use;
   table->used_keys= table->keys_for_keyread;
@@ -981,6 +981,7 @@ bool reopen_table(TABLE *table,bool locked)
   tmp.status=		table->status;
   tmp.keys_in_use_for_query= tmp.keys_in_use;
   tmp.used_keys= 	tmp.keys_for_keyread;
+  tmp.force_index=	tmp.force_index;
 
   /* Get state */
   tmp.key_length=	table->key_length;
@@ -1243,25 +1244,44 @@ bool drop_locked_tables(THD *thd,const char *db, const char *table_name)
 }
 
 
-/* lock table to force abort of any threads trying to use table */
+/*
+  If we have the table open, which only happens when a LOCK TABLE has been
+  done on the table, change the lock type to a lock that will abort all
+  other threads trying to get the lock.
+*/
 
 void abort_locked_tables(THD *thd,const char *db, const char *table_name)
 {
   TABLE *table;
-  for (table=thd->open_tables; table ; table=table->next)
+  for (table= thd->open_tables; table ; table= table->next)
   {
     if (!strcmp(table->real_name,table_name) &&
 	!strcmp(table->table_cache_key,db))
+    {
       mysql_lock_abort(thd,table);
+      break;
+    }
   }
 }
 
-/****************************************************************************
-**	open_unireg_entry
-**	Purpose : Load a table definition from file and open unireg table
-**	Args	: entry with DB and table given
-**	Returns : 0 if ok
-**	Note that the extra argument for open is taken from thd->open_options
+
+/*
+  Load a table definition from file and open unireg table
+
+  SYNOPSIS
+    open_unireg_entry()
+    thd			Thread handle
+    entry		Store open table definition here
+    db			Database name
+    name		Table name
+    alias		Alias name
+
+  NOTES
+   Extra argument for open is taken from thd->open_options
+
+  RETURN
+    0	ok
+    #	Error
 */
 
 static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
@@ -1888,6 +1908,7 @@ bool setup_tables(TABLE_LIST *tables)
     table->maybe_null=test(table->outer_join=table_list->outer_join);
     table->tablenr=tablenr;
     table->map= (table_map) 1 << tablenr;
+    table->force_index= table_list->force_index;
     if (table_list->use_index)
     {
       key_map map= get_key_map_from_key_list(table,
@@ -1942,8 +1963,8 @@ static key_map get_key_map_from_key_list(TABLE *table,
 }
 
 /****************************************************************************
-**	This just drops in all fields instead of current '*' field
-**	Returns pointer to last inserted field if ok
+  This just drops in all fields instead of current '*' field
+  Returns pointer to last inserted field if ok
 ****************************************************************************/
 
 bool
@@ -1957,21 +1978,26 @@ insert_fields(THD *thd,TABLE_LIST *tables, const char *db_name,
   for (; tables ; tables=tables->next)
   {
     TABLE *table=tables->table;
-    if (grant_option && !thd->master_access &&
-	check_grant_all_columns(thd,SELECT_ACL,table) )
-      DBUG_RETURN(-1);
     if (!table_name || (!strcmp(table_name,tables->alias) &&
 			(!db_name || !strcmp(tables->db,db_name))))
     {
+      /* Ensure that we have access right to all columns */
+      if (grant_option && !thd->master_access &&
+	  check_grant_all_columns(thd,SELECT_ACL,table) )
+	DBUG_RETURN(-1);
       Field **ptr=table->field,*field;
       thd->used_tables|=table->map;
       while ((field = *ptr++))
       {
 	Item_field *item= new Item_field(field);
 	if (!found++)
-	  (void) it->replace(item);
+	  (void) it->replace(item);		// Replace '*'
 	else
 	  it->after(item);
+	/*
+	  Mark if field used before in this select.
+	  Used by 'insert' to verify if a field name is used twice
+	*/
 	if (field->query_id == thd->query_id)
 	  thd->dupp_field=field;
 	field->query_id=thd->query_id;
@@ -2093,7 +2119,7 @@ fill_record(List<Item> &fields,List<Item> &values)
   while ((field=(Item_field*) f++))
   {
     value=v++;
-    if (value->save_in_field(field->field))
+    if (value->save_in_field(field->field, 0))
       DBUG_RETURN(1);
   }
   DBUG_RETURN(0);
@@ -2111,7 +2137,7 @@ fill_record(Field **ptr,List<Item> &values)
   while ((field = *ptr++))
   {
     value=v++;
-    if (value->save_in_field(field))
+    if (value->save_in_field(field, 0))
       DBUG_RETURN(1);
   }
   DBUG_RETURN(0);
@@ -2269,6 +2295,17 @@ bool remove_table_from_cache(THD *thd, const char *db, const char *table_name,
 	  pthread_mutex_unlock(in_use->mysys_var->current_mutex);
 	}
 	pthread_mutex_unlock(&in_use->mysys_var->mutex);
+      }
+      /*
+	Now we must abort all tables locks used by this thread
+	as the thread may be waiting to get a lock for another table
+      */
+      for (TABLE *thd_table= in_use->open_tables;
+	   thd_table ;
+	   thd_table= thd_table->next)
+      {
+	if (thd_table->db_stat)			// If table is open
+	  mysql_lock_abort_for_thread(thd, thd_table);
       }
     }
     else

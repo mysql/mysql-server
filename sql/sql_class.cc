@@ -37,7 +37,6 @@
 #include <mysys_err.h>
 #include <assert.h>
 
-extern struct rand_struct sql_rand;
 
 /*****************************************************************************
 ** Instansiate templates
@@ -84,7 +83,7 @@ THD::THD():user_time(0),fatal_error(0),last_insert_id_used(0),
 	   global_read_lock(0),bootstrap(0)
 {
   host=user=priv_user=db=query=ip=0;
-  host_or_ip="unknown ip";
+  host_or_ip= "connecting host";
   locked=killed=count_cuted_fields=some_tables_deleted=no_errors=password=
     query_start_used=safe_to_cache_query=0;
   db_length=query_length=col_access=0;
@@ -157,10 +156,9 @@ THD::THD():user_time(0),fatal_error(0),last_insert_id_used(0),
   */
   {
     pthread_mutex_lock(&LOCK_thread_count);
-    ulong tmp=(ulong) (rnd(&sql_rand) * 3000000);
-    randominit(&rand, tmp + (ulong) start_time,
-	       tmp + (ulong) thread_id);
+    ulong tmp=(ulong) (rnd(&sql_rand) * 0xffffffff); /* make all bits random */
     pthread_mutex_unlock(&LOCK_thread_count);
+    randominit(&rand, tmp + (ulong) &rand, tmp + (ulong) ::query_id);
   }
 }
 
@@ -171,16 +169,16 @@ THD::THD():user_time(0),fatal_error(0),last_insert_id_used(0),
 
 void THD::init(void)
 {
-  server_status= SERVER_STATUS_AUTOCOMMIT;
-  update_lock_default= (variables.low_priority_updates ?
-			TL_WRITE_LOW_PRIORITY :
-			TL_WRITE);
-  options= thd_startup_options;
-  sql_mode=(uint) opt_sql_mode;
-  open_options=ha_open_options;
   pthread_mutex_lock(&LOCK_global_system_variables);
   variables= global_system_variables;
   pthread_mutex_unlock(&LOCK_global_system_variables);
+  server_status= SERVER_STATUS_AUTOCOMMIT;
+  options= thd_startup_options;
+  sql_mode=(uint) opt_sql_mode;
+  open_options=ha_open_options;
+  update_lock_default= (variables.low_priority_updates ?
+			TL_WRITE_LOW_PRIORITY :
+			TL_WRITE);
   session_tx_isolation= (enum_tx_isolation) variables.tx_isolation;
 }
 
@@ -465,6 +463,14 @@ bool select_send::send_data(List<Item> &items)
   String *packet= &thd->packet;
   DBUG_ENTER("send_data");
 
+#ifdef HAVE_INNOBASE_DB
+  /* We may be passing the control from mysqld to the client: release the
+     InnoDB adaptive hash S-latch to avoid thread deadlocks if it was reserved
+     by thd */
+  if (thd->transaction.all.innobase_tid)
+    ha_release_temporary_latches(thd);
+#endif
+
   if (thd->offset_limit)
   {						// using limit offset,count
     thd->offset_limit--;
@@ -488,6 +494,14 @@ bool select_send::send_data(List<Item> &items)
 
 bool select_send::send_eof()
 {
+#ifdef HAVE_INNOBASE_DB
+  /* We may be passing the control from mysqld to the client: release the
+     InnoDB adaptive hash S-latch to avoid thread deadlocks if it was reserved
+     by thd */
+  if (thd->transaction.all.innobase_tid)
+    ha_release_temporary_latches(thd);
+#endif
+
   /* Unlock tables before sending packet to gain some speed */
   if (thd->lock)
   {

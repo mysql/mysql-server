@@ -114,7 +114,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
       DBUG_PRINT("error",("Wrong header in %s",name_buff));
       DBUG_DUMP("error_dump",(char*) share->state.header.file_version,
 		head_length);
-      my_errno=HA_ERR_WRONG_TABLE_DEF;
+      my_errno=HA_ERR_NOT_A_TABLE;
       goto err;
     }
     share->options= mi_uint2korr(share->state.header.options);
@@ -559,28 +559,36 @@ err:
   DBUG_RETURN (NULL);
 } /* mi_open */
 
+
 byte *mi_alloc_rec_buff(MI_INFO *info, ulong length, byte **buf)
 {
   uint extra;
+  uint32 old_length;
+  LINT_INIT(old_length);
 
-  if (! *buf || length > mi_get_rec_buff_len(info, *buf))
+  if (! *buf || length > (old_length=mi_get_rec_buff_len(info, *buf)))
   {
     byte *newptr = *buf;
 
     /* to simplify initial init of info->rec_buf in mi_open and mi_extra */
     if (length == (ulong) -1)
+    {
       length= max(info->s->base.pack_reclength+info->s->base.pack_bits,
                   info->s->base.max_key_length);
+      /* Avoid unnecessary realloc */
+      if (newptr && length == old_length)
+	return newptr;
+    }
 
     extra= ((info->s->options & HA_OPTION_PACK_RECORD) ?
 	    ALIGN_SIZE(MI_MAX_DYN_BLOCK_HEADER)+MI_SPLIT_LENGTH+
 	    MI_REC_BUFF_OFFSET : 0);
     if (extra && newptr)
-      newptr-=MI_REC_BUFF_OFFSET;
+      newptr-= MI_REC_BUFF_OFFSET;
     if (!(newptr=(byte*) my_realloc((gptr)newptr, length+extra+8,
                                      MYF(MY_ALLOW_ZERO_PTR))))
       return newptr;
-    *((uint *)newptr)=length;
+    *((uint32 *) newptr)= (uint32) length;
     *buf= newptr+(extra ?  MI_REC_BUFF_OFFSET : 0);
   }
   return *buf;

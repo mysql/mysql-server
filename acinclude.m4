@@ -520,7 +520,8 @@ fi
 
 AC_DEFUN(MYSQL_STACK_DIRECTION,
  [AC_CACHE_CHECK(stack direction for C alloca, ac_cv_c_stack_direction,
- [AC_TRY_RUN([find_stack_direction ()
+ [AC_TRY_RUN([#include <stdlib.h>
+ int find_stack_direction ()
  {
    static char *addr = 0;
    auto char dummy;
@@ -532,7 +533,7 @@ AC_DEFUN(MYSQL_STACK_DIRECTION,
    else
      return (&dummy > addr) ? 1 : -1;
  }
- main ()
+ int main ()
  {
    exit (find_stack_direction() < 0);
  }], ac_cv_c_stack_direction=1, ac_cv_c_stack_direction=-1,
@@ -622,7 +623,7 @@ main()
   FILE *file=fopen("conftestval", "w");
   f = (float) ll;
   fprintf(file,"%g\n",f);
-  close(file);
+  fclose(file);
   exit (0);
 }], ac_cv_conv_longlong_to_float=`cat conftestval`, ac_cv_conv_longlong_to_float=0, ifelse([$2], , , ac_cv_conv_longlong_to_float=$2))])dnl
 if test "$ac_cv_conv_longlong_to_float" = "1" -o "$ac_cv_conv_longlong_to_float" = "yes"
@@ -1210,7 +1211,9 @@ changequote(, )dnl
 	   hpux10.[2-9][0-9]* | hpux1[1-9]* | hpux[2-9][0-9]*)
 changequote([, ])dnl
 	     if test "$GCC" = yes; then
-	       ac_cv_sys_largefile_CFLAGS=-D__STDC_EXT__
+	        case `$CC --version 2>/dev/null` in
+	          2.95.*) ac_cv_sys_largefile_CFLAGS=-D__STDC_EXT__ ;;
+		esac
 	     fi
 	     ;;
 	   # IRIX 6.2 and later require cc -n32.
@@ -1322,6 +1325,38 @@ AC_DEFUN(MYSQL_SYS_LARGEFILE,
 	esac])
    fi
   ])
+
+
+# Local version of _AC_PROG_CXX_EXIT_DECLARATION that does not
+# include #stdlib.h as default as this breaks things on Solaris
+# (Conflicts with pthreads and big file handling)
+
+m4_define([_AC_PROG_CXX_EXIT_DECLARATION],
+[for ac_declaration in \
+   ''\
+   'extern "C" void std::exit (int) throw (); using std::exit;' \
+   'extern "C" void std::exit (int); using std::exit;' \
+   'extern "C" void exit (int) throw ();' \
+   'extern "C" void exit (int);' \
+   'void exit (int);' \
+   '#include <stdlib.h>'
+do
+  _AC_COMPILE_IFELSE([AC_LANG_PROGRAM([@%:@include <stdlib.h>
+$ac_declaration],
+                                      [exit (42);])],
+                     [],
+                     [continue])
+  _AC_COMPILE_IFELSE([AC_LANG_PROGRAM([$ac_declaration],
+                                      [exit (42);])],
+                     [break])
+done
+rm -f conftest*
+if test -n "$ac_declaration"; then
+  echo '#ifdef __cplusplus' >>confdefs.h
+  echo $ac_declaration      >>confdefs.h
+  echo '#endif'             >>confdefs.h
+fi
+])# _AC_PROG_CXX_EXIT_DECLARATION
 
 dnl ---------------------------------------------------------------------------
 

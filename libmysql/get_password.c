@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (C) 2000-2003 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -34,7 +34,7 @@
 #include <pwd.h>
 #endif /* HAVE_PWD_H */
 #else /* ! HAVE_GETPASS */
-#if !defined( __WIN__) && !defined(OS2)
+#if !defined(__WIN__) && !defined(OS2) && !defined(__NETWARE__)
 #include <sys/ioctl.h>
 #ifdef HAVE_TERMIOS_H				/* For tty-password */
 #include	<termios.h>
@@ -53,7 +53,9 @@
 #include <asm/termiobits.h>
 #endif
 #else
+#ifndef __NETWARE__
 #include <conio.h>
+#endif /* __NETWARE__ */
 #endif /* __WIN__ */
 #endif /* HAVE_GETPASS */
 
@@ -61,8 +63,15 @@
 #define getpass(A) getpassphrase(A)
 #endif
 
-#if defined( __WIN__) || defined(OS2)
+#if defined( __WIN__) || defined(OS2) || defined(__NETWARE__)
 /* were just going to fake it here and get input from the keyboard */
+
+#ifdef __NETWARE__
+#undef _getch
+#undef _cputs
+#define _getch getcharacter
+#define _cputs(A) putstring(A)
+#endif
 
 char *get_tty_password(char *opt_message)
 {
@@ -100,12 +109,11 @@ char *get_tty_password(char *opt_message)
 
 #else
 
-
 #ifndef HAVE_GETPASS
 /*
-** Can't use fgets, because readline will get confused
-** length is max number of chars in to, not counting \0
-*  to will not include the eol characters.
+  Can't use fgets, because readline will get confused
+  length is max number of chars in to, not counting \0
+  to will not include the eol characters.
 */
 
 static void get_password(char *to,uint length,int fd,bool echo)

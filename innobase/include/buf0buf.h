@@ -728,8 +728,8 @@ struct buf_block_struct{
 					bufferfixed, or (2) the thread has an
 					x-latch on the block */
 
-	/* 5. Hash search fields: NOTE that these fields are protected by
-	btr_search_mutex */
+	/* 5. Hash search fields: NOTE that the first 4 fields are NOT
+	protected by any semaphore! */
 	
 	ulint		n_hash_helps;	/* counter which controls building
 					of a new hash index for the page */
@@ -742,6 +742,9 @@ struct buf_block_struct{
 					whether the leftmost record of several
 					records with the same prefix should be
 					indexed in the hash index */
+					
+	/* The following 4 fields are protected by btr_search_latch: */
+
 	ibool		is_hashed;	/* TRUE if hash index has already been
 					built on this page; note that it does
 					not guarantee that the index is

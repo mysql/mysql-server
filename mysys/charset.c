@@ -164,7 +164,11 @@ static my_bool read_charset_index(CS_ID ***charsets, myf myflags)
 }
 
 
+#ifdef __NETWARE__
+my_bool STDCALL init_available_charsets(myf myflags)
+#else
 static my_bool init_available_charsets(myf myflags)
+#endif
 {
   my_bool error=0;
   /*

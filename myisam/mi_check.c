@@ -368,8 +368,8 @@ int chk_key(MI_CHECK *param, register MI_INFO *info)
     {
       /* Remember old statistics for key */
       memcpy((char*) rec_per_key_part,
-	     (char*) share->state.rec_per_key_part+
-	     (uint) (rec_per_key_part - param->rec_per_key_part),
+	     (char*) (share->state.rec_per_key_part +
+		      (uint) (rec_per_key_part - param->rec_per_key_part)),
 	     keyinfo->keysegs*sizeof(*rec_per_key_part));
       continue;
     }
@@ -601,7 +601,8 @@ static int chk_index(MI_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
       if (*keys != 1L)				/* not first_key */
       {
 	uint diff;
-	_mi_key_cmp(keyinfo->seg,info->lastkey,key,USE_WHOLE_KEY,SEARCH_FIND,
+	_mi_key_cmp(keyinfo->seg,info->lastkey,key,USE_WHOLE_KEY,
+		    SEARCH_FIND | SEARCH_NULL_ARE_NOT_EQUAL,
 		    &diff);
 	param->unique_count[diff-1]++;
       }
@@ -919,7 +920,7 @@ int chk_data_link(MI_CHECK *param, MI_INFO *info,int extend)
 	goto err;
       start_recpos=pos;
       splits++;
-      VOID(_mi_pack_get_block_info(info,&block_info, -1, start_recpos, NullS));
+      VOID(_mi_pack_get_block_info(info,&block_info, -1, start_recpos));
       pos=block_info.filepos+block_info.rec_len;
       if (block_info.rec_len < (uint) info->s->min_pack_length ||
 	  block_info.rec_len > (uint) info->s->max_pack_length)
@@ -1912,8 +1913,8 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
     {
       /* Remember old statistics for key */
       memcpy((char*) rec_per_key_part,
-	     (char*) share->state.rec_per_key_part+
-	     (uint) (rec_per_key_part - param->rec_per_key_part),
+	     (char*) (share->state.rec_per_key_part +
+		      (uint) (rec_per_key_part - param->rec_per_key_part)),
 	     sort_param.keyinfo->keysegs*sizeof(*rec_per_key_part));
       continue;
     }
@@ -2128,7 +2129,7 @@ int mi_repair_parallel(MI_CHECK *param, register MI_INFO *info,
 			const char * name, int rep_quick)
 {
   int got_error;
-  uint i,key, total_key_length;
+  uint i,key, total_key_length, istep;
   ulong rec_length;
   ha_rows start_records;
   my_off_t new_header_length,del;
@@ -2263,8 +2264,8 @@ int mi_repair_parallel(MI_CHECK *param, register MI_INFO *info,
   info->state->records=info->state->del=share->state.split=0;
   info->state->empty=0;
 
-  for (i=key=0 ; key < share->base.keys ;
-       rec_per_key_part+=sort_param[i].keyinfo->keysegs, i++, key++)
+  for (i=key=0, istep=1 ; key < share->base.keys ;
+       rec_per_key_part+=sort_param[i].keyinfo->keysegs, i+=istep, key++)
   {
     sort_param[i].key=key;
     sort_param[i].keyinfo=share->keyinfo+key;
@@ -2272,12 +2273,13 @@ int mi_repair_parallel(MI_CHECK *param, register MI_INFO *info,
     {
       /* Remember old statistics for key */
       memcpy((char*) rec_per_key_part,
-	     (char*) share->state.rec_per_key_part+
-	     (uint) (rec_per_key_part - param->rec_per_key_part),
+	     (char*) (share->state.rec_per_key_part+
+		      (uint) (rec_per_key_part - param->rec_per_key_part)),
 	     sort_param[i].keyinfo->keysegs*sizeof(*rec_per_key_part));
-      i--;
+      istep=0;
       continue;
     }
+    istep=1;
     if ((!(param->testflag & T_SILENT)))
       printf ("- Fixing index %d\n",key+1);
     sort_param[i].key_read= ((sort_param[i].keyinfo->flag & HA_FULLTEXT) ?
@@ -2329,13 +2331,13 @@ int mi_repair_parallel(MI_CHECK *param, register MI_INFO *info,
   for (i=0 ; i < sort_info.total_keys ; i++)
   {
     sort_param[i].read_cache=param->read_cache;
+    /*
+      two approaches: the same amount of memory for each thread
+      or the memory for the same number of keys for each thread...
+      In the second one all the threads will fill their sort_buffers
+      (and call write_keys) at the same time, putting more stress on i/o.
+    */
     sort_param[i].sortbuff_size=
-      /*
-        two approaches: the same amount of memory for each thread
-        or the memory for the same number of keys for each thread...
-        In the second one all the threads will fill their sort_buffers
-        (and call write_keys) at the same time, putting more stress on i/o.
-      */
 #ifndef USING_SECOND_APPROACH
       param->sort_buffer_length/sort_info.total_keys;
 #else
@@ -2435,7 +2437,7 @@ int mi_repair_parallel(MI_CHECK *param, register MI_INFO *info,
   got_error=0;
 
   if (&share->state.state != info->state)
-    memcpy( &share->state.state, info->state, sizeof(*info->state));
+    memcpy(&share->state.state, info->state, sizeof(*info->state));
 
 err:
   got_error|= flush_blocks(param,share->kfile);
@@ -2889,7 +2891,7 @@ static int sort_get_next_record(MI_SORT_PARAM *sort_param)
 	DBUG_RETURN(1);		/* Something wrong with data */
       }
       sort_param->start_recpos=sort_param->pos;
-      if (_mi_pack_get_block_info(info,&block_info,-1,sort_param->pos, NullS))
+      if (_mi_pack_get_block_info(info,&block_info,-1,sort_param->pos))
 	DBUG_RETURN(-1);
       if (!block_info.rec_len &&
 	  sort_param->pos + MEMMAP_EXTRA_MARGIN ==
@@ -3650,7 +3652,7 @@ void update_key_parts(MI_KEYDEF *keyinfo, ulong *rec_per_key_part,
 }
 
 
-ha_checksum mi_byte_checksum(const byte *buf, uint length)
+static ha_checksum mi_byte_checksum(const byte *buf, uint length)
 {
   ha_checksum crc;
   const byte *end=buf+length;
@@ -3692,8 +3694,8 @@ void mi_disable_non_unique_index(MI_INFO *info, ha_rows rows)
     MI_KEYDEF *key=share->keyinfo;
     for (i=0 ; i < share->base.keys ; i++,key++)
     {
-      if (!(key->flag & HA_NOSAME) && ! mi_too_big_key_for_sort(key,rows) &&
-	  info->s->base.auto_key != i+1)
+      if (!(key->flag & (HA_NOSAME|HA_AUTO_KEY)) &&
+          ! mi_too_big_key_for_sort(key,rows))
       {
 	share->state.key_map&= ~ ((ulonglong) 1 << i);
 	info->update|= HA_STATE_CHANGED;

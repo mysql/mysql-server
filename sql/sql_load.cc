@@ -89,7 +89,9 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     *enclosed=ex->enclosed;
   bool is_fifo=0;
   LOAD_FILE_INFO lf_info;
-  char * db = table_list->db ? table_list->db : thd->db;
+  char *db = table_list->db;			// This is never null
+  /* If no current database, use database where table is located */
+  char *tdb= thd->db ? thd->db : db;
   bool transactional_table, log_delayed;
   DBUG_ENTER("mysql_load");
 
@@ -168,10 +170,10 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     ex->file_name+=dirname_length(ex->file_name);
 #endif
     if (!dirname_length(ex->file_name) &&
-	strlen(ex->file_name)+strlen(mysql_data_home)+strlen(thd->db)+3 <
+	strlen(ex->file_name)+strlen(mysql_data_home)+strlen(tdb)+3 <
 	FN_REFLEN)
     {
-      (void) sprintf(name,"%s/%s/%s",mysql_data_home,thd->db,ex->file_name);
+      (void) sprintf(name,"%s/%s/%s",mysql_data_home,tdb,ex->file_name);
       unpack_filename(name,name);		/* Convert to system format */
     }
     else
@@ -269,11 +271,6 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
     table->time_stamp=save_time_stamp;
     table->next_number_field=0;
-    if (thd->lock)
-    {
-      mysql_unlock_tables(thd, thd->lock);
-      thd->lock=0;
-    }
   }
   if  (file >= 0) my_close(file,MYF(0));
   free_blobs(table);				/* if pack_blob was used */
@@ -288,11 +285,26 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     {
       if (lf_info.wrote_create_file)
       {
+        /*
+	  Make sure last block (the one which caused the error) gets logged.
+	  This is needed because otherwise after write of
+	  (to the binlog, not to read_info (which is a cache))
+	  Delete_file_log_event the bad block will remain in read_info.
+	  At the end of mysql_load(), the destructor of read_info will call
+	  end_io_cache() which will flush read_info, so we will finally have
+	  this in the binlog:
+          	Append_block # The last successfull block
+          	Delete_file
+          	Append_block # The failing block
+	  which is nonsense.
+	*/
+	read_info.end_io_cache();
         Delete_file_log_event d(thd, log_delayed);
         mysql_bin_log.write(&d);
       }
     }
-    DBUG_RETURN(-1);				// Error on read
+    error= -1;				// Error on read
+    goto err;
   }
   sprintf(name,ER(ER_LOAD_INFO),info.records,info.deleted,
 	  info.records-info.copied,thd->cuted_fields);
@@ -326,6 +338,14 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   }
   if (transactional_table)
     error=ha_autocommit_or_rollback(thd,error); 
+  query_cache_invalidate3(thd, table_list, 0);
+
+err:
+  if (thd->lock)
+  {
+    mysql_unlock_tables(thd, thd->lock);
+    thd->lock=0;
+  }
   DBUG_RETURN(error);
 }
 
@@ -340,8 +360,10 @@ read_fixed_length(THD *thd,COPY_INFO &info,TABLE *table,List<Item> &fields,
 {
   List_iterator_fast<Item> it(fields);
   Item_field *sql_field;
+  ulonglong id;
   DBUG_ENTER("read_fixed_length");
 
+  id=0;
   /* No fields can be null in this format. mark all fields as not null */
   while ((sql_field= (Item_field*) it++))
       sql_field->field->set_notnull();
@@ -384,6 +406,14 @@ read_fixed_length(THD *thd,COPY_INFO &info,TABLE *table,List<Item> &fields,
       thd->cuted_fields++;			/* To long row */
     if (write_record(table,&info))
       DBUG_RETURN(1);
+    /*
+      If auto_increment values are used, save the first one
+       for LAST_INSERT_ID() and for the binary/update log.
+       We can't use insert_id() as we don't want to touch the
+       last_insert_id_used flag.
+    */
+    if (!id && thd->insert_id_used)
+      id= thd->last_insert_id;
     if (table->next_number_field)
       table->next_number_field->reset();	// Clear for next record
     if (read_info.next_line())			// Skip to next line
@@ -391,6 +421,8 @@ read_fixed_length(THD *thd,COPY_INFO &info,TABLE *table,List<Item> &fields,
     if (read_info.line_cuted)
       thd->cuted_fields++;			/* To long row */
   }
+  if (id && !read_info.error)
+    thd->insert_id(id);			// For binary/update log
   DBUG_RETURN(test(read_info.error));
 }
 
@@ -404,10 +436,12 @@ read_sep_field(THD *thd,COPY_INFO &info,TABLE *table,
   List_iterator_fast<Item> it(fields);
   Item_field *sql_field;
   uint enclosed_length;
+  ulonglong id;
   DBUG_ENTER("read_sep_field");
 
   enclosed_length=enclosed.length();
-
+  id=0;
+  
   for (;;it.rewind())
   {
     if (thd->killed)
@@ -460,6 +494,14 @@ read_sep_field(THD *thd,COPY_INFO &info,TABLE *table,
     }
     if (write_record(table,&info))
       DBUG_RETURN(1);
+    /*
+      If auto_increment values are used, save the first one
+       for LAST_INSERT_ID() and for the binary/update log.
+       We can't use insert_id() as we don't want to touch the
+       last_insert_id_used flag.
+    */
+    if (!id && thd->insert_id_used)
+      id= thd->last_insert_id;
     if (table->next_number_field)
       table->next_number_field->reset();	// Clear for next record
     if (read_info.next_line())			// Skip to next line
@@ -467,6 +509,8 @@ read_sep_field(THD *thd,COPY_INFO &info,TABLE *table,
     if (read_info.line_cuted)
       thd->cuted_fields++;			/* To long row */
   }
+  if (id && !read_info.error)
+    thd->insert_id(id);			// For binary/update log
   DBUG_RETURN(test(read_info.error));
 }
 

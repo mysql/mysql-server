@@ -119,7 +119,7 @@ sys_var_thd_ulong	sys_interactive_timeout("interactive_timeout",
 						&SV::net_interactive_timeout);
 sys_var_thd_ulong	sys_join_buffer_size("join_buffer_size",
 					     &SV::join_buff_size);
-sys_var_long_ptr	sys_key_buffer_size("key_buffer_size",
+sys_var_ulonglong_ptr	sys_key_buffer_size("key_buffer_size",
 					    &keybuff_size,
 					    fix_key_buffer_size);
 sys_var_bool_ptr	sys_local_infile("local_infile",
@@ -149,11 +149,11 @@ sys_var_long_ptr	sys_max_delayed_threads("max_delayed_threads",
 						&max_insert_delayed_threads);
 sys_var_thd_ulong	sys_max_heap_table_size("max_heap_table_size",
 						&SV::max_heap_table_size);
-sys_var_thd_ulong	sys_max_join_size("max_join_size",
+sys_var_thd_ha_rows	sys_max_join_size("max_join_size",
 					  &SV::max_join_size,
 					  fix_max_join_size);
 #ifndef TO_BE_DELETED	/* Alias for max_join_size */
-sys_var_thd_ulong	sys_sql_max_join_size("sql_max_join_size",
+sys_var_thd_ha_rows	sys_sql_max_join_size("sql_max_join_size",
 					      &SV::max_join_size,
 					      fix_max_join_size);
 #endif
@@ -275,7 +275,7 @@ static sys_var_thd_bit	sys_unique_checks("unique_checks",
 
 /* Local state variables */
 
-static sys_var_thd_ulong	sys_select_limit("sql_select_limit",
+static sys_var_thd_ha_rows	sys_select_limit("sql_select_limit",
 						 &SV::select_limit);
 static sys_var_timestamp	sys_timestamp("timestamp");
 static sys_var_last_insert_id	sys_last_insert_id("last_insert_id");
@@ -411,11 +411,13 @@ struct show_var_st init_vars[]= {
   {sys_delayed_queue_size.name,(char*) &sys_delayed_queue_size,     SHOW_SYS},
   {sys_flush.name,             (char*) &sys_flush,                  SHOW_SYS},
   {sys_flush_time.name,        (char*) &sys_flush_time,             SHOW_SYS},
+  {"ft_boolean_syntax",       (char*) ft_boolean_syntax,	    SHOW_CHAR},
   {"ft_min_word_len",         (char*) &ft_min_word_len,             SHOW_LONG},
   {"ft_max_word_len",         (char*) &ft_max_word_len,             SHOW_LONG},
   {"ft_max_word_len_for_sort",(char*) &ft_max_word_len_for_sort,    SHOW_LONG},
-  {"ft_boolean_syntax",       (char*) ft_boolean_syntax,	    SHOW_CHAR},
+  {"ft_stopword_file",        (char*) &ft_stopword_file,            SHOW_CHAR_PTR},
   {"have_bdb",		      (char*) &have_berkeley_db,	    SHOW_HAVE},
+  {"have_crypt",	      (char*) &have_crypt,		    SHOW_HAVE},
   {"have_innodb",	      (char*) &have_innodb,		    SHOW_HAVE},
   {"have_isam",	      	      (char*) &have_isam,		    SHOW_HAVE},
   {"have_raid",		      (char*) &have_raid,		    SHOW_HAVE},
@@ -431,7 +433,7 @@ struct show_var_st init_vars[]= {
   {"innodb_file_io_threads", (char*) &innobase_file_io_threads, SHOW_LONG },
   {"innodb_force_recovery", (char*) &innobase_force_recovery, SHOW_LONG },
   {"innodb_thread_concurrency", (char*) &innobase_thread_concurrency, SHOW_LONG },
-  {"innodb_flush_log_at_trx_commit", (char*) &innobase_flush_log_at_trx_commit, SHOW_LONG},
+  {"innodb_flush_log_at_trx_commit", (char*) &innobase_flush_log_at_trx_commit, SHOW_INT},
   {"innodb_fast_shutdown", (char*) &innobase_fast_shutdown, SHOW_MY_BOOL},
   {"innodb_flush_method",    (char*) &innobase_unix_file_flush_method, SHOW_CHAR_PTR},
   {"innodb_lock_wait_timeout", (char*) &innobase_lock_wait_timeout, SHOW_LONG },
@@ -490,6 +492,7 @@ struct show_var_st init_vars[]= {
   {sys_net_write_timeout.name,(char*) &sys_net_write_timeout,       SHOW_SYS},
   {"open_files_limit",	      (char*) &open_files_limit,	    SHOW_LONG},
   {"pid_file",                (char*) pidfile_name,                 SHOW_CHAR},
+  {"log_error",               (char*) log_error_file,               SHOW_CHAR},
   {"port",                    (char*) &mysql_port,                  SHOW_INT},
   {"protocol_version",        (char*) &protocol_version,            SHOW_INT},
   {sys_read_buff_size.name,   (char*) &sys_read_buff_size,	    SHOW_SYS},
@@ -576,7 +579,7 @@ static void fix_max_join_size(THD *thd, enum_var_type type)
 {
   if (type != OPT_GLOBAL)
   {
-    if (thd->variables.max_join_size == (ulong) HA_POS_ERROR)
+    if (thd->variables.max_join_size == HA_POS_ERROR)
       thd->options|= OPTION_BIG_SELECTS;
     else
       thd->options&= ~OPTION_BIG_SELECTS;
@@ -669,6 +672,23 @@ void sys_var_long_ptr::set_default(THD *thd, enum_var_type type)
 }
 
 
+bool sys_var_ulonglong_ptr::update(THD *thd, set_var *var)
+{
+  ulonglong tmp= var->value->val_int();
+  if (option_limits)
+    *value= (ulonglong) getopt_ull_limit_value(tmp, option_limits);
+  else
+    *value= (ulonglong) tmp;
+  return 0;
+}
+
+
+void sys_var_ulonglong_ptr::set_default(THD *thd, enum_var_type type)
+{
+  *value= (ulonglong) option_limits->def_value;
+}
+
+
 bool sys_var_bool_ptr::update(THD *thd, set_var *var)
 {
   *value= (my_bool) var->save_result.ulong_value;
@@ -706,12 +726,7 @@ bool sys_var_thd_ulong::update(THD *thd, set_var *var)
   if (option_limits)
     tmp= (ulong) getopt_ull_limit_value(tmp, option_limits);
   if (var->type == OPT_GLOBAL)
-  {
-    /* Lock is needed to make things safe on 32 bit systems */
-    pthread_mutex_lock(&LOCK_global_system_variables);    
     global_system_variables.*offset= (ulong) tmp;
-    pthread_mutex_unlock(&LOCK_global_system_variables);
-  }
   else
     thd->variables.*offset= (ulong) tmp;
   return 0;
@@ -738,10 +753,60 @@ byte *sys_var_thd_ulong::value_ptr(THD *thd, enum_var_type type)
 }
 
 
+bool sys_var_thd_ha_rows::update(THD *thd, set_var *var)
+{
+  ulonglong tmp= var->value->val_int();
+
+  /* Don't use bigger value than given with --maximum-variable-name=.. */
+  if ((ha_rows) tmp > max_system_variables.*offset)
+    tmp= max_system_variables.*offset;
+
+  if (option_limits)
+    tmp= (ha_rows) getopt_ull_limit_value(tmp, option_limits);
+  if (var->type == OPT_GLOBAL)
+  {
+    /* Lock is needed to make things safe on 32 bit systems */
+    pthread_mutex_lock(&LOCK_global_system_variables);    
+    global_system_variables.*offset= (ha_rows) tmp;
+    pthread_mutex_unlock(&LOCK_global_system_variables);
+  }
+  else
+    thd->variables.*offset= (ha_rows) tmp;
+  return 0;
+}
+
+
+void sys_var_thd_ha_rows::set_default(THD *thd, enum_var_type type)
+{
+  if (type == OPT_GLOBAL)
+  {
+    /* We will not come here if option_limits is not set */
+    pthread_mutex_lock(&LOCK_global_system_variables);
+    global_system_variables.*offset= (ha_rows) option_limits->def_value;
+    pthread_mutex_unlock(&LOCK_global_system_variables);
+  }
+  else
+    thd->variables.*offset= global_system_variables.*offset;
+}
+
+
+byte *sys_var_thd_ha_rows::value_ptr(THD *thd, enum_var_type type)
+{
+  if (type == OPT_GLOBAL)
+    return (byte*) &(global_system_variables.*offset);
+  return (byte*) &(thd->variables.*offset);
+}
+
+
 bool sys_var_thd_ulonglong::update(THD *thd,  set_var *var)
 {
   if (var->type == OPT_GLOBAL)
+  {
+    /* Lock is needed to make things safe on 32 bit systems */
+    pthread_mutex_lock(&LOCK_global_system_variables);
     global_system_variables.*offset= var->value->val_int();
+    pthread_mutex_unlock(&LOCK_global_system_variables);
+  }
   else
     thd->variables.*offset= var->value->val_int();
   return 0;
@@ -751,7 +816,11 @@ bool sys_var_thd_ulonglong::update(THD *thd,  set_var *var)
 void sys_var_thd_ulonglong::set_default(THD *thd, enum_var_type type)
 {
   if (type == OPT_GLOBAL)
+  {
+    pthread_mutex_lock(&LOCK_global_system_variables);
     global_system_variables.*offset= (ulong) option_limits->def_value;
+    pthread_mutex_unlock(&LOCK_global_system_variables);
+  }
   else
     thd->variables.*offset= global_system_variables.*offset;
 }
@@ -854,6 +923,8 @@ Item *sys_var::item(THD *thd, enum_var_type var_type)
     return new Item_uint((int32) *(ulong*) value_ptr(thd, var_type));
   case SHOW_LONGLONG:
     return new Item_int(*(longlong*) value_ptr(thd, var_type));
+  case SHOW_HA_ROWS:
+    return new Item_int((longlong) *(ha_rows*) value_ptr(thd, var_type));
   case SHOW_MY_BOOL:
     return new Item_int((int32) *(my_bool*) value_ptr(thd, var_type),1);
   case SHOW_CHAR:

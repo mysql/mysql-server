@@ -9,6 +9,7 @@ create database bar;
 save_master_pos;
 connection slave;
 sync_with_master;
+create database foo;
 drop table if exists foo.foo;
 create table foo.foo (n int);
 insert into foo.foo values(4);
@@ -24,13 +25,14 @@ connection slave;
 sync_with_master;
 select foo.foo.n,bar.bar.m from foo.foo,bar.bar;
 connection master;
-drop database if exists bar;
+drop database bar;
 drop database if exists foo;
 save_master_pos;
 connection slave;
 sync_with_master;
-drop database if exists bar;
-drop database if exists foo;
+--error 1008
+drop database bar;
+drop database foo;
 
 # Now let's test load data from master
 

@@ -239,8 +239,8 @@ gptr _myrealloc (register gptr pPtr, register uint uSize,
   if (*((long*) ((char*) &pRec -> lSpecialValue+sf_malloc_prehunc))
       != MAGICKEY)
   {
-    fprintf (stderr, "Reallocating unallocated data at line %d, '%s'\n",
-	     uLine, sFile);
+    fprintf(stderr, "Error: Reallocating unallocated data at line %d, '%s'\n",
+	    uLine, sFile);
     DBUG_PRINT("safe",("Reallocating unallocated data at line %d, '%s'",
 		       uLine, sFile));
     (void) fflush(stderr);
@@ -295,8 +295,8 @@ void _myfree (gptr pPtr, const char *sFile, uint uLine, myf myflags)
   if (*((long*) ((char*) &pRec -> lSpecialValue+sf_malloc_prehunc))
       != MAGICKEY)
   {
-    fprintf (stderr, "Freeing unallocated data at line %d, '%s'\n",
-	     uLine, sFile);
+    fprintf(stderr, "Error: Freeing unallocated data at line %d, '%s'\n",
+	    uLine, sFile);
     DBUG_PRINT("safe",("Unallocated data at line %d, '%s'",uLine,sFile));
     (void) fflush(stderr);
     DBUG_VOID_RETURN;
@@ -336,8 +336,8 @@ static int check_ptr(const char *where, byte *ptr, const char *sFile,
 {
   if (!ptr)
   {
-    fprintf (stderr, "%s NULL pointer at line %d, '%s'\n",
-	     where,uLine, sFile);
+    fprintf(stderr, "Error: %s NULL pointer at line %d, '%s'\n",
+	    where,uLine, sFile);
     DBUG_PRINT("safe",("Null pointer at line %d '%s'", uLine, sFile));
     (void) fflush(stderr);
     return 1;
@@ -345,8 +345,8 @@ static int check_ptr(const char *where, byte *ptr, const char *sFile,
 #ifndef _MSC_VER
   if ((long) ptr & (ALIGN_SIZE(1)-1))
   {
-    fprintf (stderr, "%s wrong aligned pointer at line %d, '%s'\n",
-	     where,uLine, sFile);
+    fprintf(stderr, "Error: %s wrong aligned pointer at line %d, '%s'\n",
+	    where,uLine, sFile);
     DBUG_PRINT("safe",("Wrong aligned pointer at line %d, '%s'",
 		       uLine,sFile));
     (void) fflush(stderr);
@@ -355,8 +355,8 @@ static int check_ptr(const char *where, byte *ptr, const char *sFile,
 #endif
   if (ptr < sf_min_adress || ptr > sf_max_adress)
   {
-    fprintf (stderr, "%s pointer out of range at line %d, '%s'\n",
-	     where,uLine, sFile);
+    fprintf(stderr, "Error: %s pointer out of range at line %d, '%s'\n",
+	    where,uLine, sFile);
     DBUG_PRINT("safe",("Pointer out of range at line %d '%s'",
 		       uLine,sFile));
     (void) fflush(stderr);
@@ -388,7 +388,7 @@ void TERMINATE (FILE *file)
   {
     if (file)
     {
-      fprintf (file, "cNewCount: %d\n", cNewCount);
+      fprintf(file, "Warning: Not freed memory segments: %d\n", cNewCount);
       (void) fflush(file);
     }
     DBUG_PRINT("safe",("cNewCount: %d",cNewCount));
@@ -403,7 +403,7 @@ void TERMINATE (FILE *file)
   {
     if (file)
     {
-      fprintf(file, "Memory that was not free'ed (%ld bytes):\n",lCurMemory);
+      fprintf(file, "Warning: Memory that was not free'ed (%ld bytes):\n",lCurMemory);
       (void) fflush(file);
     }
     DBUG_PRINT("safe",("Memory that was not free'ed (%ld bytes):",lCurMemory));
@@ -411,11 +411,11 @@ void TERMINATE (FILE *file)
     {
       if (file)
       {
-	fprintf (file,
-		 "\t%6u bytes at 0x%09lx, allocated at line %4u in '%s'",
-		 pPtr -> uDataSize,
-		 (ulong) &(pPtr -> aData[sf_malloc_prehunc]),
-		 pPtr -> uLineNum, pPtr -> sFileName);
+	fprintf(file,
+		"\t%6u bytes at 0x%09lx, allocated at line %4u in '%s'",
+		pPtr -> uDataSize,
+		(ulong) &(pPtr -> aData[sf_malloc_prehunc]),
+		pPtr -> uLineNum, pPtr -> sFileName);
 	fprintf(file, "\n");
 	(void) fflush(file);
       }
@@ -429,8 +429,8 @@ void TERMINATE (FILE *file)
   /* Report the memory usage statistics */
   if (file)
   {
-    fprintf (file, "Maximum memory usage: %ld bytes (%ldk)\n",
-	     lMaxMemory, (lMaxMemory + 1023L) / 1024L);
+    fprintf(file, "Maximum memory usage: %ld bytes (%ldk)\n",
+	    lMaxMemory, (lMaxMemory + 1023L) / 1024L);
     (void) fflush(file);
   }
   DBUG_PRINT("safe",("Maximum memory usage: %ld bytes (%ldk)",
@@ -453,9 +453,9 @@ static int _checkchunk (register struct remember *pRec, const char *sFile,
   if (*((long*) ((char*) &pRec -> lSpecialValue+sf_malloc_prehunc))
       != MAGICKEY)
   {
-    fprintf (stderr, "Memory allocated at %s:%d was underrun,",
-	     pRec -> sFileName, pRec -> uLineNum);
-    fprintf (stderr, " discovered at %s:%d\n", sFile, uLine);
+    fprintf(stderr, "Error: Memory allocated at %s:%d was underrun,",
+	    pRec -> sFileName, pRec -> uLineNum);
+    fprintf(stderr, " discovered at %s:%d\n", sFile, uLine);
     (void) fflush(stderr);
     DBUG_PRINT("safe",("Underrun at %lx, allocated at %s:%d",
 		       &(pRec -> aData[sf_malloc_prehunc]),
@@ -472,9 +472,9 @@ static int _checkchunk (register struct remember *pRec, const char *sFile,
       *magicp++ != MAGICEND2 ||
       *magicp++ != MAGICEND3)
   {
-    fprintf (stderr, "Memory allocated at %s:%d was overrun,",
-	     pRec -> sFileName, pRec -> uLineNum);
-    fprintf (stderr, " discovered at '%s:%d'\n", sFile, uLine);
+    fprintf(stderr, "Error: Memory allocated at %s:%d was overrun,",
+	    pRec -> sFileName, pRec -> uLineNum);
+    fprintf(stderr, " discovered at '%s:%d'\n", sFile, uLine);
     (void) fflush(stderr);
     DBUG_PRINT("safe",("Overrun at %lx, allocated at %s:%d",
 		       &(pRec -> aData[sf_malloc_prehunc]),
@@ -505,9 +505,9 @@ int _sanity (const char *sFile, uint uLine)
   pthread_mutex_unlock(&THR_LOCK_malloc);
   if (count || pTmp)
   {
-    const char *format="Safemalloc link list destroyed, discovered at '%s:%d'";
-    fprintf (stderr, format, sFile, uLine); fputc('\n',stderr);
-    fprintf (stderr, "root=%p,count=%d,pTmp=%p\n", pRememberRoot,count,pTmp);
+    const char *format="Error: Safemalloc link list destroyed, discovered at '%s:%d'";
+    fprintf(stderr, format, sFile, uLine); fputc('\n',stderr);
+    fprintf(stderr, "root=%p,count=%d,pTmp=%p\n", pRememberRoot,count,pTmp);
     (void) fflush(stderr);
     DBUG_PRINT("safe",(format, sFile, uLine));
     flag=1;

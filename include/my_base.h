@@ -49,6 +49,21 @@
 
 	/* The following is parameter to ha_rkey() how to use key */
 
+/* We define a complete-field prefix of a key value as a prefix where the
+last included field in the prefix contains the full field, not just some bytes
+from the start of the field. A partial-field prefix is allowed to
+contain only a few first bytes from the last included field.
+
+Below HA_READ_KEY_EXACT, ..., HA_READ_BEFORE_KEY can take a
+complete-field prefix of a key value as the search key. HA_READ_PREFIX
+and HA_READ_PREFIX_LAST could also take a partial-field prefix, but
+currently (4.0.10) they are only used with complete-field prefixes. MySQL uses
+a padding trick to implement LIKE 'abc%' queries.
+
+NOTE that in InnoDB HA_READ_PREFIX_LAST will NOT work with a partial-field
+prefix because InnoDB currently strips spaces from the end of varchar
+fields! */
+
 enum ha_rkey_function {
   HA_READ_KEY_EXACT,			/* Find first record else error */
   HA_READ_KEY_OR_NEXT,			/* Record or next record */
@@ -106,10 +121,8 @@ enum ha_extra_function {
   HA_EXTRA_IGNORE_DUP_KEY,		/* Dup keys don't rollback everything*/
   HA_EXTRA_NO_IGNORE_DUP_KEY,
   HA_EXTRA_DONT_USE_CURSOR_TO_UPDATE,	/* Cursor will not be used for update */
-  HA_EXTRA_BULK_INSERT_BEGIN,
-  HA_EXTRA_BULK_INSERT_FLUSH,		/* Flush one index */
-  HA_EXTRA_BULK_INSERT_END,
-  HA_EXTRA_PREPARE_FOR_DELETE
+  HA_EXTRA_PREPARE_FOR_DELETE,
+  HA_EXTRA_PREPARE_FOR_UPDATE		/* Remove read cache if problems */
 };
 
 	/* The following is parameter to ha_panic() */
@@ -218,6 +231,7 @@ enum ha_base_keytype {
 #define HA_ERR_CRASHED		126	/* Indexfile is crashed */
 #define HA_ERR_WRONG_IN_RECORD	127	/* Record-file is crashed */
 #define HA_ERR_OUT_OF_MEM	128	/* Record-file is crashed */
+#define HA_ERR_NOT_A_TABLE      130     /* not a MYI file - no signature */
 #define HA_ERR_WRONG_COMMAND	131	/* Command not supported */
 #define HA_ERR_OLD_FILE		132	/* old databasfile */
 #define HA_ERR_NO_ACTIVE_RECORD 133	/* No record read in update() */
@@ -230,10 +244,10 @@ enum ha_base_keytype {
 #define HA_WRONG_CREATE_OPTION	140	/* Wrong create option */
 #define HA_ERR_FOUND_DUPP_UNIQUE 141	/* Dupplicate unique on write */
 #define HA_ERR_UNKNOWN_CHARSET	 142	/* Can't open charset */
-#define HA_ERR_WRONG_TABLE_DEF	 143
+#define HA_ERR_WRONG_MRG_TABLE_DEF 143    /* conflicting MyISAM tables in MERGE */
 #define HA_ERR_CRASHED_ON_REPAIR 144	/* Last (automatic?) repair failed */
 #define HA_ERR_CRASHED_ON_USAGE  145	/* Table must be repaired */
-#define HA_ERR_LOCK_WAIT_TIMEOUT 146    
+#define HA_ERR_LOCK_WAIT_TIMEOUT 146
 #define HA_ERR_LOCK_TABLE_FULL   147
 #define HA_ERR_READ_ONLY_TRANSACTION 148 /* Updates not allowed */
 #define HA_ERR_LOCK_DEADLOCK	 149
@@ -265,6 +279,7 @@ enum ha_base_keytype {
 #define MBR_EQUAL       8192
 #define MBR_DATA        16384
 #define SEARCH_NULL_ARE_EQUAL 32768	/* NULL in keys are equal */
+#define SEARCH_NULL_ARE_NOT_EQUAL 65536	/* NULL in keys are not equal */
 
 	/* bits in opt_flag */
 #define QUICK_USED	1

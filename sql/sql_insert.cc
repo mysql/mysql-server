@@ -41,7 +41,8 @@ static void unlink_blobs(register TABLE *table);
 
 /*
   Check if insert fields are correct
-  Resets form->time_stamp if a timestamp value is set
+  Updates table->time_stamp to point to timestamp field or 0, depending on
+  if timestamp should be updated or not.
 */
 
 static int
@@ -87,11 +88,12 @@ check_insert_fields(THD *thd,TABLE *table,List<Item> &fields,
       my_error(ER_FIELD_SPECIFIED_TWICE,MYF(0), thd->dupp_field->field_name);
       return -1;
     }
+    table->time_stamp=0;
     if (table->timestamp_field &&	// Don't set timestamp if used
-	table->timestamp_field->query_id == thd->query_id)
-      table->time_stamp=0;		// This should be saved
+	table->timestamp_field->query_id != thd->query_id)
+      table->time_stamp= table->timestamp_field->offset()+1;
   }
- // For the values we need select_priv
+  // For the values we need select_priv
   table->grant.want_privilege=(SELECT_ACL & ~table->grant.privilege);
   return 0;
 }
@@ -103,9 +105,8 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
   int error;
   bool log_on= ((thd->options & OPTION_UPDATE_LOG) ||
 		!(thd->master_access & SUPER_ACL));
-  bool transactional_table, log_delayed, bulk_insert=0;
+  bool transactional_table, log_delayed, bulk_insert;
   uint value_count;
-  uint save_time_stamp;
   ulong counter = 1;
   ulonglong id;
   COPY_INFO info;
@@ -150,14 +151,10 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
     DBUG_RETURN(-1);
   thd->proc_info="init";
   thd->used_tables=0;
-  save_time_stamp=table->time_stamp;
   values= its++;
   if (check_insert_fields(thd,table,fields,*values,1) ||
       setup_tables(table_list) || setup_fields(thd,table_list,*values,0,0,0))
-  {
-    table->time_stamp=save_time_stamp;
     goto abort;
-  }
   value_count= values->elements;
   while ((values = its++))
   {
@@ -167,14 +164,10 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
       my_printf_error(ER_WRONG_VALUE_COUNT_ON_ROW,
 		      ER(ER_WRONG_VALUE_COUNT_ON_ROW),
 		      MYF(0),counter);
-      table->time_stamp=save_time_stamp;
       goto abort;
     }
     if (setup_fields(thd,table_list,*values,0,0,0))
-    {
-      table->time_stamp=save_time_stamp;
       goto abort;
-    }
   }
   its.rewind ();
   /*
@@ -194,17 +187,17 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
   thd->proc_info="update";
   if (duplic == DUP_IGNORE || duplic == DUP_REPLACE)
     table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
-  if ((bulk_insert= (values_list.elements > 1 &&
-		     lock_type != TL_WRITE_DELAYED &&
-		     !(specialflag & SPECIAL_SAFE_MODE))))
+  if ((lock_type != TL_WRITE_DELAYED && !(specialflag & SPECIAL_SAFE_MODE)) &&
+      values_list.elements >= MIN_ROWS_TO_USE_BULK_INSERT)
   {
     table->file->extra_opt(HA_EXTRA_WRITE_CACHE,
-			   thd->variables.read_buff_size);
-    if (thd->variables.bulk_insert_buff_size)
-      table->file->extra_opt(HA_EXTRA_BULK_INSERT_BEGIN,
-			     thd->variables.bulk_insert_buff_size);
-    table->bulk_insert= 1;
+			   min(thd->variables.read_buff_size,
+			       table->avg_row_length*values_list.elements));
+    table->file->deactivate_non_unique_index(values_list.elements);
+    bulk_insert=1;
   }
+  else
+    bulk_insert=0;
 
   while ((values= its++))
   {
@@ -281,7 +274,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
 	  error=1;
 	}
       }
-      if (table->file->extra(HA_EXTRA_BULK_INSERT_END))
+      if (table->file->activate_all_index(thd))
       {
 	if (!error)
 	{
@@ -289,7 +282,6 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
 	  error=1;
 	}
       }
-      table->bulk_insert= 0;
     }
     if (id && values_list.elements != 1)
       thd->insert_id(id);			// For update log
@@ -315,13 +307,10 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
       error=ha_autocommit_or_rollback(thd,error);
 
     /*
-      Only invalidate the query cache if something changed or if we
-      didn't commit the transacion (query cache is automaticly
-      invalidated on commit)
+      Store table for future invalidation  or invalidate it in
+      the query cache if something changed
     */
-    if ((info.copied || info.deleted) &&
-	(!transactional_table ||
-	 thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))
+    if (info.copied || info.deleted)
     {
       query_cache_invalidate3(thd, table_list, 1);
     }
@@ -332,7 +321,6 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
     }
   }
   thd->proc_info="end";
-  table->time_stamp=save_time_stamp;		// Restore auto timestamp ptr
   table->next_number_field=0;
   thd->count_cuted_fields=0;
   thd->next_insert_id=0;			// Reset this if wrongly used
@@ -547,6 +535,7 @@ public:
 
     bzero((char*) &thd.net,sizeof(thd.net));	// Safety
     thd.system_thread=1;
+    thd.host_or_ip= "";
     bzero((char*) &info,sizeof(info));
     pthread_mutex_init(&mutex,MY_MUTEX_INIT_FAST);
     pthread_cond_init(&cond,NULL);
@@ -951,7 +940,7 @@ extern "C" pthread_handler_decl(handle_delayed_insert,arg)
     strmov(thd->net.last_error,ER(thd->net.last_errno=ER_OUT_OF_RESOURCES));
     goto end;
   }
-#if !defined(__WIN__) && !defined(OS2)
+#if !defined(__WIN__) && !defined(OS2) && !defined(__NETWARE__)
   sigset_t set;
   VOID(sigemptyset(&set));			// Get mask in use
   VOID(pthread_sigmask(SIG_UNBLOCK,&set,&thd->block_signals));
@@ -1286,7 +1275,6 @@ select_insert::prepare(List<Item> &values)
 {
   DBUG_ENTER("select_insert::prepare");
 
-  save_time_stamp=table->time_stamp;
   if (check_insert_fields(thd,table,*fields,values,1))
     DBUG_RETURN(1);
 
@@ -1307,8 +1295,6 @@ select_insert::~select_insert()
 {
   if (table)
   {
-    if (save_time_stamp)
-      table->time_stamp=save_time_stamp;
     table->next_number_field=0;
     table->file->extra(HA_EXTRA_RESET);
   }
@@ -1411,7 +1397,6 @@ select_create::prepare(List<Item> &values)
   /* First field to copy */
   field=table->field+table->fields - values.elements;
 
-  save_time_stamp=table->time_stamp;
   if (table->timestamp_field)			// Don't set timestamp if used
   {
     table->timestamp_field->set_time();

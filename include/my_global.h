@@ -51,6 +51,12 @@
 #include <config-win.h>
 #elif defined(OS2)
 #include <config-os2.h>
+#elif defined(__NETWARE__)
+#include <my_config.h>
+#include <config-netware.h>
+#if defined(__cplusplus) && defined(inline)
+#undef inline				/* fix configure problem */
+#endif
 #else
 #include <my_config.h>
 #if defined(__cplusplus) && defined(inline)
@@ -153,6 +159,13 @@ C_MODE_END
 #undef HAVE_INITGROUPS
 #endif
 
+/* gcc/egcs issues */
+
+#if defined(__GNUC) && defined(__EXCEPTIONS)
+#error "Please add -fno-exceptions to CXXFLAGS and reconfigure/recompile"
+#endif
+
+
 /* Fix a bug in gcc 2.8.0 on IRIX 6.2 */
 #if SIZEOF_LONG == 4 && defined(__LONG_MAX__)
 #undef __LONG_MAX__             /* Is a longlong value in gcc 2.8.0 ??? */
@@ -248,6 +261,7 @@ C_MODE_END
 #define CONFIG_SMP
 #include <asm/atomic.h>
 #endif
+#include <errno.h>				/* Recommended by debian */
 
 /* Go around some bugs in different OS and compilers */
 #if defined(_HPUX_SOURCE) && defined(HAVE_SYS_STREAM_H)
@@ -435,17 +449,20 @@ typedef SOCKET_SIZE_TYPE size_socket;
 
 /* file create flags */
 
-#ifndef O_SHARE
+#ifndef O_SHARE			/* Probably not windows */
 #define O_SHARE		0	/* Flag to my_open for shared files */
 #ifndef O_BINARY
 #define O_BINARY	0	/* Flag to my_open for binary files */
 #endif
-#define FILE_BINARY	0	/* Flag to my_fopen for binary streams */
+#ifndef FILE_BINARY
+#define FILE_BINARY	O_BINARY /* Flag to my_fopen for binary streams */
+#endif
 #ifdef HAVE_FCNTL
 #define HAVE_FCNTL_LOCK
 #define F_TO_EOF	0L	/* Param to lockf() to lock rest of file */
 #endif
 #endif /* O_SHARE */
+
 #ifndef O_TEMPORARY
 #define O_TEMPORARY	0
 #endif
@@ -748,6 +765,14 @@ typedef char		bool;	/* Ordinary boolean values 0 1 */
 #define INT32(v)	(int32) (v)
 #define MYF(v)		(myf) (v)
 
+#ifndef LL
+#ifdef HAVE_LONG_LONG
+#define LL(A) A ## LL
+#else
+#define LL(A) A ## L
+#endif
+#endif
+
 /*
   Defines to make it possible to prioritize register assignments. No
   longer that important with modern compilers.
@@ -788,10 +813,9 @@ typedef char		bool;	/* Ordinary boolean values 0 1 */
 #define MY_HOW_OFTEN_TO_ALARM	2	/* How often we want info on screen */
 #define MY_HOW_OFTEN_TO_WRITE	1000	/* How often we want info on screen */
 
+#ifndef set_timespec
 #ifdef HAVE_TIMESPEC_TS_SEC
 #define set_timespec(ABSTIME,SEC) { (ABSTIME).ts_sec=time(0) + (time_t) (SEC); (ABSTIME).ts_nsec=0; }
-#elif defined(__WIN__)
-#define set_timespec(ABSTIME,SEC) { (ABSTIME).tv_sec=time((time_t*)0) + (time_t) (SEC); (ABSTIME).tv_nsec=0; }
 #else
 #define set_timespec(ABSTIME,SEC) \
 {\
@@ -800,7 +824,8 @@ typedef char		bool;	/* Ordinary boolean values 0 1 */
   (ABSTIME).tv_sec=tv.tv_sec+(time_t) (SEC);\
   (ABSTIME).tv_nsec=tv.tv_usec*1000;\
 }
-#endif
+#endif /* HAVE_TIMESPEC_TS_SEC */
+#endif /* set_timespec */
 
 /*
   Define-funktions for reading and storing in machine independent format

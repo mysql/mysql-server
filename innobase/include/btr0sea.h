@@ -234,10 +234,16 @@ struct btr_search_sys_struct{
 extern btr_search_sys_t*	btr_search_sys;
 
 /* The latch protecting the adaptive search system: this latch protects the
-(1) positions of records on those pages where a hash index has been built.
-NOTE: It does not protect values of non-ordering fields within a record from
-being updated in-place! We can use fact (1) to perform unique searches to
-indexes. */
+(1) hash index;
+(2) columns of a record to which we have a pointer in the hash index;
+
+but does NOT protect:
+
+(3) next record offset field in a record;
+(4) next or previous records on the same page.
+
+Bear in mind (3) and (4) when using the hash index.
+*/
 
 extern rw_lock_t*	btr_search_latch_temp;
 

@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (C) 2000-2003 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -60,7 +60,7 @@ static my_bool	mysql_client_init=0;
 uint		mysql_port=0;
 my_string	mysql_unix_port=0;
 ulong 		net_buffer_length=8192;
-ulong		max_allowed_packet=16*1024*1024L;
+ulong		max_allowed_packet= 1024L*1024L*1024L;
 ulong		net_read_timeout=  NET_READ_TIMEOUT;
 ulong		net_write_timeout= NET_WRITE_TIMEOUT;
 
@@ -73,14 +73,13 @@ ulong		net_write_timeout= NET_WRITE_TIMEOUT;
 #endif
 
 #if defined(MSDOS) || defined(__WIN__)
-// socket_errno is defined in my_global.h for all platforms
+/* socket_errno is defined in my_global.h for all platforms */
 #define perror(A)
 #else
 #include <errno.h>
 #define SOCKET_ERROR -1
 #endif /* __WIN__ */
 
-static void mysql_once_init(void);
 static MYSQL_DATA *read_rows (MYSQL *mysql,MYSQL_FIELD *fields,
 			      uint field_count);
 static int read_one_row(MYSQL *mysql,uint fields,MYSQL_ROW row,
@@ -100,6 +99,7 @@ int STDCALL mysql_server_init(int argc __attribute__((unused)),
 			      char **argv __attribute__((unused)),
 			      char **groups __attribute__((unused)))
 {
+  mysql_once_init();
   return 0;
 }
 
@@ -108,6 +108,8 @@ void STDCALL mysql_server_end()
   /* If library called my_init(), free memory allocated by it */
   if (!org_my_init_done)
     my_end(0);
+  else
+    mysql_thread_end();
 }
 
 my_bool STDCALL mysql_thread_init()
@@ -159,7 +161,7 @@ static MYSQL* spawn_init(MYSQL* parent, const char* host,
 int my_connect(my_socket s, const struct sockaddr *name, uint namelen,
 	       uint timeout)
 {
-#if defined(__WIN__) || defined(OS2)
+#if defined(__WIN__) || defined(OS2) || defined(__NETWARE__)
   return connect(s, (struct sockaddr*) name, namelen);
 #else
   int flags, res, s_err;
@@ -348,7 +350,7 @@ net_safe_read(MYSQL *mysql)
     DBUG_PRINT("error",("Wrong connection or packet. fd: %s  len: %d",
 			vio_description(net->vio),len));
     end_server(mysql);
-    net->last_errno=(net->last_errno == ER_NET_PACKET_TOO_LARGE ? 
+    net->last_errno=(net->last_errno == ER_NET_PACKET_TOO_LARGE ?
 		     CR_NET_PACKET_TOO_LARGE:
 		     CR_SERVER_LOST);
     strmov(net->last_error,ER(net->last_errno));
@@ -484,7 +486,14 @@ simple_command(MYSQL *mysql,enum enum_server_command command, const char *arg,
   if (net_write_command(net,(uchar) command,arg,
 			length ? length : (ulong) strlen(arg)))
   {
-    DBUG_PRINT("error",("Can't send command to server. Error: %d",socket_errno));
+    DBUG_PRINT("error",("Can't send command to server. Error: %d",
+			socket_errno));
+    if (net->last_errno == ER_NET_PACKET_TOO_LARGE)
+    {
+      net->last_errno=CR_NET_PACKET_TOO_LARGE;
+      strmov(net->last_error,ER(net->last_errno));
+      goto end;
+    }
     end_server(mysql);
     if (mysql_reconnect(mysql))
       goto end;
@@ -522,7 +531,17 @@ struct passwd *getpwuid(uid_t);
 char* getlogin(void);
 #endif
 
-#if !defined(MSDOS) && ! defined(VMS) && !defined(__WIN__) && !defined(OS2)
+
+#if defined(__NETWARE__)
+/* default to "root" on NetWare */
+static void read_user_name(char *name)
+{
+  char *str=getenv("USER");
+  strmake(name, str ? str : "UNKNOWN_USER", USERNAME_LENGTH);
+}
+
+#elif !defined(MSDOS) && ! defined(VMS) && !defined(__WIN__) && !defined(OS2)
+
 static void read_user_name(char *name)
 {
   DBUG_ENTER("read_user_name");
@@ -713,8 +732,8 @@ static const char *default_options[]=
   "character-sets-dir", "default-character-set", "interactive-timeout",
   "connect-timeout", "local-infile", "disable-local-infile",
   "replication-probe", "enable-reads-from-master", "repl-parse-query",
-  "ssl-cipher",
- NullS
+  "ssl-cipher", "max-allowed-packet",
+  NullS
 };
 
 static TYPELIB option_types={array_elements(default_options)-1,
@@ -868,6 +887,9 @@ static void mysql_read_default_options(struct st_mysql_options *options,
 	case 25: /* repl-parse-query */
 	  options->rpl_parse= 1;
 	  break;
+	case 27:
+	  options->max_allowed_packet= atoi(opt_arg);
+	  break;
 	default:
 	  DBUG_PRINT("warning",("unknown option: %s",option[0]));
 	}
@@ -934,7 +956,7 @@ static MYSQL_DATA *read_rows(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
   ulong pkt_len;
   ulong len;
   uchar *cp;
-  char	*to;
+  char	*to, *end_to;
   MYSQL_DATA *result;
   MYSQL_ROWS **prev_ptr,*cur;
   NET *net = &mysql->net;
@@ -972,6 +994,7 @@ static MYSQL_DATA *read_rows(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
     *prev_ptr=cur;
     prev_ptr= &cur->next;
     to= (char*) (cur->data+fields+1);
+    end_to=to+pkt_len-1;
     for (field=0 ; field < fields ; field++)
     {
       if ((len=(ulong) net_field_length(&cp)) == NULL_LENGTH)
@@ -981,6 +1004,13 @@ static MYSQL_DATA *read_rows(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
       else
       {
 	cur->data[field] = to;
+        if (len > (ulong) (end_to - to))
+        {
+          free_rows(result);
+          net->last_errno=CR_MALFORMED_PACKET;
+          strmov(net->last_error,ER(net->last_errno));
+          DBUG_RETURN(0);
+        }
 	memcpy(to,(char*) cp,len); to[len]=0;
 	to+=len+1;
 	cp+=len;
@@ -1015,7 +1045,7 @@ read_one_row(MYSQL *mysql,uint fields,MYSQL_ROW row, ulong *lengths)
 {
   uint field;
   ulong pkt_len,len;
-  uchar *pos,*prev_pos;
+  uchar *pos,*prev_pos, *end_pos;
 
   if ((pkt_len=net_safe_read(mysql)) == packet_error)
     return -1;
@@ -1023,6 +1053,7 @@ read_one_row(MYSQL *mysql,uint fields,MYSQL_ROW row, ulong *lengths)
     return 1;				/* End of data */
   prev_pos= 0;				/* allowed to write at packet[-1] */
   pos=mysql->net.read_pos;
+  end_pos=pos+pkt_len;
   for (field=0 ; field < fields ; field++)
   {
     if ((len=(ulong) net_field_length(&pos)) == NULL_LENGTH)
@@ -1032,6 +1063,12 @@ read_one_row(MYSQL *mysql,uint fields,MYSQL_ROW row, ulong *lengths)
     }
     else
     {
+      if (len > (ulong) (end_pos - pos))
+      {
+        mysql->net.last_errno=CR_UNKNOWN_ERROR;
+        strmov(mysql->net.last_error,ER(mysql->net.last_errno));
+        return -1;
+      }
       row[field] = (char*) pos;
       pos+=len;
       *lengths++=len;
@@ -1378,7 +1415,20 @@ mysql_init(MYSQL *mysql)
 }
 
 
-static void mysql_once_init()
+/*
+  Initialize the MySQL library
+
+  SYNOPSIS
+    mysql_once_init()
+
+  NOTES
+    Can't be static on NetWare
+    This function is called by mysql_init() and indirectly called
+    by mysql_query(), so one should never have to call this from an
+    outside program.
+*/
+
+void mysql_once_init(void)
 {
   if (!mysql_client_init)
   {
@@ -1893,6 +1943,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
 		     mysql->server_version,mysql->server_capabilities,
 		     mysql->server_status, client_flag));
 
+  /* This needs to be changed as it's not useful with big packets */
   int3store(buff+2,max_allowed_packet);
   if (user && user[0])
     strmake(buff+5,user,32);			/* Max user name */
@@ -1920,6 +1971,8 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
     goto error;
   if (client_flag & CLIENT_COMPRESS)		/* We will use compression */
     net->compress=1;
+  if (mysql->options.max_allowed_packet)
+    net->max_packet_size= mysql->options.max_allowed_packet;
   if (db && mysql_select_db(mysql,db))
     goto error;
   if (mysql->options.init_command)
@@ -2287,7 +2340,7 @@ mysql_real_query(MYSQL *mysql, const char *query, ulong length)
 {
   DBUG_ENTER("mysql_real_query");
   DBUG_PRINT("enter",("handle: %lx",mysql));
-  DBUG_PRINT("query",("Query = \"%s\"",query));
+  DBUG_PRINT("query",("Query = '%-.4096s'",query));
 
   if (mysql_send_query(mysql,query,length))
     DBUG_RETURN(-1);

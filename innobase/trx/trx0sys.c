@@ -472,9 +472,9 @@ trx_sys_update_mysql_binlog_offset(
 	if (0 != ut_memcmp(sys_header + field + TRX_SYS_MYSQL_LOG_NAME,
 			file_name, 1 + ut_strlen(file_name))) {
 
-		mlog_write_string(sys_header + field
-					+ TRX_SYS_MYSQL_LOG_NAME,
-			file_name, 1 + ut_strlen(file_name), mtr);
+		mlog_write_string((byte*) (sys_header + field
+					+ TRX_SYS_MYSQL_LOG_NAME),
+			(byte*) file_name, 1 + ut_strlen(file_name), mtr);
 	}
 
 	if (mach_read_from_4(sys_header + field
@@ -699,6 +699,9 @@ trx_sys_init_at_db_start(void)
 /*==========================*/
 {
 	trx_sysf_t*	sys_header;
+	ib_longlong	rows_to_undo	= 0;
+	char*		unit		= (char*)"";
+	trx_t*		trx;
 	mtr_t		mtr;
 
 	mtr_start(&mtr);
@@ -734,9 +737,28 @@ trx_sys_init_at_db_start(void)
 	trx_lists_init_at_db_start();
 
 	if (UT_LIST_GET_LEN(trx_sys->trx_list) > 0) {
+		trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
+
+		for (;;) {
+			rows_to_undo +=
+				ut_conv_dulint_to_longlong(trx->undo_no);
+			trx = UT_LIST_GET_NEXT(trx_list, trx);
+
+			if (!trx) {
+				break;
+			}
+		}
+	
+		if (rows_to_undo > 1000000000) {
+			unit = (char*)"M";
+			rows_to_undo = rows_to_undo / 1000000;
+		}
+
 		fprintf(stderr,
-	"InnoDB: %lu transaction(s) which must be rolled back or cleaned up\n",
-				UT_LIST_GET_LEN(trx_sys->trx_list));
+"InnoDB: %lu transaction(s) which must be rolled back or cleaned up\n"
+"InnoDB: in total %lu%s row operations to undo\n",
+				UT_LIST_GET_LEN(trx_sys->trx_list),
+				(ulint)rows_to_undo, unit);
 
 		fprintf(stderr, "InnoDB: Trx id counter is %lu %lu\n", 
 			ut_dulint_get_high(trx_sys->max_trx_id),

@@ -7,19 +7,19 @@
 CFG=MySqlManager - Win32 Debug
 !MESSAGE This is not a valid makefile. To build this project using NMAKE,
 !MESSAGE use the Export Makefile command and run
-!MESSAGE 
+!MESSAGE
 !MESSAGE NMAKE /f "MySqlManager.mak".
-!MESSAGE 
+!MESSAGE
 !MESSAGE You can specify a configuration when running NMAKE
 !MESSAGE by defining the macro CFG on the command line. For example:
-!MESSAGE 
+!MESSAGE
 !MESSAGE NMAKE /f "MySqlManager.mak" CFG="MySqlManager - Win32 Debug"
-!MESSAGE 
+!MESSAGE
 !MESSAGE Possible choices for configuration are:
-!MESSAGE 
+!MESSAGE
 !MESSAGE "MySqlManager - Win32 Release" (based on "Win32 (x86) Application")
 !MESSAGE "MySqlManager - Win32 Debug" (based on "Win32 (x86) Application")
-!MESSAGE 
+!MESSAGE
 
 # Begin Project
 # PROP AllowPerConfigDependencies 0
@@ -71,7 +71,7 @@ LINK32=link.exe
 # PROP Ignore_Export_Lib 0
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /MDd /W3 /Gm /GX /Zi /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_AFXDLL" /Yu"stdafx.h" /FD /c
-# ADD CPP /nologo /G6 /MTd /W3 /Gm /GX /ZI /Od /I "../include" /D "_DEBUG" /D "_WINDOWS" /FD /c
+# ADD CPP /nologo /G6 /MTd /W3 /Gm /GR /GX /Zi /Od /I "../include" /D "_DEBUG" /D "_WINDOWS" /FD /c
 # SUBTRACT CPP /Fr /YX /Yc /Yu
 # ADD BASE MTL /nologo /D "_DEBUG" /mktyplib203 /o "NUL" /win32
 # ADD MTL /nologo /D "_DEBUG" /o "NUL" /win32
@@ -86,7 +86,7 @@ LINK32=link.exe
 # ADD LINK32 wsock32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib uuid.lib /nologo /subsystem:windows /incremental:no /debug /machine:I386 /out:"../client_debug/MySqlManager.exe" /pdbtype:sept /libpath:"..\lib_debug\\"
 # SUBTRACT LINK32 /pdb:none
 
-!ENDIF 
+!ENDIF
 
 # Begin Target
 

@@ -33,7 +33,7 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
   TABLE *table;
   int describe=(lex->select_lex.options & SELECT_DESCRIBE) ? 1 : 0;
   int res;
-  bool found_rows_for_union=false;
+  bool found_rows_for_union= 0;
   TABLE_LIST result_table_list;
   TABLE_LIST *first_table=(TABLE_LIST *)lex->select_lex.table_list.first;
   TMP_TABLE_PARAM tmp_table_param;
@@ -50,11 +50,7 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
 	 cursor;
 	 cursor=cursor->next)
     {
-      if (cursor->do_redirect)			// False if CUBE/ROLLUP
-      {
-	cursor->table= ((TABLE_LIST*) cursor->table)->table;
-	cursor->do_redirect=false;
-      }
+      cursor->table= (my_reinterpret_cast(TABLE_LIST*) (cursor->table))->table;
     }
   }
 
@@ -138,7 +134,7 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
     res= -1;
     goto exit;
   }
-  union_result->save_time_stamp=!describe;
+  union_result->not_describe= !describe;
   union_result->tmp_table_param=&tmp_table_param;
   for (sl= &lex->select_lex; sl; sl=sl->next)
   {
@@ -150,14 +146,17 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
     if (thd->select_limit == HA_POS_ERROR)
       sl->options&= ~OPTION_FOUND_ROWS;
 
-    res=mysql_select(thd, (describe && sl->linkage==NOT_A_SELECT) ? first_table :  (TABLE_LIST*) sl->table_list.first,
+    res=mysql_select(thd, (describe && sl->linkage==NOT_A_SELECT) ?
+		     first_table :  (TABLE_LIST*) sl->table_list.first,
 		     sl->item_list,
 		     sl->where,
-		     (sl->braces) ? (ORDER *)sl->order_list.first : (ORDER *) 0,
+		     (sl->braces) ? (ORDER *)sl->order_list.first :
+		     (ORDER *) 0,
 		     (ORDER*) sl->group_list.first,
 		     sl->having,
 		     (ORDER*) NULL,
-		     sl->options | thd->options | SELECT_NO_UNLOCK | ((describe) ? SELECT_DESCRIBE : 0),
+		     sl->options | thd->options | SELECT_NO_UNLOCK |
+		     ((describe) ? SELECT_DESCRIBE : 0),
 		     union_result);
     if (res)
       goto exit;
@@ -226,7 +225,7 @@ exit:
 ***************************************************************************/
 
 select_union::select_union(TABLE *table_par)
-    :table(table_par)
+  :table(table_par), not_describe(0)
 {
   bzero((char*) &info,sizeof(info));
   /*
@@ -243,7 +242,7 @@ select_union::~select_union()
 
 int select_union::prepare(List<Item> &list)
 {
-  if (save_time_stamp && list.elements != table->fields)
+  if (not_describe && list.elements != table->fields)
   {
     my_message(ER_WRONG_NUMBER_OF_COLUMNS_IN_SELECT,
 	       ER(ER_WRONG_NUMBER_OF_COLUMNS_IN_SELECT),MYF(0));

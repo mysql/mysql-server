@@ -167,7 +167,7 @@ drop table t1;
 #
 
 create table t1 (a integer) type=innodb;
-begin;
+start transaction;
 rename table t1 to t2;
 create table t1 (b integer) type=innodb;
 insert into t1 values (1);
@@ -660,3 +660,58 @@ insert into t1 (code, name) values (3, 'Jeremy'), (4, 'Matt');
 select id, code, name from t1 order by id;
 COMMIT;
 DROP TABLE t1;
+
+#
+# Test of multi-table-update
+#
+drop table if exists t1,t2;
+create table t1 (n int(10), d int(10)) type=innodb;
+create table t2 (n int(10), d int(10)) type=innodb;
+insert into t1 values(1,1),(1,2);
+insert into t2 values(1,10),(2,20);
+UPDATE t1,t2 SET t1.d=t2.d,t2.d=30 WHERE t1.n=t2.n;
+select * from t1;
+select * from t2;
+drop table t1,t2;
+
+#
+# Testing of IFNULL
+#
+create table t1 (a int, b int) type=innodb;
+insert into t1 values(20,null);
+select t2.b, ifnull(t2.b,"this is null") from t1 as t2 left join t1 as t3 on
+t2.b=t3.a;
+select t2.b, ifnull(t2.b,"this is null") from t1 as t2 left join t1 as t3 on
+t2.b=t3.a order by 1;
+insert into t1 values(10,null);
+select t2.b, ifnull(t2.b,"this is null") from t1 as t2 left join t1 as t3 on
+t2.b=t3.a order by 1;
+drop table t1;
+
+#
+# Test of read_through not existing const_table
+#
+
+create table t1 (a varchar(10) not null) type=myisam;
+create table t2 (b varchar(10) not null unique) type=innodb;
+select t1.a from t1,t2 where t1.a=t2.b;
+drop table t1,t2;
+create table t1 (a int not null, b int, primary key (a)) type = innodb;
+create table t2 (a int not null, b int, primary key (a)) type = innodb;
+insert into t1 values (10, 20);
+insert into t2 values (10, 20);
+update t1, t2 set t1.b = 150, t2.b = t1.b where t2.a = t1.a and t1.a = 10;
+drop table t1,t2;
+
+#
+# Test of multi-table-delete with foreign key constraints
+#
+
+CREATE TABLE t1 (id INT NOT NULL, PRIMARY KEY (id)) TYPE=INNODB;
+CREATE TABLE t2 (id INT PRIMARY KEY, t1_id INT, INDEX par_ind (t1_id), FOREIGN KEY (t1_id) REFERENCES t1(id)  ON DELETE CASCADE ) TYPE=INNODB;
+insert into t1 set id=1;
+insert into t2 set id=1, t1_id=1;
+delete t1,t2 from t1,t2 where t1.id=t2.t1_id;
+select * from t1;
+select * from t2;
+drop table t1,t2;

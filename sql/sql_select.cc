@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+/* Copyright (C) 2000-2003 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -130,7 +130,9 @@ static int setup_group(THD *thd,TABLE_LIST *tables,List<Item> &fields,
 		       List<Item> &all_fields, ORDER *order, bool *hidden);
 static bool setup_new_fields(THD *thd,TABLE_LIST *tables,List<Item> &fields,
 			     List<Item> &all_fields,ORDER *new_order);
-static ORDER *create_distinct_group(ORDER *order, List<Item> &fields);
+static ORDER *create_distinct_group(THD *thd, ORDER *order,
+				    List<Item> &fields,
+				    bool *all_order_by_fields_used);
 static bool test_if_subpart(ORDER *a,ORDER *b);
 static TABLE *get_sort_by_table(ORDER *a,ORDER *b,TABLE_LIST *tables);
 static void calc_group_buffer(JOIN *join,ORDER *group);
@@ -228,6 +230,10 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
   bzero((char*) &keyuse,sizeof(keyuse));
   thd->proc_info="init";
   thd->used_tables=0;				// Updated by setup_fields
+  /* select_limit is used to decide if we are likely to scan the whole table */
+  select_limit= thd->select_limit;
+  if (having || (select_options & OPTION_FOUND_ROWS))
+    select_limit= HA_POS_ERROR;
 
   if (setup_tables(tables) ||
       setup_fields(thd,tables,fields,1,&all_fields,1) ||
@@ -436,14 +442,17 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
   thd->proc_info="statistics";
   if (make_join_statistics(&join,tables,conds,&keyuse) || thd->fatal_error)
     goto err;
+
   thd->proc_info="preparing";
-  result->initialize_tables(&join);
+  if (result->initialize_tables(&join))
+    goto err;
   if (join.const_table_map != join.found_const_table_map &&
       !(select_options & SELECT_DESCRIBE))
   {
     error=return_zero_rows(&join,result,tables,fields,
 			   join.tmp_table_param.sum_func_count != 0 &&
-			   !group,0,"",having,procedure);
+			   !group,0,"no matching row in const table",having,
+			   procedure);
     goto err;
   }
   if (!(thd->options & OPTION_BIG_SELECTS) &&
@@ -497,27 +506,62 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
   error= -1;					/* if goto err */
 
   /* Optimize distinct away if possible */
-  order=remove_const(&join,order,conds,&simple_order);
+  {
+    ORDER *org_order= order;
+    order=remove_const(&join,order,conds,&simple_order);
+    /*
+      If we are using ORDER BY NULL or ORDER BY const_expression,
+      return result in any order (even if we are using a GROUP BY)
+    */
+    if (!order && org_order)
+      skip_sort_order= 1;
+  }
   if (group || join.tmp_table_param.sum_func_count)
   {
     if (! hidden_group_fields)
       select_distinct=0;
   }
-  else if (select_distinct && join.tables - join.const_tables == 1 &&
-	   (thd->select_limit == HA_POS_ERROR ||
-	    (join.select_options & OPTION_FOUND_ROWS) ||
-	    order &&
-	    !(skip_sort_order=
-	      test_if_skip_sort_order(&join.join_tab[join.const_tables],
-				      order, thd->select_limit,1))))
+  else if (select_distinct && join.tables - join.const_tables == 1)
   {
-    if ((group=create_distinct_group(order,fields)))
+    /*
+      We are only using one table. In this case we change DISTINCT to a
+      GROUP BY query if:
+      - The GROUP BY can be done through indexes (no sort) and the ORDER
+        BY only uses selected fields.
+	(In this case we can later optimize away GROUP BY and ORDER BY)
+      - We are scanning the whole table without LIMIT
+        This can happen if:
+        - We are using CALC_FOUND_ROWS
+        - We are using an ORDER BY that can't be optimized away.
+
+      We don't want to use this optimization when we are using LIMIT
+      because in this case we can just create a temporary table that
+      holds LIMIT rows and stop when this table is full.
+    */
+    JOIN_TAB *tab= &join.join_tab[join.const_tables];
+    bool all_order_fields_used;
+    if (order)
+      skip_sort_order= test_if_skip_sort_order(tab, order, select_limit, 1);
+    if ((group=create_distinct_group(thd, order, fields,
+				     &all_order_fields_used)))
     {
-      select_distinct=0;
-      no_order= !order;
-      join.group=1;				// For end_write_group
-    }
-    else if (thd->fatal_error)			// End of memory
+      bool skip_group= (skip_sort_order &&
+			test_if_skip_sort_order(tab, group, select_limit,
+						1) != 0);
+      if ((skip_group && all_order_fields_used) ||
+	  select_limit == HA_POS_ERROR ||
+	  (order && !skip_sort_order))
+      {
+	/*  Change DISTINCT to GROUP BY */
+	select_distinct= 0;
+	no_order= !order;
+	if (all_order_fields_used)
+	  order=0;
+	join.group=1;				// For end_write_group
+      }
+      else
+	group= 0;
+    } else if (thd->fatal_error)			// End of memory
       goto err;
   }
   group=remove_const(&join,group,conds,&simple_group);
@@ -621,10 +665,9 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
       order=group;
     if (order &&
 	(join.const_tables == join.tables ||
-	 (simple_order &&
+	 ((simple_order || skip_sort_order) &&
 	  test_if_skip_sort_order(&join.join_tab[join.const_tables], order,
-				  (join.select_options & OPTION_FOUND_ROWS) ?
-				  HA_POS_ERROR : thd->select_limit,0))))
+				  select_limit, 0))))
       order=0;
     select_describe(&join,need_tmp,
 		    order != 0 && !skip_sort_order,
@@ -652,7 +695,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
 			   group ? 0 : select_distinct,
 			   group && simple_group,
 			   (order == 0 || skip_sort_order) &&
-			   !(join.select_options & OPTION_FOUND_ROWS),
+			   select_limit != HA_POS_ERROR,
 			   join.select_options)))
       goto err;					/* purecov: inspected */
 
@@ -705,9 +748,10 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
       /* Optimize "select distinct b from t1 order by key_part_1 limit #" */
       if (order && skip_sort_order)
       {
-	(void) test_if_skip_sort_order(&join.join_tab[join.const_tables],
-				       order, thd->select_limit,0);
-	order=0;
+	/* Should always succeed */
+	if (test_if_skip_sort_order(&join.join_tab[join.const_tables],
+				    order, thd->select_limit,0))
+	  order=0;
       }
     }
 
@@ -741,7 +785,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
       procedure->update_refs();
     if (tmp_table->group)
     {						// Already grouped
-      if (!order && !no_order)
+      if (!order && !no_order && !skip_sort_order)
 	order=group;				/* order by group */
       group=0;
     }
@@ -876,8 +920,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
 	DBUG_EXECUTE("where",print_where(conds,"having after sort"););
       }
     }
-    select_limit= thd->select_limit;
-    if (having || group || (join.select_options & OPTION_FOUND_ROWS))
+    if (group)
       select_limit= HA_POS_ERROR;
     else
     {
@@ -889,7 +932,13 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
       JOIN_TAB *end_table= &join.join_tab[join.tables];
       for (; table < end_table ; table++)
       {
-	if (table->select_cond)
+	/*
+	  table->keyuse is set in the case there was an original WHERE clause
+	  on the table that was optimized away.
+	  table->on_expr tells us that it was a LEFT JOIN and there will be
+	  at least one row generated from the table.
+	*/
+	if (table->select_cond || (table->keyuse && !table->on_expr))
 	{
 	  /* We have to sort all rows */
 	  select_limit= HA_POS_ERROR;
@@ -952,16 +1001,23 @@ static ha_rows get_quick_record_count(SQL_SELECT *select,TABLE *table,
 }
 
 
+/*
+  Calculate the best possible join and initialize the join structure
+
+  RETURN VALUES
+  0	ok
+  1	Fatal error
+*/
+  
 static bool
 make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
 		     DYNAMIC_ARRAY *keyuse_array)
 {
   int error;
   uint i,table_count,const_count,found_ref,refs,key,const_ref,eq_part;
-  table_map const_table_map,found_const_table_map,all_table_map;
+  table_map found_const_table_map,all_table_map;
   TABLE **table_vector;
   JOIN_TAB *stat,*stat_end,*s,**stat_ref;
-  SQL_SELECT *select;
   KEYUSE *keyuse,*start_keyuse;
   table_map outer_join=0;
   JOIN_TAB *stat_vector[MAX_TABLES+1];
@@ -973,12 +1029,11 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
   table_vector=(TABLE**) join->thd->alloc(sizeof(TABLE*)*(table_count*2));
   if (!stat || !stat_ref || !table_vector)
     DBUG_RETURN(1);				// Eom /* purecov: inspected */
-  select=0;
 
   join->best_ref=stat_vector;
 
   stat_end=stat+table_count;
-  const_table_map=found_const_table_map=all_table_map=0;
+  found_const_table_map=all_table_map=0;
   const_count=0;
 
   for (s=stat,i=0 ; tables ; s++,tables=tables->next,i++)
@@ -1069,7 +1124,7 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
       DBUG_RETURN(1);
 
   /* Read tables with 0 or 1 rows (system tables) */
-  join->const_table_map=const_table_map;
+  join->const_table_map= 0;
 
   for (POSITION *p_pos=join->positions, *p_end=p_pos+const_count;
        p_pos < p_end ;
@@ -1106,16 +1161,16 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
       if (s->dependent)				// If dependent on some table
       {
 	// All dep. must be constants
-	if (s->dependent & ~(join->const_table_map))
+	if (s->dependent & ~(found_const_table_map))
 	  continue;
 	if (table->file->records <= 1L &&
 	    !(table->file->table_flags() & HA_NOT_EXACT_COUNT))
 	{					// system table
-	  int tmp;
+	  int tmp= 0;
 	  s->type=JT_SYSTEM;
 	  join->const_table_map|=table->map;
 	  set_position(join,const_count++,s,(KEYUSE*) 0);
-	  if ((tmp=join_read_const_table(s,join->positions+const_count-1)))
+	  if ((tmp= join_read_const_table(s,join->positions+const_count-1)))
 	  {
 	    if (tmp > 0)
 	      DBUG_RETURN(1);			// Fatal error
@@ -1140,7 +1195,7 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
 	  {
 	    if (keyuse->val->type() != Item::NULL_ITEM)
 	    {
-	      if (!((~join->const_table_map) & keyuse->used_tables))
+	      if (!((~found_const_table_map) & keyuse->used_tables))
 		const_ref|= (key_map) 1 << keyuse->keypart;
 	      else
 		refs|=keyuse->used_tables;
@@ -1157,11 +1212,11 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
 	    {					// Found everything for ref.
 	      int tmp;
 	      ref_changed = 1;
-	      s->type=JT_CONST;
+	      s->type= JT_CONST;
 	      join->const_table_map|=table->map;
 	      set_position(join,const_count++,s,start_keyuse);
 	      if (create_ref_for_key(join, s, start_keyuse,
-				     join->const_table_map))
+				     found_const_table_map))
 		DBUG_RETURN(1);
 	      if ((tmp=join_read_const_table(s,
 					     join->positions+const_count-1)))
@@ -1208,23 +1263,44 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
     if (s->const_keys)
     {
       ha_rows records;
-      if (!select)
-	select=make_select(s->table, join->const_table_map,
-			   join->const_table_map,
-			   and_conds(conds,s->on_expr),&error);
-      records=get_quick_record_count(select,s->table, s->const_keys,
-				     join->row_limit);
+      SQL_SELECT *select;
+      select= make_select(s->table, found_const_table_map,
+			  found_const_table_map,
+			  s->on_expr ? s->on_expr : conds,
+			  &error);
+      records= get_quick_record_count(select,s->table, s->const_keys,
+				      join->row_limit);
       s->quick=select->quick;
       s->needed_reg=select->needed_reg;
       select->quick=0;
+      if (records == 0 && s->table->reginfo.impossible_range)
+      {
+	/*
+	  Impossible WHERE or ON expression
+	  In case of ON, we mark that the we match one empty NULL row.
+	  In case of WHERE, don't set found_const_table_map to get the
+	  caller to abort with a zero row result.
+	*/
+	join->const_table_map|= s->table->map;
+	set_position(join,const_count++,s,(KEYUSE*) 0);
+	s->type= JT_CONST;
+	if (s->on_expr)
+	{
+	  /* Generate empty row */
+	  s->info= "Impossible ON condition";
+	  found_const_table_map|= s->table->map;
+	  s->type= JT_CONST;
+	  mark_as_null_row(s->table);		// All fields are NULL
+	}
+      }
       if (records != HA_POS_ERROR)
       {
 	s->found_records=records;
 	s->read_time= (ha_rows) (s->quick ? s->quick->read_time : 0.0);
       }
+      delete select;
     }
   }
-  delete select;
 
   /* Find best combination and return it */
   join->join_tab=stat;
@@ -1944,7 +2020,7 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 		    records
 		    This gives the formula:
 		    records= (x * (b-a) + a*c-b)/(c-1)
-		    
+
 		    b = records matched by whole key
 		    a = records matched by first key part (10% of all records?)
 		    c = number of key parts in key
@@ -2009,7 +2085,8 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 	  !(s->quick && best_key && s->quick->index == best_key->key &&
 	    best_max_key_part >= s->table->quick_key_parts[best_key->key]) &&
 	  !((s->table->file->table_flags() & HA_TABLE_SCAN_ON_INDEX) &&
-	    s->table->used_keys && best_key))
+	    s->table->used_keys && best_key) &&
+	  !(s->table->force_index && best_key))
       {						// Check full join
 	if (s->on_expr)
 	{
@@ -2318,7 +2395,7 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
 	   keyparts != keyinfo->key_parts)
     j->type=JT_REF;				/* Must read with repeat */
   else if (ref_key == j->ref.key_copy)
-  {						/* Should never be reached */
+  {
     /*
       This happen if we are using a constant expression in the ON part
       of an LEFT JOIN.
@@ -2372,12 +2449,13 @@ get_store_key(THD *thd, KEYUSE *keyuse, table_map used_tables,
 bool
 store_val_in_field(Field *field,Item *item)
 {
+  bool error;
   THD *thd=current_thd;
   ha_rows cuted_fields=thd->cuted_fields;
   thd->count_cuted_fields=1;
-  item->save_in_field(field);
+  error= item->save_in_field(field, 1);
   thd->count_cuted_fields=0;
-  return cuted_fields != thd->cuted_fields;
+  return error || cuted_fields != thd->cuted_fields;
 }
 
 
@@ -2721,6 +2799,38 @@ make_join_readinfo(JOIN *join,uint options)
 }
 
 
+/*
+  Give error if we some tables are done with a full join
+
+  SYNOPSIS
+    error_if_full_join()
+    join		Join condition
+
+  USAGE
+   This is used by multi_table_update and multi_table_delete when running
+   in safe mode
+
+ RETURN VALUES
+   0	ok
+   1	Error (full join used)
+*/
+
+bool error_if_full_join(JOIN *join)
+{
+  for (JOIN_TAB *tab=join->join_tab, *end=join->join_tab+join->tables;
+       tab < end;
+       tab++)
+  {
+    if (tab->type == JT_ALL && (!tab->select || !tab->select->quick))
+    {
+      my_error(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE,MYF(0));
+      return(1);
+    }
+  }
+  return(0);
+}
+
+
 static void
 join_free(JOIN *join)
 {
@@ -2767,9 +2877,7 @@ join_free(JOIN *join)
   }
   join->group_fields.delete_elements();
   join->tmp_table_param.copy_funcs.delete_elements();
-  if (join->tmp_table_param.copy_field)		// Because of bug in ecc
-    delete [] join->tmp_table_param.copy_field;
-  join->tmp_table_param.copy_field=0;
+  join->tmp_table_param.cleanup();
   DBUG_VOID_RETURN;
 }
 
@@ -2996,7 +3104,13 @@ return_zero_rows(JOIN *join, select_result *result,TABLE_LIST *tables,
   if (!(result->send_fields(fields,1)))
   {
     if (send_row)
+    {
+      List_iterator_fast<Item> it(fields);
+      Item *item;
+      while ((item= it++))
+	item->no_rows_in_result();
       result->send_data(fields);
+    }
     if (tables)				// Not from do_select()
     {
       /* Close open cursors */
@@ -3401,14 +3515,36 @@ const_expression_in_where(COND *cond, Item *comp_item, Item **const_item)
 
 
 /****************************************************************************
-  Create a temp table according to a field list.
-  Set distinct if duplicates could be removed
-  Given fields field pointers are changed to point at tmp_table
-  for send_fields
+  Create internal temporary table
 ****************************************************************************/
 
+/*
+  Create field for temporary table
+
+  SYNOPSIS
+    create_tmp_field()
+    thd			Thread handler
+    table		Temporary table
+    item		Item to create a field for
+    type		Type of item (normally item->type)
+    copy_func		If set and item is a function, store copy of item
+			in this array
+    group		1 if we are going to do a relative group by on result
+    modify_item		1 if item->result_field should point to new item.
+			This is relevent for how fill_record() is going to
+			work:
+			If modify_item is 1 then fill_record() will update
+			the record in the original table.
+			If modify_item is 0 then fill_record() will update
+			the temporary table
+		       
+  RETURN
+    0			on error
+    new_created field
+*/
+
 Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
-			Item_result_field ***copy_func, Field **from_field,
+			Item ***copy_func, Field **from_field,
 			bool group, bool modify_item)
 {
   switch (type) {
@@ -3469,12 +3605,12 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
     }
     return new_field;
   }
-  case Item::PROC_ITEM:
   case Item::FUNC_ITEM:
   case Item::COND_ITEM:
   case Item::FIELD_AVG_ITEM:
   case Item::FIELD_STD_ITEM:
     /* The following can only happen with 'CREATE TABLE ... SELECT' */
+  case Item::PROC_ITEM:
   case Item::INT_ITEM:
   case Item::REAL_ITEM:
   case Item::STRING_ITEM:
@@ -3503,10 +3639,10 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
 				    item->name,table,item->binary);
       break;
     }
-    if (copy_func)
-      *((*copy_func)++) = (Item_result_field*) item; // Save for copy_funcs
+    if (copy_func && item->is_result_field())
+      *((*copy_func)++) = item;			// Save for copy_funcs
     if (modify_item)
-      ((Item_result_field*) item)->result_field=new_field;
+      item->set_result_field(new_field);
     return new_field;
   }
   default:					// Dosen't have to be stored
@@ -3514,6 +3650,13 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
   }
 }
 
+
+/*
+  Create a temp table according to a field list.
+  Set distinct if duplicates could be removed
+  Given fields field pointers are changed to point at tmp_table
+  for send_fields
+*/
 
 TABLE *
 create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
@@ -3533,7 +3676,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   Copy_field *copy=0;
   KEY *keyinfo;
   KEY_PART_INFO *key_part_info;
-  Item_result_field **copy_func;
+  Item **copy_func;
   MI_COLUMNDEF *recinfo;
   uint temp_pool_slot=MY_BIT_NONE;
 
@@ -3589,15 +3732,15 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 		       NullS))
   {
     bitmap_clear_bit(&temp_pool, temp_pool_slot);
-    DBUG_RETURN(NULL); /* purecov: inspected */
+    DBUG_RETURN(NULL);				/* purecov: inspected */
   }
   if (!(param->copy_field=copy=new Copy_field[field_count]))
   {
     bitmap_clear_bit(&temp_pool, temp_pool_slot);
-    my_free((gptr) table,MYF(0)); /* purecov: inspected */
-    DBUG_RETURN(NULL); /* purecov: inspected */
+    my_free((gptr) table,MYF(0));		/* purecov: inspected */
+    DBUG_RETURN(NULL);				/* purecov: inspected */
   }
-  param->funcs=copy_func;
+  param->items_to_copy= copy_func;
   strmov(tmpname,path);
   /* make table according to fields */
 
@@ -3675,9 +3818,19 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     }
     else
     {
+      /*
+	The last parameter to create_tmp_field() is a bit tricky:
+
+	We need to set it to 0 in union, to get fill_record() to modify the
+	temporary table.
+	We need to set it to 1 on multi-table-update and in select to
+	write rows to the temporary table.
+	We here distinguish between UNION and multi-table-updates by the fact
+	that in the later case group is set to the row pointer.
+      */
       Field *new_field=create_tmp_field(thd, table, item,type, &copy_func,
 					tmp_from_field, group != 0,
-					not_all_columns);
+					not_all_columns || group !=0);
       if (!new_field)
       {
 	if (thd->fatal_error)
@@ -3991,7 +4144,6 @@ static bool open_tmp_table(TABLE *table)
     table->db_stat=0;
     return(1);
   }
-  /* VOID(ha_lock(table,F_WRLCK)); */		/* Single thread table */
   (void) table->file->extra(HA_EXTRA_QUICK);		/* Faster */
   return(0);
 }
@@ -4403,6 +4555,11 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
 	{
 	  if ((error=(*join_tab->next_select)(join,join_tab+1,0)) < 0)
 	    return error;
+	  /*
+	    Test if this was a SELECT DISTINCT query on a table that
+	    was not in the field list;  In this case we can abort if
+	    we found a row, as no new rows can be added to the result.
+	  */
 	  if (not_used_in_distinct && found_records != join->found_records)
 	    return 0;
 	}
@@ -4592,7 +4749,10 @@ join_read_const(JOIN_TAB *tab)
       empty_record(table);
       if (error != HA_ERR_KEY_NOT_FOUND)
       {
-	sql_print_error("read_const: Got error %d when reading table %s",
+	/* Locking reads can legally return also these errors, do not
+	   print them to the .err log */
+	if (error != HA_ERR_LOCK_DEADLOCK && error != HA_ERR_LOCK_WAIT_TIMEOUT)
+	  sql_print_error("read_const: Got error %d when reading table %s",
 			error, table->path);
 	table->file->print_error(error,MYF(0));
 	return 1;
@@ -4655,7 +4815,8 @@ join_read_always_key(JOIN_TAB *tab)
   {
     if (error != HA_ERR_KEY_NOT_FOUND)
     {
-      sql_print_error("read_const: Got error %d when reading table %s",error,
+      if (error != HA_ERR_LOCK_DEADLOCK && error != HA_ERR_LOCK_WAIT_TIMEOUT)
+	sql_print_error("read_const: Got error %d when reading table %s",error,
 		      table->path);
       table->file->print_error(error,MYF(0));
       return 1;
@@ -4684,7 +4845,8 @@ join_read_last_key(JOIN_TAB *tab)
   {
     if (error != HA_ERR_KEY_NOT_FOUND)
     {
-      sql_print_error("read_const: Got error %d when reading table %s",error,
+      if (error != HA_ERR_LOCK_DEADLOCK && error != HA_ERR_LOCK_WAIT_TIMEOUT)
+	sql_print_error("read_const: Got error %d when reading table %s",error,
 		      table->path);
       table->file->print_error(error,MYF(0));
       return 1;
@@ -4716,7 +4878,8 @@ join_read_next_same(READ_RECORD *info)
   {
     if (error != HA_ERR_END_OF_FILE)
     {
-      sql_print_error("read_next: Got error %d when reading table %s",error,
+      if (error != HA_ERR_LOCK_DEADLOCK && error != HA_ERR_LOCK_WAIT_TIMEOUT)
+	sql_print_error("read_next: Got error %d when reading table %s",error,
 		      table->path);
       table->file->print_error(error,MYF(0));
       return 1;
@@ -4738,7 +4901,8 @@ join_read_prev_same(READ_RECORD *info)
   {
     if (error != HA_ERR_END_OF_FILE)
     {
-      sql_print_error("read_next: Got error %d when reading table %s",error,
+      if (error != HA_ERR_LOCK_DEADLOCK && error != HA_ERR_LOCK_WAIT_TIMEOUT)
+	sql_print_error("read_next: Got error %d when reading table %s",error,
 		      table->path);
       table->file->print_error(error,MYF(0));
       error= 1;
@@ -4809,7 +4973,8 @@ join_read_first(JOIN_TAB *tab)
   {
     if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
     {
-      sql_print_error("read_first_with_key: Got error %d when reading table",
+      if (error != HA_ERR_LOCK_DEADLOCK && error != HA_ERR_LOCK_WAIT_TIMEOUT)
+	sql_print_error("read_first_with_key: Got error %d when reading table",
 		      error);
       table->file->print_error(error,MYF(0));
       return 1;
@@ -4828,7 +4993,9 @@ join_read_next(READ_RECORD *info)
   {
     if (error != HA_ERR_END_OF_FILE)
     {
-      sql_print_error("read_next_with_key: Got error %d when reading table %s",
+      if (error != HA_ERR_LOCK_DEADLOCK && error != HA_ERR_LOCK_WAIT_TIMEOUT)
+	sql_print_error(
+		    "read_next_with_key: Got error %d when reading table %s",
 		      error, info->table->path);
       info->file->print_error(error,MYF(0));
       return 1;
@@ -4860,7 +5027,8 @@ join_read_last(JOIN_TAB *tab)
   {
     if (error != HA_ERR_END_OF_FILE)
     {
-      sql_print_error("read_last_with_key: Got error %d when reading table",
+      if (error != HA_ERR_LOCK_DEADLOCK && error != HA_ERR_LOCK_WAIT_TIMEOUT)
+	sql_print_error("read_last_with_key: Got error %d when reading table",
 		      error, table->path);
       table->file->print_error(error,MYF(0));
       return 1;
@@ -4879,7 +5047,9 @@ join_read_prev(READ_RECORD *info)
   {
     if (error != HA_ERR_END_OF_FILE)
     {
-      sql_print_error("read_prev_with_key: Got error %d when reading table: %s",
+      if (error != HA_ERR_LOCK_DEADLOCK && error != HA_ERR_LOCK_WAIT_TIMEOUT)
+	sql_print_error(
+		  "read_prev_with_key: Got error %d when reading table: %s",
 		      error,info->table->path);
       info->file->print_error(error,MYF(0));
       return 1;
@@ -4907,7 +5077,8 @@ join_ft_read_first(JOIN_TAB *tab)
   {
     if (error != HA_ERR_END_OF_FILE)
     {
-      sql_print_error("ft_read_first: Got error %d when reading table %s",
+      if (error != HA_ERR_LOCK_DEADLOCK && error != HA_ERR_LOCK_WAIT_TIMEOUT)
+	sql_print_error("ft_read_first: Got error %d when reading table %s",
                       error, table->path);
       table->file->print_error(error,MYF(0));
       return 1;
@@ -4925,7 +5096,8 @@ join_ft_read_next(READ_RECORD *info)
   {
     if (error != HA_ERR_END_OF_FILE)
     {
-      sql_print_error("ft_read_next: Got error %d when reading table %s",
+      if (error != HA_ERR_LOCK_DEADLOCK && error != HA_ERR_LOCK_WAIT_TIMEOUT)
+	sql_print_error("ft_read_next: Got error %d when reading table %s",
                       error, info->table->path);
       info->file->print_error(error,MYF(0));
       return 1;
@@ -5105,7 +5277,7 @@ end_write(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
   if (!end_of_records)
   {
     copy_fields(&join->tmp_table_param);
-    copy_funcs(join->tmp_table_param.funcs);
+    copy_funcs(join->tmp_table_param.items_to_copy);
 
 #ifdef TO_BE_DELETED
     if (!table->uniques)			// If not unique handling
@@ -5205,7 +5377,7 @@ end_update(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
     memcpy(table->record[0]+key_part->offset, group->buff, key_part->length);
 
   init_tmptable_sum_functions(join->sum_funcs);
-  copy_funcs(join->tmp_table_param.funcs);
+  copy_funcs(join->tmp_table_param.items_to_copy);
   if ((error=table->file->write_row(table->record[0])))
   {
     if (create_myisam_from_heap(table, &join->tmp_table_param, error, 0))
@@ -5238,7 +5410,7 @@ end_unique_update(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 
   init_tmptable_sum_functions(join->sum_funcs);
   copy_fields(&join->tmp_table_param);		// Groups are copied twice.
-  copy_funcs(join->tmp_table_param.funcs);
+  copy_funcs(join->tmp_table_param.items_to_copy);
 
   if (!(error=table->file->write_row(table->record[0])))
     join->send_records++;			// New group
@@ -5323,7 +5495,7 @@ end_write_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
     if (idx < (int) join->send_group_parts)
     {
       copy_fields(&join->tmp_table_param);
-      copy_funcs(join->tmp_table_param.funcs);
+      copy_funcs(join->tmp_table_param.items_to_copy);
       init_sum_functions(join->sum_funcs);
       if (join->procedure)
 	join->procedure->add();
@@ -6506,12 +6678,14 @@ setup_new_fields(THD *thd,TABLE_LIST *tables,List<Item> &fields,
 */
 
 static ORDER *
-create_distinct_group(ORDER *order_list,List<Item> &fields)
+create_distinct_group(THD *thd, ORDER *order_list, List<Item> &fields, 
+		      bool *all_order_by_fields_used)
 {
   List_iterator<Item> li(fields);
   Item *item;
   ORDER *order,*group,**prev;
 
+  *all_order_by_fields_used= 1;
   while ((item=li++))
     item->marker=0;			/* Marker that field is not used */
 
@@ -6520,13 +6694,15 @@ create_distinct_group(ORDER *order_list,List<Item> &fields)
   {
     if (order->in_field_list)
     {
-      ORDER *ord=(ORDER*) sql_memdup(order,sizeof(ORDER));
+      ORDER *ord=(ORDER*) thd->memdup((char*) order,sizeof(ORDER));
       if (!ord)
 	return 0;
       *prev=ord;
       prev= &ord->next;
       (*ord->item)->marker=1;
     }
+    else
+      *all_order_by_fields_used= 0;
   }
 
   li.rewind();
@@ -6536,7 +6712,7 @@ create_distinct_group(ORDER *order_list,List<Item> &fields)
       continue;
     if (!item->marker)
     {
-      ORDER *ord=(ORDER*) sql_calloc(sizeof(ORDER));
+      ORDER *ord=(ORDER*) thd->calloc(sizeof(ORDER));
       if (!ord)
 	return 0;
       ord->item=li.ref();
@@ -6988,7 +7164,7 @@ copy_sum_funcs(Item_sum **func_ptr)
 {
   Item_sum *func;
   for (; (func = *func_ptr) ; func_ptr++)
-    (void) func->save_in_field(func->result_field);
+    (void) func->save_in_result_field(1);
   return;
 }
 
@@ -7015,12 +7191,11 @@ update_sum_func(Item_sum **func_ptr)
 	/* Copy result of functions to record in tmp_table */
 
 void
-copy_funcs(Item_result_field **func_ptr)
+copy_funcs(Item **func_ptr)
 {
-  Item_result_field *func;
+  Item *func;
   for (; (func = *func_ptr) ; func_ptr++)
-    (void) func->save_in_field(func->result_field);
-  return;
+    func->save_in_result_field(1);
 }
 
 
@@ -7196,36 +7371,39 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       
       if (tab->info)
 	item_list.push_back(new Item_string(tab->info,strlen(tab->info)));
-      else if (tab->select)
+      else
       {
-	if (tab->use_quick == 2)
+	if (tab->select)
 	{
-	  sprintf(buff_ptr,"; Range checked for each record (index map: %u)",
-		  tab->keys);
-	  buff_ptr=strend(buff_ptr);
+	  if (tab->use_quick == 2)
+	  {
+	    sprintf(buff_ptr,"; Range checked for each record (index map: %u)",
+		    tab->keys);
+	    buff_ptr=strend(buff_ptr);
+	  }
+	  else
+	    buff_ptr=strmov(buff_ptr,"; Using where");
 	}
-	else
-	  buff_ptr=strmov(buff_ptr,"; Using where");
+	if (key_read)
+	  buff_ptr= strmov(buff_ptr,"; Using index");
+	if (table->reginfo.not_exists_optimize)
+	  buff_ptr= strmov(buff_ptr,"; Not exists");
+	if (need_tmp_table)
+	{
+	  need_tmp_table=0;
+	  buff_ptr= strmov(buff_ptr,"; Using temporary");
+	}
+	if (need_order)
+	{
+	  need_order=0;
+	  buff_ptr= strmov(buff_ptr,"; Using filesort");
+	}
+	if (distinct && test_all_bits(used_tables,thd->used_tables))
+	  buff_ptr= strmov(buff_ptr,"; Distinct");
+	if (buff_ptr == buff)
+	  buff_ptr+= 2;
+	item_list.push_back(new Item_string(buff+2,(uint) (buff_ptr - buff)-2));
       }
-      if (key_read)
-	buff_ptr= strmov(buff_ptr,"; Using index");
-      if (table->reginfo.not_exists_optimize)
-	buff_ptr= strmov(buff_ptr,"; Not exists");
-      if (need_tmp_table)
-      {
-	need_tmp_table=0;
-	buff_ptr= strmov(buff_ptr,"; Using temporary");
-      }
-      if (need_order)
-      {
-	need_order=0;
-	buff_ptr= strmov(buff_ptr,"; Using filesort");
-      }
-      if (distinct && test_all_bits(used_tables,thd->used_tables))
-	buff_ptr= strmov(buff_ptr,"; Distinct");
-      if (buff_ptr == buff)
-	buff_ptr+= 2;
-      item_list.push_back(new Item_string(buff+2,(uint) (buff_ptr - buff)-2));
       // For next iteration
       used_tables|=table->map;
       if (result->send_data(item_list))

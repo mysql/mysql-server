@@ -69,6 +69,7 @@ public:
   void make_field(Send_field *field);
   void print(String *str);
   void fix_num_length_and_dec();
+  void no_rows_in_result() { reset(); }
   virtual bool setup(THD *thd) {return 0;}
   unsigned int size_of() { return sizeof(*this);}  
 };
@@ -135,6 +136,7 @@ class Item_sum_count :public Item_sum_int
   bool const_item() const { return !used_table_cache; }
   enum Sumfunctype sum_func () const { return COUNT_FUNC; }
   void reset();
+  void no_rows_in_result() { count=0; }
   bool add();
   void make_const(longlong count_arg) { count=count_arg; used_table_cache=0; }
   longlong val_int();
@@ -184,6 +186,7 @@ class Item_sum_count_distinct :public Item_sum_int
      tmp_table_param(0),use_tree(0),always_null(0)
   { quick_group=0; }
   ~Item_sum_count_distinct();
+
   table_map used_tables() const { return used_table_cache; }
   enum Sumfunctype sum_func () const { return COUNT_DISTINCT_FUNC; }
   void reset();
@@ -193,7 +196,8 @@ class Item_sum_count_distinct :public Item_sum_int
   void update_field(int offset) { return ; }	// Never called
   const char *func_name() const { return "count_distinct"; }
   bool setup(THD *thd);
-  unsigned int size_of() { return sizeof(*this);}  
+  void no_rows_in_result() {}
+  unsigned int size_of() { return sizeof(*this);}
 };
 
 

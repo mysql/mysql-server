@@ -7,23 +7,23 @@
 CFG=db_buildall - Win32 Debug
 !MESSAGE This is not a valid makefile. To build this project using NMAKE,
 !MESSAGE use the Export Makefile command and run
-!MESSAGE 
+!MESSAGE
 !MESSAGE NMAKE /f "db_buildall.mak".
-!MESSAGE 
+!MESSAGE
 !MESSAGE You can specify a configuration when running NMAKE
 !MESSAGE by defining the macro CFG on the command line. For example:
-!MESSAGE 
+!MESSAGE
 !MESSAGE NMAKE /f "db_buildall.mak" CFG="db_buildall - Win32 Debug Static"
-!MESSAGE 
+!MESSAGE
 !MESSAGE Possible choices for configuration are:
-!MESSAGE 
+!MESSAGE
 !MESSAGE "db_buildall - Win32 Release" (based on "Win32 (x86) External Target")
 !MESSAGE "db_buildall - Win32 Debug" (based on "Win32 (x86) External Target")
 !MESSAGE "db_buildall - Win32 Release Static" (based on\
  "Win32 (x86) External Target")
 !MESSAGE "db_buildall - Win32 Debug Static" (based on\
  "Win32 (x86) External Target")
-!MESSAGE 
+!MESSAGE
 
 # Begin Project
 # PROP Scc_ProjName ""
@@ -105,7 +105,7 @@ CFG=db_buildall - Win32 Debug
 # PROP Bsc_Name "db_buildall.bsc"
 # PROP Target_Dir ""
 
-!ENDIF 
+!ENDIF
 
 # Begin Target
 
@@ -122,7 +122,7 @@ CFG=db_buildall - Win32 Debug
 
 !ELSEIF  "$(CFG)" == "db_buildall - Win32 Debug Static"
 
-!ENDIF 
+!ENDIF
 
 # End Target
 # End Project

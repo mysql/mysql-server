@@ -157,7 +157,6 @@ typedef struct st_ha_create_information
   ulonglong auto_increment_value;
   char *comment,*password;
   char *data_file_name, *index_file_name;
-  char *create_statement;
   uint options;					/* OR of HA_CREATE_ options */
   uint raid_type,raid_chunks;
   ulong raid_chunksize;
@@ -372,6 +371,7 @@ void ha_resize_key_cache(void);
 int ha_start_stmt(THD *thd); 
 int ha_report_binlog_offset_and_commit(THD *thd, char *log_file_name,
 				       my_off_t end_offset);
+int ha_release_temporary_latches(THD *thd);
 int ha_commit_trans(THD *thd, THD_TRANS *trans);
 int ha_rollback_trans(THD *thd, THD_TRANS *trans);
 int ha_autocommit_or_rollback(THD *thd, int error);

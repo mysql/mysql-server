@@ -408,6 +408,10 @@ struct row_prebuilt_struct {
 					an SQL statement: we may have to set
 					an intention lock on the table,
 					create a consistent read view etc. */
+        ibool           mysql_has_locked; /* this is set TRUE when MySQL
+			                calls external_lock on this handle
+			                with a lock flag, and set FALSE when
+			                with the F_UNLOCK flag */
 	ibool		clust_index_was_generated;
 					/* if the user did not define a
 					primary key in MySQL, then Innobase
@@ -488,7 +492,11 @@ struct row_prebuilt_struct {
 					fetch many rows from the same cursor:
 					it saves CPU time to fetch them in a
 					batch; we reserve mysql_row_len
-					bytes for each such row */
+					bytes for each such row; these
+					pointers point 4 bytes past the
+					allocated mem buf start, because
+					there is a 4 byte magic number at the
+					start and at the end */
 	ulint		fetch_cache_first;/* position of the first not yet
 					fetched row in fetch_cache */
 	ulint		n_fetch_cached;	/* number of not yet fetched rows
@@ -497,7 +505,11 @@ struct row_prebuilt_struct {
 					to this heap */
 	mem_heap_t*	old_vers_heap;	/* memory heap where a previous
 					version is built in consistent read */
+	ulint		magic_n2;	/* this should be the same as
+					magic_n */
 };
+
+#define ROW_PREBUILT_FETCH_MAGIC_N	465765687
 
 #define ROW_MYSQL_WHOLE_ROW	0
 #define ROW_MYSQL_REC_FIELDS	1

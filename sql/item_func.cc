@@ -696,21 +696,20 @@ double Item_func_round::val()
 }
 
 
-double Item_func_rand::val()
+void Item_func_rand::fix_length_and_dec()
 {
-  THD* thd = current_thd;
+  decimals=NOT_FIXED_DEC; 
+  max_length=float_length(decimals);
   if (arg_count)
   {					// Only use argument once in query
     uint32 tmp= (uint32) (args[0]->val_int());
-    randominit(&thd->rand,(uint32) (tmp*0x10001L+55555555L),
-	       (uint32) (tmp*0x10000001L));
-#ifdef DELETE_ITEMS
-    delete args[0];
-#endif
-    arg_count=0;
+    if ((rand= (struct rand_struct*) sql_alloc(sizeof(*rand))))
+      randominit(rand,(uint32) (tmp*0x10001L+55555555L),
+		 (uint32) (tmp*0x10000001L));
   }
-  else if (!thd->rand_used)
+  else
   {
+    THD *thd= current_thd;
     /*
       No need to send a Rand log event if seed was given eg: RAND(seed),
       as it will be replicated in the query as such.
@@ -722,8 +721,14 @@ double Item_func_rand::val()
     thd->rand_used=1;
     thd->rand_saved_seed1=thd->rand.seed1;
     thd->rand_saved_seed2=thd->rand.seed2;
+    rand= &thd->rand;
   }
-  return rnd(&thd->rand);
+}
+
+
+double Item_func_rand::val()
+{
+  return rnd(rand);
 }
 
 longlong Item_func_sign::val_int()
@@ -966,6 +971,17 @@ longlong Item_func_field::val_int()
   return 0;
 }
 
+void Item_func_field::split_sum_func(List<Item> &fields)
+{
+  if (item->with_sum_func && item->type() != SUM_FUNC_ITEM)
+    item->split_sum_func(fields);
+  else if (item->used_tables() || item->type() == SUM_FUNC_ITEM)
+  {
+    fields.push_front(item);
+    item= new Item_ref((Item**) fields.head_ref(), 0, item->name);
+  }  
+  Item_func::split_sum_func(fields);
+}
 
 longlong Item_func_ascii::val_int()
 {
@@ -1504,6 +1520,7 @@ void item_user_lock_init(void)
 void item_user_lock_free(void)
 {
   hash_free(&hash_user_locks);
+  pthread_mutex_destroy(&LOCK_user_locks);
 }
 
 void item_user_lock_release(ULL *ull)
@@ -1544,9 +1561,10 @@ longlong Item_master_pos_wait::val_int()
     null_value = 1;
     return 0;
   }
-  ulong pos = (ulong)args[1]->val_int();
+  longlong pos = args[1]->val_int();
+  longlong timeout = (arg_count==3) ? args[2]->val_int() : 0 ;
   LOCK_ACTIVE_MI;
-  if ((event_count = active_mi->rli.wait_for_pos(thd, log_name, pos)) == -1)
+  if ((event_count = active_mi->rli.wait_for_pos(thd, log_name, pos, timeout)) == -2)
   {
     null_value = 1;
     event_count=0;
@@ -2033,9 +2051,12 @@ void Item_func_get_user_var::fix_length_and_dec()
   maybe_null=1;
   decimals=NOT_FIXED_DEC;
   max_length=MAX_BLOB_WIDTH;
-  if ((var_entry= get_variable(&thd->user_vars, name, 0)))
-    const_var_flag= thd->query_id != var_entry->update_query_id;
+  var_entry= get_variable(&thd->user_vars, name, 0);
 }
+
+
+bool Item_func_get_user_var::const_item() const
+{ return var_entry && current_thd->query_id != var_entry->update_query_id; }
 
 
 enum Item_result Item_func_get_user_var::result_type() const

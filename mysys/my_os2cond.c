@@ -26,7 +26,6 @@
 #include "mysys_priv.h"
 #if defined(THREAD) && defined(OS2)
 #include <m_string.h>
-//#undef getpid
 #include <process.h>
 #include <sys/timeb.h>
 

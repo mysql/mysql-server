@@ -42,7 +42,7 @@
 
 **********************************************************************/
 
-#define MTEST_VERSION "1.25"
+#define MTEST_VERSION "1.27"
 
 #include <my_global.h>
 #include <mysql_embed.h>
@@ -677,24 +677,12 @@ int open_file(const char* name)
 
   if (*cur_file && cur_file == file_stack_end)
     die("Source directives are nesting too deep");
-  if (!(*(cur_file+1) = my_fopen(buff, O_RDONLY, MYF(MY_WME))))
+  if (!(*(cur_file+1) = my_fopen(buff, O_RDONLY | FILE_BINARY, MYF(MY_WME))))
     die(NullS);
   cur_file++;
   *++lineno=1;
 
   return 0;
-}
-
-static void my_sleep(ulong m_seconds)
-{
-#ifndef OS2
-   struct timeval t;
-   t.tv_sec=  m_seconds / 1000000L;
-   t.tv_usec= m_seconds % 1000000L;
-   select(0,0,0,0,&t); /* sleep */
-#else
-   DosSleep(m_seconds/1000+1);
-#endif
 }
 
 
@@ -1006,13 +994,6 @@ int do_sync_with_master2(const char* p)
   if (rpl_parse)
     mysql_enable_rpl_parse(mysql);
 
-#ifndef TO_BE_REMOVED
-  /*
-    We need this because wait_for_pos() only waits for the relay log,
-    which doesn't guarantee that the slave has executed the statement.
-  */
-  my_sleep(2*1000000L);
-#endif
   return 0;
 }
 
@@ -1797,10 +1778,8 @@ int read_query(struct st_query** q_ptr)
 
 static struct my_option my_long_options[] =
 {
-#ifndef DBUG_OFF
   {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
-#endif
   {"database", 'D', "Database to use.", (gptr*) &db, (gptr*) &db, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"basedir", 'b', "Basedir for tests", (gptr*) &opt_basedir,
@@ -1893,7 +1872,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 {
   switch(optid) {
   case '#':
+#ifndef DBUG_OFF
     DBUG_PUSH(argument ? argument : "d:t:S:i:O,/tmp/mysqltest.trace");
+#endif
     break;
   case 'r':
     record = 1;
@@ -1912,7 +1893,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 	argument= buff;
       }
       fn_format(buff, argument, "", "", 4);
-      if (!(*++cur_file = my_fopen(buff, O_RDONLY, MYF(MY_WME))))
+      if (!(*++cur_file = my_fopen(buff, O_RDONLY | FILE_BINARY, MYF(MY_WME))))
 	die("Could not open %s: errno = %d", argument, errno);
       break;
     }
@@ -1971,7 +1952,7 @@ int parse_args(int argc, char **argv)
   default_argv= argv;
 
   if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
-    exit(ho_error);
+    exit(1);
 
   if (argc > 1)
   {
@@ -2496,6 +2477,7 @@ int main(int argc, char** argv)
       }
       case Q_COMMENT:				/* Ignore row */
       case Q_COMMENT_WITH_COMMAND:
+	break;
       case Q_PING:
 	(void) mysql_ping(&cur_con->mysql);
 	break;
@@ -2561,7 +2543,7 @@ static int read_server_arguments(const char* name)
     embedded_server_arg_count=1;
     embedded_server_args[0]= (char*) "";		/* Progname */
   }
-  if (!(file=my_fopen(buff, O_RDONLY | O_BINARY, MYF(MY_WME))))
+  if (!(file=my_fopen(buff, O_RDONLY | FILE_BINARY, MYF(MY_WME))))
     return 1;
   while (embedded_server_arg_count < MAX_SERVER_ARGS &&
 	 (str=fgets(argument,sizeof(argument), file)))

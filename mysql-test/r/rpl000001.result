@@ -8,18 +8,8 @@ drop table if exists t1,t2,t3;
 create table t1 (word char(20) not null);
 load data infile '../../std_data/words.dat' into table t1;
 load data local infile 'MYSQL_TEST_DIR/std_data/words.dat' into table t1;
-select * from t1;
+select * from t1 limit 10;
 word
-Aarhus
-Aaron
-Ababa
-aback
-abaft
-abandon
-abandoned
-abandoning
-abandonment
-abandons
 Aarhus
 Aaron
 Ababa
@@ -42,7 +32,7 @@ n
 2
 select sum(length(word)) from t1;
 sum(length(word))
-141
+1022
 drop table t1,t3;
 reset master;
 slave stop;

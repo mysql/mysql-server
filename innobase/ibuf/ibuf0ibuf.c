@@ -2488,7 +2488,9 @@ ibuf_merge_or_delete_for_page(
 	ulint		old_bits;
 	ulint		new_bits;
 	dulint		max_trx_id;
+	ibool		corruption_noticed	= FALSE;
 	mtr_t		mtr;
+	char		err_buf[500];
 
 	if (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE) {
 
@@ -2540,7 +2542,38 @@ ibuf_merge_or_delete_for_page(
 		block = buf_block_align(page);
 		rw_lock_x_lock_move_ownership(&(block->lock));
 		
-		ut_a(fil_page_get_type(page) == FIL_PAGE_INDEX);
+		if (fil_page_get_type(page) != FIL_PAGE_INDEX) {
+
+			corruption_noticed = TRUE;
+		
+			ut_print_timestamp(stderr);
+
+			mtr_start(&mtr);
+
+			fprintf(stderr,
+"  InnoDB: Dump of the ibuf bitmap page:\n");
+			
+			bitmap_page = ibuf_bitmap_get_map_page(space, page_no,
+									&mtr);
+			buf_page_print(bitmap_page);
+		
+			mtr_commit(&mtr);
+
+			fprintf(stderr, "\nInnoDB: Dump of the page:\n");
+
+			buf_page_print(page);
+
+			fprintf(stderr,
+"InnoDB: Error: corruption in the tablespace. Bitmap shows insert\n"
+"InnoDB: buffer records to page n:o %lu though the page\n"
+"InnoDB: type is %lu, which is not an index page!\n"
+"InnoDB: We try to resolve the problem by skipping the insert buffer\n"
+"InnoDB: merge for this page. Please run CHECK TABLE on your tables\n"
+"InnoDB: to determine if they are corrupt after this.\n\n"
+"InnoDB: Please make a detailed bug report and send it to\n"
+"InnoDB: mysql@lists.mysql.com\n\n",
+				page_no, fil_page_get_type(page));
+		}
 	}
 
 	n_inserts = 0;
@@ -2583,8 +2616,14 @@ loop:
 
 			goto reset_bit;
 		}
+
+		if (corruption_noticed) {
+			rec_sprintf(err_buf, 450, ibuf_rec);
+
+			fprintf(stderr,
+"InnoDB: Discarding record\n %s\n from the insert buffer!\n\n", err_buf);
 	
-	   	if (page) {
+	   	} else if (page) {
 			/* Now we have at pcur a record which should be
 			inserted to the index page; NOTE that the call below
 			copies pointers to fields in ibuf_rec, and we must
@@ -2657,10 +2696,7 @@ reset_bit:
 							new_bits, &mtr);
 		}
 	}
-
-	ibuf_data->n_merges++;	
-	ibuf_data->n_merged_recs += n_inserts;
-
+	
 #ifdef UNIV_IBUF_DEBUG
 	/* printf("Ibuf merge %lu records volume %lu to page no %lu\n",
 					n_inserts, volume, page_no); */
@@ -2669,6 +2705,14 @@ reset_bit:
  	btr_pcur_close(&pcur);
  	
 	mem_heap_free(heap);
+
+	/* Protect our statistics keeping from race conditions */
+	mutex_enter(&ibuf_mutex);
+
+	ibuf_data->n_merges++;	
+	ibuf_data->n_merged_recs += n_inserts;
+
+	mutex_exit(&ibuf_mutex);
 
 	ibuf_exit();
 #ifdef UNIV_IBUF_DEBUG
