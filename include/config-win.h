@@ -85,6 +85,7 @@
 
 #define LONGLONG_MIN	((__int64) 0x8000000000000000)
 #define LONGLONG_MAX	((__int64) 0x7FFFFFFFFFFFFFFF)
+#define ULONGLONG_MAX	((unsigned __int64) 0xFFFFFFFFFFFFFFFF)
 #define LL(A)		((__int64) A)
 
 /* Type information */

@@ -606,6 +606,7 @@ extern double		my_atof(const char*);
 /*
   Some pre-ANSI-C99 systems like AIX 5.1 and Linux/GCC 2.95 define
   ULONGLONG_MAX, LONGLONG_MIN, LONGLONG_MAX; we use them if they're defined.
+  Also on Windows we define these constants by hand in config-win.h.
 */
 
 #if defined(HAVE_LONG_LONG) && !defined(LONGLONG_MIN)
