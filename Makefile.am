@@ -22,15 +22,18 @@ TAR =			gtar
 EXTRA_DIST =		INSTALL-SOURCE README \
 			COPYING COPYING.LIB MIRRORS
 SUBDIRS =		include @docs_dirs@ @readline_dir@ \
-			@thread_dirs@ @sql_client_dirs@ \
-			@sql_server_dirs@ scripts tests man \
-			@bench_dirs@ support-files
+			@thread_dirs@ @pstack_dirs@ @sql_client_dirs@ \
+			@sql_server_dirs@ @libmysqld_dirs@ scripts tests man \
+			@bench_dirs@ support-files @fs_dirs@
 
 # Relink after clean
-CLEANFILES =		linked_client_sources linked_server_sources linked_libmysql_sources linked_libmysql_r_sources linked_include_sources
+linked_sources = linked_client_sources linked_server_sources \
+		 linked_libmysql_sources linked_libmysql_r_sources \
+		 linked_libmysqld_sources linked_include_sources
+CLEANFILES = $(linked_sources)
 
 # This is just so that the linking is done early.
-config.h:	linked_include_sources linked_client_sources linked_server_sources linked_libmysql_sources linked_libmysql_r_sources
+config.h: $(linked_sources)
 
 linked_include_sources:
 	cd include; $(MAKE) link_sources
@@ -46,6 +49,10 @@ linked_libmysql_sources:
 linked_libmysql_r_sources: linked_libmysql_sources
 	cd libmysql_r; $(MAKE) link_sources
 	echo timestamp > linked_libmysql_r_sources
+
+linked_libmysqld_sources:
+	cd libmysqld; $(MAKE) link_sources
+	echo timestamp > linked_libmysqld_sources
 
 #avoid recursive make calls in sql directory
 linked_server_sources:

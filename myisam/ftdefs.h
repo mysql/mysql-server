@@ -1,15 +1,15 @@
 /* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
-   
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2 of the License, or
    (at your option) any later version.
-   
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
@@ -23,14 +23,21 @@
 #include <my_tree.h>
 
 #define MIN_WORD_LEN 4
+#define MAX_WORD_LEN HA_FT_MAXLEN
+#define MAX_WORD_LEN_FOR_SORT 20
 
 #define HYPHEN_IS_DELIM
 #define HYPHEN_IS_CONCAT     /* not used for now */
 
 #define COMPILE_STOPWORDS_IN
 
-/* Most of the formulae were shamelessly stolen from SMART distribution
-   ftp://ftp.cs.cornell.edu/pub/smart/smart.11.0.tar.Z
+/* Interested readers may consult SMART
+   (ftp://ftp.cs.cornell.edu/pub/smart/smart.11.0.tar.Z)
+   for an excellent implementation of vector space model we use.
+   It also demonstrate the usage of different weghting techniques.
+   This code, though, is completely original and is not based on the
+   SMART code but was in some cases inspired by it.
+
    NORM_PIVOT was taken from the article
    A.Singhal, C.Buckley, M.Mitra, "Pivoted Document Length Normalization",
    ACM SIGIR'96, 21-29, 1996
@@ -82,6 +89,19 @@ extern ulong collstat;
 #define GWS_ENTROPY (1-(suml/sum-log(sum))/log(aio->info->state->records))
 /*=================================================================*/
 
+/* Boolean search operators */
+#define FTB_YES   '+'
+#define FTB_NO    '-'
+#define FTB_INC   '>'
+#define FTB_DEC   '<'
+#define FTB_LBR   '('
+#define FTB_RBR   ')'
+#define FTB_NEG   '~'
+#define FTB_TRUNC '*'
+
+// #define FTB_MAX_SUBEXPR 255
+// #define FTB_MAX_DEPTH   16
+
 typedef struct st_ft_word {
   byte * pos;
   uint	 len;
@@ -91,9 +111,26 @@ typedef struct st_ft_word {
 #endif /* EVAL_RUN */
 } FT_WORD;
 
+typedef struct st_ftb_param {
+  byte prev;
+  int  yesno;
+  int  plusminus;
+  bool pmsign;
+  bool trunc;
+} FTB_PARAM;
+
 int is_stopword(char *word, uint len);
+int is_boolean(byte *q, uint len);
 
 uint _ft_make_key(MI_INFO *, uint , byte *, FT_WORD *, my_off_t);
 
+byte ft_get_word(byte **, byte *, FT_WORD *, FTB_PARAM *);
+byte ft_simple_get_word(byte **, byte *, FT_WORD *);
+
 TREE * ft_parse(TREE *, byte *, int);
 FT_WORD * ft_linearize(MI_INFO *, uint, byte *, TREE *);
+FT_WORD * _mi_ft_parserecord(MI_INFO *, uint , byte *, const byte *);
+
+FT_DOCLIST * ft_nlq_search(MI_INFO *, uint, byte *, uint);
+FT_DOCLIST * ft_boolean_search(MI_INFO *, uint, byte *, uint);
+

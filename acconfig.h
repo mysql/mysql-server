@@ -111,6 +111,9 @@
 /* sigwait with one argument */
 #undef HAVE_NONPOSIX_SIGWAIT
 
+/* ORBIT */
+#undef HAVE_ORBIT
+
 /* pthread_attr_setscope */
 #undef HAVE_PTHREAD_ATTR_SETSCOPE
 
@@ -229,6 +232,9 @@
 /* Use multi-byte character routines */
 #undef USE_MB
 #undef USE_MB_IDENT
+
+/* the pstack backtrace library */
+#undef USE_PSTACK
 
 /* Use MySQL RAID */
 #undef USE_RAID

@@ -241,6 +241,8 @@ void end_thread(THD *thd,bool put_in_cache);
 void flush_thread_cache();
 void mysql_execute_command(void);
 bool do_command(THD *thd);
+bool dispatch_command(enum enum_server_command command, THD *thd,
+		      char* packet, uint packet_length);
 bool check_stack_overrun(THD *thd,char *dummy);
 bool reload_acl_and_cache(THD *thd, uint options, TABLE_LIST *tables);
 void mysql_rm_db(THD *thd,char *db,bool if_exists);
@@ -251,6 +253,7 @@ void kill_mysql(void);
 void close_connection(NET *net,uint errcode=0,bool lock=1);
 bool check_access(THD *thd,uint access,const char *db=0,uint *save_priv=0,
 		  bool no_grant=0);
+bool check_table_access(THD *thd,uint want_access, TABLE_LIST *tables);
 bool check_process_priv(THD *thd=0);
 
 int generate_table(THD *thd, TABLE_LIST *table_list,
@@ -336,15 +339,16 @@ int mysql_create_index(THD *thd, TABLE_LIST *table_list, List<Key> &keys);
 int mysql_drop_index(THD *thd, TABLE_LIST *table_list,
 		     List<Alter_drop> &drop_list);
 int mysql_update(THD *thd,TABLE_LIST *tables,List<Item> &fields,
-		 List<Item> &values,COND *conds, ha_rows limit,
+		 List<Item> &values,COND *conds, 
+                 ORDER *order, ha_rows limit,
 		 enum enum_duplicates handle_duplicates,
 		 thr_lock_type lock_type);
 int mysql_insert(THD *thd,TABLE_LIST *table,List<Item> &fields,
 		 List<List_item> &values, enum_duplicates flag,
 		 thr_lock_type lock_type);
 void kill_delayed_threads(void);
-int mysql_delete(THD *thd,TABLE_LIST *table,COND *conds,ha_rows rows,
-		 thr_lock_type lock_type, ulong options);
+int mysql_delete(THD *thd, TABLE_LIST *table, COND *conds, ORDER *order,
+                 ha_rows rows, thr_lock_type lock_type, ulong options);
 TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type update);
 TABLE *open_table(THD *thd,const char *db,const char *table,const char *alias,
 		  bool *refresh);
@@ -365,7 +369,7 @@ Field *find_field_in_table(THD *thd,TABLE *table,const char *name,uint length,
 
 /* sql_list.c */
 int mysqld_show_dbs(THD *thd,const char *wild);
-int mysqld_show_open_tables(THD *thd,const char *db,const char *wild);
+int mysqld_show_open_tables(THD *thd,const char *wild);
 int mysqld_show_tables(THD *thd,const char *db,const char *wild);
 int mysqld_extend_show_tables(THD *thd,const char *db,const char *wild);
 int mysqld_show_fields(THD *thd,TABLE_LIST *table, const char *wild,
@@ -432,8 +436,7 @@ bool close_cached_tables(THD *thd, bool wait_for_refresh, TABLE_LIST *tables);
 void copy_field_from_tmp_record(Field *field,int offset);
 int fill_record(List<Item> &fields,List<Item> &values);
 int fill_record(Field **field,List<Item> &values);
-int list_open_tables(THD *thd,List<char> *files, const char *db,const char *wild);
-char* query_table_status(THD *thd,const char *db,const char *table_name);
+OPEN_TABLE_LIST *list_open_tables(THD *thd,const char *wild);
 
 /* sql_calc.cc */
 bool eval_const_cond(COND *cond);

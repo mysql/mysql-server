@@ -196,7 +196,7 @@ static int find_keyword(LEX *lex, uint len, bool function)
 
 /* make a copy of token before ptr and set yytoklen */
 
-static inline LEX_STRING get_token(LEX *lex,uint length)
+LEX_STRING get_token(LEX *lex,uint length)
 {
   LEX_STRING tmp;
   yyUnget();			// ptr points now after last token char
@@ -509,6 +509,8 @@ int yylex(void *arg)
 	yySkip();			// next state does a unget
       }
       yylval->lex_str=get_token(lex,length);
+      if (lex->convert_set)
+	    lex->convert_set->convert((char*) yylval->lex_str.str,lex->yytoklen);
       return(IDENT);
 
     case STATE_IDENT_SEP:		// Found ident and now '.'
@@ -597,6 +599,8 @@ int yylex(void *arg)
 
     case STATE_FOUND_IDENT:		// Complete ident
       yylval->lex_str=get_token(lex,yyLength());
+      if (lex->convert_set)
+        lex->convert_set->convert((char*) yylval->lex_str.str,lex->yytoklen);
       return(IDENT);
 
     case STATE_USER_VARIABLE_DELIMITER:
@@ -604,6 +608,8 @@ int yylex(void *arg)
       while ((c=yyGet()) && state_map[c] != STATE_USER_VARIABLE_DELIMITER &&
 	     c != (uchar) NAMES_SEP_CHAR) ;
       yylval->lex_str=get_token(lex,yyLength());
+      if (lex->convert_set)
+        lex->convert_set->convert((char*) yylval->lex_str.str,lex->yytoklen);
       if (state_map[c] == STATE_USER_VARIABLE_DELIMITER)
 	yySkip();				// Skipp end `
       return(IDENT);

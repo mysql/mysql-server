@@ -16,7 +16,7 @@
 
 /* Descript, check and repair of ISAM tables */
 
-#include "fulltext.h"
+#include "ftdefs.h"
 #include <m_ctype.h>
 #include <stdarg.h>
 #include <getopt.h>
@@ -45,6 +45,7 @@ static int writekeys(MI_INFO *info,byte *buff,my_off_t filepos);
 static int sort_one_index(MI_CHECK *param, MI_INFO *info,MI_KEYDEF *keyinfo,
 			  my_off_t pagepos, File new_file);
 static int sort_key_read(SORT_INFO *sort_info,void *key);
+static int sort_ft_key_read(SORT_INFO *sort_info,void *key);
 static int sort_get_next_record(SORT_INFO *sort_info);
 static int sort_key_cmp(SORT_INFO *sort_info, const void *a,const void *b);
 static int sort_key_write(SORT_INFO *sort_info, const void *a);
@@ -53,7 +54,7 @@ static my_off_t get_record_for_key(MI_INFO *info,MI_KEYDEF *keyinfo,
 static int sort_insert_key(MI_CHECK *param, reg1 SORT_KEY_BLOCKS *key_block,
 			   uchar *key, my_off_t prev_block);
 static int sort_delete_record(MI_CHECK *param);
-static int flush_pending_blocks(MI_CHECK *param);
+/*static int flush_pending_blocks(MI_CHECK *param);*/
 static SORT_KEY_BLOCKS	*alloc_key_blocks(MI_CHECK *param, uint blocks,
 					  uint buffer_length);
 static void update_key_parts(MI_KEYDEF *keyinfo,
@@ -1722,22 +1723,6 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
     printf("Data records: %s\n", llstr(start_records,llbuff));
   }
 
-  /* Hmm, repair_by_sort uses find_all_keys, and find_all_keys strictly
-     implies "one row - one key per keynr", while for ft_key one row/keynr
-     can produce as many keys as the number of unique words in the text
-     that's why I disabled repair_by_sort for ft-keys. (serg)
-  */
-  for (i=0 ; i < share->base.keys ; i++)
-  {
-    if ((((ulonglong) 1 << i) & key_map) && 
-	(share->keyinfo[i].flag & HA_FULLTEXT))
-    {
-      mi_check_print_error(param,
-			   "Can`t use repair_by_sort with FULLTEXT key");
-      DBUG_RETURN(1);
-    }
-  }
-
   bzero((char*) sort_info,sizeof(*sort_info));
   if (!(sort_info->key_block=
 	alloc_key_blocks(param,
@@ -1829,6 +1814,8 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
   param->read_cache.end_of_file=sort_info->filelength=
     my_seek(param->read_cache.file,0L,MY_SEEK_END,MYF(0));
 
+  sort_info->wordlist=NULL;
+
   if (share->data_file_type == DYNAMIC_RECORD)
     length=max(share->base.min_pack_length+1,share->base.min_block_length);
   else if (share->data_file_type == COMPRESSED_RECORD)
@@ -1840,7 +1827,6 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
      (ha_rows) (sort_info->filelength/length+1));
   sort_param.key_cmp=sort_key_cmp;
   sort_param.key_write=sort_key_write;
-  sort_param.key_read=sort_key_read;
   sort_param.lock_in_memory=lock_memory;
   sort_param.tmpdir=param->tmpdir;
   sort_param.myf_rw=param->myf_rw;
@@ -1886,6 +1872,17 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
     info->state->records=info->state->del=share->state.split=0;
     info->state->empty=0;
 
+    if (sort_info->keyinfo->flag & HA_FULLTEXT)
+    {
+      sort_param.max_records=sort_info->max_records=
+        (ha_rows) (sort_info->filelength/MAX_WORD_LEN_FOR_SORT+1);
+
+      sort_param.key_read=sort_ft_key_read;
+      sort_param.key_length+=MAX_WORD_LEN_FOR_SORT-MAX_WORD_LEN;
+    }
+    else
+      sort_param.key_read=sort_key_read;
+
     if (_create_index_by_sort(&sort_param,
 			      (my_bool) (!(param->testflag & T_VERBOSE)),
 			      (uint) param->sort_buffer_length))
@@ -1930,8 +1927,8 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
     else
       info->state->data_file_length=sort_info->max_pos;
 
-    if (flush_pending_blocks(param))
-      goto err;
+    /*if (flush_pending_blocks(param))
+      goto err;*/
 
     param->read_cache.file=info->dfile;		/* re-init read cache */
     reinit_io_cache(&param->read_cache,READ_CACHE,share->pack.header_length,1,
@@ -2055,11 +2052,52 @@ static int sort_key_read(SORT_INFO *sort_info, void *key)
 			 "Found too many records; Can`t continue");
     DBUG_RETURN(1);
   }
-  (void) _mi_make_key(info,sort_info->key,key,sort_info->record,
-                      sort_info->filepos);
+  sort_info->real_key_length=info->s->rec_reflength+_mi_make_key(info,
+                      sort_info->key,key,sort_info->record,sort_info->filepos);
   DBUG_RETURN(sort_write_record(sort_info));
 } /* sort_key_read */
 
+static int sort_ft_key_read(SORT_INFO *sort_info, void *key)
+{
+  int error;
+  MI_INFO *info;
+  FT_WORD *wptr;
+  DBUG_ENTER("sort_ft_key_read");
+
+  info=sort_info->info;
+
+  if (!sort_info->wordlist)
+  {
+    do
+    {
+      if ((error=sort_get_next_record(sort_info)))
+        DBUG_RETURN(error);
+      if (!(wptr=_mi_ft_parserecord(info,sort_info->key,key,sort_info->record)))
+        DBUG_RETURN(1);
+      error=sort_write_record(sort_info);
+    }
+    while (!wptr->pos);
+    sort_info->wordptr=sort_info->wordlist=wptr;
+  }
+  else
+  {
+    error=0;
+    wptr=(FT_WORD*)(sort_info->wordptr);
+  }
+
+  sort_info->real_key_length=info->s->rec_reflength+_ft_make_key(info,
+                              sort_info->key,key,wptr++,sort_info->filepos);
+  if (!wptr->pos)
+  {
+    my_free((char*) sort_info->wordlist, MYF(0));
+    sort_info->wordlist=0;
+  }
+  else
+    sort_info->wordptr=(void*)wptr;
+
+
+  DBUG_RETURN(error);
+} /* sort_ft_key_read */
 
 	/* Read next record from file using parameters in sort_info */
 	/* Return -1 if end of file, 0 if ok and > 0 if error */
@@ -2714,7 +2752,7 @@ static int sort_delete_record(MI_CHECK *param)
 
 	/* Fix all pending blocks and flush everything to disk */
 
-static int flush_pending_blocks(MI_CHECK *param)
+int flush_pending_blocks(MI_CHECK *param)
 {
   uint nod_flag,length;
   my_off_t filepos,key_file_length;
@@ -3181,15 +3219,7 @@ my_bool mi_test_if_sort_rep(MI_INFO *info, ha_rows rows,
     return FALSE;				/* Can't use sort */
   for (i=0 ; i < share->base.keys ; i++,key++)
   {
-/* It's to disable repair_by_sort for ft-keys.
-   Another solution would be to make ft-keys just too_big_key_for_sort,
-   but then they won't be disabled by dectivate_non_unique_index
-   and so they will be created at the first stage. As ft-key creation
-   is very time-consuming process, it's better to leave it to repair stage
-   but this repair shouldn't be repair_by_sort (serg)
- */
-    if ((!force && mi_too_big_key_for_sort(key,rows)) ||
-	(key->flag & HA_FULLTEXT))
+    if (!force && mi_too_big_key_for_sort(key,rows))
       return FALSE;
   }
   return TRUE;
