@@ -287,13 +287,19 @@ void Item_func::print(String *str)
 {
   str->append(func_name());
   str->append('(');
+  print_args(str);
+  str->append(')');
+}
+
+
+void Item_func::print_args(String *str)
+{
   for (uint i=0 ; i < arg_count ; i++)
   {
     if (i)
       str->append(',');
     args[i]->print(str);
   }
-  str->append(')');
 }
 
 
@@ -464,18 +470,18 @@ String *Item_num_op::val_str(String *str)
 
 void Item_func_signed::print(String *str)
 {
-  str->append("cast(");
+  str->append("cast(", 5);
   args[0]->print(str);
-  str->append("as signed)");
+  str->append(" as signed)", 11);
 
 }
 
 
 void Item_func_unsigned::print(String *str)
 {
-  str->append("cast(");
+  str->append("cast(", 5);
   args[0]->print(str);
-  str->append("as unsigned)");
+  str->append(" as unsigned)", 13);
 
 }
 
@@ -1202,6 +1208,21 @@ longlong Item_func_locate::val_int()
 }
 
 
+void Item_func_locate::print(String *str)
+{
+  str->append("locate(", 7);
+  args[1]->print(str);
+  str->append(',');
+  args[0]->print(str);
+  if (arg_count == 3)
+  {
+    str->append(',');
+    args[2]->print(str);
+  }
+  str->append(')');
+}
+
+
 longlong Item_func_field::val_int()
 {
   if (cmp_type == STRING_RESULT)
@@ -1782,7 +1803,7 @@ void item_user_lock_release(ULL *ull)
     String tmp(buf,sizeof(buf), system_charset_info);
     tmp.copy(command, strlen(command), tmp.charset());
     tmp.append(ull->key,ull->key_length);
-    tmp.append("\")");
+    tmp.append("\")", 2);
     Query_log_event qev(current_thd, tmp.ptr(), tmp.length(),1);
     qev.error_code=0; // this query is always safe to run on slave
     mysql_bin_log.write(&qev);
@@ -2066,6 +2087,19 @@ longlong Item_func_benchmark::val_int()
   return 0;
 }
 
+
+void Item_func_benchmark::print(String *str)
+{
+  str->append("benchmark(", 10);
+  char buffer[20];
+  // latin1 is good enough for numbers
+  String st(buffer, sizeof(buffer), &my_charset_latin1);
+  st.set((ulonglong)loop_count, &my_charset_latin1);
+  str->append(st);
+  str->append(',');
+  args[0]->print(str);
+  str->append(')');
+}
 
 #define extra_size sizeof(double)
 
@@ -2405,9 +2439,9 @@ String *Item_func_set_user_var::val_str(String *str)
 
 void Item_func_set_user_var::print(String *str)
 {
-  str->append("(@@",3);
-  str->append(name.str,name.length);
-  str->append(":=",2);
+  str->append("(@", 2);
+  str->append(name.str, name.length);
+  str->append(":=", 2);
   args[0]->print(str);
   str->append(')');
 }
@@ -2553,7 +2587,7 @@ enum Item_result Item_func_get_user_var::result_type() const
 
 void Item_func_get_user_var::print(String *str)
 {
-  str->append('@');
+  str->append("(@", 2);
   str->append(name.str,name.length);
   str->append(')');
 }
@@ -2840,7 +2874,7 @@ double Item_func_match::val()
 
 void Item_func_match::print(String *str)
 {
-  str->append("(match ");
+  str->append("(match ", 7);
   List_iterator_fast<Item> li(fields);
   Item *item;
   bool first= 1;
@@ -2852,11 +2886,11 @@ void Item_func_match::print(String *str)
       str->append(',');
     item->print(str);
   }
-  str->append(" against (");
+  str->append(" against (", 10);
   args[0]->print(str);
   if (mode == FT_BOOL)
-    str->append(" in boolean mode");
-  str->append("))");
+    str->append(" in boolean mode", 16);
+  str->append("))", 2);
 }
 
 longlong Item_func_bit_xor::val_int()

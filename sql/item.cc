@@ -93,7 +93,7 @@ void Item::print_item_w_name(String *str)
   print(str);
   if (name)
   {
-    str->append(" AS `");
+    str->append(" AS `", 5);
     str->append(name);
     str->append('`');
   }
@@ -435,12 +435,14 @@ bool Item_field::eq(const Item *item, bool binary_cmp) const
 						    db_name))))));
 }
 
+
 table_map Item_field::used_tables() const
 {
   if (field->table->const_table)
     return 0;					// const item
   return (depended_from ? OUTER_REF_TABLE_BIT : field->table->map);
 }
+
 
 Item *Item_field::get_tmp_table_item(THD *thd)
 {
@@ -450,6 +452,7 @@ Item *Item_field::get_tmp_table_item(THD *thd)
   return new_item;
 }
 
+
 String *Item_int::val_str(String *str)
 {
   str->set(value, default_charset());
@@ -458,9 +461,11 @@ String *Item_int::val_str(String *str)
 
 void Item_int::print(String *str)
 {
-  str_value.set(value, default_charset());
+  // latin1 is good enough for numbers
+  str_value.set(value, &my_charset_latin1);
   str->append(str_value);
 }
+
 
 String *Item_uint::val_str(String *str)
 {
@@ -468,8 +473,10 @@ String *Item_uint::val_str(String *str)
   return str;
 }
 
+
 void Item_uint::print(String *str)
 {
+  // latin1 is good enough for numbers
   str_value.set((ulonglong) value, default_charset());
   str->append(str_value);
 }
@@ -481,12 +488,46 @@ String *Item_real::val_str(String *str)
   return str;
 }
 
+
 void Item_string::print(String *str)
 {
   str->append('_');
   str->append(collation.collation->csname);
   str->append('\'');
-  str->append(str_value);
+  char *st= (char*)str_value.ptr(), *end= st+str_value.length();
+  for(; st < end; st++)
+  {
+    uchar c= *st;
+    switch (c)
+    {
+    case '\\':
+      str->append("\\\\", 2);
+      break;
+    case '\0':
+      str->append("\\0", 2);
+      break;
+    case '\'':
+      str->append("\\'", 2);
+      break;
+    case '\n':
+      str->append("\\n", 2);
+      break;
+    case '\r':
+      str->append("\\r", 2);
+      break;
+    case '\t':
+      str->append("\\t", 2);
+      break;
+    case '\b':
+      str->append("\\b", 2);
+      break;
+    case 26: //Ctrl-Z
+      str->append("\\z", 2);
+      break;
+    default:
+      str->append(c);
+    }
+  }
   str->append('\'');
 }
 
@@ -707,7 +748,7 @@ String *Item_param::query_val_str(String* str)
       make_datetime(str, &ltime, is_time_only, 0,
 		    tmp_format->format, tmp_format->format_length, 0);
     }
-    str->append("'");
+    str->append('\'');
   }
   return str;
 }
@@ -1551,7 +1592,7 @@ void Item_ref::print(String *str)
 
 void Item_ref_null_helper::print(String *str)
 {
-  str->append("<ref_null_helper>(");
+  str->append("<ref_null_helper>(", 18);
   if (ref && *ref)
     (*ref)->print(str);
   else
@@ -1562,7 +1603,7 @@ void Item_ref_null_helper::print(String *str)
 
 void Item_null_helper::print(String *str)
 {
-  str->append("<null_helper>(");
+  str->append("<null_helper>(", 14);
   store->print(str);
   str->append(')');
 }
@@ -1609,10 +1650,10 @@ void Item_default_value::print(String *str)
 {
   if (!arg)
   {
-    str->append("DEFAULT");
+    str->append("default", 6);
     return;
   }
-  str->append("DEFAULT(");
+  str->append("default", 7);
   arg->print(str);
   str->append(')');
 }
@@ -1665,7 +1706,7 @@ bool Item_insert_value::fix_fields(THD *thd, struct st_table_list *table_list, I
 
 void Item_insert_value::print(String *str)
 {
-  str->append("VALUE(");
+  str->append("values(", 7);
   arg->print(str);
   str->append(')');
 }
@@ -1792,7 +1833,7 @@ Item_cache* Item_cache::get_cache(Item_result type)
 
 void Item_cache::print(String *str)
 {
-  str->append("<cache>(");
+  str->append("<cache>(", 8);
   if (example)
     example->print(str);
   else

@@ -1369,7 +1369,7 @@ longlong Item_sum_count_distinct::val_int()
 
 void Item_sum_count_distinct::print(String *str)
 {
-  str->append("count(distinct ");
+  str->append("count(distinct ", 15);
   args[0]->print(str);
   str->append(')');
 }
@@ -1971,9 +1971,9 @@ String* Item_func_group_concat::val_str(String* str)
 
 void Item_func_group_concat::print(String *str)
 {
-  str->append("group concat(");
+  str->append("group_concat(", 13);
   if (distinct)
-    str->append(" distinct ");
+    str->append("distinct ", 9);
   for (uint i= 0; i < arg_count; i++)
   {
     if (i)
@@ -1982,6 +1982,7 @@ void Item_func_group_concat::print(String *str)
   }
   if (arg_count_order)
   {
+    str->append(" order by ", 10);
     for (uint i= 0 ; i < arg_count_order ; i++)
     {
       if (i)
@@ -1989,7 +1990,7 @@ void Item_func_group_concat::print(String *str)
       (*order[i]->item)->print(str);
     }
   }
-  str->append(" seperator \'");
+  str->append(" seperator \'", 12);
   str->append(*separator);
-  str->append("\')");
+  str->append("\')", 2);
 }

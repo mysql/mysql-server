@@ -1477,9 +1477,9 @@ void st_select_lex_unit::print(String *str)
   {
     if (sl != first_select())
     {
-      str->append(" union ");
+      str->append(" union ", 7);
       if (union_option & UNION_ALL)
-	str->append("all ");
+	str->append("all ", 4);
     }
     if (sl->braces)
       str->append('(');
@@ -1491,7 +1491,7 @@ void st_select_lex_unit::print(String *str)
   {
     if (fake_select_lex->order_list.elements)
     {
-      str->append(" order by ");
+      str->append(" order by ", 10);
       fake_select_lex->print_order(str,
 				   (ORDER *) fake_select_lex->
 				   order_list.first);
@@ -1507,7 +1507,7 @@ void st_select_lex::print_order(String *str, ORDER *order)
   {
     (*order->item)->print(str);
     if (!order->asc)
-      str->append(" desc");
+      str->append(" desc", 5);
     if (order->next)
       str->append(',');
   }
@@ -1522,15 +1522,17 @@ void st_select_lex::print_limit(THD *thd, String *str)
       select_limit != HA_POS_ERROR ||
       offset_limit != 0L)
   {
-    str->append(" limit ");
-    char buff[21];
-    snprintf(buff, 21, "%ld", select_limit);
-    str->append(buff);
+    str->append(" limit ", 7);
+    char buff[20];
+    // latin1 is good enough for numbers
+    String st(buff, sizeof(buff),  &my_charset_latin1);
+    st.set((ulonglong)select_limit, &my_charset_latin1);
+    str->append(st);
     if (offset_limit)
     {
       str->append(',');
-      snprintf(buff, 21, "%ld", offset_limit);
-      str->append(buff);
+      st.set((ulonglong)select_limit, &my_charset_latin1);
+      str->append(st);
     }
   }
 }

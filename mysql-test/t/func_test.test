@@ -19,13 +19,19 @@ select 'b' between 'a' and 'c', 'B' between 'a' and 'c';
 select 2 in (3,2,5,9,5,1),"monty" in ("david","monty","allan"), 1.2 in (1.4,1.2,1.0);
 select -1.49 or -1.49,0.6 or 0.6;
 select 3 ^ 11, 1 ^ 1, 1 ^ 0, 1 ^ NULL, NULL ^ 1;
+explain extended select 3 ^ 11, 1 ^ 1, 1 ^ 0, 1 ^ NULL, NULL ^ 1;
 select 1 XOR 1, 1 XOR 0, 0 XOR 1, 0 XOR 0, NULL XOR 1, 1 XOR NULL, 0 XOR NULL;
 select 10 % 7, 10 mod 7, 10 div 3;
+explain extended select 10 % 7, 10 mod 7, 10 div 3;
 select (1 << 64)-1, ((1 << 64)-1) DIV 1, ((1 << 64)-1) DIV 2;
+explain extended select (1 << 64)-1, ((1 << 64)-1) DIV 1, ((1 << 64)-1) DIV 2;
 
 create table t1 (a int);
 insert t1 values (1);
 select * from t1 where 1 xor 1;
+explain extended select * from t1 where 1 xor 1;
+select - a from t1;
+explain extended select - a from t1;
 drop table t1;
 
 #
@@ -41,6 +47,7 @@ select 1 and 0 or 2, 2 or 1 and 0;
 #
 select _koi8r'a' = _koi8r'A';
 select _koi8r'a' = _koi8r'A' COLLATE koi8r_general_ci;
+explain extended select _koi8r'a' = _koi8r'A' COLLATE koi8r_general_ci;
 select _koi8r'a' = _koi8r'A' COLLATE koi8r_bin;
 select _koi8r'a' COLLATE koi8r_general_ci = _koi8r'A';
 select _koi8r'a' COLLATE koi8r_bin = _koi8r'A';

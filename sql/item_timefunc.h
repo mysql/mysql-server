@@ -285,7 +285,7 @@ public:
   Item_func_unix_timestamp() :Item_int_func() {}
   Item_func_unix_timestamp(Item *a) :Item_int_func(a) {}
   longlong val_int();
-  const char *func_name() const { return "timestamp"; }
+  const char *func_name() const { return "unix_timestamp"; }
   void fix_length_and_dec()
   {
     decimals=0;

@@ -717,9 +717,9 @@ void Item_func_between::print(String *str)
 {
   str->append('(');
   args[0]->print(str);
-  str->append(" between ");
+  str->append(" between ", 9);
   args[1]->print(str);
-  str->append(" and ");
+  str->append(" and ", 5);
   args[2]->print(str);
   str->append(')');
 }
@@ -880,7 +880,7 @@ Item_func_nullif::fix_length_and_dec()
 }
 
 /*
-  nullif () returns NULL if arguments are different, else it returns the
+  nullif () returns NULL if arguments are equal, else it returns the
   first argument.
   Note that we have to evaluate the first argument twice as the compare
   may have been done with a different type than return value
@@ -1117,7 +1117,7 @@ void Item_func_case::fix_length_and_dec()
 
 void Item_func_case::print(String *str)
 {
-  str->append("(case ");
+  str->append("(case ", 6);
   if (first_expr_num != -1)
   {
     args[first_expr_num]->print(str);
@@ -1125,19 +1125,19 @@ void Item_func_case::print(String *str)
   }
   for (uint i=0 ; i < ncases ; i+=2)
   {
-    str->append("when ");
+    str->append("when ", 5);
     args[i]->print(str);
-    str->append(" then ");
+    str->append(" then ", 6);
     args[i+1]->print(str);
     str->append(' ');
   }
   if (else_expr_num != -1)
   {
-    str->append("else ");
+    str->append("else ", 5);
     args[else_expr_num]->print(str);
     str->append(' ');
   }
-  str->append("end)");
+  str->append("end)", 4);
 }
 
 /*
@@ -1545,14 +1545,14 @@ void Item_func_in::print(String *str)
 {
   str->append('(');
   args[0]->print(str);
-  str->append(" IN (");
+  str->append(" in (", 5);
   for (uint i=1 ; i < arg_count ; i++)
   {
     if (i > 1)
       str->append(',');
     args[i]->print(str);
   }
-  str->append("))");
+  str->append("))", 2);
 }
 
 
@@ -1924,7 +1924,7 @@ void Item_func_isnotnull::print(String *str)
 {
   str->append('(');
   args[0]->print(str);
-  str->append(" is not null)");
+  str->append(" is not null)", 13);
 }
 
 

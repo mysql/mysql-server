@@ -124,6 +124,7 @@ public:
   virtual void split_sum_func(Item **ref_pointer_array, List<Item> &fields);
   void print(String *str);
   void print_op(String *str);
+  void print_args(String *str);
   void fix_num_length_and_dec();
   inline bool get_arg0_date(TIME *ltime,bool fuzzy_date)
   {
@@ -608,6 +609,7 @@ public:
   const char *func_name() const { return "locate"; }
   longlong val_int();
   void fix_length_and_dec();
+  void print(String *str);
 };
 
 
@@ -733,6 +735,7 @@ class Item_func_benchmark :public Item_int_func
   longlong val_int();
   const char *func_name() const { return "benchmark"; }
   void fix_length_and_dec() { max_length=1; maybe_null=0; }
+  void print(String *str);
 };
 
 
@@ -1056,7 +1059,7 @@ class Item_func_is_free_lock :public Item_int_func
 public:
   Item_func_is_free_lock(Item *a) :Item_int_func(a) {}
   longlong val_int();
-  const char *func_name() const { return "check_lock"; }
+  const char *func_name() const { return "is_free_lock"; }
   void fix_length_and_dec() { decimals=0; max_length=1; maybe_null=1;}
 };
 
