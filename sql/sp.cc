@@ -23,7 +23,7 @@
 static char *
 create_string(THD *thd, ulong *lenp,
 	      int sp_type,
-	      char *name, ulong namelen,
+	      sp_name *name,
 	      const char *params, ulong paramslen,
 	      const char *returns, ulong returnslen,
 	      const char *body, ulong bodylen,
@@ -69,7 +69,11 @@ db_find_routine_aux(THD *thd, int type, sp_name *name,
 		       type, name->m_name.length, name->m_name.str));
 
   // Put the key used to read the row together
-  memset(key, (int)' ', 64);	// QQ Empty db for now
+  keylen= name->m_db.length;
+  if (keylen > 64)
+    keylen= 64;
+  memcpy(key, name->m_db.str, keylen);
+  memset(key+keylen, (int)' ', 64-keylen); // Pad with space
   keylen= name->m_name.length;
   if (keylen > 64)
     keylen= 64;
@@ -213,6 +217,8 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
     char *defstr;
     ulong deflen;
     LEX *oldlex= thd->lex;
+    char olddb[128];
+    char *olddbptr;
     enum enum_sql_command oldcmd= thd->lex->sql_command;
     ulong old_sql_mode= thd->variables.sql_mode;
     ha_rows select_limit= thd->variables.select_limit;
@@ -221,16 +227,20 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
     thd->variables.select_limit= HA_POS_ERROR;
 
     if (!(defstr= create_string(thd, &deflen,
-			  type,
-			  name->m_name.str, name->m_name.length,
-			  params, strlen(params),
-			  returns, strlen(returns),
-			  body, strlen(body),
+				type,
+				name,
+				params, strlen(params),
+				returns, strlen(returns),
+				body, strlen(body),
 				&chistics)))
     {
       ret= SP_INTERNAL_ERROR;
       goto done;
     }
+
+    olddbptr= thd->db;
+    if ((ret= sp_use_new_db(thd, name->m_db.str, olddb, sizeof(olddb), 1)))
+      goto done;
 
     lex_start(thd, (uchar*)defstr, deflen);
     if (yyparse(thd) || thd->is_fatal_error || thd->lex->sphead == NULL)
@@ -238,6 +248,9 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
       LEX *newlex= thd->lex;
       sp_head *sp= newlex->sphead;
 
+      if (olddbptr != thd->db &&
+	  (ret= sp_change_db(thd, olddb, 1)))
+	goto done;
       if (sp)
       {
 	if (oldlex != newlex)
@@ -249,6 +262,9 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
     }
     else
     {
+      if (olddbptr != thd->db &&
+	  (ret= sp_change_db(thd, olddb, 1)))
+	goto done;
       *sphp= thd->lex->sphead;
       (*sphp)->set_info((char *)definer, (uint)strlen(definer),
 			created, modified, &chistics);
@@ -259,6 +275,7 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
   }
 
  done:
+
   if (opened)
     close_thread_tables(thd);
   DBUG_RETURN(ret);
@@ -291,9 +308,8 @@ db_create_routine(THD *thd, int type, sp_head *sp)
       ret= SP_GET_FIELD_FAILED;
       goto done;
     }
-// QQ Not yet
-//     table->field[MYSQL_PROC_FIELD_DB]->
-//       store(sp->m_db.str, sp->m_db.length, system_charset_info);
+    table->field[MYSQL_PROC_FIELD_DB]->
+      store(sp->m_db.str, sp->m_db.length, system_charset_info);
     table->field[MYSQL_PROC_FIELD_NAME]->
       store(sp->m_name.str, sp->m_name.length, system_charset_info);
     table->field[MYSQL_PROC_FIELD_TYPE]->
@@ -402,8 +418,7 @@ struct st_used_field
 
 static struct st_used_field init_fields[]=
 {
-// QQ Not yet
-//   { "Db",       NAME_LEN, MYSQL_TYPE_STRING,    0},
+  { "Db",       NAME_LEN, MYSQL_TYPE_STRING,    0},
   { "Name",     NAME_LEN, MYSQL_TYPE_STRING,    0},
   { "Type",            9, MYSQL_TYPE_STRING,    0},
   { "Definer",        77, MYSQL_TYPE_STRING,    0},
@@ -424,14 +439,20 @@ print_field_values(THD *thd, TABLE *table,
 
   if (table->field[MYSQL_PROC_FIELD_TYPE]->val_int() == type)
   {
-    String *tmp_string= new String();
+    String db_string;
+    String name_string;
     struct st_used_field *used_field= used_fields;
 
-    get_field(&thd->mem_root, used_field->field, tmp_string);
-    if (!wild || !wild[0] || !wild_compare(tmp_string->ptr(), wild, 0))
+    if (get_field(&thd->mem_root, used_field->field, &db_string))
+      db_string.set_ascii("", 0);
+    used_field+= 1;
+    get_field(&thd->mem_root, used_field->field, &name_string);
+
+    if (!wild || !wild[0] || !wild_compare(name_string.ptr(), wild, 0))
     {
       protocol->prepare_for_resend();
-      protocol->store(tmp_string);
+      protocol->store(&db_string);
+      protocol->store(&name_string);
       for (used_field++;
 	   used_field->field_name;
 	   used_field++)
@@ -448,10 +469,10 @@ print_field_values(THD *thd, TABLE *table,
 	  break;
 	default:
 	  {
-	    String *tmp_string1= new String();
+	    String tmp_string;
 
-	    get_field(&thd->mem_root, used_field->field, tmp_string1);
-	    protocol->store(tmp_string1);
+	    get_field(&thd->mem_root, used_field->field, &tmp_string);
+	    protocol->store(&tmp_string);
 	  }
 	  break;
 	}
@@ -738,17 +759,16 @@ sp_show_status_function(THD *thd, const char *wild)
 
 
 bool
-sp_function_exists(THD *thd, LEX_STRING *name)
+sp_function_exists(THD *thd, sp_name *name)
 {
   TABLE *table;
   bool ret= FALSE;
   bool opened= FALSE;
-  sp_name n(*name);
   DBUG_ENTER("sp_function_exists");
 
-  if (sp_cache_lookup(&thd->sp_func_cache, &n) ||
+  if (sp_cache_lookup(&thd->sp_func_cache, name) ||
       db_find_routine_aux(thd, TYPE_ENUM_FUNCTION,
-			  &n, TL_READ,
+			  name, TL_READ,
 			  &table, &opened) == SP_OK)
     ret= TRUE;
   if (opened)
@@ -770,11 +790,11 @@ void
 sp_add_fun_to_lex(LEX *lex, sp_name *fun)
 {
   if (! hash_search(&lex->spfuns,
-		    (byte *)fun->m_name.str, fun->m_name.length))
+		    (byte *)fun->m_qname.str, fun->m_qname.length))
   {
     LEX_STRING *ls= (LEX_STRING *)sql_alloc(sizeof(LEX_STRING));
-    ls->str= sql_strmake(fun->m_name.str, fun->m_name.length);
-    ls->length= fun->m_name.length;
+    ls->str= sql_strmake(fun->m_qname.str, fun->m_qname.length);
+    ls->length= fun->m_qname.length;
 
     my_hash_insert(&lex->spfuns, (byte *)ls);
   }
@@ -805,6 +825,7 @@ sp_cache_functions(THD *thd, LEX *lex)
     LEX_STRING *ls= (LEX_STRING *)hash_element(h, i);
     sp_name name(*ls);
 
+    name.m_qname= *ls;
     if (! sp_cache_lookup(&thd->sp_func_cache, &name))
     {
       sp_head *sp;
@@ -812,6 +833,13 @@ sp_cache_functions(THD *thd, LEX *lex)
       LEX *newlex= new st_lex;
 
       thd->lex= newlex;
+      name.m_name.str= strchr(name.m_qname.str, '.');
+      name.m_db.length= name.m_name.str - name.m_qname.str;
+      name.m_db.str= strmake_root(&thd->mem_root,
+				  name.m_qname.str, name.m_db.length);
+      name.m_name.str+= 1;
+      name.m_name.length= name.m_qname.length - name.m_db.length - 1;
+
       if (db_find_routine(thd, TYPE_ENUM_FUNCTION, &name, &sp)
 	  == SP_OK)
       {
@@ -839,7 +867,7 @@ sp_cache_functions(THD *thd, LEX *lex)
 static char *
 create_string(THD *thd, ulong *lenp,
 	      int type,
-	      char *name, ulong namelen,
+	      sp_name *name,
 	      const char *params, ulong paramslen,
 	      const char *returns, ulong returnslen,
 	      const char *body, ulong bodylen,
@@ -848,14 +876,15 @@ create_string(THD *thd, ulong *lenp,
   char *buf, *ptr;
   ulong buflen;
 
-  buflen= 100 + namelen + paramslen + returnslen + bodylen +
+  buflen= 100 + name->m_qname.length + paramslen + returnslen + bodylen +
     chistics->comment.length;
   if (!(buf= thd->alloc(buflen)))
     return 0;
 
   ptr= strxmov(buf, "CREATE ",
 	       (type == TYPE_ENUM_FUNCTION) ? "FUNCTION" : "PROCEDURE",
-	       " `", name, "`(", params, ")", NullS);
+	       " `", name->m_db.str, "`.`", name->m_name.str, "`(", params, ")",
+	       NullS);
 
   if (type == TYPE_ENUM_FUNCTION)
     ptr= strxmov(ptr, " RETURNS ", returns, NullS);
@@ -873,4 +902,64 @@ create_string(THD *thd, ulong *lenp,
   ptr= strmov(ptr, body);
   *lenp= (ptr-buf);
   return buf;
+}
+
+
+//
+// Utilities...
+//
+
+int
+sp_use_new_db(THD *thd, char *newdb, char *olddb, uint olddblen,
+	      bool no_access_check)
+{
+  bool changeit;
+  DBUG_ENTER("sp_use_new_db");
+  DBUG_PRINT("enter", ("newdb: %s", newdb));
+
+  if (thd->db && thd->db[0])
+  {
+    if (my_strcasecmp(system_charset_info, thd->db, newdb) == 0)
+      changeit= 0;
+    else
+    {
+      changeit= 1;
+      strnmov(olddb, thd->db, olddblen);
+    }
+  }
+  else
+  {				// thd->db empty
+    if (newdb[0])
+      changeit= 1;
+    else
+      changeit= 0;
+    olddb[0] = '\0';
+  }
+  if (!changeit)
+  {
+    DBUG_RETURN(0);
+  }
+  else
+  {
+    int ret= sp_change_db(thd, newdb, no_access_check);
+
+    DBUG_RETURN(ret);
+  }
+}
+
+int
+sp_change_db(THD *thd, char *db, bool no_access_check)
+{
+  int ret;
+  ulong dbaccess= thd->db_access; /* mysql_change_db() changes this */ 
+  my_bool nsok= thd->net.no_send_ok; /* mysql_change_db() does send_ok() */
+  thd->net.no_send_ok= TRUE;
+  DBUG_ENTER("sp_change_db");
+  DBUG_PRINT("enter", ("db: %s, no_access_check: %d", db, no_access_check));
+
+  ret= mysql_change_db(thd, db, 1, no_access_check);
+
+  thd->net.no_send_ok= nsok;
+  thd->db_access= dbaccess;
+  DBUG_RETURN(ret);
 }

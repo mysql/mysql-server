@@ -147,6 +147,26 @@ sp_name::init_qname(THD *thd)
 	  m_name.length, m_name.str);
 }
 
+sp_name *
+sp_name_current_db_new(THD *thd, LEX_STRING name)
+{
+  sp_name *qname;
+
+  if (! thd->db)
+    qname= new sp_name(name);
+  else
+  {
+    LEX_STRING db;
+
+    db.length= strlen(thd->db);
+    db.str= thd->strmake(thd->db, db.length);
+    qname= new sp_name(db, name);
+  }
+  qname->init_qname(thd);
+  return qname;
+}
+
+
 /* ------------------------------------------------------------------ */
 
 
@@ -224,8 +244,8 @@ sp_head::init_strings(THD *thd, LEX *lex, sp_name *name)
   /* We have to copy strings to get them into the right memroot */
   if (name->m_db.length == 0)
   {
-    m_db.length= strlen(thd->db);
-    m_db.str= strmake_root(root, thd->db, m_db.length);
+    m_db.length= (thd->db ? strlen(thd->db) : 0);
+    m_db.str= strmake_root(root, (thd->db ? thd->db : ""), m_db.length);
   }
   else
   {
@@ -317,30 +337,22 @@ int
 sp_head::execute(THD *thd)
 {
   DBUG_ENTER("sp_head::execute");
-  char olddbname[128];
-  char *olddbptr= thd->db;
+  char olddb[128];
+  char *olddbptr;
   sp_rcontext *ctx= thd->spcont;
   int ret= 0;
   uint ip= 0;
 
 #ifndef EMBEDDED_LIBRARY
-  if (check_stack_overrun(thd, olddbptr))
+  if (check_stack_overrun(thd, olddb))
   {
     DBUG_RETURN(-1);
   }
 #endif
-  if (olddbptr)
-  {
-    uint i= 0;
-    char *p= olddbptr;
 
-    /* Fast inline strncpy without padding... */
-    while (*p && i < sizeof(olddbname))
-      olddbname[i++]= *p++;
-    if (i == sizeof(olddbname))
-      i-= 1;			// QQ Error or warning for truncate?
-    olddbname[i]= '\0';
-  }
+  olddbptr= thd->db;
+  if ((ret= sp_use_new_db(thd, m_db.str, olddb, sizeof(olddb), 0)))
+    goto done;
 
   if (ctx)
     ctx->clear_handler();
@@ -379,18 +391,17 @@ sp_head::execute(THD *thd)
     }
   } while (ret == 0 && !thd->killed && !thd->query_error);
 
+ done:
   DBUG_PRINT("info", ("ret=%d killed=%d query_error=%d",
 		      ret, thd->killed, thd->query_error));
   if (thd->killed || thd->query_error)
     ret= -1;
   /* If the DB has changed, the pointer has changed too, but the
      original thd->db will then have been freed */
-  if (olddbptr && olddbptr != thd->db)
+  if (olddbptr != thd->db)
   {
-    /* QQ Maybe we should issue some special error message or warning here,
-       if this fails?? */
     if (! thd->killed)
-      ret= mysql_change_db(thd, olddbname);
+      ret= sp_change_db(thd, olddb, 0);
   }
   DBUG_RETURN(ret);
 }
@@ -756,6 +767,32 @@ sp_head::set_info(char *definer, uint definerlen,
 					  m_chistics->comment.str,
 					  m_chistics->comment.length);
 }
+
+void
+sp_head::reset_thd_mem_root(THD *thd)
+{
+  m_thd_root= thd->mem_root;
+  thd->mem_root= m_mem_root;
+  m_free_list= thd->free_list; // Keep the old list
+  thd->free_list= NULL;	// Start a new one
+  /* Copy the db, since substatements will point to it */
+  m_thd_db= thd->db;
+  thd->db= strmake_root(&thd->mem_root, thd->db, thd->db_length);
+  m_thd= thd;
+}
+
+void
+sp_head::restore_thd_mem_root(THD *thd)
+{
+  Item *flist= m_free_list;	// The old list
+  m_free_list= thd->free_list; // Get the new one
+  thd->free_list= flist;	// Restore the old one
+  thd->db= m_thd_db;		// Restore the original db pointer
+  m_mem_root= thd->mem_root;
+  thd->mem_root= m_thd_root;
+  m_thd= NULL;
+}
+
 
 int
 sp_head::show_create_procedure(THD *thd)
@@ -1157,8 +1194,6 @@ sp_change_security_context(THD *thd, sp_head *sp, st_sp_security_context *ctxp)
   {
     ctxp->master_access= thd->master_access;
     ctxp->db_access= thd->db_access;
-    ctxp->db= thd->db;
-    ctxp->db_length= thd->db_length;
     ctxp->priv_user= thd->priv_user;
     strncpy(ctxp->priv_host, thd->priv_host, sizeof(ctxp->priv_host));
     ctxp->user= thd->user;
@@ -1174,8 +1209,6 @@ sp_change_security_context(THD *thd, sp_head *sp, st_sp_security_context *ctxp)
       ctxp->changed= FALSE;
       thd->master_access= ctxp->master_access;
       thd->db_access= ctxp->db_access;
-      thd->db= ctxp->db;
-      thd->db_length= ctxp->db_length;
       thd->priv_user= ctxp->priv_user;
       strncpy(thd->priv_host, ctxp->priv_host, sizeof(thd->priv_host));
     }
@@ -1195,8 +1228,6 @@ sp_restore_security_context(THD *thd, sp_head *sp, st_sp_security_context *ctxp)
     ctxp->changed= FALSE;
     thd->master_access= ctxp->master_access;
     thd->db_access= ctxp->db_access;
-    thd->db= ctxp->db;
-    thd->db_length= ctxp->db_length;
     thd->priv_user= ctxp->priv_user;
     strncpy(thd->priv_host, ctxp->priv_host, sizeof(thd->priv_host));
   }

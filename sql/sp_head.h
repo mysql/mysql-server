@@ -66,6 +66,10 @@ public:
   {}
 };
 
+sp_name *
+sp_name_current_db_new(THD *thd, LEX_STRING name);
+
+
 class sp_head : public Sql_alloc
 {
   sp_head(const sp_head &);	/* Prevent use of these */
@@ -194,24 +198,10 @@ public:
 		longlong created, longlong modified,
 		st_sp_chistics *chistics);
 
-  inline void reset_thd_mem_root(THD *thd)
-  {
-    m_thd_root= thd->mem_root;
-    thd->mem_root= m_mem_root;
-    m_free_list= thd->free_list; // Keep the old list
-    thd->free_list= NULL;	// Start a new one
-    m_thd= thd;
-  }
+  void reset_thd_mem_root(THD *thd);
 
-  inline void restore_thd_mem_root(THD *thd)
-  {
-    Item *flist= m_free_list;	// The old list
-    m_free_list= thd->free_list; // Get the new one
-    thd->free_list= flist;	// Restore the old one
-    m_mem_root= thd->mem_root;
-    thd->mem_root= m_thd_root;
-    m_thd= NULL;
-  }
+  void restore_thd_mem_root(THD *thd);
+
 
 private:
 
@@ -219,6 +209,7 @@ private:
   MEM_ROOT m_thd_root;		// Temp. store for thd's mem_root
   Item *m_free_list;		// Where the items go
   THD *m_thd;			// Set if we have reset mem_root
+  char *m_thd_db;		// Original thd->db pointer
 
   sp_pcontext *m_pcont;		// Parse context
   List<LEX> m_lex;		// Temp. store for the other lex
@@ -671,8 +662,6 @@ struct st_sp_security_context
   bool changed;
   uint master_access;
   uint db_access;
-  char *db;
-  uint db_length;
   char *priv_user;
   char priv_host[MAX_HOSTNAME];
   char *user;

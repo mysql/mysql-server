@@ -24,7 +24,7 @@ create table t1 ( u varchar(64), i int );
 # Our test procedure
 create procedure stamp(i int)
   insert into db1_secret.t1 values (user(), i);
---replace_column 4 '0000-00-00 00:00:00' 5 '0000-00-00 00:00:00'
+--replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
 show procedure status like 'stamp';
 
 # root can, of course
@@ -40,7 +40,7 @@ connect (con3anon,localhost,anon,,);
 connection con2user1;
 
 # This should work...
-call stamp(2);
+call db1_secret.stamp(2);
 
 # ...but not this
 --error 1044
@@ -52,7 +52,7 @@ select * from db1_secret.t1;
 connection con3anon;
 
 # This should work...
-call stamp(3);
+call db1_secret.stamp(3);
 
 # ...but not this
 --error 1044
@@ -68,7 +68,7 @@ select * from t1;
 # Change to invoker's rights
 #
 alter procedure stamp sql security invoker;
---replace_column 4 '0000-00-00 00:00:00' 5 '0000-00-00 00:00:00'
+--replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
 show procedure status like 'stamp';
 
 # root still can
@@ -82,7 +82,7 @@ connection con2user1;
 
 # This should not work
 --error 1044
-call stamp(5);
+call db1_secret.stamp(5);
 
 #
 # Anonymous cannot
@@ -91,7 +91,7 @@ connection con3anon;
 
 # This should not work
 --error 1044
-call stamp(6);
+call db1_secret.stamp(6);
 
 
 #
@@ -148,9 +148,9 @@ select * from t2;
 
 # Clean up
 connection con1root;
-drop procedure stamp;
-drop procedure p;
-drop procedure q;
+drop procedure db1_secret.stamp;
+drop procedure db2.p;
+drop procedure db2.q;
 use test;
 drop database db1_secret;
 drop database db2;

@@ -89,7 +89,7 @@ sp_cache_lookup(sp_cache **cp, sp_name *name)
     c->version= v;
     return NULL;
   }
-  return c->lookup(name->m_name.str, name->m_name.length);
+  return c->lookup(name->m_qname.str, name->m_qname.length);
 }
 
 bool
@@ -109,7 +109,7 @@ sp_cache_remove(sp_cache **cp, sp_name *name)
     if (c->version < v)
       c->remove_all();
     else
-      found= c->remove(name->m_name.str, name->m_name.length);
+      found= c->remove(name->m_qname.str, name->m_qname.length);
     c->version= v+1;
   }
   return found;
@@ -120,7 +120,10 @@ static byte *
 hash_get_key_for_sp_head(const byte *ptr, uint *plen,
 			       my_bool first)
 {
-  return (byte*) ((sp_head*)ptr)->name(plen);
+  sp_head *sp= (sp_head *)ptr;
+
+  *plen= sp->m_qname.length;
+  return (byte*) sp->m_qname.str;
 }
 
 static void

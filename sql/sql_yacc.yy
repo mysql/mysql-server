@@ -1090,8 +1090,15 @@ create:
 	;
 
 sp_name:
-	  IDENT_sys '.' IDENT_sys { $$= new sp_name($1, $3); }
-	| IDENT_sys               { $$= new sp_name($1); }
+	  IDENT_sys '.' IDENT_sys
+	  {
+	    $$= new sp_name($1, $3);
+	    $$->init_qname(YYTHD);
+	  }
+	| IDENT_sys
+	  {
+	    $$= sp_name_current_db_new(YYTHD, $1);
+	  }
 	;
 
 create_function_tail:
@@ -1575,6 +1582,11 @@ sp_proc_stmt:
 	    {
 	      /* We maybe have one or more SELECT without INTO */
 	      lex->sphead->m_multi_results= TRUE;
+	    }
+	    if (lex->sql_command == SQLCOM_CHANGE_DB)
+	    { /* "USE db" doesn't work in a procedure */
+	      send_error(YYTHD, ER_SP_NO_USE);
+	      YYABORT;
 	    }
 	    /* Don't add an instruction for empty SET statements.
 	    ** (This happens if the SET only contained local variables,
@@ -3913,10 +3925,11 @@ simple_expr:
 	  { $$= new Item_int((char*) "TRUE",1,1); }
 	| IDENT_sys '(' udf_expr_list ')'
 	  {
-	    if (sp_function_exists(YYTHD, &$1))
+	    sp_name *name= sp_name_current_db_new(YYTHD, $1);
+
+	    if (sp_function_exists(YYTHD, name))
 	    {
 	      LEX *lex= Lex;
-	      sp_name *name= new sp_name($1);
 
 	      sp_add_fun_to_lex(lex, name);
 	      if ($3)

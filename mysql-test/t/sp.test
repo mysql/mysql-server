@@ -31,21 +31,6 @@ delete from t1;
 drop procedure foo42;
 
 
-# USE test: Make sure we remain in the same DB.
-create procedure u()
-  use sptmp;
-
---disable_warnings
-drop database if exists sptmp;
---enable_warnings
-create database sptmp;
-use test;
-call u();
-select database();
-drop database sptmp;
-drop procedure u;
-
-
 # Single statement, two IN params.
 create procedure bar(x char(16), y int)
   insert into test.t1 values (x, y);
@@ -1094,9 +1079,9 @@ begin
   show create function fac;
 end|
 
---replace_column 4 '0000-00-00 00:00:00' 5 '0000-00-00 00:00:00'
+--replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
 call bug2267_1()|
---replace_column 4 '0000-00-00 00:00:00' 5 '0000-00-00 00:00:00'
+--replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
 call bug2267_2()|
 call bug2267_3()|
 call bug2267_4()|
@@ -1168,11 +1153,11 @@ end|
 call ifac(20)|
 select * from fac|
 drop table fac|
---replace_column 4 '0000-00-00 00:00:00' 5 '0000-00-00 00:00:00'
+--replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
 show function status like '%f%'|
 drop procedure ifac|
 drop function fac|
---replace_column 4 '0000-00-00 00:00:00' 5 '0000-00-00 00:00:00'
+--replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
 show function status like '%f%'|
 
 
@@ -1249,7 +1234,7 @@ begin
   end while;
 end|
 show create procedure opp|
---replace_column 4 '0000-00-00 00:00:00' 5 '0000-00-00 00:00:00'
+--replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
 show procedure status like '%p%'|
 
 # This isn't the fastest way in the world to compute prime numbers, so
@@ -1261,7 +1246,7 @@ select * from primes where i=45 or i=100 or i=199|
 drop table primes|
 drop procedure opp|
 drop procedure ip|
---replace_column 4 '0000-00-00 00:00:00' 5 '0000-00-00 00:00:00'
+--replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
 show procedure status like '%p%'|
 
 
@@ -1308,13 +1293,13 @@ drop procedure fib|
 create procedure bar(x char(16), y int)
  comment "111111111111" sql security invoker
  insert into test.t1 values (x, y)|
---replace_column 4 '0000-00-00 00:00:00' 5 '0000-00-00 00:00:00'
+--replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
 show procedure status like 'bar'|
 alter procedure bar name bar2 comment "2222222222" sql security definer|
 alter procedure bar2 name bar comment "3333333333"|
 alter procedure bar|
 show create procedure bar|
---replace_column 4 '0000-00-00 00:00:00' 5 '0000-00-00 00:00:00'
+--replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
 show procedure status like 'bar'|
 drop procedure bar|
 delimiter ;|

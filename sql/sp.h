@@ -70,7 +70,7 @@ int
 sp_show_status_function(THD *thd, const char *wild);
 
 bool
-sp_function_exists(THD *thd, LEX_STRING *name);
+sp_function_exists(THD *thd, sp_name *name);
 
 
 // This is needed since we have to read the functions before we
@@ -81,5 +81,20 @@ void
 sp_merge_funs(LEX *dst, LEX *src);
 int
 sp_cache_functions(THD *thd, LEX *lex);
+
+
+//
+// Utilities...
+//
+
+// Do a "use newdb". The current db is stored at olddb.
+// If newdb is the same as the current one, nothing is changed.
+int
+sp_use_new_db(THD *thd, char *newdb, char *olddb, uint olddbmax,
+	      bool no_access_check);
+
+// Like mysql_change_db() but handles empty db name and the  send_ok() problem.
+int
+sp_change_db(THD *thd, char *db, bool no_access_check);
 
 #endif /* _SP_H_ */
