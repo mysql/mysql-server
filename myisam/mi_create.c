@@ -392,6 +392,9 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
     uniquedef->key=keys+i;
     unique_key_parts+=uniquedef->keysegs;
     share.state.key_root[keys+i]= HA_OFFSET_ERROR;
+    tot_length+= (max_rows/(ulong) (((uint) myisam_block_size-5)/
+                         ((MI_UNIQUE_HASH_LENGTH + pointer)*2)))*
+                         (ulong) myisam_block_size;
   }
   keys+=uniques;				/* Each unique has 1 key */
   key_segs+=uniques;				/* Each unique has 1 key seg */
