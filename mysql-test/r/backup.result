@@ -1,20 +1,24 @@
 set SQL_LOG_BIN=0;
-drop table if exists t1;
-create table t1(n int);
-backup table t1 to '../bogus';
+create table t4(n int);
+backup table t4 to '../bogus';
 Table	Op	Msg_type	Msg_text
-test.t1	backup	error	Failed copying .frm file: errno = X
-test.t1	backup	status	Operation failed
-backup table t1 to '../tmp';
+test.t4	backup	error	Failed copying .frm file (errno: X)
+test.t4	backup	status	Operation failed
+backup table t4 to '../tmp';
 Table	Op	Msg_type	Msg_text
-test.t1	backup	status	OK
-drop table t1;
-restore table t1 from '../tmp';
+test.t4	backup	status	OK
+backup table t4 to '../tmp';
 Table	Op	Msg_type	Msg_text
-test.t1	restore	status	OK
-select count(*) from t1;
+test.t4	backup	error	Failed copying .frm file (errno: X)
+test.t4	backup	status	Operation failed
+drop table t4;
+restore table t4 from '../tmp';
+Table	Op	Msg_type	Msg_text
+test.t4	restore	status	OK
+select count(*) from t4;
 count(*)
 0
+create table t1(n int);
 insert into t1 values (23),(45),(67);
 backup table t1 to '../tmp';
 Table	Op	Msg_type	Msg_text
@@ -35,9 +39,8 @@ create table t2(m int not null primary key);
 create table t3(k int not null primary key);
 insert into t2 values (123),(145),(167);
 insert into t3 values (223),(245),(267);
-backup table t1,t2,t3 to '../tmp';
+backup table t2,t3 to '../tmp';
 Table	Op	Msg_type	Msg_text
-test.t1	backup	status	OK
 test.t2	backup	status	OK
 test.t3	backup	status	OK
 drop table t1,t2,t3;
@@ -61,13 +64,14 @@ k
 223
 245
 267
-drop table t1,t2,t3;
+drop table t1,t2,t3,t4;
 restore table t1 from '../tmp';
 Table	Op	Msg_type	Msg_text
 test.t1	restore	status	OK
-lock tables t1 write;
-backup table t1 to '../tmp';
+rename table t1 to t5;
+lock tables t5 write;
+backup table t5 to '../tmp';
 unlock tables;
 Table	Op	Msg_type	Msg_text
-test.t1	backup	status	OK
-drop table t1;
+test.t5	backup	status	OK
+drop table t5;
