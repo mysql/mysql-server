@@ -455,11 +455,13 @@ int multi_delete::do_deletes (bool from_send_error)
 bool multi_delete::send_eof()
 {
   thd->proc_info="deleting from reference tables";  /* out: 1 if error, 0 if success */
+
+  /* Does deletes for the last n - 1 tables, returns 0 if ok */
   int error = do_deletes(false);   /* do_deletes returns 0 if success */
 
   /* reset used flags */
   delete_tables->table->no_keyread=0;
-
+  if (error == -1) error = 0;
   thd->proc_info="end";
   if (error)
   {
@@ -485,12 +487,10 @@ bool multi_delete::send_eof()
 	!some_table_is_not_transaction_safe(delete_tables))
       error=1;  /* Log write failed: roll back
 		   the SQL statement */
-    if (deleted) 
-    {
-      /* If autocommit is on we do a commit, in an error case we
-	 roll back the current SQL statement */
-      VOID(ha_autocommit_or_rollback(thd, error != 0));
-    }
+
+    /* Commit or rollback the current SQL statement */ 
+
+    VOID(ha_autocommit_or_rollback(thd,error > 0));
   }
 
   ::send_ok(&thd->net,deleted);

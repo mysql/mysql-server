@@ -1335,18 +1335,9 @@ table_to_table:
 
 
 select:
-	SELECT_SYM
-	{
-	  Lex->sql_command= SQLCOM_SELECT;
-	}
-	select_part2;
-        |
-	'(' SELECT_SYM
-	{
-	  Lex->sql_command= SQLCOM_SELECT;
-	}
-	select_part3;
-
+	SELECT_SYM select_part2  {Select->braces=false;} union
+	|
+	'(' SELECT_SYM 	select_part2 ')' {Select->braces=true;} union_opt
 
 select_part2:
 	{
@@ -1354,16 +1345,7 @@ select_part2:
 	  lex->lock_option=TL_READ;
 	   mysql_init_select(lex);
 	}
-	select_options select_item_list select_into select_lock_type union
-
-select_part3:
-	{
-	  LEX *lex=Lex;
-	  lex->lock_option=TL_READ;
-	   mysql_init_select(lex);
-	   Select->braces = true;
-	}
-	select_options select_item_list select_into select_lock_type ')' union
+	select_options select_item_list select_into select_lock_type
 
 select_into:
 	limit_clause {}
@@ -3496,11 +3478,7 @@ rollback:
 
 
 union:	
-  /* empty */ 
-  {
-    if (Lex->select->braces || Select->linkage == NOT_A_SELECT) 
-      YYABORT;
-  }
+  /* empty */ {}
   | union_list
 
 union_list:
@@ -3513,20 +3491,29 @@ union_list:
        net_printf(&lex->thd->net, ER_WRONG_USAGE,"UNION","INTO");
        YYABORT;
     } 
+    if (lex->select->linkage==NOT_A_SELECT)
+      YYABORT;
     mysql_new_select(lex);
     lex->select->linkage=UNION_TYPE;
   } 
-  SELECT_SYM select_part2
-  | '(' SELECT_SYM select_part3 optional_order_or_limit
+  select
+
+union_opt:
+  union {}
+  |  optional_order_or_limit {}
 
 optional_order_or_limit:
   /* emty */ {}
   |
   {
-    mysql_new_select(Lex);
-    Lex->select->linkage=NOT_A_SELECT;
+    LEX *lex=Lex;
+    if (!lex->select->braces)
+      YYABORT;
+    mysql_new_select(lex);
+    mysql_init_select(lex);
+    lex->select->linkage=NOT_A_SELECT;
   }
-  order_clause limit_clause
+  opt_order_clause limit_clause
 
 union_option:
   /* empty */ {}

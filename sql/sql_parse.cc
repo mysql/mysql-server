@@ -2406,6 +2406,7 @@ mysql_init_query(THD *thd)
   thd->fatal_error=0;				// Safety
   thd->last_insert_id_used=thd->query_start_used=thd->insert_id_used=0;
   thd->sent_row_count=thd->examined_row_count=0;
+  thd->lex.sql_command=SQLCOM_SELECT;
   DBUG_VOID_RETURN;
 }
 

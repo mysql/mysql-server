@@ -16,6 +16,9 @@ select 0,'#' union select a,b from t1 union all select a,b from t2 union select 
 select a,b from t1 union select a,b from t1;
 select 't1',b,count(*) from t1 group by b UNION select 't2',b,count(*) from t2 group by b;
 
+#test alternate syntax for unions 
+(select a,b from t1 limit 2)  union all (select a,b from t2 order by a) limit 4;
+
 # Test some error conditions with UNION
 explain select a,b from t1 union all select a,b from t2;
 
