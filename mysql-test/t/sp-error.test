@@ -194,4 +194,110 @@ select f(10)|
 
 drop function f|
 
+--error 1298
+create procedure p()
+begin
+  declare c cursor for insert into test.t1 values ("foo", 42);
+
+  open c;
+  close c;
+end|
+
+--error 1299
+create procedure p()
+begin
+  declare x int;
+  declare c cursor for select * into x from test.t limit 1;
+
+  open c;
+  close c;
+end|
+
+--error 1300
+create procedure p()
+begin
+  declare c cursor for select * from test.t;
+
+  open cc;
+  close c;
+end|
+
+--disable_warnings
+drop table if exists t1|
+--enable_warnings
+create table t1 (val int)|
+
+create procedure p()
+begin
+  declare c cursor for select * from test.t1;
+
+  open c;
+  open c;
+  close c;
+end|
+--error 1301
+call p()|
+drop procedure p|
+
+create procedure p()
+begin
+  declare c cursor for select * from test.t1;
+
+  open c;
+  close c;
+  close c;
+end|
+--error 1302
+call p()|
+drop procedure p|
+
+drop table t1|
+
+--disable_warnings
+drop table if exists t1|
+--enable_warnings
+create table t1 (val int, x float)|
+insert into t1 values (42, 3.1), (19, 1.2)|
+
+--error 1303
+create procedure p()
+begin
+  declare c cursor for select * from t1;
+  declare x int;
+
+  open c;
+  fetch c into x, y;
+  close c;
+end|
+
+create procedure p()
+begin
+  declare c cursor for select * from t1;
+  declare x int;
+
+  open c;
+  fetch c into x;
+  close c;
+end|
+--error 1304
+call p()|
+drop procedure p|
+
+create procedure p()
+begin
+  declare c cursor for select * from t1;
+  declare x int;
+  declare y float;
+  declare z int;
+
+  open c;
+  fetch c into x, y, z;
+  close c;
+end|
+--error 1304
+call p()|
+drop procedure p|
+
+drop table t1|
+
 delimiter ;|

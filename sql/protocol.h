@@ -47,17 +47,13 @@ public:
   Protocol(THD *thd) { init(thd); }
   virtual ~Protocol() {}
   void init(THD* thd);
-  bool send_fields(List<Item> *list, uint flag);
+  virtual bool send_fields(List<Item> *list, uint flag);
   bool send_records_num(List<Item> *list, ulonglong records);
   bool store(I_List<i_string> *str_list);
   bool store(const char *from, CHARSET_INFO *cs);
   String *storage_packet() { return packet; }
   inline void free() { packet->free(); }
-#ifndef EMBEDDED_LIBRARY
-  bool write();
-#else
   virtual bool write();
-#endif
   inline  bool store(uint32 from)
   { return store_long((longlong) from); }
   inline  bool store(longlong from)
@@ -158,6 +154,7 @@ public:
   Protocol_cursor(THD *thd, MEM_ROOT *ini_alloc) :Protocol_simple(thd), alloc(ini_alloc) {}
   bool prepare_for_send(List<Item> *item_list) 
   {
+    row_count= 0;
     fields= NULL;
     data= NULL;
     prev_record= &data;
@@ -165,6 +162,7 @@ public:
   }
   bool send_fields(List<Item> *list, uint flag);
   bool write();
+  uint get_field_count() { return field_count; }
 };
 
 void send_warning(THD *thd, uint sql_errno, const char *err=0);

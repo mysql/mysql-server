@@ -289,6 +289,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount, Item **resp)
   uint csize = m_pcont->max_framesize();
   uint params = m_pcont->params();
   uint hmax = m_pcont->handlers();
+  uint cmax = m_pcont->cursors();
   sp_rcontext *octx = thd->spcont;
   sp_rcontext *nctx = NULL;
   uint i;
@@ -304,7 +305,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount, Item **resp)
   }
 
   // QQ Should have some error checking here? (types, etc...)
-  nctx= new sp_rcontext(csize, hmax);
+  nctx= new sp_rcontext(csize, hmax, cmax);
   for (i= 0 ; i < params && i < argcount ; i++)
   {
     sp_pvar_t *pvar = m_pcont->find_pvar(i);
@@ -335,6 +336,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount, Item **resp)
     }
   }
 
+  nctx->pop_all_cursors();	// To avoid memory leaks after an error
   thd->spcont= octx;
   DBUG_RETURN(ret);
 }
@@ -349,6 +351,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
   uint csize = m_pcont->max_framesize();
   uint params = m_pcont->params();
   uint hmax = m_pcont->handlers();
+  uint cmax = m_pcont->cursors();
   sp_rcontext *octx = thd->spcont;
   sp_rcontext *nctx = NULL;
   my_bool tmp_octx = FALSE;	// True if we have allocated a temporary octx
@@ -360,17 +363,17 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
     DBUG_RETURN(-1);
   }
 
-  if (csize > 0 || hmax > 0)
+  if (csize > 0 || hmax > 0 || cmax > 0)
   {
     uint i;
     List_iterator_fast<Item> li(*args);
     Item *it;
 
-    nctx = new sp_rcontext(csize, hmax);
+    nctx= new sp_rcontext(csize, hmax, cmax);
     if (! octx)
     {				// Create a temporary old context
-      octx = new sp_rcontext(csize, hmax);
-      tmp_octx = TRUE;
+      octx= new sp_rcontext(csize, hmax, cmax);
+      tmp_octx= TRUE;
     }
     // QQ: Should do type checking?
     for (i = 0 ; (it= li++) && i < params ; i++)
@@ -443,12 +446,13 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
 	}
       }
     }
-
-    if (tmp_octx)
-      thd->spcont= NULL;
-    else
-      thd->spcont= octx;
   }
+
+  if (tmp_octx)
+    octx= NULL;
+  if (nctx)
+    nctx->pop_all_cursors();	// To avoid memory leaks after an error
+  thd->spcont= octx;
 
   DBUG_RETURN(ret);
 }
@@ -596,12 +600,20 @@ sp_instr_stmt::execute(THD *thd, uint *nextp)
 {
   DBUG_ENTER("sp_instr_stmt::execute");
   DBUG_PRINT("info", ("command: %d", m_lex->sql_command));
+  int res= exec_stmt(thd, m_lex);
+  *nextp = m_ip+1;
+  DBUG_RETURN(res);
+}
+
+int
+sp_instr_stmt::exec_stmt(THD *thd, LEX *lex)
+{
   LEX *olex;			// The other lex
   Item *freelist;
   int res;
 
   olex= thd->lex;		// Save the other lex
-  thd->lex= m_lex;		// Use my own lex
+  thd->lex= lex;		// Use my own lex
   thd->lex->thd = thd;		// QQ Not reentrant!
   thd->lex->unit.thd= thd;	// QQ Not reentrant
   freelist= thd->free_list;
@@ -610,10 +622,19 @@ sp_instr_stmt::execute(THD *thd, uint *nextp)
 
   // Copy WHERE clause pointers to avoid damaging by optimisation
   // Also clear ref_pointer_arrays.
-  for (SELECT_LEX *sl= m_lex->all_selects_list ;
+  for (SELECT_LEX *sl= lex->all_selects_list ;
        sl ;
        sl= sl->next_select_in_list())
   {
+    List_iterator_fast<Item> li(sl->item_list);
+
+    if (sl->with_wild)
+    {
+      // Copy item_list
+      sl->item_list_copy.empty();
+      while (Item *it= li++)
+	sl->item_list_copy.push_back(it);
+    }
     sl->ref_pointer_array= 0;
     if (sl->prep_where)
       sl->where= sl->prep_where->copy_andor_structure(thd);
@@ -628,11 +649,22 @@ sp_instr_stmt::execute(THD *thd, uint *nextp)
     close_thread_tables(thd);			/* Free tables */
   }
 
+  for (SELECT_LEX *sl= lex->all_selects_list ;
+       sl ;
+       sl= sl->next_select_in_list())
+  {
+    if (sl->with_wild)
+    {
+      // Restore item_list
+      sl->item_list.empty();
+      while (Item *it= sl->item_list_copy.pop())
+	sl->item_list.push_back(it);
+    }
+  }
   thd->lex= olex;		// Restore the other lex
   thd->free_list= freelist;
 
-  *nextp = m_ip+1;
-  DBUG_RETURN(res);
+  return res;
 }
 
 //
@@ -746,4 +778,97 @@ sp_instr_hreturn::execute(THD *thd, uint *nextp)
   thd->spcont->restore_variables(m_frame);
   *nextp= thd->spcont->pop_hstack();
   DBUG_RETURN(0);
+}
+
+//
+// sp_instr_cpush
+//
+int
+sp_instr_cpush::execute(THD *thd, uint *nextp)
+{
+  DBUG_ENTER("sp_instr_cpush::execute");
+  thd->spcont->push_cursor(m_lex);
+  *nextp= m_ip+1;
+  DBUG_RETURN(0);
+}
+
+sp_instr_cpush::~sp_instr_cpush()
+{
+  if (m_lex)
+    delete m_lex;
+}
+
+//
+// sp_instr_cpop
+//
+int
+sp_instr_cpop::execute(THD *thd, uint *nextp)
+{
+  DBUG_ENTER("sp_instr_cpop::execute");
+  thd->spcont->pop_cursors(m_count);
+  *nextp= m_ip+1;
+  DBUG_RETURN(0);
+}
+
+//
+// sp_instr_copen
+//
+int
+sp_instr_copen::execute(THD *thd, uint *nextp)
+{
+  sp_cursor *c= thd->spcont->get_cursor(m_cursor);
+  int res;
+  DBUG_ENTER("sp_instr_copen::execute");
+
+  if (! c)
+    res= -1;
+  else
+  {
+    LEX *lex= c->pre_open(thd);
+
+    if (! lex)
+      res= -1;
+    else
+      res= exec_stmt(thd, lex);
+    c->post_open(thd, (res == 0 ? TRUE : FALSE));
+  }
+
+  *nextp= m_ip+1;
+  DBUG_RETURN(res);
+}
+
+//
+// sp_instr_cclose
+//
+int
+sp_instr_cclose::execute(THD *thd, uint *nextp)
+{
+  sp_cursor *c= thd->spcont->get_cursor(m_cursor);
+  int res;
+  DBUG_ENTER("sp_instr_cclose::execute");
+
+  if (! c)
+    res= -1;
+  else
+    res= c->close(thd);
+  *nextp= m_ip+1;
+  DBUG_RETURN(res);
+}
+
+//
+// sp_instr_cfetch
+//
+int
+sp_instr_cfetch::execute(THD *thd, uint *nextp)
+{
+  sp_cursor *c= thd->spcont->get_cursor(m_cursor);
+  int res;
+  DBUG_ENTER("sp_instr_cfetch::execute");
+
+  if (! c)
+    res= -1;
+  else
+    res= c->fetch(thd, &m_varlist);
+  *nextp= m_ip+1;
+  DBUG_RETURN(res);
 }

@@ -1145,12 +1145,3 @@ bool Protocol_prep::store_time(TIME *tm)
   buff[0]=(char) length;			// Length is stored first
   return packet->append(buff, length+1, PACKET_BUFFET_EXTRA_ALLOC);
 }
-
-#ifdef EMBEDDED_LIBRARY
-/* Should be removed when we define the Protocol_cursor's future */
-bool Protocol_cursor::write()
-{
-  return Protocol_simple::write();
-}
-#endif
-

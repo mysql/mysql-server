@@ -23,6 +23,8 @@
 #endif
 
 struct sp_cond_type;
+struct sp_cursor;
+struct sp_pvar;
 
 #define SP_HANDLER_NONE      0
 #define SP_HANDLER_EXIT      1
@@ -44,7 +46,7 @@ class sp_rcontext : public Sql_alloc
 
  public:
 
-  sp_rcontext(uint fsize, uint hmax);
+  sp_rcontext(uint fsize, uint hmax, uint cmax);
 
   ~sp_rcontext()
   {
@@ -155,22 +157,93 @@ class sp_rcontext : public Sql_alloc
   void
   restore_variables(uint fp);
 
+  void
+  push_cursor(LEX *lex);
+
+  void
+  pop_cursors(uint count);
+
+  void
+  pop_all_cursors()
+  {
+    pop_cursors(m_ccount);
+  }
+
+  inline sp_cursor *
+  get_cursor(uint i)
+  {
+    return m_cstack[i];
+  }
+
 private:
 
   uint m_count;
   uint m_fsize;
   Item **m_frame;
   int  *m_outs;
+
   Item *m_result;		// For FUNCTIONs
+
   sp_handler_t *m_handler;
   uint m_hcount;
   uint *m_hstack;
   uint m_hsp;
-
   int m_hfound;			// Set by find_handler; -1 if not found
-
   List<Item> m_saved;		// Saved variables
 
+  sp_cursor **m_cstack;
+  uint m_ccount;
+
 }; // class sp_rcontext : public Sql_alloc
+
+
+class sp_cursor : public Sql_alloc
+{
+public:
+
+  sp_cursor(LEX *lex)
+    : m_lex(lex), m_isopen(0), m_current_row(NULL)
+  {
+    /* Empty */
+  }
+
+  virtual ~sp_cursor()
+  {
+    destroy();
+  }
+
+  // We have split this in two to make it easy for sp_instr_copen
+  // to reuse the sp_instr::exec_stmt() code.
+  LEX *
+  pre_open(THD *thd);
+  void
+  post_open(THD *thd, my_bool isopen);
+
+  int
+  close(THD *thd);
+
+  inline my_bool
+  is_open()
+  {
+    return m_isopen;
+  }
+
+  int
+  fetch(THD *, List<struct sp_pvar> *vars);
+
+private:
+
+  MEM_ROOT m_mem_root;		// My own mem_root
+  LEX *m_lex;
+  Protocol_cursor *m_prot;
+  my_bool m_isopen;
+  Vio *m_ovio;			// Original vio
+  Protocol *m_oprot;		// Original protcol
+  MYSQL_ROWS *m_current_row;
+  
+  void
+  destroy();
+
+}; // class sp_cursor : public Sql_alloc
 
 #endif /* _SP_RCONTEXT_H_ */
