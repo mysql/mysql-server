@@ -115,13 +115,10 @@ set @value= "-1e+1111111111a";
 insert into t1 values(null,@value,@value,@value,@value,@value,@value,@value,@value,@value);
 --query_vertical select * from t1 where number =last_insert_id()
 
+--error 1367
 set @value= 1e+1111111111;
-insert into t1 values(null,@value,@value,@value,@value,@value,@value,@value,@value,@value);
---query_vertical select * from t1 where number =last_insert_id()
-
+--error 1367
 set @value= -1e+1111111111;
-insert into t1 values(null,@value,@value,@value,@value,@value,@value,@value,@value,@value);
---query_vertical select * from t1 where number =last_insert_id()
 
 set @value= 1e+111;
 insert into t1 values(null,@value,@value,@value,@value,@value,@value,@value,@value,@value);

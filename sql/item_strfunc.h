@@ -218,7 +218,7 @@ public:
   Item_func_substr_index(Item *a,Item *b,Item *c) :Item_str_func(a,b,c) {}
   String *val_str(String *);
   void fix_length_and_dec();
-  const char *func_name() const { return "substr_index"; }
+  const char *func_name() const { return "substring_index"; }
 };
 
 
@@ -261,7 +261,7 @@ public:
   Returns strcat('*', octet2hex(sha1(sha1(password)))). '*' stands for new
   password format, sha1(sha1(password) is so-called hash_stage2 value.
   Length of returned string is always 41 byte. To find out how entire
-  authentification procedure works, see comments in password.c.
+  authentication procedure works, see comments in password.c.
 */
 
 class Item_func_password :public Item_str_func
@@ -427,6 +427,14 @@ public:
   {
     return item->walk(processor, arg) ||
       Item_str_func::walk(processor, arg);
+  }
+  Item *transform(Item_transformer transformer, byte *arg)
+  {
+    Item *new_item= item->transform(transformer, arg);
+    if (!new_item)
+      return 0;
+    item= new_item;
+    return Item_str_func::transform(transformer, arg);
   }
   void print(String *str);
 };

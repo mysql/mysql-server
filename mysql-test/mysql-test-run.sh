@@ -1184,17 +1184,19 @@ stop_master ()
 
 mysql_stop ()
 {
- $ECHO  "Ending Tests"
- $ECHO  "Shutting-down MySQL daemon"
- $ECHO  ""
- stop_master
- $ECHO "Master shutdown finished"
- stop_slave
- stop_slave 1
- stop_slave 2
- $ECHO "Slave shutdown finished"
-
- return 1
+  if [ "$MASTER_RUNNING" = 1 ]
+  then
+    $ECHO  "Ending Tests"
+    $ECHO  "Shutting-down MySQL daemon"
+    $ECHO  ""
+    stop_master
+    $ECHO "Master shutdown finished"
+    stop_slave
+    stop_slave 1
+    stop_slave 2
+    $ECHO "Slave shutdown finished"
+  fi
+  return 1
 }
 
 mysql_restart ()
@@ -1383,8 +1385,6 @@ run_testcase ()
 	then
 	  mysql_restart
 	fi
-	$ECHO "Resuming Tests"
-	$ECHO ""
       fi
     fi
   fi

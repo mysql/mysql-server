@@ -170,6 +170,45 @@ bool Item_ident::remove_dependence_processor(byte * arg)
 }
 
 
+/*
+  Store the pointer to this item field into a list if not already there.
+
+  SYNOPSIS
+    Item_field::collect_item_field_processor()
+    arg  pointer to a List<Item_field>
+
+  DESCRIPTION
+    The method is used by Item::walk to collect all unique Item_field objects
+    from a tree of Items into a set of items represented as a list.
+
+  IMPLEMENTATION
+    Item_cond::walk() and Item_func::walk() stop the evaluation of the
+    processor function for its arguments once the processor returns
+    true.Therefore in order to force this method being called for all item
+    arguments in a condition the method must return false.
+
+  RETURN
+    false to force the evaluation of collect_item_field_processor
+          for the subsequent items.
+*/
+
+bool Item_field::collect_item_field_processor(byte *arg)
+{
+  DBUG_ENTER("Item_field::collect_item_field_processor");
+  DBUG_PRINT("info", ("%s", field->field_name ? field->field_name : "noname"));
+  List<Item_field> *item_list= (List<Item_field>*) arg;
+  List_iterator<Item_field> item_list_it(*item_list);
+  Item_field *curr_item;
+  while ((curr_item= item_list_it++))
+  {
+    if (curr_item->eq(this, 1))
+      DBUG_RETURN(false); /* Already in the set. */
+  }
+  item_list->push_back(this);
+  DBUG_RETURN(false);
+}
+
+
 bool Item::check_cols(uint c)
 {
   if (c != 1)
@@ -408,6 +447,7 @@ bool DTCollation::aggregate(DTCollation &dt, bool superset_conversion)
 
 Item_field::Item_field(Field *f)
   :Item_ident(NullS, f->table_name, f->field_name),
+  item_equal(0), no_const_subst(0),
    have_privileges(0), any_privileges(0)
 {
   set_field(f);
@@ -418,6 +458,7 @@ Item_field::Item_field(Field *f)
 Item_field::Item_field(THD *thd, Field *f)
   :Item_ident(NullS, thd->strdup(f->table_name), 
               thd->strdup(f->field_name)),
+   item_equal(0), no_const_subst(0),
    have_privileges(0), any_privileges(0)
 {
   set_field(f);
@@ -430,6 +471,8 @@ Item_field::Item_field(THD *thd, Item_field *item)
   :Item_ident(thd, item),
    field(item->field),
    result_field(item->result_field),
+   item_equal(item->item_equal),
+   no_const_subst(item->no_const_subst),
    have_privileges(item->have_privileges),
    any_privileges(item->any_privileges)
 {
@@ -1582,7 +1625,123 @@ void Item_field::cleanup()
     I.e. we can drop 'field'.
    */
   field= result_field= 0;
-  DBUG_VOID_RETURN;
+}
+
+/*
+  Find a field among specified multiple equalities 
+
+  SYNOPSIS
+    find_item_equal()
+    cond_equal   reference to list of multiple equalities where
+                 the field (this object) is to be looked for
+  
+  DESCRIPTION
+    The function first searches the field among multiple equalities
+    of the current level (in the cond_equal->current_level list).
+    If it fails, it continues searching in upper levels accessed
+    through a pointer cond_equal->upper_levels.
+    The search terminates as soon as a multiple equality containing 
+    the field is found. 
+
+  RETURN VALUES
+    First Item_equal containing the field, if success
+    0, otherwise
+*/
+Item_equal *Item_field::find_item_equal(COND_EQUAL *cond_equal)
+{
+  Item_equal *item= 0;
+  while (cond_equal)
+  {
+    List_iterator_fast<Item_equal> li(cond_equal->current_level);
+    while ((item= li++))
+    {
+      if (item->contains(field))
+        return item;
+    }
+    /* 
+      The field is not found in any of the multiple equalities
+      of the current level. Look for it in upper levels
+    */
+    cond_equal= cond_equal->upper_levels;
+  }
+  return 0;
+}
+
+
+/*
+  Set a pointer to the multiple equality the field reference belongs to (if any)
+   
+  SYNOPSIS
+    equal_fields_propagator()
+    arg - reference to list of multiple equalities where
+          the field (this object) is to be looked for
+  
+  DESCRIPTION
+    The function looks for a multiple equality containing the field item
+    among those referenced by arg.
+    In the case such equality exists the function does the following.
+    If the found multiple equality contains a constant, then the field
+    reference is substituted for this constant, otherwise it sets a pointer
+    to the multiple equality in the field item.
+
+  NOTES
+    This function is supposed to be called as a callback parameter in calls
+    of the transform method.  
+
+  RETURN VALUES
+    pointer to the replacing constant item, if the field item was substituted 
+    pointer to the field item, otherwise.
+*/
+
+Item *Item_field::equal_fields_propagator(byte *arg)
+{
+  if (no_const_subst)
+    return this;
+  item_equal= find_item_equal((COND_EQUAL *) arg);
+  Item *item= 0;
+  if (item_equal)
+    item= item_equal->get_const();
+  if (!item)
+    item= this;
+  return item;
+}
+
+
+/*
+  Set a pointer to the multiple equality the field reference belongs to (if any)
+   
+  SYNOPSIS
+    replace_equal_field_processor()
+    arg - a dummy parameter, is not used here
+  
+  DESCRIPTION
+    The function replaces a pointer to a field in the Item_field object
+    by a pointer to another field.
+    The replacement field is taken from the very beginning of
+    the item_equal list which the Item_field object refers to (belongs to)  
+    If the Item_field object does not refer any Item_equal object,
+    nothing is done.
+
+  NOTES
+    This function is supposed to be called as a callback parameter in calls
+    of the walk method.  
+
+  RETURN VALUES
+    0 
+*/
+
+bool Item_field::replace_equal_field_processor(byte *arg)
+{
+  if (item_equal)
+  {
+    Item_field *subst= item_equal->get_first();
+    if (!field->eq(subst->field))
+    {
+      field= subst->field;
+      return 0;
+    }
+  }
+  return 0;
 }
 
 void Item::init_make_field(Send_field *tmp_field,
@@ -1861,6 +2020,34 @@ Item_num *Item_uint::neg()
 {
   return new Item_real(name, - ((double) value), 0, max_length);
 }
+
+
+/*
+  This function is only called during parsing. We will signal an error if
+  value is not a true double value (overflow)
+*/
+
+Item_real::Item_real(const char *str_arg, uint length)
+{
+  int error;
+  char *end;
+  value= my_strntod(&my_charset_bin, (char*) str_arg, length, &end, &error);
+  if (error)
+  {
+    /*
+      Note that we depend on that str_arg is null terminated, which is true
+      when we are in the parser
+    */
+    DBUG_ASSERT(str_arg[length] == 0);
+    my_printf_error(ER_ILLEGAL_VALUE_FOR_TYPE, ER(ER_ILLEGAL_VALUE_FOR_TYPE),
+                    MYF(0), "double", (char*) str_arg);
+  }
+  presentation= name=(char*) str_arg;
+  decimals=(uint8) nr_of_decimals(str_arg);
+  max_length=length;
+  fixed= 1;
+}
+
 
 int Item_real::save_in_field(Field *field, bool no_conversions)
 {
@@ -2381,7 +2568,10 @@ bool Item_default_value::fix_fields(THD *thd,
 				    struct st_table_list *table_list,
 				    Item **items)
 {
+  Item_field *field_arg;
+  Field *def_field;
   DBUG_ASSERT(fixed == 0);
+
   if (!arg)
   {
     fixed= 1;
@@ -2399,9 +2589,14 @@ bool Item_default_value::fix_fields(THD *thd,
     }
     arg= ref->ref[0];
   }
-  Item_field *field_arg= (Item_field *)arg;
-  Field *def_field= (Field*) sql_alloc(field_arg->field->size_of());
-  if (!def_field)
+  field_arg= (Item_field *)arg;
+  if (field_arg->field->flags & NO_DEFAULT_VALUE_FLAG)
+  {
+    my_printf_error(ER_NO_DEFAULT_FOR_FIELD, ER(ER_NO_DEFAULT_FOR_FIELD),
+                    MYF(0), field_arg->field->field_name);
+    return 1;
+  }
+  if (!(def_field= (Field*) sql_alloc(field_arg->field->size_of())))
     return 1;
   memcpy(def_field, field_arg->field, field_arg->field->size_of());
   def_field->move_field(def_field->table->default_values -

@@ -220,24 +220,22 @@ insert into t1 (x) values (1),(2),(3),(4),(5),(6),(7),(8),(9);
 update t1 set y=x;
 explain select * from t1, t1 t2 where t1.y = 2 and t2.x between 7 and t1.y+0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	y	y	5	const	1	Using where
-1	SIMPLE	t2	range	x	x	5	NULL	4	Using where
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 explain select * from t1, t1 t2 where t1.y = 2 and t2.x >= 7 and t2.x <= t1.y+0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	y	y	5	const	1	Using where
-1	SIMPLE	t2	range	x	x	5	NULL	4	Using where
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 explain select * from t1, t1 t2 where t1.y = 2 and t2.x between t1.y-1 and t1.y+1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	y	y	5	const	1	Using where
-1	SIMPLE	t2	ALL	x	NULL	NULL	NULL	9	Range checked for each record (index map: 0x1)
+1	SIMPLE	t2	range	x	x	5	NULL	3	Using where
 explain select * from t1, t1 t2 where t1.y = 2 and t2.x >= t1.y-1 and t2.x <= t1.y+1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	y	y	5	const	1	Using where
-1	SIMPLE	t2	ALL	x	NULL	NULL	NULL	9	Range checked for each record (index map: 0x1)
+1	SIMPLE	t2	range	x	x	5	NULL	3	Using where
 explain select * from t1, t1 t2 where t1.y = 2 and t2.x between 0 and t1.y;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	y	y	5	const	1	Using where
-1	SIMPLE	t2	ALL	x	NULL	NULL	NULL	9	Using where
+1	SIMPLE	t2	range	x	x	5	NULL	2	Using where
 explain select * from t1, t1 t2 where t1.y = 2 and t2.x >= 0 and t2.x <= t1.y;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	y	y	5	const	1	Using where
@@ -256,12 +254,12 @@ INSERT INTO t2 VALUES (0),(0),(1),(1),(2),(2);
 explain select * from t1, t2 where (t1.key1 <t2.keya + 1) and t2.keya=3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ref	j1	j1	4	const	1	Using index
-1	SIMPLE	t1	ALL	i1	NULL	NULL	NULL	4	Range checked for each record (index map: 0x1)
+1	SIMPLE	t1	index	i1	i1	4	NULL	4	Using where; Using index
 explain select * from t1 force index(i1), t2 force index(j1) where 
 (t1.key1 <t2.keya + 1) and t2.keya=3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ref	j1	j1	4	const	1	Using index
-1	SIMPLE	t1	ALL	i1	NULL	NULL	NULL	4	Range checked for each record (index map: 0x1)
+1	SIMPLE	t1	index	i1	i1	4	NULL	4	Using where; Using index
 DROP TABLE t1,t2;
 CREATE TABLE t1 (
 a int(11) default NULL,
@@ -415,11 +413,23 @@ count(*)
 select count(*) from t2;
 count(*)
 1026
+analyze table t1,t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	Table is already up to date
 explain select * from t1, t2  where t1.uid=t2.uid AND t1.uid > 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	uid_index	uid_index	4	NULL	128	Using where
 1	SIMPLE	t2	ref	uid_index	uid_index	4	test.t1.uid	38	
+explain select * from t1, t2  where t1.uid=t2.uid AND t2.uid > 0;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	uid_index	uid_index	4	NULL	128	Using where
+1	SIMPLE	t2	ref	uid_index	uid_index	4	test.t1.uid	38	
 explain select * from t1, t2  where t1.uid=t2.uid AND t1.uid != 0;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	uid_index	uid_index	4	NULL	129	Using where
+1	SIMPLE	t2	ref	uid_index	uid_index	4	test.t1.uid	38	
+explain select * from t1, t2  where t1.uid=t2.uid AND t2.uid != 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	uid_index	uid_index	4	NULL	129	Using where
 1	SIMPLE	t2	ref	uid_index	uid_index	4	test.t1.uid	38	
@@ -536,35 +546,4 @@ count(*)
 select count(*) from t2 where x = 18446744073709551601;
 count(*)
 0
-drop table t1;
-create table t1 (x bigint unsigned not null primary key) engine=innodb;
-insert into t1(x) values (0xfffffffffffffff0),(0xfffffffffffffff1);
-select * from t1;
-x
-18446744073709551600
-18446744073709551601
-select count(*) from t1 where x>0;
-count(*)
-2
-select count(*) from t1 where x=0;
-count(*)
-0
-select count(*) from t1 where x<0;
-count(*)
-0
-select count(*) from t1 where x < -16;
-count(*)
-0
-select count(*) from t1 where x = -16;
-count(*)
-0
-explain select count(*) from t1 where x > -16;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	PRIMARY	PRIMARY	8	NULL	1	Using where; Using index
-select count(*) from t1 where x > -16;
-count(*)
-1
-select count(*) from t1 where x = 18446744073709551601;
-count(*)
-1
 drop table t1;

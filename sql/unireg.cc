@@ -199,7 +199,7 @@ err3:
     keys		number of keys to create
     key_info		Keys to create
     db_file		Handler to use. May be zero, in which case we use
-    			create_info->db_type
+                        create_info->db_type
   RETURN
     0  ok
     1  error
@@ -213,11 +213,11 @@ int rea_create_table(THD *thd, my_string file_name,
   DBUG_ENTER("rea_create_table");
 
   if (mysql_create_frm(thd, file_name, create_info,
-  		       create_fields, keys, key_info, NULL))
+                       create_fields, keys, key_info, NULL))
     DBUG_RETURN(1);
-  if (ha_create_table(file_name,create_info,0))
+  if (!create_info->frm_only && ha_create_table(file_name,create_info,0))
   {
-    my_delete(file_name,MYF(0));    
+    my_delete(file_name,MYF(0));
     DBUG_RETURN(1);
   }
   DBUG_RETURN(0);

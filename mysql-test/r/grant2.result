@@ -12,6 +12,14 @@ mysqltest_1@localhost
 grant all privileges on `my\_1`.* to mysqltest_2@localhost with grant option;
 grant all privileges on `my_%`.* to mysqltest_3@localhost with grant option;
 ERROR 42000: Access denied for user 'mysqltest_1'@'localhost' to database 'my_%'
+set @@sql_mode='NO_AUTO_CREATE_USER';
+select @@sql_mode;
+@@sql_mode
+NO_AUTO_CREATE_USER
+grant select on `my\_1`.* to mysqltest_4@localhost with grant option;
+ERROR 42000: 'mysqltest_1'@'localhost' is not allowed to create new users
+grant select on `my\_1`.* to mysqltest_4@localhost identified by 'mypass'
+with grant option;
 show grants for mysqltest_1@localhost;
 Grants for mysqltest_1@localhost
 GRANT USAGE ON *.* TO 'mysqltest_1'@'localhost'

@@ -252,12 +252,12 @@ mysql
 test
 prepare stmt4 from ' show tables from test like ''t2%'' ';
 execute stmt4;
-Tables_in_test (t2%)	table_type
-t2	BASE TABLE
+Tables_in_test (t2%)
+t2
 prepare stmt4 from ' show columns from t2 from test like ''a%'' ';
 execute stmt4;
 Field	Type	Null	Key	Default	Extra
-a	int(11)		PRI	0	
+a	int(11)		PRI		
 create index t2_idx on t2(b);
 prepare stmt4 from ' show index from t2 from test ';
 execute stmt4;
@@ -355,7 +355,7 @@ drop user drop_user@localhost;
 prepare stmt3 from ' describe t2 ';
 execute stmt3;
 Field	Type	Null	Key	Default	Extra
-a	int(11)		PRI	0	
+a	int(11)		PRI		
 b	char(10)	YES	MUL	NULL	
 drop table t2 ;
 execute stmt3;

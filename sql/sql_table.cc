@@ -609,7 +609,9 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
       break;
     }
     if (!(sql_field->flags & NOT_NULL_FLAG))
-      sql_field->pack_flag|=FIELDFLAG_MAYBE_NULL;
+      sql_field->pack_flag|= FIELDFLAG_MAYBE_NULL;
+    if (sql_field->flags & NO_DEFAULT_VALUE_FLAG)
+      sql_field->pack_flag|= FIELDFLAG_NO_DEFAULT;
     sql_field->offset= pos;
     if (MTYP_TYPENR(sql_field->unireg_check) == Field::NEXT_NUMBER)
       auto_increment++;
@@ -1091,7 +1093,7 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 			(From ALTER TABLE)
 
   DESCRIPTION
-    If one creates a temporary table, this is automaticly opened
+    If one creates a temporary table, this is automatically opened
 
     no_log is needed for the case of CREATE ... SELECT,
     as the logging will be done later in sql_insert.cc
@@ -1422,11 +1424,12 @@ mysql_rename_table(enum db_type base,
 {
   char from[FN_REFLEN], to[FN_REFLEN];
   char tmp_from[NAME_LEN+1], tmp_to[NAME_LEN+1];
-  handler *file=get_new_handler((TABLE*) 0, base);
+  handler *file=(base == DB_TYPE_UNKNOWN ? 0 : get_new_handler((TABLE*) 0, base));
   int error=0;
   DBUG_ENTER("mysql_rename_table");
 
-  if (lower_case_table_names == 2 && !(file->table_flags() & HA_FILE_BASED))
+  if (lower_case_table_names == 2 && file &&
+      !(file->table_flags() & HA_FILE_BASED))
   {
     /* Table handler expects to get all file names as lower case */
     strmov(tmp_from, old_name);
@@ -1444,13 +1447,15 @@ mysql_rename_table(enum db_type base,
   fn_format(from,from,"","",4);
   fn_format(to,to,    "","",4);
 
-  if (!(error=file->rename_table((const char*) from,(const char *) to)))
+  if (!file ||
+      !(error=file->rename_table((const char*) from,(const char *) to)))
   {
     if (rename_file_ext(from,to,reg_ext))
     {
       error=my_errno;
       /* Restore old file name */
-      file->rename_table((const char*) to,(const char *) from);
+      if (file)
+        file->rename_table((const char*) to,(const char *) from);
     }
   }
   delete file;
@@ -2534,7 +2539,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
 		      enum enum_duplicates handle_duplicates,
 		      ALTER_INFO *alter_info, bool do_send_ok)
 {
-  TABLE *table,*new_table;
+  TABLE *table,*new_table=0;
   int error;
   char tmp_name[80],old_name[32],new_name_buff[FN_REFLEN];
   char new_alias_buff[FN_REFLEN], *table_name, *db, *new_alias, *alias;
@@ -2543,6 +2548,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   ulonglong next_insert_id;
   uint db_create_options, used_fields;
   enum db_type old_db_type,new_db_type;
+  bool need_copy_table;
   DBUG_ENTER("mysql_alter_table");
 
   thd->proc_info="init";
@@ -2631,7 +2637,8 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     create_info->row_type=table->row_type;
 
   thd->proc_info="setup";
-  if (alter_info->is_simple && !table->tmp_table)
+  if (!(alter_info->flags & ~(ALTER_RENAME | ALTER_KEYS_ONOFF)) &&
+      !table->tmp_table) // no need to touch frm
   {
     error=0;
     if (new_name != table_name || new_db != db)
@@ -2659,23 +2666,24 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     {
       switch (alter_info->keys_onoff) {
       case LEAVE_AS_IS:
-	break;
+        break;
       case ENABLE:
-	VOID(pthread_mutex_lock(&LOCK_open));
-	wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN);
-	VOID(pthread_mutex_unlock(&LOCK_open));
-	error= table->file->enable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE);
-	/* COND_refresh will be signaled in close_thread_tables() */
-	break;
+        VOID(pthread_mutex_lock(&LOCK_open));
+        wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN);
+        VOID(pthread_mutex_unlock(&LOCK_open));
+        error= table->file->enable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE);
+        /* COND_refresh will be signaled in close_thread_tables() */
+        break;
       case DISABLE:
-	VOID(pthread_mutex_lock(&LOCK_open));
-	wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN);
-	VOID(pthread_mutex_unlock(&LOCK_open));
-	error=table->file->disable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE);
-	/* COND_refresh will be signaled in close_thread_tables() */
-	break;
+        VOID(pthread_mutex_lock(&LOCK_open));
+        wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN);
+        VOID(pthread_mutex_unlock(&LOCK_open));
+        error=table->file->disable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE);
+        /* COND_refresh will be signaled in close_thread_tables() */
+        break;
       }
     }
+
     if (error == HA_ERR_WRONG_COMMAND)
     {
       push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
@@ -2706,7 +2714,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
 
   /* Full alter table */
 
-  /* let new create options override the old ones */
+  /* Let new create options override the old ones */
   if (!(used_fields & HA_CREATE_USED_MIN_ROWS))
     create_info->min_rows=table->min_rows;
   if (!(used_fields & HA_CREATE_USED_MAX_ROWS))
@@ -2967,6 +2975,16 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     create_info->options|=HA_LEX_CREATE_TMP_TABLE;
 
   /*
+    better have a negative test here, instead of positive, like
+      alter_info->flags & ALTER_ADD_COLUMN|ALTER_ADD_INDEX|...
+    so that ALTER TABLE won't break when somebody will add new flag
+  */
+  need_copy_table=(alter_info->flags & ~(ALTER_CHANGE_COLUMN_DEFAULT|ALTER_OPTIONS) ||
+                   create_info->used_fields & ~(HA_CREATE_USED_COMMENT|HA_CREATE_USED_PASSWORD) ||
+                   table->tmp_table);
+  create_info->frm_only= !need_copy_table;
+
+  /*
     Handling of symlinked tables:
     If no rename:
       Create new data file and index file on the same disk as the
@@ -3020,45 +3038,49 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
                                   create_list,key_list,1,0)))
       DBUG_RETURN(error);
   }
-  if (table->tmp_table)
+  if (need_copy_table)
   {
-    TABLE_LIST tbl;
-    bzero((void*) &tbl, sizeof(tbl));
-    tbl.db= new_db;
-    tbl.real_name= tbl.alias= tmp_name;
-    new_table= open_table(thd, &tbl, &thd->mem_root, 0);
+    if (table->tmp_table)
+    {
+      TABLE_LIST tbl;
+      bzero((void*) &tbl, sizeof(tbl));
+      tbl.db= new_db;
+      tbl.real_name= tbl.alias= tmp_name;
+      new_table= open_table(thd, &tbl, &thd->mem_root, 0);
+    }
+    else
+    {
+      char path[FN_REFLEN];
+      my_snprintf(path, sizeof(path), "%s/%s/%s", mysql_data_home,
+                  new_db, tmp_name);
+      fn_format(path,path,"","",4);
+      new_table=open_temporary_table(thd, path, new_db, tmp_name,0);
+    }
+    if (!new_table)
+    {
+      VOID(quick_rm_table(new_db_type,new_db,tmp_name));
+      goto err;
+    }
   }
-  else
-  {
-    char path[FN_REFLEN];
-    my_snprintf(path, sizeof(path), "%s/%s/%s", mysql_data_home,
-		new_db, tmp_name);
-    fn_format(path,path,"","",4);
-    new_table=open_temporary_table(thd, path, new_db, tmp_name,0);
-  }
-  if (!new_table)
-  {
-    VOID(quick_rm_table(new_db_type,new_db,tmp_name));
-    goto err;
-  }
-
 
   /*
     We don't want update TIMESTAMP fields during ALTER TABLE
     and copy_data_between_tables uses only write_row() for new_table so
     don't need to set up timestamp_on_update_now member.
   */
-  new_table->timestamp_default_now= 0;
-  new_table->next_number_field=new_table->found_next_number_field;
   thd->count_cuted_fields= CHECK_FIELD_WARN;	// calc cuted fields
   thd->cuted_fields=0L;
   thd->proc_info="copy to tmp table";
-  next_insert_id=thd->next_insert_id;		// Remember for loggin
+  next_insert_id=thd->next_insert_id;		// Remember for logging
   copied=deleted=0;
-  if (!new_table->is_view)
+  if (new_table && !new_table->is_view)
+  {
+    new_table->timestamp_default_now= 0;
+    new_table->next_number_field=new_table->found_next_number_field;
     error=copy_data_between_tables(table,new_table,create_list,
 				   handle_duplicates,
 				   order_num, order, &copied, &deleted);
+  }
   thd->last_insert_id=next_insert_id;		// Needed for correct log
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;
 
@@ -3097,8 +3119,11 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     goto end_temporary;
   }
 
-  intern_close_table(new_table);		/* close temporary table */
-  my_free((gptr) new_table,MYF(0));
+  if (new_table)
+  {
+    intern_close_table(new_table);              /* close temporary table */
+    my_free((gptr) new_table,MYF(0));
+  }
   VOID(pthread_mutex_lock(&LOCK_open));
   if (error)
   {
@@ -3110,7 +3135,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   /*
     Data is copied.  Now we rename the old table to a temp name,
     rename the new one to the old name, remove all entries from the old table
-    from the cash, free all locks, close the old table and remove it.
+    from the cache, free all locks, close the old table and remove it.
   */
 
   thd->proc_info="rename result table";
@@ -3149,6 +3174,8 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
 
 
   error=0;
+  if (!need_copy_table)
+    new_db_type=old_db_type=DB_TYPE_UNKNOWN; // this type cannot happen in regular ALTER
   if (mysql_rename_table(old_db_type,db,table_name,db,old_name))
   {
     error=1;
@@ -3441,7 +3468,6 @@ int mysql_recreate_table(THD *thd, TABLE_LIST *table_list,
   lex->key_list.empty();
   lex->col_list.empty();
   lex->alter_info.reset();
-  lex->alter_info.is_simple= 0;                 // Force full recreate
   bzero((char*) &create_info,sizeof(create_info));
   create_info.db_type=DB_TYPE_DEFAULT;
   create_info.row_type=ROW_TYPE_DEFAULT;

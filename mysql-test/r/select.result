@@ -1,4 +1,5 @@
 drop table if exists t1,t2,t3,t4;
+drop view if exists v1;
 CREATE TABLE t1 (
 Period smallint(4) unsigned zerofill DEFAULT '0000' NOT NULL,
 Varor_period smallint(4) unsigned DEFAULT '0' NOT NULL
@@ -1374,7 +1375,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 explain select t2.companynr,companyname from t4 left join t2 using (companynr) where t2.companynr > 0 and t4.companynr > 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1199	Using where
-1	SIMPLE	t4	eq_ref	PRIMARY	PRIMARY	1	test.t2.companynr	1	Using where
+1	SIMPLE	t4	eq_ref	PRIMARY	PRIMARY	1	test.t2.companynr	1	
 explain select t2.companynr,companyname from t4 left join t2 using (companynr) where t2.companynr > 0 or t2.companynr is null;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	
@@ -2021,15 +2022,15 @@ select period as "Nuvarande period" from t1 group by "Nuvarande period" limit 1;
 Nuvarande period
 9410
 show tables;
-Tables_in_test	table_type
-t1	BASE TABLE
-t2	BASE TABLE
-t3	BASE TABLE
-t4	BASE TABLE
+Tables_in_test
+t1
+t2
+t3
+t4
 show tables from test like "s%";
-Tables_in_test (s%)	table_type
+Tables_in_test (s%)
 show tables from test like "t?";
-Tables_in_test (t?)	table_type
+Tables_in_test (t?)
 show full columns from t2;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
 auto	int(11)	NULL		PRI	NULL	auto_increment	select,insert,update,references	

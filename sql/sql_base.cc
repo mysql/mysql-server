@@ -913,14 +913,13 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     */
     {
       char path[FN_REFLEN];
-      TABLE tab;
-      if (!table)
-        table= &tab;
       strxnmov(path, FN_REFLEN, mysql_data_home, "/", table_list->db, "/",
                table_list->real_name, reg_ext, NullS);
       (void) unpack_filename(path, path);
       if (mysql_frm_type(path) == FRMTYPE_VIEW)
       {
+        TABLE tab;// will not be used (because it's VIEW) but have to be passed
+        table= &tab;
         VOID(pthread_mutex_lock(&LOCK_open));
         if (open_unireg_entry(thd, table, table_list->db,
                               table_list->real_name,
@@ -932,7 +931,6 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
         else
         {
           DBUG_ASSERT(table_list->view);
-          my_free((gptr)table, MYF(0));
           VOID(pthread_mutex_unlock(&LOCK_open));
           DBUG_RETURN(0); // VIEW
         }
@@ -2699,7 +2697,9 @@ bool setup_tables(THD *thd, TABLE_LIST *tables, Item **conds)
       table->keys_in_use_for_query.subtract(map);
     }
     table->used_keys.intersect(table->keys_in_use_for_query);
-    if (table_list->ancestor && table_list->setup_ancestor(thd, conds))
+    if (table_list->ancestor &&
+	table_list->setup_ancestor(thd, conds,
+				   table_list->effective_with_check))
       DBUG_RETURN(1);
   }
   if (tablenr > MAX_TABLES)
@@ -2975,6 +2975,7 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
   SELECT_LEX *select_lex= thd->lex->current_select;
   Item_arena *arena= thd->current_arena;
   Item_arena backup;
+  bool save_wrapper= thd->lex->current_select->no_wrap_view_item;
   DBUG_ENTER("setup_conds");
 
   if (select_lex->conds_processed_with_permanent_arena ||
@@ -2983,13 +2984,14 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
 
   thd->set_query_id=1;
 
+  thd->lex->current_select->no_wrap_view_item= 1;
   select_lex->cond_count= 0;
   if (*conds)
   {
     thd->where="where clause";
     if (!(*conds)->fixed && (*conds)->fix_fields(thd, tables, conds) ||
 	(*conds)->check_cols(1))
-      DBUG_RETURN(1);
+      goto err_no_arena;
   }
 
   /* Check if we are using outer joins */
@@ -3007,7 +3009,7 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
         if (!embedded->on_expr->fixed &&
             embedded->on_expr->fix_fields(thd, tables, &embedded->on_expr) ||
 	    embedded->on_expr->check_cols(1))
-	  DBUG_RETURN(1);
+	  goto err_no_arena;
         select_lex->cond_count++;
       }
       if (embedded->natural_join)
@@ -3061,7 +3063,7 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
         Item_cond_and *cond_and=new Item_cond_and();
 
         if (!cond_and)				// If not out of memory
-	  DBUG_RETURN(1);
+	  goto err_no_arena;
         cond_and->top_level_item();
 
         if (table->field_translation)
@@ -3125,7 +3127,7 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
             if (*conds && !(*conds)->fixed)
             {
               if ((*conds)->fix_fields(thd, tables, conds))
-                DBUG_RETURN(1);
+                goto err_no_arena;
             }
           }
           else
@@ -3137,7 +3139,7 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
             if (embedded->on_expr && !embedded->on_expr->fixed)
             {
               if (embedded->on_expr->fix_fields(thd, tables, &table->on_expr))
-                DBUG_RETURN(1);
+                goto err_no_arena;
             }
           }
         }
@@ -3159,11 +3161,14 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
     select_lex->where= *conds;
     select_lex->conds_processed_with_permanent_arena= 1;
   }
+  thd->lex->current_select->no_wrap_view_item= save_wrapper;
   DBUG_RETURN(test(thd->net.report_error));
 
 err:
   if (arena)
     thd->restore_backup_item_arena(arena, &backup);
+err_no_arena:
+  thd->lex->current_select->no_wrap_view_item= save_wrapper;
   DBUG_RETURN(1);
 }
 

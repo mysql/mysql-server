@@ -180,8 +180,32 @@ use db2;
 call q();
 select * from t2;
 
-# Clean up
+
+#
+# BUG#6030: Stored procedure has no appropriate DROP privilege
+# (or ALTER for that matter)
+
+# still connection con2user1 in db2
+
+# This should work:
+alter procedure p modifies sql data;
+drop procedure p;
+
+# This should NOT work
+--error 1370
+alter procedure q modifies sql data;
+--error 1370
+drop procedure q;
+
 connection con1root;
+use db2;
+# But root always can
+alter procedure q modifies sql data;
+drop procedure q;
+
+
+# Clean up
+#Still connection con1root;
 use test;
 select type,db,name from mysql.proc;
 drop database db1_secret;

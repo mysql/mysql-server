@@ -1,7 +1,7 @@
 set @@sql_mode='ansi,traditional';
 select @@sql_mode;
 @@sql_mode
-REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI,STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL
+REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI,STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (col1 date);
 INSERT INTO t1 VALUES('2004-01-01'),('0000-10-31'),('2004-02-29');
@@ -26,14 +26,20 @@ ERROR 22007: Incorrect date value: '59' for column 'col1' at row 1
 set @@sql_mode='STRICT_ALL_TABLES';
 INSERT INTO t1 VALUES('2004-01-03'),('2004-0-31');
 set @@sql_mode='STRICT_ALL_TABLES,NO_ZERO_IN_DATE';
-INSERT INTO t1 VALUES('2004-0-31');
-ERROR 22007: Incorrect date value: '2004-0-31' for column 'col1' at row 1
+INSERT INTO t1 VALUES('2004-0-30');
+ERROR 22007: Incorrect date value: '2004-0-30' for column 'col1' at row 1
 INSERT INTO t1 VALUES('2004-01-04'),('2004-0-31'),('2004-01-05');
 ERROR 22007: Incorrect date value: '2004-0-31' for column 'col1' at row 2
 INSERT INTO t1 VALUES('0000-00-00');
+INSERT IGNORE INTO t1 VALUES('2004-0-29');
+Warnings:
+Warning	1265	Data truncated for column 'col1' at row 1
 set @@sql_mode='STRICT_ALL_TABLES,NO_ZERO_DATE';
 INSERT INTO t1 VALUES('0000-00-00');
 ERROR 22007: Incorrect date value: '0000-00-00' for column 'col1' at row 1
+INSERT IGNORE INTO t1 VALUES('0000-00-00');
+Warnings:
+Warning	1265	Data truncated for column 'col1' at row 1
 INSERT INTO t1 VALUES ('2004-0-30');
 INSERT INTO t1 VALUES ('2004-2-30');
 ERROR 22007: Incorrect date value: '2004-2-30' for column 'col1' at row 1
@@ -54,13 +60,15 @@ col1
 2004-00-31
 2004-01-04
 0000-00-00
+0000-00-00
+0000-00-00
 2004-00-30
 2004-02-30
 2004-02-29
 0000-00-00
 0000-00-00
 drop table t1;
-set @@sql_mode="strict_trans_tables";
+set @@sql_mode='strict_trans_tables';
 CREATE TABLE t1 (col1 date) engine=myisam;
 INSERT INTO t1 VALUES('2004-13-31'),('2004-1-1');
 ERROR 22007: Incorrect date value: '2004-13-31' for column 'col1' at row 1
@@ -87,7 +95,7 @@ col1
 0000-00-00
 2003-02-31
 drop table t1;
-set @@sql_mode="strict_trans_tables";
+set @@sql_mode='strict_trans_tables';
 CREATE TABLE t1 (col1 date) engine=innodb;
 INSERT INTO t1 VALUES('2004-13-31'),('2004-1-1');
 ERROR 22007: Incorrect date value: '2004-13-31' for column 'col1' at row 1
@@ -188,6 +196,13 @@ col1
 DROP TABLE t1;
 CREATE TABLE t1(col1 TINYINT, col2 TINYINT UNSIGNED);
 INSERT INTO t1 VALUES(-128,0),(0,0),(127,255),('-128','0'),('0','0'),('127','255'),(-128.0,0.0),(0.0,0.0),(127.0,255.0);
+SELECT MOD(col1,0) FROM t1 WHERE col1 > 0 LIMIT 2;
+MOD(col1,0)
+NULL
+NULL
+Warnings:
+Error	1365	Division by 0
+Error	1365	Division by 0
 INSERT INTO t1 (col1) VALUES(-129);
 ERROR 22003: Out of range value adjusted for column 'col1' at row 1
 INSERT INTO t1 (col1) VALUES(128);
@@ -210,14 +225,30 @@ INSERT INTO t1 (col2) VALUES(-1.0);
 ERROR 22003: Out of range value adjusted for column 'col2' at row 1
 INSERT INTO t1 (col2) VALUES(256.0);
 ERROR 22003: Out of range value adjusted for column 'col2' at row 1
+SELECT MOD(col1,0) FROM t1 WHERE col1 > 0 LIMIT 1;
+MOD(col1,0)
+NULL
+Warnings:
+Error	1365	Division by 0
 UPDATE t1 SET col1 = col1 - 50 WHERE col1 < 0;
 ERROR 22003: Out of range value adjusted for column 'col1' at row 1
 UPDATE t1 SET col2=col2 + 50 WHERE col2 > 0;
 ERROR 22003: Out of range value adjusted for column 'col2' at row 3
 UPDATE t1 SET col1=col1 / 0 WHERE col1 > 0;
 ERROR 22012: Division by 0
-SELECT MOD(col1,0) FROM t1;
-ERROR 22012: Division by 0
+set @@sql_mode='ERROR_FOR_DIVISION_BY_ZERO';
+INSERT INTO t1 values (1/0,1/0);
+Warnings:
+Error	1365	Division by 0
+Error	1365	Division by 0
+set @@sql_mode='ansi,traditional';
+SELECT MOD(col1,0) FROM t1 WHERE col1 > 0 LIMIT 2;
+MOD(col1,0)
+NULL
+NULL
+Warnings:
+Error	1365	Division by 0
+Error	1365	Division by 0
 INSERT INTO t1 (col1) VALUES ('');
 ERROR HY000: Incorrect integer value: '' for column 'col1' at row 1
 INSERT INTO t1 (col1) VALUES ('a59b');
@@ -231,6 +262,9 @@ INSERT IGNORE INTO t1 values (1/0,1/0);
 Warnings:
 Error	1365	Division by 0
 Error	1365	Division by 0
+set @@sql_mode='ansi';
+INSERT INTO t1 values (1/0,1/0);
+set @@sql_mode='ansi,traditional';
 INSERT IGNORE INTO t1 VALUES('-129','-1'),('128','256');
 Warnings:
 Warning	1264	Out of range value adjusted for column 'col1' at row 1
@@ -255,7 +289,9 @@ col1	col2
 -128	0
 0	NULL
 127	255
+NULL	NULL
 2	NULL
+NULL	NULL
 NULL	NULL
 -128	0
 127	255
@@ -294,7 +330,7 @@ UPDATE t1 SET col2 = col2 + 50 WHERE col2 > 0;
 ERROR 22003: Out of range value adjusted for column 'col2' at row 3
 UPDATE t1 SET col1 = col1 / 0 WHERE col1 > 0;
 ERROR 22012: Division by 0
-SELECT MOD(col1,0) FROM t1;
+UPDATE t1 SET col1= MOD(col1,0) WHERE col1 > 0;
 ERROR 22012: Division by 0
 INSERT INTO t1 (col1) VALUES ('');
 ERROR HY000: Incorrect integer value: '' for column 'col1' at row 1
@@ -378,7 +414,7 @@ UPDATE t1 SET col2 = col2 + 50 WHERE col2 > 0;
 ERROR 22003: Out of range value adjusted for column 'col2' at row 3
 UPDATE t1 SET col1 =col1 / 0 WHERE col1 > 0;
 ERROR 22012: Division by 0
-SELECT MOD(col1,0) FROM t1;
+UPDATE t1 SET col1= MOD(col1,0) WHERE col1 > 0;
 ERROR 22012: Division by 0
 INSERT INTO t1 (col1) VALUES ('');
 ERROR HY000: Incorrect integer value: '' for column 'col1' at row 1
@@ -462,7 +498,7 @@ UPDATE t1 SET col2 =col2 + 50 WHERE col2 > 0;
 ERROR 22003: Out of range value adjusted for column 'col2' at row 3
 UPDATE t1 SET col1 =col1 / 0 WHERE col1 > 0;
 ERROR 22012: Division by 0
-SELECT MOD(col1,0) FROM t1;
+UPDATE t1 SET col1= MOD(col1,0) WHERE col1 > 0;
 ERROR 22012: Division by 0
 INSERT INTO t1 (col1) VALUES ('');
 ERROR 22003: Out of range value adjusted for column 'col1' at row 1
@@ -531,9 +567,9 @@ INSERT INTO t1 (col2) VALUES('-1');
 ERROR 22003: Out of range value adjusted for column 'col2' at row 1
 INSERT INTO t1 (col2) VALUES('18446744073709551616');
 ERROR 22003: Out of range value adjusted for column 'col2' at row 1
-INSERT INTO t1 (col1) VALUES(-9223372036854775809.0);
+INSERT INTO t1 (col1) VALUES(-9223372036854785809.0);
 ERROR 22003: Out of range value adjusted for column 'col1' at row 1
-INSERT INTO t1 (col1) VALUES(9223372036854775808.0);
+INSERT INTO t1 (col1) VALUES(9223372036854785808.0);
 ERROR 22003: Out of range value adjusted for column 'col1' at row 1
 INSERT INTO t1 (col2) VALUES(-1.0);
 ERROR 22003: Out of range value adjusted for column 'col2' at row 1
@@ -541,7 +577,7 @@ INSERT INTO t1 (col2) VALUES(18446744073709551616.0);
 ERROR 22003: Out of range value adjusted for column 'col2' at row 1
 UPDATE t1 SET col1 =col1 / 0 WHERE col1 > 0;
 ERROR 22012: Division by 0
-SELECT MOD(col1,0) FROM t1;
+UPDATE t1 SET col1= MOD(col1,0) WHERE col1 > 0;
 ERROR 22012: Division by 0
 INSERT INTO t1 (col1) VALUES ('');
 ERROR 22003: Out of range value adjusted for column 'col1' at row 1
@@ -565,7 +601,7 @@ Warning	1264	Out of range value adjusted for column 'col1' at row 1
 Warning	1264	Out of range value adjusted for column 'col2' at row 1
 Warning	1264	Out of range value adjusted for column 'col1' at row 2
 Warning	1264	Out of range value adjusted for column 'col2' at row 2
-INSERT IGNORE INTO t1 VALUES(-9223372036854775809.0,-1.0),(9223372036854775808.0,18446744073709551616.0);
+INSERT IGNORE INTO t1 VALUES(-9223372036854785809.0,-1.0),(9223372036854785808.0,18446744073709551616.0);
 Warnings:
 Warning	1264	Out of range value adjusted for column 'col1' at row 1
 Warning	1264	Out of range value adjusted for column 'col2' at row 1
@@ -621,7 +657,7 @@ UPDATE t1 SET col1 =col1 * 50000 WHERE col1 =11;
 ERROR 22003: Out of range value adjusted for column 'col1' at row 6
 UPDATE t1 SET col1 =col1 / 0 WHERE col1 > 0;
 ERROR 22012: Division by 0
-SELECT MOD(col1,0) FROM t1;
+UPDATE t1 SET col1= MOD(col1,0) WHERE col1 > 0;
 ERROR 22012: Division by 0
 INSERT INTO t1 (col1) VALUES ('');
 ERROR 01000: Data truncated for column 'col1' at row 1
@@ -675,4 +711,208 @@ NULL
 -99.99
 999.99
 -99.99
+DROP TABLE t1;
+CREATE TABLE t1 (col1 FLOAT, col2 FLOAT UNSIGNED);
+INSERT INTO t1 VALUES (-1.1E-38,0),(+3.4E+38,+3.4E+38);
+INSERT INTO t1 VALUES ('-1.1E-38',0),('+3.4E+38','+3.4E+38');
+INSERT INTO t1 (col1) VALUES (3E-46);
+INSERT INTO t1 (col1) VALUES (+3.4E+39);
+ERROR 22003: Out of range value adjusted for column 'col1' at row 1
+INSERT INTO t1 (col2) VALUES (-1.1E-3);
+ERROR 22003: Out of range value adjusted for column 'col2' at row 1
+INSERT INTO t1 (col1) VALUES ('+3.4E+39');
+ERROR 22003: Out of range value adjusted for column 'col1' at row 1
+INSERT INTO t1 (col2) VALUES ('-1.1E-3');
+ERROR 22003: Out of range value adjusted for column 'col2' at row 1
+UPDATE t1 SET col1 =col1 * 5000 WHERE col1 > 0;
+ERROR 22003: Out of range value adjusted for column 'col1' at row 2
+UPDATE t1 SET col2 =col2 / 0 WHERE col2 > 0;
+ERROR 22012: Division by 0
+UPDATE t1 SET col2= MOD(col2,0) WHERE col2 > 0;
+ERROR 22012: Division by 0
+INSERT INTO t1 (col1) VALUES ('');
+ERROR 01000: Data truncated for column 'col1' at row 1
+INSERT INTO t1 (col1) VALUES ('a59b');
+ERROR 01000: Data truncated for column 'col1' at row 1
+INSERT INTO t1 (col1) VALUES ('1a');
+ERROR 01000: Data truncated for column 'col1' at row 1
+INSERT IGNORE INTO t1 (col1) VALUES ('2a');
+Warnings:
+Warning	1265	Data truncated for column 'col1' at row 1
+INSERT IGNORE INTO t1 (col1) VALUES (1/0);
+Warnings:
+Error	1365	Division by 0
+INSERT IGNORE INTO t1 VALUES (+3.4E+39,-3.4E+39);
+Warnings:
+Warning	1264	Out of range value adjusted for column 'col1' at row 1
+Warning	1264	Out of range value adjusted for column 'col2' at row 1
+INSERT IGNORE INTO t1 VALUES ('+3.4E+39','-3.4E+39');
+Warnings:
+Warning	1264	Out of range value adjusted for column 'col1' at row 1
+Warning	1264	Out of range value adjusted for column 'col2' at row 1
+SELECT * FROM t1;
+col1	col2
+-1.1e-38	0
+3.4e+38	3.4e+38
+-1.1e-38	0
+3.4e+38	3.4e+38
+0	NULL
+2	NULL
+NULL	NULL
+3.40282e+38	0
+3.40282e+38	0
+DROP TABLE t1;
+CREATE TABLE t1 (col1 DOUBLE PRECISION, col2 DOUBLE PRECISION UNSIGNED);
+INSERT INTO t1 VALUES (-2.2E-308,0),(+1.7E+308,+1.7E+308);
+INSERT INTO t1 VALUES ('-2.2E-308',0),('+1.7E+308','+1.7E+308');
+INSERT INTO t1 (col1) VALUES (-2.2E-330);
+INSERT INTO t1 (col1) VALUES (+1.7E+309);
+ERROR 22007: Illegal double '1.7E+309' value found during parsing
+INSERT INTO t1 (col2) VALUES (-1.1E-3);
+ERROR 22003: Out of range value adjusted for column 'col2' at row 1
+INSERT INTO t1 (col1) VALUES ('+1.8E+309');
+ERROR 22003: Out of range value adjusted for column 'col1' at row 1
+INSERT INTO t1 (col2) VALUES ('-1.2E-3');
+ERROR 22003: Out of range value adjusted for column 'col2' at row 1
+UPDATE t1 SET col1 =col1 * 5000 WHERE col1 > 0;
+ERROR 22003: Out of range value adjusted for column 'col1' at row 2
+UPDATE t1 SET col2 =col2 / 0 WHERE col2 > 0;
+ERROR 22012: Division by 0
+UPDATE t1 SET col2= MOD(col2,0) WHERE col2 > 0;
+ERROR 22012: Division by 0
+INSERT INTO t1 (col1) VALUES ('');
+ERROR 01000: Data truncated for column 'col1' at row 1
+INSERT INTO t1 (col1) VALUES ('a59b');
+ERROR 01000: Data truncated for column 'col1' at row 1
+INSERT INTO t1 (col1) VALUES ('1a');
+ERROR 01000: Data truncated for column 'col1' at row 1
+INSERT IGNORE INTO t1 (col1) VALUES ('2a');
+Warnings:
+Warning	1265	Data truncated for column 'col1' at row 1
+INSERT IGNORE INTO t1 (col1) values (1/0);
+Warnings:
+Error	1365	Division by 0
+INSERT IGNORE INTO t1 VALUES (+1.9E+309,-1.9E+309);
+ERROR 22007: Illegal double '1.9E+309' value found during parsing
+INSERT IGNORE INTO t1 VALUES ('+2.0E+309','-2.0E+309');
+Warnings:
+Warning	1264	Out of range value adjusted for column 'col1' at row 1
+Warning	1264	Out of range value adjusted for column 'col2' at row 1
+Warning	1264	Out of range value adjusted for column 'col2' at row 1
+SELECT * FROM t1;
+col1	col2
+-2.2e-308	0
+1.7e+308	1.7e+308
+-2.2e-308	0
+1.7e+308	1.7e+308
+0	NULL
+2	NULL
+NULL	NULL
+1.79769313486232e+308	0
+DROP TABLE t1;
+CREATE TABLE t1 (col1 CHAR(5), col2 VARCHAR(5));
+INSERT INTO t1 VALUES ('hello', 'hello'),('he', 'he'),('hello   ', 'hello   ');
+INSERT INTO t1 (col1) VALUES ('hellobob');
+ERROR 01000: Data truncated for column 'col1' at row 1
+INSERT INTO t1 (col2) VALUES ('hellobob');
+ERROR 01000: Data truncated for column 'col2' at row 1
+UPDATE t1 SET col1 ='hellobob' WHERE col1 ='he';
+ERROR 01000: Data truncated for column 'col1' at row 2
+UPDATE t1 SET col2 ='hellobob' WHERE col2 ='he';
+ERROR 01000: Data truncated for column 'col2' at row 2
+INSERT IGNORE INTO t1 VALUES ('hellobob', 'hellobob');
+Warnings:
+Warning	1265	Data truncated for column 'col1' at row 1
+Warning	1265	Data truncated for column 'col2' at row 1
+UPDATE IGNORE t1 SET col2 ='hellotrudy' WHERE col2 ='he';
+Warnings:
+Warning	1265	Data truncated for column 'col2' at row 2
+SELECT * FROM t1;
+col1	col2
+hello	hello
+he	hello
+hello	hello
+hello	hello
+DROP TABLE t1;
+CREATE TABLE t1 (col1 enum('red','blue','green'));
+INSERT INTO t1 VALUES ('red'),('blue'),('green');
+INSERT INTO t1 (col1) VALUES ('yellow');
+ERROR 01000: Data truncated for column 'col1' at row 1
+INSERT INTO t1 (col1) VALUES ('redd');
+ERROR 01000: Data truncated for column 'col1' at row 1
+INSERT INTO t1 VALUES ('');
+ERROR 01000: Data truncated for column 'col1' at row 1
+UPDATE t1 SET col1 ='yellow' WHERE col1 ='green';
+ERROR 01000: Data truncated for column 'col1' at row 3
+INSERT IGNORE INTO t1 VALUES ('yellow');
+Warnings:
+Warning	1265	Data truncated for column 'col1' at row 1
+UPDATE IGNORE t1 SET col1 ='yellow' WHERE col1 ='blue';
+Warnings:
+Warning	1265	Data truncated for column 'col1' at row 2
+SELECT * FROM t1;
+col1
+red
+
+green
+
+DROP TABLE t1;
+CREATE TABLE t1 (col1 INT NOT NULL, col2 CHAR(5) NOT NULL, col3 DATE NOT NULL);
+INSERT INTO t1 VALUES (100, 'hello', '2004-08-20');
+INSERT INTO t1 (col1,col2,col3) VALUES (101, 'hell2', '2004-08-21');
+INSERT INTO t1 (col1,col2,col3) VALUES (NULL, '', '2004-01-01');
+ERROR 23000: Column 'col1' cannot be null
+INSERT INTO t1 (col1,col2,col3) VALUES (102, NULL, '2004-01-01');
+ERROR 23000: Column 'col2' cannot be null
+INSERT INTO t1 VALUES (103,'',NULL);
+ERROR 23000: Column 'col3' cannot be null
+UPDATE t1 SET col1=NULL WHERE col1 =100;
+ERROR 22004: Column set to default value; NULL supplied to NOT NULL column 'col1' at row 1
+UPDATE t1 SET col2 =NULL WHERE col2 ='hello';
+ERROR 22004: Column set to default value; NULL supplied to NOT NULL column 'col2' at row 1
+UPDATE t1 SET col2 =NULL where col3 IS NOT NULL;
+ERROR 22004: Column set to default value; NULL supplied to NOT NULL column 'col2' at row 1
+INSERT IGNORE INTO t1 values (NULL,NULL,NULL);
+Warnings:
+Warning	1263	Column set to default value; NULL supplied to NOT NULL column 'col1' at row 1
+Warning	1263	Column set to default value; NULL supplied to NOT NULL column 'col2' at row 1
+Warning	1263	Column set to default value; NULL supplied to NOT NULL column 'col3' at row 1
+SELECT * FROM t1;
+col1	col2	col3
+100	hello	2004-08-20
+101	hell2	2004-08-21
+0		0000-00-00
+DROP TABLE t1;
+CREATE TABLE t1 (col1 INT NOT NULL default 99, col2 CHAR(6) NOT NULL);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE "t1" (
+  "col1" int(11) NOT NULL default '99',
+  "col2" char(6) NOT NULL
+)
+INSERT INTO t1 VALUES (1, 'hello');
+INSERT INTO t1 (col2) VALUES ('hello2');
+INSERT INTO t1 (col2) VALUES (NULL);
+ERROR 23000: Column 'col2' cannot be null
+INSERT INTO t1 (col1) VALUES (2);
+ERROR HY000: Field 'col2' doesn't have a default value
+INSERT INTO t1 VALUES(default(col1),default(col2));
+ERROR HY000: Field 'col2' doesn't have a default value
+INSERT INTO t1 (col1) SELECT 1;
+ERROR HY000: Field 'col2' doesn't have a default value
+INSERT INTO t1 SELECT 1,NULL;
+ERROR 22004: Column set to default value; NULL supplied to NOT NULL column 'col2' at row 1
+INSERT IGNORE INTO t1 values (NULL,NULL);
+Warnings:
+Warning	1263	Column set to default value; NULL supplied to NOT NULL column 'col1' at row 1
+Warning	1263	Column set to default value; NULL supplied to NOT NULL column 'col2' at row 1
+INSERT IGNORE INTO t1 (col1) values (3);
+INSERT IGNORE INTO t1 () values ();
+SELECT * FROM t1;
+col1	col2
+1	hello
+99	hello2
+0	
+3	
+99	
 DROP TABLE t1;

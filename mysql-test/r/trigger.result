@@ -169,3 +169,8 @@ create temporary table t1 (i int);
 create trigger trg before insert on t1 for each row set @a:=1;
 ERROR HY000: Trigger's 't1' is view or temporary table
 drop table t1;
+create table t1 (x1col char);
+create trigger tx1 before insert on t1 for each row set new.x1col = 'x';
+insert into t1 values ('y');
+drop trigger t1.tx1;
+drop table t1;

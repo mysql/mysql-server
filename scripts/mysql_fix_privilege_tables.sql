@@ -15,7 +15,7 @@ ALTER TABLE host type=MyISAM, CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin;
 ALTER TABLE func type=MyISAM, CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin;
 ALTER TABLE columns_priv type=MyISAM, CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin;
 ALTER TABLE tables_priv type=MyISAM, CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin;
-ALTER TABLE user change Password Password char(41) binary not null;
+ALTER TABLE user change Password Password char(41) binary not null default '';
 ALTER TABLE user add File_priv enum('N','Y') NOT NULL;
 CREATE TABLE IF NOT EXISTS func (
   name char(64) binary DEFAULT '' NOT NULL,
@@ -115,9 +115,9 @@ UPDATE user SET Show_db_priv= Select_priv, Super_priv=Process_priv, Execute_priv
 --  for some users.
 
 ALTER TABLE user
-ADD max_questions int(11) NOT NULL AFTER x509_subject,
-ADD max_updates   int(11) unsigned NOT NULL AFTER max_questions,
-ADD max_connections int(11) unsigned NOT NULL AFTER max_updates;
+ADD max_questions int(11) NOT NULL DEFAULT 0 AFTER x509_subject,
+ADD max_updates   int(11) unsigned NOT NULL DEFAULT 0 AFTER max_questions,
+ADD max_connections int(11) unsigned NOT NULL DEFAULT 0 AFTER max_updates;
 
 
 --
@@ -254,7 +254,11 @@ CREATE TABLE IF NOT EXISTS proc (
   type              enum('FUNCTION','PROCEDURE') NOT NULL,
   specific_name     char(64) DEFAULT '' NOT NULL,
   language          enum('SQL') DEFAULT 'SQL' NOT NULL,
-  sql_data_access   enum('CONTAINS_SQL') DEFAULT 'CONTAINS_SQL' NOT NULL,
+  sql_data_access   enum('CONTAINS_SQL',
+			 'NO_SQL',
+			 'READS_SQL_DATA',
+			 'MODIFIES_SQL_DATA'
+		    ) DEFAULT 'CONTAINS_SQL' NOT NULL,
   is_deterministic  enum('YES','NO') DEFAULT 'NO' NOT NULL,
   security_type     enum('INVOKER','DEFINER') DEFAULT 'DEFINER' NOT NULL,
   param_list        blob DEFAULT '' NOT NULL,
@@ -289,6 +293,12 @@ CREATE TABLE IF NOT EXISTS proc (
   PRIMARY KEY (db,name,type)
 ) comment='Stored Procedures';
 
-# Correct the name fields to not binary
+# Correct the name fields to not binary, and expand sql_data_access
 ALTER TABLE proc MODIFY name char(64) DEFAULT '' NOT NULL,
-                 MODIFY specific_name char(64) DEFAULT '' NOT NULL;
+                 MODIFY specific_name char(64) DEFAULT '' NOT NULL,
+		 MODIFY sql_data_access
+			enum('CONTAINS_SQL',
+			     'NO_SQL',
+			     'READS_SQL_DATA',
+			     'MODIFIES_SQL_DATA'
+			    ) DEFAULT 'CONTAINS_SQL' NOT NULL;

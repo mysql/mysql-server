@@ -137,7 +137,8 @@ int mysqld_show_open_tables(THD *thd,const char *wild)
 ** A table is a .frm file in the current databasedir
 ***************************************************************************/
 
-int mysqld_show_tables(THD *thd,const char *db,const char *wild)
+int mysqld_show_tables(THD *thd, const char *db, const char *wild,
+		       bool show_type)
 {
   Item_string *field=new Item_string("",0,thd->charset());
   List<Item> field_list;
@@ -146,8 +147,6 @@ int mysqld_show_tables(THD *thd,const char *db,const char *wild)
   char *file_name;
   Protocol *protocol= thd->protocol;
   uint len;
-  bool show_type = !test(thd->variables.sql_mode &
-                         (MODE_NO_FIELD_OPTIONS | MODE_MYSQL323));
   DBUG_ENTER("mysqld_show_tables");
 
   field->name=(char*) thd->alloc(20+(uint) strlen(db)+
@@ -161,7 +160,7 @@ int mysqld_show_tables(THD *thd,const char *db,const char *wild)
   len= FN_LEN - len;
   field_list.push_back(field);
   if (show_type)
-    field_list.push_back(new Item_empty_string("table_type", 10));
+    field_list.push_back(new Item_empty_string("Table_type", 10));
   if (protocol->send_fields(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(1);
@@ -762,7 +761,7 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
 	  protocol->store(field->has_charset() ? field->charset()->name : "NULL",
 			system_charset_info);
         /*
-          Altough TIMESTAMP fields can't contain NULL as its value they
+          Although TIMESTAMP fields can't contain NULL as its value they
           will accept NULL if you will try to insert such value and will
           convert it to current TIMESTAMP. So YES here means that NULL 
           is allowed for assignment but can't be returned.
@@ -781,12 +780,13 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
         {
           /*
             We have NOW() as default value but we use CURRENT_TIMESTAMP form
-            because it is more SQL standard comatible
+            because it is more SQL standard compatible
           */
           protocol->store("CURRENT_TIMESTAMP", system_charset_info);
         }
         else if (field->unireg_check != Field::NEXT_NUMBER &&
-                 !field->is_null())
+                 !field->is_null() &&
+                 !(field->flags & NO_DEFAULT_VALUE_FLAG))
         {                                               // Not null by default
           /*
             Note: we have to convert the default value into
@@ -1212,7 +1212,7 @@ mysqld_dump_create_info(THD *thd, TABLE *table, int fd)
 
 /*
   Go through all character combinations and ensure that sql_lex.cc can
-  parse it as an identifer.
+  parse it as an identifier.
 
   SYNOPSIS
   require_quotes()
@@ -1396,6 +1396,7 @@ store_create_info(THD *thd, TABLE *table, String *packet)
                      field->unireg_check != Field::TIMESTAMP_UN_FIELD;
     
     has_default= (field->type() != FIELD_TYPE_BLOB &&
+                  !(field->flags & NO_DEFAULT_VALUE_FLAG) &&
 		  field->unireg_check != Field::NEXT_NUMBER &&
                   !((foreign_db_mode || limited_mysql_mode) &&
                     has_now_default));
@@ -1606,14 +1607,23 @@ view_store_create_info(THD *thd, TABLE_LIST *table, String *buff)
                                                        MODE_MAXDB |
                                                        MODE_ANSI)) != 0;
   buff->append("CREATE ", 7);
-  if (!foreign_db_mode && (table->algorithm == VIEW_ALGORITHM_MERGE ||
-                           table->algorithm == VIEW_ALGORITHM_TMPTABLE))
+  if (!foreign_db_mode)
   {
     buff->append("ALGORITHM=", 10);
-    if (table->algorithm == VIEW_ALGORITHM_TMPTABLE)
+    switch(table->algorithm)
+    {
+    case VIEW_ALGORITHM_UNDEFINED:
+      buff->append("UNDEFINED ", 10);
+      break;
+    case VIEW_ALGORITHM_TMPTABLE:
       buff->append("TEMPTABLE ", 10);
-    else
+      break;
+    case VIEW_ALGORITHM_MERGE:
       buff->append("MERGE ", 6);
+      break;
+    default:
+	DBUG_ASSERT(0); // never should happen
+    }
   }
   buff->append("VIEW ", 5);
   append_identifier(thd, buff, table->view_db.str, table->view_db.length);
@@ -1621,6 +1631,13 @@ view_store_create_info(THD *thd, TABLE_LIST *table, String *buff)
   append_identifier(thd, buff, table->view_name.str, table->view_name.length);
   buff->append(" AS ", 4);
   buff->append(table->query.str, table->query.length);
+  if (table->with_check != VIEW_CHECK_NONE)
+  {
+    if (table->with_check == VIEW_CHECK_LOCAL)
+      buff->append(" WITH LOCAL CHECK OPTION", 24);
+    else
+      buff->append(" WITH CASCADED CHECK OPTION", 27);
+  }
   return 0;
 }
 

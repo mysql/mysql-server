@@ -21,6 +21,15 @@ select current_user;
 grant all privileges on `my\_1`.* to mysqltest_2@localhost with grant option;
 --error 1044
 grant all privileges on `my_%`.* to mysqltest_3@localhost with grant option;
+#
+# NO_AUTO_CREATE_USER mode
+#
+set @@sql_mode='NO_AUTO_CREATE_USER';
+select @@sql_mode;
+--error 1211
+grant select on `my\_1`.* to mysqltest_4@localhost with grant option;
+grant select on `my\_1`.* to mysqltest_4@localhost identified by 'mypass'
+with grant option;
 disconnect user1;
 connection default;
 show grants for mysqltest_1@localhost;

@@ -212,7 +212,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	4	Using index
 explain SELECT distinct a from t3 order by a desc limit 2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t3	index	NULL	a	5	NULL	204	Using index
+1	SIMPLE	t3	index	NULL	a	5	NULL	10	Using index
 explain SELECT distinct a,b from t3 order by a+1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	204	Using temporary; Using filesort
