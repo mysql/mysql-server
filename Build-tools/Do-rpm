@@ -115,7 +115,8 @@ set -x
 rm -rf $rpmdir/BUILD/mysql-*
 rm -f $rpmdir/SOURCES/mysql-*
 rm -f $rpmdir/SRPMS/MySQL-*
-rm -f $rpmdir/SPEC/mysql-*
+rm -f $rpmdir/SPECS/mysql-*
+rm -rf /var/tmp/mysql
 
 # Copy MySQL source and spec files
 
@@ -162,7 +163,7 @@ if [ ! x$skip_perl=x1 ]; then
   set -x
 
   # First clean up so we do not get old versions when wildcard matching
-  rm -f $rpmdir/SOURCES/DBI-*.spec
+  rm -f $rpmdir/SOURCES/DBI-*.spec $rpmdir/SOURCES/mysql*
   rm -f $rpmdir/RPMS/i386/Perl-*.rpm
   rm -f $rpmdir/SRPMS/Perl-*.rpm
   rm -f $rpmdir/RPMS/i386/MySQL*-$VER_NO_DASH*.rpm
@@ -232,5 +233,9 @@ if [ x$local_build != x1 ]; then
  # And the perl ones
  #scp $owner@$bmachine:$rpmdir/RPMS/i386/Perl*-*.rpm $bpath/NEW-RPMS
  #scp $owner@$bmachine:$rpmdir/SRPMS/Perl*-*.rpm $bpath/NEW-RPMS
+
+ #Remove some of the files that can interfere with future builds
+
+ rm -rf /var/tmp/mysql
 fi 
 )  > $log 2>&1

@@ -47363,6 +47363,8 @@ Added documentation for @code{libmysqld}, the embedded MySQL server
 library.  Also added example programs (a @code{mysql} client and
 @code{mysqltest} test program) which use @code{libmysqld}.
 @item
+Removed all Gemini hooks from MySQL.
+@item
 Removed @code{my_thread_init()} and @code{my_thread_end()}
 from mysql_com.h, and added @code{mysql_thread_init()} and
 @code{mysql_thread_end()} to mysql.h.
