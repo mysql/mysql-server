@@ -117,7 +117,8 @@ int st_select_lex_unit::prepare(THD *thd, select_result *sel_result,
 {
   SELECT_LEX *lex_select_save= thd->lex.current_select;
   SELECT_LEX *select_cursor;
-  DBUG_ENTER("st_select_lex_unit::prepare");
+  SELECT_LEX *sl;
+  DBUG_ENTER("st_select_lex_unit::prepare");  
 
   if (prepared)
     DBUG_RETURN(0);
@@ -185,7 +186,7 @@ int st_select_lex_unit::prepare(THD *thd, select_result *sel_result,
   union_result->not_describe=1;
   union_result->tmp_table_param=tmp_table_param;
 
-  for (SELECT_LEX *sl= select_cursor; sl; sl= sl->next_select())
+  for (sl= select_cursor; sl; sl= sl->next_select())
   {
     JOIN *join= new JOIN(thd, sl->item_list, 
 			 sl->options | thd->options | SELECT_NO_UNLOCK,

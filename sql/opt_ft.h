@@ -24,17 +24,18 @@
 #pragma interface			/* gcc class implementation */
 #endif
 
-class FT_SELECT: public QUICK_SELECT {
+class FT_SELECT: public QUICK_RANGE_SELECT {
 public:
   TABLE_REF *ref;
 
   FT_SELECT(TABLE *table, TABLE_REF *tref) :
-      QUICK_SELECT (table,tref->key,1), ref(tref) { init(); }
-
-  int init() { return error=file->ft_init(); }
+      QUICK_RANGE_SELECT (table,tref->key,1), ref(tref) { init(); }
+  
+  int init() { QUICK_RANGE_SELECT::init(); return (error=file->ft_init()); }
   int get_next() { return error=file->ft_read(record); }
+  int get_type() { return QS_TYPE_FULLTEXT; }
 };
 
-QUICK_SELECT *get_ft_or_quick_select_for_ref(TABLE *table, JOIN_TAB *tab);
+QUICK_RANGE_SELECT *get_ft_or_quick_select_for_ref(TABLE *table, JOIN_TAB *tab);
 
 #endif
