@@ -168,12 +168,15 @@ static void cleanup_load_tmpdir()
   uint i;
   if (!(dirp=my_dir(slave_load_tmpdir,MYF(MY_WME))))
     return;
-
+  char fname[FN_REFLEN];
   for (i=0 ; i < (uint)dirp->number_off_files; i++)
   {
     file=dirp->dir_entry+i;
     if (is_prefix(file->name,"SQL_LOAD-"))
-      my_delete(file->name, MYF(0));
+    {
+      fn_format(fname,file->name,slave_load_tmpdir,"",0);
+      my_delete(fname, MYF(0));
+    }
   }
 
   my_dirend(dirp);
@@ -813,7 +816,7 @@ Rotate_log_event::Rotate_log_event(const char* buf, int event_len,
 int Rotate_log_event::write_data(IO_CACHE* file)
 {
   char buf[ROTATE_HEADER_LEN];
-  int8store(buf, pos + R_POS_OFFSET);
+  int8store(buf + R_POS_OFFSET, pos);
   return (my_b_safe_write(file, (byte*)buf, ROTATE_HEADER_LEN) ||
 	  my_b_safe_write(file, (byte*)new_log_ident, (uint) ident_len));
 }
