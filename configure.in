@@ -1877,7 +1877,7 @@ AC_SUBST(TERMCAP_LIB)
 # for libedit 2.6.7
 case "${host}" in
   *-*-solaris2*)
-	AC_DEFINE(SUNOS)
+	AC_DEFINE_UNQUOTED(SUNOS, 1, [macro for libedit-2.6.7, current platform is solaris-2])
 	;;
 esac
 
@@ -2360,7 +2360,7 @@ then
     readline_link="\$(top_builddir)/cmd-line-utils/libedit/libedit.a"
     readline_h_ln_cmd="\$(LN) -s \$(top_builddir)/cmd-line-utils/libedit/readline readline"
     compile_libedit=yes
-    AC_DEFINE_UNQUOTED(HAVE_HIST_ENTRY)
+    AC_DEFINE_UNQUOTED(HAVE_HIST_ENTRY, 1)
     AC_DEFINE_UNQUOTED(USE_LIBEDIT_INTERFACE, 1)
 elif test "$with_readline" = "yes"
 then
