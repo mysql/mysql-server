@@ -2728,7 +2728,9 @@ mysql_init_select(LEX *lex)
   select_lex->offset_limit=0;
   select_lex->options=0;
   select_lex->linkage=UNSPECIFIED_TYPE;
+  select_lex->olap= NON_EXISTING_ONE;
   lex->exchange = 0;
+  lex->olap = 0;
   lex->proc_list.first=0;
   select_lex->order_list.elements=select_lex->group_list.elements=0;
   select_lex->order_list.first=0;
@@ -3270,6 +3272,7 @@ static bool create_total_list(THD *thd, LEX *lex, TABLE_LIST **result)
       for (; aux; aux=next)
       {
 	TABLE_LIST *cursor;
+	aux->do_redirect=true;
 	next= aux->next;
 	for (cursor= *result; cursor; cursor=cursor->next)
 	  if (!strcmp(cursor->db,aux->db) &&

@@ -49,7 +49,13 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
     for (TABLE_LIST *cursor= (TABLE_LIST *)sl->table_list.first;
 	 cursor;
 	 cursor=cursor->next)
-      cursor->table= ((TABLE_LIST*) cursor->table)->table;
+    {
+      if (cursor->do_redirect)
+      {
+	cursor->table= ((TABLE_LIST*) cursor->table)->table;
+	cursor->do_redirect=false;
+      }
+    }
   }
 
   /* last_sel now points at the last select where the ORDER BY is stored */
