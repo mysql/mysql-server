@@ -2184,9 +2184,15 @@ store_val_in_field(Field *field,Item *item)
 {
   THD *thd=current_thd;
   ulong cuted_fields=thd->cuted_fields;
+  /*
+    we should restore old value of count_cuted_fields because
+    store_val_in_field can be called from mysql_insert 
+    with select_insert, which make count_cuted_fields= 1
+   */
+  bool old_count_cuted_fields= thd->count_cuted_fields;
   thd->count_cuted_fields=1;
   item->save_in_field(field);
-  thd->count_cuted_fields=0;
+  thd->count_cuted_fields= old_count_cuted_fields;
   return cuted_fields != thd->cuted_fields;
 }
 
