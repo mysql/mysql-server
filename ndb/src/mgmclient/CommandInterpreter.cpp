@@ -1249,7 +1249,7 @@ CommandInterpreter::executeClusterLog(char* parameters)
       printError();
       DBUG_VOID_RETURN;
     }
-    ndbout << item << " " << (res_enable ? "enabled":"disabled") << endl;
+    ndbout << BaseString(item).ndb_toupper().c_str() << " " << (res_enable ? "enabled":"disabled") << endl;
 
     item = strtok_r(NULL, " ", &tmpPtr);	
   } while(item != NULL);
