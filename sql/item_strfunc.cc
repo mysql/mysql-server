@@ -1925,6 +1925,7 @@ bool Item_func_conv_charset::fix_fields(THD *thd,struct st_table_list *tables)
     return 1;
   maybe_null=args[0]->maybe_null;
   binary=args[0]->binary;
+  const_item_cache=args[0]->const_item();
   str_value.set_charset(conv_charset);
   fix_length_and_dec();
   return 0;
