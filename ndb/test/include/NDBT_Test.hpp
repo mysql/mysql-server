@@ -191,7 +191,7 @@ public:
   NDBT_TestCase(NDBT_TestSuite* psuite, 
 		const char* name, 
 		const char* comment);
-  virtual ~NDBT_TestCase(){}
+  virtual ~NDBT_TestCase() {}
 
   // This is the default executor of a test case
   // When a test case is executed it will need to be suplied with a number of 
@@ -228,6 +228,8 @@ protected:
   void stopTimer(NDBT_Context*);
   void printTimer(NDBT_Context*);
 
+  BaseString _name;
+  BaseString _comment;
   const char* name;
   const char* comment;
   NDBT_TestSuite* suite;
