@@ -74,7 +74,7 @@ public:
   static void operator delete(void *ptr_arg,size_t size)
   { TRASH(ptr_arg, size); }
   static void operator delete(void *ptr_arg, MEM_ROOT *mem_root)
-  { TRASH(ptr_arg, size); }
+  { /* never called */ }
   ~String() { free(); }
 
   inline void set_charset(CHARSET_INFO *charset) { str_charset= charset; }
