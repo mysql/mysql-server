@@ -1376,6 +1376,125 @@ int mysql_optimize_table(THD* thd, TABLE_LIST* tables, HA_CHECK_OPT* check_opt)
 }
 
 
+/*
+  Create a table identical to the specified table
+
+  SYNOPSIS
+    mysql_create_like_table()
+    thd	        Thread object
+    table       Table list (one table only)
+    create_info Create info
+    table_ident Src table_ident
+
+  RETURN VALUES
+    0	  ok
+    -1	error
+*/
+
+int mysql_create_like_table(THD* thd, TABLE_LIST* table, 
+                            HA_CREATE_INFO *create_info,
+                            Table_ident *table_ident)
+{
+  TABLE **tmp_table;
+  char src_path[FN_REFLEN], dst_path[FN_REFLEN];
+  char *db= table->db;
+  char *table_name= table->real_name;
+  char *src_db= thd->db;
+  char *src_table= table_ident->table.str;
+  int  err;
+ 
+  DBUG_ENTER("mysql_create_like_table");
+
+  /*
+    Validate the source table
+  */
+  if (table_ident->table.length > NAME_LEN ||
+      (table_ident->table.length &&
+       check_table_name(src_table,table_ident->table.length)) ||
+      table_ident->db.str && check_db_name((src_db= table_ident->db.str)))
+  {
+    net_printf(thd,ER_WRONG_TABLE_NAME,src_table);
+    DBUG_RETURN(0);
+  }
+
+  if ((tmp_table= find_temporary_table(thd, src_db, src_table)))
+    strxmov(src_path, (*tmp_table)->path, reg_ext, NullS);
+  else
+  {
+    strxmov(src_path, mysql_data_home, "/", src_db, "/", src_table, 
+            reg_ext, NullS); 
+    if (access(src_path, F_OK))
+    {
+      my_error(ER_BAD_TABLE_ERROR, MYF(0), src_table);
+      DBUG_RETURN(-1);
+    }
+  }
+
+  /*
+    Validate the destination table
+
+    skip the destination table name checking as this is already 
+    validated.
+  */
+  if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
+  {
+    if (find_temporary_table(thd, db, table_name))
+      goto table_exists;
+    sprintf(dst_path,"%s%s%lx_%lx_%x%s",mysql_tmpdir,tmp_file_prefix,
+	    current_pid, thd->thread_id, thd->tmp_table++,reg_ext);
+    create_info->table_options|= HA_CREATE_DELAY_KEY_WRITE;
+  }
+  else
+  {
+    strxmov(dst_path, mysql_data_home, "/", db, "/", table_name, 
+            reg_ext, NullS); 
+    if (!access(dst_path, F_OK))
+      goto table_exists;
+  }
+
+  /* 
+    Create a new table by copying from source table
+  */
+  if (my_copy(src_path, dst_path, MYF(MY_WME)))
+    DBUG_RETURN(-1);
+
+  /*
+    As mysql_truncate don't work on a new table at this stage of 
+    creation, instead create the table directly (for both normal 
+    and temporary tables).
+  */
+  *fn_ext(dst_path)= 0; 
+  err= ha_create_table(dst_path, create_info, 1);
+  
+  if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
+  {
+    if (err || !open_temporary_table(thd, dst_path, db, table_name, 1))
+    {
+      (void) rm_temporary_table(create_info->db_type, dst_path);
+      DBUG_RETURN(-1);
+    }
+  }
+  else if (err)
+  {
+    (void) quick_rm_table(create_info->db_type, db, table_name);
+    DBUG_RETURN(-1);
+  }
+  DBUG_RETURN(0);
+  
+table_exists:
+  if (create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS)
+  {
+    char warn_buff[MYSQL_ERRMSG_SIZE];
+    sprintf(warn_buff,ER(ER_TABLE_EXISTS_ERROR),table_name);
+    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 
+                 ER_TABLE_EXISTS_ERROR,warn_buff);
+    DBUG_RETURN(0);
+  }
+  my_error(ER_TABLE_EXISTS_ERROR, MYF(0), table_name);
+  DBUG_RETURN(-1);
+}
+
+
 int mysql_analyze_table(THD* thd, TABLE_LIST* tables, HA_CHECK_OPT* check_opt)
 {
 #ifdef OS2

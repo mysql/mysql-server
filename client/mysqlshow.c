@@ -179,7 +179,7 @@ static struct my_option my_long_options[] =
   {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"protocol", OPT_MYSQL_PROTOCOL,"The protocol of connection (tcp,socket,pipe,memory)",
+  {"protocol", OPT_MYSQL_PROTOCOL, "The protocol of connection (tcp,socket,pipe,memory)",
    0, 0, 0, GET_STR,  REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef HAVE_SMEM
   {"shared_memory_base_name", OPT_SHARED_MEMORY_BASE_NAME,
