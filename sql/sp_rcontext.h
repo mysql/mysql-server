@@ -46,6 +46,8 @@ class sp_rcontext : public Sql_alloc
 
  public:
 
+  bool in_handler;
+
   sp_rcontext(uint fsize, uint hmax, uint cmax);
 
   ~sp_rcontext()
