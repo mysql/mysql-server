@@ -175,7 +175,7 @@ error () {
 }
 
 error_is () {
-    $ECHO `$CAT $TIMEFILE` | $SED -e 's/.* At line .*\: \(.*\)Command .*$/   \>\> Error: \1<\</'
+    $ECHO `$CAT $TIMEFILE` | $SED -e 's/.* At line \(.*\)\: \(.*\)Command .*$/   \>\> Error at line \1: \2<\</'
 }
 
 prefix_to_8() {
@@ -469,7 +469,7 @@ run_testcase ()
 
 	timestr="$USERT $SYST $REALT"
 	pname=`$ECHO "$tname                 "|$CUT -c 1-16`
-	$SETCOLOR_NORMAL && $ECHO -n "$pname          $timestr"
+	$ECHO -n "$pname          $timestr"
 
 
 
@@ -492,7 +492,6 @@ run_testcase ()
 	 exit 1
 	fi
 	 
-#	$ECHO "Restarting mysqld"
 	mysql_restart
 	$ECHO "Resuming Tests"
 	$ECHO
