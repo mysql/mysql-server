@@ -292,10 +292,10 @@ character-set=latin1
 "MySQL foi inicializado em modo --skip-name-resolve. Você necesita reincializá-lo sem esta opção para este grant funcionar",
 "Motor de tabela desconhecido '%s'",
 "'%s' é desatualizado. Use '%s' em seu lugar",
-"The target table %-.100s of the %s is not updateable",
-"The '%s' feature was disabled; you need MySQL built with '%s' to have it working",
-"The MySQL server is running with the %s option so it cannot execute this statement",
-"Column '%-.100s' has duplicated value '%-.64s' in %s"
-"Truncated wrong %-.32s value: '%-.128s'"
-"Incorrect table definition; There can only be one TIMESTAMP column with CURRENT_TIMESTAMP in DEFAULT or ON UPDATE clause"
-"Invalid ON UPDATE clause for '%-.64s' field",
+"A tabela destino %-.100s do %s não é atualizável",
+"O recurso '%s' foi desativado; você necessita MySQL construído com '%s' para ter isto funcionando",
+"O servidor MySQL está rodando com a opção %s razão pela qual não pode executar esse commando",
+"Coluna '%-.100s' tem valor duplicado '%-.64s' em %s"
+"Truncado errado %-.32s valor: '%-.128s'"
+"Incorreta definição de tabela; Pode ter somente uma coluna TIMESTAMP com CURRENT_TIMESTAMP em DEFAULT ou ON UPDATE cláusula"
+"Inválida cláusula ON UPDATE para campo '%-.64s'",
