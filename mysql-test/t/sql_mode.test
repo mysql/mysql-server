@@ -174,4 +174,14 @@ order by masks.p, example;
 
 DROP TABLE t1;
 
+# Bug #6368: Make sure backslashes mixed with doubled quotes are handled
+# correctly in NO_BACKSLASH_ESCAPES mode
+SET @@SQL_MODE='NO_BACKSLASH_ESCAPES';
+SELECT 'a\\b', 'a\\\"b', 'a''\\b', 'a''\\\"b';
+SELECT "a\\b", "a\\\'b", "a""\\b", "a""\\\'b";
+
+SET @@SQL_MODE='';
+SELECT 'a\\b', 'a\\\"b', 'a''\\b', 'a''\\\"b';
+SELECT "a\\b", "a\\\'b", "a""\\b", "a""\\\'b";
+
 SET @@SQL_MODE=@OLD_SQL_MODE;
