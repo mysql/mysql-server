@@ -111,15 +111,15 @@ distribution for that version.
 * Introduction::                General Information about MySQL
 * Installing::                  Installing MySQL
 * Tutorial::                    MySQL Tutorial
-* MySQL Database Administration::  
-* MySQL Optimization::          
+* MySQL Database Administration::  MySQL Database Administration
+* MySQL Optimization::          MySQL Optimization
 * Reference::                   MySQL language reference
 * Table types::                 MySQL table types
 * Clients::                     MySQL client tools and APIs
-* Extending MySQL::             
+* Extending MySQL::             Extending MySQL
 * Problems::                    Problems
 * Users::                       Some MySQL users
-* MySQL customer usage::        
+* MySQL customer usage::        MySQL customer usage
 * Contrib::                     Contributed programs
 * Credits::                     Contributors to MySQL
 * News::                        MySQL change history
@@ -129,10 +129,9 @@ distribution for that version.
 * Unireg::                      What is Unireg?
 * GPL license::                 GNU General Public License
 * LGPL license::                GNU Library General Public License
-* Placeholder::                 
+* Placeholder::                 Pieces of the manual in transit
 * Function Index::              SQL command, type and function index
 * Concept Index::               Concept Index
-
 @end menu
 
 
@@ -234,12 +233,12 @@ MySQL, see @ref{MySQL-Books}.
 
 
 @menu
-* MySQL and MySQL AB::          
-* MySQL Information Sources::   
-* Licensing and Support::       
-* Compatibility::               
-* Comparisons::                 
-* TODO::                        
+* MySQL and MySQL AB::          MySQL, MySQL AB, and Open Source
+* MySQL Information Sources::   MySQL Information Sources
+* Licensing and Support::       MySQL Licensing and Support
+* Compatibility::               How Standards-compatible Is MySQL?
+* Comparisons::                 How MySQL Compares to Other Databases
+* TODO::                        MySQL and the future (The TODO)
 @end menu
 
 
@@ -254,7 +253,7 @@ MySQL, see @ref{MySQL-Books}.
 * History::                     History of MySQL
 * Features::                    The main features of MySQL
 * Stability::                   How stable is MySQL?
-* Table size::                  
+* Table size::                  How Big Can MySQL Tables Be?
 * Year 2000 compliance::        Year 2000 compliance
 @end menu
 
@@ -1119,10 +1118,10 @@ values).
 @cindex books, about MySQL
 
 @menu
-* MySQL-Books::                 
-* General-SQL::                 
-* Useful Links::                
-* Questions::                   
+* MySQL-Books::                 Books About MySQL
+* General-SQL::                 General SQL Information and Tutorials
+* Useful Links::                Useful MySQL-related Links
+* Questions::                   MySQL Mailing Lists
 @end menu
 
 
@@ -3378,7 +3377,7 @@ to help you get the problem solved.
 * Missing functions::           Functionality missing from MySQL
 * Standards::                   What standards does MySQL follow?
 * Commit-rollback::             How to cope without @code{COMMIT}-@code{ROLLBACK}
-* Bugs::                        
+* Bugs::                        Known errors and design deficiencies in MySQL
 @end menu
 
 This section describes how MySQL relates to the ANSI SQL standards.
@@ -3709,7 +3708,7 @@ list in this manual. @xref{TODO}.
 * Missing Transactions::        Transactions
 * Missing Triggers::            Triggers
 * Missing Foreign Keys::        Foreign Keys
-* Broken Foreign KEY::          
+* Broken Foreign KEY::          Reasons NOT to Use Foreign Keys constraints
 * Missing Views::               Views
 * Missing comments::            @samp{--} as the start of a comment
 @end menu
@@ -4718,8 +4717,8 @@ MySQL usually takes a couple of minutes.
 
 @menu
 * Using mSQL tools::            How to convert @code{mSQL} tools for MySQL
-* Protocol differences::        
-* Syntax differences::          
+* Protocol differences::        How @code{mSQL} and MySQL Client/Server Communications Protocols Differ
+* Syntax differences::          How @code{mSQL} 2.0 SQL Syntax Differs from MySQL
 @end menu
 
 
@@ -4804,7 +4803,7 @@ If a connection is idle for 8 hours, the server closes the connection.
 @end itemize
 
 @menu
-* Syntax differences::          
+* Syntax differences::          How @code{mSQL} 2.0 SQL Syntax Differs from MySQL
 @end menu
 
 
@@ -5025,8 +5024,8 @@ can offer, you should use @code{PostgreSQL}.
 @cindex PostgreSQL/MySQL, strategies
 @menu
 * MySQL-PostgreSQL goals::      MySQL and PostgreSQL development strategies
-* MySQL-PostgreSQL features::   
-* MySQL-PostgreSQL benchmarks::  
+* MySQL-PostgreSQL features::   Featurewise Comparison of MySQL and PostgreSQL
+* MySQL-PostgreSQL benchmarks::  Benchmarking MySQL and PostgreSQL
 @end menu
 
 
@@ -5320,7 +5319,7 @@ For a complete list of drawbacks, you should also examine the first table
 in this section.
 
 @menu
-* MySQL-PostgreSQL benchmarks::  
+* MySQL-PostgreSQL benchmarks::  Benchmarking MySQL and PostgreSQL
 @end menu
 
 
@@ -6061,12 +6060,12 @@ Nothing;  In the long run we plan to be fully ANSI 92 / ANSI 99 compliant.
 @cindex installing, overview
 
 @menu
-* Quick Standard Installation::  
-* General Installation Issues::  
-* Installing source::           Installing a MySQL source distribution
-* Post-installation::           Post-installation setup and testing
-* Upgrade::                     Upgrading/Downgrading MySQL
-* Operating System Specific Notes::  
+* Quick Standard Installation::  Quick Standard Installation of MySQL
+* General Installation Issues::  General Installation Issues
+* Installing source::            Installing a MySQL source distribution
+* Post-installation::            Post-installation setup and testing
+* Upgrade::                      Upgrading/Downgrading MySQL
+* Operating System Specific Notes::  Operating System Specific Notes
 @end menu
 
 This chapter describes how to obtain and install MySQL:
@@ -6108,8 +6107,8 @@ source distribution.
 
 @c This node name is special
 @menu
-* Linux-RPM::                   
-* Windows installation::        
+* Linux-RPM::                   Installing MySQL on Linux
+* Windows installation::        Installing MySQL on Windows
 @end menu
 
 
@@ -6270,12 +6269,12 @@ options that must be specified in your @file{my.ini} file! @xref{InnoDB start}.
 @c FIX: this needs to be written? 
 
 @menu
-* Getting MySQL::               
-* Which OS::                    
-* Which version::               
-* Installation layouts::        
-* Many versions::               
-* MySQL binaries::              
+* Getting MySQL::               How to Get MySQL
+* Which OS::                    Operating Systems Supported by MySQL
+* Which version::               Which MySQL Version to Use
+* Installation layouts::        Installation Layouts
+* Many versions::               How and When Updates Are Released
+* MySQL binaries::              MySQL Binaries Compiled by MySQL AB
 @end menu
 
 
@@ -7674,9 +7673,9 @@ of getting a solution to your problem!  You will find @code{mysqlbug} in the
 * Quick install::               Quick installation overview
 * Applying patches::            Applying patches
 * configure options::           Typical @code{configure} options
-* Installing source tree::      
-* Compilation problems::        
-* MIT-pthreads::                
+* Installing source tree::      Installing from the Development Source Tree
+* Compilation problems::        Problems Compiling?
+* MIT-pthreads::                MIT-pthreads Notes
 @end menu
 
 
@@ -9541,15 +9540,15 @@ information.
 @section Operating System Specific Notes
 
 @menu
-* Linux::                       
-* Windows::                     
-* Solaris::                     
-* BSD Notes::                   
-* Mac OS X::                    
-* Other Unix Notes::            
-* OS/2::                        
-* BeOS::                        
-* Novell Netware::              
+* Linux::                       Linux Notes (All Linux Versions)
+* Windows::                     Windows Notes
+* Solaris::                     Solaris Notes
+* BSD Notes::                   BSD Notes
+* Mac OS X::                    Mac OS X Notes
+* Other Unix Notes::            Other Unix Notes
+* OS/2::                        OS/2 Notes
+* BeOS::                        BeOS Notes
+* Novell Netware::              Novell Netware Notes
 @end menu
 
 
@@ -9557,13 +9556,13 @@ information.
 @subsection Linux Notes (All Linux Versions)
 
 @menu
-* Binary notes-Linux::          
-* Linux-x86::                   Linux-x86 notes
-* Linux-SPARC::                 Linux-SPARC notes
-* Linux-Alpha::                 Linux-Alpha notes
-* Linux-PowerPC::               
-* Linux-MIPS::                  
-* Linux-IA64::                  Linux-Ia64 notes
+* Binary notes-Linux::          Linux Notes for Binary Distributions
+* Linux-x86::                   Linux x86 Notes
+* Linux-SPARC::                 Linux SPARC Notes
+* Linux-Alpha::                 Linux Alpha Notes
+* Linux-PowerPC::               Linux PowerPC Notes
+* Linux-MIPS::                  Linux MIPS Notes
+* Linux-IA64::                  Linux IA64 Notes
 @end menu
 
 The notes below regarding @strong{glibc} apply only to the situation
@@ -10819,8 +10818,8 @@ symbolic link to it named @file{/etc/rc3.d/S99mysql.server}.
 
 
 @menu
-* Solaris 2.7::                 
-* Solaris x86::                 
+* Solaris 2.7::                 Solaris 2.7/2.8 Notes
+* Solaris x86::                 Solaris x86 Notes
 @end menu
 
 
@@ -10932,15 +10931,15 @@ it with a trace file or under @code{gdb}.  @xref{Using gdb on mysqld}.
 @subsection BSD Notes
 
 @menu
-* FreeBSD::                     
-* NetBSD::                      
-* OpenBSD::                     
-* OpenBSD 2.5::                 
-* OpenBSD 2.8::                 
-* BSDI::                        
-* BSDI2::                       
-* BSDI3::                       
-* BSDI4::                       
+* FreeBSD::                     FreeBSD Notes
+* NetBSD::                      NetBSD notes
+* OpenBSD::                     OpenBSD Notes
+* OpenBSD 2.5::                 OpenBSD 2.5 Notes
+* OpenBSD 2.8::                 OpenBSD 2.8 Notes
+* BSDI::                        BSD/OS Notes
+* BSDI2::                       BSD/OS Version 2.x Notes
+* BSDI3::                       BSD/OS Version 3.x Notes
+* BSDI4::                       BSD/OS Version 4.x Notes
 @end menu
 
 
@@ -11159,8 +11158,8 @@ on BSDI!  (Making a symbolic link to another disk is ok).
 @subsection Mac OS X Notes
 
 @menu
-* Mac OS X Public Beta::        
-* Mac OS X Server::             
+* Mac OS X Public Beta::        Mac OS X Public Beta
+* Mac OS X Server::             Mac OS X Server
 @end menu
 
 
@@ -11198,16 +11197,16 @@ alias mysqladmin '/usr/local/mysql/bin/mysqladmin'
 @subsection Other Unix Notes
 
 @menu
-* Binary notes-HP-UX::          
-* HP-UX 10.20::                 
-* HP-UX 11.x::                  
-* IBM-AIX::                     
-* SunOS::                       
-* Alpha-DEC-UNIX::              
-* Alpha-DEC-OSF1::              
-* SGI-Irix::                    
-* SCO::                         
-* SCO Unixware::                
+* Binary notes-HP-UX::          HP-UX Notes for Binary Distributions
+* HP-UX 10.20::                 HP-UX Version 10.20 Notes
+* HP-UX 11.x::                  HP-UX Version 11.x Notes
+* IBM-AIX::                     IBM-AIX notes
+* SunOS::                       SunOS 4 Notes
+* Alpha-DEC-UNIX::              Alpha-DEC-UNIX Notes (Tru64)
+* Alpha-DEC-OSF1::              Alpha-DEC-OSF1 Notes
+* SGI-Irix::                    SGI Irix Notes
+* SCO::                         SCO Notes
+* SCO Unixware::                SCO Unixware Version 7.0 Notes
 @end menu
 
 
@@ -11982,7 +11981,7 @@ If you want to use @code{gcc}, you must use @code{gcc} 2.95.2 or newer.
 
 
 @menu
-* OS/2::                        
+* OS/2::                        OS/2 Notes
 @end menu
 
 
@@ -12088,7 +12087,7 @@ with any technical questions they may have while doing the port.
 * Examples::                    Examples
 * Batch mode::                  Using @code{mysql} in batch mode
 * Twin::                        Queries from twin project
-* Apache::                      
+* Apache::                      Using MySQL with Apache
 @end menu
 
 This chapter provides a tutorial introduction to MySQL by showing
@@ -12753,7 +12752,7 @@ than a single @code{LOAD DATA} statement.
 * Working with NULL::           Working with @code{NULL} values
 * Pattern matching::            Pattern matching
 * Counting rows::               Counting rows
-* Multiple tables::             
+* Multiple tables::             Using More Than one Table
 @end menu
 
 The @code{SELECT} statement is used to pull information from a table.
@@ -13875,8 +13874,8 @@ mysql> SELECT * FROM shop;
 * example-Maximum-column-group-row::  The rows holding the group-wise maximum of a certain field
 * example-user-variables::      Using user variables
 * example-Foreign keys::        Using foreign keys
-* Searching on two keys::       
-* Calculating days::            
+* Searching on two keys::       Searching on Two Keys
+* Calculating days::            Calculating visits per day
 @end menu
 
 
@@ -14536,16 +14535,16 @@ FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"' ESCAPED BY '\\'
 @chapter MySQL Database Administration
 
 @menu
-* Configuring MySQL::           
-* Privilege system::            
-* User Account Management::     
-* Disaster Prevention::         
-* Database Administration::     
-* Localization::                
-* Server-Side Scripts::         
-* Client-Side Scripts::         
-* Log Files::                   
-* Replication::                 
+* Configuring MySQL::           Configuring MySQL
+* Privilege system::            General Security Issues and the MySQL Access Privilege System
+* User Account Management::     MySQL User Account Management
+* Disaster Prevention::         Disaster Prevention and Recovery
+* Database Administration::     Database Administration Language Reference
+* Localization::                MySQL Localization and International Usage
+* Server-Side Scripts::         MySQL Server-Side Scripts and Utilities
+* Client-Side Scripts::         MySQL Client-Side Scripts and Utilities
+* Log Files::                   The MySQL Log Files
+* Replication::                 Replication in MySQL
 @end menu
 
 
@@ -14554,10 +14553,10 @@ FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"' ESCAPED BY '\\'
 
 
 @menu
-* Command-line options::        
-* Option files::                
-* Installing many servers::     
-* Multiple servers::            
+* Command-line options::        mysqld Command-line Options
+* Option files::                my.cnf Option Files
+* Installing many servers::     Installing Many Servers on the Same Machine
+* Multiple servers::            Running Multiple MySQL Servers on the Same Machine
 @end menu
 
 
@@ -15079,7 +15078,7 @@ argument to @code{safe_mysqld}.
 
 
 @menu
-* Multiple servers::            
+* Multiple servers::            Running Multiple MySQL Servers on the Same Machine
 @end menu
 
 
@@ -15226,7 +15225,7 @@ system.  This section describes how it works.
 @menu
 * General security::            General security
 * Security::                    How to make MySQL secure against crackers
-* Privileges options::          
+* Privileges options::          Startup Options for @code{mysqld} Concerning Security
 * What Privileges::             What the privilege system does
 * Privileges::                  How the privilege system works
 * Privileges provided::         Privileges provided by MySQL
@@ -16779,13 +16778,13 @@ to restart @code{mysqld} with @code{--skip-grant-tables} to run
 @section MySQL User Account Management
 
 @menu
-* GRANT::                       
-* User names::                  
-* Privilege changes::           
-* Default privileges::          
-* Adding users::                
-* Passwords::                   
-* Password security::           
+* GRANT::                       @code{GRANT} and @code{REVOKE} Syntax
+* User names::                  MySQL User Names and Passwords
+* Privilege changes::           When Privilege Changes Take Effect
+* Default privileges::          Setting Up the Initial MySQL Privileges
+* Adding users::                Adding New Users to MySQL
+* Passwords::                   Setting Up Passwords
+* Password security::           Keeping Your Password Secure
 @end menu
 
 
@@ -17602,14 +17601,14 @@ file.
 @section Disaster Prevention and Recovery
 
 @menu
-* Backup::                      
-* BACKUP TABLE::                
-* RESTORE TABLE::               
-* CHECK TABLE::                 
-* REPAIR TABLE::                
-* Table maintenance::           
-* Maintenance regimen::         
-* Table-info::                  
+* Backup::                      Database Backups
+* BACKUP TABLE::                @code{BACKUP TABLE} Syntax
+* RESTORE TABLE::               @code{RESTORE TABLE} Syntax
+* CHECK TABLE::                 @code{CHECK TABLE} Syntax
+* REPAIR TABLE::                @code{REPAIR TABLE} Syntax
+* Table maintenance::           Using @code{myisamchk} for Table Maintenance and Crash Recovery
+* Maintenance regimen::         Setting Up a Table Maintenance Regimen
+* Table-info::                  Getting Information About a Table
 @end menu
 
 
@@ -17968,16 +17967,16 @@ good idea to make a backup BEFORE doing a repair (or anything that could
 make a lot of changes to a table)
 
 @menu
-* myisamchk syntax::            
-* myisamchk general options::   
-* myisamchk check options::     
-* myisamchk repair options::    
-* myisamchk other options::     
-* myisamchk memory::            
-* Crash recovery::              
-* Check::                       
-* Repair::                      
-* Optimization::                
+* myisamchk syntax::            @code{myisamchk} Invocation Syntax
+* myisamchk general options::   General Options for @code{myisamchk}
+* myisamchk check options::     Check Options for @code{myisamchk}
+* myisamchk repair options::    Repair Options for myisamchk
+* myisamchk other options::     Other Options for @code{myisamchk}
+* myisamchk memory::            @code{myisamchk} Memory Usage
+* Crash recovery::              Using @code{myisamchk} for Crash Recovery
+* Check::                       How to Check Tables for Errors
+* Repair::                      How to Repair Tables
+* Optimization::                Table Optimization
 @end menu
 
 
@@ -18063,10 +18062,10 @@ the easiest way to avoid this problem is to use @code{CHECK TABLE}
 instead of @code{myisamchk} to check tables.
 
 @menu
-* myisamchk general options::   
-* myisamchk check options::     
-* myisamchk repair options::    
-* myisamchk other options::     
+* myisamchk general options::   General Options for @code{myisamchk}
+* myisamchk check options::     Check Options for @code{myisamchk}
+* myisamchk repair options::    Repair Options for myisamchk
+* myisamchk other options::     Other Options for @code{myisamchk}
 @end menu
 
 
@@ -19071,11 +19070,11 @@ information and a description of what it means.
 
 
 @menu
-* OPTIMIZE TABLE::              
-* ANALYZE TABLE::               
-* FLUSH::                       
-* KILL::                        
-* SHOW::                        
+* OPTIMIZE TABLE::              @code{OPTIMIZE TABLE} Syntax
+* ANALYZE TABLE::               @code{ANALYZE TABLE} Syntax
+* FLUSH::                       @code{FLUSH} Syntax
+* KILL::                        @code{KILL} Syntax
+* SHOW::                        @code{SHOW} Syntax
 @end menu
 
 
@@ -19276,7 +19275,7 @@ write is aborted with an disk full error message.
 
 
 @menu
-* SHOW::                        
+* SHOW::                        @code{SHOW} Syntax
 @end menu
 
 
@@ -19325,14 +19324,14 @@ used, the @code{wild} string can be a string that uses the SQL @samp{%}
 and @samp{_} wild-card characters.
 
 @menu
-* SHOW DATABASE INFO::          
-* SHOW TABLE STATUS::           
-* SHOW STATUS::                 
-* SHOW VARIABLES::              
-* SHOW LOGS::                   
-* SHOW PROCESSLIST::            
-* SHOW GRANTS::                 
-* SHOW CREATE TABLE::           
+* SHOW DATABASE INFO::          Retrieving information about Database, Tables, Columns, and Indexes
+* SHOW TABLE STATUS::           @code{SHOW TABLE STATUS}
+* SHOW STATUS::                 @code{SHOW STATUS}
+* SHOW VARIABLES::              @code{SHOW VARIABLES}
+* SHOW LOGS::                   @code{SHOW LOGS}
+* SHOW PROCESSLIST::            @code{SHOW PROCESSLIST}
+* SHOW GRANTS::                 @code{SHOW GRANTS}
+* SHOW CREATE TABLE::           @code{SHOW CREATE TABLE}
 @end menu
 
 
@@ -20240,12 +20239,12 @@ Create Table: CREATE TABLE t (
 @section MySQL Localization and International Usage
 
 @menu
-* Character sets::              
-* Languages::                   
-* Adding character set::        
-* Character arrays::            
-* String collating::            
-* Multi-byte characters::       
+* Character sets::              The Character Set Used for Data and Sorting
+* Languages::                   Non-English Error Messages
+* Adding character set::        Adding a New Character Set
+* Character arrays::            The character definition arrays
+* String collating::            String Collating Support
+* Multi-byte characters::       Multi-byte Character Support
 @end menu
 
 
@@ -20574,11 +20573,11 @@ size in bytes of the largest character in the set.
 @section MySQL Server-Side Scripts and Utilities
 
 @menu
-* Server-Side Overview::        
-* safe_mysqld::                 
-* mysqld_multi::                
-* myisampack::                  
-* mysqld-max::                  
+* Server-Side Overview::        Overview of the Server-Side Scripts and Utilities
+* safe_mysqld::                 safe_mysqld, the wrapper around mysqld
+* mysqld_multi::                mysqld_multi, program for managing multiple MySQL servers
+* myisampack::                  myisampack, The MySQL Compressed Read-only Table Generator
+* mysqld-max::                  mysqld-max, An extended mysqld server
 @end menu
 
 
@@ -21498,16 +21497,16 @@ binaries includes:
 @section MySQL Client-Side Scripts and Utilities
 
 @menu
-* Client-Side Overview::        
-* mysql::                       
-* mysqladmin::                  
-* Using mysqlcheck::            
-* mysqldump::                   
-* mysqlhotcopy::                
-* mysqlimport::                 
-* mysqlshow::                   
-* perror::                      
-* Batch Commands::              
+* Client-Side Overview::        Overview of the Client-Side Scripts and Utilities
+* mysql::                       The Command-line Tool
+* mysqladmin::                  mysqladmin, Administrating a MySQL Server
+* Using mysqlcheck::            Using @code{mysqlcheck} for Table Maintenance and Crash Recovery
+* mysqldump::                   mysqldump, Dumping Table Structure and Data
+* mysqlhotcopy::                mysqlhotcopy, Copying MySQL Databases and Tables
+* mysqlimport::                 mysqlimport, Importing Data from Text Files
+* mysqlshow::                   Showing Databases, Tables, and Columns
+* perror::                      perror, Explaining Error Codes
+* Batch Commands::              How to Run SQL Commands from a Text File
 @end menu
 
 
@@ -22812,12 +22811,12 @@ force @code{mysqld} to reopen the log files (or in some cases
 switch to a new log) by executing @code{FLUSH LOGS}. @xref{FLUSH}.
 
 @menu
-* Error log::                   
-* Query log::                   
-* Update log::                  
-* Binary log::                  
-* Slow query log::              
-* Log file maintenance::        
+* Error log::                   The Error Log
+* Query log::                   The General Query Log
+* Update log::                  The Update Log
+* Binary log::                  The Binary Update Log
+* Slow query log::              The Slow Query Log
+* Log file maintenance::        Log File Maintenance
 @end menu
 
 
@@ -23108,14 +23107,14 @@ and then take a backup and remove @file{mysql.old}.
 @cindex databases, replicating
 
 @menu
-* Replication Intro::           
-* Replication Implementation::  
-* Replication HOWTO::           
-* Replication Features::        
-* Replication Options::         
-* Replication SQL::             
-* Replication FAQ::             
-* Replication Problems::        
+* Replication Intro::           Introduction
+* Replication Implementation::  Replication Implementation Overview
+* Replication HOWTO::           How To Set Up Replication
+* Replication Features::        Replication Features and Known Problems
+* Replication Options::         Replication Options in my.cnf
+* Replication SQL::             SQL Commands Related to Replication
+* Replication FAQ::             Replication FAQ
+* Replication Problems::        Troubleshooting Replication
 @end menu
 
 This chapter describes the various replication features in MySQL.
@@ -23319,11 +23318,11 @@ it is preferred that you use @code{CHANGE MASTER TO} command.
 
 
 @menu
-* Replication Features::        
-* Replication Options::         
-* Replication SQL::             
-* Replication FAQ::             
-* Replication Problems::        
+* Replication Features::        Replication Features and Known Problems
+* Replication Options::         Replication Options in my.cnf
+* Replication SQL::             SQL Commands Related to Replication
+* Replication FAQ::             Replication FAQ
+* Replication Problems::        Troubleshooting Replication
 @end menu
 
 
@@ -24118,12 +24117,12 @@ isolate it into a separate test case first. Then report the problem to
 @chapter MySQL Optimization
 
 @menu
-* Optimize Overview::           
-* Query Speed::                 
-* Locking Issues::              
-* Optimizing Database Structure::  
-* Optimizing the Server::       
-* Disk issues::                 
+* Optimize Overview::           Optimization Overview
+* Query Speed::                 Optimizing @code{SELECT}s and Other Queries
+* Locking Issues::              Locking Issues
+* Optimizing Database Structure::  Optimizing Database Structure
+* Optimizing the Server::       Optimizing the MySQL Server
+* Disk issues::                 Disk Issues
 @end menu
 
 
@@ -24175,11 +24174,11 @@ for most systems, but one should be aware of it.
 
 
 @menu
-* Design Limitations::          
-* Portability::                 
-* Internal use::                
-* MySQL Benchmarks::            
-* Custom Benchmarks::           
+* Design Limitations::          MySQL Design Limitations/Tradeoffs
+* Portability::                 Portability
+* Internal use::                What Have We Used MySQL For?
+* MySQL Benchmarks::            The MySQL Benchmark Suite
+* Custom Benchmarks::           Using Your Own Benchmarks
 @end menu
 
 
@@ -24503,7 +24502,7 @@ some exceptions, and the @code{benchmark(loop_count,expression)} is a
 great tool to find out if this is a problem with your query.
 
 @menu
-* EXPLAIN::                     
+* EXPLAIN::                     @code{EXPLAIN} Syntax (Get Information About a @code{SELECT})
 * Estimating performance::      Estimating query performance
 * SELECT speed::                Speed of @code{SELECT} queries
 * Where optimizations::         How MySQL optimizes @code{WHERE} clauses
@@ -24513,7 +24512,7 @@ great tool to find out if this is a problem with your query.
 * Insert speed::                Speed of @code{INSERT} queries
 * Update speed::                Speed of @code{UPDATE} queries
 * Delete speed::                Speed of @code{DELETE} queries
-* Tips::                        
+* Tips::                        Other Optimization Tips
 @end menu
 
 
@@ -25550,8 +25549,8 @@ from the data, you should not lose anything by using @code{DELAY_KEY_WRITE}.
 
 
 @menu
-* Internal locking::            
-* Table locking::               
+* Internal locking::            How MySQL Locks Tables
+* Table locking::               Table Locking Issues
 @end menu
 
 
@@ -25734,14 +25733,14 @@ option to @code{DELETE} may help. @xref{DELETE, , @code{DELETE}}.
 
 
 @menu
-* Design::                      
-* Data size::                   
-* MySQL indexes::               
-* Indexes::                     
-* Multiple-column indexes::     
-* Table cache::                 
-* Creating many tables::        
-* Open tables::                 
+* Design::                      Design Choices
+* Data size::                   Get Your Data as Small as Possible
+* MySQL indexes::               How MySQL Uses Indexes
+* Indexes::                     Column Indexes
+* Multiple-column indexes::     Multiple-Column Indexes
+* Table cache::                 How MySQL Opens and Closes Tables
+* Creating many tables::        Drawbacks to Creating Large Numbers of Tables in the Same Database
+* Open tables::                 Why So Many Open tables?
 @end menu
 
 
@@ -26035,11 +26034,11 @@ much more quickly find the few rows to return in the result.
 
 
 @menu
-* Indexes::                     
-* Multiple-column indexes::     
-* Table cache::                 
-* Creating many tables::        
-* Open tables::                 
+* Indexes::                     Column Indexes
+* Multiple-column indexes::     Multiple-Column Indexes
+* Table cache::                 How MySQL Opens and Closes Tables
+* Creating many tables::        Drawbacks to Creating Large Numbers of Tables in the Same Database
+* Open tables::                 Why So Many Open tables?
 @end menu
 
 
@@ -26249,12 +26248,12 @@ between all threads.
 
 
 @menu
-* System::                      
-* Server parameters::           
-* Compile and link options::    
-* Memory use::                  
-* DNS::                         
-* SET OPTION::                  
+* System::                      System/Compile Time and Startup Parameter Tuning
+* Server parameters::           Tuning Server Parameters
+* Compile and link options::    How Compiling and Linking Affects the Speed of MySQL
+* Memory use::                  How MySQL Uses Memory
+* DNS::                         How MySQL uses DNS
+* SET OPTION::                  @code{SET} Syntax
 @end menu
 
 
@@ -26847,7 +26846,7 @@ with the update log.
 
 
 @menu
-* SET TRANSACTION::             
+* SET TRANSACTION::             @code{SET TRANSACTION} Syntax
 @end menu
 
 
@@ -26944,7 +26943,7 @@ with the noatime flag.
 @end itemize
 
 @menu
-* Symbolic links::              
+* Symbolic links::              Using Symbolic Links
 @end menu
 
 
@@ -26965,8 +26964,8 @@ disk and only symlink tables as a last resort.
 
 @cindex databases, symbolic links
 @menu
-* Symbolic links to databases::  
-* Symbolic links to tables::    
+* Symbolic links to databases::  Using Symbolic Links for Databases
+* Symbolic links to tables::    Using Symbolic Links for Tables
 @end menu
 
 
@@ -27101,14 +27100,14 @@ Things that are not yet supported:
 @chapter MySQL Language Reference
 
 @menu
-* Language Structure::          
+* Language Structure::          Language Structure
 * Column types::                Column types
 * Functions::                   Functions
-* Data Manipulation::           
-* Data Definition::             
-* Basic User Commands::         
-* Transactional Commands::      
-* Fulltext Search::             
+* Data Manipulation::           Data Manipulation: @code{SELECT}, @code{INSERT}, @code{UPDATE}, @code{DELETE}
+* Data Definition::             Data Definition: @code{CREATE}, @code{DROP}, @code{ALTER}
+* Basic User Commands::         Basic MySQL User Utility Commands
+* Transactional Commands::      MySQL Transactional and Locking Commands
+* Fulltext Search::             MySQL Full-text Search
 @end menu
 
 MySQL has a very complex, but intuitive and easy to learn SQL
@@ -27123,12 +27122,12 @@ may find it useful to refer to the various indexes.
 @section Language Structure
 
 @menu
-* Literals::                    
-* Legal names::                 
-* Name case sensitivity::       
-* Variables::                   
-* Comments::                    
-* Reserved words::              
+* Literals::                    Literals: How to Write Strings and Numbers
+* Legal names::                 Database, Table, Index, Column, and Alias Names
+* Name case sensitivity::       Case Sensitivity in Names
+* Variables::                   User Variables
+* Comments::                    Comment Syntax
+* Reserved words::              Is MySQL Picky About Reserved Words?
 @end menu
 
 
@@ -27594,8 +27593,8 @@ row, but the value of @code{id} for the previous accepted row.
 
 
 @menu
-* Comments::                    
-* Reserved words::              
+* Comments::                    Comment Syntax
+* Reserved words::              Is MySQL Picky About Reserved Words?
 @end menu
 
 @node Comments, Reserved words, Variables, Language Structure
@@ -29281,11 +29280,11 @@ mysql> select MOD(29,9);
 @end example
 
 @menu
-* Non-typed Operators::         
+* Non-typed Operators::         Non-Type-Specific Operators and Functions
 * String functions::            String functions
-* Numeric Functions::           
+* Numeric Functions::           Numeric Functions
 * Date and time functions::     Date and time functions
-* Other Functions::             
+* Other Functions::             Other Functions
 @end menu
 
 
@@ -29293,10 +29292,10 @@ mysql> select MOD(29,9);
 @subsection Non-Type-Specific Operators and Functions
 
 @menu
-* Parenthesis::                 
-* Comparison Operators::        
-* Logical Operators::           
-* Control flow functions::      
+* Parenthesis::                 Parenthesis
+* Comparison Operators::        Comparison Operators
+* Logical Operators::           Logical Operators
+* Control flow functions::      Control Flow Functions
 @end menu
 
 
@@ -30321,8 +30320,8 @@ a binary string.  This only affects comparisons.
 
 
 @menu
-* String comparison functions::  
-* Case Sensitivity Operators::  
+* String comparison functions::  String Comparison Functions
+* Case Sensitivity Operators::  Case Sensitivity
 @end menu
 
 @node String comparison functions, Case Sensitivity Operators, String functions, String functions
@@ -30518,8 +30517,8 @@ make string comparison even more flexible.
 @subsection Numeric Functions
 
 @menu
-* Arithmetic functions::        
-* Mathematical functions::      
+* Arithmetic functions::        Arithmetic Operations
+* Mathematical functions::      Mathematical Functions
 @end menu
 
 
@@ -31527,8 +31526,8 @@ mysql> select TIME_TO_SEC('00:39:38');
 @subsection Other Functions
 
 @menu
-* Bit functions::               
-* Miscellaneous functions::     
+* Bit functions::               Bit Functions
+* Miscellaneous functions::     Miscellaneous Functions
 @end menu
 
 
@@ -31885,14 +31884,14 @@ facilitate replication testing.
 
 
 @menu
-* SELECT::                      
-* INSERT::                      
-* INSERT DELAYED::              
-* UPDATE::                      
-* DELETE::                      
-* TRUNCATE::                    
-* REPLACE::                     
-* LOAD DATA::                   
+* SELECT::                      @code{SELECT} Syntax
+* INSERT::                      @code{INSERT} Syntax
+* INSERT DELAYED::              @code{INSERT DELAYED} syntax
+* UPDATE::                      @code{UPDATE} Syntax
+* DELETE::                      @code{DELETE} Syntax
+* TRUNCATE::                    @code{TRUNCATE} Syntax
+* REPLACE::                     @code{REPLACE} Syntax
+* LOAD DATA::                   @code{LOAD DATA INFILE} Syntax
 @end menu
 
 @node SELECT, INSERT, Data Manipulation, Data Manipulation
@@ -32172,7 +32171,7 @@ the examined rows will be write locked.
 
 
 @menu
-* JOIN::                        
+* JOIN::                        @code{JOIN} Syntax
 @end menu
 
 @node JOIN,  , SELECT, SELECT
@@ -32459,7 +32458,7 @@ type.  The column is set to the appropriate zero value for the type.
 @findex INSERT ... SELECT
 
 @menu
-* INSERT SELECT::               
+* INSERT SELECT::               @code{INSERT ... SELECT} Syntax
 @end menu
 
 
@@ -33310,14 +33309,14 @@ For more information about the efficiency of @code{INSERT} versus
 @section Data Definition: @code{CREATE}, @code{DROP}, @code{ALTER}
 
 @menu
-* CREATE DATABASE::             
-* DROP DATABASE::               
-* CREATE TABLE::                
-* ALTER TABLE::                 
-* RENAME TABLE::                
-* DROP TABLE::                  
-* CREATE INDEX::                
-* DROP INDEX::                  
+* CREATE DATABASE::             @code{CREATE DATABASE} Syntax
+* DROP DATABASE::               @code{DROP DATABASE} Syntax
+* CREATE TABLE::                @code{CREATE TABLE} Syntax
+* ALTER TABLE::                 @code{ALTER TABLE} Syntax
+* RENAME TABLE::                @code{RENAME TABLE} Syntax
+* DROP TABLE::                  @code{DROP TABLE} Syntax
+* CREATE INDEX::                @code{CREATE INDEX} Syntax
+* DROP INDEX::                  @code{DROP INDEX} Syntax
 @end menu
 
 
@@ -33384,12 +33383,12 @@ You can also drop databases with @code{mysqladmin}. @xref{Client-Side Scripts}.
 
 
 @menu
-* CREATE TABLE::                
-* ALTER TABLE::                 
-* RENAME TABLE::                
-* DROP TABLE::                  
-* CREATE INDEX::                
-* DROP INDEX::                  
+* CREATE TABLE::                @code{CREATE TABLE} Syntax
+* ALTER TABLE::                 @code{ALTER TABLE} Syntax
+* RENAME TABLE::                @code{RENAME TABLE} Syntax
+* DROP TABLE::                  @code{DROP TABLE} Syntax
+* CREATE INDEX::                @code{CREATE INDEX} Syntax
+* DROP INDEX::                  @code{DROP INDEX} Syntax
 @end menu
 
 @node CREATE TABLE, ALTER TABLE, DROP DATABASE, Data Definition
@@ -34312,8 +34311,8 @@ prior to Version 3.22.  In Version 3.22 or later, @code{DROP INDEX} is mapped to
 @section Basic MySQL User Utility Commands
 
 @menu
-* USE::                         
-* DESCRIBE::                    
+* USE::                         @code{USE} Syntax
+* DESCRIBE::                    @code{DESCRIBE} Syntax (Get Information About Columns)
 @end menu
 
 
@@ -34387,9 +34386,9 @@ The @code{SHOW} statement provides similar information.
 @section MySQL Transactional and Locking Commands
 
 @menu
-* COMMIT::                      
-* LOCK TABLES::                 
-* SET TRANSACTION::             
+* COMMIT::                      @code{BEGIN/COMMIT/ROLLBACK} Syntax
+* LOCK TABLES::                 @code{LOCK TABLES/UNLOCK TABLES} Syntax
+* SET TRANSACTION::             @code{SET TRANSACTION} Syntax
 @end menu
 
 
@@ -34753,10 +34752,10 @@ the Internet with a search engine.  It is with this reasoning that such rows
 have been assigned a low semantical value in @strong{this particular dataset}.
 
 @menu
-* Fulltext restrictions::       
-* Fulltext Fine-tuning::        
-* Fulltext Features to Appear in MySQL 4.0::  
-* Fulltext TODO::               
+* Fulltext restrictions::       Fulltext restrictions
+* Fulltext Fine-tuning::        Fine-tuning MySQL Full-text Search
+* Fulltext Features to Appear in MySQL 4.0::  New Features of Full-text Search to Appear in MySQL 4.0
+* Fulltext TODO::               Full-text Search TODO
 @end menu
 
 
@@ -35141,7 +35140,7 @@ backup media.
 @menu
 * Key space::                   Space needed for keys
 * MyISAM table formats::        MyISAM table formats
-* MyISAM table problems::       
+* MyISAM table problems::       MyISAM table problems.
 @end menu
 
 
@@ -35346,8 +35345,8 @@ tested, but there are always circumstances that may cause database tables
 to become corrupted.
 
 @menu
-* Corrupted MyISAM tables::     
-* MyISAM table close::          
+* Corrupted MyISAM tables::     Corrupted MyISAM tables.
+* MyISAM table close::          Clients is using or hasn't closed the table properly
 @end menu
 
 
@@ -36315,7 +36314,7 @@ mysqld: ready for connections
 @end example
 
 @menu
-* Error creating InnoDB::       
+* Error creating InnoDB::       If something goes wrong in database creation
 @end menu
 
 
@@ -36520,7 +36519,7 @@ from the general log files of MySQL according to instructions in the
 MySQL manual.
 
 @menu
-* InnoDB checkpoints::          
+* InnoDB checkpoints::          Checkpoints
 @end menu
 
 
@@ -36604,12 +36603,12 @@ on the other hand cancels all modifications made by the current
 transaction.
 
 @menu
-* InnoDB consistent read::      
-* InnoDB locking reads::        
-* InnoDB Next-key locking::     
-* InnoDB Locks set::            
-* InnoDB Deadlock detection::   
-* InnoDB Consistent read example::  
+* InnoDB consistent read::      Consistent read
+* InnoDB locking reads::        Locking reads
+* InnoDB Next-key locking::     Next-key locking: avoiding the phantom problem
+* InnoDB Locks set::            Locks set by different SQL statements in InnoDB
+* InnoDB Deadlock detection::   Deadlock detection and rollback
+* InnoDB Consistent read example::  An example of how the consistent read works in InnoDB
 @end menu
 
 
@@ -37189,10 +37188,10 @@ index. Note that if the primary key is long, the secondary indexes
 will use more space.
 
 @menu
-* InnoDB physical structure::   
-* InnoDB Insert buffering::     
-* InnoDB Adaptive hash::        
-* InnoDB Physical record::      
+* InnoDB physical structure::   Physical structure of an index
+* InnoDB Insert buffering::     Insert buffering
+* InnoDB Adaptive hash::        Adaptive hash indexes
+* InnoDB Physical record::      Physical record structure
 @end menu
 
 
@@ -37326,9 +37325,9 @@ integer that can be stored in the specified integer type.
 @subsection File space management and disk i/o
 
 @menu
-* InnoDB Disk i/o::             
-* InnoDB File space::           
-* InnoDB File Defragmenting::   
+* InnoDB Disk i/o::             Disk i/o
+* InnoDB File space::           File space management
+* InnoDB File Defragmenting::   Defragmenting a table
 @end menu
 
 
@@ -37595,7 +37594,7 @@ Finland
 @menu
 * PHP::                         MySQL PHP API
 * Perl::                        MySQL Perl API
-* ODBC::                        
+* ODBC::                        MySQL ODBC Support
 * C::                           MySQL C API
 * Cplusplus::                   MySQL C++ APIs
 * Java::                        MySQL Java connectivity (JDBC)
@@ -38206,7 +38205,7 @@ the @code{DBI} Web page:
 @menu
 * Installing MyODBC::           How to install MyODBC
 * ODBC administrator::          How to fill in the various fields in the ODBC administrator program
-* MyODBC connect parameters::   
+* MyODBC connect parameters::   Connect parameters for MyODBC
 * ODBC Problems::               How to report problems with MySQL ODBC
 * MyODBC clients::              Programs known to work with @strong{MyODBC}
 * ODBC and last_insert_id::     How to get the value of an @code{AUTO_INCREMENT} column in ODBC
@@ -38851,9 +38850,9 @@ likely it is that we can fix the problem!
 * C API datatypes::             C API Datatypes
 * C API function overview::     C API Function Overview
 * C API functions::             C API Function Descriptions
-* C API problems::              
-* Building clients::            
-* Thread-safe clients::         
+* C API problems::              Common questions and problems when using the C API
+* Building clients::            Building Client Programs
+* Thread-safe clients::         How to Make a Thread-safe Client
 @end menu
 
 The C API code is distributed with MySQL. It is included in the
@@ -41545,10 +41544,10 @@ An unknown error occurred.
 @tindex @code{mysql_store_result()}
 
 @menu
-* NULL mysql_store_result::     
-* Query results::               
-* Getting unique ID::           
-* C API linking problems::      
+* NULL mysql_store_result::     Why Is It that After @code{mysql_query()} Returns Success, @code{mysql_store_result()} Sometimes Returns @code{NULL?}
+* Query results::               What Results Can I Get From a Query?
+* Getting unique ID::           How Can I Get the Unique ID for the Last Inserted Row?
+* C API linking problems::      Problems Linking with the C API
 @end menu
 
 
@@ -41586,9 +41585,9 @@ You can test for an error by calling @code{mysql_error()} or
 
 @cindex queries, C API results
 @menu
-* Query results::               
-* Getting unique ID::           
-* C API linking problems::      
+* Query results::               What Results Can I Get From a Query?
+* Getting unique ID::           How Can I Get the Unique ID for the Last Inserted Row?
+* C API linking problems::      Problems Linking with the C API
 @end menu
 
 
@@ -41802,7 +41801,7 @@ included the thread libraries on the link/compile line.
 @section MySQL C++ APIs
 
 @menu
-* Borland C++::                 
+* Borland C++::                 Borland C++
 @end menu
 
 
@@ -41895,9 +41894,9 @@ You can also find this at:
 @chapter Extending MySQL
 
 @menu
-* Adding functions::            
-* Adding procedures::           
-* MySQL internals::             
+* Adding functions::            Adding New Functions to MySQL
+* Adding procedures::           Adding New Procedures to MySQL
+* MySQL internals::             MySQL Internals
 @end menu
 
 
@@ -41943,7 +41942,7 @@ Whichever method you use to add new functions, they may be used just like
 native functions such as @code{ABS()} or @code{SOUNDEX()}.
 
 @menu
-* CREATE FUNCTION::             
+* CREATE FUNCTION::             @code{CREATE FUNCTION/DROP FUNCTION} Syntax
 * Adding UDF::                  Adding a new user-definable function
 * Adding native function::      Adding a new native function
 @end menu
@@ -42689,9 +42688,9 @@ that all future MySQL releases will work well with your
 applications.
 
 @menu
-* running mysqltest::           
-* extending mysqltest::         
-* Reporting mysqltest bugs::    
+* running mysqltest::           Running the MySQL Test Suite
+* extending mysqltest::         Extending the MySQL Test Suite
+* Reporting mysqltest bugs::    Reporting Bugs in the MySQL Test Suite
 @end menu
 
 
@@ -42888,10 +42887,10 @@ do that.  Just specify the @code{--with-debug} options to @code{configure}!
 @menu
 * What is crashing::            How to determine what is causing problems
 * Common errors::               Some common errors when using MySQL
-* Installation Issues::         
-* Administration Issues::       
-* Query Issues::                
-* Table Definition Issues::     
+* Installation Issues::         Installation Related Issues
+* Administration Issues::       Administration Related Issues
+* Query Issues::                Query Related Issues
+* Table Definition Issues::     Table Definition Related Issues
 @end menu
 
 This chapter lists some common problems and error messages that users have
@@ -43018,8 +43017,8 @@ described in this manual. @xref{Asking questions}.
 * Commands out of sync::        @code{Commands out of sync} error in client
 * Ignoring user::               @code{Ignoring user} error
 * Cannot find table::           @code{Table 'xxx' doesn't exist} error
-* Cannot initialize character set::  
-* Not enough file handles::     
+* Cannot initialize character set::  @code{Can@'t initialize character set xxx} error.
+* Not enough file handles::     File Not Found
 @end menu
 
 
@@ -43642,9 +43641,9 @@ limits!  In this case you should start @code{safe_mysqld} with @code{sh}!
 
 
 @menu
-* Link errors::                 
-* Changing MySQL user::         
-* File permissions ::           
+* Link errors::                 Problems When Linking with the MySQL Client Library
+* Changing MySQL user::         How to Run MySQL As a Normal User
+* File permissions ::           Problems with File Permissions
 @end menu
 
 @node Link errors, Changing MySQL user, Installation Issues, Installation Issues
@@ -43842,12 +43841,12 @@ with a zero.
 
 
 @menu
-* Crashing::                    
-* Resetting permissions::       
-* Full disk::                   
-* Temporary files::             
-* Problems with mysql.sock::    
-* Timezone problems::           
+* Crashing::                    What To Do If MySQL Keeps Crashing
+* Resetting permissions::       How to Reset a Forgotten Password
+* Full disk::                   How MySQL Handles a Full Disk
+* Temporary files::             Where MySQL Stores Temporary Files
+* Problems with mysql.sock::    How to Protect @file{/tmp/mysql.sock} from Being Deleted
+* Timezone problems::           Time Zone Problems
 @end menu
 
 @node Crashing, Resetting permissions, Administration Issues, Administration Issues
@@ -44228,12 +44227,12 @@ the server runs, for example, in @code{safe_mysqld} or @code{mysql.server}.
 
 
 @menu
-* Case sensitivity::            
-* Using DATE::                  
-* Problems with NULL::          
-* Problems with alias::         
-* Deleting from related tables::  
-* No matching rows::            
+* Case sensitivity::            Case Sensitivity in Searches
+* Using DATE::                  Problems Using @code{DATE} Columns
+* Problems with NULL::          Problems with @code{NULL} Values
+* Problems with alias::         Problems with @code{alias}
+* Deleting from related tables::  Deleting Rows from Related Tables
+* No matching rows::            Solving Problems with No Matching Rows
 @end menu
 
 @node Case sensitivity, Using DATE, Query Issues, Query Issues
@@ -44537,9 +44536,9 @@ Post the test file using @code{mysqlbug} to @email{mysql@@lists.mysql.com}.
 
 
 @menu
-* ALTER TABLE problems::        
-* Change column order::         
-* Temporary table problems::    
+* ALTER TABLE problems::        Problems with @code{ALTER TABLE}.
+* Change column order::         How To Change the Order of Columns in a Table
+* Temporary table problems::    TEMPORARY TABLE problems
 @end menu
 
 @node ALTER TABLE problems, Change column order, Table Definition Issues, Table Definition Issues
@@ -45946,9 +45945,9 @@ This appendix lists the developers, contributors, and supporters that have
 helped to make MySQL what it is today.
 
 @menu
-* Developers::                  
-* Contributors::                
-* Supporters::                  
+* Developers::                  Developers at MySQL AB
+* Contributors::                Contributors to MySQL
+* Supporters::                  Supporters to MySQL
 @end menu
 
 
@@ -52044,12 +52043,12 @@ problems that may be unique to your environment.
 @xref{Operating System Specific Notes}.
 
 @menu
-* Compiling for debugging::     
-* Making trace files::          
-* Using gdb on mysqld::         
-* Using stack trace::           
-* Using log files::             
-* Reproduceable test case::     
+* Compiling for debugging::     Compiling MYSQL for debugging.
+* Making trace files::          Creating trace files
+* Using gdb on mysqld::         Debugging mysqld under gdb
+* Using stack trace::           Using a stack trace
+* Using log files::             Using log files to find cause of errors in mysqld
+* Reproduceable test case::     Making a test case when you experience table corruption
 @end menu
 
 
@@ -54098,9 +54097,9 @@ That's all there is to it!
 @appendix Pieces of the manual in transit
 
 @menu
-* Installing binary::           
-* Perl support::                
-* Group by functions::          
+* Installing binary::           Installing a MySQL Binary Distribution
+* Perl support::                Perl Installation Comments
+* Group by functions::          Functions for Use with @code{GROUP BY} Clauses
 @end menu
 
 
