@@ -74,17 +74,18 @@ Dbtux::execACC_SCANREQ(Signal* signal)
     scanPtr.p->m_savePointId = req->savePointId;
     scanPtr.p->m_readCommitted = AccScanReq::getReadCommittedFlag(req->requestInfo);
     scanPtr.p->m_lockMode = AccScanReq::getLockMode(req->requestInfo);
-#ifdef VM_TRACE
-    if (debugFlags & DebugScan) {
-      debugOut << "Seize scan " << scanPtr.i << " " << *scanPtr.p << endl;
-    }
-#endif
+    scanPtr.p->m_descending = AccScanReq::getDescendingFlag(req->requestInfo);
     /*
      * readCommitted lockMode keyInfo
      * 1 0 0 - read committed (no lock)
      * 0 0 0 - read latest (read lock)
      * 0 1 1 - read exclusive (write lock)
      */
+#ifdef VM_TRACE
+    if (debugFlags & DebugScan) {
+      debugOut << "Seize scan " << scanPtr.i << " " << *scanPtr.p << endl;
+    }
+#endif
     // conf
     AccScanConf* const conf = (AccScanConf*)signal->getDataPtrSend();
     conf->scanPtr = req->senderData;
@@ -418,7 +419,7 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
   if (scan.m_state == ScanOp::Next) {
     jam();
     // look for next
-    scanNext(scanPtr);
+    scanNext(scanPtr, false);
   }
   // for reading tuple key in Current or Locked state
   Data pkData = c_dataBuffer;
@@ -697,8 +698,10 @@ Dbtux::scanFirst(ScanOpPtr scanPtr)
   TreeHead& tree = frag.m_tree;
   // set up index keys for this operation
   setKeyAttrs(frag);
-  // unpack lower bound into c_dataBuffer
-  const ScanBound& bound = *scan.m_bound[0];
+  // scan direction 0, 1
+  const unsigned idir = scan.m_descending;
+  // unpack start key into c_dataBuffer
+  const ScanBound& bound = *scan.m_bound[idir];
   ScanBoundIterator iter;
   bound.first(iter);
   for (unsigned j = 0; j < bound.getSize(); j++) {
@@ -706,11 +709,10 @@ Dbtux::scanFirst(ScanOpPtr scanPtr)
     c_dataBuffer[j] = *iter.data;
     bound.next(iter);
   }
-  // search for scan start position
   TreePos treePos;
-  searchToScan(frag, c_dataBuffer, scan.m_boundCnt[0], treePos);
+  searchToScan(frag, c_dataBuffer, scan.m_boundCnt[idir], scan.m_descending, treePos);
   if (treePos.m_loc == NullTupLoc) {
-    // empty tree
+    // empty result set
     jam();
     scan.m_state = ScanOp::Last;
     return;
@@ -728,7 +730,8 @@ Dbtux::scanFirst(ScanOpPtr scanPtr)
  * Move to next entry.  The scan is already linked to some node.  When
  * we leave, if an entry was found, it will be linked to a possibly
  * different node.  The scan has a position, and a direction which tells
- * from where we came to this position.  This is one of:
+ * from where we came to this position.  This is one of (all comments
+ * are in terms of ascending scan):
  *
  * 0 - up from left child (scan this node next)
  * 1 - up from right child (proceed to parent)
@@ -740,7 +743,7 @@ Dbtux::scanFirst(ScanOpPtr scanPtr)
  * re-organizations need not worry about scan direction.
  */
 void
-Dbtux::scanNext(ScanOpPtr scanPtr)
+Dbtux::scanNext(ScanOpPtr scanPtr, bool fromMaintReq)
 {
   ScanOp& scan = *scanPtr.p;
   Frag& frag = *c_fragPool.getPtr(scan.m_fragPtrI);
@@ -753,8 +756,11 @@ Dbtux::scanNext(ScanOpPtr scanPtr)
   ndbrequire(scan.m_state != ScanOp::Locked);
   // set up index keys for this operation
   setKeyAttrs(frag);
-  // unpack upper bound into c_dataBuffer
-  const ScanBound& bound = *scan.m_bound[1];
+  // scan direction
+  const unsigned idir = scan.m_descending; // 0, 1
+  const int jdir = 1 - 2 * (int)idir;      // 1, -1
+  // unpack end key into c_dataBuffer
+  const ScanBound& bound = *scan.m_bound[1 - idir];
   ScanBoundIterator iter;
   bound.first(iter);
   for (unsigned j = 0; j < bound.getSize(); j++) {
@@ -774,6 +780,11 @@ Dbtux::scanNext(ScanOpPtr scanPtr)
   TreeEnt ent;
   while (true) {
     jam();
+#ifdef VM_TRACE
+    if (debugFlags & DebugScan) {
+      debugOut << "Scan next pos " << pos << " " << node << endl;
+    }
+#endif
     if (pos.m_dir == 2) {
       // coming up from root ends the scan
       jam();
@@ -788,7 +799,7 @@ Dbtux::scanNext(ScanOpPtr scanPtr)
     if (pos.m_dir == 4) {
       // coming down from parent proceed to left child
       jam();
-      TupLoc loc = node.getLink(0);
+      TupLoc loc = node.getLink(idir);
       if (loc != NullTupLoc) {
         jam();
         pos.m_loc = loc;
@@ -796,34 +807,42 @@ Dbtux::scanNext(ScanOpPtr scanPtr)
         continue;
       }
       // pretend we came from left child
-      pos.m_dir = 0;
+      pos.m_dir = idir;
     }
-    if (pos.m_dir == 0) {
+    const unsigned occup = node.getOccup();
+    if (occup == 0) {
+      jam();
+      ndbrequire(fromMaintReq);
+      // move back to parent - see comment in treeRemoveInner
+      pos.m_loc = node.getLink(2);
+      pos.m_dir = node.getSide();
+      continue;
+    }
+    if (pos.m_dir == idir) {
       // coming up from left child scan current node
       jam();
-      pos.m_pos = 0;
+      pos.m_pos = idir == 0 ? 0 : occup - 1;
       pos.m_match = false;
       pos.m_dir = 3;
     }
     if (pos.m_dir == 3) {
       // within node
       jam();
-      unsigned occup = node.getOccup();
-      ndbrequire(occup >= 1);
       // advance position
       if (! pos.m_match)
         pos.m_match = true;
       else
-        pos.m_pos++;
+        // becomes ZNIL (which is > occup) if 0 and scan descending
+        pos.m_pos += jdir;
       if (pos.m_pos < occup) {
         jam();
         ent = node.getEnt(pos.m_pos);
         pos.m_dir = 3;  // unchanged
         // read and compare all attributes
         readKeyAttrs(frag, ent, 0, c_entryKey);
-        int ret = cmpScanBound(frag, 1, c_dataBuffer, scan.m_boundCnt[1], c_entryKey);
+        int ret = cmpScanBound(frag, 1 - idir, c_dataBuffer, scan.m_boundCnt[1 - idir], c_entryKey);
         ndbrequire(ret != NdbSqlUtil::CmpUnknown);
-        if (ret < 0) {
+        if (jdir * ret < 0) {
           jam();
           // hit upper bound of single range scan
           pos.m_loc = NullTupLoc;
@@ -840,7 +859,7 @@ Dbtux::scanNext(ScanOpPtr scanPtr)
         break;
       }
       // after node proceed to right child
-      TupLoc loc = node.getLink(1);
+      TupLoc loc = node.getLink(1 - idir);
       if (loc != NullTupLoc) {
         jam();
         pos.m_loc = loc;
@@ -848,9 +867,9 @@ Dbtux::scanNext(ScanOpPtr scanPtr)
         continue;
       }
       // pretend we came from right child
-      pos.m_dir = 1;
+      pos.m_dir = 1 - idir;
     }
-    if (pos.m_dir == 1) {
+    if (pos.m_dir == 1 - idir) {
       // coming up from right child proceed to parent
       jam();
       pos.m_loc = node.getLink(2);

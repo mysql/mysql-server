@@ -4926,7 +4926,7 @@ ha_ndbcluster::read_multi_range_first(key_multi_range **found_range_p,
 	  end_of_buffer -= reclength;
 	}
 	else if ((scanOp= m_active_trans->getNdbIndexScanOperation(idx, tab)) 
-		 && !scanOp->readTuples(lm, 0, parallelism, sorted, true) &&
+		 && !scanOp->readTuples(lm, 0, parallelism, sorted, false, true) &&
 		 !define_read_attrs(end_of_buffer-reclength, scanOp))
 	{
 	  m_multi_cursor= scanOp;
