@@ -253,8 +253,8 @@ Version @value{mysql_version}. Being a reference manual, it does not
 provide general instruction on @code{SQL} or relational database
 concepts.
 
-As the @code{MySQL Database Software} is work in under constant
-development, the manual is also updated frequently.
+As the @code{MySQL Database Software} is under continuous development,
+the manual is also updated frequently.
 The most recent version of this manual is available at
 @uref{http://www.mysql.com/documentation/} in many different formats,
 currently there are Texinfo, plain text, Info, HTML, PostScript, PDF
