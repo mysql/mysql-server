@@ -342,7 +342,10 @@ public:
 
   inline void print(String *str)
   {
+    str->reserve(m_name.length+8);
     str->append(m_name.str, m_name.length);
+    str->append('@');
+    str->qs_append(m_offset);
   }
 
   inline bool send(Protocol *protocol, String *str)
