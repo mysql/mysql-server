@@ -177,6 +177,6 @@ CHARSET_INFO my_charset_bin =
     my_strncasecmp_bin,		/* strncasecmp   */
     my_hash_caseup_bin,		/* hash_caseup   */
     my_hash_sort_bin,		/* hash_sort     */
-    0				/* max_sort_char */
+    255				/* max_sort_char */
 };
 
