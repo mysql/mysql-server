@@ -561,21 +561,22 @@ NdbScanOperation::send_next_scan(Uint32 cnt, bool stopScanFlag){
 	sent++;
       }
     }
-    memcpy(&m_api_receivers[0], &m_api_receivers[cnt], cnt * sizeof(char*));
+    memmove(m_api_receivers, m_api_receivers+cnt, 
+	    (theParallelism-cnt) * sizeof(char*));
     
     int ret = 0;
     if(sent)
     {
       Uint32 nodeId = theNdbCon->theDBnode;
       TransporterFacade * tp = TransporterFacade::instance();
-      if(cnt > 21 && !stopScanFlag){
+      if(cnt > 21){
 	tSignal.setLength(4);
 	LinearSectionPtr ptr[3];
 	ptr[0].p = prep_array;
 	ptr[0].sz = sent;
 	ret = tp->sendSignal(&tSignal, nodeId, ptr, 1);
       } else {
-	tSignal.setLength(4+(stopScanFlag ? 0 : sent));
+	tSignal.setLength(4+sent);
 	ret = tp->sendSignal(&tSignal, nodeId);
       }
     }
@@ -635,6 +636,7 @@ NdbScanOperation::execCLOSE_SCAN_REP(){
   m_api_receivers_count = 0;
   m_conf_receivers_count = 0;
   m_sent_receivers_count = 0;
+  m_current_api_receiver = theParallelism;
 }
 
 void NdbScanOperation::release()
