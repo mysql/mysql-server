@@ -356,7 +356,12 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
 
   // print query
   str.length(0);
-  thd->lex->unit.print(&str);
+  {
+    ulong sql_mode= thd->variables.sql_mode & MODE_ANSI_QUOTES;
+    thd->variables.sql_mode&= ~MODE_ANSI_QUOTES;
+    thd->lex->unit.print(&str);
+    thd->variables.sql_mode|= sql_mode;
+  }
   str.append('\0');
   DBUG_PRINT("VIEW", ("View: %s", str.ptr()));
 
@@ -657,6 +662,7 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
     }
 
     table->effective_algorithm= VIEW_ALGORITHM_TMEPTABLE;
+    lex->select_lex.linkage= DERIVED_TABLE_TYPE;
     if (table->updatable)
     {
       //TOTO: warning: can't be updateable, .frm edited by hand. version
@@ -675,6 +681,11 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
 	for (; (tbl_next= tbl_end->next_global); tbl_end= tbl_next);
 	if ((tbl_end->next_global= old_next))
           tbl_end->next_global->prev_global= &tbl_end->next_global;
+      }
+      else
+      {
+        /* VIEW do not contain tables */
+        table->next_global= old_next;
       }
     }
 

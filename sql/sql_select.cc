@@ -11249,13 +11249,13 @@ void st_table_list::print(THD *thd, String *str)
   }
   else if (view_name.str)
   {
-    str->append(view_db.str, view_db.length);
+    append_identifier(thd, str, view_db.str, view_db.length);
     str->append('.');
-    str->append(view_name.str, view_name.length);
+    append_identifier(thd, str, view_name.str, view_name.length);
     if (my_strcasecmp(table_alias_charset, view_name.str, alias))
     {
       str->append(' ');
-      str->append(alias);
+      append_identifier(thd, str, alias, strlen(alias));
     }
   }
   else if (derived)
@@ -11263,20 +11263,21 @@ void st_table_list::print(THD *thd, String *str)
     str->append('(');
     derived->print(str);
     str->append(") ", 2);
-    str->append(alias);
+    append_identifier(thd, str, alias, strlen(alias));
   }
   else
   {
-    str->append(db);
+    append_identifier(thd, str, db, db_length);
     str->append('.');
-    str->append(real_name);
+    append_identifier(thd, str, real_name, real_name_length);
     if (my_strcasecmp(table_alias_charset, real_name, alias))
     {
       str->append(' ');
-      str->append(alias);
+      append_identifier(thd, str, alias, strlen(alias));
     }
   }
 }
+
 
 void st_select_lex::print(THD *thd, String *str)
 {
@@ -11284,7 +11285,7 @@ void st_select_lex::print(THD *thd, String *str)
     thd= current_thd;
 
   str->append("select ", 7);
-  
+
   //options
   if (options & SELECT_STRAIGHT_JOIN)
     str->append("straight_join ", 14);
