@@ -1449,7 +1449,7 @@ then
   if [ -z "$USE_RUNNING_NDBCLUSTER" ]
   then
     echo "Starting ndbcluster"
-    ./ndb/ndbcluster --port-base=$NDBCLUSTER_PORT --small --initial --data-dir=$MYSQL_TEST_DIR/var || exit 1
+    ./ndb/ndbcluster --port-base=$NDBCLUSTER_PORT --small --diskless --initial --data-dir=$MYSQL_TEST_DIR/var || exit 1
     NDB_CONNECTSTRING="host=localhost:$NDBCLUSTER_PORT"
     export NDB_CONNECTSTRING
   else
