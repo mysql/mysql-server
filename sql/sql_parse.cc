@@ -977,6 +977,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     char *save_user=	    thd->user;
     char *save_priv_user=   thd->priv_user;
     char *save_db=	    thd->db;
+    thd->user=0;
     USER_CONN *save_uc=            thd->user_connect;
 
     if ((uint) ((uchar*) db - net->read_pos) > packet_length)
@@ -987,7 +988,6 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     if (check_user(thd, COM_CHANGE_USER, user, passwd, db, 0))
     {						// Restore old user
       x_free(thd->user);
-      x_free(thd->db);
       thd->master_access=save_master_access;
       thd->db_access=save_db_access;
       thd->db=save_db;
