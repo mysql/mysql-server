@@ -15,6 +15,7 @@ flush logs;
 
 --- Local --
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
+ROLLBACK;
 use test;
 SET TIMESTAMP=1000000000;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1;
@@ -47,6 +48,7 @@ insert into t1 values ("Alas");
 
 --- --database --
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
+ROLLBACK;
 SET INSERT_ID=1;
 
 --- --position --
@@ -60,6 +62,7 @@ insert into t1 values ("Alas");
 
 --- Remote --
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
+ROLLBACK;
 use test;
 SET TIMESTAMP=1000000000;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1;
@@ -92,6 +95,7 @@ insert into t1 values ("Alas");
 
 --- --database --
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
+ROLLBACK;
 SET INSERT_ID=1;
 
 --- --position --
@@ -105,13 +109,12 @@ insert into t1 values ("Alas");
 
 --- reading stdin --
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
+ROLLBACK;
 use test;
 SET TIMESTAMP=1065204671;
 BEGIN;
-ROLLBACK;
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
 use test;
 SET TIMESTAMP=1065204671;
 BEGIN;
-ROLLBACK;
 drop table t1, t2;

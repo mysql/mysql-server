@@ -312,30 +312,20 @@ struct sql_ex_info
    small chance that mysqld crashes in the middle of insert and end of
    the binlog would look like a Stop_log_event).
 
-   This flag is used to detect a restart after a crash,
-   and to provide "unbreakable" binlog. The problem is that on a crash
-   storage engines rollback automatically, while binlog does not.
-   To solve this we use this flag and automatically append ROLLBACK
-   to every non-closed binlog (append virtually, on reading, file itself
-   is not changed). If this flag is found, mysqlbinlog simply prints "ROLLBACK"
-   Replication master does not abort on binlog corruption, but takes it as EOF,
-   and replication slave forces a rollback in this case (see below).
+   This flag is used to detect a restart after a crash, and to provide
+   "unbreakable" binlog. The problem is that on a crash storage engines
+   rollback automatically, while binlog does not.  To solve this we use this
+   flag and automatically append ROLLBACK to every non-closed binlog (append
+   virtually, on reading, file itself is not changed). If this flag is found,
+   mysqlbinlog simply prints "ROLLBACK" Replication master does not abort on
+   binlog corruption, but takes it as EOF, and replication slave forces a
+   rollback in this case.
 
    Note, that old binlogs does not have this flag set, so we get a
    a backward-compatible behaviour.
 */
 
 #define LOG_EVENT_BINLOG_IN_USE_F       0x1
-
-/*
-  This flag is only used for fake Rotate_log_event. When a master, doing
-  binlog dump, reaches the end of the binlog and fakes a rotate to make
-  the slave to go to a new file, this flag is used if there was no
-  "natural" Rotate_log_event.
-  If this flag is set, slave will execute ROLLBACK before going further
-*/
-
-#define LOG_EVENT_FORCE_ROLLBACK_F      0x1
 
 /*
    If the query depends on the thread (for example: TEMPORARY TABLE).
@@ -903,8 +893,8 @@ public:
     binary log) was created.  In the other case (i.e. this event is at
     the start of a binary log created by FLUSH LOGS or automatic
     rotation), 'created' should be 0.  This "trick" is used by MySQL
-    >=4.0.14 slaves to know if they must drop the stale temporary
-    tables or not.
+    >=4.0.14 slaves to know whether they must drop stale temporary
+    tables and whether they should abort unfinished transaction.
 
     Note that when 'created'!=0, it is always equal to the event's
     timestamp; indeed Start_log_event is written only in log.cc where

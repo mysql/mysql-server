@@ -1171,11 +1171,10 @@ static int dump_local_log_entries(const char* logname)
     {
       /*
         if binlog wasn't closed properly ("in use" flag is set) don't complain
-        about a corruption, but issue a "ROLLBACK" to annihilate half-logged
-        transaction. Otherwise, treat it as EOF and move to the next binlog.
+        about a corruption, but treat it as EOF and move to the next binlog.
       */
       if (description_event->flags & LOG_EVENT_BINLOG_IN_USE_F)
-        fprintf(result_file, "ROLLBACK;\n");
+        file->error= 0;
       else if (file->error)
       {
         fprintf(stderr,

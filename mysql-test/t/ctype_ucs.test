@@ -339,7 +339,6 @@ set @v=convert('abc' using ucs2);
 reset master;
 insert into t2 values (@v);
 show binlog events from 96;
-flush logs;
 # more important than SHOW BINLOG EVENTS, mysqlbinlog (where we
 # absolutely need variables names to be quoted and strings to be
 # escaped).
