@@ -40,3 +40,6 @@ select distinct s,t from t1;
 select count(distinct s,t) from t1;
 
 select count(distinct n1), count(distinct n2) from t1;
+
+select count(distinct n2), n1 from t1 group by n1;
+drop table t1;

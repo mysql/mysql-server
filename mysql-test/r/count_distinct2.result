@@ -70,3 +70,7 @@ count(distinct s,t)
 5
 count(distinct n1)	count(distinct n2)
 2	3
+count(distinct n2)	n1
+1	NULL
+1	1
+3	2
