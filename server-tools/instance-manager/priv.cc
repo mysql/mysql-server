@@ -1,5 +1,3 @@
-#ifndef INCLUDES_MYSQL_INSTANCE_MANAGER_MANAGER_H
-#define INCLUDES_MYSQL_INSTANCE_MANAGER_MANAGER_H
 /* Copyright (C) 2003 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
 
    This program is free software; you can redistribute it and/or modify
@@ -16,8 +14,21 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-class Options;
+#include "priv.h"
 
-void manager(const Options &options);
+const char mysqlmanager_version[] = "0.2-alpha";
 
-#endif // INCLUDES_MYSQL_INSTANCE_MANAGER_MANAGER_H
+const int mysqlmanager_version_length= sizeof(mysqlmanager_version) - 1;
+
+const unsigned char protocol_version= PROTOCOL_VERSION;
+
+unsigned long net_buffer_length= 16384;
+
+unsigned long max_allowed_packet= 16384;
+
+unsigned long net_read_timeout= 30;             // same as in mysqld
+
+unsigned long net_write_timeout= 60;            // same as in mysqld
+
+unsigned long net_retry_count= 10;              // same as in mysqld
+
