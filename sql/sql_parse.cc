@@ -2335,6 +2335,21 @@ mysql_execute_command(THD *thd)
 	net_printf(thd,ER_UPDATE_TABLE_USED, create_table->real_name);
 	goto create_error;
       }
+      if (lex->create_info.used_fields & HA_CREATE_USED_UNION)
+      {
+        TABLE_LIST *tab;
+        for (tab= tables; tab; tab= tab->next)
+        {
+          if (find_real_table_in_list((TABLE_LIST*) lex->create_info.
+                                      merge_list.first,
+                                      tables->db, tab->real_name))
+          {
+            net_printf(thd, ER_UPDATE_TABLE_USED, tab->real_name);
+            goto create_error;
+          }
+        }  
+      }    
+
       if (tables && check_table_access(thd, SELECT_ACL, tables,0))
 	goto create_error;			// Error message is given
       select_lex->options|= SELECT_NO_UNLOCK;
