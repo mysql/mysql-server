@@ -364,9 +364,9 @@ AC_PATH_PROG(SED, sed, sed)
 AC_PATH_PROG(CMP, cmp, cmp)
 AC_PATH_PROG(CHMOD, chmod, chmod)
 AC_PATH_PROG(HOSTNAME, hostname, hostname)
-# Check for a GNU tar named 'gtar', fall back to 'tar' otherwise
-# and hope that it's a GNU tar as well
-AC_CHECK_PROGS(TAR, gtar tar)
+# Check for a GNU tar named 'gtar', or 'gnutar' (MacOS X) and
+# fall back to 'tar' otherwise and hope that it's a GNU tar as well
+AC_CHECK_PROGS(TAR, gnutar gtar tar)
 dnl We use a path for perl so the script startup works
 dnl We make sure to use perl, not perl5, in hopes that the RPMs will
 dnl not depend on the perl5 binary being installed (probably a bug in RPM)
