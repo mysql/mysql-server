@@ -370,3 +370,4 @@ character-set=latin1
 "View merge algorithm can't be used here for now (assumed undefined algorithm)"
 "View being update does not have complete key of underlying table in it"
 "View '%-.64s.%-.64s' references invalid table(s) or column(s)"
+"Can't drop a %s from within another stored routine"
