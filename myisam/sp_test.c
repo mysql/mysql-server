@@ -18,6 +18,8 @@
 /* Written by Alex Barkov, who has a shared copyright to this code */
 
 #include "myisam.h"
+
+#ifdef HAVE_SPATIAL
 #include "sp_defs.h"
 
 #define MAX_REC_LENGTH 1024
@@ -575,3 +577,11 @@ static void rtree_PrintWKB(uchar *wkb, uint n_dims)
     }
   }
 }
+
+#else
+int main(int argc __attribute__((unused)),char *argv[] __attribute__((unused)))
+{
+  exit(0);
+}
+#endif /*HAVE_SPATIAL*/
+

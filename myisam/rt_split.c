@@ -17,6 +17,8 @@
 
 #include "myisamdef.h"
 
+#ifdef HAVE_RTREE_KEYS
+
 #include "rt_index.h"
 #include "rt_key.h"
 #include "rt_mbr.h"
@@ -346,3 +348,5 @@ split_err:
   my_free((gptr) coord_buf, MYF(0));
   return err_code;
 }
+
+#endif /*HAVE_RTREE_KEYS*/

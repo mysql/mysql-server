@@ -53,6 +53,7 @@ ha_rows mi_records_in_range(MI_INFO *info, int inx, const byte *start_key,
     rw_rdlock(&info->s->key_root_lock[inx]);
 
   switch(info->s->keyinfo[inx].key_alg){
+#ifdef HAVE_RTREE_KEYS
   case HA_KEY_ALG_RTREE:
     {
       uchar * key_buff;
@@ -65,6 +66,7 @@ ha_rows mi_records_in_range(MI_INFO *info, int inx, const byte *start_key,
       res=res?res:1;
       break;
     }
+#endif
   case HA_KEY_ALG_BTREE:
   default:
     start_pos= (start_key ?

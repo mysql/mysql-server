@@ -46,7 +46,9 @@ uint _mi_make_key(register MI_INFO *info, uint keynr, uchar *key,
     /* 
       TODO: nulls processing
     */
+#ifdef HAVE_SPATIAL
     return sp_make_key(info,keynr,key,record,filepos);
+#endif
   }
 
   start=key;
