@@ -57,12 +57,18 @@ NdbConnection::receiveSCAN_TABREF(NdbApiSignal* aSignal){
   
   if(checkState_TransId(&ref->transId1)){
     theScanningOp->theError.code = ref->errorCode;
+    theScanningOp->execCLOSE_SCAN_REP();
     if(!ref->closeNeeded){
-      theScanningOp->execCLOSE_SCAN_REP();
       return 0;
     }
-    assert(theScanningOp->m_sent_receivers_count);
+
+    /**
+     * Setup so that close_impl will actually perform a close
+     *   and not "close scan"-optimze it away
+     */
     theScanningOp->m_conf_receivers_count++;
+    theScanningOp->m_conf_receivers[0] = theScanningOp->m_receivers[0];
+    theScanningOp->m_conf_receivers[0]->m_tcPtrI = ~0;
     return 0;
   } else {
 #ifdef NDB_NO_DROPPED_SIGNAL
