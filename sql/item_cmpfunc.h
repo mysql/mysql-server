@@ -263,13 +263,6 @@ class Item_func_strcmp :public Item_bool_func2
 public:
   Item_func_strcmp(Item *a,Item *b) :Item_bool_func2(a,b) {}
   longlong val_int();
-  void fix_length_and_dec()
-  {
-    max_length=2;
-    /* QQ: COERCIBILITY */
-    cmp_charset= args[0]->binary() || args[1]->binary() ? 
-    		 &my_charset_bin : args[0]->charset();
-  }
   optimize_type select_optimize() const { return OPTIMIZE_NONE; }
   const char *func_name() const { return "strcmp"; }
 };
