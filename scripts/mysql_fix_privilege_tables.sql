@@ -114,7 +114,6 @@ UPDATE user SET Show_db_priv= Select_priv, Super_priv=Process_priv, Execute_priv
 
 --  Add fields that can be used to limit number of questions and connections
 --  for some users.
-
 ALTER TABLE user
 ADD max_questions int(11) NOT NULL DEFAULT 0 AFTER x509_subject,
 ADD max_updates   int(11) unsigned NOT NULL DEFAULT 0 AFTER max_questions,
@@ -131,6 +130,20 @@ ADD Lock_tables_priv enum('N','Y') DEFAULT 'N' NOT NULL;
 ALTER TABLE host
 ADD Create_tmp_table_priv enum('N','Y') DEFAULT 'N' NOT NULL,
 ADD Lock_tables_priv enum('N','Y') DEFAULT 'N' NOT NULL;
+
+#
+# Create VIEWs privrlages (v5.1)
+#
+ALTER TABLE db ADD Create_view_priv enum('N','Y') DEFAULT 'N' NOT NULL AFTER Lock_tables_priv;
+ALTER TABLE host ADD Create_view_priv enum('N','Y') DEFAULT 'N' NOT NULL AFTER Lock_tables_priv;
+ALTER TABLE user ADD Create_view_priv enum('N','Y') DEFAULT 'N' NOT NULL AFTER Repl_client_priv;
+
+#
+# Show VIEWs privrlages (v5.1)
+#
+ALTER TABLE db ADD Show_view_priv enum('N','Y') DEFAULT 'N' NOT NULL AFTER Create_view_priv;
+ALTER TABLE host ADD Show_view_priv enum('N','Y') DEFAULT 'N' NOT NULL AFTER Create_view_priv;
+ALTER TABLE user ADD Show_view_priv enum('N','Y') DEFAULT 'N' NOT NULL AFTER Create_view_priv;
 
 alter table db change Db Db char(64) binary DEFAULT '' NOT NULL;
 alter table host change Db Db char(64) binary DEFAULT '' NOT NULL;
