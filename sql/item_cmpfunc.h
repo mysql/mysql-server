@@ -96,7 +96,8 @@ protected:
   bool save_cache;
 public:
   Item_in_optimizer(Item *a, Item_in_subselect *b):
-    Item_bool_func(a, (Item *)b), cache(0), save_cache(0) {}
+    Item_bool_func(a, my_reinterpret_cast(Item *)(b)), cache(0), save_cache(0)
+  {}
   bool fix_fields(THD *, struct st_table_list *, Item **);
   bool fix_left(THD *thd, struct st_table_list *tables, Item **ref);
   bool is_null();

@@ -217,7 +217,7 @@ public:
     if (!(ci= find_class((int) type_id)))
       return NULL;
     (*ci->m_create_func)((void *)buffer);
-    return (Geometry *)buffer;
+    return my_reinterpret_cast(Geometry *)(buffer);
   }
 
   static Geometry *create_from_wkb(Geometry_buffer *buffer,
