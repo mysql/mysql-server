@@ -567,19 +567,29 @@ SEL_ARG *SEL_ARG::clone_tree()
   return root;
 }
 
-/*****************************************************************************
-**	Test if a key can be used in different ranges
-**	Returns:
-**	-1 if impossible select
-**	0 if can't use quick_select
-**	1 if found usable range
-**	Updates the following in the select parameter:
-**	needed_reg ; Bits for keys with may be used if all prev regs are read
-**	quick	   ; Parameter to use when reading records.
-**	In the table struct the following information is updated:
-**	quick_keys ; Which keys can be used
-**	quick_rows ; How many rows the key matches
-*****************************************************************************/
+/*
+  Test if a key can be used in different ranges
+
+  SYNOPSIS
+   SQL_SELECT::test_quick_select(thd,keys_to_use, prev_tables,
+                                 limit, force_quick_range)
+
+   Updates the following in the select parameter:
+    needed_reg - Bits for keys with may be used if all prev regs are read
+    quick      - Parameter to use when reading records.
+   In the table struct the following information is updated:
+    quick_keys - Which keys can be used
+    quick_rows - How many rows the key matches
+
+ RETURN VALUES
+  -1 if impossible select
+   0 if can't use quick_select
+   1 if found usable range
+
+ TODO
+   check if the function really needs to modify keys_to_use, and change the
+   code to pass it by reference if not
+*/
 
 int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
 				  table_map prev_tables,

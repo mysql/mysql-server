@@ -100,7 +100,8 @@ int rea_create_table(THD *thd, my_string file_name,
     goto err;
   maxlength=(uint) next_io_size((ulong) (uint2korr(forminfo)+1000));
   int2store(forminfo+2,maxlength);
-  int4store(fileinfo+10,key_buff_length);
+  int4store(fileinfo+10,(ulong) (filepos+maxlength));
+  int4store(fileinfo+47,key_buff_length);
   fileinfo[26]= (uchar) test((create_info->max_rows == 1) &&
 			     (create_info->min_rows == 1) && (keys == 0));
   int2store(fileinfo+28,key_info_length);
@@ -293,8 +294,8 @@ static uint pack_keys(uchar *keybuff,uint key_count,KEY *keyinfo)
 
   if (key_count > 127 || key_parts > 127)
   {
-    key_count|=0x8000;
-    int2store(keybuff,key_count);
+    keybuff[0]= (key_count & 0x7f) | 0x80;
+    keybuff[1]= key_count >> 7;
     int2store(keybuff+2,key_parts);
   }
   else

@@ -981,8 +981,8 @@ public:
   String value;              // value of concat
   String search_value;       // key_item()'s value converted to cmp_collation
 
-  Item_func_match(List<Item> &a, uint b): Item_real_func(a), flags(b),
-       table(0), master(0), ft_handler(0), concat(0), key(0), join_key(0) { }
+  Item_func_match(List<Item> &a, uint b): Item_real_func(a), key(0), flags(b),
+       join_key(0), ft_handler(0), table(0), master(0), concat(0) { }
   ~Item_func_match()
   {
     if (!master && ft_handler)
