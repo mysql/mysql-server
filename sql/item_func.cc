@@ -132,7 +132,7 @@ Item_func::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 	  coercibility= (*arg)->coercibility;
 	  set_charset((*arg)->charset());
 	}
-	else if ((*arg)->coercibility > coercibility)
+	else if ((*arg)->coercibility < coercibility)
 	{
 	  if (strcmp(charset()->csname,(*arg)->charset()->csname))
 	  {
@@ -286,7 +286,7 @@ String *Item_real_func::val_str(String *str)
   if (null_value)
     return 0; /* purecov: inspected */
   else
-    str->set(nr,decimals,thd_charset());
+    str->set(nr,decimals,default_charset());
   return str;
 }
 
@@ -299,9 +299,9 @@ String *Item_num_func::val_str(String *str)
     if (null_value)
       return 0; /* purecov: inspected */
     else if (!unsigned_flag)
-      str->set(nr,thd_charset());
+      str->set(nr,default_charset());
     else
-      str->set((ulonglong) nr,thd_charset());
+      str->set((ulonglong) nr,default_charset());
   }
   else
   {
@@ -309,7 +309,7 @@ String *Item_num_func::val_str(String *str)
     if (null_value)
       return 0; /* purecov: inspected */
     else
-      str->set(nr,decimals,thd_charset());
+      str->set(nr,decimals,default_charset());
   }
   return str;
 }
@@ -336,9 +336,9 @@ String *Item_int_func::val_str(String *str)
   if (null_value)
     return 0;
   else if (!unsigned_flag)
-    str->set(nr,thd_charset());
+    str->set(nr,default_charset());
   else
-    str->set((ulonglong) nr,thd_charset());
+    str->set((ulonglong) nr,default_charset());
   return str;
 }
 
@@ -365,9 +365,9 @@ String *Item_num_op::val_str(String *str)
     if (null_value)
       return 0; /* purecov: inspected */
     else if (!unsigned_flag)
-      str->set(nr,thd_charset());
+      str->set(nr,default_charset());
     else
-      str->set((ulonglong) nr,thd_charset());
+      str->set((ulonglong) nr,default_charset());
   }
   else
   {
@@ -375,7 +375,7 @@ String *Item_num_op::val_str(String *str)
     if (null_value)
       return 0; /* purecov: inspected */
     else
-      str->set(nr,decimals,thd_charset());
+      str->set(nr,decimals,default_charset());
   }
   return str;
 }
@@ -890,9 +890,9 @@ String *Item_func_min_max::val_str(String *str)
     if (null_value)
       return 0;
     else if (!unsigned_flag)
-      str->set(nr,thd_charset());
+      str->set(nr,default_charset());
     else
-      str->set((ulonglong) nr,thd_charset());
+      str->set((ulonglong) nr,default_charset());
     return str;
   }
   case REAL_RESULT:
@@ -901,7 +901,7 @@ String *Item_func_min_max::val_str(String *str)
     if (null_value)
       return 0; /* purecov: inspected */
     else
-      str->set(nr,decimals,thd_charset());
+      str->set(nr,decimals,default_charset());
     return str;
   }
   case STRING_RESULT:
@@ -1563,7 +1563,7 @@ String *Item_func_udf_float::val_str(String *str)
   if (null_value)
     return 0;					/* purecov: inspected */
   else
-    str->set(nr,decimals,thd_charset());
+    str->set(nr,decimals,default_charset());
   return str;
 }
 
@@ -1584,9 +1584,9 @@ String *Item_func_udf_int::val_str(String *str)
   if (null_value)
     return 0;
   else if (!unsigned_flag)
-    str->set(nr,thd_charset());
+    str->set(nr,default_charset());
   else
-    str->set((ulonglong) nr,thd_charset());
+    str->set((ulonglong) nr,default_charset());
   return str;
 }
 
@@ -2007,6 +2007,7 @@ static user_var_entry *get_variable(HASH *hash, LEX_STRING &name,
 }
 
 
+
 bool Item_func_set_user_var::fix_fields(THD *thd, TABLE_LIST *tables,
 					Item **ref)
 {
@@ -2030,7 +2031,8 @@ Item_func_set_user_var::fix_length_and_dec()
 
 void Item_func_set_user_var::update_hash(void *ptr, uint length,
 					 Item_result type,
-					 CHARSET_INFO *cs)
+					 CHARSET_INFO *cs,
+					 enum coercion coercibility)
 {
   if ((null_value=args[0]->null_value))
   {
@@ -2040,6 +2042,7 @@ void Item_func_set_user_var::update_hash(void *ptr, uint length,
     entry->value=0;
     entry->length=0;
     entry->var_charset=cs;
+    entry->var_coercibility= coercibility;
   }
   else
   {
@@ -2071,6 +2074,7 @@ void Item_func_set_user_var::update_hash(void *ptr, uint length,
     entry->length= length;
     entry->type=type;
     entry->var_charset=cs;
+    entry->var_coercibility= coercibility;
   }
   return;
 
@@ -2112,7 +2116,8 @@ double
 Item_func_set_user_var::val()
 {
   double value=args[0]->val();
-  update_hash((void*) &value,sizeof(value), REAL_RESULT, default_charset_info);
+  update_hash((void*) &value,sizeof(value), REAL_RESULT, 
+    &my_charset_bin, COER_NOCOLL);
   return value;
 }
 
@@ -2121,7 +2126,7 @@ Item_func_set_user_var::val_int()
 {
   longlong value=args[0]->val_int();
   update_hash((void*) &value, sizeof(longlong), INT_RESULT,
-	      default_charset_info);
+	      &my_charset_bin, COER_NOCOLL);
   return value;
 }
 
@@ -2130,10 +2135,10 @@ Item_func_set_user_var::val_str(String *str)
 {
   String *res=args[0]->val_str(str);
   if (!res)					// Null value
-    update_hash((void*) 0, 0, STRING_RESULT, &my_charset_bin);
+    update_hash((void*) 0, 0, STRING_RESULT, &my_charset_bin, COER_NOCOLL);
   else
     update_hash((void*) res->ptr(), res->length(), STRING_RESULT,
-		res->charset());
+		res->charset(), args[0]->coercibility);
   return res;
 }
 

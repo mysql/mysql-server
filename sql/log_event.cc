@@ -2177,7 +2177,7 @@ int User_var_log_event::exec_event(struct st_relay_log_info* rli)
   }
   Item_func_set_user_var e(user_var_name, it);
   e.fix_fields(thd, 0, 0);
-  e.update_hash(val, val_len, type, charset);
+  e.update_hash(val, val_len, type, charset, Item::COER_NOCOLL);
   free_root(&thd->mem_root,0);
 
   rli->inc_pending(get_event_len());
