@@ -2778,22 +2778,8 @@ void kill_one_thread(THD *thd, ulong id)
       if ((thd->master_access & PROCESS_ACL) ||
 	  !strcmp(thd->user,tmp->user))
       {
-	thr_alarm_kill(tmp->real_id);
-	tmp->killed=1;
+	tmp->prepare_to_die();
 	error=0;
-	if (tmp->mysys_var)
-	{
-	  pthread_mutex_lock(&tmp->mysys_var->mutex);
-	  if (!tmp->system_thread)		// Don't abort locks
-	    tmp->mysys_var->abort=1;
-	  if (tmp->mysys_var->current_mutex)
-	  {
-	    pthread_mutex_lock(tmp->mysys_var->current_mutex);
-	    pthread_cond_broadcast(tmp->mysys_var->current_cond);
-	    pthread_mutex_unlock(tmp->mysys_var->current_mutex);
-	  }
-	  pthread_mutex_unlock(&tmp->mysys_var->mutex);
-	}
       }
       else
 	error=ER_KILL_DENIED_ERROR;

@@ -99,6 +99,7 @@ extern uint32 slave_skip_counter;
 // have caused errors, and have been manually applied by DBA already
 
 extern pthread_t slave_real_id;
+extern THD* slave_thd;
 extern MASTER_INFO glob_mi;
 extern HASH replicate_do_table, replicate_ignore_table;
 extern DYNAMIC_ARRAY  replicate_wild_do_table, replicate_wild_ignore_table;

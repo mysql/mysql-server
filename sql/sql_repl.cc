@@ -572,6 +572,9 @@ int stop_slave(THD* thd, bool net_report )
   {
     abort_slave = 1;
     thr_alarm_kill(slave_real_id);
+#ifdef STOP_IO_WITH_FD_CLOSE
+    slave_thd->close_active_fd();
+#endif    
     // do not abort the slave in the middle of a query, so we do not set
     // thd->killed for the slave thread
     thd->proc_info = "waiting for slave to die";
