@@ -28,7 +28,7 @@ class Load_log_event;
 class Slave_log_event;
 
 enum enum_enable_or_disable { LEAVE_AS_IS, ENABLE, DISABLE };
-enum enum_ha_read_modes { RFIRST, RNEXT, RPREV, RLAST, RKEY };
+enum enum_ha_read_modes { RFIRST, RNEXT, RPREV, RLAST, RKEY, RNEXT_SAME };
 enum enum_duplicates { DUP_ERROR, DUP_REPLACE, DUP_IGNORE };
 enum enum_log_type { LOG_CLOSED, LOG_TO_BE_OPENED, LOG_NORMAL, LOG_NEW, LOG_BIN};
 enum enum_delay_key_write { DELAY_KEY_WRITE_NONE, DELAY_KEY_WRITE_ON,
