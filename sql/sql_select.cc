@@ -324,6 +324,7 @@ JOIN::prepare(TABLE_LIST *tables_init,
   this->group= group_list != 0;
   row_limit= ((select_distinct || order || group_list) ? HA_POS_ERROR :
 	      unit->select_limit_cnt);
+  do_send_rows = (row_limit) ? 1 : 0;
   this->unit= unit;
 
 #ifdef RESTRICTED_GROUP
@@ -371,14 +372,18 @@ JOIN::optimize()
   }
 #endif
 
-  conds=optimize_cond(conds,&cond_value);
-  if (thd->fatal_error || thd->net.report_error)
+  conds= optimize_cond(conds,&cond_value);
+  if (thd->fatal_error)
   {
+    // quick abort
     delete procedure;
-    error = 0;
+    error= 0;
     DBUG_RETURN(1);
-  }
-  if (cond_value == Item::COND_FALSE || !unit->select_limit_cnt)
+  } else if (thd->net.report_error)
+    // normal error processing & cleanup
+    DBUG_RETURN(-1);
+
+  if (cond_value == Item::COND_FALSE || (!unit->select_limit_cnt && !(select_options & OPTION_FOUND_ROWS)))
   {					/* Impossible cond */
     zero_result_cause= "Impossible WHERE";
     DBUG_RETURN(0);
@@ -395,13 +400,7 @@ JOIN::optimize()
 	zero_result_cause= "No matching min/max row";
 	DBUG_RETURN(0);
       }
-      if (select_options & SELECT_DESCRIBE)
-      {
-	select_describe(this, false, false, false,
-			"Select tables optimized away");
-	delete procedure;
-	DBUG_RETURN(1);
-      }
+      zero_result_cause= "Select tables optimized away";
       tables_list= 0;					// All tables resolved
     }
   }
@@ -663,7 +662,8 @@ JOIN::exec()
   {                                           // Only test of functions
     error=0;
     if (select_options & SELECT_DESCRIBE)
-      select_describe(this, false, false, false, "No tables used");
+      select_describe(this, false, false, false,
+		      (zero_result_cause?zero_result_cause:"No tables used"));
     else
     {
       result->send_fields(fields_list,1);
@@ -672,7 +672,10 @@ JOIN::exec()
 	if (do_send_rows && result->send_data(fields_list))
 	  error= 1;
 	else
+	{
 	  error= (int) result->send_eof();
+	  send_records=1;
+	}
       }
       else
 	error=(int) result->send_eof();
@@ -2613,8 +2616,8 @@ make_simple_join(JOIN *join,TABLE *tmp_table)
   join->sum_funcs=0;
   join->send_records=(ha_rows) 0;
   join->group=0;
-  join->do_send_rows = 1;
   join->row_limit=join->unit->select_limit_cnt;
+  join->do_send_rows = (join->row_limit) ? 1 : 0;
 
   join_tab->cache.buff=0;			/* No cacheing */
   join_tab->table=tmp_table;
@@ -7527,8 +7530,8 @@ int mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
       break;
 
   }
-  if (res > 0)
-    res= -res; // mysql_explain_select do not report error
+  if (res > 0 || thd->net.report_error)
+    res= -1; // mysql_explain_select do not report error
   DBUG_RETURN(res);
 }
 

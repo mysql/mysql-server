@@ -119,7 +119,7 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit, TABLE_LIST *t)
 	  table->tmp_table=TMP_TABLE;
 	  if (!lex->describe)
 	    sl->exclude();
-	  t->db="";
+	  t->db=(char *)"";
 	  t->derived=(SELECT_LEX *)0; // just in case ...
 	}
       }
