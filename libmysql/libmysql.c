@@ -627,7 +627,7 @@ static int check_license(MYSQL *mysql)
   MYSQL_RES *res;
   NET *net= &mysql->net;
   static const char query[]= "SELECT @@license";
-  static const char required_license[]= LICENSE;
+  static const char required_license[]= STRINGIFY_ARG(LICENSE);
 
   if (mysql_real_query(mysql, query, sizeof(query)-1))
   {

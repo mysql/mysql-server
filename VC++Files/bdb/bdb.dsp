@@ -65,7 +65,7 @@ LIB32=xilink6.exe -lib
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /G6 /MTd /W3 /Z7 /Od /Gf /I "../bdb/build_win32" /I "../bdb/include" /D "__WIN32__" /D "_DEBUG" /D "SAFEMALLOC" /D "SAFE_MUTEX" /D "_WINDOWS" /FD /c
 # SUBTRACT BASE CPP /Fr
-# ADD CPP /nologo /G6 /MT /W3 /O2 /I "../bdb/build_win32" /I "../bdb" /D "NDEBUG" /D "DBUG_OFF" /D "_WINDOWS" /D MYSQL_SERVER_SUFFIX_MAX /Fo"max/" /Fd"max/" /FD /c
+# ADD CPP /nologo /G6 /MT /W3 /O2 /I "../bdb/build_win32" /I "../bdb" /D "NDEBUG" /D "DBUG_OFF" /D "_WINDOWS" /D MYSQL_SERVER_SUFFIX=-max /Fo"max/" /Fd"max/" /FD /c
 # ADD BASE RSC /l 0x409 /d "_DEBUG"
 # ADD RSC /l 0x409 /d "_DEBUG"
 BSC32=bscmake.exe

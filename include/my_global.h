@@ -338,6 +338,9 @@ C_MODE_END
 #define USE_BMOVE512 1		/* Use this unless system bmove is faster */
 #endif
 
+#define QUOTE_ARG(x)		#x	/* Quote argument (before cpp) */
+#define STRINGIFY_ARG(x) QUOTE_ARG(x)	/* Quote argument, after cpp */
+
 /* Paranoid settings. Define I_AM_PARANOID if you are paranoid */
 #ifdef I_AM_PARANOID
 #define DONT_ALLOW_USER_CHANGE 1
