@@ -8952,6 +8952,7 @@ void Dbtc::execDI_FCOUNTCONF(Signal* signal)
   {
     ptr.p->m_ops = 0;
     ptr.p->m_totalLen = 0;
+    ptr.p->m_scan_frag_conf_status = 1;
     ptr.p->scanFragState = ScanFragRec::QUEUED_FOR_DELIVERY;
     ptr.p->stopFragTimer();
 
@@ -8959,6 +8960,7 @@ void Dbtc::execDI_FCOUNTCONF(Signal* signal)
     list.next(ptr);
     list.remove(tmp);
     queued.add(tmp);
+    scanptr.p->m_queued_count++;
   }
 }//Dbtc::execDI_FCOUNTCONF()
 

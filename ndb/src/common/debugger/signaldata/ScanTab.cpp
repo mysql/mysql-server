@@ -30,20 +30,24 @@ printSCANTABREQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiv
   fprintf(output, " apiConnectPtr: H\'%.8x", 
 	  sig->apiConnectPtr);
   fprintf(output, " requestInfo: H\'%.8x:\n",  requestInfo);
-  fprintf(output, "  Parallellism: %u, Batch: %u LockMode: %u, Keyinfo: %u Holdlock: %u, RangeScan: %u ReadCommitted: %u\n",
+  fprintf(output, "  Parallellism: %u, Batch: %u LockMode: %u, Keyinfo: %u Holdlock: %u, RangeScan: %u ReadCommitted: %u\n DistributionKeyFlag: %u",
 	  sig->getParallelism(requestInfo), 
 	  sig->getScanBatch(requestInfo), 
 	  sig->getLockMode(requestInfo), 
 	  sig->getKeyinfoFlag(requestInfo),
 	  sig->getHoldLockFlag(requestInfo), 
 	  sig->getRangeScanFlag(requestInfo),
-	  sig->getReadCommittedFlag(requestInfo));
+	  sig->getReadCommittedFlag(requestInfo),
+	  sig->getDistributionKeyFlag(requestInfo));
+  
+  if(sig->getDistributionKeyFlag(requestInfo))
+    fprintf(output, " DKey: %u", sig->distributionKey);
   
   Uint32 keyLen = (sig->attrLenKeyLen >> 16);
   Uint32 attrLen = (sig->attrLenKeyLen & 0xFFFF);
   fprintf(output, " attrLen: %d, keyLen: %d tableId: %d, tableSchemaVer: %d\n",
 	  attrLen, keyLen, sig->tableId, sig->tableSchemaVersion);
-    
+  
   fprintf(output, " transId(1, 2): (H\'%.8x, H\'%.8x) storedProcId: H\'%.8x\n",
 	  sig->transId1, sig->transId2, sig->storedProcId);
   fprintf(output, " batch_byte_size: %d, first_batch_size: %d\n",
