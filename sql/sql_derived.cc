@@ -222,10 +222,12 @@ static int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit,
       table->next= thd->derived_tables;
       thd->derived_tables= table;
     }
+  }
+  else
+    free_tmp_table(thd, table);
 
 exit:
-    delete derived_result;
-    lex->current_select= save_current_select;
-  }
+  delete derived_result;
+  lex->current_select= save_current_select;
   DBUG_RETURN(res);
 }
