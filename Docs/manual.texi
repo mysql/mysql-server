@@ -49550,6 +49550,9 @@ GRANT ... WITH MAX_QUERIES_PER_HOUR = N1
                MAX_CONNECTIONS_PER_HOUR = N3;
 @end example
 @xref{User resources}.
+
+@item
+Added @code{mysql_secure_installation} to the @file{scripts/} directory.
 @end itemize
 
 @node News-4.0.1, News-4.0.0, News-4.0.2, News-4.0.x

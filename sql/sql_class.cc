@@ -345,11 +345,7 @@ CHANGED_TABLE_LIST* THD::changed_table_dup(TABLE *table)
 			     ALIGN_SIZE(sizeof(CHANGED_TABLE_LIST)));
   new_table->next = 0;
   new_table->key_length = table->key_length;
-  uint32 db_len = ((new_table->table_name =
-		    ::strmake(new_table->key, table->table_cache_key, 
-			      table->key_length) + 1) - new_table->key);
-  ::memcpy(new_table->key + db_len, table->table_cache_key + db_len,
-	   table->key_length - db_len);
+  ::memcpy(new_table->key, table->table_cache_key, table->key_length);
   return new_table;
 }
 
