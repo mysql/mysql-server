@@ -503,6 +503,18 @@ public:
   const char *func_name() const { return "conv_charset3"; }
 };
 
+class Item_func_charset :public Item_str_func
+{
+public:
+  Item_func_charset(Item *a) :Item_str_func(a) {}
+  String *val_str(String *);
+  const char *func_name() const { return "charset"; }
+  void fix_length_and_dec() 
+  {
+     max_length=20; // should be enough
+  };
+};
+
 
 /*******************************************************
 Spatial functions

@@ -1911,10 +1911,23 @@ outp:
   return str;
 }
 
+String *Item_func_charset::val_str(String *str)
+{
+  String *res = args[0]->val_str(str);
+
+  if ((null_value=(args[0]->null_value || !res->charset())))
+    return 0;
+  str->copy(res->charset()->name,strlen(res->charset()->name));
+  return str;
+}
+
+
 void Item_func_conv_charset3::fix_length_and_dec()
 {
   /* BAR TODO: What to do here??? */
 }
+
+
 
 
 String *Item_func_hex::val_str(String *str)
