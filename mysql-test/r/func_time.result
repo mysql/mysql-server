@@ -474,6 +474,12 @@ unix_timestamp(@a)
 select unix_timestamp('1969-12-01 19:00:01');
 unix_timestamp('1969-12-01 19:00:01')
 0
+select from_unixtime(0);
+from_unixtime(0)
+NULL
+select from_unixtime(2145916800);
+from_unixtime(2145916800)
+NULL
 CREATE TABLE t1 (datetime datetime, timestamp timestamp, date date, time time);
 INSERT INTO t1 values ("2001-01-02 03:04:05", "2002-01-02 03:04:05", "2003-01-02", "06:07:08");
 SELECT * from t1;

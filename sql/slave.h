@@ -522,7 +522,8 @@ void clear_until_condition(RELAY_LOG_INFO* rli);
 void clear_slave_error_timestamp(RELAY_LOG_INFO* rli);
 int init_master_info(MASTER_INFO* mi, const char* master_info_fname,
 		     const char* slave_info_fname,
-		     bool abort_if_no_master_info_file);
+		     bool abort_if_no_master_info_file,
+		     int thread_mask);
 void end_master_info(MASTER_INFO* mi);
 int init_relay_log_info(RELAY_LOG_INFO* rli, const char* info_fname);
 void end_relay_log_info(RELAY_LOG_INFO* rli);

@@ -638,23 +638,24 @@ row_sel_get_clust_rec(
 	if (!node->read_view) {
 		/* Try to place a lock on the index record */
         
-          /* If innodb_locks_unsafe_for_binlog option is used, 
-             we lock only the record, i.e. next-key locking is
-             not used.
-	  */
-	  if ( srv_locks_unsafe_for_binlog )
-	    {
-		err = lock_clust_rec_read_check_and_lock(0, clust_rec, 
-                        index,node->row_lock_mode, LOCK_REC_NOT_GAP, thr);
-	    }
-	  else
-	    {		
-		err = lock_clust_rec_read_check_and_lock(0, clust_rec, index,
-				node->row_lock_mode, LOCK_ORDINARY, thr);
+		/* If innodb_locks_unsafe_for_binlog option is used, 
+		we lock only the record, i.e. next-key locking is
+		not used.
+		*/
 
-	    }
+		if (srv_locks_unsafe_for_binlog) {
+			err = lock_clust_rec_read_check_and_lock(0, 
+					clust_rec, 
+					index, node->row_lock_mode, 
+					LOCK_REC_NOT_GAP, thr);
+		} else {
+			err = lock_clust_rec_read_check_and_lock(0, 
+					clust_rec, 
+					index, node->row_lock_mode, 
+					LOCK_ORDINARY, thr);
+		}
 
-	    if (err != DB_SUCCESS) {
+		if (err != DB_SUCCESS) {
 
 			return(err);
 		}
@@ -729,7 +730,17 @@ sel_set_rec_lock(
 	ulint		type, 	/* in: LOCK_ORDINARY, LOCK_GAP, or LOC_REC_NOT_GAP */
 	que_thr_t*	thr)	/* in: query thread */	
 {
+	trx_t*	trx;
 	ulint	err;
+
+	trx = thr_get_trx(thr);	
+
+	if (UT_LIST_GET_LEN(trx->trx_locks) > 10000) {
+		if (buf_LRU_buf_pool_running_out()) {
+			
+			return(DB_LOCK_TABLE_FULL);
+		}
+	}
 
 	if (index->type & DICT_CLUSTERED) {
 		err = lock_clust_rec_read_check_and_lock(0, rec, index, mode,
@@ -1205,22 +1216,24 @@ rec_loop:
 		
 		if (!consistent_read) {
 
-		  /* If innodb_locks_unsafe_for_binlog option is used,
-                     we lock only the record, i.e. next-key locking is
-                     not used.
-		  */
+			/* If innodb_locks_unsafe_for_binlog option is used,
+			we lock only the record, i.e. next-key locking is
+			not used.
+			*/
 
-                  if ( srv_locks_unsafe_for_binlog )
-		    {
-			err = sel_set_rec_lock(page_rec_get_next(rec), index,
-				node->row_lock_mode, LOCK_REC_NOT_GAP, thr);
-		    } 
-                    else
-		    {
-			err = sel_set_rec_lock(page_rec_get_next(rec), index,
-				node->row_lock_mode, LOCK_ORDINARY, thr);
-		    }
-		    if (err != DB_SUCCESS) {
+			if (srv_locks_unsafe_for_binlog) {
+				err = sel_set_rec_lock(page_rec_get_next(rec), 
+							index,
+							node->row_lock_mode,
+							LOCK_REC_NOT_GAP, thr);
+			} else {
+				err = sel_set_rec_lock(page_rec_get_next(rec), 
+							index,
+							node->row_lock_mode, 
+							LOCK_ORDINARY, thr);
+			}
+
+			if (err != DB_SUCCESS) {
 				/* Note that in this case we will store in pcur
 				the PREDECESSOR of the record we are waiting
 				the lock for */
@@ -1245,21 +1258,18 @@ rec_loop:
 	if (!consistent_read) {
 		/* Try to place a lock on the index record */	
 
-		  /* If innodb_locks_unsafe_for_binlog option is used,
-                     we lock only the record, i.e. next-key locking is
-                     not used.
-		  */
+		/* If innodb_locks_unsafe_for_binlog option is used,
+		we lock only the record, i.e. next-key locking is
+		not used.
+		*/
 
-                  if ( srv_locks_unsafe_for_binlog )
-		    {
-		        err = sel_set_rec_lock(rec, index, node->row_lock_mode,
+		if (srv_locks_unsafe_for_binlog) {
+			err = sel_set_rec_lock(rec, index, node->row_lock_mode,
 						LOCK_REC_NOT_GAP, thr);
-		    } 
-		  else
-		    {
-		        err = sel_set_rec_lock(rec, index, node->row_lock_mode,
+		} else {
+			err = sel_set_rec_lock(rec, index, node->row_lock_mode,
 						LOCK_ORDINARY, thr);
-		    }
+		}
 
 		if (err != DB_SUCCESS) {
 
@@ -2765,6 +2775,7 @@ row_search_for_mysql(
 					/* out: DB_SUCCESS,
 					DB_RECORD_NOT_FOUND, 
 					DB_END_OF_INDEX, DB_DEADLOCK,
+					DB_LOCK_TABLE_FULL,
 					or DB_TOO_BIG_RECORD */
 	byte*		buf,		/* in/out: buffer for the fetched
 					row in the MySQL format */
@@ -3209,8 +3220,7 @@ rec_loop:
 			we do not lock gaps. Supremum record is really
 			a gap and therefore we do not set locks there. */
 			
-			if ( srv_locks_unsafe_for_binlog == FALSE )
-			{
+			if (srv_locks_unsafe_for_binlog == FALSE) {
 				err = sel_set_rec_lock(rec, index,
 						prebuilt->select_lock_type,
 						LOCK_ORDINARY, thr);
@@ -3312,11 +3322,18 @@ rec_loop:
 
 			if (prebuilt->select_lock_type != LOCK_NONE
 		    	    && set_also_gap_locks) {
-				/* Try to place a lock on the index record */
 
-				err = sel_set_rec_lock(rec, index,
+				/* Try to place a gap lock on the index 
+				record only if innodb_locks_unsafe_for_binlog
+				option is not set */
+
+				if (srv_locks_unsafe_for_binlog == FALSE) { 
+
+					err = sel_set_rec_lock(rec, index,
 						prebuilt->select_lock_type,
 						LOCK_GAP, thr);
+				}
+
 				if (err != DB_SUCCESS) {
 
 					goto lock_wait_or_error;
@@ -3338,11 +3355,18 @@ rec_loop:
 			
 			if (prebuilt->select_lock_type != LOCK_NONE
 			    && set_also_gap_locks) {
-				/* Try to place a lock on the index record */	
 
-				err = sel_set_rec_lock(rec, index,
+				/* Try to place a gap lock on the index 
+				record only if innodb_locks_unsafe_for_binlog
+				option is not set */
+
+				if (srv_locks_unsafe_for_binlog == FALSE) {
+
+					err = sel_set_rec_lock(rec, index,
 						prebuilt->select_lock_type,
 						LOCK_GAP, thr);
+				}
+
 				if (err != DB_SUCCESS) {
 
 					goto lock_wait_or_error;
@@ -3376,19 +3400,16 @@ rec_loop:
 						prebuilt->select_lock_type,
 						LOCK_REC_NOT_GAP, thr);
 		} else {
-                        /* If innodb_locks_unsafe_for_binlog option is used, 
-                           we lock only the record, i.e. next-key locking is
-                           not used.
-	                */
-	                if ( srv_locks_unsafe_for_binlog )
-	                {
-			    err = sel_set_rec_lock(rec, index,
+			/* If innodb_locks_unsafe_for_binlog option is used, 
+			we lock only the record, i.e. next-key locking is
+			not used. */
+
+			if (srv_locks_unsafe_for_binlog) {
+				err = sel_set_rec_lock(rec, index,
 						prebuilt->select_lock_type,
 						LOCK_REC_NOT_GAP, thr);
-			}
-			else
-			{
-			    err = sel_set_rec_lock(rec, index,
+			} else {
+				err = sel_set_rec_lock(rec, index,
 						prebuilt->select_lock_type,
 						LOCK_ORDINARY, thr);
 			}
