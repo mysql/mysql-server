@@ -779,3 +779,14 @@ id	term
 2	testetest
 3	testètest
 DROP TABLE t1;
+set names utf8;
+create table t1 (
+a int primary key,
+b varchar(6),
+index b3(b(3))
+) engine=myisam character set=utf8;
+insert into t1 values(1,'foo'),(2,'foobar');
+select * from t1 where b like 'foob%';
+a	b
+2	foobar
+drop table t1;
