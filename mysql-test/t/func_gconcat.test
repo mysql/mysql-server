@@ -78,6 +78,8 @@ drop table if exists T_REQUEST;
 create table T_REQUEST ( REQ_ID int(11), URL_ID int(11));
 insert into T_URL values (4,'www.host.com'), (5,'www.google.com'),(5,'www.help.com');
 insert into T_REQUEST values (1,4), (5,4), (5,5);
+# Make this order independent
+--replace_result www.help.com X www.host.com X www.google.com X
 select REQ_ID, Group_Concat(URL) as URL from T_URL, T_REQUEST where 
 T_REQUEST.URL_ID = T_URL.URL_ID group by REQ_ID;
 drop table T_URL;
