@@ -14,19 +14,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/*****************************************************************************
- * Name:          NdbEventOperation.hpp
- * Include:
- * Link:
- * Author:        Tomas Ulin MySQL AB
- * Date:          2003-11-21
- * Version:       0.1
- * Description:   Event support
- * Documentation:
- * Adjust:  2003-11-21  Tomas Ulin   First version.
- * Adjust:  2003-12-11  Tomas Ulin   Alpha Release.
- ****************************************************************************/
-
 #ifndef NdbEventOperation_H
 #define NdbEventOperation_H
 

@@ -932,21 +932,29 @@ public:
     Event(const char *name);
     virtual ~Event();
     /**
-     * Set unique identifier for the event
+     * Set/get unique identifier for the event
      */
     void setName(const char *name);
+    const char *getName() const;
     /**
      * Set table for which events should be detected
      */
     void setTable(const char *tableName);
     /**
+     * Get table name for events
+     *
+     * @return table name
+     */
+    const char* getTableName() const;
+    /**
      * Add type of event that should be detected
      */
     void addTableEvent(const TableEvent te);
     /**
-     * Set durability of the event
+     * Get/set durability of the event
      */
-    void setDurability(const EventDurability ed);
+    void setDurability(EventDurability ed);
+    EventDurability getDurability() const;
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     void addColumn(const Column &c);
 #endif
@@ -976,6 +984,13 @@ public:
      *       NdbDictionary::Dictionary::createEvent() is called
      */
     void addEventColumns(int n, const char ** columnNames);
+
+    /**
+     * Get no of columns defined in an Event
+     *
+     * @return Number of columns, -1 on error
+     */
+    int getNoOfEventColumns() const;
 
     /**
      * Get object status
