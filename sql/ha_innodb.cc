@@ -5357,7 +5357,7 @@ ha_innobase::transactional_table_lock(
 "MySQL is trying to use a table handle but the .ibd file for\n"
 "table %s does not exist.\n"
 "Have you deleted the .ibd file from the database directory under\n"
-"the MySQL datadir, or have you used DISCARD TABLESPACE?\n"
+"the MySQL datadir?"
 "Look from section 15.1 of http://www.innodb.com/ibman.html\n"
 "how you can resolve the problem.\n",
 				prebuilt->table->name);
@@ -5376,8 +5376,8 @@ ha_innobase::transactional_table_lock(
 		prebuilt->select_lock_type = LOCK_X;
 		prebuilt->stored_select_lock_type = LOCK_X;
 	} else if (lock_type == F_RDLCK) {
-		prebuilt->select_lock_type = LOCK_X;
-		prebuilt->stored_select_lock_type = LOCK_X;
+		prebuilt->select_lock_type = LOCK_S;
+		prebuilt->stored_select_lock_type = LOCK_S;
 	} else {
 	        ut_print_timestamp(stderr);
 	        fprintf(stderr, "  InnoDB error:\n"
