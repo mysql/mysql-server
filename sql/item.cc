@@ -756,43 +756,42 @@ bool Item_param::set_from_user_var(THD *thd, const user_var_entry *entry)
   if (entry && entry->value)
   {
     item_result_type= entry->type;
-    switch (entry->type)
+    switch (entry->type) {
+    case REAL_RESULT:
+      set_double(*(double*)entry->value);
+      break;
+    case INT_RESULT:
+      set_int(*(longlong*)entry->value, 21);
+      break;
+    case STRING_RESULT:
     {
-      case REAL_RESULT:
-        set_double(*(double*)entry->value);
-        break;
-      case INT_RESULT:
-        set_int(*(longlong*)entry->value, 21);
-        break;
-      case STRING_RESULT:
-        {
-          CHARSET_INFO *fromcs= entry->collation.collation;
-          CHARSET_INFO *tocs= thd->variables.collation_connection;
-          uint32 dummy_offset;
+      CHARSET_INFO *fromcs= entry->collation.collation;
+      CHARSET_INFO *tocs= thd->variables.collation_connection;
+      uint32 dummy_offset;
 
-          value.cs_info.character_set_client= fromcs;
-          /*
-            Setup source and destination character sets so that they
-            are different only if conversion is necessary: this will
-            make later checks easier.
-          */
-          value.cs_info.final_character_set_of_str_value=
-            String::needs_conversion(0, fromcs, tocs, &dummy_offset) ?
-            tocs : fromcs;
-          /*
-            Exact value of max_length is not known unless data is converted to
-            charset of connection, so we have to set it later.
-          */
-          item_type= Item::STRING_ITEM;
-          item_result_type= STRING_RESULT;
+      value.cs_info.character_set_client= fromcs;
+      /*
+        Setup source and destination character sets so that they
+        are different only if conversion is necessary: this will
+        make later checks easier.
+      */
+      value.cs_info.final_character_set_of_str_value=
+        String::needs_conversion(0, fromcs, tocs, &dummy_offset) ?
+        tocs : fromcs;
+      /*
+        Exact value of max_length is not known unless data is converted to
+        charset of connection, so we have to set it later.
+      */
+      item_type= Item::STRING_ITEM;
+      item_result_type= STRING_RESULT;
 
-          if (set_str((const char *)entry->value, entry->length))
-            DBUG_RETURN(1);
-        }
-        break;
-      default:
-        DBUG_ASSERT(0);
-        set_null();
+      if (set_str((const char *)entry->value, entry->length))
+        DBUG_RETURN(1);
+      break;
+    }
+    default:
+      DBUG_ASSERT(0);
+      set_null();
     }
   }
   else
