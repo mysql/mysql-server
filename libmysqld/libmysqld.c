@@ -412,8 +412,8 @@ mysql_free_result(MYSQL_RES *result)
       DBUG_PRINT("warning",("Not all rows in set were read; Ignoring rows"));
       for (;;)
       {
-	uint pkt_len;
-	if ((pkt_len=(uint) net_safe_read(result->handle)) == packet_error)
+	ulong pkt_len;
+	if ((pkt_len=net_safe_read(result->handle)) == packet_error)
 	  break;
 	if (pkt_len == 1 && result->handle->net.read_pos[0] == 254)
 	  break;				/* End of data */
@@ -611,7 +611,8 @@ unpack_fields(MYSQL_DATA *data,MEM_ROOT *alloc,uint fields,
 static MYSQL_DATA *read_rows(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
 			     uint fields)
 {
-  uint	field,pkt_len;
+  uint	field;
+  ulong pkt_len;
   ulong len;
   uchar *cp;
   char	*to;
@@ -620,7 +621,7 @@ static MYSQL_DATA *read_rows(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
   NET *net = &mysql->net;
   DBUG_ENTER("read_rows");
 
-  if ((pkt_len=(uint) net_safe_read(mysql)) == packet_error)
+  if ((pkt_len= net_safe_read(mysql)) == packet_error)
     DBUG_RETURN(0);
   if (!(result=(MYSQL_DATA*) my_malloc(sizeof(MYSQL_DATA),
 				       MYF(MY_WME | MY_ZEROFILL))))
@@ -805,7 +806,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
 		   uint port, const char *unix_socket,uint client_flag)
 {
   char		buff[100],charset_name_buff[16],*end,*host_info, *charset_name;
-  uint		pkt_length;
+  ulong		pkt_length;
   ulong		max_allowed_packet;
   NET		*net= &mysql->net;
   DBUG_ENTER("mysql_real_connect");
@@ -1153,7 +1154,7 @@ mysql_read_query_result(MYSQL *mysql)
   uchar *pos;
   ulong field_count;
   MYSQL_DATA *fields;
-  uint length;
+  ulong length;
   DBUG_ENTER("mysql_read_query_result");
 
   if ((length=net_safe_read(mysql)) == packet_error)
