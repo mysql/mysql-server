@@ -5119,8 +5119,8 @@ static void get_options(int argc,char **argv)
 {
   int ho_error;
 
-  if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option,
-                               option_error_reporter)))
+  my_getopt_error_reporter= option_error_reporter;
+  if ((ho_error= handle_options(&argc, &argv, my_long_options, get_one_option)))
     exit(ho_error);
 
 #if defined(HAVE_BROKEN_REALPATH)
