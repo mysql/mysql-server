@@ -13492,9 +13492,9 @@ group by
 
 @cindex Apache
 
-The Contrib section includes programs that let you authenticate your
-users from a MySQL database and also let you log your log files
-into a MySQL table. @xref{Contrib}.
+There are programs that let you authenticate your users from a MySQL
+database and also let you log your log files into a MySQL table.
+@xref{Portals}.
 
 You can change the Apache logging format to be easily readable by
 MySQL by putting the following into the Apache configuration file:
@@ -16272,8 +16272,8 @@ or by manipulating the MySQL grant tables directly.  The
 preferred method is to use @code{GRANT} statements, because they are
 more concise and less error-prone. @xref{GRANT}.
 
-There is also a lot of contributed programs like @code{phpmyadmin} that
-can be used to create and administrate users. @xref{Contrib}.
+There are also a lot of contributed programs like @code{phpmyadmin}
+that can be used to create and administrate users. @xref{Portals}.
 
 The examples below show how to use the @code{mysql} client to set up new
 users.  These examples assume that privileges are set up according to the
@@ -38176,8 +38176,7 @@ and on most Unix platforms.
 version at @uref{http://www.mysql.com/downloads/api-myodbc.html}.
 
 If you have problem with @strong{MyODBC} and your program also works
-with OLEDB, you should try the OLEDB driver that you can find in the
-Contrib section.  @xref{Contrib}.
+with OLEDB, you should try the OLEDB driver.
 
 Normally you only need to install @strong{MyODBC} on Windows machines.
 You only need @strong{MyODBC} for Unix if you have a program like
@@ -43315,8 +43314,9 @@ can be done on row-by-row or @code{GROUP BY} level.
 We have created an example procedure in MySQL Version 3.23 to
 show you what can be done.
 
-Additionally we recommend you to take a look at 'mylua', which you can find in the Contrib directory. @xref{Contrib}.  Which this you can use the LUA
-language to load a procedure at runtime into @code{mysqld}.
+Additionally we recommend you to take a look at @code{mylua}.
+With this you can use the LUA language to load a procedure at
+runtime into @code{mysqld}.
 
 @menu
 * procedure analyse::           Procedure analyse
