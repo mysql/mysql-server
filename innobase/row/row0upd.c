@@ -77,8 +77,8 @@ index record. This is only used in foreign key checks and we can assume
 that index does not contain column prefixes. */
 static
 ibool
-row_upd_changes_first_fields(
-/*=========================*/
+row_upd_changes_first_fields_binary(
+/*================================*/
 				/* out: TRUE if changes */
 	dtuple_t*	entry,	/* in: old value of index entry */
 	dict_index_t*	index,	/* in: index of entry */
@@ -196,7 +196,7 @@ row_upd_check_references_constraints(
 
 		if (foreign->referenced_index == index
 		    && (node->is_delete
-		       || row_upd_changes_first_fields(entry, index,
+		       || row_upd_changes_first_fields_binary(entry, index,
 			    		node->update, foreign->n_fields))) {
 			    				
 			if (foreign->foreign_table == NULL) {
@@ -1048,8 +1048,8 @@ index record. This is only used in foreign key checks and we can assume
 that index does not contain column prefixes. */
 static
 ibool
-row_upd_changes_first_fields(
-/*=========================*/
+row_upd_changes_first_fields_binary(
+/*================================*/
 				/* out: TRUE if changes */
 	dtuple_t*	entry,	/* in: index entry */
 	dict_index_t*	index,	/* in: index of entry */
@@ -1074,15 +1074,16 @@ row_upd_changes_first_fields(
 		col = dict_field_get_col(ind_field);
 		col_pos = dict_col_get_clust_pos(col);
 
+		ut_a(ind_field->prefix_len == 0);
+
 		for (j = 0; j < n_upd_fields; j++) {
 
 			upd_field = upd_get_nth_field(update, j);
 
 			if (col_pos == upd_field->field_no
-			    && (ind_field->prefix_len > 0
-			        || 0 != cmp_dfield_dfield(
+			    && !dfield_datas_are_binary_equal(
 					     dtuple_get_nth_field(entry, i),
-					     &(upd_field->new_val)))) {
+					     &(upd_field->new_val))) {
 				return(TRUE);
 			}
 		}
