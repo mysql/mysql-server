@@ -1,0 +1,230 @@
+drop table if exists `‚s‚P`;
+drop table if exists `‚s‚Q`;
+drop table if exists `‚s‚R`;
+drop table if exists `‚s‚S`;
+drop table if exists `‚s‚T`;
+drop table if exists `‚s‚U`;
+drop table if exists `‚s‚V`;
+drop table if exists `‚s‚W`;
+drop table if exists `‚s‚X`;
+drop table if exists `‚s‚P‚O`;
+drop table if exists `‚s‚P‚P`;
+drop table if exists `‚s‚P‚Q`;
+SET NAMES sjis;
+SET character_set_database = sjis;
+CREATE TABLE `‚s‚P` (`‚b‚P` char(20)) DEFAULT CHARSET = sjis engine = innodb;
+CREATE TABLE `‚s‚Q` (`‚b‚P` char(20)) DEFAULT CHARSET = sjis engine = innodb;
+CREATE TABLE `‚s‚R` (`‚b‚P` char(20)) DEFAULT CHARSET = sjis engine = innodb;
+CREATE TABLE `‚s‚S` (`‚b‚P` char(20)) DEFAULT CHARSET = sjis engine = myisam;
+CREATE TABLE `‚s‚T` (`‚b‚P` char(20)) DEFAULT CHARSET = sjis engine = myisam;
+CREATE TABLE `‚s‚U` (`‚b‚P` char(20)) DEFAULT CHARSET = sjis engine = myisam;
+CREATE TABLE `‚s‚V` (`‚b‚P` char(20)) DEFAULT CHARSET = sjis engine = heap;
+CREATE TABLE `‚s‚W` (`‚b‚P` char(20)) DEFAULT CHARSET = sjis engine = heap;
+CREATE TABLE `‚s‚X` (`‚b‚P` char(20)) DEFAULT CHARSET = sjis engine = heap;
+CREATE TABLE `‚s‚P‚O` (`‚b‚P` char(20)) DEFAULT CHARSET = sjis engine = bdb;
+CREATE TABLE `‚s‚P‚P` (`‚b‚P` char(20)) DEFAULT CHARSET = sjis engine = bdb;
+CREATE TABLE `‚s‚P‚Q` (`‚b‚P` char(20)) DEFAULT CHARSET = sjis engine = bdb;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0201_sjis.dat' INTO TABLE `‚s‚P`;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis.dat' INTO TABLE `‚s‚Q`;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis2.dat' INTO TABLE `‚s‚R`;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0201_sjis.dat' INTO TABLE `‚s‚S`;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis.dat' INTO TABLE `‚s‚T`;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis2.dat' INTO TABLE `‚s‚U`;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0201_sjis.dat' INTO TABLE `‚s‚V`;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis.dat' INTO TABLE `‚s‚W`;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis2.dat' INTO TABLE `‚s‚X`;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0201_sjis.dat' INTO TABLE `‚s‚P‚O`;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis.dat' INTO TABLE `‚s‚P‚P`;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis2.dat' INTO TABLE `‚s‚P‚Q`;
+SELECT DISTINCT CHARSET(`‚b‚P`) FROM `‚s‚P`;
+CHARSET(`‚b‚P`)
+sjis
+SELECT DISTINCT CHARSET(`‚b‚P`) FROM `‚s‚Q`;
+CHARSET(`‚b‚P`)
+sjis
+SELECT DISTINCT CHARSET(`‚b‚P`) FROM `‚s‚R`;
+CHARSET(`‚b‚P`)
+sjis
+SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING utf8)) FROM `‚s‚P`;
+CHARSET(CONVERT(`‚b‚P` USING utf8))
+utf8
+SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING ucs2)) FROM `‚s‚P`;
+CHARSET(CONVERT(`‚b‚P` USING ucs2))
+ucs2
+SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING sjis)) FROM `‚s‚P`;
+CHARSET(CONVERT(`‚b‚P` USING sjis))
+sjis
+SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING ujis)) FROM `‚s‚P`;
+CHARSET(CONVERT(`‚b‚P` USING ujis))
+ujis
+SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING utf8)) FROM `‚s‚Q`;
+CHARSET(CONVERT(`‚b‚P` USING utf8))
+utf8
+SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING ucs2)) FROM `‚s‚Q`;
+CHARSET(CONVERT(`‚b‚P` USING ucs2))
+ucs2
+SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING sjis)) FROM `‚s‚Q`;
+CHARSET(CONVERT(`‚b‚P` USING sjis))
+sjis
+SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING ujis)) FROM `‚s‚Q`;
+CHARSET(CONVERT(`‚b‚P` USING ujis))
+ujis
+SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING utf8)) FROM `‚s‚R`;
+CHARSET(CONVERT(`‚b‚P` USING utf8))
+utf8
+SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING ucs2)) FROM `‚s‚R`;
+CHARSET(CONVERT(`‚b‚P` USING ucs2))
+ucs2
+SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING sjis)) FROM `‚s‚R`;
+CHARSET(CONVERT(`‚b‚P` USING sjis))
+sjis
+SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING ujis)) FROM `‚s‚R`;
+CHARSET(CONVERT(`‚b‚P` USING ujis))
+ujis
+SELECT DISTINCT CHARSET(`‚b‚P`) FROM `‚s‚S`;
+CHARSET(`‚b‚P`)
+sjis
+SELECT DISTINCT CHARSET(`‚b‚P`) FROM `‚s‚T`;
+CHARSET(`‚b‚P`)
+sjis
+SELECT DISTINCT CHARSET(`‚b‚P`) FROM `‚s‚U`;
+CHARSET(`‚b‚P`)
+sjis
+SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING utf8)) FROM `‚s‚S`;
+CHARSET(CONVERT(`‚b‚P` USING utf8))
+utf8
+SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING ucs2)) FROM `‚s‚S`;
+CHARSET(CONVERT(`‚b‚P` USING ucs2))
+ucs2
+SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING sjis)) FROM `‚s‚S`;
+CHARSET(CONVERT(`‚b‚P` USING sjis))
+sjis
+SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING ujis)) FROM `‚s‚S`;
+CHARSET(CONVERT(`‚b‚P` USING ujis))
+ujis
+SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING utf8)) FROM `‚s‚T`;
+CHARSET(CONVERT(`‚b‚P` USING utf8))
+utf8
+SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING ucs2)) FROM `‚s‚T`;
+CHARSET(CONVERT(`‚b‚P` USING ucs2))
+ucs2
+SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING sjis)) FROM `‚s‚T`;
+CHARSET(CONVERT(`‚b‚P` USING sjis))
+sjis
+SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING ujis)) FROM `‚s‚T`;
+CHARSET(CONVERT(`‚b‚P` USING ujis))
+ujis
+SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING utf8)) FROM `‚s‚U`;
+CHARSET(CONVERT(`‚b‚P` USING utf8))
+utf8
+SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING ucs2)) FROM `‚s‚U`;
+CHARSET(CONVERT(`‚b‚P` USING ucs2))
+ucs2
+SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING sjis)) FROM `‚s‚U`;
+CHARSET(CONVERT(`‚b‚P` USING sjis))
+sjis
+SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING ujis)) FROM `‚s‚U`;
+CHARSET(CONVERT(`‚b‚P` USING ujis))
+ujis
+SELECT DISTINCT CHARSET(`‚b‚P`) FROM `‚s‚V`;
+CHARSET(`‚b‚P`)
+sjis
+SELECT DISTINCT CHARSET(`‚b‚P`) FROM `‚s‚W`;
+CHARSET(`‚b‚P`)
+sjis
+SELECT DISTINCT CHARSET(`‚b‚P`) FROM `‚s‚X`;
+CHARSET(`‚b‚P`)
+sjis
+SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING utf8)) FROM `‚s‚V`;
+CHARSET(CONVERT(`‚b‚P` USING utf8))
+utf8
+SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING ucs2)) FROM `‚s‚V`;
+CHARSET(CONVERT(`‚b‚P` USING ucs2))
+ucs2
+SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING sjis)) FROM `‚s‚V`;
+CHARSET(CONVERT(`‚b‚P` USING sjis))
+sjis
+SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING ujis)) FROM `‚s‚V`;
+CHARSET(CONVERT(`‚b‚P` USING ujis))
+ujis
+SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING utf8)) FROM `‚s‚W`;
+CHARSET(CONVERT(`‚b‚P` USING utf8))
+utf8
+SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING ucs2)) FROM `‚s‚W`;
+CHARSET(CONVERT(`‚b‚P` USING ucs2))
+ucs2
+SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING sjis)) FROM `‚s‚W`;
+CHARSET(CONVERT(`‚b‚P` USING sjis))
+sjis
+SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING ujis)) FROM `‚s‚W`;
+CHARSET(CONVERT(`‚b‚P` USING ujis))
+ujis
+SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING utf8)) FROM `‚s‚X`;
+CHARSET(CONVERT(`‚b‚P` USING utf8))
+utf8
+SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING ucs2)) FROM `‚s‚X`;
+CHARSET(CONVERT(`‚b‚P` USING ucs2))
+ucs2
+SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING sjis)) FROM `‚s‚X`;
+CHARSET(CONVERT(`‚b‚P` USING sjis))
+sjis
+SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING ujis)) FROM `‚s‚X`;
+CHARSET(CONVERT(`‚b‚P` USING ujis))
+ujis
+SELECT DISTINCT CHARSET(`‚b‚P`) FROM `‚s‚P‚O`;
+CHARSET(`‚b‚P`)
+sjis
+SELECT DISTINCT CHARSET(`‚b‚P`) FROM `‚s‚P‚P`;
+CHARSET(`‚b‚P`)
+sjis
+SELECT DISTINCT CHARSET(`‚b‚P`) FROM `‚s‚P‚Q`;
+CHARSET(`‚b‚P`)
+sjis
+SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING utf8)) FROM `‚s‚P‚O`;
+CHARSET(CONVERT(`‚b‚P` USING utf8))
+utf8
+SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING ucs2)) FROM `‚s‚P‚O`;
+CHARSET(CONVERT(`‚b‚P` USING ucs2))
+ucs2
+SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING sjis)) FROM `‚s‚P‚O`;
+CHARSET(CONVERT(`‚b‚P` USING sjis))
+sjis
+SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING ujis)) FROM `‚s‚P‚O`;
+CHARSET(CONVERT(`‚b‚P` USING ujis))
+ujis
+SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING utf8)) FROM `‚s‚P‚P`;
+CHARSET(CONVERT(`‚b‚P` USING utf8))
+utf8
+SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING ucs2)) FROM `‚s‚P‚P`;
+CHARSET(CONVERT(`‚b‚P` USING ucs2))
+ucs2
+SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING sjis)) FROM `‚s‚P‚P`;
+CHARSET(CONVERT(`‚b‚P` USING sjis))
+sjis
+SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING ujis)) FROM `‚s‚P‚P`;
+CHARSET(CONVERT(`‚b‚P` USING ujis))
+ujis
+SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING utf8)) FROM `‚s‚P‚Q`;
+CHARSET(CONVERT(`‚b‚P` USING utf8))
+utf8
+SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING ucs2)) FROM `‚s‚P‚Q`;
+CHARSET(CONVERT(`‚b‚P` USING ucs2))
+ucs2
+SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING sjis)) FROM `‚s‚P‚Q`;
+CHARSET(CONVERT(`‚b‚P` USING sjis))
+sjis
+SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING ujis)) FROM `‚s‚P‚Q`;
+CHARSET(CONVERT(`‚b‚P` USING ujis))
+ujis
+drop table `‚s‚P`;
+drop table `‚s‚Q`;
+drop table `‚s‚R`;
+drop table `‚s‚S`;
+drop table `‚s‚T`;
+drop table `‚s‚U`;
+drop table `‚s‚V`;
+drop table `‚s‚W`;
+drop table `‚s‚X`;
+drop table `‚s‚P‚O`;
+drop table `‚s‚P‚P`;
+drop table `‚s‚P‚Q`;
