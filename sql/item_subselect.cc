@@ -73,20 +73,6 @@ void Item_subselect::select_transformer(st_select_lex *select_lex)
 }
 
 
-void Item_subselect::make_field (Send_field *tmp_field)
-{
-  if (null_value)
-  {
-    init_make_field(tmp_field,FIELD_TYPE_NULL);
-    tmp_field->length=4;
-  } else {
-    init_make_field(tmp_field, ((result_type() == STRING_RESULT) ?
-				FIELD_TYPE_VAR_STRING :
-				(result_type() == INT_RESULT) ?
-				FIELD_TYPE_LONGLONG : FIELD_TYPE_DOUBLE));
-  }
-}
-
 bool Item_subselect::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
   if (substitution)

@@ -512,7 +512,8 @@ static bool mysql_test_select_fields(PREP_STMT *stmt, TABLE_LIST *tables,
      sending any info on where clause.
   */
   if (send_prep_stmt(stmt, fields.elements) ||
-      send_fields(thd,fields,0) || send_item_params(stmt))
+      thd->protocol_prep.send_fields(&fields,0) ||
+      send_item_params(stmt))
     DBUG_RETURN(1);
   DBUG_RETURN(0);  
 }
@@ -726,7 +727,9 @@ void mysql_stmt_execute(THD *thd, char *packet)
     mysql_delete(), mysql_update() and mysql_select() to not to 
     have re-check on setup_* and other things ..
   */  
+  thd->protocol= &thd->protocol_prep;		// Switch to binary protocol
   mysql_execute_command(stmt->thd);
+  thd->protocol= &thd->protocol_simple;		// Use normal protocol
 
   if (!(specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(), WAIT_PRIOR);

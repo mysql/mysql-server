@@ -283,6 +283,7 @@ inline THD *_current_thd(void)
 #include "handler.h"
 #include "table.h"
 #include "field.h"				/* Field definitions */
+#include "protocol.h"
 #include "sql_udf.h"
 #include "item.h"
 typedef compare_func_creator (*chooser_compare_func_creator)(bool invert);
@@ -376,30 +377,6 @@ int mysql_analyze_table(THD* thd, TABLE_LIST* table_list,
 int mysql_optimize_table(THD* thd, TABLE_LIST* table_list,
 			 HA_CHECK_OPT* check_opt);
 bool check_simple_select();
-
-/* net_pkg.c */
-void send_warning(THD *thd, uint sql_errno, const char *err=0);
-void net_printf(THD *thd,uint sql_errno, ...);
-void send_ok(THD *thd, ha_rows affected_rows=0L, ulonglong id=0L,
-	     const char *info=0);
-void send_eof(THD *thd, bool no_flush=0);
-void net_send_error(NET *net, uint sql_errno, const char *err);
-char *net_store_length(char *packet,ulonglong length);
-char *net_store_length(char *packet,uint length);
-char *net_store_data(char *to,const char *from);
-char *net_store_data(char *to,int32 from);
-char *net_store_data(char *to,longlong from);
-
-bool net_store_null(String *packet);
-bool net_store_data(String *packet,uint32 from);
-bool net_store_data(String *packet,longlong from);
-bool net_store_data(String *packet,const char *from);
-bool net_store_data(String *packet,const char *from,uint length);
-bool net_store_data(String *packet,struct tm *tmp);
-bool net_store_data(String* packet, I_List<i_string>* str_list);
-bool net_store_data(String *packet,CONVERT *convert, const char *from,
-		    uint length);
-bool net_store_data(String *packet, CONVERT *convert, const char *from);
 
 SORT_FIELD * make_unireg_sortorder(ORDER *order, uint *length);
 int setup_order(THD *thd,TABLE_LIST *tables, List<Item> &fields,
@@ -594,7 +571,6 @@ int lock_tables(THD *thd,TABLE_LIST *tables);
 TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
 			    const char *table_name, bool link_in_list);
 bool rm_temporary_table(enum db_type base, char *path);
-bool send_fields(THD *thd,List<Item> &item,uint send_field_count);
 void free_io_cache(TABLE *entry);
 void intern_close_table(TABLE *entry);
 bool close_thread_table(THD *thd, TABLE **table_ptr);
@@ -818,6 +794,7 @@ bool str_to_time(const char *str,uint length,TIME *l_time);
 longlong str_to_datetime(const char *str,uint length,bool fuzzy_date);
 timestamp_type str_to_TIME(const char *str, uint length, TIME *l_time,
 			   bool fuzzy_date);
+void localtime_to_TIME(TIME *to, struct tm *from);
 
 int test_if_number(char *str,int *res,bool allow_wildcards);
 void change_byte(byte *,uint,char,char);

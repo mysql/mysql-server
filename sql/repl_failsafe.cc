@@ -416,6 +416,7 @@ static Slave_log_event* find_slave_event(IO_CACHE* log,
 
 int show_new_master(THD* thd)
 {
+  Protocol *protocol= thd->protocol;
   DBUG_ENTER("show_new_master");
   List<Item> field_list;
   char errmsg[SLAVE_ERRMSG_SIZE];
@@ -431,15 +432,15 @@ int show_new_master(THD* thd)
   }
   else
   {
-    String* packet = &thd->packet;
     field_list.push_back(new Item_empty_string("Log_name", 20));
-    field_list.push_back(new Item_empty_string("Log_pos", 20));
-    if (send_fields(thd, field_list, 1))
+    field_list.push_back(new Item_return_int("Log_pos", 10,
+					     MYSQL_TYPE_LONGLONG));
+    if (protocol->send_fields(&field_list, 1))
       DBUG_RETURN(-1);
-    packet->length(0);
-    net_store_data(packet, lex_mi->log_file_name);
-    net_store_data(packet, (longlong)lex_mi->pos);
-    if (my_net_write(&thd->net, packet->ptr(), packet->length()))
+    protocol->prepare_for_resend();
+    protocol->store(lex_mi->log_file_name);
+    protocol->store((ulonglong) lex_mi->pos);
+    if (protocol->write())
       DBUG_RETURN(-1);
     send_eof(thd);
     DBUG_RETURN(0);
@@ -580,21 +581,24 @@ int show_slave_hosts(THD* thd)
 {
   List<Item> field_list;
   NET* net = &thd->net;
-  String* packet = &thd->packet;
+  Protocol *protocol= thd->protocol;
   DBUG_ENTER("show_slave_hosts");
 
-  field_list.push_back(new Item_empty_string("Server_id", 20));
+  field_list.push_back(new Item_return_int("Server_id", 10,
+					   MYSQL_TYPE_LONG));
   field_list.push_back(new Item_empty_string("Host", 20));
   if (opt_show_slave_auth_info)
   {
     field_list.push_back(new Item_empty_string("User",20));
     field_list.push_back(new Item_empty_string("Password",20));
   }
-  field_list.push_back(new Item_empty_string("Port",20));
-  field_list.push_back(new Item_empty_string("Rpl_recovery_rank", 20));
-  field_list.push_back(new Item_empty_string("Master_id", 20));
+  field_list.push_back(new Item_return_int("Port", 7, MYSQL_TYPE_LONG));
+  field_list.push_back(new Item_return_int("Rpl_recovery_rank", 7,
+					   MYSQL_TYPE_LONG));
+  field_list.push_back(new Item_return_int("Master_id", 10,
+					   MYSQL_TYPE_LONG));
 
-  if (send_fields(thd, field_list, 1))
+  if (protocol->send_fields(&field_list, 1))
     DBUG_RETURN(-1);
 
   pthread_mutex_lock(&LOCK_slave_list);
@@ -602,18 +606,18 @@ int show_slave_hosts(THD* thd)
   for (uint i = 0; i < slave_list.records; ++i)
   {
     SLAVE_INFO* si = (SLAVE_INFO*) hash_element(&slave_list, i);
-    packet->length(0);
-    net_store_data(packet, si->server_id);
-    net_store_data(packet, si->host);
+    protocol->prepare_for_resend();
+    protocol->store((uint32) si->server_id);
+    protocol->store(si->host);
     if (opt_show_slave_auth_info)
     {
-      net_store_data(packet, si->user);
-      net_store_data(packet, si->password);
+      protocol->store(si->user);
+      protocol->store(si->password);
     }
-    net_store_data(packet, (uint32) si->port);
-    net_store_data(packet, si->rpl_recovery_rank);
-    net_store_data(packet, si->master_id);
-    if (my_net_write(net, (char*)packet->ptr(), packet->length()))
+    protocol->store((uint32) si->port);
+    protocol->store((uint32) si->rpl_recovery_rank);
+    protocol->store((uint32) si->master_id);
+    if (protocol->write())
     {
       pthread_mutex_unlock(&LOCK_slave_list);
       DBUG_RETURN(-1);

@@ -7529,7 +7529,9 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 	item_list.push_back(new Item_string(table->table_name,
 					    strlen(table->table_name),
 					    default_charset_info));
-      item_list.push_back(new Item_string(join_type_str[tab->type],strlen(join_type_str[tab->type]),default_charset_info));
+      item_list.push_back(new Item_string(join_type_str[tab->type],
+					  strlen(join_type_str[tab->type]),
+					  default_charset_info));
       key_map bits;
       uint j;
       for (j=0,bits=tab->keys ; bits ; j++,bits>>=1)
@@ -7587,9 +7589,9 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 	item_list.push_back(item_null);
 	item_list.push_back(item_null);
       }
-      sprintf(buff3,"%.0f",join->best_positions[i].records_read);
-      item_list.push_back(new Item_string(buff3,strlen(buff3),
-					  default_charset_info));
+      item_list.push_back(new Item_int((longlong) (ulonglong)
+				       join->best_positions[i]. records_read,
+				       21));
       my_bool key_read=table->key_read;
       if (tab->type == JT_NEXT &&
 	  ((table->used_keys & ((key_map) 1 << tab->index))))
@@ -7645,6 +7647,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
   DBUG_VOID_RETURN;
 }
 
+
 int mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
 {
   DBUG_ENTER("mysql_explain_union");
@@ -7674,6 +7677,7 @@ int mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
     res= -1; // mysql_explain_select do not report error
   DBUG_RETURN(res);
 }
+
 
 int mysql_explain_select(THD *thd, SELECT_LEX *select_lex, char const *type, 
 			 select_result *result)

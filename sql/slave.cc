@@ -1513,42 +1513,38 @@ err:
 *****************************************************************************/
 int register_slave_on_master(MYSQL* mysql)
 {
-  String packet;
-  char buf[4];
+  char buf[1024], *pos= buf;
+  uint report_host_len, report_user_len=0, report_password_len=0;
 
   if (!report_host)
     return 0;
-  
-  int4store(buf, server_id);
-  packet.append(buf, 4);
-
-  net_store_data(&packet, report_host); 
+  report_host_len= strlen(report_host);
   if (report_user)
-    net_store_data(&packet, report_user);
-  else
-    packet.append((char)0);
-  
+    report_user_len= strlen(report_user);
   if (report_password)
-    net_store_data(&packet, report_user);
-  else
-    packet.append((char)0);
+    report_password_len= strlen(report_password);
+  /* 30 is a good safety margin */
+  if (report_host_len + report_user_len + report_password_len + 30 >
+      sizeof(buf))
+    return 0;					// safety
 
-  int2store(buf, (uint16)report_port);
-  packet.append(buf, 2);
-  int4store(buf, rpl_recovery_rank);
-  packet.append(buf, 4);
-  int4store(buf, 0); /* tell the master will fill in master_id */
-  packet.append(buf, 4);
+  int4store(pos, server_id); pos+= 4;
+  pos= net_store_data(pos, report_host, report_host_len); 
+  pos= net_store_data(pos, report_user, report_user_len);
+  pos= net_store_data(pos, report_password, report_password_len);
+  int2store(pos, (uint16) report_port); pos+= 2;
+  int4store(pos, rpl_recovery_rank);	pos+= 4;
+  /* The master will fill in master_id */
+  int4store(pos, 0);			pos+= 4;
 
-  if (mc_simple_command(mysql, COM_REGISTER_SLAVE, (char*)packet.ptr(),
-		       packet.length(), 0))
+  if (mc_simple_command(mysql, COM_REGISTER_SLAVE, (char*) buf,
+			(uint) (pos- buf), 0))
   {
     sql_print_error("Error on COM_REGISTER_SLAVE: %d '%s'",
 		    mc_mysql_errno(mysql),
 		    mc_mysql_error(mysql));
     return 1;
   }
-
   return 0;
 }
 
@@ -1560,60 +1556,69 @@ int register_slave_on_master(MYSQL* mysql)
 int show_master_info(THD* thd, MASTER_INFO* mi)
 {
   // TODO: fix this for multi-master
-  DBUG_ENTER("show_master_info");
   List<Item> field_list;
+  Protocol *protocol= thd->protocol;
+  DBUG_ENTER("show_master_info");
+
   field_list.push_back(new Item_empty_string("Master_Host",
 						     sizeof(mi->host)));
   field_list.push_back(new Item_empty_string("Master_User",
 						     sizeof(mi->user)));
-  field_list.push_back(new Item_empty_string("Master_Port", 6));
-  field_list.push_back(new Item_empty_string("Connect_retry", 6));
+  field_list.push_back(new Item_return_int("Master_Port", 7,
+					   MYSQL_TYPE_LONG));
+  field_list.push_back(new Item_return_int("Connect_retry", 10,
+					   MYSQL_TYPE_LONG));
   field_list.push_back(new Item_empty_string("Master_Log_File",
-						     FN_REFLEN));
-  field_list.push_back(new Item_empty_string("Read_Master_Log_Pos", 12));
+					     FN_REFLEN));
+  field_list.push_back(new Item_return_int("Read_Master_Log_Pos", 10,
+					   MYSQL_TYPE_LONGLONG));
   field_list.push_back(new Item_empty_string("Relay_Log_File",
-						     FN_REFLEN));
-  field_list.push_back(new Item_empty_string("Relay_Log_Pos", 12));
+					     FN_REFLEN));
+  field_list.push_back(new Item_return_int("Relay_Log_Pos", 10,
+					   MYSQL_TYPE_LONGLONG));
   field_list.push_back(new Item_empty_string("Relay_Master_Log_File",
-						     FN_REFLEN));
+					     FN_REFLEN));
   field_list.push_back(new Item_empty_string("Slave_IO_Running", 3));
   field_list.push_back(new Item_empty_string("Slave_SQL_Running", 3));
   field_list.push_back(new Item_empty_string("Replicate_do_db", 20));
   field_list.push_back(new Item_empty_string("Replicate_ignore_db", 20));
-  field_list.push_back(new Item_empty_string("Last_errno", 4));
+  field_list.push_back(new Item_return_int("Last_errno", 4, MYSQL_TYPE_LONG));
   field_list.push_back(new Item_empty_string("Last_error", 20));
-  field_list.push_back(new Item_empty_string("Skip_counter", 12));
-  field_list.push_back(new Item_empty_string("Exec_master_log_pos", 12));
-  field_list.push_back(new Item_empty_string("Relay_log_space", 12));
-  if (send_fields(thd, field_list, 1))
+  field_list.push_back(new Item_return_int("Skip_counter", 10,
+					   MYSQL_TYPE_LONG));
+  field_list.push_back(new Item_return_int("Exec_master_log_pos", 10,
+					   MYSQL_TYPE_LONGLONG));
+  field_list.push_back(new Item_return_int("Relay_log_space", 10,
+					   MYSQL_TYPE_LONGLONG));
+  if (protocol->send_fields(&field_list, 1))
     DBUG_RETURN(-1);
 
   if (mi->host[0])
   {
     String *packet= &thd->packet;
-    packet->length(0);
+    protocol->prepare_for_resend();
   
     pthread_mutex_lock(&mi->data_lock);
     pthread_mutex_lock(&mi->rli.data_lock);
-    net_store_data(packet, mi->host);
-    net_store_data(packet, mi->user);
-    net_store_data(packet, (uint32) mi->port);
-    net_store_data(packet, (uint32) mi->connect_retry);
-    net_store_data(packet, mi->master_log_name);
-    net_store_data(packet, (longlong) mi->master_log_pos);
-    net_store_data(packet, mi->rli.relay_log_name +
+    protocol->store(mi->host);
+    protocol->store(mi->user);
+    protocol->store((uint32) mi->port);
+    protocol->store((uint32) mi->connect_retry);
+    protocol->store(mi->master_log_name);
+    protocol->store((ulonglong) mi->master_log_pos);
+    protocol->store(mi->rli.relay_log_name +
 		   dirname_length(mi->rli.relay_log_name));
-    net_store_data(packet, (longlong) mi->rli.relay_log_pos);
-    net_store_data(packet, mi->rli.master_log_name);
-    net_store_data(packet, mi->slave_running ? "Yes":"No");
-    net_store_data(packet, mi->rli.slave_running ? "Yes":"No");
-    net_store_data(packet, &replicate_do_db);
-    net_store_data(packet, &replicate_ignore_db);
-    net_store_data(packet, (uint32)mi->rli.last_slave_errno);
-    net_store_data(packet, mi->rli.last_slave_error);
-    net_store_data(packet, mi->rli.slave_skip_counter);
-    net_store_data(packet, (longlong) mi->rli.master_log_pos);
-    net_store_data(packet, (longlong) mi->rli.log_space_total);
+    protocol->store((ulonglong) mi->rli.relay_log_pos);
+    protocol->store(mi->rli.master_log_name);
+    protocol->store(mi->slave_running ? "Yes":"No");
+    protocol->store(mi->rli.slave_running ? "Yes":"No");
+    protocol->store(&replicate_do_db);
+    protocol->store(&replicate_ignore_db);
+    protocol->store((uint32) mi->rli.last_slave_errno);
+    protocol->store(mi->rli.last_slave_error);
+    protocol->store((uint32) mi->rli.slave_skip_counter);
+    protocol->store((ulonglong) mi->rli.master_log_pos);
+    protocol->store((ulonglong) mi->rli.log_space_total);
     pthread_mutex_unlock(&mi->rli.data_lock);
     pthread_mutex_unlock(&mi->data_lock);
   
@@ -1640,8 +1645,7 @@ bool flush_master_info(MASTER_INFO* mi)
   my_b_printf(file, "%s\n%s\n%s\n%s\n%s\n%d\n%d\n",
 	      mi->master_log_name, llstr(mi->master_log_pos, lbuf),
 	      mi->host, mi->user,
-	      mi->password, mi->port, mi->connect_retry
-	      );
+	      mi->password, mi->port, mi->connect_retry);
   flush_io_cache(file);
   DBUG_RETURN(0);
 }
