@@ -286,6 +286,7 @@ sp_head::execute(THD *thd)
 
   if (ctx)
     ctx->clear_handler();
+  thd->query_error= 0;
   do
   {
     sp_instr *i;
@@ -318,10 +319,11 @@ sp_head::execute(THD *thd)
 	continue;
       }
     }
-  } while (ret == 0 && !thd->killed);
+  } while (ret == 0 && !thd->killed && !thd->query_error);
 
-  DBUG_PRINT("info", ("ret=%d killed=%d", ret, thd->killed));
-  if (thd->killed)
+  DBUG_PRINT("info", ("ret=%d killed=%d query_error=%d",
+		      ret, thd->killed, thd->query_error));
+  if (thd->killed || thd->query_error)
     ret= -1;
   /* If the DB has changed, the pointer has changed too, but the
      original thd->db will then have been freed */
@@ -1032,7 +1034,7 @@ sp_instr_copen::execute(THD *thd, uint *nextp)
       res= -1;
     else
       res= exec_stmt(thd, lex);
-    c->post_open(thd, (res == 0 ? TRUE : FALSE));
+    c->post_open(thd, (lex ? TRUE : FALSE));
   }
 
   *nextp= m_ip+1;
