@@ -84,7 +84,7 @@ int my_vsnprintf(char *to, size_t n, const char* fmt, va_list ap)
     if (*fmt == 's')				/* String parameter */
     {
       reg2 char	*par = va_arg(ap, char *);
-      uint plen,left_len = (uint)(end-to);
+      uint plen,left_len = (uint)(end-to)+1;
       if (!par) par = (char*)"(null)";
       plen = (uint) strlen(par);
       if (left_len <= plen)
