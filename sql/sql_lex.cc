@@ -170,6 +170,7 @@ LEX *lex_start(THD *thd, uchar *buf,uint length)
   lex->slave_thd_opt=0;
   lex->sql_command=SQLCOM_END;
   lex->safe_to_cache_query= 1;
+  lex->tmp_table_used= 0;
   bzero(&lex->mi,sizeof(lex->mi));
   return lex;
 }

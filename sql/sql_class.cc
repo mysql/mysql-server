@@ -100,7 +100,7 @@ THD::THD():user_time(0), fatal_error(0),
   start_time=(time_t) 0;
   current_linfo =  0;
   slave_thread = 0;
-  slave_proxy_id = 0;
+  variables.pseudo_thread_id= 0;
   file_id = 0;
   cond_count=0;
   warn_id= 0;
