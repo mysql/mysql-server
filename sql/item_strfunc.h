@@ -542,5 +542,5 @@ public:
   Item_func_quote(Item *a) :Item_str_func(a) {}
   const char *func_name() const { return "quote"; }
   String *val_str(String *);
-  void fix_length_and_dec();
+  void fix_length_and_dec() { max_length= args[0]->max_length * 2 + 2; }
 };

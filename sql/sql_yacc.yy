@@ -283,7 +283,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	PROCESS
 %token	PROCESSLIST_SYM
 %token	QUERY_SYM
-%token  QUOTE
 %token	RAID_0_SYM
 %token	RAID_STRIPED_SYM
 %token	RAID_TYPE
@@ -1816,8 +1815,6 @@ simple_expr:
 	   }
 	| POSITION_SYM '(' no_in_expr IN_SYM expr ')'
 	  { $$ = new Item_func_locate($5,$3); }
-	| QUOTE '(' expr ')'
-	  { $$= new Item_func_quote($3); }
 	| RAND '(' expr ')'
 	  { $$= new Item_func_rand($3); current_thd->safe_to_cache_query=0;}
 	| RAND '(' ')'

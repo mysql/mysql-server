@@ -2071,55 +2071,40 @@ String* Item_func_inet_ntoa::val_str(String* str)
   return str;
 }
 
+/*
+  QUOTE() function returns argument string in single quotes,
+  also adds a \ before \, ' CHAR(0) and CHAR(24)
+*/
 String *Item_func_quote::val_str(String *str)
 {
+  static char escmask[64] = {0x01, 0x00, 0x00, 0x04, 0x80, 0x00, 0x00, 0x00,
+			     0x00, 0x00, 0x00, 0x10, 0x00, 0x00, 0x00, 0x00,
+			     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+			     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
   String *arg= args[0]->val_str(str);
-  char *strptr, *argptr, *end, *arglast;
+  char *from, *to, *end;
   uint delta= 2; /* for beginning and ending ' signs */
 
-  for (argptr= (char*) arg->ptr(), end= argptr + arg->length(); argptr < end;
-       argptr++)
+  for (from= (char*) arg->ptr(), end= from + arg->length(); from < end; from++)
   {
-    switch (*argptr) {
-    case '\'':
-    case '\\':
-    case 0:
-    case '\032':
+    if (*(escmask + (*from >> 3)) and (1 << (*from & 7)))
       delta++;
-    }
   }
   if (str->alloc(arg->length() + delta))
   {
     null_value= 1;
     return 0;
   }
-  strptr= (char*) str->ptr() + arg->length() + delta - 1;
-  *strptr= '\'';
-  for (end= (char*) arg->ptr(), arglast= end + arg->length(),
-       argptr= arglast - 1; argptr >= end; argptr--)
+  to= (char*) str->ptr() + arg->length() + delta - 1;
+  *to--= '\'';
+  for (end= (char*) arg->ptr(), from= end + arg->length() - 1; from >= end; 
+       from--, to--)
   {
-    switch (*argptr) {
-    case '\'':
-    case '\\':
-    case 0:
-    case '\032':
-      strptr-= arglast - argptr;
-      memmove(strptr, argptr, arglast - argptr);
-      arglast= argptr;
-      *--strptr= '\\';
-    }
+    *to= *from;
+    if (*(escmask + (*from >> 3)) and (1 << (*from & 7)))
+      *--to= '\\';
   }
-  if (arglast != end)
-  {
-    strptr-= arglast - end;
-    memmove(strptr, end, arglast - end);
-  }
-  *--strptr= '\'';
+  *to= '\'';
   str->length(arg->length() + delta);
   return str;
-}
-
-void Item_func_quote::fix_length_and_dec()
-{
-  max_length= args[0]->max_length * 2 + 2;
 }
