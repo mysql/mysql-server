@@ -15941,14 +15941,19 @@ You can specify wild cards in the hostname.  For example,
 for any host in the @code{144.155.166} class C subnet.
 
 The simple form @code{user} is a synonym for @code{user@@"%"}.
+
+MySQL doesn't support wildcards in user names.  Anonymous users are
+defined by inserting entries with @code{User=''} into the
+@code{mysql.user} table or creating an user with an empty name with the
+@code{GRANT} command.
+
 @strong{Note:} If you allow anonymous users to connect to the MySQL
-server (which is the default), you should also add all local users as
-@code{user@@localhost} because otherwise the anonymous user entry for the
-local host in the @code{mysql.user} table will be used when the user tries to
-log into the MySQL server from the local machine!  Anonymous users
-are defined by inserting entries with @code{User=''} into the
-@code{mysql.user} table. You can verify if this applies to you by executing
-this query:
+server, you should also grant privileges to all local users as
+@code{user@@localhost} because otherwise the anonymous user entry for
+the local host in the @code{mysql.user} table will be used when the user
+tries to log into the MySQL server from the local machine!
+
+You can verify if this applies to you by executing this query:
 
 @example
 mysql> SELECT Host,User FROM mysql.user WHERE User='';
