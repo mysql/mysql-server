@@ -7402,9 +7402,8 @@ release or the last stable release:
 Normally, if you are beginning to use MySQL for the first time
 or trying to port it to some system for which there is no binary
 distribution, we recommend going with the stable release (currently
-Version @value{mysql_version}.  Note that all MySQL releases are
-checked with the MySQL benchmarks and an extensive test suite
-before each release.
+Version 3.23.  Note that all MySQL releases are checked with the
+MySQL benchmarks and an extensive test suite before each release.
 
 @item
 Otherwise, if you are running an old system and want to upgrade, but
