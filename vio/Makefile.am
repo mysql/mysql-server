@@ -29,17 +29,5 @@ libvio_la_SOURCES =			\
 			vdbug.cc		version.cc		\
 			vmem.cc			violitexx.cc
 
-OMIT_DEPENDENCIES =	pthread.h stdio.h __stdio.h stdlib.h __stdlib.h math.h\
-			__math.h time.h __time.h unistd.h __unistd.h types.h \
-			xtypes.h ac-types.h posix.h string.h __string.h \
-			errno.h socket.h inet.h dirent.h netdb.h \
-			cleanup.h cond.h debug_out.h fd.h kernel.h mutex.h \
-			prio_queue.h pthread_attr.h pthread_once.h queue.h\
-			sleep.h specific.h version.h pwd.h timers.h uio.h \
-			cdefs.h machdep.h signal.h __signal.h util.h	\
-			openssl/x509 openssl/ssl.h openssl/err.h \
-			openssl/pem.h openssl/asn1.h
-
-
 # Don't update the files from bitkeeper
 %::SCCS/s.%
