@@ -243,6 +243,7 @@ volatile ulong cached_thread_count=0;
 my_string master_user = (char*) "test", master_password = 0, master_host=0,
   master_info_file = (char*) "master.info";
 const char *localhost=LOCAL_HOST;
+const char *delayed_user="DELAYED";
 uint master_port = MYSQL_PORT, master_connect_retry = 60;
 
 ulong max_tmp_tables,max_heap_table_size;
@@ -2364,7 +2365,7 @@ pthread_handler_decl(handle_connections_namedpipes,arg)
       continue;
     }
     /* host name is unknown */
-    thd->host = my_strdup("localhost",MYF(0)); /* Host is unknown */
+    thd->host = my_strdup(localhost,MYF(0)); /* Host is unknown */
     create_new_thread(thd);
   }
 

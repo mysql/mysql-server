@@ -477,7 +477,7 @@ extern uint32 server_id;
 extern char mysql_data_home[2],server_version[SERVER_VERSION_LENGTH],
 	    max_sort_char, mysql_real_data_home[];
 extern my_string mysql_unix_port,mysql_tmpdir;
-extern const char *first_keyword, *localhost;
+extern const char *first_keyword, *localhost, *delayed_user;
 extern ulong refresh_version,flush_version, thread_id,query_id,opened_tables,
 	     created_tmp_tables, created_tmp_disk_tables,
 	     aborted_threads,aborted_connects,
