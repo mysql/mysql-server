@@ -89,7 +89,7 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, ORDER *order,
   select=make_select(table,0,0,conds,&error);
   if (error)
     DBUG_RETURN(-1);
-  if ((select && select->check_quick(safe_update, limit)) || !limit)
+  if ((select && select->check_quick(thd, safe_update, limit)) || !limit)
   {
     delete select;
     free_underlaid_joins(thd, &thd->lex.select_lex);

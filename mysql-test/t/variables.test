@@ -98,6 +98,18 @@ select @@timestamp>0;
 set @@rand_seed1=10000000,@@rand_seed2=1000000;
 select ROUND(RAND(),5);
 
+show variables like '%alloc%';
+set @@range_alloc_block_size=1024*16;
+set @@query_alloc_block_size=1024*17+2;
+set @@query_prealloc_size=1024*18;
+set @@transaction_alloc_block_size=1024*20-1;
+set @@transaction_prealloc_size=1024*21-1;
+select @@query_alloc_block_size;
+show variables like '%alloc%';
+set @@range_alloc_block_size=default;
+set @@query_alloc_block_size=default, @@query_prealloc_size=default;
+set transaction_alloc_block_size=default, @@transaction_prealloc_size=default;
+show variables like '%alloc%';
 
 # The following should give errors
 
