@@ -3658,6 +3658,7 @@ CHARSET_INFO *system_charset_info = &compiled_charsets[0];
 #define MY_ADD_CHARSET(x)	all_charsets[(x)->number]=(x)
 
 
+extern CHARSET_INFO my_charset_bin;
 extern CHARSET_INFO my_charset_big5;
 extern CHARSET_INFO my_charset_czech;
 extern CHARSET_INFO my_charset_euc_kr;
@@ -3675,6 +3676,8 @@ extern CHARSET_INFO my_charset_win1250ch;
 my_bool init_compiled_charsets(myf flags  __attribute__((unused)))
 {
   CHARSET_INFO *cs;
+
+  MY_ADD_CHARSET(&my_charset_bin);
 
 #ifdef HAVE_CHARSET_big5
   MY_ADD_CHARSET(&my_charset_big5);
