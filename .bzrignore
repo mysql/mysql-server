@@ -1004,3 +1004,6 @@ vio/test-sslserver
 vio/viotest-ssl
 tests/mysql_client_test
 tests/mysql_client_test
+libmysqld/examples/mysql_client_test.c
+libmysqld/examples/mysql_client_test_embedded
+libmysqld/examples/mysqltest_embedded
