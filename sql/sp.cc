@@ -854,13 +854,14 @@ sp_show_status_procedure(THD *thd, const char *wild)
 ******************************************************************************/
 
 sp_head *
-sp_find_function(THD *thd, sp_name *name)
+sp_find_function(THD *thd, sp_name *name, bool cache_only)
 {
   sp_head *sp;
   DBUG_ENTER("sp_find_function");
   DBUG_PRINT("enter", ("name: %*s", name->m_name.length, name->m_name.str));
 
-  if (!(sp= sp_cache_lookup(&thd->sp_func_cache, name)))
+  if (!(sp= sp_cache_lookup(&thd->sp_func_cache, name)) &&
+      !cache_only)
   {
     if (db_find_routine(thd, TYPE_ENUM_FUNCTION, name, &sp) != SP_OK)
       sp= NULL;
@@ -963,7 +964,7 @@ sp_function_exists(THD *thd, sp_name *name)
 
 
 byte *
-sp_lex_spfuns_key(const byte *ptr, uint *plen, my_bool first)
+sp_lex_sp_key(const byte *ptr, uint *plen, my_bool first)
 {
   LEX_STRING *lsp= (LEX_STRING *)ptr;
   *plen= lsp->length;
@@ -972,37 +973,36 @@ sp_lex_spfuns_key(const byte *ptr, uint *plen, my_bool first)
 
 
 void
-sp_add_fun_to_lex(LEX *lex, sp_name *fun)
+sp_add_to_hash(HASH *h, sp_name *fun)
 {
-  if (! hash_search(&lex->spfuns,
-		    (byte *)fun->m_qname.str, fun->m_qname.length))
+  if (! hash_search(h, (byte *)fun->m_qname.str, fun->m_qname.length))
   {
     LEX_STRING *ls= (LEX_STRING *)sql_alloc(sizeof(LEX_STRING));
     ls->str= sql_strmake(fun->m_qname.str, fun->m_qname.length);
     ls->length= fun->m_qname.length;
 
-    my_hash_insert(&lex->spfuns, (byte *)ls);
+    my_hash_insert(h, (byte *)ls);
   }
 }
 
 
 void
-sp_merge_funs(LEX *dst, LEX *src)
+sp_merge_hash(HASH *dst, HASH *src)
 {
-  for (uint i=0 ; i < src->spfuns.records ; i++)
+  for (uint i=0 ; i < src->records ; i++)
   {
-    LEX_STRING *ls= (LEX_STRING *)hash_element(&src->spfuns, i);
+    LEX_STRING *ls= (LEX_STRING *)hash_element(src, i);
 
-    if (! hash_search(&dst->spfuns, (byte *)ls->str, ls->length))
-      my_hash_insert(&dst->spfuns, (byte *)ls);
+    if (! hash_search(dst, (byte *)ls->str, ls->length))
+      my_hash_insert(dst, (byte *)ls);
   }
 }
 
 
 int
-sp_cache_functions(THD *thd, LEX *lex)
+sp_cache_routines(THD *thd, LEX *lex, int type)
 {
-  HASH *h= &lex->spfuns;
+  HASH *h= (type == TYPE_ENUM_FUNCTION ? &lex->spfuns : &lex->spprocs);
   int ret= 0;
 
   for (uint i=0 ; i < h->records ; i++)
@@ -1011,7 +1011,9 @@ sp_cache_functions(THD *thd, LEX *lex)
     sp_name name(*ls);
 
     name.m_qname= *ls;
-    if (! sp_cache_lookup(&thd->sp_func_cache, &name))
+    if (! sp_cache_lookup((type == TYPE_ENUM_FUNCTION ?
+			   &thd->sp_func_cache : &thd->sp_proc_cache),
+			  &name))
     {
       sp_head *sp;
       LEX *oldlex= thd->lex;
@@ -1027,11 +1029,23 @@ sp_cache_functions(THD *thd, LEX *lex)
       name.m_name.str+= 1;
       name.m_name.length= name.m_qname.length - name.m_db.length - 1;
 
-      if (db_find_routine(thd, TYPE_ENUM_FUNCTION, &name, &sp)
-	  == SP_OK)
+      if (db_find_routine(thd, type, &name, &sp) == SP_OK)
       {
-	sp_cache_insert(&thd->sp_func_cache, sp);
-	ret= sp_cache_functions(thd, newlex);
+	if (type == TYPE_ENUM_FUNCTION)
+	  sp_cache_insert(&thd->sp_func_cache, sp);
+	else
+	  sp_cache_insert(&thd->sp_proc_cache, sp);
+	ret= sp_cache_routines(thd, newlex, TYPE_ENUM_FUNCTION);
+	if (!ret)
+	{
+	  sp_merge_hash(&lex->spfuns, &newlex->spfuns);
+	  ret= sp_cache_routines(thd, newlex, TYPE_ENUM_PROCEDURE);
+	}
+	if (!ret)
+	{
+	  sp_merge_hash(&lex->spprocs, &newlex->spprocs);
+	  sp_merge_table_hash(&lex->sptabs, &sp->m_sptabs);
+	}
 	delete newlex;
 	thd->lex= oldlex;
 	if (ret)
@@ -1041,9 +1055,6 @@ sp_cache_functions(THD *thd, LEX *lex)
       {
 	delete newlex;
 	thd->lex= oldlex;
-	my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "FUNCTION", ls->str);
-	ret= 1;
-	break;
       }
     }
   }

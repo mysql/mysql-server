@@ -249,14 +249,20 @@ sp_cursor::fetch(THD *thd, List<struct sp_pvar> *vars)
 	it= new Item_int(s);
 	break;
       case REAL_RESULT:
-	it= new Item_real(s, strlen(s));
+        it= new Item_float(s, strlen(s));
 	break;
-      default:
+      case DECIMAL_RESULT:
+        it= new Item_decimal(s, strlen(s), thd->db_charset);
+        break;
+      case STRING_RESULT:
 	{
 	  uint len= strlen(s);
 	  it= new Item_string(thd->strmake(s, len), len, thd->db_charset);
 	  break;
 	}
+      case ROW_RESULT:
+      default:
+        DBUG_ASSERT(0);
       }
     thd->spcont->set_item(pv->offset, it);
   }
