@@ -207,7 +207,6 @@ dict_check_tablespaces_or_store_max_id(
 	ulint		space_id;
 	ulint		max_space_id	= 0;
 	mtr_t		mtr;
-	char		name[OS_FILE_MAX_PATH];
 	
 	mutex_enter(&(dict_sys->mutex));
 
@@ -247,9 +246,7 @@ loop:
 
 		/* We found one */
 
-		ut_a(len < OS_FILE_MAX_PATH - 10);
-		ut_memcpy(name, field, len);
-		name[len] = '\0';
+		char*	name = mem_strdupl(field, len);
 
 		field = rec_get_nth_field(rec, 9, &len);
 		ut_a(len == 4);
@@ -267,7 +264,9 @@ loop:
 			fil_space_for_table_exists_in_mem(space_id, name,
 								TRUE, TRUE);
 		}
-		
+
+		mem_free(name);
+
 		if (space_id > max_space_id) {
 			max_space_id = space_id;
 		}
