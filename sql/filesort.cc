@@ -456,6 +456,7 @@ static void make_sortkey(register SORTPARAM *param,
        sort_field != param->end ;
        sort_field++)
   {
+    bool maybe_null=0;
     if ((field=sort_field->field))
     {						// Field
       if (field->maybe_null())
@@ -480,7 +481,7 @@ static void make_sortkey(register SORTPARAM *param,
       switch (sort_field->result_type) {
       case STRING_RESULT:
 	{
-	  if (item->maybe_null)
+	  if ((maybe_null=item->maybe_null))
 	    *to++=1;
 	  /* All item->str() to use some extra byte for end null.. */
 	  String tmp((char*) to,sort_field->length+4);
@@ -546,7 +547,7 @@ static void make_sortkey(register SORTPARAM *param,
       case INT_RESULT:
 	{
 	  longlong value=item->val_int();
-	  if (item->maybe_null)
+	  if ((maybe_null=item->maybe_null))
 	    *to++=1;				/* purecov: inspected */
 	  if (item->null_value)
 	  {
@@ -580,13 +581,13 @@ static void make_sortkey(register SORTPARAM *param,
       case REAL_RESULT:
 	{
 	  double value=item->val();
-	  if (item->null_value)
+	  if ((maybe_null=item->null_value))
 	  {
 	    bzero((char*) to,sort_field->length+1);
 	    to++;
 	    break;
 	  }
-	  if (item->maybe_null)
+	  if ((maybe_null=item->maybe_null))
 	    *to++=1;
 	  change_double_for_sort(value,(byte*) to);
 	  break;
@@ -595,6 +596,8 @@ static void make_sortkey(register SORTPARAM *param,
     }
     if (sort_field->reverse)
     {							/* Revers key */
+      if (maybe_null)
+        to[-1]= ~to[-1];
       length=sort_field->length;
       while (length--)
       {

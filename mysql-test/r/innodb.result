@@ -208,7 +208,7 @@ create index skr on t1 (a);
 insert into t1 values (3,""), (4,"testing");
 analyze table t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	error	The handler for the table doesn't support analyze
+test.t1	analyze	status	OK
 show keys from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
 t1	1	skr	1	a	A	3	NULL	NULL	YES	BTREE	
@@ -1219,4 +1219,74 @@ parent	child
 1	2
 1	3
 2	1
+create table t1 (a int not null auto_increment primary key, b int, c int, key(c)) type=innodb;
+create table t2 (a int not null auto_increment primary key, b int);
+insert into t1 (b) values (null),(null),(null),(null),(null),(null),(null);
+insert into t2 (a) select b from t1;
+insert into t1 (b) select b from t2;
+insert into t2 (a) select b from t1;
+insert into t1 (a) select b from t2;
+insert into t2 (a) select b from t1;
+insert into t1 (a) select b from t2;
+insert into t2 (a) select b from t1;
+insert into t1 (a) select b from t2;
+insert into t2 (a) select b from t1;
+insert into t1 (a) select b from t2;
+insert into t2 (a) select b from t1;
+insert into t1 (a) select b from t2;
+insert into t2 (a) select b from t1;
+insert into t1 (a) select b from t2;
+insert into t2 (a) select b from t1;
+insert into t1 (a) select b from t2;
+insert into t2 (a) select b from t1;
+insert into t1 (a) select b from t2;
+select count(*) from t1;
+count(*)
+29267
+explain select a from t1 where a between 1 and 10000;
+table	type	possible_keys	key	key_len	ref	rows	Extra
+t1	range	PRIMARY	PRIMARY	4	NULL	14745	Using where; Using index
+explain select * from t1 where a between 1 and 10000;
+table	type	possible_keys	key	key_len	ref	rows	Extra
+t1	range	PRIMARY	PRIMARY	4	NULL	14745	Using where
+explain select * from t1 where c between 1 and 10000;
+table	type	possible_keys	key	key_len	ref	rows	Extra
+t1	range	c	c	5	NULL	1	Using where
+update t1 set c=a;
+explain select * from t1 where c between 1 and 10000;
+table	type	possible_keys	key	key_len	ref	rows	Extra
+t1	ALL	c	NULL	NULL	NULL	29537	Using where
+drop table t1,t2;
+create table t1 (id int primary key auto_increment, fk int, index index_fk (fk)) type=innodb;
+insert into t1 (id) values (null),(null),(null),(null),(null);
+update t1 set fk=69 where fk is null order by id limit 1;
+SELECT * from t1;
+id	fk
+2	NULL
+3	NULL
+4	NULL
+5	NULL
+1	69
+drop table t1;
+create table t1 (a int not null, b int not null, key (a));
+insert into t1 values (1,1),(1,2),(1,3),(3,1),(3,2),(3,3),(3,1),(3,2),(3,3),(2,1),(2,2),(2,3);
+SET @tmp=0;
+update t1 set b=(@tmp:=@tmp+1) order by a;
+update t1 set b=99 where a=1 order by b asc limit 1;
+update t1 set b=100 where a=1 order by b desc limit 2;
+update t1 set a=a+10+b where a=1 order by b;
+select * from t1 order by a,b;
+a	b
+2	4
+2	5
+2	6
+3	7
+3	8
+3	9
+3	10
+3	11
+3	12
+13	2
+111	100
+111	100
 drop table t1;

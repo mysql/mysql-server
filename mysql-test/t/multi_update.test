@@ -247,7 +247,7 @@ update t1,t2 set t1.b=t1.b+10 where t1.b=2;
 select * from t1;
 
 # Range key (in t1)
-update t1,t2 set t1.b=t1.b+2,t2.b=t1.b where t1.b between 3 and 5;
+update t1,t2 set t1.b=t1.b+2,t2.b=t1.b+10 where t1.b between 3 and 5 and t2.a=t1.a-100;
 select * from t1;
 select * from t2;
 
