@@ -106,7 +106,7 @@ longlong Item_func_not::val_int()
   DBUG_ASSERT(fixed == 1);
   double value=args[0]->val();
   null_value=args[0]->null_value;
-  return !null_value && value == 0 ? 1 : 0;
+  return ((!null_value && value == 0) ? 1 : 0);
 }
 
 /*
@@ -117,13 +117,23 @@ longlong Item_func_not_all::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   double value= args[0]->val();
-  if (abort_on_null)
-  {
-    null_value= 0;
-    return (args[0]->null_value || value == 0) ? 1 : 0;
-  }
+
+  /*
+    return TRUE if there was records in underlaying select in max/min
+    optimisation
+  */
+  if (empty_underlying_subquery())
+    return 1;
+
   null_value= args[0]->null_value;
-  return (!null_value && value == 0) ? 1 : 0;
+  return ((!null_value && value == 0) ? 1 : 0);
+}
+
+
+bool Item_func_not_all::empty_underlying_subquery()
+{
+  return ((test_sum_item && !test_sum_item->any_value()) ||
+          (test_sub_item && !test_sub_item->any_value()));
 }
 
 void Item_func_not_all::print(String *str)
@@ -133,6 +143,28 @@ void Item_func_not_all::print(String *str)
   else
     args[0]->print(str);
 }
+
+
+/*
+  special NOP for ALL subquery
+*/
+
+longlong Item_func_nop_all::val_int()
+{
+  DBUG_ASSERT(fixed == 1);
+  double value= args[0]->val();
+
+  /*
+    return TRUE if there was records in underlaying select in max/min
+    optimisation
+  */
+  if (empty_underlying_subquery())
+    return 1;
+
+  null_value= args[0]->null_value;
+  return (null_value || value == 0) ? 0 : 1;
+}
+
 
 /*
   Convert a constant expression or string to an integer.

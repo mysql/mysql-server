@@ -1241,9 +1241,10 @@ bool select_singlerow_subselect::send_data(List<Item> &items)
 bool select_max_min_finder_subselect::send_data(List<Item> &items)
 {
   DBUG_ENTER("select_max_min_finder_subselect::send_data");
-  Item_singlerow_subselect *it= (Item_singlerow_subselect *)item;
+  Item_maxmin_subselect *it= (Item_maxmin_subselect *)item;
   List_iterator_fast<Item> li(items);
   Item *val_item= li++;
+  it->register_value();
   if (it->assigned())
   {
     cache->store(val_item);
