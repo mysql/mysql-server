@@ -291,6 +291,10 @@ int populate(Ndb * myNdb, int data, async_callback_t * cbData)
 {
 
   NdbOperation*   myNdbOperation;       // For operations
+  const NdbDictionary::Dictionary* myDict= myNdb->getDictionary();
+  const NdbDictionary::Table *myTable= myDict->getTable("GARAGE");
+  if (myTable == NULL) 
+    APIERROR(myDict->getNdbError());
 
   async_callback_t * cb;
   int retries = 0;
@@ -347,8 +351,7 @@ int populate(Ndb * myNdb, int data, async_callback_t * cbData)
 	}
 	asynchExitHandler(myNdb);	
       }
-      // Error check. If error, then maybe table GARAGE is not in database
-      myNdbOperation = transaction[current].conn->getNdbOperation("GARAGE");
+      myNdbOperation = transaction[current].conn->getNdbOperation(myTable);
       if (myNdbOperation == NULL) 
       {
 	if (asynchErrorHandler(transaction[current].conn, myNdb)) 

@@ -530,6 +530,12 @@ NdbIndexImpl::getTable() const
 }
 
 const NdbTableImpl *
+NdbIndexImpl::getBaseTable() const
+{
+  return m_table;
+}
+
+const NdbTableImpl *
 NdbIndexImpl::getIndexTable() const
 {
   return m_table;
