@@ -1355,6 +1355,12 @@ btr_cur_update_in_place(
 	block = buf_block_align(rec);
 
 	if (block->is_hashed) {
+	        if (row_upd_changes_ord_field_binary(NULL, index, update)) {
+
+		        /* Remove possible hash index pointer to this record */
+	                btr_search_update_hash_on_delete(cursor);
+	        }
+
 		rw_lock_x_lock(&btr_search_latch);
 	}
 
