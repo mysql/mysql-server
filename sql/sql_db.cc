@@ -95,6 +95,7 @@ int mysql_create_db(THD *thd, char *db, uint create_options, bool silent)
     {
       VOID(pthread_mutex_lock(&LOCK_thread_count));
       thd->query= 0;
+      thd->query_length= 0;
       VOID(pthread_mutex_unlock(&LOCK_thread_count));
     }
     send_ok(&thd->net, result);
@@ -202,6 +203,7 @@ int mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
       {
 	VOID(pthread_mutex_lock(&LOCK_thread_count));
 	thd->query= 0;
+	thd->query_length= 0;
 	VOID(pthread_mutex_unlock(&LOCK_thread_count));
       }
       send_ok(&thd->net,(ulong) deleted);

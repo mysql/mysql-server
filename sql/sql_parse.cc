@@ -1312,6 +1312,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   thd->proc_info=0;
   thd->command=COM_SLEEP;
   thd->query=0;
+  thd->query_length=0;
   thread_running--;
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
   thd->packet.shrink(thd->variables.net_buffer_length);	// Reclaim some memory
