@@ -840,6 +840,7 @@ Item *Item_func_case::find_item(String *str)
       if (args[i]->val()==first_expr_real && !args[i]->null_value) 
         return args[i+1];
       break;
+    case ROW_RESULT:
     default:
       // This case should never be choosen
       DBUG_ASSERT(0);

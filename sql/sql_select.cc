@@ -4007,6 +4007,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
 				 item->name,table,item->charset());
 	return	new Field_string(item_sum->max_length,maybe_null,
 				 item->name,table,item->charset());
+      case ROW_RESULT:
       default:
 	// This case should never be choosen
 	DBUG_ASSERT(0);
@@ -4067,6 +4068,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
 	new_field= new Field_string(item->max_length,maybe_null,
 				    item->name,table,item->str_value.charset());
       break;
+    case ROW_RESULT: 
     default: 
       // This case should never be choosen
       DBUG_ASSERT(0);
