@@ -3280,7 +3280,7 @@ SumaParticipant::execSUB_STOP_REQ(Signal* signal){
     for (;!subbPtr.isNull(); c_dataSubscribers.next(subbPtr)){
       jam();
       if (subbPtr.p->m_subPtrI == subPtr.i && 
-	  subbPtr.p->m_subscriberRef == subscriberRef &&
+	  refToNode(subbPtr.p->m_subscriberRef) == refToNode(subscriberRef) &&
 	  subbPtr.p->m_subscriberData == subscriberData){
 	//	ndbout_c("STOP_REQ: before c_dataSubscribers.release");
 	jam();
@@ -3508,6 +3508,8 @@ SumaParticipant::sendSubRemoveRef(Signal* signal, const SubRemoveReq& req,
   jam();
   SubRemoveRef  * ref = (SubRemoveRef *)signal->getDataPtrSend();
   ref->senderRef  = reference();
+  ref->subscriptionId = req.subscriptionId;
+  ref->subscriptionKey = req.subscriptionKey;
   ref->senderData = req.senderData;
   ref->err = errCode;
   if (temporary)
