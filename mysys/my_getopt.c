@@ -427,7 +427,8 @@ static int setval (const struct my_option *opts, char *argument,
     else if (opts->var_type == GET_STRALC)
     {
       if ((*((char**) result_pos)))
-	my_free((*(char**) result_pos), MYF(MY_ALLOW_ZERO_PTR));
+	my_free((*(char**) result_pos),
+		MYF(MY_WME | MY_FAE | MY_ALLOW_ZERO_PTR));
       *((char**) result_pos)= my_strdup(argument, MYF(MY_WME));
     }
     if (err)
@@ -748,7 +749,10 @@ void my_print_variables(const struct my_option *options)
 	if (!optp->def_value && !*((ulonglong*) optp->value))
 	  printf("(No default value)\n");
 	else
-	  printf("%s\n", longlong2str(*((ulonglong*) optp->value), buff, 10));
+	{
+	  longlong2str(*((ulonglong*) optp->value), buff, 10);
+	  printf("%s\n", buff);
+	}
       }
     }
   }

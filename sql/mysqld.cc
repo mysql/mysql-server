@@ -2977,8 +2977,8 @@ static struct my_option my_long_options[] =
    0, 0, 0, 0, 0, 0},
   {"log-bin", OPT_BIN_LOG,
    "Log queries in new binary format (for replication)",
-   (gptr*) &opt_bin_logname, (gptr*) &opt_bin_logname, 0, GET_STR, OPT_ARG, 0,
-   0, 0, 0, 0, 0},
+   (gptr*) &opt_bin_logname, (gptr*) &opt_bin_logname, 0, GET_STRALC,
+   OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"log-bin-index", OPT_BIN_LOG_INDEX,
    "File that holds the names for last binary log files",
    (gptr*) &opt_binlog_index_name, (gptr*) &opt_binlog_index_name, 0, GET_STR,
@@ -3139,7 +3139,7 @@ static struct my_option my_long_options[] =
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"relay-log", OPT_RELAY_LOG, "Undocumented",
    (gptr*) &opt_relay_logname, (gptr*) &opt_relay_logname, 0,
-   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   GET_STRALC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"relay-log-index", OPT_RELAY_LOG_INDEX, "Undocumented",
    (gptr*) &opt_relaylog_index_name, (gptr*) &opt_relaylog_index_name, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -3208,7 +3208,7 @@ static struct my_option my_long_options[] =
    (gptr*) &relay_log_info_file, (gptr*) &relay_log_info_file, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"slave-load-tmpdir", OPT_SLAVE_LOAD_TMPDIR, "Undocumented",
-   (gptr*) &slave_load_tmpdir, (gptr*) &slave_load_tmpdir, 0, GET_STR,
+   (gptr*) &slave_load_tmpdir, (gptr*) &slave_load_tmpdir, 0, GET_STRALC,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"slave-skip-errors", OPT_SLAVE_SKIP_ERRORS,
    "Tells the slave thread to continue replication when a query returns an error from the provided list. Normally, replication will discontinue when an error is encountered, giving the user a chance to resolve the inconsistency in the data manually. Do not use this option unless you fully understand why you are getting the errors. If there are no bugs in your replication setup and client programs, and no bugs in MySQL itself, you should never get an abort with error. Indiscriminate use of this option will result in slaves being hopelessly out of sync with the master and you having no idea how the problem happened. For error codes, you should use the numbers provided by the error message in your slave error log and in the output of SHOW SLAVE STATUS. Full list of error messages can be found in the source distribution in `Docs/mysqld_error.txt'. You can (but should not) also use a very non-recommended value of all which will ignore all error messages and keep barging along regardless. Needless to say, if you use it, we make no promises regarding your data integrity. Please do not complain if your data on the slave is not anywhere close to what it is on the master in this case -- you have been warned. Example: slave-skip-errors=1062,1053 or slave-skip-errors=all",
@@ -3974,7 +3974,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   case 'l':
     opt_log=1;
-    opt_logname=argument;			// Use hostname.log if null
     break;
   case 'h':
     strmake(mysql_real_data_home,argument, sizeof(mysql_real_data_home)-1);
@@ -3988,9 +3987,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case 'o':
     protocol_version=PROTOCOL_VERSION-1;
     break;
-  case 'P':
-    mysql_port= (unsigned int) atoi(argument);
-    break;
   case OPT_LOCAL_INFILE:
     opt_local_infile= test(!argument || atoi(argument) != 0);
     break;
@@ -4001,24 +3997,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 #if !defined(DBUG_OFF) && defined(SAFEMALLOC)      
     safemalloc_mem_limit = atoi(argument);
 #endif      
-    break;
-  case OPT_RPL_RECOVERY_RANK:
-    rpl_recovery_rank=atoi(argument);
-    break;
-  case OPT_SLAVE_LOAD_TMPDIR:
-    slave_load_tmpdir = my_strdup(argument, MYF(MY_FAE));
-    break;
-  case OPT_SOCKET:
-    mysql_unix_port= argument;
-    break;
-  case 'r':
-    mysqld_chroot=argument;
-    break;
-  case 't':
-    mysql_tmpdir=argument;
-    break;
-  case 'u':
-    mysqld_user=argument;
     break;
   case 'v':
   case 'V':
@@ -4037,45 +4015,12 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   case (int) OPT_ISAM_LOG:
     opt_myisam_log=1;
-    if (argument)
-      myisam_log_filename=argument;
     break;
   case (int) OPT_UPDATE_LOG:
     opt_update_log=1;
-    opt_update_logname=argument;		// Use hostname.# if null
-    break;
-  case (int) OPT_RELAY_LOG_INDEX:
-    opt_relaylog_index_name = argument;
-    break;
-  case (int) OPT_RELAY_LOG:
-    x_free(opt_relay_logname);
-    if (argument && argument[0])
-      opt_relay_logname=my_strdup(argument,MYF(0));
-    break;
-  case (int) OPT_BIN_LOG_INDEX:
-    opt_binlog_index_name = argument;
     break;
   case (int) OPT_BIN_LOG:
     opt_bin_log=1;
-    x_free(opt_bin_logname);
-    if (argument && argument[0])
-      opt_bin_logname=my_strdup(argument,MYF(0));
-    break;
-    // needs to be handled (as no-op) in non-debugging mode for test suite
-  case (int)OPT_DISCONNECT_SLAVE_EVENT_COUNT:
-#ifndef DBUG_OFF      
-    disconnect_slave_event_count = atoi(argument);
-#endif      
-    break;
-  case (int)OPT_ABORT_SLAVE_EVENT_COUNT:
-#ifndef DBUG_OFF      
-    abort_slave_event_count = atoi(argument);
-#endif      
-    break;
-  case (int) OPT_MAX_BINLOG_DUMP_EVENTS:
-#ifndef DBUG_OFF      
-    max_binlog_dump_events = atoi(argument);
-#endif      
     break;
   case (int) OPT_INIT_RPL_ROLE:
     {
@@ -4197,7 +4142,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     }
   case (int) OPT_SLOW_QUERY_LOG:
     opt_slow_log=1;
-    opt_slow_logname=argument;
     break;
   case (int)OPT_RECKLESS_SLAVE:
     opt_reckless_slave = 1;
@@ -4297,9 +4241,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case (int) OPT_PID_FILE:
     strmake(pidfile_name, argument, sizeof(pidfile_name)-1);
     break;
-  case (int) OPT_INIT_FILE:
-    opt_init_file=argument;
-    break;
 #ifdef __WIN__
   case (int) OPT_STANDALONE:		/* Dummy option for NT */
     break;
@@ -4331,7 +4272,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       break;
     }
   case OPT_SERVER_ID:
-    server_id = atoi(argument);
     server_id_supplied = 1;
     break;
   case OPT_DELAY_KEY_WRITE:
@@ -4365,20 +4305,11 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       break;
     }
 #ifdef HAVE_BERKELEY_DB
-  case OPT_BDB_LOG:
-    berkeley_logdir=argument;
-    break;
-  case OPT_BDB_HOME:
-    berkeley_home=argument;
-    break;
   case OPT_BDB_NOSYNC:
     berkeley_env_flags|=DB_TXN_NOSYNC;
     break;
   case OPT_BDB_NO_RECOVER:
     berkeley_init_flags&= ~(DB_RECOVER);
-    break;
-  case OPT_BDB_TMP:
-    berkeley_tmpdir=argument;
     break;
   case OPT_BDB_LOCK:
     {
@@ -4420,15 +4351,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 #endif
     break;
 #ifdef HAVE_INNOBASE_DB
-  case OPT_INNODB_DATA_HOME_DIR:
-    innobase_data_home_dir=argument;
-    break;
-  case OPT_INNODB_LOG_GROUP_HOME_DIR:
-    innobase_log_group_home_dir=argument;
-    break;
-  case OPT_INNODB_LOG_ARCH_DIR:
-    innobase_log_arch_dir=argument;
-    break;
   case OPT_INNODB_LOG_ARCHIVE:
     innobase_log_archive= argument ? test(atoi(argument)) : 1;
     break;
@@ -4437,9 +4359,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   case OPT_INNODB_FAST_SHUTDOWN:
     innobase_fast_shutdown= argument ? test(atoi(argument)) : 1;
-    break;
-  case OPT_INNODB_FLUSH_METHOD:
-    innobase_unix_file_flush_method=argument;
     break;
 #endif /* HAVE_INNOBASE_DB */
   case OPT_MYISAM_RECOVER:
@@ -4476,47 +4395,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 			     ISO_READ_COMMITTED);
       break;
     }
-  case OPT_MASTER_HOST:
-    master_host=argument;
-    break;
-  case OPT_MASTER_USER:
-    master_user=argument;
-    break;
   case OPT_MASTER_PASSWORD:
     master_password=argument;
-    break;
-  case OPT_MASTER_INFO_FILE:
-    master_info_file=argument;
-    break;
-  case OPT_RELAY_LOG_INFO_FILE:
-    relay_log_info_file=argument;
-    break;
-  case OPT_MASTER_PORT:
-    master_port= atoi(argument);
-    break;
-  case OPT_MASTER_SSL_KEY:
-    master_ssl_key=argument;
-    break;
-  case OPT_MASTER_SSL_CERT:
-    master_ssl_cert=argument;
-    break;
-  case OPT_REPORT_HOST:
-    report_host=argument;
-    break;
-  case OPT_REPORT_USER:
-    report_user=argument;
-    break;
-  case OPT_REPORT_PASSWORD:
-    report_password=argument;
-    break;
-  case OPT_REPORT_PORT:
-    report_port= atoi(argument);
-    break;
-  case OPT_MASTER_CONNECT_RETRY:
-    master_connect_retry= atoi(argument);
-    break;
-  case OPT_MASTER_RETRY_COUNT:
-    master_retry_count= atoi(argument);
     break;
   case OPT_SKIP_SAFEMALLOC:
 #ifdef SAFEMALLOC
