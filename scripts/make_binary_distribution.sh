@@ -221,6 +221,7 @@ $CP mysql-test/t/*test mysql-test/t/*.opt mysql-test/t/*.slave-mi mysql-test/t/*
 $CP mysql-test/r/*result mysql-test/r/*.require $BASE/mysql-test/r
 
 if [ $BASE_SYSTEM != "netware" ] ; then
+  chmod a+x $BASE/bin/*
   $CP scripts/* $BASE/bin
   $BASE/bin/replace \@localstatedir\@ ./data \@bindir\@ ./bin \@scriptdir\@ ./bin \@libexecdir\@ ./bin \@sbindir\@ ./bin \@prefix\@ . \@HOSTNAME\@ @HOSTNAME@ < $SOURCE/scripts/mysql_install_db.sh > $BASE/scripts/mysql_install_db
   $BASE/bin/replace \@prefix\@ /usr/local/mysql \@bindir\@ ./bin \@MYSQLD_USER\@ root \@localstatedir\@ /usr/local/mysql/data \@HOSTNAME\@ @HOSTNAME@ < $SOURCE/support-files/mysql.server.sh > $BASE/support-files/mysql.server
