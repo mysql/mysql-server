@@ -522,7 +522,7 @@ set @a:=(SELECT a from t1);
 
 CREATE TABLE t1 (a int, KEY(a)); 
 HANDLER t1 OPEN;
--- error 1149
+-- error 1064
 HANDLER t1 READ a=((SELECT 1));
 HANDLER t1 CLOSE;
 drop table t1;
@@ -1049,3 +1049,14 @@ INSERT INTO `t2` VALUES (16,1987),(50,1990),(51,1990);
 SELECT cns.id, cns.max_anno_dep, cns.max_anno_dep = (SELECT s.anno_dep FROM t1 AS s WHERE s.id_cns = cns.id ORDER BY s.anno_dep DESC LIMIT 1) AS PIPPO FROM t2 AS cns;
 
 DROP TABLE t1, t2;
+
+#
+# GLOBAL LIMIT
+#
+create table t1 (a int);
+insert into t1 values (1), (2), (3);
+SET SQL_SELECT_LIMIT=1;
+select sum(a) from (select * from t1) as a;
+select 2 in (select * from t1);
+SET SQL_SELECT_LIMIT=default;
+drop table t1;

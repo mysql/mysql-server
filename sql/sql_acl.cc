@@ -173,7 +173,8 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
   tables[0].lock_type=tables[1].lock_type=tables[2].lock_type=TL_READ;
   tables[0].db=tables[1].db=tables[2].db=thd->db;
 
-  if (open_tables(thd,tables))
+  uint counter;
+  if (open_tables(thd, tables, &counter))
   {
     sql_print_error("Fatal error: Can't open privilege tables: %s",
 		    thd->net.last_error);
@@ -2247,7 +2248,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
   }
 #endif
 
-  if (open_and_lock_tables(thd,tables))
+  if (simple_open_n_lock_tables(thd,tables))
   {						// Should never happen
     close_thread_tables(thd);			/* purecov: deadcode */
     DBUG_RETURN(-1);				/* purecov: deadcode */
@@ -2395,7 +2396,7 @@ int mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
   }
 
   /* open the mysql.user and mysql.db tables */
-
+  bzero((char*) &tables,sizeof(tables));
   tables[0].alias=tables[0].real_name=(char*) "user";
   tables[1].alias=tables[1].real_name=(char*) "db";
   tables[0].next=tables+1;
@@ -2421,7 +2422,7 @@ int mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
   }
 #endif
 
-  if (open_and_lock_tables(thd,tables))
+  if (simple_open_n_lock_tables(thd,tables))
   {						// This should never happen
     close_thread_tables(thd);			/* purecov: deadcode */
     DBUG_RETURN(-1);				/* purecov: deadcode */
@@ -2517,14 +2518,15 @@ my_bool grant_init(THD *org_thd)
   thd->store_globals();
   thd->db= my_strdup("mysql",MYF(0));
   thd->db_length=5;				// Safety
-  bzero((char*) &tables,sizeof(tables));
+  bzero((char*) &tables, sizeof(tables));
   tables[0].alias=tables[0].real_name= (char*) "tables_priv";
   tables[1].alias=tables[1].real_name= (char*) "columns_priv";
   tables[0].next=tables+1;
   tables[0].lock_type=tables[1].lock_type=TL_READ;
   tables[0].db=tables[1].db=thd->db;
 
-  if (open_tables(thd,tables))
+  uint counter;
+  if (open_tables(thd, tables, &counter))
     goto end;
 
   TABLE *ptr[2];				// Lock tables for quick update
@@ -2549,7 +2551,7 @@ my_bool grant_init(THD *org_thd)
   do
   {
     GRANT_TABLE *mem_check;
-    if (!(mem_check=new GRANT_TABLE(t_table,c_table)) || !mem_check->ok())
+    if (!(mem_check=new GRANT_TABLE(t_table,c_table)))
     {
       /* This could only happen if we are out memory */
       grant_option= FALSE;			/* purecov: deadcode */
@@ -2568,7 +2570,7 @@ my_bool grant_init(THD *org_thd)
       }
     }
 
-    if (my_hash_insert(&column_priv_hash,(byte*) mem_check))
+    if (mem_check->ok() && my_hash_insert(&column_priv_hash,(byte*) mem_check))
     {
       grant_option= FALSE;
       goto end_unlock;
@@ -3376,7 +3378,7 @@ int open_grant_tables(THD *thd, TABLE_LIST *tables)
   }
 #endif
 
-  if (open_and_lock_tables(thd, tables))
+  if (simple_open_n_lock_tables(thd, tables))
   {						// This should never happen
     close_thread_tables(thd);
     DBUG_RETURN(-1);

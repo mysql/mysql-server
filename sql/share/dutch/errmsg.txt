@@ -287,7 +287,7 @@ character-set=latin1
 "Illegal mix of collations for operation '%s'",
 "Variable '%-.64s' is not a variable component (Can't be used as XXXX.variable_name)",
 "Unknown collation: '%-.64s'",
-"SSL parameters in CHANGE MASTER are ignored because this MySQL slave was compiled without SSL support. They can be used later when MySQL slave with SSL will be started.",
+"SSL parameters in CHANGE MASTER are ignored because this MySQL slave was compiled without SSL support; they can be used later when MySQL slave with SSL will be started",
 "Server is running in --secure-auth mode, but '%s'@'%s' has a password in the old format; please change the password to the new format",
 "Field or reference '%-.64s%s%-.64s%s%-.64s' of SELECT #%d was resolved in SELECT #%d",
 "Wrong parameter or combination of parameters for START SLAVE UNTIL",
@@ -300,7 +300,7 @@ character-set=latin1
 "Unknown key cache '%-.100s'",
 "MySQL is started in --skip-name-resolve mode. You need to restart it without this switch for this grant to work",
 "Unknown table engine '%s'",
-"'%s' is deprecated. Use '%s' instead.",
-"The target table %-.100s of the %s is not updatable.",
-"The '%s' feature was disabled. You need MySQL built with '%s' define to have it working"
+"'%s' is deprecated, use '%s' instead",
+"The target table %-.100s of the %s is not updatable",
+"The '%s' feature was disabled; you need MySQL built with '%s' define to have it working"
 "MySQL is started in --skip-grant-tables mode. You can't use this command"

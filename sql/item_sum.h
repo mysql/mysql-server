@@ -284,7 +284,7 @@ class Item_sum_avg :public Item_sum_num
   ulonglong count;
 
   public:
-  Item_sum_avg(Item *item_par) :Item_sum_num(item_par),count(0) {}
+  Item_sum_avg(Item *item_par) :Item_sum_num(item_par), sum(0.0), count(0) {}
   Item_sum_avg(THD *thd, Item_sum_avg *item)
     :Item_sum_num(thd, item), sum(item->sum), count(item->count) {}
   enum Sumfunctype sum_func () const {return AVG_FUNC;}
@@ -736,7 +736,7 @@ class Item_func_group_concat : public Item_sum
 
   enum Sumfunctype sum_func () const {return GROUP_CONCAT_FUNC;}
   const char *func_name() const { return "group_concat"; }
-  enum Type type() const { return SUM_FUNC_ITEM; }  
+  enum Type type() const { return SUM_FUNC_ITEM; }
   virtual Item_result result_type () const { return STRING_RESULT; }
   void clear();
   bool add();
@@ -748,7 +748,7 @@ class Item_func_group_concat : public Item_sum
   double val()
   {
     String *res;  res=val_str(&str_value);
-    return res ? atof(res->c_ptr()) : 0.0;
+    return res ? my_atof(res->c_ptr()) : 0.0;
   }
   longlong val_int()
   {

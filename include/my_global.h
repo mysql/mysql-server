@@ -522,7 +522,7 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #define FN_EXTCHAR	'.'
 #define FN_HOMELIB	'~'	/* ~/ is used as abbrev for home dir */
 #define FN_CURLIB	'.'	/* ./ is used as abbrev for current dir */
-#define FN_PARENTDIR	".."	/* Parentdirectory; Must be a string */
+#define FN_PARENTDIR	".."	/* Parent directory; Must be a string */
 #define FN_DEVCHAR	':'
 
 #ifndef FN_LIBCHAR
@@ -581,14 +581,6 @@ typedef SOCKET_SIZE_TYPE size_socket;
 
 /* Some defines of functions for portability */
 
-#ifndef HAVE_ATOD
-#define atod		atof
-#endif
-#ifdef USE_MY_ATOF
-#define atof		my_atof
-extern void		init_my_atof(void);
-extern double		my_atof(const char*);
-#endif
 #undef remove		/* Crashes MySQL on SCO 5.0.0 */
 #ifndef __WIN__
 #ifdef OS2
@@ -675,6 +667,10 @@ extern double		my_atof(const char*);
 #ifndef DBL_MAX
 #define DBL_MAX		1.79769313486231470e+308
 #define FLT_MAX		((float)3.40282346638528860e+38)
+#endif
+
+#ifndef HAVE_ISINF
+#define isinf(X)    0
 #endif
 
 /*

@@ -206,6 +206,7 @@ int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
   if (first_select->next_select())
   {
     union_result->tmp_table_param.field_count= types.elements;
+    union_result->tmp_table_param.all_nulls= true;
     if (!(table= create_tmp_table(thd_arg,
 				  &union_result->tmp_table_param, types,
 				  (ORDER*) 0, !union_option, 1, 
@@ -315,6 +316,7 @@ int st_select_lex_unit::exec()
 	  if it use same tables
 	*/
 	uint tablenr=0;
+	ulong query_id= thd->query_id;
 	for (TABLE_LIST *table_list= (TABLE_LIST*) sl->table_list.first;
 	     table_list;
 	     table_list= table_list->next, tablenr++)
@@ -329,6 +331,8 @@ int st_select_lex_unit::exec()
 	    */
 	    setup_table_map(table_list->table, table_list, tablenr);
 	  }
+	  for (unsigned int i=0; i < table_list->table->fields; i++)
+	    table_list->table->field[i]->query_id= query_id;
 	}
 	res= sl->join->optimize();
       }
@@ -441,6 +445,12 @@ int st_select_lex_unit::cleanup()
 {
   int error= 0;
   DBUG_ENTER("st_select_lex_unit::cleanup");
+
+  if (cleaned)
+  {
+    DBUG_RETURN(0);
+  }
+  cleaned= 0;
 
   if (union_result)
   {

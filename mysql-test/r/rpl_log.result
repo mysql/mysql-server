@@ -16,6 +16,7 @@ load data infile '../../std_data/words.dat' into table t1 ignore 1 lines;
 select count(*) from t1;
 count(*)
 69
+create table t2 like t1;
 drop table t1;
 show binlog events;
 Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
@@ -27,7 +28,8 @@ master-bin.000001	263	Query	1	263	use `test`; drop table t1
 master-bin.000001	311	Query	1	311	use `test`; create table t1 (word char(20) not null)
 master-bin.000001	386	Create_file	1	386	db=test;table=t1;file_id=1;block_len=581
 master-bin.000001	1056	Exec_load	1	1056	;file_id=1
-master-bin.000001	1079	Query	1	1079	use `test`; drop table t1
+master-bin.000001	1079	Query	1	1079	use `test`; create table t2 like t1
+master-bin.000001	1137	Query	1	1137	use `test`; drop table t1
 show binlog events from 79 limit 1;
 Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
 master-bin.000001	79	Query	1	79	use `test`; create table t1(n int not null auto_increment primary key)
@@ -38,6 +40,10 @@ master-bin.000001	172	Intvar	1	172	INSERT_ID=1
 show binlog events from 79 limit 2,1;
 Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
 master-bin.000001	200	Query	1	200	use `test`; insert into t1 values (NULL)
+show binlog events from 79 limit 2,2;
+Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+master-bin.000001	200	Query	1	200	use `test`; insert into t1 values (NULL)
+master-bin.000001	263	Query	1	263	use `test`; drop table t1
 flush logs;
 create table t5 (a int);
 drop table t5;
@@ -57,8 +63,9 @@ master-bin.000001	263	Query	1	263	use `test`; drop table t1
 master-bin.000001	311	Query	1	311	use `test`; create table t1 (word char(20) not null)
 master-bin.000001	386	Create_file	1	386	db=test;table=t1;file_id=1;block_len=581
 master-bin.000001	1056	Exec_load	1	1056	;file_id=1
-master-bin.000001	1079	Query	1	1079	use `test`; drop table t1
-master-bin.000001	1127	Rotate	1	1127	master-bin.000002;pos=4
+master-bin.000001	1079	Query	1	1079	use `test`; create table t2 like t1
+master-bin.000001	1137	Query	1	1137	use `test`; drop table t1
+master-bin.000001	1185	Rotate	1	1185	master-bin.000002;pos=4
 show binlog events in 'master-bin.000002';
 Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
 master-bin.000002	4	Query	1	4	use `test`; create table t5 (a int)
@@ -85,10 +92,11 @@ slave-bin.000001	263	Query	1	263	use `test`; drop table t1
 slave-bin.000001	311	Query	1	311	use `test`; create table t1 (word char(20) not null)
 slave-bin.000001	386	Create_file	1	386	db=test;table=t1;file_id=1;block_len=581
 slave-bin.000001	1065	Exec_load	1	1065	;file_id=1
-slave-bin.000001	1088	Query	1	1088	use `test`; drop table t1
-slave-bin.000001	1136	Query	1	1136	use `test`; create table t5 (a int)
-slave-bin.000001	1194	Query	1	1194	use `test`; drop table t5
-slave-bin.000001	1242	Rotate	2	1242	slave-bin.000002;pos=4
+slave-bin.000001	1088	Query	1	1088	use `test`; create table t2 like t1
+slave-bin.000001	1146	Query	1	1146	use `test`; drop table t1
+slave-bin.000001	1194	Query	1	1194	use `test`; create table t5 (a int)
+slave-bin.000001	1252	Query	1	1252	use `test`; drop table t5
+slave-bin.000001	1300	Rotate	2	1300	slave-bin.000002;pos=4
 show binlog events in 'slave-bin.000002' from 4;
 Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
 slave-bin.000002	4	Query	1	4	use `test`; create table t1 (n int)

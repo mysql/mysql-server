@@ -684,7 +684,7 @@ noconv:
 
 
 double my_strntod_8bit(CHARSET_INFO *cs __attribute__((unused)),
-		       char *str, uint length, 
+		       char *str, uint length,
 		       char **end, int *err)
 {
   char end_char;
@@ -702,12 +702,12 @@ double my_strntod_8bit(CHARSET_INFO *cs __attribute__((unused)),
 #else
   if (length == INT_MAX32 || str[length] == 0)
 #endif
-    result= strtod(str, end);
+    result= my_strtod(str, end);
   else
   {
     end_char= str[length];
     str[length]= 0;
-    result= strtod(str, end);
+    result= my_strtod(str, end);
     str[length]= end_char;			/* Restore end char */
   }
   *err= errno;

@@ -366,11 +366,16 @@ static void write_header(FILE *sql_file, char *db_name)
     }
     if (!opt_set_names)
       fprintf(sql_file,"\n/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT, CHARACTER_SET_CLIENT=%s */;\n",default_charset);
-    fprintf(md_result_file,"\
+    if (!path)
+    {
+      fprintf(md_result_file,"\
 /*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;\n\
 /*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;\n\
-/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE=NO_AUTO_VALUE_ON_ZERO */;\n\
 ");
+    }
+    fprintf(sql_file,
+	    "/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE=\"%s\" */;\n",
+	    path?"":"NO_AUTO_VALUE_ON_ZERO");
   }
   return;
 } /* write_header */
@@ -382,12 +387,15 @@ static void write_footer(FILE *sql_file)
     fputs("</mysqldump>\n", sql_file);
   else if (!opt_compact)
   {
-    fprintf(md_result_file,"\n\
-/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;\n\
+    fprintf(sql_file,"\n/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;\n");
+    if (!path)
+    {
+      fprintf(md_result_file,"\
 /*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;\n\
 /*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;\n");
+    }
     if (!opt_set_names)
-      fprintf(md_result_file,
+      fprintf(sql_file,
 	      "/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;\n");
     fputs("\n", sql_file);
   }
@@ -536,7 +544,8 @@ static int get_options(int *argc, char ***argv)
 	    my_progname);
     return(1);
   }
-  if (!(charset_info= get_charset_by_csname(default_charset, 
+  if (strcmp(default_charset, charset_info->csname) &&
+      !(charset_info= get_charset_by_csname(default_charset, 
   					    MY_CS_PRIMARY, MYF(MY_WME))))
     exit(1);
   if ((*argc < 1 && !opt_alldbs) || (*argc > 0 && opt_alldbs))
@@ -664,7 +673,7 @@ static char *quote_name(const char *name, char *buff, my_bool force)
   while (*name)
   {
     if (*name == QUOTE_CHAR)
-      *to= QUOTE_CHAR;
+      *to++= QUOTE_CHAR;
     *to++= *name++;
   }
   to[0]=QUOTE_CHAR;
@@ -1152,7 +1161,11 @@ static uint getTableStructure(char *table, char* db)
       strpos=strmov(strpos,"(");
   }
   if (sql_file != md_result_file)
+  {
+    fputs("\n", sql_file);
+    write_footer(sql_file);
     my_fclose(sql_file, MYF(MY_WME));
+  }
   DBUG_RETURN(numFields);
 } /* getTableStructure */
 
@@ -1662,7 +1675,7 @@ static int dump_all_tables_in_db(char *database)
   if (opt_xml)
     fputs("</database>\n", md_result_file);
   if (lock_tables)
-    mysql_query(sock,"UNLOCK_TABLES");
+    mysql_query(sock,"UNLOCK TABLES");
   return 0;
 } /* dump_all_tables_in_db */
 
@@ -1939,7 +1952,8 @@ MASTER_LOG_POS=%s ;\n",row[0],row[1]);
     }
   }
   dbDisconnect(current_host);
-  write_footer(md_result_file);
+  if (!path)
+    write_footer(md_result_file);
   if (md_result_file != stdout)
     my_fclose(md_result_file, MYF(0));
   my_free(opt_password, MYF(MY_ALLOW_ZERO_PTR));

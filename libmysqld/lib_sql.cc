@@ -245,6 +245,25 @@ static MYSQL_RES * emb_mysql_store_result(MYSQL *mysql)
   return mysql_store_result(mysql);
 }
 
+int emb_next_result(MYSQL *mysql)
+{
+  THD *thd= (THD*)mysql->thd;
+  DBUG_ENTER("emb_next_result");
+
+  if (emb_advanced_command(mysql, COM_QUERY,0,0,
+			   thd->query_rest.ptr(),thd->query_rest.length(),1)
+      || emb_mysql_read_query_result(mysql))
+    DBUG_RETURN(1);
+
+  DBUG_RETURN(0);				/* No more results */
+}
+
+int emb_read_change_user_result(MYSQL *mysql, 
+				char *buff __attribute__((unused)),
+				const char *passwd __attribute__((unused)))
+{
+  return mysql_errno(mysql);
+}
 
 MYSQL_METHODS embedded_methods= 
 {
@@ -259,7 +278,9 @@ MYSQL_METHODS embedded_methods=
   emb_read_binary_rows,
   emb_unbuffered_fetch,
   emb_free_embedded_thd,
-  emb_read_statistic
+  emb_read_statistic,
+  emb_next_result,
+  emb_read_change_user_result
 };
 
 C_MODE_END
@@ -599,8 +620,8 @@ bool Protocol::send_fields(List<Item> *list, uint flag)
       }
       else
       {
-	client_field->def= strdup_root(field_alloc, tmp.ptr());
-	client_field->def_length= tmp.length();
+	client_field->def= strdup_root(field_alloc, res->ptr());
+	client_field->def_length= res->length();
       }
     }
     else
@@ -676,7 +697,10 @@ send_ok(THD *thd,ha_rows affected_rows,ulonglong id,const char *message)
   mysql->affected_rows= affected_rows;
   mysql->insert_id= id;
   if (message)
+  {
     strmake(thd->net.last_error, message, sizeof(thd->net.last_error)-1);
+    mysql->info= thd->net.last_error;
+  }
   DBUG_VOID_RETURN;
 }
 

@@ -452,6 +452,9 @@ then
   FIND_PROC="$PS \$\$PID | grep mysqld > /dev/null"
 else
   case $SYSTEM_TYPE in
+    *freebsd*)
+      FIND_PROC="$PS p \$\$PID | grep mysqld > /dev/null"
+      ;;
     *darwin*)
       FIND_PROC="$PS -uaxww | grep mysqld | grep \" \$\$PID \" > /dev/null"
       ;;
@@ -1825,7 +1828,7 @@ AC_CHECK_FUNCS(alarm bmove \
  strtol strtoul strtoll strtoull snprintf tempnam thr_setconcurrency \
  gethostbyaddr_r gethostbyname_r getpwnam \
  bfill bzero bcmp strstr strpbrk strerror \
- tell atod memcpy memmove \
+ tell isinf memcpy memmove \
  setupterm strcasecmp sighold vidattr lrand48 localtime_r gmtime_r \
  sigset sigthreadmask pthread_sigmask pthread_setprio pthread_setprio_np \
  pthread_setschedparam pthread_attr_setprio pthread_attr_setschedparam \

@@ -313,6 +313,7 @@ send_ok(THD *thd, ha_rows affected_rows, ulonglong id, const char *message)
   DBUG_VOID_RETURN;
 }
 
+static char eof_buff[1]= { (char) 254 };        /* Marker for end of fields */
 
 /*
   Send eof (= end of result set) to the client
@@ -339,12 +340,11 @@ send_ok(THD *thd, ha_rows affected_rows, ulonglong id, const char *message)
 void
 send_eof(THD *thd, bool no_flush)
 {
-  static char eof_buff[1]= { (char) 254 };	/* Marker for end of fields */
   NET *net= &thd->net;
   DBUG_ENTER("send_eof");
   if (net->vio != 0)
   {
-    if (!no_flush && (thd->client_capabilities & CLIENT_PROTOCOL_41))
+    if (thd->client_capabilities & CLIENT_PROTOCOL_41)
     {
       uchar buff[5];
       uint tmp= min(thd->total_warn_count, 65535);
@@ -384,9 +384,8 @@ send_eof(THD *thd, bool no_flush)
 
 bool send_old_password_request(THD *thd)
 {
-  static char buff[1]= { (char) 254 };
   NET *net= &thd->net;
-  return my_net_write(net, buff, 1) || net_flush(net);
+  return my_net_write(net, eof_buff, 1) || net_flush(net);
 }
 
 #endif /* EMBEDDED_LIBRARY */
@@ -585,7 +584,7 @@ bool Protocol::send_fields(List<Item> *list, uint flag)
 #endif
   }
 
-  send_eof(thd, 1);
+  my_net_write(&thd->net, eof_buff, 1);
   DBUG_RETURN(prepare_for_send(list));
 
 err:

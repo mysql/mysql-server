@@ -61,3 +61,47 @@ create table t1 (s1 char(1) character set utf8);
 insert into t1 values (_koi8r'ÁÂ');
 select s1,hex(s1),char_length(s1),octet_length(s1) from t1;
 drop table t1;
+
+create table t1 (s1 tinytext character set utf8);
+insert into t1 select repeat('a',300);
+insert into t1 select repeat('Ñ',300);
+insert into t1 select repeat('aÑ',300);
+insert into t1 select repeat('Ña',300);
+insert into t1 select repeat('ÑÑ',300);
+select hex(s1) from t1;
+select length(s1),char_length(s1) from t1;
+drop table t1;
+
+create table t1 (s1 text character set utf8);
+insert into t1 select repeat('a',66000);
+insert into t1 select repeat('Ñ',66000);
+insert into t1 select repeat('aÑ',66000);
+insert into t1 select repeat('Ña',66000);
+insert into t1 select repeat('ÑÑ',66000);
+select length(s1),char_length(s1) from t1;
+drop table t1;
+
+#
+# Bug #2368 Multibyte charsets do not check that incoming data is well-formed
+#
+create table t1 (s1 char(10) character set utf8);
+insert into t1 values (0x41FF);
+select hex(s1) from t1;
+drop table t1;
+
+create table t1 (s1 varchar(10) character set utf8);
+insert into t1 values (0x41FF);
+select hex(s1) from t1;
+drop table t1;
+
+create table t1 (s1 text character set utf8);
+insert into t1 values (0x41FF);
+select hex(s1) from t1;
+drop table t1;
+
+#
+# Bug 2699
+# UTF8 breaks primary keys for cols > 85 characters
+#
+--error 1089
+create table t1 (a char(160) character set utf8, primary key(a));
