@@ -186,8 +186,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	FROM
 %token	FULL
 %token  FULLTEXT_SYM
-%token  GEMINI_SYM
-%token	GEMINI_SPIN_RETRIES
 %token  GLOBAL_SYM
 %token	GRANT
 %token	GRANTS
@@ -813,7 +811,6 @@ table_types:
 	| HEAP_SYM	{ $$= DB_TYPE_HEAP; }
 	| BERKELEY_DB_SYM { $$= DB_TYPE_BERKELEY_DB; }
 	| INNOBASE_SYM  { $$= DB_TYPE_INNODB; }
-	| GEMINI_SYM    { $$= DB_TYPE_GEMINI; }
 
 row_types:
 	DEFAULT		{ $$= ROW_TYPE_DEFAULT; }
@@ -2868,7 +2865,6 @@ keyword:
 	| FIXED_SYM		{}
 	| FLUSH_SYM		{}
 	| GRANTS                {}
-	| GEMINI_SYM		{}
 	| GLOBAL_SYM		{}
 	| HEAP_SYM		{}
 	| HANDLER_SYM		{}
@@ -2963,7 +2959,6 @@ set:
 	  lex->sql_command= SQLCOM_SET_OPTION;
 	  lex->select->options=lex->thd->options;
 	  lex->select->select_limit=lex->thd->default_select_limit;
-	  lex->gemini_spin_retries=lex->thd->gemini_spin_retries;
 	  lex->tx_isolation=lex->thd->tx_isolation;
 	  lex->option_type=0;
 	  lex->option_list.empty()
@@ -3031,14 +3026,6 @@ option_value:
 	| INSERT_ID equal ulonglong_num
 	{
 	  current_thd->next_insert_id=$3;
-	}
-	| GEMINI_SPIN_RETRIES equal ULONG_NUM
-	{
-	  Lex->gemini_spin_retries= $3;
-	}
-	| GEMINI_SPIN_RETRIES equal DEFAULT
-	{
-	  Lex->gemini_spin_retries= 1;
 	}
 	| CHAR_SYM SET IDENT
 	{

@@ -81,6 +81,9 @@
 /* Using Innobase DB */
 #undef HAVE_INNOBASE_DB
 
+/* Using old ISAM tables */
+#undef HAVE_ISAM
+
 /* Define if we have GNU readline */
 #undef HAVE_LIBREADLINE
 

@@ -154,8 +154,6 @@ static SYMBOL symbols[] = {
   { "FULL",		SYM(FULL),0,0},
   { "FULLTEXT",		SYM(FULLTEXT_SYM),0,0},
   { "FUNCTION",		SYM(UDF_SYM),0,0},
-  { "GEMINI",		SYM(GEMINI_SYM),0,0},
-  { "GEMINI_SPIN_RETRIES",	SYM(GEMINI_SPIN_RETRIES),0,0},
   { "GLOBAL",		SYM(GLOBAL_SYM),0,0},
   { "GRANT",		SYM(GRANT),0,0},
   { "GRANTS",	        SYM(GRANTS),0,0},
