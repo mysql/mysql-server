@@ -550,6 +550,11 @@ void close_temporary_tables(THD *thd)
   query_buf_size= 50;   // Enough for DROP ... TABLE
 
   for (table=thd->temporary_tables ; table ; table=table->next)
+    /*
+      We are going to add 4 ` around the db/table names, so 1 does not look
+      enough; indeed it is enough, because table->key_length is greater (by 8,
+      because of server_id and thread_id) than db||table.
+    */
     query_buf_size+= table->key_length+1;
 
   if ((query = alloc_root(&thd->mem_root, query_buf_size)))
@@ -566,8 +571,8 @@ void close_temporary_tables(THD *thd)
         Here we assume table_cache_key always starts
         with \0 terminated db name
       */
-      end = strxmov(end,"`",table->table_cache_key,"`",
-                    ".`",table->real_name,"`,", NullS);
+      end = strxmov(end,"`",table->table_cache_key,"`.`",
+                    table->real_name,"`,", NullS);
     }
     next=table->next;
     close_temporary(table);
@@ -1331,8 +1336,7 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
       }
     }
     pthread_mutex_unlock(&LOCK_open);
-    thd->net.last_error[0]=0;				// Clear error message
-    thd->net.last_errno=0;
+    thd->clear_error();
     error=0;
     if (openfrm(path,alias,
 		(uint) (HA_OPEN_KEYFILE | HA_OPEN_RNDFILE | HA_GET_INDEX |
@@ -1343,8 +1347,7 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
 	(entry->file->is_crashed() && entry->file->check_and_repair(thd)))
     {
       /* Give right error message */
-      thd->net.last_error[0]=0;
-      thd->net.last_errno=0;
+      thd->clear_error();
       my_error(ER_NOT_KEYFILE, MYF(0), name, my_errno);
       sql_print_error("Error: Couldn't repair table: %s.%s",db,name);
       if (entry->file)
@@ -1352,15 +1355,46 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
       error=1;
     }
     else
-    {
-      thd->net.last_error[0]=0;			// Clear error message
-      thd->net.last_errno=0;
-    }
+      thd->clear_error();
     pthread_mutex_lock(&LOCK_open);
     unlock_table_name(thd,&table_list);
 
     if (error)
       goto err;
+  }
+  /*
+    If we are here, there was no fatal error (but error may be still
+    unitialized).
+  */
+  if (unlikely(entry->file->implicit_emptied))
+  {
+    entry->file->implicit_emptied= 0;
+    if (mysql_bin_log.is_open())
+    {
+      char *query, *end;
+      uint query_buf_size= 20 + 2*NAME_LEN + 1;
+      if ((query= (char*)my_malloc(query_buf_size,MYF(MY_WME))))
+      {
+        end = strxmov(strmov(query, "DELETE FROM `"),
+                      db,"`.`",name,"`", NullS);
+        Query_log_event qinfo(thd, query, (ulong)(end-query), 0);
+        mysql_bin_log.write(&qinfo);
+        my_free(query, MYF(0));
+      }
+      else
+      {
+        /*
+          As replication is maybe going to be corrupted, we need to warn the
+          DBA on top of warning the client (which will automatically be done
+          because of MYF(MY_WME) in my_malloc() above).
+        */
+        sql_print_error("Error: when opening HEAP table, could not allocate \
+memory to write 'DELETE FROM `%s`.`%s`' to the binary log",db,name);
+        if (entry->file)
+          closefrm(entry);
+        goto err;
+      }
+    }
   }
   DBUG_RETURN(0);
 err:

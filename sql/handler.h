@@ -213,6 +213,7 @@ public:
   uint raid_type,raid_chunks;
   FT_INFO *ft_handler;
   bool  auto_increment_column_changed;
+  bool implicit_emptied;                /* Can be !=0 only if HEAP */
 
   handler(TABLE *table_arg) :table(table_arg),
     ref(0), data_file_length(0), max_data_file_length(0), index_file_length(0),
@@ -221,7 +222,7 @@ public:
     create_time(0), check_time(0), update_time(0),
     key_used_on_scan(MAX_KEY), active_index(MAX_REF_PARTS),
     ref_length(sizeof(my_off_t)), block_size(0),
-    raid_type(0), ft_handler(0)
+    raid_type(0), ft_handler(0), implicit_emptied(0)
     {}
   virtual ~handler(void) {}
   int ha_open(const char *name, int mode, int test_if_locked);

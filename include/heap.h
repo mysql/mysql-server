@@ -47,6 +47,7 @@ typedef struct st_heapinfo		/* Struct from heap_info */
   ulong index_length;
   uint reclength;			/* Length of one record */
   int errkey;
+  my_bool implicit_emptied;
 } HEAPINFO;
 
 
@@ -126,6 +127,7 @@ typedef struct st_heap_info
   int  mode;				/* Mode of file (READONLY..) */
   uint opt_flag,update;
   byte *lastkey;			/* Last used key with rkey */
+  my_bool implicit_emptied;
 #ifdef THREAD
   THR_LOCK_DATA lock;
 #endif

@@ -30,6 +30,7 @@ HP_INFO *heap_open(const char *name, int mode, uint keys, HP_KEYDEF *keydef,
 		   uint reclength, ulong max_records, ulong min_records)
 {
   uint i,j,key_segs,max_length,length;
+  my_bool implicit_emptied= 0;
   HP_INFO *info;
   HP_SHARE *share;
   HP_KEYSEG *keyseg;
@@ -39,6 +40,7 @@ HP_INFO *heap_open(const char *name, int mode, uint keys, HP_KEYDEF *keydef,
   if (!(share=_hp_find_named_heap(name)))
   {
     DBUG_PRINT("info",("Initializing new table"));
+    implicit_emptied= 1;
     for (i=key_segs=max_length=0 ; i < keys ; i++)
     {
       key_segs+= keydef[i].keysegs;
@@ -127,6 +129,7 @@ HP_INFO *heap_open(const char *name, int mode, uint keys, HP_KEYDEF *keydef,
 #ifndef DBUG_OFF
   info->opt_flag=READ_CHECK_USED;		/* Check when changing */
 #endif
+  info->implicit_emptied= implicit_emptied;
   DBUG_PRINT("exit",("heap: %lx  reclength: %d  records_in_block: %d",
 		     info,share->reclength,share->block.records_in_block));
   DBUG_RETURN(info);
