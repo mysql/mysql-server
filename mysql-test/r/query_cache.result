@@ -2,7 +2,7 @@ flush query cache;
 flush query cache;
 reset query cache;
 flush status;
-drop table if exists t1,t2,t3,t11,t21;
+drop table if exists t1,t2,t3,t11,t21, mysqltest.t1;
 create table t1 (a int not null);
 insert into t1 values (1),(2),(3);
 select * from t1;
@@ -346,7 +346,7 @@ show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	0
 drop table t1,t2;
-create database mysqltest;
+create database if not exists mysqltest;
 create table mysqltest.t1 (i int not null auto_increment, a int, primary key (i));
 insert into mysqltest.t1 (a) values (1);
 select * from mysqltest.t1 where i is null;
@@ -375,6 +375,36 @@ set CHARACTER SET DEFAULT;
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	2
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	4
+drop table t1;
+create database if not exists mysqltest;
+create table mysqltest.t1 (i int not null);
+create table t1 (i int not null);
+insert into mysqltest.t1 (i) values (1);
+insert into t1 (i) values (2);
+select * from t1;
+i
+2
+use mysqltest;
+select * from t1;
+i
+1
+select * from t1;
+i
+1
+use test;
+select * from t1;
+i
+2
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	2
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	6
+drop database mysqltest;
 drop table t1;
 flush query cache;
 reset query cache;
