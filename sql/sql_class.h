@@ -1129,7 +1129,6 @@ public:
   table_map  used_tables;
   USER_CONN *user_connect;
   CHARSET_INFO *db_charset;
-  List<TABLE> temporary_tables_should_be_free; // list of temporary tables
   /*
     FIXME: this, and some other variables like 'count_cuted_fields'
     maybe should be statement/cursor local, that is, moved to Statement
