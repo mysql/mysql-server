@@ -1811,7 +1811,7 @@ sub fix_image
 {
   my($text) = @_;
   my($arg1, $ext);
-  $text =~ /^([^,]*)$/;
+  $text =~ /^([^,]*)/;
   die "error in image: '$text'" unless defined($1);
   $arg1 = $1;
   $arg1 =~ s/@@/@/g;
