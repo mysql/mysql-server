@@ -85,10 +85,17 @@ ut_str_catenate(
 			/* out, own: catenated null-terminated string */
 	char*	str1,	/* in: null-terminated string */
 	char*	str2);	/* in: null-terminated string */
+/**************************************************************************
+Checks if a null-terminated string contains a certain character. */
+
+ibool
+ut_str_contains(
+/*============*/
+	char*	str,	/* in: null-terminated string */
+	char	c);	/* in: character */
 
 #ifndef UNIV_NONINL
 #include "ut0mem.ic"
 #endif
 
 #endif
-

@@ -116,6 +116,7 @@ void udf_init()
   udf_func *tmp;
   TABLE_LIST tables;
   READ_RECORD read_record_info;
+  TABLE *table;
   int error;
   DBUG_ENTER("ufd_init");
 
@@ -148,13 +149,11 @@ void udf_init()
   if (open_and_lock_tables(new_thd, &tables))
   {
     DBUG_PRINT("error",("Can't open udf table"));
-    sql_print_error("Can't open mysql/func table");
-    close_thread_tables(new_thd);
-    delete new_thd;
-    DBUG_VOID_RETURN;
+    sql_print_error("Can't open the mysql/func table. Please run the mysql_install_db script to create it.");
+    goto end;
   }
 
-  TABLE *table = tables.table;
+  table= tables.table;
   init_read_record(&read_record_info, new_thd, table, NULL,1,0);
   while (!(error = read_record_info.read_record(&read_record_info)))
   {
@@ -200,6 +199,8 @@ void udf_init()
     sql_print_error(ER(ER_GET_ERRNO), my_errno);
   end_read_record(&read_record_info);
   new_thd->version--;				// Force close to free memory
+
+end:
   close_thread_tables(new_thd);
   delete new_thd;
   /* Remember that we don't have a THD */

@@ -2185,7 +2185,7 @@ row_is_mysql_tmp_table_name(
 {
 	ulint	i;
 
-	for (i = 0; i <= ut_strlen(name) - 5; i++) {
+	for (i = 0; i + 5 <= ut_strlen(name); i++) {
 		if (ut_memcmp(name + i, (char*)"/#sql", 5) == 0) {
 
 			return(TRUE);
@@ -2221,6 +2221,7 @@ row_rename_table_for_mysql(
         ulint           keywordlen;
 	ulint		len;
 	ulint		i;
+	char*		db_name;
 	char		buf[10000];
 
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
@@ -2285,6 +2286,15 @@ row_rename_table_for_mysql(
 	"PROCEDURE RENAME_TABLE_PROC () IS\n"
 	"new_table_name CHAR;\n"
 	"old_table_name CHAR;\n"
+	"gen_constr_prefix CHAR;\n"
+	"new_db_name CHAR;\n"
+	"foreign_id CHAR;\n"
+	"new_foreign_id CHAR;\n"
+	"old_db_name_len INT;\n"
+	"old_t_name_len INT;\n"
+	"new_db_name_len INT;\n"
+	"id_len INT;\n"
+	"found INT;\n"
 	"BEGIN\n"
 	"new_table_name :='";
 
@@ -2311,32 +2321,94 @@ row_rename_table_for_mysql(
 		}
 		
 		str3 = mem_heap_alloc(heap,
-					1000 + 500 * n_constraints_to_drop);
+					1000 + 1000 * n_constraints_to_drop);
 		*str3 = '\0';
 		sprintf(str3,
 			"';\n"
 			"UPDATE SYS_TABLES SET NAME = new_table_name\n"
 			"WHERE NAME = old_table_name;\n");
 
+		db_name = mem_heap_alloc(heap, 1 + dict_get_db_name_len(
+								old_name));
+		ut_memcpy(db_name, old_name, dict_get_db_name_len(old_name));
+		db_name[dict_get_db_name_len(old_name)] = '\0';
+
+		/* Internally, old format < 4.0.18 constraints have as the
+		constraint id <number>_<number>, while new format constraints
+		have <databasename>/<constraintname>. */
+
 		for (i = 0; i < n_constraints_to_drop; i++) {
+
 			sprintf(str3 + strlen(str3),
-			"DELETE FROM SYS_FOREIGN_COLS WHERE ID = '%s';\n"
-			"DELETE FROM SYS_FOREIGN WHERE ID = '%s';\n",
+			"DELETE FROM SYS_FOREIGN_COLS WHERE ID = '%s/%s';\n"
+			"DELETE FROM SYS_FOREIGN WHERE ID = '%s/%s';\n",
+				db_name, constraints_to_drop[i],
+				db_name, constraints_to_drop[i]);
+
+			if (!ut_str_contains(constraints_to_drop[i], '/')) {
+				/* If this happens to be an old format
+				constraint, let us delete it. Since all new
+				format constraints contain '/', it does no
+				harm to run these DELETEs anyway. */
+
+				sprintf(str3 + strlen(str3),
+			     "DELETE FROM SYS_FOREIGN_COLS WHERE ID = '%s';\n"
+			     "DELETE FROM SYS_FOREIGN WHERE ID = '%s';\n",
 				constraints_to_drop[i],
 				constraints_to_drop[i]);
+			}
 		}
 
 		sprintf(str3 + strlen(str3),
 			"END;\n");
 
-		ut_a(strlen(str3) < 1000 + 500 * n_constraints_to_drop);
+		ut_a(strlen(str3) < 1000 + 1000 * n_constraints_to_drop);
 	} else {
 		str3 = (char*)
 		"';\n"
 		"UPDATE SYS_TABLES SET NAME = new_table_name\n"
 		"WHERE NAME = old_table_name;\n"
-		"UPDATE SYS_FOREIGN SET FOR_NAME = new_table_name\n"
-		"WHERE FOR_NAME = old_table_name;\n"
+		"found := 1;\n"
+		"old_db_name_len := INSTR(old_table_name, '/') - 1;\n"
+		"new_db_name_len := INSTR(new_table_name, '/') - 1;\n"
+		"new_db_name := SUBSTR(new_table_name, 0, new_db_name_len);\n"
+		"old_t_name_len := LENGTH(old_table_name);\n"
+		"gen_constr_prefix := CONCAT(old_table_name, '_ibfk_');\n"
+		"WHILE found = 1 LOOP\n"
+		"	SELECT ID INTO foreign_id\n"
+		"	FROM SYS_FOREIGN\n"
+		"	WHERE FOR_NAME = old_table_name;\n"	
+		"	IF (SQL % NOTFOUND) THEN\n"
+		"	 found := 0;\n"
+		"	ELSE\n"
+		"	 UPDATE SYS_FOREIGN\n"
+		"	 SET FOR_NAME = new_table_name\n"
+		"	 WHERE ID = foreign_id;\n"
+		"	 id_len := LENGTH(foreign_id);\n"
+		"	 IF (INSTR(foreign_id, '/') > 0) THEN\n"
+		"	 	IF (INSTR(foreign_id,\n"
+		"				gen_constr_prefix) > 0)\n"
+		"		THEN\n"
+		"		  new_foreign_id :=\n"
+		"		    CONCAT(new_table_name,\n"
+		"			SUBSTR(foreign_id, old_t_name_len,\n"
+		"			      	 id_len - old_t_name_len));\n"
+		"		ELSE\n"
+		"		  new_foreign_id :=\n"
+		"		    CONCAT(new_db_name,\n"
+		"			SUBSTR(foreign_id,\n"
+		"				old_db_name_len,\n"
+		"				 id_len - old_db_name_len));\n"
+		"		END IF;\n"
+		"		UPDATE SYS_FOREIGN\n"
+		"		SET ID = new_foreign_id\n"
+		"		WHERE ID = foreign_id;\n"
+		"		UPDATE SYS_FOREIGN_COLS\n"
+		"		SET ID = new_foreign_id\n"
+		"		WHERE ID = foreign_id;\n"
+		"	 END IF;\n"
+		"	END IF;\n"
+		"END LOOP;\n"
 		"UPDATE SYS_FOREIGN SET REF_NAME = new_table_name\n"
 		"WHERE REF_NAME = old_table_name;\n"
 		"END;\n";

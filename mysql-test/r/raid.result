@@ -1,5 +1,6 @@
 create database test_raid;
 create table test_raid.r1 (i int) raid_type=1;
+create table test_raid.r2 (i int) raid_type=1 raid_chunks=32;
 drop database test_raid;
 DROP TABLE IF EXISTS t1,t2;
 CREATE TABLE t1 (

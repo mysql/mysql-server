@@ -235,6 +235,29 @@ dict_remove_db_name(
 
 	return(NULL);
 }
+
+/************************************************************************
+Get the database name length in a table name. */
+
+ulint
+dict_get_db_name_len(
+/*=================*/
+			/* out: database name length */
+	char*	name)	/* in: table name in the form dbname '/' tablename */
+{
+	ulint	i;
+
+	for (i = 0; i < 100000 ; i++) {
+		if (name[i] == '/') {
+
+			return(i);
+		}
+	}
+
+	ut_a(0);
+
+	return(0);
+}
 	
 /************************************************************************
 Reserves the dictionary system mutex for MySQL. */
@@ -869,6 +892,7 @@ dict_table_rename_in_cache(
 	ulint		fold;
 	ulint		old_size;
 	char*		name_buf;
+	char*		old_name;
 	ulint		i;
 	
 	ut_ad(table);
@@ -899,6 +923,9 @@ dict_table_rename_in_cache(
 	/* Remove table from the hash tables of tables */
 	HASH_DELETE(dict_table_t, name_hash, dict_sys->table_hash,
 					ut_fold_string(table->name), table);
+	old_name = mem_heap_alloc(table->heap, ut_strlen(table->name) + 1);
+	
+	ut_strcpy(old_name, table->name);
 
 	name_buf = mem_heap_alloc(table->heap, ut_strlen(new_name) + 1);
 					
@@ -956,7 +983,9 @@ dict_table_rename_in_cache(
 		return(TRUE);
 	}
 
-	/* Update the table name fields in foreign constraints */
+	/* Update the table name fields in foreign constraints, and update also
+	the constraint id of new format >= 4.0.18 constraints. Note that at
+	this point we have already changed table->name to the new name. */
 
 	foreign = UT_LIST_GET_FIRST(table->foreign_list);
 
@@ -965,14 +994,68 @@ dict_table_rename_in_cache(
 						ut_strlen(table->name)) {
 			/* Allocate a longer name buffer;
 			TODO: store buf len to save memory */
+
 			foreign->foreign_table_name = mem_heap_alloc(
 					foreign->heap,
 					ut_strlen(table->name) + 1);
 		}
 
-		ut_memcpy(foreign->foreign_table_name, table->name,
-						ut_strlen(table->name) + 1);
-		foreign->foreign_table_name[ut_strlen(table->name)] = '\0';
+		sprintf(foreign->foreign_table_name, "%s", table->name);
+
+		if (ut_str_contains(foreign->id, '/')) {
+			ulint	db_len;
+			char	old_id[2000];
+
+			/* This is a >= 4.0.18 format id */
+
+			ut_a(ut_strlen(foreign->id) < 1999);
+
+			ut_strcpy(old_id, foreign->id);
+
+			if (ut_strlen(foreign->id) > ut_strlen(old_name)
+						+ ut_strlen("_ibfk_")
+			    && 0 == ut_memcmp(foreign->id, old_name,
+						ut_strlen(old_name))
+			    && 0 == ut_memcmp(
+					foreign->id + ut_strlen(old_name),
+				    (char*)"_ibfk_", ut_strlen("_ibfk_"))) {
+
+				/* This is a generated >= 4.0.18 format id */
+
+				if (ut_strlen(table->name) 
+				    > ut_strlen(old_name)) {
+					foreign->id = mem_heap_alloc(
+					     foreign->heap,
+						ut_strlen(table->name)
+						+ ut_strlen(old_id) + 1);
+				}
+				
+				/* Replace the prefix 'databasename/tablename'
+				with the new names */
+				sprintf(foreign->id, "%s%s", table->name,
+						old_id + ut_strlen(old_name));
+			} else {
+				/* This is a >= 4.0.18 format id where the user
+				gave the id name */
+				db_len = dict_get_db_name_len(table->name) + 1;
+
+				if (dict_get_db_name_len(table->name)
+			    	    > dict_get_db_name_len(foreign->id)) {
+
+					foreign->id = mem_heap_alloc(
+					     foreign->heap,
+				 	     db_len + ut_strlen(old_id) + 1);
+				}
+
+				/* Replace the database prefix in id with the
+				one from table->name */
+			
+				ut_memcpy(foreign->id, table->name, db_len);
+
+				sprintf(foreign->id + db_len, "%s",
+						dict_remove_db_name(old_id));
+			}
+		}
 
 		foreign = UT_LIST_GET_NEXT(foreign_list, foreign);
 	}
@@ -984,14 +1067,13 @@ dict_table_rename_in_cache(
 						ut_strlen(table->name)) {
 			/* Allocate a longer name buffer;
 			TODO: store buf len to save memory */
+
 			foreign->referenced_table_name = mem_heap_alloc(
 					foreign->heap,
 					ut_strlen(table->name) + 1);
 		}
 
-		ut_memcpy(foreign->referenced_table_name, table->name,
-						ut_strlen(table->name) + 1);
-		foreign->referenced_table_name[ut_strlen(table->name)] = '\0';
+		sprintf(foreign->referenced_table_name, "%s", table->name);
 
 		foreign = UT_LIST_GET_NEXT(referenced_list, foreign);
 	}
@@ -2042,7 +2124,7 @@ static
 char*
 dict_scan_to(
 /*=========*/
-			
+				/* out: scanned up to this */
 	char*	ptr,		/* in: scan from */
 	const char *string)	/* in: look for this */
 {
@@ -2299,12 +2381,7 @@ dict_scan_table_name(
 
 		database_name = name;
 			
-		i = 0;
-		while (name[i] != '/') {
-			i++;
-		}
-
-		database_name_len = i;
+		database_name_len = dict_get_db_name_len(name);
 	}
 
 	if (table_name_len + database_name_len > 2000) {
@@ -2479,6 +2556,52 @@ scan_more:
 }
 
 /*************************************************************************
+Finds the highest <number> for foreign key constraints of the table. Looks
+only at the >= 4.0.18-format id's, which are of the form
+databasename/tablename_ibfk_<number>. */
+static
+ulint
+dict_table_get_highest_foreign_id(
+/*==============================*/
+				/* out: highest number, 0 if table has no new
+				format foreign key constraints */
+	dict_table_t*	table)	/* in: table in the dictionary memory cache */
+{
+	dict_foreign_t*	foreign;
+	char*		endp;
+	ulint		biggest_id	= 0;
+	ulint		id;
+
+	ut_a(table);
+
+	foreign = UT_LIST_GET_FIRST(table->foreign_list);
+
+	while (foreign) {
+		if (ut_strlen(foreign->id) > ut_strlen("_ibfk_")
+						+ ut_strlen(table->name)
+		    && 0 == ut_memcmp(foreign->id, table->name,
+							ut_strlen(table->name))
+		    && 0 == ut_memcmp(foreign->id + ut_strlen(table->name),
+				      (char*)"_ibfk_", ut_strlen("_ibfk_"))) {
+			/* It is of the >= 4.0.18 format */
+
+			id = strtoul(foreign->id + ut_strlen(table->name)
+						 + ut_strlen("_ibfk_"),
+					&endp, 10);
+			ut_a(id != biggest_id);
+
+			if (id > biggest_id) {
+				biggest_id = id;
+			}
+		}
+
+		foreign = UT_LIST_GET_NEXT(foreign_list, foreign);
+	}
+
+	return(biggest_id);
+}
+
+/*************************************************************************
 Reports a simple foreign key create clause syntax error. */
 static
 void
@@ -2520,19 +2643,26 @@ dict_create_foreign_constraints_low(
 				FOREIGN KEY (a, b) REFERENCES table2(c, d),
 				table2 can be written also with the database
 				name before it: test.table2; the default
-				database id the database of parameter name */
+				database is the database of parameter name */
 	char*	name)		/* in: table full name in the normalized form
 				database_name/table_name */
 {
 	dict_table_t*	table;
 	dict_table_t*	referenced_table;
+	dict_table_t*	table_to_alter;
+	ulint		highest_id_so_far	= 0;
 	dict_index_t*	index;
 	dict_foreign_t*	foreign;
  	char*		ptr			= sql_string;
 	char*		start_of_latest_foreign	= sql_string;
  	char*		buf			= dict_foreign_err_buf;
+	char*		constraint_name;	/* this is NOT a null-
+						terminated string */
+	ulint		constraint_name_len;
 	ibool		success;
 	ulint		error;
+	char*		ptr1;
+	char*		ptr2;
 	ulint		i;
 	ulint		j;
 	ibool		is_on_delete;
@@ -2559,16 +2689,89 @@ dict_create_foreign_constraints_low(
 
 		return(DB_ERROR);
 	}
+
+	/* First check if we are actually doing an ALTER TABLE, and in that
+	case look for the table being altered */
+
+	ptr = dict_accept(ptr, (char*) "ALTER", &success);
+
+	if (!success) {
+
+		goto loop;
+	}
+
+	ptr = dict_accept(ptr, (char*) "TABLE", &success);
+
+	if (!success) {
+
+		goto loop;
+	}
+
+	/* We are doing an ALTER TABLE: scan the table name we are altering;
+	in the call below we use the buffer 'referenced_table_name' as a dummy
+	buffer */
+
+	ptr = dict_scan_table_name(ptr, &table_to_alter, name,
+					&success, referenced_table_name);
+	if (!success) {
+		fprintf(stderr,
+"InnoDB: Error: could not find the table being ALTERED in:\n%s\n", sql_string);
+
+		return(DB_ERROR);
+	}
+
+	/* Starting from 4.0.18 and 4.1.2, we generate foreign key id's in the
+	format databasename/tablename_ibfk_<number>, where <number> is local
+	to the table; look for the highest <number> for table_to_alter, so
+	that we can assign to new constraints higher numbers. */
+
+	/* If we are altering a temporary table, the table name after ALTER
+	TABLE does not correspond to the internal table name, and
+	table_to_alter is NULL. TODO: should we fix this somehow? */
+
+	if (table_to_alter == NULL) {
+		highest_id_so_far = 0;
+	} else {
+		highest_id_so_far = dict_table_get_highest_foreign_id(
+							table_to_alter);
+	}
+
+	/* Scan for foreign key declarations in a loop */
 loop:
-	ptr = dict_scan_to(ptr, (char *) "FOREIGN");
+	/* Scan either to "CONSTRAINT" or "FOREIGN", whichever is closer */
+
+	ptr1 = dict_scan_to(ptr, (char *) "CONSTRAINT");
+	ptr2 = dict_scan_to(ptr, (char *) "FOREIGN");
+
+	constraint_name = NULL;
+
+	if (ptr1 < ptr2) {
+		/* The user has specified a constraint name. Pick it so
+		that we can store 'databasename/constraintname' as the id of
+		the id of the constraint to system tables. */
+		ptr = ptr1;
+
+		ptr = dict_accept(ptr, (char *) "CONSTRAINT", &success);
+
+		ut_a(success);
+
+		if (!isspace(*ptr)) {
+	        	goto loop;
+		}
+
+		ptr = dict_scan_id(ptr, &constraint_name, &constraint_name_len,
+									FALSE);
+	} else {
+		ptr = ptr2;
+	}
 
 	if (*ptr == '\0') {
-
+		/**********************************************************/
 		/* The following call adds the foreign key constraints
 		to the data dictionary system tables on disk */
 		
-		error = dict_create_add_foreigns_to_dictionary(table, trx);
-
+		error = dict_create_add_foreigns_to_dictionary(
+						highest_id_so_far, table, trx);
 		return(error);
 	}
 
@@ -2675,6 +2878,28 @@ col_loop1:
 	/* Let us create a constraint struct */
 
 	foreign = dict_mem_foreign_create();
+
+	if (constraint_name) {
+		ulint	db_len;	
+
+		/* Catenate 'databasename/' to the constraint name specified
+		by the user: we conceive the constraint as belonging to the
+		same MySQL 'database' as the table itself. We store the name
+		to foreign->id. */
+
+		db_len = dict_get_db_name_len(table->name);
+
+		foreign->id = mem_heap_alloc(foreign->heap,
+				db_len + 1 + constraint_name_len + 1);
+		
+		ut_memcpy(foreign->id, table->name, db_len);
+
+		foreign->id[db_len] = '/';
+
+		ut_memcpy(foreign->id + db_len + 1, constraint_name,
+							constraint_name_len);
+		foreign->id[db_len + 1 + constraint_name_len] = '\0';
+	}
 
 	foreign->foreign_table = table;
 	foreign->foreign_table_name = table->name;
@@ -2977,7 +3202,7 @@ dict_create_foreign_constraints(
 				FOREIGN KEY (a, b) REFERENCES table2(c, d),
 				table2 can be written also with the database
 				name before it: test.table2; the default
-				database id the database of parameter name */
+				database is the database of parameter name */
 	char*	name)		/* in: table full name in the normalized form
 				database_name/table_name */
 {
@@ -3079,8 +3304,10 @@ loop:
 	foreign = UT_LIST_GET_FIRST(table->foreign_list);
 
 	while (foreign != NULL) {
-		if (0 == ut_strcmp(foreign->id, id)) {
-
+		if (0 == ut_strcmp(foreign->id, id)
+		    || (ut_str_contains(foreign->id, '/')
+			&& 0 == ut_strcmp(id,
+					dict_remove_db_name(foreign->id)))) {
 			/* Found */
 			break;
 		}
@@ -3093,8 +3320,8 @@ loop:
 		ut_sprintf_timestamp(buf);
 		sprintf(buf + strlen(buf),
 " Error in dropping of a foreign key constraint of table %.500s,\n"
-"just before:\n%s\n in SQL command\n%s\nCannot find a constraint with the\n"
-"given id %s.\n", table->name, ptr, str, id);
+"in SQL command\n%s\nCannot find a constraint with the\n"
+"given id %s.\n", table->name, str, id);
 		ut_a(strlen(buf) < DICT_FOREIGN_ERR_BUF_LEN);
 		mutex_exit(&dict_foreign_err_mutex);
 
@@ -3896,11 +4123,20 @@ dict_print_info_on_foreign_key_in_create_format(
 	char*		buf)	/* in: buffer of at least 5000 bytes */
 {
 	char*	buf2	= buf;
+	char*	stripped_id;
 	ulint	cpy_len;
 	ulint	i;
 	
+	if (ut_str_contains(foreign->id, '/')) {
+		/* Strip the preceding database name from the constraint id */
+		stripped_id = foreign->id + 1
+				+ dict_get_db_name_len(foreign->id);
+	} else {
+		stripped_id = foreign->id;
+	}
+
 	buf2 += sprintf(buf2, ",\n  CONSTRAINT `%s` FOREIGN KEY (",
-							foreign->id);
+								stripped_id);
 	for (i = 0; i < foreign->n_fields; i++) {
 	        if ((ulint)(buf2 - buf) >= 4000) {
 
