@@ -311,7 +311,7 @@ TODO list:
 #include "emb_qcache.h"
 #endif
 
-#if defined(EXTRA_DEBUG) && !defined(DBUG_OFF)
+#if !defined(DBUG_OFF) && !defined(DBUG_OFF)
 #define MUTEX_LOCK(M) { DBUG_PRINT("lock", ("mutex lock 0x%lx", (ulong)(M))); \
   pthread_mutex_lock(M);}
 #define MUTEX_UNLOCK(M) {DBUG_PRINT("lock", ("mutex unlock 0x%lx",\
@@ -2103,6 +2103,90 @@ void Query_cache::invalidate_table(Query_cache_block *table_block)
   }
 }
 
+
+TABLE_COUNTER_TYPE
+Query_cache::register_tables_from_list(TABLE_LIST *tables_used,
+                                       TABLE_COUNTER_TYPE counter,
+                                       Query_cache_block_table *block_table)
+{
+  TABLE_COUNTER_TYPE n;
+  DBUG_ENTER("Query_cache::register_tables_from_list");
+  for (n= counter;
+       tables_used;
+       tables_used= tables_used->next_global, n++, block_table++)
+  {
+    block_table->n= n;
+    if (tables_used->view)
+    {
+      char key[MAX_DBKEY_LENGTH];
+      uint key_length;
+      DBUG_PRINT("qcache", ("view %s, db %s",
+                            tables_used->view_name.str,
+                            tables_used->view_db.str));
+      key_length= (uint) (strmov(strmov(key, tables_used->view_db.str) + 1,
+                                 tables_used->view_name.str) - key) + 1;
+      /*
+        There are not callback function for for VIEWs
+      */
+      if (!insert_table(key_length, key, block_table,
+                        tables_used->view_db.length + 1,
+                        HA_CACHE_TBL_NONTRANSACT, 0, 0))
+        DBUG_RETURN(0);
+      {
+        TABLE_COUNTER_TYPE inc= register_tables_from_list(tables_used->ancestor,
+                                                          n + 1,
+                                                          block_table + 1);
+        if (!inc)
+          DBUG_RETURN(0);
+        n+= inc;
+        block_table+= inc;
+      }
+    }
+    else
+    {
+      DBUG_PRINT("qcache",
+                 ("table %s, db %s, openinfo at 0x%lx, keylen %u, key at 0x%lx",
+                  tables_used->table->s->table_name,
+                  tables_used->table->s->table_cache_key,
+                  (ulong) tables_used->table,
+                  tables_used->table->s->key_length,
+                  (ulong) tables_used->table->s->table_cache_key));
+      if (!insert_table(tables_used->table->s->key_length,
+                        tables_used->table->s->table_cache_key, block_table,
+                        tables_used->db_length,
+                        tables_used->table->file->table_cache_type(),
+                        tables_used->callback_func,
+                        tables_used->engine_data))
+        DBUG_RETURN(0);
+
+      if (tables_used->table->s->db_type == DB_TYPE_MRG_MYISAM)
+      {
+        ha_myisammrg *handler = (ha_myisammrg *) tables_used->table->file;
+        MYRG_INFO *file = handler->myrg_info();
+        for (MYRG_TABLE *table = file->open_tables;
+             table != file->end_table ;
+             table++)
+        {
+          char key[MAX_DBKEY_LENGTH];
+          uint32 db_length;
+          uint key_length= filename_2_table_key(key, table->table->filename,
+                                                &db_length);
+          (++block_table)->n= ++n;
+          /*
+            There are not callback function for for MyISAM, and engine data
+          */
+          if (!insert_table(key_length, key, block_table,
+                            db_length,
+                            tables_used->table->file->table_cache_type(),
+                            0, 0))
+            DBUG_RETURN(0);
+        }
+      }
+    }
+  }
+  DBUG_RETURN(n - counter);
+}
+
 /*
   Store all used tables
 
@@ -2124,52 +2208,10 @@ my_bool Query_cache::register_all_tables(Query_cache_block *block,
 
   Query_cache_block_table *block_table = block->table(0);
 
-  for (n= 0;
-       tables_used;
-       tables_used= tables_used->next_global, n++, block_table++)
-  {
-    DBUG_PRINT("qcache",
-	       ("table %s, db %s, openinfo at 0x%lx, keylen %u, key at 0x%lx",
-		tables_used->table_name, tables_used->db,
-		(ulong) tables_used->table,
-		tables_used->table->s->key_length,
-		(ulong) tables_used->table->s->table_cache_key));
-    block_table->n= n;
-    if (!insert_table(tables_used->table->s->key_length,
-		      tables_used->table->s->table_cache_key, block_table,
-		      tables_used->db_length,
-		      tables_used->table->file->table_cache_type(),
-                      tables_used->callback_func,
-                      tables_used->engine_data))
-      break;
-
-    if (tables_used->table->s->db_type == DB_TYPE_MRG_MYISAM)
-    {
-      ha_myisammrg *handler = (ha_myisammrg *) tables_used->table->file;
-      MYRG_INFO *file = handler->myrg_info();
-      for (MYRG_TABLE *table = file->open_tables;
-	   table != file->end_table ;
-	   table++)
-      {
-	char key[MAX_DBKEY_LENGTH];
-	uint32 db_length;
-	uint key_length= filename_2_table_key(key, table->table->filename,
-					      &db_length);
-	(++block_table)->n= ++n;
-        /*
-          There are not callback function for for MyISAM, and engine data
-        */
-	if (!insert_table(key_length, key, block_table,
-			  db_length,
-			  tables_used->table->file->table_cache_type(),
-                          0, 0))
-	  goto err;
-      }
-    }
-  }
+  n= register_tables_from_list(tables_used, 0, block_table);
 
 err:
-  if (tables_used)
+  if (n)
   {
     DBUG_PRINT("qcache", ("failed at table %d", (int) n));
     /* Unlink the tables we allocated above */
@@ -2178,7 +2220,7 @@ err:
 	 tmp++)
       unlink_table(tmp);
   }
-  return (tables_used == 0);
+  return (n);
 }
 
 /*
@@ -2676,6 +2718,80 @@ void Query_cache::double_linked_list_join(Query_cache_block *head_tail,
 *****************************************************************************/
 
 /*
+  Collect information about table types, check that tables are cachable and
+  count them
+
+  SYNOPSIS
+    process_and_count_tables()
+    tables_used     table list for processing
+    tables_type     pointer to variable for table types collection
+
+  RETURN
+    0   error
+    >0  number of tables
+*/
+
+static TABLE_COUNTER_TYPE process_and_count_tables(TABLE_LIST *tables_used,
+                                                   uint8 *tables_type)
+{
+  DBUG_ENTER("process_and_count_tables");
+  TABLE_COUNTER_TYPE table_count = 0;
+  for (; tables_used; tables_used= tables_used->next_global)
+  {
+
+    if (tables_used->view)
+    {
+      DBUG_PRINT("qcache", ("view %s, db %s",
+                            tables_used->view_name.str,
+                            tables_used->view_db.str));
+      table_count++;
+      *tables_type|= HA_CACHE_TBL_NONTRANSACT;
+      {
+        TABLE_COUNTER_TYPE subcount;
+        if (!(subcount= process_and_count_tables(tables_used->ancestor,
+                                                 tables_type)))
+          DBUG_RETURN(0);
+        table_count+= subcount;
+      }
+    }
+    else
+    {
+      table_count++;
+      DBUG_PRINT("qcache", ("table %s, db %s, type %u",
+                            tables_used->table->s->table_name,
+                            tables_used->table->s->table_cache_key,
+                            tables_used->table->s->db_type));
+      *tables_type|= tables_used->table->file->table_cache_type();
+
+      /*
+        table_alias_charset used here because it depends of
+        lower_case_table_names variable
+      */
+      if (tables_used->table->s->tmp_table != NO_TMP_TABLE ||
+          (*tables_type & HA_CACHE_TBL_NOCACHE) ||
+          (tables_used->db_length == 5 &&
+           my_strnncoll(table_alias_charset,
+                        (uchar*)tables_used->table->s->table_cache_key, 6,
+                        (uchar*)"mysql",6) == 0))
+      {
+        DBUG_PRINT("qcache",
+                   ("select not cacheable: temporary, system or \
+                    other non-cacheable table(s)"));
+        DBUG_RETURN(0);
+      }
+      if (tables_used->table->s->db_type == DB_TYPE_MRG_MYISAM)
+      {
+        ha_myisammrg *handler = (ha_myisammrg *)tables_used->table->file;
+        MYRG_INFO *file = handler->myrg_info();
+        table_count+= (file->end_table - file->open_tables);
+      }
+    }
+  }
+  DBUG_RETURN(table_count);
+}
+
+
+/*
   If query is cacheable return number tables in query
   (query without tables are not cached)
 */
@@ -2686,7 +2802,7 @@ TABLE_COUNTER_TYPE Query_cache::is_cacheable(THD *thd, uint32 query_len,
 					     TABLE_LIST *tables_used,
 					     uint8 *tables_type)
 {
-  TABLE_COUNTER_TYPE table_count = 0;
+  TABLE_COUNTER_TYPE table_count;
   DBUG_ENTER("Query_cache::is_cacheable");
 
   if (lex->sql_command == SQLCOM_SELECT &&
@@ -2700,36 +2816,8 @@ TABLE_COUNTER_TYPE Query_cache::is_cacheable(THD *thd, uint32 query_len,
 			lex->select_lex.options,
 			(int) thd->variables.query_cache_type));
 
-    for (; tables_used; tables_used= tables_used->next_global)
-    {
-      table_count++;
-      DBUG_PRINT("qcache", ("table %s, db %s, type %u",
-			  tables_used->table_name,
-			  tables_used->db, tables_used->table->s->db_type));
-      *tables_type|= tables_used->table->file->table_cache_type();
-
-      /*
-	table_alias_charset used here because it depends of
-	lower_case_table_names variable
-      */
-      if (tables_used->table->s->tmp_table != NO_TMP_TABLE ||
-	  (*tables_type & HA_CACHE_TBL_NOCACHE) ||
-	  (tables_used->db_length == 5 &&
-	   my_strnncoll(table_alias_charset, (uchar*)tables_used->db, 6,
-			(uchar*)"mysql",6) == 0))
-      {
-	DBUG_PRINT("qcache", 
-		   ("select not cacheable: temporary, system or \
-other non-cacheable table(s)"));
-	DBUG_RETURN(0);
-      }
-      if (tables_used->table->s->db_type == DB_TYPE_MRG_MYISAM)
-      {
-	ha_myisammrg *handler = (ha_myisammrg *)tables_used->table->file;
-	MYRG_INFO *file = handler->myrg_info();
-	table_count+= (file->end_table - file->open_tables);
-      }
-    }
+    if (!(table_count= process_and_count_tables(tables_used, tables_type)))
+      DBUG_RETURN(0);
 
     if ((thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) &&
 	((*tables_type)&HA_CACHE_TBL_TRANSACT))
@@ -2769,7 +2857,9 @@ my_bool Query_cache::ask_handler_allowance(THD *thd,
 
   for (; tables_used; tables_used= tables_used->next_global)
   {
-    TABLE *table= tables_used->table;
+    TABLE *table;
+    if (!(table= tables_used->table))
+      continue;
     handler *handler= table->file;
     if (!handler->register_query_cache_table(thd, table->s->table_cache_key,
 					     table->s->key_length,
