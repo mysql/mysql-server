@@ -108,7 +108,7 @@ public:
 
 private:
   // sizes are in words (Uint32)
-  static const unsigned MaxIndexFragments = 2 * NO_OF_FRAG_PER_NODE;
+  static const unsigned MaxIndexFragments = 2 * MAX_FRAG_PER_NODE;
   static const unsigned MaxIndexAttributes = MAX_ATTRIBUTES_IN_INDEX;
   static const unsigned MaxAttrDataSize = 2048;
 public:
