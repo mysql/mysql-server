@@ -2571,8 +2571,17 @@ check_table_access(THD *thd,uint want_access,TABLE_LIST *tables,
       }
     }
     else if (check_access(thd,want_access,tables->db,&tables->grant.privilege,
+			  0, no_errors | grant_option))
+    {
+      if (grant_option) 
+      {
+	if ( check_access(thd,want_access & (uint) ~TABLE_ACLS,tables->db,&tables->grant.privilege,
 			  0, no_errors))
-      return TRUE;				// Access denied
+	return TRUE;			
+      }
+      else
+	return TRUE;
+    }
   }
   if (grant_option)
     return check_grant(thd,want_access & ~EXTRA_ACL,org_tables,
