@@ -32295,10 +32295,10 @@ following specifiers may be used in the @code{format} string:
 @item @code{%s} @tab Seconds (@code{00}..@code{59})
 @item @code{%p} @tab @code{AM} or @code{PM}
 @item @code{%w} @tab Day of the week (@code{0}=Sunday..@code{6}=Saturday)
-@item @code{%U} @tab Week (@code{0}..@code{53}), where Sunday is the first day of the week
-@item @code{%u} @tab Week (@code{0}..@code{53}), where Monday is the first day of the week
-@item @code{%V} @tab Week (@code{1}..@code{53}), where Sunday is the first day of the week. Used with '%X'
-@item @code{%v} @tab Week (@code{1}..@code{53}), where Monday is the first day of the week. Used with '%x'
+@item @code{%U} @tab Week (@code{00}..@code{53}), where Sunday is the first day of the week
+@item @code{%u} @tab Week (@code{00}..@code{53}), where Monday is the first day of the week
+@item @code{%V} @tab Week (@code{01}..@code{53}), where Sunday is the first day of the week. Used with '%X'
+@item @code{%v} @tab Week (@code{01}..@code{53}), where Monday is the first day of the week. Used with '%x'
 @item @code{%%} @tab A literal @samp{%}.
 @end multitable
 
