@@ -9880,12 +9880,6 @@ that you also probably need to raise the @code{core file size} by adding
 @code{ulimit -c 1000000} to @code{safe_mysqld} or starting @code{safe_mysqld}
 with @code{--core-file-sizes=1000000}. @xref{safe_mysqld, , @code{safe_mysqld}}.
 
-To get a core dump on Linux if @code{mysqld} dies with a SIGSEGV signal, you can 
-start @code{mysqld} with the @code{--core-file} option.  Note that you also probably
-need to raise the @code{core file size} by adding @code{ulimit -c 1000000} to
-@code{safe_mysqld} or starting @code{safe_mysqld} with 
-@code{--core-file-sizes=1000000}.  @xref{safe_mysqld, , @code{safe_mysqld}}.
-
 If you are linking your own MySQL client and get the error:
 
 @example
@@ -46843,6 +46837,8 @@ not yet 100% confident in this code.
 @node News-3.23.45, News-3.23.44, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.45
 @itemize @bullet
+@item
+@code{--core-file} now works on Solaris.
 @item
 Fix a bug which could cause InnoDB to complain if it cannot find free blocks
 from the buffer cache during recovery.
