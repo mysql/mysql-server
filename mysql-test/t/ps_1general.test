@@ -344,12 +344,19 @@ execute stmt1 ;
 
 ## SELECT @@version
 # cases derived from client_test.c: test_select_version()
---enable_metadata
+#
+# TODO: Metadata check is temporary disabled here, because metadata of 
+# this statement also depends on @@version contents and you can't apply
+# replace_column and replace_result to it. It will be enabled again when 
+# support of replace_column and replace_result on metadata will be
+# implemented.
+#
+#--enable_metadata
 prepare stmt1 from ' SELECT @@version ' ;
 # egalize the version
 --replace_column 1 <version>
 execute stmt1 ;
---disable_metadata
+#--disable_metadata
 
 ## do @var:= and set @var=
 # cases derived from client_test.c: test_do_set()

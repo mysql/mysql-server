@@ -333,8 +333,6 @@ execute stmt1 ;
 ERROR 42S02: Unknown table 't5'
 prepare stmt1 from ' SELECT @@version ' ;
 execute stmt1 ;
-Catalog	Database	Table	Table_alias	Column	Column_alias	Name	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					@@VERSION	254	102	34	N	1	31	8
 @@VERSION
 <version>
 prepare stmt_do from ' do @var:=  (1 in (select a from t1)) ' ;
