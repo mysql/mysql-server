@@ -28,8 +28,7 @@
 static const char *any_db="*any*";	// Special symbol for check_access
 
 
-int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit, TABLE_LIST *t,
-		  bool tables_is_opened)
+int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit, TABLE_LIST *t)
 {
   /*
     TODO: make derived tables with union inside (now only 1 SELECT may be
@@ -58,7 +57,7 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit, TABLE_LIST *t,
     if (cursor->derived)
     {
       res= mysql_derived(thd, lex, (SELECT_LEX_UNIT *)cursor->derived,
-			 cursor, 0);
+			 cursor);
       if (res) DBUG_RETURN(res);
     }
   }
@@ -68,7 +67,7 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit, TABLE_LIST *t,
   while ((item= it++))
     item_list.push_back(item);
     
-  if (tables_is_opened || !(res=open_and_lock_tables(thd,tables)))
+  if (!(res=open_and_lock_tables(thd,tables)))
   {
     if (setup_fields(thd,tables,item_list,0,0,1))
     {
@@ -112,7 +111,8 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit, TABLE_LIST *t,
 	  t->real_name=table->real_name;
 	  t->table=table;
 	  table->derived_select_number= sl->select_number;
-	  sl->exclude();
+	  if (!lex->describe)
+	    sl->exclude();
 	  t->db= (tables && tables->db && tables->db[0]) ? t->db : thd->db;
 	  t->derived=(SELECT_LEX *)0; // just in case ...
 	}
