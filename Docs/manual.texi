@@ -1774,8 +1774,8 @@ client library, so it is convenient and easy to use. @xref{libmysqld}.
 @item
 Version 4.0 further increases @emph{the speed of MySQL Server}
 in a number of areas,
-such as bulk @code{INSERT}s, searching on packed indices, creation of
-@code{FULLTEXT} indices as well as @code{COUNT(DISTINCT)}.
+such as bulk @code{INSERT}s, searching on packed indexes, creation of
+@code{FULLTEXT} indexes as well as @code{COUNT(DISTINCT)}.
 
 @item
 The table handler @code{InnoDB} is now offered as a feature of the
@@ -19543,6 +19543,10 @@ sizes are given in bytes.  You can specify values with a suffix of @samp{K}
 or @samp{M} to indicate kilobytes or megabytes. For example, @code{16M}
 indicates 16 megabytes.  The case of suffix letters does not matter;
 @code{16M} and @code{16m} are equivalent:
+
+@c FIX 2002-04-29 arjen / paul
+@c FIX Below should be a @multitable just like SHOW STATUS.
+@c FIX Has to wait till after O'Reilly printed edition is out the door.
 
 @cindex variables, values
 @itemize
