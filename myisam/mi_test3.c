@@ -70,6 +70,7 @@ int main(int argc,char **argv)
   keyinfo[0].seg[0].length=8;
   keyinfo[0].seg[0].type=HA_KEYTYPE_TEXT;
   keyinfo[0].seg[0].flag=HA_SPACE_PACK;
+  keyinfo[0].key_alg=HA_KEY_ALG_BTREE;
   keyinfo[0].keysegs=1;
   keyinfo[0].flag = (uint8) HA_PACK_KEY;
   keyinfo[1].seg= &keyseg[1][0];
@@ -77,6 +78,7 @@ int main(int argc,char **argv)
   keyinfo[1].seg[0].length=4;		/* Long is always 4 in myisam */
   keyinfo[1].seg[0].type=HA_KEYTYPE_LONG_INT;
   keyinfo[1].seg[0].flag=0;
+  keyinfo[1].key_alg=HA_KEY_ALG_BTREE;
   keyinfo[1].keysegs=1;
   keyinfo[1].flag =HA_NOSAME;
 
