@@ -900,6 +900,14 @@ class Item_func_set_user_var :public Item_func
   user_var_entry *entry;
   char buffer[MAX_FIELD_WIDTH];
   String value;
+  union
+  {
+    longlong vint;
+    double vreal;
+    String *vstr;
+  } save_result;
+  String save_buff;
+  
 
 public:
   Item_func_set_user_var(LEX_STRING a,Item *b)
@@ -910,6 +918,7 @@ public:
   String *val_str(String *str);
   bool update_hash(void *ptr, uint length, enum Item_result type, 
   		   CHARSET_INFO *cs, Derivation dv);
+  bool check();
   bool update();
   enum Item_result result_type () const { return cached_result_type; }
   bool fix_fields(THD *thd, struct st_table_list *tables, Item **ref);

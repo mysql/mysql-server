@@ -57,7 +57,7 @@ public:
     :name(name_arg),after_update(func)
   {}
   virtual ~sys_var() {}
-  virtual bool check(THD *thd, set_var *var) { return 0; }
+  virtual bool check(THD *thd, set_var *var);
   bool check_enum(THD *thd, set_var *var, TYPELIB *enum_names);
   bool check_set(THD *thd, set_var *var, TYPELIB *enum_names);
   virtual bool update(THD *thd, set_var *var)=0;
@@ -656,6 +656,7 @@ public:
   {
     CHARSET_INFO *charset;
     ulong ulong_value;
+    ulonglong ulonglong_value;
   } save_result;
   LEX_STRING base;			/* for structs */
 
