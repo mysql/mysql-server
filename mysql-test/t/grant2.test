@@ -64,10 +64,10 @@ connection mrbad;
 show grants for current_user();
 use mysqltest;
 insert into t1 values (1, 'I can''t change it!');
---error 1044
+--error 1142
 update t1 set data='I can change it!' where id = 1;
 # This should not be allowed since it too require UPDATE privilege.
---error 1044
+--error 1142
 insert into t1 values (1, 'XXX') on duplicate key update data= 'I can change it!';
 select * from t1;
 
@@ -199,7 +199,7 @@ create user mysqltest_2@localhost;
 grant usage on *.* to mysqltest_2@localhost with grant option;
 connect (user2,localhost,mysqltest_2,,);
 connection user2;
---error 1044
+--error 1142
 select host,user,password from mysql.user where user like 'mysqltest_%' order by host,user,password;
 create user mysqltest_A@'%';
 rename user mysqltest_A@'%' to mysqltest_B@'%';

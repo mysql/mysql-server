@@ -106,6 +106,12 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
     share_buff.state.key_del=key_del;
     share_buff.key_cache= multi_key_cache_search(name_buff, strlen(name_buff));
 
+    DBUG_EXECUTE_IF("myisam_pretend_crashed_table_on_open",
+                    if (strstr(name, "/t1"))
+                    {
+                      my_errno= HA_ERR_CRASHED;
+                      goto err;
+                    });
     if ((kfile=my_open(name_buff,(open_mode=O_RDWR) | O_SHARE,MYF(0))) < 0)
     {
       if ((errno != EROFS && errno != EACCES) ||
@@ -601,6 +607,10 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
 
 err:
   save_errno=my_errno ? my_errno : HA_ERR_END_OF_FILE;
+  if ((save_errno == HA_ERR_CRASHED) ||
+      (save_errno == HA_ERR_CRASHED_ON_USAGE) ||
+      (save_errno == HA_ERR_CRASHED_ON_REPAIR))
+    mi_report_error(save_errno, name);
   switch (errpos) {
   case 6:
     my_free((gptr) m_info,MYF(0));
@@ -1223,7 +1233,10 @@ int mi_enable_indexes(MI_INFO *info)
 
   if (share->state.state.data_file_length ||
       (share->state.state.key_file_length != share->base.keystart))
+  {
+    mi_print_error(info, HA_ERR_CRASHED);
     error= HA_ERR_CRASHED;
+  }
   else
     share->state.key_map= ((ulonglong) 1L << share->base.keys) - 1;
   return error;

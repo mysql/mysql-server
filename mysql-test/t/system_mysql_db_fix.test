@@ -74,7 +74,7 @@ INSERT INTO user VALUES ('localhost','',    '','N','N','N','N','N','N','N','N','
 
 -- disable_query_log
 
-DROP TABLE db, host, user, func, tables_priv, columns_priv, help_category, help_keyword, help_relation, help_topic, proc, time_zone, time_zone_leap_second, time_zone_name, time_zone_transition, time_zone_transition_type;
+DROP TABLE db, host, user, func, tables_priv, columns_priv, procs_priv, help_category, help_keyword, help_relation, help_topic, proc, time_zone, time_zone_leap_second, time_zone_name, time_zone_transition, time_zone_transition_type;
 
 -- enable_query_log
 

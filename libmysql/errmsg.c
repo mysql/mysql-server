@@ -199,7 +199,33 @@ const char *client_errors[]=
 #endif
 
 
+/*
+  Register client error messages for use with my_error().
+
+  SYNOPSIS
+    init_client_errs()
+
+  RETURN
+    void
+*/
+
 void init_client_errs(void)
 {
-  my_errmsg[CLIENT_ERRMAP] = &client_errors[0];
+  (void) my_error_register(client_errors, CR_ERROR_FIRST, CR_ERROR_LAST);
+}
+
+
+/*
+  Unregister client error messages.
+
+  SYNOPSIS
+    finish_client_errs()
+
+  RETURN
+    void
+*/
+
+void finish_client_errs(void)
+{
+  (void) my_error_unregister(CR_ERROR_FIRST, CR_ERROR_LAST);
 }
