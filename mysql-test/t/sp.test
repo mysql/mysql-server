@@ -1381,6 +1381,11 @@ show procedure status like '%p%'|
 call ip(200)|
 # We don't want to select the entire table here, just pick a few
 # examples.
+# Expected result is:
+# i     p
+# 45    211
+# 100   557
+# 199   1229
 select * from primes where i=45 or i=100 or i=199|
 drop table primes|
 drop procedure opp|
