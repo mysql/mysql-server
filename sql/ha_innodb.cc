@@ -46,6 +46,7 @@ InnoDB */
 #include "ha_innodb.h"
 
 pthread_mutex_t innobase_mutex;
+bool innodb_inited= 0;
 
 /* Store MySQL definition of 'byte': in Linux it is char while InnoDB
 uses unsigned char; the header univ.i which we include next defines
@@ -900,6 +901,7 @@ innobase_init(void)
 	(void) hash_init(&innobase_open_tables,system_charset_info, 32, 0, 0,
 			 		(hash_get_key) innobase_get_key, 0, 0);
 	pthread_mutex_init(&innobase_mutex, MY_MUTEX_INIT_FAST);
+	innodb_inited= 1;
 
 	/* If this is a replication slave and we needed to do a crash recovery,
 	set the master binlog position to what InnoDB internally knew about
@@ -927,21 +929,21 @@ innobase_end(void)
 /*==============*/
 				/* out: TRUE if error */
 {
-	int	err;
+	int	err= 0;
 
 	DBUG_ENTER("innobase_end");
 
-	err = innobase_shutdown_for_mysql();
-	hash_free(&innobase_open_tables);
-	my_free(internal_innobase_data_file_path,MYF(MY_ALLOW_ZERO_PTR));
-	pthread_mutex_destroy(&innobase_mutex);
-
-	if (err != DB_SUCCESS) {
-
-	  DBUG_RETURN(1);
+	if (innodb_inited)
+	{
+	  innodb_inited= 0;
+	  if (innobase_shutdown_for_mysql() != DB_SUCCESS)
+	    err= 1;
+	  hash_free(&innobase_open_tables);
+	  my_free(internal_innobase_data_file_path,MYF(MY_ALLOW_ZERO_PTR));
+	  pthread_mutex_destroy(&innobase_mutex);
 	}
 
-  	DBUG_RETURN(0);
+  	DBUG_RETURN(err);
 }
 
 /********************************************************************

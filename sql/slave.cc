@@ -3122,9 +3122,10 @@ slave_begin:
     Reset errors for a clean start (otherwise, if the master is idle, the SQL
     thread may execute no Query_log_event, so the error will remain even
     though there's no problem anymore). Do not reset the master timestamp
-    (imagine the slave has caught everything, the STOP SLAVE and START SLAVE: as
-    we are not sure that we are going to receive a query, we want to remember
-    the last master timestamp (to say how many seconds behind we are now.
+    (imagine the slave has caught everything, the STOP SLAVE and START SLAVE:
+    as we are not sure that we are going to receive a query, we want to
+    remember the last master timestamp (to say how many seconds behind we are
+    now.
     But the master timestamp is reset by RESET SLAVE & CHANGE MASTER.
   */
   clear_slave_error(rli);
@@ -3796,8 +3797,6 @@ bool flush_relay_log_info(RELAY_LOG_INFO* rli)
   if (my_b_write(file, (byte*) buff, (ulong) (pos-buff)+1))
     error=1;
   if (flush_io_cache(file))
-    error=1;
-  if (flush_io_cache(rli->cur_log))		// QQ Why this call ?
     error=1;
   return error;
 }
