@@ -840,19 +840,33 @@ void start_waiting_global_read_lock(THD *thd)
 }
 
 
-void make_global_read_lock_block_commit(THD *thd)
+bool make_global_read_lock_block_commit(THD *thd)
 {
+  bool error;
+  const char *old_message;
+  DBUG_ENTER("make_global_read_lock_block_commit");
   /*
     If we didn't succeed lock_global_read_lock(), or if we already suceeded
     make_global_read_lock_block_commit(), do nothing.
   */
   if (thd->global_read_lock != GOT_GLOBAL_READ_LOCK)
-    return;
+    DBUG_RETURN(1);
   pthread_mutex_lock(&LOCK_open);
   /* increment this BEFORE waiting on cond (otherwise race cond) */
   global_read_lock_blocks_commit++;
-  while (protect_against_global_read_lock)
+  /* For testing we set up some blocking, to see if we can be killed */
+  DBUG_EXECUTE_IF("make_global_read_lock_block_commit_loop",
+                  protect_against_global_read_lock++;);
+  old_message= thd->enter_cond(&COND_refresh, &LOCK_open,
+                               "Waiting for all running commits to finish");
+  while (protect_against_global_read_lock && !thd->killed)
     pthread_cond_wait(&COND_refresh, &LOCK_open);
-  pthread_mutex_unlock(&LOCK_open);
-  thd->global_read_lock= MADE_GLOBAL_READ_LOCK_BLOCK_COMMIT;
+  DBUG_EXECUTE_IF("make_global_read_lock_block_commit_loop",
+                  protect_against_global_read_lock--;);
+  if (error= thd->killed)
+    global_read_lock_blocks_commit--; // undo what we did
+  else
+    thd->global_read_lock= MADE_GLOBAL_READ_LOCK_BLOCK_COMMIT;
+  thd->exit_cond(old_message);
+  DBUG_RETURN(error);
 }
