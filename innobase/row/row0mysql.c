@@ -714,7 +714,7 @@ run_again:
 
 	trx_start_if_not_started(trx);
 
-	err = lock_table(0, prebuilt->table, prebuilt->select_lock_type, thr);
+	err = lock_table(0, prebuilt->table, LOCK_AUTO_INC, thr);
 
 	trx->error_state = err;
 
@@ -2526,10 +2526,11 @@ row_drop_database_for_mysql(
         dict_table_t* table;
 	char*	table_name;
 	int	err	= DB_SUCCESS;
+	ulint	namelen	= strlen(name);
 	
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 	ut_a(name != NULL);
-	ut_a(name[strlen(name) - 1] == '/');
+	ut_a(name[namelen - 1] == '/');
 	
 	trx->op_info = (char *) "dropping database";
 	
@@ -2538,7 +2539,7 @@ loop:
 	row_mysql_lock_data_dictionary(trx);
 
 	while ((table_name = dict_get_first_table_name_in_db(name))) {
-		ut_a(strcmp(table_name, name) == 0);
+		ut_a(memcmp(table_name, name, namelen) == 0);
 
 		table = dict_table_get_low(table_name);
 

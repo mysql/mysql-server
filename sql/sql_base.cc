@@ -2103,7 +2103,9 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
 	=> we have to check presence of name before compare
       */ 
       if (item_field->name &&
-	  !my_strcasecmp(system_charset_info, item_field->name, field_name))
+	  (!my_strcasecmp(system_charset_info, item_field->name, field_name) ||
+           !my_strcasecmp(system_charset_info,
+                          item_field->field_name, field_name)))
       {
 	if (!table_name)
 	{
