@@ -194,7 +194,7 @@ int scanReadRecords(Ndb* pNdb,
   int                  retryAttempt = 0;
   const int            retryMax = 100;
   int                  check;
-  NdbConnection	       *pTrans;
+  NdbTransaction       *pTrans;
   NdbScanOperation	       *pOp;
   NdbIndexScanOperation * pIOp= 0;
 
