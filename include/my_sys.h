@@ -248,6 +248,8 @@ extern my_bool NEAR my_disable_locking,NEAR my_disable_async_io,
 extern char	wild_many,wild_one,wild_prefix;
 extern const char *charsets_dir;
 extern char *defaults_extra_file;
+extern void *dflt_keycache;
+#define dflt_key_block_size DEFAULT_KEYCACHE_BLOCK_SIZE
 
 typedef struct wild_file_pack	/* Struct to hold info when selecting files */
 {
@@ -639,16 +641,21 @@ extern int flush_write_cache(RECORD_CACHE *info);
 extern long my_clock(void);
 extern sig_handler sigtstp_handler(int signal_number);
 extern void handle_recived_signals(void);
-extern int init_key_cache(ulong use_mem);
-extern int resize_key_cache(ulong use_mem);
-extern byte *key_cache_read(File file,my_off_t filepos,byte* buff,uint length,
+extern int init_key_cache(void **pkeycache,uint key_cache_block_size,
+                          ulong use_mem);
+extern int resize_key_cache(void **pkeycache,ulong use_mem);
+extern byte *key_cache_read(void *pkeycache,
+                            File file,my_off_t filepos,byte* buff,uint length,
 			    uint block_length,int return_buffer);
-extern int key_cache_insert(File file, my_off_t filepos,
+extern int key_cache_insert(void *pkeycache,
+                            File file, my_off_t filepos,
                             byte *buff, uint length);
-extern int key_cache_write(File file,my_off_t filepos,byte* buff,uint length,
+extern int key_cache_write(void *pkeycache,
+                           File file,my_off_t filepos,byte* buff,uint length,
 			   uint block_length,int force_write);
-extern int flush_key_blocks(int file, enum flush_type type);
-extern void end_key_cache(void);
+extern int flush_key_blocks(void *pkeycache,
+                            int file, enum flush_type type);
+extern void end_key_cache(void **pkeycache,my_bool cleanup);
 extern sig_handler my_set_alarm_variable(int signo);
 extern void my_string_ptr_sort(void *base,uint items,size_s size);
 extern void radixsort_for_str_ptr(uchar* base[], uint number_of_elements,
