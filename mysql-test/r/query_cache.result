@@ -809,4 +809,12 @@ show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	4
 DROP TABLE t1;
+CREATE TABLE t1 (a int(1));
+CREATE DATABASE mysqltest;
+USE mysqltest;
+DROP DATABASE mysqltest;
+SELECT * FROM test.t1;
+a
+USE test;
+DROP TABLE t1;
 SET GLOBAL query_cache_size=0;
