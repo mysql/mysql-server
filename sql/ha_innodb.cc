@@ -2314,7 +2314,31 @@ ha_innobase::write_row(
         if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
                 table->timestamp_field->set_time();
 
+	num_write_row++;
+
+	if (user_thd->lex->sql_command == SQLCOM_ALTER_TABLE
+	    && num_write_row > 10000) {
+		/* ALTER TABLE is COMMITted at every 10000 copied rows.
+		The IX table lock for the original table has to be re-issued.
+		As this method will be called on a temporary table where the
+		contents of the original table is being copied to, it is
+		a bit tricky to determine the source table.  The cursor
+		position in the source table need not be adjusted after the
+		intermediate COMMIT, since writes by other transactions are
+		being blocked by a MySQL table lock TL_WRITE_ALLOW_READ. */
+		ut_a(prebuilt->trx->mysql_n_tables_locked == 2);
+		ut_a(UT_LIST_GET_LEN(prebuilt->trx->trx_locks) >= 2);
+		dict_table_t* table = lock_get_ix_table(
+				UT_LIST_GET_FIRST(prebuilt->trx->trx_locks));
+		num_write_row = 0;
+		innobase_commit(user_thd, prebuilt->trx);
+		user_thd->transaction.all.innodb_active_trans = 1;
+		row_lock_table_for_mysql(prebuilt, table);
+		goto new_trx;
+	}
+
 	if (last_query_id != user_thd->query_id) {
+	new_trx:
 	        prebuilt->sql_stat_start = TRUE;
                 last_query_id = user_thd->query_id;
 
@@ -4986,7 +5010,7 @@ ha_innobase::external_lock(
 			if (thd->in_lock_tables &&
 			    thd->variables.innodb_table_locks) {
 				ulint	error;
-				error = row_lock_table_for_mysql(prebuilt);
+				error = row_lock_table_for_mysql(prebuilt, 0);
 
 				if (error != DB_SUCCESS) {
 					error = convert_error_code_to_mysql(
