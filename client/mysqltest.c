@@ -216,6 +216,7 @@ Q_ENABLE_WARNINGS, Q_DISABLE_WARNINGS,
 Q_ENABLE_INFO, Q_DISABLE_INFO,
 Q_EXEC, Q_DELIMITER,
 Q_DISPLAY_VERTICAL_RESULTS, Q_DISPLAY_HORISONTAL_RESULTS,
+Q_QUERY_VERTICAL, Q_QUERY_HORISONTAL,
 
 Q_UNKNOWN,			       /* Unknown command.   */
 Q_COMMENT,			       /* Comments, ignored. */
@@ -291,6 +292,8 @@ const char *command_names[]=
   "delimiter",
   "vertical_results",
   "horisontal_results",
+  "query_vertical",
+  "query_horisontal",
   0
 };
 
@@ -2586,6 +2589,28 @@ int main(int argc, char **argv)
 	if (q->query == q->query_buf)
 	  q->query= q->first_argument;
 	/* fall through */
+      case Q_QUERY_VERTICAL:
+      case Q_QUERY_HORISONTAL:
+      {
+	my_bool old_display_result_vertically= display_result_vertically;
+	if (!q->query[q->first_word_len])
+	{
+	  /* This happens when we use 'query_..' on it's own line */
+	  q_send_flag=1;
+	  break;
+	}
+	/* fix up query pointer if this is * first iteration for this line */
+	if (q->query == q->query_buf)
+	  q->query += q->first_word_len + 1;
+	switch(q->type)
+	{
+	case Q_QUERY_VERTICAL: display_result_vertically= TRUE; break;
+	case Q_QUERY_HORISONTAL: display_result_vertically= FALSE; break;
+	}
+	error |= run_query(&cur_con->mysql, q, QUERY_REAP|QUERY_SEND);
+	display_result_vertically= old_display_result_vertically;
+	break;
+      }
       case Q_QUERY:
       case Q_REAP:
       {

@@ -90,7 +90,8 @@ drop database mysqltest;
 
 #
 # Test of wrong values for float data (bug #2082)
-# 
+#
+
 use test;
 create table t1(
     `number          ` int auto_increment primary key,
@@ -107,68 +108,46 @@ create table t1(
 
 set @value= "aa";
 insert into t1 values(null,@value,@value,@value,@value,@value,@value,@value,@value,@value);
-vertical_results;
-select * from t1 where `number          `=last_insert_id();
-horisontal_results;
+--query_vertical select * from t1 where `number          `=last_insert_id()
 
 set @value= "1aa";
 insert into t1 values(null,@value,@value,@value,@value,@value,@value,@value,@value,@value);
-vertical_results;
-select * from t1 where `number          `=last_insert_id();
-horisontal_results;
+--query_vertical select * from t1 where `number          `=last_insert_id()
 
 set @value= "aa1";
 insert into t1 values(null,@value,@value,@value,@value,@value,@value,@value,@value,@value);
-vertical_results;
-select * from t1 where `number          `=last_insert_id();
-horisontal_results;
+--query_vertical select * from t1 where `number          `=last_insert_id()
 
 set @value= "1e+1111111111a";
 insert into t1 values(null,@value,@value,@value,@value,@value,@value,@value,@value,@value);
-vertical_results;
-select * from t1 where `number          `=last_insert_id();
-horisontal_results;
+--query_vertical select * from t1 where `number          `=last_insert_id()
 
 set @value= "-1e+1111111111a";
 insert into t1 values(null,@value,@value,@value,@value,@value,@value,@value,@value,@value);
-vertical_results;
-select * from t1 where `number          `=last_insert_id();
-horisontal_results;
+--query_vertical select * from t1 where `number          `=last_insert_id()
 
 set @value= 1e+1111111111;
 insert into t1 values(null,@value,@value,@value,@value,@value,@value,@value,@value,@value);
-vertical_results;
-select * from t1 where `number          `=last_insert_id();
-horisontal_results;
+--query_vertical select * from t1 where `number          `=last_insert_id()
 
 set @value= -1e+1111111111;
 insert into t1 values(null,@value,@value,@value,@value,@value,@value,@value,@value,@value);
-vertical_results;
-select * from t1 where `number          `=last_insert_id();
-horisontal_results;
+--query_vertical select * from t1 where `number          `=last_insert_id()
 
 set @value= 1e+111;
 insert into t1 values(null,@value,@value,@value,@value,@value,@value,@value,@value,@value);
-vertical_results;
-select * from t1 where `number          `=last_insert_id();
-horisontal_results;
+--query_vertical select * from t1 where `number          `=last_insert_id()
 
 set @value= -1e+111;
 insert into t1 values(null,@value,@value,@value,@value,@value,@value,@value,@value,@value);
-vertical_results;
-select * from t1 where `number          `=last_insert_id();
-horisontal_results;
+--query_vertical select * from t1 where `number          `=last_insert_id()
 
 set @value= 1;
 insert into t1 values(null,@value,@value,@value,@value,@value,@value,@value,@value,@value);
-vertical_results;
-select * from t1 where `number          `=last_insert_id();
-horisontal_results;
+--query_vertical select * from t1 where `number          `=last_insert_id()
 
 set @value= -1;
 insert into t1 values(null,@value,@value,@value,@value,@value,@value,@value,@value,@value);
-vertical_results;
-select * from t1 where `number          `=last_insert_id();
-horisontal_results;
+--query_vertical select * from t1 where `number          `=last_insert_id()
 
 drop table t1;

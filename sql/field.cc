@@ -2291,7 +2291,14 @@ int Field_float::store(double nr)
   float j;
   int error= 0;
 
-  if (isnan(nr) || unsigned_flag && nr < 0)
+  if (isnan(nr))
+  {
+    j= 0;
+    set_null();
+    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE);
+    error= 1;
+  }
+  else if (unsigned_flag && nr < 0)
   {
     j= 0;
     set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE);
@@ -2581,7 +2588,14 @@ int Field_double::store(double nr)
 {
   int error= 0;
 
-  if (isnan(nr) || unsigned_flag && nr < 0)
+  if (isnan(nr))
+  {
+    nr= 0;
+    set_null();
+    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE);
+    error= 1;
+  }
+  else if (unsigned_flag && nr < 0)
   {
     nr= 0;
     set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE);
