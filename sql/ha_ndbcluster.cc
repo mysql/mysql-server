@@ -308,7 +308,7 @@ Ndb *ha_ndbcluster::get_ndb()
  * manage uncommitted insert/deletes during transactio to get records correct
  */
 
-struct Ndb_table_local_info {
+struct Ndb_local_table_statistics {
   int no_uncommitted_rows_count;
   ulong last_count;
   ha_rows records;
@@ -329,7 +329,8 @@ void ha_ndbcluster::records_update()
   if (m_ha_not_exact_count)
     return;
   DBUG_ENTER("ha_ndbcluster::records_update");
-  struct Ndb_table_local_info *info= (struct Ndb_table_local_info *)m_table_info;
+  struct Ndb_local_table_statistics *info= 
+    (struct Ndb_local_table_statistics *)m_table_info;
   DBUG_PRINT("info", ("id=%d, no_uncommitted_rows_count=%d",
                       ((const NDBTAB *)m_table)->getTableId(),
                       info->no_uncommitted_rows_count));
@@ -366,7 +367,8 @@ void ha_ndbcluster::no_uncommitted_rows_init(THD *thd)
   if (m_ha_not_exact_count)
     return;
   DBUG_ENTER("ha_ndbcluster::no_uncommitted_rows_init");
-  struct Ndb_table_local_info *info= (struct Ndb_table_local_info *)m_table_info;
+  struct Ndb_local_table_statistics *info= 
+    (struct Ndb_local_table_statistics *)m_table_info;
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
   if (info->last_count != thd_ndb->count)
   {
@@ -385,8 +387,8 @@ void ha_ndbcluster::no_uncommitted_rows_update(int c)
   if (m_ha_not_exact_count)
     return;
   DBUG_ENTER("ha_ndbcluster::no_uncommitted_rows_update");
-  struct Ndb_table_local_info *info=
-    (struct Ndb_table_local_info *)m_table_info;
+  struct Ndb_local_table_statistics *info=
+    (struct Ndb_local_table_statistics *)m_table_info;
   info->no_uncommitted_rows_count+= c;
   DBUG_PRINT("info", ("id=%d, no_uncommitted_rows_count=%d",
                       ((const NDBTAB *)m_table)->getTableId(),
@@ -838,10 +840,8 @@ bool ha_ndbcluster::uses_blob_value(bool all_fields)
   Get metadata for this table from NDB 
 
   IMPLEMENTATION
-    - save the NdbDictionary::Table for easy access
     - check that frm-file on disk is equal to frm-file
       of table accessed in NDB
-    - build a list of the indexes for the table
 */
 
 int ha_ndbcluster::get_metadata(const char *path)
@@ -905,11 +905,12 @@ int ha_ndbcluster::get_metadata(const char *path)
 
   if (error)
     DBUG_RETURN(error);
-
-  m_table= NULL;
-  m_table_info= NULL;
   
-  DBUG_RETURN(build_index_list(table, ILBP_OPEN));  
+  m_tableVersion= tab->getObjectVersion();
+  m_table= (void *)tab; 
+  m_table_info= NULL; // Set in external lock
+  
+  DBUG_RETURN(build_index_list(ndb, table, ILBP_OPEN));
 }
 
 static int fix_unique_index_attr_order(NDB_INDEX_DATA &data,
@@ -937,7 +938,7 @@ static int fix_unique_index_attr_order(NDB_INDEX_DATA &data,
 #endif
     for (unsigned j= 0; j < sz; j++)
     {
-      const NdbDictionary::Column *c= index->getColumn(j);
+      const NDBCOL *c= index->getColumn(j);
       if (strncmp(field_name, c->getName(), name_sz) == 0)
       {
         data.unique_index_attrid_map[i]= j;
@@ -949,7 +950,7 @@ static int fix_unique_index_attr_order(NDB_INDEX_DATA &data,
   DBUG_RETURN(0);
 }
 
-int ha_ndbcluster::build_index_list(TABLE *tab, enum ILBP phase)
+int ha_ndbcluster::build_index_list(Ndb *ndb, TABLE *tab, enum ILBP phase)
 {
   uint i;
   int error= 0;
@@ -958,8 +959,7 @@ int ha_ndbcluster::build_index_list(TABLE *tab, enum ILBP phase)
   static const char* unique_suffix= "$unique";
   KEY* key_info= tab->key_info;
   const char **key_name= tab->s->keynames.type_names;
-  Ndb *ndb= get_ndb();
-  NdbDictionary::Dictionary *dict= ndb->getDictionary();
+  NDBDICT *dict= ndb->getDictionary();
   DBUG_ENTER("ha_ndbcluster::build_index_list");
   
   // Save information about all known indexes
@@ -3107,6 +3107,10 @@ THR_LOCK_DATA **ha_ndbcluster::store_lock(THD *thd,
  
   When a table lock is held one transaction will be started which holds
   the table lock and for each statement a hupp transaction will be started  
+  If we are locking the table then:
+  - save the NdbDictionary::Table for easy access
+  - save reference to table statistics
+  - refresh list of the indexes for the table if needed (if altered)
  */
 
 int ha_ndbcluster::external_lock(THD *thd, int lock_type)
@@ -3212,7 +3216,15 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
       if (!(tab= dict->getTable(m_tabname, &tab_info)))
         ERR_RETURN(dict->getNdbError());
       DBUG_PRINT("info", ("Table schema version: %d", tab->getObjectVersion()));
-      m_table= (void *)tab;
+      if (m_table != (void *)tab || m_tableVersion != tab->getObjectVersion())
+      {
+        /*
+          The table has been altered, refresh the index list
+        */
+        build_index_list(ndb, table, ILBP_OPEN);  
+        m_table= (void *)tab;
+        m_tableVersion = tab->getObjectVersion();
+      }
       m_table_info= tab_info;
     }
     no_uncommitted_rows_init(thd);
@@ -3873,7 +3885,7 @@ int ha_ndbcluster::create(const char *name,
                       m_dbname, m_tabname));
 
   // Create secondary indexes
-  my_errno= build_index_list(form, ILBP_CREATE);
+  my_errno= build_index_list(ndb, form, ILBP_CREATE);
 
   if (!my_errno)
     my_errno= write_ndb_file();
@@ -4092,6 +4104,7 @@ ha_ndbcluster::ha_ndbcluster(TABLE *table_arg):
   m_active_trans(NULL),
   m_active_cursor(NULL),
   m_table(NULL),
+  m_tableVersion(-1),
   m_table_info(NULL),
   m_table_flags(HA_REC_NOT_IN_SEQ |
                 HA_NULL_IN_KEY |
@@ -4240,9 +4253,9 @@ Thd_ndb* ha_ndbcluster::seize_thd_ndb()
   DBUG_ENTER("seize_thd_ndb");
 
   thd_ndb= new Thd_ndb();
-  thd_ndb->ndb->getDictionary()->set_local_table_data_size(sizeof(Ndb_table_local_info));
-
-
+  thd_ndb->ndb->getDictionary()->set_local_table_data_size(
+    sizeof(Ndb_local_table_statistics)
+    );
   if (thd_ndb->ndb->init(max_transactions) != 0)
   {
     ERR_PRINT(thd_ndb->ndb->getNdbError());
@@ -4332,7 +4345,7 @@ int ndbcluster_discover(THD* thd, const char *db, const char *name,
   ndb->setDatabaseName(db);
 
   NDBDICT* dict= ndb->getDictionary();
-  dict->set_local_table_data_size(sizeof(Ndb_table_local_info));
+  dict->set_local_table_data_size(sizeof(Ndb_local_table_statistics));
   dict->invalidateTable(name);
   if (!(tab= dict->getTable(name)))
   {    
@@ -4378,7 +4391,7 @@ int ndbcluster_table_exists(THD* thd, const char *db, const char *name)
   ndb->setDatabaseName(db);
 
   NDBDICT* dict= ndb->getDictionary();
-  dict->set_local_table_data_size(sizeof(Ndb_table_local_info));
+  dict->set_local_table_data_size(sizeof(Ndb_local_table_statistics));
   dict->invalidateTable(name);
   if (!(tab= dict->getTable(name)))
   {
@@ -4597,7 +4610,7 @@ ndbcluster_init()
     DBUG_PRINT("error", ("failed to create global ndb object"));
     goto ndbcluster_init_error;
   }
-  g_ndb->getDictionary()->set_local_table_data_size(sizeof(Ndb_table_local_info));
+  g_ndb->getDictionary()->set_local_table_data_size(sizeof(Ndb_local_table_statistics));
   if (g_ndb->init() != 0)
   {
     ERR_PRINT (g_ndb->getNdbError());
