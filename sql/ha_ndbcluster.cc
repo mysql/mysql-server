@@ -1648,7 +1648,7 @@ int ha_ndbcluster::close_scan()
 
   cursor->close();
   m_active_cursor= NULL;
-  DBUG_RETURN(0)
+  DBUG_RETURN(0);
 }
 
 int ha_ndbcluster::rnd_end()
