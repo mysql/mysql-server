@@ -189,6 +189,11 @@ static void free_string_array(DYNAMIC_ARRAY *a)
 
 void end_slave()
 {
+  pthread_mutex_lock(&LOCK_slave);
+  while (slave_running)
+    pthread_cond_wait(&COND_slave_stopped, &LOCK_slave);
+  pthread_mutex_unlock(&LOCK_slave);
+  
   end_master_info(&glob_mi);
   if(do_table_inited)
     hash_free(&replicate_do_table);
