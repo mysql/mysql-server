@@ -14,18 +14,16 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/* Replace strings in textfile
+/*
+  Replace strings in textfile
+
   This program replaces strings in files or from stdin to stdout.
   It accepts a list of from-string/to-string pairs and replaces
   each occurrence of a from-string with the corresponding to-string.
   The first occurrence of a found string is matched. If there is more
   than one possibility for the string to replace, longer matches
   are preferred before shorter matches.
-  This program replace strings in a file or on stdin/stdout.
-  It accepts a list of from-strings and to-strings and replaces all
-  occurents of from-strings to to-strings.
-  The first occurents of a found string is matched. If there are more than
-  one possibly replace the longer from-string is replaced.
+
   Special characters in from string:
   \^    Match start of line.
   \$	Match end of line.
@@ -956,9 +954,11 @@ static void free_buffer()
 }
 
 
-/* Fill the buffer retaining the last n bytes at the beginning of the
-   newly filled buffer (for backward context).  Returns the number of new
-   bytes read from disk. */
+/*
+  Fill the buffer retaining the last n bytes at the beginning of the
+  newly filled buffer (for backward context).  Returns the number of new
+  bytes read from disk.
+*/
 
 static int fill_buffer_retaining(fd,n)
 File fd;

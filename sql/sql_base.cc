@@ -47,11 +47,11 @@ extern "C" byte *table_cache_key(const byte *record,uint *length,
   return (byte*) entry->table_cache_key;
 }
 
-void table_cache_init(void)
+bool table_cache_init(void)
 {
-  VOID(hash_init(&open_cache,table_cache_size+16,0,0,table_cache_key,
-		 (hash_free_key) free_cache_entry,0));
   mysql_rm_tmp_tables();
+  return hash_init(&open_cache,table_cache_size+16,0,0,table_cache_key,
+		   (hash_free_key) free_cache_entry,0) != 0;
 }
 
 
