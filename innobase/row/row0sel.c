@@ -2071,13 +2071,11 @@ row_sel_store_mysql_rec(
 		data = rec_get_nth_field(rec, templ->rec_field_no, &len);
 
 		if (rec_get_nth_field_extern_bit(rec, templ->rec_field_no)) {
+
 			/* Copy an externally stored field to the temporary
 			heap */
 
-			if (prebuilt->trx->has_search_latch) {
-				rw_lock_s_unlock(&btr_search_latch);
-				prebuilt->trx->has_search_latch = FALSE;
-			}
+			ut_a(!prebuilt->trx->has_search_latch);
 
 			extern_field_heap = mem_heap_create(UNIV_PAGE_SIZE);
 
@@ -2091,6 +2089,8 @@ row_sel_store_mysql_rec(
 		if (len != UNIV_SQL_NULL) {
 			if (templ->type == DATA_BLOB) {
 
+				ut_a(prebuilt->templ_contains_blob);
+				
 				/* Copy the BLOB data to the BLOB
 				heap of prebuilt */
 
@@ -2116,6 +2116,20 @@ row_sel_store_mysql_rec(
 				extern_field_heap = NULL;
  			}
 		} else {
+			/* MySQL sometimes seems to copy the 'data'
+			pointed to by a BLOB field even if the field
+			has been marked to contain the SQL NULL value.
+			This caused seg faults reported by two users.
+			Set the BLOB length to 0 and the data pointer
+			to NULL to avoid a seg fault. */
+
+			if (templ->type == DATA_BLOB) {
+				row_sel_field_store_in_mysql_format(
+				mysql_rec + templ->mysql_col_offset,
+				templ->mysql_col_len, NULL,
+				0, templ->type, templ->is_unsigned);
+			}
+
 			if (!templ->mysql_null_bit_mask) {
 				fprintf(stderr,
 "InnoDB: Error: trying to return an SQL NULL field in a non-null\n"
@@ -2369,6 +2383,7 @@ row_sel_push_cache_row_for_mysql(
 	ulint	i;
 
 	ut_ad(prebuilt->n_fetch_cached < MYSQL_FETCH_CACHE_SIZE);
+	ut_a(!prebuilt->templ_contains_blob);
 
 	if (prebuilt->fetch_cache[0] == NULL) {
 		/* Allocate memory for the fetch cache */
@@ -2409,6 +2424,7 @@ row_sel_try_search_shortcut_for_mysql(
 	rec_t*		rec;
 	
 	ut_ad(index->type & DICT_CLUSTERED);
+	ut_ad(!prebuilt->templ_contains_blob);
 
 	btr_pcur_open_with_no_init(index, search_tuple, PAGE_CUR_GE,
 					BTR_SEARCH_LEAF, pcur,
@@ -2591,8 +2607,16 @@ row_search_for_mysql(
 
 	mtr_start(&mtr);
 
-	if (match_mode == ROW_SEL_EXACT && index->type & DICT_UNIQUE
+	/* Since we must release the search system latch when we retrieve an
+	externally stored field, we cannot use the adaptive hash index in a
+	search in the case the row may be long and there may be externally
+	stored fields */
+	
+	if (match_mode == ROW_SEL_EXACT
+		&& index->type & DICT_UNIQUE
 		&& index->type & DICT_CLUSTERED
+		&& !prebuilt->templ_contains_blob
+		&& (prebuilt->mysql_row_len < UNIV_PAGE_SIZE / 8)
 		&& dtuple_get_n_fields(search_tuple)
 				== dict_index_get_n_unique(index)) {
 
@@ -2945,15 +2969,18 @@ rec_loop:
 	/* We found a qualifying row */
 	
 	if (prebuilt->n_rows_fetched >= MYSQL_FETCH_CACHE_THRESHOLD
-			&& !prebuilt->templ_contains_blob
 			&& prebuilt->select_lock_type == LOCK_NONE
+			&& !prebuilt->templ_contains_blob
 			&& !prebuilt->clust_index_was_generated
 	                && prebuilt->template_type
 	                                 != ROW_MYSQL_DUMMY_TEMPLATE) {
 
 		/* Inside an update, for example, we do not cache rows,
 		since we may use the cursor position to do the actual
-		update, that is why we require ...lock_type == LOCK_NONE */
+		update, that is why we require ...lock_type == LOCK_NONE.
+		Since we keep space in prebuilt only for the BLOBs of
+		a single row, we cannot cache rows in the case there
+		are BLOBs in the fields to be fetched. */
 
 		row_sel_push_cache_row_for_mysql(prebuilt, rec);
 

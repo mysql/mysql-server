@@ -961,6 +961,10 @@ dnl Is this the right match for DEC OSF on alpha?
 	  CFLAGS="$CFLAGS -mieee"
 	  CXXFLAGS="$CXXFLAGS -mieee"
       fi
+      echo "Adding defines for OSF1"
+      # gethostbyname_r is deprecated and doesn't work ok on OSF1
+      CFLAGS="$CFLAGS -DUNDEF_HAVE_GETHOSTBYNAME_R"
+      CXXFLAGS="$CXXFLAGS -DUNDEF_HAVE_GETHOSTBYNAME_R"
     ;;
 esac
 

@@ -2682,7 +2682,7 @@ describe:
 	}
 	opt_describe_column
 	| describe_command select
-   { Lex->select_lex.options|= SELECT_DESCRIBE; };
+          { Lex->select_lex.options|= SELECT_DESCRIBE; };
 
 
 describe_command:

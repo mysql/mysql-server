@@ -1638,7 +1638,6 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
       memcpy_fixed(&sock_addr.sin_addr,&ip_addr,sizeof(ip_addr));
     }
     else
-#if defined(HAVE_GETHOSTBYNAME_R) && defined(_REENTRANT) && defined(THREAD)
     {
       int tmp_errno;
       struct hostent tmp_hostent,*hp;
@@ -1649,22 +1648,12 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
       {
 	net->last_errno=CR_UNKNOWN_HOST;
 	sprintf(net->last_error, ER(CR_UNKNOWN_HOST), host, tmp_errno);
+	my_gethostbyname_r_free();
 	goto error;
       }
       memcpy(&sock_addr.sin_addr,hp->h_addr, (size_t) hp->h_length);
+      my_gethostbyname_r_free();
     }
-#else
-    {
-      struct hostent *hp;
-      if (!(hp=gethostbyname(host)))
-      {
-	net->last_errno=CR_UNKNOWN_HOST;
-	sprintf(net->last_error, ER(CR_UNKNOWN_HOST), host, socket_errno);
-	goto error;
-      }
-      memcpy(&sock_addr.sin_addr,hp->h_addr, (size_t) hp->h_length);
-    }
-#endif
     sock_addr.sin_port = (ushort) htons((ushort) port);
     if (my_connect(sock,(struct sockaddr *) &sock_addr, sizeof(sock_addr),
 		 mysql->options.connect_timeout) <0)

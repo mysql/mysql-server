@@ -1182,12 +1182,13 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
 
   password=empty_string;
   empty_string[0]=0;
+
   if (combo.password.str && combo.password.str[0])
   {
     if (combo.password.length != HASH_PASSWORD_LENGTH)
     {
-      send_error(&thd->net, ER_PASSWORD_NO_MATCH);
-      DBUG_RETURN(1);
+      my_error(ER_PASSWORD_NO_MATCH,MYF(0));
+      DBUG_RETURN(-1);
     }
     password=combo.password.str;
   }
