@@ -110,13 +110,13 @@ Vio *vio_new(my_socket sd, enum enum_vio_type type, my_bool localhost)
     vio->fcntl_mode = fcntl(sd, F_GETFL);
 #elif defined(HAVE_SYS_IOCTL_H)			/* hpux */
     /* Non blocking sockets doesn't work good on HPUX 11.0 */
-    (void) ioctl(net->fd,FIOSNBIO,0);
+    (void) ioctl(sd,FIOSNBIO,0);
 #endif
 #else /* !defined(__WIN__) && !defined(__EMX__) */
     {
       /* set to blocking mode by default */
       ulong arg=0, r;
-      r = ioctlsocket(vio->sd,FIONBIO,(void*) &arg, sizeof(arg));
+      r = ioctlsocket(sd,FIONBIO,(void*) &arg, sizeof(arg));
     }
 #endif
   }
