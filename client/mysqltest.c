@@ -2896,7 +2896,7 @@ static int run_query_stmt(MYSQL *mysql, struct st_query *q, int flags)
 
       /* Allocate array with bind structs, lengths and NULL flags */
       bind= (MYSQL_BIND*)      my_malloc(num_fields * sizeof(MYSQL_BIND),
-                                         MYF(MY_WME | MY_FAE));
+                                         MYF(MY_WME | MY_FAE | MY_ZEROFILL));
       length= (unsigned long*) my_malloc(num_fields * sizeof(unsigned long),
                                          MYF(MY_WME | MY_FAE));
       is_null= (my_bool*)      my_malloc(num_fields * sizeof(my_bool),
