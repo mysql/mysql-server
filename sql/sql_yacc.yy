@@ -602,7 +602,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 	opt_table_alias
 
 %type <table>
-	table_ident table_ident_ref references
+	table_ident table_ident_nodb references
 
 %type <simple_string>
 	remember_name remember_end opt_ident opt_db text_or_password
@@ -4874,9 +4874,8 @@ table_ident:
 	| '.' ident		{ $$=new Table_ident($2);} /* For Delphi */
         ;
 
-table_ident_ref:
+table_ident_nodb:
 	ident			{ LEX_STRING db={(char*) any_db,3}; $$=new Table_ident(YYTHD, db,$1,0); }
-	| ident '.' ident	{ $$=new Table_ident(YYTHD, $1,$3,0);}
         ;
 
 IDENT_sys:
@@ -5410,14 +5409,14 @@ handler:
 	  if (!lex->current_select->add_table_to_list(lex->thd, $2, $4, 0))
 	    YYABORT;
 	}
-	| HANDLER_SYM table_ident_ref CLOSE_SYM
+	| HANDLER_SYM table_ident_nodb CLOSE_SYM
 	{
 	  LEX *lex= Lex;
 	  lex->sql_command = SQLCOM_HA_CLOSE;
 	  if (!lex->current_select->add_table_to_list(lex->thd, $2, 0, 0))
 	    YYABORT;
 	}
-	| HANDLER_SYM table_ident_ref READ_SYM
+	| HANDLER_SYM table_ident_nodb READ_SYM
 	{
 	  LEX *lex=Lex;
 	  lex->sql_command = SQLCOM_HA_READ;
