@@ -14,35 +14,21 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#ifndef MGMAPI_CONFIGURATION_HPP
-#define MGMAPI_CONFIGURATION_HPP
+#ifndef NDB_LOGEVENT_HPP
+#define NDB_LOGEVENT_HPP
 
-#include <ConfigValues.hpp>
+#include <ndb_logevent.h>
 
-struct ndb_mgm_configuration {
-  ConfigValues m_config;
+struct Ndb_logevent_body_row {
+  enum Ndb_logevent_type type;     // type
+  const char            *token;    // token to use for text transfer
+  int                    index;                // index into theData array
+  int                    (*index_fn)(int); // conversion function on the data array[index]
+  int                    offset;   // offset into struct ndb_logevent
+  int                    size;     // offset into struct ndb_logevent
 };
 
-struct ndb_mgm_configuration_iterator {
-  Uint32 m_sectionNo;
-  Uint32 m_typeOfSection;
-  ConfigValues::ConstIterator m_config;
-
-  ndb_mgm_configuration_iterator(const ndb_mgm_configuration &, unsigned type);
-  ~ndb_mgm_configuration_iterator();
-
-  int first();
-  int next();
-  int valid() const;
-  int find(int param, unsigned value);
-
-  int get(int param, unsigned * value) const ;
-  int get(int param, Uint64 * value) const ;
-  int get(int param, const char ** value) const ;
-
-  //
-  void reset();
-  int enter();
-};
+extern
+struct Ndb_logevent_body_row ndb_logevent_body[];
 
 #endif

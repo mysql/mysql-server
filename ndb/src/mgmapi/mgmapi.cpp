@@ -22,8 +22,8 @@
 
 #include <NdbSleep.h>
 #include <NdbTCP.h>
-#include "mgmapi.h"
-#include "mgmapi_debug.h"
+#include <mgmapi.h>
+#include <mgmapi_debug.h>
 #include "mgmapi_configuration.hpp"
 #include <socket_io.h>
 
@@ -315,7 +315,7 @@ ndb_mgm_call(NdbMgmHandle handle, const ParserRow<ParserDummy> *command_reply,
     ndbout << "Error in mgm protocol parser. "
 	   << "cmd: '" << cmd
 	   << "' status=" << (Uint32)ctx.m_status
-	   << ", curr=" << (Uint32)ctx.m_currentToken
+	   << ", curr=" << ctx.m_currentToken
 	   << endl;
     DBUG_PRINT("info",("parser.parse returned NULL"));
   } 
@@ -1156,9 +1156,9 @@ ndb_mgm_set_loglevel_node(NdbMgmHandle handle, int nodeId,
   return 0;
 }
 
-extern "C"
 int
-ndb_mgm_listen_event(NdbMgmHandle handle, const int filter[])
+ndb_mgm_listen_event_internal(NdbMgmHandle handle, const int filter[],
+			      int structured)
 {
   SET_ERROR(handle, NDB_MGM_NO_ERROR, "Executing: ndb_mgm_listen_event");
   const ParserRow<ParserDummy> stat_reply[] = {
@@ -1180,6 +1180,8 @@ ndb_mgm_listen_event(NdbMgmHandle handle, const int filter[])
   }
 
   Properties args;
+
+  args.put("structured", structured);
   {
     BaseString tmp;
     for(int i = 0; filter[i] != 0; i += 2){
@@ -1201,6 +1203,13 @@ ndb_mgm_listen_event(NdbMgmHandle handle, const int filter[])
     CHECK_REPLY(reply, -1);
   }
   return sockfd;
+}
+
+extern "C"
+int
+ndb_mgm_listen_event(NdbMgmHandle handle, const int filter[])
+{
+  return ndb_mgm_listen_event_internal(handle,filter,0);
 }
 
 extern "C"
@@ -2137,6 +2146,5 @@ ndb_mgm_get_connection_int_parameter(NdbMgmHandle handle,
   delete prop;
   DBUG_RETURN(res);
 }
-
 
 template class Vector<const ParserRow<ParserDummy>*>;
