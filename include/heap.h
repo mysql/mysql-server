@@ -125,8 +125,8 @@ typedef struct st_hp_keydef		/* Key definition with open */
   TREE rb_tree;
   int (*write_key)(struct st_heap_info *info, struct st_hp_keydef *keyinfo,
 		   const byte *record, byte *recpos);
-  int (*delete_key)(struct st_heap_info *info, struct st_hp_keydef *keyinfo, 
-  		   const byte *record, byte *recpos, int flag);
+  int (*delete_key)(struct st_heap_info *info, struct st_hp_keydef *keyinfo,
+		   const byte *record, byte *recpos, int flag);
   uint (*get_key_length)(struct st_hp_keydef *keydef, const byte *key);
 } HP_KEYDEF;
 
@@ -135,7 +135,7 @@ typedef struct st_heap_share
   HP_BLOCK block;
   HP_KEYDEF  *keydef;
   ulong min_records,max_records;	/* Params to open */
-  ulong data_length,index_length;
+  ulong data_length,index_length,max_table_size;
   uint records;				/* records */
   uint blength;				/* records rounded up to 2^n */
   uint deleted;				/* Deleted records in database */
@@ -185,6 +185,7 @@ typedef struct st_heap_create_info
 {
   uint auto_key;
   uint auto_key_type;
+  ulong max_table_size;
   ulonglong auto_increment;
 } HP_CREATE_INFO;
 
