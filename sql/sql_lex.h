@@ -175,8 +175,8 @@ enum tablespace_op_type
     e||+-------------------------+             ||
      V|            neighbor      |             V|
      unit1.1<+==================>unit1.2       unit2.1
-     fake1.1                                   fake2.1
-     select1.1.1 select 1.1.2    select1.2.1   select2.1.1 select2.1.2
+     fake1.1
+     select1.1.1 select 1.1.2    select1.2.1   select2.1.1
                                                |^
                                                ||
                                                V|
