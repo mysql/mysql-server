@@ -224,7 +224,7 @@ int load_defaults(const char *conf_file, const char **groups,
   if (*argc >= 2 && !strcmp(argv[0][1],"--print-defaults"))
   {
     found_print_defaults=1;
-    --*argc; ++*argv;				/* skipp argument */
+    --*argc; ++*argv;				/* skip argument */
   }
 
   if (*argc)

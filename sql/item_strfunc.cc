@@ -780,7 +780,7 @@ redo:
           register char *i,*j;
           i=(char*) ptr+1; j=(char*) search+1;
           while (j != search_end)
-            if (*i++ != *j++) goto skipp;
+            if (*i++ != *j++) goto skip;
           offset= (int) (ptr-res->ptr());
           if (res->length()-from_length + to_length >
 	      current_thd->variables.max_allowed_packet)
@@ -794,7 +794,7 @@ redo:
 	  offset+=(int) to_length;
           goto redo;
         }
-skipp:
+skip:
         if ((l=my_ismbchar(res->charset(), ptr,strend))) ptr+=l;
         else ++ptr;
     }
@@ -1089,13 +1089,13 @@ String *Item_func_substr_index::val_str(String *str)
 	  register char *i,*j;
 	  i=(char*) ptr+1; j=(char*) search+1;
 	  while (j != search_end)
-	    if (*i++ != *j++) goto skipp;
+	    if (*i++ != *j++) goto skip;
 	  if (pass==0) ++n;
 	  else if (!--c) break;
 	  ptr+=delimeter_length;
 	  continue;
 	}
-    skipp:
+    skip:
         if ((l=my_ismbchar(res->charset(), ptr,strend))) ptr+=l;
         else ++ptr;
       } /* either not found or got total number when count<0 */
