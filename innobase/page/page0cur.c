@@ -253,7 +253,8 @@ page_cur_search_with_match(
 				up_matched_bytes = cur_matched_bytes;
 			}
 
-		} else if ((mode == PAGE_CUR_G) || (mode == PAGE_CUR_LE)) {
+		} else if (mode == PAGE_CUR_G || mode == PAGE_CUR_LE
+			   || mode == PAGE_CUR_LE_OR_EXTENDS) {
 			low = mid;
 			low_matched_fields = cur_matched_fields;
 			low_matched_bytes = cur_matched_bytes;
@@ -308,7 +309,8 @@ page_cur_search_with_match(
 				up_matched_fields = cur_matched_fields;
 				up_matched_bytes = cur_matched_bytes;
 			}
-		} else if ((mode == PAGE_CUR_G) || (mode == PAGE_CUR_LE)) {
+		} else if (mode == PAGE_CUR_G || mode == PAGE_CUR_LE
+			   || mode == PAGE_CUR_LE_OR_EXTENDS) {
 			low_rec = mid_rec;
 			low_matched_fields = cur_matched_fields;
 			low_matched_bytes = cur_matched_bytes;
