@@ -333,4 +333,5 @@ check table t1,t2;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 test.t2	check	status	OK
+select max(a) +1, max(a) +2 into @xx,@yy from t1;
 drop table t1,t2;
