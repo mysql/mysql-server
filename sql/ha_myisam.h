@@ -45,9 +45,10 @@ class ha_myisam: public handler
  public:
   ha_myisam(TABLE *table): handler(table), file(0),
     int_option_flag(HA_READ_NEXT | HA_READ_PREV | HA_READ_RND_SAME |
-		    HA_KEYPOS_TO_RNDPOS | HA_READ_ORDER |  HA_LASTKEY_ORDER |
+		    HA_KEYPOS_TO_RNDPOS | HA_READ_ORDER | HA_LASTKEY_ORDER |
 		    HA_HAVE_KEY_READ_ONLY | HA_READ_NOT_EXACT_KEY |
-		    HA_LONGLONG_KEYS |  HA_NULL_KEY |
+		    HA_LONGLONG_KEYS | HA_NULL_KEY |
+                    HA_CAN_FULLTEXT | HA_CAN_SQL_HANDLER |
 		    HA_DUPP_POS | HA_BLOB_KEY | HA_AUTO_PART_KEY),
     enable_activate_all_index(1)
   {}

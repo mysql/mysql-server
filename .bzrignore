@@ -287,6 +287,7 @@ libmysqld/sql_command
 libmysqld/sql_crypt.cc
 libmysqld/sql_db.cc
 libmysqld/sql_delete.cc
+libmysqld/sql_do.cc
 libmysqld/sql_handler.cc
 libmysqld/sql_insert.cc
 libmysqld/sql_lex.cc
@@ -367,6 +368,7 @@ scripts/mysql_config
 scripts/mysql_convert_table_format
 scripts/mysql_explain_log
 scripts/mysql_find_rows
+scripts/mysql_fix_extensions
 scripts/mysql_fix_privilege_tables
 scripts/mysql_install_db
 scripts/mysql_setpermission
@@ -398,6 +400,7 @@ sql-bench/test-connect
 sql-bench/test-create
 sql-bench/test-insert
 sql-bench/test-select
+sql-bench/test-transactions
 sql-bench/test-wisconsin
 sql/.gdbinit
 sql/gen_lex_hash
@@ -445,5 +448,3 @@ vio/test-ssl
 vio/test-sslclient
 vio/test-sslserver
 vio/viotest-ssl
-sql-bench/test-transactions
-libmysqld/sql_do.cc

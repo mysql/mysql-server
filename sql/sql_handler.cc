@@ -43,7 +43,7 @@
   thd->open_tables=thd->handler_tables; \
   thd->handler_tables=tmp; }
 
-static TABLE **find_table_ptr_by_name(THD *thd, const char *db, 
+static TABLE **find_table_ptr_by_name(THD *thd, const char *db,
 				      const char *table_name);
 
 int mysql_ha_open(THD *thd, TABLE_LIST *tables)
@@ -53,6 +53,13 @@ int mysql_ha_open(THD *thd, TABLE_LIST *tables)
   HANDLER_TABLES_HACK(thd);
   if (err)
     return -1;
+
+  // there can be only one table in *tables
+  if (!(tables->table->file->option_flag() & HA_CAN_SQL_HANDLER))
+  {
+    my_printf_error(ER_ILLEGAL_HA,ER(ER_ILLEGAL_HA),MYF(0), tables->name);
+    return -1;
+  }
 
   send_ok(&thd->net);
   return 0;
@@ -73,7 +80,7 @@ int mysql_ha_close(THD *thd, TABLE_LIST *tables)
   return 0;
 }
 
-static enum enum_ha_read_modes rkey_to_rnext[]= 
+static enum enum_ha_read_modes rkey_to_rnext[]=
     { RNEXT, RNEXT, RPREV, RNEXT, RPREV, RNEXT, RPREV };
 
 int mysql_ha_read(THD *thd, TABLE_LIST *tables,
@@ -166,7 +173,7 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
           if (!(key= (byte*) sql_calloc(ALIGN_SIZE(key_len))))
           {
             send_error(&thd->net,ER_OUTOFMEMORY);
-            goto err; 
+            goto err;
           }
           key_copy(key, table, keyno, key_len);
           err=table->file->index_read(table->record[0],
@@ -176,7 +183,7 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
         }
       default:
           send_error(&thd->net,ER_ILLEGAL_HA);
-          goto err; 
+          goto err;
     }
 
     if (err)
@@ -191,7 +198,7 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
       goto ok;
     }
     if (cond)
-    { 
+    {
       err=err;
       if(!cond->val_int())
         continue;
@@ -234,7 +241,7 @@ err:
 **************************************************************************/
 
 /* Note: this function differs from find_locked_table() because we're looking
-   here for alias, not real table name 
+   here for alias, not real table name
  */
 static TABLE **find_table_ptr_by_name(THD *thd, const char *db,
 				      const char *table_name)
@@ -244,7 +251,7 @@ static TABLE **find_table_ptr_by_name(THD *thd, const char *db,
 
   if (!db || ! *db)
     db= thd->db ? thd->db : "";
-  dblen=strlen(db)+1;  
+  dblen=strlen(db)+1;
   ptr=&(thd->handler_tables);
 
   for (TABLE *table=*ptr; table ; table=*ptr)
