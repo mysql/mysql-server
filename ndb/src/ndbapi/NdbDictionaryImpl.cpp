@@ -1647,7 +1647,7 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
     }
     // primary key type check
     if (col->m_pk && ! NdbSqlUtil::usable_in_pk(col->m_type, col->m_cs)) {
-      m_error.code= 743;
+      m_error.code= (col->m_cs != 0 ? 743 : 739);
       DBUG_RETURN(-1);
     }
     // distribution key not supported for Char attribute
