@@ -39,7 +39,6 @@ static bool check_dup(THD *thd,const char *db,const char *name,
 		      TABLE_LIST *tables);
 static void mysql_init_query(THD *thd);
 static void remove_escape(char *name);
-static void kill_one_thread(THD *thd, ulong thread);
 static void refresh_status(void);
 
 const char *any_db="*any*";	// Special symbol for check_access
@@ -712,6 +711,9 @@ bool do_command(THD *thd)
       thd->server_id = slave_server_id;
       pthread_mutex_unlock(&LOCK_server_id);
       mysql_binlog_send(thd, strdup(packet + 11), pos, flags);
+      // fake COM_QUIT -- if we get here, the thread needs to terminate
+      error = TRUE;
+      net->error = 0;
       break;
     }
   case COM_REFRESH:
@@ -2451,7 +2453,7 @@ bool reload_acl_and_cache(THD *thd, uint options, TABLE_LIST *tables)
 }
 
 
-static void kill_one_thread(THD *thd, ulong id)
+void kill_one_thread(THD *thd, ulong id)
 {
   VOID(pthread_mutex_lock(&LOCK_thread_count)); // For unlink from list
   I_List_iterator<THD> it(threads);
