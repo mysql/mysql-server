@@ -5732,6 +5732,7 @@ CHARSET_INFO my_charset_gb2312_chinese_ci=
     "gb2312",		/* cs name    */
     "gb2312_chinese_ci",/* name */
     "",			/* comment    */
+    NULL,		/* tailoring */
     ctype_gb2312,
     to_lower_gb2312,
     to_upper_gb2312,
@@ -5757,6 +5758,7 @@ CHARSET_INFO my_charset_gb2312_bin=
     "gb2312",		/* cs name    */
     "gb2312_bin",	/* name */
     "",			/* comment    */
+    NULL,		/* tailoring */
     ctype_gb2312,
     to_lower_gb2312,
     to_upper_gb2312,

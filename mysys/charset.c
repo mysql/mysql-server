@@ -624,6 +624,123 @@ err:
 
 #ifdef HAVE_CHARSET_ucs2
 
+typedef struct my_tailoring_st
+{
+  uint  number;
+  const char *name;
+  const char *tailoring;
+} my_tailoring;
+
+static my_tailoring tailoring[]=
+{
+  {
+    0, "icelandic",
+    /*
+      Some sources treat LETTER A WITH DIARESIS (00E4,00C4)
+      secondary greater than LETTER AE (00E6,00C6).
+      http://www.evertype.com/alphabets/icelandic.pdf
+      http://developer.mimer.com/collations/charts/icelandic.htm
+
+      Other sources do not provide any special rules
+      for LETTER A WITH DIARESIS:
+      http://www.omniglot.com/writing/icelandic.htm
+      http://en.wikipedia.org/wiki/Icelandic_alphabet
+      http://oss.software.ibm.com/icu/charts/collation/is.html
+
+      Let's go the first way.
+    */
+    "& A < \\u00E1 <<< \\u00C1 "
+    "& D < \\u00F0 <<< \\u00D0 "
+    "& E < \\u00E9 <<< \\u00C9 "
+    "& I < \\u00ED <<< \\u00CD "
+    "& O < \\u00F3 <<< \\u00D3 "
+    "& U < \\u00FA <<< \\u00DA "
+    "& Y < \\u00FD <<< \\u00DD "
+    "& Z < \\u00FE <<< \\u00DE "
+        "< \\u00E6 <<< \\u00C6 << \\u00E4 <<< \\u00C4 "
+        "< \\u00F6 <<< \\u00D6 << \\u00F8 <<< \\u00D8 "
+        "< \\u00E5 <<< \\u00C5 "
+  },
+  {
+    1, "latvian",
+    /*
+      Some sources treat I and Y primary different.
+      Other sources treat I and Y the same on primary level.
+      We'll go the first way.
+    */
+    "& C < \\u010D <<< \\u010C "
+    "& G < \\u0123 <<< \\u0122 "
+    "& I < \\u0079 <<< \\u0059 "
+    "& K < \\u0137 <<< \\u0136 "
+    "& L < \\u013C <<< \\u013B "
+    "& N < \\u0146 <<< \\u0145 "
+    "& R < \\u0157 <<< \\u0156 "
+    "& S < \\u0161 <<< \\u0160 "
+    "& Z < \\u017E <<< \\u017D "
+  },
+  {
+    2, "romanian",
+    "& A < \\u0103 <<< \\u0102 < \\u00E2 <<< \\u00C2 "
+    "& I < \\u00EE <<< \\u00CE "
+    "& S < \\u0219 <<< \\u0218 << \\u015F <<< \\u015E "
+    "& T < \\u021B <<< \\u021A << \\u0163 <<< \\u0162 "
+  },
+  {
+    3, "slovenian",
+    "& C < \\u010D <<< \\u010C "
+    "& S < \\u0161 <<< \\u0160 "
+    "& Z < \\u017E <<< \\u017D "
+  },
+  {
+    4, "polish",
+    "& A < \\u0105 <<< \\u0104 "
+    "& C < \\u0107 <<< \\u0106 "
+    "& E < \\u0119 <<< \\u0118 "
+    "& L < \\u0142 <<< \\u0141 "
+    "& N < \\u0144 <<< \\u0143 "
+    "& O < \\u00F3 <<< \\u00D3 "
+    "& S < \\u015B <<< \\u015A "
+    "& Z < \\u017A <<< \\u017B "
+  },
+  {
+    5, "estonian",
+    "& S < \\u0161 <<< \\u0160 "
+       " < \\u007A <<< \\u005A "
+       " < \\u017E <<< \\u017D "
+    "& W < \\u00F5 <<< \\u00D5 "
+        "< \\u00E4 <<< \\u00C4 "
+        "< \\u00F6 <<< \\u00D6 "
+        "< \\u00FC <<< \\u00DC "
+  },
+  {
+    6, "spanish",
+    "& N < \\u00F1 <<< \\u00D1 "
+  },
+  {
+    7, "swedish",
+    /*
+      Some sources treat V and W as similar on primary level.
+      We'll treat V and W as different on primary level.
+    */
+    "& Y <<\\u00FC <<< \\u00DC "
+    "& Z < \\u00E5 <<< \\u00C5 "
+        "< \\u00E4 <<< \\u00C4 << \\u00E6 <<< \\u00C6 "
+        "< \\u00F6 <<< \\u00D6 << \\u00F8 <<< \\u00D8 "
+  },
+  {
+    8, "turkish",
+    "& C < \\u00E7 <<< \\u00C7 "
+    "& G < \\u011F <<< \\u011E "
+    "& H < \\u0131 <<< \\u0049 "
+    "& O < \\u00F6 <<< \\u00D6 "
+    "& S < \\u015F <<< \\u015E "
+    "& U < \\u00FC <<< \\u00DC "
+  },
+  {
+    0, NULL, NULL
+  }
+};
+
 #define MY_MAX_COLL_RULE 64
 
 /*
@@ -643,7 +760,7 @@ err:
   default weights.
 */
 
-static int ucs2_copy_data(CHARSET_INFO *to, CHARSET_INFO *from)
+static my_bool create_tailoring(CHARSET_INFO *cs)
 {
   MY_COLL_RULE rule[MY_MAX_COLL_RULE];
   char errstr[128];
@@ -652,32 +769,14 @@ static int ucs2_copy_data(CHARSET_INFO *to, CHARSET_INFO *from)
   const uchar *deflengths= my_charset_ucs2_general_uca.sort_order;
   uint16     **defweights= my_charset_ucs2_general_uca.sort_order_big;
   int rc, i;
-  
-  to->number= from->number ? from->number : to->number;
-  
-  if (from->csname)
-    if (!(to->csname= my_once_strdup(from->csname,MYF(MY_WME))))
-      goto err;
-  
-  if (from->name)
-    if (!(to->name= my_once_strdup(from->name,MYF(MY_WME))))
-      goto err;
-  
-  if (from->comment)
-    if (!(to->comment= my_once_strdup(from->comment,MYF(MY_WME))))
-      goto err;
-  
-  to->strxfrm_multiply= my_charset_ucs2_general_uca.strxfrm_multiply;
-  to->min_sort_char= my_charset_ucs2_general_uca.min_sort_char;
-  to->max_sort_char= my_charset_ucs2_general_uca.max_sort_char;
-  to->mbminlen= 2;
-  to->mbmaxlen= 2;
-  
+
+  if (!cs->tailoring)
+    return 1;
   
   /* Parse ICU Collation Customization expression */
   if ((rc= my_coll_rule_parse(rule, MY_MAX_COLL_RULE,
-                              from->sort_order,
-                              from->sort_order + strlen(from->sort_order),
+                              cs->tailoring,
+                              cs->tailoring + strlen(cs->tailoring),
                               errstr, sizeof(errstr))) <= 0)
   {
     /* 
@@ -687,13 +786,12 @@ static int ucs2_copy_data(CHARSET_INFO *to, CHARSET_INFO *from)
     return 1;
   }
   
-  
   if (!(newweights= (uint16**) my_once_alloc(256*sizeof(uint16*),MYF(MY_WME))))
-    goto err;
+    return 1;
   bzero(newweights, 256*sizeof(uint16*));
   
   if (!(newlengths= (uchar*) my_once_memdup(deflengths,256,MYF(MY_WME))))
-    goto err;
+    return 1;
   
   /*
     Calculate maximum lenghts for the pages
@@ -720,7 +818,7 @@ static int ucs2_copy_data(CHARSET_INFO *to, CHARSET_INFO *from)
       uint size= 256*newlengths[pagec]*sizeof(uint16);
       
       if (!(newweights[pagec]= (uint16*) my_once_alloc(size,MYF(MY_WME))))
-        goto err;
+        return 1;
       bzero((void*) newweights[pagec], size);
       
       for (chc=0 ; chc < 256; chc++)
@@ -749,10 +847,41 @@ static int ucs2_copy_data(CHARSET_INFO *to, CHARSET_INFO *from)
     if (!newweights[i])
       newweights[i]= defweights[i];
   
-  to->sort_order= newlengths;
-  to->sort_order_big= newweights;
+  cs->sort_order= newlengths;
+  cs->sort_order_big= newweights;
   
   return 0;
+}
+
+
+static int ucs2_copy_data(CHARSET_INFO *to, CHARSET_INFO *from)
+{
+  
+  to->number= from->number ? from->number : to->number;
+  
+  if (from->csname)
+    if (!(to->csname= my_once_strdup(from->csname,MYF(MY_WME))))
+      goto err;
+  
+  if (from->name)
+    if (!(to->name= my_once_strdup(from->name,MYF(MY_WME))))
+      goto err;
+  
+  if (from->comment)
+    if (!(to->comment= my_once_strdup(from->comment,MYF(MY_WME))))
+      goto err;
+  
+  if (from->tailoring)
+    if (!(to->tailoring= my_once_strdup(from->tailoring,MYF(MY_WME))))
+      goto err;
+  
+  to->strxfrm_multiply= my_charset_ucs2_general_uca.strxfrm_multiply;
+  to->min_sort_char= my_charset_ucs2_general_uca.min_sort_char;
+  to->max_sort_char= my_charset_ucs2_general_uca.max_sort_char;
+  to->mbminlen= 2;
+  to->mbmaxlen= 2;
+  
+  return create_tailoring(to);
   
 err:
   return 1;
@@ -848,6 +977,24 @@ static int add_collation(CHARSET_INFO *cs)
   return MY_XML_OK;
 }
 
+#ifdef HAVE_CHARSET_ucs2
+static my_bool init_uca_charsets()
+{
+  my_tailoring *t;
+  CHARSET_INFO cs= my_charset_ucs2_general_uca;
+  cs.state= MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONTEXT;
+  char name[64];
+  for (t= tailoring; t->tailoring; t++)
+  {
+    cs.number= 128 + t->number;
+    cs.tailoring= t->tailoring;
+    cs.name= name;
+    sprintf(name, "ucs2_%s_ci", t->name);
+    add_collation(&cs);
+  }
+  return 0;
+}
+#endif
 
 #define MY_MAX_ALLOWED_BUF 1024*1024
 #define MY_CHARSET_INDEX "Index.xml"
@@ -947,6 +1094,9 @@ static my_bool init_available_charsets(myf myflags)
 
     bzero(&all_charsets,sizeof(all_charsets));
     init_compiled_charsets(myflags);
+#ifdef HAVE_CHARSET_ucs2
+    init_uca_charsets();
+#endif
     
     /* Copy compiled charsets */
     for (cs=all_charsets;

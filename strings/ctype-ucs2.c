@@ -1431,6 +1431,7 @@ CHARSET_INFO my_charset_ucs2_general_ci=
     "ucs2",		/* cs name    */
     "ucs2_general_ci",	/* name         */
     "",			/* comment      */
+    NULL,		/* tailoring    */
     ctype_ucs2,		/* ctype        */
     to_lower_ucs2,	/* to_lower     */
     to_upper_ucs2,	/* to_upper     */
@@ -1456,6 +1457,7 @@ CHARSET_INFO my_charset_ucs2_bin=
     "ucs2",		/* cs name    */
     "ucs2_bin",		/* name         */
     "",			/* comment      */
+    NULL,		/* tailoring    */
     ctype_ucs2,		/* ctype        */
     to_lower_ucs2,	/* to_lower     */
     to_upper_ucs2,	/* to_upper     */
