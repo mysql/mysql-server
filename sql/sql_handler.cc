@@ -106,7 +106,7 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
   }
   tables->table=table;
 
-  if (cond && cond->fix_fields(thd,tables))
+  if (cond && cond->fix_fields(thd, tables, &cond))
     return -1;
 
   if (keyname)

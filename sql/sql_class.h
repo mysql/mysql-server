@@ -460,7 +460,6 @@ public:
   bool       query_error, bootstrap, cleanup_done;
   bool	     safe_to_cache_query;
   bool	     volatile killed;
-  bool       having_fix_field; //TRUE when having fix field called
   bool       prepare_command;  
   ulong      param_count,current_param_number;  
   Error<mysql_st_error> err_list;  
@@ -480,7 +479,8 @@ public:
   ulong	     slave_proxy_id;
   NET*       slave_net;			// network connection from slave -> m.
   my_off_t   log_pos;
-   
+  CHARSET_INFO *db_charset;
+
   THD();
   ~THD();
   void cleanup(void);
@@ -749,17 +749,34 @@ class select_union :public select_result {
   bool flush();
 };
 
-/* Single value subselect interface class */
+/* Base subselect interface class */
 class select_subselect :public select_result
 {
+protected:
   Item_subselect *item;
 public:
   select_subselect(Item_subselect *item);
   bool send_fields(List<Item> &list, uint flag) { return 0; };
-  bool send_data(List<Item> &items);
+  bool send_data(List<Item> &items)=0;
   bool send_eof() { return 0; };
-  
+
   friend class Ttem_subselect;
+};
+
+/* Single value subselect interface class */
+class select_singleval_subselect :public select_subselect
+{
+public:
+  select_singleval_subselect(Item_subselect *item):select_subselect(item){}
+  bool send_data(List<Item> &items);
+};
+
+/* EXISTS subselect interface class */
+class select_exists_subselect :public select_subselect
+{
+public:
+  select_exists_subselect(Item_subselect *item):select_subselect(item){}
+  bool send_data(List<Item> &items);
 };
 
 /* Structs used when sorting */

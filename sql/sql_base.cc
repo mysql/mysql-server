@@ -1876,7 +1876,7 @@ int setup_fields(THD *thd, TABLE_LIST *tables, List<Item> &fields,
     }
     else
     {
-      if (item->fix_fields(thd,tables))
+      if (item->fix_fields(thd, tables, it.ref()))
 	DBUG_RETURN(-1); /* purecov: inspected */
       if (item->with_sum_func && item->type() != Item::SUM_FUNC_ITEM &&
 	  sum_func_list)
@@ -2027,7 +2027,7 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
   if (*conds)
   {
     thd->where="where clause";
-    if ((*conds)->fix_fields(thd,tables))
+    if ((*conds)->fix_fields(thd, tables, conds))
       DBUG_RETURN(1);
   }
 
@@ -2038,7 +2038,7 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
     {
       /* Make a join an a expression */
       thd->where="on clause";
-      if (table->on_expr->fix_fields(thd,tables))
+      if (table->on_expr->fix_fields(thd, tables, &table->on_expr))
 	DBUG_RETURN(1);
       thd->cond_count++;
 
