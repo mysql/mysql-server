@@ -1630,6 +1630,8 @@ row_create_index_for_mysql(
 	
 	trx->op_info = "creating index";
 
+	trx_start_if_not_started(trx);
+
 	/* Check that the same column does not appear twice in the index.
 	Starting from 4.0.14, InnoDB should be able to cope with that, but
 	safer not to allow them. */
@@ -1656,9 +1658,16 @@ row_create_index_for_mysql(
 				goto error_handling;
 			}
 		}
-	}
+		
+		/* Check also that prefix_len < DICT_MAX_COL_PREFIX_LEN */
 
-	trx_start_if_not_started(trx);
+		if (dict_index_get_nth_field(index, i)->prefix_len
+						>= DICT_MAX_COL_PREFIX_LEN) {
+			err = DB_TOO_BIG_RECORD;
+
+			goto error_handling;
+		}
+	}
 
 	if (row_mysql_is_recovered_tmp_table(index->table_name)) {
 
@@ -1988,9 +1997,9 @@ row_discard_tablespace_for_mysql(
 	"new_id_high INT;\n"
 	"table_name CHAR;\n"
 	"BEGIN\n"
-	"table_name := ";
+	"table_name := '";
 	static const char discard_tablespace_proc2[] =
-	";\n"
+	"';\n"
 	"new_id_high := %lu;\n"
 	"new_id_low := %lu;\n"
    "new_id := CONCAT(TO_BINARY(new_id_high, 4), TO_BINARY(new_id_low, 4));\n"
