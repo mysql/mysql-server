@@ -2905,9 +2905,13 @@ int ha_ndbcluster::reset()
   DBUG_RETURN(1);
 }
 
+static const char *ha_ndb_bas_ext[]= { ha_ndb_ext, NullS };
 
-const char **ha_ndbcluster::bas_ext() const
-{ static const char *ext[]= { ha_ndb_ext, NullS }; return ext; }
+const char**
+ha_ndbcluster::bas_ext() const
+{   
+  return ha_ndb_bas_ext; 
+}
 
 
 /*
@@ -4644,8 +4648,9 @@ ha_ndbcluster::cached_table_registration(
   }
   {
     Uint64 commit_count;
-    m_ndb->setDatabaseName(m_dbname);
-    if (ndb_get_table_statistics(m_ndb, m_tabname, 0, &commit_count))
+    Ndb *ndb= get_ndb();
+    ndb->setDatabaseName(m_dbname);
+    if (ndb_get_table_statistics(ndb, m_tabname, 0, &commit_count))
     {
       *engine_data= 0;
       DBUG_RETURN(FALSE);
