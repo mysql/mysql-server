@@ -43,7 +43,8 @@ Item_sum::Item_sum(List<Item> &list)
 
 void Item_sum::mark_as_sum_func()
 {
-  current_thd->lex.current_select->with_sum_func= with_sum_func= 1;
+  current_thd->lex.current_select->with_sum_func=1;
+  with_sum_func= 1;
 }
 
 void Item_sum::make_field(Send_field *tmp_field)
@@ -991,9 +992,9 @@ bool Item_sum_count_distinct::setup(THD *thd)
     tmp_table_param->cleanup();
   }
   if (!(table= create_tmp_table(thd, tmp_table_param, list, (ORDER*) 0, 1,
-				0, 0,
+				0,
 				select_lex->options | thd->options,
-				select_lex->master_unit())))
+				HA_POS_ERROR)))
     return 1;
   table->file->extra(HA_EXTRA_NO_ROWS);		// Don't update rows
   table->no_rows=1;
@@ -1091,7 +1092,7 @@ bool Item_sum_count_distinct::setup(THD *thd)
 
 int Item_sum_count_distinct::tree_to_myisam()
 {
-  if (create_myisam_from_heap(table, tmp_table_param,
+  if (create_myisam_from_heap(current_thd, table, tmp_table_param,
 			      HA_ERR_RECORD_FILE_FULL, 1) ||
       tree_walk(&tree, (tree_walk_action)&dump_leaf, (void*)this,
 		left_root_right))
@@ -1137,7 +1138,8 @@ bool Item_sum_count_distinct::add()
       if (tree_to_myisam())
 	return 1;
     }
-    else if (!tree_insert(&tree, table->record[0] + rec_offset, 0, tree.custom_arg))
+    else if (!tree_insert(&tree, table->record[0] + rec_offset, 0,
+			  tree.custom_arg))
       return 1;
   }
   else if ((error=table->file->write_row(table->record[0])))
@@ -1145,12 +1147,14 @@ bool Item_sum_count_distinct::add()
     if (error != HA_ERR_FOUND_DUPP_KEY &&
 	error != HA_ERR_FOUND_DUPP_UNIQUE)
     {
-      if (create_myisam_from_heap(table, tmp_table_param, error,1))
+      if (create_myisam_from_heap(current_thd, table, tmp_table_param, error,
+				  1))
 	return 1;				// Not a table_is_full error
     }
   }
   return 0;
 }
+
 
 longlong Item_sum_count_distinct::val_int()
 {

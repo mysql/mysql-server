@@ -180,10 +180,10 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
       Item *item;
       for (key_len=0 ; (item=it_ke++) ; key_part++)
       {
-	(void) item->save_in_field(key_part->field);
+	(void) item->save_in_field(key_part->field, 1);
 	key_len+=key_part->store_length;
       }
-      if (!(key= (byte*) sql_calloc(ALIGN_SIZE(key_len))))
+      if (!(key= (byte*) thd->calloc(ALIGN_SIZE(key_len))))
       {
 	send_error(thd,ER_OUTOFMEMORY);
 	goto err;

@@ -28,7 +28,7 @@ extern const char *client_errors[];	/* Error messages */
 
 #define CR_MIN_ERROR		2000	/* For easier client code */
 #define CR_MAX_ERROR		2999
-#if defined(OS2) && defined( MYSQL_SERVER)
+#if defined(OS2) && defined(MYSQL_SERVER)
 #define CER(X) client_errors[(X)-CR_MIN_ERROR]
 #else
 #define ER(X) client_errors[(X)-CR_MIN_ERROR]
@@ -51,8 +51,8 @@ extern const char *client_errors[];	/* Error messages */
 #define CR_SERVER_LOST		2013
 #define CR_COMMANDS_OUT_OF_SYNC 2014
 #define CR_NAMEDPIPE_CONNECTION 2015
-#define CR_NAMEDPIPEWAIT_ERROR 2016
-#define CR_NAMEDPIPEOPEN_ERROR 2017
+#define CR_NAMEDPIPEWAIT_ERROR  2016
+#define CR_NAMEDPIPEOPEN_ERROR  2017
 #define CR_NAMEDPIPESETSTATE_ERROR 2018
 #define CR_CANT_READ_CHARSET	2019
 #define CR_NET_PACKET_TOO_LARGE 2020
@@ -62,9 +62,9 @@ extern const char *client_errors[];	/* Error messages */
 #define CR_PROBE_SLAVE_CONNECT  2024
 #define CR_PROBE_MASTER_CONNECT 2025
 #define CR_SSL_CONNECTION_ERROR 2026
+#define CR_MALFORMED_PACKET     2027
 
 /* new 4.1 error codes */
-#define CR_INVALID_CONN_HANDLE	2027
 #define CR_NULL_POINTER		2028
 #define CR_NO_PREPARE_STMT	2029
 #define CR_NOT_ALL_PARAMS_BOUND	2030
@@ -85,3 +85,4 @@ extern const char *client_errors[];	/* Error messages */
 #define CR_SHARED_MEMORY_CONNECT_ABANDODED_ERROR 2044
 #define CR_SHARED_MEMORY_CONNECT_SET_ERROR      2045
 #define CR_CONN_UNKNOW_PROTOCOL 		2046
+#define CR_INVALID_CONN_HANDLE			2047

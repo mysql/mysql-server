@@ -660,3 +660,39 @@ insert into t1 (code, name) values (3, 'Jeremy'), (4, 'Matt');
 select id, code, name from t1 order by id;
 COMMIT;
 DROP TABLE t1;
+
+#
+# Test of multi-table-update
+#
+drop table if exists t1,t2;
+create table t1 (n int(10), d int(10)) type=innodb;
+create table t2 (n int(10), d int(10)) type=innodb;
+insert into t1 values(1,1),(1,2);
+insert into t2 values(1,10),(2,20);
+UPDATE t1,t2 SET t1.d=t2.d,t2.d=30 WHERE t1.n=t2.n;
+select * from t1;
+select * from t2;
+drop table t1,t2;
+
+#
+# Testing of IFNULL
+#
+create table t1 (a int, b int) type=innodb;
+insert into t1 values(20,null);
+select t2.b, ifnull(t2.b,"this is null") from t1 as t2 left join t1 as t3 on
+t2.b=t3.a;
+select t2.b, ifnull(t2.b,"this is null") from t1 as t2 left join t1 as t3 on
+t2.b=t3.a order by 1;
+insert into t1 values(10,null);
+select t2.b, ifnull(t2.b,"this is null") from t1 as t2 left join t1 as t3 on
+t2.b=t3.a order by 1;
+drop table t1;
+
+#
+# Test of read_through not existing const_table
+#
+
+create table t1 (a varchar(10) not null) type=myisam;
+create table t2 (b varchar(10) not null unique) type=innodb;
+select t1.a from t1,t2 where t1.a=t2.b;
+drop table t1,t2;

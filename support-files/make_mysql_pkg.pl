@@ -17,16 +17,30 @@
 # History:
 #
 # When         Who              What
-# -------------------------------------------------------------
+# ------------------------------------------------------------------
 # 2001-09-16   Marc Liyanage    First version
+# 2001-11-18   Marc Liyanage    Improved configure directory options
+#
 
 use strict;
 use DirHandle;
 
 my $data = {};
 	
-$data->{PREFIX_DIR}     = "/usr/local";
-$data->{CONFIG}         = "--prefix=$data->{PREFIX_DIR} --with-innodb";
+$data->{PREFIX_DIR}     = "/usr/local/mysql";
+$data->{CONFIG}         = join(" ",
+	"--prefix=$data->{PREFIX_DIR}",
+	"--localstatedir=$data->{PREFIX_DIR}/data",
+	"--libdir=$data->{PREFIX_DIR}/lib",
+	"--includedir=$data->{PREFIX_DIR}/include",
+	"--with-named-z-libs=/usr/local/libz.a",
+	"--with-innodb",
+	"--with-server-suffix='-entropy.ch'",
+	"--with-comment='http://www.entropy.ch/software/macosx/mysql/'",
+	"--with-mysqld-user=mysql",
+	"--enable-assembler",
+	"CFLAGS=\"-DHAVE_BROKEN_REALPATH -lncurses\"",
+);
 
 
 
@@ -177,8 +191,7 @@ sub make_binary_distribution {
 
 
 # Now we build a fake /usr/local directory hierarchy.
-# This will be fed to the pax tool to create
-# the archive.
+# This will be fed to the pax tool to create the archive.
 #
 sub create_pax_root {
 
@@ -190,7 +203,7 @@ sub create_pax_root {
 	chdir($data->{PAXROOT_DIR});
 	my $tarfile = "$data->{OLDWD}/$data->{BINARY_TARBALL_FILENAME}";
 	
-	if(system("tar -xzf $tarfile")) {
+	if (system("tar -xzf $tarfile")) {
 		abort($data, "Unable to extract $tarfile inside $data->{PAXROOT_DIR}");
 	}
 	
@@ -213,14 +226,35 @@ sub create_pax_root {
 
 	# First create the symlinks in the bin directory
 	#
+	# 2001-02-13: we no longer use symlinks for the binaries, we
+	# use small dummy scripts instead because the
+	# mysql scripts do a lot of guesswork with their
+	# own path and that will not work when called via the symlink
+	#
+#	symlink("../mysql/bin/$_", "$_") foreach (grep {$_ !~ /^\.+$/} DirHandle->new("../mysql/bin")->read());
+
 	chdir("bin");
-	symlink("../mysql/bin/$_", "$_") foreach (grep {$_ !~ /^\.+$/} DirHandle->new("../mysql/bin")->read());
+
+	foreach my $command (grep {$_ !~ /^\.+$/} DirHandle->new("../mysql/bin")->read()) {
+		
+		my $scriptcode = qq+#!/bin/sh\n# Part of the entropy.ch mysql package\ncd /usr/local/mysql/\nexec ./bin/$command "\$\@"\n+;
+		open(SCRIPTFILE, ">$command") or die "Unable to write open $command\n";
+		print SCRIPTFILE $scriptcode;
+		close(SCRIPTFILE);
+		chmod(0755, $command);
+		
+	}
+
+
+
+
+
 
 
 	# Now include the man pages. Two problems here:
 	# 1.) the make_binary_distribution script does not seem
 	#     to include the man pages, so we have to copy them over
-	#     now.
+	#     now. [outdated, was fixed by MySQL!]
 	# 2.) The man pages could be in different sections, so
 	#     we have to recursively copy *and* symlink them.
 	#
@@ -230,7 +264,7 @@ sub create_pax_root {
 	# arrays which in turn will be stored in a hash, using
 	# the section numbers as hash keys.
 	#
-	chdir($data->{OLDWD});
+	chdir("$data->{PAXROOT_DIR}/mysql");
 	my %man_sections;
 	foreach my $manpage (grep {$_ =~ /^.+\.(\d+)$/} DirHandle->new("man")->read()) {
 
@@ -249,20 +283,47 @@ sub create_pax_root {
 
 	foreach my $section (keys(%man_sections)) {
 		
-		system("mkdir -p $data->{PAXROOT_DIR}/mysql/man/man$section/");
 		system("mkdir -p man$section");
 		chdir("man$section");
 		
 		foreach my $manpage (@{$man_sections{$section}}) {
 			
-			system("cp $data->{OLDWD}/man/$manpage $data->{PAXROOT_DIR}/mysql/man/man$section/");
-			symlink("../../../mysql/man/man$section/$manpage", $manpage)
+			symlink("../../../mysql/man/$manpage", $manpage)
 						
 		}
 
 		chdir("..");
 		
 	}
+
+
+
+	# Fix up the library and lib directories. They are packed up wrong in the
+	# binary distribution tarball.
+	#
+	# (no longer needed as of 3.23.47)
+	# (oops, still needed because 3.23.47 is broken...)
+	#
+#	if (-d "$data->{PAXROOT_DIR}/mysql/lib/mysql") {
+#		abort($data, "$data->{PAXROOT_DIR}/mysql/lib/mysql exists, layout has changed!");
+#	}
+#	chdir("$data->{PAXROOT_DIR}/mysql/lib/");
+#	system("mkdir -p mysql");
+#	system("mv * mysql");
+
+#	if (-d "$data->{PAXROOT_DIR}/mysql/include/mysql") {
+#		abort($data, "$data->{PAXROOT_DIR}/mysql/include/mysql exists, layout has changed!");
+#	}
+#	chdir("$data->{PAXROOT_DIR}/mysql/include/");
+#	system("mkdir -p mysql");
+#	system("mv * mysql");
+
+
+
+
+
+
+
 
 
 }
@@ -310,7 +371,7 @@ sub create_package {
 	my $size_compressed = `du -sk $data->{PACKAGE_DIR} | cut -f 1`;
 	chomp($size_compressed);
 	
-	my $numfiles = `find /tmp/mysql-3.23.42-paxroot/ | wc -l`;
+	my $numfiles = `find /tmp/mysql-$data->{VERSION}-paxroot | wc -l`;
 	$numfiles--;
 	
 	open(SIZESFILE, ">$data->{PKG_RESOURCES_DIR}/mysql-$data->{VERSION}.sizes") or abort("Unable to write open sizes file $data->{PKG_RESOURCES_DIR}/mysql-$data->{VERSION}.sizes");

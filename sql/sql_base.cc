@@ -2224,8 +2224,8 @@ static key_map get_key_map_from_key_list(TABLE *table,
 }
 
 /****************************************************************************
-**	This just drops in all fields instead of current '*' field
-**	Returns pointer to last inserted field if ok
+  This just drops in all fields instead of current '*' field
+  Returns pointer to last inserted field if ok
 ****************************************************************************/
 
 bool
@@ -2239,21 +2239,26 @@ insert_fields(THD *thd,TABLE_LIST *tables, const char *db_name,
   for (; tables ; tables=tables->next)
   {
     TABLE *table=tables->table;
-    if (grant_option && !thd->master_access &&
-	check_grant_all_columns(thd,SELECT_ACL,table) )
-      DBUG_RETURN(-1);
     if (!table_name || (!strcmp(table_name,tables->alias) &&
 			(!db_name || !strcmp(tables->db,db_name))))
     {
+      /* Ensure that we have access right to all columns */
+      if (grant_option && !thd->master_access &&
+	  check_grant_all_columns(thd,SELECT_ACL,table) )
+	DBUG_RETURN(-1);
       Field **ptr=table->field,*field;
       thd->used_tables|=table->map;
       while ((field = *ptr++))
       {
 	Item_field *item= new Item_field(field);
 	if (!found++)
-	  (void) it->replace(item);
+	  (void) it->replace(item);		// Replace '*'
 	else
 	  it->after(item);
+	/*
+	  Mark if field used before in this select.
+	  Used by 'insert' to verify if a field name is used twice
+	*/
 	if (field->query_id == thd->query_id)
 	  thd->dupp_field=field;
 	field->query_id=thd->query_id;
@@ -2377,7 +2382,7 @@ fill_record(List<Item> &fields,List<Item> &values)
   while ((field=(Item_field*) f++))
   {
     value=v++;
-    if (value->save_in_field(field->field) > 0)
+    if (value->save_in_field(field->field, 0) > 0)
       DBUG_RETURN(1);
   }
   DBUG_RETURN(0);
@@ -2395,7 +2400,7 @@ fill_record(Field **ptr,List<Item> &values)
   while ((field = *ptr++))
   {
     value=v++;
-    if (value->save_in_field(field) == 1)
+    if (value->save_in_field(field, 0) == 1)
       DBUG_RETURN(1);
   }
   DBUG_RETURN(0);
