@@ -81,6 +81,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
   uchar *null_pos;
   uint null_bit, new_frm_ver, field_pack_length;
   SQL_CRYPT *crypted=0;
+  MEM_ROOT **root_ptr, *old_root;
   DBUG_ENTER("openfrm");
   DBUG_PRINT("enter",("name: '%s'  form: %lx",name,outparam));
 
@@ -91,8 +92,9 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
   error=1;
 
   init_sql_alloc(&outparam->mem_root, TABLE_ALLOC_BLOCK_SIZE, 0);
-  MEM_ROOT *old_root=my_pthread_getspecific_ptr(MEM_ROOT*,THR_MALLOC);
-  my_pthread_setspecific_ptr(THR_MALLOC,&outparam->mem_root);
+  root_ptr= my_pthread_getspecific_ptr(MEM_ROOT**, THR_MALLOC);
+  old_root= *root_ptr;
+  *root_ptr= &outparam->mem_root;
 
   outparam->real_name=strdup_root(&outparam->mem_root,
 				  name+dirname_length(name));
@@ -251,9 +253,9 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 #ifdef HAVE_CRYPTED_FRM
   else if (*(head+26) == 2)
   {
-    my_pthread_setspecific_ptr(THR_MALLOC,old_root);
+    *root_ptr= old_root
     crypted=get_crypt_for_frm();
-    my_pthread_setspecific_ptr(THR_MALLOC,&outparam->mem_root);
+    *root_ptr= &outparam->mem_root;
     outparam->crypted=1;
   }
 #endif
@@ -736,7 +738,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
   }
   outparam->db_low_byte_first=outparam->file->low_byte_first();
 
-  my_pthread_setspecific_ptr(THR_MALLOC,old_root);
+  *root_ptr= old_root;
   opened_tables++;
 #ifndef DBUG_OFF
   if (use_hash)
@@ -751,7 +753,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 
  err_end:					/* Here when no file */
   delete crypted;
-  my_pthread_setspecific_ptr(THR_MALLOC,old_root);
+  *root_ptr= old_root;
   frm_error(error,outparam,name,ME_ERROR+ME_WAITTANG);
   delete outparam->file;
   outparam->file=0;				// For easyer errorchecking

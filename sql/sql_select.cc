@@ -4612,7 +4612,7 @@ static Field* create_tmp_field_from_field(THD *thd, Field* org_field,
                                    org_field->field_name, table,
                                    org_field->charset());
   else
-    new_field= org_field->new_field(&thd->mem_root, table);
+    new_field= org_field->new_field(thd->mem_root, table);
   if (new_field)
   {
     if (modify_item)
@@ -5215,7 +5215,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       if (!using_unique_constraint)
       {
 	group->buff=(char*) group_buff;
-	if (!(group->field=field->new_field(&thd->mem_root,table)))
+	if (!(group->field=field->new_field(thd->mem_root,table)))
 	  goto err; /* purecov: inspected */
 	if (maybe_null)
 	{
@@ -8508,7 +8508,7 @@ setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
 	   saved value
 	*/
 	Field *field= item->field;
-	item->result_field=field->new_field(&thd->mem_root,field->table);
+	item->result_field=field->new_field(thd->mem_root,field->table);
 	char *tmp=(char*) sql_alloc(field->pack_length()+1);
 	if (!tmp)
 	  goto err;
@@ -8951,7 +8951,7 @@ bool JOIN::rollup_init()
     return 1;
   rollup.ref_pointer_arrays= (Item***) (rollup.fields + send_group_parts);
   ref_array= (Item**) (rollup.ref_pointer_arrays+send_group_parts);
-  rollup.item_null= new (&thd->mem_root) Item_null();
+  rollup.item_null= new (thd->mem_root) Item_null();
 
   /*
     Prepare space for field list for the different levels
