@@ -87,13 +87,6 @@ pars_get_lex_chars(
 	int	max_size);	/* in: maximum number of characters which fit
 				in the buffer */
 /*****************************************************************
-Instructs the lexical analyzer to stop when it receives the EOF integer. */
-
-int
-yywrap(void);
-/*========*/
-		/* out: returns TRUE */
-/*****************************************************************
 Called by yyparse on error. */
 
 void
