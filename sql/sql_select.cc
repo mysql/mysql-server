@@ -271,8 +271,8 @@ JOIN::prepare(TABLE_LIST *tables_init,
     thd->where="having clause";
     thd->allow_sum_func=1;
     select_lex->having_fix_field= 1;
-    bool having_fix_rc= (having->check_cols(1) ||
-			 having->fix_fields(thd, tables_list, &having));
+    bool having_fix_rc= (having->fix_fields(thd, tables_list, &having) ||
+			 having->check_cols(1));
     select_lex->having_fix_field= 0;
     if (having_fix_rc || thd->net.report_error)
       DBUG_RETURN(-1);				/* purecov: inspected */
@@ -6912,7 +6912,7 @@ find_order_in_list(THD *thd,TABLE_LIST *tables,ORDER *order,List<Item> &fields,
   }
   order->in_field_list=0;
   Item *it= *order->item;
-  if (it->check_cols(1) || it->fix_fields(thd, tables, order->item) ||
+  if (it->fix_fields(thd, tables, order->item) || it->check_cols(1) ||
       thd->fatal_error)
     return 1;					// Wrong field
   all_fields.push_front(*order->item);		// Add new field to field list

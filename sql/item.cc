@@ -606,7 +606,7 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 			   (char *)field_name);
 	if (!r)
 	  return 1;
-	if (r->check_cols(1) || r->fix_fields(thd, tables, ref))
+	if (r->fix_fields(thd, tables, ref) || r->check_cols(1))
 	  return 1;
 	r->depended_from= last;
 	cursel->mark_as_dependent(last);
@@ -630,7 +630,7 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 	  if (!rf)
 	    return 1;
 	  (rf)->outer_resolving= outer_resolving;
-	  return rf->check_cols(1) || rf->fix_fields(thd, tables, ref);
+	  return rf->fix_fields(thd, tables, ref) ||  rf->check_cols(1);
 	}
       }
     } 

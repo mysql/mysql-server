@@ -51,6 +51,9 @@ SELECT (SELECT 'b',2,'a') = ROW(1.5,2,'a');
 SELECT (SELECT 1.5,2,'a') = ROW(1.5,'c','a');
 SELECT (SELECT 1.5,'c','a') = ROW(1.5,2,'a');
 
+-- error 1239
+SELECT (SELECT * FROM (SELECT 'test' a,'test' b) a);
+
 create table t1 (a int);
 create table t2 (a int, b int);
 create table t3 (a int);
