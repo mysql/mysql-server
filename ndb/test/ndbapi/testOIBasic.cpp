@@ -2301,7 +2301,7 @@ scanupdatetable(Par par)
   // updating trans
   Con con2;
   con2.m_ndb = con.m_ndb;
-  CHK(con2.startTransaction(con) == 0);
+  CHK(con2.startTransaction() == 0);
   while (1) {
     int ret;
     CHK((ret = con.nextScanResult()) == 0 || ret == 1);
@@ -2347,7 +2347,7 @@ scanupdateindex(Par par, const ITab& itab, const BSet& bset)
   // updating trans
   Con con2;
   con2.m_ndb = con.m_ndb;
-  CHK(con2.startTransaction(con) == 0);
+  CHK(con2.startTransaction() == 0);
   while (1) {
     int ret;
     CHK((ret = con.nextScanResult()) == 0 || ret == 1);
