@@ -61,7 +61,7 @@ sp_eval_func_item(THD *thd, Item *it, enum enum_field_types type)
   }
 
   /* QQ How do we do this? Is there some better way? */
-  if (type == MYSQL_TYPE_NULL)
+  if (type == MYSQL_TYPE_NULL || it->is_null())
     it= new Item_null();
   else
   {
