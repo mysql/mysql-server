@@ -24,14 +24,16 @@
 
 #include "mysql_priv.h"
 #include "sp_pcontext.h"
+#include "sp_head.h"
 
 sp_pcontext::sp_pcontext()
-    : m_params(0), m_framesize(0), m_i(0)
+  : m_params(0), m_framesize(0), m_i(0), m_genlab(0)
 {
   m_pvar_size = 16;
   m_pvar = (sp_pvar_t *)my_malloc(m_pvar_size * sizeof(sp_pvar_t), MYF(MY_WME));
   if (m_pvar)
     memset(m_pvar, 0, m_pvar_size * sizeof(sp_pvar_t));
+  m_label.empty();
 }
 
 void
@@ -88,4 +90,42 @@ sp_pcontext::push(LEX_STRING *name, enum enum_field_types type,
     m_pvar[m_i].isset= (mode == sp_param_out ? FALSE : TRUE);
     m_i += 1;
   }
+}
+
+void
+sp_pcontext::push_label(char *name, uint ip)
+{
+  sp_label_t *lab = (sp_label_t *)my_malloc(sizeof(sp_label_t), MYF(MY_WME));
+
+  if (lab)
+  {
+    lab->name= name;
+    lab->ip= ip;
+    m_label.push_front(lab);
+  }
+}
+
+void
+sp_pcontext::push_gen_label(uint ip)
+{
+  char *s= my_malloc(10, MYF(MY_WME)); // 10=...
+
+  if (s)
+  {
+    sprintf(s, ".%08x", m_genlab++); // ...9+1
+    push_label(s, ip);
+  }
+}
+
+sp_label_t *
+sp_pcontext::find_label(char *name)
+{
+  List_iterator_fast<sp_label_t> li(m_label);
+  sp_label_t *lab;
+
+  while ((lab= li++))
+    if (strcasecmp(name, lab->name) == 0)
+      return lab;
+
+  return NULL;
 }
