@@ -805,13 +805,8 @@ String *Item_func_insert::val_str(String *str)
   if (args[0]->null_value || args[1]->null_value || args[2]->null_value ||
       args[3]->null_value)
     goto null; /* purecov: inspected */
-#ifdef USE_MB
-  if (use_mb(res->charset()) && !args[0]->binary())
-  {
-    start=res->charpos(start);
-    length=res->charpos(length,start);
-  }
-#endif
+  start=res->charpos(start);
+  length=res->charpos(length,start);
   if (start > res->length()+1)
     return res;					// Wrong param; skip insert
   if (length > res->length()-start)
@@ -878,10 +873,7 @@ String *Item_func_left::val_str(String *str)
     return 0;
   if (length <= 0)
     return &empty_string;
-#ifdef USE_MB
-  if (use_mb(res->charset()) && !binary())
-    length = res->charpos(length);
-#endif
+  length= res->charpos(length);
   if (res->length() > (ulong) length)
   {						// Safe even if const arg
     if (!res->alloced_length())
@@ -927,19 +919,11 @@ String *Item_func_right::val_str(String *str)
     return &empty_string; /* purecov: inspected */
   if (res->length() <= (uint) length)
     return res; /* purecov: inspected */
-#ifdef USE_MB
-  if (use_mb(res->charset()) && !binary())
-  {
-    uint start=res->numchars()-(uint) length;
-    if (start<=0) return res;
-    start=res->charpos(start);
-    tmp_value.set(*res,start,res->length()-start);
-  }
-  else
-#endif
-  {
-    tmp_value.set(*res,(res->length()- (uint) length),(uint) length);
-  }
+
+  uint start=res->numchars()-(uint) length;
+  if (start<=0) return res;
+  start=res->charpos(start);
+  tmp_value.set(*res,start,res->length()-start);
   return &tmp_value;
 }
 
@@ -960,13 +944,8 @@ String *Item_func_substr::val_str(String *str)
   if ((null_value=(args[0]->null_value || args[1]->null_value ||
 		   (arg_count == 3 && args[2]->null_value))))
     return 0; /* purecov: inspected */
-#ifdef USE_MB
-  if (use_mb(res->charset()) && !binary())
-  {
-    start=res->charpos(start);
-    length=res->charpos(length,start);
-  }
-#endif
+  start=res->charpos(start);
+  length=res->charpos(length,start);
   if (start < 0 || (uint) start+1 > res->length() || length <= 0)
     return &empty_string;
 
