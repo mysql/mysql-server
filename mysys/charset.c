@@ -28,7 +28,7 @@ static my_bool create_fromuni(CHARSET_INFO *cs);
 
 #define MY_CHARSET_INDEX "Index.xml"
 
-const char *charsets_dir = NULL;
+const char *charsets_dir= NULL;
 static int charset_initialized=0;
 
 #define MAX_LINE  1024
@@ -39,9 +39,10 @@ static int charset_initialized=0;
 #define SORT_ORDER_TABLE_SIZE 256
 #define TO_UNI_TABLE_SIZE     256
 
+
 char *get_charsets_dir(char *buf)
 {
-  const char *sharedir = SHAREDIR;
+  const char *sharedir= SHAREDIR;
   DBUG_ENTER("get_charsets_dir");
 
   if (charsets_dir != NULL)
@@ -56,7 +57,7 @@ char *get_charsets_dir(char *buf)
 	      NullS);
   }
   convert_dirname(buf,buf,NullS);
-  DBUG_PRINT("info",("charsets dir='%s'", buf));
+  DBUG_PRINT("info",("charsets dir: '%s'", buf));
   DBUG_RETURN(strend(buf));
 }
 
@@ -66,7 +67,7 @@ char *get_charsets_dir(char *buf)
 #ifndef DBUG_OFF
 static void mstr(char *str,const char *src,uint l1,uint l2)
 {
-  l1 = l1<l2 ? l1 : l2;
+  l1= l1<l2 ? l1 : l2;
   memcpy(str,src,l1);
   str[l1]='\0';
 }
@@ -127,8 +128,10 @@ static struct my_cs_file_section_st * cs_file_sec(const char *attr, uint len)
 {
   struct my_cs_file_section_st *s;
   for (s=sec; s->str; s++)
+  {
     if (!strncmp(attr,s->str,len))
       return s;
+  }
   return NULL;
 }
 
@@ -172,106 +175,90 @@ static void simple_cs_init_functions(CHARSET_INFO *cs)
   cs->mbmaxlen    = 1;
 }
 
-/* FIXME: BAR: move to more proper place, my_alloc.c I suppose */
-static char *my_once_strdup(const char *src,myf myflags)
-{
-  uint len=strlen(src);
-  char *dst=my_once_alloc(len+1,myflags);
-  if (dst)
-    memcpy(dst,src,len+1);
-  return dst;
-}
 
 static void simple_cs_copy_data(CHARSET_INFO *to, CHARSET_INFO *from)
 {
-  to->number = from->number ? from->number : to->number;
-  to->state  |= from->state;
+  to->number= from->number ? from->number : to->number;
+  to->state|= from->state;
 
   if (from->csname)
-    to->csname=my_once_strdup(from->csname,MYF(MY_WME));
+    to->csname= my_once_strdup(from->csname,MYF(MY_WME));
   
   if (from->name)
-    to->name=my_once_strdup(from->name,MYF(MY_WME));
+    to->name= my_once_strdup(from->name,MYF(MY_WME));
   
   if (from->ctype)
-  {
-    to->ctype    = (uchar*) my_once_alloc(CTYPE_TABLE_SIZE,MYF(MY_WME));
-    memcpy((char*)to->ctype,(char*)from->ctype,CTYPE_TABLE_SIZE);
-  }
+    to->ctype= (uchar*) my_once_memdup((char*) from->ctype,
+				       CTYPE_TABLE_SIZE, MYF(MY_WME));
   if (from->to_lower)
-  {
-    to->to_lower = (uchar*) my_once_alloc(TO_LOWER_TABLE_SIZE,MYF(MY_WME));
-    memcpy((char*)to->to_lower,(char*)from->to_lower,TO_LOWER_TABLE_SIZE);
-  }
+    to->to_lower= (uchar*) my_once_memdup((char*) from->to_lower,
+					  TO_LOWER_TABLE_SIZE, MYF(MY_WME));
   if (from->to_upper)
-  {
-    to->to_upper = (uchar*) my_once_alloc(TO_UPPER_TABLE_SIZE,MYF(MY_WME));
-    memcpy((char*)to->to_upper,(char*)from->to_upper,TO_UPPER_TABLE_SIZE);
-  }
+    to->to_upper= (uchar*) my_once_memdup((char*) from->to_upper,
+					  TO_UPPER_TABLE_SIZE, MYF(MY_WME));
   if (from->sort_order)
   {
-    to->sort_order=(uchar*) my_once_alloc(SORT_ORDER_TABLE_SIZE,MYF(MY_WME));
-    memcpy((char*)to->sort_order,(char*)from->sort_order, SORT_ORDER_TABLE_SIZE);
+    to->sort_order= (uchar*) my_once_memdup((char*) from->sort_order,
+					    SORT_ORDER_TABLE_SIZE,
+					    MYF(MY_WME));
     set_max_sort_char(to);
   }
   if (from->tab_to_uni)
   {
     uint sz=TO_UNI_TABLE_SIZE*sizeof(uint16);
-    to->tab_to_uni=(uint16*)my_once_alloc(sz,MYF(MY_WME));
-    memcpy((char*)to->tab_to_uni,(char*)from->tab_to_uni,sz);
+    to->tab_to_uni= (uint16*)  my_once_memdup((char*)from->tab_to_uni, sz,
+					     MYF(MY_WME));
     create_fromuni(to);
   }
 }
 
+
 static my_bool simple_cs_is_full(CHARSET_INFO *cs)
 {
-  return 
-    (cs->csname && cs->tab_to_uni && cs->ctype && cs->to_upper && cs->to_lower)
-    &&
-    (cs->number && cs->name && cs->sort_order);
+  return ((cs->csname && cs->tab_to_uni && cs->ctype && cs->to_upper &&
+	   cs->to_lower) &&
+	  (cs->number && cs->name && cs->sort_order));
 }
+
 
 static int fill_uchar(uchar *a,uint size,const char *str, uint len)
 {
-  uint i=0;
+  uint i= 0;
   const char *s, *b, *e=str+len;
   
-  for (s=str ; s<e ; i++)
+  for (s=str ; s < e ; i++)
   { 
-    for ( ; (s<e) && strchr(" \t\r\n",s[0]); s++);
+    for ( ; (s < e) && strchr(" \t\r\n",s[0]); s++) ;
     b=s;
-    for ( ; (s<e) && !strchr(" \t\r\n",s[0]); s++);
-    if (s==b)
+    for ( ; (s < e) && !strchr(" \t\r\n",s[0]); s++) ;
+    if (s == b || i > size)
       break;
-    if (i>size)
-      break;
-    a[i]=my_strntoul(my_charset_latin1,b,s-b,NULL,16);
+    a[i]= my_strntoul(my_charset_latin1,b,s-b,NULL,16);
   }
   return 0;
 }
 
 static int fill_uint16(uint16 *a,uint size,const char *str, uint len)
 {
-  uint i=0;
+  uint i= 0;
   const char *s, *b, *e=str+len;
-  for (s=str ; s<e ; i++)
+  for (s=str ; s < e ; i++)
   { 
-    for ( ; (s<e) && strchr(" \t\r\n",s[0]); s++);
+    for ( ; (s < e) && strchr(" \t\r\n",s[0]); s++) ;
     b=s;
-    for ( ; (s<e) && !strchr(" \t\r\n",s[0]); s++);
-    if (s==b)
+    for ( ; (s < e) && !strchr(" \t\r\n",s[0]); s++) ;
+    if (s == b || i > size)
       break;
-    if (i>size)
-      break;
-    a[i]=my_strntol(my_charset_latin1,b,s-b,NULL,16);
+    a[i]= my_strntol(my_charset_latin1,b,s-b,NULL,16);
   }
   return 0;
 }
 
+
 static int cs_enter(MY_XML_PARSER *st,const char *attr, uint len)
 {
-  struct my_cs_file_info *i = (struct my_cs_file_info *)st->user_data;
-  struct my_cs_file_section_st *s = cs_file_sec(attr,len);
+  struct my_cs_file_info *i= (struct my_cs_file_info *)st->user_data;
+  struct my_cs_file_section_st *s= cs_file_sec(attr,len);
   
   if ( s && (s->state == _CS_CHARSET))
   {
@@ -280,23 +267,23 @@ static int cs_enter(MY_XML_PARSER *st,const char *attr, uint len)
   return MY_XML_OK;
 }
 
+
 static int cs_leave(MY_XML_PARSER *st,const char *attr, uint len)
 {
-  struct my_cs_file_info *i = (struct my_cs_file_info *)st->user_data;
-  struct my_cs_file_section_st *s = cs_file_sec(attr,len);
-  int    state = s ? s->state : 0;
+  struct my_cs_file_info *i= (struct my_cs_file_info *)st->user_data;
+  struct my_cs_file_section_st *s= cs_file_sec(attr,len);
+  int    state= s ? s->state : 0;
   
   if (state == _CS_COLLATION)
   {
-    if (i->cs.name && (i->cs.number || (i->cs.number=get_charset_number(i->cs.name))))
+    if (i->cs.name && (i->cs.number ||
+		       (i->cs.number=get_charset_number(i->cs.name))))
     {
       if (!all_charsets[i->cs.number])
       {
         if (!(all_charsets[i->cs.number]=
            (CHARSET_INFO*) my_once_alloc(sizeof(CHARSET_INFO),i->myflags)))
-        {
           return MY_XML_ERROR;
-        }
         bzero((void*)all_charsets[i->cs.number],sizeof(CHARSET_INFO));
       }
       
@@ -309,22 +296,22 @@ static int cs_leave(MY_XML_PARSER *st,const char *attr, uint len)
           all_charsets[i->cs.number]->state |= MY_CS_LOADED;
         }
       }
-      i->cs.number=0;
-      i->cs.name=NULL;
-      i->cs.state=0;
-      i->cs.sort_order=NULL;
-      i->cs.state=0;
+      i->cs.number= 0;
+      i->cs.name= NULL;
+      i->cs.state= 0;
+      i->cs.sort_order= NULL;
+      i->cs.state= 0;
     }
   }
-  
   return MY_XML_OK;
 }
 
+
 static int cs_value(MY_XML_PARSER *st,const char *attr, uint len)
 {
-  struct my_cs_file_info *i = (struct my_cs_file_info *)st->user_data;
+  struct my_cs_file_info *i= (struct my_cs_file_info *)st->user_data;
   struct my_cs_file_section_st *s;
-  int    state = (s=cs_file_sec(st->attr,strlen(st->attr))) ? s->state : 0;
+  int    state= (s=cs_file_sec(st->attr,strlen(st->attr))) ? s->state : 0;
   
 #ifndef DBUG_OFF
   if(0){
@@ -334,48 +321,48 @@ static int cs_value(MY_XML_PARSER *st,const char *attr, uint len)
   }
 #endif
   
-  switch (state)
-  {
-    case _CS_ID:
-      i->cs.number = my_strntoul(my_charset_latin1,attr,len,(char**)NULL,0);
-      break;
-    case _CS_COLNAME:
-      memcpy(i->name,attr,len=min(len,CS_MAX_NM_LEN-1));
-      i->name[len]='\0';
-      i->cs.name=i->name;
-      break;
-    case _CS_NAME:
-      memcpy(i->csname,attr,len=min(len,CS_MAX_NM_LEN-1));
-      i->csname[len]='\0';
-      i->cs.csname=i->csname;
-      break;
-    case _CS_FLAG:
-      if (!strncmp("primary",attr,len))
-        i->cs.state |= MY_CS_PRIMARY;
-      break;
-    case _CS_UPPERMAP:
-      fill_uchar(i->to_upper,TO_UPPER_TABLE_SIZE,attr,len);
-      i->cs.to_upper=i->to_upper;
-      break;
-    case _CS_LOWERMAP:
-      fill_uchar(i->to_lower,TO_LOWER_TABLE_SIZE,attr,len);
-      i->cs.to_lower=i->to_lower;
-      break;
-    case _CS_UNIMAP:
-      fill_uint16(i->tab_to_uni,TO_UNI_TABLE_SIZE,attr,len);
-      i->cs.tab_to_uni=i->tab_to_uni;
-      break;
-    case _CS_COLLMAP:
-      fill_uchar(i->sort_order,SORT_ORDER_TABLE_SIZE,attr,len);
-      i->cs.sort_order=i->sort_order;
-      break;
-    case _CS_CTYPEMAP:
-      fill_uchar(i->ctype,CTYPE_TABLE_SIZE,attr,len);
-      i->cs.ctype=i->ctype;
-      break;
+  switch (state) {
+  case _CS_ID:
+    i->cs.number= my_strntoul(my_charset_latin1,attr,len,(char**)NULL,0);
+    break;
+  case _CS_COLNAME:
+    memcpy(i->name,attr,len=min(len,CS_MAX_NM_LEN-1));
+    i->name[len]='\0';
+    i->cs.name=i->name;
+    break;
+  case _CS_NAME:
+    memcpy(i->csname,attr,len=min(len,CS_MAX_NM_LEN-1));
+    i->csname[len]='\0';
+    i->cs.csname=i->csname;
+    break;
+  case _CS_FLAG:
+    if (!strncmp("primary",attr,len))
+      i->cs.state|= MY_CS_PRIMARY;
+    break;
+  case _CS_UPPERMAP:
+    fill_uchar(i->to_upper,TO_UPPER_TABLE_SIZE,attr,len);
+    i->cs.to_upper=i->to_upper;
+    break;
+  case _CS_LOWERMAP:
+    fill_uchar(i->to_lower,TO_LOWER_TABLE_SIZE,attr,len);
+    i->cs.to_lower=i->to_lower;
+    break;
+  case _CS_UNIMAP:
+    fill_uint16(i->tab_to_uni,TO_UNI_TABLE_SIZE,attr,len);
+    i->cs.tab_to_uni=i->tab_to_uni;
+    break;
+  case _CS_COLLMAP:
+    fill_uchar(i->sort_order,SORT_ORDER_TABLE_SIZE,attr,len);
+    i->cs.sort_order=i->sort_order;
+    break;
+  case _CS_CTYPEMAP:
+    fill_uchar(i->ctype,CTYPE_TABLE_SIZE,attr,len);
+    i->cs.ctype=i->ctype;
+    break;
   }
   return MY_XML_OK;
 }
+
 
 static my_bool read_charset_index(const char *filename, myf myflags)
 {
@@ -385,10 +372,10 @@ static my_bool read_charset_index(const char *filename, myf myflags)
   MY_XML_PARSER p;
   struct my_cs_file_info i;
   
-  if (! (buf = (char *)my_malloc(MAX_BUF,myflags)))
+  if (!(buf= (char *)my_malloc(MAX_BUF,myflags)))
     return FALSE;
   
-  strmov(get_charsets_dir(buf),filename);
+  strmov(get_charsets_dir(buf), filename);
   
   if ((fd=my_open(buf,O_RDONLY,myflags)) < 0)
   {
@@ -405,18 +392,18 @@ static my_bool read_charset_index(const char *filename, myf myflags)
   my_xml_set_leave_handler(&p,cs_leave);
   my_xml_set_user_data(&p,(void*)&i);
   
-  if (MY_XML_OK!=my_xml_parse(&p,buf,len))
+  if (my_xml_parse(&p,buf,len) != MY_XML_OK)
   {
-  /*
+#ifdef NOT_YET
     printf("ERROR at line %d pos %d '%s'\n",
-      my_xml_error_lineno(&p)+1,
-      my_xml_error_pos(&p),
-      my_xml_error_string(&p));
-  */
+	   my_xml_error_lineno(&p)+1,
+	   my_xml_error_pos(&p),
+	   my_xml_error_string(&p));
+#endif
   }
-  
+
   my_xml_parser_free(&p);
-  
+  my_free(buf, myflags);  
   return FALSE;
 }
 
@@ -429,7 +416,7 @@ static void set_max_sort_char(CHARSET_INFO *cs)
     return;
   
   max_char=cs->sort_order[(uchar) cs->max_sort_char];
-  for (i = 0; i < 256; i++)
+  for (i= 0; i < 256; i++)
   {
     if ((uchar) cs->sort_order[i] > max_char)
     {
@@ -445,14 +432,14 @@ static my_bool init_available_charsets(myf myflags)
   /*
     We have to use charset_initialized to not lock on THR_LOCK_charset
     inside get_internal_charset...
-   */
+  */
   if (!charset_initialized)
   {
     CHARSET_INFO **cs;
-  /*
-    To make things thread safe we are not allowing other threads to interfere
-    while we may changing the cs_info_table
-  */
+    /*
+      To make things thread safe we are not allowing other threads to interfere
+      while we may changing the cs_info_table
+    */
     pthread_mutex_lock(&THR_LOCK_charset);
 
     bzero(&all_charsets,sizeof(all_charsets));
@@ -464,7 +451,7 @@ static my_bool init_available_charsets(myf myflags)
       if (*cs)
         set_max_sort_char(*cs);
     }
-    error = read_charset_index(MY_CHARSET_INDEX,myflags);
+    error= read_charset_index(MY_CHARSET_INDEX,myflags);
     charset_initialized=1;
     pthread_mutex_unlock(&THR_LOCK_charset);
   }
@@ -477,14 +464,17 @@ void free_charsets(void)
   charset_initialized=0;
 }
 
+
 static void get_charset_conf_name(const char *cs_name, char *buf)
 {
   strxmov(get_charsets_dir(buf), cs_name, ".conf", NullS);
 }
 
-typedef struct {
-	int		nchars;
-	MY_UNI_IDX	uidx;
+
+typedef struct
+{
+  int		nchars;
+  MY_UNI_IDX	uidx;
 } uni_idx;
 
 #define PLANE_SIZE	0x100
@@ -493,16 +483,18 @@ typedef struct {
 
 static int pcmp(const void * f, const void * s)
 {
-  const uni_idx *F=(const uni_idx*)f;
-  const uni_idx *S=(const uni_idx*)s;
+  const uni_idx *F= (const uni_idx*) f;
+  const uni_idx *S= (const uni_idx*) s;
   int res;
 
-  if(!(res=((S->nchars)-(F->nchars))))
+  if (!(res=((S->nchars)-(F->nchars))))
     res=((F->uidx.from)-(S->uidx.to));
   return res;
 }
 
-static my_bool create_fromuni(CHARSET_INFO *cs){
+
+static my_bool create_fromuni(CHARSET_INFO *cs)
+{
   uni_idx	idx[PLANE_NUM];
   int		i,n;
   
@@ -510,14 +502,14 @@ static my_bool create_fromuni(CHARSET_INFO *cs){
   bzero(idx,sizeof(idx));
   
   /* Count number of characters in each plane */
-  for(i=0;i<0x100;i++)
+  for (i=0; i< 0x100; i++)
   {
     uint16 wc=cs->tab_to_uni[i];
     int pl= PLANE_NUMBER(wc);
     
-    if(wc || !i)
+    if (wc || !i)
     {
-      if(!idx[pl].nchars)
+      if (!idx[pl].nchars)
       {
         idx[pl].uidx.from=wc;
         idx[pl].uidx.to=wc;
@@ -533,34 +525,37 @@ static my_bool create_fromuni(CHARSET_INFO *cs){
   /* Sort planes in descending order */
   qsort(&idx,PLANE_NUM,sizeof(uni_idx),&pcmp);
   
-  for(i=0;i<PLANE_NUM;i++)
+  for (i=0; i < PLANE_NUM; i++)
   {
     int ch,numchars;
     
     /* Skip empty plane */
-    if(!idx[i].nchars)
+    if (!idx[i].nchars)
       break;
     
     numchars=idx[i].uidx.to-idx[i].uidx.from+1;
-    idx[i].uidx.tab=(unsigned char*)my_once_alloc(numchars*sizeof(*idx[i].uidx.tab),MYF(MY_WME));
+    idx[i].uidx.tab=(unsigned char*)my_once_alloc(numchars *
+						  sizeof(*idx[i].uidx.tab),
+						  MYF(MY_WME));
     bzero(idx[i].uidx.tab,numchars*sizeof(*idx[i].uidx.tab));
     
-    for(ch=1;ch<PLANE_SIZE;ch++)
+    for (ch=1; ch < PLANE_SIZE; ch++)
     {
       uint16 wc=cs->tab_to_uni[ch];
-      if(wc>=idx[i].uidx.from && wc<=idx[i].uidx.to && wc)
+      if (wc >= idx[i].uidx.from && wc <= idx[i].uidx.to && wc)
       {
-        int ofs=wc-idx[i].uidx.from;
-        idx[i].uidx.tab[ofs]=ch;
+        int ofs= wc - idx[i].uidx.from;
+        idx[i].uidx.tab[ofs]= ch;
       }
     }
   }
   
   /* Allocate and fill reverse table for each plane */
   n=i;
-  cs->tab_from_uni=(MY_UNI_IDX*)my_once_alloc(sizeof(MY_UNI_IDX)*(n+1),MYF(MY_WME));
-  for(i=0;i<n;i++)
-    cs->tab_from_uni[i]=idx[i].uidx;
+  cs->tab_from_uni= (MY_UNI_IDX*) my_once_alloc(sizeof(MY_UNI_IDX)*(n+1),
+					       MYF(MY_WME));
+  for (i=0; i< n; i++)
+    cs->tab_from_uni[i]= idx[i].uidx;
   
   /* Set end-of-list marker */
   bzero(&cs->tab_from_uni[i],sizeof(MY_UNI_IDX));
@@ -574,10 +569,11 @@ uint get_charset_number(const char *charset_name)
   if (init_available_charsets(MYF(0)))	/* If it isn't initialized */
     return 0;
   
-  for (cs = all_charsets; cs < all_charsets+255; ++cs)
+  for (cs= all_charsets; cs < all_charsets+255; ++cs)
+  {
     if ( cs[0] && cs[0]->name && !strcmp(cs[0]->name, charset_name))
       return cs[0]->number;
-  
+  }  
   return 0;   /* this mimics find_type() */
 }
 
@@ -589,7 +585,7 @@ const char *get_charset_name(uint charset_number)
     return "?";
 
   cs=all_charsets[charset_number];
-  if ( cs && (cs->number==charset_number) && cs->name )
+  if (cs && (cs->number == charset_number) && cs->name )
     return (char*) cs->name;
   
   return (char*) "?";   /* this mimics find_type() */
@@ -598,7 +594,7 @@ const char *get_charset_name(uint charset_number)
 
 static CHARSET_INFO *get_internal_charset(uint cs_number, myf flags)
 {
-  char   buf[FN_REFLEN];
+  char  buf[FN_REFLEN];
   CHARSET_INFO *cs;
   /*
     To make things thread safe we are not allowing other threads to interfere
@@ -606,13 +602,13 @@ static CHARSET_INFO *get_internal_charset(uint cs_number, myf flags)
   */
   pthread_mutex_lock(&THR_LOCK_charset);
 
-  cs = all_charsets[cs_number];
+  cs= all_charsets[cs_number];
 
   if (cs && !(cs->state & (MY_CS_COMPILED | MY_CS_LOADED)))
   {
      strxmov(buf, cs->csname, ".xml", NullS);
      read_charset_index(buf,flags);
-     cs = (cs->state & MY_CS_LOADED) ? cs : NULL;
+     cs= (cs->state & MY_CS_LOADED) ? cs : NULL;
   }
   pthread_mutex_unlock(&THR_LOCK_charset);
   return cs;
@@ -653,14 +649,16 @@ my_bool set_default_charset(uint cs, myf flags)
   CHARSET_INFO *new_charset;
   DBUG_ENTER("set_default_charset");
   DBUG_PRINT("enter",("character set: %d",(int) cs));
-  new_charset = get_charset(cs, flags);
+
+  new_charset= get_charset(cs, flags);
   if (!new_charset)
   {
     DBUG_PRINT("error",("Couldn't set default character set"));
     DBUG_RETURN(TRUE);   /* error */
   }
-  default_charset_info = new_charset;
-  system_charset_info = new_charset;
+  default_charset_info= new_charset;
+  system_charset_info= new_charset;
+
   DBUG_RETURN(FALSE);
 }
 
@@ -680,22 +678,25 @@ CHARSET_INFO *get_charset_by_name(const char *cs_name, myf flags)
   return cs;
 }
 
+
 my_bool set_default_charset_by_name(const char *cs_name, myf flags)
 {
   CHARSET_INFO *new_charset;
   DBUG_ENTER("set_default_charset_by_name");
   DBUG_PRINT("enter",("character set: %s", cs_name));
-  new_charset = get_charset_by_name(cs_name, flags);
+
+  new_charset= get_charset_by_name(cs_name, flags);
   if (!new_charset)
   {
     DBUG_PRINT("error",("Couldn't set default character set"));
     DBUG_RETURN(TRUE);   /* error */
   }
 
-  default_charset_info = new_charset;
-  system_charset_info = new_charset;
+  default_charset_info= new_charset;
+  system_charset_info= new_charset;
   DBUG_RETURN(FALSE);
 }
+
 
 /* Only append name if it doesn't exist from before */
 
@@ -708,13 +709,14 @@ static my_bool charset_in_string(const char *name, DYNAMIC_STRING *s)
     if (! pos[length] || pos[length] == ' ')
       return TRUE;				/* Already existed */
   }
-
   return FALSE;
 }
 
+
 static void charset_append(DYNAMIC_STRING *s, const char *name)
 {
-  if (!charset_in_string(name, s)) {
+  if (!charset_in_string(name, s))
+  {
     dynstr_append(s, name);
     dynstr_append(s, " ");
   }
@@ -724,7 +726,7 @@ static void charset_append(DYNAMIC_STRING *s, const char *name)
 /* Returns a dynamically-allocated string listing the character sets
    requested.  The caller is responsible for freeing the memory. */
 
-char * list_charsets(myf want_flags)
+char *list_charsets(myf want_flags)
 {
   DYNAMIC_STRING s;
   char *p;
@@ -735,7 +737,7 @@ char * list_charsets(myf want_flags)
   if (want_flags & MY_CS_COMPILED)
   {
     CHARSET_INFO **cs;
-    for (cs = all_charsets; cs < all_charsets+255; cs++)
+    for (cs= all_charsets; cs < all_charsets+255; cs++)
     {
       if (cs[0])
       {
@@ -766,19 +768,19 @@ char * list_charsets(myf want_flags)
   if (want_flags & (MY_CS_INDEX|MY_CS_LOADED))
   {
     CHARSET_INFO **cs;
-    for (cs = all_charsets; cs < all_charsets + 255; cs++)
+    for (cs= all_charsets; cs < all_charsets + 255; cs++)
       if (cs[0] && cs[0]->name && (cs[0]->state & want_flags) )
         charset_append(&s, cs[0]->name);
   }
   
   if (s.length)
   {
-    s.str[s.length - 1] = '\0';   /* chop trailing space */
-    p = my_strdup(s.str, MYF(MY_WME));
+    s.str[s.length - 1]= '\0';   /* chop trailing space */
+    p= my_strdup(s.str, MYF(MY_WME));
   }
   else
   {
-    p = my_strdup("", MYF(MY_WME));
+    p= my_strdup("", MYF(MY_WME));
   }
   dynstr_free(&s);
   
