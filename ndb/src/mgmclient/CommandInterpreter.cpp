@@ -1069,16 +1069,19 @@ print_nodes(ndb_mgm_cluster_state *state, ndb_mgm_configuration_iterator *it,
 	}
 	ndbout << ")" << endl;
       } else {
-	if(ndb_mgm_find(it, CFG_NODE_ID, node_id) != 0){
-	  ndbout_c("Unable to find node with id: %d", node_id);
-	  return;
+	ndb_mgm_first(it);
+	if(ndb_mgm_find(it, CFG_NODE_ID, node_id) == 0){
+	  const char *config_hostname= 0;
+	  ndb_mgm_get_string_parameter(it, CFG_NODE_HOST, &config_hostname);
+	  if (config_hostname == 0 || config_hostname[0] == 0)
+	    config_hostname= "any host";
+	  ndbout_c(" (not connected, accepting connect from %s)",
+		   config_hostname);
 	}
-	const char *config_hostname= 0;
-	ndb_mgm_get_string_parameter(it, CFG_NODE_HOST, &config_hostname);
-	if (config_hostname == 0 || config_hostname[0] == 0)
-	  config_hostname= "any host";
-	ndbout << " (not connected, accepting connect from "
-	       << config_hostname << ")" << endl;
+	else
+	{
+	  ndbout_c("Unable to find node with id: %d", node_id);
+	}
       }
     }
   }
