@@ -1601,7 +1601,8 @@ sp_proc_stmt:
 	        lex->sql_command == SQLCOM_SHOW_CREATE_PROC ||
 	        lex->sql_command == SQLCOM_SHOW_CREATE_FUNC ||
 	        lex->sql_command == SQLCOM_SHOW_STATUS_PROC ||
-	        lex->sql_command == SQLCOM_SHOW_STATUS_FUNC)
+	        lex->sql_command == SQLCOM_SHOW_STATUS_FUNC ||
+		lex->sql_command == SQLCOM_ANALYZE)
 	    {
 	      /* We maybe have one or more SELECT without INTO */
 	      lex->sphead->m_multi_results= TRUE;
