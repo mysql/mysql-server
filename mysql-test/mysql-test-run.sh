@@ -1160,7 +1160,7 @@ run_testcase ()
      echo "CURRENT_TEST: $tname" >> $MASTER_MYERR
      start_master
    else
-     if [ ! -z "$EXTRA_MASTER_OPT" ] || [ x$MASTER_RUNNING != x1 ] ;
+     if [ ! -z "$EXTRA_MASTER_OPT" ] || [ x$MASTER_RUNNING != x1 ] || [ -f $master_init_script ]
      then
        EXTRA_MASTER_OPT=""
        stop_master

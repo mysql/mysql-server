@@ -1,15 +1,22 @@
+#
+# This test is a bit tricky as we can't use backup table to overwrite an old
+# table
+#
 connect (con1,localhost,root,,);
 connect (con2,localhost,root,,);
 connection con1;
 set SQL_LOG_BIN=0;
-drop table if exists t1;
+create table t4(n int);
+--replace_result "errno: 2" "errno: X" "errno: 22" "errno: X" "errno: 23" "errno: X"
+backup table t4 to '../bogus';
+backup table t4 to '../tmp';
+--replace_result "errno: 17" "errno: X"
+backup table t4 to '../tmp';
+drop table t4;
+restore table t4 from '../tmp';
+select count(*) from t4;
+
 create table t1(n int);
---replace_result "errno = 1" "errno = X" "errno = 2" "errno = X" "errno = 22" "errno = X" "errno = 23" "errno = X"
-backup table t1 to '../bogus';
-backup table t1 to '../tmp';
-drop table t1;
-restore table t1 from '../tmp';
-select count(*) from t1;
 insert into t1 values (23),(45),(67);
 backup table t1 to '../tmp';
 drop table t1;
@@ -20,23 +27,24 @@ create table t2(m int not null primary key);
 create table t3(k int not null primary key);
 insert into t2 values (123),(145),(167);
 insert into t3 values (223),(245),(267);
-backup table t1,t2,t3 to '../tmp';
+backup table t2,t3 to '../tmp';
 drop table t1,t2,t3;
 restore table t1,t2,t3 from '../tmp';
 select n from t1;
 select m from t2;
 select k from t3;
-drop table t1,t2,t3;
+drop table t1,t2,t3,t4;
 restore table t1 from '../tmp';
 connection con2;
+rename table t1 to t5;
 --send
-lock tables t1 write;
+lock tables t5 write;
 connection con1;
 --send
-backup table t1 to '../tmp';
+backup table t5 to '../tmp';
 connection con2;
 reap;
 unlock tables;
 connection con1;
 reap;
-drop table t1;
+drop table t5;
