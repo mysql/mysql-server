@@ -191,10 +191,12 @@ void init_slave_list()
 
 void end_slave_list()
 {
-  pthread_mutex_lock(&LOCK_slave_list);
-  hash_free(&slave_list);
-  pthread_mutex_unlock(&LOCK_slave_list);
-  pthread_mutex_destroy(&LOCK_slave_list);
+  /* No protection by a mutex needed as we are only called at shutdown */
+  if (hash_inited(&slave_list))
+  {
+    hash_free(&slave_list);
+    pthread_mutex_destroy(&LOCK_slave_list);
+  }
 }
 
 static int find_target_pos(LEX_MASTER_INFO* mi, IO_CACHE* log, char* errmsg)
