@@ -290,6 +290,7 @@ row_undo_ins(
 	}
 
 	if (!found) {
+	        trx_undo_rec_release(node->trx, node->undo_no);
 		return(DB_SUCCESS);
 	}
 
