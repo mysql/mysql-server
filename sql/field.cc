@@ -4390,6 +4390,8 @@ String *Field_string::val_str(String *val_buffer __attribute__((unused)),
 
 int Field_string::cmp(const char *a_ptr, const char *b_ptr)
 {
+  uint a_len, b_len;
+
   if (field_charset->strxfrm_multiply > 1)
   {
     /*
@@ -4401,9 +4403,14 @@ int Field_string::cmp(const char *a_ptr, const char *b_ptr)
                                             (const uchar*) b_ptr,
                                             field_length);
   }
-  uint char_len= field_length/field_charset->mbmaxlen;
-  uint a_len= my_charpos(field_charset, a_ptr, a_ptr + field_length, char_len);
-  uint b_len= my_charpos(field_charset, b_ptr, b_ptr + field_length, char_len);
+  if (field_charset->mbmaxlen != 1)
+  {
+    uint char_len= field_length/field_charset->mbmaxlen;
+    a_len= my_charpos(field_charset, a_ptr, a_ptr + field_length, char_len);
+    b_len= my_charpos(field_charset, b_ptr, b_ptr + field_length, char_len);
+  }
+  else
+    a_len= b_len= field_length;
   return my_strnncoll(field_charset,(const uchar*) a_ptr, a_len,
                                     (const uchar*) b_ptr, b_len);
 }
