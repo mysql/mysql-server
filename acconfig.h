@@ -281,6 +281,9 @@
 /* READLINE: */
 #undef VOID_SIGHANDLER
 
+/* Define this if you want extra character set conversion table*/
+#undef DEFINE_ALL_CHARACTER_SETS
+
 
 /* Leave that blank line there!!  Autoheader needs it.
    If you're adding to this file, keep in mind:
