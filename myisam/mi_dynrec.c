@@ -156,7 +156,7 @@ static int write_dynamic_record(MI_INFO *info, const byte *record,
   } while (reclength);
 
   DBUG_RETURN(0);
- err:
+err:
   DBUG_RETURN(1);
 }
 
@@ -806,7 +806,8 @@ uint _mi_rec_pack(MI_INFO *info, register byte *to, register const byte *from)
   Returns 0 if record is ok.
 */
 
-my_bool _mi_rec_check(MI_INFO *info,const char *record, byte *rec_buff)
+my_bool _mi_rec_check(MI_INFO *info,const char *record, byte *rec_buff,
+                      ulong packed_length)
 {
   uint		length,new_length,flag,bit,i;
   char		*pos,*end,*packpos,*to;
@@ -898,8 +899,7 @@ my_bool _mi_rec_check(MI_INFO *info,const char *record, byte *rec_buff)
       to+=length;
     }
   }
-  if (info->packed_length != (uint) (to - rec_buff)
-      + test(info->s->calc_checksum) ||
+  if (packed_length != (uint) (to - rec_buff) + test(info->s->calc_checksum) ||
       (bit != 1 && (flag & ~(bit - 1))))
     goto err;
   if (info->s->calc_checksum)
@@ -912,7 +912,7 @@ my_bool _mi_rec_check(MI_INFO *info,const char *record, byte *rec_buff)
   }
   DBUG_RETURN(0);
 
- err:
+err:
   DBUG_RETURN(1);
 }
 
@@ -1028,8 +1028,8 @@ ulong _mi_rec_unpack(register MI_INFO *info, register byte *to, byte *from,
   if (info->s->calc_checksum)
     from++;
   if (to == to_end && from == from_end && (bit == 1 || !(flag & ~(bit-1))))
-    DBUG_RETURN((info->packed_length=found_length));
- err:
+    DBUG_RETURN(found_length);
+err:
   my_errno=HA_ERR_RECORD_DELETED;
   DBUG_PRINT("error",("to_end: %lx -> %lx  from_end: %lx -> %lx",
 		      to,to_end,from,from_end));
@@ -1272,7 +1272,7 @@ int _mi_cmp_dynamic_record(register MI_INFO *info, register const byte *record)
     }
   }
   my_errno=0;
- err:
+err:
   if (buffer != info->rec_buff)
     my_afree((gptr) buffer);
   DBUG_RETURN(my_errno);
