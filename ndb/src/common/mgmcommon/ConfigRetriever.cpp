@@ -238,7 +238,8 @@ ConfigRetriever::verifyConfig(const struct ndb_mgm_configuration * conf, Uint32 
 
   char buf[255];
   ndb_mgm_configuration_iterator * it;
-  it = ndb_mgm_create_configuration_iterator((struct ndb_mgm_configuration *)conf, CFG_SECTION_NODE);
+  it = ndb_mgm_create_configuration_iterator((struct ndb_mgm_configuration *)conf,
+					     CFG_SECTION_NODE);
 
   if(it == 0){
     BaseString::snprintf(buf, 255, "Unable to create config iterator");
@@ -284,8 +285,14 @@ ConfigRetriever::verifyConfig(const struct ndb_mgm_configuration * conf, Uint32 
   }
   
   if(_type != m_node_type){
-    BaseString::snprintf(buf, 255, "Supplied node type(%d) and config node type(%d) "
-	     " don't match", m_node_type, _type);
+    const char *type_s, *alias_s, *type_s2, *alias_s2;
+    alias_s= ndb_mgm_get_node_type_alias_string((enum ndb_mgm_node_type)m_node_type,
+						&type_s);
+    alias_s2= ndb_mgm_get_node_type_alias_string((enum ndb_mgm_node_type)_type,
+						 &type_s2);
+    BaseString::snprintf(buf, 255, "This node type %s(%s) and config "
+			 "node type %s(%s) don't match for nodeid %d", 
+			 alias_s, type_s, alias_s2, type_s2, nodeid);
     setError(CR_ERROR, buf);
     return false;
   }
