@@ -3879,12 +3879,12 @@ USA [Circle Net/North Carolina] @
 @c @image{Flags/usa} USA [pingzero/Los Angeles] @
 @c @uref{http://mysql.pingzero.net/, WWW}
 
-@c @item
-@c Not ok 20000919; Out of date (Matt)
+@item
 @c EMAIL: ftpkeeper@mirror.sit.wisc.edu
-@c @image{Flags/usa} USA [Wisconsin University/Wisconsin] @
-@c @uref{http://mirror.sit.wisc.edu/mysql/, WWW}
-@c @uref{ftp://mirror.sit.wisc.edu/mirrors/mysql/, FTP}
+@c @image{Flags/usa}
+USA [Wisconsin University/Wisconsin] @
+@uref{http://mirror.sit.wisc.edu/mysql/, WWW}
+@uref{ftp://mirror.sit.wisc.edu/mirrors/mysql/, FTP}
 
 @c @item
 @c Not ok 20000919; Out of date (Matt)
