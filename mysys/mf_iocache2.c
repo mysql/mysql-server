@@ -27,7 +27,10 @@
 
 my_off_t my_b_append_tell(IO_CACHE* info)
 {
-  my_off_t res; 
+  /* prevent optimizer from putting res in a register when debugging
+     we need this to be able to see the value of res when the assert fails
+  */
+  dbug_volatile my_off_t res; 
 /* we need to lock the append buffer mutex to keep flush_io_cache()
    from messing with the variables that we need in order to provide the
    answer to the question.
@@ -35,8 +38,11 @@ my_off_t my_b_append_tell(IO_CACHE* info)
 #ifdef THREAD
   pthread_mutex_lock(&info->append_buffer_lock);
 #endif
+  /* save the value of my_tell in res so we can see it when studying
+     coredump
+  */
   DBUG_ASSERT(info->end_of_file - (info->append_read_pos-info->write_buffer)
-	      == my_tell(info->file,MYF(0)));
+	      == (res=my_tell(info->file,MYF(0))));
   res = info->end_of_file + (info->write_pos-info->append_read_pos);
 #ifdef THREAD
   pthread_mutex_unlock(&info->append_buffer_lock);
