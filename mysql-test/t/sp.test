@@ -153,9 +153,8 @@ drop procedure inc|
 #    ("cbv1", 4711)
 create procedure cbv1()
 begin
-  declare y int;
+  declare y int default 3;
 
-  set y = 3;
   call cbv2(y+1, y);
   insert into test.t1 values ("cbv1", y);
 end|
@@ -428,9 +427,8 @@ select append("foo", "bar")|
 # A function with flow control
 create function fac(n int unsigned) returns bigint unsigned
 begin
-  declare f bigint unsigned;
+  declare f bigint unsigned default 1;
 
-  set f = 1;
   while n > 1 do
     set f = f * n;
     set n = n - 1;
@@ -479,8 +477,8 @@ create table fac (n int unsigned not null primary key, f bigint unsigned)|
 
 create procedure ifac(n int unsigned)
 begin
-  declare i int unsigned;
-  set i = 1;
+  declare i int unsigned default 1;
+
   if n > 20 then
     set n = 20;		# bigint overflow otherwise
   end if;
@@ -524,9 +522,8 @@ insert into primes values
 create procedure opp(n bigint unsigned, out pp bool)
 begin
   declare r double;
-  declare b, s bigint unsigned;
+  declare b, s bigint unsigned default 0;
 
-  set b = 0, s = 0;
   set r = sqrt(n);
 
  again:
@@ -561,9 +558,8 @@ begin
 
   while i < m do
     begin
-      declare pp bool;
+      declare pp bool default 0;
 
-      set pp = 0;
       call opp(p, pp);
       if pp then
         insert into test.primes values (i, p);
