@@ -972,7 +972,9 @@ static int prepare_for_repair(THD* thd, TABLE_LIST* table,
     fn_format(from, from, "", MI_NAME_DEXT, 4);
     sprintf(tmp,"%s-%lx_%lx", from, current_pid, thd->thread_id);
 
+    pthread_mutex_lock(&LOCK_open);
     close_cached_table(thd,table->table);
+    pthread_mutex_unlock(&LOCK_open);
 
     if (lock_and_wait_for_table_name(thd,table))
       DBUG_RETURN(-1);
