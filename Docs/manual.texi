@@ -20039,15 +20039,15 @@ The maximum length of the word to be included in a @code{FULLTEXT} index.
 @strong{Note: @code{FULLTEXT} indexes must be rebuilt after changing
 this variable.} (This option is new for MySQL 4.0.)
 
-@item @code{ft_max_word_len_sort}
+@item @code{ft_max_word_len_for_sort}
 The maximum length of the word in a @code{FULLTEXT} index
 to be used in fast index recreation method in @code{REPAIR},
 @code{CREATE INDEX},  or @code{ALTER TABLE}.  Longer words are inserted the
 slow way.  The rule of the thumb is as follows: with
-@code{ft_max_word_len_sort} increasing, @strong{MySQL} will create bigger
+@code{ft_max_word_len_for_sort} increasing, @strong{MySQL} will create bigger
 temporary files (thus slowing the process down, due to disk I/O), and will put
 fewer keys in one sort block (again, decreasing the efficiency).  When
-@code{ft_max_word_len_sort} is too small, instead, @strong{MySQL} will insert a
+@code{ft_max_word_len_for_sort} is too small, instead, @strong{MySQL} will insert a
 lot of words into index the slow way, but short words will be inserted very
 quickly.
 
