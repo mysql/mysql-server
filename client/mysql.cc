@@ -1010,7 +1010,7 @@ static bool add_line(String &buffer,char *line,char *in_string)
     {						// Add found char to buffer
       if (inchar == *in_string)
 	*in_string=0;
-      else if (!*in_string && (inchar == '\'' || inchar == '"' || inchar == '`'))
+      else if (!in_comment && !*in_string && (inchar == '\'' || inchar == '"' || inchar == '`'))
 	*in_string=(char) inchar;
       *out++ = (char) inchar;
       if (inchar == '*' && !*in_string)
