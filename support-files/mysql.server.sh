@@ -13,6 +13,18 @@
 # chkconfig: 2345 90 90
 # description: A very fast and reliable SQL database engine.
 
+# Comments to support LSB init script conventions
+### BEGIN INIT INFO
+# Provides: mysql
+# Required-Start: $local_fs $network $remote_fs
+# Required-Stop: $local_fs $network $remote_fs
+# Default-Start:  3 5
+# Default-Stop: 3 5
+# Short-Description: start and stop MySLQ
+# Description: MySQL is a very fast and reliable SQL database engine.
+### END INIT INFO
+ 
+
 # The following variables are only set for letting mysql.server find things.
 # If you want to affect other MySQL variables, you should make your changes
 # in the /etc/my.cnf or other configuration files.
