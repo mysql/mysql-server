@@ -44,7 +44,9 @@
   thd->handler_tables=tmp; }
 
 static TABLE **find_table_ptr_by_name(THD *thd,const char *db,
-				      const char *table_name, bool is_alias);
+                                      const char *table_name,
+                                      bool is_alias, bool dont_lock,
+                                      bool *was_flushed);
 
 int mysql_ha_open(THD *thd, TABLE_LIST *tables)
 {
@@ -66,24 +68,60 @@ int mysql_ha_open(THD *thd, TABLE_LIST *tables)
   return 0;
 }
 
-int mysql_ha_close(THD *thd, TABLE_LIST *tables, bool dont_send_ok)
-{
-  TABLE **ptr=find_table_ptr_by_name(thd, tables->db, tables->alias, 1);
 
-  if (*ptr)
+/*
+  Close a HANDLER table.
+
+  SYNOPSIS
+    mysql_ha_close()
+    thd                         Thread identifier.
+    tables                      A list of tables with the first entry to close.
+    dont_send_ok                Suppresses the commands' ok message and
+                                error message and error return.
+    dont_lock                   Suppresses the normal locking of LOCK_open.
+
+  DESCRIPTION
+    Though this function takes a list of tables, only the first list entry
+    will be closed. Broadcasts a COND_refresh condition.
+    If mysql_ha_close() is not called from the parser, 'dont_send_ok'
+    must be set.
+    If the caller did already lock LOCK_open, it must set 'dont_lock'.
+
+  IMPLEMENTATION
+    find_table_ptr_by_name() closes the table, if a FLUSH TABLE is outstanding.
+    It returns a NULL pointer in this case, but flags the situation in
+    'was_flushed'. In that case the normal ER_UNKNOWN_TABLE error messages
+    is suppressed.
+
+  RETURN
+    0  ok
+    -1 error
+*/
+
+int mysql_ha_close(THD *thd, TABLE_LIST *tables,
+                   bool dont_send_ok, bool dont_lock, bool no_alias)
+{
+  TABLE         **table_ptr;
+  bool          was_flushed;
+
+  table_ptr= find_table_ptr_by_name(thd, tables->db, tables->alias,
+                                    !no_alias, dont_lock, &was_flushed);
+  if (*table_ptr)
   {
-    VOID(pthread_mutex_lock(&LOCK_open));
-    if (close_thread_table(thd, ptr))
+    if (!dont_lock)
+      VOID(pthread_mutex_lock(&LOCK_open));
+    if (close_thread_table(thd, table_ptr))
     {
       /* Tell threads waiting for refresh that something has happened */
       VOID(pthread_cond_broadcast(&COND_refresh));
     }
-    VOID(pthread_mutex_unlock(&LOCK_open));
+    if (!dont_lock)
+      VOID(pthread_mutex_unlock(&LOCK_open));
   }
-  else
+  else if (!was_flushed && !dont_send_ok)
   {
-    my_printf_error(ER_UNKNOWN_TABLE,ER(ER_UNKNOWN_TABLE),MYF(0),
-		    tables->alias, "HANDLER");
+    my_printf_error(ER_UNKNOWN_TABLE, ER(ER_UNKNOWN_TABLE), MYF(0),
+                    tables->alias, "HANDLER");
     return -1;
   }
   if (!dont_send_ok)
@@ -91,13 +129,64 @@ int mysql_ha_close(THD *thd, TABLE_LIST *tables, bool dont_send_ok)
   return 0;
 }
 
-int mysql_ha_closeall(THD *thd, TABLE_LIST *tables)
+
+/*
+  Close a list of HANDLER tables.
+
+  SYNOPSIS
+    mysql_ha_close_list()
+    thd                         Thread identifier.
+    tables                      The list of tables to close. If NULL,
+                                close all HANDLER tables.
+    flushed                     Close only tables which are marked flushed.
+                                Used only if tables is NULL.
+
+  DESCRIPTION
+    The list of HANDLER tables may be NULL, in which case all HANDLER
+    tables are closed. Broadcasts a COND_refresh condition, for
+    every table closed. If 'tables' is NULL and 'flushed' is set,
+    all HANDLER tables marked for flush are closed.
+    The caller must lock LOCK_open.
+
+  IMPLEMENTATION
+    find_table_ptr_by_name() closes the table, if it is marked for flush.
+    It returns a NULL pointer in this case, but flags the situation in
+    'was_flushed'. In that case the normal ER_UNKNOWN_TABLE error messages
+    is suppressed.
+
+  RETURN
+    0  ok
+*/
+
+int mysql_ha_close_list(THD *thd, TABLE_LIST *tables, bool flushed)
 {
-  TABLE **ptr=find_table_ptr_by_name(thd, tables->db, tables->real_name, 0);
-  if (*ptr && close_thread_table(thd, ptr))
+  TABLE_LIST    *tl_item;
+  TABLE         **table_ptr;
+
+  if (tables)
   {
-    /* Tell threads waiting for refresh that something has happened */
-    VOID(pthread_cond_broadcast(&COND_refresh));
+    for (tl_item= tables ; tl_item; tl_item= tl_item->next)
+    {
+      mysql_ha_close(thd, tl_item, /*dont_send_ok*/ 1,
+                     /*dont_lock*/ 1, /*no_alias*/ 1);
+    }
+  }
+  else
+  {
+    table_ptr= &(thd->handler_tables);
+    while (*table_ptr)
+    {
+      if (! flushed || ((*table_ptr)->version != refresh_version))
+      {
+        if (close_thread_table(thd, table_ptr))
+        {
+          /* Tell threads waiting for refresh that something has happened */
+          VOID(pthread_cond_broadcast(&COND_refresh));
+        }
+        continue;
+      }
+      table_ptr= &((*table_ptr)->next);
+    }
   }
   return 0;
 }
@@ -112,7 +201,10 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
     ha_rows select_limit,ha_rows offset_limit)
 {
   int err, keyno=-1;
-  TABLE *table=*find_table_ptr_by_name(thd, tables->db, tables->alias, 1);
+  bool was_flushed;
+  TABLE *table= *find_table_ptr_by_name(thd, tables->db, tables->alias,
+                                        /*is_alias*/ 1, /*dont_lock*/ 0,
+                                        &was_flushed);
   if (!table)
   {
     my_printf_error(ER_UNKNOWN_TABLE,ER(ER_UNKNOWN_TABLE),MYF(0),
@@ -278,36 +370,76 @@ err0:
   return -1;
 }
 
+
+/*
+  Find a HANDLER table by name.
+
+  SYNOPSIS
+    find_table_ptr_by_name()
+    thd                         Thread identifier.
+    db                          Database (schema) name.
+    table_name                  Table name ;-).
+    is_alias                    Table name may be an alias name.
+    dont_lock                   Suppresses the normal locking of LOCK_open.
+
+  DESCRIPTION
+    Find the table 'db'.'table_name' in the list of HANDLER tables of the
+    thread 'thd'. If the table has been marked by FLUSH TABLE(S), close it,
+    flag this situation in '*was_flushed' and broadcast a COND_refresh
+    condition.
+    An empty database (schema) name matches all database (schema) names.
+    If the caller did already lock LOCK_open, it must set 'dont_lock'.
+
+  IMPLEMENTATION
+    Just in case that the table is twice in 'thd->handler_tables' (!?!),
+    the loop does not break when the table was flushed. If another table
+    by that name was found and not flushed, '*was_flushed' is cleared again,
+    since a pointer to an open HANDLER table is returned.
+
+  RETURN
+    *was_flushed                Table has been closed due to FLUSH TABLE.
+    NULL     A HANDLER Table by that name does not exist (any more).
+    != NULL  Pointer to the TABLE structure.
+*/
+
 static TABLE **find_table_ptr_by_name(THD *thd, const char *db,
-				      const char *table_name, bool is_alias)
+                                      const char *table_name,
+                                      bool is_alias, bool dont_lock,
+                                      bool *was_flushed)
 {
   int dblen;
-  TABLE **ptr;
+  TABLE **table_ptr;
 
   DBUG_ASSERT(db);
-  dblen=*db ? strlen(db)+1 : 0;
-  ptr=&(thd->handler_tables);
+  dblen= *db ? strlen(db)+1 : 0;
+  table_ptr= &(thd->handler_tables);
+  *was_flushed= FALSE;
 
-  for (TABLE *table=*ptr; table ; table=*ptr)
+  for (TABLE *table=*table_ptr; table ; table=*table_ptr)
   {
     if ((!dblen || !memcmp(table->table_cache_key, db, dblen)) &&
-        !my_strcasecmp((is_alias ? table->table_name : table->real_name),table_name))
+        !my_strcasecmp((is_alias ? table->table_name : table->real_name),
+                       table_name))
     {
       if (table->version != refresh_version)
       {
-        VOID(pthread_mutex_lock(&LOCK_open));
-        if (close_thread_table(thd, ptr))
+        if (!dont_lock)
+          VOID(pthread_mutex_lock(&LOCK_open));
+        if (close_thread_table(thd, table_ptr))
         {
           /* Tell threads waiting for refresh that something has happened */
           VOID(pthread_cond_broadcast(&COND_refresh));
         }
-        VOID(pthread_mutex_unlock(&LOCK_open));
+        if (!dont_lock)
+          VOID(pthread_mutex_unlock(&LOCK_open));
+        *was_flushed= TRUE;
         continue;
       }
+      *was_flushed= FALSE;
       break;
     }
-    ptr=&(table->next);
+    table_ptr=&(table->next);
   }
-  return ptr;
+  return table_ptr;
 }
 
