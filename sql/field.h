@@ -212,8 +212,7 @@ public:
   virtual bool get_time(TIME *ltime);
   virtual CHARSET_INFO *charset(void) const { return &my_charset_bin; }
   virtual void set_charset(CHARSET_INFO *charset) { }
-  virtual void set_warning(const unsigned int level, 
-                           const unsigned int code);
+  void set_warning(const unsigned int level, const unsigned int code);
   friend bool reopen_table(THD *,struct st_table *,bool);
   friend int cre_myisam(my_string name, register TABLE *form, uint options,
 			ulonglong auto_increment_value);

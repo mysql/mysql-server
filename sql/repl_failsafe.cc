@@ -72,7 +72,7 @@ static int init_failsafe_rpl_thread(THD* thd)
 
   if (init_thr_lock() || thd->store_globals())
   {
-    close_connection(&thd->net,ER_OUT_OF_RESOURCES); // is this needed?
+    close_connection(thd, ER_OUT_OF_RESOURCES, 1); // is this needed?
     end_thread(thd,0);
     DBUG_RETURN(-1);
   }
