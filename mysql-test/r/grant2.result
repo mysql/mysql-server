@@ -48,9 +48,9 @@ GRANT SELECT, INSERT ON `mysqltest`.* TO 'mysqltest_1'@'localhost'
 use mysqltest;
 insert into t1 values (1, 'I can''t change it!');
 update t1 set data='I can change it!' where id = 1;
-ERROR 42000: Access denied for user 'mysqltest_1'@'localhost' to database 'mysqltest'
+ERROR 42000: update command denied to user 'mysqltest_1'@'localhost' for table 't1'
 insert into t1 values (1, 'XXX') on duplicate key update data= 'I can change it!';
-ERROR 42000: Access denied for user 'mysqltest_1'@'localhost' to database 'mysqltest'
+ERROR 42000: update command denied to user 'mysqltest_1'@'localhost' for table 't1'
 select * from t1;
 id	data
 1	I can't change it!
@@ -202,7 +202,7 @@ drop user '%@a'@'a';
 create user mysqltest_2@localhost;
 grant usage on *.* to mysqltest_2@localhost with grant option;
 select host,user,password from mysql.user where user like 'mysqltest_%' order by host,user,password;
-ERROR 42000: Access denied for user 'mysqltest_2'@'localhost' to database 'mysql'
+ERROR 42000: select command denied to user 'mysqltest_2'@'localhost' for table 'user'
 create user mysqltest_A@'%';
 rename user mysqltest_A@'%' to mysqltest_B@'%';
 drop user mysqltest_B@'%';

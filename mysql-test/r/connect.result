@@ -9,6 +9,7 @@ help_relation
 help_topic
 host
 proc
+procs_priv
 tables_priv
 time_zone
 time_zone_leap_second
@@ -31,6 +32,7 @@ help_relation
 help_topic
 host
 proc
+procs_priv
 tables_priv
 time_zone
 time_zone_leap_second
@@ -57,6 +59,7 @@ help_relation
 help_topic
 host
 proc
+procs_priv
 tables_priv
 time_zone
 time_zone_leap_second
