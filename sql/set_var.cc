@@ -1522,7 +1522,7 @@ int set_var::check(THD *thd)
     return 0;
   }
 
-  if (value->check_cols(1) || value->fix_fields(thd, 0, &value))
+  if (value->fix_fields(thd, 0, &value) || value->check_cols(1))
     return -1;
   if (var->check_update_type(value->result_type()))
   {

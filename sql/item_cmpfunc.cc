@@ -913,10 +913,10 @@ double Item_func_case::val()
 bool
 Item_func_case::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
-  if (first_expr && (first_expr->check_cols(1) ||
-		     first_expr->fix_fields(thd, tables, &first_expr)) ||
-      else_expr && (else_expr->check_cols(1) ||
-		    else_expr->fix_fields(thd, tables, &else_expr)))
+  if (first_expr && (first_expr->fix_fields(thd, tables, &first_expr) ||
+		     first_expr->check_cols(1)) ||
+      else_expr && (else_expr->fix_fields(thd, tables, &else_expr) ||
+		    else_expr->check_cols(1)))
     return 1;
   if (Item_func::fix_fields(thd, tables, ref))
     return 1;
@@ -1473,7 +1473,7 @@ Item_cond::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     }
     if (abort_on_null)
       item->top_level_item();
-    if (item->check_cols(1) || item->fix_fields(thd, tables, li.ref()))
+    if (item->fix_fields(thd, tables, li.ref()) || item->check_cols(1))
       return 1; /* purecov: inspected */
     used_tables_cache|=item->used_tables();
     with_sum_func= with_sum_func || item->with_sum_func;
@@ -1785,10 +1785,8 @@ bool Item_func_like::fix_fields(THD *thd, TABLE_LIST *tlist, Item ** ref)
 bool
 Item_func_regex::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
-  if (args[0]->check_cols(1) ||
-      args[1]->check_cols(1) ||
-      args[0]->fix_fields(thd, tables, args) ||
-      args[1]->fix_fields(thd,tables, args + 1))
+  if (args[0]->fix_fields(thd, tables, args) || args[0]->check_cols(1) ||
+      args[1]->fix_fields(thd,tables, args + 1) || args[1]->check_cols(1))
     return 1;					/* purecov: inspected */
   with_sum_func=args[0]->with_sum_func || args[1]->with_sum_func;
   max_length= 1;

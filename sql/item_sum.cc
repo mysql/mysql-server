@@ -119,7 +119,7 @@ Item_sum_num::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   maybe_null=0;
   for (uint i=0 ; i < arg_count ; i++)
   {
-    if (args[i]->check_cols(1) || args[i]->fix_fields(thd, tables, args + i))
+    if (args[i]->fix_fields(thd, tables, args + i) || args[i]->check_cols(1))
       return 1;
     if (decimals < args[i]->decimals)
       decimals=args[i]->decimals;
@@ -145,7 +145,7 @@ Item_sum_hybrid::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     return 1;
   }
   thd->allow_sum_func=0;			// No included group funcs
-  if (item->check_cols(1) || item->fix_fields(thd, tables, args))
+  if (item->fix_fields(thd, tables, args) || item->check_cols(1))
     return 1;
   hybrid_type=item->result_type();
   if (hybrid_type == INT_RESULT)
