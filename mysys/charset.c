@@ -453,20 +453,37 @@ static my_bool charset_in_string(const char *name, DYNAMIC_STRING *s)
 
 static void charset_append(DYNAMIC_STRING *s, const char *name)
 {
-  if (!charset_in_string(name, s)) {
+  if (!charset_in_string(name, s))
+  {
     dynstr_append(s, name);
     dynstr_append(s, " ");
   }
 }
 
 
-/* Returns a dynamically-allocated string listing the character sets
-   requested.  The caller is responsible for freeing the memory. */
+/*
+  Returns a dynamically-allocated string listing the character sets
+  requested.
+
+  SYNOPSIS
+    list_charsets()
+    want_flags		Flags for which character sets to return:
+			MY_COMPILED_SETS:	Return incompiled charsets    
+			MY_INDEX_SETS:
+			MY_LOADED_SETS:
+
+  NOTES
+    The caller is responsible for freeing the memory.
+
+
+  RETURN
+    A string with available character sets separated by space
+*/
 
 char * list_charsets(myf want_flags)
 {
   DYNAMIC_STRING s;
-  char *p;
+  char *result;
 
   (void)init_available_charsets(MYF(0));
   init_dynamic_string(&s, NullS, 256, 1024);
@@ -483,42 +500,45 @@ char * list_charsets(myf want_flags)
 
   if (want_flags & MY_CONFIG_SETS)
   {
-    CS_ID **c;
+    CS_ID **charset;
     char buf[FN_REFLEN];
     MY_STAT status;
 
-    if((c=available_charsets))
-      for (; *c; ++c)
-	{
-	  if (charset_in_string((*c)->name, &s))
-	    continue;
-	  get_charset_conf_name((*c)->number, buf);
-	  if (!my_stat(buf, &status, MYF(0)))
-	    continue;       /* conf file doesn't exist */
-	  dynstr_append(&s, (*c)->name);
-	  dynstr_append(&s, " ");
-	}
+    if ((charset=available_charsets))
+    {
+      for (; *charset; charset++)
+      {
+	if (charset_in_string((*charset)->name, &s))
+	  continue;
+	get_charset_conf_name((*charset)->number, buf);
+	if (!my_stat(buf, &status, MYF(0)))
+	  continue;       /* conf file doesn't exist */
+	dynstr_append(&s, (*charset)->name);
+	dynstr_append(&s, " ");
+      }
+    }
   }
 
   if (want_flags & MY_INDEX_SETS)
   {
-    CS_ID **c;
-    for (c = available_charsets; *c; ++c)
-      charset_append(&s, (*c)->name);
+    CS_ID **charset;
+    for (charset = available_charsets; *charset; charset++)
+      charset_append(&s, (*charset)->name);
   }
 
   if (want_flags & MY_LOADED_SETS)
   {
     uint i;
     for (i = 0; i < cs_info_table.elements; i++)
-      charset_append(&s, 
+      charset_append(&s,
 		     dynamic_element(&cs_info_table, i, CHARSET_INFO *)->name);
   }
-  s.str[s.length - 1] = '\0';   /* chop trailing space */
-  p = my_strdup(s.str, MYF(MY_WME));
+  if (s.length)
+    s.length--;					/* Remove end space */
+  result= my_strdup_with_length(s.str, s.length, MYF(MY_WME));
   dynstr_free(&s);
 
-  return p;
+  return result;
 }
 
 /****************************************************************************

@@ -637,6 +637,7 @@ struct st_my_thread_var
   long id;
   int cmp_length;
   int volatile abort;
+  my_bool init;
 #ifndef DBUG_OFF
   gptr dbug;
   char name[THREAD_NAME_SIZE+1];

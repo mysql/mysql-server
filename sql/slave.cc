@@ -1337,7 +1337,7 @@ file '%s', errno %d)", fname, my_errno);
     if (init_relay_log_pos(rli,NullS,BIN_LOG_HEADER_SIZE,0 /* no data lock */,
 			   &msg))
     {
-      sql_print_error("Failed to open the relay log 'FIRST' (relay_log_pos 4");
+      sql_print_error("Failed to open the relay log 'FIRST' (relay_log_pos 4)");
       goto err;
     }
     rli->master_log_name[0]= 0;
