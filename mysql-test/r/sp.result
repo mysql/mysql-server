@@ -656,7 +656,6 @@ delete from t1|
 drop table if exists t3|
 create table t3 ( s char(16), d int)|
 call into_test4()|
-Warnings:
 select * from t3|
 s	d
 into4	NULL
@@ -1344,9 +1343,7 @@ end if;
 insert into t4 values (2, rc, t3);
 end|
 call bug1863(10)|
-Warnings:
 call bug1863(10)|
-Warnings:
 select * from t4|
 f1	rc	t3
 2	0	NULL
@@ -1643,9 +1640,7 @@ begin
 end|
 call bug4579_1()|
 call bug4579_1()|
-Warnings:
 call bug4579_1()|
-Warnings:
 drop procedure bug4579_1|
 drop procedure bug4579_2|
 drop table t3|
@@ -2118,12 +2113,16 @@ var
 call bug7743("OneWord")|
 var
 NULL
+Warnings:
+Warning	1329	No data to FETCH
 call bug7743("anotherword")|
 var
 2
 call bug7743("AnotherWord")|
 var
 NULL
+Warnings:
+Warning	1329	No data to FETCH
 drop procedure bug7743|
 drop table t4|
 delete from t3|

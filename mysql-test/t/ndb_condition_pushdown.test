@@ -236,12 +236,16 @@ order by auto;
 # Test LIKE/NOT LIKE
 select auto from t1 where 
 string like "b%" and
-vstring like "b%"
+vstring like "b%" and
+bin like concat(0xBB, '%') and
+vbin like concat(0xBB, '%')
 order by auto;
 
 select auto from t1 where 
 string not like "b%" and
-vstring not like "b%"
+vstring not like "b%" and
+bin not like concat(0xBB, '%') and
+vbin not like concat(0xBB, '%')
 order by auto;
 
 # Various tests 
@@ -586,12 +590,16 @@ order by auto;
 # Test LIKE/NOT LIKE
 select auto from t1 where 
 string like "b%" and
-vstring like "b%"
+vstring like "b%" and
+bin like concat(0xBB, '%') and
+vbin like concat(0xBB, '%')
 order by auto;
 
 select auto from t1 where 
 string not like "b%" and
-vstring not like "b%"
+vstring not like "b%" and
+bin not like concat(0xBB, '%') and
+vbin not like concat(0xBB, '%')
 order by auto;
 
 # Various tests 
