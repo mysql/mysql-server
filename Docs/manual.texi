@@ -830,13 +830,13 @@ Credits
 
 MySQL change history
 
-* News-3.23.x::                 Changes in release 3.23.x (Recommended; beta)
+* News-3.23.x::                 Changes in release 3.23.x (Recommended; Gamma)
 * News-3.22.x::                 Changes in release 3.22.x (Still supported)
 * News-3.21.x::                 Changes in release 3.21.x
 * News-3.20.x::                 Changes in release 3.20.x
 * News-3.19.x::                 Changes in release 3.19.x
 
-Changes in release 3.23.x  (Recommended; beta)
+Changes in release 3.23.x  (Recommended; Gamma)
 
 * News-3.23.29::                Changes in release 3.23.29
 * News-3.23.28::                Changes in release 3.23.28
@@ -39740,7 +39740,7 @@ find on the
 this means that the version has not yet been released!
 
 @menu
-* News-3.23.x::                 Changes in release 3.23.x (Recommended; beta)
+* News-3.23.x::                 Changes in release 3.23.x (Recommended; Gamma)
 * News-3.22.x::                 Changes in release 3.22.x (Still supported)
 * News-3.21.x::                 Changes in release 3.21.x
 * News-3.20.x::                 Changes in release 3.20.x
@@ -39748,7 +39748,7 @@ this means that the version has not yet been released!
 @end menu
 
 @node News-3.23.x, News-3.22.x, News, News
-@appendixsec Changes in release 3.23.x  (Recommended; beta)
+@appendixsec Changes in release 3.23.x  (Recommended; Gamma)
 
 The 3.23 release has several major new features that are not
 present in the 3.22 or 3.21 releases.  We have added two new
