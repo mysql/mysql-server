@@ -202,6 +202,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
 			   thd->variables.read_buff_size);
     table->file->extra_opt(HA_EXTRA_BULK_INSERT_BEGIN,
 			   thd->variables.bulk_insert_buff_size);
+    table->bulk_insert= 1;
   }
 
   while ((values= its++))
@@ -290,6 +291,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
 	  error=1;
 	}
       }
+      table->bulk_insert= 0;
     }
     if (id && values_list.elements != 1)
       thd->insert_id(id);			// For update log
