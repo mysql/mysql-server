@@ -945,8 +945,10 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
       DBUG_RETURN(1);
 
   /* loop until no more const tables are found */
+  int ref_changed;
   do
   {
+    ref_changed = 0;
     found_ref=0;
     for (JOIN_TAB **pos=stat_vector+const_count; (s= *pos) ; pos++)
     {
@@ -996,6 +998,7 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
 	      s->type=JT_CONST;
 	      const_table_map|=table->map;
 	      set_position(join,const_count++,s,start_keyuse);
+	      ref_changed = 1;
 	      break;
 	    }
 	    else
@@ -1004,7 +1007,7 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
 	}
       }
     }
-  } while (const_table_map & found_ref);
+  } while (const_table_map & found_ref && ref_changed);
 
   /* Calc how many (possible) matched records in each table */
 
