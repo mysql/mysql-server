@@ -219,12 +219,18 @@ static int check_user(THD *thd,enum_server_command command, const char *user,
 	      had_password ? "yes": "no",
 	      thd->master_access, thd->db ? thd->db : "*none*"));
 
-  /* in case we're going to retry we should not send error message at this point */
+  /*
+    In case we're going to retry we should not send error message at this
+    point
+  */
   if (thd->master_access & NO_ACCESS)
   {
     if (do_send_error)
     {
-      /* Old client should get nicer error message if password version is not supported*/
+      /*
+	Old client should get nicer error message if password version is
+	not supported
+      */
       if (simple_connect && *hint_user && (*hint_user)->pversion)
       {
         net_printf(thd, ER_NOT_SUPPORTED_AUTH_MODE);
@@ -494,7 +500,10 @@ check_connections(THD *thd)
 {
   uint connect_errors=0;
   NET *net= &thd->net;
-  char *end;
+  char *end, *user, *passwd, *db;
+  char prepared_scramble[SCRAMBLE41_LENGTH+4];  /* Buffer for scramble&hash */
+  ACL_USER* cached_user=NULL; /* Initialise to NULL for first stage */
+  uint cur_priv_version;
   DBUG_PRINT("info", (("check_connections called by thread %d"),
 		      thd->thread_id));
   DBUG_PRINT("info",("New connection received on %s",
@@ -632,9 +641,9 @@ check_connections(THD *thd)
     return(ER_HANDSHAKE_ERROR);
   }
 
-  char *user=   end;
-  char *passwd= strend(user)+1;
-  char *db=0;
+  user=   end;
+  passwd= strend(user)+1;
+  db=0;
   if (thd->client_capabilities & CLIENT_CONNECT_WITH_DB)
      db=strend(passwd)+1;
 
@@ -649,11 +658,6 @@ check_connections(THD *thd)
   thd->net.return_status= &thd->server_status;
   net->read_timeout=(uint) thd->variables.net_read_timeout;
 
-  char prepared_scramble[SCRAMBLE41_LENGTH+4]; /* Buffer for scramble and hash */
-
-  ACL_USER* cached_user=NULL; /* Initialise to NULL as first stage indication */
-  uint cur_priv_version;
-
   /* Simple connect only for old clients. New clients always use secure auth */
   bool simple_connect=(!(thd->client_capabilities & CLIENT_SECURE_CONNECTION));
 
@@ -664,14 +668,13 @@ check_connections(THD *thd)
       simple_connect, prepared_scramble, using_password, &cur_priv_version,
       &cached_user)<0)
   {
+    /* Store current used and database as they are erased with next packet */
+    char tmp_user[USERNAME_LENGTH+1];
+    char tmp_db[NAME_LEN+1];
+
     /* If The client is old we just have to return error */
     if (simple_connect)
       return -1;
-
-    /* Store current used and database as they are erased with next packet */
-
-    char tmp_user[USERNAME_LENGTH+1];
-    char tmp_db[NAME_LEN+1];
 
     tmp_user[0]=0;
     if (user)
@@ -689,17 +692,17 @@ check_connections(THD *thd)
         return ER_HANDSHAKE_ERROR;
       }
     /* Reading packet back */
-    if ((pkt_len=my_net_read(net)) == packet_error)
-      {
-        inc_host_errors(&thd->remote.sin_addr);
-        return ER_HANDSHAKE_ERROR;
-      }
+    if ((pkt_len= my_net_read(net)) == packet_error)
+    {
+      inc_host_errors(&thd->remote.sin_addr);
+      return ER_HANDSHAKE_ERROR;
+    }
     /* We have to get very specific packet size  */
-    if (pkt_len!=SCRAMBLE41_LENGTH)
-      {
-        inc_host_errors(&thd->remote.sin_addr);
-        return ER_HANDSHAKE_ERROR;
-      }
+    if (pkt_len != SCRAMBLE41_LENGTH)
+    {
+      inc_host_errors(&thd->remote.sin_addr);
+      return ER_HANDSHAKE_ERROR;
+    }
     /* Final attempt to check the user based on reply */
     if (check_user(thd,COM_CONNECT, tmp_user, (char*)net->read_pos,
         tmp_db, 1, 0, 1, prepared_scramble, using_password, &cur_priv_version,
@@ -1075,7 +1078,11 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     USER_CONN *save_uc=     thd->user_connect;
     bool simple_connect;
     bool using_password;
-
+    char prepared_scramble[SCRAMBLE41_LENGTH+4];/* Buffer for scramble,hash */
+    char tmp_user[USERNAME_LENGTH+1];
+    char tmp_db[NAME_LEN+1];
+    ACL_USER* cached_user     ;                 /* Cached user */
+    uint cur_priv_version;                      /* Cached grant version */
     ulong pkt_len=0; /* Length of reply packet */
 
     /* Small check for incomming packet */
@@ -1089,10 +1096,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     if (passwd[0] && strlen(passwd)!=SCRAMBLE_LENGTH)
       goto restore_user_err;
 
-    char prepared_scramble[SCRAMBLE41_LENGTH+4];/* Buffer for scramble,hash */
-    ACL_USER* cached_user     ;                 /* Cached user */
     cached_user= NULL;
-    uint cur_priv_version;                      /* Cached grant version */
 
     /* Simple connect only for old clients. New clients always use sec. auth*/
     simple_connect=(!(thd->client_capabilities & CLIENT_SECURE_CONNECTION));
@@ -1104,8 +1108,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       memcpy(thd->scramble,thd->old_scramble,9);
 
     /*
-     Check user permissions. If password failure we'll get scramble back
-     Do not retry if we already have sent error (result>0)
+      Check user permissions. If password failure we'll get scramble back
+      Do not retry if we already have sent error (result>0)
     */
     if (check_user(thd,COM_CHANGE_USER, user, passwd, db, 0, simple_connect,
         simple_connect, prepared_scramble, using_password, &cur_priv_version,
@@ -1116,10 +1120,6 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
         goto restore_user; /* Error is already reported */
 
       /* Store current used and database as they are erased with next packet */
-
-      char tmp_user[USERNAME_LENGTH+1];
-      char tmp_db[NAME_LEN+1];
-     
       tmp_user[0]=0;
       if (user)
         strmake(tmp_user,user,USERNAME_LENGTH);
@@ -1143,8 +1143,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
         goto restore_user;
 
       /* Final attempt to check the user based on reply */
-      if (check_user(thd,COM_CHANGE_USER, tmp_user, (char*)net->read_pos,
-          tmp_db, 0, 0, 1, prepared_scramble, using_password, &cur_priv_version,
+      if (check_user(thd,COM_CHANGE_USER, tmp_user, (char*) net->read_pos,
+          tmp_db, 0, 0, 1, prepared_scramble, using_password,
+		     &cur_priv_version,
           &cached_user))
         goto restore_user;
     }
