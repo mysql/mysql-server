@@ -4506,16 +4506,21 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 @c @uref{ftp://ftp.oyster.co.uk/pub/mysql, FTP}
 
 @item
-@c gareth@omnipotent.net (Gareth Watts)
+@c EMAIL: gareth@omnipotent.net (Gareth Watts)
 @image{Flags/great-britain} UK [Omnipotent/UK] @
 @uref{http://mysql.omnipotent.net/, WWW}
 @uref{ftp://mysql.omnipotent.net/, FTP}
 
 @item
-@c keet@mordor.plig.net (Christiaan Keet)
+@c EMAIL: keet@mordor.plig.net (Christiaan Keet)
 @image{Flags/great-britain} UK [PLiG/UK] @
 @uref{http://ftp.plig.org/pub/mysql/, WWW}
 @uref{ftp://ftp.plig.org/pub/mysql/, FTP}
+
+@item
+@c EMAIL: sean@telekon.co.uk (Sean Gibson)
+@image{Flags/great-britain} UK [Telekon Internet/UK] @
+@uref{ftp://ftp.telekon.co.uk/pub/mysql/, FTP}
 
 @c @item
 @c lance@uklinux.net (Lance)
