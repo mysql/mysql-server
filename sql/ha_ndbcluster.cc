@@ -122,6 +122,8 @@ static const err_code_mapping err_map[]=
   { 827, HA_ERR_RECORD_FILE_FULL },
   { 832, HA_ERR_RECORD_FILE_FULL },
 
+  { 0, 1 },
+
   { -1, -1 }
 };
 
@@ -246,8 +248,6 @@ int ha_ndbcluster::ndb_err(NdbConnection *trans)
 {
   int res;
   const NdbError err= trans->getNdbError();
-  if (!err.code)
-    return 0;			// Don't log things to DBUG log if no error
   DBUG_ENTER("ndb_err");
   
   ERR_PRINT(err);
@@ -282,11 +282,12 @@ bool ha_ndbcluster::get_error_message(int error,
 {
   DBUG_ENTER("ha_ndbcluster::get_error_message");
   DBUG_PRINT("enter", ("error: %d", error));
-
-  if (!m_ndb)
+  
+  Ndb* ndb = (Ndb*)current_thd->transaction.ndb;
+  if (!ndb)
     DBUG_RETURN(false);
 
-  const NdbError err= m_ndb->getNdbError(error);
+  const NdbError err= ndb->getNdbError(error);
   bool temporary= err.status==NdbError::TemporaryError;
   buf->set(err.message, strlen(err.message), &my_charset_bin);
   DBUG_PRINT("exit", ("message: %s, temporary: %d", buf->ptr(), temporary));
@@ -1521,6 +1522,11 @@ int ha_ndbcluster::write_row(byte *record)
   NdbOperation *op;
   int res;
   DBUG_ENTER("write_row");
+
+  if(m_ignore_dup_key_not_supported)
+  {
+    DBUG_RETURN(HA_ERR_WRONG_COMMAND);
+  }
   
   statistic_increment(ha_write_count,&LOCK_status);
   if (table->timestamp_default_now)
@@ -2479,14 +2485,20 @@ int ha_ndbcluster::extra(enum ha_extra_function operation)
     break;
   case HA_EXTRA_IGNORE_DUP_KEY:       /* Dup keys don't rollback everything*/
     DBUG_PRINT("info", ("HA_EXTRA_IGNORE_DUP_KEY"));
-
-    DBUG_PRINT("info", ("Turning ON use of write instead of insert"));
-    m_use_write= TRUE;
+    if (current_thd->lex->sql_command == SQLCOM_REPLACE)
+    {
+      DBUG_PRINT("info", ("Turning ON use of write instead of insert"));
+      m_use_write= TRUE;
+    } else 
+    {
+      m_ignore_dup_key_not_supported= TRUE;
+    }
     break;
   case HA_EXTRA_NO_IGNORE_DUP_KEY:
     DBUG_PRINT("info", ("HA_EXTRA_NO_IGNORE_DUP_KEY"));
     DBUG_PRINT("info", ("Turning OFF use of write instead of insert"));
     m_use_write= false;
+    m_ignore_dup_key_not_supported= false;
     break;
   case HA_EXTRA_RETRIEVE_ALL_COLS:    /* Retrieve all columns, not just those
 					 where field->query_id is the same as
@@ -3364,6 +3376,7 @@ ha_ndbcluster::ha_ndbcluster(TABLE *table_arg):
 		HA_NO_PREFIX_CHAR_KEYS),
   m_share(0),
   m_use_write(false),
+  m_ignore_dup_key_not_supported(false),
   retrieve_all_fields(FALSE),
   rows_to_insert(1),
   rows_inserted(0),
