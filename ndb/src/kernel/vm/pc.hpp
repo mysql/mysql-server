@@ -148,6 +148,7 @@
 // need large value.
 /* ------------------------------------------------------------------------- */
 #define NO_OF_FRAG_PER_NODE 1
+#define MAX_FRAG_PER_NODE (NO_OF_FRAG_PER_NODE * MAX_REPLICAS)
 
 /* ---------------------------------------------------------------- */
 // To avoid synching too big chunks at a time we synch after writing

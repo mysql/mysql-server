@@ -991,7 +991,7 @@ void Dblqh::execLQHFRAGREQ(Signal* signal)
     ptrCheckGuard(tTablePtr, ctabrecFileSize, tablerec);
     FragrecordPtr tFragPtr;
     tFragPtr.i = RNIL;
-    for (Uint32 i = 0; i < NO_OF_FRAG_PER_NODE; i++) {
+    for (Uint32 i = 0; i < MAX_FRAG_PER_NODE; i++) {
       if (tTablePtr.p->fragid[i] == fragptr.p->fragId) {
         jam();
         tFragPtr.i = tTablePtr.p->fragrec[i];
@@ -1916,7 +1916,7 @@ void Dblqh::removeTable(Uint32 tableId)
   tabptr.i = tableId;
   ptrCheckGuard(tabptr, ctabrecFileSize, tablerec);
   
-  for (Uint32 i = (NO_OF_FRAG_PER_NODE - 1); (Uint32)~i; i--) {
+  for (Uint32 i = (MAX_FRAG_PER_NODE - 1); (Uint32)~i; i--) {
     jam();
     if (tabptr.p->fragid[i] != ZNIL) {
       jam();
@@ -15864,7 +15864,7 @@ void Dblqh::deleteFragrec(Uint32 fragId)
 {
   Uint32 indexFound= RNIL;
   fragptr.i = RNIL;
-  for (Uint32 i = (NO_OF_FRAG_PER_NODE - 1); (Uint32)~i; i--) {
+  for (Uint32 i = (MAX_FRAG_PER_NODE - 1); (Uint32)~i; i--) {
     jam();
     if (tabptr.p->fragid[i] == fragId) {
       fragptr.i = tabptr.p->fragrec[i];
@@ -15972,7 +15972,7 @@ void Dblqh::getFirstInLogQueue(Signal* signal)
 /* ---------------------------------------------------------------- */
 bool Dblqh::getFragmentrec(Signal* signal, Uint32 fragId) 
 {
-  for (Uint32 i = (NO_OF_FRAG_PER_NODE - 1); (UintR)~i; i--) {
+  for (Uint32 i = (MAX_FRAG_PER_NODE - 1); (UintR)~i; i--) {
     jam();
     if (tabptr.p->fragid[i] == fragId) {
       fragptr.i = tabptr.p->fragrec[i];
@@ -16394,7 +16394,7 @@ void Dblqh::initialiseTabrec(Signal* signal)
       ptrAss(tabptr, tablerec);
       tabptr.p->tableStatus = Tablerec::NOT_DEFINED;
       tabptr.p->usageCount = 0;
-      for (Uint32 i = 0; i <= (NO_OF_FRAG_PER_NODE - 1); i++) {
+      for (Uint32 i = 0; i <= (MAX_FRAG_PER_NODE - 1); i++) {
         tabptr.p->fragid[i] = ZNIL;
         tabptr.p->fragrec[i] = RNIL;
       }//for
@@ -16716,7 +16716,7 @@ bool Dblqh::insertFragrec(Signal* signal, Uint32 fragId)
     return false;
   }//if
   seizeFragmentrec(signal);
-  for (Uint32 i = (NO_OF_FRAG_PER_NODE - 1); (Uint32)~i; i--) {
+  for (Uint32 i = (MAX_FRAG_PER_NODE - 1); (Uint32)~i; i--) {
     jam();
     if (tabptr.p->fragid[i] == ZNIL) {
       jam();

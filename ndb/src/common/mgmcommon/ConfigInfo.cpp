@@ -643,7 +643,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::INT64,
-    3 * 1024 * 8192,
+    24 * (1024 * 1024),
     128 * 8192,
     ((Uint64)MAX_INT_RNIL) * ((Uint64)8192) },
 
@@ -655,9 +655,45 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::INT64,
-    10 * 1024 * 8192,
+    80 * (1024 * 1024),
     128 * 8192,
     ((Uint64)MAX_INT_RNIL) * ((Uint64)8192) },
+
+  {
+    CFG_DB_UNDO_INDEX_BUFFER,
+    "UndoIndexBuffer",
+    "DB",
+    "Number bytes on each DB node allocated for storing data",
+    ConfigInfo::USED,
+    false,
+    ConfigInfo::INT,
+    2 * (1024 * 1024),
+    1 * (1024 * 1024),
+    MAX_INT_RNIL},
+
+  {
+    CFG_DB_UNDO_DATA_BUFFER,
+    "UndoDataBuffer",
+    "DB",
+    "Number bytes on each DB node allocated for storing data",
+    ConfigInfo::USED,
+    false,
+    ConfigInfo::INT,
+    16 * (1024 * 1024),
+    1 * (1024 * 1024),
+    MAX_INT_RNIL},
+
+  {
+    CFG_DB_REDO_BUFFER,
+    "RedoBuffer",
+    "DB",
+    "Number bytes on each DB node allocated for storing data",
+    ConfigInfo::USED,
+    false,
+    ConfigInfo::INT,
+    8 * (1024 * 1024),
+    1 * (1024 * 1024),
+    MAX_INT_RNIL},
 
   {
     CFG_DB_START_PARTIAL_TIMEOUT,
