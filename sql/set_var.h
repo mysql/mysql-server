@@ -203,6 +203,10 @@ public:
   sys_var_thd_ulonglong(const char *name_arg, ulonglong SV::*offset_arg)
     :sys_var_thd(name_arg), offset(offset_arg)
   {}
+  sys_var_thd_ulonglong(const char *name_arg, ulonglong SV::*offset_arg,
+			sys_after_update_func func)
+    :sys_var_thd(name_arg,func), offset(offset_arg)
+  {}
   bool update(THD *thd, set_var *var);
   void set_default(THD *thd, enum_var_type type);
   SHOW_TYPE type() { return SHOW_LONGLONG; }
