@@ -26,7 +26,8 @@ libmysys_a_SOURCES =	my_init.c my_getwd.c mf_getdate.c\
 			mf_path.c mf_loadpath.c\
 			my_open.c my_create.c my_seek.c my_read.c \
 			my_pread.c my_write.c \
-			mf_reccache.c mf_keycache.c mf_iocache.c mf_cache.c \
+			mf_reccache.c mf_keycache.c \
+			mf_iocache.c mf_cache.c mf_tempfile.c \
 			my_lock.c mf_brkhant.c my_alarm.c \
 			my_malloc.c my_realloc.c my_once.c mulalloc.c \
 			my_alloc.c safemalloc.c my_fopen.c my_fstream.c \

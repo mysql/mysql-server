@@ -264,6 +264,7 @@ public:
   ulonglong  next_insert_id,last_insert_id,current_insert_id;
   ha_rows select_limit,offset_limit,default_select_limit,cuted_fields,
           max_join_size,sent_row_count;
+  table_map	used_tables;
   ulong query_id,version, inactive_timeout,options,thread_id;
   long  dbug_thread_id;
   pthread_t  real_id;

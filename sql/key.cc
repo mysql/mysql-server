@@ -243,7 +243,10 @@ void key_unpack(String *to,TABLE *table,uint idx)
 }
 
 
-/* Return 1 if any field in a list is part of key */
+/*
+  Return 1 if any field in a list is part of key or the key uses a field
+  that is automaticly updated (like a timestamp)
+*/
 
 bool check_if_key_used(TABLE *table, uint idx, List<Item> &fields)
 {
@@ -255,6 +258,10 @@ bool check_if_key_used(TABLE *table, uint idx, List<Item> &fields)
        key_part++)
   {
     Item_field *field;
+    
+    if (key_part->field == table->timestamp_field)
+      return 1;					// Can't be used for update
+
     f.rewind();
     while ((field=(Item_field*) f++))
     {

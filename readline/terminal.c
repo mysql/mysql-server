@@ -232,6 +232,8 @@ _rl_set_screen_size (rows, cols)
   screenchars = screenwidth * screenheight;
 }
 
+extern void _rl_redisplay_after_sigwinch();
+
 void
 rl_resize_terminal ()
 {
@@ -251,32 +253,32 @@ struct _tc_string {
    search algorithm to something smarter. */
 static struct _tc_string tc_strings[] =
 {
-  "DC", &term_DC,
-  "IC", &term_IC,
-  "ce", &term_clreol,
-  "cl", &term_clrpag,
-  "cr", &term_cr,
-  "dc", &term_dc,
-  "ei", &term_ei,
-  "ic", &term_ic,
-  "im", &term_im,
-  "kd", &term_kd,
-  "kh", &term_kh,	/* home */
-  "kH", &term_kH,	/* end */
-  "kl", &term_kl,
-  "kr", &term_kr,
-  "ku", &term_ku,
-  "ks", &term_ks,
-  "ke", &term_ke,
-  "le", &term_backspace,
-  "mm", &term_mm,
-  "mo", &term_mo,
+  {"DC", &term_DC},
+  {"IC", &term_IC},
+  {"ce", &term_clreol},
+  {"cl", &term_clrpag},
+  {"cr", &term_cr},
+  {"dc", &term_dc},
+  {"ei", &term_ei},
+  {"ic", &term_ic},
+  {"im", &term_im},
+  {"kd", &term_kd},
+  {"kh", &term_kh},	/* home */
+  {"kH", &term_kH},	/* end */
+  {"kl", &term_kl},
+  {"kr", &term_kr},
+  {"ku", &term_ku},
+  {"ks", &term_ks},
+  {"ke", &term_ke},
+  {"le", &term_backspace},
+  {"mm", &term_mm},
+  {"mo", &term_mo},
 #if defined (HACK_TERMCAP_MOTION)
-  "nd", &term_forward_char,
+  {"nd", &term_forward_char},
 #endif
-  "pc", &term_pc,
-  "up", &term_up,
-  "vb", &visible_bell,
+  {"pc", &term_pc},
+  {"up", &term_up},
+  {"vb", &visible_bell},
 };
 
 #define NUM_TC_STRINGS (sizeof (tc_strings) / sizeof (struct _tc_string))

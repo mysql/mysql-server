@@ -106,7 +106,7 @@ rl_do_undo ()
 {
   UNDO_LIST *release;
   int waiting_for_begin = 0;
-  int start, end;
+  int start = 0, end = 0;
 
 #define TRANS(i) ((i) == -1 ? rl_point : ((i) == -2 ? rl_end : (i)))
 
