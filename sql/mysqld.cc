@@ -325,6 +325,7 @@ ulong binlog_cache_use= 0, binlog_cache_disk_use= 0;
 ulong max_connections,max_used_connections,
       max_connect_errors, max_user_connections = 0;
 ulong thread_id=1L,current_pid;
+my_bool timed_mutexes= 0;
 ulong slow_launch_threads = 0, sync_binlog_period;
 ulong expire_logs_days = 0;
 ulong rpl_recovery_rank=0;
@@ -4200,7 +4201,8 @@ enum options_mysqld
   OPT_OPTIMIZER_PRUNE_LEVEL,
   OPT_UPDATABLE_VIEWS_WITH_LIMIT,
   OPT_AUTO_INCREMENT, OPT_AUTO_INCREMENT_OFFSET,
-  OPT_ENABLE_LARGE_PAGES
+  OPT_ENABLE_LARGE_PAGES,
+  OPT_TIMED_MUTEXES
 };
 
 
@@ -4799,6 +4801,10 @@ log and this option does nothing anymore.",
    "Using this option will cause most temporary files created to use a small set of names, rather than a unique name for each new file.",
    (gptr*) &use_temp_pool, (gptr*) &use_temp_pool, 0, GET_BOOL, NO_ARG, 1,
    0, 0, 0, 0, 0},
+  {"timed_mutexes", OPT_TIMED_MUTEXES,
+   "Specify whether to time mutexes (only InnoDB mutexes are currently supported)",
+   (gptr*) &timed_mutexes, (gptr*) &timed_mutexes, 0, GET_BOOL, NO_ARG, 0, 
+    0, 0, 0, 0, 0},
   {"tmpdir", 't',
    "Path for temporary files. Several paths may be specified, separated by a "
 #if defined(__WIN__) || defined(OS2) || defined(__NETWARE__)

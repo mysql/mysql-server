@@ -2488,6 +2488,13 @@ mysql_execute_command(THD *thd)
       res = innodb_show_status(thd);
       break;
     }
+  case SQLCOM_SHOW_MUTEX_STATUS:
+    {
+      if (check_global_access(thd, SUPER_ACL))
+	goto error;
+      res = innodb_mutex_show_status(thd);
+      break;
+    }
 #endif
 #ifdef HAVE_REPLICATION
   case SQLCOM_LOAD_MASTER_TABLE:

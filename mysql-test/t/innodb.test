@@ -1210,6 +1210,14 @@ show status like "Innodb_rows_deleted";
 show status like "Innodb_rows_inserted";
 show status like "Innodb_rows_read";
 show status like "Innodb_rows_updated";
+
+# Test for row locks InnoDB status variables.
+show status like "Innodb_row_lock_waits";
+show status like "Innodb_row_lock_current_waits";
+show status like "Innodb_row_lock_time";
+show status like "Innodb_row_lock_time_max";
+show status like "Innodb_row_lock_time_avg";
+
 #
 # Test varchar
 #

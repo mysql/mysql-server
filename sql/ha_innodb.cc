@@ -231,6 +231,16 @@ struct show_var_st innodb_status_variables[]= {
   (char*) &export_vars.innodb_pages_read,                 SHOW_LONG},
   {"pages_written",
   (char*) &export_vars.innodb_pages_written,              SHOW_LONG},
+  {"row_lock_waits",
+  (char*) &export_vars.innodb_row_lock_waits,             SHOW_LONG},
+  {"row_lock_current_waits",
+  (char*) &export_vars.innodb_row_lock_current_waits,     SHOW_LONG},
+  {"row_lock_time",
+  (char*) &export_vars.innodb_row_lock_time,              SHOW_LONGLONG},
+  {"row_lock_time_max",
+  (char*) &export_vars.innodb_row_lock_time_max,          SHOW_LONG},
+  {"row_lock_time_avg",
+  (char*) &export_vars.innodb_row_lock_time_avg,          SHOW_LONG},
   {"rows_deleted",
   (char*) &export_vars.innodb_rows_deleted,               SHOW_LONG},
   {"rows_inserted",
@@ -5503,6 +5513,103 @@ innodb_show_status(
 
 	send_eof(thd);
   	DBUG_RETURN(FALSE);
+}
+
+/****************************************************************************
+Implements the SHOW MUTEX STATUS command. . */
+
+bool
+innodb_mutex_show_status(
+/*===============*/
+  THD*  thd)  /* in: the MySQL query thread of the caller */
+{
+  Protocol        *protocol= thd->protocol;
+  List<Item> field_list;
+  mutex_t*  mutex;
+  const char* file_name;
+  ulint   line;
+  ulint   rw_lock_count= 0;
+  ulint   rw_lock_count_spin_loop= 0;
+  ulint   rw_lock_count_spin_rounds= 0;
+  ulint   rw_lock_count_os_wait= 0;
+  ulint   rw_lock_count_os_yield= 0;
+  ulonglong rw_lock_wait_time= 0;
+
+  DBUG_ENTER("innodb_mutex_show_status");
+
+  field_list.push_back(new Item_empty_string("Mutex", FN_REFLEN));
+  field_list.push_back(new Item_empty_string("Module", FN_REFLEN));
+  field_list.push_back(new Item_uint("Count", 21));
+  field_list.push_back(new Item_uint("Spin_waits", 21));
+  field_list.push_back(new Item_uint("Spin_rounds", 21));
+  field_list.push_back(new Item_uint("OS_waits", 21));
+  field_list.push_back(new Item_uint("OS_yields", 21));
+  field_list.push_back(new Item_uint("OS_waits_time", 21));
+
+  if (protocol->send_fields(&field_list,
+                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
+    DBUG_RETURN(TRUE);
+
+//  mutex_enter(&mutex_list_mutex);
+
+  mutex = UT_LIST_GET_FIRST(mutex_list);
+
+  while ( mutex != NULL )
+  {
+    if (mutex->mutex_type != 1)
+    {
+      if (mutex->count_using > 0)
+      {
+        protocol->prepare_for_resend();
+        protocol->store(mutex->cmutex_name, system_charset_info);
+        protocol->store(mutex->cfile_name, system_charset_info);
+        protocol->store((ulonglong)mutex->count_using);
+        protocol->store((ulonglong)mutex->count_spin_loop);
+        protocol->store((ulonglong)mutex->count_spin_rounds);
+        protocol->store((ulonglong)mutex->count_os_wait);
+        protocol->store((ulonglong)mutex->count_os_yield);
+        protocol->store((ulonglong)mutex->lspent_time/1000);
+
+        if (protocol->write())
+        {
+//          mutex_exit(&mutex_list_mutex);
+          DBUG_RETURN(1);
+        }
+      }
+    }
+    else
+    {
+      rw_lock_count += mutex->count_using;
+      rw_lock_count_spin_loop += mutex->count_spin_loop;
+      rw_lock_count_spin_rounds += mutex->count_spin_rounds;
+      rw_lock_count_os_wait += mutex->count_os_wait;
+      rw_lock_count_os_yield += mutex->count_os_yield;
+      rw_lock_wait_time += mutex->lspent_time;
+    }
+
+    mutex = UT_LIST_GET_NEXT(list, mutex);
+  }
+
+  protocol->prepare_for_resend();
+  protocol->store("rw_lock_mutexes", system_charset_info);
+  protocol->store("", system_charset_info);
+  protocol->store((ulonglong)rw_lock_count);
+  protocol->store((ulonglong)rw_lock_count_spin_loop);
+  protocol->store((ulonglong)rw_lock_count_spin_rounds);
+  protocol->store((ulonglong)rw_lock_count_os_wait);
+  protocol->store((ulonglong)rw_lock_count_os_yield);
+  protocol->store((ulonglong)rw_lock_wait_time/1000);
+
+  if (protocol->write())
+  {
+//          mutex_exit(&mutex_list_mutex);
+    DBUG_RETURN(1);
+  }
+
+
+//          mutex_exit(&mutex_list_mutex);
+  send_eof(thd);
+  DBUG_RETURN(FALSE);
 }
 
 /****************************************************************************
