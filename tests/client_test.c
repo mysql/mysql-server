@@ -100,7 +100,7 @@ if (r) \
 assert(r == 0);\
 }
 
-#define mystmt_r(stmt,r) \
+#define check_execute_r(stmt,r) \
 { \
 if (r) \
   mysterror(stmt,NULL); \
@@ -1486,15 +1486,15 @@ static void test_ps_null_param()
   {
     strmov(query, *cur_query);
     stmt = mysql_simple_prepare(mysql, query);
-    mystmt_init(stmt);
+    check_stmt(stmt);
     verify_param_count(stmt,1);
 
     rc = mysql_bind_param(stmt,&in_bind);
-    mystmt(stmt, rc);
+    check_execute(stmt, rc);
     rc= mysql_bind_result(stmt,&out_bind);
-    mystmt(stmt, rc);
+    check_execute(stmt, rc);
     rc = mysql_execute(stmt);
-    mystmt(stmt, rc);
+    check_execute(stmt, rc);
     rc= mysql_fetch(stmt);
     assert(rc != MYSQL_NO_DATA);
     assert(out_is_null);
@@ -2437,6 +2437,7 @@ static void test_long_data_str1()
   char       data[255];
   long       length, length1;
   ulong	     max_blob_length, blob_length;
+  my_bool    true_value;
   MYSQL_RES  *result;
   MYSQL_BIND bind[2];
   MYSQL_FIELD *field;
@@ -2525,6 +2526,22 @@ static void test_long_data_str1()
   check_stmt(stmt);
   verify_param_count(stmt,0);
  
+  rc = mysql_execute(stmt);
+  check_execute(stmt,rc);
+
+  rc= mysql_stmt_store_result(stmt);
+  check_execute(stmt,rc);
+
+  result= mysql_get_metadata(stmt);
+  field= mysql_fetch_fields(result);
+
+  /* First test what happens if STMT_ATTR_UPDATE_MAX_LENGTH is not used */
+  DBUG_ASSERT(field->max_length == 0);
+  mysql_free_result(result);
+
+  /* Enable updating of field->max_length */
+  true_value= 1;
+  mysql_stmt_attr_set(stmt, STMT_ATTR_UPDATE_MAX_LENGTH, (void*) &true_value);
   rc = mysql_execute(stmt);
   check_execute(stmt,rc);
 
@@ -5784,7 +5801,7 @@ static void test_pure_coverage()
 
   bind[0].buffer_type= MYSQL_TYPE_GEOMETRY;
   rc = mysql_bind_param(stmt, bind);
-  mystmt_r(stmt, rc); /* unsupported buffer type */
+  check_execute_r(stmt, rc); /* unsupported buffer type */
   
   bind[0].buffer_type= MYSQL_TYPE_STRING;
   rc = mysql_bind_param(stmt, bind);
@@ -5803,13 +5820,13 @@ static void test_pure_coverage()
 
   bind[0].buffer_type= MYSQL_TYPE_GEOMETRY;
   rc = mysql_bind_result(stmt, bind);
-  mystmt_r(stmt, rc); /* unsupported buffer type */
+  check_execute_r(stmt, rc); /* unsupported buffer type */
 
   rc = mysql_stmt_store_result(stmt);
   check_execute(stmt, rc);
   
   rc = mysql_stmt_store_result(stmt);
-  mystmt_r(stmt, rc); /* commands out of sync */
+  check_execute_r(stmt, rc); /* commands out of sync */
 
   mysql_stmt_close(stmt);
 
@@ -7443,7 +7460,7 @@ static void test_fetch_offset()
   check_execute(stmt,rc);
 
   rc = mysql_fetch_column(stmt,bind,0,0);
-  mystmt_r(stmt,rc);
+  check_execute_r(stmt,rc);
 
   rc = mysql_bind_result(stmt, bind);
   check_execute(stmt,rc);
@@ -7484,7 +7501,7 @@ static void test_fetch_offset()
   assert(rc == MYSQL_NO_DATA);
 
   rc = mysql_fetch_column(stmt,bind,1,0);
-  mystmt_r(stmt,rc);
+  check_execute_r(stmt,rc);
 
   mysql_stmt_close(stmt);
 }
@@ -7534,7 +7551,7 @@ static void test_fetch_column()
   check_execute(stmt,rc);
 
   rc = mysql_fetch_column(stmt,bind,1,0); /* No-op at this point */
-  mystmt_r(stmt,rc);
+  check_execute_r(stmt,rc);
 
   rc = mysql_fetch(stmt);
   check_execute(stmt,rc);
@@ -7610,7 +7627,7 @@ static void test_fetch_column()
   assert(rc == MYSQL_NO_DATA);
 
   rc = mysql_fetch_column(stmt,bind,1,0);
-  mystmt_r(stmt,rc);
+  check_execute_r(stmt,rc);
 
   mysql_stmt_close(stmt);
 }
@@ -8464,11 +8481,11 @@ static void test_bug2248()
 
   /* This should not hang */
   rc= mysql_fetch(stmt);
-  mystmt_r(stmt,rc);
+  check_execute_r(stmt,rc);
   
   /* And this too */
   rc= mysql_stmt_store_result(stmt);
-  mystmt_r(stmt,rc);
+  check_execute_r(stmt,rc);
   
   mysql_stmt_close(stmt);
   
@@ -8488,7 +8505,7 @@ static void test_bug2248()
  
   /* This should return proper error */
   rc= mysql_fetch(stmt);
-  mystmt_r(stmt,rc);
+  check_execute_r(stmt,rc);
   assert(rc==MYSQL_NO_DATA);
   
   mysql_stmt_close(stmt);
@@ -8833,7 +8850,7 @@ static void test_rename()
   myquery(rc);
 
   rc= mysql_execute(stmt);
-  mystmt_r(stmt, rc);
+  check_execute_r(stmt, rc);
   fprintf(stdout, "rename without t3\n");
 
   rc= mysql_query(mysql,"create table t3 (a int)");
@@ -8844,7 +8861,7 @@ static void test_rename()
   fprintf(stdout, "rename with t3\n");
 
   rc= mysql_execute(stmt);
-  mystmt_r(stmt, rc);
+  check_execute_r(stmt, rc);
   fprintf(stdout, "rename renamed\n");
 
   rc= mysql_query(mysql,"rename table t2 to t1, t4 to t3");
@@ -9246,13 +9263,12 @@ static void test_bug3035()
   bind_array[7].is_unsigned= 1;
 
   stmt= mysql_stmt_init(mysql);
-
-  mystmt_init(stmt);
+  check_stmt(stmt);
 
   stmt_text= "INSERT INTO t1 (i8, ui8, i16, ui16, i32, ui32, i64, ui64) "
                      "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
   rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
-  mystmt(stmt, rc);
+  check_execute(stmt, rc);
 
   mysql_stmt_bind_param(stmt, bind_array);
 
@@ -9266,7 +9282,7 @@ static void test_bug3035()
   uint64_val= uint64_min;
 
   rc= mysql_stmt_execute(stmt);
-  mystmt(stmt, rc);
+  check_execute(stmt, rc);
   
   int8_val= int8_max;
   uint8_val= uint8_max;
@@ -9278,21 +9294,21 @@ static void test_bug3035()
   uint64_val= uint64_max;
 
   mysql_stmt_execute(stmt);
-  mystmt(stmt, rc);
+  check_execute(stmt, rc);
 
   stmt_text= "SELECT i8, ui8, i16, ui16, i32, ui32, i64, ui64 "
              "FROM t1 ORDER BY id ASC";
 
   mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
-  mystmt(stmt, rc);
+  check_execute(stmt, rc);
 
   mysql_stmt_execute(stmt);
-  mystmt(stmt, rc);
+  check_execute(stmt, rc);
 
   mysql_stmt_bind_result(stmt, bind_array);
 
   rc= mysql_stmt_fetch(stmt);
-  mystmt(stmt, rc);
+  check_execute(stmt, rc);
 
   assert(int8_val == int8_min);
   assert(uint8_val == uint8_min);
@@ -9304,7 +9320,7 @@ static void test_bug3035()
   assert(uint64_val == uint64_min);
 
   rc= mysql_stmt_fetch(stmt);
-  mystmt(stmt, rc);
+  check_execute(stmt, rc);
   
   assert(int8_val == int8_max);
   assert(uint8_val == uint8_max);
