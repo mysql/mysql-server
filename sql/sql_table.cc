@@ -53,11 +53,9 @@ int mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists)
 
   /* mark for close and remove all cached entries */
 
-  pthread_mutex_lock(&thd->mysys_var->mutex);
   thd->mysys_var->current_mutex= &LOCK_open;
   thd->mysys_var->current_cond= &COND_refresh;
   VOID(pthread_mutex_lock(&LOCK_open));
-  pthread_mutex_unlock(&thd->mysys_var->mutex);
 
   if (global_read_lock)
   {

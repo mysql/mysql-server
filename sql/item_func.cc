@@ -1500,11 +1500,9 @@ longlong Item_func_get_lock::val_int()
 
   /* structure is now initialized.  Try to get the lock */
   /* Set up control struct to allow others to abort locks */
-  pthread_mutex_lock(&thd->mysys_var->mutex);
   thd->proc_info="User lock";
   thd->mysys_var->current_mutex= &LOCK_user_locks;
   thd->mysys_var->current_cond=  &ull->cond;
-  pthread_mutex_unlock(&thd->mysys_var->mutex);
 
 #ifdef HAVE_TIMESPEC_TS_SEC
   abstime.ts_sec=time((time_t*) 0)+(time_t) timeout;
@@ -1514,15 +1512,11 @@ longlong Item_func_get_lock::val_int()
   abstime.tv_nsec=0;
 #endif
 
-  while ((error=pthread_cond_timedwait(&ull->cond,&LOCK_user_locks,&abstime))
-	 != ETIME && error != ETIMEDOUT && ull->locked)
-  {
-    if (thd->killed || abort_loop)
-    {
-      error=EINTR;				// Return NULL
-      break;
-    }
-  }
+  while (!thd->killed &&
+	 (error=pthread_cond_timedwait(&ull->cond,&LOCK_user_locks,&abstime))
+	 != ETIME && error != ETIMEDOUT && ull->locked) ;
+  if (thd->killed)
+    error=EINTR;				// Return NULL
   if (ull->locked)
   {
     if (!--ull->count)

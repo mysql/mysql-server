@@ -509,12 +509,14 @@ static void close_connections(void)
     if (tmp->mysys_var)
     {
       tmp->mysys_var->abort=1;
-      if (tmp->mysys_var->current_mutex)
+      pthread_mutex_lock(&tmp->mysys_var->mutex);
+      if (tmp->mysys_var->current_cond)
       {
 	pthread_mutex_lock(tmp->mysys_var->current_mutex);
 	pthread_cond_broadcast(tmp->mysys_var->current_cond);
 	pthread_mutex_unlock(tmp->mysys_var->current_mutex);
       }
+      pthread_mutex_unlock(&tmp->mysys_var->mutex);
     }
   }
   (void) pthread_mutex_unlock(&LOCK_thread_count); // For unlink from list
