@@ -2264,6 +2264,11 @@ void ha_ndbcluster::print_results()
       fprintf(DBUG_FILE, "Date\t%llu", value);
       break;
     }
+    case NdbDictionary::Column::Time: {
+      Uint64 value= (Uint64) *field->ptr;
+      fprintf(DBUG_FILE, "Time\t%llu", value);
+      break;
+    }
     case NdbDictionary::Column::Blob: {
       Uint64 len= 0;
       ndb_blob->getLength(len);
@@ -3327,8 +3332,11 @@ static int create_ndb_column(NDBCOL &col,
     col.setType(NDBCOL::Date);
     col.setLength(1);
     break;
-  case MYSQL_TYPE_DATE: // ?
   case MYSQL_TYPE_TIME:        
+    col.setType(NDBCOL::Time);
+    col.setLength(1);
+    break;
+  case MYSQL_TYPE_DATE: // ?
   case MYSQL_TYPE_YEAR:        
     col.setType(NDBCOL::Char);
     col.setLength(field->pack_length());

@@ -187,7 +187,8 @@ public:
       Datetime,    ///< Precision down to 1 sec (sizeof(Datetime) == 8 bytes )
       Date,        ///< Precision down to 1 day(sizeof(Date) == 4 bytes )
       Blob,        ///< Binary large object (see NdbBlob)
-      Text         ///< Text blob
+      Text,        ///< Text blob
+      Time = 25    ///< Time without date
     };
 
     /** 

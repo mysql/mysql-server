@@ -947,6 +947,9 @@ operator<<(NdbOut& out, const NdbDictionary::Column& col)
     out << "Text(" << col.getInlineSize() << "," << col.getPartSize()
         << ";" << col.getStripeSize() << ";" << csname << ")";
     break;
+  case NdbDictionary::Column::Time:
+    out << "Time";
+    break;
   case NdbDictionary::Column::Undefined:
     out << "Undefined";
     break;
