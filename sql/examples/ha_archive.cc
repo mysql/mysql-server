@@ -116,7 +116,6 @@
 /* Variables for archive share methods */
 pthread_mutex_t archive_mutex;
 static HASH archive_open_tables;
-static int archive_init= 0;
 
 /* The file extension */
 #define ARZ ".ARZ"               // The data file
@@ -141,6 +140,46 @@ static byte* archive_get_key(ARCHIVE_SHARE *share,uint *length,
   *length=share->table_name_length;
   return (byte*) share->table_name;
 }
+
+
+/*
+  Initialize the archive handler.
+
+  SYNOPSIS
+    archive_db_init()
+    void
+
+  RETURN
+    FALSE       OK
+    TRUE        Error
+*/
+
+bool archive_db_init()
+{
+  VOID(pthread_mutex_init(&archive_mutex, MY_MUTEX_INIT_FAST));
+  return (hash_init(&archive_open_tables, system_charset_info, 32, 0, 0,
+                    (hash_get_key) archive_get_key, 0, 0));
+}
+
+
+/*
+  Release the archive handler.
+
+  SYNOPSIS
+    archive_db_end()
+    void
+
+  RETURN
+    FALSE       OK
+*/
+
+bool archive_db_end()
+{
+  hash_free(&archive_open_tables);
+  VOID(pthread_mutex_destroy(&archive_mutex));
+  return FALSE;
+}
+
 
 /*
   This method reads the header of a datafile and returns whether or not it was successful.
@@ -269,23 +308,6 @@ ARCHIVE_SHARE *ha_archive::get_share(const char *table_name, TABLE *table)
   uint length;
   char *tmp_name;
 
-  if (!archive_init)
-  {
-    /* Hijack a mutex for init'ing the storage engine */
-    pthread_mutex_lock(&LOCK_mysql_create_db);
-    if (!archive_init)
-    {
-      VOID(pthread_mutex_init(&archive_mutex,MY_MUTEX_INIT_FAST));
-      if (hash_init(&archive_open_tables,system_charset_info,32,0,0,
-                       (hash_get_key) archive_get_key,0,0))
-      {
-        pthread_mutex_unlock(&LOCK_mysql_create_db);
-        return NULL;
-      }
-      archive_init++;
-    }
-    pthread_mutex_unlock(&LOCK_mysql_create_db);
-  }
   pthread_mutex_lock(&archive_mutex);
   length=(uint) strlen(table_name);
 
@@ -379,6 +401,7 @@ int ha_archive::free_share(ARCHIVE_SHARE *share)
     (void)write_meta_file(share->meta_file, share->rows_recorded, FALSE);
     if (gzclose(share->archive_write) == Z_ERRNO)
       rc= 1;
+    my_close(share->meta_file,MYF(0));
     my_free((gptr) share, MYF(0));
   }
   pthread_mutex_unlock(&archive_mutex);
