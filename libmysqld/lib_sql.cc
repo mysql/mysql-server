@@ -75,7 +75,10 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
      client). So we have to call free_old_query here
   */
   free_old_query(mysql);
-  if (!arg)
+
+  thd->extra_length= arg_length;
+  thd->extra_data= (char *)arg;
+  if (header)
   {
     arg= header;
     arg_length= header_length;
