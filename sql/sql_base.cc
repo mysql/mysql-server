@@ -2173,25 +2173,33 @@ Field *find_field_in_real_table(THD *thd, TABLE *table,
     find_field_in_tables()
     thd			Pointer to current thread structure
     item		Field item that should be found
-    tables		Tables for scanning
-    ref			if view field is found, pointer to view item will
-			be returned via this parameter
-    report_error	If FALSE then do not report error if item not found
-			and return not_found_field
+    tables		Tables to be searched for item
+    ref			If 'item' is resolved to a view field, ref is set to
+                        point to the found view field
+    report_error	Degree of error reporting:
+                        - IGNORE_ERRORS then do not report any error
+                        - IGNORE_EXCEPT_NON_UNIQUE report only non-unique
+                          fields, suppress all other errors
+                        - REPORT_EXCEPT_NON_UNIQUE report all other errors
+                          except when non-unique fields were found
+                        - REPORT_ALL_ERRORS
     check_privileges    need to check privileges
 
   RETURN VALUES
-    0			Field is not found or field is not unique- error
-			message is reported
-    not_found_field	Function was called with report_error == FALSE and
-			field was not found. no error message reported.
-    view_ref_found	view field is found, item passed through ref parameter
-    found field
+    0			No field was found, or the found field is not unique, or
+                        there are no sufficient access priviligaes for the
+                        found field, or the field is qualified with non-existing
+                        table.
+    not_found_field	The function was called with report_error ==
+                        (IGNORE_ERRORS || IGNORE_EXCEPT_NON_UNIQUE) and a
+			field was not found.
+    view_ref_found	View field is found, item passed through ref parameter
+    found field         If a item was resolved to some field
 */
 
 Field *
 find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
-		     Item **ref, bool report_error,
+		     Item **ref, find_item_error_report_type report_error,
                      bool check_privileges)
 {
   Field *found=0;
@@ -2268,8 +2276,10 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
 	    return find;
 	  if (found)
 	  {
-	    my_printf_error(ER_NON_UNIQ_ERROR,ER(ER_NON_UNIQ_ERROR),MYF(0),
-			    item->full_name(),thd->where);
+            if (report_error == REPORT_ALL_ERRORS ||
+                report_error == IGNORE_EXCEPT_NON_UNIQUE)
+              my_printf_error(ER_NON_UNIQ_ERROR,ER(ER_NON_UNIQ_ERROR),MYF(0),
+                              item->full_name(),thd->where);
 	    return (Field*) 0;
 	  }
 	  found=find;
@@ -2278,7 +2288,8 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
     }
     if (found)
       return found;
-    if (!found_table && report_error)
+    if (!found_table && (report_error == REPORT_ALL_ERRORS ||
+                         report_error == REPORT_EXCEPT_NON_UNIQUE))
     {
       char buff[NAME_LEN*2+1];
       if (db && db[0])
@@ -2286,28 +2297,30 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
 	strxnmov(buff,sizeof(buff)-1,db,".",table_name,NullS);
 	table_name=buff;
       }
-      if (report_error)
-      {
+      if (report_error == REPORT_ALL_ERRORS ||
+          report_error == REPORT_EXCEPT_NON_UNIQUE)
 	my_printf_error(ER_UNKNOWN_TABLE, ER(ER_UNKNOWN_TABLE), MYF(0),
 			table_name, thd->where);
-      }
       else
 	return (Field*) not_found_field;
     }
     else
-      if (report_error)
+      if (report_error == REPORT_ALL_ERRORS ||
+          report_error == REPORT_EXCEPT_NON_UNIQUE)
 	my_printf_error(ER_BAD_FIELD_ERROR,ER(ER_BAD_FIELD_ERROR),MYF(0),
 			item->full_name(),thd->where);
       else
 	return (Field*) not_found_field;
     return (Field*) 0;
   }
+
   bool allow_rowid= tables && !tables->next_local;	// Only one table
   for (; tables ; tables= tables->next_local)
   {
     if (!tables->table)
     {
-      if (report_error)
+      if (report_error == REPORT_ALL_ERRORS ||
+          report_error == REPORT_EXCEPT_NON_UNIQUE)
 	my_printf_error(ER_BAD_FIELD_ERROR,ER(ER_BAD_FIELD_ERROR),MYF(0),
 			item->full_name(),thd->where);
       return (Field*) not_found_field;
@@ -2332,8 +2345,10 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
       {
 	if (!thd->where)			// Returns first found
 	  break;
-	my_printf_error(ER_NON_UNIQ_ERROR,ER(ER_NON_UNIQ_ERROR),MYF(0),
-			name,thd->where);
+        if (report_error == REPORT_ALL_ERRORS ||
+            report_error == IGNORE_EXCEPT_NON_UNIQUE)
+          my_printf_error(ER_NON_UNIQ_ERROR,ER(ER_NON_UNIQ_ERROR),MYF(0),
+                          name,thd->where);
 	return (Field*) 0;
       }
       found=field;
@@ -2341,7 +2356,8 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
   }
   if (found)
     return found;
-  if (report_error)
+  if (report_error == REPORT_ALL_ERRORS ||
+      report_error == REPORT_EXCEPT_NON_UNIQUE)
     my_printf_error(ER_BAD_FIELD_ERROR, ER(ER_BAD_FIELD_ERROR),
 		    MYF(0), item->full_name(), thd->where);
   else
@@ -2377,7 +2393,7 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
     found field 
 */
 
-// Special Item pointer for find_item_in_list returning
+/* Special Item pointer to serve as a return value from find_item_in_list(). */
 const Item **not_found_item= (const Item**) 0x1;
 
 

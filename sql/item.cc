@@ -1397,7 +1397,8 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   {
     bool upward_lookup= 0;
     Field *tmp= (Field *)not_found_field;
-    if ((tmp= find_field_in_tables(thd, this, tables, ref, 0,
+    if ((tmp= find_field_in_tables(thd, this, tables, ref,
+                                   IGNORE_EXCEPT_NON_UNIQUE,
                                    !any_privileges)) ==
 	not_found_field)
     {
@@ -1449,7 +1450,8 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
                (sl->with_sum_func == 0 && sl->group_list.elements == 0)) &&
               (tmp= find_field_in_tables(thd, this,
 					 table_list, ref,
-					 0, 1)) != not_found_field)
+					 IGNORE_EXCEPT_NON_UNIQUE, 1)) !=
+              not_found_field)
 	  {
 	    if (tmp)
             {
@@ -1505,7 +1507,7 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 	else
 	{
 	  // Call to report error
-	  find_field_in_tables(thd, this, tables, ref, 1, 1);
+	  find_field_in_tables(thd, this, tables, ref, REPORT_ALL_ERRORS, 1);
 	}
 	return -1;
       }
@@ -2347,31 +2349,39 @@ static Item** find_field_in_group_list(Item *find_item, ORDER *group_list)
 
   SYNOPSIS
     Item_ref::fix_fields()
-    thd       [in]      Current thread
-    tables    [in]      The tables in the FROM clause
-    reference [in/out]  View column if this item was resolved to a view column
+    thd       [in]      current thread
+    tables    [in]      the tables in the FROM clause
+    reference [in/out]  view column if this item was resolved to a view column
 
   DESCRIPTION
-    The method resolves the column reference represented by this as an Item
-    present in either of: GROUP BY clause, SELECT clause, outer queries. It is
+    The method resolves the column reference represented by 'this' as a column
+    present in one of: GROUP BY clause, SELECT clause, outer queries. It is
     used for columns in the HAVING clause which are not under aggregate
     functions.
 
   NOTES
+    The general idea behind the name resolution algorithm is that it searches
+    both the SELECT and GROUP BY clauses, and in case of a name conflict
+    prefers GROUP BY column names over SELECT names. We extend ANSI SQL in that
+    when no GROUP BY column is found, then a HAVING name is resolved as a
+    possibly derived SELECT column.
+
     The name resolution algorithm used is:
+
       resolve_extended([T_j].col_ref_i)
       {
-        Search for a column named col_ref_i [in table T_j]
-        in the GROUP BY clause of Q.
-
         Search for a column or derived column named col_ref_i [in table T_j]
         in the SELECT list of Q.
 
-        if found different columns with the same name in GROUP BY and SELECT
-        issue an error.
+        Search for a column named col_ref_i [in table T_j]
+        in the GROUP BY clause of Q.
 
-        // Lookup in outer queries.
-        if such a column is NOT found AND there are outer queries
+        If found different columns with the same name in GROUP BY and SELECT
+        issue a warning and return the GROUP BY column,
+        otherwise return the found SELECT column.
+
+        if such a column is NOT found AND    // Lookup in outer queries.
+           there are outer queries
         {
           for each outer query Q_k beginning from the inner-most one
          {
@@ -2385,8 +2395,9 @@ static Item** find_field_in_group_list(Item *find_item, ORDER *group_list)
           }
         }
       }
-    This procedure treats GROUP BY and SELECT as one namespace for column
-    references in HAVING.
+
+    This procedure treats GROUP BY and SELECT clauses as one namespace for
+    column references in HAVING.
 
   RETURN
     TRUE  if error
@@ -2398,9 +2409,10 @@ bool Item_ref::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
   DBUG_ASSERT(fixed == 0);
   uint counter;
   SELECT_LEX *current_sel= thd->lex->current_select;
-  List<Item> *search_namespace= current_sel->get_item_list();
+  List<Item> *select_fields= current_sel->get_item_list();
   bool is_having_field= current_sel->having_fix_field;
   Item **group_by_ref= NULL;
+  bool ambiguous_fields= FALSE;
 
   if (!ref)
   {
@@ -2413,7 +2425,7 @@ bool Item_ref::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
       Search for a column or derived column named as 'this' in the SELECT
       clause of current_select.
     */
-    if (!(ref= find_item_in_list(this, *search_namespace, &counter,
+    if (!(ref= find_item_in_list(this, *select_fields, &counter,
                                  REPORT_EXCEPT_NOT_FOUND)))
       return TRUE; /* Some error occurred. */
 
@@ -2422,20 +2434,22 @@ bool Item_ref::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
     {
       group_by_ref= find_field_in_group_list(this, (ORDER*)
                                              current_sel->group_list.first);
+
       /* Check if the fields found in SELECT and GROUP BY are the same field. */
       if (group_by_ref && ref != (Item **) not_found_item &&
           !((*group_by_ref)->eq(*ref, 0)))
       {
-        my_printf_error(ER_NON_UNIQ_ERROR, ER(ER_NON_UNIQ_ERROR),
-                        MYF(0), this->full_name(), current_thd->where);
-        return TRUE;
+        ambiguous_fields= TRUE;
+        push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                            ER_NON_UNIQ_ERROR, ER(ER_NON_UNIQ_ERROR),
+                            this->full_name(), current_thd->where);
+
       }
     }
 
-
     /*
       If we didn't find such a column in the current query, and if there is an
-      outer select, and this is not a derived table (which do not support the
+      outer select, and it is not a derived table (which do not support the
       use of outer fields for now), search the outer select(s) for a column
       named as 'this'.
     */
@@ -2494,7 +2508,8 @@ bool Item_ref::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
               outer_sel->group_list.elements == 0)) &&
             (tmp= find_field_in_tables(thd, this,
 				       table_list, reference,
-				       0, 1)) != not_found_field)
+				       IGNORE_EXCEPT_NON_UNIQUE, TRUE)) !=
+            not_found_field)
 	{
           if (tmp)
           {
@@ -2538,7 +2553,7 @@ bool Item_ref::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
 	else
 	{
 	  // Call to report error
-	  find_item_in_list(this, *search_namespace, &counter,
+	  find_item_in_list(this, *select_fields, &counter,
 			    REPORT_ALL_ERRORS);
 	}
         ref= 0;
@@ -2588,7 +2603,7 @@ bool Item_ref::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
     }
     else
     {
-      if (ref != (Item **) not_found_item)
+      if (ref != (Item **) not_found_item && !ambiguous_fields)
         ref= current_sel->ref_pointer_array + counter;
       else if (group_by_ref)
         ref= group_by_ref;
