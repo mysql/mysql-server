@@ -177,7 +177,7 @@ int my_wc_mb_latin1(CHARSET_INFO *cs __attribute__((unused)),
 
 CHARSET_INFO my_charset_latin1 =
 {
-    8,			/* number    */
+    8,0,0,		/* number    */
     MY_CS_COMPILED,	/* state     */
     "latin1",		/* cs name    */
     "latin1",		/* name      */

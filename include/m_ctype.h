@@ -77,6 +77,8 @@ typedef struct my_uni_idx_st
 typedef struct charset_info_st
 {
   uint      number;
+  uint      primary_number;
+  uint      binary_number;
   uint      state;
   const char *csname;
   const char *name;

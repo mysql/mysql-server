@@ -9888,7 +9888,7 @@ my_mb_wc_gbk(CHARSET_INFO *cs __attribute__((unused)),
 
 CHARSET_INFO my_charset_gbk =
 {
-    28,			/* number */
+    28,0,0,		/* number */
     MY_CS_COMPILED|MY_CS_PRIMARY|MY_CS_STRNXFRM,	/* state      */
     "gbk",		/* cs name    */
     "gbk",		/* name */

@@ -257,7 +257,13 @@ static int add_collation(CHARSET_INFO *cs)
         return MY_XML_ERROR;
       bzero((void*)all_charsets[cs->number],sizeof(CHARSET_INFO));
     }
+    
+    if (cs->primary_number == cs->number)
+      cs->state |= MY_CS_PRIMARY;
       
+    if (cs->primary_number == cs->number)
+      cs->state |= MY_CS_BINSORT;
+    
     if (!(all_charsets[cs->number]->state & MY_CS_COMPILED))
     {
       simple_cs_copy_data(all_charsets[cs->number],cs);
@@ -266,6 +272,10 @@ static int add_collation(CHARSET_INFO *cs)
         simple_cs_init_functions(all_charsets[cs->number]);
         all_charsets[cs->number]->state |= MY_CS_LOADED;
       }
+    }
+    else
+    {
+      all_charsets[cs->number]->state |= cs->state;
     }
     cs->number= 0;
     cs->name= NULL;

@@ -1187,7 +1187,7 @@ static uchar sort_order_german1[] = {
 };
 #endif
 
-#ifdef HAVE_CHARSET_greek
+#ifdef HAVE_CHARSET_greek_bad
 
 /* The greek character set.  Generated automatically by
  * the ./conf_to_src program
@@ -2807,7 +2807,7 @@ CHARSET_INFO compiled_charsets[] = {
 
 #ifdef HAVE_CHARSET_latin1
   {
-    8,			/* number     */
+    8,0,0,		/* number     */
     MY_CS_COMPILED|MY_CS_PRIMARY,	/* state      */
     "latin1",		/* cs name    */
     "latin1",		/* name       */
@@ -2858,7 +2858,7 @@ CHARSET_INFO compiled_charsets[] = {
 
 #ifdef HAVE_CHARSET_cp1251
   {
-    14,			/* number */
+    14,0,0,		/* number */
     MY_CS_COMPILED,	/* state      */
     "cp1251",		/* cs name    */
     "cp1251",		/* name */
@@ -2908,7 +2908,7 @@ CHARSET_INFO compiled_charsets[] = {
 
 #ifdef HAVE_CHARSET_cp1257
   {
-    29,			/* number */
+    29,0,0,		/* number */
     MY_CS_COMPILED,	/* state      */
     "cp1257",		/* cs name    */
     "cp1257",		/* name */
@@ -2958,7 +2958,7 @@ CHARSET_INFO compiled_charsets[] = {
 
 #ifdef HAVE_CHARSET_croat
   {
-    27,			/* number */
+    27,0,0,		/* number */
     MY_CS_COMPILED,	/* state      */
     "latin2",		/* cs name    */
     "croat",		/* name */
@@ -2979,6 +2979,8 @@ CHARSET_INFO compiled_charsets[] = {
     NULL,		/* ismbchar  */
     NULL,		/* ismbhead  */
     NULL,		/* mbcharlen */
+    my_numchars_8bit,
+    my_charpos_8bit,
     my_mb_wc_8bit,	/* mb_wc   */
     my_wc_mb_8bit,	/* wc_mb   */
     my_caseup_str_8bit,
@@ -3007,7 +3009,7 @@ CHARSET_INFO compiled_charsets[] = {
 
 #ifdef HAVE_CHARSET_danish
   {
-    15,			/* number */
+    15,0,0,		/* number */
     MY_CS_COMPILED,	/* state      */
     "latin1",		/* cs name    */
     "danish",		/* name */
@@ -3028,6 +3030,8 @@ CHARSET_INFO compiled_charsets[] = {
     NULL,		/* ismbchar  */
     NULL,		/* ismbhead  */
     NULL,		/* mbcharlen */
+    my_numchars_8bit,
+    my_charpos_8bit,
     my_mb_wc_8bit,	/* mb_wc   */
     my_wc_mb_8bit,	/* wc_mb   */
     my_caseup_str_8bit,
@@ -3055,7 +3059,7 @@ CHARSET_INFO compiled_charsets[] = {
 
 #ifdef HAVE_CHARSET_dec8
   {
-    3,			/* number */
+    3,0,0,		/* number */
     MY_CS_COMPILED,	/* state      */
     "dec8",		/* cs name    */
     "dec8",		/* name */
@@ -3076,6 +3080,8 @@ CHARSET_INFO compiled_charsets[] = {
     NULL,		/* ismbchar  */
     NULL,		/* ismbhead  */
     NULL,		/* mbcharlen */
+    my_numchars_8bit,
+    my_charpos_8bit,
     my_mb_wc_8bit,	/* mb_wc   */
     my_wc_mb_8bit,	/* wc_mb   */
     my_caseup_str_8bit,
@@ -3103,7 +3109,7 @@ CHARSET_INFO compiled_charsets[] = {
 
 #ifdef HAVE_CHARSET_dos
   {
-    4,			/* number */
+    4,0,0,		/* number */
     MY_CS_COMPILED,	/* state      */
     "cp850",		/* cs name    */
     "dos",		/* name */
@@ -3124,6 +3130,8 @@ CHARSET_INFO compiled_charsets[] = {
     NULL,		/* ismbchar  */
     NULL,		/* ismbhead  */
     NULL,		/* mbcharlen */
+    my_numchars_8bit,
+    my_charpos_8bit,
     my_mb_wc_8bit,	/* mb_wc   */
     my_wc_mb_8bit,	/* wc_mb   */
     my_caseup_str_8bit,
@@ -3151,7 +3159,7 @@ CHARSET_INFO compiled_charsets[] = {
 
 #ifdef HAVE_CHARSET_estonia
   {
-    20,			/* number */
+    20,0,0,		/* number */
     MY_CS_COMPILED,	/* state      */
     "latin7",		/* cs name    */
     "estonia",		/* name */
@@ -3172,6 +3180,8 @@ CHARSET_INFO compiled_charsets[] = {
     NULL,		/* ismbchar  */
     NULL,		/* ismbhead  */
     NULL,		/* mbcharlen */
+    my_numchars_8bit,
+    my_charpos_8bit,
     my_mb_wc_8bit,	/* mb_wc   */
     my_wc_mb_8bit,	/* wc_mb   */
     my_caseup_str_8bit,
@@ -3200,7 +3210,7 @@ CHARSET_INFO compiled_charsets[] = {
 
 #ifdef HAVE_CHARSET_german1
   {
-    5,			/* number */
+    5,0,0,		/* number */
     MY_CS_COMPILED,	/* state      */
     "latin1",		/* cs name    */
     "german1",		/* name */
@@ -3221,6 +3231,8 @@ CHARSET_INFO compiled_charsets[] = {
     NULL,		/* ismbchar  */
     NULL,		/* ismbhead  */
     NULL,		/* mbcharlen */
+    my_numchars_8bit,
+    my_charpos_8bit,
     my_mb_wc_8bit,	/* mb_wc   */
     my_wc_mb_8bit,	/* wc_mb   */
     my_caseup_str_8bit,
@@ -3246,9 +3258,9 @@ CHARSET_INFO compiled_charsets[] = {
   },
 #endif
 
-#ifdef HAVE_CHARSET_greek
+#ifdef HAVE_CHARSET_greek_bad
   {
-    25,			/* number */
+    25,0,0, 		/* number */
     MY_CS_COMPILED,	/* state      */
     "greek",		/* cs name    */
     "greek",		/* name */
@@ -3269,6 +3281,8 @@ CHARSET_INFO compiled_charsets[] = {
     NULL,		/* ismbchar  */
     NULL,		/* ismbhead  */
     NULL,		/* mbcharlen */
+    my_numchars_8bit,
+    my_charpos_8bit,
     my_mb_wc_8bit,	/* mb_wc   */
     my_wc_mb_8bit,	/* wc_mb   */
     my_caseup_str_8bit,
@@ -3296,7 +3310,7 @@ CHARSET_INFO compiled_charsets[] = {
 
 #ifdef HAVE_CHARSET_hebrew
   {
-    16,			/* number */
+    16,0,0,		/* number */
     MY_CS_COMPILED,	/* state      */
     "hebrew",		/* cs name    */
     "hebrew",		/* name */
@@ -3317,6 +3331,8 @@ CHARSET_INFO compiled_charsets[] = {
     NULL,		/* ismbchar  */
     NULL,		/* ismbhead  */
     NULL,		/* mbcharlen */
+    my_numchars_8bit,
+    my_charpos_8bit,
     my_mb_wc_8bit,	/* mb_wc   */
     my_wc_mb_8bit,	/* wc_mb   */
     my_caseup_str_8bit,
@@ -3344,7 +3360,7 @@ CHARSET_INFO compiled_charsets[] = {
 
 #ifdef HAVE_CHARSET_hp8
   {
-    6,			/* number */
+    6,0,0,		/* number */
     MY_CS_COMPILED,	/* state      */
     "hp8",		/* cs name    */
     "hp8",		/* name */
@@ -3365,6 +3381,8 @@ CHARSET_INFO compiled_charsets[] = {
     NULL,		/* ismbchar  */
     NULL,		/* ismbhead  */
     NULL,		/* mbcharlen */
+    my_numchars_8bit,
+    my_charpos_8bit,
     my_mb_wc_8bit,	/* mb_wc   */
     my_wc_mb_8bit,	/* wc_mb   */
     my_caseup_str_8bit,
@@ -3392,7 +3410,7 @@ CHARSET_INFO compiled_charsets[] = {
 
 #ifdef HAVE_CHARSET_hungarian
   {
-    21,			/* number */
+    21,0,0,		/* number */
     MY_CS_COMPILED,	/* state      */
     "latin2",		/* cs name    */
     "hungarian",	/* name */
@@ -3413,6 +3431,8 @@ CHARSET_INFO compiled_charsets[] = {
     NULL,		/* ismbchar  */
     NULL,		/* ismbhead  */
     NULL,		/* mbcharlen */
+    my_numchars_8bit,
+    my_charpos_8bit,
     my_mb_wc_8bit,	/* mb_wc   */
     my_wc_mb_8bit,	/* wc_mb   */
     my_caseup_str_8bit,
@@ -3440,7 +3460,7 @@ CHARSET_INFO compiled_charsets[] = {
 
 #ifdef HAVE_CHARSET_koi8_ru
   {
-    7,			/* number */
+    7,0,0,		/* number */
     MY_CS_COMPILED,	/* state      */
     "koi8r",		/* cs name    */
     "koi8r",		/* name */
@@ -3461,6 +3481,8 @@ CHARSET_INFO compiled_charsets[] = {
     NULL,		/* ismbchar  */
     NULL,		/* ismbhead  */
     NULL,		/* mbcharlen */
+    my_numchars_8bit,
+    my_charpos_8bit,
     my_mb_wc_8bit,	/* mb_wc   */
     my_wc_mb_8bit,	/* wc_mb   */
     my_caseup_str_8bit,
@@ -3488,7 +3510,7 @@ CHARSET_INFO compiled_charsets[] = {
 
 #ifdef HAVE_CHARSET_koi8_ukr
   {
-    22,			/* number */
+    22,0,0,		/* number */
     MY_CS_COMPILED,	/* state      */
     "koi8u",		/* cs name    */
     "koi8u",		/* name */
@@ -3509,6 +3531,8 @@ CHARSET_INFO compiled_charsets[] = {
     NULL,		/* ismbchar  */
     NULL,		/* ismbhead  */
     NULL,		/* mbcharlen */
+    my_numchars_8bit,
+    my_charpos_8bit,
     my_mb_wc_8bit,	/* mb_wc   */
     my_wc_mb_8bit,	/* wc_mb   */
     my_caseup_str_8bit,
@@ -3537,7 +3561,7 @@ CHARSET_INFO compiled_charsets[] = {
 
 #ifdef HAVE_CHARSET_latin2
   {
-    9,			/* number */
+    9,0,0,		/* number */
     MY_CS_COMPILED,	/* state      */
     "latin2",		/* cs name    */
     "latin2",		/* name */
@@ -3558,6 +3582,8 @@ CHARSET_INFO compiled_charsets[] = {
     NULL,		/* ismbchar  */
     NULL,		/* ismbhead  */
     NULL,		/* mbcharlen */
+    my_numchars_8bit,
+    my_charpos_8bit,
     my_mb_wc_8bit,	/* mb_wc   */
     my_wc_mb_8bit,	/* wc_mb   */
     my_caseup_str_8bit,
@@ -3585,7 +3611,7 @@ CHARSET_INFO compiled_charsets[] = {
 
 #ifdef HAVE_CHARSET_latin5
   {
-    30,			/* number */
+    30,0,0,		/* number */
     MY_CS_COMPILED,	/* state      */
     "latin5",		/* cs name    */
     "latin5",		/* name */
@@ -3606,6 +3632,8 @@ CHARSET_INFO compiled_charsets[] = {
     NULL,		/* ismbchar  */
     NULL,		/* ismbhead  */
     NULL,		/* mbcharlen */
+    my_numchars_8bit,
+    my_charpos_8bit,
     my_mb_wc_8bit,	/* mb_wc   */
     my_wc_mb_8bit,	/* wc_mb   */
     my_caseup_str_8bit,
@@ -3634,7 +3662,7 @@ CHARSET_INFO compiled_charsets[] = {
 
 #ifdef HAVE_CHARSET_swe7
   {
-    10,			/* number */
+    10,0,0,		/* number */
     MY_CS_COMPILED,	/* state      */
     "swe7",		/* cs name    */
     "swe7",		/* name */
@@ -3655,6 +3683,8 @@ CHARSET_INFO compiled_charsets[] = {
     NULL,		/* ismbchar  */
     NULL,		/* ismbhead  */
     NULL,		/* mbcharlen */
+    my_numchars_8bit,
+    my_charpos_8bit,
     my_mb_wc_8bit,	/* mb_wc   */
     my_wc_mb_8bit,	/* wc_mb   */
     my_caseup_str_8bit,
@@ -3683,7 +3713,7 @@ CHARSET_INFO compiled_charsets[] = {
 
 #ifdef HAVE_CHARSET_usa7
   {
-    11,			/* number */
+    11,0,0,		/* number */
     MY_CS_COMPILED,	/* state      */
     "ascii",		/* cs name    */
     "ascii",		/* name */
@@ -3704,6 +3734,8 @@ CHARSET_INFO compiled_charsets[] = {
     NULL,		/* ismbchar  */
     NULL,		/* ismbhead  */
     NULL,		/* mbcharlen */
+    my_numchars_8bit,
+    my_charpos_8bit,
     my_mb_wc_8bit,	/* mb_wc   */
     my_wc_mb_8bit,	/* wc_mb   */
     my_caseup_str_8bit,
@@ -3731,7 +3763,7 @@ CHARSET_INFO compiled_charsets[] = {
 
 #ifdef HAVE_CHARSET_win1250
   {
-    26,			/* number */
+    26,0,0,		/* number */
     MY_CS_COMPILED,	/* state      */
     "cp1250",		/* cs name    */
     "cp1250",		/* name */
@@ -3752,6 +3784,8 @@ CHARSET_INFO compiled_charsets[] = {
     NULL,		/* ismbchar  */
     NULL,		/* ismbhead  */
     NULL,		/* mbcharlen */
+    my_numchars_8bit,
+    my_charpos_8bit,
     my_mb_wc_8bit,	/* mb_wc   */
     my_wc_mb_8bit,	/* wc_mb   */
     my_caseup_str_8bit,
@@ -3779,7 +3813,7 @@ CHARSET_INFO compiled_charsets[] = {
 
 #ifdef HAVE_CHARSET_win1251ukr
   {
-    23,			/* number */
+    23,0,0,		/* number */
     MY_CS_COMPILED,	/* state      */
     "cp1251",		/* cs name    */
     "win1251ukr",	/* name */
@@ -3800,14 +3834,16 @@ CHARSET_INFO compiled_charsets[] = {
     NULL,		/* ismbchar  */
     NULL,		/* ismbhead  */
     NULL,		/* mbcharlen */
+    my_numchars_8bit,
+    my_charpos_8bit,
     my_mb_wc_8bit,	/* mb_wc   */
     my_wc_mb_8bit,	/* wc_mb   */
     my_caseup_str_8bit,
     my_casedn_str_8bit,
     my_caseup_8bit,
     my_casedn_8bit,
-    my_strcasecmp_8bit,
     my_tosort_8bit,
+    my_strcasecmp_8bit,
     my_strncasecmp_8bit,
     my_hash_caseup_simple,
     my_hash_sort_simple,
@@ -3827,7 +3863,7 @@ CHARSET_INFO compiled_charsets[] = {
 
 #ifdef HAVE_CHARSET_armscii8
   {
-    32,			/* number */
+    32,0,0,		/* number */
     MY_CS_COMPILED,	/* state      */
     "armscii8",		/* cs name    */
     "armscii8",		/* name */
@@ -3848,6 +3884,8 @@ CHARSET_INFO compiled_charsets[] = {
     NULL,		/* ismbchar  */
     NULL,		/* ismbhead  */
     NULL,		/* mbcharlen */
+    my_numchars_8bit,
+    my_charpos_8bit,
     my_mb_wc_8bit,	/* mb_wc   */
     my_wc_mb_8bit,	/* wc_mb   */
     my_caseup_str_8bit,
@@ -3875,7 +3913,7 @@ CHARSET_INFO compiled_charsets[] = {
 
 #ifdef HAVE_CHARSET_win1251
   {
-    17,			/* number */
+    17,0,0,		/* number */
     MY_CS_COMPILED,	/* state      */
     "cp1251",		/* cs name    */
     "win1251",		/* name */
@@ -3896,6 +3934,8 @@ CHARSET_INFO compiled_charsets[] = {
     NULL,		/* ismbchar  */
     NULL,		/* ismbhead  */
     NULL,		/* mbcharlen */
+    my_numchars_8bit,
+    my_charpos_8bit,
     my_mb_wc_8bit,	/* mb_wc   */
     my_wc_mb_8bit,	/* wc_mb   */
     my_caseup_str_8bit,
@@ -3922,7 +3962,7 @@ CHARSET_INFO compiled_charsets[] = {
 #endif
 
   {
-    0,			/* end-of-list marker */
+    0,0,0,		/* end-of-list marker */
     0,			/* state      */
     NullS,		/* cs name    */
     NullS,		/* name       */
