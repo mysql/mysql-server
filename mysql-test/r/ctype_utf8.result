@@ -861,6 +861,13 @@ user	c
 one	<one>
 two	<two>
 DROP TABLE t1;
+create table t1 (f1 varchar(1) not null) default charset utf8;
+insert into t1 values (''), ('');
+select concat(concat(_latin1'->',f1),_latin1'<-') from t1;
+concat(concat(_latin1'->',f1),_latin1'<-')
+-><-
+-><-
+drop table t1;
 select convert(_koi8r'É' using utf8) < convert(_koi8r'Ê' using utf8);
 convert(_koi8r'É' using utf8) < convert(_koi8r'Ê' using utf8)
 1
