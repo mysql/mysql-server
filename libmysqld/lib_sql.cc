@@ -25,7 +25,7 @@
 
 extern "C"
 {
-  unsigned long max_allowed_packet, net_buffer_length;
+  extern unsigned long max_allowed_packet, net_buffer_length;
 }
 
 static int fake_argc= 1;
