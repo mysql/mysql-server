@@ -54,13 +54,6 @@ WF_PACK *wf_comp(my_string str)
   for (pos=str ; *pos ; pos++)
     ant+= test(*pos == ' ' || *pos == ',');
 
-#ifdef FN_UPPER_CASE
-    caseup(str,(int) (pos-str));
-#endif
-#ifdef FN_LOWER_CASE
-    casedn(str,(int) (pos-str));
-#endif
-
   if ((ret= (WF_PACK*) my_malloc((uint) ant*(sizeof(my_string*)+2)+
 				 sizeof(WF_PACK)+ (uint) strlen(str)+1,
 				 MYF(MY_WME)))

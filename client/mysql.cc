@@ -40,7 +40,7 @@
 #include <signal.h>
 #include <violite.h>
 
-const char *VER= "12.16";
+const char *VER= "13.0";
 
 /* Don't try to make a nice table if the data is too big */
 #define MAX_COLUMN_LENGTH	     1024
@@ -91,8 +91,8 @@ extern "C" {
 #define vidattr(A) {}			// Can't get this to work
 #endif
 
-#ifdef __WIN__
-#define cmp_database(A,B) my_strcasecmp((A),(B))
+#ifdef FN_NO_CASE_SENCE
+#define cmp_database(A,B) my_strcasecmp(system_charset_info, (A), (B))
 #else
 #define cmp_database(A,B) strcmp((A),(B))
 #endif
@@ -346,6 +346,7 @@ int main(int argc,char *argv[])
   if (!status.batch)
     ignore_errors=1;				// Don't abort monitor
   signal(SIGINT, mysql_end);			// Catch SIGINT to clean up
+  signal(SIGQUIT, mysql_end);			// Catch SIGQUIT to clean up
 
   /*
     Run in interactive mode like the ingres/postgres monitor
@@ -877,14 +878,14 @@ static COMMANDS *find_command (char *name,char cmd_char)
   }
   else
   {
-    while (isspace(*name))
+    while (my_isspace(system_charset_info,*name))
       name++;
     if (strchr(name,';') || strstr(name,"\\g"))
       return ((COMMANDS *) 0);
     if ((end=strcont(name," \t")))
     {
       len=(uint) (end - name);
-      while (isspace(*end))
+      while (my_isspace(system_charset_info,*end))
 	end++;
       if (!*end)
 	end=0;					// no arguments to function
@@ -896,7 +897,8 @@ static COMMANDS *find_command (char *name,char cmd_char)
   for (uint i= 0; commands[i].name; i++)
   {
     if (commands[i].func &&
-	((name && !my_casecmp(name,commands[i].name,len) &&
+	((name && 
+	  !my_strncasecmp(system_charset_info,name,commands[i].name,len) &&
 	  !commands[i].name[len] &&
 	  (!end || (end && commands[i].takes_params))) ||
 	 !name && commands[i].cmd_char == cmd_char))
@@ -924,12 +926,13 @@ static bool add_line(String &buffer,char *line,char *in_string)
 
   for (pos=out=line ; (inchar= (uchar) *pos) ; pos++)
   {
-    if (isspace(inchar) && out == line && buffer.is_empty())
+    if (my_isspace(system_charset_info,inchar) && out == line && 
+        buffer.is_empty())
       continue;
 #ifdef USE_MB
     int l;
-    if (use_mb(default_charset_info) &&
-        (l = my_ismbchar(default_charset_info, pos, strend))) {
+    if (use_mb(system_charset_info) &&
+        (l = my_ismbchar(system_charset_info, pos, strend))) {
 	while (l--)
 	    *out++ = *pos++;
 	pos--;
@@ -992,7 +995,7 @@ static bool add_line(String &buffer,char *line,char *in_string)
     }
     else if (!*in_string && (inchar == '#' ||
 			     inchar == '-' && pos[1] == '-' &&
-			     isspace(pos[2])))
+			     my_isspace(system_charset_info,pos[2])))
       break;					// comment to end of line
     else
     {						// Add found char to buffer
@@ -1368,9 +1371,9 @@ com_clear(String *buffer,char *line __attribute__((unused)))
 static int
 com_go(String *buffer,char *line __attribute__((unused)))
 {
-  char		buff[160],time_buff[32];
+  char		buff[200], time_buff[32], *pos;
   MYSQL_RES	*result;
-  ulong		timer;
+  ulong		timer, warnings;
   uint		error=0;
 
   if (!status.batch)
@@ -1399,7 +1402,9 @@ com_go(String *buffer,char *line __attribute__((unused)))
     (void) com_print(buffer,0);
 
   if (skip_updates &&
-      (buffer->length() < 4 || my_sortcmp(buffer->ptr(),"SET ",4)))
+      (buffer->length() < 4 || my_strnncoll(system_charset_info,
+					    (const uchar*)buffer->ptr(),4,
+					    (const uchar*)"SET ",4)))
   {
     (void) put_info("Ignoring query to other database",INFO_INFO);
     return 0;
@@ -1452,7 +1457,7 @@ com_go(String *buffer,char *line __attribute__((unused)))
   {
     if (!mysql_num_rows(result) && ! quick)
     {
-      sprintf(buff,"Empty set%s",time_buff);
+      strmov(buff, "Empty set");
     }
     else
     {
@@ -1467,20 +1472,30 @@ com_go(String *buffer,char *line __attribute__((unused)))
 	print_tab_data(result);
       else
 	print_table_data(result);
-      sprintf(buff,"%ld %s in set%s",
+      sprintf(buff,"%ld %s in set",
 	      (long) mysql_num_rows(result),
-	      (long) mysql_num_rows(result) == 1 ? "row" : "rows",
-	      time_buff);
+	      (long) mysql_num_rows(result) == 1 ? "row" : "rows");
       end_pager();
     }
   }
   else if (mysql_affected_rows(&mysql) == ~(ulonglong) 0)
-    sprintf(buff,"Query OK%s",time_buff);
+    strmov(buff,"Query OK");
   else
-    sprintf(buff,"Query OK, %ld %s affected%s",
+    sprintf(buff,"Query OK, %ld %s affected",
 	    (long) mysql_affected_rows(&mysql),
-	    (long) mysql_affected_rows(&mysql) == 1 ? "row" : "rows",
-	    time_buff);
+	    (long) mysql_affected_rows(&mysql) == 1 ? "row" : "rows");
+
+  pos=strend(buff);
+  if ((warnings= mysql_warning_count(&mysql)))
+  {
+    *pos++= ',';
+    *pos++= ' ';
+    pos=int2str(warnings, pos, 10);
+    pos=strmov(pos, " warning");
+    if (warnings != 1)
+      *pos++= 's';
+  }
+  strmov(pos, time_buff);
   put_info(buff,INFO_RESULT);
   if (mysql_info(&mysql))
     put_info(mysql_info(&mysql),INFO_RESULT);
@@ -1777,8 +1792,9 @@ safe_put_field(const char *pos,ulong length)
     {
 #ifdef USE_MB
       int l;
-      if (use_mb(default_charset_info) &&
-          (l = my_ismbchar(default_charset_info, pos, end))) {
+      if (use_mb(system_charset_info) &&
+          (l = my_ismbchar(system_charset_info, pos, end)))
+      {
 	  while (l--)
 	    tee_putc(*pos++, PAGER);
 	  pos--;
@@ -1838,7 +1854,7 @@ com_tee(String *buffer, char *line __attribute__((unused)))
 
   if (status.batch)
     return 0;
-  while (isspace(*line))
+  while (my_isspace(system_charset_info,*line))
     line++;
   if (!(param = strchr(line, ' '))) // if outfile wasn't given, use the default
   {
@@ -1857,11 +1873,12 @@ com_tee(String *buffer, char *line __attribute__((unused)))
   }
 
   /* eliminate the spaces before the parameters */
-  while (isspace(*param))
+  while (my_isspace(system_charset_info,*param))
     param++;
   end= strmake(file_name, param, sizeof(file_name) - 1);
   /* remove end space from command line */
-  while (end > file_name && (isspace(end[-1]) || iscntrl(end[-1])))
+  while (end > file_name && (my_isspace(system_charset_info,end[-1]) || 
+			     my_iscntrl(system_charset_info,end[-1])))
     end--;
   end[0]= 0;
   if (end == file_name)
@@ -1901,7 +1918,7 @@ com_pager(String *buffer, char *line __attribute__((unused)))
   if (status.batch)
     return 0;
   /* Skip space from file name */
-  while (isspace(*line))
+  while (my_isspace(system_charset_info,*line))
     line++;
   if (!(param = strchr(line, ' '))) // if pager was not given, use the default
   {
@@ -1917,10 +1934,11 @@ com_pager(String *buffer, char *line __attribute__((unused)))
   }
   else
   {
-    while (isspace(*param))
+    while (my_isspace(system_charset_info,*param))
       param++;
     end=strmake(pager_name, param, sizeof(pager_name)-1);
-    while (end > pager_name && (isspace(end[-1]) || iscntrl(end[-1])))
+    while (end > pager_name && (my_isspace(system_charset_info,end[-1]) || 
+                                my_iscntrl(system_charset_info,end[-1])))
       end--;
     end[0]=0;
     strmov(pager, pager_name);
@@ -2056,7 +2074,7 @@ com_connect(String *buffer, char *line)
 
   if (buffer)
   {
-    while (isspace(*line))
+    while (my_isspace(system_charset_info,*line))
       line++;
     strnmov(buff,line,sizeof(buff)-1);		// Don't destroy history
     if (buff[0] == '\\')			// Short command
@@ -2102,15 +2120,16 @@ static int com_source(String *buffer, char *line)
   FILE *sql_file;
 
   /* Skip space from file name */
-  while (isspace(*line))
+  while (my_isspace(system_charset_info,*line))
     line++;
   if (!(param = strchr(line, ' ')))		// Skip command name
     return put_info("Usage: \\. <filename> | source <filename>", 
 		    INFO_ERROR, 0);
-  while (isspace(*param))
+  while (my_isspace(system_charset_info,*param))
     param++;
   end=strmake(source_name,param,sizeof(source_name)-1);
-  while (end > source_name && (isspace(end[-1]) || iscntrl(end[-1])))
+  while (end > source_name && (my_isspace(system_charset_info,end[-1]) || 
+                               my_iscntrl(system_charset_info,end[-1])))
     end--;
   end[0]=0;
   unpack_filename(source_name,source_name);
@@ -2151,7 +2170,7 @@ com_use(String *buffer __attribute__((unused)), char *line)
   char *tmp;
   char buff[256];
 
-  while (isspace(*line))
+  while (my_isspace(system_charset_info,*line))
     line++;
   strnmov(buff,line,sizeof(buff)-1);		// Don't destroy history
   if (buff[0] == '\\')				// Short command
@@ -2335,7 +2354,7 @@ com_status(String *buffer __attribute__((unused)),
   tee_fprintf(stdout, "Protocol version:\t%d\n", mysql_get_proto_info(&mysql));
   tee_fprintf(stdout, "Connection:\t\t%s\n", mysql_get_host_info(&mysql));
   tee_fprintf(stdout, "Client characterset:\t%s\n",
-	      default_charset_info->name);
+	      system_charset_info->name);
   tee_fprintf(stdout, "Server characterset:\t%s\n", mysql.charset->name);
   if (strstr(mysql_get_host_info(&mysql),"TCP/IP") || ! mysql.unix_socket)
     tee_fprintf(stdout, "TCP port:\t\t%d\n", mysql.port);
@@ -2444,7 +2463,7 @@ static void remove_cntrl(String &buffer)
 {
   char *start,*end;
   end=(start=(char*) buffer.ptr())+buffer.length();
-  while (start < end && !isgraph(end[-1]))
+  while (start < end && !my_isgraph(system_charset_info,end[-1]))
     end--;
   buffer.length((uint) (end-start));
 }

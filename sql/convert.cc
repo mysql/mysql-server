@@ -433,7 +433,17 @@ CONVERT *get_convert_set(const char *name)
 {
   for (CONVERT **ptr=convert_tables ; *ptr ; ptr++)
   {
-    if (!my_strcasecmp((*ptr)->name,name))
+    /*
+      BAR TODO: Monty's comments:
+      Why is this using system_charset_info ?
+      Isn't the character-set string given in the users default charset?
+      Please add a TODO note to the code that this has to be fixed when the user
+      will be able to cast strings to different character sets...
+      The current code will also not work if/when we introduce support for
+      16 bit characters...
+      (I know that there is a LOT of changes to do if we ever want do this...)
+    */
+    if (!my_strcasecmp(system_charset_info,(*ptr)->name,name))
       return (*ptr);
   }
   return 0;

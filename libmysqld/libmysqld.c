@@ -50,7 +50,7 @@ static my_bool	mysql_client_init=0;
 uint		mysql_port=0;
 my_string	mysql_unix_port=0;
 
-#define CLIENT_CAPABILITIES	(CLIENT_LONG_PASSWORD | CLIENT_LONG_FLAG | CLIENT_TRANSACTIONS)
+#define CLIENT_CAPABILITIES	(CLIENT_LONG_PASSWORD | CLIENT_LONG_FLAG | CLIENT_TRANSACTIONS | CLIENT_PROTOCOL_41)
 
 #if defined(MSDOS) || defined(__WIN__)
 #define ERRNO WSAGetLastError()
@@ -212,12 +212,12 @@ static void free_rows(MYSQL_DATA *cur)
 }
 
 
-int
+my_bool
 simple_command(MYSQL *mysql,enum enum_server_command command, const char *arg,
 	       ulong length, my_bool skipp_check)
 {
   NET *net= &mysql->net;
-  int result= -1;
+  my_bool result= 1;
 
   /* Check that we are calling the client functions in right order */
   if (mysql->status != MYSQL_STATUS_READY)
@@ -239,7 +239,7 @@ simple_command(MYSQL *mysql,enum enum_server_command command, const char *arg,
   result = lib_dispatch_command(command, net, arg,length);
   if (!skipp_check)
     result= ((mysql->packet_length=net_safe_read(mysql)) == packet_error ?
-	     -1 : 0);
+	     1 : 0);
  end:
   return result;
 }
@@ -412,7 +412,7 @@ mysql_free_result(MYSQL_RES *result)
 	uint pkt_len;
 	if ((pkt_len=(uint) net_safe_read(result->handle)) == packet_error)
 	  break;
-	if (pkt_len == 1 && result->handle->net.read_pos[0] == 254)
+	if (pkt_len <= 8 && result->handle->net.read_pos[0] == 254)
 	  break;				/* End of data */
       }
       result->handle->status=MYSQL_STATUS_READY;
@@ -632,7 +632,7 @@ static MYSQL_DATA *read_rows(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
   result->rows=0;
   result->fields=fields;
 
-  while (*(cp=net->read_pos) != 254 || pkt_len != 1)
+  while (*(cp=net->read_pos) != 254 || pkt_len >= 8)
   {
     result->rows++;
     if (!(cur= (MYSQL_ROWS*) alloc_root(&result->alloc,
@@ -676,6 +676,8 @@ static MYSQL_DATA *read_rows(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
     }
   }
   *prev_ptr=0;					/* last pointer is null */
+  mysql->warning_count= uint2korr(cp+1);
+  DBUG_PRINT("info",("warning_count:  %ld", mysql->warning_count));
   DBUG_PRINT("exit",("Got %d rows",result->rows));
   DBUG_RETURN(result);
 }
@@ -696,8 +698,11 @@ read_one_row(MYSQL *mysql,uint fields,MYSQL_ROW row, ulong *lengths)
 
   if ((pkt_len=net_safe_read(mysql)) == packet_error)
     return -1;
-  if (pkt_len == 1 && mysql->net.read_pos[0] == 254)
+  if (pkt_len <= 8 && mysql->net.read_pos[0] == 254)
+  {
+    mysql->warning_count= uint2korr(mysql->net.read_pos+1);
     return 1;				/* End of data */
+  }
   prev_pos= 0;				/* allowed to write at packet[-1] */
   pos=mysql->net.read_pos;
   for (field=0 ; field < fields ; field++)
@@ -1124,7 +1129,7 @@ mysql_send_query(MYSQL* mysql, const char* query, ulong length)
 }
 
 
-int STDCALL
+my_bool STDCALL
 mysql_read_query_result(MYSQL *mysql)
 {
   uchar *pos;
@@ -1134,7 +1139,7 @@ mysql_read_query_result(MYSQL *mysql)
   DBUG_ENTER("mysql_read_query_result");
 
   if ((length=net_safe_read(mysql)) == packet_error)
-    DBUG_RETURN(-1);
+    DBUG_RETURN(1);
   free_old_query(mysql);			/* Free old result */
 get_info:
   pos=(uchar*) mysql->net.read_pos;
@@ -1142,10 +1147,8 @@ get_info:
   {
     mysql->affected_rows= net_field_length_ll(&pos);
     mysql->insert_id=	  net_field_length_ll(&pos);
-    if (mysql->server_capabilities & CLIENT_TRANSACTIONS)
-    {
-      mysql->server_status=uint2korr(pos); pos+=2;
-    }
+    mysql->server_status=uint2korr(pos); pos+=2;
+    mysql->warning_count=uint2korr(pos); pos+=2;
     if (pos < mysql->net.read_pos+length && net_field_length(&pos))
       mysql->info=(char*) pos;
     DBUG_RETURN(0);
@@ -1154,7 +1157,7 @@ get_info:
   {
     int error=send_file_to_server(mysql,(char*) pos);
     if ((length=net_safe_read(mysql)) == packet_error || error)
-      DBUG_RETURN(-1);
+      DBUG_RETURN(1);
     goto get_info;				/* Get info packet */
   }
   if (!(mysql->server_status & SERVER_STATUS_AUTOCOMMIT))
@@ -1162,19 +1165,20 @@ get_info:
 
   mysql->extra_info= net_field_length_ll(&pos); /* Maybe number of rec */
   if (!(fields=read_rows(mysql,(MYSQL_FIELD*) 0,5)))
-    DBUG_RETURN(-1);
+    DBUG_RETURN(1);
   if (!(mysql->fields=unpack_fields(fields,&mysql->field_alloc,
 				    (uint) field_count,0,
 				    (my_bool) test(mysql->server_capabilities &
 						   CLIENT_LONG_FLAG))))
-    DBUG_RETURN(-1);
+    DBUG_RETURN(1);
   mysql->status=MYSQL_STATUS_GET_RESULT;
   mysql->field_count=field_count;
+  mysql->warning_count= 0;
   DBUG_RETURN(0);
 }
 
 /****************************************************************************
-* A modified version of connect().  connect2() allows you to specify
+* A modified version of connect().  my_connect() allows you to specify
 * a timeout value, in seconds, that we should wait until we
 * derermine we can't connect to a particular host.  If timeout is 0,
 * my_connect() will behave exactly like connect().
@@ -1182,11 +1186,11 @@ get_info:
 * Base version coded by Steve Bernacki, Jr. <steve@navinet.net>
 *****************************************************************************/
 
-int my_connect(my_socket s, const struct sockaddr *name, uint namelen,
-		    uint timeout)
+my_bool my_connect(my_socket s, const struct sockaddr *name, uint namelen,
+		   uint timeout)
 {
 #if defined(__WIN__) || defined(OS2)
-  return connect(s, (struct sockaddr*) name, namelen);
+  return connect(s, (struct sockaddr*) name, namelen) != 0;
 #else
   int flags, res, s_err;
   SOCKOPT_OPTLEN_TYPE s_err_size = sizeof(uint);
@@ -1199,7 +1203,7 @@ int my_connect(my_socket s, const struct sockaddr *name, uint namelen,
    */
 
   if (timeout == 0)
-    return connect(s, (struct sockaddr*) name, namelen);
+    return connect(s, (struct sockaddr*) name, namelen) != 0;
 
   flags = fcntl(s, F_GETFL, 0);		  /* Set socket to not block */
 #ifdef O_NONBLOCK
@@ -1212,7 +1216,7 @@ int my_connect(my_socket s, const struct sockaddr *name, uint namelen,
   if ((res != 0) && (s_err != EINPROGRESS))
   {
     errno = s_err;			/* Restore it */
-    return(-1);
+    return(1);
   }
   if (res == 0)				/* Connected quickly! */
     return(0);
@@ -1252,7 +1256,7 @@ int my_connect(my_socket s, const struct sockaddr *name, uint namelen,
     now_time=time(NULL);
     timeout-= (uint) (now_time - start_time);
     if (errno != EINTR || (int) timeout <= 0)
-      return -1;
+      return 1;
   }
 
   /* select() returned something more interesting than zero, let's
@@ -1262,12 +1266,12 @@ int my_connect(my_socket s, const struct sockaddr *name, uint namelen,
 
   s_err=0;
   if (getsockopt(s, SOL_SOCKET, SO_ERROR, (char*) &s_err, &s_err_size) != 0)
-    return(-1);
+    return(1);
 
   if (s_err)
   {						/* getsockopt could succeed */
     errno = s_err;
-    return(-1);					/* but return an error... */
+    return(1);					/* but return an error... */
   }
   return(0);					/* It's all good! */
 #endif
@@ -1881,6 +1885,11 @@ const char * STDCALL mysql_error(MYSQL *mysql)
   return (mysql)->net.last_error;
 }
 
+uint STDCALL mysql_warning_count(MYSQL *mysql)
+{
+  return mysql->warning_count;
+}
+
 const char *STDCALL mysql_info(MYSQL *mysql)
 {
   return (mysql)->info;
@@ -1904,6 +1913,18 @@ uint STDCALL mysql_thread_safe(void)
 #else
   return 0;
 #endif
+}
+
+MYSQL_RES *STDCALL mysql_warnings(MYSQL *mysql)
+{
+  uint warning_count;
+  DBUG_ENTER("mysql_warnings");
+  /* Save warning count as mysql_real_query may change this */
+  warning_count= mysql->warning_count;
+  if (mysql_real_query(mysql, "SHOW WARNINGS", 13))
+    DBUG_RETURN(0);
+  mysql->warning_count= warning_count;
+  DBUG_RETURN(mysql_store_result(mysql));
 }
 
 /****************************************************************************

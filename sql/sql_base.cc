@@ -49,7 +49,8 @@ static byte *cache_key(const byte *record,uint *length,
 
 void table_cache_init(void)
 {
-  VOID(hash_init(&open_cache,table_cache_size+16,0,0,cache_key,
+  VOID(hash_init(&open_cache,system_charset_info,
+		 table_cache_size+16,0,0,cache_key,
 		 (void (*)(void*)) free_cache_entry,0));
   mysql_rm_tmp_tables();
 }
@@ -195,34 +196,36 @@ OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *wild)
 }
 
 
-/******************************************************************************
-** Send name and type of result to client.
-** Sum fields has table name empty and field_name.
-** flag is a bit mask with the following functions:
-**   1 send number of rows
-**   2 send default values
-**   4 Don't convert field names
-******************************************************************************/
+/*
+  Send name and type of result to client converted to a given char set
+
+  SYNOPSIS
+    send_convert_fields()
+    THD		Thread data object
+    list	List of items to send to client
+    convert	object used to convertation to another character set
+    flag	Bit mask with the following functions:
+		2 send default values
+		4 Don't convert field names
+
+  DESCRIPTION
+    Sum fields has table name empty and field_name.
+
+  RETURN VALUES
+    0	ok
+    1	Error  (Note that in this case the error is not sent to the client)
+*/
 
 bool
-send_fields(THD *thd,List<Item> &list,uint flag)
+send_convert_fields(THD *thd,List<Item> &list,CONVERT *convert,uint flag)
 {
   List_iterator_fast<Item> it(list);
   Item *item;
   char buff[80];
-  CONVERT *convert= (flag & 4) ? (CONVERT*) 0 : thd->variables.convert_set;
-  DBUG_ENTER("send_fields");
+  String tmp((char*) buff,sizeof(buff),default_charset_info);
+  String *res,*packet= &thd->packet;
+  DBUG_ENTER("send_convert_fields");
 
-  String tmp((char*) buff,sizeof(buff)),*res,*packet= &thd->packet;
-
-  if (thd->fatal_error)		// We have got an error
-    goto err;
-
-  if (flag & 1)
-  {				// Packet with number of elements
-    char *pos=net_store_length(buff,(uint) list.elements);
-    (void) my_net_write(&thd->net, buff,(uint) (pos-buff));
-  }
   while ((item=it++))
   {
     char *pos;
@@ -230,19 +233,30 @@ send_fields(THD *thd,List<Item> &list,uint flag)
     item->make_field(&field);
     packet->length(0);
 
-    if (convert)
+    if (thd->client_capabilities & CLIENT_PROTOCOL_41)
     {
-      if (convert->store(packet,field.table_name,
+      if (convert->store(packet,field.db_name,
+			 (uint) strlen(field.db_name)) ||
+	  convert->store(packet,field.table_name,
 			 (uint) strlen(field.table_name)) ||
+	  convert->store(packet,field.org_table_name,
+			 (uint) strlen(field.org_table_name)) ||
 	  convert->store(packet,field.col_name,
 			 (uint) strlen(field.col_name)) ||
+	  convert->store(packet,field.org_col_name,
+			 (uint) strlen(field.org_col_name)) ||
 	  packet->realloc(packet->length()+10))
 	goto err;
+     }
+     else
+     {
+       if (convert->store(packet,field.table_name,
+			  (uint) strlen(field.table_name)) ||
+	   convert->store(packet,field.col_name,
+			  (uint) strlen(field.col_name)) ||
+	   packet->realloc(packet->length()+10))
+	 goto err;
     }
-    else if (net_store_data(packet,field.table_name) ||
-	     net_store_data(packet,field.col_name) ||
-	     packet->realloc(packet->length()+10))
-      goto err; /* purecov: inspected */
     pos= (char*) packet->ptr()+packet->length();
 
     if (!(thd->client_capabilities & CLIENT_LONG_FLAG))
@@ -266,16 +280,162 @@ send_fields(THD *thd,List<Item> &list,uint flag)
 	if (net_store_null(packet))
 	  goto err;
       }
-      else if (net_store_data(packet,res->ptr(),res->length()))
+      else if (convert->store(packet,res->ptr(),res->length()))
 	goto err;
     }
     if (my_net_write(&thd->net, (char*) packet->ptr(),packet->length()))
       break;					/* purecov: inspected */
   }
-  send_eof(&thd->net,1);
   DBUG_RETURN(0);
- err:
-  send_error(&thd->net,ER_OUT_OF_RESOURCES);	/* purecov: inspected */
+
+err:
+  DBUG_RETURN(1);
+}
+
+
+/*
+  Send name and type of result to client.
+
+  SYNOPSIS
+    send_non_convert_fields()
+    THD		Thread data object
+    list	List of items to send to client
+    flag	Bit mask with the following functions:
+		2 send default values
+		4 Don't convert field names
+
+  DESCRIPTION
+    Sum fields has table name empty and field_name.
+
+  RETURN VALUES
+    0	ok
+    1	Error
+*/
+
+bool 
+send_non_convert_fields(THD *thd,List<Item> &list,uint flag)
+{
+  List_iterator_fast<Item> it(list);
+  Item *item;
+  char buff[80];
+
+  String tmp((char*) buff,sizeof(buff),default_charset_info);
+  String *res,*packet= &thd->packet;
+
+  while ((item=it++))
+  {
+    char *pos;
+    Send_field field;
+    item->make_field(&field);
+    packet->length(0);
+
+    if (thd->client_capabilities & CLIENT_PROTOCOL_41)
+    {
+      if (net_store_data(packet,field.db_name) ||
+	  net_store_data(packet,field.table_name) ||
+	  net_store_data(packet,field.org_table_name) ||
+	  net_store_data(packet,field.col_name) ||
+	  net_store_data(packet,field.org_col_name) ||
+	  packet->realloc(packet->length()+10))
+	return 1;
+    }
+    else
+    {
+      if (net_store_data(packet,field.table_name) ||
+	  net_store_data(packet,field.col_name) ||
+	  packet->realloc(packet->length()+10))
+	return 1;
+    }
+
+    pos= (char*) packet->ptr()+packet->length();
+
+    if (!(thd->client_capabilities & CLIENT_LONG_FLAG))
+    {
+      packet->length(packet->length()+9);
+      pos[0]=3; int3store(pos+1,field.length);
+      pos[4]=1; pos[5]=field.type;
+      pos[6]=2; pos[7]=(char) field.flags; pos[8]= (char) field.decimals;
+    }
+    else
+    {
+      packet->length(packet->length()+10);
+      pos[0]=3; int3store(pos+1,field.length);
+      pos[4]=1; pos[5]=field.type;
+      pos[6]=3; int2store(pos+7,field.flags); pos[9]= (char) field.decimals;
+    }
+    if (flag & 2)
+    {						// Send default value
+      if (!(res=item->val_str(&tmp)))
+      {
+	if (net_store_null(packet))
+	  return 1;
+      }
+      else if (net_store_data(packet,res->ptr(),res->length()))
+	return 1;
+    }
+    if (my_net_write(&thd->net, (char*) packet->ptr(),packet->length()))
+      break;					
+  }
+  return 0;
+}
+
+
+/*
+  Send name and type of result to client.
+
+  SYNOPSIS
+    send_fields()
+    THD		Thread data object
+    list	List of items to send to client
+    convert	object used to convertation to another character set
+    flag	Bit mask with the following functions:
+		1 send number of rows
+		2 send default values
+		4 Don't convert field names
+
+  DESCRIPTION
+    Sum fields has table name empty and field_name.
+    Uses send_fields_convert() and send_fields() depending on
+    if we have an active character set convert or not.
+
+  RETURN VALUES
+    0	ok
+    1	Error  (Note that in this case the error is not sent to the client)
+*/
+
+bool
+send_fields(THD *thd, List<Item> &list, uint flag)
+{
+  char buff[9];			// Big enough for store_length
+  CONVERT *convert= (flag & 4) ? (CONVERT*) 0 : thd->variables.convert_set;
+  DBUG_ENTER("send_fields");
+
+  if (thd->fatal_error)		// We have got an error
+    goto err;
+
+  if (flag & 1)
+  {				// Packet with number of elements
+    char *pos=net_store_length(buff, (uint) list.elements);
+    (void) my_net_write(&thd->net, buff,(uint) (pos-buff));
+  }
+
+  /*
+    Avoid check conditions on convert() for each field
+    by having two different functions 
+  */
+  if (convert)
+  {
+    if (send_convert_fields(thd, list, convert, flag))
+      goto err;
+  }
+  else if (send_non_convert_fields(thd, list, flag))
+    goto err;
+  
+  send_eof(thd);
+  DBUG_RETURN(0);
+
+err:
+  send_error(thd,ER_OUT_OF_RESOURCES);	/* purecov: inspected */
   DBUG_RETURN(1);				/* purecov: inspected */
 }
 
@@ -812,7 +972,7 @@ TABLE *open_table(THD *thd,const char *db,const char *table_name,
     {
       if (table->key_length == key_length &&
 	  !memcmp(table->table_cache_key,key,key_length) &&
-	  !my_strcasecmp(table->table_name,alias))
+	  !my_strcasecmp(system_charset_info,table->table_name,alias))
 	goto reset;
     }
     my_printf_error(ER_TABLE_NOT_LOCKED,ER(ER_TABLE_NOT_LOCKED),MYF(0),alias);
@@ -1593,11 +1753,12 @@ Field *find_field_in_table(THD *thd,TABLE *table,const char *name,uint length,
     Field **ptr=table->field;
     while ((field = *ptr++))
     {
-      if (!my_strcasecmp(field->field_name, name))
+      if (!my_strcasecmp(system_charset_info, field->field_name, name))
 	goto found;
     }
   }
-  if (allow_rowid && !my_strcasecmp(name,"_rowid") &&
+  if (allow_rowid && 
+      !my_strcasecmp(system_charset_info, name, "_rowid") &&
       (field=table->rowid_field))
     goto found;
   return (Field*) 0;
@@ -1620,9 +1781,30 @@ Field *find_field_in_table(THD *thd,TABLE *table,const char *name,uint length,
   return field;
 }
 
+// Special Field pointer for find_field_in_tables returning
+const Field *not_found_field= (Field*) 0x1;
+/*
+  Find field in table list.
+
+  SYNOPSIS
+    find_field_in_tables()
+    thd - pointer to current thread structure
+    item - field item that should be found
+    tables - tables for scaning
+    report_error - if FALSE then do not report error if item not found and 
+      return not_found_field;
+
+  RETURN VALUES
+    0 - field is not found or field is not unique, error message is 
+      reported
+    not_found_field - function was called with report_error == FALSE and 
+      field if not found, no error message reported
+    found field
+*/
 
 Field *
-find_field_in_tables(THD *thd,Item_field *item,TABLE_LIST *tables)
+find_field_in_tables(THD *thd, Item_field *item, TABLE_LIST *tables,
+		     bool report_error)
 {
   Field *found=0;
   const char *db=item->db_name;
@@ -1659,7 +1841,7 @@ find_field_in_tables(THD *thd,Item_field *item,TABLE_LIST *tables)
     }
     if (found)
       return found;
-    if (!found_table)
+    if (!found_table && report_error)
     {
       char buff[NAME_LEN*2+1];
       if (db)
@@ -1667,12 +1849,18 @@ find_field_in_tables(THD *thd,Item_field *item,TABLE_LIST *tables)
 	strxnmov(buff,sizeof(buff)-1,db,".",table_name,NullS);
 	table_name=buff;
       }
-      my_printf_error(ER_UNKNOWN_TABLE,ER(ER_UNKNOWN_TABLE),MYF(0),table_name,
-		      thd->where);
+      if (report_error)
+	my_printf_error(ER_UNKNOWN_TABLE, ER(ER_UNKNOWN_TABLE), MYF(0),
+			table_name, thd->where);
+      else
+	return (Field*) not_found_field;
     }
     else
-      my_printf_error(ER_BAD_FIELD_ERROR,ER(ER_BAD_FIELD_ERROR),MYF(0),
-		      item->full_name(),thd->where);
+      if (report_error)
+	my_printf_error(ER_BAD_FIELD_ERROR,ER(ER_BAD_FIELD_ERROR),MYF(0),
+			item->full_name(),thd->where);
+      else
+	return (Field*) not_found_field;
     return (Field*) 0;
   }
   bool allow_rowid= tables && !tables->next;	// Only one table
@@ -1698,13 +1886,42 @@ find_field_in_tables(THD *thd,Item_field *item,TABLE_LIST *tables)
   }
   if (found)
     return found;
-  my_printf_error(ER_BAD_FIELD_ERROR,ER(ER_BAD_FIELD_ERROR),
-		  MYF(0),item->full_name(),thd->where);
+  if (report_error)
+    my_printf_error(ER_BAD_FIELD_ERROR, ER(ER_BAD_FIELD_ERROR),
+		    MYF(0), item->full_name(), thd->where);
+  else
+    return (Field*) not_found_field;
   return (Field*) 0;
 }
 
+// Special Item pointer for find_item_in_list returning
+const Item **not_found_item= (const Item**) 0x1;
+
+/*
+  Find Item in list of items (find_field_in_tables analog)
+  
+  SYNOPSIS
+    find_item_in_list()
+    find - item to find
+    items - list of items
+    report_error
+      REPORT_ALL_ERRORS - report errors, return 0 if error
+      REPORT_EXCEPT_NOT_FOUND - do not report 'not found' error and return not_        found_item, report other errors, return 0
+      IGNORE_ERRORS - do not report errors, return 0 if error
+      
+  RETURN VALUES
+    0 - item is not found or item is not unique, error message is 
+      reported
+    not_found_item - function was called with report_error ==  
+      REPORT_EXCEPT_NOT_FOUND and  item if not found, no error 
+      message reported
+    found field 
+  
+*/
+
 Item **
-find_item_in_list(Item *find,List<Item> &items)
+find_item_in_list(Item *find, List<Item> &items,
+		  find_item_error_report_type report_error)
 {
   List_iterator<Item> li(items);
   Item **found=0,*item;
@@ -1720,7 +1937,8 @@ find_item_in_list(Item *find,List<Item> &items)
   {
     if (field_name && item->type() == Item::FIELD_ITEM)
     {
-      if (!my_strcasecmp(((Item_field*) item)->name,field_name))
+      if (!my_strcasecmp(system_charset_info,
+                         ((Item_field*) item)->name,field_name))
       {
 	if (!table_name)
 	{
@@ -1728,7 +1946,7 @@ find_item_in_list(Item *find,List<Item> &items)
 	  {
 	    if ((*found)->eq(item,0))
 	      continue;				// Same field twice (Access?)
-	    if (current_thd->where)
+	    if (report_error != IGNORE_ERRORS)
 	      my_printf_error(ER_NON_UNIQ_ERROR,ER(ER_NON_UNIQ_ERROR),MYF(0),
 			      find->full_name(), current_thd->where);
 	    return (Item**) 0;
@@ -1743,17 +1961,25 @@ find_item_in_list(Item *find,List<Item> &items)
       }
     }
     else if (!table_name && (item->eq(find,0) ||
-			     find->name &&
-			     !my_strcasecmp(item->name,find->name)))
+		     find->name &&
+		     !my_strcasecmp(system_charset_info, 
+                                    item->name,find->name)))
     {
       found=li.ref();
       break;
     }
   }
-  if (!found && current_thd->where)
-    my_printf_error(ER_BAD_FIELD_ERROR,ER(ER_BAD_FIELD_ERROR),MYF(0),
-		    find->full_name(),current_thd->where);
-  return found;
+  if (found)
+    return found;
+  else if (report_error != REPORT_EXCEPT_NOT_FOUND)
+  {
+    if (report_error == REPORT_ALL_ERRORS)
+      my_printf_error(ER_BAD_FIELD_ERROR, ER(ER_BAD_FIELD_ERROR), MYF(0),
+		      find->full_name(), current_thd->where);
+    return (Item **) 0;
+  }
+  else
+    return (Item **) not_found_item;
 }
 
 /****************************************************************************
@@ -1793,7 +2019,7 @@ int setup_fields(THD *thd, TABLE_LIST *tables, List<Item> &fields,
     }
     else
     {
-      if (item->fix_fields(thd,tables))
+      if (item->fix_fields(thd, tables, it.ref()))
 	DBUG_RETURN(-1); /* purecov: inspected */
       if (item->with_sum_func && item->type() != Item::SUM_FUNC_ITEM &&
 	  sum_func_list)
@@ -1945,7 +2171,7 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
   if (*conds)
   {
     thd->where="where clause";
-    if ((*conds)->fix_fields(thd,tables))
+    if ((*conds)->fix_fields(thd, tables, conds))
       DBUG_RETURN(1);
   }
 
@@ -1956,7 +2182,7 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
     {
       /* Make a join an a expression */
       thd->where="on clause";
-      if (table->on_expr->fix_fields(thd,tables))
+      if (table->on_expr->fix_fields(thd, tables, &table->on_expr))
 	DBUG_RETURN(1);
       thd->cond_count++;
 
@@ -1983,7 +2209,8 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
 	// TODO: This could be optimized to use hashed names if t2 had a hash
 	for (j=0 ; j < t2->fields ; j++)
 	{
-	  if (!my_strcasecmp(t1->field[i]->field_name,
+	  if (!my_strcasecmp(system_charset_info,
+			     t1->field[i]->field_name,
 			     t2->field[j]->field_name))
 	  {
 	    Item_func_eq *tmp=new Item_func_eq(new Item_field(t1->field[i]),
@@ -2032,7 +2259,7 @@ fill_record(List<Item> &fields,List<Item> &values)
   while ((field=(Item_field*) f++))
   {
     value=v++;
-    if (value->save_in_field(field->field))
+    if (value->save_in_field(field->field) > 0)
       DBUG_RETURN(1);
   }
   DBUG_RETURN(0);
@@ -2050,7 +2277,7 @@ fill_record(Field **ptr,List<Item> &values)
   while ((field = *ptr++))
   {
     value=v++;
-    if (value->save_in_field(field))
+    if (value->save_in_field(field) == 1)
       DBUG_RETURN(1);
   }
   DBUG_RETURN(0);
@@ -2059,39 +2286,41 @@ fill_record(Field **ptr,List<Item> &values)
 
 static void mysql_rm_tmp_tables(void)
 {
-  uint idx;
-  char	filePath[FN_REFLEN];
+  uint i, idx;
+  char	filePath[FN_REFLEN], *tmpdir;
   MY_DIR *dirp;
   FILEINFO *file;
   DBUG_ENTER("mysql_rm_tmp_tables");
 
+  for (i=0; i<=mysql_tmpdir_list.max; i++)
+  {
+    tmpdir=mysql_tmpdir_list.list[i];
   /* See if the directory exists */
-  if (!(dirp = my_dir(mysql_tmpdir,MYF(MY_WME | MY_DONT_SORT))))
-    DBUG_VOID_RETURN;				/* purecov: inspected */
+    if (!(dirp = my_dir(tmpdir,MYF(MY_WME | MY_DONT_SORT))))
+      continue;
 
-  /*
-  ** Remove all SQLxxx tables from directory
-  */
+    /* Remove all SQLxxx tables from directory */
 
   for (idx=2 ; idx < (uint) dirp->number_off_files ; idx++)
   {
     file=dirp->dir_entry+idx;
     if (!bcmp(file->name,tmp_file_prefix,tmp_file_prefix_length))
     {
-      sprintf(filePath,"%s%s",mysql_tmpdir,file->name); /* purecov: inspected */
-      VOID(my_delete(filePath,MYF(MY_WME)));	/* purecov: inspected */
+        sprintf(filePath,"%s%s",tmpdir,file->name);
+        VOID(my_delete(filePath,MYF(MY_WME)));
     }
   }
   my_dirend(dirp);
+  }
   DBUG_VOID_RETURN;
 }
 
 
 /*
-** CREATE INDEX and DROP INDEX are implemented by calling ALTER TABLE with
-** the proper arguments.  This isn't very fast but it should work for most
-** cases.
-** One should normally create all indexes with CREATE TABLE or ALTER TABLE.
+  CREATE INDEX and DROP INDEX are implemented by calling ALTER TABLE with
+  the proper arguments.  This isn't very fast but it should work for most
+  cases.
+  One should normally create all indexes with CREATE TABLE or ALTER TABLE.
 */
 
 int mysql_create_index(THD *thd, TABLE_LIST *table_list, List<Key> &keys)
@@ -2103,6 +2332,8 @@ int mysql_create_index(THD *thd, TABLE_LIST *table_list, List<Key> &keys)
   DBUG_ENTER("mysql_create_index");
   bzero((char*) &create_info,sizeof(create_info));
   create_info.db_type=DB_TYPE_DEFAULT;
+  /* TODO:  Fix to use database character set */
+  create_info.table_charset=default_charset_info;
   DBUG_RETURN(mysql_alter_table(thd,table_list->db,table_list->real_name,
 				&create_info, table_list,
 				fields, keys, drop, alter, (ORDER*)0, FALSE,
@@ -2119,6 +2350,7 @@ int mysql_drop_index(THD *thd, TABLE_LIST *table_list, List<Alter_drop> &drop)
   DBUG_ENTER("mysql_drop_index");
   bzero((char*) &create_info,sizeof(create_info));
   create_info.db_type=DB_TYPE_DEFAULT;
+  create_info.table_charset=default_charset_info;
   DBUG_RETURN(mysql_alter_table(thd,table_list->db,table_list->real_name,
 				&create_info, table_list,
 				fields, keys, drop, alter, (ORDER*)0, FALSE,
@@ -2220,8 +2452,8 @@ bool remove_table_from_cache(THD *thd, const char *db, const char *table_name,
 
 int setup_ftfuncs(THD *thd)
 {
-  List_iterator<Item_func_match> li(thd->lex.select->ftfunc_list),
-                                 lj(thd->lex.select->ftfunc_list);
+  List_iterator<Item_func_match> li(*(thd->lex.select->ftfunc_list)),
+                                 lj(*(thd->lex.select->ftfunc_list));
   Item_func_match *ftf, *ftf2;
 
   while ((ftf=li++))
@@ -2242,9 +2474,9 @@ int setup_ftfuncs(THD *thd)
 
 int init_ftfuncs(THD *thd, bool no_order)
 {
-  if (thd->lex.select->ftfunc_list.elements)
+  if (thd->lex.select->ftfunc_list->elements)
   {
-    List_iterator<Item_func_match> li(thd->lex.select->ftfunc_list);
+    List_iterator<Item_func_match> li(*(thd->lex.select->ftfunc_list));
     Item_func_match *ifm;
     DBUG_PRINT("info",("Performing FULLTEXT search"));
     thd->proc_info="FULLTEXT initialization";

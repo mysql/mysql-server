@@ -332,7 +332,7 @@ int _nisam_key_cmp(register N_KEYSEG *keyseg, register uchar *a, register uchar 
 	end= a+ min(key_length,(uint) length);
 
 #ifdef USE_STRCOLL
-        if (use_strcoll(default_charset_info)) {
+        if (use_strnxfrm(default_charset_info)) {
           if (((enum ha_base_keytype) keyseg->base.type) == HA_KEYTYPE_BINARY)
           {
             while (a < end)
@@ -383,7 +383,7 @@ int _nisam_key_cmp(register N_KEYSEG *keyseg, register uchar *a, register uchar 
       else
       {
 #ifdef USE_STRCOLL
-        if (use_strcoll(default_charset_info)) {
+        if (use_strnxfrm(default_charset_info)) {
           if (((enum ha_base_keytype) keyseg->base.type) == HA_KEYTYPE_BINARY)
           {
             while (a < end)
@@ -515,11 +515,13 @@ int _nisam_key_cmp(register N_KEYSEG *keyseg, register uchar *a, register uchar 
 	  if (*a++ !=  *b++)
 	  {
 	    a--; b--;
-	    if (isdigit((char) *a) && isdigit((char) *b))
+	    if (my_isdigit(default_charset_info, (char) *a) && 
+	        my_isdigit(default_charset_info, (char) *b))
 	      return ((int) *a - (int) *b);
-	    if (*a == '-' || isdigit((char) *b))
+	    if (*a == '-' || my_isdigit(default_charset_info,(char) *b))
 	      return (-1);
-	    if (*b == '-' || *b++ == ' ' || isdigit((char) *a))
+	    if (*b == '-' || *b++ == ' ' || 
+	        my_isdigit(default_charset_info,(char) *a))
 	      return (1);
 	    if (*a++ == ' ')
 	      return (-1);
@@ -539,11 +541,13 @@ int _nisam_key_cmp(register N_KEYSEG *keyseg, register uchar *a, register uchar 
 	  if (*a++ != *b++)
 	  {
 	    a--; b--;
-	    if (isdigit((char) *a) && isdigit((char) *b))
+	    if (my_isdigit(default_charset_info,(char) *a) && 
+	        my_isdigit(default_charset_info,(char) *b))
 	      return ((int) *a - (int) *b);
-	    if (*a == '-' || isdigit((char) *b))
+	    if (*a == '-' || my_isdigit(default_charset_info,(char) *b))
 	      return (-1);
-	    if (*b == '-' || *b++ == ' ' || isdigit((char) *a))
+	    if (*b == '-' || *b++ == ' ' || 
+	        my_isdigit(default_charset_info,(char) *a))
 	      return (1);
 	    if (*a++ == ' ')
 	      return -1;

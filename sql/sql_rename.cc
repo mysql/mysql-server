@@ -97,7 +97,7 @@ end:
       Query_log_event qinfo(thd, thd->query, thd->query_length);
       mysql_bin_log.write(&qinfo);
     }
-    send_ok(&thd->net);
+    send_ok(thd);
   }
 
   for (TABLE_LIST *table=table_list ; table != lock_table ; table=table->next)

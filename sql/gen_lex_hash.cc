@@ -30,7 +30,7 @@ my_bool opt_search;
 int  opt_verbose;
 ulong opt_count;
 
-#define max_allowed_array  8000	// Don't generate bigger arrays than this
+#define max_allowed_array 16000	// Don't generate bigger arrays than this
 #define max_symbol	  32767	// Use this for 'not found'
 #define how_much_for_plus  8	// 2-8
 #define type_count	   1	// 1-5

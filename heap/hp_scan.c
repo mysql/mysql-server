@@ -58,7 +58,7 @@ int heap_scan(register HP_INFO *info, byte *record)
 	DBUG_RETURN(my_errno= HA_ERR_END_OF_FILE);
       }
     }
-    _hp_find_record(info,pos);
+    hp_find_record(info, pos);
   }
   if (!info->current_ptr[share->reclength])
   {

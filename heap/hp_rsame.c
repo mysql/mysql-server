@@ -41,8 +41,8 @@ int heap_rsame(register HP_INFO *info, byte *record, int inx)
     else if (inx != -1)
     {
       info->lastinx=inx;
-      _hp_make_key(share->keydef+inx,info->lastkey,record);
-      if (!_hp_search(info,share->keydef+inx,info->lastkey,3))
+      hp_make_key(share->keydef + inx, info->lastkey, record);
+      if (!hp_search(info, share->keydef + inx, info->lastkey, 3))
       {
 	info->update=0;
 	DBUG_RETURN(my_errno);
