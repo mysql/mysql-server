@@ -2681,6 +2681,20 @@ with --log-bin instead.");
 
   if (opt_bin_log)
   {
+    if (!opt_bin_logname && !opt_binlog_index_name)
+    {
+      /*
+        User didn't give us info to name the binlog index file.
+        Picking `hostname`-bin.index like did in 4.x, causes replication to
+        fail if the hostname is changed later. So, we would like to instead
+        require a name. But as we don't want to break many existing setups, we
+        only give warning, not error.
+      */
+      sql_print_warning("\
+No argument was provided to --log-bin, and --log-bin-index was not used. "
+"Replication may break when this MySQL server acts as a master and has his "
+"hostname changed.");
+    }
     /* If we fail to open binlog, it's going to hinder our recovery, so die */
     if (open_log(&mysql_bin_log, glob_hostname, opt_bin_logname, "-bin",
 		 opt_binlog_index_name, LOG_BIN, 0, 0, max_binlog_size))
@@ -2695,11 +2709,20 @@ with --log-bin instead.");
     }
 #endif
   }
-  else if (opt_log_slave_updates)
+  else
   {
-      sql_print_warning("\
-you need to use --log-bin to make --log-slave-updates work. \
-Now disabling --log-slave-updates.");
+    if (opt_log_slave_updates)
+    {
+      sql_print_error("\
+You need to use --log-bin=# to make --log-slave-updates work.");
+      unireg_abort(1);
+    }
+    if (opt_binlog_index_name)
+    {
+      sql_print_error("\
+You need to use --log-bin=# to make --log-bin-index work.");
+      unireg_abort(1);
+    }
   }
 
 #ifdef HAVE_REPLICATION
@@ -4493,14 +4516,16 @@ Disable with --skip-isam.",
   {"log", 'l', "Log connections and queries to file.", (gptr*) &opt_logname,
    (gptr*) &opt_logname, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"log-bin", OPT_BIN_LOG,
-   "Log update queries in binary format.",
+   "Log update queries in binary format. Optional (but strongly recommended "
+   "to avoid replication problems if server's hostname changes) argument "
+   "should be the chosen location for the binary log files.",
    (gptr*) &opt_bin_logname, (gptr*) &opt_bin_logname, 0, GET_STR_ALLOC,
    OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"log-bin-index", OPT_BIN_LOG_INDEX,
    "File that holds the names for last binary log files.",
    (gptr*) &opt_binlog_index_name, (gptr*) &opt_binlog_index_name, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"log-error", OPT_ERROR_LOG_FILE, "Log error file.",
+  {"log-error", OPT_ERROR_LOG_FILE, "Error log file.",
    (gptr*) &log_error_file_ptr, (gptr*) &log_error_file_ptr, 0, GET_STR,
    OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"log-isam", OPT_ISAM_LOG, "Log all MyISAM changes to file.",
