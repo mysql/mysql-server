@@ -31,10 +31,11 @@ Dbtux::searchToAdd(Signal* signal, Frag& frag, ConstData searchKey, TreeEnt sear
   const unsigned numAttrs = frag.m_numAttrs;
   NodeHandle currNode(frag);
   currNode.m_loc = tree.m_root;
+  // assume success
+  treePos.m_match = false;
   if (currNode.m_loc == NullTupLoc) {
     // empty tree
     jam();
-    treePos.m_match = false;
     return;
   }
   NodeHandle glbNode(frag);     // potential g.l.b of final node
@@ -93,6 +94,7 @@ Dbtux::searchToAdd(Signal* signal, Frag& frag, ConstData searchKey, TreeEnt sear
       jam();
       treePos.m_loc = currNode.m_loc;
       treePos.m_pos = 0;
+      // failed
       treePos.m_match = true;
       return;
     }
@@ -100,9 +102,16 @@ Dbtux::searchToAdd(Signal* signal, Frag& frag, ConstData searchKey, TreeEnt sear
   }
   // access rest of current node
   accessNode(signal, currNode, AccFull);
-  for (unsigned j = 0, occup = currNode.getOccup(); j < occup; j++) {
+  // anticipate
+  treePos.m_loc = currNode.m_loc;
+  // binary search
+  int lo = -1;
+  int hi = currNode.getOccup();
+  int ret;
+  while (1) {
     jam();
-    int ret;
+    // hi - lo > 1 implies lo < j < hi
+    int j = (hi + lo) / 2;
     // read and compare attributes
     unsigned start = 0;
     readKeyAttrs(frag, currNode.getEnt(j), start, c_entryKey);
@@ -113,25 +122,38 @@ Dbtux::searchToAdd(Signal* signal, Frag& frag, ConstData searchKey, TreeEnt sear
       // keys are equal, compare entry values
       ret = searchEnt.cmp(currNode.getEnt(j));
     }
-    if (ret <= 0) {
-      jam();
-      treePos.m_loc = currNode.m_loc;
+    if (ret < 0)
+      hi = j;
+    else if (ret > 0)
+      lo = j;
+    else {
       treePos.m_pos = j;
-      treePos.m_match = (ret == 0);
+      // failed
+      treePos.m_match = true;
       return;
     }
+    if (hi - lo == 1)
+      break;
   }
-  if (! bottomNode.isNull()) {
+  if (ret < 0) {
     jam();
-    // backwards compatible for now
-    treePos.m_loc = bottomNode.m_loc;
-    treePos.m_pos = 0;
-    treePos.m_match = false;
+    treePos.m_pos = hi;
     return;
   }
-  treePos.m_loc = currNode.m_loc;
-  treePos.m_pos = currNode.getOccup();
-  treePos.m_match = false;
+  if (hi < currNode.getOccup()) {
+    jam();
+    treePos.m_pos = hi;
+    return;
+  }
+  if (bottomNode.isNull()) {
+    jam();
+    treePos.m_pos = hi;
+    return;
+  }
+  jam();
+  // backwards compatible for now
+  treePos.m_loc = bottomNode.m_loc;
+  treePos.m_pos = 0;
 }
 
 /*
@@ -150,9 +172,12 @@ Dbtux::searchToRemove(Signal* signal, Frag& frag, ConstData searchKey, TreeEnt s
   const unsigned numAttrs = frag.m_numAttrs;
   NodeHandle currNode(frag);
   currNode.m_loc = tree.m_root;
+  // assume success
+  treePos.m_match = true;
   if (currNode.m_loc == NullTupLoc) {
     // empty tree
     jam();
+    // failed
     treePos.m_match = false;
     return;
   }
@@ -206,27 +231,26 @@ Dbtux::searchToRemove(Signal* signal, Frag& frag, ConstData searchKey, TreeEnt s
       jam();
       treePos.m_loc = currNode.m_loc;
       treePos.m_pos = 0;
-      treePos.m_match = true;
       return;
     }
     break;
   }
   // access rest of current node
   accessNode(signal, currNode, AccFull);
+  // anticipate
+  treePos.m_loc = currNode.m_loc;
   // pos 0 was handled above
   for (unsigned j = 1, occup = currNode.getOccup(); j < occup; j++) {
     jam();
     // compare only the entry
     if (searchEnt.eq(currNode.getEnt(j))) {
       jam();
-      treePos.m_loc = currNode.m_loc;
       treePos.m_pos = j;
-      treePos.m_match = true;
       return;
     }
   }
-  treePos.m_loc = currNode.m_loc;
   treePos.m_pos = currNode.getOccup();
+  // failed
   treePos.m_match = false;
 }
 

@@ -120,7 +120,7 @@ Dbtux::execTUX_MAINT_REQ(Signal* signal)
     searchToAdd(signal, frag, c_searchKey, ent, treePos);
 #ifdef VM_TRACE
     if (debugFlags & DebugMaint) {
-      debugOut << treePos << endl;
+      debugOut << treePos << (treePos.m_match ? " - error" : "") << endl;
     }
 #endif
     if (treePos.m_match) {
@@ -154,7 +154,7 @@ Dbtux::execTUX_MAINT_REQ(Signal* signal)
     searchToRemove(signal, frag, c_searchKey, ent, treePos);
 #ifdef VM_TRACE
     if (debugFlags & DebugMaint) {
-      debugOut << treePos << endl;
+      debugOut << treePos << (! treePos.m_match ? " - error" : "") << endl;
     }
 #endif
     if (! treePos.m_match) {
