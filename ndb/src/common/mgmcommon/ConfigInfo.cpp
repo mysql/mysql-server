@@ -143,6 +143,19 @@ ConfigInfo::m_SectionRules[] = {
 };
 const int ConfigInfo::m_NoOfRules = sizeof(m_SectionRules)/sizeof(SectionRule);
 
+/****************************************************************************
+ * Config Rules declarations
+ ****************************************************************************/
+bool addNodeConnections(Vector<ConfigInfo::ConfigRuleSection>&sections, 
+			struct InitConfigFileParser::Context &ctx, 
+			const char * ruleData);
+
+const ConfigInfo::ConfigRule 
+ConfigInfo::m_ConfigRules[] = {
+  { addNodeConnections, 0 },
+  { 0, 0 }
+};
+	  
 struct DepricationTransform {
   const char * m_section;
   const char * m_oldName;
@@ -1525,7 +1538,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
-    MANDATORY,
+    2202,
     0,
     0x7FFFFFFF },
 
@@ -2712,13 +2725,13 @@ checkMandatory(InitConfigFileParser::Context & ctx, const char * data){
  * Transform a string "NodeidX" (e.g. "uppsala.32") 
  * into a Uint32 "NodeIdX" (e.g. 32) and a string "SystemX" (e.g. "uppsala").
  */
-bool fixNodeId(InitConfigFileParser::Context & ctx, const char * data){
-
+bool fixNodeId(InitConfigFileParser::Context & ctx, const char * data)
+{
   char buf[] = "NodeIdX";  buf[6] = data[sizeof("NodeI")];
   char sysbuf[] = "SystemX";  sysbuf[6] = data[sizeof("NodeI")];
   const char* nodeId;
   require(ctx.m_currentSection->get(buf, &nodeId));
-  
+
   char tmpLine[MAX_LINE_LENGTH];
   strncpy(tmpLine, nodeId, MAX_LINE_LENGTH);
   char* token1 = strtok(tmpLine, ".");
@@ -2739,7 +2752,6 @@ bool fixNodeId(InitConfigFileParser::Context & ctx, const char * data){
     require(ctx.m_currentSection->put(buf, id, true));
     require(ctx.m_currentSection->put(sysbuf, token1));
   }
-
   return true;
 }
 
@@ -2862,9 +2874,9 @@ fixPortNumber(InitConfigFileParser::Context & ctx, const char * data){
     Uint32 adder = 0;
     ctx.m_userProperties.get("PortNumberAdder", &adder);
     Uint32 base = 0;
-    if(!ctx.m_userDefaults->get("PortNumber", &base) &&
+    if(!(ctx.m_userDefaults && ctx.m_userDefaults->get("PortNumber", &base)) &&
        !ctx.m_systemDefaults->get("PortNumber", &base)){
-      return true;
+      return false;
     }
     ctx.m_currentSection->put("PortNumber", base + adder);
     adder++;
@@ -3142,5 +3154,90 @@ saveInConfigValues(InitConfigFileParser::Context & ctx, const char * data){
     }
     ctx.m_configValues.closeSection();
   } while(0);
+  return true;
+}
+
+bool
+addNodeConnections(Vector<ConfigInfo::ConfigRuleSection>&sections, 
+		   struct InitConfigFileParser::Context &ctx, 
+		   const char * ruleData)
+{
+  Properties * props= ctx.m_config;
+  Properties p_connections;
+  Properties p_connections2;
+
+  for (Uint32 i = 0;; i++){
+    const Properties * tmp;
+    Uint32 nodeId1, nodeId2;
+
+    if(!props->get("Connection", i, &tmp)) break;
+
+    if(!tmp->get("NodeId1", &nodeId1)) continue;
+    p_connections.put("", nodeId1, nodeId1);
+    if(!tmp->get("NodeId2", &nodeId2)) continue;
+    p_connections.put("", nodeId2, nodeId2);
+
+    p_connections2.put("", nodeId1 + nodeId2<<16, nodeId1);
+    p_connections2.put("", nodeId2 + nodeId1<<16, nodeId2);
+  }
+
+  Uint32 nNodes;
+  ctx.m_userProperties.get("NoOfNodes", &nNodes);
+
+  Properties p_db_nodes;
+  Properties p_api_mgm_nodes;
+
+  Uint32 i_db= 0, i_api_mgm= 0;
+  for (Uint32 i= 0, n= 0; n < nNodes; i++){
+    const Properties * tmp;
+    if(!props->get("Node", i, &tmp)) continue;
+    n++;
+
+    const char * type;
+    if(!tmp->get("Type", &type)) continue;
+
+    if (strcmp(type,"DB") == 0)
+      p_db_nodes.put("", i_db++, i);
+    else if (strcmp(type,"API") == 0 ||
+	     strcmp(type,"MGM") == 0)
+      p_api_mgm_nodes.put("", i_api_mgm++, i);
+  }
+
+  Uint32 nodeId1, nodeId2, dummy;
+
+  for (Uint32 i= 0; p_db_nodes.get("", i, &nodeId1); i++){
+    for (Uint32 j= i+1;; j++){
+      if(!p_db_nodes.get("", j, &nodeId2)) break;
+      if(!p_connections2.get("", nodeId1+nodeId2<<16, &dummy)) {
+	ConfigInfo::ConfigRuleSection s;
+	s.m_sectionType= BaseString("TCP");
+	s.m_sectionData= new Properties;
+	char buf[16];
+	snprintf(buf, sizeof(buf), "%u", nodeId1);
+	s.m_sectionData->put("NodeId1", buf);
+	snprintf(buf, sizeof(buf), "%u", nodeId2);
+	s.m_sectionData->put("NodeId2", buf);
+	sections.push_back(s);
+      }
+    }
+  }
+
+  for (Uint32 i= 0; p_api_mgm_nodes.get("", i, &nodeId1); i++){
+    if(!p_connections.get("", nodeId1, &dummy)) {
+      for (Uint32 j= 0;; j++){
+	if(!p_db_nodes.get("", j, &nodeId2)) break;
+	ConfigInfo::ConfigRuleSection s;
+	s.m_sectionType= BaseString("TCP");
+	s.m_sectionData= new Properties;
+	char buf[16];
+	snprintf(buf, sizeof(buf), "%u", nodeId1);
+	s.m_sectionData->put("NodeId1", buf);
+	snprintf(buf, sizeof(buf), "%u", nodeId2);
+	s.m_sectionData->put("NodeId2", buf);
+	sections.push_back(s);
+      }
+    }
+  }
+
   return true;
 }
