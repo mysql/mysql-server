@@ -163,18 +163,20 @@ int Ndb_cluster_connection::connect(int no_retries, int retry_delay_in_seconds, 
     ndb_mgm_configuration * props = m_config_retriever->getConfig();
     if(props == 0)
       break;
-    DBUG_PRINT("Before start_instance",("Before start_instance2"));
+
     m_facade->start_instance(nodeId, props);
-    DBUG_PRINT("After start_instance",("before start_instance2"));
-    // report port here.
-    DBUG_PRINT("set_conn",("%d",m_facade->get_registry()->m_transporter_interface.size()));
+
     for(int i=0;i<m_facade->get_registry()->m_transporter_interface.size();i++)
       ndb_mgm_set_connection_int_parameter(m_config_retriever->get_mgmHandle(),
 					   nodeId,
-					   m_facade->get_registry()->m_transporter_interface[i].m_remote_nodeId,
-					 CFG_CONNECTION_SERVER_PORT,
-					   m_facade->get_registry()->m_transporter_interface[i].m_service_port,
-					 &mgm_reply);
+					   m_facade->get_registry()
+					     ->m_transporter_interface[i]
+					     .m_remote_nodeId,
+					   CFG_CONNECTION_SERVER_PORT,
+					   m_facade->get_registry()
+					     ->m_transporter_interface[i]
+					     .m_service_port,
+					   &mgm_reply);
 
     ndb_mgm_destroy_configuration(props);
     m_facade->connected();
