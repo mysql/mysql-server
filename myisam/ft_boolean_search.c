@@ -100,16 +100,22 @@ typedef struct st_ft_info
   MEM_ROOT   mem_root;
 } FTB;
 
-int FTB_WORD_cmp(void *v __attribute__((unused)), FTB_WORD *a, FTB_WORD *b)
+static int FTB_WORD_cmp(my_off_t *v, FTB_WORD *a, FTB_WORD *b)
 {
+  int i;
+
+  /* if a==curdoc, take it as  a < b */
+  if (v && a->docid[0] == *v)
+    return -1;
+
   /* ORDER BY docid, ndepth DESC */
-  int i=CMP_NUM(a->docid[0], b->docid[0]);
+  i=CMP_NUM(a->docid[0], b->docid[0]);
   if (!i)
     i=CMP_NUM(b->ndepth,a->ndepth);
   return i;
 }
 
-int FTB_WORD_cmp_list(CHARSET_INFO *cs, FTB_WORD **a, FTB_WORD **b)
+static int FTB_WORD_cmp_list(CHARSET_INFO *cs, FTB_WORD **a, FTB_WORD **b)
 {
   /* ORDER BY word DESC, ndepth DESC */
   int i=_mi_compare_text(cs, (*b)->word+1,(*b)->len-1,
@@ -119,7 +125,7 @@ int FTB_WORD_cmp_list(CHARSET_INFO *cs, FTB_WORD **a, FTB_WORD **b)
   return i;
 }
 
-void _ftb_parse_query(FTB *ftb, byte **start, byte *end,
+static void _ftb_parse_query(FTB *ftb, byte **start, byte *end,
                       FTB_EXPR *up, uint depth)
 {
   byte        res;
@@ -187,7 +193,7 @@ static int _ftb_no_dupes_cmp(void* not_used __attribute__((unused)),
   return CMP_NUM((*((my_off_t*)a)), (*((my_off_t*)b)));
 }
 
-void _ftb_init_index_search(FT_INFO *ftb)
+static void _ftb_init_index_search(FT_INFO *ftb)
 {
   int i, r;
   FTB_WORD   *ftbw;
@@ -302,7 +308,7 @@ FT_INFO * ft_init_boolean_search(MI_INFO *info, uint keynr, byte *query,
   res=ftb->queue.max_elements=1+query_len/(ft_min_word_len+1);
   ftb->queue.root=(byte **)alloc_root(&ftb->mem_root, (res+1)*sizeof(void*));
   reinit_queue(& ftb->queue, res, 0, 0,
-                         (int (*)(void*,byte*,byte*))FTB_WORD_cmp, ftb);
+                         (int (*)(void*,byte*,byte*))FTB_WORD_cmp, 0);
   ftbe=(FTB_EXPR *)alloc_root(&ftb->mem_root, sizeof(FTB_EXPR));
   ftbe->weight=1;
   ftbe->flags=FTB_FLAG_YES;
@@ -325,7 +331,7 @@ FT_INFO * ft_init_boolean_search(MI_INFO *info, uint keynr, byte *query,
 
 
 /* returns 1 if str0 contain str1 */
-int _ftb_strstr(const byte *s0, const byte *e0,
+static int _ftb_strstr(const byte *s0, const byte *e0,
                 const byte *s1, const byte *e1,
                 CHARSET_INFO *cs)
 {
@@ -349,7 +355,7 @@ int _ftb_strstr(const byte *s0, const byte *e0,
 }
 
 
-void _ftb_climb_the_tree(FTB *ftb, FTB_WORD *ftbw, FT_SEG_ITERATOR *ftsi_orig)
+static void _ftb_climb_the_tree(FTB *ftb, FTB_WORD *ftbw, FT_SEG_ITERATOR *ftsi_orig)
 {
   FT_SEG_ITERATOR ftsi;
   FTB_EXPR *ftbe;
@@ -445,6 +451,9 @@ int ft_boolean_read_next(FT_INFO *ftb, char *record)
   if (!ftb->queue.elements)
     return my_errno=HA_ERR_END_OF_FILE;
 
+  /* Attention!!! Address of a local variable is used here! See err: label */
+  ftb->queue.first_cmp_arg=(void *)&curdoc;
+
   while (ftb->state == INDEX_SEARCH &&
 	 (curdoc=((FTB_WORD *)queue_top(& ftb->queue))->docid[0]) !=
 	 HA_POS_ERROR)
@@ -503,13 +512,17 @@ int ft_boolean_read_next(FT_INFO *ftb, char *record)
         info->update|= HA_STATE_AKTIV;          /* Record is read */
         if (ftb->with_scan && ft_boolean_find_relevance(ftb,record,0)==0)
             continue; /* no match */
-        return 0;
+        my_errno=0;
+        goto err;
       }
-      return my_errno;
+      goto err;
     }
   }
   ftb->state=INDEX_DONE;
-  return my_errno=HA_ERR_END_OF_FILE;
+  my_errno=HA_ERR_END_OF_FILE;
+err:
+  ftb->queue.first_cmp_arg=(void *)0;
+  return my_errno;
 }
 
 
