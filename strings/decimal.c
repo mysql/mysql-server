@@ -921,6 +921,12 @@ int decimal_round(decimal *from, decimal *to, int scale, decimal_round_mode mode
       x+=10;
     *buf1=powers10[pos]*(x-y);
   }
+  if (frac0 < 0)
+  {
+    dec1 *end=to->buf+intg0, *buf=buf1+1;
+    while (buf < end)
+      *buf++=0;
+  }
   if (*buf1 >= DIG_BASE)
   {
     carry=1;
@@ -2083,6 +2089,7 @@ main()
   test_ro("5678.123451",5,TRUNCATE,"5678.12345");
   test_ro("5678.123451",6,TRUNCATE,"5678.123451");
   test_ro("-5678.123451",-4,TRUNCATE,"0");
+  memset(buf2, 33, sizeof(buf2));
   test_ro("99999999999999999999999999999999999999",-31,TRUNCATE,"99999990000000000000000000000000000000");
   test_ro("15.1",0,HALF_UP,"15");
   test_ro("15.5",0,HALF_UP,"16");
