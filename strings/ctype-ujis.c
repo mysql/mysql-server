@@ -8480,6 +8480,7 @@ CHARSET_INFO my_charset_ujis_japanese_ci=
     NULL,		/* tab_from_uni */
     "","",
     1,			/* strxfrm_multiply */
+    1,			/* mbminlen     */
     3,			/* mbmaxlen     */
     0,
     &my_charset_handler,
@@ -8502,6 +8503,7 @@ CHARSET_INFO my_charset_ujis_bin=
     NULL,		/* tab_from_uni */
     "","",
     1,			/* strxfrm_multiply */
+    1,			/* mbminlen     */
     3,			/* mbmaxlen     */
     0,
     &my_charset_handler,
