@@ -131,7 +131,8 @@ static void simple_cs_init_functions(CHARSET_INFO *cs)
     cs->coll= &my_collation_8bit_simple_ci_handler;
   
   cs->cset= &my_charset_8bit_handler;
-  cs->mbmaxlen    = 1;
+  cs->mbminlen= 1;
+  cs->mbmaxlen= 1;
 }
 
 
@@ -273,6 +274,7 @@ static int simple_cs_copy_data(CHARSET_INFO *to, CHARSET_INFO *from)
     if (create_fromuni(to))
       goto err;
   }
+  to->mbminlen= 1;
   to->mbmaxlen= 1;
 
   return 0;

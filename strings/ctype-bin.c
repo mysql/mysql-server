@@ -381,6 +381,7 @@ CHARSET_INFO my_charset_bin =
     NULL,			/* tab_from_uni  */
     "","",
     1,				/* strxfrm_multiply */
+    1,				/* mbminlen      */
     1,				/* mbmaxlen      */
     (char) 255,			/* max_sort_char */
     &my_charset_handler,
