@@ -2003,7 +2003,8 @@ build_template(
 		update field->query_id so that the formula
 		thd->query_id == field->query_id did not work. */
 
-                ibool index_contains_field = dict_index_contains_col_or_prefix(index, i);
+                ibool index_contains_field=
+                  dict_index_contains_col_or_prefix(index, i);
 
 		if (templ_type == ROW_MYSQL_REC_FIELDS && 
                     ((prebuilt->read_just_key && !index_contains_field) ||

@@ -3,7 +3,7 @@
 #
 
 --disable_warnings
-drop table if exists t0, t1, t2, t3;
+drop table if exists t0, t1, t2, t3,t4;
 --enable_warnings
 
 # Create and fill a table with simple keys

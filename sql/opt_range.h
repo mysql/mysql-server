@@ -118,11 +118,13 @@ public:
 protected:
   friend void print_quick_sel_range(QUICK_RANGE_SELECT *quick,
                                     const key_map* needed_reg);
-  friend QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table, 
-                                                      struct st_table_ref *ref);
+  friend
+  QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table, 
+                                               struct st_table_ref *ref);
   friend bool get_quick_keys(struct st_qsel_param *param,
                              QUICK_RANGE_SELECT *quick,KEY_PART *key,
-                             SEL_ARG *key_tree,char *min_key,uint min_key_flag,
+                             SEL_ARG *key_tree,
+                             char *min_key, uint min_key_flag,
                              char *max_key, uint max_key_flag);
   friend QUICK_RANGE_SELECT *get_quick_select(struct st_qsel_param*,uint idx,
                                               SEL_ARG *key_tree,
@@ -160,58 +162,62 @@ public:
 
 
 /*
-QUICK_INDEX_MERGE_SELECT - index_merge acces method quick select.
+  QUICK_INDEX_MERGE_SELECT - index_merge access method quick select.
 
-  QUICK_INDEX_MERGE_SELECT uses 
-   * QUICK_RANGE_SELECTs to get rows
-   * Unique class to remove duplicate rows
+    QUICK_INDEX_MERGE_SELECT uses 
+     * QUICK_RANGE_SELECTs to get rows
+     * Unique class to remove duplicate rows
 
-INDEX MERGE OPTIMIZER
-  Current implementation doesn't detect all cases where index_merge could be 
-  used, in particular:
-   * index_merge will never be used if range scan is possible (even if range 
-     scan is more expensive)
+  INDEX MERGE OPTIMIZER
+    Current implementation doesn't detect all cases where index_merge could 
+    be used, in particular:
+     * index_merge will never be used if range scan is possible (even if 
+       range scan is more expensive)
 
-   * index_merge+'using index' is not supported (this the consequence of the 
-     above restriction)
+     * index_merge+'using index' is not supported (this the consequence of 
+       the above restriction)
    
-   * If WHERE part contains complex nested AND and OR conditions, some ways to
-     retrieve rows using index_merge will not be considered. The choice of 
-     read plan may depend on the order of conjuncts/disjuncts in WHERE part of
-     the query, see comments near SEL_IMERGE::or_sel_tree_with_checks and 
-     imerge_list_or_list function for details.
+     * If WHERE part contains complex nested AND and OR conditions, some ways
+       to retrieve rows using index_merge will not be considered. The choice 
+       of read plan may depend on the order of conjuncts/disjuncts in WHERE 
+       part of the query, see comments near imerge_list_or_list and
+       SEL_IMERGE::or_sel_tree_with_checks functions for details.
 
-   * there is no "index_merge_ref" method (but index_merge on non-first table 
-     in join is possible with 'range checked for each record').
+     * There is no "index_merge_ref" method (but index_merge on non-first
+       table in join is possible with 'range checked for each record').
 
-   See comments around SEL_IMERGE class and test_quick_select for more details.
+    See comments around SEL_IMERGE class and test_quick_select for more 
+    details.
 
-ROW RETRIEVAL ALGORITHM
+  ROW RETRIEVAL ALGORITHM
 
-  index_merge uses Unique class for duplicates removal.  Index merge takes 
-  advantage of clustered covering primary key (CCPK) if the table has one.
-  The algorithm is as follows:
+    index_merge uses Unique class for duplicates removal.  index_merge takes
+    advantage of Clustered Primary Key (CPK) if the table has one.
+    The index_merge algorithm consists of two phases:
 
-  prepare() //implemented in QUICK_INDEX_MERGE_SELECT::prepare_unique
-  {
-    activate 'index only';
-    while(retrieve next row for non-CCPK scan)
+    Phase 1 (implemented in QUICK_INDEX_MERGE_SELECT::prepare_unique):
+    prepare()
     {
-      if (there is a CCPK scan and row will be retrieved by it)
-        skip this row;
-      else
-        put rowid into Unique;
+      activate 'index only';
+      while(retrieve next row for non-CPK scan)
+      {
+        if (there is a CPK scan and row will be retrieved by it)
+          skip this row;
+        else
+          put its rowid into Unique;
+      }
+      deactivate 'index only';
     }
-    deactivate 'index only';
-  }
+    
+    Phase 2 (implemented as sequence of QUICK_INDEX_MERGE_SELECT::get_next
+    calls):
 
-  fetch() //implemented as sequence of QUICK_INDEX_MERGE_SELECT::get_next calls
-  {
-    retrieve all rows from row pointers stored in Unique;
-    free Unique;
-    retrieve all rows for CCPK scan;
-  }
-
+    fetch()
+    {
+      retrieve all rows from row pointers stored in Unique;
+      free Unique;
+      retrieve all rows for CPK scan;
+    }
 */
 
 class QUICK_INDEX_MERGE_SELECT : public QUICK_SELECT_I 
@@ -239,10 +245,10 @@ public:
   /* last element in quick_selects list */
   QUICK_RANGE_SELECT* last_quick_select;
 
-  /* quick select that uses Covering Clustered Primary Key (NULL if none) */
+  /* quick select that uses clustered primary key (NULL if none) */
   QUICK_RANGE_SELECT* pk_quick_select;
   
-  /* true if this select is currently doing a CCPK scan */
+  /* true if this select is currently doing a clustered PK scan */
   bool  doing_pk_scan;
   
   Unique  *unique;
