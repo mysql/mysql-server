@@ -111,3 +111,56 @@ id
 5
 9
 drop table t1;
+create table t1 (
+a char(1) character set latin1 collate latin1_general_ci,
+b char(1) character set latin1 collate latin1_swedish_ci,
+c char(1) character set latin1 collate latin1_danish_ci
+);
+insert into t1 values ('A','B','C');
+insert into t1 values ('a','c','c');
+select * from t1 where a in (b);
+ERROR HY000: Illegal mix of collations (latin1_general_ci,IMPLICIT) and (latin1_swedish_ci,IMPLICIT) for operation ' IN '
+select * from t1 where a in (b,c);
+ERROR HY000: Illegal mix of collations (latin1_general_ci,IMPLICIT), (latin1_swedish_ci,IMPLICIT), (latin1_danish_ci,IMPLICIT) for operation ' IN '
+select * from t1 where 'a' in (a,b,c);
+ERROR HY000: Illegal mix of collations for operation ' IN '
+select * from t1 where 'a' in (a);
+a	b	c
+A	B	C
+a	c	c
+select * from t1 where a in ('a');
+a	b	c
+A	B	C
+a	c	c
+select * from t1 where 'a' collate latin1_general_ci in (a,b,c);
+a	b	c
+A	B	C
+a	c	c
+select * from t1 where 'a' collate latin1_bin in (a,b,c);
+a	b	c
+a	c	c
+select * from t1 where 'a' in (a,b,c collate latin1_bin);
+a	b	c
+a	c	c
+drop table t1;
+select '1.0' in (1,2);
+'1.0' in (1,2)
+1
+select 1 in ('1.0',2);
+1 in ('1.0',2)
+1
+select 1 in (1,'2.0');
+1 in (1,'2.0')
+1
+select 1 in ('1.0',2.0);
+1 in ('1.0',2.0)
+1
+select 1 in (1.0,'2.0');
+1 in (1.0,'2.0')
+1
+select 1 in ('1.1',2);
+1 in ('1.1',2)
+0
+select 1 in ('1.1',2.0);
+1 in ('1.1',2.0)
+0

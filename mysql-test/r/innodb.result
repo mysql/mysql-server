@@ -788,7 +788,7 @@ id	id3
 UNLOCK TABLES;
 DROP TABLE t1;
 create table t1 (a char(20), unique (a(5))) type=innodb;
-ERROR HY000: Incorrect sub part key. The used key part isn't a string, the used length is longer than the key part or the store engine doesn't support unique sub keys
+ERROR HY000: Incorrect sub part key. The used key part isn't a string, the used length is longer than the key part or the storage engine doesn't support unique sub keys
 create table t1 (a char(20), index (a(5))) type=innodb;
 show create table t1;
 Table	Create Table

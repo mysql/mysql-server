@@ -167,9 +167,9 @@ select FIELD('b','A','B');
 select FIELD('B','A','B');
 select FIELD('b' COLLATE latin1_bin,'A','B');
 select FIELD('b','A' COLLATE latin1_bin,'B');
---error 1265
+--error 1268
 select FIELD(_latin2'b','A','B');
---error 1265
+--error 1268
 select FIELD('b',_latin2'A','B');
 select FIELD('b',_latin2'A','B',1);
 
@@ -217,15 +217,15 @@ select _latin1'B' in (_latin1'a',_latin1'b');
 select _latin1'B' collate latin1_bin in (_latin1'a',_latin1'b');
 select _latin1'B' in (_latin1'a' collate latin1_bin,_latin1'b');
 select _latin1'B' in (_latin1'a',_latin1'b' collate latin1_bin);
---error 1269
+--error 1268
 select _latin2'B' in (_latin1'a',_latin1'b');
---error 1269
+--error 1268
 select _latin1'B' in (_latin2'a',_latin1'b');
---error 1269
+--error 1268
 select _latin1'B' in (_latin1'a',_latin2'b');
---error 1269
+--error 1268
 select _latin1'B' COLLATE latin1_general_ci in (_latin1'a' COLLATE latin1_bin,_latin1'b');
---error 1269
+--error 1268
 select _latin1'B' COLLATE latin1_general_ci in (_latin1'a',_latin1'b' COLLATE latin1_bin);
 
 select collation(bin(130)), coercibility(bin(130));

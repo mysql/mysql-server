@@ -7,7 +7,7 @@ select 1 | NULL,1 & NULL,1+NULL,1-NULL;
 NULL	NULL	NULL	NULL
 select NULL=NULL,NULL<>NULL,IFNULL(NULL,1.1)+0,IFNULL(NULL,1) | 0;
 NULL=NULL	NULL<>NULL	IFNULL(NULL,1.1)+0	IFNULL(NULL,1) | 0
-NULL	NULL	1	1
+NULL	NULL	1.1	1
 select strcmp("a",NULL),(1<NULL)+0.0,NULL regexp "a",null like "a%","a%" like null;
 strcmp("a",NULL)	(1<NULL)+0.0	NULL regexp "a"	null like "a%"	"a%" like null
 NULL	NULL	NULL	NULL	NULL
