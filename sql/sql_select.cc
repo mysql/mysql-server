@@ -6668,7 +6668,8 @@ setup_group(THD *thd,TABLE_LIST *tables,List<Item> &fields,
 
     while ((item=li++))
     {
-      if (item->type() != Item::SUM_FUNC_ITEM && !item->marker)
+      if (item->type() != Item::SUM_FUNC_ITEM && !item->marker &&
+	  !item->const_item())
       {
 	my_printf_error(ER_WRONG_FIELD_WITH_GROUP,
 			ER(ER_WRONG_FIELD_WITH_GROUP),
