@@ -1,7 +1,7 @@
 #! /bin/sh
 # mysql-test-run - originally written by Matt Wagner <matt@mysql.com>
 # modified by Sasha Pachev <sasha@mysql.com>
-# Sligtly updated by Monty
+# Slightly updated by Monty
 # Cleaned up again by Matt
 # Fixed by Sergei
 # :-)
