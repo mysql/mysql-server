@@ -30179,10 +30179,10 @@ a binary string.  This only affects comparisons.
 
 @menu
 * String comparison functions::  
-* Case Sensitivity::            
+* Case Sensitivity Operators::  
 @end menu
 
-@node String comparison functions, Case Sensitivity, String functions, String functions
+@node String comparison functions, Case Sensitivity Operators, String functions, String functions
 @subsubsection String Comparison Functions
 
 @findex string comparison functions
@@ -30333,7 +30333,7 @@ must be created first. @xref{CREATE TABLE, , @code{CREATE TABLE}}.
 @end table
 
 
-@node Case Sensitivity,  , String comparison functions, String functions
+@node Case Sensitivity Operators,  , String comparison functions, String functions
 @subsubsection Case Sensitivity
 
 @findex casts
