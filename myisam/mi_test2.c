@@ -87,7 +87,7 @@ int main(int argc, char *argv[])
   keyinfo[0].seg[0].start=0;
   keyinfo[0].seg[0].length=6;
   keyinfo[0].seg[0].type=HA_KEYTYPE_TEXT;
-  keyinfo[0].seg[0].language=MY_CHARSET_CURRENT;
+  keyinfo[0].seg[0].language= default_charset_info->number;
   keyinfo[0].seg[0].flag=(uint8) pack_seg;
   keyinfo[0].seg[0].null_bit=0;
   keyinfo[0].seg[0].null_pos=0;
@@ -124,7 +124,7 @@ int main(int argc, char *argv[])
   keyinfo[3].seg[0].start=0;
   keyinfo[3].seg[0].length=reclength-(use_blob ? 8 : 0);
   keyinfo[3].seg[0].type=HA_KEYTYPE_TEXT;
-  keyinfo[3].seg[0].language=MY_CHARSET_CURRENT;
+  keyinfo[3].seg[0].language=default_charset_info->number;
   keyinfo[3].seg[0].flag=(uint8) pack_seg;
   keyinfo[3].seg[0].null_bit=0;
   keyinfo[3].seg[0].null_pos=0;
@@ -135,7 +135,7 @@ int main(int argc, char *argv[])
   keyinfo[4].seg[0].start=0;
   keyinfo[4].seg[0].length=5;
   keyinfo[4].seg[0].type=HA_KEYTYPE_TEXT;
-  keyinfo[4].seg[0].language=MY_CHARSET_CURRENT;
+  keyinfo[4].seg[0].language=default_charset_info->number;
   keyinfo[4].seg[0].flag=0;
   keyinfo[4].seg[0].null_bit=0;
   keyinfo[4].seg[0].null_pos=0;
@@ -146,7 +146,7 @@ int main(int argc, char *argv[])
   keyinfo[5].seg[0].start=0;
   keyinfo[5].seg[0].length=4;
   keyinfo[5].seg[0].type=HA_KEYTYPE_TEXT;
-  keyinfo[5].seg[0].language=MY_CHARSET_CURRENT;
+  keyinfo[5].seg[0].language=default_charset_info->number;
   keyinfo[5].seg[0].flag=pack_seg;
   keyinfo[5].seg[0].null_bit=0;
   keyinfo[5].seg[0].null_pos=0;

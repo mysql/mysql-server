@@ -1452,7 +1452,7 @@ bool Item_insert_value::fix_fields(THD *thd, struct st_table_list *table_list, I
     Field *field=field_arg->field;
     /* charset doesn't matter here, it's to avoid sigsegv only */
     set_field(new Field_null(0,0,Field::NONE,field->field_name,field->table,
-          default_charset_info));
+          &my_charset_bin));
   }
   return 0;
 }

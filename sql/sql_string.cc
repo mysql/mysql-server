@@ -265,9 +265,9 @@ bool String::copy(const char *str, uint32 arg_length,
 
 */
 
-bool String::set_latin1(const char *str, uint32 arg_length)
+bool String::set_ascii(const char *str, uint32 arg_length)
 {
-  if (str_charset->mbmaxlen == 1)
+  if (!(str_charset->state & MY_CS_NONTEXT))
   {
     set(str, arg_length, str_charset);
     return 0;
