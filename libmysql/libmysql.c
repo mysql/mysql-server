@@ -117,6 +117,9 @@ static my_bool stmt_close(MYSQL_STMT *stmt, my_bool skip_list);
 static void fetch_lengths(ulong *to, MYSQL_ROW column, uint field_count);
 static my_bool org_my_init_done=0;
 
+extern ulong STDCALL net_field_length(uchar **packet);
+extern my_ulonglong net_field_length_ll(uchar **packet);
+
 int STDCALL mysql_server_init(int argc __attribute__((unused)),
 			      char **argv __attribute__((unused)),
 			      char **groups __attribute__((unused)))

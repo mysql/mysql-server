@@ -215,6 +215,10 @@ SOURCE=.\libmysql.c
 # End Source File
 # Begin Source File
 
+SOURCE=.\pack.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\Libmysql.def
 # End Source File
 # Begin Source File
