@@ -1457,12 +1457,13 @@ String *Item_func_user::val_str(String *str)
 {
   THD          *thd=current_thd;
   CHARSET_INFO *cs= default_charset();
-  const char   *host=thd->host ? thd->host : thd->ip ? thd->ip : "";
+  const char   *host= thd->host_or_ip;
+  uint		res_length;
+
   // For system threads (e.g. replication SQL thread) user may be empty
   if (!thd->user)
     return &empty_string;
-  uint32       res_length=(strlen(thd->user)+strlen(host)+3) * cs->mbmaxlen;
-// it is +3 , because 1 for each string and 1 for '@' sign
+  res_length= (strlen(thd->user)+strlen(host)+2) * cs->mbmaxlen;
 
   if (str->alloc(res_length))
   {
