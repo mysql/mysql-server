@@ -225,6 +225,12 @@ const char *localhost= "localhost", *delayed_user= "DELAYED";
 #endif
 
 bool opt_large_files= sizeof(my_off_t) > 4;
+
+/*
+  Used with --help for detailed option
+*/
+bool opt_verbose= 0;
+
 arg_cmp_func Arg_comparator::comparator_matrix[4][2] =
 {{&Arg_comparator::compare_string, &Arg_comparator::compare_e_string},
  {&Arg_comparator::compare_real, &Arg_comparator::compare_e_real},
@@ -3638,6 +3644,9 @@ Disable with --skip-bdb (will save memory).",
 #endif /* End HAVE_INNOBASE_DB */
   {"help", '?', "Display this help and exit.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
    0, 0, 0, 0, 0},
+  {"verbose", 'v', "Used with --help option for detailed help",
+   (gptr*) &opt_verbose, (gptr*) &opt_verbose, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
+   0, 0},
   {"init-file", OPT_INIT_FILE, "Read SQL commands from this file at startup.",
    (gptr*) &opt_init_file, (gptr*) &opt_init_file, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
@@ -3973,8 +3982,6 @@ replicating a LOAD DATA INFILE command.",
    0, 0, 0, 0, 0, 0},
   {"version", 'V', "Output version information and exit.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"version", 'v', "Synonym for option -V.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0,
-   0, 0, 0, 0},
   {"log-warnings", 'W', "Log some not critical warnings to the log file.",
    (gptr*) &global_system_variables.log_warnings,
    (gptr*) &max_system_variables.log_warnings, 0, GET_BOOL, NO_ARG, 0, 0, 0,
@@ -4573,6 +4580,10 @@ and you are welcome to modify and redistribute it under the GPL license\n\
 Starts the MySQL server\n");
 
   printf("Usage: %s [OPTIONS]\n", my_progname);
+  if (!opt_verbose)
+    puts("\nFor more help options (several pages), use mysqld --verbose --help\n");
+  else
+  {
 #ifdef __WIN__
   puts("NT and Win32 specific options:\n\
   --install                     Install the default service (NT)\n\
@@ -4596,7 +4607,8 @@ Starts the MySQL server\n");
 
   puts("\n\
 To see what values a running MySQL server is using, type\n\
-'mysqladmin variables' instead of 'mysqld --help'.");
+'mysqladmin variables' instead of 'mysqld --verbose --help'.\n");
+  }
 }
 
 
@@ -4871,6 +4883,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 #endif
 #include <sslopt-case.h>
   case 'v':
+    usage();
+    exit(0);
   case 'V':
     print_version();
     exit(0);
