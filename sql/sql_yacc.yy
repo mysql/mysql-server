@@ -1760,8 +1760,10 @@ select_item_list:
 	| select_item
 	| '*'
 	  {
-	    if (add_item_to_list(YYTHD, new Item_field(NULL,NULL,"*")))
+	    THD *thd= YYTHD;
+	    if (add_item_to_list(thd, new Item_field(NULL, NULL, "*")))
 	      YYABORT;
+	    (thd->lex.current_select->select_lex()->with_wild)++;
 	  };
 
 
@@ -3631,10 +3633,19 @@ insert_ident:
 	| table_wild	 { $$=$1; };
 
 table_wild:
-	ident '.' '*' { $$ = new Item_field(NullS,$1.str,"*"); }
+	ident '.' '*' 
+	{
+	  $$ = new Item_field(NullS,$1.str,"*");
+	  Lex->current_select->select_lex()->with_wild++;
+	}
 	| ident '.' ident '.' '*'
-	{ $$ = new Item_field((YYTHD->client_capabilities &
-   CLIENT_NO_SCHEMA ? NullS : $1.str),$3.str,"*"); };
+	{
+	  $$ = new Item_field((YYTHD->client_capabilities &
+   			     CLIENT_NO_SCHEMA ? NullS : $1.str),
+			     $3.str,"*");
+	  Lex->current_select->select_lex()->with_wild++;
+	}
+	;
 
 order_ident:
 	expr { $$=$1; };

@@ -42,12 +42,9 @@ select (select a from t3), a from t2;
 select * from t2 where t2.a=(select a from t1);
 insert into t3 values (6),(7),(3);
 select * from t2 where t2.b=(select a from t3 order by 1 desc limit 1);
-select * from t2 where t2.b=(select a from t3 order by 1 desc limit 1) 
-union (select * from t4 order by a limit 2) limit 3;
-select * from t2 where t2.b=(select a from t3 order by 1 desc limit 1)
-union (select * from t4 where t4.b=(select max(t2.a)*4 from t2) order by a);
-explain select * from t2 where t2.b=(select a from t3 order by 1 desc limit 1) 
-union (select * from t4 where t4.b=(select max(t2.a)*4 from t2) order by a);
+select * from t2 where t2.b=(select a from t3 order by 1 desc limit 1) union (select * from t4 order by a limit 2) limit 3;
+select * from t2 where t2.b=(select a from t3 order by 1 desc limit 1) union (select * from t4 where t4.b=(select max(t2.a)*4 from t2) order by a);
+explain select * from t2 where t2.b=(select a from t3 order by 1 desc limit 1) union (select * from t4 where t4.b=(select max(t2.a)*4 from t2) order by a);
 select (select a from t3 where a<t2.a*4 order by 1 desc limit 1), a from t2;
 select (select t3.a from t3 where a<8 order by 1 desc limit 1), a from 
 (select * from t2 where a>1) as tt;
@@ -190,7 +187,10 @@ SELECT * from t2 where topic = any (SELECT topic FROM t2 GROUP BY date);
 SELECT * from t2 where topic = any (SELECT topic FROM t2 GROUP BY date HAVING topic < 4100);
 SELECT * from t2 where topic = any (SELECT SUM(topic) FROM t1);
 SELECT * from t2 where topic = all (SELECT topic FROM t2 GROUP BY date);
+SELECT topic FROM t2 GROUP BY date;
+SELECT topic FROM t2 GROUP BY date HAVING topic < 4100;
 SELECT * from t2 where topic = all (SELECT topic FROM t2 GROUP BY date HAVING topic < 4100);
+SELECT *, date as fff from t2 where not (SELECT date FROM t2 GROUP BY date HAVING topic < 4100 and fff!=date);
 SELECT * from t2 where topic = all (SELECT SUM(topic) FROM t2);
 SELECT * from t2 where topic <> any (SELECT SUM(topic) FROM t2);
 drop table t1,t2;

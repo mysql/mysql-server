@@ -50,7 +50,7 @@ int mysql_update(THD *thd,
                  List<Item> &fields,
 		 List<Item> &values,
                  COND *conds,
-                 ORDER *order,
+                 uint order_num, ORDER *order,
 		 ha_rows limit,
 		 enum enum_duplicates handle_duplicates)
 {
@@ -109,7 +109,7 @@ int mysql_update(THD *thd,
 
   /* Check the fields we are going to modify */
   table->grant.want_privilege=want_privilege;
-  if (setup_fields(thd,update_table_list,fields,1,0,0))
+  if (setup_fields(thd, 0, update_table_list, fields, 1, 0, 0))
     DBUG_RETURN(-1);				/* purecov: inspected */
   if (table->timestamp_field)
   {
@@ -122,8 +122,9 @@ int mysql_update(THD *thd,
 
   /* Check values */
   table->grant.want_privilege=(SELECT_ACL & ~table->grant.privilege);
-  if (setup_fields(thd,update_table_list,values,0,0,0))
+  if (setup_fields(thd, 0, update_table_list, values, 0, 0, 0))
   {
+    free_ulderlayed_joins(thd, &thd->lex.select_lex);
     DBUG_RETURN(-1);				/* purecov: inspected */
   }
 
@@ -134,6 +135,7 @@ int mysql_update(THD *thd,
       (select && select->check_quick(safe_update, limit)) || !limit)
   {
     delete select;
+    free_ulderlayed_joins(thd, &thd->lex.select_lex);
     if (error)
     {
       DBUG_RETURN(-1);				// Error in where
@@ -148,6 +150,7 @@ int mysql_update(THD *thd,
     if (safe_update && !using_limit)
     {
       delete select;
+      free_ulderlayed_joins(thd, &thd->lex.select_lex);
       send_error(thd,ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE);
       DBUG_RETURN(1);
     }
@@ -175,6 +178,7 @@ int mysql_update(THD *thd,
 			  DISK_BUFFER_SIZE, MYF(MY_WME)))
     {
       delete select; /* purecov: inspected */
+      free_ulderlayed_joins(thd, &thd->lex.select_lex);
       DBUG_RETURN(-1);
     }
     if (old_used_keys & ((key_map) 1 << used_index))
@@ -197,7 +201,10 @@ int mysql_update(THD *thd,
 
       table->io_cache = (IO_CACHE *) my_malloc(sizeof(IO_CACHE),
                                                MYF(MY_FAE | MY_ZEROFILL));
-      if (setup_order(thd, &tables, fields, all_fields, order) ||
+      if (setup_ref_array(thd, &thd->lex.select_lex.ref_pointer_array,
+			order_num)||
+	  setup_order(thd, thd->lex.select_lex.ref_pointer_array,
+		      &tables, fields, all_fields, order) ||
           !(sortorder=make_unireg_sortorder(order, &length)) ||
           (table->found_records = filesort(thd, table, sortorder, length,
                                            (SQL_SELECT *) 0,
@@ -205,6 +212,7 @@ int mysql_update(THD *thd,
           == HA_POS_ERROR)
       {
 	delete select;
+	free_ulderlayed_joins(thd, &thd->lex.select_lex);
 	DBUG_RETURN(-1);
       }
     }
@@ -258,6 +266,7 @@ int mysql_update(THD *thd,
     if (error >= 0)
     {
       delete select;
+      free_ulderlayed_joins(thd, &thd->lex.select_lex);
       DBUG_RETURN(-1);
     }
   }
@@ -343,6 +352,7 @@ int mysql_update(THD *thd,
   }
 
   delete select;
+  free_ulderlayed_joins(thd, &thd->lex.select_lex);
   if (error >= 0)
     send_error(thd,thd->killed ? ER_SERVER_SHUTDOWN : 0); /* purecov: inspected */
   else
@@ -357,6 +367,7 @@ int mysql_update(THD *thd,
   }
   thd->count_cuted_fields=0;			/* calc cuted fields */
   free_io_cache(table);
+
   DBUG_RETURN(0);
 }
 
@@ -388,7 +399,7 @@ int mysql_multi_update(THD *thd,
     DBUG_RETURN(res);
 
   thd->select_limit=HA_POS_ERROR;
-  if (setup_fields(thd, table_list, *fields, 1, 0, 0))
+  if (setup_fields(thd, 0, table_list, *fields, 1, 0, 0))
     DBUG_RETURN(-1);
 
   /*
@@ -411,8 +422,9 @@ int mysql_multi_update(THD *thd,
     DBUG_RETURN(-1);
 
   List<Item> total_list;
-  res= mysql_select(thd,table_list,total_list,
-		    conds, (ORDER *) NULL, (ORDER *)NULL, (Item *) NULL,
+  res= mysql_select(thd, &select_lex->ref_pointer_array,
+		    table_list, select_lex->with_wild, total_list,
+		    conds, 0, (ORDER *) NULL, (ORDER *)NULL, (Item *) NULL,
 		    (ORDER *)NULL,
 		    options | SELECT_NO_JOIN_CACHE,
 		    result, unit, select_lex, 0);
@@ -467,7 +479,7 @@ int multi_update::prepare(List<Item> &not_used_values, SELECT_LEX_UNIT *unit)
     reference tables
   */
 
-  if (setup_fields(thd, all_tables, *values, 1,0,0))
+  if (setup_fields(thd, 0, all_tables, *values, 1, 0, 0))
     DBUG_RETURN(1);
 
   /*

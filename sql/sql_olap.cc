@@ -164,8 +164,10 @@ int handle_olaps(LEX *lex, SELECT_LEX *select_lex)
 
 
   if (setup_tables((TABLE_LIST *)select_lex->table_list.first) ||
-      setup_fields(lex->thd,(TABLE_LIST *)select_lex->table_list.first,select_lex->item_list,1,&all_fields,1) ||
-      setup_fields(lex->thd,(TABLE_LIST *)select_lex->table_list.first,item_list_copy,1,&all_fields,1))
+      setup_fields(lex->thd, 0, (TABLE_LIST *)select_lex->table_list.first,
+		   select_lex->item_list, 1, &all_fields,1) ||
+      setup_fields(lex->thd, 0, (TABLE_LIST *)select_lex->table_list.first,
+		   item_list_copy, 1, &all_fields, 1))
     return -1;
 
   if (select_lex->olap == CUBE_TYPE)

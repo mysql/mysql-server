@@ -81,7 +81,7 @@ check_insert_fields(THD *thd,TABLE *table,List<Item> &fields,
 
     thd->dupp_field=0;
     if (setup_tables(&table_list) ||
-	setup_fields(thd,&table_list,fields,1,0,0))
+	setup_fields(thd, 0, &table_list,fields,1,0,0))
       return -1;
     if (thd->dupp_field)
     {
@@ -171,10 +171,10 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
   values= its++;
   if (check_insert_fields(thd,table,fields,*values,1) ||
       setup_tables(insert_table_list) ||
-      setup_fields(thd, insert_table_list, *values, 0, 0, 0) ||
+      setup_fields(thd, 0, insert_table_list, *values, 0, 0, 0) ||
       (duplic == DUP_UPDATE &&
-       (setup_fields(thd, insert_table_list, update_fields, 0, 0, 0) ||
-        setup_fields(thd, insert_table_list, update_values, 0, 0, 0))))
+       (setup_fields(thd, 0, insert_table_list, update_fields, 0, 0, 0) ||
+        setup_fields(thd, 0, insert_table_list, update_values, 0, 0, 0))))
     goto abort;
   if (find_real_table_in_list(table_list->next, 
 			      table_list->db, table_list->real_name))
@@ -194,7 +194,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
 		      MYF(0),counter);
       goto abort;
     }
-    if (setup_fields(thd,insert_table_list,*values,0,0,0))
+    if (setup_fields(thd, 0, insert_table_list, *values, 0, 0, 0))
       goto abort;
   }
   its.rewind ();
@@ -381,11 +381,13 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
 	      thd->cuted_fields);
     ::send_ok(thd,info.copied+info.deleted,(ulonglong)id,buff);
   }
+  free_ulderlayed_joins(thd, &thd->lex.select_lex);
   DBUG_RETURN(0);
 
 abort:
   if (lock_type == TL_WRITE_DELAYED)
     end_delayed_insert(thd);
+  free_ulderlayed_joins(thd, &thd->lex.select_lex);
   DBUG_RETURN(-1);
 }
 

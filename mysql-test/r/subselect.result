@@ -81,21 +81,18 @@ select * from t2 where t2.b=(select a from t3 order by 1 desc limit 1);
 a	b
 1	7
 2	7
-select * from t2 where t2.b=(select a from t3 order by 1 desc limit 1) 
-union (select * from t4 order by a limit 2) limit 3;
+select * from t2 where t2.b=(select a from t3 order by 1 desc limit 1) union (select * from t4 order by a limit 2) limit 3;
 a	b
 1	7
 2	7
 3	8
-select * from t2 where t2.b=(select a from t3 order by 1 desc limit 1)
-union (select * from t4 where t4.b=(select max(t2.a)*4 from t2) order by a);
+select * from t2 where t2.b=(select a from t3 order by 1 desc limit 1) union (select * from t4 where t4.b=(select max(t2.a)*4 from t2) order by a);
 a	b
 1	7
 2	7
 3	8
 4	8
-explain select * from t2 where t2.b=(select a from t3 order by 1 desc limit 1) 
-union (select * from t4 where t4.b=(select max(t2.a)*4 from t2) order by a);
+explain select * from t2 where t2.b=(select a from t3 order by 1 desc limit 1) union (select * from t4 where t4.b=(select max(t2.a)*4 from t2) order by a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
 2	SUBSELECT	t3	ALL	NULL	NULL	NULL	NULL	3	Using filesort
@@ -330,19 +327,15 @@ Unknown column 'a' in 'having clause'
 SELECT * from t2 where topic IN (SELECT topic FROM t2 GROUP BY date);
 mot	topic	date	pseudo
 joce	40143	2002-10-22	joce
-joce	43506	2002-10-22	joce
 SELECT * from t2 where topic IN (SELECT topic FROM t2 GROUP BY date HAVING topic < 4100);
 mot	topic	date	pseudo
-joce	43506	2002-10-22	joce
 SELECT * from t2 where topic IN (SELECT SUM(topic) FROM t1);
 mot	topic	date	pseudo
 SELECT * from t2 where topic = any (SELECT topic FROM t2 GROUP BY date);
 mot	topic	date	pseudo
 joce	40143	2002-10-22	joce
-joce	43506	2002-10-22	joce
 SELECT * from t2 where topic = any (SELECT topic FROM t2 GROUP BY date HAVING topic < 4100);
 mot	topic	date	pseudo
-joce	43506	2002-10-22	joce
 SELECT * from t2 where topic = any (SELECT SUM(topic) FROM t1);
 mot	topic	date	pseudo
 SELECT * from t2 where topic = all (SELECT topic FROM t2 GROUP BY date);
@@ -351,6 +344,7 @@ joce	40143	2002-10-22	joce
 SELECT * from t2 where topic = all (SELECT topic FROM t2 GROUP BY date HAVING topic < 4100);
 mot	topic	date	pseudo
 joce	40143	2002-10-22	joce
+joce	43506	2002-10-22	joce
 SELECT * from t2 where topic = all (SELECT SUM(topic) FROM t2);
 mot	topic	date	pseudo
 SELECT * from t2 where topic <> any (SELECT SUM(topic) FROM t2);

@@ -330,9 +330,10 @@ public:
   {
     init_make_field(tmp_field,FIELD_TYPE_DATE);
   }
+  Field *tmp_table_field() { return result_field; }
   Field *tmp_table_field(TABLE *t_arg)
   {
-    return (!t_arg) ? result_field : new Field_date(maybe_null, name, t_arg, thd_charset());
+    return (new Field_date(maybe_null, name, t_arg, thd_charset()));
   }  
 };
 
@@ -347,10 +348,10 @@ public:
   {
     init_make_field(tmp_field,FIELD_TYPE_DATETIME);
   }
+  Field *tmp_table_field() { return result_field; }
   Field *tmp_table_field(TABLE *t_arg)
   {
-    return  (!t_arg) ? result_field : new Field_datetime(maybe_null, name,
-							 t_arg, thd_charset());
+    return  (new Field_datetime(maybe_null, name, t_arg, thd_charset()));
   }
 };
 
@@ -373,10 +374,10 @@ public:
   {
     init_make_field(tmp_field,FIELD_TYPE_TIME);
   }
+  Field *tmp_table_field() { return result_field; }
   Field *tmp_table_field(TABLE *t_arg)
   {
-    return (!t_arg) ? result_field : 
-    		      new Field_time(maybe_null, name, t_arg, thd_charset());
+    return (new Field_time(maybe_null, name, t_arg, thd_charset()));
   }  
 };
 
@@ -475,10 +476,10 @@ public:
   {
     init_make_field(tmp_field,FIELD_TYPE_TIME);
   }
+  Field *tmp_table_field() { return result_field; }
   Field *tmp_table_field(TABLE *t_arg)
   {
-    return (!t_arg) ? result_field : 
-    		      new Field_time(maybe_null, name, t_arg, thd_charset());
+    return (new Field_time(maybe_null, name, t_arg, thd_charset()));
   }
 };
 
@@ -570,10 +571,10 @@ public:
   {
     init_make_field(tmp_field,FIELD_TYPE_DATE);
   }
+  Field *tmp_table_field() { return result_field; }
   Field *tmp_table_field(TABLE *t_arg)
   {
-    return (!t_arg) ? result_field : 
-    		      new Field_date(maybe_null, name, t_arg, thd_charset());
+    return (new Field_date(maybe_null, name, t_arg, thd_charset()));
   }  
 };
 
@@ -587,10 +588,10 @@ public:
   {
     init_make_field(tmp_field,FIELD_TYPE_TIME);
   }
+  Field *tmp_table_field() { return result_field; }
   Field *tmp_table_field(TABLE *t_arg)
   {
-    return (!t_arg) ? result_field : 
-    		      new Field_time(maybe_null, name, t_arg, thd_charset());
+    return (new Field_time(maybe_null, name, t_arg, thd_charset()));
   }
 };
 
@@ -604,9 +605,9 @@ public:
   {
     init_make_field(tmp_field,FIELD_TYPE_DATETIME);
   }
+  Field *tmp_table_field() { return result_field; }
   Field *tmp_table_field(TABLE *t_arg)
   {
-    return (!t_arg) ? result_field : new Field_datetime(maybe_null, name,
-							t_arg, thd_charset());
+    return (new Field_datetime(maybe_null, name, t_arg, thd_charset()));
   }
 };
