@@ -37,7 +37,7 @@ target_sources = libmysql.c net.c  password.c manager.c \
 mystringsobjects =	strmov.lo strxmov.lo strnmov.lo strmake.lo strend.lo \
 			strnlen.lo strfill.lo is_prefix.lo \
 			int2str.lo str2int.lo strinstr.lo strcont.lo \
-			strcend.lo \
+			strcend.lo bcmp.lo \
 			bchange.lo bmove.lo bmove_upp.lo longlong2str.lo \
 			strtoull.lo strtoll.lo llstr.lo \
 			ctype.lo $(LTCHARSET_OBJS)
