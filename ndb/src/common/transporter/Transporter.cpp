@@ -117,7 +117,7 @@ Transporter::connect_client() {
     return true;
 
   if(isMgmConnection)
-    sockfd= m_socket_client->connect_without_auth();
+    sockfd= m_transporter_registry.connect_ndb_mgmd(m_socket_client);
   else
     sockfd= m_socket_client->connect();
 
@@ -130,16 +130,6 @@ Transporter::connect_client() {
 
   SocketOutputStream s_output(sockfd);
   SocketInputStream s_input(sockfd);
-
-  if(isMgmConnection)
-  {
-    /*
-      We issue the magic command to the management server to
-      switch into transporter mode.
-     */
-    s_output.println("transporter connect");
-    s_output.println("");
-  }
 
   // send info about own id
   // send info about own transporter type

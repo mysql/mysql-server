@@ -48,6 +48,7 @@ extern int g_ndb_shm_signum;
 #include <InputStream.hpp>
 #include <OutputStream.hpp>
 
+#include <mgmapi/mgmapi.h>
 #include <mgmapi/mgmapi_debug.h>
 
 #include <EventLogger.hpp>
@@ -1481,6 +1482,49 @@ NdbOut & operator <<(NdbOut & out, SignalHeader & sh){
 Transporter*
 TransporterRegistry::get_transporter(NodeId nodeId) {
   return theTransporters[nodeId];
+}
+
+NDB_SOCKET_TYPE TransporterRegistry::connect_ndb_mgmd(SocketClient *sc)
+{
+  NdbMgmHandle h;
+  struct ndb_mgm_reply mgm_reply;
+  char *cs, c[100];
+  bool d=false;
+
+  h= ndb_mgm_create_handle();
+
+  if(strlen(sc->get_server_name())>80)
+  {
+    /*
+     * server name is long. malloc enough for it and the port number
+     */
+    cs= (char*)malloc((strlen(sc->get_server_name())+20)*sizeof(char));
+    if(!cs)
+      return -1;
+    d= true;
+  }
+  else
+    cs = &c[0];
+    
+  snprintf(cs,(d)?strlen(sc->get_server_name()+20):sizeof(c),
+	   "%s:%u",sc->get_server_name(),sc->get_port());
+
+  ndb_mgm_set_connectstring(h, cs);
+
+  if(ndb_mgm_connect(h, 0, 0, 0)<0)
+    return -1;
+  
+  for(unsigned int i=0;i < m_transporter_interface.size();i++)
+    ndb_mgm_set_connection_int_parameter(h,
+				   get_localNodeId(),
+				   m_transporter_interface[i].m_remote_nodeId,
+				   CFG_CONNECTION_SERVER_PORT,
+				   m_transporter_interface[i].m_s_service_port,
+				   &mgm_reply);  
+  if(d)
+    free(cs);
+
+  return ndb_mgm_convert_to_transporter(h);
 }
 
 template class Vector<TransporterRegistry::Transporter_interface>;

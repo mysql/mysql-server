@@ -2148,4 +2148,25 @@ ndb_mgm_get_connection_int_parameter(NdbMgmHandle handle,
   DBUG_RETURN(res);
 }
 
+extern "C"
+NDB_SOCKET_TYPE
+ndb_mgm_convert_to_transporter(NdbMgmHandle handle)
+{
+  NDB_SOCKET_TYPE s;
+
+  CHECK_HANDLE(handle, -1);
+  CHECK_CONNECTED(handle, -2);
+
+  handle->connected= 0;   // we pretend we're disconnected
+  s= handle->socket;
+
+  SocketOutputStream s_output(s);
+  s_output.println("transporter connect");
+  s_output.println("");
+
+  ndb_mgm_destroy_handle(&handle); // set connected=0, so won't disconnect
+
+  return s;
+}
+
 template class Vector<const ParserRow<ParserDummy>*>;

@@ -35,8 +35,9 @@ public:
     m_port = port;
     m_servaddr.sin_port = htons(m_port);
   };
+  unsigned short get_port() { return m_port; };
+  char *get_server_name() { return m_server_name; };
   NDB_SOCKET_TYPE connect();
-  NDB_SOCKET_TYPE connect_without_auth();
   bool close();
 };
 
