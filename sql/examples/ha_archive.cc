@@ -344,11 +344,11 @@ ARCHIVE_SHARE *ha_archive::get_share(const char *table_name, TABLE *table)
       opposite. If the meta file will not open we assume it is crashed and
       leave it up to the user to fix.
     */
-
     if (read_meta_file(share->meta_file, &share->rows_recorded))
       share->crashed= TRUE;
     else
       (void)write_meta_file(share->meta_file, share->rows_recorded, TRUE);
+
     /* 
       It is expensive to open and close the data files and since you can't have
       a gzip file that can be both read and written we keep a writer open

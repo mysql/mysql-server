@@ -416,6 +416,7 @@ public:
   void print(String *str);
 
   ulong init_prepare_fake_select_lex(THD *thd);
+  inline bool is_prepared() { return prepared; }
   bool change_result(select_subselect *result, select_subselect *old_result);
   void set_limit(st_select_lex *values, st_select_lex *sl);
 
