@@ -259,7 +259,7 @@ const char *command_names[]=
   "enable_warnings",
   "disable_warnings",
   "enable_info",
-  "diable_info",
+  "disable_info",
   0
 };
 
