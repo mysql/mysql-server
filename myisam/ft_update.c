@@ -29,17 +29,12 @@
 
 
 /* parses a document i.e. calls _mi_ft_parse for every keyseg */
-FT_WORD * _mi_ft_parserecord(MI_INFO *info, uint keynr, byte *keybuf,
-				    const byte *record)
+uint _mi_ft_parse(TREE *parsed, MI_INFO *info, uint keynr, const byte *record)
 {
-  TREE *parsed, ptree;
-  MI_KEYSEG *keyseg;
   byte *pos;
   uint i;
+  MI_KEYSEG *keyseg=info->s->keyinfo[keynr].seg;
 
-  bzero(parsed=&ptree, sizeof(ptree));
-
-  keyseg=info->s->keyinfo[keynr].seg;
   for (i=info->s->keyinfo[keynr].keysegs-FT_SEGS ; i-- ; )
   {
     uint len;
@@ -62,13 +57,26 @@ FT_WORD * _mi_ft_parserecord(MI_INFO *info, uint keynr, byte *keybuf,
     }
     else
       len=keyseg->length;
-    if (!(parsed=ft_parse(parsed, pos, len)))
-      return NULL;
+    if (!(ft_parse(parsed, pos, len)))
+      return 1;
   }
   /* Handle the case where all columns are NULL */
-  if (!is_tree_inited(parsed) && !(parsed=ft_parse(parsed, (byte*) "", 0)))
+  if (!is_tree_inited(parsed) && !(ft_parse(parsed, (byte*) "", 0)))
+    return 1;
+  else
+    return 0;
+}
+
+FT_WORD * _mi_ft_parserecord(MI_INFO *info, uint keynr, byte *keybuf,
+				    const byte *record)
+{
+  TREE ptree;
+
+  bzero(&ptree, sizeof(ptree));
+  if (_mi_ft_parse(& ptree, info, keynr, record))
     return NULL;
-  return ft_linearize(info, keynr, keybuf, parsed);
+
+  return ft_linearize(/*info, keynr, keybuf, */ & ptree);
 }
 
 static int _mi_ft_store(MI_INFO *info, uint keynr, byte *keybuf,
@@ -158,7 +166,7 @@ int _mi_ft_cmp(MI_INFO *info, uint keynr, const byte *rec1, const byte *rec2)
 }
 
 /* update a document entry */
-int _mi_ft_update(MI_INFO *info, uint keynr, byte *keybuf, 
+int _mi_ft_update(MI_INFO *info, uint keynr, byte *keybuf,
                   const byte *oldrec, const byte *newrec, my_off_t pos)
 {
   int error= -1;

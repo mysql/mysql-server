@@ -234,7 +234,7 @@ void
 row_undo_ins_parse_undo_rec(
 /*========================*/
 	undo_node_t*	node,	/* in: row undo node */
-	que_thr_t*	thr)	/* in: query thread */
+	que_thr_t*	thr __attribute__((unused))) /* in: query thread */
 {
 	dict_index_t*	clust_index;
 	byte*		ptr;

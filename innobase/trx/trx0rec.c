@@ -989,7 +989,7 @@ trx_undo_parse_erase_page_end(
 /*==========================*/
 			/* out: end of log record or NULL */
 	byte*	ptr,	/* in: buffer */
-	byte*	end_ptr,/* in: buffer end */
+	byte*	end_ptr __attribute__((unused)), /* in: buffer end */
 	page_t*	page,	/* in: page or NULL */
 	mtr_t*	mtr)	/* in: mtr or NULL */
 {
@@ -1263,7 +1263,8 @@ trx_undo_prev_version_build(
 				DB_ERROR if corrupted record */
 	rec_t*		index_rec,/* in: clustered index record in the
 				index tree */
-	mtr_t*		index_mtr,/* in: mtr which contains the latch to
+	mtr_t*		index_mtr __attribute__((unused)),
+                                /* in: mtr which contains the latch to
 				index_rec page and purge_view */
 	rec_t*		rec,	/* in: version of a clustered index record */
 	dict_index_t*	index,	/* in: clustered index */

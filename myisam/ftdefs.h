@@ -120,8 +120,8 @@ byte ft_get_word(byte **, byte *, FT_WORD *, FTB_PARAM *);
 byte ft_simple_get_word(byte **, byte *, FT_WORD *);
 
 TREE * ft_parse(TREE *, byte *, int);
-FT_WORD * ft_linearize(MI_INFO *, uint, byte *, TREE *);
-FT_WORD * _mi_ft_parserecord(MI_INFO *, uint , byte *, const byte *);
+FT_WORD * ft_linearize(/*MI_INFO *, uint, byte *, */TREE *);
+FT_WORD * _mi_ft_parserecord(MI_INFO *, uint, byte *, const byte *);
 
 const struct _ft_vft _ft_vft_nlq;
 FT_INFO *ft_init_nlq_search(MI_INFO *, uint, byte *, uint, my_bool);

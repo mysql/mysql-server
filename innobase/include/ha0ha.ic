@@ -59,7 +59,7 @@ ha_node_t*
 ha_chain_get_next(
 /*==============*/
 				/* out: next node, NULL if none */
-	hash_table_t*	table,	/* in: hash table */
+	hash_table_t*	table __attribute__((unused)),	/* in: hash table */
 	ha_node_t*	node)	/* in: hash chain node */
 {
 	ut_ad(table);

@@ -517,9 +517,9 @@ rec_print(
 	ut_ad(rec);
 	
 	if (rec_get_1byte_offs_flag(rec)) {
-		offs = "TRUE";
+		offs = (char *) "TRUE";
 	} else {
-		offs = "FALSE";
+		offs = (char *) "FALSE";
 	}
 
 	n = rec_get_n_fields(rec);

@@ -64,7 +64,8 @@ row_sel_sec_rec_is_for_clust_rec(
 	rec_t*		sec_rec,	/* in: secondary index record */
 	dict_index_t*	sec_index,	/* in: secondary index */
 	rec_t*		clust_rec,	/* in: clustered index record */
-	dict_index_t*	clust_index)	/* in: clustered index */
+	dict_index_t*	clust_index __attribute__((unused))) 
+                                        /* in: clustered index */
 {
 	dict_col_t*	col;
 	byte*		sec_field;
@@ -2498,7 +2499,7 @@ row_search_for_mysql(
 	printf("N tables locked %lu\n", trx->mysql_n_tables_locked);
 */
 	if (direction == 0) {
-		trx->op_info = "starting index read";
+		trx->op_info = (char *) "starting index read";
 	
 		prebuilt->n_rows_fetched = 0;
 		prebuilt->n_fetch_cached = 0;
@@ -2509,7 +2510,7 @@ row_search_for_mysql(
 			row_prebuild_sel_graph(prebuilt);
 		}
 	} else {
-		trx->op_info = "fetching rows";
+		trx->op_info = (char *) "fetching rows";
 
 		if (prebuilt->n_rows_fetched == 0) {
 			prebuilt->fetch_direction = direction;
@@ -2534,7 +2535,7 @@ row_search_for_mysql(
 			prebuilt->n_rows_fetched++;
 
 			srv_n_rows_read++;
-			trx->op_info = "";
+			trx->op_info = (char *) "";
 
 			return(DB_SUCCESS);
 		}
@@ -2546,7 +2547,7 @@ row_search_for_mysql(
 		    	cache, but the cache was not full at the time of the
 		    	popping: no more rows can exist in the result set */
 		    
-			trx->op_info = "";
+			trx->op_info = (char *) "";
 		    	return(DB_RECORD_NOT_FOUND);
 		}
 		
@@ -2578,7 +2579,7 @@ row_search_for_mysql(
 
 			/* printf("%s record not found 1\n", index->name); */
 	
-			trx->op_info = "";
+			trx->op_info = (char *) "";
 			return(DB_RECORD_NOT_FOUND);
 		}
 
@@ -2638,7 +2639,7 @@ row_search_for_mysql(
 					trx->has_search_latch = FALSE;
 				}    	
 				
-				trx->op_info = "";
+				trx->op_info = (char *) "";
 				return(DB_SUCCESS);
 			
 			} else if (shortcut == SEL_EXHAUSTED) {
@@ -2657,7 +2658,7 @@ row_search_for_mysql(
 					trx->has_search_latch = FALSE;
 				}
 
-				trx->op_info = "";
+				trx->op_info = (char *) "";
 				return(DB_RECORD_NOT_FOUND);
 			}
 
@@ -3029,7 +3030,7 @@ lock_wait_or_error:
 
 	/* printf("Using index %s cnt %lu ret value %lu err\n", index->name,
 							cnt, err); */
-	trx->op_info = "";
+	trx->op_info = (char *) "";
 
 	return(err);
 
@@ -3050,7 +3051,7 @@ normal_return:
 		srv_n_rows_read++;
 	}
 
-	trx->op_info = "";
+	trx->op_info = (char *) "";
 
 	return(ret);
 }

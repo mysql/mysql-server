@@ -229,7 +229,7 @@ mutex_create_func(
 	mutex_set_waiters(mutex, 0);
 	mutex->magic_n = MUTEX_MAGIC_N;
 	mutex->line = 0;
-	mutex->file_name = "not yet reserved";
+	mutex->file_name = (char *) "not yet reserved";
 	mutex->thread_id = ULINT_UNDEFINED;
 	mutex->level = SYNC_LEVEL_NONE;
 	mutex->cfile_name = cfile_name;

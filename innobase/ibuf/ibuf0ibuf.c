@@ -292,6 +292,7 @@ ibuf_count_get(
 
 /**********************************************************************
 Sets the ibuf count for a given page. */
+#ifdef UNIV_IBUF_DEBUG
 static
 void
 ibuf_count_set(
@@ -306,6 +307,7 @@ ibuf_count_set(
 
 	*(ibuf_counts[space] + page_no) = val;
 }
+#endif
 
 /**********************************************************************
 Creates the insert buffer data structure at a database startup and
@@ -472,19 +474,18 @@ ibuf_data_init_for_space(
 	
 	table = dict_mem_table_create(buf, space, 2);
 
-	dict_mem_table_add_col(table, "PAGE_NO", DATA_BINARY, 0, 0, 0);
-	dict_mem_table_add_col(table, "TYPES", DATA_BINARY, 0, 0, 0);
+	dict_mem_table_add_col(table,(char *) "PAGE_NO", DATA_BINARY, 0, 0, 0);
+	dict_mem_table_add_col(table,(char *) "TYPES", DATA_BINARY, 0, 0, 0);
 
 	table->id = ut_dulint_add(DICT_IBUF_ID_MIN, space);
 
 	dict_table_add_to_cache(table);
 
-	index = dict_mem_index_create(buf, "CLUST_IND", space,
-				DICT_CLUSTERED | DICT_UNIVERSAL | DICT_IBUF,
-				2);
+	index = dict_mem_index_create(buf, (char *) "CLUST_IND", space,
+				DICT_CLUSTERED | DICT_UNIVERSAL | DICT_IBUF,2);
 
-	dict_mem_index_add_field(index, "PAGE_NO", 0);
-	dict_mem_index_add_field(index, "TYPES", 0);
+	dict_mem_index_add_field(index, (char *) "PAGE_NO", 0);
+	dict_mem_index_add_field(index, (char *) "TYPES", 0);
 
 	index->page_no = FSP_IBUF_TREE_ROOT_PAGE_NO;
 	
@@ -538,7 +539,7 @@ ibuf_parse_bitmap_init(
 /*===================*/
 			/* out: end of log record or NULL */
 	byte*	ptr,	/* in: buffer */
-	byte*	end_ptr,/* in: buffer end */
+	byte*	end_ptr __attribute__((unused)), /* in: buffer end */
 	page_t*	page,	/* in: page or NULL */
 	mtr_t*	mtr)	/* in: mtr or NULL */
 {
@@ -561,7 +562,8 @@ ibuf_bitmap_page_get_bits(
 	page_t*	page,	/* in: bitmap page */
 	ulint	page_no,/* in: page whose bits to get */
 	ulint	bit,	/* in: IBUF_BITMAP_FREE, IBUF_BITMAP_BUFFERED, ... */
-	mtr_t*	mtr)	/* in: mtr containing an x-latch to the bitmap page */
+	mtr_t*	mtr __attribute__((unused))) /* in: mtr containing an x-latch
+                                               to the bitmap page */
 {
 	ulint	byte_offset;
 	ulint	bit_offset;
