@@ -31,7 +31,7 @@ const char **ha_heap::bas_ext() const
 { static const char *ext[1]= { NullS }; return ext; }
 
 
-int ha_heap::open(const char *name, int mode, int test_if_locked)
+int ha_heap::open(const char *name, int mode, uint test_if_locked)
 {
   uint key,part,parts;
   HP_KEYDEF *keydef;

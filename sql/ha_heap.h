@@ -44,7 +44,7 @@ class ha_heap: public handler
   virtual double read_time(ha_rows rows) { return (double) rows /  20.0+1; }
   virtual bool fast_key_read() { return 1;}
 
-  int open(const char *name, int mode, int test_if_locked);
+  int open(const char *name, int mode, uint test_if_locked);
   int close(void);
   int write_row(byte * buf);
   int update_row(const byte * old_data, byte * new_data);

@@ -42,7 +42,7 @@ public:
 
   READ_INFO(File file,uint tot_length,
 	    String &field_term,String &line_start,String &line_term,
-	    String &enclosed,int escape,bool get_it_from_net);
+	    String &enclosed,int escape,bool get_it_from_net, bool is_fifo);
   ~READ_INFO();
   int read_field();
   int read_fixed_length(void);
@@ -70,6 +70,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   uint save_skip_lines = ex->skip_lines;
   String *field_term=ex->field_term,*escaped=ex->escaped,
     *enclosed=ex->enclosed;
+  bool is_fifo=0;
   DBUG_ENTER("mysql_load");
 
   if (escaped->length() > 1 || enclosed->length() > 1)
@@ -161,22 +162,16 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 	DBUG_RETURN(-1);
       
       // the file must be:
-      if (!(
-	    (stat_info.st_mode & S_IROTH) == S_IROTH
-	      &&  // readable by others  
-	    (stat_info.st_mode & S_IFLNK) != S_IFLNK
-	      && // and not a symlink
-	    ((stat_info.st_mode & S_IFREG) == S_IFREG
-	     ||
-	     (stat_info.st_mode & S_IFIFO) == S_IFIFO
-	     )
-	    // and either regular or a pipe
-	    )
-	  )
+      if (!((stat_info.st_mode & S_IROTH) == S_IROTH &&  // readable by others
+	    (stat_info.st_mode & S_IFLNK) != S_IFLNK && // and not a symlink
+	    ((stat_info.st_mode & S_IFREG) == S_IFREG ||
+	     (stat_info.st_mode & S_IFIFO) == S_IFIFO)))
       {
 	my_error(ER_TEXTFILE_NOT_READABLE,MYF(0),name);
 	DBUG_RETURN(-1);
       }
+      if ((stat_info.st_mode & S_IFIFO) == S_IFIFO)
+	is_fifo = 1;
 #endif
     }
     if ((file=my_open(name,O_RDONLY,MYF(MY_WME))) < 0)
@@ -190,7 +185,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 
   READ_INFO read_info(file,tot_length,*field_term,
 		      *ex->line_start, *ex->line_term, *enclosed,
-		      info.escape_char,read_file_from_client);
+		      info.escape_char, read_file_from_client, is_fifo);
   if (read_info.error)
   {
     if	(file >= 0)
@@ -423,7 +418,8 @@ READ_INFO::unescape(char chr)
 
 READ_INFO::READ_INFO(File file_par, uint tot_length, String &field_term,
 		     String &line_start, String &line_term,
-		     String &enclosed_par, int escape, bool get_it_from_net)
+		     String &enclosed_par, int escape, bool get_it_from_net,
+		     bool is_fifo)
   :file(file_par),escape_char(escape)
 {
   field_term_ptr=(char*) field_term.ptr();
@@ -467,7 +463,8 @@ READ_INFO::READ_INFO(File file_par, uint tot_length, String &field_term,
   {
     end_of_buff=buffer+buff_length;
     if (init_io_cache(&cache,(get_it_from_net) ? -1 : file, 0,
-		      (get_it_from_net) ? READ_NET : READ_CACHE,0L,1,
+		      (get_it_from_net) ? READ_NET :
+		      (is_fifo ? READ_FIFO : READ_CACHE),0L,1,
 		      MYF(MY_WME)))
     {
       my_free((gptr) buffer,MYF(0)); /* purecov: inspected */

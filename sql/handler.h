@@ -205,7 +205,7 @@ public:
   virtual int index_init(uint idx) { active_index=idx; return 0;}
   virtual int index_end() {return 0; }
   uint get_index(void) const { return active_index; }
-  virtual int open(const char *name, int mode, int test_if_locked)=0;
+  virtual int open(const char *name, int mode, uint test_if_locked)=0;
   virtual void initialize(void) {}
   virtual int close(void)=0;
   virtual int write_row(byte * buf)=0;
