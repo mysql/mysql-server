@@ -2293,14 +2293,27 @@ insert_fields(THD *thd,TABLE_LIST *tables, const char *db_name,
 	DBUG_RETURN(-1);
 #endif
       Field **ptr=table->field,*field;
+      TABLE *natural_join_table;
       thd->used_tables|=table->map;
+      if (table->outer_join || 
+          !tables->natural_join ||
+          tables->natural_join->table->outer_join)
+        natural_join_table= NULL;
+      else
+        natural_join_table= tables->natural_join->table;
       while ((field = *ptr++))
       {
-	Item_field *item= new Item_field(field);
-	if (!found++)
-	  (void) it->replace(item);		// Replace '*'
-	else
-	  it->after(item);
+        /* Skip duplicate field names if NATURAL JOIN is used */
+        if (!natural_join_table ||
+            !find_field_in_table(thd, natural_join_table, field->field_name, 
+                                 strlen(field->field_name), 0, 0))
+        {
+          Item_field *item= new Item_field(field);
+          if (!found++)
+            (void) it->replace(item);		// Replace '*'
+          else
+            it->after(item);
+        }
 	/*
 	  Mark if field used before in this select.
 	  Used by 'insert' to verify if a field name is used twice
@@ -2383,28 +2396,24 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
 	DBUG_RETURN(1);
       cond_and->top_level_item();
 
-      uint i,j;
-      for (i=0 ; i < t1->fields ; i++)
+      Field **t1_field, *t2_field;
+      for (t1_field= t1->field; (*t1_field); t1_field++)
       {
-	// TODO: This could be optimized to use hashed names if t2 had a hash
-	for (j=0 ; j < t2->fields ; j++)
-	{
-	  if (!my_strcasecmp(system_charset_info,
-			     t1->field[i]->field_name,
-			     t2->field[j]->field_name))
-	  {
-	    Item_func_eq *tmp= new Item_func_eq(new Item_field(t1->field[i]),
-						new Item_field(t2->field[j]));
-	    if (!tmp)
-	      DBUG_RETURN(1);
-	    /* Mark field used for table cache */
-	    t1->field[i]->query_id=t2->field[j]->query_id=thd->query_id;
-	    cond_and->list.push_back(tmp);
-	    t1->used_keys.intersect(t1->field[i]->part_of_key);
-	    t2->used_keys.intersect(t2->field[j]->part_of_key);
-	    break;
-	  }
-	}
+        const char *t1_field_name= (*t1_field)->field_name;
+
+        if ((t2_field= find_field_in_table(thd, t2, t1_field_name,
+                                           strlen(t1_field_name), 0, 0)))
+        {
+          Item_func_eq *tmp=new Item_func_eq(new Item_field(*t1_field),
+                                             new Item_field(t2_field));
+          if (!tmp)
+            DBUG_RETURN(1);
+          /* Mark field used for table cache */
+          (*t1_field)->query_id= t2_field->query_id= thd->query_id;
+          cond_and->list.push_back(tmp);
+          t1->used_keys.intersect((*t1_field)->part_of_key);
+          t2->used_keys.intersect(t2_field->part_of_key);
+        }
       }
       thd->lex->current_select->cond_count+= cond_and->list.elements;
 
