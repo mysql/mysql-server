@@ -198,23 +198,6 @@ void Instance_map::complete_initialization()
 }
 
 
-int Instance_map::cleanup()
-{
-  Instance *instance;
-  uint i= 0;
-
-  while (i < hash.records)
-  {
-    instance= (Instance *) hash_element(&hash, i);
-    if (instance->cleanup())
-			return 1;
-    i++;
-  }
-
-	return 0;
-}
-
-
 Instance *
 Instance_map::find(uint instance_number)
 {

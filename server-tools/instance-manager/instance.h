@@ -38,7 +38,6 @@ public:
   bool is_running();
   int start();
   int stop();
-  int cleanup();
 
 public:
   enum { DEFAULT_SHUTDOWN_DELAY= 35 };

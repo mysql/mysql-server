@@ -40,7 +40,10 @@ struct Options
   static uint port_number;
   static const char *bind_address;
 
+  static char **saved_argv;
+
   static void load(int argc, char **argv);
+  void cleanup();
 };
 
 #endif // INCLUDES_MYSQL_INSTANCE_MANAGER_OPTIONS_H

@@ -73,7 +73,6 @@ public:
                   uint monitoring_interval_arg);
   ~Guardian_thread();
   void run();
-  int init();
   int start();
   void shutdown();
   void request_stop_instances();
