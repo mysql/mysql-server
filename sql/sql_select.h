@@ -316,6 +316,9 @@ uint find_shortest_key(TABLE *table, const key_map *usable_keys);
 /* functions from opt_sum.cc */
 int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds);
 
+/* from sql_delete.cc, used by opt_range.cc */
+extern "C" int refposcmp2(void* arg, const void *a,const void *b);
+
 /* class to copying an field/item to a key struct */
 
 class store_key :public Sql_alloc

@@ -65,7 +65,6 @@ class QUICK_RANGE :public Sql_alloc {
     }
 };
 
-class INDEX_MERGE; 
 
 /*
   Quick select interface. 
@@ -150,64 +149,6 @@ public:
 };
 
 /*
-  Helper class for keeping track of rows that have been passed to output 
-  in index_merge access method. 
-
-  NOTES
-    Current implementation uses a temporary table to store ROWIDs of rows that
-    have been passed to output. In the future it might be changed to use more 
-    efficient mechanisms, like Unique class.
-*/
-
-class INDEX_MERGE
-{
-public:
-  INDEX_MERGE(THD *thd_arg);
-  ~INDEX_MERGE(); 
-  
-  int init(TABLE *table);
-  int check_record_in();
-  int start_last_quick_select();
-  int error;
-private:
-  /* The only field in temporary table */
-  class Item_rowid : public Item_str_func
-  {
-    TABLE *head; /* source table */
-  public:
-    Item_rowid(TABLE *table) : head(table) 
-    {
-      max_length= table->file->ref_length;
-      collation.set(&my_charset_bin);
-    };
-    const char *func_name() const { return "rowid"; }
-    bool const_item() const { return 0; }
-    String *val_str(String *);
-    void fix_length_and_dec()
-    {}
-  };
-
-  /* Check if record has been processed and save it if it wasn't  */
-  inline int put_record(); 
-  
-  /* Check if record has been processed without saving it         */
-  inline int check_record();
-  
-  /* If true, check_record_in does't store ROWIDs it is passed.   */
-  bool  dont_save;
-
-  THD *thd;
-  TABLE *head;                     /* source table                        */
-  TABLE *temp_table;               /* temp. table used for values storage */
-  TMP_TABLE_PARAM tmp_table_param; /* temp. table creation parameters     */
-  Item_rowid *rowid_item;          /* the only field in temp. table       */
-  List<Item> fields;               /* temp. table fields list 
-                                      (the only element is rowid_item)    */
-  ORDER order;                     /* key for temp. table (rowid_item)    */
-};
-
-
-/*
   Index merge quick select. 
   It is implemented as a container for several QUICK_RANGE_SELECTs.
 */
@@ -219,7 +160,7 @@ public:
   ~QUICK_INDEX_MERGE_SELECT();
 
   int  init();
-  void reset(void);
+  int  reset(void);
   int  get_next();
   bool reverse_sorted() { return false; }
   bool unique_key_range() { return false; }
@@ -234,20 +175,15 @@ public:
   List_iterator_fast<QUICK_RANGE_SELECT> cur_quick_it;
   QUICK_RANGE_SELECT* cur_quick_select;
   
-  /*
-    Last element in quick_selects list. 
-    INDEX_MERGE::start_last_quick_select is called before retrieving
-    rows for it. 
-  */
+  /* last element in quick_selects list. */
   QUICK_RANGE_SELECT* last_quick_select;
   
-  /*
-    Used to keep track of what records have been already passed to output 
-    when doing index_merge access (NULL means no index_merge) 
-  */
-  INDEX_MERGE index_merge;
+  Unique  *unique;
+  MEM_ROOT alloc;
 
-  MEM_ROOT    alloc;
+  THD *thd;
+  int prepare_unique();
+  bool reset_called;
 };
 
 class QUICK_SELECT_DESC: public QUICK_RANGE_SELECT
@@ -263,7 +199,7 @@ private:
 #ifdef NOT_USED
   bool test_if_null_range(QUICK_RANGE *range, uint used_key_parts);
 #endif
-  void reset(void) { next=0; rev_it.rewind(); }
+  int reset(void) { next=0; rev_it.rewind(); return 0; }
   List<QUICK_RANGE> rev_ranges;
   List_iterator<QUICK_RANGE> rev_it;
 };
