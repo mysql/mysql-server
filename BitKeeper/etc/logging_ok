@@ -13,6 +13,7 @@ bar@bar.mysql.r18.ru
 bar@bar.udmsearch.izhnet.ru
 bar@gw.udmsearch.izhnet.ru
 bell@sanja.is.com.ua
+bk@admin.bk
 davida@isil.mysql.com
 heikki@donna.mysql.fi
 heikki@hundin.mysql.fi
@@ -49,10 +50,12 @@ monty@tramp.mysql.fi
 monty@work.mysql.com
 mwagner@cash.mwagner.org
 mwagner@evoq.mwagner.org
+mwagner@work.mysql.com
 nick@mysql.com
 nick@nick.leippe.com
 paul@central.snake.net
 paul@teton.kitebird.com
+pem@mysql.com
 peter@linux.local
 peter@mysql.com
 ram@gw.udmsearch.izhnet.ru
@@ -88,5 +91,3 @@ worm@altair.is.lan
 zak@balfor.local
 zak@linux.local
 zgreant@mysql.com
-mwagner@work.mysql.com
-pem@mysql.com
