@@ -22,6 +22,9 @@
 #include <thr_alarm.h>
 #include <my_dir.h>
 
+#define RPL_LOG_NAME (glob_mi.log_file_name[0] ? glob_mi.log_file_name :\
+ "FIRST")
+
 bool slave_running = 0;
 pthread_t slave_real_id;
 MASTER_INFO glob_mi;
@@ -227,16 +230,17 @@ int db_ok(const char* db, I_List<i_string> &do_list,
     }
 }
 
-static void init_strvar_from_file(char* var, int max_size, FILE* f,
+static void init_strvar_from_file(char* var, int max_size, IO_CACHE* f,
 			       char* default_val)
 {
 
-  if(fgets(var, max_size, f)) 
+  if(my_b_gets(f,var, max_size)) 
     {
       char* last_p = strend(var) - 1;
+      int c;
       if(*last_p == '\n') *last_p = 0; // if we stopped on newline, kill it
       else
-	while( (fgetc(f) != '\n' && !feof(f)));
+	while( ((c=my_b_get(f)) != '\n' && c != my_b_EOF));
       // if we truncated a line or stopped on last char, remove all chars
       // up to and including newline
     }
@@ -244,12 +248,12 @@ static void init_strvar_from_file(char* var, int max_size, FILE* f,
    strmake(var,  default_val, max_size);
 }
 
-static void init_intvar_from_file(int* var, FILE* f,
+static void init_intvar_from_file(int* var, IO_CACHE* f,
 			       int default_val)
 {
   char buf[32];
   
-  if(fgets(buf, sizeof(buf), f)) 
+  if(my_b_gets(f, buf, sizeof(buf))) 
     {
       *var = atoi(buf);
     }
@@ -392,7 +396,7 @@ int fetch_nx_table(THD* thd, MASTER_INFO* mi)
 
 int init_master_info(MASTER_INFO* mi)
 {
-  FILE* file;
+  int fd;
   MY_STAT stat_area;
   char fname[FN_REFLEN+128];
   fn_format(fname, master_info_file, mysql_data_home, "", 4+16+32);
@@ -403,19 +407,24 @@ int init_master_info(MASTER_INFO* mi)
 
   pthread_mutex_lock(&mi->lock);
   mi->pending = 0;
+  fd = mi->fd;
   
   if(!my_stat(fname, &stat_area, MYF(0))) // we do not want any messages
     // if the file does not exist
     {
-      file = my_fopen(fname, O_CREAT|O_RDWR|O_BINARY, MYF(MY_WME));
-      if(!file)
+      // if someone removed the file from underneath our feet, just close
+      // the old descriptor and re-create the old file
+      if(fd >= 0) my_close(fd, MYF(MY_WME));
+      if((fd = my_open(fname, O_CREAT|O_RDWR|O_BINARY, MYF(MY_WME))) < 0
+	  || init_io_cache(&mi->file, fd, IO_SIZE*2, READ_CACHE, 0L,0,
+			   MYF(MY_WME)))
 	{
 	  pthread_mutex_unlock(&mi->lock);
 	  return 1;
 	}
       mi->log_file_name[0] = 0;
       mi->pos = 4; // skip magic number
-      mi->file = file;
+      mi->fd = fd;
       
       if(master_host)
         strmake(mi->host, master_host, sizeof(mi->host) - 1);
@@ -426,22 +435,20 @@ int init_master_info(MASTER_INFO* mi)
       mi->port = master_port;
       mi->connect_retry = master_connect_retry;
       
-      if(flush_master_info(mi))
-	{
-	  pthread_mutex_unlock(&mi->lock);
-	  return 1;
-	}
     }
   else
     {
-      file = my_fopen(fname, O_RDWR|O_BINARY, MYF(MY_WME));
-      if(!file)
+      if(fd >= 0)
+	reinit_io_cache(&mi->file, READ_CACHE, 0L,0,0);
+      else if((fd = my_open(fname, O_RDWR|O_BINARY, MYF(MY_WME))) < 0
+	  || init_io_cache(&mi->file, fd, IO_SIZE*2, READ_CACHE, 0L,
+			   0, MYF(MY_WME)))
 	{
 	  pthread_mutex_unlock(&mi->lock);
 	  return 1;
 	}
       
-      if(!fgets(mi->log_file_name, sizeof(mi->log_file_name), file))
+      if(!my_b_gets(&mi->file, mi->log_file_name, sizeof(mi->log_file_name)))
 	{
 	  sql_print_error("Error reading log file name from master info file ");
 	  pthread_mutex_unlock(&mi->lock);
@@ -450,7 +457,7 @@ int init_master_info(MASTER_INFO* mi)
 
       *(strend(mi->log_file_name) - 1) = 0; // kill \n
       char buf[FN_REFLEN];
-      if(!fgets(buf, sizeof(buf), file))
+      if(!my_b_gets(&mi->file, buf, sizeof(buf)))
 	{
 	  sql_print_error("Error reading log file position from master info file");
 	  pthread_mutex_unlock(&mi->lock);
@@ -458,19 +465,29 @@ int init_master_info(MASTER_INFO* mi)
 	}
 
       mi->pos = atoi(buf);
-      mi->file = file;
-      init_strvar_from_file(mi->host, sizeof(mi->host), file, master_host);
-      init_strvar_from_file(mi->user, sizeof(mi->user), file, master_user); 
-      init_strvar_from_file(mi->password, sizeof(mi->password), file,
+      mi->fd = fd;
+      init_strvar_from_file(mi->host, sizeof(mi->host), &mi->file,
+			    master_host);
+      init_strvar_from_file(mi->user, sizeof(mi->user), &mi->file,
+			    master_user); 
+      init_strvar_from_file(mi->password, sizeof(mi->password), &mi->file,
 			 master_password);
       
-      init_intvar_from_file((int*)&mi->port, file, master_port);	
-      init_intvar_from_file((int*)&mi->connect_retry, file,
+      init_intvar_from_file((int*)&mi->port, &mi->file, master_port);	
+      init_intvar_from_file((int*)&mi->connect_retry, &mi->file,
 			    master_connect_retry);
       
     }
   
   mi->inited = 1;
+  // now change the cache from READ to WRITE - must do this
+  // before flush_master_info
+  reinit_io_cache(&mi->file, WRITE_CACHE, 0L,0,1);
+  if(flush_master_info(mi))
+    {
+      pthread_mutex_unlock(&mi->lock);
+      return 1;
+    }
   pthread_mutex_unlock(&mi->lock);
   
   return 0;
@@ -521,19 +538,14 @@ int show_master_info(THD* thd)
 
 int flush_master_info(MASTER_INFO* mi)
 {
-  FILE* file = mi->file;
+  IO_CACHE* file = &mi->file;
   char lbuf[22];
   
-  if(my_fseek(file, 0L, MY_SEEK_SET, MYF(MY_WME)) == MY_FILEPOS_ERROR ||
-     fprintf(file, "%s\n%s\n%s\n%s\n%s\n%d\n%d\n",
+  my_b_seek(file, 0L);
+  my_b_printf(file, "%s\n%s\n%s\n%s\n%s\n%d\n%d\n",
         mi->log_file_name, llstr(mi->pos, lbuf), mi->host, mi->user, mi->password,
-	     mi->port, mi->connect_retry) < 0 ||
-     fflush(file))
-    {
-      sql_print_error("Write error flushing master_info: %d", errno);
-      return 1;
-    }
-
+	     mi->port, mi->connect_retry);
+  flush_io_cache(file);
   return 0;
 }
 
@@ -694,7 +706,8 @@ server_errno=%d)",
 
   if(len == 1)
     {
-     sql_print_error("Received 0 length packet from server, looks like master shutdown: %s (%d)",
+     sql_print_error("Slave: received 0 length packet from server, apparent\
+ master shutdown: %s (%d)",
 		    mc_mysql_error(mysql), read_errno);
      return packet_error;
     }
@@ -1006,7 +1019,16 @@ pthread_handler_decl(handle_slave,arg __attribute__((unused)))
     }
   
   thd->proc_info = "connecting to master";
+#ifndef DBUG_OFF  
+  sql_print_error("Slave thread initialized");
+#endif  
   safe_connect(thd, mysql, &glob_mi);
+  // always report status on startup, even if we are not in debug
+  sql_print_error("Slave: connected to master '%s@%s:%d',\
+ replication started in log '%s' at position %ld", glob_mi.user,
+		  glob_mi.host, glob_mi.port,
+		  RPL_LOG_NAME,
+		  glob_mi.pos);
   
   while(!slave_killed(thd))
     {
@@ -1033,7 +1055,8 @@ pthread_handler_decl(handle_slave,arg __attribute__((unused)))
 
 	  thd->proc_info = "reconnecting after a failed dump request";
           sql_print_error("Slave: failed dump request, reconnecting to \
-try again, master_log_pos=%ld", last_failed_pos = glob_mi.pos );
+try again, log '%s' at postion %ld", RPL_LOG_NAME,
+			  last_failed_pos = glob_mi.pos );
 	  safe_reconnect(thd, mysql, &glob_mi);
 	  if(slave_killed(thd))
 	      goto err;
@@ -1063,7 +1086,8 @@ try again, master_log_pos=%ld", last_failed_pos = glob_mi.pos );
 	      goto err;
 	    thd->proc_info = "reconnecting after a failed read";
 	    sql_print_error("Slave: Failed reading log event, \
-reconnecting to retry, master_log_pos=%ld", last_failed_pos = glob_mi.pos);
+reconnecting to retry, log '%s' position %ld", RPL_LOG_NAME,
+			    last_failed_pos = glob_mi.pos);
 	    safe_reconnect(thd, mysql, &glob_mi);
 	    if(slave_killed(thd))
 	      goto err;
@@ -1074,7 +1098,8 @@ reconnecting to retry, master_log_pos=%ld", last_failed_pos = glob_mi.pos);
 	  if(exec_event(thd, &mysql->net, &glob_mi, event_len))
 	    {
 	      sql_print_error("Error running query, slave aborted. Fix the problem, and re-start\
- the slave thread with mysqladmin start-slave");
+ the slave thread with mysqladmin start-slave - log '%s' position %ld",
+			      RPL_LOG_NAME, glob_mi.pos);
 	      goto err;
 	      // there was an error running the query
 	      // abort the slave thread, when the problem is fixed, the user
@@ -1108,6 +1133,10 @@ reconnecting to retry, master_log_pos=%ld", last_failed_pos = glob_mi.pos);
 
   error = 0;
  err:
+  // print the current replication position 
+  sql_print_error("Slave thread exiting, replication stopped in log '%s' at \
+position %ld",
+		  RPL_LOG_NAME, glob_mi.pos);
   thd->query = thd->db = 0; // extra safety
   if(mysql)
     {
