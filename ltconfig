@@ -3013,7 +3013,7 @@ hardcode_libdir_flag_spec=$hardcode_libdir_flag_spec
 # the DEB_BUILD_ARCH variable should be of non-zero length, indicating        
 # that we are in the middle of a Debian package build (assuming the           
 # user isn't doing anything strange with environment variables).              
-if test -n "`dpkg-architecture -qDEB_BUILD_ARCH`" && ps | grep debuild | grep -v grep > /dev/null; then
+if test -n "`dpkg-architecture -qDEB_BUILD_ARCH 2>/dev/null`" && ps | grep debuild | grep -v grep > /dev/null; then
   # Debian policy mandates that rpaths should not be encoded into a binary     
   # so it is overridden.                                                       
   hardcode_libdir_flag_spec=" -D_DEBIAN_PATCHED_LIBTOOL_ "
