@@ -31,10 +31,13 @@
 String *Item_func_geometry_from_text::val_str(String *str)
 {
   Geometry_buffer buffer;
-  Geometry *geom;
   String arg_val;
   String *wkt= args[0]->val_str(&arg_val);
-  Gis_read_stream trs(wkt->c_ptr(), wkt->length());
+
+  if ((null_value= args[0]->null_value))
+    return 0;
+
+  Gis_read_stream trs(wkt->charset(), wkt->ptr(), wkt->length());
   uint32 srid= 0;
 
   if ((arg_count == 2) && !args[1]->null_value)
@@ -44,8 +47,7 @@ String *Item_func_geometry_from_text::val_str(String *str)
     return 0;
   str->length(0);
   str->q_append(srid);
-  if ((null_value=(args[0]->null_value || 
-		   !(geom= Geometry::create_from_wkt(&buffer, &trs, str, 0)))))
+  if ((null_value= !Geometry::create_from_wkt(&buffer, &trs, str, 0)))
     return 0;
   return str;
 }
