@@ -486,7 +486,7 @@ int ha_myisam::repair(THD* thd, HA_CHECK_OPT *check_opt)
   param.thd = thd;
   param.op_name = (char*) "repair";
   param.testflag = ((check_opt->flags & ~(T_EXTEND)) |
-		    T_SILENT | T_FORCE_CREATE |
+		    T_SILENT | T_FORCE_CREATE | T_CALC_CHECKSUM |
 		    (check_opt->flags & T_EXTEND ? T_REP : T_REP_BY_SORT));
   param.sort_buffer_length=  check_opt->sort_buffer_size;
   start_records=file->state->records;
