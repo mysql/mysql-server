@@ -539,7 +539,7 @@ InnoDB Tables
 
 * InnoDB overview::             InnoDB tables overview
 * InnoDB start::                InnoDB startup options
-* Creating an InnoDB database:: Creating an InnoDB database.  Creating an InnoDB database.  Creating an InnoDB database.  Creating an InnoDB database.  Creating an InnoDB database.  Creating an InnoDB database.  Creating an InnoDB database.
+* Creating an InnoDB database:: Creating an InnoDB database.
 * Using InnoDB tables::         Creating InnoDB tables
 * Adding and removing::         Adding and removing InnoDB data and log files
 * Backing up::                  Backing up and recovering an InnoDB database
@@ -554,7 +554,7 @@ InnoDB Tables
 
 Creating an InnoDB database
 
-* Error createing InnoDB::      
+* Error creating InnoDB::      
 
 Backing up and recovering an InnoDB database
 
@@ -1386,7 +1386,7 @@ in this email @email{advertising@@mysql.com}.
 
 @item
 We are building a partner program to be able to provide @strong{MySQL}
-services in every country.  If you are interested in becomming a partner
+services in every country.  If you are interested in becoming a partner
 of @strong{MySQL AB} please visit
 @uref{http://www.mysql.com/information/partners.html} or email
 @email{partner@@mysql.com}.
@@ -2546,7 +2546,7 @@ which services were discovered on which dial-up numbers in your organization.
 @item @uref{http://www.urbanresearch.com/software/utils/urbsql/index.html, urSQL}
 SQL Editor and Query Utility. Custom syntax highlighting, editable
 results grid, exportable result-sets, basic @strong{MySQL} admin functions,
-Etc.. For windows.
+Etc.. For Windows.
 
 @item @uref{http://www.edatanew.com/, MySQL Data Manager}
 @strong{MySQL} Data Manager * is platform independent web client
@@ -2577,7 +2577,7 @@ different formats (SQL, HTML, CVS, text, ZIP, GZIP...)
 
 @item @uref{http://dlabs.4t2.com}
 M2D, a @strong{MySQL} Administration client for Windows.  M2D supports 
-administration of @strong{MySQL} databases, creation of new databasess and 
+administration of @strong{MySQL} databases, creation of new databases and 
 tables, editing, and more.
 
 @item @uref{http://www.scibit.com/Products/Software/Utils/Mascon.asp}
@@ -2797,9 +2797,9 @@ don't know of anyone that has tried that.
 
 @cindex SCMDB
 @item @uref{http://www.dedecker.net/jessie/scmdb/}
-SCMDB - an add-on for SCM that ports the mysql C library to scheme (SCM).
-With this library scheme developers can make connections to a mySQL
-database and use embedded SQL in their programs.
+SCMDB - an add-on for SCM that ports the @strong{MySQL} C library to scheme
+(SCM).  With this library scheme developers can make connections to a
+@strong{MySQL} database and use embedded SQL in their programs.
 @end table
 
 @subheading Other @strong{MySQL}-related Links
@@ -3278,7 +3278,7 @@ the one that the program produces.  (Even the case should be observed!)
 You should never try to remember what the error message was; instead, copy 
 and paste the entire message into your report!
 
-If you have a problem with MyODBC, you should try to genereate a MyODBC
+If you have a problem with MyODBC, you should try to generate a MyODBC
 trace file.  @xref{MyODBC bug report}.
 
 Please remember that many of the people who will read your report will
@@ -4598,7 +4598,7 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 @c @uref{ftp://ftp.dnttm.ro/pub/mysql, FTP}
 
 @c @item
-@c Not ok 20001123; Non-existant (Matt)
+@c Not ok 20001123; Non-existent (Matt)
 @c EMAIL: tim@lbi.ro (Bogdan Surdu)
 @c @image{Flags/romania}
 @c Romania [Bucharest] @
@@ -4973,7 +4973,7 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 @c @uref{ftp://ftp.wownet.net/mysql/, FTP}
 
 @c @item @c **********************************
-@c No conntact 980106
+@c No contact 980106
 @c EX: serge@oneway.net
 @c @image{Flags/taiwan} Taiwan [Oneway] @
 @c @uref{ftp://ftp.oneway.com.tw/pub/mysql/, FTP}
@@ -5061,7 +5061,7 @@ SuSE Linux Version 7.x.
 
 Note that for many operating systems, the native thread support works only
 in the latest versions. @strong{MySQL} has been reported to compile
-sucessfully on the following operating system/thread package combinations:
+successfully on the following operating system/thread package combinations:
 
 @itemize @bullet
 @item
@@ -5153,7 +5153,7 @@ platform in similar configurations. If this number is high, the chances of
 hitting some platform-specific surprise are much smaller.
 @end itemize
 
-Based on the above criterea, the best platforms for running
+Based on the above criteria, the best platforms for running
 @strong{MySQL} at this point are x86 with SuSE Linux 7.1, 2.4 kernel and
 ReiserFS (or any similar Linux distribution) and Sparc with Solaris 2.7
 or 2.8. FreeBSD comes third, but we really hope it will join the top
@@ -5208,23 +5208,23 @@ fatal bugs and make small, relatively safe changes to that version.
 
 The second decision to make is whether you want to use a source
 distribution or a binary distribution.  In most cases you should probably
-use a binary distribution, if there exist one for your platform, as this
-is generally, it will be easier to install than a source distribution.
+use a binary distribution, if one exists for your platform, as this
+generally will be easier to install than a source distribution.
 
-In the following cases you will probably be better off with a source
+In the following cases you probably will be better off with a source
 installation:
 
 @itemize @bullet
 @item
 If you want to install @strong{MySQL} at some explicit location.  (The standard
-binary distributions are 'ready to run' at any place, but you may want
+binary distributions are ``ready to run'' at any place, but you may want
 to get even more flexibility).
 
 @item
 To be able to satisfy different user requirements, we are providing two
 different binary versions; One compiled with the non-transactional table
-handlers, (a small, fast binary), and one configurated with the most
-important extended options like transaction safe tables.  Both versions
+handlers, (a small, fast binary), and one configured with the most
+important extended options like transaction-safe tables.  Both versions
 are compiled from the same source distribution.  All native @code{MySQL}
 clients can connect to both @strong{MySQL} versions.
 
@@ -5232,11 +5232,11 @@ The extended @strong{MySQL} binary distribution is marked with the
 @code{-max} suffix and is configured with the same options as
 @code{mysqld-max}. @xref{mysqld-max}.
 
-If you are want to use the @code{MySQL-Max} RPM, you must first
+If you want to use the @code{MySQL-Max} RPM, you must first
 install the standard @code{MySQL} RPM.
 
 @item
-If you want to configure @code{mysqld} with some extra feature that is NOT in
+If you want to configure @code{mysqld} with some extra feature that are NOT in
 the standard binary distributions.  Here is a list of the most common
 extra options that you may want to use:
 
@@ -5256,7 +5256,7 @@ the same processor family.
 
 If you want a faster @strong{MySQL} server you may want to recompile it
 with support for only the character sets you need, use a better compiler
-(like pgcc) or use compiler options that are better optimized for your
+(like @code{pgcc}) or use compiler options that are better optimized for your
 processor.
 
 @item
@@ -5293,7 +5293,7 @@ new features, or may fail to compile on some systems.
 @item
 The third number (@code{17}) is the version number within the
 release level.  This is incremented for each new distribution.  Usually you
-want the latest version for the release level you have choosen.
+want the latest version for the release level you have chosen.
 
 @item
 The suffix (@code{beta}) indicates the stability level of the release.
@@ -5570,7 +5570,7 @@ indicates the type of operating system for which the distribution is intended
 
 @item
 If you see a binary distribution marked with the @code{-max} prefix, this
-means that the binary has support for transaction safe tables and other
+means that the binary has support for transaction-safe tables and other
 features. @xref{mysqld-max}.  Note that all binaries are built from
 the same @strong{MySQL} source distribution.
 
@@ -5833,7 +5833,7 @@ case you probably get the following error message when you run
 Sorry, the host 'xxxx' could not be looked up
 @end example
 
-or the following error when you try to run mysqld with the @code{--user}
+or the following error when you try to run @code{mysqld} with the @code{--user}
 option:
 
 @example
@@ -5854,7 +5854,7 @@ instead (except for @code{localhost}).  If you are using an old @strong{MySQL}
 release that doesn't support @code{--force}, you have to remove the
 @code{resolveip} test in @code{mysql_install} with an editor.
 @item
-Start mysqld with @code{su} instead of using @code{--user}.
+Start @code{mysqld} with @code{su} instead of using @code{--user}.
 @end itemize
 
 The Linux-Intel binary and RPM releases of @strong{MySQL} are configured
@@ -7228,7 +7228,7 @@ ac_cv_sys_restartable_syscalls=$@{ac_cv_sys_restartable_syscalls='no'@}
 
 If you are using Solaris on a SPARC, the recommended compiler is
 @code{gcc} 2.95.2.  You can find this at @uref{http://gcc.gnu.org/}.
-Note that @code{egs} 1.1.1 and @code{gcc} 2.8.1 don't work reliably on
+Note that @code{egcs} 1.1.1 and @code{gcc} 2.8.1 don't work reliably on
 SPARC!
 
 The recommended @code{configure} line when using @code{gcc} 2.95.2 is:
@@ -7524,10 +7524,10 @@ experimentally discovered, will successfully unmap an already mapped region
 if you ask it to map out an address already in use, zeroing out the data
 on the entire page, instead of returning an error.  So, the safety of
 @code{mysqld} or any other threaded application depends on the "gentleman" 
-behaviour of the code that creates threads.  The user must take measures to 
+behavior of the code that creates threads.  The user must take measures to 
 make sure the number of running threads at any time is sufficiently low for 
 thread stacks to stay away from the global heap.  With @code{mysqld}, you 
-should enforce this "gentleman" behaviour by setting a reasonable value for 
+should enforce this "gentleman" behavior by setting a reasonable value for 
 the @code{max_connections} variable.
 
 If you build @strong{MySQL} yourself and do not what to mess with patching
@@ -7594,7 +7594,7 @@ you link @strong{MySQL} against unmodified @strong{LinuxThreads},
 removing processors from the machine improves @strong{MySQL} performance
 in many cases.  We have made a patch available for @strong{glibc 2.1.3},
 @uref{http://www.mysql.com/Downloads/Linux/linuxthreads-2.1-patch,linuxthreads-2.1-patch}
-to correct this behaviour.
+to correct this behavior.
 
 With @strong{glibc-2.2.2}
 @strong{MySQL} version 3.23.36 will use the adaptive mutex, which is much
@@ -7602,7 +7602,7 @@ better than even the patched one in @strong{glibc-2.1.3}. Be warned, however,
 that under some conditions, the current mutex code in @strong{glibc-2.2.2}
 overspins, which hurts @strong{MySQL} performance. The chance of this
 condition can be reduced by renicing @code{mysqld} process to the highest
-priority. We have also been able to correct the overspin behaviour with
+priority. We have also been able to correct the overspin behavior with
 a patch, available @uref{http://www.mysql.com/Downloads/Linux/linuxthreads-2.2.2.patch,here}. It combines the correction of overspin, maximum number of
 threads, and stack spacing all in one. You will need to apply it in the
 @code{linuxthreads} directory with
@@ -7649,14 +7649,14 @@ If you see a dead @code{mysqld} daemon process with @code{ps}, this usually
 means that you have found a bug in @strong{MySQL} or you have a corrupted
 table. @xref{Crashing}.
 
-To get a core dump on Linux if mysqld dies with a SIGSEGV
-signal, you can start mysqld with the @code{--core-file} option.  Note
+To get a core dump on Linux if @code{mysqld} dies with a SIGSEGV
+signal, you can start @code{mysqld} with the @code{--core-file} option.  Note
 that you also probably need to raise the @code{core file size} by adding
 @code{ulimit -c 1000000} to @code{safe_mysqld} or starting @code{safe_mysqld}
 with @code{--core-file-sizes=1000000}. @xref{safe_mysqld}.
 
-To get a core dump on Linux if mysqld dies with a SIGSEGV signal, you can 
-start mysqld with the @code{--core-file} option.  Note that you also probably
+To get a core dump on Linux if @code{mysqld} dies with a SIGSEGV signal, you can 
+start @code{mysqld} with the @code{--core-file} option.  Note that you also probably
 need to raise the @code{core file size} by adding @code{ulimit -c 1000000} to
 @code{safe_mysqld} or starting @code{safe_mysqld} with 
 @code{--core-file-sizes=1000000}.  @xref{safe_mysqld}.
@@ -7902,9 +7902,9 @@ Debugging threaded applications like @strong{MySQL} will not work with
 @code{gdb 4.18}.  You should download and use gdb 5.0 instead!
 
 @item
-If you try linking mysqld statically when using gcc, the resulting image
-will core dump at start.  In other words, @strong{DON'T} use
-@code{--with-mysqld-ldflags=-all-static} with gcc.
+If you try linking @code{mysqld} statically when using @code{gcc}, the
+resulting image will core dump at start.  In other words, @strong{DON'T}
+use @code{--with-mysqld-ldflags=-all-static} with @code{gcc}.
 @end itemize
 
 @node MKLinux, Qube2, Linux-Alpha, Linux
@@ -8208,16 +8208,16 @@ remove them all with pkg_delete if you no longer want @strong{MySQL} on that
 machine.
 @end itemize
 
-It is reccomended you use MIT-pthreads on FreeBSD 2.x and native threads on
+It is recommended you use MIT-pthreads on FreeBSD 2.x and native threads on
 Versions 3 and up. It is possible to run with  native threads on some late
-2.2.x versions but you may encounter problems shutting down mysqld.
+2.2.x versions but you may encounter problems shutting down @code{mysqld}.
 
 The @strong{MYSQL} Makefiles require GNU make (@code{gmake}) to work.
 If you want to compile @strong{MYSQL} you need to install GNU make
 first.
 
 Be sure to have your name resolver setup correct.  Otherwise you may
-experience resolver delays or failures when connecting to mysqld.
+experience resolver delays or failures when connecting to @code{mysqld}.
 
 Make sure that the @code{localhost} entry in the @file{/etc/hosts} file is
 correct (otherwise you will have problems connecting to the database).  The
@@ -8241,7 +8241,7 @@ shell> ./configure --with-mit-threads
 
 FreeBSD is also known to have a very low default file handle limit.
 @xref{Not enough file handles}.  Uncomment the ulimit -n section in
-safe_mysqld or raise the limits for the mysqld user in /etc/login.conf
+safe_mysqld or raise the limits for the @code{mysqld} user in /etc/login.conf
 (and rebuild it with cap_mkdb /etc/login.conf).  Also be sure you set the
 appropriate class for this user in the password file if you are not
 using the default (use: chpass mysqld-user-name).  @xref{safe_mysqld}.
@@ -8852,7 +8852,7 @@ We are interested in finding someone to do a port, and we will help them
 with any technical questions they may have while doing the port.
 
 We have previously talked with some BeOS developers that have said that
-@strong{MySQL} is 80% ported to BeOS, but we haven't heard from these
+@strong{MySQL} is 80% ported to BeOS, but we haven't heard from them
 in a while.
 
 @node Windows, OS/2, Source install system issues, Installing
@@ -8890,8 +8890,8 @@ To install either distribution, unzip it in some empty directory and run the
 
 By default, @strong{MySQL}-Windows is configured to be installed in
 @file{C:\mysql}.  If you want to install @strong{MySQL} elsewhere, install it
-in @file{C:\mysql}, then move the installation to where you want it.  If you
-do move @strong{MySQL}, you must tell @code{mysqld} where everything is by
+in @file{C:\mysql} first, then move the installation to where you want it.  If
+you do move @strong{MySQL}, you must tell @code{mysqld} where everything is by
 supplying options to @code{mysqld}. Use @code{C:\mysql\bin\mysqld --help} to
 display all options!  For example, if you have moved the @strong{MySQL}
 distribution to @file{D:\programs\mysql}, you must start @code{mysqld} with:
@@ -8900,12 +8900,12 @@ distribution to @file{D:\programs\mysql}, you must start @code{mysqld} with:
 With all newer @strong{MySQL} versions, you can also create a
 @file{C:\my.cnf} file that holds any default options for the
 @strong{MySQL} server.  Copy the file @file{\mysql\my-xxxxx.cnf} to
-@file{C:\my.cnf} and edit this to suit your setup.  Note that you should
+@file{C:\my.cnf} and edit it to suit your setup.  Note that you should
 specify all paths with @samp{/} instead of @samp{\}. If you use
-@samp{\}, you need to specify this twice, as @samp{\} is the escape
+@samp{\}, you need to specify it twice, as @samp{\} is the escape
 character in @strong{MySQL}.  @xref{Option files}.
 
-Starting from @strong{MySQL} 3.23.38 the windows distribution includes
+Starting from @strong{MySQL} 3.23.38, the Windows distribution includes
 both the normal and the @strong{MySQL-Max} binaries.  The main benefit
 of using the normal @code{mysqld.exe} binary is that it's a little
 faster and uses less resources.
@@ -8919,21 +8919,21 @@ symbolic links, BDB and InnoDB tables.
 @item @code{mysqld-opt} @tab
 Optimized binary with no support for transactional tables.
 @item @code{mysqld-nt} @tab
-Optimized for a Pentium pro processor. Has support for
-named pipes. One can run this version on Win98, but in
-this case no named pipes are created and one must
+Optimized for a Pentium Pro processor. Has support for
+named pipes. You can run this version on Win98, but in
+this case no named pipes are created and you must
 have TCP/IP installed.
-@item mysqld-max @tab
+@item @code{mysqld-max} @tab
 Optimized binary with support for symbolic links, BDB and InnoDB tables.
-@item mysqld-max-nt @tab
-Like mysqld-max, but compiled with support for named pipes.
+@item @code{mysqld-max-nt} @tab
+Like @code{mysqld-max}, but compiled with support for named pipes.
 @end multitable
 
-All of the above binaries are optimized for the Pentium pro processor but
+All of the above binaries are optimized for the Pentium Pro processor but
 should work on any Intel processor >= i386.
 
-NOTE: If you want to use InnoDB tables, you need to specify some startup
-options in your my.ini file! @xref{InnoDB start}.
+NOTE: If you want to use InnoDB tables, there are certain startup
+options that must be specified in your @file{my.ini} file! @xref{InnoDB start}.
 
 @node Win95 start, NT start, Windows installation, Windows
 @subsection Starting MySQL on Windows 95 or Windows 98
@@ -8952,7 +8952,7 @@ the above doesn't apply for Win98.
 To start the @code{mysqld} server, you should start an MS-DOS window and type:
 
 @example
-C:\mysql\bin\mysqld
+C:\> C:\mysql\bin\mysqld
 @end example
 
 This will start @code{mysqld} in the background without a window.
@@ -8960,25 +8960,25 @@ This will start @code{mysqld} in the background without a window.
 You can kill the @strong{MySQL} server by executing:
 
 @example
-C:\mysql\bin\mysqladmin -u root shutdown
+C:\> C:\mysql\bin\mysqladmin -u root shutdown
 @end example
 
-Note that Win95/Win98 don't support creation of named pipes.  On
-Win95/Win98, you can only use named pipes to connect to a remote
+Note that Win95 and Win98 don't support creation of named pipes.  On
+Win95 and Win98, you can only use named pipes to connect to a remote
 @strong{MySQL} running on an NT server.
 
 If @code{mysqld} doesn't start, please check whether or not the
 @file{\mysql\mysql.err} file contains any reason for this.  You can also
-try to start it with @code{mysqld --standalone};  In this case you may
-get some useful information on the screen that may help solve this.
+try to start the server with @code{mysqld --standalone};  In this case, you may
+get some useful information on the screen that may help solve the problem.
 
 The last option is to start @code{mysqld} with @code{--standalone
---debug}.  In this case @code{mysqld} will write a log file in
+--debug}.  In this case @code{mysqld} will write a log file
 @file{C:\mysqld.trace} that should contain the reason why @code{mysqld}
 doesn't start. @xref{Making trace files}.
 
 @node NT start, Windows running, Win95 start, Windows
-@subsection Starting MySQL on NT or Windows 2000
+@subsection Starting MySQL on Windows NT or Windows 2000
 
 The Win95/Win98 section also applies to @strong{MySQL} on NT/Win2000, with
 the following differences:
@@ -8993,38 +8993,40 @@ For NT/Win2000, the server name is @code{mysqld-nt}.  Normally you
 should install @strong{MySQL} as a service on NT/Win2000:
 
 @example
-C:\mysql\bin\mysqld-nt --install
+C:\> C:\mysql\bin\mysqld-nt --install
+@end example
 
 or
 
-C:\mysql\bin\mysqld-max-nt --install
+@example
+C:\> C:\mysql\bin\mysqld-max-nt --install
 @end example
 
-(You can also use @code{mysqld} binaries that doesn't end with
+(You can also use @code{mysqld} binaries that don't end with
 @code{-nt.exe} on NT, but those cannot be started as a service or use
 named pipes.)
 
-You can start and stop the @strong{MySQL} service with:
+You can start and stop the @strong{MySQL} service with these commands:
 
 @example
-NET START mysql
-NET STOP mysql
+C:\> NET START mysql
+C:\> NET STOP mysql
 @end example
 
 Note that in this case you can't use any other options for @code{mysqld-nt}!
 
 You can also run @code{mysqld-nt} as a stand-alone program on NT if you need
 to start @code{mysqld-nt} with any options!  If you start @code{mysqld-nt}
-without options on NT, @code{mysqld-nt} tries to starts itself as a service
+without options on NT, @code{mysqld-nt} tries to start itself as a service
 with the default service options.  If you have stopped @code{mysqld-nt}, you
 have to start it with @code{NET START mysql}.
 
 The service is installed with the name @code{MySQL}. Once installed, it must
 be started using the Services Control Manager (SCM) Utility (found in Control
 Panel) or by using the @code{NET START MySQL} command.  If any options are
-desired, they must be specified as "Startup parameters" in the SCM utility
+desired, they must be specified as ``Startup parameters'' in the SCM utility
 before you start the @strong{MySQL} service.  Once running, @code{mysqld-nt}
-can be stopped using @code{mysqladmin} or from the SCM utility or by using
+can be stopped using @code{mysqladmin}, or from the SCM utility or by using
 the command @code{NET STOP MySQL}. If you use SCM to stop @code{mysqld-nt},
 there is a strange message from SCM about @code{mysqld shutdown normally}.
 When run as a service, @code{mysqld-nt} has no access to a console and so no
@@ -9042,7 +9044,7 @@ If you have problems installing @code{mysqld-nt} as a service, try starting
 it with the full path:
 
 @example
-C:\mysql\bin\mysqld-nt --install
+C:\> C:\mysql\bin\mysqld-nt --install
 @end example
 
 If this doesn't work, you can get @code{mysqld-nt} to start properly by fixing
@@ -9052,13 +9054,13 @@ If you don't want to start @code{mysqld-nt} as a service, you can start it as
 follows:
 
 @example
-C:\mysql\bin\mysqld-nt --standalone
+C:\> C:\mysql\bin\mysqld-nt --standalone
 @end example
 
 or
 
 @example
-C:\mysql\bin\mysqld --standalone --debug
+C:\> C:\mysql\bin\mysqld --standalone --debug
 @end example
 
 The last version gives you a debug trace in @file{C:\mysqld.trace}.
@@ -9091,10 +9093,10 @@ You can test whether or not @strong{MySQL} is working by executing the
 following commands:
 
 @example
-C:\mysql\bin\mysqlshow
-C:\mysql\bin\mysqlshow -u root mysql
-C:\mysql\bin\mysqladmin version status proc
-C:\mysql\bin\mysql test
+C:\> C:\mysql\bin\mysqlshow
+C:\> C:\mysql\bin\mysqlshow -u root mysql
+C:\> C:\mysql\bin\mysqladmin version status proc
+C:\> C:\mysql\bin\mysql test
 @end example
 
 If @code{mysqld} is slow to answer to connections on Win95/Win98, there is
@@ -9112,32 +9114,32 @@ There are two versions of the @strong{MySQL} command-line tool:
 @end multitable
 
 If you want to use @code{mysqlc.exe}, you must copy
-@file{C:\mysql\lib\cygwinb19.dll} to @file{\windows\system} (or similar
-place).
+@file{C:\mysql\lib\cygwinb19.dll} to your Windows system directory
+(@file{\windows\system} or similar place).
 
 The default privileges on Windows give all local users full privileges
-to all databases.  To make @strong{MySQL} more secure, you
-should set a password for all users and remove the row in the
-@code{mysql.user} table that has @code{Host='localhost'} and
+to all databases without specifying a password.  To make @strong{MySQL}
+more secure, you should set a password for all users and remove the row in
+the @code{mysql.user} table that has @code{Host='localhost'} and
 @code{User=''}.
 
-You should also add a password for the @code{root} user. (The following 
-example starts by removing the anonymous user, that allows anyone to access
-the 'test' database.):
+You should also add a password for the @code{root} user. The following 
+example starts by removing the anonymous user that can be used by anyone
+to access the @code{test} database, then sets a @code{root} user password:
 
 @example
-C:\mysql\bin\mysql mysql
+C:\> C:\mysql\bin\mysql mysql
 mysql> DELETE FROM user WHERE Host='localhost' AND User='';
 mysql> QUIT
-C:\mysql\bin\mysqladmin reload
-C:\mysql\bin\mysqladmin -u root password your_password
+C:\> C:\mysql\bin\mysqladmin reload
+C:\> C:\mysql\bin\mysqladmin -u root password your_password
 @end example
 
 After you've set the password, if you want to take down the @code{mysqld}
 server, you can do so using this command:
 
 @example
-mysqladmin --user=root --password=your_password shutdown
+C:\> mysqladmin --user=root --password=your_password shutdown
 @end example
 
 If you are using the old shareware version of @strong{MySQL} Version 3.21
@@ -9162,14 +9164,14 @@ Here is a note about how to connect to get a secure connection to remote
 
 @itemize @bullet
 @item
-Install an SSH client on your windows machine - As a user, the best non-free
+Install an SSH client on your Windows machine --- As a user, the best non-free
 one I've found is from @code{SecureCRT} from @uref{http://www.vandyke.com/}.
 Another option is @code{f-secure} from @uref{http://www.f-secure.com/}. You
 can also find some free ones on @strong{Google} at
 @uref{http://directory.google.com/Top/Computers/Security/Products_and_Tools/Cryptography/SSH/Clients/Windows/}.
 
 @item
-Start your windows SSH client. 
+Start your Windows SSH client. 
 Set @code{Host_Name = yourmysqlserver_URL_or_IP}. 
 Set @code{userid=your_userid} to log in to your server (probably not the same
 as your @strong{MySQL} login/password.
@@ -9185,35 +9187,37 @@ Save everything, otherwise you'll have to redo it the next time.
 Log in to your server with SSH session you just created.
 
 @item
-Start some ODBC application on your windows machine (for example Access).
+On your Windows machine, start some ODBC application (such as Access).
 
 @item
-Create a new file in windows and link to @strong{MySQL} using the ODBC driver the same way
-you normally do, EXCEPT type in @code{localhost} for the @strong{MySQL} host server - not @code{yourmysqlservername}.
+Create a new file in Windows and link to @strong{MySQL} using the ODBC
+driver the same way you normally do, EXCEPT type in @code{localhost}
+for the @strong{MySQL} host server --- not @code{yourmysqlservername}.
 @end itemize
 
-You should now have your ODBC connection to @strong{MySQL} encrypted using SSH. 
+You should now have an ODBC connection to @strong{MySQL}, encrypted using SSH. 
 
 @cindex symbolic links
 @cindex using multiple disks to start data
 @cindex disks, splitting data across
 @node Windows symbolic links, Windows compiling, Windows and SSH, Windows
-@subsection Splitting Data Across Different Disks Under Windows
+@subsection Splitting Data Across Different Disks on Windows
 
-On windows @strong{MySQL} Version 3.23.16 and above is compiled with the
-@code{-DUSE_SYMDIR} option.  This allows you to put a database on
-different disk by adding a symbolic link to it (in a similar manner that
-symbolic links works on Unix).
+Beginning with @strong{MySQL} Version 3.23.16, the @strong{MySQL}
+distribution is compiled with the @code{-DUSE_SYMDIR} option.  This allows
+you to put a database on different disk by adding a symbolic link to it
+(in a manner similar to the way that symbolic links work on Unix).
 
-On windows you make a symbolic link to a database by creating a file
+On Windows, you make a symbolic link to a database by creating a file
 that contains the path to the destination directory and saving this in
 the @file{mysql_data} directory under the filename @file{database.sym}.
-Note that the symbolic link will only be used if the directory
+Note that the symbolic link will be used only if the directory
 @file{mysql_data_dir\database} doesn't exist.
 
-For example, if you want to have database @code{foo} on @file{D:\data\foo}, you
+For example, if the @strong{MySQL} data directory is @file{C:\mysql\data}
+and you want to have database @code{foo} located at @file{D:\data\foo}, you
 should create the file @file{C:\mysql\data\foo.sym} that contains the
-text @code{D:\data\foo}.  After this, all tables created in the database
+text @code{D:\data\foo}.  After that, all tables created in the database
 @code{foo} will be created in @file{D:\data\foo}.
 
 @cindex compiling, on Windows
@@ -9222,7 +9226,7 @@ text @code{D:\data\foo}.  After this, all tables created in the database
 @subsection Compiling MySQL Clients on Windows
 
 In your source files, you should include @file{windows.h} before you include
-@code{mysql.h}:
+@file{mysql.h}:
 
 @example
 #if defined(_WIN32) || defined(_WIN64)
@@ -9259,10 +9263,10 @@ with the following exceptions:
 
 @table @strong
 @item Win95 and threads
-Win95 leaks about 200 bytes of main memory for each thread creation.  Because
-of this, you shouldn't run @code{mysqld} for an extended time on Win95 if
-you do many connections, because each connection in @strong{MySQL} creates
-a new thread!  WinNT and Win98 don't suffer from this bug.
+Win95 leaks about 200 bytes of main memory for each thread creation.
+Each connection in @strong{MySQL} creates a new thread, so you shouldn't
+run @code{mysqld} for an extended time on Win95 if your server handles
+many connections!  WinNT and Win98 don't suffer from this bug.
 
 @item Concurrent reads
 @strong{MySQL} depends on the @code{pread()} and @code{pwrite()} calls to be
@@ -9270,9 +9274,9 @@ able to mix @code{INSERT} and @code{SELECT}.  Currently we use mutexes
 to emulate @code{pread()}/@code{pwrite()}.  We will, in the long run,
 replace the file level interface with a virtual interface so that we can
 use the @code{readfile()}/@code{writefile()} interface on NT to get more speed.
-The current implementation will however limit the number of open files
-@strong{MySQL} can use to 1024, which means that you will not be able to
-run as many concurrent threads on NT as on Unix.
+The current implementation limits the number of open files @strong{MySQL}
+can use to 1024, which means that you will not be able to run as many
+concurrent threads on NT as on Unix.
 
 @item Blocking read
 @strong{MySQL} uses a blocking read for each connection.
@@ -9295,8 +9299,8 @@ If a connection hangs, it's impossible to break it without killing
 connections.
 @end itemize
 
-We plan to fix this when our Windows developers have figured out a nice
-workaround for this.
+We plan to fix this problem when our Windows developers have figured out a
+nice workaround.
 
 @item UDF functions
 For the moment, @strong{MySQL}-Windows does not support user-definable
@@ -9312,18 +9316,25 @@ utility in Win95.  You must take it down with @code{mysqladmin shutdown}.
 @item Case-insensitive names
 Filenames are case insensitive on Windows, so database and table names
 are also case insensitive in @strong{MySQL} for Windows.  The only
-restriction is that database and table names must be given in the same
+restriction is that database and table names must be specified using the same
 case throughout a given statement.  @xref{Name case sensitivity}.
 
 @item The @samp{\} directory character
 Pathname components in Win95 are separated by the @samp{\} character, which is
 also the escape character in @strong{MySQL}.  If you are using @code{LOAD
 DATA INFILE} or @code{SELECT ... INTO OUTFILE}, you must double the @samp{\}
-character or use Unix style filenames @samp{/} characters:
+character:
 
 @example
-LOAD DATA INFILE "C:\\tmp\\skr.txt" INTO TABLE skr;
-SELECT * INTO OUTFILE 'C:/tmp/skr.txt' FROM skr;
+mysql> LOAD DATA INFILE "C:\\tmp\\skr.txt" INTO TABLE skr;
+mysql> SELECT * INTO OUTFILE 'C:\\tmp\\skr.txt' FROM skr;
+@end example
+
+Alternatively, use Unix style filenames with @samp{/} characters:
+
+@example
+mysql> LOAD DATA INFILE "C:/tmp/skr.txt" INTO TABLE skr;
+mysql> SELECT * INTO OUTFILE 'C:/tmp/skr.txt' FROM skr;
 @end example
 
 @item @code{Can't open named pipe} error
@@ -9337,8 +9348,8 @@ error 2017: can't open named pipe to host: . pipe...
 @tindex .my.cnf file
 This is because the release version of @strong{MySQL} uses named pipes on NT 
 by default.  You can avoid this error by using the @code{--host=localhost} 
-option to the new @strong{MySQL} clients or create a file @file{C:\my.cnf} 
-that contains the following information:
+option to the new @strong{MySQL} clients or create an option file
+@file{C:\my.cnf} that contains the following information:
 
 @example
 [client]
@@ -9359,16 +9370,16 @@ following information:
 @end example
 
 @item @code{ALTER TABLE}
-While you are doing an @code{ALTER TABLE} the table is locked from usage
-by other threads.  This has to do with the fact that you on Windows can't
-delete a file that is in use by another threads.  (We may in the future
-find some way to go around this problem.)
+While you are executing an @code{ALTER TABLE} statement, the table is locked
+from usage by other threads.  This has to do with the fact that on Windows,
+you can't delete a file that is in use by another threads.  (In the future,
+we may find some way to work around this problem.)
 
-@item @code{DROP TABLE} on a table that is in use by a @code{MERGE} table will not work.
-The @code{MERGE} handler does it table mapping hidden from @strong{MySQL}.
-Because Windows doesn't allow one to drop files that are open, you have
-to first flush all @code{MERGE} tables (with @code{FLUSH TABLES}) or drop the
-@code{MERGE} table before droping the table.  We will fix this at the same 
+@item @code{DROP TABLE} on a table that is in use by a @code{MERGE} table will not work
+The @code{MERGE} handler does its table mapping hidden from @strong{MySQL}.
+Because Windows doesn't allow you to drop files that are open, you first
+must flush all @code{MERGE} tables (with @code{FLUSH TABLES}) or drop the
+@code{MERGE} table before dropping the table.  We will fix this at the same 
 time we introduce @code{VIEW}s.
 @end table
 
@@ -9391,14 +9402,14 @@ Add some nice start and shutdown icons to the @strong{MySQL} installation.
 Create a tool to manage registry entries for the @strong{MySQL} startup
 options.  The registry entry reading is already coded into @file{mysqld.cc},
 but it should be recoded to be more parameter oriented.  The tool should
-also be able to update the @file{\my.cnf} file if the user prefers to use
-this instead of the registry.
+also be able to update the @file{C:\my.cnf} option file if the user prefers
+to use that instead of the registry.
 
 @item
 When registering @code{mysqld} as a service with @code{--install} (on NT)
 it would be nice if you could also add default options on the command line.
-For the moment, the workaround is to update the @file{C:\my.cnf} file
-instead.
+For the moment, the workaround is to list the parameters in the
+@file{C:\my.cnf} file instead.
 
 @item
 When you suspend a laptop running Win95, the @code{mysqld} daemon doesn't 
@@ -9420,10 +9431,6 @@ GUI versions of the standard @strong{MySQL} clients (@code{mysql},
 It would be nice if the socket read and write functions in @file{net.c} were
 interruptible. This would make it possible to kill open threads with 
 @code{mysqladmin kill} on Windows.
-
-@item
-Documentation of which Windows programs work with @strong{MySQL}-Windows or 
-@strong{MyODBC} and what must be done to get them working.
 
 @item
 @code{mysqld} always starts in the "C" locale and not in the default locale.
@@ -9488,14 +9495,14 @@ For example, in Unix, the shared module might be named @file{example.so}
 and you would load a function from it like this:
 
 @example
-CREATE FUNCTION metaphon RETURNS STRING SONAME "example.so";
+mysql> CREATE FUNCTION metaphon RETURNS STRING SONAME "example.so";
 @end example
 
 Is OS/2, the module would be named @file{example.udf}, but you would not
 specify the module extension:
 
 @example
-CREATE FUNCTION metaphon RETURNS STRING SONAME "example";
+mysql> CREATE FUNCTION metaphon RETURNS STRING SONAME "example";
 @end example
 
 @cindex binary distributions
@@ -9845,7 +9852,7 @@ It will also not do anything if you already have @strong{MySQL} privilege
 tables installed!
 
 If you want to re-create your privilege tables, you should take down
-the mysqld server, if it's running, and then do something like:
+the @code{mysqld} server, if it's running, and then do something like:
 
 @example
 mv mysql-data-directory/mysql mysql-data-directory/mysql-old
@@ -10038,14 +10045,14 @@ If you find something like the following in the log file:
 000729 14:50:10  Can't init databases
 @end example
 
-This means that you didn't start mysqld with @code{--bdb-no-recover}
+This means that you didn't start @code{mysqld} with @code{--bdb-no-recover}
 and Berkeley DB found something wrong with its log files when it
 tried to recover your databases.  To be able to continue, you should
 move away the old Berkeley DB log file from the database directory to
 some other place, where you can later examine these.  The log files are
 named @file{log.0000000001}, where the number will increase over time.
 
-If you are running @code{mysqld} with BDB table support and mysqld core
+If you are running @code{mysqld} with BDB table support and @code{mysqld} core
 dumps at start this could be because of some problems with the BDB
 recover log.  In this case you can try starting @code{mysqld} with
 @code{--bdb-no-recover}.  If this helps, then you should remove all
@@ -10075,9 +10082,11 @@ it is using by executing this command:
 
 @example
 shell> mysqladmin variables
+@end example
 
 or
 
+@example
 shell> mysqladmin -h 'your-host-name' variables
 @end example
 
@@ -10092,7 +10101,7 @@ this:
 This problem occurs only on systems that don't have a working thread
 library and for which @strong{MySQL} must be configured to use MIT-pthreads.
 
-If you can't get mysqld to start you can try to make a trace file
+If you can't get @code{mysqld} to start you can try to make a trace file
 to find the problem. @xref{Making trace files}.
 
 If you are using BDB (Berkeley DB) tables, you should familiarize
@@ -10206,7 +10215,7 @@ IP address to bind to.
 Directory where character sets are.  @xref{Character sets}.
 
 @item --chroot=path
-Chroot mysqld daemon during startup.  Recommended security measure. It will
+Chroot @code{mysqld} daemon during startup.  Recommended security measure. It will
 somewhat limit @code{LOAD DATA INFILE} and @code{SELECT ... INTO OUTFILE} 
 though.
 
@@ -10295,7 +10304,7 @@ may help if you have a problem where the operating system is causing
 If this option is used, @code{mysqld} will on open check if the table is
 marked as crashed or if if the table wasn't closed properly.  (The last 
 option only works if you are running with @code{--skip-locking}).  If this 
-is the case mysqld will run check on the table. If the table was corrupted, 
+is the case @code{mysqld} will run check on the table. If the table was corrupted, 
 @code{mysqld} will attempt to repair it.
 
 The following options affects how the repair works.
@@ -10609,7 +10618,7 @@ In some cases you may want to have many different @code{mysqld} daemons
 (servers) running on the same machine.  You may for example want to run
 a new version of @strong{MySQL} for testing together with an old version
 that is in production.  Another case is when you want to give different
-users access to different mysqld servers that they manage themselves.
+users access to different @code{mysqld} servers that they manage themselves.
 
 One way to get a new server running is by starting it with a different
 socket and port as follows:
@@ -11274,7 +11283,7 @@ SELECT @@t1:=(@@t2:=1)+@@t3:=4,@@t1,@@t2,@@t3;
 @cindex running, ANSI mode
 @cindex ANSI mode, running
 
-If you start mysqld with the @code{--ansi} option, the following behavior
+If you start @code{mysqld} with the @code{--ansi} option, the following behavior
 of @strong{MySQL} changes:
 
 @itemize @bullet
@@ -11483,7 +11492,7 @@ differently or write more. If you are new to the atomic operations
 paradigm, or more familiar or more comfortable with transactions, do not
 jump to the conclusion that @strong{MySQL} has not addressed these
 issues. Reliability and integrity are foremost in our minds.  Recent
-estimates indicate that there are more than 1,000,000 mysqld servers
+estimates indicate that there are more than 1,000,000 @code{mysqld} servers
 currently running, many of which are in production environments.  We
 hear very, very seldom from our users that they have lost any data, and
 in almost all of those cases user error is involved. This is, in our
@@ -13301,7 +13310,7 @@ Another way to set the password is by using the @code{mysqladmin} command:
 shell> mysqladmin -u root password new_password
 @end example
 
-Only users with write/update access to the mysql database can change the
+Only users with write/update access to the @code{mysql} database can change the
 password for others users.  All normal users (not anonymous ones) can only
 change their own password with either of the above commands or with
 @code{SET PASSWORD=PASSWORD('new password')}.
@@ -13776,9 +13785,9 @@ Try to find out what is wrong with your DNS server and fix this.
 @item
 Specify IPs instead of hostnames in the @strong{MySQL} privilege tables.
 @item
-Start mysqld with @code{--skip-name-resolve}.
+Start @code{mysqld} with @code{--skip-name-resolve}.
 @item
-Start mysqld with @code{--skip-host-cache}.
+Start @code{mysqld} with @code{--skip-host-cache}.
 @item
 Connect to @code{localhost} if you are running the server and the client
 on the same machine.
@@ -14041,7 +14050,7 @@ A tab character.
 @findex (Control-Z) \z
 @item \z
 ASCII(26) (Control-Z).  This character can be encoded to allow you to
-go around the problem that ASCII(26) stands for END-OF-FILE on windows.
+go around the problem that ASCII(26) stands for END-OF-FILE on Windows.
 (ASCII(26) will cause problems if you try to use
 @code{mysql database < filename}).
 
@@ -14342,7 +14351,7 @@ adopt a consistent convention, such as always creating databases and
 tables using lowercase names.
 
 One way to avoid this problem is to start @code{mysqld} with @code{-O
-lower_case_table_names=1}. By default this option is 1 on windows and 0 on
+lower_case_table_names=1}. By default this option is 1 on Windows and 0 on
 Unix.
 
 If @code{lower_case_table_names} is 1 @strong{MySQL} will convert all
@@ -19507,7 +19516,7 @@ exist.
 @code{RESTRICT} and @code{CASCADE} are allowed to make porting easier.
 For the moment they don't do anything.
 
-@strong{NOTE}: @code{DROP TABLE} is not transaction safe and will
+@strong{NOTE}: @code{DROP TABLE} is not transaction-safe and will
 automatically commit any active transactions.
 
 @cindex tables, defragment
@@ -21804,7 +21813,7 @@ The supported character sets.
 @item @code{concurrent_inserts}
 If @code{ON} (the default), @strong{MySQL} will allow you to use @code{INSERT}
 on @code{MyISAM} tables at the same time as you run @code{SELECT} queries
-on them.  You can turn this option off by starting mysqld with @code{--safe}
+on them.  You can turn this option off by starting @code{mysqld} with @code{--safe}
 or @code{--skip-new}.
 
 @cindex timeout
@@ -22793,7 +22802,7 @@ You can also lock all tables in all databases with read locks with the
 convenient way to get backups if you have a file system, like Veritas,
 that can take snapshots in time.
 
-@strong{NOTE}: @code{LOCK TABLES} is not transaction safe and will
+@strong{NOTE}: @code{LOCK TABLES} is not transaction-safe and will
 automatically commit any active transactions before attempting to lock the
 tables.
 
@@ -23543,7 +23552,7 @@ SQL servers that supports different table types (like copying tables to
 a slave that is optimized for speed by not having transactional tables).
 This automatic table changing can however also be very confusing for new
 @strong{MySQL} users. We plan to fix this by introducing warnings in
-@strong{MySQL} 4.0 and giving a warning when a table type is automaticly
+@strong{MySQL} 4.0 and giving a warning when a table type is automatically
 changed.
 
 You can convert tables between different types with the @code{ALTER
@@ -23715,7 +23724,7 @@ The following options to @code{mysqld} can be used to change the behavior of
 @strong{NOTE} that this paramter is given in megabytes!
 @end multitable
 
-The automatic recovery is activated if you start mysqld with
+The automatic recovery is activated if you start @code{mysqld} with
 @code{--myisam-recover=#}. @xref{Command-line options}.
 On open, the table is checked if it's marked as crashed or if the open
 count variable for the table is not 0 and you are running with
@@ -24433,9 +24442,9 @@ If you use @code{--skip-bdb}, @strong{MySQL} will not initialize the
 Berkeley DB library and this will save a lot of memory. Of course,
 you cannot use @code{BDB} tables if you are using this option.
 
-Normally you should start mysqld without @code{--bdb-no-recover} if you
+Normally you should start @code{mysqld} without @code{--bdb-no-recover} if you
 intend to use BDB tables.  This may, however, give you problems when you
-try to start mysqld if the BDB log files are corrupted. @xref{Starting
+try to start @code{mysqld} if the BDB log files are corrupted. @xref{Starting
 server}.
 
 With @code{bdb_max_lock} you can specify the maximum number of locks
@@ -24525,7 +24534,7 @@ TABLE}.
 @item
 If you get full disk with a @code{BDB} table, you will get an error
 (probably error 28) and the transaction should roll back.  This is in
-contrast with @code{MyISAM} and @code{ISAM} tables where mysqld will
+contrast with @code{MyISAM} and @code{ISAM} tables where @code{mysqld} will
 wait for enough free disk before continuing.
 @end itemize
 
@@ -24707,7 +24716,7 @@ NuSphere is working on removing these limitations.
 @menu
 * InnoDB overview::             InnoDB tables overview
 * InnoDB start::                InnoDB startup options
-* Creating an InnoDB database:: Creating an InnoDB database.  Creating an InnoDB database.  Creating an InnoDB database.  Creating an InnoDB database.  Creating an InnoDB database.  Creating an InnoDB database.  Creating an InnoDB database.
+* Creating an InnoDB database:: Creating an InnoDB database.
 * Using InnoDB tables::         Creating InnoDB tables
 * Adding and removing::         Adding and removing InnoDB data and log files
 * Backing up::                  Backing up and recovering an InnoDB database
@@ -24742,7 +24751,7 @@ cd /path/to/source/of/mysql-3.23.37
 ./configure --with-innodb
 @end example
 
-InnoDB provides @strong{MySQL} with a transaction safe table handler with
+InnoDB provides @strong{MySQL} with a transaction-safe table handler with
 commit, rollback, and crash recovery capabilities. InnoDB does
 locking on row level, and also provides an Oracle-style consistent
 non-locking read in @code{SELECTS}, which increases transaction
@@ -24842,6 +24851,7 @@ the paths specified here. The file sizes are specified in megabytes,
 hence the 'M' after the size specification above. Do not set a file size
 bigger than 4000M, and on most operating systems not bigger than 2000M.
 InnoDB also understands the abbreviation 'G', 1G meaning 1024M.
+The sum of the sizes of the files must be at least 10 MB.
 @item @code{innodb_mirrored_log_groups} @tab 
 Number of identical copies of log groups we
 keep for the database. Currently this should be set to 1.
@@ -24897,7 +24907,7 @@ on Windows NT disk i/o may benefit from a larger number.
 Timeout in seconds an InnoDB transaction may wait for a lock before
 being rolled back.  InnoDB automatically detects transaction deadlocks
 in its own lock table and rolls back the transaction. If you use
-@code{LOCK TABLES} command, or other transaction safe table handlers
+@code{LOCK TABLES} command, or other transaction-safe table handlers
 than InnoDB in the same transaction, then a deadlock may arise which
 InnoDB cannot notice. In cases like this the timeout is useful to
 resolve the situation.
@@ -24962,10 +24972,10 @@ mysqld: ready for connections
 @end example
 
 @menu
-* Error createing InnoDB::      
+* Error creating InnoDB::      
 @end menu
 
-@node Error createing InnoDB,  , Creating an InnoDB database, Creating an InnoDB database
+@node Error creating InnoDB,  , Creating an InnoDB database, Creating an InnoDB database
 @subsubsection If something goes wrong in database creation
 
 If something goes wrong in an InnoDB database creation, you should
@@ -25294,7 +25304,7 @@ Thus it sets the same locks a searched SQL @code{UPDATE} would set
 on the rows.
 
 @node InnoDB Next-key locking, InnoDB Locks set, InnoDB locking reads, InnoDB transaction model
-@subsubsection Next-key locking: avoiding the 'phantom problem'
+@subsubsection Next-key locking: avoiding the phantom problem
 
 In row level locking InnoDB uses an algorithm called next-key locking.
 InnoDB does the row level locking so that when it searches or
@@ -25590,6 +25600,39 @@ A record contains also a pointer to each field of the record.
 If the total length of the fields in a record is < 128 bytes, then
 the pointer is 1 byte, else 2 bytes.
 @end itemize
+
+@subsubsection How an auto-increment column works in InnoDB
+
+After a database startup, when a user first does an insert to a
+table @code{T}
+where an auto-increment column has been defined, and the user does not provide
+an explicit value for the column, then InnoDB executes @code{SELECT
+MAX(auto-inc-column) FROM T}, and assigns that value incremented
+by one to the the column and the auto-increment counter of the table.
+We say that
+the auto-increment counter for table @code{T} has been initialized.
+
+InnoDB follows the same procedure in initializing the auto-increment counter
+for a freshly created table.
+
+Note that if the user specifies in an insert the value 0 to the auto-increment
+column, then InnoDB treats the row like the value would not have been
+specified.
+
+After the auto-increment counter has been initialized, if a user inserts
+a row where he explicitly specifies the column value, and the value is bigger
+than the current counter value, then the counter is set to the specified
+column value. If the user does not explicitly specify a value, then InnoDB
+increments the counter by one and assigns its new value to the column.
+
+The auto-increment mechanism, when assigning values from the counter,
+bypasses locking and transaction handling. Therefore you may also get
+gaps in the number sequence if you roll back transactions which have
+got numbers from the counter.
+
+The behavior of auto-increment is not defined if a user gives a negative
+value to the column or if the value becomes bigger than the maximum
+integer that can be stored in the specified integer type.
 
 @node File space management, Error handling, Table and index, InnoDB
 @subsection File space management and disk i/o
@@ -30525,7 +30568,7 @@ In @strong{MySQL} Version 3.23.7 and above, you can insert rows into
 @code{MyISAM} tables at the same time other threads are reading from the
 table.  Note that currently this only works if there are no holes after
 deleted rows in the table at the time the insert is made. When all holes
-has been filled with new data, concurrent inserts will automaticly be
+has been filled with new data, concurrent inserts will automatically be
 enabled again.
 
 Table locking enables many threads to read from a table at the same
@@ -30641,7 +30684,7 @@ can clear the hostname cache with @code{FLUSH HOSTS} or @code{mysqladmin
 flush-hosts}.
 
 If you don't want to allow connections over @code{TCP/IP}, you can do this
-by starting mysqld with @code{--skip-networking}.
+by starting @code{mysqld} with @code{--skip-networking}.
 
 @cindex data, size
 @cindex reducing, data size
@@ -32050,7 +32093,7 @@ the following configure options:
 You can find the @strong{MySQL}-max binaries at
 @uref{http://www.mysql.com/downloads/mysql-max-3.23.html}.
 
-The windows @strong{MySQL} 3.23 binary distribution includes both the
+The Windows @strong{MySQL} 3.23 binary distribution includes both the
 standard @strong{mysqld.exe} binary and the @code{mysqld-max.exe} binary.
 @uref{http://www.mysql.com/downloads/mysql-3.23.html}.
 @xref{Windows installation}.
@@ -32090,7 +32133,7 @@ option. @xref{InnoDB start}.
 To get better performance for BDB tables, you should add some configuration
 options for these too. @xref{BDB start}.
 
-@code{safe_mysqld} will automaticly try to start any @code{mysqld} binary
+@code{safe_mysqld} will automatically try to start any @code{mysqld} binary
 with the @code{-max} prefix. This makes it very easy to test out a
 another @code{mysqld} binary in an existing installation.  Just
 run @code{configure} with the options you want and then install the
@@ -32099,7 +32142,7 @@ where your old @code{mysqld} binary is. @xref{safe_mysqld}.
 
 The @code{mysqld-max} RPM uses the above mentioned @code{safe_mysqld}
 feature. It just installs the @code{mysqld-max} executable and
-@code{safe_mysqld} will automaticly use this executable when
+@code{safe_mysqld} will automatically use this executable when
 @code{safe_mysqld} is restarted.
 
 The following table shows which table types our standard @strong{MySQL-Max}
@@ -32165,9 +32208,9 @@ Size of the core file @code{mysqld} should be able to create. Passed to @code{ul
 Path to @code{mysqld}
 @item --log=path
 @item --mysqld=mysqld-version
-Name of the mysqld version in the @code{ledir} directory you want to start.
+Name of the @code{mysqld} version in the @code{ledir} directory you want to start.
 @item --mysqld-version=version
-Similar to @code{--mysqld=} but here you only give the suffix for mysqld.
+Similar to @code{--mysqld=} but here you only give the suffix for @code{mysqld}.
 For example if you use @code{--mysqld-version=max}, @code{safe_mysqld} will
 start the @code{ledir/mysqld-max} version.  If the argument to
 @code{--mysqld-version} is empty, @code{ledir/mysqld} will be used.
@@ -32803,7 +32846,7 @@ The current @code{mysqladmin} supports the following commands:
 @item flush-privileges @tab Reload grant tables (same as reload).
 @item kill id,id,...  @tab Kill mysql threads.
 @item password @tab New-password. Change old password to new-password.
-@item ping @tab Check if mysqld is alive.
+@item ping @tab Check if @code{mysqld} is alive.
 @item processlist @tab Show list of active threads in server.
 @item reload @tab Reload grant tables.
 @item refresh @tab Flush all tables and close and open logfiles.
@@ -32847,9 +32890,9 @@ The @code{mysqladmin status} command result has the following columns:
 @cindex open tables
 @item Open tables @tab Number of tables that are open now.
 @cindex memory use
-@item Memory in use @tab Memory allocated directly by the mysqld code (only available when @strong{MySQL} is compiled with --with-debug=full).
+@item Memory in use @tab Memory allocated directly by the @code{mysqld} code (only available when @strong{MySQL} is compiled with --with-debug=full).
 @cindex max memory used
-@item Max memory used @tab Maximum memory allocated directly by the mysqld code (only available when @strong{MySQL} is compiled with --with-debug=full).
+@item Max memory used @tab Maximum memory allocated directly by the @code{mysqld} code (only available when @strong{MySQL} is compiled with --with-debug=full).
 @end multitable
 
 If you do @code{myslqadmin shutdown} on a socket (in other words, on a
@@ -33835,7 +33878,7 @@ myisamchk: warning: 1 clients is using or hasn't closed the table properly
 @end example
 
 This means that you are trying to check a table that has been updated by
-the another program (like the mysqld server) that hasn't yet closed
+the another program (like the @code{mysqld} server) that hasn't yet closed
 the file or that has died without closing the file properly.
 
 If you @code{mysqld} is running, you must force a sync/close of all
@@ -34704,7 +34747,7 @@ Run @code{myisamchk *.MYI} or @code{myisamchk -e *.MYI} if you have
 more time.  Use the @code{-s} (silent) option to suppress unnecessary
 information.
 
-If the mysqld server is done you should use the --update option to tell
+If the @code{mysqld} server is done you should use the --update option to tell
 @code{myisamchk} to mark the table as 'checked'.
 
 You have to repair only those tables for which @code{myisamchk} announces an
@@ -34946,12 +34989,12 @@ operating system must support dynamic loading.  The @strong{MySQL} source
 distribution includes a file @file{sql/udf_example.cc} that defines 5 new
 functions.  Consult this file to see how UDF calling conventions work.
 
-For mysqld to be able to use UDF functions, you should configure MySQL
+For @code{mysqld} to be able to use UDF functions, you should configure MySQL
 with @code{--with-mysqld-ldflags=-rdynamic} The reason is that to on
 many platforms (including Linux) you can load a dynamic library (with
 @code{dlopen()}) from a static linked program, which you would get if
 you are using @code{--with-mysqld-ldflags=-all-static} If you want to
-use an UDF that needs to access symbols from mysqld (like the
+use an UDF that needs to access symbols from @code{mysqld} (like the
 @code{methaphone} example in @file{sql/udf_example.cc} that uses
 @code{default_charset_info}), you must link the program with
 @code{-rdynamic}.  (see @code{man dlopen}).
@@ -35536,7 +35579,7 @@ most of the Unix ODBC managers.  You can find a list at these in the
 @strong{ODBC}-related links section on the @strong{MySQL} useful links page.
 @xref{Useful Links}.
 
-To install @strong{MyODBC} on windows, you should download the
+To install @strong{MyODBC} on Windows, you should download the
 appropriate @strong{MyODBC} .zip file (for Windows or NT/Win2000),
 unpack it with @code{WINZIP}, or some similar program, and execute the
 @code{SETUP.EXE} file.
@@ -35663,18 +35706,18 @@ through  the @code{InConnectionString} argument in the
 
 @multitable @columnfractions .2 .2 .6
 @item @strong{Parameter} @tab @strong{Default value} @tab @strong{Comment}
-@item user @tab ODBC (on windows) @tab The username used to connect to @strong{MySQL}.
+@item user @tab ODBC (on Windows) @tab The username used to connect to @strong{MySQL}.
 @item server @tab localhost @tab The hostname of the @strong{MySQL} server.
 @item database @tab @tab The default database
 @item option @tab 0 @tab A integer by which you can specify how @strong{MyODBC} should work. See below.
 @item port @tab 3306 @tab The TCP/IP port to use if @code{server} is not @code{localhost}.
 @item stmt @tab @tab A statement that will be executed when connection to @code{MySQL}.
 @item password @tab @tab The password for the @code{server} @code{user} combination.
-@item socket @tab @tab The socket or windows pipe to connect to.
+@item socket @tab @tab The socket or Windows pipe to connect to.
 @end multitable
 
 The option argument is used to tell @strong{MyODBC} that the client isn't 100%
-ODBC compliant. On windows, one normally sets the option flag by
+ODBC compliant. On Windows, one normally sets the option flag by
 toggling the different options on the connection screen but one can also
 set this in the opton argument. The following options are listed in the
 same order as they appear in the @strong{MyODBC} connect screen:
@@ -35694,10 +35737,10 @@ same order as they appear in the @strong{MyODBC} connect screen:
 @item 1024 @tab SQLDescribeCol() will return fully qualifed column names
 @item 2048 @tab Use the compressed server/client protocol
 @item 4096 @tab Tell server to ignore space after function name and before @code{'('} (needed by PowerBuilder).  This will make all function names keywords!
-@item 8192 @tab Connect with named pipes to a mysqld server running on NT.
+@item 8192 @tab Connect with named pipes to a @code{mysqld} server running on NT.
 @item 16384 @tab Change LONGLONG columns to INT columns (Some applications can't handle LONGLONG).
 @item 32768 @tab Return 'user' as Table_qualifier and Table_owner from SQLTables (experimental)
-@item 65536 @tab Read parameters from the @code{client} and @code{odbc} groups from @code{my.cnf} 
+@item 65536 @tab Read parameters from the @code{client} and @code{odbc} groups from @file{my.cnf} 
 @item 131072 @tab Add some extra safety checks (should not bee needed but...)
 @end multitable
 
@@ -35915,7 +35958,7 @@ For example, create a db with a table containing 2 columns of text:
 
 @itemize @bullet
 @item
-Insert rows using the mysql client command-line tool.
+Insert rows using the @code{mysql} client command-line tool.
 @item
 Create a DSN file using the MyODBC driver, for example, my for the db above.
 @item
@@ -36164,8 +36207,8 @@ FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"' ESCAPED BY '\\'
 @node Borland C++,  , Apache, Common programs
 @section Borland C++
 
-You can compile the @strong{MySQL} windows source with Borland C++ 5.02.
-(The windows source includes only projects for Microsoft VC++, for
+You can compile the @strong{MySQL} Windows source with Borland C++ 5.02.
+(The Windows source includes only projects for Microsoft VC++, for
 Borland C++ you have to do the project files yourself).
 
 One known problem with Borland C++ is that it uses a different structure
@@ -36338,7 +36381,7 @@ files.  @strong{MySQL} will update the data on disk, with the
 @code{write()} system call, after every SQL statement and before the
 client is notified about the result. (This is not true if you are running
 with @code{delayed_key_writes}, in which case only the data is written.)
-This means that the data is safe even if mysqld crashes, as the OS will
+This means that the data is safe even if @code{mysqld} crashes, as the OS will
 ensure that the not flushed data is written to disk.  You can force
 @strong{MySQL} to sync everything to disk after every SQL command by
 starting @code{mysqld} with @code{--flush}.
@@ -36362,7 +36405,7 @@ the @code{lockd} daemon ) or if you are running
 multiple servers with @code{--skip-locking}
 @item
 You have a crashed index/data file that contains very wrong data that
-got mysqld confused.
+got @code{mysqld} confused.
 @item
 You have found a bug in the data storage code. This isn't that likely,
 but it's at least possible.  In this case you can try to change the file
@@ -36607,7 +36650,7 @@ The most common reason for the @code{MySQL server has gone away} error
 is that the server timed out and closed the connection. By default, the
 server closes the connection after 8 hours if nothing has happened. You
 can change the time limit by setting the @code{wait_timeout} variable when
-you start mysqld.
+you start @code{mysqld}.
 
 Another common reason to receive the @code{MySQL server has gone away} error
 is because you have issued a ``close'' on your @strong{MySQL} connection
@@ -36757,7 +36800,7 @@ remote host: Connection refused}, then there is no server running on the
 given port.
 @item
 Try connecting to the @code{mysqld} daemon on the local machine and check
-the TCP/IP port that mysqld it's configured to use (variable @code{port}) with
+the TCP/IP port that @code{mysqld} it's configured to use (variable @code{port}) with
 @code{mysqladmin variables}.
 @item
 Check that your @code{mysqld} server is not started with the
@@ -36979,7 +37022,7 @@ Can't create/write to file '\\sqla3fe_0.ism'.
 this means that @strong{MySQL} can't create a temporary file for the
 result set in the given temporary directory. (The above error is a
 typical error message on Windows, and the Unix error message is similar.)
-The fix is to start mysqld with @code{--tmpdir=path} or to add to your option
+The fix is to start @code{mysqld} with @code{--tmpdir=path} or to add to your option
 file:
 
 @example
@@ -37317,7 +37360,7 @@ can restore it with the following procedure:
 
 @enumerate
 @item
-Take down the mysqld server by sending a @code{kill} (not @code{kill
+Take down the @code{mysqld} server by sending a @code{kill} (not @code{kill
 -9}) to the @code{mysqld} server.  The pid is stored in a @code{.pid}
 file, which is normally in the @strong{MySQL} database directory:
 
@@ -37331,7 +37374,7 @@ runs as to do this.
 @item
 Restart @code{mysqld} with the @code{--skip-grant-tables} option.
 @item
-Connect to the mysqld server with @code{mysql -h hostname mysql} and change
+Connect to the @code{mysqld} server with @code{mysql -h hostname mysql} and change
 the password with a @code{GRANT} command. @xref{GRANT,,@code{GRANT}}.
 You can also do this with
 @code{mysqladmin -h hostname -u user password 'new password'}
@@ -38127,20 +38170,20 @@ home directory. @xref{Option files}.
 @node Log files, Clients, Common problems, Top
 @chapter The MySQL log files
 
-@strong{MySQL} has a lot of different log files which can help you find
+@strong{MySQL} has several different log files that can help you find
 out what's going on inside @code{mysqld}:
 
 @multitable @columnfractions .3 .7
-@item The error log @tab Problems encountering starting, running or stopping mysqld.
+@item The error log @tab Problems encountering starting, running or stopping @code{mysqld}.
 @item The isam log @tab Logs all changes to the ISAM tables. Used only for debugging the isam code.
 @item The query log @tab Established connections and executed queries.
-@item The update log @tab Depricated: Stores all statements that changes data
+@item The update log @tab Deprecated: Stores all statements that changes data
 @item The binary log @tab Stores all statements that changes something. Used also for replication
 @item The slow log @tab Stores all queries that took more than @code{long_query_time} to execute or didn't use indexes.
 @end multitable
 
-All logs can be found in the @code{mysqld} database directory.  You can
-tell force mysqld to switch to reopen the log files (or in some cases
+All logs can be found in the @code{mysqld} data directory.  You can
+force @code{mysqld} to reopen the log files (or in some cases
 switch to a new log) by executing @code{FLUSH LOGS}. @xref{FLUSH}.
 
 @cindex error log
@@ -38158,19 +38201,19 @@ switch to a new log) by executing @code{FLUSH LOGS}. @xref{FLUSH}.
 
 @code{mysqld} writes all errors to the stderr, which the
 @code{safe_mysqld} script redirects to a file called
-@code{'hostname'.err}.  (On windows @code{mysqld} writes this directly
+@code{'hostname'.err}.  (On Windows, @code{mysqld} writes this directly
 to @file{mysql.err}).
 
-This contains information on when mysqld was started and stopped and
-also any critical errors found when running.  If @code{mysqld} dies
-unexpectedly and @code{safe_mysqld} needs to restart @code{mysqld},
+This contains information indicating when @code{mysqld} was started and
+stopped and also any critical errors found when running.  If @code{mysqld}
+dies unexpectedly and @code{safe_mysqld} needs to restart @code{mysqld},
 @code{safe_mysqld} will write a @code{restarted mysqld} row in this
 file.  This log also holds a warning if @code{mysqld} notices a table
 that needs to be automatically checked or repaired.
 
 On some operating systems, the error log will contain a stack trace
-for where mysqld died. This can be used to find out where mysqld died.
-@xref{Using stack trace}.
+for where @code{mysqld} died. This can be used to find out where
+@code{mysqld} died.  @xref{Using stack trace}.
 
 @cindex query log
 @cindex files, query log
@@ -38179,9 +38222,9 @@ for where mysqld died. This can be used to find out where mysqld died.
 
 If you want to know what happens within @code{mysqld}, you should start
 it with @code{--log[=file]}.  This will log all connections and queries
-to the log file (by default named 'hostname.log').  This log can
+to the log file (by default named @file{'hostname'.log}).  This log can
 be very useful when you suspect an error in a client and want to know
-exactly what @code{mysqld} thought the client send to it.
+exactly what @code{mysqld} thought the client sent to it.
 
 By default, the @code{mysql.server} script starts the @strong{MySQL}
 server with the @code{-l} option.  If you need better performance when
@@ -38191,7 +38234,7 @@ remove the @code{-l} option from @code{mysql.server} or change it to
 
 The entries in this log are written as @code{mysqld} receives the questions.
 This may be different than the order in which the statements are executed.
-This is in contrast to the update log and the binary log which is written
+This is in contrast to the update log and the binary log which are written
 after the query is executed, but before any locks are released.
 
 @cindex update log
@@ -38787,7 +38830,7 @@ Retrieves a complete result set to the client.
 Returns the current thread ID.
 
 @item @strong{mysql_thread_save()} @tab
-Returns 1 if the clients are compiled as threadsafe.
+Returns 1 if the clients are compiled as thread-safe.
 
 @item @strong{mysql_use_result()} @tab
 Initiates a row-by-row result set retrieval.
@@ -41144,7 +41187,7 @@ the socket handling should be thread safe.
 
 In the older binaries we distribute on our Web site, the client
 libraries are not normally compiled with the thread-safe option (the
-windows binaries are by default compiled to be thread safe).
+Windows binaries are by default compiled to be thread safe).
 Newer binary distributions should have both a normal and a
 thread-safe client library.
 
@@ -42341,7 +42384,7 @@ Normally, @code{PostgreSQL} is a magnitude slower than @strong{MySQL}.
 transaction-safe tables and that their transactions system is not as
 sophisticated as Berkeley DB's.  In @strong{MySQL} you can decide per
 table if you want the table to be fast or take the speed penalty of
-making it transaction safe.
+making it transaction-safe.
 
 The most important things that @code{PostgreSQL} supports that @strong{MySQL}
 doesn't yet support:
@@ -42579,9 +42622,9 @@ pass the test suite !
 If you get an error, like @code{Result length mismatch} or @code{Result
 content mismatch} it means that the output of the test didn't match
 exactly the expected output. This could be a bug in @strong{MySQL} or
-that your mysqld version produces slight different results under some
-circumstances. In this case you should compare the @code{.test}
-and @code{.reject} file in the @code{mysql-test/r} sub directory to
+that your @code{mysqld} version produces slightly different results under some
+circumstances. In this case, you should compare the @file{.test}
+and @file{.reject} file in the @file{mysql-test/r} sub directory to
 see if this is something to worry about.
 
 @item
@@ -42668,7 +42711,7 @@ variables to modify the behavior of @strong{MySQL}. @xref{Option files}.
 @item @code{MYSQL_DEBUG} @tab Debug-trace options when debugging.
 @item @code{MYSQL_HISTFILE} @tab The path to the @code{mysql} history file.
 @item @code{MYSQL_HOST} @tab Default host name used by the @code{mysql} command-line prompt.
-@item @code{MYSQL_PWD} @tab The default password when connecting to mysqld. Note that use of this is insecure!
+@item @code{MYSQL_PWD} @tab The default password when connecting to @code{mysqld}. Note that use of this is insecure!
 @item @code{MYSQL_TCP_PORT} @tab The default TCP/IP port.
 @item @code{MYSQL_UNIX_PORT} @tab The default socket; used for connections to @code{localhost}.
 @item @code{PATH} @tab Used by the shell to finds the @strong{MySQL} programs.
@@ -42955,6 +42998,8 @@ Ecommerce site that is selling computers.
 @c Added 990905; max@wamdesign.com
 
 @item @uref{http://www.berkeleyconsultants.com, Berkeley Consultants Group}
+
+@item @uref{http://www.jammconsulting.com/, JAMM Consulting Inc.}
 
 @end itemize
 
@@ -43404,7 +43449,7 @@ You can always find the latest version
 @uref{http://www.trash.net/~ffischer/admin/index.html, here}.
 
 @item @uref{http://www.mysql.com/Downloads/Win32/MySQL-Maker-1.0.zip,MySQL-Maker 1.0}.
-Shareware @strong{MySQL} client for windows. It's WYSIWYG tool which allows
+Shareware @strong{MySQL} client for Windows. It's WYSIWYG tool which allows
 you to create, change and delete databases and tables.
 You can change field - structure and add, change and delete data in
 these tables directly without ODBC-driver.
@@ -43515,7 +43560,7 @@ newest version from @uref{http://civeng.com/sqldemo/, the home site}.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/myadmin-0.4.tar.gz, myadmin-0.4.tar.gz}.
 @item @uref{http://myadmin.cheapnet.net/, MyAdmin home page}
-A Web-based mysql administrator by Mike Machado.
+A Web-based @strong{MySQL} administrator by Mike Machado.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/phpMyAdmin_2.0.1.tar.gz,phpMyAdmin_2.0.1.tar.gz}
 A set of PHP3-scripts to adminstrate @strong{MySQL} over the WWW.
@@ -43751,6 +43796,8 @@ bit different (that is - fields in different order, etc.).
 By Steve Shreeve.
 @item @uref{http://www.mysql.com/Downloads/Contrib/oracledump, oracledump}
 Perl program to convert Oracle databases to @strong{MySQL}. By Johan Andersson.
+@item @uref{http://www.mysql.com/Downloads/Contrib/excel2mysql, excel2mysql}
+Perl program to import Excel spreadsheets into a @strong{MySQL} database. By Stephen Hurd @email{shurd@@sk.sympatico.ca}
 @end itemize
 
 @appendixsec Using MySQL with Other Products
@@ -44452,10 +44499,10 @@ releases of 3.23 with small fixes for this part of the code. As long as
 you don't use these features, you should be quite safe with
 @strong{MySQL} 3.23!
 
-Note that the above doesn't mean that replication or Berkeley DB doesn't
+Note that the above doesn't mean that replication or Berkeley DB don't
 work; We have done a lot of testing of all code, including replication
 and BDB without finding any problems.  It only means that not as many
-users uses this code as the rest of the code and because of this we are
+users use this code as the rest of the code and because of this we are
 not yet 100% confident in this code.
 
 @menu
@@ -44536,8 +44583,8 @@ Added option @code{--skip-stack-trace} to @code{mysqld}.
 @item
 Added option @code{CONCURRENT} to @code{LOAD DATA}.
 @item
-Better error message when slave @code{max_allowed_packet} is to low to
-read a very long log event from the master
+Better error message when slave @code{max_allowed_packet} is too low to
+read a very long log event from the master.
 @item
 Fixed bug when too many rows where removed when using
 @code{SELECT DISTINCT ... HAVING}.
@@ -44848,12 +44895,13 @@ Fixed creation of @code{MERGE} tables on Windows.
 @item
 Portability fixes for OpenBSD and OS2.
 @item
-Added --temp-pool option to mysqld.  Using this option will cause most
-temporary files created to use a small set of names, rather than a unique
-name for each new file.  This is to work around a problem in the Linux
-kernel dealing with creating a bunch of new files with different names.
-With the old behavior, Linux seems to "leak" memory, as it's being allocated
-to the directory entry cache instead of the disk cache.
+Added @code{--temp-pool} option to @code{mysqld}.  Using this option
+will cause most temporary files created to use a small set of names,
+rather than a unique name for each new file.  This is to work around a
+problem in the Linux kernel dealing with creating a bunch of new files
+with different names.  With the old behavior, Linux seems to "leak"
+memory, as it's being allocated to the directory entry cache instead of
+the disk cache.
 @end itemize
 
 @node News-3.23.32, News-3.23.31, News-3.23.33, News-3.23.x
@@ -44887,7 +44935,7 @@ Added @code{--with-version-suffix} to @code{configure}.
 @item
 Fixed coredump when client aborted connection without @code{mysql_close()}.
 @item
-Fixed a bug in @code{RESTORE TABLE} when trying to restore from a non-existant
+Fixed a bug in @code{RESTORE TABLE} when trying to restore from a non-existent
 directory.
 @item
 Fixed a bug which caused a core dump on the slave when replicating 
@@ -45240,7 +45288,7 @@ Added @code{PURGE MASTER LOGS TO}.
 @item
 Added @code{SHOW MASTER LOGS}.
 @item
-Added @code{--safemalloc-mem-limit} option to mysqld to simulate memory
+Added @code{--safemalloc-mem-limit} option to @code{mysqld} to simulate memory
 shortage when compiled @code{--with-debug=full}.
 @item
 Fixed several coredumps in out-of-memory conditions.
@@ -45397,7 +45445,7 @@ The slave now logs when it connects to the master.
 Fixed a core dump bug when doing @code{FLUSH MASTER} if you didn't specify
 a filename argument to @code{--log-bin}.
 @item
-Added missing @file{ha_berkeley.x} files to the @strong{MySQL} windows
+Added missing @file{ha_berkeley.x} files to the @strong{MySQL} Windows
 @item
 Fixed some mutex bugs in the log code that could cause thread blocks if new
 log files couldn't be created.
@@ -45940,13 +45988,13 @@ Added @code{CHECK TABLE} command.
 Added changes for MyISAM in 3.23.12 that didn't get into the source
 distribution because of CVS problems.
 @item
-Fixed bug so that mysqladmin shutdown will wait for the local server to close
-down.
+Fixed bug so that @code{mysqladmin shutdown} will wait for the local server
+to close down.
 @item
 Fixed a possible endless loop when calculating timestamp.
 @item
-Added print_defaults to the .rpm files. Removed mysqlbug from the client
-rpm file.
+Added @code{print_defaults} to the @file{.rpm} files. Removed @code{mysqlbug}
+from the client @file{.rpm} file.
 @end itemize
 
 @node News-3.23.12, News-3.23.11, News-3.23.13, News-3.23.x
@@ -46184,7 +46232,7 @@ FROM pos)}, @code{SUBSTRING_INDEX(str,delim,count)}, @code{RTRIM(str)},
 @code{INSERT(str,pos,len,newstr)}, @code{LCASE(str)}, @code{LOWER(str)},
 @code{UCASE(str)} and @code{UPPER(str)};  Patch by Wei He.
 @item
-Fix core dump when releasing a lock from a non-existant table.
+Fix core dump when releasing a lock from a non-existent table.
 @item
 Remove locks on tables before starting to remove duplicates.
 @item
@@ -46215,7 +46263,7 @@ users to force table names to lowercase.
 @item
 Added @code{SELECT ... INTO DUMPFILE}.
 @item
-Added mysqld option @code{--ansi} to make some functions @code{ANSI SQL}
+Added @code{mysqld} option @code{--ansi} to make some functions @code{ANSI SQL}
 compatible.
 @item
 Temporary tables now starts with @code{#sql}.
@@ -46692,7 +46740,7 @@ compile all relevant files for 3.22.33 :(
 @appendixsubsec Changes in release 3.22.33
 @itemize @bullet
 @item
-Fixed problems in windows when locking tables with @code{LOCK TABLE}
+Fixed problems in Windows when locking tables with @code{LOCK TABLE}
 @item
 Quicker kill of @code{SELECT DISTINCT} queries.
 @end itemize
@@ -48764,7 +48812,7 @@ specification is automatically removed.
 New function @code{ASCII()}.
 @item
 Removed function @code{BETWEEN(a,b,c)}. Use the standard ANSI
-synax instead: @code{expr BETWEEN expr AND expr}.
+syntax instead: @code{expr BETWEEN expr AND expr}.
 @item
 @strong{MySQL} no longer has to use an extra temporary table when sorting
 on functions or @code{SUM()} functions.
@@ -49640,13 +49688,13 @@ Because @strong{MySQL} allows you to work with table types that don't
 support transactions, and thus can't @code{rollback} data, some things
 behave a little differently in @strong{MySQL} than in other SQL servers.
 This is just to ensure that @strong{MySQL} never need to do a rollback
-for a SQL command.  This may be a little akward at times as column
+for a SQL command.  This may be a little awkward at times as column
 values must be checked in the application, but this will actually give
 you a nice speed increase as it allows @strong{MySQL} to do some
 optimizations that otherwise would be very hard to do.
 
-If you set a column to a wrong value, @strong{MySQL} will, instead of doing
-a rollback, store the @code{best possible value} in the column:
+If you set a column to an incorrect value, @strong{MySQL} will, instead of
+doing a rollback, store the @code{best possible value} in the column:
 
 @itemize @bullet
 @item
@@ -49844,13 +49892,13 @@ Fail safe replication.
 Subqueries.
 @code{select id from t where grp in (select grp from g where u > 100)}
 @item
-Derieved tables.
+Derived tables.
 @example
 select a.col1, b.col2 from (select max(col1) as col1 from root_table ) a,
 other_table b where a.col1=b.col1
 @end example
 
-This could be done by automaticly create temporary tables for the
+This could be done by automatically creating temporary tables for the
 derived tables for the duration of the query.
 @item
 Add @code{PREPARE} of statements and sending of parameters to @code{mysqld}.
@@ -50066,7 +50114,7 @@ Allow update of variables in @code{UPDATE} statements. For example:
 @code{myisamchk}, @code{REPAIR} and @code{OPTIMIZE TABLE} should be able
 to handle cases where the data and/or index files are symbolic links.
 @item
-Add simulation of @code{pread()}/@code{pwrite()} on windows to enable
+Add simulation of @code{pread()}/@code{pwrite()} on Windows to enable
 concurrent inserts.
 @item
 A logfile analyzer that could parsed out information about which tables
@@ -50279,7 +50327,7 @@ will ensure that your thread installation has even a remote chance to work!
 @appendixsec Debugging a MySQL server
 
 If you are using some functionality that is very new in @strong{MySQL},
-you can try to run mysqld with the @code{--skip-new} (which will disable all
+you can try to run @code{mysqld} with the @code{--skip-new} (which will disable all
 new, potentially unsafe functionality) or with @code{--safe-mode} which
 disables a lot of optimization that may cause problems.
 @xref{Crashing}.
@@ -50366,7 +50414,7 @@ send mail to @email{mysql@@lists.mysql.com} and ask for help.  Please use the
 @code{mysqlbug} script for all bug reports or questions regarding the
 @strong{MySQL} version you are using!
 
-In the windows @strong{MySQL} distribution @code{mysqld.exe} is by
+In the Windows @strong{MySQL} distribution, @code{mysqld.exe} is by
 default compiled with support for trace files.
 
 @node Making trace files, Using gdb on mysqld, Compiling for debugging, Debugging server
@@ -50381,7 +50429,7 @@ You can check this by executing @code{mysqld -V}.  If the version number
 ends with @code{-debug}, it's compiled with support for trace files.
 
 Start the @code{mysqld} server with a trace log in @file{/tmp/mysqld.trace}
-(or @file{C:\mysqld.trace} on windows):
+(or @file{C:\mysqld.trace} on Windows):
 
 @code{mysqld --debug}
 
@@ -50427,7 +50475,7 @@ old threads.  You can avoid this problem by starting @code{mysqld} with
 using @code{-O thread_cache_size=5'} will help a lot!
 
 If you want to get a core dump on Linux if @code{mysqld} dies with a
-SIGSEGV signal, you can start mysqld with the @code{--core-file} option.
+SIGSEGV signal, you can start @code{mysqld} with the @code{--core-file} option.
 This core file can be used to make a backtrace that may help you
 find out why @code{mysqld} died:
 
@@ -50523,7 +50571,7 @@ stack range sanity check, ok, backtrace follows
 0x80c1686
 @end example
 
-you can find where mysqld died by doing the following:
+you can find where @code{mysqld} died by doing the following:
 
 @enumerate
 @item
@@ -50574,7 +50622,7 @@ query from the @code{mysql} command line tools. If this works, you
 should also test all complicated queries that didn't complete.
 
 You can also try the command @code{EXPLAIN} on all @code{SELECT}
-statements that takes a long time to ensure that mysqld are using
+statements that takes a long time to ensure that @code{mysqld} is using
 indexes properly. @xref{EXPLAIN, , @code{EXPLAIN}}.
 
 You can find the queries that take a long time to execute by starting
@@ -50708,7 +50756,7 @@ One uses the debug package by invoking the program with the
 Most @strong{MySQL} programs has a default debug string that will be
 used if you don't specify an option to @code{--debug}.  The default
 trace file is usually @code{/tmp/programname.trace} on Unix and
-@code{\programname.trace} on windows.
+@code{\programname.trace} on Windows.
 
 The debug control string is a sequence of colon separated fields
 as follows:
@@ -50772,12 +50820,12 @@ tables one can freely mix @code{INSERT} and @code{SELECT} without locks
 (@code{Versioning}).
 
 Starting in version 3.23.33, you can analyze the table lock contention
-on your system by checkining @code{Table_locks_waited} and
-@code{Table_locks_immediate} environemt variables.
+on your system by checking @code{Table_locks_waited} and
+@code{Table_locks_immediate} environment variables.
 
 Some database users claim that @strong{MySQL} cannot support near the
-number of concurrent users because it lacks row-level locking.  This is
-a may be true for some specific applications, but is' not generally
+number of concurrent users because it lacks row-level locking.  This
+may be true for some specific applications, but is not generally
 true. As always this depends totally on what the application does and what
 is the access/update pattern of the data. 
 

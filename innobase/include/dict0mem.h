@@ -302,6 +302,16 @@ struct dict_table_struct{
 				for MySQL SHOW TABLE STATUS; this counter
 				is not protected by any latch, because this
 				is only used for heuristics */
+	/*----------------------*/
+	mutex_t		autoinc_mutex;
+				/* mutex protecting the autoincrement
+				counter */
+	ibool		autoinc_inited;
+				/* TRUE if the autoinc counter has been
+				inited; MySQL gets the init value by executing
+				SELECT MAX(auto inc column) */
+	ib_longlong	autoinc;/* autoinc counter value already given to
+				a row */	
 	ulint		magic_n;/* magic number */
 };
 #define	DICT_TABLE_MAGIC_N	76333786

@@ -87,7 +87,7 @@ my_bool set_changeable_var(my_string str,CHANGEABLE_VAR *vars)
 	DBUG_RETURN(1);
       }
 
-      num=atoll(end); endchar=strend(end)[-1];
+      num=strtoll(end, (char **)NULL, 10); endchar=strend(end)[-1];
       if (endchar == 'k' || endchar == 'K')
 	num*=1024;
       else if (endchar == 'm' || endchar == 'M')
