@@ -2986,6 +2986,8 @@ mysql_execute_command(THD *thd)
 	break;
 #ifdef HAVE_DLOPEN
       sp_head *sph= sp_find_function(thd, &lex->udf.name);
+      // close & unlock table opened by sp_find_function
+      close_thread_tables(thd);
       if (sph)
       {
 	net_printf(thd, ER_UDF_EXISTS, lex->udf.name.str);

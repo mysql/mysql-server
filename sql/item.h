@@ -106,6 +106,7 @@ public:
   my_string name;			/* Name from select */
   Item *next;
   uint32 max_length;
+  uint name_length;                     /* Length of name */
   uint8 marker,decimals;
   my_bool maybe_null;			/* If item may be null */
   my_bool null_value;			/* if item is null */
