@@ -1592,9 +1592,9 @@ contributing to the development of @strong{MySQL}.
 @item Pages	@tab		800
 @item Price	@tab		$49.99 US
 @item Downloadable examples  @tab
- @uref{http://www.mysql.com/Downloads/Contrib/Examples/samp_db.tar.gz, @code{samp_db.tar.gz}}
+ @uref{http://www.kitebird.com/mysql-book/, @code{samp_db} distribution}
 @item Errata  @tab
- @uref{http://www.mysql.com/documentation/pauls-mysql-book-errata.html, are available here}
+ @uref{http://www.kitebird.com/mysql-book/errata.html, are available here}
 @end multitable
 
 Foreword by Michael ``Monty'' Widenius, @strong{MySQL} Moderator.
