@@ -305,7 +305,7 @@ const char *opt_ndb_mgmd;
 ulong opt_ndb_nodeid;
 #endif
 my_bool opt_readonly, use_temp_pool, relay_log_purge;
-my_bool opt_sync_bdb_logs, opt_sync_frm;
+my_bool opt_sync_bdb_logs, opt_sync_frm, opt_allow_suspicious_udfs;
 my_bool opt_secure_auth= 0;
 my_bool opt_short_log_format= 0;
 my_bool opt_log_queries_not_using_indexes= 0;
@@ -3745,7 +3745,7 @@ extern "C" pthread_handler_decl(handle_connections_sockets,
     if (!(vio_tmp=vio_new(new_sock,
 			  sock == unix_sock ? VIO_TYPE_SOCKET :
 			  VIO_TYPE_TCPIP,
-			  sock == unix_sock)) ||
+			  sock == unix_sock ? VIO_LOCALHOST: 0)) ||
 	my_net_init(&thd->net,vio_tmp))
     {
       if (vio_tmp)
@@ -4220,7 +4220,7 @@ enum options_mysqld
   OPT_BDB_MAX_LOCK,
   OPT_ERROR_LOG_FILE,
   OPT_DEFAULT_WEEK_FORMAT,
-  OPT_RANGE_ALLOC_BLOCK_SIZE,
+  OPT_RANGE_ALLOC_BLOCK_SIZE, OPT_ALLOW_SUSPICIOUS_UDFS,
   OPT_QUERY_ALLOC_BLOCK_SIZE, OPT_QUERY_PREALLOC_SIZE,
   OPT_TRANS_ALLOC_BLOCK_SIZE, OPT_TRANS_PREALLOC_SIZE,
   OPT_SYNC_FRM, OPT_SYNC_BINLOG,
@@ -4268,6 +4268,13 @@ struct my_option my_long_options[] =
 #endif /* HAVE_REPLICATION */
   {"ansi", 'a', "Use ANSI SQL syntax instead of MySQL syntax. This mode will also set transaction isolation level 'serializable'.", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"allow-suspicious-udfs", OPT_ALLOW_SUSPICIOUS_UDFS,
+   "Allows use of UDFs consisting of only one symbol xxx() "
+   "without corresponding xxx_init() or xxx_deinit(). That also means "
+   "that one can load any function from any library, for example exit() "
+   "from libc.so",
+   (gptr*) &opt_allow_suspicious_udfs, (gptr*) &opt_allow_suspicious_udfs,
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"auto-increment-increment", OPT_AUTO_INCREMENT,
    "Auto-increment columns are incremented by this",
    (gptr*) &global_system_variables.auto_increment_increment,
@@ -5411,7 +5418,7 @@ The minimum value for this variable is 4096.",
    "it failed with a deadlock or elapsed lock wait timeout, "
    "before giving up and stopping.",
    (gptr*) &slave_trans_retries, (gptr*) &slave_trans_retries, 0,
-   GET_ULONG, REQUIRED_ARG, 0L, 0L, (longlong) ULONG_MAX, 0, 1, 0},
+   GET_ULONG, REQUIRED_ARG, 10L, 0L, (longlong) ULONG_MAX, 0, 1, 0},
 #endif /* HAVE_REPLICATION */
   {"slow_launch_time", OPT_SLOW_LAUNCH_TIME,
    "If creating the thread takes longer than this value (in seconds), the Slow_launch_threads counter will be incremented.",
