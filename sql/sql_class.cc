@@ -384,6 +384,28 @@ CHANGED_TABLE_LIST* THD::changed_table_dup(const char *key, long key_length)
   return new_table;
 }
 
+int THD::send_explain_fields(select_result *result)
+{
+  List<Item> field_list;
+  Item *item;
+  field_list.push_back(new Item_int("id",0,3));
+  field_list.push_back(new Item_empty_string("select_type",19));
+  field_list.push_back(new Item_empty_string("table",NAME_LEN));
+  field_list.push_back(new Item_empty_string("type",10));
+  field_list.push_back(item=new Item_empty_string("possible_keys",
+						  NAME_LEN*MAX_KEY));
+  item->maybe_null=1;
+  field_list.push_back(item=new Item_empty_string("key",NAME_LEN));
+  item->maybe_null=1;
+  field_list.push_back(item=new Item_int("key_len",0,3));
+  item->maybe_null=1;
+  field_list.push_back(item=new Item_empty_string("ref",
+						  NAME_LEN*MAX_REF_PARTS));
+  item->maybe_null=1;
+  field_list.push_back(new Item_real("rows",0.0,0,10));
+  field_list.push_back(new Item_empty_string("Extra",255));
+  return (result->send_fields(field_list,1));
+}
 
 #ifdef SIGNAL_WITH_VIO_CLOSE
 void THD::close_active_vio()
@@ -446,13 +468,19 @@ bool select_send::send_data(List<Item> &items)
     if (item->send(thd, packet))
     {
       packet->free();				// Free used
-      my_error(ER_OUT_OF_RESOURCES,MYF(0));
+      my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
       DBUG_RETURN(1);
     }
   }
   thd->sent_row_count++;
-  bool error=my_net_write(&thd->net,(char*) packet->ptr(),packet->length());
-  DBUG_RETURN(error);
+  if (!thd->net.report_error)
+  {
+    DBUG_RETURN(my_net_write(&thd->net,
+			     (char*) packet->ptr(),
+			     packet->length()));
+  }
+  else
+    DBUG_RETURN(1);
 }
 
 bool select_send::send_eof()
@@ -462,8 +490,13 @@ bool select_send::send_eof()
   {
     mysql_unlock_tables(thd, thd->lock); thd->lock=0;
   }
-  ::send_eof(thd);
-  return 0;
+  if (!thd->net.report_error)
+  {
+    ::send_eof(thd);
+    return 0;
+  }
+  else
+    return 1;
 }
 
 
@@ -499,7 +532,7 @@ select_export::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
 		   option);
   if (!access(path,F_OK))
   {
-    my_error(ER_FILE_EXISTS_ERROR,MYF(0),exchange->file_name);
+    my_error(ER_FILE_EXISTS_ERROR, MYF(0), exchange->file_name);
     return 1;
   }
   /* Create the file world readable */
@@ -685,9 +718,9 @@ err:
 }
 
 
-void select_export::send_error(uint errcode,const char *err)
+void select_export::send_error(uint errcode, const char *err)
 {
-  ::send_error(thd,errcode,err);
+  my_message(errcode, err, MYF(0));;
   (void) end_io_cache(&cache);
   (void) my_close(file,MYF(0));
   file= -1;
@@ -699,9 +732,7 @@ bool select_export::send_eof()
   int error=test(end_io_cache(&cache));
   if (my_close(file,MYF(MY_WME)))
     error=1;
-  if (error)
-    ::send_error(thd);
-  else
+  if (!error)
     ::send_ok(thd,row_count);
   file= -1;
   return error;
@@ -774,7 +805,7 @@ bool select_dump::send_data(List<Item> &items)
   }
   if (row_count++ > 1) 
   {
-    my_error(ER_TOO_MANY_ROWS,MYF(0));
+    my_error(ER_TOO_MANY_ROWS, MYF(0));
     goto err;
   }
   while ((item=li++))
@@ -799,7 +830,7 @@ err:
 
 void select_dump::send_error(uint errcode,const char *err)
 {
-  ::send_error(thd,errcode,err);
+  my_message(errcode, err, MYF(0));
   (void) end_io_cache(&cache);
   (void) my_close(file,MYF(0));
   (void) my_delete(path,MYF(0));		// Delete file on error
@@ -811,9 +842,7 @@ bool select_dump::send_eof()
   int error=test(end_io_cache(&cache));
   if (my_close(file,MYF(MY_WME)))
     error=1;
-  if (error)
-    ::send_error(thd);
-  else
+  if (!error)
     ::send_ok(thd,row_count);
   file= -1;
   return error;
@@ -828,8 +857,9 @@ bool select_singleval_subselect::send_data(List<Item> &items)
 {
   DBUG_ENTER("select_singleval_subselect::send_data");
   Item_singleval_subselect *it= (Item_singleval_subselect *)item;
-  if (it->assigned){
-    my_printf_error(ER_SUBSELECT_NO_1_ROW, ER(ER_SUBSELECT_NO_1_ROW), MYF(0));
+  if (it->assigned()){
+    thd->fatal_error= 1;
+    my_message(ER_SUBSELECT_NO_1_ROW, ER(ER_SUBSELECT_NO_1_ROW), MYF(0));
     DBUG_RETURN(1);
   }
   if (unit->offset_limit_cnt)
@@ -847,15 +877,19 @@ bool select_singleval_subselect::send_data(List<Item> &items)
   if ((it->null_value= val_item->is_null()))
   {
     it->assign_null();
-  } else {
+  } 
+  else 
+  {
     it->max_length= val_item->max_length;
     it->decimals= val_item->decimals;
     it->binary= val_item->binary;
-    val_item->val_str(&it->str_value);
     it->int_value= val_item->val_int();
+    String *s= val_item->val_str(&it->str_value);
+    if (s != &it->str_value)
+      it->str_value.set(*s, 0, s->length());
     it->res_type= val_item->result_type();
   }
-  it->assigned= 1;
+  it->assigned(1);
   DBUG_RETURN(0);
 }
 
@@ -869,7 +903,7 @@ bool select_exists_subselect::send_data(List<Item> &items)
     DBUG_RETURN(0);
   }
   it->value= 1;
-  it->assigned= 1;
+  it->assigned(1);
   DBUG_RETURN(0);
 }
 

@@ -28,7 +28,8 @@
 static const char *any_db="*any*";	// Special symbol for check_access
 
 
-int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit, TABLE_LIST *t)
+int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit, TABLE_LIST *t,
+		  bool tables_is_opened)
 {
   /*
     TODO: make derived tables with union inside (now only 1 SELECT may be
@@ -37,7 +38,7 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit, TABLE_LIST *t)
   SELECT_LEX *sl= unit->first_select();
   List<Item> item_list;
   TABLE *table;
-  int res;
+  int res= 0;
   select_union *derived_result;
   TABLE_LIST *tables= (TABLE_LIST *)sl->table_list.first;
   TMP_TABLE_PARAM tmp_table_param;
@@ -56,7 +57,8 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit, TABLE_LIST *t)
   {
     if (cursor->derived)
     {
-      res=mysql_derived(thd, lex, (SELECT_LEX_UNIT *)cursor->derived, cursor);
+      res=mysql_derived(thd, lex, (SELECT_LEX_UNIT *)cursor->derived,
+			cursor, 0);
       if (res) DBUG_RETURN(res);
     }
   }
@@ -66,7 +68,7 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit, TABLE_LIST *t)
   while ((item= it++))
     item_list.push_back(item);
     
-  if (!(res=open_and_lock_tables(thd,tables)))
+  if (tables_is_opened || !(res=open_and_lock_tables(thd,tables)))
   {
     if (tables && setup_fields(thd,tables,item_list,0,0,1))
     {
@@ -94,12 +96,12 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit, TABLE_LIST *t)
       if (unit->select_limit_cnt == HA_POS_ERROR)
 	sl->options&= ~OPTION_FOUND_ROWS;
     
-      res=mysql_select(thd, tables,  sl->item_list,
-		       sl->where, (ORDER *) sl->order_list.first,
-		       (ORDER*) sl->group_list.first,
-		       sl->having, (ORDER*) NULL,
-		       sl->options | thd->options | SELECT_NO_UNLOCK,
-		       derived_result, unit);
+      res= mysql_select(thd, tables,  sl->item_list,
+			sl->where, (ORDER *) sl->order_list.first,
+			(ORDER*) sl->group_list.first,
+			sl->having, (ORDER*) NULL,
+			sl->options | thd->options | SELECT_NO_UNLOCK,
+			derived_result, unit, sl, 0);
       if (!res)
       {
 // Here we entirely fix both TABLE_LIST and list of SELECT's as there were no derived tables
@@ -109,6 +111,7 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit, TABLE_LIST *t)
 	{
 	  t->real_name=table->real_name;
 	  t->table=table;
+	  table->derived_select_number= sl->select_number;
 	  sl->exclude();
 	  t->derived=(SELECT_LEX *)0; // just in case ...
 	}

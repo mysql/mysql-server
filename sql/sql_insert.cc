@@ -1334,6 +1334,7 @@ bool select_insert::send_data(List<Item> &values)
 
 void select_insert::send_error(uint errcode,const char *err)
 {
+  //TODO error should be sent at the query processing end
   ::send_error(thd,errcode,err);
   table->file->extra(HA_EXTRA_NO_CACHE);
   table->file->activate_all_index(thd);
@@ -1360,6 +1361,7 @@ bool select_insert::send_eof()
   if (error)
   {
     table->file->print_error(error,MYF(0));
+    //TODO error should be sent at the query processing end
     ::send_error(thd);
     return 1;
   }
