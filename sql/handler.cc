@@ -517,8 +517,8 @@ int ha_commit_trans(THD *thd, THD_TRANS* trans)
       if ((error=ndbcluster_commit(thd,trans->ndb_tid)))
       {
 	if (error == -1)
-	  my_message_(ER_ERROR_DURING_COMMIT, ER(ER_ERROR_DURING_COMMIT),
-                      MYF(0));
+	  my_message(ER_ERROR_DURING_COMMIT, ER(ER_ERROR_DURING_COMMIT),
+		     MYF(0));
         error=1;
       }
       if (trans == &thd->transaction.all)
