@@ -13,6 +13,9 @@ INCLUDES += -I$(top_srcdir)/ndb/include/mgmapi -I$(top_srcdir)/ndb/src/common/mg
 
 LDADD_LOC = $(top_builddir)/ndb/src/libndbclient.la \
             $(top_builddir)/ndb/src/common/editline/libeditline.a \
+            $(top_builddir)/dbug/libdbug.a \
+            $(top_builddir)/mysys/libmysys.a \
+            $(top_builddir)/strings/libmystrings.a \
             @TERMCAP_LIB@
 
 ndb_mgm_LDFLAGS = @ndb_bin_am_ldflags@
