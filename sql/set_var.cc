@@ -329,6 +329,11 @@ static sys_var_rand_seed2	sys_rand_seed2("rand_seed2");
 static sys_var_thd_ulong        sys_default_week_format("default_week_format",
 							&SV::default_week_format);
 
+/* Global read-only variable describing server license */
+
+static const char license[]= "GPL";
+
+
 /*
   List of all variables for initialisation and storage in hash
   This is sorted in alphabetical order to make it easy to add new variables
@@ -508,6 +513,7 @@ struct show_var_st init_vars[]= {
   {sys_key_buffer_size.name,	(char*) &sys_key_buffer_size,	    SHOW_SYS},
   {"language",                language,                             SHOW_CHAR},
   {"large_files_support",     (char*) &opt_large_files,             SHOW_BOOL},	
+  {"license",                 (char*) license,                      SHOW_CHAR},	
   {sys_local_infile.name,     (char*) &sys_local_infile,	    SHOW_SYS},
 #ifdef HAVE_MLOCKALL
   {"locked_in_memory",	      (char*) &locked_in_memory,	    SHOW_BOOL},
