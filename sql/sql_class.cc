@@ -110,6 +110,7 @@ THD::THD():user_time(0),fatal_error(0),last_insert_id_used(0),
   net.last_error[0]=0;				// If error on boot
   ull=0;
   system_thread=cleanup_done=0;
+  peer_port= 0;					// For SHOW PROCESSLIST
   transaction.changed_tables = 0;
 #ifdef	__WIN__
   real_id = 0;

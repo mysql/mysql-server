@@ -62,7 +62,7 @@ my_string	mysql_unix_port=0;
 #define closesocket(A) close(A)
 #endif
 
-static void mysql_once_init(void);
+static void mysqld_once_init(void);
 static MYSQL_DATA *read_rows (MYSQL *mysql,MYSQL_FIELD *fields,
 			      uint field_count);
 static int read_one_row(MYSQL *mysql,uint fields,MYSQL_ROW row,
@@ -729,7 +729,7 @@ read_one_row(MYSQL *mysql,uint fields,MYSQL_ROW row, ulong *lengths)
 MYSQL * STDCALL
 mysql_init(MYSQL *mysql)
 {
-  mysql_once_init();
+  mysqld_once_init();
   if (!mysql)
   {
     if (!(mysql=(MYSQL*) my_malloc(sizeof(*mysql),MYF(MY_WME | MY_ZEROFILL))))
@@ -743,7 +743,7 @@ mysql_init(MYSQL *mysql)
 }
 
 
-static void mysql_once_init()
+static void mysqld_once_init()
 {
   if (!mysql_client_init)
   {

@@ -204,12 +204,12 @@ static char **opt_argv;
 #ifdef __WIN__
 #undef MYSQL_SERVER_SUFFIX
 #ifdef __NT__
-#if defined(HAVE_INNOBASE_DB) || defined(HAVE_BERKELEY_DB)
+#if defined(HAVE_BERKELEY_DB)
 #define MYSQL_SERVER_SUFFIX "-max-nt"
 #else
 #define MYSQL_SERVER_SUFFIX "-nt"
 #endif /* ...DB */
-#elif defined(HAVE_INNOBASE_DB) || defined(HAVE_BERKELEY_DB)
+#elif defined(HAVE_BERKELEY_DB)
 #define MYSQL_SERVER_SUFFIX "-max"
 #else
 #define MYSQL_SERVER_SUFFIX ""
@@ -797,9 +797,9 @@ static void __cdecl kill_server(int sig_ptr)
 
 #ifdef __NETWARE__
   pthread_join(select_thread, NULL);		// wait for main thread
-#else
-  pthread_exit(0);				/* purecov: deadcode */
 #endif /* __NETWARE__ */
+  
+  pthread_exit(0);				/* purecov: deadcode */
 
   RETURN_FROM_KILL_SERVER;
 }
@@ -856,13 +856,11 @@ void unireg_end(void)
 {
   clean_up(1);
   my_thread_end();
-#ifndef __NETWARE__
-#ifdef SIGNALS_DONT_BREAK_READ
+#if defined(SIGNALS_DONT_BREAK_READ) && !defined(__NETWARE__)
   exit(0);
 #else
   pthread_exit(0);				// Exit is in main thread
 #endif
-#endif /* __NETWARE__ */
 }
 
 
@@ -1233,7 +1231,7 @@ void yyerror(const char *s)
 {
   NET *net=my_pthread_getspecific_ptr(NET*,THR_NET);
   char *yytext=(char*) current_lex->tok_start;
-  if (!strcmp(s,"parse error"))
+  if (!strcmp(s,"parse error") || !strcmp(s,"syntax error"))
     s=ER(ER_SYNTAX_ERROR);
   net_printf(net,ER_PARSE_ERROR, s, yytext ? (char*) yytext : "",
 	     current_lex->yylineno);
@@ -1694,9 +1692,10 @@ extern "C" void *signal_hand(void *arg __attribute__((unused)))
 
   /*
     Setup alarm handler
-    The two extra handlers are for slave threads
+    This should actually be '+ max_number_of_slaves' instead of +10,
+    but the +10 should be quite safe.
   */
-  init_thr_alarm(max_connections+max_insert_delayed_threads+2);
+  init_thr_alarm(max_connections+max_insert_delayed_threads+10);
 #if SIGINT != THR_KILL_SIGNAL
   (void) sigemptyset(&set);			// Setup up SIGINT for debug
   (void) sigaddset(&set,SIGINT);		// For debugging
@@ -3787,7 +3786,7 @@ replicating a LOAD DATA INFILE command",
    (gptr*) &max_connect_errors, (gptr*) &max_connect_errors, 0, GET_ULONG,
     REQUIRED_ARG, MAX_CONNECT_ERRORS, 1, ~0L, 0, 1, 0},
   {"max_delayed_threads", OPT_MAX_DELAYED_THREADS,
-   "Don't start more than this number of threads to handle INSERT DELAYED statements. This option does not yet have effect (on TODO), unless it is set to zero, which means INSERT DELAYED is not used.",
+   "Don't start more than this number of threads to handle INSERT DELAYED statements. If set to zero, which means INSERT DELAYED is not used.",
    (gptr*) &max_insert_delayed_threads, (gptr*) &max_insert_delayed_threads,
    0, GET_ULONG, REQUIRED_ARG, 20, 0, 16384, 0, 1, 0},
   {"max_heap_table_size", OPT_MAX_HEP_TABLE_SIZE,

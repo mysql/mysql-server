@@ -531,3 +531,7 @@ vio/test-sslclient
 vio/test-sslserver
 vio/viotest-ssl
 support-files/MacOSX/ReadMe.txt
+Docs/internals.html
+Docs/internals.pdf
+Docs/internals.txt
+Docs/internals_toc.html

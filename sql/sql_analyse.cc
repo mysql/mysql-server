@@ -284,7 +284,6 @@ void field_str::add()
   char buff[MAX_FIELD_WIDTH], *ptr;
   String s(buff, sizeof(buff)), *res;
   ulong length;
-  TREE_ELEMENT *element;
 
   if (!(res = item->val_str(&s)))
   {

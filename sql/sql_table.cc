@@ -23,6 +23,7 @@
 #endif
 #include <hash.h>
 #include <myisam.h>
+#include <my_dir.h>
 #include <assert.h>
 
 #ifdef __WIN__
@@ -1054,12 +1055,31 @@ static int prepare_for_repair(THD* thd, TABLE_LIST* table,
   }
   else
   {
+    /*
+      User gave us USE_FRM which means that the header in the index file is
+      trashed.
+      In this case we will try to fix the table the following way:
+      - Rename the data file to a temporary name
+      - Truncate the table
+      - Replace the new data file with the old one
+      - Run a normal repair using the new index file and the old data file
+    */
 
-    char from[FN_REFLEN],tmp[FN_REFLEN];
-    char* db = thd->db ? thd->db : table->db;
+    char from[FN_REFLEN],tmp[FN_REFLEN+32];
+    const char **ext= table->table->file->bas_ext();
+    MY_STAT stat_info;
 
-    sprintf(from, "%s/%s/%s", mysql_real_data_home, db, table->real_name);
-    fn_format(from, from, "", MI_NAME_DEXT, 4);
+    /*
+      Check if this is a table type that stores index and data separately,
+      like ISAM or MyISAM
+    */
+    if (!ext[0] || !ext[1])
+      DBUG_RETURN(0);				// No data file
+
+    strxmov(from, table->table->path, ext[1], NullS);	// Name of data file
+    if (!my_stat(from, &stat_info, MYF(0)))
+      DBUG_RETURN(0);				// Can't use USE_FRM flag
+
     sprintf(tmp,"%s-%lx_%lx", from, current_pid, thd->thread_id);
 
     pthread_mutex_lock(&LOCK_open);
@@ -1075,7 +1095,7 @@ static int prepare_for_repair(THD* thd, TABLE_LIST* table,
       unlock_table_name(thd, table);
       pthread_mutex_unlock(&LOCK_open);
       DBUG_RETURN(send_check_errmsg(thd, table, "repair",
-				    "Failed renaming .MYD file"));
+				    "Failed renaming data file"));
     }
     if (mysql_truncate(thd, table, 1))
     {

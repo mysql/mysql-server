@@ -63,6 +63,12 @@ user_connect(1);
 #goto test;
 
 #
+# Enable column grant code
+#
+safe_query("grant select(user) on mysql.user to $user");
+safe_query("revoke select(user) on mysql.user from $user");
+
+#
 # Test grants on user level
 #
 
@@ -408,21 +414,29 @@ safe_query("grant ALL PRIVILEGES on $opt_database.test to $user identified by 'd
 user_connect(0,"dummy");
 safe_query("grant SELECT on $opt_database.* to $user identified by ''");
 user_connect(0);
-safe_query("revoke ALL PRIVILEGES on $opt_database.test from $user identified by ''");
+safe_query("revoke ALL PRIVILEGES on $opt_database.test from $user identified by '', ${opt_user}\@127.0.0.1 identified by 'dummy2'");
 safe_query("revoke ALL PRIVILEGES on $opt_database.* from $user identified by ''");
+
 safe_query("show grants for $user");
 
 #
 # Test bug reported in SELECT INTO OUTFILE
 #
 
-safe_query("create table $opt_database.test3 (a int)");
+safe_query("create table $opt_database.test3 (a int, b int)");
 safe_query("grant SELECT on $opt_database.test3 to $user");
 safe_query("grant FILE on *.* to $user");
-safe_query("insert into $opt_database.test3 values (1)");
+safe_query("insert into $opt_database.test3 values (1,1)");
 user_connect(0);
 user_query("select * into outfile '$tmp_table' from $opt_database.test3");
 safe_query("revoke SELECT on $opt_database.test3 from $user");
+safe_query("grant SELECT(a) on $opt_database.test3 to $user");
+user_query("select a from $opt_database.test3");
+user_query("select * from $opt_database.test3",1);
+user_query("select a,b from $opt_database.test3",1);
+user_query("select b from $opt_database.test3",1);
+
+safe_query("revoke SELECT(a) on $opt_database.test3 from $user");
 safe_query("revoke FILE on *.* from $user");
 safe_query("drop table $opt_database.test3");
 

@@ -353,7 +353,7 @@ public:
   String *val_str(String*) { return &str_value; }
   bool save_in_field(Field *field, bool no_conversions);
   void make_field(Send_field *field);
-  enum Item_result result_type () const { return INT_RESULT; }
+  enum Item_result result_type () const;
   unsigned int size_of() { return sizeof(*this);}  
 };
 

@@ -77,7 +77,7 @@ static my_bool get_word(struct simpleconfig_buf_st *fb, char *buf)
     endptr = fb->buf;
   }
 
-  while (!isspace(*endptr))
+  while (*endptr && !isspace(*endptr))
     *buf++= *endptr++;
   *buf=0;
   fb->p = endptr;

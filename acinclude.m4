@@ -38,7 +38,7 @@ AC_LANG_SAVE
 AC_LANG_CPLUSPLUS
 if test "$ac_cv_prog_gxx" = "yes"
 then
-  CXXFLAGS="$CXXFLAGS -Werror"
+  CXXFLAGS=`echo $CXXFLAGS -Werror | sed 's/-fbranch-probabilities//'`
 fi
 mysql_cv_btype_last_arg_accept=none
 [AC_TRY_COMPILE([#if defined(inline)

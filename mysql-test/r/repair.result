@@ -4,4 +4,8 @@ repair table t1 use_frm;
 Table	Op	Msg_type	Msg_text
 test.t1	repair	warning	Number of rows changed from 0 to 1
 test.t1	repair	status	OK
-drop table if exists t1;
+alter table t1 TYPE=HEAP;
+repair table t1 use_frm;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	error	The handler for the table doesn't support repair
+drop table t1;

@@ -186,7 +186,7 @@ end:
 /*
   Check if user is ok
   Updates:
-  thd->user, thd->master_access, thd->priv_user, thd->db, thd->db_access
+  thd->{user,master_access,priv_user,priv_host,db,db_access}
 */
 
 static bool check_user(THD *thd,enum_server_command command, const char *user,
@@ -205,14 +205,15 @@ static bool check_user(THD *thd,enum_server_command command, const char *user,
     return 1;
   }
   thd->master_access=acl_getroot(thd, thd->host, thd->ip, thd->user,
-				 passwd, thd->scramble, &thd->priv_user,
+				 passwd, thd->scramble,
+                                 &thd->priv_user, &thd->priv_host,
 				 protocol_version == 9 ||
 				 !(thd->client_capabilities &
 				   CLIENT_LONG_PASSWORD),&ur);
   DBUG_PRINT("info",
-	     ("Capabilities: %d  packet_length: %ld  Host: '%s'  User: '%s'  Using password: %s  Access: %u  db: '%s'",
+	     ("Capabilities: %d  packet_length: %ld  Host: '%s'  Login user: '%s'  Priv_user: '%s'  Using password: %s  Access: %u  db: '%s'",
 	      thd->client_capabilities, thd->max_client_packet_length,
-	      thd->host_or_ip, thd->priv_user,
+	      thd->host_or_ip, thd->user, thd->priv_user,
 	      passwd[0] ? "yes": "no",
 	      thd->master_access, thd->db ? thd->db : "*none*"));
   if (thd->master_access & NO_ACCESS)
@@ -517,7 +518,6 @@ check_connections(THD *thd)
     DBUG_PRINT("info",("Host: %s",thd->host));
     thd->host_or_ip= thd->host;
     thd->ip= 0;
-    thd->peer_port= 0;
     bzero((char*) &thd->remote,sizeof(struct sockaddr));
   }
   /* Ensure that wrong hostnames doesn't cause buffer overflows */
@@ -2520,12 +2520,20 @@ error:
 
 /****************************************************************************
   Get the user (global) and database privileges for all used tables
-  Returns true (error) if we can't get the privileges and we don't use
-  table/column grants.
-  The idea of EXTRA_ACL is that one will be granted access to the table if
-  one has the asked privilege on any column combination of the table; For
-  example to be able to check a table one needs to have SELECT privilege on
-  any column of the table.
+
+  NOTES
+    The idea of EXTRA_ACL is that one will be granted access to the table if
+    one has the asked privilege on any column combination of the table; For
+    example to be able to check a table one needs to have SELECT privilege on
+    any column of the table.
+
+  RETURN
+    0  ok
+    1  If we can't get the privileges and we don't use table/column grants.
+
+    save_priv	In this we store global and db level grants for the table
+		Note that we don't store db level grants if the global grants
+		is enough to satisfy the request.
 ****************************************************************************/
 
 bool
@@ -2559,7 +2567,7 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
     if (!no_errors)
       net_printf(&thd->net,ER_ACCESS_DENIED_ERROR,
 		 thd->priv_user,
-		 thd->host_or_ip,
+		 thd->priv_host,
 		 thd->password ? ER(ER_YES) : ER(ER_NO));/* purecov: tested */
     DBUG_RETURN(TRUE);				/* purecov: tested */
   }
@@ -2584,7 +2592,7 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
   if (!no_errors)
     net_printf(&thd->net,ER_DBACCESS_DENIED_ERROR,
 	       thd->priv_user,
-	       thd->host_or_ip,
+	       thd->priv_host,
 	       db ? db : thd->db ? thd->db : "unknown"); /* purecov: tested */
   DBUG_RETURN(TRUE);				/* purecov: tested */
 }
@@ -3418,6 +3426,24 @@ void add_join_on(TABLE_LIST *b,Item *expr)
   }
 }
 
+
+/*
+  Mark that we have a NATURAL JOIN between two tables
+
+  SYNOPSIS
+    add_join_natural()
+    a			Table to do normal join with
+    b			Do normal join with this table
+  
+  IMPLEMENTATION
+    This function just marks that table b should be joined with a.
+    The function setup_cond() will create in b->on_expr a list
+    of equal condition between all fields of the same name.
+
+    SELECT * FROM t1 NATURAL LEFT JOIN t2
+     <=>
+    SELECT * FROM t1 LEFT JOIN t2 ON (t1.i=t2.i and t1.j=t2.j ... )
+*/
 
 void add_join_natural(TABLE_LIST *a,TABLE_LIST *b)
 {

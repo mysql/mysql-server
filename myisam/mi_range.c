@@ -83,7 +83,8 @@ static ha_rows _mi_record_pos(MI_INFO *info, const byte *key, uint key_len,
   if (key_len == 0)
     key_len=USE_WHOLE_KEY;
   key_buff=info->lastkey+info->s->base.max_key_length;
-  key_len=_mi_pack_key(info,inx,key_buff,(uchar*) key,key_len);
+  key_len=_mi_pack_key(info,inx,key_buff,(uchar*) key,key_len,
+		       (MI_KEYSEG**) 0);
   DBUG_EXECUTE("key",_mi_print_key(DBUG_FILE,keyinfo->seg,
 				    (uchar*) key_buff,key_len););
   nextflag=myisam_read_vec[search_flag];

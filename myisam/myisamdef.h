@@ -505,6 +505,8 @@ extern uchar *_mi_get_last_key(MI_INFO *info,MI_KEYDEF *keyinfo,uchar *keypos,
 extern uchar *_mi_get_key(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *page,
 			  uchar *key, uchar *keypos, uint *return_key_length);
 extern uint _mi_keylength(MI_KEYDEF *keyinfo,uchar *key);
+extern uint _mi_keylength_part(MI_KEYDEF *keyinfo, register uchar *key,
+			       MI_KEYSEG *end);
 extern uchar *_mi_move_key(MI_KEYDEF *keyinfo,uchar *to,uchar *from);
 extern int _mi_search_next(MI_INFO *info,MI_KEYDEF *keyinfo,uchar *key,
 			   uint key_length,uint nextflag,my_off_t pos);
@@ -519,7 +521,7 @@ extern my_off_t _mi_new(MI_INFO *info,MI_KEYDEF *keyinfo);
 extern uint _mi_make_key(MI_INFO *info,uint keynr,uchar *key,
 			 const byte *record,my_off_t filepos);
 extern uint _mi_pack_key(MI_INFO *info,uint keynr,uchar *key,uchar *old,
-			 uint key_length);
+			 uint key_length, MI_KEYSEG **last_used_keyseg);
 extern int _mi_read_key_record(MI_INFO *info,my_off_t filepos,byte *buf);
 extern int _mi_read_cache(IO_CACHE *info,byte *buff,my_off_t pos,
 			  uint length,int re_read_if_possibly);

@@ -41,12 +41,9 @@ EXTRA_DIST =		$(EXTRA_SCRIPTS)
 
 dist-hook:
 	mkdir -p $(distdir)/Data/ATIS $(distdir)/Data/Wisconsin \
-		 $(distdir)/Results  $(distdir)/Results-win32 \
 		 $(distdir)/limits $(distdir)/Comments
 	for i in $(srcdir)/Data/ATIS/*.* ; do $(INSTALL_DATA) $$i $(distdir)/Data/ATIS ; done
 	for i in $(srcdir)/Data/Wisconsin/*.* ; do $(INSTALL_DATA) $$i $(distdir)/Data/Wisconsin ; done
-	for i in $(srcdir)/Results/*-* ; do $(INSTALL_DATA) $$i $(distdir)/Results; done
-	for i in $(srcdir)/Results-win32/*-* ; do $(INSTALL_DATA) $$i $(distdir)/Results-win32; done
 	for i in $(srcdir)/limits/*.* ; do $(INSTALL_DATA) $$i $(distdir)/limits; done
 	for i in $(srcdir)/Comments/*.* ; do $(INSTALL_DATA) $$i $(distdir)/Comments; done
 
@@ -55,15 +52,11 @@ install-data-local:
 		 $(DESTDIR)$(benchdir)/Data \
 		 $(DESTDIR)$(benchdir)/Data/ATIS \
 		 $(DESTDIR)$(benchdir)/Data/Wisconsin \
-		 $(DESTDIR)$(benchdir)/Results \
-		 $(DESTDIR)$(benchdir)/Results-win32 \
 		 $(DESTDIR)$(benchdir)/limits \
 		 $(DESTDIR)$(benchdir)/Comments
 	$(INSTALL_DATA) $(srcdir)/README  $(DESTDIR)$(benchdir)
 	for i in $(srcdir)/Data/ATIS/*.* ; do $(INSTALL_DATA) $$i $(DESTDIR)$(benchdir)/Data/ATIS ; done
 	for i in $(srcdir)/Data/Wisconsin/*.* ; do $(INSTALL_DATA) $$i $(DESTDIR)$(benchdir)/Data/Wisconsin ; done
-	for i in $(srcdir)/Results/*-* ; do $(INSTALL_DATA) $$i $(DESTDIR)$(benchdir)/Results; done
-	for i in $(srcdir)/Results-win32/*-* ; do $(INSTALL_DATA) $$i $(DESTDIR)$(benchdir)/Results-win32; done
 	for i in $(srcdir)/limits/*.* ; do $(INSTALL_DATA) $$i $(DESTDIR)$(benchdir)/limits; done
 	for i in $(srcdir)/Comments/*.* ; do $(INSTALL_DATA) $$i $(DESTDIR)$(benchdir)/Comments; done
 

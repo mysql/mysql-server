@@ -100,7 +100,7 @@ char*	innobase_unix_file_flush_method		= NULL;
 /* Below we have boolean-valued start-up parameters, and their default
 values */
 
-uint	innobase_flush_log_at_trx_commit	= 0;
+uint	innobase_flush_log_at_trx_commit	= 1;
 my_bool innobase_log_archive			= FALSE;
 my_bool	innobase_use_native_aio			= FALSE;
 my_bool	innobase_fast_shutdown			= TRUE;
@@ -1911,13 +1911,6 @@ ha_innobase::write_row(
 		build_template(prebuilt, NULL, table, ROW_MYSQL_WHOLE_ROW);
 	}
 
-	if (user_thd->lex.sql_command == SQLCOM_INSERT
-	    && user_thd->lex.duplicates == DUP_IGNORE) {
-	        prebuilt->trx->ignore_duplicates_in_insert = TRUE;
-        } else {
-	        prebuilt->trx->ignore_duplicates_in_insert = FALSE;
-	}
-
 	srv_conc_enter_innodb(prebuilt->trx);
 
 	error = row_insert_for_mysql((byte*) record, prebuilt);
@@ -1957,8 +1950,6 @@ ha_innobase::write_row(
 		        auto_inc_counter_for_this_stat--;
 		}
 	}
-
-	prebuilt->trx->ignore_duplicates_in_insert = FALSE;
 
 	error = convert_error_code_to_mysql(error, user_thd);
 
