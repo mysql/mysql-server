@@ -3145,6 +3145,10 @@ unsubscribe from the @code{myodbc} list, send a message to
 @email{myodbc-subscribe@@lists.mysql.com} or
 @email{myodbc-unsubscribe@@lists.mysql.com}.
 
+If you can't get an answer for your questions from the mailing list, one
+option is to pay for support from @strong{MySQL AB}, which will put you
+in direct contact with @strong{MySQL} developers. @xref{Support}.
+
 The following table shows some @strong{MySQL} mailing in other languages than
 English.  Note that these are not operated by @strong{MySQL AB}, so we can't
 guarantee the quality on these.
@@ -7584,7 +7588,7 @@ You should also add /etc/my.cnf:
 open_files_limit=8192
 @end example
 
-The above should allow @strong{MySQL} to create up to 8192 connections + files.
+The above should allow @strong{MySQL} to create up to 8192 connections/files.
 
 The @code{STACK_SIZE} constant in LinuxThreads controls the spacing of thread
 stacks in the address space.  It needs to be large enough so that there will
@@ -30742,7 +30746,8 @@ method for changing the limit varies widely from system to system.
 @code{table_cache} is related to @code{max_connections}.  For example,
 for 200 concurrent running connections, you should have a table cache of
 at least @code{200 * n}, where @code{n} is the maximum number of tables
-in a join.
+in a join.  You also need to reserve some extra file descriptors for
+temporary tables and files.
 
 The cache of open tables can grow to a maximum of @code{table_cache}
 (default 64; this can be changed with the @code{-O table_cache=#}
@@ -45726,6 +45731,8 @@ not yet 100% confident in this code.
 Added @code{slave_wait_timeout} for replication.
 @item
 Fixed problem with @code{UPDATE} and BDB tables.
+@item
+Fixed hard bug in BDB tables when using key parts.
 @item
 Fixed problem when using the @code{GRANT FILE ON database.* ...}; Previously
 we added the @code{DROP} privilege for the database.

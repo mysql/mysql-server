@@ -511,3 +511,14 @@ id	id3
 100	2
 KINMU_DATE
 KINMU_DATE
+a	b
+1	1
+1	2
+a	b	a	b
+1	1	1	1
+1	1	1	2
+1	2	1	1
+1	2	1	2
+a	b
+1	1
+1	2
