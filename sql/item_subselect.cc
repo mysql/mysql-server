@@ -128,7 +128,12 @@ bool Item_subselect::fix_fields(THD *thd_param, TABLE_LIST *tables, Item **ref)
   stmt= thd->current_statement;
 
   char const *save_where= thd->where;
-  int res= engine->prepare();
+  int res;
+
+  if (check_stack_overrun(thd, (gptr)&res))
+    return 1;
+
+  res= engine->prepare();
 
   // all transformetion is done (used by prepared statements)
   changed= 1;
