@@ -235,7 +235,7 @@ static my_bool safe_hash_set(SAFE_HASH *hash, const byte *key, uint length,
     if (my_hash_insert(&hash->hash, (byte*) entry))
     {
       /* This can only happen if hash got out of memory */
-      my_delete((char*) entry, MYF(0));
+      my_free((char*) entry, MYF(0));
       error= 1;
       goto end;
     }
