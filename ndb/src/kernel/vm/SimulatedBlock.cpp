@@ -136,12 +136,12 @@ SimulatedBlock::installSimulatedBlockFunctions(){
 void
 SimulatedBlock::addRecSignalImpl(GlobalSignalNumber gsn, 
 				 ExecFunction f, bool force){
-  REQUIRE(gsn <= MAX_GSN, "Illegal signal added in block (GSN too high)");
-  char probData[255];
-  snprintf(probData, 255, 
-	   "Signal (%d) already added in block", 
-	   gsn);
-  REQUIRE(force || theExecArray[gsn] == 0, probData);
+  if(gsn > MAX_GSN || (!force &&  theExecArray[gsn] != 0)){
+    char errorMsg[255];
+    snprintf(errorMsg, 255, 
+ 	     "Illeagal signal (%d %d)", gsn, MAX_GSN); 
+    ERROR_SET(fatal, ERR_ERROR_PRGERR, errorMsg, errorMsg);
+  }
   theExecArray[gsn] = f;
 }
 
