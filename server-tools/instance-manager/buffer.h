@@ -41,7 +41,7 @@ private:
   int error;
 public:
   Buffer(size_t buffer_size_arg= BUFFER_INITIAL_SIZE)
-    :buffer_size(BUFFER_INITIAL_SIZE), error(0)
+    :buffer_size(buffer_size_arg), error(0)
   {
     /*
       As append() will invokes realloc() anyway, it's ok if malloc returns 0

@@ -22,6 +22,8 @@
 #include "mysql_manager_error.h"
 #include "log.h"
 #include "instance_map.h"
+#include "priv.h"
+
 #include <my_sys.h>
 #include <signal.h>
 #include <m_string.h>
@@ -29,6 +31,13 @@
 
 
 C_MODE_START
+
+/*
+  Proxy thread is a simple way to avoid all pitfalls of the threads
+  implementation in the OS (e.g. LinuxThreads). With such a thread we
+  don't have to process SIGCHLD, which is a tricky business if we want
+  to do it in a portable way.
+*/
 
 pthread_handler_decl(proxy, arg)
 {
@@ -111,7 +120,26 @@ void Instance::fork_and_monitor()
     log_info("cannot fork() to start instance %s", options.instance_name);
     return;
   default:
-    wait(NULL);
+    /*
+      Here we wait for the child created. This process differs for systems
+      running LinuxThreads and POSIX Threads compliant systems. This is because
+      according to POSIX we could wait() for a child in any thread of the
+      process. While LinuxThreads require that wait() is called by the thread,
+      which created the child.
+      On the other hand we could not expect mysqld to return the pid, we
+      got in from fork(), to wait4() fucntion when running on LinuxThreads.
+      This is because MySQL shutdown thread is not the one, which was created
+      by our fork() call.
+      So basically we have two options: whether the wait() call returns only in
+      the creator thread, but we cannot use waitpid() since we have no idea
+      which pid we should wait for (in fact it should be the pid of shutdown
+      thread, but we don't know this one). Or we could use waitpid(), but
+      couldn't use wait(), because it could return in any wait() in the program.
+    */
+    if (linuxthreads)
+      wait(NULL);                               /* LinuxThreads were detected */
+    else
+      waitpid(pid, NULL, 0);
     /* set instance state to crashed */
     pthread_mutex_lock(&LOCK_instance);
     crashed= 1;
@@ -122,7 +150,7 @@ void Instance::fork_and_monitor()
       is needed if a user issued command to stop an instance via
       mysql connection. This is not the case if Guardian stop the thread.
     */
-    pthread_cond_signal(&COND_instance_restarted);
+    pthread_cond_signal(&COND_instance_stopped);
     /* wake guardian */
     pthread_cond_signal(&instance_map->guardian->COND_guardian);
     /* thread exits */
@@ -136,14 +164,14 @@ void Instance::fork_and_monitor()
 Instance::Instance(): crashed(0)
 {
   pthread_mutex_init(&LOCK_instance, 0);
-  pthread_cond_init(&COND_instance_restarted, 0);
+  pthread_cond_init(&COND_instance_stopped, 0);
 }
 
 
 Instance::~Instance()
 {
+  pthread_cond_destroy(&COND_instance_stopped);
   pthread_mutex_destroy(&LOCK_instance);
-  pthread_cond_destroy(&COND_instance_restarted);
 }
 
 
@@ -168,7 +196,7 @@ bool Instance::is_running()
   bool return_val;
 
   if (options.mysqld_port)
-    port= atoi(strchr(options.mysqld_port, '=') + 1);
+    port= options.mysqld_port_val;
 
   if (options.mysqld_socket)
     socket= strchr(options.mysqld_socket, '=') + 1;
@@ -226,10 +254,10 @@ int Instance::stop()
 {
   pid_t pid;
   struct timespec timeout;
-  int waitchild= DEFAULT_SHUTDOWN_DELAY;
+  uint waitchild= (uint)  DEFAULT_SHUTDOWN_DELAY;
 
-  if (options.shutdown_delay != NULL)
-    waitchild= atoi(options.shutdown_delay);
+  if (options.shutdown_delay_val)
+    waitchild= options.shutdown_delay_val;
 
   kill_instance(SIGTERM);
   /* sleep on condition to wait for SIGCHLD */
@@ -243,7 +271,7 @@ int Instance::stop()
   {
     int status;
 
-    status= pthread_cond_timedwait(&COND_instance_restarted,
+    status= pthread_cond_timedwait(&COND_instance_stopped,
                                    &LOCK_instance,
                                    &timeout);
     if (status == ETIMEDOUT)

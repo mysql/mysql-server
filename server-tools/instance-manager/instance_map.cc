@@ -151,12 +151,15 @@ int Instance_map::flush_instances()
 {
   int rc;
 
+  guardian->lock();
   pthread_mutex_lock(&LOCK_instance_map);
   hash_free(&hash);
   hash_init(&hash, default_charset_info, START_HASH_SIZE, 0, 0,
             get_instance_key, delete_instance, 0);
   pthread_mutex_unlock(&LOCK_instance_map);
   rc= load();
+  guardian->init();
+  guardian->unlock();
   return rc;
 }
 
@@ -183,6 +186,7 @@ int Instance_map::complete_initialization()
   Instance *instance;
   uint i= 0;
 
+
   if (hash.records == 0)                        /* no instances found */
   {
     if ((instance= new Instance) == 0)
@@ -190,6 +194,7 @@ int Instance_map::complete_initialization()
 
     if (instance->init("mysqld") || add_instance(instance))
       goto err_instance;
+
 
     /*
       After an instance have been added to the instance_map,
@@ -226,6 +231,7 @@ int Instance_map::load()
   uint args_used= 0;
   const char *argv_options[3];
   char **argv= (char **) &argv_options;
+
 
   /* the name of the program may be orbitrary here in fact */
   argv_options[0]= "mysqlmanager";

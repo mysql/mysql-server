@@ -170,7 +170,7 @@ int Show_instance_status::do_command(struct st_net *net,
     Instance *instance;
 
     store_to_string(&send_buff, (char *) instance_name, &position);
-    if ((instance= instance_map->find(instance_name, strlen(instance_name))) == NULL)
+    if (!(instance= instance_map->find(instance_name, strlen(instance_name))))
       goto err;
     if (instance->is_running())
     {
@@ -201,7 +201,7 @@ err:
 
 int Show_instance_status::execute(struct st_net *net, ulong connection_id)
 {
-  if (instance_name != NULL)
+  if ((instance_name))
   {
     if (do_command(net, instance_name))
       return ER_OUT_OF_RESOURCES;
@@ -257,14 +257,13 @@ int Show_instance_options::do_command(struct st_net *net,
   {
     Instance *instance;
 
-    if ((instance= instance_map->
-                   find(instance_name, strlen(instance_name))) == NULL)
+    if (!(instance= instance_map->find(instance_name, strlen(instance_name))))
       goto err;
     store_to_string(&send_buff, (char *) "instance_name", &position);
     store_to_string(&send_buff, (char *) instance_name, &position);
     if (my_net_write(net, send_buff.buffer, (uint) position))
       goto err;
-    if (instance->options.mysqld_path != NULL)
+    if ((instance->options.mysqld_path))
     {
       position= 0;
       store_to_string(&send_buff, (char *) "mysqld-path", &position);
@@ -276,7 +275,7 @@ int Show_instance_options::do_command(struct st_net *net,
         goto err;
     }
 
-    if (instance->options.nonguarded != NULL)
+    if ((instance->options.nonguarded))
     {
       position= 0;
       store_to_string(&send_buff, (char *) "nonguarded", &position);
@@ -317,7 +316,7 @@ err:
 
 int Show_instance_options::execute(struct st_net *net, ulong connection_id)
 {
-  if (instance_name != NULL)
+  if ((instance_name))
   {
     if (do_command(net, instance_name))
       return ER_OUT_OF_RESOURCES;
@@ -351,10 +350,10 @@ int Start_instance::execute(struct st_net *net, ulong connection_id)
   }
   else
   {
-    if (err_code= instance->start())
+    if ((err_code= instance->start()))
       return err_code;
 
-    if (instance->options.nonguarded == NULL)
+    if (!(instance->options.nonguarded))
         instance_map->guardian->guard(instance);
 
     net_send_ok(net, connection_id);
@@ -385,7 +384,7 @@ int Stop_instance::execute(struct st_net *net, ulong connection_id)
   }
   else
   {
-    if (instance->options.nonguarded == NULL)
+    if (!(instance->options.nonguarded))
         instance_map->guardian->
                stop_guard(instance);
     if ((err_code= instance->stop()))

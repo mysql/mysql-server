@@ -16,6 +16,7 @@
 
 #include "manager.h"
 
+#include "priv.h"
 #include "thread_registry.h"
 #include "listener.h"
 #include "instance_map.h"
@@ -75,10 +76,12 @@ void manager(const Options &options)
   Listener_thread_args listener_args(thread_registry, options, user_map,
                                      instance_map);
 
+  manager_pid= getpid();
   instance_map.guardian= &guardian_thread;
 
   if (instance_map.init() || user_map.init())
       return;
+
 
   if (instance_map.load())
   {
@@ -170,7 +173,12 @@ void manager(const Options &options)
   */
   init_thr_alarm(10);
   /* init list of guarded instances */
+  guardian_thread.lock();
+
   guardian_thread.init();
+
+  guardian_thread.unlock();
+
   /*
     After the list of guarded instances have been initialized,
     Guardian should start them.
