@@ -2598,6 +2598,12 @@ row_drop_table_for_mysql(
 		goto funct_exit;
 	}
 
+	/* TODO: could we replace the counter n_foreign_key_checks_running
+	with lock checks on the table? Acquire here an exclusive lock on the
+	table, and rewrite lock0lock.c and the lock wait in srv0srv.c so that
+	they can cope with the table having been dropped here? Foreign key
+	checks take an IS or IX lock on the table. */
+
 	if (table->n_foreign_key_checks_running > 0) {
 
 	        ut_print_timestamp(stderr);
