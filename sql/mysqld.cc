@@ -22,6 +22,7 @@
 #include "sql_repl.h"
 #include "repl_failsafe.h"
 #include "stacktrace.h"
+#include "mysqld_suffix.h"
 #ifdef HAVE_BERKELEY_DB
 #include "ha_berkeley.h"
 #endif
@@ -201,22 +202,6 @@ static bool start_mode=0, use_opt_args;
 static int opt_argc;
 static char **opt_argv;
 #endif
-
-/* Set prefix for windows binary */
-#ifdef __WIN__
-#undef MYSQL_SERVER_SUFFIX
-#ifdef __NT__
-#if defined(HAVE_BERKELEY_DB)
-#define MYSQL_SERVER_SUFFIX "-max-nt"
-#else
-#define MYSQL_SERVER_SUFFIX "-nt"
-#endif /* ...DB */
-#elif defined(HAVE_BERKELEY_DB)
-#define MYSQL_SERVER_SUFFIX "-max"
-#else
-#define MYSQL_SERVER_SUFFIX ""
-#endif /* __NT__ */
-#endif /* __WIN__ */
 
 #ifdef HAVE_BERKELEY_DB
 SHOW_COMP_OPTION have_berkeley_db=SHOW_OPTION_YES;
@@ -420,7 +405,7 @@ bool mysql_embedded=1;
 
 static char *opt_bin_logname = 0;
 char *opt_relay_logname = 0, *opt_relaylog_index_name=0;
-char server_version[SERVER_VERSION_LENGTH]=MYSQL_SERVER_VERSION;
+char server_version[SERVER_VERSION_LENGTH];
 const char *first_keyword="first";
 const char **errmesg;			/* Error messages */
 const char *myisam_recover_options_str="OFF";
@@ -485,6 +470,7 @@ static void start_signal_handler(void);
 extern "C" pthread_handler_decl(signal_hand, arg);
 static void set_options(void);
 static void get_options(int argc,char **argv);
+static void set_server_version(void);
 static char *get_relative_path(const char *path);
 static void fix_paths(void);
 extern "C" pthread_handler_decl(handle_connections_sockets,arg);
@@ -2037,11 +2023,7 @@ int main(int argc, char **argv)
     strmov(glob_hostname,"mysql");
   strmake(pidfile_name, glob_hostname, sizeof(pidfile_name)-5);
   strmov(fn_ext(pidfile_name),".pid");		// Add proper extension
-#ifndef DBUG_OFF
-  strxmov(strend(server_version),MYSQL_SERVER_SUFFIX,"-debug",NullS);
-#else
-  strmov(strend(server_version),MYSQL_SERVER_SUFFIX);
-#endif
+
 #ifdef _CUSTOMSTARTUPCONFIG_
   if (_cust_check_startup())
   {
@@ -2065,8 +2047,8 @@ int main(int argc, char **argv)
 
   set_options();
   get_options(argc,argv);
-  if (opt_log || opt_update_log || opt_slow_log || opt_bin_log)
-    strcat(server_version,"-log");
+  set_server_version();
+
   DBUG_PRINT("info",("%s  Ver %s for %s on %s\n",my_progname,
 		     server_version, SYSTEM_TYPE,MACHINE_TYPE));
 
@@ -4330,6 +4312,7 @@ struct show_var_st status_vars[]= {
 
 static void print_version(void)
 {
+  set_server_version();
   printf("%s  Ver %s for %s on %s (%s)\n",my_progname,
 	 server_version,SYSTEM_TYPE,MACHINE_TYPE, MYSQL_COMPILATION_COMMENT);
 }
@@ -4941,6 +4924,29 @@ static void get_options(int argc,char **argv)
 
   /* Set global variables based on startup options */
   myisam_block_size=(uint) 1 << my_bit_log2(opt_myisam_block_size);
+}
+
+
+/*
+  Create version name for running mysqld version
+  We automaticly add suffixes -debug, -embedded and -log to the version
+  name to make the version more descriptive.
+  (MYSQL_SERVER_SUFFIX is set by the compilation environment)
+*/
+
+static void set_server_version(void)
+{
+  char *end= strxmov(server_version, MYSQL_SERVER_VERSION,
+                     MYSQL_SERVER_SUFFIX, NullS);
+#ifdef EMBEDDED_LIBRARY
+  end= strmov(end, "-embedded");
+#endif
+#ifndef DBUG_OFF
+  if (!strstr(MYSQL_SERVER_SUFFIX, "-debug"))
+    end= strmov(end, "-debug");
+#endif
+  if (opt_log || opt_update_log || opt_slow_log || opt_bin_log)
+    strmov(end, "-log");                        // This may slow down system
 }
 
 

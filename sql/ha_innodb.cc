@@ -4671,7 +4671,6 @@ innodb_show_status(
 	THD*	thd)	/* in: the MySQL query thread of the caller */
 {
 	String* 	packet 	= &thd->packet;
-	char*		buf;
 	trx_t*		trx;
 
   	DBUG_ENTER("innodb_show_status");

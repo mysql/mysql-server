@@ -343,8 +343,6 @@ sys_var_const_str		sys_os("version_compile_os", SYSTEM_TYPE);
 sys_var_const_str		sys_license("license", LICENSE);
 
 
-
-
 /*
   List of all variables for initialisation and storage in hash
   This is sorted in alphabetical order to make it easy to add new variables
@@ -541,7 +539,7 @@ struct show_var_st init_vars[]= {
   {sys_log_warnings.name,     (char*) &sys_log_warnings,	    SHOW_SYS},
   {sys_long_query_time.name,  (char*) &sys_long_query_time, 	    SHOW_SYS},
   {sys_low_priority_updates.name, (char*) &sys_low_priority_updates, SHOW_SYS},
-  {"lower_case_file_system",  (char*) &lower_case_file_system,      SHOW_BOOL},
+  {"lower_case_file_system",  (char*) &lower_case_file_system,      SHOW_MY_BOOL},
   {"lower_case_table_names",  (char*) &lower_case_table_names,      SHOW_INT},
   {sys_max_allowed_packet.name,(char*) &sys_max_allowed_packet,	    SHOW_SYS},
   {sys_max_binlog_cache_size.name,(char*) &sys_max_binlog_cache_size, SHOW_SYS},
