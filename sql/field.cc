@@ -433,7 +433,7 @@ void Field::store_time(TIME *ltime,timestamp_type type)
 
 bool Field::optimize_range(uint idx)
 {
-  return !test(table->file->index_flags(idx) & HA_WRONG_ASCII_ORDER);
+  return test(table->file->index_flags(idx) & HA_READ_RANGE);
 }
 
 /****************************************************************************
@@ -4242,9 +4242,8 @@ int Field_string::cmp(const char *a_ptr, const char *b_ptr)
                                             (const uchar*) b_ptr,
                                             field_length);
   }
-  return field_charset->coll->strnncoll(field_charset,
-                                        (const uchar*) a_ptr, field_length,
-                                        (const uchar*) b_ptr, field_length);
+  return my_strnncoll(field_charset,(const uchar*) a_ptr, field_length,
+                                    (const uchar*) b_ptr, field_length);
 }
 
 void Field_string::sort_string(char *to,uint length)
