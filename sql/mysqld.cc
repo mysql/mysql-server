@@ -1836,9 +1836,11 @@ static void init_signals(void)
   sigaddset(&set,SIGPIPE);
 #endif
   sigaddset(&set,SIGINT);
+#ifndef IGNORE_SIGHUP_SIGQUIT
   sigaddset(&set,SIGQUIT);
-  sigaddset(&set,SIGTERM);
   sigaddset(&set,SIGHUP);
+#endif
+  sigaddset(&set,SIGTERM);
 
   /* Fix signals if blocked by parents (can happen on Mac OS X) */
   sigemptyset(&sa.sa_mask);
@@ -1921,11 +1923,13 @@ extern "C" void *signal_hand(void *arg __attribute__((unused)))
 #ifdef USE_ONE_SIGNAL_HAND
   (void) sigaddset(&set,THR_SERVER_ALARM);	// For alarms
 #endif
+#ifndef IGNORE_SIGHUP_SIGQUIT
   (void) sigaddset(&set,SIGQUIT);
-  (void) sigaddset(&set,SIGTERM);
 #if THR_CLIENT_ALARM != SIGHUP
   (void) sigaddset(&set,SIGHUP);
 #endif
+#endif
+  (void) sigaddset(&set,SIGTERM);
   (void) sigaddset(&set,SIGTSTP);
 
   /* Save pid to this process (or thread on Linux) */
