@@ -311,15 +311,6 @@ ulong my_bind_addr;			/* the address we bind to */
 volatile ulong cached_thread_count= 0;
 
 double log_10[32];			/* 10 potences */
-ulonglong log_10_int[20]=
-{
-  1, 10, 100, 1000, 10000UL, 100000UL, 1000000UL, 10000000UL,
-  ULL(100000000), ULL(1000000000), ULL(10000000000), ULL(100000000000),
-  ULL(1000000000000), ULL(10000000000000), ULL(100000000000000),
-  ULL(1000000000000000), ULL(10000000000000000), ULL(100000000000000000),
-  ULL(1000000000000000000), ULL(10000000000000000000)
-};
-
 time_t start_time;
 
 char mysql_home[FN_REFLEN], pidfile_name[FN_REFLEN], system_time_zone[30];
@@ -5001,18 +4992,18 @@ The minimum value for this variable is 4096.",
     0, GET_ULONG, REQUIRED_ARG, 0, 0, 7L, 0, 1, 0},
   { "date-format", OPT_DATE_FORMAT,
     "The DATE format (For future).",
-    (gptr*) &opt_date_time_formats[TIMESTAMP_DATE],
-    (gptr*) &opt_date_time_formats[TIMESTAMP_DATE],
+    (gptr*) &opt_date_time_formats[MYSQL_TIMESTAMP_DATE],
+    (gptr*) &opt_date_time_formats[MYSQL_TIMESTAMP_DATE],
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { "datetime-format", OPT_DATETIME_FORMAT,
     "The DATETIME/TIMESTAMP format (for future).",
-    (gptr*) &opt_date_time_formats[TIMESTAMP_DATETIME],
-    (gptr*) &opt_date_time_formats[TIMESTAMP_DATETIME],
+    (gptr*) &opt_date_time_formats[MYSQL_TIMESTAMP_DATETIME],
+    (gptr*) &opt_date_time_formats[MYSQL_TIMESTAMP_DATETIME],
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { "time-format", OPT_TIME_FORMAT,
     "The TIME format (for future).",
-    (gptr*) &opt_date_time_formats[TIMESTAMP_TIME],
-    (gptr*) &opt_date_time_formats[TIMESTAMP_TIME],
+    (gptr*) &opt_date_time_formats[MYSQL_TIMESTAMP_TIME],
+    (gptr*) &opt_date_time_formats[MYSQL_TIMESTAMP_TIME],
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
@@ -6118,11 +6109,11 @@ static void get_options(int argc,char **argv)
   if (opt_log_queries_not_using_indexes)
     opt_specialflag|= SPECIAL_LOG_QUERIES_NOT_USING_INDEXES;
 
-  if (init_global_datetime_format(TIMESTAMP_DATE,
+  if (init_global_datetime_format(MYSQL_TIMESTAMP_DATE,
 				  &global_system_variables.date_format) ||
-      init_global_datetime_format(TIMESTAMP_TIME,
+      init_global_datetime_format(MYSQL_TIMESTAMP_TIME,
 				  &global_system_variables.time_format) ||
-      init_global_datetime_format(TIMESTAMP_DATETIME,
+      init_global_datetime_format(MYSQL_TIMESTAMP_DATETIME,
 				  &global_system_variables.datetime_format))
     exit(1);
 }
