@@ -325,6 +325,11 @@ int Arg_comparator::set_compare_func(Item_bool_func2 *item, Item_result type)
       else if ((*b)->unsigned_flag)
         func= &Arg_comparator::compare_int_signed_unsigned;
     }
+    else if (func== &Arg_comparator::compare_e_int)
+    {
+      if ((*a)->unsigned_flag ^ (*b)->unsigned_flag)
+        func= &Arg_comparator::compare_e_int_diff_signedness;
+    }
   }
   return 0;
 }
@@ -530,6 +535,17 @@ int Arg_comparator::compare_e_int()
   return test(val1 == val2);
 }
 
+/*
+  Compare unsigned *a with signed *b or signed *a with unsigned *b.
+*/
+int Arg_comparator::compare_e_int_diff_signedness()
+{
+  longlong val1= (*a)->val_int();
+  longlong val2= (*b)->val_int();
+  if ((*a)->null_value || (*b)->null_value)
+    return test((*a)->null_value && (*b)->null_value);
+  return (val1 >= 0) && test(val1 == val2);
+}
 
 int Arg_comparator::compare_row()
 {
