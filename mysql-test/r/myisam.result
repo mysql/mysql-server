@@ -385,3 +385,9 @@ check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 drop table t1;
+create table t1 ( a text not null, key a (a(20)));
+insert into t1 values ('aaa   '),('aaa');
+repair table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+drop table t1;

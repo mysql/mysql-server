@@ -385,3 +385,12 @@ insert into t1 (b) values (repeat('z',100));
 update t1 set b="test" where left(b,1) > 'n';
 check table t1;
 drop table t1;
+
+#
+# sort-repair bug
+#
+create table t1 ( a text not null, key a (a(20)));
+insert into t1 values ('aaa   '),('aaa');
+repair table t1;
+drop table t1;
+
