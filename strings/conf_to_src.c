@@ -80,7 +80,7 @@ print_array(FILE *f, const char *set, const char *name, int n)
     endptr = p;
     for (;;)
     {
-      while (isspace(*endptr))
+      while (isspace((* (unsigned char*) endptr)))
         ++endptr;
       if (*endptr && *endptr != '#')    /* not comment */
         break;
@@ -90,7 +90,7 @@ print_array(FILE *f, const char *set, const char *name, int n)
     }
 
     p = val;
-    while (!isspace(*endptr))
+    while (!isspace((* (unsigned char*) endptr)))
       *p++ = *endptr++;
     *p = '\0';
     p = endptr;

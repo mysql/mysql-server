@@ -1365,7 +1365,7 @@ uint _line_)
 #ifdef THREAD
     (void) fprintf (_db_fp_, "%-7s: ", my_thread_name());
 #else
-    (void) fprintf (_db_fp_, "%5d: ", getpid ());
+    (void) fprintf (_db_fp_, "%5d: ", (int) getpid ());
 #endif
   }
   if (stack -> flags & NUMBER_ON) {
