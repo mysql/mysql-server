@@ -1705,3 +1705,15 @@ select col1,group_concat(col2,col3) from t1 group by col1;
 select col1,group_concat(col2,col3) from v1 group by col1;
 drop view v1;
 drop table t1;
+
+#
+# Item_ref resolved as view field (BUG#6894)
+#
+create table t1 (s1 int, s2 char);
+create view v1 as select s1, s2 from t1;
+-- error 1054
+select s2 from v1 vq1 where 2 = (select count(*) from v1 vq2 having vq1.s2 = vq2.s2);
+select s2 from v1 vq1 where 2 = (select count(*) aa from v1 vq2 having vq1.s2 = aa);
+drop view v1;
+drop table t1;
+
