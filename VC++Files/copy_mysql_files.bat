@@ -68,13 +68,13 @@ copy libmysqltest\release\myTest.exe c:\mysql\examples\libmysqltest
 
 REM Copy share, docs etc
 
-xcopy share\*.* c:\mysql\share /E
-xcopy scripts\*.* c:\mysql\scripts /E
-xcopy docs\*.* c:\mysql\docs /E
-xcopy docs\readme c:\mysql\
-xcopy sql-bench\*.* c:\mysql\bench /E
+xcopy share\*.* c:\mysql\share /E /Y
+xcopy scripts\*.* c:\mysql\scripts /E /Y
+xcopy docs\*.* c:\mysql\docs /E /Y
+xcopy sql-bench\*.* c:\mysql\bench /E /Y
+copy docs\readme c:\mysql\
 
 REM Copy privilege tables (Delete old ones as they may be from a newer version)
 
 del c:\mysql\data\mysql\*.* /Q
-copy data\*.* c:\mysql\data
+xcopy data\mysql\*.* c:\mysql\data\mysql /E /Y
