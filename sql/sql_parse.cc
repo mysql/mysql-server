@@ -1972,14 +1972,21 @@ mysql_execute_command(THD *thd)
   case SQLCOM_REPLACE:
   case SQLCOM_INSERT:
   {
+    my_bool update=(lex->value_list.elements ? UPDATE_ACL : 0);
     ulong privilege= (lex->duplicates == DUP_REPLACE ?
-                      INSERT_ACL | DELETE_ACL : INSERT_ACL);
+                      INSERT_ACL | DELETE_ACL : INSERT_ACL | update);
     if (check_access(thd,privilege,tables->db,&tables->grant.privilege))
       goto error; /* purecov: inspected */
     if (grant_option && check_grant(thd,privilege,tables))
       goto error;
+    if (select_lex->item_list.elements != lex->value_list.elements)
+    {
+      send_error(thd,ER_WRONG_VALUE_COUNT);
+      DBUG_VOID_RETURN;
+    }
     res = mysql_insert(thd,tables,lex->field_list,lex->many_values,
-		       lex->duplicates);
+                       select_lex->item_list, lex->value_list,
+                       (update ? DUP_UPDATE : lex->duplicates));
     if (thd->net.report_error)
       res= -1;
     break;
@@ -2302,7 +2309,7 @@ mysql_execute_command(THD *thd)
   case SQLCOM_LOAD:
   {
     uint privilege= (lex->duplicates == DUP_REPLACE ?
-		     INSERT_ACL | UPDATE_ACL | DELETE_ACL : INSERT_ACL);
+		     INSERT_ACL | DELETE_ACL : INSERT_ACL);
 
     if (!lex->local_file)
     {
