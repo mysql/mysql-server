@@ -2130,6 +2130,31 @@ then
   AC_DEFINE(HAVE_QUERY_CACHE)
 fi
 
+AC_ARG_WITH(geometry,
+    [  --without-geometry      Do not build geometry-related parts.],
+    [with_geometry=$withval],
+    [with_geometry=yes]
+)
+
+if test "$with_geometry" = "yes"
+then
+  AC_DEFINE(HAVE_SPATIAL)
+  AC_DEFINE(HAVE_RTREE_KEYS)
+fi
+
+AC_ARG_WITH(embedded_privilege_control,
+    [  --with-embedded-privilege-control
+                          Build parts to check user's privileges.
+			  Only affects embedded library.],
+    [with_embedded_privilege_control=$withval],
+    [with_embedded_privilege_control=no]
+)
+
+if test "$with_embedded_privilege_control" = "yes"
+then
+  AC_DEFINE(HAVE_EMBEDDED_PRIVILEGE_CONTROL)
+fi
+
 AC_ARG_WITH(extra-tools,
     [  --without-extra-tools   Skip building utilites in the tools directory.],
     [with_tools=$withval],

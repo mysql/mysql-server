@@ -1169,6 +1169,8 @@ typedef union {
 #define MYSQL_UNIVERSAL_CLIENT_CHARSET MYSQL_DEFAULT_CHARSET_NAME
 #endif
 
-#define HAVE_SPATIAL
-#define HAVE_RTREE_KEYS
+#if defined(EMBEDDED_LIBRARY) && !defined(HAVE_EMBEDDED_PRIVILEGE_CONTROL)
+#define NO_EMBEDDED_ACCESS_CHECKS
+#endif
+
 #endif /* my_global_h */
