@@ -56,6 +56,9 @@ row_ins_index_entry_low(
 				pessimistic descent down the index tree */
 	dict_index_t*	index,	/* in: index */
 	dtuple_t*	entry,	/* in: index entry to insert */
+	ulint*		ext_vec,/* in: array containing field numbers of
+				externally stored fields in entry, or NULL */
+	ulint		n_ext_vec,/* in: number of fields in ext_vec */
 	que_thr_t*	thr);	/* in: query thread */
 /*******************************************************************
 Inserts an index entry to index. Tries first optimistic, then pessimistic
@@ -70,6 +73,9 @@ row_ins_index_entry(
 				DB_DUPLICATE_KEY, or some other error code */
 	dict_index_t*	index,	/* in: index */
 	dtuple_t*	entry,	/* in: index entry to insert */
+	ulint*		ext_vec,/* in: array containing field numbers of
+				externally stored fields in entry, or NULL */
+	ulint		n_ext_vec,/* in: number of fields in ext_vec */
 	que_thr_t*	thr);	/* in: query thread */
 /***************************************************************
 Inserts a row to a table. */

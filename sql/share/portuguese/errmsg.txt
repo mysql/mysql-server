@@ -211,3 +211,4 @@
 "Travamentos de atualização não podem ser obtidos durante um READ UNCOMMITTED na transação",
 "DROP DATABASE não permitido enquanto uma 'thread' está assegurando um travamento global de leitura",
 "CREATE DATABASE não permitido enquanto uma 'thread' está assegurando um travamento global de leitura",
+"Wrong arguments to %s",

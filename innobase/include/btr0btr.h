@@ -357,6 +357,44 @@ btr_get_size(
 				/* out: number of pages */
 	dict_index_t*	index,	/* in: index */
 	ulint		flag);	/* in: BTR_N_LEAF_PAGES or BTR_TOTAL_SIZE */
+/******************************************************************
+Allocates a new file page to be used in an index tree. NOTE: we assume
+that the caller has made the reservation for free extents! */
+
+page_t*
+btr_page_alloc(
+/*===========*/
+					/* out: new allocated page, x-latched;
+					NULL if out of space */
+	dict_tree_t*	tree,		/* in: index tree */
+	ulint		hint_page_no,	/* in: hint of a good page */
+	byte		file_direction,	/* in: direction where a possible
+					page split is made */
+	ulint		level,		/* in: level where the page is placed
+					in the tree */
+	mtr_t*		mtr);		/* in: mtr */
+/******************************************************************
+Frees a file page used in an index tree. NOTE: cannot free field external
+storage pages because the page must contain info on its level. */
+
+void
+btr_page_free(
+/*==========*/
+	dict_tree_t*	tree,	/* in: index tree */
+	page_t*		page,	/* in: page to be freed, x-latched */	
+	mtr_t*		mtr);	/* in: mtr */
+/******************************************************************
+Frees a file page used in an index tree. Can be used also to BLOB
+external storage pages, because the page level 0 can be given as an
+argument. */
+
+void
+btr_page_free_low(
+/*==============*/
+	dict_tree_t*	tree,	/* in: index tree */
+	page_t*		page,	/* in: page to be freed, x-latched */	
+	ulint		level,	/* in: page level */
+	mtr_t*		mtr);	/* in: mtr */
 /*****************************************************************
 Prints size info of a B-tree. */
 

@@ -49,7 +49,9 @@ ulint
 buf_read_page_low(
 /*==============*/
 			/* out: 1 if a read request was queued, 0 if the page
-			already resided in buf_pool */
+			already resided in buf_pool or if the page is in
+			the doublewrite buffer blocks in which case it is never
+			read into the pool */
 	ibool	sync,	/* in: TRUE if synchronous aio is desired */
 	ulint	mode,	/* in: BUF_READ_IBUF_PAGES_ONLY, ...,
 			ORed to OS_AIO_SIMULATED_WAKE_LATER (see below
@@ -63,6 +65,16 @@ buf_read_page_low(
 	wake_later = mode & OS_AIO_SIMULATED_WAKE_LATER;
 	mode = mode & ~OS_AIO_SIMULATED_WAKE_LATER;
 	
+	if (trx_doublewrite && space == TRX_SYS_SPACE
+		&& (   (offset >= trx_doublewrite->block1
+		        && offset < trx_doublewrite->block1
+		     		+ TRX_SYS_DOUBLEWRITE_BLOCK_SIZE)
+		    || (offset >= trx_doublewrite->block2
+		        && offset < trx_doublewrite->block2
+		     		+ TRX_SYS_DOUBLEWRITE_BLOCK_SIZE))) {
+		return(0);
+	}
+
 #ifdef UNIV_LOG_DEBUG
 	if (space % 2 == 1) {
 		/* We are updating a replicate space while holding the

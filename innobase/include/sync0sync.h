@@ -393,6 +393,7 @@ Memory pool mutex */
 #define SYNC_RSEG_HEADER_NEW	591
 #define SYNC_RSEG_HEADER	590
 #define SYNC_TRX_UNDO_PAGE	570
+#define SYNC_EXTERN_STORAGE	500
 #define	SYNC_FSP		400
 #define	SYNC_FSP_PAGE		395
 /*------------------------------------- Insert buffer headers */ 
@@ -415,6 +416,7 @@ Memory pool mutex */
 					the level is SYNC_MEM_HASH. */
 #define	SYNC_BUF_POOL		150
 #define	SYNC_BUF_BLOCK		149
+#define SYNC_DOUBLEWRITE	140
 #define	SYNC_ANY_LATCH		135
 #define	SYNC_MEM_HASH		131
 #define	SYNC_MEM_POOL		130

@@ -1,7 +1,7 @@
 /***********************************************************************
 Comparison services for records
 
-(c) 1994-1996 Innobase Oy
+(c) 1994-2001 Innobase Oy
 
 Created 7/1/1994 Heikki Tuuri
 ************************************************************************/
@@ -31,14 +31,18 @@ This function is used to compare a data tuple to a physical record.
 Only dtuple->n_fields_cmp first fields are taken into account for
 the the data tuple! If we denote by n = n_fields_cmp, then rec must
 have either m >= n fields, or it must differ from dtuple in some of
-the m fields rec has. */
+the m fields rec has. If rec has an externally stored field we do not
+compare it but return with value 0 if such a comparison should be
+made. */
 
 int
 cmp_dtuple_rec_with_match(
 /*======================*/	
 				/* out: 1, 0, -1, if dtuple is greater, equal, 
 				less than rec, respectively, when only the 
-				common first fields are compared */
+				common first fields are compared, or
+				until the first externally stored field in
+				rec */
 	dtuple_t*	dtuple,	/* in: data tuple */
 	rec_t*		rec,	/* in: physical record which differs from
 				dtuple in some of the common fields, or which
@@ -89,7 +93,8 @@ cmp_dtuple_rec_prefix_equal(
 				fields in dtuple */
 /*****************************************************************
 This function is used to compare two physical records. Only the common
-first fields are compared. */
+first fields are compared, and if an externally stored field is
+encountered, then 0 is returned. */
 
 int
 cmp_rec_rec_with_match(

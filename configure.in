@@ -4,7 +4,7 @@ dnl Process this file with autoconf to produce a configure script.
 AC_INIT(sql/mysqld.cc)
 AC_CANONICAL_SYSTEM
 # The Docs Makefile.am parses this line!
-AM_INIT_AUTOMAKE(mysql, 3.23.40)
+AM_INIT_AUTOMAKE(mysql, 3.23.41)
 AM_CONFIG_HEADER(config.h)
 
 PROTOCOL_VERSION=10
@@ -1946,9 +1946,13 @@ AC_SUBST(CLIENT_LIBS)
 AC_SUBST(sql_client_dirs)
 AC_SUBST(linked_client_targets)
 
-if test "$with_server" = "yes"
+if test "$with_server" = "yes" -o "$THREAD_SAFE_CLIENT" != "no"
 then
   AC_DEFINE(THREAD)
+fi
+
+if test "$with_server" = "yes"
+then
   # Avoid _PROGRAMS names
   THREAD_LPROGRAMS="test_thr_alarm test_thr_lock"
   AC_SUBST(THREAD_LPROGRAMS)
@@ -2044,7 +2048,10 @@ EOF
 
     AC_DEFINE(HAVE_GEMINI_DB)
   fi
+fi
 
+if test "$with_server" = "yes" -o "$THREAD_SAFE_CLIENT" != "no"
+then
   if test "$with_posix_threads" = "no" -o "$with_mit_threads" = "yes"
   then
     # MIT user level threads

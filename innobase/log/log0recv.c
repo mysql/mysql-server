@@ -2234,7 +2234,8 @@ try_open_again:
 
 	fil_reserve_right_to_open();
 
-	file_handle = os_file_create(name, OS_FILE_OPEN, OS_FILE_AIO, &ret);
+	file_handle = os_file_create(name, OS_FILE_OPEN,
+					OS_FILE_LOG, OS_FILE_AIO, &ret);
 
 	if (ret == FALSE) {
 		fil_release_right_to_open();

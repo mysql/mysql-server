@@ -94,12 +94,12 @@ row_undo_mod_clust_low(
 	mtr_t*		mtr,	/* in: mtr */
 	ulint		mode)	/* in: BTR_MODIFY_LEAF or BTR_MODIFY_TREE */
 {
+	big_rec_t*	dummy_big_rec;
 	dict_index_t*	index;
 	btr_pcur_t*	pcur;
 	btr_cur_t*	btr_cur;
 	ulint		err;
 	ibool		success;
-	ibool		do_remove;
 
 	index = dict_table_get_first_index(node->table);
 	
@@ -110,49 +110,80 @@ row_undo_mod_clust_low(
 
 	ut_ad(success);
 
+	if (mode == BTR_MODIFY_LEAF) {
+
+		err = btr_cur_optimistic_update(BTR_NO_LOCKING_FLAG
+					| BTR_NO_UNDO_LOG_FLAG
+					| BTR_KEEP_SYS_FLAG,
+					btr_cur, node->update,
+					node->cmpl_info, thr, mtr);
+	} else {
+		ut_ad(mode == BTR_MODIFY_TREE);
+
+		err = btr_cur_pessimistic_update(BTR_NO_LOCKING_FLAG
+					| BTR_NO_UNDO_LOG_FLAG
+					| BTR_KEEP_SYS_FLAG,
+					btr_cur, &dummy_big_rec, node->update,
+					node->cmpl_info, thr, mtr);
+	}
+
+	return(err);
+}
+		
+/***************************************************************
+Removes a clustered index record after undo if possible. */
+static
+ulint
+row_undo_mod_remove_clust_low(
+/*==========================*/
+				/* out: DB_SUCCESS, DB_FAIL, or error code:
+				we may run out of file space */
+	undo_node_t*	node,	/* in: row undo node */
+	que_thr_t*	thr,	/* in: query thread */
+	mtr_t*		mtr,	/* in: mtr */
+	ulint		mode)	/* in: BTR_MODIFY_LEAF or BTR_MODIFY_TREE */
+{
+	btr_pcur_t*	pcur;
+	btr_cur_t*	btr_cur;
+	ulint		err;
+	ibool		success;
+	
+	pcur = &(node->pcur);
+	btr_cur = btr_pcur_get_btr_cur(pcur);
+
+	success = btr_pcur_restore_position(mode, pcur, mtr);
+
+	if (!success) {
+
+		return(DB_SUCCESS);
+	}
+
 	/* Find out if we can remove the whole clustered index record */
 
 	if (node->rec_type == TRX_UNDO_UPD_DEL_REC
 	    && !row_vers_must_preserve_del_marked(node->new_trx_id, mtr)) {
 
-		do_remove = TRUE;
+		/* Ok, we can remove */
 	} else {
-		do_remove = FALSE;
+		return(DB_SUCCESS);
 	}
 	    
 	if (mode == BTR_MODIFY_LEAF) {
+		success = btr_cur_optimistic_delete(btr_cur, mtr);
 
-		if (do_remove) {
-			success = btr_cur_optimistic_delete(btr_cur, mtr);
-
-			if (success) {
-				err = DB_SUCCESS;
-			} else {
-				err = DB_FAIL;
-			}
+		if (success) {
+			err = DB_SUCCESS;
 		} else {
-			err = btr_cur_optimistic_update(BTR_NO_LOCKING_FLAG
-					| BTR_NO_UNDO_LOG_FLAG
-					| BTR_KEEP_SYS_FLAG,
-					btr_cur, node->update,
-					node->cmpl_info, thr, mtr);
+			err = DB_FAIL;
 		}
 	} else {
 		ut_ad(mode == BTR_MODIFY_TREE);
 
-		if (do_remove) {
-			btr_cur_pessimistic_delete(&err, FALSE, btr_cur, mtr);
+		btr_cur_pessimistic_delete(&err, FALSE, btr_cur, mtr);
 
-			/* The delete operation may fail if we have little
-			file space left: TODO: easiest to crash the database
-			and restart with more file space */
-		} else {
-			err = btr_cur_pessimistic_update(BTR_NO_LOCKING_FLAG
-					| BTR_NO_UNDO_LOG_FLAG
-					| BTR_KEEP_SYS_FLAG,
-					btr_cur, node->update,
-					node->cmpl_info, thr, mtr);
-		}
+		/* The delete operation may fail if we have little
+		file space left: TODO: easiest to crash the database
+		and restart with more file space */
 	}
 
 	return(err);
@@ -204,10 +235,31 @@ row_undo_mod_clust(
 		err = row_undo_mod_clust_low(node, thr, &mtr, BTR_MODIFY_TREE);
 	}
 
-	node->state = UNDO_NODE_FETCH_NEXT;
-
 	btr_pcur_commit_specify_mtr(pcur, &mtr);
 
+	if (err == DB_SUCCESS && node->rec_type == TRX_UNDO_UPD_DEL_REC) {
+	
+		mtr_start(&mtr);
+
+		err = row_undo_mod_remove_clust_low(node, thr, &mtr,
+							BTR_MODIFY_LEAF);
+		if (err != DB_SUCCESS) {
+			btr_pcur_commit_specify_mtr(pcur, &mtr);
+
+			/* We may have to modify tree structure: do a
+			pessimistic descent down the index tree */
+
+			mtr_start(&mtr);
+
+			err = row_undo_mod_remove_clust_low(node, thr, &mtr,
+							BTR_MODIFY_TREE);
+		}
+
+		btr_pcur_commit_specify_mtr(pcur, &mtr);
+	}
+
+	node->state = UNDO_NODE_FETCH_NEXT;
+	
  	trx_undo_rec_release(node->trx, node->undo_no);
 
 	if (more_vers && err == DB_SUCCESS) {
@@ -388,7 +440,6 @@ row_undo_mod_del_unmark_sec(
 	  mem_free(err_buf);
 
 	} else {
-
          	btr_cur = btr_pcur_get_btr_cur(&pcur);
 
 	        err = btr_cur_del_mark_set_sec_rec(BTR_NO_LOCKING_FLAG,
@@ -546,11 +597,12 @@ row_undo_mod_parse_undo_rec(
 	ulint		info_bits;
 	ulint		type;
 	ulint		cmpl_info;
+	ibool		dummy_extern;
 	
 	ut_ad(node && thr);
 	
 	ptr = trx_undo_rec_get_pars(node->undo_rec, &type, &cmpl_info,
-							&undo_no, &table_id);
+					&dummy_extern, &undo_no, &table_id);
 	node->rec_type = type;
 	
 	node->table = dict_table_get_on_id(table_id, thr_get_trx(thr));
@@ -598,10 +650,9 @@ row_undo_mod(
 	row_undo_mod_parse_undo_rec(node, thr);
 
 	if (node->table == NULL) {
-	  found = FALSE;
+		found = FALSE;
 	} else {
-
-	  found = row_undo_search_clust_to_pcur(node, thr);
+	  	found = row_undo_search_clust_to_pcur(node, thr);
 	}
 
 	if (!found) {

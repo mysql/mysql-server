@@ -347,19 +347,35 @@ row_purge_del_mark(
 }
 	
 /***************************************************************
-Purges an update of an existing record. */
+Purges an update of an existing record. Also purges an update of a delete
+marked record if that record contained an externally stored field. */
 static
 void
-row_purge_upd_exist(
-/*================*/
+row_purge_upd_exist_or_extern(
+/*==========================*/
 	purge_node_t*	node,	/* in: row purge node */
 	que_thr_t*	thr)	/* in: query thread */
 {
 	mem_heap_t*	heap;
 	dtuple_t*	entry;
 	dict_index_t*	index;
+	upd_field_t*	ufield;
+	ibool		is_insert;
+	ulint		rseg_id;
+	ulint		page_no;
+	ulint		offset;
+	ulint		internal_offset;
+	byte*		data_field;
+	ulint		data_field_len;
+	ulint		i;
+	mtr_t		mtr;
 	
 	ut_ad(node && thr);
+
+	if (node->rec_type == TRX_UNDO_UPD_DEL_REC) {
+
+		goto skip_secondaries;
+	}
 
 	heap = mem_heap_create(1024);
 
@@ -378,6 +394,53 @@ row_purge_upd_exist(
 	}
 
 	mem_heap_free(heap);	
+
+skip_secondaries:
+	/* Free possible externally stored fields */
+	for (i = 0; i < upd_get_n_fields(node->update); i++) {
+
+		ufield = upd_get_nth_field(node->update, i);
+
+		if (ufield->extern_storage) {
+			/* We use the fact that new_val points to
+			node->undo_rec and get thus the offset of
+			dfield data inside the unod record. Then we
+			can calculate from node->roll_ptr the file
+			address of the new_val data */
+
+			internal_offset = ((byte*)ufield->new_val.data)
+						- node->undo_rec;
+						
+			ut_a(internal_offset < UNIV_PAGE_SIZE);
+
+			trx_undo_decode_roll_ptr(node->roll_ptr,
+						&is_insert, &rseg_id,
+						&page_no, &offset);
+			mtr_start(&mtr);
+
+			/* We have to acquire an X-latch to the clustered
+			index tree */
+
+			index = dict_table_get_first_index(node->table);
+
+			mtr_x_lock(dict_tree_get_lock(index->tree), &mtr);
+			
+			/* We assume in purge of externally stored fields
+			that the space id of the undo log record is 0! */
+
+			data_field = buf_page_get(0, page_no, RW_X_LATCH, &mtr)
+				     + offset + internal_offset;
+
+			buf_page_dbg_add_level(buf_frame_align(data_field),
+						SYNC_TRX_UNDO_PAGE);
+				     
+			data_field_len = ufield->new_val.len;
+
+			btr_free_externally_stored_field(index, data_field,
+							data_field_len, &mtr);
+			mtr_commit(&mtr);
+		}
+	}
 }
 
 /***************************************************************
@@ -388,6 +451,9 @@ row_purge_parse_undo_rec(
 /*=====================*/
 				/* out: TRUE if purge operation required */
 	purge_node_t*	node,	/* in: row undo node */
+	ibool*		updated_extern,
+				/* out: TRUE if an externally stored field
+				was updated */
 	que_thr_t*	thr)	/* in: query thread */
 {
 	dict_index_t*	clust_index;
@@ -403,10 +469,10 @@ row_purge_parse_undo_rec(
 	ut_ad(node && thr);
 	
 	ptr = trx_undo_rec_get_pars(node->undo_rec, &type, &cmpl_info,
-							&undo_no, &table_id);
+					updated_extern, &undo_no, &table_id);
 	node->rec_type = type;
 
-	if (type == TRX_UNDO_UPD_DEL_REC) {
+	if (type == TRX_UNDO_UPD_DEL_REC && !(*updated_extern)) {
 
 		return(FALSE);
 	}	    		
@@ -416,7 +482,7 @@ row_purge_parse_undo_rec(
 	node->table = NULL;
 
 	if (type == TRX_UNDO_UPD_EXIST_REC
-				&& cmpl_info & UPD_NODE_NO_ORD_CHANGE) {
+	    && cmpl_info & UPD_NODE_NO_ORD_CHANGE && !(*updated_extern)) {
 
 	    	/* Purge requires no changes to indexes: we may return */
 
@@ -455,8 +521,11 @@ row_purge_parse_undo_rec(
 
 	/* Read to the partial row the fields that occur in indexes */
 
-	ptr = trx_undo_rec_get_partial_row(ptr, clust_index, &(node->row),
-								node->heap);
+	if (!cmpl_info & UPD_NODE_NO_ORD_CHANGE) {
+		ptr = trx_undo_rec_get_partial_row(ptr, clust_index,
+						&(node->row), node->heap);
+	}
+	
 	return(TRUE);
 }
 
@@ -475,6 +544,7 @@ row_purge(
 {
 	dulint	roll_ptr;
 	ibool	purge_needed;
+	ibool	updated_extern;
 	
 	ut_ad(node && thr);
 
@@ -494,7 +564,8 @@ row_purge(
 	if (node->undo_rec == &trx_purge_dummy_rec) {
 		purge_needed = FALSE;
 	} else {
-		purge_needed = row_purge_parse_undo_rec(node, thr);
+		purge_needed = row_purge_parse_undo_rec(node, &updated_extern,
+									thr);
 	}
 
 	if (purge_needed) {
@@ -503,11 +574,13 @@ row_purge(
 		node->index = dict_table_get_next_index(
 				dict_table_get_first_index(node->table));
 
-		if (node->rec_type == TRX_UNDO_UPD_EXIST_REC) {
-			row_purge_upd_exist(node, thr);
-		} else {
-			ut_ad(node->rec_type == TRX_UNDO_DEL_MARK_REC);
+		if (node->rec_type == TRX_UNDO_DEL_MARK_REC) {
 			row_purge_del_mark(node, thr);
+
+		} else if (updated_extern
+			    || node->rec_type == TRX_UNDO_UPD_EXIST_REC) {
+
+			row_purge_upd_exist_or_extern(node, thr);
 		}
 
 		if (node->found_clust) {
