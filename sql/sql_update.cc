@@ -461,9 +461,7 @@ int mysql_multi_update(THD *thd,
   int res;
   multi_update *result;
   TABLE_LIST *tl;
-  TABLE_LIST *update_list=
-    (TABLE_LIST*)thd->lex->select_lex.table_list.first;
-
+  TABLE_LIST *update_list= (TABLE_LIST*) thd->lex->select_lex.table_list.first;
   table_map item_tables= 0, derived_tables= 0;
   DBUG_ENTER("mysql_multi_update");
 

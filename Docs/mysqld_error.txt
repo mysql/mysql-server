@@ -142,11 +142,11 @@ character-set=latin1
 #define ER_MULTIPLE_PRI_KEY 1068
 "Multiple primary key defined",
 #define ER_TOO_MANY_KEYS 1069
-"Too many keys specified. Max %d keys allowed",
+"Too many keys specified; max %d keys allowed",
 #define ER_TOO_MANY_KEY_PARTS 1070
 "Too many key parts specified. Max %d parts allowed",
 #define ER_TOO_LONG_KEY 1071
-"Specified key was too long. Max key length is %d",
+"Specified key was too long; max key length is %d bytes",
 #define ER_KEY_COLUMN_DOES_NOT_EXITS 1072
 "Key column '%-.64s' doesn't exist in table",
 #define ER_BLOB_USED_AS_KEY 1073
@@ -406,7 +406,7 @@ character-set=latin1
 #define ER_BAD_SLAVE 1200
 "The server is not configured as slave, fix in config file or with CHANGE MASTER TO",
 #define ER_MASTER_INFO 1201
-"Could not initialize master info structure, check permisions on master.info",
+"Could not initialize master info structure, more error messages can be found in the MySQL error log",
 #define ER_SLAVE_THREAD 1202
 "Could not create slave thread, check system resources",
 #define ER_TOO_MANY_USER_CONNECTIONS 1203
@@ -460,7 +460,7 @@ character-set=latin1
 #define ER_SPECIFIC_ACCESS_DENIED_ERROR 1227
 "Access denied. You need the %-.128s privilege for this operation",
 #define ER_LOCAL_VARIABLE 1228
-"Variable '%-.64s' is a LOCAL variable and can't be used with SET GLOBAL",
+"Variable '%-.64s' is a SESSION variable and can't be used with SET GLOBAL",
 #define ER_GLOBAL_VARIABLE 1229
 "Variable '%-.64s' is a GLOBAL variable and should be set with SET GLOBAL",
 #define ER_NO_DEFAULT 1230
@@ -479,95 +479,119 @@ character-set=latin1
 "Got fatal error %d: '%-.128s' from master when reading data from binary log",
 #define ER_SLAVE_IGNORED_TABLE 1237
 "Slave SQL thread ignored the query because of replicate-*-table rules",
-#define ER_WRONG_FK_DEF 1238
+#define ER_INCORRECT_GLOBAL_LOCAL_VAR 1238
+"Variable '%-.64s' is a %s variable",
+#define ER_WRONG_FK_DEF 1239
 "Wrong foreign key definition for '%-.64s': %s",
-#define ER_KEY_REF_DO_NOT_MATCH_TABLE_REF 1239
+#define ER_KEY_REF_DO_NOT_MATCH_TABLE_REF 1240
 "Key reference and table reference doesn't match",
-#define ER_OPERAND_COLUMNS 1240
+#define ER_OPERAND_COLUMNS 1241
 "Operand should contain %d column(s)",
-#define ER_SUBQUERY_NO_1_ROW 1241
+#define ER_SUBQUERY_NO_1_ROW 1242
 "Subquery returns more than 1 row",
-#define ER_UNKNOWN_STMT_HANDLER 1242
+#define ER_UNKNOWN_STMT_HANDLER 1243
 "Unknown prepared statement handler (%ld) given to %s",
-#define ER_CORRUPT_HELP_DB 1243
+#define ER_CORRUPT_HELP_DB 1244
 "Help database is corrupt or does not exist",
-#define ER_CYCLIC_REFERENCE 1244
+#define ER_CYCLIC_REFERENCE 1245
 "Cyclic reference on subqueries",
-#define ER_AUTO_CONVERT 1245
+#define ER_AUTO_CONVERT 1246
 "Converting column '%s' from %s to %s",
-#define ER_ILLEGAL_REFERENCE 1246
+#define ER_ILLEGAL_REFERENCE 1247
 "Reference '%-.64s' not supported (%s)",
-#define ER_DERIVED_MUST_HAVE_ALIAS 1247
+#define ER_DERIVED_MUST_HAVE_ALIAS 1248
 "Every derived table must have it's own alias",
-#define ER_SELECT_REDUCED 1248
+#define ER_SELECT_REDUCED 1249
 "Select %u was reduced during optimisation",
-#define ER_TABLENAME_NOT_ALLOWED_HERE 1249
+#define ER_TABLENAME_NOT_ALLOWED_HERE 1250
 "Table '%-.64s' from one of SELECT's can not be used  in %-.32s",
-#define ER_NOT_SUPPORTED_AUTH_MODE 1250
+#define ER_NOT_SUPPORTED_AUTH_MODE 1251
 "Client does not support authentication protocol requested by server; consider upgrading MySQL client",
-#define ER_SPATIAL_CANT_HAVE_NULL 1251
+#define ER_SPATIAL_CANT_HAVE_NULL 1252
 "All parts of a SPATIAL KEY must be NOT NULL",
-#define ER_COLLATION_CHARSET_MISMATCH 1252
+#define ER_COLLATION_CHARSET_MISMATCH 1253
 "COLLATION '%s' is not valid for CHARACTER SET '%s'",
-#define ER_SLAVE_WAS_RUNNING 1253
+#define ER_SLAVE_WAS_RUNNING 1254
 "Slave is already running",
-#define ER_SLAVE_WAS_NOT_RUNNING 1254
+#define ER_SLAVE_WAS_NOT_RUNNING 1255
 "Slave has already been stopped",
-#define ER_TOO_BIG_FOR_UNCOMPRESS 1255
+#define ER_TOO_BIG_FOR_UNCOMPRESS 1256
 "Too big size of uncompressed data. The maximum size is %d. (probably, length of uncompressed data was corrupted)",
-#define ER_ZLIB_Z_MEM_ERROR 1256
-"ZLIB: Not enough memory available for zlib",
-#define ER_ZLIB_Z_BUF_ERROR 1257
-"ZLIB: Not enough room in the output buffer for zlib (probably, length of uncompressed data was corrupted)",
-#define ER_ZLIB_Z_DATA_ERROR 1258
-"ZLIB: Input data was corrupted for zlib",
-#define ER_CUT_VALUE_GROUP_CONCAT 1259
+#define ER_ZLIB_Z_MEM_ERROR 1257
+"ZLIB: Not enough memory",
+#define ER_ZLIB_Z_BUF_ERROR 1258
+"ZLIB: Not enough room in the output buffer (probably, length of uncompressed data was corrupted)",
+#define ER_ZLIB_Z_DATA_ERROR 1259
+"ZLIB: Input data corrupted",
+#define ER_CUT_VALUE_GROUP_CONCAT 1260
 "%d line(s) was(were) cut by group_concat()",
-#define ER_WARN_TOO_FEW_RECORDS 1260
-"Record count is fewer than the column count at row %ld";
-#define ER_WARN_TOO_MANY_RECORDS 1261
-"Record count is more than the column count at row %ld";
-#define ER_WARN_NULL_TO_NOTNULL 1262
-"Data truncated, NULL supplied to NOT NULL column '%s' at row %ld";
-#define ER_WARN_DATA_OUT_OF_RANGE 1263
-"Data truncated, out of range for column '%s' at row %ld";
-#define ER_WARN_DATA_TRUNCATED 1264
+#define ER_WARN_TOO_FEW_RECORDS 1261
+"Row %ld doesn't contain data for all columns",
+#define ER_WARN_TOO_MANY_RECORDS 1262
+"Row %ld was truncated; It contained more data than there were input columns",
+#define ER_WARN_NULL_TO_NOTNULL 1263
+"Data truncated, NULL supplied to NOT NULL column '%s' at row %ld",
+#define ER_WARN_DATA_OUT_OF_RANGE 1264
+"Data truncated, out of range for column '%s' at row %ld",
+#define ER_WARN_DATA_TRUNCATED 1265
 "Data truncated for column '%s' at row %ld",
-#define ER_WARN_USING_OTHER_HANDLER 1265
+#define ER_WARN_USING_OTHER_HANDLER 1266
 "Using storage engine %s for table '%s'",
-#define ER_CANT_AGGREGATE_2COLLATIONS 1266
+#define ER_CANT_AGGREGATE_2COLLATIONS 1267
 "Illegal mix of collations (%s,%s) and (%s,%s) for operation '%s'",
-#define ER_DROP_USER 1267
+#define ER_DROP_USER 1268
 "Can't drop one or more of the requested users",
-#define ER_REVOKE_GRANTS 1268
+#define ER_REVOKE_GRANTS 1269
 "Can't revoke all privileges, grant for one or more of the requested users",
-#define ER_CANT_AGGREGATE_3COLLATIONS 1269
+#define ER_CANT_AGGREGATE_3COLLATIONS 1270
 "Illegal mix of collations (%s,%s), (%s,%s), (%s,%s) for operation '%s'",
-#define ER_CANT_AGGREGATE_NCOLLATIONS 1270
+#define ER_CANT_AGGREGATE_NCOLLATIONS 1271
 "Illegal mix of collations for operation '%s'",
-#define ER_VARIABLE_IS_NOT_STRUCT 1271
+#define ER_VARIABLE_IS_NOT_STRUCT 1272
 "Variable '%-.64s' is not a variable component (Can't be used as XXXX.variable_name)",
-#define ER_UNKNOWN_COLLATION 1272
+#define ER_UNKNOWN_COLLATION 1273
 "Unknown collation: '%-.64s'",
-#define ER_SLAVE_IGNORED_SSL_PARAMS 1273
-"SSL parameters in CHANGE MASTER are ignored because this MySQL slave was compiled without SSL support. They can be used later when MySQL slave with SSL will be started.",
-#define ER_SERVER_IS_IN_SECURE_AUTH_MODE 1274
-"Server is running in --secure-auth mode, but '%s@%s' has a password in the old format; please change the password to the new format",
-#define ER_WARN_FIELD_RESOLVED 1275
+#define ER_SLAVE_IGNORED_SSL_PARAMS 1274
+"SSL parameters in CHANGE MASTER are ignored because this MySQL slave was compiled without SSL support; they can be used later when MySQL slave with SSL will be started",
+#define ER_SERVER_IS_IN_SECURE_AUTH_MODE 1275
+"Server is running in --secure-auth mode, but '%s'@'%s' has a password in the old format; please change the password to the new format",
+#define ER_WARN_FIELD_RESOLVED 1276
 "Field or reference '%-.64s%s%-.64s%s%-.64s' of SELECT #%d was resolved in SELECT #%d",
-#define ER_BAD_SLAVE_UNTIL_COND 1276
+#define ER_BAD_SLAVE_UNTIL_COND 1277
 "Wrong parameter or combination of parameters for START SLAVE UNTIL",
-#define ER_MISSING_SKIP_SLAVE 1277
+#define ER_MISSING_SKIP_SLAVE 1278
 "It is recommended to use --skip-slave-start when doing step-by-step replication with START SLAVE UNTIL. Otherwise you will get problems if you get an unexpected slave's mysqld restart",
-#define ER_UNTIL_COND_IGNORED 1278
+#define ER_UNTIL_COND_IGNORED 1279
 "SQL thread is not to be started so UNTIL options are ignored",
-#define ER_WRONG_NAME_FOR_INDEX 1279
+#define ER_WRONG_NAME_FOR_INDEX 1280
 "Incorrect index name '%-.100s'",
-#define ER_WRONG_NAME_FOR_CATALOG 1280
+#define ER_WRONG_NAME_FOR_CATALOG 1281
 "Incorrect catalog name '%-.100s'",
-#define ER_WARN_QC_RESIZE 1281
+#define ER_WARN_QC_RESIZE 1282
 "Query cache failed to set size %lu, new query cache size is %lu",
-#define ER_BAD_FT_COLUMN 1282
+#define ER_BAD_FT_COLUMN 1283
 "Column '%-.64s' cannot be part of FULLTEXT index",
-#define ER_UNKNOWN_KEY_CACHE 1283
+#define ER_UNKNOWN_KEY_CACHE 1284
 "Unknown key cache '%-.100s'",
+#define ER_WARN_HOSTNAME_WONT_WORK 1285
+"MySQL is started in --skip-name-resolve mode. You need to restart it without this switch for this grant to work",
+#define ER_UNKNOWN_STORAGE_ENGINE 1286
+"Unknown table engine '%s'",
+#define ER_WARN_DEPRECATED_SYNTAX 1287
+"'%s' is deprecated, use '%s' instead",
+#define ER_NON_UPDATABLE_TABLE 1288
+"The target table %-.100s of the %s is not updatable",
+#define ER_FEATURE_DISABLED 1289
+"The '%s' feature was disabled; you need MySQL built with '%s' to have it working",
+#define ER_OPTION_PREVENTS_STATEMENT 1290
+"The MySQL server is running with the %s option so it cannot execute this statement",
+#define ER_DUPLICATED_VALUE_IN_TYPE 1291
+"Column '%-.100s' has duplicated value '%-.64s' in %s"
+#define ER_TRUNCATED_WRONG_VALUE 1292
+"Truncated wrong %-.32s value: '%-.128s'"
+#define ER_TOO_MUCH_AUTO_TIMESTAMP_COLS 1293
+"Incorrect table definition; There can only be one TIMESTAMP column with CURRENT_TIMESTAMP in DEFAULT or ON UPDATE clause"
+#define ER_INVALID_ON_UPDATE 1294
+"Invalid ON UPDATE clause for '%-.64s' field",
+#define ER_UNSUPPORTED_PS 1295
+"This command is not supported in the prepared statement protocol yet",
