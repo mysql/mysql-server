@@ -635,6 +635,7 @@ sub copy_index
     my $to="$target/$file";
     my $buff;
     open(INPUT, "<$from") || die "Can't open file $from: $!\n";
+    binmode(INPUT, ":raw");
     my $length=read INPUT, $buff, 2048;
     die "Can't read index header from $from\n" if ($length < 1024);
     close INPUT;
