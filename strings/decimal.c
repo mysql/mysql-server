@@ -1199,7 +1199,10 @@ int decimal2bin(decimal *from, char *to, int precision, int frac)
   else if (fsize0 > fsize1 && frac1x)
   {
     if (frac0 == frac1)
+    {
       frac1x=frac0x;
+      fsize0= fsize1;
+    }
     else
     {
       frac1++;
