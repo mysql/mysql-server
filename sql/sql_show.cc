@@ -2858,7 +2858,6 @@ int fill_variables(THD *thd, TABLE_LIST *tables, COND *cond)
   int res= 0;
   LEX *lex= thd->lex;
   const char *wild= lex->wild ? lex->wild->ptr() : NullS;
-  ha_update_statistics();                    /* Export engines statistics */
   pthread_mutex_lock(&LOCK_global_system_variables);
   res= show_status_array(thd, wild, init_vars, 
                          lex->option_type, 0, "", tables->table);
