@@ -77,7 +77,8 @@ EXTRA_ARG="--language=../sql/share/english/ --character-sets-dir=../sql/share/ch
 fi
 
 mysqld_boot=" $execdir/mysqld --no-defaults --bootstrap --skip-grant-tables \
-    --basedir=$basedir --datadir=$ldata --skip-innodb --skip-bdb $EXTRA_ARG"
+    --basedir=$basedir --datadir=$ldata --skip-innodb --skip-ndb --skip-bdb \
+    $EXTRA_ARG"
 echo "running $mysqld_boot"
 
 if $scriptdir/mysql_create_system_tables test $mdata $hostname | $mysqld_boot
