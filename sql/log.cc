@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+/* Copyright (C) 2000-2003 MySQL AB
    
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -82,14 +82,14 @@ static int find_uniq_filename(char *name)
 
 MYSQL_LOG::MYSQL_LOG()
   :bytes_written(0), last_time(0), query_start(0), name(0),
-   file_id(1), open_count(1), log_type(LOG_CLOSED), write_error(0),
+   file_id(1), open_count(1), log_type(LOG_CLOSED), write_error(0), inited(0),
    need_start_event(1)
 {
   /*
     We don't want to initialize LOCK_Log here as such initialization depends on
     safe_mutex (when using safe_mutex) which depends on MY_INIT(), which is
-    called only in main(). Doing initialization here would make it happen before
-    main(). 
+    called only in main(). Doing initialization here would make it happen
+    before main(). 
   */
   index_file_name[0] = 0;
   bzero((char*) &log_file,sizeof(log_file));
@@ -102,35 +102,20 @@ MYSQL_LOG::~MYSQL_LOG()
   cleanup();
 }
 
-void MYSQL_LOG::cleanup() /* this is called only once */
+/* this is called only once */
+
+void MYSQL_LOG::cleanup()
 {
-  close(1);
-  (void) pthread_mutex_destroy(&LOCK_log);
-  (void) pthread_mutex_destroy(&LOCK_index);
-  (void) pthread_cond_destroy(&update_cond);
+  if (inited)
+  {
+    inited= 0;
+    close(1);
+    (void) pthread_mutex_destroy(&LOCK_log);
+    (void) pthread_mutex_destroy(&LOCK_index);
+    (void) pthread_cond_destroy(&update_cond);
+  }
 }
 
-bool MYSQL_LOG::is_open(bool need_mutex)
-{
-  /*
-    Since MySQL 4.0.14, LOCK_log is always inited:
-    * for log/update_log/slow_log/bin_log which are global objects, this is done in
-    main(), even if the server does not use these logs.
-    * for relay_log which belongs to rli which belongs to active_mi, this is
-    done in the constructor of rli.
-    In older versions, we were never 100% sure that LOCK_log was inited, which
-    was a problem.
-  */
-  if (need_mutex) 
-  {
-    pthread_mutex_lock(&LOCK_log);
-    bool res= (log_type != LOG_CLOSED); 
-    pthread_mutex_unlock(&LOCK_log);
-    return res;
-  }
-  else
-    return (log_type != LOG_CLOSED); 
-}
 
 int MYSQL_LOG::generate_new_name(char *new_name, const char *log_name)
 {      
@@ -164,12 +149,16 @@ void MYSQL_LOG::init(enum_log_type log_type_arg,
   DBUG_VOID_RETURN;
 }
 
+
 void MYSQL_LOG::init_pthread_objects()
 {
+  DBUG_ASSERT(inited == 0);
+  inited= 1;
   (void) pthread_mutex_init(&LOCK_log,MY_MUTEX_INIT_SLOW);
   (void) pthread_mutex_init(&LOCK_index, MY_MUTEX_INIT_SLOW);
   (void) pthread_cond_init(&update_cond, 0);
 }
+
 
 /*
   Open a (new) log file.
@@ -647,7 +636,7 @@ int MYSQL_LOG::purge_first_log(struct st_relay_log_info* rli)
     Assume that we have previously read the first log and
     stored it in rli->relay_log_name
   */
-  DBUG_ASSERT(is_open(1));
+  DBUG_ASSERT(is_open());
   DBUG_ASSERT(rli->slave_running == 1);
   DBUG_ASSERT(!strcmp(rli->linfo.log_file_name,rli->relay_log_name));
   DBUG_ASSERT(rli->linfo.index_file_offset ==
@@ -818,7 +807,7 @@ void MYSQL_LOG::new_file(bool need_lock)
   enum_log_type save_log_type;
 
   DBUG_ENTER("MYSQL_LOG::new_file");
-  if (!is_open(need_lock))
+  if (!is_open())
   {
     DBUG_PRINT("info",("log is closed"));
     DBUG_VOID_RETURN;
@@ -832,7 +821,7 @@ void MYSQL_LOG::new_file(bool need_lock)
   safe_mutex_assert_owner(&LOCK_log);
   safe_mutex_assert_owner(&LOCK_index);
 
-  // Reuse old name if not binlog and not update log
+  /* Reuse old name if not binlog and not update log */
   new_name_ptr= name;
 
   /*
@@ -971,11 +960,12 @@ err:
 bool MYSQL_LOG::write(THD *thd,enum enum_server_command command,
 		      const char *format,...)
 {
-  if (what_to_log & (1L << (uint) command))
+  if (is_open() && (what_to_log & (1L << (uint) command)))
   {
     int error=0;
     VOID(pthread_mutex_lock(&LOCK_log));
 
+    /* Test if someone closed between the is_open test and lock */
     if (is_open())
     {
       time_t skr;
@@ -1076,16 +1066,14 @@ bool MYSQL_LOG::write(Log_event* event_info)
 #else
     IO_CACHE *file = &log_file;
 #endif    
+    /* 
+       In the future we need to add to the following if tests like
+       "do the involved tables match (to be implemented)
+        binlog_[wild_]{do|ignore}_table?" (WL#1049)"
+    */
     if ((thd && !(thd->options & OPTION_BIN_LOG) &&
 	 (thd->master_access & SUPER_ACL)) ||
-	(local_db && !db_ok(local_db, binlog_do_db, binlog_ignore_db))
-        /* 
-           This is the place for future tests like "do the involved tables match
-           (to be implemented) binlog_[wild_]{do|ignore}_table?" (WL#1049):
-           we will add a
-           && ... to the if().
-        */
-        )
+	(local_db && !db_ok(local_db, binlog_do_db, binlog_ignore_db)))
     {
       VOID(pthread_mutex_unlock(&LOCK_log));
       DBUG_PRINT("error",("!db_ok"));
@@ -1390,6 +1378,8 @@ bool MYSQL_LOG::write(THD *thd,const char *query, uint query_length,
 {
   bool error=0;
   time_t current_time;
+  if (!is_open())
+    return 0;
   VOID(pthread_mutex_lock(&LOCK_log));
   if (is_open())
   {						// Safety agains reopen
@@ -1503,6 +1493,7 @@ bool MYSQL_LOG::write(THD *thd,const char *query, uint query_length,
   return error;
 }
 
+
 /*
   Wait until we get a signal that the binary log has been updated
 
@@ -1588,6 +1579,7 @@ void MYSQL_LOG::close(bool exiting)
   DBUG_VOID_RETURN;
 }
 
+
 void MYSQL_LOG::set_max_size(ulong max_size_arg)
 {
   /*
@@ -1604,6 +1596,7 @@ void MYSQL_LOG::set_max_size(ulong max_size_arg)
   pthread_mutex_unlock(&LOCK_log);
   DBUG_VOID_RETURN;
 }
+
 
 /*
   Check if a string is a valid number

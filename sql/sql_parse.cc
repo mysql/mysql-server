@@ -2432,7 +2432,7 @@ mysql_execute_command(void)
 				    lex->sql_command == SQLCOM_REVOKE)))
       {
 	mysql_update_log.write(thd, thd->query, thd->query_length);
-	if (mysql_bin_log.is_open(1))
+	if (mysql_bin_log.is_open())
 	{
 	  Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
 	  mysql_bin_log.write(&qinfo);
@@ -2452,7 +2452,7 @@ mysql_execute_command(void)
       if (!res)
       {
 	mysql_update_log.write(thd, thd->query, thd->query_length);
-	if (mysql_bin_log.is_open(1))
+	if (mysql_bin_log.is_open())
 	{
 	  Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
 	  mysql_bin_log.write(&qinfo);
