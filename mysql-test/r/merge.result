@@ -560,7 +560,7 @@ select * from t6;
 a
 1
 2
-drop table if exists t1, t2, t3, t4, t5, t6;
+drop table if exists t6, t5, t4, t3, t2, t1;
 DROP TABLE IF EXISTS t1, t2;
 CREATE TABLE t1 (
 fileset_id tinyint(3) unsigned NOT NULL default '0',
