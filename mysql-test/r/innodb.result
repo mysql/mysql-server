@@ -1715,5 +1715,20 @@ Innodb_row_lock_time_max	0
 show status like "Innodb_row_lock_time_avg";
 Variable_name	Value
 Innodb_row_lock_time_avg	0
+show variables like "innodb_sync_spin_loops";
+Variable_name	Value
+innodb_sync_spin_loops	20
+set global innodb_sync_spin_loops=1000;
+show variables like "innodb_sync_spin_loops";
+Variable_name	Value
+innodb_sync_spin_loops	1000
+set global innodb_sync_spin_loops=0;
+show variables like "innodb_sync_spin_loops";
+Variable_name	Value
+innodb_sync_spin_loops	0
+set global innodb_sync_spin_loops=20;
+show variables like "innodb_sync_spin_loops";
+Variable_name	Value
+innodb_sync_spin_loops	20
 create table t1 (v varchar(16384)) engine=innodb;
 ERROR 42000: Column length too big for column 'v' (max = 255); use BLOB instead

@@ -4199,6 +4199,7 @@ enum options_mysqld
   OPT_INNODB_TABLE_LOCKS,
   OPT_INNODB_OPEN_FILES,
   OPT_INNODB_AUTOEXTEND_INCREMENT,
+  OPT_INNODB_SYNC_SPIN_LOOPS,
   OPT_BDB_CACHE_SIZE,
   OPT_BDB_LOG_BUFFER_SIZE,
   OPT_BDB_MAX_LOCK,
@@ -5044,6 +5045,11 @@ log and this option does nothing anymore.",
    "How many files at the maximum InnoDB keeps open at the same time.",
    (gptr*) &innobase_open_files, (gptr*) &innobase_open_files, 0,
    GET_LONG, REQUIRED_ARG, 300L, 10L, ~0L, 0, 1L, 0},
+  {"innodb_sync_spin_loops", OPT_INNODB_SYNC_SPIN_LOOPS,
+   "Count of spin-loop rounds in InnoDB mutexes",
+   (gptr*) &srv_n_spin_wait_rounds,
+   (gptr*) &srv_n_spin_wait_rounds,
+   0, GET_LONG, REQUIRED_ARG, 20L, 0L, ~0L, 0, 1L, 0},
 #ifdef HAVE_REPLICATION
   /*
     Disabled for the 4.1.3 release. Disabling just this paragraph of code is
