@@ -2543,7 +2543,7 @@ ANSI 99 compliancy, but without sacrificing speed or reliability.
 We are not afraid to add extensions to SQL or support for non-SQL
 features if this greatly increase the usability of MySQL Server for a big
 part of our users.  (The new @code{HANDLER} interface in MySQL Server 4.0
-is an example of this strategy. @xref{HANDLER}.)
+is an example of this strategy. @xref{HANDLER, , @code{HANDLER}}.)
 
 We will continue to support transactional and not transactional
 databases to satisfy both heavy web/logging usage and mission critical
@@ -3938,7 +3938,7 @@ entries matching that primary key are updated from the remainder of the
 columns. However, columns @strong{missing} from the incoming data feed are not
 touched.
 @item
-For tables tables with primary keys that are missing some part of the key
+For tables with primary keys that are missing some part of the key
 in the incoming data stream, or that have no primary key, the feed is
 treated as a @code{LOAD DATA INFILE ... REPLACE INTO} is now.
 @end itemize
@@ -8832,7 +8832,7 @@ CC=fcc CFLAGS="-O -K fast -K lib -K omitfp -Kpreex -D_GNU_SOURCE \
 MySQL needs at least Linux Version 2.0.
 
 @strong{WARNING}:
-We have have reports from some MySQL users that they have got serious
+We have reports from some MySQL users that they have got serious
 stability problems with MySQL with Linux kernel 2.2.14.  If you are
 using this kernel you should upgrade to 2.2.19 (or newer) or to a 2.4
 kernel.  If you have a multi-cpu box, then you should seriously consider
@@ -9300,7 +9300,7 @@ You can force a MySQL client to use named pipes by specifying the
 @code{--socket} option to specify the name of the pipe.
 
 Note that starting from 3.23.50, named pipes are only enabled if mysqld is
-started with with @code{--enable-named-pipe}.  This is because some users
+started with @code{--enable-named-pipe}.  This is because some users
 have experienced problems shutting down the MySQL server when one uses
 named pipes.
 
@@ -14210,7 +14210,7 @@ Option is any combination
 of @code{DEFAULT}, @code{BACKUP}, @code{FORCE} or @code{QUICK}.  You can
 also set this explicitly to @code{""} if you want to disable this
 option. If this option is used, @code{mysqld} will on open check if the
-table is marked as crashed or if if the table wasn't closed properly.
+table is marked as crashed or if the table wasn't closed properly.
 (The last option only works if you are running with
 @code{--skip-locking}.)  If this is the case @code{mysqld} will run
 check on the table. If the table was corrupted, @code{mysqld} will
@@ -26789,13 +26789,13 @@ If you are opening a table with the @code{HANDLER table_name OPEN}
 statement, a dedicated table object is allocated for the thread.
 This table object is not shared by other threads an will not be closed
 until the thread calls @code{HANDLER table_name CLOSE} or the thread dies.
-@xref{HANDLER}.  When this happens, the table is put back in the table_cache
-(if it isn't full).
+@xref{HANDLER, , @code{HANDLER}}.  When this happens, the table is put
+back in the table_cache (if it isn't full).
 
 You can check if your table cache is too small by checking the mysqld
 variable @code{Opened_tables}.  If this is quite big, even if you
 haven't done a lot of @code{FLUSH TABLES}, you should increase your table
-cache. @xref{SHOW STATUS}.
+cache. @xref{SHOW STATUS, , @code{SHOW STATUS}}.
 
 
 @node Creating many tables,  , Table cache, Optimising Database Structure
@@ -33521,7 +33521,7 @@ Only the last @code{SELECT} command can have @code{INTO OUTFILE}.
 @end itemize
 
 If you don't use the keyword @code{ALL} for the @code{UNION}, all
-returned rows will be unique, as if if you had done a @code{DISTINCT} for
+returned rows will be unique, as if you had done a @code{DISTINCT} for
 the total result set.  If you specify @code{ALL}, then you will get all
 matching rows from all the used @code{SELECT} statements.
 
@@ -33540,15 +33540,14 @@ ORDER BY a;
 @subsection @code{HANDLER} Syntax
 
 @example
-HANDLER table OPEN [ AS alias ]
-HANDLER table READ index @{ = | >= | <= | < @} (value1, value2, ... )
-[ WHERE ... ] [LIMIT ... ]
-
-HANDLER table READ index @{ FIRST | NEXT | PREV | LAST @}
-[ WHERE ... ] [LIMIT ... ]
-
-HANDLER table READ @{ FIRST | NEXT @}  [ WHERE ... ] [LIMIT ... ]
-HANDLER table CLOSE
+HANDLER tbl_name OPEN [ AS alias ]
+HANDLER tbl_name READ index_name @{ = | >= | <= | < @} (value1,value2,...)
+    [ WHERE ... ] [LIMIT ... ]
+HANDLER tbl_name READ index_name @{ FIRST | NEXT | PREV | LAST @}
+    [ WHERE ... ] [LIMIT ... ]
+HANDLER tbl_name READ @{ FIRST | NEXT @}
+    [ WHERE ... ] [LIMIT ... ]
+HANDLER tbl_name CLOSE
 @end example
 
 The @code{HANDLER} statement provides direct access to the @code{MyISAM} table
@@ -33556,9 +33555,9 @@ handler interface, bypassing the SQL optimiser. Thus, it is faster than
 @code{SELECT}.
 
 The first form of @code{HANDLER} statement opens a table, making
-in accessible via the following @code{HANDLER ... READ} routines.
-This table object is not shared by other threads an will not be closed
-until the thread calls @code{HANDLER table_name CLOSE} or the thread dies.
+it accessible via subsequent @code{HANDLER ... READ} statements.
+This table object is not shared by other threads and will not be closed
+until the thread calls @code{HANDLER tbl_name CLOSE} or the thread dies.
 
 The second form fetches one (or, specified by @code{LIMIT} clause) row
 where the index specified complies to the condition and @code{WHERE}
@@ -33572,16 +33571,17 @@ from the table in index order, matching @code{WHERE} condition.
 The fourth form (without index specification) fetches one (or, specified
 by @code{LIMIT} clause) row from the table in natural row order (as stored
 in data file) matching @code{WHERE} condition. It is faster than
-@code{HANDLER table READ index} when full table scan is desired.
+@code{HANDLER tbl_name READ index_name} when a full table scan is desired.
 
-The last form closes the table, opened with @code{HANDLER ... OPEN}.
+@code{HANDLER ... CLOSE} closes a table that was opened with
+@code{HANDLER ... OPEN}.
 
-@code{HANDLER} is somewhat of a low-level statement, for example it does
-not provide consistency,  that is @code{HANDLER ... OPEN} does @strong{NOT}
+@code{HANDLER} is a somewhat low-level statement.  For example, it does
+not provide consistency.  That is, @code{HANDLER ... OPEN} does @strong{NOT}
 take a snapshot of the table, and does @strong{NOT} lock the table. This
 means that after a @code{HANDLER ... OPEN} is issued, table data can be
-modified (by this or an other thread) and these modifications may only
-partially appear in @code{HANDLER ... NEXT} or @code{HANDLER ... PREV} scans.
+modified (by this or any other thread) and these modifications may appear
+only partially in @code{HANDLER ... NEXT} or @code{HANDLER ... PREV} scans.
 
 
 @node INSERT, INSERT DELAYED, HANDLER, Data Manipulation
@@ -38636,10 +38636,10 @@ v             SELECT * FROM t;
 
 Thus user A sees the row inserted by B only when B has committed the
 insert, and A has committed his own transaction so that the timepoint
-is advanced past the the commit of B.
+is advanced past the commit of B.
 
-If you want to see the 'freshest' state of the database, you should use
-a locking read:
+If you want to see the ``freshest'' state of the database, you should
+use a locking read:
 
 @example
 SELECT * FROM t LOCK IN SHARE MODE;
@@ -39090,7 +39090,7 @@ table @code{T}
 where an auto-increment column has been defined, and the user does not provide
 an explicit value for the column, then InnoDB executes @code{SELECT
 MAX(auto-inc-column) FROM T}, and assigns that value incremented
-by one to the the column and the auto-increment counter of the table.
+by one to the column and the auto-increment counter of the table.
 We say that
 the auto-increment counter for table @code{T} has been initialised.
 
@@ -39256,7 +39256,7 @@ Note that a @code{MyISAM} table must fit in a single file
 on your operating system.
 
 If the insertions to and index are always ascending and
-records are deleted only from the end, then the the file space management
+records are deleted only from the end, then the file space management
 algorithm of InnoDB guarantees that fragmentation in the index will
 not occur.
 
@@ -44154,7 +44154,7 @@ functions:
 
 @multitable @columnfractions .25 .65
 @item @strong{Function} @tab @strong{When to call}
-@item @code{mysql_server_init()} @tab Should be called before any other other MySQL function is called, preferably early in the @code{main()} function.
+@item @code{mysql_server_init()} @tab Should be called before any other MySQL function is called, preferably early in the @code{main()} function.
 @item @code{mysql_server_end()} @tab Should be called before your program exits.
 @item @code{mysql_thread_init()} @tab Should be called in each thread you create that will access MySQL.
 @item @code{mysql_thread_end()} @tab Should be called before calling @code{pthread_exit()}
@@ -44587,7 +44587,7 @@ The MySQL server creates the following threads:
 @item
 The TCP/IP connection thread handles all connection requests and
 creates a new dedicated thread to handle the authentication and
-and SQL query processing for each connection.
+SQL query processing for each connection.
 
 @item
 On Windows NT there is a named pipe handler thread that does the same work as
