@@ -3257,7 +3257,7 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
           else if (init_relay_log_pos(rli,
                                       rli->group_relay_log_name,
                                       rli->group_relay_log_pos,
-                                      1, &errmsg))
+                                      1, &errmsg, 1))
             sql_print_error("Error initializing relay log position: %s",
                             errmsg);
           else
@@ -3273,16 +3273,7 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
                           slave_trans_retries);
       }
       if (!((thd->options & OPTION_BEGIN) && opt_using_transactions))
-      {
         rli->trans_retries= slave_trans_retries; // restart from fresh
-        /*
-          TODO: when merged into 5.0, when slave does auto-rollback if
-          corrupted binlog, this should reset the retry counter too
-          (any rollback should). In fact it will work, as here we are just out
-          of a Format_description_log_event::exec_event() which rolled back.
-          But check repl code in 5.0 for new ha_rollback calls, just in case.
-        */
-      }
     }
     return exec_res;
   }
@@ -4245,7 +4236,7 @@ int queue_event(MASTER_INFO* mi,const char* buf, ulong event_len)
       master server shutdown. The only thing this does is cleaning. But
       cleaning is already done on a per-master-thread basis (as the master
       server is shutting down cleanly, it has written all DROP TEMPORARY TABLE
-      and DO RELEASE_LOCK; prepared statements' deletion are TODO).
+      prepared statements' deletion are TODO only when we binlog prep stmts).
       
       We don't even increment mi->master_log_pos, because we may be just after
       a Rotate event. Btw, in a few milliseconds we are going to have a Start
