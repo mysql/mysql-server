@@ -319,24 +319,20 @@ void Dbtup::linkOpIntoFragList(OperationrecPtr regOperPtr,
                                Fragrecord* const regFragPtr) 
 {
   OperationrecPtr sopTmpOperPtr;
-/* ----------------------------------------------------------------- */
-/*       LINK THE OPERATION INTO A DOUBLY LINKED LIST ON THE FRAGMENT*/
-/*       PUT IT FIRST IN THIS LIST SINCE IT DOESN'T MATTER WHERE IT  */
-/*       IS PUT.                                                     */
-/* ----------------------------------------------------------------- */
+  Uint32 tail = regFragPtr->lastusedOprec;
   ndbrequire(regOperPtr.p->inFragList == ZFALSE);
   regOperPtr.p->inFragList = ZTRUE;
-  regOperPtr.p->prevOprecInList = RNIL;
-  sopTmpOperPtr.i = regFragPtr->firstusedOprec;
-  regFragPtr->firstusedOprec = regOperPtr.i;
-  regOperPtr.p->nextOprecInList = sopTmpOperPtr.i;
-  if (sopTmpOperPtr.i == RNIL) {
-    return;
+  regOperPtr.p->prevOprecInList = tail;
+  regOperPtr.p->nextOprecInList = RNIL;
+  sopTmpOperPtr.i = tail;
+  if (tail == RNIL) {
+    regFragPtr->firstusedOprec = regOperPtr.i;
   } else {
     jam();
     ptrCheckGuard(sopTmpOperPtr, cnoOfOprec, operationrec);
-    sopTmpOperPtr.p->prevOprecInList = regOperPtr.i;
+    sopTmpOperPtr.p->nextOprecInList = regOperPtr.i;
   }//if
+  regFragPtr->lastusedOprec = regOperPtr.i;
 }//Dbtup::linkOpIntoFragList()
 
 /*
