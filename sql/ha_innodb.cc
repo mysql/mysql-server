@@ -4337,6 +4337,8 @@ ha_innobase::info(
 	ha_rows		rec_per_key;
 	ulong		j;
 	ulong		i;
+	char		path[FN_REFLEN];
+	os_file_stat_t  stat_info;
 
  	DBUG_ENTER("info");
 
@@ -4374,6 +4376,25 @@ ha_innobase::info(
 
 		prebuilt->trx->op_info = (char*)
 		                          "returning various info to MySQL";
+
+		if (ib_table->space != 0) {
+			my_snprintf(path, sizeof(path), "%s/%s%s",
+				    mysql_data_home, ib_table->name,
+				    ".ibd");
+			unpack_filename(path,path);
+		} else {
+			my_snprintf(path, sizeof(path), "%s/%s%s", 
+				    mysql_data_home, ib_table->name,
+				    reg_ext);
+		
+			unpack_filename(path,path);
+		}
+
+		if (os_file_get_status(path,&stat_info)) {
+			create_time = stat_info.ctime;
+			check_time  = stat_info.atime;
+			update_time = stat_info.mtime;
+		}
  	}
 
 	if (flag & HA_STATUS_VARIABLE) {
