@@ -1568,6 +1568,7 @@ int do_connect(struct st_query* q)
   if (opt_compress)
     mysql_options(&next_con->mysql,MYSQL_OPT_COMPRESS,NullS);
   mysql_options(&next_con->mysql, MYSQL_OPT_LOCAL_INFILE, 0);
+  mysql_options(&next_con->mysql, MYSQL_SET_CHARSET_NAME, "latin1");
 
 #ifdef HAVE_OPENSSL
   if (opt_use_ssl)
@@ -2632,6 +2633,8 @@ int main(int argc, char **argv)
   if (opt_compress)
     mysql_options(&cur_con->mysql,MYSQL_OPT_COMPRESS,NullS);
   mysql_options(&cur_con->mysql, MYSQL_OPT_LOCAL_INFILE, 0);
+  mysql_options(&cur_con->mysql, MYSQL_SET_CHARSET_NAME, "latin1");
+
 #ifdef HAVE_OPENSSL
   if (opt_use_ssl)
     mysql_ssl_set(&cur_con->mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
