@@ -683,7 +683,8 @@ int start_slave(THD* thd , MASTER_INFO* mi,  bool net_report)
     thread_mask&= thd->lex->slave_thd_opt;
   if (thread_mask) //some threads are stopped, start them
   {
-    if (init_master_info(mi,master_info_file,relay_log_info_file, 0))
+    if (init_master_info(mi,master_info_file,relay_log_info_file, 0,
+			 thread_mask))
       slave_errno=ER_MASTER_INFO;
     else if (server_id_supplied && *mi->host)
     {
@@ -978,7 +979,8 @@ int change_master(THD* thd, MASTER_INFO* mi)
   thd->proc_info = "Changing master";
   LEX_MASTER_INFO* lex_mi= &thd->lex->mi;
   // TODO: see if needs re-write
-  if (init_master_info(mi, master_info_file, relay_log_info_file, 0))
+  if (init_master_info(mi, master_info_file, relay_log_info_file, 0,
+		       thread_mask))
   {
     send_error(thd, ER_MASTER_INFO);
     unlock_slave_threads(mi);

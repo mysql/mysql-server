@@ -478,7 +478,7 @@ fil_extend_space_to_desired_size(
 	ulint*	actual_size,	/* out: size of the space after extension;
 				if we ran out of disk space this may be lower
 				than the desired size */
-	ulint	space_id,	/* in: space id, must be != 0 */
+	ulint	space_id,	/* in: space id */
 	ulint	size_after_extend);/* in: desired size in pages after the
 				extension; if the current space size is bigger
 				than this already, the function does nothing */

@@ -35,6 +35,8 @@
 #include <signaldata/AttrInfo.hpp>
 #include <signaldata/TcKeyReq.hpp>
 
+#define DEBUG_NEXT_RESULT 0
+
 NdbScanOperation::NdbScanOperation(Ndb* aNdb) :
   NdbOperation(aNdb),
   m_resultSet(0),
@@ -275,6 +277,9 @@ NdbScanOperation::fix_receivers(Uint32 parallel){
 void
 NdbScanOperation::receiver_delivered(NdbReceiver* tRec){
   if(theError.code == 0){
+    if(DEBUG_NEXT_RESULT)
+      ndbout_c("receiver_delivered");
+    
     Uint32 idx = tRec->m_list_index;
     Uint32 last = m_sent_receivers_count - 1;
     if(idx != last){
@@ -298,6 +303,9 @@ NdbScanOperation::receiver_delivered(NdbReceiver* tRec){
 void
 NdbScanOperation::receiver_completed(NdbReceiver* tRec){
   if(theError.code == 0){
+    if(DEBUG_NEXT_RESULT)
+      ndbout_c("receiver_completed");
+    
     Uint32 idx = tRec->m_list_index;
     Uint32 last = m_sent_receivers_count - 1;
     if(idx != last){
@@ -445,12 +453,12 @@ NdbScanOperation::executeCursor(int nodeId){
   return -1;
 }
 
-#define DEBUG_NEXT_RESULT 0
 
-int NdbScanOperation::nextResult(bool fetchAllowed)
+int NdbScanOperation::nextResult(bool fetchAllowed, bool forceSend)
 {
   if(m_ordered)
-    return ((NdbIndexScanOperation*)this)->next_result_ordered(fetchAllowed);
+    return ((NdbIndexScanOperation*)this)->next_result_ordered(fetchAllowed,
+							       forceSend);
   
   /**
    * Check current receiver
@@ -486,8 +494,12 @@ int NdbScanOperation::nextResult(bool fetchAllowed)
   Uint32 nodeId = theNdbCon->theDBnode;
   TransporterFacade* tp = TransporterFacade::instance();
   Guard guard(tp->theMutexPtr);
+  if(theError.code)
+    return -1;
+
   Uint32 seq = theNdbCon->theNodeSequence;
-  if(seq == tp->getNodeSequence(nodeId) && send_next_scan(idx, false) == 0){
+  if(seq == tp->getNodeSequence(nodeId) && send_next_scan(idx, false,
+							  forceSend) == 0){
       
     idx = m_current_api_receiver;
     last = m_api_receivers_count;
@@ -578,8 +590,9 @@ int NdbScanOperation::nextResult(bool fetchAllowed)
 }
 
 int
-NdbScanOperation::send_next_scan(Uint32 cnt, bool stopScanFlag){  
-  if(cnt > 0 || stopScanFlag){
+NdbScanOperation::send_next_scan(Uint32 cnt, bool stopScanFlag,
+				 bool forceSend){  
+  if(cnt > 0){
     NdbApiSignal tSignal(theNdb->theMyRef);
     tSignal.setSignal(GSN_SCAN_NEXTREQ);
     
@@ -595,36 +608,55 @@ NdbScanOperation::send_next_scan(Uint32 cnt, bool stopScanFlag){
      */
     Uint32 last = m_sent_receivers_count;
     Uint32 * prep_array = (cnt > 21 ? m_prepared_receivers : theData + 4);
+    Uint32 sent = 0;
     for(Uint32 i = 0; i<cnt; i++){
       NdbReceiver * tRec = m_api_receivers[i];
-      m_sent_receivers[last+i] = tRec;
-      tRec->m_list_index = last+i;
-      prep_array[i] = tRec->m_tcPtrI;
-      tRec->prepareSend();
+      if((prep_array[sent] = tRec->m_tcPtrI) != RNIL)
+      {
+	m_sent_receivers[last+sent] = tRec;
+	tRec->m_list_index = last+sent;
+	tRec->prepareSend();
+	sent++;
+      }
     }
-    memcpy(&m_api_receivers[0], &m_api_receivers[cnt], cnt * sizeof(char*));
+    memmove(m_api_receivers, m_api_receivers+cnt, 
+	    (theParallelism-cnt) * sizeof(char*));
     
-    Uint32 nodeId = theNdbCon->theDBnode;
-    TransporterFacade * tp = TransporterFacade::instance();
-    int ret;
-    if(cnt > 21){
-      tSignal.setLength(4);
-      LinearSectionPtr ptr[3];
-      ptr[0].p = prep_array;
-      ptr[0].sz = cnt;
-      ret = tp->sendSignal(&tSignal, nodeId, ptr, 1);
-    } else {
-      tSignal.setLength(4+cnt);
-      ret = tp->sendSignal(&tSignal, nodeId);
+    int ret = 0;
+    if(sent)
+    {
+      Uint32 nodeId = theNdbCon->theDBnode;
+      TransporterFacade * tp = TransporterFacade::instance();
+      if(cnt > 21){
+	tSignal.setLength(4);
+	LinearSectionPtr ptr[3];
+	ptr[0].p = prep_array;
+	ptr[0].sz = sent;
+	ret = tp->sendSignal(&tSignal, nodeId, ptr, 1);
+      } else {
+	tSignal.setLength(4+sent);
+	ret = tp->sendSignal(&tSignal, nodeId);
+      }
     }
+    
+    if (!ret) checkForceSend(forceSend);
 
-    m_sent_receivers_count = last + cnt + stopScanFlag;
+    m_sent_receivers_count = last + sent;
     m_api_receivers_count -= cnt;
     m_current_api_receiver = 0;
-
+    
     return ret;
   }
   return 0;
+}
+
+void NdbScanOperation::checkForceSend(bool forceSend)
+{
+  if (forceSend) {
+    TransporterFacade::instance()->forceSend(theNdb->theNdbBlockNumber);
+  } else {
+    TransporterFacade::instance()->checkForceSend(theNdb->theNdbBlockNumber);
+  }//if
 }
 
 int 
@@ -642,7 +674,7 @@ NdbScanOperation::doSend(int ProcessorId)
   return 0;
 }
 
-void NdbScanOperation::closeScan()
+void NdbScanOperation::closeScan(bool forceSend)
 {
   if(m_transConnection){
     if(DEBUG_NEXT_RESULT)
@@ -657,7 +689,7 @@ void NdbScanOperation::closeScan()
     
     TransporterFacade* tp = TransporterFacade::instance();
     Guard guard(tp->theMutexPtr);
-    close_impl(tp);
+    close_impl(tp, forceSend);
     
   } while(0);
   
@@ -670,7 +702,6 @@ void NdbScanOperation::closeScan()
 
 void
 NdbScanOperation::execCLOSE_SCAN_REP(){
-  m_api_receivers_count = 0;
   m_conf_receivers_count = 0;
   m_sent_receivers_count = 0;
 }
@@ -1091,7 +1122,7 @@ NdbIndexScanOperation::setBound(const NdbColumnImpl* tAttrInfo,
     Uint32 xfrmData[2000];
     if (cs != NULL && aValue != NULL) {
       // current limitation: strxfrm does not increase length
-      assert(cs->strxfrm_multiply == 1);
+      assert(cs->strxfrm_multiply <= 1);
       unsigned n =
       (*cs->coll->strnxfrm)(cs,
                             (uchar*)xfrmData, sizeof(xfrmData),
@@ -1293,7 +1324,8 @@ NdbIndexScanOperation::compare(Uint32 skip, Uint32 cols,
 }
 
 int
-NdbIndexScanOperation::next_result_ordered(bool fetchAllowed){
+NdbIndexScanOperation::next_result_ordered(bool fetchAllowed,
+					   bool forceSend){
   
   Uint32 u_idx = 0, u_last = 0;
   Uint32 s_idx   = m_current_api_receiver; // first sorted
@@ -1317,9 +1349,12 @@ NdbIndexScanOperation::next_result_ordered(bool fetchAllowed){
       if(DEBUG_NEXT_RESULT) ndbout_c("performing fetch...");
       TransporterFacade* tp = TransporterFacade::instance();
       Guard guard(tp->theMutexPtr);
+      if(theError.code)
+	return -1;
       Uint32 seq = theNdbCon->theNodeSequence;
       Uint32 nodeId = theNdbCon->theDBnode;
-      if(seq == tp->getNodeSequence(nodeId) && !send_next_scan_ordered(s_idx)){
+      if(seq == tp->getNodeSequence(nodeId) &&
+	 !send_next_scan_ordered(s_idx, forceSend)){
 	Uint32 tmp = m_sent_receivers_count;
 	s_idx = m_current_api_receiver; 
 	while(m_sent_receivers_count > 0 && !theError.code){
@@ -1330,6 +1365,13 @@ NdbIndexScanOperation::next_result_ordered(bool fetchAllowed){
 	    continue;
 	  }
 	  if(DEBUG_NEXT_RESULT) ndbout_c("return -1");
+	  setErrorCode(4028);
+	  return -1;
+	}
+	
+	if(theError.code){
+	  setErrorCode(theError.code);
+	  if(DEBUG_NEXT_RESULT) ndbout_c("return -1");
 	  return -1;
 	}
 	
@@ -1339,11 +1381,9 @@ NdbIndexScanOperation::next_result_ordered(bool fetchAllowed){
 	memcpy(arr, m_conf_receivers, u_last * sizeof(char*));
 	
 	if(DEBUG_NEXT_RESULT) ndbout_c("sent: %d recv: %d", tmp, u_last);
-	if(theError.code){
-	  setErrorCode(theError.code);
-	  if(DEBUG_NEXT_RESULT) ndbout_c("return -1");
-	  return -1;
-	}
+      } else {
+	setErrorCode(4028);
+	return -1;
       }
     } else {
       if(DEBUG_NEXT_RESULT) ndbout_c("return 2");
@@ -1408,14 +1448,26 @@ NdbIndexScanOperation::next_result_ordered(bool fetchAllowed){
 }
 
 int
-NdbIndexScanOperation::send_next_scan_ordered(Uint32 idx){  
+NdbIndexScanOperation::send_next_scan_ordered(Uint32 idx, bool forceSend){  
   if(idx == theParallelism)
     return 0;
   
+  NdbReceiver* tRec = m_api_receivers[idx];
   NdbApiSignal tSignal(theNdb->theMyRef);
   tSignal.setSignal(GSN_SCAN_NEXTREQ);
   
+  Uint32 last = m_sent_receivers_count;
   Uint32* theData = tSignal.getDataPtrSend();
+  Uint32* prep_array = theData + 4;
+  
+  m_current_api_receiver = idx + 1;
+  if((prep_array[0] = tRec->m_tcPtrI) == RNIL)
+  {
+    if(DEBUG_NEXT_RESULT)
+      ndbout_c("receiver completed, don't send");
+    return 0;
+  }
+  
   theData[0] = theNdbCon->theTCConPtr;
   theData[1] = 0;
   Uint64 transId = theNdbCon->theTransactionId;
@@ -1425,35 +1477,35 @@ NdbIndexScanOperation::send_next_scan_ordered(Uint32 idx){
   /**
    * Prepare ops
    */
-  Uint32 last = m_sent_receivers_count;
-  Uint32 * prep_array = theData + 4;
-
-  NdbReceiver * tRec = m_api_receivers[idx];
   m_sent_receivers[last] = tRec;
   tRec->m_list_index = last;
-  prep_array[0] = tRec->m_tcPtrI;
   tRec->prepareSend();
-  
   m_sent_receivers_count = last + 1;
-  m_current_api_receiver = idx + 1;
   
   Uint32 nodeId = theNdbCon->theDBnode;
   TransporterFacade * tp = TransporterFacade::instance();
   tSignal.setLength(4+1);
-  return tp->sendSignal(&tSignal, nodeId);
+  int ret= tp->sendSignal(&tSignal, nodeId);
+  if (!ret) checkForceSend(forceSend);
+  return ret;
 }
 
 int
-NdbScanOperation::close_impl(TransporterFacade* tp){
+NdbScanOperation::close_impl(TransporterFacade* tp, bool forceSend){
   Uint32 seq = theNdbCon->theNodeSequence;
   Uint32 nodeId = theNdbCon->theDBnode;
   
-  if(seq != tp->getNodeSequence(nodeId)){
+  if(seq != tp->getNodeSequence(nodeId))
+  {
     theNdbCon->theReleaseOnClose = true;
     return -1;
   }
   
-  while(theError.code == 0 && m_sent_receivers_count){
+  /**
+   * Wait for outstanding
+   */
+  while(theError.code == 0 && m_sent_receivers_count)
+  {
     theNdb->theWaiter.m_node = nodeId;
     theNdb->theWaiter.m_state = WAIT_SCAN;
     int return_code = theNdb->receiveResponse(WAITFOR_SCAN_TIMEOUT);
@@ -1471,18 +1523,59 @@ NdbScanOperation::close_impl(TransporterFacade* tp){
     }
   }
 
-  if(m_api_receivers_count+m_conf_receivers_count){
-    // Send close scan
-    if(send_next_scan(0, true) == -1){ // Close scan
-      theNdbCon->theReleaseOnClose = true;
-      return -1;
-    }
+  if(theError.code)
+  {
+    m_api_receivers_count = 0;
+    m_current_api_receiver = m_ordered ? theParallelism : 0;
+  }
+
+
+  /**
+   * move all conf'ed into api
+   *   so that send_next_scan can check if they needs to be closed
+   */
+  Uint32 api = m_api_receivers_count;
+  Uint32 conf = m_conf_receivers_count;
+
+  if(m_ordered)
+  {
+    /**
+     * Ordered scan, keep the m_api_receivers "to the right"
+     */
+    memmove(m_api_receivers, m_api_receivers+m_current_api_receiver, 
+	    (theParallelism - m_current_api_receiver) * sizeof(char*));
+    api = (theParallelism - m_current_api_receiver);
+    m_api_receivers_count = api;
+  }
+  
+  if(DEBUG_NEXT_RESULT)
+    ndbout_c("close_impl: [order api conf sent curr parr] %d %d %d %d %d %d",
+	     m_ordered, api, conf, 
+	     m_sent_receivers_count, m_current_api_receiver, theParallelism);
+  
+  if(api+conf)
+  {
+    /**
+     * There's something to close
+     *   setup m_api_receivers (for send_next_scan)
+     */
+    memcpy(m_api_receivers+api, m_conf_receivers, conf * sizeof(char*));
+    m_api_receivers_count = api + conf;
+    m_conf_receivers_count = 0;
+  }
+  
+  // Send close scan
+  if(send_next_scan(api+conf, true, forceSend) == -1)
+  {
+    theNdbCon->theReleaseOnClose = true;
+    return -1;
   }
   
   /**
    * wait for close scan conf
    */
-  while(m_sent_receivers_count+m_api_receivers_count+m_conf_receivers_count){
+  while(m_sent_receivers_count+m_api_receivers_count+m_conf_receivers_count)
+  {
     theNdb->theWaiter.m_node = nodeId;
     theNdb->theWaiter.m_state = WAIT_SCAN;
     int return_code = theNdb->receiveResponse(WAITFOR_SCAN_TIMEOUT);
@@ -1499,6 +1592,7 @@ NdbScanOperation::close_impl(TransporterFacade* tp){
       return -1;
     }
   }
+  
   return 0;
 }
 
@@ -1520,7 +1614,7 @@ NdbScanOperation::reset_receivers(Uint32 parallell, Uint32 ordered){
 }
 
 int
-NdbScanOperation::restart()
+NdbScanOperation::restart(bool forceSend)
 {
   
   TransporterFacade* tp = TransporterFacade::instance();
@@ -1529,7 +1623,7 @@ NdbScanOperation::restart()
   
   {
     int res;
-    if((res= close_impl(tp)))
+    if((res= close_impl(tp, forceSend)))
     {
       return res;
     }
@@ -1548,13 +1642,13 @@ NdbScanOperation::restart()
 }
 
 int
-NdbIndexScanOperation::reset_bounds(){
+NdbIndexScanOperation::reset_bounds(bool forceSend){
   int res;
   
   {
     TransporterFacade* tp = TransporterFacade::instance();
     Guard guard(tp->theMutexPtr);
-    res= close_impl(tp);
+    res= close_impl(tp, forceSend);
   }
 
   if(!res)

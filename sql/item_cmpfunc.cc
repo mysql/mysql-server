@@ -735,7 +735,7 @@ void Item_func_interval::fix_length_and_dec()
   maybe_null= 0;
   max_length= 2;
   used_tables_cache|= row->used_tables();
-  not_null_tables_cache&= row->not_null_tables();
+  not_null_tables_cache= row->not_null_tables();
   with_sum_func= with_sum_func || row->with_sum_func;
   const_item_cache&= row->const_item();
 }
@@ -2364,11 +2364,12 @@ Item_func_regex::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
       return 0;
     }
     int error;
-    if ((error=regcomp(&preg,res->c_ptr(),
-		       (cmp_collation.collation->state & MY_CS_BINSORT) ?
-		       REG_EXTENDED | REG_NOSUB :
-		       REG_EXTENDED | REG_NOSUB | REG_ICASE,
-		       cmp_collation.collation)))
+    if ((error= regcomp(&preg,res->c_ptr(),
+                        ((cmp_collation.collation->state & MY_CS_BINSORT) ||
+                         (cmp_collation.collation->state & MY_CS_CSSORT)) ?
+                         REG_EXTENDED | REG_NOSUB :
+                         REG_EXTENDED | REG_NOSUB | REG_ICASE,
+                        cmp_collation.collation)))
     {
       (void) regerror(error,&preg,buff,sizeof(buff));
       my_printf_error(ER_REGEXP_ERROR,ER(ER_REGEXP_ERROR),MYF(0),buff);
@@ -2416,10 +2417,11 @@ longlong Item_func_regex::val_int()
 	regex_compiled=0;
       }
       if (regcomp(&preg,res2->c_ptr(),
-		  (cmp_collation.collation->state & MY_CS_BINSORT) ?
-		  REG_EXTENDED | REG_NOSUB :
-		  REG_EXTENDED | REG_NOSUB | REG_ICASE,
-		  cmp_collation.collation))
+                  ((cmp_collation.collation->state & MY_CS_BINSORT) ||
+                   (cmp_collation.collation->state & MY_CS_CSSORT)) ?
+                   REG_EXTENDED | REG_NOSUB :
+                   REG_EXTENDED | REG_NOSUB | REG_ICASE,
+                   cmp_collation.collation))
       {
 	null_value=1;
 	return 0;

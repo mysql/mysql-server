@@ -113,6 +113,11 @@ private:
   void * m_ptr;
 };
 
+const char *CommandInterpreter::get_error_text(int err_no)
+{
+  return _mgmtSrvr.getErrorText(err_no, m_err_str, sizeof(m_err_str));
+}
+
 //*****************************************************************************
 //*****************************************************************************
 int CommandInterpreter::readAndExecute() {
@@ -600,8 +605,9 @@ stopCallback(int nodeId, void * anyData, int errCode){
       ndbout << "\nNode " << nodeId << " has shutdown" << endl;
   } else {
     MgmtSrvr * mgm = (MgmtSrvr *)anyData;
+    char err_str[1024];
     ndbout << "Node " << nodeId << " has not shutdown: " 
-	   << mgm->getErrorText(errCode) << endl;
+	   << mgm->getErrorText(errCode,err_str,sizeof(err_str)) << endl;
   }
 }
 
@@ -653,7 +659,8 @@ versionCallback(int nodeId, int version, void * anyData, int errCode){
     
   } else {
     MgmtSrvr * mgm = (MgmtSrvr *)anyData;
-    ndbout  << mgm->getErrorText(errCode) << endl;
+    char err_str[1024];
+    ndbout  << mgm->getErrorText(errCode,err_str,sizeof(err_str)) << endl;
   }
 }
 
@@ -671,7 +678,7 @@ void CommandInterpreter::executeStop(int processId,
     result = _mgmtSrvr.stopNode(processId, false, stopCallback, this);
   
   if(result != 0)
-    ndbout << _mgmtSrvr.getErrorText(result) << endl;
+    ndbout << get_error_text(result) << endl;
 }
 
 
@@ -686,7 +693,7 @@ void CommandInterpreter::executeStart(int processId, const char* parameters,
   
   int result = _mgmtSrvr.start(processId);
   if (result != 0) {
-    ndbout << _mgmtSrvr.getErrorText(result) << endl;
+    ndbout << get_error_text(result) << endl;
   }
 }
 
@@ -719,7 +726,7 @@ CommandInterpreter::executeRestart(int processId, const char* parameters,
 			       stopCallback,
 			       this);
   if (result != 0) {
-    ndbout << _mgmtSrvr.getErrorText(result) << endl;
+    ndbout << get_error_text(result) << endl;
   }
 }
 
@@ -760,7 +767,7 @@ CommandInterpreter::executeDumpState(int processId, const char* parameters,
   free(tmpString);
   int result = _mgmtSrvr.dumpState(processId, pars, no);
   if (result != 0) {
-    ndbout << _mgmtSrvr.getErrorText(result) << endl;
+    ndbout << get_error_text(result) << endl;
   }
 }
 
@@ -781,7 +788,7 @@ void CommandInterpreter::executeStatus(int processId,
 				&status, &version, &startPhase, &system,
 				&dynamicId, &nodeGroup, &connectCount);
   if(result != 0){
-    ndbout << _mgmtSrvr.getErrorText(result) << endl;
+    ndbout << get_error_text(result) << endl;
     return;
   }
   
@@ -875,7 +882,7 @@ void CommandInterpreter::executeLogLevel(int processId,
 
   int result = _mgmtSrvr.setNodeLogLevel(processId, logLevel);
   if (result != 0) {
-    ndbout << _mgmtSrvr.getErrorText(result) << endl;
+    ndbout << get_error_text(result) << endl;
   }
 #endif
 }
@@ -913,7 +920,7 @@ void CommandInterpreter::executeError(int processId,
 
   int result = _mgmtSrvr.insertError(processId, errorNo);
   if (result != 0) {
-    ndbout << _mgmtSrvr.getErrorText(result) << endl;
+    ndbout << get_error_text(result) << endl;
   }
   free(newpar);
 }
@@ -953,7 +960,7 @@ void CommandInterpreter::executeTrace(int processId,
 
   int result = _mgmtSrvr.setTraceNo(processId, traceNo);
   if (result != 0) {
-    ndbout << _mgmtSrvr.getErrorText(result) << endl;
+    ndbout << get_error_text(result) << endl;
   }
   free(newpar);
 }
@@ -974,7 +981,7 @@ void CommandInterpreter::executeLog(int processId,
   
   int result = _mgmtSrvr.setSignalLoggingMode(processId, MgmtSrvr::InOut, blocks);
   if (result != 0) {
-    ndbout << _mgmtSrvr.getErrorText(result) << endl;
+    ndbout << get_error_text(result) << endl;
   }
 
 }
@@ -995,7 +1002,7 @@ void CommandInterpreter::executeLogIn(int processId,
 
   int result = _mgmtSrvr.setSignalLoggingMode(processId, MgmtSrvr::In, blocks);
   if (result != 0) {
-    ndbout << _mgmtSrvr.getErrorText(result) << endl;
+    ndbout << get_error_text(result) << endl;
   }
 }
 
@@ -1014,7 +1021,7 @@ void CommandInterpreter::executeLogOut(int processId,
 
   int result = _mgmtSrvr.setSignalLoggingMode(processId, MgmtSrvr::Out, blocks);
   if (result != 0) {
-    ndbout << _mgmtSrvr.getErrorText(result) << endl;
+    ndbout << get_error_text(result) << endl;
   }
 
 }
@@ -1035,7 +1042,7 @@ void CommandInterpreter::executeLogOff(int processId,
 
   int result = _mgmtSrvr.setSignalLoggingMode(processId, MgmtSrvr::Off, blocks);
   if (result != 0) {
-    ndbout << _mgmtSrvr.getErrorText(result) << endl;
+    ndbout << get_error_text(result) << endl;
   }
 
 }
@@ -1054,7 +1061,7 @@ void CommandInterpreter::executeTestOn(int processId,
 
   int result = _mgmtSrvr.startSignalTracing(processId);
   if (result != 0) {
-    ndbout << _mgmtSrvr.getErrorText(result) << endl;
+    ndbout << get_error_text(result) << endl;
   }
 
 }
@@ -1073,7 +1080,7 @@ void CommandInterpreter::executeTestOff(int processId,
 
   int result = _mgmtSrvr.stopSignalTracing(processId);
   if (result != 0) {
-    ndbout << _mgmtSrvr.getErrorText(result) << endl;
+    ndbout << get_error_text(result) << endl;
   }
 
 }
@@ -1126,7 +1133,7 @@ void CommandInterpreter::executeEventReporting(int processId,
   ndbout_c("processId %d", processId);
   int result = _mgmtSrvr.setEventReportingLevel(processId, logLevel);
   if (result != 0) {
-    ndbout << _mgmtSrvr.getErrorText(result) << endl;
+    ndbout << get_error_text(result) << endl;
   }
 #endif
 }
@@ -1136,7 +1143,7 @@ CommandInterpreter::executeStartBackup(char* parameters) {
   Uint32 backupId;
   int result = _mgmtSrvr.startBackup(backupId);
   if (result != 0) {
-    ndbout << _mgmtSrvr.getErrorText(result) << endl;
+    ndbout << get_error_text(result) << endl;
   } else {
     //    ndbout << "Start of backup ordered" << endl;
   }
@@ -1153,7 +1160,7 @@ CommandInterpreter::executeAbortBackup(char* parameters) {
   }
   int result = _mgmtSrvr.abortBackup(bid);
   if (result != 0) {
-    ndbout << _mgmtSrvr.getErrorText(result) << endl;
+    ndbout << get_error_text(result) << endl;
   } else {
     ndbout << "Abort of backup " << bid << " ordered" << endl;
   }
@@ -1174,7 +1181,7 @@ CommandInterpreter::executeEnterSingleUser(char* parameters) {
   }
   int result = _mgmtSrvr.enterSingleUser(0, nodeId,0,0);
   if (result != 0) {
-    ndbout << _mgmtSrvr.getErrorText(result) << endl;
+    ndbout << get_error_text(result) << endl;
   } else {
     ndbout << "Entering single user mode, granting access for node " 
 	   << nodeId << " OK." << endl;

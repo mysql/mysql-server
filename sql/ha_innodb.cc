@@ -331,6 +331,9 @@ convert_error_code_to_mysql(
   	} else if (error == (int) DB_NO_SAVEPOINT) {
 
     		return(HA_ERR_NO_SAVEPOINT);
+  	} else if (error == (int) DB_LOCK_TABLE_FULL) {
+
+    		return(HA_ERR_LOCK_TABLE_FULL);
     	} else {
     		return(-1);			// Unknown error
     	}
@@ -2321,20 +2324,58 @@ ha_innobase::write_row(
 		position in the source table need not be adjusted after the
 		intermediate COMMIT, since writes by other transactions are
 		being blocked by a MySQL table lock TL_WRITE_ALLOW_READ. */
-		ut_a(prebuilt->trx->mysql_n_tables_locked == 2);
-		ut_a(UT_LIST_GET_LEN(prebuilt->trx->trx_locks) >= 2);
-		dict_table_t* table = lock_get_ix_table(
-				UT_LIST_GET_FIRST(prebuilt->trx->trx_locks));
+
+		dict_table_t*	src_table;
+		ibool		mode;
+
 		num_write_row = 0;
+
 		/* Commit the transaction.  This will release the table
 		locks, so they have to be acquired again. */
-		innobase_commit(user_thd, prebuilt->trx);
-		/* Note that this transaction is still active. */
-		user_thd->transaction.all.innodb_active_trans = 1;
-		/* Re-acquire the IX table lock on the source table. */
-		row_lock_table_for_mysql(prebuilt, table);
-		/* We will need an IX lock on the destination table. */
-	        prebuilt->sql_stat_start = TRUE;
+
+		/* Altering an InnoDB table */
+		/* Get the source table. */
+		src_table = lock_get_src_table(
+				prebuilt->trx, prebuilt->table, &mode);
+		if (!src_table) {
+		no_commit:
+			/* Unknown situation: do not commit */
+			/*
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				"  InnoDB error: ALTER TABLE is holding lock"
+				" on %lu tables!\n",
+				prebuilt->trx->mysql_n_tables_locked);
+			*/
+			;
+		} else if (src_table == prebuilt->table) {
+			/* Source table is not in InnoDB format:
+			no need to re-acquire locks on it. */
+
+			/* Altering to InnoDB format */
+			innobase_commit(user_thd, prebuilt->trx);
+			/* Note that this transaction is still active. */
+			user_thd->transaction.all.innodb_active_trans = 1;
+			/* We will need an IX lock on the destination table. */
+		        prebuilt->sql_stat_start = TRUE;
+		} else {
+			/* Ensure that there are no other table locks than
+			LOCK_IX and LOCK_AUTO_INC on the destination table. */
+			if (!lock_is_table_exclusive(prebuilt->table,
+							prebuilt->trx)) {
+				goto no_commit;
+			}
+
+			/* Commit the transaction.  This will release the table
+			locks, so they have to be acquired again. */
+			innobase_commit(user_thd, prebuilt->trx);
+			/* Note that this transaction is still active. */
+			user_thd->transaction.all.innodb_active_trans = 1;
+			/* Re-acquire the table lock on the source table. */
+			row_lock_table_for_mysql(prebuilt, src_table, mode);
+			/* We will need an IX lock on the destination table. */
+		        prebuilt->sql_stat_start = TRUE;
+		}
 	}
 
 	num_write_row++;
@@ -5012,7 +5053,8 @@ ha_innobase::external_lock(
 			if (thd->in_lock_tables &&
 			    thd->variables.innodb_table_locks) {
 				ulint	error;
-				error = row_lock_table_for_mysql(prebuilt, 0);
+				error = row_lock_table_for_mysql(prebuilt,
+							NULL, LOCK_TABLE_EXP);
 
 				if (error != DB_SUCCESS) {
 					error = convert_error_code_to_mysql(
