@@ -83,6 +83,8 @@ trx_create(
 
 	trx->mysql_log_file_name = NULL;
 	trx->mysql_log_offset = 0;
+	trx->mysql_master_log_file_name = "";
+	trx->mysql_master_log_pos = 0;
 	
 	trx->ignore_duplicates_in_insert = FALSE;
 
@@ -363,16 +365,31 @@ trx_lists_init_at_db_start(void)
 
 			trx = trx_create(NULL); 
 
+			trx->id = undo->trx_id;
+
+			trx->insert_undo = undo;
+			trx->rseg = rseg;
+
 			if (undo->state != TRX_UNDO_ACTIVE) {
 
 				trx->conc_state = TRX_COMMITTED_IN_MEMORY;
+
+				/* We give a dummy value for the trx no;
+				this should have no relevance since purge
+				is not interested in committed transaction
+				numbers, unless they are in the history
+				list, in which case it looks the number
+				from the disk based undo log structure */
+
+				trx->no = trx->id;
 			} else {
 				trx->conc_state = TRX_ACTIVE;
-			}
 
-			trx->id = undo->trx_id;
-			trx->insert_undo = undo;
-			trx->rseg = rseg;
+				/* A running transaction always has the number
+				field inited to ut_dulint_max */
+
+				trx->no = ut_dulint_max;
+			}
 
 			if (undo->dict_operation) {
 				trx->dict_operation = undo->dict_operation;
@@ -397,14 +414,25 @@ trx_lists_init_at_db_start(void)
 			if (NULL == trx) {
 				trx = trx_create(NULL); 
 
+				trx->id = undo->trx_id;
+
 				if (undo->state != TRX_UNDO_ACTIVE) {
 					trx->conc_state =
 						TRX_COMMITTED_IN_MEMORY;
+					/* We give a dummy value for the trx
+					number */
+
+					trx->no = trx->id;
 				} else {
 					trx->conc_state = TRX_ACTIVE;
+
+					/* A running transaction always has
+					the number field inited to
+					ut_dulint_max */
+
+					trx->no = ut_dulint_max;
 				}
 
-				trx->id = undo->trx_id;
 				trx->rseg = rseg;
 				trx_list_insert_ordered(trx);
 
@@ -583,7 +611,7 @@ trx_commit_off_kernel(
 		if (undo) {
 			mutex_enter(&kernel_mutex);
 #ifdef notdefined
-			/* ########## There is a bug here: purge and rollback
+			/* !!!!!!!!! There is a bug here: purge and rollback
 			need the whole stack of old record versions even if no
 			consistent read would need them!! This is because they
 			decide on the basis of the old versions when we can
@@ -627,12 +655,25 @@ trx_commit_off_kernel(
 		mutex_exit(&(rseg->mutex));
 
 		/* Update the latest MySQL binlog name and offset info
-		in trx sys header if MySQL binlogging is on */
+		in trx sys header if MySQL binlogging is on or the database
+		server is a MySQL replication slave */
 
 		if (trx->mysql_log_file_name) {
-			trx_sys_update_mysql_binlog_offset(trx, &mtr);
+			trx_sys_update_mysql_binlog_offset(
+					trx->mysql_log_file_name,
+					trx->mysql_log_offset,
+					TRX_SYS_MYSQL_LOG_INFO, &mtr);
+			trx->mysql_log_file_name = NULL;
 		}
-		
+
+		if (trx->mysql_master_log_file_name[0] != '\0') {
+			/* This database server is a MySQL replication slave */ 
+			trx_sys_update_mysql_binlog_offset(
+				trx->mysql_master_log_file_name,
+				trx->mysql_master_log_pos,
+				TRX_SYS_MYSQL_MASTER_LOG_INFO, &mtr);
+		}
+				
 		/* If we did not take the shortcut, the following call
 		commits the mini-transaction, making the whole transaction
 		committed in the file-based world at this log sequence number;
@@ -707,12 +748,12 @@ trx_commit_off_kernel(
 
 		/*-------------------------------------*/
 
-		/* Most MySQL users run with srv_flush.. set to FALSE: */
+		/* Most MySQL users run with srv_flush_.. set to FALSE: */
 
 		if (srv_flush_log_at_trx_commit) {
 		
  			log_flush_up_to(lsn, LOG_WAIT_ONE_GROUP);
- 		}
+		}
 
 		/*-------------------------------------*/
 	
@@ -726,6 +767,29 @@ trx_commit_off_kernel(
 
 	ut_ad(UT_LIST_GET_LEN(trx->wait_thrs) == 0);
 	ut_ad(UT_LIST_GET_LEN(trx->trx_locks) == 0);
+
+	UT_LIST_REMOVE(trx_list, trx_sys->trx_list, trx);
+}
+
+/********************************************************************
+Cleans up a transaction at database startup. The cleanup is needed if
+the transaction already got to the middle of a commit when the database
+crashed, andf we cannot roll it back. */
+
+void
+trx_cleanup_at_db_startup(
+/*======================*/
+	trx_t*	trx)	/* in: transaction */
+{
+	if (trx->insert_undo != NULL) {
+
+		trx_undo_insert_cleanup(trx);
+	}
+
+	trx->conc_state = TRX_NOT_STARTED;
+	trx->rseg = NULL;
+	trx->undo_no = ut_dulint_zero;
+	trx->last_sql_stat_start.least_undo_no = ut_dulint_zero;
 
 	UT_LIST_REMOVE(trx_list, trx_sys->trx_list, trx);
 }

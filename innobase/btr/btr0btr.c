@@ -572,6 +572,13 @@ btr_page_get_father_for_rec(
 
 	if (btr_node_ptr_get_child_page_no(node_ptr) !=
                                                 buf_frame_get_page_no(page)) {
+		fprintf(stderr,
+"InnoDB: Dump of the child page:\n");
+		buf_page_print(buf_frame_align(page));
+		fprintf(stderr,
+"InnoDB: Dump of the parent page:\n");
+		buf_page_print(buf_frame_align(node_ptr));
+
       		fprintf(stderr,
 "InnoDB: Corruption of an index tree: table %s, index %s,\n"
 "InnoDB: father ptr page no %lu, child page no %lu\n",
@@ -581,6 +588,12 @@ btr_page_get_father_for_rec(
                     buf_frame_get_page_no(page));
      		page_rec_print(page_rec_get_next(page_get_infimum_rec(page)));
      		page_rec_print(node_ptr);
+
+      		fprintf(stderr,
+"InnoDB: You should dump + drop + reimport the table to fix the\n"
+"InnoDB: corruption. If the crash happens at the database startup, see\n"
+"InnoDB: section 6.1 of http://www.innodb.com/ibman.html about forcing\n"
+"InnoDB: recovery. Then dump + drop + reimport.\n");
 	}
 
 	ut_a(btr_node_ptr_get_child_page_no(node_ptr) ==
@@ -780,12 +793,14 @@ top_loop:
 
 /*****************************************************************
 Reorganizes an index page. */
-
+static
 void
 btr_page_reorganize_low(
 /*====================*/
-	ibool	low,	/* in: TRUE if locks should not be updated, i.e.,
-			there cannot exist locks on the page */
+	ibool	recovery,/* in: TRUE if called in recovery: locks should not
+			be updated, i.e., there cannot exist locks on the
+			page, and a hash index should not be dropped: it
+			cannot exist */
 	page_t*	page,	/* in: page to be reorganized */
 	mtr_t*	mtr)	/* in: mtr */
 {
@@ -805,7 +820,9 @@ btr_page_reorganize_low(
 	/* Copy the old page to temporary space */
 	buf_frame_copy(new_page, page);
 
-	btr_search_drop_page_hash_index(page);
+	if (!recovery) {
+		btr_search_drop_page_hash_index(page);
+	}
 
 	/* Recreate the page: note that global data on page (possible
 	segment headers, next page-field, etc.) is preserved intact */
@@ -820,7 +837,7 @@ btr_page_reorganize_low(
 	/* Copy max trx id to recreated page */
 	page_set_max_trx_id(page, page_get_max_trx_id(new_page));
 	
-	if (!low) {
+	if (!recovery) {
 		/* Update the record lock bitmaps */
 		lock_move_reorganize_page(page, new_page);
 	}

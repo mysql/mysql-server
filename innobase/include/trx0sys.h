@@ -24,6 +24,14 @@ Created 3/26/1996 Heikki Tuuri
 #include "fsp0fsp.h"
 #include "read0types.h"
 
+/* In a MySQL replication slave, in crash recovery we store the master log
+file name and position here. We have successfully got the updates to InnoDB
+up to this position. If .._pos is -1, it means no crash recovery was needed,
+or there was no master log position info inside InnoDB. */
+
+extern char 		trx_sys_mysql_master_log_name[];
+extern ib_longlong	trx_sys_mysql_master_log_pos;
+
 /* The transaction system */
 extern trx_sys_t*	trx_sys;
 
@@ -229,13 +237,18 @@ trx_in_trx_list(
 	trx_t*	in_trx);/* in: trx */
 /*********************************************************************
 Updates the offset information about the end of the MySQL binlog entry
-which corresponds to the transaction just being committed. */
+which corresponds to the transaction just being committed. In a MySQL
+replication slave updates the latest master binlog position up to which
+replication has proceeded. */
 
 void
 trx_sys_update_mysql_binlog_offset(
 /*===============================*/
-	trx_t*	trx,	/* in: transaction being committed */
-	mtr_t*	mtr);	/* in: mtr */
+	char*		file_name,/* in: MySQL log file name */
+	ib_longlong	offset,	/* in: position in that log file */
+	ulint		field,	/* in: offset of the MySQL log info field in
+				the trx sys header */
+	mtr_t*		mtr);	/* in: mtr */
 /*********************************************************************
 Prints to stderr the MySQL binlog offset info in the trx system header if
 the magic number shows it valid. */
@@ -243,14 +256,16 @@ the magic number shows it valid. */
 void
 trx_sys_print_mysql_binlog_offset(void);
 /*===================================*/
+/*********************************************************************
+Prints to stderr the MySQL master log offset info in the trx system header if
+the magic number shows it valid. */
+
+void
+trx_sys_print_mysql_master_log_pos(void);
+/*====================================*/
 
 /* The automatically created system rollback segment has this id */
 #define TRX_SYS_SYSTEM_RSEG_ID	0
-
-/* Max number of rollback segments: the number of segment specification slots
-in the transaction system array; rollback segment id must fit in one byte,
-therefore 256 */
-#define	TRX_SYS_N_RSEGS		256
 
 /* Space id and page no where the trx system file copy resides */
 #define	TRX_SYS_SPACE	0	/* the SYSTEM tablespace */
@@ -277,22 +292,29 @@ therefore 256 */
 					segment specification slots */
 /*-------------------------------------------------------------*/
 
-#define TRX_SYS_MYSQL_LOG_NAME_LEN	32
+/* Max number of rollback segments: the number of segment specification slots
+in the transaction system array; rollback segment id must fit in one byte,
+therefore 256; each slot is currently 8 bytes in size */
+#define	TRX_SYS_N_RSEGS		256
+
+#define TRX_SYS_MYSQL_LOG_NAME_LEN	512
 #define TRX_SYS_MYSQL_LOG_MAGIC_N	873422344
 
+/* The offset of the MySQL replication info on the trx system header page;
+this contains the same fields as TRX_SYS_MYSQL_LOG_INFO below */
+#define TRX_SYS_MYSQL_MASTER_LOG_INFO	(UNIV_PAGE_SIZE - 2000)
+
 /* The offset of the MySQL binlog offset info on the trx system header page */
-#define TRX_SYS_MYSQL_LOG_INFO		(UNIV_PAGE_SIZE - 300)
+#define TRX_SYS_MYSQL_LOG_INFO		(UNIV_PAGE_SIZE - 1000)
 #define	TRX_SYS_MYSQL_LOG_MAGIC_N_FLD	0	/* magic number which shows
 						if we have valid data in the
 						MySQL binlog info; the value
 						is ..._MAGIC_N if yes */
-#define TRX_SYS_MYSQL_LOG_NAME		4	/* MySQL log file name */
-#define TRX_SYS_MYSQL_LOG_OFFSET_HIGH	(4 + TRX_SYS_MYSQL_LOG_NAME_LEN)
-						/* high 4 bytes of the offset
+#define TRX_SYS_MYSQL_LOG_OFFSET_HIGH	4	/* high 4 bytes of the offset
 						within that file */
-#define TRX_SYS_MYSQL_LOG_OFFSET_LOW	(8 + TRX_SYS_MYSQL_LOG_NAME_LEN)
-						/* low 4 bytes of the offset
+#define TRX_SYS_MYSQL_LOG_OFFSET_LOW	8	/* low 4 bytes of the offset
 						within that file */
+#define TRX_SYS_MYSQL_LOG_NAME		12	/* MySQL log file name */
 
 /* The offset of the doublewrite buffer header on the trx system header page */
 #define TRX_SYS_DOUBLEWRITE		(UNIV_PAGE_SIZE - 200)

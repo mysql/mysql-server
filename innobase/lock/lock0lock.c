@@ -1541,6 +1541,15 @@ lock_rec_enqueue_waiting(
 		
 	trx = thr_get_trx(thr);
 
+	if (trx->dict_operation) {
+		ut_print_timestamp(stderr);
+	
+		fprintf(stderr,
+"  InnoDB: Error: a record lock wait happens in a dictionary operation!\n"
+"InnoDB: Table name %s. Send a bug report to mysql@lists.mysql.com\n",
+index->table_name);
+	}
+	
 	/* Enqueue the lock request that will wait to be granted */
 	lock = lock_rec_create(type_mode | LOCK_WAIT, rec, index, trx);
 
@@ -2914,7 +2923,7 @@ lock_table_enqueue_waiting(
 	trx_t*	trx;
 	
 	ut_ad(mutex_own(&kernel_mutex));
-
+	
 	/* Test if there already is some other reason to suspend thread:
 	we do not enqueue a lock request if the query thread should be
 	stopped anyway */
@@ -2926,6 +2935,15 @@ lock_table_enqueue_waiting(
 	}
 
 	trx = thr_get_trx(thr);
+
+	if (trx->dict_operation) {
+		ut_print_timestamp(stderr);
+	
+		fprintf(stderr,
+"  InnoDB: Error: a table lock wait happens in a dictionary operation!\n"
+"InnoDB: Table name %s. Send a bug report to mysql@lists.mysql.com\n",
+table->name);
+	}
 	
 	/* Enqueue the lock request that will wait to be granted */
 

@@ -16,6 +16,7 @@ Created 10/21/1995 Heikki Tuuri
 os_file_write */
 extern ibool	os_do_not_call_flush_at_each_write;
 extern ibool	os_has_said_disk_full;
+extern ibool	os_aio_print_debug;
 
 #ifdef __WIN__
 
@@ -32,6 +33,8 @@ extern ibool	os_has_said_disk_full;
 #else
 typedef int	os_file_t;
 #endif
+
+extern ulint	os_innodb_umask;
 
 /* If this flag is TRUE, then we will use the native aio of the
 OS (provided we compiled Innobase with it in), otherwise we will
@@ -309,6 +312,15 @@ Wakes up simulated aio i/o-handler threads if they have something to do. */
 void
 os_aio_simulated_wake_handler_threads(void);
 /*=======================================*/
+/**************************************************************************
+This function can be called if one wants to post a batch of reads and
+prefers an i/o-handler thread to handle them all at once later. You must
+call os_aio_simulated_wake_handler_threads later to ensure the threads
+are not left sleeping! */
+
+void
+os_aio_simulated_put_read_threads_to_sleep(void);
+/*============================================*/
 
 #ifdef WIN_ASYNC_IO
 /**************************************************************************

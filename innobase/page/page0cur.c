@@ -403,6 +403,8 @@ page_cur_insert_rec_write_log(
 	byte*	log_ptr;
 	ulint	i;
 
+	ut_a(rec_size < UNIV_PAGE_SIZE);
+
 	log_ptr = mlog_open(mtr, 30 + MLOG_BUF_MARGIN);
 
 	if (log_ptr == NULL) {
@@ -490,6 +492,8 @@ page_cur_insert_rec_write_log(
 	}
 
 	mlog_close(mtr, log_ptr);
+
+	ut_a(rec_size - i < UNIV_PAGE_SIZE);
 
 	if (rec_size - i >= MLOG_BUF_MARGIN) {
 		mlog_catenate_string(mtr, ins_ptr, rec_size - i);
@@ -602,6 +606,9 @@ page_cur_parse_insert_rec(
 
 	/* Build the inserted record to buf */
 	
+	ut_a(mismatch_index < UNIV_PAGE_SIZE);
+	ut_a(end_seg_len < UNIV_PAGE_SIZE);
+
 	ut_memcpy(buf, rec_get_start(cursor_rec), mismatch_index);
 	ut_memcpy(buf + mismatch_index, ptr, end_seg_len);
 
@@ -936,6 +943,8 @@ page_copy_rec_list_end_to_created_page(
 	}
 
 	log_data_len = dyn_array_get_data_size(&(mtr->log)) - log_data_len;
+
+	ut_a(log_data_len < 100 * UNIV_PAGE_SIZE);
 
 	mach_write_to_4(log_ptr, log_data_len);
 	

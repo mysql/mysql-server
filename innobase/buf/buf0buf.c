@@ -1126,12 +1126,50 @@ buf_page_get_known_nowait(
 }
 
 /************************************************************************
+Inits a page to the buffer buf_pool, for use in ibbackup --restore. */
+
+void
+buf_page_init_for_backup_restore(
+/*=============================*/
+	ulint		space,	/* in: space id */
+	ulint		offset,	/* in: offset of the page within space
+				in units of a page */
+	buf_block_t*	block)	/* in: block to init */
+{
+	/* Set the state of the block */
+	block->magic_n		= BUF_BLOCK_MAGIC_N;
+
+	block->state 		= BUF_BLOCK_FILE_PAGE;
+	block->space 		= space;
+	block->offset 		= offset;
+
+	block->lock_hash_val	= 0;
+	block->lock_mutex	= NULL;
+	
+	block->freed_page_clock = 0;
+
+	block->newest_modification = ut_dulint_zero;
+	block->oldest_modification = ut_dulint_zero;
+	
+	block->accessed		= FALSE;
+	block->buf_fix_count 	= 0;
+	block->io_fix		= 0;
+
+	block->n_hash_helps	= 0;
+	block->is_hashed	= FALSE;
+	block->n_fields         = 1;
+	block->n_bytes          = 0;
+	block->side             = BTR_SEARCH_LEFT_SIDE;
+
+	block->file_page_was_freed = FALSE;
+}
+
+/************************************************************************
 Inits a page to the buffer buf_pool. */
 static
 void
 buf_page_init(
 /*==========*/
-				/* out: pointer to the block */
 	ulint		space,	/* in: space id */
 	ulint		offset,	/* in: offset of the page within space
 				in units of a page */
@@ -1141,6 +1179,8 @@ buf_page_init(
 	ut_ad(block->state == BUF_BLOCK_READY_FOR_USE);
 
 	/* Set the state of the block */
+	block->magic_n		= BUF_BLOCK_MAGIC_N;
+
 	block->state 		= BUF_BLOCK_FILE_PAGE;
 	block->space 		= space;
 	block->offset 		= offset;

@@ -709,6 +709,7 @@ allowed to free an inherited external field. */
 #define BTR_EXTERN_INHERITED_FLAG	64
 
 extern ulint	btr_cur_n_non_sea;
+extern ulint	btr_cur_n_sea;
 
 #ifndef UNIV_NONINL
 #include "btr0cur.ic"

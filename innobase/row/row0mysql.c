@@ -934,6 +934,7 @@ row_update_for_mysql(
 	ut_ad(!prebuilt->sql_stat_start);
 
 	que_thr_move_to_run_state_for_mysql(thr, trx);
+
 run_again:
 	thr->run_node = node;
 	thr->prev_node = node;
@@ -998,7 +999,6 @@ row_update_cascade_for_mysql(
 	trx_t*		trx;
 
 	trx = thr_get_trx(thr);
-
 run_again:
 	thr->run_node = node;
 	thr->prev_node = node;
@@ -1131,6 +1131,35 @@ row_mysql_recover_tmp_table(
 }
 
 /*************************************************************************
+Locks the data dictionary exclusively for performing a table create
+operation. */
+
+void
+row_mysql_lock_data_dictionary(void)
+/*================================*/
+{
+	/* Serialize data dictionary operations with dictionary mutex:
+	no deadlocks or lock waits can occur then in these operations */
+
+	rw_lock_x_lock(&(dict_foreign_key_check_lock));
+	mutex_enter(&(dict_sys->mutex));
+}
+
+/*************************************************************************
+Unlocks the data dictionary exclusively lock. */
+
+void
+row_mysql_unlock_data_dictionary(void)
+/*==================================*/
+{
+	/* Serialize data dictionary operations with dictionary mutex:
+	no deadlocks can occur then in these operations */
+
+	mutex_exit(&(dict_sys->mutex));
+	rw_lock_x_unlock(&(dict_foreign_key_check_lock));
+}
+
+/*************************************************************************
 Does a table creation operation for MySQL. If the name of the created
 table ends to characters INNODB_MONITOR, then this also starts
 printing of monitor output by the master thread. */
@@ -1150,6 +1179,7 @@ row_create_table_for_mysql(
 	ulint		err;
 
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
+	ut_ad(mutex_own(&(dict_sys->mutex)));
 	
 	if (srv_created_new_raw || srv_force_recovery) {
 		fprintf(stderr,
@@ -1263,18 +1293,12 @@ row_create_table_for_mysql(
 		 "to use this feature you must compile InnoDB with\n"
 		 "UNIV_MEM_DEBUG defined in univ.i and the server must be\n"
 		 "quiet because allocation from a mem heap is not protected\n"
-		       "by any semaphore.\n");
+		 "by any semaphore.\n");
 
 		ut_a(mem_validate());
 		      
 		printf("Memory validated\n");
 	}
-
-	/* Serialize data dictionary operations with dictionary mutex:
-	no deadlocks can occur then in these operations */
-
-	rw_lock_x_lock(&(dict_foreign_key_check_lock));
-	mutex_enter(&(dict_sys->mutex));
 
 	heap = mem_heap_create(512);
 
@@ -1325,9 +1349,6 @@ row_create_table_for_mysql(
 		trx->error_state = DB_SUCCESS;
 	}
 
-	mutex_exit(&(dict_sys->mutex));
-	rw_lock_x_unlock(&(dict_foreign_key_check_lock));
-
 	que_graph_free((que_t*) que_node_get_parent(thr));
 
 	trx->op_info = "";
@@ -1354,6 +1375,7 @@ row_create_index_for_mysql(
 	ulint		keywordlen;
 	ulint		err;
 	
+	ut_ad(mutex_own(&(dict_sys->mutex)));
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 	
 	trx->op_info = "creating index";
@@ -1371,12 +1393,6 @@ row_create_index_for_mysql(
 
 		return(DB_SUCCESS);
 	}
-
-	/* Serialize data dictionary operations with dictionary mutex:
-	no deadlocks can occur then in these operations */
-
-	rw_lock_x_lock(&(dict_foreign_key_check_lock));
-	mutex_enter(&(dict_sys->mutex));
 
 	heap = mem_heap_create(512);
 
@@ -1404,9 +1420,6 @@ row_create_index_for_mysql(
 
 		trx->error_state = DB_SUCCESS;
 	}
-
-	mutex_exit(&(dict_sys->mutex));
-	rw_lock_x_unlock(&(dict_foreign_key_check_lock));
 
 	que_graph_free((que_t*) que_node_get_parent(thr));
 	
@@ -1441,6 +1454,7 @@ row_table_add_foreign_constraints(
 	ulint	keywordlen;
 	ulint	err;
 
+	ut_ad(mutex_own(&(dict_sys->mutex)));
 	ut_a(sql_string);
 	
 	trx->op_info = "adding foreign keys";
@@ -1458,12 +1472,6 @@ row_table_add_foreign_constraints(
 
 		return(DB_SUCCESS);
 	}
-
-	/* Serialize data dictionary operations with dictionary mutex:
-	no deadlocks can occur then in these operations */
-
-	rw_lock_x_lock(&(dict_foreign_key_check_lock));
-	mutex_enter(&(dict_sys->mutex));
 
 	trx->dict_operation = TRUE;
 
@@ -1485,9 +1493,6 @@ row_table_add_foreign_constraints(
 
 		trx->error_state = DB_SUCCESS;
 	}
-
-	mutex_exit(&(dict_sys->mutex));
-	rw_lock_x_unlock(&(dict_foreign_key_check_lock));
 
 	return((int) err);
 }
@@ -1917,6 +1922,13 @@ row_drop_table_for_mysql(
 		ut_a(0);
 	} else {
 		dict_table_remove_from_cache(table);
+
+		if (dict_load_table(name) != NULL) {
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+"  InnoDB: Error: dropping of table %s failed!\n", name);
+
+		}
 	}
 funct_exit:	
 	rw_lock_s_unlock(&(purge_sys->purge_is_running));
