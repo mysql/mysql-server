@@ -4025,37 +4025,38 @@ system. @xref{Privilege system}.
 @cindex comments, starting
 @cindex starting, comments
 
-Some other SQL databases use @samp{--} to start comments. MySQL
-has @samp{#} as the start comment character, even if the @code{mysql}
-command-line tool removes all lines that start with @samp{--}.
-You can also use the C comment style @code{/* this is a comment */} with
-MySQL.
+Some other SQL databases use @samp{--} to start comments.
+MySQL has @samp{#} as the start comment character. You can also use
+the C comment style @code{/* this is a comment */} with MySQL.
 @xref{Comments}.
 
-MySQL Version 3.23.3 and above supports the @samp{--} comment style
-only if the comment is followed by a space.  This is because this
-degenerate comment style has caused many problems with automatically
-generated SQL queries that have used something like the following code,
-where we automatically insert the value of the payment for
+MySQL Version 3.23.3 and above supports the @samp{--} comment style,
+provided the comment is followed by a space.  This is because this
+comment style has caused many problems with automatically generated
+SQL queries that have used something like the following code, where
+we automatically insert the value of the payment for
 @code{!payment!}:
 
 @example
 UPDATE tbl_name SET credit=credit-!payment!
 @end example
 
-What do you think will happen when the value of @code{payment} is negative?
+Think about what happens if the value of @code{payment} is negative?
+Because @code{1--1} is legal in SQL, the consequences of allowing
+comments to start with @samp{--} are terrible.
 
-Because @code{1--1} is legal in SQL, we think it is terrible that
-@samp{--} means start comment.
+Using our implementation of this method of commenting in MySQL
+Version 3.23.3 and up, @code{1-- This is a comment} is actually safe.
 
-In MySQL Version 3.23 you can, however, use:
-@code{1-- This is a comment}
+Another safe feature is that the @code{mysql} command-line client
+removes all lines that start with @samp{--}.
 
-The following discussion only concerns you if you are running a MySQL
-version earlier than Version 3.23:
 
-If you have a SQL program in a text file that contains @samp{--} comments
-you should use:
+The following information is only relevant if you are running a
+MySQL version earlier than Version 3.23.3:
+
+If you have a SQL program in a text file that contains @samp{--}
+comments you should use:
 
 @example
 shell> replace " --" " #" < text-file-with-funny-comments.sql \
