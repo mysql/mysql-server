@@ -277,6 +277,12 @@ static bool check_user(THD *thd,enum_server_command command, const char *user,
 }
 
 
+void THD::clear_error()
+{
+  net.last_error[0]= 0;
+  net.last_errno= 0;
+}
+
 /*
   Make a copy of array and the strings array points to
 */

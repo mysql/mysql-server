@@ -2589,7 +2589,7 @@ void Field_timestamp::store(longlong nr)
   {
     long not_used;
     
-    if (l_time.year >= TIMESTAMP_MAX_YEAR || l_time.year < 1900+YY_PART_YEAR)
+    if (l_time.year >= TIMESTAMP_MAX_YEAR || l_time.year < 1900+YY_PART_YEAR-1)
     {
       current_thd->cuted_fields++;
       timestamp=0;
