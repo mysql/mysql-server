@@ -1627,6 +1627,7 @@ int safe_connect(MYSQL* con, const char* host, const char* user,
     }
     sleep(CON_RETRY_SLEEP);
   }
+  con->reconnect= 1; /* TODO: change this to 0 in future versions */
   return con_error;
 }
 

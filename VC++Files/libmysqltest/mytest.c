@@ -91,6 +91,7 @@ main( int argc, char * argv[] )
        mysql_real_connect( myData, NULL, NULL, NULL, NULL, MYSQL_PORT,
 			   NULL, 0 ) )
     {
+      myData->reconnect= 1;
       if ( mysql_select_db( myData, szDB ) < 0 ) {
 	printf( "Can't select the %s database !\n", szDB ) ;
 	mysql_close( myData ) ;
