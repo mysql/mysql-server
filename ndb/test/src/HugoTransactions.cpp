@@ -729,10 +729,9 @@ HugoTransactions::loadTable(Ndb* pNdb,
       NdbSleep_MilliSleep(doSleep);
 
     //    if (first_batch || !oneTrans) {
-    if (first_batch) {
+    if (first_batch || !pTrans) {
       first_batch = false;
       pTrans = pNdb->startTransaction();
-    
       if (pTrans == NULL) {
         const NdbError err = pNdb->getNdbError();
 
@@ -786,7 +785,7 @@ HugoTransactions::loadTable(Ndb* pNdb,
     if(check == -1 ) {
       const NdbError err = pTrans->getNdbError();
       pNdb->closeTransaction(pTrans);
-      
+      pTrans= 0;
       switch(err.status){
       case NdbError::Success:
 	ERR(err);
@@ -828,6 +827,7 @@ HugoTransactions::loadTable(Ndb* pNdb,
     else{
       if (closeTrans) {
         pNdb->closeTransaction(pTrans);
+	pTrans= 0;
       }
     }
     
