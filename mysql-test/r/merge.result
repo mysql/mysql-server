@@ -647,7 +647,7 @@ create table t2 (a int);
 insert into t1 values (0);
 insert into t2 values (1);
 create table t3 engine=merge union=(t1, t2) select * from t1;
-INSERT TABLE 't1' isn't allowed in FROM table list
+ERROR HY000: You can't specify target table 't1' for update in FROM clause
 create table t3 engine=merge union=(t1, t2) select * from t2;
-INSERT TABLE 't2' isn't allowed in FROM table list
+ERROR HY000: You can't specify target table 't2' for update in FROM clause
 drop table t1, t2;
