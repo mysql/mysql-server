@@ -726,7 +726,7 @@ AC_MSG_CHECKING(for OpenSSL)
       openssl_includes="-I/usr/local/ssl/include"
       AC_DEFINE(HAVE_OPENSSL)
     else
-      AC_MSG_RESULT("disabled because --with-vio wasn't used")
+      AC_MSG_RESULT(disabled because --with-vio wasn not used)
     fi
   else
     AC_MSG_RESULT(no)
@@ -748,15 +748,19 @@ dnl Call MYSQL_CHECK_ORBIT even if mysqlfs == no, so that @orbit_*@
 dnl get substituted.
   MYSQL_CHECK_ORBIT
 
+  AC_MSG_CHECKING(if we should build MySQLFS)
   fs_dirs=""
   if test "$mysqlfs" = "yes"
   then
     if test -n "$orbit_exec_prefix"
     then
       fs_dirs=fs
+      AC_MSG_RESULT([yes])
     else
-      AC_MSG_RESULT("disabled because ORBIT, the CORBA ORB, wasn't found"])
+      AC_MSG_RESULT(disabled because ORBIT, the CORBA ORB, was not found)
     fi
+  else
+    AC_MSG_RESULT([no])
   fi
   AC_SUBST([fs_dirs])
 ])

@@ -19777,6 +19777,10 @@ joins that don't use keys properly.
 @item
 If @code{Threads_created} is big, you may want to increase the
 @code{thread_cache_size} variable.
+@item
+If @code{Created_tmp_disk_tables} is big, you may want to increase the
+@code{tmp_table_size} variable to get the temporary tables memory based
+instead of disk based.
 @end itemize
 
 
@@ -20411,6 +20415,7 @@ Create Table: CREATE TABLE t (
 * Character arrays::            The character definition arrays
 * String collating::            String Collating Support
 * Multi-byte characters::       Multi-byte Character Support
+* Problems with character sets::  
 @end menu
 
 
@@ -20744,7 +20749,7 @@ the maximum ratio the strings may grow during @code{my_strxfrm_MYSET} (it
 must be a positive integer).
 
 
-@node Multi-byte characters,  , String collating, Localization
+@node Multi-byte characters, Problems with character sets, String collating, Localization
 @subsection Multi-byte Character Support
 
 @cindex characters, multi-byte
@@ -20762,6 +20767,41 @@ character sets for examples. These are implemented in the
 You must specify the @code{mbmaxlen_MYSET=N} value in the special
 comment at the top of the source file.  @code{N} should be set to the
 size in bytes of the largest character in the set.
+
+@node Problems with character sets,  , Multi-byte characters, Localization
+@subsection Problems With Character Sets
+
+If you try to use a character set that is not compiled into your binary,
+you can run into a couple of different problems:
+
+@itemize @bullet
+@item
+Your program has a wrong path to where the character sets are stored.
+(Default @file{/usr/local/mysql/share/mysql/charsets}).  
+This can be fixed by using the @code{--character-sets-dir}
+option to the program in question.
+@item
+The character set is a multi-byte-character set that can't be loaded
+dynamicly.  In this case you have to recompiled the program with the
+support for the character set.
+@item
+The character set is a dynamic character set, but you don't have a
+configure file for it.  In this case you should install the configure
+file for the character set from a new MySQL distribution.
+@item
+Your @file{Index} file doesn't contain the name for the character set.
+
+@example
+ERROR 1105: File '/usr/local/share/mysql/charsets/?.conf' not found
+(Errcode: 2)
+@end example
+
+In this case you should either get a new @code{Index} file or add
+by hand the name of any missing character sets.
+@end itemize
+
+For MyISAM tables, you can check the character set name and number for a
+table with @code{myisamchk -dvv table_name}.
 
 
 @node Server-Side Scripts, Client-Side Scripts, Localization, MySQL Database Administration
@@ -39313,7 +39353,7 @@ likely it is that we can fix the problem!
 * C API function overview::     C API Function Overview
 * C API functions::             C API Function Descriptions
 * C Thread functions::          C Thread Functions
-* C Embedded Server functions:: C Embedded Server Functions
+* C Embedded Server functions:: C Embedded Server functions.  C Embedded Server Functions
 * C API problems::              Common questions and problems when using the C API
 * Building clients::            Building Client Programs
 * Threaded clients::            How to Make a Threaded Client
@@ -42014,9 +42054,9 @@ You need to use the following functions when you want to create a
 threaded client. @xref{Threaded clients}.
 
 @menu
-* my_init()::                     @code{my_init()}
-* mysql_thread_init()::           @code{mysql_thread_init()}
-* mysql_thread_end()::            @code{mysql_thread_end()}
+* my_init()::                   @code{my_init()}
+* mysql_thread_init()::         @code{mysql_thread_init()}
+* mysql_thread_end()::          @code{mysql_thread_end()}
 @end menu
 
 @node my_init(), mysql_thread_init(), C Thread functions, C Thread functions
@@ -42084,8 +42124,8 @@ possible to choose between using the embedded MySQL server and
 a stand-alone server without modifying any code.
 
 @menu
-* mysql_server_init()::
-* mysql_server_end()::
+* mysql_server_init()::         
+* mysql_server_end()::          
 @end menu
 
 @node mysql_server_init(), mysql_server_end(), C Embedded Server functions, C Embedded Server functions
@@ -42338,7 +42378,7 @@ For clients that use MySQL header files, you may need to specify a
 files.
 
 
-@node Threaded clients, libmysqld , Building clients, C
+@node Threaded clients, libmysqld, Building clients, C
 @subsection How to Make a Threaded Client
 
 @cindex clients, threaded
@@ -42812,7 +42852,7 @@ clean:
 	rm -f $(targets) $(objects) *.core
 @end example
 
-@node libmysqld licensing, , libmysqld example, libmysqld
+@node libmysqld licensing,  , libmysqld example, libmysqld
 @subsubsection Licensing the Embedded Server
 
 The MySQL source code is covered by the GNU GPL license
