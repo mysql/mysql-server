@@ -1866,7 +1866,11 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     mysqld_list_fields(thd,&table_list,fields);
     thd->lex->unit.cleanup();
     thd->cleanup_after_query();
+#ifdef HAVE_INNOBASE_DB
     release_local_lock(thd, locked_tables, old_innodb_table_locks);
+#else
+    release_local_lock(thd, locked_tables, false);
+#endif
     break;
   }
 #endif
@@ -4597,8 +4601,11 @@ cleanup:
     if (thd->lock == thd->locked_tables)
       thd->lock= 0;
   }
-
+#ifdef HAVE_INNOBASE_DB
   release_local_lock(thd, locked_tables, old_innodb_table_locks);
+#else
+  release_local_lock(thd, locked_tables, false);
+#endif
   DBUG_RETURN(res || thd->net.report_error);
 }
 
