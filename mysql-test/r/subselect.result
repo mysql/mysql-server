@@ -458,6 +458,14 @@ Subselect returns more than 1 record
 select numeropost as a FROM t1 ORDER BY (SELECT 1 FROM t1 HAVING a=1);
 Subselect returns more than 1 record
 drop table t1;
+create table t1 (a int);
+insert into t1 values (1),(2),(3);
+(select * from t1) union (select * from t1) order by (select a from t1 limit 1);
+a
+1
+2
+3
+drop table t1;
 CREATE TABLE t1 (field char(1) NOT NULL DEFAULT 'b');
 INSERT INTO t1 VALUES ();
 SELECT field FROM t1 WHERE 1=(SELECT 1 UNION ALL SELECT 1 FROM (SELECT 1) a HAVING field='b');
