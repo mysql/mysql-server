@@ -587,12 +587,19 @@ private:
   void deleteNode(Signal* signal, NodeHandle& node);
   void setNodePref(Signal* signal, NodeHandle& node);
   // node operations
-  void nodePushUp(Signal* signal, NodeHandle& node, unsigned pos, const TreeEnt& ent);
-  void nodePopDown(Signal* signal, NodeHandle& node, unsigned pos, TreeEnt& ent);
-  void nodePushDown(Signal* signal, NodeHandle& node, unsigned pos, TreeEnt& ent);
-  void nodePopUp(Signal* signal, NodeHandle& node, unsigned pos, TreeEnt& ent);
+  void nodePushUp(Signal* signal, NodeHandle& node, unsigned pos, const TreeEnt& ent, Uint32 scanList);
+  void nodePushUpScans(Signal* signal, NodeHandle& node, unsigned pos);
+  void nodePopDown(Signal* signal, NodeHandle& node, unsigned pos, TreeEnt& en, Uint32* scanList);
+  void nodePopDownScans(Signal* signal, NodeHandle& node, unsigned pos);
+  void nodePushDown(Signal* signal, NodeHandle& node, unsigned pos, TreeEnt& ent, Uint32& scanList);
+  void nodePushDownScans(Signal* signal, NodeHandle& node, unsigned pos);
+  void nodePopUp(Signal* signal, NodeHandle& node, unsigned pos, TreeEnt& ent, Uint32 scanList);
+  void nodePopUpScans(Signal* signal, NodeHandle& node, unsigned pos);
   void nodeSlide(Signal* signal, NodeHandle& dstNode, NodeHandle& srcNode, unsigned cnt, unsigned i);
   // scans linked to node
+  void addScanList(NodeHandle& node, unsigned pos, Uint32 scanList);
+  void removeScanList(NodeHandle& node, unsigned pos, Uint32& scanList);
+  void moveScanList(Signal* signal, NodeHandle& node, unsigned pos);
   void linkScan(NodeHandle& node, ScanOpPtr scanPtr);
   void unlinkScan(NodeHandle& node, ScanOpPtr scanPtr);
   bool islinkScan(NodeHandle& node, ScanOpPtr scanPtr);
