@@ -540,6 +540,10 @@ FROM t9,
 (select c25 x, c32 y from t2) tt WHERE x = c25 ' ;
 --enable_metadata
 prepare stmt1 from @stmt ;
+#
+# Result log was disabled upon test case failure in the optimized build.
+#
+--disable_result_log
 execute stmt1 ;
 --disable_metadata
 execute stmt1 ;
@@ -588,6 +592,7 @@ execute stmt1 using @arg00, @arg01, @arg02, @arg03, @arg04, @arg05, @arg06,
 --disable_metadata
 execute stmt1 using @arg00, @arg01, @arg02, @arg03, @arg04, @arg05, @arg06,
                     @arg07, @arg08, @arg09 ;
+--enable_result_log
 drop table t2 ;
 
 
