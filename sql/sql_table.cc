@@ -476,9 +476,6 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
        checking for proper key parts number:
     */
    
-printf("key_info->flags=%d key_info->algorithm=%d\n",
-  key_info->flags,key_info->algorithm);
- 
     if(key_info->flags == HA_SPATIAL){
       if(key_info->key_parts!=1){
         my_printf_error(ER_WRONG_ARGUMENTS,
