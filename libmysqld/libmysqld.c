@@ -1155,6 +1155,12 @@ mysql_get_server_info(MYSQL *mysql __attribute__((unused)))
 }
 
 
+ulong STDCALL
+mysql_get_server_version(MYSQL *mysql __attribute__((unused)))
+{
+  return MYSQL_VERSION_ID;
+}
+
 const char * STDCALL
 mysql_get_host_info(MYSQL *mysql __attribute__((unused)))
 {

@@ -2816,7 +2816,7 @@ order_clause:
 	ORDER_SYM BY
         {
 	  LEX *lex=Lex;
-	  if (lex->current_select->linkage != GLOBAL_OPTIONS_TYPE) &&
+	  if (lex->current_select->linkage != GLOBAL_OPTIONS_TYPE &&
 	      lex->current_select->select_lex()->olap !=
 	      UNSPECIFIED_OLAP_TYPE)
 	  {
