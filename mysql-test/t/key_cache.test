@@ -1,5 +1,5 @@
 #
-# Test of key cache
+# Test of multiple key caches
 #
 
 SET @save_key_buffer=@@key_buffer_size;
@@ -40,3 +40,83 @@ SET @@global.key_buffer_size=@save_key_buffer;
 SELECT @@default.key_buffer_size;
 --error 1271
 SELECT @@skr.table_type="test";
+
+select @@keycache1.key_cache_block_size;
+select @@keycache1.key_buffer_size;
+set global keycache1.key_cache_block_size=2048;
+select @@keycache1.key_buffer_size;
+select @@keycache1.key_cache_block_size;
+set global keycache1.key_buffer_size=1*1024*1024;
+select @@keycache1.key_buffer_size;
+select @@keycache1.key_cache_block_size;
+set global keycache2.key_buffer_size=4*1024*1024;
+select @@keycache2.key_buffer_size;
+select @@keycache2.key_cache_block_size;
+set global keycache1.key_buffer_size=0;
+select @@keycache1.key_buffer_size;
+select @@keycache1.key_cache_block_size;
+select @@key_buffer_size;
+select @@key_cache_block_size;
+
+
+--disable_warnings
+drop table if exists t1, t2;
+--enable_warnings
+
+create table t1 (p int primary key, a char(10));
+create table t2 (p int primary key, i int, a char(10), key k1(i), key k2(a));
+
+insert into t1 values (1, 'qqqq'), (11, 'yyyy');
+insert into t2 values (1, 1, 'qqqq'), (2, 1, 'pppp'),
+                      (3, 1, 'yyyy'), (4, 3, 'zzzz');
+select * from t1;
+select * from t2;
+
+update t1 set p=2 where p=1;
+update t2 set i=2 where i=1;
+
+cache index t1 keys in keycache1;
+
+explain select p from t1;
+select p from t1;
+explain select i from t2;
+select i from t2;
+explain select count(*) from t1, t2 where t1.p = t2.i;
+select count(*) from t1, t2 where t1.p = t2.i;
+
+cache index t2 keys in keycache1;
+update t2 set p=p+1000, i=2 where a='qqqq';
+cache index t2 keys in keycache2;
+insert into t2 values (2000, 3, 'yyyy');
+cache index t2 keys in keycache1;
+update t2 set p=3000 where a='zzzz';
+select * from t2;
+explain select p from t2;
+select p from t2;
+explain select i from t2;
+select i from t2;
+explain select a from t2;
+select a from t2;
+
+select @@keycache2.key_buffer_size;
+select @@keycache2.key_cache_block_size;
+set global keycache2.key_buffer_size=0;
+select @@keycache2.key_buffer_size;
+select @@keycache2.key_cache_block_size;
+
+
+update t2 set p=4000 where a='zzzz';
+update t1 set p=p+1;
+
+set global keycache1.key_buffer_size=0;
+select * from t2;
+select p from t2;
+explain select i from t2;
+select i from t2;
+explain select a from t2;
+select a from t2;
+
+select * from t1;
+select p from t1;
+
+
