@@ -275,7 +275,7 @@ int main(int argc, char *argv[])
       goto end;
     }
     if (key_cacheing)
-      resize_key_cache(dflt_keycache,key_cache_size*2);
+      resize_key_cache(dflt_keycache,key_cache_block_size,key_cache_size*2);
   }
 
   if (!silent)

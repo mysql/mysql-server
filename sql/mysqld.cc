@@ -3441,7 +3441,9 @@ enum options
   OPT_FLUSH_TIME, OPT_FT_MIN_WORD_LEN,
   OPT_FT_MAX_WORD_LEN, OPT_FT_MAX_WORD_LEN_FOR_SORT, OPT_FT_STOPWORD_FILE,
   OPT_INTERACTIVE_TIMEOUT, OPT_JOIN_BUFF_SIZE,
-  OPT_KEY_BUFFER_SIZE, OPT_KEY_CACHE_BLOCK_SIZE, OPT_LONG_QUERY_TIME,
+  OPT_KEY_BUFFER_SIZE, OPT_KEY_CACHE_BLOCK_SIZE,
+  OPT_KEY_CACHE_DIVISION_LIMIT, OPT_KEY_CACHE_AGE_THRESHOLD,
+  OPT_LONG_QUERY_TIME,
   OPT_LOWER_CASE_TABLE_NAMES, OPT_MAX_ALLOWED_PACKET,
   OPT_MAX_BINLOG_CACHE_SIZE, OPT_MAX_BINLOG_SIZE,
   OPT_MAX_CONNECTIONS, OPT_MAX_CONNECT_ERRORS,
@@ -4133,6 +4135,16 @@ replicating a LOAD DATA INFILE command.",
    (gptr*) &dflt_key_cache_var.block_size,
    (gptr*) &dflt_key_cache_var.block_size, 0, GET_ULONG,
    REQUIRED_ARG, KEY_CACHE_BLOCK_SIZE , 512, 1024*16, MALLOC_OVERHEAD, 512, 0},
+  {"key_cache_division_limit", OPT_KEY_CACHE_DIVISION_LIMIT,
+   "The minimum percentage of warm blocks in key cache",
+   (gptr*) &dflt_key_cache_var.division_limit,
+   (gptr*) &dflt_key_cache_var.division_limit, 0, GET_ULONG,
+   REQUIRED_ARG, 100, 1, 100, 0, 1, 0},
+  {"key_cache_division_age_threshold", OPT_KEY_CACHE_AGE_THRESHOLD,
+   "This characterizes the number of hits a hot block has to be untouched until it is considered aged enough to be downgraded to a warm block. This specifies the percentage ratio of that number of hits to the total number of blocks in key cache",
+   (gptr*) &dflt_key_cache_var.age_threshold,
+   (gptr*) &dflt_key_cache_var.age_threshold, 0, GET_ULONG,
+   REQUIRED_ARG, 300, 100, ~0L, 0, 100, 0},
   {"long_query_time", OPT_LONG_QUERY_TIME,
    "Log all queries that have taken more than long_query_time seconds to execute to file.",
    (gptr*) &global_system_variables.long_query_time,
@@ -5352,21 +5364,26 @@ mysql_getopt_value(const char *keyname, uint key_length,
 {
   switch (option->id) {
   case OPT_KEY_BUFFER_SIZE:
-  {
-    KEY_CACHE_VAR *key_cache;
-    if (!(key_cache= get_or_create_key_cache(keyname, key_length)))
-      exit(1);
-    return (gptr*) &key_cache->buff_size;
-  }
   case OPT_KEY_CACHE_BLOCK_SIZE:
+  case OPT_KEY_CACHE_DIVISION_LIMIT:
+  case OPT_KEY_CACHE_AGE_THRESHOLD:
   {
     KEY_CACHE_VAR *key_cache;
     if (!(key_cache= get_or_create_key_cache(keyname, key_length)))
       exit(1);
-    return (gptr*) &key_cache->block_size;
+    switch (option->id) {
+    case OPT_KEY_BUFFER_SIZE:
+      return (gptr*) &key_cache->buff_size;
+    case OPT_KEY_CACHE_BLOCK_SIZE:
+      return (gptr*) &key_cache->block_size;
+    case OPT_KEY_CACHE_DIVISION_LIMIT:
+      return (gptr*) &key_cache->division_limit;
+    case OPT_KEY_CACHE_AGE_THRESHOLD:
+      return (gptr*) &key_cache->age_threshold;
+    }
   }
   }
-  return option->value;
+ return option->value;
 }
 
 
@@ -5426,6 +5443,8 @@ static void get_options(int argc,char **argv)
   KEY_CACHE_VAR *key_cache= &dflt_key_cache_var;
   dflt_key_cache_block_size= key_cache->block_size;
   dflt_key_buff_size= key_cache->buff_size;
+  dflt_key_cache_division_limit= key_cache->division_limit;
+  dflt_key_cache_age_threshold= key_cache->age_threshold;
 }
 
 

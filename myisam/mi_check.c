@@ -231,7 +231,8 @@ static int check_k_link(MI_CHECK *param, register MI_INFO *info, uint nr)
 	next_link & (info->s->blocksize-1))
       DBUG_RETURN(1);
     if (!(buff=key_cache_read(*info->s->keycache,
-                              info->s->kfile, next_link, (byte*) info->buff,
+                              info->s->kfile, next_link, DFLT_INIT_HITS,
+                              (byte*) info->buff,
 			      myisam_block_size, block_size, 1)))
       DBUG_RETURN(1);
     next_link=mi_sizekorr(buff);
@@ -371,8 +372,8 @@ int chk_key(MI_CHECK *param, register MI_INFO *info)
     if (share->state.key_root[key] == HA_OFFSET_ERROR &&
 	(info->state->records == 0 || keyinfo->flag & HA_FULLTEXT))
       continue;
-    if (!_mi_fetch_keypage(info,keyinfo,share->state.key_root[key],info->buff,
-			   0))
+    if (!_mi_fetch_keypage(info,keyinfo,share->state.key_root[key],
+                           DFLT_INIT_HITS,info->buff,0))
     {
       mi_check_print_error(param,"Can't read indexpage from filepos: %s",
 		  llstr(share->state.key_root[key],buff));
@@ -550,7 +551,8 @@ static int chk_index(MI_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
 	info->state->key_file_length=(max_length &
 				      ~ (my_off_t) (info->s->blocksize-1));
       }
-      if (!_mi_fetch_keypage(info,keyinfo,next_page,temp_buff,0))
+      if (!_mi_fetch_keypage(info,keyinfo,next_page,
+                             DFLT_INIT_HITS,temp_buff,0))
       {
 	mi_check_print_error(param,"Can't read key from filepos: %s",llstr(next_page,llbuff));
 	goto err;
@@ -1443,7 +1445,8 @@ int movepoint(register MI_INFO *info, byte *record, my_off_t oldpos,
 	nod_flag=mi_test_if_nod(info->buff);
 	_mi_dpointer(info,info->int_keypos-nod_flag-
 		     info->s->rec_reflength,newpos);
-	if (_mi_write_keypage(info,keyinfo,info->last_keypage,info->buff))
+	if (_mi_write_keypage(info,keyinfo,info->last_keypage,
+                              DFLT_INIT_HITS,info->buff))
 	  DBUG_RETURN(-1);
       }
       else
@@ -1600,7 +1603,7 @@ static int sort_one_index(MI_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
     mi_check_print_error(param,"Not Enough memory");
     DBUG_RETURN(-1);
   }
-  if (!_mi_fetch_keypage(info,keyinfo,pagepos,buff,0))
+  if (!_mi_fetch_keypage(info,keyinfo,pagepos,DFLT_INIT_HITS,buff,0))
   {
     mi_check_print_error(param,"Can't read key block from filepos: %s",
 		llstr(pagepos,llbuff));
@@ -3334,13 +3337,13 @@ static int sort_insert_key(MI_SORT_PARAM *sort_param,
   bzero((byte*) anc_buff+key_block->last_length,
 	keyinfo->block_length- key_block->last_length);
   key_file_length=info->state->key_file_length;
-  if ((filepos=_mi_new(info,keyinfo)) == HA_OFFSET_ERROR)
+  if ((filepos=_mi_new(info,keyinfo,DFLT_INIT_HITS)) == HA_OFFSET_ERROR)
     DBUG_RETURN(1);
 
   /* If we read the page from the key cache, we have to write it back to it */
   if (key_file_length == info->state->key_file_length)
   {
-    if (_mi_write_keypage(info, keyinfo, filepos, anc_buff))
+    if (_mi_write_keypage(info, keyinfo, filepos, DFLT_INIT_HITS, anc_buff))
       DBUG_RETURN(1);
   }
   else if (my_pwrite(info->s->kfile,(byte*) anc_buff,
@@ -3438,13 +3441,14 @@ int flush_pending_blocks(MI_SORT_PARAM *sort_param)
       _mi_kpointer(info,key_block->end_pos,filepos);
     key_file_length=info->state->key_file_length;
     bzero((byte*) key_block->buff+length, keyinfo->block_length-length);
-    if ((filepos=_mi_new(info,keyinfo)) == HA_OFFSET_ERROR)
+    if ((filepos=_mi_new(info,keyinfo,DFLT_INIT_HITS)) == HA_OFFSET_ERROR)
       DBUG_RETURN(1);
 
     /* If we read the page from the key cache, we have to write it back */
     if (key_file_length == info->state->key_file_length)
     {
-      if (_mi_write_keypage(info, keyinfo, filepos, key_block->buff))
+      if (_mi_write_keypage(info, keyinfo, filepos,
+                            DFLT_INIT_HITS, key_block->buff))
 	DBUG_RETURN(1);
     }
     else if (my_pwrite(info->s->kfile,(byte*) key_block->buff,

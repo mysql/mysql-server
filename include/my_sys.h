@@ -516,6 +516,8 @@ typedef struct st_key_cache_var
 {
   ulonglong buff_size;           /* size the memory allocated for the cache  */
   ulong block_size;              /* size of the blocks in the key cache      */
+  ulong division_limit;          /* min. percentage of warm blocks           */
+  ulong age_threshold;           /* determines when hot block is downgraded  */
   KEY_CACHE_HANDLE cache;        /* handles for the current and registered   */
   ulong blocks_used;             /* number of currently used blocks          */
   ulong blocks_changed;          /* number of currently dirty blocks         */
@@ -530,6 +532,7 @@ typedef struct st_key_cache_var
 #define DEFAULT_KEY_CACHE_NAME "default"
 extern KEY_CACHE_HANDLE *dflt_keycache;
 extern KEY_CACHE_VAR dflt_key_cache_var;
+#define DFLT_INIT_HITS  3
 
 #include <my_alloc.h>
 
@@ -670,17 +673,21 @@ extern long my_clock(void);
 extern sig_handler sigtstp_handler(int signal_number);
 extern void handle_recived_signals(void);
 extern int init_key_cache(KEY_CACHE_HANDLE *pkeycache,
-                          uint key_cache_block_sie,
+                          uint key_cache_block_size,
                           ulong use_mem, KEY_CACHE_VAR* env);
-extern int resize_key_cache(KEY_CACHE_HANDLE *pkeycache, ulong use_mem);
+extern int resize_key_cache(KEY_CACHE_HANDLE *pkeycache,
+                            uint key_cache_block_size, ulong use_mem);
+extern void change_key_cache_param(KEY_CACHE_HANDLE keycache);
 extern byte *key_cache_read(KEY_CACHE_HANDLE keycache,
-                            File file,my_off_t filepos,byte* buff,uint length,
+                            File file, my_off_t filepos, int level,
+                            byte* buff, uint length,
 			    uint block_length,int return_buffer);
 extern int key_cache_insert(KEY_CACHE_HANDLE keycache,
-                            File file, my_off_t filepos,
+                            File file, my_off_t filepos, int level,
                             byte *buff, uint length);
 extern int key_cache_write(KEY_CACHE_HANDLE keycache,
-                           File file,my_off_t filepos,byte* buff,uint length,
+                           File file, my_off_t filepos, int level,
+                           byte* buff, uint length,
 			   uint block_length,int force_write);
 extern int flush_key_blocks(KEY_CACHE_HANDLE keycache,
                             int file, enum flush_type type);

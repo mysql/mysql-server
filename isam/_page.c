@@ -28,7 +28,7 @@ uchar *_nisam_fetch_keypage(register N_INFO *info, N_KEYDEF *keyinfo,
 {
   uchar *tmp;
   tmp=(uchar*) key_cache_read(*dflt_keycache,
-                              info->s->kfile,page,(byte*) buff,
+                              info->s->kfile,page,DFLT_INIT_HITS,(byte*) buff,
 			      (uint) keyinfo->base.block_length,
 			      (uint) keyinfo->base.block_length,
 			      return_buffer);
@@ -85,7 +85,8 @@ int _nisam_write_keypage(register N_INFO *info, register N_KEYDEF *keyinfo,
   }
 #endif
   return (key_cache_write(*dflt_keycache,
-                          info->s->kfile,page,(byte*) buff,length,
+                          info->s->kfile,page,DFLT_INIT_HITS,
+                          (byte*) buff,length,
 			  (uint) keyinfo->base.block_length,
 			  (int) (info->lock_type != F_UNLCK)));
 } /* nisam_write_keypage */
@@ -102,7 +103,8 @@ int _nisam_dispose(register N_INFO *info, N_KEYDEF *keyinfo, my_off_t pos)
   old_link=info->s->state.key_del[keynr];
   info->s->state.key_del[keynr]=(ulong) pos;
   DBUG_RETURN(key_cache_write(*dflt_keycache,
-                              info->s->kfile,pos,(byte*) &old_link,
+                              info->s->kfile,pos,DFLT_INIT_HITS,
+                              (byte*) &old_link,
 			      sizeof(long),
 			      (uint) keyinfo->base.block_length,
 			      (int) (info->lock_type != F_UNLCK)));
@@ -130,7 +132,7 @@ ulong _nisam_new(register N_INFO *info, N_KEYDEF *keyinfo)
   else
   {
     if (!key_cache_read(*dflt_keycache,
-                        info->s->kfile,pos,
+                        info->s->kfile,pos,DFLT_INIT_HITS,
 			(byte*) &info->s->state.key_del[keynr],
 			(uint) sizeof(long),
 			(uint) keyinfo->base.block_length,0))
