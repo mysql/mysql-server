@@ -17,8 +17,6 @@
 
 /* compare and test functions */
 
-#include "assert.h"
-
 #ifdef __GNUC__
 #pragma interface			/* gcc class implementation */
 #endif

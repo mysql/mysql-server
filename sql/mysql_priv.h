@@ -406,6 +406,7 @@ int mysql_select(THD *thd, Item ***rref_pointer_array,
 		 SELECT_LEX *select_lex, bool fake_select_lex);
 void free_ulderlayed_joins(THD *thd, SELECT_LEX *select);
 void fix_tables_pointers(SELECT_LEX *select_lex);
+void fix_tables_pointers(SELECT_LEX_UNIT *select_lex);
 int mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit,
 			select_result *result);
 int mysql_explain_select(THD *thd, SELECT_LEX *sl, char const *type,

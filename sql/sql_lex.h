@@ -302,7 +302,8 @@ public:
   uint union_option;
 
   void init_query();
-  bool create_total_list(THD *thd, st_lex *lex, TABLE_LIST **result);
+  bool create_total_list(THD *thd, st_lex *lex, TABLE_LIST **result,
+			 bool check_current_derived);
   st_select_lex_unit* master_unit();
   st_select_lex* outer_select();
   st_select_lex* first_select() { return (st_select_lex*) slave; }
@@ -318,7 +319,8 @@ public:
   friend int subselect_union_engine::exec();
 private:
   bool create_total_list_n_last_return(THD *thd, st_lex *lex,
-				       TABLE_LIST ***result);
+				       TABLE_LIST ***result,
+				       bool check_current_derived);
 };
 typedef class st_select_lex_unit SELECT_LEX_UNIT;
 

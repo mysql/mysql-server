@@ -663,17 +663,6 @@ public:
 #endif
 
   void add_possible_loop(Item *);
-  void free_tmp_tables()
-  {
-    if (temporary_tables_should_be_free.elements)
-    {
-      List_iterator_fast<TABLE> lt(temporary_tables_should_be_free);
-      TABLE *table;
-      while ((table= lt++))
-	free_tmp_table(this,table);
-      temporary_tables_should_be_free.empty();
-    }
-  }
 };
 
 /*

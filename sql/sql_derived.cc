@@ -70,7 +70,8 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit, TABLE_LIST *t)
   select_union *derived_result;
   TABLE_LIST *tables= (TABLE_LIST *)sl->table_list.first;
   TMP_TABLE_PARAM tmp_table_param;
-  bool is_union=sl->next_select() && sl->next_select()->linkage == UNION_TYPE;
+  bool is_union= sl->next_select() && sl->next_select()->linkage == UNION_TYPE;
+  bool is_subsel= sl->first_inner_unit();
   SELECT_LEX_NODE *save_current_select= lex->current_select;
   DBUG_ENTER("mysql_derived");
   
@@ -81,7 +82,7 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit, TABLE_LIST *t)
     recognize better when this function is called from derived tables
     and when from other functions.
   */
-  if (is_union && unit->create_total_list(thd, lex, &tables))
+  if ((is_union || is_subsel) && unit->create_total_list(thd, lex, &tables, 1))
     DBUG_RETURN(-1);
 
   if (tables)
@@ -90,29 +91,44 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit, TABLE_LIST *t)
     res= check_access(thd, SELECT_ACL, any_db);
   if (res)
     DBUG_RETURN(-1);
-
-  Item *item;
-  List_iterator<Item> it(sl->item_list);
-
-  while ((item= it++))
-    item_list.push_back(item);
     
   if (!(res=open_and_lock_tables(thd,tables)))
   {
-    if (setup_wild(thd, tables, item_list, 0, sl->with_wild) ||
-	setup_fields(thd, 0, tables, item_list, 0, 0, 1))
+    if (is_union || is_subsel)
+    {
+      /* 
+	 The following code is a re-do of fix_tables_pointers() found
+	 in sql_select.cc for UNION's within derived tables. The only
+	 difference is in navigation, as in derived tables we care for
+	 this level only.
+
+      */
+      fix_tables_pointers(unit);
+    }
+
+    Item *item;
+    List_iterator<Item> it(sl->item_list);
+
+    while ((item= it++))
+      item_list.push_back(item);
+
+
+    lex->current_select= sl;
+    TABLE_LIST *first_table= (TABLE_LIST*) sl->table_list.first;
+    if (setup_wild(thd, first_table, item_list, 0, sl->with_wild) ||
+	setup_fields(thd, 0, first_table, item_list, 0, 0, 1))
     {
       res= -1;
       goto exit;
     }
     bzero((char*) &tmp_table_param,sizeof(tmp_table_param));
-    tmp_table_param.field_count=item_list.elements;
-    if (!(table=create_tmp_table(thd, &tmp_table_param, item_list,
-			         (ORDER*) 0, 
-				 is_union && !unit->union_option, 1,
-			         (sl->options | thd->options |
-				  TMP_TABLE_ALL_COLUMNS),
-                                 HA_POS_ERROR)))
+    tmp_table_param.field_count= item_list.elements;
+    if (!(table= create_tmp_table(thd, &tmp_table_param, item_list,
+				  (ORDER*) 0, 
+				  is_union && !unit->union_option, 1,
+				  (sl->options | thd->options |
+				   TMP_TABLE_ALL_COLUMNS),
+				  HA_POS_ERROR)))
     {
       res= -1;
       goto exit;
@@ -129,9 +145,11 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit, TABLE_LIST *t)
 	sl->options&= ~OPTION_FOUND_ROWS;
 
       if (is_union)
-	res= mysql_union(thd,lex,derived_result,unit);
+	res= mysql_union(thd, lex, derived_result, unit);
       else
-        res= mysql_select(thd, &sl->ref_pointer_array, tables, sl->with_wild,
+        res= mysql_select(thd, &sl->ref_pointer_array, 
+			  (TABLE_LIST*) sl->table_list.first,
+			  sl->with_wild,
 			  sl->item_list, sl->where,
 			  sl->order_list.elements+sl->group_list.elements,
 			  (ORDER *) sl->order_list.first,
@@ -170,11 +188,12 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit, TABLE_LIST *t)
       delete derived_result;
     }
     if (res)
-mp_table(thd, table);
-
-
->next= thd->derived_tables
-erived_tables= table;
+      free_tmp_table(thd, table);
+    else
+    {
+      table->next= thd->derived_tables;
+      thd->derived_tables= table;
+    }
 
 exit:
     lex->current_select= save_current_select;

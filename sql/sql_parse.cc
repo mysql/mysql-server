@@ -1599,7 +1599,7 @@ mysql_execute_command(THD *thd)
     }
   }
   if ((&lex->select_lex != lex->all_selects_list &&
-       lex->unit.create_total_list(thd, lex, &tables)) 
+       lex->unit.create_total_list(thd, lex, &tables, 0)) 
 #ifndef EMBEDDED_LIBRARY
       ||
       (table_rules_on && tables && thd->slave_thread &&
@@ -2887,7 +2887,6 @@ mysql_execute_command(THD *thd)
     send_ok(thd);
     break;
   }
-  thd->free_tmp_tables();
   thd->proc_info="query end";			// QQ
   if (res < 0)
     send_error(thd,thd->killed ? ER_SERVER_SHUTDOWN : 0);

@@ -548,14 +548,14 @@ public:
 class Item_ref_on_list_position: public Item_ref_null_helper
 {
 protected:
-  List<Item> &list;
+  st_select_lex *select_lex;
   uint pos;
 public:
   Item_ref_on_list_position(Item_in_subselect* master,
-			    List<Item> &li, uint num,
+			    st_select_lex *sl, uint num,
 			    char *table_name, char *field_name):
     Item_ref_null_helper(master, 0, table_name, field_name),
-    list(li), pos(num) {}
+    select_lex(sl), pos(num) {}
   bool fix_fields(THD *, struct st_table_list *, Item ** ref);
 };
 
