@@ -35,3 +35,10 @@ select length(a) from t1;
 select length(uncompress(a)) from t1;
 drop table t1;
 
+
+#
+# Bug #5497: a problem with large strings
+#
+
+set @@max_allowed_packet=1048576*100;
+select length(compress(repeat('aaaaaaaaaa', 10000000)));
