@@ -1226,6 +1226,14 @@ mysql_execute_command(void)
     Skip if we are in the slave thread, some table rules have been given
     and the table list says the query should not be replicated
   */
+  if (lex->derived_tables)
+  {
+    for (TABLE_LIST *cursor= tables;
+	 cursor;
+	 cursor=cursor->next)
+      if (cursor->derived && mysql_derived(thd,lex,(SELECT_LEX *)cursor->derived,cursor))
+	DBUG_VOID_RETURN;
+  }
   if ((lex->select_lex.next && create_total_list(thd,lex,&tables)) ||
       (table_rules_on && tables && thd->slave_thread &&
        !tables_ok(thd,tables)))
@@ -2648,7 +2656,7 @@ mysql_init_query(THD *thd)
   thd->lex.value_list.empty();
   thd->lex.select_lex.table_list.elements=0;
   thd->free_list=0;  thd->lex.union_option=0;
-  thd->lex.select = &thd->lex.select_lex;
+  thd->lex.select = thd->lex.last_select = &thd->lex.select_lex;
   thd->lex.select_lex.table_list.first=0;
   thd->lex.select_lex.table_list.next= (byte**) &thd->lex.select_lex.table_list.first;
   thd->lex.select_lex.next=0;
@@ -2675,7 +2683,7 @@ mysql_init_select(LEX *lex)
   select_lex->order_list.next= (byte**) &select_lex->order_list.first;
   select_lex->group_list.first=0;
   select_lex->group_list.next= (byte**) &select_lex->group_list.first;
-  select_lex->next = (SELECT_LEX *)NULL; 
+  select_lex->next = select_lex->prev = (SELECT_LEX *)NULL; 
 }
 
 bool
@@ -2684,8 +2692,9 @@ mysql_new_select(LEX *lex)
   SELECT_LEX *select_lex = (SELECT_LEX *) lex->thd->calloc(sizeof(SELECT_LEX));
   if (!select_lex)
     return 1;
+  lex->select=lex->last_select;
   lex->select->next=select_lex; 
-  lex->select=select_lex;
+  lex->select=lex->last_select=select_lex;
   select_lex->table_list.next= (byte**) &select_lex->table_list.first;
   select_lex->item_list.empty();
   select_lex->when_list.empty(); 
@@ -3099,7 +3108,7 @@ TABLE_LIST *add_table_to_list(Table_ident *table, LEX_STRING *alias,
     DBUG_RETURN(0);				// End of memory
   alias_str= alias ? alias->str : table->table.str;
   if (table->table.length > NAME_LEN ||
-      check_table_name(table->table.str,table->table.length) ||
+      (table->table.length && check_table_name(table->table.str,table->table.length)) ||
       table->db.str && check_db_name(table->db.str))
   {
     net_printf(&thd->net,ER_WRONG_TABLE_NAME,table->table.str);
@@ -3122,6 +3131,7 @@ TABLE_LIST *add_table_to_list(Table_ident *table, LEX_STRING *alias,
   ptr->real_name=table->table.str;
   ptr->lock_type=flags;
   ptr->updating=updating;
+  ptr->derived=(SELECT_LEX *)table->sel;
   if (use_index)
     ptr->use_index=(List<String> *) thd->memdup((gptr) use_index,
 					       sizeof(*use_index));

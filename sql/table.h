@@ -147,6 +147,7 @@ typedef struct st_table_list {
   bool		straight;			/* optimize with prev table */
   bool          updating;     /* for replicate-do/ignore table */
   bool		shared;				/* Used twice in union */
+  void    *derived;
 } TABLE_LIST;
 
 typedef struct st_open_table_list

@@ -2099,6 +2099,30 @@ join_table:
 	}
 	| '{' ident join_table LEFT OUTER JOIN_SYM join_table ON expr '}'
 	  { add_join_on($7,$9); $7->outer_join|=JOIN_TYPE_LEFT; $$=$7; }
+        | '(' SELECT_SYM select_part3 ')' opt_table_alias 
+	{
+	  LEX *lex=Lex;
+	  lex->select=lex->select->prev;
+	  if (!($$=add_table_to_list(new Table_ident(Lex->last_select),$5,0,TL_UNLOCK)))
+	    YYABORT;
+	}
+
+select_part3:
+        {
+	  LEX *lex=Lex;
+	  lex->derived_tables=true;
+	  SELECT_LEX *tmp=lex->select;
+	  if (lex->select->linkage == NOT_A_SELECT || mysql_new_select(lex))
+	    YYABORT;
+	  mysql_init_select(lex);
+	  lex->select->linkage=DERIVED_TABLE_TYPE;
+	  lex->select->prev=tmp;
+	}
+        select_options select_item_list select_intoto
+
+select_intoto:
+	limit_clause {}
+	| select_from
 
 opt_outer:
 	/* empty */	{}

@@ -84,4 +84,8 @@ insert into t1 values (1),(2),(3),(4),(5);
 insert into t2 values (11),(12),(13),(14),(15);
 (select * from t1 limit 2) union (select * from t2 limit 3) limit 4;
 (select * from t1 limit 2) union (select * from t2 limit 3);
+(select * from t1 limit 2) union (select * from t2 limit 20,3);
+set SQL_SELECT_LIMIT=2;
+(select * from t1 limit 2) union (select * from t2 limit 3);
+set SQL_SELECT_LIMIT=DEFAULT;
 drop table t1,t2;
