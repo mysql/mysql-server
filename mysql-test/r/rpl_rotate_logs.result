@@ -1,5 +1,5 @@
 Master_Host	Master_User	Master_Port	Connect_retry	Log_File	Pos	Slave_Running	Replicate_do_db	Replicate_ignore_db	Last_errno	Last_error	Skip_counter
-127.0.0.1	root	9999	60	master-bin.001	387	Yes			0		0
+127.0.0.1	root	MASTER_PORT	60	master-bin.001	387	Yes			0		0
 s
 Could not break slave
 Tried hard
@@ -12,7 +12,7 @@ testing temporary tables
 Log_name
 master-bin.003
 Master_Host	Master_User	Master_Port	Connect_retry	Log_File	Pos	Slave_Running	Replicate_do_db	Replicate_ignore_db	Last_errno	Last_error	Skip_counter
-127.0.0.1	root	9999	60	master-bin.003	329	Yes			0		0
+127.0.0.1	root	MASTER_PORT	60	master-bin.003	329	Yes			0		0
 m
 34
 65
@@ -29,6 +29,6 @@ master-bin.006	490
 a
 testing temporary tables part 2
 Master_Host	Master_User	Master_Port	Connect_retry	Log_File	Pos	Slave_Running	Replicate_do_db	Replicate_ignore_db	Last_errno	Last_error	Skip_counter
-127.0.0.1	root	9999	60	master-bin.006	490	Yes			0		0
+127.0.0.1	root	MASTER_PORT	60	master-bin.006	490	Yes			0		0
 count(*)
 100
