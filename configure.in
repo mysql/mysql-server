@@ -17,7 +17,7 @@ SHARED_LIB_VERSION=14:0:0
 # ndb version
 NDB_VERSION_MAJOR=5
 NDB_VERSION_MINOR=0
-NDB_VERSION_BUILD=2
+NDB_VERSION_BUILD=3
 NDB_VERSION_STATUS="alpha"
 
 # Set all version vars based on $VERSION. How do we do this more elegant ?
@@ -38,6 +38,7 @@ sinclude(config/ac-macros/compiler_flag.m4)
 sinclude(config/ac-macros/ha_archive.m4)
 sinclude(config/ac-macros/ha_berkeley.m4)
 sinclude(config/ac-macros/ha_example.m4)
+sinclude(config/ac-macros/ha_federated.m4)
 sinclude(config/ac-macros/ha_innodb.m4)
 sinclude(config/ac-macros/ha_isam.m4)
 sinclude(config/ac-macros/ha_ndbcluster.m4)
@@ -748,7 +749,7 @@ AC_CHECK_HEADERS(fcntl.h float.h floatingpoint.h ieeefp.h limits.h \
  strings.h string.h synch.h sys/mman.h sys/socket.h netinet/in.h arpa/inet.h \
  sys/timeb.h sys/types.h sys/un.h sys/vadvise.h sys/wait.h term.h \
  unistd.h utime.h sys/utime.h termio.h termios.h sched.h crypt.h alloca.h \
- sys/ioctl.h malloc.h sys/malloc.h linux/config.h sys/resource.h sys/param.h)
+ sys/ioctl.h malloc.h sys/malloc.h sys/ipc.h sys/shm.h linux/config.h sys/resource.h sys/param.h)
 
 #--------------------------------------------------------------------
 # Check for system libraries. Adds the library to $LIBS
@@ -774,6 +775,22 @@ AC_CHECK_FUNC(crypt, AC_DEFINE([HAVE_CRYPT], [1], [crypt]))
 # For sem_xxx functions on Solaris 2.6
 AC_CHECK_FUNC(sem_init, , AC_CHECK_LIB(posix4, sem_init))
 MYSQL_CHECK_ZLIB_WITH_COMPRESS
+
+# For large pages support
+if test "$IS_LINUX" = "true"
+then
+  # For SHM_HUGETLB on Linux
+  AC_CHECK_DECLS(SHM_HUGETLB, 
+      AC_DEFINE([HAVE_LARGE_PAGES], [1], 
+                [Define if you have large pages support])
+      AC_DEFINE([HUGETLB_USE_PROC_MEMINFO], [1],
+                [Define if /proc/meminfo shows the huge page size (Linux only)])
+      , ,
+      [
+#include <sys/shm.h>
+      ]
+  )
+fi
 
 #--------------------------------------------------------------------
 # Check for TCP wrapper support
@@ -2420,6 +2437,7 @@ MYSQL_CHECK_EXAMPLEDB
 MYSQL_CHECK_ARCHIVEDB
 MYSQL_CHECK_CSVDB
 MYSQL_CHECK_NDBCLUSTER
+MYSQL_CHECK_FEDERATED
 
 # If we have threads generate some library functions and test programs
 sql_server_dirs=
