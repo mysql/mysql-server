@@ -1733,6 +1733,7 @@ ha_innobase::write_row(
 	ibool           incremented_auto_inc_for_stat = FALSE;
 	ibool           incremented_auto_inc_counter = FALSE;
 	ibool           skip_auto_inc_decr;
+	ibool           success;
 
   	DBUG_ENTER("ha_innobase::write_row");
 
@@ -1908,9 +1909,18 @@ ha_innobase::write_row(
 		the counter here. */
 
 	        skip_auto_inc_decr = FALSE;
-	        if (error == DB_DUPLICATE_KEY &&
-		    user_thd->lex.sql_command == SQLCOM_REPLACE)
-		  skip_auto_inc_decr= TRUE;
+
+		/* Note that MySQL classifies in lex.sql_command a query
+		of type REPLACE INTO ... SELECT as simply SQLCOM_QUERY.
+	        We have to scan the query string if the query is actually
+	        a REPLACE. */
+
+		dict_accept(user_thd->query, "REPLACE", &success);
+
+	        if (error == DB_DUPLICATE_KEY && success) {
+
+		        skip_auto_inc_decr= TRUE;
+		}
 
 	        if (!skip_auto_inc_decr && incremented_auto_inc_counter
 		    && prebuilt->trx->auto_inc_lock) {
