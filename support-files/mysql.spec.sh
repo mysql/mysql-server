@@ -17,6 +17,7 @@ Source:		http://www.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/mysql-%{mysql
 Icon:		mysql.gif
 URL:		http://www.mysql.com/
 Packager:	David Axmark <david@mysql.com>
+Vendor:		MySQL AB
 Provides:	msqlormysql MySQL-server
 Obsoletes:	mysql
 
@@ -133,10 +134,10 @@ Summary: MySQL - server with Berkeley DB and Innodb support
 Group: Applications/Databases
 Obsoletes: mysql-Max
 
-%description Max
-Extra MySQL server binary to get support extra features like
-transactional tables. To active these features one only has to install
-this package after the server package.
+%description Max 
+Optional MySQL server binary that supports features
+like transactional tables. To active this binary, just install this
+package after the MySQL package.
 
 %prep
 %setup -n mysql-%{mysql_version}
