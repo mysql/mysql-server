@@ -113,6 +113,16 @@ cmp_types_are_equal(
 		return(FALSE);
 	}
 
+        if (type1->mtype == DATA_INT
+	    && (type1->prtype & DATA_UNSIGNED)
+					!= (type2->prtype & DATA_UNSIGNED)) {
+		/* The storage format of an unsigned integer is different
+		from a signed integer: in a signed integer we OR
+		0x8000... to the value of positive integers. */
+	
+		return(FALSE);
+	}
+
 	if (type1->mtype == DATA_MYSQL
 	   || type1->mtype == DATA_VARMYSQL) {
 	
