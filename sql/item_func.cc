@@ -621,8 +621,8 @@ double Item_func_rand::val()
 {
   if (arg_count)
   {					// Only use argument once in query
-    ulong tmp=((ulong) args[0]->val_int())+55555555L;
-    randominit(&current_thd->rand,tmp,tmp/2);
+    ulong tmp=((ulong) args[0]->val_int());
+    randominit(&current_thd->rand,tmp*0x10001L+55555555L,tmp*0x10000001L);
 #ifdef DELETE_ITEMS
     delete args[0];
 #endif
