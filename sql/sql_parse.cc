@@ -109,6 +109,8 @@ static bool check_user(THD *thd,enum_server_command command, const char *user,
   NET *net= &thd->net;
   thd->db=0;
 
+  if (passwd[0] && strlen(passwd) != SCRAMBLE_LENGTH)
+    return 1;
   if (!(thd->user = my_strdup(user, MYF(0))))
   {
     send_error(net,ER_OUT_OF_RESOURCES);
@@ -458,8 +460,6 @@ check_connections(THD *thd)
   char *user=   (char*) net->read_pos+5;
   char *passwd= strend(user)+1;
   char *db=0;
-  if (passwd[0] && strlen(passwd) != SCRAMBLE_LENGTH)
-    return ER_HANDSHAKE_ERROR;
   if (thd->client_capabilities & CLIENT_CONNECT_WITH_DB)
     db=strend(passwd)+1;
   if (thd->client_capabilities & CLIENT_INTERACTIVE)
@@ -768,8 +768,8 @@ bool do_command(THD *thd)
       thread_safe_increment(com_other,&LOCK_thread_count);
       slow_command = TRUE;
       char* data = packet + 1;
-      uint db_len = *data;
-      uint tbl_len = *(data + db_len + 1);
+      uint db_len = *(uchar *)data;
+      uint tbl_len = *(uchar *)(data + db_len + 1);
       char* db = sql_alloc(db_len + tbl_len + 2);
       memcpy(db, data + 1, db_len);
       char* tbl_name = db + db_len;
