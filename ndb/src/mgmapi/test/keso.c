@@ -15,6 +15,8 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
+#include <ndb_global.h>
+
 #include <mgmapi.h>
 
 #ifdef VM_TRACE
@@ -22,9 +24,6 @@
 #endif
 
 #include <NdbOut.hpp>
-#include <NdbStdio.h>
-
-#include <stdlib.h>
 
 static int testConnect(NdbMgmHandle h, struct ndb_mgm_reply* reply);
 static int testDisconnect(NdbMgmHandle h, struct ndb_mgm_reply* reply);

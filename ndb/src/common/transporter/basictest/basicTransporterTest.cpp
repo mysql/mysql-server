@@ -14,18 +14,17 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#include <ndb_global.h>
+
 #include "TransporterRegistry.hpp"
 #include "TransporterDefinitions.hpp"
 #include "TransporterCallback.hpp"
 #include <RefConvert.hpp>
 
-#include <NdbStdio.h>
-#include <stdlib.h>
 #include <NdbTick.h>
 #include <NdbMain.h>
 #include <NdbOut.hpp>
 #include <NdbSleep.h>
-#include <NdbString.h>
 
 int basePortTCP = 17000;
 

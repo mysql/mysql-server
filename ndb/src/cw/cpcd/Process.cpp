@@ -14,13 +14,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include <sys/types.h>
+#include <ndb_global.h>
 #include <signal.h>
 
-#include <assert.h>
-#include <stdlib.h>
 
-#include <NdbUnistd.h>
 #include <BaseString.hpp>
 #include <InputStream.hpp>
 
@@ -28,10 +25,10 @@
 #include "CPCD.hpp"
 
 #include <pwd.h>
-#include <sys/types.h>
-#include <unistd.h>
 #include <sys/stat.h>
 #include <sys/resource.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 
 void
 CPCD::Process::print(FILE * f){
@@ -108,7 +105,7 @@ bool
 CPCD::Process::isRunning() {
 
   if(m_pid <= 1){
-    logger.critical("isRunning(%d) invalid pid: %d", m_id, m_pid);
+    //logger.critical("isRunning(%d) invalid pid: %d", m_id, m_pid);
     return false;
   }
   /* Check if there actually exists a process with such a pid */
@@ -360,7 +357,7 @@ CPCD::Process::start() {
      */
     switch(pid = fork()) {
     case 0: /* Child */
-      
+      setsid();
       writePid(getpid());
       if(runas(m_runas.c_str()) == 0){
 	do_exec();
@@ -389,11 +386,11 @@ CPCD::Process::start() {
       pid_t pid;
       switch(pid = fork()) {
       case 0: /* Child */
+	setsid();
 	writePid(getpid());
 	if(runas(m_runas.c_str()) != 0){
 	  _exit(1);
 	}
-	setsid();
 	do_exec();
 	_exit(1);
 	/* NOTREACHED */
@@ -428,11 +425,11 @@ CPCD::Process::start() {
   while(readPid() < 0){
     sched_yield();
   }
-
+  
   if(pid != -1 && pid != m_pid){
     logger.error("pid and m_pid don't match: %d %d", pid, m_pid);
   }
-
+  
   if(isRunning()){
     m_status = RUNNING;
     return 0;
@@ -454,28 +451,32 @@ CPCD::Process::stop() {
   }
   m_status = STOPPING;
 
-  int ret = kill((pid_t)m_pid, SIGTERM);
+  const pid_t pgid = - getpgid(m_pid);
+  int ret = kill(pgid, SIGTERM);
   switch(ret) {
   case 0:
-    logger.debug("Sent SIGTERM to pid %d", (int)m_pid);
+    logger.debug("Sent SIGTERM to pid %d", (int)pgid);
     break;
   default:
-    logger.debug("kill pid: %d : %s", (int)m_pid, strerror(errno));
+    logger.debug("kill pid: %d : %s", (int)pgid, strerror(errno));
     break;
   }
-
-  if(isRunning()){
-    ret = kill((pid_t)m_pid, SIGKILL);
+  
+  errno = 0;
+  ret = kill(pgid, 0);
+  if(ret == 0) {
+    errno = 0;
+    ret = kill(pgid, SIGKILL);
     switch(ret) {
     case 0:
-      logger.debug("Sent SIGKILL to pid %d", (int)m_pid);
+      logger.debug("Sent SIGKILL to pid %d", (int)pgid);
       break;
     default:
-      logger.debug("kill pid: %d : %s\n", (int)m_pid, strerror(errno));
+      logger.debug("kill pid: %d : %s\n", (int)pgid, strerror(errno));
       break;
     }
-  }
-
+  } 
+  
   m_pid = -1;
   m_status = STOPPED;
 }

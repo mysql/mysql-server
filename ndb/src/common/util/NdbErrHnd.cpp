@@ -18,7 +18,6 @@
 #if defined NDB_OSE || defined NDB_SOFTOSE
 
 #include <NdbOut.hpp>
-#include <NdbStdio.h>
 #include <ndb_types.h>
 
 #include "ose.h"

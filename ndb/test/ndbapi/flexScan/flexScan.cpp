@@ -59,12 +59,9 @@
 #include <NdbTick.h>
 #include <NdbOut.hpp>
 #include <NdbTimer.hpp>
-#include <string.h>
-#include <assert.h>
 #include <NdbMain.h>
 #include <NdbTest.hpp>
 #include <NDBT_Error.hpp>
-#include <NdbStdio.h>
 
 #define PKSIZE 1
 #define FOREVER 1

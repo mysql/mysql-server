@@ -17,9 +17,8 @@
 #ifndef NDB_VECTOR_HPP
 #define NDB_VECTOR_HPP
 
-#include <stdlib.h>
+#include <ndb_global.h>
 #include <NdbMutex.h>
-#include <string.h>
 
 template<class T>
 struct Vector {

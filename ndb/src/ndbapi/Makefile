@@ -32,6 +32,8 @@ SOURCES = \
         Ndbif.cpp       \
         Ndbinit.cpp     \
         Ndberror.cpp    \
+        ndberror.c    \
+        NdbErrorOut.cpp    \
         NdbConnection.cpp       \
         NdbConnectionScan.cpp \
         NdbOperation.cpp        \

@@ -14,12 +14,13 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#include <ndb_global.h>
 #include <NdbTick.h>
 #include <TransporterDefinitions.hpp>
 #include <SimpleProperties.hpp>
 #include <LongSignal.hpp>
-#include <stdlib.h>
-#include <string.h>
+
+#undef test
 
 struct Buffer {
   Buffer(Uint32 size){ m_sz = size; buffer = new Uint32[m_sz]; m_len = 0;}

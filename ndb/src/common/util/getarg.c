@@ -32,16 +32,8 @@
  * SUCH DAMAGE. 
  */
 
-#include <ndb_types.h>
+#include <ndb_global.h>
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-RCSID("$KTH: getarg.c,v 1.23 2000/09/01 21:25:54 lha Exp $");
-#endif
-
-#include <NdbStdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <time.h>
 #include <ctype.h>
 #include "getarg.h"

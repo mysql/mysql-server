@@ -14,6 +14,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#include <ndb_global.h>
+
 #include <ndb_version.h>
 #include "Configuration.hpp"
 #include <TransporterRegistry.hpp>
@@ -32,7 +34,6 @@
 #include <NodeState.hpp>
 
 #if defined NDB_SOLARIS
-#include <sys/types.h>     // For system information
 #include <sys/processor.h> // For system informatio
 #endif
 
@@ -42,7 +43,6 @@
 
 extern EventLogger g_eventLogger;
 #if defined (NDB_LINUX) || defined (NDB_SOLARIS)
-#include <sys/types.h>
 #include <sys/wait.h>
 #endif
 

@@ -14,17 +14,14 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include <assert.h>
-#include <math.h>
+#include <ndb_global.h>
 
 #include <NdbApi.hpp>
 #include <NdbCondition.h>
 #include <NdbMutex.h>
 #include <NdbSleep.h>
-#include <NdbStdio.h>
 #include <NdbThread.h>
 #include <NdbTick.h>
-#include <NdbString.h>
 
 const char* const c_szDatabaseName = "TEST_DB";
 

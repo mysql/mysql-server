@@ -18,7 +18,6 @@
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #include <windows.h>
-#include <assert.h>
 #include <sys/types.h>
 
 #include "NdbCondition.h"

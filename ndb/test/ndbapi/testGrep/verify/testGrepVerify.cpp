@@ -31,8 +31,6 @@
 #include <UtilTransactions.hpp>
 #include <ConfigRetriever.hpp>
 #include <ndb_version.h>
-#include <assert.h>
-#include <NdbStdio.h>
 
 
 #define CHECK(b) if (!(b)) { \

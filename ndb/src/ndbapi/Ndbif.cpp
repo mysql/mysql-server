@@ -40,7 +40,6 @@
 #include <NdbOut.hpp>
 #include <NdbTick.h>
 
-#include <assert.h>
 
 /******************************************************************************
  * int init( int aNrOfCon, int aNrOfOp );

@@ -51,13 +51,9 @@ Arguments:
 
 #include "NdbApi.hpp"
 
-#include <string.h>
-#include <assert.h>
-
 #include <NdbMain.h>
 #include <NdbOut.hpp>
 #include <NdbSleep.h>
-#include <NdbStdio.h>
 #include <NdbTick.h>
 #include <NdbTimer.hpp>
 #include <NdbThread.h>

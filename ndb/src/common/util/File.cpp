@@ -16,8 +16,6 @@
 
 #include <File.hpp>
 
-#include <errno.h>
-#include <string.h> 
 #include <sys/stat.h> 
 
 #if defined NDB_OSE || defined NDB_SOFTOSE
@@ -31,7 +29,7 @@
 //
 
 bool 
-File::exists(const char* aFileName)
+File_class::exists(const char* aFileName)
 {
   bool rc = true;
   
@@ -56,7 +54,7 @@ File::exists(const char* aFileName)
 }
 
 long
-File::size(FILE* f)
+File_class::size(FILE* f)
 {
   long cur_pos = 0, length = 0;
   
@@ -69,23 +67,23 @@ File::size(FILE* f)
 }
 
 bool 
-File::rename(const char* currFileName, const char* newFileName)
+File_class::rename(const char* currFileName, const char* newFileName)
 {
   return ::rename(currFileName, newFileName) == 0 ? true : false;
 }
 bool 
-File::remove(const char* aFileName)
+File_class::remove(const char* aFileName)
 {
   return ::remove(aFileName) == 0 ? true : false;
 }
 
-File::File() : 
+File_class::File_class() : 
   m_file(NULL), 
   m_fileMode("r")
 {
 }
 
-File::File(const char* aFileName, const char* mode) :	
+File_class::File_class(const char* aFileName, const char* mode) :	
   m_file(NULL), 
   m_fileMode(mode)
 {
@@ -93,13 +91,13 @@ File::File(const char* aFileName, const char* mode) :
 }
 
 bool
-File::open()
+File_class::open()
 {
   return open(m_fileName, m_fileMode);
 }
 
 bool 
-File::open(const char* aFileName, const char* mode) 
+File_class::open(const char* aFileName, const char* mode) 
 {
   if(m_fileName != aFileName){
     /**
@@ -116,21 +114,21 @@ File::open(const char* aFileName, const char* mode)
   
   return rc;
 }
-File::~File()
+File_class::~File_class()
 {
   close();  
 }
 
 bool 
-File::remove()
+File_class::remove()
 {
   // Close the file first!
   close();
-  return File::remove(m_fileName);
+  return File_class::remove(m_fileName);
 }
 
 bool 
-File::close()
+File_class::close()
 {
   bool rc = true;
   if (m_file != NULL)
@@ -144,55 +142,55 @@ File::close()
 }
 
 int 
-File::read(void* buf, size_t itemSize, size_t nitems) const
+File_class::read(void* buf, size_t itemSize, size_t nitems) const
 {
   return ::fread(buf, itemSize,  nitems, m_file);
 }
 
 int 
-File::readChar(char* buf, long start, long length) const
+File_class::readChar(char* buf, long start, long length) const
 {
   return ::fread((void*)&buf[start], 1, length, m_file);
 }
 
 int 
-File::readChar(char* buf)
+File_class::readChar(char* buf)
 {
   return readChar(buf, 0, strlen(buf));
 }
 
 int 
-File::write(const void* buf, size_t size, size_t nitems)
+File_class::write(const void* buf, size_t size, size_t nitems)
 {
   return ::fwrite(buf, size, nitems, m_file);
 }
  
 int
-File::writeChar(const char* buf, long start, long length)
+File_class::writeChar(const char* buf, long start, long length)
 {
   return ::fwrite((const void*)&buf[start], sizeof(char), length, m_file);
 }
 
 int 
-File::writeChar(const char* buf)
+File_class::writeChar(const char* buf)
 {
   return writeChar(buf, 0, ::strlen(buf));
 }
    
 long 
-File::size() const
+File_class::size() const
 {
-  return File::size(m_file);
+  return File_class::size(m_file);
 }
 
 const char* 
-File::getName() const
+File_class::getName() const
 {
   return m_fileName;
 }
 
 int
-File::flush() const
+File_class::flush() const
 {
 #if defined NDB_OSE || defined NDB_SOFTOSE
   ::fflush(m_file);

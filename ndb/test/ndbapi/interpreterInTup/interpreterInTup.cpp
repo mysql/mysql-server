@@ -54,9 +54,6 @@
 
 * *************************************************** */
 
-#include <NdbStdio.h>
-#include <string.h>
-#include <assert.h>
 #include <NdbOut.hpp>
 #include <NdbThread.h>
 #include <NdbMutex.h>
