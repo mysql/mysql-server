@@ -1263,7 +1263,20 @@ JOIN::cleanup(THD *thd)
   select_lex->join= 0;
 
   if (tmp_join)
-    memcpy(this, tmp_join, sizeof(tmp_join));
+  {
+    if (join_tab != tmp_join->join_tab)
+    {
+      JOIN_TAB *tab, *end;
+      for (tab= join_tab, end= tab+tables ; tab != end ; tab++)
+      {
+	delete tab->select;
+	delete tab->quick;
+	x_free(tab->cache.buff);
+      }
+    }
+    tmp_join->tmp_join= 0;
+    return tmp_join->cleanup(thd);
+  }
 
 
   lock=0;                                     // It's faster to unlock later

@@ -601,3 +601,46 @@ drop table t1;
 #
 -- error 1146
 select t1.Continent, t2.Name, t2.Population from t1 LEFT JOIN t2 ON t1.Code = t2.Country  where t2.Population IN (select max(t2.Population) AS Population from t2, t1 where t2.Country = t1.Code group by Continent);
+
+#
+# complex subquery
+#
+
+CREATE TABLE t1 (
+  ID int(11) NOT NULL auto_increment,
+  name char(35) NOT NULL default '',
+  t2 char(3) NOT NULL default '',
+  District char(20) NOT NULL default '',
+  Population int(11) NOT NULL default '0',
+  PRIMARY KEY  (ID)
+) TYPE=MyISAM;
+
+INSERT INTO t1 VALUES (130,'Sydney','AUS','New South Wales',3276207);
+INSERT INTO t1 VALUES (131,'Melbourne','AUS','Victoria',2865329);
+INSERT INTO t1 VALUES (132,'Brisbane','AUS','Queensland',1291117);
+
+CREATE TABLE t2 (
+  Code char(3) NOT NULL default '',
+  Name char(52) NOT NULL default '',
+  Continent enum('Asia','Europe','North America','Africa','Oceania','Antarctica','South America') NOT NULL default 'Asia',
+  Region char(26) NOT NULL default '',
+  SurfaceArea float(10,2) NOT NULL default '0.00',
+  IndepYear smallint(6) default NULL,
+  Population int(11) NOT NULL default '0',
+  LifeExpectancy float(3,1) default NULL,
+  GNP float(10,2) default NULL,
+  GNPOld float(10,2) default NULL,
+  LocalName char(45) NOT NULL default '',
+  GovernmentForm char(45) NOT NULL default '',
+  HeadOfState char(60) default NULL,
+  Capital int(11) default NULL,
+  Code2 char(2) NOT NULL default '',
+  PRIMARY KEY  (Code)
+) TYPE=MyISAM;
+
+INSERT INTO t2 VALUES ('AUS','Australia','Oceania','Australia and New Zealand',7741220.00,1901,18886000,79.8,351182.00,392911.00,'Australia','Constitutional Monarchy, Federation','Elisabeth II',135,'AU');
+INSERT INTO t2 VALUES ('AZE','Azerbaijan','Asia','Middle East',86600.00,1991,7734000,62.9,4127.00,4100.00,'Azärbaycan','Federal Republic','Heydär Äliyev',144,'AZ');
+
+select t2.Continent, t1.Name, t1.Population from t2 LEFT JOIN t1 ON t2.Code = t1.t2  where t1.Population IN (select max(t1.Population) AS Population from t1, t2 where t1.t2 = t2.Code group by Continent); 
+
+drop table t1, t2;
