@@ -442,7 +442,15 @@ int write_record(TABLE *table,COPY_INFO *info)
 						HA_READ_KEY_EXACT))))
 	  goto err;
       }
-      if (last_uniq_key(table,key_nr))
+      /*
+	The manual defines the REPLACE semantics that it is either an INSERT or
+	DELETE(s) + INSERT; FOREIGN KEY checks do not function in the defined
+	way if we allow MySQL to convert the latter operation internally to an
+	UPDATE.
+      */
+
+      if (last_uniq_key(table,key_nr)
+	  && !table->file->referenced_by_foreign_key())
       {
 	if ((error=table->file->update_row(table->record[1],table->record[0])))
 	  goto err;
