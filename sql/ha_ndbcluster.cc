@@ -1350,6 +1350,9 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
 
   DBUG_EXECUTE("enter", print_key(start_key, "start_key"););
   DBUG_EXECUTE("enter", print_key(end_key, "end_key"););
+
+  // Check that sorted seems to be initialised
+  DBUG_ASSERT(sorted == 0 || sorted == 1);
   
   if(m_active_cursor == 0)
   {
