@@ -36,7 +36,7 @@ else
      exec_mgmtsrvr=$BASEDIR/bin/ndb_mgmd
    fi
    exec_waiter=$BASEDIR/bin/ndb_waiter
-   exec_waiter=$BASEDIR/bin/ndb_test_platform
+   exec_test=$BASEDIR/bin/ndb_test_platform
    exec_mgmtclient=$BASEDIR/bin/ndb_mgm
 fi
 
