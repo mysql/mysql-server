@@ -8506,7 +8506,8 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq)
 #ifdef TRACE_SCAN_TAKEOVER
     ndbout_c("adding (%d %d) table: %d fragId: %d frag.i: %d tableFragptr: %d",
 	     scanptr.p->scanNumber, scanptr.p->fragPtrI,
-	     tabptr.i, scanFragReq->fragmentNo, fragptr.i, fragptr.p->tableFragptr);
+	     tabptr.i, scanFragReq->fragmentNoKeyLen & 0xFFFF, 
+	     fragptr.i, fragptr.p->tableFragptr);
 #endif
     c_scanTakeOverHash.add(scanptr);
   }
@@ -8689,11 +8690,11 @@ void Dblqh::sendKeyinfo20(Signal* signal,
     TdataBuf.i = TdataBuf.p->nextDatabuf;
   }
   
+  Uint32 fragId = tcConP->fragmentid;
   keyInfo->clientOpPtr   = scanP->scanApiOpPtr;
   keyInfo->keyLen        = keyLen;
-  keyInfo->scanInfo_Node = KeyInfo20::setScanInfo(scanOp,
-                                                  scanP->scanNumber)+
-                                                  (getOwnNodeId() << 20);
+  keyInfo->scanInfo_Node = 
+    KeyInfo20::setScanInfo(scanOp, scanP->scanNumber) + (fragId << 20);
   keyInfo->transId1 = tcConP->transid[0];
   keyInfo->transId2 = tcConP->transid[1];
   
