@@ -2468,6 +2468,19 @@ mysql_execute_command(THD *thd)
 	break;
       }
     }
+    else
+    {
+      /*
+	If this is a slave thread, we may sometimes execute some 
+	DROP / * 40005 TEMPORARY * / TABLE
+	that come from parts of binlogs (likely if we use RESET SLAVE or CHANGE
+	MASTER TO), while the temporary table has already been dropped.
+	To not generate such irrelevant "table does not exist errors", we
+	silently add IF EXISTS if TEMPORARY was used.
+      */
+      if (thd->slave_thread)
+	lex->drop_if_exists= 1;
+    }
     res= mysql_rm_table(thd,tables,lex->drop_if_exists, lex->drop_temporary);
   }
   break;

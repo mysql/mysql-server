@@ -34,6 +34,8 @@ enum enum_log_type { LOG_CLOSED, LOG_NORMAL, LOG_NEW, LOG_BIN };
 enum enum_delay_key_write { DELAY_KEY_WRITE_NONE, DELAY_KEY_WRITE_ON,
 			    DELAY_KEY_WRITE_ALL };
 
+extern char internal_table_name[2];
+
 // log info errors
 #define LOG_INFO_EOF -1
 #define LOG_INFO_IO  -2
@@ -299,12 +301,14 @@ public:
   enum_warning_level level;
   char *msg;
   
-  MYSQL_ERROR(uint code_arg, enum_warning_level level_arg,
+  MYSQL_ERROR(THD *thd, uint code_arg, enum_warning_level level_arg,
 	      const char *msg_arg)
     :code(code_arg), level(level_arg)
   {
-    msg=sql_strdup(msg_arg);
+    if (msg_arg)
+      set_msg(thd, msg_arg);
   }
+  void set_msg(THD *thd, const char *msg_arg);
 };
 
 
@@ -364,7 +368,7 @@ struct system_variables
   ulong tx_isolation;
   ulong sql_mode;
   ulong default_week_format;
-
+  ulong group_concat_max_len;
   /*
     In slave thread we need to know in behalf of which
     thread the query is being run to replicate temp tables properly
@@ -900,7 +904,7 @@ class Table_ident :public Sql_alloc
   inline Table_ident(SELECT_LEX_UNIT *s) : sel(s) 
   {
     /* We must have a table name here as this is used with add_table_to_list */
-    db.str=0; table.str=(char *)"*"; table.length=1;
+    db.str=0; table.str= internal_table_name; table.length=1;
   }
   inline void change_db(char *db_name)
   {

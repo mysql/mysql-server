@@ -340,7 +340,7 @@ if (!$opt_no_test && !$opt_no_benchmark)
   $extra="";
   if ($opt_bdb)
   {
-    $extra.=" --bdb_cache_size=16M --bdb_max_lock=60000"
+    $extra.=" --bdb_cache_size=16M --bdb_max_lock=240000"
   }
   if ($opt_innodb)
   {

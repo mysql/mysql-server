@@ -35,8 +35,8 @@
 
 int my_snprintf(char* to, size_t n, const char* fmt, ...)
 {
-  va_list args;
   int result;
+  va_list args;
   va_start(args,fmt);
   result= my_vsnprintf(to, n, fmt, args);
   va_end(args);
@@ -127,6 +127,7 @@ int my_vsnprintf(char *to, size_t n, const char* fmt, va_list ap)
   return (uint) (to - start);
 }
 
+
 #ifdef MAIN
 #define OVERRUN_SENTRY  250
 static void my_printf(const char * fmt, ...)
@@ -146,6 +147,7 @@ static void my_printf(const char * fmt, ...)
   }
   va_end(ar);
 }
+
 
 int main()
 {

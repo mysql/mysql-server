@@ -814,7 +814,7 @@ void Item_func_replace::fix_length_and_dec()
   if (diff > 0 && args[1]->max_length)
   {						// Calculate of maxreplaces
     uint max_substrs= max_length/args[1]->max_length;
-    max_length+= max_substrs*(uint) diff;
+    max_length+= max_substrs * (uint) diff;
   }
   if (max_length > MAX_BLOB_WIDTH)
   {
@@ -2583,6 +2583,27 @@ String *Item_func_as_text::val_str(String *str)
 void Item_func_as_text::fix_length_and_dec()
 {
   max_length=MAX_BLOB_WIDTH;
+}
+
+String *Item_func_as_wkb::val_str(String *str)
+{
+  String arg_val;
+  String *swkb= args[0]->val_str(&arg_val);
+  Geometry geom;
+
+  if ((null_value= (args[0]->null_value ||
+		    geom.create_from_wkb(swkb->ptr() + SRID_SIZE,
+					 swkb->length() - SRID_SIZE))))
+    return 0;
+
+  str->copy(swkb->ptr() + SRID_SIZE, swkb->length() - SRID_SIZE,
+	    &my_charset_bin);
+  return str;
+}
+
+void Item_func_as_wkb::fix_length_and_dec()
+{
+  max_length= MAX_BLOB_WIDTH;
 }
 
 String *Item_func_geometry_type::val_str(String *str)
