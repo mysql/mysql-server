@@ -39,6 +39,7 @@ reap;
 unlock tables;
 connection con1;
 reap;
+drop table t1;
 
 
 
