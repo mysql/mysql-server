@@ -680,9 +680,7 @@ btr_search_guess_on_hash(
 
 		success = buf_page_get_known_nowait(latch_mode, page,
 						BUF_MAKE_YOUNG,
-#ifdef UNIV_SYNC_DEBUG
 						IB__FILE__, __LINE__,
-#endif
 						mtr);
 
 		rw_lock_s_unlock(&btr_search_latch);

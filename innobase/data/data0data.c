@@ -14,6 +14,7 @@ Created 5/30/1994 Heikki Tuuri
 
 #include "ut0rnd.h"
 #include "rem0rec.h"
+#include "rem0cmp.h"
 #include "page0page.h"
 #include "dict0dict.h"
 #include "btr0cur.h"
@@ -61,6 +62,53 @@ dtuple_get_nth_field_noninline(
 	ulint		n)	/* in: index of field */
 {
 	return(dtuple_get_nth_field(tuple, n));
+}
+
+/****************************************************************
+Returns TRUE if lengths of two dtuples are equal and respective data fields
+in them are equal when compared with collation in char fields (not as binary
+strings). */
+
+ibool
+dtuple_datas_are_ordering_equal(
+/*============================*/
+				/* out: TRUE if length and fieds are equal
+				when compared with cmp_data_data:
+				NOTE: in character type fields some letters
+				are identified with others! (collation) */
+	dtuple_t*	tuple1,	/* in: tuple 1 */
+	dtuple_t*	tuple2)	/* in: tuple 2 */
+{
+	dfield_t*	field1;
+	dfield_t*	field2;
+	ulint		n_fields;
+	ulint		i;
+
+	ut_ad(tuple1 && tuple2);
+	ut_ad(tuple1->magic_n = DATA_TUPLE_MAGIC_N);
+	ut_ad(tuple2->magic_n = DATA_TUPLE_MAGIC_N);
+	ut_ad(dtuple_check_typed(tuple1));
+	ut_ad(dtuple_check_typed(tuple2));
+
+	n_fields = dtuple_get_n_fields(tuple1);
+
+	if (n_fields != dtuple_get_n_fields(tuple2)) {
+
+		return(FALSE);
+	}
+	
+	for (i = 0; i < n_fields; i++) {
+
+		field1 = dtuple_get_nth_field(tuple1, i);
+		field2 = dtuple_get_nth_field(tuple2, i);
+
+		if (0 != cmp_dfield_dfield(field1, field2)) {
+		
+			return(FALSE);
+		}			
+	}
+	
+	return(TRUE);
 }
 
 /*************************************************************************
@@ -408,7 +456,7 @@ dtuple_convert_big_rec(
 	ulint		size;
 	ulint		n_fields;
 	ulint		longest;
-	ulint		longest_i;
+	ulint		longest_i		= ULINT_MAX;
 	ibool		is_externally_stored;
 	ulint		i;
 	ulint		j;

@@ -73,7 +73,10 @@ os_thread_id_t	thread_ids[SRV_MAX_N_IO_THREADS + 5];
 #define SRV_N_PENDING_IOS_PER_THREAD 	OS_AIO_N_PENDING_IOS_PER_THREAD
 #define SRV_MAX_N_PENDING_SYNC_IOS	100
 
-#define SRV_MAX_N_OPEN_FILES		25
+/* The following limit may be too big in some old operating systems:
+we may get an assertion failure in os0file.c */
+
+#define SRV_MAX_N_OPEN_FILES		500
 
 #define SRV_LOG_SPACE_FIRST_ID		1000000000
 
@@ -315,7 +318,12 @@ open_or_create_data_files(
 	ulint	size_high;
 	char	name[10000];
 
-	ut_a(srv_n_data_files < 1000);
+	if (srv_n_data_files >= 1000) {
+		fprintf(stderr, "InnoDB: can only have < 1000 data files\n"
+				"InnoDB: you have defined %lu\n",
+				srv_n_data_files);
+		return(DB_ERROR);
+	}
 
 	*sum_of_new_sizes = 0;
 	
@@ -335,6 +343,8 @@ open_or_create_data_files(
 		if (srv_data_file_is_raw_partition[i] == SRV_NEW_RAW) {
 			/* The partition is opened, not created; then it is
 			written over */
+
+			srv_created_new_raw = TRUE;
 
 			files[i] = os_file_create(
 				name, OS_FILE_OPEN, OS_FILE_NORMAL,
@@ -375,6 +385,7 @@ open_or_create_data_files(
 			if (!ret) {
 				fprintf(stderr,
 				"InnoDB: Error in opening %s\n", name);
+				os_file_get_last_error();
 
 				return(DB_ERROR);
 			}
@@ -537,9 +548,6 @@ innobase_start_or_create_for_mysql(void)
 /*====================================*/
 				/* out: DB_SUCCESS or error code */
 {
-	ulint	i;
-	ulint	k;
-	ulint	err;
 	ibool	create_new_db;
 	ibool	log_file_created;
 	ibool	log_created	= FALSE;
@@ -550,6 +558,9 @@ innobase_start_or_create_for_mysql(void)
 	ulint	max_arch_log_no;
 	ibool	start_archive;
 	ulint   sum_of_new_sizes;
+	ulint	err;
+	ulint	i;
+	ulint	k;
 	mtr_t   mtr;
 
 	log_do_write = TRUE;
@@ -866,17 +877,19 @@ innobase_start_or_create_for_mysql(void)
                              	     SRV_MAX_N_IO_THREADS); */
 	}
 
-	/* Create the master thread which monitors the database
-	server, and does purge and other utility operations */
-
-	os_thread_create(&srv_master_thread, NULL, thread_ids + 1 +
-							SRV_MAX_N_IO_THREADS);
 	/* fprintf(stderr, "Max allowed record size %lu\n",
 				page_get_free_space_of_empty() / 2); */
 
-	/* Create the thread which watches the timeouts for lock waits */
-	os_thread_create(&srv_lock_timeout_monitor_thread, NULL,
+	/* Create the thread which watches the timeouts for lock waits
+	and prints InnoDB monitor info */
+	
+	os_thread_create(&srv_lock_timeout_and_monitor_thread, NULL,
 					thread_ids + 2 + SRV_MAX_N_IO_THREADS);	
+
+	/* Create the thread which warns of long semaphore waits */
+	os_thread_create(&srv_error_monitor_thread, NULL,
+					thread_ids + 3 + SRV_MAX_N_IO_THREADS);	
+
 	srv_was_started = TRUE;
 	srv_is_being_started = FALSE;
 
@@ -886,6 +899,17 @@ innobase_start_or_create_for_mysql(void)
 		trx_sys_create_doublewrite_buf();
 	}
 
+	err = dict_create_or_check_foreign_constraint_tables();
+
+	if (err != DB_SUCCESS) {
+		return((int)DB_ERROR);
+	}
+
+	/* Create the master thread which monitors the database
+	server, and does purge and other utility operations */
+
+	os_thread_create(&srv_master_thread, NULL, thread_ids + 1 +
+							SRV_MAX_N_IO_THREADS);
 	/* buf_debug_prints = TRUE; */
 	
 	if (srv_print_verbose_log)
@@ -905,12 +929,16 @@ innobase_shutdown_for_mysql(void)
 				/* out: DB_SUCCESS or error code */
 {
         if (!srv_was_started) {
-	  if (srv_is_being_started) {
-	    ut_print_timestamp(stderr);
-            fprintf(stderr, 
-	"  InnoDB: Warning: shutting down a not properly started database\n");
-	  }
-	  return(DB_SUCCESS);
+	  	if (srv_is_being_started) {
+	    		ut_print_timestamp(stderr);
+            		fprintf(stderr, 
+	"  InnoDB: Warning: shutting down a not properly started\n");
+	    		ut_print_timestamp(stderr);
+            		fprintf(stderr, 
+	"  InnoDB: or created database!\n");
+	  	}
+
+	  	return(DB_SUCCESS);
 	}
 
 	/* Flush buffer pool to disk, write the current lsn to
@@ -919,6 +947,6 @@ innobase_shutdown_for_mysql(void)
 	logs_empty_and_mark_files_at_shutdown();
 
 	ut_free_all_mem();
-
+	
 	return((int) DB_SUCCESS);
 }

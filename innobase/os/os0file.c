@@ -11,6 +11,7 @@ Created 10/21/1995 Heikki Tuuri
 #include "ut0mem.h"
 #include "srv0srv.h"
 #include "trx0sys.h"
+#include "fil0fil.h"
 
 #undef HAVE_FDATASYNC
 
@@ -109,6 +110,14 @@ os_aio_array_t*	os_aio_sync_array	= NULL;
 
 ulint	os_aio_n_segments	= ULINT_UNDEFINED;
 
+ulint	os_n_file_reads		= 0;
+ulint	os_n_file_writes	= 0;
+ulint	os_n_fsyncs		= 0;
+ulint	os_n_file_reads_old	= 0;
+ulint	os_n_file_writes_old	= 0;
+ulint	os_n_fsyncs_old		= 0;
+time_t	os_last_printout;
+
 /***************************************************************************
 Gets the operating system version. Currently works only on Windows. */
 
@@ -118,26 +127,26 @@ os_get_os_version(void)
                   /* out: OS_WIN95, OS_WIN31, OS_WINNT (2000 == NT) */
 {
 #ifdef __WIN__
-  OSVERSIONINFO     os_info;
+  	OSVERSIONINFO     os_info;
 
-  os_info.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
+  	os_info.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
 
-  ut_a(GetVersionEx(&os_info));
+	ut_a(GetVersionEx(&os_info));
 
-  if (os_info.dwPlatformId == VER_PLATFORM_WIN32s) {
-    return(OS_WIN31);
-  } else if (os_info.dwPlatformId == VER_PLATFORM_WIN32_WINDOWS) {
-    return(OS_WIN95);
-  } else if (os_info.dwPlatformId == VER_PLATFORM_WIN32_NT) {
-    return(OS_WINNT);
-  } else {
-    ut_error;
-    return(0);
-  }
+  	if (os_info.dwPlatformId == VER_PLATFORM_WIN32s) {
+    		return(OS_WIN31);
+  	} else if (os_info.dwPlatformId == VER_PLATFORM_WIN32_WINDOWS) {
+    		return(OS_WIN95);
+  	} else if (os_info.dwPlatformId == VER_PLATFORM_WIN32_NT) {
+    		return(OS_WINNT);
+  	} else {
+    		ut_error;
+    		return(0);
+  	}
 #else
-  ut_error;
+  	ut_error;
 
-  return(0);
+  	return(0);
 #endif
 }
 
@@ -160,7 +169,7 @@ os_file_get_last_error(void)
 
 	if (err != ERROR_FILE_EXISTS) {
 	         fprintf(stderr,
-	 "InnoDB: operating system error number %li in a file operation.\n",
+  "InnoDB: Warning: operating system error number %li in a file operation.\n",
 		(long) err);
 	}
 
@@ -178,7 +187,7 @@ os_file_get_last_error(void)
 
 	if (err != EEXIST) {
 	        fprintf(stderr,
-	 "InnoDB: operating system error number %i in a file operation.\n",
+  "InnoDB: Warning: operating system error number %i in a file operation.\n",
 		errno);
 	}
 
@@ -231,8 +240,10 @@ os_file_handle_error(
 		exit(1);
 
 	} else if (err == OS_FILE_AIO_RESOURCES_RESERVED) {
-
 		return(TRUE);
+
+	} else if (err == OS_FILE_ALREADY_EXISTS) {
+		return(FALSE);
 	} else {
 		fprintf(stderr, "InnoDB: Cannot continue operation.\n");
 
@@ -317,14 +328,10 @@ try_again:
 	if (file == INVALID_HANDLE_VALUE) {
 		*success = FALSE;
 
-		if (create_mode != OS_FILE_OPEN
-		    && os_file_get_last_error() == OS_FILE_DISK_FULL) {
+		retry = os_file_handle_error(file, name);
 
-			retry = os_file_handle_error(file, name);
-
-			if (retry) {
-				goto try_again;
-			}
+		if (retry) {
+			goto try_again;
 		}
 	} else {
 		*success = TRUE;
@@ -369,14 +376,10 @@ try_again:
 	if (file == -1) {
 		*success = FALSE;
 
-		if (create_mode != OS_FILE_OPEN
-		    && errno == ENOSPC) {
+		retry = os_file_handle_error(file, name);
 
-			retry = os_file_handle_error(file, name);
-
-			if (retry) {
-				goto try_again;
-			}
+		if (retry) {
+			goto try_again;
 		}
 	} else {
 		*success = TRUE;
@@ -407,6 +410,7 @@ os_file_close(
 		return(TRUE);
 	}
 
+	os_file_handle_error(file, NULL);
 	return(FALSE);
 #else
 	int	ret;
@@ -414,6 +418,7 @@ os_file_close(
 	ret = close(file);
 
 	if (ret == -1) {
+		os_file_handle_error(file, NULL);
 		return(FALSE);
 	}
 
@@ -551,6 +556,8 @@ os_file_flush(
 		return(TRUE);
 	}
 
+	os_file_handle_error(file, NULL);
+
 	return(FALSE);
 #else
 	int	ret;
@@ -560,6 +567,8 @@ os_file_flush(
 #else
 	ret = fsync(file);
 #endif
+	os_n_fsyncs++;
+
 	if (ret == 0) {
 		return(TRUE);
 	}
@@ -588,6 +597,8 @@ os_file_pread(
 	ulint		offset)	/* in: offset from where to read */
 {
         off_t     offs = (off_t)offset;
+
+	os_n_file_reads++;
 
 #ifdef HAVE_PREAD
 	return(pread(file, buf, n, offs));
@@ -630,6 +641,8 @@ os_file_pwrite(
 {
 	ssize_t	ret;
 	off_t   offs    = (off_t)offset;
+
+	os_n_file_writes++;
 
 #ifdef HAVE_PWRITE
 	ret = pwrite(file, buf, n, offs);
@@ -702,12 +715,13 @@ os_file_read(
 	BOOL		ret;
 	DWORD		len;
 	DWORD		ret2;
-	DWORD		err;
 	DWORD		low;
 	DWORD		high;
 	ibool		retry;
 	ulint		i;
 	
+	os_n_file_reads++;
+
 try_again:	
 	ut_ad(file);
 	ut_ad(buf);
@@ -724,7 +738,6 @@ try_again:
 	ret2 = SetFilePointer(file, low, &high, FILE_BEGIN);
 
 	if (ret2 == 0xFFFFFFFF && GetLastError() != NO_ERROR) {
-		err = GetLastError();
 
 		os_mutex_exit(os_file_seek_mutexes[i]);
 
@@ -738,8 +751,6 @@ try_again:
 	if (ret && len == n) {
 		return(TRUE);
 	}		
-
-	err = GetLastError();
 #else
 	ibool	retry;
 	ssize_t	ret;
@@ -791,12 +802,12 @@ os_file_write(
 	BOOL		ret;
 	DWORD		len;
 	DWORD		ret2;
-	DWORD		err;
 	DWORD		low;
 	DWORD		high;
 	ibool		retry;
 	ulint		i;
 
+	os_n_file_writes++;
 try_again:	
 	ut_ad(file);
 	ut_ad(buf);
@@ -813,7 +824,6 @@ try_again:
 	ret2 = SetFilePointer(file, low, &high, FILE_BEGIN);
 
 	if (ret2 == 0xFFFFFFFF && GetLastError() != NO_ERROR) {
-		err = GetLastError();
 
 		os_mutex_exit(os_file_seek_mutexes[i]);
 		
@@ -986,6 +996,8 @@ os_aio_init(
 	for (i = 0; i < n_segments; i++) {
 		os_aio_segment_wait_events[i] = os_event_create(NULL);
 	}
+
+	os_last_printout = time(NULL);
 
 #ifdef POSIX_ASYNC_IO
 	/* Block aio signals from the current thread and its children:
@@ -1461,6 +1473,7 @@ try_again:
 	} else if (mode == OS_AIO_SYNC) {
 		array = os_aio_sync_array;
 	} else {
+		array = NULL; /* Eliminate compiler warning */
 		ut_error;
 	}
 	
@@ -1469,6 +1482,7 @@ try_again:
 	if (type == OS_FILE_READ) {
 		if (os_aio_use_native_aio) {
 #ifdef WIN_ASYNC_IO
+			os_n_file_reads++;
 			ret = ReadFile(file, buf, (DWORD)n, &len,
 							&(slot->control));
 #elif defined(POSIX_ASYNC_IO)
@@ -1485,6 +1499,7 @@ try_again:
 	} else if (type == OS_FILE_WRITE) {
 		if (os_aio_use_native_aio) {
 #ifdef WIN_ASYNC_IO
+			os_n_file_writes++;
 			ret = WriteFile(file, buf, (DWORD)n, &len,
 							&(slot->control));
 #elif defined(POSIX_ASYNC_IO)
@@ -1583,7 +1598,6 @@ os_aio_windows_handle(
 	ulint		n;
 	ulint		i;
 	ibool		ret_val;
-	ulint		err;
 	BOOL		ret;
 	DWORD		len;
 
@@ -1635,7 +1649,8 @@ os_aio_windows_handle(
 		         ut_a(TRUE == os_file_flush(slot->file));
 		}
 	} else {
-		err = GetLastError();
+		os_file_get_last_error();
+
 		ut_error;
 
 		ret_val = FALSE;
@@ -2032,6 +2047,8 @@ os_aio_print(void)
 	os_aio_array_t*	array;
 	os_aio_slot_t*	slot;
 	ulint		n_reserved;
+	time_t		current_time;
+	double		time_elapsed;
 	ulint		i;
 
 	for (i = 0; i < srv_n_file_io_threads; i++) {
@@ -2039,7 +2056,7 @@ os_aio_print(void)
 					srv_io_thread_op_info[i]);
 	}
 
-	printf("Pending normal aio reads: ");
+	printf("Pending normal aio reads:");
 
 	array = os_aio_read_array;
 loop:
@@ -2066,12 +2083,12 @@ loop:
 
 	ut_a(array->n_reserved == n_reserved);
 
-	printf("%lu\n", n_reserved);
+	printf(" %lu", n_reserved);
 	
 	os_mutex_exit(array->mutex);
 
 	if (array == os_aio_read_array) {
-		printf("Pending aio writes: ");
+		printf(", aio writes:");
 	
 		array = os_aio_write_array;
 
@@ -2079,25 +2096,48 @@ loop:
 	}
 
 	if (array == os_aio_write_array) {
-		printf("Pending insert buffer aio reads: ");
+		printf(",\n ibuf aio reads:");
 		array = os_aio_ibuf_array;
 
 		goto loop;
 	}
 
 	if (array == os_aio_ibuf_array) {
-		printf("Pending log writes or reads: ");
+		printf(", log i/o's:");
 		array = os_aio_log_array;
 
 		goto loop;
 	}
 
 	if (array == os_aio_log_array) {
-		printf("Pending synchronous reads or writes: ");		
+		printf(", sync i/o's:");		
 		array = os_aio_sync_array;
 
 		goto loop;
 	}
+
+	printf("\n");
+	
+	current_time = time(NULL);
+	time_elapsed = difftime(current_time, os_last_printout);
+
+	printf("Pending flushes (fsync) log: %lu; buffer pool: %lu\n",
+	       fil_n_pending_log_flushes, fil_n_pending_tablespace_flushes);
+	printf("%lu OS file reads, %lu OS file writes, %lu OS fsyncs\n",
+		os_n_file_reads, os_n_file_writes, os_n_fsyncs);
+	printf("%.2f reads/s, %.2f writes/s, %.2f fsyncs/s\n",
+		(os_n_file_reads - os_n_file_reads_old)
+		/ time_elapsed,
+		(os_n_file_writes - os_n_file_writes_old)
+		/ time_elapsed,
+		(os_n_fsyncs - os_n_fsyncs_old)
+		/ time_elapsed);
+
+	os_n_file_reads_old = os_n_file_reads;
+	os_n_file_writes_old = os_n_file_writes;
+	os_n_fsyncs_old = os_n_fsyncs;
+	
+	os_last_printout = current_time;
 }
 
 /**************************************************************************

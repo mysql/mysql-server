@@ -97,11 +97,8 @@ que_node_t */
 #define YYSTYPE que_node_t*
 
 #include "univ.i"
-#undef alloca
-#define alloca	mem_alloc
 #include <math.h>
 #include "pars0pars.h"
-#include "mem0mem.h"
 #include "que0types.h"
 #include "que0que.h"
 #include "row0sel.h"
@@ -705,7 +702,7 @@ int yydebug;			/*  nonzero means print parse trace	*/
 /*  YYINITDEPTH indicates the initial size of the parser's stacks	*/
 
 #ifndef	YYINITDEPTH
-#define YYINITDEPTH 200
+#define YYINITDEPTH 1000
 #endif
 
 /*  YYMAXDEPTH is the maximum size the stacks can grow to
@@ -896,17 +893,22 @@ yynewstate:
       if (yystacksize >= YYMAXDEPTH)
 	{
 	  yyerror("parser stack overflow");
+	  ut_a(0);
 	  return 2;
 	}
       yystacksize *= 2;
       if (yystacksize > YYMAXDEPTH)
 	yystacksize = YYMAXDEPTH;
-      yyss = (short *) alloca (yystacksize * sizeof (*yyssp));
+
+      ut_a(0); 	/* Prevent possible memory leaks through the following
+      		mem_alloc's */
+	
+      yyss = (short *) mem_alloc (yystacksize * sizeof (*yyssp));
       __yy_memcpy ((char *)yyss, (char *)yyss1, size * sizeof (*yyssp));
-      yyvs = (YYSTYPE *) alloca (yystacksize * sizeof (*yyvsp));
+      yyvs = (YYSTYPE *) mem_alloc (yystacksize * sizeof (*yyvsp));
       __yy_memcpy ((char *)yyvs, (char *)yyvs1, size * sizeof (*yyvsp));
 #ifdef YYLSP_NEEDED
-      yyls = (YYLTYPE *) alloca (yystacksize * sizeof (*yylsp));
+      yyls = (YYLTYPE *) mem_alloc (yystacksize * sizeof (*yylsp));
       __yy_memcpy ((char *)yyls, (char *)yyls1, size * sizeof (*yylsp));
 #endif
 #endif /* no yyoverflow */
@@ -1663,7 +1665,7 @@ yyerrlab:   /* here on detecting error */
 	       x < (sizeof(yytname) / sizeof(char *)); x++)
 	    if (yycheck[x + yyn] == x)
 	      size += strlen(yytname[x]) + 15, count++;
-	  msg = (char *) malloc(size + 15);
+	  msg = (char *) mem_alloc(size + 15);
 	  if (msg != 0)
 	    {
 	      strcpy(msg, "parse error");
@@ -1682,7 +1684,7 @@ yyerrlab:   /* here on detecting error */
 		      }
 		}
 	      yyerror(msg);
-	      free(msg);
+	      mem_free(msg);
 	    }
 	  else
 	    yyerror ("parse error; also virtual memory exceeded");

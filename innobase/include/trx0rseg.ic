@@ -61,7 +61,11 @@ trx_rsegf_get_nth_undo(
 	ulint		n,	/* in: index of slot */
 	mtr_t*		mtr)	/* in: mtr */
 {
-	ut_ad(n < TRX_RSEG_N_SLOTS);
+	if (n >= TRX_RSEG_N_SLOTS) {
+		fprintf(stderr,
+		"InnoDB: Error: trying to get slot %lu of rseg\n", n);
+		ut_a(0);
+	}
 
 	return(mtr_read_ulint(rsegf + TRX_RSEG_UNDO_SLOTS +
 				n * TRX_RSEG_SLOT_SIZE, MLOG_4BYTES, mtr));
@@ -78,7 +82,11 @@ trx_rsegf_set_nth_undo(
 	ulint		page_no,/* in: page number of the undo log segment */
 	mtr_t*		mtr)	/* in: mtr */
 {
-	ut_ad(n < TRX_RSEG_N_SLOTS);
+	if (n >= TRX_RSEG_N_SLOTS) {
+		fprintf(stderr,
+		"InnoDB: Error: trying to set slot %lu of rseg\n", n);
+		ut_a(0);
+	}
 
 	mlog_write_ulint(rsegf + TRX_RSEG_UNDO_SLOTS + n * TRX_RSEG_SLOT_SIZE,
 						page_no, MLOG_4BYTES, mtr);

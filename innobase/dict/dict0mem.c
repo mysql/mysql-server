@@ -18,6 +18,7 @@ Created 1/8/1996 Heikki Tuuri
 #include "dict0dict.h"
 #include "que0que.h"
 #include "pars0pars.h"
+#include "lock0lock.h"
 
 #define	DICT_HEAP_SIZE		100	/* initial memory heap size when
 					creating a table or index object */
@@ -63,7 +64,12 @@ dict_mem_table_create(
 	table->cols = mem_heap_alloc(heap, (n_cols + DATA_N_SYS_COLS)
 							* sizeof(dict_col_t));
 	UT_LIST_INIT(table->indexes);
+
+	table->auto_inc_lock = mem_heap_alloc(heap, lock_get_size());
+
 	UT_LIST_INIT(table->locks);
+	UT_LIST_INIT(table->foreign_list);
+	UT_LIST_INIT(table->referenced_list);
 
 	table->does_not_fit_in_memory = FALSE;
 
@@ -199,10 +205,47 @@ dict_mem_index_create(
 						* sizeof(dict_field_t));
 					/* The '1 +' above prevents allocation
 					of an empty mem block */
+	index->stat_n_diff_key_vals = NULL;
+
 	index->cached = FALSE;
 	index->magic_n = DICT_INDEX_MAGIC_N;
 
 	return(index);
+}
+
+/**************************************************************************
+Creates and initializes a foreign constraint memory object. */
+
+dict_foreign_t*
+dict_mem_foreign_create(void)
+/*=========================*/
+				/* out, own: foreign constraint struct */
+{
+	dict_foreign_t*	foreign;
+	mem_heap_t*	heap;
+
+	heap = mem_heap_create(100);
+
+	foreign = mem_heap_alloc(heap, sizeof(dict_foreign_t));
+
+	foreign->heap = heap;
+
+	foreign->id = NULL;
+
+	foreign->foreign_table_name = NULL;
+	foreign->foreign_table = NULL;
+	foreign->foreign_col_names = NULL;
+
+	foreign->referenced_table_name = NULL;
+	foreign->referenced_table = NULL;
+	foreign->referenced_col_names = NULL;
+
+	foreign->n_fields = 0;
+
+	foreign->foreign_index = NULL;
+	foreign->referenced_index = NULL;
+
+	return(foreign);
 }
 
 /**************************************************************************

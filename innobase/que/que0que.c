@@ -832,7 +832,7 @@ que_thr_dec_refer_count(
 	sess_t*		sess;
 	ibool		send_srv_msg		= FALSE;
 	ibool		release_stored_proc	= FALSE;
-	ulint		msg_len;
+	ulint		msg_len			= 0;
 	byte		msg_buf[ODBC_DATAGRAM_SIZE];
 	ulint		fork_type;
 	ibool		stopped;

@@ -50,15 +50,21 @@ to que_run_threads: this is to allow canceling runaway queries */
 
 /************************************************************************
 Returns TRUE if the user-defined column values in a secondary index record
-are the same as the corresponding columns in the clustered index record. */ 
+are the same as the corresponding columns in the clustered index record.
+NOTE: the comparison is NOT done as a binary comparison, but character
+fields are compared with collation! */
 static
 ibool
 row_sel_sec_rec_is_for_clust_rec(
 /*=============================*/
-	rec_t*		sec_rec,
-	dict_index_t*	sec_index,
-	rec_t*		clust_rec,
-	dict_index_t*	clust_index)
+					/* out: TRUE if the secondary
+					record is equal to the corresponding
+					fields in the clustered record,
+					when compared with collation */
+	rec_t*		sec_rec,	/* in: secondary index record */
+	dict_index_t*	sec_index,	/* in: secondary index */
+	rec_t*		clust_rec,	/* in: clustered index record */
+	dict_index_t*	clust_index)	/* in: clustered index */
 {
 	dict_col_t*	col;
 	byte*		sec_field;
@@ -84,9 +90,9 @@ row_sel_sec_rec_is_for_clust_rec(
 			return(FALSE);
 		}
 
-		if (sec_len != UNIV_SQL_NULL
-			&& ut_memcmp(sec_field, clust_field, sec_len) != 0) {
-
+		if (0 != cmp_data_data(dict_col_get_type(col),
+					clust_field, clust_len,
+					sec_field, sec_len)) {
 			return(FALSE);
 		}
 	}
@@ -763,7 +769,7 @@ row_sel_open_pcur(
 
 /*************************************************************************
 Restores a stored pcur position to a table index. */
-UNIV_INLINE
+static
 ibool
 row_sel_restore_pcur_pos(
 /*=====================*/
@@ -813,7 +819,8 @@ row_sel_restore_pcur_pos(
 			return(TRUE);
 		}
 
-		ut_ad(relative_position == BTR_PCUR_AFTER);
+		ut_ad(relative_position == BTR_PCUR_AFTER
+		      || relative_position == BTR_PCUR_AFTER_LAST_IN_TREE);
 
 		return(FALSE);
 	}
@@ -835,7 +842,8 @@ row_sel_restore_pcur_pos(
 	plan->stored_cursor_rec_processed is TRUE, we must move to the previous
 	record, else there is no need to move the cursor. */
 
-	if (relative_position == BTR_PCUR_BEFORE) {
+	if (relative_position == BTR_PCUR_BEFORE
+	    || relative_position == BTR_PCUR_BEFORE_FIRST_IN_TREE) {
 
 		return(FALSE);
 	}
@@ -850,7 +858,8 @@ row_sel_restore_pcur_pos(
 		return(FALSE);
 	}
 
-	ut_ad(relative_position == BTR_PCUR_AFTER);
+	ut_ad(relative_position == BTR_PCUR_AFTER
+		      || relative_position == BTR_PCUR_AFTER_LAST_IN_TREE);
 
 	return(TRUE);
 }
@@ -1762,7 +1771,7 @@ fetch_step(
 	
 	if (sel_node->state == SEL_NODE_CLOSED) {
 		/* SQL error detected */
-		printf("SQL error %lu\n", DB_ERROR);
+		printf("SQL error %lu\n", (ulint)DB_ERROR);
 
 		que_thr_handle_error(thr, DB_ERROR, NULL, 0);
 
@@ -2251,7 +2260,7 @@ row_sel_get_clust_rec_for_mysql(
 
 /************************************************************************
 Restores cursor position after it has been stored. We have to take into
-account that the record cursor was positioned on can have been deleted.
+account that the record cursor was positioned on may have been deleted.
 Then we may have to move the cursor one step up or down. */
 static
 ibool
@@ -2284,14 +2293,14 @@ sel_restore_position_for_mysql(
 
 		if (moves_up) {
 			btr_pcur_move_to_next(pcur, mtr);
-
-			return(TRUE);
 		}
 
 		return(TRUE);
 	}
 
-	if (relative_position == BTR_PCUR_AFTER) {
+	if (relative_position == BTR_PCUR_AFTER
+	    || relative_position == BTR_PCUR_AFTER_LAST_IN_TREE) {
+
 		if (moves_up) {
 			return(TRUE);
 		}
@@ -2303,7 +2312,8 @@ sel_restore_position_for_mysql(
 		return(TRUE);
 	}
 
-	ut_ad(relative_position == BTR_PCUR_BEFORE);
+	ut_ad(relative_position == BTR_PCUR_BEFORE
+	     || relative_position == BTR_PCUR_BEFORE_FIRST_IN_TREE);
 	
 	if (moves_up && btr_pcur_is_on_user_rec(pcur, mtr)) {
 		btr_pcur_move_to_next(pcur, mtr);
@@ -2586,21 +2596,30 @@ row_search_for_mysql(
 			let us try a search shortcut through the hash
 			index */
 			
+			if (btr_search_latch.writer != RW_LOCK_NOT_LOCKED) {
+			        /* There is an x-latch request: release
+				a possible s-latch to reduce starvation
+				and wait for BTR_SEA_TIMEOUT rounds before
+				trying to keep it again over calls from
+				MySQL */
+
+				if (trx->has_search_latch) {
+			        	rw_lock_s_unlock(&btr_search_latch);
+					trx->has_search_latch = FALSE;
+				}
+
+				trx->search_latch_timeout = BTR_SEA_TIMEOUT;
+				
+				goto no_shortcut;
+			}
+			
 			if (!trx->has_search_latch) {
 				rw_lock_s_lock(&btr_search_latch);
 				trx->has_search_latch = TRUE;
-
-			} else if (btr_search_latch.writer_is_wait_ex) {
-			        /* There is an x-latch request waiting:
-				release the s-latch for a moment to reduce
-				starvation */
-
-			        rw_lock_s_unlock(&btr_search_latch);
-			        rw_lock_s_lock(&btr_search_latch);
 			}
 
 			shortcut = row_sel_try_search_shortcut_for_mysql(&rec,
-							prebuilt, &mtr);
+							       prebuilt, &mtr);
 			if (shortcut == SEL_FOUND) {
 				row_sel_store_mysql_rec(buf, prebuilt, rec);
 	
@@ -2609,7 +2628,16 @@ row_search_for_mysql(
  				/* printf("%s shortcut\n", index->name); */
 
 				srv_n_rows_read++;
+				
+				if (trx->search_latch_timeout > 0
+				    && trx->has_search_latch) {
 
+					trx->search_latch_timeout--;
+
+			        	rw_lock_s_unlock(&btr_search_latch);
+					trx->has_search_latch = FALSE;
+				}    	
+				
 				trx->op_info = "";
 				return(DB_SUCCESS);
 			
@@ -2619,6 +2647,16 @@ row_search_for_mysql(
 
 				/* printf("%s record not found 2\n",
 							index->name); */
+
+				if (trx->search_latch_timeout > 0
+				    && trx->has_search_latch) {
+
+					trx->search_latch_timeout--;
+
+			        	rw_lock_s_unlock(&btr_search_latch);
+					trx->has_search_latch = FALSE;
+				}
+
 				trx->op_info = "";
 				return(DB_RECORD_NOT_FOUND);
 			}
@@ -2627,7 +2665,7 @@ row_search_for_mysql(
 			mtr_start(&mtr);
 		}
 	}
-	
+no_shortcut:	
 	if (trx->has_search_latch) {
 		rw_lock_s_unlock(&btr_search_latch);
 		trx->has_search_latch = FALSE;

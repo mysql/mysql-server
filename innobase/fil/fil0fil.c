@@ -77,6 +77,9 @@ out of the LRU-list and keep a count of pending operations. When an operation
 completes, we decrement the count and return the file node to the LRU-list if
 the count drops to zero. */
 
+ulint	fil_n_pending_log_flushes		= 0;
+ulint	fil_n_pending_tablespace_flushes	= 0;
+
 /* Null file address */
 fil_addr_t	fil_addr_null = {FIL_NULL, 0};
 
@@ -856,6 +859,15 @@ fil_node_prepare_for_io(
 
 			last_node = UT_LIST_GET_LAST(system->LRU);
 
+			if (last_node == NULL) {
+				fprintf(stderr,
+	"InnoDB: Error: cannot close any file to open another for i/o\n"
+	"InnoDB: Pending i/o's on %lu files exist\n",
+					system->n_open_pending);
+
+				ut_a(0);
+			}
+
 			fil_node_close(last_node, system);
 		}
 
@@ -973,7 +985,8 @@ fil_io(
 	ibool		ret;
 	ulint		is_log;
 	ulint		wake_later;
-
+	ulint		count;
+	
 	is_log = type & OS_FILE_LOG;
 	type = type & ~OS_FILE_LOG;
 
@@ -996,7 +1009,7 @@ fil_io(
 #endif
 	if (sync) {
 		mode = OS_AIO_SYNC;
-	} else if ((type == OS_FILE_READ) && !is_log
+	} else if (type == OS_FILE_READ && !is_log
 				&& ibuf_page(space_id, block_offset)) {
 		mode = OS_AIO_IBUF;
 	} else if (is_log) {
@@ -1006,9 +1019,44 @@ fil_io(
 	}
 
 	system = fil_system;
+
+	count = 0;
 loop:
+	count++;
+	
+	/* NOTE that there is a possibility of a hang here:
+	if the read i/o-handler thread needs to complete
+	a read by reading from the insert buffer, it may need to
+	post another read. But if the maximum number of files
+	are already open, it cannot proceed from here! */
+	
 	mutex_enter(&(system->mutex));
 	
+	if (count < 500 && !is_log && !ibuf_inside()
+	    && system->n_open_pending >= (3 * system->max_n_open) / 4) {
+
+	    	/* We are not doing an ibuf operation: leave a
+	    	safety margin of openable files for possible ibuf
+	    	merges needed in page read completion */
+
+		mutex_exit(&(system->mutex));
+
+		/* Wake the i/o-handler threads to make sure pending
+		i/o's are handled and eventually we can open the file */
+		
+		os_aio_simulated_wake_handler_threads();
+
+		os_thread_sleep(100000);
+
+		if (count > 50) {
+			fprintf(stderr,
+		"InnoDB: Warning: waiting for file closes to proceed\n"
+		"InnoDB: round %lu\n", count);
+		}
+
+		goto loop;
+	}
+
 	if (system->n_open_pending == system->max_n_open) {
 
 		/* It is not sure we can open the file if it is closed: wait */
@@ -1018,11 +1066,19 @@ loop:
 
 		mutex_exit(&(system->mutex));
 
+		/* Wake the i/o-handler threads to make sure pending
+		i/o's are handled and eventually we can open the file */
+		
+		os_aio_simulated_wake_handler_threads();
+
+		fprintf(stderr,
+		"InnoDB: Warning: max allowed number of files is open\n");
+
 		os_event_wait(event);
 
 		goto loop;
 	}	 
-	
+
 	HASH_SEARCH(hash, system->spaces, space_id, space,
 						space->id == space_id);
 	ut_a(space);
@@ -1160,6 +1216,7 @@ fil_aio_wait(
 #elif defined(POSIX_ASYNC_IO)
 		ret = os_aio_posix_handle(segment, &fil_node, &message);
 #else
+		ret = 0; /* Eliminate compiler warning */
 		ut_a(0);
 #endif
 	} else {
@@ -1220,6 +1277,12 @@ fil_flush(
 
 			node->is_modified = FALSE;
 			
+			if (space->purpose == FIL_TABLESPACE) {
+				fil_n_pending_tablespace_flushes++;
+			} else {
+				fil_n_pending_log_flushes++;
+			}
+
 			mutex_exit(&(system->mutex));
 
 			/* Note that it is not certain, when we have
@@ -1233,6 +1296,12 @@ fil_flush(
 			os_file_flush(file);
 			
 			mutex_enter(&(system->mutex));
+
+			if (space->purpose == FIL_TABLESPACE) {
+				fil_n_pending_tablespace_flushes--;
+			} else {
+				fil_n_pending_log_flushes--;
+			}
 		}
 
 		node = UT_LIST_GET_NEXT(chain, node);
@@ -1377,7 +1446,7 @@ fil_page_set_type(
 	ulint	type)	/* in: type */
 {
 	ut_ad(page);
-	ut_ad((type == FIL_PAGE_INDEX) || (type == FIL_PAGE_INDEX));
+	ut_ad((type == FIL_PAGE_INDEX) || (type == FIL_PAGE_UNDO_LOG));
 
 	mach_write_to_2(page + FIL_PAGE_TYPE, type);
 }	

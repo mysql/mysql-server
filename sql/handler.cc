@@ -181,6 +181,13 @@ int ha_panic(enum ha_panic_function flag)
   return error;
 } /* ha_panic */
 
+void ha_drop_database(char* path)
+{
+#ifdef HAVE_INNOBASE_DB
+  if (!innodb_skip)
+    innobase_drop_database(path);
+#endif
+}
 
 void ha_close_connection(THD* thd)
 {
