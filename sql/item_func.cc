@@ -1433,16 +1433,19 @@ void item_user_lock_release(ULL *ull)
   if (mysql_bin_log.is_open())
   {
     THD *thd = current_thd;
+    uint save_query_length;
     char buf[256];
     String tmp(buf,sizeof(buf));
     tmp.length(0);
     tmp.append("DO RELEASE_LOCK(\"");
     tmp.append(ull->key,ull->key_length);
     tmp.append("\")");
+    save_query_length=thd->query_length;
     thd->query_length=tmp.length();
     Query_log_event qev(thd,tmp.ptr());
     qev.error_code=0; // this query is always safe to run on slave
     mysql_bin_log.write(&qev);
+    thd->query_length=save_query_length;
   }
   if (--ull->count)
     pthread_cond_signal(&ull->cond);
