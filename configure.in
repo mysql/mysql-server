@@ -2776,12 +2776,14 @@ then
   if test X"$have_isam" != Xno
   then
     sql_server_dirs="$sql_server_dirs isam merge"
+    AC_CONFIG_FILES(isam/Makefile merge/Makefile)
   fi
 
   if test X"$have_berkeley_db" != Xno; then
     if test X"$have_berkeley_db" != Xyes; then
       # we must build berkeley db from source
       sql_server_dirs="$sql_server_dirs $have_berkeley_db"
+      AC_CONFIG_FILES(bdb/Makefile)
 
       echo "CONFIGURING FOR BERKELEY DB" 
       bdb_conf_flags=
@@ -3021,9 +3023,8 @@ fi
 AC_SUBST(MAKE_BINARY_DISTRIBUTION_OPTIONS)
 
 # Output results
-AC_CONFIG_FILES(Makefile extra/Makefile mysys/Makefile isam/Makefile dnl
+AC_CONFIG_FILES(Makefile extra/Makefile mysys/Makefile dnl
  strings/Makefile regex/Makefile heap/Makefile dnl
- bdb/Makefile dnl
  myisam/Makefile myisammrg/Makefile dnl
  os2/Makefile os2/include/Makefile os2/include/sys/Makefile dnl
  man/Makefile BUILD/Makefile vio/Makefile dnl
@@ -3031,7 +3032,7 @@ AC_CONFIG_FILES(Makefile extra/Makefile mysys/Makefile isam/Makefile dnl
  libmysql/Makefile client/Makefile dnl
  pstack/Makefile pstack/aout/Makefile sql/Makefile sql/share/Makefile dnl
  sql-common/Makefile SSL/Makefile dnl
- merge/Makefile dbug/Makefile scripts/Makefile dnl
+ dbug/Makefile scripts/Makefile dnl
  include/Makefile sql-bench/Makefile tools/Makefile dnl
  tests/Makefile Docs/Makefile support-files/Makefile dnl
  support-files/MacOSX/Makefile mysql-test/Makefile dnl

@@ -1044,9 +1044,9 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
       goto err_unlock;				// Parse query
     }
 #endif /*!NO_EMBEDDED_ACCESS_CHECKS*/
-    if (check_tables && !handler::caching_allowed(thd, table->db(), 
-						  table->key_length(),
-						  table->type()))
+    if (check_tables && !ha_caching_allowed(thd, table->db(), 
+                                         table->key_length(),
+                                         table->type()))
     {
       DBUG_PRINT("qcache", ("Handler does not allow caching for %s.%s",
 			    table_list.db, table_list.alias));
@@ -2687,9 +2687,9 @@ my_bool Query_cache::ask_handler_allowance(THD *thd,
   for (; tables_used; tables_used= tables_used->next)
   {
     TABLE *table= tables_used->table;
-    if (!handler::caching_allowed(thd, table->table_cache_key,
-				  table->key_length,
-				  table->file->table_cache_type()))
+    if (!ha_caching_allowed(thd, table->table_cache_key,
+                         table->key_length,
+                         table->file->table_cache_type()))
     {
       DBUG_PRINT("qcache", ("Handler does not allow caching for %s.%s",
 			    tables_used->db, tables_used->alias));
