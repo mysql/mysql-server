@@ -523,19 +523,19 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
 
   key_iterator.rewind();
   key_number=0;
-  for (; (key=key_iterator++) ; key_info++, key_number++)
+  for (; (key=key_iterator++) ; key_number++)
   {
     uint key_length=0;
     key_part_spec *column;
 
     switch(key->type){
-      case Key::MULTIPLE:
+    case Key::MULTIPLE:
         key_info->flags = 0;
         break;
-      case Key::FULLTEXT:
+    case Key::FULLTEXT:
         key_info->flags = HA_FULLTEXT;
         break;
-      case Key::SPATIAL:
+    case Key::SPATIAL:
         key_info->flags = HA_SPATIAL;
         break;
     case Key::FOREIGN_KEY:
@@ -734,6 +734,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
       my_error(ER_TOO_LONG_KEY,MYF(0),max_key_length);
       DBUG_RETURN(-1);
     }
+    key_info++;
   }
   if (!unique_key && !primary_key &&
       (file->table_flags() & HA_REQUIRE_PRIMARY_KEY))

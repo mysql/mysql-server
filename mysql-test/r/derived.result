@@ -40,3 +40,28 @@ a
 select 1 from (select 1);
 1
 1
+drop table if exists t1;
+create table t1(a int not null, t char(8), index(a));
+SELECT * FROM (SELECT * FROM t1) ORDER BY a  ASC LIMIT 0,20;
+a	t
+1	1
+2	2
+3	3
+4	4
+5	5
+6	6
+7	7
+8	8
+9	9
+10	10
+11	11
+12	12
+13	13
+14	14
+15	15
+16	16
+17	17
+18	18
+19	19
+20	20
+drop table if exists  t1;

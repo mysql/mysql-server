@@ -378,7 +378,7 @@ JOIN::optimize()
     error = 0;
     DBUG_RETURN(1);
   }
-  if (cond_value == Item::COND_FALSE || !unit->select_limit_cnt)
+  if (cond_value == Item::COND_FALSE || (!unit->select_limit_cnt && !(select_options & OPTION_FOUND_ROWS)))
   {					/* Impossible cond */
     zero_result_cause= "Impossible WHERE";
     DBUG_RETURN(0);
@@ -664,10 +664,13 @@ JOIN::exec()
       result->send_fields(fields_list,1);
       if (!having || having->val_int())
       {
-	if (do_send_rows && result->send_data(fields_list))
+	if (do_send_rows && unit->select_limit_cnt && result->send_data(fields_list))
 	  error= 1;
 	else
+	{
 	  error= (int) result->send_eof();
+	  send_records=1;
+	}
       }
       else
 	error=(int) result->send_eof();
@@ -5181,7 +5184,7 @@ end_send(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
     error=0;
     if (join->procedure)
       error=join->procedure->send_row(*join->fields);
-    else if (join->do_send_rows)
+    else if (join->do_send_rows && join->unit->select_limit_cnt)
       error=join->result->send_data(*join->fields);
     if (error)
       DBUG_RETURN(-1); /* purecov: inspected */
