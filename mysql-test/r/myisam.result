@@ -390,4 +390,8 @@ insert into t1 values ('aaa   '),('aaa');
 repair table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	repair	status	OK
+select concat(a,'.') from t1 where a='aaa';
+concat(a,'.')
+aaa.
+aaa   .
 drop table t1;
