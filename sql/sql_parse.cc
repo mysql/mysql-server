@@ -3084,23 +3084,23 @@ mysql_execute_command(THD *thd)
     break;
   }
   case SQLCOM_CREATE_FUNCTION:	// UDF function
-    {
-      if (check_access(thd,INSERT_ACL,"mysql",0,1,0))
-	break;
+  {
+    sp_head *sph;
+    if (check_access(thd,INSERT_ACL,"mysql",0,1,0))
+      break;
 #ifdef HAVE_DLOPEN
-      sp_head *sph= sp_find_function(thd, &lex->udf.name);
-      if (sph)
-      {
-	net_printf(thd, ER_UDF_EXISTS, lex->udf.name.str);
-	goto error;
-      }
-      if (!(res = mysql_create_function(thd,&lex->udf)))
-	send_ok(thd);
+    if (!(sph= sp_find_function(thd, &lex->udf.name)))
+    {
+      net_printf(thd, ER_UDF_EXISTS, lex->udf.name.str);
+      goto error;
+    }
+    if (!(res = mysql_create_function(thd,&lex->udf)))
+      send_ok(thd);
 #else
-      res= -1;
+    res= -1;
 #endif
     break;
-    }
+  }
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   case SQLCOM_DROP_USER:
   {
@@ -3374,62 +3374,62 @@ mysql_execute_command(THD *thd)
     break;
   case SQLCOM_CREATE_PROCEDURE:
   case SQLCOM_CREATE_SPFUNCTION:
+  {
     if (!lex->sphead)
     {
       res= -1;			// Shouldn't happen
       break;
     }
-    else
-    {
-      uint namelen;
-      char *name= lex->sphead->name(&namelen);
+    uint namelen;
+    char *name= lex->sphead->name(&namelen);
 #ifdef HAVE_DLOPEN
-      if (lex->sphead->m_type == TYPE_ENUM_FUNCTION)
-      {
-	udf_func *udf = find_udf(name, namelen);
+    if (lex->sphead->m_type == TYPE_ENUM_FUNCTION)
+    {
+      udf_func *udf = find_udf(name, namelen);
 
-	if (udf)
-	{
-	  net_printf(thd, ER_UDF_EXISTS, name);
-	  goto error;
-	}
-      }
-#endif
-      if (lex->sphead->m_type == TYPE_ENUM_FUNCTION &&
-	  !lex->sphead->m_has_return)
+      if (udf)
       {
-	net_printf(thd, ER_SP_NORETURN, name);
+	net_printf(thd, ER_UDF_EXISTS, name);
+	delete lex->sphead;
+	lex->sphead=0;
 	goto error;
       }
-
-      res= lex->sphead->create(thd);
-
-      switch (res)
-      {
-      case SP_OK:
-	send_ok(thd);
-	delete lex->sphead;
-	lex->sphead= 0;
-	break;
-      case SP_WRITE_ROW_FAILED:
-	net_printf(thd, ER_SP_ALREADY_EXISTS, SP_TYPE_STRING(lex), name);
-	delete lex->sphead;
-	lex->sphead= 0;
-	goto error;
-      default:
-	net_printf(thd, ER_SP_STORE_FAILED, SP_TYPE_STRING(lex), name);
-	delete lex->sphead;
-	lex->sphead= 0;
-	goto error;
-      }
-      break;
     }
+#endif
+    if (lex->sphead->m_type == TYPE_ENUM_FUNCTION &&
+	!lex->sphead->m_has_return)
+    {
+      net_printf(thd, ER_SP_NORETURN, name);
+      delete lex->sphead;
+      lex->sphead=0;
+      goto error;
+    }
+
+    res= lex->sphead->create(thd);
+    switch (res) {
+    case SP_OK:
+      send_ok(thd);
+      delete lex->sphead;
+      lex->sphead= 0;
+      break;
+    case SP_WRITE_ROW_FAILED:
+      net_printf(thd, ER_SP_ALREADY_EXISTS, SP_TYPE_STRING(lex), name);
+      delete lex->sphead;
+      lex->sphead= 0;
+      goto error;
+    default:
+      net_printf(thd, ER_SP_STORE_FAILED, SP_TYPE_STRING(lex), name);
+      delete lex->sphead;
+      lex->sphead= 0;
+      goto error;
+    }
+    break;
+  }
   case SQLCOM_CALL:
     {
       sp_head *sp;
 
-      sp= sp_find_procedure(thd, &lex->udf.name);
-      if (! sp)
+      if (!(sp= sp_find_procedure(thd, &lex->udf.name)))
       {
 	net_printf(thd, ER_SP_DOES_NOT_EXIST, "PROCEDURE", lex->udf.name);
 	goto error;
@@ -3611,6 +3611,7 @@ mysql_execute_command(THD *thd)
 	res= 0;
 	goto error;
       }
+      res= 0;
       break;
     }
   case SQLCOM_SHOW_STATUS_PROC:
@@ -4157,6 +4158,7 @@ mysql_parse(THD *thd, char *inBuf, uint length)
       query_cache_abort(&thd->net);
       if (thd->lex->sphead)
       {
+	/* Clean up after failed stored procedure/function */
 	if (lex != thd->lex)
 	  thd->lex->sphead->restore_lex(thd);
 	delete thd->lex->sphead;
