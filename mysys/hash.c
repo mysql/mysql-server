@@ -136,10 +136,12 @@ static uint calc_hashnr(CHARSET_INFO *cs __attribute__((unused)),
 static uint calc_hashnr_caseup(CHARSET_INFO *cs, const byte *key,uint length)
 {
   register uint nr=1, nr2=4;
+  register uchar *map=cs->to_upper;
+  
   while (length--)
   {
     nr^= (((nr & 63)+nr2)*
-         ((uint) (uchar) my_toupper(cs, *key++)))+ (nr << 8);
+         ((uint) (uchar) map[(uchar)*key++])) + (nr << 8);
     nr2+=3;
   }
   return((uint) nr);

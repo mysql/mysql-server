@@ -46,43 +46,49 @@ int my_strnncoll_simple(CHARSET_INFO * cs,const char *s, uint slen,
 
 void my_caseup_str_8bit(CHARSET_INFO * cs,char *str)
 {
-  while ((*str = (char) my_toupper(cs,(uchar) *str)) != 0)
+  register uchar *map=cs->to_upper;
+  while ((*str = (char) map[(uchar) *str]) != 0)
     str++;
 }
 
 
 void my_casedn_str_8bit(CHARSET_INFO * cs,char *str)
 {
-  while ((*str = (char) my_tolower(cs,(uchar)*str)) != 0)
+  register uchar *map=cs->to_lower;
+  while ((*str = (char) map[(uchar)*str]) != 0)
     str++;
 }
 
 
 void my_caseup_8bit(CHARSET_INFO * cs, char *str, uint length)
 {
+  register uchar *map=cs->to_upper;
   for ( ; length>0 ; length--, str++)
-    *str= (char) my_toupper(cs,(uchar)*str);
+    *str= (char) map[(uchar)*str];
 }
 
 void my_casedn_8bit(CHARSET_INFO * cs, char *str, uint length)
 {
+  register uchar *map=cs->to_lower;
   for ( ; length>0 ; length--, str++)
-    *str= (char)my_tolower(cs,(uchar) *str);
+    *str= (char) map[(uchar) *str];
 }
 
 
 int my_strcasecmp_8bit(CHARSET_INFO * cs,const char *s, const char *t)
 {
-  while (my_toupper(cs,(uchar) *s) == my_toupper(cs,(uchar) *t++))
+  register uchar *map=cs->to_upper;
+  while (map[(uchar) *s] == map[(uchar) *t++])
     if (!*s++) return 0;
-  return ((int) my_toupper(cs,(uchar) s[0]) - (int) my_toupper(cs,(uchar) t[-1]));
+  return ((int) map[(uchar) s[0]] - (int) map[(uchar) t[-1]]);
 }
 
 
 int my_strncasecmp_8bit(CHARSET_INFO * cs,
 				const char *s, const char *t, uint len)
 {
- while (len-- != 0 && my_toupper(cs,(uchar)*s++) == my_toupper(cs,(uchar)*t++)) ;
+ register uchar *map=cs->to_upper;
+ while (len-- != 0 && map[(uchar)*s++] == map[(uchar)*t++]) ;
    return (int) len+1;
 }
 
