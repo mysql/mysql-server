@@ -8465,6 +8465,8 @@ setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
       }
     }
     else if ((pos->type() == Item::FUNC_ITEM ||
+	      pos->type() == Item::SUBSELECT_ITEM ||
+	      pos->type() == Item::CACHE_ITEM ||
 	      pos->type() == Item::COND_ITEM) &&
 	     !pos->with_sum_func)
     {						// Save for send fields

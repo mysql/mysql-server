@@ -1264,6 +1264,9 @@ SELECT a.howmanyvalues, (SELECT count(*) from t1 b where b.howmanyvalues = a.how
 CREATE INDEX t1_howmanyvalues_idx ON t1 (howmanyvalues);
 SELECT a.howmanyvalues, (SELECT count(*) from t1 b where b.howmanyvalues+1 = a.howmanyvalues+1) as mycount from t1 a group by a.howmanyvalues;
 SELECT a.howmanyvalues, (SELECT count(*) from t1 b where b.howmanyvalues = a.howmanyvalues) as mycount from t1 a group by a.howmanyvalues;
--- error 1054
 SELECT a.howmanyvalues, (SELECT count(*) from t1 b where b.howmanyvalues = a.avalue) as mycount from t1 a group by a.howmanyvalues;
+drop table t1;
+
+create table t1 (x int);
+select  (select b.x from t1 as b where b.x=a.x) from t1 as a where a.x=2 group by a.x;
 drop table t1;
