@@ -37,6 +37,7 @@
 #include "item_create.h"
 #include "sp_head.h"
 #include "sp_pcontext.h"
+#include "sp_rcontext.h"
 #include "sp.h"
 #include <myisam.h>
 #include <myisammrg.h>
@@ -84,6 +85,8 @@ inline Item *or_or_concat(THD *thd, Item* A, Item* B)
   interval_type interval;
   st_select_lex *select_lex;
   chooser_compare_func_creator boolfunc2creator;
+  struct sp_cond_type *spcondtype;
+  struct { int vars, conds, hndlrs; } spblock;
 }
 
 %{
@@ -204,8 +207,10 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	COLUMNS
 %token	COLUMN_SYM
 %token	CONCURRENT
+%token  CONDITION_SYM
 %token	CONNECTION_SYM
 %token	CONSTRAINT
+%token  CONTINUE_SYM
 %token	CONVERT_SYM
 %token	DATABASES
 %token	DATA_SYM
@@ -226,14 +231,17 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	DIRECTORY_SYM
 %token	ESCAPE_SYM
 %token	EXISTS
+%token  EXIT_SYM
 %token	EXTENDED_SYM
 %token	FALSE_SYM
+%token  FETCH_SYM
 %token	FILE_SYM
 %token	FIRST_SYM
 %token	FIXED_SYM
 %token	FLOAT_NUM
 %token	FORCE_SYM
 %token	FOREIGN
+%token  FOUND_SYM
 %token	FROM
 %token	FULL
 %token	FULLTEXT_SYM
@@ -356,6 +364,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	SHUTDOWN
 %token	SPATIAL_SYM
 %token  SPECIFIC_SYM
+%token  SQLEXCEPTION_SYM
+%token  SQLWARNING_SYM
 %token  SSL_SYM
 %token	STARTING
 %token	STATUS_SYM
@@ -382,6 +392,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	FUNCTION_SYM
 %token	UNCOMMITTED_SYM
 %token	UNDERSCORE_CHARSET
+%token  UNDO_SYM
 %token	UNICODE_SYM
 %token	UNION_SYM
 %token	UNIQUE_SYM
@@ -725,7 +736,9 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 END_OF_INPUT
 
 %type <NONE> call sp_proc_stmts sp_proc_stmt
-%type <num>  sp_decls sp_decl sp_decl_idents sp_opt_inout
+%type <num>  sp_decl_idents sp_opt_inout sp_handler_type sp_hcond_list
+%type <spcondtype> sp_cond sp_hcond
+%type <spblock> sp_decls sp_decl
 
 %type <NONE>
 	'-' '+' '*' '/' '%' '(' ')'
@@ -1096,7 +1109,7 @@ sp_fdparams:
 sp_fdparam:
 	  ident type sp_opt_locator
 	  {
-	    Lex->spcont->push(&$1, (enum enum_field_types)$2, sp_param_in);
+	    Lex->spcont->push_pvar(&$1, (enum enum_field_types)$2, sp_param_in);
 	  }
 	;
 
@@ -1114,9 +1127,9 @@ sp_pdparams:
 sp_pdparam:
 	  sp_opt_inout ident type sp_opt_locator
 	  {
-	    Lex->spcont->push(&$2,
-	                      (enum enum_field_types)$3,
-			      (sp_param_mode_t)$1);
+	    Lex->spcont->push_pvar(&$2,
+	                           (enum enum_field_types)$3,
+			           (sp_param_mode_t)$1);
 	  }
 	;
 
@@ -1140,11 +1153,13 @@ sp_proc_stmts:
 sp_decls:
 	  /* Empty */
 	  {
-	    $$= 0;
+	    $$.vars= $$.conds= $$.hndlrs= 0;
 	  }
 	| sp_decls sp_decl ';'
 	  {
-	    $$= $1 + $2;
+	    $$.vars= $1.vars + $2.vars;
+	    $$.conds= $1.conds + $2.conds;
+	    $$.hndlrs= $1.hndlrs + $2.hndlrs;
 	  }
 	;
 
@@ -1170,19 +1185,141 @@ sp_decl:
 	        lex->spcont->set_isset(i, TRUE);
 	      }
 	    }
-	    $$= $2;
+	    $$.vars= $2;
+	    $$.conds= $$.hndlrs= 0;
+	  }
+	| DECLARE_SYM ident CONDITION_SYM FOR_SYM sp_cond
+	  {
+	    YYTHD->lex->spcont->push_cond(&$2, $5);
+	    $$.vars= $$.hndlrs= 0;
+	    $$.conds= 1;
+	  }
+	| DECLARE_SYM sp_handler_type HANDLER_SYM FOR_SYM
+	  {
+	    LEX *lex= Lex;
+	    sp_head *sp= lex->sphead;
+	    sp_pcontext *ctx= lex->spcont;
+	    sp_instr_hpush_jump *i=
+              new sp_instr_hpush_jump(sp->instructions(), $2,
+	                              ctx->current_framesize());
+
+	    sp->add_instr(i);
+	    sp->push_backpatch(i, ctx->push_label((char *)"", 0));
+	    ctx->add_handler();
+	  }
+	  sp_hcond_list sp_proc_stmt
+	  {
+	    LEX *lex= Lex;
+	    sp_head *sp= lex->sphead;
+	    sp_label_t *hlab= lex->spcont->pop_label(); /* After this hdlr */
+
+	    if ($2 == SP_HANDLER_CONTINUE)
+	      sp->add_instr(new sp_instr_hreturn(sp->instructions(),
+	                                         lex->spcont->current_framesize()));
+	    else
+	    {  /* EXIT or UNDO handler, just jump to the end of the block */
+	      sp_instr_jump *i= new sp_instr_jump(sp->instructions());
+
+	      sp->add_instr(i);
+	      sp->push_backpatch(i, lex->spcont->last_label()); /* Block end */
+	    }
+	    lex->sphead->backpatch(hlab);
+	    $$.vars= $$.conds= 0;
+	    $$.hndlrs= $6;
+	  }
+/* QQ Not yet
+	| DECLARE_SYM ident CURSOR_SYM FOR_SYM sp_cursor_stmt
+	  {
+	    $$.vars= $$.conds= $$.hndlrs= 0;
+	  }*/
+	;
+
+sp_handler_type:
+	  EXIT_SYM      { $$= SP_HANDLER_EXIT; }
+	| CONTINUE_SYM  { $$= SP_HANDLER_CONTINUE; }
+/*	| UNDO_SYM      { QQ No yet } */
+	;
+
+sp_hcond_list:
+	  sp_hcond
+	  {
+	    LEX *lex= Lex;
+	    sp_head *sp= lex->sphead;
+	    sp_instr_hpush_jump *i= (sp_instr_hpush_jump *)sp->last_instruction();
+
+	    i->add_condition($1);
+	    $$= 1;
+	  }
+	| sp_hcond_list ',' sp_hcond
+	  {
+	    LEX *lex= Lex;
+	    sp_head *sp= lex->sphead;
+	    sp_instr_hpush_jump *i= (sp_instr_hpush_jump *)sp->last_instruction();
+
+	    i->add_condition($3);
+	    $$= $1 + 1;
+	  }
+	;
+
+sp_cond:
+	  ULONG_NUM
+	  {			/* mysql errno */
+	    $$= (sp_cond_type_t *)YYTHD->alloc(sizeof(sp_cond_type_t));
+	    $$->type= sp_cond_type_t::number;
+	    $$->mysqlerr= $1;
+	  }
+	| TEXT_STRING_literal
+	  {		/* SQLSTATE */
+	    uint len= ($1.length < sizeof($$->sqlstate)-1 ?
+                       $1.length : sizeof($$->sqlstate)-1);
+
+	    $$= (sp_cond_type_t *)YYTHD->alloc(sizeof(sp_cond_type_t));
+	    $$->type= sp_cond_type_t::state;
+	    memcpy($$->sqlstate, $1.str, len);
+	    $$->sqlstate[len]= '\0';
+	  }
+	;
+
+sp_hcond:
+	  sp_cond
+	  {
+	    $$= $1;
+	  }
+	| ident			/* CONDITION name */
+	  {
+	    $$= Lex->spcont->find_cond(&$1);
+	    if ($$ == NULL)
+	    {
+	      net_printf(YYTHD, ER_SP_COND_MISMATCH, $1.str);
+	      YYABORT;
+	    }
+	  }
+	| SQLWARNING_SYM	/* SQLSTATEs 01??? */
+	  {
+	    $$= (sp_cond_type_t *)YYTHD->alloc(sizeof(sp_cond_type_t));
+	    $$->type= sp_cond_type_t::warning;
+	  }
+	| NOT FOUND_SYM		/* SQLSTATEs 02??? */
+	  {
+	    $$= (sp_cond_type_t *)YYTHD->alloc(sizeof(sp_cond_type_t));
+	    $$->type= sp_cond_type_t::notfound;
+	  }
+	| SQLEXCEPTION_SYM	/* All other SQLSTATEs */
+	  {
+	    $$= (sp_cond_type_t *)YYTHD->alloc(sizeof(sp_cond_type_t));
+	    $$->type= sp_cond_type_t::exception;
 	  }
 	;
 
 sp_decl_idents:
 	  ident
 	  {
-	    Lex->spcont->push(&$1, (enum_field_types)0, sp_param_in);
+	    Lex->spcont->push_pvar(&$1, (enum_field_types)0, sp_param_in);
 	    $$= 1;
 	  }
 	| sp_decl_idents ',' ident
 	  {
-	    Lex->spcont->push(&$3, (enum_field_types)0, sp_param_in);
+	    Lex->spcont->push_pvar(&$3, (enum_field_types)0, sp_param_in);
 	    $$= $1 + 1;
 	  }
 	;
@@ -1246,9 +1383,9 @@ sp_proc_stmt:
 	    }
 	    else
 	    {
-	      sp_instr_return *i=
-	        new sp_instr_return(lex->sphead->instructions(),
-		                    $2, lex->sphead->m_returns);
+	      sp_instr_freturn *i=
+	        new sp_instr_freturn(lex->sphead->instructions(),
+		                     $2, lex->sphead->m_returns);
 
 	      lex->sphead->add_instr(i);
 	    }
@@ -1273,13 +1410,13 @@ sp_proc_stmt:
 
 	    dummy.str= (char *)"";
 	    dummy.length= 0;
-	    lex->spcont->push(&dummy, MYSQL_TYPE_STRING, sp_param_in);
+	    lex->spcont->push_pvar(&dummy, MYSQL_TYPE_STRING, sp_param_in);
 	    lex->sphead->add_instr(i);
 	    lex->sphead->m_simple_case= TRUE;
 	  }
 	  sp_case END CASE_SYM
 	  {
-	    Lex->spcont->pop();
+	    Lex->spcont->pop_pvar();
 	  }
 	| sp_labeled_control
 	  {}
@@ -1331,6 +1468,12 @@ sp_proc_stmt:
               lex->sphead->add_instr(i);
 	    }
 	  }
+	| OPEN_SYM ident
+	  {}
+	| FETCH_SYM ident INTO select_var_list_init
+	  {}
+	| CLOSE_SYM ident
+	  {}
 	;
 
 sp_if:
@@ -1452,13 +1595,26 @@ sp_labeled_control:
 
 sp_unlabeled_control:
 	  BEGIN_SYM
-	    sp_decls
-	    sp_proc_stmts
-	  END
 	  { /* QQ This is just a dummy for grouping declarations and statements
 	       together. No [[NOT] ATOMIC] yet, and we need to figure out how
 	       make it coexist with the existing BEGIN COMMIT/ROLLBACK. */
-	    Lex->spcont->pop($2);
+
+            Lex->spcont->push_label((char *)"", 0); /* For end of block */
+	  }
+	  sp_decls
+	  sp_proc_stmts
+	  END
+	  {
+	    LEX *lex= Lex;
+	    sp_head *sp= lex->sphead;
+	    sp_pcontext *ctx= lex->spcont;
+	    sp_instr_hpop *i;
+
+  	    sp->backpatch(ctx->pop_label());
+	    ctx->pop_pvar($3.vars);
+	    ctx->pop_cond($3.conds);
+	    i= new sp_instr_hpop(sp->instructions(), $3.hndlrs);
+	    sp->add_instr(i);
 	  }
 	| LOOP_SYM
 	  sp_proc_stmts END LOOP_SYM

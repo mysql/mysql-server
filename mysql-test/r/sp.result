@@ -443,6 +443,63 @@ drop function inc;
 drop function mul;
 drop function append;
 drop function fun;
+create procedure hndlr1(val int)
+begin
+declare x int default 0;
+declare foo condition for 1146;
+declare continue handler for foo set x = 1;
+insert into test.t666 values ("hndlr1", val);   # Non-existing table
+if (x) then
+insert into test.t1 values ("hndlr1", val);   # This instead then
+end if;
+end;
+call hndlr1(42);
+select * from t1;
+id	data
+hndlr1	42
+delete from t1;
+drop procedure hndlr1;
+create procedure hndlr2(val int)
+begin
+declare x int default 0;
+begin
+declare exit handler for '42S02' set x = 1;
+insert into test.t666 values ("hndlr2", val); # Non-existing table
+end;
+insert into test.t1 values ("hndlr2", x);
+end;
+call hndlr2(42);
+select * from t1;
+id	data
+hndlr2	1
+delete from t1;
+drop procedure hndlr2;
+create procedure hndlr3(val int)
+begin
+declare x int default 0;
+declare continue handler for sqlexception        # Any error
+begin
+declare z int;
+set z = 2 * val;
+set x = 1;
+end;
+if val < 10 then
+begin
+declare y int;
+set y = val + 10;
+insert into test.t666 values ("hndlr3", y);  # Non-existing table
+if x then
+insert into test.t1 values ("hndlr3", y);
+end if;
+end;
+end if;
+end;
+call hndlr3(3);
+select * from t1;
+id	data
+hndlr3	13
+delete from t1;
+drop procedure hndlr3;
 drop table if exists fac;
 create table fac (n int unsigned not null primary key, f bigint unsigned);
 create procedure ifac(n int unsigned)

@@ -142,4 +142,33 @@ select f(1, 2)|
 drop procedure p|
 drop function f|
 
+--error 1289
+create procedure p(val int, out res int)
+begin
+  declare x int default 0;
+  declare continue handler for foo set x = 1;
+
+  insert into test.t1 values (val);
+  if (x) then
+    set res = 0;
+  else
+    set res = 1;
+  end if;
+end|
+
+--error 1289
+create procedure p(val int, out res int)
+begin
+  declare x int default 0;
+  declare foo condition for 1146;
+  declare continue handler for bar set x = 1;
+
+  insert into test.t1 values (val);
+  if (x) then
+    set res = 0;
+  else
+    set res = 1;
+  end if;
+end|
+
 delimiter ;|

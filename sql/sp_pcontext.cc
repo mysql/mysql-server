@@ -27,9 +27,10 @@
 #include "sp_head.h"
 
 sp_pcontext::sp_pcontext()
-  : Sql_alloc(), m_params(0), m_framesize(0), m_genlab(0)
+  : Sql_alloc(), m_params(0), m_framesize(0), m_handlers(0), m_genlab(0)
 {
   VOID(my_init_dynamic_array(&m_pvar, sizeof(sp_pvar_t *), 16, 8));
+  VOID(my_init_dynamic_array(&m_cond, sizeof(sp_cond_type_t *), 16, 8));
   m_label.empty();
 }
 
@@ -37,6 +38,7 @@ void
 sp_pcontext::destroy()
 {
   delete_dynamic(&m_pvar);
+  delete_dynamic(&m_cond);
   m_label.empty();
 }
 
@@ -55,8 +57,9 @@ sp_pcontext::find_pvar(LEX_STRING *name)
 
   while (i-- > 0)
   {
-    sp_pvar_t *p= find_pvar(i);
+    sp_pvar_t *p;
 
+    get_dynamic(&m_pvar, (gptr)&p, i);
     if (my_strnncoll(system_charset_info,
 		     (const uchar *)name->str, name->length,
 		     (const uchar *)p->name.str, p->name.length) == 0)
@@ -68,8 +71,8 @@ sp_pcontext::find_pvar(LEX_STRING *name)
 }
 
 void
-sp_pcontext::push(LEX_STRING *name, enum enum_field_types type,
-		  sp_param_mode_t mode)
+sp_pcontext::push_pvar(LEX_STRING *name, enum enum_field_types type,
+		       sp_param_mode_t mode)
 {
   sp_pvar_t *p= (sp_pvar_t *)sql_alloc(sizeof(sp_pvar_t));
 
@@ -111,5 +114,44 @@ sp_pcontext::find_label(char *name)
     if (my_strcasecmp(system_charset_info, name, lab->name) == 0)
       return lab;
 
+  return NULL;
+}
+
+void
+sp_pcontext::push_cond(LEX_STRING *name, sp_cond_type_t *val)
+{
+  sp_cond_t *p= (sp_cond_t *)sql_alloc(sizeof(sp_cond_t));
+
+  if (p)
+  {
+    if (m_cond.elements == m_framesize)
+      m_framesize += 1;
+    p->name.str= name->str;
+    p->name.length= name->length;
+    p->val= val;
+    insert_dynamic(&m_cond, (gptr)&p);
+  }
+}
+
+/*
+ * See comment for find_pvar() above
+ */
+sp_cond_type_t *
+sp_pcontext::find_cond(LEX_STRING *name)
+{
+  uint i = m_cond.elements;
+
+  while (i-- > 0)
+  {
+    sp_cond_t *p;
+
+    get_dynamic(&m_cond, (gptr)&p, i);
+    if (my_strnncoll(system_charset_info,
+		     (const uchar *)name->str, name->length,
+		     (const uchar *)p->name.str, p->name.length) == 0)
+    {
+      return p->val;
+    }
+  }
   return NULL;
 }

@@ -213,6 +213,7 @@ sp_head::execute(THD *thd)
   DBUG_ENTER("sp_head::execute");
   char olddbname[128];
   char *olddbptr= thd->db;
+  sp_rcontext *ctx= thd->spcont;
   int ret= 0;
   uint ip= 0;
 
@@ -229,15 +230,38 @@ sp_head::execute(THD *thd)
     olddbname[i]= '\0';
   }
 
+  if (ctx)
+    ctx->clear_handler();
   do
   {
     sp_instr *i;
+    uint hip;			// Handler ip
 
     i = get_instr(ip);	// Returns NULL when we're done.
     if (i == NULL)
       break;
     DBUG_PRINT("execute", ("Instruction %u", ip));
     ret= i->execute(thd, &ip);
+    // Check if an exception has occurred and a handler has been found
+    if (ret && !thd->killed && ctx)
+    {
+      uint hf;
+
+      switch (ctx->found_handler(&hip, &hf))
+      {
+      case SP_HANDLER_NONE:
+	break;
+      case SP_HANDLER_CONTINUE:
+	ctx->save_variables(hf);
+	ctx->push_hstack(ip);
+	// Fall through
+      default:
+	ip= hip;
+	ret= 0;
+	ctx->clear_handler();
+	continue;
+      }
+    }
   } while (ret == 0 && !thd->killed);
 
   DBUG_PRINT("info", ("ret=%d killed=%d", ret, thd->killed));
@@ -263,6 +287,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount, Item **resp)
   DBUG_PRINT("info", ("function %s", m_name.str));
   uint csize = m_pcont->max_framesize();
   uint params = m_pcont->params();
+  uint hmax = m_pcont->handlers();
   sp_rcontext *octx = thd->spcont;
   sp_rcontext *nctx = NULL;
   uint i;
@@ -278,7 +303,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount, Item **resp)
   }
 
   // QQ Should have some error checking here? (types, etc...)
-  nctx= new sp_rcontext(csize);
+  nctx= new sp_rcontext(csize, hmax);
   for (i= 0 ; i < params && i < argcount ; i++)
   {
     sp_pvar_t *pvar = m_pcont->find_pvar(i);
@@ -311,6 +336,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
   sp_instr *p;
   uint csize = m_pcont->max_framesize();
   uint params = m_pcont->params();
+  uint hmax = m_pcont->handlers();
   sp_rcontext *octx = thd->spcont;
   sp_rcontext *nctx = NULL;
   my_bool tmp_octx = FALSE;	// True if we have allocated a temporary octx
@@ -322,16 +348,16 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
     DBUG_RETURN(-1);
   }
 
-  if (csize > 0)
+  if (csize > 0 || hmax > 0)
   {
     uint i;
     List_iterator_fast<Item> li(*args);
     Item *it;
 
-    nctx = new sp_rcontext(csize);
+    nctx = new sp_rcontext(csize, hmax);
     if (! octx)
     {				// Create a temporary old context
-      octx = new sp_rcontext(csize);
+      octx = new sp_rcontext(csize, hmax);
       tmp_octx = TRUE;
     }
     // QQ: Should do type checking?
@@ -633,13 +659,54 @@ sp_instr_jump_if_not::execute(THD *thd, uint *nextp)
 }
 
 //
-// sp_instr_return
+// sp_instr_freturn
 //
 int
-sp_instr_return::execute(THD *thd, uint *nextp)
+sp_instr_freturn::execute(THD *thd, uint *nextp)
 {
-  DBUG_ENTER("sp_instr_return::execute");
+  DBUG_ENTER("sp_instr_freturn::execute");
   thd->spcont->set_result(eval_func_item(thd, m_value, m_type));
   *nextp= UINT_MAX;
+  DBUG_RETURN(0);
+}
+
+//
+// sp_instr_hpush_jump
+//
+int
+sp_instr_hpush_jump::execute(THD *thd, uint *nextp)
+{
+  DBUG_ENTER("sp_instr_hpush_jump::execute");
+  List_iterator_fast<sp_cond_type_t> li(m_cond);
+  sp_cond_type_t *p;
+
+  while ((p= li++))
+    thd->spcont->push_handler(p, m_handler, m_type, m_frame);
+
+  *nextp= m_dest;
+  DBUG_RETURN(0);
+}
+
+//
+// sp_instr_hpop
+//
+int
+sp_instr_hpop::execute(THD *thd, uint *nextp)
+{
+  DBUG_ENTER("sp_instr_hpop::execute");
+  thd->spcont->pop_handlers(m_count);
+  *nextp= m_ip+1;
+  DBUG_RETURN(0);
+}
+
+//
+// sp_instr_hreturn
+//
+int
+sp_instr_hreturn::execute(THD *thd, uint *nextp)
+{
+  DBUG_ENTER("sp_instr_hreturn::execute");
+  thd->spcont->restore_variables(m_frame);
+  *nextp= thd->spcont->pop_hstack();
   DBUG_RETURN(0);
 }
