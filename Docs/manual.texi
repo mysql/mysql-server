@@ -54017,7 +54017,7 @@ Tõnu Samuel).
 @item
 Fixed optimiser problem on @code{SELECT} when using many overlapping indexes.
 MySQL should now be able to choose keys even better when there
-is many keys to choose from.
+are many keys to choose from.
 @item
 Changed optimiser to prefer a range key instead of a ref key when the
 range key can uses more columns than the ref key (which only can use
@@ -58264,25 +58264,25 @@ Instead of using row level locks one can use application level locks
 only in well-behaved applications.
 
 In many cases one can do an educated guess which locking type is best
-for the application but generally it's very hard to say that a given
+for the application, but generally it's very hard to say that a given
 lock type is better than another; everything depends on the application
 and different part of the application may require different lock types.
 
 Here are some tips about locking in MySQL:
 
-On web application most applications do lots of selects, very few
-deletes, updates mainly on keys and inserts in some specific tables.
+Most web applications do lots of selects, very few
+deletes, updates mainly on keys, and inserts in some specific tables.
 The base MySQL setup is very well tuned for this.
 
-Concurrent users is not a problem if one doesn't mix updates and selects
-that needs to examine many rows in the same table.
+Concurrent users are not a problem if one doesn't mix updates with selects
+that need to examine many rows in the same table.
 
 If one mixes inserts and deletes on the same table then @code{INSERT DELAYED}
 may be of great help.
 
 One can also use @code{LOCK TABLES} to speed up things (many updates within
 a single lock is much faster than updates without locks).  Splitting
-thing to different tables will also helps.
+thing to different tables will also help.
 
 If you get speed problems with the table locks in MySQL, you
 may be able to solve these by converting some of your tables to @code{InnoDB}
@@ -58290,7 +58290,7 @@ or @code{BDB} tables.
 @xref{InnoDB}. @xref{BDB}.
 
 The optimisation section in the manual covers a lot of different aspects of
-how to tune ones application. @xref{Tips}.
+how to tune applications. @xref{Tips}.
 
 
 @node RTS-threads, Thread packages, Locking methods, Porting
