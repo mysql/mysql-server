@@ -52,7 +52,7 @@ public:
   bool send_fields(List<Item> *list, uint flag);
   bool send_records_num(List<Item> *list, ulonglong records);
   bool store(I_List<i_string> *str_list);
-  bool store(const char *from);
+  bool store(const char *from, CHARSET_INFO *cs);
   String *storage_packet() { return packet; }
   inline void free() { packet->free(); }
   bool write();
@@ -75,7 +75,7 @@ public:
   virtual bool store_short(longlong from)=0;
   virtual bool store_long(longlong from)=0;
   virtual bool store_longlong(longlong from, bool unsigned_flag)=0;
-  virtual bool store(const char *from, uint length)=0;
+  virtual bool store(const char *from, uint length, CHARSET_INFO *cs)=0;
   virtual bool store(float from, uint32 decimals, String *buffer)=0;
   virtual bool store(double from, uint32 decimals, String *buffer)=0;
   virtual bool store(TIME *time)=0;
@@ -98,7 +98,7 @@ public:
   virtual bool store_short(longlong from);
   virtual bool store_long(longlong from);
   virtual bool store_longlong(longlong from, bool unsigned_flag);
-  virtual bool store(const char *from, uint length);
+  virtual bool store(const char *from, uint length, CHARSET_INFO *cs);
   virtual bool store(TIME *time);
   virtual bool store_date(TIME *time);
   virtual bool store_time(TIME *time);
@@ -122,7 +122,7 @@ public:
   virtual bool store_short(longlong from);
   virtual bool store_long(longlong from);
   virtual bool store_longlong(longlong from, bool unsigned_flag);
-  virtual bool store(const char *from,uint length);
+  virtual bool store(const char *from,uint length, CHARSET_INFO *cs);
   virtual bool store(TIME *time);
   virtual bool store_date(TIME *time);
   virtual bool store_time(TIME *time);

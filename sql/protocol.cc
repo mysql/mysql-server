@@ -528,18 +528,20 @@ bool Protocol::send_fields(List<Item> *list, uint flag)
   while ((item=it++))
   {
     char *pos;
+    CHARSET_INFO *cs= system_charset_info;
     Send_field field;
     item->make_field(&field);
     prot.prepare_for_resend();
 
     if (thd->client_capabilities & CLIENT_PROTOCOL_41)
     {
-      if (prot.store(field.db_name, (uint) strlen(field.db_name)) ||
-	  prot.store(field.table_name, (uint) strlen(field.table_name)) ||
+      if (prot.store(field.db_name, (uint) strlen(field.db_name), cs) ||
+	  prot.store(field.table_name, (uint) strlen(field.table_name), cs) ||
 	  prot.store(field.org_table_name,
-		     (uint) strlen(field.org_table_name)) ||
-	  prot.store(field.col_name, (uint) strlen(field.col_name)) ||
-	  prot.store(field.org_col_name, (uint) strlen(field.org_col_name)) ||
+		     (uint) strlen(field.org_table_name), cs) ||
+	  prot.store(field.col_name, (uint) strlen(field.col_name), cs) ||
+	  prot.store(field.org_col_name, 
+		     (uint) strlen(field.org_col_name), cs) ||
 	  packet->realloc(packet->length()+12))
 	goto err;
       /* Store fixed length fields */
@@ -556,8 +558,8 @@ bool Protocol::send_fields(List<Item> *list, uint flag)
     }
     else
     {
-      if (prot.store(field.table_name, (uint) strlen(field.table_name)) ||
-	  prot.store(field.col_name, (uint) strlen(field.col_name)) ||
+      if (prot.store(field.table_name, (uint) strlen(field.table_name), cs) ||
+	  prot.store(field.col_name, (uint) strlen(field.col_name), cs) ||
 	  packet->realloc(packet->length()+10))
 	goto err;
       pos= (char*) packet->ptr()+packet->length();
@@ -639,12 +641,12 @@ bool Protocol::write()
     1		error
 */
 
-bool Protocol::store(const char *from)
+bool Protocol::store(const char *from, CHARSET_INFO *cs)
 {
   if (!from)
     return store_null();
   uint length= strlen(from);
-  return store(from, length);
+  return store(from, length, cs);
 }
 
 
@@ -668,7 +670,7 @@ bool Protocol::store(I_List<i_string>* str_list)
   }
   if ((len= tmp.length()))
     len--;					// Remove last ','
-  return store((char*) tmp.ptr(), len);
+  return store((char*) tmp.ptr(), len,  tmp.charset());
 }
 
 
@@ -701,7 +703,7 @@ bool Protocol_simple::store_null()
 #endif
 
 
-bool Protocol_simple::store(const char *from, uint length)
+bool Protocol_simple::store(const char *from, uint length, CHARSET_INFO *cs)
 {
 #ifndef DEBUG_OFF
   DBUG_ASSERT(field_types == 0 ||
@@ -712,7 +714,16 @@ bool Protocol_simple::store(const char *from, uint length)
 #endif
   if (convert)
     return convert_str(from, length);
-  return net_store_data(from, length);
+#if 0
+  if (cs != this->thd->charset())
+  {
+    String tmp;
+    tmp.copy(from, length, cs, this->thd->charset());
+    return net_store_data(tmp.ptr(), tmp.length());
+  }
+  else
+#endif
+    return net_store_data(from, length);
 }
 
 
@@ -904,7 +915,7 @@ void Protocol_prep::prepare_for_resend()
 }
 
 
-bool Protocol_prep::store(const char *from,uint length)
+bool Protocol_prep::store(const char *from,uint length, CHARSET_INFO *cs)
 {
 #ifndef DEBUG_OFF
   DBUG_ASSERT(field_types == 0 ||

@@ -2954,7 +2954,7 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
       }
     }
     protocol->prepare_for_resend();
-    protocol->store(global.ptr(),global.length());
+    protocol->store(global.ptr(),global.length(),global.charset());
     if (protocol->write())
     {
       error=-1;
@@ -3012,7 +3012,7 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
 	if (want_access & GRANT_ACL)
 	  db.append(" WITH GRANT OPTION",18);
 	protocol->prepare_for_resend();
-	protocol->store(db.ptr(),db.length());
+	protocol->store(db.ptr(),db.length(),db.charset());
 	if (protocol->write())
 	{
 	  error=-1;
@@ -3100,7 +3100,7 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
 	if (want_access & GRANT_ACL)
 	  global.append(" WITH GRANT OPTION",18);
 	protocol->prepare_for_resend();
-	protocol->store(global.ptr(),global.length());
+	protocol->store(global.ptr(),global.length(),global.charset());
 	if (protocol->write())
 	{
 	  error= -1;

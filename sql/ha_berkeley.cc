@@ -257,15 +257,15 @@ int berkeley_show_logs(Protocol *protocol)
     for (a = all_logs, f = free_logs; *a; ++a)
     {
       protocol->prepare_for_resend();
-      protocol->store(*a);
-      protocol->store("BDB", 3);
+      protocol->store(*a, system_charset_info);
+      protocol->store("BDB", 3, system_charset_info);
       if (f && *f && strcmp(*a, *f) == 0)
       {
 	f++;
-	protocol->store(SHOW_LOG_STATUS_FREE);
+	protocol->store(SHOW_LOG_STATUS_FREE, system_charset_info);
       }
       else
-	protocol->store(SHOW_LOG_STATUS_INUSE);
+	protocol->store(SHOW_LOG_STATUS_INUSE, system_charset_info);
 
       if (protocol->write())
       {
