@@ -263,7 +263,7 @@ int rtree_split_page(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *page, uchar *key,
 
   int max_keys = (mi_getint(page)-2) / (full_length);
 
-  n_dim = (keyinfo->keysegs-1) / 2;
+  n_dim = keyinfo->keysegs / 2;
 
   {
     int coord_buf_size = n_dim * 2 * sizeof(double) * (max_keys + 1 + 4);

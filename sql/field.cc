@@ -4530,7 +4530,6 @@ void Field_geom::get_key_image(char *buff,uint length,CHARSET_INFO *cs,
   ulong blob_length=get_length(ptr);
   char *blob;
   get_ptr(&blob);
-  memcpy(buff+2,blob,length);
 
   MBR mbr;
   Geometry gobj;

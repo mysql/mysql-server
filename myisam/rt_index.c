@@ -785,7 +785,7 @@ int rtree_delete(MI_INFO *info, uint keynr, uchar *key, uint key_length)
           goto err1;
       }
       if (ReinsertList.pages)
-        free(ReinsertList.pages);
+        my_free((byte*) ReinsertList.pages, MYF(0));
 
       /* check for redundant root (not leaf, 1 child) and eliminate */
       if ((old_root = info->s->state.key_root[keynr]) == HA_OFFSET_ERROR)
