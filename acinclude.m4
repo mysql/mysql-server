@@ -1525,7 +1525,7 @@ AC_DEFUN([MYSQL_CHECK_BLACKHOLEDB], [
 
   case "$blackholedb" in
     yes )
-      AC_DEFINE([HAVE_BLACKHOLE_DB], [1], [Builds Blackhole DB])
+      AC_DEFINE([HAVE_BLACKHOLE_DB], [1], [Builds Blackhole Storage Engine])
       AC_MSG_RESULT([yes])
       [blackholedb=yes]
       ;;
