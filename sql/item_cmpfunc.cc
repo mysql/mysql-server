@@ -221,6 +221,7 @@ void Item_bool_func2::fix_length_and_dec()
       {
 	conv= new Item_func_conv_charset(args[weak],args[strong]->collation.collation);
         conv->collation.set(args[weak]->collation.derivation);
+        conv->fix_fields(current_thd, 0, &conv);
       }
       args[weak]= conv ? conv : args[weak];
     }

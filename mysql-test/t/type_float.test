@@ -54,6 +54,12 @@ select a from t1 order by a;
 select min(a) from t1;
 drop table t1;
 
+create table t1 (a float(200,100), b double(200,100));
+insert t1 values (1.0, 2.0);
+select * from t1;
+show create table t1;
+drop table t1;
+
 # Errors
 
 --error 1063

@@ -494,7 +494,7 @@ static struct my_option my_long_options[] =
    "No automatic rehashing. One has to use 'rehash' to get table and field completion. This gives a quicker start of mysql and disables rehashing on reconnect. WARNING: options deprecated; use --disable-auto-rehash instead.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"batch", 'B',
-   "Print results with a tab as separator, each row on new line. Doesn't use history file.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+   "Don't use history file. Disable interactive behavior. (Enables --silent)", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"character-sets-dir", OPT_CHARSETS_DIR,
    "Directory where character sets are.", (gptr*) &charsets_dir,
    (gptr*) &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -515,7 +515,7 @@ static struct my_option my_long_options[] =
    (gptr*) &current_db, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"delimiter", OPT_DELIMITER, "Delimiter to be used.", (gptr*) &delimiter_str,
    (gptr*) &delimiter_str, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"execute", 'e', "Execute command and quit. (Output like with --batch).", 0,
+  {"execute", 'e', "Execute command and quit. (Disables --force and history file)", 0,
    0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"vertical", 'E', "Print the output of a query (rows) vertically.",
    (gptr*) &vertical, (gptr*) &vertical, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
@@ -597,7 +597,7 @@ static struct my_option my_long_options[] =
    0, 0, 0},
   {"reconnect", OPT_RECONNECT, "Reconnect if the connection is lost. Disable with --disable-reconnect. This option is enabled by default.", 
    (gptr*) &opt_reconnect, (gptr*) &opt_reconnect, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
-  {"silent", 's', "Be more silent.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0,
+  {"silent", 's', "Be more silent. Print results with a tab as separator, each row on new line.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0,
    0, 0},
 #ifdef HAVE_SMEM
   {"shared_memory_base_name", OPT_SHARED_MEMORY_BASE_NAME,
@@ -755,10 +755,10 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case 'e':
     status.batch= 1;
     status.add_to_history= 0;
-    batch_readline_end(status.line_buff);	// If multiple -e
-    if (!(status.line_buff= batch_readline_command(argument)))
+    if (!status.line_buff)
+      ignore_errors= 0;                         // do it for the first -e only
+    if (!(status.line_buff= batch_readline_command(status.line_buff, argument)))
       return 1;
-    ignore_errors= 0;
     break;
   case 'o':
     if (argument == disabled_my_option)
@@ -798,12 +798,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       verbose++;
     break;
   case 'B':
-    if (!status.batch)
-    {
-      status.batch= 1;
-      status.add_to_history= 0;
-      opt_silent++;				// more silent
-    }
+    status.batch= 1;
+    status.add_to_history= 0;
+    set_if_bigger(opt_silent,1);                         // more silent
     break;
   case 'W':
 #ifdef __WIN__
@@ -1108,11 +1105,8 @@ static bool add_line(String &buffer,char *line,char *in_string,
       }
       else
       {
-	int error= com_go(&buffer, 0);
-	if (error)
-	{
-	  return error < 0 ? 0 : 1;		// < 0 is not fatal
-	}
+	if (com_go(&buffer, 0) > 0)             // < 0 is not fatal
+	  return 1;
       }
       buffer.length(0);
       out= line;
