@@ -84,7 +84,6 @@ typedef Parser<ParserDummy> Parser_t;
 #define NDB_MGM_MAX_ERR_DESC_SIZE 256
 
 struct ndb_mgm_handle {
-  char * connectstring;
   int cfg_i;
   
   int connected;
@@ -1675,6 +1674,12 @@ extern "C"
 const char *ndb_mgm_get_connected_host(NdbMgmHandle handle)
 {
   return handle->cfg.ids[handle->cfg_i].name.c_str();
+}
+
+extern "C"
+const char *ndb_mgm_get_connectstring(NdbMgmHandle handle, char *buf, int buf_sz)
+{
+  return handle->cfg.makeConnectString(buf,buf_sz);
 }
 
 extern "C"

@@ -516,6 +516,12 @@ CommandInterpreter::execute_impl(const char *_line)
     executeConnect(allAfterFirstToken);
     DBUG_RETURN(true);
   }
+  else if((strcasecmp(firstToken, "QUIT") == 0 ||
+	  strcasecmp(firstToken, "EXIT") == 0 ||
+	  strcasecmp(firstToken, "BYE") == 0) && 
+	  allAfterFirstToken == NULL){
+    DBUG_RETURN(false);
+  }
 
   if (!connect())
     DBUG_RETURN(true);
@@ -571,12 +577,6 @@ CommandInterpreter::execute_impl(const char *_line)
   }
   else if (strcasecmp(firstToken, "ALL") == 0) {
     analyseAfterFirstToken(-1, allAfterFirstToken);
-  } 
-  else if((strcasecmp(firstToken, "QUIT") == 0 ||
-	  strcasecmp(firstToken, "EXIT") == 0 ||
-	  strcasecmp(firstToken, "BYE") == 0) && 
-	  allAfterFirstToken == NULL){
-    DBUG_RETURN(false);
   } else {
     /**
      * First token should be a digit, node ID
