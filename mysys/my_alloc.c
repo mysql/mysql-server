@@ -166,7 +166,8 @@ gptr alloc_root(MEM_ROOT *mem_root,unsigned int Size)
   gptr point;
   reg1 USED_MEM *next= 0;
   reg2 USED_MEM **prev;
-
+  DBUG_ENTER("alloc_root");
+  DBUG_PRINT("enter",("root: 0x%lx", mem_root));
   DBUG_ASSERT(alloc_root_inited(mem_root));
 
   Size= ALIGN_SIZE(Size);
@@ -213,7 +214,8 @@ gptr alloc_root(MEM_ROOT *mem_root,unsigned int Size)
     mem_root->used= next;
     mem_root->first_block_usage= 0;
   }
-  return(point);
+  DBUG_PRINT("exit",("ptr: 0x%lx", (ulong) point));
+  DBUG_RETURN(point);
 #endif
 }
 
