@@ -143,7 +143,8 @@ static byte *next_free_record_pos(HP_SHARE *info)
   }
   if (!(block_pos=(info->records % info->block.records_in_block)))
   {
-    if (info->records > info->max_records && info->max_records)
+    if ((info->records > info->max_records && info->max_records) ||
+        (info->data_length + info->index_length >= info->max_table_size))
     {
       my_errno=HA_ERR_RECORD_FILE_FULL;
       DBUG_RETURN(NULL);
