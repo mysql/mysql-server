@@ -749,7 +749,7 @@ AC_CHECK_HEADERS(fcntl.h float.h floatingpoint.h ieeefp.h limits.h \
  strings.h string.h synch.h sys/mman.h sys/socket.h netinet/in.h arpa/inet.h \
  sys/timeb.h sys/types.h sys/un.h sys/vadvise.h sys/wait.h term.h \
  unistd.h utime.h sys/utime.h termio.h termios.h sched.h crypt.h alloca.h \
- sys/ioctl.h malloc.h sys/malloc.h linux/config.h)
+ sys/ioctl.h malloc.h sys/malloc.h sys/ipc.h sys/shm.h linux/config.h)
 
 #--------------------------------------------------------------------
 # Check for system libraries. Adds the library to $LIBS
@@ -775,6 +775,22 @@ AC_CHECK_FUNC(crypt, AC_DEFINE([HAVE_CRYPT], [1], [crypt]))
 # For sem_xxx functions on Solaris 2.6
 AC_CHECK_FUNC(sem_init, , AC_CHECK_LIB(posix4, sem_init))
 MYSQL_CHECK_ZLIB_WITH_COMPRESS
+
+# For large pages support
+if test "$IS_LINUX" = "true"
+then
+  # For SHM_HUGETLB on Linux
+  AC_CHECK_DECLS(SHM_HUGETLB, 
+      AC_DEFINE([HAVE_LARGE_PAGES], [1], 
+                [Define if you have large pages support])
+      AC_DEFINE([HUGETLB_USE_PROC_MEMINFO], [1],
+                [Define if /proc/meminfo shows the huge page size (Linux only)])
+      , ,
+      [
+#include <sys/shm.h>
+      ]
+  )
+fi
 
 #--------------------------------------------------------------------
 # Check for TCP wrapper support
