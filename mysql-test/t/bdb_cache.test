@@ -1,0 +1,50 @@
+-- source include/have_bdb.inc
+-- source include/have_query_cache.inc
+
+#
+# Without auto_commit.
+#
+drop table if exists t1, t2, t3;
+flush status;
+set autocommit=0;
+create table t1 (a int not null) type=bdb;
+insert into t1 values (1),(2),(3);
+select * from t1;
+show status like "Qcache_queries_in_cache";
+drop table t1;
+commit;
+set autocommit=1;
+begin;
+create table t1 (a int not null) type=bdb;
+insert into t1 values (1),(2),(3);
+select * from t1;
+show status like "Qcache_queries_in_cache";
+drop table t1;
+commit;
+create table t1 (a int not null) type=bdb;
+create table t2 (a int not null) type=bdb;
+create table t3 (a int not null) type=bdb;
+insert into t1 values (1),(2);
+insert into t2 values (1),(2);
+insert into t3 values (1),(2);
+select * from t1;
+select * from t2;
+select * from t3;
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_hits";
+begin;
+select * from t1;
+select * from t2;
+select * from t3;
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_hits";
+insert into t1 values (3);
+insert into t2 values (3);
+insert into t1 values (4);
+select * from t1;
+select * from t2;
+select * from t3;
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_hits";
+commit;
+show status like "Qcache_queries_in_cache";

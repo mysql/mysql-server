@@ -436,9 +436,9 @@ typedef struct st_lex
   uint grant, grant_tot_col, which_columns;
   uint fk_delete_opt, fk_update_opt, fk_match_option;
   uint param_count;
-  bool drop_primary, drop_if_exists, local_file, olap;
+  bool drop_primary, drop_if_exists, drop_temporary, local_file;
   bool in_comment, ignore_space, verbose, simple_alter;
-  bool derived_tables, describe;
+  bool derived_tables, describe, olap;
   uint slave_thd_opt;
   CHARSET_INFO *charset;
   char *help_arg;

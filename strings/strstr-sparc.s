@@ -33,10 +33,10 @@ strstr:
 
 	ldsb	[%o1],%o2		! o2= First char of search
 .top:
-	ldsb	[%o0],%g3		! g3= First char of rest of str
-	cmp	%g3,0
+	ldsb	[%o0],%o4		! o4= First char of rest of str
+	cmp	%o4,0
 	be	.abort			! Found end null		; 
-	cmp	%g3,%o2
+	cmp	%o4,%o2
 	bne	.top
 	add	%o0,1,%o0
 
@@ -45,20 +45,20 @@ strstr:
 !      while (*j)
 !	if (*i++ != *j++) goto skipp;
 
-	or	%g0,%o0,%g2
-	add	%o1,1,%g3		! g3= search+1
+	or	%g0,%o0,%o3
+	add	%o1,1,%o4		! o4= search+1
 	ldsb	[%o0],%o5		! o5= [current_str+1]
 
 .loop2:
-	ldsb	[%g3],%g4
-	add	%g3,1,%g3
+	ldsb	[%o4],%g4
+	add	%o4,1,%o4
 	cmp	%g4,0
 	be	.end	
 	cmp	%o5,%g4
 	bne	.top
-	add	%g2,1,%g2
+	add	%o3,1,%o3
 	ba	.loop2
-	ldsb	[%g2],%o5
+	ldsb	[%o3],%o5
 
 .end:
 	retl

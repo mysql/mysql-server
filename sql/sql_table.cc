@@ -110,6 +110,17 @@ int mysql_rm_table_part2_with_lock(THD *thd,
   return error;
 }
 
+/*
+  TODO:
+    When logging to the binary log, we should log
+    tmp_tables and transactional tables as separate statements if we
+    are in a transaction;  This is needed to get these tables into the
+    cached binary log that is only written on COMMIT.
+
+   The current code only writes DROP statements that only uses temporary
+   tables to the cache binary log.  This should be ok on most cases, but
+   not all.
+*/
 
 int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
 			 bool dont_log_query)
@@ -119,7 +130,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
   String wrong_tables;
   db_type table_type;
   int error;
-  bool some_tables_deleted=0;
+  bool some_tables_deleted=0, tmp_table_deleted=0;
   DBUG_ENTER("mysql_rm_table_part2");
 
   for (table=tables ; table ; table=table->next)
@@ -127,7 +138,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
     char *db=table->db ? table->db : thd->db;
     if (!close_temporary_table(thd, db, table->real_name))
     {
-      some_tables_deleted=1;			// Log query
+      tmp_table_deleted=1;
       continue;					// removed temporary table
     }
 
@@ -143,8 +154,8 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
       DBUG_RETURN(-1);
 
     /* remove form file and isam files */
-    (void) sprintf(path,"%s/%s/%s%s",mysql_data_home,db,table->real_name,
-		   reg_ext);
+    strxmov(path, mysql_data_home, "/", db, "/", table->real_name, reg_ext,
+	    NullS);
     (void) unpack_filename(path,path);
     error=0;
 
@@ -177,7 +188,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
       wrong_tables.append(String(table->real_name,default_charset_info));
     }
   }
-  if (some_tables_deleted)
+  if (some_tables_deleted || tmp_table_deleted)
   {
     query_cache_invalidate3(thd, tables, 0);
     if (!dont_log_query)
@@ -185,7 +196,8 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
       mysql_update_log.write(thd, thd->query,thd->query_length);
       if (mysql_bin_log.is_open())
       {
-	Query_log_event qinfo(thd, thd->query, thd->query_length);
+	Query_log_event qinfo(thd, thd->query, thd->query_length,
+			      tmp_table_deleted && !some_tables_deleted);
 	mysql_bin_log.write(&qinfo);
       }
     }
@@ -271,7 +283,8 @@ static int sort_keys(KEY *a, KEY *b)
     create_info		Create information (like MAX_ROWS)
     fields		List of fields to create
     keys		List of keys to create
-    tmp_table		Set to 1 if this is a temporary table
+    tmp_table		Set to 1 if this is an internal temporary table
+			(From ALTER TABLE)    
     no_log		Don't log the query to binary log.
 
   DESCRIPTION		       
@@ -784,23 +797,12 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
 
   thd->proc_info="creating table";
 
-  create_info->create_statement = thd->query;
   create_info->table_options=db_options;
   if (rea_create_table(thd, path, create_info, fields, key_count,
 		       key_info_buffer))
   {
     /* my_error(ER_CANT_CREATE_TABLE,MYF(0),table_name,my_errno); */
     goto end;
-  }
-  if (!tmp_table && !no_log)
-  {
-    // Must be written before unlock
-    mysql_update_log.write(thd,thd->query, thd->query_length);
-    if (mysql_bin_log.is_open())
-    {
-      Query_log_event qinfo(thd, thd->query, thd->query_length);
-      mysql_bin_log.write(&qinfo);
-    }
   }
   if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
   {
@@ -809,6 +811,18 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
     {
       (void) rm_temporary_table(create_info->db_type, path);
       goto end;
+    }
+  }
+  if (!tmp_table && !no_log)
+  {
+    // Must be written before unlock
+    mysql_update_log.write(thd,thd->query, thd->query_length);
+    if (mysql_bin_log.is_open())
+    {
+      Query_log_event qinfo(thd, thd->query, thd->query_length,
+			    test(create_info->options &
+				 HA_LEX_CREATE_TMP_TABLE));
+      mysql_bin_log.write(&qinfo);
     }
   }
   error=0;
@@ -1255,8 +1269,13 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
 
     switch (result_code) {
     case HA_ADMIN_NOT_IMPLEMENTED:
-      net_store_data(packet, "error");
-      net_store_data(packet, ER(ER_CHECK_NOT_IMPLEMENTED));
+      {
+        char buf[ERRMSGSIZE+20];
+        my_snprintf(buf, ERRMSGSIZE,
+            ER(ER_CHECK_NOT_IMPLEMENTED), operator_name);
+        net_store_data(packet, "error");
+        net_store_data(packet, buf);
+      }
       break;
 
     case HA_ADMIN_OK:
@@ -1511,7 +1530,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
       mysql_update_log.write(thd, thd->query, thd->query_length);
       if (mysql_bin_log.is_open())
       {
-	Query_log_event qinfo(thd, thd->query, thd->query_length);
+	Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
 	mysql_bin_log.write(&qinfo);
       }
       send_ok(thd);
@@ -1887,7 +1906,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     mysql_update_log.write(thd, thd->query,thd->query_length);
     if (mysql_bin_log.is_open())
     {
-      Query_log_event qinfo(thd, thd->query, thd->query_length);
+      Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
       mysql_bin_log.write(&qinfo);
     }
     goto end_temporary;
@@ -2016,7 +2035,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   mysql_update_log.write(thd, thd->query,thd->query_length);
   if (mysql_bin_log.is_open())
   {
-    Query_log_event qinfo(thd, thd->query, thd->query_length);
+    Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
     mysql_bin_log.write(&qinfo);
   }
   VOID(pthread_cond_broadcast(&COND_refresh));

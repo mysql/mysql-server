@@ -50,11 +50,10 @@ int mysql_update(THD *thd,
                  COND *conds,
                  ORDER *order,
 		 ha_rows limit,
-		 enum enum_duplicates handle_duplicates,
-		 thr_lock_type lock_type)
+		 enum enum_duplicates handle_duplicates)
 {
-  bool 		using_limit=limit != HA_POS_ERROR;
-  bool		used_key_is_modified, using_transactions;
+  bool 		using_limit=limit != HA_POS_ERROR, safe_update= thd->options & OPTION_SAFE_UPDATES;
+  bool		used_key_is_modified, transactional_table, log_delayed;
   int		error=0;
   uint		save_time_stamp, used_index, want_privilege;
   ulong		query_id=thd->query_id, timestamp_query_id;
@@ -66,7 +65,7 @@ int mysql_update(THD *thd,
   LINT_INIT(used_index);
   LINT_INIT(timestamp_query_id);
 
-  if (!(table = open_ltable(thd,table_list,lock_type)))
+  if (!(table = open_ltable(thd,table_list,table_list->lock_type)))
     DBUG_RETURN(-1); /* purecov: inspected */
   save_time_stamp=table->time_stamp;
   table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
@@ -117,9 +116,7 @@ int mysql_update(THD *thd,
   table->used_keys=0;
   select=make_select(table,0,0,conds,&error);
   if (error ||
-      (select && select->check_quick(test(thd->options & OPTION_SAFE_UPDATES),
-				     limit)) ||
-      !limit)
+      (select && select->check_quick(safe_update, limit)) || !limit)
   {
     delete select;
     table->time_stamp=save_time_stamp;		// Restore timestamp pointer
@@ -134,7 +131,7 @@ int mysql_update(THD *thd,
   if (!table->quick_keys)
   {
     thd->lex.select_lex.options|=QUERY_NO_INDEX_USED;
-    if ((thd->options & OPTION_SAFE_UPDATES) && limit == HA_POS_ERROR)
+    if (safe_update && !using_limit)
     {
       delete select;
       table->time_stamp=save_time_stamp;
@@ -301,23 +298,34 @@ int mysql_update(THD *thd,
   thd->proc_info="end";
   VOID(table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY));
   table->time_stamp=save_time_stamp;	// Restore auto timestamp pointer
-  using_transactions=table->file->has_transactions();
-  if (updated && (error <= 0 || !using_transactions))
+  transactional_table= table->file->has_transactions();
+  log_delayed= (transactional_table || table->tmp_table);
+  if (updated && (error <= 0 || !transactional_table))
   {
     mysql_update_log.write(thd,thd->query,thd->query_length);
     if (mysql_bin_log.is_open())
     {
       Query_log_event qinfo(thd, thd->query, thd->query_length,
-			    using_transactions);
-      if (mysql_bin_log.write(&qinfo) && using_transactions)
-	error=1;
+			    log_delayed);
+      if (mysql_bin_log.write(&qinfo) && transactional_table)
+	error=1;				// Rollback update
     }
-    if (!using_transactions)
+    if (!log_delayed)
       thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;
   }
-  if (using_transactions && ha_autocommit_or_rollback(thd, error >= 0))
-    error=1;
-  if (updated)
+  if (transactional_table)
+  {
+    if (ha_autocommit_or_rollback(thd, error >= 0))
+      error=1;
+  }
+  /*
+    Only invalidate the query cache if something changed or if we
+    didn't commit the transacion (query cache is automaticly
+    invalidated on commit)
+  */
+  if (updated &&
+      (!transactional_table ||
+       thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))
   {
     query_cache_invalidate3(thd, table_list, 1);
   }
@@ -349,10 +357,12 @@ int mysql_update(THD *thd,
   Update multiple tables from join 
 ***************************************************************************/
 
-multi_update::multi_update(THD *thd_arg, TABLE_LIST *ut, List<Item> &fs, 		 
-			   enum enum_duplicates handle_duplicates,  thr_lock_type lock_option_arg, uint num)
-  : update_tables (ut), thd(thd_arg), updated(0), found(0), fields(fs), lock_option(lock_option_arg),
-    dupl(handle_duplicates), num_of_tables(num), num_fields(0), num_updated(0) , error(0),  do_update(false)
+multi_update::multi_update(THD *thd_arg, TABLE_LIST *ut, List<Item> &fs, 
+			   enum enum_duplicates handle_duplicates, 
+			   uint num)
+  : update_tables (ut), thd(thd_arg), updated(0), found(0), fields(fs),
+    dupl(handle_duplicates), num_of_tables(num), num_fields(0), num_updated(0),
+    error(0),  do_update(false)
 {
   save_time_stamps = (uint *) sql_calloc (sizeof(uint) * num_of_tables);
   tmp_tables = (TABLE **)NULL;
@@ -695,7 +705,7 @@ void multi_update::send_error(uint errcode,const char *err)
 
 int multi_update::do_updates (bool from_send_error)
 {
-  int error = 0, counter = 0;
+  int local_error= 0, counter= 0;
 
   if (from_send_error)
   {
@@ -720,7 +730,7 @@ int multi_update::do_updates (bool from_send_error)
     TABLE *tmp_table=tmp_tables[counter];
     if (tmp_table->file->extra(HA_EXTRA_NO_CACHE))
     {
-      error=1;
+      local_error=1;
       break;
     }
     List<Item> list;
@@ -736,35 +746,36 @@ int multi_update::do_updates (bool from_send_error)
       tmp_table->used_keys&=field->part_of_key;
     }
     tmp_table->used_fields=tmp_table->fields;
-    error=0; list.pop(); // we get position some other way ...
-    error = tmp_table->file->rnd_init(1);
-    if (error) 
-      return error;
-    while (!(error=tmp_table->file->rnd_next(tmp_table->record[0])) &&
+    local_error=0;
+    list.pop();			// we get position some other way ...
+    local_error = tmp_table->file->rnd_init(1);
+    if (local_error) 
+      return local_error;
+    while (!(local_error=tmp_table->file->rnd_next(tmp_table->record[0])) &&
 	   (!thd->killed ||  from_send_error || not_trans_safe))
     {
       found++; 
-      error= table->file->rnd_pos(table->record[0],
-				  (byte*) (*(tmp_table->field))->ptr);
-      if (error)
-	return error;
+      local_error= table->file->rnd_pos(table->record[0],
+					(byte*) (*(tmp_table->field))->ptr);
+      if (local_error)
+	return local_error;
       table->status|= STATUS_UPDATED;
       store_record(table,1); 
-      error= fill_record(*fields_by_tables[counter + 1],list) ||
-	/* compare_record(table, query_id) || */
-	table->file->update_row(table->record[1],table->record[0]);
-      if (error)
+      local_error= (fill_record(*fields_by_tables[counter + 1],list) ||
+		    /* compare_record(table, query_id) || */
+		    table->file->update_row(table->record[1],table->record[0]));
+      if (local_error)
       {
-	table->file->print_error(error,MYF(0));
+	table->file->print_error(local_error,MYF(0));
 	break;
       }
       else
 	updated++;
     }
-    if (error == HA_ERR_END_OF_FILE)
-      error = 0;
+    if (local_error == HA_ERR_END_OF_FILE)
+      local_error = 0;
   }
-  return error;
+  return local_error;
 }
 
 
@@ -775,18 +786,18 @@ bool multi_update::send_eof()
   thd->proc_info="updating the  reference tables";
 
   /* Does updates for the last n - 1 tables, returns 0 if ok */
-  int error = (num_updated) ? do_updates(false) : 0;   /* do_updates returns 0 if success */
+  int local_error = (num_updated) ? do_updates(false) : 0;
 
   /* reset used flags */
 #ifndef NOT_USED
   update_tables->table->no_keyread=0;
 #endif
-  if (error == -1)
-    error = 0;
-  thd->proc_info="end";
-  //TODO error should be sent at the query processing end
-  if (error)
-    send_error(error,"An error occured in multi-table update");
+  if (local_error == -1)
+    local_error= 0;
+  thd->proc_info= "end";
+  // TODO:  Error should be sent at the query processing end
+  if (local_error)
+    send_error(local_error, "An error occured in multi-table update");
 
   /*
     Write the SQL statement to the binlog if we updated
@@ -798,7 +809,7 @@ bool multi_update::send_eof()
   if (updated || not_trans_safe)
   {
     mysql_update_log.write(thd,thd->query,thd->query_length);
-    Query_log_event qinfo(thd, thd->query, thd->query_length);
+    Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
 
     /*
       mysql_bin_log is not open if binlogging or replication
@@ -807,14 +818,14 @@ bool multi_update::send_eof()
 
     if (mysql_bin_log.is_open() &&  mysql_bin_log.write(&qinfo) &&
 	!not_trans_safe)
-      error=1;  /* Log write failed: roll back the SQL statement */
+      local_error=1;  /* Log write failed: roll back the SQL statement */
 
     /* Commit or rollback the current SQL statement */ 
-    VOID(ha_autocommit_or_rollback(thd,error > 0));
+    VOID(ha_autocommit_or_rollback(thd, local_error > 0));
   }
   else
-    error=0; // this can happen only if it is end of file error
-  if (!error) // if the above log write did not fail ...
+    local_error= 0; // this can happen only if it is end of file error
+  if (!local_error) // if the above log write did not fail ...
   {
     char buff[80];
     sprintf(buff,ER(ER_UPDATE_INFO), (long) found, (long) updated,

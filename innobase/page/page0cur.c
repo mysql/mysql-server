@@ -169,7 +169,7 @@ page_cur_search_with_match(
 	ut_ad(dtuple_check_typed(tuple));
 	ut_ad((mode == PAGE_CUR_L) || (mode == PAGE_CUR_LE)
 	      || (mode == PAGE_CUR_G) || (mode == PAGE_CUR_GE)
-	      || (mode == PAGE_CUR_DBG));
+	      || (mode == PAGE_CUR_LE_OR_EXTENDS) || (mode == PAGE_CUR_DBG));
 	      
 #ifdef PAGE_CUR_ADAPT
 	if ((page_header_get_field(page, PAGE_LEVEL) == 0)
@@ -232,9 +232,26 @@ page_cur_search_with_match(
 			low_matched_bytes = cur_matched_bytes;
 
 		} else if (cmp == -1) {
-			up = mid;
-			up_matched_fields = cur_matched_fields;
-			up_matched_bytes = cur_matched_bytes; 
+
+			if (mode == PAGE_CUR_LE_OR_EXTENDS
+			    && dfield_get_len(dtuple_get_nth_field(tuple,
+			    				cur_matched_fields))
+			    	== cur_matched_bytes
+			    && rec_get_nth_field_len(mid_rec,
+							cur_matched_fields)
+				!= UNIV_SQL_NULL) {
+
+				/* This means current dfield is not SQL
+			    	NULL, and the current rec field extends it */
+
+				low = mid;
+				low_matched_fields = cur_matched_fields;
+				low_matched_bytes = cur_matched_bytes;
+			} else {
+				up = mid;
+				up_matched_fields = cur_matched_fields;
+				up_matched_bytes = cur_matched_bytes;
+			}
 
 		} else if ((mode == PAGE_CUR_G) || (mode == PAGE_CUR_LE)) {
 			low = mid;
@@ -252,8 +269,8 @@ page_cur_search_with_match(
 	slot = page_dir_get_nth_slot(page, up);
 	up_rec = page_dir_slot_get_rec(slot);
 
-	/* Perform linear search until the upper and lower records
-	come to distance 1 of each other. */
+	/* Perform linear search until the upper and lower records come to
+	distance 1 of each other. */
 
    	while (page_rec_get_next(low_rec) != up_rec) {
 
@@ -272,10 +289,25 @@ page_cur_search_with_match(
 			low_matched_bytes = cur_matched_bytes;
 
 		} else if (cmp == -1) {
-			up_rec = mid_rec;
-			up_matched_fields = cur_matched_fields;
-			up_matched_bytes = cur_matched_bytes; 
+			if (mode == PAGE_CUR_LE_OR_EXTENDS
+			    && dfield_get_len(dtuple_get_nth_field(tuple,
+			    				cur_matched_fields))
+			    	== cur_matched_bytes
+			    && rec_get_nth_field_len(mid_rec,
+							cur_matched_fields)
+				!= UNIV_SQL_NULL) {
 
+				/* This means current dfield is not SQL
+			    	NULL, and the current rec field extends it */
+
+				low = mid;
+				low_matched_fields = cur_matched_fields;
+				low_matched_bytes = cur_matched_bytes;
+			} else {
+				up_rec = mid_rec;
+				up_matched_fields = cur_matched_fields;
+				up_matched_bytes = cur_matched_bytes;
+			}
 		} else if ((mode == PAGE_CUR_G) || (mode == PAGE_CUR_LE)) {
 			low_rec = mid_rec;
 			low_matched_fields = cur_matched_fields;

@@ -242,7 +242,7 @@ my_bool my_connect(my_socket s, const struct sockaddr *name,
   {
     tv.tv_sec = (long) timeout;
     tv.tv_usec = 0;
-#if defined(HPUX) && defined(THREAD)
+#if defined(HPUX10) && defined(THREAD)
     if ((res = select(s+1, NULL, (int*) &sfds, NULL, &tv)) >= 0)
       break;
 #else
@@ -1807,6 +1807,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
 #endif
   init_sigpipe_variables
   DBUG_ENTER("mysql_real_connect");
+  LINT_INIT(host_info);
 
   DBUG_PRINT("enter",("host: %s  db: %s  user: %s",
 		      host ? host : "(Null)",
@@ -2188,15 +2189,18 @@ Try also with PIPE or TCP/IP
 				       options->ssl_capath,
 				       options->ssl_cipher)))
     {
-      /* TODO: Change to SSL error */
-      net->last_errno= CR_SERVER_LOST;
+      net->last_errno= CR_SSL_CONNECTION_ERROR;
       strmov(net->last_error,ER(net->last_errno));    
       goto error;
     }
     DBUG_PRINT("info", ("IO layer change in progress..."));
-    /* TODO:  Add proper error checking here, with return error message */
-    sslconnect((struct st_VioSSLConnectorFd*)(mysql->connector_fd),
-	       mysql->net.vio, (long) (mysql->options.connect_timeout));
+    if(sslconnect((struct st_VioSSLConnectorFd*)(mysql->connector_fd),
+	        mysql->net.vio, (long) (mysql->options.connect_timeout)))
+    {
+      net->last_errno= CR_SSL_CONNECTION_ERROR;
+      strmov(net->last_error,ER(net->last_errno));
+      goto error;    
+    }
     DBUG_PRINT("info", ("IO layer change done!"));
   }
 #endif /* HAVE_OPENSSL */

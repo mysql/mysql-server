@@ -26,6 +26,18 @@ Created 1/8/1996 Heikki Tuuri
 #include "ut0byte.h"
 #include "trx0types.h"
 
+/*************************************************************************
+Accepts a specified string. Comparisons are case-insensitive. */
+
+char*
+dict_accept(
+/*========*/
+			/* out: if string was accepted, the pointer
+			is moved after that, else ptr is returned */
+	char*	ptr,	/* in: scan from this */
+	const char* string,/* in: accept only this string as the next
+			non-whitespace string */
+	ibool*	success);/* out: TRUE if accepted */
 /************************************************************************
 Decrements the count of open MySQL handles to a table. */
 
@@ -798,7 +810,7 @@ dict_mutex_exit_for_mysql(void);
 
 
 extern dict_sys_t*	dict_sys;	/* the dictionary system */
-extern rw_lock_t	dict_foreign_key_check_lock;
+extern rw_lock_t	dict_operation_lock;
 
 /* Dictionary system struct */
 struct dict_sys_struct{

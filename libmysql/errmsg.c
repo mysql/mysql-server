@@ -50,6 +50,7 @@ const char *client_errors[]=
   "Error on SHOW SLAVE HOSTS:",
   "Error connecting to slave:",
   "Error connecting to master:",
+  "SSL connection error",
   "Invalid connection handle",
   "Invalid use of null pointer",
   "Statement not prepared",
@@ -68,8 +69,8 @@ const char *client_errors[]=
   "Can't open shared memory. Map of memory don't create for client (%lu)",
   "Can't open shared memory. %s event don't create for client (%lu)",
   "Can't open shared memory. Server abandoded and don't sent the answer event (%lu)",
-  "Can't open shared memory. Can't send the request event to server (%lu)"
-  "Wrong or unknow protocol"
+  "Can't open shared memory. Can't send the request event to server (%lu)",
+  "Wrong or unknown protocol"
 };
 
 /* Start of code added by Roberto M. Serqueira - martinsc@uol.com.br - 05.24.2001 */
@@ -103,6 +104,7 @@ const char *client_errors[]=
   "Error on SHOW SLAVE HOSTS:",
   "Error connecting to slave:",
   "Error connecting to master:",
+  "SSL connection error",
   "Invalid connection handle",
   "Invalid use of null pointer",
   "Statement not prepared",
@@ -121,8 +123,8 @@ const char *client_errors[]=
   "Can't open shared memory. Map of memory don't create for client (%lu)",
   "Can't open shared memory. %s event don't create for client (%lu)",
   "Can't open shared memory. Server abandoded and don't sent the answer event (%lu)",
-  "Can't open shared memory. Can't send the request event to server (%lu)"
-  "Wrong or unknow protocol"
+  "Can't open shared memory. Can't send the request event to server (%lu)",
+  "Wrong or unknown protocol"
 };
 
 #else /* ENGLISH */
@@ -154,6 +156,7 @@ const char *client_errors[]=
   "Error on SHOW SLAVE HOSTS:",
   "Error connecting to slave:",
   "Error connecting to master:",
+  "SSL connection error",
   "Invalid connection handle",
   "Invalid use of null pointer",
   "Statement not prepared",
@@ -172,8 +175,8 @@ const char *client_errors[]=
   "Can't open shared memory. Map of memory don't create for client (%lu)",
   "Can't open shared memory. %s event don't create for client (%lu)",
   "Can't open shared memory. Server abandoded and don't sent the answer event (%lu)",
-  "Can't open shared memory. Can't send the request event to server (%lu)"
-  "Wrong or unknow protocol"
+  "Can't open shared memory. Can't send the request event to server (%lu)",
+  "Wrong or unknown protocol"
 };
 #endif
 

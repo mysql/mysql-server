@@ -301,8 +301,10 @@ enum data_file_type {
 
 /* For number of records */
 #ifdef BIG_TABLES
+#define rows2double(A)	ulonglong2double(A)
 typedef my_off_t	ha_rows;
 #else
+#define rows2double(A)	(double) (A)
 typedef ulong		ha_rows;
 #endif
 
