@@ -219,29 +219,31 @@ struct show_privileges_st {
   const char *comment;
 };
 
-
-/*
-  TODO:  Update with new privileges
-*/
 static struct show_privileges_st sys_privileges[]=
 {
-  {"Select", "Tables",  "To retrieve rows from table"},
-  {"Insert", "Tables",  "To insert data into tables"},
-  {"Update", "Tables",  "To update existing rows "},
-  {"Delete", "Tables",  "To delete existing rows"},
-  {"Index",  "Tables",  "To create or drop indexes"},
-  {"Alter",  "Tables",  "To alter the table"},
+  {"Alter", "Tables",  "To alter the table"},
+  {"Create temporary tables","Databases","To use CREATE TEMPORARY TABLE"},
   {"Create", "Databases,Tables,Indexes",  "To create new databases and tables"},
-  {"Drop",   "Databases,Tables", "To drop databases and tables"},
-  {"Grant",  "Databases,Tables", "To give to other users those privileges you possess"},
-  {"References", "Databases,Tables", "To have references on tables"},
-  {"Reload",  "Server Admin", "To reload or refresh tables, logs and privileges"},
-  {"Shutdown","Server Admin", "To shutdown the server"},
+  {"Delete", "Tables",  "To delete existing rows"},
+  {"Drop", "Databases,Tables", "To drop databases and tables"},
+  {"File", "File access on server",   "To read and write files on the server"},
+  {"Grant option",  "Databases,Tables", "To give to other users those privileges you possess"},
+  {"Index", "Tables",  "To create or drop indexes"},
+  {"Insert", "Tables",  "To insert data into tables"},
+  {"Lock tables","Databases","To use LOCK TABLES (together with SELECT privilege)"},
   {"Process", "Server Admin", "To view the plain text of currently executing queries"},
-  {"File",    "File access on server",   "To read and write files on the server"},
+  {"References", "Databases,Tables", "To have references on tables"},
+  {"Reload", "Server Admin", "To reload or refresh tables, logs and privileges"},
+  {"Replication client","Server Admin","To ask where the slave or master servers are"},
+  {"Replication slave","Server Admin","To read binary log events from the master"},
+  {"Select", "Tables",  "To retrieve rows from table"},
+  {"Show databases","Server Admin","To see all databases with SHOW DATABASES"},
+  {"Shutdown","Server Admin", "To shutdown the server"},
+  {"Super","Server Admin","To use KILL thread, SET GLOBAL, CHANGE MASTER, etc."},
+  {"Update", "Tables",  "To update existing rows"},
+  {"Usage","Server Admin","No privileges - allow connect only"},
   {NullS, NullS, NullS}
 };
-
 
 int mysqld_show_privileges(THD *thd)
 {
@@ -299,11 +301,11 @@ static struct show_column_type_st sys_column_types[]=
 {
   {"tinyint",
     1,  "-128",  "127",  0,  0,  "YES",  "YES",
-    "NO",   "YES", "YES",  "NO",  "NULL,0",  
-    "A very small integer"}, 
+    "NO",   "YES", "YES",  "NO",  "NULL,0",
+    "A very small integer"},
   {"tinyint unsigned",
-    1,  "0"   ,  "255",  0,  0,  "YES",  "YES",  
-    "YES",  "YES",  "YES",  "NO",  "NULL,0", 
+    1,  "0"   ,  "255",  0,  0,  "YES",  "YES",
+    "YES",  "YES",  "YES",  "NO",  "NULL,0",
     "A very small integer"},
 };
 
