@@ -227,6 +227,9 @@ typedef struct st_copy_info {
 /* for INSERT ... UPDATE */
   List<Item> *update_fields;
   List<Item> *update_values;
+/* for VIEW ... WITH CHECK OPTION */
+  Item *check_option;
+  bool ignore;
 } COPY_INFO;
 
 
@@ -1180,14 +1183,8 @@ class select_insert :public select_result {
   bool insert_into_view;
 
   select_insert(TABLE_LIST *table_list_par, TABLE *table_par,
-                List<Item> *fields_par, enum_duplicates duplic)
-    :table_list(table_list_par), table(table_par), fields(fields_par),
-     last_insert_id(0),
-     insert_into_view(table_list_par && table_list_par->view != 0)
-  {
-    bzero((char*) &info,sizeof(info));
-    info.handle_duplicates=duplic;
-  }
+                List<Item> *fields_par, enum_duplicates duplic,
+                bool ignore_check_option_errors);
   ~select_insert();
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   bool send_fields(List<Item> &list, uint flags) { return 0; }
@@ -1211,7 +1208,7 @@ public:
 		 List<create_field> &fields_par,
 		 List<Key> &keys_par,
 		 List<Item> &select_fields,enum_duplicates duplic)
-    :select_insert (NULL, NULL, &select_fields, duplic), create_table(table),
+    :select_insert (NULL, NULL, &select_fields, duplic, 0), create_table(table),
     extra_fields(&fields_par),keys(&keys_par), create_info(create_info_par),
     lock(0)
     {}

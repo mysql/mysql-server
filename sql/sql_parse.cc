@@ -2769,7 +2769,8 @@ unsent_create_error:
       if ((res= mysql_insert_select_prepare(thd)))
         break;
       if ((result= new select_insert(first_table, first_table->table,
-                                     &lex->field_list, lex->duplicates)))
+                                     &lex->field_list, lex->duplicates,
+                                     lex->duplicates == DUP_IGNORE)))
 	/* Skip first table, which is the table we are inserting in */
 	lex->select_lex.table_list.first= (byte*) first_table->next_local;
         /*
