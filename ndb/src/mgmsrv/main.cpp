@@ -180,7 +180,12 @@ NDB_MAIN(mgmsrv){
   glob.use_specific_ip = false;
 
   if(!glob.use_specific_ip){
-    if(!glob.socketServer->tryBind(glob.port, glob.interface_name)){
+    int count= 5; // no of retries for tryBind
+    while(!glob.socketServer->tryBind(glob.port, glob.interface_name)){
+      if (--count > 0) {
+	NdbSleep_MilliSleep(1000);
+	continue;
+      }
       ndbout_c("Unable to setup port: %s:%d!\n"
 	       "Please check if the port is already used,\n"
 	       "(perhaps a ndb_mgmd is already running),\n"
