@@ -281,6 +281,7 @@ mwagner@work.mysql.com|mysql-test/r/3.23/sel000002.result|20001010091454|29230|d
 sasha@mysql.sashanet.com|BitKeeper/etc/logging_ok|20000801000905|12967|5b7d847a2158554
 sasha@mysql.sashanet.com|libmysql_r/acconfig.h|20001128060846|51084|65f1202b3b5c345f
 sasha@mysql.sashanet.com|mysql-test/README.gcov|20001012045950|28177|5a6da067a30780ce
+sasha@mysql.sashanet.com|mysql-test/README.gcov|20001214012355|41825|2de7575ca81155e5
 sasha@mysql.sashanet.com|mysql-test/README|20001010001022|12739|108667adaeabe3f5
 sasha@mysql.sashanet.com|mysql-test/r/3.23/alt000001.result|20001122072330|24729|393103dbf15f35c9
 sasha@mysql.sashanet.com|mysql-test/r/3.23/ins000001.result|20001018175743|49824|f45c599efdf8352b
@@ -328,4 +329,3 @@ serg@serg.mysql.com|mysql-test/r/ft0000002.c.result|20001212120059|07173|cd66b90
 serg@serg.mysql.com|mysql-test/r/sel000031.result|20001211130803|03576|d49aeac63ad7db4d
 serg@serg.mysql.com|mysql-test/r/sel000032.result|20001211130803|08537|6cb30e23cbca9fb0
 serg@serg.mysql.com|mysql-test/r/sel000033.result|20001211130803|13548|56d1d02d72b94602
-sasha@mysql.sashanet.com|mysql-test/README.gcov|20001214012355|41825|2de7575ca81155e5
