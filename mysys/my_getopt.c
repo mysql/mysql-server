@@ -50,7 +50,7 @@ char *disabled_my_option= (char*) "0";
 #define ERR_ARGUMENT_REQUIRED     4
 #define ERR_VAR_PREFIX_NOT_UNIQUE 5
 #define ERR_UNKNOWN_VARIABLE      6
-#define ERR_MUST_BE_VARIABLE      7
+#define ERR_OUT_OF_MEMORY         7
 #define ERR_UNKNOWN_SUFFIX        8
 #define ERR_NO_PTR_TO_VARIABLE	  9
 
@@ -424,12 +424,13 @@ static int setval (const struct my_option *opts, char *argument,
       *((ulonglong*) result_pos)= getopt_ull(argument, opts, &err);
     else if (opts->var_type == GET_STR)
       *((char**) result_pos)= argument;
-    else if (opts->var_type == GET_STRALC)
+    else if (opts->var_type == GET_STR_ALLOC)
     {
       if ((*((char**) result_pos)))
 	my_free((*(char**) result_pos),
-		MYF(MY_WME | MY_FAE | MY_ALLOW_ZERO_PTR));
-      *((char**) result_pos)= my_strdup(argument, MYF(MY_WME));
+		MYF(MY_WME | MY_FAE));
+      if (!(*((char**) result_pos)= my_strdup(argument, MYF(MY_WME))))
+	return ERR_OUT_OF_MEMORY;
     }
     if (err)
       return ERR_UNKNOWN_SUFFIX;
@@ -635,7 +636,7 @@ void my_print_help(const struct my_option *options)
     }
     printf("--%s", optp->name);
     col+= 2 + strlen(optp->name);
-    if (optp->var_type == GET_STR || optp->var_type == GET_STRALC)
+    if (optp->var_type == GET_STR || optp->var_type == GET_STR_ALLOC)
     {
       printf("%s=name%s ", optp->arg_type == OPT_ARG ? "[" : "",
 	     optp->arg_type == OPT_ARG ? "]" : "");
@@ -702,7 +703,7 @@ void my_print_variables(const struct my_option *options)
       length= strlen(optp->name);
       for (; length < name_space; length++)
 	putchar(' ');
-      if (optp->var_type == GET_STR || optp->var_type == GET_STRALC)
+      if (optp->var_type == GET_STR || optp->var_type == GET_STR_ALLOC)
       {
 	if (*((char**) optp->value))
 	  printf("%s\n", *((char**) optp->value));

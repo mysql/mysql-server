@@ -459,7 +459,7 @@ static struct my_option my_long_options[] =
    (gptr*) &default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"database", 'D', "Database to use.", (gptr*) &current_db,
-   (gptr*) &current_db, 0, GET_STRALC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   (gptr*) &current_db, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"execute", 'e', "Execute command and quit. (Output like with --batch).", 0,
    0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"vertical", 'E', "Print the output of a query (rows) vertically.",
@@ -481,7 +481,7 @@ static struct my_option my_long_options[] =
   {"no-beep", 'b', "Turn off beep on error.", (gptr*) &opt_nobeep,
    (gptr*) &opt_nobeep, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0}, 
   {"host", 'h', "Connect to host.", (gptr*) &current_host,
-   (gptr*) &current_host, 0, GET_STRALC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   (gptr*) &current_host, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"html", 'H', "Produce HTML output.", (gptr*) &opt_html, (gptr*) &opt_html,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"xml", 'X', "Produce XML output", (gptr*) &opt_xml, (gptr*) &opt_xml, 0,
@@ -528,7 +528,7 @@ static struct my_option my_long_options[] =
    (gptr*) &opt_mysql_port, 0, GET_UINT, REQUIRED_ARG, MYSQL_PORT, 0, 0, 0, 0,
    0},
   {"prompt", OPT_PROMPT, "Set the mysql prompt to this value.",
-   (gptr*) &current_prompt, (gptr*) &current_prompt, 0, GET_STRALC,
+   (gptr*) &current_prompt, (gptr*) &current_prompt, 0, GET_STR_ALLOC,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"quick", 'q',
    "Don't cache result, print it row by row. This may slow down the server if the output is suspended. Doesn't use history file. ",
@@ -539,7 +539,7 @@ static struct my_option my_long_options[] =
   {"silent", 's', "Be more silent.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0,
    0, 0},
   {"socket", 'S', "Socket file to use for connection.",
-   (gptr*) &opt_mysql_unix_port, (gptr*) &opt_mysql_unix_port, 0, GET_STRALC,
+   (gptr*) &opt_mysql_unix_port, (gptr*) &opt_mysql_unix_port, 0, GET_STR_ALLOC,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #include "sslopt-longopts.h"
   {"table", 't', "Output in table format.", (gptr*) &output_tables,
@@ -551,7 +551,7 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #ifndef DONT_ALLOW_USER_CHANGE
   {"user", 'u', "User for login if not current user.", (gptr*) &current_user,
-   (gptr*) &current_user, 0, GET_STRALC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   (gptr*) &current_user, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"safe-updates", 'U', "Only allow UPDATE and DELETE that uses keys.",
    (gptr*) &safe_updates, (gptr*) &safe_updates, 0, GET_BOOL, OPT_ARG, 0, 0,
