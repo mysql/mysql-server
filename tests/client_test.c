@@ -80,10 +80,10 @@ static void print_error(const char *msg)
   if (mysql)
   {
     if (mysql->server_version)
-      fprintf(stderr,"\n [MySQL-%s]",mysql->server_version);
+      fprintf(stdout,"\n [MySQL-%s]",mysql->server_version);
     else
-      fprintf(stderr,"\n [MySQL]");
-    fprintf(stderr,"[%d] %s\n",mysql_errno(mysql),mysql_error(mysql));
+      fprintf(stdout,"\n [MySQL]");
+    fprintf(stdout,"[%d] %s\n",mysql_errno(mysql),mysql_error(mysql));
   }
   else if (msg) fprintf(stderr, " [MySQL] %s\n", msg);
 }
@@ -93,11 +93,11 @@ static void print_st_error(MYSQL_STMT *stmt, const char *msg)
   if (stmt)
   {
     if (stmt->mysql && stmt->mysql->server_version)
-      fprintf(stderr,"\n [MySQL-%s]",stmt->mysql->server_version);
+      fprintf(stdout,"\n [MySQL-%s]",stmt->mysql->server_version);
     else
-      fprintf(stderr,"\n [MySQL]");
+      fprintf(stdout,"\n [MySQL]");
 
-    fprintf(stderr,"[%d] %s\n",mysql_stmt_errno(stmt),
+    fprintf(stdout,"[%d] %s\n",mysql_stmt_errno(stmt),
                      mysql_stmt_error(stmt));
   }
 	else if (msg) fprintf(stderr, " [MySQL] %s\n", msg);
@@ -4426,6 +4426,9 @@ static void test_multi_query()
 
   const char *query= "DROP TABLE IF EXISTS test_multi_tab;\
                   CREATE TABLE test_multi_tab(id int,name char(20));\
+                  INSERT INTO test_multi_tab(xxxx) VALUES(10);\
+                  UPDATE test_multi_tab SET id=10 WHERE unkown_col=10;\
+                  CREATE TABLE test_multi_tab(id int,name char(20));\
                   INSERT INTO test_multi_tab(id) VALUES(10),(20);\
                   INSERT INTO test_multi_tab VALUES(20,'insert;comma');\
                   SELECT * FROM test_multi_tab;\
@@ -4434,9 +4437,12 @@ static void test_multi_query()
                   DELETE FROM test_multi_tab WHERE name='new;name';\
                   SELECT * FROM test_multi_tab;\
                   DELETE FROM test_multi_tab WHERE id=10;\
-                  SELECT * FROM test_multi_tab";
-  uint  count, rows[10]={0,2,1,3,0,2,2,1,1,0};
-
+                  SELECT * FROM test_multi_tab;\
+                  DROP TABLE test_multi_tab;\
+                  DROP TABLE test_multi_tab;\
+                  DROP TABLE IF EXISTS test_multi_tab";
+  uint  count, rows[16]={0,1054,1054,1050,2,1,3,1054,2,2,1,1,0,0,1051,0}, exp_value;
+  
   myheader("test_multi_query");
 
   rc = mysql_query(mysql, query); /* syntax error */
@@ -4463,19 +4469,25 @@ static void test_multi_query()
   rc = mysql_query(mysql, query);
   myquery(rc);
 
-  count= 0;
-  while (mysql_more_results(mysql) && count < sizeof(rows)/sizeof(uint))
+  count= exp_value= 0;
+  while (mysql_more_results(mysql) && count < array_elements(rows))
   {
-    fprintf(stdout,"\n query %d", count);
+    fprintf(stdout,"\n Query %d: ", count);
     if ((rc= mysql_next_result(mysql)))
-      fprintf(stdout, "\n\t failed(%s)", mysql_error(mysql));
+    {
+      exp_value= mysql_errno(mysql);
+      fprintf(stdout, "ERROR %d: %s", exp_value, mysql_error(mysql));
+    }
     else
-      fprintf(stdout,"\n\t affected rows: %lld",  mysql_affected_rows(mysql));
-    if ((result= mysql_store_result(mysql)))
-      my_process_result_set(result);
-    if (!rc)
-      myassert(rows[count] == (uint)mysql_affected_rows(mysql));
-    count++;
+    {
+      if ((result= mysql_store_result(mysql)))
+        my_process_result_set(result);
+      else
+        fprintf(stdout,"OK, %d row(s) affected, %d warning(s)",  exp_value, 
+                        mysql_warning_count(mysql));
+      exp_value= (uint) mysql_affected_rows(mysql);
+    }
+    myassert(rows[count++] == exp_value);    
   }
   mysql= org_mysql;
 }
@@ -4932,7 +4944,7 @@ static void test_bind_date_conv(uint row_count)
     for (i= 0; i < array_elements(bind); i++)
     {  
       fprintf(stdout, "\n");
-      fprintf(stdout,"time[%d]: %02d-%02d-%02d %02d:%02d:%02d.%02lu",
+      fprintf(stdout," time[%d]: %02d-%02d-%02d %02d:%02d:%02d.%02lu",
                       i, tm[i].year, tm[i].month, tm[i].day, 
                       tm[i].hour, tm[i].minute, tm[i].second,
                       tm[i].second_part);                      
