@@ -16,40 +16,6 @@ Created 12/18/1995 Heikki Tuuri
 #include "ut0byte.h"
 #include "page0types.h"
 
-typedef	byte	xdes_t;		
-
-/************************************************************************
-Gets pointer to a the extent descriptor of a page. The page where the
-extent descriptor resides is x-locked. If the page offset is equal to
-the free limit of the space, adds new extents from above the free limit
-to the space free list, if not free limit == space size. This adding
-is necessary to make the descriptor defined, as they are uninitialized
-above the free limit. */
-
-xdes_t*
-xdes_get_descriptor(
-/*================*/
-			/* out: pointer to the extent descriptor, NULL if the
-			page does not exist in the space or if offset > free
-			limit */
-	ulint	space,	/* in: space id */
-	ulint	offset,	/* in: page offset; if equal to the free limit,
-			we try to add new extents to the space free list */
-	mtr_t*	mtr);	/* in: mtr handle */
-
-/**************************************************************************
-Gets a descriptor bit of a page. */
-
-ibool
-xdes_get_bit(
-/*=========*/
-			/* out: TRUE if free */
-	xdes_t*	descr,	/* in: descriptor */
-	ulint	bit,	/* in: XDES_FREE_BIT or XDES_CLEAN_BIT */
-	ulint	offset,	/* in: page offset within extent:
-			0 ... FSP_EXTENT_SIZE - 1 */
-	mtr_t*	mtr);	/* in: mtr */
-
 /* If records are inserted in order, there are the following
 flags to tell this (their type is made byte for the compiler
 to warn if direction and hint parameters are switched in
