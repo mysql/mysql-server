@@ -267,6 +267,9 @@ C_MODE_END
 #endif
 #ifdef HAVE_ATOMIC_ADD
 #define __SMP__
+#ifdef HAVE_LINUX_CONFIG_H
+#include <linux/config.h>	/* May define CONFIG_SMP */
+#endif
 #ifndef CONFIG_SMP
 #define CONFIG_SMP
 #endif

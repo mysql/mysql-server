@@ -2,19 +2,22 @@
 # Test of --lower-case-table-names
 #
 
-drop table if exists t1,t2,t3;
+drop table if exists t1,t2,t3,t4,T1;
 create table T1 (id int primary key, Word varchar(40) not null, Index(Word));
+create table t4 (id int primary key, Word varchar(40) not null);
 INSERT INTO T1 VALUES (1, 'a'), (2, 'b'), (3, 'c');
+INSERT INTO T4 VALUES(1,'match');
 SELECT * FROM t1;
 SELECT T1.id from T1 LIMIT 1;
 SELECT T2.id from t1 as T2 LIMIT 1;
+SELECT * from t1 left join t4 on (test.t1.id= TEST.t4.id) where TEST.t1.id >= test.t4.id;
 --error 1109
 SELECT T2.id from t1 as t2 LIMIT 1;
 RENAME TABLE T1 TO T2;
 ALTER TABLE T2 ADD new_col int not null;
 ALTER TABLE T2 RENAME T3;
 show tables like 't_';
-drop table t3;
+drop table t3,t4;
 
 #
 # Test alias

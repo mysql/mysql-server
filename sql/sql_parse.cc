@@ -1971,12 +1971,11 @@ mysql_execute_command(void)
   case SQLCOM_REPLACE_SELECT:
   case SQLCOM_INSERT_SELECT:
   {
-
-    /*
-      Check that we have modify privileges for the first table and
-      select privileges for the rest
-    */
     {
+      /*
+	Check that we have modify privileges for the first table and
+	select privileges for the rest
+      */
       ulong privilege= (lex->sql_command == SQLCOM_INSERT_SELECT ?
 			INSERT_ACL : INSERT_ACL | DELETE_ACL);
       TABLE_LIST *save_next=tables->next;
@@ -1989,6 +1988,10 @@ mysql_execute_command(void)
       if ((res=check_table_access(thd, SELECT_ACL, save_next)))
 	goto error;
     }
+    /* Fix lock for first table */
+    if (tables->lock_type == TL_WRITE_DELAYED)
+      tables->lock_type == TL_WRITE;
+
     /* Don't unlock tables until command is written to binary log */
     select_lex->options|= SELECT_NO_UNLOCK;
 
