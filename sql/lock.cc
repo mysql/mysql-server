@@ -79,7 +79,7 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table,uint count,
 				 bool unlock, TABLE **write_locked);
 static int lock_external(THD *thd, TABLE **table,uint count);
 static int unlock_external(THD *thd, TABLE **table,uint count);
-static void print_lock_error(int error);
+static void print_lock_error(int error, const char *);
 
 
 MYSQL_LOCK *mysql_lock_tables(THD *thd,TABLE **tables,uint count)
@@ -187,7 +187,7 @@ static int lock_external(THD *thd, TABLE **tables, uint count)
 	(*tables)->file->external_lock(thd, F_UNLCK);
 	(*tables)->current_lock=F_UNLCK;
       }
-      print_lock_error(error);
+      print_lock_error(error, (*tables)->file->table_type());
       DBUG_RETURN(error);
     }
     else
@@ -380,7 +380,7 @@ static int unlock_external(THD *thd, TABLE **table,uint count)
     table++;
   } while (--count);
   if (error_code)
-    print_lock_error(error_code);
+    print_lock_error(error_code, (*table)->file->table_type());
   DBUG_RETURN(error_code);
 }
 
@@ -683,7 +683,7 @@ void unlock_table_names(THD *thd, TABLE_LIST *table_list,
 }
 
 
-static void print_lock_error(int error)
+static void print_lock_error(int error, const char *table)
 {
   int textno;
   DBUG_ENTER("print_lock_error");
@@ -695,11 +695,22 @@ static void print_lock_error(int error)
   case HA_ERR_READ_ONLY_TRANSACTION:
     textno=ER_READ_ONLY_TRANSACTION;
     break;
+  case HA_ERR_LOCK_DEADLOCK:
+    textno=ER_LOCK_DEADLOCK;
+    break;
+  case HA_ERR_WRONG_COMMAND:
+    textno=ER_ILLEGAL_HA;
+    break;
   default:
     textno=ER_CANT_LOCK;
     break;
   }
-  my_error(textno,MYF(ME_BELL+ME_OLDWIN+ME_WAITTANG),error);
+
+  if ( textno == ER_ILLEGAL_HA )
+    my_error(textno, MYF(ME_BELL+ME_OLDWIN+ME_WAITTANG), table);
+  else
+    my_error(textno, MYF(ME_BELL+ME_OLDWIN+ME_WAITTANG), error);
+
   DBUG_VOID_RETURN;
 }
 
@@ -926,4 +937,63 @@ bool make_global_read_lock_block_commit(THD *thd)
     thd->global_read_lock= MADE_GLOBAL_READ_LOCK_BLOCK_COMMIT;
   thd->exit_cond(old_message);
   DBUG_RETURN(error);
+}
+
+/*
+  Take transactional table lock for all tables in the list
+
+  SYNOPSIS
+    transactional_lock_tables
+    thd			Thread THD
+    tables              list of tables
+    counter             number of tables in the list
+
+  NOTES
+
+  RETURN
+    0  - OK
+    -1 - error
+
+*/
+int transactional_lock_tables(THD *thd, TABLE_LIST *tables, uint counter)
+{ 
+  uint i;
+  int lock_type,error=0;
+  TABLE_LIST *table;
+  TABLE **start,**ptr;
+
+  DBUG_ENTER("transactional_lock_tables");
+
+  if (!(ptr=start=(TABLE**) sql_alloc(sizeof(TABLE*) * counter)))
+      return -1;
+    
+  for (table= tables; table; table= table->next_global)
+  {
+    if (!table->placeholder() && !table->schema_table)
+      *(ptr++)= table->table;
+  }
+
+  for (i=1 ; i <= counter ; i++, start++)
+  {
+    DBUG_ASSERT((*start)->reginfo.lock_type >= TL_READ);
+    lock_type=F_WRLCK;				/* Lock exclusive */
+
+    if ((*start)->db_stat & HA_READ_ONLY ||
+       ((*start)->reginfo.lock_type >= TL_READ &&
+	(*start)->reginfo.lock_type <= TL_READ_NO_INSERT))
+      lock_type=F_RDLCK;
+
+    if ((error=(*start)->file->transactional_table_lock(thd, lock_type)))
+    {
+      print_lock_error(error, (*start)->file->table_type());
+      DBUG_RETURN(-1);
+    }
+    else
+    {
+      (*start)->db_stat &= ~ HA_BLOCK_LOCK;
+      (*start)->current_lock= lock_type;
+    }
+  }
+
+  DBUG_RETURN(0);
 }

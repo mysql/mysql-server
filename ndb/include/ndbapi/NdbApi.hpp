@@ -19,7 +19,7 @@
 
 #include "ndbapi_limits.h"
 #include "Ndb.hpp"
-#include "NdbConnection.hpp"
+#include "NdbTransaction.hpp"
 #include "NdbOperation.hpp"
 #include "NdbScanOperation.hpp"
 #include "NdbIndexOperation.hpp"

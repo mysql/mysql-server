@@ -35,6 +35,7 @@ public:
 #include <NdbError.hpp>
 #include <NdbCondition.h>
 #include <NdbReceiver.hpp>
+#include <NdbTransaction.hpp>
 #include <NdbOperation.hpp>
 
 #include <NdbTick.h>

@@ -14,18 +14,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/*****************************************************************************
- * Name:          NdbScanOperation.hpp
- * Include:
- * Link:
- * Author:        Martin Sköld
- * Date:          2002-04-01
- * Version:       0.1
- * Description:   Table scan support
- * Documentation:
- * Adjust:  2002-04-01  Martin Sköld   First version.
- ****************************************************************************/
-
 #ifndef NdbScanOperation_H
 #define NdbScanOperation_H
 
@@ -39,11 +27,14 @@ class NdbResultSet;
  * @brief Class of scan operations for use in transactions.  
  */
 class NdbScanOperation : public NdbOperation {
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   friend class Ndb;
-  friend class NdbConnection;
+  friend class NdbTransaction;
   friend class NdbResultSet;
   friend class NdbOperation;
   friend class NdbBlob;
+#endif
+
 public:
   /**
    * readTuples returns a NdbResultSet where tuples are stored.
@@ -58,6 +49,7 @@ public:
   int readTuples(LockMode = LM_Read, 
 		 Uint32 batch = 0, Uint32 parallel = 0);
   
+#ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
   inline int readTuples(int parallell){
     return readTuples(LM_Read, 0, parallell);
   }
@@ -65,9 +57,12 @@ public:
   inline int readTuplesExclusive(int parallell = 0){
     return readTuples(LM_Exclusive, 0, parallell);
   }
+#endif
   
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   NdbBlob* getBlobHandle(const char* anAttrName);
   NdbBlob* getBlobHandle(Uint32 anAttrId);
+#endif
 
   /**
    * Get the next tuple in a scan transaction. 
@@ -145,7 +140,7 @@ public:
    * @return an NdbOperation or NULL.
    */
   NdbOperation* updateCurrentTuple();
-  NdbOperation*	updateCurrentTuple(NdbConnection* updateTrans);
+  NdbOperation*	updateCurrentTuple(NdbTransaction* updateTrans);
 
   /**
    * Transfer scan operation to a deleting transaction. Use this function 
@@ -164,7 +159,7 @@ public:
    * @return an NdbOperation or NULL.
    */
   int deleteCurrentTuple();
-  int deleteCurrentTuple(NdbConnection* takeOverTransaction);
+  int deleteCurrentTuple(NdbTransaction* takeOverTransaction);
   
 protected:
   NdbScanOperation(Ndb* aNdb);
@@ -179,7 +174,7 @@ protected:
   int executeCursor(int ProcessorId);
 
   // Overloaded private methods from NdbOperation
-  int init(const NdbTableImpl* tab, NdbConnection* myConnection);
+  int init(const NdbTableImpl* tab, NdbTransaction*);
   int prepareSend(Uint32  TC_ConnectPtr, Uint64  TransactionId);
   int doSend(int ProcessorId);
   void checkForceSend(bool forceSend);
@@ -187,7 +182,7 @@ protected:
   virtual void setErrorCode(int aErrorCode);
   virtual void setErrorCodeAbort(int aErrorCode);
 
-  NdbConnection *m_transConnection;
+  NdbTransaction *m_transConnection;
 
   // Scan related variables
   Uint32 theParallelism;
@@ -230,7 +225,7 @@ protected:
   void execCLOSE_SCAN_REP();
 
   int getKeyFromKEYINFO20(Uint32* data, unsigned size);
-  NdbOperation*	takeOverScanOp(OperationType opType, NdbConnection*);
+  NdbOperation*	takeOverScanOp(OperationType opType, NdbTransaction*);
   
   bool m_ordered;
   bool m_descending;
@@ -245,7 +240,7 @@ NdbScanOperation::updateCurrentTuple(){
 
 inline
 NdbOperation* 
-NdbScanOperation::updateCurrentTuple(NdbConnection* takeOverTrans){
+NdbScanOperation::updateCurrentTuple(NdbTransaction* takeOverTrans){
   return takeOverScanOp(NdbOperation::UpdateRequest, 
 			takeOverTrans);
 }
@@ -258,7 +253,7 @@ NdbScanOperation::deleteCurrentTuple(){
 
 inline
 int
-NdbScanOperation::deleteCurrentTuple(NdbConnection * takeOverTrans){
+NdbScanOperation::deleteCurrentTuple(NdbTransaction * takeOverTrans){
   void * res = takeOverScanOp(NdbOperation::DeleteRequest, 
 			      takeOverTrans);
   if(res == 0)

@@ -24,11 +24,14 @@
  * @brief Class of scan operations for use to scan ordered index
  */
 class NdbIndexScanOperation : public NdbScanOperation {
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   friend class Ndb;
-  friend class NdbConnection;
+  friend class NdbTransaction;
   friend class NdbResultSet;
   friend class NdbOperation;
   friend class NdbScanOperation;
+#endif
+
 public:
   /**
    * readTuples returns a NdbResultSet where tuples are stored.
@@ -50,6 +53,7 @@ public:
                  bool order_desc = false,
 		 bool read_range_no = false);
   
+#ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
   inline int readTuples(int parallell){
     return readTuples(LM_Read, 0, parallell, false);
   }
@@ -57,6 +61,7 @@ public:
   inline int readTuplesExclusive(int parallell = 0){
     return readTuples(LM_Exclusive, 0, parallell, false);
   }
+#endif
   
   /**
    * Type of ordered index key bound.  The values (0-4) will not change

@@ -606,4 +606,14 @@ INSERT INTO t1 VALUES (0);
 SELECT * FROM t0, t1 LEFT JOIN (t2,t3) ON a1=5 WHERE a0=a1 AND a0=1;
 EXPLAIN SELECT * FROM t0, t1 LEFT JOIN (t2,t3) ON a1=5 WHERE a0=a1 AND a0=1;
 
+# Test for BUG#4480
+drop table t1,t2;
+create table t1 (a int, b int);
+insert into t1 values (1,1),(2,2),(3,3);
+create table t2 (a int, b int);
+insert into t2 values (1,1), (2,2);
+
+select * from t2 right join t1 on t2.a=t1.a;
+select straight_join * from t2 right join t1 on t2.a=t1.a;
+
 DROP TABLE t0,t1,t2,t3;
