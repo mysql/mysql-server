@@ -2148,26 +2148,6 @@ NdbDictInterface::createIndex(Ndb & ndb,
     }
     attributeList.id[i] = col->m_attrId;
   }
-  if (it == DictTabInfo::UniqueHashIndex) {
-    // Sort index attributes according to primary table (using insertion sort)
-    for(i = 1; i < attributeList.sz; i++) {
-      unsigned int temp = attributeList.id[i];
-      unsigned int j = i;
-      while((j > 0) && (attributeList.id[j - 1] > temp)) {
-	attributeList.id[j] = attributeList.id[j - 1];
-	j--;
-      }
-      attributeList.id[j] = temp;
-    }
-    // Check for illegal duplicate attributes
-    for(i = 0; i<attributeList.sz; i++) {
-      if ((i != (attributeList.sz - 1)) && 
-	  (attributeList.id[i] == attributeList.id[i+1])) {
-	m_error.code = 4258;
-	return -1;
-      }
-    }
-  }
   LinearSectionPtr ptr[3];
   ptr[0].p = (Uint32*)&attributeList;
   ptr[0].sz = 1 + attributeList.sz;
