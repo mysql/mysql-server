@@ -32,7 +32,9 @@ int sem_destroy(sem_t * sem)
 
 int sem_wait(sem_t * sem)
 {
-  while ((errno=pthread_mutex_lock(&sem->mutex)) || !sem->count)
+  if ((errno=pthread_mutex_lock(&sem->mutex)))
+    return -1;
+  while (!sem->count)
     pthread_cond_wait(&sem->cond, &sem->mutex);
   if (errno)
     return -1;
