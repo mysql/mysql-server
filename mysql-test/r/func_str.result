@@ -297,9 +297,9 @@ select FIELD('b','A' COLLATE latin1_bin,'B');
 FIELD('b','A' COLLATE latin1_bin,'B')
 0
 select FIELD(_latin2'b','A','B');
-ERROR HY000: Illegal mix of collations for operation 'field'
+Illegal mix of collations (latin2_general_ci,COERCIBLE), (latin1_swedish_ci,COERCIBLE), (latin1_swedish_ci,COERCIBLE) for operation 'field'
 select FIELD('b',_latin2'A','B');
-ERROR HY000: Illegal mix of collations for operation 'field'
+Illegal mix of collations (latin1_swedish_ci,COERCIBLE), (latin2_general_ci,COERCIBLE), (latin1_swedish_ci,COERCIBLE) for operation 'field'
 select FIELD('b',_latin2'A','B',1);
 FIELD('b',_latin2'A','B',1)
 1
@@ -532,3 +532,24 @@ t1	CREATE TABLE `t1` (
   `replace(_latin2'abcd',_latin2'b',_latin2'B')` char(4) character set latin2 NOT NULL default ''
 ) TYPE=MyISAM CHARSET=latin1
 drop table t1;
+select SUBSTR('abcdefg',3,2);
+SUBSTR('abcdefg',3,2)
+cd
+select SUBSTRING('abcdefg',3,2);
+SUBSTRING('abcdefg',3,2)
+cd
+select SUBSTR('abcdefg',-3,2) FROM DUAL;
+SUBSTR('abcdefg',-3,2)
+ef
+select SUBSTR('abcdefg',-1,5) FROM DUAL;
+SUBSTR('abcdefg',-1,5)
+g
+select SUBSTR('abcdefg',0,0) FROM DUAL;
+SUBSTR('abcdefg',0,0)
+
+select SUBSTR('abcdefg',-1,-1) FROM DUAL;
+SUBSTR('abcdefg',-1,-1)
+
+select SUBSTR('abcdefg',1,-1) FROM DUAL;
+SUBSTR('abcdefg',1,-1)
+

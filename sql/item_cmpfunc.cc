@@ -1149,7 +1149,13 @@ void Item_func_coalesce::fix_length_and_dec()
   {
     set_if_bigger(max_length,args[i]->max_length);
     set_if_bigger(decimals,args[i]->decimals);
+    cached_result_type=item_store_type(cached_result_type,
+				       args[i]->result_type());
   }
+  if (cached_result_type == STRING_RESULT)
+    agg_arg_collations(collation, args, arg_count);
+  else if (cached_result_type != REAL_RESULT)
+    decimals= 0;
 }
 
 /****************************************************************************

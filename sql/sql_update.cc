@@ -373,8 +373,8 @@ int mysql_update(THD *thd,
   else
   {
     char buff[80];
-    sprintf(buff,ER(ER_UPDATE_INFO), (long) found, (long) updated,
-	    (long) thd->cuted_fields);
+    sprintf(buff, ER(ER_UPDATE_INFO), (ulong) found, (ulong) updated,
+	    (ulong) thd->cuted_fields);
     send_ok(thd,
 	    (thd->client_capabilities & CLIENT_FOUND_ROWS) ? found : updated,
 	    thd->insert_id_used ? thd->insert_id() : 0L,buff);
@@ -993,8 +993,8 @@ bool multi_update::send_eof()
   }
 
 
-  sprintf(buff,ER(ER_UPDATE_INFO), (long) found, (long) updated,
-	  (long) thd->cuted_fields);
+  sprintf(buff, ER(ER_UPDATE_INFO), (ulong) found, (ulong) updated,
+	  (ulong) thd->cuted_fields);
   ::send_ok(thd,
 	    (thd->client_capabilities & CLIENT_FOUND_ROWS) ? found : updated,
 	    thd->insert_id_used ? thd->insert_id() : 0L,buff);
