@@ -144,6 +144,7 @@ while test $# -gt 0; do
      EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT --skip-bdb"
      EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT --skip-bdb" ;;
     --skip-rpl) NO_SLAVE=1 ;;
+    --skip-test=*) SKIP_TEST=`$ECHO "$1" | $SED -e "s;--skip-test=;;"`;;
     --record)
       RECORD=1;
       EXTRA_MYSQL_TEST_OPT="$EXTRA_MYSQL_TEST_OPT $1" ;;
@@ -657,6 +658,13 @@ run_testcase ()
  slave_init_script=$TESTDIR/$tname-slave.sh
  slave_master_info_file=$TESTDIR/$tname-slave-master-info.opt
  SKIP_SLAVE=`$EXPR \( $tname : rpl \) = 0`
+ if [ -n $SKIP_TEST ] ; then 
+   SKIP_THIS_TEST=`$EXPR \( $tname : $SKIP_TEST \) != 0`
+   if [ x$SKIP_THIS_TEST = x1 ] ;
+   then
+    return;
+   fi
+  fi
 
  if [ x${NO_SLAVE}x$SKIP_SLAVE = x1x0 ] ;
  then
