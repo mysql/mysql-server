@@ -48918,6 +48918,9 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
+Strategy of memory allocation of 'root memory' is changed. Block size grow 
+with number of allocated blocks.
+@item
 @code{INET_NTOA()} now returns @code{NULL} if you give it a too big argument.
 @item
 Fix @code{SQL_CALC_FOUND_ROWS} to work with @code{UNION}s. It will work only
