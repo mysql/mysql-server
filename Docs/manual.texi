@@ -49652,6 +49652,8 @@ find on the MySQL download page
 (@uref{http://www.mysql.com/downloads/}),
 this means that the version has not yet been released!
 
+@c Please don't add a new version here without also updating ../configure.in!
+
 @menu
 * News-4.0.x::                  Changes in release 4.0.x (Development; Alpha)
 * News-3.23.x::                 Changes in release 3.23.x (Stable)
