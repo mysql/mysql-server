@@ -643,7 +643,10 @@ extern int _my_b_write(IO_CACHE *info,const byte *Buffer,uint Count);
 extern int my_b_append(IO_CACHE *info,const byte *Buffer,uint Count);
 extern int my_block_write(IO_CACHE *info, const byte *Buffer,
 			  uint Count, my_off_t pos);
-extern int flush_io_cache(IO_CACHE *info);
+extern int _flush_io_cache(IO_CACHE *info, int need_append_buffer_lock);
+
+#define flush_io_cache(info) _flush_io_cache((info),1)
+
 extern int end_io_cache(IO_CACHE *info);
 extern uint my_b_fill(IO_CACHE *info);
 extern void my_b_seek(IO_CACHE *info,my_off_t pos);

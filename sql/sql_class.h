@@ -108,6 +108,7 @@ public:
   //v stands for vector
   //invoked as appendv(buf1,len1,buf2,len2,...,bufn,lenn,0)
   bool appendv(const char* buf,uint len,...);
+  bool append(Log_event* ev);
   
   int generate_new_name(char *new_name,const char *old_name);
   void make_log_name(char* buf, const char* log_ident);
