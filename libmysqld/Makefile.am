@@ -53,7 +53,8 @@ sqlsources = convert.cc derror.cc field.cc field_conv.cc filesort.cc \
 	sql_rename.cc sql_repl.cc sql_select.cc sql_do.cc sql_show.cc \
 	sql_string.cc sql_table.cc sql_test.cc sql_udf.cc \
 	sql_update.cc sql_yacc.cc table.cc thr_malloc.cc time.cc \
-	unireg.cc uniques.cc stacktrace.c sql_union.cc hash_filo.cc
+	unireg.cc uniques.cc stacktrace.c sql_union.cc hash_filo.cc \
+	spatial.cc gstream.cc
 
 EXTRA_DIST = lib_vio.c
 

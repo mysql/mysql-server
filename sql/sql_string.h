@@ -188,4 +188,49 @@ public:
   friend int wild_compare(String &match,String &wild,char escape);
   uint32 numchars();
   int charpos(int i,uint32 offset=0);
+
+// added by Holyfoot for "geometry" needs
+  int reserve(uint32 space_needed)
+  {
+    return realloc(str_length + space_needed);
+  }
+  int reserve(uint32 space_needed, uint32 grow_by);
+
+// these append operations do NOT check alloced memory
+// q_*** methods writes values of parameters itself
+// qs_*** methods writes string representation of value
+  void q_append(const char &c)
+  {
+    Ptr[str_length++] = c;
+  }
+  void q_append(const uint32 &n)
+  {
+    int4store(Ptr + str_length, n);
+    str_length += 4;
+  }
+  void q_append(double d)
+  {
+    float8store(Ptr + str_length, d);
+    str_length += 8;
+  }
+  void q_append(double *d)
+  {
+    float8store(Ptr + str_length, *d);
+    str_length += 8;
+  }
+  void q_append(const char *data, uint32 data_len)
+  {
+    memcpy(Ptr + str_length, data, data_len);
+    str_length += data_len;
+  }
+
+  void WriteAtPosition(int position, uint32 value)
+  {
+    int4store(Ptr + position,value);
+  }
+
+  void qs_append(const char *str);
+  void qs_append(double d);
+  void qs_append(double *d);
+  void qs_append(const char &c);
 };

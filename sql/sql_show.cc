@@ -880,10 +880,16 @@ store_create_info(THD *thd, TABLE *table, String *packet)
       packet->append("UNIQUE ", 7);
     else if (key_info->flags & HA_FULLTEXT)
       packet->append("FULLTEXT ", 9);
+    else if (key_info->flags & HA_SPATIAL)
+      packet->append("SPATIAL ", 8);
     packet->append("KEY ", 4);
 
     if (!found_primary)
      append_identifier(thd,packet,key_info->name);
+
+    // +BAR: send USING only in non-default case: non-spatial rtree
+    if((key_info->key_alg == HA_KEY_ALG_RTREE) && !(key_info->flags & HA_SPATIAL))
+          packet->append(" USING RTREE",12);
 
     packet->append(" (", 2);
 

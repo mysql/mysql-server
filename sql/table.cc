@@ -153,7 +153,9 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
   {
     keyinfo->flags=	 ((uint) strpos[0]) ^ HA_NOSAME;
     keyinfo->key_length= (uint) uint2korr(strpos+1);
-    keyinfo->key_parts=  (uint) strpos[3];  strpos+=4;
+    keyinfo->key_parts=  (uint) strpos[3];
+    strpos+=4;
+
     keyinfo->key_part=	 key_part;
     keyinfo->rec_per_key= rec_per_key;
     for (j=keyinfo->key_parts ; j-- ; key_part++)
@@ -394,6 +396,26 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 	  }
 	}
       }
+
+      keyinfo->key_alg=HA_KEY_ALG_BTREE;  // BAR : btree by default
+
+#define BAR_DIRTY_HACK
+#ifdef BAR_DIRTY_HACK
+      // BAR FIXME: Dirty hack while waiting for new .frm format
+      switch(keyinfo->name[0]){
+        case 'R':
+          keyinfo->key_alg=HA_KEY_ALG_RTREE;
+          break;
+        case 'S':
+          keyinfo->key_alg = HA_KEY_ALG_RTREE;
+          keyinfo->flags |= HA_SPATIAL;
+          break;
+        case 'B':
+        default:
+          keyinfo->key_alg=HA_KEY_ALG_BTREE;
+          break;
+      }
+#endif
 
       for (i=0 ; i < keyinfo->key_parts ; key_part++,i++)
       {
