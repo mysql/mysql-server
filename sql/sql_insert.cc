@@ -582,6 +582,7 @@ int mysql_prepare_insert(THD *thd, TABLE_LIST *table_list, TABLE *table,
   bool insert_into_view= (table_list->view != 0);
   /* TODO: use this condition for 'WITH CHECK OPTION' */
   Item *unused_conds= 0;
+  int res;
   DBUG_ENTER("mysql_prepare_insert");
 
   if (mysql_prepare_insert_check_table(thd, table_list, fields, &unused_conds))
@@ -591,7 +592,10 @@ int mysql_prepare_insert(THD *thd, TABLE_LIST *table_list, TABLE *table,
                           !insert_into_view) ||
       setup_fields(thd, 0, table_list, *values, 0, 0, 0) ||
       (duplic == DUP_UPDATE &&
-       (setup_fields(thd, 0, table_list, update_fields, 0, 0, 0) ||
+       ((thd->lex->select_lex.no_wrap_view_item= 1,
+         (res= setup_fields(thd, 0, table_list, update_fields, 0, 0, 0)),
+         thd->lex->select_lex.no_wrap_view_item= 0,
+         res) ||
         setup_fields(thd, 0, table_list, update_values, 0, 0, 0))))
     DBUG_RETURN(-1);
 
