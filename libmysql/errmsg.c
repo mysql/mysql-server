@@ -59,7 +59,7 @@ const char *client_errors[]=
   "No parameters exists in the statement",
   "Invalid parameter number",
   "Can't send long data for non string or binary data types (parameter: %d)",
-  "Using un supported parameter type: %d  (parameter: %d)"
+  "Using un supported buffer type: %d  (parameter: %d)",
   "Shared memory (%lu)",
   "Can't open shared memory. Request event don't create  (%lu)",
   "Can't open shared memory. Answer event don't create  (%lu)",
@@ -114,7 +114,7 @@ const char *client_errors[]=
   "No parameters exists in the statement",
   "Invalid parameter number",
   "Can't send long data for non string or binary data types (parameter: %d)",
-  "Using un supported parameter type: %d  (parameter: %d)"
+  "Using un supported buffer type: %d  (parameter: %d)",
   "Shared memory (%lu)",
   "Can't open shared memory. Request event don't create  (%lu)",
   "Can't open shared memory. Answer event don't create  (%lu)",
@@ -167,7 +167,7 @@ const char *client_errors[]=
   "No parameters exists in the statement",
   "Invalid parameter number",
   "Can't send long data for non string or binary data types (parameter: %d)",
-  "Using un supported parameter type: %d  (parameter: %d)"
+  "Using un supported buffer type: %d  (parameter: %d)",
   "Shared memory (%lu)",
   "Can't open shared memory. Request event don't create  (%lu)",
   "Can't open shared memory. Answer event don't create  (%lu)",
