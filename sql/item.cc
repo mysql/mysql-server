@@ -628,7 +628,8 @@ default_set_param_func(Item_param *param,
 Item_param::Item_param(unsigned pos_in_query_arg) :
   state(NO_VALUE),
   item_result_type(STRING_RESULT),
-  item_type(STRING_ITEM),
+  /* Don't pretend to be a literal unless value for this item is set. */
+  item_type(PARAM_ITEM),
   param_type(MYSQL_TYPE_STRING),
   pos_in_query(pos_in_query_arg),
   set_param_func(default_set_param_func)
@@ -827,6 +828,15 @@ void Item_param::reset()
   state= NO_VALUE;
   maybe_null= 1;
   null_value= 0;
+  /*
+    Don't reset item_type to PARAM_ITEM: it's only needed to guard
+    us from item optimizations at prepare stage, when item doesn't yet
+    contain a literal of some kind.
+    In all other cases when this object is accessed its value is
+    set (this assumption is guarded by 'state' and
+    DBUG_ASSERTS(state != NO_VALUE) in all Item_param::get_*
+    methods).
+  */
 }
 
 
