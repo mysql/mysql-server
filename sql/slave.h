@@ -35,6 +35,11 @@ extern my_bool opt_log_slave_updates;
 extern ulonglong relay_log_space_limit;
 struct st_master_info;
 
+enum enum_binlog_formats {
+  BINLOG_FORMAT_CURRENT=0, /* 0 is important for easy 'if (mi->old_format)' */
+  BINLOG_FORMAT_323_LESS_57, 
+  BINLOG_FORMAT_323_GEQ_57 };
+
 /*
   TODO: this needs to be redone, but for now it does not matter since
   we do not have multi-master yet.
@@ -266,15 +271,15 @@ typedef struct st_master_info
   int events_till_abort;
 #endif
   bool inited;
-  bool old_format;			/* master binlog is in 3.23 format */
+  enum enum_binlog_formats old_format;			/* master binlog is in 3.23 format */
   volatile bool abort_slave, slave_running;
   volatile ulong slave_run_id;
   bool ignore_stop_event;
   
   
   st_master_info()
-    :fd(-1), io_thd(0), inited(0), old_format(0),abort_slave(0),
-     slave_running(0), slave_run_id(0)
+    :fd(-1), io_thd(0), inited(0), old_format(BINLOG_FORMAT_CURRENT),
+     abort_slave(0),slave_running(0), slave_run_id(0)
   {
     host[0] = 0; user[0] = 0; password[0] = 0;
     bzero(&file, sizeof(file));
