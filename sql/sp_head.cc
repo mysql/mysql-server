@@ -77,6 +77,7 @@ sp_multi_results_command(enum enum_sql_command cmd)
   case SQLCOM_SHOW_KEYS:
   case SQLCOM_SHOW_LOGS:
   case SQLCOM_SHOW_MASTER_STAT:
+  case SQLCOM_SHOW_MUTEX_STATUS:
   case SQLCOM_SHOW_NEW_MASTER:
   case SQLCOM_SHOW_OPEN_TABLES:
   case SQLCOM_SHOW_PRIVILEGES:
