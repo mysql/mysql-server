@@ -242,7 +242,7 @@ static struct my_option my_long_options[] =
    "Deprecated, use --set-charset or --skip-set-charset to enable/disable charset settings instead",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"set-charset", OPT_SET_CHARSET,
-   "'SET CHARACTER_SET_CLIENT=default_character_set' will be put in the output",
+   "Add 'SET NAMES default_character_set' to the output. Enabled by default; supress with --skip-set-charset.",
    (gptr*) &opt_set_charset, (gptr*) &opt_set_charset, 0, GET_BOOL, NO_ARG, 1,
    0, 0, 0, 0, 0},
   {"set-variable", 'O',
