@@ -527,7 +527,7 @@ Dbdict::writeTableFile(Signal* signal, Uint32 tableId,
   Uint32 sz = tabInfoPtr.sz + ZPAGE_HEADER_SIZE;
 
   c_writeTableRecord.noOfPages = DIV(sz, ZSIZE_OF_PAGES_IN_WORDS);
-  c_writeTableRecord.tableWriteState = WriteTableRecord::CALLBACK;
+  c_writeTableRecord.tableWriteState = WriteTableRecord::TWR_CALLBACK;
   c_writeTableRecord.m_callback = * callback;
 
   c_writeTableRecord.pageId = 0;
@@ -646,7 +646,7 @@ void Dbdict::closeWriteTableConf(Signal* signal,
   case WriteTableRecord::WRITE_RESTART_FROM_OWN :
     ndbrequire(false);
     break;
-  case WriteTableRecord::CALLBACK:
+  case WriteTableRecord::TWR_CALLBACK:
     jam();
     execute(signal, c_writeTableRecord.m_callback, 0);
     return;
@@ -2380,7 +2380,7 @@ Dbdict::restartCreateTab_readTableConf(Signal* signal,
   ndbrequire(c_writeTableRecord.tableWriteState == WriteTableRecord::IDLE);
   c_writeTableRecord.noOfPages = c_readTableRecord.noOfPages;
   c_writeTableRecord.pageId = c_readTableRecord.pageId;
-  c_writeTableRecord.tableWriteState = WriteTableRecord::CALLBACK;
+  c_writeTableRecord.tableWriteState = WriteTableRecord::TWR_CALLBACK;
   c_writeTableRecord.m_callback.m_callbackData = callbackData;
   c_writeTableRecord.m_callback.m_callbackFunction = 
     safe_cast(&Dbdict::restartCreateTab_writeTableConf);
@@ -4098,7 +4098,7 @@ Dbdict::execADD_FRAGREQ(Signal* signal) {
     req->lh3DistrBits = 0; //lhDistrBits;
     req->lh3PageBits = 0; //lhPageBits;
     req->noOfAttributes = tabPtr.p->noOfAttributes;
-    req->noOfNullAttributes = tabPtr.p->noOfNullAttr;
+    req->noOfNullAttributes = tabPtr.p->noOfNullBits;
     req->noOfPagesToPreAllocate = 0;
     req->schemaVersion = tabPtr.p->tableVersion;
     Uint32 keyLen = tabPtr.p->tupKeyLength;
@@ -4739,6 +4739,7 @@ void Dbdict::handleTabInfo(SimpleProperties::Reader & it,
   Uint32 keyLength = 0;
   Uint32 attrCount = tablePtr.p->noOfAttributes;
   Uint32 nullCount = 0;
+  Uint32 nullBits = 0;
   Uint32 noOfCharsets = 0;
   Uint16 charsets[128];
   Uint32 recordLength = 0;
@@ -4867,9 +4868,9 @@ void Dbdict::handleTabInfo(SimpleProperties::Reader & it,
     else
     {
       sz = 0;
-      nullCount += attrDesc.AttributeArraySize;      
+      nullBits += attrDesc.AttributeArraySize;      
     }
-
+    
     recordLength += sz;
     if(attrDesc.AttributeKeyFlag){
       keyLength += sz;
@@ -4897,6 +4898,7 @@ void Dbdict::handleTabInfo(SimpleProperties::Reader & it,
   tablePtr.p->noOfNullAttr = nullCount;
   tablePtr.p->noOfCharsets = noOfCharsets;
   tablePtr.p->tupKeyLength = keyLength;
+  tablePtr.p->noOfNullBits = nullCount + nullBits;
 
   tabRequire(recordLength<= MAX_TUPLE_SIZE_IN_WORDS, 
 	     CreateTableRef::RecordTooBig);

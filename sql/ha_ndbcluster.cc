@@ -193,7 +193,7 @@ int execute_no_commit_ie(ha_ndbcluster *h, NdbConnection *trans)
   if (m_batch_execute)
     return 0;
 #endif
-  return trans->execute(NoCommit,IgnoreError,h->m_force_send);
+  return trans->execute(NoCommit,AO_IgnoreError,h->m_force_send);
 }
 
 /*
@@ -2143,32 +2143,36 @@ void ha_ndbcluster::print_results()
   DBUG_ENTER("print_results");
 
 #ifndef DBUG_OFF
+
   if (!_db_on_)
     DBUG_VOID_RETURN;
   
   for (uint f=0; f<table->fields;f++)
   {
+    // Use DBUG_PRINT since DBUG_FILE cannot be filtered out
+    char buf[2000];
     Field *field;
     const NDBCOL *col;
     NdbValue value;
+    NdbBlob *ndb_blob;
 
+    buf[0] = 0;
     if (!(value= m_value[f]).ptr)
     {
-      fprintf(DBUG_FILE, "Field %d was not read\n", f);
-      continue;
+      my_snprintf(buf, sizeof(buf), "not read");
+      goto print_value;
     }
     field= table->field[f];
     DBUG_DUMP("field->ptr", (char*)field->ptr, field->pack_length());
     col= tab->getColumn(f);
-    fprintf(DBUG_FILE, "%d: %s\t", f, col->getName());
 
-    NdbBlob *ndb_blob= NULL;
     if (! (field->flags & BLOB_FLAG))
     {
+      ndb_blob= NULL;
       if (value.rec->isNULL())
       {
-        fprintf(DBUG_FILE, "NULL\n");
-        continue;
+        my_snprintf(buf, sizeof(buf), "NULL");
+        goto print_value;
       }
     }
     else
@@ -2177,124 +2181,124 @@ void ha_ndbcluster::print_results()
       bool isNull= TRUE;
       ndb_blob->getNull(isNull);
       if (isNull) {
-        fprintf(DBUG_FILE, "NULL\n");
-        continue;
+        my_snprintf(buf, sizeof(buf), "NULL");
+        goto print_value;
       }
     }
 
     switch (col->getType()) {
     case NdbDictionary::Column::Tinyint: {
       char value= *field->ptr;
-      fprintf(DBUG_FILE, "Tinyint\t%d", value);
+      my_snprintf(buf, sizeof(buf), "Tinyint %d", value);
       break;
     }
     case NdbDictionary::Column::Tinyunsigned: {
       unsigned char value= *field->ptr;
-      fprintf(DBUG_FILE, "Tinyunsigned\t%u", value);
+      my_snprintf(buf, sizeof(buf), "Tinyunsigned %u", value);
       break;
     }
     case NdbDictionary::Column::Smallint: {
       short value= *field->ptr;
-      fprintf(DBUG_FILE, "Smallint\t%d", value);
+      my_snprintf(buf, sizeof(buf), "Smallint %d", value);
       break;
     }
     case NdbDictionary::Column::Smallunsigned: {
       unsigned short value= *field->ptr;
-      fprintf(DBUG_FILE, "Smallunsigned\t%u", value);
+      my_snprintf(buf, sizeof(buf), "Smallunsigned %u", value);
       break;
     }
     case NdbDictionary::Column::Mediumint: {
       byte value[3];
       memcpy(value, field->ptr, 3);
-      fprintf(DBUG_FILE, "Mediumint\t%d,%d,%d", value[0], value[1], value[2]);
+      my_snprintf(buf, sizeof(buf), "Mediumint %d,%d,%d", value[0], value[1], value[2]);
       break;
     }
     case NdbDictionary::Column::Mediumunsigned: {
       byte value[3];
       memcpy(value, field->ptr, 3);
-      fprintf(DBUG_FILE, "Mediumunsigned\t%u,%u,%u", value[0], value[1], value[2]);
+      my_snprintf(buf, sizeof(buf), "Mediumunsigned %u,%u,%u", value[0], value[1], value[2]);
       break;
     }
     case NdbDictionary::Column::Int: {
-      fprintf(DBUG_FILE, "Int\t%lld", field->val_int());
+      my_snprintf(buf, sizeof(buf), "Int %d", value);
       break;
     }
     case NdbDictionary::Column::Unsigned: {
       Uint32 value= (Uint32) *field->ptr;
-      fprintf(DBUG_FILE, "Unsigned\t%u", value);
+      my_snprintf(buf, sizeof(buf), "Unsigned %u", value);
       break;
     }
     case NdbDictionary::Column::Bigint: {
       Int64 value= (Int64) *field->ptr;
-      fprintf(DBUG_FILE, "Bigint\t%lld", value);
+      my_snprintf(buf, sizeof(buf), "Bigint %lld", value);
       break;
     }
     case NdbDictionary::Column::Bigunsigned: {
       Uint64 value= (Uint64) *field->ptr;
-      fprintf(DBUG_FILE, "Bigunsigned\t%llu", value);
+      my_snprintf(buf, sizeof(buf), "Bigunsigned %llu", value);
       break;
     }
     case NdbDictionary::Column::Float: {
       float value= (float) *field->ptr;
-      fprintf(DBUG_FILE, "Float\t%f", value);
+      my_snprintf(buf, sizeof(buf), "Float %f", (double)value);
       break;
     }
     case NdbDictionary::Column::Double: {
       double value= (double) *field->ptr;
-      fprintf(DBUG_FILE, "Double\t%f", value);
+      my_snprintf(buf, sizeof(buf), "Double %f", value);
       break;
     }
     case NdbDictionary::Column::Decimal: {
       char *value= field->ptr;
-
-      fprintf(DBUG_FILE, "Decimal\t'%-*s'", field->pack_length(), value);
+      my_snprintf(buf, sizeof(buf), "Decimal '%-*s'", field->pack_length(), value);
       break;
     }
     case NdbDictionary::Column::Char:{
       const char *value= (char *) field->ptr;
-      fprintf(DBUG_FILE, "Char\t'%.*s'", field->pack_length(), value);
+      my_snprintf(buf, sizeof(buf), "Char '%.*s'", field->pack_length(), value);
       break;
     }
     case NdbDictionary::Column::Varchar:
     case NdbDictionary::Column::Binary:
     case NdbDictionary::Column::Varbinary: {
       const char *value= (char *) field->ptr;
-      fprintf(DBUG_FILE, "Var\t'%.*s'", field->pack_length(), value);
+      my_snprintf(buf, sizeof(buf), "Var '%.*s'", field->pack_length(), value);
       break;
     }
     case NdbDictionary::Column::Bit: {
       const char *value= (char *) field->ptr;
-      fprintf(DBUG_FILE, "Bit\t'%.*s'", field->pack_length(), value);
+      my_snprintf(buf, sizeof(buf), "Bit '%.*s'", field->pack_length(), value);
       break;
     }
     case NdbDictionary::Column::Datetime: {
       Uint64 value= (Uint64) *field->ptr;
-      fprintf(DBUG_FILE, "Datetime\t%llu", value);
+      my_snprintf(buf, sizeof(buf), "Datetime %llu", value);
       break;
     }
     case NdbDictionary::Column::Timespec: {
       Uint64 value= (Uint64) *field->ptr;
-      fprintf(DBUG_FILE, "Timespec\t%llu", value);
+      my_snprintf(buf, sizeof(buf), "Timespec %llu", value);
       break;
     }
     case NdbDictionary::Column::Blob: {
       Uint64 len= 0;
       ndb_blob->getLength(len);
-      fprintf(DBUG_FILE, "Blob\t[len=%u]", (unsigned)len);
+      my_snprintf(buf, sizeof(buf), "Blob [len=%u]", (unsigned)len);
       break;
     }
     case NdbDictionary::Column::Text: {
       Uint64 len= 0;
       ndb_blob->getLength(len);
-      fprintf(DBUG_FILE, "Text\t[len=%u]", (unsigned)len);
+      my_snprintf(buf, sizeof(buf), "Text [len=%u]", (unsigned)len);
       break;
     }
     case NdbDictionary::Column::Undefined:
-      fprintf(DBUG_FILE, "Unknown type: %d", col->getType());
+      my_snprintf(buf, sizeof(buf), "Unknown type: %d", col->getType());
       break;
     }
-    fprintf(DBUG_FILE, "\n");
-    
+
+print_value:
+    DBUG_PRINT("value", ("%u,%s: %s", f, col->getName(), buf));
   }
 #endif
   DBUG_VOID_RETURN;
@@ -4922,7 +4926,7 @@ ha_ndbcluster::read_multi_range_first(key_multi_range **found_range_p,
 	  end_of_buffer -= reclength;
 	}
 	else if ((scanOp= m_active_trans->getNdbIndexScanOperation(idx, tab)) 
-		 && !scanOp->readTuples(lm, 0, parallelism, sorted, true) &&
+		 && !scanOp->readTuples(lm, 0, parallelism, sorted, false, true) &&
 		 !define_read_attrs(end_of_buffer-reclength, scanOp))
 	{
 	  m_multi_cursor= scanOp;

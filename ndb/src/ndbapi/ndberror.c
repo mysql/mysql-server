@@ -17,6 +17,7 @@
 
 #include <ndb_global.h>
 #include <ndberror.h>
+#include <m_string.h>
 
 typedef struct ErrorBundle {
   int code;
@@ -68,6 +69,7 @@ static const char* empty_string = "";
  *  600 - ACC
  *  700 - DICT
  *  800 - TUP
+ *  900 - TUX
  * 1200 - LQH
  * 1300 - BACKUP
  * 4000 - API
@@ -175,10 +177,13 @@ ErrorBundle ErrorCodes[] = {
   { 623,  IS, "623" },
   { 624,  IS, "624" },
   { 625,  IS, "Out of memory in Ndb Kernel, index part (increase IndexMemory)" },
-  { 800,  IS, "Too many ordered indexes (increase MaxNoOfOrderedIndexes)" },
+  { 640,  IS, "Too many hash indexes (should not happen)" },
   { 826,  IS, "Too many tables and attributes (increase MaxNoOfAttributes or MaxNoOfTables)" },
   { 827,  IS, "Out of memory in Ndb Kernel, data part (increase DataMemory)" },
-  { 832,  IS, "832" },
+  { 902,  IS, "Out of memory in Ndb Kernel, data part (increase DataMemory)" },
+  { 903,  IS, "Too many ordered indexes (increase MaxNoOfOrderedIndexes)" },
+  { 904,  IS, "Out of fragment records (increase MaxNoOfOrderedIndexes)" },
+  { 905,  IS, "Out of attribute records (increase MaxNoOfAttributes)" },
 
   /**
    * TimeoutExpired 
@@ -204,8 +209,8 @@ ErrorBundle ErrorCodes[] = {
    * Internal errors
    */
   { 892,  IE, "Inconsistent hash index. The index needs to be dropped and recreated" },
-  { 895,  IE, "Inconsistent ordered index. The index needs to be dropped and recreated" },
   { 896,  IE, "Tuple corrupted - wrong checksum or column data in invalid format" },
+  { 901,  IE, "Inconsistent ordered index. The index needs to be dropped and recreated" },
   { 202,  IE, "202" },
   { 203,  IE, "203" },
   { 207,  IE, "207" },
@@ -309,7 +314,6 @@ ErrorBundle ErrorCodes[] = {
   { 739,  SE, "Unsupported primary key length" },
   { 740,  SE, "Nullable primary key not supported" },
   { 741,  SE, "Unsupported alter table" },
-  { 742,  SE, "Unsupported attribute type in index" },
   { 743,  SE, "Unsupported character set in table or index" },
   { 744,  SE, "Character string is invalid for given character set" },
   { 745,  SE, "Distribution key not supported for char attribute (use binary attribute)" },
@@ -318,6 +322,9 @@ ErrorBundle ErrorCodes[] = {
   { 284,  SE, "Table not defined in transaction coordinator" },
   { 285,  SE, "Unknown table error in transaction coordinator" },
   { 881,  SE, "Unable to create table, out of data pages (increase DataMemory) " },
+  { 906,  SE, "Unsupported attribute type in index" },
+  { 907,  SE, "Unsupported character set in table or index" },
+  { 908,  IS, "Invalid ordered index tree node size" },
   { 1225, SE, "Table not defined in local query handler" },
   { 1226, SE, "Table is being dropped" },
   { 1228, SE, "Cannot use drop table for drop index" },
@@ -481,8 +488,8 @@ ErrorBundle ErrorCodes[] = {
   { 4266, AE, "Invalid blob seek position" },
   { 4267, IE, "Corrupted blob value" },
   { 4268, IE, "Error in blob head update forced rollback of transaction" },
-  { 4268, IE, "Unknown blob error" },
   { 4269, IE, "No connection to ndb management server" },
+  { 4270, IE, "Unknown blob error" },
   { 4335, AE, "Only one autoincrement column allowed per table. Having a table without primary key uses an autoincremented hidden key, i.e. a table without a primary key can not have an autoincremented column" }
 };
 
@@ -649,10 +656,10 @@ int ndb_error_string(int err_no, char *str, unsigned int size)
   ndberror_update(&error);
 
   len =
-    snprintf(str, size-1, "%s: %s: %s", error.message,
-	     ndberror_status_message(error.status),
-	     ndberror_classification_message(error.classification));
+    my_snprintf(str, size-1, "%s: %s: %s", error.message,
+		ndberror_status_message(error.status),
+		ndberror_classification_message(error.classification));
   str[size-1]= '\0';
-
+  
   return len;
 }

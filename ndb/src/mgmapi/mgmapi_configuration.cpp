@@ -1,3 +1,4 @@
+#include <ndb_types.h>
 #include <mgmapi.h>
 #include "mgmapi_configuration.hpp"
 #include <new>
@@ -138,7 +139,7 @@ ndb_mgm_get_int_parameter(const ndb_mgm_configuration_iterator* iter,
 extern "C"
 int 
 ndb_mgm_get_int64_parameter(const ndb_mgm_configuration_iterator* iter, 
-			    int param, unsigned long long * value){
+			    int param, Uint64 * value){
   return iter->get(param, value);
 }
 

@@ -491,7 +491,7 @@ Dbtux::moveScanList(NodeHandle& node, unsigned pos)
         debugOut << "At pos=" << pos << " " << node << endl;
       }
 #endif
-      scanNext(scanPtr);
+      scanNext(scanPtr, true);
       ndbrequire(! (scanPos.m_loc == node.m_loc && scanPos.m_pos == pos));
     }
     scanPtr.i = nextPtrI;

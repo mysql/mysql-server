@@ -2374,12 +2374,24 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
 				    const char *file_name)
 {
   TIME time;
-  const char *wild= thd->lex->wild ? thd->lex->wild->ptr() : NullS;
+  LEX *lex= thd->lex;
+  const char *wild= lex->wild ? lex->wild->ptr() : NullS;
   CHARSET_INFO *cs= system_charset_info;
   DBUG_ENTER("get_schema_column_record");
   if (res)
   {
-    DBUG_RETURN(1);
+    if (lex->orig_sql_command != SQLCOM_SHOW_FIELDS)
+    {
+      /*
+        I.e. we are in SELECT FROM INFORMATION_SCHEMA.COLUMS
+        rather than in SHOW COLUMNS
+      */ 
+      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                   thd->net.last_errno, thd->net.last_error);
+      thd->clear_error();
+      res= 0;
+    }
+    DBUG_RETURN(res);
   }
 
   TABLE *show_table= tables->table;
@@ -2551,10 +2563,10 @@ int fill_schema_charsets(THD *thd, TABLE_LIST *tables, COND *cond)
     {
       restore_record(table, default_values);
       table->field[0]->store(tmp_cs->csname, strlen(tmp_cs->csname), scs);
-      table->field[1]->store(tmp_cs->comment ? tmp_cs->comment : "",
+      table->field[1]->store(tmp_cs->name, strlen(tmp_cs->name), scs);
+      table->field[2]->store(tmp_cs->comment ? tmp_cs->comment : "",
 			     strlen(tmp_cs->comment ? tmp_cs->comment : ""),
                              scs);
-      table->field[2]->store(tmp_cs->name, strlen(tmp_cs->name), scs);
       table->field[3]->store((longlong) tmp_cs->mbmaxlen);
       table->file->write_row(table->record[0]);
     }
@@ -2661,20 +2673,25 @@ void store_schema_proc(THD *thd, TABLE *table,
       tmp_string.length(0);
       get_field(thd->mem_root, proc_table->field[2], &tmp_string);
       table->field[4]->store(tmp_string.ptr(), tmp_string.length(), cs);
-      tmp_string.length(0);
-      get_field(thd->mem_root, proc_table->field[9], &tmp_string);
-      table->field[5]->store(tmp_string.ptr(), tmp_string.length(), cs);
+      if (proc_table->field[2]->val_int() == TYPE_ENUM_FUNCTION)
+      {
+        tmp_string.length(0);
+        get_field(thd->mem_root, proc_table->field[9], &tmp_string);
+        table->field[5]->store(tmp_string.ptr(), tmp_string.length(), cs);
+        table->field[5]->set_notnull();
+      }
       table->field[6]->store("SQL", 3, cs);
       tmp_string.length(0);
       get_field(thd->mem_root, proc_table->field[10], &tmp_string);
       table->field[7]->store(tmp_string.ptr(), tmp_string.length(), cs);
-      table->field[8]->store("SQL", 3, cs);
+      table->field[10]->store("SQL", 3, cs);
       tmp_string.length(0);
       get_field(thd->mem_root, proc_table->field[6], &tmp_string);
       table->field[11]->store(tmp_string.ptr(), tmp_string.length(), cs);
-      tmp_string.length(0);
-      get_field(thd->mem_root, proc_table->field[5], &tmp_string);
-      table->field[12]->store(tmp_string.ptr(), tmp_string.length(), cs);
+      if (proc_table->field[5]->val_int() == SP_CONTAINS_SQL)
+      {
+        table->field[12]->store("CONTAINS SQL", 12 , cs);
+      }
       tmp_string.length(0);
       get_field(thd->mem_root, proc_table->field[7], &tmp_string);
       table->field[14]->store(tmp_string.ptr(), tmp_string.length(), cs);
@@ -2740,7 +2757,23 @@ static int get_schema_stat_record(THD *thd, struct st_table_list *tables,
 {
   CHARSET_INFO *cs= system_charset_info;
   DBUG_ENTER("get_schema_stat_record");
-  if (!res && !tables->view)
+  if (res)
+  {
+    if (thd->lex->orig_sql_command != SQLCOM_SHOW_KEYS)
+    {
+      /*
+        I.e. we are in SELECT FROM INFORMATION_SCHEMA.STATISTICS
+        rather than in SHOW KEYS
+      */ 
+      if (!tables->view)
+        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                     thd->net.last_errno, thd->net.last_error);
+      thd->clear_error();
+      res= 0;
+    }
+    DBUG_RETURN(res);
+  }
+  else if (!tables->view)
   {
     TABLE *show_table= tables->table;
     KEY *key_info=show_table->key_info;
@@ -2824,9 +2857,9 @@ static int get_schema_views_record(THD *thd, struct st_table_list *tables,
       if (tables->with_check != VIEW_CHECK_NONE)
       {
         if (tables->with_check == VIEW_CHECK_LOCAL)
-          table->field[4]->store("WITH LOCAL CHECK OPTION", 23, cs);
+          table->field[4]->store("LOCAL", 5, cs);
         else
-          table->field[4]->store("WITH CASCADED CHECK OPTION", 26, cs);
+          table->field[4]->store("CASCADED", 8, cs);
       }
       else
         table->field[4]->store("NONE", 4, cs);
@@ -2838,7 +2871,14 @@ static int get_schema_views_record(THD *thd, struct st_table_list *tables,
       table->file->write_row(table->record[0]);
     }
   }
-  DBUG_RETURN(res);
+  else
+  {
+    if (tables->view)
+      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 
+                   thd->net.last_errno, thd->net.last_error);
+    thd->clear_error();
+  }
+  DBUG_RETURN(0);
 }
 
 
@@ -2857,13 +2897,21 @@ void store_constraints(TABLE *table, const char*db, const char *tname,
 }
 
 
-static int get_schema_constarints_record(THD *thd, struct st_table_list *tables,
+static int get_schema_constraints_record(THD *thd, struct st_table_list *tables,
 					 TABLE *table, bool res,
 					 const char *base_name,
 					 const char *file_name)
 {
-  DBUG_ENTER("get_schema_constarints_record");
-  if (!res && !tables->view)
+  DBUG_ENTER("get_schema_constraints_record");
+  if (res)
+  {
+    if (!tables->view)
+      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                   thd->net.last_errno, thd->net.last_error);
+    thd->clear_error();
+    DBUG_RETURN(0);
+  }
+  else if (!tables->view)
   {
     List<FOREIGN_KEY_INFO> f_key_list;
     TABLE *show_table= tables->table;
@@ -2920,7 +2968,15 @@ static int get_schema_key_column_usage_record(THD *thd,
 {
   DBUG_ENTER("get_schema_key_column_usage_record");
   CHARSET_INFO *cs= system_charset_info;
-  if (!res && !tables->view)
+  if (res)
+  {
+    if (!tables->view)
+      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                   thd->net.last_errno, thd->net.last_error);
+    thd->clear_error();
+    DBUG_RETURN(0);
+  }
+  else if (!tables->view)
   {
     List<FOREIGN_KEY_INFO> f_key_list;
     TABLE *show_table= tables->table;
@@ -2974,14 +3030,6 @@ static int get_schema_key_column_usage_record(THD *thd,
                                (longlong) f_idx);
         table->field[8]->store((longlong) f_idx);
         table->field[8]->set_notnull();
-        table->field[9]->store(f_key_info->referenced_db->str,
-                               f_key_info->referenced_db->length, cs);
-        table->field[9]->set_notnull();
-        table->field[10]->store(f_key_info->referenced_table->str,
-                               f_key_info->referenced_table->length, cs);
-        table->field[10]->set_notnull();
-        table->field[11]->store(r_info->str, r_info->length, cs);
-        table->field[11]->set_notnull();
         table->file->write_row(table->record[0]);
       }
     }
@@ -3219,6 +3267,28 @@ int make_columns_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
 }
 
 
+int make_character_sets_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
+{
+  int fields_arr[]= {0, 2, 1, 3, -1};
+  int *field_num= fields_arr;
+  ST_FIELD_INFO *field_info;
+  for (; *field_num >= 0; field_num++)
+  {
+    field_info= &schema_table->fields_info[*field_num];
+    Item_field *field= new Item_field(NullS, NullS, field_info->field_name);
+    if (field)
+    {
+      field->set_name(field_info->old_name,
+                      strlen(field_info->old_name),
+                      system_charset_info);
+      if (add_item_to_list(thd, field))
+        return 1;
+    }
+  }
+  return 0;
+}
+
+
 int make_proc_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
 {
   int fields_arr[]= {2, 3, 4, 19, 16, 15, 14, 18, -1};
@@ -3442,8 +3512,8 @@ ST_FIELD_INFO columns_fields_info[]=
 ST_FIELD_INFO charsets_fields_info[]=
 {
   {"CHARACTER_SET_NAME", 30, MYSQL_TYPE_STRING, 0, 0, "Charset"},
-  {"DESCRIPTION", 60, MYSQL_TYPE_STRING, 0, 0, "Description"},
   {"DEFAULT_COLLATE_NAME", 60, MYSQL_TYPE_STRING, 0, 0, "Default collation"},
+  {"DESCRIPTION", 60, MYSQL_TYPE_STRING, 0, 0, "Description"},
   {"MAXLEN", 3 ,MYSQL_TYPE_LONG, 0, 0, "Maxlen"},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
 };
@@ -3476,12 +3546,12 @@ ST_FIELD_INFO proc_fields_info[]=
   {"ROUTINE_SCHEMA", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, "Db"},
   {"ROUTINE_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, "Name"},
   {"ROUTINE_TYPE", 9, MYSQL_TYPE_STRING, 0, 0, "Type"},
-  {"DTD_IDENTIFIER", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
-  {"ROUTINE_BODY", 3, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"DTD_IDENTIFIER", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
+  {"ROUTINE_BODY", 8, MYSQL_TYPE_STRING, 0, 0, 0},
   {"ROUTINE_DEFINITION", 65535, MYSQL_TYPE_STRING, 0, 0, 0},
   {"EXTERNAL_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
   {"EXTERNAL_LANGUAGE", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
-  {"PARAMETER_STYLE", 3, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"PARAMETER_STYLE", 8, MYSQL_TYPE_STRING, 0, 0, 0},
   {"IS_DETERMINISTIC", 3, MYSQL_TYPE_STRING, 0, 0, 0},
   {"SQL_DATA_ACCESS", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
   {"SQL_PATH", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
@@ -3522,7 +3592,7 @@ ST_FIELD_INFO view_fields_info[]=
   {"TABLE_SCHEMA", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
   {"TABLE_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
   {"VIEW_DEFINITION", 65535, MYSQL_TYPE_STRING, 0, 0, 0},
-  {"CHECK_OPTION", 30, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"CHECK_OPTION", 8, MYSQL_TYPE_STRING, 0, 0, 0},
   {"IS_UPDATABLE", 3, MYSQL_TYPE_STRING, 0, 0, 0},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
 };
@@ -3597,9 +3667,6 @@ ST_FIELD_INFO key_column_usage_fields_info[]=
   {"COLUMN_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
   {"ORDINAL_POSITION", 10 ,MYSQL_TYPE_LONG, 0, 0, 0},
   {"POSITION_IN_UNIQUE_CONSTRAINT", 10 ,MYSQL_TYPE_LONG, 0, 1, 0},
-  {"REFERENCED_TABLE_SCHEMA", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
-  {"REFERENCED_TABLE_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
-  {"REFERENCED_COLUMN_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
 };
 
@@ -3627,7 +3694,7 @@ ST_SCHEMA_TABLE schema_tables[]=
   {"COLUMNS", columns_fields_info, create_schema_table, 
    get_all_tables, make_columns_old_format, get_schema_column_record, 1, 2},
   {"CHARACTER_SETS", charsets_fields_info, create_schema_table, 
-   fill_schema_charsets, make_old_format, 0, -1, -1},
+   fill_schema_charsets, make_character_sets_old_format, 0, -1, -1},
   {"COLLATIONS", collation_fields_info, create_schema_table, 
    fill_schema_collation, make_old_format, 0, -1, -1},
   {"COLLATION_CHARACTER_SET_APPLICABILITY", coll_charset_app_fields_info,
@@ -3647,7 +3714,7 @@ ST_SCHEMA_TABLE schema_tables[]=
   {"COLUMN_PRIVILEGES", column_privileges_fields_info, create_schema_table,
     fill_schema_column_privileges, 0, 0, -1, -1},
   {"TABLE_CONSTRAINTS", table_constraints_fields_info, create_schema_table,
-    get_all_tables, 0, get_schema_constarints_record, 3, 4},
+    get_all_tables, 0, get_schema_constraints_record, 3, 4},
   {"KEY_COLUMN_USAGE", key_column_usage_fields_info, create_schema_table,
     get_all_tables, 0, get_schema_key_column_usage_record, 4, 5},
   {"TABLE_NAMES", table_names_fields_info, create_schema_table,
