@@ -771,12 +771,9 @@ The MySQL log files
 * Binary log::                  
 * Slow query log::              
 
-MySQL Client Tools and APIs
+MySQL APIs
 
 * C::                           @strong{MySQL} C API
-* C API datatypes::             C API datatypes
-* C API function overview::     C API function Overview
-* C API functions::             C API function descriptions
 * Perl::                        @strong{MySQL} Perl API
 * Eiffel::                      @strong{MySQL} Eiffel wrapper
 * Java::                        @strong{MySQL} Java connectivity (JDBC)
@@ -784,66 +781,6 @@ MySQL Client Tools and APIs
 * Cplusplus::                   @strong{MySQL} C++ APIs
 * Python::                      @strong{MySQL} Python APIs
 * Tcl::                         @strong{MySQL} Tcl APIs
-
-C API Function Descriptions
-
-* mysql_affected_rows::         @code{mysql_affected_rows()}
-* mysql_close::                 @code{mysql_close()}
-* mysql_connect::               @code{mysql_connect()}
-* mysql_change_user::           @code{mysql_change_user()}
-* mysql_character_set_name::    @code{mysql_character_set_name()}
-* mysql_create_db::             @code{mysql_create_db()}
-* mysql_data_seek::             @code{mysql_data_seek()}
-* mysql_debug::                 @code{mysql_debug()}
-* mysql_drop_db::               @code{mysql_drop_db()}
-* mysql_dump_debug_info::       @code{mysql_dump_debug_info()}
-* mysql_eof::                   @code{mysql_eof()}
-* mysql_errno::                 @code{mysql_errno()}
-* mysql_error::                 @code{mysql_error()}
-* mysql_escape_string::         @code{mysql_escape_string()}
-* mysql_fetch_field::           @code{mysql_fetch_field()}
-* mysql_fetch_fields::          @code{mysql_fetch_fields()}
-* mysql_fetch_field_direct::    @code{mysql_fetch_field_direct()}
-* mysql_fetch_lengths::         @code{mysql_fetch_lengths()}
-* mysql_fetch_row::             @code{mysql_fetch_row()}
-* mysql_field_count::           @code{mysql_field_count()}
-* mysql_field_seek::            @code{mysql_field_seek()}
-* mysql_field_tell::            @code{mysql_field_tell()}
-* mysql_free_result::           @code{mysql_free_result()}
-* mysql_get_client_info::       @code{mysql_get_client_info()}
-* mysql_get_host_info::         @code{mysql_get_host_info()}
-* mysql_get_proto_info::        @code{mysql_get_proto_info()}
-* mysql_get_server_info::       @code{mysql_get_server_info()}
-* mysql_info::                  @code{mysql_info()}
-* mysql_init::                  @code{mysql_init()}
-* mysql_insert_id::             @code{mysql_insert_id()}
-* mysql_kill::                  @code{mysql_kill()}
-* mysql_list_dbs::              @code{mysql_list_dbs()}
-* mysql_list_fields::           @code{mysql_list_fields()}
-* mysql_list_processes::        @code{mysql_list_processes()}
-* mysql_list_tables::           @code{mysql_list_tables()}
-* mysql_num_fields::            @code{mysql_num_fields()}
-* mysql_num_rows::              @code{mysql_num_rows()}
-* mysql_options::               @code{mysql_options()}
-* mysql_ping::                  @code{mysql_ping()}
-* mysql_query::                 @code{mysql_query()}
-* mysql_real_connect::          @code{mysql_real_connect()}
-* mysql_real_escape_string::    @code{mysql_real_escape_string()}
-* mysql_real_query::            @code{mysql_real_query()}
-* mysql_reload::                @code{mysql_reload()}
-* mysql_row_seek::              @code{mysql_row_seek()}
-* mysql_row_tell::              @code{mysql_row_tell()}
-* mysql_select_db::             @code{mysql_select_db()}
-* mysql_shutdown::              @code{mysql_shutdown()}
-* mysql_stat::                  @code{mysql_stat()}
-* mysql_store_result::          @code{mysql_store_result()}
-* mysql_thread_id::             @code{mysql_thread_id()}
-* mysql_use_result::            @code{mysql_use_result()}
-* NULL mysql_store_result::     Why is it that after @code{mysql_query()} returns success, @code{mysql_store_result()} sometimes returns @code{NULL?}
-* Query results::               What results can I get from a query?
-* Getting unique ID::           How can I get the unique ID for the last inserted row?
-* C API linking problems::      Problems linking with the C API
-* Thread-safe clients::         How to make a thread-safe client
 
 MySQL Perl API
 
@@ -899,7 +836,7 @@ Changes in release 4.0.x (Development; Alpha)
 
 Changes in release 3.23.x  (Stable)
 
-* News-3.23.37::                
+* News-3.23.37::                Changes in release 3.23.37
 * News-3.23.36::                Changes in release 3.23.36
 * News-3.23.35::                Changes in release 3.23.35
 * News-3.23.34a::               Changes in release 3.23.34a
@@ -2924,6 +2861,9 @@ There are also many Web pages that use
 * Bug reports::                 How to report bugs or problems
 * Answering questions::         Guidelines for answering questions on the mailing list
 @end menu
+
+This chapter introduces you to the @strong{MySQL} mailing lists, and gives
+some guidelines as to how to use them.
 
 @node Mailing-list, Asking questions, Questions, Questions
 @section The MySQL Mailing Lists
@@ -10568,6 +10508,12 @@ information.
 * Commit-rollback::             How to cope without @code{COMMIT}-@code{ROLLBACK}
 @end menu
 
+This chapter describes how @strong{MySQL} relates to the ANSI SQL standards.
+@strong{MySQL} has many extensions to the ANSI SQL standards, and here you
+will find out what they are, and how to use them.  You will also find 
+information about functionality missing from @strong{MySQL}, and how to work 
+around some differences.  
+
 @node Extensions to ANSI, ANSI mode, Compatibility, Compatibility
 @section MySQL Extensions to ANSI SQL92
 
@@ -13450,7 +13396,7 @@ to restart @code{mysqld} with @code{--skip-grant-tables} to run
 @chapter MySQL Language Reference
 
 @menu
-* Literals::                    Literals: how to write strings and numbers
+* Literals::                    Literals: How to write strings and numbers
 * Variables::                   User variables
 * Column types::                Column types
 * Functions::                   Functions
@@ -13475,7 +13421,7 @@ to restart @code{mysqld} with @code{--skip-grant-tables} to run
 * LOAD DATA::                   @code{LOAD DATA INFILE} syntax
 * UPDATE::                      @code{UPDATE} syntax
 * USE::                         @code{USE} syntax
-* FLUSH::                       @code{Flush} syntax (clearing caches)
+* FLUSH::                       @code{FLUSH} syntax (clearing caches)
 * KILL::                        @code{KILL} syntax
 * SHOW::                        @code{SHOW} syntax (Get information about tables, columns, ...)
 * EXPLAIN::                     @code{EXPLAIN} syntax (Get information about a @code{SELECT})
@@ -13492,6 +13438,12 @@ to restart @code{mysqld} with @code{--skip-grant-tables} to run
 * Reserved words::              Is @strong{MySQL} picky about reserved words?
 @end menu
 
+@strong{MySQL} has a very complex, but intuitive and easy to learn SQL
+interface.  This chapter describes the various commands, types, and functions 
+you will need to know in order to use @strong{MySQL} efficiently and 
+effectively.  This chapter also serves as a reference to all functionality
+included in MySQL.  In order to use this chapter effectively, you may
+find it useful to refer to the various indexes.
 
 @cindex strings, defined
 @cindex strings, escaping characters
@@ -13508,6 +13460,10 @@ to restart @code{mysqld} with @code{--skip-grant-tables} to run
 * NULL values::                 @code{NULL} values
 * Legal names::                 Database, Table, Index, Column, and Alias Names
 @end menu
+
+This section describes the various ways to write strings and numbers in
+@strong{MySQL}.  It also covers the various nuances and ``gotchas'' that
+you may run into when dealing with these basic types in @strong{MySQL}.
 
 @node String syntax, Number syntax, Literals, Literals
 @subsection Strings
@@ -14993,9 +14949,6 @@ Illegal @code{YEAR} values are converted to @code{0000}.
 @node String types, Choosing types, Date and time types, Column types
 @subsection String Types
 
-The string types are @code{CHAR}, @code{VARCHAR}, @code{BLOB}, @code{TEXT},
-@code{ENUM}, and @code{SET}.
-
 @tindex CHAR
 @tindex VARCHAR
 @menu
@@ -15004,6 +14957,10 @@ The string types are @code{CHAR}, @code{VARCHAR}, @code{BLOB}, @code{TEXT},
 * ENUM::                        The @code{ENUM} type
 * SET::                         The @code{SET} type
 @end menu
+
+The string types are @code{CHAR}, @code{VARCHAR}, @code{BLOB}, @code{TEXT},
+@code{ENUM}, and @code{SET}.  This section describes how these types work,
+their storage requirements, and how to use them in your queries.
 
 @node CHAR, BLOB, String types, String types
 @subsubsection The @code{CHAR} and @code{VARCHAR} Types
@@ -24677,7 +24634,7 @@ SELECT article, dealer, price
 FROM   shop s1
 WHERE  price=(SELECT MAX(s2.price)
               FROM shop s2
-              WHERE s1.article = s2.article)
+              WHERE s1.article = s2.article);
 @end example
 
 In @strong{MySQL} it's best do it in several steps:
@@ -26544,6 +26501,10 @@ group by
 * Table size::                  How big @strong{MySQL} tables can be
 @end menu
 
+This chapter describes the languages @strong{MySQL} supports, how sorting
+works in @strong{MySQL}, and how to add new character sets to @strong{MySQL}.
+You will also find information about maximum table sizes in this chapter.
+
 @cindex error messages, languages
 @cindex messages, languages
 @cindex files, error messages
@@ -26878,12 +26839,12 @@ limits. Here are some examples:
 
 @multitable @columnfractions .5 .5
 @item @strong{Operating System} @tab @strong{File Size Limit}
-@item Linux-Intel 32 bit@tab 2G, 4G or bigger depending on Linux version
-@item Linux-Alpha @tab 8T (?)
-@item Solaris 2.5.1 @tab 2G (possible 4G with patch)
-@item Solaris 2.6 @tab 4G
-@item Solaris 2.7 Intel @tab 4G
-@item Solaris 2.7 ULTRA-SPARC @tab 8T (?)
+@item Linux-Intel 32 bit        @tab 2G, 4G or more, depends on Linux version
+@item Linux-Alpha               @tab 8T (?)
+@item Solaris 2.5.1             @tab 2G (possible 4G with patch)
+@item Solaris 2.6               @tab 4G
+@item Solaris 2.7 Intel         @tab 4G
+@item Solaris 2.7 ULTRA-SPARC   @tab 8T (?)
 @end multitable
 
 On Linux 2.2 you can get bigger tables than 2G by using the LFS patch for
@@ -26922,6 +26883,7 @@ tables}.
 @cindex databases, replicating
 @node Replication, Performance, Server, Top
 @chapter Replication in MySQL
+
 @menu
 * Replication Intro::           Introduction
 * Replication Implementation::  Replication Implementation Overview
@@ -26932,6 +26894,12 @@ tables}.
 * Replication FAQ::             Frequently Asked Questions about replication
 * Replication Problems::        Troubleshooting Replication.
 @end menu
+
+This chapter describes the various replication features in @strong{MySQL}.
+It serves as a reference to the options available with replication.
+You will be introduced to replication and learn how to implement it.  
+Towards the end, there are some frequently asked questions and descriptions 
+of problems and how to solve them.
 
 @node Replication Intro, Replication Implementation, Replication, Replication
 @section Introduction
@@ -30006,6 +29974,10 @@ We can find the result from crash-me on a lot of different databases at
 * myisampack::                  The @strong{MySQL} compressed read-only table generator
 @end menu
 
+In this chapter you will learn about the @strong{MySQL} Utilities that
+come in a given distribution.  You will learn what each of them does, how
+to use it, and what you should use it for.
+
 @cindex environment variables
 @cindex programs, list of
 @node Programs, safe_mysqld, Tools, Tools
@@ -31712,6 +31684,10 @@ to start using the new table.
 * Crash recovery::              Using @code{myisamchk} for crash recovery
 * Log file maintenance::        Log file maintenance
 @end menu
+
+This chapter covers what you should know about maintaining a @strong{MySQL}
+distribution.  You will learn how to care for your tables on a regular
+basis, and what to do when disaster strikes.
 
 @node Table maintenance, Maintenance regimen, Maintenance, Maintenance
 @section Using @code{myisamchk} for Table Maintenance and Crash Recovery
@@ -33510,7 +33486,9 @@ You can find all information about procedures by examining the following files:
 @end menu
 
 @strong{MySQL} provides support for ODBC by means of the @strong{MyODBC}
-program.
+program.  This chapter will teach you how to install @strong{MyODBC},
+and how to use it.  Here, you will also find a list of common programs that
+are known to work with @strong{MyODBC}.
 
 @node Installing MyODBC, ODBC administrator, ODBC, ODBC
 @section How To Install MyODBC
@@ -34043,11 +34021,24 @@ likely it is that we can fix the problem!
 * Borland C++::                 
 @end menu
 
+This chapter describes how to use @strong{MySQL} with some common programs.
+
+In this chapter you will:
+
+@itemize @bullet
+@item
+Learn how to easily store your Apache log files in a @strong{MySQL}
+database.
+@item
+Find some tips on how to compile @strong{MySQL} and @strong{MySQL}-based
+programs using Borland C++.
+@end itemize
+
 @cindex Apache
 @node Apache, Borland C++, Common programs, Common programs
 @section Using MySQL with Apache
 
-The contrib section includes programs that let you authenticate your
+The Contrib section includes programs that let you authenticate your
 users from a @strong{MySQL} database and also let you log your log files
 into a @strong{MySQL} table. @xref{Contrib}.
 
@@ -34118,6 +34109,11 @@ pre-allocated MYSQL struct.
 * ALTER TABLE problems::        Problems with @code{ALTER TABLE}.
 * Change column order::         How to change the order of columns in a table
 @end menu
+
+This chapter lists some common problems and error messages that users have
+run into.  You will learn how to figure out what the problem is, and what
+to do to solve it.  You will also find proper solutions to some common
+problems.
 
 @node What is crashing, Crashing, Problems, Problems
 @section How to Determine What Is Causing Problems
@@ -34483,6 +34479,9 @@ sure that no other programs are using the dynamic libraries!
 * Cannot find table::           @code{Table 'xxx' doesn't exist} error
 * Cannot initialize character set::  
 @end menu
+
+This section lists some errors that users frequently get.  You will find 
+descriptions of the errors, and how to solve the problem here.
 
 @cindex errors, access denied
 @cindex problems, access denied errors
@@ -35705,13 +35704,19 @@ Drop or rename @code{old_table}.
 * Multiple servers::            Running multiple @strong{MySQL} servers on the same machine
 @end menu
 
+In this chapter, you will find information to solve some of the more common
+tasks with @strong{MySQL}.  This includes making backups, running more than
+one @strong{MySQL} server daemon on a single machine, and replicating a
+database using the update or binary logs.
+
 @cindex database replication
 @cindex replication, database
 @node Log Replication, Backup, Common problems, Common problems
 @section Database Replication with Update Log
 
 Now that master-slave internal replication is available starting in
-Version 3.23.15, this is the recommended way. @xref{Replication}.
+Version 3.23.15, using the update log to implement replications is not
+recommended. @xref{Replication}.
 
 However, it is still possible to replicate a database by using the
 update log or the binary log. @xref{Update log}. This requires one
@@ -36208,13 +36213,10 @@ to the master database. @xref{Log Replication}.
 @cindex buffer sizes, client
 @cindex library, @code{mysqlclient}
 @node Clients, Comparisons, Log files, Top
-@chapter MySQL Client Tools and APIs
+@chapter MySQL APIs
 
 @menu
 * C::                           @strong{MySQL} C API
-* C API datatypes::             C API datatypes
-* C API function overview::     C API function Overview
-* C API functions::             C API function descriptions
 * Perl::                        @strong{MySQL} Perl API
 * Eiffel::                      @strong{MySQL} Eiffel wrapper
 * Java::                        @strong{MySQL} Java connectivity (JDBC)
@@ -36224,10 +36226,21 @@ to the master database. @xref{Log Replication}.
 * Tcl::                         @strong{MySQL} Tcl APIs
 @end menu
 
+This chapter describes the APIs available for @strong{MySQL}, where to get
+them, and how to use them.  The C API is the most extensively covered, as it
+was developed by the @strong{MySQL} team, and is the basis for most of the 
+other APIs.
+
 @cindex C API, datatypes
 @cindex datatypes, C API
 @node C, C API datatypes, Clients, Clients
 @section MySQL C API
+
+@menu
+* C API datatypes::             C API Datatypes
+* C API function overview::     C API Function Overview
+* C API functions::             C API Function Descriptions
+@end menu
 
 The C API code is distributed with @strong{MySQL}. It is included in the
 @code{mysqlclient} library and allows C programs to access a database.
@@ -36269,8 +36282,8 @@ is closed, at which time client memory is reclaimed.
 For programming with threads, consult the 'how to make a thread-safe
 client' chapter. @xref{Thread-safe clients}.
 
-@node C API datatypes, C API function overview, C, Clients
-@section C API Datatypes
+@node C API datatypes, C API function overview, C, C
+@subsection C API Datatypes
 @table @code
 
 @tindex MYSQL C type
@@ -36433,8 +36446,8 @@ The number of decimals for numeric fields.
 
 @cindex C API, functions
 @cindex functions, C API
-@node C API function overview, C API functions, C API datatypes, Clients
-@section C API Function Overview
+@node C API function overview, C API functions, C API datatypes, C
+@subsection C API Function Overview
 
 The functions available in the C API are listed below and are described in
 greater detail in the next section.
@@ -36455,7 +36468,7 @@ Connects to a @strong{MySQL} server. This function is deprecated; use
 @item @strong{mysql_change_user()} @tab
 Changes user and database on an open connection.
 
-@item @code{mysql_character_set_name()} @tab
+@item @strong{mysql_character_set_name()} @tab
 Returns the name of the default character set for the connection.
 
 @item @strong{mysql_create_db()} @tab
@@ -36711,8 +36724,8 @@ functions.  These return the error code or error message for the most
 recently invoked function that can succeed or fail, allowing you to determine
 when an error occurred and what it was.
 
-@node C API functions, Perl, C API function overview, Clients
-@section C API Function Descriptions
+@node C API functions, Perl, C API function overview, C
+@subsection C API Function Descriptions
 
 @menu
 * mysql_affected_rows::         @code{mysql_affected_rows()}
@@ -36805,7 +36818,7 @@ A string representation of the error may be obtained by calling
 
 @findex @code{mysql_affected_rows()}
 @node mysql_affected_rows, mysql_close, C API functions, C API functions
-@subsection @code{mysql_affected_rows()}
+@subsubsection @code{mysql_affected_rows()}
 
 @code{my_ulonglong mysql_affected_rows(MYSQL *mysql)}
 
@@ -36841,7 +36854,7 @@ printf("%d products updated",mysql_affected_rows(&mysql));
 
 @findex @code{mysql_close()}
 @node mysql_close, mysql_connect, mysql_affected_rows, C API functions
-@subsection @code{mysql_close()}
+@subsubsection @code{mysql_close()}
 
 @code{void mysql_close(MYSQL *mysql)}
 
@@ -36860,7 +36873,7 @@ None.
 
 @findex @code{mysql_connect()}
 @node mysql_connect, mysql_change_user, mysql_close, C API functions
-@subsection @code{mysql_connect()}
+@subsubsection @code{mysql_connect()}
 
 @code{MYSQL *mysql_connect(MYSQL *mysql, const char *host, const char *user, const char *passwd)}
 
@@ -36893,7 +36906,7 @@ Same as for @code{mysql_real_connect()}.
 
 @findex @code{mysql_change_user()}
 @node mysql_change_user, mysql_character_set_name, mysql_connect, C API functions
-@subsection @code{mysql_change_user()}
+@subsubsection @code{mysql_change_user()}
 
 @code{my_bool mysql_change_user(MYSQL *mysql, const char *user, const
 char *password, const char *db)}
@@ -36955,7 +36968,7 @@ if (mysql_change_user(&mysql, "user", "password", "new_database"))
 
 @findex @code{mysql_character_set_name()}
 @node mysql_character_set_name, mysql_create_db, mysql_change_user, C API functions
-@subsection @code{mysql_character_set_name()}
+@subsubsection @code{mysql_character_set_name()}
 
 @code{const char *mysql_character_set_name(MYSQL *mysql)}
 
@@ -36973,7 +36986,7 @@ None.
 
 @findex @code{mysql_create_db()}
 @node mysql_create_db, mysql_data_seek, mysql_character_set_name, C API functions
-@subsection @code{mysql_create_db()}
+@subsubsection @code{mysql_create_db()}
 
 @code{int mysql_create_db(MYSQL *mysql, const char *db)}
 
@@ -37016,7 +37029,7 @@ if(mysql_create_db(&mysql, "my_database"))
 
 @findex @code{mysql_data_seek()}
 @node mysql_data_seek, mysql_debug, mysql_create_db, C API functions
-@subsection @code{mysql_data_seek()}
+@subsubsection @code{mysql_data_seek()}
 
 @code{void mysql_data_seek(MYSQL_RES *result, unsigned long long offset)}
 
@@ -37038,7 +37051,7 @@ None.
 
 @findex @code{mysql_debug()}
 @node mysql_debug, mysql_drop_db, mysql_data_seek, C API functions
-@subsection @code{mysql_debug()}
+@subsubsection @code{mysql_debug()}
 
 @code{void mysql_debug(char *debug)}
 
@@ -37066,7 +37079,7 @@ mysql_debug("d:t:O,/tmp/client.trace");
 
 @findex @code{mysql_drop_db()}
 @node mysql_drop_db, mysql_dump_debug_info, mysql_debug, C API functions
-@subsection @code{mysql_drop_db()}
+@subsubsection @code{mysql_drop_db()}
 
 @code{int mysql_drop_db(MYSQL *mysql, const char *db)}
 
@@ -37104,7 +37117,7 @@ if(mysql_drop_db(&mysql, "my_database"))
 
 @findex @code{mysql_dump_debug_info()}
 @node mysql_dump_debug_info, mysql_eof, mysql_drop_db, C API functions
-@subsection @code{mysql_dump_debug_info()}
+@subsubsection @code{mysql_dump_debug_info()}
 
 @code{int mysql_dump_debug_info(MYSQL *mysql)}
 
@@ -37131,7 +37144,7 @@ An unknown error occurred.
 
 @findex @code{mysql_eof()}
 @node mysql_eof, mysql_errno, mysql_dump_debug_info, C API functions
-@subsection @code{mysql_eof()}
+@subsubsection @code{mysql_eof()}
 
 @code{my_bool mysql_eof(MYSQL_RES *result)}
 
@@ -37208,7 +37221,7 @@ if(mysql_errno(&mysql))  // mysql_fetch_row() failed due to an error
 
 @findex @code{mysql_errno()}
 @node mysql_errno, mysql_error, mysql_eof, C API functions
-@subsection @code{mysql_errno()}
+@subsubsection @code{mysql_errno()}
 
 @code{unsigned int mysql_errno(MYSQL *mysql)}
 
@@ -37231,7 +37244,7 @@ None.
 
 @findex @code{mysql_error()}
 @node mysql_error, mysql_escape_string, mysql_errno, C API functions
-@subsection @code{mysql_error()}
+@subsubsection @code{mysql_error()}
 
 @code{char *mysql_error(MYSQL *mysql)}
 
@@ -37269,7 +37282,7 @@ None.
 
 @findex @code{mysql_escape_string()}
 @node mysql_escape_string, mysql_fetch_field, mysql_error, C API functions
-@subsection @code{mysql_escape_string()}
+@subsubsection @code{mysql_escape_string()}
 
 You should use @code{mysql_real_escape_string()} instead!
 
@@ -37282,7 +37295,7 @@ setting.
 
 @findex @code{mysql_fetch_field()}
 @node mysql_fetch_field, mysql_fetch_fields, mysql_escape_string, C API functions
-@subsection @code{mysql_fetch_field()}
+@subsubsection @code{mysql_fetch_field()}
 
 @code{MYSQL_FIELD *mysql_fetch_field(MYSQL_RES *result)}
 
@@ -37328,7 +37341,7 @@ while((field = mysql_fetch_field(result)))
 
 @findex @code{mysql_fetch_fields()}
 @node mysql_fetch_fields, mysql_fetch_field_direct, mysql_fetch_field, C API functions
-@subsection @code{mysql_fetch_fields()}
+@subsubsection @code{mysql_fetch_fields()}
 
 @code{MYSQL_FIELD *mysql_fetch_fields(MYSQL_RES *result)}
 
@@ -37362,7 +37375,7 @@ for(i = 0; i < num_fields; i++)
 
 @findex @code{mysql_fetch_field_direct()}
 @node mysql_fetch_field_direct, mysql_fetch_lengths, mysql_fetch_fields, C API functions
-@subsection @code{mysql_fetch_field_direct()}
+@subsubsection @code{mysql_fetch_field_direct()}
 
 @code{MYSQL_FIELD *mysql_fetch_field_direct(MYSQL_RES *result, unsigned int fieldnr)}
 
@@ -37398,7 +37411,7 @@ for(i = 0; i < num_fields; i++)
 
 @findex @code{mysql_fetch_lengths()}
 @node mysql_fetch_lengths, mysql_fetch_row, mysql_fetch_field_direct, C API functions
-@subsection @code{mysql_fetch_lengths()}
+@subsubsection @code{mysql_fetch_lengths()}
 
 @code{unsigned long *mysql_fetch_lengths(MYSQL_RES *result)}
 
@@ -37448,7 +37461,7 @@ if (row)
 
 @findex @code{mysql_fetch_row()}
 @node mysql_fetch_row, mysql_field_count, mysql_fetch_lengths, C API functions
-@subsection @code{mysql_fetch_row()}
+@subsubsection @code{mysql_fetch_row()}
 
 @code{MYSQL_ROW mysql_fetch_row(MYSQL_RES *result)}
 
@@ -37508,7 +37521,7 @@ while ((row = mysql_fetch_row(result)))
 
 @findex @code{mysql_field_count()}
 @node mysql_field_count, mysql_field_seek, mysql_fetch_row, C API functions
-@subsection @code{mysql_field_count()}
+@subsubsection @code{mysql_field_count()}
 
 @code{unsigned int mysql_field_count(MYSQL *mysql)}
 
@@ -37580,7 +37593,7 @@ of @code{mysql_field_count()} whether or not the statement was a
 
 @findex @code{mysql_field_seek()}
 @node mysql_field_seek, mysql_field_tell, mysql_field_count, C API functions
-@subsection @code{mysql_field_seek()}
+@subsubsection @code{mysql_field_seek()}
 
 @code{MYSQL_FIELD_OFFSET mysql_field_seek(MYSQL_RES *result, MYSQL_FIELD_OFFSET offset)}
 
@@ -37601,7 +37614,7 @@ None.
 
 @findex @code{mysql_field_tell()}
 @node mysql_field_tell, mysql_free_result, mysql_field_seek, C API functions
-@subsection @code{mysql_field_tell()}
+@subsubsection @code{mysql_field_tell()}
 
 @code{MYSQL_FIELD_OFFSET mysql_field_tell(MYSQL_RES *result)}
 
@@ -37620,7 +37633,7 @@ None.
 
 @findex @code{mysql_free_result()}
 @node mysql_free_result, mysql_get_client_info, mysql_field_tell, C API functions
-@subsection @code{mysql_free_result()}
+@subsubsection @code{mysql_free_result()}
 
 @code{void mysql_free_result(MYSQL_RES *result)}
 
@@ -37640,7 +37653,7 @@ None.
 
 @findex @code{mysql_get_client_info()}
 @node mysql_get_client_info, mysql_get_host_info, mysql_free_result, C API functions
-@subsection @code{mysql_get_client_info()}
+@subsubsection @code{mysql_get_client_info()}
 
 @code{char *mysql_get_client_info(void)}
 
@@ -37657,7 +37670,7 @@ None.
 
 @findex @code{mysql_get_host_info()}
 @node mysql_get_host_info, mysql_get_proto_info, mysql_get_client_info, C API functions
-@subsection @code{mysql_get_host_info()}
+@subsubsection @code{mysql_get_host_info()}
 
 @code{char *mysql_get_host_info(MYSQL *mysql)}
 
@@ -37675,7 +37688,7 @@ None.
 
 @findex @code{mysql_get_proto_info()}
 @node mysql_get_proto_info, mysql_get_server_info, mysql_get_host_info, C API functions
-@subsection @code{mysql_get_proto_info()}
+@subsubsection @code{mysql_get_proto_info()}
 
 @code{unsigned int mysql_get_proto_info(MYSQL *mysql)}
 
@@ -37693,7 +37706,7 @@ None.
 
 @findex @code{mysql_get_server_info()}
 @node mysql_get_server_info, mysql_info, mysql_get_proto_info, C API functions
-@subsection @code{mysql_get_server_info()}
+@subsubsection @code{mysql_get_server_info()}
 
 @code{char *mysql_get_server_info(MYSQL *mysql)}
 
@@ -37710,7 +37723,7 @@ None.
 
 @findex @code{mysql_info()}
 @node mysql_info, mysql_init, mysql_get_server_info, C API functions
-@subsection @code{mysql_info()}
+@subsubsection @code{mysql_info()}
 
 @code{char *mysql_info(MYSQL *mysql)}
 
@@ -37750,7 +37763,7 @@ None.
 
 @findex @code{mysql_init()}
 @node mysql_init, mysql_insert_id, mysql_info, C API functions
-@subsection @code{mysql_init()}
+@subsubsection @code{mysql_init()}
 
 @code{MYSQL *mysql_init(MYSQL *mysql)}
 
@@ -37773,7 +37786,7 @@ In case of insufficient memory, @code{NULL} is returned.
 
 @findex @code{mysql_insert_id()}
 @node mysql_insert_id, mysql_kill, mysql_init, C API functions
-@subsection @code{mysql_insert_id()}
+@subsubsection @code{mysql_insert_id()}
 
 @code{my_ulonglong mysql_insert_id(MYSQL *mysql)}
 
@@ -37804,7 +37817,7 @@ None.
 
 @findex @code{mysql_kill()}
 @node mysql_kill, mysql_list_dbs, mysql_insert_id, C API functions
-@subsection @code{mysql_kill()}
+@subsubsection @code{mysql_kill()}
 
 @code{int mysql_kill(MYSQL *mysql, unsigned long pid)}
 
@@ -37831,7 +37844,7 @@ An unknown error occurred.
 
 @findex @code{mysql_list_dbs()}
 @node mysql_list_dbs, mysql_list_fields, mysql_kill, C API functions
-@subsection @code{mysql_list_dbs()}
+@subsubsection @code{mysql_list_dbs()}
 
 @code{MYSQL_RES *mysql_list_dbs(MYSQL *mysql, const char *wild)}
 
@@ -37867,7 +37880,7 @@ An unknown error occurred.
 
 @findex @code{mysql_list_fields()}
 @node mysql_list_fields, mysql_list_processes, mysql_list_dbs, C API functions
-@subsection  @code{mysql_list_fields()}
+@subsubsection  @code{mysql_list_fields()}
 
 @code{MYSQL_RES *mysql_list_fields(MYSQL *mysql, const char *table, const char *wild)}
 
@@ -37904,7 +37917,7 @@ An unknown error occurred.
 
 @findex @code{mysql_list_processes()}
 @node mysql_list_processes, mysql_list_tables, mysql_list_fields, C API functions
-@subsection @code{mysql_list_processes()}
+@subsubsection @code{mysql_list_processes()}
 
 @code{MYSQL_RES *mysql_list_processes(MYSQL *mysql)}
 
@@ -37935,7 +37948,7 @@ An unknown error occurred.
 
 @findex @code{mysql_list_tables()}
 @node mysql_list_tables, mysql_num_fields, mysql_list_processes, C API functions
-@subsection @code{mysql_list_tables()}
+@subsubsection @code{mysql_list_tables()}
 
 @code{MYSQL_RES *mysql_list_tables(MYSQL *mysql, const char *wild)}
 
@@ -37970,7 +37983,7 @@ An unknown error occurred.
 @findex @code{mysql_num_fields()}
 @findex @code{mysql_field_count()}
 @node mysql_num_fields, mysql_num_rows, mysql_list_tables, C API functions
-@subsection @code{mysql_num_fields()}
+@subsubsection @code{mysql_num_fields()}
 
 @code{unsigned int mysql_num_fields(MYSQL_RES *result)}
 
@@ -38047,7 +38060,7 @@ went wrong.
 
 @findex @code{mysql_num_rows()}
 @node mysql_num_rows, mysql_options, mysql_num_fields, C API functions
-@subsection @code{mysql_num_rows()}
+@subsubsection @code{mysql_num_rows()}
 
 @code{my_ulonglong mysql_num_rows(MYSQL_RES *result)}
 
@@ -38071,7 +38084,7 @@ None.
 
 @findex @code{mysql_options()}
 @node mysql_options, mysql_ping, mysql_num_rows, C API functions
-@subsection @code{mysql_options()}
+@subsubsection @code{mysql_options()}
 
 @code{int mysql_options(MYSQL *mysql, enum mysql_option option, const char *arg)}
 
@@ -38151,7 +38164,7 @@ file.
 
 @findex @code{mysql_ping()}
 @node mysql_ping, mysql_query, mysql_options, C API functions
-@subsection @code{mysql_ping()}
+@subsubsection @code{mysql_ping()}
 
 @code{int mysql_ping(MYSQL *mysql)}
 
@@ -38181,7 +38194,7 @@ An unknown error occurred.
 
 @findex @code{mysql_query()}
 @node mysql_query, mysql_real_connect, mysql_ping, C API functions
-@subsection @code{mysql_query()}
+@subsubsection @code{mysql_query()}
 
 @code{int mysql_query(MYSQL *mysql, const char *query)}
 
@@ -38218,7 +38231,7 @@ An unknown error occurred.
 
 @findex @code{mysql_real_connect()}
 @node mysql_real_connect, mysql_real_escape_string, mysql_query, C API functions
-@subsection @code{mysql_real_connect()}
+@subsubsection @code{mysql_real_connect()}
 
 @code{MYSQL *mysql_real_connect(MYSQL *mysql, const char *host,
                           const char *user, const char *passwd, const char *db,
@@ -38376,7 +38389,7 @@ try reconnecting to the server before giving up.
 
 @findex @code{mysql_real_escape_string()}
 @node mysql_real_escape_string, mysql_real_query, mysql_real_connect, C API functions
-@subsection @code{mysql_real_escape_string()}
+@subsubsection @code{mysql_real_escape_string()}
 
 @code{unsigned int mysql_real_escape_string(MYSQL *mysql, char *to, const char *from, unsigned int length)}
 
@@ -38435,7 +38448,7 @@ None.
 
 @findex @code{mysql_real_query()}
 @node mysql_real_query, mysql_reload, mysql_real_escape_string, C API functions
-@subsection @code{mysql_real_query()}
+@subsubsection @code{mysql_real_query()}
 
 @code{int mysql_real_query(MYSQL *mysql, const char *query, unsigned int length)}
 
@@ -38475,7 +38488,7 @@ An unknown error occurred.
 
 @findex @code{mysql_reload()}
 @node mysql_reload, mysql_row_seek, mysql_real_query, C API functions
-@subsection @code{mysql_reload()}
+@subsubsection @code{mysql_reload()}
 
 @code{int mysql_reload(MYSQL *mysql)}
 
@@ -38506,7 +38519,7 @@ An unknown error occurred.
 
 @findex @code{mysql_row_seek()}
 @node mysql_row_seek, mysql_row_tell, mysql_reload, C API functions
-@subsection @code{mysql_row_seek()}
+@subsubsection @code{mysql_row_seek()}
 
 @code{MYSQL_ROW_OFFSET mysql_row_seek(MYSQL_RES *result, MYSQL_ROW_OFFSET offset)}
 
@@ -38531,7 +38544,7 @@ None.
 
 @findex @code{mysql_row_tell()}
 @node mysql_row_tell, mysql_select_db, mysql_row_seek, C API functions
-@subsection @code{mysql_row_tell()}
+@subsubsection @code{mysql_row_tell()}
 
 @code{MYSQL_ROW_OFFSET mysql_row_tell(MYSQL_RES *result)}
 
@@ -38553,7 +38566,7 @@ None.
 
 @findex @code{mysql_select_db()}
 @node mysql_select_db, mysql_shutdown, mysql_row_tell, C API functions
-@subsection @code{mysql_select_db()}
+@subsubsection @code{mysql_select_db()}
 
 @code{int mysql_select_db(MYSQL *mysql, const char *db)}
 
@@ -38586,7 +38599,7 @@ An unknown error occurred.
 
 @findex @code{mysql_shutdown()}
 @node mysql_shutdown, mysql_stat, mysql_select_db, C API functions
-@subsection @code{mysql_shutdown()}
+@subsubsection @code{mysql_shutdown()}
 
 @code{int mysql_shutdown(MYSQL *mysql)}
 
@@ -38614,7 +38627,7 @@ An unknown error occurred.
 
 @findex @code{mysql_stat()}
 @node mysql_stat, mysql_store_result, mysql_shutdown, C API functions
-@subsection @code{mysql_stat()}
+@subsubsection @code{mysql_stat()}
 
 @code{char *mysql_stat(MYSQL *mysql)}
 
@@ -38644,7 +38657,7 @@ An unknown error occurred.
 
 @findex @code{mysql_store_result()}
 @node mysql_store_result, mysql_thread_id, mysql_stat, C API functions
-@subsection @code{mysql_store_result()}
+@subsubsection @code{mysql_store_result()}
 
 @code{MYSQL_RES *mysql_store_result(MYSQL *mysql)}
 
@@ -38709,7 +38722,7 @@ An unknown error occurred.
 
 @findex @code{mysql_thread_id()}
 @node mysql_thread_id, mysql_use_result, mysql_store_result, C API functions
-@subsection @code{mysql_thread_id()}
+@subsubsection @code{mysql_thread_id()}
 
 @code{unsigned long mysql_thread_id(MYSQL *mysql)}
 
@@ -38731,7 +38744,7 @@ None.
 
 @findex @code{mysql_use_result()}
 @node mysql_use_result, NULL mysql_store_result, mysql_thread_id, C API functions
-@subsection @code{mysql_use_result()}
+@subsubsection @code{mysql_use_result()}
 
 @code{MYSQL_RES *mysql_use_result(MYSQL *mysql)}
 
@@ -39639,15 +39652,19 @@ interface that is based on msqltcl 1.50.
 * Compare PostgreSQL::          How @strong{MySQL} compares with PostgreSQL
 @end menu
 
-@node Compare mSQL, Compare PostgreSQL, Comparisons, Comparisons
-@section How MySQL Compares to @code{mSQL}
+This chapter compares @strong{MySQL} to other popular databases.  
 
-This section has been written by the @strong{MySQL} developers, so it
-should be read with that in mind. But there are NO factual errors that
-we know of.
+This chapter has been written by the @strong{MySQL} developers, so it
+should be read with that in mind.  There are no factual errors contained
+in this chapter that we know of.  If you find something which you believe
+to be an error, please contact us about it at @email{docs@@mysql.com}.
 
 For a list of all supported limits, functions, and types, see the
-@uref{http://www.mysql.com/information/crash-me.php, @code{crash-me} Web page}.
+@code{crash-me} Web page at 
+@uref{http://www.mysql.com/information/crash-me.php}.
+
+@node Compare mSQL, Compare PostgreSQL, Comparisons, Comparisons
+@section How MySQL Compares to @code{mSQL}
 
 @table @strong
 @item Performance
@@ -40675,6 +40692,11 @@ variables to modify the behavior of @strong{MySQL}. @xref{Option files}.
 @node Users, MySQL customer usage, Environment variables, Top
 @appendix Some MySQL Users
 
+This appendix lists some users of @strong{MySQL} that have given us permission
+to list them in our documentation.  It is by far not a complete list, but
+should give you a general idea of who uses @strong{MySQL} and what it can
+be used for.
+
 @appendixsec General News Sites
 
 @itemize @bullet
@@ -41092,12 +41114,13 @@ give you an idea of how other @strong{MySQL} users are using
 This manual section is very new and we plan to add more stories here
 shortly.  If you are interested in contributing of how you use
 @strong{MySQL} in a unique environment or have success store about how you
-use @strong{MySQL}, you can write to @code{docs@@lists.mysql.com} with
+use @strong{MySQL}, you can write to @code{docs@@mysql.com} with
 subject @code{Success:}.  Note that as we are very busy it may take some
 time before you get some feedback for your story.
 
 @itemize @bullet
 @item 
+@strong{Peter Zaitsev of Spylog.ru} writes:
 I think you might be interested in my database size.  The whole database
 is currently on 15 servers and I think it's about 60.000 of tables
 containing about 5.000.000.000 of rows.  My mostly loaded server
@@ -41106,10 +41129,9 @@ Hugest tables have about 50.000.000 of rows, and this value will raise
 as soon as I'll move to 2.4 kernel with large files. Currently I have to
 delete much of logs for large sites to hold table sizes in 2Gb.
 
-Peter Zaitsev, Spylog.ru.
 @item
-Texas Instrument is using MySQL for handling tables that contains up
-o 2,000 million rows in a validation regression database.
+@strong{Texas Instruments} is using @strong{MySQL} for handling tables 
+that contain up to 2,000 million rows in a validation regression database.
 @end itemize
 
 @page
@@ -41129,10 +41151,6 @@ interface, you should fetch the @code{Data-Dumper}, @code{DBI}, and
 @code{Msql-Mysql-modules} files and install them.
 @xref{Perl support}.
 @end ifclear
-
-
-@uref{http://www.mysql.com/Downloads/Contrib/00-README, 00-README}
-This listing.
 
 @appendixsec APIs
 
@@ -41861,8 +41879,8 @@ interested in.
 @node Credits, News, Contrib, Top
 @appendix Credits
 
-The following persons and companies have helped us make MySQL what it is
-today:
+This appendix lists the developers, contributors, and supporters that have
+helped to make @strong{MySQL} what it is today.
 
 @cindex developers, list of
 @menu
@@ -41874,8 +41892,10 @@ today:
 @node Developers, Contributors, Credits, Credits
 @appendixsubsec Developers at MySQL AB
 
-Developers that are or have been employed by MySQL AB to work on MySQL.
-(Roughly in the order they started to work with us.)
+These are the developers that are or have been employed by MySQL AB to work
+on MySQL, roughly in the order they started to work with us.  Following each
+developer is a small list of the tasks that the developer is responsible for,
+or the accomplishments they have made.
 
 @table @asis
 @item Michael (Monty) Widenius
@@ -42059,7 +42079,7 @@ Allan Larsson (The BOSS for TCX DataKonsult AB).
 @node Contributors, Supporters, Developers, Credits
 @appendixsubsec Contributors to MySQL
 
-Contributors to the @strong{MySQL} distribution are listed below, in
+Contributors to the @strong{MySQL} distribution are listed here, in
 somewhat random order:
 
 @table @asis
@@ -42249,7 +42269,7 @@ Mike Simons, Jaakko Hyvatti.
 
 And lots of bug report/patches from the folks on the mailing list.
 
-And a big tribute to those that help us answer questions on the
+A big tribute goes to those that help us answer questions on the
 @code{mysql@@lists.mysql.com} mailing list:
 
 @table @asis
@@ -42295,7 +42315,7 @@ The following companies has helped us finance development of
 @strong{MySQL} by either paying us for developing a new feature,
 developed a @strong{MySQL} feature themself or by giving us hardware for
 @strong{MySQL} development.
- 
+
 @multitable @columnfractions .3 .7
 @item Va Linux / Andover.net @tab Replication
 @item NuSphere @tab Editing of the @strong{MySQL} manual.
@@ -42309,8 +42329,11 @@ developed a @strong{MySQL} feature themself or by giving us hardware for
 @node News, Bugs, Credits, Top
 @appendix MySQL change history
 
-Note that we tend to update the manual at the same time we implement new
-things to @strong{MySQL}. If you find a version listed below that you can't
+This appendix lists the changes from version to version in the @strong{MySQL}
+source code.
+
+Note that we tend to update the manual at the same time we make changes to 
+@strong{MySQL}.  If you find a version listed below that you can't
 find on the
 @uref{http://www.mysql.com/downloads/,@strong{MySQL} download page},
 this means that the version has not yet been released!
@@ -42328,7 +42351,8 @@ this means that the version has not yet been released!
 @appendixsec Changes in release 4.0.x (Development; Alpha)
 
 We have now started to work on MySQL 4.0.  We will update this section
-as we add new features so that other can follow our development.
+as we add new features, so that others can follow our development.
+
 Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @menu
@@ -42354,13 +42378,28 @@ Added @code{ORDER BY} syntax to @code{UPDATE} and @code{DELETE}.
 @appendixsec Changes in release 3.23.x  (Stable)
 
 The 3.23 release has several major features that are not
-present in previous versions.  We have added two new
-table types:  MyISAM, a new ISAM library which is tuned for SQL
-and supports large files; and BerkeleyDB which uses the Berkeley
-DB library from Sleepycat Software to implement transaction-safe
-tables.  The 3.23 release also includes support for database
-replication between a master and many slaves, full-text indexing,
-and much more.
+present in previous versions.  We have added three new
+table types:
+
+@itemize @bullet
+@item MyISAM
+A new ISAM library which is tuned for SQL and supports large files.
+@item BerkeleyDB or BDB
+Uses the Berkeley DB library from Sleepycat Software to implement 
+transaction-safe tables.  
+@item Innobase
+A transaction-safe table handler that supports row level locking, and many
+Oracle-like features.
+@c change "three" to "four" above when uncommenting this
+@c @item Gemini
+@c A transaction-safe, row-level locking table handler that supports many
+@c features required in a mission-critical environment.
+@end itemize
+
+Note that only MyISAM is available in the standard binary distribution.
+
+The 3.23 release also includes support for database replication between 
+a master and many slaves, full-text indexing, and much more.
 
 All new features are being developed in the 4.0 version.  Only
 bug fixes and minor enhancements to existing features will be
@@ -42376,7 +42415,7 @@ Note that the above doesn't mean that replication or Berkeley DB doesn't
 work; We have done a lot of testing of all code, including replication
 and BDB without finding any problems.  It only means that not as many
 users uses this code as the rest of the code and because of this we are
-not yet 100 % confident in this code.
+not yet 100% confident in this code.
 
 @menu
 * News-3.23.37::                Changes in release 3.23.37
@@ -44410,15 +44449,10 @@ Added @code{mysqld} option @code{--default-table-type}.
 @node News-3.22.x, News-3.21.x, News-3.23.x, News
 @appendixsec Changes in release 3.22.x (Older; Still supported)
 
-The 3.22 version has faster and safer connect code and a lot of new nice
-enhancements.  The reason for not including these changes in the 3.21 version
-is mainly that we are trying to avoid big changes to 3.21 to keep it as
-stable as possible.  As there aren't really any MAJOR changes, upgrading to
-3.22 should be very easy and painless.
-@xref{Upgrading-from-3.21}.
-
-3.22 should also be used with the new @code{DBD-mysql} (1.20xx) driver
-that can use the new connect protocol!
+The 3.22 version has faster and safer connect code than version 3.21, as well
+as a lot of new nice enhancements.  The reason for not including these changes
+As there aren't really any MAJOR changes, upgrading from 3.21 to 3.22 should
+be very easy and painless.  @xref{Upgrading-from-3.21}.
 
 @menu
 * News-3.22.35::                Changes in release 3.22.35
@@ -45538,6 +45572,9 @@ most important string functions for more speed!
 @node News-3.21.x, News-3.20.x, News-3.22.x, News
 @appendixsec Changes in release 3.21.x
 
+Version 3.21 is quite old now, and should be avoided if possible.  This
+information is kept here for historical purposes only.
+
 @menu
 * News-3.21.33::                Changes in release 3.21.33
 * News-3.21.32::                Changes in release 3.21.32
@@ -46648,6 +46685,9 @@ mysql> SELECT * FROM tbl_name
 @node News-3.20.x, News-3.19.x, News-3.21.x, News
 @appendixsec Changes in release 3.20.x
 
+Version 3.20 is quite old now, and should be avoided if possible.  This
+information is kept here for historical purposes only.
+
 Changes from 3.20.18 to 3.20.32b are not documented here because the
 3.21 release branched here. And the relevant changes are also
 documented as changes to the 3.21 version.
@@ -47209,6 +47249,9 @@ New @file{INSTALL} files (not final version) and some information regarding port
 @node News-3.19.x,  , News-3.20.x, News
 @appendixsec Changes in release 3.19.x
 
+Version 3.19 is quite old now, and should be avoided if possible.  This
+information is kept here for historical purposes only.
+
 @menu
 * News-3.19.5::                 Changes in release 3.19.5
 * News-3.19.4::                 Changes in release 3.19.4
@@ -47523,8 +47566,10 @@ For platform-specific bugs, see the sections about compiling and porting.
 * TODO unplanned::              Some things we don't have any plans to do
 @end menu
 
-Everything in this list is in the order it will be done.  If you want to
-affect the priority order, please register a license or support us and
+This appendix lists the features that we plan to implement in @strong{MySQL}.
+
+Everything in this list is approximately in the order it will be done.  If you
+want to affect the priority order, please register a license or support us and
 tell us what you want to have done more quickly. @xref{Licensing and Support}.
 
 @node TODO MySQL 4.0, TODO future, TODO, TODO
