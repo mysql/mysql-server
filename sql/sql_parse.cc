@@ -1957,7 +1957,44 @@ mysql_execute_command(THD *thd)
     }
     break;
   }
-
+  case SQLCOM_PREPARE:
+  {   
+    DBUG_PRINT("info", ("PREPARE: %.*s FROM '%.*s' \n", 
+                        lex->prepared_stmt_name.length,
+                        lex->prepared_stmt_name.str,
+                        lex->prepared_stmt_code.length,
+                        lex->prepared_stmt_code.str));
+    thd->command= COM_PREPARE;
+    if (!mysql_stmt_prepare(thd, lex->prepared_stmt_code.str,
+                            lex->prepared_stmt_code.length + 1, 
+                            &lex->prepared_stmt_name))    
+      send_ok(thd, 0L, 0L, "Statement prepared");
+    break;
+  }
+  case SQLCOM_EXECUTE:
+  {
+    DBUG_PRINT("info", ("EXECUTE: %.*s\n", 
+                        lex->prepared_stmt_name.length,
+                        lex->prepared_stmt_name.str));
+    mysql_sql_stmt_execute(thd, &lex->prepared_stmt_name);
+    lex->prepared_stmt_params.empty();
+    break;
+  }
+  case SQLCOM_DEALLOCATE_PREPARE:
+  {
+    Statement* stmt;
+    DBUG_PRINT("info", ("DEALLOCATE PREPARE: %.*s\n", 
+                        lex->prepared_stmt_name.length,
+                        lex->prepared_stmt_name.str));
+    if ((stmt= thd->stmt_map.find_by_name(&lex->prepared_stmt_name)))
+    {
+      thd->stmt_map.erase(stmt);
+      send_ok(thd);
+    }
+    else
+      send_error(thd,ER_UNKNOWN_STMT_HANDLER,"Undefined prepared statement");
+    break;
+  }
   case SQLCOM_DO:
     if (tables && ((res= check_table_access(thd, SELECT_ACL, tables,0)) ||
 		   (res= open_and_lock_tables(thd,tables))))
