@@ -1462,7 +1462,6 @@ tim@threads.polyesthetic.msg|bdb/include/lock_ext.h|20010305004138|11814|ccd0785
 tim@threads.polyesthetic.msg|bdb/log/log_auto.c|20010305004137|49459|fe8c0369965f7151
 tim@threads.polyesthetic.msg|bdb/rpc_server/db_server.x|20010305004141|47705|811aeb6b630fe7aa
 BK|include/Attic/m_ctype.h.in|19700101030959|00114|f671e3c2d611ba97
-BK|include/global.h|19700101030959|00077|e80d28157acfdcb5
 BK|sql/share/norwegian-ny/.cvsignore|19700101030959|01855|469064b5190d703d
 BK|sql/share/swedish/errmsg.sys|19700101030959|01866|dd772e93db859993
 BK|strings/Attic/ctype-danish.c|19700101030959|01342|dc5451066eb272ae
