@@ -2704,17 +2704,17 @@ extern my_bool my_like_range_gbk(CHARSET_INFO *cs,
 }
 
 
-int ismbchar_gbk(const char* p, const char *e)
+int ismbchar_gbk(CHARSET_INFO *cs,const char* p, const char *e)
 {
   return (isgbkhead(*(p)) && (e)-(p)>1 && isgbktail(*((p)+1))? 2: 0);
 }
 
-my_bool ismbhead_gbk(uint c)
+my_bool ismbhead_gbk(CHARSET_INFO *cs,uint c)
 {
   return isgbkhead(c);
 }
 
-int mbcharlen_gbk(uint c)
+int mbcharlen_gbk(CHARSET_INFO *cs,uint c)
 {
   return (isgbkhead(c)? 2:0);
 }
