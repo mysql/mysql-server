@@ -681,12 +681,10 @@ dict_load_indexes(
 		} else {
  			index = dict_mem_index_create(table->name, name_buf,
 						space, type, n_fields);
-			index->page_no = page_no;
 			index->id = id;
 		
 			dict_load_fields(table, index, heap);
-
-			dict_index_add_to_cache(table, index);
+			dict_index_add_to_cache(table, index, page_no);
 		}
 
 		btr_pcur_move_to_next_user_rec(&pcur, &mtr);

@@ -59,10 +59,18 @@ public:
   void set(double nr) { value=nr; }
   void set(longlong nr) { value=(double) nr; }
   void set(const char *str,uint length,CHARSET_INFO *cs)
-  { int err; value=my_strntod(cs,(char*) str,length,(char**)0,&err); }
+  {
+    int err_not_used;
+    char *end_not_used;
+    value= my_strntod(cs,(char*) str,length, &end_not_used, &err_not_used);
+  }
   double val_real() { return value; }
   longlong val_int() { return (longlong) value; }
-  String *val_str(String *s) { s->set(value,decimals,default_charset()); return s; }
+  String *val_str(String *s)
+  {
+    s->set(value,decimals,default_charset());
+    return s;
+  }
   unsigned int size_of() { return sizeof(*this);}  
 };
 
@@ -98,10 +106,11 @@ public:
   { str_value.copy(str,length,cs); }
   double val_real()
   { 
-    int err;
+    int err_not_used;
+    char *end_not_used;
     CHARSET_INFO *cs=str_value.charset();
     return my_strntod(cs, (char*) str_value.ptr(), str_value.length(),
-		      (char**) 0, &err);
+		      &end_not_used, &err_not_used);
   }
   longlong val_int()
   { 

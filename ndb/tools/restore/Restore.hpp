@@ -187,28 +187,33 @@ public:
   };
 
   void update_max_auto_val(const char *data, int size) {
-    Uint64 val= 0;
+    union {
+      Uint8  u8;
+      Uint16 u16;
+      Uint32 u32;
+    } val;
+    Uint64 v;
     switch(size){
-    case 8:
-      val= *(Uint8*)data;
-      break;
-    case 16:
-      val= *(Uint16*)data;
-      break;
-    case 24:
-      val= (0xffffff)&*(Uint32*)data;
+    case 64:
+      memcpy(&v,data,8);
       break;
     case 32:
-      val= *(Uint32*)data;
+      memcpy(&val.u32,data,4);
+      v= val.u32;
       break;
-    case 64:
-      val= *(Uint64*)data;
+    case 16:
+      memcpy(&val.u16,data,2);
+      v= val.u16;
+      break;
+    case 8:
+      memcpy(&val.u8,data,1);
+      v= val.u8;
       break;
     default:
       return;
     };
-    if(val > m_max_auto_val)
-      m_max_auto_val= val;
+    if(v > m_max_auto_val)
+      m_max_auto_val= v;
   };
   /**
    * Get attribute descriptor
