@@ -563,35 +563,6 @@ mem_heap_get_size(
 	return(size);
 }
 
-/*******************************************************************
-Implements realloc. */
-UNIV_INLINE
-void*
-mem_realloc(
-/*========*/
-			/* out, own: free storage, NULL if did not succeed */
-	void*	buf,	/* in: pointer to an old buffer */
-	ulint   n,	/* in: desired number of bytes */
-	char*  	file_name,/* in: file name where called */
-	ulint 	line)  	/* in: line where called */
-{
-	mem_heap_t*	heap = (mem_heap_t*)((byte*)buf
-			- MEM_BLOCK_HEADER_SIZE - MEM_FIELD_HEADER_SIZE);
-	ulint		size;
-	ut_a(heap->magic_n == MEM_BLOCK_MAGIC_N);
-	size = mem_block_get_len(heap);
-	ut_a(size > MEM_BLOCK_HEADER_SIZE + MEM_FIELD_HEADER_SIZE);
-	size -= MEM_BLOCK_HEADER_SIZE + MEM_FIELD_HEADER_SIZE;
-
-	if (n > size) {
-		void*	newbuf = memcpy(mem_alloc_func(n, file_name, line),
-					buf, size);
-		mem_free(buf);
-		buf = newbuf;
-	}
-	return(buf);
-}
-
 /**************************************************************************
 Duplicates a NUL-terminated string. */
 UNIV_INLINE
