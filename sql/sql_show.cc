@@ -1497,11 +1497,15 @@ int mysqld_show_collations(THD *thd, const char *wild)
   for ( cs= all_charsets ; cs < all_charsets+255 ; cs++ )
   {
     CHARSET_INFO **cl;
+    if (!cs[0] || !(cs[0]->state & MY_CS_AVAILABLE) || 
+        !(cs[0]->state & MY_CS_PRIMARY))
+      continue;
     for ( cl= all_charsets; cl < all_charsets+255 ;cl ++)
     {
-      if (!cs[0] || !cl[0] || !my_charset_same(cs[0],cl[0]) || !(cs[0]->state & MY_CS_PRIMARY))
+      if (!cl[0] || !(cl[0]->state & MY_CS_AVAILABLE) || 
+          !my_charset_same(cs[0],cl[0]))
 	continue;
-      if (cs[0] && !(wild && wild[0] &&
+      if (!(wild && wild[0] &&
 	  wild_case_compare(system_charset_info,cl[0]->name,wild)))
       {
         if (write_collation(protocol, cl[0]))
@@ -1545,8 +1549,10 @@ int mysqld_show_charsets(THD *thd, const char *wild)
 
   for ( cs= all_charsets ; cs < all_charsets+255 ; cs++ )
   {
-    if (cs[0] && (cs[0]->state & MY_CS_PRIMARY) && !(wild && wild[0] &&
-       wild_case_compare(system_charset_info,cs[0]->name,wild)))
+    if (cs[0] && (cs[0]->state & MY_CS_PRIMARY) && 
+        (cs[0]->state & MY_CS_AVAILABLE) &&
+        !(wild && wild[0] &&
+        wild_case_compare(system_charset_info,cs[0]->csname,wild)))
     {
       if (write_charset(protocol, cs[0]))
 	goto err;
