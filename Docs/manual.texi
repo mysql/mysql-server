@@ -7753,6 +7753,10 @@ version 4.0;
 
 @itemize @bullet
 @item
+@code{INSERT INTO ... SELECT} had in 3.23 always @code{IGNORE} enabled.
+In 4.0.1 MySQL will stop (and possible rollback) in case of an error if you
+don't specify @code{IGNORE}.
+@item
 @file{safe_mysqld} is renamed to @file{mysqld_safe}.
 @item
 The old C API functions @code{mysql_drop_db}, @code{mysql_create_db} and
@@ -46486,6 +46490,8 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 @appendixsubsec Changes in release 4.0.1
 
 @itemize @bullet
+@item
+Changed @code{INSERT INTO .. SELECT} to by default stop on errors.
 @item
 Ignore @code{DATA DIRECTORY} and @code{INDEX DIRECTORY} directives on windows.
 @item
