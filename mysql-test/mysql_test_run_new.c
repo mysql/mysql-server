@@ -1531,10 +1531,10 @@ int main(int argc, char **argv)
   else
   {
     /* run all tests */
-    names= malloc(MAX_COUNT_TESTES*sizeof(void*));
-    if (!names)
+    testes= malloc(MAX_COUNT_TESTES*sizeof(void*));
+    if (!testes)
       die("can not allcate memory for sorting");
-    testes= names;
+    names= testes;
     name_index= 0;
 #ifndef __WIN__
     struct dirent *entry;
@@ -1619,7 +1619,7 @@ int main(int argc, char **argv)
 #endif
     qsort( (void *)testes, name_index, sizeof( char * ), compare );
 
-    for (index= 0; index <= name_index; index++)
+    for (index= 0; index < name_index; index++)
     {
       run_test(testes[index]);
       free(testes[index]);
