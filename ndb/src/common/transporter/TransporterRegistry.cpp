@@ -1488,28 +1488,30 @@ NDB_SOCKET_TYPE TransporterRegistry::connect_ndb_mgmd(SocketClient *sc)
 {
   NdbMgmHandle h;
   struct ndb_mgm_reply mgm_reply;
-  char *cs, c[100];
-  bool d=false;
 
   h= ndb_mgm_create_handle();
 
-  if(strlen(sc->get_server_name())>80)
+  /**
+   * Set connectstring
+   */
   {
-    /*
-     * server name is long. malloc enough for it and the port number
-     */
-    cs= (char*)malloc((strlen(sc->get_server_name())+20)*sizeof(char));
-    if(!cs)
-      return NDB_INVALID_SOCKET;
-    d= true;
+    char c[100];
+    char *cs= &c[0];
+    int len= strlen(sc->get_server_name())+20;
+    if( len > sizeof(c) )
+    {
+      /*
+       * server name is long. malloc enough for it and the port number
+       */
+      cs= (char*)malloc(len*sizeof(char));
+      if(!cs)
+	return NDB_INVALID_SOCKET;
+    }
+    snprintf(cs,len,"%s:%u",sc->get_server_name(),sc->get_port());
+    ndb_mgm_set_connectstring(h, cs);
+    if(cs != &c[0])
+      free(cs);
   }
-  else
-    cs = &c[0];
-    
-  snprintf(cs,(d)?strlen(sc->get_server_name()+20):sizeof(c),
-	   "%s:%u",sc->get_server_name(),sc->get_port());
-
-  ndb_mgm_set_connectstring(h, cs);
 
   if(ndb_mgm_connect(h, 0, 0, 0)<0)
     return NDB_INVALID_SOCKET;
@@ -1521,8 +1523,6 @@ NDB_SOCKET_TYPE TransporterRegistry::connect_ndb_mgmd(SocketClient *sc)
 				   CFG_CONNECTION_SERVER_PORT,
 				   m_transporter_interface[i].m_s_service_port,
 				   &mgm_reply);  
-  if(d)
-    free(cs);
 
   return ndb_mgm_convert_to_transporter(h);
 }
