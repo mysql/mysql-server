@@ -1569,14 +1569,7 @@ then
     fi
   fi
 
-  if [ ! -z "$USE_NDBCLUSTER" ]
-  then
-  if [ -z "$USE_RUNNING_NDBCLUSTER" ]
-  then
-    # Kill any running ndbcluster stuff
-    ./ndb/ndbcluster --data-dir=$MYSQL_TEST_DIR/var --port-base=$NDBCLUSTER_PORT --stop
-  fi
-  fi
+  stop_ndbcluster
 
   # Remove files that can cause problems
   $RM -rf $MYSQL_TEST_DIR/var/ndbcluster
