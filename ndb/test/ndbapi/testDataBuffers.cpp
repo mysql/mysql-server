@@ -440,7 +440,7 @@ testcase(int flag)
 	int newkey = 0;
 	if ((con = ndb->startTransaction()) == 0)
 	    return ndberror("startTransaction key=%d", key);
-	if ((sop = con->getNdbScanOperation(tab)) == 0)
+	if ((op = sop = con->getNdbScanOperation(tab)) == 0)
 	    return ndberror("getNdbOperation key=%d", key);
 	if ((rs = sop->readTuples(1)) == 0)
 	    return ndberror("openScanRead key=%d", key);

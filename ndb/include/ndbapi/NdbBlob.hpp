@@ -187,6 +187,7 @@ private:
   friend class NdbOperation;
   friend class NdbScanOperation;
   friend class NdbDictionaryImpl;
+  friend class NdbResultSet; // atNextResult
   // state
   State theState;
   void setState(State newState);

@@ -644,7 +644,7 @@ void NdbScanOperation::closeScan()
 {
   int self = pthread_self() ;
   
-  do {
+  if(m_transConnection) do {
     TransporterFacade* tp = TransporterFacade::instance();
     Guard guard(tp->theMutexPtr);
 
@@ -874,6 +874,26 @@ NdbScanOperation::doSendScan(int aProcessorId)
  *     in separate threads and thus increasing the parallelism during
  *     the scan process. 
  *****************************************************************************/
+int
+NdbScanOperation::getKeyFromKEYINFO20(Uint32* data, unsigned size)
+{
+  Uint32 idx = m_current_api_receiver;
+  Uint32 last = m_api_receivers_count;
+
+  Uint32 row;
+  NdbReceiver * tRec;
+  NdbRecAttr * tRecAttr;
+  if(idx < last && (tRec = m_api_receivers[idx]) 
+     && ((row = tRec->m_current_row) <= tRec->m_defined_rows)
+     && (tRecAttr = tRec->m_rows[row-1])){
+
+    const Uint32 * src = (Uint32*)tRecAttr->aRef();
+    memcpy(data, src, 4*size);
+    return 0;
+  }
+  return -1;
+}
+
 NdbOperation*
 NdbScanOperation::takeOverScanOp(OperationType opType, NdbConnection* pTrans){
   
@@ -940,11 +960,37 @@ NdbScanOperation::takeOverScanOp(OperationType opType, NdbConnection* pTrans){
 	tSignal->setSignal(GSN_KEYINFO);
 	KeyInfo * keyInfo = CAST_PTR(KeyInfo, tSignal->getDataPtrSend());
 	memcpy(keyInfo->keyData, src, 4 * left);
+      }      
+    }
+    // create blob handles automatically
+    if (opType == DeleteRequest && m_currentTable->m_noOfBlobs != 0) {
+      for (unsigned i = 0; i < m_currentTable->m_columns.size(); i++) {
+	NdbColumnImpl* c = m_currentTable->m_columns[i];
+	assert(c != 0);
+	if (c->getBlobType()) {
+	  if (newOp->getBlobHandle(pTrans, c) == NULL)
+	    return NULL;
+	}
       }
     }
+    
     return newOp;
   }
   return 0;
+}
+
+NdbBlob*
+NdbScanOperation::getBlobHandle(const char* anAttrName)
+{
+  return NdbOperation::getBlobHandle(m_transConnection, 
+				     m_currentTable->getColumn(anAttrName));
+}
+
+NdbBlob*
+NdbScanOperation::getBlobHandle(Uint32 anAttrId)
+{
+  return NdbOperation::getBlobHandle(m_transConnection, 
+				     m_currentTable->getColumn(anAttrId));
 }
 
 NdbIndexScanOperation::NdbIndexScanOperation(Ndb* aNdb)
@@ -980,7 +1026,7 @@ NdbIndexScanOperation::getValue_impl(const NdbColumnImpl* attrInfo,
   if(!attrInfo->getPrimaryKey() || !m_ordered){
     return NdbScanOperation::getValue_impl(attrInfo, aValue);
   }
-  
+
   Uint32 id = attrInfo->m_attrId;
   Uint32 marker = theTupleKeyDefined[id][0];
 
