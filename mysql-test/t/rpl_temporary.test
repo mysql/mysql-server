@@ -19,7 +19,9 @@ connection master;
 
 connect (con1,localhost,root,,);
 connect (con2,localhost,root,,);
-connect (con3,localhost,test,,);
+# user 'boo' does not exist, because we want to be ''@localhost or ''@127.0.0.1
+# (using user 'test' conflicts with what connect.test does). 
+connect (con3,localhost,boo,,);
 
 # We are going to use SET PSEUDO_THREAD_ID in this test;
 # check that it requires the SUPER privilege.
