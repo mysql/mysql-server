@@ -568,17 +568,10 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	SECOND_SYM
 %token	SECOND_MICROSECOND_SYM
 %token	SHARE_SYM
-%token  SP_FUNC
 %token	SUBDATE_SYM
 %token	SUBSTRING
 %token	SUBSTRING_INDEX
 %token	TRIM
-%token	UDA_CHAR_SUM
-%token	UDA_FLOAT_SUM
-%token	UDA_INT_SUM
-%token	UDF_CHAR_FUNC
-%token	UDF_FLOAT_FUNC
-%token	UDF_INT_FUNC
 %token	UNIQUE_USERS
 %token	UNIX_TIMESTAMP
 %token	USER
@@ -640,7 +633,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	LEX_HOSTNAME ULONGLONG_NUM field_ident select_alias ident ident_or_text
         UNDERSCORE_CHARSET IDENT_sys TEXT_STRING_sys TEXT_STRING_literal
 	NCHAR_STRING opt_component key_cache_name
-        SP_FUNC ident_or_spfunc sp_opt_label
+        sp_opt_label
 
 %type <lex_str_ptr>
 	opt_table_alias
@@ -683,7 +676,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	simple_ident_nospvar simple_ident_q
 
 %type <item_list>
-	expr_list sp_expr_list udf_expr_list udf_expr_list2 when_list
+	expr_list udf_expr_list udf_expr_list2 when_list
 	ident_list ident_list_arg
 
 %type <key_type>
@@ -700,10 +693,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 
 %type <table_list>
 	join_table_list  join_table
-
-%type <udf>
-	UDF_CHAR_FUNC UDF_FLOAT_FUNC UDF_INT_FUNC
-	UDA_CHAR_SUM UDA_FLOAT_SUM UDA_INT_SUM
 
 %type <date_time_type> date_time_type;
 %type <interval> interval
@@ -1030,7 +1019,7 @@ create:
 	    lex->name=$4.str;
             lex->create_info.options=$3;
 	  }
-	| CREATE udf_func_type FUNCTION_SYM ident_or_spfunc
+	| CREATE udf_func_type FUNCTION_SYM IDENT_sys
 	  {
 	    LEX *lex=Lex;
 	    lex->udf.name = $4;
@@ -1096,11 +1085,6 @@ create:
 	      YYTHD->client_capabilities |= CLIENT_MULTI_QUERIES;
 	    lex->sphead->restore_thd_mem_root(YYTHD);
 	  } 
-	;
-
-ident_or_spfunc:
-	  IDENT_sys { $$= $1; }
-	| SP_FUNC { $$= $1; }
 	;
 
 create_function_tail:
@@ -1219,7 +1203,7 @@ sp_suid:
 	;
 
 call:
-	  CALL_SYM ident_or_spfunc
+	  CALL_SYM IDENT_sys
 	  {
 	    LEX *lex = Lex;
 
@@ -3921,55 +3905,80 @@ simple_expr:
 	  { $$= new Item_func_round($3,$5,1); }
 	| TRUE_SYM
 	  { $$= new Item_int((char*) "TRUE",1,1); }
-	| SP_FUNC '(' sp_expr_list ')'
+	| IDENT_sys '(' udf_expr_list ')'
 	  {
-	    sp_add_fun_to_lex(Lex, $1);
-	    if ($3)
-	      $$= new Item_func_sp($1, *$3);
+	    if (sp_function_exists(YYTHD, &$1))
+	    {
+	      LEX *lex= Lex;
+
+	      sp_add_fun_to_lex(lex, $1);
+	      if ($3)
+	        $$= new Item_func_sp($1, *$3);
+	      else
+	        $$= new Item_func_sp($1);
+	    }
 	    else
-	      $$= new Item_func_sp($1);
-	  }
-	| UDA_CHAR_SUM '(' udf_expr_list ')'
-	  {
-	    if ($3 != NULL)
-	      $$ = new Item_sum_udf_str($1, *$3);
-	    else
-	      $$ = new Item_sum_udf_str($1);
-	  }
-	| UDA_FLOAT_SUM '(' udf_expr_list ')'
-	  {
-	    if ($3 != NULL)
-	      $$ = new Item_sum_udf_float($1, *$3);
-	    else
-	      $$ = new Item_sum_udf_float($1);
-	  }
-	| UDA_INT_SUM '(' udf_expr_list ')'
-	  {
-	    if ($3 != NULL)
-	      $$ = new Item_sum_udf_int($1, *$3);
-	    else
-	      $$ = new Item_sum_udf_int($1);
-	  }
-	| UDF_CHAR_FUNC '(' udf_expr_list ')'
-	  {
-	    if ($3 != NULL)
-	      $$ = new Item_func_udf_str($1, *$3);
-	    else
-	      $$ = new Item_func_udf_str($1);
-	  }
-	| UDF_FLOAT_FUNC '(' udf_expr_list ')'
-	  {
-	    if ($3 != NULL)
-	      $$ = new Item_func_udf_float($1, *$3);
-	    else
-	      $$ = new Item_func_udf_float($1);
-	  }
-	| UDF_INT_FUNC '(' udf_expr_list ')'
-	  {
-	    if ($3 != NULL)
-	      $$ = new Item_func_udf_int($1, *$3);
-	    else
-	      $$ = new Item_func_udf_int($1);
+	    {
+#ifdef HAVE_DLOPEN
+	      udf_func *udf;
+
+	      if (using_udf_functions && (udf=find_udf($1.str, $1.length)))
+	      {
+		switch (udf->returns) {
+		case STRING_RESULT:
+		  if (udf->type == UDFTYPE_FUNCTION)
+		  {
+		    if ($3 != NULL)
+		      $$ = new Item_func_udf_str(udf, *$3);
+		    else
+		      $$ = new Item_func_udf_str(udf);
+		  }
+		  else
+		  {
+		    if ($3 != NULL)
+		      $$ = new Item_sum_udf_str(udf, *$3);
+		    else
+		      $$ = new Item_sum_udf_str(udf);
+		  }
+		  break;
+		case REAL_RESULT:
+		  if (udf->type == UDFTYPE_FUNCTION)
+		  {
+		    if ($3 != NULL)
+		      $$ = new Item_func_udf_float(udf, *$3);
+		    else
+		      $$ = new Item_func_udf_float(udf);
+		  }
+		  else
+		  {
+		    if ($3 != NULL)
+		      $$ = new Item_sum_udf_float(udf, *$3);
+		    else
+		      $$ = new Item_sum_udf_float(udf);
+		  }
+		  break;
+		case INT_RESULT:
+		  if (udf->type == UDFTYPE_FUNCTION)
+		  {
+		    if ($3 != NULL)
+		      $$ = new Item_func_udf_int(udf, *$3);
+		    else
+		      $$ = new Item_func_udf_int(udf);
+		  }
+		  else
+		  {
+		    if ($3 != NULL)
+		      $$ = new Item_sum_udf_int(udf, *$3);
+		    else
+		      $$ = new Item_sum_udf_int(udf);
+		  }
+		  break;
+		default:
+		  YYABORT;
+		}
+	      }
+#endif /* HAVE_DLOPEN */
+	    }
 	  }
 	| UNIQUE_USERS '(' text_literal ',' NUM ',' NUM ',' expr_list ')'
 	  {
@@ -4076,10 +4085,6 @@ fulltext_options:
         | WITH QUERY_SYM EXPANSION_SYM  { $$= FT_NL | FT_EXPAND; }
         | IN_SYM BOOLEAN_SYM MODE_SYM   { $$= FT_BOOL; }
         ;
-
-sp_expr_list:
-	/* empty */	{ $$= NULL; }
-	| expr_list	{ $$= $1;};
 
 udf_expr_list:
 	/* empty */	 { $$= NULL; }
