@@ -21,9 +21,9 @@ select count(distinct a),count(distinct grp) from t1;
 insert into t1 values (null,null,'');
 select count(distinct a),count(distinct grp) from t1;
 
-select sum(a),count(a),avg(a),std(a),bit_or(a),bit_and(a),min(a),max(a),min(c),max(c) from t1;
-select grp, sum(a),count(a),avg(a),std(a),bit_or(a),bit_and(a),min(a),max(a),min(c),max(c) from t1 group by grp;
-select grp, sum(a)+count(a)+avg(a)+std(a)+bit_or(a)+bit_and(a)+min(a)+max(a)+min(c)+max(c) as sum from t1 group by grp;
+select sum(a),count(a),avg(a),std(a),variance(a),bit_or(a),bit_and(a),min(a),max(a),min(c),max(c) from t1;
+select grp, sum(a),count(a),avg(a),std(a),variance(a),bit_or(a),bit_and(a),min(a),max(a),min(c),max(c) from t1 group by grp;
+select grp, sum(a)+count(a)+avg(a)+std(a)+variance(a)+bit_or(a)+bit_and(a)+min(a)+max(a)+min(c)+max(c) as sum from t1 group by grp;
 
 create table t2 (grp int, a bigint unsigned, c char(10));
 insert into t2 select grp,max(a)+max(grp),max(c) from t1 group by grp;
@@ -40,8 +40,8 @@ CREATE TABLE t1 (id int(11),value1 float(10,2));
 INSERT INTO t1 VALUES (1,0.00),(1,1.00), (1,2.00), (2,10.00), (2,11.00), (2,12.00); 
 CREATE TABLE t2 (id int(11),name char(20)); 
 INSERT INTO t2 VALUES (1,'Set One'),(2,'Set Two'); 
-select id, avg(value1), std(value1) from t1 group by id;
-select name, avg(value1), std(value1) from t1, t2 where t1.id = t2.id group by t1.id;
+select id, avg(value1), std(value1), variance(value1) from t1 group by id;
+select name, avg(value1), std(value1), variance(value1) from t1, t2 where t1.id = t2.id group by t1.id;
 drop table t1,t2;
 
 #

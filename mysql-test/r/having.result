@@ -62,4 +62,8 @@ select Fld1, max(Fld2) from t1 group by Fld1 having std(Fld2) is not null;
 Fld1	max(Fld2)
 1	20
 3	50
+select Fld1, max(Fld2) from t1 group by Fld1 having variance(Fld2) is not null;
+Fld1	max(Fld2)
+1	20
+3	50
 drop table t1;

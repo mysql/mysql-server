@@ -42,21 +42,21 @@ insert into t1 values (null,null,'');
 select count(distinct a),count(distinct grp) from t1;
 count(distinct a)	count(distinct grp)
 6	3
-select sum(a),count(a),avg(a),std(a),bit_or(a),bit_and(a),min(a),max(a),min(c),max(c) from t1;
-sum(a)	count(a)	avg(a)	std(a)	bit_or(a)	bit_and(a)	min(a)	max(a)	min(c)	max(c)
-21	6	3.5000	1.7078	7	0	1	6		E
-select grp, sum(a),count(a),avg(a),std(a),bit_or(a),bit_and(a),min(a),max(a),min(c),max(c) from t1 group by grp;
-grp	sum(a)	count(a)	avg(a)	std(a)	bit_or(a)	bit_and(a)	min(a)	max(a)	min(c)	max(c)
-NULL	0	0	NULL	NULL	0	0	NULL	NULL		
-1	1	1	1.0000	0.0000	1	1	1	1	a	a
-2	5	2	2.5000	0.5000	3	2	2	3	b	c
-3	15	3	5.0000	0.8165	7	4	4	6	C	E
-select grp, sum(a)+count(a)+avg(a)+std(a)+bit_or(a)+bit_and(a)+min(a)+max(a)+min(c)+max(c) as sum from t1 group by grp;
+select sum(a),count(a),avg(a),std(a),variance(a),bit_or(a),bit_and(a),min(a),max(a),min(c),max(c) from t1;
+sum(a)	count(a)	avg(a)	std(a)	variance(a)	bit_or(a)	bit_and(a)	min(a)	max(a)	min(c)	max(c)
+21	6	3.5000	1.7078	2.9167	7	0	1	6		E
+select grp, sum(a),count(a),avg(a),std(a),variance(a),bit_or(a),bit_and(a),min(a),max(a),min(c),max(c) from t1 group by grp;
+grp	sum(a)	count(a)	avg(a)	std(a)	variance(a)	bit_or(a)	bit_and(a)	min(a)	max(a)	min(c)	max(c)
+NULL	0	0	NULL	NULL	NULL	0	0	NULL	NULL		
+1	1	1	1.0000	0.0000	0.0000	1	1	1	1	a	a
+2	5	2	2.5000	0.5000	0.2500	3	2	2	3	b	c
+3	15	3	5.0000	0.8165	0.6667	7	4	4	6	C	E
+select grp, sum(a)+count(a)+avg(a)+std(a)+variance(a)+bit_or(a)+bit_and(a)+min(a)+max(a)+min(c)+max(c) as sum from t1 group by grp;
 grp	sum
 NULL	NULL
 1	7
-2	20
-3	44.816496580928
+2	20.25
+3	45.483163247594
 create table t2 (grp int, a bigint unsigned, c char(10));
 insert into t2 select grp,max(a)+max(grp),max(c) from t1 group by grp;
 replace into t2 select grp, a, c from t1 limit 2,1;
@@ -72,14 +72,14 @@ CREATE TABLE t1 (id int(11),value1 float(10,2));
 INSERT INTO t1 VALUES (1,0.00),(1,1.00), (1,2.00), (2,10.00), (2,11.00), (2,12.00);
 CREATE TABLE t2 (id int(11),name char(20));
 INSERT INTO t2 VALUES (1,'Set One'),(2,'Set Two');
-select id, avg(value1), std(value1) from t1 group by id;
-id	avg(value1)	std(value1)
-1	1.000000	0.816497
-2	11.000000	0.816497
-select name, avg(value1), std(value1) from t1, t2 where t1.id = t2.id group by t1.id;
-name	avg(value1)	std(value1)
-Set One	1.000000	0.816497
-Set Two	11.000000	0.816497
+select id, avg(value1), std(value1), variance(value1) from t1 group by id;
+id	avg(value1)	std(value1)	variance(value1)
+1	1.000000	0.816497	0.666667
+2	11.000000	0.816497	0.666667
+select name, avg(value1), std(value1), variance(value1) from t1, t2 where t1.id = t2.id group by t1.id;
+name	avg(value1)	std(value1)	variance(value1)
+Set One	1.000000	0.816497	0.666667
+Set Two	11.000000	0.816497	0.666667
 drop table t1,t2;
 create table t1 (id int not null);
 create table t2 (id int not null,rating int null);

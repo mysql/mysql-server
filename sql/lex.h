@@ -584,6 +584,7 @@ static SYMBOL sql_functions[] = {
   { "UNIX_TIMESTAMP",	SYM(UNIX_TIMESTAMP),0,0},
   { "UPPER",		SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_ucase)},
   { "USER",		SYM(USER),0,0},
+  { "VARIANCE",		SYM(VARIANCE_SYM),0,0},
   { "VERSION",		SYM(FUNC_ARG0),0,CREATE_FUNC(create_func_version)},
   { "WEEK",		SYM(WEEK_SYM),0,0},
   { "WEEKDAY",		SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_weekday)},
