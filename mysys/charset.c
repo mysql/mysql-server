@@ -554,8 +554,8 @@ uint get_charset_number(const char *charset_name)
   for (cs= all_charsets; cs < all_charsets+255; ++cs)
   {
     if ( cs[0] && cs[0]->name && 
-         (!strcasecmp(cs[0]->name, charset_name) ||
-          (!strcasecmp(cs[0]->csname, charset_name) && 
+         (!my_strcasecmp(&my_charset_latin1, cs[0]->name, charset_name) ||
+          (!my_strcasecmp(&my_charset_latin1, cs[0]->csname, charset_name) && 
            (cs[0]->state & MY_CS_PRIMARY))))
       return cs[0]->number;
   }  
@@ -652,7 +652,8 @@ CHARSET_INFO *get_charset_by_csname(const char *cs_name,
   for (css= all_charsets; css < all_charsets+255; ++css)
   {
     if ( css[0] && (css[0]->state & cs_flags) && 
-         css[0]->csname && !strcasecmp(css[0]->csname, cs_name))
+         css[0]->csname && !my_strcasecmp(&my_charset_latin1, 
+         				  css[0]->csname, cs_name))
     {
       cs= css[0]->number ? get_internal_charset(css[0]->number,flags) : NULL;
       break;
