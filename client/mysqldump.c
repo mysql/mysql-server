@@ -830,7 +830,7 @@ static uint getTableStructure(char *table, char* db)
 	char *end;
 	uint i;
 
-	sprintf(buff, "/*!41000 SET @@sql_mode=\"");
+	sprintf(buff, "/*!40100 SET @@sql_mode=\"");
 	end= strend(buff);
 	for (i= 0; opt_compatible_mode; opt_compatible_mode>>= 1, i++)
 	{
