@@ -872,13 +872,16 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
       else if (tmp == not_found_field && refer == (Item **)not_found_item)
       {
 	if (upward_lookup)
+	{
 	  // We can't say exactly what absend table or field
 	  my_printf_error(ER_BAD_FIELD_ERROR, ER(ER_BAD_FIELD_ERROR), MYF(0),
 			  full_name(), thd->where);
+	}
 	else
+	{
 	  // Call to report error
 	  find_field_in_tables(thd, this, tables, &where, 1);
-
+	}
 	return -1;
       }
       else if (refer != (Item **)not_found_item)
@@ -1468,15 +1471,19 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
       else if (ref == (Item **)not_found_item && tmp == not_found_field)
       {
 	if (upward_lookup)
+	{
 	  // We can't say exactly what absend (table or field)
 	  my_printf_error(ER_BAD_FIELD_ERROR, ER(ER_BAD_FIELD_ERROR), MYF(0),
 			  full_name(), thd->where);
+	}
 	else
+	{
 	  // Call to report error
 	  find_item_in_list(this,
 			    *(thd->lex.current_select->get_item_list()),
 			    &counter,
 			    REPORT_ALL_ERRORS);
+	}
         ref= 0;
 	return 1;
       }
