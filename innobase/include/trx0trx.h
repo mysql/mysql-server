@@ -117,6 +117,13 @@ void
 trx_start_if_not_started(
 /*=====================*/
 	trx_t*	trx);	/* in: transaction */
+/*****************************************************************
+Starts the transaction if it is not yet started. */
+
+void
+trx_start_if_not_started_noninline(
+/*===============================*/
+	trx_t*	trx);	/* in: transaction */
 /********************************************************************
 Commits a transaction. */
 
