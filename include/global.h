@@ -122,6 +122,10 @@ double my_ulonglong2double(unsigned long long A);
 #undef HAVE_PREAD
 #undef HAVE_PWRITE
 #endif
+#if defined(HAVE_BROKEN_INLINE) && !defined(__cplusplus)
+#undef inline
+#define inline
+#endif
 
 #ifdef UNDEF_HAVE_GETHOSTBYNAME_R		/* For OSF4.x */
 #undef HAVE_GETHOSTBYNAME_R
