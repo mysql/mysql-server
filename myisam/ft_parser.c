@@ -47,9 +47,6 @@ static int FT_WORD_cmp(FT_WORD *w1, FT_WORD *w2)
 
 static int walk_and_copy(FT_WORD *word,uint32 count,FT_DOCSTAT *docstat)
 {
-    if(is_stopword(word->pos, word->len))
-      return 0;
-
     word->weight=LWS_IN_USE;
 
 #ifdef EVAL_RUN
@@ -142,6 +139,7 @@ TREE * ft_parse(TREE *wtree, byte *doc, int doclen)
       if (!word_char(*doc)) break;
     if ((w.len= (uint) (doc-w.pos)) < MIN_WORD_LEN) continue;
     if (w.len >= HA_FT_MAXLEN) continue;
+    if (is_stopword(w.pos, w.len)) continue;
     if (!tree_insert(wtree, &w, 0))
     {
       delete_tree(wtree);
