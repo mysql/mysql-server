@@ -1136,10 +1136,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       if (check_global_access(thd,RELOAD_ACL))
 	break;
       mysql_log.write(thd,command,NullS);
-      if (reload_acl_and_cache(thd, options, (TABLE_LIST*) 0))
-	send_error(net,0);
-      else
-	send_eof(net);
+      /* error sending is deferred to reload_acl_and_cache */
+      reload_acl_and_cache(thd, options, (TABLE_LIST*) 0) ;
       break;
     }
   case COM_SHUTDOWN:
@@ -2347,10 +2345,8 @@ mysql_execute_command(void)
   case SQLCOM_RESET:
     if (check_global_access(thd,RELOAD_ACL) || check_db_used(thd, tables))
       goto error;
-    if (reload_acl_and_cache(thd, lex->type, tables))
-      send_error(&thd->net,0);
-    else
-      send_ok(&thd->net);
+    /* error sending is deferred to reload_acl_and_cache */
+    reload_acl_and_cache(thd, lex->type, tables) ;
     break;
   case SQLCOM_KILL:
     kill_one_thread(thd,lex->thread_id);
@@ -3332,10 +3328,15 @@ static bool check_dup(const char *db, const char *name, TABLE_LIST *tables)
   return 0;
 }
 
+
+/*
+  Reload/resets privileges and the different caches
+*/
+
 bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables)
 {
   bool result=0;
-
+  bool error_already_sent=0;
   select_errors=0;				/* Write if more errors */
   if (options & REFRESH_GRANT)
   {
@@ -3393,11 +3394,29 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables)
  {
    LOCK_ACTIVE_MI;
    if (reset_slave(thd, active_mi))
+   {
      result=1;
+     /*
+       reset_slave() sends error itself.
+       If it didn't, one would either change reset_slave()'s prototype, to
+       pass *errorcode and *errmsg to it when it's called or
+       change reset_slave to use my_error() to register the error.
+     */
+     error_already_sent=1;
+   }
    UNLOCK_ACTIVE_MI;
  }
  if (options & REFRESH_USER_RESOURCES)
    reset_mqh(thd,(LEX_USER *) NULL);
+
+ if (thd && !error_already_sent)
+ {
+   if (result)
+     send_error(&thd->net,0);
+   else
+     send_ok(&thd->net);
+ }
+
  return result;
 }
 
