@@ -491,7 +491,9 @@ int Ndb_cluster_connection::connect(int no_retries, int retry_delay_in_seconds,
     m_impl.m_transporter_facade->start_instance(nodeId, props);
     m_impl.init_nodes_vector(nodeId, *props);
 
-    for(int i=0;i<m_impl.m_transporter_facade->get_registry()->m_transporter_interface.size();i++)
+    for(unsigned i=0;
+	i<m_impl.m_transporter_facade->get_registry()->m_transporter_interface.size();
+	i++)
       ndb_mgm_set_connection_int_parameter(m_impl.m_config_retriever->get_mgmHandle(),
 					   nodeId,
 					   m_impl.m_transporter_facade->get_registry()
