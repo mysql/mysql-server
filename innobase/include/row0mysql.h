@@ -233,6 +233,17 @@ row_update_for_mysql(
 					the MySQL format */
 	row_prebuilt_t*	prebuilt);	/* in: prebuilt struct in MySQL
 					handle */
+
+/*************************************************************************
+Does an unlock of a row for MySQL. */
+
+int
+row_unlock_for_mysql(
+/*=================*/
+					/* out: error code or DB_SUCCESS */
+	row_prebuilt_t*	prebuilt);	/* in: prebuilt struct in MySQL
+					handle */
+
 /*************************************************************************
 Creates an query graph node of 'update' type to be used in the MySQL
 interface. */
