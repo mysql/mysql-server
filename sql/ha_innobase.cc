@@ -2952,10 +2952,6 @@ ha_innobase::records_in_range(
 	void*           heap2;
 
    	DBUG_ENTER("records_in_range");
-
-	if (prebuilt->trx) {
-		prebuilt->trx->op_info = "estimating range size";
-	}
    	
 	active_index = keynr;
 
@@ -2988,10 +2984,6 @@ ha_innobase::records_in_range(
 	dtuple_free_for_mysql(heap2);
 
     	my_free((char*) key_val_buff2, MYF(0));
-
-	if (prebuilt->trx) {
-		prebuilt->trx->op_info = "";
-	}
    	
 	DBUG_RETURN((ha_rows) n_rows);
 }
@@ -3013,11 +3005,6 @@ ha_innobase::estimate_number_of_rows(void)
 	ulonglong	estimate;
 	ulonglong	data_file_length;
 	
-	if (prebuilt->trx) {
-		prebuilt->trx->op_info =
-				"estimating upper bound of table size";
-	}   	
-
  	DBUG_ENTER("info");
 
 	index = dict_table_get_first_index_noninline(prebuilt->table);
@@ -3033,10 +3020,6 @@ ha_innobase::estimate_number_of_rows(void)
 
 	estimate = 2 * data_file_length / dict_index_calc_min_rec_len(index);
 	
-	if (prebuilt->trx) {
-		prebuilt->trx->op_info = "";
-	}
-
 	return((ha_rows) estimate);
 }
 
@@ -3075,10 +3058,6 @@ ha_innobase::info(
 	ulong		i;
 
  	DBUG_ENTER("info");
-
-	if (prebuilt->trx) {
-		prebuilt->trx->op_info = "calculating table stats";
-	}
    	
  	ib_table = prebuilt->table;
 
@@ -3149,10 +3128,6 @@ ha_innobase::info(
 				       (dict_index_t*)
 				       trx_get_error_info(prebuilt->trx));
   	}
-
-	if (prebuilt->trx) {
-		prebuilt->trx->op_info = "";
-	}
    	
   	DBUG_VOID_RETURN;
 }
