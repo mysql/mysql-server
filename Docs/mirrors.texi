@@ -131,6 +131,10 @@ WWW (@uref{http://mysql.tzone.it/})
 FTP (@uref{ftp://ftp.linux.lv/pub/software/mysql/})
 
 @item
+@image{Flags/netherlands} Netherlands [OMS-Net] @@
+WWW (@uref{http://mysql.oms-net.nl/})
+
+@item
 @image{Flags/netherlands} Netherlands [ProServe] @@
 WWW (@uref{http://mysql.proserve.nl/})
 
