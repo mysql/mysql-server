@@ -1460,7 +1460,7 @@ mysql_execute_command(THD *thd)
     if (check_global_access(thd, REPL_SLAVE_ACL))
       goto error;
 #ifndef WORKING_NEW_MASTER
-    net_printf(&thd->net, ER_NOT_SUPPORTED_YET, "SHOW NEW MASTER");
+    net_printf(thd, ER_NOT_SUPPORTED_YET, "SHOW NEW MASTER");
     res= 1;
 #else
     res = show_new_master(thd);

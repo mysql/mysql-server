@@ -31,6 +31,7 @@ void send_error(THD *thd, uint sql_errno, const char *err)
 		      net->last_error : "NULL"));
 
   query_cache_abort(net);
+  thd->query_error=  1; // needed to catch query errors during replication
   if (!err)
   {
     if (sql_errno)
@@ -132,6 +133,7 @@ net_printf(THD *thd, uint errcode, ...)
   DBUG_ENTER("net_printf");
   DBUG_PRINT("enter",("message: %u",errcode));
 
+  thd->query_error=  1; // needed to catch query errors during replication
   query_cache_abort(net);	// Safety
   va_start(args,errcode);
   /*

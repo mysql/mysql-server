@@ -1526,7 +1526,7 @@ void Append_block_log_event::pack_info(String* packet)
   length= (uint) my_sprintf(buf,
 			    (buf, ";file_id=%u;block_len=%u", file_id,
 			     block_len));
-  net_store_data(packet, buf, length);
+  net_store_data(packet, buf, (int32) length);
 }
 
 
@@ -1571,7 +1571,7 @@ void Delete_file_log_event::pack_info(String* packet)
   char buf[64];
   uint length;
   length= (uint) my_sprintf(buf, (buf, ";file_id=%u", (uint) file_id));
-  net_store_data(packet, buf, length);
+  net_store_data(packet, buf, (int32) length);
 }
 #endif  
 
@@ -1618,7 +1618,7 @@ void Execute_load_log_event::pack_info(String* packet)
   char buf[64];
   uint length;
   length= (uint) my_sprintf(buf, (buf, ";file_id=%u", (uint) file_id));
-  net_store_data(packet, buf, length);
+  net_store_data(packet, buf, (int32) length);
 }
 #endif
 
@@ -1659,7 +1659,9 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
       mysql_log.write(thd,COM_QUERY,"%s",thd->query);
       DBUG_PRINT("query",("%s",thd->query));
       mysql_parse(thd, thd->query, q_len);
-      if ((expected_error != (actual_error = thd->net.last_errno)) &&
+      DBUG_PRINT("info",("expected_error: %d  last_errno: %d",
+			 expected_error, thd->net.last_errno));
+      if ((expected_error != (actual_error= thd->net.last_errno)) &&
 	  expected_error &&
 	  !ignored_error_code(actual_error) &&
 	  !ignored_error_code(expected_error))
@@ -1675,6 +1677,7 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
       else if (expected_error == actual_error ||
 	       ignored_error_code(actual_error))
       {
+	DBUG_PRINT("info",("error ignored"));
 	thd->query_error = 0;
 	*rli->last_slave_error = 0;
 	rli->last_slave_errno = 0;

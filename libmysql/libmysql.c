@@ -3389,19 +3389,6 @@ static my_bool read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt)
   metadata information by reading from server
 */
 
-/* QQ The follwing function will be removed after next merge */
-
-static char *my_strdup_with_length(const byte *from, uint length, myf MyFlags)
-{
-  gptr ptr;
-  if ((ptr=my_malloc(length+1,MyFlags)) != 0)
-  {
-    memcpy((byte*) ptr, (byte*) from,(size_t) length);
-    ((char*) ptr)[length]=0;
-  }
-  return((char*) ptr);
-}
-
 
 MYSQL_STMT *STDCALL
 mysql_prepare(MYSQL  *mysql, const char *query, ulong length)
