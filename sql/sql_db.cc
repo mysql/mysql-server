@@ -504,7 +504,8 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
 	found_other_files++;
       continue;
     }
-    if (db && !my_strcasecmp(&my_charset_latin1,
+    // just for safety we use files_charset_info
+    if (db && !my_strcasecmp(files_charset_info,
                              extension, reg_ext))
     {
       /* Drop the table nicely */
