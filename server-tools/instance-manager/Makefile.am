@@ -47,9 +47,9 @@ nodist_libnet_a_CPPFLAGS= $(CPPFLAGS) -DMYSQL_SERVER
 
 nodist_libalarm_a_SOURCES= thr_alarm.c
 nodist_libalarm_a_CPPFLAGS= $(CPPFLAGS) -DMYSQL_SERVER
-libalarm_a_LIBADD=	$(top_builddir)/mysys/mf_qsort2.o \
-	$(top_builddir)/mysys/queues.o \
-	$(top_builddir)/mysys/my_new.o
+libalarm_a_LIBADD=	$(top_builddir)/mysys/mf_qsort2.$(OBJEXT) \
+	$(top_builddir)/mysys/queues.$(OBJEXT) \
+	$(top_builddir)/mysys/my_new.$(OBJEXT)
         
 
 CLEANFILES= net_serv.cc password.c pack.c sql_state.c thr_alarm.c
