@@ -342,6 +342,16 @@ buf_frame_get_modify_clock(
 /*=======================*/
 				/* out: value */
 	buf_frame_t*	frame);	/* in: pointer to a frame */
+/************************************************************************
+Calculates a page checksum which is stored to the page when it is written
+to a file. Note that we must be careful to calculate the same value
+on 32-bit and 64-bit architectures. */
+
+ulint
+buf_calc_page_checksum(
+/*===================*/
+		       /* out: checksum */
+	byte*   page); /* in: buffer page */
 /**************************************************************************
 Gets the page number of a pointer pointing within a buffer frame containing
 a file page. */
