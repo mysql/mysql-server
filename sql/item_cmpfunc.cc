@@ -1416,18 +1416,18 @@ cmp_item_row::~cmp_item_row()
 void cmp_item_row::store_value(Item *item)
 {
   DBUG_ENTER("cmp_item_row::store_value");
-  THD *thd= current_thd;
   n= item->cols();
   if (!comparators)
-    comparators= (cmp_item **) thd->calloc(sizeof(cmp_item *)*n);
+    comparators= (cmp_item **) current_thd->calloc(sizeof(cmp_item *)*n);
   if (comparators)
   {
     item->bring_value();
     item->null_value= 0;
     for (uint i=0; i < n; i++)
     {
-      if (!(comparators[i]= cmp_item::get_comparator(item->el(i))))
-	break;					// new failed
+      if (!comparators[i])
+	if (!(comparators[i]= cmp_item::get_comparator(item->el(i))))
+	  break;					// new failed
       comparators[i]->store_value(item->el(i));
       item->null_value|= item->el(i)->null_value;
     }
