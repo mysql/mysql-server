@@ -1145,7 +1145,8 @@ int mi_repair(MI_CHECK *param, register MI_INFO *info,
       goto err;
   info->opt_flag|=WRITE_CACHE_USED;
   if (!(sort_param.record=(byte*) my_malloc((uint) share->base.pack_reclength,
-					   MYF(0))))
+					   MYF(0))) ||
+      !mi_alloc_rec_buff(info, -1, &sort_param.rec_buff))
   {
     mi_check_print_error(param,"Not enough memory for extra record");
     goto err;
@@ -1809,7 +1810,8 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
   info->rec_cache.file=info->dfile;		/* for sort_delete_record */
 
   if (!(sort_param.record=(byte*) my_malloc((uint) share->base.pack_reclength,
-					   MYF(0))))
+					   MYF(0))) ||
+      !mi_alloc_rec_buff(info, -1, &sort_param.rec_buff))
   {
     mi_check_print_error(param,"Not enough memory for extra record");
     goto err;
