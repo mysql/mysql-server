@@ -141,7 +141,7 @@ typedef struct charset_info_st
   ulong      (*strntoul)(struct charset_info_st *, const char *s, uint l, char **e, int base);
   longlong   (*strntoll)(struct charset_info_st *, const char *s, uint l, char **e, int base);
   ulonglong (*strntoull)(struct charset_info_st *, const char *s, uint l, char **e, int base);
-  double      (*strntod)(struct charset_info_st *, const char *s, uint l, char **e);
+  double      (*strntod)(struct charset_info_st *, char *s, uint l, char **e);
   
 } CHARSET_INFO;
 
@@ -186,7 +186,7 @@ long        my_strntol_8bit(CHARSET_INFO *, const char *s, uint l,char **e, int 
 ulong      my_strntoul_8bit(CHARSET_INFO *, const char *s, uint l,char **e, int base);
 longlong   my_strntoll_8bit(CHARSET_INFO *, const char *s, uint l,char **e, int base);
 ulonglong my_strntoull_8bit(CHARSET_INFO *, const char *s, uint l,char **e, int base);
-double      my_strntod_8bit(CHARSET_INFO *, const char *s, uint l,char **e);
+double      my_strntod_8bit(CHARSET_INFO *, char *s, uint l,char **e);
 
 int  my_l10tostr_8bit(CHARSET_INFO *, char *to, uint l, int radix, long int val);
 int my_ll10tostr_8bit(CHARSET_INFO *, char *to, uint l, int radix, longlong val);

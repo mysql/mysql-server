@@ -233,6 +233,7 @@ int mysql_update(THD *thd,
       }
     }
     end_read_record(&info);
+
     if (table->key_read)
     {
       table->key_read=0;
