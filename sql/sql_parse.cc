@@ -1473,6 +1473,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   {
     if (alloc_query(thd, packet, packet_length))
       break;					// fatal error is set
+    char *packet_end= thd->query + thd->query_length;
     mysql_log.write(thd,command,"%s",thd->query);
     DBUG_PRINT("query",("%-.4096s",thd->query));
     mysql_parse(thd,thd->query, thd->query_length);
@@ -1488,7 +1489,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       if (thd->lock || thd->open_tables || thd->derived_tables)
         close_thread_tables(thd);
 #endif
-      ulong length= thd->query_length-(ulong)(packet-thd->query);
+      ulong length= (ulong)(packet_end-packet);
 
       /* Remove garbage at start of query */
       while (my_isspace(thd->charset(), *packet) && length > 0)
@@ -1925,9 +1926,14 @@ mysql_execute_command(THD *thd)
     }
     /*
       Skip if we are in the slave thread, some table rules have been
-      given and the table list says the query should not be replicated
+      given and the table list says the query should not be replicated.
+      Exception is DROP TEMPORARY TABLE IF EXISTS: we always execute it
+      (otherwise we have stale files on slave caused by exclusion of one tmp
+      table).
     */
-    if (all_tables_not_ok(thd,tables))
+    if (!(lex->sql_command == SQLCOM_DROP_TABLE &&
+          lex->drop_temporary && lex->drop_if_exists) &&
+        all_tables_not_ok(thd,tables))
     {
       /* we warn the slave SQL thread */
       my_error(ER_SLAVE_IGNORED_TABLE, MYF(0));
@@ -4119,6 +4125,20 @@ void mysql_parse(THD *thd, char *inBuf, uint length)
 	  send_error(thd, 0, NullS);
 	else
 	{
+          /*
+            Binlog logs a string starting from thd->query and having length
+            thd->query_length; so we set thd->query_length correctly (to not
+            log several statements in one event, when we executed only first).
+            We set it to not see the ';' (otherwise it would get into binlog
+            and Query_log_event::print() would give ';;' output).
+            This also helps display only the current query in SHOW
+            PROCESSLIST.
+            Note that we don't need LOCK_thread_count to modify query_length.
+          */
+          if (lex->found_colon &&
+              (thd->query_length= (ulong)(lex->found_colon - thd->query)))
+            thd->query_length--;
+          /* Actually execute the query */
 	  mysql_execute_command(thd);
 	  query_cache_end_of_result(thd);
 	}
