@@ -14,7 +14,7 @@ $opt_innodb=$opt_bdb=$opt_raid=$opt_libwrap=0;
 GetOptions(
 	"bdb",
 	"build-thread=i",
-	"config-env=s",
+	"config-env=s" => \@config_env,
 	"config-options=s" => \@config_options,
 	"dbd-options=s",
 	"debug",
@@ -53,11 +53,6 @@ GetOptions(
 usage() if ($opt_help);
 usage() if (!$opt_distribution);
 
-if ($opt_bdb && $opt_version_suffix eq "")
-{
-  $opt_version_suffix="-max";
-}
-
 if (@make_options > 0)
 {
 	chomp(@make_options);
@@ -68,6 +63,12 @@ if (@config_options > 0)
 {
 	chomp(@config_options);
 	$opt_config_options= join(" ", @config_options);
+}
+
+if (@config_env > 0)
+{
+	chomp(@config_env);
+	$opt_config_env= join(" ", @config_env);
 }
 
 chomp($host=`hostname`);
