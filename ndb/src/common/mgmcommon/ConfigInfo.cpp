@@ -29,6 +29,8 @@
 const ConfigInfo::AliasPair
 ConfigInfo::m_sectionNameAliases[]={
   {"API", "MYSQLD"},
+  {"DB", "NDBD"},
+  {"MGM", "NDB_MGMD"},
   {0, 0}
 };
 
