@@ -4623,7 +4623,7 @@ void Field_enum::store(const char *from,uint length)
   uint tmp=find_enum(typelib,from,length);
   if (!tmp)
   {
-    if (from && length < 6) // Can't be more than 99999 enums
+    if (length < 6) // Can't be more than 99999 enums
     {
       /* This is for reading numbers with LOAD DATA INFILE */
       char buff[7], *end;
@@ -4721,7 +4721,7 @@ String *Field_enum::val_str(String *val_buffer __attribute__((unused)),
 {
   uint tmp=(uint) Field_enum::val_int();
   if (!tmp || tmp > typelib->count)
-    val_ptr->length(0);
+    val_ptr->set((char*)"",0);
   else
     val_ptr->set((const char*) typelib->type_names[tmp-1],
 		 (uint) strlen(typelib->type_names[tmp-1]));
