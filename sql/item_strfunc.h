@@ -436,7 +436,7 @@ public:
 
 class Item_func_rpad :public Item_str_func
 {
-  String tmp_value;
+  String tmp_value, rpad_str;
 public:
   Item_func_rpad(Item *arg1,Item *arg2,Item *arg3)
     :Item_str_func(arg1,arg2,arg3) {}
@@ -449,7 +449,7 @@ public:
 
 class Item_func_lpad :public Item_str_func
 {
-  String tmp_value;
+  String tmp_value, lpad_str;
 public:
   Item_func_lpad(Item *arg1,Item *arg2,Item *arg3)
     :Item_str_func(arg1,arg2,arg3) {}
