@@ -107,7 +107,7 @@ const char	*unknown_sqlstate= "HY000";
 const char	*not_error_sqlstate= "00000";
 #ifdef HAVE_SMEM
 char		 *shared_memory_base_name= 0;
-const char 	def_shared_memory_base_name= default_shared_memory_base_name;
+const char 	*def_shared_memory_base_name= default_shared_memory_base_name;
 #endif
 
 static void mysql_close_free_options(MYSQL *mysql);
