@@ -1,4 +1,4 @@
-pkglib_LIBRARIES = libsuma.a
+noinst_LIBRARIES = libsuma.a
 
 libsuma_a_SOURCES = Suma.cpp SumaInit.cpp
 

@@ -3,7 +3,7 @@
 #DIRS += testLongSig
 #endif
 
-pkglib_LIBRARIES = libkernel.a
+noinst_LIBRARIES = libkernel.a
 
 libkernel_a_SOURCES = \
 	SimulatedBlock.cpp	\
