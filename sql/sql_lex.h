@@ -162,6 +162,7 @@ typedef struct st_lex
   LEX_USER *grant_user;
   gptr yacc_yyss,yacc_yyvs;
   THD *thd;
+  struct system_variables *variable_values;
   udf_func udf;
   HA_CHECK_OPT   check_opt;			// check/repair options
   HA_CREATE_INFO create_info;

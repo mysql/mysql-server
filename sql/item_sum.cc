@@ -1040,7 +1040,8 @@ bool Item_sum_count_distinct::setup(THD *thd)
       }
     }
 
-    init_tree(&tree, min(max_heap_table_size, sortbuff_size/16), 0,
+    init_tree(&tree, min(thd->variables.max_heap_table_size,
+			 thd->variables.sortbuff_size/16), 0,
 	      key_length, compare_key, 0, NULL, cmp_arg);
     use_tree = 1;
 
@@ -1050,8 +1051,8 @@ bool Item_sum_count_distinct::setup(THD *thd)
       but this has to be handled - otherwise someone can crash
       the server with a DoS attack
     */
-    max_elements_in_tree = ((key_length) ? max_heap_table_size/key_length :
-			    1);
+    max_elements_in_tree = ((key_length) ? 
+			    thd->variables.max_heap_table_size/key_length : 1);
   }
   return 0;
 }

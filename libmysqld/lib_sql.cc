@@ -220,7 +220,7 @@ check_connections2(THD * thd)
   if (thd->client_capabilities & CLIENT_CONNECT_WITH_DB)
     db=strend(passwd)+1;
   if (thd->client_capabilities & CLIENT_INTERACTIVE)
-    thd->inactive_timeout=net_interactive_timeout;
+    thd->inactive_timeout= thd->variables.net_interactive_timeout;
   if (thd->client_capabilities & CLIENT_TRANSACTIONS)
     thd->net.return_status= &thd->server_status;
   net->timeout=net_read_timeout;

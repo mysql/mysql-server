@@ -779,6 +779,7 @@ ulong acl_get(const char *host, const char *ip, const char *bin_ip,
   db_access=0; host_access= ~0;
   char key[ACL_KEY_LENGTH],*tmp_db,*end;
   acl_entry *entry;
+  THD *thd= current_thd;
 
   VOID(pthread_mutex_lock(&acl_cache->lock));
   memcpy_fixed(&key,bin_ip,sizeof(struct in_addr));

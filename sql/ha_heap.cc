@@ -37,6 +37,7 @@ int ha_heap::open(const char *name, int mode, uint test_if_locked)
   ulong max_rows;
   HP_KEYDEF *keydef;
   HP_KEYSEG *seg;
+  THD *thd= current_thd;
 
   for (key=parts=0 ; key < table->keys ; key++)
     parts+=table->key_info[key].key_parts;
@@ -83,7 +84,7 @@ int ha_heap::open(const char *name, int mode, uint test_if_locked)
     }
   }
   mem_per_row += MY_ALIGN(table->reclength+1, sizeof(char*));
-  max_rows = (ulong) (max_heap_table_size / mem_per_row);
+  max_rows = (ulong) (thd->variables.max_heap_table_size / mem_per_row);
   file=heap_open(name,mode,
 		 table->keys,keydef,
 		 table->reclength,
