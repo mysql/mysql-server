@@ -2100,9 +2100,12 @@ row_sel_convert_mysql_key_to_innobase(
 
 		/* Calculate data length and data field total length */
 
-		if (type == DATA_BLOB) {
-			/* The key field is a column prefix of a BLOB or
-			TEXT type column */
+		if (type == DATA_BLOB || ( type == DATA_VARCHAR &&
+			dtype_get_mysql_type(dfield_get_type(dfield))
+					== DATA_MYSQL_TRUE_VARCHAR)) {
+
+			/* The key field is a column prefix of a BLOB,
+			TEXT, OR TRUE VARCHAR type column */
 
 			ut_a(field->prefix_len > 0);
 
@@ -2118,7 +2121,10 @@ row_sel_convert_mysql_key_to_innobase(
 			data_len = key_ptr[data_offset]
 				   + 256 * key_ptr[data_offset + 1];
 			data_field_len = data_offset + 2 + field->prefix_len;
-			data_offset += 2;
+
+			if (type == DATA_BLOB) {
+				data_offset += 2;
+			}
 
 			/* now that we know the length, we store the column
 			value like it would be a fixed char field */
