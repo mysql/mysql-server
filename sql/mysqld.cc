@@ -3344,7 +3344,9 @@ error:
   if (!event_connect_answer) CloseHandle(event_connect_answer);
   if (!event_connect_request) CloseHandle(event_connect_request);
   pthread_mutex_lock(&LOCK_thread_count);
+  handler_count--;
   pthread_mutex_unlock(&LOCK_thread_count);
+  pthread_cond_signal(&COND_handler_count);
   DBUG_RETURN(0);
 }
 #endif /* HAVE_SMEM */
