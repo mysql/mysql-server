@@ -544,7 +544,7 @@ int mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen= 0);
 int mysql_ha_close(THD *thd, TABLE_LIST *tables);
 int mysql_ha_read(THD *, TABLE_LIST *,enum enum_ha_read_modes,char *,
                List<Item> *,enum ha_rkey_function,Item *,ha_rows,ha_rows);
-int mysql_ha_flush(THD *thd, TABLE_LIST *tables, int mode_flags);
+int mysql_ha_flush(THD *thd, TABLE_LIST *tables, uint mode_flags);
 /* mysql_ha_flush mode_flags bits */
 #define MYSQL_HA_CLOSE_FINAL        0x00
 #define MYSQL_HA_REOPEN_ON_USAGE    0x01

@@ -72,7 +72,7 @@ static enum enum_ha_read_modes rkey_to_rnext[]=
   thd->open_tables=thd->handler_tables; \
   thd->handler_tables=tmp; }
 
-static int mysql_ha_flush_table(THD *thd, TABLE **table_ptr, int mode_flags);
+static int mysql_ha_flush_table(THD *thd, TABLE **table_ptr, uint mode_flags);
 
 
 /*
@@ -156,8 +156,9 @@ int mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
   uint          aliaslen;
   int           err;
   DBUG_ENTER("mysql_ha_open");
-  DBUG_PRINT("enter",("mysql_ha_open: '%s'.'%s' as '%s' reopen %d",
-                      tables->db, tables->real_name, tables->alias, reopen));
+  DBUG_PRINT("enter",("'%s'.'%s' as '%s'  reopen: %d",
+                      tables->db, tables->real_name, tables->alias,
+                      (int) reopen));
 
   if (! hash_inited(&thd->handler_tables_hash))
   {
@@ -174,7 +175,7 @@ int mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
     if (hash_search(&thd->handler_tables_hash, (byte*) tables->alias,
                     strlen(tables->alias) + 1))
     {
-      DBUG_PRINT("info",("mysql_ha_open:  duplicate '%s'", tables->alias));
+      DBUG_PRINT("info",("duplicate '%s'", tables->alias));
       if (! reopen)
         my_printf_error(ER_NONUNIQ_TABLE, ER(ER_NONUNIQ_TABLE),
                         MYF(0), tables->alias);
@@ -214,10 +215,7 @@ int mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
                           &name, namelen,
                           &alias, aliaslen,
                           NullS)))
-    {
-      DBUG_PRINT("exit",("mysql_ha_open: malloc ERROR"));
       goto err;
-    }
     /* structure copy */
     *hash_tables= *tables;
     hash_tables->db= db;
@@ -237,11 +235,11 @@ int mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
 
   if (! reopen)
     send_ok(&thd->net);
-  DBUG_PRINT("exit",("mysql_ha_open: OK"));
+  DBUG_PRINT("exit",("OK"));
   DBUG_RETURN(0);
 
 err:
-  DBUG_PRINT("exit",("mysql_ha_open: ERROR"));
+  DBUG_PRINT("exit",("ERROR"));
   DBUG_RETURN(-1);
 }
 
@@ -270,7 +268,7 @@ int mysql_ha_close(THD *thd, TABLE_LIST *tables)
   bool          was_flushed= FALSE;
   bool          not_opened;
   DBUG_ENTER("mysql_ha_close");
-  DBUG_PRINT("enter",("mysql_ha_close: '%s'.'%s' as '%s'",
+  DBUG_PRINT("enter",("'%s'.'%s' as '%s'",
                       tables->db, tables->real_name, tables->alias));
 
   if ((hash_tables= (TABLE_LIST*) hash_search(&thd->handler_tables_hash,
@@ -290,7 +288,7 @@ int mysql_ha_close(THD *thd, TABLE_LIST *tables)
 #if MYSQL_VERSION_ID < 40100
     if (*tables->db && strcmp(hash_tables->db, tables->db))
     {
-      DBUG_PRINT("info",("mysql_ha_close: wrong db"));
+      DBUG_PRINT("info",("wrong db"));
       hash_tables= NULL;
     }
     else
@@ -325,12 +323,12 @@ int mysql_ha_close(THD *thd, TABLE_LIST *tables)
     my_printf_error(ER_UNKNOWN_TABLE, ER(ER_UNKNOWN_TABLE), MYF(0),
                     tables->alias, "HANDLER");
 #endif
-    DBUG_PRINT("exit",("mysql_ha_close: ERROR"));
+    DBUG_PRINT("exit",("ERROR"));
     DBUG_RETURN(-1);
   }
 
   send_ok(&thd->net);
-  DBUG_PRINT("exit",("mysql_ha_close: OK"));
+  DBUG_PRINT("exit", ("OK"));
   DBUG_RETURN(0);
 }
 
@@ -368,7 +366,7 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
   bool          was_flushed;
   MYSQL_LOCK    *lock;
   DBUG_ENTER("mysql_ha_read");
-  DBUG_PRINT("enter",("mysql_ha_read: '%s'.'%s' as '%s'",
+  DBUG_PRINT("enter",("'%s'.'%s' as '%s'",
                       tables->db, tables->real_name, tables->alias));
 
   List<Item> list;
@@ -381,9 +379,9 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
                                               strlen(tables->alias) + 1)))
   {
     table= hash_tables->table;
-    DBUG_PRINT("info",("mysql_ha_read: found in hash '%s'.'%s' as '%s' tab %p",
-                       hash_tables->db, hash_tables->real_name,
-                       hash_tables->alias, table));
+    DBUG_PRINT("info-in-hash",("'%s'.'%s' as '%s' tab %p",
+                               hash_tables->db, hash_tables->real_name,
+                               hash_tables->alias, table));
     if (!table)
     {
       /*
@@ -391,12 +389,12 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
       */
       if (mysql_ha_open(thd, hash_tables, 1))
       {
-        DBUG_PRINT("exit",("mysql_ha_read: reopen failed"));
+        DBUG_PRINT("exit",("reopen failed"));
         goto err0;
       }
 
       table= hash_tables->table;
-      DBUG_PRINT("info",("mysql_ha_read: re-opened '%s'.'%s' as '%s' tab %p",
+      DBUG_PRINT("info",("re-opened '%s'.'%s' as '%s' tab %p",
                          hash_tables->db, hash_tables->real_name,
                          hash_tables->alias, table));
     }
@@ -404,7 +402,7 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
 #if MYSQL_VERSION_ID < 40100
     if (*tables->db && strcmp(table->table_cache_key, tables->db))
     {
-      DBUG_PRINT("info",("mysql_ha_read: wrong db"));
+      DBUG_PRINT("info",("wrong db"));
       table= NULL;
     }
 #endif
@@ -575,12 +573,13 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
 ok:
   mysql_unlock_tables(thd,lock);
   send_eof(&thd->net);
-  DBUG_PRINT("exit",("mysql_ha_read: OK"));
+  DBUG_PRINT("exit",("OK"));
   DBUG_RETURN(0);
+
 err:
   mysql_unlock_tables(thd,lock);
 err0:
-  DBUG_PRINT("exit",("mysql_ha_read: ERROR"));
+  DBUG_PRINT("exit",("ERROR"));
   DBUG_RETURN(-1);
 }
 
@@ -614,24 +613,23 @@ err0:
     0  ok
 */
 
-int mysql_ha_flush(THD *thd, TABLE_LIST *tables, int mode_flags)
+int mysql_ha_flush(THD *thd, TABLE_LIST *tables, uint mode_flags)
 {
   TABLE_LIST    **tmp_tables_p;
   TABLE_LIST    *tmp_tables;
   TABLE         **table_ptr;
   bool          was_flushed;
   DBUG_ENTER("mysql_ha_flush");
-  DBUG_PRINT("enter",("mysql_ha_flush: tables %p mode_flags 0x%02x",
-                      tables, mode_flags));
+  DBUG_PRINT("enter", ("tables: %p  mode_flags: 0x%02x", tables, mode_flags));
 
   if (tables)
   {
     /* Close all tables in the list. */
     for (tmp_tables= tables ; tmp_tables; tmp_tables= tmp_tables->next)
     {
-      DBUG_PRINT("info",("mysql_ha_flush: in tables list '%s'.'%s' as '%s'",
-                         tmp_tables->db, tmp_tables->real_name,
-                         tmp_tables->alias));
+      DBUG_PRINT("info-in-tables-list",("'%s'.'%s' as '%s'",
+                                        tmp_tables->db, tmp_tables->real_name,
+                                        tmp_tables->alias));
       /* Close all currently open handler tables with the same base table. */
       table_ptr= &(thd->handler_tables);
       while (*table_ptr)
@@ -640,7 +638,7 @@ int mysql_ha_flush(THD *thd, TABLE_LIST *tables, int mode_flags)
              ! my_strcasecmp((*table_ptr)->table_cache_key, tmp_tables->db)) &&
             ! my_strcasecmp((*table_ptr)->real_name, tmp_tables->real_name))
         {
-          DBUG_PRINT("info",("mysql_ha_flush: *table_ptr '%s'.'%s' as '%s'",
+          DBUG_PRINT("info",("*table_ptr '%s'.'%s' as '%s'",
                              (*table_ptr)->table_cache_key,
                              (*table_ptr)->real_name,
                              (*table_ptr)->table_name));
@@ -669,7 +667,6 @@ int mysql_ha_flush(THD *thd, TABLE_LIST *tables, int mode_flags)
     }
   }
 
-  DBUG_PRINT("exit",("mysql_ha_flush: OK"));
   DBUG_RETURN(0);
 }
 
@@ -691,15 +688,15 @@ int mysql_ha_flush(THD *thd, TABLE_LIST *tables, int mode_flags)
     0  ok
 */
 
-static int mysql_ha_flush_table(THD *thd, TABLE **table_ptr, int mode_flags)
+static int mysql_ha_flush_table(THD *thd, TABLE **table_ptr, uint mode_flags)
 {
   TABLE_LIST    *hash_tables;
   TABLE         *table= *table_ptr;
   bool          was_flushed;
   DBUG_ENTER("mysql_ha_flush_table");
-  DBUG_PRINT("info",("mysql_ha_flush_table: '%s'.'%s' as '%s' flags 0x%02x",
-                     table->table_cache_key, table->real_name,
-                     table->table_name, mode_flags));
+  DBUG_PRINT("enter",("'%s'.'%s' as '%s'  flags: 0x%02x",
+                      table->table_cache_key, table->real_name,
+                      table->table_name, mode_flags));
 
   if ((hash_tables= (TABLE_LIST*) hash_search(&thd->handler_tables_hash,
                                         (*table_ptr)->table_name,
@@ -723,7 +720,6 @@ static int mysql_ha_flush_table(THD *thd, TABLE **table_ptr, int mode_flags)
     VOID(pthread_cond_broadcast(&COND_refresh));
   }
 
-  DBUG_PRINT("exit",("mysql_ha_flush_table: OK"));
   DBUG_RETURN(0);
 }
 
