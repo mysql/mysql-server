@@ -176,7 +176,9 @@ uint calc_week(TIME *l_time, bool with_year, bool sunday_first_day_of_week,
   ulong first_daynr=calc_daynr(l_time->year,1,1);
   uint weekday=calc_weekday(first_daynr,sunday_first_day_of_week);
   *year=l_time->year;
-  if (l_time->month == 1 && weekday >= 4 && l_time->day <= 7-weekday)
+  if (l_time->month == 1 && l_time->day <= 7-weekday &&
+      ((!sunday_first_day_of_week && weekday >= 4) ||
+       (sunday_first_day_of_week && weekday != 0)))
   {
     /* Last week of the previous year */
     if (!with_year)
@@ -186,7 +188,8 @@ uint calc_week(TIME *l_time, bool with_year, bool sunday_first_day_of_week,
     first_daynr-= (days=calc_days_in_year(*year));
     weekday= (weekday + 53*7- days) % 7;
   }
-  if (weekday >= 4)
+  if ((sunday_first_day_of_week && weekday != 0) ||
+      (!sunday_first_day_of_week && weekday >= 4))
     days= daynr - (first_daynr+ (7-weekday));
   else
     days= daynr - (first_daynr - weekday);
