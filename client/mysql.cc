@@ -780,16 +780,14 @@ static int read_lines(bool execute_commands)
 		  "    '> " : "    \"> ");
       linebuffer[0]=(char) sizeof(linebuffer);
       line=_cgets(linebuffer);
-      if (opt_outfile)
-	fprintf(OUTFILE, "%s\n", line);
 #else
       line=readline((char*) (glob_buffer.is_empty() ? "mysql> " :
 			     !in_string ? "    -> " :
 			     in_string == '\'' ?
 			     "    '> " : "    \"> "));
+#endif
       if (opt_outfile)
 	fprintf(OUTFILE, "%s\n", line);
-#endif
     }
     if (!line)					// End of file
     {
