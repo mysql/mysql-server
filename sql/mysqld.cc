@@ -5766,8 +5766,9 @@ static void fix_paths(void)
   {
     strxnmov(mysql_charsets_dir, sizeof(mysql_charsets_dir)-1, buff,
 	     CHARSET_DIR, NullS);
-    charsets_dir=mysql_charsets_dir;
   }
+  (void) my_load_path(mysql_charsets_dir, mysql_charsets_dir, buff);
+  charsets_dir=mysql_charsets_dir;
 
   if (init_tmpdir(&mysql_tmpdir_list, opt_mysql_tmpdir))
     exit(1);
