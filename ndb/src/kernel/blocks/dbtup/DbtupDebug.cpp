@@ -68,7 +68,7 @@ struct Chunk {
 
 void
 Dbtup::reportMemoryUsage(Signal* signal, int incDec){
-  signal->theData[0] = EventReport::MemoryUsage;
+  signal->theData[0] = NDB_LE_MemoryUsage;
   signal->theData[1] = incDec;
   signal->theData[2] = sizeof(Page);
   signal->theData[3] = cnoOfAllocatedPages;

@@ -268,7 +268,7 @@ private:
     pspart.execSUB_GCP_COMPLETE_REP(s); };  
 
   void sendEventRep(Signal * signal,
-		    EventReport::EventType type, 
+		    Ndb_logevent_type type, 
 		    GrepEvent::Subscription event,
 		    Uint32 subId,
 		    Uint32 subKey,
