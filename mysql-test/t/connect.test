@@ -48,6 +48,7 @@ flush privileges;
 #connect (con1,localhost,test,gambling2,"");
 #show tables;
 connect (con1,localhost,test,gambling2,mysql);
+set password="";
 --error 1105
 set password='gambling3';
 set password=old_password('gambling3');
