@@ -854,7 +854,7 @@ int rename_file_ext(const char * from,const char * to,const char * ext);
 bool check_db_name(char *db);
 bool check_column_name(const char *name);
 bool check_table_name(const char *name, uint length);
-char *get_field(MEM_ROOT *mem,TABLE *table,uint fieldnr);
+char *get_field(MEM_ROOT *mem, Field *field);
 int wild_case_compare(CHARSET_INFO *cs, const char *str,const char *wildstr);
 
 /* from hostname.cc */

@@ -80,6 +80,7 @@ Item_func::Item_func(List<Item> &list):
 
       str_value.charset If this is a string function, set this to the
 			character set for the first argument.
+			If any argument is binary, this is set to binary
 
    If for any item any of the defaults are wrong, then this can
    be fixed in the fix_length_and_dec() function that is called
@@ -96,6 +97,7 @@ Item_func::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
   Item **arg,**arg_end;
   char buff[STACK_BUFF_ALLOC];			// Max argument in function
+
   used_tables_cache=0;
   const_item_cache=1;
 
@@ -103,6 +105,7 @@ Item_func::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     return 0;					// Fatal error if flag is set!
   if (arg_count)
   {						// Print purify happy
+    CHARSET_INFO *charset= 0; 
     /*
       Set return character set to first argument if we are returning a
       string.
@@ -115,15 +118,21 @@ Item_func::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
       if ((*arg)->maybe_null)
 	maybe_null=1;
       if ((*arg)->binary())
-	set_charset(&my_charset_bin);
+	charset= &my_charset_bin;
+      else if (!charset && (*arg)->result_type() == STRING_RESULT)
+	charset= (*arg)->charset();
       with_sum_func= with_sum_func || (*arg)->with_sum_func;
       used_tables_cache|=(*arg)->used_tables();
       const_item_cache&= (*arg)->const_item();
     }
+    /*
+      We must set charset here as fix_length_and_dec() may want to change
+      charset
+    */
+    if (charset && result_type() == STRING_RESULT)
+      set_charset(charset);
   }
   fix_length_and_dec();
-  if (result_type() == STRING_RESULT)
-    set_charset((*args)->charset());
   fixed= 1;
   return 0;
 }
@@ -847,6 +856,8 @@ void Item_func_min_max::fix_length_and_dec()
     if (args[i]->binary())
       set_charset(&my_charset_bin);
   }
+  if (cmp_type == STRING_RESULT)
+    str_cmp_function= binary() ? stringcmp : sortcmp;
 }
 
 
@@ -891,7 +902,7 @@ String *Item_func_min_max::val_str(String *str)
 	res2= args[i]->val_str(res == str ? &tmp_value : str);
 	if (res2)
 	{
-	  int cmp=binary() ? stringcmp(res,res2) : sortcmp(res,res2);
+	  int cmp= (*str_cmp_function)(res,res2);
 	  if ((cmp_sign < 0 ? cmp : -cmp) < 0)
 	    res=res2;
 	}
@@ -994,7 +1005,6 @@ longlong Item_func_locate::val_int()
 {
   String *a=args[0]->val_str(&value1);
   String *b=args[1]->val_str(&value2);
-  bool binary_str = args[0]->binary() || args[1]->binary();
   if (!a || !b)
   {
     null_value=1;
@@ -1012,7 +1022,7 @@ longlong Item_func_locate::val_int()
     if (use_mb(a->charset()))
     {
       start0=start;
-      if (!binary_str)
+      if (!binary_cmp)
         start=a->charpos(start);
     }
 #endif
@@ -1022,7 +1032,7 @@ longlong Item_func_locate::val_int()
   if (!b->length())				// Found empty string at start
     return (longlong) (start+1);
 #ifdef USE_MB
-  if (use_mb(a->charset()) && !binary_str)
+  if (use_mb(a->charset()) && !binary_cmp)
   {
     const char *ptr=a->ptr()+start;
     const char *search=b->ptr();
@@ -1049,7 +1059,7 @@ longlong Item_func_locate::val_int()
     return 0;
   }
 #endif /* USE_MB */
-  return (longlong) (binary() ? a->strstr(*b,start) :
+  return (longlong) (binary_cmp ? a->strstr(*b,start) :
 		     (a->strstr_case(*b,start)))+1;
 }
 
@@ -1662,7 +1672,7 @@ longlong Item_master_pos_wait::val_int()
 {
   THD* thd = current_thd;
   String *log_name = args[0]->val_str(&value);
-  int event_count;
+  int event_count= 0;
 
   null_value=0;
   if (thd->slave_thread || !log_name || !log_name->length())

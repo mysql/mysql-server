@@ -857,6 +857,7 @@ end:
   DBUG_VOID_RETURN;
 }
 
+
 /*
   Check if the query is in the cache. If it was cached, send it
   to the user.
@@ -867,8 +868,6 @@ end:
 	-1	The query was cached but we didn't have rights to use it.
 		No error is sent to the client yet.
 */
-  
-
 
 int
 Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)

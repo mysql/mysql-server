@@ -1398,8 +1398,8 @@ int mysql_real_query_for_lazy(const char *buf, int length)
     if (!mysql_real_query(&mysql,buf,length))
       return 0;    
     uint error=put_info(mysql_error(&mysql),INFO_ERROR, mysql_errno(&mysql));
-    if (mysql_errno(&mysql) != CR_SERVER_GONE_ERROR || retry > 1 
-	|| status.batch)
+    if (mysql_errno(&mysql) != CR_SERVER_GONE_ERROR || retry > 1 ||
+	status.batch)
       return error;
     if (reconnect())
       return error;
@@ -1417,8 +1417,9 @@ int mysql_store_result_for_lazy(MYSQL_RES **result)
   return 0;
 }
 
+
 static int com_server_help(String *buffer __attribute__((unused)),
-	  char *line __attribute__((unused)), char *help_arg)
+			   char *line __attribute__((unused)), char *help_arg)
 {
   MYSQL_ROW cur;
   const char *server_cmd= buffer->ptr();
@@ -1460,22 +1461,23 @@ static int com_server_help(String *buffer __attribute__((unused)),
       init_pager();
       if (cur[1][0] == 'Y')
       {
-	tee_fprintf(PAGER, "\nHelp topic \'%s\'\n", cur[0]);
+	tee_fprintf(PAGER, "Help topic \'%s\'\n", cur[0]);
 	tee_fprintf(PAGER, "%s\n", cur[2]);
-	tee_fprintf(PAGER, "For help on specific function please type 'help <function>' where function is one of next :\n%s\n", cur[3]);
+	tee_fprintf(PAGER, "For help on specific function please type 'help <function>'\nwhere function is one of next:\n%s\n", cur[3]);
       }
       else
       {
-	tee_fprintf(PAGER, "\nName : \'%s\'\n\n", cur[0]);
-	tee_fprintf(PAGER, "Description : \n%s\n\n", cur[2]);
-	tee_fprintf(PAGER, "Examples : \n%s\n", cur[3]);
+	tee_fprintf(PAGER, "Name: \'%s\'\n\n", cur[0]);
+	tee_fprintf(PAGER, "Description:\n%s\n\n", cur[2]);
+	if (cur[3])
+	  tee_fprintf(PAGER, "Examples:\n%s\n", cur[3]);
       }
       end_pager();
     }
     else if (num_rows > 1)
     {
-      put_info("\nMany help items for your request exist", INFO_INFO);
-      put_info("For more specific request please type 'help <item>' where item is one of next :", INFO_INFO);
+      put_info("Many help items for your request exist", INFO_INFO);
+      put_info("For more specific request please type 'help <item>' where item is one of next:", INFO_INFO);
 
       init_pager();
       char last_char= '_';
@@ -1506,8 +1508,8 @@ err:
 }
 
 static int
-com_help (String *buffer __attribute__((unused)),
-	  char *line __attribute__((unused)))
+com_help(String *buffer __attribute__((unused)),
+	 char *line __attribute__((unused)))
 {
   reg1 int i;
   char * help_arg= strchr(line,' ');
@@ -1530,13 +1532,9 @@ com_help (String *buffer __attribute__((unused)),
         tee_fprintf(stdout, "%s\t(\\%c)\t%s\n", commands[i].name,
 		    commands[i].cmd_char, commands[i].doc);
     }
-    if (connected)
-      tee_fprintf(stdout,
-		"\nConnection id: %ld  (Can be used with mysqladmin kill)\n\n",
-		mysql_thread_id(&mysql));
-    else
-      tee_fprintf(stdout, "Not connected!  Reconnect with 'connect'!\n\n");
   }
+  if (connected && mysql_get_server_version(&mysql) >= 40100)
+    put_info("\nFor server side help, type 'help all'\n", INFO_INFO);
   return 0;
 }
 
@@ -2415,7 +2413,6 @@ com_use(String *buffer __attribute__((unused)), char *line)
   put_info("Database changed",INFO_INFO);
   return 0;
 }
-
 
 
 /*

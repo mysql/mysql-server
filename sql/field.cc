@@ -4226,7 +4226,8 @@ uint Field_varstring::max_packed_col_length(uint max_length)
   return (max_length > 255 ? 2 : 1)+max_length;
 }
 
-void Field_varstring::get_key_image(char *buff, uint length, CHARSET_INFO *cs,imagetype type)
+void Field_varstring::get_key_image(char *buff, uint length, CHARSET_INFO *cs,
+				    imagetype type)
 {
   length-= HA_KEY_BLOB_LENGTH;
   uint f_length=uint2korr(ptr);
@@ -4478,7 +4479,7 @@ int Field_blob::cmp_binary(const char *a_ptr, const char *b_ptr,
 /* The following is used only when comparing a key */
 
 void Field_blob::get_key_image(char *buff,uint length,
-			       CHARSET_INFO *cs,imagetype type)
+			       CHARSET_INFO *cs, imagetype type)
 {
   length-= HA_KEY_BLOB_LENGTH;
   uint32 blob_length= get_length(ptr);
@@ -4522,7 +4523,8 @@ void Field_blob::set_key_image(char *buff,uint length, CHARSET_INFO *cs)
 }
 
 
-void Field_geom::get_key_image(char *buff,uint length,CHARSET_INFO *cs, imagetype type)
+void Field_geom::get_key_image(char *buff,uint length,CHARSET_INFO *cs,
+			       imagetype type)
 {
   length-=HA_KEY_BLOB_LENGTH;
   ulong blob_length=get_length(ptr);

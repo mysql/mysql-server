@@ -136,6 +136,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	EVENTS_SYM
 %token	EXECUTE_SYM
 %token	FLUSH_SYM
+%token  HELP_SYM
 %token	INSERT
 %token	IO_THREAD
 %token	KILL_SYM
@@ -528,8 +529,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token  SUBJECT_SYM
 %token  CIPHER_SYM
 
-%token  HELP
-
 %left   SET_VAR
 %left	OR_OR_CONCAT OR
 %left	AND
@@ -742,11 +741,11 @@ verb_clause:
 /* help */
 
 help:
-       HELP TEXT_STRING
+       HELP_SYM ident_or_text
        {
-       LEX *lex= Lex;
-       lex->sql_command= SQLCOM_HELP;
-       lex->help_arg= $2.str;
+	  LEX *lex= Lex;
+	  lex->sql_command= SQLCOM_HELP;
+	  lex->help_arg= $2.str;
        };
 
 /* change master */
@@ -1573,8 +1572,13 @@ start:
 	;
 
 slave_thread_opts:
+	{ Lex->slave_thd_opt= 0; }
+	slave_thread_opt_list
+
+slave_thread_opt_list:
 	slave_thread_opt
-	| slave_thread_opts ',' slave_thread_opt;
+	| slave_thread_opt_list ',' slave_thread_opt
+	;
 
 slave_thread_opt:
 	/*empty*/	{}
@@ -1720,7 +1724,8 @@ select_init:
 	      send_error(lex->thd, ER_SYNTAX_ERROR);
 	      YYABORT;
 	    }
-	  if (sel->linkage == UNION_TYPE && !sel->master_unit()->first_select()->braces)
+	  if (sel->linkage == UNION_TYPE &&
+	      !sel->master_unit()->first_select()->braces)
 	  {
 	    send_error(lex->thd, ER_SYNTAX_ERROR);
 	    YYABORT;
@@ -1740,7 +1745,8 @@ select_init2:
 	    send_error(lex->thd, ER_SYNTAX_ERROR);
 	    YYABORT;
 	  }
-	  if (sel->linkage == UNION_TYPE && sel->master_unit()->first_select()->braces)
+	  if (sel->linkage == UNION_TYPE &&
+	      sel->master_unit()->first_select()->braces)
 	  {
 	    send_error(lex->thd, ER_SYNTAX_ERROR);
 	    YYABORT;
@@ -2773,7 +2779,6 @@ olap_opt:
 	| WITH CUBE_SYM
           {
 	    LEX *lex=Lex;
-	    lex->olap= 1;
 	    if (lex->current_select->linkage == GLOBAL_OPTIONS_TYPE)
 	    {
 	      net_printf(lex->thd, ER_WRONG_USAGE, "WITH CUBE",
@@ -2787,7 +2792,6 @@ olap_opt:
 	| WITH ROLLUP_SYM
           {
 	    LEX *lex= Lex;
-	    lex->olap= 1;
 	    if (lex->current_select->linkage == GLOBAL_OPTIONS_TYPE)
 	    {
 	      net_printf(lex->thd, ER_WRONG_USAGE, "WITH ROLLUP",
@@ -2812,7 +2816,7 @@ order_clause:
 	ORDER_SYM BY
         {
 	  LEX *lex=Lex;
-	  if (lex->current_select->linkage != GLOBAL_OPTIONS_TYPE &&
+	  if (lex->current_select->linkage != GLOBAL_OPTIONS_TYPE) &&
 	      lex->current_select->select_lex()->olap !=
 	      UNSPECIFIED_OLAP_TYPE)
 	  {
@@ -2835,9 +2839,19 @@ order_dir:
 	| DESC { $$ =0; };
 
 
-opt_limit_clause:
-	/* empty */ {}
+opt_limit_clause_init:
+	/* empty */
+	{
+	  SELECT_LEX_NODE *sel= Select;
+          sel->offset_limit= 0L;
+          sel->select_limit= Lex->thd->variables.select_limit;
+	}
 	| limit_clause {}
+	;
+
+opt_limit_clause:
+	/* empty */	{}
+	| limit_clause	{}
 	;
 
 limit_clause:
@@ -3423,9 +3437,7 @@ show_param:
           {
 	    LEX *lex= Lex;
 	    lex->sql_command= SQLCOM_SHOW_BINLOG_EVENTS;
-	    lex->select_lex.select_limit= lex->thd->variables.select_limit;
-	    lex->select_lex.offset_limit= 0L;
-          } opt_limit_clause
+          } opt_limit_clause_init
 	| keys_or_index FROM table_ident opt_db
 	  {
 	    Lex->sql_command= SQLCOM_SHOW_KEYS;
@@ -3453,9 +3465,9 @@ show_param:
           { (void) create_select_for_variable("warning_count"); }
         | COUNT_SYM '(' '*' ')' ERRORS
 	  { (void) create_select_for_variable("error_count"); }
-        | WARNINGS {Select->offset_limit=0L;} opt_limit_clause
+        | WARNINGS opt_limit_clause_init
           { Lex->sql_command = SQLCOM_SHOW_WARNS;}
-        | ERRORS {Select->offset_limit=0L;} opt_limit_clause
+        | ERRORS opt_limit_clause_init
           { Lex->sql_command = SQLCOM_SHOW_ERRORS;}
 	| STATUS_SYM wild
 	  { Lex->sql_command= SQLCOM_SHOW_STATUS; }
@@ -3729,18 +3741,24 @@ opt_ignore_lines:
 /* Common definitions */
 
 text_literal:
-	TEXT_STRING { $$ = new Item_string($1.str,$1.length,YYTHD->variables.thd_charset); }
-	| UNDERSCORE_CHARSET TEXT_STRING { $$ = new Item_string($2.str,$2.length,Lex->charset); }
+	TEXT_STRING
+	{ $$ = new Item_string($1.str,$1.length,
+			       YYTHD->variables.thd_charset); }
+	| UNDERSCORE_CHARSET TEXT_STRING
+	  { $$ = new Item_string($2.str,$2.length,Lex->charset); }
 	| text_literal TEXT_STRING
-	{ ((Item_string*) $1)->append($2.str,$2.length); };
+	  { ((Item_string*) $1)->append($2.str,$2.length); };
 
 text_string:
-	TEXT_STRING	{ $$=  new String($1.str,$1.length,YYTHD->variables.thd_charset); }
+	TEXT_STRING
+	{ $$=  new String($1.str,$1.length,YYTHD->variables.thd_charset); }
 	| HEX_NUM
 	  {
 	    Item *tmp = new Item_varbinary($1.str,$1.length);
 	    $$= tmp ? tmp->val_str((String*) 0) : (String*) 0;
-	  };
+	  }
+	;
+
 param_marker:
         '?'
         {
@@ -3755,7 +3773,9 @@ param_marker:
             yyerror("You have an error in your SQL syntax");
             YYABORT;
           }
-        };
+        }
+	;
+
 literal:
 	text_literal	{ $$ =	$1; }
 	| NUM		{ $$ =	new Item_int($1.str, (longlong) strtol($1.str, NULL, 10),$1.length); }
@@ -3948,8 +3968,9 @@ keyword:
 	| FLUSH_SYM		{}
 	| GRANTS		{}
 	| GLOBAL_SYM		{}
-	| HEAP_SYM		{}
 	| HANDLER_SYM		{}
+	| HEAP_SYM		{}
+	| HELP_SYM		{}
 	| HOSTS_SYM		{}
 	| HOUR_SYM		{}
 	| IDENTIFIED_SYM	{}
@@ -4255,7 +4276,7 @@ handler:
 	  if (!lex->current_select->add_table_to_list(lex->thd, $2, 0, 0))
 	    YYABORT;
         }
-        handler_read_or_scan where_clause opt_limit_clause { }
+        handler_read_or_scan where_clause opt_limit_clause {}
         ;
 
 handler_read_or_scan:
@@ -4633,8 +4654,6 @@ optional_order_or_limit:
 	    sel->master_unit()->global_parameters=
 	      sel->master_unit();
 	    lex->current_select= sel->master_unit();
-	    lex->current_select->select_limit=
-	      lex->thd->variables.select_limit;
 	    lex->current_select->no_table_names_allowed= 1;
 	    thd->where= "global ORDER clause";
 	  }
@@ -4647,9 +4666,8 @@ optional_order_or_limit:
 	;
 
 order_or_limit:
-	order_clause opt_limit_clause
-	|
-	limit_clause
+	order_clause opt_limit_clause_init
+	| limit_clause
 	;
 
 union_option:

@@ -419,6 +419,7 @@ int		STDCALL mysql_kill(MYSQL *mysql,unsigned long pid);
 int		STDCALL mysql_ping(MYSQL *mysql);
 const char *		STDCALL mysql_stat(MYSQL *mysql);
 const char *		STDCALL mysql_get_server_info(MYSQL *mysql);
+unsigned long		STDCALL mysql_get_server_version(MYSQL *mysql);
 const char *		STDCALL mysql_get_client_info(void);
 const char *		STDCALL mysql_get_host_info(MYSQL *mysql);
 unsigned int	STDCALL mysql_get_proto_info(MYSQL *mysql);

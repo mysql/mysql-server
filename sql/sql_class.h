@@ -882,8 +882,9 @@ typedef struct st_sort_field {
   Field *field;				/* Field to sort */
   Item	*item;				/* Item if not sorting fields */
   uint	 length;			/* Length of sort field */
-  my_bool reverse;			/* if descending sort */
   Item_result result_type;		/* Type of item */
+  bool reverse;				/* if descending sort */
+  bool need_strxnfrm;			/* If we have to use strxnfrm() */
 } SORT_FIELD;
 
 
@@ -898,7 +899,8 @@ typedef struct st_sort_buffer {
 
 /* Structure for db & table in sql_yacc */
 
-class Table_ident :public Sql_alloc {
+class Table_ident :public Sql_alloc
+{
  public:
   LEX_STRING db;
   LEX_STRING table;

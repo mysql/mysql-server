@@ -386,7 +386,7 @@ mysql_init(MYSQL *mysql)
 }
 
 
-static void mysql_once_init()
+void STDCALL mysql_once_init()
 {
   if (!mysql_client_init)
   {

@@ -148,8 +148,8 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
   while (!(read_record_info.read_record(&read_record_info)))
   {
     ACL_HOST host;
-    update_hostname(&host.host,get_field(&mem, table,0));
-    host.db=	 get_field(&mem, table,1);
+    update_hostname(&host.host,get_field(&mem, table->field[0]));
+    host.db=	 get_field(&mem, table->field[1]);
     host.access= get_access(table,2);
     host.access= fix_rights_for_db(host.access);
     host.sort=   get_sort(2,host.host.hostname,host.db);
@@ -190,9 +190,9 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
   {
     ACL_USER user;
     uint length=0;
-    update_hostname(&user.host,get_field(&mem, table,0));
-    user.user=get_field(&mem, table,1);
-    user.password=get_field(&mem, table,2);
+    update_hostname(&user.host,get_field(&mem, table->field[0]));
+    user.user=get_field(&mem, table->field[1]);
+    user.password=get_field(&mem, table->field[2]);
     if (user.password && (length=(uint) strlen(user.password)) == 8 &&
 	protocol_version == PROTOCOL_VERSION)
     {
@@ -220,7 +220,7 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
 			   (uint) strlen(user.host.hostname) : 0);
     if (table->fields >= 31)     /* Starting from 4.0.2 we have more fields */
     {
-      char *ssl_type=get_field(&mem, table, 24);
+      char *ssl_type=get_field(&mem, table->field[24]);
       if (!ssl_type)
 	user.ssl_type=SSL_TYPE_NONE;
       else if (!strcmp(ssl_type, "ANY"))
@@ -230,15 +230,15 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
       else  /* !strcmp(ssl_type, "SPECIFIED") */
 	user.ssl_type=SSL_TYPE_SPECIFIED;
 
-      user.ssl_cipher=   get_field(&mem, table, 25);
-      user.x509_issuer=  get_field(&mem, table, 26);
-      user.x509_subject= get_field(&mem, table, 27);
+      user.ssl_cipher=   get_field(&mem, table->field[25]);
+      user.x509_issuer=  get_field(&mem, table->field[26]);
+      user.x509_subject= get_field(&mem, table->field[27]);
 
-      char *ptr = get_field(&mem, table, 28);
+      char *ptr = get_field(&mem, table->field[28]);
       user.user_resource.questions=atoi(ptr);
-      ptr = get_field(&mem, table, 29);
+      ptr = get_field(&mem, table->field[29]);
       user.user_resource.updates=atoi(ptr);
-      ptr = get_field(&mem, table, 30);
+      ptr = get_field(&mem, table->field[30]);
       user.user_resource.connections=atoi(ptr);
       if (user.user_resource.questions || user.user_resource.updates ||
 	  user.user_resource.connections)
@@ -277,14 +277,14 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
   while (!(read_record_info.read_record(&read_record_info)))
   {
     ACL_DB db;
-    update_hostname(&db.host,get_field(&mem, table,0));
-    db.db=get_field(&mem, table,1);
+    update_hostname(&db.host,get_field(&mem, table->field[0]));
+    db.db=get_field(&mem, table->field[1]);
     if (!db.db)
     {
       sql_print_error("Found an entry in the 'db' table with empty database name; Skipped");
       continue;
     }
-    db.user=get_field(&mem, table,2);
+    db.user=get_field(&mem, table->field[2]);
     db.access=get_access(table,3);
     db.access=fix_rights_for_db(db.access);
     db.sort=get_sort(3,db.host.hostname,db.db,db.user);
@@ -457,8 +457,9 @@ static int acl_compare(ACL_ACCESS *a,ACL_ACCESS *b)
   return 0;
 }
 
+
 /*
- Prepare crypted scramble to be sent to the client
+  Prepare crypted scramble to be sent to the client
 */
 
 void prepare_scramble(THD *thd, ACL_USER *acl_user,char* prepared_scramble)
@@ -469,16 +470,15 @@ void prepare_scramble(THD *thd, ACL_USER *acl_user,char* prepared_scramble)
   create_random_string(SCRAMBLE41_LENGTH,&thd->rand,thd->scramble);
   thd->scramble[SCRAMBLE41_LENGTH]=0;
   /* Get binary form, First 4 bytes of prepared scramble is salt */
-  get_hash_and_password(acl_user->salt,acl_user->pversion,prepared_scramble,(unsigned char*)bin_password);
+  get_hash_and_password(acl_user->salt,acl_user->pversion,prepared_scramble,
+			(unsigned char*) bin_password);
   /* Store "*" as identifier for old passwords */
   if (!acl_user->pversion)
     prepared_scramble[0]='*';
   /* Finally encrypt password to get prepared scramble */
-  password_crypt(thd->scramble,prepared_scramble+4,bin_password,SCRAMBLE41_LENGTH);
+  password_crypt(thd->scramble, prepared_scramble+4, bin_password,
+		 SCRAMBLE41_LENGTH);
 }
-
-
-
 
 
 /*
@@ -493,7 +493,7 @@ void prepare_scramble(THD *thd, ACL_USER *acl_user,char* prepared_scramble)
 
 ulong acl_getroot(THD *thd, const char *host, const char *ip, const char *user,
 		  const char *password,const char *message,char **priv_user,
-		  bool old_ver, USER_RESOURCES  *mqh,char* prepared_scramble,
+		  bool old_ver, USER_RESOURCES  *mqh, char *prepared_scramble,
                   uint *cur_priv_version,ACL_USER** hint_user)
 {
   ulong user_access=NO_ACCESS;
@@ -572,10 +572,11 @@ ulong acl_getroot(THD *thd, const char *host, const char *ip, const char *user,
           if (!check_scramble(password,message,acl_user->salt,
 	       (my_bool) old_ver))
             password_correct=1;
-           else /* Password incorrect  */
-             /* At the first stage - prepare scramble */
-            if (!stage)
-              prepare_scramble(thd,acl_user,prepared_scramble);
+	  else if (!stage)		/* Here if password incorrect  */
+	  {
+	    /* At the first stage - prepare scramble */
+	    prepare_scramble(thd,acl_user,prepared_scramble);
+	  }
         }
       }
     }
@@ -1645,12 +1646,12 @@ public:
   {
     byte key[MAX_KEY_LENGTH];
 
-    host =  get_field(&memex,form,0);
-    db =    get_field(&memex,form,1);
-    user =  get_field(&memex,form,2);
+    host =  get_field(&memex,form->field[0]);
+    db =    get_field(&memex,form->field[1]);
+    user =  get_field(&memex,form->field[2]);
     if (!user)
       user=(char*) "";
-    tname = get_field(&memex,form,3);
+    tname = get_field(&memex,form->field[3]);
     if (!host || !db || !tname)
     {
       /* Wrong table row; Ignore it */

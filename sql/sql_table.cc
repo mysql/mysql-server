@@ -670,6 +670,10 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
 			ER(ER_WRONG_ARGUMENTS),MYF(0),"RTREE INDEX");
 	DBUG_RETURN(-1);
       }
+      /* TODO: To be deleted */
+      my_printf_error(ER_NOT_SUPPORTED_YET, ER(ER_NOT_SUPPORTED_YET),
+		      MYF(0), "RTREE INDEX");
+      DBUG_RETURN(-1);
     }
     
     List_iterator<key_part_spec> cols(key->columns);

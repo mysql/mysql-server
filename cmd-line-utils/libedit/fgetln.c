@@ -56,7 +56,8 @@ getline (char **lineptr, size_t *n, FILE *stream)
 	  if (*n >= new_size)    /* Overflowed size_t */
 	    line = NULL;
 	  else
-	    line = (char *)*lineptr ? realloc (*lineptr, new_size) : malloc (new_size);
+	    line = (char *) (*lineptr ? (char*) realloc(*lineptr, new_size) :
+			     (char*) malloc(new_size));
 
 	  if (line)
 	    {

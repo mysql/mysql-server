@@ -66,6 +66,9 @@ c_h="" i_h=""
 c_u="" i_u=""
 c_f="" i_f=""
 c_t="" c_c=""
+c_hl="" c_hl=""
+c_hc="" c_hc=""
+c_clr="" c_clr=""
 
 # Check for old tables
 if test ! -f $mdata/db.frm
@@ -207,6 +210,42 @@ then
   c_c="$c_c   comment='Column privileges';"
 fi
 
+if test ! -f $mdata/help_topic.frm
+then  
+  c_hl="$c_hl CREATE TABLE help_topic ("
+  c_hl="$c_hl   help_topic_id  int unsigned not null auto_increment,"
+  c_hl="$c_hl   name           varchar(64) not null,"
+  c_hl="$c_hl   description    text not null,"
+  c_hl="$c_hl   example        text not null,"
+  c_hl="$c_hl   url            varchar(128) not null,"
+  c_hl="$c_hl   primary key    (help_topic_id),"
+  c_hl="$c_hl   unique index (name)"
+  c_hl="$c_hl )"
+  c_hl="$c_hl   comment='help topics';"
+fi
+
+if test ! -f $mdata/help_category.frm
+then  
+  c_clr="$c_clr CREATE TABLE help_category ("
+  c_clr="$c_clr   help_category_id smallint unsigned not null auto_increment,"
+  c_clr="$c_clr   name             varchar(64) not null,"
+  c_clr="$c_clr   url              varchar(128) not null,"
+  c_clr="$c_clr   primary key      (help_category_id),"
+  c_clr="$c_clr   unique index (name)"
+  c_clr="$c_clr )"
+  c_clr="$c_clr   comment='help topics-categories relation';"
+fi
+
+if test ! -f $mdata/help_relation.frm
+then  
+  c_hc="$c_hc CREATE TABLE help_relation ("
+  c_hc="$c_hc   help_topic_id    int unsigned not null references help_topic,"
+  c_hc="$c_hc   help_category_id smallint unsigned not null references help_category,"
+  c_hc="$c_hc   primary key      (help_category_id, help_topic_id),"
+  c_hc="$c_hc )"
+  c_hc="$c_hc   comment='categories of help topics';"
+fi
+
 mysqld_boot=" $execdir/mysqld --no-defaults --bootstrap --skip-grant-tables \
     --basedir=$basedir --datadir=$ldata --skip-innodb --skip-bdb $EXTRA_ARG"
 echo "running $mysqld_boot"
@@ -227,6 +266,10 @@ $i_f
 
 $c_t
 $c_c
+
+$c_hl
+$c_hc
+$c_clr
 END_OF_DATA
 then
     exit 0

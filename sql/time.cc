@@ -436,7 +436,8 @@ ulong convert_month_to_period(ulong month)
     Also dates where all parts are zero are allowed
 
   RETURN VALUES
-    TIMESTAMP_NONE	String wasn't a timestamp
+    TIMESTAMP_NONE	String wasn't a timestamp, like
+			[DD [HH:[MM:[SS]]]].fraction
     TIMESTAMP_DATE	DATE string (YY MM and DD parts ok)
     TIMESTAMP_FULL	Full timestamp
 */
@@ -448,6 +449,7 @@ str_to_TIME(const char *str, uint length, TIME *l_time,bool fuzzy_date)
   uint not_zero_date;
   const char *pos;
   const char *end=str+length;
+  bool found_delimitier= 0;
   DBUG_ENTER("str_to_TIME");
   DBUG_PRINT("enter",("str: %.*s",length,str));
 
@@ -456,7 +458,7 @@ str_to_TIME(const char *str, uint length, TIME *l_time,bool fuzzy_date)
   if (str == end)
     DBUG_RETURN(TIMESTAMP_NONE);
   /*
-    calculate first number of digits.
+    Calculate first number of digits.
     If length= 8 or >= 14 then year is of format YYYY.
     (YYYY-MM-DD,  YYYYMMDD, YYYYYMMDDHHMMSS)
   */
@@ -474,6 +476,11 @@ str_to_TIME(const char *str, uint length, TIME *l_time,bool fuzzy_date)
       tmp_value=tmp_value*10 + (uint) (uchar) (*str - '0');
       str++;
     }
+    if (found_delimitier && (int) field_length < 0)
+    {
+      /* The number can't match any valid date or datetime string */
+      DBUG_RETURN(TIMESTAMP_NONE);
+    }
     date[i]=tmp_value;
     not_zero_date|= tmp_value;
     if (i == 2 && str != end && *str == 'T')
@@ -488,6 +495,7 @@ str_to_TIME(const char *str, uint length, TIME *l_time,bool fuzzy_date)
 	if (my_isspace(&my_charset_latin1,*str) && i != 2)
 	  DBUG_RETURN(TIMESTAMP_NONE);
 	str++;
+	found_delimitier=1;			// Should be a 'normal' date
       }
     }
     field_length=1;				// Rest fields can only be 2
@@ -498,7 +506,7 @@ str_to_TIME(const char *str, uint length, TIME *l_time,bool fuzzy_date)
   {
     str++;
     uint tmp_value=(uint) (uchar) (*str - '0');
-    field_length=3;
+    field_length=5;
     while (str++ != end && my_isdigit(&my_charset_latin1,str[0]) &&
 	   field_length--)
       tmp_value=tmp_value*10 + (uint) (uchar) (*str - '0');
@@ -583,12 +591,22 @@ longlong str_to_datetime(const char *str,uint length,bool fuzzy_date)
 }
 
 
-/*****************************************************************************
-** convert a time string to a (ulong) value.
-** Can use all full timestamp formats and
-** [-] DAYS [H]H:MM:SS, [H]H:MM:SS, [M]M:SS, [H]HMMSS, [M]MSS or [S]S
-** There may be an optional [.second_part] after seconds
-*****************************************************************************/
+/*
+ Convert a time string to a TIME struct.
+
+  SYNOPSIS
+   str_to_time()
+   str			A string in full TIMESTAMP format or
+			[-] DAYS [H]H:MM:SS, [H]H:MM:SS, [M]M:SS, [H]HMMSS,
+			[M]MSS or [S]S
+			There may be an optional [.second_part] after seconds
+   length		Length of str
+   l_time		Store result here
+
+   RETURN
+     0	ok
+     1  error
+*/
 
 bool str_to_time(const char *str,uint length,TIME *l_time)
 {

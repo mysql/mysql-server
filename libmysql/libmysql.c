@@ -3402,6 +3402,35 @@ mysql_get_server_info(MYSQL *mysql)
 }
 
 
+/*
+  Get version number for server in a form easy to test on
+
+  SYNOPSIS
+    mysql_get_server_version()
+    mysql		Connection
+
+  EXAMPLE
+    4.1.0-alfa ->  40100
+  
+  NOTES
+    We will ensure that a newer server always has a bigger number.
+
+  RETURN
+   Signed number > 323000
+*/
+
+ulong STDCALL
+mysql_get_server_version(MYSQL *mysql)
+{
+  uint major, minor, version;
+  char *pos= mysql->server_version, *end_pos;
+  major=   (uint) strtoul(pos, &end_pos, 10);	pos=end_pos+1;
+  minor=   (uint) strtoul(pos, &end_pos, 10);	pos=end_pos+1;
+  version= (uint) strtoul(pos, &end_pos, 10);
+  return (ulong) major*10000L+(ulong) (minor*100+version);
+}
+
+
 const char * STDCALL
 mysql_get_host_info(MYSQL *mysql)
 {
