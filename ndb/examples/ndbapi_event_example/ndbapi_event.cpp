@@ -36,7 +36,7 @@
  *
  *  NdbDictionary::Event
  *       setTable()
- *       addtableEvent()
+ *       addTableEvent()
  *       addEventColumn()
  *
  *  NdbEventOperation
@@ -63,12 +63,12 @@
  * another process (e.g. flexBench -l 0 -stdtables).
  * We want to monitor what happens with columns COL0, COL2, COL11
  *
- * or together with the mysqlcluster client;
+ * or together with the mysql client;
  *
- * shell> mysqlcluster -u root
+ * shell> mysql -u root
  * mysql> create database TEST_DB;
  * mysql> use TEST_DB;
- * mysql> create table TAB0 (COL0 int primary key, COL1 int, COL11 int);
+ * mysql> create table TAB0 (COL0 int primary key, COL1 int, COL11 int) engine=ndb;
  *
  * In another window start ndbapi_example5, wait until properly started
  *
@@ -199,7 +199,7 @@ int main()
 		printf("NULL");
 	    }
 	    if (recAttrPre[i]->isNULL() >= 0) { // we have a value
-	      printf(" post[%u]=", i);
+	      printf(" pre[%u]=", i);
 	      if (recAttrPre[i]->isNULL() == 0) // we have a non-null value
 		printf("%u", recAttrPre[i]->u_32_value());
 	      else                              // we have a null value
@@ -212,7 +212,7 @@ int main()
 	;//printf("timed out\n");
     }
     // don't want to listen to events anymore
-    myNdb->dropEventOperation(op);
+    if (myNdb->dropEventOperation(op)) APIERROR(myNdb->getNdbError());
 
     j++;
   }
@@ -220,7 +220,8 @@ int main()
   {
     NdbDictionary::Dictionary *myDict = myNdb->getDictionary();
     if (!myDict) APIERROR(myNdb->getNdbError());
-    myDict->dropEvent(eventName); // remove event from database
+    // remove event from database
+    if (myDict->dropEvent(eventName)) APIERROR(myDict->getNdbError());
   }
 
   delete myNdb;
@@ -232,8 +233,8 @@ int main()
 int myCreateEvent(Ndb* myNdb,
 		  const char *eventName,
 		  const char *eventTableName,
-		  const char **eventColumnName,
-		  const int noEventColumnName)
+		  const char **eventColumnNames,
+		  const int noEventColumnNames)
 {
   NdbDictionary::Dictionary *myDict= myNdb->getDictionary();
   if (!myDict) APIERROR(myNdb->getNdbError());
@@ -245,24 +246,20 @@ int myCreateEvent(Ndb* myNdb,
   //  myEvent.addTableEvent(NdbDictionary::Event::TE_UPDATE); 
   //  myEvent.addTableEvent(NdbDictionary::Event::TE_DELETE);
 
-  for (int i = 0; i < noEventColumnName; i++)
-    myEvent.addEventColumn(eventColumnName[i]);
+  myEvent.addEventColumns(noEventColumnNames, eventColumnNames);
 
-  int res = myDict->createEvent(myEvent); // Add event to database
-
-  if (res == 0)
+  // Add event to database
+  if (myDict->createEvent(myEvent) == 0)
     myEvent.print();
-  else {
-    printf("Event creation failed\n");
-    printf("trying drop Event, maybe event exists\n");
-    res = myDict->dropEvent(eventName);
-    if (res)
-      exit(-1);
+  else if (myDict->getNdbError().code == 4709) {
+    printf("Event creation failed, event exists\n");
+    printf("dropping Event...\n");
+    if (myDict->dropEvent(eventName)) APIERROR(myDict->getNdbError());
     // try again
-    res = myDict->createEvent(myEvent); // Add event to database
-    if (res)
-      exit(-1);
-  }
+    // Add event to database
+    if ( myDict->createEvent(myEvent)) APIERROR(myDict->getNdbError());
+  } else
+    APIERROR(myDict->getNdbError());
 
-  return res;
+  return 0;
 }
