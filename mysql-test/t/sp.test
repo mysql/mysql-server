@@ -1519,6 +1519,40 @@ drop table t3|
 
 
 #
+# BUG#2564
+#
+set @@sql_mode = ''|
+create procedure bug2564_1()
+    comment 'Joe''s procedure'
+  insert into `t1` values ("foo", 1)|
+
+set @@sql_mode = 'ANSI_QUOTES'|
+create procedure bug2564_2()
+  insert into "t1" values ('foo', 1)|
+
+delimiter $|
+set @@sql_mode = ''$
+create function bug2564_3(x int, y int) returns int
+  return x || y$
+
+set @@sql_mode = 'ANSI'$
+create function bug2564_4(x int, y int) returns int
+  return x || y$
+delimiter |$
+
+set @@sql_mode = ''|
+show create procedure bug2564_1|
+show create procedure bug2564_2|
+show create function bug2564_3|
+show create function bug2564_4|
+
+drop procedure bug2564_1|
+drop procedure bug2564_2|
+drop function bug2564_3|
+drop function bug2564_4|
+
+
+#
 # Some "real" examples
 #
 

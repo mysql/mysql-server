@@ -93,9 +93,10 @@ sp_cache_functions(THD *thd, LEX *lex);
 
 // Do a "use newdb". The current db is stored at olddb.
 // If newdb is the same as the current one, nothing is changed.
+// dbchangedp is set to true if the db was actually changed.
 int
 sp_use_new_db(THD *thd, char *newdb, char *olddb, uint olddbmax,
-	      bool no_access_check);
+	      bool no_access_check, bool *dbchangedp);
 
 // Like mysql_change_db() but handles empty db name and the  send_ok() problem.
 int
