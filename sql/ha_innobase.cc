@@ -180,6 +180,50 @@ convert_error_code_to_mysql(
     	}
 }
 
+extern "C" {
+/*****************************************************************
+Prints info of a THD object (== user session thread) to the
+standatd output. NOTE that mysql/innobase/trx/trx0trx.c must contain
+the prototype for this function! */
+
+void
+innobase_mysql_print_thd(
+/*=====================*/
+        void* input_thd)/* in: pointer to a MySQL THD object */
+{
+  THD*  thd;
+
+  thd = (THD*) input_thd;
+
+  printf("MySQL thread id %lu, query id %lu",
+	 thd->thread_id, thd->query_id);
+  
+  if (thd->host) {
+    printf(" %s", thd->host);
+  }
+
+  if (thd->ip) {
+    printf(" %s", thd->ip);
+  }
+
+  if (thd->user) {
+    printf(" %s", thd->user);
+  }
+
+  if (thd->proc_info) {
+    printf(" %s", thd->proc_info);
+  }
+
+  if (thd->query) {
+    printf(" %50.50s", thd->query);
+  }
+
+  
+
+  printf("\n");
+}
+}
+
 /*************************************************************************
 Gets the InnoDB transaction handle for a MySQL handler object, creates
 an InnoDB transaction struct if the corresponding MySQL thread struct still
@@ -198,6 +242,8 @@ check_trx_exists(
 	if (trx == NULL) {
 	        dbug_assert(thd != NULL);
 		trx = trx_allocate_for_mysql();
+
+		trx->mysql_thd = thd;
 
 		thd->transaction.all.innobase_tid = trx;
 
@@ -633,7 +679,7 @@ innobase_commit(
 
 	if (trx_handle != (void*)&innodb_dummy_stmt_trx_handle) {
 		trx_commit_for_mysql(trx);
-		trx_mark_sql_stat_end(trx);
+		trx_mark_sql_stat_end_do_not_start_new(trx);
 	} else {
 		trx_mark_sql_stat_end(trx);
 	}
@@ -672,6 +718,7 @@ innobase_rollback(
 
 	if (trx_handle != (void*)&innodb_dummy_stmt_trx_handle) {
 		error = trx_rollback_for_mysql(trx);
+		trx_mark_sql_stat_end_do_not_start_new(trx);
 	} else {
 		error = trx_rollback_last_sql_stat_for_mysql(trx);
 		trx_mark_sql_stat_end(trx);
@@ -1334,6 +1381,15 @@ ha_innobase::write_row(
 	        autoincrement field */
 	        
 	        auto_inc = table->next_number_field->val_int();
+
+		/* In replication and also otherwise the auto-inc column 
+		can be set with SET INSERT_ID. Then we must look at
+		user_thd->next_insert_id. If it is nonzero and the user
+		has not supplied a value, we must use it. */
+
+		if (auto_inc == 0 && user_thd->next_insert_id != 0) {
+		        auto_inc = user_thd->next_insert_id;
+		}
 
 		if (auto_inc != 0) {
 			/* This call will calculate the max of the
