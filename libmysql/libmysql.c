@@ -2241,7 +2241,8 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
     const char *save=charsets_dir;
     if (mysql->options.charset_dir)
       charsets_dir=mysql->options.charset_dir;
-    mysql->charset=get_charset_by_name(mysql->options.charset_name,
+    mysql->charset=get_charset_by_csname(mysql->options.charset_name,
+    				       MY_CS_PRIMARY,
                                        MYF(MY_WME));
     charsets_dir=save;
   }
