@@ -775,7 +775,10 @@ longlong Item_func_locate::val_int()
     return 0; /* purecov: inspected */
   }
   null_value=0;
-  uint start=0,start0=0;
+  uint start=0;
+#ifdef USE_MB
+  uint start0=0;
+#endif
   if (arg_count == 3)
   {
     start=(uint) args[2]->val_int()-1;
