@@ -622,3 +622,61 @@ CHARSET_INFO *get_charset_by_csname(const char *cs_name,
 
   DBUG_RETURN(cs);
 }
+
+
+ulong escape_string_for_mysql(CHARSET_INFO *charset_info, char *to,
+                              const char *from, ulong length)
+{
+  const char *to_start= to;
+  const char *end;
+#ifdef USE_MB
+  my_bool use_mb_flag= use_mb(charset_info);
+#endif
+  for (end= from + length; from != end; from++)
+  {
+#ifdef USE_MB
+    int l;
+    if (use_mb_flag && (l= my_ismbchar(charset_info, from, end)))
+    {
+      while (l--)
+	*to++= *from++;
+      from--;
+      continue;
+    }
+#endif
+    switch (*from) {
+    case 0:				/* Must be escaped for 'mysql' */
+      *to++= '\\';
+      *to++= '0';
+      break;
+    case '\n':				/* Must be escaped for logs */
+      *to++= '\\';
+      *to++= 'n';
+      break;
+    case '\r':
+      *to++= '\\';
+      *to++= 'r';
+      break;
+    case '\\':
+      *to++= '\\';
+      *to++= '\\';
+      break;
+    case '\'':
+      *to++= '\\';
+      *to++= '\'';
+      break;
+    case '"':				/* Better safe than sorry */
+      *to++= '\\';
+      *to++= '"';
+      break;
+    case '\032':			/* This gives problems on Win32 */
+      *to++= '\\';
+      *to++= 'Z';
+      break;
+    default:
+      *to++= *from;
+    }
+  }
+  *to= 0;
+  return (ulong) (to - to_start);
+}

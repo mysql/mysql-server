@@ -450,22 +450,25 @@ bool String::append(const char *s,uint32 arg_length)
 
 bool String::append(const char *s,uint32 arg_length, CHARSET_INFO *cs)
 {
-  if (!arg_length)				// Default argument
-    if (!(arg_length= (uint32) strlen(s)))
+  uint32 dummy_offset;
+  uint32 add_length;
+
+  if (!arg_length && !(arg_length= (uint32)strlen(s)))
       return FALSE;
-  if (cs != str_charset && str_charset->mbmaxlen > 1)
+
+  add_length= arg_length * str_charset->mbmaxlen;
+  if (realloc(str_length + add_length)) 
+    return TRUE;
+  if (needs_conversion(arg_length, cs, str_charset, &dummy_offset))
   {
-    uint32 add_length=arg_length * str_charset->mbmaxlen;
-    if (realloc(str_length+ add_length))
-      return TRUE;
     str_length+= copy_and_convert(Ptr+str_length, add_length, str_charset,
 				  s, arg_length, cs);
-    return FALSE;
   }
-  if (realloc(str_length+arg_length))
-    return TRUE;
-  memcpy(Ptr+str_length,s,arg_length);
-  str_length+=arg_length;
+  else
+  {
+    memcpy(Ptr + str_length, s, arg_length);
+    str_length+= arg_length;
+  }
   return FALSE;
 }
 
@@ -857,4 +860,24 @@ void String::print(String *str)
       str->append(c);
     }
   }
+}
+
+
+/*
+  Exchange state of this object and argument.
+
+  SYNOPSIS
+    String::swap()
+
+  RETURN
+    Target string will contain state of this object and vice versa.
+*/
+
+void String::swap(String &s)
+{
+  swap_variables(char *, Ptr, s.Ptr);
+  swap_variables(uint32, str_length, s.str_length);
+  swap_variables(uint32, Alloced_length, s.Alloced_length);
+  swap_variables(bool, alloced, s.alloced);
+  swap_variables(CHARSET_INFO*, str_charset, s.str_charset);
 }
