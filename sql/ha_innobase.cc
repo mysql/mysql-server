@@ -276,9 +276,9 @@ innobase_mysql_print_thd(
   	thd = (THD*) input_thd;
 
 	/*  We can't use value of sprintf() as this is not portable */
-  	buf=my_sprintf(buf,
-		       (buf, "MySQL thread id %lu, query id %lu",
-			thd->thread_id, thd->query_id));
+  	buf+= my_sprintf(buf,
+			 (buf, "MySQL thread id %lu, query id %lu",
+			  thd->thread_id, thd->query_id));
     	if (thd->host)
 	{
 	  *buf++=' ';
