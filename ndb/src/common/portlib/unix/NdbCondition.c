@@ -61,7 +61,6 @@ NdbCondition_Wait(struct NdbCondition* p_cond,
   return result;
 }
 
-#include <time.h>
 int 
 NdbCondition_WaitTimeout(struct NdbCondition* p_cond,
                          NdbMutex* p_mutex,

@@ -34,8 +34,6 @@
 
 #include <ndb_global.h>
 
-#include <time.h>
-#include <ctype.h>
 #include "getarg.h"
 
 #define ISFLAG(X) ((X).type == arg_flag || (X).type == arg_negative_flag)

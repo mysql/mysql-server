@@ -32,15 +32,10 @@
  */
 
 #include <ndb_global.h>
-#include <ndb_types.h>
 
 /* RCSID("$KTH: strlcpy.c,v 1.1 2000/08/16 01:23:48 lha Exp $"); */
 
 #ifndef HAVE_STRLCPY
-
-#ifdef NDB_WIN32
-#include <string.h>
-#endif
 
 size_t
 strlcpy (char *dst, const char *src, size_t dst_sz)

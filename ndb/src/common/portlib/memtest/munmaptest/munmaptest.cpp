@@ -18,7 +18,6 @@
 
 
 #include <ndb_global.h>
-#include <sys/mman.h>
 
 #include <NdbOut.hpp>
 #include <NdbThread.h>
