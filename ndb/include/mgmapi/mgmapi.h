@@ -122,7 +122,10 @@ extern "C" {
 
     /* Service errors - Single User Mode */
     NDB_MGM_COULD_NOT_ENTER_SINGLE_USER_MODE = 4001,
-    NDB_MGM_COULD_NOT_EXIT_SINGLE_USER_MODE = 4002
+    NDB_MGM_COULD_NOT_EXIT_SINGLE_USER_MODE = 4002,
+
+    /* Usage errors */
+    NDB_MGM_USAGE_ERROR = 5001
   };
 
   struct Ndb_Mgm_Error_Msg {
@@ -158,7 +161,11 @@ extern "C" {
     { NDB_MGM_COULD_NOT_ENTER_SINGLE_USER_MODE, 
       "Could not enter single user mode" },
     { NDB_MGM_COULD_NOT_EXIT_SINGLE_USER_MODE, 
-      "Could not exit single user mode" }
+      "Could not exit single user mode" },
+
+    /* Usage errors */
+    { NDB_MGM_USAGE_ERROR,
+      "Usage error" }
   };
   
   const int ndb_mgm_noOfErrorMsgs = 
