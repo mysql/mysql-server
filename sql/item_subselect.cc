@@ -542,7 +542,7 @@ bool Item_in_subselect::test_limit(SELECT_LEX_UNIT *unit)
 
 Item_in_subselect::Item_in_subselect(Item * left_exp,
 				     st_select_lex *select_lex):
-  Item_exists_subselect(), transformed(0), upper_item(0)
+  Item_exists_subselect(), optimizer(0), transformed(0), upper_item(0)
 {
   DBUG_ENTER("Item_in_subselect::Item_in_subselect");
   left_expr= left_exp;
@@ -669,18 +669,9 @@ Item_subselect::trans_res
 Item_in_subselect::single_value_transformer(JOIN *join,
 					    Comp_creator *func)
 {
-  const char *save_where= thd->where;
   DBUG_ENTER("Item_in_subselect::single_value_transformer");
 
-  if (changed)
-  {
-    DBUG_RETURN(RES_OK);
-  }
-
   SELECT_LEX *select_lex= join->select_lex;
-  Item_arena *arena, backup;
-  arena= thd->change_arena_if_needed(&backup);
-  thd->where= "scalar IN/ALL/ANY subquery";
 
   /*
     Check that the right part of the subselect contains no more than one
@@ -689,7 +680,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
   if (select_lex->item_list.elements > 1)
   {
     my_error(ER_OPERAND_COLUMNS, MYF(0), 1);
-    goto err;
+    DBUG_RETURN(RES_ERROR);
   }
 
   /*
@@ -709,7 +700,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
     if (substitution)
     {
       // It is second (third, ...) SELECT of UNION => All is done
-      goto ok;
+      DBUG_RETURN(RES_OK);
     }
 
     Item *subs;
@@ -748,7 +739,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 	reference
       */
       if (item->fix_fields(thd, join->tables_list, 0))
-	goto err;
+	DBUG_RETURN(RES_ERROR);
       /* we added aggregate function => we have to change statistic */
       count_field_types(&join->tmp_table_param, join->all_fields, 0);
 
@@ -764,25 +755,16 @@ Item_in_subselect::single_value_transformer(JOIN *join,
       if (upper_item)
         upper_item->set_sub_test(item);
     }
-    // left expression belong to outer select
-    SELECT_LEX *current= thd->lex->current_select, *up;
-    thd->lex->current_select= up= current->return_after_parsing();
-    if (!left_expr->fixed && 
-        left_expr->fix_fields(thd, up->get_table_list(), &left_expr))
-    {
-      thd->lex->current_select= current;
-      goto err;
-    }
-    thd->lex->current_select= current;
+    /* fix fields is already called for  left expression */
     substitution= func->create(left_expr, subs);
-    goto ok;
+    DBUG_RETURN(RES_OK);
   }
 
   if (!substitution)
   {
     //first call for this unit
     SELECT_LEX_UNIT *unit= select_lex->master_unit();
-    substitution= optimizer= new Item_in_optimizer(left_expr, this);
+    substitution= optimizer;
 
     SELECT_LEX *current= thd->lex->current_select, *up;
 
@@ -791,7 +773,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
     if (!optimizer || optimizer->fix_left(thd, up->get_table_list(), 0))
     {
       thd->lex->current_select= current;
-      goto err;
+      DBUG_RETURN(RES_ERROR);
     }
     thd->lex->current_select= current;
 
@@ -835,7 +817,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
     if (join->having->fix_fields(thd, join->tables_list, 0))
     {
       select_lex->having_fix_field= 0;
-      goto err;
+      DBUG_RETURN(RES_ERROR);
     }
     select_lex->having_fix_field= 0;
   }
@@ -865,7 +847,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 	if (join->having->fix_fields(thd, join->tables_list, 0))
 	{
 	  select_lex->having_fix_field= 0;
-	  goto err;
+	  DBUG_RETURN(RES_ERROR);
 	}
 	select_lex->having_fix_field= 0;
 	item= new Item_cond_or(item,
@@ -879,7 +861,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
       */
       select_lex->where= join->conds= and_items(join->conds, item);
       if (join->conds->fix_fields(thd, join->tables_list, 0))
-	goto err;
+	DBUG_RETURN(RES_ERROR);
     }
     else
     {
@@ -901,7 +883,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 				     0))
 	{
 	  select_lex->having_fix_field= 0;
-	  goto err;
+	  DBUG_RETURN(RES_ERROR);
 	}
 	select_lex->having_fix_field= 0;
       }
@@ -919,54 +901,34 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 	  push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
 		       ER_SELECT_REDUCED, warn_buff);
 	}
-	if (arena)
-	  thd->restore_backup_item_arena(arena, &backup);
 	DBUG_RETURN(RES_REDUCE);
       }
     }
   }
 
-ok:
-  if (arena)
-    thd->restore_backup_item_arena(arena, &backup);
-  thd->where= save_where;
   DBUG_RETURN(RES_OK);
-
-err:
-  if (arena)
-    thd->restore_backup_item_arena(arena, &backup);
-  DBUG_RETURN(RES_ERROR);
 }
 
 
 Item_subselect::trans_res
 Item_in_subselect::row_value_transformer(JOIN *join)
 {
-  const char *save_where= thd->where;
   DBUG_ENTER("Item_in_subselect::row_value_transformer");
 
-  if (changed)
-  {
-    DBUG_RETURN(RES_OK);
-  }
-  Item_arena *arena, backup;
   Item *item= 0;
   SELECT_LEX *select_lex= join->select_lex;
-
-  thd->where= "row IN/ALL/ANY subquery";
-  arena= thd->change_arena_if_needed(&backup);
 
   if (select_lex->item_list.elements != left_expr->cols())
   {
     my_error(ER_OPERAND_COLUMNS, MYF(0), left_expr->cols());
-    goto err;
+    DBUG_RETURN(RES_ERROR);
   }
 
   if (!substitution)
   {
     //first call for this unit
     SELECT_LEX_UNIT *unit= select_lex->master_unit();
-    substitution= optimizer= new Item_in_optimizer(left_expr, this);
+    substitution= optimizer;
 
     SELECT_LEX *current= thd->lex->current_select, *up;
     thd->lex->current_select= up= current->return_after_parsing();
@@ -974,7 +936,7 @@ Item_in_subselect::row_value_transformer(JOIN *join)
     if (!optimizer || optimizer->fix_left(thd, up->get_table_list(), 0))
     {
       thd->lex->current_select= current;
-      goto err;
+      DBUG_RETURN(RES_ERROR);
     }
 
     // we will refer to apper level cache array => we have to save it in PS
@@ -993,7 +955,7 @@ Item_in_subselect::row_value_transformer(JOIN *join)
       DBUG_ASSERT(left_expr->fixed && select_lex->ref_pointer_array[i]->fixed);
       if (select_lex->ref_pointer_array[i]->
           check_cols(left_expr->el(i)->cols()))
-        goto err;
+        DBUG_RETURN(RES_ERROR);
       Item *func= new Item_ref_null_helper(this,
 					   select_lex->ref_pointer_array+i,
 					   (char *) "<no matter>",
@@ -1021,7 +983,7 @@ Item_in_subselect::row_value_transformer(JOIN *join)
     if (join->having->fix_fields(thd, join->tables_list, 0))
     {
       select_lex->having_fix_field= 0;
-      goto err;
+      DBUG_RETURN(RES_ERROR);
     }
     select_lex->having_fix_field= 0;
   }
@@ -1034,27 +996,109 @@ Item_in_subselect::row_value_transformer(JOIN *join)
     */
     select_lex->where= join->conds= and_items(join->conds, item);
     if (join->conds->fix_fields(thd, join->tables_list, 0))
-      goto err;
+      DBUG_RETURN(RES_ERROR);
   }
-  if (arena)
-    thd->restore_backup_item_arena(arena, &backup);
-  thd->where= save_where;
   DBUG_RETURN(RES_OK);
-
-err:
-  if (arena)
-    thd->restore_backup_item_arena(arena, &backup);
-  DBUG_RETURN(RES_ERROR);
 }
 
 
 Item_subselect::trans_res
 Item_in_subselect::select_transformer(JOIN *join)
 {
+  return select_in_like_transformer(join, &eq_creator);
+}
+
+
+/*
+  Prepare IN/ALL/ANY/SOME subquery transformation and call appropriate
+  transformation function
+
+  SYNOPSIS
+    Item_in_subselect::select_in_like_transformer()
+    join    JOIN object of transforming subquery
+    func    creator of condition function of subquery
+
+  DESCRIPTION
+    To decide which transformation procedure (scalar or row) applicable here
+    we have to call fix_fields() for left expression to be able to call
+    cols() method on it. Also this method make arena management for
+    underlying transformation methods.
+
+  RETURN
+    RES_OK      OK
+    RES_REDUCE  OK, and current subquery was reduced during transformation
+    RES_ERROR   Error
+*/
+
+Item_subselect::trans_res
+Item_in_subselect::select_in_like_transformer(JOIN *join, Comp_creator *func)
+{
+  Item_arena *arena, backup;
+  SELECT_LEX *current= thd->lex->current_select, *up;
+  const char *save_where= thd->where;
+  Item_subselect::trans_res res= RES_ERROR;
+  bool result;
+
+  DBUG_ENTER("Item_in_subselect::select_in_like_transformer");
+  if (changed)
+  {
+    DBUG_RETURN(RES_OK);
+  }
+
+  thd->where= "IN/ALL/ANY subquery";
+
+  /*
+    In some optimisation cases we will not need this Item_in_optimizer
+    object, but we can't know it here, but here we need address correct
+    reference on left expresion.
+  */
+  if (!optimizer)
+  {
+    arena= thd->change_arena_if_needed(&backup);
+    result= (!(optimizer= new Item_in_optimizer(left_expr, this)));
+    if (arena)
+      thd->restore_backup_item_arena(arena, &backup);
+    if (result)
+      goto err;
+  }
+
+  thd->lex->current_select= up= current->return_after_parsing();
+  result= (!left_expr->fixed &&
+           left_expr->fix_fields(thd, up->get_table_list(),
+                                 optimizer->arguments()));
+  /* fix_fields can change reference to left_expr, we need reassign it */
+  left_expr= optimizer->arguments()[0];
+
+  thd->lex->current_select= current;
+  if (result)
+    goto err;
+
   transformed= 1;
+  arena= thd->change_arena_if_needed(&backup);
+  /*
+    Both transformers call fix_fields() only for Items created inside them,
+    and all that items do not make permanent changes in current item arena
+    which allow to us call them with changed arena (if we do not know nature
+    of Item, we have to call fix_fields() for it only with original arena to
+    avoid memory leack)
+  */
   if (left_expr->cols() == 1)
-    return single_value_transformer(join, &eq_creator);
-  return row_value_transformer(join);
+    res= single_value_transformer(join, func);
+  else
+  {
+    /* we do not support row operation for ALL/ANY/SOME */
+    if (func != &eq_creator)
+    {
+      my_error(ER_OPERAND_COLUMNS, MYF(0), 1);
+      DBUG_RETURN(RES_ERROR);
+    }
+    res= row_value_transformer(join);
+  }
+  if (arena)
+    thd->restore_backup_item_arena(arena, &backup);
+err:
+  thd->where= save_where;
+  DBUG_RETURN(res);
 }
 
 
@@ -1077,7 +1121,7 @@ Item_allany_subselect::select_transformer(JOIN *join)
   transformed= 1;
   if (upper_item)
     upper_item->show= 1;
-  return single_value_transformer(join, func);
+  return select_in_like_transformer(join, func);
 }
 
 

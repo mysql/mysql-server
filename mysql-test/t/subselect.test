@@ -1438,8 +1438,9 @@ select 1 = ALL (select 1 from t1 where 1 = xx ), 1 as xx;
 select 1 = ALL (select 1 from t1 where 1 = xx ), 1 as xx from DUAL;
 drop table t1;
 
+#
 # Test for BUG#8218
-
+#
 CREATE TABLE t1 (
   categoryId int(11) NOT NULL,
   courseId int(11) NOT NULL,
@@ -1536,5 +1537,12 @@ join
 group by 
   groupstuff.groupname, colhead , t2.courseid;
 
-drop table if exists t1, t2, t3, t4, t5;
+drop table t1, t2, t3, t4, t5;
 
+#
+# Transformation in left expression of subquery (BUG#8888)
+#
+create table t1 (a int);
+insert into t1 values (1), (2), (3);
+SELECT 1 FROM t1 WHERE (SELECT 1) in (SELECT 1);
+drop table t1;

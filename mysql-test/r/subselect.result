@@ -2128,7 +2128,7 @@ drop table t1;
 create table t1 (a1 int);
 create table t2 (b1 int);
 select * from t1 where a2 > any(select b1 from t2);
-ERROR 42S22: Unknown column 'a2' in 'scalar IN/ALL/ANY subquery'
+ERROR 42S22: Unknown column 'a2' in 'IN/ALL/ANY subquery'
 select * from t1 where a1 > any(select b1 from t2);
 a1
 drop table t1,t2;
@@ -2267,4 +2267,12 @@ pass	userid	parentid	parentgroup	childid	groupname	grouptypeid	crse	categoryid	c
 1	5141	12	group2	12	group2	5	1	1	87	Oct04
 1	5141	12	group2	12	group2	5	1	2	88	Oct04
 1	5141	12	group2	12	group2	5	1	2	89	Oct04
-drop table if exists t1, t2, t3, t4, t5;
+drop table t1, t2, t3, t4, t5;
+create table t1 (a int);
+insert into t1 values (1), (2), (3);
+SELECT 1 FROM t1 WHERE (SELECT 1) in (SELECT 1);
+1
+1
+1
+1
+drop table t1;
