@@ -489,7 +489,7 @@ public:
      table(0),tables_in_use(0),stacked_inserts(0), status(0), dead(0),
      group_count(0)
   {
-    thd.user=thd.priv_user=(char*) "";
+    thd.user=thd.priv_user=(char*) delayed_user;
     thd.host=(char*) localhost;
     thd.current_tablenr=0;
     thd.version=refresh_version;

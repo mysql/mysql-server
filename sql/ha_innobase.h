@@ -72,16 +72,18 @@ class ha_innobase: public handler
 	/* Init values for the class: */
  public:
   	ha_innobase(TABLE *table): handler(table),
-    		int_option_flag(HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER |
-		    HA_REC_NOT_IN_SEQ |
-		    HA_KEYPOS_TO_RNDPOS | HA_LASTKEY_ORDER |
-		    HA_HAVE_KEY_READ_ONLY | HA_READ_NOT_EXACT_KEY |
-		    HA_LONGLONG_KEYS | HA_NULL_KEY |
-		    HA_NOT_EXACT_COUNT |
-		    HA_NO_WRITE_DELAYED |
-		    HA_PRIMARY_KEY_IN_READ_INDEX | HA_DROP_BEFORE_CREATE),
-    		last_dup_key((uint) -1),
-    		start_of_scan(0)
+	  int_option_flag(HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER |
+			  HA_REC_NOT_IN_SEQ |
+			  HA_KEYPOS_TO_RNDPOS | HA_LASTKEY_ORDER |
+			  HA_HAVE_KEY_READ_ONLY | HA_READ_NOT_EXACT_KEY |
+			  HA_LONGLONG_KEYS | HA_NULL_KEY |
+			  HA_NOT_EXACT_COUNT |
+			  HA_NO_WRITE_DELAYED |
+			  HA_PRIMARY_KEY_IN_READ_INDEX |
+			  HA_DROP_BEFORE_CREATE |
+			  HA_NOT_READ_AFTER_KEY),
+	  last_dup_key((uint) -1),
+	  start_of_scan(0)
   	{
   	}
   	~ha_innobase() {}

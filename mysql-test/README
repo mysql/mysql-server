@@ -6,7 +6,10 @@ actually have a co-existing MySQL installation - the tests will not
 conflict with it.
 
 All tests must pass. If one or more of them fail on your system, please
-report the details to bugs@lists.mysql.com
+read the following manual section of how to report the problem:
+
+http://www.mysql.com/doc/M/y/MySQL_test_suite.html
+
 
 You can create your own test cases. To create a test case:
 

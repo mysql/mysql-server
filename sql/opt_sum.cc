@@ -141,6 +141,11 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
 	    break;
 	  }
 	  TABLE *table=((Item_field*) expr)->field->table;
+	  if ((table->file->option_flag() & HA_NOT_READ_AFTER_KEY))
+	  {
+	    const_result=0;
+	    break;
+	  }
 	  bool error=table->file->index_init((uint) ref.key);
 
 	  if (!ref.key_length)

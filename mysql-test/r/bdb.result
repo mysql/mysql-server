@@ -490,3 +490,5 @@ a	2
 a	b
 a	1
 a	2
+MIN(B)	MAX(b)
+1	1

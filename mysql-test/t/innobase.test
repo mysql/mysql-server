@@ -394,3 +394,17 @@ select * from t1 where i=1 and j=2;
 create index ax1 on t1 (i,j);
 select * from t1 where i=1 and j=2;
 drop table t1;
+
+#
+# Test min-max optimization
+#
+
+CREATE TABLE t1 (
+  a int3 unsigned NOT NULL,
+  b int1 unsigned NOT NULL,
+  UNIQUE (a, b)
+) TYPE = innobase;
+ 
+INSERT INTO t1 VALUES (1, 1);
+SELECT MIN(B),MAX(b) FROM t1 WHERE t1.a = 1;
+drop table t1;

@@ -165,3 +165,43 @@ insert into t3 (ID, DateOfAction) values  (87,  '1999-07-19'), (89,  '1999-07-19
 select t3.DateOfAction, t1.TransactionID from t1 join t2 join t3 where t2.ID = t1.TransactionID and t3.ID = t2.GroupID order by t3.DateOfAction, t1.TransactionID; 
 select t3.DateOfAction, t1.TransactionID from t1 join t2 join t3 where t2.ID = t1.TransactionID and t3.ID = t2.GroupID order by t1.TransactionID,t3.DateOfAction; 
 drop table t1,t2,t3;
+
+#bug reported by Wouter de Jong
+
+drop table if exists members;
+CREATE TABLE members (
+  member_id int(11) NOT NULL auto_increment,
+  inschrijf_datum varchar(20) NOT NULL default '',
+  lastchange_datum varchar(20) NOT NULL default '',
+  nickname varchar(20) NOT NULL default '',
+  password varchar(8) NOT NULL default '',
+  voornaam varchar(30) NOT NULL default '',
+  tussenvoegsels varchar(10) NOT NULL default '',
+  achternaam varchar(50) NOT NULL default '',
+  straat varchar(100) NOT NULL default '',
+  postcode varchar(10) NOT NULL default '',
+  wijk varchar(40) NOT NULL default '',
+  plaats varchar(50) NOT NULL default '',
+  telefoon varchar(10) NOT NULL default '',
+  geboortedatum date NOT NULL default '0000-00-00',
+  geslacht varchar(5) NOT NULL default '',
+  email varchar(80) NOT NULL default '',
+  uin varchar(15) NOT NULL default '',
+  homepage varchar(100) NOT NULL default '',
+  internet varchar(15) NOT NULL default '',
+  scherk varchar(30) NOT NULL default '',
+  favo_boek varchar(50) NOT NULL default '',
+  favo_tijdschrift varchar(50) NOT NULL default '',
+  favo_tv varchar(50) NOT NULL default '',
+  favo_eten varchar(50) NOT NULL default '',
+  favo_muziek varchar(30) NOT NULL default '',
+  info text NOT NULL,
+  ipnr varchar(30) NOT NULL default '',
+  PRIMARY KEY  (member_id)
+) TYPE=MyISAM PACK_KEYS=1;
+
+insert into members (member_id) values (1),(2),(3);
+select member_id, nickname, voornaam FROM members
+ORDER by lastchange_datum DESC LIMIT 2;
+drop table members;
+

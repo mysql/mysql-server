@@ -450,14 +450,14 @@ stop_slave ()
 {
   if [ x$SLAVE_RUNNING = x1 ]
   then
-    $MYSQLADMIN --no-defaults --socket=$SLAVE_MYSOCK -u root shutdown
+    $MYSQLADMIN --no-defaults --socket=$SLAVE_MYSOCK -u root -O shutdown_timeout=10 shutdown
     if [ $? != 0 ] && [ -f $SLAVE_MYPID ]
     then # try harder!
      $ECHO "slave not cooperating with mysqladmin, will try manual kill"
      kill `$CAT $SLAVE_MYPID`
      sleep $SLEEP_TIME
      if [ -f $SLAVE_MYPID ] ; then
-       $ECHO "slave refused to die, resorting to SIGKILL murder"
+       $ECHO "slave refused to die. Sending SIGKILL"
        kill -9 `$CAT $SLAVE_MYPID`
        $RM -f $SLAVE_MYPID
      else
@@ -472,14 +472,14 @@ stop_master ()
 {
   if [ x$MASTER_RUNNING = x1 ]
   then
-    $MYSQLADMIN --no-defaults --socket=$MASTER_MYSOCK -u root shutdown
+    $MYSQLADMIN --no-defaults --socket=$MASTER_MYSOCK -u root -O shutdown_timeout=10 shutdown
     if [ $? != 0 ] && [ -f $MASTER_MYPID ]
     then # try harder!
      $ECHO "master not cooperating with mysqladmin, will try manual kill"
      kill `$CAT $MASTER_MYPID`
      sleep $SLEEP_TIME
      if [ -f $MASTER_MYPID ] ; then
-       $ECHO "master refused to die, resorting to SIGKILL murder"
+       $ECHO "master refused to die. Sending SIGKILL"
        kill -9 `$CAT $MASTER_MYPID`
        $RM -f $MASTER_MYPID
      else

@@ -477,7 +477,7 @@ extern uint32 server_id;
 extern char mysql_data_home[2],server_version[SERVER_VERSION_LENGTH],
 	    max_sort_char, mysql_real_data_home[];
 extern my_string mysql_unix_port,mysql_tmpdir;
-extern const char *first_keyword, *localhost;
+extern const char *first_keyword, *localhost, *delayed_user;
 extern ulong refresh_version,flush_version, thread_id,query_id,opened_tables,
 	     created_tmp_tables, created_tmp_disk_tables,
 	     aborted_threads,aborted_connects,
@@ -539,6 +539,8 @@ extern struct show_var_st init_vars[];
 extern struct show_var_st status_vars[];
 extern enum db_type default_table_type;
 
+extern uchar global_state_map[256];
+
 #ifndef __WIN__
 extern pthread_t signal_thread;
 #endif
@@ -595,7 +597,7 @@ void change_byte(byte *,uint,char,char);
 void unireg_abort(int exit_code);
 void init_read_record(READ_RECORD *info, THD *thd, TABLE *reg_form,
 		      SQL_SELECT *select,
-		      bool use_record_cache, bool print_errors);
+		      int use_record_cache, bool print_errors);
 void end_read_record(READ_RECORD *info);
 ha_rows filesort(TABLE **form,struct st_sort_field *sortorder, uint s_length,
 		 SQL_SELECT *select, ha_rows special,ha_rows max_rows);
