@@ -1505,17 +1505,14 @@ innobase_close_connection(
 *****************************************************************************/
 
 /********************************************************************
-This function is not relevant since we store the tables and indexes
-into our own tablespace, not as files, whose extension this function would
-give. */
+Gives the file extension of an InnoDB single-table tablespace. */
 
 const char**
 ha_innobase::bas_ext() const
 /*========================*/
-				/* out: file extension strings, currently not
-				used */
+				/* out: file extension string */
 {
-	static const char* ext[] = {".InnoDB", NullS};
+	static const char* ext[] = {".ibd", NullS};
 
 	return(ext);
 }
