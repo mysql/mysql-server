@@ -2079,7 +2079,10 @@ ha_innobase::index_read(
 					start or end of index; this can
 					also contain an InnoDB row id, in
 					which case key_len is the InnoDB
-					row id length */
+					row id length; the key value can
+					also be a prefix of a full key value,
+					and the last column can be a prefix
+					of a full column */
 	uint			key_len,/* in: key value length */
 	enum ha_rkey_function find_flag)/* in: search flags from my_base.h */
 {
@@ -2169,23 +2172,23 @@ ha_innobase::index_read(
 	DBUG_RETURN(error);
 }
 
-
-/*
-  The following functions works like index_read, but it find the last
-  row with the current index prefix.
-  This code is disabled until Heikki has verified that InnoDB support the
-  HA_READ_PREFIX_LAST flag and removed the HA_NOT_READ_PREFIX_LAST
-  flag from ha_innodb.h
-*/
+/***********************************************************************
+The following functions works like index_read, but it find the last
+row with the current key value or prefix. */
 
 int
-ha_innobase::index_read_last(mysql_byte *buf,
-			     const mysql_byte *key_ptr,
-			     uint key_len)
+ha_innobase::index_read_last(
+/*=========================*/
+			           /* out: 0, HA_ERR_KEY_NOT_FOUND, or an
+				   error code */
+        mysql_byte*       buf,     /* out: fetched row */
+        const mysql_byte* key_ptr, /* in: key value, or a prefix of a full
+				   key value */
+	uint              key_len) /* in: length of the key val or prefix
+				   in bytes */
 {
-  return index_read(buf, key_ptr, key_len, HA_READ_PREFIX_LAST);
+        return(index_read(buf, key_ptr, key_len, HA_READ_PREFIX_LAST));
 }
-
 
 /************************************************************************
 Changes the active index of a handle. */
