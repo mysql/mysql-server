@@ -82,9 +82,11 @@ SELECT fid, Dimension(g) FROM geo;
 SELECT fid, GeometryType(g) FROM geo;
 SELECT fid, IsEmpty(g) FROM geo;
 SELECT fid, AsText(Envelope(g)) FROM geo;
+explain extended select Dimension(g), GeometryType(g), IsEmpty(g), AsText(Envelope(g)) from geo;
 
 SELECT fid, X(g) FROM pt;
 SELECT fid, Y(g) FROM pt;
+explain extended select X(g),Y(g) FROM pt;
 
 SELECT fid, AsText(StartPoint(g)) FROM ls;
 SELECT fid, AsText(EndPoint(g)) FROM ls;
@@ -92,12 +94,14 @@ SELECT fid, GLength(g) FROM ls;
 SELECT fid, NumPoints(g) FROM ls;
 SELECT fid, AsText(PointN(g, 2)) FROM ls;
 SELECT fid, IsClosed(g) FROM ls;
+explain extended select AsText(StartPoint(g)),AsText(EndPoint(g)),GLength(g),NumPoints(g),AsText(PointN(g, 2)),IsClosed(g) FROM ls;
 
 SELECT fid, AsText(Centroid(g)) FROM p;
 SELECT fid, Area(g) FROM p;
 SELECT fid, AsText(ExteriorRing(g)) FROM p;
 SELECT fid, NumInteriorRings(g) FROM p;
 SELECT fid, AsText(InteriorRingN(g, 1)) FROM p;
+explain extended select AsText(Centroid(g)),Area(g),AsText(ExteriorRing(g)),NumInteriorRings(g),AsText(InteriorRingN(g, 1)) FROM p;
 
 SELECT fid, IsClosed(g) FROM mls;
 
@@ -108,13 +112,20 @@ SELECT fid, NumGeometries(g) from mpt;
 SELECT fid, NumGeometries(g) from mls;
 SELECT fid, NumGeometries(g) from mp;
 SELECT fid, NumGeometries(g) from gc;
+explain extended SELECT fid, NumGeometries(g) from mpt;
 
 SELECT fid, AsText(GeometryN(g, 2)) from mpt;
 SELECT fid, AsText(GeometryN(g, 2)) from mls;
 SELECT fid, AsText(GeometryN(g, 2)) from mp;
 SELECT fid, AsText(GeometryN(g, 2)) from gc;
+explain extended SELECT fid, AsText(GeometryN(g, 2)) from mpt;
 
 SELECT g1.fid as first, g2.fid as second,
+Within(g1.g, g2.g) as w, Contains(g1.g, g2.g) as c, Overlaps(g1.g, g2.g) as o,
+Equals(g1.g, g2.g) as e, Disjoint(g1.g, g2.g) as d, Touches(g1.g, g2.g) as t,
+Intersects(g1.g, g2.g) as i, Crosses(g1.g, g2.g) as r
+FROM gc g1, gc g2 ORDER BY first, second;
+explain extended SELECT g1.fid as first, g2.fid as second,
 Within(g1.g, g2.g) as w, Contains(g1.g, g2.g) as c, Overlaps(g1.g, g2.g) as o,
 Equals(g1.g, g2.g) as e, Disjoint(g1.g, g2.g) as d, Touches(g1.g, g2.g) as t,
 Intersects(g1.g, g2.g) as i, Crosses(g1.g, g2.g) as r
@@ -142,3 +153,9 @@ SHOW FIELDS FROM g1;
 DROP TABLE g1;
 
 SELECT AsText(GeometryFromWKB(AsWKB(GeometryFromText('POINT(1 4)'))));
+explain extended SELECT AsText(GeometryFromWKB(AsWKB(GeometryFromText('POINT(1 4)'))));
+explain extended SELECT AsText(GeometryFromWKB(AsWKB(PointFromText('POINT(1 4)'))));
+SELECT SRID(GeomFromText('LineString(1 1,2 2)',101));
+explain extended SELECT SRID(GeomFromText('LineString(1 1,2 2)',101));
+#select issimple(MultiPoint(Point(3, 6), Point(4, 10))), issimple(Point(3, 6)),issimple(PolygonFromText('POLYGON((10 10,20 10,20 20,10 20,10 10))')),issimple(GeometryFromText('POINT(1 4)')), issimple(AsWKB(GeometryFromText('POINT(1 4)')));
+explain extended select issimple(MultiPoint(Point(3, 6), Point(4, 10))), issimple(Point(3, 6));

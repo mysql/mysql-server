@@ -216,6 +216,7 @@ public:
       return "sp_unknown"; 
     }
     }
+  void print(String *str) { Item_func::print(str); }
 };
 
 class Item_func_isempty: public Item_bool_func
@@ -292,7 +293,7 @@ class Item_func_numinteriorring: public Item_int_func
 public:
   Item_func_numinteriorring(Item *a): Item_int_func(a) {}
   longlong val_int();
-  const char *func_name() const { return "numinteriorring"; }
+  const char *func_name() const { return "numinteriorrings"; }
   void fix_length_and_dec() { max_length=10; }
 };
 
