@@ -8653,13 +8653,11 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq)
   /**
    * Used for scan take over
    */
-  {
-    FragrecordPtr tFragPtr;
-    tFragPtr.i = fragptr.p->tableFragptr;
-    ptrCheckGuard(tFragPtr, cfragrecFileSize, fragrecord);
-    scanptr.p->fragPtrI = fragptr.p->tableFragptr;
-  }
-
+  FragrecordPtr tFragPtr;
+  tFragPtr.i = fragptr.p->tableFragptr;
+  ptrCheckGuard(tFragPtr, cfragrecFileSize, fragrecord);
+  scanptr.p->fragPtrI = fragptr.p->tableFragptr;
+  
   /**
    * !idx uses 1 - (MAX_PARALLEL_SCANS_PER_FRAG - 1)  =  1-11
    *  idx uses from MAX_PARALLEL_SCANS_PER_FRAG - MAX = 12-42)
@@ -8667,11 +8665,11 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq)
   Uint32 start = (idx ? MAX_PARALLEL_SCANS_PER_FRAG : 1 );
   Uint32 stop = (idx ? MAX_PARALLEL_INDEX_SCANS_PER_FRAG : MAX_PARALLEL_SCANS_PER_FRAG - 1);
   stop += start;
-  Uint32 free = fragptr.p->m_scanNumberMask.find(start);
-  
+  Uint32 free = tFragPtr.p->m_scanNumberMask.find(start);
+    
   if(free == Fragrecord::ScanNumberMask::NotFound || free >= stop){
     jam();
-
+    
     if(scanPrio == 0){
       jam();
       return ScanFragRef::ZTOO_MANY_ACTIVE_SCAN_ERROR;
@@ -8687,10 +8685,9 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq)
     return ZOK;
   }
   
-  
   scanptr.p->scanNumber = free;
-  fragptr.p->m_scanNumberMask.clear(free);// Update mask  
-
+  tFragPtr.p->m_scanNumberMask.clear(free);// Update mask  
+  
   LocalDLList<ScanRecord> active(c_scanRecordPool, fragptr.p->m_activeScans);
   active.add(scanptr);
   if(scanptr.p->scanKeyinfoFlag){
@@ -8775,8 +8772,12 @@ void Dblqh::finishScanrec(Signal* signal)
   LocalDLList<ScanRecord> scans(c_scanRecordPool, fragptr.p->m_activeScans);
   scans.release(scanptr);
   
+  FragrecordPtr tFragPtr;
+  tFragPtr.i = scanptr.p->fragPtrI;
+  ptrCheckGuard(tFragPtr, cfragrecFileSize, fragrecord);
+
   const Uint32 scanNumber = scanptr.p->scanNumber;
-  ndbrequire(!fragptr.p->m_scanNumberMask.get(scanNumber));
+  ndbrequire(!tFragPtr.p->m_scanNumberMask.get(scanNumber));
   ScanRecordPtr restart;
 
   /**
@@ -8784,13 +8785,13 @@ void Dblqh::finishScanrec(Signal* signal)
    */
   if(scanNumber == NR_ScanNo || !queue.first(restart)){
     jam();
-    fragptr.p->m_scanNumberMask.set(scanNumber);
+    tFragPtr.p->m_scanNumberMask.set(scanNumber);
     return;
   }
 
   if(ERROR_INSERTED(5034)){
     jam();
-    fragptr.p->m_scanNumberMask.set(scanNumber);
+    tFragPtr.p->m_scanNumberMask.set(scanNumber);
     return;
   }
 
