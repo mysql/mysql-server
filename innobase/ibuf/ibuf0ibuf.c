@@ -2703,22 +2703,30 @@ ibuf_validate_low(void)
 Prints info of ibuf. */
 
 void
-ibuf_print(void)
-/*============*/
+ibuf_print(
+/*=======*/
+	char*	buf,	/* in/out: buffer where to print */
+	char*	buf_end)/* in: buffer end */
 {
 	ibuf_data_t*	data;
 #ifdef UNIV_IBUF_DEBUG
 	ulint		i;
 #endif
+	if (buf_end - buf < 500) {
+		return;
+	}
+
 	mutex_enter(&ibuf_mutex);
 
 	data = UT_LIST_GET_FIRST(ibuf->data_list);
 
 	while (data) {
-		printf(
+		buf += sprintf(buf,
   	"Ibuf for space %lu: size %lu, free list len %lu, seg size %lu,\n",
 		data->space, data->size, data->free_list_len, data->seg_size);
-		printf("%lu inserts, %lu merged recs, %lu merges\n",
+
+		buf += sprintf(buf,
+			"%lu inserts, %lu merged recs, %lu merges\n",
 			data->n_inserts, data->n_merged_recs, data->n_merges);
 #ifdef UNIV_IBUF_DEBUG
 		for (i = 0; i < IBUF_COUNT_N_PAGES; i++) {

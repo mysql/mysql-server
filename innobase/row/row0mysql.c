@@ -2416,6 +2416,14 @@ row_check_table_for_mysql(
 		index = dict_table_get_next_index(index);
 	}
 
+	/* We validate also the whole adaptive hash index for all tables
+	at every CHECK TABLE */
+
+	if (!btr_search_validate()) {
+
+		ret = DB_ERROR;
+	}
+
 	prebuilt->trx->op_info = "";
 
 	return(ret);

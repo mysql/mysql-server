@@ -493,8 +493,10 @@ log_block_convert_lsn_to_no(
 Prints info of the log. */
 
 void
-log_print(void);
-/*===========*/
+log_print(
+/*======*/
+	char*	buf,	/* in/out: buffer where to print */
+	char*	buf_end);/* in: buffer end */
 
 extern log_t*	log_sys;
 

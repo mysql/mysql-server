@@ -44,6 +44,8 @@ ulint	btr_cur_rnd	= 0;
 
 ulint	btr_cur_n_non_sea	= 0;
 ulint	btr_cur_n_sea		= 0;
+ulint	btr_cur_n_non_sea_old	= 0;
+ulint	btr_cur_n_sea_old	= 0;
 
 /* In the optimistic insert, if the insert does not fit, but this much space
 can be released by page reorganize, then it is reorganized */

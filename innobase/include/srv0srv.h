@@ -356,6 +356,14 @@ srv_error_monitor_thread(
 			/* out: a dummy parameter */
 	void*	arg);	/* in: a dummy parameter required by
 			os_thread_create */
+/**********************************************************************
+Sprintfs to a buffer the output of the InnoDB Monitor. */
+
+void
+srv_sprintf_innodb_monitor(
+/*=======================*/
+	char*	buf,	/* in/out: buffer which must be at least 4 kB */
+	ulint	len);	/* in: length of the buffer */
 
 
 /* Types for the threads existing in the system. Threads of types 4 - 9

@@ -261,7 +261,9 @@ own the kernel mutex. */
 void
 trx_print(
 /*======*/
-	  trx_t* trx); /* in: transaction */
+	char*	buf,	/* in/out: buffer where to print, must be at least
+			500 bytes */
+	trx_t* trx); 	/* in: transaction */
 
 
 /* Signal to a transaction */

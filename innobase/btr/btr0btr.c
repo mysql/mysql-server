@@ -2076,8 +2076,7 @@ btr_discard_page(
 
 	btr_search_drop_page_hash_index(page);
 	
-	if ((left_page_no == FIL_NULL)
-				&& (btr_page_get_level(page, mtr) > 0)) {
+	if (left_page_no == FIL_NULL && btr_page_get_level(page, mtr) > 0) {
 
 		/* We have to mark the leftmost node pointer on the right
 		side page as the predefined minimum record */

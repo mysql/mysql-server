@@ -194,7 +194,7 @@ ha_delete(
 
 	node = ha_search_with_data(table, fold, data);
 
-	ut_ad(node);
+	ut_a(node);
 
 	ha_delete_hash_node(table, node);
 }	
@@ -232,6 +232,16 @@ ha_remove_all_nodes_to_page(
 			node = ha_chain_get_next(table, node);
 		}
 	}
+
+	/* Check that all nodes really got deleted */
+	
+	node = ha_chain_get_first(table, fold);
+
+	while (node) {
+		ut_a(buf_frame_align(ha_node_get_data(node)) != page);
+
+		node = ha_chain_get_next(table, node);
+	}
 }
 
 /*****************************************************************
@@ -245,6 +255,7 @@ ha_validate(
 {
 	hash_cell_t*	cell;
 	ha_node_t*	node;
+	ibool		ok	= TRUE;
 	ulint		i;
 
 	for (i = 0; i < hash_get_n_cells(table); i++) {
@@ -254,13 +265,21 @@ ha_validate(
 		node = cell->node;
 
 		while (node) {
-			ut_a(hash_calc_hash(node->fold, table) == i);
+			if (hash_calc_hash(node->fold, table) != i) {
+				ut_print_timestamp(stderr);
+				fprintf(stderr,
+"InnoDB: Error: hash table node fold value %lu does not\n"
+"InnoDB: match with the cell number %lu.\n",
+					node->fold, i);
+
+				ok = FALSE;
+			}
 
 			node = node->next;
 		}
 	}
 
-	return(TRUE);
+	return(ok);
 }	
 
 /*****************************************************************
@@ -269,16 +288,22 @@ Prints info of a hash table. */
 void
 ha_print_info(
 /*==========*/
+	char*		buf,	/* in/out: buffer where to print */
+	char*		buf_end,/* in: buffer end */
 	hash_table_t*	table)	/* in: hash table */
 {
 	hash_cell_t*	cell;
-	ha_node_t*	node;
+/*	ha_node_t*	node; */
 	ulint		nodes	= 0;
 	ulint		cells	= 0;
 	ulint		len	= 0;
 	ulint		max_len	= 0;
 	ulint		i;
 	
+	if (buf_end - buf < 200) {
+		return;
+	}
+
 	for (i = 0; i < hash_get_n_cells(table); i++) {
 
 		cell = hash_get_nth_cell(table, i);
@@ -286,7 +311,7 @@ ha_print_info(
 		if (cell->node) {
 
 			cells++;
-
+/*
 			len = 0;
 
 			node = cell->node;
@@ -306,12 +331,10 @@ ha_print_info(
 			if (len > max_len) {
 				max_len = len;
 			}
+*/
 		}
 	}
 
-	printf("Hash table size %lu, used cells %lu, nodes %lu\n",
-				hash_get_n_cells(table), cells, nodes);
-	printf("max chain length %lu\n", max_len);
-
-	ut_a(ha_validate(table));
+	buf += sprintf(buf, "Hash table size %lu, used cells %lu\n",
+					hash_get_n_cells(table), cells);
 }	

@@ -2242,6 +2242,8 @@ show_param:
 	  }
 	| STATUS_SYM wild
 	  { Lex->sql_command= SQLCOM_SHOW_STATUS; }
+        | INNOBASE_SYM STATUS_SYM
+          { Lex->sql_command = SQLCOM_SHOW_INNODB_STATUS;}
 	| opt_full PROCESSLIST_SYM
 	  { Lex->sql_command= SQLCOM_SHOW_PROCESSLIST;}
 	| VARIABLES wild

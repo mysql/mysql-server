@@ -448,7 +448,7 @@ Prints info of the buffer pool data structure. */
 
 void
 buf_print(void);
-/*===========*/
+/*============*/
 /*************************************************************************
 Returns the number of pending buf pool ios. */
 
@@ -459,8 +459,10 @@ buf_get_n_pending_ios(void);
 Prints info of the buffer i/o. */
 
 void
-buf_print_io(void);
-/*==============*/
+buf_print_io(
+/*=========*/
+	char*	buf,	/* in/out: buffer where to print */
+	char*	buf_end);/* in: buffer end */
 /*************************************************************************
 Checks that all file pages in the buffer are in a replaceable state. */
 
