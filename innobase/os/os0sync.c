@@ -446,9 +446,9 @@ os_fast_mutex_init(
 	InitializeCriticalSection((LPCRITICAL_SECTION) fast_mutex);
 #else
 #if defined(UNIV_HOTBACKUP) && defined(UNIV_HPUX10)
-	pthread_mutex_init(fast_mutex, pthread_mutexattr_default);
+	ut_a(0 == pthread_mutex_init(fast_mutex, pthread_mutexattr_default));
 #else
-	pthread_mutex_init(fast_mutex, MY_MUTEX_INIT_FAST);
+	ut_a(0 == pthread_mutex_init(fast_mutex, MY_MUTEX_INIT_FAST));
 #endif
 #endif
 }
@@ -496,6 +496,6 @@ os_fast_mutex_free(
 
 	DeleteCriticalSection((LPCRITICAL_SECTION) fast_mutex);
 #else
-	pthread_mutex_destroy(fast_mutex);
+	ut_a(0 == pthread_mutex_destroy(fast_mutex));
 #endif
 }
