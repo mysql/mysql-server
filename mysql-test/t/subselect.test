@@ -1437,3 +1437,15 @@ select (select 1,2) = (select * from t1);
 select  row(1,2) = ANY (select * from t1);
 select  row(1,2) != ALL (select * from t1);
 drop table t1;
+
+#
+# Comparison subquery and row with nested rows
+#
+create table t1 (a integer, b integer);
+-- error 1241
+select row(1,(2,2)) in (select * from t1 );
+-- error 1241
+select row(1,(2,2)) = (select * from t1 );
+-- error 1241
+select (select * from t1) = row(1,(2,2));
+drop table t1;
