@@ -375,9 +375,10 @@ KEY_CACHE *sql_key_cache;
 CHARSET_INFO *system_charset_info, *files_charset_info ;
 CHARSET_INFO *national_charset_info, *table_alias_charset;
 
-SHOW_COMP_OPTION have_berkeley_db, have_innodb, have_isam, 
- have_ndbcluster, have_example_db;
+SHOW_COMP_OPTION have_berkeley_db, have_innodb, have_isam, have_ndbcluster, 
+  have_example_db, have_archive_db;
 SHOW_COMP_OPTION have_raid, have_openssl, have_symlink, have_query_cache;
+SHOW_COMP_OPTION have_geometry, have_rtree_keys;
 SHOW_COMP_OPTION have_crypt, have_compress;
 
 /* Thread specific variables */
@@ -661,7 +662,7 @@ static void close_connections(void)
       break;
     }
 #ifndef __bsdi__				// Bug in BSDI kernel
-    if (tmp->net.vio)
+    if (tmp->vio_ok())
     {
       sql_print_error(ER(ER_FORCING_CLOSE),my_progname,
 		      tmp->thread_id,tmp->user ? tmp->user : "");
@@ -3958,6 +3959,12 @@ Disable with --skip-bdb (will save memory).",
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"bootstrap", OPT_BOOTSTRAP, "Used by mysql installation scripts.", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"character_set_server", 'C', "Set the default character set.",
+   (gptr*) &default_character_set_name, (gptr*) &default_character_set_name,
+   0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  {"collation_server", OPT_DEFAULT_COLLATION, "Set the default collation.",
+   (gptr*) &default_collation_name, (gptr*) &default_collation_name,
+   0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   {"console", OPT_CONSOLE, "Write error output on screen; Don't remove the console window on windows.",
    (gptr*) &opt_console, (gptr*) &opt_console, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
@@ -3991,10 +3998,10 @@ Disable with --skip-bdb (will save memory).",
    (gptr*) &des_key_file, (gptr*) &des_key_file, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
 #endif /* HAVE_OPENSSL */
-  {"default-character-set", 'C', "Set the default character set.",
+  {"default-character-set", 'C', "Set the default character set (Deprecated option, use character_set_server instead).",
    (gptr*) &default_character_set_name, (gptr*) &default_character_set_name,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
-  {"default-collation", OPT_DEFAULT_COLLATION, "Set the default collation.",
+  {"default-collation", OPT_DEFAULT_COLLATION, "Set the default collation (Deprecated option, use character_set_server instead).",
    (gptr*) &default_collation_name, (gptr*) &default_collation_name,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   {"default-storage-engine", OPT_STORAGE_ENGINE,
@@ -4448,11 +4455,11 @@ replicating a LOAD DATA INFILE command.",
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {"log-warnings", 'W', "Log some not critical warnings to the log file.",
    (gptr*) &global_system_variables.log_warnings,
-   (gptr*) &max_system_variables.log_warnings, 0, GET_BOOL, NO_ARG, 1, 0, 0,
+   (gptr*) &max_system_variables.log_warnings, 0, GET_ULONG, OPT_ARG, 1, 0, 0,
    0, 0, 0},
   {"warnings", 'W', "Deprecated ; Use --log-warnings instead.",
    (gptr*) &global_system_variables.log_warnings,
-   (gptr*) &max_system_variables.log_warnings, 0, GET_BOOL, NO_ARG, 1, 0, 0,
+   (gptr*) &max_system_variables.log_warnings, 0, GET_ULONG, OPT_ARG, 1, 0, 0,
    0, 0, 0},
   { "back_log", OPT_BACK_LOG,
     "The number of outstanding connection requests MySQL can have. This comes into play when the main MySQL thread gets very many connection requests in a very short time.",
@@ -5016,6 +5023,12 @@ struct show_var_st status_vars[]= {
   {"Com_unlock_tables",	       (char*) (com_stat+(uint) SQLCOM_UNLOCK_TABLES),SHOW_LONG},
   {"Com_update",	       (char*) (com_stat+(uint) SQLCOM_UPDATE),SHOW_LONG},
   {"Com_update_multi",	       (char*) (com_stat+(uint) SQLCOM_UPDATE_MULTI),SHOW_LONG},
+  {"Com_prepare_sql",          (char*) (com_stat+(uint) SQLCOM_PREPARE),
+   SHOW_LONG}, 
+  {"Com_execute_sql",          (char*) (com_stat+(uint) SQLCOM_EXECUTE), 
+   SHOW_LONG},
+  {"Com_dealloc_sql",          (char*) (com_stat+(uint) 
+                                        SQLCOM_DEALLOCATE_PREPARE), SHOW_LONG},
   {"Connections",              (char*) &thread_id,              SHOW_LONG_CONST},
   {"Created_tmp_disk_tables",  (char*) &created_tmp_disk_tables,SHOW_LONG},
   {"Created_tmp_files",	       (char*) &my_tmp_file_created,	SHOW_LONG},
@@ -5337,6 +5350,11 @@ static void mysql_init_variables(void)
 #else
   have_example_db= SHOW_OPTION_NO;
 #endif
+#ifdef HAVE_ARCHIVE_DB
+  have_archive_db= SHOW_OPTION_YES;
+#else
+  have_archive_db= SHOW_OPTION_NO;
+#endif
 #ifdef HAVE_NDBCLUSTER_DB
   have_ndbcluster=SHOW_OPTION_DISABLED;
 #else
@@ -5361,6 +5379,16 @@ static void mysql_init_variables(void)
   have_query_cache=SHOW_OPTION_YES;
 #else
   have_query_cache=SHOW_OPTION_NO;
+#endif
+#ifdef HAVE_SPATIAL
+  have_geometry=SHOW_OPTION_YES;
+#else
+  have_geometry=SHOW_OPTION_NO;
+#endif
+#ifdef HAVE_RTREE_KEYS
+  have_rtree_keys=SHOW_OPTION_YES;
+#else
+  have_rtree_keys=SHOW_OPTION_NO;
 #endif
 #ifdef HAVE_CRYPT
   have_crypt=SHOW_OPTION_YES;
@@ -5463,6 +5491,14 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case 'V':
     print_version();
     exit(0);
+  case 'W':
+    if (!argument)
+      global_system_variables.log_warnings++;
+    else if (argument == disabled_my_option)
+      global_system_variables.log_warnings= 0L;
+    else
+      global_system_variables.log_warnings= atoi(argument);
+    break;
   case 'T':
     test_flags= argument ? (uint) atoi(argument) : 0;
     test_flags&= ~TEST_NO_THREADS;

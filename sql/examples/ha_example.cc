@@ -596,6 +596,10 @@ THR_LOCK_DATA **ha_example::store_lock(THD *thd,
   shared references released. The variable name will just be the name of 
   the table. You will need to remove any files you have created at this point.
 
+  If you do not implement this, the default delete_table() is called from
+  handler.cc and it will delete all files with the file extentions returned
+  by bas_ext().
+
   Called from handler.cc by delete_table and  ha_create_table(). Only used
   during create if the table_flag HA_DROP_BEFORE_CREATE was specified for
   the storage engine.
@@ -609,6 +613,10 @@ int ha_example::delete_table(const char *name)
 
 /*
   Renames a table from one name to another from alter table call.
+
+  If you do not implement this, the default rename_table() is called from
+  handler.cc and it will delete all files with the file extentions returned
+  by bas_ext().
 
   Called from sql_table.cc by mysql_rename_table().
 */

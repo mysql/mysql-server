@@ -2715,7 +2715,7 @@ static my_bool my_like_range_gbk(CHARSET_INFO *cs __attribute__((unused)),
     }
     if (*ptr == escape && ptr+1 != end)
     {
-      ptr++;				/* Skipp escape */
+      ptr++;				/* Skip escape */
       *min_str++= *max_str++ = *ptr;
       continue;
     }
@@ -9962,6 +9962,7 @@ CHARSET_INFO my_charset_gbk_chinese_ci=
     "gbk",		/* cs name    */
     "gbk_chinese_ci",	/* name */
     "",			/* comment    */
+    NULL,		/* tailoring */
     ctype_gbk,
     to_lower_gbk,
     to_upper_gbk,
@@ -9987,6 +9988,7 @@ CHARSET_INFO my_charset_gbk_bin=
     "gbk",		/* cs name    */
     "gbk_bin",		/* name */
     "",			/* comment    */
+    NULL,		/* tailoring */
     ctype_gbk,
     to_lower_gbk,
     to_upper_gbk,

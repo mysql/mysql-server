@@ -1417,7 +1417,7 @@ then
   if [ -z "$USE_RUNNING_NDBCLUSTER" ]
   then
     # Kill any running ndbcluster stuff
-    ./ndb/stop_ndbcluster
+    ./ndb/ndbcluster --stop
   fi
   fi
 
@@ -1438,7 +1438,7 @@ then
   if [ -z "$USE_RUNNING_NDBCLUSTER" ]
   then
     echo "Starting ndbcluster"
-    ./ndb/install_ndbcluster --initial --data-dir=$MYSQL_TEST_DIR/var || exit 1
+    ./ndb/ndbcluster --initial --data-dir=$MYSQL_TEST_DIR/var || exit 1
     export NDB_CONNECTSTRING=`cat Ndb.cfg`
   else
     export NDB_CONNECTSTRING="$USE_RUNNING_NDBCLUSTER"
@@ -1538,7 +1538,7 @@ then
 if [ -z "$USE_RUNNING_NDBCLUSTER" ]
 then
   # Kill any running ndbcluster stuff
-  ./ndb/stop_ndbcluster
+  ./ndb/ndbcluster --stop
 fi
 fi
 

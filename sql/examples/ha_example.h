@@ -21,6 +21,10 @@
   that you can implement.
 */
 
+#ifdef __GNUC__
+#pragma interface			/* gcc class implementation */
+#endif
+
 /*
   EXAMPLE_SHARE is a structure that will be shared amoung all open handlers
   The example implements the minimum of what you will probably need.
@@ -87,7 +91,6 @@ public:
     The next method will never be called if you do not implement indexes.
   */
   virtual double read_time(ha_rows rows) { return (double) rows /  20.0+1; }
-  virtual bool fast_key_read() { return 1;}
 
   /* 
     Everything below are methods that we implment in ha_example.cc.

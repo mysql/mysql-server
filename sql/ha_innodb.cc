@@ -66,6 +66,7 @@ extern "C" {
 #include "../innobase/include/trx0roll.h"
 #include "../innobase/include/trx0trx.h"
 #include "../innobase/include/trx0sys.h"
+#include "../innobase/include/mtr0mtr.h"
 #include "../innobase/include/row0ins.h"
 #include "../innobase/include/row0mysql.h"
 #include "../innobase/include/row0sel.h"
@@ -1747,9 +1748,14 @@ innobase_mysql_cmp(
 			}
 		}
 
-                ret = my_strnncoll(charset,
-                                  a, a_length,
-                                  b, b_length);
+		/* Starting from 4.1.3 we use strnncollsp() in comparisons of
+		non-latin1_swedish_ci strings. NOTE that the collation order
+		changes then: 'b\0\0...' is ordered BEFORE 'b  ...'. Users
+		having indexes on such data need to rebuild their tables! */
+
+                ret = charset->coll->strnncollsp(charset,
+                                  		a, a_length,
+                                  		b, b_length);
 		if (ret < 0) {
 		        return(-1);
 		} else if (ret > 0) {
@@ -4657,6 +4663,21 @@ ha_innobase::start_stmt(
 	        prepared for an update of a row */
 	  
 	        prebuilt->select_lock_type = LOCK_X;
+	} else {
+		if (thd->lex->sql_command == SQLCOM_SELECT
+					&& thd->lex->lock_option == TL_READ) {
+	
+			/* For other than temporary tables, we obtain
+			no lock for consistent read (plain SELECT) */
+
+			prebuilt->select_lock_type = LOCK_NONE;
+		} else {
+			/* Not a consistent read: use LOCK_X as the
+			select_lock_type value (TODO: how could we know
+			whether it should be LOCK_S, LOCK_X, or LOCK_NONE?) */
+
+			prebuilt->select_lock_type = LOCK_X;
+		}
 	}
 	
 	/* Set the MySQL flag to mark that there is an active transaction */
@@ -5160,6 +5181,38 @@ ha_innobase::get_auto_increment()
 	}
 
 	return(nr);
+}
+
+/***********************************************************************
+This function stores binlog offset and flushes logs */
+
+void 
+innobase_store_binlog_offset_and_flush_log(
+/*=============================*/
+    char *binlog_name,          /* in: binlog name   */
+    longlong offset             /* in: binlog offset */
+)
+{
+	mtr_t mtr;
+	
+	assert(binlog_name != NULL);
+
+	/* Start a mini-transaction */
+        mtr_start_noninline(&mtr); 
+
+	/* Update the latest MySQL binlog name and offset info
+           in trx sys header */
+
+        trx_sys_update_mysql_binlog_offset(
+            binlog_name,
+            offset,
+            TRX_SYS_MYSQL_LOG_INFO, &mtr);
+
+        /* Commits the mini-transaction */
+        mtr_commit(&mtr);
+        
+	/* Syncronous flush of the log buffer to disk */
+	log_buffer_flush_to_disk();
 }
 
 #endif /* HAVE_INNOBASE_DB */

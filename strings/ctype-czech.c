@@ -589,6 +589,7 @@ CHARSET_INFO my_charset_latin2_czech_ci =
     "latin2",				/* cs name    */
     "latin2_czech_cs",			/* name */
     "",					/* comment    */
+    NULL,				/* tailoring */
     ctype_czech,
     to_lower_czech,
     to_upper_czech,

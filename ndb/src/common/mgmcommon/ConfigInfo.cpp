@@ -602,7 +602,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::INT64,
     3000 * 8192,
     128 * 8192,
-    192000 * 8192 },
+    ((Uint64)192000) * ((Uint64)8192) },
 
   {
     KEY_INTERNAL,
@@ -638,7 +638,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::INT64,
     10000 * 8192,
     128 * 8192,
-    400000 * 8192 },
+    ((Uint64)400000) * ((Uint64)8192) },
 
   {
     KEY_INTERNAL,
@@ -2446,6 +2446,8 @@ void ConfigInfo::print(const Properties * section,
     }
     ndbout << endl;
     break;
+  case ConfigInfo::SECTION:
+    break;
   }
 }
 
@@ -2495,13 +2497,15 @@ fixNodeHostname(InitConfigFileParser::Context & ctx, const char * data){
     ctx.reportError("Computer \"%s\" not declared"
 		    "- [%s] starting at line: %d",
 		    compId, ctx.fname, ctx.m_sectionLineno);
+    return false;
   }
   
   const char * hostname;
   if(!computer->get("HostName", &hostname)){
-    ctx.reportError("HostName missing in [COMPUTER] Id: %s"
-		    "- [%s] starting at line: %d",
+    ctx.reportError("HostName missing in [COMPUTER] (Id: %d) "
+		    " - [%s] starting at line: %d",
 		    compId, ctx.fname, ctx.m_sectionLineno);
+    return false;
   }
   
   require(ctx.m_currentSection->put("HostName", hostname));
@@ -2643,6 +2647,8 @@ applyDefaultValues(InitConfigFileParser::Context & ctx,
 	  ctx.m_currentSection->put(name, val);
 	  break;
 	}
+	case ConfigInfo::SECTION:
+	  break;
 	}
       }
     }

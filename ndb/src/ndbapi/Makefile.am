@@ -1,12 +1,13 @@
 #SUBDIRS = signal-sender
 
-noinst_LTLIBRARIES = libndbapi.la libNDB_API.la
+noinst_LTLIBRARIES = libndbapi.la
 
-libndbapi_la_SOURCES_loc = \
+libndbapi_la_SOURCES = \
         TransporterFacade.cpp   \
         ClusterMgr.cpp  \
         Ndb.cpp \
-        NdbPoolImpl.cpp NdbPool.cpp \
+        NdbPoolImpl.cpp \
+        NdbPool.cpp \
         Ndblist.cpp     \
         Ndbif.cpp       \
         Ndbinit.cpp     \
@@ -28,29 +29,19 @@ libndbapi_la_SOURCES_loc = \
         NdbEventOperationImpl.cpp   \
         NdbApiSignal.cpp        \
         NdbRecAttr.cpp  \
-        NdbSchemaCon.cpp        \
-        NdbSchemaOp.cpp \
         NdbUtil.cpp \
         NdbReceiver.cpp \
-        NdbDictionary.cpp NdbDictionaryImpl.cpp DictCache.cpp
-
-libndbapi_la_SOURCES = $(libndbapi_la_SOURCES_loc)
-libNDB_API_la_SOURCES = $(libndbapi_la_SOURCES_loc)
+        NdbDictionary.cpp \
+        NdbDictionaryImpl.cpp \
+        DictCache.cpp
 
 INCLUDES_LOC = -I$(top_srcdir)/ndb/src/mgmapi
 
+# Ndbapi cannot handle -O3
+NDB_CXXFLAGS_RELEASE_LOC = -O2
+
 include $(top_srcdir)/ndb/config/common.mk.am
 include $(top_srcdir)/ndb/config/type_ndbapi.mk.am
-
-libNDB_API_la_LIBADD =  \
-              $(top_srcdir)/ndb/src/common/transporter/libtransporter.la   \
-              $(top_srcdir)/ndb/src/common/debugger/libtrace.la     \
-              $(top_srcdir)/ndb/src/common/debugger/signaldata/libsignaldataprint.la \
-              $(top_srcdir)/ndb/src/common/mgmcommon/libmgmsrvcommon.la \
-              $(top_srcdir)/ndb/src/mgmapi/libMGM_API.la \
-              $(top_srcdir)/ndb/src/common/portlib/unix/libportlib.la      \
-              $(top_srcdir)/ndb/src/common/logger/liblogger.la       \
-              $(top_srcdir)/ndb/src/common/util/libgeneral.la
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

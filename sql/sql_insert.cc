@@ -1199,7 +1199,8 @@ extern "C" pthread_handler_decl(handle_delayed_insert,arg)
       /* request for new delayed insert */
       if (!(thd->lock=mysql_lock_tables(thd,&di->table,1)))
       {
-	di->dead=thd->killed=1;			// Fatal error
+	di->dead= 1;			// Some fatal error
+        thd->killed= 1;
       }
       pthread_cond_broadcast(&di->cond_client);
     }
@@ -1207,7 +1208,8 @@ extern "C" pthread_handler_decl(handle_delayed_insert,arg)
     {
       if (di->handle_inserts())
       {
-	di->dead=thd->killed=1;			// Some fatal error
+	di->dead= 1;			// Some fatal error
+        thd->killed= 1;
       }
     }
     di->status=0;
@@ -1234,7 +1236,8 @@ end:
 
   close_thread_tables(thd);			// Free the table
   di->table=0;
-  di->dead=thd->killed=1;			// If error
+  di->dead= 1;                                  // If error
+  thd->killed= 1;
   pthread_cond_broadcast(&di->cond_client);	// Safety
   pthread_mutex_unlock(&di->mutex);
 

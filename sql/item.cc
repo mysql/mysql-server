@@ -255,7 +255,7 @@ bool Item::get_time(TIME *ltime)
   return 0;
 }
 
-CHARSET_INFO * Item::default_charset() const
+CHARSET_INFO *Item::default_charset()
 {
   return current_thd->variables.collation_connection;
 }
@@ -629,6 +629,7 @@ Item_param::Item_param(unsigned pos_in_query_arg) :
   state(NO_VALUE),
   item_result_type(STRING_RESULT),
   item_type(STRING_ITEM),
+  param_type(MYSQL_TYPE_STRING),
   pos_in_query(pos_in_query_arg),
   set_param_func(default_set_param_func)
 {
@@ -736,6 +737,70 @@ bool Item_param::set_longdata(const char *str, ulong length)
 
 
 /*
+  Set parameter value from user variable value.
+
+  SYNOPSIS
+   set_from_user_var
+     thd   Current thread
+     entry User variable structure (NULL means use NULL value)
+
+  RETURN
+    0 OK
+    1 Out of memort
+*/
+
+bool Item_param::set_from_user_var(THD *thd, const user_var_entry *entry)
+{
+  DBUG_ENTER("Item_param::set_from_user_var");
+  if (entry && entry->value)
+  {
+    item_result_type= entry->type;
+    switch (entry->type)
+    {
+      case REAL_RESULT:
+        set_double(*(double*)entry->value);
+        break;
+      case INT_RESULT:
+        set_int(*(longlong*)entry->value, 21);
+        break;
+      case STRING_RESULT:
+        {
+          CHARSET_INFO *fromcs= entry->collation.collation;
+          CHARSET_INFO *tocs= thd->variables.collation_connection;
+          uint32 dummy_offset;
+
+          value.cs_info.character_set_client= fromcs;
+          /*
+            Setup source and destination character sets so that they
+            are different only if conversion is necessary: this will
+            make later checks easier.
+          */
+          value.cs_info.final_character_set_of_str_value=
+            String::needs_conversion(0, fromcs, tocs, &dummy_offset) ?
+            tocs : fromcs;
+          /*
+            Exact value of max_length is not known unless data is converted to
+            charset of connection, so we have to set it later.
+          */
+          item_type= Item::STRING_ITEM;
+          item_result_type= STRING_RESULT;
+
+          if (set_str((const char *)entry->value, entry->length))
+            DBUG_RETURN(1);
+        }
+        break;
+      default:
+        DBUG_ASSERT(0);
+        set_null();
+    }
+  }
+  else
+    set_null();
+
+  DBUG_RETURN(0);
+}
+
+/*
     Resets parameter after execution.
   
   SYNOPSIS
@@ -767,8 +832,6 @@ void Item_param::reset()
 
 int Item_param::save_in_field(Field *field, bool no_conversions)
 {
-  DBUG_ASSERT(current_thd->command == COM_EXECUTE);
-
   field->set_notnull();
 
   switch (state) {
@@ -805,6 +868,17 @@ bool Item_param::get_time(TIME *res)
     which is called from Item::get_time().
   */
   return Item::get_time(res);
+}
+
+
+bool Item_param::get_date(TIME *res, uint fuzzydate)
+{
+  if (state == TIME_VALUE)
+  {
+    *res= value.time;
+    return 0;
+  }
+  return Item::get_date(res, fuzzydate);
 }
 
 

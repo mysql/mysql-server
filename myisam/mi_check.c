@@ -307,7 +307,7 @@ int chk_size(MI_CHECK *param, register MI_INFO *info)
 #endif
   if (skr != size)
   {
-    info->state->data_file_length=size;	/* Skipp other errors */
+    info->state->data_file_length=size;	/* Skip other errors */
     if (skr > size && skr != size + MEMMAP_EXTRA_MARGIN)
     {
       error=1;
@@ -3672,7 +3672,7 @@ int recreate_table(MI_CHECK *param, MI_INFO **org_info, char *filename)
       if (param->language)
 	keyseg->language=param->language;	/* change language */
     }
-    keyseg++;					/* Skipp end pointer */
+    keyseg++;					/* Skip end pointer */
   }
 
   /* Copy the unique definitions and change them to point at the new key
