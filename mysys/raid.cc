@@ -75,7 +75,7 @@
 #endif
 
 #include "mysys_priv.h"
-#include "my_dir.h"
+#include <my_dir.h>
 #include <m_string.h>
 #include <assert.h>
 
@@ -281,7 +281,7 @@ extern "C" {
       DBUG_RETURN(my_close(fd, MyFlags));
   }
 
-  int my_raid_chsize(File fd, my_off_t newlength, myf MyFlags)
+  int my_raid_chsize(File fd, my_off_t newlength, int filler, myf MyFlags)
   {
     DBUG_ENTER("my_raid_chsize");
     DBUG_PRINT("enter",("Fd: %d  newlength: %u  MyFlags: %d",
@@ -289,10 +289,10 @@ extern "C" {
    if (is_raid(fd))
    {
      RaidFd *raid= (*dynamic_element(&RaidFd::_raid_map,fd,RaidFd**));
-     DBUG_RETURN(raid->Chsize(fd, newlength, MyFlags));
+     DBUG_RETURN(raid->Chsize(fd, newlength, filler, MyFlags));
    }
    else
-     DBUG_RETURN(my_chsize(fd, newlength, MyFlags));
+     DBUG_RETURN(my_chsize(fd, newlength, filler, MyFlags));
   }
 
   int my_raid_rename(const char *from, const char *to,
@@ -738,7 +738,7 @@ Tell(myf MyFlags)
 }
 
 int RaidFd::
-Chsize(File fd, my_off_t newlength, myf MyFlags)
+Chsize(File fd, my_off_t newlength, int filler, myf MyFlags)
 {
   DBUG_ENTER("RaidFd::Chsize");
   DBUG_PRINT("enter",("Fd: %d, newlength: %d, MyFlags: %d",
@@ -752,17 +752,16 @@ Chsize(File fd, my_off_t newlength, myf MyFlags)
     if ( i < _this_block )
       newpos = my_chsize(_fd_vector[i],
 			 _this_block * _raid_chunksize + (_rounds + 1) *
-			 _raid_chunksize,
-			 MyFlags);
+			 _raid_chunksize, filler, MyFlags);
     else if ( i == _this_block )
       newpos = my_chsize(_fd_vector[i],
 			 _this_block * _raid_chunksize + _rounds *
 			 _raid_chunksize + (newlength % _raid_chunksize),
-			 MyFlags);
+			 filler, MyFlags);
     else // this means: i > _this_block
       newpos = my_chsize(_fd_vector[i],
 			 _this_block * _raid_chunksize + _rounds *
-			 _raid_chunksize, MyFlags);
+			 _raid_chunksize, filler, MyFlags);
     if (newpos)
       DBUG_RETURN(1);
   }

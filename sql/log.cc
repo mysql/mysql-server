@@ -80,8 +80,9 @@ static int find_uniq_filename(char *name)
   DBUG_RETURN(0);
 }
 
+
 MYSQL_LOG::MYSQL_LOG()
-  :bytes_written(0), last_time(0), query_start(0), index_file(-1), name(0),
+  :bytes_written(0), last_time(0), query_start(0), name(0),
    file_id(1), open_count(1), log_type(LOG_CLOSED), write_error(0), inited(0),
    no_rotate(0), need_start_event(1)
 {
@@ -91,7 +92,9 @@ MYSQL_LOG::MYSQL_LOG()
   */
   index_file_name[0] = 0;
   bzero((char*) &log_file,sizeof(log_file));
+  bzero((char*) &index_file, sizeof(index_file));
 }
+
 
 MYSQL_LOG::~MYSQL_LOG()
 {
@@ -101,15 +104,6 @@ MYSQL_LOG::~MYSQL_LOG()
     (void) pthread_mutex_destroy(&LOCK_index);
     (void) pthread_cond_destroy(&update_cond);
   }
-}
-
-void MYSQL_LOG::set_index_file_name(const char* index_file_name)
-{
-  if (index_file_name)
-    fn_format(this->index_file_name,index_file_name,mysql_data_home,".index",
-	      4);
-  else
-    this->index_file_name[0] = 0;
 }
 
 
@@ -132,12 +126,6 @@ int MYSQL_LOG::generate_new_name(char *new_name, const char *log_name)
   return 0;
 }
 
-bool MYSQL_LOG::open_index( int options)
-{
-  return (index_file < 0 && 
-	 (index_file = my_open(index_file_name, options | O_BINARY ,
-			       MYF(MY_WME))) < 0);
-}
 
 void MYSQL_LOG::init(enum_log_type log_type_arg,
 		     enum cache_type io_cache_type_arg,
@@ -148,32 +136,41 @@ void MYSQL_LOG::init(enum_log_type log_type_arg,
   no_auto_events = no_auto_events_arg;
   if (!inited)
   {
-    inited=1;
+    inited= 1;
     (void) pthread_mutex_init(&LOCK_log,MY_MUTEX_INIT_SLOW);
     (void) pthread_mutex_init(&LOCK_index, MY_MUTEX_INIT_SLOW);
     (void) pthread_cond_init(&update_cond, 0);
   }
 }
 
-void MYSQL_LOG::close_index()
-{
-  if (index_file >= 0)
-  {
-    my_close(index_file, MYF(0));
-    index_file = -1;
-  }
-}
 
-void MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
-		     const char *new_name, enum cache_type io_cache_type_arg,
+/*
+  Open a (new) log file.
+
+  DESCRIPTION
+  - If binary logs, also open the index file and register the new
+    file name in it
+  - When calling this when the file is in use, you must have a locks
+    on LOCK_log and LOCK_index.
+
+  RETURN VALUES
+    0	ok
+    1	error
+*/
+
+bool MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
+		     const char *new_name, const char *index_file_name_arg,
+		     enum cache_type io_cache_type_arg,
 		     bool no_auto_events_arg)
 {
-  MY_STAT tmp_stat;
   char buff[512];
-  File file= -1;
-  bool do_magic;
+  File file= -1, index_file_nr= -1;
   int open_flags = O_CREAT | O_APPEND | O_BINARY;
   DBUG_ENTER("MYSQL_LOG::open");
+  DBUG_PRINT("enter",("log_type: %d",(int) log_type));
+
+  last_time=query_start=0;
+  write_error=0;
 
   if (!inited && log_type_arg == LOG_BIN && *fn_ext(log_name))
     no_rotate = 1;
@@ -191,13 +188,7 @@ void MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
   else
     open_flags |= O_WRONLY;
   
-  if (log_type == LOG_BIN && !index_file_name[0])
-    fn_format(index_file_name, name, mysql_data_home, ".index", 6);
-  
   db[0]=0;
-  do_magic = ((log_type == LOG_BIN) && !my_stat(log_file_name,
-						&tmp_stat, MYF(0)));
-  
   open_count++;
   if ((file=my_open(log_file_name,open_flags,
 		    MYF(MY_WME | ME_WAITTANG))) < 0 ||
@@ -205,7 +196,8 @@ void MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
 		    my_tell(file,MYF(MY_WME)), 0, MYF(MY_WME | MY_NABP)))
     goto err;
 
-  if (log_type == LOG_NORMAL)
+  switch (log_type) {
+  case LOG_NORMAL:
   {
     char *end;
 #ifdef __NT__
@@ -217,8 +209,9 @@ void MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
     if (my_b_write(&log_file, (byte*) buff,(uint) (end-buff)) ||
 	flush_io_cache(&log_file))
       goto err;
+    break;
   }
-  else if (log_type == LOG_NEW)
+  case LOG_NEW:
   {
     time_t skr=time(NULL);
     struct tm tm_tmp;
@@ -234,48 +227,97 @@ void MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
     if (my_b_write(&log_file, (byte*) buff,(uint) strlen(buff)) ||
 	flush_io_cache(&log_file))
       goto err;
+    break;
   }
-  else if (log_type == LOG_BIN)
+  case LOG_BIN:
   {
-    bool error;
-    if (do_magic)
+    bool write_file_name_to_index_file=0;
+
+    myf opt= MY_UNPACK_FILENAME;
+    if (!index_file_name_arg)
     {
-      if (my_b_write(&log_file, (byte*) BINLOG_MAGIC, BIN_LOG_HEADER_SIZE) ||
-	  open_index(O_APPEND | O_RDWR | O_CREAT))
+      index_file_name_arg= name;	// Use same basename for index file
+      opt= MY_UNPACK_FILENAME | MY_REPLACE_EXT;
+    }
+  
+    if (!my_b_filelength(&log_file))
+    {
+      /*
+	The binary log file was empty (probably newly created)
+	This is the normal case and happens when the user doesn't specify
+	an extension for the binary log files.
+	In this case we write a standard header to it.
+      */
+      if (my_b_write(&log_file, (byte*) BINLOG_MAGIC, BIN_LOG_HEADER_SIZE))
         goto err;
       bytes_written += BIN_LOG_HEADER_SIZE;
+      write_file_name_to_index_file=1;
     }
 
+    if (!my_b_inited(&index_file))
+    {
+      /*
+	First open of this class instance
+	Create an index file that will hold all file names uses for logging.
+	Add new entries to the end of it.
+      */
+      fn_format(index_file_name, index_file_name_arg, mysql_data_home,
+		".index", opt);
+      if ((index_file_nr= my_open(index_file_name,
+				  O_RDWR | O_CREAT | O_BINARY ,
+				  MYF(MY_WME))) < 0 ||
+	  init_io_cache(&index_file, index_file_nr,
+			IO_SIZE, WRITE_CACHE,
+			my_seek(index_file_nr,0L,MY_SEEK_END,MYF(0)),
+			0, MYF(MY_WME)))
+	goto err;
+    }
+    else
+    {
+      safe_mutex_assert_owner(&LOCK_index);
+      reinit_io_cache(&index_file, WRITE_CACHE, my_b_filelength(&index_file),
+		      0, 0);
+    }
     if (need_start_event && !no_auto_events)
     {
+      need_start_event=0;
       Start_log_event s;
       s.set_log_pos(this);
       s.write(&log_file);
-      need_start_event=0;
     }
-    flush_io_cache(&log_file);
-    pthread_mutex_lock(&LOCK_index);
-    error=(my_write(index_file, (byte*) log_file_name, strlen(log_file_name),
-		    MYF(MY_NABP | MY_WME)) ||
-	   my_write(index_file, (byte*) "\n", 1, MYF(MY_NABP | MY_WME)));
-    pthread_mutex_unlock(&LOCK_index);
-    if (error)
-    {
-      close_index();
+    if (flush_io_cache(&log_file))
       goto err;
+
+    if (write_file_name_to_index_file)
+    {
+      /* As this is a new log file, we write the file name to the index file */
+      if (my_b_write(&index_file, (byte*) log_file_name,
+		     strlen(log_file_name)) ||
+	  my_b_write(&index_file, (byte*) "\n", 1) ||
+	  flush_io_cache(&index_file))
+	goto err;
     }
+    break;
   }
-  DBUG_VOID_RETURN;
+  case LOG_CLOSED:				// Impossible
+    DBUG_ASSERT(1);
+    break;
+  }
+  DBUG_RETURN(0);
 
 err:
-  sql_print_error("Could not use %s for logging (error %d)", log_name,errno);
+  sql_print_error("Could not use %s for logging (error %d)", log_name, errno);
   if (file >= 0)
     my_close(file,MYF(0));
+  if (index_file_nr >= 0)
+    my_close(index_file_nr,MYF(0));
   end_io_cache(&log_file);
-  x_free(name); name=0;
+  end_io_cache(&index_file);
+  safeFree(name);
   log_type=LOG_CLOSED;
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(1);
 }
+
 
 int MYSQL_LOG::get_current_log(LOG_INFO* linfo)
 {
@@ -286,107 +328,231 @@ int MYSQL_LOG::get_current_log(LOG_INFO* linfo)
   return 0;
 }
 
-// if log_name is "" we stop at the first entry
 
-int MYSQL_LOG::find_first_log(LOG_INFO* linfo, const char* log_name,
-			      bool need_mutex)
+/*
+  Move all data up in a file in an filename index file
+
+  SYNOPSIS
+    copy_up_file_and_fill()
+    index_file			File to move
+    offset			Move everything from here to beginning
+
+  NOTE
+    File will be truncated to be 'offset' shorter or filled up with
+    newlines
+
+  IMPLEMENTATION
+    We do the copy outside of the IO_CACHE as the cache buffers would just
+    make things slower and more complicated.
+    In most cases the copy loop should only do one read.
+
+  RETURN VALUES
+    0	ok
+*/
+
+static bool copy_up_file_and_fill(IO_CACHE *index_file, my_off_t offset)
 {
-  if (index_file < 0)
-    return LOG_INFO_INVALID;
-  int error = 0;
-  char* fname = linfo->log_file_name;
-  uint log_name_len = (uint) strlen(log_name);
-  IO_CACHE io_cache;
+  int bytes_read;
+  my_off_t init_offset= offset;
+  File file= index_file->file;
+  byte io_buf[IO_SIZE*2];
+  DBUG_ENTER("copy_up_file_and_fill");
+
+  for (;; offset+= bytes_read)
+  {
+    (void) my_seek(file, offset, MY_SEEK_SET, MYF(0));
+    if ((bytes_read= (int) my_read(file, io_buf, sizeof(io_buf), MYF(MY_WME)))
+	< 0)
+      goto err;
+    if (!bytes_read)
+      break;					// end of file
+    (void) my_seek(file, offset-init_offset, MY_SEEK_SET, MYF(0));
+    if (my_write(file, (byte*) io_buf, bytes_read, MYF(MY_WME | MY_NABP)))
+      goto err;
+  }
+  /* The following will either truncate the file or fill the end with \n' */
+  if (my_chsize(file, offset - init_offset, '\n', MYF(MY_WME)))
+    goto err;
+
+  /* Reset data in old index cache */
+  reinit_io_cache(index_file, READ_CACHE, (my_off_t) 0, 0, 1);
+  DBUG_RETURN(0);
+
+err:
+  DBUG_RETURN(1);
+}
+
+
+/*
+  Find the position in the log-index-file for the given log name
+
+  SYNOPSIS
+    find_log_pos()
+    linfo		Store here the found log file name and position to
+			the NEXT log file name in the index file.
+    log_name		Filename to find in the index file.
+			Is a null pointer if we want to read the first entry
+    need_mutex		Set this to 1 if the parent doesn't already have a
+			lock on LOCK_index
+
+  NOTE
+    On systems without the truncate function the file will end with one ore
+    more empty lines
+
+  RETURN VALUES
+    0			ok
+    LOG_INFO_EOF	End of log-index-file found
+    LOG_INFO_IO		Got IO error while reading file
+*/
+
+int MYSQL_LOG::find_log_pos(LOG_INFO *linfo, const char *log_name,
+			    bool need_lock)
+{
+  int error= 0;
+  char *fname= linfo->log_file_name;
+  uint log_name_len= log_name ? (uint) strlen(log_name) : 0;
+  DBUG_ENTER("find_log_pos");
+  DBUG_PRINT("enter",("log_name: %s", log_name ? log_name : "NULL"));
 
   /*
     Mutex needed because we need to make sure the file pointer does not move
     from under our feet
   */
-  if (need_mutex)
+  if (need_lock)
     pthread_mutex_lock(&LOCK_index);
-  if (init_io_cache(&io_cache, index_file, IO_SIZE, READ_CACHE, (my_off_t) 0,
-		    0, MYF(MY_WME)))
-  {
-    error = LOG_INFO_SEEK;
-    goto err;
-  }
+  safe_mutex_assert_owner(&LOCK_index);
+
+  /* As the file is flushed, we can't get an error here */
+  (void) reinit_io_cache(&index_file, READ_CACHE, (my_off_t) 0, 0, 0);
+
   for (;;)
   {
     uint length;
-    if (!(length=my_b_gets(&io_cache, fname, FN_REFLEN-1)))
+    my_off_t offset= my_b_tell(&index_file);
+    /* If we get 0 or 1 characters, this is the end of the file */
+
+    if ((length= my_b_gets(&index_file, fname, FN_REFLEN)) <= 1)
     {
-      error = !io_cache.error ? LOG_INFO_EOF : LOG_INFO_IO;
-      goto err;
+      /* Did not find the given entry; Return not found or error */
+      error= !index_file.error ? LOG_INFO_EOF : LOG_INFO_IO;
+      break;
     }
 
-    // if the log entry matches, empty string matching anything
-    if (!log_name_len ||
+    // if the log entry matches, null string matching anything
+    if (!log_name ||
 	(log_name_len == length-1 && fname[log_name_len] == '\n' &&
 	 !memcmp(fname, log_name, log_name_len)))
     {
+      DBUG_PRINT("info",("Found log file entry"));
       fname[length-1]=0;			// remove last \n
-      linfo->index_file_offset = my_b_tell(&io_cache);
+      linfo->index_file_start_offset= offset;
+      linfo->index_file_offset = my_b_tell(&index_file);
       break;
     }
   }
-  error = 0;
 
 err:
-  if (need_mutex)
+  if (need_lock)
     pthread_mutex_unlock(&LOCK_index);
-  end_io_cache(&io_cache);
-  return error;
-     
+  DBUG_RETURN(error);
 }
 
+
+/*
+  Find the position in the log-index-file for the given log name
+
+  SYNOPSIS
+    find_next_log()
+    linfo		Store here the next log file name and position to
+			the file name after that.
+    need_lock		Set this to 1 if the parent doesn't already have a
+			lock on LOCK_index
+
+  NOTE
+    - Before calling this function, one has to call find_log_pos()
+      to set up 'linfo'
+    - Mutex needed because we need to make sure the file pointer does not move
+      from under our feet
+
+  RETURN VALUES
+    0			ok
+    LOG_INFO_EOF	End of log-index-file found
+    LOG_INFO_SEEK	Could not allocate IO cache
+    LOG_INFO_IO		Got IO error while reading file
+*/
 
 int MYSQL_LOG::find_next_log(LOG_INFO* linfo, bool need_lock)
 {
-  /*
-    Mutex needed because we need to make sure the file pointer does not move
-    from under our feet
-  */
-  if (index_file < 0)
-    return LOG_INFO_INVALID;
-  int error = 0;
-  char* fname = linfo->log_file_name;
-  IO_CACHE io_cache;
+  int error= 0;
   uint length;
+  char *fname= linfo->log_file_name;
+
   if (need_lock)
     pthread_mutex_lock(&LOCK_index);
-  if (init_io_cache(&io_cache, index_file, IO_SIZE, 
-		    READ_CACHE, (my_off_t) linfo->index_file_offset, 0,
-		    MYF(MY_WME)))
+  safe_mutex_assert_owner(&LOCK_index);
+
+  /* As the file is flushed, we can't get an error here */
+  (void) reinit_io_cache(&index_file, READ_CACHE, linfo->index_file_offset, 0,
+			 0);
+
+  linfo->index_file_start_offset= linfo->index_file_offset;
+  if ((length=my_b_gets(&index_file, fname, FN_REFLEN)) <= 1)
   {
-    error = LOG_INFO_SEEK;
-    goto err;
-  }
-  if (!(length=my_b_gets(&io_cache, fname, FN_REFLEN)))
-  {
-    error = !io_cache.error ? LOG_INFO_EOF : LOG_INFO_IO;
+    error = !index_file.error ? LOG_INFO_EOF : LOG_INFO_IO;
     goto err;
   }
   fname[length-1]=0;				// kill /n
-  linfo->index_file_offset = my_b_tell(&io_cache);
-  error = 0;
+  linfo->index_file_offset = my_b_tell(&index_file);
 
 err:
   if (need_lock)
     pthread_mutex_unlock(&LOCK_index);
-  end_io_cache(&io_cache);
   return error;
 }
 
 
-int MYSQL_LOG::reset_logs(THD* thd)
+/*
+  Delete all logs refered to in the index file
+  Start writing to a new log file.  The new index file will only contain
+  this file.
+
+  SYNOPSIS
+     reset_logs()
+     thd		Thread
+
+  NOTE
+    If not called from slave thread, write start event to new log
+
+
+  RETURN VALUES
+    0	ok
+    1   error
+*/
+
+bool MYSQL_LOG::reset_logs(THD* thd)
 {
   LOG_INFO linfo;
-  int error=0;
+  bool error=0;
   const char* save_name;
   enum_log_type save_log_type;
+  DBUG_ENTER("reset_logs");
 
+  /*
+    We need to get both locks to be sure that no one is trying to
+    write to the index log file.
+  */
   pthread_mutex_lock(&LOCK_log);
-  if (find_first_log(&linfo,""))
+  pthread_mutex_lock(&LOCK_index);
+
+  /* Save variables so that we can reopen the log */
+  save_name=name;
+  name=0;					// Protect against free
+  save_log_type=log_type;
+  close(0);					// Don't close the index file
+
+  /* First delete all old log files */
+
+  if (find_log_pos(&linfo, NullS, 0))
   {
     error=1;
     goto err;
@@ -395,27 +561,58 @@ int MYSQL_LOG::reset_logs(THD* thd)
   for (;;)
   {
     my_delete(linfo.log_file_name, MYF(MY_WME));
-    if (find_next_log(&linfo))
+    if (find_next_log(&linfo, 0))
       break;
   }
-  save_name=name;
-  name=0;
-  save_log_type=log_type;
-  close(1);
-  my_delete(index_file_name, MYF(MY_WME));
-  if (thd && !thd->slave_thread)
+
+  /* Start logging with a new file */
+  close(1);					// Close index file
+  my_delete(index_file_name, MYF(MY_WME));	// Reset (open will update)
+  if (!thd->slave_thread)
     need_start_event=1;
-  open(save_name,save_log_type,0,io_cache_type,no_auto_events);
-  my_free((gptr)save_name,MYF(0));
+  open(save_name, save_log_type, 0, index_file_name,
+       io_cache_type, no_auto_events);
+  my_free((gptr) save_name, MYF(0));
 
 err:  
+  pthread_mutex_unlock(&LOCK_index);
   pthread_mutex_unlock(&LOCK_log);
-  return error;
+  DBUG_RETURN(error);
 }
 
 
+/*
+  Delete the current log file, remove it from index file and start on next 
+
+  SYNOPSIS
+    purge_first_log()
+    rli		Relay log information
+
+  NOTE
+    - This is only called from the slave-execute thread when it has read
+      all commands from a log and want to switch to a new log.
+    - When this happens, we should never be in an active transaction as
+      a transaction is always written as a single block to the binary log.
+
+  IMPLEMENTATION
+    - Protects index file with LOCK_index
+    - Delete first log file,
+    - Copy all file names after this one to the front of the index file
+    - If the OS has truncate, truncate the file, else fill it with \n'
+    - Read the first file name from the index file and store in rli->linfo
+
+  RETURN VALUES
+    0	ok
+    1	error
+*/
+
 int MYSQL_LOG::purge_first_log(struct st_relay_log_info* rli)
 {
+  File file;
+  bool error= 1;
+  my_off_t offset, init_offset;
+  DBUG_ENTER("purge_first_log");
+
   /*
     Test pre-conditions.
 
@@ -423,329 +620,247 @@ int MYSQL_LOG::purge_first_log(struct st_relay_log_info* rli)
     stored it in rli->relay_log_name
   */
   DBUG_ASSERT(is_open());
-  DBUG_ASSERT(index_file >= 0);
   DBUG_ASSERT(rli->slave_running == 1);
   DBUG_ASSERT(!strcmp(rli->linfo.log_file_name,rli->relay_log_name));
   DBUG_ASSERT(rli->linfo.index_file_offset ==
 	      strlen(rli->relay_log_name) + 1);
 
-  int tmp_fd;
-  char* fname, *io_buf;
-  int error = 0;
-
-  if (!(fname= (char*) my_malloc(IO_SIZE+FN_REFLEN, MYF(MY_WME))))
-    return 1;
+  /* We have already processed the relay log, so it's safe to delete it */
+  my_delete(rli->relay_log_name, MYF(0));
   pthread_mutex_lock(&LOCK_index);
-  my_seek(index_file,rli->linfo.index_file_offset,
-	  MY_SEEK_SET, MYF(MY_WME));
-  io_buf = fname + FN_REFLEN;
-  strxmov(fname,rli->relay_log_name,".tmp",NullS);
-  
-  if ((tmp_fd = my_open(fname,O_CREAT|O_BINARY|O_RDWR, MYF(MY_WME))) < 0)
+  if (copy_up_file_and_fill(&index_file, rli->linfo.index_file_offset))
   {
-    error = 1;
+    error= LOG_INFO_IO;
     goto err;
   }
-  for (;;)
+
+  /*
+    Update the space counter used by all relay logs
+    Ok to broadcast after the critical region as there is no risk of
+    the mutex being destroyed by this thread later - this helps save
+    context switches
+  */
+  pthread_mutex_lock(&rli->log_space_lock);
+  rli->log_space_total -= rli->relay_log_pos;
+  pthread_mutex_unlock(&rli->log_space_lock);
+  pthread_cond_broadcast(&rli->log_space_cond);
+  
+  /*
+    Read the next log file name from the index file and pass it back to
+    the caller
+  */
+  if ((error=find_log_pos(&rli->linfo, NullS, 0 /*no mutex*/)))
   {
-    int bytes_read;
-    bytes_read = my_read(index_file, (byte*) io_buf, IO_SIZE, MYF(0));
-    if (bytes_read < 0)				// error
-    {
-      error=1;
-      goto err;
-    }
-    if (!bytes_read)
-      break;					// end of file
-    // otherwise, we've read something and need to write it out
-    if (my_write(tmp_fd, (byte*) io_buf, bytes_read, MYF(MY_WME|MY_NABP)))
-    {
-      error=1;
-      goto err;
-    }
+    char buff[22];
+    sql_print_error("next log error: %d  offset: %s  log: %s",
+		    error,
+		    llstr(rli->linfo.index_file_offset,buff),
+		    rli->linfo.log_file_name);
+    goto err;
   }
+  rli->relay_log_pos = BIN_LOG_HEADER_SIZE;
+  strmake(rli->relay_log_name,rli->linfo.log_file_name,
+	  sizeof(rli->relay_log_name)-1);
+
+  /* Store where we are in the new file for the execution thread */
+  flush_relay_log_info(rli);
 
 err:
-  if (tmp_fd)
-    my_close(tmp_fd, MYF(MY_WME));
-  if (error)
-    my_delete(fname, MYF(0)); // do not report error if the file is not there
-  else
-  {
-    MY_STAT s;
-    my_close(index_file, MYF(MY_WME));
-    if (!my_stat(rli->relay_log_name,&s,MYF(0)))
-    {
-      sql_print_error("The first log %s failed to stat during purge",
-		      rli->relay_log_name);
-      error=1;
-      goto err;
-    }
-    if (my_rename(fname,index_file_name,MYF(MY_WME)) ||
-	(index_file=my_open(index_file_name,O_BINARY|O_RDWR|O_APPEND,
-			    MYF(MY_WME)))<0 ||
-	my_delete(rli->relay_log_name, MYF(MY_WME)))
-      error=1;
-    
-    pthread_mutex_lock(&rli->log_space_lock);
-    rli->log_space_total -= s.st_size;
-    pthread_mutex_unlock(&rli->log_space_lock);
-    /*
-      Ok to broadcast after the critical region as there is no risk of
-      the mutex being destroyed by this thread later - this helps save
-      context switches
-    */
-    pthread_cond_broadcast(&rli->log_space_cond);
-    
-    if ((error=find_first_log(&rli->linfo,"",0/*no mutex*/)))
-    {
-      char buff[22];
-      sql_print_error("next log error=%d,offset=%s,log=%s",error,
-		      llstr(rli->linfo.index_file_offset,buff),
-		      rli->linfo.log_file_name);
-      goto err2;
-    }
-    rli->relay_log_pos = BIN_LOG_HEADER_SIZE;
-    strmake(rli->relay_log_name,rli->linfo.log_file_name,
-	    sizeof(rli->relay_log_name)-1);
-    flush_relay_log_info(rli);
-  }
-  /*
-    No need to free io_buf because we allocated both fname and io_buf in
-    one malloc()
-  */
-
-err2:
   pthread_mutex_unlock(&LOCK_index);
-  my_free(fname, MYF(MY_WME));
-  return error;
+  DBUG_RETURN(error);
 }
 
+
+/*
+  Remove all logs before the given log from disk and from the index file.
+
+  SYNOPSIS
+    purge_logs()
+    thd		Thread pointer
+    to_log	Delete all log file name before this file. This file is not
+		deleted
+
+  NOTES
+    If any of the logs before the deleted one is in use,
+    only purge logs up to this one.
+
+  RETURN VALUES
+    0				ok
+    LOG_INFO_PURGE_NO_ROTATE	Binary file that can't be rotated
+    LOG_INFO_EOF		to_log not found
+*/
 
 int MYSQL_LOG::purge_logs(THD* thd, const char* to_log)
 {
   int error;
-  char fname[FN_REFLEN];
-  char *p;
-  uint fname_len, i;
-  bool logs_to_purge_inited = 0, logs_to_keep_inited = 0, found_log = 0;
-  DYNAMIC_ARRAY logs_to_purge, logs_to_keep;
-  my_off_t purge_offset ;
-  LINT_INIT(purge_offset);
-  IO_CACHE io_cache;
-  
-  if (index_file < 0)
-    return LOG_INFO_INVALID;
-  if (no_rotate)
-    return LOG_INFO_PURGE_NO_ROTATE;
-  pthread_mutex_lock(&LOCK_index);
-  
-  if (init_io_cache(&io_cache,index_file, IO_SIZE*2, READ_CACHE, (my_off_t) 0,
-		    0, MYF(MY_WME)))
-  {
-    error = LOG_INFO_MEM;
-    goto err;
-  }
-  if (my_init_dynamic_array(&logs_to_purge, sizeof(char*), 1024, 1024))
-  {
-    error = LOG_INFO_MEM;
-    goto err;
-  }
-  logs_to_purge_inited = 1;
-  
-  if (my_init_dynamic_array(&logs_to_keep, sizeof(char*), 1024, 1024))
-  {
-    error = LOG_INFO_MEM;
-    goto err;
-  }
-  logs_to_keep_inited = 1;
-  
-  for (;;)
-  {
-    my_off_t init_purge_offset= my_b_tell(&io_cache);
-    if (!(fname_len=my_b_gets(&io_cache, fname, FN_REFLEN)))
-    {
-      if (!io_cache.error)
-	break;
-      error = LOG_INFO_IO;
-      goto err;
-    }
+  LOG_INFO log_info;
+  DBUG_ENTER("purge_logs");
 
-    fname[--fname_len]=0;			// kill \n
-    if (!memcmp(fname, to_log, fname_len + 1 ))
-    {
-      found_log = 1;
-      purge_offset = init_purge_offset;
-    }
-      
-    // if one of the logs before the target is in use
-    if (!found_log && log_in_use(fname))
-    {
-      error = LOG_INFO_IN_USE;
-      goto err;
-    }
-      
-    if (!(p = sql_memdup(fname, fname_len+1)) ||
-	insert_dynamic(found_log ? &logs_to_keep : &logs_to_purge,
-		       (gptr) &p))
-    {
-      error = LOG_INFO_MEM;
-      goto err;
-    }
-  }
-  
-  end_io_cache(&io_cache);
-  if (!found_log)
-  {
-    error = LOG_INFO_EOF;
+  if (no_rotate)
+    DBUG_RETURN(LOG_INFO_PURGE_NO_ROTATE);
+
+  pthread_mutex_lock(&LOCK_index);
+  if ((error=find_log_pos(&log_info, to_log, 0 /*no mutex*/)))
     goto err;
-  }
-  
-  for (i = 0; i < logs_to_purge.elements; i++)
+
+  /*
+    File name exists in index file; Delete until we find this file
+    or a file that is used.
+  */
+  if ((error=find_log_pos(&log_info, NullS, 0 /*no mutex*/)))
+    goto err;
+  while (strcmp(to_log,log_info.log_file_name) &&
+	 !log_in_use(log_info.log_file_name))
   {
-    char* l;
-    get_dynamic(&logs_to_purge, (gptr)&l, i);
-    if (my_delete(l, MYF(MY_WME)))
-      sql_print_error("Error deleting %s during purge", l);
+    /* It's not fatal even if we can't delete a log file */
+    my_delete(log_info.log_file_name, MYF(0));
+    if (find_next_log(&log_info, 0))
+      break;
   }
-  
+
   /*
     If we get killed -9 here, the sysadmin would have to edit
     the log index file after restart - otherwise, this should be safe
   */
-#ifdef HAVE_FTRUNCATE
-  if (ftruncate(index_file,0))
+
+  if (copy_up_file_and_fill(&index_file, log_info.index_file_start_offset))
   {
-    sql_print_error(
-"Could not truncate the binlog index file during log purge for write");
-    error = LOG_INFO_FATAL;
+    error= LOG_INFO_IO;
     goto err;
-  }
-  my_seek(index_file, 0, MY_SEEK_CUR,MYF(MY_WME));
-#else
-  my_close(index_file, MYF(MY_WME));
-  my_delete(index_file_name, MYF(MY_WME));
-  if ((index_file = my_open(index_file_name,
-			    O_CREAT | O_BINARY | O_RDWR | O_APPEND,
-			    MYF(MY_WME)))<0)
-  {
-    sql_print_error(
-"Could not re-open the binlog index file during log purge for write");
-    error = LOG_INFO_FATAL;
-    goto err;
-  }
-#endif
-  
-  for (i = 0; i < logs_to_keep.elements; i++)
-  {
-    char* l;
-    get_dynamic(&logs_to_keep, (gptr)&l, i);
-    if (my_write(index_file, (byte*) l, strlen(l), MYF(MY_WME|MY_NABP)) ||
-	my_write(index_file, (byte*) "\n", 1, MYF(MY_WME|MY_NABP)))
-    {
-      error = LOG_INFO_FATAL;
-      goto err;
-    }
   }
 
-  // now update offsets
-  adjust_linfo_offsets(purge_offset);
-  error = 0;
+  // now update offsets in index file for running threads
+  adjust_linfo_offsets(log_info.index_file_start_offset);
 
 err:
   pthread_mutex_unlock(&LOCK_index);
-  if (logs_to_purge_inited)
-    delete_dynamic(&logs_to_purge);
-  if (logs_to_keep_inited)
-    delete_dynamic(&logs_to_keep);
-  end_io_cache(&io_cache);
-  return error;
+  DBUG_RETURN(error);
 }
 
-// we assume that buf has at least FN_REFLEN bytes alloced
+
+/*
+  Create a new log file name
+
+  SYNOPSIS
+    make_log_name()
+    buf			buf of at least FN_REFLEN where new name is stored
+
+  NOTE
+    If file name will be longer then FN_REFLEN it will be truncated
+*/
+
 void MYSQL_LOG::make_log_name(char* buf, const char* log_ident)
 {
-  buf[0] = 0;					// In case of error
-  if (inited)
+  if (inited)					// QQ When is this not true ?
   {
-    int dir_len = dirname_length(log_file_name); 
-    int ident_len = (uint) strlen(log_ident);
-    if (dir_len + ident_len + 1 > FN_REFLEN)
-      return; // protection agains malicious buffer overflow
-      
-    memcpy(buf, log_file_name, dir_len);
-    // copy filename + end null
-    memcpy(buf + dir_len, log_ident, ident_len + 1);
+    uint dir_len = dirname_length(log_file_name); 
+    if (dir_len > FN_REFLEN)
+      dir_len=FN_REFLEN-1;
+    strnmov(buf, log_file_name, dir_len);
+    strmake(buf+dir_len, log_ident, FN_REFLEN - dir_len);
   }
 }
 
-bool MYSQL_LOG::is_active(const char* log_file_name)
+
+/*
+  Check if we are writing/reading to the given log file
+*/
+
+bool MYSQL_LOG::is_active(const char *log_file_name_arg)
 {
-  return inited && !strcmp(log_file_name, this->log_file_name);
+  return inited && !strcmp(log_file_name, log_file_name_arg);
 }
 
-void MYSQL_LOG::new_file(bool inside_mutex)
-{
-  if (is_open())
-  {
-    char new_name[FN_REFLEN], *old_name=name;
-    if (!inside_mutex)
-      VOID(pthread_mutex_lock(&LOCK_log));
 
-    if (!no_rotate)
+/*
+  Start writing to a new log file or reopen the old file
+
+  SYNOPSIS
+    new_file()
+    need_lock		Set to 1 (default) if caller has not locked
+			LOCK_log and LOCK_index
+
+  NOTE
+    The new file name is stored last in the index file
+*/
+
+void MYSQL_LOG::new_file(bool need_lock)
+{
+  char new_name[FN_REFLEN], *new_name_ptr, *old_name;
+  enum_log_type save_log_type;
+
+  if (!is_open())
+    return;					// Should never happen
+
+  if (need_lock)
+  {
+    pthread_mutex_lock(&LOCK_log);
+    pthread_mutex_lock(&LOCK_index);
+  }    
+  safe_mutex_assert_owner(&LOCK_log);
+  safe_mutex_assert_owner(&LOCK_index);
+
+  new_name_ptr= name;				// Reuse old name if not binlog
+
+  /*
+    Only rotate open logs that are marked non-rotatable
+    (binlog with constant name are non-rotatable)
+  */
+  if (!no_rotate)
+  {
+    if (log_type == LOG_BIN)
     {
-      /*
-	Only rotate open logs that are marked non-rotatable
-	(binlog with constant name are non-rotatable)
-      */
       if (generate_new_name(new_name, name))
       {
-	if (!inside_mutex)
+	/* Error;  Continue using old log file */
+	if (need_lock)
 	  VOID(pthread_mutex_unlock(&LOCK_log));
 	return;					// Something went wrong
       }
-      if (log_type == LOG_BIN)
+      new_name_ptr=new_name;
+      if (!no_auto_events)
       {
-	if (!no_auto_events)
-	{
-	  /*
-	    We log the whole file name for log file as the user may decide
-	    to change base names at some point.
-	  */
-	  THD* thd = current_thd;
-	  Rotate_log_event r(thd,new_name+dirname_length(new_name));
-	  r.set_log_pos(this);
-
-	  /*
-	    This log rotation could have been initiated by a master of
-	    the slave running with log-bin we set the flag on rotate
-	    event to prevent inifinite log rotation loop
-	  */
-	  if (thd && thd->slave_thread)
-	    r.flags |= LOG_EVENT_FORCED_ROTATE_F;
-	  r.write(&log_file);
-	  bytes_written += r.get_event_len();
-	}
 	/*
-	  Update needs to be signaled even if there is no rotate event
-	  log rotation should give the waiting thread a signal to
-	  discover EOF and move on to the next log.
+	  We log the whole file name for log file as the user may decide
+	  to change base names at some point.
 	*/
-	signal_update(); 
+	THD* thd = current_thd;
+	Rotate_log_event r(thd,new_name+dirname_length(new_name));
+	r.set_log_pos(this);
+
+	/*
+	  Becasue this log rotation could have been initiated by a master of
+	  the slave running with log-bin, we set the flag on rotate
+	  event to prevent inifinite log rotation loop
+	*/
+	if (thd->slave_thread)
+	  r.flags|= LOG_EVENT_FORCED_ROTATE_F;
+	r.write(&log_file);
+	bytes_written += r.get_event_len();
       }
-      else
-	strmov(new_name, old_name);		// Reopen old file name
+      /*
+	Update needs to be signaled even if there is no rotate event
+	log rotation should give the waiting thread a signal to
+	discover EOF and move on to the next log.
+      */
+      signal_update(); 
     }
-    name=0;
-    close();
-    open(old_name, log_type, new_name, io_cache_type, no_auto_events);
-    my_free(old_name,MYF(0));
-    last_time=query_start=0;
-    write_error=0;
-    if (!inside_mutex)
-      VOID(pthread_mutex_unlock(&LOCK_log));
+  }
+  old_name=name;
+  save_log_type=log_type;
+  name=0;				// Don't free name
+  close();
+  open(old_name, save_log_type, new_name_ptr, index_file_name, io_cache_type,
+       no_auto_events);
+  my_free(old_name,MYF(0));
+
+  if (need_lock)
+  {
+    pthread_mutex_unlock(&LOCK_index);
+    pthread_mutex_unlock(&LOCK_log);
   }
 }
+
 
 bool MYSQL_LOG::append(Log_event* ev)
 {
@@ -763,21 +878,23 @@ bool MYSQL_LOG::append(Log_event* ev)
     goto err;
   }
   bytes_written += ev->get_event_len();
-  if ((uint)my_b_append_tell(&log_file) > max_binlog_size)
+  if ((uint) my_b_append_tell(&log_file) > max_binlog_size)
   {
-    new_file(1);
+    pthread_mutex_lock(&LOCK_index);
+    new_file(0);
+    pthread_mutex_unlock(&LOCK_index);
   }
-  signal_update();
 
 err:  
   pthread_mutex_unlock(&LOCK_log);
+  signal_update();				// Safe as we don't call close
   return error;
 }
 
 
 bool MYSQL_LOG::appendv(const char* buf, uint len,...)
 {
-  bool error = 0;
+  bool error= 0;
   va_list(args);
   va_start(args,len);
   
@@ -788,23 +905,31 @@ bool MYSQL_LOG::appendv(const char* buf, uint len,...)
   {
     if (my_b_append(&log_file,(byte*) buf,len))
     {
-      error = 1;
-      break;
+      error= 1;
+      goto err;
     }
     bytes_written += len;
   } while ((buf=va_arg(args,const char*)) && (len=va_arg(args,uint)));
   
   if ((uint) my_b_append_tell(&log_file) > max_binlog_size)
   {
-    new_file(1);
+    pthread_mutex_lock(&LOCK_index);
+    new_file(0);
+    pthread_mutex_unlock(&LOCK_index);
   }
-  
+
+err:
+  pthread_mutex_unlock(&LOCK_log);
   if (!error)
     signal_update();
-  pthread_mutex_unlock(&LOCK_log);
   return error;
 }
 
+
+/*
+  Write to normal (not rotable) log
+  This is the format for the 'normal', 'slow' and 'update' logs.
+*/
 
 bool MYSQL_LOG::write(THD *thd,enum enum_server_command command,
 		      const char *format,...)
@@ -886,13 +1011,18 @@ bool MYSQL_LOG::write(THD *thd,enum enum_server_command command,
 }
 
 
+/*
+  Write an event to the binary log
+*/
+
 bool MYSQL_LOG::write(Log_event* event_info)
 {
   bool error=0;
   
   if (!inited)					// Can't use mutex if not init
     return 0;
-  VOID(pthread_mutex_lock(&LOCK_log));
+  pthread_mutex_lock(&LOCK_log);
+
   /* In most cases this is only called if 'is_open()' is true */
   if (is_open())
   {
@@ -900,7 +1030,7 @@ bool MYSQL_LOG::write(Log_event* event_info)
     THD *thd=event_info->thd;
     const char* db = event_info->get_db();
 #ifdef USING_TRANSACTIONS    
-    IO_CACHE *file = ((event_info->get_cache_stmt() && thd) ?
+    IO_CACHE *file = ((event_info->get_cache_stmt()) ?
 		      &thd->transaction.trans_log :
 		      &log_file);
 #else
@@ -915,38 +1045,6 @@ bool MYSQL_LOG::write(Log_event* event_info)
     }
 
     error=1;
-    if (file == &thd->transaction.trans_log
-        && !my_b_tell(&thd->transaction.trans_log)) {
-
-      /* Add the "BEGIN" and "COMMIT" in the binlog around transactions
-      which may contain more than 1 SQL statement. If we run with
-      AUTOCOMMIT=1, then MySQL immediately writes each SQL statement to
-      the binlog when the statement has been completed. No need to add
-      "BEGIN" ... "COMMIT" around such statements. Otherwise, MySQL uses
-      thd->transaction.trans_log to cache the SQL statements until the
-      explicit commit, and at the commit writes the contents in .trans_log
-      to the binlog.
-
-      We write the "BEGIN" mark first in the buffer (.trans_log) where we
-      store the SQL statements for a transaction. At the transaction commit
-      we will add the "COMMIT mark and write the buffer to the binlog.
-      The function my_b_tell above returns != 0 if there already is data
-      in the buffer. */
-
-      int save_query_length = thd->query_length;
-
-      thd->query_length = 5; /* length of string BEGIN */
-
-      Query_log_event qinfo(thd, "BEGIN", TRUE);
-      
-      error = ((&qinfo)->write(file));
-
-      thd->query_length = save_query_length;
-      
-      if (error)
-        goto err;
-    }
-    
     /*
       No check for auto events flag here - this write method should
       never be called if auto-events are enabled
@@ -974,14 +1072,10 @@ bool MYSQL_LOG::write(Log_event* event_info)
       char buf[1024] = "SET CHARACTER SET ";
       char* p = strend(buf);
       p = strmov(p, thd->variables.convert_set->name);
-      int save_query_length = thd->query_length;
-      // just in case somebody wants it later
-      thd->query_length = (uint)(p - buf);
-      Query_log_event e(thd, buf);
+      Query_log_event e(thd, buf, (ulong)(p - buf));
       e.set_log_pos(this);
       if (e.write(file))
 	goto err;
-      thd->query_length = save_query_length; // clean up
     }
     event_info->set_log_pos(this);
     if (event_info->write(file) ||
@@ -1018,11 +1112,17 @@ err:
     if (file == &log_file)
       signal_update();
     if (should_rotate)
-      new_file(1); // inside mutex
+    {
+      pthread_mutex_lock(&LOCK_index);      
+      new_file(0); // inside mutex
+      pthread_mutex_unlock(&LOCK_index);
+    }
   }
-  VOID(pthread_mutex_unlock(&LOCK_log));
+
+  pthread_mutex_unlock(&LOCK_log);
   return error;
 }
+
 
 uint MYSQL_LOG::next_file_id()
 {
@@ -1033,74 +1133,102 @@ uint MYSQL_LOG::next_file_id()
   return res;
 }
 
+
 /*
   Write a cached log entry to the binary log
-  We only come here if there is something in the cache.
-  'cache' needs to be reinitialized after this functions returns.
+
+  NOTE
+    - We only come here if there is something in the cache.
+    - The thing in the cache is always a complete transcation
+    - 'cache' needs to be reinitialized after this functions returns.
+
+  IMPLEMENTATION
+    - To support transaction over replication, we wrap the transaction
+      with BEGIN/COMMIT in the binary log.
 */
 
 bool MYSQL_LOG::write(THD *thd, IO_CACHE *cache)
 {
   VOID(pthread_mutex_lock(&LOCK_log));
-  bool error=1;
   
-  if (is_open())
+  if (is_open())				// Should always be true
   {
-    /*
-      We come here when the queries to be logged could not fit into memory
-      and part of the queries are stored in a log file on disk.
-    */
-
     uint length;
+
+    /*
+      Add the "BEGIN" and "COMMIT" in the binlog around transactions
+      which may contain more than 1 SQL statement. If we run with
+      AUTOCOMMIT=1, then MySQL immediately writes each SQL statement to
+      the binlog when the statement has been completed. No need to add
+      "BEGIN" ... "COMMIT" around such statements. Otherwise, MySQL uses
+      thd->transaction.trans_log to cache the SQL statements until the
+      explicit commit, and at the commit writes the contents in .trans_log
+      to the binlog.
+
+      We write the "BEGIN" mark first in the buffer (.trans_log) where we
+      store the SQL statements for a transaction. At the transaction commit
+      we will add the "COMMIT mark and write the buffer to the binlog.
+    */
+    {
+      Query_log_event qinfo(thd, "BEGIN", 5, TRUE);
+      if (qinfo.write(&log_file))
+	goto err;
+    }
     /* Read from the file used to cache the queries .*/
     if (reinit_io_cache(cache, READ_CACHE, 0, 0, 0))
-    {
-      sql_print_error(ER(ER_ERROR_ON_WRITE), cache->file_name, errno);
       goto err;
-    }
     length=my_b_bytes_in_cache(cache);
     do
     {
       /* Write data to the binary log file */
       if (my_b_write(&log_file, cache->read_pos, length))
-      {
-	if (!write_error)
-	  sql_print_error(ER(ER_ERROR_ON_WRITE), name, errno);
 	goto err;
-      }
       cache->read_pos=cache->read_end;		// Mark buffer used up
     } while ((length=my_b_fill(cache)));
-    if (flush_io_cache(&log_file))
+
+    /*
+      We write the command "COMMIT" as the last SQL command in the
+      binlog segment cached for this transaction
+    */
+
     {
-      if (!write_error)
-	sql_print_error(ER(ER_ERROR_ON_WRITE), name, errno);
-      goto err;
+      Query_log_event qinfo(thd, "COMMIT", 6, TRUE);
+      if (qinfo.write(&log_file) || flush_io_cache(&log_file))
+	goto err;
     }
     if (cache->error)				// Error on read
     {
       sql_print_error(ER(ER_ERROR_ON_READ), cache->file_name, errno);
+      write_error=1;				// Don't give more errors
       goto err;
     }
-    error = ha_report_binlog_offset_and_commit(thd, log_file_name,
-					       log_file.pos_in_file);
-    if (error)
+    if ((ha_report_binlog_offset_and_commit(thd, log_file_name,
+					    log_file.pos_in_file)))
       goto err;
+    signal_update();
   }
-  error=0;
+  VOID(pthread_mutex_unlock(&LOCK_log));
+  return 0;
 
 err:
-  if (error)
-    write_error=1;
-  else
-    signal_update();
-    
+  if (!write_error)
+  {
+    write_error= 1;
+    sql_print_error(ER(ER_ERROR_ON_WRITE), name, errno);
+  }
   VOID(pthread_mutex_unlock(&LOCK_log));
-  
-  return error;
+  return 1;
 }
 
 
-/* Write update log in a format suitable for incremental backup */
+/*
+  Write update log in a format suitable for incremental backup
+
+  NOTE
+   - This code should be deleted in MySQL 5,0 as the binary log
+     is a full replacement for the update log.
+
+*/
 
 bool MYSQL_LOG::write(THD *thd,const char *query, uint query_length,
 		      time_t query_start)
@@ -1222,30 +1350,42 @@ bool MYSQL_LOG::write(THD *thd,const char *query, uint query_length,
   return error;
 }
 
+/*
+  Wait until we get a signal that the binary log has been updated
+
+  SYNOPSIS
+    wait_for_update()
+    thd			Thread variable
+
+  NOTES
+    One must have a lock on LOCK_log before calling this function.
+*/
+
+
 void MYSQL_LOG:: wait_for_update(THD* thd)
 {
   const char* old_msg = thd->enter_cond(&update_cond, &LOCK_log,
 					"Slave: waiting for binlog update");
   pthread_cond_wait(&update_cond, &LOCK_log);
-  /*
-    This is not a bug:
-    We unlock the mutex for the caller, and expect him to lock it and
-    then not unlock it upon return. This is a rather odd way of doing
-    things, but this is the cleanest way I could think of to solve the
-    race deadlock caused by THD::awake() first acquiring mysys_var
-    mutex and then the current mutex, while wait_for_update being
-    called with the current mutex already aquired and THD::exit_cond()
-    trying to acquire mysys_var mutex. We do need the mutex to be
-    acquired prior to the invocation of wait_for_update in all cases,
-    so mutex acquisition inside wait_for_update() is not an option.
-  */
-  pthread_mutex_unlock(&LOCK_log);
   thd->exit_cond(old_msg);
 }  
 
 
+/*
+  Close the log file
+
+  SYNOPSIS
+    close()
+    exiting	Set to 1 if we should also close the index file
+    		This can be set to 0 if we are going to do call open
+		at once after close, in which case we don't want to
+		close the index file.
+*/
+
 void MYSQL_LOG::close(bool exiting)
 {					// One can't set log_type here!
+  DBUG_ENTER("MYSQL_LOG::close");
+  DBUG_PRINT("enter",("exiting: %d", (int) exiting));
   if (is_open())
   {
     if (log_type == LOG_BIN && !no_auto_events)
@@ -1259,28 +1399,46 @@ void MYSQL_LOG::close(bool exiting)
     if (my_close(log_file.file,MYF(0)) < 0 && ! write_error)
     {
       write_error=1;
-      sql_print_error(ER(ER_ERROR_ON_WRITE),name,errno);
+      sql_print_error(ER(ER_ERROR_ON_WRITE), name, errno);
     }
   }
-  if (exiting && index_file >= 0)
+
+  /*
+    The following test is needed even if is_open() is not set, as we may have
+    called a not complete close earlier and the index file is still open.
+  */
+
+  if (exiting && my_b_inited(&index_file))
   {
-    if (my_close(index_file,MYF(0)) < 0 && ! write_error)
+    end_io_cache(&index_file);
+    if (my_close(index_file.file, MYF(0)) < 0 && ! write_error)
     {
-      write_error=1;
-      sql_print_error(ER(ER_ERROR_ON_WRITE),name,errno);
+      write_error= 1;
+      sql_print_error(ER(ER_ERROR_ON_WRITE), index_file_name, errno);
     }
-    index_file=-1;
-    log_type=LOG_CLOSED;
   }
+  log_type= LOG_CLOSED;
   safeFree(name);
+  DBUG_VOID_RETURN;
 }
 
 
 /*
   Check if a string is a valid number
-  Return:
-    TRUE  String is a number
-    FALSE Error
+
+  SYNOPSIS
+    test_if_number()
+    str			String to test
+    res			Store value here
+    allow_wildcards	Set to 1 if we should ignore '%' and '_'
+
+  NOTE
+    For the moment the allow_wildcards argument is not used
+    Should be move to some other file.
+
+  RETURN VALUES
+    1	String is a number
+    0	Error
 */
 
 static bool test_if_number(register const char *str,
@@ -1350,7 +1508,6 @@ void sql_print_error(const char *format,...)
   VOID(pthread_mutex_unlock(&LOCK_error_log));
   DBUG_VOID_RETURN;
 }
-
 
 
 void sql_perror(const char *message)

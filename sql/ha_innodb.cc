@@ -284,10 +284,9 @@ innobase_mysql_print_thd(
   	thd = (THD*) input_thd;
 
 	/*  We can't use value of sprintf() as this is not portable */
-  	sprintf(buf, "MySQL thread id %lu, query id %lu",
-		thd->thread_id, thd->query_id);
-	buf=strend(buf);
-
+  	buf+= my_sprintf(buf,
+			 (buf, "MySQL thread id %lu, query id %lu",
+			  thd->thread_id, thd->query_id));
     	if (thd->host)
 	{
 	  *buf++=' ';
@@ -309,7 +308,7 @@ innobase_mysql_print_thd(
   	if (thd->proc_info)
 	{
 	  *buf++=' ';
-	  buf=strnmov(buf, thd->procinfo, 50);
+	  buf=strnmov(buf, thd->proc_info, 50);
   	}
 
   	if (thd->query)
@@ -610,17 +609,20 @@ innobase_commit_low(
 /*================*/
 	trx_t*	trx)	/* in: transaction handle */
 {
-	if (current_thd->slave_thread) {
-
-		/* Update the replication position info inside InnoDB */
-	
-		trx->mysql_master_log_file_name = glob_mi.log_file_name;
-		trx->mysql_master_log_pos = (ib_longlong)
-					(glob_mi.pos + glob_mi.event_len
-					+ glob_mi.pending);
-	}
-
-	trx_commit_for_mysql(trx);
+  if (current_thd->slave_thread)
+  {
+    /* Update the replication position info inside InnoDB */
+#ifdef NEED_TO_BE_FIXED	  
+    trx->mysql_relay_log_file_name=	active_mi->rli.log_file_name;
+    trx->mysql_relay_log_pos=		active_mi->rli.relay_log_pos;
+#endif
+    trx->mysql_master_log_file_name=	active_mi->rli.master_log_name;
+    trx->mysql_master_log_pos=		((ib_longlong)
+					 (active_mi->rli.master_log_pos +
+					  active_mi->rli.event_len +
+					  active_mi->rli.pending));
+  }
+  trx_commit_for_mysql(trx);
 }
 
 /*********************************************************************
@@ -3176,8 +3178,9 @@ ha_innobase::update_table_comment(
     		*pos++=' ';
   	}
 
-  	pos += sprintf(pos, "InnoDB free: %lu kB",
-					(ulong) innobase_get_free_space());
+  	pos += my_sprintf(pos,
+			  (pos,"InnoDB free: %lu kB",
+			   (ulong) innobase_get_free_space()));
 
 	/* We assume 450 - length bytes of space to print info */
   

@@ -28,6 +28,7 @@ TODO:
 
 #include "mysql_priv.h"
 #include <hash.h>
+#include <assert.h>
 
 extern HASH open_cache;
 
@@ -427,6 +428,7 @@ int lock_table_name(THD *thd, TABLE_LIST *table_list)
   char  key[MAX_DBKEY_LENGTH];
   uint  key_length;
   DBUG_ENTER("lock_table_name");
+  safe_mutex_assert_owner(&LOCK_open);
 
   key_length=(uint) (strmov(strmov(key,table_list->db)+1,table_list->name)
 		     -key)+ 1;
@@ -486,6 +488,7 @@ bool wait_for_locked_table_names(THD *thd, TABLE_LIST *table_list)
 {
   bool result=0;
   DBUG_ENTER("wait_for_locked_table_names");
+  safe_mutex_assert_owner(&LOCK_open);
 
   while (locked_named_table(thd,table_list))
   {

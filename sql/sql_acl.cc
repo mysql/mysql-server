@@ -497,10 +497,14 @@ ulong acl_getroot(THD *thd, const char *host, const char *ip, const char *user,
   ulong user_access=NO_ACCESS;
   *priv_user=(char*) user;
   char *ptr=0;
+  DBUG_ENTER("acl_getroot");
 
   bzero(mqh,sizeof(USER_RESOURCES));
   if (!initialized)
-    return (ulong) ~NO_ACCESS;			// If no data allow anything /* purecov: tested */
+  {
+    // If no data allow anything
+    DBUG_RETURN((ulong) ~NO_ACCESS);		/* purecov: tested */
+  }
   VOID(pthread_mutex_lock(&acl_cache->lock));
 
   /*
@@ -616,7 +620,7 @@ ulong acl_getroot(THD *thd, const char *host, const char *ip, const char *user,
     }
   }
   VOID(pthread_mutex_unlock(&acl_cache->lock));
-  return user_access;
+  DBUG_RETURN(user_access);
 }
 
 
@@ -1053,15 +1057,14 @@ bool change_password(THD *thd, const char *host, const char *user,
   VOID(pthread_mutex_unlock(&acl_cache->lock));
 
   char buff[460];
-
-  Query_log_event qinfo(thd, buff);
-  qinfo.q_len =
+  ulong query_length=
     my_sprintf(buff,
 	       (buff,"SET PASSWORD FOR \"%-.120s\"@\"%-.120s\"=\"%-.120s\"",
 		acl_user->user ? acl_user->user : "",
 		acl_user->host.hostname ? acl_user->host.hostname : "",
 		new_password));
-  mysql_update_log.write(thd,buff,qinfo.q_len);
+  mysql_update_log.write(thd, buff, query_length);
+  Query_log_event qinfo(thd, buff, query_length);
   mysql_bin_log.write(&qinfo);
   DBUG_RETURN(0);
 }

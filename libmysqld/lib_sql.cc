@@ -459,17 +459,18 @@ int STDCALL mysql_server_init(int argc, char **argv, char **groups)
 
   /* Setup log files */
   if (opt_log)
-    open_log(&mysql_log, glob_hostname, opt_logname, ".log", LOG_NORMAL);
+    open_log(&mysql_log, glob_hostname, opt_logname, ".log", NullS,
+	     LOG_NORMAL);
   if (opt_update_log)
   {
     open_log(&mysql_update_log, glob_hostname, opt_update_logname, "",
-	     LOG_NEW);
+	     NullS, LOG_NEW);
     using_update_log=1;
   }
 
   if (opt_slow_log)
     open_log(&mysql_slow_log, glob_hostname, opt_slow_logname, "-slow.log",
-	     LOG_NORMAL);
+	     NullS, LOG_NORMAL);
   if (ha_init())
   {
     sql_print_error("Can't init databases");
@@ -532,9 +533,8 @@ int STDCALL mysql_server_init(int argc, char **argv, char **groups)
       strmov(strcend(tmp,'.'),"-bin");
       opt_bin_logname=my_strdup(tmp,MYF(MY_WME));
     }
-    mysql_bin_log.set_index_file_name(opt_binlog_index_name);
     open_log(&mysql_bin_log, glob_hostname, opt_bin_logname, "-bin",
-	     LOG_BIN);
+	     opt_binlog_index_name, LOG_BIN);
     using_update_log=1;
   }
 

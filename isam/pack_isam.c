@@ -1959,7 +1959,7 @@ static void save_state(N_INFO *isam_file,MRG_INFO *mrg,my_off_t new_length,
   isam_file->update|=(HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
   isam_file->this_uniq=crc;		/* Save crc here */
   share->changed=1;			/* Force write of header */
-  VOID(my_chsize(share->kfile,share->state.key_file_length,
+  VOID(my_chsize(share->kfile, share->state.key_file_length, 0,
 		 MYF(0)));
   if (share->state.keys != share->base.keys)
     isamchk_neaded=1;

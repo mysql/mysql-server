@@ -199,7 +199,7 @@ MYSQL *mc_mysql_init(MYSQL *mysql)
 #ifdef __WIN__
   mysql->options.connect_timeout=20;
 #endif
-  mysql->net.timeout = slave_net_timeout;
+  mysql->net.read_timeout = slave_net_timeout;
   return mysql;
 }
 
@@ -416,7 +416,9 @@ my_bool mc_mysql_reconnect(MYSQL *mysql)
 			mysql->client_flag, mysql->net.read_timeout))
     {
       tmp_mysql.reconnect=0;
-      mc_mysql_close(&tmp_mysql); 
+      mc_mysql_close(&tmp_mysql);
+      mysql->net.last_errno=CR_SERVER_GONE_ERROR;
+      strmov(mysql->net.last_error,ER(mysql->net.last_errno));
       DBUG_RETURN(1);
     }
   tmp_mysql.free_me=mysql->free_me;
@@ -507,11 +509,12 @@ mc_mysql_connect(MYSQL *mysql,const char *host, const char *user,
   struct	sockaddr_un UNIXaddr;
 #endif
   DBUG_ENTER("mc_mysql_connect");
-
-  DBUG_PRINT("enter",("host: %s  db: %s  user: %s",
+  DBUG_PRINT("enter",("host: %s  db: %s  user: %s  connect_time_out: %u  read_timeout: %u",
 		      host ? host : "(Null)",
 		      db ? db : "(Null)",
-		      user ? user : "(Null)"));
+		      user ? user : "(Null)",
+		      net_read_timeout,
+		      (uint) slave_net_timeout));
   thr_alarm_init(&alarmed);
   thr_alarm(&alarmed, net_read_timeout, &alarm_buff);
 
@@ -655,7 +658,7 @@ mc_mysql_connect(MYSQL *mysql,const char *host, const char *user,
     goto error;
   }
   vio_keepalive(net->vio,TRUE);
-  net->timeout=slave_net_timeout;
+  net->read_timeout=slave_net_timeout;
   /* Get version info */
   mysql->protocol_version= PROTOCOL_VERSION;	/* Assume this */
   if ((pkt_length=mc_net_safe_read(mysql)) == packet_error)

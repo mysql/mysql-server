@@ -24,7 +24,7 @@
 #include <assert.h>
 
 #ifdef HAVE_INNOBASE_DB
-#include "ha_innobase.h"
+#include "ha_innodb.h"
 #endif
 
 #ifdef HAVE_OPENSSL
@@ -1428,13 +1428,16 @@ mysql_execute_command(void)
   case SQLCOM_LOAD_MASTER_DATA: // sync with master
     if (check_global_access(thd, SUPER_ACL))
       goto error;
-    res = load_master_data(thd);
+    if (end_active_trans(thd))
+      res= -1;
+    else
+      res = load_master_data(thd);
     break;
     
 #ifdef HAVE_INNOBASE_DB
   case SQLCOM_SHOW_INNODB_STATUS:
     {
-      if (check_process_priv(thd))
+      if (check_global_access(thd, SUPER_ACL))
 	goto error;
       res = innodb_show_status(thd);
       break;
@@ -2319,7 +2322,7 @@ mysql_execute_command(void)
 	mysql_update_log.write(thd, thd->query, thd->query_length);
 	if (mysql_bin_log.is_open())
 	{
-	  Query_log_event qinfo(thd, thd->query);
+	  Query_log_event qinfo(thd, thd->query, thd->query_length);
 	  mysql_bin_log.write(&qinfo);
 	}
       }
@@ -2339,7 +2342,7 @@ mysql_execute_command(void)
 	mysql_update_log.write(thd, thd->query, thd->query_length);
 	if (mysql_bin_log.is_open())
 	{
-	  Query_log_event qinfo(thd, thd->query);
+	  Query_log_event qinfo(thd, thd->query, thd->query_length);
 	  mysql_bin_log.write(&qinfo);
 	}
 	if (mqh_used && lex->sql_command == SQLCOM_GRANT)
@@ -3325,8 +3328,6 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables)
   bool result=0;
 
   select_errors=0;				/* Write if more errors */
-  // TODO: figure out what's up with the commented out line below
-  // mysql_log.flush();				// Flush log
   if (options & REFRESH_GRANT)
   {
     acl_reload();
@@ -3382,7 +3383,7 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables)
  if (options & REFRESH_SLAVE)
  {
    LOCK_ACTIVE_MI;
-   if (reset_slave(active_mi))
+   if (reset_slave(thd, active_mi))
      result=1;
    UNLOCK_ACTIVE_MI;
  }

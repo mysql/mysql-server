@@ -275,40 +275,11 @@ int ha_commit_trans(THD *thd, THD_TRANS* trans)
   {
     bool operation_done= 0;
     bool transaction_commited= 0;
+
     /* Update the binary log if we have cached some queries */
     if (trans == &thd->transaction.all && mysql_bin_log.is_open() &&
 	my_b_tell(&thd->transaction.trans_log))
     {
-      /* We write the command "COMMIT" as the last SQL command in the
-      binlog segment cached for this transaction */
-
-      int save_query_length = thd->query_length;
-
-      thd->query_length = 6; /* length of 'COMMIT'; note that we may come
-      				here because a DROP TABLE, for instance,
-      				makes an implicit commit, and then
-      				thd->query is not 'COMMIT'! */
-      
-      Query_log_event qinfo(thd, "COMMIT", TRUE);
-
-      /* When we come here, and the user wrapped the transaction into
-      BEGIN and COMMIT, then qinfo got above the field cache_stmt
-      erroneously set to 0. Let us set it to 1: */
-
-      qinfo.cache_stmt = 1;
-
-      /* Write the 'COMMIT' entry to the cache */
-
-      if (mysql_bin_log.write(&qinfo)) {
-	  my_error(ER_ERROR_DURING_COMMIT, MYF(0), 5000);
-	  error=1;
-      }
-
-      thd->query_length = save_query_length;
-      
-      /* Now we write the binlog segment cached for this transaction to
-      the real binlog */
-      
       mysql_bin_log.write(thd, &thd->transaction.trans_log);
       reinit_io_cache(&thd->transaction.trans_log,
 		      WRITE_CACHE, (my_off_t) 0, 0, 1);

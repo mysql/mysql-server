@@ -5781,7 +5781,6 @@ remove_duplicates(JOIN *join, TABLE *entry,List<Item> &fields, Item *having)
   ulong reclength,offset;
   uint field_count;
   THD *thd= current_thd;
-
   DBUG_ENTER("remove_duplicates");
 
   entry->reginfo.lock_type=TL_WRITE;

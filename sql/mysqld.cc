@@ -252,15 +252,15 @@ bool opt_skip_slave_start = 0; // If set, slave is not autostarted
 */
 bool opt_reckless_slave = 0; 
 
-ulong back_log, connect_timeout;
+ulong back_log, connect_timeout, concurrency;
 char mysql_home[FN_REFLEN], pidfile_name[FN_REFLEN], time_zone[30];
 bool opt_log, opt_update_log, opt_bin_log, opt_slow_log;
 bool opt_disable_networking=0, opt_skip_show_db=0;
-my_bool opt_local_infile, opt_external_locking;
+my_bool opt_local_infile, opt_external_locking, opt_slave_compressed_protocol;
 
 static bool opt_do_pstack = 0;
 static ulong opt_specialflag=SPECIAL_ENGLISH;
-static ulong concurrency;
+
 static ulong opt_myisam_block_size;
 static my_socket unix_sock= INVALID_SOCKET,ip_sock= INVALID_SOCKET;
 static my_string opt_logname=0,opt_update_logname=0,
@@ -1428,6 +1428,17 @@ static void init_signals(void)
     sigaction(SIGILL, &sa, NULL);
     sigaction(SIGFPE, &sa, NULL);
   }
+
+#ifdef HAVE_GETRLIMIT
+  if (test_flags & TEST_CORE_ON_SIGNAL)
+  {
+    /* Change limits so that we will get a core file */
+    struct rlimit rl;
+    rl.rlim_cur = rl.rlim_max = RLIM_INFINITY;
+    if (setrlimit(RLIMIT_CORE, &rl))
+      sql_print_error("Warning: setrlimit could not change the size of core files to 'infinity';  We may not be able to generate a core file on signals");
+  }
+#endif
   (void) sigemptyset(&set);
 #ifdef THREAD_SPECIFIC_SIGPIPE
   sigset(SIGPIPE,abort_thread);
@@ -1701,10 +1712,11 @@ const char *load_default_groups[]= { "mysqld","server",0 };
 char *libwrapName=NULL;
 #endif
 
-void open_log(MYSQL_LOG *log, const char *hostname,
-		     const char *opt_name, const char *extension,
-		     enum_log_type type, bool read_append,
-	             bool no_auto_events)
+bool open_log(MYSQL_LOG *log, const char *hostname,
+	      const char *opt_name, const char *extension,
+	      const char *index_file_name,
+	      enum_log_type type, bool read_append,
+	      bool no_auto_events)
 {
   char tmp[FN_REFLEN];
   if (!opt_name || !opt_name[0])
@@ -1728,8 +1740,9 @@ void open_log(MYSQL_LOG *log, const char *hostname,
       opt_name=tmp;
     }
   }
-  log->open(opt_name,type,0,(read_append) ? SEQ_READ_APPEND : WRITE_CACHE,
-	    no_auto_events);
+  return log->open(opt_name, type, 0, index_file_name,
+		   (read_append) ? SEQ_READ_APPEND : WRITE_CACHE,
+		   no_auto_events);
 }
 
 
@@ -1939,17 +1952,18 @@ int main(int argc, char **argv)
 
   /* Setup log files */
   if (opt_log)
-    open_log(&mysql_log, glob_hostname, opt_logname, ".log", LOG_NORMAL);
+    open_log(&mysql_log, glob_hostname, opt_logname, ".log", NullS,
+	     LOG_NORMAL);
   if (opt_update_log)
   {
     open_log(&mysql_update_log, glob_hostname, opt_update_logname, "",
-	     LOG_NEW);
+	     NullS, LOG_NEW);
     using_update_log=1;
   }
  
   if (opt_slow_log)
     open_log(&mysql_slow_log, glob_hostname, opt_slow_logname, "-slow.log",
-	     LOG_NORMAL);
+	     NullS, LOG_NORMAL);
 #ifdef __WIN__
 #define MYSQL_ERR_FILE "mysql.err"
   if (!opt_console)
@@ -2051,9 +2065,8 @@ The server will not act as a slave.");
       strmov(strcend(tmp,'.'),"-bin");
       opt_bin_logname=my_strdup(tmp,MYF(MY_WME));
     }
-    mysql_bin_log.set_index_file_name(opt_binlog_index_name);
     open_log(&mysql_bin_log, glob_hostname, opt_bin_logname, "-bin",
-	     LOG_BIN);
+	     opt_binlog_index_name,LOG_BIN);
     using_update_log=1;
   }
 
@@ -2353,13 +2366,7 @@ static void create_new_thread(THD *thd)
     delete thd;
     DBUG_VOID_RETURN;
   }
-  if (pthread_mutex_lock(&LOCK_thread_count))
-  {
-    DBUG_PRINT("error",("Can't lock LOCK_thread_count"));
-    close_connection(net,ER_OUT_OF_RESOURCES);
-    delete thd;
-    DBUG_VOID_RETURN;
-  }
+  pthread_mutex_lock(&LOCK_thread_count);
   if (thread_count-delayed_insert_threads > max_used_connections)
     max_used_connections=thread_count-delayed_insert_threads;
   thd->thread_id=thread_id++;
@@ -2818,7 +2825,7 @@ enum options {
   OPT_QUERY_CACHE_LIMIT, OPT_QUERY_CACHE_SIZE,
   OPT_QUERY_CACHE_TYPE, OPT_RECORD_BUFFER,
   OPT_RECORD_RND_BUFFER, OPT_RELAY_LOG_SPACE_LIMIT,
-  OPT_SLAVE_NET_TIMEOUT, OPT_SLOW_LAUNCH_TIME,
+  OPT_SLAVE_NET_TIMEOUT, OPT_SLAVE_COMPRESSED_PROTOCOL, OPT_SLOW_LAUNCH_TIME,
   OPT_SORT_BUFFER, OPT_TABLE_CACHE,
   OPT_THREAD_CONCURRENCY, OPT_THREAD_CACHE_SIZE,
   OPT_TMP_TABLE_SIZE, OPT_THREAD_STACK,
@@ -2968,8 +2975,9 @@ struct my_option my_long_options[] =
    0, 0, 0, 0, 0, 0},
   {"innodb_flush_log_at_trx_commit", OPT_INNODB_FLUSH_LOG_AT_TRX_COMMIT,
    "Set to 0 if you don't want to flush logs",
-   &innobase_flush_log_at_trx_commit, &innobase_flush_log_at_trx_commit,
-   0, GET_LONG, OPT_ARG,  0, 0, 10, 0, 0, 0},
+   (gptr*) &innobase_flush_log_at_trx_commit,
+   (gptr*) &innobase_flush_log_at_trx_commit,
+   0, GET_BOOL, OPT_ARG,  0, 0, 0, 0, 0, 0},
   {"innodb_flush_method", OPT_INNODB_FLUSH_METHOD,
    "With which method to flush data", (gptr*) &innobase_unix_file_flush_method,
    (gptr*) &innobase_unix_file_flush_method, 0, GET_STR, REQUIRED_ARG, 0, 0, 0,
@@ -3047,7 +3055,7 @@ struct my_option my_long_options[] =
   {"master-retry-count", OPT_MASTER_RETRY_COUNT,
    "The number of tries the slave will make to connect to the master before giving up.",
    (gptr*) &master_retry_count, (gptr*) &master_retry_count, 0, GET_ULONG,
-   REQUIRED_ARG, 60, 0, 0, 0, 0, 0},
+   REQUIRED_ARG, 3600*24, 0, 0, 0, 0, 0},
   {"master-info-file", OPT_MASTER_INFO_FILE,
    "The location of the file that remembers where we left off on the master during the replication process. The default is `master.info' in the data directory. You should not need to change this.",
    (gptr*) &master_info_file, (gptr*) &master_info_file, 0, GET_STR,
@@ -3330,7 +3338,7 @@ struct my_option my_long_options[] =
   { "ft_min_word_len", OPT_FT_MIN_WORD_LEN,
     "The minimum length of the word to be included in a FULLTEXT index. Note: FULLTEXT indexes must be rebuilt after changing this variable.",
     (gptr*) &ft_min_word_len, (gptr*) &ft_min_word_len, 0, GET_ULONG,
-    REQUIRED_ARG, 4, 1, HA_FT_MAXLEN, 0, 1, 0},
+    REQUIRED_ARG, 4, 2, HA_FT_MAXLEN, 0, 1, 0},
   { "ft_max_word_len", OPT_FT_MAX_WORD_LEN,
     "The maximum length of the word to be included in a FULLTEXT index. Note: FULLTEXT indexes must be rebuilt after changing this variable.",
     (gptr*) &ft_max_word_len, (gptr*) &ft_max_word_len, 0, GET_ULONG,
@@ -3548,6 +3556,11 @@ struct my_option my_long_options[] =
    "Undocumented", (gptr*) &relay_log_space_limit,
    (gptr*) &relay_log_space_limit, 0, GET_ULONG, REQUIRED_ARG, 0L, 0L,
    (longlong) ULONG_MAX, 0, 1, 0},
+  {"slave_compressed_protocol", OPT_SLAVE_COMPRESSED_PROTOCOL,
+   "Use compression on master/slave protocol",
+   (gptr*) &opt_slave_compressed_protocol,
+   (gptr*) &opt_slave_compressed_protocol,
+   0, GET_BOOL, REQUIRED_ARG, 0, 0, 1, 0, 1, 0},
   {"slave_net_timeout", OPT_SLAVE_NET_TIMEOUT,
    "Number of seconds to wait for more data from a master/slave connection before aborting the read.",
    (gptr*) &slave_net_timeout, (gptr*) &slave_net_timeout, 0,

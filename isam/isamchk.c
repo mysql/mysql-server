@@ -1552,7 +1552,7 @@ my_string name;
   {
     VOID(fputs("          \r",stdout)); VOID(fflush(stdout));
   }
-  if (my_chsize(share->kfile,share->state.key_file_length,MYF(0)))
+  if (my_chsize(share->kfile, share->state.key_file_length, 0, MYF(0)))
   {
     print_warning("Can't change size of indexfile, error: %d",my_errno);
     goto err;
@@ -2514,10 +2514,10 @@ my_string name;
       skr=share->base.reloc*share->base.min_pack_length;
 #endif
     if (skr != sort_info.filelength)
-      if (my_chsize(info->dfile,skr,MYF(0)))
+      if (my_chsize(info->dfile, skr, 0, MYF(0)))
 	print_warning("Can't change size of datafile,  error: %d",my_errno);
   }
-  if (my_chsize(share->kfile,share->state.key_file_length,MYF(0)))
+  if (my_chsize(share->kfile, share->state.key_file_length, 0, MYF(0)))
     print_warning("Can't change size of indexfile, error: %d",my_errno);
 
   if (!(testflag & T_SILENT))

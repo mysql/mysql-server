@@ -556,7 +556,7 @@ extern void init_glob_errs(void);
 extern FILE *my_fopen(const char *FileName,int Flags,myf MyFlags);
 extern FILE *my_fdopen(File Filedes,const char *name, int Flags,myf MyFlags);
 extern int my_fclose(FILE *fd,myf MyFlags);
-extern int my_chsize(File fd,my_off_t newlength,myf MyFlags);
+extern int my_chsize(File fd,my_off_t newlength, int filler, myf MyFlags);
 extern int my_error _VARARGS((int nr,myf MyFlags, ...));
 extern int my_printf_error _VARARGS((uint my_err, const char *format,
 				     myf MyFlags, ...)
@@ -678,6 +678,7 @@ extern int end_io_cache(IO_CACHE *info);
 extern uint my_b_fill(IO_CACHE *info);
 extern void my_b_seek(IO_CACHE *info,my_off_t pos);
 extern uint my_b_gets(IO_CACHE *info, char *to, uint max_length);
+extern my_off_t my_b_filelength(IO_CACHE *info);
 extern uint my_b_printf(IO_CACHE *info, const char* fmt, ...);
 extern uint my_b_vprintf(IO_CACHE *info, const char* fmt, va_list ap);
 extern my_bool open_cached_file(IO_CACHE *cache,const char *dir,
