@@ -1,6 +1,6 @@
 ## Process this file with automake to create Makefile.in
 
-extra_DIST= errmsg.txt
+EXTRA_DIST= errmsg.txt
 
 dist-hook:
 	for dir in charsets @AVAILABLE_LANGUAGES@; do \
