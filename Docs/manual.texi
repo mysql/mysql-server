@@ -14341,7 +14341,7 @@ privilege.
 
 @item --skip-stack-trace
 Don't write stack traces.  This option is useful when you are running
-@code{mysqld} under a debugger. On some system you also have to use
+@code{mysqld} under a debugger. On some systems you also have to use
 this option to get a core file. @xref{Debugging server}.
 
 @item --skip-thread-priority
@@ -22662,9 +22662,12 @@ Overrides option --databases (-B).
 @item  -T, --tab=path-to-some-directory
 Creates a @code{table_name.sql} file, that contains the SQL CREATE commands,
 and a @code{table_name.txt} file, that contains the data, for each give table.
-@strong{Note}: This only works if @code{mysqldump} is run on the same
-machine as the @code{mysqld} daemon.  The format of the @file{.txt} file
-is made according to the @code{--fields-xxx} and @code{--lines--xxx} options.
+The format of the @file{.txt} file is made according to the
+@code{--fields-xxx} and @code{--lines--xxx} options.
+@strong{Note}: This option only works if @code{mysqldump} is run on the same
+machine as the @code{mysqld} daemon, and the user/group that @code{mysqld}
+is running as (normally user @code{mysql}, group @code{mysql}) needs to have
+permission to create/write a file at the location you specify.
 @item -u user_name, --user=user_name
 The MySQL user name to use when connecting to the server. The
 default value is your Unix login name.
@@ -49339,6 +49342,9 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 @appendixsubsec Changes in release 4.0.2
 
 @itemize @bullet
+@item
+Fixed that @code{ALTER TABLE table_name RENAME new_table_name} is as fast
+as @code{RENAME TABLE}.
 @item
 Fixed bug in @code{GROUP BY} with two or more fields, where at least one
 field can contain @code{NULL} values.
