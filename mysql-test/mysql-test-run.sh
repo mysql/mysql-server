@@ -194,8 +194,8 @@ MY_LOG_DIR="$MYSQL_TEST_DIR/var/log"
 #
 # Set LD_LIBRARY_PATH if we are using shared libraries
 #
-LD_LIBRARY_PATH="$BASEDIR/lib:$BASEDIR/libmysql/.libs:$LD_LIBRARY_PATH"
-DYLD_LIBRARY_PATH="$BASEDIR/lib:$BASEDIR/libmysql/.libs:$DYLD_LIBRARY_PATH"
+LD_LIBRARY_PATH="$BASEDIR/lib:$BASEDIR/libmysql/.libs:$BASEDIR/zlib/.libs:$LD_LIBRARY_PATH"
+DYLD_LIBRARY_PATH="$BASEDIR/lib:$BASEDIR/libmysql/.libs:$BASEDIR/zlib/.libs:$DYLD_LIBRARY_PATH"
 export LD_LIBRARY_PATH DYLD_LIBRARY_PATH
 
 #
@@ -692,6 +692,7 @@ then
 fi
 
 MYSQL_CLIENT_TEST="$MYSQL_CLIENT_TEST --no-defaults --testcase --user=root --socket=$MASTER_MYSOCK --port=$MYSQL_TCP_PORT --silent"
+MYSQL_DUMP="$MYSQL_DUMP --no-defaults -uroot --socket=$MASTER_MYSOCK --password=$DBPASSWD $EXTRA_MYSQLDUMP_OPT"
 MYSQL_BINLOG="$MYSQL_BINLOG --no-defaults --local-load=$MYSQL_TMP_DIR  --character-sets-dir=$CHARSETSDIR $EXTRA_MYSQLBINLOG_OPT"
 MYSQL_FIX_SYSTEM_TABLES="$MYSQL_FIX_SYSTEM_TABLES --no-defaults --host=localhost --port=$MASTER_MYPORT --socket=$MASTER_MYSOCK --user=root --password=$DBPASSWD --basedir=$BASEDIR --bindir=$CLIENT_BINDIR --verbose"
 MYSQL="$MYSQL --host=localhost --port=$MASTER_MYPORT --socket=$MASTER_MYSOCK --user=root --password=$DBPASSWD"
@@ -1151,8 +1152,7 @@ start_master()
   fi
   if [ -n "$EXTRA_MASTER_MYSQLD_TRACE" ] 
   then
-    EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT \
-        $EXTRA_MASTER_MYSQLD_TRACE$1"
+      CURR_MASTER_MYSQLD_TRACE="$EXTRA_MASTER_MYSQLD_TRACE$1"
   fi
   if [ -z "$DO_BENCH" ]
   then
@@ -1177,7 +1177,7 @@ start_master()
 	   $MASTER_40_ARGS \
            $SMALL_SERVER \
            $EXTRA_MASTER_OPT $EXTRA_MASTER_MYSQLD_OPT \
-           $NOT_FIRST_MASTER_EXTRA_OPTS"
+           $NOT_FIRST_MASTER_EXTRA_OPTS $CURR_MASTER_MYSQLD_TRACE"
   else
     master_args="--no-defaults --log-bin=$MYSQL_TEST_DIR/var/log/master-bin$1 \
           --server-id=$id --rpl-recovery-rank=1 \
