@@ -1831,6 +1831,7 @@ public:
   Unique(qsort_cmp2 comp_func, void *comp_func_fixed_arg,
 	 uint size_arg, ulong max_in_memory_size_arg);
   ~Unique();
+  ulong elements_in_tree() { return tree.elements_in_tree; }
   inline bool unique_add(void *ptr)
   {
     DBUG_ENTER("unique_add");
