@@ -95,7 +95,7 @@ Transporter::connect_client() {
     return true;
   NDB_SOCKET_TYPE sockfd = m_socket_client->connect();
   
-  if (sockfd < 0)
+  if (sockfd == NDB_INVALID_SOCKET)
     return false;
 
   // send info about own id 

@@ -16,8 +16,8 @@
 #define snprintf _snprintf
 #define vsnprintf _vsnprintf
 #define HAVE_STRCASECMP
-#define strcasecmp(a,b) _strcmpi(a,b)
-#define strncasecmp(a,b) _strncmpi(a,b)
+#define strcasecmp _strcmpi
+#define strncasecmp _strncmpi
 #pragma warning(disable: 4503 4786)
 #else
 #undef NDB_WIN32

@@ -22,63 +22,6 @@
 
 class Mutex;
 
-class MutexManager {
-  friend class Mutex;
-  friend class SimulatedBlock;
-  friend class DbUtil;
-public:
-  MutexManager(class SimulatedBlock &);
-  
-  bool setSize(Uint32 maxNoOfActiveMutexes);
-  Uint32 getSize() const ; // Get maxNoOfActiveMutexes
-
-private:
-  /**
-   * core interface
-   */
-  struct ActiveMutex {
-    Uint32 m_gsn; // state
-    Uint32 m_mutexId;
-    Uint32 m_mutexKey;
-    Callback m_callback;
-    union {
-      Uint32 nextPool;
-      Uint32 nextList;
-    };
-    Uint32 prevList;
-  };
-  typedef Ptr<ActiveMutex> ActiveMutexPtr;
-  
-  bool seize(ActiveMutexPtr& ptr);
-  void release(Uint32 activeMutexPtrI);
-  
-  void getPtr(ActiveMutexPtr& ptr);
-  
-  void create(Signal*, ActiveMutexPtr&);
-  void destroy(Signal*, ActiveMutexPtr&);
-  void lock(Signal*, ActiveMutexPtr&);
-  void trylock(Signal*, ActiveMutexPtr&);
-  void unlock(Signal*, ActiveMutexPtr&);
-  
-private:
-  void execUTIL_CREATE_LOCK_REF(Signal* signal);
-  void execUTIL_CREATE_LOCK_CONF(Signal* signal);
-  void execUTIL_DESTORY_LOCK_REF(Signal* signal);
-  void execUTIL_DESTORY_LOCK_CONF(Signal* signal);
-  void execUTIL_LOCK_REF(Signal* signal);
-  void execUTIL_LOCK_CONF(Signal* signal);
-  void execUTIL_UNLOCK_REF(Signal* signal);
-  void execUTIL_UNLOCK_CONF(Signal* signal);
-
-  SimulatedBlock & m_block;
-  ArrayPool<ActiveMutex> m_mutexPool;
-  DLList<ActiveMutex> m_activeMutexes;
-
-  BlockReference reference() const;
-  void progError(int line, int err_code, const char* extra = 0);
-};
-
-
 /**
  * MutexHandle - A "reference" to a mutex
  *             - Should be used together with Mutex
@@ -89,7 +32,7 @@ public:
   MutexHandle(Uint32 id);
   
   bool isNull() const;
-  void release(MutexManager & mgr);
+  void release(SimulatedBlock::MutexManager & mgr);
 
 private:
   const Uint32 m_mutexId;
@@ -106,7 +49,7 @@ public:
   MutexHandle2();
   
   bool isNull() const;
-  void release(MutexManager & mgr);
+  void release(SimulatedBlock::MutexManager & mgr);
 
 private:
   Uint32 m_activeMutexPtrI;
@@ -117,33 +60,34 @@ private:
  */
 class Mutex {
 public:
-  Mutex(Signal*, MutexManager & mgr, MutexHandle &);
+  Mutex(Signal*, SimulatedBlock::MutexManager & mgr, MutexHandle &);
   
   template<Uint32 MutexId>
-  Mutex(Signal*, MutexManager & mgr, MutexHandle2<MutexId> &);
+  Mutex(Signal*, SimulatedBlock::MutexManager & mgr, MutexHandle2<MutexId> &);
   
   ~Mutex();
 
   void release();
   bool isNull() const ;
   
-  bool lock(Callback & callback);
-  bool trylock(Callback & callback);
-  void unlock(Callback & callback);
+  bool lock(SimulatedBlock::Callback & callback);
+  bool trylock(SimulatedBlock::Callback & callback);
+  void unlock(SimulatedBlock::Callback & callback);
   void unlock(); // Ignore callback
   
-  bool create(Callback & callback);
-  bool destroy(Callback & callback);
+  bool create(SimulatedBlock::Callback & callback);
+  bool destroy(SimulatedBlock::Callback & callback);
 
 private:
   Signal* m_signal;
-  MutexManager & m_mgr;
+  SimulatedBlock::MutexManager & m_mgr;
   const Uint32 m_mutexId;
   Uint32 & m_srcPtrI;
-  MutexManager::ActiveMutexPtr m_ptr;
+  SimulatedBlock::MutexManager::ActiveMutexPtr m_ptr;
   
 public:
-  static void release(MutexManager&, Uint32 activePtrI, Uint32 mutexId);
+  static void release(SimulatedBlock::MutexManager&, 
+		      Uint32 activePtrI, Uint32 mutexId);
 };
 
 inline
@@ -159,7 +103,7 @@ MutexHandle::isNull() const {
 
 inline
 void 
-MutexHandle::release(MutexManager & mgr){
+MutexHandle::release(SimulatedBlock::MutexManager & mgr){
   if(!isNull()){
     Mutex::release(mgr, m_activeMutexPtrI, m_mutexId);
     m_activeMutexPtrI = RNIL;
@@ -183,7 +127,7 @@ MutexHandle2<MutexId>::isNull() const {
 template<Uint32 MutexId>
 inline
 void 
-MutexHandle2<MutexId>::release(MutexManager & mgr){
+MutexHandle2<MutexId>::release(SimulatedBlock::MutexManager & mgr){
   if(!isNull()){
     Mutex::release(mgr, m_activeMutexPtrI, MutexId);
     m_activeMutexPtrI = RNIL;
@@ -192,7 +136,8 @@ MutexHandle2<MutexId>::release(MutexManager & mgr){
 
 
 inline
-Mutex::Mutex(Signal* signal, MutexManager & mgr, MutexHandle & mh)
+Mutex::Mutex(Signal* signal, SimulatedBlock::MutexManager & mgr, 
+	     MutexHandle & mh)
   : m_signal(signal),
     m_mgr(mgr),
     m_mutexId(mh.m_mutexId),
@@ -204,7 +149,8 @@ Mutex::Mutex(Signal* signal, MutexManager & mgr, MutexHandle & mh)
 
 template<Uint32 MutexId>
 inline
-Mutex::Mutex(Signal* signal, MutexManager & mgr, MutexHandle2<MutexId> & mh)
+Mutex::Mutex(Signal* signal, SimulatedBlock::MutexManager & mgr, 
+	     MutexHandle2<MutexId> & mh)
   : m_signal(signal),
     m_mgr(mgr),
     m_mutexId(MutexId),
@@ -236,7 +182,7 @@ Mutex::isNull() const {
 
 inline
 bool
-Mutex::lock(Callback & callback){
+Mutex::lock(SimulatedBlock::Callback & callback){
   if(m_ptr.isNull()){
     if(m_mgr.seize(m_ptr)){
       m_ptr.p->m_mutexId = m_mutexId;
@@ -253,7 +199,7 @@ Mutex::lock(Callback & callback){
 
 inline
 bool
-Mutex::trylock(Callback & callback){
+Mutex::trylock(SimulatedBlock::Callback & callback){
   if(m_ptr.isNull()){
     if(m_mgr.seize(m_ptr)){
       m_ptr.p->m_mutexId = m_mutexId;
@@ -270,7 +216,7 @@ Mutex::trylock(Callback & callback){
 
 inline
 void
-Mutex::unlock(Callback & callback){
+Mutex::unlock(SimulatedBlock::Callback & callback){
   if(!m_ptr.isNull()){
     m_mgr.getPtr(m_ptr);
     if(m_ptr.p->m_mutexId == m_mutexId){
@@ -285,7 +231,7 @@ Mutex::unlock(Callback & callback){
 
 inline
 bool
-Mutex::create(Callback & callback){
+Mutex::create(SimulatedBlock::Callback & callback){
   if(m_ptr.isNull()){
     if(m_mgr.seize(m_ptr)){
       m_ptr.p->m_mutexId = m_mutexId;
@@ -302,7 +248,7 @@ Mutex::create(Callback & callback){
 
 inline
 bool
-Mutex::destroy(Callback & callback){
+Mutex::destroy(SimulatedBlock::Callback & callback){
   if(m_ptr.isNull()){
     if(m_mgr.seize(m_ptr)){
       m_ptr.p->m_mutexId = m_mutexId;

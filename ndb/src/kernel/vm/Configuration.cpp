@@ -279,18 +279,18 @@ static char * get_and_validate_path(ndb_mgm_configuration_iterator &iter,
 #ifdef NDB_WIN32
   char* szFilePart;
   if(!GetFullPathName(path, sizeof(buf2), buf2, &szFilePart) ||
-     (GetFileAttributes(buf2) & FILE_ATTRIBUTE_READONLY));
+     (GetFileAttributes(buf2) & FILE_ATTRIBUTE_READONLY))
 #else
   if((::realpath(path, buf2) == NULL)||
        (::access(buf2, W_OK) != 0))
 #endif
   {
-	ERROR_SET(fatal, AFS_ERROR_INVALIDPATH, path, " Filename::init()");
-      }
-
+    ERROR_SET(fatal, AFS_ERROR_INVALIDPATH, path, " Filename::init()");
+  }
+  
   if (strcmp(&buf2[strlen(buf2) - 1], DIR_SEPARATOR))
     strcat(buf2, DIR_SEPARATOR);
-
+  
   return strdup(buf2);
 }
 
