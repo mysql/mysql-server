@@ -100,7 +100,8 @@ scan_again:
 			if (buf_debug_prints) {
 				printf(
 				"Dropping space %lu page %lu\n",
-					block->space, block->offset);
+					(ulong) block->space,
+				        (ulong) block->offset);
 			}
 
 			if (block->is_hashed) {
@@ -209,7 +210,8 @@ buf_LRU_search_and_free_block(
 			if (buf_debug_prints) {
 				printf(
 				"Putting space %lu page %lu to free list\n",
-					block->space, block->offset);
+					(ulong) block->space,
+				        (ulong) block->offset);
 			}
 			buf_LRU_block_remove_hashed_page(block);
 
@@ -329,7 +331,7 @@ loop:
 "InnoDB: the buffer pool bigger?\n"
 "InnoDB: Starting the InnoDB Monitor to print diagnostics, including\n"
 "InnoDB: lock heap and hash index sizes.\n",
-		buf_pool->curr_size / (1024 * 1024 / UNIV_PAGE_SIZE));
+			(ulong) (buf_pool->curr_size / (1024 * 1024 / UNIV_PAGE_SIZE)));
 
 		srv_print_innodb_monitor = TRUE;
 
@@ -396,7 +398,7 @@ loop:
 		"InnoDB: Warning: difficult to find free blocks from\n"
 		"InnoDB: the buffer pool (%lu search iterations)! Consider\n"
 		"InnoDB: increasing the buffer pool size.\n",
-						n_iterations);
+						(ulong) n_iterations);
 		fprintf(stderr,
 		"InnoDB: It is also possible that in your Unix version\n"
 		"InnoDB: fsync is very slow, or completely frozen inside\n"
@@ -406,11 +408,13 @@ loop:
 
 		fprintf(stderr,
 		"InnoDB: Pending flushes (fsync) log: %lu; buffer pool: %lu\n",
-	       			fil_n_pending_log_flushes,
-				fil_n_pending_tablespace_flushes);
+			(ulong) fil_n_pending_log_flushes,
+			(ulong) fil_n_pending_tablespace_flushes);
 		fprintf(stderr,
 	"InnoDB: %lu OS file reads, %lu OS file writes, %lu OS fsyncs\n",
-			os_n_file_reads, os_n_file_writes, os_n_fsyncs);
+			(ulong) os_n_file_reads,
+			(ulong) os_n_file_writes,
+			(ulong) os_n_fsyncs);
 
 		fprintf(stderr,
 		"InnoDB: Starting InnoDB Monitor to print further\n"
@@ -820,15 +824,15 @@ buf_LRU_block_remove_hashed_page(
         if (block != buf_page_hash_get(block->space, block->offset)) {
                 fprintf(stderr,
 "InnoDB: Error: page %lu %lu not found from the hash table\n",
-                                 block->space,
-                                block->offset);
+			(ulong) block->space,
+			(ulong) block->offset);
                 if (buf_page_hash_get(block->space, block->offset)) {
                         fprintf(stderr,
 "InnoDB: From hash table we find block %lx of %lu %lu which is not %lx\n",
-                (ulint)buf_page_hash_get(block->space, block->offset),
-                        buf_page_hash_get(block->space, block->offset)->space,
-                        buf_page_hash_get(block->space, block->offset)->offset,
-                        (ulint)block);
+                (ulong) buf_page_hash_get(block->space, block->offset),
+                (ulong) buf_page_hash_get(block->space, block->offset)->space,
+                (ulong) buf_page_hash_get(block->space, block->offset)->offset,
+		(ulong) block);
                 }
 
                 buf_print();
@@ -949,7 +953,7 @@ buf_LRU_print(void)
 	ut_ad(buf_pool);
 	mutex_enter(&(buf_pool->mutex));
 
-	printf("Pool ulint clock %lu\n", buf_pool->ulint_clock);
+	printf("Pool ulint clock %lu\n", (ulong) buf_pool->ulint_clock);
 
 	block = UT_LIST_GET_FIRST(buf_pool->LRU);
 
@@ -957,18 +961,18 @@ buf_LRU_print(void)
 
 	while (block != NULL) {
 
-		printf("BLOCK %lu ", block->offset);
+		printf("BLOCK %lu ", (ulong) block->offset);
 
 		if (block->old) {
 			printf("old ");
 		}
 
 		if (block->buf_fix_count) {
-			printf("buffix count %lu ", block->buf_fix_count);
+			printf("buffix count %lu ", (ulong) block->buf_fix_count);
 		}
 
 		if (block->io_fix) {
-			printf("io_fix %lu ", block->io_fix);
+			printf("io_fix %lu ", (ulong) block->io_fix);
 		}
 
 		if (ut_dulint_cmp(block->oldest_modification,
@@ -976,12 +980,12 @@ buf_LRU_print(void)
 			printf("modif. ");
 		}
 
-		printf("LRU pos %lu ", block->LRU_position);
+		printf("LRU pos %lu ", (ulong) block->LRU_position);
 		
 		frame = buf_block_get_frame(block);
 
-		printf("type %lu ", fil_page_get_type(frame));
-		printf("index id %lu ", ut_dulint_get_low(
+		printf("type %lu ", (ulong) fil_page_get_type(frame));
+		printf("index id %lu ", (ulong) ut_dulint_get_low(
 					btr_page_get_index_id(frame)));
 
 		block = UT_LIST_GET_NEXT(LRU, block);

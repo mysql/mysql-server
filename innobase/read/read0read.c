@@ -234,16 +234,16 @@ read_view_print(
 	ulint	i;
 	
 	fprintf(stderr, "Read view low limit trx n:o %lu %lu\n",
-			ut_dulint_get_high(view->low_limit_no),
-			ut_dulint_get_low(view->low_limit_no));
+			(ulong) ut_dulint_get_high(view->low_limit_no),
+			(ulong) ut_dulint_get_low(view->low_limit_no));
 
 	fprintf(stderr, "Read view up limit trx id %lu %lu\n",
-			ut_dulint_get_high(view->up_limit_id),
-			ut_dulint_get_low(view->up_limit_id));		
+			(ulong) ut_dulint_get_high(view->up_limit_id),
+			(ulong) ut_dulint_get_low(view->up_limit_id));		
 
 	fprintf(stderr, "Read view low limit trx id %lu %lu\n",
-			ut_dulint_get_high(view->low_limit_id),
-			ut_dulint_get_low(view->low_limit_id));
+			(ulong) ut_dulint_get_high(view->low_limit_id),
+			(ulong) ut_dulint_get_low(view->low_limit_id));
 
 	fprintf(stderr, "Read view individually stored trx ids:\n");
 
@@ -251,7 +251,7 @@ read_view_print(
 
 	for (i = 0; i < n_ids; i++) {
 		fprintf(stderr, "Read view trx id %lu %lu\n",
-			ut_dulint_get_high(read_view_get_nth_trx_id(view, i)),
-			ut_dulint_get_low(read_view_get_nth_trx_id(view, i)));
+			(ulong) ut_dulint_get_high(read_view_get_nth_trx_id(view, i)),
+			(ulong) ut_dulint_get_low(read_view_get_nth_trx_id(view, i)));
 	}
 }

@@ -1589,26 +1589,26 @@ trx_print(
         char*   start_of_line;
 
         buf += sprintf(buf, "TRANSACTION %lu %lu",
-		ut_dulint_get_high(trx->id),
-		 ut_dulint_get_low(trx->id));
+		(ulong) ut_dulint_get_high(trx->id),
+		 (ulong) ut_dulint_get_low(trx->id));
 
   	switch (trx->conc_state) {
   		case TRX_NOT_STARTED:         buf += sprintf(buf,
 						", not started"); break;
   		case TRX_ACTIVE:              buf += sprintf(buf,
 						", ACTIVE %lu sec",
-			 (ulint)difftime(time(NULL), trx->start_time)); break;
+			 (ulong) difftime(time(NULL), trx->start_time)); break;
   		case TRX_COMMITTED_IN_MEMORY: buf += sprintf(buf,
 						", COMMITTED IN MEMORY");
 									break;
-  		default: buf += sprintf(buf, " state %lu", trx->conc_state);
+  		default: buf += sprintf(buf, " state %lu", (ulong) trx->conc_state);
   	}
 
 #ifdef UNIV_LINUX
         buf += sprintf(buf, ", process no %lu", trx->mysql_process_no);
 #endif
         buf += sprintf(buf, ", OS thread id %lu",
-		       os_thread_pf(trx->mysql_thread_id));
+		       (ulong) os_thread_pf(trx->mysql_thread_id));
 
 	if (ut_strlen(trx->op_info) > 0) {
 		buf += sprintf(buf, " %s", trx->op_info);
@@ -1620,7 +1620,7 @@ trx_print(
 
 	if (trx->declared_to_be_inside_innodb) {
 	        buf += sprintf(buf, ", thread declared inside InnoDB %lu",
-			       trx->n_tickets_to_enter_innodb);
+			       (ulong) trx->n_tickets_to_enter_innodb);
 	}
 
 	buf += sprintf(buf, "\n");
@@ -1628,8 +1628,8 @@ trx_print(
         if (trx->n_mysql_tables_in_use > 0 || trx->mysql_n_tables_locked > 0) {
 
                 buf += sprintf(buf, "mysql tables in use %lu, locked %lu\n",
-                                    trx->n_mysql_tables_in_use,
-                                    trx->mysql_n_tables_locked);
+                                    (ulong) trx->n_mysql_tables_in_use,
+                                    (ulong) trx->mysql_n_tables_locked);
         }
 
 	start_of_line = buf;
@@ -1642,7 +1642,7 @@ trx_print(
 						"ROLLING BACK "); break;
   		case TRX_QUE_COMMITTING:      buf += sprintf(buf,
 						"COMMITTING "); break;
-  		default: buf += sprintf(buf, "que state %lu", trx->que_state);
+  		default: buf += sprintf(buf, "que state %lu", (ulong) trx->que_state);
   	}
 
   	if (0 < UT_LIST_GET_LEN(trx->trx_locks) ||
@@ -1650,8 +1650,8 @@ trx_print(
 
   		buf += sprintf(buf,
 "%lu lock struct(s), heap size %lu",
-			       UT_LIST_GET_LEN(trx->trx_locks),
-			       mem_heap_get_size(trx->lock_heap));
+			       (ulong) UT_LIST_GET_LEN(trx->trx_locks),
+			       (ulong) mem_heap_get_size(trx->lock_heap));
 	}
 
   	if (trx->has_search_latch) {
@@ -1660,7 +1660,7 @@ trx_print(
 
 	if (ut_dulint_cmp(trx->undo_no, ut_dulint_zero) != 0) {
 		buf += sprintf(buf, ", undo log entries %lu",
-			ut_dulint_get_low(trx->undo_no));
+			(ulong) ut_dulint_get_low(trx->undo_no));
 	}
 	
 	if (buf != start_of_line) {

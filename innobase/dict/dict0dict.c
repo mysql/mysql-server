@@ -3804,10 +3804,11 @@ dict_table_print_low(
 	printf(
    "TABLE: name %s, id %lu %lu, columns %lu, indexes %lu, appr.rows %lu\n",
 			table->name,
-			ut_dulint_get_high(table->id),
-			ut_dulint_get_low(table->id),
-			table->n_cols, UT_LIST_GET_LEN(table->indexes),
-			(ulint)table->stat_n_rows);
+			(ulong) ut_dulint_get_high(table->id),
+			(ulong) ut_dulint_get_low(table->id),
+			(ulong) table->n_cols,
+		        (ulong) UT_LIST_GET_LEN(table->indexes),
+			(ulong) table->stat_n_rows);
 	printf("  COLUMNS: ");
 
 	for (i = 0; i < table->n_cols - 1; i++) {
@@ -3883,16 +3884,16 @@ dict_index_print_low(
 	printf(
 	"  INDEX: name %s, table name %s, id %lu %lu, fields %lu/%lu, type %lu\n",
 			index->name, index->table_name,
-			ut_dulint_get_high(tree->id),
-			ut_dulint_get_low(tree->id),
-			index->n_user_defined_cols,
-			index->n_fields, index->type);
+			(ulong) ut_dulint_get_high(tree->id),
+			(ulong) ut_dulint_get_low(tree->id),
+			(ulong) index->n_user_defined_cols,
+			(ulong) index->n_fields, (ulong) index->type);
 	printf(
       "   root page %lu, appr.key vals %lu, leaf pages %lu, size pages %lu\n",
-		tree->page,
-		(ulint)n_vals,
-		index->stat_n_leaf_pages,
-		index->stat_index_size);
+		(ulong) tree->page,
+		(ulong) n_vals,
+		(ulong) index->stat_n_leaf_pages,
+		(ulong) index->stat_index_size);
 			
 	printf("   FIELDS: ");
 
@@ -3920,7 +3921,7 @@ dict_field_print_low(
 	printf(" %s", field->name);
 
 	if (field->prefix_len != 0) {
-	        printf("(%lu)", field->prefix_len);
+	        printf("(%lu)", (ulong) field->prefix_len);
 	}
 }
 
