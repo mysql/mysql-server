@@ -576,7 +576,7 @@ append_wild(char *to, char *end, const char *wild)
 **************************************************************************/
 
 void STDCALL
-mysql_debug(const char *debug)
+mysql_debug(const char *debug __attribute__((unused)))
 {
 #ifndef DBUG_OFF
   char	*env;

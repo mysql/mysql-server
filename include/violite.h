@@ -70,8 +70,7 @@ my_bool		vio_is_blocking(	Vio*		vio);
 /*
  * setsockopt TCP_NODELAY at IPPROTO_TCP level, when possible.
  */
-int		vio_fastsend(		Vio*		vio,
-					my_bool		onoff);
+  int		vio_fastsend(		Vio*		vio,);
 /*
  * setsockopt SO_KEEPALIVE at SOL_SOCKET level, when possible.
  */
