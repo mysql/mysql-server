@@ -188,6 +188,13 @@ sub new
   $smds{'q16'} 	= 'a';
   $smds{'q17'} 	= 'c';
 
+  # Some fixes that depends on the environment
+  if (defined($main::opt_create_options) &&
+      $main::opt_create_options =~ /type=heap/i)
+  {
+    $limits{'working_blobs'}	= 0; # HEAP tables can't handle BLOB's
+  }
+
   return $self;
 }
 

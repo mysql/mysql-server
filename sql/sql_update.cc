@@ -210,6 +210,8 @@ int mysql_update(THD *thd,TABLE_LIST *table_list,List<Item> &fields,
 
   if (!(test_flags & TEST_READCHECK))		/* For debugging */
     VOID(table->file->extra(HA_EXTRA_NO_READCHECK));
+  if (handle_duplicates == DUP_IGNORE)
+    table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
   init_read_record(&info,thd,table,select,0,1);
 
   ha_rows updated=0L,found=0L;
@@ -250,6 +252,7 @@ int mysql_update(THD *thd,TABLE_LIST *table_list,List<Item> &fields,
   end_read_record(&info);
   thd->proc_info="end";
   VOID(table->file->extra(HA_EXTRA_READCHECK));
+  VOID(table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY));
   table->time_stamp=save_time_stamp;	// Restore auto timestamp pointer
   using_transactions=table->file->has_transactions();
   if (updated && (error <= 0 || !using_transactions))

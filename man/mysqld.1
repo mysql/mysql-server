@@ -1,0 +1,230 @@
+.TH MYSQLD 1 "19 December 2000"
+.SH NAME
+.BR mysqld
+ \- Starts the MySQL server demon
+.SH USAGE
+mysqld [OPTIONS]
+.SH SYNOPSIS
+.B mysqld
+.RB [ \-\-ansi ]
+.RB [ \-b | \-\-basedir=\fP\fIpath\fP ]
+.RB [ \-\-big-tables ]
+.RB [ \-\-bind\-address=IP ]
+.RB [ \-\-character\-sets\-dir=\fP\fIpath\fP ]
+.RB [ \-\-chroot=\fP\fIpath\fP ]
+.RB [ \-h | \-\-datadir=\fP\fIpath\fP ]
+.RB [ \-\-default\-character\-set=\fP\fIcharset\fP ]
+.RB [ \-\-default\-table\-type=\fP\fItype \fP]
+.RB [ \-\-delay\-key\-write\-for\-all\-tables ]
+.RB [ \-\-enable\-locking ]
+.RB [ \-T | \-\-exit\-info] 
+.RB [ \-\-flush ]
+.RB [ \-? | \-\-help ]
+.RB [ \-\-init\-file=file ]
+.RB [ \-L | \-\-language=... ]
+.RB [ \-l | \-\-log[=file] ]
+.RB [ \-\-log\-isam[=file] ]
+.RB [ \-\-log\-slow\-queries\fP\fI[=file]\fP ]
+.RB [ \-\-log\-update\fP\fI[=file]\fP ]
+.RB [ \-\-log\-long\-format ]
+.RB [ \-\-low\-priority\-updates ]
+.RB [ \-\-memlock ]
+.RB [ " \-\-myisam\-recover [=option[,option...]]] where option is one of DEFAULT, BACKUP, FORCE or QUICK." ]
+.RB [ \-\-pid\-file=\fP\fIpath\fP ]
+.RB [ \-P | \-\-port=... ]
+.RB [ \-o | \-\-old\-protocol ]
+.RB [ \-\-one\-thread ]
+.RB [ \-O | \-\-set\-variable var=\fP\fIoption\fP ]
+.RB [ \-Sg | \-\-skip\-grant\-tables ]
+.RB [ \-\-safe\-mode ]
+.RB [ \-\-secure ]
+.RB [ \-\-skip\-concurrent\-insert ]
+.RB [ \-\-skip\-delay\-key\-write ]
+.RB [ \-\-skip\-locking ]
+.RB [ \-\-skip\-name\-resolve ]
+.RB [ \-\-skip\-networking ]
+.RB [ \-\-skip\-new ]
+.RB [ \-\-skip\-host\-cache ]
+.RB [ \-\-skip\-show\-database ]
+.RB [ \-\-skip\-thread\-priority ]
+.RB [ \-\-socket=path ]
+.RB [ \-t | \-\-tmpdir=\fP\fIpath \fP]
+.RB [ \-u | \-\-user=\fP\fIuser_name\fP ]
+.RB [ \-V | \-\-version ]
+.SH DESCRIPTION
+.TP 
+.BR --ansi 
+Use ANSI SQL syntax instead of MySQL syntax. See section 5.2 Running MySQL in ANSI Mode. 
+.TP 
+.BR -b | --basedir=\fP\fIpath \fP
+Path to installation directory. All paths are usually resolved relative to this. 
+.TP 
+.BR --big-tables 
+Allow big result sets by saving all temporary sets on file. It solves most 'table full' errors, but also slows down the queries where in\-memory tables would suffice. Since Version 3.23.2, MySQL is able to solve it automaticaly by using memory for small temporary tables and switching to disk tables where necessary. 
+.TP 
+.BR \-\-bind\-address=\fP\fIIP \fP
+IP address to bind to. 
+.TP 
+.BR \-\-character\-sets\-dir=\fP\fIpath \fP
+Directory where character sets are. See section 10.1.1 The Character Set Used for Data and Sorting. 
+.TP 
+.BR \-\-chroot=\fP\fIpath \fP
+Chroot mysqld daemon during startup. Recommended security measure. It will somewhat limit LOAD DATA INFILE and SELECT ... INTO OUTFILE though. 
+.TP 
+.BR \-h | \-\-datadir=\fP\fIpath \fP
+Path to the database root. 
+.TP 
+.BR \-\-default\-character\-set=\fP\fIcharset \fP
+Set the default character set. See section 10.1.1 The Character Set Used for Data and Sorting. 
+.TP 
+.BR \-\-default\-table\-type=\fP\fItype \fP
+Set the default table type for tables. See section 8 MySQL Table Types. 
+.TP 
+.BR \-\-delay\-key\-write\-for\-all\-tables 
+Don't flush key buffers between writes for any MyISAM table. See Mysql Manual section 12.2.3 Tuning Server Parameters. 
+.TP 
+.BR \-\-enable\-locking 
+Enable system locking. 
+.TP 
+.BR \-T | \-\-exit\-info 
+Print some debug info at exit. 
+.TP 
+.BR \-\-flush 
+Flush all changes to disk after each SQL command. Normally MySQL only does a write of all changes to disk after each SQL command and lets the operating system handle the syncing to disk. See section 20.2 What to Do if MySQL Keeps Crashing. 
+.TP 
+.BR \-? | \-\-help 
+Display short help and exit. 
+.TP 
+.BR \-\-init\-file=\fP\fIfile \fP
+Read SQL commands from this file at startup. 
+.TP 
+.BR \-L | \-\-language=... 
+Client error messages in given language. May be given as a full path. See Mysql Manual section 10.1 What Languages Are Supported by MySQL?. 
+.TP 
+.BR \-l | \-\-log\fP\fI[=file] \fP
+Log connections and queries to file. 
+.TP 
+.BR \-\-log\-isam\fP\fI[=file] \fP
+Log all ISAM/MyISAM changes to file (only used when debugging ISAM/MyISAM). 
+.TP 
+.BR \-\-log\-slow\-queries\fP\fI[=file] \fP
+Log all queries that have taken more than long_query_time seconds to execute to file. See Mysql Manual section 21.5 The Slow Query Log. 
+.TP 
+.BR \-\-log\-update\fP\fI[=file] \fP
+Log updates to file.# where # is a unique number if not given. See Mysql Manual section 21.3 The Update Log. 
+.TP 
+.BR \-\-log\-long\-format 
+Log some extra information to update log. If you are using 
+.BR \-\-log\-slow\-queries 
+then queries that are not using indexes are logged to the slow query log. 
+.TP 
+.BR \-\-low\-priority\-updates 
+Table\-modifying operations (INSERT/DELETE/UPDATE) will have lower priority than selects. It can also be done via {INSERT | REPLACE | UPDATE | DELETE} LOW_PRIORITY ... to lower the priority of only one query, or by SET OPTION SQL_LOW_PRIORITY_UPDATES=1 to change the priority in one thread. See Mysql Manual section  12.2.9 Table Locking Issues. 
+.TP 
+.BR \-\-memlock 
+Lock the mysqld process in memory. This works only if your system supports the mlockall() system call. This may help if you have a problem where the operating system is causing mysqld to swap on disk. 
+.TP 
+.BR " \-\-myisam\-recover [=option[,option...]]] where option is one of DEFAULT, BACKUP, FORCE or QUICK. " 
+If this option is used, mysqld will on open check if the table is marked as crashed or if if the table wasn't closed properly (The last option only works if you are running with \-\-skip\-locking). If this is the case mysqld will run check on the table. If the table was corrupted, mysqld will attempt to repair it. The following options affects how the repair works. 
+.BR DEFAULT
+The same as not giving any option to \-\-myisam\-recover.  
+.BR BACKUP 
+If the data table was changed during recover, save a backup of the `table_name.MYD' data file as `table_name\-datetime.BAK'.  
+.BR FORCE 
+Run recover even if we will loose more than one row from the .MYD file.  
+.BR QUICK  
+Don't check the rows in the table if there isn't any delete blocks.  
+Before a table is automaticly repaired, mysqld will add a note about this in the error log. If you want to be able to recover from most things without user intervention, you should use the options BACKUP,FORCE. This will force a repair of a table even if some rows would be deleted, but it will keep the old data file as a backup so that you can later examine what happened. 
+.TP 
+.BR \-\-pid\-file=\fP\fIpath \fP
+Path to pid file used by safe_mysqld. 
+.TP 
+.BR \-P | \-\-port=... 
+Port number to listen for TCP/IP connections. 
+.TP 
+.BR \-o | \-\-old\-protocol 
+Use the 3.20 protocol for compatibility with some very old clients. See Mysql Manual section  4.17.3 Upgrading from Version 3.20 to Version 3.21. 
+.TP 
+.BR \-\-one\-thread 
+Only use one thread (for debugging under Linux). See Mysql Manual section  H.1 Debugging a MySQL server. 
+.TP 
+.BR \-O | " \-\-set\-variable var=\fP\fIoption\fP "
+Give a variable a value. \-\-help lists variables. You can find a full description for all variables in the SHOW VARIABLES section in this manual. See Mysql Manual section  7.28.4 SHOW VARIABLES. The tuning server parameters section includes information of how to optimize these. See Mysql Manual section  12.2.3 Tuning Server Parameters. 
+.TP 
+.BR \-Sg | \-\-skip\-grant\-tables 
+This option causes the server not to use the privilege system at all. This gives everyone full access to all databases! (You can tell a running server to start using the grant tables again by executing mysqladmin flush\-privileges or mysqladmin reload.) 
+.TP 
+.BR \-\-safe\-mode 
+Skip some optimize stages. Implies 
+.BR \-\-skip\-delay\-key\-write. 
+.TP 
+.BR \-\-secure 
+IP numbers returned by the gethostbyname() system call are checked to make sure they resolve back to the original hostname. This makes it harder for someone on the outside to get access by pretending to be another host. This option also adds some sanity checks of hostnames. The option is turned off by default in MySQL Version 3.21 because sometimes it takes a long time to perform backward resolutions. MySQL Version 3.22 caches hostnames (unless \-\-skip\-host\-cache is used) and has this option enabled by default. 
+.TP 
+.BR \-\-skip\-concurrent\-insert 
+Turn off the ability to select and insert at the same time on MyISAM tables. (This is only to be used if you think you have found a bug in this feature). 
+.TP 
+.BR \-\-skip\-delay\-key\-write 
+Ignore the delay_key_write option for all tables. See Mysql Manual section  12.2.3 Tuning Server Parameters. 
+.TP 
+.BR \-\-skip\-locking 
+Don't use system locking. To use isamchk or myisamchk you must shut down the server. See Mysql Manual section  1.6 How Stable Is MySQL?. Note that in MySQL Version 3.23 you can use REPAIR and CHECK to repair/check MyISAM tables. 
+.TP 
+.BR \-\-skip\-name\-resolve 
+Hostnames are not resolved. All Host column values in the grant tables must be IP numbers or localhost. 
+.TP 
+.BR \-\-skip\-networking 
+Don't listen for TCP/IP connections at all. All interaction with mysqld must be made via Unix sockets. This option is highly recommended for systems where only local requests are allowed. However, this option is unsuitable for systems that use MIT\-pthreads, because the MIT\-pthreads package doesn't support Unix sockets. 
+.TP 
+.BR \-\-skip\-new 
+Don't use new, possible wrong routines. Implies 
+.BR \-\-skip\-delay\-key\-write
+. This will also set default table type to ISAM. See Mysql Manual section  8.3 ISAM Tables. 
+.TP 
+.BR \-\-skip\-host\-cache 
+Never use host name cache for faster name\-ip resolution, but query DNS server on every connect instead. 
+.TP 
+.BR \-\-skip\-show\-database 
+Don't allow 'SHOW DATABASE' commands, unless the user has process privilege. 
+.TP 
+.BR \-\-skip\-thread\-priority 
+Disable using thread priorities for faster response time. 
+.TP 
+.BR \-\-socket=\fP\fIpath \fP
+Socket file to use for local connections instead of default /tmp/mysql.sock. 
+.TP 
+.BR \-t | \-\-tmpdir=\fP\fIpath\fP 
+Path for temporary files. It may be useful if your default /tmp directory resides on a partition too small to hold temporary tables. 
+.TP 
+.BR \-u | \-\-user=\fP\fIuser_name \fP
+Run mysqld daemon as user user_name. This option is mandatory when starting mysqld as root. 
+.TP 
+.BR \-V | \-\-version 
+Output version information and exit. 
+
+.SH NOTE
+.SH "SEE ALSO"
+isamchk (1),
+isamlog (1),
+mysqlaccess (1),
+mysqladmin (1),
+mysqlbug (1),
+mysqld (1),
+mysqldump (1),
+mysqlshow (1),
+msql2mysql (1),
+perror (1),
+replace (1),
+safe_mysqld (1),
+which1 (1),
+zap (1),
+.SH AUTHOR
+Ver 1.0, distribution 3.23.29a
+Michael (Monty) Widenius (monty@tcx.se),
+TCX Datakonsult AB (http://www.tcx.se).
+This software comes with no warranty.
+Manual page by L. (Kill-9) Pedersen 
+(kill-9@kill\-9.dk), Mercurmedia Data Model Architect /
+system developer (http://www.mercurmedia.com)
+
+.\" end of man page

@@ -167,7 +167,9 @@ print "Retrieving data\n";
      );
 
 @Q2=("select_join",
-     "select airline.airline_name,aircraft.aircraft_type from aircraft,airline,flight where flight.aircraft_code=aircraft.aircraft_code and flight.airline_code=airline.airline_code",579,1,
+     "select airline.airline_name,aircraft.aircraft_type from aircraft,airline,flight where flight.aircraft_code=aircraft.aircraft_code and flight.airline_code=airline.airline_code",579,1);
+
+@Q21=("select_key_prefix_join",
      "select fare.fare_code from restrict_carrier,airline,fare where restrict_carrier.airline_code=airline.airline_code and fare.restrict_code=restrict_carrier.restrict_code",5692,1,
     );
 
@@ -214,7 +216,7 @@ print "Retrieving data\n";
      "select engines,category,cruising_speed,from_airport,to_airport FROM aircraft,flight WHERE category='JET' AND ENGINES >= 1 AND aircraft.aircraft_code=flight.aircraft_code AND to_airport NOT LIKE from_airport AND stops>0 GROUP BY engines,category,cruising_speed,from_airport,to_airport ORDER BY engines DESC",29,$limits->{'group_functions'} && $limits->{'like_with_column'},
      );
 
-@Q=(\@Q1,\@Q2,\@Q3,\@Q4);
+@Q=(\@Q1,\@Q2,\@Q21,\@Q3,\@Q4);
 
 
 foreach $Q (@Q)

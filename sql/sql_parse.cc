@@ -73,14 +73,15 @@ static void init_signals(void)
 
 static inline bool end_active_trans(THD *thd)
 {
+  int error=0;
   if (thd->options & (OPTION_NOT_AUTO_COMMIT | OPTION_BEGIN))
   {
     thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE);
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
     if (ha_commit(thd))
-      return 1;
+      error=1;
   }
-  return 0;
+  return error;
 }
 
 

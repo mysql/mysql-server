@@ -6,6 +6,14 @@ then
   exit 1;
 fi
 
+echo "NOTE: This is a MySQL binary distribution. It's ready to run, you don't"
+echo "need to configure it!"
+echo ""
+echo "To help you a bit, I am now going to create the needed MySQL databases"
+echo "and start the MySQL server for you.  If you run into any trouble, please"
+echo "consult the MySQL manual, that you can find in the Docs directory."
+echo ""
+
 ./scripts/mysql_install_db
 if [ $? = 0 ]
 then
