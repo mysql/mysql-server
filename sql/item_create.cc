@@ -678,3 +678,38 @@ Item *create_func_uncompressed_length(Item* a)
 
 #endif
 
+Item *create_func_datediff(Item *a, Item *b)
+{
+  return new Item_func_minus(new Item_func_to_days(a),
+			     new Item_func_to_days(b));
+}
+
+Item *create_func_weekofyear(Item *a)
+{
+  return new Item_func_week(a, new Item_int((char*) "0", 3, 1));
+}
+
+Item *create_func_makedate(Item* a,Item* b)
+{
+  return new Item_func_makedate(a, b);
+}
+
+Item *create_func_addtime(Item* a,Item* b)
+{
+  return new Item_func_add_time(a, b, 0);
+}
+
+Item *create_func_subtime(Item* a,Item* b)
+{
+  return new Item_func_add_time(a, b, 1);
+}
+
+Item *create_func_timediff(Item* a,Item* b)
+{
+  return new Item_func_timediff(a, b);
+}
+
+Item *create_func_maketime(Item* a,Item* b,Item* c)
+{
+  return new Item_func_maketime(a, b, c);
+}
