@@ -238,7 +238,8 @@ row_mysql_convert_row_to_innobase(
 						+ templ->mysql_col_offset,
 					mysql_rec + templ->mysql_col_offset,
 					templ->mysql_col_len,
-					templ->type, templ->is_unsigned);
+					templ->type, prebuilt->table->comp,
+					templ->is_unsigned);
 next_column:
 		;
 	} 

@@ -296,7 +296,18 @@ static char *get_text(LEX *lex)
       found_escape=1;
       if (lex->ptr == lex->end_of_query)
 	return 0;
-      yySkip();
+#ifdef USE_MB
+      int l;
+      if (use_mb(cs) &&
+          (l = my_ismbchar(cs,
+                           (const char *)lex->ptr,
+                           (const char *)lex->end_of_query))) {
+          lex->ptr += l;
+          continue;
+      }
+      else
+#endif
+        yySkip();
     }
     else if (c == sep)
     {
@@ -324,6 +335,10 @@ static char *get_text(LEX *lex)
       else
       {
 	uchar *to;
+
+        /* Re-use found_escape for tracking state of escapes */
+        found_escape= 0;
+
 	for (to=start ; str != end ; str++)
 	{
 #ifdef USE_MB
@@ -337,7 +352,8 @@ static char *get_text(LEX *lex)
 	      continue;
 	  }
 #endif
-	  if (!(lex->thd->variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES) &&
+	  if (!found_escape &&
+              !(lex->thd->variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES) &&
               *str == '\\' && str+1 != end)
 	  {
 	    switch(*++str) {
@@ -364,15 +380,20 @@ static char *get_text(LEX *lex)
 	      *to++= '\\';		// remember prefix for wildcard
 	      /* Fall through */
 	    default:
-	      *to++ = *str;
+              found_escape= 1;
+              str--;
 	      break;
 	    }
 	  }
-	  else if (*str == sep)
-	    *to++= *str++;		// Two ' or "
+	  else if (!found_escape && *str == sep)
+          {
+            found_escape= 1;
+          }
 	  else
+          {
 	    *to++ = *str;
-
+            found_escape= 0;
+          }
 	}
 	*to=0;
 	lex->yytoklen=(uint) (to-start);

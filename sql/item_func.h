@@ -351,7 +351,7 @@ class Item_func_div :public Item_num_op
 {
 public:
   Item_func_div(Item *a,Item *b) :Item_num_op(a,b) {}
-  longlong int_op() { DBUG_ASSERT(0); }
+  longlong int_op() { DBUG_ASSERT(0); return 0; }
   double real_op();
   my_decimal *decimal_op(my_decimal *);
   const char *func_name() const { return "/"; }
