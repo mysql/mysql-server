@@ -38,7 +38,7 @@ public:
   Field *tmp_table_field(TABLE *t_arg)
   {
     if (!t_arg) return result_field;
-    return (max_length > 255) ? (Field *)new Field_blob(max_length,maybe_null, name,t_arg, binary) : (Field *) new Field_string(max_length,maybe_null, name,t_arg, binary);
+    return (max_length > 255) ? (Field *)new Field_blob(max_length,maybe_null, name,t_arg, binary) : (Field *) new Field_string(max_length,maybe_null, name,t_arg, binary, default_charset_info);
   }  
 };
 

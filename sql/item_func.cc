@@ -1296,7 +1296,7 @@ String *udf_handler::val_str(String *str,String *save_str)
     str->length(res_length);
     return str;
   }
-  save_str->set(res, res_length);
+  save_str->set(res, res_length, default_charset_info);
   return save_str;
 }
 
@@ -1438,7 +1438,7 @@ void item_user_lock_release(ULL *ull)
     THD *thd = current_thd;
     uint save_query_length;
     char buf[256];
-    String tmp(buf,sizeof(buf));
+    String tmp(buf,sizeof(buf), default_charset_info);
     tmp.length(0);
     tmp.append("DO RELEASE_LOCK(\"");
     tmp.append(ull->key,ull->key_length);
@@ -1695,7 +1695,7 @@ longlong Item_func_set_last_insert_id::val_int()
 longlong Item_func_benchmark::val_int()
 {
   char buff[MAX_FIELD_WIDTH];
-  String tmp(buff,sizeof(buff));
+  String tmp(buff,sizeof(buff), default_charset_info);
   THD *thd=current_thd;
 
   for (ulong loop=0 ; loop < loop_count && !thd->killed; loop++)
@@ -1832,7 +1832,7 @@ Item_func_set_user_var::update()
     break;
   case STRING_RESULT:
     char buffer[MAX_FIELD_WIDTH];
-    String tmp(buffer,sizeof(buffer));
+    String tmp(buffer,sizeof(buffer),default_charset_info);
     (void) val_str(&tmp);
     break;
   }
@@ -2006,7 +2006,7 @@ longlong Item_func_inet_aton::val_int()
   char c = '.'; // we mark c to indicate invalid IP in case length is 0
   char buff[36];
 
-  String *s,tmp(buff,sizeof(buff));
+  String *s,tmp(buff,sizeof(buff),default_charset_info);
   if (!(s = args[0]->val_str(&tmp)))		// If null value
     goto err;
   null_value=0;
@@ -2052,17 +2052,17 @@ void Item_func_match::init_search(bool no_order)
   }
 
   if (key == NO_SUCH_KEY)
-    concat=new Item_func_concat_ws (new Item_string(" ",1), fields);
+    concat=new Item_func_concat_ws (new Item_string(" ",1,default_charset_info), fields);
 
   String *ft_tmp=0;
   char tmp1[FT_QUERY_MAXLEN];
-  String tmp2(tmp1,sizeof(tmp1));
+  String tmp2(tmp1,sizeof(tmp1),default_charset_info);
 
   // MATCH ... AGAINST (NULL) is meaningless, but possible
   if (!(ft_tmp=key_item()->val_str(&tmp2)))
   {
     ft_tmp=&tmp2;
-    tmp2.set("",0);
+    tmp2.set("",0,default_charset_info);
   }
 
   ft_handler=table->file->ft_init_ext(mode, key,

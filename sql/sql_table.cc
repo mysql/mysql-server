@@ -156,7 +156,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
     {
       if (wrong_tables.length())
 	wrong_tables.append(',');
-      wrong_tables.append(String(table->real_name));
+      wrong_tables.append(String(table->real_name,default_charset_info));
     }
   }
   if (some_tables_deleted)

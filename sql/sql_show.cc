@@ -57,7 +57,7 @@ extern struct st_VioSSLAcceptorFd * ssl_acceptor_fd;
 int
 mysqld_show_dbs(THD *thd,const char *wild)
 {
-  Item_string *field=new Item_string("",0);
+  Item_string *field=new Item_string("",0,default_charset_info);
   List<Item> field_list;
   char *end;
   List<char> files;
@@ -138,7 +138,7 @@ int mysqld_show_open_tables(THD *thd,const char *wild)
 
 int mysqld_show_tables(THD *thd,const char *db,const char *wild)
 {
-  Item_string *field=new Item_string("",0);
+  Item_string *field=new Item_string("",0,default_charset_info);
   List<Item> field_list;
   char path[FN_LEN],*end;
   List<char> files;
@@ -262,7 +262,7 @@ int mysqld_extend_show_tables(THD *thd,const char *db,const char *wild)
 
   (void) sprintf(path,"%s/%s",mysql_data_home,db);
   (void) unpack_dirname(path,path);
-
+//,default_charset_info
   field_list.push_back(item=new Item_empty_string("Name",NAME_LEN));
   item->maybe_null=1;
   field_list.push_back(item=new Item_empty_string("Type",10));
@@ -483,7 +483,7 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
       {
         byte *pos;
         uint flags=field->flags;
-        String type(tmp,sizeof(tmp));
+        String type(tmp,sizeof(tmp),default_charset_info);
         uint col_access;
         bool null_default_value=0;
 
@@ -506,7 +506,7 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
           null_default_value=1;
         if (!null_default_value && !field->is_null())
         {                                               // Not null by default
-          type.set(tmp,sizeof(tmp));
+          type.set(tmp,sizeof(tmp),default_charset_info);
           field->val_str(&type,&type);
           net_store_data(packet,convert,type.ptr(),type.length());
         }
@@ -810,7 +810,7 @@ store_create_info(THD *thd, TABLE *table, String *packet)
 
   List<Item> field_list;
   char tmp[MAX_FIELD_WIDTH];
-  String type(tmp, sizeof(tmp));
+  String type(tmp, sizeof(tmp),default_charset_info);
   if (table->tmp_table)
     packet->append("CREATE TEMPORARY TABLE ", 23);
   else
@@ -830,7 +830,7 @@ store_create_info(THD *thd, TABLE *table, String *packet)
     packet->append(' ');
     // check for surprises from the previous call to Field::sql_type()
     if (type.ptr() != tmp)
-      type.set(tmp, sizeof(tmp));
+      type.set(tmp, sizeof(tmp),default_charset_info);
 
     field->sql_type(type);
     packet->append(type.ptr(),type.length());
@@ -846,7 +846,7 @@ store_create_info(THD *thd, TABLE *table, String *packet)
       packet->append(" default ", 9);
       if (!field->is_null())
       {                                             // Not null by default
-        type.set(tmp,sizeof(tmp));
+        type.set(tmp,sizeof(tmp),default_charset_info);
         field->val_str(&type,&type);
         packet->append('\'');
 	if (type.length())
@@ -1143,7 +1143,7 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables)
 {
   uint i;
   char buff[8192];
-  String packet2(buff,sizeof(buff));
+  String packet2(buff,sizeof(buff),default_charset_info);
   List<Item> field_list;
   CONVERT *convert=thd->convert_set;
   DBUG_ENTER("mysqld_show");

@@ -1072,7 +1072,7 @@ char *get_field(MEM_ROOT *mem, TABLE *table, uint fieldnr)
 {
   Field *field=table->field[fieldnr];
   char buff[MAX_FIELD_WIDTH];
-  String str(buff,sizeof(buff));
+  String str(buff,sizeof(buff),table->table_charset);
   field->val_str(&str,&str);
   uint length=str.length();
   if (!length)

@@ -213,7 +213,7 @@ void Log_event::pack_info(String* packet)
 void Query_log_event::pack_info(String* packet)
 {
   char buf[256];
-  String tmp(buf, sizeof(buf));
+  String tmp(buf, sizeof(buf), system_charset_info);
   tmp.length(0);
   if (db && db_len)
   {
@@ -230,7 +230,7 @@ void Query_log_event::pack_info(String* packet)
 void Start_log_event::pack_info(String* packet)
 {
   char buf1[256];
-  String tmp(buf1, sizeof(buf1));
+  String tmp(buf1, sizeof(buf1), system_charset_info);
   tmp.length(0);
   char buf[22];
 
@@ -244,7 +244,7 @@ void Start_log_event::pack_info(String* packet)
 void Load_log_event::pack_info(String* packet)
 {
   char buf[256];
-  String tmp(buf, sizeof(buf));
+  String tmp(buf, sizeof(buf), system_charset_info);
   tmp.length(0);
   if(db && db_len)
   {
@@ -320,7 +320,7 @@ void Load_log_event::pack_info(String* packet)
 void Rotate_log_event::pack_info(String* packet)
 {
   char buf1[256];
-  String tmp(buf1, sizeof(buf1));
+  String tmp(buf1, sizeof(buf1), system_charset_info);
   tmp.length(0);
   char buf[22];
   tmp.append(new_log_ident, ident_len);
@@ -334,7 +334,7 @@ void Rotate_log_event::pack_info(String* packet)
 void Intvar_log_event::pack_info(String* packet)
 {
   char buf1[256];
-  String tmp(buf1, sizeof(buf1));
+  String tmp(buf1, sizeof(buf1), system_charset_info);
   tmp.length(0);
   char buf[22];
   tmp.append(get_var_type_name());
@@ -346,7 +346,7 @@ void Intvar_log_event::pack_info(String* packet)
 void Slave_log_event::pack_info(String* packet)
 {
   char buf1[256];
-  String tmp(buf1, sizeof(buf1));
+  String tmp(buf1, sizeof(buf1), system_charset_info);
   tmp.length(0);
   char buf[22];
   tmp.append("host=");
@@ -1417,7 +1417,7 @@ void Create_file_log_event::print(FILE* file, bool short_form,
 void Create_file_log_event::pack_info(String* packet)
 {
   char buf1[256];
-  String tmp(buf1, sizeof(buf1));
+  String tmp(buf1, sizeof(buf1), system_charset_info);
   tmp.length(0);
   char buf[22];
   tmp.append("db=");
@@ -1475,7 +1475,7 @@ void Append_block_log_event::print(FILE* file, bool short_form,
 void Append_block_log_event::pack_info(String* packet)
 {
   char buf1[256];
-  String tmp(buf1, sizeof(buf1));
+  String tmp(buf1, sizeof(buf1), system_charset_info);
   tmp.length(0);
   char buf[22];
   tmp.append(";file_id=");
@@ -1524,7 +1524,7 @@ void Delete_file_log_event::print(FILE* file, bool short_form,
 void Delete_file_log_event::pack_info(String* packet)
 {
   char buf1[256];
-  String tmp(buf1, sizeof(buf1));
+  String tmp(buf1, sizeof(buf1), system_charset_info);
   tmp.length(0);
   char buf[22];
   tmp.append(";file_id=");
@@ -1571,7 +1571,7 @@ void Execute_load_log_event::print(FILE* file, bool short_form,
 void Execute_load_log_event::pack_info(String* packet)
 {
   char buf1[256];
-  String tmp(buf1, sizeof(buf1));
+  String tmp(buf1, sizeof(buf1), system_charset_info);
   tmp.length(0);
   char buf[22];
   tmp.append(";file_id=");
@@ -1690,12 +1690,12 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli)
 	handle_dup = DUP_REPLACE;
       sql_exchange ex((char*)fname, sql_ex.opt_flags &&
 		      DUMPFILE_FLAG );
-      String field_term(sql_ex.field_term,sql_ex.field_term_len);
-      String enclosed(sql_ex.enclosed,sql_ex.enclosed_len);
-      String line_term(sql_ex.line_term,sql_ex.line_term_len);
-      String line_start(sql_ex.line_start,sql_ex.line_start_len);
-      String escaped(sql_ex.escaped,sql_ex.escaped_len);
-	    
+      String field_term(sql_ex.field_term,sql_ex.field_term_len, system_charset_info);
+      String enclosed(sql_ex.enclosed,sql_ex.enclosed_len, system_charset_info);
+      String line_term(sql_ex.line_term,sql_ex.line_term_len, system_charset_info);
+      String line_start(sql_ex.line_start,sql_ex.line_start_len, system_charset_info);
+      String escaped(sql_ex.escaped,sql_ex.escaped_len, system_charset_info);
+
       ex.opt_enclosed = (sql_ex.opt_flags & OPT_ENCLOSED_FLAG);
       if (sql_ex.empty_flags & FIELD_TERM_EMPTY)
 	ex.field_term->length(0);

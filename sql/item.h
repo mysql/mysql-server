@@ -241,16 +241,16 @@ public:
 class Item_string :public Item
 {
 public:
-  Item_string(const char *str,uint length)
+  Item_string(const char *str,uint length,CHARSET_INFO *cs)
   {
-    str_value.set(str,length);
+    str_value.set(str,length,cs);
     max_length=length;
     name=(char*) str_value.ptr();
     decimals=NOT_FIXED_DEC;
   }
-  Item_string(const char *name_par,const char *str,uint length)
+  Item_string(const char *name_par,const char *str,uint length,CHARSET_INFO *cs)
   {
-    str_value.set(str,length);
+    str_value.set(str,length,cs);
     max_length=length;
     name=(char*) name_par;
     decimals=NOT_FIXED_DEC;
@@ -265,7 +265,7 @@ public:
   enum Item_result result_type () const { return STRING_RESULT; }
   bool basic_const_item() const { return 1; }
   bool eq(const Item *item, bool binary_cmp) const;
-  Item *new_item() { return new Item_string(name,str_value.ptr(),max_length); }
+  Item *new_item() { return new Item_string(name,str_value.ptr(),max_length,default_charset_info); }
   String *const_string() { return &str_value; }
   inline void append(char *str,uint length) { str_value.append(str,length); }
   void print(String *str);
@@ -276,7 +276,7 @@ public:
 class Item_datetime :public Item_string
 {
 public:
-  Item_datetime(const char *item_name): Item_string(item_name,"",0)
+  Item_datetime(const char *item_name): Item_string(item_name,"",0,default_charset_info)
   { max_length=19;}
   void make_field(Send_field *field);
 };
@@ -284,14 +284,14 @@ public:
 class Item_empty_string :public Item_string
 {
 public:
-  Item_empty_string(const char *header,uint length) :Item_string("",0)
+  Item_empty_string(const char *header,uint length) :Item_string("",0,default_charset_info)
     { name=(char*) header; max_length=length;}
 };
 
 class Item_varbinary :public Item
 {
 public:
-  Item_varbinary(const char *str,uint str_length);
+  Item_varbinary(const char *str,uint str_length,CHARSET_INFO *cs);
   ~Item_varbinary() {}
   enum Type type() const { return VARBIN_ITEM; }
   double val() { return (double) Item_varbinary::val_int(); }

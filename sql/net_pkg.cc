@@ -334,7 +334,7 @@ net_store_data(String *packet,struct tm *tmp)
 bool net_store_data(String* packet, I_List<i_string>* str_list)
 {
   char buf[256];
-  String tmp(buf, sizeof(buf));
+  String tmp(buf, sizeof(buf), default_charset_info);
   tmp.length(0);
   I_List_iterator<i_string> it(*str_list);
   i_string* s;

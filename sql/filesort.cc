@@ -475,12 +475,10 @@ static void make_sortkey(register SORTPARAM *param,
       switch (sort_field->result_type) {
       case STRING_RESULT:
 	{
-          CHARSET_INFO *cs=item->str_value.charset();
-          
 	  if (item->maybe_null)
 	    *to++=1;
 	  /* All item->str() to use some extra byte for end null.. */
-	  String tmp((char*) to,sort_field->length+4);
+	  String tmp((char*) to,sort_field->length+4,default_charset_info);
 	  String *res=item->val_str(&tmp);
 	  if (!res)
 	  {
@@ -495,6 +493,7 @@ static void make_sortkey(register SORTPARAM *param,
 	    break;
 	  }
 	  length=res->length();
+	  CHARSET_INFO *cs=res->charset();
 	  int diff=(int) (sort_field->length-length);
 	  if (diff < 0)
 	  {

@@ -197,7 +197,8 @@ send_fields(THD *thd,List<Item> &list,uint flag)
   char buff[80];
   CONVERT *convert= (flag & 4) ? (CONVERT*) 0 : thd->convert_set;
 
-  String tmp((char*) buff,sizeof(buff)),*res,*packet= &thd->packet;
+  String tmp((char*) buff,sizeof(buff),default_charset_info);
+  String *res,*packet= &thd->packet;
 
   if (thd->fatal_error)		// We have got an error
     goto err;
