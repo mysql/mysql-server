@@ -90,7 +90,7 @@ private:
   
   BaseString            _localConfigFileName;
   struct LocalConfig    _localConfig;
-  int                   _ownNodeId;
+  Uint32                _ownNodeId;
   
   BaseString            m_connectString;
   
