@@ -215,6 +215,16 @@ SELECT MIN(price) min, MAX(price) max, AVG(price) avg FROM (SELECT SUBSTRING( MA
 DROP TABLE t1;
 
 #
+# DISTINCT over grouped select on subquery in the FROM clause
+#
+create table t1 (a integer, b integer);
+insert into t1 values (1,4), (2,2),(2,2), (4,1),(4,1),(4,1),(4,1);
+select distinct sum(b) from t1 group by a;
+select distinct sum(b) from (select a,b from t1) y group by a;
+drop table t1;
+
+
+#
 # Test for bug #7413 "Subquery with non-scalar results participating in
 # select list of derived table crashes server" aka "VIEW with sub query can
 # cause the MySQL server to crash". If we have encountered problem during

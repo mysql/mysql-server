@@ -210,10 +210,16 @@ if (-d $target_dir)
 	}
 	else
 	{
-		&logger("Renaming $target_dir to $target_dir.old." . $$);
+		# Get the time stamp of "configure.in"
+		@stat= stat("$target_dir/configure.in");
+		my $mtime= $stat[9];
+		my ($sec,$min,$hour,$mday,$mon,$year) = localtime($mtime);
+		my $mtime= sprintf("%04d-%02d-%02d-%02d:%02d", $year+1900, $mon+1, $mday, $hour, $min);
+
+		&logger("Renaming $target_dir to $target_dir-$mtime");
 		$command= "mv ";
 		$command.= "-v " if ($opt_verbose || defined $opt_log);
-		$command.= "$target_dir $target_dir.old." . $$;
+		$command.= "$target_dir $target_dir-$mtime";
 		&run_command($command, "Could not rename $target_dir!");
 	}
 }

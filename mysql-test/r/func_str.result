@@ -328,6 +328,19 @@ trim(trailing 'foo' from 'foo')
 select trim(leading 'foo' from 'foo');
 trim(leading 'foo' from 'foo')
 
+select quote(ltrim(concat('    ', 'a')));
+quote(ltrim(concat('    ', 'a')))
+'a'
+select quote(trim(concat('    ', 'a')));
+quote(trim(concat('    ', 'a')))
+'a'
+CREATE TABLE t1 SELECT 1 UNION SELECT 2 UNION SELECT 3;
+SELECT QUOTE('A') FROM t1;
+QUOTE('A')
+'A'
+'A'
+'A'
+DROP TABLE t1;
 select 1=_latin1'1';
 1=_latin1'1'
 1
@@ -694,12 +707,6 @@ select count(*) as total, left(c,10) as reg from t1 group by reg order by reg de
 total	reg
 10	2004-12-10
 drop table t1;
-select quote(ltrim(concat('    ', 'a')));
-quote(ltrim(concat('    ', 'a')))
-'a'
-select quote(trim(concat('    ', 'a')));
-quote(trim(concat('    ', 'a')))
-'a'
 select trim(null from 'kate') as "must_be_null";
 must_be_null
 NULL
@@ -712,3 +719,26 @@ NULL
 select trim(trailing NULL from 'xyz') as "must_be_null";
 must_be_null
 NULL
+CREATE TABLE t1 (
+id int(11) NOT NULL auto_increment,
+a bigint(20) unsigned default NULL,
+PRIMARY KEY  (id)
+) ENGINE=MyISAM;
+INSERT INTO t1 VALUES
+('0','16307858876001849059');
+SELECT CONV('e251273eb74a8ee3', 16, 10);
+CONV('e251273eb74a8ee3', 16, 10)
+16307858876001849059
+EXPLAIN 
+SELECT id
+FROM t1
+WHERE a = 16307858876001849059;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	
+EXPLAIN 
+SELECT id
+FROM t1
+WHERE a = CONV('e251273eb74a8ee3', 16, 10);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	
+DROP TABLE t1;
