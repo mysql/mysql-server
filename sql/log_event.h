@@ -115,7 +115,7 @@ public:
   // otherwise, set it to 0, in which case, we compute it with strlen()
   uint32 db_len;
   uint16 error_code;
-  int thread_id;
+  ulong thread_id;
 #if !defined(MYSQL_CLIENT)
   THD* thd;
   Query_log_event(THD* thd_arg, const char* query_arg):
@@ -186,7 +186,7 @@ protected:
   void copy_log_event(const char *buf, ulong data_len);
 
 public:
-  int thread_id;
+  ulong thread_id;
   uint32 table_name_len;
   uint32 db_len;
   uint32 fname_len;
