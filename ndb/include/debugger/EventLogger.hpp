@@ -125,8 +125,8 @@ public:
    * @param theData the event data.
    * @param nodeId the node id of event origin.
    */
-  virtual void log(int eventType, const Uint32* theData, NodeId nodeId = 0);
-
+  virtual void log(int, const Uint32*, NodeId = 0,const class LogLevel * = 0);
+  
   /**
    * Returns the event text for the specified event report type.
    *

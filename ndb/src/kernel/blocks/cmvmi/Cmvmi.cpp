@@ -169,9 +169,9 @@ void Cmvmi::execSET_LOGLEVELORD(Signal* signal)
   jamEntry();
 
   for(unsigned int i = 0; i<llOrd->noOfEntries; i++){
-    category = (LogLevel::EventCategory)llOrd->theCategories[i];
-    level = llOrd->theLevels[i];
-
+    category = (LogLevel::EventCategory)(llOrd->theData[i] >> 16);
+    level = llOrd->theData[i] & 0xFFFF;
+    
     clogLevel.setLogLevel(category, level);
   }
 }//execSET_LOGLEVELORD()
@@ -196,10 +196,10 @@ void Cmvmi::execEVENT_REP(Signal* signal)
   Uint32 threshold = 16;
   LogLevel::EventCategory eventCategory = (LogLevel::EventCategory)0;
   
-  for(unsigned int i = 0; i< EventLogger::matrixSize; i++){
-    if(EventLogger::matrix[i].eventType == eventType){
-      eventCategory = EventLogger::matrix[i].eventCategory;
-      threshold     = EventLogger::matrix[i].threshold;
+  for(unsigned int i = 0; i< EventLoggerBase::matrixSize; i++){
+    if(EventLoggerBase::matrix[i].eventType == eventType){
+      eventCategory = EventLoggerBase::matrix[i].eventCategory;
+      threshold     = EventLoggerBase::matrix[i].threshold;
       break;
     }
   }
@@ -266,10 +266,9 @@ Cmvmi::execEVENT_SUBSCRIBE_REQ(Signal * signal){
     LogLevel::EventCategory category;
     Uint32 level = 0;
     for(Uint32 i = 0; i<subReq->noOfEntries; i++){
-      category = (LogLevel::EventCategory)subReq->theCategories[i];
-      level = subReq->theLevels[i];
-      ptr.p->logLevel.setLogLevel(category,
-                                  level);
+      category = (LogLevel::EventCategory)(subReq->theData[i] >> 16);
+      level = subReq->theData[i] & 0xFFFF;
+      ptr.p->logLevel.setLogLevel(category, level);
     }
   }
   
