@@ -3523,7 +3523,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
       case STRING_RESULT:
 	if (item_sum->max_length > 255)
 	  return  new Field_blob(item_sum->max_length,maybe_null,
-				 item->name,table,item->binary);
+				 item->name,table,item->binary,default_charset_info);
 	return	new Field_string(item_sum->max_length,maybe_null,
 				 item->name,table,item->binary,default_charset_info);
       }
@@ -3576,7 +3576,8 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
     case STRING_RESULT:
       if (item->max_length > 255)
 	new_field=  new Field_blob(item->max_length,maybe_null,
-				   item->name,table,item->binary);
+				   item->name,table,item->binary,
+				   item->str_value.charset());
       else
 	new_field= new Field_string(item->max_length,maybe_null,
 				    item->name,table,item->binary,
@@ -4104,7 +4105,9 @@ static bool create_myisam_tmp_table(TABLE *table,TMP_TABLE_PARAM *param,
     {
       Field *field=keyinfo->key_part[i].field;
       seg->flag=     0;
-      seg->language= MY_CHARSET_CURRENT;
+      seg->language= field->binary() ? MY_CHARSET_CURRENT : 
+				     ((Field_str*)field)->charset()->number;
+
       seg->length=   keyinfo->key_part[i].length;
       seg->start=    keyinfo->key_part[i].offset;
       if (field->flags & BLOB_FLAG)

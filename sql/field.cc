@@ -3782,10 +3782,10 @@ uint Field_varstring::max_packed_col_length(uint max_length)
 Field_blob::Field_blob(char *ptr_arg, uchar *null_ptr_arg, uchar null_bit_arg,
 		       enum utype unireg_check_arg, const char *field_name_arg,
 		       struct st_table *table_arg,uint blob_pack_length,
-		       bool binary_arg)
+		       bool binary_arg, CHARSET_INFO *cs)
   :Field_str(ptr_arg, (1L << min(blob_pack_length,3)*8)-1L,
 	     null_ptr_arg, null_bit_arg, unireg_check_arg, field_name_arg,
-	     table_arg, default_charset_info),
+	     table_arg, cs),
    packlength(blob_pack_length),binary_flag(binary_arg), geom_flag(true)
 {
   flags|= BLOB_FLAG;
@@ -3967,9 +3967,9 @@ String *Field_blob::val_str(String *val_buffer __attribute__((unused)),
   char *blob;
   memcpy_fixed(&blob,ptr+packlength,sizeof(char*));
   if (!blob)
-    val_ptr->set("",0,default_charset_info);	// A bit safer than ->length(0)
+    val_ptr->set("",0,field_charset);	// A bit safer than ->length(0)
   else
-    val_ptr->set((const char*) blob,get_length(ptr),default_charset_info);
+    val_ptr->set((const char*) blob,get_length(ptr),field_charset);
   return val_ptr;
 }
 
@@ -4782,7 +4782,8 @@ Field *make_field(char *ptr, uint32 field_length,
     if (f_is_blob(pack_flag))
       return new Field_blob(ptr,null_pos,null_bit,
 			    unireg_check, field_name, table,
-			    pack_length,f_is_binary(pack_flag) != 0);
+			    pack_length,f_is_binary(pack_flag) != 0,
+			    default_charset_info);
     if (f_is_geom(pack_flag))
       return new Field_geom(ptr,null_pos,null_bit,
 			    unireg_check, field_name, table,

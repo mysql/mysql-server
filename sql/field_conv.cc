@@ -508,7 +508,8 @@ void field_conv(Field *to,Field *from)
     if (!blob->value.is_alloced() &&
 	from->real_type() != FIELD_TYPE_STRING)
       blob->value.copy();
-    blob->store(blob->value.ptr(),blob->value.length(),default_charset_info);
+    blob->store(blob->value.ptr(),blob->value.length(),
+      to->binary()?default_charset_info:((Field_str*)to)->charset());
     return;
   }
   if ((from->result_type() == STRING_RESULT &&

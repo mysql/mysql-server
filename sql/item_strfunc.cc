@@ -1799,7 +1799,7 @@ String *Item_func_conv_charset::val_str(String *str)
   s=(const uchar*)arg->ptr();
   se=s+arg->length();
   
-  dmaxlen=arg->length()*(conv_charset->mbmaxlen?conv_charset->mbmaxlen:1)+1;
+  dmaxlen=arg->length()*(to->mbmaxlen?to->mbmaxlen:1)+1;
   str->alloc(dmaxlen);
   d0=d=(unsigned char*)str->ptr();
   de=d+dmaxlen;
@@ -1841,7 +1841,7 @@ outp:
 
 void Item_func_conv_charset::fix_length_and_dec()
 {
-  /* BAR TODO: What to do here??? */
+  max_length = args[0]->max_length*(conv_charset->mbmaxlen?conv_charset->mbmaxlen:1);
 }
 
 
@@ -1911,6 +1911,32 @@ outp:
   return str;
 }
 
+
+bool Item_func_conv_charset::fix_fields(THD *thd,struct st_table_list *tables)
+{
+  char buff[STACK_BUFF_ALLOC];			// Max argument in function
+  binary=0;
+  used_tables_cache=0;
+  const_item_cache=1;
+  
+  if (thd && check_stack_overrun(thd,buff))
+    return 0;					// Fatal error if flag is set!
+  if (args[0]->fix_fields(thd,tables))
+    return 1;
+  maybe_null=args[0]->maybe_null;
+  binary=args[0]->binary;
+  str_value.set_charset(conv_charset);
+  fix_length_and_dec();
+  return 0;
+}
+
+
+void Item_func_conv_charset3::fix_length_and_dec()
+{
+  max_length = args[0]->max_length;
+}
+
+
 String *Item_func_charset::val_str(String *str)
 {
   String *res = args[0]->val_str(str);
@@ -1920,14 +1946,6 @@ String *Item_func_charset::val_str(String *str)
   str->copy(res->charset()->name,strlen(res->charset()->name));
   return str;
 }
-
-
-void Item_func_conv_charset3::fix_length_and_dec()
-{
-  /* BAR TODO: What to do here??? */
-}
-
-
 
 
 String *Item_func_hex::val_str(String *str)
