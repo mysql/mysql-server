@@ -4010,7 +4010,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
     case Item_sum::AVG_FUNC:			/* Place for sum & count */
       if (group)
 	return new Field_string(sizeof(double)+sizeof(longlong),
-				maybe_null, item->name,table,&my_charset_bin);
+				0, item->name,table,&my_charset_bin);
       else
 	return new Field_double(item_sum->max_length,maybe_null,
 				item->name, table, item_sum->decimals);
@@ -4018,7 +4018,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
     case Item_sum::STD_FUNC:	
       if (group)
 	return	new Field_string(sizeof(double)*2+sizeof(longlong),
-				 maybe_null, item->name,table,&my_charset_bin);
+				 0, item->name,table,&my_charset_bin);
       else
 	return new Field_double(item_sum->max_length, maybe_null,
 				item->name,table,item_sum->decimals);				
@@ -5622,11 +5622,11 @@ end_send(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	  TABLE *table=jt->table;
 
 	  join->select_options ^= OPTION_FOUND_ROWS;
-	  if (table->record_pointers ||
-	      (table->io_cache && my_b_inited(table->io_cache)))
+	  if (table->sort.record_pointers ||
+	      (table->sort.io_cache && my_b_inited(table->sort.io_cache)))
 	  {
 	    /* Using filesort */
-	    join->send_records= table->found_records;
+	    join->send_records= table->sort.found_records;
 	  }
 	  else
 	  {
@@ -6461,8 +6461,8 @@ create_sort_index(THD *thd, JOIN_TAB *tab, ORDER *order,
   if (!(sortorder=make_unireg_sortorder(order,&length)))
     goto err;				/* purecov: inspected */
   /* It's not fatal if the following alloc fails */
-  table->io_cache=(IO_CACHE*) my_malloc(sizeof(IO_CACHE),
-					MYF(MY_WME | MY_ZEROFILL));
+  table->sort.io_cache=(IO_CACHE*) my_malloc(sizeof(IO_CACHE),
+                                             MYF(MY_WME | MY_ZEROFILL));
   table->status=0;				// May be wrong if quick_select
 
   // If table has a range, move it to select
@@ -6491,9 +6491,9 @@ create_sort_index(THD *thd, JOIN_TAB *tab, ORDER *order,
   }
   if (table->tmp_table)
     table->file->info(HA_STATUS_VARIABLE);	// Get record count
-  table->found_records=filesort(thd, table,sortorder, length,
-				select, filesort_limit, &examined_rows);
-  tab->records=table->found_records;		// For SQL_CALC_ROWS
+  table->sort.found_records=filesort(thd, table,sortorder, length,
+                                     select, filesort_limit, &examined_rows);
+  tab->records=table->sort.found_records;		// For SQL_CALC_ROWS
   delete select;				// filesort did select
   tab->select=0;
   tab->select_cond=0;
@@ -6505,7 +6505,7 @@ create_sort_index(THD *thd, JOIN_TAB *tab, ORDER *order,
     table->key_read=0;
     table->file->extra(HA_EXTRA_NO_KEYREAD);
   }
-  DBUG_RETURN(table->found_records == HA_POS_ERROR);
+  DBUG_RETURN(table->sort.found_records == HA_POS_ERROR);
 err:
   DBUG_RETURN(-1);
 }

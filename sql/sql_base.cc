@@ -245,16 +245,11 @@ static void free_cache_entry(TABLE *table)
 void free_io_cache(TABLE *table)
 {
   DBUG_ENTER("free_io_cache");
-  if (table->io_cache)
+  if (table->sort.io_cache)
   {
-    close_cached_file(table->io_cache);
-    my_free((gptr) table->io_cache,MYF(0));
-    table->io_cache=0;
-  }
-  if (table->record_pointers)
-  {
-    my_free((gptr) table->record_pointers,MYF(0));
-    table->record_pointers=0;
+    close_cached_file(table->sort.io_cache);
+    my_free((gptr) table->sort.io_cache,MYF(0));
+    table->sort.io_cache=0;
   }
   DBUG_VOID_RETURN;
 }

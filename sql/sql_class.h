@@ -354,6 +354,7 @@ struct system_variables
   ulong max_allowed_packet;
   ulong max_error_count;
   ulong max_heap_table_size;
+  ulong max_length_for_sort_data;
   ulong max_prep_stmt_count;
   ulong max_sort_length;
   ulong max_tmp_tables;

@@ -146,7 +146,7 @@ select grp,group_concat(c) from t1 group by grp;
 grp	group_concat(c)
 1	NULL
 2	b
-3	E,D,D
+3	D,D,E
 4	
 5	NULL
 Warnings:
