@@ -437,25 +437,29 @@ log_group_calc_lsn_offset(
 	dulint		lsn,	/* in: lsn, must be within 4 GB of group->lsn */
 	log_group_t*	group)	/* in: log group */
 {
-	dulint	gr_lsn;
-	ulint	gr_lsn_size_offset;
-	ulint	difference;
-	ulint	group_size;
-	ulint	offset;
+        dulint	        gr_lsn;
+       	ib_longlong     gr_lsn_size_offset;
+	ib_longlong	difference;
+	ib_longlong	group_size;
+	ib_longlong	offset;
 	
 	ut_ad(mutex_own(&(log_sys->mutex)));
 
+	/* If total log file size is > 2 GB we can easily get overflows
+	with 32-bit integers. Use 64-bit integers instead. */
+
 	gr_lsn = group->lsn;
 
-	gr_lsn_size_offset = log_group_calc_size_offset(group->lsn_offset,
-									group);
-	group_size = log_group_get_capacity(group);
+	gr_lsn_size_offset = (ib_longlong)
+	               log_group_calc_size_offset(group->lsn_offset, group);
+
+	group_size = (ib_longlong) log_group_get_capacity(group);
 
 	if (ut_dulint_cmp(lsn, gr_lsn) >= 0) {
 			
-		difference = ut_dulint_minus(lsn, gr_lsn);
+		difference = (ib_longlong) ut_dulint_minus(lsn, gr_lsn);
 	} else {
-		difference = ut_dulint_minus(gr_lsn, lsn);
+		difference = (ib_longlong) ut_dulint_minus(gr_lsn, lsn);
 
 		difference = difference % group_size;
 
@@ -464,7 +468,13 @@ log_group_calc_lsn_offset(
 
 	offset = (gr_lsn_size_offset + difference) % group_size;
 
-	return(log_group_calc_real_offset(offset, group));
+	ut_a(offset <= 0xFFFFFFFF);
+
+	/* printf("Offset is %lu gr_lsn_offset is %lu difference is %lu\n",
+	       (ulint)offset,(ulint)gr_lsn_size_offset, (ulint)difference);
+	*/
+
+	return(log_group_calc_real_offset((ulint)offset, group));
 }
 
 /***********************************************************************

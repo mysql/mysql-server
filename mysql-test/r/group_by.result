@@ -102,3 +102,11 @@ pid	c1id	c2id	value	id	active	id	active
 1	4	NULL	4	4	Yes	NULL	NULL
 max(value)
 4
+a	count(*)
+NULL	9
+	3
+b	1
+a	count(*)
+NULL	9
+	3
+b	1
