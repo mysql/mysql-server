@@ -1432,6 +1432,7 @@ void close_connection(THD *thd, uint errcode, bool lock)
 		      errcode ? ER(errcode) : ""));
   if (lock)
     (void) pthread_mutex_lock(&LOCK_thread_count);
+  thd->killed=1;
   if ((vio=thd->net.vio) != 0)
   {
     if (errcode)
