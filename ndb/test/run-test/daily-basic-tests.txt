@@ -1,4 +1,4 @@
-max-time: 25000
+max-time: 3600
 cmd: atrt-mysql-test-run
 args: --force
 
