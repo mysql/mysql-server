@@ -623,7 +623,7 @@ Problems and common errors
 * Temporary files::             Where @strong{MySQL} stores temporary files
 * Problems with mysql.sock::    How to protect @file{/tmp/mysql.sock}
 * Error Access denied::         @code{Access denied} error
-* Changing MySQL user ::        How to run @strong{MySQL} as a normal user
+* Changing MySQL user::         How to run @strong{MySQL} as a normal user
 * Resetting permissions::       How to reset a forgotten password.
 * File permissions ::           Problems with file permissions
 * Not enough file handles::     File not found
@@ -1086,13 +1086,13 @@ We want @strong{MySQL} to be
 @item
 The best and the most used database in the world
 @item
-Available to all and affordable for all
+Available and affordable for all
 @item
 Easy to use
 @item
 Continuously improving while remaining fast and safe
 @item
-Fun to use and fun to improve
+Fun to use and improve
 @item
 Free from bugs
 @end itemize
@@ -1580,13 +1580,13 @@ mid-1996. When @strong{MySQL} was released to a wider public, we noticed that
 there were some pieces of ``untested code'' that were quickly found by the
 new users who made queries in a manner different than our own.  Each new
 release has had fewer portability problems than the previous one (even though
-each has had many new features), and we hope that it will be possible to label
-one of the next releases ``stable''.
+each has had many new features).
+
 
 @c FIX We've been stable for quite a while now. :) (jcole)
 
 Each release of @strong{MySQL} has been usable, and there have been problems
-only when users start to use code from ``the gray zones''. Naturally, outside
+only when users start to use code from the ``gray zones''. Naturally, outside
 users can't know what the gray zones are; this section attempts to indicate
 those that are currently known.  The descriptions deal with the 3.23.x
 version of @strong{MySQL}. All known and reported bugs are fixed in the
@@ -1620,7 +1620,7 @@ the send/receive buffer size. As of 3.21.x, the buffer size is now dynamic up
 to a default of 24M.
 
 @item Standard client programs --- Stable
-These include @code{mysql}, @code{mysqladmin} and @code{mysqlshow},
+These include @code{mysql}, @code{mysqladmin}, @code{mysqlshow},
 @code{mysqldump}, and @code{mysqlimport}.
 
 @item Basic SQL --- Stable
@@ -2261,7 +2261,7 @@ generates all pages from data stored in a @strong{MySQL} database. Pages are
 dynamically generated through a php3 interface to the database content.
 Users contribute images and descriptions. Contributed images are stored
 on the web server to avoid storing them in the database as BLOBs. All
-other information is stored in on the shared @strong{MySQL} server.
+other information is stored on the shared @strong{MySQL} server.
 @end itemize
 
 @subheading General database links
@@ -2294,7 +2294,7 @@ or something similar) to be added.
 @cindex Reporting errors
 @cindex @strong{MySQL} mailing lists
 @node Questions, Licensing and Support, Introduction, Top
-@chapter MySQL mailing lists and how to ask questions or report errors (bugs)
+@chapter MySQL mailing lists
 
 @menu
 * Mailing-list::                The @strong{MySQL} mailing lists
@@ -2363,10 +2363,11 @@ the @code{mysqlbug} script (if you are running on Windows, you should
 include a description of the operating system and the @strong{MySQL} version).
 Preferably, you should test the problem using the latest stable or
 development version of @strong{MySQL} before posting!
-Anyone should be able to repeat the bug by just using 'mysql test <
-script' on the included test case.  All bugs posted on this list will be
-corrected or documented in the next @strong{MySQL} release!  If there are only
-small code changes involved, we will also post a patch that fixes the problem.
+Anyone should be able to repeat the bug by just using 
+@code{mysql test < script} on the included test case.  All bugs posted on 
+this list will be corrected or documented in the next @strong{MySQL} release!  
+If there are only small code changes involved, we will also post a patch that 
+fixes the problem.
 
 @item bugs-digest
 The @code{bugs} list in digest form
@@ -2484,8 +2485,8 @@ script (if you are running on Windows, you should include a
 description of the operating system and the @strong{MySQL} version).
 Preferably, you should test the problem using the latest stable or development
 version of @strong{MySQL} before posting!  Anyone should be able to repeat the
-bug by just using 'mysql test < script' on the included test case or run
-the shell / perl script that is included in the bug report.  All bugs
+bug by just using @code{mysql test < script} on the included test case or run
+the shell or perl script that is included in the bug report.  All bugs
 posted on this list will be corrected or documented in the next @strong{MySQL}
 release!  If there are only small code changes involved to correct this
 problem, we will also post a patch that fixes the problem.
@@ -2528,7 +2529,7 @@ problem.
 If a program produces an error message, it is very important to include the
 message in your report! If we try to search for something from the archives
 using programs, it is better that the error message reported exactly matches
-the one that the program produces.  (Even the case sensitivity should be
+the one that the program produces.  (Even the case should be
 observed!) You should never try to remember what the error message was;
 instead, copy and paste the entire message into your report!
 
@@ -2624,8 +2625,8 @@ should be and an account describing the basis for your opinion.
 @item
 When giving an example of the problem, it's better to use the variable names,
 table names, etc., that exist in your actual situation than to come up with
-new names. The problem could be related to the name of a variable, table,
-etc.!  These cases are rare, perhaps, but it is better to be safe than
+new names. The problem could be related to the name of a variable or table! 
+These cases are rare, perhaps, but it is better to be safe than
 sorry.  After all, it should be easier for you to provide an example that
 uses your actual situation and it is by all means better for us.  In case you
 have data you don't want to show to others, you can use @code{ftp} to
@@ -2673,7 +2674,7 @@ so, we can't use it.
 If we can't verify exactly what the patch is meant for, we won't use it.
 Test cases will help us here.  Show that the patch will handle all the
 situations that may occur. If we find a borderline case (even a rare one)
-where the patch won't work, the patch may be useless.
+where the patch won't work, it may be useless.
 
 @item
 Guesses about what the bug is, why it occurs, or what it depends on,
@@ -2714,7 +2715,7 @@ why this happens!  In this case, the
 information about what happened.  Please include any relevant
 information from this file in your bug report!  Normally @code{mysqld}
 should @strong{NEVER} crash a table if nothing killed it in the middle
-of an update!  If you can find the source of why @code{mysqld} dies,
+of an update!  If you can find the cause @code{mysqld} dying,
 it's much easier for us to provide you with a fix for the problem!
 @xref{What is crashing}.
 
@@ -3974,8 +3975,8 @@ Please report bad or out of date mirrors to @email{webmaster@@mysql.com}.
 We use GNU Autoconf so it is possible to port @strong{MySQL} to all modern
 systems with working Posix threads and a C++ compiler. (To compile only the
 client code, a C++ compiler is required but not threads.)  We use and develop
-the software ourselves primarily on Sun Solaris (versions 2.5 & 2.6) and to a
-lesser extent on RedHat Linux 5.0.
+the software ourselves primarily on Sun Solaris (versions 2.5 - 2.7) and
+RedHat Linux 6.x.
 
 @strong{MySQL} has been reported to compile sucessfully on the following
 operating system/thread package combinations.  Note that for many operating
@@ -4593,7 +4594,7 @@ If you are using a @code{libc}-based system (instead of a @code{glibc2}
 system), you will probably get some problems with hostname resolving and
 getpwnam() with the binary release. (This is because @code{glibc}
 unfortunately depends on some external libraries to resolve hostnames
-and getwpent() , even when compiled with @code{-static}). In this case
+and getpwent() , even when compiled with @code{-static}). In this case
 you probably get the following error message when you run
 @code{mysql_install_db}:
 
@@ -5600,9 +5601,15 @@ t/00base............install_driver(mysql) failed: Can't load '../blib/arch/auto/
 
 it means that you need to include the compression library, -lz, to the
 link line. This can be done by changing the line:
+
+@example
 $sysliblist .= " -lm";
+
 to
+
 $sysliblist .= " -lm -lz";
+@end example
+
 in file lib/DBD/mysql/Install.pm in the Msql-Mysql-modules directory.
 After this, you MUST run 'make realclean' and then proceed with the
 installation from the beginning.
@@ -5993,10 +6000,11 @@ temporary workaround for this bug.
 
 If you plan to have 1000+ concurrent connections, you will need to make
 some changes to LinuxThreads, recompile it, and re-link MySQL against
-the new libpthread.a . Increase PTHREAD_THREADS_MAX in
-sysdeps/unix/sysv/linux/bits/local_lim.h to 4096 and decrease STACK_SIZE
-in internals.h to 256 KB . Note that MySQL will not be stable with
-around 1000 connections if STACK_SIZE is the default of 2 MB.
+the new @file{libpthread.a}. Increase @code{PTHREAD_THREADS_MAX} in
+@file{sysdeps/unix/sysv/linux/bits/local_lim.h} to 4096 and decrease 
+@code{STACK_SIZE} in @file{internals.h} to 256 KB. Note that MySQL 
+will not be stable with around 1000 connections if @code{STACK_SIZE} 
+is the default of 2 MB.
 
 If you have glibc 2.1.3-65 or newer, you don't have to increase STACK_SIZE;
 You can instead just change the @code{thread_stack} value for @code{mysqld}.
@@ -7845,7 +7853,7 @@ for installation from a source distribution:
 @example
 shell> ./scripts/mysql_install_db
 shell> cd mysql_installation_directory
-shell> ./bin/safe_mysqld &
+shell> ./bin/safe_mysqld --user=mysql &
 @end example
 
 For a binary distribution, do this:
@@ -7853,7 +7861,7 @@ For a binary distribution, do this:
 @example
 shell> cd mysql_installation_directory
 shell> ./bin/mysql_install_db
-shell> ./bin/safe_mysqld &
+shell> ./bin/safe_mysqld --user=mysql &
 @end example
 
 Testing is most easily done from the top-level directory of the @strong{MySQL}
@@ -8405,7 +8413,7 @@ reinstall.
 If your system uses @file{/etc/rc.local} to start external scripts, you
 should append the following to it:
 @example
-/bin/sh -c 'cd /usr/local/mysql ; ./bin/safe_mysqld &'
+/bin/sh -c 'cd /usr/local/mysql ; ./bin/safe_mysqld --user=mysql &'
 @end example
 
 You can also add options for @code{mysql.server} in a global
@@ -8647,7 +8655,7 @@ before it processes any command-line arguments.)
 
 @multitable @columnfractions .3 .7
 @item @strong{Filename} @tab @strong{Purpose}
-@item @code{windows-system-directory\my.ini}
+@item @code{windows-system-directory\my.ini} @tab Global options
 @item @code{C:\my.cnf} @tab Global options
 @item @code{C:\mysql\data\my.cnf} @tab Server-specific options
 @end multitable
@@ -8841,7 +8849,7 @@ the sort order!
 and not only the first argument.
 @item @code{AUTO_INCREMENT} will not work with negative numbers.
 @item @code{INNER} and @code{DELAYED} are now reserved words.
-@item @code{FLOAT(X)} is now a true floating point types and not a value with
+@item @code{FLOAT(X)} is now a true floating point type and not a value with
 a fixed number of decimals.
 @item When declaring @code{DECIMAL(length,dec)} the length argument no
 longer includes a place for the sign or the decimal point.
@@ -8856,12 +8864,12 @@ flag.
 @item When you check/repair tables you should use @code{CHECK TABLE}
 or @code{myisamchk} for @code{MyISAM} tables (@code{.MYI}) and
 @code{isamchk} for ISAM (@code{.ISM}) tables.
-@item If you want your @code{mysqldump}s to be compatible between
+@item If you want your @code{mysqldump} files to be compatible between
 @strong{MySQL} 3.22 and 3.23, you should not use the @code{--opt} or
 @code{--full} option to @code{mysqldump}.
 @item Check all your calls to @code{DATE_FORMAT()} to make sure there is a
 @samp{%} before each format character.  (Later @strong{MySQL} 3.22
-version did allow this syntax.
+version did allow this syntax.)
 @item
 @code{mysql_fetch_fields_direct} is now a function (it was a macro) and
 it returns a pointer to a @code{MYSQL_FIELD} instead of a
@@ -8923,8 +8931,8 @@ You can start the @code{mysqld} 3.21 server with @code{safe_mysqld
 --old-protocol} to use it with clients from the 3.20 distribution.
 In this case, the new client function @code{mysql_errno()} will not
 return any server error, only @code{CR_UNKNOWN_ERROR}, (but it
-works for client errors) and the server uses the old password() checking
-rather than the new one.
+works for client errors) and the server uses the old @code{password()} 
+checking rather than the new one.
 
 If you are @strong{NOT} using the @code{--old-protocol} option to
 @code{mysqld}, you will need to make the following changes:
@@ -9137,7 +9145,7 @@ comparisons to be done according to the ASCII order used on the
 data directory, and tables within a database to filenames in the database
 directory.
 
-This has two implications:
+This has a few implications:
 
 @itemize @minus
 @item
@@ -9339,11 +9347,11 @@ of @strong{MySQL} changes.
 @item
 @code{||} is string concatenation instead of @code{OR}.
 @item
-One can have any number of spaces between a function name and the '('. This
-makes also all function names reserved words.
+One can have any number of spaces between a function name and the @samp{(}. 
+This makes also all function names reserved words.
 @item
-@code{"} will be an identifier quote character (like the @strong{MySQL}
-@code{`} quote character) and not a string quote character.
+@samp{"} will be an identifier quote character (like the @strong{MySQL}
+@samp{`} quote character) and not a string quote character.
 @item
 @code{REAL} will be a synonym for @code{FLOAT} instead of a synonym of
 @code{DOUBLE}.
@@ -10363,8 +10371,7 @@ shell> mysql -u user_name -p
 Enter password: ********
 @end example
 
-The client echoes @samp{*} characters to the terminal as you enter your
-password so that onlookers cannot see it.
+The @samp{*} characters represent your password.
 
 It is more secure to enter your password this way than to specify it on the
 command line because it is not visible to other users.  However, this method
@@ -10534,7 +10541,7 @@ and other access privilege information.  (Passwords are stored
 encrypted, so a malicious user cannot simply read them to know the plain
 text password).  If they can access the @code{mysql.user} password
 column, they can use it to login into the @strong{MySQL} server
-for the given user.  With sufficient privileges, the same user can
+for the given user.  (With sufficient privileges, the same user can
 replace a password with a different one.)
 @end itemize
 
@@ -10800,7 +10807,7 @@ can specify a netmask indicating how many address bits to use for the
 network number. For example:
 
 @example
-GRANT ALL PRIVILEGES on db.* to david@'192.58.197.0/255.255.255.0';
+GRANT ALL PRIVILEGES on db.* to david@@'192.58.197.0/255.255.255.0';
 @end example
 
 This will allow everyone to connect from an IP where the following is true:
@@ -11654,7 +11661,7 @@ Another reason for this error on Linux is that you are using a binary
 than the one you are using.  In this case you should either upgrade your
 OS/glibc or download the source @strong{MySQL} version and compile this
 yourself; A source RPM is normally trivial to compile and install, so
-normally this isn't a big problem.
+this isn't a big problem.
 
 @item
 If you get an error message where the hostname is not shown or where the
@@ -12084,10 +12091,10 @@ Database, table, index, column and alias names all follow the same rules in
 @tindex "
 Note that the rules changed starting with @strong{MySQL} 3.23.6 when we
 introduced quoting of identifiers (database, table and column names)
-with @code{`} (@code{"} will also work to quote identifiers if you run
+with @samp{`} (@samp{"} will also work to quote identifiers if you run
 in ANSI mode).
 
-@multitable @columnfractions .15 .7 .78
+@multitable @columnfractions .15 .15 .70
 @item @strong{Identifier} @tab @strong{Max length} @tab @strong{Allowed characters}
 @item Database @tab 64 @tab Any character that is allowed in a directory name except @code{/}.
 @item Table @tab 64 @tab Any character that is allowed in file name, except @code{/} or @code{.}
@@ -12747,7 +12754,7 @@ standard, @strong{MySQL} recognizes @code{DOUBLE} as a synonym for the
 @code{DOUBLE PRECISION} type.  In contrast with the standard's
 requirement that the precision for @code{REAL} be smaller than that used
 for @code{DOUBLE PRECISION}, @strong{MySQL} implements both as 8-byte
-double-precision floating point values (when running in non-"Ansi mode").
+double-precision floating point values (when not running in ``Ansi mode'').
 For maximum portability, code requiring storage of approximate numeric
 data values should use @code{FLOAT} or @code{DOUBLE PRECISION} with no
 specification of precision or number of decimal points.
@@ -14303,7 +14310,7 @@ Performs a pattern match of a string expression @code{expr} against a pattern
 returns @code{0}.  @code{RLIKE} is a synonym for @code{REGEXP}, provided for
 @code{mSQL} compatibility. Note: Because @strong{MySQL} uses the C escape
 syntax in strings (e.g., @samp{\n}), you must double any @samp{\} that you
-use in your @code{REGEXP} strings.  In @strong{MySQL} 3.23.4,
+use in your @code{REGEXP} strings.  As of @strong{MySQL} 3.23.4,
 @code{REGEXP} is case insensitive for normal (not binary) strings.
 
 @example
@@ -14447,6 +14454,7 @@ The default return type of @code{IF()} (which may matter when it stored into
 a temporary table) is calculated in @strong{MySQL} 3.23 as follows:
 
 @multitable @columnfractions .7 .3
+@item @strong{Expression} @tab @strong{Return value}
 @item expr2 or expr3 returns string @tab string
 @item expr2 or expr3 returns a floating point value @tab floating point
 @item expr2 or expr3 returns an integer @tab integer
@@ -14969,7 +14977,7 @@ mysql> select CONCAT(14.3);
 @item CONCAT_WS(separator, str1, str2,...)
 
 @code{CONCAT_WS()} stands for CONCAT With Separator and is a special form of
-@code{CONCAT()}.  The irst argument is the separator for the rest of the
+@code{CONCAT()}.  The first argument is the separator for the rest of the
 arguments. The separator can be a string as well as the rest of the
 arguments. If the separator is @code{NULL}, the result will be @code{NULL}.
 The function will skip any @code{NULL}s and empty strings, after the
@@ -15709,7 +15717,7 @@ the days that were lost when the calender was changed.
 @item DATE_FORMAT(date,format)
 Formats the @code{date} value according to the @code{format} string. The
 following specifiers may be used in the @code{format} string:
-@multitable @columnfractions .1 .9
+@multitable @columnfractions .1 .6
 @item @code{%M} @tab Month name (@code{January}..@code{December})
 @item @code{%W} @tab Weekday name (@code{Sunday}..@code{Saturday})
 @item @code{%D} @tab Day of the month with english suffix (@code{1st}, @code{2nd}, @code{3rd}, etc.)
@@ -16680,7 +16688,7 @@ in high-byte-first-order directly after the key, to improve
 compression.  This means that if you have many equal keys on two rows
 in a row, all following 'same' keys will usually only take 2 bytes
 (including the pointer to the row).  Compare this to the ordinary case
-where the following keys will take 'storage_size_for_key' +
+where the following keys will take storage_size_for_key +
 pointer_size (usually 4).  On the other hand, if all keys are
 totally different, you will lose 1 byte per key, if the key isn't a
 key that can have @code{NULL} values (In this case the packed key length will
@@ -16712,7 +16720,7 @@ for this).
 If you specify @code{RAID_TYPE=STRIPED} for a @code{MyISAM} table,
 @code{MyISAM} will create @code{RAID_CHUNKS} sub-directories named 00,
 01, 02 in the database directory.  In each of these directories
-@code{MyISAM} will create an @code{table_name.MYD}.  When writing data
+@code{MyISAM} will create a @code{table_name.MYD}.  When writing data
 to the data file, the @code{RAID} handler will map the first
 @code{RAID_CHUNKSIZE} *1024 bytes to the first file, the next
 @code{RAID_CHUNKSIZE} *1024 bytes to the next file and so on.
@@ -17106,8 +17114,9 @@ Check the table(s) for errors and updates the key statistics for the table.
 The command returns a table with the following columns:
 
 @multitable @columnfractions .35 .65
+@item @strong{Column} @tab @strong{Value}
 @item Table @tab Table name
-@item Op @tab Always 'check'
+@item Op @tab Always ``check''
 @item Msg_type @tab One of @code{status}, @code{error}, @code{info} or @code{warning}.
 @item Msg_text @tab The message.
 @end multitable
@@ -17122,10 +17131,11 @@ told @strong{MySQL} that there wasn't any need to check the table.
 The different check types stand for the following:
 
 @multitable @columnfractions .20 .80
+@item @strong{Type} @tab @strong{Meaning}
 @item @code{QUICK} @tab Don't scan the rows for fixed size record tables.
 @item @code{FAST}  @tab Only check tables which haven't been closed properly.
 @item @code{CHANGED} @tab Only check tables which have been changed since last check or haven't been closed properly.
-@item @code{EXTENDED} @tab Do a full key lookup for all keys for each row.  This enasures that the table is 100 % consistent, but will take a long time!
+@item @code{EXTENDED} @tab Do a full key lookup for all keys for each row.  This ensures that the table is 100 % consistent, but will take a long time!
 @end multitable
 
 @findex ANALYZE TABLE
@@ -17147,8 +17157,9 @@ constant.
 The command returns a table with the following columns:
 
 @multitable @columnfractions .35 .65
+@item @strong{Column} @tab @strong{Value}
 @item Table @tab Table name
-@item Op @tab Always 'analyze
+@item Op @tab Always ``analyze''
 @item Msg_type @tab One of @code{status}, @code{error}, @code{info} or @code{warning}.
 @item Msg_text @tab The message.
 @end multitable
@@ -17174,8 +17185,9 @@ Repair the corrupted table. The command returns a table with the following
 columns:
 
 @multitable @columnfractions .35 .65
+@item @strong{Column} @tab @strong{Value}
 @item Table @tab Table name
-@item Op @tab Always 'repair'
+@item Op @tab Always ``repair''
 @item Msg_type @tab One of @code{status}, @code{error}, @code{info} or @code{warning}.
 @item Msg_text @tab The message.
 @end multitable
@@ -17683,7 +17695,7 @@ The query cannot contain an @code{ORDER BY} clause.
 The target table of the @code{INSERT} statement cannot appear in the
 @code{FROM} clause of the @code{SELECT} part of the query, because it's
 forbidden in ANSI SQL to @code{SELECT} from the same table into which you are
-@code{INSERT}ing.  (The problem is that the @code{SELECT} possibly would
+inserting.  (The problem is that the @code{SELECT} possibly would
 find records that were inserted earlier during the same run.  When using
 sub-select clauses, the situation could easily be very confusing!)
 
@@ -17831,6 +17843,7 @@ The following status variables provide information about @code{INSERT
 DELAYED} commands:
 
 @multitable @columnfractions .35 .65
+@item @strong{Variable} @tab @strong{Meaning}
 @item @code{Delayed_insert_threads} @tab Number of handler threads
 @item @code{Delayed_writes} @tab Number of rows written with @code{INSERT DELAYED}
 @item @code{Not_flushed_delayed_rows} @tab Number of rows waiting to be written
@@ -18672,6 +18685,7 @@ below, though the format and numbers probably differ:
 The status variables listed above have the following meaning:
 
 @multitable @columnfractions .35 .65
+@item @strong{Variable} @tab @strong{Meaning}
 @item @code{Aborted_clients} @tab Number of connections that has been aborted because the client has died without closing the connection properly.
 @item @code{Aborted_connects} @tab Number of tries to connect to the @strong{MySQL} server that has failed.
 @item @code{Bytes_received} @tab Number of bytes received from the client
@@ -18758,9 +18772,9 @@ The output resembles that shown below, though the format and numbers may
 differ somewhat:
 
 @example
-+----------------------------+------------------------------+
++-------------------------+---------------------------------+
 | Variable_name           | Value                           |
-+----------------------------+------------------------------+
++-------------------------+---------------------------------+
 | ansi_mode               | OFF                             |
 | back_log                | 50                              |
 | basedir                 | /usr/local/mysql/               |
@@ -18821,7 +18835,7 @@ differ somewhat:
 | tmpdir                  | /tmp/                           |
 | version                 | 3.23.21-beta-debug              |
 | wait_timeout            | 28800                           |
-+-----------------------------------+-----------------------+
++-------------------------+---------------------------------+
 @end example
 
 Each option is described below. Values for buffer sizes, lengths and stack
@@ -19128,12 +19142,14 @@ mysql> SHOW GRANTS FOR root@@localhost;
 @subsection SHOW CREATE TABLE
 Shows a @code{CREATE TABLE} statement that will create the given table
 @example
-mysql> show create table foo;
-+-------+-------------------------------------------------------------------------------------+
-| Table | Create Table                                                                        |
-+-------+-------------------------------------------------------------------------------------+
-| foo   | create table foo(n int(11) default NULL auto_increment,primary key (n)) type=MyISAM |
-+-------+-------------------------------------------------------------------------------------+
+mysql> show create table t\G
+*************************** 1. row ***************************
+       Table: t
+Create Table: CREATE TABLE t (
+  id int(11) default NULL auto_increment,
+  s char(60) default NULL,
+  PRIMARY KEY (id)
+) TYPE=MyISAM
 
 @end example
 
@@ -20264,7 +20280,7 @@ TABLE} statement. @xref{ALTER TABLE, , @code{ALTER TABLE}}.
 
 Note that @strong{MySQL} supports two different kind of
 tables. Transactions safe tables (@code{BDB}) and not transaction safe
-tables (@code{ISAM},@code{MyISAM} and @code{HEAP}.
+tables (@code{ISAM}, @code{MyISAM} and @code{HEAP}).
 
 Advantages of transaction safe tables (TST)
 
@@ -20554,7 +20570,7 @@ This is a read only type that is generated with the optional
 All MySQL distributions, even those that existed before @strong{MySQL}
 went GPL, can read tables that were compressed with @code{myisampack}.
 @item
-Compressed tables takes very little disk space. This minimizes disk usage which
+Compressed tables take very little disk space. This minimizes disk usage which
 is very nice when using slow disks (like CD-ROMs).
 @item
 Each record is compressed separately (very little access overhead).  The
@@ -20691,8 +20707,10 @@ To ensure that you accidentally don't do anything stupid, you can't create
 
 Memory needed for one row in a @code{HEAP} table is:
 
-SUM_OVER_ALL_KEYS(max_length_of_key + sizeof(char*)*2) +
-ALIGN(length_of_row+1,sizeof(char*))
+@example
+SUM_OVER_ALL_KEYS(max_length_of_key + sizeof(char*) * 2)
++ ALIGN(length_of_row+1, sizeof(char*))
+@end example
 
 @code{sizeof(char*)} is 4 on 32 bit machines and 8 on 64 bit machines.
 
@@ -20711,28 +20729,25 @@ Sleepycat's download page at
 
 To install Berkeley DB first uncompress the @code{BDB} distribution
 and follow the instructions in the README provided in the distiribution
-directory. Basicly what you need to do is:
-@itemize @bullet
-@item
+directory. Basically what you need to do is:
+
+@example
 cd build_[your_os]
-@item
 ../dist/configure
-@item
 make
-@item
 make install
-@end itemize
+@end example
 
 Please refer to the manual provided by @code{BDB} distribution for
 more/updated information.
 
 After this you need to configure your @strong{MySQL} with
---with-berkeley-db=DIR The directory is the one where you installed
-@code{BDB} binaries with make install. (Usually it is
+@code{--with-berkeley-db=DIR}. The directory is the one where you installed
+@code{BDB} binaries with @code{make install}. (Usually it is
 /usr/local/BerkeleyDB.3.1/) You can give additional options to
-@strong{MySQL} configure, --with-berkeley-db-includes=DIR and
---with-berkeley-db-libs=DIR, if the @code{BDB} includes and/or libs
-directory is not under the first directory. By default they are.
+@strong{MySQL} configure, @code{--with-berkeley-db-includes=DIR} and
+@code{--with-berkeley-db-libs=DIR}, if the @code{BDB} includes and/or libs
+directory is not under the first directory, by default they are.
 Then complete the @strong{MySQL} installation as normal.
 
 Even if Berkeley DB is in itself very tested and reliably, the
@@ -20743,17 +20758,18 @@ If you are running with @code{AUTOCOMMIT=0} then your changes in @code{BDB}
 tables will not be updated until you execute @code{COMMIT}.  Instead of commit
 you can execute @code{ROLLBACK} to forget your changes. @xref{COMMIT}.
 
-The following options to @code{mysqld} can be used to change the behavour of
+The following options to @code{mysqld} can be used to change the behavior of
 BDB tables:
 
 @multitable @columnfractions .30 .70
-@item --bdb-home=  directory @tab  Base directory for BDB tables. This should be the same directory you use for --datadir.
-@item --bdb-lock-detect=# @tab  Berkeley lock detect. One of (DEFAULT, OLDEST, RANDOM or YOUNGEST)
-@item --bdb-logdir=directory @tab Berkeley DB log file directory
-@item --bdb-nosync @tab Don't synchronously flush logs
-@item --bdb-recover @tab Start Berkeley DB in recover mode
-@item --bdb-tmpdir=directory @tab Berkeley DB tempfile name
-@item --skip-bdb @tab Don't use berkeley db.
+@item @strong{Option} @tab @strong{Meaning}
+@item @code{--bdb-home=directory} @tab  Base directory for BDB tables. This should be the same directory you use for --datadir.
+@item @code{--bdb-lock-detect=#} @tab  Berkeley lock detect. One of (DEFAULT, OLDEST, RANDOM or YOUNGEST)
+@item @code{--bdb-logdir=directory} @tab Berkeley DB log file directory
+@item @code{--bdb-nosync} @tab Don't synchronously flush logs
+@item @code{--bdb-recover} @tab Start Berkeley DB in recover mode
+@item @code{--bdb-tmpdir=directory} @tab Berkeley DB tempfile name
+@item @code{--skip-bdb} @tab Don't use berkeley db.
 @end multitable
 
 If you use @code{--skip-bdb}, @strong{MySQL} will not initialize the
@@ -20855,7 +20871,7 @@ a @strong{MySQL} server is available to which you can connect.  If this is
 not true, contact your @strong{MySQL} administrator.  (If @emph{you} are the
 administrator, you will need to consult other sections of this manual.)
 
-The chapter describes the entire process of setting up and using a
+This chapter describes the entire process of setting up and using a
 database.  If you are interested only in accessing an already-existing
 database, you may want to skip over the sections that describe how to
 create the database and the tables it contains.
@@ -20917,7 +20933,7 @@ mysql> QUIT
 Bye
 @end example
 
-You can also disconnect by typing control-D.
+You can also disconnect by typing Control-D.
 
 Most examples in the following sections assume you are connected to the
 server.  They indicate this by the @code{mysql>} prompt.
@@ -21189,7 +21205,7 @@ SELECT * FROM shop
 @menu
 * example-Maximum-column::      The maximum value for a column
 * example-Maximum-row::         The row holding the maximum of a certain column
-* example-Maximum-column-group::  Maximum of column: per group: only the values
+* example-Maximum-column-group::  Maximum of column per group
 * example-Maximum-column-group-row::  The rows holding the group-wise maximum of a certain field
 * example-Foreign keys::        Using foreign keys
 @end menu
@@ -21251,7 +21267,7 @@ LIMIT 1
 the @code{LIMIT} solution shows only one of them!
 
 @node example-Maximum-column-group, example-Maximum-column-group-row, example-Maximum-row, Examples
-@subsection Maximum of column: per group: only the values
+@subsection Maximum of column per group
 
 ``What's the highest price per article?''
 
@@ -23318,7 +23334,8 @@ to 8 million terabytes (2 ^ 63 bytes).
 Note however that operating systems have their own file size
 limits. Here are some examples:
 
-@multitable @columnfractions .6 .4
+@multitable @columnfractions .5 .5
+@item @strong{Operating System} @tab @strong{File Size Limit}
 @item Linux-Intel @tab 2G (or 4G with reiserfs)
 @item Linux-Alpha @tab 8T (?)
 @item Solaris 2.5.1 @tab 2G (possible 4G with patch)
@@ -23533,53 +23550,107 @@ databases should not be logged to the binary log with @code{binlog-ignore-db}
 The table below explains the replications options in @code{my.cnf} . All
 of the are available starting in 3.23.15 unless indicated otherwise.
 
-@multitable @columnfractions .25 .25 .25 .25
-@item @strong{Option} @tab @strong{Description} @tab @strong{Where to set} @tab @strong{Example}
-@item @code{log-bin} @tab Should be set on the master. Tells it to keep a binary update
-log. If a parameter is specified, the log will be written to the specified location. @tab Master @tab
-@code{log-bin}
-@item @code{log-bin-index} @tab Because the user could issue @code{FLUSH LOGS} command, we need to
-know which log is currently active and which ones have been rotated out and it what sequence. This info
-is stored in the binary log index file. The default is `hostname`.index . You can use this option
-if you want to be a rebel. @tab Master @tab @code{log-bin-index=db.index}
-@item @code{master-host} @tab Master hostname or IP address for replication. If not set,
-the slave thread will not be started @tab Slave @tab @code{master-host=db-master.mycompany.com}
-@item @code{master-user} @tab The user the slave thread will authenticate as when connecting to
-the master. The user must have @code{FILE} privilige. If the master user is not set, user @code{test}
- is assumed. @tab Slave @tab @code{master-user=scott}
-@item @code{master-password} @tab The password the slave thread will authenticate with when
-connecting to the master. If not set, empty password is assumed @tab Slave @tab
-@code{master-password=tiger}
-@item @code{master-port} @tab The port the master is listening on. If not set, the compiled setting of
-@code{MYSQL_PORT} is assumed. If you have not tinkered with @code{configure} options, this should be
-3306. @tab Slave @tab @code{master-port=3306}
-@item @code{master-connect-retry} @tab The number of seconds the slave thread will sleep before retrying
-to connect to the master in case the master goes down or the connection is lost.
-Default is 60. @tab Slave @tab @code{master-connect-retry=60}
-@item @code{master-info-file} @tab
-The location of the file that remembers where we left off on the master
+@multitable @columnfractions .3 .7
+
+@item @strong{Option} @tab @strong{Description}
+@item 
+@code{log-bin} 
+@tab Should be set on the master. Tells it to keep a binary update log. 
+If a parameter is specified, the log will be written to the specified 
+location.
+(Set on @strong{Master}, Example: @code{log-bin})
+
+@item 
+@code{log-bin-index} 
+@tab Because the user could issue @code{FLUSH LOGS} command, we need to
+know which log is currently active and which ones have been rotated out 
+and it what sequence. This info is stored in the binary log index file. 
+The default is `hostname`.index . You can use this option
+if you want to be a rebel.
+(Set on @strong{Master}, Example: @code{log-bin-index=db.index})
+
+@item 
+@code{master-host} 
+@tab Master hostname or IP address for replication. If not set, the slave 
+thread will not be started.
+(Set on @strong{Slave}, Example: @code{master-host=db-master.mycompany.com})
+
+@item 
+@code{master-user} 
+@tab The user the slave thread will authenticate as when connecting to
+the master. The user must have @code{FILE} privilige. If the master user 
+is not set, user @code{test} is assumed. 
+(Set on @strong{Slave}, Example: @code{master-user=scott})
+
+@item 
+@code{master-password} 
+@tab The password the slave thread will authenticate with when connecting
+to the master. If not set, empty password is assumed
+(Set on @strong{Slave}, Example: @code{master-password=tiger})
+
+@item
+@code{master-port}
+@tab The port the master is listening on. If not set, the compiled setting
+of @code{MYSQL_PORT} is assumed. If you have not tinkered with @code{configure}
+options, this should be 3306. 
+(Set on @strong{Slave}, Example: @code{master-port=3306})
+
+@item 
+@code{master-connect-retry}
+@tab The number of seconds the slave thread will sleep before retrying to 
+connect to the master in case the master goes down or the connection is lost.
+Default is 60. 
+(Set on @strong{Slave}, Example: @code{master-connect-retry=60})
+
+@item 
+@code{master-info-file} 
+@tab The location of the file that remembers where we left off on the master
 during the replication process. The default is master.info in the data
 directory.  Sasha: The only reason I see for ever changing the default
 is the desire to be rebelious.
-@tab Slave @tab @code{master-info-file=master.info}
-@item @code{replicate-do-db} @tab Tells the slave thread to restrict replication to the specified database. To specify more than one database, use the directive multiple times, once for each database.
-Note that this will only work if you do not use cross-database queries such as
-@code{UPDATE some_db.some_table SET foo='bar'} while having selected a different or
-no database. @tab Slave @tab @code{replicate-do-db=some_db}
-@item @code{replicate-ignore-db} @tab Tells the slave thread to not replicate to the specified
-database. To specify more than one database to ignore, use the directive multiple times,
-once for each database. You must not use cross database updates for this option. @tab Slave @tab @code{replicate-ignore-db=some_db}
-@item @code{sql-bin-update-same} @tab If set, setting  @code{SQL_LOG_BIN} to a value will
-automatically set @code{SQL_LOG_UPDATE} to the same value and vice
-versa. @tab Master @tab @code{sql-bin-update-same}
+(Set on @strong{Slave}, Example: @code{master-info-file=master.info})
 
-@item @code{log-slave-updates} @tab Tells the slave to log the updates from the slave thread to the binary log. Off by default. You will need to turn it on if you plan to daisy-chain the slaves @tab Slave @tab @code{log-slave-updates}
-@item @code{binlog-do-db} @tab Tells the master it should log updates
-for the specified database, and exclude all others not explicitly
-mentioned. @tab Master @tab @code{binlog-do-db=some_database}
-@item @code{binlog-ignore-db} @tab Tells the master that updates to the given database
-should not be logged to the binary log @tab Master @tab
-@code{binlog-ignore-db=some_database}
+@item 
+@code{replicate-do-db}
+@tab Tells the slave thread to restrict replication to the specified database.
+To specify more than one database, use the directive multiple times, once for
+each database. Note that this will only work if you do not use cross-database 
+queries such as @code{UPDATE some_db.some_table SET foo='bar'} while having 
+selected a different or no database. 
+(Set on @strong{Slave}, Example: @code{replicate-do-db=some_db})
+
+@item 
+@code{replicate-ignore-db} 
+@tab Tells the slave thread to not replicate to the specified database. To 
+specify more than one database to ignore, use the directive multiple times,
+once for each database. You must not use cross database updates for this 
+option. 
+(Set on @strong{Slave}, Example: @code{replicate-ignore-db=some_db})
+
+@item 
+@code{sql-bin-update-same} 
+@tab If set, setting  @code{SQL_LOG_BIN} to a value will automatically set 
+@code{SQL_LOG_UPDATE} to the same value and vice versa. 
+(Set on @strong{Master}, Example: @code{sql-bin-update-same})
+
+@item 
+@code{log-slave-updates} 
+@tab Tells the slave to log the updates from the slave thread to the binary 
+log. Off by default. You will need to turn it on if you plan to daisy-chain 
+the slaves 
+(Set on @strong{Slave}, Example: @code{log-slave-updates})
+
+@item 
+@code{binlog-do-db} 
+@tab Tells the master it should log updates for the specified database, and 
+exclude all others not explicitly mentioned. 
+(Set on @strong{Master}, Example: @code{binlog-do-db=some_database})
+
+@item 
+@code{binlog-ignore-db}
+@tab Tells the master that updates to the given database should not be logged 
+to the binary log 
+(Set on @strong{Master}, Example: @code{binlog-ignore-db=some_database})
 
 @end multitable
 
@@ -23589,39 +23660,66 @@ should not be logged to the binary log @tab Master @tab
 Replication can be controlled through the SQL interface. Below is the
 summary of commands:
 
-@multitable @columnfractions .30 .40 .30
-@item @strong{Command} @tab @strong{Description} @tab @strong{Where to run}
-@item @code{SLAVE START} @tab Starts the slave thread. @tab Slave
-@item @code{SLAVE STOP} @tab Stops the slave thread. @tab Slave
-@item @code{SET SQL_LOG_BIN=0} @tab Disables update logging @tab Master
-@item @code{SET SQL_LOG_BIN=1} @tab Re-enable update logging @tab Master
-@item @code{FLUSH MASTER} @tab Deletes all binary logs listed in the inded file, resetting the binlog index file to be empty. @tab Master
-@item @code{FLUSH SLAVE} @tab Makes the slave forget its replication position in the master logs @tab Slave
-@item @code{LOAD TABLE tblname FROM MASTER} @tab Downloads a copy of the table from master to the slave @tab Slave
-@item @code{CHANGE MASTER TO master_def_list} @tab Changes the master parameters
-to the values specified in @code{master_def_list} and restarts the slave thread.
-@code{master_def_list} is a comma-separated list of @code{master_def} where
-@code{master_def} is one of the following: @code{MASTER_HOST},
-@code{MASTER_USER}, @code{MASTER_PASSWORD}, @code{MASTER_PORT},
-@code{MASTER_CONNECT_RETRY}, @code{MASTER_LOG_FILE}, @code{MASTER_LOG_POS}.
-Example: @code{CHANGE MASTER TO MASTER_HOST='master2.mycompany.com',
-MASTER_USER='replication', MASTER_PASSWORD='bigs3cret', MASTER_PORT=3306;}. You
-only need to speficy the values that need to be changed. The values that you
-omit will stay the same with the exception of when you change the host or the
-port. In that case, the slave will assume that since you are connecting to a
-different host or a different port, the master is different, therefore, the old
-values of log and position are not any more applicable, and will automatically
-reset them to empty string and 0 respectively ( the start values). Note that
-if you restart the slave, it will remember its last master. If this is not desirable,
-you should delete @code{master.info} file before restarting, and the slave will read
-its master from @code{my.cnf} or command line.
- @tab Slave
-@item @code{SHOW MASTER STATUS} @tab Provides status info on the binlog of the
-master @tab Master
-@item @code{SHOW SLAVE STATUS} @tab Provides status info on essential parameters
-of the slave thread @tab Slave
+@multitable @columnfractions .30 .70
+@item @strong{Command} @tab @strong{Description}
 
+@item @code{SLAVE START} 
+@tab Starts the slave thread. (Slave)
 
+@item @code{SLAVE STOP} 
+@tab Stops the slave thread. (Slave)
+
+@item @code{SET SQL_LOG_BIN=0} 
+@tab Disables update logging (Master)
+
+@item @code{SET SQL_LOG_BIN=1} 
+@tab Re-enable update logging (Master)
+
+@item @code{FLUSH MASTER} 
+@tab Deletes all binary logs listed in the index file, resetting the binlog 
+index file to be empty. (Master)
+
+@item @code{FLUSH SLAVE} 
+@tab Makes the slave forget its replication position in the master 
+logs. (Slave)
+
+@item @code{LOAD TABLE tblname FROM MASTER} 
+@tab Downloads a copy of the table from master to the slave. (Slave)
+
+@item @code{CHANGE MASTER TO master_def_list} 
+@tab Changes the master parameters to the values specified in 
+@code{master_def_list} and restarts the slave thread. @code{master_def_list} 
+is a comma-separated list of @code{master_def} where @code{master_def} is 
+one of the following: @code{MASTER_HOST}, @code{MASTER_USER}, 
+@code{MASTER_PASSWORD}, @code{MASTER_PORT}, @code{MASTER_CONNECT_RETRY}, 
+@code{MASTER_LOG_FILE}, @code{MASTER_LOG_POS}. Example: 
+
+@example
+
+CHANGE MASTER TO 
+  MASTER_HOST='master2.mycompany.com',
+  MASTER_USER='replication',
+  MASTER_PASSWORD='bigs3cret',
+  MASTER_PORT=3306;
+
+@end example
+
+You only need to specify the values that need to be changed. The values that 
+you omit will stay the same with the exception of when you change the host or 
+the port. In that case, the slave will assume that since you are connecting to
+a different host or a different port, the master is different, therefore, the
+old values of log and position are not applicable anymore, and will 
+automatically be reset to an empty string and 0, respectively (the start 
+values). Note that if you restart the slave, it will remember its last master.
+If this is not desirable, you should delete the @file{master.info} file before
+restarting, and the slave will read its master from @code{my.cnf} or the 
+command line. (Slave)
+
+@item @code{SHOW MASTER STATUS}
+@tab Provides status info on the binlog of the master. (Master)
+
+@item @code{SHOW SLAVE STATUS} 
+@tab Provides status info on essential parameters of the slave thread. (Slave)
 
 @end multitable
 
@@ -25324,9 +25422,9 @@ The more common case is that the index and data are stored together
 (like in Oracle/Sybase et al). In this case you will find the row
 information at the leaf page of the index. The good thing with this
 layout is that it, in many cases, depending on how well the index is
-cached, saves a disk read.  The bad things with this layout is:
+cached, saves a disk read.  The bad things with this layout are:
 
-@table @bullet
+@itemize @bullet
 @item
 Table scanning is much slower because you have to read through the indexes
 to get at the data.
@@ -25339,8 +25437,8 @@ You lose a lot of space as you must duplicate indexes from the nodes
 Deletes will degenerate the table over time (as indexes in nodes are
 usually not updated on delete).
 @item
-It's harder to cache ONLY the index data.
-@end table
+Its harder to cache ONLY the index data.
+@end itemize
 
 @node Design Limitations, Portability, Design, Performance
 @section MySQL design limitations/tradeoffs
@@ -28730,7 +28828,7 @@ FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"' ESCAPED BY '\\'
 * Temporary files::             Where @strong{MySQL} stores temporary files
 * Problems with mysql.sock::    How to protect @file{/tmp/mysql.sock}
 * Error Access denied::         @code{Access denied} error
-* Changing MySQL user ::        How to run @strong{MySQL} as a normal user
+* Changing MySQL user::         How to run @strong{MySQL} as a normal user
 * Resetting permissions::       How to reset a forgotten password.
 * File permissions ::           Problems with file permissions
 * Not enough file handles::     File not found
@@ -29634,12 +29732,12 @@ only by their owners or the superuser (@code{root}).
 You can check if the @code{sticky} bit is set by executing @code{ls -ld /tmp}.
 If the last permission bit is @code{t}, the bit is set.
 
-@node Error Access denied, Changing MySQL user , Problems with mysql.sock, Problems
+@node Error Access denied, Changing MySQL user, Problems with mysql.sock, Problems
 @section @code{Access denied} error
 
 @xref{Privileges}. And especially see @ref{Access denied}.
 
-@node Changing MySQL user , Resetting permissions, Error Access denied, Problems
+@node Changing MySQL user, Resetting permissions, Error Access denied, Problems
 @section How to run MySQL as a normal user
 
 The @strong{MySQL} server @code{mysqld} can be started and run by any user.
@@ -29703,7 +29801,7 @@ password on the @strong{MySQL} @code{root} users in the access tables.
 Otherwise, any user with an account on that machine can run @code{mysql -u
 root db_name} and do whatever he likes.
 
-@node Resetting permissions, File permissions , Changing MySQL user , Problems
+@node Resetting permissions, File permissions , Changing MySQL user, Problems
 @section How to reset a forgotten password.
 
 If you have forgotten the @code{root} user password for @strong{MySQL}, you
