@@ -19,6 +19,7 @@
 #include <stdlib.h>
 #include <my_getopt.h>
 #include <assert.h>
+#include <my_sys.h>
 
 static int findopt (char *optpat, uint length,
 		    const struct my_option **opt_res,
@@ -423,6 +424,13 @@ static int setval (const struct my_option *opts, char *argument,
       *((ulonglong*) result_pos)= getopt_ull(argument, opts, &err);
     else if (opts->var_type == GET_STR)
       *((char**) result_pos)= argument;
+    else if (opts->var_type == GET_STRALC)
+    {
+      if ((*((char**) result_pos)))
+	my_free((*(char**) result_pos),
+		MYF(MY_WME | MY_FAE | MY_ALLOW_ZERO_PTR));
+      *((char**) result_pos)= my_strdup(argument, MYF(MY_WME));
+    }
     if (err)
       return ERR_UNKNOWN_SUFFIX;
   }
@@ -627,7 +635,7 @@ void my_print_help(const struct my_option *options)
     }
     printf("--%s", optp->name);
     col+= 2 + strlen(optp->name);
-    if (optp->var_type == GET_STR)
+    if (optp->var_type == GET_STR || optp->var_type == GET_STRALC)
     {
       printf("%s=name%s ", optp->arg_type == OPT_ARG ? "[" : "",
 	     optp->arg_type == OPT_ARG ? "]" : "");
@@ -694,7 +702,7 @@ void my_print_variables(const struct my_option *options)
       length= strlen(optp->name);
       for (; length < name_space; length++)
 	putchar(' ');
-      if (optp->var_type == GET_STR)
+      if (optp->var_type == GET_STR || optp->var_type == GET_STRALC)
       {
 	if (*((char**) optp->value))
 	  printf("%s\n", *((char**) optp->value));
@@ -741,7 +749,10 @@ void my_print_variables(const struct my_option *options)
 	if (!optp->def_value && !*((ulonglong*) optp->value))
 	  printf("(No default value)\n");
 	else
-	  printf("%s\n", longlong2str(*((ulonglong*) optp->value), buff, 10));
+	{
+	  longlong2str(*((ulonglong*) optp->value), buff, 10);
+	  printf("%s\n", buff);
+	}
       }
     }
   }
