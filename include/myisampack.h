@@ -214,7 +214,7 @@
 
 #ifdef BIG_TABLES
 #define mi_rowstore(T,A)    mi_int8store(T,A)
-#define mi_rowkorr(T,A)     mi_uint8korr(T)
+#define mi_rowkorr(T)     mi_uint8korr(T)
 #else
 #define mi_rowstore(T,A)    { mi_int4store(T,0); mi_int4store(((T)+4),A); }
 #define mi_rowkorr(T)	    mi_uint4korr((T)+4)
