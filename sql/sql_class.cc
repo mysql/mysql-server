@@ -469,11 +469,13 @@ int THD::send_explain_fields(select_result *result)
 void THD::close_active_vio()
 {
   safe_mutex_assert_owner(&LOCK_delete); 
+#ifndef EMBEDDED_LIBRARY
   if (active_vio)
   {
     vio_close(active_vio);
     active_vio = 0;
   }
+#endif
 }
 #endif
 
