@@ -14,7 +14,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/* Logging of isamcommands and records on logfile */
+/*
+  Logging of MyISAM commands and records on logfile for debugging
+  The log can be examined with help of the myisamlog command.
+*/
 
 #include "myisamdef.h"
 #if defined(MSDOS) || defined(__WIN__)
@@ -30,14 +33,15 @@
 
 #undef GETPID					/* For HPUX */
 #ifdef THREAD
-#define GETPID() (log_type == 1 ? getpid() : (long) my_thread_id());
+#define GETPID() (log_type == 1 ? myisam_pid : (long) my_thread_id());
 #else
-#define GETPID() getpid()
+#define GETPID() myisam_pid
 #endif
 
 	/* Activate logging if flag is 1 and reset logging if flag is 0 */
 
 static int log_type=0;
+ulong myisam_pid=0;
 
 int mi_log(int activate_log)
 {
@@ -48,6 +52,8 @@ int mi_log(int activate_log)
   log_type=activate_log;
   if (activate_log)
   {
+    if (!myisam_pid)
+      myisam_pid=(ulong) getpid();
     if (myisam_log_file < 0)
     {
       if ((myisam_log_file = my_create(fn_format(buff,myisam_log_filename,

@@ -7882,6 +7882,9 @@ able to mix @code{INSERT} and @code{SELECT}. Currently we use mutexes
 to emulate @code{pread()}/@code{pwrite()}.  We will, in the long run,
 replace the file level interface with a virtual interface so that we can
 use the @code{readfile()}/@code{writefile()} interface on NT to get more speed.
+The current implementation will however limit the number of open files
+@strong{MySQL} can use to 1024, which means that you will not be able to
+run as many concurrent threads on NT as on Unix.
 
 @item Blocking read
 @strong{MySQL} uses a blocking read for each connection.

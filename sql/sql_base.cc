@@ -859,10 +859,11 @@ TABLE *reopen_name_locked_table(THD* thd, TABLE_LIST* table_list)
   key_length=(uint) (strmov(strmov(key,db)+1,table_name)-key)+1;
 
   pthread_mutex_lock(&LOCK_open);
-  if(open_unireg_entry(table, db, table_name, table_name) ||
-     !(table->table_cache_key =memdup_root(&table->mem_root,(char*) key,
-					     key_length)))
+  if (open_unireg_entry(table, db, table_name, table_name) ||
+      !(table->table_cache_key =memdup_root(&table->mem_root,(char*) key,
+					    key_length)))
     {
+      closefrm(table);
       pthread_mutex_unlock(&LOCK_open);
       DBUG_RETURN(0);
     }
@@ -999,7 +1000,7 @@ TABLE *open_table(THD *thd,const char *db,const char *table_name,
       MEM_ROOT* glob_alloc;
       LINT_INIT(glob_alloc);
 
-      if(errno == ENOENT &&
+      if (errno == ENOENT &&
 	 (glob_alloc = my_pthread_getspecific_ptr(MEM_ROOT*,THR_MALLOC)))
 	// Sasha: needed for replication
 	// remember the name of the non-existent table
