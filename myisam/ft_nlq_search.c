@@ -163,8 +163,8 @@ FT_DOCLIST *ft_nlq_search(MI_INFO *info, uint keynr, byte *query,
 
   bzero(&allocated_wtree,sizeof(allocated_wtree));
 
-  init_tree(&aio.dtree,0,sizeof(FT_SUPERDOC),(qsort_cmp2)&FT_SUPERDOC_cmp,0,
-            NULL);
+  init_tree(&aio.dtree,0,0,sizeof(FT_SUPERDOC),(qsort_cmp2)&FT_SUPERDOC_cmp,0,
+            NULL, NULL);
 
   if(!(wtree=ft_parse(&allocated_wtree,query,query_len)))
     return NULL;

@@ -96,27 +96,27 @@ int mi_write(MI_INFO *info, byte *record)
   {
     if (((ulonglong) 1 << i) & share->state.key_map)
     {
-      if (share->concurrent_insert)
+      if (share->concurrent_insert && ! info->bulk_insert)
       {
 	rw_wrlock(&share->key_root_lock[i]);
 	share->keyinfo[i].version++;
       }
-      if (share->keyinfo[i].flag & HA_FULLTEXT )                  /* SerG */
-      {                                                           /* SerG */
-        if (_mi_ft_add(info,i,(char*) buff,record,filepos))       /* SerG */
-        {                                                         /* SerG */
+      if (share->keyinfo[i].flag & HA_FULLTEXT )
+      {
+        if (_mi_ft_add(info,i,(char*) buff,record,filepos))
+        {
 	  if (share->concurrent_insert)
 	    rw_unlock(&share->key_root_lock[i]);
-          DBUG_PRINT("error",("Got error: %d on write",my_errno));  /* SerG */
-          goto err;                                                 /* SerG */
-        }                                                           /* SerG */
-      }                                                             /* SerG */
-      else                                                          /* SerG */
+          DBUG_PRINT("error",("Got error: %d on write",my_errno));
+          goto err;
+        }
+      }
+      else
       {
 	uint key_length=_mi_make_key(info,i,buff,record,filepos);
 	if (_mi_ck_write(info,i,buff,key_length))
 	{
-	  if (share->concurrent_insert)
+	  if (share->concurrent_insert && ! info->bulk_insert)
 	    rw_unlock(&share->key_root_lock[i]);
 	  DBUG_PRINT("error",("Got error: %d on write",my_errno));
 	  goto err;
@@ -156,7 +156,6 @@ err:
       {
 	if (share->concurrent_insert)
 	  rw_wrlock(&share->key_root_lock[i]);
-	/* The following code block is for text searching by SerG */
 	if (share->keyinfo[i].flag & HA_FULLTEXT)
         {
           if (_mi_ft_del(info,i,(char*) buff,record,filepos))
@@ -196,11 +195,29 @@ err2:
 
 	/* Write one key to btree */
 
-int _mi_ck_write(register MI_INFO *info, uint keynr, uchar *key,
+int _mi_ck_write(MI_INFO *info, uint keynr, uchar *key, uint key_length)
+{
+  DBUG_ENTER("_mi_ck_write");
+
+  if (info->bulk_insert && is_tree_inited(& info->bulk_insert[keynr]))
+  {
+    DBUG_RETURN(_mi_ck_write_tree(info, keynr, key, key_length));
+  }
+  else
+  {
+    DBUG_RETURN(_mi_ck_write_btree(info, keynr, key, key_length));
+  }
+} /* _mi_ck_write */
+
+/**********************************************************************
+ *                Normal insert code                                  *
+ **********************************************************************/
+
+int _mi_ck_write_btree(register MI_INFO *info, uint keynr, uchar *key,
 		 uint key_length)
 {
   int error;
-  DBUG_ENTER("_mi_ck_write");
+  DBUG_ENTER("_mi_ck_write_btree");
 
   if (info->s->state.key_root[keynr] == HA_OFFSET_ERROR ||
       (error=w_search(info,info->s->keyinfo+keynr,key, key_length,
@@ -208,7 +225,7 @@ int _mi_ck_write(register MI_INFO *info, uint keynr, uchar *key,
 		      (my_off_t) 0, 1)) > 0)
     error=_mi_enlarge_root(info,keynr,key);
   DBUG_RETURN(error);
-} /* _mi_ck_write */
+} /* _mi_ck_write_btree */
 
 
 	/* Make a new root with key as only pointer */
@@ -682,3 +699,98 @@ static int _mi_balance_page(register MI_INFO *info, MI_KEYDEF *keyinfo,
 err:
   DBUG_RETURN(-1);
 } /* _mi_balance_page */
+
+/**********************************************************************
+ *                Bulk insert code                                    *
+ **********************************************************************/
+
+typedef struct {
+  MI_INFO *info;
+  uint keynr;
+} bulk_insert_param;
+
+int _mi_ck_write_tree(register MI_INFO *info, uint keynr, uchar *key,
+		 uint key_length)
+{
+  int error;
+  DBUG_ENTER("_mi_ck_write_tree");
+
+  error= tree_insert(& info->bulk_insert[keynr], key,
+         key_length + info->s->rec_reflength) ? 0 : HA_ERR_OUT_OF_MEM ;
+
+  DBUG_RETURN(error);
+} /* _mi_ck_write_tree */
+
+/* typeof(_mi_keys_compare)=qsort_cmp2 */
+static int keys_compare(bulk_insert_param *param, uchar *key1, uchar *key2)
+{
+  uint not_used;
+  return _mi_key_cmp(param->info->s->keyinfo[param->keynr].seg,
+              key1, key2, USE_WHOLE_KEY, SEARCH_SAME, &not_used);
+}
+
+static int keys_free(uchar *key, TREE_FREE mode, bulk_insert_param *param)
+{
+  /* probably I can use info->lastkey here, but I'm not sure,
+     and to be safe I'd better use local lastkey.
+     Monty, feel free to comment on this */
+  uchar lastkey[MI_MAX_KEY_BUFF];
+  uint keylen;
+  MI_KEYDEF *keyinfo;
+
+  switch (mode) {
+    case free_init:
+      if (param->info->s->concurrent_insert)
+      {
+        rw_wrlock(&param->info->s->key_root_lock[param->keynr]);
+        param->info->s->keyinfo[param->keynr].version++;
+      }
+      return 0;
+    case free_free:
+      keyinfo=param->info->s->keyinfo+param->keynr;
+      keylen=_mi_keylength(keyinfo, key);
+      memcpy(lastkey, key, keylen);
+      return _mi_ck_write_btree(param->info,param->keynr,lastkey, 
+                 keylen - param->info->s->rec_reflength);
+    case free_end:
+      if (param->info->s->concurrent_insert)
+        rw_unlock(&param->info->s->key_root_lock[param->keynr]);
+      return 0;
+  }
+  return -1;
+}
+
+int _mi_init_bulk_insert(MI_INFO *info)
+{
+  MYISAM_SHARE *share=info->s;
+  MI_KEYDEF *key=share->keyinfo;
+  bulk_insert_param *params;
+  uint i;
+
+  if (info->bulk_insert)
+    return 0;
+  
+  info->bulk_insert=(TREE *)my_malloc(
+      (sizeof(TREE)+sizeof(bulk_insert_param))*share->base.keys, MYF(0));
+
+  if (!info->bulk_insert)
+    return HA_ERR_OUT_OF_MEM;
+  
+  params=(bulk_insert_param *)(info->bulk_insert+share->base.keys);
+  
+  for (i=0 ; i < share->base.keys ; i++,key++,params++)
+  {
+    params->info=info;
+    params->keynr=i;
+    if (!(key->flag & HA_NOSAME) && share->base.auto_key != i+1
+        && test(share->state.key_map & ((ulonglong) 1 << i)))
+    {
+      init_tree(& info->bulk_insert[i], 0, myisam_bulk_insert_tree_size, 0,
+          (qsort_cmp2)keys_compare, 0,
+          (tree_element_free) keys_free, (void *)params);
+    }
+    else
+     info->bulk_insert[i].root=0; 
+  }
+  return 0;
+}

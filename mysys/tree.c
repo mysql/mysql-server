@@ -62,22 +62,51 @@ static void rb_delete_fixup(TREE *tree,TREE_ELEMENT ***parent);
 
 	/* The actuall code for handling binary trees */
 
-void init_tree(TREE *tree, uint default_alloc_size, int size,
-	       qsort_cmp2 compare, my_bool with_delete,
-	       void (*free_element) (void *))
+#ifndef DBUG_OFF
+
+	/* Test that the proporties for a red-black tree holds */
+
+static int test_rb_tree(TREE_ELEMENT *element)
+{
+  int count_l,count_r;
+
+  if (!element->left)
+    return 0;				/* Found end of tree */
+  if (element->colour == RED &&
+      (element->left->colour == RED || element->right->colour == RED))
+  {
+    printf("Wrong tree: Found two red in a row\n");
+    return -1;
+  }
+  count_l=test_rb_tree(element->left);
+  count_r=test_rb_tree(element->right);
+  if (count_l >= 0 && count_r >= 0)
+  {
+    if (count_l == count_r)
+      return count_l+(element->colour == BLACK);
+    printf("Wrong tree: Incorrect black-count: %d - %d\n",count_l,count_r);
+  }
+  return -1;
+}
+#endif
+
+void init_tree(TREE *tree, uint default_alloc_size, uint memory_limit,
+               int size, qsort_cmp2 compare, my_bool with_delete,
+	       tree_element_free free_element, void *custom_arg)
 {
   DBUG_ENTER("init_tree");
   DBUG_PRINT("enter",("tree: %lx  size: %d",tree,size));
 
-  if (!default_alloc_size)
-    default_alloc_size= DEFAULT_ALLOC_SIZE;
+  default_alloc_size=DEFAULT_ALLOC_SIZE;
   bzero((gptr) &tree->null_element,sizeof(tree->null_element));
   tree->root= &tree->null_element;
   tree->compare=compare;
   tree->size_of_element=size > 0 ? (uint) size : 0;
+  tree->memory_limit=memory_limit;
   tree->free=free_element;
+  tree->allocated=0;
   tree->elements_in_tree=0;
-  tree->cmp_arg = 0;
+  tree->custom_arg = custom_arg;
   tree->null_element.colour=BLACK;
   tree->null_element.left=tree->null_element.right=0;
   if (!free_element && size >= 0 &&
@@ -115,12 +144,19 @@ static void free_tree(TREE *tree, myf free_flags)
     else
     {
       if (tree->free)
+      {
+        if (tree->memory_limit)
+          (*tree->free)(NULL, free_init, tree->custom_arg);
 	delete_tree_element(tree,tree->root);
+        if (tree->memory_limit)
+          (*tree->free)(NULL, free_end, tree->custom_arg);
+      }
       free_root(&tree->mem_root, free_flags);
     }
   }
   tree->root= &tree->null_element;
   tree->elements_in_tree=0;
+  tree->allocated=0;
 
   DBUG_VOID_RETURN;
 }
@@ -142,9 +178,9 @@ static void delete_tree_element(TREE *tree, TREE_ELEMENT *element)
   if (element != &tree->null_element)
   {
     delete_tree_element(tree,element->left);
-    delete_tree_element(tree,element->right);
     if (tree->free)
-      (*tree->free)(ELEMENT_KEY(tree,element));
+      (*tree->free)(ELEMENT_KEY(tree,element), free_free, tree->custom_arg);
+    delete_tree_element(tree,element->right);
     if (tree->with_delete)
       my_free((void*) element,MYF(0));
   }
@@ -165,7 +201,7 @@ TREE_ELEMENT *tree_insert(TREE *tree, void *key, uint key_size)
   for (;;)
   {
     if (element == &tree->null_element ||
-	(cmp=(*tree->compare)(tree->cmp_arg,
+	(cmp=(*tree->compare)(tree->custom_arg,
 			      ELEMENT_KEY(tree,element),key)) == 0)
       break;
     if (cmp < 0)
@@ -179,13 +215,22 @@ TREE_ELEMENT *tree_insert(TREE *tree, void *key, uint key_size)
   }
   if (element == &tree->null_element)
   {
+    uint alloc_size=sizeof(TREE_ELEMENT)+key_size+tree->size_of_element;
+    tree->allocated+=alloc_size;
+    
+    if (tree->memory_limit && tree->elements_in_tree
+                           && tree->allocated > tree->memory_limit)
+    {
+      reset_tree(tree);
+      return tree_insert(tree, key, key_size);
+    }
+    
     key_size+=tree->size_of_element;
     if (tree->with_delete)
-      element=(TREE_ELEMENT *) my_malloc(sizeof(TREE_ELEMENT)+key_size,
-					 MYF(MY_WME));
+      element=(TREE_ELEMENT *) my_malloc(alloc_size, MYF(MY_WME));
     else
       element=(TREE_ELEMENT *)
-	alloc_root(&tree->mem_root,sizeof(TREE_ELEMENT)+key_size);
+	alloc_root(&tree->mem_root,alloc_size);
     if (!element)
       return(NULL);
     **parent=element;
@@ -209,6 +254,7 @@ TREE_ELEMENT *tree_insert(TREE *tree, void *key, uint key_size)
   }
   else
     element->count++;
+  DBUG_EXECUTE("check_tree", test_rb_tree(tree->root););
   return element;
 }
 
@@ -226,7 +272,7 @@ int tree_delete(TREE *tree, void *key)
   {
     if (element == &tree->null_element)
       return 1;				/* Was not in tree */
-    if ((cmp=(*tree->compare)(tree->cmp_arg,
+    if ((cmp=(*tree->compare)(tree->custom_arg,
 			      ELEMENT_KEY(tree,element),key)) == 0)
       break;
     if (cmp < 0)
@@ -281,7 +327,7 @@ void *tree_search(TREE *tree, void *key)
   {
     if (element == &tree->null_element)
       return (void*) 0;
-    if ((cmp=(*tree->compare)(tree->cmp_arg,
+    if ((cmp=(*tree->compare)(tree->custom_arg,
 			      ELEMENT_KEY(tree,element),key)) == 0)
       return ELEMENT_KEY(tree,element);
     if (cmp < 0)
@@ -497,33 +543,3 @@ static void rb_delete_fixup(TREE *tree, TREE_ELEMENT ***parent)
   }
   x->colour=BLACK;
 }
-
-
-#ifdef TESTING_TREES
-
-	/* Test that the proporties for a red-black tree holds */
-
-static int test_rb_tree(TREE_ELEMENT *element)
-{
-  int count_l,count_r;
-
-  if (!element->left)
-    return 0;				/* Found end of tree */
-  if (element->colour == RED &&
-      (element->left->colour == RED || element->right->colour == RED))
-  {
-    printf("Wrong tree: Found two red in a row\n");
-    return -1;
-  }
-  count_l=test_rb_tree(element->left);
-  count_r=test_rb_tree(element->right);
-  if (count_l >= 0 && count_r >= 0)
-  {
-    if (count_l == count_r)
-      return count_l+(element->colour == BLACK);
-    printf("Wrong tree: Incorrect black-count: %d - %d\n",count_l,count_r);
-  }
-  return -1;
-}
-
-#endif

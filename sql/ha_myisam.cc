@@ -644,7 +644,10 @@ void ha_myisam::deactivate_non_unique_index(ha_rows rows)
       if (rows==HA_POS_ERROR)
         mi_extra(file, HA_EXTRA_NO_KEYS);
       else
+      {
         mi_disable_non_unique_index(file,rows);
+        mi_extra(file, HA_EXTRA_BULK_INSERT_BEGIN);
+      }
     enable_activate_all_index=1;
   }
   else
@@ -658,6 +661,8 @@ bool ha_myisam::activate_all_index(THD *thd)
   MI_CHECK param;
   MYISAM_SHARE* share = file->s;
   DBUG_ENTER("activate_all_index");
+
+  mi_extra(file, HA_EXTRA_BULK_INSERT_END);
   if (enable_activate_all_index &&
       share->state.key_map != ((ulonglong) 1L << share->base.keys)-1)
   {

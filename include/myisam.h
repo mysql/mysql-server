@@ -190,6 +190,7 @@ extern uint myisam_block_size;
 extern my_bool myisam_flush,myisam_delay_key_write,myisam_single_user;
 extern my_bool myisam_concurrent_insert;
 extern my_off_t myisam_max_temp_length,myisam_max_extra_temp_length;
+extern uint myisam_bulk_insert_tree_size;
 
 	/* Prototypes for myisam-functions */
 

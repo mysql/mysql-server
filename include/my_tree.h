@@ -32,6 +32,9 @@ typedef enum { left_root_right, right_root_left } TREE_WALK;
 typedef uint32 element_count;
 typedef int (*tree_walk_action)(void *,element_count,void *);
 
+typedef enum { free_init, free_free, free_end } TREE_FREE;
+typedef void (*tree_element_free)(void*, TREE_FREE, void *);
+
 #ifdef MSDOS
 typedef struct st_tree_element {
   struct st_tree_element *left,*right;
@@ -49,18 +52,18 @@ typedef struct st_tree_element {
 typedef struct st_tree {
   TREE_ELEMENT *root,null_element;
   TREE_ELEMENT **parents[MAX_TREE_HIGHT];
-  uint offset_to_key,elements_in_tree,size_of_element;
+  uint offset_to_key,elements_in_tree,size_of_element,memory_limit,allocated;
   qsort_cmp2 compare;
-  void* cmp_arg;
+  void* custom_arg;
   MEM_ROOT mem_root;
   my_bool with_delete;
-  void (*free)(void *);
+  tree_element_free free;
 } TREE;
 
 	/* Functions on whole tree */
-void init_tree(TREE *tree,uint default_alloc_size, int element_size,
-	       qsort_cmp2 compare, my_bool with_delete,
-	       void (*free_element)(void*));
+void init_tree(TREE *tree, uint default_alloc_size, uint memory_limit,
+               int size, qsort_cmp2 compare, my_bool with_delete,
+	       tree_element_free free_element, void *custom_arg);
 void delete_tree(TREE*);
 void reset_tree(TREE*);
   /* similar to delete tree, except we do not my_free() blocks in mem_root

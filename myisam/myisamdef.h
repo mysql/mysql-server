@@ -18,6 +18,7 @@
 
 #include "myisam.h"			/* Structs & some defines */
 #include "myisampack.h"			/* packing of keys */
+#include <my_tree.h>
 #ifdef THREAD
 #include <my_pthread.h>
 #include <thr_lock.h>
@@ -259,6 +260,7 @@ struct st_myisam_info {
   my_bool page_changed;		/* If info->buff can't be used for rnext */
   my_bool buff_used;		/* If info->buff has to be reread for rnext */
   my_bool use_packed_key;		/* For MYISAMMRG */
+  TREE   *bulk_insert;   /* accumulate indexfile changes between mi_write's */
   myf lock_wait;			/* is 0 or MY_DONT_WAIT */
   int (*read_record)(struct st_myisam_info*, my_off_t, byte*);
   LIST	open_list;
@@ -641,7 +643,9 @@ my_bool check_table_is_closed(const char *name, const char *where);
 int mi_open_datafile(MI_INFO *info, MYISAM_SHARE *share);
 int mi_open_keyfile(MYISAM_SHARE *share);
 
-/* Functions needed by mi_check */
+int _mi_init_bulk_insert(MI_INFO *info);
+
+    /* Functions needed by mi_check */
 void mi_check_print_error _VARARGS((MI_CHECK *param, const char *fmt,...));
 void mi_check_print_warning _VARARGS((MI_CHECK *param, const char *fmt,...));
 void mi_check_print_info _VARARGS((MI_CHECK *param, const char *fmt,...));

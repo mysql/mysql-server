@@ -744,7 +744,7 @@ run_testcase ()
 	$ECHO "Resuming Tests"
 	$ECHO ""
       else
-        pass_inc
+#       pass_inc
 	$ECHO "$RES$RES_SPACE [ skipped ]"
       fi
     fi

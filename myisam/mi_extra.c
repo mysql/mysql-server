@@ -336,6 +336,24 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function)
   case HA_EXTRA_QUICK:
     info->quick_mode=1;
     break;
+  case HA_EXTRA_BULK_INSERT_BEGIN:
+    error=_mi_init_bulk_insert(info);
+    break;
+  case HA_EXTRA_BULK_INSERT_END:
+    if (info->bulk_insert)
+    {
+      uint i;
+      for (i=0 ; i < share->base.keys ; i++)
+      {
+        if (is_tree_inited(& info->bulk_insert[i]))
+        {
+          delete_tree(& info->bulk_insert[i]);
+        }
+      }
+      my_free((void *)info->bulk_insert, MYF(0));
+      info->bulk_insert=0;
+    }
+    break;
   case HA_EXTRA_NO_ROWS:
     if (!share->state.header.uniques)
       info->opt_flag|= OPT_NO_ROWS;
