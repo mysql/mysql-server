@@ -110,6 +110,7 @@ public:
   NDBT_Step(NDBT_TestCase* ptest, 
 		const char* pname,
 		NDBT_TESTFUNC* pfunc);
+  virtual ~NDBT_Step() {}
   int execute(NDBT_Context*);
   virtual int setUp() = 0;
   virtual void tearDown() = 0;
@@ -132,8 +133,9 @@ public:
   NDBT_NdbApiStep(NDBT_TestCase* ptest,
 		  const char* pname,
 		  NDBT_TESTFUNC* pfunc);
-  int setUp();
-  void tearDown();
+  virtual ~NDBT_NdbApiStep() {}
+  virtual int setUp();
+  virtual void tearDown();
 
   Ndb* getNdb();
 protected:
@@ -145,6 +147,7 @@ public:
   NDBT_ParallelStep(NDBT_TestCase* ptest,
 		    const char* pname,
 		    NDBT_TESTFUNC* pfunc);
+  virtual ~NDBT_ParallelStep() {}
 };
 
 class NDBT_Verifier : public NDBT_NdbApiStep {
@@ -152,6 +155,7 @@ public:
   NDBT_Verifier(NDBT_TestCase* ptest,
 		const char* name,
 		NDBT_TESTFUNC* func);
+  virtual ~NDBT_Verifier() {}
 };
 
 class NDBT_Initializer  : public NDBT_NdbApiStep {
@@ -159,6 +163,7 @@ public:
   NDBT_Initializer(NDBT_TestCase* ptest,
 		   const char* name,
 		   NDBT_TESTFUNC* func);
+  virtual ~NDBT_Initializer() {}
 };
 
 class NDBT_Finalizer  : public NDBT_NdbApiStep {
@@ -166,6 +171,7 @@ public:
   NDBT_Finalizer(NDBT_TestCase* ptest,
 		 const char* name,
 		 NDBT_TESTFUNC* func);
+  virtual ~NDBT_Finalizer() {}
 };
 
 
@@ -174,7 +180,8 @@ public:
   NDBT_TestCase(NDBT_TestSuite* psuite, 
 		const char* name, 
 		const char* comment);
-  virtual ~NDBT_TestCase(){};
+  virtual ~NDBT_TestCase(){}
+
   // This is the default executor of a test case
   // When a test case is executed it will need to be suplied with a number of 
   // different parameters and settings, these are passed to the test in the 

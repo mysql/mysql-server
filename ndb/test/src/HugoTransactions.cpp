@@ -2415,4 +2415,4 @@ HugoTransactions::indexUpdateRecords(Ndb* pNdb,
   return NDBT_OK;
 }
 
-
+template class Vector<NDBT_ResultRow*>;

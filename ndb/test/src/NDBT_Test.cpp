@@ -1117,6 +1117,12 @@ void NDBT_Step::print(){
 
 }
 
-
-
-
+template class Vector<NDBT_TestCase*>;
+template class Vector<NDBT_TestCaseResult*>;
+template class Vector<NDBT_Step*>;
+template class Vector<NdbThread*>;
+template class Vector<NDBT_Verifier*>;
+template class Vector<NDBT_Initializer*>;
+template class Vector<NDBT_Finalizer*>;
+template class Vector<const NdbDictionary::Table*>;
+template class Vector<int>;
