@@ -32,7 +32,6 @@
 // signal classes
 #include <signaldata/DictTabInfo.hpp>
 #include <signaldata/TuxContinueB.hpp>
-#include <signaldata/BuildIndx.hpp>
 #include <signaldata/TupFrag.hpp>
 #include <signaldata/AlterIndx.hpp>
 #include <signaldata/DropTab.hpp>
@@ -478,7 +477,7 @@ private:
     Uint16 m_numAttrs;
     bool m_storeNullKey;
     TreeHead m_tree;
-    TupLoc m_freeLoc;           // one node pre-allocated for insert
+    TupLoc m_freeLoc;           // list of free index nodes
     DLList<ScanOp> m_scanList;  // current scans on this fragment
     Uint32 m_tupIndexFragPtrI;
     Uint32 m_tupTableFragPtrI[2];
@@ -582,24 +581,24 @@ private:
    * DbtuxNode.cpp
    */
   int allocNode(Signal* signal, NodeHandle& node);
-  void selectNode(Signal* signal, NodeHandle& node, TupLoc loc);
-  void insertNode(Signal* signal, NodeHandle& node);
-  void deleteNode(Signal* signal, NodeHandle& node);
-  void setNodePref(Signal* signal, NodeHandle& node);
+  void selectNode(NodeHandle& node, TupLoc loc);
+  void insertNode(NodeHandle& node);
+  void deleteNode(NodeHandle& node);
+  void setNodePref(NodeHandle& node);
   // node operations
-  void nodePushUp(Signal* signal, NodeHandle& node, unsigned pos, const TreeEnt& ent, Uint32 scanList);
-  void nodePushUpScans(Signal* signal, NodeHandle& node, unsigned pos);
-  void nodePopDown(Signal* signal, NodeHandle& node, unsigned pos, TreeEnt& en, Uint32* scanList);
-  void nodePopDownScans(Signal* signal, NodeHandle& node, unsigned pos);
-  void nodePushDown(Signal* signal, NodeHandle& node, unsigned pos, TreeEnt& ent, Uint32& scanList);
-  void nodePushDownScans(Signal* signal, NodeHandle& node, unsigned pos);
-  void nodePopUp(Signal* signal, NodeHandle& node, unsigned pos, TreeEnt& ent, Uint32 scanList);
-  void nodePopUpScans(Signal* signal, NodeHandle& node, unsigned pos);
-  void nodeSlide(Signal* signal, NodeHandle& dstNode, NodeHandle& srcNode, unsigned cnt, unsigned i);
+  void nodePushUp(NodeHandle& node, unsigned pos, const TreeEnt& ent, Uint32 scanList);
+  void nodePushUpScans(NodeHandle& node, unsigned pos);
+  void nodePopDown(NodeHandle& node, unsigned pos, TreeEnt& en, Uint32* scanList);
+  void nodePopDownScans(NodeHandle& node, unsigned pos);
+  void nodePushDown(NodeHandle& node, unsigned pos, TreeEnt& ent, Uint32& scanList);
+  void nodePushDownScans(NodeHandle& node, unsigned pos);
+  void nodePopUp(NodeHandle& node, unsigned pos, TreeEnt& ent, Uint32 scanList);
+  void nodePopUpScans(NodeHandle& node, unsigned pos);
+  void nodeSlide(NodeHandle& dstNode, NodeHandle& srcNode, unsigned cnt, unsigned i);
   // scans linked to node
   void addScanList(NodeHandle& node, unsigned pos, Uint32 scanList);
   void removeScanList(NodeHandle& node, unsigned pos, Uint32& scanList);
-  void moveScanList(Signal* signal, NodeHandle& node, unsigned pos);
+  void moveScanList(NodeHandle& node, unsigned pos);
   void linkScan(NodeHandle& node, ScanOpPtr scanPtr);
   void unlinkScan(NodeHandle& node, ScanOpPtr scanPtr);
   bool islinkScan(NodeHandle& node, ScanOpPtr scanPtr);
@@ -608,20 +607,20 @@ private:
    * DbtuxTree.cpp
    */
   // add entry
-  void treeAdd(Signal* signal, Frag& frag, TreePos treePos, TreeEnt ent);
-  void treeAddFull(Signal* signal, Frag& frag, NodeHandle lubNode, unsigned pos, TreeEnt ent);
-  void treeAddNode(Signal* signal, Frag& frag, NodeHandle lubNode, unsigned pos, TreeEnt ent, NodeHandle parentNode, unsigned i);
-  void treeAddRebalance(Signal* signal, Frag& frag, NodeHandle node, unsigned i);
+  void treeAdd(Frag& frag, TreePos treePos, TreeEnt ent);
+  void treeAddFull(Frag& frag, NodeHandle lubNode, unsigned pos, TreeEnt ent);
+  void treeAddNode(Frag& frag, NodeHandle lubNode, unsigned pos, TreeEnt ent, NodeHandle parentNode, unsigned i);
+  void treeAddRebalance(Frag& frag, NodeHandle node, unsigned i);
   // remove entry
-  void treeRemove(Signal* signal, Frag& frag, TreePos treePos);
-  void treeRemoveInner(Signal* signal, Frag& frag, NodeHandle lubNode, unsigned pos);
-  void treeRemoveSemi(Signal* signal, Frag& frag, NodeHandle node, unsigned i);
-  void treeRemoveLeaf(Signal* signal, Frag& frag, NodeHandle node);
-  void treeRemoveNode(Signal* signal, Frag& frag, NodeHandle node);
-  void treeRemoveRebalance(Signal* signal, Frag& frag, NodeHandle node, unsigned i);
+  void treeRemove(Frag& frag, TreePos treePos);
+  void treeRemoveInner(Frag& frag, NodeHandle lubNode, unsigned pos);
+  void treeRemoveSemi(Frag& frag, NodeHandle node, unsigned i);
+  void treeRemoveLeaf(Frag& frag, NodeHandle node);
+  void treeRemoveNode(Frag& frag, NodeHandle node);
+  void treeRemoveRebalance(Frag& frag, NodeHandle node, unsigned i);
   // rotate
-  void treeRotateSingle(Signal* signal, Frag& frag, NodeHandle& node, unsigned i);
-  void treeRotateDouble(Signal* signal, Frag& frag, NodeHandle& node, unsigned i);
+  void treeRotateSingle(Frag& frag, NodeHandle& node, unsigned i);
+  void treeRotateDouble(Frag& frag, NodeHandle& node, unsigned i);
 
   /*
    * DbtuxScan.cpp
@@ -633,9 +632,9 @@ private:
   void execACCKEYCONF(Signal* signal);
   void execACCKEYREF(Signal* signal);
   void execACC_ABORTCONF(Signal* signal);
-  void scanFirst(Signal* signal, ScanOpPtr scanPtr);
-  void scanNext(Signal* signal, ScanOpPtr scanPtr);
-  bool scanVisible(Signal* signal, ScanOpPtr scanPtr, TreeEnt ent);
+  void scanFirst(ScanOpPtr scanPtr);
+  void scanNext(ScanOpPtr scanPtr);
+  bool scanVisible(ScanOpPtr scanPtr, TreeEnt ent);
   void scanClose(Signal* signal, ScanOpPtr scanPtr);
   void addAccLockOp(ScanOp& scan, Uint32 accLockOp);
   void removeAccLockOp(ScanOp& scan, Uint32 accLockOp);
@@ -644,9 +643,9 @@ private:
   /*
    * DbtuxSearch.cpp
    */
-  void searchToAdd(Signal* signal, Frag& frag, ConstData searchKey, TreeEnt searchEnt, TreePos& treePos);
-  void searchToRemove(Signal* signal, Frag& frag, ConstData searchKey, TreeEnt searchEnt, TreePos& treePos);
-  void searchToScan(Signal* signal, Frag& frag, ConstData boundInfo, unsigned boundCount, TreePos& treePos);
+  void searchToAdd(Frag& frag, ConstData searchKey, TreeEnt searchEnt, TreePos& treePos);
+  void searchToRemove(Frag& frag, ConstData searchKey, TreeEnt searchEnt, TreePos& treePos);
+  void searchToScan(Frag& frag, ConstData boundInfo, unsigned boundCount, TreePos& treePos);
 
   /*
    * DbtuxCmp.cpp
@@ -670,7 +669,7 @@ private:
     PrintPar();
   };
   void printTree(Signal* signal, Frag& frag, NdbOut& out);
-  void printNode(Signal* signal, Frag& frag, NdbOut& out, TupLoc loc, PrintPar& par);
+  void printNode(Frag& frag, NdbOut& out, TupLoc loc, PrintPar& par);
   friend class NdbOut& operator<<(NdbOut&, const TupLoc&);
   friend class NdbOut& operator<<(NdbOut&, const TreeEnt&);
   friend class NdbOut& operator<<(NdbOut&, const TreeNode&);
