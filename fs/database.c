@@ -118,7 +118,7 @@ void db_show_result(MYSQL* sock, char *b, struct format *f)
 
 
    count=mysql_num_fields(result);
-//   while ((field = mysql_fetch_field(result)))
+/*   while ((field = mysql_fetch_field(result))) */
    for(i=0 ; i < count ; ++i)
    {
       field = mysql_fetch_field(result);
@@ -127,7 +127,7 @@ void db_show_result(MYSQL* sock, char *b, struct format *f)
 
       length=max(length,field->max_length);
       if (length < 4 && !IS_NOT_NULL(field->flags))
-         length=4;               // Room for "NULL"
+         length=4;               /* Room for "NULL" */
       field->max_length=length;
 
       memset(topptr,'=',field->max_length); 
@@ -135,7 +135,7 @@ void db_show_result(MYSQL* sock, char *b, struct format *f)
       memset(botptr,'=',field->max_length); 
 
       sprintf(hdrptr,"%-*s",field->max_length,field->name);
-      //num_flag[off]= IS_NUM(field->type);
+      /* num_flag[off]= IS_NUM(field->type); */
 
       topptr+=field->max_length;
       midptr+=field->max_length;
@@ -341,10 +341,10 @@ int db_show_primary_keys(char *b,const char *database, const char *table)
      }
      buff2[strlen(buff2)-5]='\0';
      if(!buff2[0])
-       DBUG_RETURN(-1); // No PRIMARY keys in table
+       DBUG_RETURN(-1); /* No PRIMARY keys in table */
      DBUG_PRINT("info",("Keys: %s<- \n", buff2));
    } else
-     DBUG_RETURN(-1); // No keys in table
+     DBUG_RETURN(-1); /* No keys in table */
 
    sprintf(buff,"SELECT CONCAT(%s) AS X FROM %s LIMIT 256",buff2,table);
    if (mysql_query(sock, buff))
@@ -441,7 +441,7 @@ db_show_servers(char *b,int size)
    DBUG_ENTER("db_show_servers");
    DBUG_PRINT("enter",("buffer: '%s', size: '%d'", b, size));
    bufptr=mysql_get_host_info(sock);
-   // FIXME: Actually we need to escape prohibited symbols in filenames
+   /* FIXME: Actually we need to escape prohibited symbols in filenames */
    fix_filenames(bufptr);
    strcpy(b,bufptr);
    DBUG_RETURN(1);
