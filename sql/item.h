@@ -296,7 +296,10 @@ public:
 
   inline void make_field(Send_field *field)
   {
-    this_item()->make_field(field);
+    Item *it= this_item();
+
+    it->set_name(m_name.str, m_name.length, system_charset_info);
+    it->make_field(field);
   }
 
   inline Item_result result_type() const
@@ -317,6 +320,11 @@ public:
   inline void print(String *str)
   {
     str->append(m_name.str, m_name.length);
+  }
+
+  inline bool send(Protocol *protocol, String *str)
+  {
+    return this_item()->send(protocol, str);
   }
 };
 

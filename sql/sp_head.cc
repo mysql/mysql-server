@@ -94,8 +94,14 @@ sp_eval_func_item(THD *thd, Item *it, enum enum_field_types type)
 	}
 	else
 	{
+	  /* There's some difference between Item::new_item() and the
+	   * constructor; the former crashes, the latter works... weird. */
+	  uint8 decimals= it->decimals;
+	  uint32 max_length= it->max_length;
 	  DBUG_PRINT("info", ("REAL_RESULT: %g", d));
 	  it= new Item_real(it->val());
+	  it->decimals= decimals;
+	  it->max_length= max_length;
 	}
 	break;
       }
