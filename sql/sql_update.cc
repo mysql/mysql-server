@@ -403,26 +403,20 @@ static table_map get_table_map(List<Item> *items)
 }
 
 
-
 /*
-  Setup multi-update handling and call SELECT to do the join
+  Prepare tables for multi-update 
+  Analyse which tables need specific privileges and perform locking
+  as required
 */
 
-int mysql_multi_update(THD *thd,
-		       TABLE_LIST *table_list,
-		       List<Item> *fields,
-		       List<Item> *values,
-		       COND *conds,
-		       ulong options,
-		       enum enum_duplicates handle_duplicates)
+int mysql_multi_update_lock(THD *thd,
+			    TABLE_LIST *table_list,
+			    List<Item> *fields)
 {
   int res;
-  multi_update *result;
   TABLE_LIST *tl;
   const bool using_lock_tables= thd->locked_tables != 0;
-  DBUG_ENTER("mysql_multi_update");
-
-  thd->select_limit= HA_POS_ERROR;
+  DBUG_ENTER("mysql_multi_update_lock");
 
   for (;;)
   {
@@ -490,7 +484,7 @@ int mysql_multi_update(THD *thd,
           (grant_option && check_grant(thd, wants, tl, 0, 0)))
       {
 	tl->next= save;
-	DBUG_RETURN(0);
+	DBUG_RETURN(1);
       }
       tl->next= save;
     }
@@ -498,11 +492,7 @@ int mysql_multi_update(THD *thd,
     /* Relock the tables with the correct modes */
     res= lock_tables(thd,table_list);
     if (using_lock_tables)
-    {
-      if (res)
-        DBUG_RETURN(res);
       break;                                 // Don't have to do setup_field()
-    }
 
     /*
       We must setup fields again as the file may have been reopened
@@ -535,6 +525,31 @@ int mysql_multi_update(THD *thd,
     */
     close_thread_tables(thd);
   }
+  
+  DBUG_RETURN(res);
+}
+
+/*
+  Setup multi-update handling and call SELECT to do the join
+*/
+
+int mysql_multi_update(THD *thd,
+		       TABLE_LIST *table_list,
+		       List<Item> *fields,
+		       List<Item> *values,
+		       COND *conds,
+		       ulong options,
+		       enum enum_duplicates handle_duplicates)
+{
+  int res;
+  TABLE_LIST *tl;
+  multi_update *result;
+  DBUG_ENTER("mysql_multi_update");
+
+  thd->select_limit= HA_POS_ERROR;
+
+  if ((res= mysql_multi_update_lock(thd, table_list, fields)))
+    DBUG_RETURN(res);
 
   /*
     Count tables and setup timestamp handling
