@@ -19,6 +19,7 @@
 
 #include "mysql_priv.h"
 #include "sql_acl.h"
+#include "sql_select.h"
 #include <m_ctype.h>
 #include <my_dir.h>
 #include <hash.h>
@@ -307,7 +308,8 @@ bool close_cached_tables(THD *thd, bool if_wait_for_refresh,
     close_old_data_files(thd,thd->open_tables,1,1);
     bool found=1;
     /* Wait until all threads has closed all the tables we had locked */
-    DBUG_PRINT("info", ("Waiting for others threads to close their open tables"));
+    DBUG_PRINT("info",
+	       ("Waiting for others threads to close their open tables"));
     while (found && ! thd->killed)
     {
       found=0;
@@ -348,12 +350,40 @@ bool close_cached_tables(THD *thd, bool if_wait_for_refresh,
 }
 
 
-/* Put all tables used by thread in free list */
+/*
+  Close all tables used by thread
 
-void close_thread_tables(THD *thd, bool locked)
+  SYNOPSIS
+    close_thread_tables()
+    thd			Thread handler
+    lock_in_use		Set to 1 (0 = default) if caller has a lock on
+			LOCK_open
+    skip_derived	Set to 1 (0 = default) if we should not free derived
+			tables.
+
+  IMPLEMENTATION
+    Unlocks tables and frees derived tables.
+    Put all normal tables used by thread in free list.
+*/
+
+void close_thread_tables(THD *thd, bool lock_in_use, bool skip_derived)
 {
   DBUG_ENTER("close_thread_tables");
 
+  if (thd->derived_tables && !skip_derived)
+  {
+    TABLE *table, *next;
+    /*
+      Close all derived tables generated from questions like
+      SELECT * from (select * from t1))
+    */
+    for (table= thd->derived_tables ; table ; table= next)
+    {
+      next= table->next;
+      free_tmp_table(thd, table);
+    }
+    thd->derived_tables= 0;
+  }
   if (thd->locked_tables)
   {
     ha_commit_stmt(thd);			// If select statement
@@ -364,10 +394,11 @@ void close_thread_tables(THD *thd, bool locked)
 
   if (thd->lock)
   {
-    mysql_unlock_tables(thd, thd->lock); thd->lock=0;
+    mysql_unlock_tables(thd, thd->lock);
+    thd->lock=0;
   }
   /* VOID(pthread_sigmask(SIG_SETMASK,&thd->block_signals,NULL)); */
-  if (!locked)
+  if (!lock_in_use)
     VOID(pthread_mutex_lock(&LOCK_open));
   safe_mutex_assert_owner(&LOCK_open);
 
@@ -386,7 +417,7 @@ void close_thread_tables(THD *thd, bool locked)
     /* Tell threads waiting for refresh that something has happened */
     VOID(pthread_cond_broadcast(&COND_refresh));
   }
-  if (!locked)
+  if (!lock_in_use)
     VOID(pthread_mutex_unlock(&LOCK_open));
   /*  VOID(pthread_sigmask(SIG_SETMASK,&thd->signals,NULL)); */
   DBUG_VOID_RETURN;

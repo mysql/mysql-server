@@ -184,6 +184,16 @@ int handle_select(THD *thd, LEX *lex, select_result *result)
   return res;
 }
 
+
+void relink_tables(SELECT_LEX *select_lex)
+{
+  for (TABLE_LIST *cursor= (TABLE_LIST *) select_lex->table_list.first;
+       cursor;
+       cursor=cursor->next)
+    cursor->table= cursor->table_list->table;
+}
+
+
 void fix_tables_pointers(SELECT_LEX *select_lex)
 {
   if (select_lex->next_select_in_list())
@@ -192,18 +202,15 @@ void fix_tables_pointers(SELECT_LEX *select_lex)
     for (SELECT_LEX *sl= select_lex;
 	 sl;
 	 sl= sl->next_select_in_list())
-    {
-      for (TABLE_LIST *cursor= (TABLE_LIST *)sl->table_list.first;
-          cursor;
-	   cursor=cursor->next)
-	cursor->table= cursor->table_list->table;
-    }
+      relink_tables(sl);
   }
 }
 
+
 /*
-  Inline function to setup clauses without sum functions
+  Function to setup clauses without sum functions
 */
+
 inline int setup_without_group(THD *thd, TABLE_LIST *tables,
 			       List<Item> &fields,
 			       List<Item> &all_fields,
