@@ -2279,10 +2279,10 @@ a	a	a
 2	2	2
 3	3	3
 select * from t1 natural join (t1 as t2 left join t1 as t3 using (a));
-a	a	a
-1	1	1
-2	2	2
-3	3	3
+a	a
+1	1
+2	2
+3	3
 select * from (t1 as t2 left join t1 as t3 using (a)) natural join t1;
 a	a	a
 1	1	1
