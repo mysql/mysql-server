@@ -1760,13 +1760,15 @@ sp_cond:
 	  }
 	| SQLSTATE_SYM opt_value TEXT_STRING_literal
 	  {		/* SQLSTATE */
-	    uint len= ($3.length < sizeof($$->sqlstate)-1 ?
-                       $3.length : sizeof($$->sqlstate)-1);
-
+	    if (!sp_cond_check(&$3))
+	    {
+	      my_error(ER_SP_BAD_SQLSTATE, MYF(0), $3.str);
+	      YYABORT;
+	    }
 	    $$= (sp_cond_type_t *)YYTHD->alloc(sizeof(sp_cond_type_t));
 	    $$->type= sp_cond_type_t::state;
-	    memcpy($$->sqlstate, $3.str, len);
-	    $$->sqlstate[len]= '\0';
+	    memcpy($$->sqlstate, $3.str, 5);
+	    $$->sqlstate[5]= '\0';
 	  }
 	;
 
