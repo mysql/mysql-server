@@ -13,16 +13,16 @@ fsdir=`pwd`
 
 if [ -d ../sql ] ; then
    SOURCE_DIST=1
-   ndbtop=../ndb
+   ndbtop=`pwd`/../ndb
    exec_ndb=$ndbtop/src/kernel/ndb-main/ndb
    exec_mgmtsrvr=$ndbtop/src/mgmsrv/mgmtsrvr
-   exec_waiter=$ndbtop/tools/ndbwaiter
+   exec_waiter=$ndbtop/tools/ndb_waiter
    exec_mgmtclient=$ndbtop/src/mgmclient/mgmtclient
 else
    BINARY_DIST=1
    exec_ndb=@ndbbindir@/ndb
    exec_mgmtsrvr=@ndbbindir@/mgmtsrvr
-   exec_waiter=@ndbtoolsdir@/waiter
+   exec_waiter=@ndbtoolsdir@/ndb_waiter
    exec_mgmtclient=@ndbbindir@/mgmtclient
 fi
 
