@@ -316,6 +316,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	NUM
 %token	OFFSET_SYM
 %token	ON
+%token  ONE_SHOT_SYM
 %token	OPEN_SYM
 %token	OPTION
 %token	OPTIONALLY
@@ -5089,6 +5090,7 @@ keyword:
 	| NVARCHAR_SYM		{}
 	| OFFSET_SYM		{}
 	| OLD_PASSWORD		{}
+	| ONE_SHOT_SYM		{}
 	| OPEN_SYM		{}
 	| PACK_KEYS_SYM		{}
 	| PARTIAL		{}
@@ -5176,6 +5178,7 @@ set:
 	  lex->sql_command= SQLCOM_SET_OPTION;
 	  lex->option_type=OPT_SESSION;
 	  lex->var_list.empty();
+          lex->one_shot_set= 0;
 	}
 	option_value_list
 	{}
@@ -5194,6 +5197,7 @@ option_type:
 	| GLOBAL_SYM	{ Lex->option_type= OPT_GLOBAL; }
 	| LOCAL_SYM	{ Lex->option_type= OPT_SESSION; }
 	| SESSION_SYM	{ Lex->option_type= OPT_SESSION; }
+	| ONE_SHOT_SYM	{ Lex->option_type= OPT_SESSION; Lex->one_shot_set= 1; }
 	;
 
 opt_var_type:
