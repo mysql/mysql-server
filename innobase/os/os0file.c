@@ -11,6 +11,7 @@ Created 10/21/1995 Heikki Tuuri
 #include "os0thread.h"
 #include "ut0mem.h"
 #include "srv0srv.h"
+#include "srv0start.h"
 #include "fil0fil.h"
 #include "buf0buf.h"
 
@@ -33,7 +34,7 @@ ulint	os_innodb_umask		= 0;
 #endif
 
 /* If the following is set to TRUE, we do not call os_file_flush in every
-os_file_write. We can set this TRUE if the doublewrite buffer is used. */
+os_file_write. We can set this TRUE when the doublewrite buffer is used. */
 ibool	os_do_not_call_flush_at_each_write	= FALSE;
 
 /* We use these mutexes to protect lseek + file i/o operation, if the
@@ -154,7 +155,6 @@ os_mutex_t os_file_count_mutex;
 ulint	os_file_n_pending_preads  = 0;
 ulint	os_file_n_pending_pwrites = 0;
 
-
 /***************************************************************************
 Gets the operating system version. Currently works only on Windows. */
 
@@ -198,9 +198,12 @@ overwrite the error number). If the number is not known to this program,
 the OS error number + 100 is returned. */
 
 ulint
-os_file_get_last_error(void)
-/*========================*/
-		/* out: error number, or OS error number + 100 */
+os_file_get_last_error(
+/*===================*/
+					/* out: error number, or OS error
+					number + 100 */
+	ibool	report_all_errors)	/* in: TRUE if we want an error message
+					printed of all errors */
 {
 	ulint	err;
 
@@ -208,7 +211,8 @@ os_file_get_last_error(void)
 
 	err = (ulint) GetLastError();
 
-	if (err != ERROR_DISK_FULL && err != ERROR_FILE_EXISTS) {
+	if (report_all_errors
+	    || (err != ERROR_DISK_FULL && err != ERROR_FILE_EXISTS)) {
 		ut_print_timestamp(stderr);
 	     	fprintf(stderr,
   "  InnoDB: Operating system error number %lu in a file operation.\n"
@@ -246,7 +250,8 @@ os_file_get_last_error(void)
 #else
 	err = (ulint) errno;
 
-	if (err != ENOSPC && err != EEXIST) {
+	if (report_all_errors
+	    || (err != ENOSPC && err != EEXIST)) {
 		ut_print_timestamp(stderr);
 
 	     	fprintf(stderr,
@@ -309,7 +314,7 @@ os_file_handle_error(
 
 	UT_NOT_USED(file);
 
-	err = os_file_get_last_error();
+	err = os_file_get_last_error(FALSE);
 	
 	if (err == OS_FILE_DISK_FULL) {
 		/* We only print a warning about disk full once */
@@ -372,6 +377,217 @@ os_io_init_simple(void)
 	for (i = 0; i < OS_FILE_N_SEEK_MUTEXES; i++) {
 		os_file_seek_mutexes[i] = os_mutex_create(NULL);
 	}
+}
+
+/***************************************************************************
+The os_file_opendir() function opens a directory stream corresponding to the
+directory named by the dirname argument. The directory stream is positioned
+at the first entry. In both Unix and Windows we automatically skip the '.'
+and '..' items at the start of the directory listing. */
+
+os_file_dir_t
+os_file_opendir(
+/*============*/
+				/* out: directory stream, NULL if error */
+	char*	dirname,	/* in: directory name; it must not contain
+				a trailing '\' or '/' */
+	ibool	error_is_fatal)	/* in: TRUE if we should treat an error as a
+				fatal error; if we try to open symlinks then
+				we do not wish a fatal error if it happens
+				not to be a directory */
+{
+	os_file_dir_t		dir;
+#ifdef __WIN__
+        LPWIN32_FIND_DATA	lpFindFileData;
+	char			path[OS_FILE_MAX_PATH + 3];
+
+	ut_a(strlen(dirname) < OS_FILE_MAX_PATH);
+
+	strcpy(path, dirname);
+	strcpy(path + strlen(path), "\*");
+
+	/* Note that in Windows opening the 'directory stream' also retrieves
+	the first entry in the directory. Since it is '.', that is no problem,
+	as we will skip over the '.' and '..' entries anyway. */
+
+	lpFindFileData = ut_malloc(sizeof(WIN32_FIND_DATA));
+
+	dir = FindFirstFile(path, lpFindFileData);
+
+	ut_free(lpFindFileData);
+
+	if (dir == INVALID_HANDLE_VALUE) {
+
+		if (error_is_fatal) {
+		        os_file_handle_error(NULL, dirname, "opendir");
+		}
+
+		return(NULL);
+	}
+
+	return(dir);	
+#else
+	dir = opendir(dirname);
+
+	if (dir == NULL && error_is_fatal) {
+	        os_file_handle_error(0, dirname, "opendir");
+	}
+
+	return(dir);
+#endif
+}
+
+/***************************************************************************
+Closes a directory stream. */
+
+int
+os_file_closedir(
+/*=============*/
+				/* out: 0 if success, -1 if failure */
+	os_file_dir_t	dir)	/* in: directory stream */
+{
+#ifdef __WIN__
+	BOOL		ret;
+
+	ret = FindClose(dir);
+
+	if (!ret) {
+	        os_file_handle_error(NULL, NULL, "closedir");
+		
+		return(-1);
+	}
+	
+	return(0);
+#else
+	int	ret;
+	
+	ret = closedir(dir);
+
+	if (ret) {
+	        os_file_handle_error(0, NULL, "closedir");
+	}
+
+	return(ret);
+#endif
+}
+
+/***************************************************************************
+This function returns information of the next file in the directory. We jump
+over the '.' and '..' entries in the directory. */
+
+int
+os_file_readdir_next_file(
+/*======================*/
+				/* out: 0 if ok, -1 if error, 1 if at the end
+				of the directory */
+	char*		dirname,/* in: directory name or path */
+	os_file_dir_t	dir,	/* in: directory stream */
+	os_file_stat_t*	info)	/* in/out: buffer where the info is returned */
+{
+#ifdef __WIN__
+	LPWIN32_FIND_DATA	lpFindFileData;
+	BOOL			ret;
+
+	lpFindFileData = ut_malloc(sizeof(WIN32_FIND_DATA));
+next_file:
+	ret = FindNextFile(dir, lpFindFileData);
+
+	if (ret) {
+	        ut_a(strlen(lpFindFileData->cFilename) < OS_FILE_MAX_PATH);
+
+		if (strcmp(lpFindFileData->cFilename, ".") == 0
+		    || strcmp(lpFindFileData->cFilename, "..") == 0) {
+
+		        goto next_file;
+		}
+
+		strcpy(info->name, lpFindFileData->cFilename);
+
+		info->size = (ib_longlong)(buf->nFileSizeLow)
+			    + (((ib_longlong)(buf->nFileSizeHigh)) << 32);
+
+		if (lpFindFileData->dwFileAttributes
+					& FILE_ATTRIBUTE_REPARSE_POINT) {
+/* TODO: test Windows symlinks */
+/* TODO: MySQL has apparently its own symlink implementation in Windows,
+dbname.sym can redirect a database directory:
+http://www.mysql.com/doc/en/Windows_symbolic_links.html */
+			info->type = OS_FILE_TYPE_LINK;
+		} else if (lpFindFileData->dwFileAttributes
+						& FILE_ATTRIBUTE_DIRECTORY) {
+		        info->type = OS_FILE_TYPE_DIR;
+		} else if (lpFindFileData->dwFileAttributes
+						& FILE_ATTRIBUTE_NORMAL) {
+/* TODO: are FILE_ATTRIBUTE_NORMAL files really all normal files? */	
+			info->type = OS_FILE_TYPE_FILE;
+		} else {
+			info->type = OS_FILE_TYPE_UNKNOWN;
+		}
+	}
+
+	ut_free(lpFindFileData);
+
+	if (ret) {
+		return(0);
+	} else if (GetLastError() == ERROR_NO_MORE_FILES) {
+
+		return(1);
+	} else {
+		os_file_handle_error(NULL, dirname, "readdir_next_file");
+
+		return(-1);
+	}
+#else
+	struct dirent*	ent;
+	char*		full_path;
+	int		ret;
+	struct stat	statinfo;
+next_file:
+	ent = readdir(dir);
+
+	if (ent == NULL) {
+		return(1);
+	}
+
+	ut_a(strlen(ent->d_name) < OS_FILE_MAX_PATH);
+
+	if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0) {
+
+		goto next_file;
+	}
+
+	strcpy(info->name, ent->d_name);
+
+	full_path = ut_malloc(strlen(dirname) + strlen(ent->d_name) + 10);
+	
+	sprintf(full_path, "%s/%s", dirname, ent->d_name);
+
+	ret = stat(full_path, &statinfo);
+
+	if (ret) {
+		os_file_handle_error(0, full_path, "stat");
+
+		ut_free(full_path);
+
+		return(-1);
+	}
+
+	info->size = (ib_longlong)statinfo.st_size;
+
+	if (S_ISDIR(statinfo.st_mode)) {
+		info->type = OS_FILE_TYPE_DIR;
+	} else if (S_ISLNK(statinfo.st_mode)) {
+	        info->type = OS_FILE_TYPE_LINK;
+	} else if (S_ISREG(statinfo.st_mode)) {
+	        info->type = OS_FILE_TYPE_FILE;
+	} else {
+	        info->type = OS_FILE_TYPE_UNKNOWN;
+	}
+			
+	ut_free(full_path);
+
+	return(0);
+#endif
 }
 
 /********************************************************************
@@ -593,7 +809,9 @@ os_file_create(
 	ulint	create_mode, /* in: OS_FILE_OPEN if an existing file is opened
 			(if does not exist, error), or OS_FILE_CREATE if a new
 			file is created (if exists, error), OS_FILE_OVERWRITE
-			if a new is created or an old overwritten */
+			if a new is created or an old overwritten,
+			OS_FILE_OPEN_RAW, if a raw device or disk partition
+			should be opened */
 	ulint	purpose,/* in: OS_FILE_AIO, if asynchronous, non-buffered i/o
 			is desired, OS_FILE_NORMAL, if any normal file;
 			NOTE that it also depends on type, os_aio_.. and srv_..
@@ -605,6 +823,7 @@ os_file_create(
 {
 #ifdef __WIN__
 	os_file_t	file;
+	DWORD		share_mode	= FILE_SHARE_READ;
 	DWORD		create_flag;
 	DWORD		attributes;
 	ibool		retry;
@@ -612,6 +831,9 @@ os_file_create(
 try_again:	
 	ut_a(name);
 
+	if (create_mode == OS_FILE_OPEN_RAW) {
+		create_flag = OPEN_EXISTING;
+		share_mode = FILE_SHARE_WRITE;
 	if (create_mode == OS_FILE_OPEN) {
 		create_flag = OPEN_EXISTING;
 	} else if (create_mode == OS_FILE_CREATE) {
@@ -662,14 +884,17 @@ try_again:
 	file = CreateFile(name,
 			GENERIC_READ | GENERIC_WRITE, /* read and write
 							access */
-			FILE_SHARE_READ,/* File can be read also by other
+			share_mode,     /* File can be read also by other
 					processes; we must give the read
 					permission because of ibbackup. We do
 					not give the write permission to
 					others because if one would succeed to
 					start 2 instances of mysqld on the
 					SAME files, that could cause severe
-					database corruption! */
+					database corruption! When opening
+					raw disk partitions Microsoft manuals
+					say that we must give also the write
+					permission. */
 			NULL,	/* default security attributes */
 			create_flag,
 			attributes,
@@ -679,8 +904,8 @@ try_again:
 		*success = FALSE;
 
 		retry = os_file_handle_error(file, name,
-				create_mode == OS_FILE_OPEN ?
-				"open" : "create");
+				create_mode == OS_FILE_CREATE ?
+				"create" : "open");
 		if (retry) {
 			goto try_again;
 		}
@@ -700,7 +925,7 @@ try_again:
 try_again:	
 	ut_a(name);
 
-	if (create_mode == OS_FILE_OPEN) {
+	if (create_mode == OS_FILE_OPEN || create_mode == OS_FILE_OPEN_RAW) {
 		mode_str = "OPEN";
 
 		create_flag = O_RDWR;
@@ -767,8 +992,8 @@ try_again:
 		*success = FALSE;
 
 		retry = os_file_handle_error(file, name,
-				create_mode == OS_FILE_OPEN ?
-				"open" : "create");
+				create_mode == OS_FILE_CREATE ?
+				"create" : "open");
 		if (retry) {
 			goto try_again;
 		}
@@ -777,6 +1002,85 @@ try_again:
 	}
 
 	return(file);	
+#endif
+}
+
+/***************************************************************************
+Deletes a file. The file has to be closed before calling this. */
+
+ibool
+os_file_delete(
+/*===========*/
+			/* out: TRUE if success */
+	char*	name)	/* in: file path as a null-terminated string */
+{
+#ifdef __WIN__
+	os_file_t	dummy	= NULL;
+	BOOL		ret;
+
+	ret = DeleteFile((LPCTSTR)name);
+
+	if (ret) {
+		return(TRUE);
+	}
+
+	os_file_handle_error(dummy, name, "delete");
+
+	return(FALSE);
+#else
+	os_file_t	dummy	= 0;
+	int		ret;
+
+	ret = unlink((const char*)name);
+
+	if (ret != 0) {
+		os_file_handle_error(dummy, name, "delete");
+
+		return(FALSE);
+	}
+
+	return(TRUE);
+#endif
+}
+
+/***************************************************************************
+Renames a file (can also move it to another directory). It is safest that the
+file is closed before calling this function. */
+
+ibool
+os_file_rename(
+/*===========*/
+				/* out: TRUE if success */
+	char*	oldpath,	/* in: old file path as a null-terminated
+				string */
+	char*	newpath)	/* in: new file path */
+{
+#ifdef __WIN__
+	os_file_t	dummy	= NULL;
+	BOOL		ret;
+
+	ret = MoveFile((LPCTSTR)oldpath, (LPCTSTR)newpath);
+
+	if (ret) {
+		return(TRUE);
+	}
+
+	os_file_handle_error(dummy, oldpath, "delete");
+
+	return(FALSE);
+#else
+	os_file_t	dummy	= 0;
+	int		ret;
+
+	ret = rename((const char*)oldpath, (const char*)newpath);
+
+	if (ret != 0) {
+		os_file_handle_error(dummy, oldpath, "rename");
+
+		return(FALSE);
+	}
+
+	return(TRUE);
 #endif
 }
 
@@ -889,7 +1193,7 @@ os_file_get_size(
 	}
 	
 	if (sizeof(off_t) > 4) {
-	        *size = (ulint)(offs & 0xFFFFFFFF);
+	        *size = (ulint)(offs & 0xFFFFFFFFUL);
 		*size_high = (ulint)(offs >> 32);
 	} else {
 		*size = (ulint) offs;
@@ -1012,6 +1316,15 @@ os_file_flush(
 		return(TRUE);
 	}
 
+	/* Since Windows returns ERROR_INVALID_FUNCTION if the 'file' is
+	actually a raw device, we choose to ignore that error if we are using
+	raw disks */
+
+	if (srv_start_raw_disk_in_use && GetLastError()
+						== ERROR_INVALID_FUNCTION) {
+	        return(TRUE);
+	}
+
 	os_file_handle_error(file, NULL, "flush");
 
 	/* It is a fatal error if a file flush does not succeed, because then
@@ -1035,9 +1348,10 @@ os_file_flush(
 	}
 	
 	/* Since Linux returns EINVAL if the 'file' is actually a raw device,
-	we choose to ignore that error */
+	we choose to ignore that error if we are using raw disks */
 
-	if (errno == EINVAL) {
+	if (srv_start_raw_disk_in_use && errno == EINVAL) {
+
 	        return(TRUE);
 	}
 
@@ -1075,7 +1389,7 @@ os_file_pread(
         off_t	offs;
 	ssize_t	n_bytes;
 
-	ut_a((offset & 0xFFFFFFFF) == offset);
+	ut_a((offset & 0xFFFFFFFFUL) == offset);
         
         /* If off_t is > 4 bytes in size, then we assume we can pass a
 	64-bit address */
@@ -1151,7 +1465,7 @@ os_file_pwrite(
 	ssize_t	ret;
         off_t	offs;
 
-	ut_a((offset & 0xFFFFFFFF) == offset);
+	ut_a((offset & 0xFFFFFFFFUL) == offset);
 
         /* If off_t is > 4 bytes in size, then we assume we can pass a
 	64-bit address */
@@ -1255,7 +1569,7 @@ os_file_read(
 	ibool		retry;
 	ulint		i;
 	
-	ut_a((offset & 0xFFFFFFFF) == offset);
+	ut_a((offset & 0xFFFFFFFFUL) == offset);
 
 	os_n_file_reads++;
 	os_bytes_read_since_printout += n;

@@ -1905,6 +1905,7 @@ row_sel_convert_mysql_key_to_innobase(
 	ulint		key_len)	/* in: MySQL key value length */
 {
 	byte*		original_buf	= buf;
+	byte*		original_key_ptr = key_ptr;
 	dict_field_t*	field;
 	dfield_t*	dfield;
 	ulint		data_offset;
@@ -2028,7 +2029,16 @@ row_sel_convert_mysql_key_to_innobase(
 		        ut_print_timestamp(stderr);
 			
 			fprintf(stderr,
-  "  InnoDB: Warning: using a partial-field key prefix in search\n");
+  "  InnoDB: Warning: using a partial-field key prefix in search.\n"
+  "InnoDB: Table name %s, index name %s. Last data field length %lu bytes,\n"
+  "InnoDB: key ptr now exceeds key end by %lu bytes.\n"
+  "InnoDB: Key value in the MySQL format:\n", index->table_name, index->name,
+					  data_field_len,
+					  (ulint)(key_ptr - key_end));
+			fflush(stderr);
+			ut_print_buf(original_key_ptr, key_len);
+			fflush(stdout);
+			fprintf(stderr, "\n");
 
 			if (!is_null) {
 			        dfield->len -= (ulint)(key_ptr - key_end);
@@ -2155,9 +2165,10 @@ static
 ibool
 row_sel_store_mysql_rec(
 /*====================*/
-					/* out: TRUE if success, FALSE
-					if could not allocate memory for a
-					BLOB */
+					/* out: TRUE if success, FALSE if
+					could not allocate memory for a BLOB
+					(though we may also assert in that
+					case) */
 	byte*		mysql_rec,	/* out: row in the MySQL format */
 	row_prebuilt_t*	prebuilt,	/* in: prebuilt struct */
 	rec_t*		rec)		/* in: Innobase record in the index
@@ -2169,8 +2180,9 @@ row_sel_store_mysql_rec(
 	byte*			data;
 	ulint			len;
 	byte*			blob_buf;
+	int			pad_char;
 	ulint			i;
-
+	
 	ut_ad(prebuilt->mysql_template);
 
 	if (prebuilt->blob_heap != NULL) {
@@ -2178,9 +2190,10 @@ row_sel_store_mysql_rec(
 		prebuilt->blob_heap = NULL;
 	}
 
-	/* Mark all columns as SQL NULL */
+	/* MySQL assumes that all columns have the SQL NULL bit set unless it
+	is a nullable column with a non-NULL value */
 
-	memset(mysql_rec, 255, prebuilt->null_bitmap_len);
+	memset(mysql_rec, 0xFF, prebuilt->null_bitmap_len);
 
 	for (i = 0; i < prebuilt->n_template; i++) {
 
@@ -2197,6 +2210,10 @@ row_sel_store_mysql_rec(
 
 			extern_field_heap = mem_heap_create(UNIV_PAGE_SIZE);
 
+			/* NOTE: if we are retrieving a big BLOB, we may
+			already run out of memory in the next call, which
+			causes an assert */
+
 			data = btr_rec_copy_externally_stored_field(rec,
 					templ->rec_field_no, &len,
 					extern_field_heap);
@@ -2209,20 +2226,28 @@ row_sel_store_mysql_rec(
 
 				ut_a(prebuilt->templ_contains_blob);
 
-				/* A heuristic test that we can allocate
-				the memory for a big BLOB. We have a safety
-				margin of 1000000 bytes. Since the test
-				takes some CPU time, we do not use for small
-				BLOBs. */
+				/* A heuristic test that we can allocate the
+				memory for a big BLOB. We have a safety margin
+				of 1000000 bytes. Since the test takes some
+				CPU time, we do not use it for small BLOBs. */
 
 				if (len > 2000000
 				    && !ut_test_malloc(len + 1000000)) {
 
+					ut_print_timestamp(stderr);
+					fprintf(stderr,
+"  InnoDB: Warning: could not allocate %lu + 1000000 bytes to retrieve\n"
+"InnoDB: a big column. Table name %s\n", len, prebuilt->table->name);
+
+					if (extern_field_heap) {
+						mem_heap_free(
+							extern_field_heap);
+					}
 					return(FALSE);
 				}
 
-				/* Copy the BLOB data to the BLOB
-				heap of prebuilt */
+				/* Copy the BLOB data to the BLOB heap of
+				prebuilt */
 
 				if (prebuilt->blob_heap == NULL) {
 					prebuilt->blob_heap =
@@ -2235,35 +2260,49 @@ row_sel_store_mysql_rec(
 
 				data = blob_buf;
 			}
-
+		
 			row_sel_field_store_in_mysql_format(
 				mysql_rec + templ->mysql_col_offset,
 				templ->mysql_col_len, data, len,
 				templ->type, templ->is_unsigned);
-
+				
+			/* Cleanup */
 			if (extern_field_heap) {
-				mem_heap_free(extern_field_heap);
+ 				mem_heap_free(extern_field_heap);
 				extern_field_heap = NULL;
-			}
-
+ 			}
+			
 			if (templ->mysql_null_bit_mask) {
+				/* It is a nullable column with a non-NULL
+				value */
 				mysql_rec[templ->mysql_null_byte_offset] &=
 					~(byte) (templ->mysql_null_bit_mask);
 			}
 		} else {
 		        /* MySQL seems to assume the field for an SQL NULL
-		        value is set to zero. Not taking this into account
-		        caused seg faults with NULL BLOB fields, and
+		        value is set to zero or space. Not taking this into
+			account caused seg faults with NULL BLOB fields, and
 		        bug number 154 in the MySQL bug database: GROUP BY
 		        and DISTINCT could treat NULL values inequal. */
 
-		        memset(mysql_rec + templ->mysql_col_offset,
-                            ((templ->type == DATA_VARCHAR  ||
-                              templ->type == DATA_VARMYSQL ||
-                              templ->type == DATA_BINARY) ? ' ' : '\0'),
-			       templ->mysql_col_len);
+			if (templ->type == DATA_VARCHAR
+			    || templ->type == DATA_CHAR
+			    || templ->type == DATA_BINARY
+			    || templ->type == DATA_FIXBINARY
+			    || templ->type == DATA_MYSQL
+			    || templ->type == DATA_VARMYSQL) {
+			        /* MySQL pads all non-BLOB and non-TEXT
+				string types with space ' ' */
+			    
+				pad_char = ' ';
+			} else {
+				pad_char = '\0';
+			}
+
+			memset(mysql_rec + templ->mysql_col_offset, pad_char,
+							templ->mysql_col_len);
 		}
-	}
+	} 
 
 	return(TRUE);
 }
@@ -2590,9 +2629,9 @@ row_sel_push_cache_row_for_mysql(
 
 	ut_ad(prebuilt->fetch_cache_first == 0);
 
-	row_sel_store_mysql_rec(
+	ut_a(row_sel_store_mysql_rec(
 			prebuilt->fetch_cache[prebuilt->n_fetch_cached],
-			prebuilt, rec);
+			prebuilt, rec));
 
 	prebuilt->n_fetch_cached++;
 }
@@ -2827,23 +2866,6 @@ row_search_for_mysql(
 		mode = pcur->search_mode;
 	}
 
-	if ((direction == ROW_SEL_NEXT || direction == ROW_SEL_PREV)
-	    && pcur->old_stored != BTR_PCUR_OLD_STORED) {
-
-		/* MySQL sometimes seems to do fetch next or fetch prev even
-		if the search condition is unique; this can, for example,
-		happen with the HANDLER commands; we do not always store the
-		pcur position in this case, so we cannot restore cursor
-		position, and must return immediately */
-
-		/* printf("%s record not found 1\n", index->name); */
-	
-		trx->op_info = (char *) "";
-		return(DB_RECORD_NOT_FOUND);
-	}
-
-	mtr_start(&mtr);
-
 	/* In a search where at most one record in the index may match, we
 	can use a LOCK_REC_NOT_GAP type record lock when locking a non-delete-
 	marked matching record.
@@ -2858,7 +2880,20 @@ row_search_for_mysql(
 	    && dtuple_get_n_fields(search_tuple)
 				== dict_index_get_n_unique(index)) {
 		unique_search = TRUE;
+
+		/* Even if the condition is unique, MySQL seems to try to
+		retrieve also a second row if a primary key contains more than
+		1 column. Return immediately if this is not a HANDLER
+		command. */
+
+		if (direction != 0 && !prebuilt->used_in_HANDLER) {
+        
+			trx->op_info = (char *) "";
+			return(DB_RECORD_NOT_FOUND);
+		}
 	}
+
+	mtr_start(&mtr);
 
 	/*-------------------------------------------------------------*/
 	/* PHASE 2: Try fast adaptive hash index search if possible */
@@ -2912,7 +2947,9 @@ row_search_for_mysql(
 								rec)) {
  					err = DB_TOO_BIG_RECORD;
 
- 					goto lock_wait_or_error;
+					/* We let the main loop to do the
+					error handling */
+ 					goto shortcut_fails_too_big_rec;
 				}
 	
  				mtr_commit(&mtr);
@@ -2960,7 +2997,7 @@ row_search_for_mysql(
 
 				return(DB_RECORD_NOT_FOUND);
 			}
-
+shortcut_fails_too_big_rec:
 			mtr_commit(&mtr);
 			mtr_start(&mtr);
 		}

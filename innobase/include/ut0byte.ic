@@ -152,13 +152,13 @@ ut_dulint_add(
 	dulint	a,	/* in: dulint */
 	ulint	b)	/* in: ulint */
 {
-	if (0xFFFFFFFF - b >= a.low) {
+	if (0xFFFFFFFFUL - b >= a.low) {
 		a.low += b;
 
 		return(a);
 	}
 
-	a.low = a.low - (0xFFFFFFFF - b) - 1;
+	a.low = a.low - (0xFFFFFFFFUL - b) - 1;
 
 	a.high++;
 
@@ -183,7 +183,7 @@ ut_dulint_subtract(
 
 	b -= a.low + 1;
 
-	a.low = 0xFFFFFFFF - b;
+	a.low = 0xFFFFFFFFUL - b;
 
 	ut_ad(a.high > 0);
 	
@@ -214,7 +214,7 @@ ut_dulint_minus(
 
 	ut_ad(a.high == b.high + 1);
 
-	diff = (ulint)(0xFFFFFFFF - b.low);
+	diff = (ulint)(0xFFFFFFFFUL - b.low);
 	diff += 1 + a.low;
 
 	ut_ad(diff > a.low);

@@ -17,6 +17,8 @@ Created 10/10/1995 Heikki Tuuri
 #include "que0types.h"
 #include "trx0types.h"
 
+extern char*	srv_main_thread_op_info;
+
 /* Buffer which can be used in printing fatal error messages */
 extern char	srv_fatal_errbuf[];
 
@@ -35,6 +37,8 @@ extern ibool	srv_lower_case_table_names;
 
 extern char*	srv_data_home;
 extern char*	srv_arch_dir;
+
+extern ibool	srv_file_per_table;
 
 extern ulint	srv_n_data_files;
 extern char**	srv_data_file_names;
@@ -75,6 +79,8 @@ extern ulint	srv_lock_wait_timeout;
 extern char*    srv_file_flush_method_str;
 extern ulint    srv_unix_file_flush_method;
 extern ulint   	srv_win_file_flush_method;
+
+extern ulint	srv_max_n_open_files;
 
 extern ulint	srv_max_dirty_pages_pct;
 

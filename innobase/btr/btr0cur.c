@@ -957,7 +957,7 @@ calculate_sizes_again:
 	/* Now, try the insert */
 
 	*rec = page_cur_insert_rec_low(page_cursor, entry, data_size,
-								NULL, mtr);	
+								NULL, mtr);
 	if (!(*rec)) {
 		/* If the record did not fit, reorganize */
 		btr_page_reorganize(page, mtr);
@@ -1048,6 +1048,7 @@ btr_cur_pessimistic_insert(
 	ibool		dummy_inh;
 	ibool		success;
 	ulint		n_extents	= 0;
+	ulint		n_reserved;
 	
 	ut_ad(dtuple_check_typed(entry));
 
@@ -1067,7 +1068,7 @@ btr_cur_pessimistic_insert(
 	cursor->flag = BTR_CUR_BINARY;
 
 	err = btr_cur_optimistic_insert(flags, cursor, entry, rec, big_rec,
-								thr, mtr);	
+								thr, mtr);
 	if (err != DB_FAIL) {
 
 		return(err);
@@ -1090,7 +1091,7 @@ btr_cur_pessimistic_insert(
 
 		n_extents = cursor->tree_height / 16 + 3;
 
-		success = fsp_reserve_free_extents(index->space,
+		success = fsp_reserve_free_extents(&n_reserved, index->space,
 						n_extents, FSP_NORMAL, mtr);
 		if (!success) {
 			err = DB_OUT_OF_FILE_SPACE;
@@ -1112,7 +1113,7 @@ btr_cur_pessimistic_insert(
 		
 			if (n_extents > 0) {
 			        fil_space_release_free_extents(index->space,
-								n_extents);
+								n_reserved);
 			}
 			return(DB_TOO_BIG_RECORD);
 		}
@@ -1140,7 +1141,7 @@ btr_cur_pessimistic_insert(
 	err = DB_SUCCESS;
 
 	if (n_extents > 0) {
-		fil_space_release_free_extents(index->space, n_extents);
+		fil_space_release_free_extents(index->space, n_reserved);
 	}
 
 	*big_rec = big_rec_vec;
@@ -1721,6 +1722,7 @@ btr_cur_pessimistic_update(
 	ibool		was_first;
 	ibool		success;
 	ulint		n_extents	= 0;
+	ulint		n_reserved;
 	ulint*		ext_vect;
 	ulint		n_ext_vect;
 	ulint		reserve_flag;
@@ -1767,7 +1769,8 @@ btr_cur_pessimistic_update(
 			reserve_flag = FSP_NORMAL;
 		}
 		
-		success = fsp_reserve_free_extents(cursor->index->space,
+		success = fsp_reserve_free_extents(&n_reserved,
+						cursor->index->space,
 						n_extents, reserve_flag, mtr);
 		if (!success) {
 			err = DB_OUT_OF_FILE_SPACE;
@@ -1916,7 +1919,7 @@ return_after_reservations:
 
 	if (n_extents > 0) {
 		fil_space_release_free_extents(cursor->index->space,
-							n_extents);
+							n_reserved);
 	}
 
 	*big_rec = big_rec_vec;
@@ -2387,6 +2390,7 @@ btr_cur_pessimistic_delete(
 	rec_t*		rec;
 	dtuple_t*	node_ptr;
 	ulint		n_extents	= 0;
+	ulint		n_reserved;
 	ibool		success;
 	ibool		ret		= FALSE;
 	mem_heap_t*	heap;
@@ -2405,7 +2409,8 @@ btr_cur_pessimistic_delete(
 
 		n_extents = cursor->tree_height / 32 + 1;
 
-		success = fsp_reserve_free_extents(cursor->index->space,
+		success = fsp_reserve_free_extents(&n_reserved,
+						cursor->index->space,
 						n_extents, FSP_CLEANING, mtr);
 		if (!success) {
 			*err = DB_OUT_OF_FILE_SPACE;
@@ -2484,7 +2489,8 @@ return_after_reservations:
 	}
 
 	if (n_extents > 0) {
-		fil_space_release_free_extents(cursor->index->space, n_extents);
+		fil_space_release_free_extents(cursor->index->space,
+								n_reserved);
 	}
 
 	return(ret);
@@ -3156,7 +3162,7 @@ btr_store_big_rec_extern_fields(
 	ut_ad(mtr_memo_contains(local_mtr, dict_tree_get_lock(index->tree),
 							MTR_MEMO_X_LOCK));
 	ut_ad(mtr_memo_contains(local_mtr, buf_block_align(rec),
-							MTR_MEMO_PAGE_X_FIX));	
+							MTR_MEMO_PAGE_X_FIX));
 	ut_a(index->type & DICT_CLUSTERED);
 							
 	space_id = buf_frame_get_space_id(rec);
@@ -3322,7 +3328,7 @@ btr_free_externally_stored_field(
 	ut_ad(mtr_memo_contains(local_mtr, dict_tree_get_lock(index->tree),
 							MTR_MEMO_X_LOCK));
 	ut_ad(mtr_memo_contains(local_mtr, buf_block_align(data),
-							MTR_MEMO_PAGE_X_FIX));	
+							MTR_MEMO_PAGE_X_FIX));
 	ut_a(local_len >= BTR_EXTERN_FIELD_REF_SIZE);
 	local_len -= BTR_EXTERN_FIELD_REF_SIZE;
 	

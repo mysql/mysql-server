@@ -189,6 +189,7 @@ btr_node_ptr_get_child_page_no(
 	ulint	n_fields;
 	byte*	field;
 	ulint	len;
+	ulint	page_no;
 
 	n_fields = rec_get_n_fields(rec);
 
@@ -197,7 +198,16 @@ btr_node_ptr_get_child_page_no(
 
 	ut_ad(len == 4);
 	
-	return(mach_read_from_4(field));
+	page_no = mach_read_from_4(field);
+
+	if (page_no == 0) {
+		fprintf(stderr,
+"InnoDB: a nonsensical page number 0 in a node ptr record at offset %lu\n",
+		       (ulint)(rec - buf_frame_align(rec)));
+		buf_page_print(buf_frame_align(rec));
+	}
+
+	return(page_no);
 }
 
 /******************************************************************

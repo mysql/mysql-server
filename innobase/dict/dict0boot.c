@@ -419,6 +419,4 @@ dict_create(void)
 	dict_boot();
 
 	dict_insert_initial_data();
-
-	sync_order_checks_on = TRUE;
 }

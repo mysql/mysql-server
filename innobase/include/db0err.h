@@ -48,6 +48,11 @@ Created 5/24/1996 Heikki Tuuri
 					from a table failed */
 #define DB_NO_SAVEPOINT		42	/* no savepoint exists with the given
 					name */
+#define	DB_TABLESPACE_ALREADY_EXISTS 43 /* we cannot create a new single-table
+				        tablespace because a file of the same
+					name already exists */
+#define DB_TABLESPACE_DELETED	44	/* tablespace does not exist or is
+					being dropped right now */
 					
 /* The following are partial failure codes */
 #define DB_FAIL 		1000

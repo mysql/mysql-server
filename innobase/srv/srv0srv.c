@@ -75,6 +75,10 @@ names, where the file name itself may also contain a path */
 char*	srv_data_home 	= NULL;
 char*	srv_arch_dir 	= NULL;
 
+ibool	srv_file_per_table = FALSE;	/* store to its own file each table
+					created by an user; data dictionary
+					tables are in the system tablespace
+					0 */
 ulint	srv_n_data_files = 0;
 char**	srv_data_file_names = NULL;
 ulint*	srv_data_file_sizes = NULL;	/* size in database pages */ 
@@ -161,6 +165,8 @@ ulint	srv_lock_wait_timeout	= 1024 * 1024 * 1024;
 char*   srv_file_flush_method_str = NULL;
 ulint   srv_unix_file_flush_method = SRV_UNIX_FDATASYNC;
 ulint   srv_win_file_flush_method = SRV_WIN_IO_UNBUFFERED;
+
+ulint	srv_max_n_open_files	  = 300;
 
 /* The InnoDB main thread tries to keep the ratio of modified pages
 in the buffer pool to all database pages in the buffer pool smaller than
@@ -1444,7 +1450,7 @@ srv_read_initfile(
 
 		srv_log_group_home_dirs[i] = ut_malloc(ut_strlen(str_buf) + 1);
 		ut_memcpy(srv_log_group_home_dirs[i], str_buf,
-							ut_strlen(str_buf) + 1);
+						ut_strlen(str_buf) + 1);
 	}
 
 	err = srv_read_init_val(initfile, "INNOBASE_LOG_ARCH_DIR",
@@ -2325,7 +2331,7 @@ srv_sprintf_innodb_monitor(
 	char*	buf_end	= buf + len - 2000;
 	double	time_elapsed;
 	time_t	current_time;
-	ulint	n_reserved;
+	ulint   n_reserved;
 
 	mutex_enter(&srv_innodb_monitor_mutex);
 
@@ -2436,7 +2442,8 @@ srv_sprintf_innodb_monitor(
 
 	if (mem_out_of_mem_err_msg_count > 0) {
 	        buf += sprintf(buf,
-	"Mem allocation has spilled out of additional mem pool %lu times\n");
+	"Mem allocation has spilled out of additional mem pool %lu times\n",
+					mem_out_of_mem_err_msg_count);
 	}
 
 	if (srv_use_awe) {
@@ -2453,15 +2460,15 @@ srv_sprintf_innodb_monitor(
 		       "ROW OPERATIONS\n"
 		       "--------------\n");
 	buf += sprintf(buf,
-	"%ld queries inside InnoDB, %lu queries in queue\n",
-			srv_conc_n_threads, srv_conc_n_waiting_threads);
+        "%ld queries inside InnoDB, %lu queries in queue\n",
+                        srv_conc_n_threads, srv_conc_n_waiting_threads);
 
-	n_reserved = fil_space_get_n_reserved_extents(0);
-	if (n_reserved > 0) {
-	        buf += sprintf(buf,
-	"%lu tablespace extents now reserved for B-tree split operations\n",
-						    n_reserved);
-	}
+        n_reserved = fil_space_get_n_reserved_extents(0);
+        if (n_reserved > 0) {
+                buf += sprintf(buf,
+        "%lu tablespace extents now reserved for B-tree split operations\n",
+                                                    n_reserved);
+        }
 
 #ifdef UNIV_LINUX
 	buf += sprintf(buf,
@@ -2701,8 +2708,13 @@ srv_error_monitor_thread(
 			os_thread_create */
 {
 	ulint	cnt	= 0;
+	dulint	old_lsn;
+	dulint	new_lsn;
 
 	UT_NOT_USED(arg);
+
+	old_lsn = srv_start_lsn;
+
 #ifdef UNIV_DEBUG_THREAD_CREATION
 	printf("Error monitor thread starts, id %lu\n",
 			      os_thread_pf(os_thread_get_curr_id()));
@@ -2713,6 +2725,25 @@ loop:
 	cnt++;
 
 	os_thread_sleep(2000000);
+
+	/* Try to track a strange bug reported by Harald Fuchs and others,
+	where the lsn seems to decrease at times */
+
+	new_lsn = log_get_lsn();
+
+	if (ut_dulint_cmp(new_lsn, old_lsn) < 0) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+"  InnoDB: Error: old log sequence number %lu %lu was greater\n"
+"InnoDB: than the new log sequence number %lu %lu!\n"
+"InnoDB: Please send a bug report to mysql@lists.mysql.com\n",
+		ut_dulint_get_high(old_lsn),
+		ut_dulint_get_low(old_lsn),
+		ut_dulint_get_high(new_lsn),
+		ut_dulint_get_low(new_lsn));
+	}
+
+	old_lsn = new_lsn;
 
 	if (difftime(time(NULL), srv_last_monitor_time) > 60) {
 		/* We referesh InnoDB Monitor values so that averages are
@@ -2902,6 +2933,9 @@ loop:
 
 		srv_main_thread_op_info = (char*)"flushing log";
 		log_buffer_flush_to_disk();
+
+		srv_main_thread_op_info = (char*)"making checkpoint";
+		log_free_check();
 
 		/* If there were less than 5 i/os during the
 		one second sleep, we assume that there is free

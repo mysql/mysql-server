@@ -2564,7 +2564,7 @@ TABLE_COUNTER_TYPE Query_cache::is_cacheable(THD *thd, uint32 query_len,
 }
 
 /*
-  Check handler allowence to cache query with this tables
+  Check handler allowance to cache query with these tables
 
   SYNOPSYS
     Query_cache::ask_handler_allowance()
@@ -2578,7 +2578,7 @@ TABLE_COUNTER_TYPE Query_cache::is_cacheable(THD *thd, uint32 query_len,
 my_bool Query_cache::ask_handler_allowance(THD *thd,
 					   TABLE_LIST *tables_used)
 {
-  DBUG_ENTER("Query_cache::is_cacheable");
+  DBUG_ENTER("Query_cache::ask_handler_allowance");
 
   for (; tables_used; tables_used= tables_used->next)
   {

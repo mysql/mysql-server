@@ -1022,12 +1022,14 @@ btr_search_drop_page_hash_when_freed(
 	
 	mtr_start(&mtr);
 
-	/* We assume that if the caller has a latch on the page,
-	then the caller has already dropped the hash index for the page,
-	and we never get here. Therefore we can acquire the s-latch to
-	the page without fearing a deadlock. */
+	/* We assume that if the caller has a latch on the page, then the
+	caller has already dropped the hash index for the page, and we never
+	get here. Therefore we can acquire the s-latch to the page without
+	having to fear a deadlock. */
 	
-	page = buf_page_get(space, page_no, RW_S_LATCH, &mtr);
+	page = buf_page_get_gen(space, page_no, RW_S_LATCH, NULL,
+				BUF_GET_IF_IN_POOL, IB__FILE__, __LINE__,
+				&mtr);
 
 	buf_page_dbg_add_level(page, SYNC_TREE_NODE_FROM_HASH);
 	

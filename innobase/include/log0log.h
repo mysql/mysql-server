@@ -519,9 +519,9 @@ Peeks the current lsn. */
 ibool
 log_peek_lsn(
 /*=========*/
-			/* out: TRUE if success, FALSE if could not get the
-			log system mutex */
-	dulint*	lsn);	/* out: if returns TRUE, current lsn is here */
+                       /* out: TRUE if success, FALSE if could not get the
+                       log system mutex */
+       dulint* lsn);   /* out: if returns TRUE, current lsn is here */
 /**************************************************************************
 Refreshes the statistics used to print per-second averages. */
 
@@ -549,7 +549,7 @@ extern log_t*	log_sys;
 					highest bit is set to 1 if this is the
 					first log block in a log flush write
 					segment */
-#define LOG_BLOCK_FLUSH_BIT_MASK 0x80000000
+#define LOG_BLOCK_FLUSH_BIT_MASK 0x80000000UL
 					/* mask used to get the highest bit in
 					the preceding field */
 #define	LOG_BLOCK_HDR_DATA_LEN	4	/* number of bytes of log written to
@@ -600,12 +600,18 @@ extern log_t*	log_sys;
 #define LOG_CHECKPOINT_CHECKSUM_1 	LOG_CHECKPOINT_ARRAY_END
 #define LOG_CHECKPOINT_CHECKSUM_2 	(4 + LOG_CHECKPOINT_ARRAY_END)
 #define LOG_CHECKPOINT_FSP_FREE_LIMIT	(8 + LOG_CHECKPOINT_ARRAY_END)
-					/* current fsp free limit in the
-					tablespace, in units of one megabyte */
+					/* current fsp free limit in
+					tablespace 0, in units of one
+					megabyte; this information is only used
+					by ibbackup to decide if it can
+					truncate unused ends of
+					non-auto-extending data files in space
+					0 */
 #define LOG_CHECKPOINT_FSP_MAGIC_N	(12 + LOG_CHECKPOINT_ARRAY_END)
 					/* this magic number tells if the
 					checkpoint contains the above field:
-					the field was added to InnoDB-3.23.50 */
+					the field was added to
+					InnoDB-3.23.50 */
 #define LOG_CHECKPOINT_SIZE		(16 + LOG_CHECKPOINT_ARRAY_END)
 
 #define LOG_CHECKPOINT_FSP_MAGIC_N_VAL	1441231243
@@ -794,11 +800,11 @@ struct log_struct{
 					called */
 
 	/* Fields involved in checkpoints */
-	ulint		log_group_capacity; /* capacity of the log group; if
-					the checkpoint age exceeds this, it is
-					a serious error because it is possible
-					we will then overwrite log and spoil
-					crash recovery */
+        ulint           log_group_capacity; /* capacity of the log group; if
+                                        the checkpoint age exceeds this, it is
+                                        a serious error because it is possible
+                                        we will then overwrite log and spoil
+                                        crash recovery */
 	ulint		max_modified_age_async;
 					/* when this recommended value for lsn
 					- buf_pool_get_oldest_modification()
@@ -840,7 +846,8 @@ struct log_struct{
 	/* Fields involved in archiving */
 	ulint		archiving_state;/* LOG_ARCH_ON, LOG_ARCH_STOPPING
 					LOG_ARCH_STOPPED, LOG_ARCH_OFF */
-	dulint		archived_lsn;	/* archiving has advanced to this lsn */
+	dulint		archived_lsn;	/* archiving has advanced to this
+					lsn */
 	ulint		max_archived_lsn_age_async;
 					/* recommended maximum age of
 					archived_lsn, before we start

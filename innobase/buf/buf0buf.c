@@ -243,9 +243,10 @@ buf_calc_page_new_checksum(
 {
   	ulint checksum;
 
-	/* Since the fields FIL_PAGE_FILE_FLUSH_LSN and ..._ARCH_LOG_NO
-	are written outside the buffer pool to the first pages of data
-	files, we have to skip them in the page checksum calculation.
+        /* Since the field FIL_PAGE_FILE_FLUSH_LSN, and in versions <= 4.1.x
+        ..._ARCH_LOG_NO, are written outside the buffer pool to the first
+        pages of data files, we have to skip them in the page checksum
+        calculation.
 	We must also skip the field FIL_PAGE_SPACE_OR_CHKSUM where the
 	checksum is stored, and also the last 8 bytes of page because
 	there we store the old formula checksum. */
@@ -255,7 +256,7 @@ buf_calc_page_new_checksum(
   		   + ut_fold_binary(page + FIL_PAGE_DATA, 
 				           UNIV_PAGE_SIZE - FIL_PAGE_DATA
 				           - FIL_PAGE_END_LSN_OLD_CHKSUM);
-  	checksum = checksum & 0xFFFFFFFF;
+  	checksum = checksum & 0xFFFFFFFFUL;
 
   	return(checksum);
 }
@@ -278,7 +279,7 @@ buf_calc_page_old_checksum(
   	
   	checksum = ut_fold_binary(page, FIL_PAGE_FILE_FLUSH_LSN);
 
-  	checksum = checksum & 0xFFFFFFFF;
+  	checksum = checksum & 0xFFFFFFFFUL;
 
   	return(checksum);
 }
@@ -378,7 +379,7 @@ buf_page_print(
 
 	ut_print_timestamp(stderr);
 	fprintf(stderr,
-	"  InnoDB: Page dump in ascii and hex (%lu bytes):\n%s",
+"  InnoDB: Page dump in ascii and hex (%lu bytes):\n%s",
 					(ulint)UNIV_PAGE_SIZE, buf);
 	fprintf(stderr, "InnoDB: End of page dump\n");
 
@@ -396,11 +397,16 @@ buf_page_print(
 			mach_read_from_4(read_buf + UNIV_PAGE_SIZE
 					- FIL_PAGE_END_LSN_OLD_CHKSUM));
 	fprintf(stderr,
-	"InnoDB: Page lsn %lu %lu, low 4 bytes of lsn at page end %lu\n",
+"InnoDB: Page lsn %lu %lu, low 4 bytes of lsn at page end %lu\n"
+"InnoDB: Page number (if stored to page already) %lu,\n"
+"InnoDB: space id (if created with >= MySQL-4.1.1 and stored already) %lu\n",
 		mach_read_from_4(read_buf + FIL_PAGE_LSN),
 		mach_read_from_4(read_buf + FIL_PAGE_LSN + 4),
 		mach_read_from_4(read_buf + UNIV_PAGE_SIZE
-					- FIL_PAGE_END_LSN_OLD_CHKSUM + 4));
+					- FIL_PAGE_END_LSN_OLD_CHKSUM + 4),
+		mach_read_from_4(read_buf + FIL_PAGE_OFFSET),
+		mach_read_from_4(read_buf + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID));
+
 	if (mach_read_from_2(read_buf + TRX_UNDO_PAGE_HDR + TRX_UNDO_PAGE_TYPE)
 	    == TRX_UNDO_INSERT) {
 	    	fprintf(stderr,
@@ -414,10 +420,7 @@ buf_page_print(
 
 	if (fil_page_get_type(read_buf) == FIL_PAGE_INDEX) {
 	    	fprintf(stderr,
-			"InnoDB: Page may be an index page ");
-
-		fprintf(stderr,
-			"where index id is %lu %lu\n",
+"InnoDB: Page may be an index page where index id is %lu %lu\n",
 			ut_dulint_get_high(btr_page_get_index_id(read_buf)),
 			ut_dulint_get_low(btr_page_get_index_id(read_buf)));
 
@@ -435,7 +438,6 @@ buf_page_print(
 						index->name);
 			}
 		}
-	  
 	} else if (fil_page_get_type(read_buf) == FIL_PAGE_INODE) {
 		fprintf(stderr, "InnoDB: Page may be an 'inode' page\n");
 	} else if (fil_page_get_type(read_buf) == FIL_PAGE_IBUF_FREE_LIST) {
@@ -581,8 +583,8 @@ buf_pool_init(
 		the window */
 
 		os_awe_map_physical_mem_to_window(buf_pool->frame_zero,
-					n_frames *
-					(UNIV_PAGE_SIZE / OS_AWE_X86_PAGE_SIZE),
+				n_frames *
+				(UNIV_PAGE_SIZE / OS_AWE_X86_PAGE_SIZE),
 					buf_pool->awe_info);
 		/*----------------------------------------*/
 	}
@@ -1554,24 +1556,34 @@ buf_page_init(
 
 /************************************************************************
 Function which inits a page for read to the buffer buf_pool. If the page is
-already in buf_pool, does nothing. Sets the io_fix flag to BUF_IO_READ and
-sets a non-recursive exclusive lock on the buffer frame. The io-handler must
-take care that the flag is cleared and the lock released later. This is one
-of the functions which perform the state transition NOT_USED => FILE_PAGE to
-a block (the other is buf_page_create). */ 
+(1) already in buf_pool, or
+(2) if we specify to read only ibuf pages and the page is not an ibuf page, or
+(3) if the space is deleted or being deleted,
+then this function does nothing.
+Sets the io_fix flag to BUF_IO_READ and sets a non-recursive exclusive lock
+on the buffer frame. The io-handler must take care that the flag is cleared
+and the lock released later. This is one of the functions which perform the
+state transition NOT_USED => FILE_PAGE to a block (the other is
+buf_page_create). */ 
 
 buf_block_t*
 buf_page_init_for_read(
 /*===================*/
-			/* out: pointer to the block or NULL */
-	ulint	mode,	/* in: BUF_READ_IBUF_PAGES_ONLY, ... */
-	ulint	space,	/* in: space id */
-	ulint	offset)	/* in: page number */
+				/* out: pointer to the block or NULL */
+	ulint*		err,	/* out: DB_SUCCESS or DB_TABLESPACE_DELETED */
+	ulint		mode,	/* in: BUF_READ_IBUF_PAGES_ONLY, ... */
+	ulint		space,	/* in: space id */
+	ib_longlong	tablespace_version,/* in: prevents reading from a wrong
+				version of the tablespace in case we have done
+				DISCARD + IMPORT */
+	ulint		offset)	/* in: page number */
 {
 	buf_block_t*	block;
 	mtr_t		mtr;
-	
+
 	ut_ad(buf_pool);
+
+	*err = DB_SUCCESS;
 
 	if (mode == BUF_READ_IBUF_PAGES_ONLY) {
 		/* It is a read-ahead within an ibuf routine */
@@ -1596,10 +1608,17 @@ buf_page_init_for_read(
 	ut_ad(block);
 
 	mutex_enter(&(buf_pool->mutex));
-	
-	if (NULL != buf_page_hash_get(space, offset)) {
 
-		/* The page is already in buf_pool, return */
+	if (fil_tablespace_deleted_or_being_deleted_in_mem(space,
+							tablespace_version)) {
+		*err = DB_TABLESPACE_DELETED;
+	}
+
+	if (*err == DB_TABLESPACE_DELETED
+	    || NULL != buf_page_hash_get(space, offset)) {
+
+		/* The page belongs to a space which has been deleted or is
+		being deleted, or the page is already in buf_pool, return */
 
 		mutex_exit(&(buf_pool->mutex));
 		buf_block_free(block);
@@ -1715,7 +1734,7 @@ buf_page_create(
 	/* Delete possible entries for the page from the insert buffer:
 	such can exist if the page belonged to an index which was dropped */
 
-	ibuf_merge_or_delete_for_page(NULL, space, offset);	
+	ibuf_merge_or_delete_for_page(NULL, space, offset, TRUE);
 
 	/* Flush pages from the end of the LRU list if necessary */
 	buf_flush_free_margin();
@@ -1828,7 +1847,7 @@ buf_page_io_complete(
 
 		if (!recv_no_ibuf_operations) {
 			ibuf_merge_or_delete_for_page(block->frame,
-						block->space, block->offset);
+					block->space, block->offset, TRUE);
 		}
 	}
 	
@@ -2294,7 +2313,7 @@ buf_all_freed(void)
 
 			if (!buf_flush_ready_for_replace(block)) {
 
-			    	/* printf("Page %lu %lu still fixed or dirty\n",
+			     /* printf("Page %lu %lu still fixed or dirty\n",
 			    		block->space, block->offset); */
 			    	ut_error;
 			}
