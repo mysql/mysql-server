@@ -63,7 +63,7 @@ AC_SUBST(MYSQL_BASE_VERSION)
 AC_SUBST(MYSQL_VERSION_ID)
 AC_SUBST(PROTOCOL_VERSION)
 AC_DEFINE_UNQUOTED([PROTOCOL_VERSION], [$PROTOCOL_VERSION],
-                   [mysql client protocoll version])
+                   [mysql client protocol version])
 AC_SUBST(DOT_FRM_VERSION)
 AC_DEFINE_UNQUOTED([DOT_FRM_VERSION], [$DOT_FRM_VERSION],
                    [Version of .frm files])
