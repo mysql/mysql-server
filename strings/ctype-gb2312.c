@@ -172,11 +172,6 @@ static int ismbchar_gb2312(CHARSET_INFO *cs __attribute__((unused)),
   return (isgb2312head(*(p)) && (e)-(p)>1 && isgb2312tail(*((p)+1))? 2: 0);
 }
 
-static my_bool ismbhead_gb2312(CHARSET_INFO *cs __attribute__((unused)),uint c)
-{
-  return isgb2312head(c);
-}
-
 static int mbcharlen_gb2312(CHARSET_INFO *cs __attribute__((unused)),uint c)
 {
   return (isgb2312head(c)? 2:0);
@@ -5711,7 +5706,6 @@ CHARSET_INFO my_charset_gb2312 =
     my_wildcmp_mb,	/* wildcmp    */
     2,			/* mbmaxlen   */
     ismbchar_gb2312,
-    ismbhead_gb2312,
     mbcharlen_gb2312,
     my_numchars_mb,
     my_charpos_mb,

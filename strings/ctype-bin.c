@@ -284,7 +284,6 @@ CHARSET_INFO my_charset_bin =
     my_wildcmp_bin,		/* wildcmp       */
     1,				/* mbmaxlen      */
     NULL,			/* ismbchar      */
-    NULL,			/* ismbhead      */
     NULL,			/* mbcharlen     */
     my_numchars_8bit,
     my_charpos_8bit,

@@ -1929,11 +1929,6 @@ static int my_ismbchar_utf8(CHARSET_INFO *cs,const char *b, const char *e)
   return (res>1) ? res : 0;
 }
 
-static my_bool my_ismbhead_utf8(CHARSET_INFO *cs __attribute__((unused)) , uint ch)
-{
-  return ( ch >= 0xc2 );
-}
-
 static int my_mbcharlen_utf8(CHARSET_INFO *cs  __attribute__((unused)) , uint c)
 {
   if (c < 0x80)
@@ -1977,7 +1972,6 @@ CHARSET_INFO my_charset_utf8 =
     my_wildcmp_mb,	/* wildcmp      */
     3,			/* mbmaxlen     */
     my_ismbchar_utf8,	/* ismbchar     */
-    my_ismbhead_utf8,	/* ismbhead     */
     my_mbcharlen_utf8,	/* mbcharlen    */
     my_numchars_mb,
     my_charpos_mb,
@@ -2323,12 +2317,6 @@ static int my_ismbchar_ucs2(CHARSET_INFO *cs __attribute__((unused)),
                      const char *e __attribute__((unused)))
 {
   return 2;
-}
-
-static my_bool my_ismbhead_ucs2(CHARSET_INFO *cs __attribute__((unused)) , 
-                         uint ch __attribute__((unused)))
-{
-  return 1;
 }
 
 static int my_mbcharlen_ucs2(CHARSET_INFO *cs  __attribute__((unused)) , 
@@ -3059,7 +3047,6 @@ CHARSET_INFO my_charset_ucs2 =
     my_wildcmp_mb,	/* wildcmp      */
     2,			/* mbmaxlen     */
     my_ismbchar_ucs2,	/* ismbchar     */
-    my_ismbhead_ucs2,	/* ismbhead     */
     my_mbcharlen_ucs2,	/* mbcharlen    */
     my_numchars_ucs2,
     my_charpos_ucs2,

@@ -131,7 +131,6 @@ typedef struct charset_info_st
   /* Multibyte routines */
   uint      mbmaxlen;
   int     (*ismbchar)(struct charset_info_st *, const char *, const char *);
-  my_bool (*ismbhead)(struct charset_info_st *, uint);
   int     (*mbcharlen)(struct charset_info_st *, uint);
   uint    (*numchars)(struct charset_info_st *, const char *b, const char *e);
   uint    (*charpos)(struct charset_info_st *, const char *b, const char *e, uint pos);
@@ -328,7 +327,6 @@ uint my_charpos_mb(CHARSET_INFO *, const char *b, const char *e, uint pos);
 
 #define use_mb(s)                     ((s)->ismbchar != NULL)
 #define my_ismbchar(s, a, b)          ((s)->ismbchar((s), (a), (b)))
-#define my_ismbhead(s, a)             ((s)->ismbhead((s), (a)))
 #define my_mbcharlen(s, a)            ((s)->mbcharlen((s),(a)))
 
 #define my_caseup(s, a, l)            ((s)->caseup((s), (a), (l)))
@@ -336,7 +334,6 @@ uint my_charpos_mb(CHARSET_INFO *, const char *b, const char *e, uint pos);
 #define my_caseup_str(s, a)           ((s)->caseup_str((s), (a)))
 #define my_casedn_str(s, a)           ((s)->casedn_str((s), (a)))
 #define my_strcasecmp(s, a, b)        ((s)->strcasecmp((s), (a), (b)))
-#define my_strncasecmp(s, a, b, l)    ((s)->strncasecmp((s), (a), (b), (l)))
 
 #define my_strntol(s, a, b, c, d, e)  ((s)->strntol((s),(a),(b),(c),(d),(e)))
 #define my_strntoul(s, a, b, c, d, e) ((s)->strntoul((s),(a),(b),(c),(d),(e)))

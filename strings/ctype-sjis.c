@@ -189,11 +189,6 @@ static int ismbchar_sjis(CHARSET_INFO *cs __attribute__((unused)),
   return (issjishead((uchar) *p) && (e-p)>1 && issjistail((uchar)p[1]) ? 2: 0);
 }
 
-static my_bool ismbhead_sjis(CHARSET_INFO *cs __attribute__((unused)),uint c)
-{
-  return issjishead((uchar) c);
-}
-
 static int mbcharlen_sjis(CHARSET_INFO *cs __attribute__((unused)),uint c)
 {
   return (issjishead((uchar) c) ? 2: 0);
@@ -4495,7 +4490,6 @@ CHARSET_INFO my_charset_sjis =
     my_wildcmp_mb,	/* wildcmp  */
     2,			/* mbmaxlen */
     ismbchar_sjis,
-    ismbhead_sjis,
     mbcharlen_sjis,
     my_numchars_mb,
     my_charpos_mb,
