@@ -17,6 +17,8 @@
 #ifndef NDBERROR_H
 #define NDBERROR_H
 
+#define NDBERR_EVENT_NAME_ALEADY_EXISTS 746
+
 #ifdef __cplusplus
 extern "C" {
 #endif
