@@ -138,15 +138,11 @@ buf_flush_ready_for_flush(
 
 			return(TRUE);
 
-		} else if ((block->old || (UT_LIST_GET_LEN(buf_pool->LRU)
-							< BUF_LRU_OLD_MIN_LEN))
-			   && (block->buf_fix_count == 0)) {
+		} else if (block->buf_fix_count == 0) {
  
 			/* If we are flushing the LRU list, to avoid deadlocks
 			we require the block not to be bufferfixed, and hence
-			not latched. Since LRU flushed blocks are soon moved
-			to the free list, it is good to flush only old blocks
-			from the end of the LRU list. */
+			not latched. */
 
 			return(TRUE);
 		}
