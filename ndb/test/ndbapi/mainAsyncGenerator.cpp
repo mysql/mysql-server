@@ -282,6 +282,7 @@ threadRoutine(void *arg)
 NDB_COMMAND(DbAsyncGenerator, "DbAsyncGenerator",
 	    "DbAsyncGenerator", "DbAsyncGenerator", 65535)
 {
+  ndb_init();
   int i;
   int j;
   int k;

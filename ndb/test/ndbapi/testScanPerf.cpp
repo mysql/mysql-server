@@ -72,6 +72,7 @@ int drop_table();
 
 int
 main(int argc, const char** argv){
+  ndb_init();
   int verbose = 1;
   int optind = 0;
 
@@ -109,8 +110,8 @@ main(int argc, const char** argv){
   for(int i = optind; i<argc; i++){
     const char * T = argv[i];
     g_info << "Testing " << T << endl;
-    snprintf(g_tablename, sizeof(g_tablename), T);
-    snprintf(g_indexname, sizeof(g_indexname), "IDX_%s", T);
+    BaseString::snprintf(g_tablename, sizeof(g_tablename), T);
+    BaseString::snprintf(g_indexname, sizeof(g_indexname), "IDX_%s", T);
     if(create_table())
       goto error;
     if(load_table())
@@ -196,7 +197,6 @@ int
 clear_table(){
   if(!g_paramters[P_LOAD].value)
     return 0;
-  
   int rows = g_paramters[P_ROWS].value;
   
   UtilTransactions utilTrans(* g_table);
@@ -215,8 +215,8 @@ void err(NdbError e){
 int
 run_scan(){
   int iter = g_paramters[P_LOOPS].value;
-  Uint64 start1;
-  Uint64 sum1 = 0;
+  NDB_TICKS start1, stop;
+  int sum_time= 0;
 
   Uint32 tot = g_paramters[P_ROWS].value;
 
@@ -230,11 +230,7 @@ run_scan(){
     }
     
     NdbScanOperation * pOp;
-#ifdef NdbIndexScanOperation_H
     NdbIndexScanOperation * pIOp;
-#else
-    NdbScanOperation * pIOp;
-#endif
 
     NdbResultSet * rs;
     int par = g_paramters[P_PARRA].value;
@@ -242,13 +238,13 @@ run_scan(){
     NdbScanOperation::LockMode lm;
     switch(g_paramters[P_LOCK].value){
     case 0:
-      lm = NdbScanOperation::LM_Read;
+      lm = NdbScanOperation::LM_CommittedRead;
       break;
     case 1:
-      lm = NdbScanOperation::LM_Exclusive;
+      lm = NdbScanOperation::LM_Read;
       break;
     case 2:
-      lm = NdbScanOperation::LM_CommittedRead;
+      lm = NdbScanOperation::LM_Exclusive;
       break;
     default:
       abort();
@@ -257,32 +253,16 @@ run_scan(){
     if(g_paramters[P_ACCESS].value == 0){
       pOp = pTrans->getNdbScanOperation(g_tablename);
       assert(pOp);
-#ifdef NdbIndexScanOperation_H
       rs = pOp->readTuples(lm, bat, par);
-#else
-      int oldp = (par == 0 ? 240 : par) * (bat == 0 ? 15 : bat);
-      rs = pOp->readTuples(oldp > 240 ? 240 : oldp, lm);
-#endif
     } else {
-#ifdef NdbIndexScanOperation_H
       pOp = pIOp = pTrans->getNdbIndexScanOperation(g_indexname, g_tablename);
       bool ord = g_paramters[P_ACCESS].value == 2;
       rs = pIOp->readTuples(lm, bat, par, ord);
-#else
-      pOp = pIOp = pTrans->getNdbScanOperation(g_indexname, g_tablename);
-      assert(pOp);
-      int oldp = (par == 0 ? 240 : par) * (bat == 0 ? 15 : bat);
-      rs = pIOp->readTuples(oldp > 240 ? 240 : oldp, lm);
-#endif
       switch(g_paramters[P_BOUND].value){
       case 0: // All
 	break;
       case 1: // None
-#ifdef NdbIndexScanOperation_H
 	pIOp->setBound((Uint32)0, NdbIndexScanOperation::BoundEQ, 0);
-#else
-	pIOp->setBound((Uint32)0, NdbOperation::BoundEQ, 0);
-#endif
 	break;
       case 2: { // 1 row
       default:  
@@ -357,12 +337,15 @@ run_scan(){
 
     pTrans->close();
 
-    Uint64 stop = NdbTick_CurrentMillisecond();
-    start1 = (stop - start1);
-    sum1 += start1;
+    stop = NdbTick_CurrentMillisecond();
+    int time_passed= (int)(stop - start1);
+    g_err.println("Time: %d ms = %u rows/sec", time_passed,
+                  (1000*tot)/time_passed);
+    sum_time+= time_passed;
   }
-  sum1 /= iter;
+  sum_time= sum_time / iter;
   
-  g_err.println("Avg time: %Ldms = %d rows/sec", sum1, (1000*tot)/sum1);
+  g_err.println("Avg time: %d ms = %u rows/sec", sum_time,
+                (1000*tot)/sum_time);
   return 0;
 }

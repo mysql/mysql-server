@@ -29,7 +29,7 @@
 class NdbObjectIdMap //: NdbLockable
 {
 public:
-  static const Uint32 InvalidId = ~0;
+  STATIC_CONST( InvalidId = ~0 );
   NdbObjectIdMap(Uint32 initalSize = 128, Uint32 expandSize = 10);
   ~NdbObjectIdMap();
 
@@ -134,7 +134,10 @@ NdbObjectIdMap::expand(Uint32 incSize){
   Uint32 newSize = m_size + incSize;
   MapEntry * tmp = (MapEntry*)malloc(newSize * sizeof(MapEntry));
 
-  memcpy(tmp, m_map, m_size * sizeof(MapEntry));
+  if (m_map) {
+    memcpy(tmp, m_map, m_size * sizeof(MapEntry));
+    free((void*)m_map);
+  }
   m_map = tmp;
 
   for(Uint32 i = m_size; i<newSize; i++){

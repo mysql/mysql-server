@@ -71,6 +71,8 @@ public:
    const Uint32 *       getDataPtr() const;
          Uint32 *       getDataPtrSend();
 
+  NodeId                get_sender_node();
+
   /**
    * Fragmentation
    */
@@ -103,6 +105,17 @@ private:
   NdbApiSignal *theNextSignal;
   Uint32 *theRealData;
 };
+/**********************************************************************
+NodeId get_sender_node
+Remark:        Get the node id of the sender
+***********************************************************************/
+inline
+NodeId
+NdbApiSignal::get_sender_node()
+{
+  return refToNode(theSendersBlockRef);
+}
+
 /**********************************************************************
 void getLength
 Remark:        Get the length of the signal.

@@ -595,10 +595,10 @@ btr_page_get_father_for_rec(
 		buf_page_print(buf_frame_align(node_ptr));
 
 		fputs("InnoDB: Corruption of an index tree: table ", stderr);
-		ut_print_name(stderr,
+		ut_print_name(stderr, NULL,
 			UT_LIST_GET_FIRST(tree->tree_indexes)->table_name);
 		fputs(", index ", stderr);
-		ut_print_name(stderr,
+		ut_print_name(stderr, NULL,
 			UT_LIST_GET_FIRST(tree->tree_indexes)->name);
 		fprintf(stderr, ",\n"
 "InnoDB: father ptr page no %lu, child page no %lu\n",
@@ -610,8 +610,8 @@ btr_page_get_father_for_rec(
 		fputs(
 "InnoDB: You should dump + drop + reimport the table to fix the\n"
 "InnoDB: corruption. If the crash happens at the database startup, see\n"
-"InnoDB: section 6.1 of http://www.innodb.com/ibman.php about forcing\n"
-"InnoDB: recovery. Then dump + drop + reimport.\n", stderr);
+"InnoDB: http://dev.mysql.com/doc/mysql/en/Forcing_recovery.html about\n"
+"InnoDB: forcing recovery. Then dump + drop + reimport.\n", stderr);
 	}
 
 	ut_a(btr_node_ptr_get_child_page_no(node_ptr) ==
@@ -2341,7 +2341,7 @@ btr_index_rec_validate_report(
 	dict_index_t*	index)	/* in: index */
 {
 	fputs("InnoDB: Record in ", stderr);
-	dict_index_name_print(stderr, index);
+	dict_index_name_print(stderr, NULL, index);
 	fprintf(stderr, ", page %lu, at offset %lu\n",
 		buf_frame_get_page_no(page), (ulint)(rec - page));
 }
@@ -2400,14 +2400,17 @@ btr_index_rec_validate(
 		dtype_t*	type = dict_index_get_nth_type(index, i);
 
 		rec_get_nth_field(rec, i, &len);
-		
+
+		/* Note that prefix indexes are not fixed size even when
+		their type is CHAR. */
+
 		if ((dict_index_get_nth_field(index, i)->prefix_len == 0
 		    && len != UNIV_SQL_NULL && dtype_is_fixed_size(type)
 		    && len != dtype_get_fixed_size(type))
 		   ||
 		   (dict_index_get_nth_field(index, i)->prefix_len > 0
-		    && len != UNIV_SQL_NULL && dtype_is_fixed_size(type)
-		    && len !=
+		    && len != UNIV_SQL_NULL
+		    && len >
 			   dict_index_get_nth_field(index, i)->prefix_len)) {
 
 			btr_index_rec_validate_report(page, rec, index);
@@ -2479,7 +2482,7 @@ btr_validate_report1(
 {
 	fprintf(stderr, "InnoDB: Error in page %lu of ",
 		buf_frame_get_page_no(page));
-	dict_index_name_print(stderr, index);
+	dict_index_name_print(stderr, NULL, index);
 	if (level) {
 		fprintf(stderr, ", index tree level %lu", level);
 	}
@@ -2500,7 +2503,7 @@ btr_validate_report2(
 	fprintf(stderr, "InnoDB: Error in pages %lu and %lu of ",
 		buf_frame_get_page_no(page1),
 		buf_frame_get_page_no(page2));
-	dict_index_name_print(stderr, index);
+	dict_index_name_print(stderr, NULL, index);
 	if (level) {
 		fprintf(stderr, ", index tree level %lu", level);
 	}

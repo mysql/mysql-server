@@ -36,7 +36,7 @@ static const char *month_names[]=
 };
 
 TYPELIB month_names_typelib=
-{ array_elements(month_names)-1,"", month_names };
+{ array_elements(month_names)-1,"", month_names, NULL };
 
 static const char *day_names[]=
 {
@@ -45,7 +45,7 @@ static const char *day_names[]=
 };
 
 TYPELIB day_names_typelib=
-{ array_elements(day_names)-1,"", day_names};
+{ array_elements(day_names)-1,"", day_names, NULL};
 
 
 /*
@@ -989,7 +989,7 @@ longlong Item_func_unix_timestamp::val_int()
   {						// Optimize timestamp field
     Field *field=((Item_field*) args[0])->field;
     if (field->type() == FIELD_TYPE_TIMESTAMP)
-      return ((Field_timestamp*) field)->get_timestamp();
+      return ((Field_timestamp*) field)->get_timestamp(&null_value);
   }
   
   if (get_arg0_date(&ltime, 0))
@@ -1298,14 +1298,13 @@ String *Item_func_curtime::val_str(String *str)
 void Item_func_curtime::fix_length_and_dec()
 {
   TIME ltime;
-  String tmp((char*) buff,sizeof(buff), &my_charset_bin);
 
   decimals=0;
   collation.set(&my_charset_bin);
   store_now_in_TIME(&ltime);
   value= TIME_to_ulonglong_time(&ltime);
-  make_time((DATE_TIME_FORMAT *) 0, &ltime, &tmp);
-  max_length= buff_length= tmp.length();
+  buff_length= (uint) my_time_to_str(&ltime, buff);
+  max_length= buff_length;
 }
 
 
@@ -1347,16 +1346,14 @@ String *Item_func_now::val_str(String *str)
 
 void Item_func_now::fix_length_and_dec()
 {
-  String tmp((char*) buff,sizeof(buff),&my_charset_bin);
-
   decimals=0;
   collation.set(&my_charset_bin);
 
   store_now_in_TIME(&ltime);
   value= (longlong) TIME_to_ulonglong_datetime(&ltime);
 
-  make_datetime((DATE_TIME_FORMAT *) 0, &ltime, &tmp);
-  max_length= buff_length= tmp.length();
+  buff_length= (uint) my_datetime_to_str(&ltime, buff);
+  max_length= buff_length;
 }
 
 
@@ -2077,6 +2074,24 @@ bool Item_extract::eq(const Item *item, bool binary_cmp) const
   return 1;
 }
 
+
+bool Item_char_typecast::eq(const Item *item, bool binary_cmp) const
+{
+  if (this == item)
+    return 1;
+  if (item->type() != FUNC_ITEM ||
+      func_name() != ((Item_func*)item)->func_name())
+    return 0;
+
+  Item_char_typecast *cast= (Item_char_typecast*)item;
+  if (cast_length != cast->cast_length ||
+      cast_cs     != cast->cast_cs)
+    return 0;
+
+  if (!args[0]->eq(cast->args[0], binary_cmp))
+      return 0;
+  return 1;
+}
 
 void Item_typecast::print(String *str)
 {

@@ -80,8 +80,7 @@ static bool check_fields(THD *thd, List<Item> &items)
       we make temporary copy of Item_field, to avoid influence of changing
       result_field on Item_ref which refer on this field
     */
-    it.replace(new Item_field(thd, field));
-    field->register_item_tree_changing(it.ref());
+    thd->change_item_tree(it.ref(), new Item_field(thd, field));
   }
   return FALSE;
 }
@@ -171,7 +170,7 @@ int mysql_update(THD *thd,
   {
     // Don't set timestamp column if this is modified
     if (table->timestamp_field->query_id == thd->query_id)
-      table->timestamp_on_update_now= 0;
+      table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
     else
       table->timestamp_field->query_id=timestamp_query_id;
   }
@@ -392,6 +391,7 @@ int mysql_update(THD *thd,
 	else if (handle_duplicates != DUP_IGNORE ||
 		 error != HA_ERR_FOUND_DUPP_KEY)
 	{
+          thd->fatal_error();                   // Force error message
 	  table->file->print_error(error,MYF(0));
 	  error= 1;
 	  break;
@@ -544,8 +544,21 @@ int mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
 ***************************************************************************/
 
 /*
-  Setup multi-update handling and call SELECT to do the join
+  Get table map for list of Item_field
 */
+
+static table_map get_table_map(List<Item> *items)
+{
+  List_iterator_fast<Item> item_it(*items);
+  Item_field *item;
+  table_map map= 0;
+
+  while ((item= (Item_field *) item_it++)) 
+    map|= item->used_tables();
+  DBUG_PRINT("info",("table_map: 0x%08x", map));
+  return map;
+}
+
 
 /*
   make update specific preparation and checks after opening tables
@@ -636,7 +649,7 @@ int mysql_multi_update_prepare(THD *thd)
     // Only set timestamp column if this is not modified
     if (table->timestamp_field &&
         table->timestamp_field->query_id == thd->query_id)
-      table->timestamp_on_update_now= 0;
+      table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
 
     if (!tl->updatable || check_key_in_view(thd, tl))
       readonly_tables|= table->map;
@@ -658,6 +671,10 @@ int mysql_multi_update_prepare(THD *thd)
 }
 
 
+/*
+  Setup multi-update handling and call SELECT to do the join
+*/
+
 int mysql_multi_update(THD *thd,
 		       TABLE_LIST *table_list,
 		       List<Item> *fields,
@@ -671,6 +688,8 @@ int mysql_multi_update(THD *thd,
   multi_update *result;
   DBUG_ENTER("mysql_multi_update");
 
+  /* QQ: This should be fixed soon to get lower granularity locks */
+  select_lex->set_lock_for_tables(thd->lex->multi_lock_option);
   if ((res= open_and_lock_tables(thd, table_list)))
     DBUG_RETURN(res);
 
@@ -719,7 +738,7 @@ int multi_update::prepare(List<Item> &not_used_values,
 {
   TABLE_LIST *table_ref;
   SQL_LIST update;
-  table_map tables_to_update= 0;
+  table_map tables_to_update;
   Item_field *item;
   List_iterator_fast<Item> field_it(*fields);
   List_iterator_fast<Item> value_it(*values);
@@ -730,8 +749,7 @@ int multi_update::prepare(List<Item> &not_used_values,
   thd->cuted_fields=0L;
   thd->proc_info="updating main table";
 
-  while ((item= (Item_field *) field_it++))
-    tables_to_update|= item->used_tables();
+  tables_to_update= get_table_map(fields);
 
   if (!tables_to_update)
   {
@@ -794,7 +812,6 @@ int multi_update::prepare(List<Item> &not_used_values,
 
   /* Split fields into fields_for_table[] and values_by_table[] */
 
-  field_it.rewind();
   while ((item= (Item_field *) field_it++))
   {
     Item *value= value_it++;
@@ -1049,11 +1066,16 @@ bool multi_update::send_data(List<Item> &not_used_values)
 	if ((error=table->file->update_row(table->record[1],
 					   table->record[0])))
 	{
-	  table->file->print_error(error,MYF(0));
 	  updated--;
-	  DBUG_RETURN(1);
+          if (handle_duplicates != DUP_IGNORE ||
+	      error != HA_ERR_FOUND_DUPP_KEY)
+	  {
+            thd->fatal_error();                 // Force error message
+	    table->file->print_error(error,MYF(0));
+	    DBUG_RETURN(1);
+	  }
 	}
-        if (!table->file->has_transactions())
+        else if (!table->file->has_transactions())
           thd->no_trans_update= 1;
       }
     }
@@ -1118,7 +1140,6 @@ int multi_update::do_updates(bool from_send_error)
   ha_rows org_updated;
   TABLE *table, *tmp_table;
   DBUG_ENTER("do_updates");
-
 
   do_update= 0;					// Don't retry this function
   if (!found)
@@ -1207,7 +1228,10 @@ int multi_update::do_updates(bool from_send_error)
 
 err:
   if (!from_send_error)
+  {
+    thd->fatal_error();
     table->file->print_error(local_error,MYF(0));
+  }
 
   (void) table->file->ha_rnd_end();
   (void) tmp_table->file->ha_rnd_end();

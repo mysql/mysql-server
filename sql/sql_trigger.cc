@@ -16,9 +16,9 @@ static const char * const triggers_file_ext= ".TRG";
 */
 static File_option triggers_file_parameters[]=
 {
-  {{(char*)"triggers", 8}, offsetof(Table_triggers_list, definitions_list),
+  {{(char*)"triggers", 8}, offsetof(class Table_triggers_list, definitions_list),
    FILE_OPTIONS_STRLIST},
-  {{NULL, 0}, 0, FILE_OPTIONS_STRING}
+  {{0, 0}, 0, FILE_OPTIONS_STRING}
 };
 
 
@@ -373,8 +373,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
 
       while ((trg_create_str= it++))
       {
-        mysql_init_query(thd, (uchar*)trg_create_str->str,
-                         trg_create_str->length, true);
+        lex_start(thd, (uchar*)trg_create_str->str, trg_create_str->length);
         lex.trg_table= table;
         if (yyparse((void *)thd) || thd->is_fatal_error)
         {

@@ -33,6 +33,7 @@ select_count(Ndb* pNdb, const NdbDictionary::Table* pTab,
 	     UtilTransactions::ScanLock lock);
 
 int main(int argc, const char** argv){
+  ndb_init();
   const char* _dbname = "TEST_DB";
   int _parallelism = 240;
   int _help = 0;
@@ -129,50 +130,40 @@ select_count(Ndb* pNdb, const NdbDictionary::Table* pTab,
       return NDBT_FAILED;
     }
 
-    NdbResultSet * rs;
-    switch(lock){
-    case UtilTransactions::SL_ReadHold:
-      rs = pOp->readTuples(NdbScanOperation::LM_Read, 0, parallelism);
-      break;
-    case UtilTransactions::SL_Exclusive:
-      rs = pOp->readTuples(NdbScanOperation::LM_Exclusive, 0, parallelism);
-      break;
-    case UtilTransactions::SL_Read:
-    default:
-      rs = pOp->readTuples(NdbScanOperation::LM_Dirty, 0, parallelism);
-    }
-    
+    NdbResultSet * rs = pOp->readTuples(NdbScanOperation::LM_Dirty); 
     if( rs == 0 ) {
       ERR(pTrans->getNdbError());
       pNdb->closeTransaction(pTrans);
       return NDBT_FAILED;
     }
 
-    check = pOp->interpret_exit_ok();
+
+    check = pOp->interpret_exit_last_row();
     if( check == -1 ) {
       ERR(pTrans->getNdbError());
       pNdb->closeTransaction(pTrans);
       return NDBT_FAILED;
     }
   
+    Uint64 tmp;
+    pOp->getValue(NdbDictionary::Column::ROW_COUNT, (char*)&tmp);
+    
     check = pTrans->execute(NoCommit);
     if( check == -1 ) {
       ERR(pTrans->getNdbError());
       pNdb->closeTransaction(pTrans);
       return NDBT_FAILED;
     }
-
+    
+    Uint64 row_count = 0;
     int eof;
-    int rows = 0;
-    eof = rs->nextResult();
-
-    while(eof == 0){
-      rows++;
-      eof = rs->nextResult();
+    while((eof = rs->nextResult(true)) == 0){
+      row_count += tmp;
     }
+    
     if (eof == -1) {
       const NdbError err = pTrans->getNdbError();
-
+      
       if (err.status == NdbError::TemporaryError){
 	pNdb->closeTransaction(pTrans);
 	NdbSleep_MilliSleep(50);
@@ -183,11 +174,11 @@ select_count(Ndb* pNdb, const NdbDictionary::Table* pTab,
       pNdb->closeTransaction(pTrans);
       return NDBT_FAILED;
     }
-
+    
     pNdb->closeTransaction(pTrans);
     
     if (count_rows != NULL){
-      *count_rows = rows;
+      *count_rows = row_count;
     }
     
     return NDBT_OK;

@@ -54,7 +54,7 @@ public:
   }
 
   inline void getText(char *buf, size_t buf_len) const {
-    snprintf(buf, buf_len, "%08x%08x", data[0], data[1]);
+    BaseString::snprintf(buf, buf_len, "%08x%08x", data[0], data[1]);
   }
 
 /*  inline char* getText() const {
@@ -113,19 +113,19 @@ public:
   static inline void getErrText(Uint32 code, char* buf, size_t buf_len) {
     switch (code) {
     case ErrTicket:
-      snprintf(buf, buf_len, "invalid arbitrator-ticket");
+      BaseString::snprintf(buf, buf_len, "invalid arbitrator-ticket");
       break;
     case ErrToomany:
-      snprintf(buf, buf_len, "too many requests");
+      BaseString::snprintf(buf, buf_len, "too many requests");
       break;
     case ErrState:
-      snprintf(buf, buf_len, "invalid state");
+      BaseString::snprintf(buf, buf_len, "invalid state");
       break;
     case ErrTimeout:
-      snprintf(buf, buf_len, "timeout");
+      BaseString::snprintf(buf, buf_len, "timeout");
       break;
     default:
-      snprintf(buf, buf_len, "unknown error [code=%u]", code);
+      BaseString::snprintf(buf, buf_len, "unknown error [code=%u]", code);
       break;
     }
   }

@@ -251,3 +251,23 @@ select convert_tz(ts, @@time_zone, 'Japan') from t1;
 convert_tz(ts, @@time_zone, 'Japan')
 2001-09-09 10:46:40
 drop table t1;
+delete from mysql.user where user like 'mysqltest\_%';
+delete from mysql.db where user like 'mysqltest\_%';
+delete from mysql.tables_priv where user like 'mysqltest\_%';
+delete from mysql.columns_priv where user like 'mysqltest\_%';
+flush privileges;
+grant usage on mysqltest.* to mysqltest_1@localhost;
+show grants for current_user();
+Grants for mysqltest_1@localhost
+GRANT USAGE ON *.* TO 'mysqltest_1'@'localhost'
+set time_zone= '+00:00';
+set time_zone= 'Europe/Moscow';
+select convert_tz('2004-10-21 19:00:00', 'Europe/Moscow', 'UTC');
+convert_tz('2004-10-21 19:00:00', 'Europe/Moscow', 'UTC')
+2004-10-21 15:00:00
+select * from mysql.time_zone_name;
+ERROR 42000: Access denied for user 'mysqltest_1'@'localhost' to database 'mysql'
+select Name, convert_tz('2004-10-21 19:00:00', Name, 'UTC') from mysql.time_zone_name;
+ERROR 42000: Access denied for user 'mysqltest_1'@'localhost' to database 'mysql'
+delete from mysql.user where user like 'mysqltest\_%';
+flush privileges;

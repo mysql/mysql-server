@@ -16,7 +16,6 @@
 
 
 #include <ndb_global.h>
-
 #include <ndberror.h>
 
 typedef struct ErrorBundle {
@@ -92,9 +91,10 @@ ErrorBundle ErrorCodes[] = {
   { 4031, NR, "Node failure caused abort of transaction" },
   { 4033, NR, "Send to NDB failed" },
   { 4115, NR, 
-   "Transaction was committed but all read information was not "
-   "received due to node crash" },
-
+    "Transaction was committed but all read information was not "
+    "received due to node crash" },
+  { 4119, NR, "Simple/dirty read failed due to node failure" },
+  
   /**
    * Node shutdown
    */
@@ -171,7 +171,7 @@ ErrorBundle ErrorCodes[] = {
   { 677,  OL, "Index UNDO buffers overloaded" },
   { 891,  OL, "Data UNDO buffers overloaded" },
   { 1221, OL, "REDO log buffers overloaded" },
-  { 4006, AE, "Connect failure - out of connection objects" }, 
+  { 4006, OL, "Connect failure - out of connection objects" }, 
 
 
   
@@ -228,6 +228,7 @@ ErrorBundle ErrorCodes[] = {
   { 4347, IE, "Bad state at alter index" },
   { 4348, IE, "Inconsistency detected at alter index" },
   { 4349, IE, "Inconsistency detected at index usage" },
+  { 4350, IE, "Transaction already aborted" },
 
   /**
    * Application error
@@ -280,6 +281,9 @@ ErrorBundle ErrorCodes[] = {
   { 739,  SE, "Unsupported primary key length" },
   { 740,  SE, "Nullable primary key not supported" },
   { 741,  SE, "Unsupported alter table" },
+  { 742,  SE, "Unsupported attribute type in index" },
+  { 743,  SE, "Unsupported character set in table or index" },
+  { 744,  SE, "Character string is invalid for given character set" },
   { 241,  SE, "Invalid schema object version" },
   { 283,  SE, "Table is being dropped" },
   { 284,  SE, "Table not defined in transaction coordinator" },
@@ -424,7 +428,8 @@ ErrorBundle ErrorCodes[] = {
   { 4266, AE, "Invalid blob seek position" },
   { 4267, IE, "Corrupted blob value" },
   { 4268, IE, "Error in blob head update forced rollback of transaction" },
-  { 4268, IE, "Unknown blob error" }
+  { 4268, IE, "Unknown blob error" },
+  { 4269, IE, "No connection to ndb management server" }
 };
 
 static
@@ -486,6 +491,7 @@ static
 const
 int NbClassification = sizeof(StatusClassificationMapping)/sizeof(ErrorStatusClassification);
 
+#ifdef NOT_USED
 /**
  * Complete all fields of an NdbError given the error code
  * and details
@@ -501,7 +507,7 @@ set(ndberror_struct * error, int code, const char * details, ...){
     va_end(ap);
   }
 }
-
+#endif
 
 void
 ndberror_update(ndberror_struct * error){
@@ -587,8 +593,10 @@ int ndb_error_string(int err_no, char *str, unsigned int size)
   error.code = err_no;
   ndberror_update(&error);
 
-  len = snprintf(str, size-1, "%s: %s: %s", error.message,
-		 ndberror_status_message(error.status), ndberror_classification_message(error.classification));
+  len =
+    snprintf(str, size-1, "%s: %s: %s", error.message,
+	     ndberror_status_message(error.status),
+	     ndberror_classification_message(error.classification));
   str[size-1]= '\0';
 
   return len;

@@ -30,7 +30,7 @@ NdbDictionary::Column::Column(const char * name)
 NdbDictionary::Column::Column(const NdbDictionary::Column & org)
   : m_impl(* new NdbColumnImpl(* this))
 {
-  m_impl.assign(org.m_impl);
+  m_impl = org.m_impl;
 }
 
 NdbDictionary::Column::Column(NdbColumnImpl& impl)
@@ -65,7 +65,7 @@ NdbDictionary::Column::getName() const {
 
 void
 NdbDictionary::Column::setType(Type t){
-  m_impl.m_type = t;
+  m_impl.init(t);
 }
 
 NdbDictionary::Column::Type 
@@ -100,6 +100,54 @@ NdbDictionary::Column::setLength(int length){
 
 int 
 NdbDictionary::Column::getLength() const{
+  return m_impl.m_length;
+}
+
+void
+NdbDictionary::Column::setInlineSize(int size)
+{
+  m_impl.m_precision = size;
+}
+
+void
+NdbDictionary::Column::setCharset(CHARSET_INFO* cs)
+{
+  m_impl.m_cs = cs;
+}
+
+CHARSET_INFO*
+NdbDictionary::Column::getCharset() const
+{
+  return m_impl.m_cs;
+}
+
+int
+NdbDictionary::Column::getInlineSize() const
+{
+  return m_impl.m_precision;
+}
+
+void
+NdbDictionary::Column::setPartSize(int size)
+{
+  m_impl.m_scale = size;
+}
+
+int
+NdbDictionary::Column::getPartSize() const
+{
+  return m_impl.m_scale;
+}
+
+void
+NdbDictionary::Column::setStripeSize(int size)
+{
+  m_impl.m_length = size;
+}
+
+int
+NdbDictionary::Column::getStripeSize() const
+{
   return m_impl.m_length;
 }
 
@@ -229,7 +277,8 @@ NdbDictionary::Table::Table(const char * name)
 }
 
 NdbDictionary::Table::Table(const NdbDictionary::Table & org)
-  : m_impl(* new NdbTableImpl(* this))
+  : NdbDictionary::Object(),
+    m_impl(* new NdbTableImpl(* this))
 {
   m_impl.assign(org.m_impl);
 }
@@ -272,11 +321,8 @@ NdbDictionary::Table::getTableId() const {
 
 void 
 NdbDictionary::Table::addColumn(const Column & c){
-  // JONAS  check this out!!
-  // Memory leak, the new Column will not be freed
-  //NdbDictionary::Column * col = new Column(c);
   NdbColumnImpl* col = new NdbColumnImpl;
-  col->assign(NdbColumnImpl::getImpl(c));
+  (* col) = NdbColumnImpl::getImpl(c);
   m_impl.m_columns.push_back(col);
   if(c.getPrimaryKey()){
     m_impl.m_noOfKeys++;
@@ -491,11 +537,8 @@ NdbDictionary::Index::getIndexColumn(int no) const {
 
 void
 NdbDictionary::Index::addColumn(const Column & c){
-  // JONAS  check this out!!
-  // Memory leak, the new Column will not be freed
-  //NdbDictionary::Column * col = new Column(c);
   NdbColumnImpl* col = new NdbColumnImpl;
-  col->assign(NdbColumnImpl::getImpl(c));
+  (* col) = NdbColumnImpl::getImpl(c);
   m_impl.m_columns.push_back(col);
 }
 
@@ -605,11 +648,8 @@ NdbDictionary::Event::setDurability(const EventDurability d)
 
 void
 NdbDictionary::Event::addColumn(const Column & c){
-  // JONAS  check this out!!
-  // Memory leak, the new Column will not be freed
-  //NdbDictionary::Column * col = new Column(c);
   NdbColumnImpl* col = new NdbColumnImpl;
-  col->assign(NdbColumnImpl::getImpl(c));
+  (* col) = NdbColumnImpl::getImpl(c);
   m_impl.m_columns.push_back(col);
 }
 
@@ -690,11 +730,21 @@ NdbDictionary::Dictionary::alterTable(const Table & t){
 }
 
 const NdbDictionary::Table * 
-NdbDictionary::Dictionary::getTable(const char * name){
-  NdbTableImpl * t = m_impl.getTable(name);
+NdbDictionary::Dictionary::getTable(const char * name, void **data){
+  NdbTableImpl * t = m_impl.getTable(name, data);
   if(t)
     return t->m_facade;
   return 0;
+}
+
+void NdbDictionary::Dictionary::set_local_table_data_size(unsigned sz)
+{
+  m_impl.m_local_table_data_size= sz;
+}
+
+const NdbDictionary::Table * 
+NdbDictionary::Dictionary::getTable(const char * name){
+  return getTable(name, 0);
 }
 
 void
@@ -806,7 +856,12 @@ NdbDictionary::Dictionary::listObjects(List& list, Object::Type type)
 int
 NdbDictionary::Dictionary::listIndexes(List& list, const char * tableName)
 {
-  return m_impl.listIndexes(list, tableName);
+  const NdbDictionary::Table* tab= getTable(tableName);
+  if(tab == 0)
+  {
+    return -1;
+  }
+  return m_impl.listIndexes(list, tab->getTableId());
 }
 
 const struct NdbError & 
@@ -819,6 +874,8 @@ NdbDictionary::Dictionary::getNdbError() const {
 NdbOut&
 operator<<(NdbOut& out, const NdbDictionary::Column& col)
 {
+  const CHARSET_INFO *cs = col.getCharset();
+  const char *csname = cs ? cs->name : "?";
   out << col.getName() << " ";
   switch (col.getType()) {
   case NdbDictionary::Column::Tinyint:
@@ -861,10 +918,10 @@ operator<<(NdbOut& out, const NdbDictionary::Column& col)
     out << "Decimal(" << col.getScale() << "," << col.getPrecision() << ")";
     break;
   case NdbDictionary::Column::Char:
-    out << "Char(" << col.getLength() << ")";
+    out << "Char(" << col.getLength() << ";" << csname << ")";
     break;
   case NdbDictionary::Column::Varchar:
-    out << "Varchar(" << col.getLength() << ")";
+    out << "Varchar(" << col.getLength() << ";" << csname << ")";
     break;
   case NdbDictionary::Column::Binary:
     out << "Binary(" << col.getLength() << ")";
@@ -884,7 +941,7 @@ operator<<(NdbOut& out, const NdbDictionary::Column& col)
     break;
   case NdbDictionary::Column::Text:
     out << "Text(" << col.getInlineSize() << "," << col.getPartSize()
-        << ";" << col.getStripeSize() << ")";
+        << ";" << col.getStripeSize() << ";" << csname << ")";
     break;
   case NdbDictionary::Column::Undefined:
     out << "Undefined";
@@ -901,3 +958,8 @@ operator<<(NdbOut& out, const NdbDictionary::Column& col)
     out << " NULL";
   return out;
 }
+
+const NdbDictionary::Column * NdbDictionary::Column::FRAGMENT = 0;
+const NdbDictionary::Column * NdbDictionary::Column::ROW_COUNT = 0;
+const NdbDictionary::Column * NdbDictionary::Column::COMMIT_COUNT = 0;
+

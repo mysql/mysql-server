@@ -533,6 +533,7 @@ TESTCASE("FailSlave",
 NDBT_TESTSUITE_END(testGrep);
 
 int main(int argc, const char** argv){
+  ndb_init();
   return testGrep.execute(argc, argv);
 }
 

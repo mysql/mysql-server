@@ -728,10 +728,10 @@ HugoTransactions::loadTable(Ndb* pNdb,
     if (doSleep > 0)
       NdbSleep_MilliSleep(doSleep);
 
-    if (first_batch || !oneTrans) {
+    //    if (first_batch || !oneTrans) {
+    if (first_batch || !pTrans) {
       first_batch = false;
       pTrans = pNdb->startTransaction();
-    
       if (pTrans == NULL) {
         const NdbError err = pNdb->getNdbError();
 
@@ -774,8 +774,10 @@ HugoTransactions::loadTable(Ndb* pNdb,
     
     // Execute the transaction and insert the record
     if (!oneTrans || (c + batch) >= records) {
-      closeTrans = true;
+      //      closeTrans = true;
+      closeTrans = false;
       check = pTrans->execute( Commit );
+      pTrans->restart();
     } else {
       closeTrans = false;
       check = pTrans->execute( NoCommit );
@@ -783,7 +785,7 @@ HugoTransactions::loadTable(Ndb* pNdb,
     if(check == -1 ) {
       const NdbError err = pTrans->getNdbError();
       pNdb->closeTransaction(pTrans);
-      
+      pTrans= 0;
       switch(err.status){
       case NdbError::Success:
 	ERR(err);
@@ -825,6 +827,7 @@ HugoTransactions::loadTable(Ndb* pNdb,
     else{
       if (closeTrans) {
         pNdb->closeTransaction(pTrans);
+	pTrans= 0;
       }
     }
     
@@ -1227,7 +1230,7 @@ int
 HugoTransactions::pkReadRecords(Ndb* pNdb, 
 				int records,
 				int batchsize,
-				bool dirty){
+				NdbOperation::LockMode lm){
   int                  reads = 0;
   int                  r = 0;
   int                  retryAttempt = 0;
@@ -1272,11 +1275,22 @@ HugoTransactions::pkReadRecords(Ndb* pNdb,
 	return NDBT_FAILED;
       }
 
-      if (dirty == true){
-	check = pOp->dirtyRead();
-      } else {
+  rand_lock_mode:
+      switch(lm){
+      case NdbOperation::LM_Read:
 	check = pOp->readTuple();
+	break;
+      case NdbOperation::LM_Exclusive:
+	check = pOp->readTupleExclusive();
+	break;
+      case NdbOperation::LM_CommittedRead:
+	check = pOp->dirtyRead();
+	break;
+      default:
+	lm = (NdbOperation::LockMode)((rand() >> 16) & 3);
+	goto rand_lock_mode;
       }
+      
       if( check == -1 ) {
 	ERR(pTrans->getNdbError());
 	pNdb->closeTransaction(pTrans);

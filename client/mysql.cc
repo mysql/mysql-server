@@ -44,7 +44,7 @@
 #include <locale.h>
 #endif
 
-const char *VER= "14.6";
+const char *VER= "14.7";
 
 /* Don't try to make a nice table if the data is too big */
 #define MAX_COLUMN_LENGTH	     1024
@@ -135,7 +135,7 @@ static my_bool info_flag=0,ignore_errors=0,wait_flag=0,quick=0,
                opt_xml=0,opt_nopager=1, opt_outfile=0, named_cmds= 0,
 	       tty_password= 0, opt_nobeep=0, opt_reconnect=1,
 	       default_charset_used= 0, opt_secure_auth= 0,
-               default_pager_set= 0;
+               default_pager_set= 0, opt_sigint_ignore= 0;
 static ulong opt_max_allowed_packet, opt_net_buffer_length;
 static uint verbose=0,opt_silent=0,opt_mysql_port=0, opt_local_infile=0;
 static my_string opt_mysql_unix_port=0;
@@ -394,7 +394,11 @@ int main(int argc,char *argv[])
   }
   if (!status.batch)
     ignore_errors=1;				// Don't abort monitor
-  signal(SIGINT, mysql_end);			// Catch SIGINT to clean up
+
+  if (opt_sigint_ignore)
+    signal(SIGINT, SIG_IGN);
+  else
+    signal(SIGINT, mysql_end);			// Catch SIGINT to clean up
   signal(SIGQUIT, mysql_end);			// Catch SIGQUIT to clean up
 
   /*
@@ -573,6 +577,9 @@ static struct my_option my_long_options[] =
   {"set-variable", 'O',
    "Change the value of a variable. Please note that this option is deprecated; you can set variables directly with --variable-name=value.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"sigint-ignore", OPT_SIGINT_IGNORE, "Ignore SIGINT (CTRL-C)",
+   (gptr*) &opt_sigint_ignore,  (gptr*) &opt_sigint_ignore, 0, GET_BOOL,
+   NO_ARG, 0, 0, 0, 0, 0, 0},
   {"one-database", 'o',
    "Only update the default database. This is useful for skipping updates to other database in the update log.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -1964,7 +1971,7 @@ print_field_types(MYSQL_RES *result)
   MYSQL_FIELD	*field;  
   while ((field = mysql_fetch_field(result)))
   {
-    tee_fprintf(PAGER,"Catalog:    '%s'\nDatabase:   '%s'\nTable:      '%s'\nName:       '%s'\nType:       %d\nLength:     %d\nMax length: %d\nIs_null:    %d\nFlags:      %d\nDecimals:   %d\n\n",
+    tee_fprintf(PAGER,"Catalog:    '%s'\nDatabase:   '%s'\nTable:      '%s'\nName:       '%s'\nType:       %d\nLength:     %ld\nMax length: %ld\nIs_null:    %d\nFlags:      %u\nDecimals:   %u\n\n",
 		field->catalog, field->db, field->table, field->name,
 		(int) field->type,
 		field->length, field->max_length,
@@ -2010,7 +2017,8 @@ print_table_data(MYSQL_RES *result)
     (void) tee_fputs("|", PAGER);
     for (uint off=0; (field = mysql_fetch_field(result)) ; off++)
     {
-      tee_fprintf(PAGER, " %-*s|",min(field->max_length,MAX_COLUMN_LENGTH),
+      tee_fprintf(PAGER, " %-*s|",(int) min(field->max_length,
+                                            MAX_COLUMN_LENGTH),
 		  field->name);
       num_flag[off]= IS_NUM(field->type);
     }
@@ -2602,32 +2610,31 @@ com_use(String *buffer __attribute__((unused)), char *line)
     put_info("USE must be followed by a database name", INFO_ERROR);
     return 0;
   }
-
-  /* 
-     We need to recheck the current database, because it may change
-     under our feet, for example if DROP DATABASE or RENAME DATABASE
-     (latter one not yet available by the time the comment was written)
+  /*
+    We need to recheck the current database, because it may change
+    under our feet, for example if DROP DATABASE or RENAME DATABASE
+    (latter one not yet available by the time the comment was written)
   */
-  current_db= 0; // Let's reset current_db, assume it's gone
-  /* 
-     We don't care about in case of an error below because current_db
-     was just set to 0.
+  /*  Let's reset current_db, assume it's gone */
+  my_free(current_db, MYF(MY_ALLOW_ZERO_PTR));
+  current_db= 0;
+  /*
+    We don't care about in case of an error below because current_db
+    was just set to 0.
   */
   if (!mysql_query(&mysql, "SELECT DATABASE()") &&
       (res= mysql_use_result(&mysql)))
   {
     row= mysql_fetch_row(res);
-    if (row[0] &&
-	(!current_db || cmp_database(charset_info, current_db, row[0])))
+    if (row[0])
     {
-      my_free(current_db, MYF(MY_ALLOW_ZERO_PTR));
       current_db= my_strdup(row[0], MYF(MY_WME));
     }
-    (void) mysql_fetch_row(res);		// Read eof
+    (void) mysql_fetch_row(res);               // Read eof
     mysql_free_result(res);
   }
-    
-  if (!current_db || cmp_database(charset_info, current_db, tmp))
+
+  if (!current_db || cmp_database(charset_info, current_db,tmp))
   {
     if (one_database)
       skip_updates= 1;
@@ -2835,14 +2842,18 @@ com_status(String *buffer __attribute__((unused)),
   const char *status;
   char buff[22];
   ulonglong id;
+  MYSQL_RES *result;
+  LINT_INIT(result);
 
   tee_puts("--------------", stdout);
   usage(1);					/* Print version */
   if (connected)
   {
-    MYSQL_RES *result;
-    LINT_INIT(result);
     tee_fprintf(stdout, "\nConnection id:\t\t%lu\n",mysql_thread_id(&mysql));
+    /* 
+      Don't remove "limit 1", 
+      it is protection againts SQL_SELECT_LIMIT=0
+    */
     if (!mysql_query(&mysql,"select DATABASE(), USER() limit 1") &&
 	(result=mysql_use_result(&mysql)))
     {
@@ -2853,7 +2864,7 @@ com_status(String *buffer __attribute__((unused)),
         tee_fprintf(stdout, "Current user:\t\t%s\n", cur[1]);
       }
       mysql_free_result(result);
-    }
+    } 
 #ifdef HAVE_OPENSSL
     if (mysql.net.vio && mysql.net.vio->ssl_arg &&
 	SSL_get_cipher((SSL*) mysql.net.vio->ssl_arg))
@@ -2887,9 +2898,30 @@ com_status(String *buffer __attribute__((unused)),
   if ((id= mysql_insert_id(&mysql)))
     tee_fprintf(stdout, "Insert id:\t\t%s\n", llstr(id, buff));
 
-  tee_fprintf(stdout, "Client characterset:\t%s\n",
-	      charset_info->name);
-  tee_fprintf(stdout, "Server characterset:\t%s\n", mysql.charset->name);
+  /* 
+    Don't remove "limit 1", 
+    it is protection againts SQL_SELECT_LIMIT=0
+  */
+  if (!mysql_query(&mysql,"select @@character_set_client, @@character_set_connection, @@character_set_server, @@character_set_database limit 1") &&
+      (result=mysql_use_result(&mysql)))
+  {
+    MYSQL_ROW cur=mysql_fetch_row(result);
+    if (cur)
+    {
+      tee_fprintf(stdout, "Server characterset:\t%s\n", cur[0] ? cur[0] : "");
+      tee_fprintf(stdout, "Db     characterset:\t%s\n", cur[3] ? cur[3] : "");
+      tee_fprintf(stdout, "Client characterset:\t%s\n", cur[2] ? cur[2] : "");
+      tee_fprintf(stdout, "Conn.  characterset:\t%s\n", cur[1] ? cur[1] : "");
+    }
+    mysql_free_result(result);
+  }
+  else
+  {
+    /* Probably pre-4.1 server */
+    tee_fprintf(stdout, "Client characterset:\t%s\n", charset_info->csname);
+    tee_fprintf(stdout, "Server characterset:\t%s\n", mysql.charset->csname);
+  }
+
 #ifndef EMBEDDED_LIBRARY
   if (strstr(mysql_get_host_info(&mysql),"TCP/IP") || ! mysql.unix_socket)
     tee_fprintf(stdout, "TCP port:\t\t%d\n", mysql.port);
@@ -2948,7 +2980,12 @@ put_info(const char *str,INFO_TYPE info_type, uint error, const char *sqlstate)
       (void) fflush(file);
       fprintf(file,"ERROR");
       if (error)
-	(void) fprintf(file," %d",error);
+      {
+	if (sqlstate)
+	  (void) fprintf(file," %d (%s)",error, sqlstate);
+        else
+	  (void) fprintf(file," %d",error);
+      }
       if (status.query_start_line && line_numbers)
       {
 	(void) fprintf(file," at line %lu",status.query_start_line);

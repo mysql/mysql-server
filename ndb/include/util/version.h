@@ -30,7 +30,7 @@ extern "C" {
 
   Uint32 makeVersion(Uint32 major, Uint32 minor, Uint32 build);
 
-  char* getVersionString(Uint32 version, char * status);
+  const char* getVersionString(Uint32 version, const char * status);
   
   void ndbPrintVersion();
   Uint32 ndbGetOwnVersion();

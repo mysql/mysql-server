@@ -1030,7 +1030,7 @@ readScan(int style, bool idx)
   } else {
     CHK((g_ops = g_con->getNdbIndexScanOperation(g_opt.m_x2name, g_opt.m_tname)) != 0);
   }
-  CHK((rs = g_ops->readTuples(NdbScanOperation::LM_Exclusive)) != 0);
+  CHK((rs = g_ops->readTuples(NdbScanOperation::LM_Read)) != 0);
   CHK(g_ops->getValue("PK1", (char*)&tup.m_pk1) != 0);
   if (g_opt.m_pk2len != 0)
     CHK(g_ops->getValue("PK2", tup.m_pk2) != 0);
@@ -1338,6 +1338,7 @@ static struct {
 
 NDB_COMMAND(testOdbcDriver, "testBlobs", "testBlobs", "testBlobs", 65535)
 {
+  ndb_init();
   while (++argv, --argc > 0) {
     const char* arg = argv[0];
     if (strcmp(arg, "-batch") == 0) {

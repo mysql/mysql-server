@@ -353,11 +353,11 @@ operator<<(NdbOut& out, const Dbtup::Operationrec& op)
   out << " [interpretedExec " << dec << op.interpretedExec << "]";
   out << " [opSimple " << dec << op.opSimple << "]";
   // state
-  out << " [tupleState " << dec << op.tupleState << "]";
-  out << " [transstate " << dec << op.transstate << "]";
+  out << " [tupleState " << dec << (Uint32) op.tupleState << "]";
+  out << " [transstate " << dec << (Uint32) op.transstate << "]";
   out << " [inFragList " << dec << op.inFragList << "]";
   out << " [inActiveOpList " << dec << op.inActiveOpList << "]";
-  out << " [undoLogged " << dec << op.undoLogged << "]";
+  out << " [undoLogged " << dec << (Uint32) op.undoLogged << "]";
   // links
   out << " [prevActiveOp " << hex << op.prevActiveOp << "]";
   out << " [nextActiveOp " << hex << op.nextActiveOp << "]";
@@ -404,4 +404,8 @@ operator<<(NdbOut& out, const Dbtup::Th& th)
   out << "]";
   return out;
 }
+#endif
+
+#ifdef VM_TRACE
+template class Vector<Chunk>;
 #endif

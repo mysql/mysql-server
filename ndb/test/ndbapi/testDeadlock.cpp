@@ -48,14 +48,14 @@ printusage()
 
 static Opt g_opt;
 
-static NdbMutex ndbout_mutex = NDB_MUTEX_INITIALIZER;
+static NdbMutex *ndbout_mutex= NULL;
 
 #define DBG(x) \
   do { \
     if (! g_opt.m_dbg) break; \
-    NdbMutex_Lock(&ndbout_mutex); \
+    NdbMutex_Lock(ndbout_mutex); \
     ndbout << "line " << __LINE__ << " " << x << endl; \
-    NdbMutex_Unlock(&ndbout_mutex); \
+    NdbMutex_Unlock(ndbout_mutex); \
   } while (0)
 
 #define CHK(x) \
@@ -491,6 +491,9 @@ wl1822_main(char scantx)
 
 NDB_COMMAND(testOdbcDriver, "testDeadlock", "testDeadlock", "testDeadlock", 65535)
 {
+  ndb_init();
+  if (ndbout_mutex == NULL)
+    ndbout_mutex= NdbMutex_Create();
   while (++argv, --argc > 0) {
     const char* arg = argv[0];
     if (strcmp(arg, "-scan") == 0) {

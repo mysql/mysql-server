@@ -1,5 +1,9 @@
 
-LDADD += $(top_builddir)/ndb/src/libndbclient.la
+LDADD += \
+         $(top_builddir)/ndb/src/libndbclient.la \
+         $(top_builddir)/dbug/libdbug.a \
+         $(top_builddir)/mysys/libmysys.a \
+         $(top_builddir)/strings/libmystrings.a @NDB_SCI_LIBS@
 
 INCLUDES += -I$(srcdir) -I$(top_srcdir)/include \
 	-I$(top_srcdir)/ndb/include \

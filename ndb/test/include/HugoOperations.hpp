@@ -38,16 +38,8 @@ public:
   
   int pkReadRecord(Ndb*,
 		   int recordNo,
-		   bool exclusive = false,
-		   int numRecords = 1);
-  
-  int pkSimpleReadRecord(Ndb*,
-			 int recordNo,
-			 int numRecords = 1);
-  
-  int pkDirtyReadRecord(Ndb*,
-			int recordNo,
-			int numRecords = 1);
+		   int numRecords = 1,
+		   NdbOperation::LockMode lm = NdbOperation::LM_Read);
   
   int pkUpdateRecord(Ndb*,
 		     int recordNo,

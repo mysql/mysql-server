@@ -153,11 +153,11 @@ FileLogHandler::createNewFile()
     if (fileNo >= m_maxNoFiles)
     {
       fileNo = 1;
-      ::snprintf(newName, sizeof(newName),
+      BaseString::snprintf(newName, sizeof(newName),
 		 "%s.%d", m_pLogFile->getName(), fileNo);
       break;
     }		
-    ::snprintf(newName, sizeof(newName),
+    BaseString::snprintf(newName, sizeof(newName),
 	       "%s.%d", m_pLogFile->getName(), fileNo++); 
     
   } while (File_class::exists(newName));

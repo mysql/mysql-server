@@ -25,7 +25,7 @@
     We will need an updated Berkeley DB version for this.
   - Killing threads that has got a 'deadlock'
   - SHOW TABLE STATUS should give more information about the table.
-  - Get a more accurate count of the number of rows (estimate_number_of_rows()).
+  - Get a more accurate count of the number of rows (estimate_rows_upper_bound()).
     We could store the found number of rows when the table is scanned and
     then increment the counter for each attempted write.
   - We will need to extend the manager thread to makes checkpoints at
@@ -63,7 +63,7 @@
 #define HA_BERKELEY_ROWS_IN_TABLE 10000 /* to get optimization right */
 #define HA_BERKELEY_RANGE_COUNT   100
 #define HA_BERKELEY_MAX_ROWS	  10000000 /* Max rows in table */
-/* extra rows for estimate_number_of_rows() */
+/* extra rows for estimate_rows_upper_bound() */
 #define HA_BERKELEY_EXTRA_ROWS	  100
 
 /* Bits for share->status */
@@ -90,7 +90,7 @@ const char *berkeley_lock_names[] =
 u_int32_t berkeley_lock_types[]=
 { DB_LOCK_DEFAULT, DB_LOCK_OLDEST, DB_LOCK_RANDOM };
 TYPELIB berkeley_lock_typelib= {array_elements(berkeley_lock_names)-1,"",
-				berkeley_lock_names};
+				berkeley_lock_names, NULL};
 
 static void berkeley_print_error(const char *db_errpfx, char *buffer);
 static byte* bdb_get_key(BDB_SHARE *share,uint *length,
@@ -856,8 +856,8 @@ int ha_berkeley::write_row(byte * record)
   DBUG_ENTER("write_row");
 
   statistic_increment(table->in_use->status_var.ha_write_count, &LOCK_status);
-  if (table->timestamp_default_now)
-    update_timestamp(record+table->timestamp_default_now-1);
+  if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
+    table->timestamp_field->set_time();
   if (table->next_number_field && record == table->record[0])
     update_auto_increment();
   if ((error=pack_row(&row, record,1)))
@@ -1104,8 +1104,8 @@ int ha_berkeley::update_row(const byte * old_row, byte * new_row)
   LINT_INIT(error);
 
   statistic_increment(table->in_use->status_var.ha_update_count,&LOCK_status);
-  if (table->timestamp_on_update_now)
-    update_timestamp(new_row+table->timestamp_on_update_now-1);
+  if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
+    table->timestamp_field->set_time();
 
   if (hidden_primary_key)
   {
@@ -2566,7 +2566,7 @@ end:
   Used when sorting to allocate buffers and by the optimizer.
 */
 
-ha_rows ha_berkeley::estimate_number_of_rows()
+ha_rows ha_berkeley::estimate_rows_upper_bound()
 {
   return share->rows + HA_BERKELEY_EXTRA_ROWS;
 }

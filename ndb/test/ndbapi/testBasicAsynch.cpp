@@ -181,6 +181,7 @@ TESTCASE("PkDeleteAsynch",
 NDBT_TESTSUITE_END(testBasicAsynch);
 
 int main(int argc, const char** argv){
+  ndb_init();
   return testBasicAsynch.execute(argc, argv);
 }
 

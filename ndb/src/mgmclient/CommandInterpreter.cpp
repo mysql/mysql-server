@@ -14,13 +14,18 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#include <ndb_global.h>
+#include <my_sys.h>
+
 #include "CommandInterpreter.hpp"
 
 #include <mgmapi.h>
 #include <mgmapi_debug.h>
 #include <version.h>
+#include <NdbAutoPtr.hpp>
 #include <NdbOut.hpp>
 #include <NdbSleep.h>
+#include <NdbMem.h>
 #include <EventLogger.hpp>
 #include <signaldata/SetLogLevelOrd.hpp>
 #include <signaldata/GrepImpl.hpp>
@@ -47,10 +52,13 @@ static const char* helpText =
 "HELP DEBUG                             Help for debug compiled version\n"
 #endif
 "SHOW                                   Print information about cluster\n"
+#if 0
 "SHOW CONFIG                            Print configuration\n"
 "SHOW PARAMETERS                        Print configuration parameters\n"
+#endif
 "START BACKUP                           Start backup\n"
 "ABORT BACKUP <backup id>               Abort backup\n"
+"SHUTDOWN                               Shutdown all processes in cluster and quit\n"
 "CLUSTERLOG ON                          Enable Cluster logging\n"
 "CLUSTERLOG OFF                         Disable Cluster logging\n"
 "CLUSTERLOG FILTER <severity>           Toggle severity filter on/off\n"
@@ -62,7 +70,9 @@ static const char* helpText =
 "EXIT SINGLE USER MODE                  Exit single user mode\n"
 "<id> STATUS                            Print status\n"
 "<id> CLUSTERLOG {<category>=<level>}+  Set log level for cluster log\n"
+#ifdef HAVE_GLOBAL_REPLICATION
 "REP CONNECT <host:port>                Connect to REP server on host:port\n"
+#endif
 "QUIT                                   Quit management client\n"
 ;
 
@@ -72,8 +82,10 @@ static const char* helpTextShow =
 "---------------------------------------------------------------------------\n"
 "SHOW prints NDB Cluster information\n\n"
 "SHOW               Print information about cluster\n" 
+#if 0
 "SHOW CONFIG        Print configuration (in initial config file format)\n" 
 "SHOW PARAMETERS    Print information about configuration parameters\n\n"
+#endif
 ;
 
 #ifdef HAVE_GLOBAL_REPLICATION
@@ -170,7 +182,7 @@ CommandInterpreter::CommandInterpreter(const char *_host)
   connected = false;
   try_reconnect = 0;
 
-  host = strdup(_host);
+  host = my_strdup(_host,MYF(MY_WME));
 #ifdef HAVE_GLOBAL_REPLICATION
   rep_host = NULL;
   m_repserver = NULL;
@@ -185,7 +197,7 @@ CommandInterpreter::~CommandInterpreter()
 {
   connected = false;
   ndb_mgm_destroy_handle(&m_mgmsrv);
-  free((char *)host);
+  my_free((char *)host,MYF(0));
   host = NULL;
 }
 
@@ -204,16 +216,6 @@ emptyString(const char* s)
 
   return true;
 }
-
-class AutoPtr 
-{
-public:
-  AutoPtr(void * ptr) : m_ptr(ptr) {}
-  ~AutoPtr() { free(m_ptr);}
-private:
-  void * m_ptr;
-};
-
 
 void
 CommandInterpreter::printError() 
@@ -274,9 +276,8 @@ CommandInterpreter::readAndExecute(int _try_reconnect)
     return false;
   }
 
-  line = strdup(_line);
-  
-  AutoPtr ptr(line);
+  line = my_strdup(_line,MYF(MY_WME));
+  My_auto_ptr<char> ptr(line);
   
   if (emptyString(line)) {
     return true;
@@ -297,6 +298,10 @@ CommandInterpreter::readAndExecute(int _try_reconnect)
   }
   else if (strcmp(firstToken, "SHOW") == 0) {
     executeShow(allAfterFirstToken);
+    return true;
+  }
+  else if (strcmp(firstToken, "SHUTDOWN") == 0) {
+    executeShutdown(allAfterFirstToken);
     return true;
   }
   else if (strcmp(firstToken, "CLUSTERLOG") == 0){
@@ -498,20 +503,19 @@ CommandInterpreter::executeForAll(const char * cmd, ExecuteFunction fun,
     ndbout_c("Use ALL STATUS to see the system start-up phases.");
   } else {
     connect();
-    struct ndb_mgm_cluster_state *cl;
-    cl = ndb_mgm_get_status(m_mgmsrv);
+    struct ndb_mgm_cluster_state *cl= ndb_mgm_get_status(m_mgmsrv);
     if(cl == 0){
       ndbout_c("Unable get status from management server");
       printError();
       return;
     }
+    NdbAutoPtr<char> ap1((char*)cl);
     while(get_next_nodeid(cl, &nodeId, NDB_MGM_NODE_TYPE_NDB)) {
       if(strcmp(cmd, "STATUS") != 0)
 	ndbout_c("Executing %s on node %d.", cmd, nodeId);
       (this->*fun)(nodeId, allAfterSecondToken, true);
       ndbout << endl;
     } // while
-    free(cl);
   }
 }
 
@@ -528,7 +532,8 @@ CommandInterpreter::parseBlockSpecification(const char* allAfterLog,
   }
 
   // Copy allAfterLog since strtok will modify it  
-  char* newAllAfterLog = strdup(allAfterLog);
+  char* newAllAfterLog = my_strdup(allAfterLog,MYF(MY_WME));
+  My_auto_ptr<char> ap1(newAllAfterLog);
   char* firstTokenAfterLog = strtok(newAllAfterLog, " ");
   for (unsigned int i = 0; i < strlen(firstTokenAfterLog); ++i) {
     firstTokenAfterLog[i] = toupper(firstTokenAfterLog[i]);
@@ -537,14 +542,12 @@ CommandInterpreter::parseBlockSpecification(const char* allAfterLog,
   if (strcmp(firstTokenAfterLog, "BLOCK") != 0) {
     ndbout << "Unexpected value: " << firstTokenAfterLog 
 	   << ". Expected BLOCK." << endl;
-    free(newAllAfterLog);
     return false;
   }
 
   char* allAfterFirstToken = strtok(NULL, "\0");
   if (emptyString(allAfterFirstToken)) {
     ndbout << "Expected =." << endl;
-    free(newAllAfterLog);
     return false;
   }
 
@@ -552,7 +555,6 @@ CommandInterpreter::parseBlockSpecification(const char* allAfterLog,
   if (strcmp(secondTokenAfterLog, "=") != 0) {
     ndbout << "Unexpected value: " << secondTokenAfterLog 
 	   << ". Expected =." << endl;
-    free(newAllAfterLog);
     return false;
   }
 
@@ -568,17 +570,14 @@ CommandInterpreter::parseBlockSpecification(const char* allAfterLog,
 
   if (blocks.size() == 0) {
     ndbout << "No block specified." << endl;
-    free(newAllAfterLog);
     return false;
   }
   if (blocks.size() > 1 && all) {
     // More than "ALL" specified
     ndbout << "Nothing expected after ALL." << endl;
-    free(newAllAfterLog);
     return false;
   }
   
-  free(newAllAfterLog);
   return true;
 }
 
@@ -599,10 +598,12 @@ CommandInterpreter::executeHelp(char* parameters)
 	   << endl;
 
     ndbout << "<category> = ";
-    for(Uint32 i = 0; i<EventLogger::noOfEventCategoryNames; i++){
-      ndbout << EventLogger::eventCategoryNames[i].name;
-      if (i < EventLogger::noOfEventCategoryNames - 1) {
-	ndbout << " | ";
+    for(int i = CFG_MIN_LOGLEVEL; i <= CFG_MAX_LOGLEVEL; i++){
+      const char *str= ndb_mgm_get_event_category_string((ndb_mgm_event_category)i);
+      if (str) {
+	if (i != CFG_MIN_LOGLEVEL)
+	  ndbout << " | ";
+	ndbout << str;
       }
     }
     ndbout << endl;
@@ -629,8 +630,140 @@ CommandInterpreter::executeHelp(char* parameters)
 
 
 /*****************************************************************************
+ * SHUTDOWN
+ *****************************************************************************/
+
+void
+CommandInterpreter::executeShutdown(char* parameters) 
+{ 
+  connect();
+
+  ndb_mgm_cluster_state *state = ndb_mgm_get_status(m_mgmsrv);
+  if(state == NULL) {
+    ndbout_c("Could not get status");
+    printError();
+    return;
+  }
+  NdbAutoPtr<char> ap1((char*)state);
+
+  int result = 0;
+  result = ndb_mgm_stop(m_mgmsrv, 0, 0);
+  if (result < 0) {
+    ndbout << "Shutdown failed." << endl;
+    printError();
+    return;
+  }
+
+  ndbout << result << " NDB Cluster storage node(s) have shutdown." << endl;
+
+  int mgm_id= 0;
+  for(int i=0; i < state->no_of_nodes; i++) {
+    if(state->node_states[i].node_type == NDB_MGM_NODE_TYPE_MGM &&
+       state->node_states[i].version != 0){
+      if (mgm_id == 0)
+	mgm_id= state->node_states[i].node_id;
+      else {
+	ndbout << "Unable to locate management server, "
+	       << "shutdown manually with <id> STOP"
+	       << endl;
+	return;
+      }
+    }
+  }
+
+  result = 0;
+  result = ndb_mgm_stop(m_mgmsrv, 1, &mgm_id);
+  if (result <= 0) {
+    ndbout << "Shutdown failed." << endl;
+    printError();
+    return;
+  }
+
+  ndbout << "NDB Cluster management server shutdown." << endl;
+  exit(0);
+}
+
+/*****************************************************************************
  * SHOW
  *****************************************************************************/
+
+
+static
+const char *status_string(ndb_mgm_node_status status)
+{
+  switch(status){
+  case NDB_MGM_NODE_STATUS_NO_CONTACT:
+    return "not connected";
+  case NDB_MGM_NODE_STATUS_NOT_STARTED:
+    return "not started";
+  case NDB_MGM_NODE_STATUS_STARTING:
+    return "starting";
+  case NDB_MGM_NODE_STATUS_STARTED:
+    return "started";
+  case NDB_MGM_NODE_STATUS_SHUTTING_DOWN:
+    return "shutting down";
+  case NDB_MGM_NODE_STATUS_RESTARTING:
+    return "restarting";
+  case NDB_MGM_NODE_STATUS_SINGLEUSER:
+    return "single user mode";
+  default:
+    return "unknown state";
+  }
+}
+
+static void
+print_nodes(ndb_mgm_cluster_state *state, ndb_mgm_configuration_iterator *it,
+	    const char *proc_name, int no_proc, ndb_mgm_node_type type,
+	    int master_id)
+{ 
+  int i;
+  ndbout << "[" << proc_name
+	 << "(" << ndb_mgm_get_node_type_string(type) << ")]\t"
+	 << no_proc << " node(s)" << endl;
+  for(i=0; i < state->no_of_nodes; i++) {
+    struct ndb_mgm_node_state *node_state= &(state->node_states[i]);
+    if(node_state->node_type == type) {
+      int node_id= node_state->node_id;
+      ndbout << "id=" << node_id;
+      if(node_state->version != 0) {
+	const char *hostname= node_state->connect_address;
+	if (hostname == 0
+	    || strlen(hostname) == 0
+	    || strcmp(hostname,"0.0.0.0") == 0)
+	  ndbout << " ";
+	else
+	  ndbout << "\t@" << hostname;
+	ndbout << "  (Version: "
+	       << getMajor(node_state->version) << "."
+	       << getMinor(node_state->version) << "."
+	       << getBuild(node_state->version);
+	if (type == NDB_MGM_NODE_TYPE_NDB) {
+	  if (node_state->node_status != NDB_MGM_NODE_STATUS_STARTED) {
+	    ndbout << ", " << status_string(node_state->node_status);
+	  }
+	  if (node_state->node_group >= 0) {
+	    ndbout << ", Nodegroup: " << node_state->node_group;
+	    if (node_state->dynamic_id == master_id)
+	      ndbout << ", Master";
+	  }
+	}
+	ndbout << ")" << endl;
+      } else {
+	if(ndb_mgm_find(it, CFG_NODE_ID, node_id) != 0){
+	  ndbout_c("Unable to find node with id: %d", node_id);
+	  return;
+	}
+	const char *config_hostname= 0;
+	ndb_mgm_get_string_parameter(it, CFG_NODE_HOST, &config_hostname);
+	if (config_hostname == 0 || config_hostname[0] == 0)
+	  config_hostname= "any host";
+	ndbout << " (not connected, accepting connect from "
+	       << config_hostname << ")" << endl;
+      }
+    }
+  }
+  ndbout << endl;
+}
 
 void
 CommandInterpreter::executeShow(char* parameters) 
@@ -647,6 +780,23 @@ CommandInterpreter::executeShow(char* parameters)
       printError();
       return;
     }
+    NdbAutoPtr<char> ap1((char*)state);
+
+    ndb_mgm_configuration * conf = ndb_mgm_get_configuration(m_mgmsrv,0);
+    if(conf == 0){
+      ndbout_c("Could not get configuration");
+      printError();
+      return;
+    }
+
+    ndb_mgm_configuration_iterator * it;
+    it = ndb_mgm_create_configuration_iterator((struct ndb_mgm_configuration *)conf, CFG_SECTION_NODE);
+
+    if(it == 0){
+      ndbout_c("Unable to create config iterator");
+      return;
+    }
+    NdbAutoPtr<ndb_mgm_configuration_iterator> ptr(it);
 
     int
       master_id= 0,
@@ -678,76 +828,14 @@ CommandInterpreter::executeShow(char* parameters)
       case NDB_MGM_NODE_TYPE_UNKNOWN:
         ndbout << "Error: Unknown Node Type" << endl;
         return;
+      case NDB_MGM_NODE_TYPE_REP:
+	abort();
       }
     }
 
-    ndbout << ndb_nodes
-	   << " NDB Node(s)" 
-	   << endl;
-
-    for(i=0; i < state->no_of_nodes; i++) {
-      if(state->node_states[i].node_type == NDB_MGM_NODE_TYPE_NDB) {
-	ndbout << "DB node:\t" << state->node_states[i].node_id;
-	if(state->node_states[i].version != 0) {
-	  ndbout << "  (Version: "
-		 << getMajor(state->node_states[i].version) << "."
-		 << getMinor(state->node_states[i].version) << "."
-		 << getBuild(state->node_states[i].version) << ","
-		 << " Nodegroup: " << state->node_states[i].node_group;
-	  if (state->node_states[i].dynamic_id == master_id)
-	    ndbout << ", Master";
-	  ndbout << ")" << endl;
-	} else
-	  {
-	    ndbout << "  (not connected) " << endl;
-	  }
-
-      }
-    }
-    ndbout << endl;
-    
-    ndbout << mgm_nodes
-	   << " MGM Node(s)" 
-	   << endl;
-
-    for(i=0; i < state->no_of_nodes; i++) {
-      if(state->node_states[i].node_type == NDB_MGM_NODE_TYPE_MGM) {
-	ndbout << "MGM node:\t" << state->node_states[i].node_id;
-	if(state->node_states[i].version != 0) {
-	  ndbout << "  (Version: "
-		 << getMajor(state->node_states[i].version) << "."
-		 << getMinor(state->node_states[i].version) << "."
-		 << getBuild(state->node_states[i].version) << ")" << endl;
-	  
-	} else
-	  {
-	    ndbout << "  (no version information available) " << endl;
-	  }
-      }
-    }
-    ndbout << endl;
-
-    ndbout << api_nodes
-	   << " API Node(s)" 
-	   << endl;
-
-    for(i=0; i < state->no_of_nodes; i++) {
-      if(state->node_states[i].node_type == NDB_MGM_NODE_TYPE_API) {
-	ndbout << "API node:\t" << state->node_states[i].node_id;
-	if(state->node_states[i].version != 0) {
-	  ndbout << "  (Version: "
-		 << getMajor(state->node_states[i].version) << "."
-		 << getMinor(state->node_states[i].version) << "."
-		 << getBuild(state->node_states[i].version) << ")" << endl;
-	  
-	} else
-	  {
-	    ndbout << "  (not connected) " << endl;
-	  }
-      }
-    }
-    ndbout << endl;
-    
+    print_nodes(state, it, "ndbd",     ndb_nodes, NDB_MGM_NODE_TYPE_NDB, master_id);
+    print_nodes(state, it, "ndb_mgmd", mgm_nodes, NDB_MGM_NODE_TYPE_MGM, 0);
+    print_nodes(state, it, "mysqld",   api_nodes, NDB_MGM_NODE_TYPE_API, 0);
     //    ndbout << helpTextShow;
     return;
   } else if (strcmp(parameters, "PROPERTIES") == 0 ||
@@ -778,12 +866,13 @@ CommandInterpreter::executeClusterLog(char* parameters)
   int i;
   connect();
   if (parameters != 0 && strlen(parameters) != 0) {
-  enum ndb_mgm_clusterlog_level severity = NDB_MGM_CLUSTERLOG_ALL;
+    enum ndb_mgm_clusterlog_level severity = NDB_MGM_CLUSTERLOG_ALL;
     int isOk = true;
     char name[12]; 
     bool noArgs = false;
     
-    char * tmpString = strdup(parameters);
+    char * tmpString = my_strdup(parameters,MYF(MY_WME));
+    My_auto_ptr<char> ap1(tmpString);
     char * tmpPtr = 0;
     char * item = strtok_r(tmpString, " ", &tmpPtr);
     
@@ -821,7 +910,6 @@ CommandInterpreter::executeClusterLog(char* parameters)
 	
 	item = strtok_r(NULL, " ", &tmpPtr);	
       } //  while(item != NULL){
-      free(tmpString);
 
       if (noArgs) {
 	ndbout << "Missing argument(s)." << endl;
@@ -929,7 +1017,7 @@ CommandInterpreter::executeStop(int processId, const char *, bool all)
   } else {
     result = ndb_mgm_stop(m_mgmsrv, 1, &processId);
   }
-  if (result <= 0) {
+  if (result < 0) {
     ndbout << "Shutdown failed." << endl;
     printError();
   } else
@@ -1017,7 +1105,8 @@ CommandInterpreter::executeRestart(int processId, const char* parameters,
   int abort = 0;
 
   if(parameters != 0 && strlen(parameters) != 0){
-    char * tmpString = strdup(parameters);
+    char * tmpString = my_strdup(parameters,MYF(MY_WME));
+    My_auto_ptr<char> ap1(tmpString);
     char * tmpPtr = 0;
     char * item = strtok_r(tmpString, " ", &tmpPtr);
     while(item != NULL){
@@ -1029,7 +1118,6 @@ CommandInterpreter::executeRestart(int processId, const char* parameters,
 	abort = 1;
       item = strtok_r(NULL, " ", &tmpPtr);
     }
-    free(tmpString);
   }
 
   if(all) {
@@ -1065,7 +1153,8 @@ CommandInterpreter::executeDumpState(int processId, const char* parameters,
   Uint32 no = 0;
   int pars[25];
   
-  char * tmpString = strdup(parameters);
+  char * tmpString = my_strdup(parameters,MYF(MY_WME));
+  My_auto_ptr<char> ap1(tmpString);
   char * tmpPtr = 0;
   char * item = strtok_r(tmpString, " ", &tmpPtr);
   while(item != NULL){
@@ -1085,7 +1174,6 @@ CommandInterpreter::executeDumpState(int processId, const char* parameters,
     ndbout.setHexFormat(1) << pars[i] << " ";
     if (!(i+1 & 0x3)) ndbout << endl;
   }
-  free(tmpString);
   
   struct ndb_mgm_reply reply;
   ndb_mgm_dump_state(m_mgmsrv, processId, pars, no, &reply);
@@ -1112,6 +1200,7 @@ CommandInterpreter::executeStatus(int processId,
     printError();
     return;
   }
+  NdbAutoPtr<char> ap1((char*)cl);
 
   int i = 0;
   while((i < cl->no_of_nodes) && cl->node_states[i].node_id != processId)
@@ -1124,33 +1213,15 @@ CommandInterpreter::executeStatus(int processId,
   startPhase = cl->node_states[i].start_phase;
   version = cl->node_states[i].version;
 
-  ndbout << "Node " << processId << ": ";
+  ndbout << "Node " << processId << ": " << status_string(status);
   switch(status){
-  case NDB_MGM_NODE_STATUS_NO_CONTACT:
-    ndbout << "No contact" << endl;
-    break;
-  case NDB_MGM_NODE_STATUS_NOT_STARTED:
-    ndbout << "Not started" ;
-    break;
   case NDB_MGM_NODE_STATUS_STARTING:
-    ndbout << "Starting (Start phase " << startPhase << ")" ;
-    break;
-  case NDB_MGM_NODE_STATUS_STARTED:
-    ndbout << "Started" ;
+    ndbout << " (Phase " << startPhase << ")" ;
     break;
   case NDB_MGM_NODE_STATUS_SHUTTING_DOWN:
-    ndbout << "Shutting down " << (system == false ? "node" : "system")
-	   << " (Phase " << startPhase << ")"
-	   ;
-    break;
-  case NDB_MGM_NODE_STATUS_RESTARTING:
-    ndbout << "Restarting" ;
-    break;
-  case NDB_MGM_NODE_STATUS_SINGLEUSER:
-    ndbout << "Single user mode" ;
+    ndbout << " (Phase " << startPhase << ")";
     break;
   default:
-    ndbout << "Unknown state" ;
     break;
   }
   if(status != NDB_MGM_NODE_STATUS_NO_CONTACT)
@@ -1170,55 +1241,40 @@ CommandInterpreter::executeLogLevel(int processId, const char* parameters,
 {
   connect();
   (void) all;
-  (void) parameters;
   
-  SetLogLevelOrd logLevel; logLevel.clear();
-  LogLevel::EventCategory cat;  
-  int level;
-  if (emptyString(parameters) || (strcmp(parameters, "ALL") == 0)) {
-    for(Uint32 i = 0; i<EventLogger::noOfEventCategoryNames; i++)
-      logLevel.setLogLevel(EventLogger::eventCategoryNames[i].category, 7);
-  } else {
-    
-    char * tmpString = strdup(parameters);
-    char * tmpPtr = 0;
-    char * item = strtok_r(tmpString, ", ", &tmpPtr);
-    while(item != NULL){
-      char categoryTxt[255];
-      const int m = sscanf(item, "%[^=]=%d", categoryTxt, &level);
-      if(m != 2){
-	free(tmpString);
-	ndbout << "Invalid loglevel specification category=level" << endl;
-	return;
-      }
-
-      if(!EventLogger::matchEventCategory(categoryTxt,
-			     &cat)){
-	ndbout << "Invalid loglevel specification, unknown category: " 
-	       << categoryTxt << endl;
-	free(tmpString);
-	return ;
-      }
-      if(level < 0 || level > 15){
-	ndbout << "Invalid loglevel specification row, level 0-15" << endl;
-	free(tmpString);
-	return ;
-      }
-      logLevel.setLogLevel(cat, level);	
-      
-      item = strtok_r(NULL, ", ", &tmpPtr);
-    }
-    free(tmpString);
+  BaseString tmp(parameters);
+  Vector<BaseString> spec;
+  tmp.split(spec, "=");
+  if(spec.size() != 2){
+    ndbout << "Invalid loglevel specification: " << parameters << endl;
+    return;
   }
 
+  spec[0].trim().ndb_toupper();
+  int category = ndb_mgm_match_event_category(spec[0].c_str());
+  if(category == NDB_MGM_ILLEGAL_EVENT_CATEGORY){
+    category = atoi(spec[0].c_str());
+    if(category < NDB_MGM_MIN_EVENT_CATEGORY ||
+       category > NDB_MGM_MAX_EVENT_CATEGORY){
+      ndbout << "Unknown category: \"" << spec[0].c_str() << "\"" << endl;
+      return;
+    }
+  }
+  
+  int level = atoi(spec[1].c_str());
+  if(level < 0 || level > 15){
+    ndbout << "Invalid level: " << spec[1].c_str() << endl;
+    return;
+  }
+  
   struct ndb_mgm_reply reply;
   int result;
   result = ndb_mgm_set_loglevel_node(m_mgmsrv, 
-				     processId,  // fast fix - pekka
-				     (char*)EventLogger::getEventCategoryName(cat),
+				     processId,
+				     (ndb_mgm_event_category)category,
 				     level, 
 				     &reply);
-
+  
   if (result < 0) {
     ndbout_c("Executing LOGLEVEL on node %d failed.", processId);
     printError();
@@ -1226,7 +1282,7 @@ CommandInterpreter::executeLogLevel(int processId, const char* parameters,
     ndbout << "Executing LOGLEVEL on node " << processId << " OK!" 
 	   << endl;
   }  
-
+  
 }
 
 //*****************************************************************************
@@ -1241,26 +1297,23 @@ void CommandInterpreter::executeError(int processId,
 
   connect();
   // Copy parameters since strtok will modify it
-  char* newpar = strdup(parameters); 
+  char* newpar = my_strdup(parameters,MYF(MY_WME)); 
+  My_auto_ptr<char> ap1(newpar);
   char* firstParameter = strtok(newpar, " ");
 
   int errorNo;
   if (! convert(firstParameter, errorNo)) {
     ndbout << "Expected an integer." << endl;
-    free(newpar);
     return;
   }
 
   char* allAfterFirstParameter = strtok(NULL, "\0");
   if (! emptyString(allAfterFirstParameter)) {
     ndbout << "Nothing expected after error number." << endl;
-    free(newpar);
     return;
   }
 
   ndb_mgm_insert_error(m_mgmsrv, processId, errorNo, NULL);
-
-  free(newpar);
 }
 
 //*****************************************************************************
@@ -1275,21 +1328,20 @@ CommandInterpreter::executeTrace(int /*processId*/,
     return;
   }
 
-  char* newpar = strdup(parameters);
+  char* newpar = my_strdup(parameters,MYF(MY_WME));
+  My_auto_ptr<char> ap1(newpar);
   char* firstParameter = strtok(newpar, " ");
 
 
   int traceNo;
   if (! convert(firstParameter, traceNo)) {
     ndbout << "Expected an integer." << endl;
-    free(newpar);
     return;
   }
   char* allAfterFirstParameter = strtok(NULL, "\0");  
 
   if (! emptyString(allAfterFirstParameter)) {
     ndbout << "Nothing expected after trace number." << endl;
-    free(newpar);
     return;
   }
 
@@ -1297,7 +1349,6 @@ CommandInterpreter::executeTrace(int /*processId*/,
   if (result != 0) {
     ndbout << _mgmtSrvr.getErrorText(result) << endl;
   }
-  free(newpar);
 #endif
 }
 
@@ -1314,35 +1365,29 @@ CommandInterpreter::executeLog(int processId,
   if (! parseBlockSpecification(parameters, blocks)) {
     return;
   }
-  int len=0;  
+  int len=1;
   Uint32 i;
   for(i=0; i<blocks.size(); i++) {
-    ndbout_c("blocks %s %d",blocks[i], strlen(blocks[i]));
-    len +=  strlen(blocks[i]);
+    len += strlen(blocks[i]) + 1;
   }
-  len += blocks.size()*2;
-  char * blockNames = (char*)malloc(len);
+  char * blockNames = (char*)my_malloc(len,MYF(MY_WME));
+  My_auto_ptr<char> ap1(blockNames);
   
+  blockNames[0] = 0;
   for(i=0; i<blocks.size(); i++) {
     strcat(blockNames, blocks[i]);
     strcat(blockNames, "|");
   }
-  strcat(blockNames, "\0");
-  ndbout_c("blocknames %s", blockNames);
   
-  /*int res =*/ndb_mgm_log_signals(m_mgmsrv,
+  int result = ndb_mgm_log_signals(m_mgmsrv,
 				   processId, 
 				   NDB_MGM_SIGNAL_LOG_MODE_INOUT, 
 				   blockNames,
 				   &reply);
-
-#if 0  
-  int result = 
-    _mgmtSrvr.setSignalLoggingMode(processId, MgmtSrvr::InOut, blocks);
   if (result != 0) {
-    ndbout << _mgmtSrvr.getErrorText(result) << endl;
+    ndbout_c("Execute LOG on node %d failed.", processId);
+    printError();
   }
-#endif
 }
 
 //*****************************************************************************
@@ -1351,17 +1396,7 @@ void
 CommandInterpreter::executeLogIn(int /* processId */,
 				 const char* parameters, bool /* all */) 
 {
-  Vector<const char*> blocks;
-  if (! parseBlockSpecification(parameters, blocks)) {
-    return;
-  }
-  
-#if 0
-  int result = _mgmtSrvr.setSignalLoggingMode(processId, MgmtSrvr::In, blocks);
-  if (result != 0) {
-    ndbout << _mgmtSrvr.getErrorText(result) << endl;
-  }
-#endif
+  ndbout << "Command LOGIN not implemented." << endl;
 }
 
 //*****************************************************************************
@@ -1370,19 +1405,7 @@ void
 CommandInterpreter::executeLogOut(int /*processId*/, 
 				  const char* parameters, bool /*all*/) 
 {
-  Vector<const char*> blocks;
-  if (! parseBlockSpecification(parameters, blocks)) {
-    return;
-  }
-
-
-#if 0
-  int result = _mgmtSrvr.setSignalLoggingMode(processId, MgmtSrvr::Out, 
-					      blocks);
-  if (result != 0) {
-    ndbout << _mgmtSrvr.getErrorText(result) << endl;
-  }
-#endif
+  ndbout << "Command LOGOUT not implemented." << endl;
 }
 
 //*****************************************************************************
@@ -1391,57 +1414,45 @@ void
 CommandInterpreter::executeLogOff(int /*processId*/,
 				  const char* parameters, bool /*all*/) 
 {
-  Vector<const char*> blocks;
-  if (! parseBlockSpecification(parameters, blocks)) {
-    return;
-  }
-
-  
-#if 0
-  int result = _mgmtSrvr.setSignalLoggingMode(processId, MgmtSrvr::Off, 
-					      blocks);
-  if (result != 0) {
-    ndbout << _mgmtSrvr.getErrorText(result) << endl;
-  }
-#endif
+  ndbout << "Command LOGOFF not implemented." << endl;
 }
 
 //*****************************************************************************
 //*****************************************************************************
 void 
-CommandInterpreter::executeTestOn(int /*processId*/, 
+CommandInterpreter::executeTestOn(int processId,
 				  const char* parameters, bool /*all*/) 
 {
   if (! emptyString(parameters)) {
     ndbout << "No parameters expected to this command." << endl;
     return;
   }
-
-#if 0
-  int result = _mgmtSrvr.startSignalTracing(processId);
+  connect();
+  struct ndb_mgm_reply reply;
+  int result = ndb_mgm_start_signallog(m_mgmsrv, processId, &reply);
   if (result != 0) {
-    ndbout << _mgmtSrvr.getErrorText(result) << endl;
+    ndbout_c("Execute TESTON failed.");
+    printError();
   }
-#endif
 }
 
 //*****************************************************************************
 //*****************************************************************************
 void 
-CommandInterpreter::executeTestOff(int /*processId*/, 
+CommandInterpreter::executeTestOff(int processId,
 				   const char* parameters, bool /*all*/) 
 {
   if (! emptyString(parameters)) {
     ndbout << "No parameters expected to this command." << endl;
     return;
   }
-
-#if 0
-  int result = _mgmtSrvr.stopSignalTracing(processId);
+  connect();
+  struct ndb_mgm_reply reply;
+  int result = ndb_mgm_stop_signallog(m_mgmsrv, processId, &reply);
   if (result != 0) {
-    ndbout << _mgmtSrvr.getErrorText(result) << endl;
+    ndbout_c("Execute TESTOFF failed.");
+    printError();
   }
-#endif
 }
 
 
@@ -1457,13 +1468,13 @@ CommandInterpreter::executeSet(int /*processId*/,
   }
 #if 0
   // Copy parameters since strtok will modify it
-  char* newpar = strdup(parameters);
+  char* newpar = my_strdup(parameters,MYF(MY_WME));
+  My_auto_ptr<char> ap1(newpar);
   char* configParameterName = strtok(newpar, " ");
 
   char* allAfterParameterName = strtok(NULL, "\0");
   if (emptyString(allAfterParameterName)) {
     ndbout << "Missing parameter value." << endl;
-    free(newpar);
     return;
   }
 
@@ -1472,7 +1483,6 @@ CommandInterpreter::executeSet(int /*processId*/,
   char* allAfterValue = strtok(NULL, "\0");
   if (! emptyString(allAfterValue)) {
     ndbout << "Nothing expected after parameter value." << endl;
-    free(newpar);
     return;
   }
 
@@ -1518,7 +1528,6 @@ CommandInterpreter::executeSet(int /*processId*/,
       abort();
     }
   }
-  free(newpar);
 #endif
 }
 
@@ -1556,54 +1565,41 @@ CommandInterpreter::executeEventReporting(int processId,
 					  bool all) 
 {
   connect();
-  SetLogLevelOrd logLevel; logLevel.clear();
-  char categoryTxt[255];
-  int level;  
-  LogLevel::EventCategory cat;
-  if (emptyString(parameters) || (strcmp(parameters, "ALL") == 0)) {
-    for(Uint32 i = 0; i<EventLogger::noOfEventCategoryNames; i++)
-      logLevel.setLogLevel(EventLogger::eventCategoryNames[i].category, 7);
-  } else {
 
-    char * tmpString = strdup(parameters);
-    char * tmpPtr = 0;
-    char * item = strtok_r(tmpString, ", ", &tmpPtr);
-    while(item != NULL){
-      const int m = sscanf(item, "%[^=]=%d", categoryTxt, &level);
-      if(m != 2){
-	free(tmpString);
-	ndbout << "Invalid loglevel specification category=level" << endl;
-	return;
-      }
-      
-      if(!EventLogger::matchEventCategory(categoryTxt,
-					  &cat)){
-	ndbout << "Invalid loglevel specification, unknown category: " 
-	       << categoryTxt << endl;
-	free(tmpString);
-	return ;
-      }
-      if(level < 0 || level > 15){
-	ndbout << "Invalid loglevel specification row, level 0-15" << endl;
-	free(tmpString);
-	return ;
-      }
-      logLevel.setLogLevel(cat, level);	
-      
-      item = strtok_r(NULL, ", ", &tmpPtr);
-    }
-    free(tmpString);
+  BaseString tmp(parameters);
+  Vector<BaseString> spec;
+  tmp.split(spec, "=");
+  if(spec.size() != 2){
+    ndbout << "Invalid loglevel specification: " << parameters << endl;
+    return;
   }
+
+  spec[0].trim().ndb_toupper();
+  int category = ndb_mgm_match_event_category(spec[0].c_str());
+  if(category == NDB_MGM_ILLEGAL_EVENT_CATEGORY){
+    category = atoi(spec[0].c_str());
+    if(category < NDB_MGM_MIN_EVENT_CATEGORY ||
+       category > NDB_MGM_MAX_EVENT_CATEGORY){
+      ndbout << "Unknown category: \"" << spec[0].c_str() << "\"" << endl;
+      return;
+    }
+  }
+  
+  int level = atoi(spec[1].c_str());
+  if(level < 0 || level > 15){
+    ndbout << "Invalid level: " << spec[1].c_str() << endl;
+    return;
+  }
+  
+
   struct ndb_mgm_reply reply;
   int result;
 
-  result = 
-    ndb_mgm_set_loglevel_clusterlog(m_mgmsrv, 
-				    processId, // fast fix - pekka
-				    (char*)
-                                      EventLogger::getEventCategoryName(cat),
-				    level, 
-				    &reply);
+  result = ndb_mgm_set_loglevel_clusterlog(m_mgmsrv, 
+					   processId, // fast fix - pekka
+					   (ndb_mgm_event_category)category,
+					   level, 
+					   &reply);
   
   if (result != 0) {
     ndbout_c("Executing CLUSTERLOG on node %d failed", processId);
@@ -1623,13 +1619,45 @@ CommandInterpreter::executeStartBackup(char* /*parameters*/)
   connect();
   struct ndb_mgm_reply reply;
   unsigned int backupId;
+
+  int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_BACKUP, 0 };
+  int fd = ndb_mgm_listen_event(m_mgmsrv, filter);
   int result = ndb_mgm_start_backup(m_mgmsrv, &backupId, &reply);
   if (result != 0) {
     ndbout << "Start of backup failed" << endl;
     printError();
-  } else {
-    ndbout << "Backup started. Backup id " << backupId << "." << endl;
+    close(fd);
+    return;
   }
+
+  char *tmp;
+  char buf[1024];
+  {
+    SocketInputStream in(fd);
+    int count = 0;
+    do {
+      tmp = in.gets(buf, 1024);
+      if(tmp)
+      {
+	ndbout << tmp;
+	unsigned int id;
+	if(sscanf(tmp, "%*[^:]: Backup %d ", &id) == 1 && id == backupId){
+	  count++;
+	}
+      }
+    } while(count < 2);
+  }
+
+  SocketInputStream in(fd, 10);
+  do {
+    tmp = in.gets(buf, 1024);
+    if(tmp && tmp[0] != 0)
+    {
+      ndbout << tmp;
+    }
+  } while(tmp && tmp[0] != 0);
+  
+  close(fd);
 }
 
 void
@@ -1690,7 +1718,8 @@ CommandInterpreter::executeRep(char* parameters)
   }
 
   connect();
-  char * line = strdup(parameters);
+  char * line = my_strdup(parameters,MYF(MY_WME));
+  My_auto_ptr<char> ap1((char*)line);
   char * firstToken = strtok(line, " ");
   
   struct ndb_rep_reply  reply;
@@ -1991,46 +2020,46 @@ CmdBackupCallback(const MgmtSrvr::BackupEvent & event){
   switch(event.Event){
   case MgmtSrvr::BackupEvent::BackupStarted:
     ok = true;
-    snprintf(str, sizeof(str), 
+    BaseString::snprintf(str, sizeof(str), 
 	     "Backup %d started", event.Started.BackupId);
     break;
   case MgmtSrvr::BackupEvent::BackupFailedToStart:
     ok = true;
-    snprintf(str, sizeof(str), 
+    BaseString::snprintf(str, sizeof(str), 
 	     "Backup failed to start (Error %d)",
 	     event.FailedToStart.ErrorCode);
     break;
   case MgmtSrvr::BackupEvent::BackupCompleted:
     ok = true;
-    snprintf(str, sizeof(str), 
+    BaseString::snprintf(str, sizeof(str), 
 	     "Backup %d completed", 
 	     event.Completed.BackupId);
     ndbout << str << endl;
 
-    snprintf(str, sizeof(str), 
+    BaseString::snprintf(str, sizeof(str), 
 	     " StartGCP: %d StopGCP: %d", 
 	     event.Completed.startGCP, event.Completed.stopGCP);
     ndbout << str << endl;
 
-    snprintf(str, sizeof(str), 
+    BaseString::snprintf(str, sizeof(str), 
 	     " #Records: %d #LogRecords: %d", 
 	     event.Completed.NoOfRecords, event.Completed.NoOfLogRecords);
     ndbout << str << endl;
 
-    snprintf(str, sizeof(str), 
+    BaseString::snprintf(str, sizeof(str), 
 	     " Data: %d bytes Log: %d bytes", 
 	     event.Completed.NoOfBytes, event.Completed.NoOfLogBytes);
     break;
   case MgmtSrvr::BackupEvent::BackupAborted:
     ok = true;
-    snprintf(str, sizeof(str), 
+    BaseString::snprintf(str, sizeof(str), 
 	     "Backup %d has been aborted reason %d",
 	     event.Aborted.BackupId,
 	     event.Aborted.Reason);
     break;
   }
   if(!ok){
-    snprintf(str, sizeof(str), 
+    BaseString::snprintf(str, sizeof(str), 
 	     "Unknown backup event: %d",
 	     event.Event);
     

@@ -1929,19 +1929,6 @@ void MYSQL_LOG::set_max_size(ulong max_size_arg)
 }
 
 
-Disable_binlog::Disable_binlog(THD *thd_arg) : 
-  thd(thd_arg), save_options(thd_arg->options)
-{
-  thd_arg->options&= ~OPTION_BIN_LOG;
-}
-
-
-Disable_binlog::~Disable_binlog()
-{
-  thd->options= save_options;
-}
-
-
 /*
   Check if a string is a valid number
 
@@ -2005,15 +1992,15 @@ void print_buffer_to_file(enum loglevel level, const char *buffer)
   skr=time(NULL);
   localtime_r(&skr, &tm_tmp);
   start=&tm_tmp;
-  fprintf(stderr, "%02d%02d%02d %2d:%02d:%02d  [%s] %s\n",
-    	  start->tm_year % 100,
-  	  start->tm_mon+1,
-	  start->tm_mday,
-	  start->tm_hour,
-	  start->tm_min,
-	  start->tm_sec,
+  fprintf(stderr, "%02d%02d%02d %2d:%02d:%02d [%s] %s\n",
+          start->tm_year % 100,
+          start->tm_mon+1,
+          start->tm_mday,
+          start->tm_hour,
+          start->tm_min,
+          start->tm_sec,
           (level == ERROR_LEVEL ? "ERROR" : level == WARNING_LEVEL ?
-           "WARNING" : "INFORMATION"),
+           "Warning" : "Note"),
           buffer);
 
   fflush(stderr);

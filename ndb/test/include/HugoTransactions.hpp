@@ -48,8 +48,8 @@ public:
   int pkReadRecords(Ndb*, 
 		    int records,
 		    int batchsize = 1,
-		    bool dirty = false);
-
+		    NdbOperation::LockMode = NdbOperation::LM_Read);
+  
   int scanUpdateRecords(Ndb*, 
 			int records,
 			int abort = 0,

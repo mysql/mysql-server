@@ -32,6 +32,7 @@
 #include <NdbOperation.hpp>
 
 class NdbBlob;
+class NdbResultSet;
 
 /**
  * @class NdbScanOperation
@@ -53,18 +54,6 @@ public:
     IndexCursor = 2
   };
 
-  /**
-   * Lock when performing scan
-   */
-  enum LockMode {
-    LM_Read = 0,
-    LM_Exclusive = 1,
-    LM_CommittedRead = 2,
-#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
-    LM_Dirty = 2
-#endif
-  };
-  
   /**
    * Type of cursor
    */
@@ -99,18 +88,19 @@ protected:
   CursorType m_cursor_type;
 
   NdbScanOperation(Ndb* aNdb);
-  ~NdbScanOperation();
+  virtual ~NdbScanOperation();
 
   int nextResult(bool fetchAllowed = true);
   virtual void release();
   
   void closeScan();
+  int close_impl(class TransporterFacade*);
 
   // Overloaded methods from NdbCursorOperation
   int executeCursor(int ProcessorId);
 
   // Overloaded private methods from NdbOperation
-  int init(NdbTableImpl* tab, NdbConnection* myConnection);
+  int init(const NdbTableImpl* tab, NdbConnection* myConnection);
   int prepareSend(Uint32  TC_ConnectPtr, Uint64  TransactionId);
   int doSend(int ProcessorId);
 
@@ -122,7 +112,6 @@ protected:
   NdbConnection *m_transConnection;
 
   // Scan related variables
-  Uint32 theBatchSize;
   Uint32 theParallelism;
   Uint32 m_keyInfo;
   NdbApiSignal* theSCAN_TABREQ;
@@ -132,6 +121,7 @@ protected:
   int prepareSendScan(Uint32 TC_ConnectPtr, Uint64 TransactionId);
   
   int fix_receivers(Uint32 parallel);
+  void reset_receivers(Uint32 parallel, Uint32 ordered);
   Uint32* m_array; // containing all arrays below
   Uint32 m_allocated_receivers;
   NdbReceiver** m_receivers;      // All receivers

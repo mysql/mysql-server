@@ -186,16 +186,14 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
           if (!ref.key_length)
             error= table->file->index_first(table->record[0]);
           else
-	  {
 	    error= table->file->index_read(table->record[0],key_buff,
 					   ref.key_length,
 					   range_fl & NEAR_MIN ?
 					   HA_READ_AFTER_KEY :
 					   HA_READ_KEY_OR_NEXT);
-	    if (!error && reckey_in_range(0, &ref, item_field->field, 
-					  conds, range_fl, prefix_len))
-	      error= HA_ERR_KEY_NOT_FOUND;
-	  }
+	  if (!error && reckey_in_range(0, &ref, item_field->field, 
+			                conds, range_fl, prefix_len))
+	    error= HA_ERR_KEY_NOT_FOUND;
           if (table->key_read)
           {
             table->key_read= 0;
@@ -260,16 +258,14 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
           if (!ref.key_length)
             error= table->file->index_last(table->record[0]);
           else
-	  {
 	    error= table->file->index_read(table->record[0], key_buff,
 					   ref.key_length,
 					   range_fl & NEAR_MAX ?
 					   HA_READ_BEFORE_KEY :
 					   HA_READ_PREFIX_LAST_OR_PREV);
-	    if (!error && reckey_in_range(1, &ref, item_field->field, 
-					  conds, range_fl, prefix_len))
-	      error= HA_ERR_KEY_NOT_FOUND;
-	  }
+	  if (!error && reckey_in_range(1, &ref, item_field->field, 
+			                conds, range_fl, prefix_len))
+	    error= HA_ERR_KEY_NOT_FOUND;
           if (table->key_read)
           {
             table->key_read=0;

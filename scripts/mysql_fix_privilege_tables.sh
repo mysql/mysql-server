@@ -176,7 +176,7 @@ then
   s_echo "done"
 else
   s_echo "Got a failure from command:"
-  s_echo "$cmd"
+  s_echo "cat $sql_file | $cmd"
   s_echo "Please check the above output and try again."
   if test $verbose = 0
   then
