@@ -77,3 +77,8 @@ NdbResultSet::deleteTuple(NdbConnection * takeOverTrans){
     return -1;
   return 0;
 }
+
+int
+NdbResultSet::restart(){
+  return m_operation->restart();
+}
