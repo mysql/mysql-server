@@ -1,0 +1,47 @@
+#
+# Check null keys
+
+drop table if exists t1;
+create table t1 (a int, b int not null,unique key (a,b),index(b)) type=myisam;
+insert ignore into t1 values (1,1),(2,2),(3,3),(4,4),(5,5),(6,6),(null,7),(9,9),(8,8),(7,7),(null,9),(null,9),(6,6);
+explain select * from t1 where a is null;
+explain select * from t1 where a is null and b = 2;
+explain select * from t1 where a is null and b = 7;
+explain select * from t1 where a=2 and b = 2;
+explain select * from t1 where a<=>b limit 2;
+explain select * from t1 where (a is null or a > 0 and a < 3) and b < 5 limit 3;
+explain select * from t1 where (a is null or a = 7) and b=7;
+explain select * from t1 where (a is null and b>a) or a is null and b=7 limit 2;
+explain select * from t1 where a is null and b=9 or a is null and b=7 limit 3;
+explain select * from t1 where a > 1 and a < 3 limit 1;
+explain select * from t1 where a > 8 and a < 9;
+select * from t1 where a is null;
+select * from t1 where a is null and b = 7;
+select * from t1 where a<=>b limit 2;
+select * from t1 where (a is null or a > 0 and a < 3) and b < 5 limit 3;
+select * from t1 where (a is null or a > 0 and a < 3) and b > 7 limit 3;
+select * from t1 where (a is null or a = 7) and b=7;
+select * from t1 where a is null and b=9 or a is null and b=7 limit 3;
+alter table t1 modify b blob not null, add c int not null, drop key a, add unique key (a,b(20),c), drop key b, add key (b(10));
+explain select * from t1 where a is null and b = 2;
+explain select * from t1 where a is null and b = 2 and c=0;
+explain select * from t1 where a is null and b = 7 and c=0;
+explain select * from t1 where a=2 and b = 2;
+explain select * from t1 where a<=>b limit 2;
+explain select * from t1 where (a is null or a > 0 and a < 3) and b < 5 and c=0 limit 3;
+explain select * from t1 where (a is null or a = 7) and b=7 and c=0;
+explain select * from t1 where (a is null and b>a) or a is null and b=7 limit 2;
+explain select * from t1 where a is null and b=9 or a is null and b=7 limit 3;
+explain select * from t1 where a > 1 and a < 3 limit 1;
+explain select * from t1 where a is null and b=7 or a > 1 and a < 3 limit 1;
+explain select * from t1 where a > 8 and a < 9;
+explain select * from t1 where b like "6%";
+select * from t1 where a is null;
+select * from t1 where a is null and b = 7 and c=0;
+select * from t1 where a<=>b limit 2;
+select * from t1 where (a is null or a > 0 and a < 3) and b < 5 limit 3;
+select * from t1 where (a is null or a > 0 and a < 3) and b > 7 limit 3;
+select * from t1 where (a is null or a = 7) and b=7 and c=0;
+select * from t1 where a is null and b=9 or a is null and b=7 limit 3;
+select * from t1 where b like "6%";
+drop table t1;

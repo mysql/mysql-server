@@ -301,7 +301,7 @@ public:
   {
     return (transaction.all.bdb_tid != 0 ||
 	    transaction.all.innobase_tid != 0 || 
-	    transaction.all.gemeni_tid != 0);
+	    transaction.all.gemini_tid != 0);
   }
   inline gptr alloc(unsigned int size) { return alloc_root(&mem_root,size); }
   inline gptr calloc(unsigned int size)

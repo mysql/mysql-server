@@ -1,0 +1,26 @@
+#
+# Test of rename table
+#
+
+drop table if exists t1,t2,t3,t4;
+create table t0 SELECT 1,"table 1";
+create table t2 SELECT 2,"table 2";
+create table t3 SELECT 3,"table 3";
+rename table t0 to t1;
+rename table t3 to t4, t2 to t3, t1 to t2, t4 to t1;
+select * from t1;
+rename table t3 to t4, t2 to t3, t1 to t2, t4 to t1;
+rename table t3 to t4, t2 to t3, t1 to t2, t4 to t1;
+select * from t1;
+# The following should give errors
+!$1050 rename table t1 to t2;
+!$1050 rename table t1 to t1;
+!$1050 rename table t3 to t4, t2 to t3, t1 to t2, t4 to t2;
+show tables like "t_";
+!$1050 rename table t3 to t1, t2 to t3, t1 to t2, t4 to t1;
+!$1017 rename table t3 to t4, t5 to t3, t1 to t2, t4 to t1;
+
+select * from t1;
+select * from t2;
+select * from t3;
+drop table if exists t1,t2,t3,t4;

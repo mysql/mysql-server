@@ -25,7 +25,7 @@
 #define NO_HASH				/* Not yet implemented */
 #endif
 
-#if defined(HAVE_BERKELEY_DB) || defined(HAVE_INNOBASE_DB) || defined(HAVE_GEMENI_DB)
+#if defined(HAVE_BERKELEY_DB) || defined(HAVE_INNOBASE_DB) || defined(HAVE_GEMINI_DB)
 #define USING_TRANSACTIONS
 #endif
 
@@ -121,7 +121,7 @@ enum row_type { ROW_TYPE_DEFAULT, ROW_TYPE_FIXED, ROW_TYPE_DYNAMIC,
 typedef struct st_thd_trans {
   void *bdb_tid;
   void *innobase_tid;
-  void *gemeni_tid;
+  void *gemini_tid;
 } THD_TRANS;
 
 typedef struct st_ha_create_information

@@ -2571,7 +2571,7 @@ PMP Computer Solutions. Database developers using @strong{MySQL} and
 @item @uref{http://www.aewa.org/}@*
 Airborne Early Warning Association.
 
-@item @uref{http://21ccs.com/~gboersm/y2kmatrix/}@*
+@item @uref{http://www.dedserius.com/y2kmatrix/}@*
 Y2K tester.
 @end itemize
 
@@ -4493,8 +4493,14 @@ China [linuxforum.net] @
 @item
 @c EMAIL: Vincent_Fong@innovator.com.hk (Vincent Fong)
 @c @image{Flags/china}
-China [Hong Kong] @
+China [ISL/Hong Kong] @
 @uref{http://mysql.islnet.net, WWW}
+
+@item
+@c EMAIL: marquischan@hotmail.com (Marquis Chan)
+@c @image{Flags/china}
+China [TraLand.com/Hong Kong] @
+@uref{http://www.traland.com/mysql/, WWW}
 
 @c @item
 @c Not ok 20000919; Non-existent (Matt)
@@ -20271,7 +20277,7 @@ differ somewhat:
 | flush                   | OFF                       |
 | flush_time              | 0                         |
 | have_bdb                | YES                       |
-| have_gemeni             | NO                        |
+| have_gemini             | NO                        |
 | have_innobase           | YES                       |
 | have_raid               | YES                       |
 | have_ssl                | NO                        |
@@ -20449,9 +20455,9 @@ very little resources.
 @item @code{have_bdb}
 @code{YES} if @code{mysqld} supports Berkeley DB tables. @code{DISABLED}
 if @code{--skip-bdb} is used.
-@item @code{have_gemeni}
-@code{YES} if @code{mysqld} supports Gemeni tables. @code{DISABLED}
-if @code{--skip-gemeni} is used.
+@item @code{have_gemini}
+@code{YES} if @code{mysqld} supports Gemini tables. @code{DISABLED}
+if @code{--skip-gemini} is used.
 @item @code{have_innobase}
 @code{YES} if @code{mysqld} supports Innobase tables. @code{DISABLED}
 if @code{--skip-innobase} is used.
@@ -40050,9 +40056,12 @@ though, so Version 3.23 is not released as a stable version yet.
 @appendixsubsec Changes in release 3.23.30
 @itemize @bullet
 @item
+Allow hex constants in the @code{--fields-*-by} and
+@code{--lines-terminated-by} options to @code{mysqldump}. By Paul DuBois.
+@item
 Added option @code{--safe-show-databases}.
 @item
-Added @code{have_bdb}, @code{have_gemeni}, @code{have_innobase},
+Added @code{have_bdb}, @code{have_gemini}, @code{have_innobase},
 @code{have_raid} and @code{have_ssl} to @code{SHOW VARIABLES} to make it
 easy to test for supported extensions.
 @item

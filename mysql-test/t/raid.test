@@ -1,0 +1,195 @@
+-- require r/have_raid.require
+show variables like "have_raid";
+
+#
+# Test of raided tables
+#
+
+DROP TABLE IF EXISTS t1,t2;
+CREATE TABLE t1 (
+id int unsigned not null auto_increment primary key,
+c char(255) not null
+) RAID_TYPE=STRIPED RAID_CHUNKS=2 RAID_CHUNKSIZE=123;
+INSERT INTO t1 VALUES 
+(NULL,'1'),(NULL,'a'),(NULL,'a'),(NULL,'a'),(NULL,'p'),(NULL,'a'),
+(NULL,'2'),(NULL,'b'),(NULL,'a'),(NULL,'a'),(NULL,'q'),(NULL,'a'),
+(NULL,'3'),(NULL,'c'),(NULL,'a'),(NULL,'a'),(NULL,'r'),(NULL,'a'),
+(NULL,'4'),(NULL,'d'),(NULL,'a'),(NULL,'a'),(NULL,'s'),(NULL,'a'),
+(NULL,'5'),(NULL,'e'),(NULL,'a'),(NULL,'a'),(NULL,'t'),(NULL,'a'),
+(NULL,'6'),(NULL,'f'),(NULL,'a'),(NULL,'a'),(NULL,'u'),(NULL,'a'),
+(NULL,'7'),(NULL,'g'),(NULL,'a'),(NULL,'a'),(NULL,'v'),(NULL,'a'),
+(NULL,'8'),(NULL,'h'),(NULL,'a'),(NULL,'a'),(NULL,'w'),(NULL,'a'),
+(NULL,'9'),(NULL,'i'),(NULL,'a'),(NULL,'a'),(NULL,'x'),(NULL,'a'),
+(NULL,'0'),(NULL,'j'),(NULL,'a'),(NULL,'a'),(NULL,'y'),(NULL,'a'),
+(NULL,'1'),(NULL,'k'),(NULL,'a'),(NULL,'a'),(NULL,'z'),(NULL,'a'),
+(NULL,'2'),(NULL,'l'),(NULL,'a'),(NULL,'a'),(NULL,'/'),(NULL,'a'),
+(NULL,'3'),(NULL,'m'),(NULL,'a'),(NULL,'a'),(NULL,'*'),(NULL,'a'),
+(NULL,'4'),(NULL,'n'),(NULL,'a'),(NULL,'a'),(NULL,'+'),(NULL,'a'),
+(NULL,'5'),(NULL,'o'),(NULL,'a'),(NULL,'a'),(NULL,'?'),(NULL,'a');
+INSERT INTO t1 VALUES 
+(NULL,'1'),(NULL,'a'),(NULL,'a'),(NULL,'a'),(NULL,'p'),(NULL,'a'),
+(NULL,'2'),(NULL,'b'),(NULL,'a'),(NULL,'a'),(NULL,'q'),(NULL,'a'),
+(NULL,'3'),(NULL,'c'),(NULL,'a'),(NULL,'a'),(NULL,'r'),(NULL,'a'),
+(NULL,'4'),(NULL,'d'),(NULL,'a'),(NULL,'a'),(NULL,'s'),(NULL,'a'),
+(NULL,'5'),(NULL,'e'),(NULL,'a'),(NULL,'a'),(NULL,'t'),(NULL,'a'),
+(NULL,'6'),(NULL,'f'),(NULL,'a'),(NULL,'a'),(NULL,'u'),(NULL,'a'),
+(NULL,'7'),(NULL,'g'),(NULL,'a'),(NULL,'a'),(NULL,'v'),(NULL,'a'),
+(NULL,'8'),(NULL,'h'),(NULL,'a'),(NULL,'a'),(NULL,'w'),(NULL,'a'),
+(NULL,'9'),(NULL,'i'),(NULL,'a'),(NULL,'a'),(NULL,'x'),(NULL,'a'),
+(NULL,'0'),(NULL,'j'),(NULL,'a'),(NULL,'a'),(NULL,'y'),(NULL,'a'),
+(NULL,'1'),(NULL,'k'),(NULL,'a'),(NULL,'a'),(NULL,'z'),(NULL,'a'),
+(NULL,'2'),(NULL,'l'),(NULL,'a'),(NULL,'a'),(NULL,'/'),(NULL,'a'),
+(NULL,'3'),(NULL,'m'),(NULL,'a'),(NULL,'a'),(NULL,'*'),(NULL,'a'),
+(NULL,'4'),(NULL,'n'),(NULL,'a'),(NULL,'a'),(NULL,'+'),(NULL,'a'),
+(NULL,'5'),(NULL,'o'),(NULL,'a'),(NULL,'a'),(NULL,'?'),(NULL,'a');
+INSERT INTO t1 VALUES 
+(NULL,'1'),(NULL,'a'),(NULL,'a'),(NULL,'a'),(NULL,'p'),(NULL,'a'),
+(NULL,'2'),(NULL,'b'),(NULL,'a'),(NULL,'a'),(NULL,'q'),(NULL,'a'),
+(NULL,'3'),(NULL,'c'),(NULL,'a'),(NULL,'a'),(NULL,'r'),(NULL,'a'),
+(NULL,'4'),(NULL,'d'),(NULL,'a'),(NULL,'a'),(NULL,'s'),(NULL,'a'),
+(NULL,'5'),(NULL,'e'),(NULL,'a'),(NULL,'a'),(NULL,'t'),(NULL,'a'),
+(NULL,'6'),(NULL,'f'),(NULL,'a'),(NULL,'a'),(NULL,'u'),(NULL,'a'),
+(NULL,'7'),(NULL,'g'),(NULL,'a'),(NULL,'a'),(NULL,'v'),(NULL,'a'),
+(NULL,'8'),(NULL,'h'),(NULL,'a'),(NULL,'a'),(NULL,'w'),(NULL,'a'),
+(NULL,'9'),(NULL,'i'),(NULL,'a'),(NULL,'a'),(NULL,'x'),(NULL,'a'),
+(NULL,'0'),(NULL,'j'),(NULL,'a'),(NULL,'a'),(NULL,'y'),(NULL,'a'),
+(NULL,'1'),(NULL,'k'),(NULL,'a'),(NULL,'a'),(NULL,'z'),(NULL,'a'),
+(NULL,'2'),(NULL,'l'),(NULL,'a'),(NULL,'a'),(NULL,'/'),(NULL,'a'),
+(NULL,'3'),(NULL,'m'),(NULL,'a'),(NULL,'a'),(NULL,'*'),(NULL,'a'),
+(NULL,'4'),(NULL,'n'),(NULL,'a'),(NULL,'a'),(NULL,'+'),(NULL,'a'),
+(NULL,'5'),(NULL,'o'),(NULL,'a'),(NULL,'a'),(NULL,'?'),(NULL,'a');
+INSERT INTO t1 VALUES 
+(NULL,'1'),(NULL,'a'),(NULL,'a'),(NULL,'a'),(NULL,'p'),(NULL,'a'),
+(NULL,'2'),(NULL,'b'),(NULL,'a'),(NULL,'a'),(NULL,'q'),(NULL,'a'),
+(NULL,'3'),(NULL,'c'),(NULL,'a'),(NULL,'a'),(NULL,'r'),(NULL,'a'),
+(NULL,'4'),(NULL,'d'),(NULL,'a'),(NULL,'a'),(NULL,'s'),(NULL,'a'),
+(NULL,'5'),(NULL,'e'),(NULL,'a'),(NULL,'a'),(NULL,'t'),(NULL,'a'),
+(NULL,'6'),(NULL,'f'),(NULL,'a'),(NULL,'a'),(NULL,'u'),(NULL,'a'),
+(NULL,'7'),(NULL,'g'),(NULL,'a'),(NULL,'a'),(NULL,'v'),(NULL,'a'),
+(NULL,'8'),(NULL,'h'),(NULL,'a'),(NULL,'a'),(NULL,'w'),(NULL,'a'),
+(NULL,'9'),(NULL,'i'),(NULL,'a'),(NULL,'a'),(NULL,'x'),(NULL,'a'),
+(NULL,'0'),(NULL,'j'),(NULL,'a'),(NULL,'a'),(NULL,'y'),(NULL,'a'),
+(NULL,'1'),(NULL,'k'),(NULL,'a'),(NULL,'a'),(NULL,'z'),(NULL,'a'),
+(NULL,'2'),(NULL,'l'),(NULL,'a'),(NULL,'a'),(NULL,'/'),(NULL,'a'),
+(NULL,'3'),(NULL,'m'),(NULL,'a'),(NULL,'a'),(NULL,'*'),(NULL,'a'),
+(NULL,'4'),(NULL,'n'),(NULL,'a'),(NULL,'a'),(NULL,'+'),(NULL,'a'),
+(NULL,'5'),(NULL,'o'),(NULL,'a'),(NULL,'a'),(NULL,'?'),(NULL,'a');
+INSERT INTO t1 VALUES 
+(NULL,'1'),(NULL,'a'),(NULL,'a'),(NULL,'a'),(NULL,'p'),(NULL,'a'),
+(NULL,'2'),(NULL,'b'),(NULL,'a'),(NULL,'a'),(NULL,'q'),(NULL,'a'),
+(NULL,'3'),(NULL,'c'),(NULL,'a'),(NULL,'a'),(NULL,'r'),(NULL,'a'),
+(NULL,'4'),(NULL,'d'),(NULL,'a'),(NULL,'a'),(NULL,'s'),(NULL,'a'),
+(NULL,'5'),(NULL,'e'),(NULL,'a'),(NULL,'a'),(NULL,'t'),(NULL,'a'),
+(NULL,'6'),(NULL,'f'),(NULL,'a'),(NULL,'a'),(NULL,'u'),(NULL,'a'),
+(NULL,'7'),(NULL,'g'),(NULL,'a'),(NULL,'a'),(NULL,'v'),(NULL,'a'),
+(NULL,'8'),(NULL,'h'),(NULL,'a'),(NULL,'a'),(NULL,'w'),(NULL,'a'),
+(NULL,'9'),(NULL,'i'),(NULL,'a'),(NULL,'a'),(NULL,'x'),(NULL,'a'),
+(NULL,'0'),(NULL,'j'),(NULL,'a'),(NULL,'a'),(NULL,'y'),(NULL,'a'),
+(NULL,'1'),(NULL,'k'),(NULL,'a'),(NULL,'a'),(NULL,'z'),(NULL,'a'),
+(NULL,'2'),(NULL,'l'),(NULL,'a'),(NULL,'a'),(NULL,'/'),(NULL,'a'),
+(NULL,'3'),(NULL,'m'),(NULL,'a'),(NULL,'a'),(NULL,'*'),(NULL,'a'),
+(NULL,'4'),(NULL,'n'),(NULL,'a'),(NULL,'a'),(NULL,'+'),(NULL,'a'),
+(NULL,'5'),(NULL,'o'),(NULL,'a'),(NULL,'a'),(NULL,'?'),(NULL,'a');
+select count(*) from t1;
+ALTER TABLE t1 ADD COLUMN x INT UNSIGNED NOT NULL;
+ALTER TABLE t1 ADD KEY c (c);
+ALTER TABLE t1 DROP KEY c;
+ALTER TABLE t1 DROP COLUMN x;
+ALTER TABLE t1 RENAME t2;
+select count(*) from t2;
+DROP TABLE t2;
+/* variable rows */
+DROP TABLE IF EXISTS t2;
+CREATE TABLE t1 (
+id int unsigned not null auto_increment primary key,
+c varchar(255) not null
+) RAID_TYPE=STRIPED RAID_CHUNKS=5 RAID_CHUNKSIZE=121;
+INSERT INTO t1 VALUES 
+(NULL,'1'),(NULL,'a'),(NULL,'a'),(NULL,'a'),(NULL,'p'),(NULL,'a'),
+(NULL,'2'),(NULL,'b'),(NULL,'a'),(NULL,'a'),(NULL,'q'),(NULL,'a'),
+(NULL,'3'),(NULL,'c'),(NULL,'a'),(NULL,'a'),(NULL,'r'),(NULL,'a'),
+(NULL,'4'),(NULL,'d'),(NULL,'a'),(NULL,'a'),(NULL,'s'),(NULL,'a'),
+(NULL,'5'),(NULL,'e'),(NULL,'a'),(NULL,'a'),(NULL,'t'),(NULL,'a'),
+(NULL,'6'),(NULL,'f'),(NULL,'a'),(NULL,'a'),(NULL,'u'),(NULL,'a'),
+(NULL,'7'),(NULL,'g'),(NULL,'a'),(NULL,'a'),(NULL,'v'),(NULL,'a'),
+(NULL,'8'),(NULL,'h'),(NULL,'a'),(NULL,'a'),(NULL,'w'),(NULL,'a'),
+(NULL,'9'),(NULL,'i'),(NULL,'a'),(NULL,'a'),(NULL,'x'),(NULL,'a'),
+(NULL,'0'),(NULL,'j'),(NULL,'a'),(NULL,'a'),(NULL,'y'),(NULL,'a'),
+(NULL,'1'),(NULL,'k'),(NULL,'a'),(NULL,'a'),(NULL,'z'),(NULL,'a'),
+(NULL,'2'),(NULL,'l'),(NULL,'a'),(NULL,'a'),(NULL,'/'),(NULL,'a'),
+(NULL,'3'),(NULL,'m'),(NULL,'a'),(NULL,'a'),(NULL,'*'),(NULL,'a'),
+(NULL,'4'),(NULL,'n'),(NULL,'a'),(NULL,'a'),(NULL,'+'),(NULL,'a'),
+(NULL,'5'),(NULL,'o'),(NULL,'a'),(NULL,'a'),(NULL,'?'),(NULL,'a');
+INSERT INTO t1 VALUES 
+(NULL,'1'),(NULL,'a'),(NULL,'a'),(NULL,'a'),(NULL,'p'),(NULL,'a'),
+(NULL,'2'),(NULL,'b'),(NULL,'a'),(NULL,'a'),(NULL,'q'),(NULL,'a'),
+(NULL,'3'),(NULL,'c'),(NULL,'a'),(NULL,'a'),(NULL,'r'),(NULL,'a'),
+(NULL,'4'),(NULL,'d'),(NULL,'a'),(NULL,'a'),(NULL,'s'),(NULL,'a'),
+(NULL,'5'),(NULL,'e'),(NULL,'a'),(NULL,'a'),(NULL,'t'),(NULL,'a'),
+(NULL,'6'),(NULL,'f'),(NULL,'a'),(NULL,'a'),(NULL,'u'),(NULL,'a'),
+(NULL,'7'),(NULL,'g'),(NULL,'a'),(NULL,'a'),(NULL,'v'),(NULL,'a'),
+(NULL,'8'),(NULL,'h'),(NULL,'a'),(NULL,'a'),(NULL,'w'),(NULL,'a'),
+(NULL,'9'),(NULL,'i'),(NULL,'a'),(NULL,'a'),(NULL,'x'),(NULL,'a'),
+(NULL,'0'),(NULL,'j'),(NULL,'a'),(NULL,'a'),(NULL,'y'),(NULL,'a'),
+(NULL,'1'),(NULL,'k'),(NULL,'a'),(NULL,'a'),(NULL,'z'),(NULL,'a'),
+(NULL,'2'),(NULL,'l'),(NULL,'a'),(NULL,'a'),(NULL,'/'),(NULL,'a'),
+(NULL,'3'),(NULL,'m'),(NULL,'a'),(NULL,'a'),(NULL,'*'),(NULL,'a'),
+(NULL,'4'),(NULL,'n'),(NULL,'a'),(NULL,'a'),(NULL,'+'),(NULL,'a'),
+(NULL,'5'),(NULL,'o'),(NULL,'a'),(NULL,'a'),(NULL,'?'),(NULL,'a');
+INSERT INTO t1 VALUES 
+(NULL,'1'),(NULL,'a'),(NULL,'a'),(NULL,'a'),(NULL,'p'),(NULL,'a'),
+(NULL,'2'),(NULL,'b'),(NULL,'a'),(NULL,'a'),(NULL,'q'),(NULL,'a'),
+(NULL,'3'),(NULL,'c'),(NULL,'a'),(NULL,'a'),(NULL,'r'),(NULL,'a'),
+(NULL,'4'),(NULL,'d'),(NULL,'a'),(NULL,'a'),(NULL,'s'),(NULL,'a'),
+(NULL,'5'),(NULL,'e'),(NULL,'a'),(NULL,'a'),(NULL,'t'),(NULL,'a'),
+(NULL,'6'),(NULL,'f'),(NULL,'a'),(NULL,'a'),(NULL,'u'),(NULL,'a'),
+(NULL,'7'),(NULL,'g'),(NULL,'a'),(NULL,'a'),(NULL,'v'),(NULL,'a'),
+(NULL,'8'),(NULL,'h'),(NULL,'a'),(NULL,'a'),(NULL,'w'),(NULL,'a'),
+(NULL,'9'),(NULL,'i'),(NULL,'a'),(NULL,'a'),(NULL,'x'),(NULL,'a'),
+(NULL,'0'),(NULL,'j'),(NULL,'a'),(NULL,'a'),(NULL,'y'),(NULL,'a'),
+(NULL,'1'),(NULL,'k'),(NULL,'a'),(NULL,'a'),(NULL,'z'),(NULL,'a'),
+(NULL,'2'),(NULL,'l'),(NULL,'a'),(NULL,'a'),(NULL,'/'),(NULL,'a'),
+(NULL,'3'),(NULL,'m'),(NULL,'a'),(NULL,'a'),(NULL,'*'),(NULL,'a'),
+(NULL,'4'),(NULL,'n'),(NULL,'a'),(NULL,'a'),(NULL,'+'),(NULL,'a'),
+(NULL,'5'),(NULL,'o'),(NULL,'a'),(NULL,'a'),(NULL,'?'),(NULL,'a');
+INSERT INTO t1 VALUES 
+(NULL,'1'),(NULL,'a'),(NULL,'a'),(NULL,'a'),(NULL,'p'),(NULL,'a'),
+(NULL,'2'),(NULL,'b'),(NULL,'a'),(NULL,'a'),(NULL,'q'),(NULL,'a'),
+(NULL,'3'),(NULL,'c'),(NULL,'a'),(NULL,'a'),(NULL,'r'),(NULL,'a'),
+(NULL,'4'),(NULL,'d'),(NULL,'a'),(NULL,'a'),(NULL,'s'),(NULL,'a'),
+(NULL,'5'),(NULL,'e'),(NULL,'a'),(NULL,'a'),(NULL,'t'),(NULL,'a'),
+(NULL,'6'),(NULL,'f'),(NULL,'a'),(NULL,'a'),(NULL,'u'),(NULL,'a'),
+(NULL,'7'),(NULL,'g'),(NULL,'a'),(NULL,'a'),(NULL,'v'),(NULL,'a'),
+(NULL,'8'),(NULL,'h'),(NULL,'a'),(NULL,'a'),(NULL,'w'),(NULL,'a'),
+(NULL,'9'),(NULL,'i'),(NULL,'a'),(NULL,'a'),(NULL,'x'),(NULL,'a'),
+(NULL,'0'),(NULL,'j'),(NULL,'a'),(NULL,'a'),(NULL,'y'),(NULL,'a'),
+(NULL,'1'),(NULL,'k'),(NULL,'a'),(NULL,'a'),(NULL,'z'),(NULL,'a'),
+(NULL,'2'),(NULL,'l'),(NULL,'a'),(NULL,'a'),(NULL,'/'),(NULL,'a'),
+(NULL,'3'),(NULL,'m'),(NULL,'a'),(NULL,'a'),(NULL,'*'),(NULL,'a'),
+(NULL,'4'),(NULL,'n'),(NULL,'a'),(NULL,'a'),(NULL,'+'),(NULL,'a'),
+(NULL,'5'),(NULL,'o'),(NULL,'a'),(NULL,'a'),(NULL,'?'),(NULL,'a');
+INSERT INTO t1 VALUES 
+(NULL,'1'),(NULL,'a'),(NULL,'a'),(NULL,'a'),(NULL,'p'),(NULL,'a'),
+(NULL,'2'),(NULL,'b'),(NULL,'a'),(NULL,'a'),(NULL,'q'),(NULL,'a'),
+(NULL,'3'),(NULL,'c'),(NULL,'a'),(NULL,'a'),(NULL,'r'),(NULL,'a'),
+(NULL,'4'),(NULL,'d'),(NULL,'a'),(NULL,'a'),(NULL,'s'),(NULL,'a'),
+(NULL,'5'),(NULL,'e'),(NULL,'a'),(NULL,'a'),(NULL,'t'),(NULL,'a'),
+(NULL,'6'),(NULL,'f'),(NULL,'a'),(NULL,'a'),(NULL,'u'),(NULL,'a'),
+(NULL,'7'),(NULL,'g'),(NULL,'a'),(NULL,'a'),(NULL,'v'),(NULL,'a'),
+(NULL,'8'),(NULL,'h'),(NULL,'a'),(NULL,'a'),(NULL,'w'),(NULL,'a'),
+(NULL,'9'),(NULL,'i'),(NULL,'a'),(NULL,'a'),(NULL,'x'),(NULL,'a'),
+(NULL,'0'),(NULL,'j'),(NULL,'a'),(NULL,'a'),(NULL,'y'),(NULL,'a'),
+(NULL,'1'),(NULL,'k'),(NULL,'a'),(NULL,'a'),(NULL,'z'),(NULL,'a'),
+(NULL,'2'),(NULL,'l'),(NULL,'a'),(NULL,'a'),(NULL,'/'),(NULL,'a'),
+(NULL,'3'),(NULL,'m'),(NULL,'a'),(NULL,'a'),(NULL,'*'),(NULL,'a'),
+(NULL,'4'),(NULL,'n'),(NULL,'a'),(NULL,'a'),(NULL,'+'),(NULL,'a'),
+(NULL,'5'),(NULL,'o'),(NULL,'a'),(NULL,'a'),(NULL,'?'),(NULL,'a');
+select count(*) from t1;
+ALTER TABLE t1 ADD COLUMN x INT UNSIGNED NOT NULL;
+ALTER TABLE t1 ADD KEY c (c);
+ALTER TABLE t1 DROP KEY c;
+ALTER TABLE t1 DROP COLUMN x;
+ALTER TABLE t1 RENAME t2;
+ALTER TABLE t2 CHANGE COLUMN c c VARCHAR(251) NOT NULL;
+select count(*) from t2;
+DROP TABLE t2;

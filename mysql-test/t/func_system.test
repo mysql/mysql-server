@@ -1,0 +1,6 @@
+#
+# system functions
+#
+
+select database(),user();
+select version()>="3.23.29";

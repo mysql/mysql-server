@@ -1,0 +1,66 @@
+#
+# Test of auto_increment;  The test for BDB tables is in bdb.test
+#
+
+create table t1 (a int not null auto_increment,b int, primary key (a)) type=myisam auto_increment=3;
+insert into t1 values (1,1),(NULL,3),(NULL,4);
+delete from t1 where a=4;
+insert into t1 values (NULL,5),(NULL,6);
+select * from t1;
+delete from t1 where a=6;
+#show table status like "t1";
+replace t1 values (3,1);
+ALTER TABLE t1 add c int;
+replace t1 values (3,3,3);
+insert into t1 values (NULL,7,7);
+update t1 set a=8,b=b+1,c=c+1 where a=7;
+insert into t1 values (NULL,9,9);
+select * from t1;
+drop table t1;
+
+create table t1 (a int not null auto_increment,b int, primary key (a)) type=isam;
+insert into t1 values (1,1),(NULL,2),(3,3),(NULL,4);
+delete from t1 where a=4 or a=2;
+insert into t1 values (NULL,4),(NULL,5),(6,6);
+select * from t1;
+delete from t1 where a=6;
+#show table status like "t1";
+replace t1 values (3,1);
+replace t1 values (3,3);
+ALTER TABLE t1 add c int;
+insert into t1 values (NULL,6,6);
+select * from t1;
+drop table t1;
+
+create table t1 (
+  skey tinyint unsigned NOT NULL auto_increment PRIMARY KEY,
+  sval char(20)
+);
+insert into t1 values (NULL, "hello");
+insert into t1 values (NULL, "hey");
+select * from t1;
+select _rowid,t1._rowid,skey,sval from t1;
+drop table t1;
+
+#
+# Test auto_increment on sub key
+#
+create table t1 (a char(10) not null, b int not null auto_increment, primary key(a,b));
+insert into t1 values ("a",1),("b",2),("a",2),("c",1);
+insert into t1 values ("a",NULL),("b",NULL),("c",NULL),("e",NULL);
+insert into t1 (a) values ("a"),("b"),("c"),("d");
+insert into t1 (a) values ('k'),('d');
+insert into t1 (a) values ("a");
+insert into t1 values ("d",last_insert_id());
+select * from t1;
+drop table t1;
+
+create table t1 (ordid int(8) not null auto_increment, ord  varchar(50) not null, primary key (ordid), index(ord,ordid)); 
+insert into t1 (ordid,ord) values (NULL,'sdj'),(NULL,'sdj');
+select * from t1;
+drop table t1;
+
+create table t1 (ordid int(8) not null auto_increment, ord  varchar(50) not null, primary key (ord,ordid));
+insert into t1 values (NULL,'sdj'),(NULL,'sdj'),(NULL,"abc"),(NULL,'abc'),(NULL,'zzz'),(NULL,'sdj'),(NULL,'abc');
+select * from t1;
+drop table t1;
