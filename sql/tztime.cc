@@ -1498,7 +1498,7 @@ my_tz_init(THD *org_thd, const char *default_tzname, my_bool bootstrap)
   {
     sql_print_error("Fatal error: Can't lock time zone table: %s",
 		    thd->net.last_error);
-    goto end_with_cleanup;
+    goto end_with_close;
   }
 
 
@@ -1563,6 +1563,9 @@ my_tz_init(THD *org_thd, const char *default_tzname, my_bool bootstrap)
 
 end_with_unlock:
   mysql_unlock_tables(thd, lock);
+
+end_with_close:
+  close_thread_tables(thd);
   thd->version--; /* Force close to free memory */
 
 end_with_setting_default_tz:
@@ -1584,7 +1587,6 @@ end_with_cleanup:
   if (return_val)
     my_tz_free();
 end:
-  close_thread_tables(thd);
   delete thd;
   if (org_thd)
     org_thd->store_globals();			/* purecov: inspected */
