@@ -820,7 +820,9 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
 				 ulong query_length, bool using_trans)
   :Log_event(thd_arg, 0, using_trans), data_buf(0), query(query_arg),
    db(thd_arg->db), q_len((uint32) query_length),
-   error_code(thd_arg->killed ? ER_SERVER_SHUTDOWN: thd_arg->net.last_errno),
+   error_code(thd_arg->killed ?
+              ((thd_arg->system_thread & SYSTEM_THREAD_DELAYED_INSERT) ?
+               0 : ER_SERVER_SHUTDOWN) : thd_arg->net.last_errno),
    thread_id(thd_arg->thread_id),
    /* save the original thread id; we already know the server id */
    slave_proxy_id(thd_arg->slave_proxy_id)
