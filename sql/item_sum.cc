@@ -336,13 +336,14 @@ void Item_sum_variance::update_field(int offset)
 
 double Item_sum_hybrid::val()
 {
+  int err;
   if (null_value)
     return 0.0;
   switch (hybrid_type) {
   case STRING_RESULT:
     String *res;  res=val_str(&str_value);
     return (res ? my_strntod(res->charset(), (char*) res->ptr(),res->length(),
-			     (char**) 0) : 0.0);
+			     (char**) 0, &err) : 0.0);
   case INT_RESULT:
     if (unsigned_flag)
       return ulonglong2double(sum_int);

@@ -138,11 +138,11 @@ typedef struct charset_info_st
   int (*longlong10_to_str)(struct charset_info_st *, char *to, uint n, int radix, longlong val);
   
   /* String-to-number convertion routines */
-  long        (*strntol)(struct charset_info_st *, const char *s, uint l,char **e, int base);
-  ulong      (*strntoul)(struct charset_info_st *, const char *s, uint l, char **e, int base);
-  longlong   (*strntoll)(struct charset_info_st *, const char *s, uint l, char **e, int base);
-  ulonglong (*strntoull)(struct charset_info_st *, const char *s, uint l, char **e, int base);
-  double      (*strntod)(struct charset_info_st *, char *s, uint l, char **e);
+  long        (*strntol)(struct charset_info_st *, const char *s, uint l, int base, char **e, int *err);
+  ulong      (*strntoul)(struct charset_info_st *, const char *s, uint l, int base, char **e, int *err);
+  longlong   (*strntoll)(struct charset_info_st *, const char *s, uint l, int base, char **e, int *err);
+  ulonglong (*strntoull)(struct charset_info_st *, const char *s, uint l, int base, char **e, int *err);
+  double      (*strntod)(struct charset_info_st *, char *s, uint l, char **e, int *err);
   
 } CHARSET_INFO;
 
@@ -183,11 +183,11 @@ int my_wc_mb_8bit(CHARSET_INFO *cs,my_wc_t wc, uchar *s, uchar *e);
 
 int my_snprintf_8bit(struct charset_info_st *, char *to, uint n, const char *fmt, ...);
 
-long        my_strntol_8bit(CHARSET_INFO *, const char *s, uint l,char **e, int base);
-ulong      my_strntoul_8bit(CHARSET_INFO *, const char *s, uint l,char **e, int base);
-longlong   my_strntoll_8bit(CHARSET_INFO *, const char *s, uint l,char **e, int base);
-ulonglong my_strntoull_8bit(CHARSET_INFO *, const char *s, uint l,char **e, int base);
-double      my_strntod_8bit(CHARSET_INFO *, char *s, uint l,char **e);
+long        my_strntol_8bit(CHARSET_INFO *, const char *s, uint l, int base, char **e, int *err);
+ulong      my_strntoul_8bit(CHARSET_INFO *, const char *s, uint l, int base, char **e, int *err);
+longlong   my_strntoll_8bit(CHARSET_INFO *, const char *s, uint l, int base, char **e, int *err);
+ulonglong my_strntoull_8bit(CHARSET_INFO *, const char *s, uint l, int base, char **e, int *err);
+double      my_strntod_8bit(CHARSET_INFO *, char *s, uint l,char **e, int *err);
 
 int  my_long10_to_str_8bit(CHARSET_INFO *, char *to, uint l, int radix, long int val);
 int my_longlong10_to_str_8bit(CHARSET_INFO *, char *to, uint l, int radix, longlong val);
@@ -274,11 +274,11 @@ int my_wildcmp_mb(CHARSET_INFO *,
 #define my_strcasecmp(s, a, b)        ((s)->strcasecmp((s), (a), (b)))
 #define my_strncasecmp(s, a, b, l)    ((s)->strncasecmp((s), (a), (b), (l)))
 
-#define my_strntol(s, a, b, c, d)      ((s)->strntol((s),(a),(b),(c),(d)))
-#define my_strntoul(s, a, b, c, d)     ((s)->strntoul((s),(a),(b),(c),(d)))
-#define my_strntoll(s, a, b, c, d)     ((s)->strntoll((s),(a),(b),(c),(d)))
-#define my_strntoull(s, a, b, c,d)     ((s)->strntoull((s),(a),(b),(c),(d)))
-#define my_strntod(s, a, b, c )        ((s)->strntod((s),(a),(b),(c)))
+#define my_strntol(s, a, b, c, d, e)  ((s)->strntol((s),(a),(b),(c),(d),(e)))
+#define my_strntoul(s, a, b, c, d, e) ((s)->strntoul((s),(a),(b),(c),(d),(e)))
+#define my_strntoll(s, a, b, c, d, e) ((s)->strntoll((s),(a),(b),(c),(d),(e)))
+#define my_strntoull(s, a, b, c,d, e) ((s)->strntoull((s),(a),(b),(c),(d),(e)))
+#define my_strntod(s, a, b, c, d)     ((s)->strntod((s),(a),(b),(c),(d)))
 
 
 /* XXX: still need to take care of this one */

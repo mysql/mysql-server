@@ -4522,41 +4522,42 @@ static void send_data_double(MYSQL_BIND *param, double value)
 static void send_data_str(MYSQL_BIND *param, char *value, uint length)
 {  
   char *buffer= param->buffer;
+  int err=0;
 
   switch(param->buffer_type) {
   case MYSQL_TYPE_TINY:
   {
-    uchar data= (uchar)my_strntol(system_charset_info,value,length,NULL,10);
+    uchar data= (uchar)my_strntol(system_charset_info,value,length,10,NULL,&err);
     *buffer= data;
     break;
   }
   case MYSQL_TYPE_SHORT:
   {
-    short data= (short)my_strntol(system_charset_info,value,length,NULL,10);
+    short data= (short)my_strntol(system_charset_info,value,length,10,NULL,&err);
     int2store(buffer, data);
     break;
   }
   case MYSQL_TYPE_LONG:
   {
-    int32 data= (int32)my_strntol(system_charset_info,value,length,NULL,10);
+    int32 data= (int32)my_strntol(system_charset_info,value,length,10,NULL,&err);
     int4store(buffer, data);    
     break;
   }
   case MYSQL_TYPE_LONGLONG:
   {
-    longlong data= my_strntoll(system_charset_info,value,length,NULL,10);
+    longlong data= my_strntoll(system_charset_info,value,length,10,NULL,&err);
     int8store(buffer, data);
     break;
   }
   case MYSQL_TYPE_FLOAT:
   {
-    float data = (float)my_strntod(system_charset_info,value,length,NULL);
+    float data = (float)my_strntod(system_charset_info,value,length,NULL,&err);
     float4store(buffer, data);
     break;
   }
   case MYSQL_TYPE_DOUBLE:
   {
-    double data= my_strntod(system_charset_info,value,length,NULL);
+    double data= my_strntod(system_charset_info,value,length,NULL,&err);
     float8store(buffer, data);
     break;
   }
