@@ -387,7 +387,7 @@ MgmApiSession::get_nodeid(Parser_t::Context &,
   const char * user;
   const char * password;
   const char * public_key;
-  const char * endian;
+  const char * endian= NULL;
   union { long l; char c[sizeof(long)]; } endian_check;
 
   args.get("version", &version);
@@ -403,7 +403,7 @@ MgmApiSession::get_nodeid(Parser_t::Context &,
   if(endian 
      && strcmp(endian,(endian_check.c[sizeof(long)-1])?"big":"little")!=0) {
     m_output->println(cmd);
-    m_output->println("result: Endianness of nodes does not match.");
+    m_output->println("result: Node does not have the same endianness as the management server.");
     m_output->println("");
     return;
   }
