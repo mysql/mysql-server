@@ -109,7 +109,7 @@ String *Item_func_sha::val_str(String *str)
   {
     SHA1_CONTEXT context;  /* Context used to generate SHA1 hash */
     /* Temporary buffer to store 160bit digest */
-    uint8_t digest[SHA1_HASH_SIZE];
+    uint8 digest[SHA1_HASH_SIZE];
     sha1_reset(&context);  /* We do not have to check for error here */
     /* No need to check error as the only case would be too long message */
     sha1_input(&context,(const unsigned char *) sptr->ptr(), sptr->length());
