@@ -286,6 +286,11 @@ our $opt_udiff;
 our $opt_with_ndbcluster;
 our $opt_with_openssl;
 
+our $exe_ndb_mgm;
+our $path_ndb_tools_dir;
+our $path_ndb_backup_dir;
+our $file_ndb_testrun_log;
+our $flag_ndb_status_ok= 1;
 
 ######################################################################
 #
@@ -299,6 +304,7 @@ sub command_line_setup ();
 sub executable_setup ();
 sub environment_setup ();
 sub kill_and_cleanup ();
+sub ndbcluster_install ();
 sub ndbcluster_start ();
 sub ndbcluster_stop ();
 sub run_benchmarks ($);
@@ -348,18 +354,12 @@ sub main () {
     kill_and_cleanup();
     mysql_install_db();
 
-    if ( $opt_with_ndbcluster and ! $glob_use_running_ndbcluster )
-    {
-      ndbcluster_start();     # We start the cluster storage engine
-    }
-
 #    mysql_loadstd();  FIXME copying from "std_data" .frm and
 #                      .MGR but there are none?!
   }
 
   if ( $opt_start_and_exit )
   {
-    # FIXME what about ndb?
     if ( mysqld_start('master',0,[],[]) )
     {
       mtr_report("Servers started, exiting");
@@ -556,6 +556,8 @@ sub command_line_setup () {
   $master->[0]->{'path_myport'}=   $opt_master_myport;
   $master->[0]->{'start_timeout'}= 400; # enough time create innodb tables
 
+  $master->[0]->{'ndbcluster'}= 1; # ndbcluster not started
+
   $master->[1]->{'path_myddir'}=  "$glob_mysql_test_dir/var/master1-data";
   $master->[1]->{'path_myerr'}=   "$glob_mysql_test_dir/var/log/master1.err";
   $master->[1]->{'path_mylog'}=   "$glob_mysql_test_dir/var/log/master1.log";
@@ -686,6 +688,10 @@ sub command_line_setup () {
     $glob_use_running_ndbcluster= 1;
     $opt_with_ndbcluster= 1;
   }
+  else
+  {
+    $opt_ndbconnectstring= "host=localhost:$opt_ndbcluster_port";
+  }
 
   # FIXME
 
@@ -790,6 +796,9 @@ sub executable_setup () {
     $exe_mysql_fix_system_tables= "$glob_basedir/scripts/mysql_fix_privilege_tables";
     $path_language=       "$glob_basedir/sql/share/english/";
     $path_charsetsdir=    "$glob_basedir/sql/share/charsets";
+
+    $path_ndb_tools_dir=  "$glob_basedir/ndb/tools";
+    $exe_ndb_mgm=         "$glob_basedir/ndb/src/mgmclient/ndb_mgm";
   }
   else
   {
@@ -850,6 +859,9 @@ sub executable_setup () {
       $exe_mysqltest="$path_client_bindir/mysqltest";
       $exe_mysql_client_test="$path_client_bindir/mysql_client_test";
     }
+
+    $path_ndb_tools_dir=  "$glob_basedir/bin";
+    $exe_ndb_mgm=         "$glob_basedir/bin/ndb_mgm";
   }
 
   if ( ! $exe_master_mysqld )
@@ -861,6 +873,10 @@ sub executable_setup () {
   {
     $exe_slave_mysqld=  $exe_mysqld;
   }
+
+  $path_ndb_backup_dir=
+    "$glob_mysql_test_dir/var/ndbcluster-$opt_ndbcluster_port";
+  $file_ndb_testrun_log= "$glob_mysql_test_dir/var/log/ndb_testrun.log";
 }
 
 
@@ -950,22 +966,19 @@ sub kill_and_cleanup () {
     mtr_report("Killing Possible Leftover Processes");
     mkpath("$glob_mysql_test_dir/var/log"); # Needed for mysqladmin log
     mtr_kill_leftovers();
-  }
 
-  if ( $opt_with_ndbcluster and ! $glob_use_running_ndbcluster )
-  {
     ndbcluster_stop();
+    $master->[0]->{'ndbcluster'}= 1;
   }
 
   mtr_report("Removing Stale Files");
 
   rmtree("$glob_mysql_test_dir/var/log");
-  rmtree("$glob_mysql_test_dir/var/ndbcluster");
+  rmtree("$glob_mysql_test_dir/var/ndbcluster-$opt_ndbcluster_port");
   rmtree("$glob_mysql_test_dir/var/run");
   rmtree("$glob_mysql_test_dir/var/tmp");
 
   mkpath("$glob_mysql_test_dir/var/log");
-  mkpath("$glob_mysql_test_dir/var/ndbcluster");
   mkpath("$glob_mysql_test_dir/var/run");
   mkpath("$glob_mysql_test_dir/var/tmp");
   mkpath($opt_tmpdir);
@@ -1003,26 +1016,67 @@ sub kill_and_cleanup () {
 
 # FIXME why is there a different start below?!
 
+sub ndbcluster_install () {
+
+  if ( ! $opt_with_ndbcluster or $glob_use_running_ndbcluster )
+  {
+    return 0;
+  }
+  mtr_report("Install ndbcluster");
+  my $ndbcluster_opts=  $opt_bench ? "" : "--small";
+  my $ndbcluster_port_base= $opt_ndbcluster_port + 2;
+  if (  mtr_run("$glob_mysql_test_dir/ndb/ndbcluster",
+		["--port=$opt_ndbcluster_port",
+		 "--port-base=$ndbcluster_port_base",
+		 "--data-dir=$glob_mysql_test_dir/var",
+		 $ndbcluster_opts,
+		 "--initial"],
+		"", "", "", "") )
+  {
+    mtr_error("Error ndbcluster_install");
+    return 1;
+  }
+
+  ndbcluster_stop();
+  $master->[0]->{'ndbcluster'}= 1;
+
+  return 0;
+}
+
 sub ndbcluster_start () {
 
-  mtr_report("Starting ndbcluster");
-  my $ndbcluster_opts=  $opt_bench ? "" : "--small";
-  # FIXME check result code?!
-  mtr_run("$glob_mysql_test_dir/ndb/ndbcluster",
-          ["--port-base=$opt_ndbcluster_port",
-           $ndbcluster_opts,
-           "--diskless",
-           "--initial",
-           "--data-dir=$glob_mysql_test_dir/var"],
-          "", "", "", "");
+  if ( ! $opt_with_ndbcluster or $glob_use_running_ndbcluster )
+  {
+    return 0;
+  }
+  # FIXME, we want to _append_ output to file $file_ndb_testrun_log instead of /dev/null
+  if ( mtr_run("$glob_mysql_test_dir/ndb/ndbcluster",
+	       ["--port=$opt_ndbcluster_port",
+		"--data-dir=$glob_mysql_test_dir/var"],
+	       "", "/dev/null", "", "") )
+  {
+    mtr_error("Error ndbcluster_install");
+    return 1;
+  }
+
+  return 0;
 }
 
 sub ndbcluster_stop () {
+
+  if ( ! $opt_with_ndbcluster or $glob_use_running_ndbcluster )
+  {
+    return;
+  }
+  my $ndbcluster_port_base= $opt_ndbcluster_port + 2;
+  # FIXME, we want to _append_ output to file $file_ndb_testrun_log instead of /dev/null
   mtr_run("$glob_mysql_test_dir/ndb/ndbcluster",
-          ["--data-dir=$glob_mysql_test_dir/var",
-           "--port-base=$opt_ndbcluster_port",
+          ["--port=$opt_ndbcluster_port",
+           "--data-dir=$glob_mysql_test_dir/var",
            "--stop"],
-          "", "", "", "");
+          "", "/dev/null", "", "");
+
+  return;
 }
 
 
@@ -1130,11 +1184,6 @@ sub run_suite () {
     stop_masters_slaves();
   }
 
-  if ( $opt_with_ndbcluster and ! $glob_use_running_ndbcluster )
-  {
-    ndbcluster_stop();
-  }
-
   if ( $opt_gcov )
   {
     gcov_collect(); # collect coverage information
@@ -1162,6 +1211,13 @@ sub mysql_install_db () {
   install_db('slave',  $slave->[0]->{'path_myddir'});
   install_db('slave',  $slave->[1]->{'path_myddir'});
   install_db('slave',  $slave->[2]->{'path_myddir'});
+
+  if ( ndbcluster_install() )
+  {
+    # failed to install, disable usage but flag that its no ok
+    $opt_with_ndbcluster= 0;
+    $flag_ndb_status_ok= 0;
+  }
 
   return 0;
 }
@@ -1252,6 +1308,9 @@ sub run_testcase ($) {
 
   mtr_tonewfile($opt_current_test,"$tname\n"); # Always tell where we are
 
+  # output current test to ndbcluster log file to enable diagnostics
+  mtr_tofile($file_ndb_testrun_log,"CURRENT TEST $tname\n");
+
   # ----------------------------------------------------------------------
   # If marked to skip, just print out and return.
   # Note that a test case not marked as 'skip' can still be
@@ -1325,6 +1384,15 @@ sub run_testcase ($) {
 
     if ( ! $opt_local_master )
     {
+      if ( $master->[0]->{'ndbcluster'} )
+      {
+	$master->[0]->{'ndbcluster'}= ndbcluster_start();
+        if ( $master->[0]->{'ndbcluster'} )
+        {
+          report_failure_and_restart($tinfo);
+          return;
+        }
+      }
       if ( ! $master->[0]->{'pid'} )
       {
         $master->[0]->{'pid'}=
@@ -1639,17 +1707,8 @@ sub mysqld_arguments ($$$$$) {
   if ( $opt_with_ndbcluster )
   {
     mtr_add_arg($args, "%s--ndbcluster", $prefix);
-
-    if ( $glob_use_running_ndbcluster )
-    {
-      mtr_add_arg($args,"%s--ndb-connectstring=%s",
-                  $prefix, $opt_ndbconnectstring);
-    }
-    else
-    {
-      mtr_add_arg($args,"%s--ndb-connectstring=host=localhost:%d",
-                  $prefix, $opt_ndbcluster_port);
-    }
+    mtr_add_arg($args, "%s--ndb-connectstring=%s", $prefix,
+                $opt_ndbconnectstring);
   }
 
   # FIXME always set nowdays??? SMALL_SERVER
@@ -1852,6 +1911,12 @@ sub stop_masters () {
     }
   }
 
+  if ( ! $master->[0]->{'ndbcluster'} )
+  {
+    ndbcluster_stop();
+    $master->[0]->{'ndbcluster'}= 1;
+  }
+
   mtr_stop_mysqld_servers(\@args);
 }
 
@@ -1926,6 +1991,13 @@ sub run_mysqltest ($$) {
   $ENV{'MYSQL_FIX_SYSTEM_TABLES'}=  $cmdline_mysql_fix_system_tables;
   $ENV{'MYSQL_CLIENT_TEST'}=        $cmdline_mysql_client_test;
   $ENV{'CHARSETSDIR'}=              $path_charsetsdir;
+
+  $ENV{'NDB_STATUS_OK'}=            $flag_ndb_status_ok;
+  $ENV{'NDB_MGM'}=                  $exe_ndb_mgm;
+  $ENV{'NDB_BACKUP_DIR'}=           $path_ndb_backup_dir;
+  $ENV{'NDB_TOOLS_DIR'}=            $path_ndb_tools_dir;
+  $ENV{'NDB_TOOLS_OUTPUT'}=         $file_ndb_testrun_log;
+  $ENV{'NDB_CONNECTSTRING'}=        $opt_ndbconnectstring;
 
   my $exe= $exe_mysqltest;
   my $args;
