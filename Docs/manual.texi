@@ -31568,7 +31568,7 @@ Note that a @code{RAND()} in a @code{WHERE} clause will be re-evaluated
 every time the @code{WHERE} is executed.
 
 @code{RAND()} is not meant to be a perfect random generator, but instead a
-fast way to generate add-hook random numbers that will be portable between
+fast way to generate ad hoc random numbers that will be portable between
 platforms for the same MySQL version.
 
 @findex LEAST()
