@@ -172,12 +172,21 @@ private:
    * Physical tuple address in TUP.  Provides fast access to table tuple
    * or index node.  Valid within the db node and across timeslices.
    * Not valid between db nodes or across restarts.
+   *
+   * To avoid wasting an Uint16 the pageid is split in two.
    */
   struct TupLoc {
-    Uint32 m_pageId;            // page i-value
+  private:
+    Uint16 m_pageId1;           // page i-value (big-endian)
+    Uint16 m_pageId2;
     Uint16 m_pageOffset;        // page offset in words
+  public:
     TupLoc();
     TupLoc(Uint32 pageId, Uint16 pageOffset);
+    Uint32 getPageId() const;
+    void setPageId(Uint32 pageId);
+    Uint32 getPageOffset() const;
+    void setPageOffset(Uint32 pageOffset);
     bool operator==(const TupLoc& loc) const;
     bool operator!=(const TupLoc& loc) const;
   };
@@ -224,18 +233,13 @@ private:
    * work entry                 part 5
    *
    * There are 3 links to other nodes: left child, right child, parent.
-   * These are in TupLoc format but the pageIds and pageOffsets are
-   * stored in separate arrays (saves 1 word).
-   *
    * Occupancy (number of entries) is at least 1 except temporarily when
-   * a node is about to be removed.  If occupancy is 1, only max entry
-   * is present but both min and max prefixes are set.
+   * a node is about to be removed.
    */
   struct TreeNode;
   friend struct TreeNode;
   struct TreeNode {
-    Uint32 m_linkPI[3];         // link to 0-left child 1-right child 2-parent
-    Uint16 m_linkPO[3];         // page offsets for above real page ids
+    TupLoc m_link[3];           // link to 0-left child 1-right child 2-parent
     unsigned m_side : 2;        // we are 0-left child 1-right child 2-root
     int m_balance : 2;          // balance -1, 0, +1
     unsigned pad1 : 4;
@@ -805,22 +809,52 @@ Dbtux::ConstData::operator=(Data data)
 
 inline
 Dbtux::TupLoc::TupLoc() :
-  m_pageId(RNIL),
+  m_pageId1(RNIL >> 16),
+  m_pageId2(RNIL & 0xFFFF),
   m_pageOffset(0)
 {
 }
 
 inline
 Dbtux::TupLoc::TupLoc(Uint32 pageId, Uint16 pageOffset) :
-  m_pageId(pageId),
+  m_pageId1(pageId >> 16),
+  m_pageId2(pageId & 0xFFFF),
   m_pageOffset(pageOffset)
 {
+}
+
+inline Uint32
+Dbtux::TupLoc::getPageId() const
+{
+  return (m_pageId1 << 16) | m_pageId2;
+}
+
+inline void
+Dbtux::TupLoc::setPageId(Uint32 pageId)
+{
+  m_pageId1 = (pageId >> 16);
+  m_pageId2 = (pageId & 0xFFFF);
+}
+
+inline Uint32
+Dbtux::TupLoc::getPageOffset() const
+{
+  return (Uint32)m_pageOffset;
+}
+
+inline void
+Dbtux::TupLoc::setPageOffset(Uint32 pageOffset)
+{
+  m_pageOffset = (Uint16)pageOffset;
 }
 
 inline bool
 Dbtux::TupLoc::operator==(const TupLoc& loc) const
 {
-  return m_pageId == loc.m_pageId && m_pageOffset == loc.m_pageOffset;
+  return
+    m_pageId1 == loc.m_pageId1 &&
+    m_pageId2 == loc.m_pageId2 &&
+    m_pageOffset == loc.m_pageOffset;
 }
 
 inline bool
@@ -851,13 +885,13 @@ Dbtux::TreeEnt::eq(const TreeEnt ent) const
 inline int
 Dbtux::TreeEnt::cmp(const TreeEnt ent) const
 {
-  if (m_tupLoc.m_pageId < ent.m_tupLoc.m_pageId)
+  if (m_tupLoc.getPageId() < ent.m_tupLoc.getPageId())
     return -1;
-  if (m_tupLoc.m_pageId > ent.m_tupLoc.m_pageId)
+  if (m_tupLoc.getPageId() > ent.m_tupLoc.getPageId())
     return +1;
-  if (m_tupLoc.m_pageOffset < ent.m_tupLoc.m_pageOffset)
+  if (m_tupLoc.getPageOffset() < ent.m_tupLoc.getPageOffset())
     return -1;
-  if (m_tupLoc.m_pageOffset > ent.m_tupLoc.m_pageOffset)
+  if (m_tupLoc.getPageOffset() > ent.m_tupLoc.getPageOffset())
     return +1;
   if (m_tupVersion < ent.m_tupVersion)
     return -1;
@@ -880,12 +914,9 @@ Dbtux::TreeNode::TreeNode() :
   m_occup(0),
   m_nodeScan(RNIL)
 {
-  m_linkPI[0] = NullTupLoc.m_pageId;
-  m_linkPO[0] = NullTupLoc.m_pageOffset;
-  m_linkPI[1] = NullTupLoc.m_pageId;
-  m_linkPO[1] = NullTupLoc.m_pageOffset;
-  m_linkPI[2] = NullTupLoc.m_pageId;
-  m_linkPO[2] = NullTupLoc.m_pageOffset;
+  m_link[0] = NullTupLoc;
+  m_link[1] = NullTupLoc;
+  m_link[2] = NullTupLoc;
 }
 
 // Dbtux::TreeHead
@@ -913,7 +944,6 @@ Dbtux::TreeHead::getSize(AccSize acc) const
   case AccFull:
     return m_nodeSize;
   }
-  abort();
   return 0;
 }
 
@@ -1088,13 +1118,13 @@ inline Dbtux::TupLoc
 Dbtux::NodeHandle::getLink(unsigned i)
 {
   ndbrequire(i <= 2);
-  return TupLoc(m_node->m_linkPI[i], m_node->m_linkPO[i]);
+  return m_node->m_link[i];
 }
 
 inline unsigned
 Dbtux::NodeHandle::getChilds()
 {
-  return (getLink(0) != NullTupLoc) + (getLink(1) != NullTupLoc);
+  return (m_node->m_link[0] != NullTupLoc) + (m_node->m_link[1] != NullTupLoc);
 }
 
 inline unsigned
@@ -1125,8 +1155,7 @@ inline void
 Dbtux::NodeHandle::setLink(unsigned i, TupLoc loc)
 {
   ndbrequire(i <= 2);
-  m_node->m_linkPI[i] = loc.m_pageId;
-  m_node->m_linkPO[i] = loc.m_pageOffset;
+  m_node->m_link[i] = loc;
 }
 
 inline void
@@ -1224,7 +1253,7 @@ Dbtux::getTupAddr(const Frag& frag, TreeEnt ent)
   const Uint32 tableFragPtrI = frag.m_tupTableFragPtrI[ent.m_fragBit];
   const TupLoc tupLoc = ent.m_tupLoc;
   Uint32 tupAddr = NullTupAddr;
-  c_tup->tuxGetTupAddr(tableFragPtrI, tupLoc.m_pageId, tupLoc.m_pageOffset, tupAddr);
+  c_tup->tuxGetTupAddr(tableFragPtrI, tupLoc.getPageId(), tupLoc.getPageOffset(), tupAddr);
   jamEntry();
   return tupAddr;
 }

@@ -212,6 +212,8 @@ struct Par : public Opt {
   // value calculation
   unsigned m_range;
   unsigned m_pctrange;
+  // choice of key
+  bool m_randomkey;
   // do verify after read
   bool m_verify;
   // deadlock possible
@@ -227,6 +229,7 @@ struct Par : public Opt {
     m_totrows(m_threads * m_rows),
     m_range(m_rows),
     m_pctrange(0),
+    m_randomkey(false),
     m_verify(false),
     m_deadlock(false) {
   }
@@ -2119,7 +2122,8 @@ pkupdate(Par par)
   Lst lst;
   bool deadlock = false;
   for (unsigned j = 0; j < par.m_rows; j++) {
-    unsigned i = thrrow(par, j);
+    unsigned j2 = ! par.m_randomkey ? j : urandom(par.m_rows);
+    unsigned i = thrrow(par, j2);
     set.lock();
     if (! set.exist(i) || set.pending(i)) {
       set.unlock();
@@ -2722,6 +2726,7 @@ pkupdateindexbuild(Par par)
   if (par.m_no == 0) {
     CHK(createindex(par) == 0);
   } else {
+    par.m_randomkey = true;
     CHK(pkupdate(par) == 0);
   }
   return 0;
