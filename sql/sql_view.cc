@@ -330,7 +330,7 @@ static File_option view_parameters[]=
   FILE_OPTIONS_STRING},
  {{view_field_names[1], 3},	offsetof(TABLE_LIST, md5),
   FILE_OPTIONS_STRING},
- {{view_field_names[2], 9},	offsetof(TABLE_LIST, updatable),
+ {{view_field_names[2], 9},	offsetof(TABLE_LIST, updatable_view),
   FILE_OPTIONS_ULONGLONG},
  {{view_field_names[3], 9},	offsetof(TABLE_LIST, algorithm),
   FILE_OPTIONS_ULONGLONG},
@@ -472,17 +472,17 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
     thd->lex->create_view_algorithm= VIEW_ALGORITHM_UNDEFINED;
   }
   view->algorithm= thd->lex->create_view_algorithm;
-  if ((view->updatable= (can_be_merged &&
-                         view->algorithm != VIEW_ALGORITHM_TMEPTABLE)))
+  if ((view->updatable_view= (can_be_merged &&
+                              view->algorithm != VIEW_ALGORITHM_TMEPTABLE)))
   {
     // TODO: change here when we will support UNIONs
     for (TABLE_LIST *tbl= (TABLE_LIST *)thd->lex->select_lex.table_list.first;
          tbl;
          tbl= tbl->next_local)
     {
-      if (tbl->view != 0 && !tbl->updatable)
+      if (tbl->view != 0 && !tbl->updatable_view)
       {
-        view->updatable= 0;
+        view->updatable_view= 0;
         break;
       }
     }
@@ -663,6 +663,7 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
       DBUG_ASSERT(view_table != 0);
 
       table->effective_algorithm= VIEW_ALGORITHM_MERGE;
+      table->updatable= (table->updatable_view != 0);
 
       if (old_next)
       {
@@ -692,12 +693,7 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
 
     table->effective_algorithm= VIEW_ALGORITHM_TMEPTABLE;
     lex->select_lex.linkage= DERIVED_TABLE_TYPE;
-    if (table->updatable)
-    {
-      //TOTO: warning: can't be updateable, .frm edited by hand. version
-      //downgrade?
-      table->updatable= 0;
-    }
+    table->updatable= 0;
 
     /* SELECT tree link */
     lex->unit.include_down(table->select_lex);

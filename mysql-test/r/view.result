@@ -977,6 +977,22 @@ ERROR HY000: View 'test.v1' references invalid table(s) or column(s)
 drop view v1;
 create view v1 (a,a) as select 'a','a';
 ERROR 42S21: Duplicate column name 'a'
+create procedure p1 () begin declare v int; create view v1 as select v; end;//
+Warnings:
+Warning	1310	Referring to uninitialized variable v
+call p1();
+ERROR HY000: View's SELECT contains a variable or parameter
+drop procedure p1;
+create table t1 (col1 int,col2 char(22));
+insert into t1 values(5,'Hello, world of views');
+create view v1 as select * from t1;
+create view v2 as select * from v1;
+update v2 set col2='Hello, view world';
+select * from t1;
+col1	col2
+5	Hello, view world
+drop view v2, v1;
+drop table t1;
 create table t1 (a int, b int);
 create view v1 as select a, sum(b) from t1 group by a;
 select b from v1 use index (some_index) where b=1;
