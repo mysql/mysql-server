@@ -133,6 +133,9 @@ void Item_field::set_field(Field *field_par)
   field_name=field_par->field_name;
   binary=field_par->binary();
   unsigned_flag=test(field_par->flags & UNSIGNED_FLAG);
+  /* For string fields copy character set from original field */
+  if (!field_par->binary())
+    str_value.set_charset(((Field_str*)field_par)->charset());
 }
 
 const char *Item_ident::full_name() const

@@ -759,6 +759,7 @@ String *Item_func_left::val_str(String *str)
     if (!res->alloced_length())
     {						// Don't change const str
       str_value= *res;				// Not malloced string
+      str_value.set_charset(res->charset());
       res= &str_value;
     }
     res->length((uint) length);
