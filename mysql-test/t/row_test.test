@@ -19,3 +19,18 @@ select * from t1 where (1,2,3)=(a,b,c);
 select * from t1 where (0,2,3)=(a,b,c);
 select * from t1 where (1,2,3)<(a,b,c);
 drop table t1;
+
+-- error 1239
+select (1,1);
+drop table if exists t1;
+create table t1 (i int);
+-- error 1239
+select 1 from t1 where (1,1);
+-- error 1239
+select count(*) from t1 order by (1,1);
+#TODO remove comments after parser fixing
+#-- error 1239
+#select count(*) from t1 order by i having (1,1);
+#-- error 1239
+#select 1 from t1 limit (1,1), (1,1);
+drop table t1;
