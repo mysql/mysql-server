@@ -359,12 +359,17 @@ V
 Memory pool mutex */
 
 /* Latching order levels */
+
+/* User transaction locks are higher than any of the latch levels below:
+no latches are allowed when a thread goes to wait for a normal table
+or row lock! */
+#define SYNC_USER_TRX_LOCK	9999
 #define SYNC_NO_ORDER_CHECK	3000	/* this can be used to suppress
 					latching order checking */
 #define	SYNC_LEVEL_NONE		2000	/* default: level not defined */
+#define	SYNC_FOREIGN_KEY_CHECK	1001
 #define SYNC_DICT		1000
 #define SYNC_DICT_AUTOINC_MUTEX	999
-#define	SYNC_FOREIGN_KEY_CHECK	998
 #define	SYNC_PURGE_IS_RUNNING	997
 #define SYNC_DICT_HEADER	995
 #define SYNC_IBUF_HEADER	914
@@ -429,7 +434,7 @@ implementation of a mutual exclusion semaphore. */
 struct mutex_struct {
 	ulint	lock_word;	/* This ulint is the target of the atomic
 				test-and-set instruction in Win32 */
-#ifndef _WIN32
+#if !defined(_WIN32) || !defined(UNIV_CAN_USE_X86_ASSEMBLER)
 	os_fast_mutex_t
 		os_fast_mutex;	/* In other systems we use this OS mutex
 				in place of lock_word */

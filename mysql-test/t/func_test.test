@@ -11,7 +11,6 @@ select 'abc' like '%c','abcabc' like '%c',  "ab" like "", "ab" like "a", "ab" li
 select "Det här är svenska" regexp "h[[:alpha:]]+r", "aba" regexp "^(a|b)*$";
 select "aba" regexp concat("^","a");
 select !0,NOT 0=1,!(0=0),1 AND 1,1 && 0,0 OR 1,1 || NULL, 1=1 or 1=1 and 1=0;
-select IF(0,"ERROR","this"),IF(1,"is","ERROR"),IF(NULL,"ERROR","a"),IF(1,2,3)|0,IF(1,2.0,3.0)+0 ;
 select 2 between 1 and 3, "monty" between "max" and "my",2=2 and "monty" between "max" and "my" and 3=3;
 select 'b' between 'a' and 'c', 'B' between 'a' and 'c';
 select 2 in (3,2,5,9,5,1),"monty" in ("david","monty","allan"), 1.2 in (1.4,1.2,1.0);
@@ -24,13 +23,3 @@ select -1.49 or -1.49,0.6 or 0.6;
 select 5 between 0 and 10 between 0 and 1,(5 between 0 and 10) between 0 and 1;
 select 1 and 2 between 2 and 10, 2 between 2 and 10 and 1;
 select 1 and 0 or 2, 2 or 1 and 0;
-
-#
-# Problem with IF()
-#
-
-drop table if exists t1;
-create table t1 (num  double(12,2));
-insert into t1 values (144.54);
-select sum(if(num is null,0.00,num)) from t1;
-drop table t1;

@@ -49,6 +49,12 @@ inserted to the index, at the searched position */
 /* This flag ORed to latch mode says that we do the search in query
 optimization */
 #define BTR_ESTIMATE		1024
+
+/* This flag ORed to latch mode says that we can ignore possible
+UNIQUE definition on secondary indexes when we decide if we can use the
+insert buffer to speed up inserts */
+#define BTR_IGNORE_SEC_UNIQUE	2048	
+
 /******************************************************************
 Gets a buffer page and declares its latching order level. */
 UNIV_INLINE
