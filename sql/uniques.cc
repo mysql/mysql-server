@@ -38,7 +38,7 @@ Unique::Unique(qsort_cmp2 comp_func, uint size, ulong max_in_memory_size_arg)
   :max_in_memory_size(max_in_memory_size_arg),elements(0)
 {
   my_b_clear(&file);
-  init_tree(&tree, max_in_memory_size / 16, size, comp_func, 0, 0);
+  init_tree(&tree, max_in_memory_size / 16, 0, size, comp_func, 0, NULL, NULL);
   /* If the following fail's the next add will also fail */
   init_dynamic_array(&file_ptrs, sizeof(BUFFPEK), 16, 16);
   max_elements= max_in_memory_size / ALIGN_SIZE(sizeof(TREE_ELEMENT)+size);

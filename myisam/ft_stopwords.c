@@ -41,8 +41,8 @@ int ft_init_stopwords(const char **sws)
   if(!stopwords3)
   {
     if(!(stopwords3=(TREE *)my_malloc(sizeof(TREE),MYF(0)))) return -1;
-    init_tree(stopwords3,0,sizeof(FT_STOPWORD),(qsort_cmp2)&FT_STOPWORD_cmp,0,
-	      NULL);
+    init_tree(stopwords3,0,0,sizeof(FT_STOPWORD),(qsort_cmp2)&FT_STOPWORD_cmp,0,
+	      NULL, NULL);
   }
 
   if(!sws) return 0;

@@ -931,9 +931,8 @@ bool Item_sum_count_distinct::setup(THD *thd)
 	  rec_offset = table->reclength - key_len;
 	}
 
-      init_tree(&tree, min(max_heap_table_size, sortbuff_size/16),
-		key_len, compare_key, 0, 0);
-      tree.cmp_arg = cmp_arg;
+      init_tree(&tree, min(max_heap_table_size, sortbuff_size/16), 0,
+		key_len, compare_key, 0, NULL, cmp_arg);
       use_tree = 1;
 
       // the only time key_len could be 0 is if someone does

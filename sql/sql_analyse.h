@@ -114,9 +114,9 @@ public:
     max_arg(""), sum(0),
     must_be_blob(0), was_zero_fill(0),
     was_maybe_zerofill(0), can_be_still_num(1)
-    { init_tree(&tree, 0, sizeof(String), a->binary ?
+    { init_tree(&tree, 0, 0, sizeof(String), a->binary ?
 		(qsort_cmp2) stringcmp2 : (qsort_cmp2) sortcmp2,
-		0, (void (*)(void*)) free_string); };
+		0, (tree_element_free) free_string, NULL); };
 
   void	 add();
   void	 get_opt_type(String*, ha_rows);
@@ -154,8 +154,8 @@ class field_real: public field_info
 public:
   field_real(Item* a, analyse* b) :field_info(a,b),
     min_arg(0), max_arg(0),  sum(0), sum_sqr(0), max_notzero_dec_len(0)
-    { init_tree(&tree, 0, sizeof(double),
-		(qsort_cmp2) compare_double2, 0, NULL); }
+    { init_tree(&tree, 0, 0, sizeof(double),
+		(qsort_cmp2) compare_double2, 0, NULL, NULL); }
 
   void	 add();
   void	 get_opt_type(String*, ha_rows);
@@ -200,8 +200,8 @@ class field_longlong: public field_info
 public:
   field_longlong(Item* a, analyse* b) :field_info(a,b), 
     min_arg(0), max_arg(0), sum(0), sum_sqr(0)
-    { init_tree(&tree, 0, sizeof(longlong),
-		(qsort_cmp2) compare_longlong2, 0, NULL); }
+    { init_tree(&tree, 0, 0, sizeof(longlong),
+		(qsort_cmp2) compare_longlong2, 0, NULL, NULL); }
 
   void	 add();
   void	 get_opt_type(String*, ha_rows);
@@ -245,8 +245,8 @@ class field_ulonglong: public field_info
 public:
   field_ulonglong(Item* a, analyse * b) :field_info(a,b),
     min_arg(0), max_arg(0), sum(0),sum_sqr(0)
-    { init_tree(&tree, 0, sizeof(ulonglong),
-		(qsort_cmp2) compare_ulonglong2, 0, NULL); }
+    { init_tree(&tree, 0, 0, sizeof(ulonglong),
+		(qsort_cmp2) compare_ulonglong2, 0, NULL, NULL); }
   void	 add();
   void	 get_opt_type(String*, ha_rows);
   String *get_min_arg(String *s) { s->set(min_arg); return s; }

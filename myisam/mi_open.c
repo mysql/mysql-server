@@ -461,6 +461,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
     share->options|=HA_OPTION_READ_ONLY_DATA;
   info.lock_type=F_UNLCK;
   info.quick_mode=0;
+  info.bulk_insert=0;
   info.errkey= -1;
   info.page_changed=1;
   pthread_mutex_lock(&share->intern_lock);

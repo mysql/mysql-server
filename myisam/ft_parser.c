@@ -226,7 +226,7 @@ TREE * ft_parse(TREE *wtree, byte *doc, int doclen)
 
   if (!is_tree_inited(wtree))
   {
-    init_tree(wtree,0,sizeof(FT_WORD),(qsort_cmp2)&FT_WORD_cmp,0,NULL);
+    init_tree(wtree,0,0,sizeof(FT_WORD),(qsort_cmp2)&FT_WORD_cmp,0,NULL, NULL);
   }
 
   while (ft_simple_get_word(&doc,end,&w))
