@@ -2230,9 +2230,6 @@ MgmtSrvr::alloc_node_id(NodeId * nodeId,
       id_found= tmp;
       break;
     }
-    assert(no_mgm > 1);
-    assert(*nodeId != 0);
-    assert(type != NDB_MGM_NODE_TYPE_MGM);
     if (id_found) { // mgmt server may only have one match
       error_string.appfmt("Ambiguous node id's %d and %d.\n"
 			  "Suggest specifying node id in connectstring,\n"
