@@ -23,7 +23,7 @@ GetOptions("host=s","db=s","user=s","password=s","loop-count=i","skip-create","s
 $opt_verbose=$opt_debug=$opt_lock_tables=$opt_fast_insert=$opt_fast=$opt_skip_in=$opt_force=undef;  # Ignore warnings from these
 
 print "Test of multiple connections that test the following things:\n";
-print "insert, select, delete, update, check, repair and flush\n";
+print "insert, select, delete, update, alter, check, repair and flush\n";
 
 @testtables = ( ["bench_f31", ""],
 		["bench_f32", "row_format=fixed"],
@@ -34,7 +34,8 @@ $abort_table="bench_f39";
 
 $numtables = $#testtables+1;
 srand 100;			# Make random numbers repeatable
-####  
+
+####
 ####  Start timeing and start test
 ####
 
@@ -88,12 +89,14 @@ for ($i=0 ; $i < $opt_threads ; $i ++)
 {
   test_select() if (($pid=fork()) == 0); $work{$pid}="select_key";
 }
+test_join() if (($pid=fork()) == 0); $work{$pid}="test_join";
 test_select_count() if (($pid=fork()) == 0); $work{$pid}="select_count";
 test_delete() if (($pid=fork()) == 0); $work{$pid}="delete";
 test_update() if (($pid=fork()) == 0); $work{$pid}="update";
 test_flush() if (($pid=fork()) == 0); $work{$pid}= "flush";
 test_check() if (($pid=fork()) == 0); $work{$pid}="check";
 test_repair() if (($pid=fork()) == 0); $work{$pid}="repair";
+test_alter() if (($pid=fork()) == 0); $work{$pid}="alter";
 #test_database("test2") if (($pid=fork()) == 0); $work{$pid}="check_database";
 
 print "Started " . ($opt_threads*2+4) . " threads\n";
@@ -240,6 +243,44 @@ sub test_select_count
   }
   $dbh->disconnect; $dbh=0;
   print "Test_select: Executed $count select count(distinct) queries\n";
+  exit(0);
+}
+
+#
+# select records
+# Do continously joins between the first and second table
+#
+
+sub test_join
+{
+  my ($dbh, $i, $j, $count, $loop);
+
+  $dbh = DBI->connect("DBI:mysql:$opt_db:$opt_host",
+		      $opt_user, $opt_password,
+		    { PrintError => 0}) || die $DBI::errstr;
+
+  $count_query=make_count_query($numtables);
+  $count=0;
+  $loop=9999;
+
+  $i=0;
+  while (($i++ % 100) || !test_if_abort($dbh))
+  {
+    if ($loop++ >= 100)
+    {
+      $loop=0;
+      $row_counts=simple_query($dbh, $count_query);
+    }
+    for ($j=0 ; $j < $numtables-1 ; $j++)
+    {
+      my ($id)= int rand $row_counts->[$j];
+      my ($t1,$t2)= ($testtables[$j]->[0],$testtables[$j+1]->[0]);
+      simple_query($dbh, "select $t1.id,$t2.info from $t1, $t2 where $t1.id=$t2.id and $t1.id=$id");
+      $count++;
+    }
+  }
+  $dbh->disconnect; $dbh=0;
+  print "Test_join: Executed $count joins\n";
   exit(0);
 }
 
@@ -457,6 +498,29 @@ sub test_database
   exit(0);
 }
 
+#
+# Test ALTER TABLE on the second table
+#
+
+sub test_alter
+{
+  my ($dbh, $row, $i, $type, $table);
+  $dbh = DBI->connect("DBI:mysql:$opt_db:$opt_host",
+		      $opt_user, $opt_password,
+		    { PrintError => 0}) || die $DBI::errstr;
+
+  for ($i=0 ; !test_if_abort($dbh) ; $i++)
+  {
+    sleep(100);
+    $table=$testtables[1]->[0];
+    $sth=$dbh->prepare("ALTER table $table modify info char(32)") || die "Got error on prepare: $DBI::errstr\n";
+    $sth->execute || die $DBI::errstr;
+  }
+  $dbh->disconnect; $dbh=0;
+  print "test_alter: Executed $i ALTER TABLE\n";
+  exit(0);
+}
+
 
 #
 # Help functions
@@ -507,8 +571,8 @@ sub simple_query()
   my ($dbh, $query)= @_;
   my ($sth,$row);
 
-  $sth=$dbh->prepare($query) || die "Got error on '$query': $DBI::errstr\n";
-  $sth->execute || die "Got error on '$query': $dbh->errstr\n";
+  $sth=$dbh->prepare($query) || die "Got error on '$query': " . $dbh->errstr . "\n";
+  $sth->execute || die "Got error on '$query': " . $dbh->errstr . "\n";
   $row= $sth->fetchrow_arrayref();
   $sth=0;
   return $row;

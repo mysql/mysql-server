@@ -4,3 +4,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 Table	Op	Msg_type	Msg_text
 test.t2	check	error	Table 't2' was not locked with LOCK TABLES
+n
+4
+n
+1

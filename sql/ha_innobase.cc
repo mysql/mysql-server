@@ -2885,4 +2885,49 @@ ha_innobase::store_lock(
 	return(to);
 }
 
+/***********************************************************************
+Returns the next auto-increment column value for the table. write_row
+normally fetches the value from the cache in the data dictionary. This
+function in used by SHOW TABLE STATUS and when the first insert to the table
+is done after database startup. */
+
+longlong
+ha_innobase::get_auto_increment()
+/*=============================*/
+                         /* out: the next auto-increment column value */
+{
+  row_prebuilt_t* prebuilt	= (row_prebuilt_t*) innobase_prebuilt;
+  longlong        nr;
+  int             error;
+
+  (void) extra(HA_EXTRA_KEYREAD);
+  index_init(table->next_number_index);
+
+  /* We use an exclusive lock when we read the max key value from the
+  auto-increment column index. This is because then build_template will
+  advise InnoDB to fetch all columns. In SHOW TABLE STATUS the query
+  id of the auto-increment column is not changed, and previously InnoDB
+  did not fetch it, causing SHOW TABLE STATUS to show wrong values
+  for the autoinc column. */
+
+  prebuilt->select_lock_type = LOCK_X;
+  prebuilt->trx->mysql_n_tables_locked += 1;
+  
+  error=index_last(table->record[1]);
+
+  if (error) {
+    nr = 1;
+  } else {
+    nr = (longlong) table->next_number_field->
+                        val_int_offset(table->rec_buff_length) + 1;
+  }
+
+  (void) extra(HA_EXTRA_NO_KEYREAD);
+
+  index_end();
+
+  return(nr);
+}
+
+
 #endif /* HAVE_INNOBASE_DB */
