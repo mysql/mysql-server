@@ -21,41 +21,7 @@
 #ifndef NDB_TYPES_H
 #define NDB_TYPES_H
 
-typedef   signed char  Int8;
-typedef unsigned char  Uint8;
-typedef   signed short Int16;
-typedef unsigned short Uint16;
-typedef   signed int   Int32;
-typedef unsigned int   Uint32;
-
-typedef unsigned int UintR;
-
-#ifdef __SIZE_TYPE__
-typedef __SIZE_TYPE__ UintPtr;
-#else
-#include <ndb_global.h>
-#ifdef HAVE_STDINT_H
-#include <stdint.h>
-#endif
-#ifdef HAVE_INTTYPES_H
-#include <inttypes.h>
-#endif
-#if defined(WIN32) || defined(NDB_WIN32)
-typedef Uint32 UintPtr;
-#else
-typedef uintptr_t UintPtr;
-#endif
-#endif
-
-#if defined(WIN32) || defined(NDB_WIN32)
-typedef unsigned __int64 Uint64;
-typedef   signed __int64 Int64;
-typedef UintPtr ssize_t;
-#else
-typedef unsigned long long Uint64;
-typedef   signed long long Int64;
-#endif
-
+#include "ndb_global.h"
 #include "ndb_constants.h"
 
 #endif

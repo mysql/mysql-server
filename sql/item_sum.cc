@@ -303,12 +303,6 @@ Item_sum_sum_distinct::Item_sum_sum_distinct(THD *thd,
 }
 
 
-Item_sum_sum_distinct::~Item_sum_sum_distinct()
-{
-  delete tree;
-}
-  
-
 Item *
 Item_sum_sum_distinct::copy_or_same(THD *thd)
 {
@@ -355,6 +349,14 @@ void Item_sum_sum_distinct::clear()
   null_value= 1; 
   tree->reset();
 }
+
+void Item_sum_sum_distinct::cleanup()
+{
+  Item_sum_num::cleanup();
+  delete tree;
+  tree= 0;
+}
+
 
 bool Item_sum_sum_distinct::add()
 {
