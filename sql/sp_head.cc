@@ -216,6 +216,9 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount, Item **resp)
 
     nctx->push_item(eval_func_item(thd, *argp++, pvar->type));
   }
+  // Close tables opened for subselect in argument list
+  close_thread_tables(thd);
+
   // The rest of the frame are local variables which are all IN.
   // QQ See comment in execute_procedure below.
   for (; i < csize ; i++)
@@ -283,6 +286,9 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
 	  nctx->set_oindex(i, static_cast<Item_splocal *>(it)->get_offset());
       }
     }
+    // Close tables opened for subselect in argument list
+    close_thread_tables(thd);
+
     // The rest of the frame are local variables which are all IN.
     // QQ We haven't found any hint of what the value is when unassigned,
     //    so we set it to NULL for now. It's an error to refer to an

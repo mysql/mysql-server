@@ -605,3 +605,6 @@ vio/viotest-ssl
 myisam/ftbench/var/*
 myisam/ftbench/data
 myisam/ftbench/t
+libmysqld/sp_pcontext.cc
+libmysqld/sp.cc
+libmysqld/sp_head.cc
