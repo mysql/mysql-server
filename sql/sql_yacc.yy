@@ -334,6 +334,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token	MAX_CONNECTIONS_PER_HOUR
 %token	MAX_QUERIES_PER_HOUR
 %token	MAX_UPDATES_PER_HOUR
+%token	MAX_USER_CONNECTIONS_SYM
 %token	MEDIUM_SYM
 %token	MIN_ROWS
 %token	NAMES_SYM
@@ -6959,6 +6960,7 @@ keyword:
 	| MAX_CONNECTIONS_PER_HOUR	 {}
 	| MAX_QUERIES_PER_HOUR	{}
 	| MAX_UPDATES_PER_HOUR	{}
+	| MAX_USER_CONNECTIONS_SYM {}
 	| MEDIUM_SYM		{}
 	| MERGE_SYM		{}
 	| MICROSECOND_SYM	{}
@@ -7775,18 +7777,23 @@ grant_option:
         | MAX_QUERIES_PER_HOUR ULONG_NUM
         {
 	  Lex->mqh.questions=$2;
-	  Lex->mqh.bits |= 1;
+	  Lex->mqh.specified_limits|= USER_RESOURCES::QUERIES_PER_HOUR;
 	}
         | MAX_UPDATES_PER_HOUR ULONG_NUM
         {
 	  Lex->mqh.updates=$2;
-	  Lex->mqh.bits |= 2;
+	  Lex->mqh.specified_limits|= USER_RESOURCES::UPDATES_PER_HOUR;
 	}
         | MAX_CONNECTIONS_PER_HOUR ULONG_NUM
         {
-	  Lex->mqh.connections=$2;
-	  Lex->mqh.bits |= 4;
+	  Lex->mqh.conn_per_hour= $2;
+	  Lex->mqh.specified_limits|= USER_RESOURCES::CONNECTIONS_PER_HOUR;
 	}
+        | MAX_USER_CONNECTIONS_SYM ULONG_NUM
+        {
+          Lex->mqh.user_conn= $2;
+          Lex->mqh.specified_limits|= USER_RESOURCES::USER_CONNECTIONS;
+        }
         ;
 
 begin:

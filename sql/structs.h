@@ -205,16 +205,65 @@ typedef struct	st_lex_user {
 } LEX_USER;
 
 
+/*
+  This structure specifies the maximum amount of resources which
+  can be consumed by each account. Zero value of a member means
+  there is no limit.
+*/
 typedef struct user_resources {
-  uint questions, updates, connections, bits;
+  /* Maximum number of queries/statements per hour. */
+  uint questions;
+  /*
+     Maximum number of updating statements per hour (which statements are
+     updating is defined by uc_update_queries array).
+  */
+  uint updates;
+  /* Maximum number of connections established per hour. */
+  uint conn_per_hour;
+  /* Maximum number of concurrent connections. */
+  uint user_conn;
+  /*
+     Values of this enum and specified_limits member are used by the
+     parser to store which user limits were specified in GRANT statement.
+  */
+  enum {QUERIES_PER_HOUR= 1, UPDATES_PER_HOUR= 2, CONNECTIONS_PER_HOUR= 4,
+        USER_CONNECTIONS= 8};
+  uint specified_limits;
 } USER_RESOURCES;
 
+
+/*
+  This structure is used for counting resources consumed and for checking
+  them against specified user limits.
+*/
 typedef struct  user_conn {
-  char *user, *host;
-  uint len, connections, conn_per_hour, updates, questions, user_len;
+  /*
+     Pointer to user+host key (pair separated by '\0') defining the entity
+     for which resources are counted (By default it is user account thus
+     priv_user/priv_host pair is used. If --old-style-user-limits option
+     is enabled, resources are counted for each user+host separately).
+  */
+  char *user;
+  /* Pointer to host part of the key. */
+  char *host;
+  /* Total length of the key. */
+  uint len;
+  /* Current amount of concurrent connections for this account. */
+  uint connections;
+  /*
+     Current number of connections per hour, number of updating statements
+     per hour and total number of statements per hour for this account.
+  */
+  uint conn_per_hour, updates, questions;
+  /* Maximum amount of resources which account is allowed to consume. */
   USER_RESOURCES user_resources;
+  /*
+     The moment of time when per hour counters were reset last time
+     (i.e. start of "hour" for conn_per_hour, updates, questions counters).
+  */
   time_t intime;
 } USER_CONN;
+
 	/* Bits in form->update */
 #define REG_MAKE_DUPP		1	/* Make a copy of record when read */
 #define REG_NEW_RECORD		2	/* Write a new record if not found */
