@@ -1620,15 +1620,19 @@ int reassign_keycache_tables(THD* thd, KEY_CACHE_VAR* src_cache,
   {
     if (key_cache_asmt->to_reassign)
     {
+      bool refresh;
       VOID(pthread_mutex_unlock(&LOCK_assign));
       bzero((byte *) &table, sizeof(table));
       table.option= dest_name;
-      table.lock_type= TL_READ;
       table.db= key_cache_asmt->db_name;
       table.alias= table.real_name= key_cache_asmt->table_name;
       thd->open_options|= HA_OPEN_TO_ASSIGN;
-      table.table = open_ltable(thd, &table, TL_READ);
+      while (!(table.table=open_table(thd,table.db,
+			              table.real_name,table.alias,
+			              &refresh)) && refresh) ;
       thd->open_options&= ~HA_OPEN_TO_ASSIGN;
+      if (!table.table)
+        DBUG_RETURN(-1);
       table.table->pos_in_table_list= &table;
       key_cache_asmt->triggered= 1;
       rc= table.table->file->assign_to_keycache(thd, 0);
@@ -1642,6 +1646,18 @@ int reassign_keycache_tables(THD* thd, KEY_CACHE_VAR* src_cache,
     else
       key_cache_asmt= key_cache_asmt->next;
   }
+  
+  while (src_cache->assignments)
+  {
+    struct st_my_thread_var *waiting_thread= my_thread_var;
+    pthread_cond_wait(&waiting_thread->suspend, &LOCK_assign);
+  }
+  if (src_cache->extra_info)
+  {
+    my_free((char *) src_cache->extra_info, MYF(0));
+    src_cache->extra_info= 0;
+  }
+
   if (remove_fl && !src_cache->assign_list && src_cache != &dflt_key_cache_var)
   {
     end_key_cache(&src_cache->cache, 1);

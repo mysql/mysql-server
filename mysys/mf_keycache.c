@@ -425,7 +425,7 @@ int init_key_cache(KEY_CACHE_HANDLE *pkeycache, uint key_cache_block_size,
     keycache->min_warm_blocks= env && env->division_limit ?
                                  blocks * env->division_limit / 100 + 1 :
                                  blocks;
-    keycache->age_threshold= env || env->age_threshold ?
+    keycache->age_threshold= env && env->age_threshold ?
                                blocks * env->age_threshold / 100 :
                                blocks;                                         
 
@@ -535,6 +535,7 @@ int resize_key_cache(KEY_CACHE_HANDLE *pkeycache, uint key_cache_block_size,
 void change_key_cache_param(KEY_CACHE_HANDLE keycache)
 {
   KEY_CACHE_VAR *env= keycache->env;
+  DBUG_ENTER("change_key_cache_param");
 
   if (!env)
     return;
@@ -544,6 +545,7 @@ void change_key_cache_param(KEY_CACHE_HANDLE keycache)
   if (env->age_threshold)
     keycache->age_threshold= keycache->disk_blocks *
                                   env->age_threshold / 100;
+  DBUG_VOID_RETURN;
 }
 
 
@@ -1283,7 +1285,7 @@ restart:
       KEYCACHE_DBUG_PRINT("find_key_block",
                           ("request waiting for old page to be saved"));
       {
-        struct st_my_thread_var *thread=my_thread_var;
+        struct st_my_thread_var *thread= my_thread_var;
         /* Put the request into the queue of those waiting for the old page */
         add_to_queue(&block->wqueue[COND_FOR_SAVED], thread);
         /* Wait until the request can be resubmitted */
@@ -2038,6 +2040,7 @@ static int flush_cached_blocks(KEY_CACHE *keycache,
 int flush_key_blocks(KEY_CACHE_HANDLE keycache,
                      File file, enum flush_type type)
 {
+  KEY_CACHE_VAR *env;
   BLOCK_LINK *cache_buff[FLUSH_CACHE],**cache;
   int last_errno= 0;
 
@@ -2213,9 +2216,14 @@ restart:
 
   keycache_pthread_mutex_unlock(&keycache->cache_lock);
 
+  if (type == FLUSH_REMOVE && (env= keycache->env) && (env->action))
+  {
+    (*env->action)((void *) env);
+  }
+
 #ifndef DBUG_OFF
-    DBUG_EXECUTE("check_keycache",
-                 test_key_cache(keycache, "end of flush_key_blocks", 0););
+  DBUG_EXECUTE("check_keycache",
+               test_key_cache(keycache, "end of flush_key_blocks", 0););
 #endif
   if (cache != cache_buff)
     my_free((gptr) cache, MYF(0));
