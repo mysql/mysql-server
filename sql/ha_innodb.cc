@@ -878,7 +878,7 @@ innobase_init(void)
 	Note that when using the embedded server, the datadirectory is not
 	necessarily the current directory of this program. */
 
-	if (mysql_embedded) {
+	if (mysqld_embedded) {
 		default_path = mysql_real_data_home;
 		fil_path_to_mysql_datadir = mysql_real_data_home;
 	} else {
@@ -1016,7 +1016,7 @@ innobase_init(void)
 	srv_max_n_open_files = (ulint) innobase_open_files;
 	srv_innodb_status = (ibool) innobase_create_status_file;
 
-	srv_print_verbose_log = mysql_embedded ? 0 : 1;
+	srv_print_verbose_log = mysqld_embedded ? 0 : 1;
 
 		/* Store the default charset-collation number of this MySQL
 	installation */

@@ -1196,7 +1196,7 @@ bool Item_ref_null_helper::get_date(TIME *ltime, uint fuzzydate)
 static void mark_as_dependent(THD *thd, SELECT_LEX *last, SELECT_LEX *current,
 			      Item_ident *item)
 {
-  // store pointer on SELECT_LEX from wich item is dependent
+  // store pointer on SELECT_LEX from which item is dependent
   item->depended_from= last;
   current->mark_as_dependent(last);
   if (thd->lex->describe & DESCRIBE_EXTENDED)
@@ -1872,10 +1872,11 @@ bool Item_field::send(Protocol *protocol, String *buffer)
   return protocol->store(result_field);
 }
 
+
 /*
   This is used for HAVING clause
   Find field in select list having the same name
- */
+*/
 
 bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 {
@@ -1904,8 +1905,9 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 				  REPORT_ALL_ERRORS ), &not_used)) ==
 	(Item **)not_found_item)
     {
-      upward_lookup= 1;
       Field *tmp= (Field*) not_found_field;
+      SELECT_LEX *last= 0;
+      upward_lookup= 1;
       /*
 	We can't find table field in select list of current select,
 	consequently we have to find it in outer subselect(s).
@@ -1915,7 +1917,6 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 	mention of table name, but if we join tables in one list it will
 	cause error ER_NON_UNIQ_ERROR in find_item_in_list.
       */
-      SELECT_LEX *last=0;
       for ( ; sl ; sl= (prev_unit= sl->master_unit())->outer_select())
       {
 	last= sl;
@@ -1967,9 +1968,9 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 
       if (!ref)
 	return 1;
-      else if (!tmp)
+      if (!tmp)
 	return -1;
-      else if (ref == (Item **)not_found_item && tmp == not_found_field)
+      if (ref == (Item **)not_found_item && tmp == not_found_field)
       {
 	if (upward_lookup)
 	{
@@ -1984,31 +1985,33 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 			    *(thd->lex->current_select->get_item_list()),
 			    &counter, REPORT_ALL_ERRORS, &not_used);
 	}
-        ref= 0;
+        ref= 0;                                 // Safety
 	return 1;
       }
-      else if (tmp != not_found_field)
+      if (tmp != not_found_field)
       {
-	ref= 0; // To prevent "delete *ref;" on ~Item_ref() of this item
-	Item_field* fld= new Item_field(tmp);
-	if (!fld)
+        Item_field* fld;
+        /*
+          Set ref to 0 as we are replacing this item with the found item
+          and this will ensure we get an error if this item would be
+          used elsewhere
+        */
+	ref= 0;                                 // Safety
+	if (!(fld= new Item_field(tmp)))
 	  return 1;
 	thd->change_item_tree(reference, fld);
 	mark_as_dependent(thd, last, thd->lex->current_select, fld);
 	return 0;
       }
-      else
+      if (!(*ref)->fixed)
       {
-	if (!(*ref)->fixed)
-	{
-	  my_error(ER_ILLEGAL_REFERENCE, MYF(0), name,
-		   "forward reference in item list");
-	  return -1;
-	}
-	mark_as_dependent(thd, last, thd->lex->current_select,
-			  this);
-	ref= last->ref_pointer_array + counter;
+        my_error(ER_ILLEGAL_REFERENCE, MYF(0), name,
+                 "forward reference in item list");
+        return -1;
       }
+      mark_as_dependent(thd, last, thd->lex->current_select,
+                        this);
+      ref= last->ref_pointer_array + counter;
     }
     else if (!ref)
       return 1;
@@ -2523,12 +2526,13 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
   uint32 new_length= real_length(item);
   bool use_new_field= 0, use_expression_type= 0;
   Item_result new_result_type= type_convertor[item_type][item->result_type()];
+  bool item_is_a_field= item->type() == Item::FIELD_ITEM;
 
   /*
     Check if both items point to fields: in this case we
     can adjust column types of result table in the union smartly.
   */
-  if (field_example && item->type() == Item::FIELD_ITEM)
+  if (field_example && item_is_a_field)
   {
     Field *field= ((Item_field *)item)->field;
     /* Can 'field_example' field store data of the column? */
@@ -2545,23 +2549,25 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
          !is_attr_compatible(this, item));
     }
   }
-  else if (field_example || item->type() == Item::FIELD_ITEM)
+  else if (field_example || item_is_a_field)
   {
     /*
       Expression types can't be mixed with field types, we have to use
       expression types.
     */
+    use_new_field= 1;                           // make next if test easier
     use_expression_type= 1;
   }
 
   /* Check whether size/type of the result item should be changed */
-  if (use_new_field || use_expression_type ||
+  if (use_new_field ||
       (new_result_type != item_type) || (new_length > max_length) ||
       (!maybe_null && item->maybe_null) ||
       (item_type == STRING_RESULT && 
        collation.collation != item->collation.collation))
   {
-    if (use_expression_type || item->type() != Item::FIELD_ITEM)
+    const char *old_cs,*old_derivation;
+    if (use_expression_type || !item_is_a_field)
       field_example= 0;
     else
     {
@@ -2572,8 +2578,8 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
       field_example= ((Item_field*) item)->field;
     }
 
-    const char *old_cs= collation.collation->name,
-      *old_derivation= collation.derivation_name();
+    old_cs= collation.collation->name;
+    old_derivation= collation.derivation_name();
     if (item_type == STRING_RESULT && collation.aggregate(item->collation))
     {
       my_error(ER_CANT_AGGREGATE_2COLLATIONS, MYF(0),
@@ -2593,12 +2599,12 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
   return 0;
 }
 
+
 uint32 Item_type_holder::real_length(Item *item)
 {
   if (item->type() == Item::FIELD_ITEM)
-  {
     return ((Item_field *)item)->max_disp_length();
-  }
+
   switch (item->result_type())
   {
   case STRING_RESULT:

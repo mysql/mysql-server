@@ -144,3 +144,4 @@ EXPORTS
 	mysql_rpl_probe
 	mysql_rpl_query_type
 	mysql_slave_query
+	mysql_embedded

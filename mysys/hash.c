@@ -72,19 +72,48 @@ _hash_init(HASH *hash,CHARSET_INFO *charset,
 }
 
 
+/*
+  Call hash->free on all elements in hash.
+
+  SYNOPSIS
+    hash_free_elements()
+    hash   hash table
+
+  NOTES:
+    Sets records to 0
+*/
+
+static inline void hash_free_elements(HASH *hash)
+{
+  if (hash->free)
+  {
+    HASH_LINK *data=dynamic_element(&hash->array,0,HASH_LINK*);
+    HASH_LINK *end= data + hash->records;
+    while (data < end)
+      (*hash->free)((data++)->data);
+  }
+  hash->records=0;
+}
+
+
+/*
+  Free memory used by hash.
+
+  SYNOPSIS
+    hash_free()
+    hash   the hash to delete elements of
+
+  NOTES: Hash can't be reused wuthing calling hash_init again.
+*/
+
 void hash_free(HASH *hash)
 {
   DBUG_ENTER("hash_free");
-  if (hash->free)
-  {
-    uint i,records;
-    HASH_LINK *data=dynamic_element(&hash->array,0,HASH_LINK*);
-    for (i=0,records=hash->records ; i < records ; i++)
-      (*hash->free)(data[i].data);
-    hash->free=0;
-  }
+  DBUG_PRINT("enter",("hash: 0x%lxd",hash));
+
+  hash_free_elements(hash);
+  hash->free= 0;
   delete_dynamic(&hash->array);
-  hash->records=0;
   DBUG_VOID_RETURN;
 }
 
@@ -94,21 +123,17 @@ void hash_free(HASH *hash)
 
   SYNOPSIS
     hash_reset()
-      hash   the hash to delete elements of
+    hash   the hash to delete elements of
 */
 
 void hash_reset(HASH *hash)
 {
   DBUG_ENTER("hash_reset");
-  if (hash->free)
-  {
-    HASH_LINK *link= dynamic_element(&hash->array, 0, HASH_LINK*);
-    HASH_LINK *end= link + hash->records;
-    for (; link < end; ++link)
-      (*hash->free)(link->data);
-  }
+  DBUG_PRINT("enter",("hash: 0x%lxd",hash));
+
+  hash_free_elements(hash);
   reset_dynamic(&hash->array);
-  hash->records= 0;
+  /* Set row pointers so that the hash can be reused at once */
   hash->blength= 1;
   hash->current_record= NO_RECORD;
   DBUG_VOID_RETURN;

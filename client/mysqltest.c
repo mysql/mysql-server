@@ -58,13 +58,6 @@
 #include <stdarg.h>
 #include <sys/stat.h>
 #include <violite.h>
-#ifdef HAVE_SYS_PARAM_H
-#include <sys/param.h>
-#endif
-
-#ifndef MAXPATHLEN
-#define MAXPATHLEN 256
-#endif
 
 #define MAX_QUERY     131072
 #define MAX_VAR_NAME	256
@@ -2105,10 +2098,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       embedded_server_arg_count=1;
       embedded_server_args[0]= (char*) "";
     }
-    embedded_server_args[embedded_server_arg_count++]=
-      my_strdup(argument, MYF(MY_FAE));
-    if (embedded_server_arg_count == MAX_SERVER_ARGS ||
-	!embedded_server_args[embedded_server_arg_count-1])
+    if (embedded_server_arg_count == MAX_SERVER_ARGS-1 ||
+        !(embedded_server_args[embedded_server_arg_count++]=
+          my_strdup(argument, MYF(MY_FAE))))
     {
       die("Can't use server argument");
     }
@@ -2166,7 +2158,7 @@ char* safe_str_append(char* buf, const char* str, int size)
 void str_to_file(const char* fname, char* str, int size)
 {
   int fd;
-  char buff[MAXPATHLEN];
+  char buff[FN_REFLEN];
   if (!test_if_hard_path(fname))
   {
     strxmov(buff, opt_basedir, fname, NullS);
@@ -2979,10 +2971,10 @@ static void timer_output(void)
 {
   if (timer_file)
   {
-    char buf[1024];
+    char buf[32], *end;
     ulonglong timer= timer_now() - timer_start;
-    sprintf(buf,"%llu",timer);
-    str_to_file(timer_file,buf,strlen(buf));
+    end= longlong2str(timer, buf, 10);
+    str_to_file(timer_file,buf, (int) (end-buf));
   }
 }
 
