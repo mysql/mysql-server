@@ -732,7 +732,17 @@ double my_strntod_8bit(CHARSET_INFO *cs __attribute__((unused)),
   double result;
 
   errno= 0;					/* Safety */
+
+  /*
+    The following define is to avoid warnings from valgrind as str[length]
+    may not be defined (which is not fatal in real life)
+  */
+
+#ifdef HAVE_purify
+  if (length == INT_MAX32)
+#else
   if (length == INT_MAX32 || str[length] == 0)
+#endif
     result= strtod(str, end);
   else
   {

@@ -1100,7 +1100,7 @@ byte *sys_var_thd_sql_mode::value_ptr(THD *thd, enum_var_type type)
   }
   if (tmp.length())
     tmp.length(tmp.length() - 1);
-  return (byte*) thd->strdup(tmp.c_ptr());
+  return (byte*) thd->strmake(tmp.ptr(), tmp.length());
 }
 
 
