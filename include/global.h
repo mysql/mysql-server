@@ -479,6 +479,7 @@ extern double		my_atof(const char*);
 #undef HAVE_TEMPNAM				/* Use ours */
 #undef HAVE_PTHREAD_SETPRIO
 #undef HAVE_FTRUNCATE
+#undef HAVE_READLINK
 #endif
 
 /* This is from the old m-machine.h file */
