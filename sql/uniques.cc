@@ -132,7 +132,8 @@ bool Unique::get(TABLE *table)
   bzero((char*) &sort_param,sizeof(sort_param));
   sort_param.max_rows= elements;
   sort_param.sort_form=table;
-  sort_param.sort_length=sort_param.ref_length=tree.size_of_element;
+  sort_param.rec_length= sort_param.sort_length=sort_param.ref_length=
+    tree.size_of_element;
   sort_param.keys= max_in_memory_size / sort_param.sort_length;
   sort_param.not_killable=1;
 
