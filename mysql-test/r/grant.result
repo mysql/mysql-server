@@ -108,3 +108,6 @@ flush privileges;
 drop table t1;
 GRANT FILE on mysqltest.*  to mysqltest_1@localhost;
 Wrong usage of DB GRANT and GLOBAL PRIVILEGES
+select 1;
+1
+1
