@@ -68,12 +68,12 @@
 /* READLINE: */
 #undef HAVE_GETPW_DECLS
 
-/* In OSF 4.0f the 3'd argument to gethostname_r is hostent_data * */
-#undef HAVE_GETHOSTBYNAME_R_WITH_HOSTENT_DATA
-
 /* Solaris define gethostbyname_r with 5 arguments. glibc2 defines
    this with 6 arguments */
-#undef HAVE_GLIBC2_STYLE_GETHOSTBYNAME_R
+#undef HAVE_GETHOSTBYNAME_R_GLIBC2_STYLE
+
+/* In OSF 4.0f the 3'd argument to gethostname_r is hostent_data * */
+#undef HAVE_GETHOSTBYNAME_R_RETURN_INT
 
 /* Define if int8, int16 and int32 types exist */
 #undef HAVE_INT_8_16_32

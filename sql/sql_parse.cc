@@ -1652,7 +1652,7 @@ mysql_execute_command(void)
       thd->locked_tables=0;			// Will be automaticly closed
       close_thread_tables(thd);
     }
-    if (check_db_used(thd,tables))
+    if (check_db_used(thd,tables) || end_active_trans(thd))
       goto error;
     thd->in_lock_tables=1;
     if (!(res=open_and_lock_tables(thd,tables)))

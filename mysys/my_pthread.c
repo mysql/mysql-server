@@ -417,7 +417,7 @@ int my_pthread_cond_init(pthread_cond_t *mp, const pthread_condattr_t *attr)
 
 #if !defined(my_gethostbyname_r) && defined(HAVE_GETHOSTBYNAME_R)
 
-#if defined(HAVE_GLIBC2_STYLE_GETHOSTBYNAME_R)
+#if defined(HAVE_GETHOSTBYNAME_R_GLIBC2_STYLE)
 
 struct hostent *my_gethostbyname_r(const char *name,
 				   struct hostent *result, char *buffer,
@@ -430,7 +430,7 @@ struct hostent *my_gethostbyname_r(const char *name,
   return hp;
 }
 
-#elif defined(_HPUX_SOURCE) || (defined(_AIX) && !defined(_AIX32_THREADS))
+#elif defined(HAVE_GETHOSTBYNAME_R_RETURN_INT)
 
 struct hostent *my_gethostbyname_r(const char *name,
 				   struct hostent *result, char *buffer,
