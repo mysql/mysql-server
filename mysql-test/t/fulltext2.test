@@ -6,7 +6,10 @@
 # two-level tree
 #
 
+--disable_warnings
 DROP TABLE IF EXISTS t1;
+--enable_warnings
+
 CREATE TABLE t1 (
   i int(10) unsigned not null auto_increment primary key,
   a varchar(255) not null,
