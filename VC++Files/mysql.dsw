@@ -141,9 +141,6 @@ Package=<4>
     Project_Dep_Name myisam
     End Project Dependency
     Begin Project Dependency
-    Project_Dep_Name myisammrg
-    End Project Dependency
-    Begin Project Dependency
     Project_Dep_Name mysys
     End Project Dependency
     Begin Project Dependency
@@ -153,13 +150,10 @@ Package=<4>
     Project_Dep_Name strings
     End Project Dependency
     Begin Project Dependency
-    Project_Dep_Name vio
+    Project_Dep_Name myisammrg
     End Project Dependency
     Begin Project Dependency
     Project_Dep_Name zlib
-    End Project Dependency
-    Begin Project Dependency
-    Project_Dep_Name merge
     End Project Dependency
 }}}
 
@@ -444,18 +438,6 @@ Package=<4>
 
 ###############################################################################
 
-Project: "mysqldemb"=".\mysqldemb\mysqldemb.dsp" - Package Owner=<4>
-
-Package=<5>
-{{{
-}}}
-
-Package=<4>
-{{{
-}}}
-
-###############################################################################
-
 Project: "mysqldump"=".\client\mysqldump.dsp" - Package Owner=<4>
 
 Package=<5>
@@ -481,54 +463,6 @@ Package=<4>
 {{{
     Begin Project Dependency
     Project_Dep_Name mysqlclient
-    End Project Dependency
-}}}
-
-###############################################################################
-
-Project: "mysqlserver"=".\mysqlserver\mysqlserver.dsp" - Package Owner=<4>
-
-Package=<5>
-{{{
-}}}
-
-Package=<4>
-{{{
-    Begin Project Dependency
-    Project_Dep_Name zlib
-    End Project Dependency
-    Begin Project Dependency
-    Project_Dep_Name bdb
-    End Project Dependency
-    Begin Project Dependency
-    Project_Dep_Name dbug
-    End Project Dependency
-    Begin Project Dependency
-    Project_Dep_Name heap
-    End Project Dependency
-    Begin Project Dependency
-    Project_Dep_Name innobase
-    End Project Dependency
-    Begin Project Dependency
-    Project_Dep_Name merge
-    End Project Dependency
-    Begin Project Dependency
-    Project_Dep_Name myisam
-    End Project Dependency
-    Begin Project Dependency
-    Project_Dep_Name myisammrg
-    End Project Dependency
-    Begin Project Dependency
-    Project_Dep_Name mysqldemb
-    End Project Dependency
-    Begin Project Dependency
-    Project_Dep_Name mysys
-    End Project Dependency
-    Begin Project Dependency
-    Project_Dep_Name regex
-    End Project Dependency
-    Begin Project Dependency
-    Project_Dep_Name strings
     End Project Dependency
 }}}
 
@@ -685,24 +619,6 @@ Package=<4>
 {{{
     Begin Project Dependency
     Project_Dep_Name libmySQL
-    End Project Dependency
-}}}
-
-###############################################################################
-
-Project: "test_libmysqld"=".\libmysqld\examples\test_libmysqld.dsp" - Package Owner=<4>
-
-Package=<5>
-{{{
-}}}
-
-Package=<4>
-{{{
-    Begin Project Dependency
-    Project_Dep_Name libmysqld
-    End Project Dependency
-    Begin Project Dependency
-    Project_Dep_Name mysqlclient
     End Project Dependency
 }}}
 

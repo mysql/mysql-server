@@ -32,7 +32,7 @@ main( int argc, char * argv[] )
 {
 
   char		szSQL[ 200 ], aszFlds[ 25 ][ 25 ], szDB[ 50 ] ;
-  const char  *pszT;
+  const  char   *pszT;
   int			i, j, k, l, x ;
   MYSQL		* myData ;
   MYSQL_RES	* res ;
