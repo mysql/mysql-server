@@ -144,7 +144,7 @@ int st_select_lex_unit::prepare(THD *thd, select_result *sel_result)
     first_select->braces= 1;
     tmp_table_param= &tmp_table_param_storage;
   }
-  bzero((char *)tmp_table_param,sizeof(TMP_TABLE_PARAM));
+  bzero((char *)tmp_table_param, sizeof(TMP_TABLE_PARAM));
 
 
   for (;sl; sl= sl->next_select())
