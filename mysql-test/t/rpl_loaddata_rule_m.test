@@ -9,7 +9,7 @@ drop database if exists mysqltest;
 --enable_warnings
 
 connection slave;
-reset master;
+stop slave; # don't need slave for this test
 
 # Test logging on master
 

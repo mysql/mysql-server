@@ -25,11 +25,11 @@
 #include "sql_select.h"
 
 int mysql_union(THD *thd, LEX *lex, select_result *result,
-		SELECT_LEX_UNIT *unit, bool tables_and_fields_initied)
+		SELECT_LEX_UNIT *unit)
 {
   DBUG_ENTER("mysql_union");
   int res= 0;
-  if (!(res= unit->prepare(thd, result, tables_and_fields_initied)))
+  if (!(res= unit->prepare(thd, result)))
     res= unit->exec();
   res|= unit->cleanup();
   DBUG_RETURN(res);
@@ -59,12 +59,6 @@ select_union::~select_union()
 int select_union::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
 {
   unit= u;
-  if (not_describe && list.elements != table->fields)
-  {
-    my_message(ER_WRONG_NUMBER_OF_COLUMNS_IN_SELECT,
-	       ER(ER_WRONG_NUMBER_OF_COLUMNS_IN_SELECT),MYF(0));
-    return -1;
-  }
   return 0;
 }
 
@@ -112,11 +106,11 @@ bool select_union::flush()
 }
 
 
-int st_select_lex_unit::prepare(THD *thd, select_result *sel_result,
-				bool tables_and_fields_initied)
+int st_select_lex_unit::prepare(THD *thd, select_result *sel_result)
 {
   SELECT_LEX *lex_select_save= thd->lex.current_select;
-  SELECT_LEX *select_cursor,*sl;
+  SELECT_LEX *sl, *first_select;
+  select_result *tmp_result;
   DBUG_ENTER("st_select_lex_unit::prepare");
 
   /*
@@ -129,74 +123,33 @@ int st_select_lex_unit::prepare(THD *thd, select_result *sel_result,
     DBUG_RETURN(0);
   prepared= 1;
   res= 0;
-  found_rows_for_union= first_select_in_union()->options & OPTION_FOUND_ROWS;
   TMP_TABLE_PARAM tmp_table_param;
-  t_and_f= tables_and_fields_initied;
   
   bzero((char *)&tmp_table_param,sizeof(TMP_TABLE_PARAM));
-  thd->lex.current_select= sl= select_cursor= first_select_in_union();
+  thd->lex.current_select= sl= first_select= first_select_in_union();
+  found_rows_for_union= first_select->options & OPTION_FOUND_ROWS;
+
   /* Global option */
-  if (t_and_f)
+
+  if (first_select->next_select())
   {
-    // Item list and tables will be initialized by mysql_derived
-    item_list= select_cursor->item_list;
+    if (!(tmp_result= union_result= new select_union(0)))
+      goto err;
+    union_result->not_describe= 1;
+    union_result->tmp_table_param= tmp_table_param;
   }
   else
   {
-    item_list.empty();
-    TABLE_LIST *first_table= (TABLE_LIST*) select_cursor->table_list.first;
-
-    if (setup_tables(first_table) ||
-	setup_wild(thd, first_table, select_cursor->item_list, 0,
-		   select_cursor->with_wild))
-      goto err;
-    List_iterator<Item> it(select_cursor->item_list);	
-    Item *item;
-    item_list= select_cursor->item_list;
-    select_cursor->with_wild= 0;
-    if (select_cursor->setup_ref_array(thd,
-				       select_cursor->order_list.elements +
-				       select_cursor->group_list.elements) ||
-	setup_fields(thd, select_cursor->ref_pointer_array, first_table,
-		     item_list, 0, 0, 1))
-      goto err;
-    // Item list should be fix_fielded yet another time in JOIN::prepare
-    unfix_item_list(item_list);
-
-    t_and_f= 1;
-    while((item=it++))
-    {
-      item->maybe_null=1;
-      if (item->type() == Item::FIELD_ITEM)
-	((class Item_field *)item)->field->table->maybe_null=1;
-    }
+    tmp_result= sel_result;
+    // single select should be processed like select in p[arantses
+    first_select->braces= 1;
   }
-
-  tmp_table_param.field_count=item_list.elements;
-  if (!(table= create_tmp_table(thd, &tmp_table_param, item_list,
-				(ORDER*) 0, !union_option,
-				1, (select_cursor->options | thd->options |
-				    TMP_TABLE_ALL_COLUMNS),
-				HA_POS_ERROR, (char*) "")))
-    goto err;
-  table->file->extra(HA_EXTRA_WRITE_CACHE);
-  table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
-  bzero((char*) &result_table_list,sizeof(result_table_list));
-  result_table_list.db= (char*) "";
-  result_table_list.real_name=result_table_list.alias= (char*) "union";
-  result_table_list.table=table;
-
-  if (!(union_result=new select_union(table)))
-    goto err;
-
-  union_result->not_describe=1;
-  union_result->tmp_table_param=tmp_table_param;
 
   for (;sl; sl= sl->next_select())
   {
     JOIN *join= new JOIN(thd, sl->item_list, 
 			 sl->options | thd->options | SELECT_NO_UNLOCK,
-			 union_result);
+			 tmp_result);
     thd->lex.current_select= sl;
     offset_limit_cnt= sl->offset_limit;
     select_limit_cnt= sl->select_limit+sl->offset_limit;
@@ -215,27 +168,77 @@ int st_select_lex_unit::prepare(THD *thd, select_result *sel_result,
 		       (ORDER*) sl->group_list.first,
 		       sl->having,
 		       (ORDER*) NULL,
-		       sl, this, t_and_f);
-    t_and_f= 0;
+		       sl, this);
     if (res || thd->is_fatal_error)
       goto err;
-  }
-
-  item_list.empty();
-  thd->lex.current_select= lex_select_save;
-  {
-    List_iterator<Item> it(select_cursor->item_list);
-    Field **field;
-
-    for (field= table->field; *field; field++)
+    if (sl == first_select)
     {
-      (void) it++;
-      if (item_list.push_back(new Item_field(*field)))
-	DBUG_RETURN(-1);
+      types.empty();
+      List_iterator_fast<Item> it(sl->item_list);
+      Item *item;
+      while((item= it++))
+      {
+	types.push_back(new Item_type_holder(thd, item));
+      }
+
+      if (thd->is_fatal_error)
+	goto err; // out of memory
+    }
+    else
+    {
+      if (types.elements != sl->item_list.elements)
+      {
+	my_message(ER_WRONG_NUMBER_OF_COLUMNS_IN_SELECT,
+		   ER(ER_WRONG_NUMBER_OF_COLUMNS_IN_SELECT),MYF(0));
+	goto err;
+      }
+      List_iterator_fast<Item> it(sl->item_list);
+      List_iterator_fast<Item> tp(types);	
+      Item *type, *item;
+      while((type= tp++, item= it++))
+      {
+	if (((Item_type_holder*)type)->join_types(thd, item))
+	  DBUG_RETURN(-1);
+      }
     }
   }
 
+  if (first_select->next_select())
+  {
+    tmp_table_param.field_count= types.elements;
+    if (!(table= create_tmp_table(thd, &tmp_table_param, types,
+				  (ORDER*) 0, !union_option, 1, 
+				  (first_select_in_union()->options |
+				   thd->options |
+				   TMP_TABLE_ALL_COLUMNS),
+				  HA_POS_ERROR, (char*) "")))
+      goto err;
+    table->file->extra(HA_EXTRA_WRITE_CACHE);
+    table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
+    bzero((char*) &result_table_list, sizeof(result_table_list));
+    result_table_list.db= (char*) "";
+    result_table_list.real_name= result_table_list.alias= (char*) "union";
+    result_table_list.table= table;
+    union_result->set_table(table);
+
+    item_list.empty();
+    thd->lex.current_select= lex_select_save;
+    {
+      Field **field;
+      for (field= table->field; *field; field++)
+      {
+	if (item_list.push_back(new Item_field(*field)))
+	  DBUG_RETURN(-1);
+      }
+    }
+  }
+  else
+    first_select->braces= 0; // remove our changes
+
+  thd->lex.current_select= lex_select_save;
+
   DBUG_RETURN(res || thd->is_fatal_error ? 1 : 0);
+
 err:
   thd->lex.current_select= lex_select_save;
   DBUG_RETURN(-1);
@@ -419,7 +422,7 @@ int st_select_lex_unit::exec()
 			(ORDER*)global_parameters->order_list.first,
 			(ORDER*) NULL, NULL, (ORDER*) NULL,
 			options | SELECT_NO_UNLOCK,
-			result, this, fake_select_lex, 0);
+			result, this, fake_select_lex);
       if (!res)
 	thd->limit_found_rows = (ulonglong)table->file->records + add_rows;
       /*

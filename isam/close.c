@@ -57,7 +57,7 @@ int nisam_close(register N_INFO *info)
   if (flag)
   {
     if (share->kfile >= 0 && 
-        flush_key_blocks(*dflt_keycache,share->kfile,FLUSH_RELEASE))
+        flush_key_blocks(dflt_key_cache,share->kfile,FLUSH_RELEASE))
       error=my_errno;
     if (share->kfile >= 0 && my_close(share->kfile,MYF(0)))
       error = my_errno;

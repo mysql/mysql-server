@@ -166,7 +166,7 @@ typedef struct st_mi_isam_share {	/* Shared between opens */
   char  *data_file_name,		/* Resolved path names from symlinks */
         *index_file_name;
   byte *file_map;			/* mem-map of file if possible */
-  KEY_CACHE_HANDLE *key_cache;		/* ref to the current key cache */
+  KEY_CACHE *key_cache;			/* ref to the current key cache */
   MI_DECODE_TREE *decode_trees;
   uint16 *decode_tables;
   int (*read_record)(struct st_myisam_info*, my_off_t, byte*);
@@ -713,7 +713,7 @@ int thr_write_keys(MI_SORT_PARAM *sort_param);
 #ifdef THREAD
 pthread_handler_decl(thr_find_all_keys,arg);
 #endif
-int flush_blocks(MI_CHECK *param, KEY_CACHE_HANDLE key_cache, File file);
+int flush_blocks(MI_CHECK *param, KEY_CACHE *key_cache, File file);
 
 int sort_write_record(MI_SORT_PARAM *sort_param);
 int _create_index_by_sort(MI_SORT_PARAM *info,my_bool no_messages, ulong);

@@ -23,6 +23,7 @@
 */
 
 #include "mysys_priv.h"
+#include <keycache.h>
 #include <hash.h>
 #include <m_string.h>
 
@@ -295,7 +296,7 @@ static SAFE_HASH key_cache_hash;
 
 my_bool multi_keycache_init(void)
 {
-  return safe_hash_init(&key_cache_hash, 16, (byte*) dflt_keycache);
+  return safe_hash_init(&key_cache_hash, 16, (byte*) dflt_key_cache);
 }
 
 
@@ -321,11 +322,11 @@ void multi_keycache_free(void)
     key cache to use
 */
 
-KEY_CACHE_HANDLE *multi_key_cache_search(byte *key, uint length)
+KEY_CACHE *multi_key_cache_search(byte *key, uint length)
 {
   if (!key_cache_hash.hash.records)
-    return dflt_keycache;
-  return (KEY_CACHE_HANDLE*) safe_hash_search(&key_cache_hash, key, length);
+    return dflt_key_cache;
+  return (KEY_CACHE*) safe_hash_search(&key_cache_hash, key, length);
 }
 
 
@@ -346,14 +347,14 @@ KEY_CACHE_HANDLE *multi_key_cache_search(byte *key, uint length)
 
 
 my_bool multi_key_cache_set(const byte *key, uint length,
-			    KEY_CACHE_HANDLE *key_cache)
+			    KEY_CACHE *key_cache)
 {
   return safe_hash_set(&key_cache_hash, key, length, (byte*) key_cache);
 }
 
 
-void multi_key_cache_change(KEY_CACHE_HANDLE *old_data,
-			    KEY_CACHE_HANDLE *new_data)
+void multi_key_cache_change(KEY_CACHE *old_data,
+			    KEY_CACHE *new_data)
 {
   safe_hash_change(&key_cache_hash, (byte*) old_data, (byte*) new_data);
 }

@@ -156,7 +156,7 @@ int main(int argc, char *argv[])
     goto err;
   printf("- Writing key:s\n");
   if (key_cacheing)
-    init_key_cache(dflt_keycache,512,IO_SIZE*16,0);		/* Use a small cache */
+    init_key_cache(dflt_key_cache,512,IO_SIZE*16,0,0);	/* Use a small cache */
   if (locking)
     nisam_lock_database(file,F_WRLCK);
   if (write_cacheing)
@@ -674,7 +674,7 @@ end:
     puts("Locking used");
   if (use_blob)
     puts("blobs used");
-  end_key_cache(&dflt_keycache,1);
+  end_key_cache(dflt_key_cache,1);
   if (blob_buffer)
     my_free(blob_buffer,MYF(0));
   my_end(MY_CHECK_ERROR | MY_GIVE_INFO);

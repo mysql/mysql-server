@@ -86,8 +86,8 @@ upd_field_set_field_no(
 		fprintf(stderr,
 		"InnoDB: Error: trying to access field %lu in table %s\n"
 		"InnoDB: index %s, but index has only %lu fields\n",
-		field_no, index->table_name, index->name,
-		dict_index_get_n_fields(index));
+		(unsigned long) field_no, index->table_name, index->name,
+		(unsigned long) dict_index_get_n_fields(index));
 	}
 
 	dtype_copy(dfield_get_type(&(upd_field->new_val)),

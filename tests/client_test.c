@@ -7953,6 +7953,143 @@ static void test_ts()
   }
 }
 
+/*
+  Test for bug #1500.
+*/
+static void test_bug1500()
+{
+  MYSQL_STMT *stmt;
+  MYSQL_BIND bind[3];
+  int        rc;
+  long       int_data[3]= {2,3,4}; 
+  char       *data;
+
+  myheader("test_bug1500");
+
+  rc= mysql_query(mysql,"DROP TABLE IF EXISTS test_bg1500");
+  myquery(rc);
+  
+  rc= mysql_query(mysql,"CREATE TABLE test_bg1500 (i INT)");
+  myquery(rc);
+  
+  rc= mysql_query(mysql,"INSERT INTO test_bg1500 VALUES (1),(2)");
+  myquery(rc);
+
+  rc= mysql_commit(mysql);
+  myquery(rc);
+
+  stmt= mysql_prepare(mysql,"SELECT i FROM test_bg1500 WHERE i IN (?,?,?)",44);
+  mystmt_init(stmt);
+  verify_param_count(stmt,3);
+
+  bind[0].buffer= (char *)int_data;
+  bind[0].buffer_type= FIELD_TYPE_LONG;
+  bind[0].is_null= 0;
+  bind[2]= bind[1]= bind[0];
+  bind[1].buffer= (char *)(int_data + 1);
+  bind[2].buffer= (char *)(int_data + 2);
+  
+  rc= mysql_bind_param(stmt, bind);
+  mystmt(stmt,rc);
+  
+  rc= mysql_execute(stmt);
+  mystmt(stmt,rc);
+  
+  assert(1 == my_process_stmt_result(stmt));
+
+  /* FIXME If we comment out next string server will crash :( */
+  mysql_stmt_close(stmt);
+
+  rc= mysql_query(mysql,"DROP TABLE test_bg1500");
+  myquery(rc);
+  
+  rc= mysql_query(mysql,"CREATE TABLE test_bg1500 (s VARCHAR(25), FULLTEXT(s))");
+  myquery(rc);
+  
+  rc= mysql_query(mysql,
+        "INSERT INTO test_bg1500 VALUES ('Gravedigger'), ('Greed'),('Hollow Dogs')");
+  myquery(rc);
+
+  rc= mysql_commit(mysql);
+  myquery(rc);
+
+  stmt= mysql_prepare(mysql,
+          "SELECT s FROM test_bg1500 WHERE MATCH (s) AGAINST (?)",53);
+  mystmt_init(stmt);
+  
+  verify_param_count(stmt,1);
+  
+  data= "Dogs";
+  bind[0].buffer_type= MYSQL_TYPE_STRING;
+  bind[0].buffer= data;
+  bind[0].buffer_length= strlen(data);
+  bind[0].is_null= 0;
+  bind[0].length= 0;
+  
+  rc= mysql_bind_param(stmt, bind);
+  mystmt(stmt,rc);
+  
+  rc= mysql_execute(stmt);
+  mystmt(stmt,rc);
+  
+  assert(1 == my_process_stmt_result(stmt));
+
+  /* 
+    FIXME If we comment out next string server will crash too :( 
+    This is another manifestation of bug #1663
+  */
+  mysql_stmt_close(stmt);
+  
+  /* This should work too */
+  stmt= mysql_prepare(mysql,
+          "SELECT s FROM test_bg1500 WHERE MATCH (s) AGAINST (CONCAT(?,'digger'))", 70);
+  mystmt_init(stmt);
+  
+  verify_param_count(stmt,1);
+  
+  data= "Grave";
+  bind[0].buffer_type= MYSQL_TYPE_STRING;
+  bind[0].buffer= data;
+  bind[0].buffer_length= strlen(data);
+  bind[0].is_null= 0;
+  bind[0].length= 0;
+  
+  rc= mysql_bind_param(stmt, bind);
+  mystmt(stmt,rc);
+  
+  rc= mysql_execute(stmt);
+  mystmt(stmt,rc);
+  
+  assert(1 == my_process_stmt_result(stmt));
+
+  mysql_stmt_close(stmt);
+}
+
+static void test_bug1946()
+{
+  MYSQL_STMT *stmt;
+  int rc;
+
+  myheader("test_bug1946");
+  const char *query= "INSERT INTO prepare_command VALUES (?)";
+  
+  rc = mysql_query(mysql, "DROP TABLE IF EXISTS prepare_command");
+  myquery(rc);
+  
+  rc= mysql_query(mysql,"CREATE TABLE prepare_command(ID INT)");
+  myquery(rc);
+
+  stmt = mysql_prepare(mysql, query, strlen(query));
+  mystmt_init(stmt);
+  rc= mysql_real_query(mysql, query, strlen(query));
+  assert(rc != 0);
+  fprintf(stdout, "Got error (as expected):\n");
+  myerror(NULL);
+
+  mysql_stmt_close(stmt);
+  rc= mysql_query(mysql,"DROP TABLE prepare_command");
+}
+
 
 /*
   Read and parse arguments and MySQL options from my.cnf
@@ -8097,6 +8234,8 @@ int main(int argc, char **argv)
     /* Used for internal new development debugging */
     test_drop_temp();       /* to test DROP TEMPORARY TABLE Access checks */
 #endif
+    test_bug1946(); /* test that placeholders are allowed only in 
+                               prepared queries */
     test_fetch_seek();      /* to test stmt seek() functions */
     test_fetch_nobuffs();   /* to fecth without prior bound buffers */
     test_open_direct();     /* direct execution in the middle of open stmts */
@@ -8194,6 +8333,7 @@ int main(int argc, char **argv)
     test_ts();              /* test for timestamp BR#819 */
     test_bug1115();         /* BUG#1115 */
     test_bug1180();         /* BUG#1180 */
+    test_bug1500();         /* BUG#1500 */
     test_bug1644();	    /* BUG#1644 */
 
     end_time= time((time_t *)0);

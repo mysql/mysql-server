@@ -30,7 +30,7 @@ bool Protocol_cursor::send_fields(List<Item> *list, uint flag)
 {
   List_iterator_fast<Item> it(*list);
   Item                     *item;
-  MYSQL_FIELD              *field, *client_field;
+  MYSQL_FIELD              *client_field;
   
   DBUG_ENTER("send_fields");
   if (prepare_for_send(list))
@@ -71,9 +71,9 @@ bool Protocol_cursor::send_fields(List<Item> *list, uint flag)
       String tmp(buff, sizeof(buff), default_charset_info), *res;
 
       if (!(res=item->val_str(&tmp)))
-	client_field->def= strdup_root(alloc, "");
+	client_field->def= (char*) "";
       else
-	client_field->def= strdup_root(alloc, tmp.ptr());
+	client_field->def= strmake_root(alloc, res->ptr(), res->length());
     }
     else
       client_field->def=0;

@@ -1,7 +1,7 @@
 #! /bin/sh
 # mysql-test-run - originally written by Matt Wagner <matt@mysql.com>
 # modified by Sasha Pachev <sasha@mysql.com>
-# Sligtly updated by Monty
+# Slightly updated by Monty
 # Cleaned up again by Matt
 # Fixed by Sergei
 # :-)
@@ -229,6 +229,7 @@ while test $# -gt 0; do
     --local)   USE_RUNNING_SERVER="" ;;
     --extern)  USE_RUNNING_SERVER="1" ;;
     --tmpdir=*) MYSQL_TMP_DIR=`$ECHO "$1" | $SED -e "s;--tmpdir=;;"` ;;
+    --start-from=*) START_FROM=`$ECHO "$1" | $SED -e "s;--start-from=;;"` ;;
     --local-master)
       MASTER_MYPORT=3306;
       EXTRA_MYSQL_TEST_OPT="$EXTRA_MYSQL_TEST_OPT --host=127.0.0.1 \
@@ -1184,6 +1185,11 @@ run_testcase ()
      return;
    fi
   fi
+
+ if [ "$tname" '<' "$START_FROM" ] ; then
+#   skip_test $tname;
+   return;
+ fi
 
  if [ -n "$DO_TEST" ] ; then
    DO_THIS_TEST=`$EXPR \( $tname : "$DO_TEST" \) != 0`

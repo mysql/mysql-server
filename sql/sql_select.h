@@ -166,11 +166,23 @@ class JOIN :public Sql_alloc
   JOIN *tmp_join; // copy of this JOIN to be used with temporary tables
   ROLLUP rollup;				// Used with rollup
 
-  bool select_distinct, //Is select distinct?
-    no_order, simple_order, simple_group,
-    skip_sort_order, need_tmp,
-    hidden_group_fields,
-    buffer_result;
+  bool select_distinct;				// Set if SELECT DISTINCT
+
+  /*
+    simple_xxxxx is set if ORDER/GROUP BY doesn't include any references
+    to other tables than the first non-constant table in the JOIN.
+    It's also set if ORDER/GROUP BY is empty.
+  */
+  bool simple_order, simple_group;
+  /*
+    Is set only in case if we have a GROUP BY clause
+    and no ORDER BY after constant elimination of 'order'.
+  */
+  bool no_order;
+  /* Is set if we have a GROUP BY and we have ORDER BY on a constant. */
+  bool          skip_sort_order;
+
+  bool need_tmp, hidden_group_fields, buffer_result;
   DYNAMIC_ARRAY keyuse;
   Item::cond_result cond_value;
   List<Item> all_fields; // to store all fields that used in query
@@ -254,7 +266,7 @@ class JOIN :public Sql_alloc
   int prepare(Item ***rref_pointer_array, TABLE_LIST *tables, uint wind_num,
 	      COND *conds, uint og_num, ORDER *order, ORDER *group,
 	      Item *having, ORDER *proc_param, SELECT_LEX *select,
-	      SELECT_LEX_UNIT *unit, bool tables_and_fields_initied);
+	      SELECT_LEX_UNIT *unit);
   int optimize();
   int reinit();
   void exec();

@@ -28,6 +28,9 @@ extern "C" {
 #ifndef _m_ctype_h
 #include <m_ctype.h>
 #endif
+#ifndef _keycache_h
+#include "keycache.h"
+#endif
 #include "my_handler.h"
 
 	/* defines used by myisam-funktions */
@@ -315,6 +318,7 @@ typedef struct st_mi_check_param
   ulonglong auto_increment_value;
   ulonglong max_data_file_length;
   ulonglong keys_in_use;
+  ulonglong max_record_length;
   my_off_t search_after_block;
   my_off_t new_file_pos,key_file_blocks;
   my_off_t keydata,totaldata,key_blocks,start_check_pos;
@@ -408,9 +412,9 @@ int mi_init_bulk_insert(MI_INFO *info, ulong cache_size, ha_rows rows);
 void mi_flush_bulk_insert(MI_INFO *info, uint inx);
 void mi_end_bulk_insert(MI_INFO *info);
 int mi_assign_to_key_cache(MI_INFO *info, ulonglong key_map, 
-			   KEY_CACHE_VAR *key_cache);
-void mi_change_key_cache(KEY_CACHE_VAR *old_key_cache,
-			 KEY_CACHE_VAR *new_key_cache);
+			   KEY_CACHE *key_cache);
+void mi_change_key_cache(KEY_CACHE *old_key_cache,
+			 KEY_CACHE *new_key_cache);
 int mi_preload(MI_INFO *info, ulonglong key_map, my_bool ignore_leaves);
 
 #ifdef	__cplusplus

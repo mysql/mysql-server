@@ -513,7 +513,7 @@ que_graph_free_recursive(
 		if (thr->magic_n != QUE_THR_MAGIC_N) {
 			fprintf(stderr,
 		"que_thr struct appears corrupt; magic n %lu\n",
-								thr->magic_n);
+				(unsigned long) thr->magic_n);
 			mem_analyze_corruption((byte*)thr);
 			ut_a(0);
 		}
@@ -625,7 +625,7 @@ que_graph_free_recursive(
 	default:
 		fprintf(stderr,
 		"que_node struct appears corrupt; type %lu\n",
-						que_node_get_type(node));
+			(unsigned long) que_node_get_type(node));
 		mem_analyze_corruption((byte*)node);
 		ut_a(0);
 	}
@@ -1105,7 +1105,8 @@ que_thr_move_to_run_state_for_mysql(
 {
 	if (thr->magic_n != QUE_THR_MAGIC_N) {
 		fprintf(stderr,
-	"que_thr struct appears corrupt; magic n %lu\n", thr->magic_n);
+	"que_thr struct appears corrupt; magic n %lu\n",
+			(unsigned long) thr->magic_n);
 
 		mem_analyze_corruption((byte*)thr);
 
@@ -1141,7 +1142,8 @@ que_thr_stop_for_mysql_no_error(
 		
 	if (thr->magic_n != QUE_THR_MAGIC_N) {
 		fprintf(stderr,
-	"que_thr struct appears corrupt; magic n %lu\n", thr->magic_n);
+	"que_thr struct appears corrupt; magic n %lu\n",
+			(unsigned long) thr->magic_n);
 
 		mem_analyze_corruption((byte*)thr);
 
@@ -1216,7 +1218,8 @@ que_node_print_info(
 		str = (char *) "UNKNOWN NODE TYPE";
 	}
 
-	printf("Node type %lu: %s, address %lx\n", type, str, addr);
+	printf("Node type %lu: %s, address %lx\n", (unsigned long) type, str,
+	       (unsigned long) addr);
 }
 
 /**************************************************************************
