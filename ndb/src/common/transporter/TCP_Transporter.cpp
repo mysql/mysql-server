@@ -68,12 +68,15 @@ TCP_Transporter::TCP_Transporter(TransporterRegistry &t_reg,
                                  const char *lHostName,
                                  const char *rHostName, 
                                  int r_port,
+				 bool isMgmConnection,
 				 NodeId lNodeId,
                                  NodeId rNodeId,
+				 NodeId serverNodeId,
                                  bool chksm, bool signalId,
                                  Uint32 _reportFreq) :
   Transporter(t_reg, tt_TCP_TRANSPORTER,
-	      lHostName, rHostName, r_port, lNodeId, rNodeId,
+	      lHostName, rHostName, r_port, isMgmConnection,
+	      lNodeId, rNodeId, serverNodeId,
 	      0, false, chksm, signalId),
   m_sendBuffer(sendBufSize)
 {

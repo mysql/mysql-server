@@ -102,6 +102,7 @@ public:
 		      unsigned sizeOfLongSignalMemory = 100);
 
   void set_mgm_handle(NdbMgmHandle h) { m_mgm_handle = h; };
+  NdbMgmHandle get_mgm_handle(void) { return m_mgm_handle; };
 
   bool init(NodeId localNodeId);
 
@@ -179,10 +180,10 @@ public:
    * started, startServer is called. A transporter of the selected kind
    * is created and it is put in the transporter arrays.
    */
-  bool createTransporter(struct TCP_TransporterConfiguration * config);
-  bool createTransporter(struct SCI_TransporterConfiguration * config);
-  bool createTransporter(struct SHM_TransporterConfiguration * config);
-  bool createTransporter(struct OSE_TransporterConfiguration * config);
+  bool createTCPTransporter(struct TransporterConfiguration * config);
+  bool createSCITransporter(struct TransporterConfiguration * config);
+  bool createSHMTransporter(struct TransporterConfiguration * config);
+  bool createOSETransporter(struct TransporterConfiguration * config);
   
   /**
    * prepareSend

@@ -48,6 +48,7 @@ public:
 		  NodeId localNodeId,
 		  const char * lHostName,
 		  NodeId remoteNodeId,
+		  NodeId serverNodeId,
 		  const char * rHostName,
 		  int byteorder,
 		  bool compression, 
