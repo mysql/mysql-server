@@ -402,6 +402,12 @@ select count(*) from t1;
 count(*)
 1
 drop table t1;
+CREATE TABLE t1 ( a TEXT, FULLTEXT (a) );
+INSERT INTO t1 VALUES ('testing ft_nlq_find_relevance');
+SELECT MATCH(a) AGAINST ('nosuchword') FROM t1;
+MATCH(a) AGAINST ('nosuchword')
+0
+DROP TABLE t1;
 create table t1 (a int primary key, b text, fulltext(b));
 create table t2 (a int, b text);
 insert t1 values (1, "aaaa"), (2, "bbbb");
