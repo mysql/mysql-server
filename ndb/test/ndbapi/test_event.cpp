@@ -32,6 +32,46 @@ int runCreateEvent(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int runCreateDropEventOperation(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int loops = ctx->getNumLoops();
+  int records = ctx->getNumRecords();
+  HugoTransactions hugoTrans(*ctx->getTab());
+  EventOperationStats stats;
+
+  Ndb *pNdb=GETNDB(step);
+  const NdbDictionary::Table& tab= *ctx->getTab();
+  NdbEventOperation    *pOp;
+  char eventName[1024];
+  sprintf(eventName,"%s_EVENT",tab.getName());
+  int noEventColumnName = tab.getNoOfColumns();
+
+  for (int i= 0; i < loops; i++)
+  {
+#if 1
+    if (hugoTrans.eventOperation(GETNDB(step), (void*)&stats, 0) != 0){
+      return NDBT_FAILED;
+    }
+#else
+    g_info << "create EventOperation\n";
+    pOp = pNdb->createEventOperation(eventName, 100);
+    if ( pOp == NULL ) {
+      g_err << "Event operation creation failed\n";
+      return NDBT_FAILED;
+    }
+
+    g_info << "dropping event operation" << endl;
+    int res = pNdb->dropEventOperation(pOp);
+    if (res != 0) {
+      g_err << "operation execution failed\n";
+      return NDBT_FAILED;
+    }
+#endif
+  }
+
+  return NDBT_OK;
+}
+
 int theThreadIdCounter = 0;
 
 int runEventOperation(NDBT_Context* ctx, NDBT_Step* step)
@@ -120,6 +160,13 @@ TESTCASE("BasicEventOperation",
   STEP(runEventOperation);
   STEP(runEventOperation);
   STEP(runEventLoad);
+  FINALIZER(runDropEvent);
+}
+TESTCASE("CreateDropEventOperation", 
+	 "Verify that we can Create and Drop many times"
+	 "NOTE! No errors are allowed!" ){
+  INITIALIZER(runCreateEvent);
+  STEP(runCreateDropEventOperation);
   FINALIZER(runDropEvent);
 }
 NDBT_TESTSUITE_END(test_event);

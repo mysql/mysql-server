@@ -1446,7 +1446,7 @@ void Ndbcntr::execNODE_FAILREP(Signal* signal)
   while(!allFailed.isclear()){
     nodeId = allFailed.find(nodeId + 1);
     allFailed.clear(nodeId);
-    signal->theData[0] = EventReport::NODE_FAILREP;
+    signal->theData[0] = NDB_LE_NODE_FAILREP;
     signal->theData[1] = nodeId;
     signal->theData[2] = 0;
     sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 3, JBB);
@@ -2028,7 +2028,7 @@ Ndbcntr::execSTOP_REQ(Signal* signal){
     }
   }
   
-  signal->theData[0] = EventReport::NDBStopStarted;
+  signal->theData[0] = NDB_LE_NDBStopStarted;
   signal->theData[1] = StopReq::getSystemStop(c_stopRec.stopReq.requestInfo) ? 1 : 0;
   sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
   
@@ -2117,7 +2117,7 @@ Ndbcntr::StopRecord::checkNodeFail(Signal* signal){
 
   cntr.updateNodeState(signal, newState);
 
-  signal->theData[0] = EventReport::NDBStopAborted;
+  signal->theData[0] = NDB_LE_NDBStopAborted;
   cntr.sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 1, JBB);
   
   return false;
@@ -2402,7 +2402,7 @@ Ndbcntr::execFSREMOVECONF(Signal* signal){
 }
 
 void Ndbcntr::Missra::execSTART_ORD(Signal* signal){
-  signal->theData[0] = EventReport::NDBStartStarted;
+  signal->theData[0] = NDB_LE_NDBStartStarted;
   signal->theData[1] = NDB_VERSION;
   cntr.sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
 
@@ -2524,14 +2524,14 @@ void Ndbcntr::Missra::sendNextSTTOR(Signal* signal){
        * At least one wanted this start phase,  report it
        */
       jam();
-      signal->theData[0] = EventReport::StartPhaseCompleted;
+      signal->theData[0] = NDB_LE_StartPhaseCompleted;
       signal->theData[1] = currentStartPhase;
       signal->theData[2] = cntr.ctypeOfStart;    
       cntr.sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 3, JBB);
     }
   }
   
-  signal->theData[0] = EventReport::NDBStartCompleted;
+  signal->theData[0] = NDB_LE_NDBStartCompleted;
   signal->theData[1] = NDB_VERSION;
   cntr.sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
   

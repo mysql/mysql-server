@@ -656,6 +656,7 @@ static bool make_empty_rec(File file,enum db_type table_type,
 
   /* We need a table to generate columns for default values */
   bzero((char*) &table,sizeof(table));
+  table.s= &table.share_not_to_be_used;
   handler= get_new_handler((TABLE*) 0, table_type);
 
   if (!handler ||
@@ -666,8 +667,8 @@ static bool make_empty_rec(File file,enum db_type table_type,
   }
 
   table.in_use= current_thd;
-  table.db_low_byte_first= handler->low_byte_first();
-  table.blob_ptr_size=portable_sizeof_char_ptr;
+  table.s->db_low_byte_first= handler->low_byte_first();
+  table.s->blob_ptr_size= portable_sizeof_char_ptr;
 
   firstpos=reclength;
   null_count=0;

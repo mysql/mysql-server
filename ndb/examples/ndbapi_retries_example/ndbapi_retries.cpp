@@ -88,13 +88,15 @@ void printTransactionError(NdbTransaction *ndbTransaction) {
 //  Example insert
 //  @param myNdb          Ndb object representing NDB Cluster
 //  @param myTransaction  NdbTransaction used for transaction
+//  @param myTable        Table to insert into
 //  @param error          NdbError object returned in case of errors
 //  @return -1 in case of failures, 0 otherwise
 //
-int insert(int transactionId, NdbTransaction* myTransaction) {
+int insert(int transactionId, NdbTransaction* myTransaction,
+	   const NdbDictionary::Table *myTable) {
   NdbOperation	 *myOperation;          // For other operations
 
-  myOperation = myTransaction->getNdbOperation("MYTABLENAME");
+  myOperation = myTransaction->getNdbOperation(myTable);
   if (myOperation == NULL) return -1;
   
   if (myOperation->insertTuple() ||  
@@ -113,7 +115,8 @@ int insert(int transactionId, NdbTransaction* myTransaction) {
 //  if there are temporary errors (e.g. the NDB Cluster is overloaded).
 //  @return -1 failure, 1 success
 //
-int executeInsertTransaction(int transactionId, Ndb* myNdb) {
+int executeInsertTransaction(int transactionId, Ndb* myNdb,
+			     const NdbDictionary::Table *myTable) {
   int result = 0;                       // No result yet
   int noOfRetriesLeft = 10;
   NdbTransaction	 *myTransaction;         // For other transactions
@@ -129,8 +132,8 @@ int executeInsertTransaction(int transactionId, Ndb* myNdb) {
       APIERROR(myNdb->getNdbError());
       ndberror = myNdb->getNdbError();
       result = -1;  // Failure
-    } else if (insert(transactionId, myTransaction) || 
-	       insert(10000+transactionId, myTransaction) ||
+    } else if (insert(transactionId, myTransaction, myTable) || 
+	       insert(10000+transactionId, myTransaction, myTable) ||
 	       myTransaction->execute(NdbTransaction::Commit)) {
       TRANSERROR(myTransaction);
       ndberror = myTransaction->getNdbError();
@@ -211,11 +214,18 @@ int main()
     exit(-1);
   }
 
+  const NdbDictionary::Dictionary* myDict= myNdb->getDictionary();
+  const NdbDictionary::Table *myTable= myDict->getTable("MYTABLENAME");
+  if (myTable == NULL)
+  {
+    APIERROR(myDict->getNdbError());
+    return -1;
+  }
   /************************************
    * Execute some insert transactions *
    ************************************/
   for (int i = 10000; i < 20000; i++) {
-    executeInsertTransaction(i, myNdb);
+    executeInsertTransaction(i, myNdb, myTable);
   }
   
   delete myNdb;

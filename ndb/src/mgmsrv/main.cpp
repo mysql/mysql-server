@@ -40,7 +40,7 @@
 #if defined NDB_OSE || defined NDB_SOFTOSE
 #include <efs.h>
 #else
-#include "CommandInterpreter.hpp"
+#include <ndb_mgmclient.hpp>
 #endif
 
 #undef DEBUG
@@ -48,11 +48,54 @@
 
 const char progname[] = "mgmtsrvr";
 
+// copied from mysql.cc to get readline
+extern "C" {
+#if defined( __WIN__) || defined(OS2)
+#include <conio.h>
+#elif !defined(__NETWARE__)
+#include <readline/readline.h>
+extern "C" int add_history(const char *command); /* From readline directory */
+#define HAVE_READLINE
+#endif
+}
+
+static int 
+read_and_execute(Ndb_mgmclient* com, const char * prompt, int _try_reconnect) 
+{
+  static char *line_read = (char *)NULL;
+
+  /* If the buffer has already been allocated, return the memory
+     to the free pool. */
+  if (line_read)
+  {
+    free (line_read);
+    line_read = (char *)NULL;
+  }
+#ifdef HAVE_READLINE
+  /* Get a line from the user. */
+  line_read = readline (prompt);    
+  /* If the line has any text in it, save it on the history. */
+  if (line_read && *line_read)
+    add_history (line_read);
+#else
+  static char linebuffer[254];
+  fputs(prompt, stdout);
+  linebuffer[sizeof(linebuffer)-1]=0;
+  line_read = fgets(linebuffer, sizeof(linebuffer)-1, stdin);
+  if (line_read == linebuffer) {
+    char *q=linebuffer;
+    while (*q > 31) q++;
+    *q=0;
+    line_read= strdup(linebuffer);
+  }
+#endif
+  return com->execute(line_read,_try_reconnect);
+}
 
 /**
  * @struct  MgmGlobals
  * @brief   Global Variables used in the management server
- ******************************************************************************/
+ *****************************************************************************/
 struct MgmGlobals {
   MgmGlobals();
   ~MgmGlobals();
@@ -155,6 +198,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 	   "Tcp connections will now be used instead\n");
     opt_ndb_shm= 0;
 #endif
+    break;
   case '?':
     usage();
     exit(0);
@@ -319,14 +363,19 @@ int main(int argc, char** argv)
 
 #if ! defined NDB_OSE && ! defined NDB_SOFTOSE
   if(glob.interactive) {
-    CommandInterpreter com(* glob.mgmObject);
-    while(com.readAndExecute());
+    BaseString con_str;
+    if(glob.interface_name)
+      con_str.appfmt("host=%s:%d", glob.interface_name, glob.port);
+    else 
+      con_str.appfmt("localhost:%d", glob.port);
+    Ndb_mgmclient com(con_str.c_str(), 1);
+    while(g_StopServer != true && read_and_execute(&com, "ndb_mgm> ", 1));
   } else 
 #endif
-    {
-      while(g_StopServer != true)
-	NdbSleep_MilliSleep(500);
-    }
+  {
+    while(g_StopServer != true)
+      NdbSleep_MilliSleep(500);
+  }
   
   g_eventLogger.info("Shutting down server...");
   glob.socketServer->stopServer();

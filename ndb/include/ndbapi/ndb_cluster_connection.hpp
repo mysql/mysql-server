@@ -20,39 +20,42 @@
 
 /**
  * @class Ndb_cluster_connection
- * @brief Represents a connection to a cluster of storage nodes
+ * @brief Represents a connection to a cluster of storage nodes.
  *
- * Always start your application program by creating a
- * Ndb_cluster_connection object. Your application should contain
- * only one Ndb_cluster_connection.  Your application connects to
- * a cluster management server when method connect() is called.
- * With the method wait_until_ready() it is possible to wait
- * for the connection to one or several storage nodes.
+ * Any NDB application program should begin with the creation of a
+ * single Ndb_cluster_connection object, and should make use of one
+ * and only one Ndb_cluster_connection. The application connects to
+ * a cluster management server when this object's connect() method is called.
+ * By using the wait_until_ready() method it is possible to wait
+ * for the connection to reach one or more storage nodes.
  */
 class Ndb_cluster_connection {
 public:
   /**
    * Create a connection to a cluster of storage nodes
    *
-   * @param specify the connectstring for where to find the
-   *        management server
+   * @param connectstring The connectstring for where to find the
+   *                      management server
    */
-  Ndb_cluster_connection(const char * connect_string = 0);
+  Ndb_cluster_connection(const char * connectstring = 0);
   ~Ndb_cluster_connection();
 
   /**
    * Connect to a cluster management server
    *
-   * @param no_retries specifies the number of retries to perform
-   *        if the connect fails, negative number results in infinite
-   *        number of retries
+   * @param no_retries specifies the number of retries to attempt
+   *        in the event of connection failure; a negative value 
+   *        will result in the attempt to connect being repeated 
+   *        indefinitely
+   *
    * @param retry_delay_in_seconds specifies how often retries should
    *        be performed
-   * @param verbose specifies if the method should print progess
    *
-   * @return 0 if success, 
-   *         1 if retriable error,
-   *        -1 if non-retriable error
+   * @param verbose specifies if the method should print a report of its progess
+   *
+   * @return 0 = success, 
+   *         1 = recoverable error,
+   *        -1 = non-recoverable error
    */
   int connect(int no_retries=0, int retry_delay_in_seconds=1, int verbose=0);
 
@@ -61,15 +64,15 @@ public:
 #endif
 
   /**
-   * Wait until one or several storage nodes are connected
+   * Wait until the requested connection with one or more storage nodes is successful
    *
-   * @param time_out_for_first_alive number of seconds to wait until
-   *        first alive node is detected
-   * @param timeout_after_first_alive number of seconds to wait after
-   *        first alive node is detected
+   * @param timeout_for_first_alive   Number of seconds to wait until
+   *                                  first live node is detected
+   * @param timeout_after_first_alive Number of seconds to wait after
+   *                                  first live node is detected
    *
-   * @return 0 all nodes alive,
-   *         > 0 at least one node alive,
+   * @return = 0 all nodes live,
+   *         > 0 at least one node live,
    *         < 0 error
    */
   int wait_until_ready(int timeout_for_first_alive,

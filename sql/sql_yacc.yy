@@ -227,6 +227,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token	COLLATION_SYM
 %token	COLUMNS
 %token	COLUMN_SYM
+%token	COMPACT_SYM
 %token	CONCURRENT
 %token  CONDITION_SYM
 %token	CONNECTION_SYM
@@ -381,6 +382,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token	READ_SYM
 %token	READS_SYM
 %token	REAL_NUM
+%token	REDUNDANT_SYM
 %token	REFERENCES
 %token	REGEXP
 %token	RELOAD
@@ -2628,7 +2630,9 @@ row_types:
 	DEFAULT		{ $$= ROW_TYPE_DEFAULT; }
 	| FIXED_SYM	{ $$= ROW_TYPE_FIXED; }
 	| DYNAMIC_SYM	{ $$= ROW_TYPE_DYNAMIC; }
-	| COMPRESSED_SYM { $$= ROW_TYPE_COMPRESSED; };
+	| COMPRESSED_SYM { $$= ROW_TYPE_COMPRESSED; }
+	| REDUNDANT_SYM	{ $$= ROW_TYPE_REDUNDANT; }
+	| COMPACT_SYM	{ $$= ROW_TYPE_COMPACT; };
 
 raid_types:
 	RAID_STRIPED_SYM { $$= RAID_TYPE_0; }
@@ -3220,8 +3224,9 @@ alter:
 	{
 	  THD *thd= YYTHD;
 	  LEX *lex= thd->lex;
-	  lex->sql_command = SQLCOM_ALTER_TABLE;
-	  lex->name=0;
+	  lex->sql_command= SQLCOM_ALTER_TABLE;
+	  lex->name= 0;
+	  lex->duplicates= DUP_ERROR; 
 	  if (!lex->select_lex.add_table_to_list(thd, $4, NULL,
 						 TL_OPTION_UPDATING))
 	    YYABORT;
@@ -3449,8 +3454,9 @@ opt_column:
 	| COLUMN_SYM	{};
 
 opt_ignore:
-	/* empty */	{ Lex->duplicates=DUP_ERROR; }
-	| IGNORE_SYM	{ Lex->duplicates=DUP_IGNORE; };
+	/* empty */	{ Lex->ignore= 0;}
+	| IGNORE_SYM	{ Lex->ignore= 1;}
+	;
 
 opt_restrict:
 	/* empty */	{ Lex->drop_mode= DROP_DEFAULT; }
@@ -5573,7 +5579,9 @@ insert:
 	INSERT
 	{
 	  LEX *lex= Lex;
-	  lex->sql_command = SQLCOM_INSERT;
+	  lex->sql_command= SQLCOM_INSERT;
+	  lex->duplicates= DUP_ERROR; 
+	  mysql_init_select(lex);
 	  /* for subselects */
           lex->lock_option= (using_update_log) ? TL_READ_NO_INSERT : TL_READ;
 	  lex->select_lex.resolve_mode= SELECT_LEX::INSERT_MODE;
@@ -5593,6 +5601,7 @@ replace:
 	  LEX *lex=Lex;
 	  lex->sql_command = SQLCOM_REPLACE;
 	  lex->duplicates= DUP_REPLACE;
+	  mysql_init_select(lex);
 	  lex->select_lex.resolve_mode= SELECT_LEX::INSERT_MODE;
 	}
 	replace_lock_option insert2
@@ -5734,6 +5743,7 @@ update:
 	  mysql_init_select(lex);
           lex->sql_command= SQLCOM_UPDATE;
 	  lex->lock_option= TL_UNLOCK; 	/* Will be set later */
+	  lex->duplicates= DUP_ERROR; 
         }
         opt_low_priority opt_ignore join_table_list
 	SET update_list
@@ -5792,7 +5802,9 @@ delete:
 	{
 	  LEX *lex= Lex;
 	  lex->sql_command= SQLCOM_DELETE;
+	  mysql_init_select(lex);
 	  lex->lock_option= lex->thd->update_lock_default;
+	  lex->ignore= 0;
 	  lex->select_lex.init_order();
 	}
 	opt_delete_options single_multi {}
@@ -5849,7 +5861,7 @@ opt_delete_options:
 opt_delete_option:
 	QUICK		{ Select->options|= OPTION_QUICK; }
 	| LOW_PRIORITY	{ Lex->lock_option= TL_WRITE_LOW_PRIORITY; }
-	| IGNORE_SYM	{ Lex->duplicates= DUP_IGNORE; };
+	| IGNORE_SYM	{ Lex->ignore= 1; };
 
 truncate:
 	TRUNCATE_SYM opt_table_sym table_name
@@ -6357,6 +6369,8 @@ load:	LOAD DATA_SYM load_data_lock opt_local INFILE TEXT_STRING_sys
 	  lex->sql_command= SQLCOM_LOAD;
 	  lex->lock_option= $3;
 	  lex->local_file=  $4;
+	  lex->duplicates= DUP_ERROR;
+	  lex->ignore= 0;
 	  if (!(lex->exchange= new sql_exchange($6.str,0)))
 	    YYABORT;
 	  lex->field_list.empty();
@@ -6394,7 +6408,7 @@ load_data_lock:
 opt_duplicate:
 	/* empty */	{ Lex->duplicates=DUP_ERROR; }
 	| REPLACE	{ Lex->duplicates=DUP_REPLACE; }
-	| IGNORE_SYM	{ Lex->duplicates=DUP_IGNORE; };
+	| IGNORE_SYM	{ Lex->ignore= 1; };
 
 opt_field_term:
 	/* empty */
@@ -6905,6 +6919,7 @@ keyword:
 	| COMMENT_SYM		{}
 	| COMMITTED_SYM		{}
 	| COMMIT_SYM		{}
+	| COMPACT_SYM		{}
 	| COMPRESSED_SYM	{}
 	| CONCURRENT		{}
 	| CONSISTENT_SYM	{}
@@ -7036,6 +7051,7 @@ keyword:
 	| RAID_CHUNKSIZE	{}
 	| RAID_STRIPED_SYM	{}
 	| RAID_TYPE		{}
+	| REDUNDANT_SYM		{}
 	| RELAY_LOG_FILE_SYM	{}
 	| RELAY_LOG_POS_SYM	{}
 	| RELOAD		{}
@@ -7117,6 +7133,7 @@ set:
 	{
 	  LEX *lex=Lex;
 	  lex->sql_command= SQLCOM_SET_OPTION;
+	  mysql_init_select(lex);
 	  lex->option_type=OPT_SESSION;
 	  lex->var_list.empty();
           lex->one_shot_set= 0;
@@ -7183,7 +7200,6 @@ option_value:
             }
             else
               lex->var_list.push_back(new set_var_user(new Item_func_set_user_var($2,$4)));
-              
 	  }
 	| internal_variable_name equal set_expr_or_default
 	  {

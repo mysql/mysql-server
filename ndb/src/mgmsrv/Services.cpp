@@ -1184,13 +1184,13 @@ MgmApiSession::startAll(Parser<MgmApiSession>::Context &,
 void
 MgmApiSession::setLogFilter(Parser_t::Context &ctx,
 			    const class Properties &args) {
-  Uint32 level;
+  Uint32 severity;
   Uint32 enable;
 
-  args.get("level", &level);
+  args.get("level", &severity);
   args.get("enable", &enable);
 
-  int result = m_mgmsrv.setEventLogFilter(level, enable);
+  int result = m_mgmsrv.setEventLogFilter(severity, enable);
 
   m_output->println("set logfilter reply");
   m_output->println("result: %d", result);

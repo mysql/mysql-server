@@ -420,7 +420,7 @@ void Dblqh::execCONTINUEB(Signal* signal)
     // Report information about transaction activity once per second.
     /* --------------------------------------------------------------------- */
     if (signal->theData[1] == 0) {
-      signal->theData[0] = EventReport::OperationReportCounters;
+      signal->theData[0] = NDB_LE_OperationReportCounters;
       signal->theData[1] = c_Counters.operations;
       sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
     }//if
@@ -2075,7 +2075,7 @@ void Dblqh::execTIME_SIGNAL(Signal* signal)
   if ((cCounterAccCommitBlocked > 0) ||
      (cCounterTupCommitBlocked > 0)) {
     jam();
-    signal->theData[0] = EventReport::UndoLogBlocked;
+    signal->theData[0] = NDB_LE_UndoLogBlocked;
     signal->theData[1] = cCounterTupCommitBlocked;
     signal->theData[2] = cCounterAccCommitBlocked;
     sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 3, JBB);

@@ -14,6 +14,9 @@ delete from mysql.tables_priv where user like 'mysqltest\_%';
 delete from mysql.columns_priv where user like 'mysqltest\_%';
 flush privileges;
 
+# Limits doesn't work with prepared statements (yet)
+--disable_ps_protocol
+
 # Test of MAX_QUERIES_PER_HOUR limit
 grant usage on *.* to mysqltest_1@localhost with max_queries_per_hour 2;
 connect (mqph, localhost, mysqltest_1,,);
@@ -149,6 +152,7 @@ disconnect muca2;
 disconnect muca3;
 set global max_user_connections= 0; 
 drop user mysqltest_1@localhost;
+--enable_ps_protocol
 
 # Final cleanup
 drop table t1;

@@ -299,27 +299,51 @@ Return Value:   Returns a pointer to a connection object.
 Remark:         Start transaction. Synchronous.
 *****************************************************************************/ 
 NdbTransaction* 
-Ndb::startTransaction(Uint32 aPriority, const char * keyData, Uint32 keyLen)
+Ndb::startTransaction(const NdbDictionary::Table *table,
+		      const char * keyData, Uint32 keyLen)
 {
   DBUG_ENTER("Ndb::startTransaction");
 
   if (theInitState == Initialised) {
     theError.code = 0;
     checkFailedNode();
-  /**
-   * If the user supplied key data
-   * We will make a qualified quess to which node is the primary for the
-   * the fragment and contact that node
-   */
+    /**
+     * If the user supplied key data
+     * We will make a qualified quess to which node is the primary for the
+     * the fragment and contact that node
+     */
     Uint32 nodeId;
-    if(keyData != 0) {
-      nodeId = 0; // guess not supported
-      // nodeId = m_ndb_cluster_connection->guess_primary_node(keyData, keyLen);
+    NdbTableImpl* impl;
+    if(table != 0 && keyData != 0 && (impl= &NdbTableImpl::getImpl(*table))) 
+    {
+      Uint32 hashValue;
+      {
+	Uint32 buf[4];
+	if((UintPtr(keyData) & 7) == 0 && (keyLen & 3) == 0)
+	{
+	  md5_hash(buf, (const Uint64*)keyData, keyLen >> 2);
+	}
+	else
+	{
+	  Uint64 tmp[1000];
+	  tmp[keyLen/8] = 0;
+	  memcpy(tmp, keyData, keyLen);
+	  md5_hash(buf, tmp, (keyLen+3) >> 2);	  
+	}
+	hashValue= buf[1];
+      }
+      const Uint16 *nodes;
+      Uint32 cnt= impl->get_nodes(hashValue, &nodes);
+      if(cnt)
+	nodeId= nodes[0];
+      else
+	nodeId= 0;
     } else {
       nodeId = 0;
     }//if
+
     {
-      NdbTransaction *trans= startTransactionLocal(aPriority, nodeId);
+      NdbTransaction *trans= startTransactionLocal(0, nodeId);
       DBUG_PRINT("exit",("start trans: 0x%x transid: 0x%llx",
 			 trans, trans ? trans->getTransactionId() : 0));
       DBUG_RETURN(trans);
@@ -1177,7 +1201,14 @@ NdbEventOperation* Ndb::createEventOperation(const char* eventName,
 
   tOp = new NdbEventOperation(this, eventName, bufferLength);
 
-  if (tOp->getState() != NdbEventOperation::CREATED) {
+  if (tOp == 0)
+  {
+    theError.code= 4000;
+    return NULL;
+  }
+
+  if (tOp->getState() != NdbEventOperation::EO_CREATED) {
+    theError.code= tOp->getNdbError().code;
     delete tOp;
     tOp = NULL;
   }

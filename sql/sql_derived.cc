@@ -147,7 +147,7 @@ exit:
       {
         thd->clear_error();
         my_error(ER_VIEW_INVALID, MYF(0), orig_table_list->db,
-                 orig_table_list->real_name);
+                 orig_table_list->table_name);
       }
     }
 
@@ -168,9 +168,9 @@ exit:
 	delete derived_result;
       orig_table_list->derived_result= derived_result;
       orig_table_list->table= table;
-      orig_table_list->real_name= table->real_name;
+      orig_table_list->table_name= (char*) table->s->table_name;
       table->derived_select_number= first_select->select_number;
-      table->tmp_table= TMP_TABLE;
+      table->s->tmp_table= TMP_TABLE;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
       table->grant.privilege= SELECT_ACL;
 #endif

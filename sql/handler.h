@@ -167,7 +167,8 @@ struct show_table_type_st {
 };
 
 enum row_type { ROW_TYPE_NOT_USED=-1, ROW_TYPE_DEFAULT, ROW_TYPE_FIXED,
-		ROW_TYPE_DYNAMIC, ROW_TYPE_COMPRESSED};
+		ROW_TYPE_DYNAMIC, ROW_TYPE_COMPRESSED,
+		ROW_TYPE_REDUNDANT, ROW_TYPE_COMPACT };
 
 /* struct to hold information about the table that should be created */
 

@@ -47,7 +47,7 @@ public:
   */
   struct st_table *table;		// Pointer for table
   struct st_table *orig_table;		// Pointer to original table
-  const char	*table_name,*field_name;
+  const char	**table_name, *field_name;
   LEX_STRING	comment;
   ulong		query_id;		// For quick test of used fields
   /* Field is part of the following keys */
@@ -127,7 +127,7 @@ public:
   virtual void reset_fields() {}
   virtual void set_default()
   {
-    my_ptrdiff_t offset = (my_ptrdiff_t) (table->default_values -
+    my_ptrdiff_t offset = (my_ptrdiff_t) (table->s->default_values -
 					  table->record[0]);
     memcpy(ptr, ptr + offset, pack_length());
     if (null_ptr)
@@ -176,7 +176,7 @@ public:
     { if (null_ptr) null_ptr[row_offset]&= (uchar) ~null_bit; }
   inline bool maybe_null(void) { return null_ptr != 0 || table->maybe_null; }
   inline bool real_maybe_null(void) { return null_ptr != 0; }
-  virtual void make_field(Send_field *)=0;
+  virtual void make_field(Send_field *);
   virtual void sort_string(char *buff,uint length)=0;
   virtual bool optimize_range(uint idx, uint part);
   /*
@@ -355,7 +355,6 @@ public:
   int  store(double nr);
   int  store(longlong nr)=0;
   int  store(const char *to,uint length,CHARSET_INFO *cs)=0;
-  void make_field(Send_field *);
   uint size_of() const { return sizeof(*this); }
   CHARSET_INFO *charset(void) const { return field_charset; }
   void set_charset(CHARSET_INFO *charset) { field_charset=charset; }
@@ -714,7 +713,7 @@ public:
     if ((*null_value= is_null()))
       return 0;
 #ifdef WORDS_BIGENDIAN
-    if (table->db_low_byte_first)
+    if (table->s->db_low_byte_first)
       return sint4korr(ptr);
 #endif
     long tmp;
@@ -906,9 +905,9 @@ public:
   enum_field_types type() const
   {
     return ((orig_table &&
-             orig_table->db_create_options & HA_OPTION_PACK_RECORD &&
+             orig_table->s->db_create_options & HA_OPTION_PACK_RECORD &&
 	     field_length >= 4) &&
-            orig_table->frm_version < FRM_VER_TRUE_VARCHAR ?
+            orig_table->s->frm_version < FRM_VER_TRUE_VARCHAR ?
 	    MYSQL_TYPE_VAR_STRING : MYSQL_TYPE_STRING);
   }
   enum ha_base_keytype key_type() const
@@ -1038,7 +1037,7 @@ public:
   uint32 key_length() const { return 0; }
   void sort_string(char *buff,uint length);
   uint32 pack_length() const
-  { return (uint32) (packlength+table->blob_ptr_size); }
+  { return (uint32) (packlength+table->s->blob_ptr_size); }
   inline uint32 max_data_length() const
   {
     return (uint32) (((ulonglong) 1 << (packlength*8)) -1);
@@ -1212,7 +1211,6 @@ public:
   uint32 max_length() { return (uint32) field_length + (bit_len > 0); }
   uint size_of() const { return sizeof(*this); }
   Item_result result_type () const { return INT_RESULT; }
-  void make_field(Send_field *);
   void reset(void) { bzero(ptr, field_length); }
   int store(const char *to, uint length, CHARSET_INFO *charset);
   int store(double nr);

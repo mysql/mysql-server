@@ -629,7 +629,6 @@ ndb_mgm_get_status(NdbMgmHandle handle)
     malloc(sizeof(ndb_mgm_cluster_state)+
 	   noOfNodes*(sizeof(ndb_mgm_node_state)+sizeof("000.000.000.000#")));
 
-  state->hostname= 0;
   state->no_of_nodes= noOfNodes;
   ndb_mgm_node_state * ptr = &state->node_states[0];
   int nodeId = 0;
@@ -917,67 +916,68 @@ ndb_mgm_restart(NdbMgmHandle handle, int no_of_nodes, const int *node_list)
   return ndb_mgm_restart2(handle, no_of_nodes, node_list, 0, 0, 0);
 }
 
-static const char *clusterlog_level_names[]=
+static const char *clusterlog_severity_names[]=
   { "enabled", "debug", "info", "warning", "error", "critical", "alert" };
 
-struct ndb_mgm_clusterlog_levels 
+struct ndb_mgm_event_severities 
 {
   const char* name;
-  enum ndb_mgm_clusterlog_level level;
-} clusterlog_levels[] = {
-  { clusterlog_level_names[0], NDB_MGM_CLUSTERLOG_ON },
-  { clusterlog_level_names[1], NDB_MGM_CLUSTERLOG_DEBUG },
-  { clusterlog_level_names[2], NDB_MGM_CLUSTERLOG_INFO },
-  { clusterlog_level_names[3], NDB_MGM_CLUSTERLOG_WARNING },
-  { clusterlog_level_names[4], NDB_MGM_CLUSTERLOG_ERROR },
-  { clusterlog_level_names[5], NDB_MGM_CLUSTERLOG_CRITICAL },
-  { clusterlog_level_names[6], NDB_MGM_CLUSTERLOG_ALERT },
-  { "all",                     NDB_MGM_CLUSTERLOG_ALL },
-  { 0,                         NDB_MGM_ILLEGAL_CLUSTERLOG_LEVEL },
+  enum ndb_mgm_event_severity severity;
+} clusterlog_severities[] = {
+  { clusterlog_severity_names[0], NDB_MGM_EVENT_SEVERITY_ON },
+  { clusterlog_severity_names[1], NDB_MGM_EVENT_SEVERITY_DEBUG },
+  { clusterlog_severity_names[2], NDB_MGM_EVENT_SEVERITY_INFO },
+  { clusterlog_severity_names[3], NDB_MGM_EVENT_SEVERITY_WARNING },
+  { clusterlog_severity_names[4], NDB_MGM_EVENT_SEVERITY_ERROR },
+  { clusterlog_severity_names[5], NDB_MGM_EVENT_SEVERITY_CRITICAL },
+  { clusterlog_severity_names[6], NDB_MGM_EVENT_SEVERITY_ALERT },
+  { "all",                        NDB_MGM_EVENT_SEVERITY_ALL },
+  { 0,                            NDB_MGM_ILLEGAL_EVENT_SEVERITY },
 };
 
 extern "C"
-ndb_mgm_clusterlog_level
-ndb_mgm_match_clusterlog_level(const char * name)
+ndb_mgm_event_severity
+ndb_mgm_match_event_severity(const char * name)
 {
   if(name == 0)
-    return NDB_MGM_ILLEGAL_CLUSTERLOG_LEVEL;
+    return NDB_MGM_ILLEGAL_EVENT_SEVERITY;
   
-  for(int i = 0; clusterlog_levels[i].name !=0 ; i++)
-    if(strcasecmp(name, clusterlog_levels[i].name) == 0)
-      return clusterlog_levels[i].level;
+  for(int i = 0; clusterlog_severities[i].name !=0 ; i++)
+    if(strcasecmp(name, clusterlog_severities[i].name) == 0)
+      return clusterlog_severities[i].severity;
 
-  return NDB_MGM_ILLEGAL_CLUSTERLOG_LEVEL;
+  return NDB_MGM_ILLEGAL_EVENT_SEVERITY;
 }
 
 extern "C"
 const char * 
-ndb_mgm_get_clusterlog_level_string(enum ndb_mgm_clusterlog_level level)
+ndb_mgm_get_event_severity_string(enum ndb_mgm_event_severity severity)
 {
-  int i= (int)level;
-  if (i >= 0 && i < (int)NDB_MGM_CLUSTERLOG_ALL)
-    return clusterlog_level_names[i];
-  for(i = (int)NDB_MGM_CLUSTERLOG_ALL; clusterlog_levels[i].name != 0; i++)
-    if(clusterlog_levels[i].level == level)
-      return clusterlog_levels[i].name;
+  int i= (int)severity;
+  if (i >= 0 && i < (int)NDB_MGM_EVENT_SEVERITY_ALL)
+    return clusterlog_severity_names[i];
+  for(i = (int)NDB_MGM_EVENT_SEVERITY_ALL; clusterlog_severities[i].name != 0; i++)
+    if(clusterlog_severities[i].severity == severity)
+      return clusterlog_severities[i].name;
   return 0;
 }
 
 extern "C"
-unsigned int *
-ndb_mgm_get_logfilter(NdbMgmHandle handle) 
+const unsigned int *
+ndb_mgm_get_clusterlog_severity_filter(NdbMgmHandle handle) 
 {
-  SET_ERROR(handle, NDB_MGM_NO_ERROR, "Executing: ndb_mgm_get_logfilter");
-  static Uint32 enabled[(int)NDB_MGM_CLUSTERLOG_ALL] = {0,0,0,0,0,0,0};
+  SET_ERROR(handle, NDB_MGM_NO_ERROR, "Executing: ndb_mgm_get_clusterlog_severity_filter");
+  static unsigned int enabled[(int)NDB_MGM_EVENT_SEVERITY_ALL]=
+    {0,0,0,0,0,0,0};
   const ParserRow<ParserDummy> getinfo_reply[] = {
     MGM_CMD("clusterlog", NULL, ""),
-    MGM_ARG(clusterlog_level_names[0], Int, Mandatory, ""),
-    MGM_ARG(clusterlog_level_names[1], Int, Mandatory, ""),
-    MGM_ARG(clusterlog_level_names[2], Int, Mandatory, ""),
-    MGM_ARG(clusterlog_level_names[3], Int, Mandatory, ""),
-    MGM_ARG(clusterlog_level_names[4], Int, Mandatory, ""),
-    MGM_ARG(clusterlog_level_names[5], Int, Mandatory, ""),
-    MGM_ARG(clusterlog_level_names[6], Int, Mandatory, ""),
+    MGM_ARG(clusterlog_severity_names[0], Int, Mandatory, ""),
+    MGM_ARG(clusterlog_severity_names[1], Int, Mandatory, ""),
+    MGM_ARG(clusterlog_severity_names[2], Int, Mandatory, ""),
+    MGM_ARG(clusterlog_severity_names[3], Int, Mandatory, ""),
+    MGM_ARG(clusterlog_severity_names[4], Int, Mandatory, ""),
+    MGM_ARG(clusterlog_severity_names[5], Int, Mandatory, ""),
+    MGM_ARG(clusterlog_severity_names[6], Int, Mandatory, ""),
   };
   CHECK_HANDLE(handle, NULL);
   CHECK_CONNECTED(handle, NULL);
@@ -987,20 +987,21 @@ ndb_mgm_get_logfilter(NdbMgmHandle handle)
   reply = ndb_mgm_call(handle, getinfo_reply, "get info clusterlog", &args);
   CHECK_REPLY(reply, NULL);
   
-  for(int i=0; i < (int)NDB_MGM_CLUSTERLOG_ALL; i++) {
-    reply->get(clusterlog_level_names[i], &enabled[i]);
+  for(int i=0; i < (int)NDB_MGM_EVENT_SEVERITY_ALL; i++) {
+    reply->get(clusterlog_severity_names[i], &enabled[i]);
   }
   return enabled;
 }
 
 extern "C"
 int 
-ndb_mgm_filter_clusterlog(NdbMgmHandle handle, 
-			  enum ndb_mgm_clusterlog_level level,
-			  int enable,
-			  struct ndb_mgm_reply* /*reply*/) 
+ndb_mgm_set_clusterlog_severity_filter(NdbMgmHandle handle, 
+				       enum ndb_mgm_event_severity severity,
+				       int enable,
+				       struct ndb_mgm_reply* /*reply*/) 
 {
-  SET_ERROR(handle, NDB_MGM_NO_ERROR, "Executing: ndb_mgm_filter_clusterlog");
+  SET_ERROR(handle, NDB_MGM_NO_ERROR,
+	    "Executing: ndb_mgm_set_clusterlog_severity_filter");
   const ParserRow<ParserDummy> filter_reply[] = {
     MGM_CMD("set logfilter reply", NULL, ""),
     MGM_ARG("result", String, Mandatory, "Error message"),
@@ -1011,7 +1012,7 @@ ndb_mgm_filter_clusterlog(NdbMgmHandle handle,
   CHECK_CONNECTED(handle, -1);
 
   Properties args;
-  args.put("level", level);
+  args.put("level", severity);
   args.put("enable", enable);
   
   const Properties *reply;
@@ -1047,8 +1048,8 @@ struct ndb_mgm_event_categories
   { "DEBUG", NDB_MGM_EVENT_CATEGORY_DEBUG },
   { "INFO", NDB_MGM_EVENT_CATEGORY_INFO },
   { "ERROR", NDB_MGM_EVENT_CATEGORY_ERROR },
-  { "GREP", NDB_MGM_EVENT_CATEGORY_GREP },
   { "BACKUP", NDB_MGM_EVENT_CATEGORY_BACKUP },
+  { "CONGESTION", NDB_MGM_EVENT_CATEGORY_CONGESTION },
   { 0, NDB_MGM_ILLEGAL_EVENT_CATEGORY }
 };
 
@@ -1080,13 +1081,13 @@ ndb_mgm_get_event_category_string(enum ndb_mgm_event_category status)
 
 extern "C"
 int 
-ndb_mgm_set_loglevel_clusterlog(NdbMgmHandle handle, int nodeId,
+ndb_mgm_set_clusterlog_loglevel(NdbMgmHandle handle, int nodeId,
 				enum ndb_mgm_event_category cat,
 				int level,
 				struct ndb_mgm_reply* /*reply*/) 
 {
   SET_ERROR(handle, NDB_MGM_NO_ERROR, 
-	    "Executing: ndb_mgm_set_loglevel_clusterlog");
+	    "Executing: ndb_mgm_set_clusterlog_loglevel");
   const ParserRow<ParserDummy> clusterlog_reply[] = {
     MGM_CMD("set cluster loglevel reply", NULL, ""),
     MGM_ARG("result", String, Mandatory, "Error message"),
@@ -1105,7 +1106,7 @@ ndb_mgm_set_loglevel_clusterlog(NdbMgmHandle handle, int nodeId,
 		       "set cluster loglevel", &args);
   CHECK_REPLY(reply, -1);
   
-  DBUG_ENTER("ndb_mgm_set_loglevel_clusterlog");
+  DBUG_ENTER("ndb_mgm_set_clusterlog_loglevel");
   DBUG_PRINT("enter",("node=%d, category=%d, level=%d", nodeId, cat, level));
 
   BaseString result;
@@ -1157,7 +1158,7 @@ ndb_mgm_set_loglevel_node(NdbMgmHandle handle, int nodeId,
 
 extern "C"
 int
-ndb_mgm_listen_event(NdbMgmHandle handle, int filter[])
+ndb_mgm_listen_event(NdbMgmHandle handle, const int filter[])
 {
   SET_ERROR(handle, NDB_MGM_NO_ERROR, "Executing: ndb_mgm_listen_event");
   const ParserRow<ParserDummy> stat_reply[] = {
@@ -1195,7 +1196,10 @@ ndb_mgm_listen_event(NdbMgmHandle handle, int filter[])
   
   handle->socket = tmp;
   
-  CHECK_REPLY(reply, -1);
+  if(reply == NULL) {
+    close(sockfd);
+    CHECK_REPLY(reply, -1);
+  }
   return sockfd;
 }
 

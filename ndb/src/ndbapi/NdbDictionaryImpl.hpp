@@ -117,7 +117,14 @@ public:
   Vector<Uint32> m_columnHash;
   Vector<NdbColumnImpl *> m_columns;
   void buildColumnHash(); 
-  
+
+  /**
+   * Fragment info
+   */
+  Uint32 m_hashValueMask;
+  Uint32 m_hashpointerValue;
+  Vector<Uint16> m_fragments;
+
   bool m_logging;
   int m_kvalue;
   int m_minLoadFactor;
@@ -144,6 +151,8 @@ public:
   Uint8 m_noOfKeys;
   Uint8 m_noOfDistributionKeys;
   Uint8 m_noOfBlobs;
+  
+  Uint8 m_replicaCount;
 
   /**
    * Equality/assign
@@ -156,6 +165,11 @@ public:
   static NdbTableImpl & getImpl(NdbDictionary::Table & t);
   static NdbTableImpl & getImpl(const NdbDictionary::Table & t);
   NdbDictionary::Table * m_facade;
+  
+  /**
+   * Return count
+   */
+  Uint32 get_nodes(Uint32 hashValue, const Uint16** nodes) const ;
 };
 
 class NdbIndexImpl : public NdbDictionary::Index, public NdbDictObjectImpl {
@@ -195,11 +209,14 @@ public:
 
   void setName(const char * name);
   const char * getName() const;
+  void setTable(const NdbDictionary::Table& table);
   void setTable(const char * table);
-  const char * getTable() const;
+  const char * getTableName() const;
   void addTableEvent(const NdbDictionary::Event::TableEvent t);
-  void setDurability(const NdbDictionary::Event::EventDurability d);
+  void setDurability(NdbDictionary::Event::EventDurability d);
+  NdbDictionary::Event::EventDurability  getDurability() const;
   void addEventColumn(const NdbColumnImpl &c);
+  int getNoOfEventColumns() const;
 
   void print() {
     ndbout_c("NdbEventImpl: id=%d, key=%d",
@@ -448,7 +465,8 @@ bool
 NdbColumnImpl::getCharType() const {
   return (m_type == NdbDictionary::Column::Char ||
           m_type == NdbDictionary::Column::Varchar ||
-          m_type == NdbDictionary::Column::Text);
+          m_type == NdbDictionary::Column::Text ||
+          m_type == NdbDictionary::Column::Longvarchar);
 }
    
 inline

@@ -149,8 +149,8 @@ rename_tables(THD *thd, TABLE_LIST *table_list, bool skip_error)
     }
     else
     {
-      old_alias= ren_table->real_name;
-      new_alias= new_table->real_name;
+      old_alias= ren_table->table_name;
+      new_alias= new_table->table_name;
     }
     sprintf(name,"%s/%s/%s%s",mysql_data_home,
 	    new_table->db, new_alias, reg_ext);

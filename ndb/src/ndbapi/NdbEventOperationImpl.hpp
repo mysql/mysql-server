@@ -14,20 +14,12 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/*****************************************************************************
- * Name:          NdbEventOperationImpl.hpp
- * Include:
- * Link:
- * Author:        Tomas Ulin MySQL AB
- * Date:          2003-11-21
- * Version:       0.1
- * Description:   Event support
- * Documentation:
- * Adjust:  2003-11-21  Tomas Ulin   First version.
- ****************************************************************************/
-
 #ifndef NdbEventOperationImpl_H
 #define NdbEventOperationImpl_H
+
+#include <NdbEventOperation.hpp>
+#include <signaldata/SumaImpl.hpp>
+#include <transporter/TransporterDefinitions.hpp>
 
 class NdbGlobalEventBufferHandle;
 class NdbEventOperationImpl : public NdbEventOperation {
@@ -60,6 +52,9 @@ public:
 
   void print();
   void printAll();
+
+  const NdbError & getNdbError() const;
+  NdbError m_error;
 
   Ndb *m_ndb;
   NdbEventImpl *m_eventImpl;
