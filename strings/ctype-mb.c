@@ -116,30 +116,6 @@ int my_strcasecmp_mb(CHARSET_INFO * cs,const char *s, const char *t)
 }
 
 
-int my_strncasecmp_mb(CHARSET_INFO * cs,
-				const char *s, const char *t, uint len)
-{
-  register uint32 l;
-  register const char *end=s+len;
-  register uchar *map=cs->to_upper;
-  
-  while (s<end)
-  {
-    if ((l=my_ismbchar(cs, s,end)))
-    {
-      while (l--)
-        if (*s++ != *t++) 
-          return 1;
-    }
-    else if (my_ismbhead(cs, *t)) 
-      return 1;
-    else if (map[(uchar) *s++] != map[(uchar) *t++]) 
-      return 1;
-  }
-  return 0;
-}
-
-
 /*
 ** Compare string against string with wildcard
 **	0 if matched

@@ -211,7 +211,7 @@ static int hashcmp(HASH *hash,HASH_LINK *pos,const byte *key,uint length)
   uint rec_keylength;
   byte *rec_key= (byte*) hash_key(hash,pos->data,&rec_keylength,1);
   return (length && length != rec_keylength) ||
-     my_strncasecmp(hash->charset, rec_key,key,rec_keylength);
+     my_strnncoll(hash->charset, rec_key, rec_keylength, key, length);
 }
 
 

@@ -1988,7 +1988,6 @@ CHARSET_INFO my_charset_utf8 =
     my_caseup_utf8,
     my_casedn_utf8,
     my_strcasecmp_utf8,
-    my_strncasecmp_utf8,
     my_hash_sort_utf8,	/* hash_sort    */
     0,
     my_snprintf_8bit,
@@ -3071,7 +3070,6 @@ CHARSET_INFO my_charset_ucs2 =
     my_caseup_ucs2,
     my_casedn_ucs2,
     my_strcasecmp_ucs2,
-    my_strncasecmp_ucs2,
     my_hash_sort_ucs2,	/* hash_sort    */
     0,
     my_snprintf_ucs2,

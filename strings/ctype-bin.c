@@ -118,12 +118,6 @@ static int my_strcasecmp_bin(CHARSET_INFO * cs __attribute__((unused)),
   return strcmp(s,t);
 }
 
-static int my_strncasecmp_bin(CHARSET_INFO * cs __attribute__((unused)),
-				const char *s, const char *t, uint len)
-{
-  return memcmp(s,t,len);
-}
-
 static int my_mb_wc_bin(CHARSET_INFO *cs __attribute__((unused)),
 		  my_wc_t *wc,
 		  const unsigned char *str,
@@ -301,7 +295,6 @@ CHARSET_INFO my_charset_bin =
     my_caseup_bin,		/* caseup        */
     my_casedn_bin,		/* casedn        */
     my_strcasecmp_bin,		/* strcasecmp    */
-    my_strncasecmp_bin,		/* strncasecmp   */
     my_hash_sort_bin,		/* hash_sort     */
     (char) 255,			/* max_sort_char */
     my_snprintf_8bit,		/* snprintf      */

@@ -729,7 +729,6 @@ CHARSET_INFO my_charset_tis620 =
     my_caseup_8bit,
     my_casedn_8bit,
     my_strcasecmp_8bit,
-    my_strncasecmp_8bit,
     my_hash_sort_simple,
     0,
     my_snprintf_8bit,

@@ -150,8 +150,6 @@ typedef struct charset_info_st
   
   /* Functions for case comparison */
   int  (*strcasecmp)(struct charset_info_st *, const char *, const char *);
-  int  (*strncasecmp)(struct charset_info_st *, const char *, const char *,
-		      uint);
   
   /* Hash calculation */
   void (*hash_sort)(struct charset_info_st *cs, const uchar *key, uint len,
@@ -228,8 +226,6 @@ extern void my_caseup_8bit(CHARSET_INFO *, char *, uint);
 extern void my_casedn_8bit(CHARSET_INFO *, char *, uint);
 
 extern int my_strcasecmp_8bit(CHARSET_INFO * cs, const char *, const char *);
-extern int my_strncasecmp_8bit(CHARSET_INFO * cs, const char *, const char *,
-			       uint);
 
 int my_mb_wc_8bit(CHARSET_INFO *cs,my_wc_t *wc, const uchar *s,const uchar *e);
 int my_wc_mb_8bit(CHARSET_INFO *cs,my_wc_t wc, uchar *s, uchar *e);
@@ -281,8 +277,7 @@ extern void my_casedn_str_mb(CHARSET_INFO *, char *);
 extern void my_caseup_mb(CHARSET_INFO *, char *, uint);
 extern void my_casedn_mb(CHARSET_INFO *, char *, uint);
 extern int my_strcasecmp_mb(CHARSET_INFO * cs,const char *, const char *);
-extern int my_strncasecmp_mb(CHARSET_INFO * cs,const char *, const char *t,
-			     uint);
+
 int my_wildcmp_mb(CHARSET_INFO *,
 		  const char *str,const char *str_end,
 		  const char *wildstr,const char *wildend,
