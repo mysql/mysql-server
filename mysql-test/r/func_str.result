@@ -119,12 +119,12 @@ montymontymontymontymonty	*     *
 select reverse('abc'),reverse('abcd');
 reverse('abc')	reverse('abcd')
 cba	dcba
-select rpad('a',4,'1'),rpad('a',4,'12'),rpad('abcd',3,'12');
-rpad('a',4,'1')	rpad('a',4,'12')	rpad('abcd',3,'12')
-a111	a121	abc
-select lpad('a',4,'1'),lpad('a',4,'12'),lpad('abcd',3,'12');
-lpad('a',4,'1')	lpad('a',4,'12')	lpad('abcd',3,'12')
-111a	121a	abc
+select rpad('a',4,'1'),rpad('a',4,'12'),rpad('abcd',3,'12'), rpad(11, 10 , 22), rpad("ab", 10, 22);
+rpad('a',4,'1')	rpad('a',4,'12')	rpad('abcd',3,'12')	rpad(11, 10 , 22)	rpad("ab", 10, 22)
+a111	a121	abc	1122222222	ab22222222
+select lpad('a',4,'1'),lpad('a',4,'12'),lpad('abcd',3,'12'), lpad(11, 10 , 22);
+lpad('a',4,'1')	lpad('a',4,'12')	lpad('abcd',3,'12')	lpad(11, 10 , 22)
+111a	121a	abc	2222222211
 select rpad(741653838,17,'0'),lpad(741653838,17,'0');
 rpad(741653838,17,'0')	lpad(741653838,17,'0')
 74165383800000000	00000000741653838
@@ -134,6 +134,12 @@ abcdaba	abaabcd
 select rpad('abcd',1,'ab'),lpad('abcd',1,'ab');
 rpad('abcd',1,'ab')	lpad('abcd',1,'ab')
 a	a
+select rpad('STRING', 20, CONCAT('p','a','d') );
+rpad('STRING', 20, CONCAT('p','a','d') )
+STRINGpadpadpadpadpa
+select lpad('STRING', 20, CONCAT('p','a','d') );
+lpad('STRING', 20, CONCAT('p','a','d') )
+padpadpadpadpaSTRING
 select LEAST(NULL,'HARRY','HARRIOT',NULL,'HAROLD'),GREATEST(NULL,'HARRY','HARRIOT',NULL,'HAROLD');
 LEAST(NULL,'HARRY','HARRIOT',NULL,'HAROLD')	GREATEST(NULL,'HARRY','HARRIOT',NULL,'HAROLD')
 HAROLD	HARRY
