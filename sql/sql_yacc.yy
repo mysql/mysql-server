@@ -208,6 +208,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token	BACKUP_SYM
 %token	BERKELEY_DB_SYM
 %token	BINARY
+%token  BIN_NUM
 %token	BIT_SYM
 %token	BOOL_SYM
 %token	BOOLEAN_SYM
@@ -664,7 +665,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 	LEX_HOSTNAME ULONGLONG_NUM field_ident select_alias ident ident_or_text
         UNDERSCORE_CHARSET IDENT_sys TEXT_STRING_sys TEXT_STRING_literal
 	NCHAR_STRING opt_component key_cache_name
-        sp_opt_label
+        sp_opt_label BIN_NUM
 
 %type <lex_str_ptr>
 	opt_table_alias
@@ -2750,8 +2751,10 @@ type:
 	int_type opt_len field_options	{ $$=$1; }
 	| real_type opt_precision field_options { $$=$1; }
 	| FLOAT_SYM float_options field_options { $$=FIELD_TYPE_FLOAT; }
-	| BIT_SYM opt_len		{ Lex->length=(char*) "1";
-					  $$=FIELD_TYPE_TINY; }
+	| BIT_SYM			{ Lex->length= (char*) "1";
+					  $$=FIELD_TYPE_BIT; }
+	| BIT_SYM '(' NUM ')'		{ Lex->length= $3.str;
+					  $$=FIELD_TYPE_BIT; }
 	| BOOL_SYM			{ Lex->length=(char*) "1";
 					  $$=FIELD_TYPE_TINY; }
 	| BOOLEAN_SYM			{ Lex->length=(char*) "1";
@@ -6459,15 +6462,25 @@ text_string:
 	{ $$=  new (YYTHD->mem_root) String($1.str,$1.length,YYTHD->variables.collation_connection); }
 	| HEX_NUM
 	  {
-	    Item *tmp = new Item_varbinary($1.str,$1.length);
+	    Item *tmp= new Item_hex_string($1.str, $1.length);
 	    /*
-	      it is OK only emulate fix_fieds, because we need only
+	      it is OK only emulate fix_fields, because we need only
               value of constant
 	    */
 	    $$= tmp ?
 	      tmp->quick_fix_field(), tmp->val_str((String*) 0) :
 	      (String*) 0;
 	  }
+        | BIN_NUM
+          {
+	    Item *tmp= new Item_bin_string($1.str, $1.length);
+	    /*
+	      it is OK only emulate fix_fields, because we need only
+              value of constant
+	    */
+	    $$= tmp ? tmp->quick_fix_field(), tmp->val_str((String*) 0) :
+		      (String*) 0;
+          }
 	;
 
 param_marker:
@@ -6509,10 +6522,11 @@ literal:
 	| NUM_literal	{ $$ = $1; }
 	| NULL_SYM	{ $$ =	new Item_null();
 			  Lex->next_state=MY_LEX_OPERATOR_OR_IDENT;}
-	| HEX_NUM	{ $$ =	new Item_varbinary($1.str,$1.length);}
+	| HEX_NUM	{ $$ =	new Item_hex_string($1.str, $1.length);}
+	| BIN_NUM	{ $$= new Item_bin_string($1.str, $1.length); }
 	| UNDERSCORE_CHARSET HEX_NUM
 	  {
-	    Item *tmp= new Item_varbinary($2.str,$2.length);
+	    Item *tmp= new Item_hex_string($2.str, $2.length);
 	    /*
 	      it is OK only emulate fix_fieds, because we need only
               value of constant
@@ -6524,6 +6538,20 @@ literal:
 				str ? str->length() : 0,
 				Lex->charset);
 	  }
+	| UNDERSCORE_CHARSET BIN_NUM
+          {
+	    Item *tmp= new Item_bin_string($2.str, $2.length);
+	    /*
+	      it is OK only emulate fix_fieds, because we need only
+              value of constant
+	    */
+	    String *str= tmp ?
+	      tmp->quick_fix_field(), tmp->val_str((String*) 0) :
+	      (String*) 0;
+	    $$= new Item_string(str ? str->ptr() : "",
+				str ? str->length() : 0,
+				Lex->charset);
+          }
 	| DATE_SYM text_literal { $$ = $2; }
 	| TIME_SYM text_literal { $$ = $2; }
 	| TIMESTAMP text_literal { $$ = $2; };
@@ -6858,6 +6886,7 @@ keyword:
 	| CLIENT_SYM		{}
 	| CLOSE_SYM		{}
 	| COLLATION_SYM		{}
+        | COLUMNS               {}
 	| COMMENT_SYM		{}
 	| COMMITTED_SYM		{}
 	| COMMIT_SYM		{}
@@ -6979,6 +7008,7 @@ keyword:
 	| POLYGON		{}
         | PREPARE_SYM           {}
 	| PREV_SYM		{}
+        | PRIVILEGES            {}
 	| PROCESS		{}
 	| PROCESSLIST_SYM	{}
 	| QUARTER_SYM		{}
@@ -7030,6 +7060,7 @@ keyword:
 	| SUBDATE_SYM		{}
 	| SUBJECT_SYM		{}
 	| SUPER_SYM		{}
+        | TABLES                {}
 	| TABLESPACE		{}
 	| TEMPORARY		{}
 	| TEMPTABLE_SYM		{}
