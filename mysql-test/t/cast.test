@@ -118,3 +118,11 @@ select date_add(cast('2004-12-30 12:00:00' as date), interval 0 hour);
 select timediff(cast('2004-12-30 12:00:00' as time), '12:00:00');
 # Still we should not throw away "days" part of time value
 select timediff(cast('1 12:00:00' as time), '12:00:00');
+
+#decimal-related additions
+select cast('1.2' as decimal(3,2));
+select 1e18 * cast('1.2' as decimal(3,2));
+select cast(cast('1.2' as decimal(3,2)) as signed);
+set @v1=1e18;
+select cast(@v1 as decimal(22, 2));
+select cast(-1e18 as decimal(22,2));

@@ -87,13 +87,6 @@ static void usage()
   my_print_help(my_long_options);
   my_print_variables(my_long_options);
 }
-static my_bool
-get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
-	       char *argument)
-{
-  return ndb_std_get_one_option(optid, opt, argument ? argument :
-				"d:t:O,/tmp/ndb_mgm.trace");
-}
 
 static int 
 read_and_execute(int _try_reconnect) 
@@ -136,7 +129,11 @@ int main(int argc, char** argv){
 
   load_defaults("my",load_default_groups,&argc,&argv);
   int ho_error;
-  if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
+#ifndef DBUG_OFF
+  opt_debug= "d:t:O,/tmp/ndb_mgm.trace";
+#endif
+  if ((ho_error=handle_options(&argc, &argv, my_long_options,
+			       ndb_std_get_one_option)))
     exit(ho_error);
 
   char buf[MAXHOSTNAMELEN+10];
