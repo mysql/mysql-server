@@ -531,6 +531,7 @@ Warning	1264	Out of range value adjusted for column 'col1' at row 1
 Warning	1264	Out of range value adjusted for column 'col2' at row 1
 Warning	1264	Out of range value adjusted for column 'col1' at row 2
 Warning	1264	Out of range value adjusted for column 'col2' at row 2
+Warning	1264	Out of range value adjusted for column 'col2' at row 2
 UPDATE IGNORE t1 SET col2=1/NULL where col1=0;
 SELECT * FROM t1;
 col1	col2

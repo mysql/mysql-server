@@ -1,0 +1,46 @@
+# Let's see if FLUSH TABLES WITH READ LOCK can be killed when waiting
+# for running commits to finish (in the past it could not)
+# This will not be a meaningful test on non-debug servers so will be
+# skipped.
+# If running mysql-test-run --debug, the --debug added by
+# mysql-test-run to the mysqld command line will override the one of
+# -master.opt. But this test is designed to still pass then (though it
+# won't test anything interesting).
+
+-- source include/have_debug.inc
+
+connect (con1,localhost,root,,);
+connect (con2,localhost,root,,);
+connection con1;
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+create table t1 (kill_id int);
+insert into t1 values(connection_id());
+
+# Thanks to the parameter we passed to --debug, this FLUSH will
+# block on a debug build running with our --debug=make_global... It
+# will block until killed. In other cases (non-debug build or other
+# --debug) it will succeed immediately
+
+connection con1;
+send flush tables with read lock;
+
+# kill con1
+connection con2;
+select ((@id := kill_id) - kill_id) from t1; 
+
+--sleep 2; # leave time for FLUSH to block
+kill connection @id;
+
+connection con1;
+# On debug builds it will be error 1053 (killed); on non-debug, or
+# debug build running without our --debug=make_global..., will be
+# error 0 (no error). The only important thing to test is that on
+# debug builds with our --debug=make_global... we don't hang forever.
+--error 0,1053
+reap;
+
+connection con2;
+drop table t1;

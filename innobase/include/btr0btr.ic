@@ -183,17 +183,18 @@ ulint
 btr_node_ptr_get_child_page_no(
 /*===========================*/
 			   	/* out: child node address */
-	rec_t*	rec)		/* in: node pointer record */
+	rec_t*		rec,	/* in: node pointer record */
+	const ulint*	offsets)/* in: array returned by rec_get_offsets() */
 {
-	ulint	n_fields;
 	byte*	field;
 	ulint	len;
 	ulint	page_no;
 
-	n_fields = rec_get_n_fields(rec);
+	ut_ad(!rec_offs_comp(offsets) || rec_get_node_ptr_flag(rec));
 
 	/* The child address is in the last field */	
-	field = rec_get_nth_field(rec, n_fields - 1, &len);
+	field = rec_get_nth_field(rec, offsets,
+					rec_offs_n_fields(offsets) - 1, &len);
 
 	ut_ad(len == 4);
 	

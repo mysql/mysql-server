@@ -7286,6 +7286,8 @@ void Dblqh::closeScanRequestLab(Signal* signal)
     scanptr.p->m_curr_batch_size_rows = 0;
     scanptr.p->m_curr_batch_size_bytes= 0;
     sendScanFragConf(signal, ZTRUE);
+    abort_scan(signal, scanptr.i, 0);
+    return;
     break;
   case TcConnectionrec::SCAN_TUPKEY:
   case TcConnectionrec::SCAN_FIRST_STOPPED:
@@ -7675,14 +7677,18 @@ void Dblqh::abort_scan(Signal* signal, Uint32 scan_ptr_i, Uint32 errcode){
   releaseScanrec(signal);
   tcConnectptr.p->transactionState = TcConnectionrec::IDLE;
   tcConnectptr.p->abortState = TcConnectionrec::ABORT_ACTIVE;
-  
-  ScanFragRef * ref = (ScanFragRef*)&signal->theData[0];
-  ref->senderData = tcConnectptr.p->clientConnectrec;
-  ref->transId1 = tcConnectptr.p->transid[0];
-  ref->transId2 = tcConnectptr.p->transid[1];
-  ref->errorCode = errcode;
-  sendSignal(tcConnectptr.p->clientBlockref, GSN_SCAN_FRAGREF, signal, 
-	     ScanFragRef::SignalLength, JBB);
+
+  if(errcode)
+  {
+    jam();
+    ScanFragRef * ref = (ScanFragRef*)&signal->theData[0];
+    ref->senderData = tcConnectptr.p->clientConnectrec;
+    ref->transId1 = tcConnectptr.p->transid[0];
+    ref->transId2 = tcConnectptr.p->transid[1];
+    ref->errorCode = errcode;
+    sendSignal(tcConnectptr.p->clientBlockref, GSN_SCAN_FRAGREF, signal, 
+	       ScanFragRef::SignalLength, JBB);
+  }
   deleteTransidHash(signal);
   releaseOprec(signal);
   releaseTcrec(signal, tcConnectptr);

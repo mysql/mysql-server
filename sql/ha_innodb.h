@@ -245,3 +245,46 @@ void innobase_release_temporary_latches(void* innobase_tid);
 void innobase_store_binlog_offset_and_flush_log(char *binlog_name,longlong offset);
 
 int innobase_start_trx_and_assign_read_view(THD* thd);
+
+/***********************************************************************
+This function is used to prepare X/Open XA distributed transaction   */
+
+int innobase_xa_prepare(
+/*====================*/
+			/* out: 0 or error number */
+	THD*	thd,	/* in: handle to the MySQL thread of the user
+			whose XA transaction should be prepared */
+	bool	all);	/* in: TRUE - commit transaction
+			FALSE - the current SQL statement ended */
+
+/***********************************************************************
+This function is used to recover X/Open XA distributed transactions   */
+
+int innobase_xa_recover(
+/*====================*/
+				/* out: number of prepared transactions 
+				stored in xid_list */
+	XID*    xid_list, 	/* in/out: prepared transactions */
+	uint	len);		/* in: number of slots in xid_list */
+
+/***********************************************************************
+This function is used to commit one X/Open XA distributed transaction
+which is in the prepared state */
+
+int innobase_commit_by_xid(
+/*=======================*/
+			/* out: 0 or error number */
+	XID*	xid);	/* in : X/Open XA Transaction Identification */
+
+/***********************************************************************
+This function is used to rollback one X/Open XA distributed transaction
+which is in the prepared state */
+
+int innobase_rollback_by_xid(
+			/* out: 0 or error number */
+	XID	*xid);	/* in : X/Open XA Transaction Idenfification */
+
+
+int innobase_xa_end(THD *thd);
+
+

@@ -335,6 +335,27 @@ ut_align_down(
 	return((void*)((((ulint)ptr)) & ~(align_no - 1)));
 }
 
+/*************************************************************
+The following function computes the offset of a pointer from the nearest
+aligned address. */
+UNIV_INLINE
+ulint
+ut_align_offset(
+/*============*/
+					/* out: distance from
+					aligned pointer */
+	const void*	ptr,            /* in: pointer */
+	ulint		align_no)      	/* in: align by this number */
+{
+	ut_ad(align_no > 0);
+	ut_ad(((align_no - 1) & align_no) == 0);
+	ut_ad(ptr);
+
+	ut_ad(sizeof(void*) == sizeof(ulint));
+
+	return(((ulint)ptr) & (align_no - 1));
+}
+
 /*********************************************************************
 Gets the nth bit of a ulint. */
 UNIV_INLINE

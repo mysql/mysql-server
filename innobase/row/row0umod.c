@@ -430,6 +430,7 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 	found = row_search_index_entry(index, entry, mode, &pcur, &mtr);
 
 	if (!found) {
+		heap = mem_heap_create(100);
 		fputs("InnoDB: error in sec index entry del undo in\n"
 			"InnoDB: ", stderr);
 		dict_index_name_print(stderr, trx, index);
@@ -438,11 +439,14 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 		dtuple_print(stderr, entry);
 		fputs("\n"
 			"InnoDB: record ", stderr);
-		rec_print(stderr, btr_pcur_get_rec(&pcur));
+		rec_print(stderr, btr_pcur_get_rec(&pcur),
+				rec_get_offsets(btr_pcur_get_rec(&pcur),
+				index, ULINT_UNDEFINED, heap));
 		putc('\n', stderr);
 		trx_print(stderr, trx);
 		fputs("\n"
 "InnoDB: Submit a detailed bug report to http://bugs.mysql.com\n", stderr);
+		mem_heap_free(heap);
 	} else {
 		btr_cur_t*	btr_cur = btr_pcur_get_btr_cur(&pcur);
 

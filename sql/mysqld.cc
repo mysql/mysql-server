@@ -37,6 +37,28 @@
 #ifdef HAVE_NDBCLUSTER_DB
 #include "ha_ndbcluster.h"
 #endif
+
+#ifdef HAVE_INNOBASE_DB
+#define OPT_INNODB_DEFAULT 1
+#else
+#define OPT_INNODB_DEFAULT 0
+#endif
+#ifdef HAVE_BERKLEY_DB
+#define OPT_BDB_DEFAULT 1
+#else
+#define OPT_BDB_DEFAULT 0
+#endif
+#ifdef HAVE_ISAM_DB
+#define OPT_ISAM_DEFAULT 1
+#else
+#define OPT_ISAM_DEFAULT 0
+#endif
+#ifdef HAVE_NDBCLUSTER_DB
+#define OPT_NDBCLUSTER_DEFAULT 0
+#else
+#define OPT_NDBCLUSTER_DEFAULT 0
+#endif
+
 #include <nisam.h>
 #include <thr_alarm.h>
 #include <ft_global.h>
@@ -1539,14 +1561,13 @@ void mysql_down_server_cb(void *, void *)
 
 // destroy callback resources
 void mysql_cb_destroy(void *)
-{
-  UnRegisterEventNotification(eh);  // cleanup down event notification
+{  
+  UnRegisterEventNotification(eh);  // cleanup down event notification    	  
   NX_UNWRAP_INTERFACE(ref);
-
-  /* Deregister NSS volume deactivation event */
-  NX_UNWRAP_INTERFACE(refneb);
+  /* Deregister NSS volume deactivation event */  
+  NX_UNWRAP_INTERFACE(refneb);  	
   if (neb_consumer_id)
-    UnRegisterConsumer(neb_consumer_id, NULL);	
+    UnRegisterConsumer(neb_consumer_id, NULL);
 }
 
 
@@ -1665,6 +1686,7 @@ ulong neb_event_callback(struct EventBlock *eblock)
       nw_panic = TRUE;
       event_flag= TRUE;
       kill_server(0);
+ 
     }
   }
   return 0;
@@ -1738,8 +1760,8 @@ static void init_signals(void)
   for (uint i=0 ; i < sizeof(signals)/sizeof(int) ; i++)
     signal(signals[i], kill_server);
   mysql_cb_init();  // initialize callbacks
-}
 
+}
 
 static void start_signal_handler(void)
 {
@@ -2262,7 +2284,13 @@ extern "C" pthread_handler_decl(handle_shutdown,arg)
 #endif
 
 
-const char *load_default_groups[]= { "mysqld","server",MYSQL_BASE_VERSION,0,0};
+const char *load_default_groups[]= { 
+#ifdef HAVE_NDBCLUSTER_DB
+"mysql_cluster",
+#endif
+"mysqld","server",MYSQL_BASE_VERSION,0,0};
+static const int load_default_groups_sz=
+sizeof(load_default_groups)/sizeof(load_default_groups[0]);
 
 bool open_log(MYSQL_LOG *log, const char *hostname,
 	      const char *opt_name, const char *extension,
@@ -2884,6 +2912,7 @@ int win_main(int argc, char **argv)
 int main(int argc, char **argv)
 #endif
 {
+
   DEBUGGER_OFF;
 
   MY_INIT(argv[0]);		// init my_sys library & pthreads
@@ -3079,7 +3108,7 @@ we force server id to 2, but this MySQL server will not act as a slave.");
 #endif /* __NT__ */
 
   /* (void) pthread_attr_destroy(&connection_attrib); */
-
+  
   DBUG_PRINT("quit",("Exiting main thread"));
 
 #ifndef __WIN__
@@ -3129,6 +3158,7 @@ we force server id to 2, but this MySQL server will not act as a slave.");
 #endif
   clean_up_mutexes();
   my_end(opt_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
+ 
   exit(0);
   return(0);					/* purecov: deadcode */
 }
@@ -3256,7 +3286,7 @@ int main(int argc, char **argv)
 	  and we are now stuck with it.
 	*/
 	if (my_strcasecmp(system_charset_info, argv[1],"mysql"))
-	  load_default_groups[3]= argv[1];
+	  load_default_groups[load_default_groups_sz-2]= argv[1];
         start_mode= 1;
         Service.Init(argv[1], mysql_service);
         return 0;
@@ -3277,7 +3307,7 @@ int main(int argc, char **argv)
 	opt_argv=argv;
 	start_mode= 1;
 	if (my_strcasecmp(system_charset_info, argv[2],"mysql"))
-	  load_default_groups[3]= argv[2];
+	  load_default_groups[load_default_groups_sz-2]= argv[2];
 	Service.Init(argv[2], mysql_service);
 	return 0;
       }
@@ -4189,7 +4219,7 @@ struct my_option my_long_options[] =
    0, 0, 0, 0, 0, 0},
   {"bdb", OPT_BDB, "Enable Berkeley DB (if this version of MySQL supports it). \
 Disable with --skip-bdb (will save memory).",
-   (gptr*) &opt_bdb, (gptr*) &opt_bdb, 0, GET_BOOL, NO_ARG, 1, 0, 0,
+   (gptr*) &opt_bdb, (gptr*) &opt_bdb, 0, GET_BOOL, NO_ARG, OPT_BDB_DEFAULT, 0, 0,
    0, 0, 0},
 #ifdef HAVE_BERKELEY_DB
   {"bdb-home", OPT_BDB_HOME, "Berkeley home directory.", (gptr*) &berkeley_home,
@@ -4326,7 +4356,7 @@ Disable with --skip-bdb (will save memory).",
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"innodb", OPT_INNODB, "Enable InnoDB (if this version of MySQL supports it). \
 Disable with --skip-innodb (will save memory).",
-   (gptr*) &opt_innodb, (gptr*) &opt_innodb, 0, GET_BOOL, NO_ARG, 1, 0, 0,
+   (gptr*) &opt_innodb, (gptr*) &opt_innodb, 0, GET_BOOL, NO_ARG, OPT_INNODB_DEFAULT, 0, 0,
    0, 0, 0},
   {"innodb_data_file_path", OPT_INNODB_DATA_FILE_PATH,
    "Path to individual files and their sizes.",
@@ -4386,7 +4416,7 @@ Disable with --skip-innodb (will save memory).",
 #endif /* End HAVE_INNOBASE_DB */
   {"isam", OPT_ISAM, "Enable ISAM (if this version of MySQL supports it). \
 Disable with --skip-isam.",
-   (gptr*) &opt_isam, (gptr*) &opt_isam, 0, GET_BOOL, NO_ARG, 1, 0, 0,
+   (gptr*) &opt_isam, (gptr*) &opt_isam, 0, GET_BOOL, NO_ARG, OPT_ISAM_DEFAULT, 0, 0,
    0, 0, 0},
   {"language", 'L',
    "Client error messages in given language. May be given as a full path.",
@@ -4514,8 +4544,8 @@ master-ssl",
    GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"ndbcluster", OPT_NDBCLUSTER, "Enable NDB Cluster (if this version of MySQL supports it). \
 Disable with --skip-ndbcluster (will save memory).",
-   (gptr*) &opt_ndbcluster, (gptr*) &opt_ndbcluster, 0, GET_BOOL, NO_ARG, 1, 0, 0,
-   0, 0, 0},
+   (gptr*) &opt_ndbcluster, (gptr*) &opt_ndbcluster, 0, GET_BOOL, NO_ARG,
+   OPT_NDBCLUSTER_DEFAULT, 0, 0, 0, 0, 0},
 #ifdef HAVE_NDBCLUSTER_DB
   {"ndb-connectstring", OPT_NDB_CONNECTSTRING,
    "Connect string for ndbcluster.",
@@ -6400,6 +6430,24 @@ static void get_options(int argc,char **argv)
   if ((ho_error= handle_options(&argc, &argv, my_long_options,
                                 get_one_option)))
     exit(ho_error);
+
+#ifndef HAVE_NDBCLUSTER_DB
+  if (opt_ndbcluster)
+    sql_print_warning("this binary does not contain NDBCLUSTER storage engine");
+#endif
+#ifndef HAVE_INNOBASE_DB
+  if (opt_innodb)
+    sql_print_warning("this binary does not contain INNODB storage engine");
+#endif
+#ifndef HAVE_ISAM
+  if (opt_isam)
+    sql_print_warning("this binary does not contain ISAM storage engine");
+#endif
+#ifndef HAVE_BERKELEY_DB
+  if (opt_bdb)
+    sql_print_warning("this binary does not contain BDB storage engine");
+#endif
+
   if (argc > 0)
   {
     fprintf(stderr, "%s: Too many arguments (first extra is '%s').\nUse --help to get a list of available options\n", my_progname, *argv);

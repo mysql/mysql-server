@@ -5746,7 +5746,12 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
 	return 1;
       result=close_cached_tables(thd,(options & REFRESH_FAST) ? 0 : 1,
                                  tables);
-      make_global_read_lock_block_commit(thd);
+      if (make_global_read_lock_block_commit(thd))
+      {
+        /* Don't leave things in a half-locked state */
+        unlock_global_read_lock(thd);
+        return 1;
+      }
     }
     else
       result=close_cached_tables(thd,(options & REFRESH_FAST) ? 0 : 1, tables);
