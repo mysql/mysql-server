@@ -26,11 +26,13 @@ extern ulint*	ut_dbg_null_ptr;
 	ulint	dbg_i;\
 \
 	if (!((ulint)(EXPR) + ut_dbg_zero)) {\
-	   	printf(\
-		"Assertion failure in thread %lu in file %s line %lu\n",\
+	   	fprintf(stderr,\
+       "Innobase: Assertion failure in thread %lu in file %s line %lu\n",\
 			os_thread_get_curr_id(), IB__FILE__, (ulint)__LINE__);\
-	   	printf(\
-	"we generate a memory trap on purpose to start the debugger\n");\
+	   	fprintf(stderr,\
+       "Innobase: we intentionally generate a memory trap.\n");\
+                fprintf(stderr,\
+       "Innobase: Send a bug report to mysql@lists.mysql.com\n");\
 		ut_dbg_stop_threads = TRUE;\
 		dbg_i = *(ut_dbg_null_ptr);\
 	   	if (dbg_i) {\
@@ -38,7 +40,8 @@ extern ulint*	ut_dbg_null_ptr;
 		}\
 	}\
 	if (ut_dbg_stop_threads) {\
-	   	printf("Thread %lu stopped in file %s line %lu\n",\
+	        fprintf(stderr,\
+                     "Innobase: Thread %lu stopped in file %s line %lu\n",\
 			os_thread_get_curr_id(), IB__FILE__, (ulint)__LINE__);\
 		os_thread_sleep(1000000000);\
 	}\
@@ -46,10 +49,13 @@ extern ulint*	ut_dbg_null_ptr;
 
 #define ut_error {\
 	ulint	dbg_i;\
-	   printf(\
-		"Assertion failure in thread %lu in file %s line %lu\n",\
+	   fprintf(stderr,\
+	  "Innobase: Assertion failure in thread %lu in file %s line %lu\n",\
 			os_thread_get_curr_id(), IB__FILE__, (ulint)__LINE__);\
-	   printf("Generates memory trap on purpose for stack debugging\n");\
+	   fprintf(stderr,\
+		   "Innobase: we intentionally generate a memory trap.\n");\
+           fprintf(stderr,\
+                   "Innobase: Send a bug report to mysql@lists.mysql.com\n");\
 	   ut_dbg_stop_threads = TRUE;\
 	   dbg_i = *(ut_dbg_null_ptr);\
 	   printf("%lu", dbg_i);\
