@@ -633,7 +633,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %type <charset>
 	charset_name
 	charset_name_or_default
-	opt_db_default_character_set
+	opt_default_charset
 
 %type <variable> internal_variable_name
 
@@ -857,7 +857,7 @@ create:
 	    lex->key_list.push_back(new Key($2,$4.str, $5, lex->col_list));
 	    lex->col_list.empty();
 	  }
-	| CREATE DATABASE opt_if_not_exists ident opt_db_default_character_set
+	| CREATE DATABASE opt_if_not_exists ident opt_default_charset
 	  {
 	    LEX *lex=Lex;
 	    lex->sql_command=SQLCOM_CREATE_DB;
@@ -1236,15 +1236,7 @@ attribute:
 
 
 charset_name:
-	BINARY
-	{
-	  if (!($$=get_charset_by_name("binary",MYF(0))))
-	  {
-	    net_printf(YYTHD,ER_UNKNOWN_CHARACTER_SET,"binary");
-	    YYABORT;
-	  }
-	}
-	| ident
+	ident
 	{
 	  if (!($$=get_charset_by_name($1.str,MYF(0))))
 	  {
@@ -1261,7 +1253,7 @@ opt_default:
 	/* empty */	{}
 	| DEFAULT	{};
 
-opt_db_default_character_set:
+opt_default_charset:
 	/* empty */	{ $$=default_charset_info; }
 	| opt_default CHAR_SYM SET charset_name_or_default	{ $$=$4; }
 	| opt_default CHARSET charset_name_or_default		{ $$=$3; };
@@ -1408,7 +1400,7 @@ alter:
 	}
 	alter_list
 	{}
-	| ALTER DATABASE ident opt_db_default_character_set
+	| ALTER DATABASE ident opt_default_charset
 	  {
 	    LEX *lex=Lex;
 	    lex->sql_command=SQLCOM_ALTER_DB;
