@@ -1287,7 +1287,8 @@ int subselect_uniquesubquery_engine::exec()
   error= table->file->index_read(table->record[0],
                                  tab->ref.key_buff,
                                  tab->ref.key_length,HA_READ_KEY_EXACT);
-  if (error && error != HA_ERR_KEY_NOT_FOUND)
+  if (error &&
+      error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
     error= report_error(table, error);
   else
   {
@@ -1339,7 +1340,8 @@ int subselect_indexsubquery_engine::exec()
   error= table->file->index_read(table->record[0],
                                  tab->ref.key_buff,
                                  tab->ref.key_length,HA_READ_KEY_EXACT);
-  if (error && error != HA_ERR_KEY_NOT_FOUND)
+  if (error &&
+      error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
     error= report_error(table, error);
   else
   {
