@@ -5,12 +5,13 @@
 #
 ############################################################################
 
+use Cwd;
 use DBI;
 use Benchmark;
 
 $opt_loop_count = 100000;
 
-chomp($pwd = `pwd`); $pwd = "." if ($pwd eq '');
+$pwd = cwd(); $pwd = "." if ($pwd eq '');
 require "$pwd/bench-init.pl" || die "Can't read Configuration file: $!\n";
 
 print "Innotest2: MySQL/InnoDB stress test in Perl for FOREIGN keys\n";

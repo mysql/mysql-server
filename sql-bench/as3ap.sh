@@ -21,10 +21,11 @@
 
 ##################### Standard benchmark inits ##############################
 
+use Cwd;
 use DBI;
 use Benchmark;
 
-chomp($pwd = `pwd`); $pwd = "." if ($pwd eq '');
+$pwd = cwd(); $pwd = "." if ($pwd eq '');
 require "$pwd/bench-init.pl" || die "Can't read Configuration file: $!\n";
 
 $opt_loop_count=1;
