@@ -1823,7 +1823,6 @@ opt_to:
 
 /*
   SLAVE START and SLAVE STOP are deprecated. We keep them for compatibility.
-  To use UNTIL, one must use START SLAVE, not SLAVE START.
 */
 
 slave:
@@ -1848,7 +1847,11 @@ slave:
 	   LEX *lex=Lex;
            lex->sql_command = SQLCOM_SLAVE_START;
 	   lex->type = 0;
-         }
+	    /* We'll use mi structure for UNTIL options */
+	    bzero((char*) &lex->mi, sizeof(lex->mi));
+          }
+          slave_until
+          {}
 	| SLAVE STOP_SYM slave_thread_opts
          {
 	   LEX *lex=Lex;
