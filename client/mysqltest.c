@@ -42,7 +42,7 @@
 
 **********************************************************************/
 
-#define MTEST_VERSION "1.21"
+#define MTEST_VERSION "1.22"
 
 #include <my_global.h>
 #include <mysql_embed.h>
@@ -1451,7 +1451,7 @@ int do_connect(struct st_query* q)
   if (!con_db[0])
     con_db=db;
   /* Special database to allow one to connect without a database name */
-  if (!strcmp(con_db,"*NO-ONE*"))
+  if (con_db && !strcmp(con_db,"*NO-ONE*"))
     con_db=0;
   if ((con_error = safe_connect(&next_con->mysql, con_host,
 				con_user, con_pass,
