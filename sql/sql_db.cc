@@ -219,7 +219,7 @@ exit2:
 
 /*
   Removes files with known extensions plus all found subdirectories that
-  are 2 digits (raid directories).
+  are 2 hex digits (raid directories).
   thd MUST be set when calling this function!
 */
 
@@ -245,7 +245,10 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
     DBUG_PRINT("info",("Examining: %s", file->name));
 
     /* Check if file is a raid directory */
-    if (isdigit(file->name[0]) && isdigit(file->name[1]) &&
+    if ((isdigit(file->name[0]) ||
+	 (file->name[0] >= 'a' && file->name[0] <= 'f')) &&
+	(isdigit(file->name[1]) ||
+	 (file->name[1] >= 'a' && file->name[1] <= 'f')) &&
 	!file->name[2] && !level)
     {
       char newpath[FN_REFLEN];
