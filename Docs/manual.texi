@@ -32433,6 +32433,9 @@ mysql> select WEEK('1998-12-31',1);
         -> 53
 @end example
 
+Note: in Version 4.0, @code{WEEK(#,0)} was changed to match the
+calendar in the USA.
+
 @findex YEAR()
 @item YEAR(date)
 Returns the year for @code{date}, in the range @code{1000} to @code{9999}:
@@ -48869,7 +48872,7 @@ A new @code{HANDLER} interface to @code{MyISAM} tables.
 Added support for @code{INSERT} on @code{MERGE} tables. Patch from
 Benjamin Pflugmann.
 @item
-Changed @code{WEEK(#,0)} to match the calender in the USA.
+Changed @code{WEEK(#,0)} to match the calendar in the USA.
 @item
 @code{COUNT(DISTINCT)} is about 30% faster.
 @item
