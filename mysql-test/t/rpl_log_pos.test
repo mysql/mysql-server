@@ -1,3 +1,6 @@
+#
+# Testing of setting slave to wrong log position with master_log_pos
+#
 source include/master-slave.inc;
 show master status;
 save_master_pos;
@@ -12,24 +15,28 @@ change master to master_log_pos=73;
 --replace_result 3306 MASTER_PORT 9306 MASTER_PORT 3334 MASTER_PORT 3336 MASTER_PORT
 show slave status;
 slave start;
+sleep 2;
 --replace_result 3306 MASTER_PORT 9306 MASTER_PORT 3334 MASTER_PORT 3336 MASTER_PORT
 show slave status;
 change master to master_log_pos=173;
 --replace_result 3306 MASTER_PORT 9306 MASTER_PORT 3334 MASTER_PORT 3336 MASTER_PORT
+slave start;
+sleep 2;
 show slave status;
 connection master;
 show master status;
-create table if not exists foo(n int);
-drop table if exists foo;
-create table foo (n int);
-insert into foo values (1),(2),(3);
+create table if not exists t1 (n int);
+drop table if exists t1;
+create table t1 (n int);
+insert into t1 values (1),(2),(3);
 save_master_pos;
 connection slave;
 change master to master_log_pos=79;
+slave start;
 sync_with_master;
-select * from foo;
+select * from t1;
 connection master;
-drop table foo;
+drop table t1;
 save_master_pos;
 connection slave;
 sync_with_master;

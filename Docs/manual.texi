@@ -8099,14 +8099,39 @@ dumping core after you upgrade MySQL.
 @node Upgrading-from-3.23, Upgrading-from-3.22, Upgrade, Upgrade
 @subsection Upgrading From Version 3.23 to Version 4.0
 
-You can use your old datafiles without any modification with Version 4.0.
-If you want to move your data from a MySQL 4.0 server to an older server,
-you have to use @code{mysqldump}.
+In general what you have to do when upgrading to 4.0 from an earlier
+MySQL version:
+
+@itemize
+@item
+Run the @code{mysql_fix_privilege_tables} to add new privileges and features
+to the MySQL privilege tables.
+@item
+Edit any MySQL startup scripts or configure files to not use any of the
+deprecated options listed below.
+@item
+Convert your old ISAM files to MyISAM files with the command:
+@code{mysql_convert_table_format database}.  Note that this should only
+be run if all tables in the given database is ISAM or MyISAM tables. If
+this is not the case you should run @code{ALTER TABLE table_name TYPE=MyISAM}
+on all ISAM tables.
+@end itemize
+
+MySQL 4.0 will work even if you don't do the above, but you will not be
+able to use the new security privileges that MySQL 4.0 and you may run
+into problems when upgrading later to MySQL 4.1 or newer.  The ISAM file
+format still works in MySQL 4.0 but it's deprecated and will be disabled
+in MySQL 5.0.
 
 Old clients should work with a Version 4.0 server without any problems.
 
-The following lists tell what you have to watch out for when upgrading to
-version 4.0;
+Even if you do the above, you can still downgrade to MySQL 3.23.52 or newer
+if you run into problems with the MySQL 4.0 series.  In this case you have
+to do a mysqldump of any tables using a fulltext index and restore these
+in 3.23 (because 4.0 uses a new format for fulltext index).
+
+The following is a more complete lists tell what you have to watch out
+for when upgrading to version 4.0;
 
 @itemize @bullet
 @item
@@ -8136,7 +8161,7 @@ before.  In particular, you will need @code{REPLICATION SLAVE}
 The startup parameters @code{myisam_max_extra_sort_file_size} and
 @code{myisam_max_extra_sort_file_size} are now given in bytes
 (was megabytes before 4.0.3).
-External system locking of MyISAM/ISAM files is now turned of by default.
+External system locking of MyISAM/ISAM files is now turned off by default.
 One can turn this on by doing @code{--external-locking}. (For most users
 this is never needed).
 @item
@@ -50266,6 +50291,9 @@ each individual 4.0.x release.
 
 @itemize @bullet
 @item
+Don't increment warnings when setting @code{AUTO_INCREMENT} columns to
+@code{NULL} in @code{LOAD DATA INFILE}.
+@item
 Fixed shutdown problem (SIGTERM signal handling) on Solaris. (Bug from 4.0.2).
 @item
 @code{SHOW MASTER STATUS} now returns an empty set if binary log is not
@@ -50299,7 +50327,7 @@ Fixed some problems with @code{CREATE TABLE ... SELECT function()}.
 @code{mysqld} now has the option @code{--temp-pool} enabled by default as this
 gives better performance with some operating systems.
 @item
-Big cleanup in replication code.
+Big cleanup in replication code (less logging, better error messages, etc..)
 @item
 If the @code{--code-file} option is specified, the server calls
 @code{setrlimit()} to set the maximum allowed core file size to unlimited,

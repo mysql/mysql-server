@@ -220,7 +220,7 @@ my_off_t my_b_filelength(IO_CACHE *info)
   }
   else
   {
-    info->seek_not_done=0;
+    info->seek_not_done=1;
     return my_seek(info->file,0L,MY_SEEK_END,MYF(0));
   }
 }

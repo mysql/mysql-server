@@ -437,6 +437,7 @@ int Log_event::read_log_event(IO_CACHE* file, String* packet,
   ulong data_len;
   int result=0;
   char buf[LOG_EVENT_HEADER_LEN];
+  DBUG_ENTER("read_log_event");
 
   if (log_lock)
     pthread_mutex_lock(log_lock);
@@ -447,17 +448,18 @@ int Log_event::read_log_event(IO_CACHE* file, String* packet,
       will know it can go into cond_wait to be woken up on the next
       update to the log.
     */
+    DBUG_PRINT("error",("file->error: %d", file->error));
     if (!file->error)
       result= LOG_READ_EOF;
     else
-      result= (file->error > 0 ? LOG_READ_TRUNC: LOG_READ_IO);
+      result= (file->error > 0 ? LOG_READ_TRUNC : LOG_READ_IO);
     goto end;
   }
   data_len= uint4korr(buf + EVENT_LEN_OFFSET);
   if (data_len < LOG_EVENT_HEADER_LEN ||
       data_len > current_thd->variables.max_allowed_packet)
   {
-
+    DBUG_PRINT("error",("data_len: %ld", data_len));
     result= ((data_len < LOG_EVENT_HEADER_LEN) ? LOG_READ_BOGUS :
 	     LOG_READ_TOO_LARGE);
     goto end;
@@ -469,8 +471,8 @@ int Log_event::read_log_event(IO_CACHE* file, String* packet,
     if (packet->append(file, data_len))
     {
       /*
-	Here we should never hit eof in a non-error condtion
-	eof means we are reading the event partially, which should
+	Here we should never hit EOF in a non-error condition.
+	EOF means we are reading the event partially, which should
 	never happen.
       */
       result= file->error >= 0 ? LOG_READ_TRUNC: LOG_READ_IO;
@@ -481,7 +483,7 @@ int Log_event::read_log_event(IO_CACHE* file, String* packet,
 end:
   if (log_lock)
     pthread_mutex_unlock(log_lock);
-  return result;
+  DBUG_RETURN(result);
 }
 
 #endif // MYSQL_CLIENT

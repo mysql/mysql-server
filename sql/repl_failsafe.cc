@@ -140,41 +140,54 @@ void unregister_slave(THD* thd, bool only_mine, bool need_mutex)
 }
 
 
+/*
+  Register slave in 'slave_list' hash table
+
+  RETURN VALUES
+  0	ok
+  1	Error.   Error message sent to client
+*/
+
 int register_slave(THD* thd, uchar* packet, uint packet_length)
 {
+  int res;
   SLAVE_INFO *si;
-  int res = 1;
-  uchar* p = packet, *p_end = packet + packet_length;
+  uchar *p= packet, *p_end= packet + packet_length;
 
   if (check_access(thd, REPL_SLAVE_ACL, any_db))
     return 1;
 
   if (!(si = (SLAVE_INFO*)my_malloc(sizeof(SLAVE_INFO), MYF(MY_WME))))
-    goto err;
+    goto err2;
 
-  thd->server_id = si->server_id = uint4korr(p);
-  p += 4;
+  thd->server_id= si->server_id= uint4korr(p);
+  p+= 4;
   get_object(p,si->host);
   get_object(p,si->user);
   get_object(p,si->password);
-  si->port = uint2korr(p);
+  if (p+10 > p_end)
+    goto err;
+  si->port= uint2korr(p);
   p += 2;
-  si->rpl_recovery_rank = uint4korr(p);
+  si->rpl_recovery_rank= uint4korr(p);
   p += 4;
-  if (!(si->master_id = uint4korr(p)))
-    si->master_id = server_id;
-  si->thd = thd;
-  pthread_mutex_lock(&LOCK_slave_list);
+  if (!(si->master_id= uint4korr(p)))
+    si->master_id= server_id;
+  si->thd= thd;
 
+  pthread_mutex_lock(&LOCK_slave_list);
   unregister_slave(thd,0,0);
-  res = hash_insert(&slave_list, (byte*) si);
+  res= hash_insert(&slave_list, (byte*) si);
   pthread_mutex_unlock(&LOCK_slave_list);
   return res;
 
 err:
-  if (si)
-    my_free((gptr) si, MYF(MY_WME));
-  return res;
+  my_free((gptr) si, MYF(MY_WME));
+  my_message(ER_UNKNOWN_ERROR, "Wrong parameters to function register_slave",
+	     MYF(0));
+err2:
+  send_error(&thd->net);
+  return 1;
 }
 
 static uint32* slave_list_key(SLAVE_INFO* si, uint* len,
@@ -446,6 +459,7 @@ int update_slave_list(MYSQL* mysql)
   const char* error=0;
   bool have_auth_info;
   int port_ind;
+  DBUG_ENTER("update_slave_list");
 
   if (mc_mysql_query(mysql,"SHOW SLAVE HOSTS",0) ||
       !(res = mc_mysql_store_result(mysql)))
@@ -506,10 +520,10 @@ err:
     mc_mysql_free_result(res);
   if (error)
   {
-    sql_print_error("Error updating slave list:",error);
-    return 1;
+    sql_print_error("Error updating slave list: %s",error);
+    DBUG_RETURN(1);
   }
-  return 0;
+  DBUG_RETURN(0);
 }
 
 
@@ -622,17 +636,13 @@ int connect_to_master(THD *thd, MYSQL* mysql, MASTER_INFO* mi)
 
   if (!mi->host || !*mi->host)			/* empty host */
   {
-    DBUG_PRINT("error",("empty hostname"));
+    strmov(mysql->net.last_error, "Master is not configured");
     DBUG_RETURN(1);
   }
   if (!mc_mysql_connect(mysql, mi->host, mi->user, mi->password, 0,
 			mi->port, 0, 0,
 			slave_net_timeout))
-  {
-    sql_print_error("Connection to master failed: %s",
-		    mc_mysql_error(mysql));
     DBUG_RETURN(1);
-  }
   DBUG_RETURN(0);
 }
 
@@ -649,26 +659,26 @@ static inline void cleanup_mysql_results(MYSQL_RES* db_res,
 }
 
 
-static inline int fetch_db_tables(THD* thd, MYSQL* mysql, const char* db,
-				  MYSQL_RES* table_res, MASTER_INFO* mi)
+static int fetch_db_tables(THD *thd, MYSQL *mysql, const char *db,
+			   MYSQL_RES *table_res, MASTER_INFO *mi)
 {
   MYSQL_ROW row;
   for (row = mc_mysql_fetch_row(table_res); row;
        row = mc_mysql_fetch_row(table_res))
   {
     TABLE_LIST table;
-    const char* table_name = row[0];
+    const char* table_name= row[0];
     int error;
     if (table_rules_on)
     {
-      table.next = 0;
-      table.db = (char*)db;
-      table.real_name = (char*)table_name;
-      table.updating = 1;
+      table.next= 0;
+      table.db= (char*) db;
+      table.real_name= (char*) table_name;
+      table.updating= 1;
       if (!tables_ok(thd, &table))
 	continue;
     }
-    if ((error = fetch_master_table(thd, db, table_name, mi, mysql)))
+    if ((error= fetch_master_table(thd, db, table_name, mi, mysql)))
       return error;
   }
   return 0;
@@ -709,7 +719,7 @@ int load_master_data(THD* thd)
   
   if (connect_to_master(thd, &mysql, active_mi))
   {
-    net_printf(&thd->net, error = ER_CONNECT_TO_MASTER,
+    net_printf(&thd->net, error= ER_CONNECT_TO_MASTER,
 	       mc_mysql_error(&mysql));
     goto err;
   }

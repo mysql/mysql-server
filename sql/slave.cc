@@ -88,25 +88,16 @@ char* rewrite_db(char* db);
   restart these threads
 */
 
-
 void init_thread_mask(int* mask,MASTER_INFO* mi,bool inverse)
 {
   bool set_io = mi->slave_running, set_sql = mi->rli.slave_running;
-  if (inverse)
-  {
-    /*
-      This makes me think of the Russian idiom "I am not I, and this is
-      not my horse", which is used to deny reponsibility for
-      one's actions. 
-    */
-    set_io = !set_io;
-    set_sql = !set_sql;
-  }
   register int tmp_mask=0;
   if (set_io)
     tmp_mask |= SLAVE_IO;
   if (set_sql)
     tmp_mask |= SLAVE_SQL;
+  if (inverse)
+    tmp_mask^= (SLAVE_IO | SLAVE_SQL);
   *mask = tmp_mask;
 }
 
@@ -380,6 +371,7 @@ int terminate_slave_threads(MASTER_INFO* mi,int thread_mask,bool skip_lock)
   int error,force_all = (thread_mask & SLAVE_FORCE_ALL);
   pthread_mutex_t *sql_lock = &mi->rli.run_lock, *io_lock = &mi->run_lock;
   pthread_mutex_t *sql_cond_lock,*io_cond_lock;
+  DBUG_ENTER("terminate_slave_threads");
 
   sql_cond_lock=sql_lock;
   io_cond_lock=io_lock;
@@ -396,7 +388,7 @@ int terminate_slave_threads(MASTER_INFO* mi,int thread_mask,bool skip_lock)
 					&mi->stop_cond,
 					&mi->slave_running)) &&
 	!force_all)
-      return error;
+      DBUG_RETURN(error);
   }
   if ((thread_mask & (SLAVE_SQL|SLAVE_FORCE_ALL)) && mi->rli.slave_running)
   {
@@ -407,9 +399,9 @@ int terminate_slave_threads(MASTER_INFO* mi,int thread_mask,bool skip_lock)
 				      &mi->rli.stop_cond,
 				      &mi->rli.slave_running)) &&
 	!force_all)
-      return error;
+      DBUG_RETURN(error);
   }
-  return 0;
+  DBUG_RETURN(0);
 }
 
 
@@ -552,9 +544,13 @@ int start_slave_threads(bool need_slave_mutex, bool wait_for_start,
 			     cond_io,&mi->slave_running,
 			     mi);
   if (!error && (thread_mask & SLAVE_SQL))
+  {
     error=start_slave_thread(handle_slave_sql,lock_sql,lock_cond_sql,
 			     cond_sql,
 			     &mi->rli.slave_running,mi);
+    if (error)
+      terminate_slave_threads(mi, thread_mask & SLAVE_IO, 0);
+  }
   DBUG_RETURN(error);
 }
 
@@ -958,54 +954,51 @@ err:
   return error; 
 }
 
-int fetch_master_table(THD* thd, const char* db_name, const char* table_name,
-		       MASTER_INFO* mi, MYSQL* mysql)
+int fetch_master_table(THD *thd, const char *db_name, const char *table_name,
+		       MASTER_INFO *mi, MYSQL *mysql)
 {
-  int error = 1;
-  int fetch_errno = 0;
-  bool called_connected = (mysql != NULL);
-  if (!called_connected && !(mysql = mc_mysql_init(NULL)))
-  { 
-    sql_print_error("fetch_master_table: Error in mysql_init()");
-    fetch_errno = ER_GET_ERRNO;
-    goto err;
-  }
+  int error= 1;
+  const char *errmsg=0;
+  bool called_connected= (mysql != NULL);
+  DBUG_ENTER("fetch_master_table");
+  DBUG_PRINT("enter", ("db_name: '%s'  table_name: '%s'",
+		       db_name,table_name));
 
   if (!called_connected)
-  {
+  { 
+    if (!(mysql = mc_mysql_init(NULL)))
+    {
+      send_error(&thd->net);			// EOM
+      DBUG_RETURN(1);
+    }
     if (connect_to_master(thd, mysql, mi))
     {
-      sql_print_error("Could not connect to master while fetching table\
- '%-64s.%-64s'", db_name, table_name);
-      fetch_errno = ER_CONNECT_TO_MASTER;
-      goto err;
+      net_printf(&thd->net, ER_CONNECT_TO_MASTER, mc_mysql_error(mysql));
+      mc_mysql_close(mysql);
+      DBUG_RETURN(1);
     }
+    if (thd->killed)
+      goto err;
   }
-  if (thd->killed)
-    goto err;
 
   if (request_table_dump(mysql, db_name, table_name))
   {
-    fetch_errno = ER_GET_ERRNO;
-    sql_print_error("fetch_master_table: failed on table dump request ");
+    error= ER_UNKNOWN_ERROR;
+    errmsg= "Failed on table dump request";
     goto err;
   }
-
   if (create_table_from_dump(thd, &mysql->net, db_name,
 			    table_name))
-  { 
-    // create_table_from_dump will have sent the error alread
-    sql_print_error("fetch_master_table: failed on create table ");
-    goto err;
-  }
+    goto err;    // create_table_from_dump will have sent the error already
   error = 0;
+
  err:
-  if (mysql && !called_connected)
-    mc_mysql_close(mysql);
-  if (fetch_errno && thd->net.vio)
-    send_error(&thd->net, fetch_errno, "Error in fetch_master_table");
   thd->net.no_send_ok = 0; // Clear up garbage after create_table_from_dump
-  return error;
+  if (!called_connected)
+    mc_mysql_close(mysql);
+  if (errmsg && thd->net.vio)
+    send_error(&thd->net, error, errmsg);
+  DBUG_RETURN(test(error));			// Return 1 on error
 }
 
 
@@ -1372,7 +1365,8 @@ int register_slave_on_master(MYSQL* mysql)
   if (mc_simple_command(mysql, COM_REGISTER_SLAVE, (char*)packet.ptr(),
 		       packet.length(), 0))
   {
-    sql_print_error("Error on COM_REGISTER_SLAVE: '%s'",
+    sql_print_error("Error on COM_REGISTER_SLAVE: %d '%s'",
+		    mc_mysql_errno(mysql),
 		    mc_mysql_error(mysql));
     return 1;
   }
@@ -1471,22 +1465,21 @@ int st_relay_log_info::wait_for_pos(THD* thd, String* log_name,
 {
   if (!inited)
     return -1;
-  bool pos_reached = 0;
   int event_count = 0;
-  pthread_mutex_lock(&data_lock);
-  abort_pos_wait=0; // abort only if master info  changes during wait
+  ulong init_abort_pos_wait;
+  DBUG_ENTER("wait_for_pos");
 
-  while (!thd->killed || !abort_pos_wait)
+  pthread_mutex_lock(&data_lock);
+  // abort only if master info changes during wait
+  init_abort_pos_wait= abort_pos_wait;
+
+  while (!thd->killed &&
+	 init_abort_pos_wait == abort_pos_wait &&
+	 mi->slave_running)
   {
-    int cmp_result;
-    if (abort_pos_wait)
-    {
-      abort_pos_wait=0;
-      pthread_mutex_unlock(&data_lock);
-      return -1;
-    }
+    bool pos_reached;
+    int cmp_result= 0;
     DBUG_ASSERT(*master_log_name || master_log_pos == 0);
-    cmp_result = 0;
     if (*master_log_name)
     {
       /*
@@ -1512,7 +1505,13 @@ int st_relay_log_info::wait_for_pos(THD* thd, String* log_name,
     event_count++;
   }
   pthread_mutex_unlock(&data_lock);
-  return thd->killed ? -1 : event_count;
+  DBUG_PRINT("exit",("killed: %d  abort: %d  slave_running: %d",
+		     (int) thd->killed,
+		     (int) (init_abort_pos_wait != abort_pos_wait),
+		     (int) mi->slave_running));
+  DBUG_RETURN((thd->killed || init_abort_pos_wait != abort_pos_wait ||
+	      !mi->slave_running) ?
+	      -1 : event_count);
 }
 
 
@@ -1564,28 +1563,23 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
 static int safe_sleep(THD* thd, int sec, CHECK_KILLED_FUNC thread_killed,
 		      void* thread_killed_arg)
 {
+  int nap_time;
   thr_alarm_t alarmed;
   thr_alarm_init(&alarmed);
   time_t start_time= time((time_t*) 0);
   time_t end_time= start_time+sec;
-  ALARM  alarm_buff;
 
-  while (start_time < end_time)
+  while ((nap_time= (int) (end_time - start_time)) > 0)
   {
-    int nap_time = (int) (end_time - start_time);
+    ALARM alarm_buff;
     /*
       The only reason we are asking for alarm is so that
       we will be woken up in case of murder, so if we do not get killed,
       set the alarm so it goes off after we wake up naturally
     */
-    thr_alarm(&alarmed, 2 * nap_time,&alarm_buff);
+    thr_alarm(&alarmed, 2 * nap_time, &alarm_buff);
     sleep(nap_time);
-    /*
-      If we wake up before the alarm goes off, hit the button
-      so it will not wake up the wife and kids :-)
-    */
-    if (thr_alarm_in_use(&alarmed))
-      thr_end_alarm(&alarmed);
+    thr_end_alarm(&alarmed);
     
     if ((*thread_killed)(thd,thread_killed_arg))
       return 1;
@@ -1594,6 +1588,7 @@ static int safe_sleep(THD* thd, int sec, CHECK_KILLED_FUNC thread_killed,
   return 0;
 }
 
+
 static int request_dump(MYSQL* mysql, MASTER_INFO* mi,
 			bool *suppress_warnings)
 {
@@ -1601,6 +1596,8 @@ static int request_dump(MYSQL* mysql, MASTER_INFO* mi,
   int len;
   int binlog_flags = 0; // for now
   char* logname = mi->master_log_name;
+  DBUG_ENTER("request_dump");
+
   // TODO if big log files: Change next to int8store()
   int4store(buf, (longlong) mi->master_log_pos);
   int2store(buf + 4, binlog_flags);
@@ -1617,12 +1614,13 @@ static int request_dump(MYSQL* mysql, MASTER_INFO* mi,
     if (mc_mysql_errno(mysql) == ER_NET_READ_INTERRUPTED)
       *suppress_warnings= 1;			// Suppress reconnect warning
     else
-      sql_print_error("Error on COM_BINLOG_DUMP: %s, will retry in %d secs",
-		    mc_mysql_error(mysql), master_connect_retry);
-    return 1;
+      sql_print_error("Error on COM_BINLOG_DUMP: %d  %s, will retry in %d secs",
+		      mc_mysql_errno(mysql), mc_mysql_error(mysql),
+		      master_connect_retry);
+    DBUG_RETURN(1);
   }
 
-  return 0;
+  DBUG_RETURN(0);
 }
 
 
@@ -1895,6 +1893,7 @@ connected:
       goto err;
   }
   
+  DBUG_PRINT("info",("Starting reading binary log from master"));
   while (!io_slave_killed(thd,mi))
   {
     bool suppress_warnings= 0;    
@@ -1960,7 +1959,8 @@ after reconnect");
 	  	  
       if (event_len == packet_error)
       {
-	if (mc_mysql_errno(mysql) == ER_NET_PACKET_TOO_LARGE)
+	uint mysql_error_number= mc_mysql_errno(mysql);
+	if (mysql_error_number == ER_NET_PACKET_TOO_LARGE)
 	{
 	  sql_print_error("\
 Log entry on master is longer than max_allowed_packet (%ld) on \
@@ -1969,7 +1969,12 @@ max_allowed_packet",
 			  thd->variables.max_allowed_packet);
 	  goto err;
 	}
-
+	if (mysql_error_number == ER_MASTER_FATAL_ERROR_READING_BINLOG)
+	{
+	  sql_print_error(ER(mysql_error_number), mysql_error_number,
+			  mc_mysql_error(mysql));
+	  goto err;
+	}
 	thd->proc_info = "Waiting to reconnect after a failed read";
 	mc_end_server(mysql);
 	if (retry_count++)
@@ -2535,9 +2540,11 @@ static int connect_to_master(THD* thd, MYSQL* mysql, MASTER_INFO* mi,
       suppress_warnings= 0;
       sql_print_error("Slave I/O thread: error connecting to master \
 '%s@%s:%d': \
-Error: '%s'  errno: %d  retry-time: %d",mi->user,mi->host,mi->port,
+Error: '%s'  errno: %d  retry-time: %d  retries: %d",
+		      mi->user,mi->host,mi->port,
 		      mc_mysql_error(mysql), last_errno,
-		      mi->connect_retry);
+		      mi->connect_retry,
+		      master_retry_count);
     }
     /*
       By default we try forever. The reason is that failure will trigger

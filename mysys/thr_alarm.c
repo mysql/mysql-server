@@ -223,7 +223,8 @@ void thr_end_alarm(thr_alarm_t *alarmed)
     printf("Warning: Didn't find alarm %lx in queue of %d alarms\n",
 	   (long) *alarmed, alarm_queue.elements);
 #endif
-    DBUG_PRINT("warning",("Didn't find alarm %lx in queue\n",*alarmed));
+    DBUG_PRINT("warning",("Didn't find alarm %lx in queue\n",
+			  (long) *alarmed));
   }
   if (alarm_aborted && !alarm_queue.elements)
     delete_queue(&alarm_queue);
@@ -244,8 +245,10 @@ sig_handler process_alarm(int sig __attribute__((unused)))
 {
   sigset_t old_mask;
   ALARM *alarm_data;
-  DBUG_ENTER("process_alarm");
-  DBUG_PRINT("info",("sig: %d active alarms: %d",sig,alarm_queue.elements));
+
+/*
+  This must be first as we can't call DBUG inside an alarm for a normal thread
+*/
 
 #if THR_SERVER_ALARM == THR_CLIENT_ALARM
   if (!pthread_equal(pthread_self(),alarm_thread))
@@ -256,16 +259,19 @@ sig_handler process_alarm(int sig __attribute__((unused)))
 #ifdef DONT_REMEMBER_SIGNAL
     sigset(THR_CLIENT_ALARM,process_alarm);	/* int. thread system calls */
 #endif
-    DBUG_VOID_RETURN;
+    return;
   }
 #endif
-
-#if defined(MAIN) && !defined(__bsdi__)
-  printf("process_alarm\n"); fflush(stdout);
-#endif
+  {
 #ifndef USE_ALARM_THREAD
   pthread_sigmask(SIG_SETMASK,&full_signal_set,&old_mask);
   pthread_mutex_lock(&LOCK_alarm);
+#endif
+  DBUG_ENTER("process_alarm");
+  DBUG_PRINT("info",("sig: %d  active alarms: %d",sig,alarm_queue.elements));
+
+#if defined(MAIN) && !defined(__bsdi__)
+  printf("process_alarm\n"); fflush(stdout);
 #endif
   if (alarm_queue.elements)
   {
@@ -335,6 +341,7 @@ sig_handler process_alarm(int sig __attribute__((unused)))
   pthread_sigmask(SIG_SETMASK,&old_mask,NULL);
 #endif
   DBUG_VOID_RETURN;
+  }
 }
 
 
