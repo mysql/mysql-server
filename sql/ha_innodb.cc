@@ -873,6 +873,7 @@ innobase_flush_logs(void)
   	DBUG_ENTER("innobase_flush_logs");
 
 	log_flush_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP);
+	log_flush_to_disk();
 
   	DBUG_RETURN(result);
 }
