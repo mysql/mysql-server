@@ -649,8 +649,8 @@ public:
   /* Erase all statements (calls Statement destructor) */
   void reset()
   {
-    hash_reset(&names_hash);
-    hash_reset(&st_hash);
+    my_hash_reset(&names_hash);
+    my_hash_reset(&st_hash);
     last_found_statement= 0;
   }
 

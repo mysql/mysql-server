@@ -1562,9 +1562,14 @@ void Item_func_soundex::fix_length_and_dec()
   else return 0
 */
 
-static char get_scode(CHARSET_INFO *cs,char *ptr)
+static char soundex_toupper(char ch)
 {
-  uchar ch=my_toupper(cs,*ptr);
+  return (ch >= 'a' && ch <= 'z') ? ch - 'a' + 'A' : ch;
+}
+
+static char get_scode(char *ptr)
+{
+  uchar ch= soundex_toupper(*ptr);
   if (ch < 'A' || ch > 'Z')
   {
 					// Thread extended alfa (country spec)
@@ -1594,8 +1599,8 @@ String *Item_func_soundex::val_str(String *str)
     from++; /* purecov: inspected */
   if (from == end)
     return &my_empty_string;		// No alpha characters.
-  *to++ = my_toupper(cs,*from);		// Copy first letter
-  last_ch = get_scode(cs,from);		// code of the first letter
+  *to++ = soundex_toupper(*from);	// Copy first letter
+  last_ch = get_scode(from);		// code of the first letter
 					// for the first 'double-letter check.
 					// Loop on input letters until
 					// end of input (null) or output
@@ -1604,7 +1609,7 @@ String *Item_func_soundex::val_str(String *str)
   {
     if (!my_isalpha(cs,*from))
       continue;
-    ch=get_scode(cs,from);
+    ch=get_scode(from);
     if ((ch != '0') && (ch != last_ch)) // if not skipped or double
     {
        *to++ = ch;			// letter, copy to output
