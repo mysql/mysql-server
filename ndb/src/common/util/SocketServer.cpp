@@ -259,6 +259,15 @@ transfer(NDB_SOCKET_TYPE sock){
 }
 
 void
+SocketServer::foreachSession(void (*func)(SocketServer::Session*, void *), void *data)
+{
+  for(int i = m_sessions.size() - 1; i >= 0; i--){
+    (*func)(m_sessions[i].m_session, data);
+  }
+  checkSessions();
+}
+
+void
 SocketServer::checkSessions(){
   for(int i = m_sessions.size() - 1; i >= 0; i--){
     if(m_sessions[i].m_session->m_stopped){
@@ -278,8 +287,10 @@ void
 SocketServer::stopSessions(bool wait){
   int i;
   for(i = m_sessions.size() - 1; i>=0; i--)
-    m_sessions[i].m_session->m_stop = true;
-  
+  {
+    m_sessions[i].m_session->stopSession();
+    m_sessions[i].m_session->m_stop = true; // to make sure
+  }
   for(i = m_services.size() - 1; i>=0; i--)
     m_services[i].m_service->stopSessions();
   

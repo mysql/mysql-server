@@ -4418,6 +4418,8 @@ String *Field_string::val_str(String *val_buffer __attribute__((unused)),
 
 int Field_string::cmp(const char *a_ptr, const char *b_ptr)
 {
+  uint a_len, b_len;
+
   if (field_charset->strxfrm_multiply > 1)
   {
     /*
@@ -4429,9 +4431,18 @@ int Field_string::cmp(const char *a_ptr, const char *b_ptr)
                                             (const uchar*) b_ptr,
                                             field_length);
   }
-  return my_strnncoll(field_charset,(const uchar*) a_ptr, field_length,
-                                    (const uchar*) b_ptr, field_length);
+  if (field_charset->mbmaxlen != 1)
+  {
+    uint char_len= field_length/field_charset->mbmaxlen;
+    a_len= my_charpos(field_charset, a_ptr, a_ptr + field_length, char_len);
+    b_len= my_charpos(field_charset, b_ptr, b_ptr + field_length, char_len);
+  }
+  else
+    a_len= b_len= field_length;
+  return my_strnncoll(field_charset,(const uchar*) a_ptr, a_len,
+                                    (const uchar*) b_ptr, b_len);
 }
+
 
 void Field_string::sort_string(char *to,uint length)
 {
@@ -5958,8 +5969,14 @@ Field *make_field(char *ptr, uint32 field_length,
   if (f_is_alpha(pack_flag))
   {
     if (!f_is_packed(pack_flag))
-      return new Field_string(ptr,field_length,null_pos,null_bit,
-			      unireg_check, field_name, table, field_charset);
+    {
+      if (field_type == FIELD_TYPE_STRING ||
+          field_type == FIELD_TYPE_VAR_STRING)
+        return new Field_string(ptr,field_length,null_pos,null_bit,
+                                unireg_check, field_name, table,
+                                field_charset);
+      return 0;                                 // Error
+    }
 
     uint pack_length=calc_pack_length((enum_field_types)
 				      f_packtype(pack_flag),

@@ -3065,9 +3065,15 @@ AC_SUBST([NDB_DEFS])
 AC_SUBST([ndb_cxxflags_fix])
 
 
+if test X"$ndb_port" = Xdefault
+then
+  ndb_port="1186"
+fi
+AC_SUBST([ndb_port])
+
 if test X"$ndb_port_base" = Xdefault
 then
-  ndb_port_base="2200"
+  ndb_port_base="2202"
 fi
 AC_SUBST([ndb_port_base])
 
@@ -3106,7 +3112,6 @@ AC_CONFIG_FILES(ndb/Makefile ndb/include/Makefile dnl
    ndb/src/common/logger/Makefile dnl
    ndb/src/common/transporter/Makefile dnl
    ndb/src/common/mgmcommon/Makefile dnl
-   ndb/src/common/editline/Makefile dnl
    ndb/src/kernel/Makefile dnl
    ndb/src/kernel/error/Makefile dnl
    ndb/src/kernel/blocks/Makefile dnl
