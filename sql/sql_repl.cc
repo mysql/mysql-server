@@ -949,8 +949,8 @@ int show_binlog_events(THD* thd)
     LOG_INFO linfo;
     Log_event* ev;
   
-    limit_start = thd->lex.select->offset_limit;
-    limit_end = thd->lex.select->select_limit + limit_start;
+    limit_start = thd->lex.current_select->offset_limit;
+    limit_end = thd->lex.current_select->select_limit + limit_start;
 
     name= search_file_name;
     if (log_file_name)

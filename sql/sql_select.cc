@@ -38,7 +38,8 @@ static bool make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
 				 DYNAMIC_ARRAY *keyuse);
 static bool update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,
 				JOIN_TAB *join_tab,
-                                uint tables,COND *conds,table_map table_map);
+                                uint tables, COND *conds,
+				table_map table_map, SELECT_LEX *select_lex);
 static int sort_keyuse(KEYUSE *a,KEYUSE *b);
 static void set_position(JOIN *join,uint index,JOIN_TAB *table,KEYUSE *key);
 static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
@@ -250,7 +251,7 @@ JOIN::prepare(TABLE_LIST *tables_init,
     if (having->with_sum_func)
       having->split_sum_func(all_fields);
   }
-  if (setup_ftfuncs(thd)) /* should be after having->fix_fields */
+  if (setup_ftfuncs(select_lex)) /* should be after having->fix_fields */
     DBUG_RETURN(-1);
   /*
     Check if one one uses a not constant column with group functions
@@ -420,7 +421,7 @@ JOIN::optimize()
       thd->fatal_error)
     DBUG_RETURN(-1);
 
-  if (select_lex->depended)
+  if (select_lex->dependent)
   {
     /*
       Just remove all const-table optimization in case of depended query
@@ -559,7 +560,7 @@ JOIN::optimize()
   make_join_readinfo(this,
 		     (select_options & (SELECT_DESCRIBE |
 					SELECT_NO_JOIN_CACHE)) |
-		     (thd->lex.select->ftfunc_list->elements ? 
+		     (select_lex->ftfunc_list->elements ? 
 		      SELECT_NO_JOIN_CACHE : 0));
 
   /*
@@ -720,7 +721,7 @@ JOIN::exec()
   }
 
   /* Perform FULLTEXT search before all regular searches */
-  init_ftfuncs(thd,test(order));
+  init_ftfuncs(thd, select_lex, test(order));
 
   /* Create a tmp table if distinct or if the sort is too complicated */
   if (need_tmp)
@@ -1239,8 +1240,8 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
   }
 
   if (conds || outer_join)
-    if (update_ref_and_keys(join->thd,keyuse_array,stat,join->tables,
-                            conds,~outer_join))
+    if (update_ref_and_keys(join->thd, keyuse_array, stat, join->tables,
+                            conds, ~outer_join, join->select_lex))
       DBUG_RETURN(1);
 
   /* Read tables with 0 or 1 rows (system tables) */
@@ -1800,7 +1801,8 @@ sort_keyuse(KEYUSE *a,KEYUSE *b)
 
 static bool
 update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
-		    uint tables, COND *cond, table_map normal_tables)
+		    uint tables, COND *cond, table_map normal_tables,
+		    SELECT_LEX *select_lex)
 {
   uint	and_level,i,found_eq_constant;
 
@@ -1828,7 +1830,7 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
       add_key_part(keyuse,field);
   }
 
-  if (thd->lex.select->ftfunc_list->elements)
+  if (select_lex->ftfunc_list->elements)
   {
     add_ft_keys(keyuse,join_tab,cond,normal_tables);
   }
@@ -2930,7 +2932,7 @@ join_free(JOIN *join)
       end_read_record(&tab->read_record);
     }
     //TODO: is enough join_free at the end of mysql_select?
-    if (!join->select_lex->depended)
+    if (!join->select_lex->dependent)
       join->table=0;
   }
   /*
@@ -7460,9 +7462,9 @@ int mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
 			       ((sl->next_select_in_list())?"PRIMARY":
 				"SIMPLE"):
 			       ((sl == first)?
-				((sl->depended)?"DEPENDENT SUBSELECT":
+				((sl->dependent)?"DEPENDENT SUBSELECT":
 				 "SUBSELECT"):
-				((sl->depended)?"DEPENDENT UNION":
+				((sl->dependent)?"DEPENDENT UNION":
 				 "UNION"))),
 			      result);
     if (res)
@@ -7480,7 +7482,7 @@ int mysql_explain_select(THD *thd, SELECT_LEX *select_lex, char const *type,
   DBUG_ENTER("mysql_explain_select");
   DBUG_PRINT("info", ("Select 0x%lx, type %s", (ulong)select_lex, type))
   select_lex->type= type;
-  thd->lex.select= select_lex;
+  thd->lex.current_select= select_lex;
   SELECT_LEX_UNIT *unit=  select_lex->master_unit();
   int res= mysql_select(thd,(TABLE_LIST*) select_lex->table_list.first,
 			select_lex->item_list,

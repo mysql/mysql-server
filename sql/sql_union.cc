@@ -115,7 +115,8 @@ int st_select_lex_unit::prepare(THD *thd, select_result *result)
   TMP_TABLE_PARAM tmp_table_param;
   this->thd= thd;
   this->result= result;
-  SELECT_LEX *lex_select_save= thd->lex.select, *sl;
+  SELECT_LEX_NODE *lex_select_save= thd->lex.current_select;
+  SELECT_LEX *sl;
 
   /* Global option */
   if (((void*)(global_parameters)) == ((void*)this))
@@ -169,7 +170,7 @@ int st_select_lex_unit::prepare(THD *thd, select_result *result)
 			 sl->options | thd->options | SELECT_NO_UNLOCK,
 			 union_result);
     joins.push_back(new JOIN_P(join));
-    thd->lex.select=sl;
+    thd->lex.current_select= sl;
     offset_limit_cnt= sl->offset_limit;
     select_limit_cnt= sl->select_limit+sl->offset_limit;
     if (select_limit_cnt < sl->select_limit)
@@ -188,29 +189,29 @@ int st_select_lex_unit::prepare(THD *thd, select_result *result)
     if (res | thd->fatal_error)
       goto err;
   }
-  thd->lex.select= lex_select_save;
+  thd->lex.current_select= lex_select_save;
   DBUG_RETURN(res | thd->fatal_error);
 err:
-  thd->lex.select= lex_select_save;
+  thd->lex.current_select= lex_select_save;
   DBUG_RETURN(-1);
 }
 
 int st_select_lex_unit::exec()
 {
   DBUG_ENTER("st_select_lex_unit::exec");
-  SELECT_LEX *lex_select_save= thd->lex.select;
+  SELECT_LEX_NODE *lex_select_save= thd->lex.current_select;
   
-  if (executed && !depended)
+  if (executed && !dependent)
     DBUG_RETURN(0);
   executed= 1;
   
-  if (depended || !item || !item->assigned())
+  if (dependent || !item || !item->assigned())
   {
     if (optimized && item && item->assigned())
       item->assigned(0); // We will reinit & rexecute unit
     for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
     {
-      thd->lex.select=sl;
+      thd->lex.current_select= sl;
       offset_limit_cnt= sl->offset_limit;
       select_limit_cnt= sl->select_limit+sl->offset_limit;
       if (select_limit_cnt < sl->select_limit)
@@ -230,7 +231,7 @@ int st_select_lex_unit::exec()
       }
       if (res)
       {
-	thd->lex.select= lex_select_save;
+	thd->lex.current_select= lex_select_save;
 	DBUG_RETURN(res);
       }
     }
@@ -239,12 +240,14 @@ int st_select_lex_unit::exec()
 
   if (union_result->flush())
   {
-    thd->lex.select= lex_select_save;
+    thd->lex.current_select= lex_select_save;
     DBUG_RETURN(1);
   }
 
   /* Send result to 'result' */
-  thd->lex.select = first_select();
+
+  // to correct ORDER BY reference resolving
+  thd->lex.current_select = first_select();
   res =-1;
   {
     /* Create a list of fields in the temporary table */
@@ -283,7 +286,7 @@ int st_select_lex_unit::exec()
     }
   }
   thd->lex.select_lex.ftfunc_list= &thd->lex.select_lex.ftfunc_list_alloc;
-  thd->lex.select= lex_select_save;
+  thd->lex.current_select= lex_select_save;
   DBUG_RETURN(res);
 }
 
