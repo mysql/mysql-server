@@ -78,3 +78,4 @@ int merge_buffers(SORTPARAM *param,IO_CACHE *from_file,
 		  IO_CACHE *to_file, uchar *sort_buffer,
 		  BUFFPEK *lastbuff,BUFFPEK *Fb,
 		  BUFFPEK *Tb,int flag);
+void reuse_freed_buff(QUEUE *queue, BUFFPEK *reuse, uint key_length);

@@ -1555,6 +1555,7 @@ int init_relay_log_info(RELAY_LOG_INFO* rli, const char* info_fname)
 	       0 /* starting from 5.0 we want relay logs to have auto events */,
                max_relay_log_size ? max_relay_log_size : max_binlog_size))
   {
+    pthread_mutex_unlock(&rli->data_lock);
     sql_print_error("Failed in open_log() called from init_relay_log_info()");
     DBUG_RETURN(1);
   }
@@ -2536,7 +2537,9 @@ void set_slave_thread_options(THD* thd)
 static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
 {
   DBUG_ENTER("init_slave_thread");
-  thd->system_thread = thd->bootstrap = 1;
+  thd->system_thread = (thd_type == SLAVE_THD_SQL) ?
+    SYSTEM_THREAD_SLAVE_SQL : SYSTEM_THREAD_SLAVE_IO; 
+  thd->bootstrap= 1;
   thd->host_or_ip= "";
   thd->client_capabilities = 0;
   my_net_init(&thd->net, 0);
@@ -4457,8 +4460,20 @@ Log_event* next_event(RELAY_LOG_INFO* rli)
 		sizeof(rli->event_relay_log_name)-1);
 	flush_relay_log_info(rli);
       }
-	
-      // next log is hot 
+
+      /*
+        Now we want to open this next log. To know if it's a hot log (the one
+        being written by the I/O thread now) or a cold log, we can use
+        is_active(); if it is hot, we use the I/O cache; if it's cold we open
+        the file normally. But if is_active() reports that the log is hot, this
+        may change between the test and the consequence of the test. So we may
+        open the I/O cache whereas the log is now cold, which is nonsense.
+        To guard against this, we need to have LOCK_log.
+      */
+
+      DBUG_PRINT("info",("hot_log: %d",hot_log));
+      if (!hot_log) /* if hot_log, we already have this mutex */
+        pthread_mutex_lock(log_lock);
       if (rli->relay_log.is_active(rli->linfo.log_file_name))
       {
 #ifdef EXTRA_DEBUG
@@ -4471,15 +4486,24 @@ Log_event* next_event(RELAY_LOG_INFO* rli)
 	  
 	/*
 	  Read pointer has to be at the start since we are the only
-	  reader
+	  reader.
+          We must keep the LOCK_log to read the 4 first bytes, as this is a hot
+          log (same as when we call read_log_event() above: for a hot log we
+          take the mutex).
 	*/
 	if (check_binlog_magic(cur_log,&errmsg))
+        {
+          if (!hot_log) pthread_mutex_unlock(log_lock);
 	  goto err;
+        }
+        if (!hot_log) pthread_mutex_unlock(log_lock);
 	continue;
       }
+      if (!hot_log) pthread_mutex_unlock(log_lock);
       /*
-	if we get here, the log was not hot, so we will have to
-	open it ourselves
+	if we get here, the log was not hot, so we will have to open it
+	ourselves. We are sure that the log is still not hot now (a log can get
+	from hot to cold, but not from cold to hot). No need for LOCK_log.
       */
 #ifdef EXTRA_DEBUG
       sql_print_error("next log '%s' is not active",

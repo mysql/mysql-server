@@ -17,7 +17,6 @@
 /* This is defines strtoull() */
 
 #include <my_global.h>
-#include <m_string.h>
 #if !defined(HAVE_STRTOULL) && defined(HAVE_LONG_LONG)
 #define USE_UNSIGNED
 #define USE_LONGLONG

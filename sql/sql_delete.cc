@@ -135,14 +135,20 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, ORDER *order,
 		      fields, all_fields, order) ||
 	  !(sortorder=make_unireg_sortorder(order, &length)) ||
 	  (table->sort.found_records = filesort(thd, table, sortorder, length,
-					   (SQL_SELECT *) 0, HA_POS_ERROR,
+					   select, HA_POS_ERROR,
 					   &examined_rows))
 	  == HA_POS_ERROR)
     {
       delete select;
       free_underlaid_joins(thd, &thd->lex->select_lex);
-      DBUG_RETURN(-1);		// This will force out message
+      DBUG_RETURN(-1);			// This will force out message
     }
+    /*
+      Filesort has already found and selected the rows we want to delete,
+      so we don't need the where clause
+    */
+    delete select;
+    select= 0;
   }
 
   init_read_record(&info,thd,table,select,1,1);
@@ -204,6 +210,8 @@ cleanup:
   {
     if (mysql_bin_log.is_open())
     {
+      if (error <= 0)
+        thd->clear_error();
       Query_log_event qinfo(thd, thd->query, thd->query_length, 
 			    log_delayed);
       if (mysql_bin_log.write(&qinfo) && transactional_table)
@@ -250,7 +258,7 @@ extern "C" int refposcmp2(void* arg, const void *a,const void *b)
 
 multi_delete::multi_delete(THD *thd_arg, TABLE_LIST *dt,
 			   uint num_of_tables_arg)
-  : delete_tables(dt), thd(thd_arg), deleted(0),
+  : delete_tables(dt), thd(thd_arg), deleted(0), found(0),
     num_of_tables(num_of_tables_arg), error(0),
     do_delete(0), transactional_tables(0), log_delayed(0), normal_tables(0)
 {
@@ -354,6 +362,7 @@ bool multi_delete::send_data(List<Item> &values)
       continue;
 
     table->file->position(table->record[0]);
+    found++;
 
     if (secure_counter < 0)
     {
@@ -429,7 +438,7 @@ int multi_delete::do_deletes(bool from_send_error)
 
   if (from_send_error)
   {
-    /* Found out table number for 'table_being_deleted' */
+    /* Found out table number for 'table_being_deleted*/
     for (TABLE_LIST *aux=delete_tables;
 	 aux != table_being_deleted;
 	 aux=aux->next)
@@ -439,6 +448,8 @@ int multi_delete::do_deletes(bool from_send_error)
     table_being_deleted = delete_tables;
 
   do_delete= 0;
+  if (!found)
+    DBUG_RETURN(0);
   for (table_being_deleted=table_being_deleted->next;
        table_being_deleted ;
        table_being_deleted=table_being_deleted->next, counter++)
@@ -508,6 +519,8 @@ bool multi_delete::send_eof()
   {
     if (mysql_bin_log.is_open())
     {
+      if (error <= 0)
+        thd->clear_error();
       Query_log_event qinfo(thd, thd->query, thd->query_length,
 			    log_delayed);
       if (mysql_bin_log.write(&qinfo) && !normal_tables)
@@ -618,6 +631,7 @@ end:
     {
       if (mysql_bin_log.is_open())
       {
+        thd->clear_error();
 	Query_log_event qinfo(thd, thd->query, thd->query_length,
 			      thd->tmp_table);
 	mysql_bin_log.write(&qinfo);

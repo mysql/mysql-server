@@ -173,11 +173,11 @@ int mysqld_show_tables(THD *thd,const char *db,const char *wild)
 ** List all table types supported 
 ***************************************************************************/
 
-int mysqld_show_table_types(THD *thd)
+int mysqld_show_storage_engines(THD *thd)
 {
   List<Item> field_list;
   Protocol *protocol= thd->protocol;
-  DBUG_ENTER("mysqld_show_table_types");
+  DBUG_ENTER("mysqld_show_storage_engines");
 
   field_list.push_back(new Item_empty_string("Type",10));
   field_list.push_back(new Item_empty_string("Support",10));
@@ -187,7 +187,7 @@ int mysqld_show_table_types(THD *thd)
     DBUG_RETURN(1);
 
   const char *default_type_name= 
-    ha_get_table_type((enum db_type)thd->variables.table_type);
+    ha_get_storage_engine((enum db_type)thd->variables.table_type);
 
   show_table_type_st *types;
   for (types= sys_table_types; types->type; types++)
@@ -384,11 +384,23 @@ mysql_find_files(THD *thd,List<char> *files, const char *db,const char *path,
 #ifdef USE_SYMDIR
       char *ext;
       if (my_use_symdir && !strcmp(ext=fn_ext(file->name), ".sym"))
+      {
+	/* Only show the sym file if it points to a directory */
+	char buff[FN_REFLEN], *end;
+	MY_STAT status;
         *ext=0;                                 /* Remove extension */
+	unpack_dirname(buff, file->name);
+	end= strend(buff);
+	if (end != buff && end[-1] == FN_LIBCHAR)
+	  end[-1]= 0;				// Remove end FN_LIBCHAR
+	if (!my_stat(buff, &status, MYF(0)) ||
+	    !MY_S_ISDIR(status.st_mode))
+	  continue;
+      }
       else
 #endif
       {
-        if (file->name[0] == '.' || !MY_S_ISDIR(file->mystat.st_mode) ||
+        if (file->name[0] == '.' || !MY_S_ISDIR(file->mystat->st_mode) ||
             (wild && wild_compare(file->name,wild,0)))
           continue;
       }

@@ -93,6 +93,7 @@ functions */
 
 #define LONGLONG_MIN	((__int64) 0x8000000000000000)
 #define LONGLONG_MAX	((__int64) 0x7FFFFFFFFFFFFFFF)
+#define ULONGLONG_MAX	((unsigned __int64) 0xFFFFFFFFFFFFFFFF)
 #define LL(A)		((__int64) A)
 
 /* Type information */
@@ -157,6 +158,10 @@ typedef uint rf_SetTimer;
 #define USE_MB 1
 #define USE_MB_IDENT 1
 #define USE_STRCOLL 1
+
+/* All windows servers should support .sym files */
+#undef USE_SYMDIR
+#define USE_SYMDIR
 
 /* If LOAD DATA LOCAL INFILE should be enabled by default */
 #define ENABLED_LOCAL_INFILE 1

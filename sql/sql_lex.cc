@@ -455,7 +455,7 @@ int yylex(void *arg, void *yythd)
   int	tokval, result_state;
   uint length;
   enum my_lex_states state;
-  LEX	*lex= (((THD *)yythd)->lex);
+  LEX	*lex= ((THD *)yythd)->lex;
   YYSTYPE *yylval=(YYSTYPE*) arg;
   CHARSET_INFO *cs= ((THD *) yythd)->charset();
   uchar *state_map= cs->state_map;

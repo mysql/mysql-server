@@ -1009,7 +1009,7 @@ void MYSQL_LOG::new_file(bool need_lock)
         We log the whole file name for log file as the user may decide
         to change base names at some point.
       */
-      THD* thd = current_thd;
+      THD *thd = current_thd; /* may be 0 if we are reacting to SIGHUP */
       Rotate_log_event r(thd,new_name+dirname_length(new_name));
       r.set_log_pos(this);
       r.write(&log_file);
@@ -1285,8 +1285,6 @@ bool MYSQL_LOG::write(Log_event* event_info)
 	Intvar_log_event e(thd,(uchar) LAST_INSERT_ID_EVENT,
 			   thd->current_insert_id);
 	e.set_log_pos(this);
-	if (thd->server_id)
-	  e.server_id = thd->server_id;
 	if (e.write(file))
 	  goto err;
       }
@@ -1294,8 +1292,6 @@ bool MYSQL_LOG::write(Log_event* event_info)
       {
 	Intvar_log_event e(thd,(uchar) INSERT_ID_EVENT,thd->last_insert_id);
 	e.set_log_pos(this);
-	if (thd->server_id)
-	  e.server_id = thd->server_id;
 	if (e.write(file))
 	  goto err;
       }

@@ -950,7 +950,7 @@ public:
 
 #ifndef MYSQL_CLIENT  
   Intvar_log_event(THD* thd_arg,uchar type_arg, ulonglong val_arg)
-    :Log_event(),val(val_arg),type(type_arg)
+    :Log_event(thd_arg,0,0),val(val_arg),type(type_arg)
   {}
 #ifdef HAVE_REPLICATION
   void pack_info(Protocol* protocol);
@@ -1099,7 +1099,7 @@ public:
   Rotate_log_event(THD* thd_arg, const char* new_log_ident_arg,
 		   uint ident_len_arg = 0,
 		   ulonglong pos_arg = LOG_EVENT_OFFSET)
-    :Log_event(thd_arg,0,0), new_log_ident(new_log_ident_arg),
+    :Log_event(), new_log_ident(new_log_ident_arg),
     pos(pos_arg),ident_len(ident_len_arg ? ident_len_arg :
 			   (uint) strlen(new_log_ident_arg)), alloced(0)
   {}

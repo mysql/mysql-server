@@ -1121,8 +1121,21 @@ JOIN::exec()
 
   if (select_options & SELECT_DESCRIBE)
   {
-    if (!order && !no_order)
-      order=group_list;
+    /*
+      Check if we managed to optimize ORDER BY away and don't use temporary
+      table to resolve ORDER BY: in that case, we only may need to do
+      filesort for GROUP BY.
+    */
+    if (!order && !no_order && (!skip_sort_order || !need_tmp))
+    {
+      /*
+	Reset 'order' to 'group_list' and reinit variables describing
+	'order'
+      */
+      order= group_list;
+      simple_order= simple_group;
+      skip_sort_order= 0;
+    }
     if (order &&
 	(const_tables == tables ||
  	 ((simple_order || skip_sort_order) &&
@@ -1861,7 +1874,8 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
 	  } while (keyuse->table == table && keyuse->key == key);
 
 	  if (eq_part.is_prefix(table->key_info[key].key_parts) &&
-	      (table->key_info[key].flags & HA_NOSAME) &&
+	      ((table->key_info[key].flags & (HA_NOSAME | HA_END_SPACE_KEY)) ==
+	       HA_NOSAME) &&
               !table->fulltext_searched)
 	  {
 	    if (const_ref == eq_part)
@@ -2345,10 +2359,6 @@ add_key_part(DYNAMIC_ARRAY *keyuse_array,KEY_FIELD *key_field)
       }
     }
   }
-  /* Mark that we can optimize LEFT JOIN */
-  if (key_field->val->type() == Item::NULL_ITEM &&
-      !key_field->field->real_maybe_null())
-    key_field->field->table->reginfo.not_exists_optimize=1;
 }
 
 
@@ -2447,15 +2457,28 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
 		    SELECT_LEX *select_lex)
 {
   uint	and_level,i,found_eq_constant;
-  KEY_FIELD *key_fields,*end;
+  KEY_FIELD *key_fields, *end, *field;
 
   if (!(key_fields=(KEY_FIELD*)
 	thd->alloc(sizeof(key_fields[0])*
 		   (thd->lex->current_select->cond_count+1)*2)))
     return TRUE; /* purecov: inspected */
-  and_level=0; end=key_fields;
+  and_level= 0;
+  field= end= key_fields;
+  if (my_init_dynamic_array(keyuse,sizeof(KEYUSE),20,64))
+    return TRUE;
   if (cond)
+  {
     add_key_fields(join_tab,&end,&and_level,cond,normal_tables);
+    for (; field != end ; field++)
+    {
+      add_key_part(keyuse,field);
+      /* Mark that we can optimize LEFT JOIN */
+      if (field->val->type() == Item::NULL_ITEM &&
+	  !field->field->real_maybe_null())
+	field->field->table->reginfo.not_exists_optimize=1;
+    }
+  }
   for (i=0 ; i < tables ; i++)
   {
     if (join_tab[i].on_expr)
@@ -2464,10 +2487,8 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
 		     join_tab[i].table->map);
     }
   }
-  if (my_init_dynamic_array(keyuse,sizeof(KEYUSE),20,64))
-    return TRUE;
   /* fill keyuse with found key parts */
-  for (KEY_FIELD *field=key_fields ; field != end ; field++)
+  for ( ; field != end ; field++)
     add_key_part(keyuse,field);
 
   if (select_lex->ftfunc_list->elements)
@@ -2717,7 +2738,8 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 	      !found_ref_or_null)
 	  {				/* use eq key */
 	    max_key_part= (uint) ~0;
-	    if ((keyinfo->flags & (HA_NOSAME | HA_NULL_PART_KEY)) == HA_NOSAME)
+	    if ((keyinfo->flags & (HA_NOSAME | HA_NULL_PART_KEY |
+				   HA_END_SPACE_KEY)) == HA_NOSAME)
 	    {
 	      tmp=prev_record_reads(join,found_ref);
 	      records=1.0;
@@ -3230,9 +3252,9 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
     return 0;
   if (j->type == JT_CONST)
     j->table->const_table= 1;
-  else if (((keyinfo->flags & (HA_NOSAME | HA_NULL_PART_KEY))
-	    != HA_NOSAME) || keyparts != keyinfo->key_parts ||
-	   null_ref_key)
+  else if (((keyinfo->flags & (HA_NOSAME | HA_NULL_PART_KEY |
+			       HA_END_SPACE_KEY)) != HA_NOSAME) ||
+	   keyparts != keyinfo->key_parts || null_ref_key)
   {
     /* Must read with repeat */
     j->type= null_ref_key ? JT_REF_OR_NULL : JT_REF;
@@ -3529,7 +3551,7 @@ static void
 make_join_readinfo(JOIN *join, uint options)
 {
   uint i;
-  SELECT_LEX *select_lex = &(join->thd->lex->select_lex);
+  SELECT_LEX *select_lex= &join->thd->lex->select_lex;
   DBUG_ENTER("make_join_readinfo");
 
   for (i=join->const_tables ; i < join->tables ; i++)
@@ -4053,6 +4075,8 @@ return_zero_rows(JOIN *join, select_result *result,TABLE_LIST *tables,
     }
     result->send_eof();				// Should be safe
   }
+  /* Update results for FOUND_ROWS */
+  join->thd->limit_found_rows= join->thd->examined_row_count= 0;
   DBUG_RETURN(0);
 }
 
@@ -6766,7 +6790,7 @@ part_of_refkey(TABLE *table,Field *field)
 
     for (uint part=0 ; part < ref_parts ; part++,key_part++)
       if (field->eq(key_part->field) &&
-	  !(key_part->key_part_flag & HA_PART_KEY))
+	  !(key_part->key_part_flag & HA_PART_KEY_SEG))
 	return table->reginfo.join_tab->ref.items[part];
   }
   return (Item*) 0;
@@ -8933,7 +8957,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
   List<Item> field_list;
   List<Item> item_list;
   THD *thd=join->thd;
-  SELECT_LEX *select_lex = &(join->thd->lex->select_lex);
+  SELECT_LEX *select_lex= &join->thd->lex->select_lex;
   select_result *result=join->result;
   Item *item_null= new Item_null();
   CHARSET_INFO *cs= &my_charset_latin1;

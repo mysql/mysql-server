@@ -93,3 +93,25 @@ select count(*) from mysqltest.t9;
 --replace_result $MYSQL_TEST_DIR TEST_DIR
 show create table mysqltest.t9;
 drop database mysqltest;
+
+#
+# Test changing data dir (Bug #1662)
+#
+
+create table t1 (a int not null) type=myisam;
+disable_query_log;
+eval alter table t1 data directory="$MYSQL_TEST_DIR/var/tmp";
+enable_query_log;
+--replace_result $MYSQL_TEST_DIR TEST_DIR
+show create table t1;
+alter table t1 add b int;
+disable_query_log;
+eval alter table t1 data directory="$MYSQL_TEST_DIR/var/log";
+enable_query_log;
+--replace_result $MYSQL_TEST_DIR TEST_DIR
+show create table t1;
+disable_query_log;
+eval alter table t1 index directory="$MYSQL_TEST_DIR/var/log";
+enable_query_log;
+show create table t1;
+drop table t1;

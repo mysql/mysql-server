@@ -76,7 +76,7 @@ Item *create_func_ceiling(Item* a)
 Item *create_func_connection_id(void)
 {
   THD *thd=current_thd;
-  thd->lex->safe_to_cache_query=0;
+  thd->lex->safe_to_cache_query= 0;
   return new Item_int(NullS,(longlong)
                       ((thd->slave_thread) ?
                        thd->variables.pseudo_thread_id :
@@ -148,7 +148,7 @@ Item *create_func_floor(Item* a)
 Item *create_func_found_rows(void)
 {
   THD *thd=current_thd;
-  thd->lex->safe_to_cache_query=0;
+  thd->lex->safe_to_cache_query= 0;
   return new Item_int(NullS,(longlong) thd->found_rows(),21);
 }
 
