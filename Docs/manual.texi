@@ -37530,23 +37530,60 @@ In the source distribution of MySQL, InnoDB appears as a subdirectory.
 @node InnoDB start, InnoDB init, InnoDB overview, InnoDB
 @subsection InnoDB Startup Options
 
-To use InnoDB tables in MySQL-Max-3.23
-you @strong{MUST} specify configuration parameters
-in the MySQL configuration file in the @code{[mysqld]} section of
-the configuration file @file{my.cnf}. @xref{Option files}.
 
-The only required parameter to use InnoDB in MySQL-Max-3.23
-is @code{innodb_data_file_path}.
+To use InnoDB tables in MySQL-Max-3.23 you MUST specify configuration
+parameters
+in the @code{[mysqld]} section of
+the configuration file @file{my.cnf}, or on Windows optionally in
+@file{my.ini}.
+
+At the minimum, in 3.23 you must specify @code{innodb_data_file_path}.
 In MySQL-4.0 you do not need to specify even
-@code{innodb_data_file_path}. The default is to create a 64 MB
-data file @file{ibdata1} to the @code{datadir} of MySQL.
+@code{innodb_data_file_path}: the default for it is to create
+an auto-extending 16 MB file @file{ibdata1} to the @code{datadir}
+of MySQL. (In MySQL-4.0.0 and 4.0.1 the data file is 64 MB and not
+auto-extending.)
 
 But to get good performance you MUST explicitly set the InnoDB parameters
-listed below in examples.
+listed below in the examples.
 
-Suppose you have a Windows NT machine with 128 MB RAM and a single 10 GB
-hard disk. Below is an example of possible configuration parameters in
-@file{my.cnf} for InnoDB:
+Starting from versions 3.23.50 and 4.0.2 InnoDB allows the last
+data file on the @code{innodb_data_file_path} line
+to be specified as @strong{auto-extending}. The syntax for
+@code{innodb_data_file_path} is then the following:
+@example
+pathtodatafile:sizespecification;pathtodatafile:sizespecification;...
+...  ;pathtodatafile:sizespecification[:autoextend[:max:sizespecification]]
+@end example
+If you specify the last data file with the autoextend option, InnoDB
+will extend the last data file if it runs out of free space in the
+tablespace. The increment is 8 MB at a time. An example:
+@example
+innodb_data_file_path = /ibdata/ibdata1:100M:autoextend
+@end example
+instructs InnoDB to create just a single data file whose initial size is
+100 MB and which is extended in 8 MB blocks when space runs out.
+If the disk becomes full you may want to add another data
+file to another disk, for example. Then you have to look the size
+of @file{ibdata1}, round the size downward to
+the closest multiple of 1024 * 1024 bytes (= 1 MB), and specify
+the rounded size of @file{ibdata1} explicitly in
+@code{innodb_data_file_path}.
+After that you can add another data file:
+@example
+innodb_data_file_path = /ibdata/ibdata1:988M;/disk2/ibdata2:50M:autoextend
+@end example
+Be cautious on file systems where the maximum file size is 2 GB!
+InnoDB is not aware of the OS maximum file size. On those file systems
+you might want to specify the max size for the data file:
+@example
+innodb_data_file_path = /ibdata/ibdata1:100M:autoextend:max:2000M
+@end example
+
+Suppose you have a Windows NT computer with 128 MB RAM and a
+single 10 GB hard disk.
+Below is an example of possible configuration parameters in
+@file{my.cnf} or @file{my.ini} for InnoDB:
 
 @example
 [mysqld]
@@ -37554,26 +37591,26 @@ hard disk. Below is an example of possible configuration parameters in
 # ...
 #
 innodb_data_home_dir = c:\ibdata
-#                                  Data files must be able to
-#                                  hold your data and indexes
+#                                            Data files must be able to
+#                                            hold your data and indexes
 innodb_data_file_path = ibdata1:2000M;ibdata2:2000M
-#                                  Set buffer pool size to 50 - 80 %
-#                                  of your computer's memory
+#                                            Set buffer pool size to 50 - 80 %
+#                                            of your computer's memory
 set-variable = innodb_buffer_pool_size=70M
 set-variable = innodb_additional_mem_pool_size=10M
 innodb_log_group_home_dir = c:\iblogs
-#                                  .._log_arch_dir must be the same
-#                                  as .._log_group_home_dir
+#                                            .._log_arch_dir must be the same
+#                                            as .._log_group_home_dir
 innodb_log_arch_dir = c:\iblogs
 innodb_log_archive=0
 set-variable = innodb_log_files_in_group=3
-#                                  Set the log file size to about
-#                                  15 % of the buffer pool size
+#                                            Set the log file size to about
+#                                            15 % of the buffer pool size
 set-variable = innodb_log_file_size=10M
 set-variable = innodb_log_buffer_size=8M
-#                                  Set ..flush_log_at_trx_commit to
-#                                  0 if you can afford losing
-#                                  a few last transactions
+#                                            Set ..flush_log_at_trx_commit to
+#                                            0 if you can afford losing
+#                                            a few last transactions 
 innodb_flush_log_at_trx_commit=1
 set-variable = innodb_file_io_threads=4
 set-variable = innodb_lock_wait_timeout=50
@@ -37581,70 +37618,71 @@ set-variable = innodb_lock_wait_timeout=50
 
 Note that @strong{InnoDB does not create directories:
 you have to create them yourself.}
+Use the Unix or MS-DOS @code{mkdir} command to create
+the data and log group home directories.
 Check also that the MySQL server
-has the @strong{rights to create files in the directories} you specify.
+has @strong{the rights to create files} in the directories you specify.
 
 Note that data files must be < 2G in
-some file systems! The total size of data files has
-to be >= 10 MB. The combined size of log files MUST be < 4G
-in 32-bit computers.
+some file systems! The combined size of data files
+must be >= 10 MB.
+The combined size of the log files must be < 4G.
 
-The default value for @code{innodb_data_home_dir} is the @code{datadir}
-of MySQL. If you do not specify @code{innodb_data_home_dir}, then
-you cannot use absolute paths in @code{innodb_data_file_path}.
+If you do not specify @code{innodb_data_home_dir}, then
+the default is that InnoDB creates its data files to the
+@code{datadir} of MySQL. Then you cannot use absolute
+file paths in @code{innodb_data_file_path}.
 
 When you the first time create an InnoDB database, it
 is best that you start the MySQL server from the command
 prompt. Then InnoDB will print the information about the
 database creation to the screen, and you see what is
-happening. See below in section 3 what the printout
-should look like.
+happening.
 For example, in Windows you can start @file{mysqld-max.exe} with:
 @example
 your-path-to-mysqld>mysqld-max --standalone --console
 @end example
+See the manual section `Creating an InnoDB database' about what
+the printout should look like. 
 
-@strong{Where to put my.cnf or my.ini in Windows?}
+@strong{Where to put @file{my.cnf} or @file{my.ini} in Windows?}
 The rules for Windows are the following:
-
-@itemize @bullet
+@itemize bullet
 @item Only one of @file{my.cnf} or @file{my.ini} should be created.
 @item The @file{my.cnf} file should be placed in the root
 directory of the drive @file{C:}.
 @item The @file{my.ini} file should be placed in the WINDIR directory, e.g,
 @file{C:\WINDOWS} or @file{C:\WINNT}. You can use the @code{SET}
 command of MS-DOS to print the value of WINDIR.
-@item If your PC uses a boot loader where the @file{C:} drive
+@item  If your PC uses a boot loader where the @file{C:} drive
 is not the boot drive, then your only option is to use the @file{my.ini} file.
 @end itemize
 
 @strong{Where to specify options in Unix?}
 On Unix @file{mysqld} reads options from the following files, if they exist,
-in the following order:
-
-@itemize @bullet
-@item @file{/etc/my.cnf}  Global options.
-@item @file{COMPILATION_DATADIR/my.cnf}  Server-specific options.
+in the following order: 
+@itemize bullet
+@item @file{/etc/my.cnf}  Global options.  
+@item @file{COMPILATION_DATADIR/my.cnf}  Server-specific options.  
 @item @file{defaults-extra-file}  The file specified with
 @code{--defaults-extra-file=...}.
 @item @file{~/.my.cnf} User-specific options.
 @end itemize
-
-@code{COMPILATION_DATADIR} is the MySQL data directory which was
+@file{COMPILATION_DATADIR} is the MySQL data directory which was
 specified as a @code{./configure} option when @file{mysqld}
 was compiled
-(typically @file{/usr/local/mysql/data} for a
-binary installation or @file{/usr/local/var}
-for a source installation).
+(typically @file{/usr/local/mysql/data} for a binary installation or @file{/usr/local/var} for a source installation).
 
 If you are not sure from where @file{mysqld} reads its @file{my.cnf}
-or @file{my.ini}, you can give the path as a command-line option:
-@code{--defaults-file=your_path_to_my_cnf}.
+or @file{my.ini}, you can give the path as the first command-line
+option to the server:
+@code{mysqld --defaults-file=your_path_to_my_cnf}.
 
 Suppose you have a Linux computer with 512 MB RAM and
-three 20 GB hard disks (at directory paths @file{/},
-@file{/dr2} and @file{/dr3}).
-Below is an example of possible configuration parameters in @file{my.cnf} for
+three 20 GB hard disks (at directory paths @file{`/'},
+@file{`/dr2'} and @file{`/dr3'}).
+Below is an example of possible configuration parameters
+in @file{my.cnf} for
 InnoDB:
 
 @example
@@ -37653,28 +37691,28 @@ InnoDB:
 # ...
 #
 innodb_data_home_dir = /
-#                                  Data files must be able to
-#                                  hold your data and indexes
+#                                            Data files must be able to
+#                                            hold your data and indexes
 innodb_data_file_path = ibdata/ibdata1:2000M;dr2/ibdata/ibdata2:2000M
-#                                  Set buffer pool size to 50 - 80 %
-#                                  of your computer's memory, but
-#                                  make sure on Linux x86 the total
-#                                  memory usage is < 2 GB
+#                                            Set buffer pool size to 50 - 80 %
+#                                            of your computer's memory, but
+#                                            make sure on Linux x86 total
+#                                            memory usage is < 2 GB
 set-variable = innodb_buffer_pool_size=350M
 set-variable = innodb_additional_mem_pool_size=20M
 innodb_log_group_home_dir = /dr3/iblogs
-#                                  .._log_arch_dir must be the same
-#                                  as .._log_group_home_dir
+#                                            .._log_arch_dir must be the same
+#                                            as .._log_group_home_dir
 innodb_log_arch_dir = /dr3/iblogs
 innodb_log_archive=0
 set-variable = innodb_log_files_in_group=3
-#                                  Set the log file size to about
-#                                  15 % of the buffer pool size
+#                                            Set the log file size to about
+#                                            15 % of the buffer pool size
 set-variable = innodb_log_file_size=50M
 set-variable = innodb_log_buffer_size=8M
-#                                  Set ..flush_log_at_trx_commit to
-#                                  0 if you can afford losing
-#                                  a few last transactions
+#                                            Set ..flush_log_at_trx_commit to
+#                                            0 if you can afford losing
+#                                            a few last transactions 
 innodb_flush_log_at_trx_commit=1
 set-variable = innodb_file_io_threads=4
 set-variable = innodb_lock_wait_timeout=50
@@ -37693,19 +37731,45 @@ formed by the data files from bottom up. In some cases it will
 improve the performance of the database if all data is not placed
 on the same physical disk. Putting log files on a different disk from
 data is very often beneficial for performance.
+You can also use @strong{raw disk partitions} (raw devices)
+as data files. In some Unixes
+they speed up i/o. See the manual section on InnoDB file space management 
+about how to specify them in @file{my.cnf}.
 
-@strong{Warning:} on Linux x86 you must be careful you
-@strong{do not set memory usage
+@strong{Warning:} on Linux x86 you must be careful you @strong{do not set memory usage
 too high}. glibc will allow the process heap to grow over thread stacks,
-which will crash your server. Make sure
+which will crash your server. It is a risk if the value of
 @example
 innodb_buffer_pool_size + key_buffer +
-max_connections * (sort_buffer + record_buffer) + max_connections * 1 MB
+max_connections * (sort_buffer + record_buffer) + max_connections * 2 MB
 @end example
-is significantly smaller than 2 GB. Each thread will use a stack
-(often 1 MB) and in the worst case also
-@code{sort_buffer + record_buff}
+is close to 2 GB or exceeds 2 GB. Each thread will use a stack
+(often 2 MB, but in MySQL AB binaries only 256 kB) and in the worst case also
+@code{sort_buffer + record_buffer}
 additional memory.
+
+@strong{How to tune other @file{mysqld} server parameters?}
+For detailed information on how to tune other MySQL server
+parameters, see the MySQL <a href="http://www.mysql.com/doc/">manual</a>.
+Typical values which suit most users are:
+@example
+set-variable = max_connections=200
+set-variable = record_buffer=1M
+set-variable = sort_buffer=1M
+#                                            Set key_buffer to 5 - 50 %
+#                                            of your RAM depending on how
+#                                            much you use MyISAM tables, but
+#                                            keep key_buffer + InnoDB
+#                                            buffer pool size < 80 % of
+#                                            your RAM
+set-variable = key_buffer=...
+@end example
+
+Note that some parameters are given using the numeric @file{my.cnf}
+parameter format: @code{set-variable = innodb... = 123}, others
+(string and boolean parameters) with another format:
+@code{innodb_... = ... }.
+
 
 The meanings of the configuration parameters are the following:
 
@@ -37966,33 +38030,68 @@ your job again, rather than wait for millions of disk i/os to complete.
 
 @subsubsection  Foreign Key Constraints
 
-InnoDB version 3.23.44 features foreign key constraints. InnoDB is the
-first MySQL table type which allows you to define foreign key
+Starting from version 3.23.43b InnoDB features foreign key constraints.
+InnoDB is the first MySQL table type which allows you to define foreign key
 constraints to guard the integrity of your data.
 
 The syntax of a foreign key constraint definition in InnoDB:
 @example
-FOREIGN KEY (index_col_name, ...)
-            REFERENCES table_name (index_col_name, ...)
+FOREIGN KEY (index_col_name, ...) REFERENCES table_name (index_col_name, ...)
 @end example
+Starting from version 3.23.50 the InnoDB parser allows you to
+use also backquotes around table and column names in the above
+definition.
 
 An example:
-
 @example
 CREATE TABLE parent(id INT NOT NULL, PRIMARY KEY (id)) TYPE=INNODB;
 CREATE TABLE child(id INT, parent_id INT, INDEX par_ind (parent_id),
-           FOREIGN KEY (parent_id) REFERENCES parent(id)) TYPE=INNODB;
+                  FOREIGN KEY (parent_id) REFERENCES parent(id)) TYPE=INNODB;
 @end example
-
-Both tables have to be InnoDB type and there must be an index
+Both tables have to be InnoDB type and @strong{there must be an index
 where the foreign key and the referenced key are listed as the first
-columns. Any @code{ALTER TABLE} currently removes all foreign key
-constrainst defined for the table, but not the constraints
-that reference the table. Corresponding columns in the foreign key
-and the referenced key have to have similar internal data types
+columns}. InnoDB does not auto-create indexes on foreign keys or
+referenced keys: you have to create them explicitly.
+
+If MySQL gives the error number 1005 from a @code{CREATE TABLE}
+statement, and the error message string refers to errno 150, then
+the table creation failed because a foreign key constraint was not
+correctly formed.
+Similarly, if an @code{ALTER TABLE} fails and it refers to errno
+150, that means a foreign key definition would be incorrectly
+formed for the altered table.
+
+Starting from version 3.23.50 InnoDB allows you to add a new
+foreign key constraint to a table through
+@example
+ALTER TABLE yourtablename ADD CONSTRAINT FOREIGN KEY (...) REFERENCES anothertablename(...)
+@end example
+Remember to create the required indexes first, though.
+                                          
+Starting from version 3.23.50, InnoDB does not check foreign key
+constraints on those foreign key or referenced key values
+which contain a NULL column.
+
+In InnoDB versions < 3.23.50 @code{ALTER TABLE}
+or @code{CREATE INDEX}
+should not be used in connection with tables which have foreign
+key constraints or which are referenced in foreign key constraints:
+Any @code{ALTER TABLE} removes all foreign key
+constrainst defined for the table. You should not use
+@code{ALTER TABLE} to the referenced table either, but
+use @code{DROP TABLE} and @code{CREATE TABLE} to modify the
+schema. When MySQL does an @code{ALTER TABLE} it may internally
+use @code{RENAME TABLE}, and that will confuse the
+foreign key costraints which refer to the table.
+A @code{CREATE INDEX} statement is in MySQL
+processed as an @code{ALTER TABLE}, and these
+restrictions apply also to it.
+
+Corresponding columns in the foreign key
+and the referenced key must have similar internal data types
 inside InnoDB so that they can be compared without a type
 conversion. The length of string types need not be the same.
-The size and the signedness of integer types has to be same.
+The size and the signedness of integer types has to be the same.
 
 When doing foreign key checks InnoDB sets shared row
 level locks on child or parent records it has to look at.
@@ -38004,20 +38103,31 @@ would break the foreign key constraints which reference
 the table. When you drop a table the constraints which
 were defined in its create statement are also dropped.
 
-If you recreate a table which was dropped, it has to have
+If you re-create a table which was dropped, it has to have
 a definition which conforms to the foreign key constraints
 referencing it. It must have the right column names and types,
 and it must have indexes on the referenced keys, as stated above.
+If these are not satisfied, MySQL returns error number 1005
+and refers to errno 150 in the error message string.
 
-You can list the foreign key constraints for a table
+Starting from version 3.23.50 InnoDB returns the foreign key
+definitions of a table when you call
+@example
+SHOW CREATE TABLE yourtablename
+@end example
+Then also @file{mysqldump} produces correct definitions
+of tables to the dump file, and does not forget about the
+foreign keys.
+
+You can also list the foreign key constraints for a table
 @code{T} with
 @example
-SHOW TABLE STATUS FROM yourdatabasename LIKE 'T';
+SHOW TABLE STATUS FROM yourdatabasename LIKE 'T'
 @end example
 The foreign key constraints are listed in the table comment of
 the output.
 
-InnoDB does not yet support @code{CASCADE ON DELETE}
+InnoDB does not yet support @code{ON DELETE CASCADE}
 or other special options on the constraints.
 
 @node Adding and removing, Backing up, Using InnoDB tables, InnoDB
