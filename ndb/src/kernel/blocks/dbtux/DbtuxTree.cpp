@@ -161,7 +161,7 @@ Dbtux::treeAdd(Signal* signal, Frag& frag, TreePos treePos, TreeEnt ent)
   if (treePos.m_loc == NullTupLoc) {
     jam();
     insertNode(signal, frag, nodePtr, AccPref);
-    nodePtr.p->pushUp(signal, 0, ent);
+    nodePushUp(signal, *nodePtr.p, 0, ent);
     nodePtr.p->setSide(2);
     tree.m_root = nodePtr.p->m_loc;
     return;
@@ -174,11 +174,11 @@ Dbtux::treeAdd(Signal* signal, Frag& frag, TreePos treePos, TreeEnt ent)
     // check if room for one more
     if (nodePtr.p->getOccup() < tree.m_maxOccup) {
       jam();
-      nodePtr.p->pushUp(signal, pos, ent);
+      nodePushUp(signal, *nodePtr.p, pos, ent);
       return;
     }
     // returns min entry
-    nodePtr.p->pushDown(signal, pos - 1, ent);
+    nodePushDown(signal, *nodePtr.p, pos - 1, ent);
     // find position to add the removed min entry
     TupLoc childLoc = nodePtr.p->getLink(0);
     if (childLoc == NullTupLoc) {
@@ -205,13 +205,13 @@ Dbtux::treeAdd(Signal* signal, Frag& frag, TreePos treePos, TreeEnt ent)
   // check if the half-leaf/leaf has room for one more
   if (nodePtr.p->getOccup() < tree.m_maxOccup) {
     jam();
-    nodePtr.p->pushUp(signal, pos, ent);
+    nodePushUp(signal, *nodePtr.p, pos, ent);
     return;
   }
   // add a new node
   NodeHandlePtr childPtr;
   insertNode(signal, frag, childPtr, AccPref);
-  childPtr.p->pushUp(signal, 0, ent);
+  nodePushUp(signal, *childPtr.p, 0, ent);
   // connect parent and child
   nodePtr.p->setLink(i, childPtr.p->m_loc);
   childPtr.p->setLink(2, nodePtr.p->m_loc);
@@ -283,7 +283,7 @@ Dbtux::treeRemove(Signal* signal, Frag& frag, TreePos treePos)
     // check if no underflow
     if (nodePtr.p->getOccup() > tree.m_minOccup) {
       jam();
-      nodePtr.p->popDown(signal, pos, ent);
+      nodePopDown(signal, *nodePtr.p, pos, ent);
       return;
     }
     // save current handle
@@ -299,13 +299,13 @@ Dbtux::treeRemove(Signal* signal, Frag& frag, TreePos treePos)
     accessNode(signal, frag, nodePtr, AccFull);
     // use glb max as new parent min
     ent = nodePtr.p->getEnt(nodePtr.p->getOccup() - 1);
-    parentPtr.p->popUp(signal, pos, ent);
+    nodePopUp(signal, *parentPtr.p, pos, ent);
     // set up to remove glb max
     pos = nodePtr.p->getOccup() - 1;
     // fall thru to next case
   }
   // remove the element
-  nodePtr.p->popDown(signal, pos, ent);
+  nodePopDown(signal, *nodePtr.p, pos, ent);
   ndbrequire(nodePtr.p->getChilds() <= 1);
   // handle half-leaf
   for (unsigned i = 0; i <= 1; i++) {
@@ -327,7 +327,7 @@ Dbtux::treeRemove(Signal* signal, Frag& frag, TreePos treePos)
   if (parentLoc != NullTupLoc) {
     jam();
     selectNode(signal, frag, parentPtr, nodePtr.p->getLink(2), AccFull);
-    parentPtr.p->slide(signal, nodePtr, i);
+    nodeSlide(signal, *parentPtr.p, *nodePtr.p, i);
     // fall thru to next case
   }
   // non-empty leaf
@@ -353,7 +353,7 @@ Dbtux::treeRemove(Signal* signal, Frag& frag, TreePos treePos)
     TupLoc childLoc = nodePtr.p->getLink(1 - i);
     NodeHandlePtr childPtr;
     selectNode(signal, frag, childPtr, childLoc, AccFull);
-    nodePtr.p->slide(signal, childPtr, 1 - i);
+    nodeSlide(signal, *nodePtr.p, *childPtr.i, 1 - i);
     if (childPtr.p->getOccup() == 0) {
       jam();
       deleteNode(signal, frag, childPtr);
@@ -688,7 +688,7 @@ Dbtux::treeRotateDouble(Signal* signal, Frag& frag, NodeHandlePtr& nodePtr, unsi
     TreeHead& tree = frag.m_tree;
     accessNode(signal, frag, n2Ptr, AccFull);
     accessNode(signal, frag, n4Ptr, AccFull);
-    n4Ptr.p->slide(signal, n2Ptr, i);
+    nodeSlide(signal, *n4Ptr.p, *n2Ptr.p, i);
     // implied by rule of merging half-leaves with leaves
     ndbrequire(n4Ptr.p->getOccup() >= tree.m_minOccup);
     ndbrequire(n2Ptr.p->getOccup() != 0);

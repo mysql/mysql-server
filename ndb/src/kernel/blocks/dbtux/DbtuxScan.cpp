@@ -280,7 +280,7 @@ Dbtux::execNEXT_SCANREQ(Signal* signal)
       const TupLoc loc = scan.m_scanPos.m_loc;
       NodeHandlePtr nodePtr;
       selectNode(signal, frag, nodePtr, loc, AccHead);
-      nodePtr.p->unlinkScan(scanPtr);
+      unlinkScan(*nodePtr.p, scanPtr);
       scan.m_scanPos.m_loc = NullTupLoc;
     }
     if (scan.m_lockwait) {
@@ -763,7 +763,7 @@ loop: {
         pos.m_dir = 3;
         scan.m_scanPos = pos;
         scan.m_state = ScanOp::Next;
-        nodePtr.p->linkScan(scanPtr);
+        linkScan(*nodePtr.p, scanPtr);
         return;
       }
       if (i == 1 && ret > 0) {
@@ -779,7 +779,7 @@ loop: {
         pos.m_dir = 1;
         scan.m_scanPos = pos;
         scan.m_state = ScanOp::Next;
-        nodePtr.p->linkScan(scanPtr);
+        linkScan(*nodePtr.p, scanPtr);
         return;
       }
     }
@@ -808,7 +808,7 @@ loop: {
         pos.m_dir = 3;
         scan.m_scanPos = pos;
         scan.m_state = ScanOp::Next;
-        nodePtr.p->linkScan(scanPtr);
+        linkScan(*nodePtr.p, scanPtr);
         return;
       }
     }
@@ -870,7 +870,7 @@ Dbtux::scanNext(Signal* signal, ScanOpPtr scanPtr)
   // get and remember original node
   NodeHandlePtr origNodePtr;
   selectNode(signal, frag, origNodePtr, pos.m_loc, AccHead);
-  ndbrequire(origNodePtr.p->islinkScan(scanPtr));
+  ndbrequire(islinkScan(*origNodePtr.p, scanPtr));
   // current node in loop
   NodeHandlePtr nodePtr = origNodePtr;
   while (true) {
@@ -977,13 +977,13 @@ Dbtux::scanNext(Signal* signal, ScanOpPtr scanPtr)
     ndbrequire(pos.m_loc == nodePtr.p->m_loc);
     if (origNodePtr.i != nodePtr.i) {
       jam();
-      origNodePtr.p->unlinkScan(scanPtr);
-      nodePtr.p->linkScan(scanPtr);
+      unlinkScan(*origNodePtr.p, scanPtr);
+      linkScan(*nodePtr.p, scanPtr);
     }
   } else if (scan.m_state == ScanOp::Last) {
     jam();
     ndbrequire(pos.m_loc == NullTupLoc);
-    origNodePtr.p->unlinkScan(scanPtr);
+    unlinkScan(*origNodePtr.p, scanPtr);
   } else {
     ndbrequire(false);
   }
