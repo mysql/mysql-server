@@ -17151,7 +17151,7 @@ Note that the table is locked during the time @code{OPTIMIZE TABLE} is
 running!
 
 @findex CHECK TABLE
-@node CHECK TABLE, ANALYZE TABLE, OPTIMIZE TABLE, Reference
+@node CHECK TABLE, BACKUP TABLE, OPTIMIZE TABLE, Reference
 @section @code{CHECK TABLE} syntax
 
 @example
