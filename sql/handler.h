@@ -392,7 +392,7 @@ extern TYPELIB tx_isolation_typelib;
 #define ha_supports_generate(T) (T != DB_TYPE_INNODB)
 
 enum db_type ha_resolve_by_name(const char *name, uint namelen);
-const char *ha_get_table_type(enum db_type db_type);
+const char *ha_get_storage_engine(enum db_type db_type);
 handler *get_new_handler(TABLE *table, enum db_type db_type);
 my_off_t ha_get_ptr(byte *ptr, uint pack_length);
 void ha_store_ptr(byte *buff, uint pack_length, my_off_t pos);

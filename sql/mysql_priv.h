@@ -606,7 +606,7 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
 		pthread_mutex_t *mutex);
 int mysqld_show_charsets(THD *thd,const char *wild);
 int mysqld_show_collations(THD *thd,const char *wild);
-int mysqld_show_table_types(THD *thd);
+int mysqld_show_storage_engines(THD *thd);
 int mysqld_show_privileges(THD *thd);
 int mysqld_show_column_types(THD *thd);
 int mysqld_help (THD *thd, const char *text);
