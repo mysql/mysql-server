@@ -193,11 +193,9 @@ client/server version.
 BuildMySQL() {
 # The --enable-assembler simply does nothing on systems that does not
 # support assembler speedups.
-sh -c  "PATH=\"${MYSQL_BUILD_PATH:-/bin:/usr/bin}\" \
-	CC=\"${MYSQL_BUILD_CC:-gcc}\" \
-	CFLAGS=\"${MYSQL_BUILD_CFLAGS:- -O3}\" \
-	CXX=\"${MYSQL_BUILD_CXX:-gcc}\" \
-	CXXFLAGS=\"${MYSQL_BUILD_CXXFLAGS:- -O3 \
+sh -c  "PATH=\"${MYSQL_BUILD_PATH:-$PATH}\" \
+	CFLAGS=\"${MYSQL_BUILD_CFLAGS:-$RPM_OPT_FLAGS}\" \
+	CXXFLAGS=\"${MYSQL_BUILD_CXXFLAGS:-$RPM_OPT_FLAGS \
 	          -felide-constructors -fno-exceptions -fno-rtti \
 		  }\" \
 	./configure \
@@ -530,6 +528,11 @@ fi
 %attr(644, root, root) /usr/lib/mysql/libmysqld.a
 
 %changelog 
+
+* Mon Jan 27 2003 Lenz Grimmer <lenz@mysql.com>
+
+- removed unused CC and CXX variables
+- CFLAGS and CXXFLAGS should honor RPM_OPT_FLAGS
 
 * Fri Jan 24 2003 Lenz Grimmer <lenz@mysql.com>
 
