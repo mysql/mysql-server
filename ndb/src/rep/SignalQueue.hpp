@@ -53,7 +53,7 @@ public:
   template<class T> bool waitFor(Vector<T> &t,
 				 T *&handler,
 				 NdbApiSignal *&signal,
-				 Uint32 timeout = DEFAULT_TIMEOUT);
+				 Uint32 timeout);
 
   /**
    * size()

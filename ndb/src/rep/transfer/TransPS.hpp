@@ -35,6 +35,10 @@
 
 #include <rep/rep_version.hpp>
 
+extern "C" {
+static void * signalExecThread_C(void *);
+}
+
 /**
  * @class TransPS
  * @brief Responsible for REP-REP interface in Primary System role
@@ -62,8 +66,10 @@ private:
   /**
    *  SignalQueue executor thread
    */
+
+  friend void * signalExecThread_C(void *);
+
   void signalExecThreadRun();
-  static void * signalExecThread_C(void *);
 
   static void execSignal(void* signalSender, NdbApiSignal* signal, 
 			 class LinearSectionPtr ptr[3]);
