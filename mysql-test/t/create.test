@@ -55,6 +55,14 @@ create table test_$1.test2$ (a int);
 drop table test_$1.test2$;
 drop database test_$1;
 
+--error 1103
+create table `` (a int);
+--error 1103
+drop table if exists ``;
+--error 1166
+create table t1 (`` int);
+drop table if exists t1;
+
 #
 # Test of CREATE ... SELECT with indexes
 #
