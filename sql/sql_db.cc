@@ -159,7 +159,7 @@ int mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
   if ((deleted=mysql_rm_known_files(thd, dirp, db, path,0)) >= 0 && thd)
   {
     ha_drop_database(path);
-    query_cache.invalidate(db);  
+    query_cache_invalidate1(db);  
     if (!silent)
     {
       if (!thd->query)
