@@ -228,6 +228,7 @@ static bool opt_log,opt_update_log,opt_bin_log,opt_slow_log,opt_noacl,
 bool opt_sql_bin_update = 0, opt_log_slave_updates = 0, opt_safe_show_db=0,
   opt_show_slave_auth_info = 0, opt_old_rpl_compat = 0,
   opt_safe_user_create = 0, opt_no_mix_types = 0;
+volatile bool  mqh_used = 0;
 FILE *bootstrap_file=0;
 int segfaulted = 0; // ensure we do not enter SIGSEGV handler twice
 extern MASTER_INFO glob_mi;
@@ -1960,7 +1961,7 @@ The server will not act as a slave.");
   }
   if (!opt_noacl)
     (void) grant_init();
-  if (max_user_connections)
+  if (max_user_connections || mqh_used)
     init_max_user_conn();
 
 #ifdef HAVE_DLOPEN

@@ -21,6 +21,7 @@
 .out
 .snprj/*
 .vimrc
+50
 =6
 BitKeeper/etc/config
 BitKeeper/etc/csets
@@ -413,6 +414,7 @@ sql/mysqld
 sql/mysqld-purecov
 sql/mysqld-purify
 sql/mysqld-quantify
+sql/new.cc
 sql/share/*.sys
 sql/share/charsets/gmon.out
 sql/share/gmon.out

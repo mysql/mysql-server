@@ -228,18 +228,21 @@ then
   c_u="$c_u   ssl_cipher BLOB NOT NULL,"
   c_u="$c_u   x509_issuer BLOB NOT NULL,"
   c_u="$c_u   x509_subject BLOB NOT NULL,"
+  c_u="$c_u   max_questions int(11) unsigned DEFAULT 0  NOT NULL,"
+  c_u="$c_u   max_updates int(11) unsigned DEFAULT 0  NOT NULL,"
+  c_u="$c_u   max_connections int(11) unsigned DEFAULT 0  NOT NULL,"
   c_u="$c_u   PRIMARY KEY Host (Host,User)"
   c_u="$c_u )"
   c_u="$c_u comment='Users and global privileges';"
 
-  i_u="INSERT INTO user VALUES ('localhost','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','NONE','','','');
-  INSERT INTO user VALUES ('$hostname','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','NONE','','','');
+  i_u="INSERT INTO user VALUES ('localhost','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','NONE','','','',0,0,0);
+  INSERT INTO user VALUES ('$hostname','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','NONE','','','',0,0,0);
   
-  REPLACE INTO user VALUES ('localhost','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','NONE','','','');
-  REPLACE INTO user VALUES ('$hostname','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','NONE','','','');
+  REPLACE INTO user VALUES ('localhost','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','NONE','','','',0,0,0);
+  REPLACE INTO user VALUES ('$hostname','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','NONE','','','',0,0,0);
   
-  INSERT INTO user VALUES ('localhost','','','N','N','N','N','N','N','N','N','N','N','N','N','N','N','NONE','','','');
-  INSERT INTO user VALUES ('$hostname','','','N','N','N','N','N','N','N','N','N','N','N','N','N','N','NONE','','','');"
+  INSERT INTO user VALUES ('localhost','','','N','N','N','N','N','N','N','N','N','N','N','N','N','N','NONE','','','',0,0,0);
+  INSERT INTO user VALUES ('$hostname','','','N','N','N','N','N','N','N','N','N','N','N','N','N','N','NONE','','','',0,0,0);"
 fi
 
 if test ! -f $mdata/func.frm
