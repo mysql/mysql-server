@@ -234,7 +234,7 @@ struct Ndb_table_local_info {
 void ha_ndbcluster::set_rec_per_key()
 {
   DBUG_ENTER("ha_ndbcluster::get_status_const");
-  for (uint i=0 ; i < table->keys ; i++)
+  for (uint i=0 ; i < table->s->keys ; i++)
   {
     table->key_info[i].rec_per_key[table->key_info[i].key_parts-1]= 1;
   }
@@ -343,7 +343,7 @@ int ha_ndbcluster::ndb_err(NdbConnection *trans)
     NDBDICT *dict= ndb->getDictionary();
     DBUG_PRINT("info", ("invalidateTable %s", m_tabname));
     dict->invalidateTable(m_tabname);
-    table->version=0L;			/* Free when thread is ready */
+    table->s->version= 0L;		/* Free when thread is ready */
     break;
   }
   default:
@@ -353,7 +353,7 @@ int ha_ndbcluster::ndb_err(NdbConnection *trans)
   DBUG_PRINT("info", ("transformed ndbcluster error %d to mysql error %d", 
 		      err.code, res));
   if (res == HA_ERR_FOUND_DUPP_KEY)
-    m_dupkey= table->primary_key;
+    m_dupkey= table->s->primary_key;
   
   DBUG_RETURN(res);
 }
@@ -565,7 +565,7 @@ int ha_ndbcluster::get_ndb_blobs_value(NdbBlob *last_ndb_blob)
   for (int loop= 0; loop <= 1; loop++)
   {
     uint32 offset= 0;
-    for (uint i= 0; i < table->fields; i++)
+    for (uint i= 0; i < table->s->fields; i++)
     {
       Field *field= table->field[i];
       NdbValue value= m_value[i];
@@ -667,12 +667,12 @@ int ha_ndbcluster::get_ndb_value(NdbOperation *ndb_op, Field *field,
 */
 bool ha_ndbcluster::uses_blob_value(bool all_fields)
 {
-  if (table->blob_fields == 0)
+  if (table->s->blob_fields == 0)
     return FALSE;
   if (all_fields)
     return TRUE;
   {
-    uint no_fields= table->fields;
+    uint no_fields= table->s->fields;
     int i;
     THD *thd= table->in_use;
     // They always put blobs at the end..
@@ -776,13 +776,13 @@ int ha_ndbcluster::build_index_list(TABLE *tab, enum ILBP phase)
   char unique_index_name[FN_LEN];
   static const char* unique_suffix= "$unique";
   KEY* key_info= tab->key_info;
-  const char **key_name= tab->keynames.type_names;
+  const char **key_name= tab->s->keynames.type_names;
   Ndb *ndb= get_ndb();
   NdbDictionary::Dictionary *dict= ndb->getDictionary();
   DBUG_ENTER("build_index_list");
   
   // Save information about all known indexes
-  for (i= 0; i < tab->keys; i++, key_info++, key_name++)
+  for (i= 0; i < tab->s->keys; i++, key_info++, key_name++)
   {
     index_name= *key_name;
     NDB_INDEX_TYPE idx_type= get_index_type_from_table(i);
@@ -855,12 +855,12 @@ int ha_ndbcluster::build_index_list(TABLE *tab, enum ILBP phase)
 NDB_INDEX_TYPE ha_ndbcluster::get_index_type_from_table(uint inx) const
 {
   bool is_hash_index=  (table->key_info[inx].algorithm == HA_KEY_ALG_HASH);
-  if (inx == table->primary_key)
+  if (inx == table->s->primary_key)
     return is_hash_index ? PRIMARY_KEY_INDEX : PRIMARY_KEY_ORDERED_INDEX;
-  else
-    return ((table->key_info[inx].flags & HA_NOSAME) ? 
-	    (is_hash_index ? UNIQUE_INDEX : UNIQUE_ORDERED_INDEX) :
-	    ORDERED_INDEX);
+
+  return ((table->key_info[inx].flags & HA_NOSAME) ? 
+          (is_hash_index ? UNIQUE_INDEX : UNIQUE_ORDERED_INDEX) :
+          ORDERED_INDEX);
 } 
 
 int ha_ndbcluster::check_index_fields_not_null(uint inx)
@@ -975,7 +975,7 @@ inline ulong ha_ndbcluster::index_flags(uint idx_no, uint part,
 
 int ha_ndbcluster::set_primary_key(NdbOperation *op, const byte *key)
 {
-  KEY* key_info= table->key_info + table->primary_key;
+  KEY* key_info= table->key_info + table->s->primary_key;
   KEY_PART_INFO* key_part= key_info->key_part;
   KEY_PART_INFO* end= key_part+key_info->key_parts;
   DBUG_ENTER("set_primary_key");
@@ -994,7 +994,7 @@ int ha_ndbcluster::set_primary_key(NdbOperation *op, const byte *key)
 
 int ha_ndbcluster::set_primary_key_from_old_data(NdbOperation *op, const byte *old_data)
 {
-  KEY* key_info= table->key_info + table->primary_key;
+  KEY* key_info= table->key_info + table->s->primary_key;
   KEY_PART_INFO* key_part= key_info->key_part;
   KEY_PART_INFO* end= key_part+key_info->key_parts;
   DBUG_ENTER("set_primary_key_from_old_data");
@@ -1013,7 +1013,7 @@ int ha_ndbcluster::set_primary_key_from_old_data(NdbOperation *op, const byte *o
 int ha_ndbcluster::set_primary_key(NdbOperation *op)
 {
   DBUG_ENTER("set_primary_key");
-  KEY* key_info= table->key_info + table->primary_key;
+  KEY* key_info= table->key_info + table->s->primary_key;
   KEY_PART_INFO* key_part= key_info->key_part;
   KEY_PART_INFO* end= key_part+key_info->key_parts;
 
@@ -1034,7 +1034,7 @@ int ha_ndbcluster::set_primary_key(NdbOperation *op)
 
 int ha_ndbcluster::pk_read(const byte *key, uint key_len, byte *buf) 
 {
-  uint no_fields= table->fields, i;
+  uint no_fields= table->s->fields, i;
   NdbConnection *trans= m_active_trans;
   NdbOperation *op;
   THD *thd= current_thd;
@@ -1048,7 +1048,7 @@ int ha_ndbcluster::pk_read(const byte *key, uint key_len, byte *buf)
       op->readTuple(lm) != 0)
     ERR_RETURN(trans->getNdbError());
 
-  if (table->primary_key == MAX_KEY) 
+  if (table->s->primary_key == MAX_KEY) 
   {
     // This table has no primary key, use "hidden" primary key
     DBUG_PRINT("info", ("Using hidden key"));
@@ -1104,7 +1104,7 @@ int ha_ndbcluster::pk_read(const byte *key, uint key_len, byte *buf)
 
 int ha_ndbcluster::complemented_pk_read(const byte *old_data, byte *new_data)
 {
-  uint no_fields= table->fields, i;
+  uint no_fields= table->s->fields, i;
   NdbConnection *trans= m_active_trans;
   NdbOperation *op;
   THD *thd= current_thd;
@@ -1218,7 +1218,7 @@ int ha_ndbcluster::unique_index_read(const byte *key,
   }
 
   // Get non-index attribute(s)
-  for (i= 0; i < table->fields; i++) 
+  for (i= 0; i < table->s->fields; i++) 
   {
     Field *field= table->field[i];
     if ((thd->query_id == field->query_id) ||
@@ -1502,7 +1502,7 @@ int ha_ndbcluster::define_read_attrs(byte* buf, NdbOperation* op)
   DBUG_ENTER("define_read_attrs");  
 
   // Define attributes to read
-  for (i= 0; i < table->fields; i++) 
+  for (i= 0; i < table->s->fields; i++) 
   {
     Field *field= table->field[i];
     if ((thd->query_id == field->query_id) ||
@@ -1518,11 +1518,11 @@ int ha_ndbcluster::define_read_attrs(byte* buf, NdbOperation* op)
     }
   }
     
-  if (table->primary_key == MAX_KEY) 
+  if (table->s->primary_key == MAX_KEY) 
   {
     DBUG_PRINT("info", ("Getting hidden key"));
     // Scanning table with no primary key
-    int hidden_no= table->fields;      
+    int hidden_no= table->s->fields;      
 #ifndef DBUG_OFF
     const NDBTAB *tab= (const NDBTAB *) m_table;    
     if (!tab->getColumn(hidden_no))
@@ -1722,13 +1722,13 @@ int ha_ndbcluster::write_row(byte *record)
 
   DBUG_ENTER("write_row");
 
-  if(m_ignore_dup_key && table->primary_key != MAX_KEY)
+  if (m_ignore_dup_key && table->s->primary_key != MAX_KEY)
   {
     int peek_res= peek_row();
     
     if (!peek_res) 
     {
-      m_dupkey= table->primary_key;
+      m_dupkey= table->s->primary_key;
       DBUG_RETURN(HA_ERR_FOUND_DUPP_KEY);
     }
     if (peek_res != HA_ERR_KEY_NOT_FOUND)
@@ -1747,12 +1747,12 @@ int ha_ndbcluster::write_row(byte *record)
   if (res != 0)
     ERR_RETURN(trans->getNdbError());  
  
-  if (table->primary_key == MAX_KEY) 
+  if (table->s->primary_key == MAX_KEY) 
   {
     // Table has hidden primary key
     Ndb *ndb= get_ndb();
     Uint64 auto_value= ndb->getAutoIncrementValue((const NDBTAB *) m_table);
-    if (set_hidden_key(op, table->fields, (const byte*)&auto_value))
+    if (set_hidden_key(op, table->s->fields, (const byte*)&auto_value))
       ERR_RETURN(op->getNdbError());
   } 
   else 
@@ -1772,7 +1772,7 @@ int ha_ndbcluster::write_row(byte *record)
 
   // Set non-key attribute(s)
   bool set_blob_value= FALSE;
-  for (i= 0; i < table->fields; i++) 
+  for (i= 0; i < table->s->fields; i++) 
   {
     Field *field= table->field[i];
     if (!(field->flags & PRI_KEY_FLAG) &&
@@ -1895,8 +1895,8 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
     table->timestamp_field->set_time();
 
   /* Check for update of primary key for special handling */  
-  if ((table->primary_key != MAX_KEY) &&
-      (key_cmp(table->primary_key, old_data, new_data)))
+  if ((table->s->primary_key != MAX_KEY) &&
+      (key_cmp(table->s->primary_key, old_data, new_data)))
   {
     int read_res, insert_res, delete_res;
 
@@ -1952,14 +1952,14 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
 	op->updateTuple() != 0)
       ERR_RETURN(trans->getNdbError());  
     
-    if (table->primary_key == MAX_KEY) 
+    if (table->s->primary_key == MAX_KEY) 
     {
       // This table has no primary key, use "hidden" primary key
       DBUG_PRINT("info", ("Using hidden key"));
       
       // Require that the PK for this record has previously been 
       // read into m_value
-      uint no_fields= table->fields;
+      uint no_fields= table->s->fields;
       NdbRecAttr* rec= m_value[no_fields].rec;
       DBUG_ASSERT(rec);
       DBUG_DUMP("key", (char*)rec->aRef(), NDB_HIDDEN_PRIMARY_KEY_LENGTH);
@@ -1976,7 +1976,7 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
   }
 
   // Set non-key attribute(s)
-  for (i= 0; i < table->fields; i++) 
+  for (i= 0; i < table->s->fields; i++) 
   {
     Field *field= table->field[i];
     if (((thd->query_id == field->query_id) || m_retrieve_all_fields) &&
@@ -2037,11 +2037,11 @@ int ha_ndbcluster::delete_row(const byte *record)
     
     no_uncommitted_rows_update(-1);
     
-    if (table->primary_key == MAX_KEY) 
+    if (table->s->primary_key == MAX_KEY) 
     {
       // This table has no primary key, use "hidden" primary key
       DBUG_PRINT("info", ("Using hidden key"));
-      uint no_fields= table->fields;
+      uint no_fields= table->s->fields;
       NdbRecAttr* rec= m_value[no_fields].rec;
       DBUG_ASSERT(rec != NULL);
       
@@ -2088,8 +2088,8 @@ void ha_ndbcluster::unpack_record(byte* buf)
   DBUG_ENTER("unpack_record");
   
   // Set null flag(s)
-  bzero(buf, table->null_bytes);
-  for (field= table->field, end= field+table->fields;
+  bzero(buf, table->s->null_bytes);
+  for (field= table->field, end= field+table->s->fields;
        field < end;
        field++, value++)
   {
@@ -2114,10 +2114,10 @@ void ha_ndbcluster::unpack_record(byte* buf)
 
 #ifndef DBUG_OFF
   // Read and print all values that was fetched
-  if (table->primary_key == MAX_KEY)
+  if (table->s->primary_key == MAX_KEY)
   {
     // Table with hidden primary key
-    int hidden_no= table->fields;
+    int hidden_no= table->s->fields;
     const NDBTAB *tab= (const NDBTAB *) m_table;
     const NDBCOL *hidden_col= tab->getColumn(hidden_no);
     NdbRecAttr* rec= m_value[hidden_no].rec;
@@ -2143,7 +2143,7 @@ void ha_ndbcluster::print_results()
   if (!_db_on_)
     DBUG_VOID_RETURN;
   
-  for (uint f=0; f<table->fields;f++)
+  for (uint f=0; f<table->s->fields;f++)
   {
     Field *field;
     const NDBCOL *col;
@@ -2532,7 +2532,7 @@ int ha_ndbcluster::rnd_init(bool scan)
     int res= cursor->restart(m_force_send);
     DBUG_ASSERT(res == 0);
   }
-  index_init(table->primary_key);
+  index_init(table->s->primary_key);
   DBUG_RETURN(0);
 }
 
@@ -2616,9 +2616,9 @@ void ha_ndbcluster::position(const byte *record)
   byte *buff;
   DBUG_ENTER("position");
 
-  if (table->primary_key != MAX_KEY) 
+  if (table->s->primary_key != MAX_KEY) 
   {
-    key_info= table->key_info + table->primary_key;
+    key_info= table->key_info + table->s->primary_key;
     key_part= key_info->key_part;
     end= key_part + key_info->key_parts;
     buff= ref;
@@ -2642,7 +2642,7 @@ void ha_ndbcluster::position(const byte *record)
   {
     // No primary key, get hidden key
     DBUG_PRINT("info", ("Getting hidden key"));
-    int hidden_no= table->fields;
+    int hidden_no= table->s->fields;
     NdbRecAttr* rec= m_value[hidden_no].rec;
     const NDBTAB *tab= (const NDBTAB *) m_table;  
     const NDBCOL *hidden_col= tab->getColumn(hidden_no);
@@ -3470,7 +3470,7 @@ int ha_ndbcluster::create(const char *name,
   NDBCOL col;
   uint pack_length, length, i, pk_length= 0;
   const void *data, *pack_data;
-  const char **key_names= form->keynames.type_names;
+  const char **key_names= form->s->keynames.type_names;
   char name2[FN_HEADLEN];
   bool create_from_engine= (info->table_options & HA_CREATE_FROM_ENGINE);
    
@@ -3506,7 +3506,7 @@ int ha_ndbcluster::create(const char *name,
   my_free((char*)data, MYF(0));
   my_free((char*)pack_data, MYF(0));
   
-  for (i= 0; i < form->fields; i++) 
+  for (i= 0; i < form->s->fields; i++) 
   {
     Field *field= form->field[i];
     DBUG_PRINT("info", ("name: %s, type: %u, pack_length: %d", 
@@ -3520,7 +3520,7 @@ int ha_ndbcluster::create(const char *name,
   }
   
   // No primary key, create shadow key as 64 bit, auto increment  
-  if (form->primary_key == MAX_KEY) 
+  if (form->s->primary_key == MAX_KEY) 
   {
     DBUG_PRINT("info", ("Generating shadow key"));
     col.setName("$PK");
@@ -3534,7 +3534,7 @@ int ha_ndbcluster::create(const char *name,
   }
   
   // Make sure that blob tables don't have to big part size
-  for (i= 0; i < form->fields; i++) 
+  for (i= 0; i < form->s->fields; i++) 
   {
     /**
      * The extra +7 concists
@@ -3896,9 +3896,9 @@ int ha_ndbcluster::open(const char *name, int mode, uint test_if_locked)
   // Setup ref_length to make room for the whole 
   // primary key to be written in the ref variable
   
-  if (table->primary_key != MAX_KEY) 
+  if (table->s->primary_key != MAX_KEY) 
   {
-    key= table->key_info+table->primary_key;
+    key= table->key_info+table->s->primary_key;
     ref_length= key->key_length;
     DBUG_PRINT("info", (" ref_length: %d", ref_length));
   }
@@ -4237,7 +4237,7 @@ int ndbcluster_find_files(THD *thd,const char *db,const char *path,
       TABLE_LIST table_list;
       bzero((char*) &table_list,sizeof(table_list));
       table_list.db= (char*) db;
-      table_list.alias=table_list.real_name=(char*)file_name;
+      table_list.alias= table_list.table_name= (char*)file_name;
       (void)mysql_rm_table_part2(thd, &table_list, 
 				 /* if_exists */ TRUE, 
 				 /* drop_temporary */ FALSE, 
@@ -4372,7 +4372,7 @@ void ndbcluster_print_error(int error, const NdbOperation *error_op)
   DBUG_ENTER("ndbcluster_print_error");
   TABLE tab;
   const char *tab_name= (error_op) ? error_op->getTableName() : "";
-  tab.table_name= (char *) tab_name;
+  tab.alias= (char *) tab_name;
   ha_ndbcluster error_handler(&tab);
   tab.file= &error_handler;
   error_handler.print_error(error, MYF(0));

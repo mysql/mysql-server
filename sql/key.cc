@@ -38,7 +38,9 @@ int find_ref_key(TABLE *table,Field *field, uint *key_length)
 
 	/* Test if some key starts as fieldpos */
 
-  for (i=0, key_info=table->key_info ; i < (int) table->keys ; i++, key_info++)
+  for (i= 0, key_info= table->key_info ;
+       i < (int) table->s->keys ;
+       i++, key_info++)
   {
     if (key_info->key_part[0].offset == fieldpos)
     {						/* Found key. Calc keylength */
@@ -48,7 +50,9 @@ int find_ref_key(TABLE *table,Field *field, uint *key_length)
   }
 	/* Test if some key contains fieldpos */
 
-  for (i=0, key_info=table->key_info ; i < (int) table->keys ; i++, key_info++)
+  for (i= 0, key_info= table->key_info ;
+       i < (int) table->s->keys ;
+       i++, key_info++)
   {
     uint j;
     KEY_PART_INFO *key_part;
@@ -373,9 +377,9 @@ bool check_if_key_used(TABLE *table, uint idx, List<Item> &fields)
     If table handler has primary key as part of the index, check that primary
     key is not updated
   */
-  if (idx != table->primary_key && table->primary_key < MAX_KEY &&
+  if (idx != table->s->primary_key && table->s->primary_key < MAX_KEY &&
       (table->file->table_flags() & HA_PRIMARY_KEY_IN_READ_INDEX))
-    return check_if_key_used(table, table->primary_key, fields);
+    return check_if_key_used(table, table->s->primary_key, fields);
   return 0;
 }
 

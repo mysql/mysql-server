@@ -146,7 +146,7 @@ void udf_init()
   new_thd->db_length=5;
 
   bzero((gptr) &tables,sizeof(tables));
-  tables.alias= tables.real_name= (char*) "func";
+  tables.alias= tables.table_name= (char*) "func";
   tables.lock_type = TL_READ;
   tables.db=new_thd->db;
 
@@ -168,7 +168,7 @@ void udf_init()
     char *dl_name= get_field(&mem, table->field[2]);
     bool new_dl=0;
     Item_udftype udftype=UDFTYPE_FUNCTION;
-    if (table->fields >= 4)			// New func table
+    if (table->s->fields >= 4)			// New func table
       udftype=(Item_udftype) table->field[3]->val_int();
 
     if (!(tmp = add_udf(&name,(Item_result) table->field[1]->val_int(),
@@ -429,16 +429,16 @@ int mysql_create_function(THD *thd,udf_func *udf)
 
   bzero((char*) &tables,sizeof(tables));
   tables.db= (char*) "mysql";
-  tables.real_name= tables.alias= (char*) "func";
+  tables.table_name= tables.alias= (char*) "func";
   /* Allow creation of functions even if we can't open func table */
   if (!(table = open_ltable(thd,&tables,TL_WRITE)))
     goto err;
 
-  restore_record(table,default_values);		// Default values for fields
+  restore_record(table, s->default_values);	// Default values for fields
   table->field[0]->store(u_d->name.str, u_d->name.length, system_charset_info);
   table->field[1]->store((longlong) u_d->returns);
   table->field[2]->store(u_d->dl,(uint) strlen(u_d->dl), system_charset_info);
-  if (table->fields >= 4)			// If not old func format
+  if (table->s->fields >= 4)			// If not old func format
     table->field[3]->store((longlong) u_d->type);
   error = table->file->write_row(table->record[0]);
 
@@ -488,7 +488,7 @@ int mysql_drop_function(THD *thd,const LEX_STRING *udf_name)
 
   bzero((char*) &tables,sizeof(tables));
   tables.db=(char*) "mysql";
-  tables.real_name= tables.alias= (char*) "func";
+  tables.table_name= tables.alias= (char*) "func";
   if (!(table = open_ltable(thd,&tables,TL_WRITE)))
     goto err;
   if (!table->file->index_read_idx(table->record[0],0,(byte*) udf_name->str,
