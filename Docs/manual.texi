@@ -6846,7 +6846,7 @@ If the build fails and produces errors about your compiler or linker not
 being able to create the shared library @file{libmysqlclient.so.#} (@samp{#}
 is a version number), you can work around this problem by giving the
 @code{--disable-shared} option to @code{configure}.  In this case,
-@code{configure} will not build a shared @code{libmysqlclient.so.#} library.
+@code{configure} will not build a shared @file{libmysqlclient.so.#} library.
 
 @cindex default values, suppression
 @cindex suppression, default values
@@ -8123,7 +8123,7 @@ on all ISAM tables.
 @item
 Ensure that you don't have any MySQL clients that uses shared libraries
 (like the perl Msql-Mysql-modules). If you have, you should recompile
-them as structures used in libmysqlclient.so have changed.
+them as structures used in @file{libmysqlclient.so} have changed.
 @end itemize
 
 MySQL 4.0 will work even if you don't do the above, but you will not be
@@ -8891,7 +8891,7 @@ Copy @code{libmysqclient.so} to @file{/usr/lib}.
 @tindex LD_RUN_PATH environment variable
 @tindex environment variable, LD_RUN_PATH
 @item
-Add the pathname of the directory where @code{libmysqlclient.so} is located
+Add the pathname of the directory where @file{libmysqlclient.so} is located
 to the @code{LD_RUN_PATH} environment variable before running your client.
 @end itemize
 
@@ -11428,7 +11428,7 @@ Compile the @code{Msql-Mysql-modules} distribution with @code{perl
 Makefile.PL -static -config} rather than @code{perl Makefile.PL}.
 
 @item
-Copy @code{libmysqlclient.so} to the directory where your other shared
+Copy @file{libmysqlclient.so} to the directory where your other shared
 libraries are located (probably @file{/usr/lib} or @file{/lib}).
 
 @item
@@ -28640,7 +28640,7 @@ SET GLOBAL sort_buffer_size=value;
 SET @@@@global.sort_buffer_size=value;
 @end example
 
-To set the value for @code{SESSION} variable, you can use one of the
+To set the value for a @code{SESSION} variable, you can use one of the
 following syntaxes:
 
 @example
@@ -40601,7 +40601,7 @@ BDB tables:
 If you use @code{--skip-bdb}, MySQL will not initialise the
 Berkeley DB library and this will save a lot of memory. Of course,
 you cannot use @code{BDB} tables if you are using this option.  If you try
-to create an BDB table, MySQL will instead create a MyISAM table.
+to create a BDB table, MySQL will instead create a MyISAM table.
 
 Normally you should start @code{mysqld} without @code{--bdb-no-recover} if you
 intend to use BDB tables.  This may, however, give you problems when you
@@ -45298,10 +45298,10 @@ functions:
 @item @code{mysql_thread_end()} @tab Should be called before calling @code{pthread_exit()}
 @end multitable
 
-Then you must link your code with @code{libmysqld.a} instead of @code{libmysqlclient.a}.
+Then you must link your code with @file{libmysqld.a} instead of @file{libmysqlclient.a}.
 
 The above @code{mysql_server_xxx} functions are also included in
-@code{libmysqlclient.a} to allow you to change between the embedded and the
+@file{libmysqlclient.a} to allow you to change between the embedded and the
 client/server version by just linking your application with the right
 library. @xref{mysql_server_init}.
 
@@ -47660,20 +47660,20 @@ latest MySQL source distribution and compile this yourself.
 If you are trying to run a program and you then get errors for
 unreferenced symbols that start with @code{mysql_} or that the
 @code{mysqlclient} library can't be found, this means that your system
-can't find the share @code{libmysqlclient.so} library.
+can't find the share @file{libmysqlclient.so} library.
 
 The fix for this is to tell your system to search after shared
 libraries where the library is located by one of the following methods:
 
 @itemize @bullet
 @item
-Add the path to the directory where you have @code{libmysqlclient.so} the
+Add the path to the directory where you have @file{libmysqlclient.so} the
 @code{LD_LIBRARY_PATH} environment variable.
 @item
-Add the path to the directory where you have @code{libmysqlclient.so} the
+Add the path to the directory where you have @file{libmysqlclient.so} the
 @code{LD_LIBRARY} environment variable.
 @item
-Copy @code{libmysqlclient.so} to some place that is searched by your system,
+Copy @file{libmysqlclient.so} to some place that is searched by your system,
 like @file{/lib}, and update the shared library information by executing
 @code{ldconfig}.
 @end itemize
@@ -57869,7 +57869,7 @@ variables to modify the behaviour of MySQL. @xref{Option files}.
 @item @code{DBI_USER} @tab The default user name for Perl DBI.
 @item @code{DBI_TRACE} @tab Used when tracing Perl DBI.
 @item @code{HOME} @tab The default path for the @code{mysql} history file is @file{$HOME/.mysql_history}.
-@item @code{LD_RUN_PATH} @tab Used to specify where your @code{libmysqlclient.so} is.
+@item @code{LD_RUN_PATH} @tab Used to specify where your @file{libmysqlclient.so} is.
 @item @code{MYSQL_DEBUG} @tab Debug-trace options when debugging.
 @item @code{MYSQL_HISTFILE} @tab The path to the @code{mysql} history file.
 @item @code{MYSQL_HOST} @tab Default host name used by the @code{mysql} command-line client.
