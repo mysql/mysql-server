@@ -53,15 +53,23 @@ int ha_myisammrg::open(const char *name, int mode, uint test_if_locked)
   info(HA_STATUS_NO_LOCK | HA_STATUS_VARIABLE | HA_STATUS_CONST);
   if (!(test_if_locked & HA_OPEN_WAIT_IF_LOCKED))
     myrg_extra(file,HA_EXTRA_WAIT_LOCK,0);
+
   if (table->reclength != mean_rec_length && mean_rec_length)
   {
     DBUG_PRINT("error",("reclength: %d  mean_rec_length: %d",
 			table->reclength, mean_rec_length));
-    myrg_close(file);
-    file=0;
-    return my_errno=HA_ERR_WRONG_TABLE_DEF;
+    goto err;
   }
+#if !defined(BIG_TABLES) || SIZEOF_OFF_T == 4
+  /* Merge table has more than 2G rows */
+  if (table->crashed)
+    goto err;
+#endif
   return (0);
+err:
+  myrg_close(file);
+  file=0;
+  return (my_errno= HA_ERR_WRONG_TABLE_DEF);
 }
 
 int ha_myisammrg::close(void)
@@ -184,8 +192,17 @@ void ha_myisammrg::info(uint flag)
 {
   MYMERGE_INFO info;
   (void) myrg_status(file,&info,flag);
-  records = info.records;
-  deleted = info.deleted;
+  /*
+    The following fails if one has not compiled MySQL with -DBIG_TABLES
+    and one has more than 2^32 rows in the merge tables.
+  */
+  records = (ha_rows) info.records;
+  deleted = (ha_rows) info.deleted;
+#if !defined(BIG_TABLES) || SIZEOF_OFF_T == 4
+  if ((info.records >= (ulonglong) 1 << 32) ||
+      (info.deleted >= (ulonglong) 1 << 32))
+    table->crashed=1;
+#endif
   data_file_length=info.data_file_length;
   errkey  = info.errkey;
   table->keys_in_use= set_bits(key_map, table->keys);
