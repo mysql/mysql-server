@@ -739,6 +739,7 @@ extern ulong crc32(ulong crc, const uchar *buf, uint len);
 extern uint my_set_max_open_files(uint files);
 void my_free_open_file_info(void);
 
+ulonglong my_getsystime(void);
 my_bool my_gethwaddr(uchar *to);
 
 /* character sets */
