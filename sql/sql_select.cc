@@ -4252,7 +4252,7 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
     {
       memcpy((gptr) join->best_positions,(gptr) join->positions,
 	     sizeof(POSITION)*idx);
-      join->best_read=read_time;
+      join->best_read= read_time - 0.001;
     }
     return;
   }
