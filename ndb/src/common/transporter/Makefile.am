@@ -8,7 +8,10 @@ libtransporter_la_SOURCES = \
 	TransporterRegistry.cpp \
         Packer.cpp
 
-#	SHM_Transporter.cpp
+EXTRA_libtransporter_la_SOURCES = SHM_Transporter.cpp SHM_Transporter.unix.cpp SCI_Transporter.cpp
+
+libtransporter_la_LIBADD = @ndb_transporter_opt_objs@
+libtransporter_la_DEPENDENCIES = @ndb_transporter_opt_objs@
 
 INCLUDES_LOC = -I$(top_srcdir)/ndb/include/kernel -I$(top_srcdir)/ndb/include/transporter
 

@@ -673,7 +673,7 @@ ConfigValuesFactory::unpack(const void * _src, Uint32 len){
       break;
     case ConfigValues::StringType:{
       Uint32 s_len = ntohl(* (const Uint32 *)src); src += 4;
-      size_t s_len2 = strnlen((const char*)src, s_len);
+      size_t s_len2 = strlen((const char*)src);
       if(s_len2 + 1 != s_len){
 	DEBUG abort();
 	return false;

@@ -2919,6 +2919,17 @@ AC_SUBST(mgmapiincludedir)
   AC_SUBST(NDB_NDBAPICLIENT_INCLUDES)
   AC_SUBST(NDB_MGMAPICLIENT_INCLUDES)
 
+ndb_transporter_opt_objs=""
+if test X"$have_ndb_shm" = Xyes
+then
+  ndb_transporter_opt_objs="$(ndb_transporter_opt_objs) SHM_Transporter.lo SHM_Transporter.unix.lo"
+fi
+if test X"$have_ndb_sci" = Xyes
+then
+  ndb_transporter_opt_objs="$(ndb_transporter_opt_objs) SCI_Transporter.lo"
+fi
+AC_SUBST(ndb_transporter_opt_objs)
+
   #NDB_TYPE_COMMON="include \$(top_srcdir)/ndb/config/common.mk.am"
   #NDB_TYPE_NDBAPI="include \$(top_srcdir)/ndb/config/type_ndbapi.mk.am"
   #NDB_TYPE_NDBAPI="include \$(top_srcdir)/ndb/config/type_ndbapitest.mk.am"
@@ -2934,7 +2945,7 @@ AC_SUBST(MAKE_BINARY_DISTRIBUTION_OPTIONS)
 
 # Output results
 AC_OUTPUT(Makefile extra/Makefile mysys/Makefile isam/Makefile dnl
-   ndb/Makefile ndb/include/Makefile ndb/src/Makefile ndb/src/common/Makefile dnl
+   ndb/Makefile ndb/src/Makefile ndb/src/common/Makefile dnl
    ndb/tools/Makefile dnl
    ndb/src/common/debugger/Makefile ndb/src/common/debugger/signaldata/Makefile dnl
    ndb/src/common/portlib/Makefile ndb/src/common/portlib/unix/Makefile dnl
