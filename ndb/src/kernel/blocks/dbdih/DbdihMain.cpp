@@ -6130,13 +6130,9 @@ void Dbdih::execDIRELEASEREQ(Signal* signal)
   ptrCheckGuard(connectPtr, cconnectFileSize, connectRecord);
   ndbrequire(connectPtr.p->connectState != ConnectRecord::FREE);
   ndbrequire(connectPtr.p->userblockref == userRef);
-  connectPtr.p->connectState = ConnectRecord::FREE;
   signal->theData[0] = connectPtr.p->userpointer;
   sendSignal(connectPtr.p->userblockref, GSN_DIRELEASECONF, signal, 1, JBB);
-  connectPtr.p->nfConnect = cfirstconnect;
-  cfirstconnect = connectPtr.i;
-  connectPtr.p->userblockref = ZNIL;
-  connectPtr.p->userpointer = RNIL;
+  release_connect(connectPtr);
 }//Dbdih::execDIRELEASEREQ()
 
 /*
@@ -6573,11 +6569,16 @@ Dbdih::sendAddFragreq(Signal* signal, ConnectRecordPtr connectPtr,
 	     DiAddTabConf::SignalLength, JBB);  
 
   // Release
-  connectPtr.p->userblockref = ZNIL;
-  connectPtr.p->userpointer = RNIL;
-  connectPtr.p->connectState = ConnectRecord::FREE;
-  connectPtr.p->nfConnect = cfirstconnect;
-  cfirstconnect = connectPtr.i;
+  release_connect(connectPtr);
+}
+void
+Dbdih::release_connect(ConnectRecordPtr ptr)
+{
+  ptr.p->userblockref = ZNIL;
+  ptr.p->userpointer = RNIL;
+  ptr.p->connectState = ConnectRecord::FREE;
+  ptr.p->nfConnect = cfirstconnect;
+  cfirstconnect = ptr.i;
 }
 
 void
@@ -6614,11 +6615,7 @@ Dbdih::execADD_FRAGREF(Signal* signal){
   }
   
   // Release
-  connectPtr.p->userblockref = ZNIL;
-  connectPtr.p->userpointer = RNIL;
-  connectPtr.p->connectState = ConnectRecord::FREE;
-  connectPtr.p->nfConnect = cfirstconnect;
-  cfirstconnect = connectPtr.i;
+  release_connect(connectPtr);
 }
 
 /*
@@ -6627,10 +6624,10 @@ Dbdih::execADD_FRAGREF(Signal* signal){
   */
 void Dbdih::addtabrefuseLab(Signal* signal, ConnectRecordPtr connectPtr, Uint32 errorCode) 
 {
-  connectPtr.p->connectState = ConnectRecord::INUSE;
   signal->theData[0] = connectPtr.p->userpointer;
   signal->theData[1] = errorCode;
   sendSignal(connectPtr.p->userblockref, GSN_DIADDTABREF, signal, 2, JBB);
+  release_connect(connectPtr);
   return;
 }//Dbdih::addtabrefuseLab()
 
