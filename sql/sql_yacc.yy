@@ -706,6 +706,18 @@ master_def:
        MASTER_LOG_POS_SYM EQ ulonglong_num
        {
 	 Lex->mi.pos = $3;
+         /* 
+            If the user specified a value < BIN_LOG_HEADER_SIZE, adjust it
+            instead of causing subsequent errors. 
+            We need to do it in this file, because only there we know that 
+            MASTER_LOG_POS has been explicitely specified. On the contrary
+            in change_master() (sql_repl.cc) we cannot distinguish between 0
+            (MASTER_LOG_POS explicitely specified as 0) and 0 (unspecified),
+            whereas we want to distinguish (specified 0 means "read the binlog
+            from 0" (4 in fact), unspecified means "don't change the position
+            (keep the preceding value)").
+         */
+         Lex->mi.pos = max(BIN_LOG_HEADER_SIZE, Lex->mi.pos);
        }
        |
        MASTER_CONNECT_RETRY_SYM EQ ULONG_NUM
@@ -721,6 +733,8 @@ master_def:
        RELAY_LOG_POS_SYM EQ ULONG_NUM
        {
 	 Lex->mi.relay_log_pos = $3;
+         /* Adjust if < BIN_LOG_HEADER_SIZE (same comment as Lex->mi.pos) */
+         Lex->mi.relay_log_pos = max(BIN_LOG_HEADER_SIZE, Lex->mi.relay_log_pos);
        };
 
 
