@@ -659,7 +659,10 @@ extern SHOW_VAR init_vars[],status_vars[], internal_vars[];
 extern struct system_variables global_system_variables;
 extern struct system_variables max_system_variables;
 
-extern SHOW_COMP_OPTION have_isam, have_raid, have_openssl, have_symlink;
+/* optional things, have_* variables */
+
+extern SHOW_COMP_OPTION have_isam, have_innodb, have_berkeley_db;
+extern SHOW_COMP_OPTION have_raid, have_openssl, have_symlink;
 extern SHOW_COMP_OPTION have_query_cache;
 
 #ifndef __WIN__
