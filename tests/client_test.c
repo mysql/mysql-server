@@ -180,10 +180,10 @@ static void client_connect()
   /* set AUTOCOMMIT to ON*/
   mysql_autocommit(mysql, TRUE);
   fprintf(stdout, "\n Creating a test database '%s' ...", current_db);
-  sprintf(buff,"CREATE DATABASE IF NOT EXISTS %s", current_db);
+  strxmov(buff,"CREATE DATABASE IF NOT EXISTS ", current_db, NullS);
   rc = mysql_query(mysql, buff);
   myquery(rc);
-  sprintf(buff,"USE %s", current_db);
+  strxmov(buff,"USE ", current_db, NullS);
   rc = mysql_query(mysql, buff);
   myquery(rc);
   
@@ -201,7 +201,7 @@ static void client_disconnect()
   {
     char buff[255];
     fprintf(stdout, "\n droping the test database '%s' ...", current_db);
-    sprintf(buff,"DROP DATABASE IF EXISTS %s", current_db);
+    strxmov(buff,"DROP DATABASE IF EXISTS ", current_db, NullS);
     mysql_query(mysql, buff);
     fprintf(stdout, " OK");
     fprintf(stdout, "\n closing the connection ...");
@@ -464,8 +464,7 @@ static void verify_col_data(const char *table, const char *col,
  
   if (table && col)
   {
-    sprintf(query, "SELECT %s FROM %s LIMIT 1", col, table);
-
+    strxmov(query,"SELECT ",col," FROM ",table," LIMIT 1", NullS);
     fprintf(stdout,"\n %s", query);
     rc = mysql_query(mysql, query);
     myquery(rc);
@@ -1877,7 +1876,7 @@ static void test_long_data_str()
   mystmt(stmt, rc);
 
   length = 40;
-  sprintf(data,"MySQL AB");
+  strmov(data,"MySQL AB");
 
   /* supply data in pieces */
   for(i=0; i < 4; i++)
@@ -1906,11 +1905,11 @@ static void test_long_data_str()
   myassert(1 == my_process_result_set(result));
   mysql_free_result(result);
 
-  sprintf(data,"%d", i*5);
+  my_sprintf(data,(data,"%d", i*5));
   verify_col_data("test_long_data_str","LENGTH(longstr)", data);
   data[0]='\0';
   while (i--)
-   sprintf(data,"%s%s", data,"MySQL");
+   strxmov(data,data,"MySQL",NullS);
   verify_col_data("test_long_data_str","longstr", data);
 }
 
@@ -1995,10 +1994,10 @@ static void test_long_data_str1()
   myassert(1 == my_process_result_set(result));
   mysql_free_result(result);
 
-  sprintf(data,"%ld",(long)i*length);
+  my_sprintf(data,(data,"%ld",(long)i*length));
   verify_col_data("test_long_data_str","length(longstr)",data);
 
-  sprintf(data,"%d",i*2);
+  my_sprintf(data,(data,"%d",i*2));
   verify_col_data("test_long_data_str","length(blb)",data);
 }
 
@@ -2052,7 +2051,7 @@ static void test_long_data_bin()
   mystmt(stmt, rc);
 
   length = 10;
-  sprintf(data,"MySQL AB");
+  strmov(data,"MySQL AB");
 
   /* supply data in pieces */
   {
@@ -2408,8 +2407,6 @@ static void test_bind_result()
  
   if (is_null[0])
     fprintf(stdout,"\n row 3: NULL,%s(%lu)", szData, length1);
-  else
-    fprintf(stdout,"\n row 3: %d,%s(%lu)", nData, szData, length1);
   myassert(is_null[0]);
   myassert(strcmp(szData,"monty")==0);
   myassert(length1 == 5);
@@ -3660,63 +3657,97 @@ static void test_stmt_close()
 *********************************************************/
 static void test_set_variable()
 {
-  MYSQL_STMT *stmt;
-  int        rc, select_limit=88;
-  char       query[200];
-  MYSQL_BIND bind[1];
-  MYSQL_RES  *result;
-
+  MYSQL_STMT *stmt, *stmt1;
+  int        rc;
+  int        set_count, def_count, get_count;
+  ulong      length;
+  char       var[NAME_LEN+1];
+  MYSQL_BIND set_bind[1], get_bind[2];
 
   myheader("test_set_variable");
 
-  rc = mysql_autocommit(mysql, TRUE);
-  myquery(rc);
+  mysql_autocommit(mysql, TRUE);
+  
+  stmt1 = mysql_prepare(mysql, "show variables like 'max_error_count'", 50);
+  mystmt_init(stmt1);
 
-  strmov(query,"SET GLOBAL delayed_insert_limit=?");
-  stmt = mysql_prepare(mysql, query, strlen(query));
+  get_bind[0].buffer_type= MYSQL_TYPE_STRING;
+  get_bind[0].buffer= (char *)var;
+  get_bind[0].is_null= 0;
+  get_bind[0].length= &length;
+  get_bind[0].buffer_length= (int)NAME_LEN;
+  length= NAME_LEN;
+
+  get_bind[1].buffer_type= MYSQL_TYPE_LONG;
+  get_bind[1].buffer= (char *)&get_count;
+  get_bind[1].is_null= 0;
+  get_bind[1].length= 0;
+
+  rc = mysql_execute(stmt1);
+  mystmt(stmt1, rc);
+  
+  rc = mysql_bind_result(stmt1, get_bind);
+  mystmt(stmt1, rc);
+
+  rc = mysql_fetch(stmt1);
+  mystmt(stmt1, rc);
+
+  fprintf(stdout, "\n max_error_count(default): %d", get_count);
+  def_count= get_count;
+
+  myassert(strcmp(var,"max_error_count") == 0);
+  rc = mysql_fetch(stmt1);
+  myassert(rc == MYSQL_NO_DATA);
+
+  stmt = mysql_prepare(mysql, "set max_error_count=?", 50);
   mystmt_init(stmt);
 
-  verify_param_count(stmt,1);
-
-  result= mysql_param_result(stmt);
-  mytest_r(result);
-
-  bind[0].buffer_type= MYSQL_TYPE_LONG;
-  bind[0].buffer=(char *)&select_limit;
-  bind[0].is_null=0;
-
-  rc = mysql_bind_param(stmt, bind);
-  mystmt(stmt,rc);
-
-  rc= mysql_execute(stmt);
-  mystmt(stmt,rc);
-
-  mysql_store_result(mysql);
-
-  strmov(query,"show variables like 'delayed_insert_limit'");
-  rc = mysql_query(mysql,query);
-  myquery(rc);
-
-  verify_col_data(NullS, NullS, "88");
-
-#ifdef TO_BE_FIXED
-
-  select_limit= 100;/* reset to default */
-  rc= mysql_execute(stmt);
-  mystmt(stmt,rc);
-
-  mysql_store_result(mysql);
-  mysql_stmt_close(stmt);
-
-  rc = mysql_query(mysql,query);
-  myquery(rc);
+  set_bind[0].buffer_type= MYSQL_TYPE_LONG;
+  set_bind[0].buffer= (char *)&set_count;
+  set_bind[0].is_null= 0;
+  set_bind[0].length= 0;
   
-  verify_col_data(NullS, NullS, "100");
-#endif
+  rc = mysql_bind_param(stmt, set_bind);
+  mystmt(stmt,rc);
+  
+  set_count= 31;
+  rc= mysql_execute(stmt);
+  mystmt(stmt,rc);
+
+  mysql_commit(mysql);
+
+  rc = mysql_execute(stmt1);
+  mystmt(stmt1, rc);
+  
+  rc = mysql_fetch(stmt1);
+  mystmt(stmt1, rc);
+
+  fprintf(stdout, "\n max_error_count         : %d", get_count);
+  myassert(get_count == set_count);
+
+  rc = mysql_fetch(stmt1);
+  myassert(rc == MYSQL_NO_DATA);
+  
+  /* restore back to default */
+  set_count= def_count;
+  rc= mysql_execute(stmt);
+  mystmt(stmt, rc);
+  
+  rc = mysql_execute(stmt1);
+  mystmt(stmt1, rc);
+  
+  rc = mysql_fetch(stmt1);
+  mystmt(stmt1, rc);
+
+  fprintf(stdout, "\n max_error_count(default): %d", get_count);
+  myassert(get_count == set_count);
+
+  rc = mysql_fetch(stmt1);
+  myassert(rc == MYSQL_NO_DATA);
+  
   mysql_stmt_close(stmt);
+  mysql_stmt_close(stmt1);
 }
-
-
 
 #if NOT_USED
 /* Insert meta info .. */
@@ -4002,10 +4033,10 @@ static void test_func_fields()
 /* Multiple stmts .. */
 static void test_multi_stmt()
 {
-#if TO_BE_FIXED_IN_SERVER
-  MYSQL_STMT  *stmt, *stmt1;
+
+  MYSQL_STMT  *stmt, *stmt1, *stmt2;
   int         rc, id;
-  char        name[50]={0};
+  char        name[50];
   MYSQL_BIND  bind[2];
   ulong       length[2];
   my_bool     is_null[2];
@@ -4023,17 +4054,23 @@ static void test_multi_stmt()
   stmt = mysql_prepare(mysql, "SELECT * FROM test_multi_table WHERE id = ?", 100);
   mystmt_init(stmt);
 
+  stmt2 = mysql_prepare(mysql, "UPDATE test_multi_table SET name='updated' WHERE id=10",100);
+  mystmt_init(stmt2);
+
   verify_param_count(stmt,1);
 
   bind[0].buffer_type= MYSQL_TYPE_SHORT;
   bind[0].buffer= (char *)&id;
   bind[0].is_null= &is_null[0];
+  bind[0].length= &length[0];
+  is_null[0]= 0;
+  length[0]= 0;
 
   bind[1].buffer_type = MYSQL_TYPE_STRING;
-  bind[1].buffer = (char *)&name;
+  bind[1].buffer = (char *)name;
   bind[1].length = &length[1];
-  bind[1].is_null= &is_null[0];
-
+  bind[1].is_null= &is_null[1];
+    
   rc = mysql_bind_param(stmt, bind);
   mystmt(stmt, rc);
   
@@ -4048,8 +4085,8 @@ static void test_multi_stmt()
   rc = mysql_fetch(stmt);
   mystmt(stmt, rc);
 
-  fprintf(stdout, "\n int_data: %d", id);
-  fprintf(stdout, "\n str_data: %s(%lu)", name, length);
+  fprintf(stdout, "\n int_data: %d(%lu)", id, length[0]);
+  fprintf(stdout, "\n str_data: %s(%lu)", name, length[1]);
   myassert(id == 10);
   myassert(strcmp(name,"mysql")==0);
 
@@ -4064,6 +4101,27 @@ static void test_multi_stmt()
 
   rc = mysql_bind_param(stmt1, bind);
   mystmt(stmt1, rc);
+  
+  rc = mysql_execute(stmt2);
+  mystmt(stmt2, rc);
+
+  rc = (int)mysql_stmt_affected_rows(stmt2);
+  fprintf(stdout,"\n total rows affected(update): %d", rc);
+  myassert(rc == 1);
+
+  rc = mysql_execute(stmt);
+  mystmt(stmt, rc);
+  
+  rc = mysql_fetch(stmt);
+  mystmt(stmt, rc);
+
+  fprintf(stdout, "\n int_data: %d(%lu)", id, length[0]);
+  fprintf(stdout, "\n str_data: %s(%lu)", name, length[1]);
+  myassert(id == 10);
+  myassert(strcmp(name,"updated")==0);
+
+  rc = mysql_fetch(stmt);
+  myassert(rc == MYSQL_NO_DATA);
 
   rc = mysql_execute(stmt1);
   mystmt(stmt1, rc);
@@ -4083,7 +4141,8 @@ static void test_multi_stmt()
   myassert(0 == my_stmt_result("SELECT * FROM test_multi_table",50));
 
   mysql_stmt_close(stmt);
-#endif
+  mysql_stmt_close(stmt2);
+
 }
 
 
@@ -4441,8 +4500,6 @@ static void test_store_result()
  
   if (is_null[0])
     fprintf(stdout,"\n row 3: NULL,%s(%lu)", szData, length1);
-  else
-    fprintf(stdout,"\n row 3: %ld,%s(%lu)", nData, szData, length1);
   myassert(is_null[0]);
   myassert(strcmp(szData,"monty")==0);
   myassert(length1 == 5);
@@ -4478,8 +4535,6 @@ static void test_store_result()
  
   if (is_null[0])
     fprintf(stdout,"\n row 3: NULL,%s(%lu)", szData, length1);
-  else
-    fprintf(stdout,"\n row 3: %ld,%s(%lu)", nData, szData, length1);
   myassert(is_null[0]);
   myassert(strcmp(szData,"monty")==0);
   myassert(length1 == 5);
@@ -5039,6 +5094,10 @@ static void test_pure_coverage()
 #ifndef DBUG_OFF
   rc = mysql_bind_result(stmt, (MYSQL_BIND *)0);
   mystmt_r(stmt, rc);
+  
+  bind[0].buffer_type= MYSQL_TYPE_GEOMETRY;
+  rc = mysql_bind_result(stmt, bind);
+  mystmt_r(stmt, rc); /* unsupported buffer type */
 #endif
 
   rc = mysql_stmt_store_result(stmt);
