@@ -20,7 +20,6 @@ select * from t1 where MATCH(a,b) AGAINST ("indexes collections");
 # UNION of fulltext's
 select * from t1 where MATCH(a,b) AGAINST ("collections") UNION ALL select * from t1 where MATCH(a,b) AGAINST ("indexes");
 
-
 # boolean search
 
 select * from t1 where MATCH(a,b) AGAINST("support -collections" IN BOOLEAN MODE);
@@ -33,6 +32,13 @@ select * from t1 where MATCH(a,b) AGAINST("+search +(support vector)" IN BOOLEAN
 select * from t1 where MATCH(a,b) AGAINST("+search -(support vector)" IN BOOLEAN MODE);
 select *, MATCH(a,b) AGAINST("support collections" IN BOOLEAN MODE) as x from t1;
 select *, MATCH(a,b) AGAINST("collections support" IN BOOLEAN MODE) as x from t1;
+
+select * from t1 where MATCH a,b AGAINST ("+call* +coll*" IN BOOLEAN MODE);
+
+select * from t1 where MATCH a,b AGAINST ('"Now sUPPort"' IN BOOLEAN MODE);
+select * from t1 where MATCH a,b AGAINST ('"text search"  "now support"' IN BOOLEAN MODE);
+select * from t1 where MATCH a,b AGAINST ('"text search" -"now support"' IN BOOLEAN MODE);
+select * from t1 where MATCH a,b AGAINST ('"text search" +"now support"' IN BOOLEAN MODE);
 
 # boolean w/o index:
 
@@ -117,7 +123,7 @@ select * from t2,t3 where MATCH (t2.inhalt,t3.inhalt) AGAINST ('foobar');
 drop table t1,t2,t3;
 
 #
-# two more bugtests
+# three more bugtests
 #
 
 CREATE TABLE t1 (
@@ -129,6 +135,7 @@ CREATE TABLE t1 (
 ) TYPE=MyISAM;
 
 insert into t1 (title) values ('this is a test');
+select * from t1 where match title against ('test' in boolean mode);
 update t1 set title='this is A test' where id=1;
 check table t1;
 update t1 set title='this test once revealed a bug' where id=1;
@@ -143,4 +150,8 @@ CREATE TABLE t1 (a int(11), b text, FULLTEXT KEY (b)) TYPE=MyISAM;
 insert into t1 values (1,"I wonder why the fulltext index doesnt work?");
 SELECT * from t1 where MATCH (b) AGAINST ('apples');
 
+insert into t1 values (2,"fullaaa fullzzz");
+select * from t1 where match b against ('full*' in boolean mode);
+
 drop table t1;
+

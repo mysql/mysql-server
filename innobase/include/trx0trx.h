@@ -298,6 +298,17 @@ struct trx_struct{
 					of view of concurrency control:
 					TRX_ACTIVE, TRX_COMMITTED_IN_MEMORY,
 					... */
+	ibool		check_foreigns;	/* normally TRUE, but if the user
+					wants to suppress foreign key checks,
+					(in table imports, for example) we
+					set this FALSE */
+	ibool		check_unique_secondary;
+					/* normally TRUE, but if the user
+					wants to speed up inserts by
+					suppressing unique key checks
+					for secondary indexes when we decide
+					if we can use the insert buffer for
+					them, we set this FALSE */
 	dulint		id;		/* transaction id */
 	dulint		no;		/* transaction serialization number ==
 					max trx id when the transaction is 
@@ -328,6 +339,9 @@ struct trx_struct{
                                         /* how many tables the current SQL
 					statement uses, except those
 					in consistent read */
+	ibool		has_dict_foreign_key_check_lock;
+					/* TRUE if the trx currently holds
+					an s-lock on dict_foreign_... */
         ibool           has_search_latch;
 			                /* TRUE if this trx has latched the
 			                search system latch in S-mode */

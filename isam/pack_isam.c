@@ -1,17 +1,20 @@
-/* Copyright (C) 1979-1999 TcX AB & Monty Program KB & Detron HB
+/* Copyright (C) 1979-2002 MySQL AB
+   
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
+   
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+   
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-   This software is distributed with NO WARRANTY OF ANY KIND.  No author or
-   distributor accepts any responsibility for the consequences of using it, or
-   for whether it serves any particular purpose or works at all, unless he or
-   she says so in writing.  Refer to the Free Public License (the "License")
-   for full details.
-   Every copy of this file must include a copy of the License, normally in a
-   plain ASCII text file named PUBLIC.	The License grants you the right to
-   copy, modify and redistribute this file, but only under certain conditions
-   described in the License.  Among other things, the License requires that
-   the copyright notice and this notice be preserved on all copies. */
-
-/* Pack isam file*/
+/* Pack isam file */
 
 #ifndef USE_MY_FUNC
 #define USE_MY_FUNC			/* We nead at least my_malloc */
@@ -27,7 +30,7 @@
 #ifndef __GNU_LIBRARY__
 #define __GNU_LIBRARY__			/* Skipp warnings in getopt.h */
 #endif
-#include <getopt.h>
+#include <my_getopt.h>
 
 #if INT_MAX > 32767
 #define BITS_SAVED 32
@@ -179,8 +182,9 @@ static int mrg_rrnd(MRG_INFO *info,byte *buf);
 static void mrg_reset(MRG_INFO *mrg);
 
 
-static int backup=0,error_on_write=0,test_only=0,verbose=0,silent=0,
-	   write_loop=0,force_pack=0,opt_wait=0,isamchk_neaded=0;
+static int error_on_write=0,test_only=0,verbose=0,silent=0,
+	   write_loop=0,force_pack=0,isamchk_neaded=0;
+static my_bool backup, opt_wait;
 static int tmpfile_createflag=O_RDWR | O_TRUNC | O_EXCL;
 static uint tree_buff_length=8196-MALLOC_OVERHEAD,force_pack_ref_length;
 static char tmp_dir[FN_REFLEN]={0},*join_table;
@@ -237,26 +241,44 @@ int main(int argc, char **argv)
 }
 
 
-static struct option long_options[] =
+static struct my_option my_long_options[] =
 {
-  {"backup",	no_argument,	   0, 'b'},
-  {"debug",	optional_argument, 0, '#'},
-  {"force",	no_argument,	   0, 'f'},
-  {"join",	required_argument, 0, 'j'},
-  {"help",	no_argument,	   0, '?'},
-  {"packlength",required_argument, 0, 'p'},
-  {"silent",	no_argument,	   0, 's'},
-  {"tmpdir",	required_argument, 0, 'T'},
-  {"test",	no_argument,	   0, 't'},
-  {"verbose",	no_argument,	   0, 'v'},
-  {"version",	no_argument,	   0, 'V'},
-  {"wait",	no_argument,	   0, 'w'},
-  {0, 0, 0, 0}
+  {"backup", 'b', "Make a backup of the table as table_name.OLD",
+   (gptr*) &backup, (gptr*) &backup, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'",
+   0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"force", 'f',
+   "Force packing of table even if it's gets bigger or tempfile exists.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"join", 'j',
+   "Join all given tables into 'new_table_name'. All tables MUST have the identical layout.",
+   (gptr*) &join_table, (gptr*) &join_table, 0, GET_STR, REQUIRED_ARG, 0, 0,
+   0, 0, 0, 0},
+  {"help", '?', "Display this help and exit.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"packlength", 'p', "Force storage size of recordlength (1, 2 or 3)",
+   (gptr*) &force_pack_ref_length, (gptr*) &force_pack_ref_length, 0,
+   GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"silent", 's', "Be more silent.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0 ,0},
+  {"tmpdir", 'T', "Use temporary directory to store temporary table",
+   (gptr*) &tmp_dir, (gptr*) &tmp_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0,
+   0, 0},
+  {"test", 't', "Don't pack table, only test packing it",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0 ,0},
+  {"verbose", 'v', "Write info about progress and packing result",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0 ,0},
+  {"version", 'V', "output version information and exit",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0 ,0},
+  {"wait", 'w', "Wait and retry if table is in use", (gptr*) &opt_wait,
+   (gptr*) &opt_wait, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
+
 
 static void print_version(void)
 {
-  printf("%s  Ver 5.8 for %s on %s\n",my_progname,SYSTEM_TYPE,MACHINE_TYPE);
+  printf("%s Ver 5.10 for %s on %s\n", my_progname, SYSTEM_TYPE, MACHINE_TYPE);
 }
 
 static void usage(void)
@@ -271,92 +293,72 @@ static void usage(void)
   puts("You should give the .ISM file as the filename argument");
 
   printf("\nUsage: %s [OPTIONS] filename...\n", my_progname);
-  puts("\n\
-  -b, --backup		Make a backup of the table as table_name.OLD\n\
-  -f, --force		Force packing of table even if it's gets bigger or\n\
-			tempfile exists.\n\
-  -j, --join='new_table_name'\n\
-			Join all given tables into 'new_table_name'.\n\
-			All tables MUST have the identical layout.\n\
-  -p, --packlength=#    Force storage size of recordlength (1,2 or 3)\n\
-  -s, --silent		Be more silent.\n\
-  -t, --test		Don't pack table, only test packing it\n\
-  -v, --verbose		Write info about progress and packing result\n\
-  -w, --wait		Wait and retry if table is in use\n\
-  -T, --tmpdir=#	Use temporary directory to store temporary table\n\
-  -#, --debug=...       output debug log. Often this is 'd:t:o,filename`\n\
-  -?, --help		display this help and exit\n\
-  -V, --version		output version information and exit\n");
-  print_defaults("my",load_default_groups);
+  my_print_help(my_long_options);
+  print_defaults("my", load_default_groups);
+  my_print_variables(my_long_options);
+}
+
+
+static my_bool
+get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
+	       char *argument)
+{
+  uint length;
+
+  switch(optid) {
+  case 'f':
+    force_pack= 1;
+    tmpfile_createflag= O_RDWR | O_TRUNC;
+    break;
+  case 'p':
+    if (force_pack_ref_length > 3)
+      force_pack_ref_length= 0;
+    break;
+  case 's':
+    write_loop= verbose= 0;
+    silent= 1;
+    break;
+  case 't':
+    test_only= verbose= 1;
+    break;
+  case 'T':
+    length=(uint) (strmov(tmp_dir, argument) - tmp_dir);
+    if (length != dirname_length(tmp_dir))
+    {
+      tmp_dir[length]= FN_LIBCHAR;
+      tmp_dir[length + 1]= 0;
+    }
+    break;
+  case 'v':
+    verbose= 1;
+    silent= 0;
+    break;
+  case '#':
+    DBUG_PUSH(argument ? argument : "d:t:o");
+    break;
+  case 'V': print_version(); exit(0);
+  case 'I':
+  case '?':
+    usage();
+    exit(0);
+  }
+  return 0;
 }
 
 	/* reads options */
 	/* Initiates DEBUG - but no debugging here ! */
 
-static void get_options(int *argc,char ***argv)
+static void get_options(int *argc, char ***argv)
 {
-  int c,option_index=0;
-  uint length;
+  int ho_error;
+
+  if ((ho_error=handle_options(argc, argv, my_long_options, get_one_option)))
+    exit(ho_error);
 
   my_progname= argv[0][0];
   if (isatty(fileno(stdout)))
     write_loop=1;
 
-  while ((c=getopt_long(*argc,*argv,"bfj:p:stvwT:#::?V",long_options,
-			&option_index)) != EOF)
-  {
-    switch(c) {
-    case 'b':
-      backup=1;
-      break;
-    case 'f':
-      force_pack=1;
-      tmpfile_createflag=O_RDWR | O_TRUNC;
-      break;
-    case 'j':
-      join_table=optarg;
-      break;
-    case 'p':
-      force_pack_ref_length=(uint) atoi(optarg);
-      if (force_pack_ref_length > 3)
-	force_pack_ref_length=0;
-      break;
-    case 's':
-      write_loop=verbose=0; silent=1;
-      break;
-    case 't':
-      test_only=verbose=1;
-      break;
-    case 'T':
-      length=(uint) (strmov(tmp_dir,optarg)-tmp_dir);
-      if (length != dirname_length(tmp_dir))
-      {
-	tmp_dir[length]=FN_LIBCHAR;
-	tmp_dir[length+1]=0;
-      }
-      break;
-    case 'v':
-      verbose=1; silent=0;
-      break;
-    case 'w':
-      opt_wait=1;
-      break;
-    case '#':
-      DBUG_PUSH(optarg ? optarg : "d:t:o");
-      break;
-    case 'V': print_version(); exit(0);
-    case 'I':
-    case '?':
-      usage();
-      exit(0);
-    default:
-      fprintf(stderr,"%s: Illegal option: -%c\n",my_progname,opterr);
-      usage();
-      exit(1);
-    }
-  }
-  (*argc)-=optind;
-  (*argv)+=optind;
   if (!*argc)
   {
     usage();

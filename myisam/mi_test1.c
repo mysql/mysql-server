@@ -17,20 +17,23 @@
 /* Testing of the basic functions of a MyISAM table */
 
 #include "myisam.h"
-#include <getopt.h>
+#include <my_getopt.h>
 #include <m_string.h>
 
 #define MAX_REC_LENGTH 1024
 
-static int rec_pointer_size=0,verbose=0,flags[50];
+static void usage();
+
+static int rec_pointer_size=0, flags[50];
 static int key_field=FIELD_SKIP_PRESPACE,extra_field=FIELD_SKIP_ENDSPACE;
 static int key_type=HA_KEYTYPE_NUM;
 static int create_flag=0;
 
-static uint insert_count= 1000,update_count=1000,remove_count=1000;
-static uint pack_keys=0,pack_seg=0,null_fields=0,key_length=6,skip_update=0;
-static uint unique_key=HA_NOSAME,key_cacheing=0,opt_unique=0;
-static uint silent;
+static uint insert_count, update_count, remove_count;
+static uint pack_keys=0, pack_seg=0, key_length;
+static uint unique_key=HA_NOSAME;
+static my_bool key_cacheing, null_fields, silent, skip_update, opt_unique,
+               verbose;
 static MI_COLUMNDEF recinfo[4];
 static MI_KEYDEF keyinfo[10];
 static MI_KEYSEG keyseg[10];
@@ -501,139 +504,155 @@ static void update_record(char *record)
 }
 
 
-static struct option long_options[] =
+static struct my_option my_long_options[] =
 {
-  {"checksum",		no_argument,		0, 'c'},
+  {"checksum", 'c', "Undocumented",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifndef DBUG_OFF
-  {"debug",		required_argument,	0, '#'},
+  {"debug", '#', "Undocumented",
+   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"delete_rows",	required_argument,	0, 'd'},
-  {"help",		no_argument,		0, '?'},
-  {"insert_rows",	required_argument,	0, 'i'},
-  {"key_alpha",		no_argument,		0, 'a'},
-  {"key_binary_pack",	no_argument,		0, 'B'},
-  {"key_blob",		required_argument,	0, 'b'},
-  {"key_cache",		no_argument,		0, 'K'},
-  {"key_length",	required_argument,	0, 'k'},
-  {"key_multiple",	no_argument,		0, 'm'},
-  {"key_prefix_pack",	no_argument,		0, 'P'},
-  {"key_space_pack",	no_argument,		0, 'p'},
-  {"key_varchar",	no_argument,		0, 'w'},
-  {"null_fields",	no_argument,		0, 'N'},
-  {"row_fixed_size",	no_argument,		0, 'S'},
-  {"row_pointer_size",	required_argument,	0, 'R'},
-  {"silent",		no_argument,		0, 's'},
-  {"skip_update",	no_argument,		0, 'U'},
-  {"unique",		no_argument,		0, 'C'},
-  {"update_rows",	required_argument,	0, 'u'},
-  {"verbose",		no_argument,		0, 'v'},
-  {"version",		no_argument,		0, 'V'},
-  {0, 0, 0, 0}
+  {"delete_rows", 'd', "Undocumented", (gptr*) &remove_count,
+   (gptr*) &remove_count, 0, GET_UINT, REQUIRED_ARG, 1000, 0, 0, 0, 0, 0},
+  {"help", '?', "Display help and exit",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"insert_rows", 'i', "Undocumented", (gptr*) &insert_count,
+   (gptr*) &insert_count, 0, GET_UINT, REQUIRED_ARG, 1000, 0, 0, 0, 0, 0},
+  {"key_alpha", 'a', "Undocumented",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"key_binary_pack", 'B', "Undocumented",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"key_blob", 'b', "Undocumented",
+   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"key_cache", 'K', "Undocumented", (gptr*) &key_cacheing,
+   (gptr*) &key_cacheing, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"key_length", 'k', "Undocumented", (gptr*) &key_length, (gptr*) &key_length,
+   0, GET_UINT, REQUIRED_ARG, 6, 0, 0, 0, 0, 0},
+  {"key_multiple", 'm', "Undocumented",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"key_prefix_pack", 'P', "Undocumented",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"key_space_pack", 'p', "Undocumented",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"key_varchar", 'w', "Undocumented",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"null_fields", 'N', "Undocumented",
+   (gptr*) &null_fields, (gptr*) &null_fields, 0, GET_BOOL, NO_ARG,
+   0, 0, 0, 0, 0, 0},
+  {"row_fixed_size", 'S', "Undocumented",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"row_pointer_size", 'R', "Undocumented", (gptr*) &rec_pointer_size,
+   (gptr*) &rec_pointer_size, 0, GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"silent", 's', "Undocumented",
+   (gptr*) &silent, (gptr*) &silent, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"skip_update", 'U', "Undocumented", (gptr*) &skip_update,
+   (gptr*) &skip_update, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"unique", 'C', "Undocumented", (gptr*) &opt_unique, (gptr*) &opt_unique, 0,
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"update_rows", 'u', "Undocumented", (gptr*) &update_count,
+   (gptr*) &update_count, 0, GET_UINT, REQUIRED_ARG, 1000, 0, 0, 0, 0, 0},
+  {"verbose", 'v', "Be more verbose", (gptr*) &verbose, (gptr*) &verbose, 0,
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"version", 'V', "Print version number and exit",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
+
+
+static my_bool
+get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
+	       char *argument)
+{
+  switch(optid) {
+  case 'a':
+    key_type= HA_KEYTYPE_TEXT;
+    break;
+  case 'c':
+    create_flag|= HA_CREATE_CHECKSUM;
+    break;
+  case 'R':				/* Length of record pointer */
+    if (rec_pointer_size > 3)
+      rec_pointer_size=0;
+    break;
+  case 'P':
+    pack_keys= HA_PACK_KEY;		/* Use prefix compression */
+    break;
+  case 'B':
+    pack_keys= HA_BINARY_PACK_KEY;	/* Use binary compression */
+    break;
+  case 'S':
+    if (key_field == FIELD_VARCHAR)
+    {
+      create_flag=0;			/* Static sized varchar */
+    }
+    else if (key_field != FIELD_BLOB)
+    {
+      key_field=FIELD_NORMAL;		/* static-size record */
+      extra_field=FIELD_NORMAL;
+    }
+    break;
+  case 'p':
+    pack_keys=HA_PACK_KEY;		/* Use prefix + space packing */
+    pack_seg=HA_SPACE_PACK;
+    key_type=HA_KEYTYPE_TEXT;
+    break;
+  case 'm':
+    unique_key=0;
+    break;
+  case 'b':
+    key_field=FIELD_BLOB;			/* blob key */
+    extra_field= FIELD_BLOB;
+    pack_seg|= HA_BLOB_PART;
+    key_type= HA_KEYTYPE_VARTEXT;
+    break;
+  case 'k':
+    if (key_length < 4 || key_length > MI_MAX_KEY_LENGTH)
+    {
+      fprintf(stderr,"Wrong key length\n");
+      exit(1);
+    }
+    break;
+  case 'w':
+    key_field=FIELD_VARCHAR;			/* varchar keys */
+    extra_field= FIELD_VARCHAR;
+    key_type= HA_KEYTYPE_VARTEXT;
+    pack_seg|= HA_VAR_LENGTH;
+    create_flag|= HA_PACK_RECORD;
+    break;
+  case 'K':				/* Use key cacheing */
+    key_cacheing=1;
+    break;
+  case 'V':
+    printf("test1 Ver 1.2 \n");
+    exit(0);
+  case '#':
+    DEBUGGER_ON;
+    DBUG_PUSH (argument);
+    break;
+  case '?':
+    usage();
+    exit(1);
+  }
+  return 0;
+}
 
 
 /* Read options */
 
-static void get_options(int argc,char *argv[])
+static void get_options(int argc, char *argv[])
 {
-  int c,option_index=0;
+  int ho_error;
 
-  while ((c=getopt_long(argc,argv,"abBcCd:i:k:KmPR:SspNu:UvVw#:",
-			long_options, &option_index)) != EOF)
-  {
-    switch(c) {
-    case 'a':
-      key_type= HA_KEYTYPE_TEXT;
-      break;
-    case 'c':
-      create_flag|= HA_CREATE_CHECKSUM;
-      break;
-    case 'C':
-      opt_unique=1;
-      break;
-    case 'R':				/* Length of record pointer */
-      rec_pointer_size=atoi(optarg);
-      if (rec_pointer_size > 3)
-	rec_pointer_size=0;
-      break;
-    case 'P':
-      pack_keys= HA_PACK_KEY;		/* Use prefix compression */
-      break;
-    case 'B':
-      pack_keys= HA_BINARY_PACK_KEY;	/* Use binary compression */
-      break;
-    case 'S':
-      if (key_field == FIELD_VARCHAR)
-      {
-	create_flag=0;			/* Static sized varchar */
-      }
-      else if (key_field != FIELD_BLOB)
-      {
-	key_field=FIELD_NORMAL;		/* static-size record */
-	extra_field=FIELD_NORMAL;
-      }
-      break;
-    case 'p':
-      pack_keys=HA_PACK_KEY;		/* Use prefix + space packing */
-      pack_seg=HA_SPACE_PACK;
-      key_type=HA_KEYTYPE_TEXT;
-      break;
-    case 'N':
-      null_fields=1;			/* First key part may be null */
-      break;
-    case 'v':				/* verbose */
-      verbose=1;
-      break;
-    case 'd':
-      remove_count=atoi(optarg);
-      break;
-    case 'i':
-      insert_count=atoi(optarg);
-      break;
-    case 'u':
-      update_count=atoi(optarg);
-      break;
-    case 'U':
-      skip_update=1;
-      break;
-    case 'm':
-      unique_key=0;
-      break;
-    case 'b':
-      key_field=FIELD_BLOB;			/* blob key */
-      extra_field= FIELD_BLOB;
-      pack_seg|= HA_BLOB_PART;
-      key_type= HA_KEYTYPE_VARTEXT;
-      break;
-    case 'k':
-      key_length=atoi(optarg);
-      if (key_length < 4 || key_length > MI_MAX_KEY_LENGTH)
-      {
-	fprintf(stderr,"Wrong key length\n");
-	exit(1);
-      }
-      break;
-    case 's':
-      silent=1;
-      break;
-    case 'w':
-      key_field=FIELD_VARCHAR;			/* varchar keys */
-      extra_field= FIELD_VARCHAR;
-      key_type= HA_KEYTYPE_VARTEXT;
-      pack_seg|= HA_VAR_LENGTH;
-      create_flag|= HA_PACK_RECORD;
-      break;
-    case 'K':				/* Use key cacheing */
-      key_cacheing=1;
-      break;
-    case 'V':
-      printf("test1 Ver 1.0 \n");
-      exit(0);
-    case '#':
-      DEBUGGER_ON;
-      DBUG_PUSH (optarg);
-      break;
-    }
-  }
+  if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
+    exit(ho_error);
+
   return;
 } /* get options */
+
+
+static void usage()
+{
+  printf("Usage: %s [options]\n\n", my_progname);
+  my_print_help(my_long_options);
+  my_print_variables(my_long_options);
+}

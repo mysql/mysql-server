@@ -41,11 +41,11 @@ page buffer pool; the latter method is used for very big heaps */
 
 /* The following start size is used for the first block in the memory heap if
 the size is not specified, i.e., 0 is given as the parameter in the call of
-create. The standard size is the maximum size of the blocks used for
+create. The standard size is the maximum (payload) size of the blocks used for
 allocations of small buffers. */
 
 #define MEM_BLOCK_START_SIZE            64
-#define MEM_BLOCK_STANDARD_SIZE         8192
+#define MEM_BLOCK_STANDARD_SIZE         8000
 
 /* If a memory heap is allowed to grow into the buffer pool, the following
 is the maximum size for a single allocated buffer: */

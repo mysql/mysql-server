@@ -152,139 +152,147 @@ enum options {
 
 static struct my_option my_long_options[] =
 {
-  {"analyze",
-   "Analyze distribution of keys. Will make some joins in MySQL faster. You can check the calculated distribution.", 0, 0, 0, GET_NO_ARG, NO_ARG, 'a', 0, 0,
+  {"analyze", 'a',
+   "Analyze distribution of keys. Will make some joins in MySQL faster. You can check the calculated distribution.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0,
    0, 0, 0, 0},
-  {"block-search", "No help available.", 0, 0, 0, GET_LONG, REQUIRED_ARG, 'b',
+  {"block-search", 'b', "No help available.", 0, 0, 0, GET_ULONG, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
-  {"backup", "Make a backup of the .MYD file as 'filename-time.BAK'", 0, 0, 0,
-   GET_NO_ARG, NO_ARG, 'B', 0, 0, 0, 0, 0, 0},
-  {"character-sets-dir", "Directory where character sets are.",
-   (gptr*) &set_charset_name, 0, 0, GET_STR, REQUIRED_ARG, OPT_CHARSETS_DIR, 0,
-   0, 0, 0, 0, 0},
-  {"check", "Check table for errors.", 0, 0, 0, GET_NO_ARG, NO_ARG, 'c', 0, 0,
+  {"backup", 'B', "Make a backup of the .MYD file as 'filename-time.BAK'", 0,
+   0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"character-sets-dir", OPT_CHARSETS_DIR,
+   "Directory where character sets are.", (gptr*) &set_charset_name, 0, 0,
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"check", 'c', "Check table for errors.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0,
    0, 0, 0, 0},
-  {"check-only-changed",
-   "Check only tables that has changed since last check.", 0, 0, 0, GET_NO_ARG,
-   NO_ARG, 'C', 0, 0, 0, 0, 0, 0},
-  {"correct-checksum", "Correct checksum information for table.", 0, 0, 0,
-   GET_NO_ARG, NO_ARG, OPT_CORRECT_CHECKSUM, 0, 0, 0, 0, 0, 0},
+  {"check-only-changed", 'C',
+   "Check only tables that have changed since last check.", 0, 0, 0, GET_NO_ARG,
+   NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"correct-checksum", OPT_CORRECT_CHECKSUM,
+   "Correct checksum information for table.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
+   0, 0, 0, 0, 0},
 #ifndef DBUG_OFF
-  {"debug", "Output debug log. Often this is 'd:t:o,filename'.", 0, 0, 0,
-   GET_STR, OPT_ARG, '#', 0, 0, 0, 0, 0, 0},
+  {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'.", 0, 0, 0,
+   GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"description", "Prints some information about table.", 0, 0, 0, GET_NO_ARG,
-   NO_ARG, 'd', 0, 0, 0, 0, 0, 0},
-  {"data-file-length",
+  {"description", 'd', "Prints some information about table.", 0, 0, 0,
+   GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"data-file-length", 'D',
    "Max length of data file (when recreating data-file when it's full).",
    (gptr*) &check_param.max_data_file_length,
-   (gptr*) &check_param.max_data_file_length, 0, GET_LONG, REQUIRED_ARG, 'D',
+   (gptr*) &check_param.max_data_file_length, 0, GET_LL, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
-  {"extend-check",
-   "Try to recover every possible row from the data file. Normally this will also find a lot of garbage rows; Don't use this option if you are not totally desperate.", 0, 0, 0, GET_NO_ARG, NO_ARG, 'e', 0, 0, 0, 0, 0, 0},
-  {"fast", "Check only tables that hasn't been closed properly.", 0, 0, 0,
-   GET_NO_ARG, NO_ARG, 'F', 0, 0, 0, 0, 0, 0},
-  {"force",
-   "Restart with -r if there are any errors in the table. States will be updated as with --update-state.", 0, 0, 0, GET_NO_ARG, NO_ARG, 'f', 0, 0, 0, 0, 0,
+  {"extend-check", 'e',
+   "Try to recover every possible row from the data file. Normally this will also find a lot of garbage rows; Don't use this option if you are not totally desperate.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"fast", 'F', "Check only tables that haven't been closed properly.", 0, 0, 0,
+   GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"force", 'f',
+   "Restart with -r if there are any errors in the table. States will be updated as with --update-state.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0,
    0},
-  {"help", "Display this help and exit.", 0, 0, 0, GET_NO_ARG, NO_ARG, '?', 0,
+  {"help", '?', "Display this help and exit.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
    0, 0, 0, 0, 0},
-  {"information", "Print statistics information about table that is checked.",
-   0, 0, 0, GET_NO_ARG, NO_ARG, 'i', 0, 0, 0, 0, 0, 0},
-  {"keys-used", "Tell MyISAM to update only some specific keys. # is a bit mask of which keys to use. This can be used to get faster inserts!",
+  {"information", 'i',
+   "Print statistics information about table that is checked.", 0, 0, 0,
+   GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"keys-used", 'k',
+   "Tell MyISAM to update only some specific keys. # is a bit mask of which keys to use. This can be used to get faster inserts!",
    (gptr*) &check_param.keys_in_use, (gptr*) &check_param.keys_in_use, 0,
-   GET_LL, REQUIRED_ARG, 'k',-1, 0, 0, 0, 0, 0},
-  {"medium-check",
-   "Faster than extended-check, but only finds 99.99% of all errors. Should be good enough for most cases.", 0, 0, 0, GET_NO_ARG, NO_ARG, 'm', 0, 0, 0, 0, 0,
-   0},
-  {"quick", "Faster repair by not modifying the data file.", 0, 0, 0,
-   GET_NO_ARG, NO_ARG, 'q', 0, 0, 0, 0, 0, 0},
-  {"read-only", "Don't mark table as checked.", 0, 0, 0, GET_NO_ARG, NO_ARG,
-   'T', 0, 0, 0, 0, 0, 0},
-  {"recover",
+   GET_ULL, REQUIRED_ARG, -1, 0, 0, 0, 0, 0},
+  {"medium-check", 'm',
+   "Faster than extended-check, but only finds 99.99% of all errors. Should be good enough for most cases.",
+    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"quick", 'q', "Faster repair by not modifying the data file.", 0, 0, 0,
+   GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"read-only", 'T', "Don't mark table as checked.", 0, 0, 0, GET_NO_ARG,
+   NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"recover", 'r',
    "Can fix almost anything except unique keys that aren't unique.", 0, 0, 0,
-   GET_NO_ARG, NO_ARG, 'r', 0, 0, 0, 0, 0, 0},
-  {"safe-recover",
+   GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"safe-recover", 'o',
    "Uses old recovery method; Slower than '-r' but can handle a couple of cases where '-r' reports that it can't fix the data file.", 0, 0, 0, GET_NO_ARG,
-   NO_ARG, 'o', 0, 0, 0, 0, 0, 0},
-  {"start-check-pos", "No help available.", 0, 0, 0, GET_LONG, REQUIRED_ARG, 
-   OPT_START_CHECK_POS, 0, 0, 0, 0, 0, 0},
-  {"set-auto-increment",
+   NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"start-check-pos", OPT_START_CHECK_POS, "No help available.", 0, 0, 0,
+   GET_ULL, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"set-auto-increment", 'A',
    "Force auto_increment to start at this or higher value. If no value is given, then sets the next auto_increment value to the highest used value for the auto key + 1.", (gptr*) &check_param.auto_increment_value,
-   (gptr*) &check_param.auto_increment_value, 0, GET_LONG, OPT_ARG, 'A', 0, 0,
-   0, 0, 0, 0},
-  {"set-character-set", "Change the character set used by the index", 0, 0, 0,
-   GET_STR, REQUIRED_ARG, OPT_SET_CHARSET, 0, 0, 0, 0, 0, 0},
-  {"set-variable", "Change the value of a variable. Please note that this option is depricated; you can set variables directly with --variable-name=value.",
-   0, 0, 0, GET_STR, REQUIRED_ARG, 'O', 0, 0, 0, 0, 0, 0},
-  {"silent",
+   (gptr*) &check_param.auto_increment_value, 0, GET_ULL, OPT_ARG, 0, 0, 0,
+   0, 0, 0},
+  {"set-character-set", OPT_SET_CHARSET,
+   "Change the character set used by the index", 0, 0, 0, GET_STR,
+   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"set-variable", 'O',
+   "Change the value of a variable. Please note that this option is deprecated; you can set variables directly with --variable-name=value.",
+   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"silent", 's',
    "Only print errors. One can use two -s to make myisamchk very silent.", 0,
-   0, 0, GET_NO_ARG, NO_ARG, 's', 0, 0, 0, 0, 0, 0},
-  {"sort-index",
+   0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"sort-index", 'S',
    "Sort index blocks. This speeds up 'read-next' in applications.", 0, 0, 0,
-   GET_NO_ARG, NO_ARG, 'S', 0, 0, 0, 0, 0, 0},
-  {"sort-records",
+   GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"sort-records", 'R',
    "Sort records according to an index. This makes your data much more localized and may speed up things. (It may be VERY slow to do a sort the first time!)",
    (gptr*) &check_param.opt_sort_key, (gptr*) &check_param.opt_sort_key, 0,
-   GET_LONG, REQUIRED_ARG, 'R', 0, 0, 0, 0, 0, 0},
-  {"sort-recover",
+   GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"sort-recover", 'n',
    "Force recovering with sorting even if the temporary file was very big.",
-   0, 0, 0, GET_NO_ARG, NO_ARG, 'n', 0, 0, 0, 0, 0, 0},
-  {"tmpdir", "Path for temporary files.", (gptr*) &check_param.tmpdir, 0, 0,
-   GET_STR, REQUIRED_ARG, 't', 0, 0, 0, 0, 0, 0},
-  {"update-state", "Mark tables as crashed if any errors were found.", 0, 0,
-   0, GET_NO_ARG, NO_ARG, 'U', 0, 0, 0, 0, 0, 0},
-  {"unpack", "Unpack file packed with myisampack.", 0, 0, 0, GET_NO_ARG,
-   NO_ARG, 'u', 0, 0, 0, 0, 0, 0},
-  {"verbose",
-   "Print more information. This can be used with --describe and --check. Use many -v for more verbosity!", 0, 0, 0, GET_NO_ARG, NO_ARG, 'v', 0, 0, 0, 0, 0,
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"tmpdir", 't', "Path for temporary files.",
+   (gptr*) &check_param.tmpdir, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"update-state", 'U', "Mark tables as crashed if any errors were found.", 0,
+   0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"unpack", 'u', "Unpack file packed with myisampack.", 0, 0, 0, GET_NO_ARG,
+   NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"verbose", 'v',
+   "Print more information. This can be used with --describe and --check. Use many -v for more verbosity!", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0,
    0},
-  {"version", "Print version and exit.", 0, 0, 0, GET_NO_ARG, NO_ARG, 'V', 0,
+  {"version", 'V', "Print version and exit.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
    0, 0, 0, 0, 0},
-  {"wait", "Wait if table is locked.", 0, 0, 0, GET_NO_ARG, NO_ARG, 'w', 0, 0,
+  {"wait", 'w', "Wait if table is locked.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0,
    0, 0, 0, 0},
-  { "key_buffer_size", "", (gptr*) &check_param.use_buffers, 
-    (gptr*) &check_param.use_buffers, 0, GET_LONG, REQUIRED_ARG, 
-    OPT_KEY_BUFFER_SIZE, (long) USE_BUFFER_INIT, (long) MALLOC_OVERHEAD,
+  { "key_buffer_size", OPT_KEY_BUFFER_SIZE, "",
+    (gptr*) &check_param.use_buffers, (gptr*) &check_param.use_buffers, 0,
+    GET_ULONG, REQUIRED_ARG, (long) USE_BUFFER_INIT, (long) MALLOC_OVERHEAD,
     (long) ~0L, (long) MALLOC_OVERHEAD, (long) IO_SIZE, 0}, 
-  { "myisam_block_size", "", (gptr*) &opt_myisam_block_size, 
-    (gptr*) &opt_myisam_block_size, 0, GET_LONG, REQUIRED_ARG, 
-    OPT_MYISAM_BLOCK_SIZE, MI_KEY_BLOCK_LENGTH, MI_MIN_KEY_BLOCK_LENGTH, 
+  { "myisam_block_size", OPT_MYISAM_BLOCK_SIZE,  "",
+    (gptr*) &opt_myisam_block_size, (gptr*) &opt_myisam_block_size, 0,
+    GET_LONG, REQUIRED_ARG, MI_KEY_BLOCK_LENGTH, MI_MIN_KEY_BLOCK_LENGTH, 
     MI_MAX_KEY_BLOCK_LENGTH, 0, MI_MIN_KEY_BLOCK_LENGTH, 0}, 
-  { "read_buffer_size", "", (gptr*) &check_param.read_buffer_length, 
-    (gptr*) &check_param.read_buffer_length, 0, GET_LONG, REQUIRED_ARG,
-    OPT_READ_BUFFER_SIZE, (long) READ_BUFFER_INIT, (long) MALLOC_OVERHEAD,
+  { "read_buffer_size", OPT_READ_BUFFER_SIZE, "",
+    (gptr*) &check_param.read_buffer_length,
+    (gptr*) &check_param.read_buffer_length, 0, GET_ULONG, REQUIRED_ARG,
+    (long) READ_BUFFER_INIT, (long) MALLOC_OVERHEAD,
     (long) ~0L, (long) MALLOC_OVERHEAD, (long) 1L, 0}, 
-  { "write_buffer_size", "", (gptr*) &check_param.write_buffer_length,
-    (gptr*) &check_param.write_buffer_length, 0, GET_LONG, REQUIRED_ARG, 
-    OPT_WRITE_BUFFER_SIZE, (long) READ_BUFFER_INIT, (long) MALLOC_OVERHEAD,
+  { "write_buffer_size", OPT_WRITE_BUFFER_SIZE, "",
+    (gptr*) &check_param.write_buffer_length,
+    (gptr*) &check_param.write_buffer_length, 0, GET_ULONG, REQUIRED_ARG, 
+    (long) READ_BUFFER_INIT, (long) MALLOC_OVERHEAD,
     (long) ~0L, (long) MALLOC_OVERHEAD, (long) 1L, 0}, 
-  { "sort_buffer_size", "", (gptr*) &check_param.sort_buffer_length, 
-    (gptr*) &check_param.sort_buffer_length, 0, GET_LONG, REQUIRED_ARG,
-    OPT_SORT_BUFFER_SIZE, (long) SORT_BUFFER_INIT, 
-    (long) (MIN_SORT_BUFFER + MALLOC_OVERHEAD), (long) ~0L, 
-    (long) MALLOC_OVERHEAD, (long) 1L, 0}, 
-  { "sort_key_blocks", "", (gptr*) &check_param.sort_key_blocks,
-    (gptr*) &check_param.sort_key_blocks, 0, GET_LONG, REQUIRED_ARG,
-    OPT_SORT_KEY_BLOCKS, BUFFERS_WHEN_SORTING, 4L, 100L, 0L, 1L, 0},
-  { "decode_bits", "", (gptr*) &decode_bits, (gptr*) &decode_bits, 0,
-    GET_LONG, REQUIRED_ARG, OPT_DECODE_BITS, 9L, 4L, 17L, 0L, 1L, 0},
-  { "ft_min_word_len", "", (gptr*) &ft_min_word_len, (gptr*) &ft_min_word_len,
-    0, GET_LONG, REQUIRED_ARG, OPT_FT_MIN_WORD_LEN, 4, 1, HA_FT_MAXLEN, 0, 1,
-    0},
-  { "ft_max_word_len", "", (gptr*) &ft_max_word_len, (gptr*) &ft_max_word_len,
-    0, GET_LONG, REQUIRED_ARG, OPT_FT_MAX_WORD_LEN, HA_FT_MAXLEN, 10,
+  { "sort_buffer_size", OPT_SORT_BUFFER_SIZE, "",
+    (gptr*) &check_param.sort_buffer_length, 
+    (gptr*) &check_param.sort_buffer_length, 0, GET_ULONG, REQUIRED_ARG,
+    (long) SORT_BUFFER_INIT, (long) (MIN_SORT_BUFFER + MALLOC_OVERHEAD),
+    (long) ~0L, (long) MALLOC_OVERHEAD, (long) 1L, 0}, 
+  { "sort_key_blocks", OPT_SORT_KEY_BLOCKS, "",
+    (gptr*) &check_param.sort_key_blocks,
+    (gptr*) &check_param.sort_key_blocks, 0, GET_ULONG, REQUIRED_ARG,
+    BUFFERS_WHEN_SORTING, 4L, 100L, 0L, 1L, 0},
+  { "decode_bits", OPT_DECODE_BITS, "", (gptr*) &decode_bits,
+    (gptr*) &decode_bits, 0, GET_UINT, REQUIRED_ARG, 9L, 4L, 17L, 0L, 1L, 0},
+  { "ft_min_word_len", OPT_FT_MIN_WORD_LEN, "", (gptr*) &ft_min_word_len,
+    (gptr*) &ft_min_word_len, 0, GET_ULONG, REQUIRED_ARG, 4, 1, HA_FT_MAXLEN,
+    0, 1, 0},
+  { "ft_max_word_len", OPT_FT_MAX_WORD_LEN, "", (gptr*) &ft_max_word_len,
+    (gptr*) &ft_max_word_len, 0, GET_ULONG, REQUIRED_ARG, HA_FT_MAXLEN, 10,
     HA_FT_MAXLEN, 0, 1, 0},
-  { "ft_max_word_len_for_sort", "", (gptr*) &ft_max_word_len_for_sort,
-    (gptr*) &ft_max_word_len_for_sort, 0, GET_LONG, REQUIRED_ARG,
-    OPT_FT_MAX_WORD_LEN_FOR_SORT, 20, 4, HA_FT_MAXLEN, 0, 1, 0},
+  { "ft_max_word_len_for_sort", OPT_FT_MAX_WORD_LEN_FOR_SORT, "",
+    (gptr*) &ft_max_word_len_for_sort, (gptr*) &ft_max_word_len_for_sort, 0,
+    GET_ULONG, REQUIRED_ARG, 20, 4, HA_FT_MAXLEN, 0, 1, 0},
   { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
 };
 
 
 static void print_version(void)
 {
-  printf("%s  Ver 2.3 for %s at %s\n", my_progname, SYSTEM_TYPE,
+  printf("%s  Ver 2.6 for %s at %s\n", my_progname, SYSTEM_TYPE,
 	 MACHINE_TYPE);
 }
 
@@ -314,9 +322,9 @@ static void usage(void)
   -e, --extend-check  Check the table VERY throughly.  Only use this in\n\
                       extreme cases as myisamchk should normally be able to\n\
                       find out if the table is ok even without this switch\n\
-  -F, --fast	      Check only tables that hasn't been closed properly\n\
+  -F, --fast	      Check only tables that haven't been closed properly\n\
   -C, --check-only-changed\n\
-		      Check only tables that has changed since last check\n\
+		      Check only tables that have changed since last check\n\
   -f, --force         Restart with -r if there are any errors in the table.\n\
 		      States will be updated as with --update-state\n\
   -i, --information   Print statistics information about table that is checked\n\
@@ -372,7 +380,6 @@ static void usage(void)
 		      (It may be VERY slow to do a sort the first time!)");
 
   print_defaults("my", load_default_groups);
-  putchar('\n');
   my_print_variables(my_long_options);
 }
 
@@ -523,7 +530,7 @@ get_one_option(int optid,
         (check_param.testflag & T_QUICK) ? T_FORCE_UNIQUENESS : T_QUICK;
     break;
   case 'u':
-    if (argument && *argument == '0')
+    if (argument == disabled_my_option)
       check_param.testflag&= ~(T_UNPACK | T_REP_BY_SORT);
     else
       check_param.testflag|= T_UNPACK | T_REP_BY_SORT;
@@ -608,13 +615,15 @@ get_one_option(int optid,
 
 static void get_options(register int *argc,register char ***argv)
 {
+  int ho_error;
+
   load_defaults("my", load_default_groups, argc, argv);
   default_argv= *argv;
   if (isatty(fileno(stdout)))
     check_param.testflag|=T_WRITE_LOOP;
 
-  if (handle_options(argc, argv, my_long_options, get_one_option))
-    exit(1);
+  if ((ho_error=handle_options(argc, argv, my_long_options, get_one_option)))
+    exit(ho_error);
 
   /* If using repair, then update checksum if one uses --update-state */
   if ((check_param.testflag & T_UPDATE_STATE) &&
@@ -725,7 +734,7 @@ static int myisamchk(MI_CHECK *param, my_string filename)
   raid_chunks=share->base.raid_chunks;
 
   /*
-    Skipp the checking of the file if:
+    Skip the checking of the file if:
     We are using --fast and the table is closed properly
     We are using --check-only-changed-tables and the table hasn't changed
   */

@@ -1719,7 +1719,7 @@ mysql_dump_debug_info(MYSQL *mysql)
   DBUG_RETURN(simple_command(mysql,COM_DEBUG,"",0,0));
 }
 
-char * STDCALL
+const char * STDCALL
 mysql_stat(MYSQL *mysql)
 {
   DBUG_ENTER("mysql_stat");
@@ -1744,14 +1744,14 @@ mysql_ping(MYSQL *mysql)
 }
 
 
-char * STDCALL
+const char * STDCALL
 mysql_get_server_info(MYSQL *mysql)
 {
   return((char*) mysql->server_version);
 }
 
 
-char * STDCALL
+const char * STDCALL
 mysql_get_host_info(MYSQL *mysql)
 {
   return(mysql->host_info);
@@ -1764,10 +1764,10 @@ mysql_get_proto_info(MYSQL *mysql)
   return (mysql->protocol_version);
 }
 
-char * STDCALL
+const char * STDCALL
 mysql_get_client_info(void)
 {
-  return (char*) MYSQL_SERVER_VERSION;
+  return MYSQL_SERVER_VERSION;
 }
 
 
@@ -1875,12 +1875,12 @@ uint STDCALL mysql_errno(MYSQL *mysql)
   return (mysql)->net.last_errno;
 }
 
-char * STDCALL mysql_error(MYSQL *mysql)
+const char * STDCALL mysql_error(MYSQL *mysql)
 {
   return (mysql)->net.last_error;
 }
 
-char *STDCALL mysql_info(MYSQL *mysql)
+const char *STDCALL mysql_info(MYSQL *mysql)
 {
   return (mysql)->info;
 }

@@ -10,9 +10,9 @@ Created 9/6/1995 Heikki Tuuri
 #include <winbase.h>
 #endif
 
-#ifndef _WIN32
 /**************************************************************
-Acquires ownership of a fast mutex. */
+Acquires ownership of a fast mutex. Currently in Windows this is the same
+as os_fast_mutex_lock! */
 UNIV_INLINE
 ulint
 os_fast_mutex_trylock(
@@ -23,20 +23,11 @@ os_fast_mutex_trylock(
 	os_fast_mutex_t*	fast_mutex)	/* in: mutex to acquire */
 {
 #ifdef __WIN__	
-	int	ret;
+	EnterCriticalSection(fast_mutex);
 
-	/* TODO: TryEnterCriticalSection is probably not found from
-	NT versions < 4! */
-	ret = TryEnterCriticalSection(fast_mutex);
-
-	if (ret) {
-		return(0);
-	}
-
-	return(1);
+	return(0);
 #else
 	return((ulint) pthread_mutex_trylock(fast_mutex));
 #endif
 }
-#endif
 

@@ -17,6 +17,24 @@ Created 5/11/1994 Heikki Tuuri
 ibool	ut_always_false	= FALSE;
 
 /************************************************************
+Gets the high 32 bits in a ulint. That is makes a shift >> 32,
+but since there seem to be compiler bugs in both gcc and Visual C++,
+we do this by a special conversion. */
+
+ulint
+ut_get_high32(
+/*==========*/
+			/* out: a >> 32 */
+	ulint	a)	/* in: ulint */
+{
+	if (sizeof(ulint) == 4) {
+		return(0);
+	}
+
+	return(a >> 32);
+}
+
+/************************************************************
 The following function returns a clock time in milliseconds. */
 
 ulint
@@ -58,11 +76,11 @@ ut_print_timestamp(
 	FILE*  file) /* in: file where to print */
 {
 #ifdef __WIN__
-  SYSTEMTIME cal_tm;
+  	SYSTEMTIME cal_tm;
 
-  GetLocalTime(&cal_tm);
+  	GetLocalTime(&cal_tm);
 
-  fprintf(file,"%02d%02d%02d %2d:%02d:%02d",
+  	fprintf(file,"%02d%02d%02d %2d:%02d:%02d",
 	  (int)cal_tm.wYear % 100,
 	  (int)cal_tm.wMonth,
 	  (int)cal_tm.wDay,
@@ -70,27 +88,58 @@ ut_print_timestamp(
 	  (int)cal_tm.wMinute,
 	  (int)cal_tm.wSecond);
 #else
+	struct tm  cal_tm;
+  	struct tm* cal_tm_ptr;
+  	time_t     tm;
 
-  struct tm  cal_tm;
-  struct tm* cal_tm_ptr;
-  time_t     tm;
-
-  time(&tm);
+  	time(&tm);
 
 #ifdef HAVE_LOCALTIME_R
-  localtime_r(&tm, &cal_tm);
-  cal_tm_ptr = &cal_tm;
+  	localtime_r(&tm, &cal_tm);
+  	cal_tm_ptr = &cal_tm;
 #else
-  cal_tm_ptr = localtime(&tm);
+  	cal_tm_ptr = localtime(&tm);
 #endif
-
-  fprintf(file,"%02d%02d%02d %2d:%02d:%02d",
+  	fprintf(file,"%02d%02d%02d %2d:%02d:%02d",
 	  cal_tm_ptr->tm_year % 100,
-	  cal_tm_ptr->tm_mon+1,
+	  cal_tm_ptr->tm_mon + 1,
 	  cal_tm_ptr->tm_mday,
 	  cal_tm_ptr->tm_hour,
 	  cal_tm_ptr->tm_min,
 	  cal_tm_ptr->tm_sec);
+#endif
+}
+
+/**************************************************************
+Returns current year, month, day. */
+
+void
+ut_get_year_month_day(
+/*==================*/
+	ulint*	year,	/* out: current year */
+	ulint*	month,	/* out: month */
+	ulint*	day)	/* out: day */
+{
+#ifdef __WIN__
+  	SYSTEMTIME cal_tm;
+
+  	GetLocalTime(&cal_tm);
+
+  	*year = (ulint)cal_tm.wYear;
+  	*month = (ulint)cal_tm.wMonth;
+  	*day = (ulint)cal_tm.wDay;
+#else
+  	struct tm  cal_tm;
+  	struct tm* cal_tm_ptr;
+  	time_t     tm;
+
+  	time(&tm);
+
+  	cal_tm_ptr = localtime(&tm);
+
+  	*year = (ulint)cal_tm_ptr->tm_year;
+  	*month = (ulint)cal_tm_ptr->tm_mon + 1;
+  	*day = (ulint)cal_tm_ptr->tm_mday;
 #endif
 }
 

@@ -50,7 +50,7 @@ descriptor page, but used only in the first. */
 #define	FSP_FREE_LIMIT		12	/* Minimum page number for which the
 					free list has not been initialized:
 					the pages >= this limit are, by
-					definition free */
+					definition, free */
 #define	FSP_LOWEST_NO_WRITE	16	/* The lowest page offset for which
 					the page has not been written to disk
 					(if it has been written, we know that
@@ -899,6 +899,106 @@ fsp_header_inc_size(
 }
 
 /**************************************************************************
+Gets the current free limit of a tablespace. The free limit means the
+place of the first page which has never been put to the the free list
+for allocation. The space above that address is initialized to zero.
+Sets also the global variable log_fsp_current_free_limit. */
+
+ulint
+fsp_header_get_free_limit(
+/*======================*/
+			/* out: free limit in megabytes */
+	ulint	space)	/* in: space id */
+{
+	fsp_header_t*	header;
+	ulint		limit;
+	mtr_t		mtr;
+
+	ut_a(space == 0); /* We have only one log_fsp_current_... variable */
+	
+	mtr_start(&mtr);
+
+	mtr_x_lock(fil_space_get_latch(space), &mtr);	
+
+	header = fsp_get_space_header(space, &mtr);
+
+	limit = mtr_read_ulint(header + FSP_FREE_LIMIT, MLOG_4BYTES, &mtr);
+
+	limit = limit / ((1024 * 1024) / UNIV_PAGE_SIZE);
+	
+	log_fsp_current_free_limit_set_and_checkpoint(limit);
+
+	mtr_commit(&mtr);
+
+	return(limit);
+}
+
+/***************************************************************************
+Tries to extend the last data file file if it is defined as auto-extending. */
+static
+ibool
+fsp_try_extend_last_file(
+/*=====================*/
+					/* out: FALSE if not auto-extending */
+	ulint*		actual_increase,/* out: actual increase in pages */
+	ulint		space,		/* in: space */
+	fsp_header_t*	header,		/* in: space header */
+	mtr_t*		mtr)		/* in: mtr */
+{
+	ulint	size;
+	ulint	size_increase;
+	ibool	success;
+
+	ut_a(space == 0);
+
+	*actual_increase = 0;
+
+	if (!srv_auto_extend_last_data_file) {
+
+		return(FALSE);
+	}
+
+	size = mtr_read_ulint(header + FSP_SIZE, MLOG_4BYTES, mtr);
+
+	if (srv_last_file_size_max != 0) {
+		if (srv_last_file_size_max
+			 < srv_data_file_sizes[srv_n_data_files - 1]) {
+
+			fprintf(stderr,
+"InnoDB: Error: Last data file size is %lu, max size allowed %lu\n",
+				srv_data_file_sizes[srv_n_data_files - 1],
+				srv_last_file_size_max);
+		}
+
+		size_increase = srv_last_file_size_max
+				 - srv_data_file_sizes[srv_n_data_files - 1];
+		if (size_increase > SRV_AUTO_EXTEND_INCREMENT) {
+			size_increase = SRV_AUTO_EXTEND_INCREMENT;
+		}
+	} else {
+		size_increase = SRV_AUTO_EXTEND_INCREMENT;
+	}
+				
+	if (size_increase == 0) {
+		return(TRUE);
+	}
+	
+	/* Extend the data file. If we are not able to extend
+	the full requested length, the function tells us
+	the number of full megabytes (but the unit is pages!)
+	we were able to extend. */
+				
+	success = fil_extend_last_data_file(actual_increase, size_increase);
+
+	if (success) {
+		mlog_write_ulint(header + FSP_SIZE, size + *actual_increase,
+							MLOG_4BYTES, mtr);
+	}
+
+	return(TRUE);
+}
+
+/**************************************************************************
 Puts new extents to the free list if there are free extents above the free
 limit. If an extent happens to contain an extent descriptor page, the extent
 is put to the FSP_FREE_FRAG list with the page marked as used. */
@@ -917,8 +1017,9 @@ fsp_fill_free_list(
 	ulint	frag_n_used;
 	page_t*	descr_page;
 	page_t*	ibuf_page;
-	mtr_t	ibuf_mtr;
+	ulint	actual_increase;
 	ulint	i;
+	mtr_t	ibuf_mtr;
 
 	ut_ad(header && mtr);
 	
@@ -926,12 +1027,28 @@ fsp_fill_free_list(
 	size = mtr_read_ulint(header + FSP_SIZE, MLOG_4BYTES, mtr);
 	limit = mtr_read_ulint(header + FSP_FREE_LIMIT, MLOG_4BYTES, mtr);
 
+	if (srv_auto_extend_last_data_file
+			&& size < limit + FSP_EXTENT_SIZE * FSP_FREE_ADD) {
+
+		/* Try to increase the last data file size */
+		fsp_try_extend_last_file(&actual_increase, space, header,
+									mtr);
+		size = mtr_read_ulint(header + FSP_SIZE, MLOG_4BYTES, mtr);
+	}
+
 	i = limit;
 		
 	while ((i + FSP_EXTENT_SIZE <= size) && (count < FSP_FREE_ADD)) {
 
 		mlog_write_ulint(header + FSP_FREE_LIMIT, i + FSP_EXTENT_SIZE,
 							MLOG_4BYTES, mtr); 
+
+		/* Update the free limit info in the log system and make
+		a checkpoint */
+		log_fsp_current_free_limit_set_and_checkpoint(
+				(i + FSP_EXTENT_SIZE)
+				/ ((1024 * 1024) / UNIV_PAGE_SIZE));
+
 		if (0 == i % XDES_DESCRIBED_PER_PAGE) {
 
 			/* We are going to initialize a new descriptor page
@@ -1172,6 +1289,7 @@ fsp_free_page(
 	xdes_t*		descr;
 	ulint		state;
 	ulint		frag_n_used;
+	char		buf[1000];
 	
 	ut_ad(mtr);
 
@@ -1183,10 +1301,38 @@ fsp_free_page(
 
 	state = xdes_get_state(descr, mtr);
 	
-	ut_a((state == XDES_FREE_FRAG) || (state == XDES_FULL_FRAG));
+	if (state != XDES_FREE_FRAG && state != XDES_FULL_FRAG) {
+		fprintf(stderr,
+"InnoDB: Error: File space extent descriptor of page %lu has state %lu\n",
+								page, state);
+		ut_sprintf_buf(buf, ((byte*)descr) - 50, 200);
 
-	ut_a(xdes_get_bit(descr, XDES_FREE_BIT, page % FSP_EXTENT_SIZE, mtr)
-								== FALSE);
+		fprintf(stderr, "InnoDB: Dump of descriptor: %s\n", buf);
+		
+		if (state == XDES_FREE) {
+			/* We put here some fault tolerance: if the page
+			is already free, return without doing anything! */
+
+			return;
+		}
+
+		ut_a(0);
+	}
+
+	if (xdes_get_bit(descr, XDES_FREE_BIT, page % FSP_EXTENT_SIZE, mtr)
+								== TRUE) {
+		fprintf(stderr,
+"InnoDB: Error: File space extent descriptor of page %lu says it is free\n",
+									page);
+		ut_sprintf_buf(buf, ((byte*)descr) - 50, 200);
+
+		fprintf(stderr, "InnoDB: Dump of descriptor: %s\n", buf);
+
+		/* We put here some fault tolerance: if the page
+		is already free, return without doing anything! */
+
+		return;
+	}
 
 	xdes_set_bit(descr, XDES_FREE_BIT, page % FSP_EXTENT_SIZE, TRUE, mtr);
 	xdes_set_bit(descr, XDES_CLEAN_BIT, page % FSP_EXTENT_SIZE, TRUE, mtr);
@@ -2243,13 +2389,15 @@ fsp_reserve_free_extents(
 	mtr_t*	mtr)	/* in: mtr */
 {
 	fsp_header_t*	space_header;
+	rw_lock_t*	latch;
 	ulint		n_free_list_ext;
 	ulint		free_limit;
 	ulint		size;
 	ulint		n_free;
 	ulint		n_free_up;
 	ulint		reserve;
-	rw_lock_t*	latch;
+	ibool		success;
+	ulint		n_pages_added;
 
 	ut_ad(mtr);	
 	ut_ad(!mutex_own(&kernel_mutex)
@@ -2260,7 +2408,7 @@ fsp_reserve_free_extents(
 	mtr_x_lock(latch, mtr);
 
 	space_header = fsp_get_space_header(space, mtr);
-
+try_again:
 	size = mtr_read_ulint(space_header + FSP_SIZE, MLOG_4BYTES, mtr);
 	
 	n_free_list_ext = flst_get_len(space_header + FSP_FREE, mtr);
@@ -2291,7 +2439,7 @@ fsp_reserve_free_extents(
 
 		if (n_free <= reserve + n_ext) {
 
-			return(FALSE);
+			goto try_to_extend;
 		}
 	} else if (alloc_type == FSP_UNDO) {
 		/* We reserve 1 % of the space size to cleaning operations */
@@ -2300,13 +2448,26 @@ fsp_reserve_free_extents(
 
 		if (n_free <= reserve + n_ext) {
 
-			return(FALSE);
+			goto try_to_extend;
 		}
 	} else {
 		ut_a(alloc_type == FSP_CLEANING);
 	}
 
-	return(fil_space_reserve_free_extents(space, n_free, n_ext));
+	success = fil_space_reserve_free_extents(space, n_free, n_ext);
+
+	if (success) {
+		return(TRUE);
+	}
+try_to_extend:
+	success = fsp_try_extend_last_file(&n_pages_added, space,
+							space_header, mtr);
+	if (success && n_pages_added > 0) {
+
+		goto try_again;
+	}
+
+	return(FALSE);
 }
 
 /**************************************************************************

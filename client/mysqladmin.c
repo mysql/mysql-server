@@ -23,17 +23,19 @@
 #include <my_pthread.h>				/* because of signal()	*/
 #endif
 
-#define ADMIN_VERSION "8.23"
+#define ADMIN_VERSION "8.35"
 #define MAX_MYSQL_VAR 64
 #define SHUTDOWN_DEF_TIMEOUT 3600		/* Wait for shutdown */
 #define MAX_TRUNC_LENGTH 3
 
+char *host= NULL, *user= 0, *opt_password= 0;
 char truncated_var_names[MAX_MYSQL_VAR][MAX_TRUNC_LENGTH];
 char ex_var_names[MAX_MYSQL_VAR][FN_REFLEN];
 ulonglong last_values[MAX_MYSQL_VAR];
 static int interval=0;
 static my_bool option_force=0,interrupted=0,new_line=0,
-               opt_compress=0, opt_relative=0, opt_verbose=0, opt_vertical=0;
+               opt_compress=0, opt_relative=0, opt_verbose=0, opt_vertical=0,
+               tty_password=0;
 static uint tcp_port = 0, option_wait = 0, option_silent=0;
 static ulong opt_connect_timeout, opt_shutdown_timeout;
 static my_string unix_port=0;
@@ -49,8 +51,7 @@ static uint ex_var_count, max_var_length, max_val_length;
 
 static void print_version(void);
 static void usage(void);
-static my_bool sql_connect(MYSQL *mysql,const char *host, const char *user,
-			   const char *password,uint wait);
+static my_bool sql_connect(MYSQL *mysql, uint wait);
 static int execute_commands(MYSQL *mysql,int argc, char **argv);
 static int drop_db(MYSQL *mysql,const char *db);
 static sig_handler endprog(int signal_number);
@@ -97,158 +98,163 @@ static const char *command_names[]= {
 static TYPELIB command_typelib=
 { array_elements(command_names)-1,"commands", command_names};
 
-static struct option long_options[] = {
-  {"compress",           no_argument,       0, 'C'},
-  {"character-sets-dir", required_argument, 0, OPT_CHARSETS_DIR},
-  {"debug",              optional_argument, 0, '#'},
-  {"force",              no_argument,       0, 'f'},
-  {"help",               no_argument,       0, '?'},
-  {"host",               required_argument, 0, 'h'},
-  {"password",           optional_argument, 0, 'p'},
+static struct my_option my_long_options[] =
+{
+  {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'",
+   0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"force", 'f',
+   "Don't ask for confirmation on drop database; with multiple commands, continue even if an error occurs.",
+   (gptr*) &option_force, (gptr*) &option_force, 0, GET_BOOL, NO_ARG, 0, 0,
+   0, 0, 0, 0},
+  {"compress", 'C', "Use compression in server/client protocol",
+   (gptr*) &opt_compress, (gptr*) &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
+   0, 0, 0},
+  {"character-sets-dir", OPT_CHARSETS_DIR,
+   "Directory where character sets are.", (gptr*) &charsets_dir,
+   (gptr*) &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"help", '?', "Display this help and exit.", 0, 0, 0, GET_NO_ARG,
+   NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"host", 'h', "Connect to host", (gptr*) &host, (gptr*) &host, 0, GET_STR,
+   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"password", 'p',
+   "Password to use when connecting to server. If password is not given it's asked from the tty.",
+   0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef __WIN__
-  {"pipe",               no_argument,       0, 'W'},
+  {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0, GET_NO_ARG,
+   NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"port",               required_argument, 0, 'P'},
-  {"relative",           no_argument,       0, 'r'},
-  {"set-variable",	 required_argument, 0, 'O'},
-  {"silent",             no_argument,       0, 's'},
-  {"socket",             required_argument, 0, 'S'},
-  {"sleep",              required_argument, 0, 'i'},
+  {"port", 'P', "Port number to use for connection.", (gptr*) &tcp_port,
+   (gptr*) &tcp_port, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"relative", 'r',
+   "Show difference between current and previous values when used with -i. Currently works only with extended-status.",
+   (gptr*) &opt_relative, (gptr*) &opt_relative, 0, GET_BOOL, NO_ARG, 0, 0, 0,
+  0, 0, 0},
+  {"set-variable", 'O',
+   "Change the value of a variable. Please note that this option is deprecated; you can set variables directly with --variable-name=value.",
+   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"silent", 's', "Silently exit if one can't connect to server",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"socket", 'S', "Socket file to use for connection.",
+   (gptr*) &unix_port, (gptr*) &unix_port, 0, GET_STR, REQUIRED_ARG, 0, 0, 0,
+   0, 0, 0},
+  {"sleep", 'i', "Execute commands again and again with a sleep between.",
+   (gptr*) &interval, (gptr*) &interval, 0, GET_INT, REQUIRED_ARG, 0, 0, 0, 0,
+   0, 0},
 #include "sslopt-longopts.h"
 #ifndef DONT_ALLOW_USER_CHANGE
-  {"user",               required_argument, 0, 'u'},
+  {"user", 'u', "User for login if not current user.", (gptr*) &user,
+   (gptr*) &user, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"verbose",            no_argument,       0, 'v'},
-  {"version",            no_argument,       0, 'V'},
-  {"vertical",           no_argument,       0, 'E'},
-  {"wait",               optional_argument, 0, 'w'},
-  {0, 0, 0, 0}
+  {"verbose", 'v', "Write more information.", (gptr*) &opt_verbose,
+   (gptr*) &opt_verbose, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"version", 'V', "Output version information and exit", 0, 0, 0, GET_NO_ARG,
+   NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"vertical", 'E', 
+   "Print output vertically. Is similar to --relative, but prints output vertically.",
+   (gptr*) &opt_vertical, (gptr*) &opt_vertical, 0, GET_BOOL, NO_ARG, 0, 0, 0,
+   0, 0, 0},
+  {"wait", 'w', "Wait and retry if connection is down", 0, 0, 0, GET_NO_ARG,
+   NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"connect_timeout", OPT_CONNECT_TIMEOUT, "", (gptr*) &opt_connect_timeout,
+   (gptr*) &opt_connect_timeout, 0, GET_ULONG, REQUIRED_ARG, 3600*12, 0,
+   3600*12, 0, 1, 0},
+  {"shutdown_timeout", OPT_SHUTDOWN_TIMEOUT, "", (gptr*) &opt_shutdown_timeout,
+   (gptr*) &opt_shutdown_timeout, 0, GET_ULONG, REQUIRED_ARG,
+   SHUTDOWN_DEF_TIMEOUT, 0, 3600*12, 0, 1, 0},
+  { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
-static CHANGEABLE_VAR changeable_vars[] = {
-  { "connect_timeout", (long*) &opt_connect_timeout, 0, 0, 3600*12, 0, 1},
-  { "shutdown_timeout", (long*) &opt_shutdown_timeout, SHUTDOWN_DEF_TIMEOUT, 0,
-    3600*12, 0, 1},
-  { 0, 0, 0, 0, 0, 0, 0}  
-};
 
 static const char *load_default_groups[]= { "mysqladmin","client",0 };
 
-int main(int argc,char *argv[])
+static my_bool
+get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
+	       char *argument)
 {
-  int	c, error = 0,option_index=0;
-  MYSQL mysql;
-  char	*host = NULL,*opt_password=0,*user=0,**commands;
-  my_bool tty_password=0;
-  MY_INIT(argv[0]);
-  mysql_init(&mysql);
-  load_defaults("my",load_default_groups,&argc,&argv);
-  set_all_changeable_vars( changeable_vars );
+  int error = 0;
 
-  while ((c=getopt_long(argc,argv,
-			(char*) "h:i:p::u:#::P:sS:Ct:fq?vVw::WrEO:",
-			long_options, &option_index)) != EOF)
-  {
-    switch(c) {
-    case 'C':
-      opt_compress=1;
-      break;
-    case 'h':
-      host = optarg;
-      break;
-    case 'q':					/* Allow old 'q' option */
-    case 'f':
-      option_force++;
-      break;
-    case 'p':
-      if (optarg)
-      {
-	char *start=optarg;
-	my_free(opt_password,MYF(MY_ALLOW_ZERO_PTR));
-	opt_password=my_strdup(optarg,MYF(MY_FAE));
-	while (*optarg) *optarg++= 'x';		/* Destroy argument */
-	if (*start)
-	  start[1]=0;				/* Cut length of argument */
-      }
-      else
-	tty_password=1;
-      break;
-#ifndef DONT_ALLOW_USER_CHANGE
-    case 'u':
-      user= my_strdup(optarg,MYF(0));
-      break;
-#endif
-    case 'i':
-      interval=atoi(optarg);
-      break;
-    case 'P':
-      tcp_port= (unsigned int) atoi(optarg);
-      break;
-    case 'r':
-      opt_relative = 1;
-      break;
-    case 'E':
-      opt_vertical = 1;
-      break;
-    case 'O':
-      if (set_changeable_var(optarg, changeable_vars))
-      {
-	usage();
-	return(1);
-      }
-      break;
-    case 's':
-      option_silent++;
-      break;
-    case 'S':
-      unix_port= optarg;
-      break;
-    case 'W':
-#ifdef __WIN__
-      unix_port=MYSQL_NAMEDPIPE;
-#endif
-      break;
-    case '#':
-      DBUG_PUSH(optarg ? optarg : "d:t:o,/tmp/mysqladmin.trace");
-      break;
-    case 'V':
-      print_version();
-      exit(0);
-      break;
-    case 'v':
-      opt_verbose=1;
-      break;
-    case 'w':
-      if (optarg)
-      {
-	if ((option_wait=atoi(optarg)) <= 0)
-	  option_wait=1;
-      }
-      else
-	option_wait= ~0;
-      break;
-#include "sslopt-case.h"
-    default:
-      fprintf(stderr,"Illegal option character '%c'\n",opterr);
-      /* Fall throught */
-    case '?':
-    case 'I':					/* Info */
-      error++;
-      break;
-    case OPT_CHARSETS_DIR:
-#if MYSQL_VERSION_ID > 32300
-      charsets_dir = optarg;
-#endif
-      break;
+  switch(optid) {
+  case 'p':
+    if (argument)
+    {
+      char *start=argument;
+      my_free(opt_password,MYF(MY_ALLOW_ZERO_PTR));
+      opt_password=my_strdup(argument,MYF(MY_FAE));
+      while (*argument) *argument++= 'x';		/* Destroy argument */
+      if (*start)
+	start[1]=0;				/* Cut length of argument */
     }
+    else
+      tty_password=1;
+    break;
+  case 's':
+    option_silent++;
+    break;
+  case 'W':
+#ifdef __WIN__
+    unix_port=MYSQL_NAMEDPIPE;
+#endif
+    break;
+  case '#':
+    DBUG_PUSH(argument ? argument : "d:t:o,/tmp/mysqladmin.trace");
+    break;
+  case 'V':
+    print_version();
+    exit(0);
+    break;
+  case 'w':
+    if (argument)
+    {
+      if ((option_wait=atoi(argument)) <= 0)
+	option_wait=1;
+    }
+    else
+      option_wait= ~0;
+    break;
+#include "sslopt-case.h"
+  case '?':
+  case 'I':					/* Info */
+    error++;
+    break;
+  case OPT_CHARSETS_DIR:
+#if MYSQL_VERSION_ID > 32300
+    charsets_dir = argument;
+#endif
+    break;
   }
-  argc -= optind;
-  commands = argv + optind;
-  if (error || argc == 0)
+  if (error)
   {
     usage();
     exit(1);
   }
+  return 0;
+}
+
+
+int main(int argc,char *argv[])
+{
+  int error, ho_error;
+  MYSQL mysql;
+  char **commands;
+  char** save_argv;
+  MY_INIT(argv[0]);
+  mysql_init(&mysql);
+  load_defaults("my",load_default_groups,&argc,&argv);
+  save_argv = argv;
+  /* Sasha: with the change to handle_options() we now need to do this fix
+     with save_argv in all client utilities. The problem is that
+     handle_options may modify argv, and that wreaks havoc with
+     free_defaults()
+  */
+  if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
+    exit(ho_error);
+
+  if (argc == 0)
+  {
+    usage();
+    exit(1);
+  }
+  commands = argv;
   if (tty_password)
     opt_password = get_tty_password(NullS);
 
@@ -267,7 +273,7 @@ int main(int argc,char *argv[])
     mysql_ssl_set(&mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
 		  opt_ssl_capath, opt_ssl_cipher);
 #endif /* HAVE_OPENSSL */
-  if (sql_connect(&mysql,host,user,opt_password,option_wait))
+  if (sql_connect(&mysql, option_wait))
     error = 1;
   else
   {
@@ -284,7 +290,7 @@ int main(int argc,char *argv[])
 	  if (option_wait && !interrupted)
 	  {
 	    mysql_close(&mysql);
-	    if (!sql_connect(&mysql,host,user,opt_password,option_wait))
+	    if (!sql_connect(&mysql, option_wait))
 	    {
 	      sleep(1);				/* Don't retry too rapidly */
 	      continue;				/* Retry */
@@ -307,7 +313,7 @@ int main(int argc,char *argv[])
   }
   my_free(opt_password,MYF(MY_ALLOW_ZERO_PTR));
   my_free(user,MYF(MY_ALLOW_ZERO_PTR));
-  free_defaults(argv);
+  free_defaults(save_argv);
   my_end(0);
   exit(error ? 1 : 0);
   return 0;
@@ -320,15 +326,14 @@ static sig_handler endprog(int signal_number __attribute__((unused)))
 }
 
 
-static my_bool sql_connect(MYSQL *mysql,const char *host, const char *user,
-			const char *password,uint wait)
+static my_bool sql_connect(MYSQL *mysql, uint wait)
 {
   my_bool info=0;
 
   for (;;)
   {
-    if (mysql_real_connect(mysql,host,user,password,NullS,tcp_port,unix_port,
-			   0))
+    if (mysql_real_connect(mysql,host,user,opt_password,NullS,tcp_port,
+			   unix_port, 0))
     {
       if (info)
       {
@@ -343,7 +348,7 @@ static my_bool sql_connect(MYSQL *mysql,const char *host, const char *user,
       if (!option_silent)
       {
 	if (!host)
-	  host=LOCAL_HOST;
+	  host= (char*) LOCAL_HOST;
 	my_printf_error(0,"connect to server at '%s' failed\nerror: '%s'",
 			MYF(ME_BELL), host, mysql_error(mysql));
 	if (mysql_errno(mysql) == CR_CONNECTION_ERROR)
@@ -400,7 +405,7 @@ static my_bool sql_connect(MYSQL *mysql,const char *host, const char *user,
 
 static int execute_commands(MYSQL *mysql,int argc, char **argv)
 {
-  char *status;
+  const char *status;
 
   for (; argc > 0 ; argv++,argc--)
   {
@@ -788,52 +793,14 @@ static void print_version(void)
 
 static void usage(void)
 {
-  uint i;
   print_version();
   puts("Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB");
   puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,\nand you are welcome to modify and redistribute it under the GPL license\n");
   puts("Administration program for the mysqld daemon.");
   printf("Usage: %s [OPTIONS] command command....\n", my_progname);
-  printf("\n\
-  -#, --debug=...       Output debug log. Often this is 'd:t:o,filename`\n\
-  -f, --force		Don't ask for confirmation on drop database; with\n\
-			multiple commands, continue even if an error occurs\n\
-  -?, --help		Display this help and exit\n\
-  --character-sets-dir=...\n\
-                        Set the character set directory\n\
-  -C, --compress        Use compression in server/client protocol\n\
-  -h, --host=#		Connect to host\n\
-  -p, --password[=...]	Password to use when connecting to server\n\
-			If password is not given it's asked from the tty\n");
-#ifdef __WIN__
-  puts("-W, --pipe		Use named pipes to connect to server");
-#endif
-  printf("\
-  -P  --port=...	Port number to use for connection\n\
-  -i, --sleep=sec	Execute commands again and again with a sleep between\n\
-  -r, --relative        Show difference between current and previous values\n\
-                        when used with -i. Currently works only with\n\
-                        extended-status\n\
-  -E, --vertical        Print output vertically. Is similar to --relative,\n\
-                        but prints output vertically.\n\
-  -s, --silent		Silently exit if one can't connect to server\n\
-  -S, --socket=...	Socket file to use for connection\n");
-#include "sslopt-usage.h"
-#ifndef DONT_ALLOW_USER_CHANGE
-  printf("\
-  -u, --user=#		User for login if not current user\n");
-#endif
-  printf("\
-  -v, --verbose         Write more information\n\
-  -V, --version		Output version information and exit\n\
-  -w, --wait[=retries]  Wait and retry if connection is down\n");
+  my_print_help(my_long_options);
+  my_print_variables(my_long_options);
   print_defaults("my",load_default_groups);
-  printf("\nPossible variables for option --set-variable (-O) are:\n");
-  for (i=0 ; changeable_vars[i].name ; i++)
-    printf("%-20s  current value: %lu\n",
-	   changeable_vars[i].name,
-	   (ulong) *changeable_vars[i].varptr);
-
   puts("\nWhere command is a one or more of: (Commands may be shortened)\n\
   create databasename	Create a new database\n\
   drop databasename	Delete a database and all its tables\n\

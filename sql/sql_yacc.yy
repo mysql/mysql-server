@@ -241,9 +241,13 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token  MASTER_PORT_SYM
 %token  MASTER_CONNECT_RETRY_SYM
 %token  MASTER_SERVER_ID_SYM
+%token  RELAY_LOG_FILE_SYM
+%token  RELAY_LOG_POS_SYM
 %token	MATCH
 %token	MAX_ROWS
+%token  MAX_CONNECTIONS_PER_HOUR
 %token  MAX_QUERIES_PER_HOUR
+%token  MAX_UPDATES_PER_HOUR
 %token	MEDIUM_SYM
 %token	MERGE_SYM
 %token	MIN_ROWS
@@ -287,6 +291,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	RENAME
 %token	REPEATABLE_SYM
 %token	REQUIRE_SYM
+%token  RESOURCES
 %token  RESTORE_SYM
 %token	RESTRICT
 %token	REVOKE
@@ -611,7 +616,7 @@ query:
 	     thd->lex.sql_command = SQLCOM_EMPTY_QUERY;
 	   }
 	}
-	| verb_clause END_OF_INPUT {}
+	| verb_clause END_OF_INPUT {};
 
 verb_clause:
 	  alter
@@ -649,7 +654,7 @@ verb_clause:
 	| handler
 	| unlock
 	| update
-	| use
+	| use;
 
 /* change master */
 
@@ -659,12 +664,12 @@ change:
 	  LEX *lex = Lex;
 	  lex->sql_command = SQLCOM_CHANGE_MASTER;
 	  memset(&lex->mi, 0, sizeof(lex->mi));
-        } master_defs
+        } master_defs;
 
 master_defs:
        master_def
        |
-       master_defs ',' master_def
+       master_defs ',' master_def;
 
 master_def:
        MASTER_HOST_SYM EQ TEXT_STRING
@@ -701,6 +706,16 @@ master_def:
        {
 	 Lex->mi.connect_retry = $3;
        }
+       |
+       RELAY_LOG_FILE_SYM EQ TEXT_STRING
+       {
+	 Lex->mi.relay_log_name = $3.str;
+       }
+       |
+       RELAY_LOG_POS_SYM EQ ULONG_NUM
+       {
+	 Lex->mi.relay_log_pos = $3;
+       };
 
 
 /* create a table */
@@ -761,11 +776,11 @@ create:
 	    LEX *lex=Lex;
 	    lex->udf.returns=(Item_result) $7;
 	    lex->udf.dl=$9.str;
-	  }
+	  };
 
 create2:
 	'(' field_list ')' opt_create_table_options create3 {}
-	| opt_create_table_options create3 {}
+	| opt_create_table_options create3 {};
 
 create3:
 	/* empty */ {}
@@ -775,34 +790,34 @@ create3:
 	    lex->lock_option= (using_update_log) ? TL_READ_NO_INSERT : TL_READ;
 	    mysql_init_select(lex);
           }
-          select_options select_item_list opt_select_from union {}
+          select_options select_item_list opt_select_from union {};
 
 opt_as:
 	/* empty */ {}
-	| AS	    {}
+	| AS	    {};
 
 opt_table_options:
 	/* empty */	 { $$= 0; }
-	| table_options  { $$= $1;}
+	| table_options  { $$= $1;};
 
 table_options:
 	table_option	{ $$=$1; }
-	| table_option table_options { $$= $1 | $2; }
+	| table_option table_options { $$= $1 | $2; };
 
 table_option:
-	TEMPORARY	{ $$=HA_LEX_CREATE_TMP_TABLE; }
+	TEMPORARY	{ $$=HA_LEX_CREATE_TMP_TABLE; };
 
 opt_if_not_exists:
 	/* empty */	 { $$= 0; }
-	| IF NOT EXISTS	 { $$=HA_LEX_CREATE_IF_NOT_EXISTS; }
+	| IF NOT EXISTS	 { $$=HA_LEX_CREATE_IF_NOT_EXISTS; };
 
 opt_create_table_options:
 	/* empty */
-	| create_table_options
+	| create_table_options;
 
 create_table_options:
 	create_table_option
-	| create_table_option create_table_options
+	| create_table_option create_table_options;
 
 create_table_option:
 	TYPE_SYM EQ table_types		{ Lex->create_info.db_type= $3; }
@@ -835,7 +850,7 @@ create_table_option:
 	  }
 	| INSERT_METHOD EQ merge_insert_types   { Lex->create_info.merge_insert_method= $3; Lex->create_info.used_fields|= HA_CREATE_USED_INSERT_METHOD;}
 	| DATA_SYM DIRECTORY_SYM EQ TEXT_STRING	{ Lex->create_info.data_file_name= $4.str; }
-	| INDEX DIRECTORY_SYM EQ TEXT_STRING	{ Lex->create_info.index_file_name= $4.str; }
+	| INDEX DIRECTORY_SYM EQ TEXT_STRING	{ Lex->create_info.index_file_name= $4.str; };
 
 table_types:
 	ISAM_SYM	{ $$= DB_TYPE_ISAM; }
@@ -843,40 +858,40 @@ table_types:
 	| MERGE_SYM	{ $$= DB_TYPE_MRG_MYISAM; }
 	| HEAP_SYM	{ $$= DB_TYPE_HEAP; }
 	| BERKELEY_DB_SYM { $$= DB_TYPE_BERKELEY_DB; }
-	| INNOBASE_SYM  { $$= DB_TYPE_INNODB; }
+	| INNOBASE_SYM  { $$= DB_TYPE_INNODB; };
 
 row_types:
 	DEFAULT		{ $$= ROW_TYPE_DEFAULT; }
 	| FIXED_SYM	{ $$= ROW_TYPE_FIXED; }
 	| DYNAMIC_SYM	{ $$= ROW_TYPE_DYNAMIC; }
-	| COMPRESSED_SYM { $$= ROW_TYPE_COMPRESSED; }
+	| COMPRESSED_SYM { $$= ROW_TYPE_COMPRESSED; };
 
 raid_types:
 	RAID_STRIPED_SYM { $$= RAID_TYPE_0; }
 	| RAID_0_SYM	 { $$= RAID_TYPE_0; }
-	| ULONG_NUM	 { $$=$1;}
+	| ULONG_NUM	 { $$=$1;};
 
 merge_insert_types:
        NO_SYM            { $$= MERGE_INSERT_DISABLED; }
        | FIRST_SYM       { $$= MERGE_INSERT_TO_FIRST; }
-       | LAST_SYM        { $$= MERGE_INSERT_TO_LAST; }
+       | LAST_SYM        { $$= MERGE_INSERT_TO_LAST; };
 
 opt_select_from:
 	/* empty */
-	| select_from select_lock_type
+	| select_from select_lock_type;
 
 udf_func_type:
 	/* empty */ 	{ $$ = UDFTYPE_FUNCTION; }
-	| AGGREGATE_SYM { $$ = UDFTYPE_AGGREGATE; }
+	| AGGREGATE_SYM { $$ = UDFTYPE_AGGREGATE; };
 
 udf_type:
 	STRING_SYM {$$ = (int) STRING_RESULT; }
 	| REAL {$$ = (int) REAL_RESULT; }
-	| INT_SYM {$$ = (int) INT_RESULT; }
+	| INT_SYM {$$ = (int) INT_RESULT; };
 
 field_list:
 	  field_list_item
-	| field_list ',' field_list_item
+	| field_list ',' field_list_item;
 
 
 field_list_item:
@@ -898,11 +913,11 @@ field_list_item:
 	| opt_constraint CHECK_SYM '(' expr ')'
 	  {
 	    Lex->col_list.empty();		/* Alloced by sql_alloc */
-	  }
+	  };
 
 opt_constraint:
 	/* empty */
-	| CONSTRAINT opt_ident
+	| CONSTRAINT opt_ident;
 
 field_spec:
 	field_ident
@@ -920,7 +935,7 @@ field_spec:
 				lex->default_value,lex->change,
 				lex->interval))
 	    YYABORT;
-	}
+	};
 
 type:
 	int_type opt_len field_options	{ Lex->length=$2; $$=$1; }
@@ -979,73 +994,73 @@ type:
 	    LEX *lex=Lex;
 	    lex->interval=typelib(lex->interval_list);
 	    $$=FIELD_TYPE_SET;
-	  }
+	  };
 
 char:
 	CHAR_SYM {}
 	| NCHAR_SYM {}
-	| NATIONAL_SYM CHAR_SYM {}
+	| NATIONAL_SYM CHAR_SYM {};
 
 varchar:
 	char VARYING {}
 	| VARCHAR {}
 	| NATIONAL_SYM VARCHAR {}
-	| NCHAR_SYM VARCHAR {}
+	| NCHAR_SYM VARCHAR {};
 
 int_type:
 	INT_SYM		{ $$=FIELD_TYPE_LONG; }
 	| TINYINT	{ $$=FIELD_TYPE_TINY; }
 	| SMALLINT	{ $$=FIELD_TYPE_SHORT; }
 	| MEDIUMINT	{ $$=FIELD_TYPE_INT24; }
-	| BIGINT	{ $$=FIELD_TYPE_LONGLONG; }
+	| BIGINT	{ $$=FIELD_TYPE_LONGLONG; };
 
 real_type:
 	REAL		{ $$= current_thd->sql_mode & MODE_REAL_AS_FLOAT ?
 			      FIELD_TYPE_FLOAT : FIELD_TYPE_DOUBLE; }
 	| DOUBLE_SYM	{ $$=FIELD_TYPE_DOUBLE; }
-	| DOUBLE_SYM PRECISION { $$=FIELD_TYPE_DOUBLE; }
+	| DOUBLE_SYM PRECISION { $$=FIELD_TYPE_DOUBLE; };
 
 
 float_options:
 	/* empty */		{}
 	| '(' NUM ')'		{ Lex->length=$2.str; }
-	| precision		{}
+	| precision		{};
 
 precision:
 	'(' NUM ',' NUM ')'
 	{
 	  LEX *lex=Lex;
 	  lex->length=$2.str; lex->dec=$4.str;
-	}
+	};
 
 field_options:
 	/* empty */		{}
-	| field_opt_list	{}
+	| field_opt_list	{};
 
 field_opt_list:
 	field_opt_list field_option {}
-	| field_option {}
+	| field_option {};
 
 field_option:
 	SIGNED_SYM	{}
 	| UNSIGNED	{ Lex->type|= UNSIGNED_FLAG;}
-	| ZEROFILL	{ Lex->type|= UNSIGNED_FLAG | ZEROFILL_FLAG; }
+	| ZEROFILL	{ Lex->type|= UNSIGNED_FLAG | ZEROFILL_FLAG; };
 
 opt_len:
 	/* empty */	{ $$=(char*) 0; }	/* use default length */
-	| '(' NUM ')'	{ $$=$2.str; }
+	| '(' NUM ')'	{ $$=$2.str; };
 
 opt_precision:
 	/* empty */	{}
-	| precision	{}
+	| precision	{};
 
 opt_attribute:
 	/* empty */ {}
-	| opt_attribute_list {}
+	| opt_attribute_list {};
 
 opt_attribute_list:
 	opt_attribute_list attribute {}
-	| attribute
+	| attribute;
 
 attribute:
 	NULL_SYM	  { Lex->type&= ~ NOT_NULL_FLAG; }
@@ -1054,40 +1069,40 @@ attribute:
 	| AUTO_INC	  { Lex->type|= AUTO_INCREMENT_FLAG | NOT_NULL_FLAG; }
 	| PRIMARY_SYM KEY_SYM { Lex->type|= PRI_KEY_FLAG | NOT_NULL_FLAG; }
 	| UNIQUE_SYM	  { Lex->type|= UNIQUE_FLAG; }
-	| UNIQUE_SYM KEY_SYM { Lex->type|= UNIQUE_KEY_FLAG; }
+	| UNIQUE_SYM KEY_SYM { Lex->type|= UNIQUE_KEY_FLAG; };
 
 opt_binary:
 	/* empty */	{}
-	| BINARY	{ Lex->type|=BINARY_FLAG; }
+	| BINARY	{ Lex->type|=BINARY_FLAG; };
 
 references:
 	REFERENCES table_ident opt_on_delete {}
 	| REFERENCES table_ident '(' key_list ')' opt_on_delete
 	  {
 	    Lex->col_list.empty();		/* Alloced by sql_alloc */
-	  }
+	  };
 
 opt_on_delete:
 	/* empty */ {}
-	| opt_on_delete_list {}
+	| opt_on_delete_list {};
 
 opt_on_delete_list:
 	opt_on_delete_list opt_on_delete_item {}
-	| opt_on_delete_item {}
+	| opt_on_delete_item {};
 
 
 opt_on_delete_item:
 	ON DELETE_SYM delete_option {}
 	| ON UPDATE_SYM delete_option {}
 	| MATCH FULL	{}
-	| MATCH PARTIAL {}
+	| MATCH PARTIAL {};
 
 delete_option:
 	RESTRICT	 {}
 	| CASCADE	 {}
 	| SET NULL_SYM {}
 	| NO_SYM ACTION {}
-	| SET DEFAULT {}
+	| SET DEFAULT {};
 
 key_type:
 	opt_constraint PRIMARY_SYM KEY_SYM  { $$= Key::PRIMARY; }
@@ -1095,37 +1110,37 @@ key_type:
 	| FULLTEXT_SYM			    { $$= Key::FULLTEXT; }
 	| FULLTEXT_SYM key_or_index	    { $$= Key::FULLTEXT; }
 	| opt_constraint UNIQUE_SYM	    { $$= Key::UNIQUE; }
-	| opt_constraint UNIQUE_SYM key_or_index { $$= Key::UNIQUE; }
+	| opt_constraint UNIQUE_SYM key_or_index { $$= Key::UNIQUE; };
 
 key_or_index:
 	KEY_SYM {}
-	| INDEX {}
+	| INDEX {};
 
 keys_or_index:
 	KEYS {}
 	| INDEX {}
-	| INDEXES {}
+	| INDEXES {};
 
 opt_unique_or_fulltext:
 	/* empty */	{ $$= Key::MULTIPLE; }
 	| UNIQUE_SYM	{ $$= Key::UNIQUE; }
-	| FULLTEXT_SYM	{ $$= Key::FULLTEXT; }
+	| FULLTEXT_SYM	{ $$= Key::FULLTEXT; };
 
 key_list:
 	key_list ',' key_part order_dir { Lex->col_list.push_back($3); }
-	| key_part order_dir		{ Lex->col_list.push_back($1); }
+	| key_part order_dir		{ Lex->col_list.push_back($1); };
 
 key_part:
 	ident			{ $$=new key_part_spec($1.str); }
-	| ident '(' NUM ')'	{ $$=new key_part_spec($1.str,(uint) atoi($3.str)); }
+	| ident '(' NUM ')'	{ $$=new key_part_spec($1.str,(uint) atoi($3.str)); };
 
 opt_ident:
 	/* empty */	{ $$=(char*) 0; }	/* Defaultlength */
-	| field_ident	{ $$=$1.str; }
+	| field_ident	{ $$=$1.str; };
 
 string_list:
 	text_string			{ Lex->interval_list.push_back($1); }
-	| string_list ',' text_string	{ Lex->interval_list.push_back($3); }
+	| string_list ',' text_string	{ Lex->interval_list.push_back($3); };
 
 /*
 ** Alter table
@@ -1155,14 +1170,14 @@ alter:
           lex->alter_keys_onoff=LEAVE_AS_IS;
           lex->simple_alter=1;
 	}
-	alter_list
+	alter_list;
  
 alter_list:
         | alter_list_item
-	| alter_list ',' alter_list_item
+	| alter_list ',' alter_list_item;
 
 add_column:
-	ADD opt_column { Lex->change=0; }
+	ADD opt_column { Lex->change=0; };
 
 alter_list_item:
 	add_column field_list_item opt_place { Lex->simple_alter=0; }
@@ -1225,38 +1240,39 @@ alter_list_item:
 	    lex->alter_list.push_back(new Alter_column($3.str,(Item*) 0));
 	    lex->simple_alter=0;
 	  }
-	| RENAME opt_to table_alias table_ident
+	| RENAME opt_to table_ident
 	  { 
 	    LEX *lex=Lex;
-	    lex->select->db=$4->db.str;
-	    lex->name= $4->table.str;
+	    lex->select->db=$3->db.str;
+	    lex->name= $3->table.str;
 	    lex->simple_alter=0; 
 	  }
         | create_table_options { Lex->simple_alter=0; }
-	| order_clause         { Lex->simple_alter=0; }
+	| order_clause         { Lex->simple_alter=0; };
 
 opt_column:
 	/* empty */	{}
-	| COLUMN_SYM	{}
+	| COLUMN_SYM	{};
 
 opt_ignore:
 	/* empty */	{ Lex->duplicates=DUP_ERROR; }
-	| IGNORE_SYM	{ Lex->duplicates=DUP_IGNORE; }
+	| IGNORE_SYM	{ Lex->duplicates=DUP_IGNORE; };
 
 opt_restrict:
 	/* empty */	{}
 	| RESTRICT	{}
-	| CASCADE	{}
+	| CASCADE	{};
 
 opt_place:
 	/* empty */	{}
 	| AFTER_SYM ident { store_position_for_column($2.str); }
-	| FIRST_SYM	  { store_position_for_column(first_keyword); }
+	| FIRST_SYM	  { store_position_for_column(first_keyword); };
 
 opt_to:
 	/* empty */	{}
 	| TO_SYM	{}
-	| AS		{}
+	| EQ		{}
+	| AS		{};
 
 slave:
 	SLAVE START_SYM slave_thread_opts
@@ -1274,7 +1290,7 @@ slave:
          };
 
 slave_thread_opts: slave_thread_opt
- | slave_thread_opts ',' slave_thread_opt
+ | slave_thread_opts ',' slave_thread_opt;
 
 slave_thread_opt:
    /*empty*/ {} 
@@ -1285,7 +1301,7 @@ slave_thread_opt:
   | IO_THREAD
     {
       Lex->slave_thd_opt|=SLAVE_IO;
-    }
+    };
   
 restore:
 	RESTORE_SYM table_or_tables
@@ -1295,7 +1311,7 @@ restore:
 	table_list FROM TEXT_STRING
         {
 	  Lex->backup_dir = $6.str;
-        }
+        };
 backup:
 	BACKUP_SYM table_or_tables
 	{
@@ -1304,7 +1320,7 @@ backup:
 	table_list TO_SYM TEXT_STRING
         {
 	  Lex->backup_dir = $6.str;
-        }
+        };
 
 repair:
 	REPAIR table_or_tables
@@ -1313,20 +1329,20 @@ repair:
 	   lex->sql_command = SQLCOM_REPAIR;
 	   lex->check_opt.init();
 	}
-	table_list opt_mi_repair_type
+	table_list opt_mi_repair_type;
 
 opt_mi_repair_type:
 	/* empty */ { Lex->check_opt.flags = T_MEDIUM; }
-	| mi_repair_types {}
+	| mi_repair_types {};
 
 mi_repair_types:
 	mi_repair_type {}
-	| mi_repair_type mi_repair_types {}
+	| mi_repair_type mi_repair_types {};
 
 mi_repair_type:
-	QUICK      { Lex->check_opt.flags|= T_QUICK; }
+	QUICK          { Lex->check_opt.flags|= T_QUICK; }
 	| EXTENDED_SYM { Lex->check_opt.flags|= T_EXTEND; }
-        | USE_FRM      { /*Lex->check_opt.flags|= T_USEFRM;*/ }
+        | USE_FRM      { Lex->check_opt.sql_flags|= TT_USEFRM; };
 
 analyze:
 	ANALYZE_SYM table_or_tables
@@ -1335,7 +1351,7 @@ analyze:
 	   lex->sql_command = SQLCOM_ANALYZE;
 	   lex->check_opt.init();
 	}
-	table_list opt_mi_check_type
+	table_list opt_mi_check_type;
 
 check:
 	CHECK_SYM table_or_tables
@@ -1344,22 +1360,22 @@ check:
 	   lex->sql_command = SQLCOM_CHECK;
 	   lex->check_opt.init();
 	}
-	table_list opt_mi_check_type
+	table_list opt_mi_check_type;
 
 opt_mi_check_type:
 	/* empty */ { Lex->check_opt.flags = T_MEDIUM; }
-	| mi_check_types {}
+	| mi_check_types {};
 
 mi_check_types:
 	mi_check_type {}
-	| mi_check_type mi_check_types {}
+	| mi_check_type mi_check_types {};
 
 mi_check_type:
 	QUICK      { Lex->check_opt.flags|= T_QUICK; }
 	| FAST_SYM { Lex->check_opt.flags|= T_FAST; }
 	| MEDIUM_SYM { Lex->check_opt.flags|= T_MEDIUM; }
 	| EXTENDED_SYM { Lex->check_opt.flags|= T_EXTEND; }
-	| CHANGED  { Lex->check_opt.flags|= T_CHECK_ONLY_CHANGED; }
+	| CHANGED  { Lex->check_opt.flags|= T_CHECK_ONLY_CHANGED; };
 
 optimize:
 	OPTIMIZE table_or_tables
@@ -1368,25 +1384,25 @@ optimize:
 	   lex->sql_command = SQLCOM_OPTIMIZE;
 	   lex->check_opt.init();
 	}
-	table_list opt_mi_check_type
+	table_list opt_mi_check_type;
 
 rename:
 	RENAME table_or_tables
 	{
 	   Lex->sql_command=SQLCOM_RENAME_TABLE;
 	}
-	table_to_table_list
+	table_to_table_list;
 
 table_to_table_list:
 	table_to_table
-	| table_to_table_list ',' table_to_table
+	| table_to_table_list ',' table_to_table;
 
 table_to_table:
 	table_ident TO_SYM table_ident
 	{ if (!add_table_to_list($1,NULL,1,TL_IGNORE) ||
 	      !add_table_to_list($3,NULL,1,TL_IGNORE))
 	     YYABORT;
- 	}
+ 	};
 
 /*
   Select : retrieve data from table
@@ -1394,12 +1410,12 @@ table_to_table:
 
 
 select:
-	select_init { Lex->sql_command=SQLCOM_SELECT; }
+	select_init { Lex->sql_command=SQLCOM_SELECT; };
 
 select_init:
 	SELECT_SYM select_part2 { Select->braces=false;	} union
 	|
-	'(' SELECT_SYM 	select_part2 ')' { Select->braces=true;} union_opt
+	'(' SELECT_SYM 	select_part2 ')' { Select->braces=true;} union_opt;
 
 
 select_part2:
@@ -1408,44 +1424,44 @@ select_part2:
 	  lex->lock_option=TL_READ;
 	   mysql_init_select(lex);
 	}
-	select_options select_item_list select_into select_lock_type
+	select_options select_item_list select_into select_lock_type;
 
 select_into:
 	limit_clause {}
 	| select_from
 	| opt_into select_from
-	| select_from opt_into
+	| select_from opt_into;
 
 select_from:
-	FROM join_table_list where_clause group_clause having_clause opt_order_clause limit_clause procedure_clause
+	FROM join_table_list where_clause group_clause having_clause opt_order_clause limit_clause procedure_clause;
 
 
 select_options:
 	/* empty*/
-	| select_option_list
+	| select_option_list;
 
 select_option_list:
 	select_option_list select_option
-	| select_option
+	| select_option;
 
 select_option:
 	STRAIGHT_JOIN { Select->options|= SELECT_STRAIGHT_JOIN; }
-	| HIGH_PRIORITY { Lex->lock_option= TL_READ_HIGH_PRIORITY; }
+	| HIGH_PRIORITY { if (Select != &Lex->select_lex) YYABORT;  Lex->lock_option= TL_READ_HIGH_PRIORITY; }
 	| DISTINCT	{ Select->options|= SELECT_DISTINCT; }
 	| SQL_SMALL_RESULT { Select->options|= SELECT_SMALL_RESULT; }
 	| SQL_BIG_RESULT { Select->options|= SELECT_BIG_RESULT; }
-	| SQL_BUFFER_RESULT { Select->options|= OPTION_BUFFER_RESULT; }
-	| SQL_CALC_FOUND_ROWS { Select->options|= OPTION_FOUND_ROWS; }
-	| SQL_NO_CACHE_SYM { current_thd->safe_to_cache_query=0; }
-	| SQL_CACHE_SYM { Select->options |= OPTION_TO_QUERY_CACHE; }
-	| ALL		{}
+	| SQL_BUFFER_RESULT { if (Select != &Lex->select_lex) YYABORT; Select->options|= OPTION_BUFFER_RESULT; }
+	| SQL_CALC_FOUND_ROWS {  if (Select != &Lex->select_lex) YYABORT; Select->options|= OPTION_FOUND_ROWS; }
+	| SQL_NO_CACHE_SYM {  if (Select != &Lex->select_lex) YYABORT; current_thd->safe_to_cache_query=0; }
+	| SQL_CACHE_SYM {  if (Select != &Lex->select_lex) YYABORT; Select->options |= OPTION_TO_QUERY_CACHE; }
+	| ALL		{};
 
 select_lock_type:
 	/* empty */
 	| FOR_SYM UPDATE_SYM
-	  { Lex->lock_option= TL_WRITE; current_thd->safe_to_cache_query=0; }
+	  {  if (Select != &Lex->select_lex) YYABORT;  Lex->lock_option= TL_WRITE; current_thd->safe_to_cache_query=0; }
 	| LOCK_SYM IN_SYM SHARE_SYM MODE_SYM
-	  { Lex->lock_option= TL_READ_WITH_SHARED_LOCKS; current_thd->safe_to_cache_query=0; }
+	  {  if (Select != &Lex->select_lex) YYABORT;  Lex->lock_option= TL_READ_WITH_SHARED_LOCKS; current_thd->safe_to_cache_query=0; };
 
 select_item_list:
 	  select_item_list ',' select_item
@@ -1454,7 +1470,7 @@ select_item_list:
 	  {
 	    if (add_item_to_list(new Item_field(NULL,NULL,"*")))
 	      YYABORT;
-	  }
+	  };
 
 
 select_item:
@@ -1466,32 +1482,32 @@ select_item:
 	      $2->set_name($4.str);
 	    else if (!$2->name)
 	      $2->set_name($1,(uint) ($3 - $1));
-	  }
+	  };
 
 remember_name:
-	{ $$=(char*) Lex->tok_start; }
+	{ $$=(char*) Lex->tok_start; };
 
 remember_end:
-	{ $$=(char*) Lex->tok_end; }
+	{ $$=(char*) Lex->tok_end; };
 
 select_item2:
 	table_wild	{ $$=$1; } /* table.* */
-	| expr		{ $$=$1; }
+	| expr		{ $$=$1; };
 
 select_alias:
 	{ $$.str=0;}
 	| AS ident { $$=$2; }
 	| AS TEXT_STRING  { $$=$2; }
 	| ident { $$=$1; }
-	| TEXT_STRING  { $$=$1; }
+	| TEXT_STRING  { $$=$1; };
 
 optional_braces:
 	/* empty */ {}
-	| '(' ')' {}
+	| '(' ')' {};
 
 /* all possible expressions */
 expr:	expr_expr	{$$ = $1; }
-	| simple_expr	{$$ = $1; }
+	| simple_expr	{$$ = $1; };
 
 /* expressions that begin with 'expr' */
 expr_expr:
@@ -1531,7 +1547,7 @@ expr_expr:
 	| expr '+' INTERVAL_SYM expr interval
 	  { $$= new Item_date_add_interval($1,$4,$5,0); }
 	| expr '-' INTERVAL_SYM expr interval
-	  { $$= new Item_date_add_interval($1,$4,$5,1); }
+	  { $$= new Item_date_add_interval($1,$4,$5,1); };
 
 /* expressions that begin with 'expr' that do NOT follow IN_SYM */
 no_in_expr:
@@ -1568,7 +1584,7 @@ no_in_expr:
 	  { $$= new Item_date_add_interval($1,$4,$5,0); }
 	| no_in_expr '-' INTERVAL_SYM expr interval
 	  { $$= new Item_date_add_interval($1,$4,$5,1); }
-	| simple_expr
+	| simple_expr;
 
 /* expressions that begin with 'expr' that does NOT follow AND */
 no_and_expr:
@@ -1608,7 +1624,7 @@ no_and_expr:
 	  { $$= new Item_date_add_interval($1,$4,$5,0); }
 	| no_and_expr '-' INTERVAL_SYM expr interval
 	  { $$= new Item_date_add_interval($1,$4,$5,1); }
-	| simple_expr
+	| simple_expr;
 
 simple_expr:
 	simple_ident
@@ -1876,11 +1892,11 @@ simple_expr:
 	    current_thd->safe_to_cache_query=0;
 	  }
 	| EXTRACT_SYM '(' interval FROM expr ')'
-	{ $$=new Item_extract( $3, $5); }
+	{ $$=new Item_extract( $3, $5); };
 
 udf_expr_list:
 	/* empty */	{ $$= NULL; }
-	| expr_list	{ $$= $1;}
+	| expr_list	{ $$= $1;};
 
 sum_expr:
 	AVG_SYM '(' in_sum_expr ')'
@@ -1904,7 +1920,7 @@ sum_expr:
 	| STD_SYM '(' in_sum_expr ')'
 	  { $$=new Item_sum_std($3); }
 	| SUM_SYM '(' in_sum_expr ')'
-	  { $$=new Item_sum_sum($3); }
+	  { $$=new Item_sum_sum($3); };
 
 in_sum_expr:
 	{ Select->in_sum_expr++; }
@@ -1912,7 +1928,7 @@ in_sum_expr:
 	{
 	  Select->in_sum_expr--;
 	  $$=$2;
-	}
+	};
 
 cast_type:
 	BINARY 			{ $$=ITEM_CAST_BINARY; }
@@ -1922,42 +1938,42 @@ cast_type:
 	| UNSIGNED INT_SYM	{ $$=ITEM_CAST_UNSIGNED_INT; }
 	| DATE_SYM		{ $$=ITEM_CAST_DATE; }
 	| TIME_SYM		{ $$=ITEM_CAST_TIME; }
-	| DATETIME		{ $$=ITEM_CAST_DATETIME; }
+	| DATETIME		{ $$=ITEM_CAST_DATETIME; };
 
 expr_list:
 	{ Select->expr_list.push_front(new List<Item>); }
 	expr_list2
-	{ $$= Select->expr_list.pop(); }
+	{ $$= Select->expr_list.pop(); };
 
 expr_list2:
 	expr { Select->expr_list.head()->push_back($1); }
-	| expr_list2 ',' expr { Select->expr_list.head()->push_back($3); }
+	| expr_list2 ',' expr { Select->expr_list.head()->push_back($3); };
 
 ident_list_arg:
           ident_list          { $$= $1; }
-        | '(' ident_list ')'  { $$= $2; }
+        | '(' ident_list ')'  { $$= $2; };
 
 ident_list:
         { Select->expr_list.push_front(new List<Item>); }
         ident_list2
-        { $$= Select->expr_list.pop(); }
+        { $$= Select->expr_list.pop(); };
 
 ident_list2:
         simple_ident { Select->expr_list.head()->push_back($1); }
-        | ident_list2 ',' simple_ident { Select->expr_list.head()->push_back($3); }
+        | ident_list2 ',' simple_ident { Select->expr_list.head()->push_back($3); };
 
 opt_expr:
 	/* empty */      { $$= NULL; }
-	| expr         	 { $$= $1; }
+	| expr         	 { $$= $1; };
 
 opt_else:
 	/* empty */    { $$= NULL; }
-	| ELSE expr    { $$= $2; }
+	| ELSE expr    { $$= $2; };
 
 when_list:
         { Select->when_list.push_front(new List<Item>); }
 	when_list2
-	{ $$= Select->when_list.pop(); }
+	{ $$= Select->when_list.pop(); };
 
 when_list2:
 	expr THEN_SYM expr
@@ -1971,11 +1987,11 @@ when_list2:
 	    SELECT_LEX *sel=Select;
 	    sel->when_list.head()->push_back($3);
 	    sel->when_list.head()->push_back($5);
-	  }
+	  };
 
 opt_pad:
 	/* empty */ { $$=new Item_string(" ",1); }
-	| expr	    { $$=$1; }
+	| expr	    { $$=$1; };
 
 join_table_list:
 	'(' join_table_list ')'	{ $$=$2; }
@@ -2017,12 +2033,12 @@ join_table_list:
 	| join_table_list NATURAL RIGHT opt_outer JOIN_SYM join_table
 	  { add_join_natural($6,$1); $1->outer_join|=JOIN_TYPE_RIGHT; $$=$1; }
 	| join_table_list NATURAL JOIN_SYM join_table
-	  { add_join_natural($1,$4); $$=$4; }
+	  { add_join_natural($1,$4); $$=$4; };
 
 normal_join:
 	',' {}
 	| JOIN_SYM {}
-	| CROSS JOIN_SYM {}
+	| CROSS JOIN_SYM {};
 
 join_table:
 	{
@@ -2036,11 +2052,11 @@ join_table:
 	                             sel->ignore_index_ptr))) YYABORT;
 	}
 	| '{' ident join_table LEFT OUTER JOIN_SYM join_table ON expr '}'
-	  { add_join_on($7,$9); $7->outer_join|=JOIN_TYPE_LEFT; $$=$7; }
+	  { add_join_on($7,$9); $7->outer_join|=JOIN_TYPE_LEFT; $$=$7; };
 
 opt_outer:
 	/* empty */	{}
-	| OUTER		{}
+	| OUTER		{};
 
 opt_key_definition:
 	/* empty */	{}
@@ -2055,11 +2071,11 @@ opt_key_definition:
 	    SELECT_LEX *sel=Select;
 	    sel->ignore_index= *$2;
 	    sel->ignore_index_ptr= &sel->ignore_index;
-	  }
+	  };
 
 key_usage_list:
 	key_or_index { Select->interval_list.empty(); } '(' key_usage_list2 ')'
-        { $$= &Select->interval_list; }
+        { $$= &Select->interval_list; };
 
 key_usage_list2:
 	key_usage_list2 ',' ident
@@ -2067,7 +2083,7 @@ key_usage_list2:
 	| ident
         { Select->interval_list.push_back(new String((const char*) $1.str,$1.length)); }
 	| PRIMARY_SYM
-        { Select->interval_list.push_back(new String("PRIMARY",7)); }
+        { Select->interval_list.push_back(new String("PRIMARY",7)); };
 
 using_list:
 	ident
@@ -2081,7 +2097,7 @@ using_list:
 	    SELECT_LEX *sel=Select;
 	    if (!($$= new Item_cond_and(new Item_func_eq(new Item_field(sel->db1,sel->table1,$3.str), new Item_field(sel->db2,sel->table2,$3.str)), $1)))
 	      YYABORT;
-	  }
+	  };
 
 interval:
 	 DAY_HOUR_SYM		{ $$=INTERVAL_DAY_HOUR; }
@@ -2096,22 +2112,22 @@ interval:
 	| MONTH_SYM		{ $$=INTERVAL_MONTH; }
 	| SECOND_SYM		{ $$=INTERVAL_SECOND; }
 	| YEAR_MONTH_SYM	{ $$=INTERVAL_YEAR_MONTH; }
-	| YEAR_SYM		{ $$=INTERVAL_YEAR; }
+	| YEAR_SYM		{ $$=INTERVAL_YEAR; };
 
 table_alias:
 	/* empty */
 	| AS
-	| EQ
+	| EQ;
 
 opt_table_alias:
 	/* empty */		{ $$=0; }
 	| table_alias ident
-	  { $$= (LEX_STRING*) sql_memdup(&$2,sizeof(LEX_STRING)); }
+	  { $$= (LEX_STRING*) sql_memdup(&$2,sizeof(LEX_STRING)); };
 
 
 where_clause:
 	/* empty */  { Select->where= 0; }
-	| WHERE expr { Select->where= $2; }
+	| WHERE expr { Select->where= $2; };
 
 having_clause:
 	/* empty */
@@ -2119,11 +2135,11 @@ having_clause:
 	{
 	  SELECT_LEX *sel=Select;
 	  sel->having= $3; sel->create_refs=0;
-	}
+	};
 
 opt_escape:
 	ESCAPE_SYM TEXT_STRING	{ $$= $2.str; }
-	| /* empty */		{ $$= (char*) "\\"; }
+	| /* empty */		{ $$= (char*) "\\"; };
 
 
 /*
@@ -2132,13 +2148,13 @@ opt_escape:
 
 group_clause:
 	/* empty */
-	| GROUP BY group_list
+	| GROUP BY group_list;
 
 group_list:
 	group_list ',' order_ident order_dir
 	  { if (add_group_to_list($3,(bool) $4)) YYABORT; }
 	| order_ident order_dir
-	  { if (add_group_to_list($1,(bool) $2)) YYABORT; }
+	  { if (add_group_to_list($1,(bool) $2)) YYABORT; };
 
 /*
    Order by statement in select
@@ -2146,7 +2162,7 @@ group_list:
 
 opt_order_clause:
 	/* empty */
-	| order_clause
+	| order_clause;
 
 order_clause:
 	ORDER_SYM BY 
@@ -2155,18 +2171,18 @@ order_clause:
 	  if (lex->sql_command == SQLCOM_MULTI_UPDATE)
 	    YYABORT;
 	  lex->select->sort_default=1;
-	} order_list
+	} order_list;
 
 order_list:
 	order_list ',' order_ident order_dir
 	  { if (add_order_to_list($3,(bool) $4)) YYABORT; }
 	| order_ident order_dir
-	  { if (add_order_to_list($1,(bool) $2)) YYABORT; }
+	  { if (add_order_to_list($1,(bool) $2)) YYABORT; };
 
 order_dir:
 	/* empty */ { $$ =  1; }
 	| ASC  { $$ =1; }
-	| DESC { $$ =0; }
+	| DESC { $$ =0; };
 
 
 limit_clause:
@@ -2181,7 +2197,7 @@ limit_clause:
 	  {
 	    SELECT_LEX *sel=Select;
 	    sel->select_limit= $4; sel->offset_limit=$2;
-	  }
+	  };
 
 delete_limit_clause:
 	/* empty */
@@ -2192,20 +2208,20 @@ delete_limit_clause:
 	  lex->select->select_limit= HA_POS_ERROR;
 	}
 	| LIMIT ulonglong_num
-	{ Select->select_limit= (ha_rows) $2; }
+	{ Select->select_limit= (ha_rows) $2; };
 
 ULONG_NUM:
 	NUM	    { $$= strtoul($1.str,NULL,10); }
 	| ULONGLONG_NUM { $$= (ulong) strtoull($1.str,NULL,10); }
 	| REAL_NUM  { $$= strtoul($1.str,NULL,10); }
-	| FLOAT_NUM { $$= strtoul($1.str,NULL,10); }
+	| FLOAT_NUM { $$= strtoul($1.str,NULL,10); };
 
 ulonglong_num:
 	NUM	    { $$= (ulonglong) strtoul($1.str,NULL,10); }
 	| ULONGLONG_NUM { $$= strtoull($1.str,NULL,10); }
 	| LONG_NUM  { $$= (ulonglong) strtoul($1.str,NULL,10); }
 	| REAL_NUM  { $$= strtoull($1.str,NULL,10); }
-	| FLOAT_NUM { $$= strtoull($1.str,NULL,10); }
+	| FLOAT_NUM { $$= strtoull($1.str,NULL,10); };
 
 procedure_clause:
 	/* empty */
@@ -2219,16 +2235,16 @@ procedure_clause:
 	      YYABORT;
 	    current_thd->safe_to_cache_query=0;
 	  }
-	  '(' procedure_list ')'
+	  '(' procedure_list ')';
 
 
 procedure_list:
 	/* empty */ {}
-	| procedure_list2 {}
+	| procedure_list2 {};
 
 procedure_list2:
 	procedure_list2 ',' procedure_item
-	| procedure_item
+	| procedure_item;
 
 procedure_item:
 	  remember_name expr
@@ -2237,7 +2253,7 @@ procedure_item:
 	      YYABORT;
 	    if (!$2->name)
 	      $2->set_name($1,(uint) ((char*) Lex->tok_end - $1));
-	  }
+	  };
 
 opt_into:
 	INTO OUTFILE TEXT_STRING
@@ -2250,7 +2266,7 @@ opt_into:
 	{
 	  if (!(Lex->exchange= new sql_exchange($3.str,1)))
 	    YYABORT;
-	}
+	};
 
 /*
   DO statement
@@ -2263,7 +2279,7 @@ do:	DO_SYM
 	  if (!(lex->insert_list = new List_item))
 	    YYABORT;
 	}
-	values
+	values;
 /*
   Drop : delete tables or index
 */
@@ -2297,27 +2313,27 @@ drop:
 	    LEX *lex=Lex;
 	    lex->sql_command = SQLCOM_DROP_FUNCTION;
 	    lex->udf.name=$3.str;
-	  }
+	  };
 
 
 table_list:
 	table_name
-	| table_list ',' table_name
+	| table_list ',' table_name;
 
 table_name:
 	table_ident
-	{ if (!add_table_to_list($1,NULL,1)) YYABORT; }
+	{ if (!add_table_to_list($1,NULL,1)) YYABORT; };
 
 if_exists:
 	/* empty */ { $$=0; }
-	| IF EXISTS { $$= 1; }
+	| IF EXISTS { $$= 1; };
 
 /*
 ** Insert : add new data to table
 */
 
 insert:
-	INSERT { Lex->sql_command = SQLCOM_INSERT; } insert_lock_option opt_ignore insert2 insert_field_spec
+	INSERT { Lex->sql_command = SQLCOM_INSERT; } insert_lock_option opt_ignore insert2 insert_field_spec;
 
 replace:
 	REPLACE
@@ -2326,21 +2342,21 @@ replace:
 	  lex->sql_command = SQLCOM_REPLACE;
 	  lex->duplicates= DUP_REPLACE;
 	}
-	replace_lock_option insert2 insert_field_spec
+	replace_lock_option insert2 insert_field_spec;
 
 insert_lock_option:
 	/* empty */	{ Lex->lock_option= TL_WRITE_CONCURRENT_INSERT; }
 	| LOW_PRIORITY	{ Lex->lock_option= TL_WRITE_LOW_PRIORITY; }
 	| DELAYED_SYM	{ Lex->lock_option= TL_WRITE_DELAYED; }
-	| HIGH_PRIORITY { Lex->lock_option= TL_WRITE; }
+	| HIGH_PRIORITY { Lex->lock_option= TL_WRITE; };
 
 replace_lock_option:
 	opt_low_priority {}
-	| DELAYED_SYM	{ Lex->lock_option= TL_WRITE_DELAYED; }
+	| DELAYED_SYM	{ Lex->lock_option= TL_WRITE_DELAYED; };
 
 insert2:
 	INTO insert_table {}
-	| insert_table {}
+	| insert_table {};
 
 insert_table:
 	table_name
@@ -2349,7 +2365,7 @@ insert_table:
 	  lex->field_list.empty();
 	  lex->many_values.empty();
 	  lex->insert_list=0;
-	}
+	};
 
 insert_field_spec:
 	opt_field_spec insert_values {}
@@ -2360,16 +2376,16 @@ insert_field_spec:
 		lex->many_values.push_back(lex->insert_list))
 	      YYABORT;
 	   }
-	   ident_eq_list
+	   ident_eq_list;
 
 opt_field_spec:
 	/* empty */	  { }
 	| '(' fields ')'  { }
-	| '(' ')'	  { }
+	| '(' ')'	  { };
 
 fields:
 	fields ',' insert_ident { Lex->field_list.push_back($3); }
-	| insert_ident		{ Lex->field_list.push_back($1); }
+	| insert_ident		{ Lex->field_list.push_back($1); };
 
 insert_values:
 	VALUES	values_list  {}
@@ -2381,16 +2397,17 @@ insert_values:
 	    lex->lock_option= (using_update_log) ? TL_READ_NO_INSERT : TL_READ;
 	    mysql_init_select(lex);
 	  }
-	  select_options select_item_list select_from select_lock_type union {}
+	  select_options select_item_list select_from select_lock_type
+          union {};
 
 values_list:
 	values_list ','  no_braces
-	| no_braces
+	| no_braces;
 
 ident_eq_list:
 	ident_eq_list ',' ident_eq_value
 	|
-	ident_eq_value
+	ident_eq_value;
 
 ident_eq_value:
 	simple_ident equal expr
@@ -2399,10 +2416,10 @@ ident_eq_value:
 	  if (lex->field_list.push_back($1) ||
 	      lex->insert_list->push_back($3))
 	    YYABORT;
-	 }
+	 };
 
 equal:	EQ		{}
-	| SET_VAR	{}
+	| SET_VAR	{};
 
 no_braces:
 	 '('
@@ -2415,11 +2432,11 @@ no_braces:
 	  LEX *lex=Lex;
 	  if (lex->many_values.push_back(lex->insert_list))
 	    YYABORT;
-	 }
+	 };
 
 opt_values:
 	/* empty */ {}
-	| values
+	| values;
 
 values:
 	values ','  expr
@@ -2431,7 +2448,7 @@ values:
 	{
 	  if (Lex->insert_list->push_back($1))
 	    YYABORT;
-	}
+	};
 
 /* Update rows in a table */
 
@@ -2444,7 +2461,7 @@ update:
           lex->select->order_list.first=0;
           lex->select->order_list.next= (byte**) &lex->select->order_list.first;
         }
-        opt_low_priority opt_ignore join_table_list SET update_list where_clause opt_order_clause delete_limit_clause
+        opt_low_priority opt_ignore join_table_list SET update_list where_clause opt_order_clause delete_limit_clause;
 
 update_list:
 	update_list ',' simple_ident equal expr
@@ -2456,11 +2473,11 @@ update_list:
 	  {
 	    if (add_item_to_list($1) || add_value_to_list($3))
 	      YYABORT;
-	  }
+	  };
 
 opt_low_priority:
 	/* empty */	{ Lex->lock_option= current_thd->update_lock_default; }
-	| LOW_PRIORITY	{ Lex->lock_option= TL_WRITE_LOW_PRIORITY; }
+	| LOW_PRIORITY	{ Lex->lock_option= TL_WRITE_LOW_PRIORITY; };
 
 /* Delete rows from a table */
 
@@ -2474,7 +2491,7 @@ delete:
 	  lex->select->order_list.first=0;
 	  lex->select->order_list.next= (byte**) &lex->select->order_list.first;
 	}
-	opt_delete_options single_multi	{}
+	opt_delete_options single_multi	{};
 
 single_multi:
  	FROM table_name where_clause opt_order_clause delete_limit_clause {}
@@ -2483,11 +2500,11 @@ single_multi:
 	   FROM join_table_list where_clause
 	| FROM table_wild_list
 	  { mysql_init_multi_delete(Lex); }
-	  USING join_table_list where_clause
+	  USING join_table_list where_clause;
 
 table_wild_list:
 	  table_wild_one {}
-	  | table_wild_list ',' table_wild_one {}
+	  | table_wild_list ',' table_wild_one {};
 
 table_wild_one:
 	 ident opt_wild
@@ -2499,20 +2516,20 @@ table_wild_one:
 	   {
 	     if (!add_table_to_list(new Table_ident($1,$3,0),NULL,1,TL_WRITE))
 	      YYABORT;
-	   }
+	   };
 
 opt_wild:
 	/* empty */	{} 
-	| '.' '*'	{}
+	| '.' '*'	{};
 
 
 opt_delete_options:
 	/* empty */	{}
-	| opt_delete_option opt_delete_options {}
+	| opt_delete_option opt_delete_options {};
 
 opt_delete_option:
 	QUICK		{ Select->options|= OPTION_QUICK; }
-	| LOW_PRIORITY	{ Lex->lock_option= TL_WRITE_LOW_PRIORITY; }
+	| LOW_PRIORITY	{ Lex->lock_option= TL_WRITE_LOW_PRIORITY; };
 
 truncate:
 	TRUNCATE_SYM opt_table_sym table_name
@@ -2523,15 +2540,15 @@ truncate:
 	  lex->select->order_list.elements=0;
           lex->select->order_list.first=0;
           lex->select->order_list.next= (byte**) &lex->select->order_list.first;
-	  lex->lock_option= current_thd->update_lock_default; }
+	  lex->lock_option= current_thd->update_lock_default; };
 
 opt_table_sym:
 	/* empty */
-	| TABLE_SYM
+	| TABLE_SYM;
  
 /* Show things */
 
-show:	SHOW { Lex->wild=0;} show_param
+show:	SHOW { Lex->wild=0;} show_param;
 
 show_param:
 	DATABASES wild
@@ -2625,31 +2642,31 @@ show_param:
         | SLAVE STATUS_SYM
           {
 	    Lex->sql_command = SQLCOM_SHOW_SLAVE_STAT;
-          }
+          };
 
 opt_db:
 	/* empty */  { $$= 0; }
-	| from_or_in ident { $$= $2.str; }
+	| from_or_in ident { $$= $2.str; };
 
 wild:
 	/* empty */
-	| LIKE text_string { Lex->wild= $2; }
+	| LIKE text_string { Lex->wild= $2; };
 
 opt_full:
 	/* empty */ { Lex->verbose=0; }
-	| FULL	    { Lex->verbose=1; }
+	| FULL	    { Lex->verbose=1; };
 
 from_or_in:
 	FROM
-	| IN_SYM
+	| IN_SYM;
 
 binlog_in:
 	/* empty */ { Lex->mi.log_file_name = 0; }
-        | IN_SYM TEXT_STRING { Lex->mi.log_file_name = $2.str; }
+        | IN_SYM TEXT_STRING { Lex->mi.log_file_name = $2.str; };
 
 binlog_from:
 	/* empty */ { Lex->mi.pos = 4; /* skip magic number */ }
-        | FROM ulonglong_num { Lex->mi.pos = $2; }
+        | FROM ulonglong_num { Lex->mi.pos = $2; };
 
 
 /* A Oracle compatible synonym for show */
@@ -2664,17 +2681,19 @@ describe:
 	    YYABORT;
 	}
 	opt_describe_column
-	| describe_command select { Lex->select_lex.options|= SELECT_DESCRIBE; }
+	| describe_command select
+          { Lex->select_lex.options|= SELECT_DESCRIBE; };
 
 
 describe_command:
 	DESC
-	| DESCRIBE
+	| DESCRIBE;
 
 opt_describe_column:
 	/* empty */	{}
 	| text_string	{ Lex->wild= $1; }
-	| ident		{ Lex->wild= new String((const char*) $1.str,$1.length); }
+	| ident
+ { Lex->wild= new String((const char*) $1.str,$1.length); };
 
 
 /* flush things */
@@ -2685,11 +2704,11 @@ flush:
 	  LEX *lex=Lex;
 	  lex->sql_command= SQLCOM_FLUSH; lex->type=0;
 	}
-	flush_options
+	flush_options;
 
 flush_options:
 	flush_options ',' flush_option
-	| flush_option
+	| flush_option;
 
 flush_option:
 	table_or_tables	{ Lex->type|= REFRESH_TABLES; } opt_table_list
@@ -2701,26 +2720,26 @@ flush_option:
 	| STATUS_SYM	{ Lex->type|= REFRESH_STATUS; }
         | SLAVE         { Lex->type|= REFRESH_SLAVE; }
         | MASTER_SYM    { Lex->type|= REFRESH_MASTER; }
-	| DES_KEY_FILE	{ Lex->type|= REFRESH_DES_KEY_FILE; }
+	| DES_KEY_FILE	{ Lex->type|= REFRESH_DES_KEY_FILE; };
 
 opt_table_list:
 	/* empty */  {}
-	| table_list {}
+	| table_list {};
 
 reset:
 	RESET_SYM
 	{
 	  LEX *lex=Lex;
 	  lex->sql_command= SQLCOM_RESET; lex->type=0;
-	} reset_options
+	} reset_options;
 reset_options:
 	reset_options ',' reset_option
-	| reset_option
+	| reset_option;
 
 reset_option:
         SLAVE                 { Lex->type|= REFRESH_SLAVE; }
         | MASTER_SYM          { Lex->type|= REFRESH_MASTER; }
-	| QUERY_SYM CACHE_SYM { Lex->type|= REFRESH_QUERY_CACHE;}
+	| QUERY_SYM CACHE_SYM { Lex->type|= REFRESH_QUERY_CACHE;};
 
 purge:
 	PURGE
@@ -2732,7 +2751,7 @@ purge:
         MASTER_SYM LOGS_SYM TO_SYM TEXT_STRING
          {
 	   Lex->to_log = $6.str;
-         } 
+         } ;
 
 /* kill threads */
 
@@ -2747,7 +2766,7 @@ kill:
 	  }
           lex->sql_command=SQLCOM_KILL;
 	  lex->thread_id= (ulong) $2->val_int();
-	}
+	};
 
 /* change database */
 
@@ -2755,7 +2774,7 @@ use:	USE_SYM ident
 	{
 	  LEX *lex=Lex;
 	  lex->sql_command=SQLCOM_CHANGE_DB; lex->select->db= $2.str;
-	}
+	};
 
 /* import, export of files */
 
@@ -2786,30 +2805,30 @@ load:	LOAD DATA_SYM load_data_lock opt_local INFILE TEXT_STRING
 	LOAD DATA_SYM FROM MASTER_SYM
         {
 	  Lex->sql_command = SQLCOM_LOAD_MASTER_DATA;
-        }
+        };
 
 opt_local:
 	/* empty */	{ $$=0;}
-	| LOCAL_SYM	{ $$=1;}
+	| LOCAL_SYM	{ $$=1;};
 
 load_data_lock:
 	/* empty */	{ Lex->lock_option= current_thd->update_lock_default; }
 	| CONCURRENT	{ Lex->lock_option= TL_WRITE_CONCURRENT_INSERT ; }
-	| LOW_PRIORITY	{ Lex->lock_option= TL_WRITE_LOW_PRIORITY; }
+	| LOW_PRIORITY	{ Lex->lock_option= TL_WRITE_LOW_PRIORITY; };
 
 
 opt_duplicate:
 	/* empty */	{ Lex->duplicates=DUP_ERROR; }
 	| REPLACE	{ Lex->duplicates=DUP_REPLACE; }
-	| IGNORE_SYM	{ Lex->duplicates=DUP_IGNORE; }
+	| IGNORE_SYM	{ Lex->duplicates=DUP_IGNORE; };
 
 opt_field_term:
 	/* empty */
-	| COLUMNS field_term_list
+	| COLUMNS field_term_list;
 
 field_term_list:
 	field_term_list field_term
-	| field_term
+	| field_term;
 
 field_term:
 	TERMINATED BY text_string { Lex->exchange->field_term= $3;}
@@ -2820,31 +2839,31 @@ field_term:
 	    lex->exchange->opt_enclosed=1;
 	  }
 	| ENCLOSED BY text_string { Lex->exchange->enclosed= $3;}
-	| ESCAPED BY text_string  { Lex->exchange->escaped= $3;}
+	| ESCAPED BY text_string  { Lex->exchange->escaped= $3;};
 
 opt_line_term:
 	/* empty */
-	| LINES line_term_list
+	| LINES line_term_list;
 
 line_term_list:
 	line_term_list line_term
-	| line_term
+	| line_term;
 
 line_term:
 	TERMINATED BY text_string { Lex->exchange->line_term= $3;}
-	| STARTING BY text_string { Lex->exchange->line_start= $3;}
+	| STARTING BY text_string { Lex->exchange->line_start= $3;};
 
 opt_ignore_lines:
 	/* empty */
 	| IGNORE_SYM NUM LINES
-	  { Lex->exchange->skip_lines=atol($2.str); }
+	  { Lex->exchange->skip_lines=atol($2.str); };
 
 /* Common definitions */
 
 text_literal:
 	TEXT_STRING { $$ = new Item_string($1.str,$1.length); }
 	| text_literal TEXT_STRING
-	{ ((Item_string*) $1)->append($2.str,$2.length); }
+	{ ((Item_string*) $1)->append($2.str,$2.length); };
 
 text_string:
 	TEXT_STRING	{ $$=  new String($1.str,$1.length); }
@@ -2852,7 +2871,7 @@ text_string:
 	  {
 	    Item *tmp = new Item_varbinary($1.str,$1.length);
 	    $$= tmp ? tmp->val_str((String*) 0) : (String*) 0;
-	  }
+	  };
 
 literal:
 	text_literal	{ $$ =	$1; }
@@ -2866,7 +2885,7 @@ literal:
 	| HEX_NUM	{ $$ =	new Item_varbinary($1.str,$1.length);}
 	| DATE_SYM text_literal { $$ = $2; }
 	| TIME_SYM text_literal { $$ = $2; }
-	| TIMESTAMP text_literal { $$ = $2; }
+	| TIMESTAMP text_literal { $$ = $2; };
 
 /**********************************************************************
 ** Createing different items.
@@ -2874,15 +2893,16 @@ literal:
 
 insert_ident:
 	simple_ident	 { $$=$1; }
-	| table_wild	 { $$=$1; }
+	| table_wild	 { $$=$1; };
 
 table_wild:
 	ident '.' '*' { $$ = new Item_field(NullS,$1.str,"*"); }
 	| ident '.' ident '.' '*'
-	{ $$ = new Item_field((current_thd->client_capabilities & CLIENT_NO_SCHEMA ? NullS : $1.str),$3.str,"*"); }
+	{ $$ = new Item_field((current_thd->client_capabilities &
+   CLIENT_NO_SCHEMA ? NullS : $1.str),$3.str,"*"); };
 
 order_ident:
-	expr { $$=$1; }
+	expr { $$=$1; };
 
 simple_ident:
 	ident
@@ -2904,18 +2924,19 @@ simple_ident:
 	{
 	  SELECT_LEX *sel=Select;
 	  $$ = !sel->create_refs || sel->in_sum_expr > 0 ? (Item*) new Item_field((current_thd->client_capabilities & CLIENT_NO_SCHEMA ? NullS :$1.str),$3.str,$5.str) : (Item*) new Item_ref((current_thd->client_capabilities & CLIENT_NO_SCHEMA ? NullS :$1.str),$3.str,$5.str);
-	}
+	};
 
 
 field_ident:
 	ident			{ $$=$1;}
 	| ident '.' ident	{ $$=$3;}	/* Skipp schema name in create*/
-	| '.' ident		{ $$=$2;}	/* For Delphi */
+	| '.' ident		{ $$=$2;}	/* For Delphi */;
 
 table_ident:
 	ident			{ $$=new Table_ident($1); }
 	| ident '.' ident	{ $$=new Table_ident($1,$3,0);}
-	| '.' ident		{ $$=new Table_ident($2);}	/* For Delphi */
+	| '.' ident		{ $$=new Table_ident($2);}
+   /* For Delphi */;
 
 ident:
 	IDENT	    { $$=$1; }
@@ -2926,12 +2947,12 @@ ident:
 	  $$.length=$1.length;
 	  if ((lex=Lex)->next_state != STATE_END)
 	    lex->next_state=STATE_OPERATOR_OR_IDENT;
-	}
+	};
 
 ident_or_text:
 	ident 		{ $$=$1;}
 	| TEXT_STRING	{ $$=$1;}
-	| LEX_HOSTNAME	{ $$=$1;}
+	| LEX_HOSTNAME	{ $$=$1;};
 
 user:
 	ident_or_text
@@ -2945,7 +2966,7 @@ user:
 	  if (!($$=(LEX_USER*) sql_alloc(sizeof(st_lex_user))))
 	      YYABORT;
 	    $$->user = $1; $$->host=$3;
-	  }
+	  };
 
 /* Keyword that we allow for identifiers */
 
@@ -3013,6 +3034,7 @@ keyword:
 	| ISSUER_SYM		{}
 	| INNOBASE_SYM		{}
 	| INSERT_METHOD		{}
+        | IO_THREAD {}
 	| LAST_SYM		{}
 	| LEVEL_SYM		{}
 	| LOCAL_SYM		{}
@@ -3027,7 +3049,9 @@ keyword:
 	| MASTER_USER_SYM	{}
 	| MASTER_PASSWORD_SYM	{}
 	| MASTER_CONNECT_RETRY_SYM	{}
+	| MAX_CONNECTIONS_PER_HOUR       {}
 	| MAX_QUERIES_PER_HOUR  {}
+	| MAX_UPDATES_PER_HOUR  {}
 	| MEDIUM_SYM		{}
 	| MERGE_SYM		{}
 	| MINUTE_SYM		{}
@@ -3055,10 +3079,13 @@ keyword:
 	| RAID_CHUNKSIZE	{}
 	| RAID_STRIPED_SYM      {}
 	| RAID_TYPE		{}
+        | RELAY_LOG_FILE_SYM {}
+        | RELAY_LOG_POS_SYM {}
 	| RELOAD		{}
 	| REPAIR		{}
 	| REPEATABLE_SYM	{}
 	| RESET_SYM		{}
+	| RESOURCES		{}
 	| RESTORE_SYM		{}
 	| ROLLBACK_SYM		{}
 	| ROWS_SYM		{}
@@ -3074,6 +3101,7 @@ keyword:
 	| SQL_CACHE_SYM		{}
 	| SQL_NO_CACHE_SYM	{}
 	| SQL_QUERY_CACHE_TYPE_SYM {}
+        | SQL_THREAD {}
 	| START_SYM		{}
 	| STATUS_SYM		{}
 	| STOP_SYM		{}
@@ -3091,7 +3119,7 @@ keyword:
 	| USE_FRM		{}
 	| VARIABLES		{}
 	| WORK_SYM		{}
-	| YEAR_SYM		{}
+	| YEAR_SYM		{};
 
 /* Option functions */
 
@@ -3106,17 +3134,17 @@ set:
 	  lex->option_type=0;
 	  lex->option_list.empty();
 	}
-	option_value_list
+	option_value_list;
 
 opt_option:
 	/* empty */ {}
-	| OPTION {}
+	| OPTION {};
 
 option_value_list:
 	option_value
 	| GLOBAL_SYM { Lex->option_type=1; } option_value
 	| LOCAL_SYM  { Lex->option_type=0; } option_value
-	| option_value_list ',' option_value
+	| option_value_list ',' option_value;
 
 option_value:
 	set_option equal NUM
@@ -3242,13 +3270,13 @@ option_value:
 	       push_back(new Set_option(thd->lex.option_type,
 					$1.str,$1.length,
 					item));
-	   }
+	   };
 
 query_cache_type:
 	  NUM        { current_thd->query_cache_type = set_zone(atoi($1.str),0,3); }
 	| OFF        { current_thd->query_cache_type = 0; }
 	| ON         { current_thd->query_cache_type = 1; }
-	| DEMAND_SYM { current_thd->query_cache_type = 2; }
+	| DEMAND_SYM { current_thd->query_cache_type = 2; };
 
 text_or_password:
 	TEXT_STRING { $$=$1.str;}
@@ -3262,7 +3290,7 @@ text_or_password:
 	      make_scrambled_password(buff,$3.str);
 	      $$=buff;
 	    }
-	  }
+	  };
 
 set_option:
 	SQL_BIG_TABLES	        { $$= OPTION_BIG_TABLES; }
@@ -3285,7 +3313,7 @@ set_option:
 	| SQL_AUTO_IS_NULL	{ $$= OPTION_AUTO_IS_NULL; }
 	| SQL_SAFE_UPDATES	{ $$= OPTION_SAFE_UPDATES; }
 	| SQL_BUFFER_RESULT	{ $$= OPTION_BUFFER_RESULT; }
-	| SQL_QUOTE_SHOW_CREATE { $$= OPTION_QUOTE_SHOW_CREATE; }
+	| SQL_QUOTE_SHOW_CREATE { $$= OPTION_QUOTE_SHOW_CREATE; };
 
 
 set_isolation:
@@ -3302,16 +3330,16 @@ set_isolation:
 	  lex->thd->session_tx_isolation= lex->tx_isolation= $2;
 	}
 	| tx_isolation
-	{ Lex->tx_isolation= $1; }
+	{ Lex->tx_isolation= $1; };
 
 tx_isolation:
-	TRANSACTION_SYM ISOLATION LEVEL_SYM isolation_types { $$=$4; }
+	TRANSACTION_SYM ISOLATION LEVEL_SYM isolation_types { $$=$4; };
 
 isolation_types:
 	READ_SYM UNCOMMITTED_SYM	{ $$= ISO_READ_UNCOMMITTED; }
 	| READ_SYM COMMITTED_SYM	{ $$= ISO_READ_COMMITTED; }
 	| REPEATABLE_SYM READ_SYM	{ $$= ISO_REPEATABLE_READ; }
-	| SERIALIZABLE_SYM		{ $$= ISO_SERIALIZABLE; }
+	| SERIALIZABLE_SYM		{ $$= ISO_SERIALIZABLE; };
 
 /* Lock function */
 
@@ -3320,28 +3348,28 @@ lock:
 	{
 	  Lex->sql_command=SQLCOM_LOCK_TABLES;
 	}
-	table_lock_list
+	table_lock_list;
 
 table_or_tables:
 	TABLE_SYM
-	| TABLES
+	| TABLES;
 
 table_lock_list:
 	table_lock
-	| table_lock_list ',' table_lock
+	| table_lock_list ',' table_lock;
 
 table_lock:
 	table_ident opt_table_alias lock_option
-	{ if (!add_table_to_list($1,$2,0,(thr_lock_type) $3)) YYABORT; }
+	{ if (!add_table_to_list($1,$2,0,(thr_lock_type) $3)) YYABORT; };
 
 lock_option:
 	READ_SYM	{ $$=TL_READ_NO_INSERT; }
 	| WRITE_SYM     { $$=current_thd->update_lock_default; }
 	| LOW_PRIORITY WRITE_SYM { $$=TL_WRITE_LOW_PRIORITY; }
-	| READ_SYM LOCAL_SYM { $$= TL_READ; }
+	| READ_SYM LOCAL_SYM { $$= TL_READ; };
 
 unlock:
-	UNLOCK_SYM table_or_tables { Lex->sql_command=SQLCOM_UNLOCK_TABLES; }
+	UNLOCK_SYM table_or_tables { Lex->sql_command=SQLCOM_UNLOCK_TABLES; };
 
 
 /*
@@ -3371,15 +3399,15 @@ handler:
 	  if (!add_table_to_list($2,0,0))
 	    YYABORT;
         }
-        handler_read_or_scan where_clause limit_clause { }
+        handler_read_or_scan where_clause limit_clause { };
 
 handler_read_or_scan:
 	handler_scan_function         { Lex->backup_dir= 0; }
-        | ident handler_rkey_function { Lex->backup_dir= $1.str; }
+        | ident handler_rkey_function { Lex->backup_dir= $1.str; };
 
 handler_scan_function:
 	FIRST_SYM  { Lex->ha_read_mode = RFIRST; }
-	| NEXT_SYM { Lex->ha_read_mode = RNEXT;  }
+	| NEXT_SYM { Lex->ha_read_mode = RNEXT;  };
 
 handler_rkey_function:
 	FIRST_SYM  { Lex->ha_read_mode = RFIRST; }
@@ -3393,14 +3421,14 @@ handler_rkey_function:
 	  lex->ha_rkey_mode=$1;
 	  if (!(lex->insert_list = new List_item))
 	    YYABORT;
-	} '(' values ')' { }
+	} '(' values ')' { };
 
 handler_rkey_mode:
 	  EQ     { $$=HA_READ_KEY_EXACT;   }
 	| GE     { $$=HA_READ_KEY_OR_NEXT; }
 	| LE     { $$=HA_READ_KEY_OR_PREV; }
 	| GT_SYM { $$=HA_READ_AFTER_KEY;   }
-	| LT     { $$=HA_READ_BEFORE_KEY;  }
+	| LT     { $$=HA_READ_BEFORE_KEY;  };
 
 /* GRANT / REVOKE */
 
@@ -3414,7 +3442,7 @@ revoke:
 	  lex->grant= lex->grant_tot_col=0;
 	  lex->select->db=0;
 	}
-	grant_privileges ON opt_table FROM user_list
+	grant_privileges ON opt_table FROM user_list;
 
 grant:
 	GRANT
@@ -3427,19 +3455,19 @@ grant:
 	  lex->select->db=0;
 	  lex->ssl_type=SSL_TYPE_NONE;
 	  lex->ssl_cipher=lex->x509_subject=lex->x509_issuer=0;
-	  lex->mqh=0;	
+	  bzero(&(lex->mqh),sizeof(lex->mqh));
 	}
 	grant_privileges ON opt_table TO_SYM user_list
-	require_clause grant_options
+	require_clause grant_options;
 
 grant_privileges:
 	grant_privilege_list {}
 	| ALL PRIVILEGES	{ Lex->grant = UINT_MAX;}
-	| ALL			{ Lex->grant = UINT_MAX;}
+	| ALL			{ Lex->grant = UINT_MAX;};
 
 grant_privilege_list:
 	grant_privilege
-	| grant_privilege_list ',' grant_privilege
+	| grant_privilege_list ',' grant_privilege;
 
 grant_privilege:
 	SELECT_SYM
@@ -3462,10 +3490,10 @@ grant_privilege:
 	| SHUTDOWN	{ Lex->grant |= SHUTDOWN_ACL;}
 	| PROCESS	{ Lex->grant |= PROCESS_ACL;}
 	| FILE_SYM	{ Lex->grant |= FILE_ACL;}
-	| GRANT OPTION  { Lex->grant |= GRANT_ACL;}
+	| GRANT OPTION  { Lex->grant |= GRANT_ACL;};
 
 require_list: require_list_element AND require_list
-| require_list_element 
+| require_list_element ;
 
 require_list_element: SUBJECT_SYM TEXT_STRING
  {
@@ -3492,11 +3520,11 @@ require_list_element: SUBJECT_SYM TEXT_STRING
    LEX *lex=Lex;
    if (lex->ssl_cipher)
    {
-     net_printf(&lex->thd->net,ER_DUP_ARGUMENT, "CHIPER");
+     net_printf(&lex->thd->net,ER_DUP_ARGUMENT, "CIPHER");
      YYABORT;
    }
    lex->ssl_cipher=$2.str;
- }
+ };
  
 opt_table:
 	'*'
@@ -3542,12 +3570,12 @@ opt_table:
 	      YYABORT;
 	    if (lex->grant == UINT_MAX)
 	      lex->grant =  TABLE_ACLS & ~GRANT_ACL;
-	  }
+	  };
 
 
 user_list:
 	grant_user	     { if (Lex->users_list.push_back($1)) YYABORT;}
-	| user_list ',' grant_user { if (Lex->users_list.push_back($3)) YYABORT;}
+	| user_list ',' grant_user { if (Lex->users_list.push_back($3)) YYABORT;};
 
 
 grant_user:
@@ -3568,7 +3596,7 @@ grant_user:
 	| user IDENTIFIED_SYM BY PASSWORD TEXT_STRING
 	  { $$=$1; $1->password=$5 ; }
 	| user
-	  { $$=$1; $1->password.str=NullS; }
+	  { $$=$1; $1->password.str=NullS; };
 
 
 opt_column_list:
@@ -3577,11 +3605,11 @@ opt_column_list:
 	  LEX *lex=Lex;
 	  lex->grant |= lex->which_columns;
 	}
-	| '(' column_list ')'
+	| '(' column_list ')';
 
 column_list:
 	column_list ',' column_list_id
-	| column_list_id
+	| column_list_id;
 
 column_list_id:
 	ident
@@ -3600,7 +3628,7 @@ column_list_id:
 	    point->rights |= lex->which_columns;
 	  else
 	    lex->columns.push_back(new LEX_COLUMN (*new_str,lex->which_columns));
-	}
+	};
 
 
 require_clause: /* empty */
@@ -3615,35 +3643,43 @@ require_clause: /* empty */
         | REQUIRE_SYM X509_SYM
         {
           Lex->ssl_type=SSL_TYPE_X509;
-        }
+        };
 
 grant_options:
 	/* empty */ {}
-	| WITH grant_option_list
+	| WITH grant_option_list;
 
 grant_option_list:
 	grant_option_list grant_option {}
-	| grant_option {}
+	| grant_option {};
 
 grant_option:
 	GRANT OPTION { Lex->grant |= GRANT_ACL;}
-        | MAX_QUERIES_PER_HOUR EQ NUM
+        | MAX_QUERIES_PER_HOUR EQ ULONG_NUM
         {
-	  Lex->mqh=atoi($3.str);
+	  Lex->mqh.questions=$3;
+	}
+        | MAX_UPDATES_PER_HOUR EQ ULONG_NUM
+        {
+	  Lex->mqh.updates=$3;
+	}
+        | MAX_CONNECTIONS_PER_HOUR EQ ULONG_NUM
+        {
+	  Lex->mqh.connections=$3;
 	}
 
 begin:
-	BEGIN_SYM   { Lex->sql_command = SQLCOM_BEGIN;} opt_work
+	BEGIN_SYM   { Lex->sql_command = SQLCOM_BEGIN;} opt_work;
 
 opt_work:
 	/* empty */ {}
-	| WORK_SYM {}
+	| WORK_SYM {};
 
 commit:
-	COMMIT_SYM   { Lex->sql_command = SQLCOM_COMMIT;}
+	COMMIT_SYM   { Lex->sql_command = SQLCOM_COMMIT;};
 
 rollback:
-	ROLLBACK_SYM { Lex->sql_command = SQLCOM_ROLLBACK;}
+	ROLLBACK_SYM { Lex->sql_command = SQLCOM_ROLLBACK;};
 
 
 /*
@@ -3653,7 +3689,7 @@ rollback:
 
 union:	
   /* empty */ {}
-  | union_list
+  | union_list;
 
 union_list:
   UNION_SYM    union_option
@@ -3669,14 +3705,14 @@ union_list:
       YYABORT;
     lex->select->linkage=UNION_TYPE;
   } 
-  select_init
+  select_init;
 
 union_opt:
   union {}
-  |  optional_order_or_limit {}
+  |  optional_order_or_limit {};
 
 optional_order_or_limit:
-  /* emty */ {}
+  /* empty */ {}
   |
   {
     LEX *lex=Lex;
@@ -3686,8 +3722,10 @@ optional_order_or_limit:
     lex->select->linkage=NOT_A_SELECT;
     lex->select->select_limit=lex->thd->default_select_limit;
   }
-  opt_order_clause limit_clause
+  opt_order_clause limit_clause;
 
 union_option:
   /* empty */ {}
-  | ALL {Lex->union_option=1;}
+  | ALL {Lex->union_option=1;};
+
+

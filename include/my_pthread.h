@@ -349,6 +349,13 @@ extern void my_pthread_attr_setprio(pthread_attr_t *attr, int priority);
 #undef	HAVE_GETHOSTBYADDR_R			/* No definition */
 #endif
 
+#if defined(HAVE_BROKEN_PTHREAD_COND_TIMEDWAIT) && !defined(SAFE_MUTEX)
+extern int my_pthread_cond_timedwait(pthread_cond_t *cond,
+				     pthread_mutex_t *mutex,
+				     struct timespec *abstime);
+#define pthread_cond_timedwait(A,B,C) my_pthread_cond_timedwait((A),(B),(C))
+#endif
+
 #if defined(OS2)
 #define my_pthread_getspecific(T,A) ((T) &(A))
 #define pthread_setspecific(A,B) win_pthread_setspecific(&(A),(B),sizeof(A))
@@ -418,31 +425,6 @@ struct tm *localtime_r(const time_t *clock, struct tm *res);
 #else /* HAVE_PTHREAD_ATTR_CREATE && !HAVE_SIGWAIT */
 #define HAVE_PTHREAD_KILL
 #endif
-
-#if defined(HAVE_PTHREAD_ATTR_CREATE) || defined(_AIX) || defined(HAVE_GETHOSTBYNAME_R_GLIBC2_STYLE)
-#if !defined(HPUX)
-struct hostent;
-#endif /* HPUX */
-struct hostent *my_gethostbyname_r(const char *name,
-				   struct hostent *result, char *buffer,
-				   int buflen, int *h_errnop);
-#if defined(HAVE_GETHOSTBYNAME_R_GLIBC2_STYLE)
-#define GETHOSTBYNAME_BUFF_SIZE 2048
-#else
-#define GETHOSTBYNAME_BUFF_SIZE sizeof(struct hostent_data)
-#endif /* defined(HAVE_GETHOSTBYNAME_R_GLIBC2_STYLE) */
-
-#else
-#ifdef HAVE_GETHOSTBYNAME_R_RETURN_INT
-#define GETHOSTBYNAME_BUFF_SIZE sizeof(struct hostent_data)
-struct hostent *my_gethostbyname_r(const char *name,
-				   struct hostent *result, char *buffer,
-				   int buflen, int *h_errnop);
-#else
-#define GETHOSTBYNAME_BUFF_SIZE 2048
-#define my_gethostbyname_r(A,B,C,D,E) gethostbyname_r((A),(B),(C),(D),(E))
-#endif /* HAVE_GETHOSTBYNAME_R_RETURN_INT */
-#endif /* defined(HAVE_PTHREAD_ATTR_CREATE) || defined(_AIX) || defined(HAVE_GETHOSTBYNAME_R_GLIBC2_STYLE) */
 
 #endif /* defined(__WIN__) */
 
@@ -602,6 +584,11 @@ struct st_my_thread_var
 extern struct st_my_thread_var *_my_thread_var(void) __attribute__ ((const));
 #define my_thread_var (_my_thread_var())
 #define my_errno my_thread_var->thr_errno
+/*
+  Keep track of shutdown,signal, and main threads so that my_end() will not
+  report errors with them
+*/
+extern pthread_t shutdown_th, main_th, signal_th;
 
 	/* statistics_xxx functions are for not essential statistic */
 

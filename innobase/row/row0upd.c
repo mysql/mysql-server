@@ -73,8 +73,7 @@ steps of query graph execution. */
 
 /*************************************************************************
 Checks if index currently is mentioned as a referenced index in a foreign
-key constraint. This function also loads into the dictionary cache the
-possible referencing table. */
+key constraint. */
 static
 ibool
 row_upd_index_is_referenced(
@@ -85,44 +84,28 @@ row_upd_index_is_referenced(
 				the referencing table has been dropped when
 				we leave this function: this function is only
 				for heuristic use! */
-	dict_index_t*	index)	/* in: index */
+	dict_index_t*	index,	/* in: index */
+	trx_t*		trx)	/* in: transaction */
 {
-	dict_table_t*	table	= index->table;
+	dict_table_t*	table		= index->table;
 	dict_foreign_t*	foreign;
-	ulint		phase	= 1;
 
-try_again:	
 	if (!UT_LIST_GET_FIRST(table->referenced_list)) {
 
 		return(FALSE);
 	}
 
-	if (phase == 2) {
-		mutex_enter(&(dict_sys->mutex));
+	if (!trx->has_dict_foreign_key_check_lock) {
+		rw_lock_s_lock(&dict_foreign_key_check_lock);
 	}
-
-	rw_lock_s_lock(&dict_foreign_key_check_lock);
 
 	foreign = UT_LIST_GET_FIRST(table->referenced_list);
 
 	while (foreign) {
 		if (foreign->referenced_index == index) {
-			if (foreign->foreign_table == NULL) {
-				if (phase == 2) {
-					dict_table_get_low(foreign->
-							foreign_table_name);
-				} else {
-					phase = 2;
-					rw_lock_s_unlock(
-						&dict_foreign_key_check_lock);
-					goto try_again;
-				}
-			}
 
-			rw_lock_s_unlock(&dict_foreign_key_check_lock);
-
-			if (phase == 2) {
-				mutex_exit(&(dict_sys->mutex));
+			if (!trx->has_dict_foreign_key_check_lock) {
+				rw_lock_s_unlock(&dict_foreign_key_check_lock);
 			}
 
 			return(TRUE);
@@ -131,10 +114,8 @@ try_again:
 		foreign = UT_LIST_GET_NEXT(referenced_list, foreign);
 	}
 	
-	rw_lock_s_unlock(&dict_foreign_key_check_lock);
-
-	if (phase == 2) {
-		mutex_exit(&(dict_sys->mutex));
+	if (!trx->has_dict_foreign_key_check_lock) {
+		rw_lock_s_unlock(&dict_foreign_key_check_lock);
 	}
 
 	return(FALSE);
@@ -142,7 +123,7 @@ try_again:
 
 /*************************************************************************
 Checks if possible foreign key constraints hold after a delete of the record
-under pcur. NOTE that this function will temporarily commit mtr and lose
+under pcur. NOTE that this function will temporarily commit mtr and lose the
 pcur position! */
 static
 ulint
@@ -160,8 +141,17 @@ row_upd_check_references_constraints(
 	dict_foreign_t*	foreign;
 	mem_heap_t*	heap;
 	dtuple_t*	entry;
+	trx_t*		trx;
 	rec_t*		rec;
 	ulint		err;
+	ibool		got_s_lock	= FALSE;
+
+	if (UT_LIST_GET_FIRST(table->referenced_list) == NULL) {
+
+		return(DB_SUCCESS);
+	}
+
+	trx = thr_get_trx(thr);
 
 	rec = btr_pcur_get_rec(pcur);
 
@@ -173,17 +163,61 @@ row_upd_check_references_constraints(
 
 	mtr_start(mtr);	
 	
-	rw_lock_s_lock(&dict_foreign_key_check_lock);	
+	if (!trx->has_dict_foreign_key_check_lock) {
+		got_s_lock = TRUE;
 
+		rw_lock_s_lock(&dict_foreign_key_check_lock);
+
+		trx->has_dict_foreign_key_check_lock = TRUE;
+	}
+		
 	foreign = UT_LIST_GET_FIRST(table->referenced_list);
 
 	while (foreign) {
 		if (foreign->referenced_index == index) {
+			if (foreign->foreign_table == NULL) {
+				dict_table_get(foreign->foreign_table_name,
+									trx);
+			}
 
+			if (foreign->foreign_table) {
+				mutex_enter(&(dict_sys->mutex));
+
+				(foreign->foreign_table
+				->n_foreign_key_checks_running)++;
+
+				mutex_exit(&(dict_sys->mutex));
+			}
+
+			/* NOTE that if the thread ends up waiting for a lock
+			we will release dict_foreign_key_check_lock
+			temporarily! But the counter on the table
+			protects 'foreign' from being dropped while the check
+			is running. */
+			
 			err = row_ins_check_foreign_constraint(FALSE, foreign,
 						table, index, entry, thr);
+
+			if (foreign->foreign_table) {
+				mutex_enter(&(dict_sys->mutex));
+
+				ut_a(foreign->foreign_table
+				->n_foreign_key_checks_running > 0);
+
+				(foreign->foreign_table
+				->n_foreign_key_checks_running)--;
+
+				mutex_exit(&(dict_sys->mutex));
+			}
+
 			if (err != DB_SUCCESS) {
-				rw_lock_s_unlock(&dict_foreign_key_check_lock);	
+				if (got_s_lock) {
+					rw_lock_s_unlock(
+						&dict_foreign_key_check_lock);	
+					trx->has_dict_foreign_key_check_lock
+								= FALSE;
+				}
+
 				mem_heap_free(heap);
 
 				return(err);
@@ -193,7 +227,11 @@ row_upd_check_references_constraints(
 		foreign = UT_LIST_GET_NEXT(referenced_list, foreign);
 	}
 
-	rw_lock_s_unlock(&dict_foreign_key_check_lock);	
+	if (got_s_lock) {
+		rw_lock_s_unlock(&dict_foreign_key_check_lock);	
+		trx->has_dict_foreign_key_check_lock = FALSE;
+	}
+
 	mem_heap_free(heap);
 	
 	return(DB_SUCCESS);
@@ -221,6 +259,9 @@ upd_node_create(
 	node->ext_vec = NULL;
 	node->index = NULL;
 	node->update = NULL;
+	
+	node->cascade_heap = NULL;
+	node->cascade_node = NULL;
 	
 	node->select = NULL;
 	
@@ -1027,7 +1068,7 @@ row_upd_sec_index_entry(
 	
 	index = node->index;
 	
-	check_ref = row_upd_index_is_referenced(index);
+	check_ref = row_upd_index_is_referenced(index, thr_get_trx(thr));
 
 	heap = mem_heap_create(1024);
 
@@ -1391,7 +1432,7 @@ row_upd_clust_step(
 	
 	index = dict_table_get_first_index(node->table);
 
-	check_ref = row_upd_index_is_referenced(index);
+	check_ref = row_upd_index_is_referenced(index, thr_get_trx(thr));
 
 	pcur = node->pcur;
 

@@ -33,7 +33,9 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
   TABLE *table;
   int describe=(lex->select_lex.options & SELECT_DESCRIBE) ? 1 : 0;
   int res;
+  bool found_rows_for_union=false;
   TABLE_LIST result_table_list;
+  TABLE_LIST *first_table=(TABLE_LIST *)lex->select_lex.table_list.first;
   TMP_TABLE_PARAM tmp_table_param;
   select_union *union_result;
   DBUG_ENTER("mysql_union");
@@ -58,8 +60,13 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
       the ORDER BY and LIMIT parameter for the whole UNION
     */
     lex_sl= sl;
-    last_sl->next=0;				// Remove this extra element
     order=  (ORDER *) lex_sl->order_list.first;
+    found_rows_for_union = lex->select_lex.options & OPTION_FOUND_ROWS && !describe && sl->select_limit;
+    if (found_rows_for_union)
+      lex->select_lex.options ^=  OPTION_FOUND_ROWS;
+// This is done to eliminate unnecessary slowing down of the first query 
+    if (!order || !describe) 
+      last_sl->next=0;				// Remove this extra element
   }
   else if (!last_sl->braces)
   {
@@ -125,7 +132,7 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
     goto exit;
   }
   union_result->save_time_stamp=!describe;
-
+  union_result->tmp_table_param=&tmp_table_param;
   for (sl= &lex->select_lex; sl; sl=sl->next)
   {
     lex->select=sl;
@@ -136,7 +143,7 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
     if (thd->select_limit == HA_POS_ERROR)
       sl->options&= ~OPTION_FOUND_ROWS;
 
-    res=mysql_select(thd, (TABLE_LIST*) sl->table_list.first,
+    res=mysql_select(thd, (describe && sl->linkage==NOT_A_SELECT) ? first_table :  (TABLE_LIST*) sl->table_list.first,
 		     sl->item_list,
 		     sl->where,
 		     (sl->braces) ? (ORDER *)sl->order_list.first : (ORDER *) 0,
@@ -185,12 +192,19 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
 	if (thd->select_limit == HA_POS_ERROR)
 	  thd->options&= ~OPTION_FOUND_ROWS;
       }
+      else 
+      {
+	thd->offset_limit= 0;
+	thd->select_limit= thd->default_select_limit;
+      }
       if (describe)
 	thd->select_limit= HA_POS_ERROR;		// no limit
       res=mysql_select(thd,&result_table_list,
-		       item_list, NULL, /*ftfunc_list,*/ order,
+		       item_list, NULL, (describe) ? 0 : order,
 		       (ORDER*) NULL, NULL, (ORDER*) NULL,
 		       thd->options, result);
+      if (found_rows_for_union && !res)
+	thd->limit_found_rows = (ulonglong)table->file->records;
     }
   }
 
@@ -239,7 +253,12 @@ bool select_union::send_data(List<Item> &values)
     return 0;
   }
   fill_record(table->field,values);
-  return write_record(table,&info) ? 1 : 0;
+  if ((write_record(table,&info)))
+  {
+    if (create_myisam_from_heap(table, tmp_table_param, info.errorno, 0))
+      return 1;
+  }
+  return 0;
 }
 
 bool select_union::send_eof()

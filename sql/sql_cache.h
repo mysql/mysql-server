@@ -148,17 +148,8 @@ struct Query_cache_query
 
 struct Query_cache_table
 {
-  enum query_cache_table_type {OTHER=0, INNODB=1, TYPES_NUMBER=2};
-  inline static query_cache_table_type type_convertion(db_type type)
-  {
-    return (type == DB_TYPE_INNODB ? INNODB : OTHER);
-  }
-
   char *tbl;
-  query_cache_table_type tp;
 
-  inline query_cache_table_type type()	     { return tp; }
-  inline void type(query_cache_table_type t) { tp = t;}
   inline char *db()			     { return (char *) data(); }
   inline char *table()			     { return tbl; }
   inline void table(char *table)	     { tbl = table; }
@@ -248,7 +239,7 @@ protected:
   byte *cache;					// cache memory
   Query_cache_block *first_block;		// physical location block list
   Query_cache_block *queries_blocks;		// query list (LIFO)
-  Query_cache_block *tables_blocks[Query_cache_table::TYPES_NUMBER];
+  Query_cache_block *tables_blocks;
 
   Query_cache_memory_bin *bins;			// free block lists
   Query_cache_memory_bin_step *steps;		// bins spacing info
@@ -270,7 +261,8 @@ protected:
 				      Query_cache_block *tail_head);
 
   /* Table key generation */
-  static uint filename_2_table_key (char *key, const char *filename);
+  static uint filename_2_table_key (char *key, const char *filename,
+				    uint32 *db_langth);
 
   /* The following functions require that structure_guard_mutex is locked */
   void flush_cache();
@@ -282,13 +274,14 @@ protected:
 			      my_bool first_block);
   void invalidate_table(TABLE_LIST *table);
   void invalidate_table(TABLE *table);
+  void invalidate_table(byte *key, uint32  key_length);
   void invalidate_table(Query_cache_block *table_block);
   my_bool register_all_tables(Query_cache_block *block,
 			      TABLE_LIST *tables_used,
 			      TABLE_COUNTER_TYPE tables);
   my_bool insert_table(uint key_len, char *key,
 		       Query_cache_block_table *node,
-		       Query_cache_table::query_cache_table_type type);
+		       uint32 db_length);
   void unlink_table(Query_cache_block_table *node);
   Query_cache_block *get_free_block (ulong len, my_bool not_less,
 				      ulong min);
@@ -369,11 +362,10 @@ protected:
   int send_result_to_client(THD *thd, char *query, uint query_length);
 
   /* Remove all queries that uses any of the listed following tables */
-  void invalidate(TABLE_LIST *tables_used);
-  void invalidate(TABLE *table);
-
-  /* Remove all queries that uses tables of pointed type*/
-  void invalidate(Query_cache_table::query_cache_table_type type);
+  void invalidate(THD* thd, TABLE_LIST *tables_used,
+		  my_bool using_transactions);
+  void invalidate(CHANGED_TABLE_LIST *tables_used);
+  void invalidate(THD* thd, TABLE *table, my_bool using_transactions);
 
   /* Remove all queries that uses any of the tables in following database */
   void invalidate(char *db);

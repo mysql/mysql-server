@@ -137,6 +137,7 @@ extern int NEAR my_errno;		/* Last error in mysys */
 #define NORMAL_SAFEMALLOC sf_malloc_quick=0
 extern uint sf_malloc_prehunc,sf_malloc_endhunc,sf_malloc_quick;
 extern ulonglong safemalloc_mem_limit;
+
 #define CALLER_INFO_PROTO   , const char *sFile, uint uLine
 #define CALLER_INFO         , __FILE__, __LINE__
 #define ORIG_CALLER_INFO    , sFile, uLine
@@ -463,26 +464,7 @@ typedef struct st_changeable_var {
 } CHANGEABLE_VAR;
 
 
-/* structs for alloc_root */
-
-#ifndef ST_USED_MEM_DEFINED
-#define ST_USED_MEM_DEFINED
-typedef struct st_used_mem {			/* struct for once_alloc */
-  struct st_used_mem *next;			/* Next block in use */
-  unsigned int left;				/* memory left in block  */
-  unsigned int size;				/* Size of block */
-} USED_MEM;
-
-typedef struct st_mem_root {
-  USED_MEM *free;
-  USED_MEM *used;
-  USED_MEM *pre_alloc;
-  unsigned int	min_malloc;
-  unsigned int	block_size;
-
-  void (*error_handler)(void);
-} MEM_ROOT;
-#endif
+#include <my_alloc.h>
 
 	/* Prototypes for mysys and my_func functions */
 
@@ -609,7 +591,7 @@ extern int my_sortncmp(const char *s,uint s_len, const char *t,uint t_len);
 extern WF_PACK *wf_comp(my_string str);
 extern int wf_test(struct wild_file_pack *wf_pack,const char *name);
 extern void wf_end(struct wild_file_pack *buffer);
-extern size_s stripp_sp(my_string str);
+extern size_s strip_sp(my_string str);
 extern void get_date(my_string to,int timeflag,time_t use_time);
 extern void soundex(my_string out_pntr, my_string in_pntr,pbool remove_garbage);
 extern int init_record_cache(RECORD_CACHE *info,uint cachesize,File file,
@@ -669,9 +651,9 @@ extern my_bool real_open_cached_file(IO_CACHE *cache);
 extern void close_cached_file(IO_CACHE *cache);
 File create_temp_file(char *to, const char *dir, const char *pfx,
 		      int mode, myf MyFlags);
-#define init_dynamic_array(A,B,C,D) _init_dynamic_array(A,B,C,D CALLER_INFO)
-#define init_dynamic_array_ci(A,B,C,D) _init_dynamic_array(A,B,C,D ORIG_CALLER_INFO)
-extern my_bool _init_dynamic_array(DYNAMIC_ARRAY *array,uint element_size,
+#define my_init_dynamic_array(A,B,C,D) init_dynamic_array(A,B,C,D CALLER_INFO)
+#define my_init_dynamic_array_ci(A,B,C,D) init_dynamic_array(A,B,C,D ORIG_CALLER_INFO)
+extern my_bool init_dynamic_array(DYNAMIC_ARRAY *array,uint element_size,
 	  uint init_alloc,uint alloc_increment CALLER_INFO_PROTO);
 extern my_bool insert_dynamic(DYNAMIC_ARRAY *array,gptr element);
 extern byte *alloc_dynamic(DYNAMIC_ARRAY *array);

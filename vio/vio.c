@@ -96,7 +96,7 @@ Vio *vio_new(my_socket sd, enum enum_vio_type type, my_bool localhost)
     sprintf(vio->desc,
 	    (vio->type == VIO_TYPE_SOCKET ? "socket (%d)" : "TCP/IP (%d)"),
 	    vio->sd);
-#if !defined(___WIN__) && !defined(__EMX__)
+#if !defined(___WIN__) && !defined(__EMX__) && !defined(OS2)
 #if !defined(NO_FCNTL_NONBLOCK)
     vio->fcntl_mode = fcntl(sd, F_GETFL);
 #elif defined(HAVE_SYS_IOCTL_H)			/* hpux */

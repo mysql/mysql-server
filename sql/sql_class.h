@@ -78,12 +78,29 @@ class MYSQL_LOG {
   bool need_start_event;
   pthread_cond_t update_cond;
   bool no_auto_events; // for relay binlog
+  ulonglong bytes_written;
   friend class Log_event;
 
 public:
   MYSQL_LOG();
   ~MYSQL_LOG();
   pthread_mutex_t* get_log_lock() { return &LOCK_log; }
+  void reset_bytes_written()
+    {
+      bytes_written = 0;
+    }
+  void harvest_bytes_written(ulonglong* counter)
+    {
+#ifndef DBUG_OFF
+      char buf1[22],buf2[22];
+#endif	
+      DBUG_ENTER("harvest_bytes_written");
+      (*counter)+=bytes_written;
+      DBUG_PRINT("info",("counter=%s,bytes_written=%s", llstr(*counter,buf1),
+		  llstr(bytes_written,buf2)));
+      bytes_written=0;
+      DBUG_VOID_RETURN;
+    }
   IO_CACHE* get_log_file() { return &log_file; }
   void signal_update() { pthread_cond_broadcast(&update_cond);}
   void wait_for_update(THD* thd);
@@ -165,7 +182,7 @@ typedef struct st_copy_info {
   ha_rows copied;
   ha_rows error;
   enum enum_duplicates handle_duplicates;
-  int escape_char;
+  int escape_char, errorno;
 } COPY_INFO;
 
 
@@ -200,11 +217,13 @@ class Key :public Sql_alloc {
 public:
   enum Keytype { PRIMARY, UNIQUE, MULTIPLE, FULLTEXT };
   enum Keytype type;
+  enum ha_key_alg algorithm;
   List<key_part_spec> columns;
   const char *Name;
 
   Key(enum Keytype type_par,const char *name_arg,List<key_part_spec> &cols)
-    :type(type_par), columns(cols),Name(name_arg) {}
+    :type(type_par), algorithm(HA_KEY_ALG_UNDEF), columns(cols), Name(name_arg)
+  {}
   ~Key() {}
   const char *name() { return Name; }
 };
@@ -251,6 +270,11 @@ public:
 
 class delayed_insert;
 
+#define THD_SENTRY_MAGIC 0xfeedd1ff
+#define THD_SENTRY_GONE  0xdeadbeef
+
+#define THD_CHECK_SENTRY(thd) DBUG_ASSERT(thd->dbug_sentry == THD_SENTRY_MAGIC)
+
 /* For each client connection we create a separate thread with THD serving as
    a thread/connection descriptor */
 
@@ -258,7 +282,7 @@ class THD :public ilink {
 public:
   NET	  net; // client connection descriptor
   LEX	  lex; // parse tree descriptor
-  MEM_ROOT mem_root; // memory allocation pool
+  MEM_ROOT mem_root; // 1 command-life memory allocation pool
   HASH     user_vars; // hash for user variables
   String  packet; // dynamic string buffer used for network I/O		
   struct  sockaddr_in remote; // client socket address
@@ -312,6 +336,9 @@ public:
   // TODO: document the variables below
   MYSQL_LOCK *lock,*locked_tables;
   ULL	  *ull;
+#ifndef DBUG_OFF
+  uint dbug_sentry; // watch out for memory corruption
+#endif  
   struct st_my_thread_var *mysys_var;
   enum enum_server_command command;
   uint32 server_id;
@@ -326,6 +353,19 @@ public:
     THD_TRANS all;			// Trans since BEGIN WORK
     THD_TRANS stmt;			// Trans for current statement
     uint bdb_lock_count;
+
+    /* 
+       Tables changed in transaction (that must be invalidated in query cache).
+       List contain only transactional tables, that not invalidated in query 
+       cache (instead of full list of changed in transaction tables).
+    */
+    CHANGED_TABLE_LIST* changed_tables;
+    MEM_ROOT mem_root; // Transaction-life memory allocation pool
+    void cleanup()
+    {
+      changed_tables = 0;
+      free_root(&mem_root,MYF(MY_KEEP_PREALLOC));
+    }
   } transaction;
   Item	     *free_list, *handler_items;
   CONVERT    *convert_set;
@@ -342,7 +382,7 @@ public:
   ha_rows    select_limit,offset_limit,default_select_limit,cuted_fields,
              max_join_size, sent_row_count, examined_row_count;
   table_map  used_tables;
-  UC *user_connect;
+  USER_CONN *user_connect;
   ulong	     query_id,version, inactive_timeout,options,thread_id;
   long	     dbug_thread_id;
   pthread_t  real_id;
@@ -374,7 +414,7 @@ public:
   ulong	     slave_proxy_id;
   NET*       slave_net;			// network connection from slave -> m.
   my_off_t   log_pos;
-
+   
   THD();
   ~THD();
   void cleanup(void);
@@ -471,9 +511,18 @@ public:
       memcpy(ptr,str,size);
     return ptr;
   }
+  inline gptr trans_alloc(unsigned int size) 
+  { 
+    return alloc_root(&transaction.mem_root,size);
+  }
+  void add_changed_table(TABLE *table);
+  CHANGED_TABLE_LIST * changed_table_dup(TABLE *table);
 };
 
-
+/*
+  Used to hold information about file and file structure in exchainge 
+  via non-DB file (...INTO OUTFILE..., ...LOAD DATA...)
+*/
 class sql_exchange :public Sql_alloc
 {
 public:
@@ -617,6 +666,7 @@ class select_union :public select_result {
   TABLE *table;
   COPY_INFO info;
   uint save_time_stamp;
+  TMP_TABLE_PARAM *tmp_table_param;
 
   select_union(TABLE *table_par);
   ~select_union();

@@ -249,6 +249,8 @@ struct dict_foreign_struct{
 					this memory heap */
 	char*		id;		/* id of the constraint as a
 					null-terminated string */
+	ulint		type;		/* 0 or DICT_FOREIGN_ON_DELETE_CASCADE
+					or DICT_FOREIGN_ON_DELETE_SET_NULL */
 	char*		foreign_table_name;/* foreign table name */
 	dict_table_t*	foreign_table;	/* table where the foreign key is */
 	char**		foreign_col_names;/* names of the columns in the
@@ -277,6 +279,9 @@ struct dict_foreign_struct{
 			referenced_list;/* list node for referenced keys of the
 					table */
 };
+
+#define DICT_FOREIGN_ON_DELETE_CASCADE	1
+#define DICT_FOREIGN_ON_DELETE_SET_NULL	2
 
 #define	DICT_INDEX_MAGIC_N	76789786
 
@@ -313,6 +318,12 @@ struct dict_table_struct{
 				NOT allowed until this count gets to zero;
 				MySQL does NOT itself check the number of
 				open handles at drop */
+	ulint		n_foreign_key_checks_running;
+				/* count of how many foreign key check
+				operations are currently being performed
+				on the table: we cannot drop the table while
+				there are foreign key checks running on
+				it! */
 	ibool		cached;	/* TRUE if the table object has been added
 				to the dictionary cache */
 	lock_t*		auto_inc_lock;/* a buffer for an auto-inc lock
@@ -359,17 +370,16 @@ struct dict_table_struct{
 			        after database startup or table creation */
 	ulint		stat_modified_counter;
 				/* when a row is inserted, updated, or deleted,
-				we add the row length to this number; we
-				calculate new estimates for the stat_...
-				values for the table and the indexes at an
-				interval of 2 GB or when about 1 / 16 of table
-				has been modified; also
-				when the estimate operation is called
-				for MySQL SHOW TABLE STATUS; the counter is
-				reset to zero at statistics calculation;
-				this counter
-				is not protected by any latch, because this
-				is only used for heuristics */
+				we add 1 to this number; we calculate new
+				estimates for the stat_... values for the
+				table and the indexes at an interval of 2 GB
+				or when about 1 / 16 of table has been
+				modified; also when the estimate operation is
+				called for MySQL SHOW TABLE STATUS; the
+				counter is reset to zero at statistics
+				calculation; this counter is not protected by
+				any latch, because this is only used for
+				heuristics */
 	/*----------------------*/
 	mutex_t		autoinc_mutex;
 				/* mutex protecting the autoincrement

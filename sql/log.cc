@@ -83,7 +83,7 @@ static int find_uniq_filename(char *name)
 MYSQL_LOG::MYSQL_LOG(): last_time(0), query_start(0),index_file(-1),
 			name(0), log_type(LOG_CLOSED),write_error(0),
 			inited(0), file_id(1),no_rotate(0),
-			need_start_event(1)
+			need_start_event(1),bytes_written(0)
 {
   /*
     We don't want to intialize LOCK_Log here as the thread system may
@@ -99,6 +99,7 @@ MYSQL_LOG::~MYSQL_LOG()
   {
     (void) pthread_mutex_destroy(&LOCK_log);
     (void) pthread_mutex_destroy(&LOCK_index);
+    (void) pthread_cond_destroy(&update_cond);
   }
 }
 
@@ -233,18 +234,14 @@ void MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
   }
   else if (log_type == LOG_BIN)
   {
-      bool error;
-    /*
-      Explanation of the boolean black magic:
-      if we are supposed to write magic number try write
-      clean 
-up if failed
-      then if index_file has not been previously opened, try to open it
-      clean up if failed
-    */
-    if ((do_magic && my_b_write(&log_file, (byte*) BINLOG_MAGIC, 4)) ||
+    bool error;
+    if (do_magic)
+    {
+      if (my_b_write(&log_file, (byte*) BINLOG_MAGIC, 4) ||
 	open_index(O_APPEND | O_RDWR | O_CREAT))
-      goto err;
+        goto err;
+      bytes_written += 4;
+    }
 
     if (need_start_event && !no_auto_events)
     {
@@ -462,12 +459,29 @@ err:
     my_delete(fname, MYF(0)); // do not report error if the file is not there
   else
   {
+    MY_STAT s;
     my_close(index_file, MYF(MY_WME));
+    if (!my_stat(rli->relay_log_name,&s,MYF(0)))
+    {
+      sql_print_error("The first log %s failed to stat during purge",
+		      rli->relay_log_name);
+      error=1;
+      goto err;
+    }
     if (my_rename(fname,index_file_name,MYF(MY_WME)) ||
 	(index_file=my_open(index_file_name,O_BINARY|O_RDWR|O_APPEND,
 			    MYF(MY_WME)))<0 ||
 	my_delete(rli->relay_log_name, MYF(MY_WME)))
       error=1;
+    
+    pthread_mutex_lock(&rli->log_space_lock);
+    rli->log_space_total -= s.st_size;
+    pthread_mutex_unlock(&rli->log_space_lock);
+    // ok to broadcast after the critical region as there is no risk of
+    // the mutex being destroyed by this thread later - this helps save
+    // context switches
+    pthread_cond_broadcast(&rli->log_space_cond);
+    
     if ((error=find_first_log(&rli->linfo,"",0/*no mutex*/)))
     {
       char buff[22];
@@ -479,6 +493,7 @@ err:
     rli->relay_log_pos = 4;
     strnmov(rli->relay_log_name,rli->linfo.log_file_name,
 	    sizeof(rli->relay_log_name));
+    flush_relay_log_info(rli);
   }
   /*
     No need to free io_buf because we allocated both fname and io_buf in
@@ -516,14 +531,14 @@ int MYSQL_LOG::purge_logs(THD* thd, const char* to_log)
     error = LOG_INFO_MEM;
     goto err;
   }
-  if (init_dynamic_array(&logs_to_purge, sizeof(char*), 1024, 1024))
+  if (my_init_dynamic_array(&logs_to_purge, sizeof(char*), 1024, 1024))
   {
     error = LOG_INFO_MEM;
     goto err;
   }
   logs_to_purge_inited = 1;
   
-  if (init_dynamic_array(&logs_to_keep, sizeof(char*), 1024, 1024))
+  if (my_init_dynamic_array(&logs_to_keep, sizeof(char*), 1024, 1024))
   {
     error = LOG_INFO_MEM;
     goto err;
@@ -694,6 +709,7 @@ void MYSQL_LOG::new_file(bool inside_mutex)
 	  if (thd && thd->slave_thread)
 	    r.flags |= LOG_EVENT_FORCED_ROTATE_F;
 	  r.write(&log_file);
+	  bytes_written += r.get_event_len();
 	}
 	// update needs to be signaled even if there is no rotate event
 	// log rotation should give the waiting thread a signal to
@@ -727,6 +743,7 @@ bool MYSQL_LOG::append(Log_event* ev)
     error=1;
     goto err;
   }
+  bytes_written += ev->get_event_len();
   if ((uint)my_b_append_tell(&log_file) > max_binlog_size)
   {
     new_file(1);
@@ -753,6 +770,7 @@ bool MYSQL_LOG::appendv(const char* buf, uint len,...)
       error = 1;
       break;
     }
+    bytes_written += len;
   } while ((buf=va_arg(args,const char*)) && (len=va_arg(args,uint)));
   
   if ((uint) my_b_append_tell(&log_file) > max_binlog_size)

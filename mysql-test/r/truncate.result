@@ -14,3 +14,9 @@ a	b	c1
 drop table t1;
 select count(*) from t1;
 Table 'test.t1' doesn't exist
+create temporary table t1 (n int);
+insert into t1 values (1),(2),(3);
+truncate table t1;
+select * from t1;
+n
+drop table t1;

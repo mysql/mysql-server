@@ -57,8 +57,11 @@ void hostname_cache_refresh()
 
 bool hostname_cache_init()
 {
+  host_entry *tmp;
+  uint offset= (uint) ((char*) (&tmp->ip) - (char*) &tmp);
   (void) pthread_mutex_init(&LOCK_hostname,MY_MUTEX_INIT_SLOW);
-  if (!(hostname_cache=new hash_filo(HOST_CACHE_SIZE,offsetof(host_entry,ip),
+
+  if (!(hostname_cache=new hash_filo(HOST_CACHE_SIZE, offset,
 				     sizeof(struct in_addr),NULL,
 				     (void (*)(void*)) free)))
     return 1;
@@ -171,17 +174,22 @@ my_string ip_to_hostname(struct in_addr *in, uint *errors)
   {
     DBUG_PRINT("error",("gethostbyname_r returned %d",tmp_errno));
     add_wrong_ip(in);
+    my_gethostbyname_r_free();
     DBUG_RETURN(0);
   }
   if (!hp->h_name[0])
   {
     DBUG_PRINT("error",("Got an empty hostname"));
     add_wrong_ip(in);
+    my_gethostbyname_r_free();
     DBUG_RETURN(0);				// Don't allow empty hostnames
   }
   if (!(name=my_strdup(hp->h_name,MYF(0))))
+  {
+    my_gethostbyname_r_free();
     DBUG_RETURN(0);				// out of memory
-
+  }
+  my_gethostbyname_r_free();
 #else
   VOID(pthread_mutex_lock(&LOCK_hostname));
   if (!(hp=gethostbyaddr((char*) in,sizeof(*in), AF_INET)))

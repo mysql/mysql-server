@@ -22,7 +22,7 @@
 #include <mysql_embed.h>
 #include <mysql.h>
 #include <errmsg.h>
-#include <getopt.h>
+#include <my_getopt.h>
 
 /* We have to define 'enum options' identical in all files to keep OS2 happy */
 
@@ -31,4 +31,10 @@ enum options { OPT_CHARSETS_DIR=256, OPT_DEFAULT_CHARSET,
 	       OPT_LOW_PRIORITY, OPT_AUTO_REPAIR, OPT_COMPRESS,
 	       OPT_DROP, OPT_LOCKS, OPT_KEYWORDS, OPT_DELAYED, OPT_OPTIMIZE,
 	       OPT_FTB, OPT_LTB, OPT_ENC, OPT_O_ENC, OPT_ESC, OPT_TABLES,
-	       OPT_MASTER_DATA, OPT_AUTOCOMMIT, OPT_LOCAL_INFILE};
+	       OPT_MASTER_DATA, OPT_AUTOCOMMIT, OPT_AUTO_REHASH,
+	       OPT_LINE_NUMBERS, OPT_COLUMN_NAMES, OPT_CONNECT_TIMEOUT,
+	       OPT_MAX_ALLOWED_PACKET, OPT_NET_BUFFER_LENGTH,
+	       OPT_SELECT_LIMIT, OPT_MAX_JOIN_SIZE, OPT_SSL_SSL,
+               OPT_SSL_KEY, OPT_SSL_CERT, OPT_SSL_CA, OPT_SSL_CAPATH,
+               OPT_SSL_CIPHER, OPT_SHUTDOWN_TIMEOUT, OPT_LOCAL_INFILE,
+               OPT_PROMPT, OPT_IGN_LINES };

@@ -5,6 +5,7 @@
    2001-08-02 - Arjen Lentz (agl@bitbike.com)
    Completed earlier partial translation; worked on consistency and spelling.
    2002-01-29 - Arjen Lentz (arjen@mysql.com)
+   2002-04-11 - Arjen Lentz (arjen@mysql.com)
    Translated new error messages.
 */
 
@@ -201,7 +202,7 @@
 "Net fout tijdens schrijven naar master",
 "Kan geen FULLTEXT index vinden passend bij de kolom lijst",
 "Kan het gegeven commando niet uitvoeren, want u heeft actieve gelockte tabellen of een actieve transactie",
-"Onbekende systeem variabele '%-.64'",
+"Onbekende systeem variabele '%-.64s'",
 "Tabel '%-.64s' staat als gecrashed gemarkeerd en dient te worden gerepareerd",
 "Tabel '%-.64s' staat als gecrashed gemarkeerd en de laatste (automatische?) reparatie poging mislukte",
 "Waarschuwing: Roll back mislukt voor sommige buiten transacties gewijzigde tabellen",
@@ -234,4 +235,4 @@
 "Kan de query niet uitvoeren vanwege een conflicterende read lock",
 "Het combineren van transactionele en niet-transactionele tabellen is uitgeschakeld.",
 "Optie '%s' tweemaal gebruikt in opdracht",
-"User '%-64s' has exceeded the '%s' resource (current value: %ld)",
+"Gebruiker '%-64s' heeft het maximale gebruik van de '%s' faciliteit overschreden (huidige waarde: %ld)",

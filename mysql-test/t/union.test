@@ -20,7 +20,9 @@ select 't1',b,count(*) from t1 group by b UNION select 't2',b,count(*) from t2 g
 (select a,b from t1 limit 2)  union all (select a,b from t2 order by a) limit 4;
 (select a,b from t1 limit 2)  union all (select a,b from t2 order by a limit 1);
 (select a,b from t1 limit 2)  union all (select a,b from t2 order by a limit 1) order by b desc;
-
+explain (select a,b from t1 limit 2)  union all (select a,b from t2 order by a limit 1) order by b desc;
+(select sql_calc_found_rows  a,b from t1 limit 2)  union all (select a,b from t2 order by a) limit 2;
+select found_rows();
 # Test some error conditions with UNION
 explain select a,b from t1 union all select a,b from t2;
 
@@ -77,3 +79,15 @@ SELECT pseudo1 FROM t1 WHERE pseudo='joce' UNION SELECT pseudo FROM t1 WHERE pse
 SELECT pseudo1 FROM t1 WHERE pseudo='joce' UNION ALL SELECT pseudo FROM t1 WHERE pseudo1='joce';
 SELECT pseudo1 FROM t1 WHERE pseudo='joce' UNION SELECT 1;
 drop table t1;
+drop table if exists t1,t2;
+create table t1 (a int);
+create table t2 (a int);
+insert into t1 values (1),(2),(3),(4),(5);
+insert into t2 values (11),(12),(13),(14),(15);
+(select * from t1 limit 2) union (select * from t2 limit 3) limit 4;
+(select * from t1 limit 2) union (select * from t2 limit 3);
+(select * from t1 limit 2) union (select * from t2 limit 20,3);
+set SQL_SELECT_LIMIT=2;
+(select * from t1 limit 2) union (select * from t2 limit 3);
+set SQL_SELECT_LIMIT=DEFAULT;
+drop table t1,t2;

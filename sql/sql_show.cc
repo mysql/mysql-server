@@ -432,6 +432,7 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
   TABLE *table;
   handler *file;
   char tmp[MAX_FIELD_WIDTH];
+  Item *item;
   CONVERT *convert=thd->convert_set;
   DBUG_ENTER("mysqld_show_fields");
   DBUG_PRINT("enter",("db: %s  table: %s",table_list->db,
@@ -451,7 +452,8 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
   field_list.push_back(new Item_empty_string("Type",40));
   field_list.push_back(new Item_empty_string("Null",1));
   field_list.push_back(new Item_empty_string("Key",3));
-  field_list.push_back(new Item_empty_string("Default",NAME_LEN));
+  field_list.push_back(item=new Item_empty_string("Default",NAME_LEN));
+  item->maybe_null=1;
   field_list.push_back(new Item_empty_string("Extra",20));
   if (verbose)
     field_list.push_back(new Item_empty_string("Privileges",80));
@@ -570,21 +572,30 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
   {
     packet->length(0);
     net_store_data(packet,convert, table->table_name);
-    // a hack - we need to reserve some space for the length before
-    // we know what it is - let's assume that the length of create table
-    // statement will fit into 3 bytes ( 16 MB max :-) )
+    /*
+      A hack - we need to reserve some space for the length before
+      we know what it is - let's assume that the length of create table
+      statement will fit into 3 bytes ( 16 MB max :-) )
+    */
     ulong store_len_offset = packet->length();
     packet->length(store_len_offset + 4);
     if (store_create_info(thd, table, packet))
       DBUG_RETURN(-1);
     ulong create_len = packet->length() - store_len_offset - 4;
     if (create_len > 0x00ffffff) // better readable in HEX ...
-      DBUG_RETURN(1);  // just in case somebody manages to create a table
-    // with *that* much stuff in the definition
+    {
+      /*
+	Just in case somebody manages to create a table
+	with *that* much stuff in the definition
+      */
+      DBUG_RETURN(1);
+    }
 
-    // now we have to store the length in three bytes, even if it would fit
-    // into fewer, so we cannot use net_store_data() anymore,
-    // and do it ourselves
+    /*
+      Now we have to store the length in three bytes, even if it would fit
+      into fewer bytes, so we cannot use net_store_data() anymore,
+      and do it ourselves
+    */
     char* p = (char*)packet->ptr() + store_len_offset;
     *p++ = (char) 253; // The client the length is stored using 3-bytes
     int3store(p, create_len);
@@ -678,7 +689,7 @@ mysqld_show_keys(THD *thd, TABLE_LIST *table_list)
       net_store_data(packet,convert,
 		     key_part->field ? key_part->field->field_name :
                      "?unknown field?");
-      if (table->file->option_flag() & HA_READ_ORDER)
+      if (table->file->index_flags(i) & HA_READ_ORDER)
         net_store_data(packet,convert,
 		       ((key_part->key_part_flag & HA_REVERSE_SORT) ?
 			"D" : "A"), 1);
@@ -908,9 +919,21 @@ store_create_info(THD *thd, TABLE *table, String *packet)
     }
     packet->append(')');
   }
-  packet->append("\n)", 2);
 
   handler *file = table->file;
+
+  /* Get possible foreign key definitions stored in InnoDB and append them
+  to the CREATE TABLE statement */
+
+  char* for_str = file->get_foreign_key_create_info();
+
+  if (for_str) {
+  	packet->append(for_str, strlen(for_str));
+
+  	file->free_foreign_key_create_info(for_str);
+  }
+
+  packet->append("\n)", 2);
   packet->append(" TYPE=", 6);
   packet->append(file->table_type());
   char buff[128];
@@ -1136,7 +1159,7 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables)
   pthread_mutex_lock(&LOCK_status);
   for (i=0; variables[i].name; i++)
   {
-    if (!(wild && wild[0] && wild_compare(variables[i].name,wild)))
+    if (!(wild && wild[0] && wild_case_compare(variables[i].name,wild)))
     {
       packet2.length(0);
       net_store_data(&packet2,convert,variables[i].name);

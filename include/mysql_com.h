@@ -67,7 +67,7 @@ enum enum_server_command {COM_SLEEP,COM_QUIT,COM_INIT_DB,COM_QUERY,
 #define REFRESH_TABLES		4	/* close all tables */
 #define REFRESH_HOSTS		8	/* Flush host cache */
 #define REFRESH_STATUS		16	/* Flush status variables */
-#define REFRESH_THREADS		32	/* Flush status variables */
+#define REFRESH_THREADS		32	/* Flush thread cache */
 #define REFRESH_SLAVE           64      /* Reset master info and restart slave
 					   thread */
 #define REFRESH_MASTER          128     /* Remove all bin logs in the index
@@ -81,6 +81,7 @@ enum enum_server_command {COM_SLEEP,COM_QUIT,COM_INIT_DB,COM_QUERY,
 #define REFRESH_QUERY_CACHE	65536
 #define REFRESH_QUERY_CACHE_FREE 0x20000L /* pack query cache */
 #define REFRESH_DES_KEY_FILE	0x40000L
+#define REFRESH_USER_RESOURCES	0x80000L
 
 #define CLIENT_LONG_PASSWORD	1	/* new more secure passwords */
 #define CLIENT_FOUND_ROWS	2	/* Found instead of affected rows */
@@ -91,7 +92,6 @@ enum enum_server_command {COM_SLEEP,COM_QUIT,COM_INIT_DB,COM_QUERY,
 #define CLIENT_ODBC		64	/* Odbc client */
 #define CLIENT_LOCAL_FILES	128	/* Can use LOAD DATA LOCAL */
 #define CLIENT_IGNORE_SPACE	256	/* Ignore spaces before '(' */
-#define CLIENT_CHANGE_USER	512	/* Support the mysql_change_user() */
 #define CLIENT_INTERACTIVE	1024	/* This is an interactive client */
 #define CLIENT_SSL              2048     /* Switch to SSL after handshake */
 #define CLIENT_IGNORE_SIGPIPE   4096     /* IGNORE sigpipes */
@@ -108,8 +108,8 @@ enum enum_server_command {COM_SLEEP,COM_QUIT,COM_INIT_DB,COM_QUERY,
 struct st_vio;					/* Only C */
 typedef struct st_vio Vio;
 
-#define MAX_CHAR_WIDTH		255	// Max length for a CHAR colum
-#define MAX_BLOB_WIDTH		8192	// Default width for blob
+#define MAX_CHAR_WIDTH		255	/* Max length for a CHAR colum */
+#define MAX_BLOB_WIDTH		8192	/* Default width for blob */
 
 typedef struct st_net {
   Vio* vio;

@@ -475,7 +475,7 @@ null:
 
 void Item_func_concat_ws::fix_length_and_dec()
 {
-  max_length=0;
+  max_length=separator->max_length*(arg_count-1);
   for (uint i=0 ; i < arg_count ; i++)
     max_length+=args[i]->max_length;
   if (max_length > MAX_BLOB_WIDTH)
@@ -1921,21 +1921,23 @@ String* Item_func_inet_ntoa::val_str(String* str)
   uchar buf[8], *p;
   ulonglong n = (ulonglong) args[0]->val_int();
   char num[4];
-  // we do not know if args[0] is NULL until we have called
-  // some val function on it if args[0] is not a constant!
-  if ((null_value=args[0]->null_value))
+
+  /*
+    We do not know if args[0] is NULL until we have called
+    some val function on it if args[0] is not a constant!
+
+    Also return null if n > 255.255.255.255
+  */
+  if ((null_value= (args[0]->null_value || n > (ulonglong) LL(4294967295))))
     return 0;					// Null value
+
   str->length(0);
-  int8store(buf,n);
+  int4store(buf,n);
 
-  // now we can assume little endian
-  // we handle the possibility of an 8-byte IP address
-  // however, we do not want to confuse those who are just using
-  // 4 byte ones
-
-  for (p= buf + 8; p > buf+4 && p[-1] == 0 ; p-- ) ;
+  /* Now we can assume little endian. */
+  
   num[3]='.';
-  while (p-- > buf)
+  for (p=buf+4 ; p-- > buf ; )
   {
     uint c = *p;
     uint n1,n2;					// Try to avoid divisions

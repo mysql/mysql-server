@@ -1,2 +1,0 @@
-select last_insert_id(345);
-select @@IDENTITY,last_insert_id();

@@ -199,7 +199,7 @@
 "Net error writing to master",
 "Ei suutnud leida FULLTEXT indeksit, mis kattuks kasutatud tulpadega",
 "Ei suuda täita antud käsku kuna on aktiivseid lukke või käimasolev transaktsioon",
-"Tundmatu süsteemne muutuja '%-.64'",
+"Tundmatu süsteemne muutuja '%-.64s'",
 "Tabel '%-.64s' on märgitud vigaseks ja tuleb parandada",
 "Tabel '%-.64s' on märgitud vigaseks ja viimane (automaatne?) parandus ebaõnnestus",
 "Hoiatus: mõnesid transaktsioone mittetoetavaid tabeleid ei suudetud tagasi kerida",

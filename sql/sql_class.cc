@@ -34,6 +34,8 @@
 #ifdef	__WIN__
 #include <io.h>
 #endif
+#include <mysys_err.h>
+#include <assert.h>
 
 /*****************************************************************************
 ** Instansiate templates
@@ -102,9 +104,13 @@ THD::THD():user_time(0),fatal_error(0),last_insert_id_used(0),
   cond_count=0;
   convert_set=0;
   mysys_var=0;
+#ifndef DBUG_OFF
+  dbug_sentry=THD_SENTRY_MAGIC;
+#endif  
   net.vio=0;
   ull=0;
   system_thread=cleanup_done=0;
+  transaction.changed_tables = 0;
 #ifdef	__WIN__
   real_id = 0;
 #endif
@@ -119,10 +125,14 @@ THD::THD():user_time(0),fatal_error(0),last_insert_id_used(0),
   server_id = ::server_id;
   slave_net = 0;
   log_pos = 0;
-  server_status=SERVER_STATUS_AUTOCOMMIT;
+  server_status= SERVER_STATUS_AUTOCOMMIT;
   update_lock_default= low_priority_updates ? TL_WRITE_LOW_PRIORITY : TL_WRITE;
-  options=thd_startup_options;
-  query_cache_type = (byte) query_cache_startup_type;
+  options= thd_startup_options;
+#ifdef HAVE_QUERY_CACHE
+  query_cache_type= (byte) query_cache_startup_type;
+#else
+  query_cache_type= 0; //Safety
+#endif
   sql_mode=(uint) opt_sql_mode;
   inactive_timeout=net_wait_timeout;
   open_options=ha_open_options;
@@ -136,7 +146,8 @@ THD::THD():user_time(0),fatal_error(0),last_insert_id_used(0),
 
   /* Initialize sub structures */
   bzero((char*) &mem_root,sizeof(mem_root));
-  user_connect=(UC *)0;
+  bzero((char*) &transaction.mem_root,sizeof(transaction.mem_root));
+  user_connect=(USER_CONN *)0;
   hash_init(&user_vars, USER_VARS_HASH_SIZE, 0, 0,
 	    (hash_get_key) get_var_key,
 	    (void (*)(void*)) free_var,0);
@@ -183,6 +194,7 @@ void THD::cleanup(void)
 
 THD::~THD()
 {
+  THD_CHECK_SENTRY(this);
   DBUG_ENTER("~THD()");
   /* Close connection */
   if (net.vio)
@@ -211,15 +223,20 @@ THD::~THD()
   safeFree(db);
   safeFree(ip);
   free_root(&mem_root,MYF(0));
+  free_root(&transaction.mem_root,MYF(0));
   mysys_var=0;					// Safety (shouldn't be needed)
 #ifdef SIGNAL_WITH_VIO_CLOSE
   pthread_mutex_destroy(&active_vio_lock);
+#endif
+#ifndef DBUG_OFF
+  dbug_sentry = THD_SENTRY_GONE;
 #endif  
   DBUG_VOID_RETURN;
 }
 
 void THD::awake(bool prepare_to_die)
 {
+  THD_CHECK_SENTRY(this);
   if (prepare_to_die)
     killed = 1;
   thr_alarm_kill(real_id);
@@ -254,6 +271,88 @@ bool THD::store_globals()
 	  my_pthread_setspecific_ptr(THR_MALLOC, &mem_root) ||
 	  my_pthread_setspecific_ptr(THR_NET,  &net));
 }
+
+/* routings to adding tables to list of changed in transaction tables */
+
+inline static void list_include(CHANGED_TABLE_LIST** prev,
+				CHANGED_TABLE_LIST* curr,
+				CHANGED_TABLE_LIST* new_table)
+{
+  if (new_table)
+  {
+    *prev = new_table;
+    (*prev)->next = curr;
+  }
+}
+
+/* add table to list of changed in transaction tables */
+void THD::add_changed_table(TABLE *table)
+{
+  DBUG_ENTER("THD::add_changed_table (table)");
+
+  DBUG_ASSERT((options & (OPTION_NOT_AUTO_COMMIT | OPTION_BEGIN)) &&
+		table->file->has_transactions());
+
+  CHANGED_TABLE_LIST** prev = &transaction.changed_tables;
+  CHANGED_TABLE_LIST* curr = transaction.changed_tables;
+
+  for(; curr; prev = &(curr->next), curr = curr->next)
+  {
+    int cmp =  (long)curr->key_length - (long)table->key_length;
+    if (cmp < 0)
+    {
+      list_include(prev, curr, changed_table_dup(table));
+      DBUG_PRINT("info", 
+		 ("key_length %u %u", table->key_length, (*prev)->key_length));
+      DBUG_VOID_RETURN;
+    }
+    else if (cmp == 0)
+    {
+      cmp = memcmp(curr->key ,table->table_cache_key, curr->key_length);
+      if (cmp < 0)
+      {
+	list_include(prev, curr, changed_table_dup(table));
+	DBUG_PRINT("info", 
+		   ("key_length %u %u", table->key_length, (*prev)->key_length));
+	DBUG_VOID_RETURN;
+      }
+      else if (cmp == 0)
+      {
+	DBUG_PRINT("info", ("already in list"));
+	DBUG_VOID_RETURN;
+      }
+    }
+  }
+  *prev = changed_table_dup(table);
+  DBUG_PRINT("info", ("key_length %u %u", table->key_length, (*prev)->key_length));
+  DBUG_VOID_RETURN;
+}
+
+CHANGED_TABLE_LIST* THD::changed_table_dup(TABLE *table)
+{
+  CHANGED_TABLE_LIST* new_table = 
+    (CHANGED_TABLE_LIST*) trans_alloc(ALIGN_SIZE(sizeof(CHANGED_TABLE_LIST))+
+				      table->key_length + 1);
+  if (!new_table)
+  {
+    my_error(EE_OUTOFMEMORY, MYF(ME_BELL),
+	     ALIGN_SIZE(sizeof(TABLE_LIST)) + table->key_length + 1);
+    killed= 1;
+    return 0;
+  }
+
+  new_table->key = (char *) (((byte*)new_table)+
+			     ALIGN_SIZE(sizeof(CHANGED_TABLE_LIST)));
+  new_table->next = 0;
+  new_table->key_length = table->key_length;
+  uint32 db_len = ((new_table->table_name =
+		    ::strmake(new_table->key, table->table_cache_key, 
+			      table->key_length) + 1) - new_table->key);
+  ::memcpy(new_table->key + db_len, table->table_cache_key + db_len,
+	   table->key_length - db_len);
+  return new_table;
+}
+
 
 /*****************************************************************************
 ** Functions to provide a interface to select results
