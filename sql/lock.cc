@@ -108,6 +108,13 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd,TABLE **tables,uint count)
       thd->locked=0;
       break;
     }
+    else if (!thd->open_tables)
+    {
+      // Only using temporary tables, no need to unlock
+      thd->some_tables_deleted=0;
+      thd->locked=0;
+      break;
+    }
 
     /* some table was altered or deleted. reopen tables marked deleted */
     mysql_unlock_tables(thd,sql_lock);

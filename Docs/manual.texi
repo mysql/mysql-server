@@ -46897,6 +46897,15 @@ not yet 100% confident in this code.
 @appendixsubsec Changes in release 3.23.50
 @itemize @bullet
 @item
+Fixed core-dump bug when using @code{--log-bin} with @code{LOAD DATA
+INFILE} without an active database.
+@item
+Fixed bug in @code{RENAME TABLE} when used with
+@code{lower_case_table_names=1} (default on Windows).
+@item
+Fixed unlikely core-dump bug when using @code{DROP TABLE} on a table
+that was in use by a thread that also used queries on only temporary tables.
+@item
 Fixed problem with @code{SHOW CREATE TABLE} and @code{PRIMARY KEY} when using
 32 indexes.
 @item
