@@ -220,7 +220,7 @@ public:
   LEX *
   pre_open(THD *thd);
   void
-  post_open(THD *thd, my_bool isopen);
+  post_open(THD *thd, my_bool was_opened);
 
   int
   close(THD *thd);
