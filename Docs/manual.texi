@@ -19135,7 +19135,7 @@ connection to the MySQL server, MySQL assumes
 something is wrong and blocks the host from further connection requests.
 Flushing the host tables allows the host to attempt to connect
 again. @xref{Blocked host}. You can start @code{mysqld} with
-@code{-O max_connection_errors=999999999} to avoid this error message.
+@code{-O max_connect_errors=999999999} to avoid this error message.
 
 @item @code{DES_KEY_FILE} @tab Reloads the DES keys from the file that was
 specified with the @code{--des-key-file} option at server startup time.
