@@ -1327,6 +1327,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     this so that they will not get logged to the slow query log
   */
   thd->slow_command=FALSE;
+  thd->lex->sql_command= SQLCOM_END; /* to avoid confusing VIEW detectors */
   thd->set_time();
   VOID(pthread_mutex_lock(&LOCK_thread_count));
   thd->query_id=query_id;
@@ -1570,7 +1571,17 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     if (grant_option &&
 	check_grant(thd, SELECT_ACL, &table_list, 2, UINT_MAX, 0))
       break;
+    /* switch on VIEW optimisation: do not fill temporary tables */
+    thd->lex->sql_command= SQLCOM_SHOW_FIELDS;
+    /* init structures for VIEW processing */
+    table_list.select_lex= &(thd->lex->select_lex);
+    mysql_init_query(thd, (uchar*)"", 0);
+    thd->lex->
+      select_lex.table_list.link_in_list((byte*) &table_list,
+                                         (byte**) &table_list.next_local);
+
     mysqld_list_fields(thd,&table_list,fields);
+    thd->lex->unit.cleanup();
     free_items(thd->free_list);
     thd->free_list=0;           /* free_list should never point to garbage */
     break;
