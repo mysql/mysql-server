@@ -84,10 +84,6 @@ LIB32=xilink6.exe -lib
 # Name "mysqldemb - Win32 Debug"
 # Begin Source File
 
-SOURCE=..\sql\convert.cpp
-# End Source File
-# Begin Source File
-
 SOURCE=..\sql\derror.cpp
 # End Source File
 # Begin Source File
@@ -217,10 +213,6 @@ SOURCE=..\sql\log_event.cpp
 # Begin Source File
 
 SOURCE=..\sql\mf_iocache.cpp
-# End Source File
-# Begin Source File
-
-SOURCE=..\sql\mini_client.cpp
 # End Source File
 # Begin Source File
 

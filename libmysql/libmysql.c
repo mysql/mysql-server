@@ -1581,7 +1581,7 @@ static my_bool read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt)
       mysql->server_status|= SERVER_STATUS_IN_TRANS;
 
     mysql->extra_info= net_field_length_ll(&pos);
-    if (!(fields_data= read_rows(mysql, (MYSQL_FIELD*) 0, 9)))
+    if (!(fields_data= read_rows(mysql, (MYSQL_FIELD*) 0, 7)))
       DBUG_RETURN(1);
     if (!(stmt->fields= unpack_fields(fields_data,&stmt->mem_root,
 				      field_count,0,
@@ -1921,7 +1921,7 @@ static void store_param_datetime(NET *net, MYSQL_BIND *param)
     
 static void store_param_str(NET *net, MYSQL_BIND *param)
 {
-  ulong length= min(*param->length, param->buffer_length);
+  ulong length= param->length ? *param->length : param->buffer_length;
   char *to= (char *) net_store_length((char *) net->write_pos, length);
   memcpy(to, param->buffer, length);
   net->write_pos= (uchar*) to+length;
@@ -2442,7 +2442,7 @@ static void send_data_long(MYSQL_BIND *param, longlong value)
     }
   default:
     {
-      char tmp[NAME_LEN];
+      char tmp[12];
       uint length= (uint)(longlong10_to_str(value,(char *)tmp,10)-tmp);
       ulong copy_length= min((ulong)length-param->offset, param->buffer_length);
       memcpy(buffer, (char *)tmp+param->offset, copy_length);
@@ -2489,7 +2489,7 @@ static void send_data_double(MYSQL_BIND *param, double value)
     }
   default:
     {
-      char tmp[NAME_LEN];
+      char tmp[12];
       uint length= my_sprintf(tmp,(tmp,"%g",value));
       ulong copy_length= min((ulong)length-param->offset, param->buffer_length);
       memcpy(buffer, (char *)tmp+param->offset, copy_length);
@@ -2996,12 +2996,11 @@ int STDCALL mysql_fetch(MYSQL_STMT *stmt)
 
     if (!res->data_cursor) 
     {
-      res->current_row= 0;
+      stmt->current_row= 0;
       goto no_data;
     }    
     row= (uchar *)res->data_cursor->data;
     res->data_cursor= res->data_cursor->next;
-    res->current_row= (MYSQL_ROW)row;    
   }
   else /* un-buffered */
   {
@@ -3018,8 +3017,8 @@ int STDCALL mysql_fetch(MYSQL_STMT *stmt)
       goto no_data;
     }
     row= mysql->net.read_pos+1;  
-    stmt->current_row= row;
-  }
+  }  
+  stmt->current_row= row;    
   DBUG_RETURN(stmt_fetch_row(stmt, row));
 
 no_data:
@@ -3040,12 +3039,7 @@ int STDCALL mysql_fetch_column(MYSQL_STMT *stmt, MYSQL_BIND *bind,
 
   DBUG_ENTER("mysql_fetch_column");
 
-  if (stmt->result_buffered)
-  {
-    if (!stmt->result || !(row= (uchar *)stmt->result->current_row))
-      goto no_data;
-  }
-  else if (!(row= stmt->current_row))
+  if (!(row= stmt->current_row))
     goto no_data;
 
 #ifdef CHECK_EXTRA_ARGUMENTS  
@@ -3343,18 +3337,15 @@ my_ulonglong STDCALL mysql_stmt_num_rows(MYSQL_STMT *stmt)
     0	ok
     1	error
 */
-my_bool stmt_close(MYSQL_STMT *stmt, my_bool skip_list)
-{
+
+my_bool STDCALL mysql_stmt_free_result(MYSQL_STMT *stmt)
+{ 
   MYSQL *mysql;
   DBUG_ENTER("mysql_stmt_close");
 
   DBUG_ASSERT(stmt != 0);
   
-  if (!(mysql= stmt->mysql))
-  {
-    my_free((gptr) stmt, MYF(MY_WME));
-    DBUG_RETURN(0);
-  }
+  mysql= stmt->mysql;
   if (mysql->status != MYSQL_STATUS_READY)
   {
     /* Clear the current execution status */
@@ -3369,6 +3360,23 @@ my_bool stmt_close(MYSQL_STMT *stmt, my_bool skip_list)
     }
     mysql->status= MYSQL_STATUS_READY;
   }
+  mysql_free_result(stmt->result);
+  DBUG_RETURN(0);
+}
+
+my_bool stmt_close(MYSQL_STMT *stmt, my_bool skip_list)
+{
+  MYSQL *mysql;
+  DBUG_ENTER("mysql_stmt_close");
+
+  DBUG_ASSERT(stmt != 0);
+  
+  if (!(mysql= stmt->mysql))
+  {
+    my_free((gptr) stmt, MYF(MY_WME));
+    DBUG_RETURN(0);
+  }
+  mysql_stmt_free_result(stmt);
   if (stmt->state == MY_ST_PREPARE || stmt->state == MY_ST_EXECUTE)
   {
     char buff[4];
@@ -3381,7 +3389,6 @@ my_bool stmt_close(MYSQL_STMT *stmt, my_bool skip_list)
       DBUG_RETURN(1);
     }
   }
-  mysql_free_result(stmt->result);
   stmt->field_count= 0;
   free_root(&stmt->mem_root, MYF(0));
   if (!skip_list)

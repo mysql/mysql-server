@@ -87,6 +87,10 @@ LINK32=link.exe
 # Name "libmysqld - Win32 Debug"
 # Begin Source File
 
+SOURCE=.\client.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\sql\derror.cpp
 # End Source File
 # Begin Source File
@@ -176,6 +180,10 @@ SOURCE=..\sql\item_func.cpp
 # End Source File
 # Begin Source File
 
+SOURCE=.\item_geofunc.cpp
+# End Source File
+# Begin Source File
+
 SOURCE=.\item_row.cpp
 # End Source File
 # Begin Source File
@@ -245,6 +253,10 @@ SOURCE=..\sql\opt_range.cpp
 # Begin Source File
 
 SOURCE=..\sql\opt_sum.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=..\libmysql\pack.c
 # End Source File
 # Begin Source File
 
