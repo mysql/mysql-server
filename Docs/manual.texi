@@ -10176,23 +10176,23 @@ this:
 datadir=/usr/local/mysql/var
 socket=/tmp/mysqld.sock
 port=3306
+user=mysql
 
 [mysql.server]
-user=mysql
 basedir=/usr/local/mysql
 @end example
 
-The @code{mysql.server} script uses the following variables:
-@code{user}, @code{datadir}, @code{basedir}, @code{bindir}, and
-@code{pid-file}.
+The @code{mysql.server} script understands the following options:
+@code{datadir}, @code{basedir}, and @code{pid-file}.
 
-The following table shows which option sections each of the startup script
-uses:
+The following table shows which option groups each of the startup scripts
+read from option files:
 
 @multitable @columnfractions .20 .80
+@item @strong{Script} @tab @strong{Option groups}
 @item @code{mysqld} @tab @code{mysqld} and @code{server}
-@item @code{mysql.server} @tab @code{mysql.server}, @code{mysqld} and @code{server}
-@item @code{safe_mysqld} @tab @code{mysql.server}, @code{mysqld} and @code{server}
+@item @code{mysql.server} @tab @code{mysql.server}, @code{mysqld}, and @code{server}
+@item @code{safe_mysqld} @tab @code{mysql.server}, @code{mysqld}, and @code{server}
 @end multitable
 
 @xref{Option files}.
