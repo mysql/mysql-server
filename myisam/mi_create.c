@@ -468,16 +468,20 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
   if (! (flags & HA_DONT_TOUCH_DATA))
     share.state.create_time= (long) time((time_t*) 0);
 
-  if ((file = my_create(fn_format(buff,name,"",MI_NAME_IEXT,4),0,
-			O_RDWR | O_TRUNC,MYF(MY_WME))) < 0)
+  if ((file= my_create_with_symlink(ci->index_file_name,
+				    fn_format(buff,name,"",MI_NAME_IEXT,4+
+					      (ci->index_file_name ? 0 : 32)),
+				    0, O_RDWR | O_TRUNC,
+				    MYF(MY_WME | MY_DELETE_OLD))) < 0)
     goto err;
   errpos=1;
-  VOID(fn_format(buff,name,"",MI_NAME_DEXT,2+4));
+
   if (!(flags & HA_DONT_TOUCH_DATA))
   {
 #ifdef USE_RAID
     if (share.base.raid_type)
     {
+      (void) fn_format(buff,name,"",MI_NAME_DEXT,2+4);
       if ((dfile=my_raid_create(buff,0,O_RDWR | O_TRUNC,
 				share.base.raid_type,
 				share.base.raid_chunks,
@@ -487,9 +491,14 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
     }
     else
 #endif
-    if ((dfile = my_create(buff,0,O_RDWR | O_TRUNC,MYF(MY_WME))) < 0)
-      goto err;
-
+    {
+      (void) fn_format(buff,name,"",MI_NAME_DEXT,2+4 +
+		       (ci->data_file_name ? 0 : 32));
+      if ((dfile= 
+	   my_create_with_symlink(ci->data_file_name, buff, 
+				  0,O_RDWR | O_TRUNC,MYF(MY_WME))) < 0)
+	goto err;
+    }
     errpos=3;
   }
 
@@ -601,6 +610,8 @@ err:
     /* QQ: Tõnu should add a call to my_raid_delete() here */
     VOID(fn_format(buff,name,"",MI_NAME_DEXT,2+4));
     my_delete(buff,MYF(0));
+    if (ci->data_file_name && strcmp(buff,ci->data_file_name))
+      my_delete(ci->data_file_name,MYF(0));
   }
     /* fall through */
   case 1:
@@ -609,6 +620,8 @@ err:
     {
       VOID(fn_format(buff,name,"",MI_NAME_IEXT,2+4));
       my_delete(buff,MYF(0));
+      if (ci->index_file_name && strcmp(buff,ci->index_file_name))
+	my_delete(ci->index_file_name,MYF(0));
     }
   }
   my_free((char*) rec_per_key_part, MYF(0));

@@ -100,41 +100,34 @@ gptr alloc_root(MEM_ROOT *mem_root,unsigned int Size)
 #endif
 }
 
+/* Mark all data in blocks free for reusage */
+
 static inline void mark_blocks_free(MEM_ROOT* root)
 {
-  reg1 USED_MEM *next,*last = 0;
+  reg1 USED_MEM *next;
+  reg2 USED_MEM **last;
 
-  /* iterate through (partially) free blocks, mark them fully free */
-  for(next = root->free; next; next = next->next )
-    {
-      last = next;
-      next->left = next->size - ALIGN_SIZE(sizeof(USED_MEM));
-    }
-  /* if free block list was not empty, point the next of the
-     last free block to the beginning of the used list  */
-  next = root->used; /* a little optimization to avoid dereferencing root
-		      twice - we will shortly start iterating through used
-		      list */
-  if(last)
-    last->next = next;
-  else /* if free list is empty, just point it to the current used*/
-    root->free = next;
+  /* iterate through (partially) free blocks, mark them free */
+  last= &root->free;
+  for (next= root->free; next; next= *(last= &next->next))
+    next->left= next->size - ALIGN_SIZE(sizeof(USED_MEM));
 
-  /* now go through the current used list, and mark each block
-     as fully free. Note that because of our optimization, we do not
-     need to initialize next here - see above
-  */
-  for(;next; next = next->next)
-      next->left = next->size - ALIGN_SIZE(sizeof(USED_MEM));
+  /* Combine the free and the used list */
+  *last= next=root->used;
 
-  /* Now everything is set - we just need to indicate that nothing is used
-     anymore
-  */
-  root->used = 0;
+  /* now go through the used blocks and mark them free */
+  for (; next; next= next->next)
+    next->left= next->size - ALIGN_SIZE(sizeof(USED_MEM));
+
+  /* Now everything is set; Indicate that nothing is used anymore */
+  root->used= 0;
 }
 
-	/* deallocate everything used by alloc_root or just move
-	 used blocks to free list if called with MY_USED_TO_FREE */
+
+/*
+  Deallocate everything used by alloc_root or just move
+  used blocks to free list if called with MY_USED_TO_FREE
+*/
 
 void free_root(MEM_ROOT *root, myf MyFlags)
 {
@@ -143,23 +136,23 @@ void free_root(MEM_ROOT *root, myf MyFlags)
 
   if (!root)
     DBUG_VOID_RETURN; /* purecov: inspected */
-  if(MyFlags & MY_MARK_BLOCKS_FREE)
-    {
-      mark_blocks_free(root);
-      DBUG_VOID_RETURN;
-    }
+  if (MyFlags & MY_MARK_BLOCKS_FREE)
+  {
+    mark_blocks_free(root);
+    DBUG_VOID_RETURN;
+  }
   if (!(MyFlags & MY_KEEP_PREALLOC))
     root->pre_alloc=0;
 
-  for ( next=root->used; next ;)
+  for (next=root->used; next ;)
   {
     old=next; next= next->next ;
     if (old != root->pre_alloc)
       my_free((gptr) old,MYF(0));
   }
-  for (next= root->free ; next ; )
+  for (next=root->free ; next ;)
   {
-    old=next; next= next->next ;
+    old=next; next= next->next;
     if (old != root->pre_alloc)
       my_free((gptr) old,MYF(0));
   }

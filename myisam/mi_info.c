@@ -87,6 +87,8 @@ int mi_status(MI_INFO *info, register MI_ISAMINFO *x, uint flag)
     x->raid_chunks= share->base.raid_chunks;
     x->raid_chunksize= share->base.raid_chunksize;
     x->key_map	 	= share->state.key_map;
+    x->data_file_name   = share->data_file_name;
+    x->index_file_name  = share->index_file_name;
   }
   if ((flag & HA_STATUS_TIME) && !my_fstat(info->dfile,&state,MYF(0)))
     x->update_time=state.st_mtime;

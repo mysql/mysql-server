@@ -256,6 +256,7 @@ int _mi_seq_search(MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *page,
   DBUG_RETURN(flag);
 } /* _mi_seq_search */
 
+
 int _mi_prefix_search(MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *page,
                       uchar *key, uint key_len, uint nextflag, uchar **ret_pos,
                       uchar *buff, my_bool *last_key)
@@ -273,6 +274,13 @@ int _mi_prefix_search(MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *page,
   uchar *saved_from, *saved_to, *saved_vseg;
   uint   saved_length=0, saved_prefix_len=0;
   DBUG_ENTER("_mi_prefix_search");
+
+  LINT_INIT(length);
+  LINT_INIT(prefix_len);
+  LINT_INIT(seg_len_pack);
+  LINT_INIT(saved_from);
+  LINT_INIT(saved_to);
+  LINT_INIT(saved_vseg);
 
   t_buff[0]=0;                                  /* Avoid bugs */
   if (!(nextflag & (SEARCH_FIND | SEARCH_NO_FIND | SEARCH_LAST)))
@@ -405,11 +413,11 @@ int _mi_prefix_search(MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *page,
         */
         if (len < cmplen)
         {
-          my_flag=-1;
+          my_flag= -1;
         }
         else if (len > cmplen)
         {
-          if(my_flag = !(nextflag & SEARCH_PREFIX) && key_len_left>0)
+          if ((my_flag= (!(nextflag & SEARCH_PREFIX) && key_len_left>0)))
             break;
           goto fix_flag;
         }
