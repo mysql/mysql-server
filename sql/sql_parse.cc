@@ -3391,7 +3391,8 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
 		       char *length, char *decimals,
 		       uint type_modifier,
 		       Item *default_value, Item *comment,
-		       char *change, TYPELIB *interval, CHARSET_INFO *cs)
+		       char *change, TYPELIB *interval, CHARSET_INFO *cs,
+		       uint uint_geom_type)
 {
   register create_field *new_field;
   LEX  *lex= &thd->lex;
@@ -3445,6 +3446,7 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
   new_field->interval=0;
   new_field->pack_length=0;
   new_field->charset=cs;
+  new_field->geom_type= (Field::geometry_type) uint_geom_type;
 
   if (!comment)
   {

@@ -1114,7 +1114,8 @@ field_spec:
 				(enum enum_field_types) $3,
 				lex->length,lex->dec,lex->type,
 				lex->default_value, lex->comment,
-				lex->change,lex->interval,lex->charset))
+				lex->change,lex->interval,lex->charset,
+				lex->uint_geom_type))
 	    YYABORT;
 	};
 
@@ -1167,20 +1168,28 @@ type:
 	| BLOB_SYM opt_len		{ Lex->charset=&my_charset_bin;
 					  $$=FIELD_TYPE_BLOB; }
 	| GEOMETRY_SYM			{ Lex->charset=&my_charset_bin;
+					  Lex->uint_geom_type= Field::GEOM_GEOMETRY;
 					  $$=FIELD_TYPE_GEOMETRY; }
 	| GEOMETRYCOLLECTION		{ Lex->charset=&my_charset_bin;
+					  Lex->uint_geom_type= Field::GEOM_GEOMETRYCOLLECTION;
 					  $$=FIELD_TYPE_GEOMETRY; }
 	| POINT_SYM			{ Lex->charset=&my_charset_bin;
+					  Lex->uint_geom_type= Field::GEOM_POINT;
 					  $$=FIELD_TYPE_GEOMETRY; }
 	| MULTIPOINT			{ Lex->charset=&my_charset_bin;
+					  Lex->uint_geom_type= Field::GEOM_MULTIPOINT;
 					  $$=FIELD_TYPE_GEOMETRY; }
 	| LINESTRING			{ Lex->charset=&my_charset_bin;
+					  Lex->uint_geom_type= Field::GEOM_LINESTRING;
 					  $$=FIELD_TYPE_GEOMETRY; }
 	| MULTILINESTRING		{ Lex->charset=&my_charset_bin;
+					  Lex->uint_geom_type= Field::GEOM_MULTILINESTRING;
 					  $$=FIELD_TYPE_GEOMETRY; }
 	| POLYGON			{ Lex->charset=&my_charset_bin;
+					  Lex->uint_geom_type= Field::GEOM_POLYGON;
 					  $$=FIELD_TYPE_GEOMETRY; }
 	| MULTIPOLYGON			{ Lex->charset=&my_charset_bin;
+					  Lex->uint_geom_type= Field::GEOM_MULTIPOLYGON;
 					  $$=FIELD_TYPE_GEOMETRY; }
 	| MEDIUMBLOB			{ Lex->charset=&my_charset_bin;
 					  $$=FIELD_TYPE_MEDIUM_BLOB; }
@@ -1549,7 +1558,8 @@ alter_list_item:
                                   (enum enum_field_types) $5,
                                   lex->length,lex->dec,lex->type,
                                   lex->default_value, lex->comment,
-				  $3.str, lex->interval, lex->charset))
+				  $3.str, lex->interval, lex->charset,
+				  lex->uint_geom_type))
 	       YYABORT;
           }
           opt_place

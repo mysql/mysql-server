@@ -4775,7 +4775,33 @@ void Field_geom::set_key_image(char *buff, uint length, CHARSET_INFO *cs)
 
 void Field_geom::sql_type(String &res) const
 {
-  res.set("geometry", 8, &my_charset_latin1);
+  CHARSET_INFO *cs= &my_charset_latin1;
+  switch (geom_type)
+  {
+    case GEOM_POINT:
+     res.set("point", 5, cs);
+     break;
+    case GEOM_LINESTRING:
+     res.set("linestring", 10, cs);
+     break;
+    case GEOM_POLYGON:
+     res.set("polygon", 7, cs);
+     break;
+    case GEOM_MULTIPOINT:
+     res.set("multipoint", 10, cs);
+     break;
+    case GEOM_MULTILINESTRING:
+     res.set("multilinestring", 15, cs);
+     break;
+    case GEOM_MULTIPOLYGON:
+     res.set("multipolygon", 12, cs);
+     break;
+    case GEOM_GEOMETRYCOLLECTION:
+     res.set("geometrycollection", 18, cs);
+     break;
+    default:
+     res.set("geometry", 8, cs);
+  }
 }
 
 
@@ -5286,6 +5312,7 @@ Field *make_field(char *ptr, uint32 field_length,
 		  uint pack_flag,
 		  enum_field_types field_type,
 		  CHARSET_INFO *field_charset,
+		  Field::geometry_type geom_type,
 		  Field::utype unireg_check,
 		  TYPELIB *interval,
 		  const char *field_name,
@@ -5309,7 +5336,7 @@ Field *make_field(char *ptr, uint32 field_length,
     if (f_is_geom(pack_flag))
       return new Field_geom(ptr,null_pos,null_bit,
 			    unireg_check, field_name, table,
-			    pack_length);
+			    pack_length, geom_type);
     if (f_is_blob(pack_flag))
       return new Field_blob(ptr,null_pos,null_bit,
 			    unireg_check, field_name, table,
