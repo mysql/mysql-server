@@ -95,6 +95,7 @@ $Devel::Trace::TRACE= 1;
 
 my @skip_if_embedded_server=
   (
+   "alter_table",
    "bdb-deadlock",
    "connect",
    "flush_block_commit",
@@ -148,6 +149,7 @@ our @mysqld_src_dirs=
 
 our $glob_win32=                  0;
 our $glob_mysql_test_dir=         undef;
+our $glob_mysql_bench_dir=        undef;
 our $glob_hostname=               undef;
 our $glob_scriptname=             undef;
 our $glob_use_running_server=     0;
@@ -237,6 +239,8 @@ our $opt_skip_test;
 
 our $opt_sleep;
 
+our $opt_ps_protocol;
+
 # FIXME all of the sleep time handling needs cleanup
 our $opt_sleep_time_after_restart=        1;
 our $opt_sleep_time_for_delete=          10;
@@ -301,7 +305,7 @@ sub mysqld_arguments ($$$$$);
 sub stop_masters_slaves ();
 sub stop_masters ();
 sub stop_slaves ();
-sub run_mysqltest ($);
+sub run_mysqltest ($$);
 
 ######################################################################
 #
@@ -396,6 +400,7 @@ sub initial_setup () {
   # 'basedir' is always parent of "mysql-test" directory
   $glob_mysql_test_dir=  cwd();
   $glob_basedir=         dirname($glob_mysql_test_dir);
+  $glob_mysql_bench_dir= "$glob_basedir/mysql-bench"; # FIXME make configurable
 
   $path_timefile=  "$glob_mysql_test_dir/var/log/mysqltest-time";
 
@@ -441,6 +446,7 @@ sub command_line_setup () {
              'debug'                    => \$opt_debug,
              'do-test=s'                => \$opt_do_test,
              'embedded-server'          => \$opt_embedded_server,
+             'ps-protocol'              => \$opt_ps_protocol,
              'extern'                   => \$opt_extern,
              'fast'                     => \$opt_fast,
              'force'                    => \$opt_force,
@@ -458,6 +464,7 @@ sub command_line_setup () {
              'netware'                  => \$opt_netware,
              'no-manager'               => \$opt_no_manager,
              'old-master'               => \$opt_old_master,
+             'ps-protocol'              => \$opt_ps_protocol,
              'record'                   => \$opt_record,
              'script-debug'             => \$opt_script_debug,
              'skip-rpl'                 => \$opt_skip_rpl,
@@ -526,7 +533,7 @@ sub command_line_setup () {
 
   if ( $opt_extern and $opt_local )
   {
-    die "Can't use --extern and --local at the same time";
+    mtr_error("Can't use --extern and --local at the same time");
   }
 
   if ( ! $opt_socket )
@@ -568,7 +575,7 @@ sub command_line_setup () {
 
     if ( $opt_extern )
     {
-      die "Can't use --extern with --embedded-server";
+      mtr_error("Can't use --extern with --embedded-server");
     }
     $opt_result_ext=  ".es";
   }
@@ -589,12 +596,14 @@ sub command_line_setup () {
     $opt_sleep_time_after_restart=  $opt_sleep;
   }
 
-  if ( $opt_gcov )
+  if ( $opt_gcov and ! $opt_source_dist )
   {
-    if ( $opt_source_dist )
-    {
-      die "Coverage test needs the source - please use source dist";
-    }
+    mtr_error("Coverage test needs the source - please use source dist");
+  }
+
+  if ( $glob_use_embedded_server and ! $opt_source_dist )
+  {
+    mtr_error("Embedded server needs source tree - please use source dist");
   }
 
   if ( $opt_gdb )
@@ -602,7 +611,7 @@ sub command_line_setup () {
     $opt_wait_timeout=  300;
     if ( $opt_extern )
     {
-      die "Can't use --extern with --gdb";
+      mtr_error("Can't use --extern with --gdb");
     }
   }
 
@@ -611,7 +620,7 @@ sub command_line_setup () {
     $opt_gdb=  1;
     if ( $opt_extern )
     {
-      die "Can't use --extern with --manual-gdb";
+      mtr_error("Can't use --extern with --manual-gdb");
     }
   }
 
@@ -619,7 +628,7 @@ sub command_line_setup () {
   {
     if ( $opt_extern )
     {
-      die "Can't use --extern with --ddd";
+      mtr_error("Can't use --extern with --ddd");
     }
   }
 
@@ -689,10 +698,10 @@ sub executable_setup () {
       {
         mtr_error("Cannot find embedded server 'mysqltest'");
       }
+      $path_tests_bindir= "$glob_basedir/libmysqld/examples";
     }
     else
     {
-      $exe_mysqld= "$glob_basedir/sql/mysqld";
       if ( -f "$glob_basedir/client/.libs/lt-mysqltest" )
       {
         $exe_mysqltest=  "$glob_basedir/client/.libs/lt-mysqltest";
@@ -705,6 +714,7 @@ sub executable_setup () {
       {
         $exe_mysqltest=  "$glob_basedir/client/mysqltest";
       }
+      $path_tests_bindir= "$glob_basedir/tests";
     }
     if ( -f "$glob_basedir/client/.libs/mysqldump" )
     {
@@ -723,8 +733,8 @@ sub executable_setup () {
       $exe_mysqlbinlog=   "$glob_basedir/client/mysqlbinlog";
     }
 
+    $exe_mysqld= "$glob_basedir/sql/mysqld";
     $path_client_bindir= "$glob_basedir/client";
-    $path_tests_bindir=  "$glob_basedir/tests";
     $exe_mysqladmin=    "$path_client_bindir/mysqladmin";
     $exe_mysql=         "$path_client_bindir/mysql";
     $path_language=      "$glob_basedir/sql/share/english/";
@@ -791,7 +801,7 @@ sub handle_int_signal () {
   $SIG{INT}= 'DEFAULT';         # If we get a ^C again, we die...
   mtr_warning("got INT signal, cleaning up.....");
   stop_masters_slaves();
-  exit(1);
+  mtr_error("We die from ^C signal from user");
 }
 
 
@@ -806,7 +816,7 @@ sub collect_test_cases () {
 
   my @tests;               # Array of hash, will be array of C struct
 
-  opendir(TESTDIR, $testdir) or die "Can't open dir \"$testdir\": $!";
+  opendir(TESTDIR, $testdir) or mtr_error("Can't open dir \"$testdir\": $!");
 
   foreach my $elem ( sort readdir(TESTDIR) ) {
     my $tname= mtr_match_extension($elem,"test");
@@ -1066,7 +1076,7 @@ sub sleep_until_file_created ($$) {
 
   if ( ! -r $pidfile )
   {
-    die "No $pidfile was created";
+    mtr_error("No $pidfile was created");
   }
 }
 
@@ -1084,7 +1094,7 @@ sub ndbcluster_start () {
   mtr_report("Starting ndbcluster");
   my $ndbcluster_opts=  $opt_bench ? "" : "--small";
   # FIXME check result code?!
-  mtr_run("./ndb/ndbcluster",
+  mtr_run("$glob_mysql_test_dir/ndb/ndbcluster",
           ["--port-base=$opt_ndbcluster_port",
            $ndbcluster_opts,
            "--diskless",
@@ -1094,7 +1104,7 @@ sub ndbcluster_start () {
 }
 
 sub ndbcluster_stop () {
-  mtr_run("./ndb/ndbcluster",
+  mtr_run("$glob_mysql_test_dir/ndb/ndbcluster",
           ["--data-dir=$glob_mysql_test_dir/var",
            "--port-base=$opt_ndbcluster_port",
            "--stop"],
@@ -1142,17 +1152,17 @@ sub run_benchmarks ($) {
   if ( ! $benchmark )
   {
     mtr_add_arg($args, "--log");
-    mtr_run("./run-all-tests", $args, "", "", "", "");
+    mtr_run("$glob_mysql_bench_dir/run-all-tests", $args, "", "", "", "");
     # FIXME check result code?!
   }
   elsif ( -x $benchmark )
   {
-    mtr_run("./$benchmark", $args, "", "", "", "");
+    mtr_run("$glob_mysql_bench_dir/$benchmark", $args, "", "", "", "");
     # FIXME check result code?!
   }
   else
   {
-    mtr_error("benchmark $benchmark not found");
+    mtr_error("Benchmark $benchmark not found");
   }
 
   chdir($glob_mysql_test_dir);          # Go back
@@ -1171,6 +1181,8 @@ sub run_benchmarks ($) {
 ##############################################################################
 
 sub run_tests () {
+
+  mtr_report("Finding Tests");
 
   my $tests= collect_test_cases();
 
@@ -1255,7 +1267,7 @@ sub install_db ($$) {
   if ( mtr_run($exe_mysqld, $args, $init_db_sql,
                $path_manager_log, $path_manager_log, "") != 0 )
   {
-    mtr_error("error executing mysqld --bootstrap\n" .
+    mtr_error("Error executing mysqld --bootstrap\n" .
               "Could not install $type test DBs");
   }
 }
@@ -1293,6 +1305,7 @@ sub run_testcase ($) {
 
   if ( $tinfo->{'skip'} )
   {
+    mtr_report_test_name($tinfo);
     mtr_report_test_skipped($tinfo);
     return;
   }
@@ -1323,14 +1336,24 @@ sub run_testcase ($) {
     # ----------------------------------------------------------------------
 
     stop_slaves();
+  }    
 
-    # ----------------------------------------------------------------------
-    # Start masters
-    # ----------------------------------------------------------------------
+  # ----------------------------------------------------------------------
+  # Prepare to start masters. Even if we use embedded, we want to run
+  # the preparation.
+  # ----------------------------------------------------------------------
 
-    mtr_tofile($master->[0]->{'path_myerr'},"CURRENT_TEST: $tname\n");
-    do_before_start_master($tname,$tinfo->{'master_sh'});
+  mtr_tofile($master->[0]->{'path_myerr'},"CURRENT_TEST: $tname\n");
+  do_before_start_master($tname,$tinfo->{'master_sh'});
 
+  # ----------------------------------------------------------------------
+  # Start masters
+  # ----------------------------------------------------------------------
+
+  mtr_report_test_name($tinfo);
+
+  if ( ! $glob_use_running_server and ! $glob_use_embedded_server )
+  {
     # FIXME give the args to the embedded server?!
     # FIXME what does $opt_local_master mean?!
     # FIXME split up start and check that started so that can do
@@ -1385,9 +1408,7 @@ sub run_testcase ($) {
     unlink("r/$tname.reject");
     unlink($path_timefile);
 
-    mtr_report_test_name($tinfo);
-
-    my $res= run_mysqltest($tinfo);
+    my $res= run_mysqltest($tinfo, $tinfo->{'master_opt'});
 
     if ( $res == 0 )
     {
@@ -1470,7 +1491,7 @@ sub do_before_start_master ($$) {
   if ( $master_init_script and
        mtr_run($master_init_script, [], "", "", "", "") != 0 )
   {
-    mtr_error("can't run $master_init_script");
+    mtr_error("Can't run $master_init_script");
   }
   # for gcov  FIXME needed? If so we need more absolute paths
 # chdir($glob_basedir);
@@ -1501,7 +1522,7 @@ sub do_before_start_slave ($$) {
   if ( $slave_init_script and
        mtr_run($slave_init_script, [], "", "", "", "") != 0 )
   {
-    mtr_error("can't run $slave_init_script");
+    mtr_error("Can't run $slave_init_script");
   }
 
   unlink("$glob_mysql_test_dir/var/slave-data/log.*");
@@ -1525,9 +1546,11 @@ sub mysqld_arguments ($$$$$) {
   if ( $glob_use_embedded_server )
   {
     $prefix= "--server-arg=";
+  } else {
+    # We can't pass embedded server --no-defaults
+    mtr_add_arg($args, "%s--no-defaults", $prefix);
   }
 
-  mtr_add_arg($args, "%s--no-defaults", $prefix);
   mtr_add_arg($args, "%s--basedir=%s", $prefix, $path_my_basedir);
   mtr_add_arg($args, "%s--character-sets-dir=%s", $prefix, $path_charsetsdir);
   mtr_add_arg($args, "%s--core", $prefix);
@@ -1815,7 +1838,7 @@ sub mysqld_start ($$$$) {
     }
   }
 
-  die "Can't start mysqld FIXME";
+  mtr_error("Can't start mysqld FIXME");
 }
 
 sub stop_masters_slaves () {
@@ -1870,8 +1893,9 @@ sub stop_slaves () {
 }
 
 
-sub run_mysqltest ($) {
-  my $tinfo= shift;
+sub run_mysqltest ($$) {
+  my $tinfo=       shift;
+  my $master_opts= shift;
 
   # FIXME set where????
   my $cmdline_mysqldump= "$exe_mysqldump --no-defaults -uroot " .
@@ -1901,18 +1925,10 @@ sub run_mysqltest ($) {
   $ENV{'CLIENT_BINDIR'}=            $path_client_bindir;
   $ENV{'TESTS_BINDIR'}=             $path_tests_bindir;
 
-  my $exe=  $exe_mysqltest;
-  my $args;                             # Arg vector
+  my $exe= $exe_mysqltest;
+  my $args;
 
   mtr_init_args(\$args);
-
-  if ( $opt_strace_client )
-  {
-    $exe=  "strace";            # FIXME there are ktrace, ....
-    mtr_add_arg($args, "-o");
-    mtr_add_arg($args, "%s/var/log/mysqltest.strace", $glob_mysql_test_dir);
-    mtr_add_arg($args, "$exe_mysqltest");
-  }
 
   mtr_add_arg($args, "--no-defaults");
   mtr_add_arg($args, "--socket=%s", $master->[0]->{'path_mysock'});
@@ -1924,6 +1940,19 @@ sub run_mysqltest ($) {
   mtr_add_arg($args, "--skip-safemalloc");
   mtr_add_arg($args, "--tmpdir=%s", $opt_tmpdir);
   mtr_add_arg($args, "--port=%d", $master->[0]->{'path_myport'});
+
+  if ( $opt_ps_protocol )
+  {
+    mtr_add_arg($args, "--ps-protocol");
+  }
+
+  if ( $opt_strace_client )
+  {
+    $exe=  "strace";            # FIXME there are ktrace, ....
+    mtr_add_arg($args, "-o");
+    mtr_add_arg($args, "%s/var/log/mysqltest.strace", $glob_mysql_test_dir);
+    mtr_add_arg($args, "$exe_mysqltest");
+  }
 
   if ( $opt_timer )
   {
@@ -1965,6 +1994,10 @@ sub run_mysqltest ($) {
 
   mtr_add_arg($args, "-R");
   mtr_add_arg($args, $tinfo->{'result_file'});
+
+  # ----------------------------------------------------------------------
+  # If embedded server, we create server args to give mysqltest to pass on
+  # ----------------------------------------------------------------------
 
   if ( $glob_use_embedded_server )
   {
