@@ -2128,7 +2128,7 @@ extern "C" void *signal_hand(void *arg __attribute__((unused)))
       {
 	reload_acl_and_cache((THD*) 0,
 			     (REFRESH_LOG | REFRESH_TABLES | REFRESH_FAST |
-			      REFRESH_STATUS | REFRESH_GRANT |
+			      REFRESH_GRANT |
 			      REFRESH_THREADS | REFRESH_HOSTS),
 			     (TABLE_LIST*) 0, NULL); // Flush logs
 	mysql_print_status((THD*) 0);		// Send debug some info

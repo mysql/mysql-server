@@ -312,7 +312,7 @@ bool mysql_create_view(THD *thd,
 
   send_ok(thd);
   lex->link_first_table_back(view, link_to_local);
-  return 0;
+  DBUG_RETURN(0);
 
 err:
   thd->proc_info= "end";
@@ -793,7 +793,7 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
         /* re-nest tables of VIEW */
         {
           List_iterator_fast<TABLE_LIST> ti(nested_join->join_list);
-          while(tbl= ti++)
+          while ((tbl= ti++))
           {
             tbl->join_list= &nested_join->join_list;
             tbl->embedding= table;
@@ -832,6 +832,7 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
     view_select->linkage= DERIVED_TABLE_TYPE;
     table->updatable= 0;
     table->effective_with_check= VIEW_CHECK_NONE;
+    old_lex->subqueries= TRUE;
 
     /* SELECT tree link */
     lex->unit.include_down(table->select_lex);

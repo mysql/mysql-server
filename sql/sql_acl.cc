@@ -446,7 +446,8 @@ void acl_free(bool end)
 
   SYNOPSIS
     acl_reload()
-    thd			Thread handle
+    thd			Thread handle. Note that this may be NULL if we refresh
+			because we got a signal    
 */
 
 void acl_reload(THD *thd)
