@@ -346,7 +346,7 @@ int ha_commit_trans(THD *thd, THD_TRANS* trans)
     bool transaction_commited= 0;
 
     /* Update the binary log if we have cached some queries */
-    if (trans == &thd->transaction.all && mysql_bin_log.is_open(1) &&
+    if (trans == &thd->transaction.all && mysql_bin_log.is_open() &&
 	my_b_tell(&thd->transaction.trans_log))
     {
       mysql_bin_log.write(thd, &thd->transaction.trans_log);
@@ -385,7 +385,7 @@ int ha_commit_trans(THD *thd, THD_TRANS* trans)
     if (transaction_commited && thd->transaction.changed_tables)
       query_cache.invalidate(thd->transaction.changed_tables);
 #endif /*HAVE_QUERY_CACHE*/
-    if (error && trans == &thd->transaction.all && mysql_bin_log.is_open(1))
+    if (error && trans == &thd->transaction.all && mysql_bin_log.is_open())
       sql_print_error("Error: Got error during commit;  Binlog is not up to date!");
     thd->variables.tx_isolation=thd->session_tx_isolation;
     if (operation_done)

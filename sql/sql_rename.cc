@@ -80,7 +80,7 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list)
   if (!error)
   {
     mysql_update_log.write(thd,thd->query,thd->query_length);
-    if (mysql_bin_log.is_open(1))
+    if (mysql_bin_log.is_open())
     {
       Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
       mysql_bin_log.write(&qinfo);
