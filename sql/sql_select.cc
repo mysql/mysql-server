@@ -5972,7 +5972,8 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
   else
   {
     if (!table->key_read && table->used_keys.is_set(tab->ref.key) &&
-	!table->no_keyread)
+	!table->no_keyread &&
+        (int) table->reginfo.lock_type <= (int) TL_READ_HIGH_PRIORITY)
     {
       table->key_read=1;
       table->file->extra(HA_EXTRA_KEYREAD);
