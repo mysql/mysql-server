@@ -117,7 +117,7 @@ HANDLE create_named_pipe(NET *net, uint connect_timeout, char **arg_host,
 			 char **arg_unix_socket)
 {
   HANDLE hPipe=INVALID_HANDLE_VALUE;
-  char szPipeName [ 257 ];
+  char szPipeName [512];
   DWORD dwMode;
   int i;
   my_bool testing_named_pipes=0;
@@ -126,7 +126,8 @@ HANDLE create_named_pipe(NET *net, uint connect_timeout, char **arg_host,
   if (!host || !strcmp(host,LOCAL_HOST))
     host=LOCAL_HOST_NAMEDPIPE;
 
-  sprintf( szPipeName, "\\\\%s\\pipe\\%s", host, unix_socket);
+  strxnmov(szPipeName, sizeof(szPipeName), "\\\\", host, "\\pipe\\",
+                                           unix_socket, NullS);
   DBUG_PRINT("info",("Server name: '%s'.  Named Pipe: %s",
 		     host, unix_socket));
 

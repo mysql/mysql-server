@@ -441,9 +441,9 @@ io_handler_thread(
 }
 
 #ifdef __WIN__
-#define SRV_PATH_SEPARATOR	"\\"
+#define SRV_PATH_SEPARATOR	'\\'
 #else
-#define SRV_PATH_SEPARATOR	"/"
+#define SRV_PATH_SEPARATOR	'/'
 #endif
 
 /*************************************************************************
@@ -470,31 +470,26 @@ srv_normalize_path_for_win(
 Adds a slash or a backslash to the end of a string if it is missing
 and the string is not empty. */
 
+static
 char*
 srv_add_path_separator_if_needed(
 /*=============================*/
-			/* out, own: string which has the separator if the
+			/* out: string which has the separator if the
 			string is not empty */
 	char*	str)	/* in: null-terminated character string */
 {
 	char*	out_str;
+	ulint	len	= ut_strlen(str);
 
-	if (ut_strlen(str) == 0) {
+	if (len == 0 || str[len - 1] == SRV_PATH_SEPARATOR) {
 
 		return(str);
 	}
 
-	if (str[ut_strlen(str) - 1] == SRV_PATH_SEPARATOR[0]) {
-		out_str = ut_malloc(ut_strlen(str) + 1);
-		
-		sprintf(out_str, "%s", str);
-
-		return(out_str);
-	}
-		
-	out_str = ut_malloc(ut_strlen(str) + 2);
-		
-	sprintf(out_str, "%s%s", str, SRV_PATH_SEPARATOR);
+	out_str = ut_malloc(len + 2);
+	memcpy(out_str, str, len);
+	out_str[len] = SRV_PATH_SEPARATOR;
+	out_str[len + 1] = 0;
 
 	return(out_str);
 }

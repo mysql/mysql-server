@@ -124,11 +124,11 @@ File create_temp_file(char *to, const char *dir, const char *prefix,
 #ifdef OS2
     /* changing environ variable doesn't work with VACPP */
     char  buffer[256];
-    sprintf( buffer, "TMP=%s", dir);
+    strxnmov(buffer, sizeof(buffer), "TMP=", dir);
     /* remove ending backslash */
     if (buffer[strlen(buffer)-1] == '\\')
        buffer[strlen(buffer)-1] = '\0';
-    putenv( buffer);
+    putenv(buffer);
 #elif !defined(__NETWARE__)
     old_env= (char**) environ;
     if (dir)
@@ -138,7 +138,7 @@ File create_temp_file(char *to, const char *dir, const char *prefix,
     }
 #endif
     if ((res=tempnam((char*) dir, (char*) prefix)))
-    {    
+    {
       strmake(to,res,FN_REFLEN-1);
       (*free)(res);
       file=my_create(to,0,

@@ -189,7 +189,7 @@ static const char* default_dbug_option=IF_WIN("d:t:i:O,\\mysqld.trace",
 #endif
 
 #ifdef __NT__
-static char szPipeName [ 257 ];
+static char szPipeName [512];
 static SECURITY_ATTRIBUTES saPipeSecurity;
 static SECURITY_DESCRIPTOR sdPipeDescriptor;
 static HANDLE hPipe = INVALID_HANDLE_VALUE;
@@ -1173,7 +1173,8 @@ static void server_init(void)
   if (Service.IsNT() && mysql_unix_port[0] && !opt_bootstrap &&
       opt_enable_named_pipe)
   {
-    sprintf( szPipeName, "\\\\.\\pipe\\%s", mysql_unix_port );
+    strxnmov(szPipeName, sizeof(szPipeName), "\\\\.\\pipe\\",
+                                             unix_socket, NullS);
     ZeroMemory( &saPipeSecurity, sizeof(saPipeSecurity) );
     ZeroMemory( &sdPipeDescriptor, sizeof(sdPipeDescriptor) );
     if ( !InitializeSecurityDescriptor(&sdPipeDescriptor,
