@@ -213,7 +213,7 @@ mysql_find_files(THD *thd,List<char> *files, const char *db,const char *path,
       else
 #endif
       {
-        if (file->name[0] == '.' || !MY_S_ISDIR(file->mystat.st_mode) ||
+        if (file->name[0] == '.' || !MY_S_ISDIR(file->mystat->st_mode) ||
             (wild && wild_compare(file->name,wild)))
           continue;
       }

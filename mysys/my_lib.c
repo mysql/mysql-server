@@ -62,8 +62,15 @@
 #define READDIR(A,B,C) (!(C=readdir(A)))
 #endif
 
+/*
+  We are assuming that directory we are reading is either has less than 
+  100 files and so can be read in one initial chunk or has more than 1000
+  files and so big increment are suitable.
+*/
+#define ENTRIES_START_SIZE (8192/sizeof(FILEINFO))
+#define ENTRIES_INCREMENT  (65536/sizeof(FILEINFO))
+#define NAMES_START_SIZE   32768
 
-#define STARTSIZE	ONCE_ALLOC_INIT*8  /* some mallocmargin */
 
 static int	comp_names(struct fileinfo *a,struct fileinfo *b);
 
@@ -74,7 +81,13 @@ void my_dirend(MY_DIR *buffer)
 {
   DBUG_ENTER("my_dirend");
   if (buffer)
+  {
+    delete_dynamic((DYNAMIC_ARRAY*)((char*)buffer + 
+                                    ALIGN_SIZE(sizeof(MY_DIR))));
+    free_root((MEM_ROOT*)((char*)buffer + ALIGN_SIZE(sizeof(MY_DIR)) + 
+                          ALIGN_SIZE(sizeof(DYNAMIC_ARRAY))), MYF(0));
     my_free((gptr) buffer,MYF(0));
+  }
   DBUG_VOID_RETURN;
 } /* my_dirend */
 
@@ -91,14 +104,14 @@ static int comp_names(struct fileinfo *a, struct fileinfo *b)
 
 MY_DIR	*my_dir(const char *path, myf MyFlags)
 {
+  char          *buffer;
+  MY_DIR        *result= 0;
+  FILEINFO      finfo;
+  DYNAMIC_ARRAY *dir_entries_storage;
+  MEM_ROOT      *names_storage;
   DIR		*dirp;
   struct dirent *dp;
-  struct fileinfo *fnames;
-  char	       *buffer, *obuffer, *tempptr;
-  uint		fcnt,i,size,firstfcnt, maxfcnt,length;
   char		tmp_path[FN_REFLEN+1],*tmp_file;
-  my_ptrdiff_t	diff;
-  bool		eof;
 #ifdef THREAD
   char	dirent_tmp[sizeof(struct dirent)+_POSIX_PATH_MAX+1];
 #endif
@@ -110,74 +123,72 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
 #endif
 
   dirp = opendir(directory_file_name(tmp_path,(my_string) path));
-  size = STARTSIZE;
 #if defined(__amiga__)
   if ((dirp->dd_fd) < 0)			/* Directory doesn't exists */
     goto error;
 #endif
-  if (dirp == NULL || ! (buffer = (char *) my_malloc(size, MyFlags)))
+  if (dirp == NULL || 
+      ! (buffer= my_malloc(ALIGN_SIZE(sizeof(MY_DIR)) + 
+                           ALIGN_SIZE(sizeof(DYNAMIC_ARRAY)) +
+                           sizeof(MEM_ROOT), MyFlags)))
     goto error;
 
-  fcnt = 0;
+  dir_entries_storage= (DYNAMIC_ARRAY*)(buffer + ALIGN_SIZE(sizeof(MY_DIR))); 
+  names_storage= (MEM_ROOT*)(buffer + ALIGN_SIZE(sizeof(MY_DIR)) +
+                             ALIGN_SIZE(sizeof(DYNAMIC_ARRAY)));
+  
+  if (my_init_dynamic_array(dir_entries_storage, sizeof(FILEINFO),
+                            ENTRIES_START_SIZE, ENTRIES_INCREMENT))
+  {
+    my_free((gptr) buffer,MYF(0));
+    goto error;
+  }
+  init_alloc_root(names_storage, NAMES_START_SIZE, NAMES_START_SIZE);
+  
+  /* MY_DIR structure is allocated and completly initialized at this point */
+  result= (MY_DIR*)buffer;
+
   tmp_file=strend(tmp_path);
-  firstfcnt = maxfcnt = (size - sizeof(MY_DIR)) /
-    (sizeof(struct fileinfo) + FN_LEN);
-  fnames=   (struct fileinfo *) (buffer + sizeof(MY_DIR));
-  tempptr = (char *) (fnames + maxfcnt);
 
 #ifdef THREAD
   dp= (struct dirent*) dirent_tmp;
 #else
   dp=0;
 #endif
-  eof=0;
-  for (;;)
+  
+  while (!(READDIR(dirp,(struct dirent*) dirent_tmp,dp)))
   {
-    while (fcnt < maxfcnt &&
-	   !(eof= READDIR(dirp,(struct dirent*) dirent_tmp,dp)))
+    if (!(finfo.name= strdup_root(names_storage, dp->d_name)))
+      goto error;
+    
+    if (MyFlags & MY_WANT_STAT)
     {
-      bzero((gptr) (fnames+fcnt),sizeof(fnames[0])); /* for purify */
-      fnames[fcnt].name = tempptr;
-      tempptr = strmov(tempptr,dp->d_name) + 1;
-      if (MyFlags & MY_WANT_STAT)
-      {
-	VOID(strmov(tmp_file,dp->d_name));
-	VOID(my_stat(tmp_path, &fnames[fcnt].mystat, MyFlags));
-      }
-      ++fcnt;
+      if (!(finfo.mystat= (MY_STAT*)alloc_root(names_storage, 
+                                               sizeof(MY_STAT))))
+        goto error;
+      
+      bzero(finfo.mystat, sizeof(MY_STAT));
+      VOID(strmov(tmp_file,dp->d_name));
+      VOID(my_stat(tmp_path, finfo.mystat, MyFlags));
     }
-    if (eof)
-      break;
-    size += STARTSIZE; obuffer = buffer;
-    if (!(buffer = (char *) my_realloc((gptr) buffer, size,
-				       MyFlags | MY_FREE_ON_ERROR)))
-      goto error;			/* No memory */
-    length= (uint) (sizeof(struct fileinfo ) * firstfcnt);
-    diff=    PTR_BYTE_DIFF(buffer , obuffer) + (int) length;
-    fnames=  (struct fileinfo *) (buffer + sizeof(MY_DIR));
-    tempptr= ADD_TO_PTR(tempptr,diff,char*);
-    for (i = 0; i < maxfcnt; i++)
-      fnames[i].name = ADD_TO_PTR(fnames[i].name,diff,char*);
+    else
+      finfo.mystat= NULL;
 
-    /* move filenames upp a bit */
-    maxfcnt += firstfcnt;
-    bmove_upp(tempptr,tempptr-length,
-	      (uint) (tempptr- (char*) (fnames+maxfcnt)));
+    if (push_dynamic(dir_entries_storage, (gptr)&finfo))
+      goto error;
   }
 
   (void) closedir(dirp);
-  {
-    MY_DIR * s = (MY_DIR *) buffer;
-    s->number_off_files = (uint) fcnt;
-    s->dir_entry = fnames;
-  }
-  if (!(MyFlags & MY_DONT_SORT))
-    qsort((void *) fnames, (size_s) fcnt, sizeof(struct fileinfo),
-	  (qsort_cmp) comp_names);
 #if defined(THREAD) && !defined(HAVE_READDIR_R)
   pthread_mutex_unlock(&THR_LOCK_open);
 #endif
-  DBUG_RETURN((MY_DIR *) buffer);
+  result->dir_entry= (FILEINFO *)dir_entries_storage->buffer;
+  result->number_off_files= dir_entries_storage->elements;
+  
+  if (!(MyFlags & MY_DONT_SORT))
+    qsort((void *) result->dir_entry, result->number_off_files,
+          sizeof(FILEINFO), (qsort_cmp) comp_names);
+  DBUG_RETURN(result);
 
  error:
 #if defined(THREAD) && !defined(HAVE_READDIR_R)
@@ -186,6 +197,7 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
   my_errno=errno;
   if (dirp)
     (void) closedir(dirp);
+  my_dirend(result);
   if (MyFlags & (MY_FAE | MY_WME))
     my_error(EE_DIR,MYF(ME_BELL+ME_WAITTANG),path,my_errno);
   DBUG_RETURN((MY_DIR *) NULL);
@@ -349,10 +361,11 @@ my_string directory_file_name (my_string dst, const char *src)
 
 MY_DIR	*my_dir(const char *path, myf MyFlags)
 {
-  struct fileinfo *fnames;
-  char	       *buffer, *obuffer, *tempptr;
-  int		eof,i,fcnt,firstfcnt,length,maxfcnt;
-  uint		size;
+  char          *buffer;
+  MY_DIR        *result= 0;
+  FILEINFO      finfo;
+  DYNAMIC_ARRAY *dir_entries_storage;
+  MEM_ROOT      *names_storage;
 #ifdef __BORLANDC__
   struct ffblk       find;
 #else
@@ -360,7 +373,6 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
 #endif
   ushort	mode;
   char		tmp_path[FN_REFLEN],*tmp_file,attrib;
-  my_ptrdiff_t	diff;
 #ifdef _WIN64
   __int64       handle;
 #else
@@ -392,85 +404,88 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
     goto error;
 #endif
 
-  size = STARTSIZE;
-  firstfcnt = maxfcnt = (size - sizeof(MY_DIR)) /
-    (sizeof(struct fileinfo) + FN_LEN);
-  if ((buffer = (char *) my_malloc(size, MyFlags)) == 0)
+  if (!(buffer= my_malloc(ALIGN_SIZE(sizeof(MY_DIR)) + 
+                          ALIGN_SIZE(sizeof(DYNAMIC_ARRAY)) +
+                          sizeof(MEM_ROOT), MyFlags)))
     goto error;
-  fnames=   (struct fileinfo *) (buffer + sizeof(MY_DIR));
-  tempptr = (char *) (fnames + maxfcnt);
 
-  fcnt = 0;
-  for (;;)
+  dir_entries_storage= (DYNAMIC_ARRAY*)(buffer + ALIGN_SIZE(sizeof(MY_DIR))); 
+  names_storage= (MEM_ROOT*)(buffer + ALIGN_SIZE(sizeof(MY_DIR)) +
+                             ALIGN_SIZE(sizeof(DYNAMIC_ARRAY)));
+  
+  if (my_init_dynamic_array(dir_entries_storage, sizeof(FILEINFO),
+                            ENTRIES_START_SIZE, ENTRIES_INCREMENT))
   {
-    do
-    {
-      fnames[fcnt].name = tempptr;
+    my_free((gptr) buffer,MYF(0));
+    goto error;
+  }
+  init_alloc_root(names_storage, NAMES_START_SIZE, NAMES_START_SIZE);
+  
+  /* MY_DIR structure is allocated and completly initialized at this point */
+  result= (MY_DIR*)buffer;
+ 
+  do
+  {
 #ifdef __BORLANDC__
-      tempptr = strmov(tempptr,find.ff_name) + 1;
-      fnames[fcnt].mystat.st_size=find.ff_fsize;
-      fnames[fcnt].mystat.st_uid=fnames[fcnt].mystat.st_gid=0;
+    if (!(finfo.name= strdup_root(names_storage, find.ff_name)))
+      goto error;
+#else
+    if (!(finfo.name= strdup_root(names_storage, find.name)))
+      goto error;
+#endif    
+    if (MyFlags & MY_WANT_STAT)
+    {
+      if (!(finfo.mystat= (MY_STAT*)alloc_root(names_storage, 
+                                               sizeof(MY_STAT))))
+        goto error;
+      
+      bzero(finfo.mystat, sizeof(MY_STAT));
+#ifdef __BORLANDC__
+      finfo.mystat->st_size=find.ff_fsize;
       mode=MY_S_IREAD; attrib=find.ff_attrib;
 #else
-      tempptr = strmov(tempptr,find.name) + 1;
-      fnames[fcnt].mystat.st_size=find.size;
-      fnames[fcnt].mystat.st_uid=fnames[fcnt].mystat.st_gid=0;
+      finfo.mystat->st_size=find.size;
       mode=MY_S_IREAD; attrib=find.attrib;
 #endif
       if (!(attrib & _A_RDONLY))
 	mode|=MY_S_IWRITE;
       if (attrib & _A_SUBDIR)
 	mode|=MY_S_IFDIR;
-      fnames[fcnt].mystat.st_mode=mode;
+      finfo.mystat->st_mode=mode;
 #ifdef __BORLANDC__
-      fnames[fcnt].mystat.st_mtime=((uint32) find.ff_ftime);
+      finfo.mystat->st_mtime=((uint32) find.ff_ftime);
 #else
-      fnames[fcnt].mystat.st_mtime=((uint32) find.time_write);
+      finfo.mystat->st_mtime=((uint32) find.time_write);
 #endif
-      ++fcnt;
-#ifdef __BORLANDC__
-    } while ((eof= findnext(&find)) == 0 && fcnt < maxfcnt);
-#else
-    } while ((eof= _findnext(handle,&find)) == 0 && fcnt < maxfcnt);
-#endif
+    }
+    else
+      finfo.mystat= NULL;
 
-    DBUG_PRINT("test",("eof: %d  errno: %d",eof,errno));
-    if (eof)
-      break;
-    size += STARTSIZE; obuffer = buffer;
-    if (!(buffer = (char *) my_realloc((gptr) buffer, size,
-				       MyFlags | MY_FREE_ON_ERROR)))
+    if (push_dynamic(dir_entries_storage, (gptr)&finfo))
       goto error;
-    length= sizeof(struct fileinfo ) * firstfcnt;
-    diff=    PTR_BYTE_DIFF(buffer , obuffer) +length;
-    fnames=  (struct fileinfo *) (buffer + sizeof(MY_DIR));
-    tempptr= ADD_TO_PTR(tempptr,diff,char*);
-    for (i = 0; i < maxfcnt; i++)
-      fnames[i].name = ADD_TO_PTR(fnames[i].name,diff,char*);
-
-    /* move filenames upp a bit */
-    maxfcnt += firstfcnt;
-    bmove_upp(tempptr,ADD_TO_PTR(tempptr,-length,char*),
-	      (int) PTR_BYTE_DIFF(tempptr,fnames+maxfcnt));
-  }
-  {
-    MY_DIR * s = (MY_DIR *) buffer;
-    s->number_off_files = (uint) fcnt;
-    s->dir_entry = fnames;
-  }
-  if (!(MyFlags & MY_DONT_SORT))
-    qsort(fnames,fcnt,sizeof(struct fileinfo),(qsort_cmp) comp_names);
-#ifndef __BORLANDC__
+    
+#ifdef __BORLANDC__
+  } while (findnext(&find) == 0);
+#else
+  } while (_findnext(handle,&find) == 0);
+  
   _findclose(handle);
 #endif
-  DBUG_RETURN((MY_DIR *) buffer);
 
+  result->dir_entry= (FILEINFO *)dir_entries_storage->buffer;
+  result->number_off_files= dir_entries_storage->elements;
+  
+  if (!(MyFlags & MY_DONT_SORT))
+    qsort((void *) result->dir_entry, result->number_off_files,
+          sizeof(FILEINFO), (qsort_cmp) comp_names);
+  DBUG_RETURN(result);
 error:
   my_errno=errno;
 #ifndef __BORLANDC__
   if (handle != -1)
       _findclose(handle);
 #endif
+  my_dirend(result);
   if (MyFlags & MY_FAE+MY_WME)
     my_error(EE_DIR,MYF(ME_BELL+ME_WAITTANG),path,errno);
   DBUG_RETURN((MY_DIR *) NULL);
@@ -485,14 +500,14 @@ error:
 
 MY_DIR	*my_dir(const char* path, myf MyFlags)
 {
-  struct fileinfo *fnames;
-  char	       *buffer, *obuffer, *tempptr;
-  int		eof,i,fcnt,firstfcnt,length,maxfcnt;
-  uint		size;
+  char          *buffer;
+  MY_DIR        *result= 0;
+  FILEINFO      finfo;
+  DYNAMIC_ARRAY *dir_entries_storage;
+  MEM_ROOT      *names_storage;
   struct find_t find;
   ushort	mode;
   char		tmp_path[FN_REFLEN],*tmp_file,attrib;
-  my_ptrdiff_t	diff;
   DBUG_ENTER("my_dir");
   DBUG_PRINT("my",("path: '%s' stat: %d  MyFlags: %d",path,MyFlags));
 
@@ -514,63 +529,65 @@ MY_DIR	*my_dir(const char* path, myf MyFlags)
   if (_dos_findfirst(tmp_path,_A_NORMAL | _A_SUBDIR, &find))
     goto error;
 
-  size = STARTSIZE;
-  firstfcnt = maxfcnt = (size - sizeof(MY_DIR)) /
-    (sizeof(struct fileinfo) + FN_LEN);
-  if ((buffer = (char *) my_malloc(size, MyFlags)) == 0)
+  if (!(buffer= my_malloc(ALIGN_SIZE(sizeof(MY_DIR)) + 
+                          ALIGN_SIZE(sizeof(DYNAMIC_ARRAY)) +
+                          sizeof(MEM_ROOT), MyFlags)))
     goto error;
-  fnames=   (struct fileinfo *) (buffer + sizeof(MY_DIR));
-  tempptr = (char *) (fnames + maxfcnt);
 
-  fcnt = 0;
-  for (;;)
+  dir_entries_storage= (DYNAMIC_ARRAY*)(buffer + ALIGN_SIZE(sizeof(MY_DIR))); 
+  names_storage= (MEM_ROOT*)(buffer + ALIGN_SIZE(sizeof(MY_DIR)) +
+                             ALIGN_SIZE(sizeof(DYNAMIC_ARRAY)));
+  
+  if (my_init_dynamic_array(dir_entries_storage, sizeof(FILEINFO),
+                            ENTRIES_START_SIZE, ENTRIES_INCREMENT))
   {
-    do
-    {
-      fnames[fcnt].name = tempptr;
-      tempptr = strmov(tempptr,find.name) + 1;
-      fnames[fcnt].mystat.st_size=find.size;
-      fnames[fcnt].mystat.st_uid=fnames[fcnt].mystat.st_gid=0;
-      mode=MY_S_IREAD; attrib=find.attrib;
-      if (!(attrib & _A_RDONLY))
-	mode|=MY_S_IWRITE;
-      if (attrib & _A_SUBDIR)
-	mode|=MY_S_IFDIR;
-      fnames[fcnt].mystat.st_mode=mode;
-      fnames[fcnt].mystat.st_mtime=((uint32) find.wr_date << 16) +
-					     find.wr_time;
-      ++fcnt;
-    } while ((eof= _dos_findnext(&find)) == 0 && fcnt < maxfcnt);
-
-    DBUG_PRINT("test",("eof: %d  errno: %d",eof,errno));
-    if (eof)
-      break;
-    size += STARTSIZE; obuffer = buffer;
-    if (!(buffer = (char *) my_realloc((gptr) buffer, size,
-				       MyFlags | MY_FREE_ON_ERROR)))
+    my_free((gptr) buffer,MYF(0));
+    goto error;
+  }
+  init_alloc_root(names_storage, NAMES_START_SIZE, NAMES_START_SIZE);
+  
+  /* MY_DIR structure is allocated and completly initialized at this point */
+  result= (MY_DIR*)buffer;
+ 
+  do
+  {
+    if (!(finfo.name= strdup_root(names_storage, find.name)))
       goto error;
-    length= sizeof(struct fileinfo ) * firstfcnt;
-    diff=    PTR_BYTE_DIFF(buffer , obuffer) +length;
-    fnames=  (struct fileinfo *) (buffer + sizeof(MY_DIR));
-    tempptr= ADD_TO_PTR(tempptr,diff,char*);
-    for (i = 0; i < maxfcnt; i++)
-      fnames[i].name = ADD_TO_PTR(fnames[i].name,diff,char*);
+    
+    if (MyFlags & MY_WANT_STAT)
+    {
+      if (!(finfo.mystat= (MY_STAT*)alloc_root(names_storage, 
+                                               sizeof(MY_STAT))))
+        goto error;
+      
+      bzero(finfo.mystat, sizeof(MY_STAT));
+      finfo.mystat->st_size= find.size;
+      mode= MY_S_IREAD; attrib= find.attrib;
+      if (!(attrib & _A_RDONLY))
+	mode|= MY_S_IWRITE;
+      if (attrib & _A_SUBDIR)
+	mode|= MY_S_IFDIR;
+      finfo.mystat->st_mode= mode;
+      finfo.mystat->st_mtime= ((uint32) find.wr_date << 16) + find.wr_time;
+    }
+    else
+      finfo.mystat= NULL;
 
-    /* move filenames upp a bit */
-    maxfcnt += firstfcnt;
-    bmove_upp(tempptr,ADD_TO_PTR(tempptr,-length,char*),
-	      (int) PTR_BYTE_DIFF(tempptr,fnames+maxfcnt));
-  }
-  {
-    MY_DIR * s = (MY_DIR *) buffer;
-    s->number_off_files = (uint) fcnt;
-    s->dir_entry = fnames;
-  }
+    if (push_dynamic(dir_entries_storage, (gptr)&finfo))
+      goto error;
+  
+  } while (_dos_findnext(&find) == 0);
+  
+  result->dir_entry= (FILEINFO *)dir_entries_storage->buffer;
+  result->number_off_files= dir_entries_storage->elements;
+  
   if (!(MyFlags & MY_DONT_SORT))
-    qsort(fnames,fcnt,sizeof(struct fileinfo),(qsort_cmp) comp_names);
-  DBUG_RETURN((MY_DIR *) buffer);
+    qsort((void *) result->dir_entry, result->number_off_files,
+          sizeof(FILEINFO), (qsort_cmp) comp_names);
+  DBUG_RETURN(result);
 
 error:
+  my_dirend(result);
   if (MyFlags & MY_FAE+MY_WME)
     my_error(EE_DIR,MYF(ME_BELL+ME_WAITTANG),path,errno);
   DBUG_RETURN((MY_DIR *) NULL);
