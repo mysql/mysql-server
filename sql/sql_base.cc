@@ -363,6 +363,7 @@ bool close_cached_tables(THD *thd, bool if_wait_for_refresh,
 
 void close_thread_tables(THD *thd, bool lock_in_use, bool skip_derived)
 {
+  bool found_old_table=0;
   DBUG_ENTER("close_thread_tables");
 
   if (thd->derived_tables && !skip_derived)
@@ -385,8 +386,6 @@ void close_thread_tables(THD *thd, bool lock_in_use, bool skip_derived)
     DBUG_VOID_RETURN;				// LOCK TABLES in use
   }
 
-  bool found_old_table=0;
-
   if (thd->lock)
   {
     mysql_unlock_tables(thd, thd->lock);
@@ -397,7 +396,7 @@ void close_thread_tables(THD *thd, bool lock_in_use, bool skip_derived)
     VOID(pthread_mutex_lock(&LOCK_open));
   safe_mutex_assert_owner(&LOCK_open);
 
-  DBUG_PRINT("info", ("thd->open_tables=%p", thd->open_tables));
+  DBUG_PRINT("info", ("thd->open_tables: %p", thd->open_tables));
 
   while (thd->open_tables)
     found_old_table|=close_thread_table(thd, &thd->open_tables);
@@ -427,6 +426,7 @@ bool close_thread_table(THD *thd, TABLE **table_ptr)
   bool found_old_table= 0;
   TABLE *table= *table_ptr;
   DBUG_ASSERT(table->key_read == 0);
+  DBUG_ASSERT(table->file->inited == handler::NONE);
 
   *table_ptr=table->next;
   if (table->version != refresh_version ||

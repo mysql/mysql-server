@@ -1493,4 +1493,3 @@ int handler::index_read_idx(byte * buf, uint index, const byte * key,
     error= ha_index_end();
   return error;
 }
-

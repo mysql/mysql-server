@@ -610,7 +610,7 @@ def					table	253	64	16	N	1	31	63
 def					type	253	10	3	N	1	31	63
 def					possible_keys	253	4096	0	Y	0	31	63
 def					key	253	64	0	Y	0	31	63
-def					key_len	8	3	0	Y	32800	0	8
+def					key_len	253	4096	0	Y	0	31	63
 def					ref	253	1024	0	Y	0	31	63
 def					rows	8	10	1	N	32801	0	8
 def					Extra	253	255	44	N	1	31	63
@@ -681,7 +681,7 @@ def					table	253	64	16	N	1	31	63
 def					type	253	10	3	N	1	31	63
 def					possible_keys	253	4096	0	Y	0	31	63
 def					key	253	64	0	Y	0	31	63
-def					key_len	8	3	0	Y	32800	0	8
+def					key_len	253	4096	0	Y	0	31	63
 def					ref	253	1024	0	Y	0	31	63
 def					rows	8	10	1	N	32801	0	8
 def					Extra	253	255	44	N	1	31	63
@@ -1793,7 +1793,7 @@ def					table	253	64	16	N	1	31	63
 def					type	253	10	3	N	1	31	63
 def					possible_keys	253	4096	0	Y	0	31	63
 def					key	253	64	0	Y	0	31	63
-def					key_len	8	3	0	Y	32800	0	8
+def					key_len	253	4096	0	Y	0	31	63
 def					ref	253	1024	0	Y	0	31	63
 def					rows	8	10	1	N	32801	0	8
 def					Extra	253	255	44	N	1	31	63
@@ -1864,7 +1864,7 @@ def					table	253	64	16	N	1	31	63
 def					type	253	10	3	N	1	31	63
 def					possible_keys	253	4096	0	Y	0	31	63
 def					key	253	64	0	Y	0	31	63
-def					key_len	8	3	0	Y	32800	0	8
+def					key_len	253	4096	0	Y	0	31	63
 def					ref	253	1024	0	Y	0	31	63
 def					rows	8	10	1	N	32801	0	8
 def					Extra	253	255	44	N	1	31	63

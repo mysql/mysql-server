@@ -7,13 +7,14 @@ password=""
 host="localhost"
 user="root"
 sql_only=0
-basedir=""
+basedir="@prefix@"
 verbose=0
 args=""
 port=""
 socket=""
 database="mysql"
 bindir=""
+pkgdatadir="@pkgdatadir@"
 
 file=mysql_fix_privilege_tables.sql
 
@@ -85,34 +86,23 @@ done
 parse_arguments `$print_defaults $defaults mysql_install_db mysql_fix_privilege_tables`
 parse_arguments PICK-ARGS-FROM-ARGV "$@"
 
-if test -z "$basedir"
-then
-  basedir=@prefix@
-  if test -z "$bindir"
-  then
-     bindir=@bindir@
-  fi
-  execdir=@libexecdir@ 
-  pkgdatadir=@pkgdatadir@
-else
-  if test -z "$bindir"
-  then
-    bindir="$basedir/bin"
-  fi
-  if test -x "$basedir/libexec/mysqld"
-  then
-    execdir="$basedir/libexec"
-  elif test -x "@libexecdir@/mysqld"
-  then
-    execdir="@libexecdir@"
-  else
-    execdir="$basedir/bin"
-  fi
-fi
-
 if test -z "$password"
 then
   password=$old_style_password
+fi
+
+# Find where 'mysql' command is located
+
+if test -z "$bindir"
+then
+  for i in @bindir@ $basedir/bin client
+  do
+    if test -f $i/mysql
+    then
+      bindir=$i
+      break
+    fi
+  done
 fi
 
 cmd="$bindir/mysql -f --user=$user --host=$host"
@@ -134,7 +124,7 @@ fi
 
 # Find where first mysql_fix_privilege_tables.sql is located
 for i in $basedir/support-files $basedir/share $basedir/share/mysql \
-        $basedir/scripts @pkgdatadir@ . ./scripts
+        $basedir/scripts $pkgdatadir . ./scripts
 do
   if test -f $i/$file
   then
@@ -163,7 +153,8 @@ s_echo "This scripts updates all the mysql privilege tables to be usable by"
 s_echo "MySQL 4.0 and above."
 s_echo ""
 s_echo "This is needed if you want to use the new GRANT functions,"
-s_echo "CREATE AGGREGATE FUNCTION or want to use the more secure passwords in 4.1"
+s_echo "CREATE AGGREGATE FUNCTION, use stored procedures or want to use the"
+s_echo "more secure passwords in 4.1"
 s_echo ""
 
 if test $verbose = 1

@@ -606,6 +606,7 @@ db_show_routine_status(THD *thd, int type, const char *wild)
 err_case1:
   send_eof(thd);
 err_case:
+  table->file->ha_index_end();
   close_thread_tables(thd);
 done:
   DBUG_RETURN(res);
@@ -670,6 +671,7 @@ sp_drop_db_routines(THD *thd, char *db)
     if (deleted)
       sp_cache_invalidate();
   }
+  table->file->ha_index_end();
 
   close_thread_tables(thd);
 

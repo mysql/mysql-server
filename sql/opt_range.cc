@@ -726,19 +726,30 @@ QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(THD *thd, TABLE *table, uint key_nr,
   record= head->record[0];
 }
 
+
 int QUICK_RANGE_SELECT::init()
 {
   DBUG_ENTER("QUICK_RANGE_SELECT::init");
-  DBUG_RETURN(error= file->ha_index_init(index));
+  if (file->inited == handler::NONE)
+    DBUG_RETURN(error= file->ha_index_init(index));
+  error= 0;
+  DBUG_RETURN(0);
 }
+
+
+void QUICK_RANGE_SELECT::range_end()
+{
+  if (file->inited != handler::NONE)
+    file->ha_index_end();
+}
+
 
 QUICK_RANGE_SELECT::~QUICK_RANGE_SELECT()
 {  
   DBUG_ENTER("QUICK_RANGE_SELECT::~QUICK_RANGE_SELECT");
   if (!dont_free)
   {
-    if (file->inited)
-      file->ha_index_end();
+    range_end();
     file->extra(HA_EXTRA_NO_KEYREAD);
     delete_dynamic(&ranges); /* ranges are allocated in alloc */ 
     if (free_file) 
@@ -879,8 +890,7 @@ int QUICK_RANGE_SELECT::init_ror_merged_scan(bool reuse_handler)
     {
       DBUG_RETURN(1);
     }
-    else
-      DBUG_RETURN(0);
+    DBUG_RETURN(0);
   }
 
   /* Create a separate handler object for this quick select */
@@ -974,10 +984,8 @@ int QUICK_ROR_INTERSECT_SELECT::init_ror_merged_scan(bool reuse_handler)
 
 int QUICK_ROR_INTERSECT_SELECT::reset()
 {
-  int result;
   DBUG_ENTER("QUICK_ROR_INTERSECT_SELECT::reset");
-  result= init_ror_merged_scan(TRUE);
-  DBUG_RETURN(result);
+  DBUG_RETURN(init_ror_merged_scan(TRUE));
 }
 
 
@@ -1008,12 +1016,15 @@ QUICK_ROR_INTERSECT_SELECT::~QUICK_ROR_INTERSECT_SELECT()
   quick_selects.delete_elements(); 
   delete cpk_quick;
   free_root(&alloc,MYF(0));
+  if (need_to_fetch_row && head->file->inited != handler::NONE)
+    head->file->ha_rnd_end();
   DBUG_VOID_RETURN;
 }
 
+
 QUICK_ROR_UNION_SELECT::QUICK_ROR_UNION_SELECT(THD *thd_param,
                                                TABLE *table)
-  : thd(thd_param)
+  :thd(thd_param)
 {
   index= MAX_KEY;
   head= table;
@@ -1098,8 +1109,7 @@ int QUICK_ROR_UNION_SELECT::reset()
     {
       if (error == HA_ERR_END_OF_FILE)
         continue;
-      else
-        DBUG_RETURN(error);
+      DBUG_RETURN(error);
     }
     quick->save_last_pos();
     queue_insert(&queue, (byte*)quick);
@@ -2970,7 +2980,7 @@ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
       }
       if (found_records != HA_POS_ERROR && found_records > 2 &&
           read_index_only &&
-          (param->table->file->index_flags(keynr, param.max_key_part,1) &
+          (param->table->file->index_flags(keynr, param->max_key_part,1) &
            HA_KEYREAD_ONLY) &&
           !(pk_is_clustered && keynr == param->table->primary_key))
       {
@@ -5349,10 +5359,11 @@ int QUICK_INDEX_MERGE_SELECT::prepare_unique()
                      thd->variables.sortbuff_size);
   if (!unique)
     DBUG_RETURN(1);
-  do
+  for (;;)
   {
     while ((result= cur_quick_select->get_next()) == HA_ERR_END_OF_FILE)
     {
+      cur_quick_select->range_end();
       cur_quick_select= cur_quick_it++;
       if (!cur_quick_select)
         break;
@@ -5383,12 +5394,13 @@ int QUICK_INDEX_MERGE_SELECT::prepare_unique()
     if (result)
       DBUG_RETURN(1);
 
-  }while(TRUE);  
+  }
 
   /* ok, all row ids are in Unique */
   result= unique->get(head);
   doing_pk_scan= FALSE;
-  init_read_record(&read_record, thd, head, NULL, 1, 1);
+  /* start table scan */
+  init_read_record(&read_record, thd, head, (SQL_SELECT*) 0, 1, 1);
   /* index_merge currently doesn't support "using index" at all */
   head->file->extra(HA_EXTRA_NO_KEYREAD);
 
@@ -5420,7 +5432,7 @@ int QUICK_INDEX_MERGE_SELECT::get_next()
     result= HA_ERR_END_OF_FILE;
     end_read_record(&read_record);
     /* All rows from Unique have been retrieved, do a clustered PK scan */
-    if(pk_quick_select)
+    if (pk_quick_select)
     {
       doing_pk_scan= TRUE;
       if ((result= pk_quick_select->init()))
