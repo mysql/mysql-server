@@ -114,10 +114,12 @@ static bool load_db_opt(const char *path, HA_CREATE_INFO *create)
       {
 	if (!strncmp(buf,"default-character-set", (pos-buf)))
 	{
-	  if (!(create->table_charset=get_charset_by_name(pos+1, MYF(0))))
+	  if (strcmp(pos+1,"DEFAULT"))
 	  {
-	    sql_print_error(ER(ER_UNKNOWN_CHARACTER_SET),
-			    pos+1);
+	    if (!(create->table_charset=get_charset_by_name(pos+1, MYF(0))))
+	    {
+	      sql_print_error(ER(ER_UNKNOWN_CHARACTER_SET),pos+1);
+	    }
 	  }
 	}
       }
