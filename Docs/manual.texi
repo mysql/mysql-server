@@ -32499,8 +32499,9 @@ mysql> SELECT UNIX_TIMESTAMP('1997-10-04 22:23:00');
 When @code{UNIX_TIMESTAMP} is used on a @code{TIMESTAMP} column, the function
 will return the internal timestamp value directly, with no implicit
 ``string-to-unix-timestamp'' conversion.
-If you give @code{UNIX_TIMESTAMP()} a wrong or out-of-range date, it will
-return 0.
+If you pass an out-of-range date to @code{UNIX_TIMESTAMP()} it will
+return 0, but please note that only basic checking is performed
+(year 1970-2037, month 01-12, day 01-31).
 
 If you want to subtract @code{UNIX_TIMESTAMP()} columns, you may want to
 cast the result to signed integers. @xref{Cast Functions}.
