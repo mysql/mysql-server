@@ -1,4 +1,5 @@
 #!@PERL@
+# -*- perl -*-
 # Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
 #
 # This library is free software; you can redistribute it and/or
@@ -671,9 +672,9 @@ sub create
     $field =~ s/int\(\d*\)/int/;
     $field =~ s/float\(\d*,\d*\)/float/;
     $field =~ s/ double/ float/;
-    $field =~ s/ decimal/ float/i;
-    $field =~ s/ big_decimal/ float/i;
-    $field =~ s/ date/ int/i;
+#    $field =~ s/ decimal/ float/i;
+#    $field =~ s/ big_decimal/ float/i;
+#    $field =~ s/ date/ int/i;
     # Pg doesn't have blob, it has text instead
     $field =~ s/ blob/ text/;
     $query.= $field . ',';
@@ -946,9 +947,9 @@ sub create
     $field =~ s/ double/ float/i;
     # Solid doesn't have blob, it has long varchar
     $field =~ s/ blob/ long varchar/;
-    $field =~ s/ decimal/ float/i;
-    $field =~ s/ big_decimal/ float/i;
-    $field =~ s/ date/ int/i;
+#    $field =~ s/ decimal/ float/i;
+#    $field =~ s/ big_decimal/ float/i;
+#    $field =~ s/ date/ int/i;
     $query.= $field . ',';
   }
   substr($query,-1)=")";		# Remove last ',';
@@ -1194,9 +1195,9 @@ sub create
     $field =~ s/ blob/ text/;
     $field =~ s/ varchar\((\d+)\)/ char($1,3)/;
     $field =~ s/ char\((\d+)\)/ char($1,3)/;
-    $field =~ s/ decimal/ float/i;
-    $field =~ s/ big_decimal/ longfloat/i;
-    $field =~ s/ date/ int/i;
+#    $field =~ s/ decimal/ float/i;
+#    $field =~ s/ big_decimal/ longfloat/i;
+#    $field =~ s/ date/ int/i;
     $field =~ s/ float(.*)/ float/i;
     if ($field =~ / int\((\d+)\)/) {
       if ($1 > 4) {
@@ -2896,8 +2897,8 @@ sub create
   $query="create table $table_name (";
   foreach $field (@$fields)
   {
-    $field =~ s/ decimal/ double(10,2)/i;
-    $field =~ s/ big_decimal/ double(10,2)/i;
+#    $field =~ s/ decimal/ double(10,2)/i;
+#    $field =~ s/ big_decimal/ double(10,2)/i;
     $field =~ s/ tinyint\(.*\)/ smallint/i;
     $field =~ s/ smallint\(.*\)/ smallint/i;
     $field =~ s/ mediumint/ integer/i;
@@ -3092,7 +3093,7 @@ sub create
   $query="create table $table_name (";
   foreach $field (@$fields)
   {
-    $field =~ s/ big_decimal/ decimal/i;
+#    $field =~ s/ big_decimal/ decimal/i;
     $field =~ s/ double/ double precision/i;
     $field =~ s/ tinyint/ smallint/i;
     $field =~ s/ mediumint/ integer/i;
