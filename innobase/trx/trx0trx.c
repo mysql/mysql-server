@@ -89,6 +89,8 @@ trx_create(
 	trx->check_foreigns = TRUE;
 	trx->check_unique_secondary = TRUE;
 
+	trx->flush_log_later = FALSE;
+
 	trx->dict_operation = FALSE;
 
 	trx->mysql_thd = NULL;
@@ -780,13 +782,26 @@ trx_commit_off_kernel(
 
 		/*-------------------------------------*/
 
-		/* Most MySQL users run with srv_flush_.. set to FALSE: */
+		/* Most MySQL users run with srv_flush_.. set to 0: */
 
-		if (srv_flush_log_at_trx_commit) {
-		
- 			log_flush_up_to(lsn, LOG_WAIT_ONE_GROUP);
+		if (srv_flush_log_at_trx_commit != 0) {
+		        if (srv_unix_file_flush_method != SRV_UNIX_NOSYNC
+			    && srv_flush_log_at_trx_commit != 2
+			    && !trx->flush_log_later) {
+			       
+			       /* Write the log to the log files AND flush
+			       them to disk */
+
+			       log_write_up_to(lsn, LOG_WAIT_ONE_GROUP, TRUE);
+			} else {
+			       /* Write the log but do not flush it to disk */
+
+			       log_write_up_to(lsn, LOG_WAIT_ONE_GROUP, FALSE);
+			}
 		}
 
+		trx->commit_lsn = lsn;
+		
 		/*-------------------------------------*/
 	
 		mutex_enter(&kernel_mutex);
@@ -1464,6 +1479,33 @@ trx_commit_for_mysql(
 
 	trx->op_info = (char *) "";
 	
+	return(0);
+}
+
+/**************************************************************************
+If required, flushes the log to disk if we called trx_commit_for_mysql()
+with trx->flush_log_later == TRUE. */
+
+ulint
+trx_commit_complete_for_mysql(
+/*==========================*/
+			/* out: 0 or error number */
+	trx_t*	trx)	/* in: trx handle */
+{
+	ut_a(trx);
+
+	if (srv_flush_log_at_trx_commit == 1
+	    && srv_unix_file_flush_method != SRV_UNIX_NOSYNC) {
+			       
+		trx->op_info = (char *) "flushing log";
+
+		/* Flush the log files to disk */
+
+		log_write_up_to(trx->commit_lsn, LOG_WAIT_ONE_GROUP, TRUE);
+
+		trx->op_info = (char *) "";
+	}
+
 	return(0);
 }
 

@@ -54,12 +54,12 @@ INSERT INTO t1 VALUES (900,'Vancouver','Shared/Roomate','Y','Y','Y','Y');
 drop table t1;
 
 #
-# problem med primary key
+# No longer a problem with primary key
 #
 
 CREATE TABLE t1 (program enum('signup','unique','sliding') not null,  type enum('basic','sliding','signup'),  sites set('mt'),  PRIMARY KEY (program));
-# The following should give an error for wrong primary key
-!$1171 ALTER TABLE t1 modify program enum('signup','unique','sliding');
+# This no longer give an error for wrong primary key
+ALTER TABLE t1 modify program enum('signup','unique','sliding');
 drop table t1;
 
 #

@@ -1613,7 +1613,7 @@ buf_pool_invalidate(void)
 	freed = TRUE;
 
 	while (freed) {
-		freed = buf_LRU_search_and_free_block(0);
+		freed = buf_LRU_search_and_free_block(100);
 	}
 	
 	mutex_enter(&(buf_pool->mutex));
@@ -1833,6 +1833,29 @@ buf_get_n_pending_ios(void)
 }
 
 /*************************************************************************
+Returns the ratio in percents of modified pages in the buffer pool /
+database pages in the buffer pool. */
+
+ulint
+buf_get_modified_ratio_pct(void)
+/*============================*/
+{
+	ulint	ratio;
+
+	mutex_enter(&(buf_pool->mutex));
+
+	ratio = (100 * UT_LIST_GET_LEN(buf_pool->flush_list))
+		     / (1 + UT_LIST_GET_LEN(buf_pool->LRU)
+		        + UT_LIST_GET_LEN(buf_pool->free));
+
+		       /* 1 + is there to avoid division by zero */   
+
+	mutex_exit(&(buf_pool->mutex));
+
+	return(ratio);
+}
+
+/*************************************************************************
 Prints info of the buffer i/o. */
 
 void
@@ -1876,8 +1899,10 @@ buf_print_io(
 
 	buf += sprintf(buf,
 		"Pending writes: LRU %lu, flush list %lu, single page %lu\n",
-		buf_pool->n_flush[BUF_FLUSH_LRU],
-		buf_pool->n_flush[BUF_FLUSH_LIST],
+		buf_pool->n_flush[BUF_FLUSH_LRU]
+				+ buf_pool->init_flush[BUF_FLUSH_LRU],
+		buf_pool->n_flush[BUF_FLUSH_LIST]
+				+ buf_pool->init_flush[BUF_FLUSH_LIST],
 		buf_pool->n_flush[BUF_FLUSH_SINGLE_PAGE]);
 
 	current_time = time(NULL);

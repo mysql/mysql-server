@@ -40,9 +40,9 @@ update ignore t1 set id=id+1; # This will change all rows
 select * from t1;
 update ignore t1 set id=1023 where id=1010;
 select * from t1 where parent_id=102;
-explain select level from t1 where level=1;
-explain select level,id from t1 where level=1;
-explain select level,id,parent_id from t1 where level=1;
+# explain select level from t1 where level=1;
+# explain select level,id from t1 where level=1;
+# explain select level,id,parent_id from t1 where level=1;
 select level,id from t1 where level=1;
 select level,id,parent_id from t1 where level=1;
 optimize table t1;
@@ -339,7 +339,7 @@ update ignore t1 set id=id+1; # This will change all rows
 select * from t1;
 update ignore t1 set id=1023 where id=1010;
 select * from t1 where parent_id=102;
-explain select level from t1 where level=1;
+# explain select level from t1 where level=1;
 select level,id from t1 where level=1;
 select level,id,parent_id from t1 where level=1;
 select level,id from t1 where level=1 order by id;
@@ -776,7 +776,7 @@ drop table t1;
 
 CREATE TABLE t1 (a int not null primary key, b int not null, key (b)) type=innodb;
 CREATE TABLE t2 (a int not null primary key, b int not null, key (b)) type=innodb;
-INSERT INTO t1 values (1,1),(2,2),(3,3),(4,4),(5,5),(6,6),(7,7),(8,8),(9,9);
+INSERT INTO t1 values (1,1),(2,2),(3,3),(4,4),(5,5),(6,6),(7,7),(8,8),(9,9),(10,10),(11,11),(12,12);
 INSERT INTO t2 values (1,1),(2,2),(3,3),(4,4),(5,5),(6,6),(7,7),(8,8),(9,9);
 
 # Full join, without key
@@ -792,7 +792,7 @@ update t1,t2 set t1.b=t1.b+10 where t1.b=2;
 select * from t1;
 
 # Range key (in t1)
-update t1,t2 set t1.b=t1.b+2,t2.b=t1.b where t1.b between 3 and 5;
+update t1,t2 set t1.b=t1.b+2,t2.b=t1.b+10 where t1.b between 3 and 5 and t1.a=t2.a+100;
 select * from t1;
 select * from t2;
 

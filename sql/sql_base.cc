@@ -482,8 +482,9 @@ bool close_thread_table(THD *thd, TABLE **table_ptr)
 {
   DBUG_ENTER("close_thread_table");
 
-  bool found_old_table=0;
-  TABLE *table=*table_ptr;
+  bool found_old_table= 0;
+  TABLE *table= *table_ptr;
+  DBUG_ASSERT(table->key_read == 0);
 
   *table_ptr=table->next;
   if (table->version != refresh_version ||
@@ -1693,7 +1694,7 @@ Field *find_field_in_table(THD *thd,TABLE *table,const char *name,uint length,
     else
       thd->dupp_field=field;
   }
-  if (check_grants  && check_grant_column(thd,table,name,length))
+  if (check_grants && check_grant_column(thd,table,name,length))
     return WRONG_GRANT;
   return field;
 }
@@ -1718,8 +1719,8 @@ find_field_in_tables(THD *thd,Item_field *item,TABLE_LIST *tables)
       {
 	found_table=1;
 	Field *find=find_field_in_table(thd,tables->table,name,length,
-					grant_option && 
-					tables->table->grant.want_privilege,
+					test(tables->table->grant.
+					     want_privilege),
 					1);
 	if (find)
 	{
@@ -1759,8 +1760,7 @@ find_field_in_tables(THD *thd,Item_field *item,TABLE_LIST *tables)
   for (; tables ; tables=tables->next)
   {
     Field *field=find_field_in_table(thd,tables->table,name,length,
-				     grant_option &&
-				     tables->table->grant.want_privilege,
+				     test(tables->table->grant.want_privilege),
 				     allow_rowid);
     if (field)
     {
@@ -1984,10 +1984,10 @@ insert_fields(THD *thd,TABLE_LIST *tables, const char *db_name,
 			(!db_name || !strcmp(tables->db,db_name))))
     {
       /* Ensure that we have access right to all columns */
-      if (grant_option && !(table->grant.privilege &
-			    table->grant.want_privilege) &&
+      if (!(table->grant.privilege & SELECT_ACL) &&
 	  check_grant_all_columns(thd,SELECT_ACL,table))
 	DBUG_RETURN(-1);
+
       Field **ptr=table->field,*field;
       thd->used_tables|=table->map;
       while ((field = *ptr++))
@@ -2112,7 +2112,7 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
 ******************************************************************************/
 
 int
-fill_record(List<Item> &fields,List<Item> &values)
+fill_record(List<Item> &fields,List<Item> &values, bool ignore_errors)
 {
   List_iterator_fast<Item> f(fields),v(values);
   Item *value;
@@ -2122,7 +2122,7 @@ fill_record(List<Item> &fields,List<Item> &values)
   while ((field=(Item_field*) f++))
   {
     value=v++;
-    if (value->save_in_field(field->field, 0))
+    if (value->save_in_field(field->field, 0) && !ignore_errors)
       DBUG_RETURN(1);
   }
   DBUG_RETURN(0);
@@ -2130,7 +2130,7 @@ fill_record(List<Item> &fields,List<Item> &values)
 
 
 int
-fill_record(Field **ptr,List<Item> &values)
+fill_record(Field **ptr,List<Item> &values, bool ignore_errors)
 {
   List_iterator_fast<Item> v(values);
   Item *value;
@@ -2140,7 +2140,7 @@ fill_record(Field **ptr,List<Item> &values)
   while ((field = *ptr++))
   {
     value=v++;
-    if (value->save_in_field(field, 0))
+    if (value->save_in_field(field, 0) && !ignore_errors)
       DBUG_RETURN(1);
   }
   DBUG_RETURN(0);

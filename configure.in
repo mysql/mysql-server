@@ -4,7 +4,7 @@ dnl Process this file with autoconf to produce a configure script.
 AC_INIT(sql/mysqld.cc)
 AC_CANONICAL_SYSTEM
 # The Docs Makefile.am parses this line!
-AM_INIT_AUTOMAKE(mysql, 4.0.13)
+AM_INIT_AUTOMAKE(mysql, 4.0.14)
 AM_CONFIG_HEADER(config.h)
 
 PROTOCOL_VERSION=10
@@ -1007,8 +1007,9 @@ case $SYSTEM_TYPE in
   *darwin5*)
     if test "$ac_cv_prog_gcc" = "yes"
     then
-      CFLAGS="$CFLAGS -traditional-cpp -DHAVE_DARWIN_THREADS -D_P1003_1B_VISIBLE -DSIGNAL_WITH_VIO_CLOSE -DSIGNALS_DONT_BREAK_READ -DHAVE_BROKEN_REALPATH -DFN_NO_CASE_SENCE"
-      CXXFLAGS="$CXXFLAGS -traditional-cpp -DHAVE_DARWIN_THREADS -D_P1003_1B_VISIBLE -DSIGNAL_WITH_VIO_CLOSE -DSIGNALS_DONT_BREAK_READ -DFN_NO_CASE_SENCE"
+      FLAGS="-traditional-cpp -DHAVE_DARWIN_THREADS -D_P1003_1B_VISIBLE -DSIGNAL_WITH_VIO_CLOSE -DSIGNALS_DONT_BREAK_READ -DHAVE_BROKEN_REALPATH -DFN_NO_CASE_SENCE"
+      CFLAGS="$CFLAGS $FLAGS"
+      CXXFLAGS="$CXXFLAGS $FLAGS"
       MAX_C_OPTIMIZE="-O"
       with_named_curses=""
     fi
@@ -1016,8 +1017,9 @@ case $SYSTEM_TYPE in
   *darwin6*)
     if test "$ac_cv_prog_gcc" = "yes"
     then
-      CFLAGS="$CFLAGS -traditional-cpp -DHAVE_DARWIN_THREADS -D_P1003_1B_VISIBLE -DSIGNAL_WITH_VIO_CLOSE -DSIGNALS_DONT_BREAK_READ -DHAVE_BROKEN_REALPATH -DFN_NO_CASE_SENCE"
-      CXXFLAGS="$CXXFLAGS -traditional-cpp -DHAVE_DARWIN_THREADS -D_P1003_1B_VISIBLE -DSIGNAL_WITH_VIO_CLOSE -DSIGNALS_DONT_BREAK_READ -DFN_NO_CASE_SENCE"
+      FLAGS="-traditional-cpp -DHAVE_DARWIN_THREADS -D_P1003_1B_VISIBLE -DSIGNAL_WITH_VIO_CLOSE -DSIGNALS_DONT_BREAK_READ -DHAVE_BROKEN_REALPATH -DFN_NO_CASE_SENCE"
+      CFLAGS="$CFLAGS $FLAGS"
+      CXXFLAGS="$CXXFLAGS $FLAGS"
       MAX_C_OPTIMIZE="-O"
     fi
     ;;
@@ -1367,10 +1369,8 @@ then
       with_named_thread="-Kthread -lsocket -lnsl"
       if expr "$SYSTEM_TYPE" : ".*unixware7.0.0" > /dev/null
       then
-#        AC_DEFINE(HAVE_OpenUNIX8_THREADS)
         AC_DEFINE(HAVE_UNIXWARE7_THREADS)
       else
-#        AC_DEFINE(HAVE_OpenUNIX8_POSIX)
         AC_DEFINE(HAVE_UNIXWARE7_POSIX)
       fi
       # We must have cc
@@ -1379,10 +1379,8 @@ then
       then
 	{ echo "configure: error: On OpenUNIX8 and UnixWare7 MySQL must be compiled with cc. See the Installation chapter in the Reference Manual." 1>&2; exit 1; };
       else
-#	CC="$CC -Kthread -DOpenUNIX8";
-#	CXX="$CXX -Kthread -DOpenUNIX8";
-	CC="$CC -Kthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK";
-	CXX="$CXX -Kthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK"
+ 	CC="$CC -Kthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK";
+ 	CXX="$CXX -Kthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK";
       fi
       AC_MSG_RESULT("yes")
     else

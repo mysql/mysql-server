@@ -161,13 +161,13 @@ srv_parse_data_file_paths_and_sizes(
 		}
 
 	        if (strlen(str) >= ut_strlen(":autoextend")
-	            && 0 == ut_memcmp(str, ":autoextend",
+	            && 0 == ut_memcmp(str, (char*)":autoextend",
 						ut_strlen(":autoextend"))) {
 
 			str += ut_strlen(":autoextend");
 
 	        	if (strlen(str) >= ut_strlen(":max:")
-	            		&& 0 == ut_memcmp(str, ":max:",
+	            		&& 0 == ut_memcmp(str, (char*)":max:",
 						ut_strlen(":max:"))) {
 
 				str += ut_strlen(":max:");
@@ -265,7 +265,7 @@ srv_parse_data_file_paths_and_sizes(
 		(*data_file_sizes)[i] = size;
 
 	        if (strlen(str) >= ut_strlen(":autoextend")
-	            && 0 == ut_memcmp(str, ":autoextend",
+	            && 0 == ut_memcmp(str, (char*)":autoextend",
 						ut_strlen(":autoextend"))) {
 
 			*is_auto_extending = TRUE;
@@ -273,7 +273,7 @@ srv_parse_data_file_paths_and_sizes(
 			str += ut_strlen(":autoextend");
 
 	        	if (strlen(str) >= ut_strlen(":max:")
-	            		&& 0 == ut_memcmp(str, ":max:",
+	            		&& 0 == ut_memcmp(str, (char*)":max:",
 						ut_strlen(":max:"))) {
 
 				str += ut_strlen(":max:");
@@ -864,6 +864,7 @@ open_or_create_data_files(
 	return(DB_SUCCESS);
 }
 
+#ifdef notdefined
 /*********************************************************************
 This thread is used to measure contention of latches. */
 static
@@ -935,6 +936,7 @@ test_measure_cont(
 
 	return(0);
 }
+#endif
 
 /********************************************************************
 Starts InnoDB and creates a new database if database files
@@ -1036,20 +1038,24 @@ innobase_start_or_create_for_mysql(void)
 
 		srv_win_file_flush_method = SRV_WIN_IO_UNBUFFERED;
 #ifndef __WIN__        
-	} else if (0 == ut_strcmp(srv_file_flush_method_str, "fdatasync")) {
+	} else if (0 == ut_strcmp(srv_file_flush_method_str,
+							(char*)"fdatasync")) {
 	  	srv_unix_file_flush_method = SRV_UNIX_FDATASYNC;
 
-	} else if (0 == ut_strcmp(srv_file_flush_method_str, "O_DSYNC")) {
+	} else if (0 == ut_strcmp(srv_file_flush_method_str,
+							(char*)"O_DSYNC")) {
 	  	srv_unix_file_flush_method = SRV_UNIX_O_DSYNC;
 
 	} else if (0 == ut_strcmp(srv_file_flush_method_str,
-				  "littlesync")) {
+							(char*)"littlesync")) {
 	  	srv_unix_file_flush_method = SRV_UNIX_LITTLESYNC;
 
-	} else if (0 == ut_strcmp(srv_file_flush_method_str, "nosync")) {
+	} else if (0 == ut_strcmp(srv_file_flush_method_str,
+							(char*)"nosync")) {
 	  	srv_unix_file_flush_method = SRV_UNIX_NOSYNC;
 #else
-	} else if (0 == ut_strcmp(srv_file_flush_method_str, "normal")) {
+	} else if (0 == ut_strcmp(srv_file_flush_method_str,
+							(char*)"normal")) {
 	  	srv_win_file_flush_method = SRV_WIN_IO_NORMAL;
 	  	os_aio_use_native_aio = FALSE;
 
@@ -1157,7 +1163,14 @@ innobase_start_or_create_for_mysql(void)
 					&max_flushed_lsn, &max_arch_log_no,
 					&sum_of_new_sizes);
 	if (err != DB_SUCCESS) {
-	        fprintf(stderr, "InnoDB: Could not open data files\n");
+	        fprintf(stderr,
+"InnoDB: Could not open or create data files.\n"
+"InnoDB: If you tried to add new data files, and it failed here,\n"
+"InnoDB: you should now edit innodb_data_file_path in my.cnf back\n"
+"InnoDB: to what it was, and remove the new ibdata files InnoDB created\n"
+"InnoDB: in this failed attempt. InnoDB only wrote those files full of\n"
+"InnoDB: zeros, but did not yet use them in any way. But be careful: do not\n"
+"InnoDB: remove old data files which contain your precious data!\n");
 
 		return((int) err);
 	}
@@ -1168,7 +1181,10 @@ innobase_start_or_create_for_mysql(void)
 		and restore them from the doublewrite buffer if
 		possible */
 		
-		trx_sys_doublewrite_restore_corrupt_pages();
+		if (srv_force_recovery < SRV_FORCE_NO_LOG_REDO) {
+		
+			trx_sys_doublewrite_restore_corrupt_pages();
+		}
 	}
 
 	srv_normalize_path_for_win(srv_arch_dir);

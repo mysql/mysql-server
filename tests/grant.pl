@@ -82,6 +82,7 @@ user_query("select * from mysql.user where user = '$opt_user'");
 user_query("select * from mysql.db where user = '$opt_user'");
 safe_query("grant select on *.* to $user,$user");
 safe_query("show grants for $user");
+user_connect(0);
 
 # The following should fail
 user_query("insert into mysql.user (host,user) values ('error','$opt_user')",1);
@@ -95,16 +96,21 @@ safe_query("grant select on $opt_database.not_exists to $opt_user",1);
 safe_query("grant FILE on $opt_database.test to $opt_user",1);
 safe_query("grant select on *.* to wrong___________user_name",1);
 safe_query("grant select on $opt_database.* to wrong___________user_name",1);
+user_connect(0);
 user_query("grant select on $opt_database.test to $opt_user with grant option",1);
 safe_query("set password FOR ''\@''=''",1);
 user_query("set password FOR root\@$opt_host = password('test')",1);
 
 # Change privileges for user
 safe_query("revoke select on *.* from $user");
-safe_query("grant create on *.* to $user");
+safe_query("grant create,update on *.* to $user");
 user_connect(0);
+safe_query("flush privileges");
 user_query("create table $opt_database.test (a int,b int)");
-
+user_query("update $opt_database.test set b=b+1 where a > 0",1);
+safe_query("show grants for $user");
+safe_query("revoke update on *.* from $user");
+user_connect(0);
 safe_query("grant select(c) on $opt_database.test to $user",1);
 safe_query("revoke select(c) on $opt_database.test from $user",1);
 safe_query("grant select on $opt_database.test to wrong___________user_name",1);
@@ -223,8 +229,21 @@ user_query("update $opt_database.test set b=b+1",1);
 safe_query("grant SELECT on *.* to $user");
 user_connect(0);
 user_query("update $opt_database.test set b=b+1");
+user_query("update $opt_database.test set b=b+1 where a > 0");
 safe_query("revoke SELECT on *.* from $user");
+safe_query("grant SELECT on $opt_database.* to $user");
 user_connect(0);
+user_query("update $opt_database.test set b=b+1");
+user_query("update $opt_database.test set b=b+1 where a > 0");
+safe_query("grant UPDATE on *.* to $user");
+user_connect(0);
+user_query("update $opt_database.test set b=b+1");
+user_query("update $opt_database.test set b=b+1 where a > 0");
+safe_query("revoke UPDATE on *.* from $user");
+safe_query("revoke SELECT on $opt_database.* from $user");
+user_connect(0);
+user_query("update $opt_database.test set b=b+1 where a > 0",1);
+user_query("update $opt_database.test set b=b+1",1);
 
 # Add one privilege at a time until the user has all privileges
 user_query("select * from test",1);

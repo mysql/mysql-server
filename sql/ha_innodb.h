@@ -197,6 +197,9 @@ extern char *innobase_unix_file_flush_method;
 /* The following variables have to be my_bool for SHOW VARIABLES to work */
 extern my_bool innobase_log_archive,
                innobase_use_native_aio, innobase_fast_shutdown;
+extern "C" {
+extern ulong srv_max_buf_pool_modified_pct;
+}
 
 extern TYPELIB innobase_lock_typelib;
 
@@ -211,6 +214,8 @@ int innobase_report_binlog_offset_and_commit(
 	void*	trx_handle,
         char*   log_file_name,
         my_off_t end_offset);
+int innobase_commit_complete(
+        void*   trx_handle);
 int innobase_rollback(THD *thd, void* trx_handle);
 int innobase_close_connection(THD *thd);
 int innobase_drop_database(char *path);

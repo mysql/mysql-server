@@ -196,9 +196,17 @@ static bool check_user(THD *thd,enum_server_command command, const char *user,
   thd->db=0;
   thd->db_length=0;
   USER_RESOURCES ur;
+  char tmp_passwd[SCRAMBLE_LENGTH];
 
   if (passwd[0] && strlen(passwd) != SCRAMBLE_LENGTH)
     return 1;
+  /*
+    Move password to temporary buffer as it may be stored in communication
+    buffer
+  */
+  strmov(tmp_passwd, passwd);
+  passwd= tmp_passwd;				// Use local copy
+
   if (!(thd->user = my_strdup(user, MYF(0))))
   {
     send_error(net,ER_OUT_OF_RESOURCES);
@@ -264,6 +272,7 @@ static bool check_user(THD *thd,enum_server_command command, const char *user,
   }
   else
     send_ok(net);				// Ready to handle questions
+  thd->password= test(passwd[0]);		// Remember for error messages
   return 0;					// ok
 }
 
@@ -617,7 +626,6 @@ check_connections(THD *thd)
   net->read_timeout=(uint) thd->variables.net_read_timeout;
   if (check_user(thd,COM_CONNECT, user, passwd, db, 1))
     return (-1);
-  thd->password=test(passwd[0]);
   return 0;
 }
 
@@ -1007,7 +1015,6 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       decrease_user_connections(save_uc);
     x_free((gptr) save_db);
     x_free((gptr) save_user);
-    thd->password=test(passwd[0]);
     break;
   }
 
@@ -1322,6 +1329,18 @@ mysql_execute_command(void)
       (table_rules_on && tables && thd->slave_thread &&
        !tables_ok(thd,tables)))
     DBUG_VOID_RETURN;
+  
+  /*
+    When option readonly is set deny operations which change tables.
+    Except for the replication thread and the 'super' users.
+  */
+  if (opt_readonly &&
+      !(thd->slave_thread || (thd->master_access & SUPER_ACL)) &&
+      (uc_update_queries[lex->sql_command] > 0))
+  {
+    send_error(&thd->net,ER_CANT_UPDATE_WITH_READLOCK);
+    DBUG_VOID_RETURN;
+  }
 
   statistic_increment(com_stat[lex->sql_command],&LOCK_status);
   switch (lex->sql_command) {
@@ -1475,7 +1494,8 @@ mysql_execute_command(void)
   }
   case SQLCOM_SHOW_SLAVE_STAT:
   {
-    if (check_global_access(thd, SUPER_ACL))
+    /* Accept one of two privileges */
+    if (check_global_access(thd, SUPER_ACL | REPL_CLIENT_ACL))
       goto error;
     LOCK_ACTIVE_MI;
     res = show_master_info(thd,active_mi);
@@ -1484,7 +1504,8 @@ mysql_execute_command(void)
   }
   case SQLCOM_SHOW_MASTER_STAT:
   {
-    if (check_global_access(thd, SUPER_ACL))
+    /* Accept one of two privileges */
+    if (check_global_access(thd, SUPER_ACL | REPL_CLIENT_ACL))
       goto error;
     res = show_binlog_info(thd);
     break;
@@ -2533,7 +2554,8 @@ error:
 
     save_priv	In this we store global and db level grants for the table
 		Note that we don't store db level grants if the global grants
-		is enough to satisfy the request.
+                is enough to satisfy the request and the global grants contains
+                a SELECT grant.
 ****************************************************************************/
 
 bool
@@ -2558,7 +2580,17 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
 
   if ((thd->master_access & want_access) == want_access)
   {
-    *save_priv=thd->master_access | thd->db_access;
+    /*
+      If we don't have a global SELECT privilege, we have to get the database
+      specific access rights to be able to handle queries of type
+      UPDATE t1 SET a=1 WHERE b > 0
+    */
+    db_access= thd->db_access;
+    if (!(thd->master_access & SELECT_ACL) &&
+	(db && (!thd->db || strcmp(db,thd->db))))
+      db_access=acl_get(thd->host, thd->ip, (char*) &thd->remote.sin_addr,
+			thd->priv_user, db); /* purecov: inspected */
+    *save_priv=thd->master_access | db_access;
     DBUG_RETURN(FALSE);
   }
   if (((want_access & ~thd->master_access) & ~(DB_ACLS | EXTRA_ACL)) ||
@@ -2598,12 +2630,29 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
 }
 
 
-/* check for global access and give descriptive error message if it fails */
+/*
+  check for global access and give descriptive error message if it fails
+
+  SYNOPSIS
+    check_global_access()
+    thd			Thread handler
+    want_access		Use should have any of these global rights
+
+  WARNING
+    One gets access rigth if one has ANY of the rights in want_access
+    This is useful as one in most cases only need one global right,
+    but in some case we want to check if the user has SUPER or
+    REPL_CLIENT_ACL rights.
+
+  RETURN
+    0	ok
+    1	Access denied.  In this case an error is sent to the client
+*/
 
 bool check_global_access(THD *thd, ulong want_access)
 {
   char command[128];
-  if ((thd->master_access & want_access) == want_access)
+  if ((thd->master_access & want_access))
     return 0;
   get_privilege_desc(command, sizeof(command), want_access);
   net_printf(&thd->net,ER_SPECIFIC_ACCESS_DENIED_ERROR,
@@ -2940,9 +2989,8 @@ bool add_field_to_list(char *field_name, enum_field_types type,
   new_field->change=change;
   new_field->interval=0;
   new_field->pack_length=0;
-  if (length)
-    if (!(new_field->length= (uint) atoi(length)))
-      length=0; /* purecov: inspected */
+  if (length && !(new_field->length= (uint) atoi(length)))
+    length=0; /* purecov: inspected */
   uint sign_len=type_modifier & UNSIGNED_FLAG ? 0 : 1;
 
   if (new_field->length && new_field->decimals &&
@@ -2978,10 +3026,13 @@ bool add_field_to_list(char *field_name, enum_field_types type,
     break;
   case FIELD_TYPE_DECIMAL:
     if (!length)
-      new_field->length = 10;			// Default length for DECIMAL
-    new_field->length+=sign_len;
-    if (new_field->decimals)
-      new_field->length++;
+      new_field->length= 10;			// Default length for DECIMAL
+    if (new_field->length < MAX_FIELD_WIDTH)	// Skip wrong argument
+    {
+      new_field->length+=sign_len;
+      if (new_field->decimals)
+	new_field->length++;
+    }
     break;
   case FIELD_TYPE_BLOB:
   case FIELD_TYPE_TINY_BLOB:

@@ -8,3 +8,12 @@ repair table t1 use_frm;
 alter table t1 TYPE=HEAP;
 repair table t1 use_frm;
 drop table t1;
+
+# non-existent table
+repair table t1 use_frm;
+
+#
+# Create test table for repair2
+# The following must be last in this file
+
+create table t1 type=myisam SELECT 1,"table 1";

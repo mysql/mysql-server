@@ -2017,8 +2017,12 @@ sum_expr:
 	  { $$=new Item_sum_count(new Item_int((int32) 0L,1)); }
 	| COUNT_SYM '(' in_sum_expr ')'
 	  { $$=new Item_sum_count($3); }
-	| COUNT_SYM '(' DISTINCT expr_list ')'
-	  { $$=new Item_sum_count_distinct(* $4); }
+	| COUNT_SYM '(' DISTINCT
+	  { Select->in_sum_expr++; }
+	   expr_list
+	  { Select->in_sum_expr--; }
+	  ')'
+	  { $$=new Item_sum_count_distinct(* $5); }
 	| GROUP_UNIQUE_USERS '(' text_literal ',' NUM ',' NUM ',' in_sum_expr ')'
 	  { $$= new Item_sum_unique_users($3,atoi($5.str),atoi($7.str),$9); }
 	| MIN_SYM '(' in_sum_expr ')'

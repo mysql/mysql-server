@@ -289,7 +289,7 @@ my_bool opt_enable_named_pipe= 0;
 my_bool opt_local_infile, opt_external_locking, opt_slave_compressed_protocol;
 uint delay_key_write_options= (uint) DELAY_KEY_WRITE_ON;
 
-static bool opt_do_pstack = 0;
+static my_bool opt_do_pstack = 0;
 static ulong opt_specialflag=SPECIAL_ENGLISH;
 
 static ulong opt_myisam_block_size;
@@ -306,6 +306,7 @@ my_bool opt_safe_user_create = 0, opt_no_mix_types = 0;
 my_bool lower_case_table_names, opt_old_rpl_compat;
 my_bool opt_show_slave_auth_info, opt_sql_bin_update = 0;
 my_bool opt_log_slave_updates= 0, opt_console= 0;
+my_bool opt_readonly = 0;
 
 volatile bool  mqh_used = 0;
 FILE *bootstrap_file=0;
@@ -376,7 +377,7 @@ const char *localhost=LOCAL_HOST;
 const char *delayed_user="DELAYED";
 uint master_port = MYSQL_PORT, master_connect_retry = 60;
 uint report_port = MYSQL_PORT;
-bool master_ssl = 0;
+my_bool master_ssl = 0;
 
 ulong master_retry_count=0;
 ulong bytes_sent = 0L, bytes_received = 0L;
@@ -404,8 +405,7 @@ ulong slow_launch_threads = 0;
 char mysql_real_data_home[FN_REFLEN],
      language[LIBLEN],reg_ext[FN_EXTLEN],
      mysql_charsets_dir[FN_REFLEN], *charsets_list,
-     blob_newline,f_fyllchar,max_sort_char,*mysqld_user,*mysqld_chroot,
-     *opt_init_file;
+     max_sort_char,*mysqld_user,*mysqld_chroot, *opt_init_file;
 char *language_ptr= language;
 char mysql_data_home_buff[2], *mysql_data_home=mysql_real_data_home;
 #ifndef EMBEDDED_LIBRARY
@@ -1607,6 +1607,7 @@ static void init_signals(void)
     sa.sa_handler=handle_segfault;
 #endif
     sigaction(SIGSEGV, &sa, NULL);
+    sigaction(SIGABRT, &sa, NULL);
 #ifdef SIGBUS
     sigaction(SIGBUS, &sa, NULL);
 #endif
@@ -3142,10 +3143,11 @@ enum options {
   OPT_QUERY_CACHE_TYPE, OPT_RECORD_BUFFER,
   OPT_RECORD_RND_BUFFER, OPT_RELAY_LOG_SPACE_LIMIT,
   OPT_SLAVE_NET_TIMEOUT, OPT_SLAVE_COMPRESSED_PROTOCOL, OPT_SLOW_LAUNCH_TIME,
+  OPT_READONLY,
   OPT_SORT_BUFFER, OPT_TABLE_CACHE,
   OPT_THREAD_CONCURRENCY, OPT_THREAD_CACHE_SIZE,
   OPT_TMP_TABLE_SIZE, OPT_THREAD_STACK,
-  OPT_WAIT_TIMEOUT,
+  OPT_WAIT_TIMEOUT, OPT_MYISAM_REPAIR_THREADS,
   OPT_INNODB_MIRRORED_LOG_GROUPS,
   OPT_INNODB_LOG_FILES_IN_GROUP,
   OPT_INNODB_LOG_FILE_SIZE,
@@ -3156,6 +3158,7 @@ enum options {
   OPT_INNODB_LOCK_WAIT_TIMEOUT,
   OPT_INNODB_THREAD_CONCURRENCY,
   OPT_INNODB_FORCE_RECOVERY,
+  OPT_INNODB_MAX_DIRTY_PAGES_PCT,
   OPT_BDB_CACHE_SIZE,
   OPT_BDB_LOG_BUFFER_SIZE,
   OPT_BDB_MAX_LOCK,
@@ -3304,6 +3307,10 @@ struct my_option my_long_options[] =
   {"innodb_fast_shutdown", OPT_INNODB_FAST_SHUTDOWN,
    "Speeds up server shutdown process", (gptr*) &innobase_fast_shutdown,
    (gptr*) &innobase_fast_shutdown, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
+  {"innodb_max_dirty_pages_pct", OPT_INNODB_MAX_DIRTY_PAGES_PCT,
+   "Percentage of dirty pages allowed in bufferpool", (gptr*) &srv_max_buf_pool_modified_pct,
+   (gptr*) &srv_max_buf_pool_modified_pct, 0, GET_ULONG, REQUIRED_ARG, 90, 0, 100, 0, 0, 0},
+   
 #endif /* End HAVE_INNOBASE_DB */
   {"help", '?', "Display this help and exit", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
    0, 0, 0, 0, 0},
@@ -3833,19 +3840,25 @@ replicating a LOAD DATA INFILE command",
    (gptr*) &global_system_variables.myisam_max_extra_sort_file_size,
    (gptr*) &max_system_variables.myisam_max_extra_sort_file_size,
    0, GET_ULL, REQUIRED_ARG, (ulonglong) MI_MAX_TEMP_LENGTH,
-   0, ~0L, 0, 1, 0},
+   0, (ulonglong) MAX_FILE_SIZE, 0, 1, 0},
   {"myisam_max_sort_file_size", OPT_MYISAM_MAX_SORT_FILE_SIZE,
    "Don't use the fast sort index method to created index if the temporary file would get bigger than this!",
    (gptr*) &global_system_variables.myisam_max_sort_file_size,
    (gptr*) &max_system_variables.myisam_max_sort_file_size, 0,
-   GET_ULL, REQUIRED_ARG, (longlong) LONG_MAX, 0, ~0L, 0, 1024*1024, 0},
+   GET_ULL, REQUIRED_ARG, (longlong) LONG_MAX, 0, (ulonglong) MAX_FILE_SIZE,
+   0, 1024*1024, 0},
+  {"myisam_repair_threads", OPT_MYISAM_REPAIR_THREADS,
+   "Number of threads to use when repairing MyISAM tables. The value of 1 disables parallel repair.",
+   (gptr*) &global_system_variables.myisam_repair_threads,
+   (gptr*) &max_system_variables.myisam_repair_threads, 0,
+   GET_ULONG, REQUIRED_ARG, 1, 1, ~0L, 0, 1, 0},
   {"myisam_sort_buffer_size", OPT_MYISAM_SORT_BUFFER_SIZE,
    "The buffer that is allocated when sorting the index when doing a REPAIR or when creating indexes with CREATE INDEX or ALTER TABLE.",
    (gptr*) &global_system_variables.myisam_sort_buff_size,
    (gptr*) &max_system_variables.myisam_sort_buff_size, 0,
    GET_ULONG, REQUIRED_ARG, 8192*1024, 4, ~0L, 0, 1, 0},
   {"net_buffer_length", OPT_NET_BUFFER_LENGTH,
-   "Buffer length for TCP/IP and socket communication.", 
+   "Buffer length for TCP/IP and socket communication.",
    (gptr*) &global_system_variables.net_buffer_length,
    (gptr*) &max_system_variables.net_buffer_length, 0, GET_ULONG,
    REQUIRED_ARG, 16384, 1024, 1024*1024L, 0, 1024, 0},
@@ -3915,6 +3928,11 @@ replicating a LOAD DATA INFILE command",
    "Number of seconds to wait for more data from a master/slave connection before aborting the read.",
    (gptr*) &slave_net_timeout, (gptr*) &slave_net_timeout, 0,
    GET_ULONG, REQUIRED_ARG, SLAVE_NET_TIMEOUT, 1, LONG_TIMEOUT, 0, 1, 0},
+  {"read-only", OPT_READONLY,
+   "Make all tables readonly, with the expections for replications (slave) threads and users with the SUPER privilege",
+   (gptr*) &opt_readonly,
+   (gptr*) &opt_readonly,
+   0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 1, 0},
   {"slow_launch_time", OPT_SLOW_LAUNCH_TIME,
    "If creating the thread takes longer than this value (in seconds), the Slow_launch_threads counter will be incremented.",
    (gptr*) &slow_launch_time, (gptr*) &slow_launch_time, 0, GET_ULONG,
@@ -4710,11 +4728,9 @@ static void get_options(int argc,char **argv)
   my_disable_locking= myisam_single_user= test(opt_external_locking == 0);
   my_default_record_cache_size=global_system_variables.read_buff_size;
   myisam_max_temp_length=
-    (my_off_t) min(global_system_variables.myisam_max_sort_file_size,
-		   (ulonglong) MAX_FILE_SIZE);
+    (my_off_t) global_system_variables.myisam_max_sort_file_size;
   myisam_max_extra_temp_length= 
-    (my_off_t) min(global_system_variables.myisam_max_extra_sort_file_size,
-		   (ulonglong) MAX_FILE_SIZE);
+    (my_off_t) global_system_variables.myisam_max_extra_sort_file_size;
 
   /* Set global variables based on startup options */
   myisam_block_size=(uint) 1 << my_bit_log2(opt_myisam_block_size);

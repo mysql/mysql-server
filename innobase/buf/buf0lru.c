@@ -104,12 +104,15 @@ ibool
 buf_LRU_search_and_free_block(
 /*==========================*/
 				/* out: TRUE if freed */
-	ulint	n_iterations __attribute__((unused))) /* in: how many times
-                                this has been called repeatedly without
-                                result: a high value means that we should 
-                                search farther */
+	ulint	n_iterations)   /* in: how many times this has been called
+				repeatedly without result: a high value means
+				that we should search farther; if value is
+				k < 10, then we only search k/10 * [number
+				of pages in the buffer pool] from the end
+				of the LRU list */
 {
 	buf_block_t*	block;
+	ulint		distance = 0;
 	ibool		freed;
 
 	mutex_enter(&(buf_pool->mutex));
@@ -146,6 +149,18 @@ buf_LRU_search_and_free_block(
 		}
 
 		block = UT_LIST_GET_PREV(LRU, block);
+		distance++;
+
+		if (!freed && n_iterations <= 10
+		    && distance > 100 + (n_iterations * buf_pool->curr_size)
+					/ 10) {
+
+			buf_pool->LRU_flush_ended = 0;
+
+			mutex_exit(&(buf_pool->mutex));
+			
+			return(FALSE);
+		}
 	}
 
 	if (buf_pool->LRU_flush_ended > 0) {
@@ -180,7 +195,7 @@ buf_LRU_try_free_flushed_blocks(void)
 
 		mutex_exit(&(buf_pool->mutex));
 
-		buf_LRU_search_and_free_block(0);
+		buf_LRU_search_and_free_block(1);
 		
 		mutex_enter(&(buf_pool->mutex));
 	}
@@ -200,7 +215,7 @@ buf_LRU_get_free_block(void)
 {
 	buf_block_t*	block		= NULL;
 	ibool		freed;
-	ulint		n_iterations	= 0;
+	ulint		n_iterations	= 1;
 	ibool		mon_value_was   = 0; /* remove bug */
 	ibool		started_monitor	= FALSE;
 loop:
@@ -228,9 +243,12 @@ loop:
 	   	fprintf(stderr,
 "  InnoDB: WARNING: over 4 / 5 of the buffer pool is occupied by\n"
 "InnoDB: lock heaps or the adaptive hash index! Check that your\n"
-"InnoDB: transactions do not set too many row locks. Starting InnoDB\n"
-"InnoDB: Monitor to print diagnostics, including lock heap and hash index\n"
-"InnoDB: sizes.\n");
+"InnoDB: transactions do not set too many row locks.\n"
+"InnoDB: Your buffer pool size is %lu MB. Maybe you should make\n"
+"InnoDB: the buffer pool bigger?\n"
+"InnoDB: Starting the InnoDB Monitor to print diagnostics, including\n"
+"InnoDB: lock heap and hash index sizes.\n",
+		buf_pool->curr_size / (1024 * 1024 / UNIV_PAGE_SIZE));
 
 		srv_print_innodb_monitor = TRUE;
 
@@ -242,14 +260,6 @@ loop:
 		but may also surprise users! */
 
 		srv_print_innodb_monitor = FALSE;
-	}
-
-	if (buf_pool->LRU_flush_ended > 0) {
-		mutex_exit(&(buf_pool->mutex));
-
-		buf_LRU_try_free_flushed_blocks();
-		
-		mutex_enter(&(buf_pool->mutex));
 	}
 	
 	/* If there is a block in the free list, take it */
@@ -315,6 +325,20 @@ loop:
 	buf_flush_free_margin();
 
 	os_aio_simulated_wake_handler_threads();
+
+	mutex_enter(&(buf_pool->mutex));
+
+	if (buf_pool->LRU_flush_ended > 0) {
+		/* We have written pages in an LRU flush. To make the insert
+		buffer more efficient, we try to move these pages to the free
+		list. */
+
+		mutex_exit(&(buf_pool->mutex));
+
+		buf_LRU_try_free_flushed_blocks();
+	} else {
+		mutex_exit(&(buf_pool->mutex));
+	}
 
 	if (n_iterations > 10) {
 

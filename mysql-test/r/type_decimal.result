@@ -357,3 +357,9 @@ select * from t1;
 a
 99999999999
 drop table t1;
+CREATE TABLE t1 (a_dec DECIMAL(-1,0));
+Too big column length for column 'a_dec' (max = 255). Use BLOB instead
+CREATE TABLE t1 (a_dec DECIMAL(-2,1));
+Too big column length for column 'a_dec' (max = 255). Use BLOB instead
+CREATE TABLE t1 (a_dec DECIMAL(-1,1));
+Too big column length for column 'a_dec' (max = 255). Use BLOB instead

@@ -579,10 +579,24 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool optimize)
     {
       local_testflag|= T_STATISTICS;
       param.testflag|= T_STATISTICS;		// We get this for free
-      thd->proc_info="Repair by sorting";
       statistics_done=1;
-      error = mi_repair_by_sort(&param, file, fixed_name,
-				param.testflag & T_QUICK);
+      if (current_thd->variables.myisam_repair_threads>1)
+      {
+        char buf[40];
+        /* TODO: respect myisam_repair_threads variable */
+        my_snprintf(buf, 40, "Repair with %d threads", my_count_bits(key_map));
+        thd->proc_info=buf;
+        error = mi_repair_parallel(&param, file, fixed_name,
+            param.testflag & T_QUICK);
+        thd->proc_info="Repair done"; // to reset proc_info, as
+                                      // it was pointing to local buffer
+      }
+      else
+      {
+        thd->proc_info="Repair by sorting";
+        error = mi_repair_by_sort(&param, file, fixed_name,
+            param.testflag & T_QUICK);
+      }
     }
     else
     {
