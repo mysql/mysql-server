@@ -50610,6 +50610,8 @@ Fixed @code{mysql_info()} to return 0 for the 'Duplicates' value for
 
 @itemize @bullet
 @item
+Fix bug with closing tags missing slash for @code{mysqldump} XML output.
+@item
 Remove end space from @code{ENUM} values. (This fixed a problem with
 @code{SHOW CREATE TABLE}.)
 @item
@@ -50659,6 +50661,8 @@ Linux-x86 binaries.
 @appendixsubsec Changes in release 3.23.50 (21 Apr 2002)
 
 @itemize @bullet
+@item
+Add missing @code{<row>} tags for @code{mysqldump} XML output.
 @item
 Fixed problem with @code{crash-me} and @code{gcc} 3.0.4.
 @item
