@@ -1843,7 +1843,9 @@ outp:
 void Item_func_conv_charset::fix_length_and_dec()
 {
   max_length = args[0]->max_length*(conv_charset->mbmaxlen?conv_charset->mbmaxlen:1);
+  str_value.set_charset(conv_charset);
 }
+
 
 
 String *Item_func_conv_charset3::val_str(String *str)
@@ -1936,6 +1938,33 @@ bool Item_func_conv_charset::fix_fields(THD *thd,struct st_table_list *tables)
 void Item_func_conv_charset3::fix_length_and_dec()
 {
   max_length = args[0]->max_length;
+}
+
+String *Item_func_set_collation::val_str(String *str)
+{
+  str=args[0]->val_str(str);
+  null_value=args[0]->null_value;
+  str->set_charset(set_collation);
+  return str;
+}
+
+bool Item_func_set_collation::fix_fields(THD *thd,struct st_table_list *tables)
+{
+  char buff[STACK_BUFF_ALLOC];			// Max argument in function
+  binary=0;
+  used_tables_cache=0;
+  const_item_cache=1;
+  
+  if (thd && check_stack_overrun(thd,buff))
+    return 0;					// Fatal error if flag is set!
+  if (args[0]->fix_fields(thd, tables, args))
+    return 1;
+  maybe_null=args[0]->maybe_null;
+  binary=args[0]->binary;
+  const_item_cache=args[0]->const_item();
+  str_value.set_charset(set_collation);
+  fix_length_and_dec();
+  return 0;
 }
 
 
