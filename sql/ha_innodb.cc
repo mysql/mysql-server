@@ -3071,9 +3071,6 @@ ha_innobase::unlock_row(void)
 
 	DBUG_ENTER("ha_innobase::unlock_row");
 
-	ut_ad(prebuilt->trx ==
-		(trx_t*) current_thd->transaction.all.innobase_tid);
-
 	if (last_query_id != user_thd->query_id) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
