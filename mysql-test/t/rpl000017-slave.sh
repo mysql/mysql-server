@@ -5,7 +5,7 @@ master-bin.000001
 4
 127.0.0.1
 replicate
-aaaaaaaaaaaaaaabthispartofthepasswordisnotused
+aaaaaaaaaaaaaaab
 $MASTER_MYPORT
 1
 0

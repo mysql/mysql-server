@@ -3745,7 +3745,7 @@ text_or_password:
 	    else
 	    {
 	      char *buff=(char*) sql_alloc(HASH_PASSWORD_LENGTH+1);
-	      make_scrambled_password(buff,$3.str,opt_old_passwords);
+	      make_scrambled_password(buff,$3.str,opt_old_passwords,&current_thd->rand);
 	      $$=buff;
 	    }
 	  }
@@ -4041,7 +4041,7 @@ grant_user:
 	     char *buff=(char*) sql_alloc(HASH_PASSWORD_LENGTH+1);
 	     if (buff)
 	     {
-	       make_scrambled_password(buff,$4.str,opt_old_passwords);
+	       make_scrambled_password(buff,$4.str,opt_old_passwords,&current_thd->rand);
 	       $1->password.str=buff;
 	       $1->password.length=HASH_PASSWORD_LENGTH;
 	     }

@@ -181,7 +181,7 @@ typedef struct st_mysql
   enum mysql_status status;
   my_bool	free_me;		/* If free in mysql_close */
   my_bool	reconnect;		/* set to 1 if automatic reconnect */
-  char	        scramble_buff[9];
+  char	        scramble_buff[21];      /* New protocol requires longer scramble*/
 
  /*
    Set if this is the original connection, not a master or a slave we have

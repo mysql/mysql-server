@@ -317,7 +317,6 @@ uint volatile thread_count=0, thread_running=0, kill_cached_threads=0,
 ulong thd_startup_options=(OPTION_UPDATE_LOG | OPTION_AUTO_IS_NULL |
 			   OPTION_BIN_LOG | OPTION_QUOTE_SHOW_CREATE );
 uint protocol_version=PROTOCOL_VERSION;
-uint connection_auth_flag=0; /* Supported authentication mode */ 
 struct system_variables global_system_variables;
 struct system_variables max_system_variables;
 ulong keybuff_size,table_cache_size,
