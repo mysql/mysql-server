@@ -54,6 +54,7 @@ struct my_cs_file_section_st
 #define _CS_CTYPEMAP	14
 #define _CS_PRIMARY_ID	15
 #define _CS_BINARY_ID	16
+#define _CS_CSDESCRIPT	17
 
 static struct my_cs_file_section_st sec[] =
 {
@@ -62,12 +63,12 @@ static struct my_cs_file_section_st sec[] =
   {_CS_MISC,		"xml.encoding"},
   {_CS_MISC,		"charsets"},
   {_CS_MISC,		"charsets.max-id"},
-  {_CS_MISC,		"charsets.description"},
   {_CS_CHARSET,		"charsets.charset"},
   {_CS_PRIMARY_ID,	"charsets.charset.primary-id"},
   {_CS_BINARY_ID,	"charsets.charset.binary-id"},
   {_CS_CSNAME,		"charsets.charset.name"},
   {_CS_FAMILY,		"charsets.charset.family"},
+  {_CS_CSDESCRIPT,	"charsets.charset.description"},
   {_CS_MISC,		"charsets.charset.alias"},
   {_CS_MISC,		"charsets.charset.ctype"},
   {_CS_CTYPEMAP,	"charsets.charset.ctype.map"},
@@ -97,6 +98,8 @@ static struct my_cs_file_section_st * cs_file_sec(const char *attr, uint len)
   return NULL;
 }
 
+#define MY_CS_CSDESCR_SIZE	64
+
 typedef struct my_cs_file_info
 {
   char   csname[MY_CS_NAME_SIZE];
@@ -106,6 +109,7 @@ typedef struct my_cs_file_info
   uchar  to_upper[MY_CS_TO_UPPER_TABLE_SIZE];
   uchar  sort_order[MY_CS_SORT_ORDER_TABLE_SIZE];
   uint16 tab_to_uni[MY_CS_TO_UNI_TABLE_SIZE];
+  char   comment[MY_CS_CSDESCR_SIZE];
   CHARSET_INFO cs;
   int (*add_collation)(CHARSET_INFO *cs);
 } MY_CHARSET_LOADER;
@@ -207,6 +211,9 @@ static int cs_value(MY_XML_PARSER *st,const char *attr, uint len)
     break;
   case _CS_CSNAME:
     i->cs.csname=mstr(i->csname,attr,len,MY_CS_NAME_SIZE-1);
+    break;
+  case _CS_CSDESCRIPT:
+    i->cs.comment=mstr(i->comment,attr,len,MY_CS_CSDESCR_SIZE-1);
     break;
   case _CS_FLAG:
     if (!strncmp("primary",attr,len))
