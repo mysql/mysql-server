@@ -258,7 +258,7 @@ public:
 
 
 /*
-** An simple intrusive list with automaticly removes element from list
+** A simple intrusive list which automaticly removes element from list
 ** on delete (for THD element)
 */
 

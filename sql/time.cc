@@ -128,7 +128,7 @@ long calc_daynr(uint year,uint month,uint day)
   DBUG_ENTER("calc_daynr");
 
   if (year == 0 && month == 0 && day == 0)
-    DBUG_RETURN(0);				/* Skipp errors */
+    DBUG_RETURN(0);				/* Skip errors */
   if (year < 200)
   {
     if ((year=year+1900) < 1900+YY_PART_YEAR)
@@ -434,7 +434,7 @@ str_to_TIME(const char *str, uint length, TIME *l_time,bool fuzzy_date)
   DBUG_ENTER("str_to_TIME");
   DBUG_PRINT("enter",("str: %.*s",length,str));
 
-  for (; str != end && !isdigit(*str) ; str++) ; // Skipp garbage
+  for (; str != end && !isdigit(*str) ; str++) ; // Skip garbage
   if (str == end)
     DBUG_RETURN(TIMESTAMP_NONE);
   /*
@@ -594,7 +594,7 @@ bool str_to_time(const char *str,uint length,TIME *l_time)
     date[0]=value;
     state=1;					// Assume next is hours
     found_days=1;
-    str++;					// Skipp space;
+    str++;					// Skip space;
   }
   else if ((end-str) > 1 && *str == ':' && isdigit(str[1]))
   {
@@ -602,7 +602,7 @@ bool str_to_time(const char *str,uint length,TIME *l_time)
     date[1]=value;
     state=2;
     found_hours=1;
-    str++;					// skipp ':'
+    str++;					// skip ':'
   }
   else
   {
@@ -623,7 +623,7 @@ bool str_to_time(const char *str,uint length,TIME *l_time)
     date[state++]=value;
     if (state == 4 || (end-str) < 2 || *str != ':' || !isdigit(str[1]))
       break;
-    str++;					// Skipp ':'
+    str++;					// Skip ':'
   }
 
   if (state != 4)

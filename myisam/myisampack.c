@@ -672,7 +672,7 @@ static HUFF_COUNTS *init_huff_count(MI_INFO *info,my_off_t records)
 	type = FIELD_NORMAL;
       if (count[i].field_length <= 8 &&
 	  (type == FIELD_NORMAL ||
-	   type == FIELD_SKIPP_ZERO))
+	   type == FIELD_SKIP_ZERO))
 	count[i].max_zero_fill= count[i].field_length;
       init_tree(&count[i].int_tree,0,0,-1,(qsort_cmp2) compare_tree,0,NULL,NULL);
       if (records && type != FIELD_BLOB && type != FIELD_VARCHAR)
@@ -796,7 +796,7 @@ static int get_statistic(PACK_MRG_INFO *mrg,HUFF_COUNTS *huff_counts)
 
 	/* Save character counters and space-counts and zero-field-counts */
 	if (count->field_type == FIELD_NORMAL ||
-	    count->field_type == FIELD_SKIPP_ENDSPACE)
+	    count->field_type == FIELD_SKIP_ENDSPACE)
 	{
 	  for ( ; end_pos > pos ; end_pos--)
 	    if (end_pos[-1] != ' ')
@@ -815,7 +815,7 @@ static int get_statistic(PACK_MRG_INFO *mrg,HUFF_COUNTS *huff_counts)
 	    count->max_end_space = length;
 	}
 	if (count->field_type == FIELD_NORMAL ||
-	    count->field_type == FIELD_SKIPP_PRESPACE)
+	    count->field_type == FIELD_SKIP_PRESPACE)
 	{
 	  for (pos=start_pos; pos < end_pos ; pos++)
 	    if (pos[0] != ' ')
@@ -851,7 +851,7 @@ static int get_statistic(PACK_MRG_INFO *mrg,HUFF_COUNTS *huff_counts)
 	}
 	if (count->field_length <= 8 &&
 	    (count->field_type == FIELD_NORMAL ||
-	     count->field_type == FIELD_SKIPP_ZERO))
+	     count->field_type == FIELD_SKIP_ZERO))
 	{
 	  uint i;
 	  if (!memcmp((byte*) start_pos,zero_string,count->field_length))
@@ -956,7 +956,7 @@ static void check_counts(HUFF_COUNTS *huff_counts, uint trees,
       new_length=calc_packed_length(huff_counts,0);
       if (old_length < new_length && huff_counts->field_length > 1)
       {
-	huff_counts->field_type=FIELD_SKIPP_ZERO;
+	huff_counts->field_type=FIELD_SKIP_ZERO;
 	huff_counts->counts[0]-=length;
 	huff_counts->bytes_packed=old_length- records/8;
 	goto found_pack;
@@ -1000,7 +1000,7 @@ static void check_counts(HUFF_COUNTS *huff_counts, uint trees,
       huff_counts->counts[' ']+=huff_counts->tot_pre_space;
       if (test_space_compress(huff_counts,records,huff_counts->max_end_space,
 			      huff_counts->end_space,
-			      huff_counts->tot_end_space,FIELD_SKIPP_ENDSPACE))
+			      huff_counts->tot_end_space,FIELD_SKIP_ENDSPACE))
 	goto found_pack;
       huff_counts->counts[' ']-=huff_counts->tot_pre_space;
     }
@@ -1008,7 +1008,7 @@ static void check_counts(HUFF_COUNTS *huff_counts, uint trees,
     {
       if (test_space_compress(huff_counts,records,huff_counts->max_pre_space,
 			      huff_counts->pre_space,
-			      huff_counts->tot_pre_space,FIELD_SKIPP_PRESPACE))
+			      huff_counts->tot_pre_space,FIELD_SKIP_PRESPACE))
 	goto found_pack;
     }
 
@@ -1018,10 +1018,10 @@ static void check_counts(HUFF_COUNTS *huff_counts, uint trees,
 
     if (huff_counts->max_zero_fill &&
 	(huff_counts->field_type == FIELD_NORMAL ||
-	 huff_counts->field_type == FIELD_SKIPP_ZERO))
+	 huff_counts->field_type == FIELD_SKIP_ZERO))
     {
       huff_counts->counts[0]-=huff_counts->max_zero_fill*
-	(huff_counts->field_type == FIELD_SKIPP_ZERO ?
+	(huff_counts->field_type == FIELD_SKIP_ZERO ?
 	 records - huff_counts->zero_fields : records);
       huff_counts->pack_type|=PACK_TYPE_ZERO_FILL;
       huff_counts->bytes_packed=calc_packed_length(huff_counts,0);
@@ -1061,9 +1061,9 @@ static void check_counts(HUFF_COUNTS *huff_counts, uint trees,
   if (verbose)
     printf("\nnormal:    %3d  empty-space:     %3d  empty-zero:       %3d  empty-fill: %3d\npre-space: %3d  end-space:       %3d  intervall-fields: %3d  zero:       %3d\n",
 	   field_count[FIELD_NORMAL],space_fields,
-	   field_count[FIELD_SKIPP_ZERO],fill_zero_fields,
-	   field_count[FIELD_SKIPP_PRESPACE],
-	   field_count[FIELD_SKIPP_ENDSPACE],
+	   field_count[FIELD_SKIP_ZERO],fill_zero_fields,
+	   field_count[FIELD_SKIP_PRESPACE],
+	   field_count[FIELD_SKIP_ENDSPACE],
 	   field_count[FIELD_INTERVALL],
 	   field_count[FIELD_ZERO]);
   DBUG_VOID_RETURN;
@@ -1729,7 +1729,7 @@ static int compress_isam_file(PACK_MRG_INFO *mrg, HUFF_COUNTS *huff_counts)
 	field_length-=count->max_zero_fill;
 
 	switch(count->field_type) {
-	case FIELD_SKIPP_ZERO:
+	case FIELD_SKIP_ZERO:
 	  if (!memcmp((byte*) start_pos,zero_string,field_length))
 	  {
 	    write_bits(1,1);
@@ -1743,7 +1743,7 @@ static int compress_isam_file(PACK_MRG_INFO *mrg, HUFF_COUNTS *huff_counts)
 	    write_bits(tree->code[(uchar) *start_pos],
 		       (uint) tree->code_len[(uchar) *start_pos]);
 	  break;
-	case FIELD_SKIPP_ENDSPACE:
+	case FIELD_SKIP_ENDSPACE:
 	  for (pos=end_pos ; pos > start_pos && pos[-1] == ' ' ; pos--) ;
 	  length=(uint) (end_pos-pos);
 	  if (count->pack_type & PACK_TYPE_SELECTED)
@@ -1766,7 +1766,7 @@ static int compress_isam_file(PACK_MRG_INFO *mrg, HUFF_COUNTS *huff_counts)
 		       (uint) tree->code_len[(uchar) *start_pos]);
 	  start_pos=end_pos;
 	  break;
-	case FIELD_SKIPP_PRESPACE:
+	case FIELD_SKIP_PRESPACE:
 	  for (pos=start_pos ; pos < end_pos && pos[0] == ' ' ; pos++) ;
 	  length=(uint) (pos-start_pos);
 	  if (count->pack_type & PACK_TYPE_SELECTED)

@@ -25,7 +25,7 @@
 #include "sql_sort.h"
 
 #ifndef THREAD
-#define SKIPP_DBUG_IN_FILESORT
+#define SKIP_DBUG_IN_FILESORT
 #endif
 
 	/* How to write record_ref. */
@@ -77,7 +77,7 @@ ha_rows filesort(TABLE *table, SORT_FIELD *sortorder, uint s_length,
   SORTPARAM param;
   DBUG_ENTER("filesort");
   DBUG_EXECUTE("info",TEST_filesort(sortorder,s_length,special););
-#ifdef SKIPP_DBUG_IN_FILESORT
+#ifdef SKIP_DBUG_IN_FILESORT
   DBUG_PUSH("");		/* No DBUG here */
 #endif
 
@@ -229,7 +229,7 @@ ha_rows filesort(TABLE *table, SORT_FIELD *sortorder, uint s_length,
   else
     statistic_add(filesort_rows, records, &LOCK_status);
   *examined_rows= param.examined_rows;
-#ifdef SKIPP_DBUG_IN_FILESORT
+#ifdef SKIP_DBUG_IN_FILESORT
   DBUG_POP();			/* Ok to DBUG */
 #endif
   DBUG_PRINT("exit",("records: %ld",records));

@@ -20,7 +20,7 @@
 #include "ft_test1.h"
 #include <getopt.h>
 
-static int key_field=FIELD_VARCHAR,extra_field=FIELD_SKIPP_ENDSPACE;
+static int key_field=FIELD_VARCHAR,extra_field=FIELD_SKIP_ENDSPACE;
 static uint key_length=200,extra_length=50;
 static int key_type=HA_KEYTYPE_TEXT;
 static int verbose=0,silent=0,skip_update=0,

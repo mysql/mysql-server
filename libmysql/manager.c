@@ -179,7 +179,7 @@ MYSQL_MANAGER*  STDCALL mysql_manager_connect(MYSQL_MANAGER* con,
     strmov(con->last_error,"Read error on socket");
     goto err;
   }
-  if ((con->cmd_status=atoi(con->net.read_pos)) != MANAGER_OK)
+  if ((con->cmd_status=atoi((char*) con->net.read_pos)) != MANAGER_OK)
   {
     strmov(con->last_error,"Access denied");
     goto err;
@@ -238,7 +238,7 @@ int  STDCALL mysql_manager_fetch_line(MYSQL_MANAGER* con, char* res_buf,
 						 int res_buf_size)
 {
   char* res_buf_end=res_buf+res_buf_size;
-  char* net_buf=con->net.read_pos, *net_buf_end;
+  char* net_buf=(char*) con->net.read_pos, *net_buf_end;
   int res_buf_shift=RES_BUF_SHIFT;
   uint num_bytes;
   

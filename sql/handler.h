@@ -95,7 +95,7 @@
 
 	/* Error on write which is recoverable  (Key exist) */
 
-#define HA_WRITE_SKIPP 121		/* Duplicate key on write */
+#define HA_WRITE_SKIP 121		/* Duplicate key on write */
 #define HA_READ_CHECK 123		/* Update with is recoverable */
 #define HA_CANT_DO_THAT 131		/* Databasehandler can't do it */
 

@@ -465,7 +465,7 @@ static void (*get_unpack_function(MI_COLUMNDEF *rec))
 (MI_COLUMNDEF *, MI_BIT_BUFF *, uchar *, uchar *)
 {
   switch (rec->base_type) {
-  case FIELD_SKIPP_ZERO:
+  case FIELD_SKIP_ZERO:
     if (rec->pack_type & PACK_TYPE_ZERO_FILL)
       return &uf_zerofill_skipp_zero;
     return &uf_skipp_zero;
@@ -475,7 +475,7 @@ static void (*get_unpack_function(MI_COLUMNDEF *rec))
     if (rec->pack_type & PACK_TYPE_ZERO_FILL)
       return &uf_zerofill_normal;
     return &decode_bytes;
-  case FIELD_SKIPP_ENDSPACE:
+  case FIELD_SKIP_ENDSPACE:
     if (rec->pack_type & PACK_TYPE_SPACE_FIELDS)
     {
       if (rec->pack_type & PACK_TYPE_SELECTED)
@@ -485,7 +485,7 @@ static void (*get_unpack_function(MI_COLUMNDEF *rec))
     if (rec->pack_type & PACK_TYPE_SELECTED)
       return &uf_endspace_selected;
     return &uf_endspace;
-  case FIELD_SKIPP_PRESPACE:
+  case FIELD_SKIP_PRESPACE:
     if (rec->pack_type & PACK_TYPE_SPACE_FIELDS)
     {
       if (rec->pack_type & PACK_TYPE_SELECTED)

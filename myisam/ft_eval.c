@@ -32,7 +32,7 @@ int main(int argc,char *argv[])
   bzero((char*)recinfo,sizeof(recinfo));
 
   /* First define 2 columns */
-  recinfo[0].type=FIELD_SKIPP_ENDSPACE;
+  recinfo[0].type=FIELD_SKIP_ENDSPACE;
   recinfo[0].length=docid_length;
   recinfo[1].type=FIELD_BLOB;
   recinfo[1].length= 4+mi_portable_sizeof_char_ptr;

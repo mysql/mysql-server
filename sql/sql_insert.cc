@@ -368,12 +368,12 @@ int write_record(TABLE *table,COPY_INFO *info)
   {
     while ((error=table->file->write_row(table->record[0])))
     {
-      if (error != HA_WRITE_SKIPP)
+      if (error != HA_WRITE_SKIP)
 	goto err;
       uint key_nr;
       if ((int) (key_nr = table->file->get_dup_key(error)) < 0)
       {
-	error=HA_WRITE_SKIPP;			/* Database can't find key */
+	error=HA_WRITE_SKIP;			/* Database can't find key */
 	goto err;
       }
       /*

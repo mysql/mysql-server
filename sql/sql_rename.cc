@@ -80,7 +80,7 @@ end:
     for (table=table_list ;
 	 table->next != ren_table ;
 	 table=table->next->next) ;
-    table=table->next->next;			// Skipp error table
+    table=table->next->next;			// Skip error table
     /* Revert to old names */
     rename_tables(thd, table, 1);
     /* Note that lock_table == 0 here, so the unlock loop will work */

@@ -824,7 +824,7 @@ fix_type_pointers(const char ***array, TYPELIB *point_to_type, uint types,
 	*type_name= '\0';		/* End string */
 	ptr=type_name;
       }
-      ptr+=2;				/* Skipp end mark and last 0 */
+      ptr+=2;				/* Skip end mark and last 0 */
     }
     else
       ptr++;

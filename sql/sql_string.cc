@@ -577,7 +577,7 @@ int wild_case_compare(const char *str,const char *str_end,
     {
       do
       {
-	if (str == str_end)			// Skipp one char if possible
+	if (str == str_end)			// Skip one char if possible
 	  return (result);
 	INC_PTR(str,str_end);
       } while (++wildstr < wildend && *wildstr == wild_one);
@@ -696,7 +696,7 @@ int wild_compare(const char *str,const char *str_end,
     {
       do
       {
-	if (str == str_end)			// Skipp one char if possible
+	if (str == str_end)			// Skip one char if possible
 	  return (result);
 	str++;
       } while (*++wildstr == wild_one && wildstr != wildend);

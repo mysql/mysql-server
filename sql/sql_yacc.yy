@@ -3210,7 +3210,7 @@ handler:
 	  if (!add_table_to_list($2,0,0))
 	    YYABORT;
 	}
-	| HANDLER_SYM table_ident READ_SYM handler_read_or_scan
+	| HANDLER_SYM table_ident READ_SYM
 	{
 	  LEX *lex=Lex;
 	  lex->sql_command = SQLCOM_HA_READ;
@@ -3218,7 +3218,7 @@ handler:
 	  if (!add_table_to_list($2,0,0))
 	    YYABORT;
         }
-        where_clause limit_clause { }
+        handler_read_or_scan where_clause limit_clause { }
 
 handler_read_or_scan:
 	handler_scan_function         { Lex->backup_dir= 0; }

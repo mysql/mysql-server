@@ -23,7 +23,7 @@ struct st_table_list;
 void item_init(void);				/* Init item functions */
 
 class Item {
-  Item(const Item &);				/* Prevent use of theese */
+  Item(const Item &);				/* Prevent use of these */
   void operator=(Item &);
 public:
   static void *operator new(size_t size) {return (void*) sql_alloc((uint) size); }

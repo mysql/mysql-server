@@ -224,7 +224,7 @@ public:
 
 
 /****************************************************************************
-** every connection is handle by a thread with a THD
+** every connection is handled by a thread with a THD
 ****************************************************************************/
 
 class delayed_insert;

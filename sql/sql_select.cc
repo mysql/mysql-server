@@ -172,7 +172,7 @@ int handle_select(THD *thd, LEX *lex, select_result *result)
 
 /*****************************************************************************
 ** check fields, find best join, do the select and output fields.
-** mysql_select assumes that all tables are allready opened
+** mysql_select assumes that all tables are already opened
 *****************************************************************************/
 
 int
@@ -514,7 +514,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
       (!group && join.tmp_table_param.sum_func_count))
     order=0;
 
-  // Can't use sort on head table if using cache
+  // Can't use sort on head table if using row cache
   if (join.full_join)
   {
     if (group)
@@ -1172,7 +1172,7 @@ merge_key_fields(KEY_FIELD *start,KEY_FIELD *new_fields,KEY_FIELD *end,
   if (start == new_fields)
     return start;				// Impossible or
   if (new_fields == end)
-    return start;				// No new fields, skipp all
+    return start;				// No new fields, skip all
 
   KEY_FIELD *first_free=new_fields;
 
@@ -1234,7 +1234,7 @@ add_key_field(KEY_FIELD **key_fields,uint and_level,
     // Don't remove column IS NULL on a LEFT JOIN table
     if (!eq_func || !value || value->type() != Item::NULL_ITEM ||
 	!field->table->maybe_null || field->null_ptr)
-      return;					// Not a key. Skipp it
+      return;					// Not a key. Skip it
     exists_optimize=1;
   }
   else
@@ -1489,7 +1489,7 @@ add_ft_keys(DYNAMIC_ARRAY *keyuse_array,
     }
   }
 
-  if(!cond_func)
+  if (!cond_func)
     return;
 
   KEYUSE keyuse;
@@ -2158,7 +2158,7 @@ get_best_combination(JOIN *join)
 	{
 	  while (keyuse->keypart != i ||
 		 ((~used_tables) & keyuse->used_tables))
-	    keyuse++;				/* Skipp other parts */
+	    keyuse++;				/* Skip other parts */
 
 	  uint maybe_null= test(keyinfo->key_part[i].null_bit);
 	  j->ref.items[i]=keyuse->val;		// Save for cond removal
@@ -2811,7 +2811,7 @@ remove_const(JOIN *join,ORDER *first_order, COND *cond, bool *simple_order)
     else if (!(order_tables & not_const_tables))
     {
       DBUG_PRINT("info",("removing: %s", order->item[0]->full_name()));
-      continue;					// skipp const item
+      continue;					// skip const item
     }
     else
     {
@@ -3670,7 +3670,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 	     (field->type() == FIELD_TYPE_STRING ||
 	      field->type() == FIELD_TYPE_VAR_STRING) &&
 	     length >= 10 && blob_count)
-      recinfo->type=FIELD_SKIPP_ENDSPACE;
+      recinfo->type=FIELD_SKIP_ENDSPACE;
     else
       recinfo->type=FIELD_NORMAL;
     if (!--hidden_field_count)
@@ -4665,7 +4665,7 @@ join_ft_read_first(JOIN_TAB *tab)
   int error;
   TABLE *table= tab->table;
 
-#if 0
+#if NOT_USED_YET
   if (cp_buffer_from_ref(&tab->ref))       // as ft-key doesn't use store_key's
     return -1;                             // see also FT_SELECT::init()
 #endif

@@ -537,7 +537,7 @@ static int sel_cmp(Field *field, char *a,char *b,uint8 a_flag,uint8 b_flag)
     }
     if (*a)
       goto end;					// NULL where equal
-    a++; b++;					// Skipp NULL marker
+    a++; b++;					// Skip NULL marker
   }
   cmp=field->key_cmp((byte*) a,(byte*) b);
   if (cmp) return cmp < 0 ? -1 : 1;		// The values differed
@@ -1105,7 +1105,7 @@ static bool like_range(const char *ptr,uint ptr_length,char escape,
   {
     if (*ptr == escape && ptr+1 != end)
     {
-      ptr++;					// Skipp escape
+      ptr++;					// Skip escape
       *min_str++= *max_str++ = *ptr;
       continue;
     }

@@ -642,7 +642,7 @@ uint _mi_rec_pack(MI_INFO *info, register byte *to, register const byte *from)
 	}
 	blob++;
       }
-      else if (type == FIELD_SKIPP_ZERO)
+      else if (type == FIELD_SKIP_ZERO)
       {
 	if (memcmp((byte*) from,zero_string,length) == 0)
 	  flag|=bit;
@@ -651,11 +651,11 @@ uint _mi_rec_pack(MI_INFO *info, register byte *to, register const byte *from)
 	  memcpy((byte*) to,from,(size_t) length); to+=length;
 	}
       }
-      else if (type == FIELD_SKIPP_ENDSPACE ||
-	       type == FIELD_SKIPP_PRESPACE)
+      else if (type == FIELD_SKIP_ENDSPACE ||
+	       type == FIELD_SKIP_PRESPACE)
       {
 	pos= (byte*) from; end= (byte*) from + length;
-	if (type == FIELD_SKIPP_ENDSPACE)
+	if (type == FIELD_SKIP_ENDSPACE)
 	{					/* Pack trailing spaces */
 	  while (end > from && *(end-1) == ' ')
 	    end--;
@@ -750,7 +750,7 @@ my_bool _mi_rec_check(MI_INFO *info,const char *record)
 	if (blob_length)
 	  to+=length - mi_portable_sizeof_char_ptr+ blob_length;
       }
-      else if (type == FIELD_SKIPP_ZERO)
+      else if (type == FIELD_SKIP_ZERO)
       {
 	if (memcmp((byte*) record,zero_string,length) == 0)
 	{
@@ -760,11 +760,11 @@ my_bool _mi_rec_check(MI_INFO *info,const char *record)
 	else
 	  to+=length;
       }
-      else if (type == FIELD_SKIPP_ENDSPACE ||
-	       type == FIELD_SKIPP_PRESPACE)
+      else if (type == FIELD_SKIP_ENDSPACE ||
+	       type == FIELD_SKIP_PRESPACE)
       {
 	pos= (byte*) record; end= (byte*) record + length;
-	if (type == FIELD_SKIPP_ENDSPACE)
+	if (type == FIELD_SKIP_ENDSPACE)
 	{					/* Pack trailing spaces */
 	  while (end > record && *(end-1) == ' ')
 	    end--;
@@ -876,10 +876,10 @@ ulong _mi_rec_unpack(register MI_INFO *info, register byte *to, byte *from,
       }
       if (flag & bit)
       {
-	if (type == FIELD_BLOB || type == FIELD_SKIPP_ZERO)
+	if (type == FIELD_BLOB || type == FIELD_SKIP_ZERO)
 	  bzero((byte*) to,rec_length);
-	else if (type == FIELD_SKIPP_ENDSPACE ||
-		 type == FIELD_SKIPP_PRESPACE)
+	else if (type == FIELD_SKIP_ENDSPACE ||
+		 type == FIELD_SKIP_PRESPACE)
 	{
 	  if (rec->length > 255 && *from & 128)
 	  {
@@ -897,7 +897,7 @@ ulong _mi_rec_unpack(register MI_INFO *info, register byte *to, byte *from,
 	  if (length >= rec_length ||
 	      min_pack_length + length > (uint) (from_end - from))
 	    goto err;
-	  if (type == FIELD_SKIPP_ENDSPACE)
+	  if (type == FIELD_SKIP_ENDSPACE)
 	  {
 	    memcpy(to,(byte*) from,(size_t) length);
 	    bfill((byte*) to+length,rec_length-length,' ');
@@ -924,7 +924,7 @@ ulong _mi_rec_unpack(register MI_INFO *info, register byte *to, byte *from,
       }
       else
       {
-	if (type == FIELD_SKIPP_ENDSPACE || type == FIELD_SKIPP_PRESPACE)
+	if (type == FIELD_SKIP_ENDSPACE || type == FIELD_SKIP_PRESPACE)
 	  min_pack_length--;
 	if (min_pack_length + rec_length > (uint) (from_end - from))
 	  goto err;

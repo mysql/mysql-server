@@ -11447,6 +11447,20 @@ correct (otherwise you will have problems connecting to the database).  The
 127.0.0.1       localhost localhost.your.domain
 @end example
 
+The recommended way to compile and install MySQL on FreeBSD with
+gcc (2.95.2 and up) is:
+
+@example
+CC=gcc CFLAGS="-O2 -fno-strength-reduce" \
+CXX=gcc CXXFLAGS="-O2 -fno-rtti -fno-exceptions -felide-constructors -fno-strength-reduce" \
+./configure --prefix=/usr/local/mysql --enable-assembler
+gmake
+gmake install
+./scripts/mysql_install_db
+cd /usr/local/mysql
+./bin/mysqld_safe &
+@end example
+
 If you notice that @code{configure} will use MIT-pthreads, you should read
 the MIT-pthreads notes.  @xref{MIT-pthreads}.
 

@@ -616,7 +616,7 @@ int yylex(void *arg)
       return(IDENT);
 
     case STATE_USER_VARIABLE_DELIMITER:
-      lex->tok_start=lex->ptr;			// Skipp first `
+      lex->tok_start=lex->ptr;			// Skip first `
 #ifdef USE_MB
       if (use_mb(default_charset_info))
       {
