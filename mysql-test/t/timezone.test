@@ -3,7 +3,7 @@
 
 -- require r/have_met_timezone.require
 disable_query_log;
-show variables like "timezone";
+select FROM_UNIXTIME(24*3600);
 enable_query_log;
 
 # Initialization
@@ -11,6 +11,17 @@ enable_query_log;
 DROP TABLE IF EXISTS t1;
 --enable_warnings
 
+show variables like "timezone";
+
+#
+# Test unix timestamp
+#
+select @a:=FROM_UNIXTIME(1);
+select unix_timestamp(@a);
+
+#
+# Test of some values, including some with daylight saving time
+#
 
 CREATE TABLE t1 (ts int);
 INSERT INTO t1 (ts) VALUES (Unix_timestamp('2002-10-27 01:00'));
@@ -27,8 +38,3 @@ INSERT INTO t1 (ts) VALUES (Unix_timestamp('2003-03-30 04:00:01'));
 SELECT ts,from_unixtime(ts) FROM t1;
 DROP TABLE t1;
 
-#
-# Test unix timestamp
-#
-select @a:=FROM_UNIXTIME(1);
-select unix_timestamp(@a);
