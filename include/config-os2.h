@@ -463,6 +463,9 @@ typedef unsigned long long os_off_t;
 /* Define if you have the getwd function.  */
 #define HAVE_GETWD 1
 
+/* Define to 1 if you have the `gmtime_r' function. */
+#define HAVE_GMTIME_R 1
+
 /* Define if you have the index function.  */
 #define HAVE_INDEX 1
 

@@ -58,6 +58,18 @@ skr	2
 test	1
 test	2
 drop table t1;
+create table t1 (id int NOT NULL DEFAULT 8);
+insert into t1 values(NULL);
+ERROR 23000: Column 'id' cannot be null
+insert into t1 values (1), (NULL), (2);
+Warnings:
+Warning	1262	Data truncated, NULL supplied to NOT NULL column 'id' at row 2
+select * from t1;
+id
+1
+0
+2
+drop table t1;
 drop database if exists test_$1;
 create database test_$1;
 use test_$1;

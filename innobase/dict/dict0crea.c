@@ -337,7 +337,7 @@ dict_create_index_for_cluster_step(
 
 	for (i = 0; i < table->n_cols; i++) {
 		col = dict_table_get_nth_col(table, i);
-		dict_mem_index_add_field(index, col->name, 0);
+		dict_mem_index_add_field(index, col->name, 0, 0);
 	}
 				
 	(node->cluster)->index = index;
@@ -450,8 +450,16 @@ dict_create_sys_fields_tuple(
 	dict_field_t*	field;
 	dfield_t*	dfield;
 	byte*		ptr;
+	ibool		index_contains_column_prefix_field	= FALSE;
+	ulint		j;
 
 	ut_ad(index && heap);
+
+	for (j = 0; j < index->n_fields; j++) {
+	        if (dict_index_get_nth_field(index, j)->prefix_len > 0) {
+	                index_contains_column_prefix_field = TRUE;	   
+		}
+	}
 
 	field = dict_index_get_nth_field(index, i);
 
@@ -466,11 +474,25 @@ dict_create_sys_fields_tuple(
 	mach_write_to_8(ptr, index->id);
 
 	dfield_set_data(dfield, ptr, 8);
-	/* 1: POS ----------------------------*/
+	/* 1: POS + PREFIX LENGTH ----------------------------*/
+
 	dfield = dtuple_get_nth_field(entry, 1);
 
 	ptr = mem_heap_alloc(heap, 4);
-	mach_write_to_4(ptr, i);
+	
+	if (index_contains_column_prefix_field) {
+		/* If there are column prefix fields in the index, then
+		we store the number of the field to the 2 HIGH bytes
+		and the prefix length to the 2 low bytes, */
+
+	        mach_write_to_4(ptr, (i << 16) + field->prefix_len);
+	} else {
+	        /* Else we store the number of the field to the 2 LOW bytes.
+		This is to keep the storage format compatible with
+		InnoDB versions < 4.0.14. */
+	  
+	        mach_write_to_4(ptr, i);
+	}
 
 	dfield_set_data(dfield, ptr, 4);
 	/* 4: COL_NAME -------------------------*/

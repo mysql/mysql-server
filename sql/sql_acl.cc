@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (C) 2000-2003 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -155,7 +155,7 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
     host.db=	 get_field(&mem, table->field[1]);
     host.access= get_access(table,2);
     host.access= fix_rights_for_db(host.access);
-    host.sort=   get_sort(2,host.host.hostname,host.db);
+    host.sort=	 get_sort(2,host.host.hostname,host.db);
 #ifndef TO_BE_REMOVED
     if (table->fields ==  8)
     {						// Without grant
@@ -175,8 +175,7 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
   if (table->field[2]->field_length == 8 &&
       protocol_version == PROTOCOL_VERSION)
   {
-    sql_print_error(
-	    "Old 'user' table. (Check README or the Reference manual). Continuing --old-protocol"); /* purecov: tested */
+    sql_print_error("Old 'user' table. (Check README or the Reference manual). Continuing --old-protocol"); /* purecov: tested */
     protocol_version=9; /* purecov: tested */
   }
 
@@ -207,10 +206,11 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
     {
       user.pversion=get_password_version(user.password);
       /* Only passwords of specific lengths depending on version are allowed */
-      if ( (!user.pversion && length % 8) ||  (user.pversion && length!=45 ))
+      if ((!user.pversion && (length % 8 || length > 16)) ||
+	  (user.pversion && length != 45))
       {
         sql_print_error(
-	                "Found invalid password for user: '%s@%s'; Ignoring user",
+	                "Found invalid password for user: '%s'@'%s'; Ignoring user",
 		        user.user ? user.user : "",
 		        user.host.hostname ? user.host.hostname : ""); /* purecov: tested */
         continue;					/* purecov: tested */
@@ -221,7 +221,7 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
     user.sort=get_sort(2,user.host.hostname,user.user);
     user.hostname_length= (user.host.hostname ?
 			   (uint) strlen(user.host.hostname) : 0);
-    if (table->fields >= 31)     /* Starting from 4.0.2 we have more fields */
+    if (table->fields >= 31)	 /* Starting from 4.0.2 we have more fields */
     {
       char *ssl_type=get_field(&mem, table->field[24]);
       if (!ssl_type)
@@ -250,7 +250,7 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
     else
     {
       user.ssl_type=SSL_TYPE_NONE;
-      bzero(&(user.user_resource),sizeof(user.user_resource));
+      bzero((char *)&(user.user_resource),sizeof(user.user_resource));
 #ifndef TO_BE_REMOVED
       if (table->fields <= 13)
       {						// Without grant
@@ -342,7 +342,14 @@ void acl_free(bool end)
   }
 }
 
-	/* Reload acl list if possible */
+
+/*
+  Forget current privileges and read new privileges from the privilege tables
+
+  SYNOPSIS
+    acl_reload()
+    thd			Thread handle
+*/
 
 void acl_reload(THD *thd)
 {
@@ -507,7 +514,7 @@ ulong acl_getroot(THD *thd, const char *host, const char *ip, const char *user,
   ACL_USER *acl_user= NULL;
   DBUG_ENTER("acl_getroot");
 
-  bzero(mqh,sizeof(USER_RESOURCES));
+  bzero((char*) mqh, sizeof(USER_RESOURCES));
   if (!initialized)
   {
     // If no data allow anything
@@ -590,7 +597,6 @@ ulong acl_getroot(THD *thd, const char *host, const char *ip, const char *user,
 
   /* OK. User found and password checked continue validation */
 
-#ifdef HAVE_OPENSSL
   {
     Vio *vio=thd->net.vio;
     /*
@@ -604,6 +610,7 @@ ulong acl_getroot(THD *thd, const char *host, const char *ip, const char *user,
     case SSL_TYPE_NONE: /* SSL is not required to connect */
       user_access=acl_user->access;
       break;
+#ifdef HAVE_OPENSSL
     case SSL_TYPE_ANY: /* Any kind of SSL is good enough */
       if (vio_type(vio) == VIO_TYPE_SSL)
 	user_access=acl_user->access;
@@ -616,7 +623,9 @@ ulong acl_getroot(THD *thd, const char *host, const char *ip, const char *user,
 	We need to check for absence of SSL because without SSL
 	we should reject connection.
       */
-      if (vio_type(vio) == VIO_TYPE_SSL && SSL_get_peer_certificate(vio->ssl_))
+      if (vio_type(vio) == VIO_TYPE_SSL &&
+	  SSL_get_verify_result(vio->ssl_) == X509_V_OK &&
+	  SSL_get_peer_certificate(vio->ssl_))
 	user_access=acl_user->access;
       break;
     case SSL_TYPE_SPECIFIED: /* Client should have specified attrib */
@@ -626,7 +635,8 @@ ulong acl_getroot(THD *thd, const char *host, const char *ip, const char *user,
 	If cipher name is specified, we compare it to actual cipher in
 	use.
       */
-      if (vio_type(vio) != VIO_TYPE_SSL)
+      if (vio_type(vio) != VIO_TYPE_SSL ||
+	  SSL_get_verify_result(vio->ssl_) != X509_V_OK)
 	break;
       if (acl_user->ssl_cipher)
       {
@@ -686,11 +696,17 @@ ulong acl_getroot(THD *thd, const char *host, const char *ip, const char *user,
 	free(ptr);
       }
       break;
+#else /* HAVE_OPENSSL */
+    default:
+      /*
+         If we don't have SSL but SSL is required for this user the
+         authentication should fail.
+       */
+      break;
+#endif /* HAVE_OPENSSL */
     }
   }
-#else  /* HAVE_OPENSSL */
-  user_access=acl_user->access;
-#endif /* HAVE_OPENSSL */
+
   *mqh=acl_user->user_resource;
   if (!acl_user->user)
     *priv_user=(char*) "";	// Change to anonymous user /* purecov: inspected */
@@ -781,7 +797,7 @@ static void acl_insert_user(const char *user, const char *host,
 			    ulong privileges)
 {
   ACL_USER acl_user;
-  acl_user.user=strdup_root(&mem,user);
+  acl_user.user=*user ? strdup_root(&mem,user) : 0;
   update_hostname(&acl_user.host,strdup_root(&mem,host));
   acl_user.password=0;
   acl_user.access=privileges;
@@ -872,12 +888,13 @@ static void acl_insert_db(const char *user, const char *host, const char *db,
 }
 
 
-/*****************************************************************************
-** Get privilege for a host, user and db combination
-*****************************************************************************/
+
+/*
+  Get privilege for a host, user and db combination
+*/
 
 ulong acl_get(const char *host, const char *ip, const char *bin_ip,
-	     const char *user, const char *db)
+	     const char *user, const char *db, my_bool db_is_pattern)
 {
   ulong host_access,db_access;
   uint i,key_length;
@@ -911,7 +928,7 @@ ulong acl_get(const char *host, const char *ip, const char *bin_ip,
     {
       if (compare_hostname(&acl_db->host,host,ip))
       {
-	if (!acl_db->db || !wild_compare(db,acl_db->db))
+	if (!acl_db->db || !wild_compare(db,acl_db->db,db_is_pattern))
 	{
 	  db_access=acl_db->access;
 	  if (acl_db->host.hostname)
@@ -933,7 +950,7 @@ ulong acl_get(const char *host, const char *ip, const char *bin_ip,
     ACL_HOST *acl_host=dynamic_element(&acl_hosts,i,ACL_HOST*);
     if (compare_hostname(&acl_host->host,host,ip))
     {
-      if (!acl_host->db || !wild_compare(db,acl_host->db))
+      if (!acl_host->db || !wild_compare(db,acl_host->db,db_is_pattern))
       {
 	host_access=acl_host->access;		// Fully specified. Take it
 	break;
@@ -997,11 +1014,14 @@ int wild_case_compare(CHARSET_INFO *cs, const char *str,const char *wildstr)
   DBUG_RETURN (*str != '\0');
 }
 
-/*****************************************************************************
-** check if there are any possible matching entries for this host
-** All host names without wild cards are stored in a hash table,
-** entries with wildcards are stored in a dynamic array
-*****************************************************************************/
+
+/*
+  Check if there are any possible matching entries for this host
+
+  NOTES
+    All host names without wild cards are stored in a hash table,
+    entries with wildcards are stored in a dynamic array
+*/
 
 static void init_check_host(void)
 {
@@ -1075,10 +1095,6 @@ bool acl_check_host(const char *host, const char *ip)
   return 1;					// Host is not allowed
 }
 
-/*****************************************************************************
-  Change password for the user if it's not an anonymous user
-  Note: This should write the error directly to the client!
-*****************************************************************************/
 
 /*
   Check if the user is allowed to change password
@@ -1090,8 +1106,8 @@ bool acl_check_host(const char *host, const char *ip)
     user	user name
 
     RETURN VALUE
-    0	OK
-    1	ERROR  ; In this case the error is sent to the client.
+      0		OK
+      1		ERROR  ; In this case the error is sent to the client.
 */
 
 bool check_change_password(THD *thd, const char *host, const char *user)
@@ -1206,7 +1222,11 @@ find_acl_user(const char *host, const char *user)
   {
     ACL_USER *acl_user=dynamic_element(&acl_users,i,ACL_USER*);
     DBUG_PRINT("info",("strcmp('%s','%s'), compare_hostname('%s','%s'),",
-			    user,acl_user->user,(host),(acl_user->host)));
+		       user,
+		       acl_user->user ? acl_user->user : "",
+		       host,
+		       acl_user->host.hostname ? acl_user->host.hostname :
+		       ""));
     if (!acl_user->user && !user[0] ||
 	acl_user->user && !strcmp(user,acl_user->user))
     {
@@ -1219,15 +1239,18 @@ find_acl_user(const char *host, const char *user)
   DBUG_RETURN(0);
 }
 
-/*****************************************************************************
-	Handle comparing of hostname
-	A hostname may be of type:
-	hostname   (May include wildcards);   monty.pp.sci.fi
-	ip	   (May include wildcards);   192.168.0.0
-	ip/netmask			      192.168.0.0/255.255.255.0
 
-	A net mask of 0.0.0.0 is not allowed.
-*****************************************************************************/
+/*
+  Comparing of hostnames
+
+  NOTES
+  A hostname may be of type:
+  hostname   (May include wildcards);   monty.pp.sci.fi
+  ip	   (May include wildcards);   192.168.0.0
+  ip/netmask			      192.168.0.0/255.255.255.0
+
+  A net mask of 0.0.0.0 is not allowed.
+*/
 
 static const char *calc_ip(const char *ip, long *val, char end)
 {
@@ -1271,13 +1294,13 @@ static bool compare_hostname(const acl_host_and_ip *host, const char *hostname,
   return (!host->hostname ||
 	  (hostname && !wild_case_compare(&my_charset_latin1,
                                           hostname,host->hostname)) ||
-	  (ip && !wild_compare(ip,host->hostname)));
+	  (ip && !wild_compare(ip,host->hostname,0)));
 }
 
 
-/****************************************************************************
-  Code to update grants in the user and database privilege tables
-****************************************************************************/
+/*
+  Update grants in the user and database privilege tables
+*/
 
 static bool update_user_table(THD *thd, const char *host, const char *user,
 			      const char *new_password)
@@ -1291,6 +1314,24 @@ static bool update_user_table(THD *thd, const char *host, const char *user,
   bzero((char*) &tables,sizeof(tables));
   tables.alias=tables.real_name=(char*) "user";
   tables.db=(char*) "mysql";
+#ifdef HAVE_REPLICATION
+  /*
+    GRANT and REVOKE are applied the slave in/exclusion rules as they are
+    some kind of updates to the mysql.% tables.
+  */
+  if (thd->slave_thread && table_rules_on)
+  {
+    /*
+      The tables must be marked "updating" so that tables_ok() takes them into
+      account in tests.  It's ok to leave 'updating' set after tables_ok.
+    */
+    tables.updating= 1;
+    /* Thanks to bzero, tables.next==0 */
+    if (!tables_ok(0, &tables))
+      DBUG_RETURN(0);
+  }
+#endif
+
   if (!(table=open_ltable(thd,&tables,TL_WRITE)))
     DBUG_RETURN(1); /* purecov: deadcode */
   table->field[0]->store(host,(uint) strlen(host), &my_charset_latin1);
@@ -1331,7 +1372,7 @@ static bool test_if_create_new_users(THD *thd)
     tl.db=	   (char*) "mysql";
     tl.real_name=  (char*) "user";
     db_access=acl_get(thd->host, thd->ip, (char*) &thd->remote.sin_addr,
-		      thd->priv_user, tl.db);
+		      thd->priv_user, tl.db, 0);
     if (!(db_access & INSERT_ACL))
     {
       if (check_grant(thd,INSERT_ACL,&tl,0,1))
@@ -1343,7 +1384,7 @@ static bool test_if_create_new_users(THD *thd)
 
 
 /****************************************************************************
-** Handle GRANT commands
+  Handle GRANT commands
 ****************************************************************************/
 
 static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
@@ -1366,8 +1407,8 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
          && combo.password.length != HASH_OLD_PASSWORD_LENGTH)
     {
       my_printf_error(ER_PASSWORD_NO_MATCH,
-          "Password hash should be a %d-digit hexadecimal number",
-          MYF(0),HASH_PASSWORD_LENGTH);
+		      "Password hash should be a %d-digit hexadecimal number",
+		      MYF(0),HASH_PASSWORD_LENGTH);
       DBUG_RETURN(-1);
     }
     password=combo.password.str;
@@ -1540,7 +1581,7 @@ static int replace_db_table(TABLE *table, const char *db,
   char what= (revoke_grant) ? 'N' : 'Y';
   DBUG_ENTER("replace_db_table");
 
-  // is there such a user in user table in memory ????
+  /* Check if there is such a user in user table in memory? */
   if (!initialized || !find_acl_user(combo.host.str,combo.user.str))
   {
     my_error(ER_PASSWORD_NO_MATCH,MYF(0));
@@ -1552,7 +1593,7 @@ static int replace_db_table(TABLE *table, const char *db,
   table->field[2]->store(combo.user.str,combo.user.length, &my_charset_latin1);
   table->file->index_init(0);
   if (table->file->index_read(table->record[0],(byte*) table->field[0]->ptr,0,
-	      HA_READ_KEY_EXACT))
+			      HA_READ_KEY_EXACT))
   {
     if (what == 'N')
     { // no row, no revoke
@@ -1583,7 +1624,7 @@ static int replace_db_table(TABLE *table, const char *db,
 
   if (old_row_exists)
   {
-    // update old existing row
+    /* update old existing row */
     if (rights)
     {
       if ((error=table->file->update_row(table->record[1],table->record[0])))
@@ -1610,11 +1651,11 @@ static int replace_db_table(TABLE *table, const char *db,
   DBUG_RETURN(0);
 
   /* This could only happen if the grant tables got corrupted */
- table_error:
+table_error:
   table->file->print_error(error,MYF(0));	/* purecov: deadcode */
   table->file->index_end();
 
- abort:
+abort:
   DBUG_RETURN(-1);
 }
 
@@ -1730,7 +1771,7 @@ public:
 	if (!(mem_check = new GRANT_COLUMN(*res,
 					   fix_rights_for_column(priv))))
 	{
-	  // Don't use this entry
+	  /* Don't use this entry */
 	  privs = cols = 0;			/* purecov: deadcode */
 	  return;				/* purecov: deadcode */
 	}
@@ -1912,7 +1953,7 @@ static int replace_column_table(GRANT_TABLE *g_t,
 				key_length, HA_READ_KEY_EXACT))
       goto end;
 
-    // Scan trough all rows with the same host,db,user and table
+    /* Scan through all rows with the same host,db,user and table */
     do
     {
       ulong privileges = (ulong) table->field[6]->val_int();
@@ -1962,7 +2003,7 @@ static int replace_column_table(GRANT_TABLE *g_t,
 	     !key_cmp(table,key,0,key_length));
   }
 
- end:
+end:
   table->file->index_end();
   DBUG_RETURN(result);
 }
@@ -2031,7 +2072,7 @@ static int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
 
     if (revoke_grant)
     {
-      // column rights are already fixed in mysql_table_grant !
+      /* column rights are already fixed in mysql_table_grant */
       store_table_rights=j & ~store_table_rights;
     }
     else
@@ -2067,7 +2108,7 @@ static int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
   if (rights | col_rights)
   {
     grant_table->privs= rights;
-    grant_table->cols=  col_rights;
+    grant_table->cols=	col_rights;
   }
   else
   {
@@ -2075,19 +2116,36 @@ static int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
   }
   DBUG_RETURN(0);
 
- /* This should never happen */
- table_error:
+  /* This should never happen */
+table_error:
   table->file->print_error(error,MYF(0)); /* purecov: deadcode */
   DBUG_RETURN(-1); /* purecov: deadcode */
 }
 
+
+/*
+  Store table level and column level grants in the privilege tables
+
+  SYNOPSIS
+    mysql_table_grant()
+    thd			Thread handle
+    table_list		List of tables to give grant
+    user_list		List of users to give grant
+    columns		List of columns to give grant
+    rights		Table level grant
+    revoke_grant	Set to 1 if this is a REVOKE command
+
+  RETURN
+    0	ok
+    1	error
+*/
 
 int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
 		      List <LEX_USER> &user_list,
 		      List <LEX_COLUMN> &columns, ulong rights,
 		      bool revoke_grant)
 {
-  ulong column_priv = 0;
+  ulong column_priv= 0;
   List_iterator <LEX_USER> str_list (user_list);
   LEX_USER *Str;
   TABLE_LIST tables[3];
@@ -2097,7 +2155,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
   if (!initialized)
   {
     send_error(thd, ER_UNKNOWN_COM_ERROR);	/* purecov: inspected */
-    return 1;					/* purecov: inspected */
+    DBUG_RETURN(1);				/* purecov: inspected */
   }
   if (rights & ~TABLE_ACLS)
   {
@@ -2108,21 +2166,21 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
   if (columns.elements && !revoke_grant)
   {
     TABLE *table;
-    class LEX_COLUMN *check;
-    List_iterator <LEX_COLUMN> iter(columns);
+    class LEX_COLUMN *column;
+    List_iterator <LEX_COLUMN> column_iter(columns);
 
     if (!(table=open_ltable(thd,table_list,TL_READ)))
       DBUG_RETURN(-1);
-    while ((check = iter++))
+    while ((column = column_iter++))
     {
-      if (!find_field_in_table(thd,table,check->column.ptr(),
-			       check->column.length(),0,0))
+      if (!find_field_in_table(thd,table,column->column.ptr(),
+			       column->column.length(),0,0))
       {
 	my_printf_error(ER_BAD_FIELD_ERROR,ER(ER_BAD_FIELD_ERROR),MYF(0),
-			check->column.c_ptr(), table_list->alias);
+			column->column.c_ptr(), table_list->alias);
 	DBUG_RETURN(-1);
       }
-      column_priv |= check->rights | (rights & COL_ACLS);
+      column_priv|= column->rights;
     }
     close_thread_tables(thd);
   }
@@ -2158,8 +2216,16 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
     GRANT and REVOKE are applied the slave in/exclusion rules as they are
     some kind of updates to the mysql.% tables.
   */
-  if (thd->slave_thread && table_rules_on && !tables_ok(0, tables))
-    DBUG_RETURN(0);
+  if (thd->slave_thread && table_rules_on)
+  {
+    /*
+      The tables must be marked "updating" so that tables_ok() takes them into
+      account in tests.
+    */
+    tables[0].updating= tables[1].updating= tables[2].updating= 1;
+    if (!tables_ok(0, tables))
+      DBUG_RETURN(0);
+  }
 #endif
 
   if (open_and_lock_tables(thd,tables))
@@ -2227,21 +2293,21 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
     /* If revoke_grant, calculate the new column privilege for tables_priv */
     if (revoke_grant)
     {
-      class LEX_COLUMN *check;
-      List_iterator <LEX_COLUMN> iter(columns);
+      class LEX_COLUMN *column;
+      List_iterator <LEX_COLUMN> column_iter(columns);
       GRANT_COLUMN *grant_column;
 
       /* Fix old grants */
-      while ((check = iter++))
+      while ((column = column_iter++))
       {
 	grant_column = column_hash_search(grant_table,
-					  check->column.ptr(),
-					  check->column.length());
+					  column->column.ptr(),
+					  column->column.length());
 	if (grant_column)
-	  grant_column->rights&= ~(check->rights | rights);
+	  grant_column->rights&= ~(column->rights | rights);
       }
       /* scan trough all columns to get new column grant */
-      column_priv=0;
+      column_priv= 0;
       for (uint idx=0 ; idx < grant_table->hash_columns.records ; idx++)
       {
 	grant_column= (GRANT_COLUMN*) hash_element(&grant_table->hash_columns,
@@ -2287,8 +2353,8 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
 }
 
 
-int mysql_grant (THD *thd, const char *db, List <LEX_USER> &list,
-		 ulong rights, bool revoke_grant)
+int mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
+		ulong rights, bool revoke_grant)
 {
   List_iterator <LEX_USER> str_list (list);
   LEX_USER *Str;
@@ -2298,8 +2364,8 @@ int mysql_grant (THD *thd, const char *db, List <LEX_USER> &list,
   DBUG_ENTER("mysql_grant");
   if (!initialized)
   {
-    send_error(thd, ER_UNKNOWN_COM_ERROR);	/* purecov: tested */
-    return 1;					/* purecov: tested */
+    my_error(ER_UNKNOWN_COM_ERROR, MYF(0));	/* purecov: tested */
+    return -1;					/* purecov: tested */
   }
 
   if (lower_case_table_names && db)
@@ -2324,8 +2390,16 @@ int mysql_grant (THD *thd, const char *db, List <LEX_USER> &list,
     GRANT and REVOKE are applied the slave in/exclusion rules as they are
     some kind of updates to the mysql.% tables.
   */
-  if (thd->slave_thread && table_rules_on && !tables_ok(0, tables))
-    DBUG_RETURN(0);
+  if (thd->slave_thread && table_rules_on)
+  {
+    /*
+      The tables must be marked "updating" so that tables_ok() takes them into
+      account in tests.
+    */
+    tables[0].updating= tables[1].updating= 1;
+    if (!tables_ok(0, tables))
+      DBUG_RETURN(0);
+  }
 #endif
 
   if (open_and_lock_tables(thd,tables))
@@ -2337,7 +2411,7 @@ int mysql_grant (THD *thd, const char *db, List <LEX_USER> &list,
   if (!revoke_grant)
     create_new_users= test_if_create_new_users(thd);
 
-  // go through users in user_list
+  /* go through users in user_list */
   rw_wrlock(&LOCK_grant);
   VOID(pthread_mutex_lock(&acl_cache->lock));
   grant_version++;
@@ -2353,16 +2427,26 @@ int mysql_grant (THD *thd, const char *db, List <LEX_USER> &list,
       continue;
     }
     if ((replace_user_table(thd,
-		            tables[0].table,
+			    tables[0].table,
 			    *Str,
 			    (!db ? rights : 0), revoke_grant,
 			    create_new_users)))
       result= -1;
-    else
+    else if (db)
     {
-      if (db && replace_db_table(tables[1].table, db, *Str, rights & DB_ACLS,
-				 revoke_grant))
+      ulong db_rights= rights & DB_ACLS;
+      if (db_rights  == rights)
+      {
+	if (replace_db_table(tables[1].table, db, *Str, db_rights,
+			     revoke_grant))
+	  result= -1;
+      }
+      else
+      {
+	my_printf_error(ER_WRONG_USAGE, ER(ER_WRONG_USAGE), MYF(0),
+			"DB GRANT","GLOBAL PRIVILEGES");
 	result= -1;
+      }
     }
   }
   VOID(pthread_mutex_unlock(&acl_cache->lock));
@@ -2475,7 +2559,16 @@ end:
 }
 
 
-/* Reload grant array (table and column privileges) if possible */
+/*
+ Reload grant array (table and column privileges) if possible
+
+  SYNOPSIS
+    grant_reload()
+    thd			Thread handler
+
+  NOTES
+    Locked tables are checked by acl_init and doesn't have to be checked here
+*/
 
 void grant_reload(THD *thd)
 {
@@ -2483,8 +2576,6 @@ void grant_reload(THD *thd)
   bool old_grant_option;
   MEM_ROOT old_mem;
   DBUG_ENTER("grant_reload");
-
-  // Locked tables are checked by acl_init and doesn't have to be checked here
 
   rw_wrlock(&LOCK_grant);
   grant_version++;
@@ -2562,29 +2653,29 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
   rw_unlock(&LOCK_grant);
   return 0;
 
- err:
+err:
   rw_unlock(&LOCK_grant);
   if (!no_errors)				// Not a silent skip of table
   {
     const char *command="";
     if (want_access & SELECT_ACL)
-       command ="select";
+      command= "select";
     else if (want_access & INSERT_ACL)
-      command = "insert";
+      command= "insert";
     else if (want_access & UPDATE_ACL)
-      command = "update";
+      command= "update";
     else if (want_access & DELETE_ACL)
-      command = "delete";
+      command= "delete";
     else if (want_access & DROP_ACL)
-      command = "drop";
+      command= "drop";
     else if (want_access & CREATE_ACL)
-      command = "create";
+      command= "create";
     else if (want_access & ALTER_ACL)
-      command = "alter";
+      command= "alter";
     else if (want_access & INDEX_ACL)
-      command = "index";
+      command= "index";
     else if (want_access & GRANT_ACL)
-      command = "grant";
+      command= "grant";
     net_printf(thd,ER_TABLEACCESS_DENIED_ERROR,
 	       command,
 	       thd->priv_user,
@@ -2607,7 +2698,7 @@ bool check_grant_column(THD *thd,TABLE *table, const char *name,
 
   rw_rdlock(&LOCK_grant);
 
-  // reload table if someone has modified any grants
+  /* reload table if someone has modified any grants */
 
   if (table->grant.version != grant_version)
   {
@@ -2635,7 +2726,7 @@ bool check_grant_column(THD *thd,TABLE *table, const char *name,
 #endif
 
   /* We must use my_printf_error() here! */
- err:
+err:
   rw_unlock(&LOCK_grant);
   if (!show_tables)
   {
@@ -2671,7 +2762,7 @@ bool check_grant_all_columns(THD *thd, ulong want_access, TABLE *table)
 
   rw_rdlock(&LOCK_grant);
 
-  // reload table if someone has modified any grants
+  /* reload table if someone has modified any grants */
 
   if (table->grant.version != grant_version)
   {
@@ -2681,7 +2772,7 @@ bool check_grant_all_columns(THD *thd, ulong want_access, TABLE *table)
 			table->real_name,0);	/* purecov: inspected */
     table->grant.version=grant_version;		/* purecov: inspected */
   }
-  // The following should always be true
+  /* The following should always be true */
   if (!(grant_table=table->grant.grant_table))
     goto err;					/* purecov: inspected */
 
@@ -2699,11 +2790,11 @@ bool check_grant_all_columns(THD *thd, ulong want_access, TABLE *table)
 err:
   rw_unlock(&LOCK_grant);
 err2:
-  const char *command="";
+  const char *command= "";
   if (want_access & SELECT_ACL)
-    command ="select";
+    command= "select";
   else if (want_access & INSERT_ACL)
-    command = "insert";
+    command= "insert";
   my_printf_error(ER_COLUMNACCESS_DENIED_ERROR,
 		  ER(ER_COLUMNACCESS_DENIED_ERROR),
 		  MYF(0),
@@ -2716,11 +2807,11 @@ err2:
 }
 
 
-/****************************************************************************
+/*
   Check if a user has the right to access a database
   Access is accepted if he has a grant for any table in the database
   Return 1 if access is denied
-****************************************************************************/
+*/
 
 bool check_grant_db(THD *thd,const char *db)
 {
@@ -2765,8 +2856,8 @@ ulong get_table_grant(THD *thd, TABLE_LIST *table)
 #ifdef EMBEDDED_LIBRARY
   grant_table= NULL;
 #else
-  grant_table = table_hash_search(thd->host,thd->ip,db,user,
-				       table->real_name,0);
+  grant_table= table_hash_search(thd->host, thd->ip, db, user,
+				 table->real_name, 0);
 #endif
   table->grant.grant_table=grant_table; // Remember for column test
   table->grant.version=grant_version;
@@ -2785,7 +2876,7 @@ ulong get_column_grant(THD *thd, TABLE_LIST *table, Field *field)
   ulong priv;
 
   rw_rdlock(&LOCK_grant);
-  // reload table if someone has modified any grants
+  /* reload table if someone has modified any grants */
   if (table->grant.version != grant_version)
   {
     table->grant.grant_table=
@@ -2810,11 +2901,20 @@ ulong get_column_grant(THD *thd, TABLE_LIST *table, Field *field)
   return priv;
 }
 
+/* Help function for mysql_show_grants */
 
-/*****************************************************************************
-  SHOW GRANTS : send to client grant-like strings depicting user@host
-  privileges
-*****************************************************************************/
+static void add_user_option(String *grant, ulong value, const char *name)
+{
+  if (value)
+  {
+    char buff[22], *p; // just as in int2str
+    grant->append(' ');
+    grant->append(name, strlen(name));
+    grant->append(' ');
+    p=int10_to_str(value, buff, 10);
+    grant->append(buff,p-buff);
+  }
+}
 
 static const char *command_array[]=
 {
@@ -2823,18 +2923,27 @@ static const char *command_array[]=
   "SUPER", "CREATE TEMPORARY TABLES", "LOCK TABLES", "EXECUTE",
   "REPLICATION SLAVE", "REPLICATION CLIENT",
 };
+
 static uint command_lengths[]=
 {
   6,6,6,6,6,4,6,8,7,4,5,10,5,5,14,5,23,11,7,17,18
 };
 
 
+/*
+  SHOW GRANTS;  Send grants for a user to the client
+
+  IMPLEMENTATION
+   Send to client grant-like strings depicting user@host privileges
+*/
+
 int mysql_show_grants(THD *thd,LEX_USER *lex_user)
 {
   ulong want_access;
   uint counter,index;
   int  error = 0;
-  ACL_USER *acl_user; ACL_DB *acl_db;
+  ACL_USER *acl_user;
+  ACL_DB *acl_db;
   char buff[1024];
   Protocol *protocol= thd->protocol;
   DBUG_ENTER("mysql_show_grants");
@@ -2886,11 +2995,11 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
 
   /* Add first global access grants */
   {
-    want_access=acl_user->access;
     String global(buff,sizeof(buff),&my_charset_latin1);
     global.length(0);
     global.append("GRANT ",6);
 
+    want_access= acl_user->access;
     if (test_all_bits(want_access, (GLOBAL_ACLS & ~ GRANT_ACL)))
       global.append("ALL PRIVILEGES",14);
     else if (!(want_access & ~GRANT_ACL))
@@ -2934,25 +3043,25 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
       global.append(" REQUIRE ",9);
       if (acl_user->x509_issuer)
       {
-        ssl_options++;
-        global.append("ISSUER \'",8);
-        global.append(acl_user->x509_issuer,strlen(acl_user->x509_issuer));
+	ssl_options++;
+	global.append("ISSUER \'",8);
+	global.append(acl_user->x509_issuer,strlen(acl_user->x509_issuer));
 	global.append('\'');
       }
       if (acl_user->x509_subject)
       {
-        if (ssl_options++)
-          global.append(' ');
-        global.append("SUBJECT \'",9);
-        global.append(acl_user->x509_subject,strlen(acl_user->x509_subject));
+	if (ssl_options++)
+	  global.append(' ');
+	global.append("SUBJECT \'",9);
+	global.append(acl_user->x509_subject,strlen(acl_user->x509_subject));
 	global.append('\'');
       }
       if (acl_user->ssl_cipher)
       {
-        if (ssl_options++)
-          global.append(' ');
-        global.append("CIPHER '",8);
-        global.append(acl_user->ssl_cipher,strlen(acl_user->ssl_cipher));
+	if (ssl_options++)
+	  global.append(' ');
+	global.append("CIPHER '",8);
+	global.append(acl_user->ssl_cipher,strlen(acl_user->ssl_cipher));
 	global.append('\'');
       }
     }
@@ -2963,27 +3072,12 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
       global.append(" WITH",5);
       if (want_access & GRANT_ACL)
 	global.append(" GRANT OPTION",13);
-      if (acl_user->user_resource.questions)
-      {
-	char buff[22], *p; // just as in int2str
-	global.append(" MAX_QUERIES_PER_HOUR ",22);
-	p=int10_to_str(acl_user->user_resource.questions,buff,10);
-	global.append(buff,p-buff);
-      }
-      if (acl_user->user_resource.updates)
-      {
-	char buff[22], *p; // just as in int2str
-	global.append(" MAX_UPDATES_PER_HOUR ",22);
-	p=int10_to_str(acl_user->user_resource.updates,buff,10);
-	global.append(buff,p-buff);
-      }
-      if (acl_user->user_resource.connections)
-      {
-	char buff[22], *p; // just as in int2str
-	global.append(" MAX_CONNECTIONS_PER_HOUR ",26);
-	p=int10_to_str(acl_user->user_resource.connections,buff,10);
-	global.append(buff,p-buff);
-      }
+      add_user_option(&global, acl_user->user_resource.questions,
+		      "MAX_QUERIES_PER_HOUR");
+      add_user_option(&global, acl_user->user_resource.updates,
+		      "MAX_UPDATES_PER_HOUR");
+      add_user_option(&global, acl_user->user_resource.connections,
+		      "MAX_CONNECTIONS_PER_HOUR");
     }
     protocol->prepare_for_resend();
     protocol->store(global.ptr(),global.length(),global.charset());
@@ -3018,7 +3112,7 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
 	if (test_all_bits(want_access,(DB_ACLS & ~GRANT_ACL)))
 	  db.append("ALL PRIVILEGES",14);
 	else if (!(want_access & ~GRANT_ACL))
-	  db.append("USAGE",5);	
+	  db.append("USAGE",5);
 	else
 	{
 	  int found=0, cnt;
@@ -3069,32 +3163,32 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
     if (!strcmp(lex_user->user.str,user) &&
 	!my_strcasecmp(&my_charset_latin1, lex_user->host.str, host))
     {
-      want_access=grant_table->privs;
-      if ((want_access | grant_table->cols) != 0)
+      ulong table_access= grant_table->privs;
+      if ((table_access | grant_table->cols) != 0)
       {
 	String global(buff,sizeof(buff),&my_charset_latin1);
 	global.length(0);
 	global.append("GRANT ",6);
 
-	if (test_all_bits(grant_table->privs,(TABLE_ACLS & ~GRANT_ACL)))
+	if (test_all_bits(table_access, (TABLE_ACLS & ~GRANT_ACL)))
 	  global.append("ALL PRIVILEGES",14);
 	else
 	{
-	  int found=0;
-	  ulong j,test_access= (want_access | grant_table->cols) & ~GRANT_ACL;
+	  int found= 0;
+	  ulong j,test_access= (table_access | grant_table->cols) & ~GRANT_ACL;
 
-	  for (counter=0, j = SELECT_ACL;j <= TABLE_ACLS; counter++,j <<= 1)
+	  for (counter= 0, j= SELECT_ACL; j <= TABLE_ACLS; counter++, j<<= 1)
 	  {
 	    if (test_access & j)
 	    {
 	      if (found)
 		global.append(", ",2);
-	      found = 1;
+	      found= 1;
 	      global.append(command_array[counter],command_lengths[counter]);
 
 	      if (grant_table->cols)
 	      {
-		uint found_col=0;
+		uint found_col= 0;
 		for (uint col_index=0 ;
 		     col_index < grant_table->hash_columns.records ;
 		     col_index++)
@@ -3105,8 +3199,18 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
 		  {
 		    if (!found_col)
 		    {
+		      found_col= 1;
+		      /*
+			If we have a duplicated table level privilege, we
+			must write the access privilege name again.
+		      */
+		      if (table_access & j)
+		      {
+			global.append(", ", 2);
+			global.append(command_array[counter],
+				      command_lengths[counter]);
+		      }
 		      global.append(" (",2);
-		      found_col=1;
 		    }
 		    else
 		      global.append(", ",2);
@@ -3129,7 +3233,7 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
 	global.append("'@'",3);
 	global.append(lex_user->host.str,lex_user->host.length);
 	global.append('\'');
-	if (want_access & GRANT_ACL)
+	if (table_access & GRANT_ACL)
 	  global.append(" WITH GRANT OPTION",18);
 	protocol->prepare_for_resend();
 	protocol->store(global.ptr(),global.length(),global.charset());
@@ -3141,7 +3245,7 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
       }
     }
   }
- end:
+end:
   VOID(pthread_mutex_unlock(&acl_cache->lock));
   rw_unlock(&LOCK_grant);
 
@@ -3215,8 +3319,17 @@ int open_grant_tables(THD *thd, TABLE_LIST *tables)
     GRANT and REVOKE are applied the slave in/exclusion rules as they are
     some kind of updates to the mysql.% tables.
   */
-  if (thd->slave_thread && table_rules_on && !tables_ok(0, tables))
-    DBUG_RETURN(1);
+  if (thd->slave_thread && table_rules_on)
+  {
+    /*
+      The tables must be marked "updating" so that tables_ok() takes them into
+      account in tests.
+    */
+    tables[0].updating=tables[1].updating=tables[2].updating=tables[3].updating=1;
+    if (!tables_ok(0, tables))
+      DBUG_RETURN(1);
+    tables[0].updating=tables[1].updating=tables[2].updating=tables[3].updating=0;
+  }
 #endif
 
   if (open_and_lock_tables(thd, tables))
@@ -3250,8 +3363,9 @@ ACL_USER *check_acl_user(LEX_USER *user_name,
     return 0;
 
   *acl_user_idx= counter;
-  return acl_user;    
+  return acl_user;
 }
+
 
 int mysql_drop_user(THD *thd, List <LEX_USER> &list)
 {
@@ -3336,10 +3450,10 @@ int mysql_drop_user(THD *thd, List <LEX_USER> &list)
       continue;
     }
 
-    tables[0].table->field[0]->store(user_name->host.str,(uint) 
+    tables[0].table->field[0]->store(user_name->host.str,(uint)
 				     user_name->host.length,
 				     system_charset_info);
-    tables[0].table->field[1]->store(user_name->user.str,(uint) 
+    tables[0].table->field[1]->store(user_name->user.str,(uint)
 				     user_name->user.length,
 				     system_charset_info);
     if (!tables[0].table->file->index_read_idx(tables[0].table->record[0],0,
@@ -3394,7 +3508,7 @@ int mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
       result= -1;
       continue;
     }
-    
+
     if (replace_user_table(thd, tables[0].table,
 			   *lex_user, ~0, 1, 0))
     {

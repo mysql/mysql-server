@@ -46,6 +46,8 @@ ibool		recv_recovery_from_backup_on = FALSE;
 
 ibool		recv_needed_recovery = FALSE;
 
+ibool		recv_lsn_checks_on = FALSE;
+
 /* If the following is TRUE, the buffer pool file pages must be invalidated
 after recovery and no ibuf operations are allowed; this becomes TRUE if
 the log record hash table becomes too full, and log records must be merged
@@ -70,6 +72,12 @@ ulint	recv_previous_parsed_rec_offset	= 0;
 ulint	recv_previous_parsed_rec_is_multi = 0;
 
 ulint	recv_max_parsed_page_no		= 0;
+
+/* The maximum lsn we see for a page during the recovery process. If this
+is bigger than the lsn we are able to scan up to, that is an indication that
+the recovery failed and the database may be corrupt. */
+
+dulint	recv_max_page_lsn;
 
 /* This many frames must be left free in the buffer pool when we scan
 the log and store the scanned log records in the buffer pool: we will
@@ -139,6 +147,8 @@ recv_sys_init(
 	recv_sys->last_block = ut_align(recv_sys->last_block_buf_start,
 						OS_FILE_LOG_BLOCK_SIZE);
 	recv_sys->found_corrupt_log = FALSE;
+
+	recv_max_page_lsn = ut_dulint_zero;
 
 	mutex_exit(&(recv_sys->mutex));
 }
@@ -981,7 +991,7 @@ recv_recover_page(
 	ulint	space,		/* in: space id */
 	ulint	page_no)	/* in: page number */
 {
-	buf_block_t*	block;
+	buf_block_t*	block		= NULL;
 	recv_addr_t*	recv_addr;
 	recv_t*		recv;
 	byte*		buf;
@@ -1093,7 +1103,7 @@ recv_recover_page(
 			page_lsn = page_newest_lsn;
 
 			mach_write_to_8(page + UNIV_PAGE_SIZE
-					- FIL_PAGE_END_LSN, ut_dulint_zero);
+				- FIL_PAGE_END_LSN_OLD_CHKSUM, ut_dulint_zero);
 			mach_write_to_8(page + FIL_PAGE_LSN, ut_dulint_zero);
 		}
 		
@@ -1115,7 +1125,7 @@ recv_recover_page(
 			recv_parse_or_apply_log_rec_body(recv->type, buf,
 						buf + recv->len, page, &mtr);
 			mach_write_to_8(page + UNIV_PAGE_SIZE
-					- FIL_PAGE_END_LSN,
+					- FIL_PAGE_END_LSN_OLD_CHKSUM,
 					ut_dulint_add(recv->start_lsn,
 							recv->len));
 			mach_write_to_8(page + FIL_PAGE_LSN,
@@ -1132,6 +1142,10 @@ recv_recover_page(
 
 	mutex_enter(&(recv_sys->mutex));
 	
+	if (ut_dulint_cmp(recv_max_page_lsn, page_lsn) < 0) {
+		recv_max_page_lsn = page_lsn;
+	}
+
 	recv_addr->state = RECV_PROCESSED;
 
 	ut_a(recv_sys->n_addrs);
@@ -1140,6 +1154,8 @@ recv_recover_page(
 	mutex_exit(&(recv_sys->mutex));
 	
 	if (!recover_backup && modification_to_page) {
+		ut_a(block);
+
 		buf_flush_recv_note_modification(block, start_lsn, end_lsn);
 	}
 	
@@ -1347,6 +1363,7 @@ loop:
 	mutex_exit(&(recv_sys->mutex));
 }
 
+#ifdef UNIV_HOTBACKUP
 /***********************************************************************
 Applies log records in the hash table to a backup. */
 
@@ -1528,8 +1545,8 @@ recv_check_identical(
 	for (i = 0; i < len; i++) {
 
 		if (str1[i] != str2[i]) {
-			fprintf(stderr, "Strings do not match at offset %lu\n", i);
-
+			fprintf(stderr,
+				"Strings do not match at offset %lu\n", i);
 			ut_print_buf(str1 + i, 16);
 			fprintf(stderr, "\n");
 			ut_print_buf(str2 + i, 16);
@@ -1662,6 +1679,7 @@ recv_compare_spaces_low(
 
 	recv_compare_spaces(space1, space2, n_pages);
 }
+#endif
 
 /***********************************************************************
 Tries to parse a single log record and returns its length. */
@@ -2196,9 +2214,12 @@ recv_scan_log_recs(
 	while (log_block < buf + len && !finished) {
 
 		no = log_block_get_hdr_no(log_block);
+/*
+		fprintf(stderr, "Log block header no %lu\n", no);
 
-		/* fprintf(stderr, "Log block header no %lu\n", no); */
-
+		fprintf(stderr, "Scanned lsn no %lu\n",
+				log_block_convert_lsn_to_no(scanned_lsn));
+*/
 		if (no != log_block_convert_lsn_to_no(scanned_lsn)
 		    || !log_block_checksum_is_ok_or_old_format(log_block)) {
 
@@ -2590,7 +2611,6 @@ recv_recovery_from_checkpoint_start(
 
 		recv_group_scan_log_recs(group, &contiguous_lsn,
 							&group_scanned_lsn);
-
 		group->scanned_lsn = group_scanned_lsn;
 		
 		if (ut_dulint_cmp(old_scanned_lsn, group_scanned_lsn) < 0) {
@@ -2605,6 +2625,31 @@ recv_recovery_from_checkpoint_start(
 		}		
 
 		group = UT_LIST_GET_NEXT(log_groups, group);
+	}
+
+	/* We currently have only one log group */
+	if (ut_dulint_cmp(group_scanned_lsn, checkpoint_lsn) < 0) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+"  InnoDB: ERROR: We were only able to scan the log up to\n"
+"InnoDB: %lu %lu, but a checkpoint was at %lu %lu.\n"
+"InnoDB: It is possible that the database is now corrupt!\n",
+			 ut_dulint_get_high(group_scanned_lsn),
+			 ut_dulint_get_low(group_scanned_lsn),
+			 ut_dulint_get_high(checkpoint_lsn),
+			 ut_dulint_get_low(checkpoint_lsn));
+	}
+
+	if (ut_dulint_cmp(group_scanned_lsn, recv_max_page_lsn) < 0) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+"  InnoDB: ERROR: We were only able to scan the log up to %lu %lu\n"
+"InnoDB: but a database page a had an lsn %lu %lu. It is possible that the\n"
+"InnoDB: database is now corrupt!\n",
+			 ut_dulint_get_high(group_scanned_lsn),
+			 ut_dulint_get_low(group_scanned_lsn),
+			 ut_dulint_get_high(recv_max_page_lsn),
+			 ut_dulint_get_low(recv_max_page_lsn));
 	}
 
 	if (ut_dulint_cmp(recv_sys->recovered_lsn, checkpoint_lsn) < 0) {
@@ -2659,6 +2704,8 @@ recv_recovery_from_checkpoint_start(
 	mutex_exit(&(log_sys->mutex));
 
 	sync_order_checks_on = FALSE;
+
+	recv_lsn_checks_on = TRUE;
 
 	/* The database is now ready to start almost normal processing of user
 	transactions: transaction rollbacks and the application of the log

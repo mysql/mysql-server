@@ -1,0 +1,15 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+create table t1 (a int primary key);
+insert into t1 values (1),(1);
+ERROR 23000: Duplicate entry '1' for key 1
+show slave status;
+Master_Host	Master_User	Master_Port	Connect_retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_do_db	Replicate_ignore_db	Replicate_do_table	Replicate_ignore_table	Replicate_wild_do_table	Replicate_wild_ignore_table	Last_errno	Last_error	Skip_counter	Exec_master_log_pos	Relay_log_space
+127.0.0.1	root	MASTER_PORT	1	master-bin.000001	213	slave-relay-bin.000002	257	master-bin.000001	Yes	Yes				test.t1			0		0	213	257
+show tables like 't1';
+Tables_in_test (t1)
+drop table t1;

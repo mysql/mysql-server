@@ -61,7 +61,9 @@ enum enum_sql_command {
   SQLCOM_CREATE_FUNCTION, SQLCOM_DROP_FUNCTION,
   SQLCOM_REVOKE,SQLCOM_OPTIMIZE, SQLCOM_CHECK, SQLCOM_PRELOAD_KEYS,
   SQLCOM_FLUSH, SQLCOM_KILL,  SQLCOM_ANALYZE,
-  SQLCOM_ROLLBACK, SQLCOM_COMMIT, SQLCOM_SLAVE_START, SQLCOM_SLAVE_STOP,
+  SQLCOM_ROLLBACK, SQLCOM_ROLLBACK_TO_SAVEPOINT,
+  SQLCOM_COMMIT, SQLCOM_SAVEPOINT,
+  SQLCOM_SLAVE_START, SQLCOM_SLAVE_STOP,
   SQLCOM_BEGIN, SQLCOM_LOAD_MASTER_TABLE, SQLCOM_CHANGE_MASTER,
   SQLCOM_RENAME_TABLE, SQLCOM_BACKUP_TABLE, SQLCOM_RESTORE_TABLE,
   SQLCOM_RESET, SQLCOM_PURGE, SQLCOM_PURGE_BEFORE, SQLCOM_SHOW_BINLOGS,
@@ -217,6 +219,8 @@ public:
   {
     return (void*) sql_alloc((uint) size);
   }
+  static void *operator new(size_t size, MEM_ROOT *mem_root)
+  { return (void*) alloc_root(mem_root, (uint) size); }
   static void operator delete(void *ptr,size_t size) {}
   st_select_lex_node(): linkage(UNSPECIFIED_TYPE) {}
   virtual ~st_select_lex_node() {}
@@ -349,7 +353,12 @@ public:
   // Arrays of pointers to top elements of all_fields list
   Item **ref_pointer_array;
 
-  uint select_items;    /* number of items in select_list */
+  /*
+    number of items in select_list and HAVING clause used to get number
+    bigger then can be number of entries that will be added to all item
+    list during split_sum_func
+  */
+  uint select_n_having_items;
   uint cond_count;      /* number of arguments of and/or/xor in where/having */
   enum_parsing_place parsing_place; /* where we are parsing expression */
   bool with_sum_func;   /* sum function indicator */
@@ -361,14 +370,27 @@ public:
   bool  braces;   	/* SELECT ... UNION (SELECT ... ) <- this braces */
   /* TRUE when having fix field called in processing of this SELECT */
   bool having_fix_field;
+
   /* 
-     TRUE for primary st_select_lex structure of simple INSERT/REPLACE
+     SELECT for SELECT command st_select_lex. Used to privent scaning
+     item_list of non-SELECT st_select_lex (no sense find to finding
+     reference in it (all should be in tables, it is dangerouse due
+     to order of fix_fields calling for non-SELECTs commands (item list
+     can be not fix_fieldsd)). This value will be assigned for
+     primary select (sql_yac.yy) and for any subquery and
+     UNION SELECT (sql_parse.cc mysql_new_select())
+
+
+     INSERT for primary st_select_lex structure of simple INSERT/REPLACE
      (used for name resolution, see Item_fiels & Item_ref fix_fields,
      FALSE for INSERT/REPLACE ... SELECT, because it's
      st_select_lex->table_list will be preprocessed (first table removed)
      before passing to handle_select)
+
+     NOMATTER for other
   */
-  bool insert_select;
+  enum {NOMATTER_MODE, SELECT_MODE, INSERT_MODE} resolve_mode;
+
 
   void init_query();
   void init_select();
@@ -431,6 +453,7 @@ public:
     init_query();
     init_select();
   }
+  bool setup_ref_array(THD *thd, uint order_group_num);
 };
 typedef class st_select_lex SELECT_LEX;
 
@@ -472,9 +495,10 @@ typedef struct st_lex
   List<List_item>     many_values;
   List<set_var_base>  var_list;
   List<Item>          param_list;
-  SQL_LIST	      proc_list, auxilliary_table_list;
+  SQL_LIST	      proc_list, auxilliary_table_list, save_list;
   TYPELIB	      *interval;
   create_field	      *last_field;
+  char		      *savepoint_name;		// Transaction savepoint id
   Item *default_value, *comment;
   uint uint_geom_type;
   LEX_USER *grant_user;

@@ -572,7 +572,8 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool optimize)
   strmov(fixed_name,file->filename);
 
   // Don't lock tables if we have used LOCK TABLE
-  if (!thd->locked_tables && mi_lock_database(file,F_WRLCK))
+  if (!thd->locked_tables && 
+      mi_lock_database(file, table->tmp_table ? F_EXTRA_LCK : F_WRLCK))
   {
     mi_check_print_error(&param,ER(ER_CANT_LOCK),my_errno);
     DBUG_RETURN(HA_ADMIN_FAILED);
@@ -767,12 +768,20 @@ int ha_myisam::preload_keys(THD* thd, HA_CHECK_OPT *check_opt)
 void ha_myisam::deactivate_non_unique_index(ha_rows rows)
 {
   MYISAM_SHARE* share = file->s;
+  bool do_warning=0;
   if (share->state.key_map == ((ulonglong) 1L << share->base.keys)-1)
   {
     if (!(specialflag & SPECIAL_SAFE_MODE))
     {
       if (rows == HA_POS_ERROR)
+      {
+	uint orig_update= file->update;
+	file->update ^= HA_STATE_CHANGED;
+	uint check_update= file->update;
         mi_extra(file, HA_EXTRA_NO_KEYS, 0);
+	do_warning= (file->update == check_update) && file->state->records;
+	file->update= orig_update;
+      }
       else
       {
 	/*
@@ -794,9 +803,14 @@ void ha_myisam::deactivate_non_unique_index(ha_rows rows)
       }
     }
     enable_activate_all_index=1;
+    info(HA_STATUS_CONST);			// Read new key info
   }
   else
     enable_activate_all_index=0;
+  if (do_warning)
+    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN, 
+			ER_ILLEGAL_HA,
+			ER(ER_ILLEGAL_HA), table->table_name);
 }
 
 
@@ -822,6 +836,7 @@ bool ha_myisam::activate_all_index(THD *thd)
     param.sort_buffer_length=  thd->variables.myisam_sort_buff_size;
     param.tmpdir=&mysql_tmpdir_list;
     error=repair(thd,param,0) != HA_ADMIN_OK;
+    info(HA_STATUS_CONST);
     thd->proc_info=save_proc_info;
   }
   else
@@ -1005,8 +1020,9 @@ void ha_myisam::info(uint flag)
     ref_length=info.reflength;
     table->db_options_in_use    = info.options;
     block_size=myisam_block_size;
-    table->keys_in_use&=      info.key_map;
-    table->keys_for_keyread&= info.key_map;
+    table->keys_in_use= (set_bits(key_map, table->keys) &
+			 (key_map) info.key_map);
+    table->keys_for_keyread= table->keys_in_use & ~table->read_only_keys;
     table->db_record_offset=info.record_offset;
     if (table->key_parts)
       memcpy((char*) table->key_info[0].rec_per_key,
@@ -1075,9 +1091,9 @@ int ha_myisam::delete_table(const char *name)
 
 int ha_myisam::external_lock(THD *thd, int lock_type)
 {
-  if (!table->tmp_table)
-    return mi_lock_database(file,lock_type);
-  return 0;
+  return mi_lock_database(file, !table->tmp_table ?
+			  lock_type : ((lock_type == F_UNLCK) ?
+				       F_UNLCK : F_EXTRA_LCK));
 }
 
 

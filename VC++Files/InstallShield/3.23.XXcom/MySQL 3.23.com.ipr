@@ -1,0 +1,51 @@
+[Language]
+LanguageSupport0=0009
+
+[OperatingSystem]
+OSSupport=0000000000010010
+
+[Data]
+CurrentMedia=
+set_mifserial=
+ProductName=MySQL Servers and Clients
+CurrentComponentDef=Default.cdf
+set_dlldebug=No
+AppExe=
+DevEnvironment=Microsoft Visual C++ 6
+set_mif=No
+set_testmode=No
+Instructions=Instructions.txt
+EmailAddresss=
+SummaryText=
+Department=
+Type=Database Application
+Author=
+HomeURL=
+InstallRoot=C:\MySQL-Install\3.23.XXcom
+set_level=Level 3
+InstallationGUID=40744a4d-efed-4cff-84a9-9e6389550f5c
+Version=1.00.000
+set_miffile=Status.mif
+set_args=
+set_maxerr=50
+Notes=Notes.txt
+CurrentFileGroupDef=Default.fdf
+set_dllcmdline=
+set_warnaserr=No
+Copyright=
+set_preproc=
+Category=
+CurrentPlatform=
+set_compileb4build=No
+set_crc=Yes
+set_maxwarn=50
+Description=Description.txt
+CompanyName=MySQL
+CurrentLanguage=English
+
+[MediaInfo]
+
+[General]
+Type=INSTALLMAIN
+Version=1.10.000
+

@@ -294,9 +294,7 @@ JOIN::prepare(Item ***rref_pointer_array,
 					setup_wild(thd, tables_list, 
 						   fields_list,
 						   &all_fields, wild_num))) ||
-      setup_ref_array(thd, rref_pointer_array, (fields_list.elements +
-						select_lex->select_items +
-						og_num)) ||
+      select_lex->setup_ref_array(thd, og_num) ||
       setup_fields(thd, (*rref_pointer_array), tables_list, fields_list, 1,
 		   &all_fields, 1) ||
       setup_without_group(thd, (*rref_pointer_array), tables_list, fields_list,
@@ -574,6 +572,8 @@ JOIN::optimize()
     DBUG_RETURN(1);
   }
 
+  /* Remove distinct if only const tables */
+  select_distinct= select_distinct && (const_tables != tables);
   thd->proc_info= "preparing";
   if (result->initialize_tables(this))
   {
@@ -771,7 +771,8 @@ JOIN::optimize()
     if (!having)
     {
       Item *where= 0;
-      if (join_tab[0].type == JT_EQ_REF)
+      if (join_tab[0].type == JT_EQ_REF &&
+	  join_tab[0].ref.items[0]->name == in_left_expr_name)
       {
 	if (test_in_subselect(&where))
 	{
@@ -784,7 +785,8 @@ JOIN::optimize()
 								  where)));
 	}
       }
-      else if (join_tab[0].type == JT_REF)
+      else if (join_tab[0].type == JT_REF &&
+	       join_tab[0].ref.items[0]->name == in_left_expr_name)
       {
 	if (test_in_subselect(&where))
 	{
@@ -799,6 +801,7 @@ JOIN::optimize()
 	}
       }
     } else if (join_tab[0].type == JT_REF_OR_NULL &&
+	       join_tab[0].ref.items[0]->name == in_left_expr_name &&
 	       having->type() == Item::FUNC_ITEM &&
 	       ((Item_func *) having)->functype() ==
 	       Item_func::ISNOTNULLTEST_FUNC)
@@ -890,7 +893,8 @@ JOIN::optimize()
 			   group_list && simple_group,
 			   select_options,
 			   (order == 0 || skip_sort_order) ? select_limit :
-			   HA_POS_ERROR)))
+			   HA_POS_ERROR,
+			   (char *) "")))
       DBUG_RETURN(1);
 
     /*
@@ -1223,7 +1227,8 @@ JOIN::exec()
 						curr_join->select_distinct && 
 						!curr_join->group_list,
 						1, curr_join->select_options,
-						HA_POS_ERROR)))
+						HA_POS_ERROR,
+						(char *) "")))
 	  DBUG_VOID_RETURN;
 	curr_join->exec_tmp_table2= exec_tmp_table2;
       }
@@ -1837,9 +1842,11 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
 
     /*
       Set a max range of how many seeks we can expect when using keys
-      This was (s->read_time*5), but this was too low with small rows
+      This is can't be to high as otherwise we are likely to use
+      table scan.
     */
-    s->worst_seeks= (double) s->found_records / 5;
+    s->worst_seeks= min((double) s->found_records / 10,
+			(double) s->read_time*3);
     if (s->worst_seeks < 2.0)			// Fix for small tables
       s->worst_seeks=2.0;
 
@@ -2262,6 +2269,9 @@ add_key_part(DYNAMIC_ARRAY *keyuse_array,KEY_FIELD *key_field)
     key_field->field->table->reginfo.not_exists_optimize=1;
 }
 
+
+#define FT_KEYPART   (MAX_REF_PARTS+10)
+
 static void
 add_ft_keys(DYNAMIC_ARRAY *keyuse_array,
             JOIN_TAB *stat,COND *cond,table_map usable_tables)
@@ -2281,17 +2291,17 @@ add_ft_keys(DYNAMIC_ARRAY *keyuse_array,
     {
       Item_func *arg0=(Item_func *)(func->arguments()[0]),
                 *arg1=(Item_func *)(func->arguments()[1]);
-      if ((functype == Item_func::GE_FUNC ||
-           functype == Item_func::GT_FUNC)  &&
-           arg0->type() == Item::FUNC_ITEM          &&
-           arg0->functype() == Item_func::FT_FUNC   &&
-           arg1->const_item() && arg1->val()>0)
+      if (arg1->const_item()  &&
+          ((functype == Item_func::GE_FUNC && arg1->val()> 0) ||
+           (functype == Item_func::GT_FUNC && arg1->val()>=0))  &&
+           arg0->type() == Item::FUNC_ITEM            &&
+           arg0->functype() == Item_func::FT_FUNC)
         cond_func=(Item_func_match *) arg0;
-      else if ((functype == Item_func::LE_FUNC ||
-                functype == Item_func::LT_FUNC)  &&
+      else if (arg0->const_item() &&
+               ((functype == Item_func::LE_FUNC && arg0->val()> 0) ||
+                (functype == Item_func::LT_FUNC && arg0->val()>=0)) &&
                 arg1->type() == Item::FUNC_ITEM          &&
-                arg1->functype() == Item_func::FT_FUNC   &&
-                arg0->const_item() && arg0->val()>0)
+                arg1->functype() == Item_func::FT_FUNC)
         cond_func=(Item_func_match *) arg1;
     }
   }
@@ -2302,34 +2312,20 @@ add_ft_keys(DYNAMIC_ARRAY *keyuse_array,
     if (((Item_cond*) cond)->functype() == Item_func::COND_AND_FUNC)
     {
       Item *item;
-      /*
-         I'm (Sergei) too lazy to implement proper recursive descent here,
-         and anyway, nobody will use such a stupid queries
-         that will require it :-)
-         May be later...
-      */
       while ((item=li++))
-      {
-        if (item->type() == Item::FUNC_ITEM &&
-            ((Item_func *)item)->functype() == Item_func::FT_FUNC)
-        {
-          cond_func=(Item_func_match *)item;
-          break;
-        }
-      }
+        add_ft_keys(keyuse_array,stat,item,usable_tables);
     }
   }
 
-  if (!cond_func || cond_func->key == NO_SUCH_KEY)
+  if (!cond_func || cond_func->key == NO_SUCH_KEY ||
+      !(usable_tables & cond_func->table->map))
     return;
 
   KEYUSE keyuse;
-
   keyuse.table= cond_func->table;
   keyuse.val =  cond_func;
   keyuse.key =  cond_func->key;
-#define FT_KEYPART   (MAX_REF_PARTS+10)
-  keyuse.keypart=FT_KEYPART;
+  keyuse.keypart= FT_KEYPART;
   keyuse.used_tables=cond_func->key_item()->used_tables();
   VOID(insert_dynamic(keyuse_array,(gptr) &keyuse));
 }
@@ -2346,7 +2342,8 @@ sort_keyuse(KEYUSE *a,KEYUSE *b)
   if (a->keypart != b->keypart)
     return (int) (a->keypart - b->keypart);
   // Place const values before other ones
-  if ((res= test(a->used_tables) - test(b->used_tables)))
+  if ((res= test((a->used_tables & ~OUTER_REF_TABLE_BIT)) -
+       test((b->used_tables & ~OUTER_REF_TABLE_BIT))))
     return res;
   /* Place rows that are not 'OPTIMIZE_REF_OR_NULL' first */
   return (int) ((a->optimize & KEY_OPTIMIZE_REF_OR_NULL) -
@@ -2477,6 +2474,12 @@ static void optimize_keyuse(JOIN *join, DYNAMIC_ARRAY *keyuse_array)
 	keyuse->ref_table_rows= max(tmp_table->file->records, 100);
       }
     }
+    /*
+      Outer reference (external field) is constant for single executing
+      of subquery
+    */
+    if (keyuse->used_tables == OUTER_REF_TABLE_BIT)
+      keyuse->ref_table_rows= 1;
   }
 }
 
@@ -2557,6 +2560,7 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
       best=best_time=records=DBL_MAX;
       KEYUSE *best_key=0;
       uint best_max_key_part=0;
+      my_bool found_constrain= 0;
 
       if (s->keyuse)
       {						/* Use key if possible */
@@ -2621,6 +2625,7 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
           }
           else
           {
+	  found_constrain= 1;
 	  /*
 	    Check if we found full key
 	  */
@@ -2658,16 +2663,18 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 		    records=2.0;		// Can't be as good as a unique
 		}
 	      }
+	      /* Limit the number of matched rows */
+	      tmp= records;
+	      set_if_smaller(tmp, (double) thd->variables.max_seeks_for_key);
 	      if (table->used_keys & ((key_map) 1 << key))
 	      {
 		/* we can use only index tree */
 		uint keys_per_block= table->file->block_size/2/
 		  (keyinfo->key_length+table->file->ref_length)+1;
-		tmp=(record_count*(records+keys_per_block-1)/
-		     keys_per_block);
+		tmp=record_count*(tmp+keys_per_block-1)/keys_per_block;
 	      }
 	      else
-		tmp=record_count*min(records,s->worst_seeks);
+		tmp=record_count*min(tmp,s->worst_seeks);
 	    }
 	  }
 	  else
@@ -2698,7 +2705,7 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 		{
 		  /*
 		    Assume that the first key part matches 1% of the file
-		    and that the hole key matches 10 (dupplicates) or 1
+		    and that the hole key matches 10 (duplicates) or 1
 		    (unique) records.
 		    Assume also that more key matches proportionally more
 		    records
@@ -2736,6 +2743,8 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 		  records*= 2.0;
 		}
 	      }
+	      /* Limit the number of matched rows */
+	      set_if_smaller(tmp, (double) thd->variables.max_seeks_for_key);
 	      if (table->used_keys & ((key_map) 1 << key))
 	      {
 		/* we can use only index tree */
@@ -2778,20 +2787,31 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 	    s->table->used_keys && best_key) &&
 	  !(s->table->force_index && best_key))
       {						// Check full join
+	ha_rows rnd_records= s->found_records;
 	if (s->on_expr)
 	{
-	  tmp=rows2double(s->found_records);	// Can't use read cache
+	  tmp=rows2double(rnd_records);		// Can't use read cache
 	}
 	else
 	{
 	  tmp=(double) s->read_time;
-	  /* Calculate time to read through cache */
+	  /* Calculate time to read previous rows through cache */
 	  tmp*=(1.0+floor((double) cache_record_length(join,idx)*
 			  record_count /
 			  (double) thd->variables.join_buff_size));
 	}
+
+	/*
+	  If there is a restriction on the table, assume that 25% of the
+	  rows can be skipped on next part.
+	  This is to force tables that this table depends on before this
+	  table
+	*/
+	if (found_constrain)
+	  rnd_records-= rnd_records/4;
+
 	if (best == DBL_MAX ||
-	    (tmp  + record_count/(double) TIME_FOR_COMPARE*s->found_records <
+	    (tmp  + record_count/(double) TIME_FOR_COMPARE*rnd_records <
 	     best + record_count/(double) TIME_FOR_COMPARE*records))
 	{
 	  /*
@@ -2799,7 +2819,7 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 	    will ensure that this will be used
 	  */
 	  best=tmp;
-	  records= rows2double(s->found_records);
+	  records= rows2double(rnd_records);
 	  best_key=0;
 	}
       }
@@ -3308,9 +3328,6 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 	       join->best_positions[i].records_read &&
 	       !(join->select_options & OPTION_FOUND_ROWS)))
 	  {
-	    /* Join with outer join condition */
-	    COND *orig_cond=sel->cond;
-	    sel->cond=and_conds(sel->cond,tab->on_expr);
 	    if (sel->test_quick_select(tab->keys,
 				       used_tables & ~ current_map,
 				       (join->select_options &
@@ -3318,7 +3335,6 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 					HA_POS_ERROR :
 					join->unit->select_limit_cnt)) < 0)
 	      DBUG_RETURN(1);				// Impossible range
-	    sel->cond=orig_cond;
 	    /* Fix for EXPLAIN */
 	    if (sel->quick)
 	      join->best_positions[i].records_read= sel->quick->records;
@@ -3336,7 +3352,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 			      (select->quick &&
 			       (select->quick->records >= 100L)))) ?
 	      2 : 1;
-	    sel->read_tables= used_tables;
+	    sel->read_tables= used_tables & ~current_map;
 	  }
 	  if (i != join->const_tables && tab->use_quick != 2)
 	  {					/* Read with cache */
@@ -4343,9 +4359,9 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
       case STRING_RESULT:
 	if (item_sum->max_length > 255)
 	  return  new Field_blob(item_sum->max_length,maybe_null,
-				 item->name,table,item->charset());
+				 item->name,table,item->collation.collation);
 	return	new Field_string(item_sum->max_length,maybe_null,
-				 item->name,table,item->charset());
+				 item->name,table,item->collation.collation);
       case ROW_RESULT:
       default:
 	// This case should never be choosen
@@ -4385,6 +4401,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
   case Item::STRING_ITEM:
   case Item::REF_ITEM:
   case Item::NULL_ITEM:
+  case Item::VARBIN_ITEM:
   {
     bool maybe_null=item->maybe_null;
     Field *new_field;
@@ -4402,10 +4419,10 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
     case STRING_RESULT:
       if (item->max_length > 255)
 	new_field=  new Field_blob(item->max_length,maybe_null,
-				   item->name,table,item->charset());
+				   item->name,table,item->collation.collation);
       else
 	new_field= new Field_string(item->max_length,maybe_null,
-				    item->name,table,item->charset());
+				    item->name,table,item->collation.collation);
       break;
     case ROW_RESULT: 
     default: 
@@ -4436,7 +4453,8 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
 TABLE *
 create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 		 ORDER *group, bool distinct, bool save_sum_fields,
-		 ulong select_options, ha_rows rows_limit)
+		 ulong select_options, ha_rows rows_limit,
+		 char *table_alias)
 {
   TABLE *table;
   uint	i,field_count,reclength,null_count,null_pack_length,
@@ -4525,10 +4543,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   table->field=reg_field;
   table->blob_field= (Field_blob**) blob_field;
   table->real_name=table->path=tmpname;
-  /*
-    This must be "" as field may refer to it after tempory table is dropped
-  */
-  table->table_name= (char*) "";
+  table->table_name= table_alias;
   table->reginfo.lock_type=TL_WRITE;	/* Will be updated */
   table->db_stat=HA_OPEN_KEYFILE+HA_OPEN_RNDFILE;
   table->blob_ptr_size=mi_portable_sizeof_char_ptr;
@@ -6650,6 +6665,8 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 	  */
 	  if (!select->quick->reverse_sorted())
 	  {
+            if (table->file->index_flags(ref_key) & HA_NOT_READ_PREFIX_LAST)
+              DBUG_RETURN(0);			// Use filesort
 	    // ORDER BY range_key DESC
 	    QUICK_SELECT_DESC *tmp=new QUICK_SELECT_DESC(select->quick,
 							 used_key_parts);
@@ -6791,6 +6808,8 @@ create_sort_index(THD *thd, JOIN_TAB *tab, ORDER *order,
       /*
 	We have a ref on a const;  Change this to a range that filesort
 	can use.
+	For impossible ranges (like when doing a lookup on NULL on a NOT NULL
+	field, quick will contain an empty record set.
       */
       if (!(select->quick=get_ft_or_quick_select_for_ref(table, tab)))
 	goto err;
@@ -7470,19 +7489,6 @@ find_order_in_list(THD *thd, Item **ref_pointer_array,
   ref_pointer_array[el]= it;
   order->item= ref_pointer_array + el;
   return 0;
-}
-
-/*
-  Allocate array of references to address all_fileds list elements
-*/
-
-int setup_ref_array(THD* thd, Item ***rref_pointer_array, uint elements)
-{
-  if (*rref_pointer_array)
-    return 0;
-
-  return (*rref_pointer_array= 
-	  (Item **)thd->alloc(sizeof(Item*) * elements * 5)) == 0;
 }
 
 /*

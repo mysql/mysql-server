@@ -69,14 +69,13 @@ uint sf_malloc_prehunc=0,		/* If you have problem with core- */
      sf_malloc_endhunc=0,		/* dump when malloc-message.... */
 					/* set theese to 64 or 128  */
      sf_malloc_quick=0;			/* set if no calls to sanity */
-long lCurMemory = 0L;			/* Current memory usage */
-long lMaxMemory = 0L;			/* Maximum memory usage */
-uint cNewCount = 0;			/* Number of times NEW() was called */
+ulong sf_malloc_cur_memory= 0L;		/* Current memory usage */
+ulong sf_malloc_max_memory= 0L;		/* Maximum memory usage */
+uint  sf_malloc_count= 0;		/* Number of times NEW() was called */
 byte *sf_min_adress= (byte*) ~(unsigned long) 0L,
      *sf_max_adress= (byte*) 0L;
-
-/* Root of the linked list of remembers */
-struct remember *pRememberRoot = NULL;
+/* Root of the linked list of struct st_irem */
+struct st_irem *sf_malloc_root = NULL;
 
 	/* from my_alarm */
 int volatile my_have_got_alarm=0;	/* declare variable to reset */

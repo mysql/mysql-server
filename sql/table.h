@@ -76,7 +76,7 @@ struct st_table {
   uint uniques;
   uint null_fields;			/* number of null fields */
   uint blob_fields;			/* number of blob fields */
-  key_map keys_in_use, keys_for_keyread;
+  key_map keys_in_use, keys_for_keyread, read_only_keys;
   key_map quick_keys, used_keys, keys_in_use_for_query;
   KEY  *key_info;			/* data of keys in database */
   TYPELIB keynames;			/* Pointers to keynames */
@@ -116,6 +116,8 @@ struct st_table {
   my_bool crashed;
   my_bool is_view;
   my_bool no_keyread;
+  my_bool clear_query_id;               /* To reset query_id for tables and cols */
+  my_bool auto_increment_field_not_null;     
   Field *next_number_field,		/* Set if next_number is activated */
 	*found_next_number_field,	/* Set on open */
         *rowid_field;

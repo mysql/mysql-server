@@ -148,7 +148,7 @@ void Item_subselect::fix_length_and_dec()
 inline table_map Item_subselect::used_tables() const
 {
   return (table_map) (engine->dependent() ? 1L :
-		      (engine->uncacheable() ? OUTER_REF_TABLE_BIT : 0L));
+		      (engine->uncacheable() ? RAND_TABLE_BIT : 0L));
 }
 
 Item_singlerow_subselect::Item_singlerow_subselect(THD *thd,
@@ -518,7 +518,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
     */
     expr= new Item_ref((Item**)optimizer->get_cache(), 
 		       (char *)"<no matter>",
-		       (char *)"<left expr>");
+		       (char *)in_left_expr_name);
 
     unit->dependent= 1;
   }
@@ -559,27 +559,6 @@ Item_in_subselect::single_value_transformer(JOIN *join,
     if (select_lex->table_list.elements)
     {
       Item *having= item, *isnull= item;
-      if (item->type() == Item::FIELD_ITEM &&
-	  ((Item_field*) item)->field_name[0] == '*')
-      {
-	Item_asterisk_remover *remover;
-	item= remover= new Item_asterisk_remover(this, item,
-						 (char *)"<no matter>",
-						 (char *)"<result>");
-	if (!abort_on_null)
-	{
-	  having= 
-	    new Item_is_not_null_test(this,
-				      new Item_ref(remover->storage(),
-						   (char *)"<no matter>",
-						   (char *)"<null test>"));
-	  isnull=
-	    new Item_is_not_null_test(this,
-				      new Item_ref(remover->storage(),
-						   (char *)"<no matter>",
-						   (char *)"<null test>"));
-	}
-      }
       item= (*func)(expr, item);
       if (!abort_on_null)
       {
@@ -603,22 +582,12 @@ Item_in_subselect::single_value_transformer(JOIN *join,
     }
     else
     {
-      if (item->type() == Item::FIELD_ITEM &&
-	  ((Item_field*) item)->field_name[0] == '*')
-      {
-	my_error(ER_NO_TABLES_USED, MYF(0));
-	DBUG_RETURN(ERROR);
-      }
       if (select_lex->master_unit()->first_select()->next_select())
       {
-	/* 
-	   It is in union => we should perform it.
-	   Item_asterisk_remover used only as wrapper to receine NULL value
-	*/
 	join->having= (*func)(expr, 
-			      new Item_asterisk_remover(this, item,
-							(char *)"<no matter>",
-							(char *)"<result>"));
+			      new Item_null_helper(this, item,
+						   (char *)"<no matter>",
+						   (char *)"<result>"));
 	select_lex->having_fix_field= 1;
 	if (join->having->fix_fields(thd, join->tables_list, &join->having))
 	{
@@ -681,20 +650,22 @@ Item_in_subselect::row_value_transformer(JOIN *join,
   uint n= left_expr->cols();
 
   select_lex->dependent= 1;
-
+  select_lex->setup_ref_array(thd,
+			      select_lex->order_list.elements +
+			      select_lex->group_list.elements);
   Item *item= 0;
   List_iterator_fast<Item> li(select_lex->item_list);
   for (uint i= 0; i < n; i++)
   {
-    Item *func=
-      new Item_ref_on_list_position(this, select_lex, i,
-				    (char *) "<no matter>",
-				    (char *) "<list ref>");
+    Item *func= new Item_ref_null_helper(this, 
+					 select_lex->ref_pointer_array+i,
+					 (char *) "<no matter>",
+					 (char *) "<list ref>");
     func=
       Item_bool_func2::eq_creator(new Item_ref((*optimizer->get_cache())->
 					       addr(i), 
 					       (char *)"<no matter>",
-					       (char *)"<left expr>"),
+					       (char *)in_left_expr_name),
 				  func);
     item= and_items(item, func);
   }
@@ -825,6 +796,7 @@ static Item_result set_row(SELECT_LEX *select_lex, Item * item,
       if (!(row[i]= Item_cache::get_cache(res_type)))
 	return STRING_RESULT; // we should return something
       row[i]->set_len_n_dec(sel_item->max_length, sel_item->decimals);
+      row[i]->collation.set(sel_item->collation);
     }
   }
   if (select_lex->item_list.elements > 1)
@@ -836,6 +808,7 @@ void subselect_single_select_engine::fix_length_and_dec(Item_cache **row)
 {
   DBUG_ASSERT(row || select_lex->item_list.elements==1);
   res_type= set_row(select_lex, item, row, &maybe_null);
+  item->collation.set(row[0]->collation);
   if (cols() != 1)
     maybe_null= 0;
 }

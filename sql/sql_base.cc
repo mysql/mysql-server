@@ -148,7 +148,7 @@ OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *wild)
     if (wild)
     {
       strxmov(name,entry->table_cache_key,".",entry->real_name,NullS);
-      if (wild_compare(name,wild))
+      if (wild_compare(name,wild,0))
 	continue;
     }
 
@@ -787,6 +787,7 @@ TABLE *open_table(THD *thd,const char *db,const char *table_name,
 	DBUG_RETURN(0);
       }
       table->query_id=thd->query_id;
+      table->clear_query_id=1;
       thd->tmp_table_used= 1;
       goto reset;
     }
@@ -1354,6 +1355,7 @@ int open_tables(THD *thd,TABLE_LIST *start)
   int result=0;
   DBUG_ENTER("open_tables");
 
+  thd->current_tablenr= 0;
  restart:
   thd->proc_info="Opening tables";
   for (tables=start ; tables ; tables=tables->next)
@@ -1472,6 +1474,7 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type)
   DBUG_ENTER("open_ltable");
 
   thd->proc_info="Opening table";
+  thd->current_tablenr= 0;
   while (!(table=open_table(thd,table_list->db,
 			    table_list->real_name,table_list->alias,
 			    &refresh)) && refresh) ;
@@ -2039,8 +2042,9 @@ bool setup_tables(TABLE_LIST *tables)
       table->keys_in_use_for_query &= ~map;
     }
     table->used_keys &= table->keys_in_use_for_query;
-    if (table_list->shared)
+    if (table_list->shared  || table->clear_query_id)
     {
+      table->clear_query_id= 0;
       /* Clear query_id that may have been set by previous select */
       for (Field **ptr=table->field ; *ptr ; ptr++)
 	(*ptr)->query_id=0;
@@ -2139,6 +2143,7 @@ insert_fields(THD *thd,TABLE_LIST *tables, const char *db_name,
 
 int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
 {
+  table_map not_null_tables= 0;
   DBUG_ENTER("setup_conds");
   thd->set_query_id=1;
   
@@ -2148,6 +2153,7 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
     thd->where="where clause";
     if ((*conds)->fix_fields(thd, tables, conds) || (*conds)->check_cols(1))
       DBUG_RETURN(1);
+    not_null_tables= (*conds)->not_null_tables();
   }
 
   /* Check if we are using outer joins */
@@ -2162,9 +2168,15 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
 	DBUG_RETURN(1);
       thd->lex.current_select->cond_count++;
 
-      /* If it's a normal join, add the ON/USING expression to the WHERE */
-      if (!table->outer_join)
+      /*
+	If it's a normal join or a LEFT JOIN which can be optimized away
+	add the ON/USING expression to the WHERE
+      */
+      if (!table->outer_join ||
+	  ((table->table->map & not_null_tables) &&
+	   !(specialflag & SPECIAL_NO_NEW_FUNC)))
       {
+	table->outer_join= 0;
 	if (!(*conds=and_conds(*conds, table->on_expr)))
 	  DBUG_RETURN(1);
 	table->on_expr=0;
@@ -2236,7 +2248,11 @@ fill_record(List<Item> &fields,List<Item> &values, bool ignore_errors)
   while ((field=(Item_field*) f++))
   {
     value=v++;
-    if (value->save_in_field(field->field, 0) > 0 && !ignore_errors)
+    Field *rfield= field->field;
+    TABLE *table= rfield->table;
+    if (rfield == table->next_number_field)
+      table->auto_increment_field_not_null= true;
+    if (value->save_in_field(rfield, 0) > 0 && !ignore_errors)
       DBUG_RETURN(1);
   }
   DBUG_RETURN(0);
@@ -2254,6 +2270,9 @@ fill_record(Field **ptr,List<Item> &values, bool ignore_errors)
   while ((field = *ptr++))
   {
     value=v++;
+    TABLE *table= field->table;
+    if (field == table->next_number_field)
+      table->auto_increment_field_not_null= true;
     if (value->save_in_field(field, 0) == 1 && !ignore_errors)
       DBUG_RETURN(1);
   }

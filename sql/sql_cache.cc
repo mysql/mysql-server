@@ -760,9 +760,9 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
     DBUG_VOID_RETURN;
   uint8 tables_type= 0;
 
-  if ((local_tables = is_cacheable(thd, thd->query_length,
-				   thd->query, &thd->lex, tables_used,
-				   &tables_type)))
+  if ((local_tables= is_cacheable(thd, thd->query_length,
+				  thd->query, &thd->lex, tables_used,
+				  &tables_type)))
   {
     NET *net= &thd->net;
     byte flags= (thd->client_capabilities & CLIENT_LONG_FLAG ? 0x80 : 0);
@@ -1422,10 +1422,10 @@ ulong Query_cache::init_cache()
 
   DUMP(this);
 
-  VOID(hash_init(&queries,system_charset_info,def_query_hash_size, 0, 0,
+  VOID(hash_init(&queries, &my_charset_bin, def_query_hash_size, 0, 0,
 		 query_cache_query_get_key, 0, 0));
 #ifndef FN_NO_CASE_SENCE
-  VOID(hash_init(&tables,system_charset_info,def_table_hash_size, 0, 0,
+  VOID(hash_init(&tables, &my_charset_bin, def_table_hash_size, 0, 0,
 		 query_cache_table_get_key, 0, 0));
 #else
   // windows, OS/2 or other case insensitive file names work around

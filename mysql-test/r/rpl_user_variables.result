@@ -65,11 +65,11 @@ slave-bin.000001	851	User var	2	851	@n1=NULL
 slave-bin.000001	877	Query	1	877	use `test`; insert into t1 values (@n1)
 slave-bin.000001	939	Query	1	939	use `test`; insert into t1 values (@n2)
 slave-bin.000001	1001	Query	1	1001	use `test`; insert into t1 values (@a:=0), (@a:=@a+1), (@a:=@a+1)
-slave-bin.000001	1089	User var	2	1089	@a='2'
-slave-bin.000001	1124	Query	1	1124	use `test`; insert into t1 values (@a+(@b:=@a+1))
-slave-bin.000001	1196	User var	2	1196	@q='abc'
-slave-bin.000001	1233	Query	1	1233	use `test`; insert t1 values (@q), (@q:=concat(@q, 'n1')), (@q:=concat(@q, 'n2'))
-slave-bin.000001	1337	User var	2	1337	@a=5
-slave-bin.000001	1379	Query	1	1379	use `test`; insert into t1 values (@a),(@a)
+slave-bin.000001	1089	User var	2	1089	@a=2
+slave-bin.000001	1131	Query	1	1131	use `test`; insert into t1 values (@a+(@b:=@a+1))
+slave-bin.000001	1203	User var	2	1203	@q='abc'
+slave-bin.000001	1240	Query	1	1240	use `test`; insert t1 values (@q), (@q:=concat(@q, 'n1')), (@q:=concat(@q, 'n2'))
+slave-bin.000001	1344	User var	2	1344	@a=5
+slave-bin.000001	1386	Query	1	1386	use `test`; insert into t1 values (@a),(@a)
 drop table t1;
 stop slave;

@@ -32,6 +32,8 @@ datum
 2000-01-02
 2000-01-03
 2000-01-04
+SELECT * FROM t1 WHERE datum BETWEEN "2000-1-2" AND datum - INTERVAL 100 DAY;
+datum
 DROP TABLE t1;
 CREATE TABLE t1 (
 user_id char(10),

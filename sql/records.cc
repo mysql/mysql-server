@@ -73,7 +73,13 @@ void init_read_record(READ_RECORD *info,THD *thd, TABLE *table,
     info->ref_pos=table->file->ref;
     table->file->rnd_init(0);
 
-    if (! (specialflag & SPECIAL_SAFE_MODE) &&
+    /*
+      table->sort.addon_field is checked because if we use addon fields,
+      it doesn't make sense to use cache - we don't read from the table
+      and table->sort.io_cache is read sequentially
+    */
+    if (!table->sort.addon_field &&
+        ! (specialflag & SPECIAL_SAFE_MODE) &&
 	thd->variables.read_rnd_buff_size &&
 	!table->file->fast_key_read() &&
 	(table->db_stat & HA_READ_ONLY ||

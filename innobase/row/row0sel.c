@@ -65,41 +65,50 @@ row_sel_sec_rec_is_for_clust_rec(
 	rec_t*		sec_rec,	/* in: secondary index record */
 	dict_index_t*	sec_index,	/* in: secondary index */
 	rec_t*		clust_rec,	/* in: clustered index record */
-	dict_index_t*	clust_index __attribute__((unused))) 
-                                        /* in: clustered index */
+	dict_index_t*	clust_index)	/* in: clustered index */
 {
-	dict_col_t*	col;
-	byte*		sec_field;
-	ulint		sec_len;
-	byte*		clust_field;
-	ulint		clust_len;
-	ulint		n;
-	ulint		i;
+	dict_field_t*	ifield;
+        dict_col_t*     col;
+        byte*           sec_field;
+        ulint           sec_len;
+        byte*           clust_field;
+        ulint           clust_len;
+        ulint           n;
+        ulint           i;
 
-	n = dict_index_get_n_ordering_defined_by_user(sec_index);
+	UT_NOT_USED(clust_index);
 
-	for (i = 0; i < n; i++) {
-		col = dict_field_get_col(
-				dict_index_get_nth_field(sec_index, i));
+        n = dict_index_get_n_ordering_defined_by_user(sec_index);
 
-		clust_field = rec_get_nth_field(clust_rec,
-						dict_col_get_clust_pos(col),
-						&clust_len);
-		sec_field = rec_get_nth_field(sec_rec, i, &sec_len);
+        for (i = 0; i < n; i++) {
+		ifield = dict_index_get_nth_field(sec_index, i);
+                col = dict_field_get_col(ifield);
+                
+                clust_field = rec_get_nth_field(clust_rec,
+                                                dict_col_get_clust_pos(col),
+                                                &clust_len);
+                sec_field = rec_get_nth_field(sec_rec, i, &sec_len);
 
-		if (sec_len != clust_len) {
+		if (ifield->prefix_len > 0
+		    && clust_len != UNIV_SQL_NULL
+		    && clust_len > ifield->prefix_len) {
 
-			return(FALSE);
+		       clust_len = ifield->prefix_len;
 		}
 
-		if (0 != cmp_data_data(dict_col_get_type(col),
-					clust_field, clust_len,
-					sec_field, sec_len)) {
-			return(FALSE);
-		}
-	}
+                if (sec_len != clust_len) {
 
-	return(TRUE);
+                        return(FALSE);
+                }
+
+                if (0 != cmp_data_data(dict_col_get_type(col),
+                                        clust_field, clust_len,
+                                        sec_field, sec_len)) {
+                        return(FALSE);
+                }
+        }
+
+        return(TRUE);
 }
 
 /*************************************************************************
@@ -600,13 +609,35 @@ row_sel_get_clust_rec(
 
 	clust_rec = btr_pcur_get_rec(&(plan->clust_pcur));
 
-	ut_ad(page_rec_is_user_rec(clust_rec));
+	/* Note: only if the search ends up on a non-infimum record is the
+	low_match value the real match to the search tuple */
+
+	if (!page_rec_is_user_rec(clust_rec)
+            || btr_pcur_get_low_match(&(plan->clust_pcur))
+	       < dict_index_get_n_unique(index)) {
+	
+		ut_a(rec_get_deleted_flag(rec));
+		ut_a(node->read_view);
+
+		/* In a rare case it is possible that no clust rec is found
+		for a delete-marked secondary index record: if in row0umod.c
+		in row_undo_mod_remove_clust_low() we have already removed
+		the clust rec, while purge is still cleaning and removing
+		secondary index records associated with earlier versions of
+		the clustered index record. In that case we know that the
+		clustered index record did not exist in the read view of
+		trx. */
+
+		clust_rec = NULL;
+
+		goto func_exit;
+	}
 
 	if (!node->read_view) {
 		/* Try to place a lock on the index record */
 		
 		err = lock_clust_rec_read_check_and_lock(0, clust_rec, index,
-					node->row_lock_mode, LOCK_ORDINARY, thr);
+				node->row_lock_mode, LOCK_ORDINARY, thr);
 		if (err != DB_SUCCESS) {
 
 			return(err);
@@ -656,13 +687,14 @@ row_sel_get_clust_rec(
 			*out_rec = clust_rec;
 
 			return(DB_SUCCESS);
-		}								
+		}
 	}
 
 	/* Fetch the columns needed in test conditions */
 	
 	row_sel_fetch_columns(index, clust_rec,
 					UT_LIST_GET_FIRST(plan->columns));
+func_exit:
 	*out_rec = clust_rec;
 
 	return(DB_SUCCESS);
@@ -1243,6 +1275,8 @@ rec_loop:
 	set: the cursor is now placed on a user record */
 
 	/* PHASE 3: Get previous version in a consistent read */
+
+	cons_read_requires_clust_rec = FALSE;
 
 	if (consistent_read) {
 		/* This is a non-locking consistent read: if necessary, fetch
@@ -1850,9 +1884,11 @@ row_printf_step(
 } 
 
 /********************************************************************
-Converts a key value stored in MySQL format to an Innobase dtuple.
-The last field of the key value may be just a prefix of a fixed length
-field: hence the parameter key_len. */
+Converts a key value stored in MySQL format to an Innobase dtuple. The last
+field of the key value may be just a prefix of a fixed length field: hence
+the parameter key_len. But currently we do not allow search keys where the
+last field is only a prefix of the full key field len and print a warning if
+such appears. */
 
 void
 row_sel_convert_mysql_key_to_innobase(
@@ -1863,17 +1899,24 @@ row_sel_convert_mysql_key_to_innobase(
 					to index! */
 	byte*		buf,		/* in: buffer to use in field
 					conversions */
+	ulint		buf_len,	/* in: buffer length */
 	dict_index_t*	index,		/* in: index of the key value */
 	byte*		key_ptr,	/* in: MySQL key value */
 	ulint		key_len)	/* in: MySQL key value length */
 {
+	byte*		original_buf	= buf;
+	dict_field_t*	field;
 	dfield_t*	dfield;
-	ulint		offset;
-	ulint		len;
+	ulint		data_offset;
+	ulint		data_len;
+	ulint		data_field_len;
+	ibool		is_null;
 	byte*		key_end;
 	ulint		n_fields = 0;
+	ulint		type;
 	
-	UT_NOT_USED(index);
+	/* For documentation of the key value storage format in MySQL, see
+	ha_innobase::store_key_val_for_row() in ha_innodb.cc. */
 
 	key_end = key_ptr + key_len;
 
@@ -1882,11 +1925,14 @@ row_sel_convert_mysql_key_to_innobase(
 	dtuple_set_n_fields(tuple, ULINT_MAX);
 
 	dfield = dtuple_get_nth_field(tuple, 0);
+	field = dict_index_get_nth_field(index, 0);
 
 	if (dfield_get_type(dfield)->mtype == DATA_SYS) {
-		/* A special case: we are looking for a position in a
-		generated clustered index: the first and the only
-		ordering column is ROW_ID */
+		/* A special case: we are looking for a position in the
+		generated clustered index which InnoDB automatically added
+		to a table with no primary key: the first and the only
+		ordering column is ROW_ID which InnoDB stored to the key_ptr
+		buffer. */
 
 		ut_a(key_len == DATA_ROW_ID_LEN);
 
@@ -1897,70 +1943,114 @@ row_sel_convert_mysql_key_to_innobase(
 		return;
 	}
 
-  	while (key_ptr < key_end) {
-		offset = 0;
-		len = dfield_get_type(dfield)->len;
+	while (key_ptr < key_end) {
 
-		n_fields++;    		
+		ut_a(dict_col_get_type(field->col)->mtype
+		     == dfield_get_type(dfield)->mtype);
+
+		data_offset = 0;
+		is_null = FALSE;
 
     		if (!(dfield_get_type(dfield)->prtype & DATA_NOT_NULL)) {
     			/* The first byte in the field tells if this is
     			an SQL NULL value */
     			
-    			offset = 1;
+			data_offset = 1;
 
-			if (*key_ptr != 0) {
+ 			if (*key_ptr != 0) {
       				dfield_set_data(dfield, NULL, UNIV_SQL_NULL);
 
-      				goto next_part;
+				is_null = TRUE;
       			}
       		}
 
-		row_mysql_store_col_in_innobase_format(
-				dfield, buf, key_ptr + offset, len,
-					dfield_get_type(dfield)->mtype,
+		type = dfield_get_type(dfield)->mtype;
+
+		/* Calculate data length and data field total length */
+
+		if (type == DATA_BLOB) {
+			/* The key field is a column prefix of a BLOB or
+			TEXT type column */
+
+			ut_a(field->prefix_len > 0);
+
+			/* MySQL stores the actual data length to the first 2
+			bytes after the optional SQL NULL marker byte. The
+			storage format is little-endian. */
+
+			/* There are no key fields > 255 bytes currently in
+			MySQL */
+			if (key_ptr[data_offset + 1] != 0) {
+				ut_print_timestamp(stderr);
+			        fprintf(stderr,
+"  InnoDB: Error: BLOB or TEXT prefix > 255 bytes in query to table %s\n",
+				 index->table_name);
+			}
+
+			data_len = key_ptr[data_offset];
+			data_field_len = data_offset + 2 + field->prefix_len;
+			data_offset += 2;
+			
+			type = DATA_CHAR; /* now that we know the length, we
+					  store the column value like it would
+					  be a fixed char field */
+		} else if (field->prefix_len > 0) {
+		        data_len = field->prefix_len;
+			data_field_len = data_offset + data_len;
+		} else {
+			data_len = dfield_get_type(dfield)->len;
+			data_field_len = data_offset + data_len;
+		}
+
+		/* Storing may use at most data_len bytes of buf */
+		
+		if (!is_null) {
+		        row_mysql_store_col_in_innobase_format(
+					dfield, buf, key_ptr + data_offset,
+					data_len, type,
 					dfield_get_type(dfield)->prtype
 							& DATA_UNSIGNED);
-	next_part:
-    		key_ptr += (offset + len);
+			buf += data_len;
+		}
+
+    		key_ptr += data_field_len;
 
 		if (key_ptr > key_end) {
-			/* The last field in key was not a complete
-			field but a prefix of it.
+			/* The last field in key was not a complete key field
+			but a prefix of it.
 
-		        Print a warning about this! HA_READ_PREFIX_LAST
-		        does not currently work in InnoDB with partial-field
-		        key value prefixes. Since MySQL currently uses a
-		        padding trick to calculate LIKE 'abc%' type queries
-		        there should never be partial-field prefixes
-		        in searches. */
+		        Print a warning about this! HA_READ_PREFIX_LAST does
+			not currently work in InnoDB with partial-field key
+			value prefixes. Since MySQL currently uses a padding
+			trick to calculate LIKE 'abc%' type queries there
+			should never be partial-field prefixes in searches. */
 
 		        ut_print_timestamp(stderr);
 			
 			fprintf(stderr,
   "  InnoDB: Warning: using a partial-field key prefix in search\n");
 
-			ut_ad(dfield_get_len(dfield) != UNIV_SQL_NULL);
-			
-			dfield_set_data(dfield, buf,
-					len - (ulint)(key_ptr - key_end));
+			if (!is_null) {
+			        dfield->len -= (ulint)(key_ptr - key_end);
+			}
 		}
 
-		buf += len;
-    		
+		n_fields++;    		
+    		field++;
 		dfield++;
   	}
 
- 	/* We set the length of tuple to n_fields: we assume that
-	the memory area allocated for it is big enough (usually
-	bigger than n_fields). */
+	ut_a(buf <= original_buf + buf_len);
+
+ 	/* We set the length of tuple to n_fields: we assume that the memory
+	area allocated for it is big enough (usually bigger than n_fields). */
  	
  	dtuple_set_n_fields(tuple, n_fields);
 }
 
 /******************************************************************
 Stores the row id to the prebuilt struct. */
-UNIV_INLINE
+static
 void
 row_sel_store_row_id_to_prebuilt(
 /*=============================*/
@@ -1970,11 +2060,22 @@ row_sel_store_row_id_to_prebuilt(
 {
 	byte*	data;
 	ulint	len;
+	char	err_buf[1000];
 
 	data = rec_get_nth_field(index_rec,
 			dict_index_get_sys_col_pos(index, DATA_ROW_ID), &len);
 
-	ut_a(len == DATA_ROW_ID_LEN);
+	if (len != DATA_ROW_ID_LEN) {
+		rec_sprintf(err_buf, 900, index_rec);
+
+	        fprintf(stderr,
+"InnoDB: Error: Row id field is wrong length %lu in table %s index %s\n"
+"InnoDB: Field number %lu, record:\n%s\n",
+		      len, index->table_name, index->name,
+		      dict_index_get_sys_col_pos(index, DATA_ROW_ID),
+		      err_buf);
+		ut_a(0);
+	}
 
 	ut_memcpy(prebuilt->row_id, data, len);
 }
@@ -2210,7 +2311,10 @@ row_sel_get_clust_rec_for_mysql(
 				/* out: DB_SUCCESS or error code */
 	row_prebuilt_t*	prebuilt,/* in: prebuilt struct in the handle */
 	dict_index_t*	sec_index,/* in: secondary index where rec resides */
-	rec_t*		rec,	/* in: record in a non-clustered index */
+	rec_t*		rec,	/* in: record in a non-clustered index; if
+				this is a locking read, then rec is not
+				allowed to be delete-marked, and that would
+				not make sense either */
 	que_thr_t*	thr,	/* in: query thread */
 	rec_t**		out_rec,/* out: clustered record or an old version of
 				it, NULL if the old version did not exist
@@ -2226,7 +2330,7 @@ row_sel_get_clust_rec_for_mysql(
 	ulint		err;
 	trx_t*		trx;
 	char		err_buf[1000];
-
+	
 	*out_rec = NULL;
 	
 	row_build_row_ref_in_tuple(prebuilt->clust_ref, sec_index, rec);
@@ -2239,26 +2343,47 @@ row_sel_get_clust_rec_for_mysql(
 
 	clust_rec = btr_pcur_get_rec(prebuilt->clust_pcur);
 
-	if (!page_rec_is_user_rec(clust_rec)) {
-		ut_print_timestamp(stderr);
-	  	fprintf(stderr,
-		"  InnoDB: error clustered record for sec rec not found\n"
-		"InnoDB: index %s table %s\n", sec_index->name,
-		  	sec_index->table->name);
+	/* Note: only if the search ends up on a non-infimum record is the
+	low_match value the real match to the search tuple */
 
-	  	rec_sprintf(err_buf, 900, rec);
-	  	fprintf(stderr, "InnoDB: sec index record %s\n", err_buf);
+	if (!page_rec_is_user_rec(clust_rec)
+	    || btr_pcur_get_low_match(prebuilt->clust_pcur)
+	       < dict_index_get_n_unique(clust_index)) {
+	
+		/* In a rare case it is possible that no clust rec is found
+		for a delete-marked secondary index record: if in row0umod.c
+		in row_undo_mod_remove_clust_low() we have already removed
+		the clust rec, while purge is still cleaning and removing
+		secondary index records associated with earlier versions of
+		the clustered index record. In that case we know that the
+		clustered index record did not exist in the read view of
+		trx. */
 
-	  	rec_sprintf(err_buf, 900, clust_rec);
-	  	fprintf(stderr, "InnoDB: clust index record %s\n", err_buf);
+		if (!rec_get_deleted_flag(rec)
+		    || prebuilt->select_lock_type != LOCK_NONE) {
 
-		trx = thr_get_trx(thr);
-		trx_print(err_buf, trx);
+		        ut_print_timestamp(stderr);
+			fprintf(stderr,
+                "  InnoDB: error clustered record for sec rec not found\n"
+                "InnoDB: index %s table %s\n", sec_index->name,
+					       sec_index->table->name);
 
-	  	fprintf(stderr,
-		"%s\nInnoDB: Make a detailed bug report and send it\n",
-							err_buf);
-	  	fprintf(stderr, "InnoDB: to mysql@lists.mysql.com\n");
+			rec_sprintf(err_buf, 900, rec);
+			fprintf(stderr,
+		"InnoDB: sec index record %s\n", err_buf);
+
+			rec_sprintf(err_buf, 900, clust_rec);
+			fprintf(stderr,
+			 "InnoDB: clust index record %s\n", err_buf);
+
+			trx = thr_get_trx(thr);
+			trx_print(err_buf, trx);
+
+			fprintf(stderr,
+                "%s\nInnoDB: Make a detailed bug report and send it\n",
+                                                        err_buf);
+			fprintf(stderr, "InnoDB: to mysql@lists.mysql.com\n");
+		}
 
 		clust_rec = NULL;
 
@@ -2936,8 +3061,6 @@ rec_loop:
 	/*-------------------------------------------------------------*/
 	/* PHASE 4: Look for matching records in a loop */
 	
-	cons_read_requires_clust_rec = FALSE;
-
 	rec = btr_pcur_get_rec(pcur);
 /*
 	printf("Using index %s cnt %lu ", index->name, cnt);
@@ -3044,7 +3167,7 @@ rec_loop:
 
 			if (prebuilt->select_lock_type != LOCK_NONE
 		    	    && set_also_gap_locks) {
-				/* Try to place a lock on the index record */	
+				/* Try to place a lock on the index record */
 
 				err = sel_set_rec_lock(rec, index,
 						prebuilt->select_lock_type,
@@ -3092,6 +3215,8 @@ rec_loop:
 	/* We are ready to look at a possible new index entry in the result
 	set: the cursor is now placed on a user record */
 
+	cons_read_requires_clust_rec = FALSE;
+
 	if (prebuilt->select_lock_type != LOCK_NONE) {
 		/* Try to place a lock on the index record; note that delete
 		marked records are a special case in a unique search. If there
@@ -3116,8 +3241,6 @@ rec_loop:
 	} else {
 		/* This is a non-locking consistent read: if necessary, fetch
 		a previous version of the record */
-
-		cons_read_requires_clust_rec = FALSE;
 
 		if (trx->isolation_level == TRX_ISO_READ_UNCOMMITTED) {
 
@@ -3162,7 +3285,7 @@ rec_loop:
 
 	if (rec_get_deleted_flag(rec) && !cons_read_requires_clust_rec) {
 
-		/* The record is delete marked: we can skip it if this is
+		/* The record is delete-marked: we can skip it if this is
 		not a consistent read which might see an earlier version
 		of a non-clustered index record */
 		
@@ -3275,7 +3398,7 @@ got_row:
 	goto normal_return;
 
 next_rec:
-	/*-------------------------------------------------------------*/	
+	/*-------------------------------------------------------------*/
 	/* PHASE 5: Move the cursor to the next index record */
 	
 	if (mtr_has_extra_clust_latch) {

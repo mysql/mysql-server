@@ -273,7 +273,7 @@ static int _mi_put_key_in_record(register MI_INFO *info, uint keynr,
   byte *blob_ptr;
   DBUG_ENTER("_mi_put_key_in_record");
 
-  if (info->blobs && info->s->keyinfo[keynr].flag & HA_VAR_LENGTH_KEY)
+  if (info->s->base.blobs && info->s->keyinfo[keynr].flag & HA_VAR_LENGTH_KEY)
   {
     if (!(blob_ptr=
 	  mi_alloc_rec_buff(info, info->s->keyinfo[keynr].keylength,

@@ -38,11 +38,14 @@ $opt_export_only= undef;
 $opt_help= $opt_verbose= 0;
 $opt_log= undef;
 $opt_mail= "";
+$opt_revision= undef;
 $opt_suffix= "";
 $opt_test= undef;
 $opt_skip_check= undef;
 $opt_skip_manual= undef;
+$opt_win_dist= undef;
 $version= "unknown";
+$major=$minor=$release=0;
 
 GetOptions(
 	"build-command|b=s",
@@ -60,7 +63,8 @@ GetOptions(
 	"skip-manual",
 	"suffix=s",
 	"test|t",
-	"verbose|v"
+	"verbose|v",
+	"win-dist|w"
 ) || print_help("");
 
 #
@@ -149,6 +153,7 @@ if (!$opt_dry_run)
 	{
 		m/^AM_INIT_AUTOMAKE\(mysql, ([1-9]\.[0-9]{1,2}\.[0-9]{1,2}.*)\)/;
     $version= $1;
+		($major, $minor, $release) = split(/\./,$version);
 	}
 	&logger("Found version string: $version");
 
@@ -218,7 +223,7 @@ if (defined $opt_changelog)
 	{
 		if (!$opt_revision)
 		{
-			$revision= `bk changes -t -d':REV:' -n $REPO | head -1`;
+			$revision= `bk changes -t -d':REV:::TAG:' -n $REPO | grep mysql-$major.$minor | head -1 | cut -f1 -d ":"`;
 		}
 		else
 		{
@@ -300,7 +305,17 @@ $command= "make dist";
 &run_command($command, "make dist failed!");
 
 #
-# Run "make distcheck" to verify the source archive 
+# Package the Windows source
+#
+if ($opt_win_dist)
+{
+	&logger ("Creating Windows source package");
+	$command= "./scripts/make_win_src_distibution";
+	&run_command($command, "make_win_src_distribution failed!");
+}
+
+#
+# Run "make distcheck" to verify the source archive
 #
 if (!$opt_skip_check)
 {
@@ -327,7 +342,7 @@ sub print_help
 		print "ERROR: $message\n";
 	}
 	print <<EOF;
-	
+
 Usage: Bootstrap [options] <bk repository>
 
 Checks out (exports) a clear-text version of the given local BitKeeper
@@ -373,6 +388,7 @@ Options:
                            (e.g. "-20020518").
 -t, --test                 Run the test suite after build
 -v, --verbose              Be verbose
+-w, --win-dist             Also make Windows source distribution
 
 Example:
 

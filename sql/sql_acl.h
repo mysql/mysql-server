@@ -76,8 +76,8 @@
 #define get_rights_for_db(A) (((A) & 63) | (((A) & DB_CHUNK1) >> 4) | (((A) & DB_CHUNK2) >> 6))
 #define fix_rights_for_table(A) (((A) & 63) | (((A) & ~63) << 4))
 #define get_rights_for_table(A) (((A) & 63) | (((A) & ~63) >> 4))
-#define fix_rights_for_column(A) (((A) & COL_ACLS) | ((A & ~COL_ACLS) << 7))
-#define get_rights_for_column(A) (((A) & COL_ACLS) | ((A & ~COL_ACLS) >> 7))
+#define fix_rights_for_column(A) (((A) & 7) | (((A) & ~7) << 8))
+#define get_rights_for_column(A) (((A) & 7) | ((A) >> 8))
 
 /* Classes */
 
@@ -134,7 +134,7 @@ my_bool  acl_init(THD *thd, bool dont_read_acl_tables);
 void acl_reload(THD *thd);
 void acl_free(bool end=0);
 ulong acl_get(const char *host, const char *ip, const char *bin_ip,
-	      const char *user, const char *db);
+	      const char *user, const char *db, my_bool db_is_pattern);
 ulong acl_getroot(THD *thd, const char *host, const char *ip, const char *user,
 		  const char *password,const char *scramble,
                   char **priv_user, char *priv_host,

@@ -105,7 +105,7 @@ insert into t1 values ("hello"),("hello"),("hello"),("hello"),("hello"),("a"),("
 explain select * from t1 where btn like "q%";
 select * from t1 where btn like "q%";
 alter table t1 add column new_col char(1) not null, add key using HASH (btn,new_col), drop key btn;
-update t1 set new_col=btn;
+update t1 set new_col=left(btn,1);
 explain select * from t1 where btn="a";
 explain select * from t1 where btn="a" and new_col="a";
 drop table t1;

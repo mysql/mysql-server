@@ -15,12 +15,11 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
-/* mysql standard open memoryallocator */
-
 #ifdef __GNUC__
 #pragma interface			/* gcc class implementation */
 #endif
 
+/* mysql standard class memoryallocator */
 
 class Sql_alloc
 {
@@ -48,14 +47,15 @@ public:
 
 };
 
+
 /*
-** basic single linked list
-** Used for item and item_buffs.
-** All list ends with a pointer to the 'end_of_list' element, which
-** data pointer is a null pointer and the next pointer points to itself.
-** This makes it very fast to traverse lists as we don't have to
-** test for a specialend condition for list that can't contain a null
-** pointer.
+  Basic single linked list
+  Used for item and item_buffs.
+  All list ends with a pointer to the 'end_of_list' element, which
+  data pointer is a null pointer and the next pointer points to itself.
+  This makes it very fast to traverse lists as we don't have to
+  test for a specialend condition for list that can't contain a null
+  pointer.
 */
 
 class list_node :public Sql_alloc
@@ -75,9 +75,11 @@ public:
   friend class base_list_iterator;
 };
 
+
 extern list_node end_of_list;
 
-class base_list :public Sql_alloc {
+class base_list :public Sql_alloc
+{
 protected:
   list_node *first,**last;
 
@@ -267,6 +269,7 @@ public:
   inline T** ref(void)	    { return (T**) base_list_iterator::ref(); }
 };
 
+
 template <class T> class List_iterator_fast :public base_list_iterator
 {
 protected:
@@ -288,11 +291,12 @@ public:
 
 
 /*
-** A simple intrusive list which automaticly removes element from list
-** on delete (for THD element)
+  A simple intrusive list which automaticly removes element from list
+  on delete (for THD element)
 */
 
-struct ilink {
+struct ilink
+{
   struct ilink **prev,*next;
   static void *operator new(size_t size)
   {
@@ -317,9 +321,11 @@ struct ilink {
   virtual ~ilink() { unlink(); }		/*lint -e1740 */
 };
 
+
 template <class T> class I_List_iterator;
 
-class base_ilist {
+class base_ilist
+{
   public:
   struct ilink *first,last;
   inline void empty() { first= &last; last.prev= &first; }
@@ -368,7 +374,8 @@ public:
 
 
 template <class T>
-class I_List :private base_ilist {
+class I_List :private base_ilist
+{
 public:
   I_List() :base_ilist()	{}
   inline void empty()		{ base_ilist::empty(); }

@@ -193,13 +193,13 @@ Item_sum_hybrid::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     max_length=float_length(decimals);
   }else
   {
-    cmp_charset= item->charset();
+    cmp_charset= item->collation.collation;
     max_length=item->max_length;
   }
   decimals=item->decimals;
   maybe_null=item->maybe_null;
   unsigned_flag=item->unsigned_flag;
-  set_charset(item->charset());
+  collation.set(item->collation);
   result_field=0;
   null_value=1;
   fix_length_and_dec();
@@ -1023,7 +1023,9 @@ int simple_str_key_cmp(void* arg, byte* key1, byte* key2)
   Item_sum_count_distinct* item = (Item_sum_count_distinct*)arg;
   CHARSET_INFO *cs=item->key_charset;
   uint len=item->key_length;
-  return my_strnncoll(cs, (const uchar*) key1, len, (const uchar*) key2, len);
+  return cs->coll->strnncollsp(cs, 
+			       (const uchar*) key1, len, 
+			       (const uchar*) key2, len);
 }
 
 /*
@@ -1146,7 +1148,7 @@ bool Item_sum_count_distinct::setup(THD *thd)
   if (!(table= create_tmp_table(thd, tmp_table_param, list, (ORDER*) 0, 1,
 				0,
 				select_lex->options | thd->options,
-				HA_POS_ERROR)))
+				HA_POS_ERROR, (char*)"")))
     return 1;
   table->file->extra(HA_EXTRA_NO_ROWS);		// Don't update rows
   table->no_rows=1;
@@ -1835,7 +1837,8 @@ bool Item_func_group_concat::setup(THD *thd)
     (types, sizes and so on).
   */
   if (!(table=create_tmp_table(thd, tmp_table_param, all_fields, 0,
-			       0, 0, 0,select_lex->options | thd->options)))
+			       0, 0, 0,select_lex->options | thd->options,
+			       (char *) "")))
     DBUG_RETURN(1);
   table->file->extra(HA_EXTRA_NO_ROWS);
   table->no_rows= 1;
