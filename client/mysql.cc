@@ -104,6 +104,7 @@ extern "C" {
 #include "completion_hash.h"
 
 #define PROMPT_CHAR '\\'
+#define DEFAULT_DELIMITER ';'
 
 typedef struct st_status
 {
@@ -156,6 +157,7 @@ static char pager[FN_REFLEN], outfile[FN_REFLEN];
 static FILE *PAGER, *OUTFILE;
 static MEM_ROOT hash_mem_root;
 static uint prompt_counter;
+static char delimiter= DEFAULT_DELIMITER;
 
 #ifdef HAVE_SMEM
 static char *shared_memory_base_name=0;
@@ -183,7 +185,7 @@ static int com_quit(String *str,char*),
 	   com_use(String *str,char*), com_source(String *str, char*),
 	   com_rehash(String *str, char*), com_tee(String *str, char*),
            com_notee(String *str, char*),
-           com_prompt(String *str, char*);
+           com_prompt(String *str, char*), com_delimiter(String *str, char*);
 
 #ifdef USE_POPEN
 static int com_nopager(String *str, char*), com_pager(String *str, char*),
@@ -251,7 +253,8 @@ static COMMANDS commands[] = {
     "Set outfile [to_outfile]. Append everything into given outfile." },
   { "use",    'u', com_use,    1,
     "Use another database. Takes database name as argument." },
-
+  { "delimiter", 'd', com_delimiter,    1,
+    "Set query delimiter. " },
   /* Get bash-like expansion for some commands */
   { "create table",     0, 0, 0, ""},
   { "create database",  0, 0, 0, ""},
@@ -921,7 +924,7 @@ static COMMANDS *find_command (char *name,char cmd_char)
   {
     while (my_isspace(charset_info,*name))
       name++;
-    if (strchr(name,';') || strstr(name,"\\g"))
+    if (strchr(name, delimiter) || strstr(name,"\\g"))
       return ((COMMANDS *) 0);
     if ((end=strcont(name," \t")))
     {
@@ -999,7 +1002,7 @@ static bool add_line(String &buffer,char *line,char *in_string,
 	  return 1;				// Quit
 	if (com->takes_params)
 	{
-	  for (pos++ ; *pos && *pos != ';' ; pos++) ;	// Remove parameters
+          for (pos++ ; *pos && *pos != delimiter; pos++) ; // Remove parameters
 	  if (!*pos)
 	    pos--;
 	}
@@ -1015,7 +1018,7 @@ static bool add_line(String &buffer,char *line,char *in_string,
 	continue;
       }
     }
-    else if (!*ml_comment && inchar == ';' && !*in_string)
+    else if (!*ml_comment && inchar == delimiter && !*in_string)
     {						// ';' is end of command
       if (out != line)
 	buffer.append(line,(uint) (out-line));	// Add this line
@@ -1532,7 +1535,7 @@ com_help(String *buffer __attribute__((unused)),
     for (i = 0; commands[i].name; i++)
     {
       if (commands[i].func)
-        tee_fprintf(stdout, "%s\t(\\%c)\t%s\n", commands[i].name,
+	tee_fprintf(stdout, "%-10s(\\%c)\t%s\n", commands[i].name,
 		    commands[i].cmd_char, commands[i].doc);
     }
   }
@@ -2369,6 +2372,37 @@ static int com_source(String *buffer, char *line)
   return error;
 }
 
+	/* ARGSUSED */
+static int
+com_delimiter(String *buffer __attribute__((unused)), char *line)
+{
+  char *tmp;
+  char buff[256];
+
+  if (strlen(line)> 255)
+  {
+    put_info("'DELIMITER' command was too long.", INFO_ERROR);
+    return 0;
+  }
+  bzero(buff, sizeof(buff));
+  strmov(buff, line);
+  tmp= get_arg(buff, 0);
+
+  if (!tmp || !*tmp)
+  {
+    put_info("DELIMITER must be followed by a 'delimiter' char", INFO_ERROR);
+    return 0;
+  }
+
+  if (strlen(tmp)> 1)
+  {
+    put_info("Argument must be one char", INFO_ERROR);
+    return 0;
+  }
+
+  delimiter= *tmp;
+  return 0;
+}
 
 	/* ARGSUSED */
 static int

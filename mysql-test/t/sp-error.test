@@ -1,0 +1,111 @@
+#
+# Stored PROCEDURE error tests
+#
+
+# Make sure we don't have any procedures left.
+delete from mysql.proc;
+
+delimiter |;
+
+# Check that we get the right error, i.e. UDF declaration parses correctly,
+# but foo.so doesn't exist.
+# QQ This generates an error message containing a misleading errno which
+#    might vary between systems (it usually doesn't have anything to do with
+#    the actual failing dlopen()).
+#--error 1126
+#create function foo returns real soname "foo.so"|
+
+create procedure proc1()
+  set @x = 42|
+
+create function func1() returns int
+  return 42|
+
+# Can't create recursively
+--error 1254
+create procedure foo()
+  create procedure bar() set @x=3|
+--error 1254
+create procedure foo()
+  create function bar() returns double return 2.3|
+
+# Already exists
+--error 1255
+create procedure proc1()
+  set @x = 42|
+--error 1255
+create function func1() returns int
+  return 42|
+
+# Does not exist
+--error 1256
+alter procedure foo|
+--error 1256
+alter function foo|
+--error 1256
+drop procedure foo|
+--error 1256
+drop function foo|
+--error 1256
+call foo()|
+drop procedure if exists foo|
+
+# LEAVE/ITERATE with no match
+--error 1259
+create procedure foo()
+foo: loop
+  leave bar;
+end loop|
+--error 1259
+create procedure foo()
+foo: loop
+  iterate bar;
+end loop|
+
+# Redefining label
+--error 1260
+create procedure foo()
+foo: loop
+  foo: loop
+    set @x=2;
+  end loop foo;
+end loop foo|
+
+# End label mismatch
+--error 1261
+create procedure foo()
+foo: loop
+  set @x=2;
+end loop bar|
+
+# Referring to undef variable
+--error 1262
+create procedure foo(out x int)
+begin
+  declare y int;
+  set x = y;
+end|
+
+# We require INTO in SELECTs (for now; this might change in the future)
+--error 1263
+create procedure foo(x int)
+  select * from test.t1|
+
+# RETURN in FUNCTION only
+--error 1264
+create procedure foo()
+  return 42|
+
+# Doesn't allow queries in FUNCTIONs (for now :-( )
+--error 1265
+create function foo() returns int
+begin
+  declare x int;
+  select max(c) into x from test.t;
+  return x;
+end|
+
+drop procedure proc1|
+drop function func1|
+
+delimiter ;|
