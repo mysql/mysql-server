@@ -870,7 +870,7 @@ void MYSQL_LOG::new_file(bool need_lock)
   close(LOG_CLOSE_TO_BE_OPENED);
 
   /* 
-     Note that at this point, log_type == LOG_CLOSED (important for is_open()).
+     Note that at this point, log_type != LOG_CLOSED (important for is_open()).
   */
 
   open(old_name, save_log_type, new_name_ptr, index_file_name, io_cache_type,
