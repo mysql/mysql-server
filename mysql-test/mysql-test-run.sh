@@ -60,7 +60,7 @@ TIMEFILE="$MYSQL_TEST_DIR/var/tmp/mysqltest-time"
 RES_SPACE="      "
 MYSQLD_SRC_DIRS="strings mysys include extra regex isam merge myisam \
  myisammrg heap sql"
-GCOV_MSG=/tmp/mysqld-gcov.out #gcov output
+GCOV_MSG=/tmp/mysqld-gcov.out
 GCOV_ERR=/tmp/mysqld-gcov.err  
 
 MASTER_RUNNING=0
@@ -136,41 +136,29 @@ MYSQL_TEST="$MYSQL_TEST --no-defaults --socket=$MASTER_MYSOCK --database=$DB --u
 GDB_MASTER_INIT=/tmp/gdbinit.master
 GDB_SLAVE_INIT=/tmp/gdbinit.slave
 
-if [ "$1" = "--force" ] ; then
- FORCE=1
- shift 1
-fi
-
-
-if [ "$1" = "--record" ] ; then
- RECORD=1
- shift 1
-fi
-
-
-if [ "$1" = "--gcov" ];
-then
-  if [ x$BINARY_DIST = x1 ] ; then
-   echo "Cannot do coverage test without the source - please us source dist"
-   exit 1
-  fi
-  DO_GCOV=1
-  shift 1
-fi  
-
-if [ "$1" = "--gdb" ];
-then
-# if the user really wanted to run binary dist in a debugger, he can
-# but we should warn him
-  if [ x$BINARY_DIST = x1 ] ; then
-   echo "Note: you will get more meaningful output on a source distribution \
-   compiled with debugging option when running tests with -gdb option"
-  fi
-  DO_GDB=1
-  shift 1
-fi  
-
-
+while test $# -gt 0; do
+  case "$1" in
+    --force ) FORCE=1 ;;
+    --record ) RECORD=1 ;;
+    --gcov )
+      if [ x$BINARY_DIST = x1 ] ; then
+	echo "Cannot do coverage test without the source - please use source dist"
+	exit 1
+      fi
+      DO_GCOV=1
+      ;;
+    --gdb )
+      if [ x$BINARY_DIST = x1 ] ; then
+	echo "Note: you will get more meaningful output on a source distribution compiled with debugging option when running tests with -gdb option"
+      fi
+      DO_GDB=1
+      ;;
+    -- )  shift; break ;;
+    --* ) echo "Unrecognized option: $1"; exit 1 ;;
+    * ) break ;;
+  esac
+  shift
+done
 
 #++
 # Function Definitions

@@ -6,7 +6,7 @@ for arg in "$@"; do
 done
 
 
-CFLAGS="$cflags" CXX=gcc CXXFLAGS="$cxxflags" eval "$configure"
+eval "CFLAGS='$cflags' CXX=gcc CXXFLAGS='$cxxflags' $configure"
 
 if [ "x$do_make" = "xno" ] ; then
  exit 0

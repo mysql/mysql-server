@@ -328,3 +328,4 @@ serg@serg.mysql.com|mysql-test/r/ft0000002.c.result|20001212120059|07173|cd66b90
 serg@serg.mysql.com|mysql-test/r/sel000031.result|20001211130803|03576|d49aeac63ad7db4d
 serg@serg.mysql.com|mysql-test/r/sel000032.result|20001211130803|08537|6cb30e23cbca9fb0
 serg@serg.mysql.com|mysql-test/r/sel000033.result|20001211130803|13548|56d1d02d72b94602
+sasha@mysql.sashanet.com|mysql-test/README.gcov|20001214012355|41825|2de7575ca81155e5
