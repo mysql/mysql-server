@@ -1776,7 +1776,7 @@ sp_case:
 	    else
 	    { /* Simple case: <caseval> = <whenval> */
 	      Item *var= (Item*) new Item_splocal(ctx->current_framesize()-1);
-	      Item *expr= Item_bool_func2::eq_creator(var, $1);
+	      Item *expr= new Item_func_eq(var, $1);
 
 	      i= new sp_instr_jump_if_not(ip, expr);
 	    }

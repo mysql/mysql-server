@@ -108,7 +108,7 @@ THD::THD():user_time(0), is_fatal_error(0),
   used_tables=0;
   cuted_fields= sent_row_count= current_stmt_id= 0L;
   // Must be reset to handle error with THD's created for init of mysqld
-  lex.current_select= 0;
+  lex->current_select= 0;
   start_time=(time_t) 0;
   current_linfo =  0;
   slave_thread = 0;

@@ -1876,7 +1876,7 @@ mysql_execute_command(THD *thd)
 	  char buff[1024];
 	  String str(buff,(uint32) sizeof(buff), system_charset_info);
 	  str.length(0);
-	  thd->lex.unit.print(&str);
+	  thd->lex->unit.print(&str);
 	  str.append('\0');
 	  push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
 		       ER_YES, str.ptr());
