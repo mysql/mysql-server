@@ -1021,6 +1021,13 @@ public:
   int tuxReadPk(Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32* dataOut);
 
   /*
+   * ACC reads primary key without headers into an array of words.  At
+   * this point in ACC deconstruction, ACC still uses logical references
+   * to fragment and tuple.
+   */
+  int accReadPk(Uint32 tableId, Uint32 fragId, Uint32 fragPageId, Uint32 pageIndex, Uint32* dataOut);
+
+  /*
    * TUX checks if tuple is visible to scan.
    */
   bool tuxQueryTh(Uint32 fragPtrI, Uint32 tupAddr, Uint32 tupVersion, Uint32 transId1, Uint32 transId2, Uint32 savePointId);
