@@ -408,7 +408,7 @@ struct system_variables
   /* Determines which non-standard SQL behaviour should be enabled */
   ulong sql_mode;
   /* check of key presence in updatable view */
-  ulong sql_updatable_view_key;
+  ulong updatable_views_with_limit;
   ulong default_week_format;
   ulong max_seeks_for_key;
   ulong range_alloc_block_size;

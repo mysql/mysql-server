@@ -628,20 +628,17 @@ create table t1 (a int, b int, c int, primary key(a,b));
 insert into t1 values (10,2,-1), (20,3,-2), (30,4,-3), (40,5,-4), (50,10,-5);
 create view v1 (x,y) as select a, b from t1;
 create view v2 (x,y) as select a, c from t1;
-set sql_updatable_view_key=YES;
-update v1 set x=x+1;
--- error 1288
-update v2 set x=x+1;
-set sql_updatable_view_key=LIMIT1;
+set updatable_views_with_limit=NO;
 update v1 set x=x+1;
 update v2 set x=x+1;
 update v1 set x=x+1 limit 1;
 -- error 1288
 update v2 set x=x+1 limit 1;
-set sql_updatable_view_key=NO;
+set updatable_views_with_limit=YES;
 update v1 set x=x+1 limit 1;
 update v2 set x=x+1 limit 1;
-set sql_updatable_view_key=DEFAULT;
+set updatable_views_with_limit=DEFAULT;
+show variables like "updatable_views_with_limit";
 select * from t1;
 drop table t1;
 drop view v1,v2;

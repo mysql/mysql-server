@@ -24,11 +24,11 @@
 static int mysql_register_view(THD *thd, TABLE_LIST *view,
 			       enum_view_create_mode mode);
 
-const char *sql_updatable_view_key_names[]= { "NO", "YES", "LIMIT1", NullS };
-TYPELIB sql_updatable_view_key_typelib=
+const char *updatable_views_with_limit_names[]= { "NO", "YES", NullS };
+TYPELIB updatable_views_with_limit_typelib=
 {
-  array_elements(sql_updatable_view_key_names)-1, "",
-  sql_updatable_view_key_names
+  array_elements(updatable_views_with_limit_names)-1, "",
+  updatable_views_with_limit_names
 };
 
 
@@ -882,7 +882,8 @@ frm_type_enum mysql_frm_type(char *path)
     view    view for check with opened table
 
   DESCRIPTION
-    check that undertlaying table of viey contain one of following:
+    If it is VIEW and query have LIMIT clause then check that undertlying
+    table of viey contain one of following:
       1) primary key of underlying table
       2) unique key underlying table with fields for which NULL value is
          impossible
@@ -901,8 +902,9 @@ bool check_key_in_view(THD *thd, TABLE_LIST *view)
   uint i, elements_in_view;
   DBUG_ENTER("check_key_in_view");
 
-  if (!view->view)
-    DBUG_RETURN(FALSE); /* it is normal table */
+  if (!view->view ||
+      thd->lex->unit.global_parameters->select_limit == HA_POS_ERROR)
+    DBUG_RETURN(FALSE); /* it is normal table or query without LIMIT */
   table= view->table;
   trans= view->field_translation;
   key_info_end= (key_info= table->key_info)+ table->keys;
@@ -952,26 +954,20 @@ bool check_key_in_view(THD *thd, TABLE_LIST *view)
       }
       if (i == elements_in_view)                // If field didn't exists
       {
-        ulong mode= thd->variables.sql_updatable_view_key;
         /*
-          0 == NO     ; Don't give any errors
-          1 == YES    ; Give always an error
-          2 == LIMIT1 ; Give an error if this is used with LIMIT 1
-                        This is used to protect against GUI programs that
-                        uses LIMIT 1 to update just the current row. This
-                        doesn't work reliable if the view doesn't have a
-                        unique key or if the view doesn't use all fields in
-                        table.
+          Keys or all fields of underlaying tables are not foud => we have
+          to check variable updatable_views_with_limit to decide should we
+          issue an error or just a warning
         */
-        if (mode == 1 ||
-            (mode == 2 &&
-             thd->lex->unit.global_parameters->select_limit == 1))
+        if (thd->variables.updatable_views_with_limit)
         {
-          DBUG_RETURN(TRUE);
+          /* update allowed, but issue warning */
+          push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+                       ER_WARN_VIEW_WITHOUT_KEY, ER(ER_WARN_VIEW_WITHOUT_KEY));
+          DBUG_RETURN(FALSE);
         }
-        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
-                     ER_WARN_VIEW_WITHOUT_KEY, ER(ER_WARN_VIEW_WITHOUT_KEY));
-        DBUG_RETURN(FALSE);
+        /* prohibit update */
+        DBUG_RETURN(TRUE);
       }
     }
   }
