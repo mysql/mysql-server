@@ -475,6 +475,26 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
 
   make_join_readinfo(&join,
 		     (select_options & SELECT_DESCRIBE) | SELECT_USE_CACHE);
+
+  /* Need to tell Innobase that to play it safe, it should fetch all
+     columns of the tables: this is because MySQL
+     may build row pointers for the rows, and for all columns of the primary
+     key the field->query_id has not necessarily been set to thd->query_id
+     by MySQL. */
+
+#ifdef HAVE_INNOBASE_DB
+  if (need_tmp || select_distinct || group || order)
+  {
+    for (uint i_h = join.const_tables; i_h < join.tables; i_h++)
+    {
+      JOIN_TAB*   tab_h = join.join_tab + i_h;
+      TABLE*	  table_h = tab_h->table;
+      if (table_h->db_type == DB_TYPE_INNOBASE)
+	table_h->file->extra(HA_EXTRA_RESTORE_POS);
+    }
+  }
+#endif
+
   DBUG_EXECUTE("info",TEST_join(&join););
   /*
     Because filesort always does a full table scan or a quick range scan
