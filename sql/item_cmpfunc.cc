@@ -878,7 +878,7 @@ String *Item_func_case::val_str(String *str)
 longlong Item_func_case::val_int()
 {
   char buff[MAX_FIELD_WIDTH];
-  String dummy_str(buff,sizeof(buff),default_charset_info);
+  String dummy_str(buff,sizeof(buff),thd_charset());
   Item *item=find_item(&dummy_str);
   longlong res;
 
@@ -895,7 +895,7 @@ longlong Item_func_case::val_int()
 double Item_func_case::val()
 {
   char buff[MAX_FIELD_WIDTH];
-  String dummy_str(buff,sizeof(buff),default_charset_info);
+  String dummy_str(buff,sizeof(buff),thd_charset());
   Item *item=find_item(&dummy_str);
   double res;
 

@@ -225,7 +225,7 @@ public:
   {
     Ptr[str_length++] = c;
   }
-  void q_append(const uint32 &n)
+  void q_append(const uint32 n)
   {
     int4store(Ptr + str_length, n);
     str_length += 4;
