@@ -359,8 +359,7 @@ class Item_func_from_unixtime :public Item_date_func
   longlong val_int();
   String *val_str(String *str);
   const char *func_name() const { return "from_unixtime"; }
-  void fix_length_and_dec() { decimals=0; max_length=19; }
-//  enum Item_result result_type () const { return STRING_RESULT; }
+  void fix_length_and_dec() { decimals=0; max_length=19; maybe_null= 1; }
   bool get_date(TIME *res,bool fuzzy_date);
 };
 
