@@ -31600,6 +31600,34 @@ the following configure options:
 @item CFLAGS=-DUSE_SYMDIR @tab Symbolic links support for Windows.
 @end multitable
 
+Note that as Berkeley DB and InnoDB are not available for all platforms,
+some of the @code{Max} binaries may not have support for both of these.
+You can check which table types are supported by doing the following
+query:
+
+@example
+mysql> show variables like "have_%";
++---------------+-------+
+| Variable_name | Value |
++---------------+-------+
+| have_bdb      | YES   |
+| have_gemini   | NO    |
+| have_innodb   | NO    |
+| have_isam     | YES   |
+| have_raid     | YES   |
+| have_ssl      | NO    |
++---------------+-------+
+@end example
+
+The meaning of the values are:
+
+@multitable @columnfractions .3 .7
+@item @strong{Value} @tab @strong{Meaning}.
+@item YES @tab The option is activated and usable.
+@item NO @tab @strong{MySQL} is not compiled with support for this option.
+@item DISABLED @tab The xxxx option is disabled because one started @code{mysqld} with @code{--skip-xxxx} or because one didn't start @code{mysqld} with all needed options to enable the option.  In this case the @code{hostname.err} file should contain a reason for why the option is disabled.
+@end multitable
+
 @code{safe_mysqld} will automaticly try to start any @code{mysqld} binary
 with the @code{-max} prefix. This makes it very easy to test out a
 another @code{mysqld} binary in an existing installation.  Just

@@ -11,8 +11,14 @@
 /* The number of bytes in a int.  */
 #define SIZEOF_INT 4
 
+/* Define if you have the sched_yield function.  */
+#define HAVE_SCHED_YIELD 1
+
 /* Define if you have the <aio.h> header file.  */
 #define HAVE_AIO_H 1
+
+/* Define if you have the <sched.h> header file.  */
+#define HAVE_SCHED_H 1
 
 /* Name of package */
 #define PACKAGE "ib"
