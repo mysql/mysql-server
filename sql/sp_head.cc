@@ -387,7 +387,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
 	  octx->set_item(nctx->get_oindex(i), nctx->get_item(i));
 	else
 	{			// A global user variable
-#if 0
+#if NOT_USED_NOW
 	  // QQ This works if the parameter really is a user variable, but
 	  // for the moment we can't assure that, so it will crash if it's
 	  // something else. So for now, we just do nothing, to avoid a crash.

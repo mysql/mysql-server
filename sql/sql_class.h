@@ -27,6 +27,7 @@ class Query_log_event;
 class Load_log_event;
 class Slave_log_event;
 class sp_rcontext;
+class sp_cache;
 
 enum enum_enable_or_disable { LEAVE_AS_IS, ENABLE, DISABLE };
 enum enum_ha_read_modes { RFIRST, RNEXT, RPREV, RLAST, RKEY };
@@ -551,7 +552,8 @@ public:
   bool       prepare_command;
   bool	     tmp_table_used;
   sp_rcontext *spcont;		// SP runtime context
-  HASH         sp_hash[2];      // hash for SP PROCEDURES and FUNCTIONS
+  sp_cache   *sp_proc_cache;
+  sp_cache   *sp_func_cache;
 
   /*
     If we do a purge of binary logs, log index info of the threads
