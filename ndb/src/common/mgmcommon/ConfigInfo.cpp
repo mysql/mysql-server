@@ -2585,7 +2585,6 @@ fixPortNumber(InitConfigFileParser::Context & ctx, const char * data){
   Uint32 id1= 0, id2= 0;
   require(ctx.m_currentSection->get("NodeId1", &id1));
   require(ctx.m_currentSection->get("NodeId2", &id2));
-
   id1 = id1 < id2 ? id1 : id2;
 
   const Properties * node;
@@ -2618,7 +2617,6 @@ fixPortNumber(InitConfigFileParser::Context & ctx, const char * data){
       }
       ctx.m_userProperties.put("ServerPortBase", base);
     }
-
     port= base + adder;
     ctx.m_userProperties.put("ServerPort_", id1, port);
   }
