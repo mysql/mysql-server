@@ -64,7 +64,7 @@ foreach $table (@ARGV)
   {
     if (uc($row->[1]) eq uc($opt_type))
     {
-      print "$table is alread of type $opt_type;  Ignored\n";
+      print "$table is already of type $opt_type;  Ignored\n";
       next;
     }
   }
