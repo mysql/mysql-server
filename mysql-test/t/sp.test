@@ -127,6 +127,24 @@ repeat
   set x = x-1;
 until x = 0 end repeat|
 
+# Check that repeat isn't parsed the wrong way
+create procedure b2(x int)
+repeat(select 1 into outfile 'b2');
+  insert into test.t1 values (repeat("b2",3), x);
+  set x = x-1;
+until x = 0 end repeat|
+# We don't actually want to call it.
+drop procedure b2|
+
+# Btw, this should generate an error
+--error 1259
+create procedure b3(x int)
+repeat
+  select * from test.t1;	# No INTO!
+  insert into test.t1 values (repeat("b3",3), x);
+  set x = x-1;
+until x = 0 end repeat|
+
 # Labelled WHILE with ITERATE (pointless really)
 create procedure c(x int)
 hmm: while x > 0 do
