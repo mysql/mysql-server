@@ -232,7 +232,7 @@ Logger::enable(LoggerLevel logLevel)
 {
   if (logLevel == LL_ALL)
   {
-    for (int i = 1; i < MAX_LOG_LEVELS; i++)
+    for (unsigned i = 1; i < MAX_LOG_LEVELS; i++)
     {
       m_logLevels[i] = true;
     }
@@ -264,7 +264,7 @@ Logger::disable(LoggerLevel logLevel)
 {
   if (logLevel == LL_ALL)
   {
-    for (int i = 0; i < MAX_LOG_LEVELS; i++)
+    for (unsigned i = 0; i < MAX_LOG_LEVELS; i++)
     {
       m_logLevels[i] = false;
     }
