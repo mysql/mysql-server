@@ -39897,12 +39897,12 @@ gespeichert werden kann.
 
 
 @menu
-* InnoDB Disk i/o::             
+* InnoDB Disk I/O::             
 * InnoDB File space::           
 * InnoDB File Defragmenting::   
 @end menu
 
-@node InnoDB Disk i/o, InnoDB File space, File space management, File space management
+@node InnoDB Disk I/O, InnoDB File space, File space management, File space management
 @c German node Festplatten-Ein- und -Ausgaben bei InnoDB
 @subsubsection Festplatten-Ein- und -Ausgaben
 
@@ -39969,7 +39969,7 @@ Eingelesenwerdens in den Puffer-Pool zu sein scheint. Dann schickt InnoDB
 die verbleibenden Lesevorgänge an das Ein-/Ausgabesystem.
 
 
-@node InnoDB File space, InnoDB File Defragmenting, InnoDB Disk i/o, File space management
+@node InnoDB File space, InnoDB File Defragmenting, InnoDB Disk I/O, File space management
 @c German node Speicherplatz in InnoDB
 @subsubsection Speicherplatzverwaltung
 
