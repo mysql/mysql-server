@@ -1788,11 +1788,12 @@ Item_func_group_concat::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 
 bool Item_func_group_concat::setup(THD *thd)
 {
+  DBUG_ENTER("Item_func_group_concat::setup");
   List<Item> list;
   SELECT_LEX *select_lex= thd->lex.current_select->select_lex();
 
   if (select_lex->linkage == GLOBAL_OPTIONS_TYPE)
-    return 1;
+    DBUG_RETURN(1);
   /*
     all not constant fields are push to list and create temp table
   */ 
@@ -1801,7 +1802,7 @@ bool Item_func_group_concat::setup(THD *thd)
   {
     Item *item= args[i];
     if (list.push_back(item))
-      return 1;
+      DBUG_RETURN(1);
     if (item->const_item())
     {
       (void) item->val_int();
@@ -1810,7 +1811,7 @@ bool Item_func_group_concat::setup(THD *thd)
     }
   }
   if (always_null)
-    return 0;
+    DBUG_RETURN(0);
         
   List<Item> all_fields(list);
   if (arg_count_order) 
@@ -1821,13 +1822,18 @@ bool Item_func_group_concat::setup(THD *thd)
   }
   
   count_field_types(tmp_table_param,all_fields,0);
+  if (table)
+  {
+    free_tmp_table(thd, table);
+    tmp_table_param->cleanup();
+  }
   /*
     We have to create a temporary table for that we get descriptions of fields 
     (types, sizes and so on).
   */
   if (!(table=create_tmp_table(thd, tmp_table_param, all_fields, 0,
-        0, 0, 0,select_lex->options | thd->options)))
-    return 1;
+			       0, 0, 0,select_lex->options | thd->options)))
+    DBUG_RETURN(1);
   table->file->extra(HA_EXTRA_NO_ROWS);
   table->no_rows= 1;
 
@@ -1886,7 +1892,7 @@ bool Item_func_group_concat::setup(THD *thd)
     original->table= table;
     original->tree_mode= tree_mode;
   }
-  return 0;
+  DBUG_RETURN(0);
 }
 
 /* This is used by rollup to create a separate usable copy of the function */
