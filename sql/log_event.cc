@@ -467,8 +467,10 @@ Log_event* Log_event::read_log_event(IO_CACHE* file, bool old_format)
 #endif  
 {
   char head[LOG_EVENT_HEADER_LEN];
+  uint header_size = old_format ? OLD_HEADER_LEN :
+    LOG_EVENT_HEADER_LEN;
   LOCK_MUTEX;
-  if (my_b_read(file, (byte *) head, sizeof(head)))
+  if (my_b_read(file, (byte *) head, header_size ))
   {
     UNLOCK_MUTEX;
     return 0;
@@ -485,7 +487,7 @@ Log_event* Log_event::read_log_event(IO_CACHE* file, bool old_format)
     goto err;
   }
 
-  if (data_len < LOG_EVENT_HEADER_LEN)
+  if (data_len < header_size)
   {
     error = "Event too small";
     goto err;
@@ -498,9 +500,9 @@ Log_event* Log_event::read_log_event(IO_CACHE* file, bool old_format)
     goto err;
   }
   buf[data_len] = 0;
-  memcpy(buf, head, LOG_EVENT_HEADER_LEN);
-  if(my_b_read(file, (byte*) buf + LOG_EVENT_HEADER_LEN,
-	       data_len - LOG_EVENT_HEADER_LEN))
+  memcpy(buf, head, header_size);
+  if(my_b_read(file, (byte*) buf + header_size,
+	       data_len - header_size))
   {
     error = "read error";
     goto err;
@@ -653,11 +655,11 @@ void Rotate_log_event::print(FILE* file, bool short_form, char* last_db)
 Start_log_event::Start_log_event(const char* buf,
 				 bool old_format) :Log_event(buf, old_format)
 {
-  binlog_version = uint2korr(buf + LOG_EVENT_HEADER_LEN +
-			     ST_BINLOG_VER_OFFSET);
-  memcpy(server_version, buf + ST_SERVER_VER_OFFSET + LOG_EVENT_HEADER_LEN,
+  buf += (old_format) ? OLD_HEADER_LEN : LOG_EVENT_HEADER_LEN;
+  binlog_version = uint2korr(buf+ST_BINLOG_VER_OFFSET);
+  memcpy(server_version, buf+ST_SERVER_VER_OFFSET,
 	 ST_SERVER_VER_LEN);
-  created = uint4korr(buf + ST_CREATED_OFFSET + LOG_EVENT_HEADER_LEN);
+  created = uint4korr(buf+ST_CREATED_OFFSET);
 }
 
 int Start_log_event::write_data(IO_CACHE* file)
@@ -675,13 +677,24 @@ Rotate_log_event::Rotate_log_event(const char* buf, int event_len,
 {
   // the caller will ensure that event_len is what we have at
   // EVENT_LEN_OFFSET
-  if(event_len < ROTATE_EVENT_OVERHEAD)
+  int header_size = (old_format) ? OLD_HEADER_LEN : LOG_EVENT_HEADER_LEN;
+  uint ident_offset;
+  if(event_len < header_size)
     return;
-
-  pos = uint8korr(buf + R_POS_OFFSET + LOG_EVENT_HEADER_LEN);
-  ident_len = (uchar)(event_len - ROTATE_EVENT_OVERHEAD);
-  if (!(new_log_ident = (char*) my_memdup((byte*) buf + R_IDENT_OFFSET
-					  + LOG_EVENT_HEADER_LEN,
+  buf += header_size;
+  if (old_format)
+  {
+    ident_len = (uchar)(event_len - OLD_HEADER_LEN);
+    pos = 4;
+    ident_offset = 0;
+  }
+  else
+  {
+    ident_len = (uchar)(event_len - ROTATE_EVENT_OVERHEAD);
+    pos = uint8korr(buf + R_POS_OFFSET);
+    ident_offset = ROTATE_HEADER_LEN;
+  }
+  if (!(new_log_ident = (char*) my_memdup((byte*) buf + ident_offset,
 					  (uint) ident_len, MYF(MY_WME))))
     return;
 
@@ -717,22 +730,32 @@ Query_log_event::Query_log_event(const char* buf, int event_len,
 				 bool old_format):
   Log_event(buf, old_format),data_buf(0), query(NULL), db(NULL)
 {
-  if ((uint)event_len < QUERY_EVENT_OVERHEAD)
-    return;				
   ulong data_len;
-  data_len = event_len - QUERY_EVENT_OVERHEAD;
- 
+  if (old_format)
+  {
+    if ((uint)event_len < OLD_HEADER_LEN + QUERY_HEADER_LEN)
+      return;				
+    data_len = event_len - (QUERY_HEADER_LEN + OLD_HEADER_LEN);
+    buf += OLD_HEADER_LEN;
+  }
+  else
+  {
+    if ((uint)event_len < QUERY_EVENT_OVERHEAD)
+      return;				
+    data_len = event_len - QUERY_EVENT_OVERHEAD;
+    buf += LOG_EVENT_HEADER_LEN;
+  }
 
-  exec_time = uint4korr(buf + LOG_EVENT_HEADER_LEN + Q_EXEC_TIME_OFFSET);
-  error_code = uint2korr(buf + LOG_EVENT_HEADER_LEN + Q_ERR_CODE_OFFSET);
+  exec_time = uint4korr(buf + Q_EXEC_TIME_OFFSET);
+  error_code = uint2korr(buf + Q_ERR_CODE_OFFSET);
 
   if (!(data_buf = (char*) my_malloc(data_len + 1, MYF(MY_WME))))
     return;
 
-  memcpy(data_buf, buf + LOG_EVENT_HEADER_LEN + Q_DATA_OFFSET, data_len);
-  thread_id = uint4korr(buf + LOG_EVENT_HEADER_LEN + Q_THREAD_ID_OFFSET);
+  memcpy(data_buf, buf + Q_DATA_OFFSET, data_len);
+  thread_id = uint4korr(buf + Q_THREAD_ID_OFFSET);
   db = data_buf;
-  db_len = (uint)buf[LOG_EVENT_HEADER_LEN + Q_DB_LEN_OFFSET];
+  db_len = (uint)buf[Q_DB_LEN_OFFSET];
   query=data_buf + db_len + 1;
   q_len = data_len - 1 - db_len;
   *((char*)query+q_len) = 0;
@@ -788,7 +811,7 @@ int Query_log_event::write_data(IO_CACHE* file)
 Intvar_log_event::Intvar_log_event(const char* buf, bool old_format):
   Log_event(buf, old_format)
 {
-  buf += LOG_EVENT_HEADER_LEN;
+  buf += (old_format) ? OLD_HEADER_LEN : LOG_EVENT_HEADER_LEN;
   type = buf[I_TYPE_OFFSET];
   val = uint8korr(buf+I_VAL_OFFSET);
 }
@@ -1031,19 +1054,22 @@ Load_log_event::Load_log_event(const char* buf, int event_len,
 {
   if (!event_len) // derived class, will call copy_log_event() itself
     return;
-  copy_log_event(buf, event_len);
+  copy_log_event(buf, event_len, old_format);
 }
 
-int Load_log_event::copy_log_event(const char *buf, ulong event_len)
+int Load_log_event::copy_log_event(const char *buf, ulong event_len,
+				   bool old_format)
 {
   uint data_len;
   char* buf_end = (char*)buf + event_len;
-  thread_id = uint4korr(buf + L_THREAD_ID_OFFSET + LOG_EVENT_HEADER_LEN);
-  exec_time = uint4korr(buf + L_EXEC_TIME_OFFSET + LOG_EVENT_HEADER_LEN);
-  skip_lines = uint4korr(buf + L_SKIP_LINES_OFFSET + LOG_EVENT_HEADER_LEN);
-  table_name_len = (uint)buf[L_TBL_LEN_OFFSET + LOG_EVENT_HEADER_LEN];
-  db_len = (uint)buf[L_DB_LEN_OFFSET + LOG_EVENT_HEADER_LEN];
-  num_fields = uint4korr(buf + L_NUM_FIELDS_OFFSET + LOG_EVENT_HEADER_LEN);
+  const char* data_head = buf + ((old_format) ?
+			   OLD_HEADER_LEN : LOG_EVENT_HEADER_LEN);
+  thread_id = uint4korr(data_head + L_THREAD_ID_OFFSET);
+  exec_time = uint4korr(data_head + L_EXEC_TIME_OFFSET);
+  skip_lines = uint4korr(data_head + L_SKIP_LINES_OFFSET);
+  table_name_len = (uint)data_head[L_TBL_LEN_OFFSET];
+  db_len = (uint)data_head[L_DB_LEN_OFFSET];
+  num_fields = uint4korr(data_head + L_NUM_FIELDS_OFFSET);
 	  
   int body_offset = get_data_body_offset();
   if ((int) event_len < body_offset)
@@ -1315,7 +1341,7 @@ Create_file_log_event::Create_file_log_event(const char* buf, int len):
   Load_log_event(buf,0,0),fake_base(0),block(0)
 {
   int block_offset;
-  if (copy_log_event(buf,len))
+  if (copy_log_event(buf,len,0))
     return;
   file_id = uint4korr(buf + LOG_EVENT_HEADER_LEN +
 		      + LOAD_HEADER_LEN + CF_FILE_ID_OFFSET);
