@@ -475,8 +475,7 @@ pthread_handler_decl(handle_manager, arg);
 #ifndef DBUG_OFF
 void print_where(COND *cond,const char *info);
 void print_cached_tables(void);
-void TEST_filesort(TABLE **form,SORT_FIELD *sortorder,uint s_length,
-		   ha_rows special);
+void TEST_filesort(SORT_FIELD *sortorder,uint s_length, ha_rows special);
 #endif
 void mysql_print_status(THD *thd);
 /* key.cc */
@@ -618,7 +617,7 @@ void init_read_record(READ_RECORD *info, THD *thd, TABLE *reg_form,
 		      SQL_SELECT *select,
 		      int use_record_cache, bool print_errors);
 void end_read_record(READ_RECORD *info);
-ha_rows filesort(TABLE **form,struct st_sort_field *sortorder, uint s_length,
+ha_rows filesort(TABLE *form,struct st_sort_field *sortorder, uint s_length,
 		 SQL_SELECT *select, ha_rows special,ha_rows max_rows,
 		 ha_rows *examined_rows);
 void change_double_for_sort(double nr,byte *to);

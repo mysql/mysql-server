@@ -260,6 +260,7 @@ if [ x$SOURCE_DIST = x1 ] ; then
  MYSQL_TEST="$BASEDIR/client/mysqltest"
  MYSQLADMIN="$BASEDIR/client/mysqladmin"
  MYSQL="$BASEDIR/client/mysql"
+ LANGUAGE="$BASEDIR/sql/share/english/"
  INSTALL_DB="./install_test_db"
 else
  MYSQLD="$BASEDIR/bin/mysqld"
@@ -267,6 +268,12 @@ else
  MYSQLADMIN="$BASEDIR/bin/mysqladmin"
  MYSQL="$BASEDIR/bin/mysql"
  INSTALL_DB="./install_test_db -bin"
+ if test -d "$BASEDIR/share/mysql/english" 
+ then
+   LANGUAGE="$BASEDIR/share/mysql/english/"
+ else
+   LANGUAGE="$BASEDIR/share/english/"
+  fi
 fi
 
 # If we should run all tests cases, we will use a local server for that
@@ -478,7 +485,7 @@ start_master()
 	    --socket=$MASTER_MYSOCK \
             --log=$MASTER_MYLOG --default-character-set=latin1 \
 	    --tmpdir=$MYSQL_TMP_DIR \
-	    --language=english \
+	    --language=$LANGUAGE \
             --innodb_data_file_path=ibdata1:50M \
 	     $SMALL_SERVER \
 	     $EXTRA_MASTER_OPT $EXTRA_MASTER_MYSQLD_OPT"
@@ -492,7 +499,7 @@ start_master()
             --default-character-set=latin1 \
 	    --core \
 	    --tmpdir=$MYSQL_TMP_DIR \
-	    --language=english \
+	    --language=$LANGUAGE \
             --innodb_data_file_path=ibdata1:50M \
 	     $SMALL_SERVER \
 	     $EXTRA_MASTER_OPT $EXTRA_MASTER_MYSQLD_OPT"
@@ -548,7 +555,7 @@ start_slave()
             --log=$SLAVE_MYLOG --default-character-set=latin1 \
 	    --core \
 	    --tmpdir=$MYSQL_TMP_DIR \
-            --language=english \
+            --language=$LANGUAGE \
 	    --skip-innodb --skip-slave-start \
 	    --report-host=127.0.0.1 --report-user=root \
 	    --report-port=$SLAVE_MYPORT \
@@ -674,8 +681,8 @@ run_testcase ()
    SYST="    ...."
    REALT="    ...."
    timestr="$USERT $SYST $REALT"
-   pname=`$ECHO "$tname                 "|$CUT -c 1-16`
-   RES="$pname          $timestr"
+   pname=`$ECHO "$tname                        "|$CUT -c 1-24`
+   RES="$pname  $timestr"
    skip_inc
    $ECHO "$RES$RES_SPACE [ skipped ]"
    return
@@ -755,8 +762,8 @@ run_testcase ()
     fi
 
     timestr="$USERT $SYST $REALT"
-    pname=`$ECHO "$tname                 "|$CUT -c 1-16`
-    RES="$pname          $timestr"
+    pname=`$ECHO "$tname                        "|$CUT -c 1-24`
+    RES="$pname  $timestr"
 
     if [ $res = 0 ]; then
       total_inc

@@ -96,8 +96,7 @@ void print_cached_tables(void)
 }
 
 
-void TEST_filesort(TABLE **table,SORT_FIELD *sortorder,uint s_length,
-		   ha_rows special)
+void TEST_filesort(SORT_FIELD *sortorder,uint s_length, ha_rows special)
 {
   char buff[256],buff2[256];
   String str(buff,sizeof(buff)),out(buff2,sizeof(buff2));

@@ -5334,7 +5334,9 @@ create_sort_index(JOIN_TAB *tab,ORDER *order,ha_rows select_limit)
 	goto err;
     }
   }
-  table->found_records=filesort(&table,sortorder,length,
+  if (table->tmp_table)
+    table->file->info(HA_STATUS_VARIABLE);	// Get record count
+  table->found_records=filesort(table,sortorder,length,
 				select, 0L, select_limit, &examined_rows);
   delete select;				// filesort did select
   tab->select=0;
