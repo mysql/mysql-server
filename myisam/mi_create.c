@@ -289,9 +289,9 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
       }
 
       fulltext_keys++;
-      key_length+= HA_FT_MAXLEN+HA_FT_WLEN;
+      key_length+= HA_FT_MAXBYTELEN+HA_FT_WLEN;
       length++;                              /* At least one length byte */
-      min_key_length_skipp+=HA_FT_MAXLEN;
+      min_key_length_skipp+=HA_FT_MAXBYTELEN;
     }
     else
     {

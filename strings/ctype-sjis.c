@@ -191,7 +191,7 @@ static int ismbchar_sjis(CHARSET_INFO *cs __attribute__((unused)),
 
 static int mbcharlen_sjis(CHARSET_INFO *cs __attribute__((unused)),uint c)
 {
-  return (issjishead((uchar) c) ? 2: 0);
+  return (issjishead((uchar) c) ? 2 : 1);
 }
 
 

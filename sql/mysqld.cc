@@ -316,7 +316,8 @@ char log_error_file[FN_REFLEN], glob_hostname[FN_REFLEN];
 char* log_error_file_ptr= log_error_file;
 char mysql_real_data_home[FN_REFLEN],
      language[LIBLEN],reg_ext[FN_EXTLEN], mysql_charsets_dir[FN_REFLEN],
-     max_sort_char,*mysqld_user,*mysqld_chroot, *opt_init_file;
+     max_sort_char,*mysqld_user,*mysqld_chroot, *opt_init_file,
+     *opt_init_connect, *opt_init_slave;
 
 const char *opt_date_time_formats[3];
 
@@ -375,7 +376,7 @@ pthread_mutex_t LOCK_mysql_create_db, LOCK_Acl, LOCK_open, LOCK_thread_count,
 		LOCK_crypt, LOCK_bytes_sent, LOCK_bytes_received,
 	        LOCK_global_system_variables,
 		LOCK_user_conn, LOCK_slave_list, LOCK_active_mi;
-rw_lock_t	LOCK_grant;
+rw_lock_t	LOCK_grant, LOCK_sys_init_connect, LOCK_sys_init_slave;
 pthread_cond_t COND_refresh,COND_thread_count, COND_slave_stopped,
 	       COND_slave_start;
 pthread_cond_t COND_thread_cache,COND_flush_thread_cache;
@@ -923,6 +924,8 @@ void clean_up(bool print_message)
 	  MYF(MY_ALLOW_ZERO_PTR));
   if (defaults_argv)
     free_defaults(defaults_argv);
+  my_free(sys_init_connect.value, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(sys_init_slave.value, MYF(MY_ALLOW_ZERO_PTR));
   free_tmpdir(&mysql_tmpdir_list);
 #ifdef HAVE_REPLICATION
   my_free(slave_load_tmpdir,MYF(MY_ALLOW_ZERO_PTR));
@@ -994,6 +997,8 @@ static void clean_up_mutexes()
   (void) pthread_cond_destroy(&COND_rpl_status);
 #endif
   (void) pthread_mutex_destroy(&LOCK_active_mi);
+  (void) rwlock_destroy(&LOCK_sys_init_connect);
+  (void) rwlock_destroy(&LOCK_sys_init_slave);
   (void) pthread_mutex_destroy(&LOCK_global_system_variables);
   (void) pthread_cond_destroy(&COND_thread_count);
   (void) pthread_cond_destroy(&COND_refresh);
@@ -2173,7 +2178,16 @@ static int init_common_variables(const char *conf_file_name, int argc,
   global_system_variables.collation_database=	 default_charset_info;
   global_system_variables.collation_connection=  default_charset_info;
   global_system_variables.character_set_results= default_charset_info;
-  global_system_variables.character_set_client=  default_charset_info;
+  global_system_variables.character_set_client= default_charset_info;
+  global_system_variables.collation_connection= default_charset_info;
+
+  sys_init_connect.value_length= 0;
+  if ((sys_init_connect.value= opt_init_connect))
+    sys_init_connect.value_length= strlen(opt_init_connect);
+
+  sys_init_slave.value_length= 0;
+  if ((sys_init_slave.value= opt_init_slave))
+    sys_init_slave.value_length= strlen(opt_init_slave);
 
   if (use_temp_pool && bitmap_init(&temp_pool,0,1024,1))
     return 1;
@@ -2200,6 +2214,8 @@ static int init_thread_environment()
   (void) pthread_mutex_init(&LOCK_user_conn, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_active_mi, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_global_system_variables, MY_MUTEX_INIT_FAST);
+  (void) my_rwlock_init(&LOCK_sys_init_connect, NULL);
+  (void) my_rwlock_init(&LOCK_sys_init_slave, NULL);
   (void) my_rwlock_init(&LOCK_grant, NULL);
   (void) pthread_cond_init(&COND_thread_count,NULL);
   (void) pthread_cond_init(&COND_refresh,NULL);
@@ -3597,7 +3613,7 @@ enum options_mysqld
   OPT_MAX_SEEKS_FOR_KEY, OPT_MAX_TMP_TABLES, OPT_MAX_USER_CONNECTIONS,
   OPT_MAX_LENGTH_FOR_SORT_DATA,
   OPT_MAX_WRITE_LOCK_COUNT, OPT_BULK_INSERT_BUFFER_SIZE,
-  OPT_MAX_ERROR_COUNT, OPT_MAX_PREP_STMT,
+  OPT_MAX_ERROR_COUNT,
   OPT_MYISAM_BLOCK_SIZE, OPT_MYISAM_MAX_EXTRA_SORT_FILE_SIZE,
   OPT_MYISAM_MAX_SORT_FILE_SIZE, OPT_MYISAM_SORT_BUFFER_SIZE,
   OPT_NET_BUFFER_LENGTH, OPT_NET_RETRY_COUNT,
@@ -3640,6 +3656,8 @@ enum options_mysqld
   OPT_EXPIRE_LOGS_DAYS,
   OPT_GROUP_CONCAT_MAX_LEN,
   OPT_DEFAULT_COLLATION,
+  OPT_INIT_CONNECT,
+  OPT_INIT_SLAVE,
   OPT_SECURE_AUTH,
   OPT_DATE_FORMAT,
   OPT_TIME_FORMAT,
@@ -3816,6 +3834,12 @@ Disable with --skip-bdb (will save memory).",
    (gptr*) &innobase_file_per_table,
    (gptr*) &innobase_file_per_table, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif /* End HAVE_INNOBASE_DB */
+  {"init-connect", OPT_INIT_CONNECT, "Command(s) that are executed for each new connection",
+   (gptr*) &opt_init_connect, (gptr*) &opt_init_connect, 0, GET_STR_ALLOC,
+   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"init-slave", OPT_INIT_SLAVE, "Command(s) that are executed when a slave connects to this master",
+   (gptr*) &opt_init_slave, (gptr*) &opt_init_slave, 0, GET_STR_ALLOC,
+   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"help", '?', "Display this help and exit.", 
    (gptr*) &opt_help, (gptr*) &opt_help, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
@@ -4223,11 +4247,11 @@ replicating a LOAD DATA INFILE command.",
   { "ft_min_word_len", OPT_FT_MIN_WORD_LEN,
     "The minimum length of the word to be included in a FULLTEXT index. Note: FULLTEXT indexes must be rebuilt after changing this variable.",
     (gptr*) &ft_min_word_len, (gptr*) &ft_min_word_len, 0, GET_ULONG,
-    REQUIRED_ARG, 4, 1, HA_FT_MAXLEN, 0, 1, 0},
+    REQUIRED_ARG, 4, 1, HA_FT_MAXCHARLEN, 0, 1, 0},
   { "ft_max_word_len", OPT_FT_MAX_WORD_LEN,
     "The maximum length of the word to be included in a FULLTEXT index. Note: FULLTEXT indexes must be rebuilt after changing this variable.",
     (gptr*) &ft_max_word_len, (gptr*) &ft_max_word_len, 0, GET_ULONG,
-    REQUIRED_ARG, HA_FT_MAXLEN, 10, HA_FT_MAXLEN, 0, 1, 0},
+    REQUIRED_ARG, HA_FT_MAXCHARLEN, 10, HA_FT_MAXCHARLEN, 0, 1, 0},
   { "ft_query_expansion_limit", OPT_FT_QUERY_EXPANSION_LIMIT,
     "Number of best matches to use for query expansion",
     (gptr*) &ft_query_expansion_limit, (gptr*) &ft_query_expansion_limit, 0, GET_ULONG,
@@ -4386,11 +4410,6 @@ The minimum value for this variable is 4096.",
     (gptr*) &global_system_variables.max_length_for_sort_data,
     (gptr*) &max_system_variables.max_length_for_sort_data, 0, GET_ULONG,
     REQUIRED_ARG, 1024, 4, 8192*1024L, 0, 1, 0},
-  {"max_prepared_statements", OPT_MAX_PREP_STMT,
-   "Max number of prepared_statements for a thread.",
-   (gptr*) &global_system_variables.max_prep_stmt_count,
-   (gptr*) &max_system_variables.max_prep_stmt_count, 0, GET_ULONG,
-   REQUIRED_ARG, DEFAULT_PREP_STMT_COUNT, 0, ~0L, 0, 1, 0},
   {"max_relay_log_size", OPT_MAX_RELAY_LOG_SIZE,
    "If non-zero: relay log will be rotated automatically when the size exceeds this value; if zero (the default): when the size exceeds max_binlog_size. 0 expected, the minimum value for this variable is 4096.",
    (gptr*) &max_relay_log_size, (gptr*) &max_relay_log_size, 0, GET_ULONG,
