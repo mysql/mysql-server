@@ -2296,7 +2296,7 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
   bool allow_rowid= tables && !tables->next_local;	// Only one table
   for (; tables ; tables= tables->next_local)
   {
-    if (!tables->table)
+    if (!tables->table && !tables->ancestor)
     {
       if (report_error)
 	my_printf_error(ER_BAD_FIELD_ERROR,ER(ER_BAD_FIELD_ERROR),MYF(0),
