@@ -211,9 +211,9 @@ os_file_get_last_error(void)
 	if (err != ERROR_DISK_FULL && err != ERROR_FILE_EXISTS) {
 		ut_print_timestamp(stderr);
 	     	fprintf(stderr,
-  "  InnoDB: Operating system error number %li in a file operation.\n"
+  "  InnoDB: Operating system error number %lu in a file operation.\n"
   "InnoDB: See http://www.innodb.com/ibman.html for installation help.\n",
-		(long) err);
+		err);
 
 		if (err == ERROR_PATH_NOT_FOUND) {
 		         fprintf(stderr,
@@ -255,9 +255,9 @@ os_file_get_last_error(void)
 		ut_print_timestamp(stderr);
 
 	     	fprintf(stderr,
-  "  InnoDB: Operating system error number %li in a file operation.\n"
+  "  InnoDB: Operating system error number %lu in a file operation.\n"
   "InnoDB: See http://www.innodb.com/ibman.html for installation help.\n",
-		(long) err);
+		err);
 
 		if (err == ENOENT) {
 		         fprintf(stderr,
@@ -351,7 +351,8 @@ os_file_handle_error(
 	                fprintf(stderr, "InnoDB: File name %s\n", name);
 	        }
 	  
-		fprintf(stderr, "InnoDB: System call %s.\n", operation);
+		fprintf(stderr, "InnoDB: File operation call: '%s'.\n",
+							       operation);
 		fprintf(stderr, "InnoDB: Cannot continue operation.\n");
 
 		fflush(stderr);
@@ -599,7 +600,11 @@ os_file_create(
 			file is created (if exists, error), OS_FILE_OVERWRITE
 			if a new is created or an old overwritten */
 	ulint	purpose,/* in: OS_FILE_AIO, if asynchronous, non-buffered i/o
-			is desired, OS_FILE_NORMAL, if any normal file */
+			is desired, OS_FILE_NORMAL, if any normal file;
+			NOTE that it also depends on type, os_aio_.. and srv_..
+			variables whether we really use async i/o or
+			unbuffered i/o: look in the function source code for
+			the exact rules */
 	ulint	type,	/* in: OS_DATA_FILE or OS_LOG_FILE */
 	ibool*	success)/* out: TRUE if succeed, FALSE if error */
 {
@@ -624,8 +629,8 @@ try_again:
 	}
 
 	if (purpose == OS_FILE_AIO) {
-		/* use asynchronous (overlapped) io and no buffering
-		of writes in the OS */
+		/* If specified, use asynchronous (overlapped) io and no
+		buffering of writes in the OS */
 		attributes = 0;
 #ifdef WIN_ASYNC_IO
 		if (os_aio_use_native_aio) {
@@ -633,17 +638,13 @@ try_again:
 		}
 #endif			
 #ifdef UNIV_NON_BUFFERED_IO
-		if (type == OS_LOG_FILE) {
+		if (type == OS_LOG_FILE && srv_flush_log_at_trx_commit == 2) {
 		        /* Do not use unbuffered i/o to log files because
-		        to allow group commit to work when MySQL binlogging
-			is used we must separate log file write and log
-			file flush to disk. */
-		} else {
-			if (srv_win_file_flush_method ==
-					SRV_WIN_IO_UNBUFFERED) {
-		        	attributes = attributes
-						| FILE_FLAG_NO_BUFFERING;
-			}
+		        value 2 denotes that we do not flush the log at every
+		        commit, but only once per second */
+		} else if (srv_win_file_flush_method ==
+						      SRV_WIN_IO_UNBUFFERED) {
+		        attributes = attributes | FILE_FLAG_NO_BUFFERING;
 		}
 #endif
 	} else if (purpose == OS_FILE_NORMAL) {
@@ -653,12 +654,9 @@ try_again:
 		        /* Do not use unbuffered i/o to log files because
 		        value 2 denotes that we do not flush the log at every
 		        commit, but only once per second */
-		} else {
-			if (srv_win_file_flush_method ==
-					SRV_WIN_IO_UNBUFFERED) {
-		        	attributes = attributes
-						| FILE_FLAG_NO_BUFFERING;
-			}
+		} else if (srv_win_file_flush_method ==
+						      SRV_WIN_IO_UNBUFFERED) {
+		        attributes = attributes | FILE_FLAG_NO_BUFFERING;
 		}
 #endif
 	} else {
@@ -700,28 +698,68 @@ try_again:
 	os_file_t	file;
 	int		create_flag;
 	ibool		retry;
+	const char*	mode_str	= NULL;
+	const char*	type_str	= NULL;
+	const char*	purpose_str	= NULL;
 	
 try_again:	
 	ut_a(name);
 
 	if (create_mode == OS_FILE_OPEN) {
+		mode_str = "OPEN";
+
 		create_flag = O_RDWR;
 	} else if (create_mode == OS_FILE_CREATE) {
+		mode_str = "CREATE";
+
 		create_flag = O_RDWR | O_CREAT | O_EXCL;
 	} else if (create_mode == OS_FILE_OVERWRITE) {
+		mode_str = "OVERWRITE";
+
 		create_flag = O_RDWR | O_CREAT | O_TRUNC;
 	} else {
 		create_flag = 0;
 		ut_error;
 	}
 
-	UT_NOT_USED(purpose);
+	if (type == OS_LOG_FILE) {
+		type_str = "LOG";
+	} else if (type == OS_DATA_FILE) {
+		type_str = "DATA";
+	} else {
+	        ut_a(0);
+	}
+	  
+	if (purpose == OS_FILE_AIO) {
+		purpose_str = "AIO";
+	} else if (purpose == OS_FILE_NORMAL) {
+		purpose_str = "NORMAL";
+	} else {
+	        ut_a(0);
+	}
 
+/*	printf("Opening file %s, mode %s, type %s, purpose %s\n",
+			       name, mode_str, type_str, purpose_str); */
 #ifdef O_SYNC
-	if ((!srv_use_doublewrite_buf || type != OS_DATA_FILE) 
+        /* We let O_SYNC only affect log files; note that we map O_DSYNC to
+	O_SYNC because the datasync options seemed to corrupt files in 2001
+	in both Linux and Solaris */
+	if (type == OS_LOG_FILE
 	    && srv_unix_file_flush_method == SRV_UNIX_O_DSYNC) {
 
+/*		printf("Using O_SYNC for file %s\n", name); */
+
 	        create_flag = create_flag | O_SYNC;
+	}
+#endif
+#ifdef O_DIRECT
+        /* We let O_DIRECT only affect data files */
+	if (type != OS_LOG_FILE
+	    && srv_unix_file_flush_method == SRV_UNIX_O_DIRECT) {
+
+/*		printf("Using O_DIRECT for file %s\n", name); */
+
+	        create_flag = create_flag | O_DIRECT;
 	}
 #endif
 	if (create_mode == OS_FILE_CREATE) {
@@ -1319,6 +1357,7 @@ os_file_write(
 	DWORD		high;
 	ulint		i;
 	ulint		n_retries	= 0;
+	ulint		err;
 
 	ut_a((offset & 0xFFFFFFFF) == offset);
 
@@ -1386,18 +1425,27 @@ retry:
 	
 	if (!os_has_said_disk_full) {
 	
+		err = (ulint)GetLastError();
+
 		ut_print_timestamp(stderr);
 
 		fprintf(stderr,
 "  InnoDB: Error: Write to file %s failed at offset %lu %lu.\n"
 "InnoDB: %lu bytes should have been written, only %lu were written.\n"
 "InnoDB: Operating system error number %lu.\n"
-"InnoDB: Look from section 13.2 at http://www.innodb.com/ibman.html\n"
-"InnoDB: what the error number means.\n"
 "InnoDB: Check that your OS and file system support files of this size.\n"
 "InnoDB: Check also that the disk is not full or a disk quota exceeded.\n",
 			name, offset_high, offset, n, (ulint)len,
-			(ulint)GetLastError());
+			err);
+
+		if (strerror((int)err) != NULL) {
+			fprintf(stderr,
+"InnoDB: Error number %lu means '%s'.\n", err, strerror((int)err));
+		}
+
+		fprintf(stderr,
+"InnoDB: See also section 13.2 at http://www.innodb.com/ibman.html\n"
+"InnoDB: about operating system error numbers.\n");
 
 		os_has_said_disk_full = TRUE;
 	}
@@ -1421,12 +1469,19 @@ retry:
 "  InnoDB: Error: Write to file %s failed at offset %lu %lu.\n"
 "InnoDB: %lu bytes should have been written, only %ld were written.\n"
 "InnoDB: Operating system error number %lu.\n"
-"InnoDB: Look from section 13.2 at http://www.innodb.com/ibman.html\n"
-"InnoDB: what the error number means or use the perror program of MySQL.\n"
 "InnoDB: Check that your OS and file system support files of this size.\n"
 "InnoDB: Check also that the disk is not full or a disk quota exceeded.\n",
 			name, offset_high, offset, n, (long int)ret,
 							(ulint)errno);
+		if (strerror(errno) != NULL) {
+			fprintf(stderr,
+"InnoDB: Error number %lu means '%s'.\n", (ulint)errno, strerror(errno));
+		}
+
+		fprintf(stderr,
+"InnoDB: See also section 13.2 at http://www.innodb.com/ibman.html\n"
+"InnoDB: about operating system error numbers.\n");
+
 		os_has_said_disk_full = TRUE;
 	}
 

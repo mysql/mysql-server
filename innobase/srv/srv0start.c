@@ -1056,6 +1056,10 @@ innobase_start_or_create_for_mysql(void)
 	  	srv_unix_file_flush_method = SRV_UNIX_O_DSYNC;
 
 	} else if (0 == ut_strcmp(srv_file_flush_method_str,
+							(char*)"O_DIRECT")) {
+	  	srv_unix_file_flush_method = SRV_UNIX_O_DIRECT;
+
+	} else if (0 == ut_strcmp(srv_file_flush_method_str,
 							(char*)"littlesync")) {
 	  	srv_unix_file_flush_method = SRV_UNIX_LITTLESYNC;
 
