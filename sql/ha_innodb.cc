@@ -892,10 +892,7 @@ innobase_commit_low(
 {
         if (current_thd->slave_thread) {
                 /* Update the replication position info inside InnoDB */
-#ifdef NEED_TO_BE_FIXED	  
-                trx->mysql_relay_log_file_name = active_mi->rli.log_file_name;
-                trx->mysql_relay_log_pos = active_mi->rli.relay_log_pos;
-#endif
+
                 trx->mysql_master_log_file_name
                                         = active_mi->rli.master_log_name;
                 trx->mysql_master_log_pos = ((ib_longlong)
