@@ -1657,14 +1657,21 @@ int Load_log_event::exec_event(NET* net, struct st_master_info* mi)
 
 int Start_log_event::exec_event(struct st_master_info* mi)
 {
+#ifdef TO_BE_DELETED
+  /*
+    We can't close temporary files or cleanup the tmpdir here, becasue
+    someone may have just rotated the logs on the master.
+    We should only do this cleanup when we know the master restarted.
+  */
   close_temporary_tables(thd);
   cleanup_load_tmpdir();
+#endif
   return Log_event::exec_event(mi);
 }
 
 int Stop_log_event::exec_event(struct st_master_info* mi)
 {
-  if(mi->pos > 4) // stop event should be ignored after rotate event
+  if (mi->pos > 4) // stop event should be ignored after rotate event
   {
     close_temporary_tables(thd);
     cleanup_load_tmpdir();

@@ -776,6 +776,7 @@ int end_io_cache(IO_CACHE *info)
     (*pre_close)(info);
   if (info->alloced_buffer)
   {
+    info->alloced_buffer=0;
     if (info->file != -1)			/* File doesn't exist */
       error=flush_io_cache(info);
     my_free((gptr) info->buffer,MYF(MY_WME));

@@ -84,11 +84,6 @@ static DYNAMIC_STRING extended_row;
 #include "sslopt-vars.h"
 FILE  *md_result_file;
 
-enum md_options {OPT_FTB=256, OPT_LTB, OPT_ENC, OPT_O_ENC, OPT_ESC,
-		 OPT_KEYWORDS, OPT_LOCKS, OPT_DROP, OPT_OPTIMIZE, OPT_DELAYED,
-		 OPT_TABLES, MD_OPT_CHARSETS_DIR, MD_OPT_DEFAULT_CHARSET,
-		 OPT_AUTOCOMMIT, OPT_MASTER_DATA};
-
 static struct option long_options[] =
 {
   {"all-databases",     no_argument,    0,      'A'},
