@@ -1303,26 +1303,6 @@ DbUtil::prepareOperation(Signal* signal, PreparePtr prepPtr)
   TcKeyReq::setAIInTcKeyReq(requestInfo, 0);  // Attrinfo sent separately
   prepOpPtr.p->tckey.requestInfo = requestInfo;
 
-  if (operationType == UtilPrepareReq::Read) {
-    // ResultSet
-    AttrMappingBuffer::ConstDataBufferIterator tmpIt;
-#if 0 //def EVENT_DEBUG
-    ResultSetBuffer & rs = prepOpPtr.p->rsInfo;
-    ResultSetInfoBuffer::DataBufferIterator it;
-    rs.first(it);
-    for (prepOpPtr.p->attrMapping.first(tmpIt);
-	 tmpIt.curr.i != RNIL;
-	 prepOpPtr.p->attrMapping.next(tmpIt)) {
-      AttributeHeader* ah = (AttributeHeader *) tmpIt.data;
-      ah->print(stdout);
-      AttributeHeader* rsah = (AttributeHeader *) it.data;
-      rsah->print(stdout);
-      rs.next(it,1);
-      printf("%d\n",it.data);
-    }
-#endif
-  }
-
   /****************************
    * Confirm completed prepare
    ****************************/
@@ -1914,7 +1894,6 @@ DbUtil::runOperation(Signal* signal, TransactionPtr & transPtr,
   Operation * op = opPtr.p;
   const PreparedOperation * pop = op->prepOp;
 
-  Uint32 lastFlag = 0;
   if(!transPtr.p->operations.next(opPtr)){
     TcKeyReq::setCommitFlag(start, 1);   // Last operation
     TcKeyReq::setExecuteFlag(start, 1);
@@ -2127,43 +2106,11 @@ DbUtil::execTRANSID_AI(Signal* signal){
   /**
    * Save result
    */
-  Uint32 srcSz = dataLen;
   const Uint32 *src = &signal->theData[3];
-  const Uint32 segSize = opP->rs.getSegmentSize();
-
-#if 0 //def EVENT_DEBUG
-    printf("rsRecv %u, dataLen %u, rsExpect %u\n",
-	   opP->rsRecv, dataLen, opP->rsExpect);
-#endif
-
   ResultSetBuffer::DataBufferIterator rs = opP->rsIterator;
-
-#if 0 //def EVENT_DEBUG
-  for(int i = 0; i < dataLen; i++)
-    printf("H'%.8x ", src[i]);
-#endif
 
   ndbrequire(opP->rs.import(rs,src,dataLen));
   opP->rs.next(rs, dataLen);
-
-#if 0  // replaced this section with import() above
-  while(srcSz > segSize){
-    ndbrequire(rs.curr.i != RNIL);
-    memcpy(rs.data, src, segSize << 2);
-    opP->rs.next(rs, segSize);
-    srcSz -= segSize;
-    //    src += segSize * 4; // Bug?
-    src += segSize;
-  }
-  
-  if(srcSz > 0){
-    jam();
-    memcpy(rs.data, src, srcSz << 2);
-    rs.curr.i = RNIL;
-    rs.data = 0;
-  }
-#endif
-
   opP->rsIterator = rs;
 
   if(!opP->complete()){
@@ -2171,19 +2118,11 @@ DbUtil::execTRANSID_AI(Signal* signal){
    return;
   }
 
-#if 0 //def EVENT_DEBUG
-  printf("op complete\n");
-#endif  
-
   transPtr.p->recv++;
   if(!transPtr.p->complete()){
     jam();
     return;
   }
-
-#if 0 //def EVENT_DEBUG
-  printf("trans complete\n");
-#endif
 
   finishTransaction(signal, transPtr);
 }

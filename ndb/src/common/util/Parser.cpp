@@ -23,6 +23,7 @@
 #include <assert.h>
 #include <Base64.hpp>
 
+#undef DEBUG
 #define DEBUG(x) ndbout << x << endl;
 
 static void trim(char * str);

@@ -60,8 +60,8 @@ struct test_case test_connect_disconnect[] = {
 struct test_case tests[] = {
   { "testStatus",           &testStatus           },
   { "testFilterClusterLog", &testFilterClusterLog },
-  //{ "testSetLogLevelClusterLog", &testSetLogLevelClusterLog },
-  //{ "testSetLogLevelNode",  &testSetLogLevelNode  },
+  /*{ "testSetLogLevelClusterLog", &testSetLogLevelClusterLog },*/
+  /*{ "testSetLogLevelNode",  &testSetLogLevelNode  },*/
   { "testRestartNode",      &testRestartNode      },
   { "testGetStatPort",      &testGetStatPort      },
 #ifdef VM_TRACE

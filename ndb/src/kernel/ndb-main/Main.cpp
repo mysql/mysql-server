@@ -188,9 +188,9 @@ NDB_MAIN(ndb_kernel){
 
 void 
 systemInfo(const Configuration & config, const LogLevel & logLevel){
+#ifdef NDB_WIN32
   int processors = 0;
   int speed;
-#ifdef NDB_WIN32
   SYSTEM_INFO sinfo;
   GetSystemInfo(&sinfo);
   processors = sinfo.dwNumberOfProcessors;

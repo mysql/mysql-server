@@ -55,6 +55,7 @@ Parameters:    aDataBase : Name of the database.
 Remark:        Connect to the database.
 ***************************************************************************/
 Ndb::Ndb( const char* aDataBase , const char* aDataBaseSchema) :
+  theNdbObjectIdMap(0),
   thePreparedTransactionsArray(NULL),
   theSentTransactionsArray(NULL),
   theCompletedTransactionsArray(NULL),
@@ -89,8 +90,7 @@ Ndb::Ndb( const char* aDataBase , const char* aDataBaseSchema) :
   theFirstTransId(0),
   theRestartGCI(0),
   theNdbBlockNumber(-1),
-  theInitState(NotConstructed),
-  theNdbObjectIdMap(0)
+  theInitState(NotConstructed)
 {
   cgetSignals =0;
   cfreeSignals = 0;

@@ -99,12 +99,12 @@ NdbTick_getMicrosPassed(struct MicroSecondTimer start,
     ret_value = ((NDB_TICKS)MICROSEC_PER_SEC) * sec_passed;
   } else if (start.seconds > stop.seconds) {
     return ret_value;
-  }//if
+  }
   if (start.micro_seconds < stop.micro_seconds) {
     ret_value += (stop.micro_seconds - start.micro_seconds);
   } else if (ret_value != (NDB_TICKS)0) {
     ret_value -= (start.micro_seconds - stop.micro_seconds);
-  }//if
+  }
   return ret_value;
 }
 #endif

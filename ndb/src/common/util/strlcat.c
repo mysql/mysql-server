@@ -39,7 +39,7 @@
 
 /* RCSID("$KTH: strlcat.c,v 1.1 2000/08/16 01:23:47 lha Exp $"); */
 
-//#include <NdbString.h>
+/*#include <NdbString.h>*/
 
 #ifndef HAVE_STRLCAT
 size_t
