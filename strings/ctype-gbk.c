@@ -2614,11 +2614,12 @@ int my_strnncoll_gbk_internal(const uchar **a_res, const uchar **b_res,
 
 int my_strnncoll_gbk(CHARSET_INFO *cs __attribute__((unused)),
 		     const uchar *a, uint a_length,
-		     const uchar *b, uint b_length)
+                     const uchar *b, uint b_length,
+                     my_bool b_is_prefix)
 {
   uint length= min(a_length, b_length);
   int res= my_strnncoll_gbk_internal(&a, &b, length);
-  return res ? res : (int) (a_length - b_length);
+  return res ? res : (int) ((b_is_prefix ? length : a_length) - b_length);
 }
 
 

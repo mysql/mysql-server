@@ -1802,7 +1802,8 @@ static void my_casedn_str_utf8(CHARSET_INFO *cs, char * s)
 
 static int my_strnncoll_utf8(CHARSET_INFO *cs, 
 			     const uchar *s, uint slen,
-			     const uchar *t, uint tlen)
+                             const uchar *t, uint tlen,
+                             my_bool t_is_prefix)
 {
   int s_res,t_res;
   my_wc_t s_wc,t_wc;
@@ -1833,7 +1834,7 @@ static int my_strnncoll_utf8(CHARSET_INFO *cs,
     s+=s_res;
     t+=t_res;
   }
-  return ( (se-s) - (te-t) );
+  return t_is_prefix ? t-te : ((se-s) - (te-t));
 }
 
 
