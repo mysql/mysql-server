@@ -547,7 +547,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 
 %type <lex_str>
 	IDENT TEXT_STRING REAL_NUM FLOAT_NUM NUM LONG_NUM HEX_NUM LEX_HOSTNAME
-	ULONGLONG_NUM field_ident select_alias ident ident_or_text 
+	ULONGLONG_NUM field_ident select_alias ident ident_or_text
         UNDERSCORE_CHARSET
 
 %type <lex_str_ptr>
@@ -561,7 +561,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	opt_escape
 
 %type <string>
-	text_string 
+	text_string
 
 %type <num>
 	type int_type real_type order_dir opt_field_spec lock_option
@@ -626,7 +626,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 
 %type <lex_user> user grant_user
 
-%type <charset> 
+%type <charset>
 	charset_name
 	charset_name_or_default
 	opt_db_default_character_set
@@ -642,7 +642,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	insert_values update delete truncate rename
 	show describe load alter optimize flush
 	reset purge begin commit rollback slave master_def master_defs
-	repair restore backup analyze check 
+	repair restore backup analyze check
 	field_list field_list_item field_spec kill
 	select_item_list select_item values_list no_braces
 	opt_limit_clause delete_limit_clause fields opt_values values
@@ -712,7 +712,7 @@ verb_clause:
 	| lock
 	| kill
 	| optimize
-	| purge  
+	| purge
 	| rename
         | repair
 	| replace
@@ -730,10 +730,10 @@ verb_clause:
 	| update
 	| use
 	| help;
-	
+
 /* help */
 
-help: 
+help:
        HELP TEXT_STRING
        {
        LEX *lex= Lex;
@@ -842,7 +842,7 @@ create:
 	    lex->col_list.empty();
 	    lex->change=NullS;
 	  }
-	   '(' key_list ')' 
+	   '(' key_list ')'
 	  {
 	    LEX *lex=Lex;
 
@@ -951,12 +951,12 @@ create_table_option:
 	    lex->create_info.used_fields|= HA_CREATE_USED_UNION;
 	  }
 	| opt_default CHARSET opt_equal charset_name_or_default
-	  { 
+	  {
 	    Lex->create_info.table_charset= $4;
 	    Lex->create_info.used_fields|= HA_CREATE_USED_CHARSET;
 	  }
 	| opt_default CHAR_SYM SET opt_equal charset_name_or_default
-	  { 
+	  {
 	    Lex->create_info.table_charset= $5;
 	    Lex->create_info.used_fields|= HA_CREATE_USED_CHARSET;
 	  }
@@ -1091,7 +1091,7 @@ type:
 	    if (YYTHD->sql_mode & MODE_SAPDB)
 	      $$=FIELD_TYPE_DATETIME;
 	    else
-	      $$=FIELD_TYPE_TIMESTAMP;	
+	      $$=FIELD_TYPE_TIMESTAMP;
 	   }
 	| TIMESTAMP '(' NUM ')'		{ Lex->length=$3.str;
 					  $$=FIELD_TYPE_TIMESTAMP; }
@@ -1265,7 +1265,7 @@ opt_primary:
 references:
 	REFERENCES table_ident
 	{
-	  LEX *lex=Lex;	
+	  LEX *lex=Lex;
 	  lex->fk_delete_opt= lex->fk_update_opt= lex->fk_match_option= 0;
 	  lex->ref_list.empty();
 	}
@@ -1273,7 +1273,7 @@ references:
 	{
 	  $$=$2;
 	};
-	
+
 opt_ref_list:
 	/* empty */ opt_on_delete {}
 	| '(' ref_list ')' opt_on_delete {};
@@ -1517,11 +1517,11 @@ slave_thread_opts:
 	| slave_thread_opts ',' slave_thread_opt;
 
 slave_thread_opt:
-	/*empty*/	{} 
+	/*empty*/	{}
 	| SQL_THREAD	{ Lex->slave_thd_opt|=SLAVE_SQL; }
 	| IO_THREAD   	{ Lex->slave_thd_opt|=SLAVE_IO; }
 	;
-  
+
 restore:
 	RESTORE_SYM table_or_tables
 	{
@@ -1808,7 +1808,7 @@ expr_expr:
         | expr IN_SYM in_subselect
           { $$= new Item_in_subselect(YYTHD, $1, $3); }
 	| expr NOT IN_SYM in_subselect
-          { 
+          {
             $$= new Item_func_not(new Item_in_subselect(YYTHD, $1, $4));
           }
 	| expr BETWEEN_SYM no_and_expr AND expr
@@ -1829,7 +1829,7 @@ expr_expr:
 	| expr comp_op expr %prec EQ	{ $$= (*((*$2)(0)))($1,$3); }
 	| expr comp_op all_or_any in_subselect %prec EQ
 	{
-	  Item_allany_subselect *it= 
+	  Item_allany_subselect *it=
 	    new Item_allany_subselect(YYTHD, $1, (*$2)($3), $4);
 	  if ($3)
 	    $$ = new Item_func_not(it);	/* ALL */
@@ -1845,7 +1845,7 @@ expr_expr:
 	| expr DIV_SYM expr	{ $$= new Item_func_int_div($1,$3); }
 	| expr MOD_SYM expr	{ $$= new Item_func_mod($1,$3); }
 	| expr '|' expr		{ $$= new Item_func_bit_or($1,$3); }
-        | expr '^' expr		{ $$= new Item_func_bit_xor($1,$3); }	
+        | expr '^' expr		{ $$= new Item_func_bit_xor($1,$3); }
 	| expr '&' expr		{ $$= new Item_func_bit_and($1,$3); }
 	| expr '%' expr		{ $$= new Item_func_mod($1,$3); }
 	| expr '+' INTERVAL_SYM expr interval
@@ -1875,7 +1875,7 @@ no_in_expr:
 	| no_in_expr comp_op expr %prec EQ	{ $$= (*((*$2)(0)))($1,$3); }
 	| no_in_expr comp_op all_or_any in_subselect %prec EQ
 	{
-	  Item_allany_subselect *it= 
+	  Item_allany_subselect *it=
 	    new Item_allany_subselect(YYTHD, $1, (*$2)($3), $4);
 	  if ($3)
 	    $$ = new Item_func_not(it);	/* ALL */
@@ -1909,7 +1909,7 @@ no_and_expr:
         | no_and_expr IN_SYM in_subselect
           { $$= new Item_in_subselect(YYTHD, $1, $3); }
 	| no_and_expr NOT IN_SYM in_subselect
-          { 
+          {
             $$= new Item_func_not(new Item_in_subselect(YYTHD, $1, $4));
           }
 	| no_and_expr BETWEEN_SYM no_and_expr AND expr
@@ -1929,7 +1929,7 @@ no_and_expr:
 	| no_and_expr comp_op expr %prec EQ { $$= (*((*$2)(0)))($1,$3); }
 	| no_and_expr comp_op all_or_any in_subselect %prec EQ
 	{
-	  Item_allany_subselect *it= 
+	  Item_allany_subselect *it=
 	    new Item_allany_subselect(YYTHD, $1, (*$2)($3), $4);
 	  if ($3)
 	    $$ = new Item_func_not(it);	/* ALL */
@@ -1963,7 +1963,7 @@ simple_expr:
 	    $$= new Item_func_set_user_var($2,$4);
 	    Lex->safe_to_cache_query=0;
 	  }
-	| '@' ident_or_text	 
+	| '@' ident_or_text
 	  {
 	    $$= new Item_func_get_user_var($2);
 	    Lex->safe_to_cache_query=0;
@@ -2031,8 +2031,8 @@ simple_expr:
 	| CURTIME optional_braces
 	  { $$= new Item_func_curtime(); Lex->safe_to_cache_query=0; }
 	| CURTIME '(' expr ')'
-	  { 
-	    $$= new Item_func_curtime($3); 
+	  {
+	    $$= new Item_func_curtime($3);
 	    Lex->safe_to_cache_query=0;
 	  }
 	| DATE_ADD_INTERVAL '(' expr ',' INTERVAL_SYM expr interval ')'
@@ -2040,9 +2040,9 @@ simple_expr:
 	| DATE_SUB_INTERVAL '(' expr ',' INTERVAL_SYM expr interval ')'
 	  { $$= new Item_date_add_interval($3,$6,$7,1); }
 	| DATABASE '(' ')'
-	  { 
+	  {
 	    $$= new Item_func_database();
-            Lex->safe_to_cache_query=0; 
+            Lex->safe_to_cache_query=0;
 	  }
 	| ELT_FUNC '(' expr ',' expr_list ')'
 	  { $$= new Item_func_elt($3, *$5); }
@@ -2051,7 +2051,7 @@ simple_expr:
 	| ENCRYPT '(' expr ')'
 	  {
 	    $$= new Item_func_encrypt($3);
-	    Lex->safe_to_cache_query=0; 
+	    Lex->safe_to_cache_query=0;
 	  }
 	| ENCRYPT '(' expr ',' expr ')'   { $$= new Item_func_encrypt($3,$5); }
 	| DECODE_SYM '(' expr ',' TEXT_STRING ')'
@@ -2089,8 +2089,8 @@ simple_expr:
 	| GEOMFROMTEXT '(' expr ',' expr ')'
 	  { $$= new Item_func_geometry_from_text($3); }
 	| GEOMETRYCOLLECTION '(' expr_list ')'
-	  { $$= new Item_func_spatial_collection(* $3, 
-                       Geometry::wkbGeometryCollection, 
+	  { $$= new Item_func_spatial_collection(* $3,
+                       Geometry::wkbGeometryCollection,
                        Geometry::wkbPoint); }
 	| HOUR_SYM '(' expr ')'
 	  { $$= new Item_func_hour($3); }
@@ -2116,7 +2116,7 @@ simple_expr:
 	| LEFT '(' expr ',' expr ')'
 	  { $$= new Item_func_left($3,$5); }
 	| LINESTRING '(' expr_list ')'
-	  { $$= new Item_func_spatial_collection(* $3, 
+	  { $$= new Item_func_spatial_collection(* $3,
                Geometry::wkbLineString, Geometry::wkbPoint); }
 	| LOCATE '(' expr ',' expr ')'
 	  { $$= new Item_func_locate($5,$3); }
@@ -2145,7 +2145,7 @@ simple_expr:
 	| MONTH_SYM '(' expr ')'
 	  { $$= new Item_func_month($3); }
  	| MULTILINESTRING '(' expr_list ')'
- 	  { $$= new Item_func_spatial_collection(* $3, 
+ 	  { $$= new Item_func_spatial_collection(* $3,
                     Geometry::wkbMultiLineString, Geometry::wkbLineString); }
  	| MLINEFROMTEXT '(' expr ')'
 	  { $$= new Item_func_geometry_from_text($3); }
@@ -2160,10 +2160,10 @@ simple_expr:
 	| MPOLYFROMTEXT '(' expr ',' expr ')'
 	  { $$= new Item_func_geometry_from_text($3); }
 	| MULTIPOINT '(' expr_list ')'
- 	  { $$= new Item_func_spatial_collection(* $3, 
+ 	  { $$= new Item_func_spatial_collection(* $3,
                     Geometry::wkbMultiPoint, Geometry::wkbPoint); }
  	| MULTIPOLYGON '(' expr_list ')'
- 	  { $$= new Item_func_spatial_collection(* $3, 
+ 	  { $$= new Item_func_spatial_collection(* $3,
                        Geometry::wkbMultiPolygon, Geometry::wkbPolygon ); }
 	| NOW_SYM optional_braces
 	  { $$= new Item_func_now(); Lex->safe_to_cache_query=0;}
@@ -2182,7 +2182,7 @@ simple_expr:
 	| POLYFROMTEXT '(' expr ',' expr ')'
 	  { $$= new Item_func_geometry_from_text($3); }
 	| POLYGON '(' expr_list ')'
- 	  { $$= new Item_func_spatial_collection(* $3, 
+ 	  { $$= new Item_func_spatial_collection(* $3,
 			Geometry::wkbPolygon, Geometry::wkbLineString); }
 	| POSITION_SYM '(' no_in_expr IN_SYM expr ')'
 	  { $$ = new Item_func_locate($5,$3); }
@@ -2266,7 +2266,7 @@ simple_expr:
 	      $$ = new Item_func_udf_int($1);
 	  }
 	| UNIQUE_USERS '(' text_literal ',' NUM ',' NUM ',' expr_list ')'
-	  { 
+	  {
             $$= new Item_func_unique_users($3,atoi($5.str),atoi($7.str), * $9);
 	  }
 	| UNIX_TIMESTAMP '(' ')'
@@ -2289,7 +2289,7 @@ simple_expr:
 	| YEARWEEK '(' expr ',' expr ')'
 	  { $$= new Item_func_yearweek($3, $5); }
 	| BENCHMARK_SYM '(' ULONG_NUM ',' expr ')'
-	  { 
+	  {
 	    $$=new Item_func_benchmark($3,$5);
 	    Lex->safe_to_cache_query=0;
 	  }
@@ -2330,7 +2330,7 @@ in_sum_expr:
 	  if (lex->current_select->inc_in_sum_expr())
 	  {
 	    send_error(lex->thd, ER_SYNTAX_ERROR);
-	    YYABORT;	    
+	    YYABORT;
 	  }
 	}
 	expr
@@ -2389,7 +2389,7 @@ when_list:
 when_list2:
 	expr THEN_SYM expr
 	  {
-	    SELECT_LEX_NODE *sel=Select;	    
+	    SELECT_LEX_NODE *sel=Select;
 	    sel->when_list.head()->push_back($1);
 	    sel->when_list.head()->push_back($3);
 	}
@@ -2483,7 +2483,7 @@ select_derived:
         {
 	  LEX *lex= Lex;
 	  lex->derived_tables= true;
-	  if (lex->current_select->linkage == GLOBAL_OPTIONS_TYPE || 
+	  if (lex->current_select->linkage == GLOBAL_OPTIONS_TYPE ||
               mysql_new_select(lex, 1))
 	    YYABORT;
 	  mysql_init_select(lex);
@@ -2574,7 +2574,7 @@ opt_table_alias:
 
 
 where_clause:
-	/* empty */  { Select->select_lex()->where= 0; }  
+	/* empty */  { Select->select_lex()->where= 0; }
 	| WHERE expr
 	  {
 	    Select->select_lex()->where= $2;
@@ -2654,8 +2654,8 @@ opt_order_clause:
 	| order_clause;
 
 order_clause:
-	ORDER_SYM BY 
-        { 
+	ORDER_SYM BY
+        {
 	  LEX *lex=Lex;
 	  if (lex->current_select->linkage != GLOBAL_OPTIONS_TYPE &&
 	      lex->current_select->select_lex()->olap !=
@@ -2686,7 +2686,7 @@ opt_limit_clause:
 	;
 
 limit_clause:
-	LIMIT 
+	LIMIT
 	  {
 	    LEX *lex= Lex;
 	    if (lex->current_select->linkage != GLOBAL_OPTIONS_TYPE &&
@@ -2785,7 +2785,7 @@ select_var_list_init:
 	     if (!lex->describe && (!(lex->result= new select_dumpvar())))
 	        YYABORT;
 	   }
-	   select_var_list 
+	   select_var_list
            ;
 
 select_var_list:
@@ -2835,7 +2835,7 @@ into:
   DO statement
 */
 
-do:	DO_SYM 
+do:	DO_SYM
 	{
 	  LEX *lex=Lex;
 	  lex->sql_command = SQLCOM_DO;
@@ -3105,7 +3105,7 @@ opt_low_priority:
 
 delete:
 	DELETE_SYM
-	{ 
+	{
 	  LEX *lex= Lex;
 	  lex->sql_command= SQLCOM_DELETE;
 	  lex->select_lex.options= 0;
@@ -3150,7 +3150,7 @@ table_wild_one:
 	;
 
 opt_wild:
-	/* empty */	{} 
+	/* empty */	{}
 	| '.' '*'	{};
 
 
@@ -3175,11 +3175,11 @@ truncate:
 opt_table_sym:
 	/* empty */
 	| TABLE_SYM;
- 
+
 /* Show things */
 
-show:	SHOW 
-	{ 
+show:	SHOW
+	{
 	  LEX *lex=Lex;
 	  lex->wild=0;
 	  bzero((char*) &lex->create_info,sizeof(lex->create_info));
@@ -3218,7 +3218,7 @@ show_param:
 	    if (!Select->add_table_to_list($4, NULL, 0))
 	      YYABORT;
 	  }
-        | NEW_SYM MASTER_SYM FOR_SYM SLAVE WITH MASTER_LOG_FILE_SYM EQ 
+        | NEW_SYM MASTER_SYM FOR_SYM SLAVE WITH MASTER_LOG_FILE_SYM EQ
 	  TEXT_STRING AND MASTER_LOG_POS_SYM EQ ulonglong_num
 	  AND MASTER_SERVER_ID_SYM EQ
 	ULONG_NUM
@@ -3266,14 +3266,14 @@ show_param:
 	    LEX *lex=Lex;
 	    lex->sql_command= SQLCOM_SHOW_PRIVILEGES;
 	  }
-        | COUNT_SYM '(' '*' ')' WARNINGS 
+        | COUNT_SYM '(' '*' ')' WARNINGS
           { (void) create_select_for_variable("warning_count"); }
-        | COUNT_SYM '(' '*' ')' ERRORS 
+        | COUNT_SYM '(' '*' ')' ERRORS
 	  { (void) create_select_for_variable("error_count"); }
         | WARNINGS {Select->offset_limit=0L;} opt_limit_clause
           { Lex->sql_command = SQLCOM_SHOW_WARNS;}
         | ERRORS {Select->offset_limit=0L;} opt_limit_clause
-          { Lex->sql_command = SQLCOM_SHOW_ERRORS;}  
+          { Lex->sql_command = SQLCOM_SHOW_ERRORS;}
 	| STATUS_SYM wild
 	  { Lex->sql_command= SQLCOM_SHOW_STATUS; }
         | INNOBASE_SYM STATUS_SYM
@@ -3356,9 +3356,9 @@ describe:
 	}
 	opt_describe_column
 	| describe_command { Lex->describe=1; } select
-          { 
+          {
 	    LEX *lex=Lex;
-	    lex->select_lex.options|= SELECT_DESCRIBE; 
+	    lex->select_lex.options|= SELECT_DESCRIBE;
 	  };
 
 
@@ -3438,7 +3438,7 @@ kill:
 	{
 	  LEX *lex=Lex;
 	  if ($2->check_cols(1) || $2->fix_fields(lex->thd, 0, &$2))
-	  { 
+	  {
 	    send_error(lex->thd, ER_SET_CONSTANTS_ONLY);
 	    YYABORT;
 	  }
@@ -3554,15 +3554,15 @@ text_string:
 	    $$= tmp ? tmp->val_str((String*) 0) : (String*) 0;
 	  };
 param_marker:
-        '?' 
+        '?'
         {
 	  LEX *lex=Lex;
           if (YYTHD->prepare_command)
-          {     
-            lex->param_list.push_back($$=new Item_param());      
+          {
+            lex->param_list.push_back($$=new Item_param());
             lex->param_count++;
           }
-          else 
+          else
           {
             yyerror("You have an error in your SQL syntax");
             YYABORT;
@@ -3932,7 +3932,7 @@ isolation_types:
 	| REPEATABLE_SYM READ_SYM	{ $$= ISO_REPEATABLE_READ; }
 	| SERIALIZABLE_SYM		{ $$= ISO_SERIALIZABLE; }
 	;
-  
+
 text_or_password:
 	TEXT_STRING { $$=$1.str;}
 	| PASSWORD '(' TEXT_STRING ')'
@@ -4170,7 +4170,7 @@ require_list_element:
 	  lex->ssl_cipher=$2.str;
 	}
 	;
- 
+
 opt_table:
 	'*'
 	  {
@@ -4286,7 +4286,7 @@ column_list_id:
 
 
 require_clause: /* empty */
-        | REQUIRE_SYM require_list 
+        | REQUIRE_SYM require_list
           {
             Lex->ssl_type=SSL_TYPE_SPECIFIED;
           }
@@ -4366,7 +4366,7 @@ union_list:
 	    /* Only the last SELECT can have  INTO...... */
 	    net_printf(lex->thd, ER_WRONG_USAGE, "UNION", "INTO");
 	    YYABORT;
-	  } 
+	  }
 	  if (lex->current_select->linkage == GLOBAL_OPTIONS_TYPE)
 	  {
 	    send_error(lex->thd, ER_SYNTAX_ERROR);
@@ -4385,7 +4385,7 @@ union_opt:
 	;
 
 optional_order_or_limit:
-      	/* Empty */ {} 
+      	/* Empty */ {}
 	|
 	  {
 	    LEX *lex=Lex;
@@ -4395,7 +4395,7 @@ optional_order_or_limit:
 	      YYABORT;
 	    }
 	    SELECT_LEX *sel= lex->current_select->select_lex();
-	    sel->master_unit()->global_parameters= 
+	    sel->master_unit()->global_parameters=
 	      sel->master_unit();
 	    lex->current_select= sel->master_unit();
 	    lex->current_select->select_limit=

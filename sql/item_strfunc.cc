@@ -124,12 +124,12 @@ String *Item_func_sha::val_str(String *str)
            digest[8], digest[9], digest[10], digest[11],
            digest[12], digest[13], digest[14], digest[15],
            digest[16], digest[17], digest[18], digest[19]);
-	   
+
       str->length((uint)  SHA1_HASH_SIZE*2);
       null_value=0;
       return str;
     }
-  }    
+  }
   null_value=1;
   return 0;
 }
@@ -153,13 +153,13 @@ String *Item_func_aes_encrypt::val_str(String *str)
   {
     null_value=0;
     aes_length=my_aes_get_size(sptr->length()); // Calculate result length
-    
+
     if (!str_value.alloc(aes_length))		// Ensure that memory is free
     {
       // finally encrypt directly to allocated buffer.
       if (my_aes_encrypt(sptr->ptr(),sptr->length(), (char*) str_value.ptr(),
 			 key->ptr(), key->length()) == aes_length)
-      {		     
+      {
 	// We got the expected result length
 	str_value.length((uint) aes_length);
 	return &str_value;
@@ -197,7 +197,7 @@ String *Item_func_aes_decrypt::val_str(String *str)
 			    (char*) str_value.ptr(),
                             key->ptr(), key->length());
       if (length >= 0)  // if we got correct data data
-      {      
+      {
         str_value.length((uint) length);
         DBUG_RETURN(&str_value);
       }
@@ -328,7 +328,7 @@ void Item_func_concat::fix_length_and_dec()
   }
 }
 
-/* 
+/*
   Function des_encrypt() by tonu@spam.ee & monty
   Works only if compiled with OpenSSL library support.
   This returns a binary string where first character is CHAR(128 | key-number).
@@ -385,10 +385,10 @@ String *Item_func_des_encrypt::val_str(String *str)
     des_set_key_unchecked(&keyblock.key3,keyschedule.ks3);
   }
 
-  /* 
+  /*
      The problem: DES algorithm requires original data to be in 8-bytes
-     chunks. Missing bytes get filled with '*'s and result of encryption 
-     can be up to 8 bytes longer than original string. When decrypted, 
+     chunks. Missing bytes get filled with '*'s and result of encryption
+     can be up to 8 bytes longer than original string. When decrypted,
      we do not know the size of original string :(
      We add one byte with value 0x1..0x8 as the last byte of the padded
      string marking change of string length.
@@ -459,7 +459,7 @@ String *Item_func_des_decrypt::val_str(String *str)
     // Here we set all 64-bit keys (56 effective) one by one
     des_set_key_unchecked(&keyblock.key1,keyschedule.ks1);
     des_set_key_unchecked(&keyblock.key2,keyschedule.ks2);
-    des_set_key_unchecked(&keyblock.key3,keyschedule.ks3); 
+    des_set_key_unchecked(&keyblock.key3,keyschedule.ks3);
   }
   if (tmp_value.alloc(length-1))
     goto error;
@@ -485,7 +485,7 @@ error:
 }
 
 
-/* 
+/*
   concat with separator. First arg is the separator
   concat_ws takes at least two arguments.
 */
@@ -683,7 +683,7 @@ String *Item_func_replace::val_str(String *str)
 #ifdef USE_MB
   const char *ptr,*end,*strend,*search,*search_end;
   register uint32 l;
-  bool binary_str; 
+  bool binary_str;
 #endif
 
   null_value=0;
@@ -1279,7 +1279,8 @@ String *Item_func_password::val_str(String *str)
     return 0;
   if (res->length() == 0)
     return &empty_string;
-  make_scrambled_password(tmp_value,res->c_ptr(),opt_old_passwords,&current_thd->rand);
+  make_scrambled_password(tmp_value,res->c_ptr(),opt_old_passwords,
+                          &current_thd->rand);
   str->set(tmp_value,get_password_length(opt_old_passwords),res->charset());
   return str;
 }
@@ -1392,7 +1393,7 @@ String *Item_func_user::val_str(String *str)
   CHARSET_INFO *cs=thd->thd_charset;
   const char   *host=thd->host ? thd->host : thd->ip ? thd->ip : "";
   uint32       res_length=(strlen(thd->user)+strlen(host)+10) * cs->mbmaxlen;
-  
+
   if (str->alloc(res_length))
   {
       null_value=1;
@@ -1669,7 +1670,7 @@ String *Item_func_char::val_str(String *str)
         } else if (num&0xFF0000L) {
 b2:        str->append((char)(num>>16));
            goto b1;
-        } else if (num&0xFF00L) {   
+        } else if (num&0xFF00L) {
 b1:        str->append((char)(num>>8));
         }
       }
@@ -1938,25 +1939,25 @@ String *Item_func_conv_charset::val_str(String *str)
   uint32 dmaxlen;
   String *arg= args[0]->val_str(str);
   CHARSET_INFO *from,*to;
-  
+
   if (!arg)
   {
     null_value=1;
     return 0;
   }
   null_value=0;
-  
+
   from=arg->charset();
   to=conv_charset;
 
   s=(const uchar*)arg->ptr();
   se=s+arg->length();
-  
+
   dmaxlen=arg->length()*to->mbmaxlen+1;
   str->alloc(dmaxlen);
   d0=d=(unsigned char*)str->ptr();
   de=d+dmaxlen;
-  
+
   while( s < se && d < de){
 
     cnvres=from->mb_wc(from,&wc,s,se);
@@ -1986,7 +1987,7 @@ outp:
     else
       break;
   };
-  
+
   str->length((uint32) (d-d0));
   str->set_charset(to);
   return str;
@@ -2012,9 +2013,9 @@ String *Item_func_conv_charset3::val_str(String *str)
   String *from_cs= args[2]->val_str(str);
   CHARSET_INFO *from_charset;
   CHARSET_INFO *to_charset;
-  
-  if (!arg     || args[0]->null_value || 
-      !to_cs   || args[1]->null_value || 
+
+  if (!arg     || args[0]->null_value ||
+      !to_cs   || args[1]->null_value ||
       !from_cs || args[2]->null_value ||
       !(from_charset=get_charset_by_name(from_cs->ptr(), MYF(MY_WME))) ||
       !(to_charset=get_charset_by_name(to_cs->ptr(), MYF(MY_WME))))
@@ -2025,12 +2026,12 @@ String *Item_func_conv_charset3::val_str(String *str)
 
   s=(const uchar*)arg->ptr();
   se=s+arg->length();
-  
+
   dmaxlen=arg->length()*to_charset->mbmaxlen+1;
   str->alloc(dmaxlen);
   d0=d=(unsigned char*)str->ptr();
   de=d+dmaxlen;
-  
+
   while( s < se && d < de){
 
     cnvres=from_charset->mb_wc(from_charset,&wc,s,se);
@@ -2060,7 +2061,7 @@ outp:
     else
       break;
   };
-  
+
   str->length((uint32) (d-d0));
   str->set_charset(to_charset);
   return str;
@@ -2072,7 +2073,7 @@ bool Item_func_conv_charset::fix_fields(THD *thd,struct st_table_list *tables, I
   char buff[STACK_BUFF_ALLOC];			// Max argument in function
   used_tables_cache=0;
   const_item_cache=1;
-  
+
   if (thd && check_stack_overrun(thd,buff))
     return 0;					// Fatal error if flag is set!
   if (args[0]->check_cols(1) || args[0]->fix_fields(thd, tables, args))
@@ -2105,7 +2106,7 @@ bool Item_func_set_collation::fix_fields(THD *thd,struct st_table_list *tables, 
   char buff[STACK_BUFF_ALLOC];			// Max argument in function
   used_tables_cache=0;
   const_item_cache=1;
-  
+
   if (thd && check_stack_overrun(thd,buff))
     return 0;					// Fatal error if flag is set!
   if (args[0]->check_cols(1) || args[0]->fix_fields(thd, tables, args))
@@ -2236,11 +2237,11 @@ err:
 String* Item_func_export_set::val_str(String* str)
 {
   ulonglong the_set = (ulonglong) args[0]->val_int();
-  String yes_buf, *yes; 
+  String yes_buf, *yes;
   yes = args[1]->val_str(&yes_buf);
-  String no_buf, *no; 
+  String no_buf, *no;
   no = args[2]->val_str(&no_buf);
-  String *sep = NULL, sep_buf ; 
+  String *sep = NULL, sep_buf ;
 
   uint num_set_values = 64;
   ulonglong mask = 0x1;
@@ -2314,7 +2315,7 @@ String* Item_func_inet_ntoa::val_str(String* str)
   int4store(buf,n);
 
   /* Now we can assume little endian. */
-  
+
   num[3]='.';
   for (p=buf+4 ; p-- > buf ; )
   {
@@ -2343,7 +2344,7 @@ String* Item_func_inet_ntoa::val_str(String* str)
   DESCRIPTION
     Adds a \ before all characters that needs to be escaped in a SQL string.
     We also escape '^Z' (END-OF-FILE in windows) to avoid probelms when
-    running commands from a file in windows. 
+    running commands from a file in windows.
 
     This function is very useful when you want to generate SQL statements
 
@@ -2359,7 +2360,7 @@ String *Item_func_quote::val_str(String *str)
   /*
     Bit mask that has 1 for set for the position of the following characters:
     0, \, ' and ^Z
-  */ 
+  */
 
   static uchar escmask[32]=
   {
@@ -2457,7 +2458,7 @@ String *Item_func_as_text::val_str(String *str)
   Geometry geom;
 
   if ((null_value=(args[0]->null_value ||
-                   geom.create_from_wkb(wkt->ptr(),wkt->length())))) 
+                   geom.create_from_wkb(wkt->ptr(),wkt->length()))))
     return 0;
 
   str->length(0);
@@ -2494,7 +2495,7 @@ String *Item_func_envelope::val_str(String *str)
   Geometry geom;
 
   null_value = args[0]->null_value ||
-               geom.create_from_wkb(wkb->ptr(),wkb->length()) || 
+               geom.create_from_wkb(wkb->ptr(),wkb->length()) ||
                geom.envelope(str);
 
   return null_value ? 0 : str;
@@ -2507,7 +2508,7 @@ String *Item_func_centroid::val_str(String *str)
   Geometry geom;
 
   null_value = args[0]->null_value ||
-               geom.create_from_wkb(wkb->ptr(),wkb->length()) || 
+               geom.create_from_wkb(wkb->ptr(),wkb->length()) ||
                !GEOM_METHOD_PRESENT(geom,centroid) ||
                geom.centroid(str);
 
@@ -2551,7 +2552,7 @@ String *Item_func_spatial_decomp::val_str(String *str)
   }
   null_value=0;
 
-ret:  
+ret:
   return null_value ? 0 : str;
 }
 
@@ -2562,7 +2563,7 @@ String *Item_func_spatial_decomp_n::val_str(String *str)
   long n       = (long) args[1]->val_int();
   Geometry geom;
 
-  if ((null_value = (args[0]->null_value || 
+  if ((null_value = (args[0]->null_value ||
                      args[1]->null_value ||
                      geom.create_from_wkb(wkb->ptr(),wkb->length()) )))
     return 0;
@@ -2572,19 +2573,19 @@ String *Item_func_spatial_decomp_n::val_str(String *str)
   switch(decomp_func_n)
   {
     case SP_POINTN:
-      if (!GEOM_METHOD_PRESENT(geom,point_n) || 
+      if (!GEOM_METHOD_PRESENT(geom,point_n) ||
           geom.point_n(n,str))
         goto ret;
       break;
 
     case SP_GEOMETRYN:
-      if (!GEOM_METHOD_PRESENT(geom,geometry_n) || 
+      if (!GEOM_METHOD_PRESENT(geom,geometry_n) ||
           geom.geometry_n(n,str))
         goto ret;
       break;
 
     case SP_INTERIORRINGN:
-      if (!GEOM_METHOD_PRESENT(geom,interior_ring_n) || 
+      if (!GEOM_METHOD_PRESENT(geom,interior_ring_n) ||
           geom.interior_ring_n(n,str))
         goto ret;
       break;
@@ -2612,7 +2613,7 @@ Functions to concatinate various spatial objects
 
 String *Item_func_point::val_str(String *str)
 {
-  if ( (null_value = (args[0]->null_value || 
+  if ( (null_value = (args[0]->null_value ||
                      args[1]->null_value ||
                      str->realloc(1+4+8+8))))
     return 0;
@@ -2627,12 +2628,12 @@ String *Item_func_point::val_str(String *str)
 
 
 /*
-  Concatinates various items into various collections 
+  Concatinates various items into various collections
   with checkings for valid wkb type of items.
   For example, MultiPoint can be a collection of Points only.
   coll_type contains wkb type of target collection.
   item_type contains a valid wkb type of items.
-  In the case when coll_type is wkbGeometryCollection, 
+  In the case when coll_type is wkbGeometryCollection,
   we do not check wkb type of items, any is valid.
 */
 
@@ -2659,14 +2660,14 @@ String *Item_func_spatial_collection::val_str(String *str)
 
     if ( coll_type == Geometry::wkbGeometryCollection )
     {
-      /* 
-         In the case of GeometryCollection we don't need 
+      /*
+         In the case of GeometryCollection we don't need
          any checkings for item types, so just copy them
          into target collection
       */
       if ((null_value=(str->reserve(res->length(),512))))
         goto ret;
-        
+
       str->q_append(res->ptr(),res->length());
     }
     else
@@ -2675,12 +2676,12 @@ String *Item_func_spatial_collection::val_str(String *str)
       uint32 len=res->length();
       const char *data=res->ptr()+1;
 
-      /* 
-         In the case of named collection we must to 
+      /*
+         In the case of named collection we must to
          check that items are of specific type, let's
          do this checking now
       */
-      
+
       if (len < 5)
         goto ret;
       wkb_type= (Geometry::wkbType) uint4korr(data);
@@ -2688,14 +2689,14 @@ String *Item_func_spatial_collection::val_str(String *str)
       len-=5;
       if (wkb_type != item_type)
         goto ret;
-      
+
       switch (coll_type) {
       case Geometry::wkbMultiPoint:
       case Geometry::wkbMultiLineString:
       case Geometry::wkbMultiPolygon:
-	if (len < WKB_HEADER_SIZE) 
+	if (len < WKB_HEADER_SIZE)
 	  goto ret;
-           
+
 	data+=WKB_HEADER_SIZE;
 	len-=WKB_HEADER_SIZE;
 	if (str->reserve(len,512))
@@ -2710,43 +2711,43 @@ String *Item_func_spatial_collection::val_str(String *str)
 	break;
 
       case Geometry::wkbPolygon:
-      { 
+      {
 	uint32 n_points;
 	double x1, y1, x2, y2;
 
-	if (len < WKB_HEADER_SIZE + 4 + 8 + 8) 
+	if (len < WKB_HEADER_SIZE + 4 + 8 + 8)
 	  goto ret;
 	data+=WKB_HEADER_SIZE;
 	len-=WKB_HEADER_SIZE;
 
 	uint32 llen=len;
 	const char *ldata=data;
-             
+
 	n_points=uint4korr(data);
 	data+=4;
 	float8get(x1,data);
 	data+=8;
 	float8get(y1,data);
 	data+=8;
-             
+
 	len-= 4 + 8 + 8;
-             
+
 	if (len < n_points * POINT_DATA_SIZE)
 	  goto ret;
 	data+=(n_points-2) * POINT_DATA_SIZE;
 
 	float8get(x2,data);
 	float8get(y2,data+8);
-             
+
 	if ((x1 != x2) || (y1 != y2))
 	  goto ret;
-             
+
 	if (str->reserve(llen,512))
 	  goto ret;
 	str->q_append(ldata, llen);
       }
       break;
-         
+
       default:
 	goto ret;
       }

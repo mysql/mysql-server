@@ -84,15 +84,15 @@ static void store_values(MYSQL_RES *result);
   The order of commands must be the same as command_names,
   except ADMIN_ERROR
 */
-enum commands { 
-  ADMIN_ERROR, 
+enum commands {
+  ADMIN_ERROR,
   ADMIN_CREATE,           ADMIN_DROP,            ADMIN_SHUTDOWN,
-  ADMIN_RELOAD,           ADMIN_REFRESH,         ADMIN_VER, 
-  ADMIN_PROCESSLIST,      ADMIN_STATUS,          ADMIN_KILL, 
-  ADMIN_DEBUG,            ADMIN_VARIABLES,       ADMIN_FLUSH_LOGS, 
-  ADMIN_FLUSH_HOSTS,      ADMIN_FLUSH_TABLES,    ADMIN_PASSWORD, 
-  ADMIN_PING,             ADMIN_EXTENDED_STATUS, ADMIN_FLUSH_STATUS, 
-  ADMIN_FLUSH_PRIVILEGES, ADMIN_START_SLAVE,     ADMIN_STOP_SLAVE, 
+  ADMIN_RELOAD,           ADMIN_REFRESH,         ADMIN_VER,
+  ADMIN_PROCESSLIST,      ADMIN_STATUS,          ADMIN_KILL,
+  ADMIN_DEBUG,            ADMIN_VARIABLES,       ADMIN_FLUSH_LOGS,
+  ADMIN_FLUSH_HOSTS,      ADMIN_FLUSH_TABLES,    ADMIN_PASSWORD,
+  ADMIN_PING,             ADMIN_EXTENDED_STATUS, ADMIN_FLUSH_STATUS,
+  ADMIN_FLUSH_PRIVILEGES, ADMIN_START_SLAVE,     ADMIN_STOP_SLAVE,
   ADMIN_FLUSH_THREADS,    ADMIN_OLD_PASSWORD
 };
 static const char *command_names[]= {
@@ -102,8 +102,8 @@ static const char *command_names[]= {
   "debug",                "variables",           "flush-logs",
   "flush-hosts",          "flush-tables",        "password",
   "ping",                 "extended-status",     "flush-status",
-  "flush-privileges",     "start-slave",         "stop-slave",  
-  "flush-threads","old-password", 
+  "flush-privileges",     "start-slave",         "stop-slave",
+  "flush-threads","old-password",
   NullS
 };
 
@@ -152,7 +152,7 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef HAVE_SMEM
   {"shared_memory_base_name", OPT_SHARED_MEMORY_BASE_NAME,
-   "Base name of shared memory", (gptr*) &shared_memory_base_name, (gptr*) &shared_memory_base_name, 
+   "Base name of shared memory", (gptr*) &shared_memory_base_name, (gptr*) &shared_memory_base_name,
    0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"silent", 's', "Silently exit if one can't connect to server",
@@ -172,7 +172,7 @@ static struct my_option my_long_options[] =
    (gptr*) &opt_verbose, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"version", 'V', "Output version information and exit", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"vertical", 'E', 
+  {"vertical", 'E',
    "Print output vertically. Is similar to --relative, but prints output vertically.",
    (gptr*) &opt_vertical, (gptr*) &opt_vertical, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
@@ -311,7 +311,7 @@ int main(int argc,char *argv[])
 #ifdef HAVE_SMEM
   if (shared_memory_base_name)
     mysql_options(&mysql,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
-#endif    
+#endif
   if (sql_connect(&mysql, option_wait))
     error = 1;
   else
@@ -417,7 +417,7 @@ static my_bool sql_connect(MYSQL *mysql, uint wait)
       wait--;				/* One less retry */
     if ((mysql_errno(mysql) != CR_CONN_HOST_ERROR) &&
 	(mysql_errno(mysql) != CR_CONNECTION_ERROR))
-    {	 
+    {
       fprintf(stderr,"Got error: %s\n", mysql_error(mysql));
       if (!option_force)
 	return 1;
@@ -432,7 +432,7 @@ static my_bool sql_connect(MYSQL *mysql, uint wait)
       }
       else
       {
-	putc('.',stderr); 
+	putc('.',stderr);
 	(void) fflush(stderr);
       }
     }
@@ -451,7 +451,7 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
 {
   const char *status;
   struct rand_struct rand_st;
-  
+
   for (; argc > 0 ; argv++,argc--)
   {
     switch (find_type(argv[0],&command_typelib,2)) {
@@ -661,7 +661,7 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
       MYSQL_RES *res;
       MYSQL_ROW row;
       uint rownr = 0;
-      void (*func) (MYSQL_RES*, MYSQL_ROW, uint); 
+      void (*func) (MYSQL_RES*, MYSQL_ROW, uint);
 
       new_line = 1;
       if (mysql_query(mysql, "show status") ||
@@ -759,9 +759,9 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
       char buff[128],crypted_pw[64];
       time_t start_time;
       /* Do initialization the same way as we do in mysqld */
-      start_time=time((time_t*) 0);       
+      start_time=time((time_t*) 0);
       randominit(&rand_st,(ulong) start_time,(ulong) start_time/2);
-      
+
       if (argc < 2)
       {
 	my_printf_error(0,"Too few arguments to change password",MYF(ME_BELL));
@@ -1034,7 +1034,7 @@ static void print_relative_row_vert(MYSQL_RES *result __attribute__((unused)),
     putchar('|');
 
   tmp = cur[1] ? strtoull(cur[1], NULL, 0) : (ulonglong) 0;
-  printf(" %-*s|", ex_val_max_len[row] + 1, 
+  printf(" %-*s|", ex_val_max_len[row] + 1,
 	 llstr((tmp - last_values[row]), buff));
 
   /* Find the minimum row length needed to output the relative value */

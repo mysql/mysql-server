@@ -472,9 +472,9 @@ Field *find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
 Field *find_field_in_table(THD *thd,TABLE *table,const char *name,uint length,
 			   bool check_grant,bool allow_rowid);
 #ifdef HAVE_OPENSSL
-struct st_des_keyblock 
-{ 
-  des_cblock key1, key2, key3; 
+struct st_des_keyblock
+{
+  des_cblock key1, key2, key3;
 };
 struct st_des_keyschedule
 {
@@ -555,9 +555,9 @@ SQL_SELECT *make_select(TABLE *head, table_map const_tables,
 enum find_item_error_report_type {REPORT_ALL_ERRORS, REPORT_EXCEPT_NOT_FOUND,
 				  IGNORE_ERRORS};
 extern const Item **not_found_item;
-Item ** find_item_in_list(Item *item, List<Item> &items, 
+Item ** find_item_in_list(Item *item, List<Item> &items,
 			  find_item_error_report_type report_error);
-bool insert_fields(THD *thd,TABLE_LIST *tables, 
+bool insert_fields(THD *thd,TABLE_LIST *tables,
 		   const char *db_name, const char *table_name,
 		   List_iterator<Item> *it);
 bool setup_tables(TABLE_LIST *tables);

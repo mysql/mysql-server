@@ -56,7 +56,7 @@ char pstack_file_name[80];
 
 #if defined(HAVE_DEC_3_2_THREADS) || defined(SIGNALS_DONT_BREAK_READ)
 #define HAVE_CLOSE_SERVER_SOCK 1
-#endif  
+#endif
 
 extern "C" {					// Because of SCO 3.2V4.2
 #include <errno.h>
@@ -256,7 +256,7 @@ my_bool opt_skip_slave_start = 0; // If set, slave is not autostarted
   If set, some standard measures to enforce slave data integrity will not
   be performed
 */
-my_bool opt_reckless_slave = 0; 
+my_bool opt_reckless_slave = 0;
 
 ulong back_log, connect_timeout, concurrency;
 char mysql_home[FN_REFLEN], pidfile_name[FN_REFLEN], time_zone[30];
@@ -337,7 +337,7 @@ ulong query_cache_size=0;
 ulong query_cache_limit=0;
 Query_cache query_cache;
 #endif
-arg_cmp_func Arg_comparator::comparator_matrix[4][2] = 
+arg_cmp_func Arg_comparator::comparator_matrix[4][2] =
 {{&Arg_comparator::compare_string, &Arg_comparator::compare_e_string},
  {&Arg_comparator::compare_real, &Arg_comparator::compare_e_real},
  {&Arg_comparator::compare_int, &Arg_comparator::compare_e_int},
@@ -355,7 +355,7 @@ my_string master_user = (char*) "test", master_password = 0, master_host=0,
   relay_log_info_file = (char*) "relay-log.info",
   master_ssl_key=0, master_ssl_cert=0, master_ssl_capath=0, master_ssl_cipher=0;
 my_string report_user = 0, report_password = 0, report_host=0;
- 
+
 const char *localhost=LOCAL_HOST;
 const char *delayed_user="DELAYED";
 uint master_port = MYSQL_PORT, master_connect_retry = 60;
@@ -384,7 +384,7 @@ ulong max_connections,max_insert_delayed_threads,max_used_connections,
       max_connect_errors, max_user_connections = 0;
 ulong thread_id=1L,current_pid;
 ulong slow_launch_threads = 0;
-  
+
 char mysql_real_data_home[FN_REFLEN],
      language[LIBLEN],reg_ext[FN_EXTLEN],
      mysql_charsets_dir[FN_REFLEN], *charsets_list,
@@ -557,7 +557,7 @@ static void close_connections(void)
   {
     HANDLE temp;
     DBUG_PRINT( "quit", ("Closing named pipes") );
-     
+
     /* Create connection to the handle named pipe handler to break the loop */
     if ((temp = CreateFile(szPipeName,
 			   GENERIC_READ | GENERIC_WRITE,
@@ -676,7 +676,7 @@ static void close_server_sock()
       The following code is disabled as it causes MySQL to hang on
       AIX 4.3 during shutdown
     */
-    DBUG_PRINT("info",("calling closesocket on TCP/IP socket"));    
+    DBUG_PRINT("info",("calling closesocket on TCP/IP socket"));
     VOID(closesocket(tmp_sock));
 #endif
   }
@@ -708,7 +708,7 @@ void kill_mysql(void)
 #ifdef SIGNALS_DONT_BREAK_READ
   abort_loop=1;					// Break connection loops
   close_server_sock();				// Force accept to wake up
-#endif  
+#endif
 
 #if defined(__WIN__)
 #if !defined(EMBEDDED_LIBRARY)
@@ -746,7 +746,7 @@ void kill_mysql(void)
 			   (void*) 0))
       sql_print_error("Error: Can't create thread to kill server");
   }
-#endif    
+#endif
   DBUG_VOID_RETURN;
 }
 
@@ -1379,7 +1379,7 @@ extern "C" sig_handler handle_segfault(int sig)
     fprintf(stderr, "Fatal signal %d while backtracing\n", sig);
     exit(1);
   }
-  
+
   segfaulted = 1;
   fprintf(stderr,"\
 mysqld got signal %d;\n\
@@ -1403,7 +1403,7 @@ bytes of memory\n", (keybuff_size + (global_system_variables.read_buff_size +
 				     thd->variables.sortbuff_size) *
 		     max_connections)/ 1024);
   fprintf(stderr, "Hope that's ok; if not, decrease some variables in the equation.\n\n");
-  
+
 #if defined(HAVE_LINUXTHREADS)
   if (sizeof(char*) == 4 && thread_count > UNSAFE_DEFAULT_LINUX_THREADS)
   {
@@ -2028,7 +2028,7 @@ int main(int argc, char **argv)
 	     NullS, LOG_NEW);
     using_update_log=1;
   }
- 
+
   if (opt_slow_log)
     open_log(&mysql_slow_log, glob_hostname, opt_slow_logname, "-slow.log",
 	     NullS, LOG_NORMAL);
@@ -2109,7 +2109,7 @@ int main(int argc, char **argv)
 #endif
   /* init_slave() must be called after the thread keys are created */
   init_slave();
-  
+
   if (opt_bin_log && !server_id)
   {
     server_id= !master_host ? 1 : 2;
@@ -2310,7 +2310,7 @@ int mysql_service(void *p)
 
   SYNOPSIS
     default_service_handling()
-    argv		Pointer to argument list 
+    argv		Pointer to argument list
     servicename		Internal name of service
     displayname		Display name of service (in taskbar ?)
     file_path		Path to this program
@@ -2353,7 +2353,7 @@ int main(int argc, char **argv)
     fn_format(file_path,argv[0],file_path,"",1+4+16); /* Force full path */
 
     if (argc == 2)
-    {	
+    {
       if (!default_service_handling(argv,MYSQL_SERVICENAME, MYSQL_SERVICENAME,
 				   file_path))
 	return 0;
@@ -2441,7 +2441,7 @@ static int bootstrap(FILE *file)
   if (pthread_create(&thd->real_id,&connection_attrib,handle_bootstrap,
 		     (void*) thd))
   {
-    sql_print_error("Warning: Can't create thread to handle bootstrap");    
+    sql_print_error("Warning: Can't create thread to handle bootstrap");
     DBUG_RETURN(-1);
   }
   /* Wait for thread to die */
@@ -2498,7 +2498,7 @@ static void create_new_thread(THD *thd)
   thd->scramble[8]=0;
   // Back it up as old clients may need it
   memcpy(thd->old_scramble,thd->scramble,9);
-  
+
 
   thd->real_id=pthread_self();			// Keep purify happy
 
@@ -2860,7 +2860,7 @@ extern "C" pthread_handler_decl(handle_connections_namedpipes,arg)
 }
 #endif /* __NT__ */
 
-/* 
+/*
   Thread of shared memory's service
 
   SYNOPSIS
@@ -2871,10 +2871,10 @@ extern "C" pthread_handler_decl(handle_connections_namedpipes,arg)
 #ifdef HAVE_SMEM
 pthread_handler_decl(handle_connections_shared_memory,arg)
 {
-/*  
-  event_connect_request is event object for start connection actions 
+/*
+  event_connect_request is event object for start connection actions
   event_connect_answer is event object for confirm, that server put data
-  handle_connect_file_map is file-mapping object, use for create shared memory  
+  handle_connect_file_map is file-mapping object, use for create shared memory
   handle_connect_map is pointer on shared memory
   handle_map is pointer on shared memory for client
   event_server_wrote,
@@ -2894,7 +2894,7 @@ pthread_handler_decl(handle_connections_shared_memory,arg)
   char tmp[63];
   char *suffix_pos;
   char connect_number_char[22], *p;
-  
+
   my_thread_init();
   DBUG_ENTER("handle_connections_shared_memorys");
   DBUG_PRINT("general",("Waiting for allocated shared memory."));
@@ -2908,27 +2908,27 @@ pthread_handler_decl(handle_connections_shared_memory,arg)
     unique_part is unique value for each object (events and file-mapping)
 */
   suffix_pos = strxmov(tmp,shared_memory_base_name,"_",NullS);
-  strmov(suffix_pos, "CONNECT_REQUEST");  
-  if ((event_connect_request = CreateEvent(NULL,FALSE,FALSE,tmp)) == 0) 
+  strmov(suffix_pos, "CONNECT_REQUEST");
+  if ((event_connect_request = CreateEvent(NULL,FALSE,FALSE,tmp)) == 0)
   {
     sql_perror("Can't create shared memory service ! The request event don't create.");
     goto error;
   }
-  strmov(suffix_pos, "CONNECT_ANSWER");  
-  if ((event_connect_answer = CreateEvent(NULL,FALSE,FALSE,tmp)) == 0) 
+  strmov(suffix_pos, "CONNECT_ANSWER");
+  if ((event_connect_answer = CreateEvent(NULL,FALSE,FALSE,tmp)) == 0)
   {
     sql_perror("Can't create shared memory service ! The answer event don't create.");
     goto error;
   }
-  strmov(suffix_pos, "CONNECT_DATA");  
+  strmov(suffix_pos, "CONNECT_DATA");
   if ((handle_connect_file_map = CreateFileMapping(INVALID_HANDLE_VALUE,NULL,PAGE_READWRITE,
-                                 0,sizeof(connect_number),tmp)) == 0) 
+                                 0,sizeof(connect_number),tmp)) == 0)
   {
     sql_perror("Can't create shared memory service ! File mapping don't create.");
     goto error;
   }
   if ((handle_connect_map = (char *)MapViewOfFile(handle_connect_file_map,FILE_MAP_WRITE,0,0,
-                            sizeof(DWORD))) == 0) 
+                            sizeof(DWORD))) == 0)
   {
     sql_perror("Can't create shared memory service ! Map of memory don't create.");
     goto error;
@@ -2940,7 +2940,7 @@ pthread_handler_decl(handle_connections_shared_memory,arg)
 /*
  Wait a request from client
 */
-    WaitForSingleObject(event_connect_request,INFINITE);  
+    WaitForSingleObject(event_connect_request,INFINITE);
     error_allow = FALSE;
 
     HANDLE handle_client_file_map = NULL;
@@ -2962,13 +2962,13 @@ pthread_handler_decl(handle_connections_shared_memory,arg)
     suffix_pos = strxmov(tmp,shared_memory_base_name,"_",connect_number_char,"_",NullS);
     strmov(suffix_pos, "DATA");
     if ((handle_client_file_map = CreateFileMapping(INVALID_HANDLE_VALUE,NULL,
-                                  PAGE_READWRITE,0,smem_buffer_length,tmp)) == 0) 
+                                  PAGE_READWRITE,0,smem_buffer_length,tmp)) == 0)
     {
       sql_perror("Can't create connection with client in shared memory service ! File mapping don't create.");
       error_allow = TRUE;
       goto errorconn;
     }
-    if ((handle_client_map = (char*)MapViewOfFile(handle_client_file_map,FILE_MAP_WRITE,0,0,smem_buffer_length)) == 0) 
+    if ((handle_client_map = (char*)MapViewOfFile(handle_client_file_map,FILE_MAP_WRITE,0,0,smem_buffer_length)) == 0)
     {
       sql_perror("Can't create connection with client in shared memory service ! Map of memory don't create.");
       error_allow = TRUE;
@@ -2976,7 +2976,7 @@ pthread_handler_decl(handle_connections_shared_memory,arg)
     }
 
     strmov(suffix_pos, "CLIENT_WROTE");
-    if ((event_client_wrote = CreateEvent(NULL,FALSE,FALSE,tmp)) == 0) 
+    if ((event_client_wrote = CreateEvent(NULL,FALSE,FALSE,tmp)) == 0)
     {
       sql_perror("Can't create connection with client in shared memory service ! CW event don't create.");
       error_allow = TRUE;
@@ -2984,7 +2984,7 @@ pthread_handler_decl(handle_connections_shared_memory,arg)
     }
 
     strmov(suffix_pos, "CLIENT_READ");
-    if ((event_client_read = CreateEvent(NULL,FALSE,FALSE,tmp)) == 0) 
+    if ((event_client_read = CreateEvent(NULL,FALSE,FALSE,tmp)) == 0)
     {
       sql_perror("Can't create connection with client in shared memory service ! CR event don't create.");
       error_allow = TRUE;
@@ -2992,7 +2992,7 @@ pthread_handler_decl(handle_connections_shared_memory,arg)
     }
 
     strmov(suffix_pos, "SERVER_READ");
-    if ((event_server_read = CreateEvent(NULL,FALSE,FALSE,tmp)) == 0) 
+    if ((event_server_read = CreateEvent(NULL,FALSE,FALSE,tmp)) == 0)
     {
       sql_perror("Can't create connection with client in shared memory service ! SR event don't create.");
       error_allow = TRUE;
@@ -3000,7 +3000,7 @@ pthread_handler_decl(handle_connections_shared_memory,arg)
     }
 
     strmov(suffix_pos, "SERVER_WROTE");
-    if ((event_server_wrote = CreateEvent(NULL,FALSE,FALSE,tmp)) == 0) 
+    if ((event_server_wrote = CreateEvent(NULL,FALSE,FALSE,tmp)) == 0)
     {
       sql_perror("Can't create connection with client in shared memory service ! SW event don't create.");
       error_allow = TRUE;
@@ -3018,11 +3018,11 @@ pthread_handler_decl(handle_connections_shared_memory,arg)
 Send number of connection to client
 */
     int4store(handle_connect_map, connect_number);
-      
+
 /*
   Send number of connection to client
 */
-    if (!SetEvent(event_connect_answer)) 
+    if (!SetEvent(event_connect_answer))
     {
       sql_perror("Can't create connection with client in shared memory service ! Can't send answer event.");
       error_allow = TRUE;
@@ -3079,25 +3079,25 @@ error:
 ******************************************************************************/
 
 enum options {
-  OPT_ISAM_LOG=256,            OPT_SKIP_NEW, 
-  OPT_SKIP_GRANT,              OPT_SKIP_LOCK, 
+  OPT_ISAM_LOG=256,            OPT_SKIP_NEW,
+  OPT_SKIP_GRANT,              OPT_SKIP_LOCK,
   OPT_ENABLE_LOCK,             OPT_USE_LOCKING,
-  OPT_SOCKET,                  OPT_UPDATE_LOG, 
-  OPT_BIN_LOG,                 OPT_SKIP_RESOLVE, 
+  OPT_SOCKET,                  OPT_UPDATE_LOG,
+  OPT_BIN_LOG,                 OPT_SKIP_RESOLVE,
   OPT_SKIP_NETWORKING,         OPT_BIN_LOG_INDEX,
   OPT_BIND_ADDRESS,            OPT_PID_FILE,
-  OPT_SKIP_PRIOR,              OPT_BIG_TABLES,    
+  OPT_SKIP_PRIOR,              OPT_BIG_TABLES,
   OPT_STANDALONE,              OPT_ONE_THREAD,
   OPT_CONSOLE,                 OPT_LOW_PRIORITY_UPDATES,
-  OPT_SKIP_HOST_CACHE,         OPT_LONG_FORMAT,   
-  OPT_FLUSH,                   OPT_SAFE, 
+  OPT_SKIP_HOST_CACHE,         OPT_LONG_FORMAT,
+  OPT_FLUSH,                   OPT_SAFE,
   OPT_BOOTSTRAP,               OPT_SKIP_SHOW_DB,
-  OPT_TABLE_TYPE,              OPT_INIT_FILE,   
-  OPT_DELAY_KEY_WRITE_ALL,     OPT_SLOW_QUERY_LOG, 
+  OPT_TABLE_TYPE,              OPT_INIT_FILE,
+  OPT_DELAY_KEY_WRITE_ALL,     OPT_SLOW_QUERY_LOG,
   OPT_DELAY_KEY_WRITE,	       OPT_CHARSETS_DIR,
-  OPT_BDB_HOME,                OPT_BDB_LOG,  
+  OPT_BDB_HOME,                OPT_BDB_LOG,
   OPT_BDB_TMP,                 OPT_BDB_NOSYNC,
-  OPT_BDB_LOCK,                OPT_BDB_SKIP, 
+  OPT_BDB_LOCK,                OPT_BDB_SKIP,
   OPT_BDB_NO_RECOVER,	    OPT_BDB_SHARED,
   OPT_MASTER_HOST,             OPT_MASTER_USER,
   OPT_MASTER_PASSWORD,         OPT_MASTER_PORT,
@@ -3106,26 +3106,26 @@ enum options {
   OPT_MASTER_SSL,              OPT_MASTER_SSL_KEY,
   OPT_MASTER_SSL_CERT,         OPT_MASTER_SSL_CAPATH,
   OPT_MASTER_SSL_CIPHER,
-  OPT_SQL_BIN_UPDATE_SAME,     OPT_REPLICATE_DO_DB,      
+  OPT_SQL_BIN_UPDATE_SAME,     OPT_REPLICATE_DO_DB,
   OPT_REPLICATE_IGNORE_DB,     OPT_LOG_SLAVE_UPDATES,
   OPT_BINLOG_DO_DB,            OPT_BINLOG_IGNORE_DB,
   OPT_WANT_CORE,               OPT_CONCURRENT_INSERT,
   OPT_MEMLOCK,                 OPT_MYISAM_RECOVER,
-  OPT_REPLICATE_REWRITE_DB,    OPT_SERVER_ID, 
+  OPT_REPLICATE_REWRITE_DB,    OPT_SERVER_ID,
   OPT_SKIP_SLAVE_START,        OPT_SKIP_INNOBASE,
-  OPT_SAFEMALLOC_MEM_LIMIT,    OPT_REPLICATE_DO_TABLE, 
-  OPT_REPLICATE_IGNORE_TABLE,  OPT_REPLICATE_WILD_DO_TABLE, 
-  OPT_REPLICATE_WILD_IGNORE_TABLE, 
-  OPT_DISCONNECT_SLAVE_EVENT_COUNT, 
+  OPT_SAFEMALLOC_MEM_LIMIT,    OPT_REPLICATE_DO_TABLE,
+  OPT_REPLICATE_IGNORE_TABLE,  OPT_REPLICATE_WILD_DO_TABLE,
+  OPT_REPLICATE_WILD_IGNORE_TABLE,
+  OPT_DISCONNECT_SLAVE_EVENT_COUNT,
   OPT_ABORT_SLAVE_EVENT_COUNT,
   OPT_INNODB_DATA_HOME_DIR,
   OPT_INNODB_DATA_FILE_PATH,
-  OPT_INNODB_LOG_GROUP_HOME_DIR, 
-  OPT_INNODB_LOG_ARCH_DIR, 
-  OPT_INNODB_LOG_ARCHIVE, 
-  OPT_INNODB_FLUSH_LOG_AT_TRX_COMMIT, 
-  OPT_INNODB_FLUSH_METHOD, 
-  OPT_INNODB_FAST_SHUTDOWN, 
+  OPT_INNODB_LOG_GROUP_HOME_DIR,
+  OPT_INNODB_LOG_ARCH_DIR,
+  OPT_INNODB_LOG_ARCHIVE,
+  OPT_INNODB_FLUSH_LOG_AT_TRX_COMMIT,
+  OPT_INNODB_FLUSH_METHOD,
+  OPT_INNODB_FAST_SHUTDOWN,
   OPT_SAFE_SHOW_DB,
   OPT_INNODB_SKIP, OPT_SKIP_SAFEMALLOC,
   OPT_TEMP_POOL, OPT_TX_ISOLATION,
@@ -3162,7 +3162,7 @@ enum options {
   OPT_MYISAM_MAX_SORT_FILE_SIZE, OPT_MYISAM_SORT_BUFFER_SIZE,
   OPT_NET_BUFFER_LENGTH, OPT_NET_RETRY_COUNT,
   OPT_NET_READ_TIMEOUT, OPT_NET_WRITE_TIMEOUT,
-  OPT_OPEN_FILES_LIMIT, 
+  OPT_OPEN_FILES_LIMIT,
   OPT_QUERY_CACHE_LIMIT, OPT_QUERY_CACHE_SIZE,
   OPT_QUERY_CACHE_TYPE, OPT_RECORD_BUFFER,
   OPT_RECORD_RND_BUFFER, OPT_RELAY_LOG_SPACE_LIMIT,
@@ -3265,7 +3265,7 @@ struct my_option my_long_options[] =
 #endif
 #endif
 #ifdef HAVE_OPENSSL
-  {"des-key-file", OPT_DES_KEY_FILE, 
+  {"des-key-file", OPT_DES_KEY_FILE,
    "Load keys for des_encrypt() and des_encrypt from given file",
    (gptr*) &des_key_file, (gptr*) &des_key_file, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
@@ -3297,7 +3297,7 @@ struct my_option my_long_options[] =
   {"shared-memory", OPT_ENABLE_SHARED_MEMORY,
    "Enable the shared memory.",(gptr*) &opt_enable_shared_memory, (gptr*) &opt_enable_shared_memory,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-#endif   
+#endif
   {"exit-info", 'T', "Used for debugging;  Use at your own risk!", 0, 0, 0,
    GET_LONG, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"flush", OPT_FLUSH, "Flush tables to disk between SQL commands", 0, 0, 0,
@@ -3315,7 +3315,7 @@ struct my_option my_long_options[] =
    (gptr*) &innobase_data_home_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0,
    0},
   {"innodb_log_group_home_dir", OPT_INNODB_LOG_GROUP_HOME_DIR,
-   "Path to innodb log files.", (gptr*) &innobase_log_group_home_dir, 
+   "Path to innodb log files.", (gptr*) &innobase_log_group_home_dir,
    (gptr*) &innobase_log_group_home_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0,
    0, 0},
   {"innodb_log_arch_dir", OPT_INNODB_LOG_ARCH_DIR,
@@ -3375,7 +3375,7 @@ struct my_option my_long_options[] =
   {"log-long-format", OPT_LONG_FORMAT,
    "Log some extra information to update log", 0, 0, 0, GET_NO_ARG, NO_ARG,
    0, 0, 0, 0, 0, 0},
-  {"log-slave-updates", OPT_LOG_SLAVE_UPDATES, 
+  {"log-slave-updates", OPT_LOG_SLAVE_UPDATES,
    "Tells the slave to log the updates from the slave thread to the binary log. You will need to turn it on if you plan to daisy-chain the slaves.",
    (gptr*) &opt_log_slave_updates, (gptr*) &opt_log_slave_updates, 0, GET_BOOL,
    NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -3384,7 +3384,7 @@ struct my_option my_long_options[] =
    (gptr*) &global_system_variables.low_priority_updates,
    (gptr*) &max_system_variables.low_priority_updates,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"master-host", OPT_MASTER_HOST, 
+  {"master-host", OPT_MASTER_HOST,
    "Master hostname or IP address for replication. If not set, the slave thread will not be started. Note that the setting of master-host will be ignored if there exists a valid master.info file.",
    (gptr*) &master_host, (gptr*) &master_host, 0, GET_STR, REQUIRED_ARG, 0, 0,
    0, 0, 0, 0},
@@ -3531,7 +3531,7 @@ struct my_option my_long_options[] =
   {"safe-mode", OPT_SAFE, "Skip some optimize stages (for testing).",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"old-passwords", OPT_OLD_PASSWORDS, "Use old password encryption method (needed for old clients)",
-   (gptr*) &opt_old_passwords, (gptr*) &opt_old_passwords, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},   
+   (gptr*) &opt_old_passwords, (gptr*) &opt_old_passwords, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifndef TO_BE_DELETED
   {"safe-show-database", OPT_SAFE_SHOW_DB,
    "Deprecated option; One should use GRANT SHOW DATABASES instead...",
@@ -3550,7 +3550,7 @@ struct my_option my_long_options[] =
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef HAVE_SMEM
   {"shared_memory_base_name",OPT_SHARED_MEMORY_BASE_NAME,
-   "Base name of shared memory", (gptr*) &shared_memory_base_name, (gptr*) &shared_memory_base_name, 
+   "Base name of shared memory", (gptr*) &shared_memory_base_name, (gptr*) &shared_memory_base_name,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"show-slave-auth-info", OPT_SHOW_SLAVE_AUTH_INFO,
@@ -3681,7 +3681,7 @@ struct my_option my_long_options[] =
    "The size of the cache to hold the SQL statements for the binary log during a transaction. If you often use big, multi-statement transactions you can increase this to get more performance.",
    (gptr*) &binlog_cache_size, (gptr*) &binlog_cache_size, 0, GET_ULONG,
    REQUIRED_ARG, 32*1024L, IO_SIZE, ~0L, 0, IO_SIZE, 0},
-  {"connect_timeout", OPT_CONNECT_TIMEOUT, 
+  {"connect_timeout", OPT_CONNECT_TIMEOUT,
    "The number of seconds the mysqld server is waiting for a connect packet before responding with Bad handshake",
     (gptr*) &connect_timeout, (gptr*) &connect_timeout,
    0, GET_ULONG, REQUIRED_ARG, CONNECT_TIMEOUT, 2, LONG_TIMEOUT, 0, 1, 0 },
@@ -3715,7 +3715,7 @@ struct my_option my_long_options[] =
     HA_FT_MAXLEN, 0, 1, 0},
 #ifdef HAVE_INNOBASE_DB
   {"innodb_mirrored_log_groups", OPT_INNODB_MIRRORED_LOG_GROUPS,
-   "Number of identical copies of log groups we keep for the database. Currently this should be set to 1.", 
+   "Number of identical copies of log groups we keep for the database. Currently this should be set to 1.",
    (gptr*) &innobase_mirrored_log_groups,
    (gptr*) &innobase_mirrored_log_groups, 0, GET_LONG, REQUIRED_ARG, 1, 1, 10,
    0, 1, 0},
@@ -3873,7 +3873,7 @@ struct my_option my_long_options[] =
    (gptr*) &max_system_variables.myisam_sort_buff_size, 0,
    GET_ULONG, REQUIRED_ARG, 8192*1024, 4, ~0L, 0, 1, 0},
   {"net_buffer_length", OPT_NET_BUFFER_LENGTH,
-   "Buffer length for TCP/IP and socket communication.", 
+   "Buffer length for TCP/IP and socket communication.",
    (gptr*) &global_system_variables.net_buffer_length,
    (gptr*) &max_system_variables.net_buffer_length, 0, GET_ULONG,
    REQUIRED_ARG, 16384, 1024, 1024*1024L, 0, 1024, 0},
@@ -4103,7 +4103,7 @@ struct show_var_st status_vars[]= {
   {"Qcache_hits",              (char*) &query_cache.hits,       SHOW_LONG},
   {"Qcache_lowmem_prunes",     (char*) &query_cache.lowmem_prunes, SHOW_LONG},
   {"Qcache_not_cached",        (char*) &query_cache.refused,    SHOW_LONG},
-  {"Qcache_free_memory",       (char*) &query_cache.free_memory, 
+  {"Qcache_free_memory",       (char*) &query_cache.free_memory,
    SHOW_LONG_CONST},
   {"Qcache_free_blocks",       (char*) &query_cache.free_memory_blocks,
    SHOW_LONG_CONST},
@@ -4288,9 +4288,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     init_slave_skip_errors(argument);
     break;
   case OPT_SAFEMALLOC_MEM_LIMIT:
-#if !defined(DBUG_OFF) && defined(SAFEMALLOC)      
+#if !defined(DBUG_OFF) && defined(SAFEMALLOC)
     safemalloc_mem_limit = atoi(argument);
-#endif      
+#endif
     break;
 #ifdef EMBEDDED_LIBRARY
   case OPT_MAX_ALLOWED_PACKET:
@@ -4352,7 +4352,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case (int)OPT_REPLICATE_REWRITE_DB:
   {
     char* key = argument,*p, *val;
-    
+
     if (!(p= strstr(argument, "->")))
     {
       fprintf(stderr,
@@ -4744,7 +4744,7 @@ static void get_options(int argc,char **argv)
   myisam_max_temp_length=
     (my_off_t) min(global_system_variables.myisam_max_sort_file_size,
 		   (ulonglong) MAX_FILE_SIZE);
-  myisam_max_extra_temp_length= 
+  myisam_max_extra_temp_length=
     (my_off_t) min(global_system_variables.myisam_max_extra_sort_file_size,
 		   (ulonglong) MAX_FILE_SIZE);
 
@@ -4925,7 +4925,7 @@ static ulong find_bit_type(const char *x, TYPELIB *bit_lib)
       j=pos;
       while (j != end)
       {
-	if (my_toupper(system_charset_info,*i++) != 
+	if (my_toupper(system_charset_info,*i++) !=
             my_toupper(system_charset_info,*j++))
 	  goto skipp;
       }
