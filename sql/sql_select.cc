@@ -5152,8 +5152,7 @@ remove_eq_conds(COND *cond,Item::cond_result *cond_value)
     }
   }
   else if (cond->type() == Item::FUNC_ITEM &&
-	   ((Item_func*) cond)->functype() == Item_func::ISNULL_FUNC &&
-           !cond->const_item())
+	   ((Item_func*) cond)->functype() == Item_func::ISNULL_FUNC)
   {
     /*
       Handles this special case for some ODBC applications:
@@ -5202,6 +5201,11 @@ remove_eq_conds(COND *cond,Item::cond_result *cond_value)
 	  cond->fix_fields(thd, 0, &cond);
 	}
       }
+    }
+    if (cond->const_item())
+    {
+      *cond_value= eval_const_cond(cond) ? Item::COND_TRUE : Item::COND_FALSE;
+      return (COND*) 0;
     }
   }
   else if (cond->type() == Item::FUNC_ITEM &&
