@@ -102,14 +102,13 @@ ConfigRetriever::do_connect(int exit_on_connect_failure){
 	if (ndb_mgm_connect(m_handle, tmp.c_str()) == 0) {
 	  return 0;
 	}
-	if (exit_on_connect_failure)
-	  return 1;
 	setError(CR_RETRY, ndb_mgm_get_latest_error_desc(m_handle));
       case MgmId_File:
 	break;
       }
     }
-
+    if (exit_on_connect_failure)
+      return 1;
     if(latestErrorType == CR_RETRY){
       REPORT_WARNING("Failed to retrieve cluster configuration");
       ndbout << "(Cause of failure: " << getErrorString() << ")" << endl;

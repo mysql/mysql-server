@@ -2603,7 +2603,6 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
       (NdbConnection*)thd->transaction.all.ndb_tid:
       (NdbConnection*)thd->transaction.stmt.ndb_tid;
     DBUG_ASSERT(m_active_trans);
-
     // Start of transaction
     retrieve_all_fields= FALSE;
     ops_pending= 0;    
@@ -2628,7 +2627,18 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
         thd->transaction.stmt.ndb_tid= 0;
       }
     }
+    if (m_active_trans)
+      DBUG_PRINT("warning", ("m_active_trans != NULL"));
+    if (m_active_cursor)
+      DBUG_PRINT("warning", ("m_active_cursor != NULL"));
+    if (blobs_pending)
+      DBUG_PRINT("warning", ("blobs_pending != 0"));
+    if (ops_pending)
+      DBUG_PRINT("warning", ("ops_pending != 0L"));
     m_active_trans= NULL;
+    m_active_cursor= NULL;
+    ops_pending= 0;
+    blobs_pending= 0;
   }
   DBUG_RETURN(error);
 }
@@ -3242,7 +3252,11 @@ ha_ndbcluster::~ha_ndbcluster()
   blobs_buffer= 0;
 
   // Check for open cursor/transaction
+  if (m_active_cursor) {
+  }
   DBUG_ASSERT(m_active_cursor == NULL);
+  if (m_active_trans) {
+  }
   DBUG_ASSERT(m_active_trans == NULL);
 
   DBUG_VOID_RETURN;

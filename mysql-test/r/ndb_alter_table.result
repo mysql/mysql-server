@@ -75,9 +75,11 @@ drop table t1;
 DROP TABLE IF EXISTS t2;
 create table t2 (a int NOT NULL PRIMARY KEY) engine=myisam;
 alter table t2 engine=ndbcluster;
-select count(*) from t2;
+delete from t2;
+ERROR HY000: Got temporary error 1217 '1217' from ndbcluster
+select count(*) from t2 where a+0 > 0;
 count(*)
-15001
+12001
 truncate table t2;
 select count(*) from t2;
 count(*)
