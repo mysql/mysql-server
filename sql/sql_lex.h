@@ -748,6 +748,8 @@ typedef struct st_lex
   bool all_privileges;
   sp_pcontext *spcont;
   HASH spfuns;		/* Called functions */
+  HASH spprocs;		/* Called procedures */
+  HASH sptabs;		/* Merged table lists */
   st_sp_chistics sp_chistics;
   bool only_view;       /* used for SHOW CREATE TABLE/VIEW */
   /*
@@ -768,14 +770,21 @@ typedef struct st_lex
 
   st_lex() :result(0), sql_command(SQLCOM_END)
   {
-    extern byte *sp_lex_spfuns_key(const byte *ptr, uint *plen, my_bool first);
-    hash_init(&spfuns, system_charset_info, 0, 0, 0, sp_lex_spfuns_key, 0, 0);
+    extern byte *sp_lex_sp_key(const byte *ptr, uint *plen, my_bool first);
+    extern byte *sp_table_key(const byte *ptr, uint *plen, my_bool first);
+    hash_init(&spfuns, system_charset_info, 0, 0, 0, sp_lex_sp_key, 0, 0);
+    hash_init(&spprocs, system_charset_info, 0, 0, 0, sp_lex_sp_key, 0, 0);
+    hash_init(&sptabs, system_charset_info, 0, 0, 0, sp_table_key, 0, 0);
   }
   
   ~st_lex()
   {
     if (spfuns.array.buffer)
       hash_free(&spfuns);
+    if (spprocs.array.buffer)
+      hash_free(&spprocs);
+    if (sptabs.array.buffer)
+      hash_free(&sptabs);
   }
 
   inline void uncacheable(uint8 cause)

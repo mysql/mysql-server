@@ -250,7 +250,7 @@ Dbtux::readKeyAttrs(const Frag& frag, TreeEnt ent, unsigned start, Data keyData)
     debugOut << "readKeyAttrs:" << endl;
     ConstData data = keyData;
     Uint32 totalSize = 0;
-    for (Uint32 i = start; i < numAttrs; i++) {
+    for (Uint32 i = start; i < frag.m_numAttrs; i++) {
       Uint32 attrId = data.ah().getAttributeId();
       Uint32 dataSize = data.ah().getDataSize();
       debugOut << i << " attrId=" << attrId << " size=" << dataSize;
