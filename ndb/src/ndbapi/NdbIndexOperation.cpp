@@ -70,9 +70,6 @@ NdbIndexOperation::indxInit(const NdbIndexImpl * anIndex,
   }
   m_theIndex = anIndex;
   m_accessTable = anIndex->m_table;
-  TcKeyReq * tcKeyReq = CAST_PTR(TcKeyReq, theTCREQ->getDataPtrSend());
-  theKEYINFOptr = &tcKeyReq->keyInfo[0];
-  theATTRINFOptr = &tcKeyReq->attrInfo[0];
   return 0;
 }
 
@@ -269,7 +266,7 @@ NdbIndexOperation::prepareSend(Uint32 aTC_ConnectPtr, Uint64  aTransactionId)
   tcKeyReq->setKeyLength(tReqInfo, tIndexLen);
   tcKeyReq->setAbortOption(tReqInfo, abortOption);
   
-  Uint8 tDistrKeyIndicator = theDistrKeyIndicator;
+  Uint8 tDistrKeyIndicator = theDistrKeyIndicator_;
   Uint8 tScanIndicator = theScanInfo & 1;
 
   tcKeyReq->setDistributionKeyFlag(tReqInfo, tDistrKeyIndicator);
@@ -328,7 +325,7 @@ NdbIndexOperation::prepareSend(Uint32 aTC_ConnectPtr, Uint64  aTransactionId)
     /**
      *	Set transid and TC connect ptr in the INDXKEYINFO signals
      */
-    NdbApiSignal* tSignal = theFirstKEYINFO;
+    NdbApiSignal* tSignal = theTCREQ->next();
     Uint32 remainingKey = tIndexLen - TcKeyReq::MaxKeyInfo;
 
     do {

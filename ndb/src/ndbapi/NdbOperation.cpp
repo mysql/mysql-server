@@ -49,7 +49,6 @@ NdbOperation::NdbOperation(Ndb* aNdb) :
   theCurrentATTRINFO(NULL),
   theTotalCurrAI_Len(0),
   theAI_LenInCurrAI(0),
-  theFirstKEYINFO(NULL),
   theLastKEYINFO(NULL),
 
   theFirstLabel(NULL),
@@ -68,7 +67,7 @@ NdbOperation::NdbOperation(Ndb* aNdb) :
   //theSchemaVersion(0), 
   theTotalNrOfKeyWordInSignal(8),
   theTupKeyLen(0),
-  theNoOfTupKeyDefined(0),
+  theNoOfTupKeyLeft(0),
   theOperationType(NotDefined),
   theStatus(Init),
   theMagicNumber(0xFE11D0),
@@ -142,12 +141,11 @@ NdbOperation::init(const NdbTableImpl* tab, NdbConnection* myConnection){
 
   theFirstATTRINFO    = NULL;
   theCurrentATTRINFO  = NULL;
-  theFirstKEYINFO     = NULL;
   theLastKEYINFO      = NULL;  
   
 
-  theTupKeyLen		= 0;
-  theNoOfTupKeyDefined	= 0;
+  theTupKeyLen	    = 0;
+  theNoOfTupKeyLeft = tab->getNoOfPrimaryKeys();
 
   theTotalCurrAI_Len	= 0;
   theAI_LenInCurrAI	= 0;
@@ -156,7 +154,7 @@ NdbOperation::init(const NdbTableImpl* tab, NdbConnection* myConnection){
   theSimpleIndicator	= 0;
   theDirtyIndicator	= 0;
   theInterpretIndicator	= 0;
-  theDistrKeyIndicator  = 0;
+  theDistrKeyIndicator_  = 0;
   theScanInfo        	= 0;
   theTotalNrOfKeyWordInSignal = 8;
   theMagicNumber        = 0xABCDEF01;
@@ -202,11 +200,16 @@ NdbOperation::release()
   NdbBlob* tBlob;
   NdbBlob* tSaveBlob;
 
-  if (theTCREQ != NULL)
+  tSignal = theTCREQ;
+  while (tSignal != NULL)
   {
-    theNdb->releaseSignal(theTCREQ);
-  }
+    tSaveSignal = tSignal;
+    tSignal = tSignal->next();
+    theNdb->releaseSignal(tSaveSignal);
+  }				
   theTCREQ = NULL;
+  theLastKEYINFO = NULL;
+
   tSignal = theFirstATTRINFO;
   while (tSignal != NULL)
   {
@@ -216,15 +219,7 @@ NdbOperation::release()
   }
   theFirstATTRINFO = NULL;
   theCurrentATTRINFO = NULL;
-  tSignal = theFirstKEYINFO;
-  while (tSignal != NULL)
-  {
-    tSaveSignal = tSignal;
-    tSignal = tSignal->next();
-    theNdb->releaseSignal(tSaveSignal);
-  }				
-  theFirstKEYINFO = NULL;
-  theLastKEYINFO = NULL;
+
   if (theInterpretIndicator == 1)
   {
     tBranch = theFirstBranch;

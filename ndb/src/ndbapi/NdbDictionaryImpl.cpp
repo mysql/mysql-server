@@ -265,8 +265,9 @@ NdbTableImpl::init(){
   m_indexType = NdbDictionary::Index::Undefined;
   
   m_noOfKeys = 0;
+  m_noOfDistributionKeys = 0;
   m_fragmentCount = 0;
-  m_sizeOfKeysInWords = 0;
+  m_keyLenInWords = 0;
   m_noOfBlobs = 0;
 }
 
@@ -345,8 +346,9 @@ NdbTableImpl::assign(const NdbTableImpl& org)
     delete m_index;
   m_index = org.m_index;
   
+  m_noOfDistributionKeys = org.m_noOfDistributionKeys;
   m_noOfKeys = org.m_noOfKeys;
-  m_sizeOfKeysInWords = org.m_sizeOfKeysInWords;
+  m_keyLenInWords = org.m_keyLenInWords;
   m_noOfBlobs = org.m_noOfBlobs;
 
   m_version = org.m_version;
@@ -1213,6 +1215,7 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
   Uint32 keyInfoPos = 0;
   Uint32 keyCount = 0;
   Uint32 blobCount = 0;
+  Uint32 distKeys = 0;
   
   for(Uint32 i = 0; i < tableDesc.NoOfAttributes; i++) {
     DictTabInfo::Attribute attrDesc; attrDesc.init();
@@ -1276,6 +1279,9 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
       col->m_keyInfoPos = keyInfoPos + 1;
       keyInfoPos += ((col->m_attrSize * col->m_arraySize + 3) / 4);
       keyCount++;
+      
+      if(attrDesc.AttributeDKey)
+	distKeys++;
     } else {
       col->m_keyInfoPos = 0;
     }
@@ -1294,8 +1300,8 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
 
   impl->m_noOfKeys = keyCount;
   impl->m_keyLenInWords = keyInfoPos;
-  impl->m_sizeOfKeysInWords = keyInfoPos;
   impl->m_noOfBlobs = blobCount;
+  impl->m_noOfDistributionKeys = distKeys;
   * ret = impl;
   return 0;
 }
