@@ -46,8 +46,10 @@ Item::Item():
   collation.set(default_charset(), DERIVATION_COERCIBLE);
   name= 0;
   decimals= 0; max_length= 0;
-  thd= current_thd;
-  next= thd->free_list;			// Put in free list
+
+  /* Put item in free list so that we can free all items at end */
+  THD *thd= current_thd;
+  next= thd->free_list;
   thd->free_list= this;
   /*
     Item constructor can be called during execution other then SQL_COM
@@ -69,7 +71,7 @@ Item::Item():
   Used for duplicating lists in processing queries with temporary
   tables
 */
-Item::Item(THD *c_thd, Item &item):
+Item::Item(THD *thd, Item &item):
   str_value(item.str_value),
   name(item.name),
   max_length(item.max_length),
@@ -82,10 +84,22 @@ Item::Item(THD *c_thd, Item &item):
   fixed(item.fixed),
   collation(item.collation)
 {
-  next=c_thd->free_list;			// Put in free list
-  thd= c_thd;
+  next= thd->free_list;				// Put in free list
   thd->free_list= this;
 }
+
+
+void Item::print_item_w_name(String *str)
+{
+  print(str);
+  if (name)
+  {
+    str->append(" AS `", 5);
+    str->append(name);
+    str->append('`');
+  }
+}
+
 
 // Constructor used by Item_field & Item_ref (see Item comment)
 Item_ident::Item_ident(THD *thd, Item_ident &item):
@@ -170,13 +184,13 @@ bool Item_string::eq(const Item *item, bool binary_cmp) const
   As a extra convenience the time structure is reset on error!
  */
 
-bool Item::get_date(TIME *ltime,bool fuzzydate)
+bool Item::get_date(TIME *ltime,uint fuzzydate)
 {
   char buff[40];
   String tmp(buff,sizeof(buff), &my_charset_bin),*res;
   if (!(res=val_str(&tmp)) ||
-      str_to_TIME(res->ptr(),res->length(),ltime,fuzzydate, thd) <= 
-      WRONG_TIMESTAMP_FULL)
+      str_to_TIME(res->ptr(),res->length(),ltime,fuzzydate) <= 
+      TIMESTAMP_DATETIME_ERROR)
   {
     bzero((char*) ltime,sizeof(*ltime));
     return 1;
@@ -194,7 +208,7 @@ bool Item::get_time(TIME *ltime)
   char buff[40];
   String tmp(buff,sizeof(buff),&my_charset_bin),*res;
   if (!(res=val_str(&tmp)) ||
-      str_to_time(res->ptr(),res->length(),ltime, thd))
+      str_to_time(res->ptr(),res->length(),ltime))
   {
     bzero((char*) ltime,sizeof(*ltime));
     return 1;
@@ -347,7 +361,7 @@ String *Item_field::str_result(String *str)
   return result_field->val_str(str,&str_value);
 }
 
-bool Item_field::get_date(TIME *ltime,bool fuzzydate)
+bool Item_field::get_date(TIME *ltime,uint fuzzydate)
 {
   if ((null_value=field->is_null()) || field->get_date(ltime,fuzzydate))
   {
@@ -357,7 +371,7 @@ bool Item_field::get_date(TIME *ltime,bool fuzzydate)
   return 0;
 }
 
-bool Item_field::get_date_result(TIME *ltime,bool fuzzydate)
+bool Item_field::get_date_result(TIME *ltime,uint fuzzydate)
 {
   if ((null_value=result_field->is_null()) ||
       result_field->get_date(ltime,fuzzydate))
@@ -422,12 +436,14 @@ bool Item_field::eq(const Item *item, bool binary_cmp) const
 						    db_name))))));
 }
 
+
 table_map Item_field::used_tables() const
 {
   if (field->table->const_table)
     return 0;					// const item
   return (depended_from ? OUTER_REF_TABLE_BIT : field->table->map);
 }
+
 
 Item *Item_field::get_tmp_table_item(THD *thd)
 {
@@ -437,49 +453,49 @@ Item *Item_field::get_tmp_table_item(THD *thd)
   return new_item;
 }
 
+
 String *Item_int::val_str(String *str)
 {
-  str->set(value, default_charset());
+  str->set(value, &my_charset_bin);
   return str;
 }
 
 void Item_int::print(String *str)
 {
-  if (!name)
-  {
-    str_value.set(value, default_charset());
-    name=str_value.c_ptr();
-  }
-  str->append(name);
+  // my_charset_bin is good enough for numbers
+  str_value.set(value, &my_charset_bin);
+  str->append(str_value);
 }
+
 
 String *Item_uint::val_str(String *str)
 {
-  str->set((ulonglong) value, default_charset());
+  str->set((ulonglong) value, &my_charset_bin);
   return str;
 }
 
+
 void Item_uint::print(String *str)
 {
-  if (!name)
-  {
-    str_value.set((ulonglong) value, default_charset());
-    name=str_value.c_ptr();
-  }
-  str->append(name);
+  // latin1 is good enough for numbers
+  str_value.set((ulonglong) value, default_charset());
+  str->append(str_value);
 }
 
 
 String *Item_real::val_str(String *str)
 {
-  str->set(value,decimals,default_charset());
+  str->set(value,decimals,&my_charset_bin);
   return str;
 }
 
+
 void Item_string::print(String *str)
 {
+  str->append('_');
+  str->append(collation.collation->csname);
   str->append('\'');
-  str->append(full_name());
+  str_value.print(str);
   str->append('\'');
 }
 
@@ -677,30 +693,27 @@ String *Item_param::query_val_str(String* str)
     }
     else
     {
-      DATETIME_FORMAT *tmp_format= 0;
-      bool is_time_only= 0;
+      char buff[40];
+      String tmp(buff,sizeof(buff), &my_charset_bin);
       
       switch (ltime.time_type)  {
-        case TIMESTAMP_NONE:
-        case WRONG_TIMESTAMP_FULL:
-          break;
-        case TIMESTAMP_DATE:
-	  tmp_format= &t_datetime_frm(thd, DATE_FORMAT_TYPE).datetime_format;
-          break;
-        case TIMESTAMP_FULL:
-	  tmp_format= &t_datetime_frm(thd, DATETIME_FORMAT_TYPE).datetime_format;
-          break;
-        case TIMESTAMP_TIME:
-        {
-	  tmp_format= &t_datetime_frm(thd, TIME_FORMAT_TYPE).datetime_format;
-	  is_time_only= 1;
-          break;
-        }	
+      case TIMESTAMP_NONE:
+      case TIMESTAMP_DATETIME_ERROR:
+	tmp.length(0);				// Should never happen
+	break;
+      case TIMESTAMP_DATE:
+	make_date((DATE_TIME_FORMAT*) 0, &ltime, &tmp);
+	break;
+      case TIMESTAMP_DATETIME:
+	make_datetime((DATE_TIME_FORMAT*) 0, &ltime, &tmp);
+	break;
+      case TIMESTAMP_TIME:
+	make_time((DATE_TIME_FORMAT*) 0, &ltime, &tmp);
+	break;
       }
-      make_datetime(str, &ltime, is_time_only, 0,
-		    tmp_format->format, tmp_format->format_length, 0);
+      str->append(tmp);
     }
-    str->append("'");
+    str->append('\'');
   }
   return str;
 }
@@ -754,7 +767,7 @@ String* Item_ref_null_helper::val_str(String* s)
   owner->was_null|= null_value= (*ref)->null_value;
   return tmp;
 }
-bool Item_ref_null_helper::get_date(TIME *ltime, bool fuzzydate)
+bool Item_ref_null_helper::get_date(TIME *ltime, uint fuzzydate)
 {  
   return (owner->was_null|= null_value= (*ref)->get_date(ltime, fuzzydate));
 }
@@ -777,7 +790,7 @@ static void mark_as_dependent(THD *thd, SELECT_LEX *last, SELECT_LEX *current,
   // store pointer on SELECT_LEX from wich item is dependent
   item->depended_from= last;
   current->mark_as_dependent(last);
-  if (thd->lex.describe)
+  if (thd->lex.describe & DESCRIBE_EXTENDED)
   {
     char warn_buff[MYSQL_ERRMSG_SIZE];
     sprintf(warn_buff, ER(ER_WARN_FIELD_RESOLVED),
@@ -925,7 +938,7 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 
     set_field(tmp);
   }
-  else if (thd && thd->set_query_id && field->query_id != thd->query_id)
+  else if (thd->set_query_id && field->query_id != thd->query_id)
   {
     /* We only come here in unions */
     TABLE *table=field->table;
@@ -974,6 +987,7 @@ enum_field_types Item::field_type() const
 	  (result_type() == INT_RESULT) ? FIELD_TYPE_LONGLONG :
 	  FIELD_TYPE_DOUBLE);
 }
+
 
 Field *Item::tmp_table_field_from_field_type(TABLE *table)
 {
@@ -1351,7 +1365,7 @@ bool Item::send(Protocol *protocol, String *buffer)
   case MYSQL_TYPE_TIMESTAMP:
   {
     TIME tm;
-    get_date(&tm, 1);
+    get_date(&tm, TIME_FUZZY_DATE);
     if (!null_value)
     {
       if (type == MYSQL_TYPE_DATE)
@@ -1555,6 +1569,34 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 }
 
 
+void Item_ref::print(String *str)
+{
+  if (ref && *ref)
+    (*ref)->print(str);
+  else
+    Item_ident::print(str);
+}
+
+
+void Item_ref_null_helper::print(String *str)
+{
+  str->append("<ref_null_helper>(", 18);
+  if (ref && *ref)
+    (*ref)->print(str);
+  else
+    str->append('?');
+  str->append(')');
+}
+
+
+void Item_null_helper::print(String *str)
+{
+  str->append("<null_helper>(", 14);
+  store->print(str);
+  str->append(')');
+}
+
+
 bool Item_default_value::eq(const Item *item, bool binary_cmp) const
 {
   return item->type() == DEFAULT_VALUE_ITEM && 
@@ -1596,10 +1638,10 @@ void Item_default_value::print(String *str)
 {
   if (!arg)
   {
-    str->append("DEFAULT");
+    str->append("default", 7);
     return;
   }
-  str->append("DEFAULT(");
+  str->append("default(", 8);
   arg->print(str);
   str->append(')');
 }
@@ -1652,7 +1694,7 @@ bool Item_insert_value::fix_fields(THD *thd, struct st_table_list *table_list, I
 
 void Item_insert_value::print(String *str)
 {
-  str->append("VALUE(");
+  str->append("values(", 7);
   arg->print(str);
   str->append(')');
 }
@@ -1776,6 +1818,34 @@ Item_cache* Item_cache::get_cache(Item_result type)
   }
 }
 
+
+void Item_cache::print(String *str)
+{
+  str->append("<cache>(", 8);
+  if (example)
+    example->print(str);
+  else
+    Item::print(str);
+  str->append(')');
+}
+
+
+void Item_cache_int::store(Item *item)
+{
+  value= item->val_int_result();
+  null_value= item->null_value;
+  collation.set(item->collation);
+}
+
+
+void Item_cache_real::store(Item *item)
+{
+  value= item->val_result();
+  null_value= item->null_value;
+  collation.set(item->collation);
+}
+
+
 void Item_cache_str::store(Item *item)
 {
   value_buff.set(buffer, sizeof(buffer), item->collation.collation);
@@ -1826,6 +1896,7 @@ bool Item_cache_row::allocate(uint num)
 
 bool Item_cache_row::setup(Item * item)
 {
+  example= item;
   if (!values && allocate(item->cols()))
     return 1;
   for (uint i= 0; i < item_count; i++)

@@ -197,7 +197,7 @@ Item_func::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   used_tables_cache= not_null_tables_cache= 0;
   const_item_cache=1;
 
-  if (thd && check_stack_overrun(thd,buff))
+  if (check_stack_overrun(thd, buff))
     return 1;					// Fatal error if flag is set!
   if (arg_count)
   {						// Print purify happy
@@ -219,7 +219,7 @@ Item_func::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     }
   }
   fix_length_and_dec();
-  if (thd && thd->net.last_errno) // An error inside fix_length_and_dec accured
+  if (thd->net.last_errno) // An error inside fix_length_and_dec occured
     return 1;
   fixed= 1;
   return 0;
@@ -287,13 +287,19 @@ void Item_func::print(String *str)
 {
   str->append(func_name());
   str->append('(');
-  for (uint i=0 ; i < arg_count ; i++)
+  print_args(str, 0);
+  str->append(')');
+}
+
+
+void Item_func::print_args(String *str, uint from)
+{
+  for (uint i=from ; i < arg_count ; i++)
   {
-    if (i)
+    if (i != from)
       str->append(',');
     args[i]->print(str);
   }
-  str->append(')');
 }
 
 
@@ -459,6 +465,24 @@ String *Item_num_op::val_str(String *str)
       str->set(nr,decimals,default_charset());
   }
   return str;
+}
+
+
+void Item_func_signed::print(String *str)
+{
+  str->append("cast(", 5);
+  args[0]->print(str);
+  str->append(" as signed)", 11);
+
+}
+
+
+void Item_func_unsigned::print(String *str)
+{
+  str->append("cast(", 5);
+  args[0]->print(str);
+  str->append(" as unsigned)", 13);
+
 }
 
 
@@ -1184,6 +1208,21 @@ longlong Item_func_locate::val_int()
 }
 
 
+void Item_func_locate::print(String *str)
+{
+  str->append("locate(", 7);
+  args[1]->print(str);
+  str->append(',');
+  args[0]->print(str);
+  if (arg_count == 3)
+  {
+    str->append(',');
+    args[2]->print(str);
+  }
+  str->append(')');
+}
+
+
 longlong Item_func_field::val_int()
 {
   if (cmp_type == STRING_RESULT)
@@ -1284,8 +1323,8 @@ void Item_func_find_in_set::fix_length_and_dec()
       String *find=args[0]->val_str(&value);
       if (find)
       {
-	enum_value=find_enum(((Field_enum*) field)->typelib,find->ptr(),
-			     find->length());
+	enum_value= find_type(((Field_enum*) field)->typelib,find->ptr(),
+			      find->length(), 0);
 	enum_bit=0;
 	if (enum_value)
 	  enum_bit=LL(1) << (enum_value-1);
@@ -1396,13 +1435,9 @@ udf_handler::fix_fields(THD *thd, TABLE_LIST *tables, Item_result_field *func,
 #endif
   DBUG_ENTER("Item_udf_func::fix_fields");
 
-  if (thd)
-  {
-    if (check_stack_overrun(thd,buff))
-      DBUG_RETURN(1);				// Fatal error flag is set!
-  }
-  else
-    thd=current_thd;				// In WHERE / const clause
+  if (check_stack_overrun(thd, buff))
+    DBUG_RETURN(1);				// Fatal error flag is set!
+
   udf_func *tmp_udf=find_udf(u_d->name.str,(uint) u_d->name.length,1);
 
   if (!tmp_udf)
@@ -1764,7 +1799,7 @@ void item_user_lock_release(ULL *ull)
     String tmp(buf,sizeof(buf), system_charset_info);
     tmp.copy(command, strlen(command), tmp.charset());
     tmp.append(ull->key,ull->key_length);
-    tmp.append("\")");
+    tmp.append("\")", 2);
     Query_log_event qev(current_thd, tmp.ptr(), tmp.length(),1);
     qev.error_code=0; // this query is always safe to run on slave
     mysql_bin_log.write(&qev);
@@ -2049,6 +2084,19 @@ longlong Item_func_benchmark::val_int()
 }
 
 
+void Item_func_benchmark::print(String *str)
+{
+  str->append("benchmark(", 10);
+  char buffer[20];
+  // my_charset_bin is good enough for numbers
+  String st(buffer, sizeof(buffer), &my_charset_bin);
+  st.set((ulonglong)loop_count, &my_charset_bin);
+  str->append(st);
+  str->append(',');
+  args[0]->print(str);
+  str->append(')');
+}
+
 #define extra_size sizeof(double)
 
 static user_var_entry *get_variable(HASH *hash, LEX_STRING &name,
@@ -2094,8 +2142,8 @@ static user_var_entry *get_variable(HASH *hash, LEX_STRING &name,
 }
 
 /*
-  When a user variable is updated (in a SET command or a query like SELECT @a:=
-  ).
+  When a user variable is updated (in a SET command or a query like
+  SELECT @a:= ).
 */
 
 bool Item_func_set_user_var::fix_fields(THD *thd, TABLE_LIST *tables,
@@ -2387,9 +2435,9 @@ String *Item_func_set_user_var::val_str(String *str)
 
 void Item_func_set_user_var::print(String *str)
 {
-  str->append("(@@",3);
-  str->append(name.str,name.length);
-  str->append(":=",2);
+  str->append("(@", 2);
+  str->append(name.str, name.length);
+  str->append(":=", 2);
   args[0]->print(str);
   str->append(')');
 }
@@ -2454,14 +2502,15 @@ void Item_func_get_user_var::fix_length_and_dec()
       sql_set_variables() is what is called from 'case SQLCOM_SET_OPTION'
       in dispatch_command()). Instead of building a one-element list to pass to
       sql_set_variables(), we could instead manually call check() and update();
-      this would save memory and time; but calling sql_set_variables() makes one
-      unique place to maintain (sql_set_variables()). 
+      this would save memory and time; but calling sql_set_variables() makes
+      one unique place to maintain (sql_set_variables()). 
     */
 
     List<set_var_base> tmp_var_list;
     tmp_var_list.push_back(new set_var_user(new Item_func_set_user_var(name,
                                                                        new Item_null())));
-    if (sql_set_variables(thd, &tmp_var_list)) /* this will create the variable */
+    /* Create the variable */
+    if (sql_set_variables(thd, &tmp_var_list))
       goto err;
     if (!(var_entry= get_variable(&thd->user_vars, name, 0)))
       goto err;
@@ -2518,7 +2567,7 @@ err:
 
 bool Item_func_get_user_var::const_item() const
 {
-  return var_entry && current_thd->query_id != var_entry->update_query_id;
+  return (!var_entry || current_thd->query_id != var_entry->update_query_id);
 }
 
 
@@ -2535,7 +2584,7 @@ enum Item_result Item_func_get_user_var::result_type() const
 
 void Item_func_get_user_var::print(String *str)
 {
-  str->append('@');
+  str->append("(@", 2);
   str->append(name.str,name.length);
   str->append(')');
 }
@@ -2815,6 +2864,18 @@ double Item_func_match::val()
                                                    table->record[0], 0));
 }
 
+void Item_func_match::print(String *str)
+{
+  str->append("(match ", 7);
+  print_args(str, 1);
+  str->append(" against (", 10);
+  args[0]->print(str);
+  if (flags & FT_BOOL)
+    str->append(" in boolean mode", 16);
+  else if (flags & FT_EXPAND)
+    str->append(" with query expansion", 21);
+  str->append("))", 2);
+}
 
 longlong Item_func_bit_xor::val_int()
 {

@@ -117,7 +117,7 @@ Check that the above file is the right version for this program!",
     point[i]= *point +uint2korr(head+10+i+i);
   }
   VOID(my_close(file,MYF(0)));
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(0);
 
 err:
   switch (funktpos) {
@@ -136,7 +136,7 @@ err1:
   if (file != FERR)
     VOID(my_close(file,MYF(MY_WME)));
   unireg_abort(1);
-  return 1;
+  DBUG_RETURN(1);					// Impossible
 } /* read_texts */
 
 

@@ -52,7 +52,7 @@ static const char* host = 0;
 static int port = MYSQL_PORT;
 static const char* sock= 0;
 static const char* user = 0;
-static const char* pass = "";
+static char* pass = 0;
 static ulonglong position = 0;
 static short binlog_flags = 0; 
 static MYSQL* mysql = NULL;
@@ -226,7 +226,7 @@ static struct my_option my_long_options[] =
   {"offset", 'o', "Skip the first N entries.", (gptr*) &offset, (gptr*) &offset,
    0, GET_ULL, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"password", 'p', "Password to connect to remote server.",
-   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"port", 'P', "Use port to connect to the remote server.",
    (gptr*) &port, (gptr*) &port, 0, GET_INT, REQUIRED_ARG, MYSQL_PORT, 0, 0,
    0, 0, 0},
@@ -266,6 +266,11 @@ void sql_print_error(const char *format,...)
   va_end(args);
 }
 
+static void cleanup()
+{
+  my_free(pass,MYF(MY_ALLOW_ZERO_PTR));
+}
+
 static void die(const char* fmt, ...)
 {
   va_list args;
@@ -274,6 +279,7 @@ static void die(const char* fmt, ...)
   vfprintf(stderr, fmt, args);
   fprintf(stderr, "\n");
   va_end(args);
+  cleanup();
   exit(1);
 }
 
@@ -333,6 +339,7 @@ extern "C" my_bool
 get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 	       char *argument)
 {
+  bool tty_password=0;
   switch (optid) {
 #ifndef DBUG_OFF
   case '#':
@@ -343,7 +350,17 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     one_database = 1;
     break;
   case 'p':
-    pass = my_strdup(argument, MYF(0));
+    if (argument)
+    {
+      my_free(pass,MYF(MY_ALLOW_ZERO_PTR));
+      char *start=argument;
+      pass= my_strdup(argument,MYF(MY_FAE));
+      while (*argument) *argument++= 'x';		/* Destroy argument */
+      if (*start)
+        start[1]=0;				/* Cut length of argument */
+    }
+    else
+      tty_password=1;
     break;
   case 'r':
     if (!(result_file = my_fopen(argument, O_WRONLY | O_BINARY, MYF(MY_WME))))
@@ -359,6 +376,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     usage();
     exit(0);
   }
+  if (tty_password)
+    pass= get_tty_password(NullS);
+
   return 0;
 }
 
@@ -707,6 +727,7 @@ int main(int argc, char** argv)
     my_fclose(result_file, MYF(0));
   if (remote_opt)
     mysql_close(mysql);
+  cleanup();
   free_defaults(defaults_argv);
   my_end(0);
   return 0;

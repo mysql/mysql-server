@@ -645,6 +645,7 @@ struct st_my_thread_var
   long id;
   int cmp_length;
   int volatile abort;
+  my_bool init;
   struct st_my_thread_var *next,**prev;
   void *opt_info;
 #ifndef DBUG_OFF
@@ -669,8 +670,6 @@ extern pthread_t shutdown_th, main_th, signal_th;
 #define thread_safe_increment(V,L) atomic_add(1,(atomic_t*) &V);
 #define thread_safe_add(V,C,L)     atomic_add((C),(atomic_t*) &V);
 #define thread_safe_sub(V,C,L)     atomic_sub((C),(atomic_t*) &V);
-#define statistic_increment(V,L)   thread_safe_increment((V),(L))
-#define statistic_add(V,C,L)       thread_safe_add((V),(C),(L))
 #else
 #define thread_safe_increment(V,L) \
 	pthread_mutex_lock((L)); (V)++; pthread_mutex_unlock((L));
@@ -678,6 +677,7 @@ extern pthread_t shutdown_th, main_th, signal_th;
 	pthread_mutex_lock((L)); (V)+=(C); pthread_mutex_unlock((L));
 #define thread_safe_sub(V,C,L) \
 	pthread_mutex_lock((L)); (V)-=(C); pthread_mutex_unlock((L));
+#endif /* HAVE_ATOMIC_ADD */
 #ifdef SAFE_STATISTICS
 #define statistic_increment(V,L)   thread_safe_increment((V),(L))
 #define statistic_add(V,C,L)       thread_safe_add((V),(C),(L))
@@ -685,7 +685,6 @@ extern pthread_t shutdown_th, main_th, signal_th;
 #define statistic_increment(V,L) (V)++
 #define statistic_add(V,C,L)     (V)+=(C)
 #endif /* SAFE_STATISTICS */
-#endif /* HAVE_ATOMIC_ADD */
 #endif /* thread_safe_increment */
 
 #ifdef  __cplusplus

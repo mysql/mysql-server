@@ -43,7 +43,7 @@
 
 #define ERRMAPP 1				/* Errormap f|r my_error */
 #define LIBLEN FN_REFLEN-FN_LEN			/* Max l{ngd p} dev */
-#define MAX_DBKEY_LENGTH (FN_LEN*2+6)           /* extra 4 bytes for slave tmp
+#define MAX_DBKEY_LENGTH (FN_LEN*2+1+1+4+4)     /* extra 4+4 bytes for slave tmp
 						 * tables */
 #define MAX_ALIAS_NAME 256
 #define MAX_FIELD_NAME 34			/* Max colum name length +2 */
@@ -63,6 +63,10 @@
 /* Max column width +1 */
 #define MAX_FIELD_WIDTH		(MAX_FIELD_CHARLENGTH*MAX_MBWIDTH+1)
 
+#define MAX_DATE_WIDTH		10	/* YYYY-MM-DD */
+#define MAX_TIME_WIDTH		23	/* -DDDDDD HH:MM:SS.###### */
+#define MAX_DATETIME_FULL_WIDTH 29	/* YYYY-MM-DD HH:MM:SS.###### AM */
+#define MAX_DATETIME_WIDTH	19	/* YYYY-MM-DD HH:MM:SS */
 
 #define MAX_TABLES	(sizeof(table_map)*8-2)	/* Max tables in join */
 #define OUTER_REF_TABLE_BIT	(((table_map) 1) << (sizeof(table_map)*8-2))

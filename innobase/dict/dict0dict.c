@@ -2580,7 +2580,7 @@ dict_create_foreign_constraints_low(
 		sprintf(buf + strlen(buf),
 " Error in foreign key constraint of table %.500s.\n"
 "Cannot find the table from the internal data dictionary of InnoDB.\n"
-"Create table statement:\n%.2000\n", name, sql_string);
+"Create table statement:\n%.2000s\n", name, sql_string);
 		ut_a(strlen(buf) < DICT_FOREIGN_ERR_BUF_LEN);
 		mutex_exit(&dict_foreign_err_mutex);
 

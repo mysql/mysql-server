@@ -17,6 +17,7 @@ select version()>="3.23.29";
 select version()>=_utf8"3.23.29";
 select version()>=_latin1"3.23.29";
 select charset(version());
+explain extended select database(), user();
 
 create table t1 (version char(40)) select database(), user(), version() as 'version';
 show create table t1;

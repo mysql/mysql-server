@@ -16,6 +16,7 @@ INSERT INTO t1 VALUES('MySQL has now support', 'for full-text search'),
 # nl search
 
 select * from t1 where MATCH(a,b) AGAINST ("collections");
+explain extended select * from t1 where MATCH(a,b) AGAINST ("collections");
 select * from t1 where MATCH(a,b) AGAINST ("indexes");
 select * from t1 where MATCH(a,b) AGAINST ("indexes collections");
 select * from t1 where MATCH(a,b) AGAINST ("only");
@@ -42,6 +43,7 @@ explain select * from t1 where MATCH(a,b) AGAINST ("collections")>0 and a like '
 # boolean search
 
 select * from t1 where MATCH(a,b) AGAINST("support -collections" IN BOOLEAN MODE);
+explain extended select * from t1 where MATCH(a,b) AGAINST("support -collections" IN BOOLEAN MODE);
 select * from t1 where MATCH(a,b) AGAINST("support  collections" IN BOOLEAN MODE);
 select * from t1 where MATCH(a,b) AGAINST("support +collections" IN BOOLEAN MODE);
 select * from t1 where MATCH(a,b) AGAINST("sear*" IN BOOLEAN MODE);
@@ -131,9 +133,9 @@ select * from t2 having MATCH inhalt AGAINST ('foobar');
 # check of fulltext errors
 #
 
---error 1281
+--error 1286
 CREATE TABLE t3 (t int(11),i text,fulltext tix (t,i));
---error 1281
+--error 1286
 CREATE TABLE t3 (t int(11),i text,
                  j varchar(200) CHARACTER SET latin2,
                  fulltext tix (i,j));
@@ -226,6 +228,12 @@ insert into t2 values (1, 1, 'xxfoo');
 insert into t2 values (2, 1, 'xxbar');
 insert into t2 values (3, 1, 'xxbuz');
 select * from t1 join t2 using(`t1_id`) where match (t1.name, t2.name) against('xxfoo' in boolean mode);
+
+#
+# bug with many short (< ft_min_word_len) words in boolean search
+#
+select * from t2 where match name against ('a* b* c* d* e* f*' in boolean mode);
+
 drop table t1,t2;
 
 #

@@ -95,26 +95,32 @@ int my_vsnprintf(char *to, size_t n, const char* fmt, va_list ap)
     else if (*fmt == 'd' || *fmt == 'u')	/* Integer parameter */
     {
       register int iarg;
-      char *to_start= to;
-      if ((uint) (end-to) < max(16,length))
-	break;
+      uint res_length, to_length;
+      char *store_start= to, *store_end;
+      char buff[16];
+
+      if ((to_length= (uint) (end-to)) < 16 || length)
+	store_start= buff;
       iarg = va_arg(ap, int);
       if (*fmt == 'd')
-	to=int10_to_str((long) iarg,to, -10);
+	store_end= int10_to_str((long) iarg, store_start, -10);
       else
-	to=int10_to_str((long) (uint) iarg,to,10);
+	store_end= int10_to_str((long) (uint) iarg, store_start, 10);
+      if ((res_length= (uint) (store_end - store_start)) > to_length)
+	break;					/* num doesn't fit in output */
       /* If %#d syntax was used, we have to pre-zero/pre-space the string */
-      if (length)
+      if (store_start == buff)
       {
-	uint res_length= (uint) (to - to_start);
+	length= min(length, to_length);
 	if (res_length < length)
 	{
 	  uint diff= (length- res_length);
-	  bmove_upp(to+diff, to, res_length);
-	  bfill(to-res_length, diff, pre_zero ? '0' : ' ');
+	  bfill(to, diff, pre_zero ? '0' : ' ');
 	  to+= diff;
 	}
+	bmove(to, store_start, res_length);
       }
+      to+= res_length;
       continue;
     }
     /* We come here on '%%', unknown code or too long parameter */

@@ -78,7 +78,7 @@ inline Item *or_or_concat(THD *thd, Item* A, Item* B)
   CHARSET_INFO *charset;
   thr_lock_type lock_type;
   interval_type interval;
-  datetime_format_types datetime_format_type;
+  timestamp_type date_time_type;
   st_select_lex *select_lex;
   chooser_compare_func_creator boolfunc2creator;
 }
@@ -246,6 +246,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	HIGH_PRIORITY
 %token	HOSTS_SYM
 %token	IDENT
+%token	IDENT_QUOTED
 %token	IGNORE_SYM
 %token	IMPORT
 %token	INDEX
@@ -584,8 +585,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %right	BINARY COLLATE_SYM
 
 %type <lex_str>
-	IDENT TEXT_STRING REAL_NUM FLOAT_NUM NUM LONG_NUM HEX_NUM LEX_HOSTNAME
-	ULONGLONG_NUM field_ident select_alias ident ident_or_text
+	IDENT IDENT_QUOTED TEXT_STRING REAL_NUM FLOAT_NUM NUM LONG_NUM HEX_NUM
+	LEX_HOSTNAME ULONGLONG_NUM field_ident select_alias ident ident_or_text
         UNDERSCORE_CHARSET IDENT_sys TEXT_STRING_sys TEXT_STRING_literal
 	NCHAR_STRING opt_component
 
@@ -648,7 +649,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	UDF_CHAR_FUNC UDF_FLOAT_FUNC UDF_INT_FUNC
 	UDA_CHAR_SUM UDA_FLOAT_SUM UDA_INT_SUM
 
-%type <datetime_format_type> datetime_format_type;
+%type <date_time_type> date_time_type;
 %type <interval> interval
 
 %type <db_type> table_types
@@ -713,6 +714,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	union_clause union_list union_option
 	precision subselect_start opt_and charset
 	subselect_end select_var_list select_var_list_init help opt_len
+	opt_extended_describe
 END_OF_INPUT
 
 %type <NONE>
@@ -2303,15 +2305,22 @@ expr_expr:
 	| expr OR expr		{ $$= new Item_cond_or($1,$3); }
         | expr XOR expr		{ $$= new Item_cond_xor($1,$3); }
 	| expr AND expr		{ $$= new Item_cond_and($1,$3); }
-	| expr SOUNDS_SYM LIKE expr { $$= Item_bool_func2::eq_creator(new Item_func_soundex($1), new Item_func_soundex($4));}
-	| expr LIKE simple_expr opt_escape { $$= new Item_func_like($1,$3,$4); }
-	| expr NOT LIKE simple_expr opt_escape	{ $$= new Item_func_not(new Item_func_like($1,$4,$5));}
+	| expr SOUNDS_SYM LIKE expr
+	  {
+	    $$= new Item_func_eq(new Item_func_soundex($1),
+				 new Item_func_soundex($4));
+	  }
+	| expr LIKE simple_expr opt_escape
+          { $$= new Item_func_like($1,$3,$4); }
+	| expr NOT LIKE simple_expr opt_escape
+          { $$= new Item_func_not(new Item_func_like($1,$4,$5));}
 	| expr REGEXP expr { $$= new Item_func_regex($1,$3); }
-	| expr NOT REGEXP expr { $$= new Item_func_not(new Item_func_regex($1,$4)); }
+	| expr NOT REGEXP expr
+          { $$= new Item_func_not(new Item_func_regex($1,$4)); }
 	| expr IS NULL_SYM	{ $$= new Item_func_isnull($1); }
 	| expr IS NOT NULL_SYM { $$= new Item_func_isnotnull($1); }
 	| expr EQUAL_SYM expr	{ $$= new Item_func_equal($1,$3); }
-	| expr comp_op expr %prec EQ	{ $$= (*((*$2)(0)))($1,$3); }
+	| expr comp_op expr %prec EQ	{ $$= (*$2)(0)->create($1,$3); }
 	| expr comp_op all_or_any in_subselect %prec EQ
 	{
 	  $$= all_any_subquery_creator($1, $2, $3, $4);
@@ -2344,15 +2353,22 @@ no_in_expr:
 	| no_in_expr OR expr		{ $$= new Item_cond_or($1,$3); }
         | no_in_expr XOR expr		{ $$= new Item_cond_xor($1,$3); }
 	| no_in_expr AND expr		{ $$= new Item_cond_and($1,$3); }
-	| no_in_expr SOUNDS_SYM LIKE expr { $$= Item_bool_func2::eq_creator(new Item_func_soundex($1), new Item_func_soundex($4));}
-	| no_in_expr LIKE simple_expr opt_escape { $$= new Item_func_like($1,$3,$4); }
-	| no_in_expr NOT LIKE simple_expr opt_escape { $$= new Item_func_not(new Item_func_like($1,$4,$5)); }
+	| no_in_expr SOUNDS_SYM LIKE expr
+	  {
+	    $$= new Item_func_eq(new Item_func_soundex($1),
+				 new Item_func_soundex($4));
+	  }
+	| no_in_expr LIKE simple_expr opt_escape
+	  { $$= new Item_func_like($1,$3,$4); }
+	| no_in_expr NOT LIKE simple_expr opt_escape
+	  { $$= new Item_func_not(new Item_func_like($1,$4,$5)); }
 	| no_in_expr REGEXP expr { $$= new Item_func_regex($1,$3); }
-	| no_in_expr NOT REGEXP expr { $$= new Item_func_not(new Item_func_regex($1,$4)); }
+	| no_in_expr NOT REGEXP expr
+	  { $$= new Item_func_not(new Item_func_regex($1,$4)); }
 	| no_in_expr IS NULL_SYM	{ $$= new Item_func_isnull($1); }
 	| no_in_expr IS NOT NULL_SYM { $$= new Item_func_isnotnull($1); }
 	| no_in_expr EQUAL_SYM expr	{ $$= new Item_func_equal($1,$3); }
-	| no_in_expr comp_op expr %prec EQ	{ $$= (*((*$2)(0)))($1,$3); }
+	| no_in_expr comp_op expr %prec EQ { $$= (*$2)(0)->create($1,$3); }
 	| no_in_expr comp_op all_or_any in_subselect %prec EQ
 	{
 	  all_any_subquery_creator($1, $2, $3, $4);
@@ -2394,15 +2410,22 @@ no_and_expr:
 	| no_and_expr OR_OR_CONCAT expr	{ $$= or_or_concat(YYTHD, $1,$3); }
 	| no_and_expr OR expr		{ $$= new Item_cond_or($1,$3); }
         | no_and_expr XOR expr		{ $$= new Item_cond_xor($1,$3); }
-	| no_and_expr SOUNDS_SYM LIKE expr { $$= Item_bool_func2::eq_creator(new Item_func_soundex($1), new Item_func_soundex($4));}
-	| no_and_expr LIKE simple_expr opt_escape { $$= new Item_func_like($1,$3,$4); }
-	| no_and_expr NOT LIKE simple_expr opt_escape	{ $$= new Item_func_not(new Item_func_like($1,$4,$5)); }
+	| no_and_expr SOUNDS_SYM LIKE expr
+	  {
+	    $$= new Item_func_eq(new Item_func_soundex($1),
+				 new Item_func_soundex($4));
+	  }
+	| no_and_expr LIKE simple_expr opt_escape
+	  { $$= new Item_func_like($1,$3,$4); }
+	| no_and_expr NOT LIKE simple_expr opt_escape
+	  { $$= new Item_func_not(new Item_func_like($1,$4,$5)); }
 	| no_and_expr REGEXP expr { $$= new Item_func_regex($1,$3); }
-	| no_and_expr NOT REGEXP expr { $$= new Item_func_not(new Item_func_regex($1,$4)); }
+	| no_and_expr NOT REGEXP expr
+	  { $$= new Item_func_not(new Item_func_regex($1,$4)); }
 	| no_and_expr IS NULL_SYM	{ $$= new Item_func_isnull($1); }
 	| no_and_expr IS NOT NULL_SYM { $$= new Item_func_isnotnull($1); }
 	| no_and_expr EQUAL_SYM expr	{ $$= new Item_func_equal($1,$3); }
-	| no_and_expr comp_op expr %prec EQ { $$= (*((*$2)(0)))($1,$3); }
+	| no_and_expr comp_op expr %prec EQ { $$= (*$2)(0)->create($1,$3); }
 	| no_and_expr comp_op all_or_any in_subselect %prec EQ
 	{
 	  all_any_subquery_creator($1, $2, $3, $4);
@@ -2609,7 +2632,7 @@ simple_expr:
 	  { $$= new Item_func_spatial_collection(* $3,
                        Geometry::wkbGeometryCollection,
                        Geometry::wkbPoint); }
-	| GET_FORMAT '(' datetime_format_type  ',' expr ')'
+	| GET_FORMAT '(' date_time_type  ',' expr ')'
 	  { $$= new Item_func_get_format($3, $5); }
 	| HOUR_SYM '(' expr ')'
 	  { $$= new Item_func_hour($3); }
@@ -2924,17 +2947,19 @@ opt_gconcat_separator:
 
 
 opt_gorder_clause:
-    /* empty */
-      {
-        LEX *lex=Lex;
-        lex->gorder_list = NULL;
-      }
-    | order_clause
-      {
-        LEX *lex=Lex;
-        lex->gorder_list= (SQL_LIST*) sql_memdup((char*) &lex->current_select->order_list,sizeof(st_sql_list));
-        lex->current_select->order_list.empty();
-      };
+	  /* empty */
+	  {
+            LEX *lex=Lex;
+            lex->gorder_list = NULL;
+	  }
+	| order_clause
+          {
+            LEX *lex=Lex;
+            lex->gorder_list= 
+	      (SQL_LIST*) sql_memdup((char*) &lex->current_select->order_list,
+				     sizeof(st_sql_list));
+	    lex->current_select->order_list.empty();
+	  };
 
 
 in_sum_expr:
@@ -3230,10 +3255,10 @@ interval:
 	| YEAR_MONTH_SYM	{ $$=INTERVAL_YEAR_MONTH; }
 	| YEAR_SYM		{ $$=INTERVAL_YEAR; };
 
-datetime_format_type:
-	DATE_SYM		{$$=DATE_FORMAT_TYPE;}
-	| TIME_SYM		{$$=TIME_FORMAT_TYPE;}
-	| DATETIME		{$$=DATETIME_FORMAT_TYPE;};
+date_time_type:
+	DATE_SYM		{$$=TIMESTAMP_DATE;}
+	| TIME_SYM		{$$=TIMESTAMP_TIME;}
+	| DATETIME		{$$=TIMESTAMP_DATETIME;};
 
 table_alias:
 	/* empty */
@@ -4073,7 +4098,9 @@ describe:
 	    YYABORT;
 	}
 	opt_describe_column {}
-	| describe_command { Lex->describe=1; } select
+	| describe_command opt_extended_describe
+	  { Lex->describe|= DESCRIBE_NORMAL; }
+	  select
           {
 	    LEX *lex=Lex;
 	    lex->select_lex.options|= SELECT_DESCRIBE;
@@ -4083,6 +4110,11 @@ describe:
 describe_command:
 	DESC
 	| DESCRIBE;
+
+opt_extended_describe:
+	/* empty */ {}
+	| EXTENDED_SYM { Lex->describe|= DESCRIBE_EXTENDED; }
+	;
 
 opt_describe_column:
 	/* empty */	{}
@@ -4339,8 +4371,9 @@ literal:
 	  {
 	    Item *tmp= new Item_varbinary($2.str,$2.length);
 	    String *str= tmp ? tmp->val_str((String*) 0) : (String*) 0;
-	    $$ = new Item_string(str ? str->ptr() : "", str ? str->length() :
-				 0, Lex->charset);
+	    $$= new Item_string(str ? str->ptr() : "",
+				str ? str->length() : 0,
+				Lex->charset);
 	  }
 	| DATE_SYM text_literal { $$ = $2; }
 	| TIME_SYM text_literal { $$ = $2; }
@@ -4447,15 +4480,16 @@ table_ident:
    /* For Delphi */;
 
 IDENT_sys:
-	IDENT
-	{
-	  THD *thd= YYTHD;
-	  if (thd->charset_is_system_charset)
-	    $$= $1;
-	  else
-	    thd->convert_string(&$$, system_charset_info,
-				$1.str, $1.length, thd->charset());
-	}
+	IDENT { $$= $1; }
+	| IDENT_QUOTED
+	  {
+	    THD *thd= YYTHD;
+	    if (thd->charset_is_system_charset)
+	      $$= $1;
+	    else
+	      thd->convert_string(&$$, system_charset_info,
+				  $1.str, $1.length, thd->charset());
+	  }
 	;
 
 TEXT_STRING_sys:
@@ -5399,7 +5433,7 @@ order_or_limit:
 
 union_option:
 	/* empty */ {}
-	| ALL {Select->master_unit()->union_option= 1;};
+	| ALL {Select->master_unit()->union_option|= UNION_ALL;};
 
 singlerow_subselect:
 	subselect_start singlerow_subselect_init

@@ -420,6 +420,7 @@ libmysqld/sql_unions.cc
 libmysqld/sql_update.cc
 libmysqld/sql_yacc.cc
 libmysqld/stacktrace.c
+libmysqld/strfunc.cc
 libmysqld/table.cc
 libmysqld/thr_malloc.cc
 libmysqld/time.cc

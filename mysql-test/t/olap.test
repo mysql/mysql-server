@@ -32,7 +32,7 @@ select product, sum(profit),avg(profit) from t1 group by product with rollup;
 # Sub totals
 select product, country_id , year, sum(profit) from t1 group by product, country_id, year;
 select product, country_id , year, sum(profit) from t1 group by product, country_id, year with rollup;
-explain select product, country_id , year, sum(profit) from t1 group by product, country_id, year with rollup;
+explain extended select product, country_id , year, sum(profit) from t1 group by product, country_id, year with rollup;
 select product, country_id , sum(profit) from t1 group by product desc, country_id with rollup;
 
 # limit

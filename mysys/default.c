@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (C) 2000-2003 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -214,6 +214,7 @@ int load_defaults(const char *conf_file, const char **groups,
   res= (char**) (ptr+sizeof(alloc));
 
   /* copy name + found arguments + command line arguments to new array */
+  res[0]= argv[0][0];  /* Name MUST be set, even by embedded library */
   memcpy((gptr) (res+1), args.buffer, args.elements*sizeof(char*));
   /* Skipp --defaults-file and --defaults-extra-file */
   (*argc)-= args_used;

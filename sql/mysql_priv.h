@@ -204,6 +204,9 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 #define OPTION_QUOTE_SHOW_CREATE OPTION_QUICK*2
 #define OPTION_INTERNAL_SUBTRANSACTIONS OPTION_QUOTE_SHOW_CREATE*2
 
+/* options for UNION set by the yacc parser (stored in unit->union_option) */
+#define UNION_ALL		1
+
 /* Set if we are updating a non-transaction safe table */
 #define OPTION_STATUS_NO_TRANS_UPDATE 	OPTION_INTERNAL_SUBTRANSACTIONS*2
 
@@ -335,7 +338,7 @@ inline THD *_current_thd(void)
 #include "protocol.h"
 #include "sql_udf.h"
 #include "item.h"
-typedef compare_func_creator (*chooser_compare_func_creator)(bool invert);
+typedef Comp_creator* (*chooser_compare_func_creator)(bool invert);
 #include "sql_class.h"
 #include "opt_range.h"
 
@@ -753,6 +756,13 @@ bool open_log(MYSQL_LOG *log, const char *hostname,
 /* mysqld.cc */
 extern void yyerror(const char*);
 
+/* strfunc.cc */
+ulonglong find_set(TYPELIB *typelib,const char *x, uint length,
+		   char **err_pos, uint *err_len, bool *set_warning);
+uint find_type(TYPELIB *lib, const char *find, uint length, bool part_match);
+uint check_word(TYPELIB *lib, const char *val, const char *end,
+		const char **end_of_word);
+
 /*
   External variables
 */
@@ -767,6 +777,12 @@ extern const char *first_keyword, *my_localhost, *delayed_user, *binary_keyword;
 extern const char **errmesg;			/* Error messages */
 extern const char *myisam_recover_options_str;
 extern const char *in_left_expr_name, *in_additional_cond;
+extern Eq_creator eq_creator;
+extern Ne_creator ne_creator;
+extern Gt_creator gt_creator;
+extern Lt_creator lt_creator;
+extern Ge_creator ge_creator;
+extern Le_creator le_creator;
 extern uchar *days_in_month;
 extern char language[LIBLEN],reg_ext[FN_EXTLEN];
 extern char glob_hostname[FN_REFLEN], mysql_home[FN_REFLEN];
@@ -840,7 +856,6 @@ extern pthread_attr_t connection_attrib;
 extern I_List<THD> threads;
 extern I_List<NAMED_LIST> key_caches;
 extern MY_BITMAP temp_pool;
-extern DATE_FORMAT dayord;
 extern String my_empty_string;
 extern String my_null_string;
 extern SHOW_VAR init_vars[],status_vars[], internal_vars[];
@@ -852,12 +867,8 @@ extern struct system_variables global_system_variables;
 extern struct system_variables max_system_variables;
 extern struct rand_struct sql_rand;
 
-#define g_datetime_frm(a) (global_system_variables.datetime_formats[(a)])
-#define t_datetime_frm(a, b) ((a)->variables.datetime_formats[(b)])
-
-extern const char *datetime_formats[4][5];
-extern const char *opt_datetime_format_names[3];
-extern const char *opt_datetime_formats[3];
+extern const char *opt_date_time_formats[];
+extern KNOWN_DATE_TIME_FORMAT known_date_time_formats[];
 
 extern String null_string;
 extern HASH open_cache;
@@ -929,23 +940,26 @@ void get_date_from_daynr(long daynr,uint *year, uint *month,
 			 uint *day);
 void init_time(void);
 long my_gmt_sec(TIME *, long *current_timezone);
-time_t str_to_timestamp(const char *str,uint length, THD *thd);
-bool str_to_time(const char *str,uint length,TIME *l_time, THD *thd);
-longlong str_to_datetime(const char *str,uint length,bool fuzzy_date, THD *thd);
+time_t str_to_timestamp(const char *str,uint length);
+bool str_to_time(const char *str,uint length,TIME *l_time);
+longlong str_to_datetime(const char *str,uint length, uint fuzzy_date);
 timestamp_type str_to_TIME(const char *str, uint length, TIME *l_time,
-			   bool fuzzy_date, THD *thd);
+			   uint flags);
 void localtime_to_TIME(TIME *to, struct tm *from);
 void calc_time_from_sec(TIME *to, long seconds, long microseconds);
 
-extern DATETIME_FORMAT *make_format(DATETIME_FORMAT *datetime_format,
-				    datetime_format_types format_type,
-				    const char *format_str, 
-				    uint format_length, bool is_alloc);
-extern String *make_datetime(String *str, TIME *l_time,
-			     const bool is_time_only,
-			     const bool add_second_frac,
-			     const char *ptr, uint format_length,
-			     bool set_len_to_zero);
+extern DATE_TIME_FORMAT *date_time_format_make(timestamp_type format_type,
+					       const char *format_str,
+					       uint format_length);
+extern DATE_TIME_FORMAT *date_time_format_copy(THD *thd,
+					       DATE_TIME_FORMAT *format);
+const char *get_date_time_format_str(KNOWN_DATE_TIME_FORMAT *format,
+				     timestamp_type type);
+extern bool make_date_time(DATE_TIME_FORMAT *format, TIME *l_time,
+			   timestamp_type type, String *str);
+extern void make_time(DATE_TIME_FORMAT *format, TIME *l_time, String *str);
+void make_date(DATE_TIME_FORMAT *format, TIME *l_time, String *str);
+void make_datetime(DATE_TIME_FORMAT *format, TIME *l_time, String *str);
 
 int test_if_number(char *str,int *res,bool allow_wildcards);
 void change_byte(byte *,uint,char,char);
@@ -1056,12 +1070,12 @@ inline void table_case_convert(char * name, uint length)
     my_casedn(files_charset_info, name, length);
 }
 
-compare_func_creator comp_eq_creator(bool invert);
-compare_func_creator comp_ge_creator(bool invert);
-compare_func_creator comp_gt_creator(bool invert);
-compare_func_creator comp_le_creator(bool invert);
-compare_func_creator comp_lt_creator(bool invert);
-compare_func_creator comp_ne_creator(bool invert);
+Comp_creator *comp_eq_creator(bool invert);
+Comp_creator *comp_ge_creator(bool invert);
+Comp_creator *comp_gt_creator(bool invert);
+Comp_creator *comp_le_creator(bool invert);
+Comp_creator *comp_lt_creator(bool invert);
+Comp_creator *comp_ne_creator(bool invert);
 
 Item * all_any_subquery_creator(Item *left_expr,
 				chooser_compare_func_creator cmp,

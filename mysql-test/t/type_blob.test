@@ -298,6 +298,10 @@ select
   charset(load_file('../../std_data/words.dat')),
   collation(load_file('../../std_data/words.dat')),
   coercibility(load_file('../../std_data/words.dat'));
+explain extended select 
+  charset(load_file('../../std_data/words.dat')),
+  collation(load_file('../../std_data/words.dat')),
+  coercibility(load_file('../../std_data/words.dat'));
 update t1 set imagem=load_file('../../std_data/words.dat') where id=1;
 select if(imagem is null, "ERROR", "OK"),length(imagem) from t1 where id = 1;
 drop table t1;

@@ -188,6 +188,10 @@ SOURCE=.\longlong2str.c
 # End Source File
 # Begin Source File
 
+SOURCE=.\my_strtoll10.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\my_vsnprintf.c
 # End Source File
 # Begin Source File

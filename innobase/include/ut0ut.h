@@ -139,7 +139,7 @@ void
 ut_ulint_sort(ulint* arr, ulint* aux_arr, ulint low, ulint high);
 /*============================================================*/
 /************************************************************
-The following function returns a clock time in milliseconds. */
+The following function returns elapsed CPU time in milliseconds. */
 
 ulint
 ut_clock(void);
@@ -172,6 +172,14 @@ Sprintfs a timestamp to a buffer. */
 void
 ut_sprintf_timestamp(
 /*=================*/
+	char*	buf); /* in: buffer where to sprintf */
+/**************************************************************
+Sprintfs a timestamp to a buffer with no spaces and with ':' characters
+replaced by '_'. */
+
+void
+ut_sprintf_timestamp_without_extra_chars(
+/*=====================================*/
 	char*	buf); /* in: buffer where to sprintf */
 /**************************************************************
 Returns current year, month, day. */

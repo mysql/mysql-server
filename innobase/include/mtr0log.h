@@ -58,6 +58,19 @@ mlog_write_initial_log_record(
 	byte	type,	/* in: log item type: MLOG_1BYTE, ... */
 	mtr_t*	mtr);	/* in: mini-transaction handle */
 /************************************************************
+Writes a log record about an .ibd file create/delete/rename. */
+UNIV_INLINE
+byte*
+mlog_write_initial_log_record_for_file_op(
+/*======================================*/
+			/* out: new value of log_ptr */
+	ulint	type,	/* in: MLOG_FILE_CREATE, MLOG_FILE_DELETE, or
+			MLOG_FILE_RENAME */
+	ulint	space_id,/* in: space id, if applicable */
+	ulint	page_no,/* in: page number (not relevant currently) */
+	byte*	log_ptr,/* in: pointer to mtr log which has been opened */
+	mtr_t*	mtr);	/* in: mtr */
+/************************************************************
 Catenates 1 - 4 bytes to the mtr log. */
 UNIV_INLINE
 void

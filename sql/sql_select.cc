@@ -862,7 +862,8 @@ JOIN::optimize()
     We only need to do this when we have a simple_order or simple_group
     as in other cases the join is done before the sort.
   */
-  if ((order || group_list) && join_tab[const_tables].type != JT_ALL &&
+  if (const_tables != tables &&
+      (order || group_list) && join_tab[const_tables].type != JT_ALL &&
       join_tab[const_tables].type != JT_FT &&
       (order && simple_order || group_list && simple_group))
   {
@@ -882,12 +883,12 @@ JOIN::optimize()
     need_tmp=1; simple_order=simple_group=0;	// Force tmp table without sort
   }
 
+  tmp_having= having;
   if (select_options & SELECT_DESCRIBE)
   {
     error= 0;
     DBUG_RETURN(0);
   }
-  tmp_having= having;
   having= 0;
 
   /* Perform FULLTEXT search before all regular searches */
@@ -1453,10 +1454,21 @@ JOIN::exec()
       {
 	DBUG_VOID_RETURN;
       }
+      /*
+	Here we sort rows for ORDER BY/GROUP BY clause, if the optimiser
+	chose FILESORT to be faster than INDEX SCAN or there is no 
+	suitable index present.
+	Note, that create_sort_index calls test_if_skip_sort_order and may
+	finally replace sorting with index scan if there is a LIMIT clause in
+	the query. XXX: it's never shown in EXPLAIN!
+	OPTION_FOUND_ROWS supersedes LIMIT and is taken into account.
+      */
       if (create_sort_index(thd, curr_join,
 			    curr_join->group_list ? 
 			    curr_join->group_list : curr_join->order,
-			    curr_join->select_limit, unit->select_limit_cnt))
+			    curr_join->select_limit,
+			    (select_options & OPTION_FOUND_ROWS ?
+			     HA_POS_ERROR : unit->select_limit_cnt)))
 	DBUG_VOID_RETURN;
     }
   }
@@ -1573,10 +1585,22 @@ mysql_select(THD *thd, Item ***rref_pointer_array,
     goto err;					// 1
   }
 
+  if (thd->lex.describe & DESCRIBE_EXTENDED)
+  {
+    join->conds_history= join->conds;
+    join->having_history= (join->having?join->having:join->tmp_having);
+  }
+
   if (thd->net.report_error)
     goto err;
 
   join->exec();
+
+  if (thd->lex.describe & DESCRIBE_EXTENDED)
+  {
+    select_lex->where= join->conds_history;
+    select_lex->having= join->having_history;
+  }
 
 err:
   if (free_join)
@@ -2383,6 +2407,8 @@ add_ft_keys(DYNAMIC_ARRAY *keyuse_array,
   keyuse.key =  cond_func->key;
   keyuse.keypart= FT_KEYPART;
   keyuse.used_tables=cond_func->key_item()->used_tables();
+  keyuse.optimize= 0;
+  keyuse.keypart_map= 0;
   VOID(insert_dynamic(keyuse_array,(gptr) &keyuse));
 }
 
@@ -2844,8 +2870,6 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 	  !(s->table->force_index && best_key))
       {						// Check full join
         ha_rows rnd_records= s->found_records;
-        /* Estimate cost of reading table. */
-        tmp= s->table->file->scan_time();
         /*
           If there is a restriction on the table, assume that 25% of the
           rows can be skipped on next part.
@@ -2855,36 +2879,57 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
         if (found_constraint)
           rnd_records-= rnd_records/4;
 
-        if (s->on_expr)                         // Can't use join cache
+        /*
+          Range optimizer never proposes a RANGE if it isn't better
+          than FULL: so if RANGE is present, it's always preferred to FULL.
+          Here we estimate its cost.
+        */
+        if (s->quick)
         {
+          /*
+            For each record we:
+             - read record range through 'quick'
+             - skip rows which does not satisfy WHERE constraints
+           */
           tmp= record_count *
-               /* We have to read the whole table for each record */
-               (tmp +     
-               /*
-                 And we have to skip rows which does not satisfy join
-                 condition for each record.
-               */
-               (s->records - rnd_records)/(double) TIME_FOR_COMPARE);
+               (s->quick->read_time +
+               (s->found_records - rnd_records)/(double) TIME_FOR_COMPARE);
         }
         else
         {
-          /* We read the table as many times as join buffer becomes full. */
-          tmp*= (1.0 + floor((double) cache_record_length(join,idx) *
-                             record_count /
-                             (double) thd->variables.join_buff_size));
-          /* 
-            We don't make full cartesian product between rows in the scanned
-            table and existing records because we skip all rows from the
-            scanned table, which does not satisfy join condition when 
-            we read the table (see flush_cached_records for details). Here we
-            take into account cost to read and skip these records.
-          */
-          tmp+= (s->records - rnd_records)/(double) TIME_FOR_COMPARE;
+          /* Estimate cost of reading table. */
+          tmp= s->table->file->scan_time();
+          if (s->on_expr)                         // Can't use join cache
+          {
+            /*
+              For each record we have to:
+              - read the whole table record 
+              - skip rows which does not satisfy join condition
+            */
+            tmp= record_count *
+                 (tmp +     
+                 (s->records - rnd_records)/(double) TIME_FOR_COMPARE);
+          }
+          else
+          {
+            /* We read the table as many times as join buffer becomes full. */
+            tmp*= (1.0 + floor((double) cache_record_length(join,idx) *
+                               record_count /
+                               (double) thd->variables.join_buff_size));
+            /* 
+              We don't make full cartesian product between rows in the scanned
+              table and existing records because we skip all rows from the
+              scanned table, which does not satisfy join condition when 
+              we read the table (see flush_cached_records for details). Here we
+              take into account cost to read and skip these records.
+            */
+            tmp+= (s->records - rnd_records)/(double) TIME_FOR_COMPARE;
+          }
         }
 
         /*
           We estimate the cost of evaluating WHERE clause for found records
-          as record_count * rnd_records + TIME_FOR_COMPARE. This cost plus
+          as record_count * rnd_records / TIME_FOR_COMPARE. This cost plus
           tmp give us total cost of using TABLE SCAN
         */
 	if (best == DBL_MAX ||
@@ -3308,6 +3353,8 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
     table_map used_tables;
     if (join->tables > 1)
       cond->update_used_tables();		// Tablenr may have changed
+    if (join->const_tables == join->tables)
+      join->const_table_map|=RAND_TABLE_BIT;
     {						// Check const tables
       COND *const_cond=
 	make_cond_for_table(cond,join->const_table_map,(table_map) 0);
@@ -9031,4 +9078,160 @@ int mysql_explain_select(THD *thd, SELECT_LEX *select_lex, char const *type,
 			select_lex->options | thd->options | SELECT_DESCRIBE,
 			result, unit, select_lex, 0);
   DBUG_RETURN(res);
+}
+
+
+void st_select_lex::print(THD *thd, String *str)
+{
+  if (!thd)
+    thd= current_thd;
+
+  str->append("select ", 7);
+  
+  //options
+  if (options & SELECT_STRAIGHT_JOIN)
+    str->append("straight_join ", 14);
+  if ((thd->lex.lock_option & TL_READ_HIGH_PRIORITY) &&
+      (this == &thd->lex.select_lex))
+    str->append("high_priority ", 14);
+  if (options & SELECT_DISTINCT)
+    str->append("distinct ", 9);
+  if (options & SELECT_SMALL_RESULT)
+    str->append("small_result ", 13);
+  if (options & SELECT_BIG_RESULT)
+    str->append("big_result ", 11);
+  if (options & OPTION_BUFFER_RESULT)
+    str->append("buffer_result ", 14);
+  if (options & OPTION_FOUND_ROWS)
+    str->append("calc_found_rows ", 16);
+  if (!thd->lex.safe_to_cache_query)
+    str->append("no_cache ", 9);
+  if (options & OPTION_TO_QUERY_CACHE)
+    str->append("cache ", 6);
+
+  //Item List
+  bool first= 1;
+  List_iterator_fast<Item> it(item_list);
+  Item *item;
+  while ((item= it++))
+  {
+    if (first)
+      first= 0;
+    else
+      str->append(',');
+    item->print_item_w_name(str);
+  }
+
+  /*
+    from clause
+    TODO: support USING/FORCE/IGNORE index
+  */
+  if (table_list.elements)
+  {
+    str->append(" from ", 6);
+    Item *next_on= 0;
+    for (TABLE_LIST *table= (TABLE_LIST *) table_list.first;
+	 table;
+	 table= table->next)
+    {
+      if (table->derived)
+      {
+	str->append('(');
+	table->derived->print(str);
+	str->append(") ");
+	str->append(table->alias);
+      }
+      else
+      {
+	str->append(table->db);
+	str->append('.');
+	str->append(table->real_name);
+	if (strcmp(table->real_name, table->alias))
+	{
+	  str->append(' ');
+	  str->append(table->alias);
+	}
+      }
+
+      if (table->on_expr && ((table->outer_join & JOIN_TYPE_LEFT) ||
+			     !(table->outer_join & JOIN_TYPE_RIGHT)))
+	next_on= table->on_expr;
+
+      if (next_on)
+      {
+	str->append(" on(", 4);
+	next_on->print(str);
+	str->append(')');
+	next_on= 0;
+      }
+
+      TABLE_LIST *next;
+      if ((next= table->next))
+      {
+	if (table->outer_join & JOIN_TYPE_RIGHT)
+	{
+	  str->append(" right join ", 12);
+	  if (!(table->outer_join & JOIN_TYPE_LEFT) &&
+	      table->on_expr)
+	    next_on= table->on_expr;	    
+	}
+	else if (next->straight)
+	  str->append(" straight_join ", 15);
+	else if (next->outer_join & JOIN_TYPE_LEFT)
+	  str->append(" left join ", 11);
+	else
+	  str->append(" join ", 6);
+      }
+    }
+  }
+
+  //where
+  Item *where= this->where;
+  if (join)
+    where= join->conds;
+  if (where)
+  {
+    str->append(" where ", 7);
+    where->print(str);
+  }
+
+  //group by & olap
+  if (group_list.elements)
+  {
+    str->append(" group by ", 10);
+    print_order(str, (ORDER *) group_list.first);
+    switch (olap)
+    {
+      case CUBE_TYPE:
+	str->append(" with cube", 10);
+	break;
+      case ROLLUP_TYPE:
+	str->append(" with rollup", 12);
+	break;
+      default:
+	;  //satisfy compiler
+    }
+  }
+
+  //having
+  Item *having= this->having;
+  if (join)
+    having= join->having;
+
+  if (having)
+  {
+    str->append(" having ", 8);
+    having->print(str);
+  }
+
+  if (order_list.elements)
+  {
+    str->append(" order by ", 10);
+    print_order(str, (ORDER *) order_list.first);
+  }
+
+  // limit
+  print_limit(thd, str);
+
+  // PROCEDURE unsupported here
 }

@@ -292,7 +292,7 @@ Item *create_func_period_diff(Item* a, Item *b)
 
 Item *create_func_pi(void)
 {
-  return new Item_real(NullS,M_PI,6,8);
+  return new Item_real("pi()",M_PI,6,8);
 }
 
 Item *create_func_pow(Item* a, Item *b)
@@ -450,7 +450,8 @@ Item *create_load_file(Item* a)
 }
 
 
-Item *create_func_cast(Item *a, Cast_target cast_type, int len, CHARSET_INFO *cs)
+Item *create_func_cast(Item *a, Cast_target cast_type, int len,
+		       CHARSET_INFO *cs)
 {
   Item *res;
   LINT_INIT(res);

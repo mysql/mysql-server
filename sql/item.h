@@ -114,14 +114,6 @@ public:
   my_bool fixed;                        /* If item fixed with fix_fields */
   DTCollation collation;
 
-
-  /*
-    thd is current_thd value. Like some other Item's fields it
-    will be a problem for using one Item in different threads
-    (as stored procedures may want to do in the future)
-  */
-  THD *thd;
-  
   // alloc & destruct is done as start of select using sql_alloc
   Item();
   /*
@@ -132,7 +124,7 @@ public:
      top AND/OR ctructure of WHERE clause to protect it of
      optimisation changes in prepared statements
   */
-  Item(THD *c_thd, Item &item);
+  Item(THD *thd, Item &item);
   virtual ~Item() { name=0; }		/*lint -e1509 */
   void set_name(const char *str,uint length, CHARSET_INFO *cs);
   void init_make_field(Send_field *tmp_field,enum enum_field_types type);
@@ -182,11 +174,12 @@ public:
   { return decimals != NOT_FIXED_DEC ? (DBL_DIG+2+decimals_par) : DBL_DIG+8;}
   virtual bool const_item() const { return used_tables() == 0; }
   virtual void print(String *str_arg) { str_arg->append(full_name()); }
+  void print_item_w_name(String *);
   virtual void update_used_tables() {}
   virtual void split_sum_func(Item **ref_pointer_array, List<Item> &fields) {}
-  virtual bool get_date(TIME *ltime,bool fuzzydate);
+  virtual bool get_date(TIME *ltime,uint fuzzydate);
   virtual bool get_time(TIME *ltime);
-  virtual bool get_date_result(TIME *ltime,bool fuzzydate)
+  virtual bool get_date_result(TIME *ltime,uint fuzzydate)
   { return get_date(ltime,fuzzydate); }
   virtual bool is_null() { return 0; }
   virtual void top_level_item() {}
@@ -285,8 +278,8 @@ public:
   }
   Field *get_tmp_table_field() { return result_field; }
   Field *tmp_table_field(TABLE *t_arg) { return result_field; }
-  bool get_date(TIME *ltime,bool fuzzydate);
-  bool get_date_result(TIME *ltime,bool fuzzydate);
+  bool get_date(TIME *ltime,uint fuzzydate);
+  bool get_date_result(TIME *ltime,uint fuzzydate);
   bool get_time(TIME *ltime);
   bool is_null() { return field->is_null(); }
   Item *get_tmp_table_item(THD *thd);
@@ -318,6 +311,7 @@ public:
   bool basic_const_item() const { return 1; }
   Item *new_item() { return new Item_null(name); }
   bool is_null() { return 1; }
+  void print(String *str) { str->append("NULL", 4); }
 };
 
 class Item_param :public Item
@@ -368,6 +362,7 @@ public:
   String *query_val_str(String *str);
   enum_field_types field_type() const { return MYSQL_TYPE_STRING; }
   Item *new_item() { return new Item_param(pos_in_query); }
+  void print(String *str) { str->append('?'); }
 };
 
 class Item_int :public Item
@@ -466,6 +461,13 @@ public:
   {
     collation.set(cs, dv);
     str_value.set(str,length,cs);
+    /*
+      We have to have a different max_length than 'length' here to
+      ensure that we get the right length if we do use the item
+      to create a new table. In this case max_length must be the maximum
+      number of chars for a string of this type because we in create_field::
+      divide the max_length with mbmaxlen).
+    */
     max_length= str_value.numchars()*cs->mbmaxlen;
     set_name(str, length, cs);
     decimals=NOT_FIXED_DEC;
@@ -620,7 +622,7 @@ public:
     (void) (*ref)->val_int_result();
     return (*ref)->null_value;
   }
-  bool get_date(TIME *ltime,bool fuzzydate)
+  bool get_date(TIME *ltime,uint fuzzydate)
   {
     return (null_value=(*ref)->get_date_result(ltime,fuzzydate));
   }
@@ -640,6 +642,7 @@ public:
     (*ref)->save_in_field(result_field, no_conversions);
   }
   Item *real_item() { return *ref; }
+  void print(String *str);
 };
 
 class Item_in_subselect;
@@ -654,16 +657,8 @@ public:
   double val();
   longlong val_int();
   String* val_str(String* s);
-  bool get_date(TIME *ltime, bool fuzzydate);
-  void print(String *str)
-  {
-    str->append("ref_null_helper(");
-    if (ref && *ref)
-      (*ref)->print(str);
-    else
-      str->append('?');
-    str->append(')');
-  }
+  bool get_date(TIME *ltime, uint fuzzydate);
+  void print(String *str);
 };
 
 class Item_null_helper :public Item_ref_null_helper
@@ -675,6 +670,7 @@ public:
     :Item_ref_null_helper(master, &store, table_name_par, field_name_par),
      store(item)
     {}
+  void print(String *str);
 };
 
 /*
@@ -856,14 +852,16 @@ public:
 
 class Item_cache: public Item
 {
+protected:
+  Item *example;
   table_map used_table_map;
 public:
-  Item_cache(): used_table_map(0) {fixed= 1; null_value= 1;}
+  Item_cache(): example(0), used_table_map(0) {fixed= 1; null_value= 1;}
 
   void set_used_tables(table_map map) { used_table_map= map; }
 
   virtual bool allocate(uint i) { return 0; };
-  virtual bool setup(Item *) { return 0; };
+  virtual bool setup(Item *item) { example= item;  return 0; };
   virtual void store(Item *)= 0;
   void set_len_n_dec(uint32 max_len, uint8 dec)
   {
@@ -873,6 +871,7 @@ public:
   enum Type type() const { return CACHE_ITEM; }
   static Item_cache* get_cache(Item_result type);
   table_map used_tables() const { return used_table_map; }
+  void print(String *str);
 };
 
 class Item_cache_int: public Item_cache
@@ -881,12 +880,7 @@ class Item_cache_int: public Item_cache
 public:
   Item_cache_int(): Item_cache() {}
   
-  void store(Item *item)
-  {
-    value= item->val_int_result();
-    null_value= item->null_value;
-    collation.set(item->collation);
-  }
+  void store(Item *item);
   double val() { return (double) value; }
   longlong val_int() { return value; }
   String* val_str(String *str) { str->set(value, default_charset()); return str; }
@@ -899,12 +893,7 @@ class Item_cache_real: public Item_cache
 public:
   Item_cache_real(): Item_cache() {}
   
-  void store(Item *item)
-  {
-    value= item->val_result();
-    null_value= item->null_value;
-    collation.set(item->collation);
-  }
+  void store(Item *item);
   double val() { return value; }
   longlong val_int() { return (longlong) (value+(value > 0 ? 0.5 : -0.5)); }
   String* val_str(String *str)

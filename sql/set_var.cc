@@ -299,14 +299,25 @@ sys_var_thd_ulong	sys_tmp_table_size("tmp_table_size",
 					   &SV::tmp_table_size);
 sys_var_thd_ulong	sys_net_wait_timeout("wait_timeout",
 					     &SV::net_wait_timeout);
-					     
+
 #ifdef HAVE_INNOBASE_DB
 sys_var_long_ptr        sys_innodb_max_dirty_pages_pct("innodb_max_dirty_pages_pct",
                                                         &srv_max_buf_pool_modified_pct);
 #endif 					     
-/*
-  Variables that are bits in THD
-*/
+
+/* Time/date/datetime formats */
+
+sys_var_thd_date_time_format sys_time_format("time_format",
+					     &SV::time_format,
+					     TIMESTAMP_TIME);
+sys_var_thd_date_time_format sys_date_format("date_format",
+					     &SV::date_format,
+					     TIMESTAMP_DATE);
+sys_var_thd_date_time_format sys_datetime_format("datetime_format",
+						 &SV::datetime_format,
+						 TIMESTAMP_DATETIME);
+
+/* Variables that are bits in THD */
 
 static sys_var_thd_bit	sys_autocommit("autocommit",
 				       set_option_autocommit,
@@ -413,9 +424,8 @@ sys_var *sys_variables[]=
   &sys_collation_server,
   &sys_concurrent_insert,
   &sys_connect_timeout,
-  &g_datetime_frm(DATE_FORMAT_TYPE),
-  &g_datetime_frm(DATETIME_FORMAT_TYPE),
-  &g_datetime_frm(TIME_FORMAT_TYPE),
+  &sys_date_format,
+  &sys_datetime_format,
   &sys_default_week_format,
   &sys_delay_key_write,
   &sys_delayed_insert_limit,
@@ -485,6 +495,7 @@ sys_var *sys_variables[]=
   &sys_rand_seed1,
   &sys_rand_seed2,
   &sys_range_alloc_block_size,
+  &sys_readonly,
   &sys_read_buff_size,
   &sys_read_rnd_buff_size,
 #ifdef HAVE_REPLICATION
@@ -500,7 +511,6 @@ sys_var *sys_variables[]=
   &sys_slave_net_timeout,
   &sys_slave_skip_counter,
 #endif
-  &sys_readonly,
   &sys_slow_launch_time,
   &sys_sort_buffer,
   &sys_sql_big_tables,
@@ -511,6 +521,7 @@ sys_var *sys_variables[]=
   &sys_table_cache_size,
   &sys_table_type,
   &sys_thread_cache_size,
+  &sys_time_format,
   &sys_timestamp,
   &sys_tmp_table_size,
   &sys_trans_alloc_block_size,
@@ -556,9 +567,9 @@ struct show_var_st init_vars[]= {
   {sys_concurrent_insert.name,(char*) &sys_concurrent_insert,       SHOW_SYS},
   {sys_connect_timeout.name,  (char*) &sys_connect_timeout,         SHOW_SYS},
   {"datadir",                 mysql_real_data_home,                 SHOW_CHAR},
-  {"date_format",             (char*) &g_datetime_frm(DATE_FORMAT_TYPE), SHOW_SYS},
-  {"datetime_format",         (char*) &g_datetime_frm(DATETIME_FORMAT_TYPE), SHOW_SYS},
-  {"default_week_format",     (char*) &sys_default_week_format,     SHOW_SYS},
+  {sys_date_format.name,      (char*) &sys_date_format,		    SHOW_SYS},
+  {sys_datetime_format.name,  (char*) &sys_datetime_format,	    SHOW_SYS},
+  {sys_default_week_format.name, (char*) &sys_default_week_format,  SHOW_SYS},
   {sys_delay_key_write.name,  (char*) &sys_delay_key_write,         SHOW_SYS},
   {sys_delayed_insert_limit.name, (char*) &sys_delayed_insert_limit,SHOW_SYS},
   {sys_delayed_insert_timeout.name, (char*) &sys_delayed_insert_timeout, SHOW_SYS},
@@ -720,7 +731,7 @@ struct show_var_st init_vars[]= {
 #endif
   {"thread_stack",            (char*) &thread_stack,                SHOW_LONG},
   {sys_tx_isolation.name,     (char*) &sys_tx_isolation,	    SHOW_SYS},
-  {"time_format",             (char*) &g_datetime_frm(TIME_FORMAT_TYPE), SHOW_SYS},
+  {sys_time_format.name,      (char*) &sys_time_format,		    SHOW_SYS},
 #ifdef HAVE_TZNAME
   {"timezone",                time_zone,                            SHOW_CHAR},
 #endif
@@ -744,71 +755,6 @@ bool sys_var::check(THD *thd, set_var *var)
 /*
   Functions to check and update variables
 */
-char *update_datetime_format(THD *thd, enum enum_var_type type,
-			     enum datetime_format_types format_type,
-			     DATETIME_FORMAT *tmp_format)
-{
-  char *old_value;
-  if (type == OPT_GLOBAL)
-  {
-    pthread_mutex_lock(&LOCK_global_system_variables);    
-    old_value= g_datetime_frm(format_type).datetime_format.format;
-    g_datetime_frm(format_type).datetime_format= *tmp_format;
-    pthread_mutex_unlock(&LOCK_global_system_variables);
-  }
-  else
-  {
-    old_value= t_datetime_frm(thd,format_type).datetime_format.format;
-    t_datetime_frm(thd, format_type).datetime_format= *tmp_format;
-  }
-  return old_value;
-}
-
-
-bool sys_var_datetime_format::update(THD *thd, set_var *var)
-{
-  DATETIME_FORMAT tmp_format;
-  char *old_value;
-  uint new_length;
-
-  if ((new_length= var->value->str_value.length()))
-  {
-    if (!make_format(&tmp_format, format_type,
-		     var->value->str_value.ptr(),
-		     new_length, 1))
-    return 1;
-  }
-
-  old_value= update_datetime_format(thd, var->type, format_type, &tmp_format);
-  my_free(old_value, MYF(MY_ALLOW_ZERO_PTR));
-  return 0;
-}
-
-byte *sys_var_datetime_format::value_ptr(THD *thd, enum_var_type type,
-				       LEX_STRING *base)
-{
- if (type == OPT_GLOBAL)
-   return (byte*) g_datetime_frm(format_type).datetime_format.format;
- return (byte*) t_datetime_frm(thd, format_type).datetime_format.format;
-}
-
-void sys_var_datetime_format::set_default(THD *thd, enum_var_type type)
-{
-  DATETIME_FORMAT tmp_format;
-  char *old_value;
-  uint new_length;
-
-  if ((new_length= strlen(opt_datetime_formats[format_type])))
-  {
-    if (!make_format(&tmp_format, format_type,
-		     opt_datetime_formats[format_type],
-		     new_length, 1))
-    return;
-  }
-
-  old_value= update_datetime_format(thd, type, format_type, &tmp_format);
-  my_free(old_value, MYF(MY_ALLOW_ZERO_PTR));
-}
 
 /*
   The following 3 functions need to be changed in 4.1 when we allow
@@ -1226,8 +1172,8 @@ bool sys_var::check_enum(THD *thd, set_var *var, TYPELIB *enum_names)
   {
     if (!(res=var->value->val_str(&str)) ||
 	((long) (var->save_result.ulong_value=
-		 (ulong) find_type(res->c_ptr(), enum_names, 3)-1))
-	< 0)
+		 (ulong) find_type(enum_names, res->ptr(),
+				   res->length(),1)-1)) < 0)
     {
       value= res ? res->c_ptr() : "NULL";
       goto err;
@@ -1341,8 +1287,12 @@ Item *sys_var::item(THD *thd, enum_var_type var_type, LEX_STRING *base)
     return new Item_int((int32) *(my_bool*) value_ptr(thd, var_type, base),1);
   case SHOW_CHAR:
   {
+    Item_string *tmp;
+    pthread_mutex_lock(&LOCK_global_system_variables);
     char *str= (char*) value_ptr(thd, var_type, base);
-    return new Item_string(str, strlen(str), system_charset_info);
+    tmp= new Item_string(str, strlen(str), system_charset_info);
+    pthread_mutex_unlock(&LOCK_global_system_variables);
+    return tmp;
   }
   default:
     net_printf(thd, ER_VAR_CANT_BE_READ, name);
@@ -1383,7 +1333,6 @@ byte *sys_var_thd_enum::value_ptr(THD *thd, enum_var_type type,
 bool sys_var_thd_bit::update(THD *thd, set_var *var)
 {
   int res= (*update_func)(thd, var);
-  thd->lex.select_lex.options=thd->options;
   return res;
 }
 
@@ -1401,6 +1350,112 @@ byte *sys_var_thd_bit::value_ptr(THD *thd, enum_var_type type,
 }
 
 
+/* Update a date_time format variable based on given value */
+
+void sys_var_thd_date_time_format::update2(THD *thd, enum_var_type type,
+					   DATE_TIME_FORMAT *new_value)
+{
+  DATE_TIME_FORMAT *old;
+  DBUG_ENTER("sys_var_date_time_format::update2");
+  DBUG_DUMP("positions",(char*) new_value->positions,
+	    sizeof(new_value->positions));
+
+  if (type == OPT_GLOBAL)
+  {
+    pthread_mutex_lock(&LOCK_global_system_variables);
+    old= (global_system_variables.*offset);
+    (global_system_variables.*offset)= new_value;
+    pthread_mutex_unlock(&LOCK_global_system_variables);
+  }
+  else
+  {
+    old= (thd->variables.*offset);
+    (thd->variables.*offset)= new_value;
+  }
+  my_free((char*) old, MYF(MY_ALLOW_ZERO_PTR));
+  DBUG_VOID_RETURN;
+}
+
+
+bool sys_var_thd_date_time_format::update(THD *thd, set_var *var)
+{
+  DATE_TIME_FORMAT *new_value;
+  /* We must make a copy of the last value to get it into normal memory */
+  new_value= date_time_format_copy((THD*) 0,
+				   var->save_result.date_time_format);
+  if (!new_value)
+    return 1;					// Out of memory
+  update2(thd, var->type, new_value);		// Can't fail
+  return 0;
+}
+
+
+bool sys_var_thd_date_time_format::check(THD *thd, set_var *var)
+{
+  char buff[80];
+  String str(buff,sizeof(buff), system_charset_info), *res;
+  DATE_TIME_FORMAT *format;
+
+  if (!(res=var->value->val_str(&str)))
+    res= &my_empty_string;
+
+  if (!(format= date_time_format_make(date_time_type,
+				      res->ptr(), res->length())))
+  {
+    my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), name, res->c_ptr());
+    return 1;
+  }
+  
+  /*
+    We must copy result to thread space to not get a memory leak if
+    update is aborted
+  */
+  var->save_result.date_time_format= date_time_format_copy(thd, format);
+  my_free((char*) format, MYF(0));
+  return var->save_result.date_time_format == 0;
+}
+
+
+void sys_var_thd_date_time_format::set_default(THD *thd, enum_var_type type)
+{
+  DATE_TIME_FORMAT *res= 0;
+
+  if (type == OPT_GLOBAL)
+  {
+    const char *format;
+    if ((format= opt_date_time_formats[date_time_type]))
+      res= date_time_format_make(date_time_type, format, strlen(format));
+  }
+  else
+  {
+    /* Make copy with malloc */
+    res= date_time_format_copy((THD *) 0, global_system_variables.*offset);
+  }
+
+  if (res)					// Should always be true
+    update2(thd, type, res);
+}
+
+
+byte *sys_var_thd_date_time_format::value_ptr(THD *thd, enum_var_type type,
+					      LEX_STRING *base)
+{
+  if (type == OPT_GLOBAL)
+  {
+    char *res;
+    /*
+      We do a copy here just to be sure things will work even if someone
+      is modifying the original string while the copy is accessed
+      (Can't happen now in SQL SHOW, but this is a good safety for the future)
+    */
+    res= thd->strmake((global_system_variables.*offset)->format.str,
+		      (global_system_variables.*offset)->format.length);
+    return (byte*) res;
+  }
+  return (byte*) (thd->variables.*offset)->format.str;
+}
+
+
 typedef struct old_names_map_st
 {
   const char *old_name;
@@ -1409,17 +1464,17 @@ typedef struct old_names_map_st
 
 static my_old_conv old_conv[]= 
 {
-	{	"cp1251_koi8"		,	"cp1251"	},
-	{	"cp1250_latin2"		,	"cp1250"	},
-	{	"kam_latin2"		,	"keybcs2"	},
-	{	"mac_latin2"		,	"MacRoman"	},
-	{	"macce_latin2"		,	"MacCE"		},
-	{	"pc2_latin2"		,	"pclatin2"	},
-	{	"vga_latin2"		,	"pclatin1"	},
-	{	"koi8_cp1251"		,	"koi8r"		},
-	{	"win1251ukr_koi8_ukr"	,	"win1251ukr"	},
-	{	"koi8_ukr_win1251ukr"	,	"koi8u"		},
-	{	NULL			,	NULL		}
+  {	"cp1251_koi8"		,	"cp1251"	},
+  {	"cp1250_latin2"		,	"cp1250"	},
+  {	"kam_latin2"		,	"keybcs2"	},
+  {	"mac_latin2"		,	"MacRoman"	},
+  {	"macce_latin2"		,	"MacCE"		},
+  {	"pc2_latin2"		,	"pclatin2"	},
+  {	"vga_latin2"		,	"pclatin1"	},
+  {	"koi8_cp1251"		,	"koi8r"		},
+  {	"win1251ukr_koi8_ukr"	,	"win1251ukr"	},
+  {	"koi8_ukr_win1251ukr"	,	"koi8u"		},
+  {	NULL			,	NULL		}
 };
 
 CHARSET_INFO *get_old_charset_by_name(const char *name)

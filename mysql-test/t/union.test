@@ -25,7 +25,7 @@ select 't1',b,count(*) from t1 group by b UNION select 't2',b,count(*) from t2 g
 (select a,b from t1 limit 2)  union all (select a,b from t2 order by a limit 1) order by b desc;
 --error 1249
 (select a,b from t1 limit 2)  union all (select a,b from t2 order by a limit 1) order by t1.b;
-explain (select a,b from t1 limit 2)  union all (select a,b from t2 order by a limit 1) order by b desc;
+explain extended (select a,b from t1 limit 2)  union all (select a,b from t2 order by a limit 1) order by b desc;
 (select sql_calc_found_rows  a,b from t1 limit 2)  union all (select a,b from t2 order by a) limit 2;
 select found_rows();
 select sql_calc_found_rows  a,b from t1  union all select a,b from t2 limit 2;
@@ -275,7 +275,7 @@ create table t2 (a int not null primary key auto_increment, b int);
 insert into t1 (b) values (1),(2),(2),(3);
 insert into t2 (b) values (10),(11),(12),(13);
 
-explain (select * from t1 where a=1) union (select * from t2 where a=1);
+explain extended (select * from t1 where a=1) union (select * from t2 where a=1);
 (select * from t1 where a=5) union (select * from t2 where a=1);
 (select * from t1 where a=5 and a=6) union (select * from t2 where a=1);
 (select t1.a,t1.b from t1,t2 where t1.a=5) union (select * from t2 where a=1);
