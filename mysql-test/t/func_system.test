@@ -23,4 +23,10 @@ create table t1 (version char(40)) select database(), user(), version() as 'vers
 show create table t1;
 drop table t1;
 
+select charset(charset(_utf8'a')), charset(collation(_utf8'a'));
+select collation(charset(_utf8'a')), collation(collation(_utf8'a'));
+create table t1 select charset(_utf8'a'), collation(_utf8'a');
+show create table t1;
+drop table t1;
+
 select TRUE,FALSE,NULL;

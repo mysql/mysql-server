@@ -28,8 +28,6 @@ select CAST(DATE "2004-01-22 21:45:33" AS CHAR(4) BINARY);
 set names binary;
 select cast(_latin1'test' as char character set latin2);
 select cast(_koi8r'тест' as char character set cp1251);
-select convert(_latin1'test', "latin1_german1_ci", "latin1_swedish_ci");
-select convert(_koi8r'тест', "koi8r_general_ci", "cp1251_general_ci");
 create table t1 select cast(_koi8r'тест' as char character set cp1251) as t;
 show create table t1;
 drop table t1;
