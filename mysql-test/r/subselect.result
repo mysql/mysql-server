@@ -334,7 +334,7 @@ Note	1276	Field or reference 'clinic_uq' of SELECT #2 was resolved in SELECT #1
 Note	1003	select test.t6.patient_uq AS `patient_uq`,test.t6.clinic_uq AS `clinic_uq` from test.t6 where exists(select test.t7.uq AS `uq`,test.t7.name AS `name` from test.t7 where (test.t7.uq = test.t6.clinic_uq))
 select * from t1 where a= (select a from t2,t4 where t2.b=t4.b);
 ERROR 23000: Column: 'a' in field list is ambiguous
-drop table if exists t1,t2,t3;
+drop table t1,t2,t3;
 CREATE TABLE t3 (a varchar(20),b char(1) NOT NULL default '0');
 INSERT INTO t3 VALUES ('W','a'),('A','c'),('J','b');
 CREATE TABLE t2 (a varchar(20),b int NOT NULL default '0');
