@@ -1562,7 +1562,7 @@ int ha_ndbcluster::index_first(byte *buf)
 int ha_ndbcluster::index_last(byte *buf)
 {
   DBUG_ENTER("index_last");
-  statistic_increment(ha_read_last_count,&LOCK_status);
+  statistic_increment(current_thd->status_var.ha_read_last_count,&LOCK_status);
   DBUG_RETURN(1);
 }
 

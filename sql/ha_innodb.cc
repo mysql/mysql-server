@@ -2161,7 +2161,8 @@ ha_innobase::write_row(
 		ut_error;
 	}
 
-  	statistic_increment(ha_write_count, &LOCK_status);
+  	statistic_increment(current_thd->status_var.ha_write_count,
+			    &LOCK_status);
 
         if (table->timestamp_default_now)
                 update_timestamp(record + table->timestamp_default_now - 1);
@@ -2780,7 +2781,8 @@ ha_innobase::index_read(
 	ut_ad(prebuilt->trx ==
 		(trx_t*) current_thd->transaction.all.innobase_tid);
 
-  	statistic_increment(ha_read_key_count, &LOCK_status);
+  	statistic_increment(current_thd->status_var.ha_read_key_count,
+			    &LOCK_status);
 
 	if (last_query_id != user_thd->query_id) {
 	        prebuilt->sql_stat_start = TRUE;
@@ -2886,7 +2888,8 @@ ha_innobase::change_active_index(
 {
 	row_prebuilt_t* prebuilt	= (row_prebuilt_t*) innobase_prebuilt;
 	KEY*		key=0;
-	statistic_increment(ha_read_key_count, &LOCK_status);
+	statistic_increment(current_thd->status_var.ha_read_key_count,
+			    &LOCK_status);
 	DBUG_ENTER("change_active_index");
 
 	ut_ad(user_thd == current_thd);
@@ -3018,7 +3021,8 @@ ha_innobase::index_next(
 	mysql_byte* 	buf)	/* in/out: buffer for next row in MySQL
 				format */
 {
-  	statistic_increment(ha_read_next_count, &LOCK_status);
+  	statistic_increment(current_thd->status_var.ha_read_next_count,
+			    &LOCK_status);
 
 	return(general_fetch(buf, ROW_SEL_NEXT, 0));
 }
@@ -3035,7 +3039,8 @@ ha_innobase::index_next_same(
 	const mysql_byte* key,	/* in: key value */
 	uint 		keylen)	/* in: key value length */
 {
-  	statistic_increment(ha_read_next_count, &LOCK_status);
+  	statistic_increment(current_thd->status_var.ha_read_next_count,
+			    &LOCK_status);
 
 	return(general_fetch(buf, ROW_SEL_NEXT, last_match_mode));
 }
@@ -3069,7 +3074,8 @@ ha_innobase::index_first(
 	int	error;
 
   	DBUG_ENTER("index_first");
-  	statistic_increment(ha_read_first_count, &LOCK_status);
+  	statistic_increment(current_thd->status_var.ha_read_first_count,
+			    &LOCK_status);
 
   	error = index_read(buf, NULL, 0, HA_READ_AFTER_KEY);
 
@@ -3095,7 +3101,8 @@ ha_innobase::index_last(
 	int	error;
 
   	DBUG_ENTER("index_first");
-  	statistic_increment(ha_read_last_count, &LOCK_status);
+  	statistic_increment(current_thd->status_var.ha_read_last_count,
+			    &LOCK_status);
 
   	error = index_read(buf, NULL, 0, HA_READ_BEFORE_KEY);
 
@@ -3160,7 +3167,8 @@ ha_innobase::rnd_next(
 	int	error;
 
   	DBUG_ENTER("rnd_next");
-  	statistic_increment(ha_read_rnd_next_count, &LOCK_status);
+  	statistic_increment(current_thd->status_var.ha_read_rnd_next_count,
+			    &LOCK_status);
 
   	if (start_of_scan) {
 		error = index_first(buf);
@@ -3196,7 +3204,8 @@ ha_innobase::rnd_pos(
 	DBUG_ENTER("rnd_pos");
 	DBUG_DUMP("key", (char*) pos, ref_length);
 
-	statistic_increment(ha_read_rnd_count, &LOCK_status);
+	statistic_increment(current_thd->status_var.ha_read_rnd_count,
+			    &LOCK_status);
 
 	ut_ad(prebuilt->trx ==
 		(trx_t*) current_thd->transaction.all.innobase_tid);
