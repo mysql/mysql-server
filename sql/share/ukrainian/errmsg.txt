@@ -12,7 +12,7 @@
 "ТАК",
 "Не можу створити файл '%-.64s' (помилка: %d)",
 "Не можу створити таблицю '%-.64s' (помилка: %d)",
-"Не можу створити базу данних '%-.64s'. (помилка: %d)",
+"Не можу створити базу данних '%-.64s' (помилка: %d)",
 "Не можу створити базу данних '%-.64s'. База данних ╕сну╓",
 "Не можу видалити базу данних '%-.64s'. База данних не ╕сну╓",
 "Не можу видалити базу данних (Не можу видалити '%-.64s', помилка: %d)",
@@ -218,7 +218,7 @@
 "CREATE DATABASE не дозволено доки г╕лка перебува╓ п╕д загальним блокуванням читання",
 "Хибний аргумент для %s",
 "Користувачу %-.32s@%-.64s не дозволено створювати нових користувач╕в",
-"Incorrect table definition; All MERGE tables must be in the same database",
+"Incorrect table definition; all MERGE tables must be in the same database",
 "Deadlock found when trying to get lock; Try restarting transaction",
 "Використаний тип таблиц╕ не п╕дтриму╓ FULLTEXT ╕ндекс╕в",
 "Cannot add foreign key constraint",
@@ -271,3 +271,4 @@
 "Can't revoke all privileges, grant for one or more of the requested users"
 "Illegal mix of collations (%s,%s), (%s,%s), (%s,%s) for operation '%s'",
 "Illegal mix of collations for operation '%s'",
+"Variable '%-.64s' is not a variable component (Can't be used as XXXX.variable_name)",

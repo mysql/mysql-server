@@ -224,6 +224,8 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 
 #define RAID_BLOCK_SIZE 1024
 
+#define MY_CHARSET_BIN_MB_MAXLEN 1
+
 #ifdef EXTRA_DEBUG
 /*
   Sync points allow us to force the server to reach a certain line of code
@@ -533,6 +535,8 @@ int mysqld_show_fields(THD *thd,TABLE_LIST *table, const char *wild,
 		       bool verbose);
 int mysqld_show_keys(THD *thd, TABLE_LIST *table);
 int mysqld_show_logs(THD *thd);
+void append_identifier(THD *thd, String *packet, const char *name,
+		       uint length);
 void mysqld_list_fields(THD *thd,TABLE_LIST *table, const char *wild);
 int mysqld_dump_create_info(THD *thd, TABLE *table, int fd = -1);
 int mysqld_show_create(THD *thd, TABLE_LIST *table_list);
@@ -556,6 +560,7 @@ void free_prep_stmt(PREP_STMT *stmt, TREE_FREE mode, void *not_used);
 bool mysql_stmt_prepare(THD *thd, char *packet, uint packet_length);
 void mysql_stmt_execute(THD *thd, char *packet);
 void mysql_stmt_free(THD *thd, char *packet);
+void mysql_stmt_reset(THD *thd, char *packet);
 void mysql_stmt_get_longdata(THD *thd, char *pos, ulong packet_length);
 int check_insert_fields(THD *thd,TABLE *table,List<Item> &fields,
 			List<Item> &values, ulong counter);
@@ -769,6 +774,7 @@ extern rw_lock_t	LOCK_grant;
 extern pthread_cond_t COND_refresh, COND_thread_count, COND_manager;
 extern pthread_attr_t connection_attrib;
 extern I_List<THD> threads;
+extern I_List<NAMED_LIST> key_caches;
 extern MY_BITMAP temp_pool;
 extern DATE_FORMAT dayord;
 extern String empty_string;
@@ -850,6 +856,7 @@ longlong str_to_datetime(const char *str,uint length,bool fuzzy_date);
 timestamp_type str_to_TIME(const char *str, uint length, TIME *l_time,
 			   bool fuzzy_date);
 void localtime_to_TIME(TIME *to, struct tm *from);
+void calc_time_from_sec(TIME *to, long seconds, long microseconds);
 
 int test_if_number(char *str,int *res,bool allow_wildcards);
 void change_byte(byte *,uint,char,char);
@@ -902,9 +909,10 @@ extern void sql_cache_free();
 extern int sql_cache_hit(THD *thd, char *inBuf, uint length);
 
 /* item.cc */
-Item *get_system_var(enum_var_type var_type, LEX_STRING name);
-Item *get_system_var(enum_var_type var_type, const char *var_name, uint length,
-		     const char *item_name);
+Item *get_system_var(THD *thd, enum_var_type var_type, LEX_STRING name,
+		     LEX_STRING component);
+Item *get_system_var(THD *thd, enum_var_type var_type, const char *var_name,
+		     uint length, const char *item_name);
 /* log.cc */
 bool flush_error_log(void);
 

@@ -163,6 +163,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token  VARIANCE_SYM
 %token	STOP_SYM
 %token	SUM_SYM
+%token	ADDDATE_SYM
 %token	SUPER_SYM
 %token	TRUNCATE_SYM
 %token	UNLOCK_SYM
@@ -431,6 +432,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	VARYING
 %token	ZEROFILL
 
+%token	ADDDATE_SYM
 %token	AGAINST
 %token	ATAN
 %token	BETWEEN_SYM
@@ -445,6 +447,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	DATE_ADD_INTERVAL
 %token	DATE_SUB_INTERVAL
 %token	DAY_HOUR_SYM
+%token	DAY_MICROSECOND_SYM
 %token	DAY_MINUTE_SYM
 %token	DAY_SECOND_SYM
 %token	DAY_SYM
@@ -467,6 +470,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token  GEOMETRYCOLLECTION
 %token  GROUP_CONCAT_SYM
 %token	GROUP_UNIQUE_USERS
+%token	HOUR_MICROSECOND_SYM
 %token	HOUR_MINUTE_SYM
 %token	HOUR_SECOND_SYM
 %token	HOUR_SYM
@@ -481,6 +485,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	LOCATE
 %token	MAKE_SET_SYM
 %token	MASTER_POS_WAIT
+%token  MICROSECOND_SYM
+%token	MINUTE_MICROSECOND_SYM
 %token	MINUTE_SECOND_SYM
 %token	MINUTE_SYM
 %token	MODE_SYM
@@ -505,7 +511,9 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	RIGHT
 %token	ROUND
 %token	SECOND_SYM
+%token	SECOND_MICROSECOND_SYM
 %token	SHARE_SYM
+%token	SUBDATE_SYM
 %token	SUBSTRING
 %token	SUBSTRING_INDEX
 %token	TRIM
@@ -561,7 +569,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	IDENT TEXT_STRING REAL_NUM FLOAT_NUM NUM LONG_NUM HEX_NUM LEX_HOSTNAME
 	ULONGLONG_NUM field_ident select_alias ident ident_or_text
         UNDERSCORE_CHARSET IDENT_sys TEXT_STRING_sys TEXT_STRING_literal
-	NCHAR_STRING
+	NCHAR_STRING opt_component
 
 %type <lex_str_ptr>
 	opt_table_alias
@@ -1533,6 +1541,10 @@ opt_ident:
 	/* empty */	{ $$=(char*) 0; }	/* Defaultlength */
 	| field_ident	{ $$=$1.str; };
 
+opt_component:
+	/* empty */	 { $$.str= 0; $$.length= 0; }
+	| '.' ident	 { $$=$2; };
+	
 string_list:
 	text_string			{ Lex->interval_list.push_back($1); }
 	| string_list ',' text_string	{ Lex->interval_list.push_back($3); };
@@ -1598,6 +1610,7 @@ alter_list_item:
             LEX *lex=Lex;
             lex->length=lex->dec=0; lex->type=0; lex->interval=0;
             lex->default_value=lex->comment=0;
+	    lex->charset= NULL;
             lex->simple_alter=0;
           }
           type opt_attribute
@@ -2125,9 +2138,9 @@ all_or_any: ALL     { $$ = 1; }
 /* expressions that begin with 'expr' */
 expr_expr:
 	 expr IN_SYM '(' expr_list ')'
-	  { $$= new Item_func_in($1,*$4); }
+	  { $4->push_front($1); $$= new Item_func_in(*$4); }
 	| expr NOT IN_SYM '(' expr_list ')'
-	  { $$= new Item_func_not(new Item_func_in($1,*$5)); }
+	  { $5->push_front($1); $$= new Item_func_not(new Item_func_in(*$5)); }
         | expr IN_SYM in_subselect
           { $$= new Item_in_subselect(YYTHD, $1, $3); }
 	| expr NOT IN_SYM in_subselect
@@ -2227,9 +2240,9 @@ no_in_expr:
 /* expressions that begin with 'expr' that does NOT follow AND */
 no_and_expr:
 	  no_and_expr IN_SYM '(' expr_list ')'
-	  { $$= new Item_func_in($1,*$4); }
+	  { $4->push_front($1); $$= new Item_func_in(*$4); }
 	| no_and_expr NOT IN_SYM '(' expr_list ')'
-	  { $$= new Item_func_not(new Item_func_in($1,*$5)); }
+	  { $5->push_front($1); $$= new Item_func_not(new Item_func_in(*$5)); }
         | no_and_expr IN_SYM in_subselect
           { $$= new Item_in_subselect(YYTHD, $1, $3); }
 	| no_and_expr NOT IN_SYM in_subselect
@@ -2304,9 +2317,9 @@ simple_expr:
 	    $$= new Item_func_get_user_var($2);
 	    Lex->uncacheable();
 	  }
-	| '@' '@' opt_var_ident_type ident_or_text
+	| '@' '@' opt_var_ident_type ident_or_text opt_component
 	  {
-	    if (!($$= get_system_var((enum_var_type) $3, $4)))
+	    if (!($$= get_system_var(YYTHD, (enum_var_type) $3, $4, $5)))
 	      YYABORT;
 	  }
 	| sum_expr
@@ -2362,6 +2375,10 @@ simple_expr:
 	  { $$= ((Item*(*)(Item*,Item*))($1.symbol->create_func))($3,$5);}
 	| FUNC_ARG3 '(' expr ',' expr ',' expr ')'
 	  { $$= ((Item*(*)(Item*,Item*,Item*))($1.symbol->create_func))($3,$5,$7);}
+	| ADDDATE_SYM '(' expr ',' expr ')'
+	  { $$= new Item_date_add_interval($3, $5, INTERVAL_DAY, 0);}
+	| ADDDATE_SYM '(' expr ',' INTERVAL_SYM expr interval ')'
+	  { $$= new Item_date_add_interval($3, $6, $7, 0); }
 	| ATAN	'(' expr ')'
 	  { $$= new Item_func_atan($3); }
 	| ATAN	'(' expr ',' expr ')'
@@ -2396,8 +2413,12 @@ simple_expr:
 	    $$= new Item_func_database();
             Lex->safe_to_cache_query=0;
 	  }
+	| DATE_SYM '(' expr ')'
+	  { $$= new Item_date_typecast($3); }
+	| DAY_SYM '(' expr ')'
+	  { $$= new Item_func_dayofmonth($3); }
 	| ELT_FUNC '(' expr ',' expr_list ')'
-	  { $$= new Item_func_elt($3, *$5); }
+	  { $5->push_front($3); $$= new Item_func_elt(*$5); }
 	| MAKE_SET_SYM '(' expr ',' expr_list ')'
 	  { $$= new Item_func_make_set($3, *$5); }
 	| ENCRYPT '(' expr ')'
@@ -2435,7 +2456,7 @@ simple_expr:
 	    $$= new Item_func_date_format (new Item_func_from_unixtime($3),$5,0);
 	  }
 	| FIELD_FUNC '(' expr ',' expr_list ')'
-	  { $$= new Item_func_field($3, *$5); }
+	  { $5->push_front($3); $$= new Item_func_field(*$5); }
 	| GEOMFROMTEXT '(' expr ')'
 	  { $$= new Item_func_geometry_from_text($3); }
 	| GEOMFROMTEXT '(' expr ',' expr ')'
@@ -2468,7 +2489,7 @@ simple_expr:
           }
 	| LAST_INSERT_ID '(' ')'
 	  {
-	    $$= get_system_var(OPT_SESSION, "last_insert_id", 14,
+	    $$= get_system_var(YYTHD, OPT_SESSION, "last_insert_id", 14,
 			      "last_insert_id()");
 	    Lex->safe_to_cache_query= 0;
 	  }
@@ -2512,6 +2533,8 @@ simple_expr:
 	    $$= new Item_master_pos_wait($3, $5, $7);
 	    Lex->safe_to_cache_query=0; 
 	  }
+	| MICROSECOND_SYM '(' expr ')'
+	  { $$= new Item_func_microsecond($3); }
 	| MINUTE_SYM '(' expr ')'
 	  { $$= new Item_func_minute($3); }
 	| MOD_SYM '(' expr ',' expr ')'
@@ -2573,6 +2596,10 @@ simple_expr:
 	| ROUND '(' expr ')'
 	  { $$= new Item_func_round($3, new Item_int((char*)"0",0,1),0); }
 	| ROUND '(' expr ',' expr ')' { $$= new Item_func_round($3,$5,0); }
+	| SUBDATE_SYM '(' expr ',' expr ')'
+	  { $$= new Item_date_add_interval($3, $5, INTERVAL_DAY, 1);}
+	| SUBDATE_SYM '(' expr ',' INTERVAL_SYM expr interval ')'
+	  { $$= new Item_date_add_interval($3, $6, $7, 1); }
 	| SECOND_SYM '(' expr ')'
 	  { $$= new Item_func_second($3); }
 	| SUBSTRING '(' expr ',' expr ',' expr ')'
@@ -2585,6 +2612,12 @@ simple_expr:
 	  { $$= new Item_func_substr($3,$5); }
 	| SUBSTRING_INDEX '(' expr ',' expr ',' expr ')'
 	  { $$= new Item_func_substr_index($3,$5,$7); }
+	| TIME_SYM '(' expr ')'
+	  { $$= new Item_time_typecast($3); }
+	| TIMESTAMP '(' expr ')'
+	  { $$= new Item_datetime_typecast($3); }
+	| TIMESTAMP '(' expr ',' expr ')'
+	  { $$= new Item_func_add_time($3, $5, 1, 0); }
 	| TRIM '(' expr ')'
 	  { $$= new Item_func_trim($3); }
 	| TRIM '(' LEADING expr FROM expr ')'
@@ -3001,15 +3034,20 @@ using_list:
 
 interval:
 	 DAY_HOUR_SYM		{ $$=INTERVAL_DAY_HOUR; }
+	| DAY_MICROSECOND_SYM	{ $$=INTERVAL_DAY_MICROSECOND; }
 	| DAY_MINUTE_SYM	{ $$=INTERVAL_DAY_MINUTE; }
 	| DAY_SECOND_SYM	{ $$=INTERVAL_DAY_SECOND; }
 	| DAY_SYM		{ $$=INTERVAL_DAY; }
+	| HOUR_MICROSECOND_SYM	{ $$=INTERVAL_HOUR_MICROSECOND; }
 	| HOUR_MINUTE_SYM	{ $$=INTERVAL_HOUR_MINUTE; }
 	| HOUR_SECOND_SYM	{ $$=INTERVAL_HOUR_SECOND; }
 	| HOUR_SYM		{ $$=INTERVAL_HOUR; }
+	| MICROSECOND_SYM	{ $$=INTERVAL_MICROSECOND; }
+	| MINUTE_MICROSECOND_SYM	{ $$=INTERVAL_MINUTE_MICROSECOND; }
 	| MINUTE_SECOND_SYM	{ $$=INTERVAL_MINUTE_SECOND; }
 	| MINUTE_SYM		{ $$=INTERVAL_MINUTE; }
 	| MONTH_SYM		{ $$=INTERVAL_MONTH; }
+	| SECOND_MICROSECOND_SYM	{ $$=INTERVAL_SECOND_MICROSECOND; }
 	| SECOND_SYM		{ $$=INTERVAL_SECOND; }
 	| YEAR_MONTH_SYM	{ $$=INTERVAL_YEAR_MONTH; }
 	| YEAR_SYM		{ $$=INTERVAL_YEAR; };
@@ -3733,7 +3771,7 @@ show_param:
 	    Lex->mi.pos = $12;
 	    Lex->mi.server_id = $16;
           }
-        | BINARY LOGS_SYM
+        | master_or_binary LOGS_SYM
           {
 	    Lex->sql_command = SQLCOM_SHOW_BINLOGS;
           }
@@ -3793,6 +3831,8 @@ show_param:
 	  { Lex->sql_command= SQLCOM_SHOW_CHARSETS; }
 	| COLLATION_SYM wild
 	  { Lex->sql_command= SQLCOM_SHOW_COLLATIONS; }
+	| BERKELEY_DB_SYM LOGS_SYM
+	  { Lex->sql_command= SQLCOM_SHOW_LOGS; }
 	| LOGS_SYM
 	  { Lex->sql_command= SQLCOM_SHOW_LOGS; }
 	| GRANTS FOR_SYM user
@@ -3822,6 +3862,10 @@ show_param:
           {
 	    Lex->sql_command = SQLCOM_SHOW_SLAVE_STAT;
           };
+
+master_or_binary:
+	MASTER_SYM
+	| BINARY;
 
 opt_db:
 	/* empty */  { $$= 0; }
@@ -3940,8 +3984,7 @@ purge:
 	;
 
 purge_options:
-	LOGS_SYM purge_option
-	| MASTER_SYM LOGS_SYM purge_option
+	master_or_binary LOGS_SYM purge_option
 	;
 
 purge_option:
@@ -4328,6 +4371,7 @@ user:
 
 keyword:
 	ACTION			{}
+	| ADDDATE_SYM		{}
 	| AFTER_SYM		{}
 	| AGAINST		{}
 	| AGGREGATE_SYM		{}
@@ -4423,6 +4467,7 @@ keyword:
 	| MEDIUM_SYM		{}
 	| MERGE_SYM		{}
 	| MEMORY_SYM		{}
+	| MICROSECOND_SYM	{}
 	| MINUTE_SYM		{}
 	| MIN_ROWS		{}
 	| MODIFY_SYM		{}
@@ -4488,6 +4533,7 @@ keyword:
 	| STATUS_SYM		{}
 	| STOP_SYM		{}
 	| STRING_SYM		{}
+	| SUBDATE_SYM		{}
 	| SUBJECT_SYM		{}
 	| SUPER_SYM		{}
 	| TEMPORARY		{}
@@ -4618,6 +4664,27 @@ internal_variable_name:
 	    YYABORT;
 	  $$=tmp;
 	}
+	| ident '.' ident
+	  {
+	    sys_var *tmp=find_sys_var($3.str, $3.length);
+	    if (!tmp)
+	      YYABORT;
+	    if (!tmp->is_struct())
+	      net_printf(YYTHD, ER_VARIABLE_IS_NOT_STRUCT, $3.str);
+	    tmp->base_name= $1;
+	    $$=tmp;
+	  }
+	| DEFAULT '.' ident
+	  {
+	    sys_var *tmp=find_sys_var($3.str, $3.length);
+	    if (!tmp)
+	      YYABORT;
+	    if (!tmp->is_struct())
+	      net_printf(YYTHD, ER_VARIABLE_IS_NOT_STRUCT, $3.str);
+	    tmp->base_name.str= (char*) "default";
+	    tmp->base_name.length= 7;
+	    $$=tmp;
+	  }
         ;
 
 isolation_types:

@@ -1,0 +1,42 @@
+#
+# Test of key cache
+#
+
+SET @save_key_buffer=@@key_buffer_size;
+
+SELECT @@key_buffer_size, @@small.key_buffer_size;
+
+# Change default key cache size
+SET @@global.key_buffer_size=16*1024*1024;
+SET @@global.default.key_buffer_size=16*1024*1024;
+SET @@global.default.key_buffer_size=16*1024*1024;
+
+SET @@global.small.key_buffer_size=1*1024*1024;
+SET @@global.medium.key_buffer_size=4*1024*1024;
+# Drop buffer
+SET @@global.medium.key_buffer_size=0;
+# Test double drop
+SET @@global.medium.key_buffer_size=0;
+
+# Print key buffer with different syntaxes
+SHOW VARIABLES like "key_buffer_size";
+SELECT @@key_buffer_size;
+SELECT @@global.key_buffer_size;
+SELECT @@global.default.key_buffer_size;
+SELECT @@global.default.`key_buffer_size`;
+SELECT @@global.`default`.`key_buffer_size`;
+SELECT @@`default`.key_buffer_size;
+
+SELECT @@small.key_buffer_size;
+SELECT @@medium.key_buffer_size;
+
+SET @@global.key_buffer_size=@save_key_buffer;
+
+#
+# Errors
+#
+
+--error 1064
+SELECT @@default.key_buffer_size;
+--error 1270
+SELECT @@skr.table_type="test";

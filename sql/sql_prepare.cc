@@ -659,10 +659,13 @@ static bool mysql_test_select_fields(PREP_STMT *stmt, TABLE_LIST *tables,
 		    wild_num, conds, og_num, order, group, having, proc, 
                     select_lex, unit, 0))
     DBUG_RETURN(1);
+#ifndef EMBEDDED_LIBRARY
     if (send_prep_stmt(stmt, fields.elements) ||
         thd->protocol_simple.send_fields(&fields, 0) ||
+        net_flush(&thd->net) ||
         send_item_params(stmt))
       DBUG_RETURN(1);
+#endif
     join->cleanup();
   }
   DBUG_RETURN(0);  
@@ -962,7 +965,7 @@ void mysql_stmt_reset(THD *thd, char *packet)
   PREP_STMT *stmt;
   DBUG_ENTER("mysql_stmt_reset");
 
-  if (!(stmt=find_prepared_statement(thd, stmt_id, "close")))
+  if (!(stmt= find_prepared_statement(thd, stmt_id, "reset")))
   {
     send_error(thd);
     DBUG_VOID_RETURN;

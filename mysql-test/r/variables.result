@@ -77,7 +77,7 @@ select last_insert_id(345);
 last_insert_id(345)
 345
 select @@IDENTITY,last_insert_id(), @@identity;
-@@identity	last_insert_id()	@@identity
+@@IDENTITY	last_insert_id()	@@identity
 345	345	345
 set big_tables=OFF, big_tables=ON, big_tables=0, big_tables=1, big_tables="OFF", big_tables="ON";
 set global concurrent_insert=ON;

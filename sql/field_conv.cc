@@ -489,6 +489,8 @@ void (*Copy_field::get_copy_func(Field *to,Field *from))(Copy_field*)
 	if (!to->eq_def(from))
 	  return do_field_string;
       }
+      else if (to->charset() != from->charset())
+	return do_field_string;
       else if (to->real_type() == FIELD_TYPE_VAR_STRING && to_length !=
 	       from_length)
 	return do_varstring;

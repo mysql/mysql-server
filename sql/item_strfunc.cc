@@ -44,18 +44,6 @@ static void my_coll_agg_error(DTCollation &c1, DTCollation &c2, const char *fnam
 	   fname);
 }
 
-static void my_coll_agg3_error(DTCollation &c1, 
-			       DTCollation &c2,
-			       DTCollation &c3,
-			       const char *fname)
-{
-  my_error(ER_CANT_AGGREGATE_3COLLATIONS,MYF(0),
-  	   c1.collation->name,c1.derivation_name(),
-	   c2.collation->name,c2.derivation_name(),
-	   c3.collation->name,c3.derivation_name(),
-	   fname);
-}
-
 uint nr_of_decimals(const char *str)
 {
   if ((str=strchr(str,'.')))
@@ -336,16 +324,11 @@ void Item_func_concat::fix_length_and_dec()
   bool first_coll= 1;
   max_length=0;
 
-  collation.set(args[0]->collation);
+  if (agg_arg_collations(collation, args, arg_count))
+    return;
+
   for (uint i=0 ; i < arg_count ; i++)
-  {
     max_length+=args[i]->max_length;
-    if (collation.aggregate(args[i]->collation))
-    {
-      my_coll_agg_error(collation, args[i]->collation, func_name());
-      break;
-    }
-  }
 
   if (max_length > MAX_BLOB_WIDTH)
   {
@@ -748,7 +731,7 @@ String *Item_func_replace::val_str(String *str)
   res->set_charset(collation.collation);
 
 #ifdef USE_MB
-  binary_cmp = (args[0]->binary() || args[1]->binary() || !use_mb(res->charset()));
+  binary_cmp = ((res->charset()->state & MY_CS_BINSORT) || !use_mb(res->charset()));
 #endif
 
   if (res2->length() == 0)
@@ -840,13 +823,8 @@ void Item_func_replace::fix_length_and_dec()
     maybe_null=1;
   }
   
-  collation.set(args[0]->collation);
-  if (!collation.aggregate(args[1]->collation))
-    collation.aggregate(args[2]->collation);
-  
-  if (collation.derivation == DERIVATION_NONE)
-    my_coll_agg3_error(args[0]->collation, args[1]->collation, 
-		       args[2]->collation, func_name());
+  if (agg_arg_collations_for_comparison(collation, args, 3))
+    return;
 }
 
 
@@ -1001,13 +979,14 @@ void Item_func_right::fix_length_and_dec()
 String *Item_func_substr::val_str(String *str)
 {
   String *res  = args[0]->val_str(str);
-  int32 start	= (int32) args[1]->val_int()-1;
+  int32 start	= (int32) args[1]->val_int();
   int32 length	= arg_count == 3 ? (int32) args[2]->val_int() : INT_MAX32;
   int32 tmp_length;
 
   if ((null_value=(args[0]->null_value || args[1]->null_value ||
 		   (arg_count == 3 && args[2]->null_value))))
     return 0; /* purecov: inspected */
+  start= (int32)((start < 0) ? res->length() + start : start -1);
   start=res->charpos(start);
   length=res->charpos(length,start);
   if (start < 0 || (uint) start+1 > res->length() || length <= 0)
@@ -1050,9 +1029,9 @@ void Item_func_substr::fix_length_and_dec()
 void Item_func_substr_index::fix_length_and_dec()
 { 
   max_length= args[0]->max_length;
-  if (collation.set(args[0]->collation, args[1]->collation) ||
-      (collation.derivation == DERIVATION_NONE))
-    my_coll_agg_error(args[0]->collation, args[1]->collation, func_name());
+
+  if (agg_arg_collations_for_comparison(collation, args, 2))
+    return;
 }
 
 
@@ -1339,7 +1318,8 @@ void Item_func_trim::fix_length_and_dec()
     remove.set_ascii(" ",1);
   }
   else
-  if (collation.set(args[1]->collation, args[0]->collation))
+  if (collation.set(args[1]->collation, args[0]->collation) ||
+      collation.derivation == DERIVATION_NONE)
   {
     my_coll_agg_error(args[1]->collation, args[0]->collation, func_name());
   }
@@ -1680,88 +1660,53 @@ void Item_func_elt::fix_length_and_dec()
   max_length=0;
   decimals=0;
   
-  for (uint i=0 ; i < arg_count ; i++)
+  if (agg_arg_collations(collation, args+1, arg_count-1))
+    return;
+
+  for (uint i=1 ; i < arg_count ; i++)
   {
     set_if_bigger(max_length,args[i]->max_length);
     set_if_bigger(decimals,args[i]->decimals);
-    if (i == 0)
-      collation.set(args[0]->collation);
-    else
-    {
-      if (collation.aggregate(args[i]->collation))
-      {
-        my_coll_agg_error(collation, args[i]->collation, func_name());
-        break;
-      }
-    }
   }
   maybe_null=1;					// NULL if wrong first arg
-  with_sum_func= with_sum_func || item->with_sum_func;
-  used_tables_cache|=item->used_tables();
-  const_item_cache&=item->const_item();
-}
-
-
-void Item_func_elt::split_sum_func(Item **ref_pointer_array,
-				   List<Item> &fields)
-{
-  if (item->with_sum_func && item->type() != SUM_FUNC_ITEM)
-    item->split_sum_func(ref_pointer_array, fields);
-  else if (item->used_tables() || item->type() == SUM_FUNC_ITEM)
-  {
-    uint el= fields.elements;
-    fields.push_front(item);
-    ref_pointer_array[el]= item;
-    item= new Item_ref(ref_pointer_array + el, 0, item->name);
-  }
-  Item_str_func::split_sum_func(ref_pointer_array, fields);
-}
-
-
-void Item_func_elt::update_used_tables()
-{
-  Item_func::update_used_tables();
-  item->update_used_tables();
-  used_tables_cache|=item->used_tables();
-  const_item_cache&=item->const_item();
 }
 
 
 double Item_func_elt::val()
 {
   uint tmp;
-  if ((tmp=(uint) item->val_int()) == 0 || tmp > arg_count)
+  if ((tmp=(uint) args[0]->val_int()) == 0 || tmp >= arg_count)
   {
     null_value=1;
     return 0.0;
   }
   null_value=0;
-  return args[tmp-1]->val();
+  return args[tmp]->val();
 }
 
 longlong Item_func_elt::val_int()
 {
   uint tmp;
-  if ((tmp=(uint) item->val_int()) == 0 || tmp > arg_count)
+  if ((tmp=(uint) args[0]->val_int()) == 0 || tmp >= arg_count)
   {
     null_value=1;
     return 0;
   }
   null_value=0;
-  return args[tmp-1]->val_int();
+  return args[tmp]->val_int();
 }
 
 String *Item_func_elt::val_str(String *str)
 {
   uint tmp;
   String *res;
-  if ((tmp=(uint) item->val_int()) == 0 || tmp > arg_count)
+  if ((tmp=(uint) args[0]->val_int()) == 0 || tmp >= arg_count)
   {
     null_value=1;
     return NULL;
   }
   null_value=0;
-  res= args[tmp-1]->val_str(str);
+  res= args[tmp]->val_str(str);
   res->set_charset(charset());
   return res;
 }
@@ -1786,16 +1731,13 @@ void Item_func_make_set::split_sum_func(Item **ref_pointer_array,
 void Item_func_make_set::fix_length_and_dec()
 {
   max_length=arg_count-1;
-  collation.set(args[0]->collation);
+
+  if (agg_arg_collations(collation, args, arg_count))
+    return;
+  
   for (uint i=0 ; i < arg_count ; i++)
-  {
     max_length+=args[i]->max_length;
-    if (collation.aggregate(args[i]->collation))
-    {
-      my_coll_agg_error(collation, args[i]->collation, func_name());
-      break;
-    }
- }
+  
   used_tables_cache|=item->used_tables();
   const_item_cache&=item->const_item();
   with_sum_func= with_sum_func || item->with_sum_func;
@@ -2458,20 +2400,12 @@ String* Item_func_export_set::val_str(String* str)
 
 void Item_func_export_set::fix_length_and_dec()
 {
-  uint i;
   uint length=max(args[1]->max_length,args[2]->max_length);
   uint sep_length=(arg_count > 3 ? args[3]->max_length : 1);
   max_length=length*64+sep_length*63;
 
-  collation.set(args[1]->collation);
-  for (i=2 ; i < 4 && i < arg_count ; i++)
-  {
-    if (collation.aggregate(args[i]->collation))
-    {
-      my_coll_agg_error(collation, args[i]->collation, func_name());
-      break;
-    }
-  }
+  if (agg_arg_collations(collation, args+1, min(4,arg_count)-1))
+    return;
 }
 
 String* Item_func_inet_ntoa::val_str(String* str)

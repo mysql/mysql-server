@@ -7,9 +7,9 @@
 "SI",
 "Impossibile creare il file '%-.64s' (errno: %d)",
 "Impossibile creare la tabella '%-.64s' (errno: %d)",
-"Impossibile creare il database '%-.64s'. (errno: %d)",
-"Impossibile creare il database '%-.64s'. Il database esiste",
-"Impossibile cancellare '%-.64s'. Il database non esiste",
+"Impossibile creare il database '%-.64s' (errno: %d)",
+"Impossibile creare il database '%-.64s'; il database esiste",
+"Impossibile cancellare '%-.64s'; il database non esiste",
 "Errore durante la cancellazione del database (impossibile cancellare '%-.64s', errno: %d)",
 "Errore durante la cancellazione del database (impossibile rmdir '%-.64s', errno: %d)",
 "Errore durante la cancellazione di '%-.64s' (errno: %d)",
@@ -266,3 +266,4 @@
 "Can't revoke all privileges, grant for one or more of the requested users"
 "Illegal mix of collations (%s,%s), (%s,%s), (%s,%s) for operation '%s'",
 "Illegal mix of collations for operation '%s'",
+"Variable '%-.64s' is not a variable component (Can't be used as XXXX.variable_name)",

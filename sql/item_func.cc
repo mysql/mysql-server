@@ -39,6 +39,61 @@ static void my_coll_agg_error(DTCollation &c1, DTCollation &c2, const char *fnam
 	   fname);
 }
 
+static void my_coll_agg_error(DTCollation &c1, 
+			       DTCollation &c2,
+			       DTCollation &c3,
+			       const char *fname)
+{
+  my_error(ER_CANT_AGGREGATE_3COLLATIONS,MYF(0),
+  	   c1.collation->name,c1.derivation_name(),
+	   c2.collation->name,c2.derivation_name(),
+	   c3.collation->name,c3.derivation_name(),
+	   fname);
+}
+
+static void my_coll_agg_error(Item** args, uint ac, const char *fname)
+{
+  if (2 == ac)
+    my_coll_agg_error(args[0]->collation, args[1]->collation, fname);
+  else if (3 == ac)
+    my_coll_agg_error(args[0]->collation,
+		      args[1]->collation,
+		      args[2]->collation,
+		      fname);
+  else
+    my_error(ER_CANT_AGGREGATE_NCOLLATIONS,MYF(0),fname);
+}
+
+bool Item_func::agg_arg_collations(DTCollation &c, Item **av, uint ac)
+{
+  uint i;
+  c.set(av[0]->collation);
+  for (i= 1; i < ac; i++)
+  {
+    if (c.aggregate(av[i]->collation))
+    {
+      my_coll_agg_error(av, ac, func_name());
+      return TRUE;
+    }
+  }
+  return FALSE;
+}
+
+bool Item_func::agg_arg_collations_for_comparison(DTCollation &c, 
+						  Item **av, uint ac)
+{
+  if (agg_arg_collations(c, av, ac))
+    return TRUE;
+  
+  if (c.derivation == DERIVATION_NONE)
+  {
+    my_coll_agg_error(av, ac, func_name());
+    return TRUE;
+  }
+  return FALSE;
+}
+
+
 /* return TRUE if item is a constant */
 
 bool
@@ -866,14 +921,9 @@ void Item_func_min_max::fix_length_and_dec()
     if (!args[i]->maybe_null)
       maybe_null=0;
     cmp_type=item_cmp_type(cmp_type,args[i]->result_type());
-    if (i==0)
-      collation.set(args[0]->collation);
-    if (collation.aggregate(args[i]->collation))
-    {
-      my_coll_agg_error(collation, args[i]->collation, func_name());
-      break;
-    }
   }
+  if (cmp_type == STRING_RESULT)
+    agg_arg_collations_for_comparison(collation, args, arg_count);
 }
 
 
@@ -1048,8 +1098,7 @@ longlong Item_func_coercibility::val_int()
 void Item_func_locate::fix_length_and_dec()
 {
   maybe_null=0; max_length=11;
-  if (cmp_collation.set(args[0]->collation, args[1]->collation))
-    my_coll_agg_error(args[0]->collation, args[1]->collation, func_name());
+  agg_arg_collations_for_comparison(cmp_collation, args, 2);
 }
 
 longlong Item_func_locate::val_int()
@@ -1118,33 +1167,48 @@ longlong Item_func_locate::val_int()
 
 longlong Item_func_field::val_int()
 {
-  String *field;
-  if (!(field=item->val_str(&value)))
-    return 0;					// -1 if null ?
-  for (uint i=0 ; i < arg_count ; i++)
+  if (cmp_type == STRING_RESULT)
   {
-    String *tmp_value=args[i]->val_str(&tmp);
-    if (tmp_value && field->length() == tmp_value->length() &&
-	!memcmp(field->ptr(),tmp_value->ptr(),tmp_value->length()))
-      return (longlong) (i+1);
+    String *field;
+    if (!(field=args[0]->val_str(&value)))
+      return 0;					// -1 if null ?
+    for (uint i=1 ; i < arg_count ; i++)
+    {
+      String *tmp_value=args[i]->val_str(&tmp);
+      if (tmp_value && field->length() == tmp_value->length() &&
+	  !sortcmp(field,tmp_value,cmp_collation.collation))
+        return (longlong) (i);
+    }
+  }
+  else if (cmp_type == INT_RESULT)
+  {
+    longlong val= args[0]->val_int();
+    for (uint i=1; i < arg_count ; i++)
+    {
+      if (val == args[i]->val_int())
+ 	return (longlong) (i);
+    }
+  }
+  else
+  {
+    double val= args[0]->val();
+    for (uint i=1; i < arg_count ; i++)
+    {
+      if (val == args[i]->val())
+ 	return (longlong) (i);
+    }
   }
   return 0;
 }
 
-
-void Item_func_field::split_sum_func(Item **ref_pointer_array,
-				     List<Item> &fields)
+void Item_func_field::fix_length_and_dec()
 {
-  if (item->with_sum_func && item->type() != SUM_FUNC_ITEM)
-    item->split_sum_func(ref_pointer_array, fields);
-  else if (item->used_tables() || item->type() == SUM_FUNC_ITEM)
-  {
-    uint el= fields.elements;
-    fields.push_front(item);
-    ref_pointer_array[el]= item;
-    item= new Item_ref(ref_pointer_array + el, 0, item->name);
-  }
-  Item_func::split_sum_func(ref_pointer_array, fields);
+  maybe_null=0; max_length=3;
+  cmp_type= args[0]->result_type();
+  for (uint i=1; i < arg_count ; i++)
+    cmp_type= item_cmp_type(cmp_type, args[i]->result_type());
+  if (cmp_type == STRING_RESULT)
+    agg_arg_collations_for_comparison(cmp_collation, args, arg_count);
 }
 
 
@@ -1209,8 +1273,7 @@ void Item_func_find_in_set::fix_length_and_dec()
       }
     }
   }
-  if (cmp_collation.set(args[0]->collation, args[1]->collation))
-    my_coll_agg_error(args[0]->collation, args[1]->collation, func_name());
+  agg_arg_collations_for_comparison(cmp_collation, args, 2);
 }
 
 static const char separator=',';
@@ -1353,7 +1416,18 @@ udf_handler::fix_fields(THD *thd, TABLE_LIST *tables, Item_result_field *func,
       Item *item= *arg;
       if (item->fix_fields(thd, tables, arg) || item->check_cols(1))
 	return 1;
-      if (item->binary())
+      /*
+	TODO: We should think about this. It is not always
+	right way just to set an UDF result to return my_charset_bin
+	if one argument has binary sorting order.
+	The result collation should be calculated according to arguments
+	derivations in some cases and should not in other cases.
+	Moreover, some arguments can represent a numeric input
+	which doesn't effect the result character set and collation.
+	There is no a general rule for UDF. Everything depends on
+	the particular user definted function.
+      */
+      if (item->charset()->state & MY_CS_BINSORT)
 	func->set_charset(&my_charset_bin);
       if (item->maybe_null)
 	func->maybe_null=1;
@@ -2589,21 +2663,61 @@ longlong Item_func_bit_xor::val_int()
   System variables
 ****************************************************************************/
 
-Item *get_system_var(enum_var_type var_type, LEX_STRING name)
+/*
+  Return value of an system variable base[.name] as a constant item
+
+  SYNOPSIS
+    get_system_var()
+    thd			Thread handler
+    var_type		global / session
+    name		Name of base or system variable
+    component		Component.
+
+  NOTES
+    If component.str = 0 then the variable name is in 'name'
+
+  RETURN
+    0	error
+    #	constant item
+*/
+  
+
+Item *get_system_var(THD *thd, enum_var_type var_type, LEX_STRING name,
+		     LEX_STRING component)
 {
-  if (!my_strcasecmp(system_charset_info, name.str, "VERSION"))
+  if (component.str == 0 &&
+      !my_strcasecmp(system_charset_info, name.str, "VERSION"))
     return new Item_string("@@VERSION", server_version,
 			   (uint) strlen(server_version),
 			   system_charset_info);
 
-  THD *thd=current_thd;
   Item *item;
   sys_var *var;
-  char buff[MAX_SYS_VAR_LENGTH+3+8], *pos;
+  char buff[MAX_SYS_VAR_LENGTH*2+4+8], *pos;
+  LEX_STRING *base_name, *component_name;
 
-  if (!(var= find_sys_var(name.str, name.length)))
+  if (component.str)
+  {
+    base_name= &component;
+    component_name= &name;
+  }
+  else
+  {
+    base_name= &name;
+    component_name= &component;			// Empty string
+  }
+
+  if (!(var= find_sys_var(base_name->str, base_name->length)))
     return 0;
-  if (!(item=var->item(thd, var_type)))
+  if (component.str)
+  {
+    if (!var->is_struct())
+    {
+      net_printf(thd, ER_VARIABLE_IS_NOT_STRUCT, base_name->str);
+      return 0;
+    }
+  }
+  if (!(item=var->item(thd, var_type, component_name)))
     return 0;					// Impossible
   thd->lex.uncacheable();
   buff[0]='@';
@@ -2613,23 +2727,37 @@ Item *get_system_var(enum_var_type var_type, LEX_STRING name)
     pos=strmov(pos,"session.");
   else if (var_type == OPT_GLOBAL)
     pos=strmov(pos,"global.");
-  memcpy(pos, var->name, var->name_length+1);
+  
+  set_if_smaller(component_name->length, MAX_SYS_VAR_LENGTH);
+  set_if_smaller(base_name->length, MAX_SYS_VAR_LENGTH);
+
+  if (component_name->str)
+  {
+    memcpy(pos, component_name->str, component_name->length);
+    pos+= component_name->length;
+    *pos++= '.';
+  }
+  memcpy(pos, base_name->str, base_name->length);
+  pos+= base_name->length;
+
   // set_name() will allocate the name
-  item->set_name(buff,(uint) (pos-buff)+var->name_length, system_charset_info);
+  item->set_name(buff,(uint) (pos-buff), system_charset_info);
   return item;
 }
 
 
-Item *get_system_var(enum_var_type var_type, const char *var_name, uint length,
-		     const char *item_name)
+Item *get_system_var(THD *thd, enum_var_type var_type, const char *var_name,
+		     uint length, const char *item_name)
 {
-  THD *thd=current_thd;
   Item *item;
   sys_var *var;
+  LEX_STRING null_lex_string;
+
+  null_lex_string.str= 0;
 
   var= find_sys_var(var_name, length);
   DBUG_ASSERT(var != 0);
-  if (!(item=var->item(thd, var_type)))
+  if (!(item=var->item(thd, var_type, &null_lex_string)))
     return 0;						// Impossible
   thd->lex.uncacheable();
   item->set_name(item_name, 0, system_charset_info);	// Will use original name
