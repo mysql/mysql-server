@@ -32,8 +32,14 @@ const char **ha_heap::bas_ext() const
 
 /*
   Hash index statistics is updated (copied from HP_KEYDEF::hash_buckets to 
-  rec_per_key) after 1/HEAP_STATS_UPDATE_THRESHOLD records have been inserted/
-  updated/deleted. delete_all_rows() and table flush cause immediate update.
+  rec_per_key) after 1/HEAP_STATS_UPDATE_THRESHOLD fraction of table records 
+  have been inserted/updated/deleted. delete_all_rows() and table flush cause 
+  immediate update.
+
+  NOTE
+   hash index statistics must be updated when number of table records changes
+   from 0 to non-zero value and vice versa. Otherwise records_in_range may 
+   erroneously return 0 and 'range' may miss records.
 */
 #define HEAP_STATS_UPDATE_THRESHOLD 10
 
@@ -94,7 +100,6 @@ void ha_heap::set_keys_for_scanning(void)
 
 void ha_heap::update_key_stats()
 {
-  printf("update_key_stats\n");
   for (uint i= 0; i < table->keys; i++)
   {
     KEY *key=table->key_info+i;
@@ -425,13 +430,7 @@ ha_rows ha_heap::records_in_range(uint inx, key_range *min_key,
       max_key->flag != HA_READ_AFTER_KEY)
     return HA_POS_ERROR;			// Can only use exact keys
   else
-  {
-    ha_rows records= file->s->records;
-    if (!records)
-      return 0;
-    ha_rows res= records / file->s->keydef[inx].hash_buckets;
-    return res ? res : 1;
-  }
+    return key->rec_per_key[key->key_parts-1];
 }
 
 

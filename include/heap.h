@@ -63,18 +63,48 @@ typedef struct st_heap_ptrs
 
 struct st_level_info
 {
-  uint free_ptrs_in_block,records_under_level;
-  HP_PTRS *last_blocks;			/* pointers to HP_PTRS or records */
+  /* Number of unused slots in *last_blocks HP_PTRS block (0 for 0th level) */
+  uint free_ptrs_in_block;
+  
+  /*
+    Maximum number of records that can be 'contained' inside of each element
+    of last_blocks array. For level 0 - 1, for level 1 - HP_PTRS_IN_NOD, for 
+    level 2 - HP_PTRS_IN_NOD^2 and so forth.
+  */
+  uint records_under_level;
+
+  /*
+    Ptr to last allocated HP_PTRS (or records buffer for level 0) on this 
+    level.
+  */
+  HP_PTRS *last_blocks;			
 };
 
-typedef struct st_heap_block		/* The data is saved in blocks */
+
+/*
+  Heap table records and hash index entries are stored in HP_BLOCKs.
+  HP_BLOCK is used as a 'growable array' of fixed-size records. Size of record
+  is recbuffer bytes.
+  The internal representation is as follows:
+  HP_BLOCK is a hierarchical structure of 'blocks'.
+  A block at level 0 is an array records_in_block records. 
+  A block at higher level is an HP_PTRS structure with pointers to blocks at 
+  lower levels.
+  At the highest level there is one top block. It is stored in HP_BLOCK::root.
+
+  See hp_find_block for a description of how record pointer is obtained from 
+  its index.
+  See hp_get_new_block 
+*/
+
+typedef struct st_heap_block
 {
-  HP_PTRS *root;
+  HP_PTRS *root;                        /* Top-level block */ 
   struct st_level_info level_info[HP_MAX_LEVELS+1];
-  uint levels;
-  uint records_in_block;		/* Records in a heap-block */
+  uint levels;                          /* number of used levels */
+  uint records_in_block;		/* Records in one heap-block */
   uint recbuffer;			/* Length of one saved record */
-  ulong last_allocated;			/* Blocks allocated, used by keys */
+  ulong last_allocated; /* number of records there is allocated space for */
 } HP_BLOCK;
 
 struct st_heap_info;			/* For referense */
