@@ -1563,13 +1563,13 @@ static my_bool my_realloc_str(NET *net, ulong length)
     1	error
 */
 
-static my_bool read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt)
+my_bool STDCALL cli_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt)
 {
   uchar *pos;
   uint field_count;
   ulong length, param_count;
   MYSQL_DATA *fields_data;
-  DBUG_ENTER("read_prepare_result");
+  DBUG_ENTER("cli_read_prepare_result");
 
   mysql= mysql->last_used_con;
   if ((length= net_safe_read(mysql)) == packet_error)
@@ -1593,18 +1593,8 @@ static my_bool read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt)
 				      mysql->server_capabilities)))
       DBUG_RETURN(1);
   }
-  if (!(stmt->params= (MYSQL_BIND *) alloc_root(&stmt->mem_root,
-						sizeof(MYSQL_BIND)*
-                                                (param_count + 
-                                                 field_count))))
-  {
-    set_stmt_error(stmt, CR_OUT_OF_MEMORY, unknown_sqlstate);
-    DBUG_RETURN(0);
-  }
-  stmt->bind=	      (stmt->params + param_count);
   stmt->field_count=  (uint) field_count;
   stmt->param_count=  (ulong) param_count;
-  mysql->status=      MYSQL_STATUS_READY;
   DBUG_RETURN(0);
 }
 
@@ -1648,14 +1638,22 @@ mysql_prepare(MYSQL  *mysql, const char *query, ulong length)
   }
 
   init_alloc_root(&stmt->mem_root,8192,0);
-  if (read_prepare_result(mysql, stmt))
+  if ((*mysql->read_prepare_result)(mysql, stmt))
   {
     stmt_close(stmt, 1);
     DBUG_RETURN(0);
   }
+  if (!(stmt->params= (MYSQL_BIND *) alloc_root(&stmt->mem_root,
+						sizeof(MYSQL_BIND)*
+                                                (param_count + 
+                                                 field_count))))
+    set_stmt_error(stmt, CR_OUT_OF_MEMORY, unknown_sqlstate);
+  stmt->bind= stmt->params + param_count;
+
   stmt->state= MY_ST_PREPARE;
   stmt->mysql= mysql;
   mysql->stmts= list_add(mysql->stmts, &stmt->list);
+  mysql->status= MYSQL_STATUS_READY;
   stmt->list.data= stmt;
   DBUG_PRINT("info", ("Parameter count: %ld", stmt->param_count));
   DBUG_RETURN(stmt);

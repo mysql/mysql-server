@@ -1407,7 +1407,8 @@ static MYSQL_METHODS client_methods=
   cli_mysql_store_result,
   cli_mysql_use_result,
   cli_fetch_lengths,
-  cli_list_fields
+  cli_list_fields,
+  cli_read_prepare_result
 };
 
 MYSQL * STDCALL 
