@@ -1,0 +1,154 @@
+#
+# Test ranges for all types and some other basic tests
+#
+
+drop table if exists t1,t2,t3;
+
+CREATE TABLE t1 (
+  auto int(5) unsigned DEFAULT 0 NOT NULL auto_increment,
+  string char(10) default "hello",
+  tiny tinyint(4) DEFAULT '0' NOT NULL ,
+  short smallint(6) DEFAULT '1' NOT NULL ,
+  medium mediumint(8) DEFAULT '0' NOT NULL,
+  long_int int(11) DEFAULT '0' NOT NULL,
+  longlong bigint(13) DEFAULT '0' NOT NULL,
+  real_float float(13,1) DEFAULT 0.0 NOT NULL,
+  real_double double(16,4),
+  utiny tinyint(3) unsigned DEFAULT '0' NOT NULL,
+  ushort smallint(5) unsigned zerofill DEFAULT '00000' NOT NULL,
+  umedium mediumint(8) unsigned DEFAULT '0' NOT NULL,
+  ulong int(11) unsigned DEFAULT '0' NOT NULL,
+  ulonglong bigint(13) unsigned DEFAULT '0' NOT NULL,
+  time_stamp timestamp,
+  date_field date,	
+  time_field time,	
+  date_time datetime,
+  blob_col blob,
+  tinyblob_col tinyblob,
+  mediumblob_col mediumblob  not null,
+  longblob_col longblob  not null,
+  options enum('one','two','tree') not null,
+  flags set('one','two','tree') not null,
+  PRIMARY KEY (auto),
+  KEY (utiny),
+  KEY (tiny),
+  KEY (short),
+  KEY any_name (medium),
+  KEY (longlong),
+  KEY (real_float),
+  KEY (ushort),
+  KEY (umedium),
+  KEY (ulong),
+  KEY (ulonglong,ulong),
+  KEY (options,flags)
+);
+
+show fields from t1;
+show keys from t1;
+
+CREATE UNIQUE INDEX test on t1 ( auto ) ;
+CREATE INDEX test2 on t1 ( ulonglong,ulong) ;
+CREATE INDEX test3 on t1 ( medium ) ;
+DROP INDEX test ON t1;
+
+insert into t1 values (10, 1,1,1,1,1,1,1,1,1,1,1,1,1,NULL,0,0,0,1,1,1,1,'one','one');
+insert into t1 values (NULL,2,2,2,2,2,2,2,2,2,2,2,2,2,NULL,NULL,NULL,NULL,NULL,NULL,2,2,'two','two,one');
+insert into t1 values (0,1/3,3,3,3,3,3,3,3,3,3,3,3,3,NULL,'19970303','10:10:10','19970303 101010','','','','3',3,3);
+insert into t1 values (0,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,NULL,19970807,080706,19970403090807,-1,-1,-1,'-1',-1,-1);
+insert into t1 values (0,-4294967295,-4294967295,-4294967295,-4294967295,-4294967295,-4294967295,-4294967295,-4294967295,-4294967295,-4294967295,-4294967295,-4294967295,-4294967295,NULL,0,0,0,-4294967295,-4294967295,-4294967295,'-4294967295',0,"one,two,tree");
+insert into t1 values (0,4294967295,4294967295,4294967295,4294967295,4294967295,4294967295,4294967295,4294967295,4294967295,4294967295,4294967295,4294967295,4294967295,NULL,0,0,0,4294967295,4294967295,4294967295,'4294967295',0,0);
+insert into t1 (tiny) values (1);
+
+select auto,string,tiny,short,medium,long_int,longlong,real_float,real_double,utiny,ushort,umedium,ulong,ulonglong,mod(floor(time_stamp/1000000),1000000)-mod(curdate(),1000000),date_field,time_field,date_time,blob_col,tinyblob_col,mediumblob_col,longblob_col from t1;
+
+
+ALTER TABLE t1
+add new_field char(10) default "new" not null,
+change blob_col new_blob_col varchar(20),
+change date_field date_field char(10),
+alter column string set default "new default",
+alter short drop default,
+DROP INDEX utiny,
+DROP INDEX ushort,
+DROP PRIMARY KEY,
+DROP FOREIGN KEY any_name,
+ADD INDEX (auto);
+
+LOCK TABLES t1 WRITE;
+ALTER TABLE t1 
+RENAME as t2,
+DROP longblob_col;
+UNLOCK TABLES;
+
+ALTER TABLE t2 rename as t3;
+LOCK TABLES t3 WRITE ;
+ALTER TABLE t3 rename as t1;
+UNLOCK TABLES;
+
+select auto,new_field,new_blob_col,date_field from t1 ;
+
+#
+# check with old syntax
+#
+CREATE TABLE t2 (
+  auto int(5) unsigned NOT NULL DEFAULT 0 auto_increment,
+  string char(20),
+  mediumblob_col mediumblob not null,
+  new_field char(2),
+  PRIMARY KEY (auto)
+);
+
+INSERT INTO t2 (string,mediumblob_col,new_field) SELECT string,mediumblob_col,new_field from t1 where auto > 10;
+
+select * from t2;
+
+# test enums
+select distinct flags from t1;
+select flags from t1 where find_in_set("two",flags)>0;
+select flags from t1 where find_in_set("unknown",flags)>0;
+select options,flags from t1 where options="ONE" and flags="ONE";
+select options,flags from t1 where options="one" and flags="one";
+
+drop table t2;
+
+#
+# Check CREATE ... SELECT
+#
+
+create table t2 select * from t1;
+update t2 set string="changed" where auto=16;
+show columns from t1;
+show columns from t2;
+select t1.auto,t2.auto from t1,t2 where t1.auto=t2.auto and ((t1.string<>t2.string and (t1.string is not null or t2.string is not null)) or (t1.tiny<>t2.tiny and (t1.tiny is not null or t2.tiny is not null)) or (t1.short<>t2.short and (t1.short is not null or t2.short is not null)) or (t1.medium<>t2.medium and (t1.medium is not null or t2.medium is not null)) or (t1.long_int<>t2.long_int and (t1.long_int is not null or t2.long_int is not null)) or (t1.longlong<>t2.longlong and (t1.longlong is not null or t2.longlong is not null)) or (t1.real_float<>t2.real_float and (t1.real_float is not null or t2.real_float is not null)) or (t1.real_double<>t2.real_double and (t1.real_double is not null or t2.real_double is not null)) or (t1.utiny<>t2.utiny and (t1.utiny is not null or t2.utiny is not null)) or (t1.ushort<>t2.ushort and (t1.ushort is not null or t2.ushort is not null)) or (t1.umedium<>t2.umedium and (t1.umedium is not null or t2.umedium is not null)) or (t1.ulong<>t2.ulong and (t1.ulong is not null or t2.ulong is not null)) or (t1.ulonglong<>t2.ulonglong and (t1.ulonglong is not null or t2.ulonglong is not null)) or (t1.time_stamp<>t2.time_stamp and (t1.time_stamp is not null or t2.time_stamp is not null)) or (t1.date_field<>t2.date_field and (t1.date_field is not null or t2.date_field is not null)) or (t1.time_field<>t2.time_field and (t1.time_field is not null or t2.time_field is not null)) or (t1.date_time<>t2.date_time and (t1.date_time is not null or t2.date_time is not null)) or (t1.new_blob_col<>t2.new_blob_col and (t1.new_blob_col is not null or t2.new_blob_col is not null)) or (t1.tinyblob_col<>t2.tinyblob_col and (t1.tinyblob_col is not null or t2.tinyblob_col is not null)) or (t1.mediumblob_col<>t2.mediumblob_col and (t1.mediumblob_col is not null or t2.mediumblob_col is not null)) or (t1.options<>t2.options and (t1.options is not null or t2.options is not null)) or (t1.flags<>t2.flags and (t1.flags is not null or t2.flags is not null)) or (t1.new_field<>t2.new_field and (t1.new_field is not null or t2.new_field is not null)));
+select t1.auto,t2.auto from t1,t2 where t1.auto=t2.auto and not (t1.string<=>t2.string and t1.tiny<=>t2.tiny and t1.short<=>t2.short and t1.medium<=>t2.medium and t1.long_int<=>t2.long_int and t1.longlong<=>t2.longlong and t1.real_float<=>t2.real_float and t1.real_double<=>t2.real_double and t1.utiny<=>t2.utiny and t1.ushort<=>t2.ushort and t1.umedium<=>t2.umedium and t1.ulong<=>t2.ulong and t1.ulonglong<=>t2.ulonglong and t1.time_stamp<=>t2.time_stamp and t1.date_field<=>t2.date_field and t1.time_field<=>t2.time_field and t1.date_time<=>t2.date_time and t1.new_blob_col<=>t2.new_blob_col and t1.tinyblob_col<=>t2.tinyblob_col and t1.mediumblob_col<=>t2.mediumblob_col and t1.options<=>t2.options and t1.flags<=>t2.flags and t1.new_field<=>t2.new_field);
+
+drop table t2;
+
+create table t2 (primary key (auto)) select auto+1 as auto,1 as t1, "a" as t2, repeat("a",256) as t3, binary repeat("b",256) as t4 from t1;
+show columns from t2;
+select * from t2;
+drop table t1,t2;
+
+create table t1 (c int);
+insert into t1 values(1),(2);
+create table t2 select * from t1;
+!$1060 create table t3 select * from t1, t2; # Should give an error
+create table t3 select t1.c AS c1, t2.c AS c2,1 as "const" from t1, t2;
+show columns from t3;
+drop table t1,t2,t3;
+
+create table t1 ( myfield INT NOT NULL, UNIQUE INDEX (myfield), unique (myfield), index(myfield));
+drop table t1;
+
+create table t1 ( id integer unsigned not null primary key );
+create table t2 ( id integer unsigned not null primary key );
+insert into t1 values (1), (2);
+insert into t2 values (1);
+select  t1.id as id_A,  t2.id as id_B from t1 left join t2 using ( id ); 
+create table t3 (id_A integer unsigned not null, id_B integer unsigned null  );
+insert into t3 select t1.id as id_A,  t2.id as id_B from t1 left join t2 using ( id );
+select * from t3;
+drop table t3;
+create table t3 select t1.id as id_A,  t2.id as id_B from t1 left join t2 using ( id );
+select * from t3;
+drop table t1,t2,t3;

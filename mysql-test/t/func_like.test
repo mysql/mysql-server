@@ -1,0 +1,10 @@
+#
+# Test of like
+#
+
+create table t1 (a varchar(10), key(a));
+insert into t1 values ("a"),("abc"),("abcd"),("hello"),("test");
+select * from t1 where a like "abc%"; 
+select * from t1 where a like "test%"; 
+select * from t1 where a like "te_t"; 
+drop table t1;

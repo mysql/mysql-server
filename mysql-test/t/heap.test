@@ -1,0 +1,87 @@
+#
+# Test of heap tables.
+#
+
+create table t1 (a int not null,b int not null, primary key (a)) type=heap comment="testing heaps" avg_row_length=100 min_rows=1 max_rows=100;
+insert into t1 values(1,1),(2,2),(3,3),(4,4);
+delete from t1 where a=1 or a=0;
+#show table status like "t1";
+show keys from t1;
+select * from t1;
+select * from t1 where a=4;
+update t1 set b=5 where a=4;
+update t1 set b=b+1 where a>=3;
+replace t1 values (3,3);
+select * from t1;
+alter table t1 add c int not null, add key (c,a);
+drop table t1;
+
+create table t1 (a int not null,b int not null, primary key (a)) type=heap comment="testing heaps";
+insert into t1 values(1,1),(2,2),(3,3),(4,4);
+alter table t1 modify a int not null auto_increment, type=myisam, comment="new myisam table";
+#show table status like "t1";
+select * from t1;
+drop table t1;
+
+create table t1 (a int not null) type=heap;
+insert into t1 values (869751),(736494),(226312),(802616);
+select * from t1 where a > 736494;
+alter table t1 add unique uniq_id(a);
+select * from t1 where a > 736494;
+select * from t1 where a = 736494;
+select * from t1 where a=869751 or a=736494;
+select * from t1 where a in (869751,736494,226312,802616);
+alter table t1 type=myisam;
+explain select * from t1 where a in (869751,736494,226312,802616);
+drop table t1;
+
+create table t1 (x int not null, y int not null, key x(x), unique y(y))
+type=heap;
+insert into t1 values (1,1),(2,2),(1,3),(2,4),(2,5),(2,6);
+select * from t1 where x=1;
+select * from t1,t1 as t2 where t1.x=t2.y;
+explain select * from t1,t1 as t2 where t1.x=t2.y;
+drop table t1;
+
+create table t1 (a int) type=heap;
+insert into t1 values(1);
+select max(a) from t1;
+drop table t1;
+
+CREATE TABLE t1 ( a int not null default 0, b int not null default 0,  key(a),  key(b)  ) TYPE=HEAP;
+insert into t1 values(1,1),(1,2),(2,3),(1,3),(1,4),(1,5),(1,6);
+select * from t1 where a=1; 
+insert into t1 values(1,1),(1,2),(2,3),(1,3),(1,4),(1,5),(1,6);
+select * from t1 where a=1;
+drop table t1;
+
+create table t1 (id int unsigned not null, primary key (id)) type=HEAP;
+insert into t1 values(1);
+select max(id) from t1; 
+insert into t1 values(2);
+select max(id) from t1; 
+replace into t1 values(1);
+drop table t1;
+
+create table t1 (n int) type=heap;
+drop table t1;
+
+create table t1 (n int) type=heap;
+drop table if exists t1;
+
+# Test of non unique index
+
+CREATE table t1(f1 int not null,f2 char(20) not 
+null,index(f2)) type=heap;
+INSERT into t1 set f1=12,f2="bill";
+INSERT into t1 set f1=13,f2="bill";
+INSERT into t1 set f1=14,f2="bill";
+INSERT into t1 set f1=15,f2="bill";
+INSERT into t1 set f1=16,f2="ted";
+INSERT into t1 set f1=12,f2="ted";
+INSERT into t1 set f1=12,f2="ted";
+INSERT into t1 set f1=12,f2="ted";
+INSERT into t1 set f1=12,f2="ted";
+delete from t1 where f2="bill";
+select * from t1;
+drop table t1;

@@ -1,0 +1,48 @@
+#
+# Test of alter table
+#
+
+drop table if exists t1;
+create table t1 (
+col1 int not null auto_increment primary key,
+col2 varchar(30) not null,
+col3 varchar (20) not null,
+col4 varchar(4) not null,
+col5 enum('PENDING', 'ACTIVE', 'DISABLED') not null,
+col6 int not null, to_be_deleted int);
+alter table t1
+add column col4_5 varchar(20) not null after col4,
+add column col7 varchar(30) not null after col6,
+add column col8 datetime not null, drop column to_be_deleted;
+drop table t1;
+
+create table t1 (bandID MEDIUMINT UNSIGNED NOT NULL PRIMARY KEY, payoutID SMALLINT UNSIGNED NOT NULL);
+insert into t1 (bandID,payoutID) VALUES (1,6),(2,6),(3,4),(4,9),(5,10),(6,1),(7,12),(8,12);
+alter table t1 add column new_col int, order by payoutid,bandid;
+select * from t1;
+alter table t1 order by bandid,payoutid;
+select * from t1;
+drop table t1;
+
+# Check that pack_keys and dynamic length rows are not forced. 
+
+CREATE TABLE t1 (
+GROUP_ID int(10) unsigned DEFAULT '0' NOT NULL,
+LANG_ID smallint(5) unsigned DEFAULT '0' NOT NULL,
+NAME varchar(80) DEFAULT '' NOT NULL,
+PRIMARY KEY (GROUP_ID,LANG_ID),
+KEY NAME (NAME));
+#show table status like "t1";
+ALTER TABLE t1 CHANGE NAME NAME CHAR(80) not null;
+SHOW COLUMNS FROM t1;
+DROP TABLE t1;
+
+#
+# Test of ALTER TABLE ... ORDER BY
+#
+
+create table t1 (n int);
+insert into t1 values(9),(3),(12),(10);
+alter table t1 order by n;
+select * from t1;
+drop table t1;

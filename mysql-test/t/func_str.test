@@ -1,0 +1,80 @@
+# Version: 3.23.29
+#
+# Description
+# -----------
+# Testing string functions
+
+select 'hello',"'hello'",'""hello""','''h''e''l''l''o''',"hel""lo",'hel\'lo';
+select 'hello' 'monty';
+select length('\n\t\r\b\0\_\%\\');
+select concat('monty',' was here ','again'),length('hello'),char(ascii('h'));
+select locate('he','hello'),locate('he','hello',2),locate('lo','hello',2) ;
+select instr('hello','he');
+select position('ll' in 'hello'),position('a' in 'hello');
+select left('hello',2),right('hello',2),substring('hello',2,2),mid('hello',1,5) ;
+select concat('',left(right(concat('what ',concat('is ','happening')),9),4),'',substring('monty',5,1)) ;
+select substring_index('www.tcx.se','.',-2),substring_index('www.tcx.se','.',1);
+select substring_index('www.tcx.se','tcx',1),substring_index('www.tcx.se','tcx',-1);
+select substring_index('.tcx.se','.',-2),substring_index('.tcx.se','.tcx',-1);
+
+select concat(':',ltrim('  left  '),':',rtrim('  right  '),':');
+select concat(':',trim(LEADING FROM ' left'),':',trim(TRAILING FROM ' right '),':');
+select concat(':',trim(' m '),':',trim(BOTH FROM ' y '),':',trim('*' FROM '*s*'),':');
+select concat(':',trim(BOTH 'ab' FROM 'ababmyabab'),':',trim(BOTH '*' FROM '***sql'),':');
+select concat(':',trim(LEADING '.*' FROM '.*my'),':',trim(TRAILING '.*' FROM 'sql.*.*'),':');
+
+select insert('txs',2,1,'hi'),insert('is ',4,0,'a'),insert('txxxxt',2,4,'es');
+select replace('aaaa','a','b'),replace('aaaa','aa','b'),replace('aaaa','a','bb'),replace('aaaa','','b'),replace('bbbb','a','c');
+select replace(concat(lcase(concat('THIS',' ','IS',' ','A',' ')),ucase('false'),' ','test'),'FALSE','REAL') ;
+select soundex(''),soundex('he'),soundex('hello all folks');
+select password('test'),length(encrypt('test')),encrypt('test','aa');
+select md5('hello');
+select repeat('monty',5),concat('*',space(5),'*');
+select reverse('abc'),reverse('abcd');
+select rpad('a',4,'1'),rpad('a',4,'12'),rpad('abcd',3,'12');
+select lpad('a',4,'1'),lpad('a',4,'12'),lpad('abcd',3,'12');
+select rpad(741653838,17,'0'),lpad(741653838,17,'0');
+select rpad('abcd',7,'ab'),lpad('abcd',7,'ab');
+select rpad('abcd',1,'ab'),lpad('abcd',1,'ab');
+
+select LEAST(NULL,'HARRY','HARRIOT',NULL,'HAROLD'),GREATEST(NULL,'HARRY','HARRIOT',NULL,'HAROLD');
+select least(1,2,3) | greatest(16,32,8), least(5,4)*1,greatest(-1.0,1.0)*1,least(3,2,1)*1.0,greatest(1,1.1,1.0),least("10",9),greatest("A","B","0");
+
+select decode(encode(repeat("a",100000),"monty"),"monty")=repeat("a",100000);
+select decode(encode("abcdef","monty"),"monty")="abcdef";
+
+#
+# Wrong usage of functions
+#
+
+select reverse("");
+select insert("aa",100,1,"b"),insert("aa",1,3,"b"),left("aa",-1),substring("a",1,2);
+select elt(2,1),field(NULL,"a","b","c"),reverse("");
+select locate("a","b",2),locate("","a",1);
+select ltrim("a"),rtrim("a"),trim(BOTH "" from "a"),trim(BOTH " " from "a");
+select concat("1","2")|0,concat("1",".5")+0.0;
+select substring_index("www.tcx.se","",3);
+select length(repeat("a",100000000)),length(repeat("a",1000*64));
+select position("0" in "baaa" in (1)),position("0" in "1" in (1,2,3)),position("sql" in ("mysql"));
+select position(("1" in (1,2,3)) in "01");
+select length(repeat("a",65500)),length(concat(repeat("a",32000),repeat("a",32000))),length(replace("aaaaa","a",concat(repeat("a",10000)))),length(insert(repeat("a",40000),1,30000,repeat("b",50000)));
+select length(repeat("a",1000000)),length(concat(repeat("a",32000),repeat("a",32000),repeat("a",32000))),length(replace("aaaaa","a",concat(repeat("a",32000)))),length(insert(repeat("a",48000),1,1000,repeat("a",48000)));
+
+#
+# Problem med concat
+#
+
+drop table if exists t1;
+create table t1 (Zeit time, Tag tinyint not null, Monat tinyint not null, Jahr smallint not null, index(Tag), index(Monat), index(Jahr) );
+insert into t1 values ("09:26:00",16,9,1998);
+insert into t1 values ("09:26:00",16,9,1998);
+SELECT CONCAT(Jahr,'-',Monat,'-',Tag,' ',Zeit) AS Date,
+   UNIX_TIMESTAMP(CONCAT(Jahr,'-',Monat,'-',Tag,' ',Zeit)) AS Unix
+FROM t1;
+drop table t1;
+
+create table t1 ( domain char(50) );
+insert into t1 VALUES ("hello.de" ), ("test.de" );
+select domain from t1 where concat('@', trim(leading '.' from concat('.', domain))) = '@hello.de';
+select domain from t1 where concat('@', trim(leading '.' from concat('.', domain))) = '@test.de';
+drop table t1;
