@@ -441,8 +441,7 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 		putc('\n', stderr);
 		trx_print(stderr, thr_get_trx(thr));
 		fputs("\n"
-			"InnoDB: Make a detailed bug report and send it\n"
-			"InnoDB: to mysql@lists.mysql.com\n", stderr);
+"InnoDB: Submit a detailed bug report to http://bugs.mysql.com\n", stderr);
 	} else {
 		btr_cur_t*	btr_cur = btr_pcur_get_btr_cur(&pcur);
 

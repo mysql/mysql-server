@@ -63,6 +63,7 @@ select * from t1 where MATCH a,b AGAINST ('"text search"  "now support"' IN BOOL
 select * from t1 where MATCH a,b AGAINST ('"text search" -"now support"' IN BOOLEAN MODE);
 select * from t1 where MATCH a,b AGAINST ('"text search" +"now support"' IN BOOLEAN MODE);
 select * from t1 where MATCH a,b AGAINST ('"text i"' IN BOOLEAN MODE);
+select * from t1 where MATCH a,b AGAINST ('"xt indexes"' IN BOOLEAN MODE);
 
 select * from t1 where MATCH a,b AGAINST ('+(support collections) +foobar*' IN BOOLEAN MODE);
 select * from t1 where MATCH a,b AGAINST ('+(+(support collections)) +foobar*' IN BOOLEAN MODE);

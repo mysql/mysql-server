@@ -754,11 +754,12 @@ void mysql_print_status(THD *thd);
 int find_ref_key(TABLE *form,Field *field, uint *offset);
 void key_copy(byte *key,TABLE *form,uint index,uint key_length);
 void key_restore(TABLE *form,byte *key,uint index,uint key_length);
-int key_cmp(TABLE *form,const byte *key,uint index,uint key_length);
+bool key_cmp_if_same(TABLE *form,const byte *key,uint index,uint key_length);
 void key_unpack(String *to,TABLE *form,uint index);
 bool check_if_key_used(TABLE *table, uint idx, List<Item> &fields);
-bool init_errmessage(void);
+int key_cmp(KEY_PART_INFO *key_part, const byte *key, uint key_length);
 
+bool init_errmessage(void);
 void sql_perror(const char *message);
 void sql_print_error(const char *format,...)
 	        __attribute__ ((format (printf, 1, 2)));
