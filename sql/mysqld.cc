@@ -2796,7 +2796,7 @@ struct show_var_st init_vars[]= {
   {"innodb_log_arch_dir",   (char*) &innobase_log_arch_dir, 	    SHOW_CHAR_PTR},
   {"innodb_log_archive",    (char*) &innobase_log_archive, 	    SHOW_MY_BOOL},
   {"innodb_log_group_home_dir", (char*) &innobase_log_group_home_dir, SHOW_CHAR_PTR},
-  {"innodb_flush_method",    (char*) &innobase_unix_file_flush_method, SHOW_CHAR_PTR},
+  {"innodb_unix_file_flush_method",    (char*) &innobase_unix_file_flush_method, SHOW_CHAR_PTR},
 #endif
   {"interactive_timeout",     (char*) &net_interactive_timeout,     SHOW_LONG},
   {"join_buffer_size",        (char*) &join_buff_size,              SHOW_LONG},
@@ -3073,7 +3073,7 @@ static void usage(void)
   puts("\
   --innodb_data_home_dir=dir   The common part for Innodb table spaces\n\
   --innodb_data_file_path=dir  Path to individual files and their sizes\n\
-  --innodb_flush_method=#      Which method to flush data\n\
+  --innodb_unix_file_flush_method=#  With which method to flush data\n\
   --innodb_flush_log_at_trx_commit[=#]\n\
 			       Set to 0 if you don't want to flush logs\n\
   --innodb_log_arch_dir=dir    Where full logs should be archived\n\
