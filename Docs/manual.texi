@@ -41000,6 +41000,7 @@ Fixed bug when using @code{DISTINCT} on results from functions that refered to
 a group function, like
 @code{SELECT a,DISTINCT SEC_TO_TIME(sum(a)) from table_name GROUP BY a,b}.
 @item
+Fixed buffer overrun in @code{libmysqlclient} library.
 Fixed bug in handling @code{STOP} event after @code{ROTATE} event in
 replication.
 @item
