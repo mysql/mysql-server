@@ -25,14 +25,14 @@ SUBDIRS =		. include @docs_dirs@ @zlib_dir@ \
 			@thread_dirs@ pstack \
 			@sql_union_dirs@ scripts man tests \
 			netware @libmysqld_dirs@ \
-			@bench_dirs@ support-files @fs_dirs@ @tools_dirs@
+			@bench_dirs@ support-files @tools_dirs@
 
 DIST_SUBDIRS =		. include @docs_dirs@ zlib \
 			@readline_topdir@ sql-common \
 			@thread_dirs@ pstack \
 			@sql_union_dirs@ scripts @man_dirs@ tests SSL\
 			BUILD netware os2 @libmysqld_dirs@ \
-			@bench_dirs@ support-files @fs_dirs@ @tools_dirs@
+			@bench_dirs@ support-files @tools_dirs@
 
 # Relink after clean
 linked_sources = linked_client_sources linked_server_sources \

@@ -8,7 +8,7 @@ n
 3
 flush tables with read lock;
 drop table t2;
-ERROR HY000: Table 't2' was locked with a READ lock and can't be updated
+ERROR HY000: Can't execute the query because you have a conflicting read lock
  drop table t2;
 unlock tables;
 create database mysqltest;

@@ -180,6 +180,7 @@ int heap_create(const char *name, uint keys, HP_KEYDEF *keydef,
     share->keys= keys;
     share->max_key_length= max_length;
     share->changed= 0;
+    share->auto_key= create_info->auto_key;
     share->auto_key_type= create_info->auto_key_type;
     share->auto_increment= create_info->auto_increment;
     /* Must be allocated separately for rename to work */

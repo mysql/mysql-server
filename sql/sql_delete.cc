@@ -96,7 +96,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
 
   table->used_keys.clear_all();
   table->quick_keys.clear_all();		// Can't use 'only index'
-  select=make_select(table,0,0,conds,&error);
+  select=make_select(table, 0, 0, conds, 0, &error);
   if (error)
     DBUG_RETURN(TRUE);
   if ((select && select->check_quick(thd, safe_update, limit)) || !limit)

@@ -18,6 +18,7 @@ rename table t1 to t5, t2 to t1;
 flush no_write_to_binlog tables;
 # Check that it's not in the binlog.
 --replace_result $SERVER_VERSION SERVER_VERSION
+--replace_column 2 # 5 #
 show binlog events;
 # Check that the master is not confused.
 select * from t3;
@@ -25,6 +26,7 @@ select * from t3;
 flush tables;
 # Check that it's in the binlog.
 --replace_result $SERVER_VERSION SERVER_VERSION
+--replace_column 2 # 5 #
 show binlog events;
 save_master_pos;
 connection slave;
