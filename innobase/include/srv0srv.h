@@ -17,6 +17,8 @@ Created 10/10/1995 Heikki Tuuri
 #include "que0types.h"
 #include "trx0types.h"
 
+/* Buffer which can be used in printing fatal error messages */
+extern char	srv_fatal_errbuf[];
 
 /* When this event is set the lock timeout and InnoDB monitor
 thread starts running */
@@ -261,15 +263,27 @@ This lets a thread enter InnoDB regardless of the number of threads inside
 InnoDB. This must be called when a thread ends a lock wait. */
 
 void
-srv_conc_force_enter_innodb(void);
-/*=============================*/
+srv_conc_force_enter_innodb(
+/*========================*/
+	trx_t*	trx);	/* in: transaction object associated with the
+			thread */
 /*************************************************************************
-This must be called when a thread exits InnoDB. This must also be called
-when a thread goes to wait for a lock. */
+This must be called when a thread exits InnoDB in a lock wait or at the
+end of an SQL statement. */
 
 void
-srv_conc_exit_innodb(void);
-/*======================*/
+srv_conc_force_exit_innodb(
+/*=======================*/
+	trx_t*	trx);	/* in: transaction object associated with the
+			thread */
+/*************************************************************************
+This must be called when a thread exits InnoDB. */
+
+void
+srv_conc_exit_innodb(
+/*=================*/
+	trx_t*	trx);	/* in: transaction object associated with the
+			thread */
 /*******************************************************************
 Puts a MySQL OS thread to wait for a lock to be released. */
 

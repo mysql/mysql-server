@@ -658,6 +658,7 @@ bool MYSQL_LOG::write(Query_log_event* event_info)
       VOID(pthread_mutex_unlock(&LOCK_log));
       return 0;
     }
+
     error=1;
 
     if (thd->last_insert_id_used)
@@ -694,6 +695,20 @@ bool MYSQL_LOG::write(Query_log_event* event_info)
       goto err;
     error=0;
     should_rotate = (file == &log_file && my_b_tell(file) >= max_binlog_size); 
+
+    /* Tell for transactional table handlers up to which position in the
+       binlog file we wrote. The table handler can store this info, and
+       after crash recovery print for the user the offset of the last
+       transactions which were recovered. Actually, we must also call
+       the table handler commit here, protected by the LOCK_log mutex,
+       because otherwise the transactions may end up in a different order
+       in the table handler log! */
+
+    if (file == &log_file) {
+      error = ha_report_binlog_offset_and_commit(thd, log_file_name,
+                                                      file->pos_in_file);
+    }
+
 err:
     if (error)
     {
@@ -718,7 +733,7 @@ err:
   'cache' needs to be reinitialized after this functions returns.
 */
 
-bool MYSQL_LOG::write(IO_CACHE *cache)
+bool MYSQL_LOG::write(THD *thd, IO_CACHE *cache)
 {
   VOID(pthread_mutex_lock(&LOCK_log));
   bool error=1;
@@ -754,6 +769,10 @@ bool MYSQL_LOG::write(IO_CACHE *cache)
       sql_print_error(ER(ER_ERROR_ON_READ), cache->file_name, errno);
       goto err;
     }
+    error = ha_report_binlog_offset_and_commit(thd, log_file_name,
+					       log_file.pos_in_file);
+    if (error)
+      goto err;
   }
   error=0;
 

@@ -10,11 +10,14 @@ Created 6/9/1994 Heikki Tuuri
 /* In the debug version each allocated field is surrounded with
 check fields whose sizes are given below */
 
+#ifdef UNIV_MEM_DEBUG
 #define MEM_FIELD_HEADER_SIZE   ut_calc_align(2 * sizeof(ulint),\
 						UNIV_MEM_ALIGNMENT)
 #define MEM_FIELD_TRAILER_SIZE  sizeof(ulint)
+#else
+#define MEM_FIELD_HEADER_SIZE   0
+#endif
 
-#define MEM_BLOCK_MAGIC_N	764741
 
 /* Space needed when allocating for a user a field of
 length N. The space is allocated only in multiples of
@@ -115,3 +118,12 @@ ibool
 mem_validate(void);
 /*===============*/
 			/* out: TRUE if ok */
+/****************************************************************
+Tries to find neigboring memory allocation blocks and dumps to stderr
+the neighborhood of a given pointer. */
+
+void
+mem_analyze_corruption(
+/*===================*/
+	byte*	ptr);	/* in: pointer to place of possible corruption */
+

@@ -82,7 +82,7 @@ public:
 	     time_t query_start=0);
   bool write(Query_log_event* event_info); // binary log write
   bool write(Load_log_event* event_info);
-  bool write(IO_CACHE *cache);
+  bool write(THD *thd, IO_CACHE *cache);
   int generate_new_name(char *new_name,const char *old_name);
   void make_log_name(char* buf, const char* log_ident);
   bool is_active(const char* log_file_name);

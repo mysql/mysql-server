@@ -50,6 +50,9 @@ Created 10/8/1995 Heikki Tuuri
 #include "dict0load.h"
 #include "srv0start.h"
 
+/* Buffer which can be used in printing fatal error messages */
+char	srv_fatal_errbuf[5000];
+
 /* The following counter is incremented whenever there is some user activity
 in the server */
 ulint	srv_activity_count	= 0;
@@ -132,6 +135,9 @@ lint	srv_conc_n_threads	= 0;	/* number of OS threads currently
 					thread increments this, but a thread
 					waiting for a lock decrements this
 					temporarily */
+ulint	srv_conc_n_waiting_threads = 0;	/* number of OS threads waiting in the
+					FIFO for a permission to enter InnoDB
+					*/
 
 typedef struct srv_conc_slot_struct	srv_conc_slot_t;
 struct srv_conc_slot_struct{
@@ -152,6 +158,11 @@ UT_LIST_BASE_NODE_T(srv_conc_slot_t)	srv_conc_queue;	/* queue of threads
 							waiting to get in */
 srv_conc_slot_t	srv_conc_slots[OS_THREAD_MAX_N];	/* array of wait
 							slots */
+
+/* Number of times a thread is allowed to enter InnoDB within the same
+SQL query after it has once got the ticket at srv_conc_enter_innodb */
+#define SRV_FREE_TICKETS_TO_ENTER	500
+
 /*-----------------------*/
 /* If the following is set TRUE then we do not run purge and insert buffer
 merge to completion before shutdown */
@@ -1627,6 +1638,8 @@ srv_general_init(void)
 	thr_local_init();
 }
 
+/*======================= InnoDB Server FIFO queue =======================*/
+
 /*************************************************************************
 Puts an OS thread to wait if there are too many concurrent threads
 (>= srv_thread_concurrency) inside InnoDB. The threads wait in a FIFO queue. */
@@ -1640,11 +1653,29 @@ srv_conc_enter_innodb(
 	srv_conc_slot_t*	slot;
 	ulint			i;
 
+	if (srv_thread_concurrency >= 500) {
+		/* Disable the concurrency check */
+	
+		return;
+	}
+
+	/* If trx has 'free tickets' to enter the engine left, then use one
+	such ticket */
+
+	if (trx->n_tickets_to_enter_innodb > 0) {
+		trx->n_tickets_to_enter_innodb--;
+
+		return;
+	}
+
 	os_fast_mutex_lock(&srv_conc_mutex);
 
 	if (srv_conc_n_threads < (lint)srv_thread_concurrency) {
-		srv_conc_n_threads++;
 
+		srv_conc_n_threads++;
+		trx->declared_to_be_inside_innodb = TRUE;
+		trx->n_tickets_to_enter_innodb = SRV_FREE_TICKETS_TO_ENTER;
+		
 		os_fast_mutex_unlock(&srv_conc_mutex);
 
 		return;
@@ -1665,6 +1696,8 @@ srv_conc_enter_innodb(
 		thread enter */
 
 		srv_conc_n_threads++;
+		trx->declared_to_be_inside_innodb = TRUE;
+		trx->n_tickets_to_enter_innodb = 0;
 
 		os_fast_mutex_unlock(&srv_conc_mutex);
 
@@ -1684,6 +1717,8 @@ srv_conc_enter_innodb(
 
 	os_event_reset(slot->event);
 
+	srv_conc_n_waiting_threads++;
+
 	os_fast_mutex_unlock(&srv_conc_mutex);
 
 	/* Go to wait for the event; when a thread leaves InnoDB it will
@@ -1693,12 +1728,17 @@ srv_conc_enter_innodb(
 
 	os_fast_mutex_lock(&srv_conc_mutex);
 
+	srv_conc_n_waiting_threads--;
+
 	/* NOTE that the thread which released this thread already
 	incremented the thread counter on behalf of this thread */
 
 	slot->reserved = FALSE;
 
 	UT_LIST_REMOVE(srv_conc_queue, srv_conc_queue, slot);
+
+	trx->declared_to_be_inside_innodb = TRUE;
+	trx->n_tickets_to_enter_innodb = SRV_FREE_TICKETS_TO_ENTER;
 
 	os_fast_mutex_unlock(&srv_conc_mutex);
 }
@@ -1708,29 +1748,52 @@ This lets a thread enter InnoDB regardless of the number of threads inside
 InnoDB. This must be called when a thread ends a lock wait. */
 
 void
-srv_conc_force_enter_innodb(void)
-/*=============================*/
+srv_conc_force_enter_innodb(
+/*========================*/
+	trx_t*	trx)	/* in: transaction object associated with the
+			thread */
 {
+	if (srv_thread_concurrency >= 500) {
+	
+		return;
+	}
+
 	os_fast_mutex_lock(&srv_conc_mutex);
 
 	srv_conc_n_threads++;
+	trx->declared_to_be_inside_innodb = TRUE;
+	trx->n_tickets_to_enter_innodb = 0;
 
 	os_fast_mutex_unlock(&srv_conc_mutex);
 }
 
 /*************************************************************************
-This must be called when a thread exits InnoDB. This must also be called
-when a thread goes to wait for a lock. */
+This must be called when a thread exits InnoDB in a lock wait or at the
+end of an SQL statement. */
 
 void
-srv_conc_exit_innodb(void)
-/*======================*/
+srv_conc_force_exit_innodb(
+/*=======================*/
+	trx_t*	trx)	/* in: transaction object associated with the
+			thread */
 {
 	srv_conc_slot_t*	slot	= NULL;
+
+	if (srv_thread_concurrency >= 500) {
+	
+		return;
+	}
+
+	if (trx->declared_to_be_inside_innodb == FALSE) {
+		
+		return;
+	}
 
 	os_fast_mutex_lock(&srv_conc_mutex);
 
 	srv_conc_n_threads--;
+	trx->declared_to_be_inside_innodb = FALSE;
+	trx->n_tickets_to_enter_innodb = 0;
 
 	if (srv_conc_n_threads < (lint)srv_thread_concurrency) {
 		/* Look for a slot where a thread is waiting and no other
@@ -1758,6 +1821,38 @@ srv_conc_exit_innodb(void)
 		os_event_set(slot->event);
 	}
 }
+
+/*************************************************************************
+This must be called when a thread exits InnoDB. */
+
+void
+srv_conc_exit_innodb(
+/*=================*/
+	trx_t*	trx)	/* in: transaction object associated with the
+			thread */
+{
+	srv_conc_slot_t*	slot	= NULL;
+
+	if (srv_thread_concurrency >= 500) {
+	
+		return;
+	}
+
+	if (trx->n_tickets_to_enter_innodb > 0) {
+		/* We will pretend the thread is still inside InnoDB though it
+		now leaves the InnoDB engine. In this way we save
+		a lot of semaphore operations. srv_conc_force_exit_innodb is
+		used to declare the thread definitely outside InnoDB. It
+		should be called when there is a lock wait or an SQL statement
+		ends. */
+
+		return;
+	}
+
+	srv_conc_force_exit_innodb(trx);
+}
+
+/*========================================================================*/
 
 /*************************************************************************
 Normalizes init parameter values to use units we use inside InnoDB. */
@@ -1905,7 +2000,7 @@ srv_suspend_mysql_thread(
 	other thread holding a lock which this thread waits for must be
 	allowed to enter, sooner or later */
 	
-	srv_conc_exit_innodb();
+	srv_conc_force_exit_innodb(thr_get_trx(thr));
 
 	/* Wait for the release */
 	
@@ -1913,7 +2008,7 @@ srv_suspend_mysql_thread(
 
 	/* Return back inside InnoDB */
 	
-	srv_conc_force_enter_innodb();
+	srv_conc_force_enter_innodb(thr_get_trx(thr));
 
 	mutex_enter(&kernel_mutex);
 
@@ -2052,8 +2147,9 @@ loop:
 		       "ROW OPERATIONS\n"
 		       "--------------\n");
 		printf(
-	"%ld queries inside InnoDB; main thread: %s\n",
-				srv_conc_n_threads, srv_main_thread_op_info);
+	"%ld queries inside InnoDB, %ld queries in queue; main thread: %s\n",
+			srv_conc_n_threads, srv_conc_n_waiting_threads,
+			srv_main_thread_op_info);
 		printf(
 	"Number of rows inserted %lu, updated %lu, deleted %lu, read %lu\n",
 			srv_n_rows_inserted, 
@@ -2314,6 +2410,12 @@ loop:
 						+ buf_pool->n_pages_written;
 		srv_main_thread_op_info = "sleeping";
 		os_thread_sleep(1000000);
+
+		/* ALTER TABLE in MySQL requires on Unix that the table handler
+		can drop tables lazily after there no longer are SELECT
+		queries to them. */
+
+/*		row_drop_tables_for_mysql_in_background(); */
 
 		if (srv_force_recovery >= SRV_FORCE_NO_BACKGROUND) {
 

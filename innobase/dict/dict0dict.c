@@ -196,6 +196,38 @@ dict_mutex_exit_for_mysql(void)
 }
 	
 /************************************************************************
+Increments the count of open MySQL handles to a table. */
+
+void
+dict_table_increment_handle_count(
+/*==============================*/
+	dict_table_t*	table)	/* in: table */
+{
+	mutex_enter(&(dict_sys->mutex));
+
+	table->n_mysql_handles_opened++;
+	
+	mutex_exit(&(dict_sys->mutex));
+}
+
+/************************************************************************
+Decrements the count of open MySQL handles to a table. */
+
+void
+dict_table_decrement_handle_count(
+/*==============================*/
+	dict_table_t*	table)	/* in: table */
+{
+	mutex_enter(&(dict_sys->mutex));
+
+	ut_a(table->n_mysql_handles_opened > 0);
+
+	table->n_mysql_handles_opened--;
+	
+	mutex_exit(&(dict_sys->mutex));
+}
+
+/************************************************************************
 Gets the nth column of a table. */
 
 dict_col_t*

@@ -18,7 +18,7 @@ typedef dyn_block_t			dyn_array_t;
 
 
 /* Initial 'payload' size in bytes in a dynamic array block */
-#define	DYN_ARRAY_DATA_SIZE	1024
+#define	DYN_ARRAY_DATA_SIZE	512
 
 /*************************************************************************
 Initializes a dynamic array. */
