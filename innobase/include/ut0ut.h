@@ -17,6 +17,16 @@ Created 1/20/1994 Heikki Tuuri
 
 typedef time_t	ib_time_t;
 
+/************************************************************
+Gets the high 32 bits in a ulint. That is makes a shift >> 32,
+but since there seem to be compiler bugs in both gcc and Visual C++,
+we do this by a special conversion. */
+
+ulint
+ut_get_high32(
+/*==========*/
+			/* out: a >> 32 */
+	ulint	a);	/* in: ulint */
 /**********************************************************
 Calculates the minimum of two ulints. */
 UNIV_INLINE
@@ -144,6 +154,15 @@ void
 ut_print_timestamp(
 /*===============*/
 	FILE*  file); /* in: file where to print */
+/**************************************************************
+Returns current year, month, day. */
+
+void
+ut_get_year_month_day(
+/*==================*/
+	ulint*	year,	/* out: current year */
+	ulint*	month,	/* out: month */
+	ulint*	day);	/* out: day */
 /*****************************************************************
 Runs an idle loop on CPU. The argument gives the desired delay
 in microseconds on 100 MHz Pentium + Visual C++. */

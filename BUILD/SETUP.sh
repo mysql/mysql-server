@@ -71,11 +71,4 @@ else
   make=make
 fi
 
-if gcc -v 2>&1 | grep 'version 3' > /dev/null 2>&1
-then
-  CXX="gcc -DUSE_MYSYS_NEW"
-  CXXLDFLAGS="-Wl,--defsym -Wl,__cxa_pure_virtual=0"
-else
-  CXX=gcc
-  CXXLDFLAGS=""
-fi
+CXX=gcc

@@ -26,6 +26,32 @@ extern 	ibool	log_debug_writes;
 #define	LOG_WAIT_ALL_GROUPS	93
 #define LOG_MAX_N_GROUPS	32
 
+/********************************************************************
+Sets the global variable log_fsp_current_free_limit. Also makes a checkpoint,
+so that we know that the limit has been written to a log checkpoint field
+on disk. */
+
+void
+log_fsp_current_free_limit_set_and_checkpoint(
+/*==========================================*/
+	ulint	limit);	/* in: limit to set */
+/***********************************************************************
+Calculates where in log files we find a specified lsn. */
+
+ulint
+log_calc_where_lsn_is(
+/*==================*/
+						/* out: log file number */
+	ib_longlong*	log_file_offset,	/* out: offset in that file
+						(including the header) */
+	dulint		first_header_lsn,	/* in: first log file start
+						lsn */
+	dulint		lsn,			/* in: lsn whose position to
+						determine */
+	ulint		n_log_files,		/* in: total number of log
+						files */
+	ib_longlong	log_file_size);		/* in: log file size
+						(including the header) */
 /****************************************************************
 Writes to the log the string given. The log must be released with
 log_release. */
@@ -225,6 +251,16 @@ Writes checkpoint info to groups. */
 void
 log_groups_write_checkpoint_info(void);
 /*==================================*/
+/**********************************************************
+Writes info to a buffer of a log group when log files are created in
+backup restoration. */
+
+void
+log_reset_first_header_and_checkpoint(
+/*==================================*/
+	byte*	hdr_buf,/* in: buffer which will be written to the start
+			of the first log file */
+	dulint	lsn);	/* in: lsn of the start of the first log file */
 /************************************************************************
 Starts an archiving operation. */
 
@@ -507,7 +543,16 @@ extern log_t*	log_sys;
 							+ LOG_MAX_N_GROUPS * 8)
 #define LOG_CHECKPOINT_CHECKSUM_1 	LOG_CHECKPOINT_ARRAY_END
 #define LOG_CHECKPOINT_CHECKSUM_2 	(4 + LOG_CHECKPOINT_ARRAY_END)
-#define LOG_CHECKPOINT_SIZE		(8 + LOG_CHECKPOINT_ARRAY_END)
+#define LOG_CHECKPOINT_FSP_FREE_LIMIT	(8 + LOG_CHECKPOINT_ARRAY_END)
+					/* current fsp free limit in the
+					tablespace, in units of one megabyte */
+#define LOG_CHECKPOINT_FSP_MAGIC_N	(12 + LOG_CHECKPOINT_ARRAY_END)
+					/* this magic number tells if the
+					checkpoint contains the above field:
+					the field was added to InnoDB-3.23.50 */
+#define LOG_CHECKPOINT_SIZE		(16 + LOG_CHECKPOINT_ARRAY_END)
+
+#define LOG_CHECKPOINT_FSP_MAGIC_N_VAL	1441231243
 
 /* Offsets of a log file header */
 #define LOG_GROUP_ID		0	/* log group number */

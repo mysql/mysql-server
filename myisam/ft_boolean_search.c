@@ -412,7 +412,6 @@ float ft_boolean_find_relevance(FT_INFO *ftb, byte *record, uint length)
   FTB_EXPR *ftbe;
   FT_SEG_ITERATOR ftsi;
   const byte *end;
-  uint      i;
   my_off_t  docid=ftb->info->lastpos;
 
   if (docid == HA_POS_ERROR)
@@ -420,7 +419,7 @@ float ft_boolean_find_relevance(FT_INFO *ftb, byte *record, uint length)
   if (!ftb->queue.elements)
     return 0;
 
-#if 0
+#if NOT_USED
   if (ftb->state == READY || ftb->state == INDEX_DONE)
     ftb->state=SCAN;
   else if (ftb->state != SCAN)

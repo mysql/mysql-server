@@ -16,6 +16,39 @@ Created 9/20/1997 Heikki Tuuri
 #include "log0log.h"
 
 /***********************************************************************
+Reads the checkpoint info needed in hot backup. */
+
+ibool
+recv_read_cp_info_for_backup(
+/*=========================*/
+			/* out: TRUE if success */
+	byte*	hdr,	/* in: buffer containing the log group header */
+	dulint*	lsn,	/* out: checkpoint lsn */
+	ulint*	offset,	/* out: checkpoint offset in the log group */
+	ulint*	fsp_limit,/* out: fsp limit, 1000000000 if the database
+			is running with < version 3.23.50 of InnoDB */
+	dulint*	cp_no,	/* out: checkpoint number */
+	dulint*	first_header_lsn);
+			/* out: lsn of of the start of the first log file */
+/***********************************************************************
+Scans the log segment and n_bytes_scanned is set to the length of valid
+log scanned. */
+
+void
+recv_scan_log_seg_for_backup(
+/*=========================*/
+	byte*		buf,		/* in: buffer containing log data */
+	ulint		buf_len,	/* in: data length in that buffer */
+	dulint*		scanned_lsn,	/* in/out: lsn of buffer start,
+					we return scanned lsn */
+	ulint*		scanned_checkpoint_no,
+					/* in/out: 4 lowest bytes of the
+					highest scanned checkpoint number so
+					far */
+	ulint*		n_bytes_scanned);/* out: how much we were able to
+					scan, smaller than buf_len if log
+					data ended here */
+/***********************************************************************
 Returns TRUE if recovery is currently running. */
 UNIV_INLINE
 ibool
@@ -35,6 +68,10 @@ read in, or also for a page already in the buffer pool. */
 void
 recv_recover_page(
 /*==============*/
+	ibool	recover_backup,	/* in: TRUE if we are recovering a backup
+				page: then we do not acquire any latches
+				since the page was read in outside the
+				buffer pool */
 	ibool	just_read_in,	/* in: TRUE if the i/o-handler calls this for
 				a freshly read page */
 	page_t*	page,		/* in: buffer page */
@@ -69,8 +106,15 @@ recv_scan_log_recs(
 /*===============*/
 				/* out: TRUE if limit_lsn has been reached, or
 				not able to scan any more in this log group */
+	ibool	apply_automatically,/* in: TRUE if we want this function to
+				apply log records automatically when the
+				hash table becomes full; in the hot backup tool
+				the tool does the applying, not this
+				function */
+	ulint	available_memory,/* in: we let the hash table of recs to grow
+				to this size, at the maximum */
 	ibool	store_to_hash,	/* in: TRUE if the records should be stored
-				to the hash table; this is set FALSE if just
+				to the hash table; this is set to FALSE if just
 				debug checking is needed */
 	byte*	buf,		/* in: buffer containing a log segment or
 				garbage */
@@ -92,6 +136,16 @@ recv_reset_logs(
 	ibool	new_logs_created);/* in: TRUE if resetting logs is done
 				at the log creation; FALSE if it is done
 				after archive recovery */
+/**********************************************************
+Creates new log files after a backup has been restored. */
+
+void
+recv_reset_log_files_for_backup(
+/*============================*/
+	char*	log_dir,	/* in: log file directory path */
+	ulint	n_log_files,	/* in: number of log files */
+	ulint	log_file_size,	/* in: log file size */
+	dulint	lsn);		/* in: new start lsn */
 /************************************************************
 Creates the recovery system. */
 
@@ -102,8 +156,11 @@ recv_sys_create(void);
 Inits the recovery system for a recovery operation. */
 
 void
-recv_sys_init(void);
-/*===============*/
+recv_sys_init(
+/*==========*/
+	ibool	recover_from_backup,	/* in: TRUE if this is called
+					to recover from a hot backup */
+	ulint	available_memory);	/* in: available memory in bytes */
 /***********************************************************************
 Empties the hash table of stored log records, applying them to appropriate
 pages. */
@@ -118,6 +175,17 @@ recv_apply_hashed_log_recs(
 				disk and invalidated in buffer pool: this
 				alternative means that no new log records
 				can be generated during the application */
+/***********************************************************************
+Applies log records in the hash table to a backup. */
+
+void
+recv_apply_log_recs_for_backup(
+/*===========================*/
+	ulint	n_data_files,	/* in: number of data files */
+	char**	data_files,	/* in: array containing the paths to the
+				data files */
+	ulint*	file_sizes);	/* in: sizes of the data files in database
+				pages */
 /************************************************************
 Recovers from archived log files, and also from log files, if they exist. */
 
@@ -259,6 +327,14 @@ extern recv_sys_t*	recv_sys;
 extern ibool		recv_recovery_on;
 extern ibool		recv_no_ibuf_operations;
 extern ibool		recv_needed_recovery;
+
+/* Size of the parsing buffer; it must accommodate RECV_SCAN_SIZE many
+times! */ 
+#define RECV_PARSING_BUF_SIZE	(2 * 1024 * 1024)
+
+/* Size of block reads when the log groups are scanned forward to do a
+roll-forward */
+#define RECV_SCAN_SIZE		(4 * UNIV_PAGE_SIZE)
 
 /* States of recv_addr_struct */
 #define RECV_NOT_PROCESSED	71

@@ -701,7 +701,7 @@ static const char *default_options[]=
   "character-set-dir", "default-character-set", "interactive-timeout",
   "connect-timeout", "local-infile", "disable-local-infile",
   "replication-probe", "enable-reads-from-master", "repl-parse-query",
-  "ssl-chiper",
+  "ssl-cipher",
  NullS
 };
 

@@ -35,7 +35,7 @@ ut_rnd_gen_next_ulint(
 /*************************************************************
 The following function generates 'random' ulint integers which
 enumerate the value space (let there be N of them) of ulint integers
-in a pseudo random fashion. Note that the same integer is repeated
+in a pseudo-random fashion. Note that the same integer is repeated
 always after N calls to the generator. */
 UNIV_INLINE
 ulint

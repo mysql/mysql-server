@@ -105,12 +105,22 @@ dict_table_autoinc_initialize(
 	dict_table_t*	table,	/* in: table */
 	ib_longlong	value);	/* in: value which was assigned to a row */
 /************************************************************************
-Gets the next autoinc value, 0 if not yet initialized. */
+Gets the next autoinc value, 0 if not yet initialized. If initialized,
+increments the counter by 1. */
 
 ib_longlong
 dict_table_autoinc_get(
 /*===================*/
 				/* out: value for a new row, or 0 */
+	dict_table_t*	table);	/* in: table */
+/************************************************************************
+Reads the autoinc counter value, 0 if not yet initialized. Does not
+increment the counter. */
+
+ib_longlong
+dict_table_autoinc_read(
+/*====================*/
+				/* out: value of the counter */
 	dict_table_t*	table);	/* in: table */
 /************************************************************************
 Updates the autoinc counter if the value supplied is bigger than the
@@ -143,7 +153,10 @@ dict_table_rename_in_cache(
 /*=======================*/
 					/* out: TRUE if success */
 	dict_table_t*	table,		/* in: table */
-	char*		new_name);	/* in: new name */
+	char*		new_name,	/* in: new name */
+	ibool		rename_also_foreigns);/* in: in ALTER TABLE we want
+					to preserve the original table name
+					in constraints which reference it */
 /**************************************************************************
 Adds a foreign key constraint object to the dictionary cache. May free
 the object if there already is an object with the same identifier in.
@@ -284,6 +297,10 @@ Sprintfs to a string info on foreign keys of a table. */
 void
 dict_print_info_on_foreign_keys(
 /*============================*/
+	ibool		create_table_format, /* in: if TRUE then print in
+				a format suitable to be inserted into
+				a CREATE TABLE, otherwise in the format
+				of SHOW TABLE STATUS */
 	char*		str,	/* in/out: pointer to a string */
 	ulint		len,	/* in: space in str available for info */
 	dict_table_t*	table);	/* in: table */

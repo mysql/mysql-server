@@ -92,7 +92,7 @@ if ($opt_stage == 0)
   {
     system("mkdir $host") if (! -d $host);
     system("touch $host/mysql-fix-for-glob");
-    rm_all(<$host/mysql-*>);
+    rm_all(<$host/mysql*>);
     system("mkdir $host/bin") if (! -d "$host/bin");
   }
   rm_all("$host/test");
