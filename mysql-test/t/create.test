@@ -318,11 +318,17 @@ select
     addtime(cast('1:0:0' as time),cast('1:0:0' as time))  as dd
 from t1;
 explain t2;
-			
 select * from t2;
-
 drop table t1, t2;
 
+create table t1 (a tinyint, b smallint, c mediumint, d int, e bigint, f float(3,2), g double(4,3), h decimal(5,4), i year, j date, k timestamp, l datetime, m enum('a','b'), n set('a','b'), o char(10));
+create table t2 select ifnull(a,a), ifnull(b,b), ifnull(c,c), ifnull(d,d), ifnull(e,e), ifnull(f,f), ifnull(g,g), ifnull(h,h), ifnull(i,i), ifnull(j,j), ifnull(k,k), ifnull(l,l), ifnull(m,m), ifnull(n,n), ifnull(o,o) from t1;
+show create table t2;
+drop table t1,t2;
+
+#
+# Test of default()
+#
 create table t1(str varchar(10) default 'def',strnull varchar(10),intg int default '10',rel double default '3.14');
 insert into t1 values ('','',0,0.0);
 describe t1;
