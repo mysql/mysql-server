@@ -308,7 +308,7 @@ inline double ulonglong2double(ulonglong value)
 #define HAVE_QUERY_CACHE
 #define SPRINTF_RETURNS_INT
 #define HAVE_SETFILEPOINTER
-#define HAVE_VIO
+#define HAVE_VIO_READ_BUFF
 
 #ifdef NOT_USED
 #define HAVE_SNPRINTF		/* Gave link error */

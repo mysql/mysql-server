@@ -3745,7 +3745,7 @@ extern "C" pthread_handler_decl(handle_connections_sockets,
     if (!(vio_tmp=vio_new(new_sock,
 			  sock == unix_sock ? VIO_TYPE_SOCKET :
 			  VIO_TYPE_TCPIP,
-			  sock == unix_sock)) ||
+			  sock == unix_sock ? VIO_LOCALHOST: 0)) ||
 	my_net_init(&thd->net,vio_tmp))
     {
       if (vio_tmp)
@@ -5418,7 +5418,7 @@ The minimum value for this variable is 4096.",
    "it failed with a deadlock or elapsed lock wait timeout, "
    "before giving up and stopping.",
    (gptr*) &slave_trans_retries, (gptr*) &slave_trans_retries, 0,
-   GET_ULONG, REQUIRED_ARG, 0L, 0L, (longlong) ULONG_MAX, 0, 1, 0},
+   GET_ULONG, REQUIRED_ARG, 10L, 0L, (longlong) ULONG_MAX, 0, 1, 0},
 #endif /* HAVE_REPLICATION */
   {"slow_launch_time", OPT_SLOW_LAUNCH_TIME,
    "If creating the thread takes longer than this value (in seconds), the Slow_launch_threads counter will be incremented.",

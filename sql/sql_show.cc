@@ -2468,32 +2468,41 @@ int fill_schema_coll_charset_app(THD *thd, TABLE_LIST *tables, COND *cond)
 }
 
 
-void store_schema_proc(THD *thd, TABLE *table,
-		       TABLE *proc_table,
-		       const char *wild)
+void store_schema_proc(THD *thd, TABLE *table, TABLE *proc_table,
+                       const char *wild, bool full_access, const char *sp_user)
 {
   String tmp_string;
   TIME time;
   LEX *lex= thd->lex;
   CHARSET_INFO *cs= system_charset_info;
-  restore_record(table, s->default_values);
+  const char *sp_db, *sp_name, *definer;
+  sp_db= get_field(thd->mem_root, proc_table->field[0]);
+  sp_name= get_field(thd->mem_root, proc_table->field[1]);
+  definer= get_field(thd->mem_root, proc_table->field[11]);
+  if (!full_access)
+    full_access= !strcmp(sp_user, definer);
+  if (!full_access)
+  {
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+    if (check_some_routine_access(thd, (char * )sp_db, (char * )sp_name))
+      return;
+#endif
+  }
+
   if (lex->orig_sql_command == SQLCOM_SHOW_STATUS_PROC &&
       proc_table->field[2]->val_int() == TYPE_ENUM_PROCEDURE ||
       lex->orig_sql_command == SQLCOM_SHOW_STATUS_FUNC &&
       proc_table->field[2]->val_int() == TYPE_ENUM_FUNCTION ||
       lex->orig_sql_command == SQLCOM_END)
   {
-    tmp_string.length(0);
-    get_field(thd->mem_root, proc_table->field[1], &tmp_string);
-    if (!wild || !wild[0] || !wild_compare(tmp_string.ptr(), wild, 0))
+    restore_record(table, s->default_values);
+    if (!wild || !wild[0] || !wild_compare(sp_name, wild, 0))
     {
-      table->field[3]->store(tmp_string.ptr(), tmp_string.length(), cs);
+      table->field[3]->store(sp_name, strlen(sp_name), cs);
       tmp_string.length(0);
       get_field(thd->mem_root, proc_table->field[3], &tmp_string);
       table->field[0]->store(tmp_string.ptr(), tmp_string.length(), cs);
-      tmp_string.length(0);
-      get_field(thd->mem_root, proc_table->field[0], &tmp_string);
-      table->field[2]->store(tmp_string.ptr(), tmp_string.length(), cs);
+      table->field[2]->store(sp_db, strlen(sp_db), cs);
       tmp_string.length(0);
       get_field(thd->mem_root, proc_table->field[2], &tmp_string);
       table->field[4]->store(tmp_string.ptr(), tmp_string.length(), cs);
@@ -2504,10 +2513,13 @@ void store_schema_proc(THD *thd, TABLE *table,
         table->field[5]->store(tmp_string.ptr(), tmp_string.length(), cs);
         table->field[5]->set_notnull();
       }
+      if (full_access)
+      {
+        tmp_string.length(0);
+        get_field(thd->mem_root, proc_table->field[10], &tmp_string);
+        table->field[7]->store(tmp_string.ptr(), tmp_string.length(), cs);
+      }
       table->field[6]->store("SQL", 3, cs);
-      tmp_string.length(0);
-      get_field(thd->mem_root, proc_table->field[10], &tmp_string);
-      table->field[7]->store(tmp_string.ptr(), tmp_string.length(), cs);
       table->field[10]->store("SQL", 3, cs);
       tmp_string.length(0);
       get_field(thd->mem_root, proc_table->field[6], &tmp_string);
@@ -2531,9 +2543,7 @@ void store_schema_proc(THD *thd, TABLE *table,
       tmp_string.length(0);
       get_field(thd->mem_root, proc_table->field[15], &tmp_string);
       table->field[18]->store(tmp_string.ptr(), tmp_string.length(), cs);
-      tmp_string.length(0);
-      get_field(thd->mem_root, proc_table->field[11], &tmp_string);
-      table->field[19]->store(tmp_string.ptr(), tmp_string.length(), cs);
+      table->field[19]->store(definer, strlen(definer), cs);
       table->file->write_row(table->record[0]);
     }
   }
@@ -2547,14 +2557,18 @@ int fill_schema_proc(THD *thd, TABLE_LIST *tables, COND *cond)
   const char *wild= thd->lex->wild ? thd->lex->wild->ptr() : NullS;
   int res= 0;
   TABLE *table= tables->table, *old_open_tables= thd->open_tables;
+  bool full_access;
+  char definer[HOSTNAME_LENGTH+USERNAME_LENGTH+2];
   DBUG_ENTER("fill_schema_proc");
 
+  strxmov(definer, thd->priv_user, "@", thd->priv_host, NullS);
   bzero((char*) &proc_tables,sizeof(proc_tables));
   proc_tables.db= (char*) "mysql";
   proc_tables.db_length= 5;
   proc_tables.table_name= proc_tables.alias= (char*) "proc";
   proc_tables.table_name_length= 4;
   proc_tables.lock_type= TL_READ;
+  full_access= !check_table_access(thd, SELECT_ACL, &proc_tables, 1);
   if (!(proc_table= open_ltable(thd, &proc_tables, TL_READ)))
   {
     DBUG_RETURN(1);
@@ -2565,9 +2579,9 @@ int fill_schema_proc(THD *thd, TABLE_LIST *tables, COND *cond)
     res= (res == HA_ERR_END_OF_FILE) ? 0 : 1;
     goto err;
   }
-  store_schema_proc(thd, table, proc_table, wild);
+  store_schema_proc(thd, table, proc_table, wild, full_access, definer);
   while (!proc_table->file->index_next(proc_table->record[0]))
-    store_schema_proc(thd, table, proc_table, wild);
+    store_schema_proc(thd, table, proc_table, wild, full_access, definer);
 
 err:
   proc_table->file->ha_index_end();
