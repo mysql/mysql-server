@@ -318,3 +318,5 @@ t1	ALL	NULL	NULL	NULL	NULL	2
 t2	index	id	id	8	NULL	1	where used; Using index; Not exists
 id	name	id	idx
 2	no	NULL	NULL
+bug_id	reporter	bug_id	who
+1	1	1	2
