@@ -3302,8 +3302,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   List<Item>   all_fields;
   ha_rows examined_rows;
   bool auto_increment_field_copied= 0;
-  ulong old_sql_mode;
-  bool no_auto_on_zero;
+  ulong save_sql_mode;
   DBUG_ENTER("copy_data_between_tables");
 
   if (!(copy= new Copy_field[to->fields]))
@@ -3314,6 +3313,8 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   from->file->info(HA_STATUS_VARIABLE);
   to->file->start_bulk_insert(from->file->records);
 
+  save_sql_mode= thd->variables.sql_mode;
+
   List_iterator<create_field> it(create);
   create_field *def;
   copy_end=copy;
@@ -3323,7 +3324,17 @@ copy_data_between_tables(TABLE *from,TABLE *to,
     if (def->field)
     {
       if (*ptr == to->next_number_field)
+      {
         auto_increment_field_copied= TRUE;
+        /*
+          If we are going to copy contents of one auto_increment column to
+          another auto_increment column it is sensible to preserve zeroes.
+          This condition also covers case when we are don't actually alter
+          auto_increment column.
+        */
+        if (def->field == from->found_next_number_field)
+          thd->variables.sql_mode|= MODE_NO_AUTO_VALUE_ON_ZERO;
+      }
       (copy_end++)->set(*ptr,def->field,0);
     }
 
@@ -3362,11 +3373,6 @@ copy_data_between_tables(TABLE *from,TABLE *to,
     error= 1;
     goto err;
   }
-
-  /* Turn on NO_AUTO_VALUE_ON_ZERO if not already on */
-  old_sql_mode= thd->variables.sql_mode;
-  if (!(no_auto_on_zero= thd->variables.sql_mode & MODE_NO_AUTO_VALUE_ON_ZERO))
-    thd->variables.sql_mode|= MODE_NO_AUTO_VALUE_ON_ZERO;
 
   /* Handler must be told explicitly to retrieve all columns, because
      this function does not set field->query_id in the columns to the
@@ -3425,10 +3431,6 @@ copy_data_between_tables(TABLE *from,TABLE *to,
 
   ha_enable_transaction(thd,TRUE);
 
-  /* Turn off NO_AUTO_VALUE_ON_ZERO if it was not already off */
-  if (!no_auto_on_zero)
-    thd->variables.sql_mode= old_sql_mode;
-
   /*
     Ensure that the new table is saved properly to disk so that we
     can do a rename
@@ -3439,6 +3441,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
     error=1;
 
  err:
+  thd->variables.sql_mode= save_sql_mode;
   free_io_cache(from);
   *copied= found_count;
   *deleted=delete_count;
