@@ -62,7 +62,8 @@ int heap_update(HP_INFO *info, const byte *old, const byte *heap_new)
       /* we don't need to delete non-inserted key from rb-tree */
       if ((*keydef->write_key)(info, keydef, old, pos))
       {
-        if (++(share->records) == share->blength) share->blength+= share->blength;
+        if (++(share->records) == share->blength)
+	  share->blength+= share->blength;
         DBUG_RETURN(my_errno);
       }
       keydef--;
@@ -78,6 +79,7 @@ int heap_update(HP_INFO *info, const byte *old, const byte *heap_new)
       keydef--;
     }
   }
-  if (++(share->records) == share->blength) share->blength+= share->blength;
+  if (++(share->records) == share->blength)
+    share->blength+= share->blength;
   DBUG_RETURN(my_errno);
 } /* heap_update */

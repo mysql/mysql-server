@@ -19,7 +19,7 @@ TZ=GMT-3; export TZ # for UNIX_TIMESTAMP tests to work
 # Program Definitions
 #--
 
-PATH=/bin:/usr/bin:/usr/local/bin:/usr/bsd:/usr/X11R6/bin:/usr/openwin/bin:/usr/bin/X11
+PATH=/bin:/usr/bin:/usr/local/bin:/usr/bsd:/usr/X11R6/bin:/usr/openwin/bin:/usr/bin/X11:$PATH
 MASTER_40_ARGS="--rpl-recovery-rank=1 --init-rpl-role=master"
 
 # Standard functions
@@ -319,8 +319,8 @@ while test $# -gt 0; do
       VALGRIND="valgrind --alignment=8 --leak-check=yes"
       EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT --skip-safemalloc"
       EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT --skip-safemalloc"
-      SLEEP_TIME_AFTER_RESTART=120
-      SLEEP_TIME_FOR_DELETE=120
+      SLEEP_TIME_AFTER_RESTART=60
+      SLEEP_TIME_FOR_DELETE=60
       ;;
     --valgrind-options=*)
       TMP=`$ECHO "$1" | $SED -e "s;--valgrind-options=;;"`
