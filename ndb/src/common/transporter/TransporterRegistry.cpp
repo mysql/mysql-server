@@ -38,6 +38,7 @@
 
 #ifdef NDB_SHM_TRANSPORTER
 #include "SHM_Transporter.hpp"
+extern int g_ndb_shm_signum;
 #endif
 
 #include "TransporterCallback.hpp"
@@ -148,22 +149,13 @@ TransporterRegistry::disconnectAll(){
 
 bool
 TransporterRegistry::init(NodeId nodeId) {
+  DBUG_ENTER("TransporterRegistry::init");
   nodeIdSpecified = true;
   localNodeId = nodeId;
   
   DEBUG("TransporterRegistry started node: " << localNodeId);
   
-#ifdef NDB_SHM_TRANSPORTER
-  /**
-   * Make sure to block SIGUSR1
-   *   TransporterRegistry::init is run from "main" thread
-   */
-  sigset_t mask;
-  sigemptyset(&mask);
-  sigaddset(&mask, SIGUSR1);
-  pthread_sigmask(SIG_BLOCK, &mask, 0);
-#endif
-return true;
+  DBUG_RETURN(true);
 }
 
 bool
@@ -402,12 +394,29 @@ TransporterRegistry::createTransporter(SCI_TransporterConfiguration *config) {
 
 bool
 TransporterRegistry::createTransporter(SHM_TransporterConfiguration *config) {
+  DBUG_ENTER("TransporterRegistry::createTransporter SHM");
 #ifdef NDB_SHM_TRANSPORTER
   if(!nodeIdSpecified){
     init(config->localNodeId);
   }
   
   if(config->localNodeId != localNodeId)
+    return false;
+  
+  if (!g_ndb_shm_signum) {
+    g_ndb_shm_signum= config->signum;
+    DBUG_PRINT("info",("Block signum %d",g_ndb_shm_signum));
+    /**
+     * Make sure to block g_ndb_shm_signum
+     *   TransporterRegistry::init is run from "main" thread
+     */
+    sigset_t mask;
+    sigemptyset(&mask);
+    sigaddset(&mask, g_ndb_shm_signum);
+    pthread_sigmask(SIG_BLOCK, &mask, 0);
+  }
+
+  if(config->signum != g_ndb_shm_signum)
     return false;
   
   if(theTransporters[config->remoteNodeId] != NULL)
@@ -439,9 +448,9 @@ TransporterRegistry::createTransporter(SHM_TransporterConfiguration *config) {
   nTransporters++;
   nSHMTransporters++;
 
-  return true;
+  DBUG_RETURN(true);
 #else
-  return false;
+  DBUG_RETURN(false);
 #endif
 }
 
@@ -1311,6 +1320,7 @@ shm_sig_handler(int signo)
 void
 TransporterRegistry::startReceiving()
 {
+  DBUG_ENTER("TransporterRegistry::startReceiving");
 #ifdef NDB_OSE_TRANSPORTER
   if(theOSEReceiver != NULL){
     theOSEReceiver->createPhantom();
@@ -1329,26 +1339,34 @@ TransporterRegistry::startReceiving()
 
 #ifdef NDB_SHM_TRANSPORTER
   m_shm_own_pid = getpid();
-  struct sigaction sa;
-  sigemptyset(&sa.sa_mask);
-  sigaddset(&sa.sa_mask, SIGUSR1);
-  pthread_sigmask(SIG_UNBLOCK, &sa.sa_mask, 0);
-  sa.sa_handler = shm_sig_handler;
-  sigemptyset(&sa.sa_mask);
-  sa.sa_flags = 0;
-  int ret;
-  while((ret = sigaction(SIGUSR1, &sa, 0)) == -1 && errno == EINTR);
-  if(ret != 0)
+  if (g_ndb_shm_signum)
   {
-    g_eventLogger.error("Failed to install signal handler for SHM transporter"
-			" errno: %d (%s)", errno, 
+    DBUG_PRINT("info",("Install signal handler for signum %d",
+		       g_ndb_shm_signum));
+    struct sigaction sa;
+    sigemptyset(&sa.sa_mask);
+    sigaddset(&sa.sa_mask, g_ndb_shm_signum);
+    pthread_sigmask(SIG_UNBLOCK, &sa.sa_mask, 0);
+    sa.sa_handler = shm_sig_handler;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = 0;
+    int ret;
+    while((ret = sigaction(g_ndb_shm_signum, &sa, 0)) == -1 && errno == EINTR);
+    if(ret != 0)
+    {
+      DBUG_PRINT("error",("Install failed"));
+      g_eventLogger.error("Failed to install signal handler for"
+			  " SHM transporter errno: %d (%s)", errno, 
 #ifdef HAVE_STRERROR
-			strerror(errno));
+			  strerror(errno)
 #else
-                        "");
+                          ""
 #endif
+			  );
+    }
   }
-#endif
+#endif // NDB_SHM_TRANSPORTER
+  DBUG_VOID_RETURN;
 }
 
 void

@@ -77,6 +77,7 @@ struct SHM_TransporterConfiguration {
   
   Uint32 shmKey;
   Uint32 shmSize;
+  int    signum;
 };
 
 /**
