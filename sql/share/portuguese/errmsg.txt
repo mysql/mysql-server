@@ -254,7 +254,7 @@ character-set=latin1
 "Referência '%-.64s' não suportada (%s)",
 "Cada tabela derivada deve ter seu próprio alias",
 "Select %u foi reduzido durante otimização",
-"Tabela '%-.64s' de um dos SELECT's não pode ser usada em %-.32s",
+"Tabela '%-.64s' de um dos SELECTs não pode ser usada em %-.32s",
 "Cliente não suporta o protocolo de autenticação exigido pelo servidor; considere a atualização do cliente MySQL",
 "Todas as partes de uma SPATIAL KEY devem ser NOT NULL",
 "COLLATION '%s' não é válida para CHARACTER SET '%s'",

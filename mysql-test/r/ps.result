@@ -23,7 +23,7 @@ a	b
 deallocate prepare no_such_statement;
 ERROR HY000: Unknown prepared statement handler (no_such_statement) given to DEALLOCATE PREPARE
 execute stmt1;
-ERROR HY000: Wrong arguments to EXECUTE
+ERROR HY000: Incorrect arguments to EXECUTE
 prepare stmt2 from 'prepare nested_stmt from "select 1"';
 ERROR 42000: You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use near '"select 1"' at line 1
 prepare stmt2 from 'execute stmt1';
