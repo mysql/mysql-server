@@ -660,33 +660,6 @@ SimulatedBlock::allocRecord(const char * type, size_t s, size_t n)
       snprintf(buf2, sizeof(buf2), "Requested: %ux%u = %u bytes", (Uint32)s, (Uint32)n, (Uint32)size);
       ERROR_SET(fatal, ERR_MEMALLOC, buf1, buf2);
     }
-#ifdef NDB_DEBUG_FULL
-    // Set the allocated memory to zero 
-#ifndef NDB_PURIFY
-#if defined NDB_OSE
-    int pages = (size / 4096);    
-    if ((size % 4096)!=0)
-      pages++;
-    
-    char* p2 =(char*) p;
-    for (int i = 0; i < pages; i++){
-      memset(p2, 0, 4096);
-      p2 = p2 + 4096;
-    }
-#elif 1
-    /**
-     * This code should be enabled in order to find logical errors and not 
-     * initalised errors in the kernel.
-     *
-     * NOTE! It's not just "uninitialised errors"  that are found by doing this
-     * it will also find logical errors that have been hidden by all the zeros.
-     */
-    
-    memset(p, 0xF1, size);
-#endif
-#endif
-#endif
-  }
   return p;
 }
 

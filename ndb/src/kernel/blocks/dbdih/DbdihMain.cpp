@@ -1982,9 +1982,11 @@ void Dbdih::execSTART_INFOREQ(Signal* signal)
       (ERROR_INSERTED(7124))) {
     jam();
     StartInfoRef *const ref =(StartInfoRef*)&signal->theData[0];
+    ref->startingNodeId = startNode;
     ref->sendingNodeId = cownNodeId;
     ref->errorCode = ZNODE_START_DISALLOWED_ERROR;
-    sendSignal(cmasterdihref, GSN_START_INFOREF, signal, 2, JBB);
+    sendSignal(cmasterdihref, GSN_START_INFOREF, signal, 
+	       StartInfoRef::SignalLength, JBB);
     return;
   }//if
   setNodeStatus(startNode, NodeRecord::STARTING);
@@ -2054,7 +2056,7 @@ void Dbdih::execINCL_NODEREQ(Signal* signal)
   Sysfile::ActiveStatus TsaveState = nodePtr.p->activeStatus;
   Uint32 TnodeGroup = nodePtr.p->nodeGroup;
 
-  initNodeState(nodePtr);
+  new (nodePtr.p) NodeRecord();
   nodePtr.p->nodeGroup = TnodeGroup;
   nodePtr.p->activeStatus = TsaveState;
   nodePtr.p->nodeStatus = NodeRecord::ALIVE;
@@ -10906,27 +10908,6 @@ void Dbdih::initFragstore(FragmentstorePtr fragPtr)
   fragPtr.p->distributionKey = 0;
 }//Dbdih::initFragstore()
 
-void Dbdih::initNodeState(NodeRecordPtr nodePtr)
-{
-  nodePtr.p->gcpstate = NodeRecord::READY;
-
-  nodePtr.p->activeStatus = Sysfile::NS_NotDefined;
-  nodePtr.p->recNODE_FAILREP = ZFALSE;
-  nodePtr.p->nodeGroup = ZNIL;
-  nodePtr.p->dbtcFailCompleted = ZTRUE;
-  nodePtr.p->dbdictFailCompleted = ZTRUE;
-  nodePtr.p->dbdihFailCompleted = ZTRUE;
-  nodePtr.p->dblqhFailCompleted = ZTRUE;
-  nodePtr.p->noOfStartedChkpt = 0;
-  nodePtr.p->noOfQueuedChkpt = 0;
-  nodePtr.p->lcpStateAtTakeOver = (MasterLCPConf::State)255;
-
-  nodePtr.p->activeTabptr = RNIL;
-  nodePtr.p->nodeStatus = NodeRecord::NOT_IN_CLUSTER;
-  nodePtr.p->useInTransactions = false;
-  nodePtr.p->copyCompleted = false;
-}//Dbdih::initNodeState()
-
 /*************************************************************************/
 /*                                                                       */
 /*       MODULE: INIT_RESTART_INFO                                       */
@@ -11175,7 +11156,7 @@ void Dbdih::initialiseRecordsLab(Signal* signal,
       NodeRecordPtr nodePtr;
       for (nodePtr.i = 0; nodePtr.i < MAX_NDB_NODES; nodePtr.i++) {
 	ptrAss(nodePtr, nodeRecord);
-	initNodeState(nodePtr);
+	new (nodePtr.p) NodeRecord();
       }//for
       break;
     }
@@ -11535,7 +11516,7 @@ void Dbdih::makePrnList(ReadNodesConf * readNodes, Uint32 nodeArray[])
     jam();
     nodePtr.i = nodeArray[i];
     ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
-    initNodeState(nodePtr);
+    new (nodePtr.p) NodeRecord();
     if (NodeBitmask::get(readNodes->inactiveNodes, nodePtr.i) == false){
       jam();
       nodePtr.p->nodeStatus = NodeRecord::ALIVE;
@@ -14173,3 +14154,25 @@ bool Dbdih::isActiveMaster()
 {
   return ((reference() == cmasterdihref) && (cmasterState == MASTER_ACTIVE));
 }//Dbdih::isActiveMaster()
+
+Dbdih::NodeRecord::NodeRecord(){
+  m_nodefailSteps.clear();
+  gcpstate = NodeRecord::READY;
+
+  activeStatus = Sysfile::NS_NotDefined;
+  recNODE_FAILREP = ZFALSE;
+  nodeGroup = ZNIL;
+  dbtcFailCompleted = ZTRUE;
+  dbdictFailCompleted = ZTRUE;
+  dbdihFailCompleted = ZTRUE;
+  dblqhFailCompleted = ZTRUE;
+  noOfStartedChkpt = 0;
+  noOfQueuedChkpt = 0;
+  lcpStateAtTakeOver = (MasterLCPConf::State)255;
+
+  activeTabptr = RNIL;
+  nodeStatus = NodeRecord::NOT_IN_CLUSTER;
+  useInTransactions = false;
+  copyCompleted = false;
+  allowNodeStart = true;
+}
