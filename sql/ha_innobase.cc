@@ -92,7 +92,7 @@ bool innobase_flush_log_at_trx_commit, innobase_log_archive,
   to specify any startup options.
 */
 
-char *innobase_data_file_path= (char*) "ibdata:64M";
+char *innobase_data_file_path= (char*) "ibdata1:64M";
 
 /* The following counter is used to convey information to InnoDB
 about server activity: in selects it is not sensible to call
@@ -1915,7 +1915,7 @@ ha_innobase::change_active_index(
 
 	build_template(prebuilt, user_thd, table, ROW_MYSQL_WHOLE_ROW);
 
-	return(0);
+	DBUG_RETURN(0);
 }
 
 /**************************************************************************

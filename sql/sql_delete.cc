@@ -488,6 +488,7 @@ bool multi_delete::send_eof()
     normally can't safely do this.
   - We don't want an ok to be sent to the end user.
   - We don't want to log the truncate command
+  - If we want to have a name lock on the table on exit without errors.
 */
 
 int mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
@@ -499,8 +500,8 @@ int mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
   DBUG_ENTER("mysql_truncate");
 
   /* If it is a temporary table, close and regenerate it */
-  if ((table_ptr=find_temporary_table(thd,table_list->db,
-				      table_list->real_name)))
+  if (!dont_send_ok && (table_ptr=find_temporary_table(thd,table_list->db,
+						       table_list->real_name)))
   {
     TABLE *table= *table_ptr;
     HA_CREATE_INFO create_info;
@@ -536,7 +537,7 @@ int mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
     {
       /* Probably InnoDB table */
       DBUG_RETURN(mysql_delete(thd,table_list, (COND*) 0, (ORDER*) 0,
-			       (ha_rows) 0, TL_WRITE, 0));
+			       HA_POS_ERROR, TL_WRITE, 0));
     }
     if (lock_and_wait_for_table_name(thd, table_list))
       DBUG_RETURN(-1);
@@ -545,18 +546,22 @@ int mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
   bzero((char*) &create_info,sizeof(create_info));
   *fn_ext(path)=0;				// Remove the .frm extension
   error= ha_create_table(path,&create_info,1) ? -1 : 0;
-  VOID(pthread_mutex_unlock(&LOCK_open));
 
-  if (!error && !dont_send_ok)
+  if (!dont_send_ok)
   {
-    mysql_update_log.write(thd,thd->query,thd->query_length);
-    if (mysql_bin_log.is_open())
+    if (!error)
     {
-      Query_log_event qinfo(thd, thd->query);
-      mysql_bin_log.write(&qinfo);
+      mysql_update_log.write(thd,thd->query,thd->query_length);
+      if (mysql_bin_log.is_open())
+      {
+	Query_log_event qinfo(thd, thd->query);
+	mysql_bin_log.write(&qinfo);
+      }
+      send_ok(&thd->net);		// This should return record count
     }
-    send_ok(&thd->net);		// This should return record count
+    unlock_table_name(thd, table_list);
   }
-  unlock_table_name(thd, table_list);
+  else if (error)
+    unlock_table_name(thd, table_list);
   DBUG_RETURN(error ? -1 : 0);
 }

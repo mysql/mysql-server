@@ -864,7 +864,6 @@ static int prepare_for_restore(THD* thd, TABLE_LIST* table)
       DBUG_RETURN(send_check_errmsg(thd, table, "restore",
 				    "Failed generating table from .frm file"));
     }
-    /* truncate has released name lock */
   }
   DBUG_RETURN(0);
 }
