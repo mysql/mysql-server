@@ -35,7 +35,7 @@
 #	@c example_for_help_topic <topic_name>
 #	@example
 #		....
-#	@example
+#	@end example
 #
 #
 # Original version by Victor Vagin <vva@mysql.com>
@@ -44,12 +44,15 @@
 use strict;
 use Getopt::Long;
 
-my $insert_portion_size= 25;
-my $error_prefix= "help parsing error:";
+my $insert_portion_size= 15;
+my $error_prefix= "---- help parsing errors :";
 
 my $path_to_lex_file= "../sql/lex.h";
 my $verbose_option= 0;
 my $help_option= 0;
+
+my $cur_line= 0;
+my $count_errors= 0;
 
 GetOptions(
   "help",\$help_option,
@@ -92,6 +95,17 @@ my %keywords;
 
 $categories{Contents}->{__parent_category__}= "";
 
+sub print_error
+{
+  my ($text)= @_;
+  if ($count_errors==0)
+  {
+    print STDERR "$error_prefix\n";
+  }
+  print STDERR "line $cur_line : $text";
+  $count_errors++;
+}
+
 sub add_topic_to_category
 {
   my ($topic_name)= @_;
@@ -104,7 +118,7 @@ sub add_topic_to_category
     my $old_parent= $category->{__parent_category__};
     if ($old_parent ne $current_parent_category)
     {
-      print STDERR "$error_prefix wrong parent for $current_category\n";
+      print_error "wrong parent for $current_category\n";
     }
   }
 
@@ -118,7 +132,7 @@ sub add_topic_to_category
     my $old_category= $topics{$topic_name}->{category};
     if ($old_category ne $category)
     {
-      print STDERR "$error_prefix wrong category for $topic_name\n";
+      print_error "wrong category for $topic_name\n";
     }
   }
     
@@ -133,7 +147,7 @@ sub add_example
 
   if (exists($topics{$topic_name}->{example}))
   {
-    print STDERR "$error_prefix double example for $topic_name\n";
+    print_error "double example for $topic_name\n";
   }
     
   $topics{$topic_name}->{example}= $example;    
@@ -148,7 +162,7 @@ sub add_description
     
   if (exists($topics{$topic_name}->{description}))
   {
-    print STDERR "$error_prefix double description for $topic_name\n";
+    print_error "double description for $topic_name\n";
   }
   $topics{$topic_name}->{description}= $description;
   add_topic_to_category($topic_name);
@@ -164,7 +178,7 @@ sub add_keyword
   push(@{$topics{$topic_name}->{keywords}},$keyword);
   if (exists($keywords{$keyword}->{$topic_name}))
   {
-    print STDERR "$error_prefix double keyword $keyword for $topic_name\n";
+    print_error "double keyword $keyword for $topic_name\n";
   }
   $keywords{$keyword}->{$topic_name}= $topics{$topic_name};
 }
@@ -195,10 +209,12 @@ sub prepare_name
   $a =~ s/\@table \@code/  /g;
   $a =~ s/\(\)//g;
   $a =~ s/\"/\\\"/g;
-											
+
   $a =~ s/((\w|\s)+)\(([\+-=><\/%*!<>\s]+)\)/$3/gxs;
   $a =~ s/([\+-=><\/%*!<>\s]+)\(((\w|\s)+)\)/$1/gxs;
   $a =~ s/((\w|\s)+)\((.+)\)/$1/gxs;
+  
+  $a =~ s/((\s)+)$//g;
 												    
   return $a;
 }
@@ -278,12 +294,13 @@ sub parse_example
     
   while (<>)
   {
+    $cur_line++;
     last if ($_=~/\@end example/);
     $text .= $_;
   }
     
   $text= prepare_example($text);
-
+  $topic_name= prepare_name($topic_name);
   add_example($topic_name,$text) if ($topic_name ne "");
 }
 
@@ -319,11 +336,13 @@ sub parse_description
     
   while (<>)
   {
+    $cur_line++;
     last if ($_=~/\@c end_description_for_help_topic/);
     $text .= $_;
   }
     
   $text= prepare_description($text);
+  $topic_name= prepare_name($topic_name);
   add_description($topic_name,$text);
 }
 
@@ -354,6 +373,7 @@ while (<>)
   parse_example           ();
   parse_description       ();	
   parse_category          ();
+  $cur_line++;
 }
 
 # test results of parsing:
@@ -541,4 +561,10 @@ if (scalar(@keywords_names))
     $count_keyword++;
   }
   printf ";\n\n";
+}
+
+if ($count_errors)
+{
+  print STDERR "$count_errors errors !!!\n";
+  exit 1;
 }
