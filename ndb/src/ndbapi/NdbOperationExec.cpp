@@ -543,10 +543,11 @@ NdbOperation::receiveTCKEYREF( NdbApiSignal* aSignal)
   theStatus = Finished;
   // blobs want this
   if (m_abortOption != IgnoreError)
+  {
     theNdbCon->theReturnStatus = NdbConnection::ReturnFailure;
-
+  }
   theError.code = aSignal->readData(4);
-  theNdbCon->setOperationErrorCodeAbort(aSignal->readData(4), m_abortOption);
+  theNdbCon->setOperationErrorCodeAbort(aSignal->readData(4), ao);
 
   if(theOperationType != ReadRequest || !theSimpleIndicator) // not simple read
     return theNdbCon->OpCompleteFailure(ao, m_abortOption != IgnoreError);
