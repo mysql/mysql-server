@@ -252,7 +252,7 @@ void _ftb_climb_the_tree(FTB_WORD *ftbw, my_off_t curdoc)
     {
      /* NOTE: special sort function of queue assures that all yn<0
       * events for every particular subexpression will
-      * "auto-magically" happen BEFORE all yn>=0 events. So no
+      * "auto-magically" happen BEFORE all the yn>=0 events. So no
       * already matched expression can become not-matched again.
       */
       ++ftbe->nos;
@@ -261,15 +261,14 @@ void _ftb_climb_the_tree(FTB_WORD *ftbw, my_off_t curdoc)
     else
  /* if (yn==0) */
     {
+      ftbe->cur_weight+=weight;
       if (ftbe->yesses >= ftbe->ythresh && !ftbe->nos)
       {
         yn=ftbe->yesno;
-        ftbe->cur_weight=weight;
         weight*=ftbe->weight;
       }
       else
       {
-        ftbe->cur_weight+=weight;
         break;
       }
     }
