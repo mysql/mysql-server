@@ -229,10 +229,12 @@ int main(int argc, char **argv)
 #endif
 }
 
+enum options {OPT_CHARSETS_DIR=256};
 
 static struct option long_options[] =
 {
   {"backup",	no_argument,	   0, 'b'},
+  {"character-sets-dir",required_argument,0,  OPT_CHARSETS_DIR},
   {"debug",	optional_argument, 0, '#'},
   {"force",	no_argument,	   0, 'f'},
   {"join",	required_argument, 0, 'j'},
@@ -249,7 +251,7 @@ static struct option long_options[] =
 
 static void print_version(void)
 {
-  printf("%s  Ver 1.8 for %s on %s\n",my_progname,SYSTEM_TYPE,MACHINE_TYPE);
+  printf("%s  Ver 1.9 for %s on %s\n",my_progname,SYSTEM_TYPE,MACHINE_TYPE);
 }
 
 static void usage(void)
@@ -331,6 +333,9 @@ static void get_options(int *argc,char ***argv)
       break;
     case '#':
       DBUG_PUSH(optarg ? optarg : "d:t:o");
+      break;
+    case OPT_CHARSETS_DIR:
+      charsets_dir = optarg;
       break;
     case 'V': print_version(); exit(0);
     case 'I':
