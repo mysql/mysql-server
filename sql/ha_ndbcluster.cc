@@ -1233,8 +1233,6 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
       DBUG_RETURN(read_res);
     }
     // Insert new row
-    rows_inserted= 0;
-    rows_to_insert= 1;
     int insert_res= write_row(new_data);
     if (!insert_res)
     {
@@ -1338,7 +1336,7 @@ int ha_ndbcluster::delete_row(const byte *record)
     /*
       We are scanning records and want to delete the record
       that was just found, call deleteTuple on the cursor 
-      to take over the lock to a new updatedelete operation
+      to take over the lock to a new delete operation
       And thus setting the primary key of the record from 
       the active record in cursor
     */
@@ -2010,6 +2008,8 @@ void ha_ndbcluster::start_bulk_insert(ha_rows rows)
 int ha_ndbcluster::end_bulk_insert()
 {
   DBUG_ENTER("end_bulk_insert");
+  rows_inserted= 0;
+  rows_to_insert= 1;
   DBUG_RETURN(0);
 }
 
@@ -2716,7 +2716,7 @@ ha_ndbcluster::ha_ndbcluster(TABLE *table_arg):
                 HA_NO_BLOBS),
   m_use_write(false),
   retrieve_all_fields(FALSE),
-  rows_to_insert(0),
+  rows_to_insert(1),
   rows_inserted(0),
   bulk_insert_rows(1024),
   ops_pending(0)
