@@ -6622,8 +6622,8 @@ static void test_frm_bug()
   row= mysql_fetch_row(result);
   mytest(row);
 
-  fprintf(stdout, "\n Comment: %s", row[16]);
-  assert(row[16] != 0);
+  fprintf(stdout, "\n Comment: %s", row[17]);
+  assert(row[17] != 0);
 
   mysql_free_result(result);
   mysql_stmt_close(stmt);
@@ -9964,6 +9964,80 @@ static void test_bug4236()
 }
 
 
+static void test_bug4030()
+{
+  MYSQL_STMT *stmt;
+  MYSQL_BIND bind[3];
+  MYSQL_TIME time_canonical, time_out;
+  MYSQL_TIME date_canonical, date_out;
+  MYSQL_TIME datetime_canonical, datetime_out;
+  const char *stmt_text;
+  int rc;
+
+  myheader("test_bug4030");
+
+  /* Check that microseconds are inserted and selected successfully */
+
+  /* Execute a query with time values in prepared mode */
+  stmt= mysql_stmt_init(mysql);
+  stmt_text= "SELECT '23:59:59.123456', '2003-12-31', "
+             "'2003-12-31 23:59:59.123456'";
+  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  check_execute(stmt, rc);
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  /* Bind output buffers */
+  bzero(bind, sizeof(bind));
+  bzero(&time_canonical, sizeof(time_canonical));
+  bzero(&time_out, sizeof(time_out));
+  bzero(&date_canonical, sizeof(date_canonical));
+  bzero(&date_out, sizeof(date_out));
+  bzero(&datetime_canonical, sizeof(datetime_canonical));
+  bzero(&datetime_out, sizeof(datetime_out));
+
+  bind[0].buffer_type= MYSQL_TYPE_TIME;
+  bind[0].buffer= (char*) &time_out;
+  bind[1].buffer_type= MYSQL_TYPE_DATE;
+  bind[1].buffer= (char*) &date_out;
+  bind[2].buffer_type= MYSQL_TYPE_DATETIME;
+  bind[2].buffer= (char*) &datetime_out;
+
+  time_canonical.hour= 23;
+  time_canonical.minute= 59;
+  time_canonical.second= 59;
+  time_canonical.second_part= 123456;
+  time_canonical.time_type= MYSQL_TIMESTAMP_TIME;
+
+  date_canonical.year= 2003;
+  date_canonical.month= 12;
+  date_canonical.day= 31;
+  date_canonical.time_type= MYSQL_TIMESTAMP_DATE;
+
+  datetime_canonical= time_canonical;
+  datetime_canonical.year= 2003;
+  datetime_canonical.month= 12;
+  datetime_canonical.day= 31;
+  datetime_canonical.time_type= MYSQL_TIMESTAMP_DATETIME;
+
+  mysql_stmt_bind_result(stmt, bind);
+
+  rc= mysql_stmt_fetch(stmt);
+  assert(rc == 0);
+  printf("%d:%d:%d.%lu\n", time_out.hour, time_out.minute, time_out.second,
+                           time_out.second_part);
+  printf("%d-%d-%d\n", date_out.year, date_out.month, date_out.day);
+  printf("%d-%d-%d %d:%d:%d.%lu\n", datetime_out.year, datetime_out.month,
+                                    datetime_out.day, datetime_out.hour,
+                                    datetime_out.minute, datetime_out.second,
+                                    datetime_out.second_part);
+  assert(memcmp(&time_canonical, &time_out, sizeof(time_out)) == 0);
+  assert(memcmp(&date_canonical, &date_out, sizeof(date_out)) == 0);
+  assert(memcmp(&datetime_canonical, &datetime_out, sizeof(datetime_out)) == 0);
+  mysql_stmt_close(stmt);
+}
+
+
 /*
   Read and parse arguments and MySQL options from my.cnf
 */
@@ -10259,6 +10333,8 @@ int main(int argc, char **argv)
     test_bug4026();         /* test microseconds precision of time types */
     test_bug4079();         /* erroneous subquery in prepared statement */
     test_bug4236();         /* init -> execute */
+    test_bug4030();         /* test conversion string -> time types in
+                               libmysql */
     /*
       XXX: PLEASE RUN THIS PROGRAM UNDER VALGRIND AND VERIFY THAT YOUR TEST
       DOESN'T CONTAIN WARNINGS/ERRORS BEFORE YOU PUSH.
