@@ -905,7 +905,7 @@ sync_array_print_long_waits(void)
         	cell = sync_array_get_nth_cell(sync_primary_wait_array, i);
 
                 if (cell->wait_object != NULL
-		    && difftime(time(NULL), cell->reservation_time) > 120) {
+		    && difftime(time(NULL), cell->reservation_time) > 240) {
 
 		    	fprintf(stderr,
 				"InnoDB: Warning: a long semaphore wait:\n");
