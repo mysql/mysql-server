@@ -63,12 +63,13 @@ mysysobjects1 =		my_init.lo my_static.lo my_malloc.lo my_realloc.lo \
 			my_pread.lo mf_cache.lo md5.lo sha1.lo\
 			my_getopt.lo my_gethostbyname.lo my_port.lo
 sqlobjects =		net.lo
+sql_cmn_objects =	pack.lo
 
 # Not needed in the minimum library
 mysysobjects2 =		my_lib.lo
 mysysobjects =		$(mysysobjects1) $(mysysobjects2)
 target_libadd =		$(mysysobjects) $(mystringsobjects) $(dbugobjects) \
- $(vio_objects) $(sqlobjects)
+ $(sql_cmn_objects) $(vio_objects) $(sqlobjects)
 target_ldflags = -version-info @SHARED_LIB_VERSION@
 vio_objects= vio.lo viosocket.lo viossl.lo viosslfactories.lo
 CLEANFILES =		$(target_libadd) $(SHLIBOBJS) \
@@ -85,6 +86,7 @@ clean-local:
 	      `echo $(dbugobjects) | sed "s;\.lo;.c;g"` \
 	      `echo $(mysysobjects) | sed "s;\.lo;.c;g"` \
 	      `echo $(vio_objects) | sed "s;\.lo;.c;g"` \
+	      `echo $(sql_cmn_objects) | sed "s;\.lo;.c;g"` \
 	       $(CHARSET_SRCS) $(CHARSET_OBJS) \
 	       $(mystringsextra) $(mysysheaders) \
 	       ../linked_client_sources net.c

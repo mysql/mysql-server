@@ -721,6 +721,15 @@ typedef long		longlong;
 #endif
 #endif
 
+#if defined(NO_CLIENT_LONG_LONG)
+typedef unsigned long my_ulonglong;
+#elif defined (__WIN__)
+typedef unsigned __int64 my_ulonglong;
+#else
+typedef unsigned long long my_ulonglong;
+#endif
+
+
 #ifdef USE_RAID
 /*
   The following is done with a if to not get problems with pre-processors

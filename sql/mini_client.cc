@@ -23,6 +23,7 @@
 */
 
 #include <my_global.h>
+
 #ifdef HAVE_EXTERNAL_CLIENT
 
 /* my_pthread must be included early to be able to fix things */
@@ -80,8 +81,6 @@ void mc_end_server(MYSQL *mysql);
 static int mc_sock_connect(File s, const struct sockaddr *name, uint namelen, uint to);
 static void mc_free_old_query(MYSQL *mysql);
 static int mc_send_file_to_server(MYSQL *mysql, const char *filename);
-static my_ulonglong mc_net_field_length_ll(uchar **packet);
-static ulong mc_net_field_length(uchar **packet);
 static int mc_read_one_row(MYSQL *mysql,uint fields,MYSQL_ROW row,
 			   ulong *lengths);
 static MYSQL_DATA *mc_read_rows(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
@@ -1085,15 +1084,15 @@ int mc_mysql_read_query_result(MYSQL *mysql)
   mc_free_old_query(mysql);			/* Free old result */
 get_info:
   pos=(uchar*) mysql->net.read_pos;
-  if ((field_count= mc_net_field_length(&pos)) == 0)
+  if ((field_count= net_field_length(&pos)) == 0)
   {
-    mysql->affected_rows= mc_net_field_length_ll(&pos);
-    mysql->insert_id=	  mc_net_field_length_ll(&pos);
+    mysql->affected_rows= net_field_length_ll(&pos);
+    mysql->insert_id=	  net_field_length_ll(&pos);
     if (mysql->server_capabilities & CLIENT_TRANSACTIONS)
     {
       mysql->server_status=uint2korr(pos); pos+=2;
     }
-    if (pos < mysql->net.read_pos+length && mc_net_field_length(&pos))
+    if (pos < mysql->net.read_pos+length && net_field_length(&pos))
       mysql->info=(char*) pos;
     DBUG_RETURN(0);
   }
@@ -1107,7 +1106,7 @@ get_info:
   if (!(mysql->server_status & SERVER_STATUS_AUTOCOMMIT))
     mysql->server_status|= SERVER_STATUS_IN_TRANS;
 
-  mysql->extra_info= mc_net_field_length_ll(&pos); /* Maybe number of rec */
+  mysql->extra_info= net_field_length_ll(&pos); /* Maybe number of rec */
   if (!(fields=mc_read_rows(mysql,(MYSQL_FIELD*) 0,5)))
     DBUG_RETURN(-1);
   if (!(mysql->fields=mc_unpack_fields(fields,&mysql->field_alloc,
@@ -1190,68 +1189,6 @@ err:
   DBUG_RETURN(result);
 }
 
-
-/* Get the length of next field. Change parameter to point at fieldstart */
-static ulong mc_net_field_length(uchar **packet)
-{
-  reg1 uchar *pos= *packet;
-  if (*pos < 251)
-  {
-    (*packet)++;
-    return (ulong) *pos;
-  }
-  if (*pos == 251)
-  {
-    (*packet)++;
-    return NULL_LENGTH;
-  }
-  if (*pos == 252)
-  {
-    (*packet)+=3;
-    return (ulong) uint2korr(pos+1);
-  }
-  if (*pos == 253)
-  {
-    (*packet)+=4;
-    return (ulong) uint3korr(pos+1);
-  }
-  (*packet)+=9;					/* Must be 254 when here */
-  return (ulong) uint4korr(pos+1);
-}
-
-/* Same as above, but returns ulonglong values */
-
-static my_ulonglong mc_net_field_length_ll(uchar **packet)
-{
-  reg1 uchar *pos= *packet;
-  if (*pos < 251)
-  {
-    (*packet)++;
-    return (my_ulonglong) *pos;
-  }
-  if (*pos == 251)
-  {
-    (*packet)++;
-    return (my_ulonglong) NULL_LENGTH;
-  }
-  if (*pos == 252)
-  {
-    (*packet)+=3;
-    return (my_ulonglong) uint2korr(pos+1);
-  }
-  if (*pos == 253)
-  {
-    (*packet)+=4;
-    return (my_ulonglong) uint3korr(pos+1);
-  }
-  (*packet)+=9;					/* Must be 254 when here */
-#ifdef NO_CLIENT_LONGLONG
-  return (my_ulonglong) uint4korr(pos+1);
-#else
-  return (my_ulonglong) uint8korr(pos+1);
-#endif
-}
-
 /* Read all rows (fields or data) from server */
 
 static MYSQL_DATA *mc_read_rows(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
@@ -1301,7 +1238,7 @@ static MYSQL_DATA *mc_read_rows(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
     to= (char*) (cur->data+fields+1);
     for (field=0 ; field < fields ; field++)
     {
-      if ((len=(ulong) mc_net_field_length(&cp)) == NULL_LENGTH)
+      if ((len=(ulong) net_field_length(&cp)) == NULL_LENGTH)
       {						/* null field */
 	cur->data[field] = 0;
       }
@@ -1342,7 +1279,8 @@ static int mc_read_one_row(MYSQL *mysql,uint fields,MYSQL_ROW row,
 {
   uint field;
   ulong pkt_len,len;
-  uchar *pos,*prev_pos;
+  uchar *pos;
+  uchar *prev_pos;
 
   if ((pkt_len=mc_net_safe_read(mysql)) == packet_error)
     return -1;
@@ -1352,7 +1290,7 @@ static int mc_read_one_row(MYSQL *mysql,uint fields,MYSQL_ROW row,
   pos=mysql->net.read_pos;
   for (field=0 ; field < fields ; field++)
   {
-    if ((len=(ulong) mc_net_field_length(&pos)) == NULL_LENGTH)
+    if ((len=(ulong) net_field_length(&pos)) == NULL_LENGTH)
     {						/* null field */
       row[field] = 0;
       *lengths++=0;
@@ -1365,7 +1303,7 @@ static int mc_read_one_row(MYSQL *mysql,uint fields,MYSQL_ROW row,
     }
     if (prev_pos)
       *prev_pos=0;				/* Terminate prev field */
-    prev_pos=pos;
+    prev_pos= pos;
   }
   row[field]=(char*) prev_pos+1;		/* End of last field */
   *prev_pos=0;					/* Terminate last field */
