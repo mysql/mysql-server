@@ -122,7 +122,7 @@ int main(int argc, char **argv)
   {
     ip = *argv++;    
 
-    if (isdigit(ip[0]))
+    if (my_isdigit(system_charset_info,ip[0]))
     {
       taddr = inet_addr(ip);
       if (taddr == htonl(INADDR_BROADCAST))

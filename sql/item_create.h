@@ -27,10 +27,12 @@ Item *create_func_bit_count(Item* a);
 Item *create_func_bit_length(Item* a);
 Item *create_func_ceiling(Item* a);
 Item *create_func_char_length(Item* a);
+Item *create_func_cast(Item *a, Item_cast cast_type);
 Item *create_func_connection_id(void);
 Item *create_func_conv(Item* a, Item *b, Item *c);
 Item *create_func_cos(Item* a);
 Item *create_func_cot(Item* a);
+Item *create_func_crc32(Item* a);
 Item *create_func_date_format(Item* a,Item *b);
 Item *create_func_dayname(Item* a);
 Item *create_func_dayofmonth(Item* a);
@@ -94,3 +96,41 @@ Item *create_load_file(Item* a);
 Item *create_wait_for_master_pos(Item* a, Item* b);
 Item *create_func_is_free_lock(Item* a);
 Item *create_func_quote(Item* a);
+
+Item *create_func_geometry_from_text(Item* a);
+Item *create_func_as_text(Item* a);
+Item *create_func_startpoint(Item* a);
+Item *create_func_endpoint(Item* a);
+Item *create_func_exteriorring(Item* a);
+Item *create_func_centroid(Item* a);
+Item *create_func_envelope(Item* a);
+Item *create_func_pointn(Item* a, Item* b);
+Item *create_func_interiorringn(Item* a, Item* b);
+Item *create_func_geometryn(Item* a, Item* b);
+
+Item *create_func_equals(Item* a, Item* b);
+Item *create_func_disjoint(Item* a, Item* b);
+Item *create_func_intersects(Item* a, Item* b);
+Item *create_func_touches(Item* a, Item* b);
+Item *create_func_crosses(Item* a, Item* b);
+Item *create_func_within(Item* a, Item* b);
+Item *create_func_contains(Item* a, Item* b);
+Item *create_func_overlaps(Item* a, Item* b);
+
+Item *create_func_isempty(Item* a);
+Item *create_func_issimple(Item* a);
+Item *create_func_isclosed(Item* a);
+
+Item *create_func_geometry_type(Item* a);
+Item *create_func_dimension(Item* a);
+Item *create_func_x(Item* a);
+Item *create_func_y(Item* a);
+Item *create_func_area(Item* a);
+Item *create_func_glength(Item* a);
+
+Item *create_func_numpoints(Item* a);
+Item *create_func_numinteriorring(Item* a);
+Item *create_func_numgeometries(Item* a);
+
+Item *create_func_point(Item* a,Item* b);
+

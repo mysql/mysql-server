@@ -37,14 +37,14 @@
 #include "sha1.h"
 #include "my_aes.h"
 
-String empty_string("");
+String empty_string("",default_charset_info);
 
 uint nr_of_decimals(const char *str)
 {
   if ((str=strchr(str,'.')))
   {
     const char *start= ++str;
-    for (; isdigit(*str) ; str++) ;
+    for (; my_isdigit(system_charset_info,*str) ; str++) ;
     return (uint) (str-start);
   }
   return 0;
@@ -480,7 +480,7 @@ error:
 String *Item_func_concat_ws::val_str(String *str)
 {
   char tmp_str_buff[10];
-  String tmp_sep_str(tmp_str_buff, sizeof(tmp_str_buff)),
+  String tmp_sep_str(tmp_str_buff, sizeof(tmp_str_buff),default_charset_info),
          *sep_str, *res, *res2,*use_as_buff;
   uint i;
 
@@ -619,7 +619,7 @@ String *Item_func_reverse::val_str(String *str)
   ptr = (char *) res->ptr();
   end=ptr+res->length();
 #ifdef USE_MB
-  if (use_mb(default_charset_info) && !binary)
+  if (use_mb(res->charset()) && !binary)
   {
     String tmpstr;
     tmpstr.copy(*res);
@@ -627,7 +627,7 @@ String *Item_func_reverse::val_str(String *str)
     register uint32 l;
     while (ptr < end)
     {
-      if ((l=my_ismbchar(default_charset_info, ptr,end)))
+      if ((l=my_ismbchar(res->charset(), ptr,end)))
         tmp-=l, memcpy(tmp,ptr,l), ptr+=l;
       else
         *--tmp=*ptr++;
@@ -670,8 +670,7 @@ String *Item_func_replace::val_str(String *str)
 #ifdef USE_MB
   const char *ptr,*end,*strend,*search,*search_end;
   register uint32 l;
-  bool binary_str = (args[0]->binary || args[1]->binary ||
-		     !use_mb(default_charset_info));
+  bool binary_str; 
 #endif
 
   null_value=0;
@@ -681,6 +680,10 @@ String *Item_func_replace::val_str(String *str)
   res2=args[1]->val_str(&tmp_value);
   if (args[1]->null_value)
     goto null;
+
+#ifdef USE_MB
+  binary_str = (args[0]->binary || args[1]->binary || !use_mb(res->charset()));
+#endif
 
   if (res2->length() == 0)
     return res;
@@ -728,7 +731,7 @@ redo:
           goto redo;
         }
 skipp:
-        if ((l=my_ismbchar(default_charset_info, ptr,strend))) ptr+=l;
+        if ((l=my_ismbchar(res->charset(), ptr,strend))) ptr+=l;
         else ++ptr;
     }
   }
@@ -787,7 +790,7 @@ String *Item_func_insert::val_str(String *str)
       args[3]->null_value)
     goto null; /* purecov: inspected */
 #ifdef USE_MB
-  if (use_mb(default_charset_info) && !args[0]->binary)
+  if (use_mb(res->charset()) && !args[0]->binary)
   {
     start=res->charpos(start);
     length=res->charpos(length,start);
@@ -860,7 +863,7 @@ String *Item_func_left::val_str(String *str)
   if (length <= 0)
     return &empty_string;
 #ifdef USE_MB
-  if (use_mb(default_charset_info) && !binary)
+  if (use_mb(res->charset()) && !binary)
     length = res->charpos(length);
 #endif
   if (res->length() > (ulong) length)
@@ -868,6 +871,7 @@ String *Item_func_left::val_str(String *str)
     if (!res->alloced_length())
     {						// Don't change const str
       str_value= *res;				// Not malloced string
+      str_value.set_charset(res->charset());
       res= &str_value;
     }
     res->length((uint) length);
@@ -908,7 +912,7 @@ String *Item_func_right::val_str(String *str)
   if (res->length() <= (uint) length)
     return res; /* purecov: inspected */
 #ifdef USE_MB
-  if (use_mb(default_charset_info) && !binary)
+  if (use_mb(res->charset()) && !binary)
   {
     uint start=res->numchars()-(uint) length;
     if (start<=0) return res;
@@ -941,7 +945,7 @@ String *Item_func_substr::val_str(String *str)
 		   (arg_count == 3 && args[2]->null_value))))
     return 0; /* purecov: inspected */
 #ifdef USE_MB
-  if (use_mb(default_charset_info) && !binary)
+  if (use_mb(res->charset()) && !binary)
   {
     start=res->charpos(start);
     length=res->charpos(length,start);
@@ -1001,7 +1005,7 @@ String *Item_func_substr_index::val_str(String *str)
     return &empty_string;		// Wrong parameters
 
 #ifdef USE_MB
-  if (use_mb(default_charset_info) && !binary)
+  if (use_mb(res->charset()) && !binary)
   {
     const char *ptr=res->ptr();
     const char *strend = ptr+res->length();
@@ -1026,7 +1030,7 @@ String *Item_func_substr_index::val_str(String *str)
 	  continue;
 	}
     skipp:
-        if ((l=my_ismbchar(default_charset_info, ptr,strend))) ptr+=l;
+        if ((l=my_ismbchar(res->charset(), ptr,strend))) ptr+=l;
         else ++ptr;
       } /* either not found or got total number when count<0 */
       if (pass == 0) /* count<0 */
@@ -1098,7 +1102,7 @@ String *Item_func_ltrim::val_str(String *str)
   if ((null_value=args[0]->null_value))
     return 0;					/* purecov: inspected */
   char buff[MAX_FIELD_WIDTH];
-  String tmp(buff,sizeof(buff));
+  String tmp(buff,sizeof(buff),res->charset());
   String *remove_str=args[1]->val_str(&tmp);
   uint remove_length;
   LINT_INIT(remove_length);
@@ -1136,7 +1140,7 @@ String *Item_func_rtrim::val_str(String *str)
   if ((null_value=args[0]->null_value))
     return 0; /* purecov: inspected */
   char buff[MAX_FIELD_WIDTH];
-  String tmp(buff,sizeof(buff));
+  String tmp(buff,sizeof(buff),res->charset());
   String *remove_str=args[1]->val_str(&tmp);
   uint remove_length;
   LINT_INIT(remove_length);
@@ -1155,11 +1159,11 @@ String *Item_func_rtrim::val_str(String *str)
   {
     char chr=(*remove_str)[0];
 #ifdef USE_MB
-    if (use_mb(default_charset_info) && !binary)
+    if (use_mb(res->charset()) && !binary)
     {
       while (ptr < end)
       {
-	if ((l=my_ismbchar(default_charset_info, ptr,end))) ptr+=l,p=ptr;
+	if ((l=my_ismbchar(res->charset(), ptr,end))) ptr+=l,p=ptr;
 	else ++ptr;
       }
       ptr=p;
@@ -1172,12 +1176,12 @@ String *Item_func_rtrim::val_str(String *str)
   {
     const char *r_ptr=remove_str->ptr();
 #ifdef USE_MB
-    if (use_mb(default_charset_info) && !binary)
+    if (use_mb(res->charset()) && !binary)
     {
   loop:
       while (ptr + remove_length < end)
       {
-	if ((l=my_ismbchar(default_charset_info, ptr,end))) ptr+=l;
+	if ((l=my_ismbchar(res->charset(), ptr,end))) ptr+=l;
 	else ++ptr;
       }
       if (ptr + remove_length == end && !memcmp(ptr,r_ptr,remove_length))
@@ -1208,7 +1212,7 @@ String *Item_func_trim::val_str(String *str)
   if ((null_value=args[0]->null_value))
     return 0;					/* purecov: inspected */
   char buff[MAX_FIELD_WIDTH];
-  String tmp(buff,sizeof(buff));
+  String tmp(buff,sizeof(buff),res->charset());
   String *remove_str=args[1]->val_str(&tmp);
   uint remove_length;
   LINT_INIT(remove_length);
@@ -1223,14 +1227,14 @@ String *Item_func_trim::val_str(String *str)
   while (ptr+remove_length <= end && !memcmp(ptr,r_ptr,remove_length))
     ptr+=remove_length;
 #ifdef USE_MB
-  if (use_mb(default_charset_info) && !binary)
+  if (use_mb(res->charset()) && !binary)
   {
     char *p=ptr;
     register uint32 l;
  loop:
     while (ptr + remove_length < end)
     {
-      if ((l=my_ismbchar(default_charset_info, ptr,end))) ptr+=l;
+      if ((l=my_ismbchar(res->charset(), ptr,end))) ptr+=l;
       else ++ptr;
     }
     if (ptr + remove_length == end && !memcmp(ptr,r_ptr,remove_length))
@@ -1263,7 +1267,7 @@ String *Item_func_password::val_str(String *str)
   if (res->length() == 0)
     return &empty_string;
   make_scrambled_password(tmp_value,res->c_ptr());
-  str->set(tmp_value,16);
+  str->set(tmp_value,16,res->charset());
   return str;
 }
 
@@ -1297,7 +1301,7 @@ String *Item_func_encrypt::val_str(String *str)
   }
   pthread_mutex_lock(&LOCK_crypt);
   char *tmp=crypt(res->c_ptr(),salt_ptr);
-  str->set(tmp,(uint) strlen(tmp));
+  str->set(tmp,(uint) strlen(tmp),res->charset());
   str->copy();
   pthread_mutex_unlock(&LOCK_crypt);
   return str;
@@ -1349,7 +1353,7 @@ String *Item_func_database::val_str(String *str)
   if (!current_thd->db)
     str->length(0);
   else
-    str->set((const char*) current_thd->db,(uint) strlen(current_thd->db));
+    str->set((const char*) current_thd->db,(uint) strlen(current_thd->db), default_charset_info);
   return str;
 }
 
@@ -1380,9 +1384,9 @@ extern "C" {
 extern const char *soundex_map;		// In mysys/static.c
 }
 
-static char get_scode(char *ptr)
+static char get_scode(CHARSET_INFO *cs,char *ptr)
 {
-  uchar ch=toupper(*ptr);
+  uchar ch=my_toupper(cs,*ptr);
   if (ch < 'A' || ch > 'Z')
   {
 					// Thread extended alfa (country spec)
@@ -1404,21 +1408,21 @@ String *Item_func_soundex::val_str(String *str)
   char *to= (char *) tmp_value.ptr();
   char *from= (char *) res->ptr(), *end=from+res->length();
 
-  while (from != end && isspace(*from)) // Skip pre-space
+  while (from != end && my_isspace(str->charset(),*from)) // Skip pre-space
     from++; /* purecov: inspected */
   if (from == end)
     return &empty_string;		// No alpha characters.
-  *to++ = toupper(*from);		// Copy first letter
-  last_ch = get_scode(from);		// code of the first letter
+  *to++ = my_toupper(str->charset(),*from);// Copy first letter
+  last_ch = get_scode(str->charset(),from);// code of the first letter
 					// for the first 'double-letter check.
 					// Loop on input letters until
 					// end of input (null) or output
 					// letter code count = 3
   for (from++ ; from < end ; from++)
   {
-    if (!isalpha(*from))
+    if (!my_isalpha(str->charset(),*from))
       continue;
-    ch=get_scode(from);
+    ch=get_scode(str->charset(),from);
     if ((ch != '0') && (ch != last_ch)) // if not skipped or double
     {
        *to++ = ch;			// letter, copy to output
@@ -1888,6 +1892,228 @@ String *Item_func_conv::val_str(String *str)
 }
 
 
+String *Item_func_conv_charset::val_str(String *str)
+{
+  my_wc_t wc;
+  int cnvres;
+  const uchar *s, *se;
+  uchar *d, *d0, *de;
+  uint32 dmaxlen;
+  String *arg= args[0]->val_str(str);
+  CHARSET_INFO *from,*to;
+  
+  if (!arg)
+  {
+    null_value=1;
+    return 0;
+  }
+  null_value=0;
+  
+  from=arg->charset();
+  to=conv_charset;
+
+  s=(const uchar*)arg->ptr();
+  se=s+arg->length();
+  
+  dmaxlen=arg->length()*(to->mbmaxlen?to->mbmaxlen:1)+1;
+  str->alloc(dmaxlen);
+  d0=d=(unsigned char*)str->ptr();
+  de=d+dmaxlen;
+  
+  while( s < se && d < de){
+
+    cnvres=from->mb_wc(from,&wc,s,se);
+    if (cnvres>0)
+    {
+      s+=cnvres;
+    }
+    else if (cnvres==MY_CS_ILSEQ)
+    {
+      s++;
+      wc='?';
+    }
+    else
+      break;
+
+outp:
+    cnvres=to->wc_mb(to,wc,d,de);
+    if (cnvres>0)
+    {
+      d+=cnvres;
+    }
+    else if (cnvres==MY_CS_ILUNI && wc!='?')
+    {
+        wc='?';
+        goto outp;
+    }
+    else
+      break;
+  };
+  
+  str->length((uint32) (d-d0));
+  str->set_charset(to);
+  return str;
+}
+
+void Item_func_conv_charset::fix_length_and_dec()
+{
+  max_length = args[0]->max_length*(conv_charset->mbmaxlen?conv_charset->mbmaxlen:1);
+  str_value.set_charset(conv_charset);
+}
+
+
+
+String *Item_func_conv_charset3::val_str(String *str)
+{
+  my_wc_t wc;
+  int cnvres;
+  const uchar *s, *se;
+  uchar *d, *d0, *de;
+  uint32 dmaxlen;
+  String *arg= args[0]->val_str(str);
+  String *to_cs= args[1]->val_str(str);
+  String *from_cs= args[2]->val_str(str);
+  CHARSET_INFO *from_charset;
+  CHARSET_INFO *to_charset;
+  
+  if (!arg     || args[0]->null_value || 
+      !to_cs   || args[1]->null_value || 
+      !from_cs || args[2]->null_value ||
+      !(from_charset=get_charset_by_name(from_cs->ptr(), MYF(MY_WME))) ||
+      !(to_charset=get_charset_by_name(to_cs->ptr(), MYF(MY_WME))))
+  {
+    null_value=1;
+    return 0;
+  }
+
+  s=(const uchar*)arg->ptr();
+  se=s+arg->length();
+  
+  dmaxlen=arg->length()*(to_charset->mbmaxlen?to_charset->mbmaxlen:1)+1;
+  str->alloc(dmaxlen);
+  d0=d=(unsigned char*)str->ptr();
+  de=d+dmaxlen;
+  
+  while( s < se && d < de){
+
+    cnvres=from_charset->mb_wc(from_charset,&wc,s,se);
+    if (cnvres>0)
+    {
+      s+=cnvres;
+    }
+    else if (cnvres==MY_CS_ILSEQ)
+    {
+      s++;
+      wc='?';
+    }
+    else
+      break;
+
+outp:
+    cnvres=to_charset->wc_mb(to_charset,wc,d,de);
+    if (cnvres>0)
+    {
+      d+=cnvres;
+    }
+    else if (cnvres==MY_CS_ILUNI && wc!='?')
+    {
+        wc='?';
+        goto outp;
+    }
+    else
+      break;
+  };
+  
+  str->length((uint32) (d-d0));
+  str->set_charset(to_charset);
+  return str;
+}
+
+
+bool Item_func_conv_charset::fix_fields(THD *thd,struct st_table_list *tables, Item **ref)
+{
+  char buff[STACK_BUFF_ALLOC];			// Max argument in function
+  binary=0;
+  used_tables_cache=0;
+  const_item_cache=1;
+  
+  if (thd && check_stack_overrun(thd,buff))
+    return 0;					// Fatal error if flag is set!
+  if (args[0]->fix_fields(thd, tables, args))
+    return 1;
+  maybe_null=args[0]->maybe_null;
+  binary=args[0]->binary;
+  const_item_cache=args[0]->const_item();
+  str_value.set_charset(conv_charset);
+  fix_length_and_dec();
+  return 0;
+}
+
+
+void Item_func_conv_charset3::fix_length_and_dec()
+{
+  max_length = args[0]->max_length;
+}
+
+String *Item_func_set_collation::val_str(String *str)
+{
+  str=args[0]->val_str(str);
+  null_value=args[0]->null_value;
+  str->set_charset(set_collation);
+  return str;
+}
+
+bool Item_func_set_collation::fix_fields(THD *thd,struct st_table_list *tables, Item **ref)
+{
+  char buff[STACK_BUFF_ALLOC];			// Max argument in function
+  binary=0;
+  used_tables_cache=0;
+  const_item_cache=1;
+  
+  if (thd && check_stack_overrun(thd,buff))
+    return 0;					// Fatal error if flag is set!
+  if (args[0]->fix_fields(thd, tables, args))
+    return 1;
+  maybe_null=args[0]->maybe_null;
+  binary=args[0]->binary;
+  const_item_cache=args[0]->const_item();
+  str_value.set_charset(set_collation);
+  fix_length_and_dec();
+  return 0;
+}
+
+bool Item_func_set_collation::eq(const Item *item, bool binary_cmp) const
+{
+  /* Assume we don't have rtti */
+  if (this == item)
+    return 1;
+  if (item->type() != FUNC_ITEM)
+    return 0;
+  Item_func *item_func=(Item_func*) item;
+  if (arg_count != item_func->arg_count ||
+      func_name() != item_func->func_name())
+    return 0;
+  Item_func_set_collation *item_func_sc=(Item_func_set_collation*) item;
+  if (set_collation != item_func_sc->set_collation)
+    return 0;
+  for (uint i=0; i < arg_count ; i++)
+    if (!args[i]->eq(item_func_sc->args[i], binary_cmp))
+      return 0;
+  return 1;
+}
+
+
+String *Item_func_charset::val_str(String *str)
+{
+  String *res = args[0]->val_str(str);
+
+  if ((null_value=(args[0]->null_value || !res->charset())))
+    return 0;
+  str->copy(res->charset()->name,strlen(res->charset()->name));
+  return str;
+}
+
+
 String *Item_func_hex::val_str(String *str)
 {
   if (args[0]->result_type() != STRING_RESULT)
@@ -2007,7 +2233,7 @@ String* Item_func_export_set::val_str(String* str)
     }
     break;
   case 3:
-    sep_buf.set(",", 1);
+    sep_buf.set(",", 1, default_charset_info);
     sep = &sep_buf;
   }
   null_value=0;
@@ -2070,6 +2296,7 @@ String* Item_func_inet_ntoa::val_str(String* str)
   str->length(str->length()-1);			// Remove last '.';
   return str;
 }
+
 
 /*
   QUOTE() function returns argument string in single quotes suitable for
@@ -2160,4 +2387,339 @@ String *Item_func_quote::val_str(String *str)
 null:
   null_value= 1;
   return 0;
+}
+
+
+/*******************************************************
+General functions for spatial objects
+********************************************************/
+
+#include "gstream.h"
+
+String *Item_func_geometry_from_text::val_str(String *str)
+{
+  Geometry geom;
+  String *wkt = args[0]->val_str(str);
+  GTextReadStream trs(wkt->ptr(), wkt->length());
+
+  str->length(0);
+  if ((null_value=(args[0]->null_value || geom.create_from_wkt(&trs, str, 0))))
+    return 0;
+  return str;
+}
+
+
+void Item_func_geometry_from_text::fix_length_and_dec()
+{
+  max_length=MAX_BLOB_WIDTH;
+}
+
+
+String *Item_func_as_text::val_str(String *str)
+{
+  String *wkt = args[0]->val_str(str);
+  Geometry geom;
+
+  if ((null_value=(args[0]->null_value ||
+                   geom.create_from_wkb(wkt->ptr(),wkt->length())))) 
+    return 0;
+
+  str->length(0);
+
+  if ((null_value=geom.as_wkt(str)))
+    return 0;
+
+  return str;
+}
+
+void Item_func_as_text::fix_length_and_dec()
+{
+  max_length=MAX_BLOB_WIDTH;
+}
+
+String *Item_func_geometry_type::val_str(String *str)
+{
+  String *wkt = args[0]->val_str(str);
+  Geometry geom;
+
+  if ((null_value=(args[0]->null_value ||
+                   geom.create_from_wkb(wkt->ptr(),wkt->length()))))
+    return 0;
+  str->copy(geom.get_class_info()->m_name,strlen(geom.get_class_info()->m_name));
+  return str;
+}
+
+
+String *Item_func_envelope::val_str(String *str)
+{
+  String *wkb = args[0]->val_str(str);
+  Geometry geom;
+
+  null_value = args[0]->null_value ||
+               geom.create_from_wkb(wkb->ptr(),wkb->length()) || 
+               geom.envelope(str);
+
+  return null_value ? 0 : str;
+}
+
+
+String *Item_func_centroid::val_str(String *str)
+{
+  String *wkb = args[0]->val_str(str);
+  Geometry geom;
+
+  null_value = args[0]->null_value ||
+               geom.create_from_wkb(wkb->ptr(),wkb->length()) || 
+               !GEOM_METHOD_PRESENT(geom,centroid) ||
+               geom.centroid(str);
+
+  return null_value ? 0: str;
+}
+
+
+/***********************************************
+  Spatial decomposition functions
+***********************************************/
+
+String *Item_func_spatial_decomp::val_str(String *str)
+{
+  String *wkb = args[0]->val_str(str);
+  Geometry geom;
+
+  if ((null_value = (args[0]->null_value ||
+                     geom.create_from_wkb(wkb->ptr(),wkb->length()))))
+    return 0;
+
+  null_value=1;
+  switch(decomp_func)
+  {
+    case SP_STARTPOINT:
+      if (!GEOM_METHOD_PRESENT(geom,start_point) || geom.start_point(str))
+        goto ret;
+      break;
+
+    case SP_ENDPOINT:
+      if (!GEOM_METHOD_PRESENT(geom,end_point) || geom.end_point(str))
+        goto ret;
+      break;
+
+    case SP_EXTERIORRING:
+      if (!GEOM_METHOD_PRESENT(geom,exterior_ring) || geom.exterior_ring(str))
+        goto ret;
+      break;
+
+    default:
+      goto ret;
+  }
+  null_value=0;
+
+ret:  
+  return null_value ? 0 : str;
+}
+
+
+String *Item_func_spatial_decomp_n::val_str(String *str)
+{
+  String *wkb  =        args[0]->val_str(str);
+  long n       = (long) args[1]->val_int();
+  Geometry geom;
+
+  if ((null_value = (args[0]->null_value || 
+                     args[1]->null_value ||
+                     geom.create_from_wkb(wkb->ptr(),wkb->length()) )))
+    return 0;
+
+  null_value=1;
+
+  switch(decomp_func_n)
+  {
+    case SP_POINTN:
+      if (!GEOM_METHOD_PRESENT(geom,point_n) || 
+          geom.point_n(n,str))
+        goto ret;
+      break;
+
+    case SP_GEOMETRYN:
+      if (!GEOM_METHOD_PRESENT(geom,geometry_n) || 
+          geom.geometry_n(n,str))
+        goto ret;
+      break;
+
+    case SP_INTERIORRINGN:
+      if (!GEOM_METHOD_PRESENT(geom,interior_ring_n) || 
+          geom.interior_ring_n(n,str))
+        goto ret;
+      break;
+
+    default:
+      goto ret;
+  }
+  null_value=0;
+
+ret:
+  return null_value ? 0 : str;
+}
+
+
+
+/***********************************************
+Functions to concatinate various spatial objects
+************************************************/
+
+
+/*
+*  Concatinate doubles into Point
+*/
+
+
+String *Item_func_point::val_str(String *str)
+{
+  if ( (null_value = (args[0]->null_value || 
+                     args[1]->null_value ||
+                     str->realloc(1+4+8+8))))
+    return 0;
+
+  str->length(0);
+  str->q_append((char)Geometry::wkbNDR);
+  str->q_append((uint32)Geometry::wkbPoint);
+  str->q_append((double)args[0]->val());
+  str->q_append((double)args[1]->val());
+  return str;
+}
+
+
+/*
+  Concatinates various items into various collections 
+  with checkings for valid wkb type of items.
+  For example, MultiPoint can be a collection of Points only.
+  coll_type contains wkb type of target collection.
+  item_type contains a valid wkb type of items.
+  In the case when coll_type is wkbGeometryCollection, 
+  we do not check wkb type of items, any is valid.
+*/
+
+String *Item_func_spatial_collection::val_str(String *str)
+{
+  uint i;
+
+  null_value=1;
+
+  str->length(0);
+  if(str->reserve(9,512))
+    return 0;
+
+  str->q_append((char)Geometry::wkbNDR);
+  str->q_append((uint32)coll_type);
+  str->q_append((uint32)arg_count);
+
+  for (i = 0; i < arg_count; ++i)
+  {
+    if (args[i]->null_value)
+      goto ret;
+
+    String *res = args[i]->val_str(str);
+
+    if ( coll_type == Geometry::wkbGeometryCollection )
+    {
+      /* 
+         In the case of GeometryCollection we don't need 
+         any checkings for item types, so just copy them
+         into target collection
+      */
+      if ((null_value=(str->reserve(res->length(),512))))
+        goto ret;
+        
+      str->q_append(res->ptr(),res->length());
+    }
+    else
+    {
+      enum Geometry::wkbType wkb_type;
+      uint32 len=res->length();
+      const char *data=res->ptr()+1;
+
+      /* 
+         In the case of named collection we must to 
+         check that items are of specific type, let's
+         do this checking now
+      */
+      
+      if (len < 5)
+        goto ret;
+      wkb_type= (Geometry::wkbType) uint4korr(data);
+      data+=4;
+      len-=5;
+      if (wkb_type != item_type)
+        goto ret;
+      
+      switch (coll_type) {
+      case Geometry::wkbMultiPoint:
+      case Geometry::wkbMultiLineString:
+      case Geometry::wkbMultiPolygon:
+	if (len < WKB_HEADER_SIZE) 
+	  goto ret;
+           
+	data+=WKB_HEADER_SIZE;
+	len-=WKB_HEADER_SIZE;
+	if (str->reserve(len,512))
+	  goto ret;
+	str->q_append(data,len);
+	break;
+
+      case Geometry::wkbLineString:
+	if (str->reserve(POINT_DATA_SIZE,512))
+	  goto ret;
+	str->q_append(data,POINT_DATA_SIZE);
+	break;
+
+      case Geometry::wkbPolygon:
+      { 
+	uint32 n_points;
+	double x1, y1, x2, y2;
+
+	if (len < WKB_HEADER_SIZE + 4 + 8 + 8) 
+	  goto ret;
+	data+=WKB_HEADER_SIZE;
+	len-=WKB_HEADER_SIZE;
+
+	uint32 llen=len;
+	const char *ldata=data;
+             
+	n_points=uint4korr(data);
+	data+=4;
+	float8get(x1,data);
+	data+=8;
+	float8get(y1,data);
+	data+=8;
+             
+	len-= 4 + 8 + 8;
+             
+	if (len < n_points * POINT_DATA_SIZE)
+	  goto ret;
+	data+=(n_points-2) * POINT_DATA_SIZE;
+
+	float8get(x2,data);
+	float8get(y2,data+8);
+             
+	if ((x1 != x2) || (y1 != y2))
+	  goto ret;
+             
+	if (str->reserve(llen,512))
+	  goto ret;
+	str->q_append(ldata, llen);
+      }
+      break;
+         
+      default:
+	goto ret;
+      }
+    }
+  }
+
+  if (str->length() > max_allowed_packet)
+    goto ret;
+
+  null_value = 0;
+
+ret:
+  return null_value ? 0 : str;
 }

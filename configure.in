@@ -4,7 +4,7 @@ dnl Process this file with autoconf to produce a configure script.
 AC_INIT(sql/mysqld.cc)
 AC_CANONICAL_SYSTEM
 # The Docs Makefile.am parses this line!
-AM_INIT_AUTOMAKE(mysql, 4.0.3-beta)
+AM_INIT_AUTOMAKE(mysql, 4.1.0-alpha)
 AM_CONFIG_HEADER(config.h)
 
 PROTOCOL_VERSION=10
@@ -634,10 +634,13 @@ AC_ARG_WITH(mysqld-user,
 AC_SUBST(MYSQLD_USER)
 
 # If we should allow LOAD DATA LOCAL
-AC_MSG_CHECKING(if we should should enable LOAD DATA LOCAL by default)
+AC_MSG_CHECKING(If we should should enable LOAD DATA LOCAL by default)
 AC_ARG_ENABLE(local-infile,
-    [  --enable-local-infile   Enable LOAD DATA LOCAL INFILE (default: disabled)],
-    [ ENABLED_LOCAL_INFILE=$enableval ],
+                          Enable LOAD DATA LOCAL INFILE (default: disabled)],
+    [ 
+      ENABLED_LOCAL_INFILE=$enableval
+      AC_DEFINE(ENABLED_LOCAL_INFILE)
+    ],
     [ ENABLED_LOCAL_INFILE=no ]
     )
 if test "$ENABLED_LOCAL_INFILE" = "yes"
@@ -1951,18 +1954,20 @@ fi
 AC_SUBST(readline_dir)
 AC_SUBST(readline_link)
 
+
 dnl In order to add new charset, you must add charset name to
 dnl this CHARSETS_AVAILABLE list and sql/share/charsets/Index.
 dnl If the character set uses strcoll or other special handling,
 dnl you must also create strings/ctype-$charset_name.c
 
 AC_DIVERT_PUSH(0)
-CHARSETS_AVAILABLE="big5 cp1251 cp1257
+CHARSETS_AVAILABLE="armscii8 big5 cp1251 cp1257
                           croat czech danish dec8 dos estonia euc_kr gb2312 gbk
                           german1 greek hebrew hp8 hungarian koi8_ru koi8_ukr
-                          latin1 latin1_de latin2 latin5 sjis swe7 tis620 ujis
-                          usa7 win1250 win1251ukr"
+                          latin1 latin1_de latin2 latin5 sjis swe7 tis620 ucs2 ujis
+                          usa7 utf8 win1250 win1250ch win1251ukr"
 CHARSETS_DEPRECATED="win1251"
+CHARSETS_COMPLEX="big5 czech euc_kr gb2312 gbk latin1_de sjis tis620 ucs2 ujis utf8 win1250ch"
 DEFAULT_CHARSET=latin1
 AC_DIVERT_POP
 
@@ -1986,208 +1991,154 @@ AC_MSG_CHECKING("character sets")
 if test "$extra_charsets" = none; then
   CHARSETS=""
 elif test "$extra_charsets" = complex; then
-  CHARSETS=`/bin/ls -1 $srcdir/strings/ctype-*.c | \
-                  sed -e 's;^.*/ctype-;;' -e 's;.c$;;'`
-  CHARSETS=`echo $CHARSETS`     # get rid of line breaks
+  CHARSETS="$CHARSETS_COMPLEX"
+elif test "$extra_charsets" = all; then
+  CHARSETS="$CHARSETS_AVAILABLE $CHARSETS_DEPRECATED"
 else
-  if test "$extra_charsets" = all; then
-    CHARSETS="$CHARSETS_AVAILABLE $CHARSETS_DEPRECATED"
-  else
-    CHARSETS=`echo $extra_charsets | sed -e 's/,/ /g'`
-  fi
+  CHARSETS=`echo $extra_charsets | sed -e 's/,/ /g'`
 fi
 
-# Ensure that the default_charset is first in CHARSETS
-TMP_CHARSETS="$default_charset "
-for i in $CHARSETS
-do
-  if test $i != $default_charset
-  then
-    TMP_CHARSETS="$TMP_CHARSETS $i"
-  fi
-done
-CHARSETS=$TMP_CHARSETS
+CHARSETS="$DEFAULT_CHARSET $CHARSETS"
 
-# Check if charsets are all good
+use_mb="no"
+
 for cs in $CHARSETS
 do
-  charset_okay=0
-  for charset in $CHARSETS_AVAILABLE $CHARSETS_DEPRECATED
-  do
-    if test $cs = $charset; then charset_okay=1; fi
-  done
-  if test $charset_okay = 0;
-  then
-    AC_MSG_ERROR([Charset $cs not available. (Available $CHARSETS_AVAILABLE).
-    See the Installation chapter in the Reference Manual.]);
-  fi
+  case $cs in 
+    armscii8)
+      AC_DEFINE(HAVE_CHARSET_armscii8)
+      use_mb="yes"
+      ;;
+    big5)
+      AC_DEFINE(HAVE_CHARSET_big5)
+      use_mb="yes"
+      ;;
+    cp1251)
+      AC_DEFINE(HAVE_CHARSET_cp1251)
+      ;;
+    cp1257)
+      AC_DEFINE(HAVE_CHARSET_cp1257)
+      ;;
+    croat)
+      AC_DEFINE(HAVE_CHARSET_croat)
+      ;;
+    czech)
+      AC_DEFINE(HAVE_CHARSET_czech)
+      ;;
+    danish)
+      AC_DEFINE(HAVE_CHARSET_danish)
+      ;;
+    dec8)
+      AC_DEFINE(HAVE_CHARSET_dec8)
+      ;;
+    dos)
+      AC_DEFINE(HAVE_CHARSET_dos)
+      ;;
+    estonia)
+      AC_DEFINE(HAVE_CHARSET_estonia)
+      ;;
+    euc_kr)
+      AC_DEFINE(HAVE_CHARSET_euc_kr)
+      use_mb="yes"
+      ;;
+    gb2312)
+      AC_DEFINE(HAVE_CHARSET_gb2312)
+      use_mb="yes"
+      ;;
+    gbk)
+      AC_DEFINE(HAVE_CHARSET_gbk)
+      use_mb="yes"
+      ;;
+    german1)
+      AC_DEFINE(HAVE_CHARSET_german1)
+      ;;
+    greek)
+      AC_DEFINE(HAVE_CHARSET_greek)
+      ;;
+    hebrew)
+      AC_DEFINE(HAVE_CHARSET_hebrew)
+      ;;
+    hp8)
+      AC_DEFINE(HAVE_CHARSET_hp8)
+      ;;
+    hungarian)
+      AC_DEFINE(HAVE_CHARSET_hungarian)
+      ;;
+    koi8_ru)
+      AC_DEFINE(HAVE_CHARSET_koi8_ru)
+      ;;
+    koi8_ukr)
+      AC_DEFINE(HAVE_CHARSET_koi8_ukr)
+      ;;
+    latin1)
+      AC_DEFINE(HAVE_CHARSET_latin1)
+      ;;
+    latin1_de)
+      AC_DEFINE(HAVE_CHARSET_latin1_de)
+      ;;
+    latin2)
+      AC_DEFINE(HAVE_CHARSET_latin2)
+      ;;
+    latin5)
+      AC_DEFINE(HAVE_CHARSET_latin5)
+      ;;
+    sjis)
+      AC_DEFINE(HAVE_CHARSET_sjis)
+      use_mb="yes"
+      ;;
+    swe7)
+      AC_DEFINE(HAVE_CHARSET_swe7)
+      ;;
+    tis620)
+      AC_DEFINE(HAVE_CHARSET_tis620)
+      ;;
+    ucs2)
+      AC_DEFINE(HAVE_CHARSET_ucs2)
+      use_mb="yes"
+      ;;
+    ujis)
+      AC_DEFINE(HAVE_CHARSET_ujis)
+      use_mb="yes"
+      ;;
+    usa7)
+      AC_DEFINE(HAVE_CHARSET_usa7)
+      ;;
+    utf8)
+      AC_DEFINE(HAVE_CHARSET_utf8)
+      use_mb="yes"
+      ;;
+    win1250)
+      AC_DEFINE(HAVE_CHARSET_win1250)
+      ;;
+    win1250ch)
+      AC_DEFINE(HAVE_CHARSET_win1250ch)
+      ;;
+    win1251)
+      AC_DEFINE(HAVE_CHARSET_win1251)
+      ;;
+    win1251ukr)
+      AC_DEFINE(HAVE_CHARSET_win1251ukr)
+      ;;
+    *)
+      AC_MSG_ERROR([Charset $cs not available. (Available $CHARSETS_AVAILABLE).
+      See the Installation chapter in the Reference Manual.]);
+  esac
 done
-  
-CHARSET_SRCS=""
-CHARSETS_NEED_SOURCE=""
-CHARSET_DECLARATIONS=""
-CHARSET_COMP_CS_INIT="CHARSET_INFO compiled_charsets[[]] = {"
 
-want_use_strcoll=0
-want_use_mb=0
-
-index_file="$srcdir/sql/share/charsets/Index"
-
-for c in $CHARSETS
-do
-  # get the charset number from $index_file
-changequote(,)dnl
-  subpat='^'"${c}"'[ 	][ 	]*\([0-9][0-9]*\)[^0-9]*$'
-  number=`sed -e "/$subpat/!d" -e 's//\1/' $index_file`
-changequote([,])dnl
-  # some sanity checking....
-  if test X"$number" = X
-  then
-    AC_MSG_ERROR([No number was found in $index_file for the $c character set.  This is a bug in the MySQL distribution.  Please report this message to bugs@lists.mysql.com.])
-  fi
-
-  cs_file="$srcdir/strings/ctype-$c.c"
-  if test -f $cs_file
-  then
-    CHARSET_SRCS="${CHARSET_SRCS}ctype-$c.c "
-    # get the strxfrm multiplier and max mb len from files
-    subpat='^.*\\.configure\\. strxfrm_multiply_'"${c}"'='
-    strx=`$AWK 'sub("'"$subpat"'", "") { print }' $cs_file`
-    subpat='^.*\\.configure\\. mbmaxlen_'"${c}"'='
-    maxl=`$AWK 'sub("'"$subpat"'", "") { print }' $cs_file`
-
-    CHARSET_DECLARATIONS="$CHARSET_DECLARATIONS
-
-/* declarations for the ${c} character set, filled in by configure */
-extern uchar ctype_${c}[[]], to_lower_${c}[[]], to_upper_${c}[[]], sort_order_${c}[[]];"
-  else
-    CHARSETS_NEED_SOURCE="$CHARSETS_NEED_SOURCE $c"
-    strx=''
-    maxl=''
-  fi
-
-  CHARSET_COMP_CS_INIT="$CHARSET_COMP_CS_INIT
-
-  /* this information is filled in by configure */
-  {
-    $number,    /* number */
-    \"$c\",     /* name */
-    ctype_${c},
-    to_lower_${c},
-    to_upper_${c},
-    sort_order_${c},"
-
-  if test -n "$strx"
-  then
-    want_use_strcoll=1
-
-    CHARSET_DECLARATIONS="$CHARSET_DECLARATIONS
-extern int     my_strcoll_${c}(const uchar *, const uchar *);
-extern int     my_strxfrm_${c}(uchar *, const uchar *, int);
-extern int     my_strnncoll_${c}(const uchar *, int, const uchar *, int);
-extern int     my_strnxfrm_${c}(uchar *, const uchar *, int, int);
-extern my_bool my_like_range_${c}(const char *, uint, pchar, uint,
-                          char *, char *, uint *, uint *);"
-
-    CHARSET_COMP_CS_INIT="$CHARSET_COMP_CS_INIT
-    $strx,      /* strxfrm_multiply */
-    my_strcoll_${c},
-    my_strxfrm_${c},
-    my_strnncoll_${c},
-    my_strnxfrm_${c},
-    my_like_range_${c},"
-  else
-    CHARSET_COMP_CS_INIT="$CHARSET_COMP_CS_INIT
-    0,          /* strxfrm_multiply */
-    NULL,       /* strcoll    */
-    NULL,       /* strxfrm    */
-    NULL,       /* strnncoll  */
-    NULL,       /* strnxfrm   */
-    NULL,       /* like_range */"
-  fi
-
-  if test -n "$maxl"
-  then
-    want_use_mb=1
-
-    CHARSET_DECLARATIONS="$CHARSET_DECLARATIONS
-extern int     ismbchar_${c}(const char *, const char *);
-extern my_bool ismbhead_${c}(uint);
-extern int     mbcharlen_${c}(uint);"
-
-
-    CHARSET_COMP_CS_INIT="$CHARSET_COMP_CS_INIT
-    $maxl,      /* mbmaxlen */
-    ismbchar_${c},
-    ismbhead_${c},
-    mbcharlen_${c}"
-  else
-    CHARSET_COMP_CS_INIT="$CHARSET_COMP_CS_INIT
-    0,          /* mbmaxlen  */
-    NULL,       /* ismbchar  */
-    NULL,       /* ismbhead  */
-    NULL        /* mbcharlen */"
-  fi
-  CHARSET_COMP_CS_INIT="$CHARSET_COMP_CS_INIT
-  },"
-done
-
-CHARSET_COMP_CS_INIT="$CHARSET_COMP_CS_INIT
-
-  /* this information is filled in by configure */
-  {
-    0,          /* end-of-list marker */
-    NullS,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    0,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    0,
-    NULL,
-    NULL,
-    NULL
-  }
-};"
-
-
-if test $want_use_strcoll = 1
-then
-  AC_DEFINE(USE_STRCOLL)
-fi
-
-if test $want_use_mb = 1
+dnl Always compile latin1
+AC_DEFINE(HAVE_CHARSET_latin1)
+      
+if test "$use_mb" = "yes"
 then
   AC_DEFINE(USE_MB)
   AC_DEFINE(USE_MB_IDENT)
 fi
 
+# Temporary hack for USE_STRCOLL
+AC_DEFINE(USE_STRCOLL)
+
 AC_SUBST(default_charset)
-AC_SUBST(CHARSET_SRCS)
-CHARSET_OBJS="`echo "$CHARSET_SRCS" | sed -e 's/\.c /.o /g'`"
-AC_SUBST(CHARSET_OBJS)
-AC_SUBST(CHARSETS_NEED_SOURCE)
-
-dnl We can't use AC_SUBST because these substitutions are too long.
-dnl I don't want to use sed, either, because there's a reason why
-dnl autoconf breaks up the substitution commands.  So we'll just
-dnl write to a file and #include it.
-dnl AC_SUBST(CHARSET_DECLARATIONS)
-dnl AC_SUBST(CHARSET_COMP_CS_INIT)
-dnl sed -e "s%@CHARSET_DECLARATIONS@%$CHARSET_DECLARATIONS%g" \
-dnl     -e "s%@CHARSET_COMP_CS_INIT@%$CHARSET_COMP_CS_INIT%g" \
-dnl     $srcdir/strings/ctype.c.in > $srcdir/strings/ctype.c
-
-cat <<EOF > $srcdir/strings/ctype_autoconf.c
-/* This file is generated automatically by configure. */$CHARSET_DECLARATIONS
-
-$CHARSET_COMP_CS_INIT
-EOF
+AC_DEFINE_UNQUOTED(DEFAULT_CHARSET_NAME,"$default_charset")
 
 AC_MSG_RESULT([default: $default_charset; compiled in: $CHARSETS])
 

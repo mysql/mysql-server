@@ -221,10 +221,10 @@ my_string ip_to_hostname(struct in_addr *in, uint *errors)
 
   /* Don't accept hostnames that starts with digits because they may be
      false ip:s */
-  if (isdigit(name[0]))
+  if (my_isdigit(system_charset_info,name[0]))
   {
     char *pos;
-    for (pos= name+1 ; isdigit(*pos); pos++) ;
+    for (pos= name+1 ; my_isdigit(system_charset_info,*pos); pos++) ;
     if (*pos == '.')
     {
       DBUG_PRINT("error",("mysqld doesn't accept hostnames that starts with a number followed by a '.'"));

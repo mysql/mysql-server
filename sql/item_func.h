@@ -39,7 +39,13 @@ public:
   enum Functype { UNKNOWN_FUNC,EQ_FUNC,EQUAL_FUNC,NE_FUNC,LT_FUNC,LE_FUNC,
 		  GE_FUNC,GT_FUNC,FT_FUNC,
 		  LIKE_FUNC,NOTLIKE_FUNC,ISNULL_FUNC,ISNOTNULL_FUNC,
-		  COND_AND_FUNC,COND_OR_FUNC,COND_XOR_FUNC,BETWEEN,IN_FUNC,INTERVAL_FUNC};
+		  COND_AND_FUNC, COND_OR_FUNC, CONX_XOR_FUNC, BETWEEN, IN_FUNC,
+		  INTERVAL_FUNC,
+		  SP_EQUALS_FUNC, SP_DISJOINT_FUNC,SP_INTERSECTS_FUNC,
+		  SP_TOUCHES_FUNC,SP_CROSSES_FUNC,SP_WITHIN_FUNC,
+		  SP_CONTAINS_FUNC,SP_OVERLAPS_FUNC,
+		  SP_STARTPOINT,SP_ENDPOINT,SP_EXTERIORRING,
+		  SP_POINTN,SP_GEOMETRYN,SP_INTERIORRINGN};
   enum optimize_type { OPTIMIZE_NONE,OPTIMIZE_KEY,OPTIMIZE_OP, OPTIMIZE_NULL };
   enum Type type() const { return FUNC_ITEM; }
   virtual enum Functype functype() const   { return UNKNOWN_FUNC; }
@@ -94,7 +100,7 @@ public:
   }
   Item_func(List<Item> &list);
   ~Item_func() {} /* Nothing to do; Items are freed automaticly */
-  bool fix_fields(THD *,struct st_table_list *);
+  bool fix_fields(THD *,struct st_table_list *, Item **ref);
   void make_field(Send_field *field);
   table_map used_tables() const;
   void update_used_tables();
@@ -121,7 +127,6 @@ public:
   }
   bool is_null() { (void) val_int(); return null_value; }
   friend class udf_handler;
-  unsigned int size_of() { return sizeof(*this);}  
   Field *tmp_table_field(TABLE *t_arg);
 };
 
@@ -137,7 +142,6 @@ public:
   longlong val_int() { return (longlong) val(); }
   enum Item_result result_type () const { return REAL_RESULT; }
   void fix_length_and_dec() { decimals=NOT_FIXED_DEC; max_length=float_length(decimals); }
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -153,7 +157,6 @@ public:
   enum Item_result result_type () const { return hybrid_type; }
   void fix_length_and_dec() { fix_num_length_and_dec(); }
   bool is_null() { (void) val(); return null_value; }
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -169,7 +172,6 @@ class Item_num_op :public Item_func
   void fix_length_and_dec() { fix_num_length_and_dec(); find_num_type(); }
   void find_num_type(void);
   bool is_null() { (void) val(); return null_value; }
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -459,7 +461,6 @@ public:
   const char *func_name() const { return truncate ? "truncate" : "round"; }
   double val();
   void fix_length_and_dec();
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -495,7 +496,6 @@ class Item_func_units :public Item_real_func
   double val();
   const char *func_name() const { return name; }
   void fix_length_and_dec() { decimals=NOT_FIXED_DEC; max_length=float_length(decimals); }
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -512,7 +512,6 @@ public:
   String *val_str(String *);
   void fix_length_and_dec();
   enum Item_result result_type () const { return cmp_type; }
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 class Item_func_min :public Item_func_min_max
@@ -529,6 +528,16 @@ public:
   const char *func_name() const { return "greatest"; }
 };
 
+class Item_func_crc32 :public Item_int_func
+{
+  String value;
+public:
+  Item_func_crc32(Item *a) :Item_int_func(a) {}
+  longlong val_int();
+  const char *func_name() const { return "crc32"; }
+  void fix_length_and_dec() { max_length=10; }
+};
+
 
 class Item_func_length :public Item_int_func
 {
@@ -538,7 +547,6 @@ public:
   longlong val_int();
   const char *func_name() const { return "length"; }
   void fix_length_and_dec() { max_length=10; }
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 class Item_func_bit_length :public Item_func_length
@@ -557,7 +565,6 @@ public:
   longlong val_int();
   const char *func_name() const { return "char_length"; }
   void fix_length_and_dec() { max_length=10; }
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 class Item_func_locate :public Item_int_func
@@ -569,7 +576,6 @@ public:
   const char *func_name() const { return "locate"; }
   longlong val_int();
   void fix_length_and_dec() { maybe_null=0; max_length=11; }
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -581,9 +587,10 @@ public:
   Item_func_field(Item *a,List<Item> &list) :Item_int_func(list),item(a) {}
   ~Item_func_field() { delete item; }
   longlong val_int();
-  bool fix_fields(THD *thd,struct st_table_list *tlist)
+  bool fix_fields(THD *thd,struct st_table_list *tlist, Item **ref)
   {
-    return (item->fix_fields(thd,tlist) || Item_func::fix_fields(thd,tlist));
+    return (item->fix_fields(thd, tlist, &item) ||
+	    Item_func::fix_fields(thd, tlist, ref));
   }
   void update_used_tables()
   {
@@ -599,7 +606,6 @@ public:
     const_item_cache&=  item->const_item();
     with_sum_func= with_sum_func || item->with_sum_func;
   }
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -611,7 +617,6 @@ public:
   longlong val_int();
   const char *func_name() const { return "ascii"; }
   void fix_length_and_dec() { max_length=3; }
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 class Item_func_ord :public Item_int_func
@@ -621,7 +626,6 @@ public:
   Item_func_ord(Item *a) :Item_int_func(a) {}
   longlong val_int();
   const char *func_name() const { return "ord"; }
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 class Item_func_find_in_set :public Item_int_func
@@ -634,7 +638,6 @@ public:
   longlong val_int();
   const char *func_name() const { return "find_in_set"; }
   void fix_length_and_dec();
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -710,7 +713,6 @@ class Item_func_benchmark :public Item_int_func
   longlong val_int();
   const char *func_name() const { return "benchmark"; }
   void fix_length_and_dec() { max_length=1; maybe_null=0; }
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -727,15 +729,14 @@ public:
     :Item_func(list), udf(udf_arg) {}
   ~Item_udf_func() {}
   const char *func_name() const { return udf.name(); }
-  bool fix_fields(THD *thd,struct st_table_list *tables)
+  bool fix_fields(THD *thd, struct st_table_list *tables, Item **ref)
   {
-    bool res=udf.fix_fields(thd,tables,this,arg_count,args);
-    used_tables_cache=udf.used_tables_cache;
-    const_item_cache=udf.const_item_cache;
+    bool res= udf.fix_fields(thd, tables, this, arg_count, args);
+    used_tables_cache= udf.used_tables_cache;
+    const_item_cache= udf.const_item_cache;
     return res;
   }
   Item_result result_type () const { return udf.result_type(); }
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -844,7 +845,6 @@ class Item_func_get_lock :public Item_int_func
   longlong val_int();
   const char *func_name() const { return "get_lock"; }
   void fix_length_and_dec() { max_length=1; maybe_null=1;}
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 class Item_func_release_lock :public Item_int_func
@@ -855,7 +855,6 @@ class Item_func_release_lock :public Item_int_func
   longlong val_int();
   const char *func_name() const { return "release_lock"; }
   void fix_length_and_dec() { max_length=1; maybe_null=1;}
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 /* replication functions */
@@ -868,7 +867,6 @@ class Item_master_pos_wait :public Item_int_func
   longlong val_int();
   const char *func_name() const { return "master_pos_wait"; }
   void fix_length_and_dec() { max_length=1; maybe_null=1;}
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -890,11 +888,10 @@ public:
   void update_hash(void *ptr, uint length, enum Item_result type);
   bool update();
   enum Item_result result_type () const { return cached_result_type; }
-  bool fix_fields(THD *thd,struct st_table_list *tables);
+  bool fix_fields(THD *thd, struct st_table_list *tables, Item **ref);
   void fix_length_and_dec();
   void print(String *str);
   const char *func_name() const { return "set_user_var"; }
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -919,7 +916,6 @@ public:
   table_map used_tables() const
   { return const_var_flag ? 0 : RAND_TABLE_BIT; }
   bool eq(const Item *item, bool binary_cmp) const;
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -968,14 +964,97 @@ public:
   }
   enum Functype functype() const { return FT_FUNC; }
   void update_used_tables() {}
-  bool fix_fields(THD *thd,struct st_table_list *tlist);
+  bool fix_fields(THD *thd, struct st_table_list *tlist, Item **ref);
   bool eq(const Item *, bool binary_cmp) const;
   longlong val_int() { return val()!=0.0; }
   double val();
 
   bool fix_index();
   void init_search(bool no_order);
-  unsigned int size_of() { return sizeof(*this);}  
+};
+
+
+class Item_func_dimension :public Item_int_func
+{
+  String value;
+public:
+  Item_func_dimension(Item *a) :Item_int_func(a) {}
+  longlong val_int();
+  const char *func_name() const { return "dimension"; }
+  void fix_length_and_dec() { max_length=10; }
+};
+
+
+class Item_func_x :public Item_real_func
+{
+  String value;
+public:
+  Item_func_x(Item *a) :Item_real_func(a) {}
+  double val();
+  const char *func_name() const { return "x"; }
+};
+
+
+class Item_func_y :public Item_real_func
+{
+  String value;
+public:
+  Item_func_y(Item *a) :Item_real_func(a) {}
+  double val();
+  const char *func_name() const { return "y"; }
+};
+
+
+class Item_func_numgeometries :public Item_int_func
+{
+  String value;
+public:
+  Item_func_numgeometries(Item *a) :Item_int_func(a) {}
+  longlong val_int();
+  const char *func_name() const { return "numgeometries"; }
+  void fix_length_and_dec() { max_length=10; }
+};
+
+
+class Item_func_numinteriorring :public Item_int_func
+{
+  String value;
+public:
+  Item_func_numinteriorring(Item *a) :Item_int_func(a) {}
+  longlong val_int();
+  const char *func_name() const { return "numinteriorring"; }
+  void fix_length_and_dec() { max_length=10; }
+};
+
+
+class Item_func_numpoints :public Item_int_func
+{
+  String value;
+public:
+  Item_func_numpoints(Item *a) :Item_int_func(a) {}
+  longlong val_int();
+  const char *func_name() const { return "numpoints"; }
+  void fix_length_and_dec() { max_length=10; }
+};
+
+
+class Item_func_area :public Item_real_func
+{
+  String value;
+public:
+  Item_func_area(Item *a) :Item_real_func(a) {}
+  double val();
+  const char *func_name() const { return "area"; }
+};
+
+
+class Item_func_glength :public Item_real_func
+{
+  String value;
+public:
+  Item_func_glength(Item *a) :Item_real_func(a) {}
+  double val();
+  const char *func_name() const { return "glength"; }
 };
 
 
@@ -998,16 +1077,6 @@ public:
   const char *func_name() const { return "match_bool"; }
 };
 
-/* For type casts */
-
-enum Item_cast
-{
-  ITEM_CAST_BINARY, ITEM_CAST_SIGNED_INT, ITEM_CAST_UNSIGNED_INT,
-  ITEM_CAST_DATE, ITEM_CAST_TIME, ITEM_CAST_DATETIME
-};
-
-Item *create_func_cast(Item *a, Item_cast cast_type);
-
 
 class Item_func_bit_xor : public Item_int_func
 {
@@ -1026,5 +1095,12 @@ public:
   longlong val_int();
   const char *func_name() const { return "check_lock"; }
   void fix_length_and_dec() { decimals=0; max_length=1; maybe_null=1;}
-  unsigned int size_of() { return sizeof(*this);}  
+};
+
+/* For type casts */
+
+enum Item_cast
+{
+  ITEM_CAST_BINARY, ITEM_CAST_SIGNED_INT, ITEM_CAST_UNSIGNED_INT,
+  ITEM_CAST_DATE, ITEM_CAST_TIME, ITEM_CAST_DATETIME
 };

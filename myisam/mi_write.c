@@ -17,6 +17,8 @@
 /* Write a row to a MyISAM table */
 
 #include "fulltext.h"
+#include "rt_index.h"
+
 #ifdef	__WIN__
 #include <errno.h>
 #endif
@@ -121,17 +123,17 @@ int mi_write(MI_INFO *info, byte *record)
       }
       else
       {
-	uint key_length=_mi_make_key(info,i,buff,record,filepos);
-	if (_mi_ck_write(info,i,buff,key_length))
-	{
-	  if (local_lock_tree)
-	    rw_unlock(&share->key_root_lock[i]);
-	  DBUG_PRINT("error",("Got error: %d on write",my_errno));
-	  goto err;
-	}
+        if (share->keyinfo[i].ck_insert(info,i,buff,
+        			_mi_make_key(info,i,buff,record,filepos)))
+        {
+          if (local_lock_tree)
+            rw_unlock(&share->key_root_lock[i]);
+            DBUG_PRINT("error",("Got error: %d on write",my_errno));
+            goto err;
+        }
       }
       if (local_lock_tree)
-	rw_unlock(&share->key_root_lock[i]);
+        rw_unlock(&share->key_root_lock[i]);
     }
   }
   if (share->calc_checksum)
@@ -751,7 +753,8 @@ int _mi_ck_write_tree(register MI_INFO *info, uint keynr, uchar *key,
   DBUG_ENTER("_mi_ck_write_tree");
 
   error= tree_insert(&info->bulk_insert[keynr], key,
-         key_length + info->s->rec_reflength) ? 0 : HA_ERR_OUT_OF_MEM ;
+         key_length + info->s->rec_reflength, 
+         info->bulk_insert[keynr].custom_arg) ? 0 : HA_ERR_OUT_OF_MEM ;
 
   DBUG_RETURN(error);
 } /* _mi_ck_write_tree */
@@ -762,7 +765,7 @@ int _mi_ck_write_tree(register MI_INFO *info, uint keynr, uchar *key,
 static int keys_compare(bulk_insert_param *param, uchar *key1, uchar *key2)
 {
   uint not_used;
-  return _mi_key_cmp(param->info->s->keyinfo[param->keynr].seg,
+  return ha_key_cmp(param->info->s->keyinfo[param->keynr].seg,
 		     key1, key2, USE_WHOLE_KEY, SEARCH_SAME,
 		     &not_used);
 }

@@ -508,7 +508,7 @@ static my_bool test_if_special_chars(const char *str)
 {
 #if MYSQL_VERSION_ID >= 32300
   for ( ; *str ; str++)
-    if (!isvar(*str) && *str != '$')
+    if (!my_isvar(system_charset_info,*str) && *str != '$')
       return 1;
 #endif
   return 0;
@@ -1026,7 +1026,8 @@ static void dumpTable(uint numFields, char *table)
 		/* change any strings ("inf","nan",..) into NULL */
 		char *ptr = row[i];
 		dynstr_append(&extended_row,
-			      (!isalpha(*ptr)) ? ptr : "NULL");
+			      (!my_isalpha(system_charset_info,*ptr)) ? 
+			      ptr : "NULL");
 	      }
 	    }
 	    else
@@ -1058,9 +1059,11 @@ static void dumpTable(uint numFields, char *table)
 	      char *ptr = row[i];
 	      if (opt_xml)
 		fprintf(md_result_file, "\t\t<%s>%s</%s>\n",
-			field->name,!isalpha(*ptr) ?ptr: "NULL",field->name);
+			field->name,
+			!my_isalpha(system_charset_info,*ptr) ?ptr: "NULL",field->name);
 	      else
-		fputs((!isalpha(*ptr)) ? ptr : "NULL", md_result_file);
+		fputs((!my_isalpha(system_charset_info,*ptr)) ? 
+		       ptr : "NULL", md_result_file);
 	    }
 	  }
 	  else

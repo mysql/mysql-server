@@ -71,7 +71,7 @@ int mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists)
   }
   error=mysql_rm_table_part2(thd,tables,if_exists,0);
 
- err:  
+ err:
   pthread_mutex_unlock(&LOCK_open);
   VOID(pthread_cond_broadcast(&COND_refresh)); // Signal to refresh
 
@@ -171,7 +171,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
     {
       if (wrong_tables.length())
 	wrong_tables.append(',');
-      wrong_tables.append(String(table->real_name));
+      wrong_tables.append(String(table->real_name,default_charset_info));
     }
   }
   if (some_tables_deleted)
@@ -224,7 +224,6 @@ int quick_rm_table(enum db_type base,const char *db,
   PRIMARY keys are prioritized.
 */
 
-
 static int sort_keys(KEY *a, KEY *b)
 {
   if (a->flags & HA_NOSAME)
@@ -266,7 +265,8 @@ static int sort_keys(KEY *a, KEY *b)
 int mysql_create_table(THD *thd,const char *db, const char *table_name,
 		       HA_CREATE_INFO *create_info,
 		       List<create_field> &fields,
-		       List<Key> &keys,bool tmp_table,bool no_log)
+		       List<Key> &keys,bool tmp_table,bool no_log,
+                       uint select_field_count)
 {
   char		path[FN_REFLEN];
   const char	*key_name;
@@ -274,14 +274,15 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
   int		error= -1;
   uint		db_options,field,null_fields,blob_columns;
   ulong		pos;
-  KEY	*key_info,*key_info_buffer;
+  KEY	        *key_info,*key_info_buffer;
   KEY_PART_INFO *key_part_info;
   int		auto_increment=0;
   handler	*file;
+  int           field_no,dup_no;
   DBUG_ENTER("mysql_create_table");
 
   /*
-  ** Check for duplicate fields and check type of table to create
+    Check for duplicate fields and check type of table to create
   */
 
   if (!fields.elements)
@@ -290,6 +291,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
     DBUG_RETURN(-1);
   }
   List_iterator<create_field> it(fields),it2(fields);
+  int select_field_pos=fields.elements - select_field_count;
   null_fields=blob_columns=0;
   db_options=create_info->table_options;
   if (create_info->row_type == ROW_TYPE_DYNAMIC)
@@ -303,10 +305,10 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
     DBUG_RETURN(-1);
   }
 
-  /* Don't pack keys in old tables if the user has requested this */
 
-  while ((sql_field=it++))
+  for(field_no=0; (sql_field=it++) ; field_no++)
   {
+    /* Don't pack keys in old tables if the user has requested this */
     if ((sql_field->flags & BLOB_FLAG) ||
 	sql_field->sql_type == FIELD_TYPE_VAR_STRING &&
 	create_info->row_type != ROW_TYPE_FIXED)
@@ -315,12 +317,29 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
     }
     if (!(sql_field->flags & NOT_NULL_FLAG))
       null_fields++;
-    while ((dup_field=it2++) != sql_field)
+    for(dup_no=0; (dup_field=it2++) != sql_field; dup_no++)
     {
-      if (my_strcasecmp(sql_field->field_name, dup_field->field_name) == 0)
+      if (my_strcasecmp(system_charset_info,
+                        sql_field->field_name,
+                        dup_field->field_name) == 0)
       {
-	my_error(ER_DUP_FIELDNAME,MYF(0),sql_field->field_name);
-	DBUG_RETURN(-1);
+        if (field_no<select_field_pos || dup_no>=select_field_pos)
+        {
+          my_error(ER_DUP_FIELDNAME,MYF(0),sql_field->field_name);
+          DBUG_RETURN(-1);
+        }
+        else
+        {
+            sql_field->length=dup_field->length;
+            sql_field->decimals=dup_field->decimals;
+            sql_field->flags=dup_field->flags;
+            sql_field->pack_length=dup_field->pack_length;
+            sql_field->unireg_check=dup_field->unireg_check;
+            sql_field->sql_type=dup_field->sql_type;
+            it2.remove();
+            select_field_pos--;
+            break;
+        }
       }
     }
     it2.rewind();
@@ -388,6 +407,11 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
     sql_field->offset= pos;
     if (MTYP_TYPENR(sql_field->unireg_check) == Field::NEXT_NUMBER)
       auto_increment++;
+    if(!sql_field->charset)
+      sql_field->charset = create_info->table_charset ?
+			   create_info->table_charset : 
+			   thd->db_charset? thd->db_charset :
+			   default_charset_info;
     pos+=sql_field->pack_length;
   }
   if (auto_increment > 1)
@@ -411,34 +435,49 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
   /* Create keys */
 
   List_iterator<Key> key_iterator(keys);
-  uint key_parts=0,key_count=keys.elements;
+  uint key_parts=0, key_count=0, fk_key_count=0;
   List<Key> keys_in_order;			// Add new keys here
   bool primary_key=0,unique_key=0;
   Key *key;
   uint tmp, key_number;
-  tmp=min(file->max_keys(), MAX_KEY);
-  if (key_count > tmp)
-  {
-    my_error(ER_TOO_MANY_KEYS,MYF(0),tmp);
-    DBUG_RETURN(-1);
-  }
 
   /* Calculate number of key segements */
 
   while ((key=key_iterator++))
   {
+    if (key->type == Key::FOREIGN_KEY)
+    {
+      fk_key_count++;
+      foreign_key *fk_key= (foreign_key*) key;
+      if (fk_key->ref_columns.elements &&
+	  fk_key->ref_columns.elements != fk_key->columns.elements)
+      {
+	my_error(ER_WRONG_FK_DEF, MYF(0), fk_key->name ? fk_key->name :
+		 "foreign key without name",
+		 ER(ER_KEY_REF_DO_NOT_MATCH_TABLE_REF));
+	DBUG_RETURN(-1);
+      }
+      continue;
+    }
+    key_count++;
     tmp=max(file->max_key_parts(),MAX_REF_PARTS);
     if (key->columns.elements > tmp)
     {
       my_error(ER_TOO_MANY_KEY_PARTS,MYF(0),tmp);
       DBUG_RETURN(-1);
     }
-    if (key->name() && strlen(key->name()) > NAME_LEN)
+    if (key->name && strlen(key->name) > NAME_LEN)
     {
-      my_error(ER_TOO_LONG_IDENT, MYF(0), key->name());
+      my_error(ER_TOO_LONG_IDENT, MYF(0), key->name);
       DBUG_RETURN(-1);
     }
     key_parts+=key->columns.elements;
+  }
+  tmp=min(file->max_keys(), MAX_KEY);
+  if (key_count > tmp)
+  {
+    my_error(ER_TOO_MANY_KEYS,MYF(0),tmp);
+    DBUG_RETURN(-1);
   }
 
   key_info_buffer=key_info=(KEY*) sql_calloc(sizeof(KEY)*key_count);
@@ -453,8 +492,23 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
     uint key_length=0;
     key_part_spec *column;
 
-    key_info->flags= (key->type == Key::MULTIPLE) ? 0 :
-                     (key->type == Key::FULLTEXT) ? HA_FULLTEXT : HA_NOSAME;
+    switch(key->type){
+      case Key::MULTIPLE:
+        key_info->flags = 0;
+        break;
+      case Key::FULLTEXT:
+        key_info->flags = HA_FULLTEXT;
+        break;
+      case Key::SPATIAL:
+        key_info->flags = HA_SPATIAL;
+        break;
+    case Key::FOREIGN_KEY:
+      key_number--;				// Skip this key
+      continue;
+    default:
+        key_info->flags = HA_NOSAME;
+    }
+
     key_info->key_parts=(uint8) key->columns.elements;
     key_info->key_part=key_part_info;
     key_info->usable_key_parts= key_number;
@@ -469,14 +523,42 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
         DBUG_RETURN(-1);
       }
     }
-
+    /*
+       Make SPATIAL to be RTREE by default
+       SPATIAL only on BLOB or at least BINARY, this
+       actually should be replaced by special GEOM type 
+       in near future when new frm file is ready
+       checking for proper key parts number:
+    */
+   
+    if (key_info->flags == HA_SPATIAL)
+    {
+      if (key_info->key_parts != 1)
+      {
+        my_printf_error(ER_WRONG_ARGUMENTS,
+                        ER(ER_WRONG_ARGUMENTS),MYF(0),"SPATIAL INDEX");
+        DBUG_RETURN(-1);
+      }
+    }
+    else if (key_info->algorithm == HA_KEY_ALG_RTREE)
+    {
+      if ((key_info->key_parts & 1) == 1)
+      {
+	my_printf_error(ER_WRONG_ARGUMENTS,
+			ER(ER_WRONG_ARGUMENTS),MYF(0),"RTREE INDEX");
+	DBUG_RETURN(-1);
+      }
+    }
+    
     List_iterator<key_part_spec> cols(key->columns);
     for (uint column_nr=0 ; (column=cols++) ; column_nr++)
     {
       it.rewind();
       field=0;
       while ((sql_field=it++) &&
-	     my_strcasecmp(column->field_name,sql_field->field_name))
+	     my_strcasecmp(system_charset_info,
+                           column->field_name,
+                           sql_field->field_name))
 	field++;
       if (!sql_field)
       {
@@ -497,6 +579,14 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
 	{
           if (key->type == Key::FULLTEXT)
             column->length=1; /* ft-code ignores it anyway :-) */
+          else if (key->type == Key::SPATIAL)
+          {
+            /* 
+               BAR: 4 is: (Xmin,Xmax,Ymin,Ymax), this is for 2D case
+               Lately we'll extend this code to support more dimensions 
+            */
+            column->length=4*sizeof(double);
+          }
           else
           {
             my_printf_error(ER_BLOB_KEY_WITHOUT_LENGTH,
@@ -588,7 +678,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
 	  key_name=primary_key_name;
 	  primary_key=1;
 	}
-	else if (!(key_name = key->name()))
+	else if (!(key_name = key->name))
 	  key_name=make_unique_key_name(sql_field->field_name,
 					key_info_buffer,key_info);
 	if (check_if_keyname_exists(key_name,key_info_buffer,key_info))
@@ -699,7 +789,7 @@ static bool
 check_if_keyname_exists(const char *name, KEY *start, KEY *end)
 {
   for (KEY *key=start ; key != end ; key++)
-    if (!my_strcasecmp(name,key->name))
+    if (!my_strcasecmp(system_charset_info,name,key->name))
       return 1;
   return 0;
 }
@@ -735,6 +825,7 @@ TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
   TABLE tmp_table;		// Used during 'create_field()'
   TABLE *table;
   tmp_table.table_name=0;
+  uint select_field_count=0;
   DBUG_ENTER("create_table_from_items");
 
   /* Add selected items to field list */
@@ -768,11 +859,12 @@ TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
 					   (Field*) 0))))
       DBUG_RETURN(0);
     extra_fields->push_back(cr_field);
+    select_field_count++;
   }
   /* create and lock table */
   /* QQ: This should be done atomic ! */
   if (mysql_create_table(thd,db,name,create_info,*extra_fields,
-			 *keys,0,1)) // no logging
+			 *keys,0,1,select_field_count)) // no logging
     DBUG_RETURN(0);
   if (!(table=open_table(thd,db,name,name,(bool*) 0)))
   {
@@ -1298,9 +1390,9 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     strmov(new_name_buff,new_name);
     fn_same(new_name_buff,table_name,3);
     if (lower_case_table_names)
-      casedn_str(new_name);
+      my_casedn_str(system_charset_info,new_name);
     if ((lower_case_table_names &&
-	 !my_strcasecmp(new_name_buff,table_name)) ||
+	 !my_strcasecmp(system_charset_info, new_name_buff,table_name)) ||
 	(!lower_case_table_names &&
 	 !strcmp(new_name_buff,table_name)))
       new_name=table_name;			// No. Make later check easier
@@ -1398,7 +1490,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   List<Key> key_list;				// Add new keys here
 
   /*
-  ** First collect all fields from table which isn't in drop_list
+    First collect all fields from table which isn't in drop_list
   */
 
   create_field *def;
@@ -1411,7 +1503,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     while ((drop=drop_it++))
     {
       if (drop->type == Alter_drop::COLUMN &&
-	  !my_strcasecmp(field->field_name, drop->name))
+	  !my_strcasecmp(system_charset_info,field->field_name, drop->name))
       {
 	/* Reset auto_increment value if it was dropped */
 	if (MTYP_TYPENR(field->unireg_check) == Field::NEXT_NUMBER &&
@@ -1432,7 +1524,8 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     def_it.rewind();
     while ((def=def_it++))
     {
-      if (def->change && !my_strcasecmp(field->field_name, def->change))
+      if (def->change && 
+          !my_strcasecmp(system_charset_info,field->field_name, def->change))
 	break;
     }
     if (def)
@@ -1456,7 +1549,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
       Alter_column *alter;
       while ((alter=alter_it++))
       {
-	if (!my_strcasecmp(field->field_name, alter->name))
+	if (!my_strcasecmp(system_charset_info,field->field_name, alter->name))
 	  break;
       }
       if (alter)
@@ -1490,7 +1583,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
       find_it.rewind();
       while ((find=find_it++))			// Add new columns
       {
-	if (!my_strcasecmp(def->after, find->field_name))
+	if (!my_strcasecmp(system_charset_info,def->after, find->field_name))
 	  break;
       }
       if (!find)
@@ -1513,8 +1606,8 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   }
 
   /*
-  ** Collect all keys which isn't in drop list. Add only those
-  ** for which some fields exists.
+    Collect all keys which isn't in drop list. Add only those
+    for which some fields exists.
   */
 
   List_iterator<Key> key_it(keys);
@@ -1536,7 +1629,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     while ((drop=drop_it++))
     {
       if (drop->type == Alter_drop::KEY &&
-	  !my_strcasecmp(key_name, drop->name))
+	  !my_strcasecmp(system_charset_info,key_name, drop->name))
 	break;
     }
     if (drop)
@@ -1558,11 +1651,13 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
       {
 	if (cfield->change)
 	{
-	  if (!my_strcasecmp(key_part_name, cfield->change))
+	  if (!my_strcasecmp(system_charset_info, key_part_name,
+			     cfield->change))
 	    break;
 	}
-	else if (!my_strcasecmp(key_part_name, cfield->field_name))
-	    break;
+	else if (!my_strcasecmp(system_charset_info,
+                                key_part_name, cfield->field_name))
+	  break;
       }
       if (!cfield)
 	continue;				// Field is removed
@@ -1579,18 +1674,24 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
 					    key_part_length));
     }
     if (key_parts.elements)
-      key_list.push_back(new Key(key_info->flags & HA_NOSAME ?
-				 (!my_strcasecmp(key_name, "PRIMARY") ?
+      key_list.push_back(new Key(key_info->flags & HA_SPATIAL ? Key::SPATIAL :
+                                 (key_info->flags & HA_NOSAME ?
+				 (!my_strcasecmp(system_charset_info,
+                                                 key_name, "PRIMARY") ?
 				  Key::PRIMARY  : Key::UNIQUE) :
-                                 (key_info->flags & HA_FULLTEXT ?
-                                 Key::FULLTEXT : Key::MULTIPLE),
-				 key_name,key_parts));
+				  (key_info->flags & HA_FULLTEXT ?
+				   Key::FULLTEXT : Key::MULTIPLE)),
+				 key_name,
+                                 key_info->algorithm,
+				 key_parts));
   }
-  key_it.rewind();
   {
     Key *key;
     while ((key=key_it++))			// Add new keys
-      key_list.push_back(key);
+    {
+      if (key->type != Key::FOREIGN_KEY)
+	key_list.push_back(key);
+    }
   }
 
   if (drop_list.elements)
@@ -1618,6 +1719,8 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     create_info->max_rows=table->max_rows;
   if (!(used_fields & HA_CREATE_USED_AVG_ROW_LENGTH))
     create_info->avg_row_length=table->avg_row_length;
+  if (!(used_fields & HA_CREATE_USED_CHARSET))
+    create_info->table_charset=table->table_charset;
 
   table->file->update_create_info(create_info);
   if ((create_info->table_options &
@@ -1685,7 +1788,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
 
   if ((error=mysql_create_table(thd, new_db, tmp_name,
 				create_info,
-				create_list,key_list,1,1))) // no logging
+				create_list,key_list,1,1,0))) // no logging
     DBUG_RETURN(error);
 
   if (table->tmp_table)
@@ -1762,9 +1865,9 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     goto err;
   }
   /*
-  ** Data is copied.  Now we rename the old table to a temp name,
-  ** rename the new one to the old name, remove all entries from the old table
-  ** from the cash, free all locks, close the old table and remove it.
+    Data is copied.  Now we rename the old table to a temp name,
+    rename the new one to the old name, remove all entries from the old table
+    from the cash, free all locks, close the old table and remove it.
   */
 
   thd->proc_info="rename result table";

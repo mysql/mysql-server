@@ -242,3 +242,7 @@
 "Wrong usage/placement of '%s'",
 "This version of MySQL doesn't yet support '%s'",
 "Got fatal error %d: '%-.128s' from master when reading data from binary log",
+"Wrong foreign key definition for '%-.64s': %s",
+"Key reference and table reference doesn't match",
+"Subselect return more than 1 field",
+"Subselect return more than 1 record",

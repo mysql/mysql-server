@@ -28,6 +28,7 @@ extern "C" {
 #ifndef _m_ctype_h
 #include <m_ctype.h>
 #endif
+#include "my_handler.h"
 
 	/* defines used by myisam-funktions */
 
@@ -105,20 +106,6 @@ typedef struct st_mi_create_info
 struct st_myisam_info;			/* For referense */
 typedef struct st_myisam_info MI_INFO;
 
-typedef struct st_mi_keyseg		/* Key-portion */
-{
-  uint8  type;				/* Type of key (for sort) */
-  uint8  language;
-  uint8  null_bit;			/* bitmask to test for NULL */
-  uint8  bit_start,bit_end;		/* if bit field */
-  uint16 flag;
-  uint16 length;			/* Keylength */
-  uint32 start;				/* Start of key in record */
-  uint32 null_pos;			/* position to NULL indicator */
-  CHARSET_INFO *charset;
-} MI_KEYSEG;
-
-
 struct st_mi_s_param;
 
 typedef struct st_mi_keydef		/* Key definition with open & info */
@@ -135,7 +122,7 @@ typedef struct st_mi_keydef		/* Key definition with open & info */
   uint16 block_size;			/* block_size (auto) */
   uint32 version;			/* For concurrent read/write */
 
-  MI_KEYSEG *seg,*end;
+  HA_KEYSEG *seg,*end;
   int (*bin_search)(struct st_myisam_info *info,struct st_mi_keydef *keyinfo,
 		    uchar *page,uchar *key,
 		    uint key_len,uint comp_flag,uchar * *ret_pos,
@@ -147,6 +134,8 @@ typedef struct st_mi_keydef		/* Key definition with open & info */
 		  struct st_mi_s_param *s_temp);
   void (*store_key)(struct st_mi_keydef *keyinfo, uchar *key_pos,
 		    struct st_mi_s_param *s_temp);
+  int (*ck_insert)(struct st_myisam_info *inf, uint k_nr, uchar *k, uint klen);
+  int (*ck_delete)(struct st_myisam_info *inf, uint k_nr, uchar *k, uint klen);
 } MI_KEYDEF;
 
 
@@ -157,7 +146,7 @@ typedef struct st_unique_def		/* Segment definition of unique */
   uint16 keysegs;			/* Number of key-segment */
   uchar key;				/* Mapped to which key */
   uint8 null_are_equal;
-  MI_KEYSEG *seg,*end;
+  HA_KEYSEG *seg,*end;
 } MI_UNIQUEDEF;
 
 typedef struct st_mi_decode_tree	/* Decode huff-table */
@@ -320,6 +309,7 @@ typedef struct st_sort_key_blocks		/* Used when sorting */
   uint last_length;
   int inited;
 } SORT_KEY_BLOCKS;
+
 
 typedef struct st_mi_check_param
 {

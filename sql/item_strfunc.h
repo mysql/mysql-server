@@ -35,9 +35,7 @@ public:
   double val();
   enum Item_result result_type () const { return STRING_RESULT; }
   void left_right_max_length();
-  unsigned int size_of() { return sizeof(*this);}  
 };
-
 
 class Item_func_md5 :public Item_str_func
 {
@@ -47,7 +45,6 @@ public:
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "md5"; }
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -88,7 +85,6 @@ public:
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "concat"; }
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 class Item_func_concat_ws :public Item_str_func
@@ -103,13 +99,12 @@ public:
   String *val_str(String *);
   void fix_length_and_dec();
   void update_used_tables();
-  bool fix_fields(THD *thd,struct st_table_list *tlist)
+  bool fix_fields(THD *thd, TABLE_LIST *tlist, Item **ref)
   {
-    return (separator->fix_fields(thd,tlist)
-	    || Item_func::fix_fields(thd,tlist));
+    return (separator->fix_fields(thd, tlist, &separator)
+	    || Item_func::fix_fields(thd, tlist, ref));
   }
  const char *func_name() const { return "concat_ws"; }
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 class Item_func_reverse :public Item_str_func
@@ -130,7 +125,6 @@ public:
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "replace"; }
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -143,7 +137,6 @@ public:
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "insert"; }
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -190,7 +183,6 @@ public:
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "right"; }
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -203,7 +195,6 @@ public:
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "substr"; }
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -215,7 +206,6 @@ public:
   String *val_str(String *);
   void fix_length_and_dec() { max_length= args[0]->max_length; }
   const char *func_name() const { return "substr_index"; }
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -227,7 +217,6 @@ public:
   String *val_str(String *);
   void fix_length_and_dec() { max_length= args[0]->max_length; }
   const char *func_name() const { return "ltrim"; }
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -239,7 +228,6 @@ public:
   String *val_str(String *);
   void fix_length_and_dec() { max_length= args[0]->max_length; }
   const char *func_name() const { return "rtrim"; }
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 class Item_func_trim :public Item_str_func
@@ -250,7 +238,6 @@ public:
   String *val_str(String *);
   void fix_length_and_dec() { max_length= args[0]->max_length; }
   const char *func_name() const { return "trim"; }
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -262,7 +249,6 @@ public:
   String *val_str(String *);
   void fix_length_and_dec() { max_length = 16; }
   const char *func_name() const { return "password"; }
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 class Item_func_des_encrypt :public Item_str_func
@@ -275,7 +261,6 @@ public:
   void fix_length_and_dec()
   { maybe_null=1; max_length = args[0]->max_length+8; }
   const char *func_name() const { return "des_encrypt"; }
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 class Item_func_des_decrypt :public Item_str_func
@@ -287,7 +272,6 @@ public:
   String *val_str(String *);
   void fix_length_and_dec() { maybe_null=1; max_length = args[0]->max_length; }
   const char *func_name() const { return "des_decrypt"; }
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 class Item_func_encrypt :public Item_str_func
@@ -298,7 +282,6 @@ public:
   Item_func_encrypt(Item *a, Item *b): Item_str_func(a,b) {}
   String *val_str(String *);
   void fix_length_and_dec() { maybe_null=1; max_length = 13; }
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 #include "sql_crypt.h"
@@ -312,7 +295,6 @@ public:
     Item_str_func(a),sql_crypt(seed) {}
   String *val_str(String *);
   void fix_length_and_dec();
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 class Item_func_decode :public Item_func_encode
@@ -350,7 +332,6 @@ public:
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "soundex"; }
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -364,14 +345,14 @@ public:
   double val();
   longlong val_int();
   String *val_str(String *str);
-  bool fix_fields(THD *thd,struct st_table_list *tlist)
+  bool fix_fields(THD *thd, TABLE_LIST *tlist, Item **ref)
   {
-    return (item->fix_fields(thd,tlist) || Item_func::fix_fields(thd,tlist));
+    return (item->fix_fields(thd, tlist, &item) ||
+	    Item_func::fix_fields(thd, tlist, ref));
   }
   void fix_length_and_dec();
   void update_used_tables();
   const char *func_name() const { return "elt"; }
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -384,14 +365,14 @@ public:
   Item_func_make_set(Item *a,List<Item> &list) :Item_str_func(list),item(a) {}
   ~Item_func_make_set() { delete item; }
   String *val_str(String *str);
-  bool fix_fields(THD *thd,struct st_table_list *tlist)
+  bool fix_fields(THD *thd, TABLE_LIST *tlist, Item **ref)
   {
-    return (item->fix_fields(thd,tlist) || Item_func::fix_fields(thd,tlist));
+    return (item->fix_fields(thd, tlist, &item) ||
+	    Item_func::fix_fields(thd, tlist, ref));
   }
   void fix_length_and_dec();
   void update_used_tables();
   const char *func_name() const { return "make_set"; }
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -406,7 +387,6 @@ public:
     max_length=args[0]->max_length+(args[0]->max_length-args[0]->decimals)/3;
   }
   const char *func_name() const { return "format"; }
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -428,7 +408,6 @@ public:
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "repeat"; }
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -441,7 +420,6 @@ public:
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "rpad"; }
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -454,7 +432,6 @@ public:
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "lpad"; }
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -476,7 +453,6 @@ public:
   const char *func_name() const { return "hex"; }
   String *val_str(String *);
   void fix_length_and_dec() { decimals=0; max_length=args[0]->max_length*2; }
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -501,7 +477,6 @@ public:
   const char *func_name() const { return "load_file"; }
   void fix_length_and_dec()
   { binary=1; maybe_null=1; max_length=MAX_BLOB_WIDTH;}
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -516,7 +491,7 @@ class Item_func_export_set: public Item_str_func
   const char *func_name() const { return "export_set"; }
 };
 
- class Item_func_inet_ntoa : public Item_str_func
+class Item_func_inet_ntoa : public Item_str_func
 {
 public:
   Item_func_inet_ntoa(Item *a) :Item_str_func(a)
@@ -535,3 +510,247 @@ public:
   String *val_str(String *);
   void fix_length_and_dec() { max_length= args[0]->max_length * 2 + 2; }
 };
+
+class Item_func_conv_charset :public Item_str_func
+{
+  CHARSET_INFO *conv_charset;
+public:
+  Item_func_conv_charset(Item *a, CHARSET_INFO *cs) :Item_str_func(a) 
+  { conv_charset=cs; }
+  bool fix_fields(THD *thd,struct st_table_list *tables,Item **ref);
+  String *val_str(String *);
+  void fix_length_and_dec();
+  const char *func_name() const { return "conv_charset"; }
+};
+
+class Item_func_set_collation :public Item_str_func
+{
+  CHARSET_INFO *set_collation;
+public:
+  Item_func_set_collation(Item *a, CHARSET_INFO *cs) :Item_str_func(a) 
+  { set_collation=cs; }
+  bool fix_fields(THD *thd,struct st_table_list *tables, Item **ref);
+  String *val_str(String *);
+  void fix_length_and_dec() 
+  {
+    max_length = args[0]->max_length; 
+    str_value.set_charset(set_collation);
+  }
+  bool eq(const Item *item, bool binary_cmp) const;
+  const char *func_name() const { return "set_collation"; }
+};
+
+class Item_func_conv_charset3 :public Item_str_func
+{
+public:
+  Item_func_conv_charset3(Item *arg1,Item *arg2,Item *arg3)
+    :Item_str_func(arg1,arg2,arg3) {}
+  String *val_str(String *);
+  void fix_length_and_dec();
+  const char *func_name() const { return "conv_charset3"; }
+};
+
+class Item_func_charset :public Item_str_func
+{
+public:
+  Item_func_charset(Item *a) :Item_str_func(a) {}
+  String *val_str(String *);
+  const char *func_name() const { return "charset"; }
+  void fix_length_and_dec() 
+  {
+     max_length=20; // should be enough
+  };
+};
+
+
+/*******************************************************
+Spatial functions
+********************************************************/
+
+class Item_func_geometry_from_text :public Item_str_func
+{
+public:
+  Item_func_geometry_from_text(Item *a) :Item_str_func(a) {}
+  const char *func_name() const { return "geometryfromtext"; }
+  String *val_str(String *);
+  void fix_length_and_dec();
+};
+
+class Item_func_as_text :public Item_str_func
+{
+public:
+  Item_func_as_text(Item *a) :Item_str_func(a) {}
+  const char *func_name() const { return "astext"; }
+  String *val_str(String *);
+  void fix_length_and_dec();
+};
+
+class Item_func_geometry_type :public Item_str_func
+{
+public:
+  Item_func_geometry_type(Item *a) :Item_str_func(a) {}
+  String *val_str(String *);
+  const char *func_name() const { return "geometrytype"; }
+  void fix_length_and_dec() 
+  {
+     max_length=20; // "GeometryCollection" is the most long
+  };
+};
+
+class Item_func_centroid :public Item_str_func
+{
+public:
+  Item_func_centroid(Item *a) :Item_str_func(a) {}
+  const char *func_name() const { return "centroid"; }
+  String *val_str(String *);
+  void fix_length_and_dec(){max_length=MAX_BLOB_WIDTH;}
+};
+
+class Item_func_envelope :public Item_str_func
+{
+public:
+  Item_func_envelope(Item *a) :Item_str_func(a) {}
+  const char *func_name() const { return "envelope"; }
+  String *val_str(String *);
+  void fix_length_and_dec(){max_length=MAX_BLOB_WIDTH;}
+};
+
+class Item_func_point :public Item_str_func
+{
+public:
+  Item_func_point(Item *a,Item *b) :Item_str_func(a,b) {}
+  const char *func_name() const { return "point"; }
+  String *val_str(String *);
+  void fix_length_and_dec(){max_length=MAX_BLOB_WIDTH;}
+};
+
+class Item_func_spatial_decomp :public Item_str_func
+{
+  enum Functype decomp_func;
+public:
+  Item_func_spatial_decomp(Item *a, Item_func::Functype ft) :
+  	Item_str_func(a) { decomp_func = ft; }
+  const char *func_name() const 
+  { 
+    switch (decomp_func)
+    {
+      case SP_STARTPOINT:
+        return "startpoint";
+      case SP_ENDPOINT:
+        return "endpoint";
+      case SP_EXTERIORRING:
+        return "exteriorring";
+      default:
+        return "spatial_decomp_unknown"; 
+    }
+  }
+  String *val_str(String *);
+  void fix_length_and_dec(){max_length=MAX_BLOB_WIDTH;}
+};
+
+class Item_func_spatial_decomp_n :public Item_str_func
+{
+  enum Functype decomp_func_n;
+public:
+  Item_func_spatial_decomp_n(Item *a, Item *b, Item_func::Functype ft) :
+  	Item_str_func(a, b) { decomp_func_n = ft; }
+  const char *func_name() const 
+  { 
+    switch (decomp_func_n)
+    {
+      case SP_POINTN:
+        return "pointn";
+      case SP_GEOMETRYN:
+        return "geometryn";
+      case SP_INTERIORRINGN:
+        return "interiorringn";
+      default:
+        return "spatial_decomp_n_unknown"; 
+    }
+  }
+  String *val_str(String *);
+  void fix_length_and_dec(){max_length=MAX_BLOB_WIDTH;}
+};
+
+
+class Item_func_spatial_collection :public Item_str_func
+{
+  String tmp_value;
+  enum Geometry::wkbType coll_type; 
+  enum Geometry::wkbType item_type;
+public:
+  Item_func_spatial_collection(
+     List<Item> &list, enum Geometry::wkbType ct, enum Geometry::wkbType it) :
+  Item_str_func(list)
+  {
+    coll_type=ct;
+    item_type=it;
+  }
+  String *val_str(String *);
+  void fix_length_and_dec(){max_length=MAX_BLOB_WIDTH;}
+  const char *func_name() const { return "multipoint"; }
+};
+
+
+/*
+class Item_func_multipoint :public Item_str_func
+{
+  String tmp_value;
+public:
+  Item_func_multipoint(List<Item> &list) :Item_str_func(list) {}
+  String *val_str(String *);
+  void fix_length_and_dec(){max_length=MAX_BLOB_WIDTH;}
+  const char *func_name() const { return "multipoint"; }
+};
+
+class Item_func_linestring :public Item_str_func
+{
+  String tmp_value;
+public:
+  Item_func_linestring(List<Item> &list) :Item_str_func(list) {}
+  String *val_str(String *);
+  void fix_length_and_dec(){max_length=MAX_BLOB_WIDTH;}
+  const char *func_name() const { return "linestring"; }
+};
+
+class Item_func_multilinestring :public Item_str_func
+{
+  String tmp_value;
+public:
+  Item_func_multilinestring(List<Item> &list) :Item_str_func(list) {}
+  String *val_str(String *);
+  void fix_length_and_dec(){max_length=MAX_BLOB_WIDTH;}
+  const char *func_name() const { return "multilinestring"; }
+};
+
+class Item_func_polygon :public Item_str_func
+{
+  String tmp_value;
+public:
+  Item_func_polygon(List<Item> &list) :Item_str_func(list) {}
+  String *val_str(String *);
+  void fix_length_and_dec(){max_length=MAX_BLOB_WIDTH;}
+  const char *func_name() const { return "polygon"; }
+};
+
+class Item_func_multipolygon :public Item_str_func
+{
+  String tmp_value;
+public:
+  Item_func_multipolygon(List<Item> &list) :Item_str_func(list) {}
+  String *val_str(String *);
+  void fix_length_and_dec(){max_length=MAX_BLOB_WIDTH;}
+  const char *func_name() const { return "multipolygon"; }
+};
+
+class Item_func_geometrycollection :public Item_str_func
+{
+  String tmp_value;
+public:
+  Item_func_geometrycollection(List<Item> &list) :Item_str_func(list) {}
+  String *val_str(String *);
+  void fix_length_and_dec(){max_length=MAX_BLOB_WIDTH;}
+  const char *func_name() const { return "geometrycollection"; }
+};
+
+*/

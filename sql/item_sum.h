@@ -81,7 +81,7 @@ public:
   Item_sum_num(Item *item_par) :Item_sum(item_par) {}
   Item_sum_num(Item *a, Item* b) :Item_sum(a,b) {}
   Item_sum_num(List<Item> &list) :Item_sum(list) {}
-  bool fix_fields(THD *,struct st_table_list *);
+  bool fix_fields(THD *, TABLE_LIST *, Item **);
   longlong val_int() { return (longlong) val(); } /* Real as default */
   String *val_str(String*str);
   void reset_field();
@@ -151,7 +151,7 @@ class Item_sum_count_distinct :public Item_sum_int
 {
   TABLE *table;
   table_map used_table_cache;
-  bool fix_fields(THD *thd,TABLE_LIST *tables);
+  bool fix_fields(THD *thd, TABLE_LIST *tables, Item **ref);
   uint32 *field_lengths;
   TMP_TABLE_PARAM *tmp_table_param;
   TREE tree;
@@ -293,7 +293,7 @@ class Item_sum_hybrid :public Item_sum
   Item_sum_hybrid(Item *item_par,int sign) :Item_sum(item_par),cmp_sign(sign),
     used_table_cache(~(table_map) 0)
   {}
-  bool fix_fields(THD *,struct st_table_list *);
+  bool fix_fields(THD *, TABLE_LIST *, Item **);
   table_map used_tables() const { return used_table_cache; }
   bool const_item() const { return !used_table_cache; }
 
@@ -398,7 +398,7 @@ public:
   { quick_group=0;}
   ~Item_udf_sum() {}
   const char *func_name() const { return udf.name(); }
-  bool fix_fields(THD *thd,struct st_table_list *tables)
+  bool fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   {
     return udf.fix_fields(thd,tables,this,this->arg_count,this->args);
   }

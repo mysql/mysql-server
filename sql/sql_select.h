@@ -149,8 +149,7 @@ class TMP_TABLE_PARAM {
   }
 };
 
-
-class JOIN {
+class JOIN :public Sql_alloc{
  public:
   JOIN_TAB *join_tab,**best_ref,**map2table;
   TABLE    **table,**all_tables,*sort_by_table;
@@ -173,6 +172,75 @@ class JOIN {
   select_result *result;
   TMP_TABLE_PARAM tmp_table_param;
   MYSQL_LOCK *lock;
+  // unit structure (with global parameters) for this select
+  SELECT_LEX_UNIT *unit;
+  // select that processed
+  SELECT_LEX *select_lex;
+
+  bool select_distinct, //Is select distinct?
+    no_order, simple_order, simple_group,
+    skip_sort_order, need_tmp,
+    hidden_group_fields,
+    buffer_result;
+  DYNAMIC_ARRAY keyuse;
+  Item::cond_result cond_value;
+  List<Item> all_fields;
+  List<Item> & fields_list; // hold field list passed to mysql_select
+  int error;
+
+  ORDER *order, *group_list, *proc_param; //hold parameters of mysql_select
+  COND *conds;                            // ---"---
+  TABLE_LIST *tables_list;           //hold 'tables' parameter of mysql_selec
+  SQL_SELECT *select;                //created in optimisation phase
+  TABLE      *exec_tmp_table;        //used in 'exec' to hold temporary
+
+  my_bool test_function_query; // need to return select items 1 row
+  const char *zero_result_cause; // not 0 if exec must return zero result
+  
+  my_bool union_part; // this subselect is part of union 
+
+  JOIN(THD *thd, List<Item> &fields,
+       ulong select_options, select_result *result):
+    join_tab(0),
+    table(0),
+    tables(0), const_tables(0),
+    sort_and_group(0), first_record(0),
+    do_send_rows(1),
+    send_records(0), found_records(0), examined_rows(0),
+    thd(thd),
+    sum_funcs(0),
+    having(0),
+    select_options(select_options),
+    result(result),
+    lock(thd->lock),
+    select_lex(0), //for safety
+    select_distinct(test(select_options & SELECT_DISTINCT)),
+    no_order(0), simple_order(0), simple_group(0), skip_sort_order(0),
+    need_tmp(0),
+    hidden_group_fields (0), /*safety*/
+    buffer_result(test(select_options & OPTION_BUFFER_RESULT) &&
+		  !test(select_options & OPTION_FOUND_ROWS)),
+    all_fields(fields),
+    fields_list(fields),
+    select(0),
+    exec_tmp_table(0),
+    test_function_query(0),
+    zero_result_cause(0)
+  {
+    fields_list = fields;
+    bzero((char*) &keyuse,sizeof(keyuse));
+    tmp_table_param.copy_field=0;
+    tmp_table_param.end_write_records= HA_POS_ERROR;
+  }
+  
+  int prepare(TABLE_LIST *tables,
+	      COND *conds, ORDER *order, ORDER *group, Item *having,
+	      ORDER *proc_param, SELECT_LEX *select, SELECT_LEX_UNIT *unit);
+  int optimize();
+  int global_optimize();
+  int reinit();
+  void exec();
+  int cleanup(THD *thd);  
 };
 
 
@@ -187,7 +255,8 @@ void TEST_join(JOIN *join);
 bool store_val_in_field(Field *field,Item *val);
 TABLE *create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 			ORDER *group, bool distinct, bool save_sum_fields,
-			bool allow_distinct_limit, ulong select_options);
+			bool allow_distinct_limit, ulong select_options,
+			SELECT_LEX_UNIT *unit);
 void free_tmp_table(THD *thd, TABLE *entry);
 void count_field_types(TMP_TABLE_PARAM *param, List<Item> &fields,
 		       bool reset_with_sum_func);
@@ -217,7 +286,7 @@ class store_key :public Sql_alloc
     if (field_arg->type() == FIELD_TYPE_BLOB)
       to_field=new Field_varstring(ptr, length, (uchar*) null, 1, 
 				   Field::NONE, field_arg->field_name,
-				   field_arg->table, field_arg->binary());
+				   field_arg->table, field_arg->binary(), default_charset_info);
     else
     {
       to_field=field_arg->new_field(&thd->mem_root,field_arg->table);
@@ -269,7 +338,7 @@ public:
   {}
   bool copy()
   {
-    item->save_in_field(to_field);
+    (void) item->save_in_field(to_field);
     return err != 0;
   }
   const char *name() const { return "func"; }
@@ -293,7 +362,7 @@ public:
     if (!inited)
     {
       inited=1;
-      item->save_in_field(to_field);
+      (void)item->save_in_field(to_field);
     }
     return err != 0;
   }

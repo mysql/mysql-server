@@ -50,7 +50,7 @@ void Item::set_name(char *str,uint length)
     name=str;					// Used by AS
   else
   {
-    while (length && !isgraph(*str))
+    while (length && !my_isgraph(system_charset_info,*str))
     {						// Fix problem with yacc
       length--;
       str++;
@@ -66,7 +66,7 @@ void Item::set_name(char *str,uint length)
 bool Item::eq(const Item *item, bool binary_cmp) const
 {
   return type() == item->type() && name && item->name &&
-    !my_strcasecmp(name,item->name);
+    !my_strcasecmp(system_charset_info,name,item->name);
 }
 
 bool Item_string::eq(const Item *item, bool binary_cmp) const
@@ -89,7 +89,7 @@ bool Item_string::eq(const Item *item, bool binary_cmp) const
 bool Item::get_date(TIME *ltime,bool fuzzydate)
 {
   char buff[40];
-  String tmp(buff,sizeof(buff)),*res;
+  String tmp(buff,sizeof(buff),default_charset_info),*res;
   if (!(res=val_str(&tmp)) ||
       str_to_TIME(res->ptr(),res->length(),ltime,fuzzydate) == TIMESTAMP_NONE)
   {
@@ -107,7 +107,7 @@ bool Item::get_date(TIME *ltime,bool fuzzydate)
 bool Item::get_time(TIME *ltime)
 {
   char buff[40];
-  String tmp(buff,sizeof(buff)),*res;
+  String tmp(buff,sizeof(buff),default_charset_info),*res;
   if (!(res=val_str(&tmp)) ||
       str_to_time(res->ptr(),res->length(),ltime))
   {
@@ -133,6 +133,9 @@ void Item_field::set_field(Field *field_par)
   field_name=field_par->field_name;
   binary=field_par->binary();
   unsigned_flag=test(field_par->flags & UNSIGNED_FLAG);
+  /* For string fields copy character set from original field */
+  if (!field_par->binary())
+    str_value.set_charset(((Field_str*)field_par)->charset());
 }
 
 const char *Item_ident::full_name() const
@@ -287,6 +290,137 @@ String *Item_null::val_str(String *str)
 { null_value=1; return 0;}
 
 
+/* Item_param related */
+void Item_param::set_null()
+{ 
+  maybe_null=null_value=1;    
+}
+
+void Item_param::set_int(longlong i)
+{  
+  int_value=(longlong)i; 
+  item_result_type = INT_RESULT;
+  item_type = INT_ITEM;
+}
+
+void Item_param::set_double(double i)
+{  
+  double value = (double)i;
+  real_value=value;
+  item_result_type = REAL_RESULT;
+  item_type = REAL_ITEM;
+}
+
+void Item_param::set_double(float i)
+{  
+  float value = (float)i;
+  real_value=(double)value;
+  item_result_type = REAL_RESULT;
+  item_type = REAL_ITEM;
+}
+
+void Item_param::set_value(const char *str, uint length)
+{  
+  str_value.set(str,length,default_charset_info);  
+  item_result_type = STRING_RESULT;
+  item_type = STRING_ITEM;
+}
+
+void Item_param::set_longdata(const char *str, ulong length)
+{
+  /* TODO: Fix this for binary handling by making use of 
+     buffer_type.. 
+  */  
+  str_value.append(str,length);    
+}
+
+void Item_param::set_long_end() 
+{ 
+  long_data_supplied = true; 
+  item_result_type = STRING_RESULT;
+};
+
+int  Item_param::save_in_field(Field *field)
+{
+  if (null_value)
+    return set_field_to_null(field);   
+    
+  field->set_notnull();
+  if (item_result_type == INT_RESULT)
+  {
+    longlong nr=val_int();
+    return (field->store(nr)) ? -1 : 0;
+  }
+  if (item_result_type == REAL_RESULT)
+  {
+    double nr=val();    
+    return (field->store(nr)) ? -1 : 0; 
+  }
+  String *result;
+  CHARSET_INFO *cs=default_charset_info;//fix this
+  result=val_str(&str_value);
+  return (field->store(result->ptr(),result->length(),cs)) ? -1 : 0;
+}
+
+void Item_param::make_field(Send_field *tmp_field)
+{
+  init_make_field(tmp_field,FIELD_TYPE_STRING);
+}
+
+double Item_param::val() 
+{
+  /* Cross check whether we need need this conversions ? or direct 
+     return(real_value) is enough ?
+  */
+
+  switch(item_result_type) {
+  
+  case STRING_RESULT:
+    return (double)atof(str_value.ptr()); 
+  case INT_RESULT:
+    return (double)int_value;
+  default:
+    return real_value;
+  }
+} 
+
+longlong Item_param::val_int() 
+{ 
+  /* Cross check whether we need need this conversions ? or direct 
+     return(int_value) is enough ?
+  */
+  
+ switch(item_result_type) {
+
+  case STRING_RESULT:
+    return (longlong)strtoll(str_value.ptr(),(char**) 0,10);
+  case REAL_RESULT:
+    return (longlong) (real_value+(real_value > 0 ? 0.5 : -0.5));
+  default:
+    return int_value;
+  }
+}
+
+String *Item_param::val_str(String* str) 
+{ 
+  /* Cross check whether we need need this conversions ? or direct 
+     return(&str_value) is enough ?
+  */
+  
+  switch(item_result_type) {
+  
+  case INT_RESULT:
+    str->set(int_value);
+    return str;
+  case REAL_RESULT:
+    str->set(real_value);
+    return str;
+  default:
+    return (String*) &str_value;
+  }
+}
+/* End of Item_param related */
+
 void Item_copy_string::copy()
 {
   String *res=item->val_str(&str_value);
@@ -309,18 +443,58 @@ String *Item_copy_string::val_str(String *str)
 
 /* ARGSUSED */
 bool Item::fix_fields(THD *thd,
-		      struct st_table_list *list)
+		      struct st_table_list *list,
+		      Item ** ref)
 {
   return 0;
 }
 
-bool Item_field::fix_fields(THD *thd,TABLE_LIST *tables)
+bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
   if (!field)					// If field is not checked
   {
     Field *tmp;
     if (!(tmp=find_field_in_tables(thd,this,tables)))
-      return 1;
+    {
+      /*
+	We can't find table field in table list of current select, 
+	consequently we have to find it in outer subselect(s).
+	We can't join lists of outer & current select, because of scope 
+	of view rules. For example if both tables (outer & current) have 
+	field 'field' it is not mistake to refer to this field without 
+	mention of table name, but if we join tables in one list it will
+	cause error ER_NON_UNIQ_ERROR in find_field_in_tables.
+      */
+      SELECT_LEX *last= 0;
+      for (SELECT_LEX *sl= thd->lex.select->outer_select();
+	   sl && !tmp;
+	   sl= sl->outer_select())
+	tmp=find_field_in_tables(thd, this,
+				 (TABLE_LIST*)(last= sl)->table_list.first);
+      if (!tmp)
+	return 1;
+      else
+      {
+	depended_from= last;
+	/*
+	  Mark all selects from resolved to 1 before select where was 
+	  found table as depended (of select where was found table)
+	*/
+	for (SELECT_LEX *s= thd->lex.select;
+	     s &&s != last;
+	     s= s->outer_select())
+	  if( !s->depended )
+	  {
+	    s->depended= 1; //Select is depended of outer select
+	    //Tables will be reopened many times
+	    for (TABLE_LIST *tbl= 
+		   (TABLE_LIST*)s->table_list.first;
+		 tbl;
+		 tbl= tbl->next)
+	      tbl->shared= 1;
+	  }
+      }
+    }
     set_field(tmp);
   }
   else if (thd && thd->set_query_id && field->query_id != thd->query_id)
@@ -331,13 +505,24 @@ bool Item_field::fix_fields(THD *thd,TABLE_LIST *tables)
     table->used_fields++;
     table->used_keys&=field->part_of_key;
   }
+  if (depended_from != 0 && depended_from->having_fix_field)
+  {
+    *ref= new Item_ref((char *)db_name, (char *)table_name,
+		       (char *)field_name);
+    if (!*ref)
+      return 1;
+    return (*ref)->fix_fields(thd, tables, ref);
+  }
   return 0;
 }
 
 
 void Item::init_make_field(Send_field *tmp_field,
 			   enum enum_field_types field_type)
-{
+{  
+  tmp_field->db_name=(char*) "";
+  tmp_field->org_table_name=(char*) "";
+  tmp_field->org_col_name=(char*) "";
   tmp_field->table_name=(char*) "";
   tmp_field->col_name=name;
   tmp_field->flags=maybe_null ? 0 : NOT_NULL_FLAG;
@@ -429,7 +614,7 @@ void Item_field::save_org_in_field(Field *to)
   }
 }
 
-bool Item_field::save_in_field(Field *to)
+int  Item_field::save_in_field(Field *to)
 {
   if (result_field->is_null())
   {
@@ -446,27 +631,29 @@ bool Item_field::save_in_field(Field *to)
 }
 
 
-bool Item_null::save_in_field(Field *field)
+int  Item_null::save_in_field(Field *field)
 {
   return set_field_to_null(field);
 }
 
 
-bool Item::save_in_field(Field *field)
+int  Item::save_in_field(Field *field)
 {
+  int error;
   if (result_type() == STRING_RESULT ||
       result_type() == REAL_RESULT &&
       field->result_type() == STRING_RESULT)
   {
     String *result;
+    CHARSET_INFO *cs=field->binary()?default_charset_info:((Field_str*)field)->charset();
     char buff[MAX_FIELD_WIDTH];		// Alloc buffer for small columns
-    str_value.set_quick(buff,sizeof(buff));
+    str_value.set_quick(buff,sizeof(buff),cs);
     result=val_str(&str_value);
     if (null_value)
       return set_field_to_null(field);
     field->set_notnull();
-    field->store(result->ptr(),result->length());
-    str_value.set_quick(0, 0);
+    error=field->store(result->ptr(),result->length(),cs);
+    str_value.set_quick(0, 0, cs);
   }
   else if (result_type() == REAL_RESULT)
   {
@@ -474,7 +661,7 @@ bool Item::save_in_field(Field *field)
     if (null_value)
       return set_field_to_null(field);
     field->set_notnull();
-    field->store(nr);
+    error=field->store(nr);
   }
   else
   {
@@ -482,40 +669,38 @@ bool Item::save_in_field(Field *field)
     if (null_value)
       return set_field_to_null(field);
     field->set_notnull();
-    field->store(nr);
+    error=field->store(nr);
   }
-  return 0;
+  return (error) ? -1 : 0;
 }
 
-bool Item_string::save_in_field(Field *field)
+int  Item_string::save_in_field(Field *field)
 {
   String *result;
+  CHARSET_INFO *cs=field->binary()?default_charset_info:((Field_str*)field)->charset();
   result=val_str(&str_value);
   if (null_value)
     return set_field_to_null(field);
   field->set_notnull();
-  field->store(result->ptr(),result->length());
-  return 0;
+  return (field->store(result->ptr(),result->length(),cs)) ? -1 : 0;
 }
 
-bool Item_int::save_in_field(Field *field)
+int  Item_int::save_in_field(Field *field)
 {
   longlong nr=val_int();
   if (null_value)
     return set_field_to_null(field);
   field->set_notnull();
-  field->store(nr);
-  return 0;
+  return (field->store(nr)) ? -1 : 0;
 }
 
-bool Item_real::save_in_field(Field *field)
+int  Item_real::save_in_field(Field *field)
 {
   double nr=val();
   if (null_value)
     return set_field_to_null(field);
   field->set_notnull();
-  field->store(nr);
-  return 0;
+  return (field->store(nr)) ? -1 : 0;
 }
 
 /****************************************************************************
@@ -531,14 +716,14 @@ inline uint char_val(char X)
 		 X-'a'+10);
 }
 
-Item_varbinary::Item_varbinary(const char *str, uint str_length)
+Item_varbinary::Item_varbinary(const char *str, uint str_length, CHARSET_INFO *cs)
 {
   name=(char*) str-2;				// Lex makes this start with 0x
   max_length=(str_length+1)/2;
   char *ptr=(char*) sql_alloc(max_length+1);
   if (!ptr)
     return;
-  str_value.set(ptr,max_length);
+  str_value.set(ptr,max_length,cs);
   char *end=ptr+max_length;
   if (max_length*2 != str_length)
     *ptr++=char_val(*str++);			// Not even, assume 0 prefix
@@ -563,19 +748,21 @@ longlong Item_varbinary::val_int()
 }
 
 
-bool Item_varbinary::save_in_field(Field *field)
+int  Item_varbinary::save_in_field(Field *field)
 {
+  int error;
+  CHARSET_INFO *cs=field->binary()?default_charset_info:((Field_str*)field)->charset();
   field->set_notnull();
   if (field->result_type() == STRING_RESULT)
   {
-    field->store(str_value.ptr(),str_value.length());
+    error=field->store(str_value.ptr(),str_value.length(),cs);
   }
   else
   {
     longlong nr=val_int();
-    field->store(nr);
+    error=field->store(nr);
   }
-  return 0;
+  return (error) ? -1 :  0;
 }
 
 
@@ -592,7 +779,7 @@ bool Item::send(THD *thd, String *packet)
 {
   char buff[MAX_FIELD_WIDTH];
   CONVERT *convert;
-  String s(buff,sizeof(buff)),*res;
+  String s(buff,sizeof(buff),packet->charset()),*res;
   if (!(res=val_str(&s)))
     return net_store_null(packet);
   if ((convert=thd->variables.convert_set))
@@ -610,12 +797,50 @@ bool Item_null::send(THD *thd, String *packet)
   Find field in select list having the same name
  */
 
-bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables)
+bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 {
   if (!ref)
   {
-    if (!(ref=find_item_in_list(this,thd->lex.select->item_list)))
-      return 1;
+        if (!(ref= find_item_in_list(this,thd->lex.select->item_list)))
+    {
+      /*
+	We can't find table field in table list of current select, 
+	consequently we have to find it in outer subselect(s).
+	We can't join lists of outer & current select, because of scope 
+	of view rules. For example if both tables (outer & current) have 
+	field 'field' it is not mistake to refer to this field without 
+	mention of table name, but if we join tables in one list it will
+	cause error ER_NON_UNIQ_ERROR in find_field_in_tables.
+      */
+      SELECT_LEX *last=0;
+      for (SELECT_LEX *sl= thd->lex.select->outer_select();
+	   sl && !ref;
+	   sl= sl->outer_select())
+	ref= find_item_in_list(this, (last= sl)->item_list);
+      if (!ref)
+	return 1;
+      else
+      {
+	depended_from= last;
+	/*
+	  Mark all selects from resolved to 1 before select where was 
+	  found table as depended (of select where was found table)
+	*/
+	for (SELECT_LEX *s= thd->lex.select;
+	     s &&s != last;
+	     s= s->outer_select())
+	  if( !s->depended )
+	  {
+	    s->depended= 1; //Select is depended of outer select
+	    //Tables will be reopened many times
+	    for (TABLE_LIST *tbl= 
+		   (TABLE_LIST*)s->table_list.first;
+		 tbl;
+		 tbl= tbl->next)
+	      tbl->shared= 1;
+	  }
+      }
+    }
     max_length= (*ref)->max_length;
     maybe_null= (*ref)->maybe_null;
     decimals=	(*ref)->decimals;
@@ -651,7 +876,7 @@ Item *resolve_const_item(Item *item,Item *comp_item)
   if (res_type == STRING_RESULT)
   {
     char buff[MAX_FIELD_WIDTH];
-    String tmp(buff,sizeof(buff)),*result;
+    String tmp(buff,sizeof(buff),default_charset_info),*result;
     result=item->val_str(&tmp);
     if (item->null_value)
     {
@@ -665,7 +890,7 @@ Item *resolve_const_item(Item *item,Item *comp_item)
 #ifdef DELETE_ITEMS
     delete item;
 #endif
-    return new Item_string(name,tmp_str,length);
+    return new Item_string(name,tmp_str,length,default_charset_info);
   }
   if (res_type == INT_RESULT)
   {
@@ -706,8 +931,8 @@ bool field_is_equal_to_item(Field *field,Item *item)
   {
     char item_buff[MAX_FIELD_WIDTH];
     char field_buff[MAX_FIELD_WIDTH];
-    String item_tmp(item_buff,sizeof(item_buff)),*item_result;
-    String field_tmp(field_buff,sizeof(field_buff));
+    String item_tmp(item_buff,sizeof(item_buff),default_charset_info),*item_result;
+    String field_tmp(field_buff,sizeof(field_buff),default_charset_info);
     item_result=item->val_str(&item_tmp);
     if (item->null_value)
       return 1;					// This must be true

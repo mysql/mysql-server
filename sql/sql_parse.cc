@@ -62,12 +62,10 @@ static void decrease_user_connections(USER_CONN *uc);
 static bool check_db_used(THD *thd,TABLE_LIST *tables);
 static bool check_merge_table_access(THD *thd, char *db, TABLE_LIST *tables);
 static bool check_dup(const char *db, const char *name, TABLE_LIST *tables);
-static void mysql_init_query(THD *thd);
 static void remove_escape(char *name);
 static void refresh_status(void);
 static bool append_file_to_dir(THD *thd, char **filename_ptr,
 			       char *table_name);
-static bool create_total_list(THD *thd, LEX *lex, TABLE_LIST **result);
 
 const char *any_db="*any*";	// Special symbol for check_access
 
@@ -75,7 +73,8 @@ const char *command_name[]={
   "Sleep", "Quit", "Init DB", "Query", "Field List", "Create DB",
   "Drop DB", "Refresh", "Shutdown", "Statistics", "Processlist",
   "Connect","Kill","Debug","Ping","Time","Delayed_insert","Change user",
-  "Binlog Dump","Table Dump",  "Connect Out", "Register Slave"
+  "Binlog Dump","Table Dump",  "Connect Out", "Register Slave",
+  "Prepare", "Prepare Execute", "Long Data"
 };
 
 bool volatile abort_slave = 0;
@@ -277,7 +276,8 @@ static void free_user(struct user_conn *uc)
 
 void init_max_user_conn(void) 
 {
-  (void) hash_init(&hash_user_connections,max_connections,0,0,
+  (void) hash_init(&hash_user_connections,system_charset_info,max_connections,
+		   0,0,
 		   (hash_get_key) get_key_conn, (void (*)(void*)) free_user,
 		   0);
 }
@@ -479,7 +479,7 @@ check_connections(THD *thd)
   {
     /* buff[] needs to big enough to hold the server_version variable */
     char buff[SERVER_VERSION_LENGTH + SCRAMBLE_LENGTH+32],*end;
-    int client_flags = CLIENT_LONG_FLAG | CLIENT_CONNECT_WITH_DB;
+    int client_flags = CLIENT_LONG_FLAG | CLIENT_CONNECT_WITH_DB | CLIENT_PROTOCOL_41;
 
     if (opt_using_transactions)
       client_flags|=CLIENT_TRANSACTIONS;
@@ -730,7 +730,8 @@ pthread_handler_decl(handle_bootstrap,arg)
   while (fgets(buff, thd->net.max_packet, file))
   {
     uint length=(uint) strlen(buff);
-    while (length && (isspace(buff[length-1]) || buff[length-1] == ';'))
+    while (length && (my_isspace(system_charset_info, buff[length-1]) || 
+           buff[length-1] == ';'))
       length--;
     buff[length]=0;
     thd->current_tablenr=0;
@@ -950,18 +951,33 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     thd->password=test(passwd[0]);
     break;
   }
-
+  case COM_EXECUTE:
+  {
+    mysql_com_execute(thd);
+    break;
+  }
+  case COM_LONG_DATA:
+  {
+    mysql_com_longdata(thd);
+    break;
+  }
+  case COM_PREPARE:
+  {
+    mysql_com_prepare(thd,packet,packet_length);
+    break;
+  }
   case COM_QUERY:
   {
     packet_length--;				// Remove end null
     /* Remove garage at start and end of query */
-    while (isspace(packet[0]) && packet_length > 0)
+    while (my_isspace(system_charset_info,packet[0]) && packet_length > 0)
     {
       packet++;
       packet_length--;
     }
     char *pos=packet+packet_length;		// Point at end null
-    while (packet_length > 0 && (pos[-1] == ';' || isspace(pos[-1])))
+    while (packet_length > 0 && 
+           (pos[-1] == ';' || my_isspace(system_charset_info,pos[-1])))
     {
       pos--;
       packet_length--;
@@ -1225,11 +1241,12 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 void
 mysql_execute_command(void)
 {
-  int	res=0;
-  THD	*thd=current_thd;
+  int	res= 0;
+  THD	*thd= current_thd;
   LEX	*lex= &thd->lex;
-  TABLE_LIST *tables=(TABLE_LIST*) lex->select_lex.table_list.first;
-  SELECT_LEX *select_lex = lex->select;
+  TABLE_LIST *tables= (TABLE_LIST*) lex->select_lex.table_list.first;
+  SELECT_LEX *select_lex= lex->select;
+  SELECT_LEX_UNIT *unit= &lex->unit;
   DBUG_ENTER("mysql_execute_command");
 
   if (thd->slave_thread)
@@ -1258,7 +1275,18 @@ mysql_execute_command(void)
     Skip if we are in the slave thread, some table rules have been given
     and the table list says the query should not be replicated
   */
-  if ((lex->select_lex.next && create_total_list(thd,lex,&tables)) ||
+  if (lex->derived_tables)
+  {
+    for (TABLE_LIST *cursor= tables;
+	 cursor;
+	 cursor= cursor->next)
+      if (cursor->derived && mysql_derived(thd, lex,
+					   (SELECT_LEX_UNIT *)cursor->derived,
+					   cursor))
+	DBUG_VOID_RETURN;
+  }
+  if ((lex->select_lex.next_select_in_list() && 
+       lex->unit.create_total_list(thd, lex, &tables)) ||
       (table_rules_on && tables && thd->slave_thread &&
        !tables_ok(thd,tables)))
     DBUG_VOID_RETURN;
@@ -1286,11 +1314,12 @@ mysql_execute_command(void)
       break;					// Error message is given
     }
 
-    thd->offset_limit=select_lex->offset_limit;
-    thd->select_limit=select_lex->select_limit+select_lex->offset_limit;
-    if (thd->select_limit < select_lex->select_limit)
-      thd->select_limit= HA_POS_ERROR;		// no limit
-    if (thd->select_limit == HA_POS_ERROR)
+    unit->offset_limit_cnt= unit->global_parameters->offset_limit;
+    unit->select_limit_cnt= unit->global_parameters->select_limit+
+      unit->global_parameters->offset_limit;
+    if (unit->select_limit_cnt < unit->global_parameters->select_limit)
+      unit->select_limit_cnt= HA_POS_ERROR;		// no limit
+    if (unit->select_limit_cnt == HA_POS_ERROR)
       select_lex->options&= ~OPTION_FOUND_ROWS;
 
     if (lex->exchange)
@@ -1355,6 +1384,16 @@ mysql_execute_command(void)
     if (check_global_access(thd, SUPER_ACL))
       goto error;
     res = purge_master_logs(thd, lex->to_log);
+    break;
+  }
+  case SQLCOM_SHOW_WARNS:
+  {
+    res = mysqld_show_warnings(thd);
+    break;
+  }
+  case SQLCOM_SHOW_ERRORS:
+  {
+    res = mysqld_show_errors(thd);
     break;
   }
   case SQLCOM_SHOW_NEW_MASTER:
@@ -1531,10 +1570,11 @@ mysql_execute_command(void)
 	for (table = tables->next ; table ; table=table->next)
 	  table->lock_type= lex->lock_option;
       }
-      thd->offset_limit=select_lex->offset_limit;
-      thd->select_limit=select_lex->select_limit+select_lex->offset_limit;
-      if (thd->select_limit < select_lex->select_limit)
-	thd->select_limit= HA_POS_ERROR;		// No limit
+      unit->offset_limit_cnt= select_lex->offset_limit;
+      unit->select_limit_cnt= select_lex->select_limit+
+	select_lex->offset_limit;
+      if (unit->select_limit_cnt < select_lex->select_limit)
+	unit->select_limit_cnt= HA_POS_ERROR;		// No limit
 
       /* Skip first table, which is the table we are creating */
       lex->select_lex.table_list.first=
@@ -1556,7 +1596,7 @@ mysql_execute_command(void)
       res = mysql_create_table(thd,tables->db ? tables->db : thd->db,
 			       tables->real_name, &lex->create_info,
 			       lex->create_list,
-			       lex->key_list,0, 0); // do logging
+			       lex->key_list,0,0,0); // do logging
       if (!res)
 	send_ok(&thd->net);
     }
@@ -1747,6 +1787,7 @@ mysql_execute_command(void)
       bzero((char*) &create_info,sizeof(create_info));
       create_info.db_type=DB_TYPE_DEFAULT;
       create_info.row_type=ROW_TYPE_DEFAULT;
+      create_info.table_charset=default_charset_info;
       res= mysql_alter_table(thd, NullS, NullS, &create_info,
 			     tables, lex->create_list,
 			     lex->key_list, lex->drop_list, lex->alter_list,
@@ -1795,25 +1836,26 @@ mysql_execute_command(void)
 	table_count++;
 	auxi->lock_type=TL_WRITE;
       }
+
       if (select_lex->order_list.elements)
 	msg="ORDER BY";
       else if (select_lex->select_limit && select_lex->select_limit !=
 	       HA_POS_ERROR)
 	msg="LIMIT";
-
       if (msg)
       {
 	net_printf(&thd->net, ER_WRONG_USAGE, "UPDATE", msg);
 	res= 1;
 	break;
       }
+
       tables->grant.want_privilege=(SELECT_ACL & ~tables->grant.privilege);
       if ((res=open_and_lock_tables(thd,tables)))
 	break;
-      thd->select_limit=HA_POS_ERROR;
+      unit->select_limit_cnt= HA_POS_ERROR;
       if (!setup_fields(thd,tables,select_lex->item_list,1,0,0) && 
-	  !setup_fields(thd,tables,lex->value_list,0,0,0) &&
-	  ! thd->fatal_error &&
+	  !setup_fields(thd,tables,lex->value_list,0,0,0) && 
+	  !thd->fatal_error &&
 	  (result=new multi_update(thd,tables,select_lex->item_list,
 				   lex->duplicates, lex->lock_option,
 				   table_count)))
@@ -1827,13 +1869,13 @@ mysql_execute_command(void)
 	while ((item=value_list++))
 	  total_list.push_back(item);
 	
-	res=mysql_select(thd,tables,total_list,
-			 select_lex->where,
-			 (ORDER *)NULL,(ORDER *)NULL,(Item *)NULL,
-			 (ORDER *)NULL,
-			 select_lex->options | thd->options |
-			 SELECT_NO_JOIN_CACHE,
-			 result);
+	res= mysql_select(thd, tables, total_list,
+			  select_lex->where,
+			  (ORDER *)NULL, (ORDER *)NULL, (Item *)NULL,
+			  (ORDER *)NULL,
+			  select_lex->options | thd->options |
+			  SELECT_NO_JOIN_CACHE,
+			  result, unit);
 	delete result;
       }
       else
@@ -1885,10 +1927,10 @@ mysql_execute_command(void)
     }
 
     select_result *result;
-    thd->offset_limit=select_lex->offset_limit;
-    thd->select_limit=select_lex->select_limit+select_lex->offset_limit;
-    if (thd->select_limit < select_lex->select_limit)
-      thd->select_limit= HA_POS_ERROR;		// No limit
+    unit->offset_limit_cnt= select_lex->offset_limit;
+    unit->select_limit_cnt= select_lex->select_limit+select_lex->offset_limit;
+    if (unit->select_limit_cnt < select_lex->select_limit)
+      unit->select_limit_cnt= HA_POS_ERROR;		// No limit
 
     if (check_dup(tables->db, tables->real_name, tables->next))
     {
@@ -1981,20 +2023,19 @@ mysql_execute_command(void)
 	goto error;
       }
       auxi->lock_type=walk->lock_type=TL_WRITE;
-      auxi->table= (TABLE *) walk;		// Remember corresponding table
+      auxi->table_list=  walk;		// Remember corresponding table
     }
     if (add_item_to_list(new Item_null()))
     {
-      res = -1;
+      res= -1;
       break;
     }
-    tables->grant.want_privilege=(SELECT_ACL & ~tables->grant.privilege);
     thd->proc_info="init";
     if ((res=open_and_lock_tables(thd,tables)))
       break;
     /* Fix tables-to-be-deleted-from list to point at opened tables */
     for (auxi=(TABLE_LIST*) aux_tables ; auxi ; auxi=auxi->next)
-      auxi->table= ((TABLE_LIST*) auxi->table)->table;
+      auxi->table= auxi->table_list->table;
     if (!thd->fatal_error && (result= new multi_delete(thd,aux_tables,
 						       lex->lock_option,
 						       table_count)))
@@ -2005,7 +2046,7 @@ mysql_execute_command(void)
 		       (ORDER *)NULL,
 		       select_lex->options | thd->options |
 		       SELECT_NO_JOIN_CACHE,
-		       result);
+		       result, unit);
       delete result;
     }
     else
@@ -2052,6 +2093,15 @@ mysql_execute_command(void)
     mysqld_list_processes(thd,thd->master_access & PROCESS_ACL ? NullS :
 			  thd->priv_user,lex->verbose);
     break;
+  case SQLCOM_SHOW_TABLE_TYPES:
+    res= mysqld_show_table_types(thd);
+    break;
+  case SQLCOM_SHOW_PRIVILEGES:
+    res= mysqld_show_privileges(thd);
+    break;
+  case SQLCOM_SHOW_COLUMN_TYPES:
+    res= mysqld_show_column_types(thd);
+    break;
   case SQLCOM_SHOW_STATUS:
     res= mysqld_show(thd,(lex->wild ? lex->wild->ptr() : NullS),status_vars,
 		     OPT_GLOBAL);
@@ -2061,10 +2111,17 @@ mysql_execute_command(void)
 		     init_vars, lex->option_type);
     break;
   case SQLCOM_SHOW_LOGS:
-  {
-    res= mysqld_show_logs(thd);
-    break;
-  }
+#ifdef DONT_ALLOW_SHOW_COMMANDS
+    send_error(&thd->net,ER_NOT_ALLOWED_COMMAND);	/* purecov: inspected */
+    DBUG_VOID_RETURN;
+#else
+    {
+      if (grant_option && check_access(thd, FILE_ACL, any_db))
+	goto error;
+      res= mysqld_show_logs(thd);
+      break;
+    }
+#endif
   case SQLCOM_SHOW_TABLES:
     /* FALL THROUGH */
 #ifdef DONT_ALLOW_SHOW_COMMANDS
@@ -2098,6 +2155,9 @@ mysql_execute_command(void)
 #endif
   case SQLCOM_SHOW_OPEN_TABLES:
     res= mysqld_show_open_tables(thd,(lex->wild ? lex->wild->ptr() : NullS));
+    break;
+  case SQLCOM_SHOW_CHARSETS:
+    res= mysqld_show_charsets(thd,(lex->wild ? lex->wild->ptr() : NullS));
     break;
   case SQLCOM_SHOW_FIELDS:
 #ifdef DONT_ALLOW_SHOW_COMMANDS
@@ -2233,7 +2293,7 @@ mysql_execute_command(void)
       casedn_str(lex->name);
     if (check_access(thd,CREATE_ACL,lex->name,0,1))
       break;
-    res=mysql_create_db(thd,lex->name,lex->create_info.options,0);
+    res=mysql_create_db(thd,lex->name,&lex->create_info,0);
     break;
   }
   case SQLCOM_DROP_DB:
@@ -2253,6 +2313,40 @@ mysql_execute_command(void)
       goto error;
     }
     res=mysql_rm_db(thd,lex->name,lex->drop_if_exists,0);
+    break;
+  }
+  case SQLCOM_ALTER_DB:
+  {
+    if (!strip_sp(lex->name) || check_db_name(lex->name))
+    {
+      net_printf(&thd->net,ER_WRONG_DB_NAME, lex->name);
+      break;
+    }
+    if (check_access(thd,ALTER_ACL,lex->name,0,1))
+      break;
+    if (thd->locked_tables || thd->active_transaction())
+    {
+      send_error(&thd->net,ER_LOCK_OR_ACTIVE_TRANSACTION);
+      goto error;
+    }
+    res=mysql_alter_db(thd,lex->name,&lex->create_info,0);
+    break;
+  }
+  case SQLCOM_SHOW_CREATE_DB:
+  {
+    if (!strip_sp(lex->name) || check_db_name(lex->name))
+    {
+      net_printf(&thd->net,ER_WRONG_DB_NAME, lex->name);
+      break;
+    }
+    if (check_access(thd,DROP_ACL,lex->name,0,1))
+      break;
+    if (thd->locked_tables || thd->active_transaction())
+    {
+      send_error(&thd->net,ER_LOCK_OR_ACTIVE_TRANSACTION);
+      goto error;
+    }
+    res=mysqld_show_create_db(thd,lex->name);
     break;
   }
   case SQLCOM_CREATE_FUNCTION:
@@ -2298,7 +2392,8 @@ mysql_execute_command(void)
 	if (user->password.str &&
 	    (strcmp(thd->user,user->user.str) ||
 	     user->host.str &&
-	     my_strcasecmp(user->host.str, thd->host_or_ip)))
+	     my_strcasecmp(system_charset_info, 
+                           user->host.str, thd->host_or_ip)))
 	{
 	  if (check_access(thd, UPDATE_ACL, "mysql",0,1))
 	    goto error;
@@ -2686,81 +2781,89 @@ bool my_yyoverflow(short **yyss, YYSTYPE **yyvs, int *yystacksize)
 	Initialize global thd variables needed for query
 ****************************************************************************/
 
-static void
+void
 mysql_init_query(THD *thd)
 {
   DBUG_ENTER("mysql_init_query");
-  thd->lex.select_lex.item_list.empty();
+  thd->lex.unit.init_query();
+  thd->lex.unit.init_select();
+  thd->lex.select_lex.init_query();
+  thd->lex.unit.slave= &thd->lex.select_lex;
+  thd->lex.unit.global_parameters= &thd->lex.select_lex; //Global limit & order
+  thd->lex.select_lex.master= &thd->lex.unit;
+  thd->lex.select_lex.prev= &thd->lex.unit.slave;
   thd->lex.value_list.empty();
-  thd->lex.select_lex.table_list.elements=0;
-  thd->free_list=0;  thd->lex.union_option=0;
-  thd->lex.select = &thd->lex.select_lex;
-  thd->lex.select_lex.table_list.first=0;
-  thd->lex.select_lex.table_list.next= (byte**) &thd->lex.select_lex.table_list.first;
-  thd->lex.select_lex.next=0;
+  thd->free_list= 0;
+  thd->lex.union_option= 0;
+  thd->lex.select= &thd->lex.select_lex;
   thd->lex.olap=0;
   thd->lex.select->olap= UNSPECIFIED_OLAP_TYPE;
-  thd->fatal_error=0;				// Safety
-  thd->last_insert_id_used=thd->query_start_used=thd->insert_id_used=0;
-  thd->sent_row_count=thd->examined_row_count=0;
-  thd->safe_to_cache_query=1;
+  thd->fatal_error= 0;				// Safety
+  thd->last_insert_id_used= thd->query_start_used= thd->insert_id_used=0;
+  thd->sent_row_count= thd->examined_row_count= 0;
+  thd->safe_to_cache_query= 1;
+  thd->param_count=0;
+  thd->prepare_command=false;
+  thd->lex.param_list.empty();
   DBUG_VOID_RETURN;
 }
 
 void
 mysql_init_select(LEX *lex)
 {
-  SELECT_LEX *select_lex = lex->select;
-  select_lex->where=select_lex->having=0;
-  select_lex->select_limit= lex->thd->variables.select_limit;
-  select_lex->offset_limit=0;
-  select_lex->options=0;
-  select_lex->linkage=UNSPECIFIED_TYPE;
+  SELECT_LEX *select_lex= lex->select;
+  select_lex->init_select();
+  select_lex->master_unit()->select_limit= select_lex->select_limit= 
+    lex->thd->variables.select_limit;
   select_lex->olap=   UNSPECIFIED_OLAP_TYPE;
-  lex->exchange = 0;
-  lex->proc_list.first=0;
-  select_lex->order_list.elements=select_lex->group_list.elements=0;
-  select_lex->order_list.first=0;
-  select_lex->order_list.next= (byte**) &select_lex->order_list.first;
-  select_lex->group_list.first=0;
-  select_lex->group_list.next= (byte**) &select_lex->group_list.first;
-  select_lex->next = (SELECT_LEX *)NULL; 
+  lex->exchange= 0;
+  lex->proc_list.first= 0;
 }
 
 
 bool
-mysql_new_select(LEX *lex)
+mysql_new_select(LEX *lex, bool move_down)
 {
   SELECT_LEX *select_lex = (SELECT_LEX *) lex->thd->calloc(sizeof(SELECT_LEX));
   if (!select_lex)
     return 1;
-  lex->select->next=select_lex; 
-  lex->select=select_lex;
-  select_lex->table_list.next= (byte**) &select_lex->table_list.first;
-  select_lex->item_list.empty();
-  select_lex->when_list.empty(); 
-  select_lex->expr_list.empty();
-  select_lex->interval_list.empty(); 
-  select_lex->use_index.empty();
-  select_lex->ftfunc_list.empty();
+  select_lex->init_query();
+  select_lex->init_select();
+  if (move_down)
+  {
+    /* first select_lex of subselect or derived table */
+    SELECT_LEX_UNIT *unit= 
+      (SELECT_LEX_UNIT *) lex->thd->calloc(sizeof(SELECT_LEX_UNIT));
+    if (!unit)
+      return 1;
+    unit->init_query();
+    unit->init_select();
+    unit->include_down(lex->select);
+    select_lex->include_down(unit);
+  }
+  else
+    select_lex->include_neighbour(lex->select);
+    
+  select_lex->master_unit()->global_parameters= select_lex;
+  select_lex->include_global(lex->select->next_select_in_list_addr());
+  lex->select= select_lex;
   return 0;
 }
 
 
 void mysql_init_multi_delete(LEX *lex)
 {
-  lex->sql_command =  SQLCOM_DELETE_MULTI;
+  lex->sql_command=  SQLCOM_DELETE_MULTI;
   mysql_init_select(lex);
-  lex->select->select_limit=lex->thd->select_limit=HA_POS_ERROR;
-  lex->auxilliary_table_list=lex->select_lex.table_list;
-  lex->select->table_list.elements=0; 
-  lex->select->table_list.first=0;
-  lex->select->table_list.next= (byte**) &(lex->select->table_list.first);
+  lex->select->select_limit= lex->select->master_unit()->select_limit_cnt=
+    HA_POS_ERROR;
+  lex->auxilliary_table_list= lex->select_lex.table_list;
+  lex->select->init_query();
 }
 
 
 void
-mysql_parse(THD *thd,char *inBuf,uint length)
+mysql_parse(THD *thd, char *inBuf, uint length)
 {
   DBUG_ENTER("mysql_parse");
 
@@ -2813,8 +2916,9 @@ link_in_list(SQL_LIST *list,byte *element,byte **next)
 
 bool add_field_to_list(char *field_name, enum_field_types type,
 		       char *length, char *decimals,
-		       uint type_modifier, Item *default_value,char *change,
-		       TYPELIB *interval)
+		       uint type_modifier,
+		       Item *default_value, Item *comment,
+		       char *change, TYPELIB *interval, CHARSET_INFO *cs)
 {
   register create_field *new_field;
   THD	*thd=current_thd;
@@ -2830,14 +2934,14 @@ bool add_field_to_list(char *field_name, enum_field_types type,
   if (type_modifier & PRI_KEY_FLAG)
   {
     lex->col_list.push_back(new key_part_spec(field_name,0));
-    lex->key_list.push_back(new Key(Key::PRIMARY,NullS,
+    lex->key_list.push_back(new Key(Key::PRIMARY, NullS, HA_KEY_ALG_UNDEF,
 				    lex->col_list));
     lex->col_list.empty();
   }
   if (type_modifier & (UNIQUE_FLAG | UNIQUE_KEY_FLAG))
   {
     lex->col_list.push_back(new key_part_spec(field_name,0));
-    lex->key_list.push_back(new Key(Key::UNIQUE,NullS,
+    lex->key_list.push_back(new Key(Key::UNIQUE, NullS, HA_KEY_ALG_UNDEF,
 				    lex->col_list));
     lex->col_list.empty();
   }
@@ -2867,6 +2971,19 @@ bool add_field_to_list(char *field_name, enum_field_types type,
   new_field->change=change;
   new_field->interval=0;
   new_field->pack_length=0;
+  new_field->charset=cs;
+
+  if (!comment)
+  {
+    new_field->comment.str=0;
+    new_field->comment.length=0;
+  }
+  else
+  {
+    /* In this case comment is always of type Item_string */
+    new_field->comment.str=   (char*) comment->str_value.ptr();
+    new_field->comment.length=comment->str_value.length();
+  }
   if (length)
     if (!(new_field->length= (uint) atoi(length)))
       length=0; /* purecov: inspected */
@@ -3111,8 +3228,8 @@ static void remove_escape(char *name)
 #ifdef USE_MB
     int l;
 /*    if ((l = ismbchar(name, name+MBMAXLEN))) { Wei He: I think it's wrong */
-    if (use_mb(default_charset_info) &&
-        (l = my_ismbchar(default_charset_info, name, strend)))
+    if (use_mb(system_charset_info) &&
+        (l = my_ismbchar(system_charset_info, name, strend)))
     {
 	while (l--)
 	    *to++ = *name++;
@@ -3166,7 +3283,7 @@ TABLE_LIST *add_table_to_list(Table_ident *table, LEX_STRING *alias,
     DBUG_RETURN(0);				// End of memory
   alias_str= alias ? alias->str : table->table.str;
   if (table->table.length > NAME_LEN ||
-      check_table_name(table->table.str,table->table.length) ||
+      (table->table.length && check_table_name(table->table.str,table->table.length)) ||
       table->db.str && check_db_name(table->db.str))
   {
     net_printf(&thd->net,ER_WRONG_TABLE_NAME,table->table.str);
@@ -3198,13 +3315,14 @@ TABLE_LIST *add_table_to_list(Table_ident *table, LEX_STRING *alias,
   ptr->name=alias_str;
   if (lower_case_table_names)
   {
-    casedn_str(ptr->db);
-    casedn_str(table->table.str);
+    my_casedn_str(system_charset_info,ptr->db);
+    my_casedn_str(system_charset_info,table->table.str);
   }
   ptr->real_name=table->table.str;
   ptr->real_name_length=table->table.length;
   ptr->lock_type=flags;
   ptr->updating=updating;
+  ptr->derived= (SELECT_LEX_UNIT *) table->sel;
   if (use_index)
     ptr->use_index=(List<String> *) thd->memdup((gptr) use_index,
 					       sizeof(*use_index));
@@ -3228,69 +3346,6 @@ TABLE_LIST *add_table_to_list(Table_ident *table, LEX_STRING *alias,
   }
   link_in_list(&thd->lex.select->table_list,(byte*) ptr,(byte**) &ptr->next);
   DBUG_RETURN(ptr);
-}
-
-
-/*
-** This is used for UNION to create a new table list of all used tables
-** The table_list->table entry in all used tables are set to point
-** to the entries in this list.
-*/
-
-static bool create_total_list(THD *thd, LEX *lex, TABLE_LIST **result)
-{
-  /* Handle the case when we are not using union */
-  if (!lex->select_lex.next)
-  {
-    *result= (TABLE_LIST*) lex->select_lex.table_list.first;
-    return 0;
-  }
-
-  SELECT_LEX *sl;
-  TABLE_LIST **new_table_list= result, *aux;
-
-  *new_table_list=0;				// end result list
-  for (sl= &lex->select_lex; sl; sl=sl->next)
-  {
-    if (sl->order_list.first && sl->next && !sl->braces)
-    {
-      net_printf(&thd->net,ER_WRONG_USAGE,"UNION","ORDER BY");
-      return 1;
-    }
-    if ((aux= (TABLE_LIST*) sl->table_list.first))
-    {
-      TABLE_LIST *next;
-      for (; aux; aux=next)
-      {
-	TABLE_LIST *cursor;
-	aux->do_redirect=true;
-	next= aux->next;
-	for (cursor= *result; cursor; cursor=cursor->next)
-	  if (!strcmp(cursor->db,aux->db) &&
-	      !strcmp(cursor->real_name,aux->real_name) &&
-	      !strcmp(cursor->name, aux->name))
-	    break;
-	if (!cursor)
-	{
-	  /* Add not used table to the total table list */
-	  aux->lock_type= lex->lock_option;
-	  if (!(cursor = (TABLE_LIST *) thd->memdup((char*) aux,
-						    sizeof(*aux))))
-	  {
-	    send_error(&thd->net,0);
-	    return 1;
-	  }
-	  *new_table_list= cursor;
-	  new_table_list= &cursor->next;
-	  *new_table_list=0;			// end result list
-	}
-	else
-	  aux->shared=1;			// Mark that it's used twice
-	aux->table=(TABLE *) cursor;
-      }
-    }
-  }
-  return 0;
 }
 
 

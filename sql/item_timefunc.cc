@@ -29,11 +29,31 @@
 ** Todo: Move month and days to language files
 */
 
-static String month_names[] = { "January", "February", "March", "April",
-			       "May", "June", "July", "August",
-			       "September", "October", "November", "December" };
-static String day_names[] = { "Monday", "Tuesday", "Wednesday",
-			     "Thursday", "Friday", "Saturday" ,"Sunday" };
+static String month_names[] = 
+{ 
+  String("January",	default_charset_info), 
+  String("February",	default_charset_info),
+  String("March",	default_charset_info),
+  String("April",	default_charset_info),
+  String("May",		default_charset_info),
+  String("June",	default_charset_info),
+  String("July",	default_charset_info),
+  String("August",	default_charset_info),
+  String("September",	default_charset_info),
+  String("October",	default_charset_info),
+  String("November",	default_charset_info),
+  String("December",	default_charset_info)
+};
+static String day_names[] = 
+{ 
+  String("Monday",	default_charset_info),
+  String("Tuesday",	default_charset_info),
+  String("Wednesday",	default_charset_info),
+  String("Thursday",	default_charset_info),
+  String("Friday",	default_charset_info),
+  String("Saturday",	default_charset_info),
+  String("Sunday",	default_charset_info)
+};
 
 /*
 ** Get a array of positive numbers from a string object.
@@ -49,16 +69,16 @@ bool get_interval_info(const char *str,uint length,uint count,
 {
   const char *end=str+length;
   uint i;
-  while (str != end && !isdigit(*str))
+  while (str != end && !my_isdigit(system_charset_info,*str))
     str++;
 
   for (i=0 ; i < count ; i++)
   {
     long value;
-    for (value=0; str != end && isdigit(*str) ; str++)
+    for (value=0; str != end && my_isdigit(system_charset_info,*str) ; str++)
       value=value*10L + (long) (*str - '0');
     values[i]= value;
-    while (str != end && !isdigit(*str))
+    while (str != end && !my_isdigit(system_charset_info,*str))
       str++;
     if (str == end && i != count-1)
     {
@@ -289,7 +309,7 @@ static bool get_interval_value(Item *args,interval_type int_type,
     /* record negative intervalls in t->neg */
     str=res->ptr();
     const char *end=str+res->length();
-    while (str != end && isspace(*str))
+    while (str != end && my_isspace(system_charset_info,*str))
       str++;
     if (str != end && *str == '-')
     {
@@ -376,7 +396,7 @@ String *Item_date::val_str(String *str)
     return (String*) 0;
   if (!value)					// zero daynr
   {
-    str->copy("0000-00-00");
+    str->copy("0000-00-00",10);
     return str;
   }
   if (str->alloc(11))
@@ -390,7 +410,7 @@ String *Item_date::val_str(String *str)
 }
 
 
-bool Item_date::save_in_field(Field *field)
+int  Item_date::save_in_field(Field *field)
 {
   TIME ltime;
   timestamp_type t_type=TIMESTAMP_FULL;
@@ -505,7 +525,7 @@ bool Item_func_now::get_date(TIME *res,
 }
 
 
-bool Item_func_now::save_in_field(Field *to)
+int  Item_func_now::save_in_field(Field *to)
 {
   to->set_notnull();
   to->store_time(&ltime,TIMESTAMP_FULL);

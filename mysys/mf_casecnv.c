@@ -28,269 +28,53 @@
 #include <m_string.h>
 #endif
 
-/*
-  Upcase string 
-  
-  SYNOPSIS
-    str IN/OUT  String to upcase    
-	  
-  RETURN VALUE
-    none
-  DESCRIPTION
-    Function changes input parameter so all chars it consist from
-    are replaced with matching one in upper case.
-    String should be writable with exception read-only empty string
-    constant is handled correctly.    
-*/
-				
-
-void caseup_str(my_string str)
-{
-#ifdef USE_MB
-  if (use_mb(default_charset_info))
-  {
-    register uint32 l;
-    register char *end=str+strlen(str);
-    while (*str)
-    {
-      if ((l=my_ismbchar(default_charset_info, str,end))) str+=l;
-      else *str=toupper(*str),++str;
-    }
-  }
-  else
-#endif
-    while (*str!=0) /* iterate till the end of string */
-    {
-      *str= toupper(*str);
-      str++;
-    }  
-} /* caseup_str */
-
-
-/*
-  Downcase string 
-  
-  SYNOPSIS
-    str IN/OUT  String to downcase    
-	  
-  RETURN VALUE
-    none
-  DESCRIPTION
-    Function changes input parameter so all chars it consist from
-    are replaced with matching one in lower case.
-    String should be writable with exception read-only empty string
-    constant is handled correctly.    
-*/
-
-
-void casedn_str(my_string str)
-{
-#ifdef USE_MB
-  if (use_mb(default_charset_info))
-  {
-    register uint32 l;
-    register char *end=str+strlen(str);
-    while (*str)
-    {
-      if ((l=my_ismbchar(default_charset_info, str,end))) str+=l;
-      else *str=tolower(*str),++str;
-    }
-  }
-  else
-#endif
-    while (*str!=0) /* iterate till the end of string */
-    {
-      *str= tolower(*str);
-      str++;
-    }  
-} /* casedn_str */
-
-
-	/* to uppercase */
-
-void caseup(my_string str, uint length)
-{
-#ifdef USE_MB
-  if (use_mb(default_charset_info))
-  {
-    register uint32 l;
-    register char *end=str+length;
-    while (str<end)
-    {
-      if ((l=my_ismbchar(default_charset_info, str,end))) str+=l;
-      else *str=toupper(*str),++str;
-    }
-  }
-  else
-#endif
-    for ( ; length>0 ; length--, str++)
-      *str= toupper(*str);
-} /* caseup */
-
-	/* to lowercase */
-
-void casedn(my_string str, uint length)
-{
-#ifdef USE_MB
-  if (use_mb(default_charset_info))
-  {
-    register uint32 l;
-    register char *end=str+length;
-    while (str<end)
-    {
-      if ((l=my_ismbchar(default_charset_info, str,end))) str+=l;
-      else *str=tolower(*str),++str;
-    }
-  }
-  else
-#endif
-    for ( ; length>0 ; length--, str++)
-      *str= tolower(*str);
-} /* casedn */
 
 	/* to sort-string that can be compared to get text in order */
 
-void case_sort(my_string str, uint length)
+void case_sort(CHARSET_INFO *cs, my_string str, uint length)
 {
+  register uchar *map=cs->sort_order;
+  
   for ( ; length>0 ; length--, str++)
-    *str= (char) my_sort_order[(uchar) *str];
+    *str= (char) map[(uchar) *str];
 } /* case_sort */
 
-	/* find string in another with no case_sensivity */
 
-/* ToDo: This function should be modified to support multibyte charset.
-         However it is not used untill 3.23.5.
-	 Wei He (hewei@mail.ied.ac.cn)
-*/
-
-my_string my_strcasestr(const char *str, const char *search)
-{
- uchar *i,*j,*pos;
-
- pos=(uchar*) str;
-skipp:
- while (*pos != '\0')
- {
-   if (toupper((uchar) *pos++) == toupper((uchar) *search))
-   {
-     i=(uchar*) pos; j=(uchar*) search+1;
-     while (*j)
-       if (toupper(*i++) != toupper(*j++)) goto skipp;
-     return ((char*) pos-1);
-   }
- }
- return ((my_string) 0);
-} /* strcstr */
-
-
-	/* compare strings without regarding to case */
-
-int my_strcasecmp(const char *s, const char *t)
-{
-#ifdef USE_MB
-  if (use_mb(default_charset_info))
-  {
-    register uint32 l;
-    register const char *end=s+strlen(s);
-    while (s<end)
-    {
-      if ((l=my_ismbchar(default_charset_info, s,end)))
-      {
-        while (l--)
-          if (*s++ != *t++) return 1;
-      }
-      else if (my_ismbhead(default_charset_info, *t)) return 1;
-      else if (toupper((uchar) *s++) != toupper((uchar) *t++)) return 1;
-    }
-    return *t;
-  }
-  else
-#endif
-  {
-    while (toupper((uchar) *s) == toupper((uchar) *t++))
-      if (!*s++) return 0;
-    return ((int) toupper((uchar) s[0]) - (int) toupper((uchar) t[-1]));
-  }
-}
-
-
-int my_casecmp(const char *s, const char *t, uint len)
-{
-#ifdef USE_MB
-  if (use_mb(default_charset_info))
-  {
-    register uint32 l;
-    register const char *end=s+len;
-    while (s<end)
-    {
-      if ((l=my_ismbchar(default_charset_info, s,end)))
-      {
-        while (l--)
-          if (*s++ != *t++) return 1;
-      }
-      else if (my_ismbhead(default_charset_info, *t)) return 1;
-      else if (toupper((uchar) *s++) != toupper((uchar) *t++)) return 1;
-    }
-    return 0;
-  }
-  else
-#endif
-  {
-    while (len-- != 0 && toupper(*s++) == toupper(*t++)) ;
-    return (int) len+1;
-  }
-}
-
-
-int my_strsortcmp(const char *s, const char *t)
+int my_sortcmp(CHARSET_INFO *cs, const char *s, const char *t, uint len)
 {
 #ifdef USE_STRCOLL
-  if (use_strcoll(default_charset_info))
-    return my_strcoll(default_charset_info, (uchar *)s, (uchar *)t);
+  if (use_strcoll(cs))
+    return my_strnncoll(cs,(uchar *)s, len, (uchar *)t, len);
   else
 #endif
   {
-    while (my_sort_order[(uchar) *s] == my_sort_order[(uchar) *t++])
-      if (!*s++) return 0;
-    return ((int) my_sort_order[(uchar) s[0]] -
-            (int) my_sort_order[(uchar) t[-1]]);
-  }
-}
-
-int my_sortcmp(const char *s, const char *t, uint len)
-{
-#ifdef USE_STRCOLL
-  if (use_strcoll(default_charset_info))
-    return my_strnncoll(default_charset_info,
-                        (uchar *)s, len, (uchar *)t, len);
-  else
-#endif
-  {
+    register uchar *map=cs->sort_order;
     while (len--)
     {
-      if (my_sort_order[(uchar) *s++] != my_sort_order[(uchar) *t++])
-        return ((int) my_sort_order[(uchar) s[-1]] -
-                (int) my_sort_order[(uchar) t[-1]]);
+      if (map[(uchar) *s++] != map[(uchar) *t++])
+        return ((int) map[(uchar) s[-1]] - (int) map[(uchar) t[-1]]);
     }
     return 0;
   }
 }
 
-int my_sortncmp(const char *s, uint s_len, const char *t, uint t_len)
+int my_sortncmp(CHARSET_INFO *cs,
+                const char *s, uint s_len, 
+                const char *t, uint t_len)
 {
 #ifdef USE_STRCOLL
-  if (use_strcoll(default_charset_info))
-    return my_strnncoll(default_charset_info,
-                        (uchar *)s, s_len, (uchar *)t, t_len);
+  if (use_strcoll(cs))
+    return my_strnncoll(cs, (uchar *)s, s_len, (uchar *)t, t_len);
   else
 #endif
   {
     uint len= min(s_len,t_len);
+    register uchar *map=cs->sort_order;
+    
     while (len--)
     {
-      if (my_sort_order[(uchar) *s++] != my_sort_order[(uchar) *t++])
-        return ((int) my_sort_order[(uchar) s[-1]] -
-                (int) my_sort_order[(uchar) t[-1]]);
+      if (map[(uchar) *s++] != map[(uchar) *t++])
+        return ((int) map[(uchar) s[-1]] - (int) map[(uchar) t[-1]]);
     }
     return (int) (s_len - t_len);
   }

@@ -249,3 +249,7 @@
 "Foutieve toepassing/plaatsing van '%s'",
 "Deze versie van MySQL ondersteunt nog geen '%s'",
 "Kreeg fatale fout %d: '%-.128s' van master tijdens lezen van data uit binaire log",
+"Wrong foreign key definition for '%-.64s': %s",
+"Key reference and table reference doesn't match",
+"Subselect return more than 1 field",
+"Subselect return more than 1 record",

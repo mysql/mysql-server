@@ -109,7 +109,8 @@ int my_setwd(const char *dir, myf MyFlags)
     uint drive,drives;
 
     pos++;				/* Skipp FN_DEVCHAR */
-    drive=(uint) (toupper(dir[0])-'A'+1); drives= (uint) -1;
+    drive=(uint) (my_toupper(system_charset_info,dir[0])-'A'+1);
+    drives= (uint) -1;
     if ((pos-(byte*) dir) == 2 && drive > 0 && drive < 32)
     {
 #ifdef OS2

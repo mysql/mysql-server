@@ -805,7 +805,7 @@ create table t1 (a char(20), index (a(5))) type=innodb;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` char(20) default NULL,
+  `a` char(20) character set latin1 default NULL,
   KEY `a` (`a`)
 ) TYPE=InnoDB
 drop table t1;

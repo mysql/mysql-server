@@ -47,19 +47,19 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
   int	 j,error;
   uint	 rec_buff_length,n_length,int_length,records,key_parts,keys,
          interval_count,interval_parts,read_length,db_create_options;
-  uint	 key_info_length;
+  uint	 key_info_length, com_length;
   ulong  pos;
-  char	 index_file[FN_REFLEN], *names,*keynames;
+  char	 index_file[FN_REFLEN], *names, *keynames, *comment_pos;
   uchar  head[288],*disk_buff,new_field_pack_flag;
   my_string record;
   const char **int_array;
-  bool	 new_frm_ver,use_hash, null_field_first;
+  bool	 use_hash, null_field_first;
   File	 file;
   Field  **field_ptr,*reg_field;
   KEY	 *keyinfo;
   KEY_PART_INFO *key_part;
   uchar *null_pos;
-  uint null_bit;
+  uint null_bit, new_frm_ver, field_pack_length;
   SQL_CRYPT *crypted=0;
   DBUG_ENTER("openfrm");
   DBUG_PRINT("enter",("name: '%s'  form: %lx",name,outparam));
@@ -95,10 +95,11 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 
   if (my_read(file,(byte*) head,64,MYF(MY_NABP))) goto err_not_open;
   if (head[0] != (uchar) 254 || head[1] != 1 ||
-      (head[2] != FRM_VER && head[2] != FRM_VER+1))
+      (head[2] < FRM_VER && head[2] > FRM_VER+2))
     goto err_not_open; /* purecov: inspected */
   new_field_pack_flag=head[27];
-  new_frm_ver= (head[2] == FRM_VER+1);
+  new_frm_ver= (head[2] - FRM_VER);
+  field_pack_length= new_frm_ver < 2 ? 11 : 15;
 
   error=3;
   if (!(pos=get_form_pos(file,head,(TYPELIB*) 0)))
@@ -116,6 +117,8 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
     outparam->raid_type=   head[41];
     outparam->raid_chunks= head[42];
     outparam->raid_chunksize= uint4korr(head+43);
+    if (!(outparam->table_charset=get_charset((uint) head[38],MYF(0))))
+      outparam->table_charset=NULL; // QQ display error message?
     null_field_first=1;
   }
   outparam->db_record_offset=1;
@@ -153,9 +156,23 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 
   for (i=0 ; i < keys ; i++, keyinfo++)
   {
-    keyinfo->flags=	 ((uint) strpos[0]) ^ HA_NOSAME;
-    keyinfo->key_length= (uint) uint2korr(strpos+1);
-    keyinfo->key_parts=  (uint) strpos[3];  strpos+=4;
+    if (new_frm_ver == 2)
+    {
+      keyinfo->flags=	   (uint) uint2korr(strpos) ^ HA_NOSAME;
+      keyinfo->key_length= (uint) uint2korr(strpos+2);
+      keyinfo->key_parts=  (uint) strpos[4];
+      keyinfo->algorithm=  (enum ha_key_alg) strpos[5];
+      strpos+=8;
+    }
+    else
+    {
+      keyinfo->flags=	 ((uint) strpos[0]) ^ HA_NOSAME;
+      keyinfo->key_length= (uint) uint2korr(strpos+1);
+      keyinfo->key_parts=  (uint) strpos[3];
+      keyinfo->algorithm= HA_KEY_ALG_UNDEF;
+      strpos+=4;
+    }
+
     keyinfo->key_part=	 key_part;
     keyinfo->rec_per_key= rec_per_key;
     for (j=keyinfo->key_parts ; j-- ; key_part++)
@@ -165,7 +182,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
       key_part->offset= (uint) uint2korr(strpos+2)-1;
       key_part->key_type=	(uint) uint2korr(strpos+5);
       // key_part->field=	(Field*) 0;	// Will be fixed later
-      if (new_frm_ver)
+      if (new_frm_ver >= 1)
       {
 	key_part->key_part_flag= *(strpos+4);
 	key_part->length=	(uint) uint2korr(strpos+7);
@@ -191,15 +208,6 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
   }
   keynames=(char*) key_part;
   strpos+= (strmov(keynames, (char *) strpos) - keynames)+1;
-  /* Test if new 4.0 format */
-  if ((uint) (strpos - disk_buff) < key_info_length)
-  {
-    /* Read key types */
-    keyinfo=outparam->key_info;
-    for (i=0 ; i < keys ; i++, keyinfo++)
-      keyinfo->algorithm= (enum ha_key_alg) *(strpos++);
-  }
-
   outparam->reclength = uint2korr((head+16));
   if (*(head+26) == 1)
     outparam->system=1;				/* one-record-database */
@@ -267,10 +275,11 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
   interval_parts=uint2korr(head+272);
   int_length=uint2korr(head+274);
   outparam->null_fields=uint2korr(head+282);
+  com_length=uint2korr(head+284);
   outparam->comment=strdup_root(&outparam->mem_root,
 				(char*) head+47);
 
-  DBUG_PRINT("info",("i_count: %d  i_parts: %d  index: %d  n_length: %d  int_length: %d", interval_count,interval_parts, outparam->keys,n_length,int_length));
+  DBUG_PRINT("info",("i_count: %d  i_parts: %d  index: %d  n_length: %d  int_length: %d  com_length: %d", interval_count,interval_parts, outparam->keys,n_length,int_length, com_length));
 
   if (!(field_ptr = (Field **)
 	alloc_root(&outparam->mem_root,
@@ -278,12 +287,12 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 			   interval_count*sizeof(TYPELIB)+
 			   (outparam->fields+interval_parts+
 			    keys+3)*sizeof(my_string)+
-			   (n_length+int_length)))))
+			   (n_length+int_length+com_length)))))
     goto err_not_open; /* purecov: inspected */
 
   outparam->field=field_ptr;
-  read_length=((uint) (outparam->fields*11)+pos+
-	       (uint) (n_length+int_length));
+  read_length=(uint) (outparam->fields * field_pack_length +
+		      pos+ (uint) (n_length+int_length+com_length));
   if (read_string(file,(gptr*) &disk_buff,read_length))
     goto err_not_open; /* purecov: inspected */
   if (crypted)
@@ -299,8 +308,10 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
   names= (char*) (int_array+outparam->fields+interval_parts+keys+3);
   if (!interval_count)
     outparam->intervals=0;			// For better debugging
-  memcpy((char*) names, strpos+(outparam->fields*11),
+  memcpy((char*) names, strpos+(outparam->fields*field_pack_length),
 	 (uint) (n_length+int_length));
+  comment_pos=names+(n_length+int_length);
+  memcpy(comment_pos, disk_buff+read_length-com_length, com_length);
 
   fix_type_pointers(&int_array,&outparam->fieldnames,1,&names);
   fix_type_pointers(&int_array,outparam->intervals,interval_count,
@@ -328,26 +339,60 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
   use_hash= outparam->fields >= MAX_FIELDS_BEFORE_HASH;
   if (use_hash)
     use_hash= !hash_init(&outparam->name_hash,
+			 system_charset_info,
 			 outparam->fields,0,0,
 			 (hash_get_key) get_field_name,0,
 			 HASH_CASE_INSENSITIVE);
 
-  for (i=0 ; i < outparam->fields; i++, strpos+= 11, field_ptr++)
+  for (i=0 ; i < outparam->fields; i++, strpos+=field_pack_length, field_ptr++)
   {
     uint pack_flag= uint2korr(strpos+6);
     uint interval_nr= (uint) strpos[10];
+    enum_field_types field_type;
+    CHARSET_INFO *charset;
+    LEX_STRING comment;
 
+    if (new_frm_ver == 2)
+    {
+      /* new frm file in 4.1 */
+      uint comment_length=uint2korr(strpos+13);
+      field_type=(enum_field_types) (uint) strpos[11];
+      if (!(charset=get_charset((uint) strpos[12], MYF(0))))
+	charset=outparam->table_charset?outparam->table_charset:default_charset_info;
+      if (!comment_length)
+      {
+	comment.str= (char*) "";
+	comment.length=0;
+      }
+      else
+      {
+	comment.str=    (char*) comment_pos;
+	comment.length= comment_length;
+	comment_pos+=   comment_length;
+      }
+    }
+    else
+    {
+      /* old frm file */
+      field_type= (enum_field_types) f_packtype(pack_flag);
+      charset=outparam->table_charset?outparam->table_charset:default_charset_info;
+      bzero((char*) &comment, sizeof(comment));
+    }
     *field_ptr=reg_field=
       make_field(record+uint2korr(strpos+4),
 		 (uint32) strpos[3],		// field_length
 		 null_pos,null_bit,
 		 pack_flag,
+		 field_type,
 		 (Field::utype) MTYP_TYPENR((uint) strpos[8]),
 		 (interval_nr ?
 		  outparam->intervals+interval_nr-1 :
 		  (TYPELIB*) 0),
 		 outparam->fieldnames.type_names[i],
 		 outparam);
+    reg_field->comment=comment;
+    if (!reg_field->binary())
+      ((Field_str*) reg_field)->set_charset(charset);
     if (!(reg_field->flags & NOT_NULL_FLAG))
     {
       if ((null_bit<<=1) == 256)
@@ -445,13 +490,13 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 	       keyinfo->key_length ? UNIQUE_KEY_FLAG : MULTIPLE_KEY_FLAG);
 	  if (i == 0)
 	    field->key_start|= ((key_map) 1 << key);
-	  if ((index_flags & HA_KEY_READ_ONLY) &&
-	      field->key_length() == key_part->length &&
+	  if (field->key_length() == key_part->length &&
 	      field->type() != FIELD_TYPE_BLOB)
 	  {
-	    if (field->key_type() != HA_KEYTYPE_TEXT ||
-		(!(ha_option & HA_KEY_READ_WRONG_STR) &&
-		 !(keyinfo->flags & HA_FULLTEXT)))
+	    if ((index_flags & HA_HAVE_KEY_READ_ONLY) &&
+		(field->key_type() != HA_KEYTYPE_TEXT ||
+		 (!(ha_option & HA_KEY_READ_WRONG_STR) &&
+		  !(keyinfo->flags & HA_FULLTEXT))))
 	      field->part_of_key|= ((key_map) 1 << key);
 	    if ((field->key_type() != HA_KEYTYPE_TEXT ||
 		 !(keyinfo->flags & HA_FULLTEXT)) &&
@@ -934,9 +979,14 @@ ulong next_io_size(register ulong pos)
 } /* next_io_size */
 
 
-void append_unescaped(String *res,const char *pos)
+	/* Store in String an SQL quoted string */
+
+void append_unescaped(String *res,const char *pos, uint length)
 {
-  for (; *pos ; pos++)
+  const char *end= pos+length;
+  res->append('\'');
+
+  for (; pos != end ; pos++)
   {
     switch (*pos) {
     case 0:				/* Must be escaped for 'mysql' */
@@ -964,6 +1014,7 @@ void append_unescaped(String *res,const char *pos)
       break;
     }
   }
+  res->append('\'');
 }
 
 	/* Create a .frm file */
@@ -987,7 +1038,7 @@ File create_frm(register my_string name, uint reclength, uchar *fileinfo,
   if ((file=my_create(name,CREATE_MODE,O_RDWR | O_TRUNC,MYF(MY_WME))) >= 0)
   {
     bzero((char*) fileinfo,64);
-    fileinfo[0]=(uchar) 254; fileinfo[1]= 1; fileinfo[2]= FRM_VER+1; // Header
+    fileinfo[0]=(uchar) 254; fileinfo[1]= 1; fileinfo[2]= FRM_VER+2; // Header
     fileinfo[3]= (uchar) ha_checktype(create_info->db_type);
     fileinfo[4]=1;
     int2store(fileinfo+6,IO_SIZE);		/* Next block starts here */
@@ -1003,6 +1054,7 @@ File create_frm(register my_string name, uint reclength, uchar *fileinfo,
     int2store(fileinfo+30,create_info->table_options);
     fileinfo[32]=0;				// No filename anymore
     int4store(fileinfo+34,create_info->avg_row_length);
+    fileinfo[38]= create_info->table_charset?create_info->table_charset->number:0;
     fileinfo[40]= (uchar) create_info->row_type;
     fileinfo[41]= (uchar) create_info->raid_type;
     fileinfo[42]= (uchar) create_info->raid_chunks;
@@ -1033,6 +1085,7 @@ void update_create_info_from_table(HA_CREATE_INFO *create_info, TABLE *table)
   create_info->raid_type=table->raid_type;
   create_info->raid_chunks=table->raid_chunks;
   create_info->raid_chunksize=table->raid_chunksize;
+  create_info->table_charset=table->table_charset;
   DBUG_VOID_RETURN;
 }
 
@@ -1055,7 +1108,7 @@ char *get_field(MEM_ROOT *mem, TABLE *table, uint fieldnr)
 {
   Field *field=table->field[fieldnr];
   char buff[MAX_FIELD_WIDTH];
-  String str(buff,sizeof(buff));
+  String str(buff,sizeof(buff),default_charset_info);
   field->val_str(&str,&str);
   uint length=str.length();
   if (!length)
@@ -1072,9 +1125,10 @@ bool check_db_name(const char *name)
   while (*name)
   {
 #if defined(USE_MB) && defined(USE_MB_IDENT)
-    if (use_mb(default_charset_info))
+    if (use_mb(system_charset_info))
     {
-      int len=my_ismbchar(default_charset_info, name, name+MBMAXLEN);
+      int len=my_ismbchar(system_charset_info, name, 
+		name+system_charset_info->mbmaxlen);
       if (len)
       {
         name += len;
@@ -1105,9 +1159,9 @@ bool check_table_name(const char *name, uint length)
   while (name != end)
   {
 #if defined(USE_MB) && defined(USE_MB_IDENT)
-    if (use_mb(default_charset_info))
+    if (use_mb(system_charset_info))
     {
-      int len=my_ismbchar(default_charset_info, name, end);
+      int len=my_ismbchar(system_charset_info, name, end);
       if (len)
       {
         name += len;
@@ -1127,9 +1181,10 @@ bool check_column_name(const char *name)
   while (*name)
   {
 #if defined(USE_MB) && defined(USE_MB_IDENT)
-    if (use_mb(default_charset_info))
+    if (use_mb(system_charset_info))
     {
-      int len=my_ismbchar(default_charset_info, name, name+MBMAXLEN);
+      int len=my_ismbchar(system_charset_info, name, 
+		name+system_charset_info->mbmaxlen);
       if (len)
       {
         name += len;
@@ -1161,7 +1216,7 @@ db_type get_table_type(const char *name)
   error=my_read(file,(byte*) head,4,MYF(MY_NABP));
   my_close(file,MYF(0));
   if (error || head[0] != (uchar) 254 || head[1] != 1 ||
-      (head[2] != FRM_VER && head[2] != FRM_VER+1))
+      (head[2] < FRM_VER && head[2] > FRM_VER+2))
     DBUG_RETURN(DB_TYPE_UNKNOWN);
   DBUG_RETURN(ha_checktype((enum db_type) (uint) *(head+3)));
 }

@@ -172,7 +172,7 @@ show create table t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
   `a` int(11) NOT NULL default '0',
-  `b` char(20) default NULL,
+  `b` char(20) character set latin1 default NULL,
   KEY `a` (`a`)
 ) TYPE=MRG_MyISAM UNION=(t1,t2)
 create table t4 (a int not null, b char(10), key(a)) type=MERGE UNION=(t1,t2);

@@ -17,6 +17,8 @@
 /* Create a MyISAM table */
 
 #include "fulltext.h"
+#include "sp_defs.h"
+
 #if defined(MSDOS) || defined(__WIN__)
 #ifdef __WIN__
 #include <fcntl.h>
@@ -51,7 +53,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
   MYISAM_SHARE share;
   MI_KEYDEF *keydef,tmp_keydef;
   MI_UNIQUEDEF *uniquedef;
-  MI_KEYSEG *keyseg,tmp_keyseg;
+  HA_KEYSEG *keyseg,tmp_keyseg;
   MI_COLUMNDEF *rec;
   ulong *rec_per_key_part;
   my_off_t key_root[MI_MAX_POSSIBLE_KEY],key_del[MI_MAX_KEY_BLOCK_SIZE];
@@ -233,11 +235,42 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
 
   for (i=0, keydef=keydefs ; i < keys ; i++ , keydef++)
   {
-    share.state.key_root[i]= HA_OFFSET_ERROR;
 
+    share.state.key_root[i]= HA_OFFSET_ERROR;
     min_key_length_skipp=length=0;
     key_length=pointer;
+    if (keydef->flag & HA_SPATIAL)
+    {
+      /* BAR TODO to support 3D and more dimensions in the future */
+      uint sp_segs=SPDIMS*2; 
+      keydef->flag=HA_SPATIAL;
 
+      if (flags & HA_DONT_TOUCH_DATA)
+      {
+        /* 
+           called by myisamchk - i.e. table structure was taken from
+           MYI file and SPATIAL key *do has* additional sp_segs keysegs.
+           We'd better delete them now
+        */
+        keydef->keysegs-=sp_segs;
+      }
+
+      for (j=0, keyseg=keydef->seg ; (int) j < keydef->keysegs ;
+	   j++, keyseg++)
+      {
+        if (keyseg->type != HA_KEYTYPE_BINARY &&
+	    keyseg->type != HA_KEYTYPE_VARBINARY)
+        {
+          my_errno=HA_WRONG_CREATE_OPTION;
+          goto err;
+        }
+      }
+      keydef->keysegs+=sp_segs;
+      key_length+=SPLEN*sp_segs;
+      length++;                              /* At least one length byte */
+      min_key_length_skipp+=SPLEN*2*SPDIMS;
+    }
+    else
     if (keydef->flag & HA_FULLTEXT)                                 /* SerG */
     {
       keydef->flag=HA_FULLTEXT | HA_PACK_KEY | HA_VAR_LENGTH_KEY;
@@ -410,7 +443,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
   info_length=base_pos+(uint) (MI_BASE_INFO_SIZE+
 			       keys * MI_KEYDEF_SIZE+
 			       uniques * MI_UNIQUEDEF_SIZE +
-			       (key_segs + unique_key_parts)*MI_KEYSEG_SIZE+
+			       (key_segs + unique_key_parts)*HA_KEYSEG_SIZE+
 			       columns*MI_COLUMNDEF_SIZE);
 
   bmove(share.state.header.file_version,(byte*) myisam_file_magic,4);
@@ -557,17 +590,33 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
   for (i=0 ; i < share.base.keys - uniques; i++)
   {
     uint ft_segs=(keydefs[i].flag & HA_FULLTEXT) ? FT_SEGS : 0;
+    uint sp_segs=(keydefs[i].flag & HA_SPATIAL) ? 2*SPDIMS : 0;
 
     if (mi_keydef_write(file, &keydefs[i]))
       goto err;
-    for (j=0 ; j < keydefs[i].keysegs-ft_segs ; j++)
+    for (j=0 ; j < keydefs[i].keysegs-ft_segs-sp_segs ; j++)
       if (mi_keyseg_write(file, &keydefs[i].seg[j]))
-	goto err;
+       goto err;
     for (j=0 ; j < ft_segs ; j++)
     {
-      MI_KEYSEG seg=ft_keysegs[j];
+      HA_KEYSEG seg=ft_keysegs[j];
       seg.language= keydefs[i].seg[0].language;
       if (mi_keyseg_write(file, &seg))
+        goto err;
+    }
+    for (j=0 ; j < sp_segs ; j++)
+    {
+      HA_KEYSEG sseg;
+      sseg.type=SPTYPE;
+      sseg.language= 7;
+      sseg.null_bit=0;
+      sseg.bit_start=0;
+      sseg.bit_end=0;
+      sseg.length=SPLEN;
+      sseg.null_pos=0;
+      sseg.start=j*SPLEN;
+      sseg.flag= HA_SWAP_KEY;
+      if (mi_keyseg_write(file, &sseg))
         goto err;
     }
   }

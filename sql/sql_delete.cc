@@ -222,9 +222,10 @@ multi_delete::multi_delete(THD *thd_arg, TABLE_LIST *dt,
 
 
 int
-multi_delete::prepare(List<Item> &values)
+multi_delete::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 {
   DBUG_ENTER("multi_delete::prepare");
+  unit= u;
   do_delete = true;   
   thd->proc_info="deleting from main table";
 
@@ -520,8 +521,9 @@ int mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
     table->file->info(HA_STATUS_AUTO | HA_STATUS_NO_LOCK);
     bzero((char*) &create_info,sizeof(create_info));
     create_info.auto_increment_value= table->file->auto_increment_value;
-    db_type table_type=table->db_type;
+    create_info.table_charset=default_charset_info;
 
+    db_type table_type=table->db_type;
     strmov(path,table->path);
     *table_ptr= table->next;			// Unlink table from list
     close_temporary(table,0);
@@ -532,8 +534,8 @@ int mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
 					     table_list->real_name, 1))))
       (void) rm_temporary_table(table_type, path);
     /*
-      Sasha: if we return here we will not have binloged the truncation and
-      we will not send_ok() to the client.
+      If we return here we will not have logged the truncation to the bin log
+      and we will not send_ok() to the client.
     */
     goto end; 
   }
@@ -562,6 +564,8 @@ int mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
   }
 
   bzero((char*) &create_info,sizeof(create_info));
+  create_info.table_charset=default_charset_info;
+
   *fn_ext(path)=0;				// Remove the .frm extension
   error= ha_create_table(path,&create_info,1) ? -1 : 0;
   query_cache_invalidate3(thd, table_list, 0); 

@@ -33,7 +33,7 @@ FILE *df,*qf;
 
 MI_COLUMNDEF recinfo[3];
 MI_KEYDEF keyinfo[2];
-MI_KEYSEG keyseg[10];
+HA_KEYSEG keyseg[10];
 
 #define SWL_INIT 500
 #define SWL_PLUS 50

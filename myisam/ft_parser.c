@@ -37,8 +37,8 @@ typedef struct st_ft_docstat {
 
 static int FT_WORD_cmp(CHARSET_INFO* cs, FT_WORD *w1, FT_WORD *w2)
 {
-  return _mi_compare_text(cs, (uchar*) w1->pos, w1->len,
-                              (uchar*) w2->pos, w2->len, 0);
+  return mi_compare_text(cs, (uchar*) w1->pos, w1->len,
+                         (uchar*) w2->pos, w2->len, 0);
 }
 
 static int walk_and_copy(FT_WORD *word,uint32 count,FT_DOCSTAT *docstat)
@@ -105,13 +105,13 @@ FT_WORD * ft_linearize(TREE *wtree)
   DBUG_RETURN(wlist);
 }
 
-#define true_word_char(X)	(isalnum(X) || (X)=='_')
+#define true_word_char(s,X)	(my_isalnum(s,X) || (X)=='_')
 #ifdef HYPHEN_IS_DELIM
 #define misc_word_char(X)	((X)=='\'')
 #else
 #define misc_word_char(X)	((X)=='\'' || (X)=='-')
 #endif
-#define word_char(X)		(true_word_char(X) || misc_word_char(X))
+#define word_char(s,X)		(true_word_char(s,X) || misc_word_char(s,X))
 
 
 /* returns:
@@ -132,7 +132,11 @@ byte ft_get_word(byte **start, byte *end, FT_WORD *word, FTB_PARAM *param)
   {
     for (;doc<end;doc++)
     {
-      if (true_word_char(*doc)) break;
+      /* 
+        BAR TODO: discuss with Serge how to remove 
+        default_charset_info correctly
+      */
+      if (true_word_char(default_charset_info,*doc)) break;
       if (*doc == FTB_RQUOT && param->quot) {
         param->quot=doc;
         *start=doc+1;
@@ -162,7 +166,7 @@ byte ft_get_word(byte **start, byte *end, FT_WORD *word, FTB_PARAM *param)
 
     mwc=0;
     for (word->pos=doc; doc<end; doc++)
-      if (true_word_char(*doc))
+      if (true_word_char(default_charset_info,*doc))
         mwc=0;
       else if (!misc_word_char(*doc) || mwc++)
         break;
@@ -191,12 +195,12 @@ byte ft_simple_get_word(byte **start, byte *end, FT_WORD *word)
   {
     for (;doc<end;doc++)
     {
-      if (true_word_char(*doc)) break;
+      if (true_word_char(default_charset_info,*doc)) break;
     }
 
     mwc=0;
     for(word->pos=doc; doc<end; doc++)
-      if (true_word_char(*doc))
+      if (true_word_char(default_charset_info,*doc))
         mwc=0;
       else if (!misc_word_char(*doc) || mwc++)
         break;
@@ -226,7 +230,7 @@ int ft_parse(TREE *wtree, byte *doc, int doclen)
 
   while (ft_simple_get_word(&doc,end,&w))
   {
-    if (!tree_insert(wtree, &w, 0))
+    if (!tree_insert(wtree, &w, 0, wtree->custom_arg))
       goto err;
   }
   return 0;
