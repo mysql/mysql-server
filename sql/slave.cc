@@ -401,9 +401,9 @@ int terminate_slave_threads(MASTER_INFO* mi,int thread_mask,bool skip_lock)
     DBUG_PRINT("info",("Terminating IO thread"));
     mi->abort_slave=1;
     if ((error=terminate_slave_thread(mi->io_thd,io_lock,
-				        io_cond_lock,
-					&mi->stop_cond,
-					&mi->slave_running)) &&
+				      io_cond_lock,
+				      &mi->stop_cond,
+				      &mi->slave_running)) &&
 	!force_all)
       DBUG_RETURN(error);
   }
@@ -443,12 +443,10 @@ int terminate_slave_thread(THD* thd, pthread_mutex_t* term_lock,
     be referening freed memory trying to kick it
   */
   THD_CHECK_SENTRY(thd);
-  if (*slave_running)
+
+  while (*slave_running)			// Should always be true
   {
     KICK_SLAVE(thd);
-  }
-  while (*slave_running)
-  {
     /*
       There is a small chance that slave thread might miss the first
       alarm. To protect againts it, resend the signal until it reacts
@@ -456,10 +454,6 @@ int terminate_slave_thread(THD* thd, pthread_mutex_t* term_lock,
     struct timespec abstime;
     set_timespec(abstime,2);
     pthread_cond_timedwait(term_cond, cond_lock, &abstime);
-    if (*slave_running)
-    {
-      KICK_SLAVE(thd);
-    }
   }
   if (term_lock)
     pthread_mutex_unlock(term_lock);

@@ -919,7 +919,6 @@ void _db_doprnt_ (const char *format,...)
     }
     (void) fprintf (_db_fp_, "%s: ", state->u_keyword);
     (void) vfprintf (_db_fp_, format, args);
-    va_end(args);
     (void) fputc('\n',_db_fp_);
     dbug_flush(state);
     errno=save_errno;
