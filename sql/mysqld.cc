@@ -4747,7 +4747,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       berkeley_env_flags|= DB_TXN_NOSYNC;
     else
       berkeley_env_flags&= ~DB_TXN_NOSYNC;
-    printf("berkeley_env_flags: %d, arg '%s'\n", berkeley_env_flags, argument);
     break;
   case OPT_BDB_NO_RECOVER:
     berkeley_init_flags&= ~(DB_RECOVER);
