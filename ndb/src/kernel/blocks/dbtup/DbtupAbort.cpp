@@ -77,7 +77,7 @@ void Dbtup::execTUP_ABORTREQ(Signal* signal)
   if (regOperPtr.p->optype == ZREAD) {
     ljam();
     freeAllAttrBuffers(regOperPtr.p);
-    initOpConnection(regOperPtr.p);
+    initOpConnection(regOperPtr.p, 0);
     return;
   }//if
 
@@ -134,7 +134,7 @@ void Dbtup::execTUP_ABORTREQ(Signal* signal)
     ndbrequire(regOperPtr.p->tupleState == ALREADY_ABORTED);
     commitUpdate(signal, regOperPtr.p, regFragPtr.p, regTabPtr.p);
   }//if
-  initOpConnection(regOperPtr.p);
+  initOpConnection(regOperPtr.p, regFragPtr.p);
 }//execTUP_ABORTREQ()
 
 void Dbtup::setTupleStateOnPreviousOps(Uint32 prevOpIndex)
@@ -459,7 +459,7 @@ void Dbtup::tupkeyErrorLab(Signal* signal)
   freeAllAttrBuffers(regOperPtr);
   abortUpdate(signal, regOperPtr, fragptr.p, tabptr.p);
   removeActiveOpList(regOperPtr);
-  initOpConnection(regOperPtr);
+  initOpConnection(regOperPtr, fragptr.p);
   regOperPtr->transstate = IDLE;
   regOperPtr->tupleState = NO_OTHER_OP;
   TupKeyRef * const tupKeyRef = (TupKeyRef *)signal->getDataPtrSend();  

@@ -16,6 +16,7 @@
 
 #include <ndb_global.h>
 
+#include <LocalConfig.hpp>
 #include "Configuration.hpp"
 #include <ErrorHandlingMacros.hpp>
 #include "GlobalData.hpp"
@@ -184,7 +185,7 @@ Configuration::closeConfiguration(){
 }
 
 void
-Configuration::fetch_configuration(){
+Configuration::fetch_configuration(LocalConfig &local_config){
   /**
    * Fetch configuration from management server
    */
@@ -192,8 +193,9 @@ Configuration::fetch_configuration(){
     delete m_config_retriever;
   }
 
-  m_config_retriever= new ConfigRetriever(NDB_VERSION, NODE_TYPE_DB);
-  m_config_retriever->setConnectString(_connectString ? _connectString : "");
+  m_mgmd_port= 0;
+  m_mgmd_host= 0;
+  m_config_retriever= new ConfigRetriever(local_config, NDB_VERSION, NODE_TYPE_DB);
   if(m_config_retriever->init() == -1 ||
      m_config_retriever->do_connect() == -1){
     
@@ -207,6 +209,9 @@ Configuration::fetch_configuration(){
     ERROR_SET(fatal, ERR_INVALID_CONFIG, "Could connect to ndb_mgmd", s);
   }
   
+  m_mgmd_port= m_config_retriever->get_mgmd_port();
+  m_mgmd_host= m_config_retriever->get_mgmd_host();
+
   ConfigRetriever &cr= *m_config_retriever;
   
   if((globalData.ownId = cr.allocNodeId()) == 0){
@@ -414,6 +419,11 @@ Configuration::getRestartOnErrorInsert() const {
 void
 Configuration::setRestartOnErrorInsert(int i){
   m_restartOnErrorInsert = i;
+}
+
+const char *
+Configuration::getConnectString() const {
+  return _connectString;
 }
 
 char *

@@ -2239,6 +2239,32 @@ static void mysql_close_free(MYSQL *mysql)
 }
 
 
+/*
+  Clear connection pointer of every statement: this is necessary
+  to give error on attempt to use a prepared statement of closed
+  connection.
+
+  SYNOPSYS
+    mysql_detach_stmt_list()
+      stmt_list  pointer to mysql->stmts
+*/
+
+void mysql_detach_stmt_list(LIST **stmt_list)
+{
+#ifdef MYSQL_CLIENT
+  /* Reset connection handle in all prepared statements. */
+  LIST *element= *stmt_list;
+  for (; element; element= element->next)
+  {
+    MYSQL_STMT *stmt= (MYSQL_STMT *) element->data;
+    stmt->mysql= 0;
+    /* No need to call list_delete for statement here */
+  }
+  *stmt_list= 0;
+#endif /* MYSQL_CLIENT */
+}
+
+
 void STDCALL mysql_close(MYSQL *mysql)
 {
   DBUG_ENTER("mysql_close");
@@ -2255,20 +2281,7 @@ void STDCALL mysql_close(MYSQL *mysql)
     }
     mysql_close_free_options(mysql);
     mysql_close_free(mysql);
-#ifdef MYSQL_CLIENT
-    if (mysql->stmts)
-    {
-      /* Reset connection handle in all prepared statements. */
-      LIST *element;
-      for (element= mysql->stmts; element; element= element->next)
-      {
-        MYSQL_STMT *stmt= (MYSQL_STMT *) element->data;
-        stmt->mysql= 0;
-        /* No need to call list_delete for statement here */
-      }
-      mysql->stmts= 0;
-    }
-#endif /*MYSQL_CLIENT*/
+    mysql_detach_stmt_list(&mysql->stmts);
 #ifndef TO_BE_DELETED
     /* free/close slave list */
     if (mysql->rpl_pivot)
