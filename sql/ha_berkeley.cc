@@ -93,6 +93,7 @@ u_int32_t berkeley_lock_types[]=
 { DB_LOCK_DEFAULT, DB_LOCK_OLDEST, DB_LOCK_RANDOM };
 TYPELIB berkeley_lock_typelib= {array_elements(berkeley_lock_names),"",
 				berkeley_lock_names};
+static MEM_ROOT show_logs_root;
 
 static void berkeley_print_error(const char *db_errpfx, char *buffer);
 static byte* bdb_get_key(BDB_SHARE *share,uint *length,
@@ -210,6 +211,46 @@ int berkeley_rollback(THD *thd, void *trans)
   DBUG_RETURN(error);
 }
 
+static void *show_logs_alloc(size_t size)
+{
+  return alloc_root(&show_logs_root, size);
+}
+
+int berkeley_show_logs(THD *thd)
+{
+  char **all_logs, **free_logs;
+  String *packet= &thd->packet;
+  int error;
+  DBUG_ENTER("berkeley_show_logs");
+
+  init_alloc_root(&show_logs_root, 1024, 1024);
+  if ((error= log_archive(db_env, &all_logs, DB_ARCH_ABS|DB_ARCH_LOG, show_logs_alloc)) ||
+      (error= log_archive(db_env, &free_logs, DB_ARCH_ABS, show_logs_alloc)))
+  {
+    DBUG_PRINT("error", ("log_archive failed (error %d)", error));
+    db_env->err(db_env, error, "log_archive: DB_ARCH_ABS");
+    DBUG_RETURN(1);
+  }
+
+  for (char **a = all_logs, **f = free_logs; *a; ++a)
+  {
+    packet->length(0);
+    net_store_data(packet,*a);
+    net_store_data(packet,"BDB");
+    if (f && strcmp(*a, *f) == 0)
+    {
+      net_store_data(packet, SHOW_LOG_STATUS_FREE);
+      ++f;
+    }
+    else
+      net_store_data(packet, SHOW_LOG_STATUS_INUSE);
+
+    if (my_net_write(&thd->net,(char*) packet->ptr(),packet->length()))
+      DBUG_RETURN(1); /* purecov: inspected */
+  }
+  free_root(&show_logs_root,MYF(0));
+  DBUG_RETURN(0);
+}
 
 static void berkeley_print_error(const char *db_errpfx, char *buffer)
 {
