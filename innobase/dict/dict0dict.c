@@ -2020,7 +2020,8 @@ dict_foreign_error_report(
 		fputs("\nThe index in the foreign key in table is ", file);
 		ut_print_name(file, fk->foreign_index->name);
 		fputs(
-"See http://www.innodb.com/ibman.php for correct foreign key definition.\n",
+"\nSee http://dev.mysql.com/doc/mysql/en/InnoDB_foreign_key_constraints.html\n"
+"for correct foreign key definition.\n",
 		file);
 	}
 	mutex_exit(&dict_foreign_err_mutex);
@@ -2856,7 +2857,8 @@ col_loop1:
 		ut_print_name(ef, name);
 		fprintf(ef, " where the columns appear\n"
 "as the first columns. Constraint:\n%s\n"
-"See http://www.innodb.com/ibman.php for correct foreign key definition.\n",
+"nSee http://dev.mysql.com/doc/mysql/en/InnoDB_foreign_key_constraints.html\n"
+"for correct foreign key definition.\n",
 			start_of_latest_foreign);
 		mutex_exit(&dict_foreign_err_mutex);
 
@@ -3121,7 +3123,8 @@ try_find_index:
 "Cannot find an index in the referenced table where the\n"
 "referenced columns appear as the first columns, or column types\n"
 "in the table and the referenced table do not match for constraint.\n"
-"See http://www.innodb.com/ibman.php for correct foreign key definition.\n",
+"See http://dev.mysql.com/doc/mysql/en/InnoDB_foreign_key_constraints.html\n"
+"for correct foreign key definition.\n",
 				start_of_latest_foreign);
 			mutex_exit(&dict_foreign_err_mutex);
 
