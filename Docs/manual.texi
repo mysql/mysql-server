@@ -10572,7 +10572,7 @@ password=my_password
 no-auto-rehash
 set-variable = connect_timeout=2
 
-[mysql-hot-copy]
+[mysqlhotcopy]
 interactive-timeout
 
 @end example
