@@ -4330,7 +4330,7 @@ check_table_access(THD *thd, ulong want_access,TABLE_LIST *tables,
   TABLE_LIST *org_tables=tables;
   for (; tables; tables= tables->next_global)
   {
-    if (tables->derived || tables->schema_table ||
+    if (tables->derived || tables->schema_table || tables->belong_to_view ||
         (tables->table && (int)tables->table->tmp_table) ||
         my_tz_check_n_skip_implicit_tables(&tables,
                                            thd->lex->time_zone_tables_used))
