@@ -2272,7 +2272,7 @@ else
   CHARSETS=`echo $extra_charsets | sed -e 's/,/ /g'`
 fi
 
-CHARSETS="$DEFAULT_CHARSET $CHARSETS"
+CHARSETS="$default_charset $CHARSETS"
 
 use_mb="no"
 
