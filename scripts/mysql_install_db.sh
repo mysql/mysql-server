@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copyright (C) 2002 MySQL AB
+# Copyright (C) 2002-2004 MySQL AB
 # For a more info consult the file COPYRIGHT distributed with this file.
 
 # This scripts creates the privilege tables db, host, user, tables_priv,
@@ -7,13 +7,14 @@
 #
 # All unrecognized arguments to this script are passed to mysqld.
 
-IN_RPM=0
+in_rpm=0
+windows=0
+defaults=""
 case "$1" in
     -IN-RPM)
-      IN_RPM="1"; shift
+      in_rpm="1"; shift
       ;;
 esac
-defaults=
 case "$1" in
     --no-defaults|--defaults-file=*|--defaults-extra-file=*)
       defaults="$1"; shift
@@ -38,6 +39,9 @@ parse_arguments() {
       --ldata=*|--datadir=*) ldata=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
       --user=*) user=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
       --skip-name-resolve) ip_only=1 ;;
+      --verbose) verbose=1 ;;
+      --rpm) in_rpm=1 ;;
+      --windows) windows=1 ;;
       *)
         if test -n "$pick_args"
         then
@@ -55,6 +59,9 @@ parse_arguments() {
 if test -x ./bin/my_print_defaults
 then
   print_defaults="./bin/my_print_defaults"
+elif test -x ./extra/my_print_defaults
+then
+  print_defaults="./extra/my_print_defaults"
 elif test -x @bindir@/my_print_defaults
 then
   print_defaults="@bindir@/my_print_defaults"
@@ -80,6 +87,7 @@ then
   basedir=@prefix@
   bindir=@bindir@
   execdir=@libexecdir@ 
+  pkgdatadir=@pkgdatadir@
 else
   bindir="$basedir/bin"
 if test -x "$basedir/libexec/mysqld"
@@ -94,15 +102,25 @@ fi
 fi
 
 mdata=$ldata/mysql
+mysqld=$execdir/mysqld
+mysqld_opt=""
+scriptdir=$bindir
 
-if test ! -x $execdir/mysqld
+if test "$windows" = 1
 then
-  if test "$IN_RPM" = "1"
+  mysqld="./sql/mysqld"
+  mysqld_opt="--language=./sql/share/english"
+  scriptdir="./scripts"
+fi
+
+if test ! -x $mysqld
+then
+  if test "$in_rpm" = 1
   then
-    echo "FATAL ERROR $execdir/mysqld not found!"
+    echo "FATAL ERROR $mysqld not found!"
     exit 1
   else
-    echo "Didn't find $execdir/mysqld"
+    echo "Didn't find $mysqld"
     echo "You should do a 'make install' before executing this script"
     exit 1
   fi
@@ -112,7 +130,7 @@ fi
 hostname=`@HOSTNAME@`
 
 # Check if hostname is valid
-if test "$IN_RPM" = "0" -a $force = "0"
+if test "$windows" = 0 -a "$in_rpm" = 0 -a $force = 0
 then
   resolved=`$bindir/resolveip $hostname 2>&1`
   if [ $? -ne 0 ]
@@ -313,7 +331,7 @@ then
 fi
 
 echo "Installing all prepared tables"
-if eval "$execdir/mysqld $defaults --bootstrap --skip-grant-tables \
+if eval "$mysqld $defaults $mysqld_opt --bootstrap --skip-grant-tables \
          --basedir=$basedir --datadir=$ldata --skip-innodb --skip-bdb $args" << END_OF_DATA
 use mysql;
 $c_d
@@ -333,7 +351,7 @@ $c_c
 END_OF_DATA
 then
   echo ""
-  if test "$IN_RPM" = "0"
+  if test "$in_rpm" = "0"
   then
     echo "To start mysqld at boot time you have to copy support-files/mysql.server"
     echo "to the right place for your system"
@@ -354,7 +372,7 @@ then
     echo "able to use the new GRANT command!"
   fi
   echo
-  if test "$IN_RPM" = "0"
+  if test "$in_rpm" = "0"
   then
     echo "You can start the MySQL daemon with:"
     echo "cd @prefix@ ; $bindir/mysqld_safe &"

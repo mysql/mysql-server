@@ -462,7 +462,7 @@ static void _thai2sortable(uchar *tstr)
   int	len, tlen;
   uchar	l2bias;
 
-  tlen= len=	strlen (tstr);
+  tlen= len=	strlen((char*) tstr);
   l2bias= 	256 - 8;
   for (p= tstr; tlen > 0; p++, tlen--)
   {
@@ -491,7 +491,7 @@ static void _thai2sortable(uchar *tstr)
 	  l2bias use to control position weight of l2char
 	  example (*=l2char) XX*X must come before X*XX
 	*/
-	strmov(p,p+1);
+	strmov((char*) p, (char*) p+1);
 	tstr[len-1]= l2bias + t_ctype0[1]- L2_GARAN +1;
 	p--;
 	continue;
@@ -550,10 +550,10 @@ int my_strnxfrm_tis620(uchar * dest, const uchar * src, int len, int srclen)
 {
   if (len > srclen)
     len= srclen ;
-  strnmov(dest, src, len) ;
+  strnmov((char*) dest, (char*) src, len) ;
   dest[len]= 0;		/* if length(src) > len, need to put 'end of string' */
   _thai2sortable(dest);
-  return strlen(dest); 
+  return strlen((char*) dest); 
 }
 
 

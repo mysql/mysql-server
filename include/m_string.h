@@ -232,6 +232,7 @@ extern char *str2int(const char *src,int radix,long lower,long upper,
 #if SIZEOF_LONG == SIZEOF_LONG_LONG
 #define longlong2str(A,B,C) int2str((A),(B),(C))
 #define longlong10_to_str(A,B,C) int10_to_str((A),(B),(C))
+#undef strtoll
 #define strtoll(A,B,C) strtol((A),(B),(C))
 #define strtoull(A,B,C) strtoul((A),(B),(C))
 #ifndef HAVE_STRTOULL

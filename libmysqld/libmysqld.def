@@ -63,3 +63,6 @@ EXPORTS
 	mysql_refresh
 	mysql_odbc_escape_string
 	myodbc_remove_escape
+	net_buffer_length
+	max_allowed_packet
+	get_tty_password

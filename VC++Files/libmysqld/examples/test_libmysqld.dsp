@@ -24,7 +24,7 @@ CFG=test_libmysqld - Win32 Release
 # PROP AllowPerConfigDependencies 0
 # PROP Scc_ProjName ""
 # PROP Scc_LocalPath ""
-CPP=cl.exe
+CPP=xicl6.exe
 RSC=rc.exe
 # PROP BASE Use_MFC 0
 # PROP BASE Use_Debug_Libraries 0
@@ -38,13 +38,13 @@ RSC=rc.exe
 # PROP Ignore_Export_Lib 0
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /YX /FD /c
-# ADD CPP /nologo /MT /W3 /GX /O2 /I "..\..\include" /I "../include" /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /D "DBUG_OFF" /FR /YX /FD /c
+# ADD CPP /nologo /MT /W3 /GX /O2 /I "..\..\include" /I "../include" /D "WIN32" /D "_CONSOLE" /D "_MBCS" /D "DBUG_OFF" /D "NDEBUG" /FR /YX /FD /c
 # ADD BASE RSC /l 0x416 /d "NDEBUG"
 # ADD RSC /l 0x416 /d "NDEBUG"
 BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
-LINK32=link.exe
+LINK32=xilink6.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:console /machine:I386
 # ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib Wsock32.lib /nologo /subsystem:console /machine:I386 /nodefaultlib:"LIBCMTD" /out:"Release/mysql-server.exe"
 # Begin Target
@@ -55,7 +55,19 @@ LINK32=link.exe
 # PROP Default_Filter "cpp;c;cxx;rc;def;r;odl;idl;hpj;bat"
 # Begin Source File
 
+SOURCE=..\..\client\completion_hash.cpp
+# End Source File
+# Begin Source File
+
 SOURCE=..\..\client\mysql.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\client\readline.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\client\sql_string.cpp
 # End Source File
 # End Group
 # Begin Source File
