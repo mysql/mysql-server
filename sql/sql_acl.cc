@@ -2543,7 +2543,7 @@ my_bool grant_init(THD *org_thd)
   do
   {
     GRANT_TABLE *mem_check;
-    if (!(mem_check=new GRANT_TABLE(t_table,c_table)) || mem_check->ok())
+    if (!(mem_check=new GRANT_TABLE(t_table,c_table)) || !mem_check->ok())
     {
       /* This could only happen if we are out memory */
       grant_option= FALSE;			/* purecov: deadcode */
