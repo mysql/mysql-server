@@ -138,7 +138,7 @@ static void init_sum_functions(Item_sum **func);
 static bool update_sum_func(Item_sum **func);
 static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 			    bool distinct);
-static void describe_info(const char *info);
+static void describe_info(THD *thd, const char *info);
 
 /*****************************************************************************
 ** check fields, find best join, do the select and output fields.
@@ -336,7 +336,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
       }
       if (select_options & SELECT_DESCRIBE)
       {
-	describe_info("Select tables optimized away");
+	describe_info(thd,"Select tables optimized away");
 	delete procedure;
 	DBUG_RETURN(0);
       }
@@ -347,7 +347,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
   {						// Only test of functions
     error=0;
     if (select_options & SELECT_DESCRIBE)
-      describe_info("No tables used");
+      describe_info(thd,"No tables used");
     else
     {
       result->send_fields(fields,1);
@@ -2420,7 +2420,7 @@ make_join_readinfo(JOIN *join,uint options)
       /* These init changes read_record */
       if (tab->use_quick == 2)
       {
-	join->thd->lex.options|=OPTION_NO_GOOD_INDEX_USED;
+	join->thd->lex.options|=QUERY_NO_GOOD_INDEX_USED;
 	tab->read_first_record= join_init_quick_read_record;
 	statistic_increment(select_range_check_count, &LOCK_status);
       }
@@ -2435,7 +2435,7 @@ make_join_readinfo(JOIN *join,uint options)
 	  }
 	  else
 	  {
-	    join->thd->lex.options|=OPTION_NO_INDEX_USED;
+	    join->thd->lex.options|=QUERY_NO_INDEX_USED;
 	    statistic_increment(select_scan_count, &LOCK_status);
 	  }
 	}
@@ -2447,7 +2447,7 @@ make_join_readinfo(JOIN *join,uint options)
 	  }
 	  else
 	  {
-	    join->thd->lex.options|=OPTION_NO_INDEX_USED;
+	    join->thd->lex.options|=QUERY_NO_INDEX_USED;
 	    statistic_increment(select_full_join_count, &LOCK_status);
 	  }
 	}
@@ -2726,7 +2726,7 @@ return_zero_rows(select_result *result,TABLE_LIST *tables,List<Item> &fields,
 
   if (select_options & SELECT_DESCRIBE)
   {
-    describe_info(info);
+    describe_info(current_thd, info);
     DBUG_RETURN(0);
   }
   if (procedure)
@@ -6421,6 +6421,8 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
   THD *thd=join->thd;
   DBUG_ENTER("select_describe");
 
+  /* Don't log this into the slow query log */
+  join->thd->lex.options&= ~(QUERY_NO_INDEX_USED | QUERY_NO_GOOD_INDEX_USED);
   field_list.push_back(new Item_empty_string("table",NAME_LEN));
   field_list.push_back(new Item_empty_string("type",10));
   field_list.push_back(item=new Item_empty_string("possible_keys",
@@ -6573,12 +6575,13 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 }
 
 
-static void describe_info(const char *info)
+static void describe_info(THD *thd, const char *info)
 {
   List<Item> field_list;
-  THD *thd=current_thd;
   String *packet= &thd->packet;
 
+  /* Don't log this into the slow query log */
+  thd->lex.options&= ~(QUERY_NO_INDEX_USED | QUERY_NO_GOOD_INDEX_USED);
   field_list.push_back(new Item_empty_string("Comment",80));
   if (send_fields(thd,field_list,1))
     return; /* purecov: inspected */

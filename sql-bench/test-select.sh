@@ -61,7 +61,7 @@ $start_time=new Benchmark;
 goto select_test if ($opt_skip_create);
 
 print "Creating table\n";
-$dbh->do("drop table bench1");
+$dbh->do("drop table bench1" . $server->{'drop_attr'});
 
 do_many($dbh,$server->create("bench1",
 			     ["region char(1) NOT NULL",
@@ -213,7 +213,7 @@ print " for select_range ($count:$rows): " .
 # Testing MIN() and MAX() on keys
 #
 
-if ($limits->{'group_functions'})
+if ($limits->{'group_functions'} && $limits->{'order_by_unused'})
 {
   $loop_time=new Benchmark;
   $count=0;
@@ -230,6 +230,7 @@ if ($limits->{'group_functions'})
       fetch_all_rows($dbh,"select min(region),max(region) from bench1");
     }
     fetch_all_rows($dbh,"select min(rev_idn) from bench1 where region='$region'");
+
     fetch_all_rows($dbh,"select max(grp) from bench1 where region='$region'");
     fetch_all_rows($dbh,"select max(idn) from bench1 where region='$region' and grp=$grp");
     if ($limits->{'group_func_sql_min_str'})
@@ -265,6 +266,10 @@ if ($limits->{'group_functions'})
   print " for count_on_key ($count): " .
     timestr(timediff($end_time, $loop_time),"all") . "\n\n";
   
+}
+
+if ($limits->{'group_functions'})
+{
   $loop_time=new Benchmark;
   $rows=0;
   for ($i=0 ; $i < $opt_medium_loop_count ; $i++)
@@ -276,7 +281,7 @@ if ($limits->{'group_functions'})
     timestr(timediff($end_time, $loop_time),"all") . "\n";
 }
 
-if ($limits->{'group_functions'})
+if ($limits->{'group_distinct_functions'})
 {
   print "Testing count(distinct) on the table\n";
   $loop_time=new Benchmark;
@@ -362,7 +367,7 @@ if ($opt_lock_tables)
 }
 if (!$opt_skip_delete)
 {
-  do_query($dbh,"drop table bench1");
+  do_query($dbh,"drop table bench1" . $server->{'drop_attr'});
 }
 
 if ($opt_fast && defined($server->{vacuum}))

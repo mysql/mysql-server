@@ -156,5 +156,5 @@ extern TYPELIB berkeley_lock_typelib;
 bool berkeley_init(void);
 bool berkeley_end(void);
 bool berkeley_flush_logs(void);
-int berkeley_commit(THD *thd);
-int berkeley_rollback(THD *thd);
+int berkeley_commit(THD *thd, void *trans);
+int berkeley_rollback(THD *thd, void *trans);

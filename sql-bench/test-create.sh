@@ -64,7 +64,7 @@ if ($opt_force) # If tables used in this test exist, drop 'em
   print "Okay..Let's make sure that our tables don't exist yet.\n\n";
   for ($i=1 ; $i <= $max_tables ; $i++)
   {
-    $dbh->do("drop table bench_$i");
+    $dbh->do("drop table bench_$i" . $server->{'drop_attr'});
   }
 }
 
@@ -90,7 +90,7 @@ for ($i=1 ; $i <= $max_tables ; $i++)
     # Got an error; Do cleanup
     for ($i=1 ; $i <= $max_tables ; $i++)
     {
-      $dbh->do("drop table bench_$i");
+      $dbh->do("drop table bench_$i" . $server->{'drop_attr'});
     }
     die "Test aborted";
   }
@@ -148,13 +148,13 @@ if ($opt_fast && $server->{'limits'}->{'multi_drop'} &&
   {
     $query.=",bench_$i";
   }
-  $sth = $dbh->do($query) or die $DBI::errstr;
+  $sth = $dbh->do($query . $server->{'drop_attr'}) or die $DBI::errstr;
 }
 else
 {
   for ($i=1 ; $i <= $max_tables ; $i++)
   {
-    $sth = $dbh->do("drop table bench_$i")
+    $sth = $dbh->do("drop table bench_$i" . $server->{'drop_attr'})
       or die $DBI::errstr;
   }
 }
@@ -186,7 +186,7 @@ for ($i=1 ; $i <= $opt_loop_count ; $i++)
 				"s char(10)",
 				"v varchar(100)"],
 			       ["primary key (i)"]));
-  $sth = $dbh->do("drop table bench_$i") or die $DBI::errstr;
+  $sth = $dbh->do("drop table bench_$i" . $server->{'drop_attr'}) or die $DBI::errstr;
 }
 
 $end_time=new Benchmark;
@@ -239,7 +239,7 @@ $loop_time=new Benchmark;
 for ($i=1 ; $i <= $opt_loop_count ; $i++)
 {
   do_many($dbh,$server->create("bench_$i", \@fields, \@index));
-  $dbh->do("drop table bench_$i") or die $DBI::errstr;
+  $dbh->do("drop table bench_$i" . $server->{'drop_attr'}) or die $DBI::errstr;
 }
 
 $end_time=new Benchmark;

@@ -244,7 +244,8 @@ public:
   delayed_insert *di;
   struct st_transactions {
     IO_CACHE trans_log;
-    void *bdb_tid;
+    THD_TRANS all;			/* Trans since BEGIN WORK */
+    THD_TRANS stmt;			/* Trans for current statement */
     uint bdb_lock_count;
   } transaction;
   Item	     *free_list;
@@ -293,7 +294,12 @@ public:
     }
     return last_insert_id;
   }
-  inline bool active_transaction() { return transaction.bdb_tid != 0; }
+  inline bool active_transaction()
+  {
+    return (transaction.all.bdb_tid != 0 ||
+	    transaction.all.innobase_tid != 0 || 
+	    transaction.all.gemeni_tid != 0);
+  }
   inline gptr alloc(unsigned int size) { return alloc_root(&mem_root,size); }
   inline gptr calloc(unsigned int size)
   {
