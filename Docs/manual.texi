@@ -33868,6 +33868,11 @@ Returns the minimum or maximum value of @code{expr}.  @code{MIN()} and
 @code{MAX()} may take a string argument; in such cases they return the
 minimum or maximum string value. @xref{MySQL indexes}.
 
+There is one inconsistency in MySQL  in handling @code[ENUM] and @code[SET]
+types when it comes to @code{MIN()}, @code{MAX()} and other aggregating 
+functions. MySQL will compare values based on string values of the columns,
+instead of it's relative position. This will be fixed in future.
+
 @example
 mysql> SELECT student_name, MIN(test_score), MAX(test_score)
     ->        FROM student
