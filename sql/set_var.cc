@@ -100,6 +100,8 @@ static int  check_pseudo_thread_id(THD *thd, set_var *var);
 static bool set_log_bin(THD *thd, set_var *var);
 static void fix_low_priority_updates(THD *thd, enum_var_type type);
 static void fix_tx_isolation(THD *thd, enum_var_type type);
+static int check_completion_type(THD *thd, set_var *var);
+static void fix_completion_type(THD *thd, enum_var_type type);
 static void fix_net_read_timeout(THD *thd, enum_var_type type);
 static void fix_net_write_timeout(THD *thd, enum_var_type type);
 static void fix_net_retry_count(THD *thd, enum_var_type type);
@@ -149,6 +151,10 @@ sys_var_character_set_database	sys_character_set_database("character_set_databas
 sys_var_character_set_client  sys_character_set_client("character_set_client");
 sys_var_character_set_connection  sys_character_set_connection("character_set_connection");
 sys_var_character_set_results sys_character_set_results("character_set_results");
+sys_var_thd_ulong	sys_completion_type("completion_type",
+					 &SV::completion_type,
+					 check_completion_type,
+					 fix_completion_type);
 sys_var_collation_connection sys_collation_connection("collation_connection");
 sys_var_collation_database sys_collation_database("collation_database");
 sys_var_collation_server sys_collation_server("collation_server");
@@ -532,6 +538,7 @@ sys_var *sys_variables[]=
   &sys_collation_connection,
   &sys_collation_database,
   &sys_collation_server,
+  &sys_completion_type,
   &sys_concurrent_insert,
   &sys_connect_timeout,
   &sys_date_format,
@@ -708,6 +715,7 @@ struct show_var_st init_vars[]= {
   {sys_collation_connection.name,(char*) &sys_collation_connection, SHOW_SYS},
   {sys_collation_database.name,(char*) &sys_collation_database,     SHOW_SYS},
   {sys_collation_server.name,(char*) &sys_collation_server,         SHOW_SYS},
+  {sys_completion_type.name,  (char*) &sys_completion_type,	    SHOW_SYS},
   {sys_concurrent_insert.name,(char*) &sys_concurrent_insert,       SHOW_SYS},
   {sys_connect_timeout.name,  (char*) &sys_connect_timeout,         SHOW_SYS},
   {"datadir",                 mysql_real_data_home,                 SHOW_CHAR},
@@ -1120,6 +1128,21 @@ static void fix_tx_isolation(THD *thd, enum_var_type type)
   if (type == OPT_SESSION)
     thd->session_tx_isolation= ((enum_tx_isolation)
 				thd->variables.tx_isolation);
+}
+
+static void fix_completion_type(THD *thd __attribute__(unused), 
+				enum_var_type type __attribute__(unused)) {}
+
+static int check_completion_type(THD *thd, set_var *var)
+{
+  longlong val= var->value->val_int();
+  if (val < 0 || val > 2)
+  {
+    char buf[64];
+    my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), var->var->name, llstr(val, buf));
+    return 1;
+  }
+  return 0;
 }
 
 

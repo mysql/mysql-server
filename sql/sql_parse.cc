@@ -134,6 +134,27 @@ static bool end_active_trans(THD *thd)
   DBUG_RETURN(error);
 }
 
+static bool begin_trans(THD *thd)
+{
+  int error=0;
+  if (thd->locked_tables)
+  {
+    thd->lock=thd->locked_tables;
+    thd->locked_tables=0;			// Will be automatically closed
+    close_thread_tables(thd);			// Free tables
+  }
+  if (end_active_trans(thd))
+    error= -1;
+  else
+  {
+    thd->options= ((thd->options & (ulong) ~(OPTION_STATUS_NO_TRANS_UPDATE)) |
+		   OPTION_BEGIN);
+    thd->server_status|= SERVER_STATUS_IN_TRANS;
+    if (lex->start_transaction_opt & MYSQL_START_TRANS_OPT_WITH_CONS_SNAPSHOT)
+      error= ha_start_consistent_snapshot(thd);    
+  }
+  return error;
+}
 
 #ifdef HAVE_REPLICATION
 inline bool all_tables_not_ok(THD *thd, TABLE_LIST *tables)
@@ -1262,6 +1283,127 @@ err:
   DBUG_RETURN(error);
 }
 
+/*
+  Ends the current transaction and (maybe) begin the next
+  First uint4 in packet is completion type
+  Remainder is savepoint name (if required)
+
+  SYNOPSIS
+    mysql_endtrans()
+      thd            Current thread
+      completion     Completion type
+      savepoint_name Savepoint when doing ROLLBACK_SAVEPOINT_NAME 
+                     or RELEASE_SAVEPOINT_NAME
+      release        (OUT) indicator for release operation
+
+  RETURN
+    0 - OK
+*/
+
+enum enum_mysql_completiontype {
+  ROLLBACK_RELEASE=-2,
+  COMMIT_RELEASE=-1,
+  COMMIT=0,
+  ROLLBACK=1,
+  SAVEPOINT_NAME_ROLLBACK=2,
+  SAVEPOINT_NAME_RELEASE=4,
+  COMMIT_AND_CHAIN=6,
+  ROLLBACK_AND_CHAIN=7,
+};
+
+int mysql_endtrans(THD *thd, enum enum_mysql_completiontype completion, 
+		    char *savepoint_name)
+{
+  bool do_release= 0;
+  int res= 0;
+  LEX *lex= thd->lex;
+  DBUG_ENTER("mysql_endtrans");
+
+  switch (completion) {
+  case COMMIT:
+    /*
+     We don't use end_active_trans() here to ensure that this works
+     even if there is a problem with the OPTION_AUTO_COMMIT flag
+     (Which of course should never happen...)
+    */
+    thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE);
+    thd->server_status&= ~SERVER_STATUS_IN_TRANS;
+    if (!(res= ha_commit(thd)))
+      send_ok(thd);
+    break;
+  case COMMIT_RELEASE:
+    do_release= 1;
+  case COMMIT_AND_CHAIN:
+    res= end_active_trans(thd);
+    if (!res && completion == COMMIT_AND_CHAIN)
+      res= begin_trans(thd);
+    if (!res)
+      send_ok(thd);
+    break;
+  case ROLLBACK_RELEASE:
+    do_release= 1;
+  case ROLLBACK:
+  case ROLLBACK_AND_CHAIN:
+  {
+    bool warn= 0;
+    thd->server_status&= ~SERVER_STATUS_IN_TRANS;
+    if (!ha_rollback(thd))
+    {
+      /*
+        If a non-transactional table was updated, warn; don't warn if this is a
+        slave thread (because when a slave thread executes a ROLLBACK, it has
+        been read from the binary log, so it's 100% sure and normal to produce
+        error ER_WARNING_NOT_COMPLETE_ROLLBACK. If we sent the warning to the
+        slave SQL thread, it would not stop the thread but just be printed in
+        the error log; but we don't want users to wonder why they have this
+        message in the error log, so we don't send it.
+      */
+      warn= (thd->options & OPTION_STATUS_NO_TRANS_UPDATE) && 
+      	    !thd->slave_thread;
+    }
+    else
+      res= -1;
+    thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE);
+    if (!res && (completion == ROLLBACK_AND_CHAIN))
+      res= begin_trans(thd);
+
+    if (!res) 
+    {
+      if (warn)
+        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                     ER_WARNING_NOT_COMPLETE_ROLLBACK,
+                     ER(ER_WARNING_NOT_COMPLETE_ROLLBACK));
+      send_ok(thd);
+    }
+    break;
+  }
+  case SAVEPOINT_NAME_ROLLBACK:
+    if (!(res=ha_rollback_to_savepoint(thd, savepoint_name)))
+    {
+      if ((thd->options & OPTION_STATUS_NO_TRANS_UPDATE) && !thd->slave_thread)
+	push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+		     ER_WARNING_NOT_COMPLETE_ROLLBACK,
+		     ER(ER_WARNING_NOT_COMPLETE_ROLLBACK));
+      send_ok(thd);
+    }
+    break;
+  case SAVEPOINT_NAME_RELEASE:
+    if (!(res=ha_release_savepoint_name(thd, savepoint_name)))
+      send_ok(thd);
+    break;
+  default:
+    res= -1;
+    my_error(ER_UNKNOWN_COM_ERROR, MYF(0));
+    DBUG_RETURN(-1);
+  }
+  
+  if (res < 0)
+    my_error(thd->killed_errno(), MYF(0));
+  else if ((res == 0) && do_release)
+    thd->killed= THD::KILL_CONNECTION; 
+  
+  DBUG_RETURN(res);
+}
 
 #ifndef EMBEDDED_LIBRARY
 
@@ -3648,80 +3790,33 @@ unsent_create_error:
     break;
 
   case SQLCOM_BEGIN:
-    if (thd->locked_tables)
-    {
-      thd->lock=thd->locked_tables;
-      thd->locked_tables=0;			// Will be automatically closed
-      close_thread_tables(thd);			// Free tables
-    }
-    if (end_active_trans(thd))
+    if (begin_trans(thd))
       goto error;
     else
-    {
-      thd->options= ((thd->options & (ulong) ~(OPTION_STATUS_NO_TRANS_UPDATE)) |
-		     OPTION_BEGIN);
-      thd->server_status|= SERVER_STATUS_IN_TRANS;
-      if (!(lex->start_transaction_opt & MYSQL_START_TRANS_OPT_WITH_CONS_SNAPSHOT) ||
-          !(res= ha_start_consistent_snapshot(thd)))
-        send_ok(thd);
-    }
+      send_ok(thd);
     break;
   case SQLCOM_COMMIT:
-    /*
-      We don't use end_active_trans() here to ensure that this works
-      even if there is a problem with the OPTION_AUTO_COMMIT flag
-      (Which of course should never happen...)
-    */
-  {
-    thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE);
-    thd->server_status&= ~SERVER_STATUS_IN_TRANS;
-    if (!ha_commit(thd))
-    {
-      send_ok(thd);
-    }
-    else
+    if (mysql_endtrans(thd, lex->tx_release ? COMMIT_RELEASE :
+    		       lex->tx_chain ? COMMIT_AND_CHAIN : COMMIT, 0))
       goto error;
     break;
-  }
   case SQLCOM_ROLLBACK:
-    thd->server_status&= ~SERVER_STATUS_IN_TRANS;
-    if (!ha_rollback(thd))
-    {
-      /*
-        If a non-transactional table was updated, warn; don't warn if this is a
-        slave thread (because when a slave thread executes a ROLLBACK, it has
-        been read from the binary log, so it's 100% sure and normal to produce
-        error ER_WARNING_NOT_COMPLETE_ROLLBACK. If we sent the warning to the
-        slave SQL thread, it would not stop the thread but just be printed in
-        the error log; but we don't want users to wonder why they have this
-        message in the error log, so we don't send it.
-      */
-      if ((thd->options & OPTION_STATUS_NO_TRANS_UPDATE) && !thd->slave_thread)
-        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                     ER_WARNING_NOT_COMPLETE_ROLLBACK,
-                     ER(ER_WARNING_NOT_COMPLETE_ROLLBACK));
-      send_ok(thd);
-    }
-    else
-      res= TRUE;
-    thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE);
+    if (mysql_endtrans(thd, lex->tx_release ? ROLLBACK_RELEASE :
+    		       lex->tx_chain ? ROLLBACK_AND_CHAIN : ROLLBACK, 0))
+      goto error;
     break;
   case SQLCOM_ROLLBACK_TO_SAVEPOINT:
-    if (!ha_rollback_to_savepoint(thd, lex->savepoint_name))
-    {
-      if ((thd->options & OPTION_STATUS_NO_TRANS_UPDATE) && !thd->slave_thread)
-        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                     ER_WARNING_NOT_COMPLETE_ROLLBACK,
-                     ER(ER_WARNING_NOT_COMPLETE_ROLLBACK));
-      send_ok(thd);
-    }
-    else
+    if (mysql_endtrans(thd, SAVEPOINT_NAME_ROLLBACK, lex->savepoint_name))
       goto error;
     break;
   case SQLCOM_SAVEPOINT:
     if (!ha_savepoint(thd, lex->savepoint_name))
       send_ok(thd);
     else
+      goto error;
+    break;
+  case SQLCOM_RELEASE_SAVEPOINT:
+    if (mysql_endtrans(thd, SAVEPOINT_NAME_RELEASE, lex->savepoint_name))
       goto error;
     break;
   case SQLCOM_CREATE_PROCEDURE:
