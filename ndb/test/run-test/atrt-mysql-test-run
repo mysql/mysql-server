@@ -1,0 +1,5 @@
+#!/bin/sh
+
+set -e -x
+cd $MYSQL_BASE_DIR/mysql-test 
+./mysql-test-run --with-ndbcluster --ndbconnectstring=$NDB_CONNECTSTRING $*

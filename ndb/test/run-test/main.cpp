@@ -451,6 +451,7 @@ setup_config(atrt_config& config){
       proc.m_proc.m_stderr = "2>&1";
       proc.m_proc.m_runas = proc.m_host->m_user;
       proc.m_proc.m_ulimit = "c:unlimited";
+      proc.m_proc.m_env.assfmt("MYSQL_BASE_DIR=%s", dir.c_str());
       proc.m_hostname = proc.m_host->m_hostname;
       proc.m_ndb_mgm_port = g_default_base_port;
       if(split1[0] == "mgm"){
@@ -501,8 +502,8 @@ setup_config(atrt_config& config){
 
   // Setup connect string
   for(size_t i = 0; i<config.m_processes.size(); i++){
-    config.m_processes[i].m_proc.m_env.assfmt("NDB_CONNECTSTRING=%s", 
-                                              connect_string.c_str());
+    config.m_processes[i].m_proc.m_env.appfmt(" NDB_CONNECTSTRING=%s", 
+					      connect_string.c_str());
   }
   
  end:

@@ -18,5 +18,8 @@ LDADD_LOC = $(top_builddir)/ndb/src/mgmclient/CpcClient.o \
             $(top_builddir)/mysys/libmysys.a \
             $(top_builddir)/strings/libmystrings.a
 
+wrappersdir=$(prefix)/bin
+wrappers_SCRIPTS=atrt-testBackup atrt-mysql-test-run
+
 # Don't update the files from bitkeeper
 %::SCCS/s.%
