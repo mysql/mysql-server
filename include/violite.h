@@ -102,9 +102,6 @@ my_bool vio_peer_addr(Vio* vio, char *buf);
 
 void vio_in_addr(Vio *vio, struct in_addr *in);
 
-  /* Return 1 if there is data to be read */
-my_bool vio_poll_read(Vio *vio,uint timeout);
-
 #ifdef	__cplusplus
 }
 #endif
@@ -122,7 +119,6 @@ my_bool vio_poll_read(Vio *vio,uint timeout);
 #define vio_close(vio)				((vio)->vioclose)(vio)
 #define vio_peer_addr(vio, buf)			(vio)->peer_addr(vio, buf)
 #define vio_in_addr(vio, in)			(vio)->in_addr(vio, in)
-#define vio_poll_read(vio,timeout)		(vio)->poll_read(vio,timeout)
 #endif /* defined(HAVE_VIO) && !defined(DONT_MAP_VIO) */
 
 #ifdef HAVE_OPENSSL
@@ -154,9 +150,6 @@ int vio_ssl_close(Vio* vio);
 int vio_ssl_errno(Vio *vio);
 my_bool vio_ssl_peer_addr(Vio* vio, char *buf);
 void vio_ssl_in_addr(Vio *vio, struct in_addr *in);
-
-/* Return 1 if there is data to be read */
-my_bool vio_ssl_poll_read(Vio *vio,uint timeout);
 
 /* Single copy for server */
 struct st_VioSSLAcceptorFd 
@@ -227,7 +220,6 @@ struct st_vio
   void    (*in_addr)(Vio*, struct in_addr*);
   my_bool (*should_retry)(Vio*);
   int     (*vioclose)(Vio*);
-  my_bool (*poll_read)(Vio*,uint);
 
 #ifdef HAVE_OPENSSL
   SSL* ssl_;
