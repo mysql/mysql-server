@@ -32,6 +32,7 @@ class NdbOperation;    // Forward declaration
 class NdbTransaction;  // Forward declaration
 class NdbRecAttr;      // Forward declaration
 class NdbScanOperation; 
+class NdbScanFilter; 
 class NdbIndexScanOperation; 
 class NdbBlob;
 
@@ -59,6 +60,145 @@ typedef struct st_ndbcluster_share {
   char *table_name;
   uint table_name_length,use_count;
 } NDB_SHARE;
+
+typedef enum ndb_item_type {
+  NDB_VALUE = 0,   // Qualified more with Item::Type
+  NDB_FIELD = 1,   // Qualified from table definition
+  NDB_FUNCTION = 2 // Qualified from Item_func::Functype
+} NDB_ITEM_TYPE;
+
+typedef union ndb_item_qualification {
+  Item::Type value_type; 
+  enum_field_types field_type;       // Instead of Item::FIELD_ITEM
+  Item_func::Functype function_type; // Instead of Item::FUNC_ITEM
+} NDB_ITEM_QUALIFICATION;
+
+class Ndb_item_string_value {
+ public:
+  String s;
+  CHARSET_INFO *c;
+};
+
+typedef struct ndb_item_field_value {
+  Field* field;
+  int column_no;
+} NDB_ITEM_FIELD_VALUE;
+
+typedef union ndb_item_value {
+  longlong int_value;
+  double real_value;
+  Ndb_item_string_value *string_value;
+  NDB_ITEM_FIELD_VALUE *field_value;
+} NDB_ITEM_VALUE;
+
+class Ndb_item {
+ public:
+  Ndb_item(NDB_ITEM_TYPE item_type, 
+	   NDB_ITEM_QUALIFICATION item_qualification,
+	   const Item *item_value);
+  Ndb_item(longlong int_value);
+  Ndb_item(double real_value);
+  Ndb_item();
+  Ndb_item(Field *field, int column_no);
+  Ndb_item(Item_func::Functype func_type);
+  ~Ndb_item();
+  void print(String *str);
+  // Getters and Setters
+  longlong getIntValue() { return value.int_value; };
+  double getRealValue() { return value.real_value; };
+  String * getStringValue() { return &value.string_value->s; };
+  CHARSET_INFO * getStringCharset() { return value.string_value->c; };
+  Field * getField() { return value.field_value->field; };
+  int getFieldNo() { return value.field_value->column_no; };
+
+ public:
+  NDB_ITEM_TYPE type;
+  NDB_ITEM_QUALIFICATION qualification;
+
+
+ private:
+  NDB_ITEM_VALUE value;
+
+};
+
+class Ndb_cond {
+ public:
+  Ndb_cond() : ndb_item(NULL), next(NULL), prev(NULL) {};
+  ~Ndb_cond() 
+  { 
+    if (ndb_item) delete ndb_item; 
+    ndb_item= NULL; 
+    if (next) delete next;
+    next= prev= NULL; 
+  };
+  Ndb_item *ndb_item;
+  Ndb_cond *next;
+  Ndb_cond *prev;
+};
+
+class Ndb_cond_stack {
+ public:
+  Ndb_cond_stack() : ndb_cond(NULL), next(NULL) {};
+  ~Ndb_cond_stack() 
+  { 
+    if (ndb_cond) delete ndb_cond; 
+    ndb_cond= NULL; 
+    next= NULL; 
+  };
+  Ndb_cond *ndb_cond;
+  Ndb_cond_stack *next;
+};
+
+class Ndb_cond_traverse_context {
+ public:
+  Ndb_cond_traverse_context(TABLE *tab, void* ndb_tab, 
+			    bool *supported, Ndb_cond_stack* stack)
+    : table(tab), ndb_table(ndb_tab), 
+    supported_ptr(supported), stack_ptr(stack), cond_ptr(NULL),
+    expect_mask(0), expect_field_result_mask(0)
+  {
+    if (stack)
+      cond_ptr= stack->ndb_cond;
+  };
+  void expect(Item::Type type)
+  {
+    expect_mask|= (1 << type);
+  };
+  void dont_expect(Item::Type type)
+  {
+    expect_mask&= ~(1 << type);
+  };
+  bool expecting(Item::Type type)
+  {
+    return (expect_mask & (1 << type));
+  };
+  void expect_nothing()
+  {
+    expect_mask= 0;
+  };
+
+  void expect_field_result(Item_result result)
+  {
+    expect_field_result_mask|= (1 << result);
+  };
+  bool expecting_field_result(Item_result result)
+  {
+    return (expect_field_result_mask & (1 << result));
+  };
+  void expect_no_field_result()
+  {
+    expect_field_result_mask= 0;
+  };
+
+  TABLE* table;
+  void* ndb_table;
+  bool *supported_ptr;
+  Ndb_cond_stack* stack_ptr;
+  Ndb_cond* cond_ptr;
+  private:
+  uint expect_mask;
+  uint expect_field_result_mask;
+};
 
 /*
   Place holder for ha_ndbcluster thread specific data
@@ -123,7 +263,6 @@ class ha_ndbcluster: public handler
   void info(uint);
   int extra(enum ha_extra_function operation);
   int extra_opt(enum ha_extra_function operation, ulong cache_size);
-  int reset();
   int external_lock(THD *thd, int lock_type);
   int start_stmt(THD *thd);
   const char * table_type() const;
@@ -153,6 +292,13 @@ class ha_ndbcluster: public handler
 
   static Thd_ndb* seize_thd_ndb();
   static void release_thd_ndb(Thd_ndb* thd_ndb);
+ 
+  /*
+    Condition pushdown
+  */
+  const COND *cond_push(const COND *cond);
+  void cond_pop();
+
   uint8 table_cache_type();
     
  private:
@@ -215,8 +361,31 @@ class ha_ndbcluster: public handler
 
   int write_ndb_file();
 
- private:
   int check_ndb_connection();
+
+  void set_rec_per_key();
+  void records_update();
+  void no_uncommitted_rows_execute_failure();
+  void no_uncommitted_rows_update(int);
+  void no_uncommitted_rows_init(THD *);
+  void no_uncommitted_rows_reset(THD *);
+
+  /*
+    Condition Pushdown to Handler (CPDH), private methods
+  */
+  void cond_clear();
+  bool serialize_cond(const COND *cond, Ndb_cond_stack *ndb_cond);
+  Ndb_cond * build_scan_filter_predicate(Ndb_cond* cond, 
+					 NdbScanFilter* filter);
+  Ndb_cond * build_scan_filter_group(Ndb_cond* cond, 
+				     NdbScanFilter* filter);
+  void build_scan_filter(Ndb_cond* cond, NdbScanFilter* filter);
+  void generate_scan_filter(Ndb_cond_stack* cond_stack, 
+			    NdbScanOperation* op);
+
+  friend int execute_commit(ha_ndbcluster*, NdbTransaction*);
+  friend int execute_no_commit(ha_ndbcluster*, NdbTransaction*);
+  friend int execute_no_commit_ie(ha_ndbcluster*, NdbTransaction*);
 
   NdbTransaction *m_active_trans;
   NdbScanOperation *m_active_cursor;
@@ -255,7 +424,7 @@ class ha_ndbcluster: public handler
   ha_rows m_autoincrement_prefetch;
   bool m_transaction_on;
   bool m_use_local_query_cache;
-
+  Ndb_cond_stack *m_cond_stack;
   bool m_disable_multi_read;
   byte *m_multi_range_result_ptr;
   KEY_MULTI_RANGE *m_multi_ranges;
@@ -265,13 +434,6 @@ class ha_ndbcluster: public handler
   byte *m_multi_range_cursor_result_ptr;
   int setup_recattr(const NdbRecAttr*);
   
-  void set_rec_per_key();
-  void records_update();
-  void no_uncommitted_rows_execute_failure();
-  void no_uncommitted_rows_update(int);
-  void no_uncommitted_rows_init(THD *);
-  void no_uncommitted_rows_reset(THD *);
-
   friend int execute_no_commit(ha_ndbcluster*, NdbTransaction*);
   friend int execute_commit(ha_ndbcluster*, NdbTransaction*);
   friend int execute_no_commit_ie(ha_ndbcluster*, NdbTransaction*);
