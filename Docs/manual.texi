@@ -7169,15 +7169,42 @@ If you plan to have 1000+ concurrent connections, you will need to make
 some changes to LinuxThreads, recompile it, and relink MySQL against
 the new @file{libpthread.a}. Increase @code{PTHREAD_THREADS_MAX} in
 @file{sysdeps/unix/sysv/linux/bits/local_lim.h} to 4096 and decrease
-@code{STACK_SIZE} in @file{internals.h} to 256 KB. Note that MySQL
-will not be stable with around 1000 connections if @code{STACK_SIZE}
+@code{STACK_SIZE} in @file{linuxthreads/internals.h} to 256 KB. The paths are
+relative to the root of @code{glibc} Note that MySQL
+will not be stable with around 600-1000 connections if @code{STACK_SIZE}
 is the default of 2 MB.
 
-If you have glibc 2.1.3-65 or newer, you don't have to increase STACK_SIZE;
-You can instead just change the @code{thread_stack} value for @code{mysqld}.
+@code{STACK_SIZE} constant in @strong{LinuxThreads}  controls the spacing
+of thread
+stacks in the address space. It needs to be large enough so that there will
+be plenty of room for the stack of each individual thread, but small enough
+to keep the stack of some thread from running into the global @code{mysqld}
+data. Unfortunately, Linux implementation of @code{mmap()}, as we have
+experimentaly discovered, will successfully unmap an already mapped region
+if you ask it to map out an address already in use, zeroing out the data
+on the entire page, instead of returning an error. So the safety of
+@code{mysqld} or any other threaded
+application depends on the "gentleman" behaviour of the code
+that creates threads - the user must take measures to make sure the number
+of running threads at any time is sufficiently low for thread stacks to
+stay away from the global heap.
+With @code{mysqld}, you should enforce this "gentleman"
+behaviour by setting a reasonable value for @code{max_connections} variable.
+If you build @strong{MySQL} yourself and do not what to mess with patching
+@strong{LinuxThreads}, you should set @code{max_connections} to a value no
+higher than 500. It should be even less if you have a large key buffer, 
+large heap tables, or some other things that make @strong{mysqld} allocate
+a lot of memory or if you are running a 2.2 kernel with a 2 GB patch. If
+you are using our binary or RPM version 3.23.25 or later, you can safely set
+@code{max_connections} at 1500 again assuming no large key buffer or heap
+tables with lots of data. The more you reduce @code{STACK_SIZE} in
+LinuxThreads the more threads you can safely create. We recommend the values
+between 128K and 256 K.
 
-If you use a lot of concurrent connections, you may suffer from a Version 2.2
-kernel "feature" that penalizes a process for forking or cloning a child
+
+If you use a lot of concurrent connections, you may suffer from a  2.2
+kernel "feature" in 2.2 kernel that penalizes a process for
+forking or cloning a child
 in an attempt to prevent a fork bomb attack. This will cause MySQL not
 to scale well as you increase the number of concurrent clients. On
 single CPU systems, we have seen this manifested in a very slow thread
@@ -7189,26 +7216,50 @@ solution, we have received a kernel patch from one of our users, who
 claimed it made a lot of difference for his site. We have done some
 limited testing in which the patch greatly improved the scalabitility of
 MySQL. The patch is available here
-(@uref{http://www.mysql.com/Downloads/Patches/linux-fork.patch}). Be
-warned, though, that we assume no reponsibility for any damage that this
-patch could do. Use it at your own risk. We have also been told by the
-Linux kernel developers that this problem is fixed in Version 2.4, although
-we have not yet done any testing.
+(@uref{http://www.mysql.com/Downloads/Patches/linux-fork.patch}). We have
+done a rather extensive testing of this patch - Sasha Pachev has bravely put
+it on his development machine, and it now has run without problems for a year.
+Eventually, we have felt sufficiently confident about it that we installed it
+on several systems of one of our biggest customers. The patch has signficantly
+improved @code{MySQL} performance without causing any problems. So it should
+be pretty safe. This issue has been fixed in the 2.4 kernel.
 
-We have also tested @strong{MySQL} on Linux Version 2.4 on a 2 CPU machine and
-@strong{MySQL} scales MUCH better on this!  If your plan to set up a
+We have also tested @strong{MySQL} on  2.4 kernel on a 2 CPU machine and
+found @strong{MySQL} scales MUCH better - there was virtually no slowdown
+on query throughput all the way up
+to 1000 clients.  If your plan to set up a
 dedicated Linux SMP machine to run @strong{MySQL} under heavy load, we
-recommend that you give Version 2.4 a try!
+recommend that you give 2.4 kernel a try! We are currently trying to collect
+some info on how well @code{MySQL} performs on 2.4 kernel on 4-way and 8-way
+systems. If you have access such a system and have done some benchmarks,
+please send a mail to @email{docs@@mysql.com} with the results - we will
+include them in the manual.
 
-The current implementation of mutex in Linuxthreads is also very bad for
-programs with many threads that only hold the mutex for a short time.
+There is another issue that greatly hurts @strong{MySQL} performance,
+especially on SMP systems.  The current implementation of mutex in Linuxthreads is also very bad for
+programs with many threads that only hold the mutex for a short time. On an
+SMP system, ironic as it is, if you link @strong{MySQL} against unmodified
+@strong{LinuxThreads}, removing processors from the machine improves
+@strong{MySQL} performance in many cases.
 We have made a patch available for glibc 2.1,
 @uref{http://www.mysql.com/Downloads/Linux/linuxthreads-2.1-patch,linuxthreads-2.1-patch}
 and for glibc 2.2,
-@uref{http://www.mysql.com/Downloads/Linux/linuxthreads-2.2-patch,linuxthreads-2.2-patch}.
+@uref{http://www.mysql.com/Downloads/Linux/linuxthreads-2.2-patch,linuxthreads-2.2-patch} to correct this behaviour. Please note that since there are so
+many versions of glibc floating around, the patch may not apply cleanly to
+yours, so some manual work may be required.
 
-If you apply the patches, you are doing this at your own risk. We can
-only say that they appear to work well for us!.
+We recommend that you use the above patched to build a special static version
+of @code{libpthread.a} and use it only for statically linking
+against @code{MySQL}. We
+know that the patch is safe for @code{MySQL} and significantly improves its
+performance, but we cannot say anything about other applications. If you
+link other applications against the patched version of the library, or
+build a patched shared version and install it on your system, you are doing
+it at your own risk with regard to other applicatioins that depend on
+@code{LinuxThreads}.
+
+@c Monty, is the stuff below any longer relevant? I know it needs to be
+@c at least corrected as RPM and binary are now the same
 
 If you can't start @code{mysqld} or if @code{mysql_install_db} doesn't work,
 please continue reading!  This only happens on Linux system with problems in
@@ -7246,6 +7297,8 @@ signal, you can start mysqld with the @code{--core-file} option.  Note
 that you also probably need to raise the @code{core file size} by adding
 @code{ulimit -c 1000000} to @code{safe_mysqld} or starting @code{safe_mysqld}
 with @code{--core-file-sizes=1000000}. @xref{safe_mysqld}.
+
+@c the stuff below is really out of date - hardly anybody uses it anymore
 
 If you are using LinuxThreads and @code{mysqladmin shutdown} doesn't work,
 you must upgrade to LinuxThreads Version 0.7.1 or newer.
