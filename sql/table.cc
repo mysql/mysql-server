@@ -149,6 +149,15 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
   *fn_ext(index_file)='\0';			// Remove .frm extension
 
   share->frm_version= head[2];
+  /*
+    Check if .frm file created by MySQL 5.0. In this case we want to
+    display CHAR fields as CHAR and not as VARCHAR.
+    We do it this way as we want to keep the old frm version to enable
+    MySQL 4.1 to read these files.
+  */
+  if (share->frm_version == FRM_VER_TRUE_VARCHAR -1 && head[33] == 5)
+    share->frm_version= FRM_VER_TRUE_VARCHAR;
+
   share->db_type= ha_checktype((enum db_type) (uint) *(head+3));
   share->db_create_options= db_create_options=uint2korr(head+30);
   share->db_options_in_use= share->db_create_options;
@@ -1317,6 +1326,7 @@ File create_frm(register my_string name, uint reclength, uchar *fileinfo,
     create_info->table_options|=HA_OPTION_LONG_BLOB_PTR; // Use portable blob pointers
     int2store(fileinfo+30,create_info->table_options);
     fileinfo[32]=0;				// No filename anymore
+    fileinfo[33]=5;                             // Mark for 5.0 frm file
     int4store(fileinfo+34,create_info->avg_row_length);
     fileinfo[38]= (create_info->default_table_charset ?
 		   create_info->default_table_charset->number : 0);

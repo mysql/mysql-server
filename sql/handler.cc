@@ -764,14 +764,13 @@ static char* xid_to_str(char *buf, XID *xid)
   for (i=0; i < xid->gtrid_length+xid->bqual_length; i++)
   {
     uchar c=(uchar)xid->data[i];
-    bool is_next_dig;
+    /* is_next_dig is set if next character is a number */
+    bool is_next_dig= FALSE;
     if (i < XIDDATASIZE)
     {
-      char ch=xid->data[i+1];
-      is_next_dig=(c >= '0' && c <='9');
+      char ch= xid->data[i+1];
+      is_next_dig= (ch >= '0' && ch <='9');
     }
-    else
-      is_next_dig=FALSE;
     if (i == xid->gtrid_length)
     {
       *s++='\'';
@@ -784,6 +783,11 @@ static char* xid_to_str(char *buf, XID *xid)
     if (c < 32 || c > 126)
     {
       *s++='\\';
+      /*
+        If next character is a number, write current character with
+        3 octal numbers to ensure that the next number is not seen
+        as part of the octal number
+      */
       if (c > 077 || is_next_dig)
         *s++=_dig_vec_lower[c >> 6];
       if (c > 007 || is_next_dig)
