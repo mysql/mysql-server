@@ -32,8 +32,6 @@ netware_build_files =           client/mysql.def client/mysqladmin.def \
                                 extra/mysql_install.def extra/my_print_defaults.def \
                                 extra/perror.def extra/replace.def \
                                 extra/resolveip.def extra/comp_err.def \
-				isam/isamchk.def \
-                                isam/isamlog.def isam/pack_isam.def \
                                 libmysqld/libmysqld.def myisam/myisamchk.def \
                                 myisam/myisamlog.def myisam/myisampack.def \
                                 sql/mysqld.def extra/mysql_waitpid.def \
@@ -48,7 +46,7 @@ link_sources:
 	done;
 else
 EXTRA_DIST=	comp_err.def init_db.sql install_test_db.ncf \
-		isamchk.def isamlog.def libmysql.def libmysql.imp \
+		libmysql.def libmysql.imp \
 		libmysqlmain.c my_manage.c my_manage.h \
 		my_print_defaults.def myisam_ftdump.def myisamchk.def \
 		myisamlog.def myisampack.def mysql.def mysql.xdc \
@@ -58,7 +56,7 @@ EXTRA_DIST=	comp_err.def init_db.sql install_test_db.ncf \
 		mysql_test_run.def mysql_waitpid.def mysqladmin.def \
 		mysqlbinlog.def mysqlcheck.def mysqld.def \
 		mysqld_safe.c mysqld_safe.def mysqldump.def mysqlimport.def \
-		mysqlshow.def mysqltest.def pack_isam.def perror.def \
+		mysqlshow.def mysqltest.def perror.def \
 		replace.def resolve_stack_dump.def resolveip.def test_db.sql \
 		static_init_db.sql \
 		BUILD/apply-patch BUILD/compile-AUTOTOOLS \
