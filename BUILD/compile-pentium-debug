@@ -1,21 +1,9 @@
-AM_MAKEFLAGS="-j 2"
-make -k clean
-/bin/rm -f */.deps/*.P config.cache
+#! /bin/sh
 
-aclocal; autoheader; aclocal; automake; autoconf
+path=`dirname $0`
+. "$path/SETUP.sh"
 
-# If you are not using codefusion add "-Wpointer-arith" to WARNINGS
-# The following warning flag will give too many warnings:
-# -Wshadow -Wunused  -Winline (The later isn't usable in C++ as
-# __attribute()__ doesn't work with gnu C++)
+extra_flags="$pentium_cflags $debug_cflags"
+extra_configs="$pentium_configs $debug_configs"
 
-GLOBAL_WARNINGS="-Wimplicit -Wreturn-type -Wid-clash-51 -Wswitch -Wtrigraphs -Wcomment -W -Wchar-subscripts -Wuninitialized -Wformat -Wimplicit-function-dec -Wimplicit-int -Wparentheses -Wsign-compare -Wwrite-strings"
-C_WARNINGS="$GLOBAL_WARNINGS -Wunused"
-CC_WARNINGS="$GLOBAL_WARNINGS -Woverloaded-virtual -Wextern-inline -Wsign-promo -Wreorder -Wctor-dtor-privacy -Wnon-virtual-dtor"
-
-
-CFLAGS="-DEXTRA_DEBUG -DFORCE_INIT_OF_VARS  -O2 -mpentiumpro $C_WARNINGS" CXX=gcc \
-CXXFLAGS="-DEXTRA_DEBUG -DFORCE_INIT_OF_VARS -O2 -mpentiumpro -felide-constructors -fno-exceptions -fno-rtti $CC_WARNINGS" \
-./configure --prefix=/usr/local/mysql --enable-assembler --with-mysqld-ldflags=-all-static --disable-shared --with-extra-charsets=complex --with-debug=full \
---with-berkeley-db=/usr/local/BerkeleyDB
-make -j 2
+. "$path/FINISH.sh"
