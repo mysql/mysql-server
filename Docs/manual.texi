@@ -28310,7 +28310,9 @@ you must always quote it with @code{`} when you use it:
 mysql> SELECT * FROM `select` WHERE `select`.id > 100;
 @end example
 
-In previous versions of MySQL, the name rules are as follows:
+@xref{Reserved words}.
+
+In MySQL versions prior to 3.23.6, the name rules are as follows:
 
 @itemize @bullet
 @item
@@ -32603,6 +32605,10 @@ mysql> SELECT NOW();
 mysql> SELECT NOW() + 0;
         -> 19971215235026
 @end example
+
+Note that @code{NOW()} is only evaluated once per query, namely at the
+start of query execution. This means that multiple references to
+@code{NOW()} within a single query will always give the same time.
 
 @findex UNIX_TIMESTAMP()
 @item UNIX_TIMESTAMP()
