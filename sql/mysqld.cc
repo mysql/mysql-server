@@ -3310,9 +3310,10 @@ default_service_handling(char **argv,
 int main(int argc, char **argv)
 {
 
-  /* When several instances are running on the same machine, we
-     need to have an  unique  named  hEventShudown  through the
-     application PID e.g.: MySQLShutdown1890; MySQLShutdown2342
+  /*
+    When several instances are running on the same machine, we
+    need to have an  unique  named  hEventShudown  through the
+    application PID e.g.: MySQLShutdown1890; MySQLShutdown2342
   */
   int10_to_str((int) GetCurrentProcessId(),strmov(shutdown_event_name,
                                                   "MySQLShutdown"), 10);

@@ -1627,7 +1627,7 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
     else if (((thd->variables.sql_mode & MODE_NO_AUTO_CREATE_USER) &&
               !password_len) || !create_user)
     {
-      my_error(ER_NO_PERMISSION_TO_CREATE_USER, MYF(0),
+      my_error(ER_CANT_CREATE_USER_WITH_GRANT, MYF(0),
                thd->user, thd->host_or_ip);
       goto end;
     }

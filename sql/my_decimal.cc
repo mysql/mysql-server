@@ -88,7 +88,7 @@ int my_decimal2string(uint mask, const my_decimal *d,
   int result;
   if (str->alloc(length))
     return check_result(mask, E_DEC_OOM);
-  result= decimal2string((decimal*) d, (char*) str->ptr(),
+  result= decimal2string((decimal_t*) d, (char*) str->ptr(),
                          &length, fixed_prec, fixed_dec,
                          filler);
   str->length(length);
@@ -172,7 +172,7 @@ int str2my_decimal(uint mask, const char *from, uint length,
     charset= &my_charset_bin;
   }
   from_end= end= (char*) from+length;
-  err= string2decimal((char *)from, (decimal *)decimal_value, &end);
+  err= string2decimal((char *)from, (decimal_t*) decimal_value, &end);
   if (end != from_end && !err)
   {
     /* Give warining if there is something other than end space */

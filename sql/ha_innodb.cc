@@ -1309,6 +1309,9 @@ innobase_end(void)
 	}
 #endif
 	if (innodb_inited) {
+
+#ifndef __NETWARE__ 	/* NetWare can't close unclosed files, kill remaining
+                        threads, etc, so we disable the very fast shutdown */
 	  	if (innobase_very_fast_shutdown) {
 	    		srv_very_fast_shutdown = TRUE;
 	    		fprintf(stderr,
@@ -1316,6 +1319,7 @@ innobase_end(void)
 "InnoDB: the InnoDB buffer pool to data files. At the next mysqld startup\n"
 "InnoDB: InnoDB will do a crash recovery!\n");
 	  	}
+#endif
 
 	  	innodb_inited = 0;
 	  	if (innobase_shutdown_for_mysql() != DB_SUCCESS) {

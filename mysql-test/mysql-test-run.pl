@@ -214,6 +214,7 @@ our $opt_embedded_server;
 our $opt_extern;
 our $opt_fast;
 our $opt_force;
+our $opt_reorder;
 
 our $opt_gcov;
 our $opt_gcov_err;
@@ -525,6 +526,7 @@ sub command_line_setup () {
              'local-master'             => \$opt_local_master,
              'netware'                  => \$opt_netware,
              'old-master'               => \$opt_old_master,
+             'reorder'                  => \$opt_reorder,
              'script-debug'             => \$opt_script_debug,
              'sleep=i'                  => \$opt_sleep,
              'socket=s'                 => \$opt_socket,
@@ -576,7 +578,7 @@ sub command_line_setup () {
   $slave->[0]->{'path_mypid'}=    "$glob_mysql_test_dir/var/run/slave.pid";
   $slave->[0]->{'path_mysock'}=   "$opt_tmpdir/slave.sock";
   $slave->[0]->{'path_myport'}=    $opt_slave_myport;
-  $slave->[0]->{'start_timeout'}= 400;
+  $slave->[0]->{'start_timeout'}=  400;
 
   $slave->[1]->{'path_myddir'}=   "$glob_mysql_test_dir/var/slave1-data";
   $slave->[1]->{'path_myerr'}=    "$glob_mysql_test_dir/var/log/slave1.err";
@@ -584,7 +586,7 @@ sub command_line_setup () {
   $slave->[1]->{'path_mypid'}=    "$glob_mysql_test_dir/var/run/slave1.pid";
   $slave->[1]->{'path_mysock'}=   "$opt_tmpdir/slave1.sock";
   $slave->[1]->{'path_myport'}=    $opt_slave_myport + 1;
-  $slave->[1]->{'start_timeout'}=  30;
+  $slave->[1]->{'start_timeout'}=  300;
 
   $slave->[2]->{'path_myddir'}=   "$glob_mysql_test_dir/var/slave2-data";
   $slave->[2]->{'path_myerr'}=    "$glob_mysql_test_dir/var/log/slave2.err";
@@ -592,7 +594,7 @@ sub command_line_setup () {
   $slave->[2]->{'path_mypid'}=    "$glob_mysql_test_dir/var/run/slave2.pid";
   $slave->[2]->{'path_mysock'}=   "$opt_tmpdir/slave2.sock";
   $slave->[2]->{'path_myport'}=    $opt_slave_myport + 2;
-  $slave->[2]->{'start_timeout'}=  30;
+  $slave->[2]->{'start_timeout'}=  300;
 
   # Do sanity checks of command line arguments
 
@@ -1365,7 +1367,10 @@ sub run_testcase ($) {
   mtr_report_test_name($tinfo);
 
   mtr_tofile($master->[0]->{'path_myerr'},"CURRENT_TEST: $tname\n");
-  do_before_start_master($tname,$tinfo->{'master_sh'});
+
+# FIXME test cases that depend on each other, prevent this from
+# being at this location.
+#  do_before_start_master($tname,$tinfo->{'master_sh'});
 
   # ----------------------------------------------------------------------
   # If any mysqld servers running died, we have to know
@@ -1397,6 +1402,8 @@ sub run_testcase ($) {
       }
       if ( ! $master->[0]->{'pid'} )
       {
+        # FIXME not correct location for do_before_start_master()
+        do_before_start_master($tname,$tinfo->{'master_sh'});
         $master->[0]->{'pid'}=
           mysqld_start('master',0,$tinfo->{'master_opt'},[]);
         if ( ! $master->[0]->{'pid'} )
@@ -1532,9 +1539,10 @@ sub do_before_start_master ($$) {
        $tname ne "rpl_crash_binlog_ib_3b")
   {
     # FIXME we really want separate dir for binlogs
-    # FIXME replace 'rm' in backticks with portable Perl function
-    `rm -f $glob_mysql_test_dir/var/log/master-bin*`;
-#    unlink("$glob_mysql_test_dir/var/log/master-bin*");
+    foreach my $bin ( glob("$glob_mysql_test_dir/var/log/master*-bin.*") )
+    {
+      unlink($bin);
+    }
   }
 
   # Remove old master.info and relay-log.info files
@@ -1568,9 +1576,10 @@ sub do_before_start_slave ($$) {
        $tname ne "rpl_crash_binlog_ib_3b" )
   {
     # FIXME we really want separate dir for binlogs
-    # FIXME replace 'rm' in backticks with portable Perl function
-    `rm -fr $glob_mysql_test_dir/var/log/slave*-bin.*`;
-#    unlink("$glob_mysql_test_dir/var/log/slave*-bin.*"); # FIXME idx???
+    foreach my $bin ( glob("$glob_mysql_test_dir/var/log/slave*-bin.*") )
+    {
+      unlink($bin);
+    }
     # FIXME really master?!
     unlink("$glob_mysql_test_dir/var/slave-data/master.info");
     unlink("$glob_mysql_test_dir/var/slave-data/relay-log.info");
@@ -1656,13 +1665,15 @@ sub mysqld_arguments ($$$$$) {
 
     mtr_add_arg($args, "%s--datadir=%s", $prefix,
                 $slave->[$idx]->{'path_myddir'});
+    % FIXME slave get this option twice?!
     mtr_add_arg($args, "%s--exit-info=256", $prefix);
     mtr_add_arg($args, "%s--init-rpl-role=slave", $prefix);
     mtr_add_arg($args, "%s--log-bin=%s/var/log/slave%s-bin", $prefix,
                 $glob_mysql_test_dir, $sidx); # FIXME use own dir for binlogs
     mtr_add_arg($args, "%s--log-slave-updates", $prefix);
+    % FIXME option duplicated for slave
     mtr_add_arg($args, "%s--log=%s", $prefix,
-                $slave->[$idx]->{'path_myerr'});
+                $slave->[$idx]->{'path_mylog'});
     mtr_add_arg($args, "%s--master-retry-count=10", $prefix);
     mtr_add_arg($args, "%s--pid-file=%s", $prefix,
                 $slave->[$idx]->{'path_mypid'});
@@ -2043,7 +2054,7 @@ sub run_mysqltest ($$) {
 
   if ( $opt_timer )
   {
-    mtr_add_arg($args, "--timer-file=var/log/timer");
+    mtr_add_arg($args, "--timer-file=%s/var/log/timer", $glob_mysql_test_dir);
   }
 
   if ( $opt_big_test )
@@ -2172,6 +2183,7 @@ Misc options
   timer                 Show test case execution time
   start-and-exit        Only initiate and start the "mysqld" servers
   fast                  Don't try to cleanup from earlier runs
+  reorder               Reorder tests to get less server restarts
   help                  Get this help text
   unified-diff | udiff  When presenting differences, use unified diff
 

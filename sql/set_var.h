@@ -565,9 +565,6 @@ class sys_var_character_set_server :public sys_var_character_set
 public:
   sys_var_character_set_server(const char *name_arg) :
     sys_var_character_set(name_arg) {}
-#if defined(HAVE_REPLICATION) && (MYSQL_VERSION_ID < 50003)
-  bool check(THD *thd, set_var *var);
-#endif
   void set_default(THD *thd, enum_var_type type);
   CHARSET_INFO **ci_ptr(THD *thd, enum_var_type type);
 };
@@ -603,9 +600,6 @@ class sys_var_collation_server :public sys_var_collation
 {
 public:
   sys_var_collation_server(const char *name_arg) :sys_var_collation(name_arg) {}
-#if defined(HAVE_REPLICATION) && (MYSQL_VERSION_ID < 50003)
-  bool check(THD *thd, set_var *var);
-#endif
   bool update(THD *thd, set_var *var);
   void set_default(THD *thd, enum_var_type type);
   byte *value_ptr(THD *thd, enum_var_type type, LEX_STRING *base);
