@@ -246,37 +246,14 @@ Dbtux::readKeyAttrs(const Frag& frag, TreeEnt ent, unsigned start, TableData key
 }
 
 void
-Dbtux::copyAttrs(Data dst, ConstData src, CopyPar& copyPar)
+Dbtux::readTablePk(const Frag& frag, TreeEnt ent, unsigned& pkSize, Data pkData)
 {
-  CopyPar c = copyPar;
-  c.m_numitems = 0;
-  c.m_numwords = 0;
-  while (c.m_numitems < c.m_items) {
-    jam();
-    if (c.m_headers) {
-      unsigned i = 0;
-      while (i < AttributeHeaderSize) {
-        if (c.m_numwords >= c.m_maxwords) {
-          copyPar = c;
-          return;
-        }
-        dst[c.m_numwords++] = src[i++];
-      }
-    }
-    unsigned size = src.ah().getDataSize();
-    src += AttributeHeaderSize;
-    unsigned i = 0;
-    while (i < size) {
-      if (c.m_numwords >= c.m_maxwords) {
-        copyPar = c;
-        return;
-      }
-      dst[c.m_numwords++] = src[i++];
-    }
-    src += size;
-    c.m_numitems++;
-  }
-  copyPar = c;
+  const Uint32 tableFragPtrI = frag.m_tupTableFragPtrI[ent.m_fragBit];
+  const TupLoc tupLoc = ent.m_tupLoc;
+  Uint32 size = 0;
+  c_tup->tuxReadKeys(tableFragPtrI, tupLoc.m_pageId, tupLoc.m_pageOffset, &size, pkData);
+  ndbrequire(size != 0);
+  pkSize = size;
 }
 
 /*

@@ -41,6 +41,7 @@ struct Opt {
   unsigned m_loop;
   bool m_nologging;
   unsigned m_rows;
+  unsigned m_samples;
   unsigned m_scanrd;
   unsigned m_scanex;
   unsigned m_seed;
@@ -57,6 +58,7 @@ struct Opt {
     m_loop(1),
     m_nologging(false),
     m_rows(1000),
+    m_samples(0),
     m_scanrd(240),
     m_scanex(240),
     m_seed(1),
@@ -86,6 +88,7 @@ printhelp()
     << "  -loop N       loop count full suite forever=0 [" << d.m_loop << "]" << endl
     << "  -nologging    create tables in no-logging mode" << endl
     << "  -rows N       rows per thread [" << d.m_rows << "]" << endl
+    << "  -samples N    samples for some timings (0=all) [" << d.m_samples << "]" << endl
     << "  -scanrd N     scan read parallelism [" << d.m_scanrd << "]" << endl
     << "  -scanex N     scan exclusive parallelism [" << d.m_scanex << "]" << endl
     << "  -seed N       srandom seed [" << d.m_seed << "]" << endl
@@ -177,6 +180,7 @@ class Thr;
 class Con;
 class Tab;
 class Set;
+class Tmr;
 
 struct Par : public Opt {
   unsigned m_no;
@@ -186,6 +190,8 @@ struct Par : public Opt {
   const Tab& tab() const { assert(m_tab != 0); return *m_tab; }
   Set* m_set;
   Set& set() const { assert(m_set != 0); return *m_set; }
+  Tmr* m_tmr;
+  Tmr& tmr() const { assert(m_tmr != 0); return *m_tmr; }
   unsigned m_totrows;
   unsigned m_batch;
   // value calculation
@@ -201,6 +207,7 @@ struct Par : public Opt {
     m_con(0),
     m_tab(0),
     m_set(0),
+    m_tmr(0),
     m_totrows(m_threads * m_rows),
     m_batch(32),
     m_pctnull(10),
@@ -241,19 +248,20 @@ struct Tmr {
   void on();
   void off(unsigned cnt = 0);
   const char* time();
+  const char* pct(const Tmr& t1);
   const char* over(const Tmr& t1);
   NDB_TICKS m_on;
   unsigned m_ms;
   unsigned m_cnt;
   char m_time[100];
-  char m_over[100];
+  char m_text[100];
   Tmr() { clr(); }
 };
 
 void
 Tmr::clr()
 {
-  m_on = m_ms = m_cnt = m_time[0] = m_over[0] = 0;
+  m_on = m_ms = m_cnt = m_time[0] = m_text[0] = 0;
 }
 
 void
@@ -285,14 +293,25 @@ Tmr::time()
 }
 
 const char*
+Tmr::pct(const Tmr& t1)
+{
+  if (0 < t1.m_ms) {
+    sprintf(m_text, "%u pct", (100 * m_ms) / t1.m_ms);
+  } else {
+    sprintf(m_text, "[cannot measure]");
+  }
+  return m_text;
+}
+
+const char*
 Tmr::over(const Tmr& t1)
 {
   if (0 < t1.m_ms && t1.m_ms < m_ms) {
-    sprintf(m_over, "%u pct", (100 * (m_ms - t1.m_ms)) / t1.m_ms);
+    sprintf(m_text, "%u pct", (100 * (m_ms - t1.m_ms)) / t1.m_ms);
   } else {
-    sprintf(m_over, "[cannot measure]");
+    sprintf(m_text, "[cannot measure]");
   }
-  return m_over;
+  return m_text;
 }
 
 // tables and indexes
@@ -409,7 +428,7 @@ operator<<(NdbOut& out, const Tab& tab)
   return out;
 }
 
-// tt1 + tt1x1 tt1x2 tt1x3 tt1x4
+// tt1 + tt1x1 tt1x2 tt1x3 tt1x4 tt1x5
 
 static const Col
 tt1col[] = {
@@ -422,24 +441,29 @@ tt1col[] = {
 
 static const ICol
 tt1x1col[] = {
-  { 0, tt1col[1] }
+  { 0, tt1col[0] }
 };
 
 static const ICol
 tt1x2col[] = {
+  { 0, tt1col[1] }
+};
+
+static const ICol
+tt1x3col[] = {
   { 0, tt1col[1] },
   { 1, tt1col[2] }
 };
 
 static const ICol
-tt1x3col[] = {
+tt1x4col[] = {
   { 0, tt1col[3] },
   { 1, tt1col[2] },
   { 2, tt1col[1] }
 };
 
 static const ICol
-tt1x4col[] = {
+tt1x5col[] = {
   { 0, tt1col[1] },
   { 1, tt1col[4] },
   { 2, tt1col[2] },
@@ -453,17 +477,22 @@ tt1x1 = {
 
 static const ITab
 tt1x2 = {
-  "TT1X2", 2, tt1x2col
+  "TT1X2", 1, tt1x2col
 };
 
 static const ITab
 tt1x3 = {
-  "TT1X3", 3, tt1x3col
+  "TT1X3", 2, tt1x3col
 };
 
 static const ITab
 tt1x4 = {
-  "TT1X4", 4, tt1x4col
+  "TT1X4", 3, tt1x4col
+};
+
+static const ITab
+tt1x5 = {
+  "TT1X5", 4, tt1x5col
 };
 
 static const ITab
@@ -471,15 +500,16 @@ tt1itab[] = {
   tt1x1,
   tt1x2,
   tt1x3,
-  tt1x4
+  tt1x4,
+  tt1x5
 };
 
 static const Tab
 tt1 = {
-  "TT1", 5, tt1col, 4, tt1itab
+  "TT1", 5, tt1col, 5, tt1itab
 };
 
-// tt2 + tt2x1 tt2x2 tt2x3 tt2x4
+// tt2 + tt2x1 tt2x2 tt2x3 tt2x4 tt2x5
 
 static const Col
 tt2col[] = {
@@ -492,24 +522,29 @@ tt2col[] = {
 
 static const ICol
 tt2x1col[] = {
+  { 0, tt2col[0] }
+};
+
+static const ICol
+tt2x2col[] = {
   { 0, tt2col[1] },
   { 1, tt2col[2] }
 };
 
 static const ICol
-tt2x2col[] = {
+tt2x3col[] = {
   { 0, tt2col[2] },
   { 1, tt2col[1] }
 };
 
 static const ICol
-tt2x3col[] = {
+tt2x4col[] = {
   { 0, tt2col[3] },
   { 1, tt2col[4] }
 };
 
 static const ICol
-tt2x4col[] = {
+tt2x5col[] = {
   { 0, tt2col[4] },
   { 1, tt2col[3] },
   { 2, tt2col[2] },
@@ -518,7 +553,7 @@ tt2x4col[] = {
 
 static const ITab
 tt2x1 = {
-  "TT2X1", 2, tt2x1col
+  "TT2X1", 1, tt2x1col
 };
 
 static const ITab
@@ -533,7 +568,12 @@ tt2x3 = {
 
 static const ITab
 tt2x4 = {
-  "TT2X4", 4, tt2x4col
+  "TT2X4", 2, tt2x4col
+};
+
+static const ITab
+tt2x5 = {
+  "TT2X5", 4, tt2x5col
 };
 
 static const ITab
@@ -541,12 +581,13 @@ tt2itab[] = {
   tt2x1,
   tt2x2,
   tt2x3,
-  tt2x4
+  tt2x4,
+  tt2x5
 };
 
 static const Tab
 tt2 = {
-  "TT2", 5, tt2col, 4, tt2itab
+  "TT2", 5, tt2col, 5, tt2itab
 };
 
 // all tables
@@ -1369,13 +1410,14 @@ operator<<(NdbOut& out, const Row& row)
 struct Set {
   const Tab& m_tab;
   unsigned m_rows;
-  unsigned m_count;
   Row** m_row;
   Row** m_saverow;
   Row* m_keyrow;
   NdbRecAttr** m_rec;
   Set(const Tab& tab, unsigned rows);
   ~Set();
+  void reset();
+  unsigned count() const;
   // row methods
   bool exist(unsigned i) const;
   void calc(Par par, unsigned i);
@@ -1408,7 +1450,6 @@ Set::Set(const Tab& tab, unsigned rows) :
   m_tab(tab)
 {
   m_rows = rows;
-  m_count = 0;
   m_row = new Row* [m_rows];
   for (unsigned i = 0; i < m_rows; i++) {
     m_row[i] = 0;
@@ -1437,6 +1478,31 @@ Set::~Set()
   NdbMutex_Destroy(m_mutex);
 }
 
+void
+Set::reset()
+{
+  for (unsigned i = 0; i < m_rows; i++) {
+    if (m_row[i] != 0) {
+      Row& row = *m_row[i];
+      row.m_exist = false;
+    }
+  }
+}
+
+unsigned
+Set::count() const
+{
+  unsigned count = 0;
+  for (unsigned i = 0; i < m_rows; i++) {
+    if (m_row[i] != 0) {
+      Row& row = *m_row[i];
+      if (row.m_exist)
+        count++;
+    }
+  }
+  return count;
+}
+
 bool
 Set::exist(unsigned i) const
 {
@@ -1460,9 +1526,9 @@ Set::calc(Par par, unsigned i)
 int
 Set::insrow(Par par, unsigned i)
 {
-  assert(m_row[i] != 0 && m_count < m_rows);
-  CHK(m_row[i]->insrow(par) == 0);
-  m_count++;
+  assert(m_row[i] != 0);
+  Row& row = *m_row[i];
+  CHK(row.insrow(par) == 0);
   return 0;
 }
 
@@ -1470,16 +1536,17 @@ int
 Set::updrow(Par par, unsigned i)
 {
   assert(m_row[i] != 0);
-  CHK(m_row[i]->updrow(par) == 0);
+  Row& row = *m_row[i];
+  CHK(row.updrow(par) == 0);
   return 0;
 }
 
 int
 Set::delrow(Par par, unsigned i)
 {
-  assert(m_row[i] != 0 && m_count != 0);
-  CHK(m_row[i]->delrow(par) == 0);
-  m_count--;
+  assert(m_row[i] != 0);
+  Row& row = *m_row[i];
+  CHK(row.delrow(par) == 0);
   return 0;
 }
 
@@ -1544,10 +1611,8 @@ Set::putval(unsigned i, bool force)
     val.copy(aRef);
     val.m_null = false;
   }
-  if (! row.m_exist) {
+  if (! row.m_exist)
     row.m_exist = true;
-    m_count++;
-  }
   return 0;
 }
 
@@ -1556,7 +1621,7 @@ Set::verify(const Set& set2) const
 {
   const Tab& tab = m_tab;
   assert(&tab == &set2.m_tab && m_rows == set2.m_rows);
-  CHKMSG(m_count == set2.m_count, "set=" << m_count << " set2=" << set2.m_count);
+  CHKMSG(count() == set2.count(), "set=" << count() << " set2=" << set2.count());
   for (unsigned i = 0; i < m_rows; i++) {
     CHK(exist(i) == set2.exist(i));
     if (! exist(i))
@@ -1659,7 +1724,10 @@ struct BSet {
   unsigned m_bvals;
   BVal** m_bval;
   BSet(const Tab& tab, const ITab& itab, unsigned rows);
+  ~BSet();
+  void reset();
   void calc(Par par);
+  void calcpk(Par par, unsigned i);
   int setbnd(Par par) const;
   void filter(const Set& set, Set& set2) const;
 };
@@ -1671,12 +1739,31 @@ BSet::BSet(const Tab& tab, const ITab& itab, unsigned rows) :
   m_bvals(0)
 {
   m_bval = new BVal* [m_alloc];
+  for (unsigned i = 0; i < m_alloc; i++) {
+    m_bval[i] = 0;
+  }
+}
+
+BSet::~BSet()
+{
+  delete [] m_bval;
+}
+
+void
+BSet::reset()
+{
+  while (m_bvals > 0) {
+    unsigned i = --m_bvals;
+    delete m_bval[i];
+    m_bval[i] = 0;
+  }
 }
 
 void
 BSet::calc(Par par)
 {
   const ITab& itab = m_itab;
+  reset();
   for (unsigned k = 0; k < itab.m_icols; k++) {
     const ICol& icol = itab.m_icol[k];
     const Col& col = icol.m_col;
@@ -1717,6 +1804,23 @@ BSet::calc(Par par)
   }
 }
 
+void
+BSet::calcpk(Par par, unsigned i)
+{
+  const ITab& itab = m_itab;
+  reset();
+  for (unsigned k = 0; k < itab.m_icols; k++) {
+    const ICol& icol = itab.m_icol[k];
+    const Col& col = icol.m_col;
+    assert(col.m_pk);
+    assert(m_bvals < m_alloc);
+    BVal& bval = *new BVal(icol);
+    m_bval[m_bvals++] = &bval;
+    bval.m_type = 4;
+    bval.calc(par, i);
+  }
+}
+
 int
 BSet::setbnd(Par par) const
 {
@@ -1733,7 +1837,7 @@ BSet::filter(const Set& set, Set& set2) const
   const Tab& tab = m_tab;
   const ITab& itab = m_itab;
   assert(&tab == &set2.m_tab && set.m_rows == set2.m_rows);
-  assert(set2.m_count == 0);
+  assert(set2.count() == 0);
   for (unsigned i = 0; i < set.m_rows; i++) {
     if (! set.exist(i))
       continue;
@@ -1781,7 +1885,6 @@ BSet::filter(const Set& set, Set& set2) const
     assert(! row2.m_exist);
     row2.copy(row);
     row2.m_exist = true;
-    set2.m_count++;
   }
 }
 
@@ -1919,11 +2022,36 @@ pkread(Par par)
     unsigned i2 = (unsigned)-1;
     CHK(set2.getkey(par, &i2) == 0 && i == i2);
     CHK(set2.putval(i, false) == 0);
-    LL4("row " << set2.m_count << ": " << *set2.m_row[i]);
+    LL4("row " << set2.count() << ": " << *set2.m_row[i]);
     con.closeTransaction();
   }
   if (par.m_verify)
     CHK(set1.verify(set2) == 0);
+  return 0;
+}
+
+static int
+pkreadfast(Par par, unsigned count)
+{
+  Con& con = par.con();
+  const Tab& tab = par.tab();
+  const Set& set = par.set();
+  LL3("pkfast " << tab.m_name);
+  Row keyrow(tab);
+  for (unsigned j = 0; j < count; j++) {
+    unsigned i = urandom(set.m_rows);
+    assert(set.exist(i));
+    CHK(con.startTransaction() == 0);
+    // define key
+    keyrow.calc(par, i);
+    CHK(keyrow.selrow(par) == 0);
+    NdbRecAttr* rec;
+    CHK(con.getValue((Uint32)0, rec) == 0);
+    CHK(con.executeScan() == 0);
+    // get 1st column
+    CHK(con.execute(Commit) == 0);
+    con.closeTransaction();
+  }
   return 0;
 }
 
@@ -1952,11 +2080,38 @@ scanreadtable(Par par)
     unsigned i = (unsigned)-1;
     CHK(set2.getkey(par, &i) == 0);
     CHK(set2.putval(i, false) == 0);
-    LL4("row " << set2.m_count << ": " << *set2.m_row[i]);
+    LL4("row " << set2.count() << ": " << *set2.m_row[i]);
   }
   con.closeTransaction();
   if (par.m_verify)
     CHK(set1.verify(set2) == 0);
+  return 0;
+}
+
+static int
+scanreadtablefast(Par par, unsigned countcheck)
+{
+  Con& con = par.con();
+  const Tab& tab = par.tab();
+  const Set& set = par.set();
+  LL3("scanfast " << tab.m_name);
+  CHK(con.startTransaction() == 0);
+  CHK(con.getNdbScanOperation(tab) == 0);
+  CHK(con.openScanRead(par.m_scanrd) == 0);
+  // get 1st column
+  NdbRecAttr* rec;
+  CHK(con.getValue((Uint32)0, rec) == 0);
+  CHK(con.executeScan() == 0);
+  unsigned count = 0;
+  while (1) {
+    int ret;
+    CHK((ret = con.nextScanResult()) == 0 || ret == 1);
+    if (ret == 1)
+      break;
+    count++;
+  }
+  con.closeTransaction();
+  CHK(count == countcheck);
   return 0;
 }
 
@@ -1987,11 +2142,40 @@ scanreadindex(Par par, const ITab& itab, const BSet& bset)
     CHK(set2.getkey(par, &i) == 0);
     LL4("key " << i);
     CHK(set2.putval(i, par.m_dups) == 0);
-    LL4("row " << set2.m_count << ": " << *set2.m_row[i]);
+    LL4("row " << set2.count() << ": " << *set2.m_row[i]);
   }
   con.closeTransaction();
   if (par.m_verify)
     CHK(set1.verify(set2) == 0);
+  return 0;
+}
+
+static int
+scanreadindexfast(Par par, const ITab& itab, const BSet& bset, unsigned countcheck)
+{
+  Con& con = par.con();
+  const Tab& tab = par.tab();
+  const Set& set = par.set();
+  LL3("scanfast " << itab.m_name << " bounds=" << bset.m_bvals);
+  LL4(bset);
+  CHK(con.startTransaction() == 0);
+  CHK(con.getNdbScanOperation(itab, tab) == 0);
+  CHK(con.openScanRead(par.m_scanrd) == 0);
+  CHK(bset.setbnd(par) == 0);
+  // get 1st column
+  NdbRecAttr* rec;
+  CHK(con.getValue((Uint32)0, rec) == 0);
+  CHK(con.executeScan() == 0);
+  unsigned count = 0;
+  while (1) {
+    int ret;
+    CHK((ret = con.nextScanResult()) == 0 || ret == 1);
+    if (ret == 1)
+      break;
+    count++;
+  }
+  con.closeTransaction();
+  CHK(count == countcheck);
   return 0;
 }
 
@@ -2026,6 +2210,60 @@ scanreadall(Par par)
   if (par.m_no < 11)
     CHK(scanreadtable(par) == 0);
   CHK(scanreadindex(par) == 0);
+  return 0;
+}
+
+// timing scans
+
+static int
+timescantable(Par par)
+{
+  par.tmr().on();
+  CHK(scanreadtablefast(par, par.m_totrows) == 0);
+  par.tmr().off(par.set().m_rows);
+  return 0;
+}
+
+static int
+timescanpkindex(Par par)
+{
+  const Tab& tab = par.tab();
+  const ITab& itab = tab.m_itab[0];     // 1st index is on PK
+  BSet bset(tab, itab, par.m_rows);
+  par.tmr().on();
+  CHK(scanreadindexfast(par, itab, bset, par.m_totrows) == 0);
+  par.tmr().off(par.set().m_rows);
+  return 0;
+}
+
+static int
+timepkreadtable(Par par)
+{
+  par.tmr().on();
+  unsigned count = par.m_samples;
+  if (count == 0)
+    count = par.m_totrows;
+  CHK(pkreadfast(par, count) == 0);
+  par.tmr().off(count);
+  return 0;
+}
+
+static int
+timepkreadindex(Par par)
+{
+  const Tab& tab = par.tab();
+  const ITab& itab = tab.m_itab[0];     // 1st index is on PK
+  BSet bset(tab, itab, par.m_rows);
+  unsigned count = par.m_samples;
+  if (count == 0)
+    count = par.m_totrows;
+  par.tmr().on();
+  for (unsigned j = 0; j < count; j++) {
+    unsigned i = urandom(par.m_totrows);
+    bset.calcpk(par, i);
+    CHK(scanreadindexfast(par, itab, bset, 1) == 0);
+  }
+  par.tmr().off(count);
   return 0;
 }
 
@@ -2438,6 +2676,7 @@ runstep(Par par, const char* fname, TFunc func, unsigned mode)
     Thr& thr = *g_thrlist[n];
     thr.m_par.m_tab = par.m_tab;
     thr.m_par.m_set = par.m_set;
+    thr.m_par.m_tmr = par.m_tmr;
     thr.m_func = func;
     thr.start();
   }
@@ -2564,16 +2803,58 @@ ttimemaint(Par par)
     t1.off(par.m_totrows);
     RUNSTEP(par, createindex, ST);
     RUNSTEP(par, invalidateindex, MT);
-    RUNSTEP(par, readverify, ST);
     t2.on();
     RUNSTEP(par, pkupdate, MT);
     t2.off(par.m_totrows);
-    RUNSTEP(par, readverify, ST);
     RUNSTEP(par, dropindex, ST);
   }
   LL1("update - " << t1.time());
   LL1("update indexed - " << t2.time());
   LL1("overhead - " << t2.over(t1));
+  return 0;
+}
+
+static int
+ttimescan(Par par)
+{
+  Tmr t1, t2;
+  RUNSTEP(par, droptable, ST);
+  RUNSTEP(par, createtable, ST);
+  RUNSTEP(par, invalidatetable, MT);
+  for (unsigned i = 0; i < par.m_subloop; i++) {
+    RUNSTEP(par, pkinsert, MT);
+    RUNSTEP(par, createindex, ST);
+    par.m_tmr = &t1;
+    RUNSTEP(par, timescantable, ST);
+    par.m_tmr = &t2;
+    RUNSTEP(par, timescanpkindex, ST);
+    RUNSTEP(par, dropindex, ST);
+  }
+  LL1("full scan table - " << t1.time());
+  LL1("full scan PK index - " << t2.time());
+  LL1("index time pct - " << t2.pct(t1));
+  return 0;
+}
+
+static int
+ttimepkread(Par par)
+{
+  Tmr t1, t2;
+  RUNSTEP(par, droptable, ST);
+  RUNSTEP(par, createtable, ST);
+  RUNSTEP(par, invalidatetable, MT);
+  for (unsigned i = 0; i < par.m_subloop; i++) {
+    RUNSTEP(par, pkinsert, MT);
+    RUNSTEP(par, createindex, ST);
+    par.m_tmr = &t1;
+    RUNSTEP(par, timepkreadtable, ST);
+    par.m_tmr = &t2;
+    RUNSTEP(par, timepkreadindex, ST);
+    RUNSTEP(par, dropindex, ST);
+  }
+  LL1("pk read table - " << t1.time());
+  LL1("pk read PK index - " << t2.time());
+  LL1("index time pct - " << t2.pct(t1));
   return 0;
 }
 
@@ -2603,6 +2884,8 @@ tcaselist[] = {
   TCase("d", tbusybuild, "pk operations and index build"),
   TCase("t", ttimebuild, "time index build"),
   TCase("u", ttimemaint, "time index maintenance"),
+  TCase("v", ttimescan, "time full scan table vs index on pk"),
+  TCase("w", ttimepkread, "time pk read table vs index on pk"),
   TCase("z", tdrop, "drop test tables")
 };
 
@@ -2622,7 +2905,7 @@ printcases()
 static void
 printtables()
 {
-  ndbout << "tables and indexes:" << endl;
+  ndbout << "tables and indexes (X1 is on table PK):" << endl;
   for (unsigned j = 0; j < tabcount; j++) {
     const Tab& tab = tablist[j];
     ndbout << "  " << tab.m_name;
@@ -2663,8 +2946,8 @@ runtest(Par par)
           continue;
         const Tab& tab = tablist[j];
         par.m_tab = &tab;
-        Set set(tab, par.m_totrows);
-        par.m_set = &set;
+        delete par.m_set;
+        par.m_set = new Set(tab, par.m_totrows);
         LL1("table " << tab.m_name);
         CHK(tcase.m_func(par) == 0);
       }
@@ -2747,6 +3030,12 @@ NDB_COMMAND(testOIBasic, "testOIBasic", "testOIBasic", "testOIBasic", 65535)
     if (strcmp(arg, "-rows") == 0) {
       if (++argv, --argc > 0) {
         g_opt.m_rows = atoi(argv[0]);
+        continue;
+      }
+    }
+    if (strcmp(arg, "-samples") == 0) {
+      if (++argv, --argc > 0) {
+        g_opt.m_samples = atoi(argv[0]);
         continue;
       }
     }
