@@ -451,9 +451,8 @@ int _mi_prefix_search(MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *page,
 	  /* We have to compare k and vseg as if they where space extended */
 	  for (end=vseg + (len-cmplen) ;
 	       vseg < end && *vseg == (uchar) ' ';
-	       vseg++) ;
-	  if (vseg == end)
-	    goto cmp_rest;		/* should never happen */
+	       vseg++, matched++) ;
+	  DBUG_ASSERT(vseg < end);
 
 	  if (*vseg > (uchar) ' ')
 	  {
