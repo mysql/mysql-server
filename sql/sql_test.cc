@@ -34,7 +34,7 @@ print_where(COND *cond,const char *info)
   if (cond)
   {
     char buff[256];
-    String str(buff,(uint32) sizeof(buff));
+    String str(buff,(uint32) sizeof(buff), default_charset_info);
     str.length(0);
     cond->print(&str);
     str.append('\0');
@@ -100,7 +100,8 @@ void print_cached_tables(void)
 void TEST_filesort(SORT_FIELD *sortorder,uint s_length, ha_rows special)
 {
   char buff[256],buff2[256];
-  String str(buff,sizeof(buff)),out(buff2,sizeof(buff2));
+  String str(buff,sizeof(buff),default_charset_info);
+  String out(buff2,sizeof(buff2),default_charset_info);
   const char *sep;
   DBUG_ENTER("TEST_filesort");
 

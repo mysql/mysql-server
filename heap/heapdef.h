@@ -21,6 +21,7 @@
 #include <my_pthread.h>
 #endif
 #include "heap.h"			/* Structs & some defines */
+#include "my_tree.h"
 
 	/* Some extern variables */
 
@@ -29,10 +30,10 @@ extern LIST *heap_open_list,*heap_share_list;
 #define test_active(info) \
 if (!(info->update & HA_STATE_AKTIV))\
 { my_errno=HA_ERR_NO_ACTIVE_RECORD; DBUG_RETURN(-1); }
-#define hp_find_hash(A,B) ((HASH_INFO*) _hp_find_block((A),(B)))
+#define hp_find_hash(A,B) ((HASH_INFO*) hp_find_block((A),(B)))
 
 	/* Find pos for record and update it in info->current_ptr */
-#define _hp_find_record(info,pos) (info)->current_ptr= _hp_find_block(&(info)->s->block,pos)
+#define hp_find_record(info,pos) (info)->current_ptr= hp_find_block(&(info)->s->block,pos)
 
 typedef struct st_hp_hash_info
 {
@@ -40,40 +41,52 @@ typedef struct st_hp_hash_info
   byte *ptr_to_rec;
 } HASH_INFO;
 
+typedef struct {
+  HA_KEYSEG *keyseg;
+  uint key_length;
+  uint search_flag;
+} heap_rb_param;
+      
 	/* Prototypes for intern functions */
 
-extern HP_SHARE *_hp_find_named_heap(const char *name);
-extern int _hp_rectest(HP_INFO *info,const byte *old);
-extern void _hp_delete_file_from_open_list(HP_INFO *info);
-extern byte *_hp_find_block(HP_BLOCK *info,ulong pos);
-extern int _hp_get_new_block(HP_BLOCK *info, ulong* alloc_length);
-extern void _hp_free(HP_SHARE *info);
-extern byte *_hp_free_level(HP_BLOCK *block,uint level,HP_PTRS *pos,
-				byte *last_pos);
-extern int _hp_write_key(HP_SHARE *info,HP_KEYDEF *keyinfo,
-			 const byte *record,byte *recpos);
-extern int _hp_delete_key(HP_INFO *info,HP_KEYDEF *keyinfo,
-			  const byte *record,byte *recpos,int flag);
+extern HP_SHARE *hp_find_named_heap(const char *name);
+extern int hp_rectest(HP_INFO *info,const byte *old);
+extern byte *hp_find_block(HP_BLOCK *info,ulong pos);
+extern int hp_get_new_block(HP_BLOCK *info, ulong* alloc_length);
+extern void hp_free(HP_SHARE *info);
+extern byte *hp_free_level(HP_BLOCK *block,uint level,HP_PTRS *pos,
+			   byte *last_pos);
+extern int hp_write_key(HP_INFO *info, HP_KEYDEF *keyinfo,
+			const byte *record, byte *recpos);
+extern int hp_rb_write_key(HP_INFO *info, HP_KEYDEF *keyinfo, 
+			   const byte *record, byte *recpos);
+extern int hp_rb_delete_key(HP_INFO *info,HP_KEYDEF *keyinfo,
+			    const byte *record,byte *recpos,int flag);
+extern int hp_delete_key(HP_INFO *info,HP_KEYDEF *keyinfo,
+			 const byte *record,byte *recpos,int flag);
 extern HASH_INFO *_heap_find_hash(HP_BLOCK *block,ulong pos);
-extern byte *_hp_search(HP_INFO *info,HP_KEYDEF *keyinfo,const byte *key,
-			    uint nextflag);
-extern byte *_hp_search_next(HP_INFO *info, HP_KEYDEF *keyinfo,
-			     const byte *key,
-			     HASH_INFO *pos);
-extern ulong _hp_hashnr(HP_KEYDEF *keyinfo,const byte *key);
-extern ulong _hp_rec_hashnr(HP_KEYDEF *keyinfo,const byte *rec);
-extern ulong _hp_mask(ulong hashnr,ulong buffmax,ulong maxlength);
-extern void _hp_movelink(HASH_INFO *pos,HASH_INFO *next_link,
+extern byte *hp_search(HP_INFO *info,HP_KEYDEF *keyinfo,const byte *key,
+		       uint nextflag);
+extern byte *hp_search_next(HP_INFO *info, HP_KEYDEF *keyinfo,
+			    const byte *key, HASH_INFO *pos);
+extern ulong hp_hashnr(HP_KEYDEF *keyinfo,const byte *key);
+extern ulong hp_rec_hashnr(HP_KEYDEF *keyinfo,const byte *rec);
+extern ulong hp_mask(ulong hashnr,ulong buffmax,ulong maxlength);
+extern void hp_movelink(HASH_INFO *pos,HASH_INFO *next_link,
 			 HASH_INFO *newlink);
-extern int _hp_rec_key_cmp(HP_KEYDEF *keydef,const byte *rec1,
-			       const byte *rec2);
-extern int _hp_key_cmp(HP_KEYDEF *keydef,const byte *rec,
-			   const byte *key);
-extern void _hp_make_key(HP_KEYDEF *keydef,byte *key,const byte *rec);
+extern int hp_rec_key_cmp(HP_KEYDEF *keydef,const byte *rec1,
+			  const byte *rec2);
+extern int hp_key_cmp(HP_KEYDEF *keydef,const byte *rec,
+		      const byte *key);
+extern void hp_make_key(HP_KEYDEF *keydef,byte *key,const byte *rec);
+extern uint hp_rb_make_key(HP_KEYDEF *keydef, byte *key, 
+			   const byte *rec, byte *recpos);
+extern uint hp_rb_key_length(HP_KEYDEF *keydef, const byte *key);
+extern uint hp_rb_null_key_length(HP_KEYDEF *keydef, const byte *key);
 extern my_bool hp_if_null_in_key(HP_KEYDEF *keyinfo, const byte *record);
-extern int _hp_close(register HP_INFO *info);
-extern void _hp_clear(HP_SHARE *info);
-
+extern int hp_close(register HP_INFO *info);
+extern void hp_clear(HP_SHARE *info);
+extern uint hp_rb_pack_key(HP_KEYDEF *keydef, uchar *key, const uchar *old);
 #ifdef THREAD
 extern pthread_mutex_t THR_LOCK_heap;
 #else

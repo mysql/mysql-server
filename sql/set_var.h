@@ -39,6 +39,7 @@ typedef bool (*sys_check_func)(THD *,  set_var *);
 typedef bool (*sys_update_func)(THD *, set_var *);
 typedef void (*sys_after_update_func)(THD *,enum_var_type);
 typedef void (*sys_set_default_func)(THD *, enum_var_type);
+typedef byte *(*sys_value_ptr_func)(THD *thd);
 
 class sys_var
 {
@@ -350,6 +351,31 @@ public:
 };
 
 
+/* Variable that you can only read from */
+
+class sys_var_readonly: public sys_var
+{
+public:
+  enum_var_type var_type;
+  SHOW_TYPE show_type;
+  sys_value_ptr_func value_ptr_func;
+  sys_var_readonly(const char *name_arg, enum_var_type type,
+		   SHOW_TYPE show_type_arg,
+		   sys_value_ptr_func value_ptr_func_arg)
+    :sys_var(name_arg), var_type(type), 
+       show_type(show_type_arg), value_ptr_func(value_ptr_func_arg)
+  {}
+  bool update(THD *thd, set_var *var) { return 1; }
+  bool check_default(enum_var_type type) { return 1; }
+  bool check_type(enum_var_type type) { return type != var_type; }
+  bool check_update_type(Item_result type) { return 1; }
+  byte *value_ptr(THD *thd, enum_var_type type)
+  {
+    return (*value_ptr_func)(thd);
+  }
+  SHOW_TYPE type() { return show_type; }
+};
+
 /****************************************************************************
   Classes for parsing of the SET command
 ****************************************************************************/
@@ -388,7 +414,8 @@ public:
     if (value_arg && value_arg->type() == Item::FIELD_ITEM)
     {
       Item_field *item= (Item_field*) value_arg;
-      if (!(value=new Item_string(item->field_name, strlen(item->field_name))))
+      if (!(value=new Item_string(item->field_name, strlen(item->field_name),
+				  system_charset_info)))
 	value=value_arg;			/* Give error message later */
     }
     else
