@@ -74,14 +74,13 @@ if ASSEMBLER
 endif
 
 FLAGS=$(DEFS) $(INCLUDES) $(CPPFLAGS) $(CFLAGS) @NOINST_LDFLAGS@
-LIBS=libmystrings.a
 
-str_test: str_test.c $(LIBRARIES)
-	$(LINK) $(FLAGS) -DMAIN $(INCLUDES) $(srcdir)/str_test.c $(LDADD) $(LIBS) $(pkglib_LIBRARIES)
+str_test: str_test.c $(pkglib_LIBRARIES)
+	$(LINK) $(FLAGS) -DMAIN $(INCLUDES) $(srcdir)/str_test.c $(LDADD) $(pkglib_LIBRARIES)
 
-test_decimal$(EXEEXT): decimal.c $(LIBRARIES)
+test_decimal$(EXEEXT): decimal.c $(pkglib_LIBRARIES)
 	$(CP) $(srcdir)/decimal.c ./test_decimal.c
-	$(LINK) $(FLAGS) -DMAIN  ./test_decimal.c $(LDADD) $(LIBS)
+	$(LINK) $(FLAGS) -DMAIN  ./test_decimal.c $(LDADD) $(pkglib_LIBRARIES)
 	$(RM) -f ./test_decimal.c
 
 # Don't update the files from bitkeeper
