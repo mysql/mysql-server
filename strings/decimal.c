@@ -1318,7 +1318,7 @@ static int do_div_mod(decimal *from1, decimal *from2,
   if ((scale_incr-= frac1 - from1->frac + frac2 - from2->frac) < 0)
     scale_incr=0;
 
-  if ((i=(prec1-frac1)-(prec2-frac2)+(*buf1 > *buf2)) < 0) /* see below */
+  if ((i=(prec1-frac1)-(prec2-frac2)+(*buf1 >= *buf2)) < 0) /* see below */
     intg0=0;
   else
     intg0=ROUND_UP(i);
@@ -1942,6 +1942,7 @@ main()
   test_dv("0", "987");
   test_dv("1", "3");
   test_dv("1.000000000000", "3");
+  test_dv("1", "1");
 
   printf("==== decimal_round ====\n");
   test_ro("15.1",0,HALF_UP);
