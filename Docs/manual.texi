@@ -34540,7 +34540,7 @@ You can also use the keyword @code{DEFAULT} to set a column to its
 default value. (New in MySQL 4.0.3.)  This makes it easier to write
 @code{INSERT} statements that assign values to all but a few columns,
 because it allows you to avoid writing an incomplete @code{VALUES()} list
-(a list that does not include an value for each column in the table).
+(a list that does not include a value for each column in the table).
 Otherwise, you would have to write out the list of column names
 corresponding to each value in the @code{VALUES()} list.
 
