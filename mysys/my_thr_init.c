@@ -159,6 +159,7 @@ my_bool my_thread_init(void)
   tmp->id= ++thread_id;
   pthread_mutex_init(&tmp->mutex,MY_MUTEX_INIT_FAST);
   pthread_cond_init(&tmp->suspend, NULL);
+  tmp->init= 1;
 
 end:
 #if !defined(__WIN__) || defined(USE_TLS) || ! defined(SAFE_MUTEX)
@@ -170,12 +171,14 @@ end:
 
 void my_thread_end(void)
 {
-  struct st_my_thread_var *tmp=my_thread_var;
+  struct st_my_thread_var *tmp;
+  tmp= my_pthread_getspecific(struct st_my_thread_var*,THR_KEY_mysys);
+
 #ifdef EXTRA_DEBUG_THREADS
   fprintf(stderr,"my_thread_end(): tmp=%p,thread_id=%ld\n",
 	  tmp,pthread_self());
 #endif  
-  if (tmp)
+  if (tmp && tmp->init)
   {
 #if !defined(DBUG_OFF)
     /* tmp->dbug is allocated inside DBUG library */
@@ -191,6 +194,8 @@ void my_thread_end(void)
     pthread_mutex_destroy(&tmp->mutex);
 #if (!defined(__WIN__) && !defined(OS2)) || defined(USE_TLS)
     free(tmp);
+#else
+    tmp->init= 0;
 #endif
   }
   /* The following free has to be done, even if my_thread_var() is 0 */
