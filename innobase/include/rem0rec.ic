@@ -713,8 +713,9 @@ rec_offs_validate(
 		}
 	}
 	if (index) {
+		ulint max_n_fields;
 		ut_ad((ulint) index == offsets[2]);
-		ulint max_n_fields = ut_max(
+		max_n_fields = ut_max(
 				dict_index_get_n_fields(index),
 				dict_index_get_n_unique_in_tree(index) + 1);
 		if (comp && rec) {
