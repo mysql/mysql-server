@@ -108,7 +108,7 @@ int mysql_ha_close(THD *thd, TABLE_LIST *tables,
                                     !no_alias, dont_lock, &was_flushed);
   if (*table_ptr)
   {
-    (*ptr)->file->ha_index_or_rnd_end();
+    (*table_ptr)->file->ha_index_or_rnd_end();
     if (!dont_lock)
       VOID(pthread_mutex_lock(&LOCK_open));
     if (close_thread_table(thd, table_ptr))
