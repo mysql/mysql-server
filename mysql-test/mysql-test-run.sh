@@ -304,7 +304,6 @@ fi
 
 [ -z "$COLUMNS" ] && COLUMNS=80
 E=`$EXPR $COLUMNS - 8`
-#DASH72=`$EXPR substr '------------------------------------------------------------------------' 1 $E`
 DASH72=`$ECHO '------------------------------------------------------------------------'|$CUT -c 1-$E`
 
 # on source dist, we pick up freshly build executables
@@ -1146,13 +1145,16 @@ then
   $RM -f $TIMEFILE	# Remove for full test
  fi
 else 
-tname=`$BASENAME $1 .test`
- tf=$TESTDIR/$tname.$TESTSUFFIX
- if [ -f $tf ] ; then
-  run_testcase $tf
- else
-   $ECHO "Test case $tf does not exist."
- fi
+  while [ ! -z "$1" ]; do
+    tname=`$BASENAME $1 .test`
+    tf=$TESTDIR/$tname.$TESTSUFFIX
+    if [ -f $tf ] ; then
+      run_testcase $tf
+    else
+      $ECHO "Test case $tf does not exist."
+    fi
+    shift
+  done
 fi
 
 $ECHO $DASH72
