@@ -131,4 +131,20 @@ patient_uq	clinic_uq
 1	1
 1	2
 2	2
+drop table if exists t1,t2,t3;
+CREATE TABLE t3 (a varchar(20),b char(1) NOT NULL default '0');
+INSERT INTO t3 VALUES ('W','a'),('A','c'),('J','b');
+CREATE TABLE t2 (a varchar(20),b int NOT NULL default '0');
+INSERT INTO t2 VALUES ('W','1'),('A','3'),('J','2');
+CREATE TABLE t1 (a varchar(20),b date NOT NULL default '0000-00-00');
+INSERT INTO t1 VALUES ('W','1732-02-22'),('A','1735-10-30'),('J','1743-04-13');
+SELECT * FROM t1 WHERE b = (SELECT MIN(b) FROM t1);
+a	b
+W	1732-02-22
+SELECT * FROM t2 WHERE b = (SELECT MIN(b) FROM t2);
+a	b
+W	1
+SELECT * FROM t3 WHERE b = (SELECT MIN(b) FROM t3);
+a	b
+W	a
 drop table t1,t2,t3,t4,t5,attend,clinic;

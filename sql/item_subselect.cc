@@ -82,7 +82,14 @@ bool Item_subselect::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     my_message(ER_SUBSELECT_NO_1_COL, ER(ER_SUBSELECT_NO_1_COL), MYF(0));
     return 1;
   }
-  return engine->prepare();
+  int res= engine->prepare();
+  fix_length_and_dec();
+  return res;
+}
+
+void Item_subselect::fix_length_and_dec()
+{
+  engine->fix_length_and_dec();
 }
 
 inline table_map Item_subselect::used_tables() const
@@ -96,6 +103,12 @@ Item_singleval_subselect::Item_singleval_subselect(THD *thd,
 {
   max_columns= 1;
   maybe_null= 1;
+}
+
+void Item_singleval_subselect::fix_length_and_dec()
+{
+  engine->fix_length_and_dec();
+  res_type= engine->type();
 }
 
 Item::Type Item_subselect::type() const 
@@ -133,6 +146,12 @@ Item_exists_subselect::Item_exists_subselect(THD *thd,
   maybe_null= 0; //can't be NULL
   value= 0;
   select_lex->select_limit= 1; // we need only 1 row to determinate existence
+}
+
+void Item_exists_subselect::fix_length_and_dec()
+{
+  max_length= 1;
+  
 }
 
 double Item_exists_subselect::val () 
@@ -221,6 +240,32 @@ int subselect_union_engine::prepare()
   return unit->prepare(thd, result);
 }
 
+void subselect_single_select_engine::fix_length_and_dec()
+{
+  List_iterator_fast<Item> li(select_lex->item_list);
+  Item *sel_item= li++;
+  item->max_length= sel_item->max_length;
+  res_type= sel_item->result_type();
+  item->decimals= sel_item->decimals;
+}
+
+void subselect_union_engine::fix_length_and_dec()
+{
+  uint32 mlen= 0, len;
+  Item *sel_item= 0;
+  for(SELECT_LEX *sl= unit->first_select(); sl; sl= sl->next_select())
+  {
+    List_iterator_fast<Item> li(sl->item_list);
+    Item *s_item= li++;
+    if ((len= s_item->max_length))
+      mlen= len;
+    if (!sel_item)
+      sel_item= s_item;
+  }
+  item->max_length= mlen;
+  res_type= sel_item->result_type();
+  item->decimals= sel_item->decimals;
+}
 
 int subselect_single_select_engine::exec()
 {

@@ -838,12 +838,16 @@ bool select_singleval_subselect::send_data(List<Item> &items)
   if ((it->null_value= val_item->is_null()))
   {
     it->assign_null();
-  } else {
+  } 
+  else 
+  {
     it->max_length= val_item->max_length;
     it->decimals= val_item->decimals;
     it->binary= val_item->binary;
-    val_item->val_str(&it->str_value);
     it->int_value= val_item->val_int();
+    String *s= val_item->val_str(&it->str_value);
+    if (s != &it->str_value)
+      it->str_value.set(*s, 0, s->length());
     it->res_type= val_item->result_type();
   }
   it->assigned(1);
