@@ -395,6 +395,7 @@ void Item_func::split_sum_func(THD *thd, Item **ref_pointer_array,
     {
       uint el= fields.elements;
       Item *new_item= new Item_ref(ref_pointer_array + el, 0, item->name);
+      new_item->collation.set(item->collation);
       fields.push_front(item);
       ref_pointer_array[el]= item;
       thd->change_item_tree(arg, new_item);

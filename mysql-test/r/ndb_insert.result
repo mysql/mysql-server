@@ -535,27 +535,46 @@ count(*)
 2000
 insert into t1 select * from t1 where b < 10 order by pk1;
 ERROR 23000: Duplicate entry '9' for key 1
+DELETE FROM t1 WHERE pk1=2;
 begin;
-INSERT IGNORE INTO t1 VALUES(1,2,3);
-ERROR HY000: Table storage engine for 't1' doesn't have this option
-commit;
-select * from t1 where pk1=1;
+INSERT IGNORE INTO t1 VALUES(1,2,3),(2,3,4);
+select * from t1 where pk1 < 3 order by pk1;
 pk1	b	c
+0	0	0
 1	1	1
-INSERT IGNORE INTO t1 VALUES(1,2,3);
-ERROR HY000: Table storage engine for 't1' doesn't have this option
-select * from t1 where pk1=1;
+2	3	4
+rollback;
+INSERT IGNORE INTO t1 VALUES(1,2,3),(2,3,4);
+select * from t1 where pk1 < 3 order by pk1;
 pk1	b	c
+0	0	0
 1	1	1
-REPLACE INTO t1 values(1, 2, 3);
+2	3	4
+REPLACE INTO t1 values(1, 78, 3);
 select * from t1 where pk1=1;
 pk1	b	c
-1	2	3
-INSERT INTO t1 VALUES(1,1,1) ON DUPLICATE KEY UPDATE b=79;
-ERROR HY000: Table storage engine for 't1' doesn't have this option
-select * from t1 where pk1=1;
+1	78	3
+INSERT INTO t1 VALUES(1,1,1),(3,4,5) ON DUPLICATE KEY UPDATE b=79;
+select * from t1 where pk1 < 4 order by pk1;
 pk1	b	c
-1	2	3
+0	0	0
+1	79	3
+2	3	4
+3	79	3
+INSERT INTO t1 VALUES(1,1,1),(3,4,5) ON DUPLICATE KEY UPDATE b=pk1+c;
+select * from t1 where pk1 < 4 order by pk1;
+pk1	b	c
+0	0	0
+1	4	3
+2	3	4
+3	6	3
+DELETE FROM t1 WHERE pk1 = 2 OR pk1 = 4 OR pk1 = 6;
+INSERT INTO t1 VALUES(1,1,1),(2,2,17),(3,4,5) ON DUPLICATE KEY UPDATE pk1=b;
+select * from t1 where pk1 = b and b != c order by pk1;
+pk1	b	c
+2	2	17
+4	4	3
+6	6	3
 DROP TABLE t1;
 CREATE TABLE t1(a INT) ENGINE=ndb;
 INSERT IGNORE INTO t1 VALUES (1);

@@ -590,6 +590,23 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
    */
   ConfigValuesFactory cfg(ownConfig);
 
+  Uint32 noOfMetaTables= noOfTables + noOfOrderedIndexes +
+                           noOfUniqueHashIndexes;
+  if (noOfMetaTables > MAX_TABLES)
+    noOfMetaTables= MAX_TABLES;
+
+  {
+    /**
+     * Dict Size Alt values
+     */
+    cfg.put(CFG_DICT_ATTRIBUTE, 
+	    noOfAttributes);
+
+    cfg.put(CFG_DICT_TABLE, 
+	    noOfMetaTables);
+  }
+
+
   if (noOfLocalScanRecords == 0) {
     noOfLocalScanRecords = (noOfDBNodes * noOfScanRecords) + 1;
   }
@@ -599,7 +616,7 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
   Uint32 noOfTCScanRecords = noOfScanRecords;
 
   {
-    Uint32 noOfAccTables= noOfTables + noOfUniqueHashIndexes;
+    Uint32 noOfAccTables= noOfMetaTables/*noOfTables+noOfUniqueHashIndexes*/;
     /**
      * Acc Size Alt values
      */
@@ -639,19 +656,6 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
     cfg.put(CFG_ACC_TABLE, noOfAccTables);
     
     cfg.put(CFG_ACC_SCAN, noOfLocalScanRecords);
-  }
-  
-  Uint32 noOfMetaTables= noOfTables + noOfOrderedIndexes +
-                           noOfUniqueHashIndexes;
-  {
-    /**
-     * Dict Size Alt values
-     */
-    cfg.put(CFG_DICT_ATTRIBUTE, 
-	    noOfAttributes);
-
-    cfg.put(CFG_DICT_TABLE, 
-	    noOfMetaTables);
   }
   
   {
@@ -746,8 +750,8 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
 	    noOfMetaTables);
     
     cfg.put(CFG_TUP_TABLE_DESC, 
-	    4 * NO_OF_FRAG_PER_NODE * noOfAttributes* noOfReplicas +
-	    12 * NO_OF_FRAG_PER_NODE * noOfMetaTables* noOfReplicas );
+	    2 * 6 * NO_OF_FRAG_PER_NODE * noOfAttributes * noOfReplicas +
+	    2 * 10 * NO_OF_FRAG_PER_NODE * noOfMetaTables * noOfReplicas );
     
     cfg.put(CFG_TUP_STORED_PROC,
 	    noOfLocalScanRecords);
@@ -758,9 +762,9 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
      * Tux Size Alt values
      */
     cfg.put(CFG_TUX_INDEX, 
-	    noOfOrderedIndexes);
+	    noOfMetaTables /*noOfOrderedIndexes*/);
     
-    cfg.put(CFG_TUX_FRAGMENT, 
+    cfg.put(CFG_TUX_FRAGMENT,
 	    2 * NO_OF_FRAG_PER_NODE * noOfOrderedIndexes * noOfReplicas);
     
     cfg.put(CFG_TUX_ATTRIBUTE, 

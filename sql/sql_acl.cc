@@ -1467,8 +1467,10 @@ static bool update_user_table(THD *thd, const char *host, const char *user,
   table->field[0]->store(host,(uint) strlen(host), &my_charset_latin1);
   table->field[1]->store(user,(uint) strlen(user), &my_charset_latin1);
 
+  table->file->extra(HA_EXTRA_RETRIEVE_ALL_COLS);
   if (table->file->index_read_idx(table->record[0],0,
-				  (byte*) table->field[0]->ptr,0,
+				  (byte*) table->field[0]->ptr,
+				  table->key_info[0].key_length,
 				  HA_READ_KEY_EXACT))
   {
     my_message(ER_PASSWORD_NO_MATCH, ER(ER_PASSWORD_NO_MATCH),
@@ -1546,9 +1548,11 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
 
   table->field[0]->store(combo.host.str,combo.host.length, &my_charset_latin1);
   table->field[1]->store(combo.user.str,combo.user.length, &my_charset_latin1);
+  table->file->extra(HA_EXTRA_RETRIEVE_ALL_COLS);
   if (table->file->index_read_idx(table->record[0], 0,
-			      (byte*) table->field[0]->ptr,0,
-			      HA_READ_KEY_EXACT))
+				  (byte*) table->field[0]->ptr,
+				  table->key_info[0].key_length,
+				  HA_READ_KEY_EXACT))
   {
     /* what == 'N' means revoke */
     if (what == 'N')
@@ -1677,6 +1681,7 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
       We should NEVER delete from the user table, as a uses can still
       use mysqld even if he doesn't have any privileges in the user table!
     */
+    table->file->extra(HA_EXTRA_RETRIEVE_ALL_COLS);
     if (cmp_record(table,record[1]) &&
 	(error=table->file->update_row(table->record[1],table->record[0])))
     {						// This should never happen
@@ -1754,8 +1759,11 @@ static int replace_db_table(TABLE *table, const char *db,
   table->field[0]->store(combo.host.str,combo.host.length, &my_charset_latin1);
   table->field[1]->store(db,(uint) strlen(db), &my_charset_latin1);
   table->field[2]->store(combo.user.str,combo.user.length, &my_charset_latin1);
-  if (table->file->index_read_idx(table->record[0],0,(byte*) table->field[0]->ptr,0,
-			      HA_READ_KEY_EXACT))
+  table->file->extra(HA_EXTRA_RETRIEVE_ALL_COLS);
+  if (table->file->index_read_idx(table->record[0],0,
+				  (byte*) table->field[0]->ptr,
+				  table->key_info[0].key_length,
+				  HA_READ_KEY_EXACT))
   {
     if (what == 'N')
     { // no row, no revoke
@@ -1788,6 +1796,7 @@ static int replace_db_table(TABLE *table, const char *db,
     /* update old existing row */
     if (rights)
     {
+      table->file->extra(HA_EXTRA_RETRIEVE_ALL_COLS);
       if ((error=table->file->update_row(table->record[1],table->record[0])))
 	goto table_error;			/* purecov: deadcode */
     }
@@ -2062,8 +2071,10 @@ static int replace_column_table(GRANT_TABLE *g_t,
     table->field[4]->store(xx->column.ptr(),xx->column.length(),
                            &my_charset_latin1);
 
+    table->file->extra(HA_EXTRA_RETRIEVE_ALL_COLS);
     if (table->file->index_read(table->record[0],(byte*) table->field[0]->ptr,
-				0, HA_READ_KEY_EXACT))
+				table->key_info[0].key_length,
+				HA_READ_KEY_EXACT))
     {
       if (revoke_grant)
       {
@@ -2132,8 +2143,10 @@ static int replace_column_table(GRANT_TABLE *g_t,
 
   if (revoke_grant)
   {
+    table->file->extra(HA_EXTRA_RETRIEVE_ALL_COLS);
     if (table->file->index_read(table->record[0], (byte*) table->field[0]->ptr,
-				key_length, HA_READ_KEY_EXACT))
+				table->key_info[0].key_length,
+				HA_READ_KEY_EXACT))
       goto end;
 
     /* Scan through all rows with the same host,db,user and table */
@@ -2223,9 +2236,10 @@ static int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
   table->field[2]->store(combo.user.str,combo.user.length, &my_charset_latin1);
   table->field[3]->store(table_name,(uint) strlen(table_name), &my_charset_latin1);
   store_record(table,record[1]);			// store at pos 1
-
+  table->file->extra(HA_EXTRA_RETRIEVE_ALL_COLS);
   if (table->file->index_read_idx(table->record[0],0,
-				  (byte*) table->field[0]->ptr,0,
+				  (byte*) table->field[0]->ptr,
+				  table->key_info[0].key_length,
 				  HA_READ_KEY_EXACT))
   {
     /*
@@ -3715,9 +3729,12 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
     tables[0].table->field[1]->store(user_name->user.str,(uint)
 				     user_name->user.length,
 				     system_charset_info);
+    tables[0].table->file->extra(HA_EXTRA_RETRIEVE_ALL_COLS);
     if (!tables[0].table->file->index_read_idx(tables[0].table->record[0],0,
 					       (byte*) tables[0].table->
-					       field[0]->ptr,0,
+					       field[0]->ptr,
+					       tables[0].table->
+					       key_info[0].key_length,
 					       HA_READ_KEY_EXACT))
     {
       int error;
