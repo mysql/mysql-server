@@ -461,6 +461,8 @@ public:
 
   THD();
   ~THD();
+  void init(void);
+  void change_user(void);
   void cleanup(void);
   bool store_globals();
 #ifdef SIGNAL_WITH_VIO_CLOSE
@@ -804,11 +806,9 @@ public:
    ha_rows deleted;
    uint num_of_tables;
    int error;
-   thr_lock_type lock_option;
    bool do_delete, transactional_tables, log_delayed, normal_tables;
  public:
-   multi_delete(THD *thd, TABLE_LIST *dt, thr_lock_type lock_option_arg,
-		uint num_of_tables);
+   multi_delete(THD *thd, TABLE_LIST *dt, uint num_of_tables);
    ~multi_delete();
    int prepare(List<Item> &list);
    bool send_fields(List<Item> &list,
@@ -829,7 +829,6 @@ public:
    ha_rows updated, found;
    List<Item> fields;
    List <Item> **fields_by_tables;
-   thr_lock_type lock_option;
    enum enum_duplicates dupl;
    uint num_of_tables, num_fields, num_updated, *save_time_stamps, *field_sequence;
    int error;
@@ -837,7 +836,7 @@ public:
  public:
    multi_update(THD *thd_arg, TABLE_LIST *ut, List<Item> &fs, 		 
 		enum enum_duplicates handle_duplicates,  
-		thr_lock_type lock_option_arg, uint num);
+		uint num);
    ~multi_update();
    int prepare(List<Item> &list);
    bool send_fields(List<Item> &list,

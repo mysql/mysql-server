@@ -98,8 +98,7 @@ check_insert_fields(THD *thd,TABLE *table,List<Item> &fields,
 
 
 int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
-		 List<List_item> &values_list,enum_duplicates duplic,
-		 thr_lock_type lock_type)
+		 List<List_item> &values_list,enum_duplicates duplic)
 {
   int error;
   bool log_on= ((thd->options & OPTION_UPDATE_LOG) ||
@@ -114,6 +113,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
   List_iterator_fast<List_item> its(values_list);
   List_item *values;
   char *query=thd->query;
+  thr_lock_type lock_type = table_list->lock_type;
   DBUG_ENTER("mysql_insert");
 
   /*
@@ -200,8 +200,9 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
   {
     table->file->extra_opt(HA_EXTRA_WRITE_CACHE,
 			   thd->variables.read_buff_size);
-    table->file->extra_opt(HA_EXTRA_BULK_INSERT_BEGIN,
-			   thd->variables.bulk_insert_buff_size);
+    if (thd->variables.bulk_insert_buff_size)
+      table->file->extra_opt(HA_EXTRA_BULK_INSERT_BEGIN,
+			     thd->variables.bulk_insert_buff_size);
     table->bulk_insert= 1;
   }
 
@@ -266,10 +267,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
       info.copied=values_list.elements;
       end_delayed_insert(thd);
     }
-    if (info.copied || info.deleted)
-    {
-      query_cache_invalidate3(thd, table_list, 1);
-    }
+    query_cache_invalidate3(thd, table_list, 1);
   }
   else
   {
@@ -315,7 +313,15 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
     }
     if (transactional_table)
       error=ha_autocommit_or_rollback(thd,error);
-    if (info.copied || info.deleted)
+
+    /*
+      Only invalidate the query cache if something changed or if we
+      didn't commit the transacion (query cache is automaticly
+      invalidated on commit)
+    */
+    if ((info.copied || info.deleted) &&
+	(!transactional_table ||
+	 thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))
     {
       query_cache_invalidate3(thd, table_list, 1);
     }

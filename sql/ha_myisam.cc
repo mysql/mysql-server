@@ -908,7 +908,7 @@ void ha_myisam::info(uint flag)
     if (table->key_parts)
       memcpy((char*) table->key_info[0].rec_per_key,
 	     (char*) info.rec_per_key,
-	     sizeof(ulong)*table->key_parts);
+	     sizeof(table->key_info[0].rec_per_key)*table->key_parts);
     raid_type=info.raid_type;
     raid_chunks=info.raid_chunks;
     raid_chunksize=info.raid_chunksize;

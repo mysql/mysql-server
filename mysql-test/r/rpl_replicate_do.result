@@ -1,0 +1,28 @@
+slave stop;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+slave start;
+drop table if exists t11;
+drop table if exists t11;
+create table t2 (n int);
+insert into t2 values(4);
+create table t2 (s char(20));
+load data infile '../../std_data/words.dat' into table t2;
+insert into t2 values('five');
+create table t1 (m int);
+insert into t1 values(15),(16),(17);
+update t1 set m=20 where m=16;
+delete from t1 where m=17;
+create table t11 select * from t1;
+select * from t1;
+m
+15
+20
+select * from t2;
+n
+4
+select * from t11;
+Table 'test.t11' doesn't exist
+drop table if exists t1,t2,t3,t11;

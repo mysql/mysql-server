@@ -28,7 +28,7 @@
 #include "sql_select.h"
 
 int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, ORDER *order,
-                 ha_rows limit, thr_lock_type lock_type, ulong options)
+                 ha_rows limit, ulong options)
 {
   int		error;
   TABLE		*table;
@@ -39,15 +39,13 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, ORDER *order,
   ha_rows	deleted;
   DBUG_ENTER("mysql_delete");
 
-  if (!table_list->db)
-    table_list->db=thd->db;
   if (((safe_update=thd->options & OPTION_SAFE_UPDATES)) && !conds)
   {
     send_error(&thd->net,ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE);
     DBUG_RETURN(1);
   }
 
-  if (!(table = open_ltable(thd,table_list, lock_type)))
+  if (!(table = open_ltable(thd, table_list, table_list->lock_type)))
     DBUG_RETURN(-1);
   table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
   thd->proc_info="init";
@@ -176,9 +174,19 @@ cleanup:
     if (!log_delayed)
       thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;
   }
-  if (transactional_table && ha_autocommit_or_rollback(thd,error >= 0))
-    error=1;
-  if (deleted)
+  if (transactional_table)
+  {
+    if (ha_autocommit_or_rollback(thd,error >= 0))
+      error=1;
+  }
+  /*
+    Only invalidate the query cache if something changed or if we
+    didn't commit the transacion (query cache is automaticly
+    invalidated on commit)
+  */
+  if (deleted &&
+      (!transactional_table ||
+       thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))
   {
     query_cache_invalidate3(thd, table_list, 1);
   }
@@ -211,10 +219,9 @@ extern "C" int refposcmp2(void* arg, const void *a,const void *b)
 }
 
 multi_delete::multi_delete(THD *thd_arg, TABLE_LIST *dt,
-			   thr_lock_type lock_option_arg,
 			   uint num_of_tables_arg)
   : delete_tables (dt), thd(thd_arg), deleted(0),
-    num_of_tables(num_of_tables_arg), error(0), lock_option(lock_option_arg),
+    num_of_tables(num_of_tables_arg), error(0),
     do_delete(0), transactional_tables(0), log_delayed(0), normal_tables(0)
 {
   tempfiles = (Unique **) sql_calloc(sizeof(Unique *) * (num_of_tables-1));
@@ -553,8 +560,9 @@ int mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
     if (!ha_supports_generate(table_type))
     {
       /* Probably InnoDB table */
-      DBUG_RETURN(mysql_delete(thd,table_list, (COND*) 0, (ORDER*) 0,
-			       HA_POS_ERROR, TL_WRITE, 0));
+      table_list->lock_type= TL_WRITE;
+      DBUG_RETURN(mysql_delete(thd, table_list, (COND*) 0, (ORDER*) 0,
+			       HA_POS_ERROR, 0));
     }
     if (lock_and_wait_for_table_name(thd, table_list))
       DBUG_RETURN(-1);

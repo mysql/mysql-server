@@ -66,6 +66,7 @@ inline Item *or_or_concat(Item* A, Item* B)
   enum enum_tx_isolation tx_isolation;
   enum Item_cast cast_type;
   enum Item_udftype udf_type;
+  thr_lock_type lock_type;
   interval_type interval;
 }
 
@@ -263,6 +264,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	NO_SYM
 %token	NULL_SYM
 %token	NUM
+%token	OFFSET_SYM
 %token	ON
 %token	OPEN_SYM
 %token	OPTION
@@ -513,13 +515,16 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	type int_type real_type order_dir opt_field_spec lock_option
 	udf_type if_exists opt_local opt_table_options table_options
 	table_option opt_if_not_exists opt_var_type opt_var_ident_type
-	opt_temporary
+	opt_temporary 
 
 %type <ulong_num>
 	ULONG_NUM raid_types merge_insert_types
 
 %type <ulonglong_number>
 	ulonglong_num
+
+%type <lock_type>
+	replace_lock_option opt_low_priority insert_lock_option load_data_lock
 
 %type <item>
 	literal text_literal insert_ident order_ident
@@ -582,11 +587,11 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	field_opt_list opt_binary table_lock_list table_lock varchar
 	references opt_on_delete opt_on_delete_list opt_on_delete_item use
 	opt_delete_options opt_delete_option
-	opt_outer table_list table_name opt_option opt_place opt_low_priority
+	opt_outer table_list table_name opt_option opt_place
 	opt_attribute opt_attribute_list attribute column_list column_list_id
 	opt_column_list grant_privileges opt_table user_list grant_option
 	grant_privilege grant_privilege_list
-	flush_options flush_option insert_lock_option replace_lock_option
+	flush_options flush_option
 	equal optional_braces opt_key_definition key_usage_list2
 	opt_mi_check_type opt_to mi_check_types normal_join
 	table_to_table_list table_to_table opt_table_list opt_as
@@ -2249,11 +2254,6 @@ order_clause:
 	ORDER_SYM BY 
         { 
 	  LEX *lex=Lex;
-	  if (lex->sql_command == SQLCOM_MULTI_UPDATE)
-	  {
-	    net_printf(&lex->thd->net, ER_WRONG_USAGE, "UPDATE", "ORDER BY");
-	    YYABORT;
-	  }	
 	  if (lex->select->olap != UNSPECIFIED_OLAP_TYPE)
 	  {
 	    net_printf(&lex->thd->net, ER_WRONG_USAGE,
@@ -2278,7 +2278,7 @@ order_dir:
 
 limit_clause:
 	/* empty */ {}
-	| LIMIT ULONG_NUM
+	| LIMIT 
 	  {
 	    LEX *lex=Lex;
 	    if (lex->select->olap != UNSPECIFIED_OLAP_TYPE)
@@ -2287,33 +2287,35 @@ limit_clause:
 		        "LIMIT");
 	      YYABORT;
 	    }
-	    SELECT_LEX *sel=Select;
-	    sel->select_limit= $2;
-	    sel->offset_limit= 0L;
 	  }
-	| LIMIT ULONG_NUM ',' ULONG_NUM
+	  limit_options
+	  ;
+
+limit_options:
+	ULONG_NUM
 	  {
-	    LEX *lex=Lex;
-	    if (lex->select->olap != UNSPECIFIED_OLAP_TYPE)
-	    {
-	      net_printf(&lex->thd->net, ER_WRONG_USAGE, "CUBE/ROLLUP",
-		        "LIMIT");
-	      YYABORT;
-	    }	      
-	    SELECT_LEX *sel=lex->select;
-	    sel->select_limit= $4;
-	    sel->offset_limit= $2;
-	  };
+            SELECT_LEX *sel= Select;
+            sel->select_limit= $1;
+            sel->offset_limit= 0L;
+	  }
+	| ULONG_NUM ',' ULONG_NUM
+	  {
+	    SELECT_LEX *sel= Select;
+	    sel->select_limit= $3;
+	    sel->offset_limit= $1;
+	  }
+	| ULONG_NUM OFFSET_SYM ULONG_NUM
+	  {
+	    SELECT_LEX *sel= Select;
+	    sel->select_limit= $1;
+	    sel->offset_limit= $3;
+	  }
+	;
 
 delete_limit_clause:
 	/* empty */
 	{
 	  LEX *lex=Lex;
-	  if (lex->sql_command == SQLCOM_MULTI_UPDATE)
-	  {
-	    net_printf(&lex->thd->net, ER_WRONG_USAGE, "DELETE", "LIMIT");
-	    YYABORT;
-	  }
 	  lex->select->select_limit= HA_POS_ERROR;
 	}
 	| LIMIT ulonglong_num
@@ -2448,7 +2450,13 @@ opt_temporary:
 */
 
 insert:
-	INSERT { Lex->sql_command = SQLCOM_INSERT; } insert_lock_option opt_ignore insert2 insert_field_spec;
+	INSERT { Lex->sql_command = SQLCOM_INSERT; } insert_lock_option
+	opt_ignore insert2 
+	{
+	  set_lock_for_tables($3);
+	}
+	insert_field_spec
+	;
 
 replace:
 	REPLACE
@@ -2457,17 +2465,23 @@ replace:
 	  lex->sql_command = SQLCOM_REPLACE;
 	  lex->duplicates= DUP_REPLACE;
 	}
-	replace_lock_option insert2 insert_field_spec;
+	replace_lock_option insert2
+	{
+	  set_lock_for_tables($3);
+	}
+	insert_field_spec
+	;
 
 insert_lock_option:
-	/* empty */	{ Lex->lock_option= TL_WRITE_CONCURRENT_INSERT; }
-	| LOW_PRIORITY	{ Lex->lock_option= TL_WRITE_LOW_PRIORITY; }
-	| DELAYED_SYM	{ Lex->lock_option= TL_WRITE_DELAYED; }
-	| HIGH_PRIORITY { Lex->lock_option= TL_WRITE; };
+	/* empty */	{ $$= TL_WRITE_CONCURRENT_INSERT; }
+	| LOW_PRIORITY	{ $$= TL_WRITE_LOW_PRIORITY; }
+	| DELAYED_SYM	{ $$= TL_WRITE_DELAYED; }
+	| HIGH_PRIORITY { $$= TL_WRITE; }
+	;	
 
 replace_lock_option:
-	opt_low_priority {}
-	| DELAYED_SYM	{ Lex->lock_option= TL_WRITE_DELAYED; };
+	opt_low_priority { $$= $1; }
+	| DELAYED_SYM	 { $$= TL_WRITE_DELAYED; };
 
 insert2:
 	INTO insert_table {}
@@ -2588,7 +2602,12 @@ update:
           lex->select->order_list.first=0;
           lex->select->order_list.next= (byte**) &lex->select->order_list.first;
         }
-        opt_low_priority opt_ignore join_table_list SET update_list where_clause opt_order_clause delete_limit_clause;
+        opt_low_priority opt_ignore join_table_list
+	SET update_list where_clause opt_order_clause delete_limit_clause
+	{
+	  set_lock_for_tables($3);
+	}
+	;
 
 update_list:
 	update_list ',' simple_ident equal expr
@@ -2603,8 +2622,8 @@ update_list:
 	  };
 
 opt_low_priority:
-	/* empty */	{ Lex->lock_option= current_thd->update_lock_default; }
-	| LOW_PRIORITY	{ Lex->lock_option= TL_WRITE_LOW_PRIORITY; };
+	/* empty */	{ $$= current_thd->update_lock_default; }
+	| LOW_PRIORITY	{ $$= TL_WRITE_LOW_PRIORITY; };
 
 /* Delete rows from a table */
 
@@ -2618,13 +2637,20 @@ delete:
 	  lex->select->order_list.first=0;
 	  lex->select->order_list.next= (byte**) &lex->select->order_list.first;
 	}
-	opt_delete_options single_multi	{};
+	opt_delete_options single_multi {}
+	;
 
 single_multi:
- 	FROM table_name where_clause opt_order_clause delete_limit_clause {}
+ 	FROM table_ident
+	{
+	  if (!add_table_to_list($2, NULL, 1, Lex->lock_option))
+	    YYABORT;
+	}
+	where_clause opt_order_clause
+	delete_limit_clause
 	| table_wild_list
 	  { mysql_init_multi_delete(Lex); }
-	   FROM join_table_list where_clause
+          FROM join_table_list where_clause
 	| FROM table_wild_list
 	  { mysql_init_multi_delete(Lex); }
 	  USING join_table_list where_clause;
@@ -2636,14 +2662,17 @@ table_wild_list:
 table_wild_one:
 	 ident opt_wild
 	 {
-	    if (!add_table_to_list(new Table_ident($1),NULL,1,TL_WRITE))
-	      YYABORT;
+	   if (!add_table_to_list(new Table_ident($1), NULL, 1,
+				  Lex->lock_option))
+	     YYABORT;
          }
 	 | ident '.' ident opt_wild
 	   {
-	     if (!add_table_to_list(new Table_ident($1,$3,0),NULL,1,TL_WRITE))
+	     if (!add_table_to_list(new Table_ident($1,$3,0), NULL, 1,
+				    Lex->lock_option))
 	      YYABORT;
-	   };
+	   }
+	;
 
 opt_wild:
 	/* empty */	{} 
@@ -2667,7 +2696,8 @@ truncate:
 	  lex->select->order_list.elements=0;
           lex->select->order_list.first=0;
           lex->select->order_list.next= (byte**) &lex->select->order_list.first;
-	  lex->lock_option= current_thd->update_lock_default; };
+	}
+	;
 
 opt_table_sym:
 	/* empty */
@@ -2916,7 +2946,8 @@ load:	LOAD DATA_SYM load_data_lock opt_local INFILE TEXT_STRING
 	{
 	  LEX *lex=Lex;
 	  lex->sql_command= SQLCOM_LOAD;
-	  lex->local_file= $4;
+	  lex->lock_option= $3;
+	  lex->local_file=  $4;
 	  if (!(lex->exchange= new sql_exchange($6.str,0)))
 	    YYABORT;
 	  lex->field_list.empty();
@@ -2946,9 +2977,9 @@ opt_local:
 	| LOCAL_SYM	{ $$=1;};
 
 load_data_lock:
-	/* empty */	{ Lex->lock_option= current_thd->update_lock_default; }
-	| CONCURRENT	{ Lex->lock_option= TL_WRITE_CONCURRENT_INSERT ; }
-	| LOW_PRIORITY	{ Lex->lock_option= TL_WRITE_LOW_PRIORITY; };
+	/* empty */	{ $$= current_thd->update_lock_default; }
+	| CONCURRENT	{ $$= TL_WRITE_CONCURRENT_INSERT ; }
+	| LOW_PRIORITY	{ $$= TL_WRITE_LOW_PRIORITY; };
 
 
 opt_duplicate:
@@ -3201,6 +3232,7 @@ keyword:
 	| NEW_SYM		{}
 	| NO_SYM		{}
 	| NONE_SYM		{}
+	| OFFSET_SYM		{}
 	| OPEN_SYM		{}
 	| PACK_KEYS_SYM		{}
 	| PASSWORD		{}
