@@ -2176,12 +2176,14 @@ static int init_server_components()
     open_log(&mysql_bin_log, glob_hostname, opt_bin_logname, "-bin",
 	     opt_binlog_index_name,LOG_BIN);
     using_update_log=1;
+#ifdef HAVE_REPLICATION
     if (expire_logs_days)
     {
       long purge_time= time(0) - expire_logs_days*24*60*60;
       if (purge_time >= 0)
 	mysql_bin_log.purge_logs_before_date(current_thd, purge_time);
     }
+#endif
   }
 
   if (opt_error_log)
