@@ -1950,19 +1950,23 @@ void
 NdbDictInterface::execDROP_TABLE_CONF(NdbApiSignal * signal,
 				       LinearSectionPtr ptr[3])
 {
+  DBUG_ENTER("NdbDictInterface::execDROP_TABLE_CONF");
   //DropTableConf* const conf = CAST_CONSTPTR(DropTableConf, signal->getDataPtr());
 
   m_waiter.signal(NO_WAIT);  
+  DBUG_VOID_RETURN;
 }
 
 void
 NdbDictInterface::execDROP_TABLE_REF(NdbApiSignal * signal,
 				      LinearSectionPtr ptr[3])
 {
+  DBUG_ENTER("NdbDictInterface::execDROP_TABLE_REF");
   const DropTableRef* const ref = CAST_CONSTPTR(DropTableRef, signal->getDataPtr());
   m_error.code= ref->errorCode;
   m_masterNodeId = ref->masterNodeId;
   m_waiter.signal(NO_WAIT);  
+  DBUG_VOID_RETURN;
 }
 
 int
