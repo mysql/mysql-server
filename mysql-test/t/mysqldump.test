@@ -172,3 +172,13 @@ INSERT INTO t2 VALUES (4),(5),(6);
 --exec $MYSQL_DUMP --skip-comments --ignore-table=test.t1 test
 DROP TABLE t1;
 DROP TABLE t2;
+
+#
+#  Bug  #8830
+#
+
+CREATE TABLE t1 (`b` blob);
+INSERT INTO `t1` VALUES (0x602010000280100005E71A);
+--exec $MYSQL_DUMP --skip-extended-insert --hex-blob test t1
+DROP TABLE t1;
+
