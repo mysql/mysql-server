@@ -16,12 +16,34 @@ SET AUTOCOMMIT=0;
 DELETE from t1;
 SET AUTOCOMMIT=1;
 drop table t1;
-create table t1 (a bigint not null, primary key (a,a,a,a,a,a,a,a,a,a));
-insert into t1 values (2),(4),(6),(8),(10),(12),(14),(16),(18),(20),(22),(24),(26),(23);
+create table t1 (
+a bigint not null,
+b bigint not null default 0,
+c bigint not null default 0,
+d bigint not null default 0,
+e bigint not null default 0,
+f bigint not null default 0,
+g bigint not null default 0,
+h bigint not null default 0,
+i bigint not null default 0,
+j bigint not null default 0,
+primary key (a,b,c,d,e,f,g,h,i,j));
+insert into t1 (a) values (2),(4),(6),(8),(10),(12),(14),(16),(18),(20),(22),(24),(26),(23);
 delete from t1 where a=26;
 drop table t1;
-create table t1 (a bigint not null, primary key (a,a,a,a,a,a,a,a,a,a));
-insert into t1 values (2),(4),(6),(8),(10),(12),(14),(16),(18),(20),(22),(24),(26),(23),(27);
+create table t1 (
+a bigint not null,
+b bigint not null default 0,
+c bigint not null default 0,
+d bigint not null default 0,
+e bigint not null default 0,
+f bigint not null default 0,
+g bigint not null default 0,
+h bigint not null default 0,
+i bigint not null default 0,
+j bigint not null default 0,
+primary key (a,b,c,d,e,f,g,h,i,j));
+insert into t1 (a) values (2),(4),(6),(8),(10),(12),(14),(16),(18),(20),(22),(24),(26),(23),(27);
 delete from t1 where a=27;
 drop table t1;
 CREATE TABLE `t1` (
