@@ -908,7 +908,7 @@ public:
   void reset(void) { charset()->cset->fill(charset(),ptr,field_length,' '); }
   int  store(const char *to,uint length,CHARSET_INFO *charset);
   int  store(longlong nr);
-  int store(double nr) { return Field_str::store(nr); }
+  int store(double nr) { return Field_str::store(nr); } /* QQ: To be deleted */
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*,String *);
@@ -955,7 +955,7 @@ public:
   uint32 key_length() const { return (uint32) field_length; }
   int  store(const char *to,uint length,CHARSET_INFO *charset);
   int  store(longlong nr);
-  int  store(double nr) { return Field_str::store(nr); }
+  int  store(double nr) { return Field_str::store(nr); } /* QQ: To be deleted */
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*,String *);
