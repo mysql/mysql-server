@@ -573,17 +573,20 @@ fil_read_flushed_lsn_and_arch_log_no(
 	ulint*	max_arch_log_no)	/* in/out: */
 {
 	byte*	buf;
+	byte*	buf2;
 	dulint	flushed_lsn;
 	ulint	arch_log_no;
 
-	buf = ut_malloc(UNIV_PAGE_SIZE);
-
+	buf2 = ut_malloc(2 * UNIV_PAGE_SIZE);
+	/* Align the memory for a possibel read from a raw device */
+	buf = ut_align(buf2, UNIV_PAGE_SIZE);
+	
 	os_file_read(data_file, buf, 0, 0, UNIV_PAGE_SIZE);
 
 	flushed_lsn = mach_read_from_8(buf + FIL_PAGE_FILE_FLUSH_LSN);
 	arch_log_no = mach_read_from_4(buf + FIL_PAGE_ARCH_LOG_NO);
 
-	ut_free(buf);
+	ut_free(buf2);
 
 	if (!one_read_already) {
 		*min_flushed_lsn = flushed_lsn;
