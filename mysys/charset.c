@@ -391,10 +391,11 @@ static CHARSET_INFO *add_charset(CHARSET_INFO *cs, myf flags)
   cs->hash_caseup = my_hash_caseup_simple;
   cs->hash_sort   = my_hash_sort_simple;
   cs->snprintf	  = my_snprintf_8bit;
-  cs->strtol      = my_strtol_8bit;
-  cs->strtoul     = my_strtoul_8bit;
-  cs->strtoll     = my_strtoll_8bit;
-  cs->strtoull     = my_strtoull_8bit;
+  cs->strntol     = my_strntol_8bit;
+  cs->strntoul    = my_strntoul_8bit;
+  cs->strntoll    = my_strntoll_8bit;
+  cs->strntoull   = my_strntoull_8bit;
+  cs->strntod     = my_strntod_8bit;
   cs->mbmaxlen    = 1;
   
   set_max_sort_char(cs);

@@ -71,7 +71,7 @@ Long data handling:
 
 #define IS_PARAM_NULL(pos, param_no) pos[param_no/8] & (1 << param_no & 7)
 
-extern int yyparse(void);
+extern int yyparse(void *thd);
 
 /*
   Find prepared statement in thd
@@ -618,7 +618,7 @@ static bool parse_prepare_query(PREP_STMT *stmt,
 
   LEX *lex=lex_start(thd, (uchar*) packet, length);
   lex->safe_to_cache_query= 0;
-  if (!yyparse() && !thd->fatal_error) 
+  if (!yyparse((void *)thd) && !thd->fatal_error) 
     error= send_prepare_results(stmt);
   lex_end(lex);
   DBUG_RETURN(error);

@@ -125,11 +125,11 @@ typedef struct charset_info_st
   /* Charset dependant snprintf() */
   int (*snprintf)(struct charset_info_st *, char *to, uint n, const char *fmt, ...);
   
-  long        (*strtol)(struct charset_info_st *, const char *s, char **e, int base);
-  ulong      (*strtoul)(struct charset_info_st *, const char *s, char **e, int base);
-  longlong   (*strtoll)(struct charset_info_st *, const char *s, char **e, int base);
-  ulonglong (*strtoull)(struct charset_info_st *, const char *s, char **e, int base);
-  double      (*strtod)(struct charset_info_st *, const char *s, char **e);
+  long        (*strntol)(struct charset_info_st *, const char *s, uint l,char **e, int base);
+  ulong      (*strntoul)(struct charset_info_st *, const char *s, uint l, char **e, int base);
+  longlong   (*strntoll)(struct charset_info_st *, const char *s, uint l, char **e, int base);
+  ulonglong (*strntoull)(struct charset_info_st *, const char *s, uint l, char **e, int base);
+  double      (*strntod)(struct charset_info_st *, const char *s, uint l, char **e);
   
 } CHARSET_INFO;
 
@@ -169,11 +169,11 @@ int my_wc_mb_8bit(CHARSET_INFO *cs,my_wc_t wc, uchar *s, uchar *e);
 
 int my_snprintf_8bit(struct charset_info_st *, char *to, uint n, const char *fmt, ...);
 
-long        my_strtol_8bit(CHARSET_INFO *, const char *s, char **e, int base);
-ulong      my_strtoul_8bit(CHARSET_INFO *, const char *s, char **e, int base);
-longlong   my_strtoll_8bit(CHARSET_INFO *, const char *s, char **e, int base);
-ulonglong my_strtoull_8bit(CHARSET_INFO *, const char *s, char **e, int base);
-double      my_strtod_8bit(CHARSET_INFO *, const char *s, char **e);
+long        my_strntol_8bit(CHARSET_INFO *, const char *s, uint l,char **e, int base);
+ulong      my_strntoul_8bit(CHARSET_INFO *, const char *s, uint l,char **e, int base);
+longlong   my_strntoll_8bit(CHARSET_INFO *, const char *s, uint l,char **e, int base);
+ulonglong my_strntoull_8bit(CHARSET_INFO *, const char *s, uint l,char **e, int base);
+double      my_strntod_8bit(CHARSET_INFO *, const char *s, uint l,char **e);
 
 my_bool  my_like_range_simple(CHARSET_INFO *cs,
 			const char *ptr, uint ptr_length,
@@ -257,11 +257,11 @@ int my_wildcmp_mb(CHARSET_INFO *,
 #define my_strcasecmp(s, a, b)        ((s)->strcasecmp((s), (a), (b)))
 #define my_strncasecmp(s, a, b, l)    ((s)->strncasecmp((s), (a), (b), (l)))
 
-#define my_strtol(s, a, b, c)         ((s)->strtol((s),(a),(b),(c)))
-#define my_strtoul(s, a, b, c)        ((s)->strtoul((s),(a),(b),(c)))
-#define my_strtoll(s, a, b, c)        ((s)->strtoll((s),(a),(b),(c)))
-#define my_strtoull(s, a, b, c)       ((s)->strtoull((s),(a),(b),(c)))
-#define my_strtod(s, a, b)            ((s)->strtod((s),(a),(b)))
+#define my_strntol(s, a, b, c, d)      ((s)->strntol((s),(a),(b),(c),(d)))
+#define my_strntoul(s, a, b, c, d)     ((s)->strntoul((s),(a),(b),(c),(d)))
+#define my_strntoll(s, a, b, c, d)     ((s)->strntoll((s),(a),(b),(c),(d)))
+#define my_strntoull(s, a, b, c,d)     ((s)->strntoull((s),(a),(b),(c),(d)))
+#define my_strntod(s, a, b, c )        ((s)->strntod((s),(a),(b),(c)))
 
 
 /* XXX: still need to take care of this one */

@@ -51,7 +51,7 @@
 #define TRANS_MEM_ROOT_BLOCK_SIZE 4096
 #define TRANS_MEM_ROOT_PREALLOC   4096
 
-extern int yyparse(void);
+extern int yyparse(void *thd);
 extern "C" pthread_mutex_t THR_LOCK_keycache;
 #ifdef SOLARIS
 extern "C" int gethostname(char *name, int namelen);
@@ -1321,7 +1321,7 @@ mysql_execute_command(THD *thd)
     that is not a SHOW command or a select that only access local
     variables, but for now this is probably good enough.
   */
-  if (tables || lex->select_lex.next_select_in_list())
+  if (tables || &lex->select_lex != lex->all_selects_list)
     mysql_reset_errors(thd);
   /*
     Save old warning count to be able to send to client how many warnings we
@@ -1358,22 +1358,23 @@ mysql_execute_command(THD *thd)
   */
   if (lex->derived_tables)
   {
-    for (SELECT_LEX *sl= &lex->select_lex; sl; sl= sl->next_select_in_list())
-      if (sl->linkage != DERIVED_TABLE_TYPE)
-	for (TABLE_LIST *cursor= sl->get_table_list();
-	     cursor;
-	     cursor= cursor->next)
-	  if (cursor->derived && (res=mysql_derived(thd, lex,
-						    (SELECT_LEX_UNIT *)
-						    cursor->derived,
-						    cursor)))
-	  {  
-	    if (res < 0 || thd->net.report_error)
-	      send_error(thd,thd->killed ? ER_SERVER_SHUTDOWN : 0);
-	    DBUG_VOID_RETURN;
-	  }
-  } 
-  if ((lex->select_lex.next_select_in_list() && 
+    for (SELECT_LEX *sl= lex->all_selects_list;
+	 sl;
+	 sl= sl->next_select_in_list())
+      for (TABLE_LIST *cursor= sl->get_table_list();
+	   cursor;
+	   cursor= cursor->next)
+	if (cursor->derived && (res=mysql_derived(thd, lex,
+						  (SELECT_LEX_UNIT *)
+						  cursor->derived,
+						  cursor)))
+	{  
+	  if (res < 0 || thd->net.report_error)
+	    send_error(thd,thd->killed ? ER_SERVER_SHUTDOWN : 0);
+	  DBUG_VOID_RETURN;
+	}
+  }
+  if ((&lex->select_lex != lex->all_selects_list && 
        lex->unit.create_total_list(thd, lex, &tables)) ||
       (table_rules_on && tables && thd->slave_thread &&
        !tables_ok(thd,tables)))
@@ -1420,7 +1421,7 @@ mysql_execute_command(THD *thd)
 	}
 	else
 	  thd->send_explain_fields(result);
-	fix_tables_pointers(select_lex);
+	fix_tables_pointers(lex->all_selects_list);
 	res= mysql_explain_union(thd, &thd->lex.unit, result);
 	MYSQL_LOCK *save_lock= thd->lock;
 	thd->lock= (MYSQL_LOCK *)0;
@@ -2100,10 +2101,12 @@ mysql_execute_command(THD *thd)
     /* Fix tables-to-be-deleted-from list to point at opened tables */
     for (auxi=(TABLE_LIST*) aux_tables ; auxi ; auxi=auxi->next)
       auxi->table= auxi->table_list->table;
+    fix_tables_pointers(lex->all_selects_list);
     if (!thd->fatal_error && (result= new multi_delete(thd,aux_tables,
 						       table_count)))
     {
-      res= mysql_select(thd,tables,select_lex->item_list,
+      res= mysql_select(thd,select_lex->get_table_list(),
+			select_lex->item_list,
 			select_lex->where,
 			(ORDER *)NULL,(ORDER *)NULL,(Item *)NULL,
 			(ORDER *)NULL,
@@ -2846,9 +2849,11 @@ mysql_init_query(THD *thd)
   lex->value_list.empty();
   lex->param_list.empty();
   lex->unit.global_parameters= lex->unit.slave= lex->current_select= 
-    &lex->select_lex;
+    lex->all_selects_list= &lex->select_lex;
   lex->select_lex.master= &lex->unit;
   lex->select_lex.prev= &lex->unit.slave;
+  lex->select_lex.link_next= 0;
+  lex->select_lex.link_prev= (st_select_lex_node**)&(lex->all_selects_list);
   lex->olap=lex->describe=0;
   lex->derived_tables= false;
   thd->check_loops_counter= thd->select_number= 
@@ -2901,8 +2906,7 @@ mysql_new_select(LEX *lex, bool move_down)
     
   select_lex->master_unit()->global_parameters= select_lex;
   DBUG_ASSERT(lex->current_select->linkage != GLOBAL_OPTIONS_TYPE);
-  select_lex->include_global(lex->current_select->select_lex()->
-			     next_select_in_list_addr());
+  select_lex->include_global((st_select_lex_node**)&lex->all_selects_list);
   lex->current_select= select_lex;
   return 0;
 }
@@ -2956,7 +2960,7 @@ mysql_parse(THD *thd, char *inBuf, uint length)
   if (query_cache_send_result_to_client(thd, inBuf, length) <= 0)
   {
     LEX *lex=lex_start(thd, (uchar*) inBuf, length);
-    if (!yyparse() && ! thd->fatal_error)
+    if (!yyparse((void *)thd) && ! thd->fatal_error)
     {
       if (mqh_used && thd->user_connect &&
 	  check_mqh(thd, lex->sql_command))
