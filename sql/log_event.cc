@@ -1,4 +1,5 @@
 /* Copyright (C) 2000-2004 MySQL AB
+/* Copyright (C) 2000-2004 MySQL AB
    
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2842,7 +2843,7 @@ void Create_file_log_event::print(FILE* file, bool short_form,
 
   if (enable_local)
   {
-    Load_log_event::print(file, 1, last_db, !check_fname_outside_temp_buf());
+    Load_log_event::print(file, short_form, last_db, !check_fname_outside_temp_buf());
     /* 
        That one is for "file_id: etc" below: in mysqlbinlog we want the #, in
        SHOW BINLOG EVENTS we don't.
