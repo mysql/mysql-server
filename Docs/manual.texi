@@ -47547,10 +47547,12 @@ mysql> SELECT * FROM my_table WHERE phone IS NULL;
 mysql> SELECT * FROM my_table WHERE phone = "";
 @end example
 
-In MySQL, as in many other SQL servers, you can't index
-columns that can have @code{NULL} values.  You must declare such columns
-@code{NOT NULL}. Conversely, you cannot insert @code{NULL} into an indexed
-column.
+Note that you can only add an index on a column that can have @code{NULL}
+values if you are using MySQL Version 3.23.2 or newer and are using the
+@code{MyISAM} or @code{InnoDB} table type.
+In earlier versions and with other table types, you must declare such
+columns @code{NOT NULL}. This also means you cannot then insert
+@code{NULL} into an indexed column.
 
 @findex LOAD DATA INFILE
 When reading data with @code{LOAD DATA INFILE}, empty columns are updated
@@ -47613,9 +47615,9 @@ decide which rows from the result set should be used.
 @cindex rows, deleting
 @cindex tables, deleting rows
 
-As MySQL doesn't support sub-selects or use of more than one table
-in the @code{DELETE} statement, you should use the following approach to
-delete rows from 2 related tables:
+As MySQL doesn't yet support sub-selects, nor the use of more than one
+table in the @code{DELETE} statement (prior to Version 4.0), you should
+use the following approach to delete rows from 2 related tables:
 
 @enumerate
 @item
