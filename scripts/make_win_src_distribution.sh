@@ -13,8 +13,8 @@ DEBUG=0
 SILENT=0
 SUFFIX=""
 DIRNAME=""
-OUTTAR=0
-OUTZIP=0
+OUTTAR="0"
+OUTZIP="0"
 
 #
 # This script must run from MySQL top directory
@@ -114,16 +114,37 @@ done
 # Convert argument file from unix to DOS text
 #
 
-unix_to_dos()
-{
-  for arg do
-    print_debug "Replacing LF -> CRLF from '$arg'"
+if [ `which recode` ]
+then
 
-    sed -e 's/$/\r/' $arg > $arg.tmp
-    rm -f $arg
-    mv $arg.tmp $arg
-  done
-}
+  print_debug "Using 'recode' to convert from unix to dos text"
+
+  unix_to_dos()
+  {
+    for arg do
+      print_debug "Replacing LF -> CRLF from '$arg'"
+
+      chmod u+w $arg
+      recode lat1..ibmpc $arg
+    done
+  }
+
+else
+
+  print_debug "Using 'sed' to convert from unix to dos text"
+
+  unix_to_dos()
+  {
+    for arg do
+      print_debug "Replacing LF -> CRLF from '$arg'"
+
+      sed -e 's/$/\r/' $arg > $arg.tmp
+      rm -f $arg
+      mv $arg.tmp $arg
+    done
+  }
+
+fi
 
 
 #
@@ -363,8 +384,10 @@ which_1 ()
 # Create the result zip/tar file
 #
 
-if [ [ "$OUTTAR" = "0" ] && [ "$OUTZIP" = "0" ] ]; then
-  OUTZIP=1
+if [ "$OUTTAR" = "0" ]; then
+  if [ "$OUTZIP" = "0" ]; then
+    OUTZIP=1
+  fi
 fi
 
 set_tarzip_options()

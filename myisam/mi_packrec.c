@@ -743,6 +743,12 @@ static void uf_blob(MI_COLUMNDEF *rec, MI_BIT_BUFF *bit_buff,
   {
     ulong length=get_bits(bit_buff,rec->space_length_bits);
     uint pack_length=(uint) (end-to)-mi_portable_sizeof_char_ptr;
+    if (bit_buff->blob_pos+length > bit_buff->end)
+    {
+      bit_buff->error=1;
+      bzero((byte*) to,(end-to));
+      return;
+    }
     decode_bytes(rec,bit_buff,bit_buff->blob_pos,bit_buff->blob_pos+length);
     _my_store_blob_length((byte*) to,pack_length,length);
     memcpy_fixed((char*) to+pack_length,(char*) &bit_buff->blob_pos,

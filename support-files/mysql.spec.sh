@@ -3,6 +3,10 @@
 %define mysqld_user		mysql
 %define server_suffix -standard
 
+# We don't package all files installed into the build root by intention -
+# See BUG#998 for details.
+%define _unpackaged_files_terminate_build 0
+
 %define see_base For a description of MySQL see the base MySQL RPM or http://www.mysql.com
 
 Name: MySQL
@@ -562,18 +566,26 @@ fi
 %files embedded
 %attr(644, root, root) %{_libdir}/mysql/libmysqld.a
 
+# The spec file changelog only includes changes made to the spec file
+# itself
 %changelog 
+* Fri Aug 29 2003 Lenz Grimmer <lenz@mysql.com>
+
+- Fixed BUG 1162 (removed macro names from the changelog)
+- Really fixed BUG 998 (disable the checking for installed but
+  unpackaged files)
+
 * Tue Aug 05 2003 Lenz Grimmer <lenz@mysql.com>
 
-- Fixed BUG#959 (libmysqld not being compiled properly)
-- Fixed BUG#998 (RPM build errors): added missing files to the
+- Fixed BUG 959 (libmysqld not being compiled properly)
+- Fixed BUG 998 (RPM build errors): added missing files to the
   distribution (mysql_fix_extensions, mysql_tableinfo, mysqldumpslow,
-  mysql_fix_privilege_tables.1), removed "-n" from %install section.
+  mysql_fix_privilege_tables.1), removed "-n" from install section.
 
 * Wed Jul 09 2003 Lenz Grimmer <lenz@mysql.com>
 
 - removed the GIF Icon (file was not included in the sources anyway)
-- removed unused variable %shared_lib_version
+- removed unused variable shared_lib_version
 - do not run automake before building the standard binary
   (should not be necessary)
 - add server suffix '-standard' to standard binary (to be in line
@@ -594,7 +606,7 @@ fi
 * Mon Mar 10 2003 Lenz Grimmer <lenz@mysql.com>
 
 - added missing file mysql_secure_installation to server subpackage
-  (bug #141)
+  (BUG 141)
 
 * Tue Feb 11 2003 Lenz Grimmer <lenz@mysql.com>
 

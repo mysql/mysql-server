@@ -1690,6 +1690,7 @@ class GRANT_TABLE :public Sql_alloc
 public:
   char *host,*db,*user,*tname, *hash_key;
   ulong privs, cols;
+  ulong sort;
   uint key_length;
   HASH hash_columns;
   GRANT_TABLE (const char *h, const char *d,const char *u, const char *t,
@@ -1699,6 +1700,7 @@ public:
     host = strdup_root(&memex,h);
     db =   strdup_root(&memex,d);
     user = strdup_root(&memex,u);
+    sort=  get_sort(3,host,db,user);
     tname= strdup_root(&memex,t);
     if (lower_case_table_names)
     {
@@ -1721,7 +1723,8 @@ public:
     user =  get_field(&memex,form->field[2]);
     if (!user)
       user=(char*) "";
-    tname = get_field(&memex,form->field[3]);
+    sort=  get_sort(3,host,db,user);
+    tname= get_field(&memex,form->field[3]);
     if (!host || !db || !tname)
     {
       /* Wrong table row; Ignore it */
@@ -1830,10 +1833,11 @@ static GRANT_TABLE *table_hash_search(const char *host,const char* ip,
     }
     else
     {
-      if ((host && !wild_case_compare(&my_charset_latin1,
-                                      host,grant_table->host)) ||
-	  (ip && !wild_case_compare(&my_charset_latin1,
-                                    ip,grant_table->host)))
+      if (((host && !wild_case_compare(&my_charset_latin1,
+				       host,grant_table->host)) ||
+	   (ip && !wild_case_compare(&my_charset_latin1,
+				     ip,grant_table->host))) &&
+          (!found || found->sort < grant_table->sort))
 	found=grant_table;					// Host ok
     }
   }
@@ -3174,17 +3178,19 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
       if ((table_access | grant_table->cols) != 0)
       {
 	String global(buff,sizeof(buff),&my_charset_latin1);
+	ulong test_access= (table_access | grant_table->cols) & ~GRANT_ACL;
+
 	global.length(0);
 	global.append("GRANT ",6);
 
 	if (test_all_bits(table_access, (TABLE_ACLS & ~GRANT_ACL)))
 	  global.append("ALL PRIVILEGES",14);
- 	else if (!(table_access & ~GRANT_ACL))
+	else if (!test_access)
  	  global.append("USAGE",5);
 	else
 	{
 	  int found= 0;
-	  ulong j,test_access= (table_access | grant_table->cols) & ~GRANT_ACL;
+	  ulong j;
 
 	  for (counter= 0, j= SELECT_ACL; j <= TABLE_ACLS; counter++, j<<= 1)
 	  {
