@@ -137,6 +137,10 @@ extern int NEAR my_errno;		/* Last error in mysys */
 #define NORMAL_SAFEMALLOC sf_malloc_quick=0
 extern uint sf_malloc_prehunc,sf_malloc_endhunc,sf_malloc_quick;
 extern ulonglong safemalloc_mem_limit;
+/* keep track of shutdown,signal, and main threads so that my_end() will not
+   report errors with them
+*/
+extern pthread_t shutdown_th, main_th,signal_th;
 #define CALLER_INFO_PROTO   , const char *sFile, uint uLine
 #define CALLER_INFO         , __FILE__, __LINE__
 #define ORIG_CALLER_INFO    , sFile, uLine

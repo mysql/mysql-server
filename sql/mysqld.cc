@@ -38,7 +38,17 @@
 #define ONE_THREAD
 #endif
 
-/* do stack traces are only supported on linux intel */
+#ifdef SAFEMALLOC
+#define SHUTDOWN_THD shutdown_th=pthread_self();
+#define MAIN_THD main_th=pthread_self();
+#define SIGNAL_THD signal_th=pthread_self();
+#else
+#define SHUTDOWN_THD
+#define MAIN_THD
+#define SIGNAL_THD
+#endif
+
+/* stack traces are only supported on linux intel */
 #if defined(__linux__)  && defined(__i386__) && defined(USE_PSTACK)
 #define	HAVE_STACK_TRACE_ON_SEGV
 #include "../pstack/pstack.h"
@@ -694,6 +704,7 @@ static void __cdecl kill_server(int sig_ptr)
     sql_print_error(ER(ER_GOT_SIGNAL),my_progname,sig); /* purecov: inspected */
 
 #if defined(USE_ONE_SIGNAL_HAND) && !defined(__WIN__) && !defined(OS2)
+  SHUTDOWN_THD;
   my_thread_init();				// If this is a new thread
 #endif
   close_connections();
@@ -709,6 +720,7 @@ static void __cdecl kill_server(int sig_ptr)
 #ifdef USE_ONE_SIGNAL_HAND
 static pthread_handler_decl(kill_server_thread,arg __attribute__((unused)))
 {
+  SHUTDOWN_THD;
   my_thread_init();				// Initialize new thread
   kill_server(0);
   my_thread_end();				// Normally never reached
@@ -1252,6 +1264,7 @@ static void init_signals(void)
   signal(SIGALRM, SIG_IGN);
   signal(SIGBREAK,SIG_IGN);
   signal_thread = pthread_self();
+  SIGNAL_THD;
 }
 
 static void start_signal_handler(void)
@@ -1445,7 +1458,7 @@ static void *signal_hand(void *arg __attribute__((unused)))
   int sig;
   my_thread_init();				// Init new thread
   DBUG_ENTER("signal_hand");
-
+  SIGNAL_THD;
   /* Setup alarm handler */
   init_thr_alarm(max_connections+max_insert_delayed_threads);
 #if SIGINT != THR_KILL_SIGNAL
@@ -1500,7 +1513,10 @@ static void *signal_hand(void *arg __attribute__((unused)))
     else
       while ((error=my_sigwait(&set,&sig)) == EINTR) ;
     if (cleanup_done)
+    {
+      my_thread_end();
       pthread_exit(0);				// Safety
+    }
     switch (sig) {
     case SIGTERM:
     case SIGQUIT:
@@ -1594,6 +1610,7 @@ int uname(struct utsname *a)
 pthread_handler_decl(handle_shutdown,arg)
 {
   MSG msg;
+  SHUTDOWN_THD;
   my_thread_init();
 
   /* this call should create the message queue for this thread */
@@ -1620,6 +1637,7 @@ int __stdcall handle_kill(ulong ctrl_type)
 #ifdef OS2
 pthread_handler_decl(handle_shutdown,arg)
 {
+  SHUTDOWN_THD;
   my_thread_init();
 
   // wait semaphore
@@ -1691,6 +1709,7 @@ int main(int argc, char **argv)
 
   my_umask=0660;		// Default umask for new files
   my_umask_dir=0700;		// Default umask for new directories
+  MAIN_THD;
   MY_INIT(argv[0]);		// init my_sys library & pthreads
   tzset();			// Set tzname
 
