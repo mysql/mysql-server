@@ -779,7 +779,8 @@ fractional:
     current_thd->cuted_fields++;
     return 1;
   }
-  l_time->month=0;
+  l_time->year= 	0;			// For protocol::store_time
+  l_time->month=	0;
   l_time->day=		date[0];
   l_time->hour=		date[1];
   l_time->minute=	date[2];

@@ -337,7 +337,7 @@ while test $# -gt 0; do
       EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT --gdb"
       EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT --gdb"
       ;;
-    --valgrind)
+    --valgrind | --valgrind-all)
       VALGRIND=`which valgrind` # this will print an error if not found
       # Give good warning to the user and stop
       if [ -z "$VALGRIND" ] ; then
@@ -350,13 +350,14 @@ while test $# -gt 0; do
       SLEEP_TIME_AFTER_RESTART=10
       SLEEP_TIME_FOR_DELETE=60
       USE_RUNNING_SERVER=""
+      if test "$1" = "--valgrind-all"
+      then
+        VALGRIND="$VALGRIND -v --show-reachable=yes"
+      fi
       ;;
     --valgrind-options=*)
       TMP=`$ECHO "$1" | $SED -e "s;--valgrind-options=;;"`
       VALGRIND="$VALGRIND $TMP"
-      ;;
-    --valgrind-all)
-      VALGRIND="$VALGRIND -v --show-reachable=yes"
       ;;
     --skip-*)
       EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT $1"
