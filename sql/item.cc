@@ -50,7 +50,13 @@ Item::Item():
   next= thd->free_list;			// Put in free list
   thd->free_list= this;
   loop_id= 0;
-  if (thd->lex.current_select->parsing_place == SELECT_LEX_NODE::SELECT_LIST)
+  /*
+    Item constructor can be called during execution other tnen SQL_COM
+    command => we should check thd->lex.current_select on zero (thd->lex
+    can be uninitialised)
+  */
+  if (thd->lex.current_select &&
+      thd->lex.current_select->parsing_place == SELECT_LEX_NODE::SELECT_LIST)
     thd->lex.current_select->select_items++;
 }
 
