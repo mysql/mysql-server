@@ -390,15 +390,16 @@ innobase_mysql_print_thd(
 			len = 300;	/* ADDITIONAL SAFETY: print at most
 					300 chars to reduce the probability of
 					a seg fault if there is a race in
-					thd->query_len in MySQL; on May 13,
-					2004 we do not know */
+					thd->query_length in MySQL; after
+					May 14, 2004 probably no race any more,
+					but better be safe */
 		}
 		
 		for (i = 0; i < len && s[i]; i++);
 
 		memcpy(buf, s, i);	/* Use memcpy to reduce the timeframe
 					for a race, compared to fwrite() */
-		buf[300] = '\0';
+		buf[300] = '\0';	/* not needed, just extra safety */
 
 		putc('\n', f);
 		fwrite(buf, 1, i, f);

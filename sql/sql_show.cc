@@ -1141,7 +1141,11 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
         thd_info->query=0;
         if (tmp->query)
         {
-	  /* query_length is always set before tmp->query */
+	  /* 
+            query_length is always set to 0 when we set query = NULL; see
+	    the comment in sql_class.h why this prevents crashes in possible
+            races with query_length
+          */
           uint length= min(max_query_length, tmp->query_length);
           thd_info->query=(char*) thd->memdup(tmp->query,length+1);
           thd_info->query[length]=0;
