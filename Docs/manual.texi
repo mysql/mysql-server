@@ -1,4 +1,4 @@
-input texinfo  @c -*-texinfo-*-
+\input texinfo  @c -*-texinfo-*-
 @c Copyright 1997-2001 TcX AB, Detron HB and MySQL Finland AB
 @c
 @c *********************************************************
@@ -12788,7 +12788,7 @@ this may be different than what you are used to.)
 @item Claws @tab Gwen @tab cat @tab m @tab 1994-03-17 @tab
 @item Buffy @tab Harold @tab dog @tab f @tab 1989-05-13 @tab
 @item Fang @tab Benny @tab dog @tab m @tab 1990-08-27 @tab
-@item Bowser @tab Diane @tab dog @tab m @tab 1989-08-31 @tab 1995-07-29
+@item Bowser @tab Diane @tab dog @tab m @tab 1998-08-31 @tab 1995-07-29
 @item Chirpy @tab Gwen @tab bird @tab f @tab 1998-09-11 @tab
 @item Whistler @tab Gwen @tab bird @tab @tab 1997-12-09 @tab
 @item Slim @tab Benny @tab snake @tab m @tab 1996-04-29 @tab
@@ -13948,8 +13948,8 @@ MySQL.
 
 Some of the examples use the table @code{shop} to hold the price of each
 article (item number) for certain traders (dealers).  Supposing that each
-trader has a single fixed price per article, then (@code{item},
-@code{trader}) is a primary key for the records.
+trader has a single fixed price per article, then (@code{article},
+@code{dealer}) is a primary key for the records.
 
 Start the command line tool @code{mysql} and select a database:
 
@@ -14158,7 +14158,7 @@ splitting of the concatenated column in the client.
 @subsection Using user variables
 
 You can use MySQL user variables to remember results without
-having to store them in a temporary variables in the client.
+having to store them in temporary variables in the client.
 @xref{Variables}.
 
 For example, to find the articles with the highest and lowest price you
@@ -17191,7 +17191,7 @@ knowing your 'scrambled' password is enough to be able to connect to
 the MySQL server!
 @end itemize
 
-MySQL users and they privileges are normally created with the
+MySQL users and their privileges are normally created with the
 @code{GRANT} command. @xref{GRANT}.
 
 When you login to a MySQL server with a command line client you
@@ -17217,13 +17217,14 @@ mysql -u monty -p database_name
 
 Note that in the last example the password is @strong{NOT} 'database_name'.
 
-If you want to use the @code{-p} option to supply a password you should do like this:
+If you want to use the @code{-p} option to supply a password you should do so
+like this:
 
 @example
 mysql -u monty -pguess database_name
 @end example
 
-On some system the library call that MySQL uses to prompt for a
+On some systems, the library call that MySQL uses to prompt for a
 password will automatically cut the password to 8 characters. Internally
 MySQL doesn't have any limit for the length of the password.
 
@@ -46853,6 +46854,9 @@ not yet 100% confident in this code.
 @node News-3.23.43, News-3.23.42, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.43
 @itemize @bullet
+@item
+Fixed unlikely bug, which returned not matching rows, in SELECT with
+many tables and multi-column indexes and 'range' type.
 @item
 Fixed a unlikely core-dump bug when doing @code{EXPLAIN SELECT} when using
 many tables and @code{ORDER BY}.

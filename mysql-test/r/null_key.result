@@ -11,7 +11,7 @@ t1	index	NULL	a	9	NULL	12	where used; Using index
 table	type	possible_keys	key	key_len	ref	rows	Extra
 t1	range	a,b	a	9	NULL	3	where used; Using index
 table	type	possible_keys	key	key_len	ref	rows	Extra
-t1	ref	a,b	b	4	const	2	where used
+t1	range	a,b	a	9	NULL	2	where used; Using index
 table	type	possible_keys	key	key_len	ref	rows	Extra
 t1	ref	a,b	a	5	const	3	where used; Using index
 table	type	possible_keys	key	key_len	ref	rows	Extra

@@ -1106,7 +1106,7 @@ changequote([, ])dnl
 AC_DEFUN(AC_SYS_LARGEFILE,
   [AC_REQUIRE([AC_CANONICAL_HOST])
    AC_ARG_ENABLE(largefile,
-     [  --disable-large-files   Omit support for large files])
+     [  --disable-largefile    Omit support for large files])
    if test "$enable_largefile" != no; then
      AC_CHECK_TOOL(GETCONF, getconf)
      AC_SYS_LARGEFILE_FLAGS(CFLAGS)
