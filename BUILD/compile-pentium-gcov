@@ -3,7 +3,7 @@
 path=`dirname $0`
 . "$path/SETUP.sh"
 
-extra_flags="$pentium_cflags  -fprofile-arcs -ftest-coverage -fmessage-length=0"
+extra_flags="$pentium_cflags -O2 -fprofile-arcs -ftest-coverage -fmessage-length=0 "
 extra_configs="$pentium_configs $debug_configs --disable-shared $static_link"
 extra_configs="$extra_configs  --with-innodb --with-berkeley-db"
 
