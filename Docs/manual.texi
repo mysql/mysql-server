@@ -40815,13 +40815,13 @@ not yet 100 % confident in this code.
 @itemize bullet
 @item
 Fixed bug in replication that broke slave server start with existing
-@code{master.info} - bug introduced in 3.23.32
+@code{master.info}. This fixes a bug introduced in 3.23.32.
 @item
 Added @code{SET SQL_SLAVE_SKIP_COUNTER=n} command to recover from
-replication glitches without a full database copy
+replication glitches without a full database copy.
 @item
-Added @code{max_binlog_size} variable - binary log will be rotated
-automatically once the size crosses the limit.
+Added @code{max_binlog_size} variable; the binary log will be rotated
+automatically when the size crosses the limit.
 @item
 Added @code{Last_error}, @code{Last_errno}, and @code{Slave_skip_counter} to
 @code{SHOW SLAVE STATUS}.
@@ -40834,7 +40834,7 @@ Execute coredump handler on @code{SIGILL}, and @code{SIGBUS} in addition to
 On x86 Linux, print the current query and thread (connection) id, if
 available, in the coredump handler.
 @item
-Fixed several timing bugs in the test suite
+Fixed several timing bugs in the test suite.
 @item
 Extended @code{mysqltest} to take care of the timing issues in the test
 suite.
@@ -40849,8 +40849,8 @@ Changed code to get around compiler bug in Compaq C++ on OSF1, that broke
 @code{BACKUP}, @code{RESTORE}, @code{CHECK}, @code{REPAIR}, and
 @code{ANALYZE TABLE}.
 @item
-Added option @code{FULL} to @code{SHOW COLUMNS}. Now we only show the
-privilege list for the columns if this option is given.
+Added option @code{FULL} to @code{SHOW COLUMNS}. Now we show the
+privilege list for the columns only if this option is given.
 @item
 Fixed bug in @code{SHOW LOGS} when there weren't any BDB logs.
 @item
