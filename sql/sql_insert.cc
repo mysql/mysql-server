@@ -270,7 +270,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
     table->file->extra_opt(HA_EXTRA_WRITE_CACHE,
 			   min(thd->variables.read_buff_size,
 			       table->avg_row_length*values_list.elements));
-    table->file->deactivate_non_unique_index(values_list.elements);
+    table->file->start_bulk_insert(values_list.elements);
     bulk_insert=1;
   }
   else
@@ -362,7 +362,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
 	  error=1;
 	}
       }
-      if (table->file->activate_all_index(thd))
+      if (table->file->end_bulk_insert())
       {
 	if (!error)
 	{
@@ -1444,7 +1444,7 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   if (info.handle_duplicates == DUP_IGNORE ||
       info.handle_duplicates == DUP_REPLACE)
     table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
-  table->file->deactivate_non_unique_index((ha_rows) 0);
+  table->file->start_bulk_insert((ha_rows) 0);
   DBUG_RETURN(0);
 }
 
@@ -1453,7 +1453,7 @@ select_insert::~select_insert()
   if (table)
   {
     table->next_number_field=0;
-    table->file->extra(HA_EXTRA_RESET);
+    table->file->reset();
   }
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;
 }
@@ -1498,7 +1498,7 @@ void select_insert::send_error(uint errcode,const char *err)
     DBUG_VOID_RETURN;
   }
   table->file->extra(HA_EXTRA_NO_CACHE);
-  table->file->activate_all_index(thd);
+  table->file->end_bulk_insert();
   /*
     If at least one row has been inserted/modified and will stay in the table
     (the table doesn't have transactions) (example: we got a duplicate key
@@ -1533,7 +1533,7 @@ bool select_insert::send_eof()
   DBUG_ENTER("select_insert::send_eof");
 
   if (!(error=table->file->extra(HA_EXTRA_NO_CACHE)))
-    error=table->file->activate_all_index(thd);
+    error=table->file->end_bulk_insert();
   table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
 
   /*
@@ -1618,7 +1618,7 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   if (info.handle_duplicates == DUP_IGNORE ||
       info.handle_duplicates == DUP_REPLACE)
     table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
-  table->file->deactivate_non_unique_index((ha_rows) 0);
+  table->file->start_bulk_insert((ha_rows) 0);
   DBUG_RETURN(0);
 }
 

@@ -274,7 +274,7 @@ static void do_copy_blob(Copy_field *copy)
 
 static void do_conv_blob(Copy_field *copy)
 {
-  copy->from_field->val_str(&copy->tmp,&copy->tmp);
+  copy->from_field->val_str(&copy->tmp);
   ((Field_blob *) copy->to_field)->store(copy->tmp.ptr(),
 					 copy->tmp.length(),
 					 copy->tmp.charset());
@@ -286,7 +286,7 @@ static void do_save_blob(Copy_field *copy)
 {
   char buff[MAX_FIELD_WIDTH];
   String res(buff,sizeof(buff),copy->tmp.charset());
-  copy->from_field->val_str(&res,&res);
+  copy->from_field->val_str(&res);
   copy->tmp.copy(res);
   ((Field_blob *) copy->to_field)->store(copy->tmp.ptr(),
 					 copy->tmp.length(),
@@ -298,7 +298,7 @@ static void do_field_string(Copy_field *copy)
 {
   char buff[MAX_FIELD_WIDTH];
   copy->tmp.set_quick(buff,sizeof(buff),copy->tmp.charset());
-  copy->from_field->val_str(&copy->tmp,&copy->tmp);
+  copy->from_field->val_str(&copy->tmp);
   copy->to_field->store(copy->tmp.c_ptr_quick(),copy->tmp.length(),copy->tmp.charset());
 }
 
@@ -559,7 +559,7 @@ void field_conv(Field *to,Field *from)
   if (to->type() == FIELD_TYPE_BLOB)
   {						// Be sure the value is stored
     Field_blob *blob=(Field_blob*) to;
-    from->val_str(&blob->value,&blob->value);
+    from->val_str(&blob->value);
     if (!blob->value.is_alloced() &&
 	from->real_type() != FIELD_TYPE_STRING)
       blob->value.copy();
@@ -574,7 +574,7 @@ void field_conv(Field *to,Field *from)
   {
     char buff[MAX_FIELD_WIDTH];
     String result(buff,sizeof(buff),from->charset());
-    from->val_str(&result,&result);
+    from->val_str(&result);
     to->store(result.c_ptr_quick(),result.length(),from->charset());
   }
   else if (from->result_type() == REAL_RESULT)

@@ -890,7 +890,7 @@ Item_sum_hybrid::min_max_update_str_field()
   if (!args[0]->null_value)
   {
     res_str->strip_sp();
-    result_field->val_str(&tmp_value,&tmp_value);
+    result_field->val_str(&tmp_value);
 
     if (result_field->is_null() ||
 	(cmp_sign * sortcmp(res_str,&tmp_value,cmp_charset)) < 0)
@@ -1601,8 +1601,7 @@ int dump_leaf_key(byte* key, uint32 count __attribute__((unused)),
                   Item_func_group_concat *item)
 {
   char buff[MAX_FIELD_WIDTH];
-  String tmp((char *)&buff,sizeof(buff),default_charset_info);
-  String tmp2((char *)&buff,sizeof(buff),default_charset_info);
+  String tmp((char *)&buff,sizeof(buff),default_charset_info), tmp2;
   uint *field_offsets= (item->field_offsets +
 			item->field_list_offset);
   tmp.length(0);

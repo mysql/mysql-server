@@ -504,3 +504,27 @@ test.t1	968604391
 test.t2	968604391
 test.t3	NULL
 drop table t1,t2;
+create table t1 (a int, key (a));
+show keys from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE	
+alter table t1 disable keys;
+show keys from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE	disabled
+create table t2 (a int);
+insert t1 select * from t2;
+show keys from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE	disabled
+alter table t1 enable keys;
+show keys from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	1	a	1	a	A	1000	NULL	NULL	YES	BTREE	
+alter table t1 engine=heap;
+alter table t1 disable keys;
+ERROR HY000: Table storage engine for 't1' doesn't have this option
+show keys from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	1	a	1	a	NULL	NULL	NULL	NULL	YES	HASH	
+drop table t1,t2;

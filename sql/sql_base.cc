@@ -443,7 +443,7 @@ bool close_thread_table(THD *thd, TABLE **table_ptr)
     else
     {
       // Free memory and reset for next loop
-      table->file->extra(HA_EXTRA_RESET);
+      table->file->reset();
     }
     table->in_use=0;
     if (unused_tables)

@@ -2259,22 +2259,15 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
 	VOID(pthread_mutex_lock(&LOCK_open));
 	wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN);
 	VOID(pthread_mutex_unlock(&LOCK_open));
-	error= table->file->activate_all_index(thd);
+	error= table->file->enable_indexes();
 	/* COND_refresh will be signaled in close_thread_tables() */
 	break;
       case DISABLE:
- 	if (table->db_type == DB_TYPE_MYISAM)
- 	{
-	  VOID(pthread_mutex_lock(&LOCK_open));
-	  wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN);
-	  VOID(pthread_mutex_unlock(&LOCK_open));
- 	  table->file->deactivate_non_unique_index(HA_POS_ERROR);
+	VOID(pthread_mutex_lock(&LOCK_open));
+	wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN);
+	VOID(pthread_mutex_unlock(&LOCK_open));
+	error=table->file->disable_indexes(0, 1);
 	/* COND_refresh will be signaled in close_thread_tables() */
- 	}
- 	else
- 	  push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN, 
- 			      ER_ILLEGAL_HA,
- 			      ER(ER_ILLEGAL_HA), table->table_name);
 	break;
       }
     }
@@ -2288,6 +2281,11 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
 	mysql_bin_log.write(&qinfo);
       }
       send_ok(thd);
+    }
+    else
+    {
+      table->file->print_error(error, MYF(0));
+      error=-1;
     }
     table_list->table=0;				// For query cache
     query_cache_invalidate3(thd, table_list, 0);
@@ -2870,7 +2868,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   to->file->external_lock(thd,F_WRLCK);
   to->file->extra(HA_EXTRA_WRITE_CACHE);
   from->file->info(HA_STATUS_VARIABLE);
-  to->file->deactivate_non_unique_index(from->file->records);
+  to->file->start_bulk_insert(from->file->records);
 
   List_iterator<create_field> it(create);
   create_field *def;
@@ -2960,7 +2958,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
     error=1;
   }
   to->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
-  if (to->file->activate_all_index(thd))
+  if (to->file->end_bulk_insert())
     error=1;
 
   tmp_error = ha_recovery_logging(thd,TRUE);
@@ -3053,7 +3051,7 @@ int mysql_checksum_table(THD *thd, TABLE_LIST *tables, HA_CHECK_OPT *check_opt)
               if (f->type() == FIELD_TYPE_BLOB)
               {
                 String tmp;
-                f->val_str(&tmp,&tmp);
+                f->val_str(&tmp);
                 row_crc= my_checksum(row_crc, (byte*) tmp.ptr(), tmp.length());
               }
               else
