@@ -732,6 +732,9 @@ int
 NdbOperation::read_attr(const NdbColumnImpl* anAttrObject, Uint32 RegDest)
 {
   INT_DEBUG(("read_attr %d %u", anAttrObject->m_attrId, RegDest));
+  if (initial_interpreterCheck() == -1)
+    return -1;
+
   int tAttrId = read_attrCheck(anAttrObject);
   if (tAttrId == -1)
     goto read_attr_error1;
