@@ -46891,7 +46891,7 @@ not yet 100% confident in this code.
 @appendixsubsec Changes in release 3.23.50
 @itemize @bullet
 @item
-Memory leak (16 bytes per every @strong{broken} table) closed.
+Memory leak (16 bytes per every @strong{corrupted} table) closed.
 @end itemize
 
 @node News-3.23.49, News-3.23.48, News-3.23.50, News-3.23.x
