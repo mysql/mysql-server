@@ -19,11 +19,13 @@
 #include "mysys_priv.h"
 #include <my_pthread.h>
 #if defined(THREAD) && !defined(HAVE_PTHREAD_RWLOCK_RDLOCK) && !defined(HAVE_RWLOCK_INIT)
+#include <errno.h>
 
 /*
- * Source base from Sun Microsystems SPILT, simplified
- * for MySQL use -- Joshua Chamas
- */
+  Source base from Sun Microsystems SPILT, simplified for MySQL use
+  -- Joshua Chamas
+  Some cleanup and additional code by Monty
+*/
 
 /*
 *  Multithreaded Demo Source
@@ -71,7 +73,7 @@ int my_rwlock_init(rw_lock_t *rwp, void *arg __attribute__((unused)))
   rwp->state	= 0;
   rwp->waiters	= 0;
 
-  return( 0 );
+  return(0);
 }
 
 
@@ -80,8 +82,7 @@ int my_rwlock_destroy(rw_lock_t *rwp)
   pthread_mutex_destroy( &rwp->lock );
   pthread_cond_destroy( &rwp->readers );
   pthread_cond_destroy( &rwp->writers );
-
-  return( 0 );
+  return(0);
 }
 
 
@@ -89,28 +90,58 @@ int my_rw_rdlock(rw_lock_t *rwp)
 {
   pthread_mutex_lock(&rwp->lock);
 
-  /* active or queued writers		*/
+  /* active or queued writers */
   while (( rwp->state < 0 ) || rwp->waiters)
     pthread_cond_wait( &rwp->readers, &rwp->lock);
 
   rwp->state++;
   pthread_mutex_unlock(&rwp->lock);
-
-  return( 0 );
+  return(0);
 }
+
+int my_rw_tryrdlock(rw_lock_t *rwp)
+{
+  int res;
+  pthread_mutex_lock(&rwp->lock);
+  if ((rwp->state < 0 ) || rwp->waiters)
+    res= EBUSY;					/* Can't get lock */
+  else
+  {
+    res=0;
+    rwp->state++;
+  }
+  pthread_mutex_unlock(&rwp->lock);
+  return(res);
+}
+
 
 int my_rw_wrlock(rw_lock_t *rwp)
 {
   pthread_mutex_lock(&rwp->lock);
-  rwp->waiters++; /* another writer queued		*/
+  rwp->waiters++;				/* another writer queued */
 
-  while ( rwp->state )
-    pthread_cond_wait( &rwp->writers, &rwp->lock);
+  while (rwp->state)
+    pthread_cond_wait(&rwp->writers, &rwp->lock);
   rwp->state	= -1;
-  --rwp->waiters;
-  pthread_mutex_unlock( &rwp->lock );
-
+  rwp->waiters--;
+  pthread_mutex_unlock(&rwp->lock);
   return(0);
+}
+
+
+int my_rw_trywrlock(rw_lock_t *rwp)
+{
+  int res;
+  pthread_mutex_lock(&rwp->lock);
+  if (rwp->state)
+    res= EBUSY;					/* Can't get lock */    
+  else
+  {
+    res=0;
+    rwp->state	= -1;
+  }
+  pthread_mutex_unlock(&rwp->lock);
+  return(res);
 }
 
 
@@ -120,23 +151,23 @@ int my_rw_unlock(rw_lock_t *rwp)
 	     ("state: %d waiters: %d", rwp->state, rwp->waiters));
   pthread_mutex_lock(&rwp->lock);
 
-  if ( rwp->state == -1 ) {	/* writer releasing	*/
-    rwp->state	= 0;		/* mark as available	*/
+  if (rwp->state == -1)		/* writer releasing */
+  {
+    rwp->state= 0;		/* mark as available */
 
-    if ( rwp->waiters )		/* writers queued	*/
+    if ( rwp->waiters )		/* writers queued */
       pthread_cond_signal( &rwp->writers );
     else
       pthread_cond_broadcast( &rwp->readers );
   }
   else
   {
-    if ( --rwp->state == 0 )	/* no more readers	*/
+    if ( --rwp->state == 0 )	/* no more readers */
       pthread_cond_signal( &rwp->writers );
   }
 
   pthread_mutex_unlock( &rwp->lock );
-
-  return( 0 );
+  return(0);
 }
 
 #endif

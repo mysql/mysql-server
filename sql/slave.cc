@@ -405,7 +405,6 @@ int terminate_slave_thread(THD* thd, pthread_mutex_t* term_lock,
     */
     struct timespec abstime;
     set_timespec(abstime,2);
-    DBUG_ASSERT_LOCK(cond_lock);
     pthread_cond_timedwait(term_cond, cond_lock, &abstime);
     if (*slave_running)
     {
