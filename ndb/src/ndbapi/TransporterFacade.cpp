@@ -15,6 +15,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include <ndb_global.h>
+#include <my_pthread.h>
 #include <ndb_limits.h>
 #include "TransporterFacade.hpp"
 #include "ClusterMgr.hpp"
@@ -329,14 +330,6 @@ copy(Uint32 * & insertPtr,
   abort();
 }
 
-extern "C"
-void 
-atexit_stop_instance(){
-  DBUG_ENTER("atexit_stop_instance");
-  TransporterFacade::stop_instance();
-  DBUG_VOID_RETURN;
-}
-
 /**
  * Note that this function need no locking since its
  * only called from the constructor of Ndb (the NdbObject)
@@ -352,11 +345,6 @@ TransporterFacade::start_instance(int nodeId,
     return -1;
   }
   
-  /**
-   * Install atexit handler
-   */
-  atexit(atexit_stop_instance);
-
   /**
    * Install signal handler for SIGPIPE
    *
@@ -379,14 +367,8 @@ TransporterFacade::start_instance(int nodeId,
 void
 TransporterFacade::stop_instance(){
   DBUG_ENTER("TransporterFacade::stop_instance");
-  if(theFacadeInstance == NULL){
-    /**
-     * We are called from atexit function
-     */
-    DBUG_VOID_RETURN;
-  }
-
-  theFacadeInstance->doStop();
+  if(theFacadeInstance)
+    theFacadeInstance->doStop();
   DBUG_VOID_RETURN;
 }
 
@@ -405,10 +387,16 @@ TransporterFacade::doStop(){
    */
   void *status;
   theStopReceive = 1;
-  NdbThread_WaitFor(theReceiveThread, &status);
-  NdbThread_WaitFor(theSendThread, &status);
-  NdbThread_Destroy(&theReceiveThread);
-  NdbThread_Destroy(&theSendThread);
+  if (theReceiveThread) {
+    NdbThread_WaitFor(theReceiveThread, &status);
+    NdbThread_Destroy(&theReceiveThread);
+    theReceiveThread= 0;
+  }
+  if (theSendThread) {
+    NdbThread_WaitFor(theSendThread, &status);
+    NdbThread_Destroy(&theSendThread);
+    theSendThread= 0;
+  }
   DBUG_VOID_RETURN;
 }
 
@@ -416,7 +404,9 @@ extern "C"
 void* 
 runSendRequest_C(void * me)
 {
+  my_thread_init();
   ((TransporterFacade*) me)->threadMainSend();
+  my_thread_end();
   NdbThread_Exit(0);
   return me;
 }
@@ -459,7 +449,9 @@ extern "C"
 void* 
 runReceiveResponse_C(void * me)
 {
+  my_thread_init();
   ((TransporterFacade*) me)->threadMainReceive();
+  my_thread_end();
   NdbThread_Exit(0);
   return me;
 }

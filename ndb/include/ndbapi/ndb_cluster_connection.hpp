@@ -20,16 +20,26 @@
 
 class TransporterFacade;
 class ConfigRetriever;
+class NdbThread;
+
+extern "C" {
+  void* run_ndb_cluster_connection_connect_thread(void*);
+}
 
 class Ndb_cluster_connection {
 public:
   Ndb_cluster_connection(const char * connect_string = 0);
   ~Ndb_cluster_connection();
-  int connect();
+  int connect(int reconnect= 0);
+  int start_connect_thread(int (*connect_callback)(void)= 0);
 private:
+  friend void* run_ndb_cluster_connection_connect_thread(void*);
+  void connect_thread();
   char *m_connect_string;
   TransporterFacade *m_facade;
   ConfigRetriever *m_config_retriever;
+  NdbThread *m_connect_thread;
+  int (*m_connect_callback)(void);
 };
 
 #endif

@@ -21,6 +21,7 @@
 extern "C" {
 #endif
 
+const char* NdbConfig_get_path(int *len);
 void NdbConfig_SetPath(const char *path);
 char* NdbConfig_NdbCfgName(int with_ndb_home);
 char* NdbConfig_ErrorFileName(int node_id);
