@@ -16,17 +16,26 @@
 
 #ifdef HAVE_OPENSSL
 
-#define OPT_SSL_SSL	200
-#define OPT_SSL_KEY	201
-#define OPT_SSL_CERT	202
-#define OPT_SSL_CA	203
-#define OPT_SSL_CAPATH  204
-#define OPT_SSL_CIPHER  205
-  {"ssl",           no_argument,           0, OPT_SSL_SSL},
-  {"ssl-key",       required_argument,     0, OPT_SSL_KEY},
-  {"ssl-cert",      required_argument,     0, OPT_SSL_CERT},
-  {"ssl-ca",        required_argument,     0, OPT_SSL_CA},
-  {"ssl-capath",    required_argument,     0, OPT_SSL_CAPATH},
-  {"ssl-cipher",    required_argument,     0, OPT_SSL_CIPHER},
+  {"ssl", OPT_SSL_SSL,
+   "Use SSL for connection (automatically set with other flags)",
+   (gptr*) &opt_use_ssl, (gptr*) &opt_use_ssl, 0, GET_BOOL, NO_ARG, 0, 0, 0,
+   0, 0, 0},
+  {"ssl-key", OPT_SSL_KEY, "X509 key in PEM format (implies --ssl)",
+   (gptr*) &opt_ssl_key, (gptr*) &opt_ssl_key, 0, GET_STR, REQUIRED_ARG,
+   0, 0, 0, 0, 0, 0},
+  {"ssl-cert", OPT_SSL_CERT, "X509 cert in PEM format (implies --ssl)",
+   (gptr*) &opt_ssl_cert, (gptr*) &opt_ssl_cert, 0, GET_STR, REQUIRED_ARG,
+   0, 0, 0, 0, 0, 0},
+  {"ssl-ca", OPT_SSL_CA,
+   "CA file in PEM format (check OpenSSL docs, implies --ssl)",
+   (gptr*) &opt_ssl_ca, (gptr*) &opt_ssl_ca, 0, GET_STR, REQUIRED_ARG,
+   0, 0, 0, 0, 0, 0},
+  {"ssl-capath", OPT_SSL_CAPATH,
+   "CA directory (check OpenSSL docs, implies --ssl)",
+   (gptr*) &opt_ssl_capath, (gptr*) &opt_ssl_capath, 0, GET_STR, REQUIRED_ARG,
+   0, 0, 0, 0, 0, 0},
+  {"ssl-cipher", OPT_SSL_CAPATH, "SSL cipher to use (implies --ssl)",
+   (gptr*) &opt_ssl_cipher, (gptr*) &opt_ssl_cipher, 0, GET_STR, REQUIRED_ARG,
+   0, 0, 0, 0, 0, 0},
 
 #endif /* HAVE_OPENSSL */
