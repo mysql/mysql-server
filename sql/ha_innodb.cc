@@ -98,7 +98,7 @@ long innobase_mirrored_log_groups, innobase_log_files_in_group,
      innobase_buffer_pool_size, innobase_additional_mem_pool_size,
      innobase_file_io_threads, innobase_lock_wait_timeout,
      innobase_thread_concurrency, innobase_force_recovery,
-     innobase_open_files, innobase_auto_extend_increment;
+     innobase_open_files;
 
 /* The default values for the following char* start-up parameters
 are determined in innobase_init below: */
@@ -737,15 +737,35 @@ innobase_invalidate_query_cache(
 }
 
 /*********************************************************************
-Get the quote character to be used in SQL identifiers. */
+Get the quote character to be used in SQL identifiers.
+This definition must match the one in innobase/ut/ut0ut.c! */
 extern "C"
-char
-mysql_get_identifier_quote_char(void)
-/*=================================*/
+int
+mysql_get_identifier_quote_char(
+/*============================*/
 				/* out: quote character to be
-				used in SQL identifiers */
+				used in SQL identifiers; EOF if none */
+	trx_t*		trx,	/* in: transaction */
+	const char*	name,	/* in: name to print */
+	ulint		namelen)/* in: length of name */
 {
-	return '`';
+	if (!trx || !trx->mysql_thd) {
+		return(EOF);
+	}
+	return(get_quote_char_for_identifier((THD*) trx->mysql_thd,
+						name, namelen));
+}
+
+/**************************************************************************
+Obtain a pointer to the MySQL THD object, as in current_thd().  This
+definition must match the one in sql/ha_innodb.cc! */
+extern "C"
+void*
+innobase_current_thd(void)
+/*======================*/
+			/* out: MySQL THD object */
+{
+	return(current_thd);
 }
 
 /*********************************************************************
@@ -964,7 +984,6 @@ innobase_init(void)
         srv_locks_unsafe_for_binlog = (ibool) innobase_locks_unsafe_for_binlog;
 
 	srv_max_n_open_files = (ulint) innobase_open_files;
-	srv_auto_extend_increment = (ulint) innobase_auto_extend_increment;
 	srv_innodb_status = (ibool) innobase_create_status_file;
 
 	srv_print_verbose_log = mysql_embedded ? 0 : 1;
@@ -1485,12 +1504,14 @@ ha_innobase::open(
 {
 	dict_table_t*	ib_table;
   	char		norm_name[1000];
+	THD*		thd;
 
 	DBUG_ENTER("ha_innobase::open");
 
 	UT_NOT_USED(mode);
 	UT_NOT_USED(test_if_locked);
 
+	thd = current_thd;
 	normalize_table_name(norm_name, name);
 
 	user_thd = NULL;
@@ -1540,7 +1561,7 @@ ha_innobase::open(
     		DBUG_RETURN(1);
   	}
 
- 	if (ib_table->ibd_file_missing && !current_thd->tablespace_op) {
+ 	if (ib_table->ibd_file_missing && !thd->tablespace_op) {
 	        ut_print_timestamp(stderr);
 	        fprintf(stderr, "  InnoDB error:\n"
 "MySQL is trying to open a table handle but the .ibd file for\n"
@@ -2864,7 +2885,7 @@ ha_innobase::index_read(
 					(ulint)upd_and_key_val_buff_len,
 					index,
 					(byte*) key_ptr,
-					(ulint) key_len);
+					(ulint) key_len, prebuilt->trx);
 	} else {
 		/* We position the cursor to the last or the first entry
 		in the index */
@@ -4076,14 +4097,16 @@ ha_innobase::records_in_range(
 				index,
 				(byte*) (min_key ? min_key->key :
                                          (const mysql_byte*) 0),
-				(ulint) (min_key ? min_key->length : 0));
+				(ulint) (min_key ? min_key->length : 0),
+				prebuilt->trx);
 
 	row_sel_convert_mysql_key_to_innobase(
 				range_end, (byte*) key_val_buff2,
 				buff2_len, index,
 				(byte*) (max_key ? max_key->key :
                                          (const mysql_byte*) 0),
-				(ulint) (max_key ? max_key->length : 0));
+				(ulint) (max_key ? max_key->length : 0),
+				prebuilt->trx);
 
 	mode1 = convert_search_mode_to_innobase(min_key ? min_key->flag :
                                                 HA_READ_KEY_EXACT);
@@ -4470,7 +4493,8 @@ ha_innobase::update_table_comment(
       		   (ulong) fsp_get_available_space_in_free_extents(
       					prebuilt->table->space));
 
-		dict_print_info_on_foreign_keys(FALSE, file, prebuilt->table);
+		dict_print_info_on_foreign_keys(FALSE, file,
+				prebuilt->trx, prebuilt->table);
 		flen = ftell(file);
 		if(length + flen + 3 > 64000) {
 			flen = 64000 - 3 - length;
@@ -4536,7 +4560,8 @@ ha_innobase::get_foreign_key_create_info(void)
 		trx_search_latch_release_if_reserved(prebuilt->trx);
 
 		/* output the data to a temporary file */
-		dict_print_info_on_foreign_keys(TRUE, file, prebuilt->table);
+		dict_print_info_on_foreign_keys(TRUE, file,
+				prebuilt->trx, prebuilt->table);
 		prebuilt->trx->op_info = (char*)"";
 
 		flen = ftell(file);
@@ -5272,59 +5297,51 @@ ulonglong ha_innobase::get_mysql_bin_log_pos()
 }
 
 extern "C" {
-/***********************************************************************
-This function finds charset information and returns the character
-length for multibyte character set. */
-
-ulint innobase_get_charset_mbmaxlen(
-	ulint charset_id)	/* in: charset id */
-{
-  CHARSET_INFO*   charset;        /* charset used in the field */
-
-  charset = get_charset(charset_id,MYF(MY_WME));
-
-  ut_ad(charset);
-  ut_ad(charset->mbmaxlen);
-
-  return charset->mbmaxlen;
-}
-}
-
-extern "C" {
-/***********************************************************************
-This function finds charset information and returns position the nth 
-character for multibyte character set.*/
+/**********************************************************************
+This function is used to find storage length of prefix_len characters 
+in bytes for prefix indexes using multibyte character set. 
+Function finds charset information and returns length of
+prefix_len characters in the index field in bytes. */
 
 ulint innobase_get_at_most_n_mbchars(
+/*=================================*/
 	ulint charset_id,	/* in: character set id */
-        ulint nth,		/* in: nth character    */
+	ulint prefix_len,	/* in: prefix length of the index    */
 	ulint data_len,         /* in: length of the sting in bytes */
 	const char *pos)	/* in: character string */
 {
-  ulint byte_length;		/* storage length, in bytes. */
-  ulint char_length;		/* character length in bytes */
-  CHARSET_INFO* charset;	/* charset used in the field */
+	ulint byte_length;	/* storage length, in bytes. */
+	ulint char_length;	/* character length in bytes */
+	CHARSET_INFO* charset;	/* charset used in the field */
 
-  ut_ad(pos);
-  byte_length = data_len;
+	ut_ad(pos);
+	byte_length = data_len;
 
-  charset = get_charset(charset_id,MYF(MY_WME));
+	charset = get_charset(charset_id,MYF(MY_WME));
 
-  ut_ad(charset);
-  ut_ad(charset->mbmaxlen);
+	ut_ad(charset);
+	ut_ad(charset->mbmaxlen);
 
-  char_length= byte_length / charset->mbmaxlen;
-  nth = nth / charset->mbmaxlen;
+	/* Calculate the storage length of the one character in bytes and
+	how many characters the prefix index contains */
 
-  if (byte_length > char_length)
-  {
-	char_length= my_charpos(charset, pos, pos + byte_length, nth);
-	set_if_smaller(char_length, byte_length);
-  } 
-  else
-    char_length = nth;
+	char_length = byte_length / charset->mbmaxlen;
+	prefix_len = prefix_len / charset->mbmaxlen;
 
-  return char_length;
+	/* If length of the string is greater than storage length of the
+	one character, we have to find the storage position of the 
+	prefix_len character in the string */
+
+	if (byte_length > char_length) {
+		char_length = my_charpos(charset, pos, 
+					 pos + byte_length, prefix_len);
+		set_if_smaller(char_length, byte_length);
+	} 
+	else {
+		char_length = prefix_len;
+	}
+
+	return char_length;
 }
 }
 

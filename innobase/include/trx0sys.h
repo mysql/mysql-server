@@ -432,6 +432,10 @@ struct trx_sys_struct{
 	trx_rseg_t*	rseg_array[TRX_SYS_N_RSEGS];
 					/* Pointer array to rollback segments;
 					NULL if slot not in use */
+	ulint		rseg_history_len;/* Length of the TRX_RSEG_HISTORY
+					list (update undo logs for committed
+					transactions), protected by
+					rseg->mutex */
 	UT_LIST_BASE_NODE_T(read_view_t) view_list;
 					/* List of read views sorted on trx no,
 					biggest first */

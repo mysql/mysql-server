@@ -30,7 +30,7 @@ dict_get_first_table_name_in_db(
 				/* out, own: table name, NULL if
 				does not exist; the caller must
 				free the memory in the string! */
-	const char*	name)	/* in: database name which ends to '/' */
+	const char*	name)	/* in: database name which ends in '/' */
 {
 	dict_table_t*	sys_tables;
 	btr_pcur_t	pcur;
@@ -165,7 +165,7 @@ loop:
 
 		if (table == NULL) {
 			fputs("InnoDB: Failed to load table ", stderr);
-			ut_print_namel(stderr, field, len);
+			ut_print_namel(stderr, NULL, field, len);
 			putc('\n', stderr);
 		} else {
 			/* The table definition was corrupt if there
@@ -389,18 +389,16 @@ Report that an index field or index for a table has been delete marked. */
 static
 void
 dict_load_report_deleted_index(
+/*===========================*/
 	const char*	name,	/* in: table name */
 	ulint		field)	/* in: index field, or ULINT_UNDEFINED */
 {
-	fputs("InnoDB: Error: data dictionary entry"
-		" for table ", stderr);
-	ut_print_name(stderr, name);
-	fputs(" is corrupt!\n", stderr);
+	fprintf(stderr, "InnoDB: Error: data dictionary entry"
+		" for table %s is corrupt!\n", name);
 	if (field != ULINT_UNDEFINED) {
 		fprintf(stderr,
 			"InnoDB: Index field %lu is delete marked.\n", field);
-	}
-	else {
+	} else {
 		fputs("InnoDB: An index is delete marked.\n", stderr);
 	}
 }
@@ -620,12 +618,10 @@ dict_load_indexes(
 
 		if (page_no == FIL_NULL) {
 
-			fputs("InnoDB: Error: trying to load index ", stderr);
-			ut_print_name(stderr, name_buf);
-			fputs(" for table ", stderr);
-			ut_print_name(stderr, table->name);
-			fputs("\n"
-		"InnoDB: but the index tree has been freed!\n", stderr);
+			fprintf(stderr,
+		"InnoDB: Error: trying to load index %s for table %s\n"
+		"InnoDB: but the index tree has been freed!\n",
+				name_buf, table->name);
 
 			btr_pcur_close(&pcur);
 			mtr_commit(&mtr);
@@ -636,12 +632,10 @@ dict_load_indexes(
 		if ((type & DICT_CLUSTERED) == 0
 			    && NULL == dict_table_get_first_index(table)) {
 
-			fputs("InnoDB: Error: trying to load index ", stderr);
-			ut_print_namel(stderr, name_buf, name_len);
-			fputs(" for table ", stderr);
-			ut_print_name(stderr, table->name);
-			fputs("\n"
-		"InnoDB: but the first index is not clustered!\n", stderr);
+			fprintf(stderr,
+		"InnoDB: Error: trying to load index %s for table %s\n"
+		"InnoDB: but the first index is not clustered!\n",
+				name_buf, table->name);
 
 			btr_pcur_close(&pcur);
 			mtr_commit(&mtr);
@@ -1097,10 +1091,9 @@ dict_load_foreign(
 					|| rec_get_deleted_flag(rec)) {
 		/* Not found */
 
-		fputs("InnoDB: Error A: cannot load foreign constraint ",
-			stderr);
-		ut_print_name(stderr, id);
-		putc('\n', stderr);
+		fprintf(stderr,
+			"InnoDB: Error A: cannot load foreign constraint %s\n",
+			id);
 
 		btr_pcur_close(&pcur);
 		mtr_commit(&mtr);
@@ -1114,10 +1107,9 @@ dict_load_foreign(
 	/* Check if the id in record is the searched one */
 	if (len != ut_strlen(id) || ut_memcmp(id, field, len) != 0) {
 
-		fputs("InnoDB: Error B: cannot load foreign constraint ",
-			stderr);
-		ut_print_name(stderr, id);
-		putc('\n', stderr);
+		fprintf(stderr,
+			"InnoDB: Error B: cannot load foreign constraint %s\n",
+			id);
 
 		btr_pcur_close(&pcur);
 		mtr_commit(&mtr);

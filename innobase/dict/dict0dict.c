@@ -2085,14 +2085,14 @@ Report an error in a foreign key definition. */
 static
 void
 dict_foreign_error_report_low(
+/*==========================*/
 	FILE*		file,	/* in: output stream */
 	const char*	name)	/* in: table name */
 {
 	rewind(file);
 	ut_print_timestamp(file);
-	fputs(" Error in foreign key constraint of table ", file);
-	ut_print_name(file, name);
-	fputs(":\n", file);
+	fprintf(file, " Error in foreign key constraint of table %s:\n",
+		name);
 }
 
 /**************************************************************************
@@ -2100,6 +2100,7 @@ Report an error in a foreign key definition. */
 static
 void
 dict_foreign_error_report(
+/*======================*/
 	FILE*		file,	/* in: output stream */
 	dict_foreign_t*	fk,	/* in: foreign key constraint */
 	const char*	msg)	/* in: the error message */
@@ -2108,10 +2109,10 @@ dict_foreign_error_report(
 	dict_foreign_error_report_low(file, fk->foreign_table_name);
 	fputs(msg, file);
 	fputs(" Constraint:\n", file);
-	dict_print_info_on_foreign_key_in_create_format(file, fk);
+	dict_print_info_on_foreign_key_in_create_format(file, NULL, fk);
 	if (fk->foreign_index) {
 		fputs("\nThe index in the foreign key in table is ", file);
-		ut_print_name(file, fk->foreign_index->name);
+		ut_print_name(file, NULL, fk->foreign_index->name);
 		fputs(
 "See http://www.innodb.com/ibman.php for correct foreign key definition.\n",
 		file);
@@ -2946,7 +2947,7 @@ col_loop1:
 		mutex_enter(&dict_foreign_err_mutex);
 		dict_foreign_error_report_low(ef, name);
 		fputs("There is no index in table ", ef);
-		ut_print_name(ef, name);
+		ut_print_name(ef, NULL, name);
 		fprintf(ef, " where the columns appear\n"
 "as the first columns. Constraint:\n%s\n"
 "See http://www.innodb.com/ibman.php for correct foreign key definition.\n",
@@ -3389,12 +3390,12 @@ loop:
 		ut_print_timestamp(ef);
 		fputs(
 	" Error in dropping of a foreign key constraint of table ", ef);
-		ut_print_name(ef, table->name);
+		ut_print_name(ef, NULL, table->name);
 		fputs(",\n"
 			"in SQL command\n", ef);
 		fputs(str, ef);
 		fputs("\nCannot find a constraint with the given id ", ef);
-		ut_print_name(ef, id);
+		ut_print_name(ef, NULL, id);
 		fputs(".\n", ef);
 		mutex_exit(&dict_foreign_err_mutex);
 
@@ -3411,7 +3412,7 @@ syntax_error:
 	ut_print_timestamp(ef);
 	fputs(
 	" Syntax error in dropping of a foreign key constraint of table ", ef);
-	ut_print_name(ef, table->name);
+	ut_print_name(ef, NULL, table->name);
 	fprintf(ef, ",\n"
 		"close to:\n%s\n in SQL command\n%s\n", ptr, str);
 	mutex_exit(&dict_foreign_err_mutex);
@@ -3818,9 +3819,11 @@ dict_update_statistics_low(
 	if (table->ibd_file_missing) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
-"  InnoDB: cannot calculate statistics for table %s\n"
-"InnoDB: because the .ibd file is missing. See section 15.1 of\n"
-"InnoDB: http:/www.innodb.com/ibman.html for help\n", table->name);
+			"  InnoDB: cannot calculate statistics for table %s\n"
+"InnoDB: because the .ibd file is missing.  For help, please refer to\n"
+"InnoDB: "
+"http://dev.mysql.com/doc/mysql/en/InnoDB_troubleshooting_datadict.html\n",
+			table->name);
 
 		return;
 	}
@@ -3906,25 +3909,19 @@ dict_foreign_print_low(
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 #endif /* UNIV_SYNC_DEBUG */
 
-	fputs("  FOREIGN KEY CONSTRAINT ", stderr);
-	ut_print_name(stderr, foreign->id);
-	fputs(": ", stderr);
-	ut_print_name(stderr, foreign->foreign_table_name);
-	fputs(" (", stderr);
+	fprintf(stderr, "  FOREIGN KEY CONSTRAINT %s: %s (",
+		foreign->id, foreign->foreign_table_name);
 
 	for (i = 0; i < foreign->n_fields; i++) {
-		putc(' ', stderr);
-		ut_print_name(stderr, foreign->foreign_col_names[i]);
+		fprintf(stderr, " %s", foreign->foreign_col_names[i]);
 	}
 
-	fputs(" )\n"
-		"             REFERENCES ", stderr);
-	ut_print_name(stderr, foreign->referenced_table_name);
-	fputs(" (", stderr);
+	fprintf(stderr, " )\n"
+		"             REFERENCES %s (",
+		foreign->referenced_table_name);
 	
 	for (i = 0; i < foreign->n_fields; i++) {
-		putc(' ', stderr);
-		ut_print_name(stderr, foreign->referenced_col_names[i]);
+		fprintf(stderr, " %s", foreign->referenced_col_names[i]);
 	}
 
 	fputs(" )\n", stderr);
@@ -3981,12 +3978,11 @@ dict_table_print_low(
 
 	dict_update_statistics_low(table, TRUE);
 	
-	fputs("--------------------------------------\n"
-		"TABLE: name ", stderr);
-	ut_print_name(stderr, table->name);
 	fprintf(stderr,
-		", id %lu %lu, columns %lu, indexes %lu, appr.rows %lu\n"
-		"  COLUMNS: ",
+"--------------------------------------\n"
+"TABLE: name %s, id %lu %lu, columns %lu, indexes %lu, appr.rows %lu\n"
+"  COLUMNS: ",
+			table->name,
 			(ulong) ut_dulint_get_high(table->id),
 			(ulong) ut_dulint_get_low(table->id),
 			(ulong) table->n_cols,
@@ -4037,8 +4033,7 @@ dict_col_print_low(
 #endif /* UNIV_SYNC_DEBUG */
 
 	type = dict_col_get_type(col);
-	ut_print_name(stderr, col->name);
-	fputs(": ", stderr);
+	fprintf(stderr, "%s: ", col->name);
 
 	dtype_print(type);
 }
@@ -4068,13 +4063,12 @@ dict_index_print_low(
 		n_vals = index->stat_n_diff_key_vals[1];
 	}
 
-	fputs("  INDEX: ", stderr);
-	dict_index_name_print(stderr, index);
 	fprintf(stderr,
-		", id %lu %lu, fields %lu/%lu, type %lu\n"
+		"  INDEX: name %s, id %lu %lu, fields %lu/%lu, type %lu\n"
 		"   root page %lu, appr.key vals %lu,"
 		" leaf pages %lu, size pages %lu\n"
 		"   FIELDS: ",
+		index->name,
 		(ulong) ut_dulint_get_high(tree->id),
 		(ulong) ut_dulint_get_low(tree->id),
 		(ulong) index->n_user_defined_cols,
@@ -4106,8 +4100,7 @@ dict_field_print_low(
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 #endif /* UNIV_SYNC_DEBUG */
-	putc(' ', stderr);
-	ut_print_name(stderr, field->name);
+	fprintf(stderr, " %s", field->name);
 
 	if (field->prefix_len != 0) {
 		fprintf(stderr, "(%lu)", (ulong) field->prefix_len);
@@ -4122,6 +4115,7 @@ void
 dict_print_info_on_foreign_key_in_create_format(
 /*============================================*/
 	FILE*		file,	/* in: file where to print */
+	trx_t*		trx,	/* in: transaction */
 	dict_foreign_t*	foreign)/* in: foreign key constraint */
 {
 	const char*	stripped_id;
@@ -4136,11 +4130,11 @@ dict_print_info_on_foreign_key_in_create_format(
 	}
 
 	fputs(",\n  CONSTRAINT ", file);
-	ut_print_name(file, stripped_id);
+	ut_print_name(file, trx, stripped_id);
 	fputs(" FOREIGN KEY (", file);
 
 	for (i = 0;;) {
-		ut_print_name(file, foreign->foreign_col_names[i]);
+		ut_print_name(file, trx, foreign->foreign_col_names[i]);
 		if (++i < foreign->n_fields) {
 			fputs(", ", file);
 	        } else {
@@ -4153,7 +4147,7 @@ dict_print_info_on_foreign_key_in_create_format(
 	if (dict_tables_have_same_db(foreign->foreign_table_name,
 					foreign->referenced_table_name)) {
 		/* Do not print the database name of the referenced table */
-		ut_print_name(file, dict_remove_db_name(
+		ut_print_name(file, trx, dict_remove_db_name(
 					foreign->referenced_table_name));
 	} else {
 		/* Look for the '/' in the table name */
@@ -4163,16 +4157,17 @@ dict_print_info_on_foreign_key_in_create_format(
 			i++;
 		}
 
-		ut_print_namel(file, foreign->referenced_table_name, i);
+		ut_print_namel(file, trx, foreign->referenced_table_name, i);
 		putc('.', file);
-		ut_print_name(file, foreign->referenced_table_name + i + 1);
+		ut_print_name(file, trx,
+				foreign->referenced_table_name + i + 1);
 	}
 
 	putc(' ', file);
 	putc('(', file);
 
 	for (i = 0;;) {
-		ut_print_name(file, foreign->referenced_col_names[i]);
+		ut_print_name(file, trx, foreign->referenced_col_names[i]);
 		if (++i < foreign->n_fields) {
 			fputs(", ", file);
 		} else {
@@ -4218,6 +4213,7 @@ dict_print_info_on_foreign_keys(
 				a CREATE TABLE, otherwise in the format
 				of SHOW TABLE STATUS */
 	FILE*		file,	/* in: file where to print */
+	trx_t*		trx,	/* in: transaction */
 	dict_table_t*	table)	/* in: table */
 {
 	dict_foreign_t*	foreign;
@@ -4235,7 +4231,7 @@ dict_print_info_on_foreign_keys(
 	while (foreign != NULL) {
 		if (create_table_format) {
 			dict_print_info_on_foreign_key_in_create_format(
-						file, foreign);
+						file, trx, foreign);
 		} else {
 			ulint	i;
 			fputs("; (", file);
@@ -4245,19 +4241,20 @@ dict_print_info_on_foreign_keys(
 					putc(' ', file);
 				}
 
-				ut_print_name(file,
+				ut_print_name(file, trx,
 					foreign->foreign_col_names[i]);
 			}
 
 			fputs(") REFER ", file);
-			ut_print_name(file, foreign->referenced_table_name);
+			ut_print_name(file, trx,
+					foreign->referenced_table_name);
 			putc('(', file);
 
 			for (i = 0; i < foreign->n_fields; i++) {
 				if (i) {
 					putc(' ', file);
 				}
-				ut_print_name(file,
+				ut_print_name(file, trx,
 					foreign->referenced_col_names[i]);
 			}
 
@@ -4300,10 +4297,11 @@ void
 dict_index_name_print(
 /*==================*/
 	FILE*			file,	/* in: output stream */
+	trx_t*			trx,	/* in: transaction */
 	const dict_index_t*	index)	/* in: index to print */
 {
 	fputs("index ", file);
-	ut_print_name(file, index->name);
+	ut_print_name(file, trx, index->name);
 	fputs(" of table ", file);
-	ut_print_name(file, index->table_name);
+	ut_print_name(file, trx, index->table_name);
 }

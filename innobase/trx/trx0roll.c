@@ -229,7 +229,7 @@ trx_rollback_to_savepoint_for_mysql(
 	if (trx->conc_state == TRX_NOT_STARTED) {
 		ut_print_timestamp(stderr);
 		fputs("  InnoDB: Error: transaction has a savepoint ", stderr);
-		ut_print_name(stderr, savep->name);
+		ut_print_name(stderr, trx, savep->name);
 		fputs(" though it is not started\n", stderr);
 	        return(DB_ERROR);
 	}
@@ -467,7 +467,7 @@ loop:
 
 		if (table) {		
 			fputs("InnoDB: Table found: dropping table ", stderr);
-			ut_print_name(stderr, table->name);
+			ut_print_name(stderr, trx, table->name);
 			fputs(" in recovery\n", stderr);
 
 			err = row_drop_table_for_mysql(table->name, trx, TRUE);
