@@ -4363,6 +4363,7 @@ keyword:
 	| BOOL_SYM		{}
 	| BOOLEAN_SYM		{}
 	| BYTE_SYM		{}
+	| BTREE_SYM		{}
 	| CACHE_SYM		{}
 	| CHANGED		{}
 	| CHARSET		{}
@@ -4408,6 +4409,7 @@ keyword:
 	| GRANTS		{}
 	| GLOBAL_SYM		{}
 	| HANDLER_SYM		{}
+	| HASH_SYM		{}
 	| HEAP_SYM		{}
 	| HELP_SYM		{}
 	| HOSTS_SYM		{}
@@ -4490,6 +4492,7 @@ keyword:
 	| ROWS_SYM		{}
 	| ROW_FORMAT_SYM	{}
 	| ROW_SYM		{}
+	| RTREE_SYM		{}
 	| SAVEPOINT_SYM		{}
 	| SECOND_SYM		{}
 	| SERIAL_SYM		{}
