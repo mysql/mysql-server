@@ -69,7 +69,7 @@ static void read_texts(const char *file_name,const char ***point,
 
   if (!head[30])
   {
-    sql_print_error("Character set information in not found in '%s'. \
+    sql_print_error("Character set information not found in '%s'. \
 Please install the latest version of this file.",name);
     goto err1;
   }
