@@ -33,11 +33,11 @@ class ha_myisammrg: public handler
   const char *table_type() const { return "MRG_MyISAM"; }
   const char **bas_ext() const;
   ulong option_flag() const
-    { return (HA_REC_NOT_IN_SEQ | HA_READ_NEXT | 
-	      HA_READ_PREV | HA_READ_RND_SAME | 
-	      HA_HAVE_KEY_READ_ONLY | 
-	      HA_KEYPOS_TO_RNDPOS | HA_READ_ORDER | 
-	      HA_LASTKEY_ORDER | HA_READ_NOT_EXACT_KEY | 
+    { return (HA_REC_NOT_IN_SEQ | HA_READ_NEXT |
+	      HA_READ_PREV | HA_READ_RND_SAME |
+	      HA_HAVE_KEY_READ_ONLY | HA_NO_FULLTEXT_KEY |
+	      HA_KEYPOS_TO_RNDPOS | HA_READ_ORDER |
+	      HA_LASTKEY_ORDER | HA_READ_NOT_EXACT_KEY |
 	      HA_LONGLONG_KEYS | HA_NULL_KEY | HA_BLOB_KEY); }
   uint max_record_length() const { return HA_MAX_REC_LENGTH; }
   uint max_keys()          const { return MI_MAX_KEY; }

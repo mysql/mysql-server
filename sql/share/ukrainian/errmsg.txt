@@ -220,3 +220,4 @@
 "Користувачу %-.32s@%-.64s не дозволено створювати нових користувач╕в",
 "Incorrect table definition; All MERGE tables must be in the same database",
 "Deadlock found when trying to get lock; Try restarting transaction",
+"Використаний тип таблиц╕ не п╕дтриму╓ FULLTEXT ╕ндекс╕в",

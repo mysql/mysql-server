@@ -215,3 +215,4 @@
 "%-.32s@%-.64s har inte rättigheter att skapa nya användare",
 "Felaktig tabell definition: Alla tabeller i en MERGE tabell måste vara i samma databas",
 "Fick 'DEADLOCK' vid låsförsök av block/rad; Försök att starta om transaktionen",
+"The used table type doesn't support FULLTEXT indexes",

@@ -32,7 +32,8 @@ class ha_isammrg: public handler
   ~ha_isammrg() {}
   const char *table_type() const { return "MRG_ISAM"; }
   const char **bas_ext() const;
-  ulong option_flag() const { return HA_READ_RND_SAME+HA_KEYPOS_TO_RNDPOS+HA_REC_NOT_IN_SEQ;}
+  ulong option_flag() const { return HA_READ_RND_SAME | HA_KEYPOS_TO_RNDPOS
+                                   | HA_REC_NOT_IN_SEQ  | HA_NO_FULLTEXT_KEY;}
   uint max_record_length() const { return HA_MAX_REC_LENGTH; }
   uint max_keys()          const { return 0; }
   uint max_key_parts()     const { return 0; }
