@@ -620,18 +620,18 @@ MgmtSrvr::start(BaseString &error_string)
   TransporterRegistry *reg = theFacade->get_registry();
   for(unsigned int i=0;i<reg->m_transporter_interface.size();i++) {
     BaseString msg;
-    DBUG_PRINT("info",("Setting dynamic port %d->%d : %u",
+    DBUG_PRINT("info",("Setting dynamic port %d->%d : %d",
 		       reg->get_localNodeId(),
 		       reg->m_transporter_interface[i].m_remote_nodeId,
-		       reg->m_transporter_interface[i].m_service_port
+		       reg->m_transporter_interface[i].m_s_service_port
 		       )
 	       );
     int res = setConnectionDbParameter((int)reg->get_localNodeId(),
 				       (int)reg->m_transporter_interface[i]
 				            .m_remote_nodeId,
 				       (int)CFG_CONNECTION_SERVER_PORT,
-				       (int)reg->m_transporter_interface[i]
-				            .m_service_port,
+				       reg->m_transporter_interface[i]
+				            .m_s_service_port,
 					 msg);
     DBUG_PRINT("info",("Set result: %d: %s",res,msg.c_str()));
   }

@@ -232,12 +232,12 @@ public:
   class Transporter_interface {
   public:
     NodeId m_remote_nodeId;
-    int m_service_port;
+    int m_s_service_port;			// signed port number
     const char *m_interface;
   };
   Vector<Transporter_interface> m_transporter_interface;
   void add_transporter_interface(NodeId remoteNodeId, const char *interf,
-		  		 int port);
+		  		 int s_port);	// signed port. <0 is dynamic
   Transporter* get_transporter(NodeId nodeId);
   NodeId get_localNodeId() { return localNodeId; };
 
