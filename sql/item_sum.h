@@ -691,7 +691,7 @@ class Item_func_group_concat : public Item_sum
      warning_available(item.warning_available),
      key_length(item.key_length), 
      rec_offset(item.rec_offset), 
-     tree_mode(0),
+     tree_mode(item.tree_mode),
      distinct(item.distinct),
      warning_for_row(item.warning_for_row),
      separator(item.separator),
@@ -707,7 +707,7 @@ class Item_func_group_concat : public Item_sum
      count_cut_values(item.count_cut_values),
      original(&item)
     {
-     quick_group = 0;
+     quick_group= item.quick_group;
     };
   ~Item_func_group_concat();
   enum Sumfunctype sum_func () const {return GROUP_CONCAT_FUNC;}
