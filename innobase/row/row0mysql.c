@@ -1427,7 +1427,7 @@ row_create_table_for_mysql(
 			fprintf(stderr, 
      "InnoDB: Warning: cannot create table %s because tablespace full\n",
 				 table->name);
-		     	row_drop_table_for_mysql(table->name, trx);
+		     	row_drop_table_for_mysql(table->name, trx, FALSE);
 		} else {
 		       	ut_a(err == DB_DUPLICATE_KEY);
 
@@ -1542,7 +1542,7 @@ error_handling:
 
 		trx_general_rollback_for_mysql(trx, FALSE, NULL);
 
-		row_drop_table_for_mysql(index->table_name, trx);
+		row_drop_table_for_mysql(index->table_name, trx, FALSE);
 
 		trx->error_state = DB_SUCCESS;
 	}
@@ -1607,7 +1607,7 @@ row_table_add_foreign_constraints(
 
 		trx_general_rollback_for_mysql(trx, FALSE, NULL);
 
-		row_drop_table_for_mysql(name, trx);
+		row_drop_table_for_mysql(name, trx, FALSE);
 
 		trx->error_state = DB_SUCCESS;
 	}
@@ -1638,7 +1638,7 @@ row_drop_table_for_mysql_in_background(
 							name); */
   	/* Drop the table in InnoDB */
 
-  	error = row_drop_table_for_mysql(name, trx);
+  	error = row_drop_table_for_mysql(name, trx, FALSE);
 
 	if (error != DB_SUCCESS) {
 		fprintf(stderr,
@@ -1795,9 +1795,10 @@ output by the master thread. */
 int
 row_drop_table_for_mysql(
 /*=====================*/
-				/* out: error code or DB_SUCCESS */
-	char*	name,		/* in: table name */
-	trx_t*	trx)		/* in: transaction handle */
+			/* out: error code or DB_SUCCESS */
+	char*	name,	/* in: table name */
+	trx_t*	trx,	/* in: transaction handle */
+	ibool	drop_db)/* in: TRUE=dropping whole database */
 {
 	dict_foreign_t*	foreign;
 	dict_table_t*	table;
@@ -1981,7 +1982,9 @@ row_drop_table_for_mysql(
 		foreign = UT_LIST_GET_NEXT(referenced_list, foreign);
 	}
 
-	if (foreign && trx->check_foreigns) {
+	if (foreign && trx->check_foreigns &&
+		!(drop_db && dict_tables_have_same_db(
+			name, foreign->foreign_table_name))) {
 		char*	buf	= dict_foreign_err_buf;
 
 		/* We only allow dropping a referenced table if
@@ -2112,7 +2115,6 @@ loop:
 		ut_a(strcmp(table_name, name) == 0);
 
 		table = dict_table_get_low(table_name);
-fprintf(stderr, "drop %p:%s\n", table, table_name);
 
 		ut_a(table);
 
@@ -2135,7 +2137,7 @@ fprintf(stderr, "drop %p:%s\n", table, table_name);
 		        goto loop;
 		}
 
-		err = row_drop_table_for_mysql(table_name, trx);
+		err = row_drop_table_for_mysql(table_name, trx, TRUE);
 
 		mem_free(table_name);
 

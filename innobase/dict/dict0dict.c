@@ -177,7 +177,7 @@ mutex_t	dict_foreign_err_mutex; 	/* mutex protecting the foreign
 	
 /************************************************************************
 Checks if the database name in two table names is the same. */
-static
+
 ibool
 dict_tables_have_same_db(
 /*=====================*/

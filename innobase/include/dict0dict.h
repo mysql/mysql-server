@@ -834,6 +834,17 @@ Releases the dictionary system mutex for MySQL. */
 void
 dict_mutex_exit_for_mysql(void);
 /*===========================*/
+/************************************************************************
+Checks if the database name in two table names is the same. */
+
+ibool
+dict_tables_have_same_db(
+/*=====================*/
+				/* out: TRUE if same db name */
+	const char*	name1,	/* in: table name in the form
+				dbname '/' tablename */
+	const char*	name2);	/* in: table name in the form
+				dbname '/' tablename */
 
 /* The following len must be at least 10000 bytes! */
 #define DICT_FOREIGN_ERR_BUF_LEN	10000

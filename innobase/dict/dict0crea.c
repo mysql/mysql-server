@@ -999,13 +999,13 @@ dict_create_or_check_foreign_constraint_tables(void)
 	if (table1) {
 		fprintf(stderr,
 		"InnoDB: dropping incompletely created SYS_FOREIGN table\n");
-		row_drop_table_for_mysql((char *) "SYS_FOREIGN", trx);
+		row_drop_table_for_mysql((char*)"SYS_FOREIGN", trx, TRUE);
 	}
 
 	if (table2) {
 		fprintf(stderr,
 	"InnoDB: dropping incompletely created SYS_FOREIGN_COLS table\n");
-		row_drop_table_for_mysql((char *) "SYS_FOREIGN_COLS", trx);
+		row_drop_table_for_mysql((char*)"SYS_FOREIGN_COLS", trx, TRUE);
 	}
 
 	fprintf(stderr,
@@ -1054,8 +1054,8 @@ dict_create_or_check_foreign_constraint_tables(void)
 		fprintf(stderr,
 		"InnoDB: dropping incompletely created SYS_FOREIGN tables\n");
 
-		row_drop_table_for_mysql((char *) "SYS_FOREIGN", trx);
-		row_drop_table_for_mysql((char *) "SYS_FOREIGN_COLS", trx);
+		row_drop_table_for_mysql((char*)"SYS_FOREIGN", trx, TRUE);
+		row_drop_table_for_mysql((char*)"SYS_FOREIGN_COLS", trx, TRUE);
 
 		error = DB_MUST_GET_MORE_FILE_SPACE;
 	}

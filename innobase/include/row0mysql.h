@@ -329,7 +329,8 @@ row_drop_table_for_mysql(
 /*=====================*/
 			/* out: error code or DB_SUCCESS */
 	char*	name,	/* in: table name */
-	trx_t*	trx);	/* in: transaction handle */
+	trx_t*	trx,	/* in: transaction handle */
+	ibool	drop_db);/* in: TRUE=dropping whole database */
 /*************************************************************************
 Drops a database for MySQL. */
 

@@ -469,7 +469,7 @@ loop:
 			fprintf(stderr,
 "InnoDB: Table found: dropping table %s in recovery\n", table->name);
 
-			err = row_drop_table_for_mysql(table->name, trx);
+			err = row_drop_table_for_mysql(table->name, trx, TRUE);
 
 			ut_a(err == (int) DB_SUCCESS);
 		}

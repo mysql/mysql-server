@@ -3631,7 +3631,8 @@ ha_innobase::delete_table(
 
   	/* Drop the table in InnoDB */
 
-  	error = row_drop_table_for_mysql(norm_name, trx);
+	error = row_drop_table_for_mysql(norm_name, trx,
+		thd->lex.sql_command == SQLCOM_DROP_DB);
 
 	/* Flush the log to reduce probability that the .frm files and
 	the InnoDB data dictionary get out-of-sync if the user runs
@@ -3670,7 +3671,7 @@ innobase_drop_database(
 	trx_t*	trx;
 	char*	ptr;
 	int	error;
-	char	namebuf[10000];
+	char*	namebuf;
 
 	/* Get the transaction associated with the current thd, or create one
 	if not yet created */
@@ -3690,6 +3691,7 @@ innobase_drop_database(
 	}
 
 	ptr++;
+	namebuf = my_malloc(len + 2, MYF(0));
 
 	memcpy(namebuf, ptr, len);
 	namebuf[len] = '/';
@@ -3706,6 +3708,7 @@ innobase_drop_database(
 	}
 
   	error = row_drop_database_for_mysql(namebuf, trx);
+	my_free(namebuf, MYF(0));
 
 	/* Flush the log to reduce probability that the .frm files and
 	the InnoDB data dictionary get out-of-sync if the user runs
