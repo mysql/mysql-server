@@ -15,11 +15,12 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include <ndb_global.h>
+#include <ndb_opts.h>
 
 #include <NdbMain.h>
 #include <NdbHost.h>
-#include <util/getarg.h>
 #include <mgmapi.h>
+#include <ndb_version.h>
 #include <LocalConfig.hpp>
 
 #include "CommandInterpreter.hpp"
@@ -43,28 +44,62 @@ handler(int sig){
   }
 }
 
-int main(int argc, const char** argv){
-  ndb_init();
-  int optind = 0;
+
+static unsigned _try_reconnect;
+static char *opt_connect_str= 0;
+
+static struct my_option my_long_options[] =
+{
+  NDB_STD_OPTS("ndb_mgm"),
+  { "try-reconnect", 't',
+    "Specify number of retries for connecting to ndb_mgmd, default infinite", 
+    (gptr*) &_try_reconnect, (gptr*) &_try_reconnect, 0,
+    GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
+};
+static void short_usage_sub(void)
+{
+  printf("Usage: %s [OPTIONS] [hostname [port]]\n", my_progname);
+}
+static void print_version()
+{
+  printf("MySQL distrib %s, for %s (%s)\n",MYSQL_SERVER_VERSION,SYSTEM_TYPE,MACHINE_TYPE);
+}
+static void usage()
+{
+  short_usage_sub();
+  print_version();
+  my_print_help(my_long_options);
+  my_print_variables(my_long_options);
+}
+static my_bool
+get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
+	       char *argument)
+{
+  switch (optid) {
+  case '#':
+    DBUG_PUSH(argument ? argument : "d:t:O,/tmp/ndb_mgm.trace");
+    break;
+  case 'V':
+    print_version();
+    exit(0);
+  case '?':
+    usage();
+    exit(0);
+  }
+  return 0;
+}
+
+int main(int argc, char** argv){
+  NDB_INIT(argv[0]);
   const char *_host = 0;
   int _port = 0;
-  int _help = 0;
-  int _try_reconnect = 0;
-  
-  struct getargs args[] = {
-    { "try-reconnect", 't', arg_integer, &_try_reconnect, "Specify number of retries for connecting to ndb_mgmd, default infinite", "#" },
-    { "usage", '?', arg_flag, &_help, "Print help", "" },
-  };
-  int num_args = sizeof(args) / sizeof(args[0]); /* Number of arguments */
-  
-  
-  if(getarg(args, num_args, argc, argv, &optind) || _help) {
-    arg_printusage(args, num_args, progname, "[host [port]]");
-    exit(1);
-  }
+  const char *load_default_groups[]= { "ndb_mgm",0 };
 
-  argv += optind;
-  argc -= optind;
+  load_defaults("my",load_default_groups,&argc,&argv);
+  int ho_error;
+  if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
+    exit(ho_error);
 
   LocalConfig cfg;
 
@@ -74,7 +109,7 @@ int main(int argc, const char** argv){
       _port = atoi(argv[1]);
     }
   } else {
-    if(cfg.init(0, 0) && cfg.ids.size() > 0 && cfg.ids[0].type == MgmId_TCP){
+    if(cfg.init(opt_connect_str, 0) && cfg.ids.size() > 0 && cfg.ids[0].type == MgmId_TCP){
       _host = cfg.ids[0].name.c_str();
       _port = cfg.ids[0].port;
     } else {

@@ -15,6 +15,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include <ndb_global.h>
+#include <ndb_opts.h>
 
 #include <LocalConfig.hpp>
 #include "Configuration.hpp"
@@ -27,8 +28,6 @@
 #include <NdbMem.h>
 #include <NdbOut.hpp>
 #include <WatchDog.hpp>
-
-#include <getarg.h>
 
 #include <mgmapi_configuration.hpp>
 #include <mgmapi_config_parameters_debug.h>
@@ -47,80 +46,85 @@ extern "C" {
 #include <EventLogger.hpp>
 extern EventLogger g_eventLogger;
 
-bool
-Configuration::init(int argc, const char** argv){
-
-  /**
-   * Default values for arguments
-   */
-  int _no_start = 0;
-  int _initial = 0;
-  const char* _connect_str = NULL;
-  int _daemon = 1;
-  int _no_daemon = 0;
-  int _help = 0;
-  int _print_version = 0;
-#ifndef DBUG_OFF
-  const char *debug_option= 0;
-#endif
-  
-  /**
-   * Arguments to NDB process
-   */ 
-
-  struct getargs args[] = {
-    { "version", 'v', arg_flag, &_print_version, "Print ndbd version", "" },
-    { "nostart", 'n', arg_flag, &_no_start,
-      "Don't start ndbd immediately. Ndbd will await command from ndb_mgmd", "" },
-    { "daemon", 'd', arg_flag, &_daemon, "Start ndbd as daemon (default)", "" },
-    { "nodaemon", 0, arg_flag, &_no_daemon, "Do not start ndbd as daemon, provided for testing purposes", "" },
-#ifndef DBUG_OFF
-    { "debug", 0, arg_string, &debug_option,
-      "Specify debug options e.g. d:t:i:o,out.trace", "options" },
-#endif
-    { "initial", 0, arg_flag, &_initial,
-      "Perform initial start of ndbd, including cleaning the file system. Consult documentation before using this", "" },
-
-    { "connect-string", 'c', arg_string, &_connect_str,
-      "Set connect string for connecting to ndb_mgmd. <constr>=\"host=<hostname:port>[;nodeid=<id>]\". Overides specifying entries in NDB_CONNECTSTRING and config file",
-      "<constr>" },
-    { "usage", '?', arg_flag, &_help, "Print help", "" }
-  };
-  int num_args = sizeof(args) / sizeof(args[0]);
-  int optind = 0;
-  char desc[] = 
-    "The MySQL Cluster kernel";
-  
-  if(getarg(args, num_args, argc, argv, &optind) || _help) {
-    arg_printusage(args, num_args, argv[0], desc);
-    for (int i = 0; i < argc; i++) {
-      if (strcmp("-i",argv[i]) == 0) {
-	printf("flag depricated %s, use %s\n", "-i", "--initial");
-      }
-    }
-    return false;
+static const char* opt_connect_str= 0;
+static int _daemon, _no_daemon, _initial, _no_start;
+/**
+ * Arguments to NDB process
+ */ 
+static struct my_option my_long_options[] =
+{
+  NDB_STD_OPTS("ndbd"),
+  { "initial", 256,
+    "Perform initial start of ndbd, including cleaning the file system. "
+    "Consult documentation before using this",
+    (gptr*) &_initial, (gptr*) &_initial, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "nostart", 'n',
+    "Don't start ndbd immediately. Ndbd will await command from ndb_mgmd",
+    (gptr*) &_no_start, (gptr*) &_no_start, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "daemon", 'd', "Start ndbd as daemon (default)",
+    (gptr*) &_daemon, (gptr*) &_daemon, 0,
+    GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0 },
+  { "nodaemon", 257,
+    "Do not start ndbd as daemon, provided for testing purposes",
+    (gptr*) &_no_daemon, (gptr*) &_no_daemon, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
+};
+static void short_usage_sub(void)
+{
+  printf("Usage: %s [OPTIONS]\n", my_progname);
+}
+static void print_version()
+{
+  printf("MySQL distrib %s, for %s (%s)\n",MYSQL_SERVER_VERSION,SYSTEM_TYPE,MACHINE_TYPE);
+}
+static void usage()
+{
+  short_usage_sub();
+  print_version();
+  my_print_help(my_long_options);
+  my_print_variables(my_long_options);
+}
+static my_bool
+get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
+	       char *argument)
+{
+  switch (optid) {
+  case '#':
+    DBUG_PUSH(argument ? argument : "d:t:O,/tmp/ndbd.trace");
+    break;
+  case 'V':
+    print_version();
+    exit(0);
+  case '?':
+    usage();
+    exit(0);
   }
+  return 0;
+}
+
+bool
+Configuration::init(int argc, char** argv)
+{  
+  const char *load_default_groups[]= { "ndbd",0 };
+  load_defaults("my",load_default_groups,&argc,&argv);
+
+  int ho_error;
+  if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
+    exit(ho_error);
+
   if (_no_daemon) {
     _daemon= 0;
   }
-  // check for depricated flag '-i'
-
-#ifndef DBUG_OFF
-  if (debug_option)
-    DBUG_PUSH(debug_option);
-#endif
 
   DBUG_PRINT("info", ("no_start=%d", _no_start));
   DBUG_PRINT("info", ("initial=%d", _initial));
   DBUG_PRINT("info", ("daemon=%d", _daemon));
-  DBUG_PRINT("info", ("connect_str=%s", _connect_str));
+  DBUG_PRINT("info", ("connect_str=%s", opt_connect_str));
 
   ndbSetOwnVersion();
-
-  if (_print_version) {
-    ndbPrintVersion();
-    return false;
-  }
 
   // Check the start flag
   if (_no_start)
@@ -133,8 +137,8 @@ Configuration::init(int argc, const char** argv){
     _initialStart = true;
   
   // Check connectstring
-  if (_connect_str)
-    _connectString = strdup(_connect_str);
+  if (opt_connect_str)
+    _connectString = strdup(opt_connect_str);
   
   // Check daemon flag
   if (_daemon)
