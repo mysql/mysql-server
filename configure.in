@@ -1458,7 +1458,8 @@ then
   CXXFLAGS="$CXXFLAGS -Werror"
 fi
 AC_TRY_COMPILE(
-[#if !defined(SCO) && !defined(__osf__)
+[#undef inline
+#if !defined(SCO) && !defined(__osf__)
 #define _REENTRANT
 #endif
 #include <pthread.h>
@@ -1490,7 +1491,8 @@ then
   CXXFLAGS="$CXXFLAGS -Werror"
 fi
 AC_TRY_COMPILE(
-[#if !defined(SCO) && !defined(__osf__)
+[#undef inline
+#if !defined(SCO) && !defined(__osf__)
 #define _REENTRANT
 #endif
 #include <pthread.h>
@@ -1521,7 +1523,8 @@ then
   CXXFLAGS="$CXXFLAGS -Werror"
 fi
 AC_TRY_COMPILE(
-[#if !defined(SCO) && !defined(__osf__)
+[#undef inline
+#if !defined(SCO) && !defined(__osf__)
 #define _REENTRANT
 #endif
 #include <pthread.h>
