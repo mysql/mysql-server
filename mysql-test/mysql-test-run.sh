@@ -604,7 +604,7 @@ start_slave()
              $EXTRA_SLAVE_OPT $EXTRA_SLAVE_MYSQLD_OPT"
     if [ x$DO_DDD = x1 ]
     then
-      $ECHO "set args $master_args" > $GDB_SLAVE_INIT
+      $ECHO "set args $slave_args" > $GDB_SLAVE_INIT
       ddd --debugger "gdb -x $GDB_SLAVE_INIT" $SLAVE_MYSQLD &
       prompt_user "Hit enter to continue after you've started the slave"
     elif [ x$DO_GDB = x1 ]
@@ -746,7 +746,7 @@ run_testcase ()
      stop_master
      start_master
    else
-     if [ ! -z "$EXTRA_MASTER_OPT" ] || [ x$MASTER_RUNNING != x1 ] ;
+     if [ ! -z "$EXTRA_MASTER_OPT" ] || [ x$MASTER_RUNNING != x1 ] || [ -f $master_init_script ]
      then
        EXTRA_MASTER_OPT=""
        stop_master
