@@ -81,6 +81,12 @@ sub main
              "silent","verbose")
   || die "Wrong option! See $my_progname --help for detailed information!\n";
 
+  if ($opt_verbose && $opt_silent)
+  {
+    print "Both --verbose and --silent has been given. Some of the warnings ";
+    print "will be disabled\nand some will be enabled.\n\n";
+  }
+
   init_log() if (!defined($opt_log));
   $groupids = $ARGV[1];
   if ($opt_version)
@@ -247,7 +253,7 @@ sub report_mysqlds
 
 sub start_mysqlds()
 {
-  my (@groups, $com, $tmp, $i, @options, $j, $mysqld_found);
+  my (@groups, $com, $tmp, $i, @options, $j, $mysqld_found, $info_sent);
 
   if (!$opt_no_log)
   {
@@ -286,6 +292,15 @@ sub start_mysqlds()
 	$options[$j]=~ s/;/\\;/g;
 	$tmp.= " $options[$j]";
       }
+    }
+    if ($opt_verbose && $com =~ m/\/safe_mysqld$/ && !$info_sent)
+    {
+      print "WARNING: safe_mysqld is being used to start mysqld. In this case you ";
+      print "may need to pass\n\"ledir=...\" under groups [mysqldN] to ";
+      print "safe_mysqld in order to find the actual mysqld binary.\n";
+      print "ledir (library executable directory) should be the path to the ";
+      print "wanted mysqld binary.\n\n";
+      $info_sent= 1;
     }
     $com.= $tmp;
     $com.= " >> $opt_log 2>&1" if (!$opt_no_log);
@@ -724,13 +739,13 @@ Options:
                    file is turned on.
 --password=...     Password for user for mysqladmin.
 --silent           Disable warnings.
---verbose          Be more verbose.
 --tcp-ip           Connect to the MySQL server(s) via the TCP/IP port instead
                    of the UNIX socket. This affects stopping and reporting.
                    If a socket file is missing, the server may still be
                    running, but can be accessed only via the TCP/IP port.
                    By default connecting is done via the UNIX socket.
 --user=...         MySQL user for mysqladmin. Using: $opt_user
+--verbose          Be more verbose.
 --version          Print the version number and exit.
 EOF
   exit(0);
