@@ -986,9 +986,12 @@ bool Item_sum_count_distinct::add()
     {
       // if the tree got too big, convert to MyISAM, otherwise
       // insert into the tree
-      if((tree.elements_in_tree > max_elements_in_tree && tree_to_myisam())
-	 ||
-	 !tree_insert(&tree, table->record[0] + rec_offset, 0))
+      if(tree.elements_in_tree > max_elements_in_tree)
+      {
+	if(tree_to_myisam())
+	  return 1;
+      }
+      else if(!tree_insert(&tree, table->record[0] + rec_offset, 0))
 	return 1;
     }
   else if ((error=table->file->write_row(table->record[0])))
