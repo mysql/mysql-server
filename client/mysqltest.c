@@ -538,7 +538,6 @@ static void free_used_memory()
   mysql_server_end();
   if (ps_protocol)
     ps_free_reg();
-  my_end(MY_CHECK_ERROR);
   DBUG_VOID_RETURN;
 }
 
@@ -556,6 +555,7 @@ static void die(const char* fmt, ...)
   }
   va_end(args);
   free_used_memory();
+  my_end(MY_CHECK_ERROR);
   exit(1);
 }
 
@@ -568,6 +568,7 @@ static void abort_not_supported_test()
   if (!silent)
     printf("skipped\n");
   free_used_memory();
+  my_end(MY_CHECK_ERROR);
   exit(2);
 }
 
@@ -3655,6 +3656,7 @@ int main(int argc, char **argv)
   if (!got_end_timer)
     timer_output();				/* No end_timer cmd, end it */
   free_used_memory();
+  my_end(MY_CHECK_ERROR);
   exit(error ? 1 : 0);
   return error ? 1 : 0;				/* Keep compiler happy */
   }
