@@ -301,11 +301,7 @@ ulong hp_hashnr(register HP_KEYDEF *keydef, register const byte *key)
     }
     if (seg->type == HA_KEYTYPE_TEXT)
     {
-      for (; pos < (uchar*) key ; pos++)
-      {
-	nr *=16777619; 
-	nr ^=((uint) my_sort_order[(uint) *pos]);
-      }
+      seg->charset->hash_sort(seg->charset,pos,((uchar*)key)-pos,&nr,NULL);
     }
     else
     {
@@ -339,11 +335,7 @@ ulong hp_rec_hashnr(register HP_KEYDEF *keydef, register const byte *rec)
     }
     if (seg->type == HA_KEYTYPE_TEXT)
     {
-      for ( ; pos < end ; pos++)
-      {
-	nr *=16777619; 
-	nr ^=(uint) my_sort_order[(uint) *pos];
-      }
+      seg->charset->hash_sort(seg->charset,pos,((uchar*)key)-pos,&nr,NULL);
     }
     else
     {
