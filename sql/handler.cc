@@ -583,6 +583,12 @@ int ha_rollback_trans(THD *thd, THD_TRANS *trans)
   if (opt_using_transactions)
   {
     bool operation_done=0;
+    /*
+      As rollback can be 30 times slower than insert in InnoDB, and user may
+      not know there's rollback (if it's because of a dupl row), better warn.
+    */
+    const char *save_proc_info= thd->proc_info;
+    thd->proc_info= "Rolling back";
 #ifdef HAVE_NDBCLUSTER_DB
     if (trans->ndb_tid)
     {
@@ -654,6 +660,7 @@ int ha_rollback_trans(THD *thd, THD_TRANS *trans)
     thd->variables.tx_isolation=thd->session_tx_isolation;
     if (operation_done)
       statistic_increment(ha_rollback_count,&LOCK_status);
+    thd->proc_info= save_proc_info;
   }
 #endif /* USING_TRANSACTIONS */
   DBUG_RETURN(error);
@@ -765,6 +772,24 @@ int ha_savepoint(THD *thd, char *savepoint_name)
 #endif /* USING_TRANSACTIONS */
   DBUG_RETURN(error);
 }
+
+
+int ha_start_consistent_snapshot(THD *thd)
+{
+#ifdef HAVE_INNOBASE_DB
+  if ((have_innodb == SHOW_OPTION_YES) &&
+      !innobase_start_trx_and_assign_read_view(thd))
+    return 0;
+#endif
+  /*
+    Same idea as when one wants to CREATE TABLE in one engine which does not
+    exist:
+  */
+  push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+               ER_NO_CONS_READ_ENGINE, ER(ER_NO_CONS_READ_ENGINE));
+  return 0;
+}
+
 
 bool ha_flush_logs()
 {
