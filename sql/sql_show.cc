@@ -3442,12 +3442,11 @@ bool get_schema_tables_result(JOIN *join)
     TABLE_LIST *table_list= tab->table->pos_in_table_list;
     if (table_list->schema_table && thd->fill_derived_tables())
     {
-      TABLE_LIST *save_next_global= table_list->next_global;
       TABLE_LIST **query_tables_last= lex->query_tables_last;
       TABLE *old_derived_tables= thd->derived_tables;
       MYSQL_LOCK *sql_lock= thd->lock;
       lex->sql_command= SQLCOM_SHOW_FIELDS;
-
+      DBUG_ASSERT(!*query_tables_last);
       if (&lex->unit != lex->current_select->master_unit()) // is subselect
       {
         table_list->table->file->extra(HA_EXTRA_RESET_STATE);
@@ -3466,8 +3465,8 @@ bool get_schema_tables_result(JOIN *join)
       thd->lock= sql_lock;
       lex->sql_command= SQLCOM_SELECT;
       thd->derived_tables= old_derived_tables;
-      table_list->next_global= save_next_global;
       lex->query_tables_last= query_tables_last;
+      *query_tables_last= 0;
     }
   }
   thd->no_warnings_for_error= 0;
