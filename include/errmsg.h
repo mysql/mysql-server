@@ -67,7 +67,7 @@ extern const char *client_errors[];	/* Error messages */
 /* new 4.1 error codes */
 #define CR_NULL_POINTER		2028
 #define CR_NO_PREPARE_STMT	2029
-#define CR_NOT_ALL_PARAMS_BOUND	2030
+#define CR_PARAMS_NOT_BOUND	2030
 #define CR_DATA_TRUNCATED	2031
 #define CR_NO_PARAMETERS_EXISTS 2032
 #define CR_INVALID_PARAMETER_NO 2033
@@ -87,3 +87,5 @@ extern const char *client_errors[];	/* Error messages */
 #define CR_CONN_UNKNOW_PROTOCOL 		2046
 #define CR_INVALID_CONN_HANDLE			2047
 #define CR_SECURE_AUTH                          2048
+#define CR_FETCH_CANCELLED                      2049
+#define CR_NO_DATA                              2050

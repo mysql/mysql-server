@@ -712,6 +712,34 @@ void set_mysql_error(MYSQL *mysql, int errcode, const char *sqlstate)
   net->last_errno= errcode;
   strmov(net->last_error, ER(errcode));
   strmov(net->sqlstate, sqlstate);
+
+  DBUG_VOID_RETURN;
+}
+
+/*
+  Flush result set sent from server
+*/
+
+void flush_use_result(MYSQL *mysql)
+{
+  /* Clear the current execution status */
+  DBUG_PRINT("warning",("Not all packets read, clearing them"));
+  for (;;)
+  {
+    ulong pkt_len;
+    if ((pkt_len=net_safe_read(mysql)) == packet_error)
+      break;
+    if (pkt_len <= 8 && mysql->net.read_pos[0] == 254)
+    {
+      if (protocol_41(mysql))
+      {
+        char *pos= (char*) mysql->net.read_pos;
+        mysql->warning_count=uint2korr(pos); pos+=2;
+        mysql->server_status=uint2korr(pos); pos+=2;
+      }
+      break;                            /* End of data */
+    }
+  }
 }
 
 
@@ -752,26 +780,16 @@ mysql_free_result(MYSQL_RES *result)
   DBUG_PRINT("enter",("mysql_res: %lx",result));
   if (result)
   {
-    if (result->handle && result->handle->status == MYSQL_STATUS_USE_RESULT)
+    MYSQL *mysql= result->handle;
+    if (mysql)
     {
-      DBUG_PRINT("warning",("Not all rows in set where read; Ignoring rows"));
-      for (;;)
+      if (mysql->unbuffered_fetch_owner == &result->unbuffered_fetch_cancelled)
+        mysql->unbuffered_fetch_owner= 0;
+      if (mysql->status == MYSQL_STATUS_USE_RESULT)
       {
-	ulong pkt_len;
-	if ((pkt_len=net_safe_read(result->handle)) == packet_error)
-	  break;
-	if (pkt_len <= 8 && result->handle->net.read_pos[0] == 254)
-	{
-	  if (protocol_41(result->handle))
-	  {
-	    char *pos= (char*) result->handle->net.read_pos;
-	    result->handle->warning_count=uint2korr(pos); pos+=2;
-	    result->handle->server_status=uint2korr(pos); pos+=2;
-	  }
-	  break;				/* End of data */
-	}
+        flush_use_result(mysql);
+        mysql->status=MYSQL_STATUS_READY;
       }
-      result->handle->status=MYSQL_STATUS_READY;
     }
     free_rows(result->data);
     if (result->fields)
@@ -2177,12 +2195,13 @@ void STDCALL mysql_close(MYSQL *mysql)
 #ifdef MYSQL_CLIENT
     if (mysql->stmts)
     {
-      /* Free any open prepared statements */
-      LIST *element, *next_element;
-      for (element= mysql->stmts; element; element= next_element)
+      /* Reset connection handle in all prepared statements. */
+      LIST *element;
+      for (element= mysql->stmts; element; element= element->next)
       {
-        next_element= element->next;
-        stmt_close((MYSQL_STMT *)element->data, 1);
+        MYSQL_STMT *stmt= (MYSQL_STMT *) element->data;
+        stmt->mysql= 0;
+        /* No need to call list_delete for statement here */
       }
       mysql->stmts= 0;
     }
@@ -2372,9 +2391,10 @@ MYSQL_RES * STDCALL mysql_store_result(MYSQL *mysql)
   result->fields=	mysql->fields;
   result->field_alloc=	mysql->field_alloc;
   result->field_count=	mysql->field_count;
-  result->current_field=0;
-  result->current_row=0;			/* Must do a fetch first */
+  /* The rest of result members is bzeroed in malloc */
   mysql->fields=0;				/* fields is now in result */
+  /* just in case this was mistakenly called after mysql_stmt_execute() */
+  mysql->unbuffered_fetch_owner= 0;
   DBUG_RETURN(result);				/* Data fetched */
 }
 
@@ -2423,6 +2443,7 @@ static MYSQL_RES * cli_use_result(MYSQL *mysql)
   result->current_row=	0;
   mysql->fields=0;			/* fields is now in result */
   mysql->status=MYSQL_STATUS_USE_RESULT;
+  mysql->unbuffered_fetch_owner= &result->unbuffered_fetch_cancelled;
   DBUG_RETURN(result);			/* Data is read to be fetched */
 }
 
@@ -2439,19 +2460,30 @@ mysql_fetch_row(MYSQL_RES *res)
   {						/* Unbufferred fetch */
     if (!res->eof)
     {
-      if (!(read_one_row(res->handle,res->field_count,res->row, res->lengths)))
+      MYSQL *mysql= res->handle;
+      if (mysql->status != MYSQL_STATUS_USE_RESULT)
+      {
+        set_mysql_error(mysql,
+                        res->unbuffered_fetch_cancelled ? 
+                        CR_FETCH_CANCELLED : CR_COMMANDS_OUT_OF_SYNC,
+                        unknown_sqlstate);
+      }
+      else if (!(read_one_row(mysql, res->field_count, res->row, res->lengths)))
       {
 	res->row_count++;
 	DBUG_RETURN(res->current_row=res->row);
       }
-      else
-      {
-	DBUG_PRINT("info",("end of data"));
-	res->eof=1;
-	res->handle->status=MYSQL_STATUS_READY;
-	/* Don't clear handle in mysql_free_results */
-	res->handle=0;
-      }
+      DBUG_PRINT("info",("end of data"));
+      res->eof=1;
+      mysql->status=MYSQL_STATUS_READY;
+      /*
+        Reset only if owner points to us: there is a chance that somebody
+        started new query after mysql_stmt_close():
+      */
+      if (mysql->unbuffered_fetch_owner == &res->unbuffered_fetch_cancelled)
+        mysql->unbuffered_fetch_owner= 0;
+      /* Don't clear handle in mysql_free_result */
+      res->handle=0;
     }
     DBUG_RETURN((MYSQL_ROW) NULL);
   }
