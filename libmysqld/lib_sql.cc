@@ -108,6 +108,12 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
   if (!skip_check)
     result= thd->net.last_errno ? -1 : 0;
 
+  /*
+    If mysql->field_count is set it means the parsing of the query was OK
+    and metadata was returned (see Protocol::send_fields).
+    In this case we postpone the error to be returned in mysql_stmt_store_result
+    (see emb_read_rows) to behave just as standalone server.
+  */
   if (!mysql->field_count)
     embedded_get_error(mysql);
   mysql->server_status= thd->server_status;

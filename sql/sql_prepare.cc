@@ -737,6 +737,7 @@ static bool emb_insert_params_withlog(Prepared_statement *stmt, String *query)
       else
       {
         uchar *buff= (uchar*)client_param->buffer;
+	param->unsigned_flag= client_param->is_unsigned;
         param->set_param_func(param, &buff,
                               client_param->length ? 
                               *client_param->length : 
