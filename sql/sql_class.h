@@ -57,6 +57,15 @@ typedef struct st_log_info
   ~st_log_info() { pthread_mutex_destroy(&lock);}
 } LOG_INFO;
 
+typedef struct st_user_var_events
+{
+  user_var_entry *user_var_event;
+  char *value;
+  ulong length;
+  Item_result type;
+  uint charset_number;
+} BINLOG_USER_VAR_EVENT;
+
 class Log_event;
 
 class MYSQL_LOG {
@@ -524,6 +533,8 @@ public:
   uint       check_loops_counter;       //last id used to check loops
   /* variables.transaction_isolation is reset to this after each commit */
   enum_tx_isolation session_tx_isolation;
+  /* for user variables replication*/
+  DYNAMIC_ARRAY user_var_events;
              // extend scramble to handle new auth
   char	     scramble[SCRAMBLE41_LENGTH+1];
              // old scramble is needed to handle old clients
@@ -915,7 +926,7 @@ class user_var_entry
  public:
   LEX_STRING name;
   char *value;
-  ulong length, update_query_id;
+  ulong length, update_query_id, used_query_id;
   Item_result type;
   CHARSET_INFO *var_charset;
 };

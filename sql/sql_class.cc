@@ -146,6 +146,17 @@ THD::THD():user_time(0), fatal_error(0),
 	    (hash_get_key) get_var_key,
 	    (hash_free_key) free_user_var,0);
 
+  /* For user vars replication*/
+  if (opt_bin_log)
+    my_init_dynamic_array(&user_var_events,
+			  sizeof(BINLOG_USER_VAR_EVENT *),
+			  16,
+			  16);
+  else
+    bzero((char*) &user_var_events, sizeof(user_var_events));
+
+
+
   /* Prepared statements */
   last_prepared_stmt= 0;
   init_tree(&prepared_statements, 0, 0, sizeof(PREP_STMT),
@@ -244,6 +255,7 @@ void THD::cleanup(void)
     close_thread_tables(this);
   }
   close_temporary_tables(this);
+  delete_dynamic(&user_var_events);
   hash_free(&user_vars);
   if (global_read_lock)
     unlock_global_read_lock(this);

@@ -1941,6 +1941,7 @@ static user_var_entry *get_variable(HASH *hash, LEX_STRING &name,
     entry->value=0;
     entry->length=0;
     entry->update_query_id=0;
+    entry->used_query_id=current_thd->query_id;
     entry->type=STRING_RESULT;
     memcpy(entry->name.str, name.str, name.length+1);
     if (hash_insert(hash,(byte*) entry))
@@ -2074,7 +2075,7 @@ Item_func_set_user_var::val_str(String *str)
 {
   String *res=args[0]->val_str(str);
   if (!res)					// Null value
-    update_hash((void*) 0,0,STRING_RESULT, default_charset_info);
+    update_hash((void*) 0, 0, STRING_RESULT, default_charset_info);
   else
     update_hash(res->c_ptr(),res->length()+1,STRING_RESULT,res->charset());
   return res;
@@ -2173,14 +2174,58 @@ longlong Item_func_get_user_var::val_int()
   return LL(0);					// Impossible
 }
 
+/* From sql_parse.cc */
+extern bool is_update_query(enum enum_sql_command command);
 
 void Item_func_get_user_var::fix_length_and_dec()
 {
+  BINLOG_USER_VAR_EVENT *user_var_event;
   THD *thd=current_thd;
   maybe_null=1;
   decimals=NOT_FIXED_DEC;
   max_length=MAX_BLOB_WIDTH;
-  var_entry= get_variable(&thd->user_vars, name, 0);
+
+  if ((var_entry= get_variable(&thd->user_vars, name, 0)))
+  {
+    if (opt_bin_log && is_update_query(thd->lex.sql_command) &&
+	var_entry->used_query_id != thd->query_id)
+    {
+      /*
+	First we need to store value of var_entry, when the next situation appers:
+        > set @a:=1;
+	> insert into t1 values (@a), (@a:=@a+1), (@a:=@a+1);
+	We have to write to binlog value @a= 1;
+      */
+      uint size= ALIGN_SIZE(sizeof(BINLOG_USER_VAR_EVENT)) + var_entry->length;      
+      if (!(user_var_event= (BINLOG_USER_VAR_EVENT *) thd->alloc(size)))
+        goto err;
+
+      user_var_event->value= (char*) user_var_event +
+	                     ALIGN_SIZE(sizeof(BINLOG_USER_VAR_EVENT));
+      user_var_event->user_var_event= var_entry;
+      user_var_event->type= var_entry->type;
+      user_var_event->charset_number= var_entry->var_charset->number;
+      if (!var_entry->value)
+      {
+	/* NULL value*/
+	user_var_event->length= 0;
+	user_var_event->value= 0;
+      }
+      else
+      {
+	user_var_event->length= var_entry->length;
+	memcpy(user_var_event->value, var_entry->value,
+	       var_entry->length);
+      }
+      var_entry->used_query_id= thd->query_id;
+      if (insert_dynamic(&thd->user_var_events, (gptr) &user_var_event))
+        goto err;
+    }
+  }
+  return;
+err:
+  thd->fatal_error= 1;
+  return;
 }
 
 

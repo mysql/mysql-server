@@ -136,6 +136,8 @@ bfill((A)->null_flags,(A)->null_bytes,255);\
 
 #define BIN_LOG_HEADER_SIZE	4
 
+#define FLOATING_POINT_BUFFER 331
+
 	/* Include prototypes for unireg */
 
 #include "mysqld_error.h"
