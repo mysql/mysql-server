@@ -18,71 +18,103 @@
 #include "Dbtux.hpp"
 
 /*
- * Add entry.
+ * Add entry.  Handle the case when there is room for one more.  This
+ * is the common case given slack in nodes.
  */
 void
 Dbtux::treeAdd(Signal* signal, Frag& frag, TreePos treePos, TreeEnt ent)
 {
   TreeHead& tree = frag.m_tree;
-  unsigned pos = treePos.m_pos;
   NodeHandle node(frag);
-  // check for empty tree
-  if (treePos.m_loc == NullTupLoc) {
+  if (treePos.m_loc != NullTupLoc) {
+    // non-empty tree
     jam();
-    insertNode(signal, node);
-    nodePushUp(signal, node, 0, ent);
-    node.setSide(2);
-    tree.m_root = node.m_loc;
-    return;
-  }
-  selectNode(signal, node, treePos.m_loc);
-  // check if it is bounding node
-  if (pos != 0 && pos != node.getOccup()) {
-    jam();
-    // check if room for one more
+    selectNode(signal, node, treePos.m_loc);
+    unsigned pos = treePos.m_pos;
     if (node.getOccup() < tree.m_maxOccup) {
+      // node has room
       jam();
       nodePushUp(signal, node, pos, ent);
       return;
     }
-    // returns min entry
-    nodePushDown(signal, node, pos - 1, ent);
-    // find position to add the removed min entry
-    TupLoc childLoc = node.getLink(0);
-    if (childLoc == NullTupLoc) {
-      jam();
-      // left child will be added
-      pos = 0;
-    } else {
-      jam();
-      // find glb node
-      while (childLoc != NullTupLoc) {
-        jam();
-        selectNode(signal, node, childLoc);
-        childLoc = node.getLink(1);
-      }
-      pos = node.getOccup();
-    }
-    // fall thru to next case
-  }
-  // adding new min or max
-  unsigned i = (pos == 0 ? 0 : 1);
-  ndbrequire(node.getLink(i) == NullTupLoc);
-  // check if the half-leaf/leaf has room for one more
-  if (node.getOccup() < tree.m_maxOccup) {
-    jam();
-    nodePushUp(signal, node, pos, ent);
+    treeAddFull(signal, frag, node, pos, ent);
     return;
   }
-  // add a new node
-  NodeHandle childNode(frag);
-  insertNode(signal, childNode);
-  nodePushUp(signal, childNode, 0, ent);
+  jam();
+  insertNode(signal, node);
+  nodePushUp(signal, node, 0, ent);
+  node.setSide(2);
+  tree.m_root = node.m_loc;
+}
+
+/*
+ * Add entry when node is full.  Handle the case when there is g.l.b
+ * node in left subtree with room for one more.  It will receive the min
+ * entry of this node.  The min entry could be the entry to add.
+ */
+void
+Dbtux::treeAddFull(Signal* signal, Frag& frag, NodeHandle lubNode, unsigned pos, TreeEnt ent)
+{
+  TreeHead& tree = frag.m_tree;
+  TupLoc loc = lubNode.getLink(0);
+  if (loc != NullTupLoc) {
+    // find g.l.b node
+    NodeHandle glbNode(frag);
+    do {
+      jam();
+      selectNode(signal, glbNode, loc);
+      loc = glbNode.getLink(1);
+    } while (loc != NullTupLoc);
+    if (glbNode.getOccup() < tree.m_maxOccup) {
+      // g.l.b node has room
+      jam();
+      if (pos != 0) {
+        jam();
+        // add the new entry and return min entry
+        nodePushDown(signal, lubNode, pos - 1, ent);
+      }
+      // g.l.b node receives min entry from l.u.b node
+      nodePushUp(signal, glbNode, glbNode.getOccup(), ent);
+      return;
+    }
+    treeAddNode(signal, frag, lubNode, pos, ent, glbNode, 1);
+    return;
+  }
+  treeAddNode(signal, frag, lubNode, pos, ent, lubNode, 0);
+}
+
+/*
+ * Add entry when there is no g.l.b node in left subtree or the g.l.b
+ * node is full.  We must add a new left or right child node which
+ * becomes the new g.l.b node.
+ */
+void
+Dbtux::treeAddNode(Signal* signal, Frag& frag, NodeHandle lubNode, unsigned pos, TreeEnt ent, NodeHandle parentNode, unsigned i)
+{
+  NodeHandle glbNode(frag);
+  insertNode(signal, glbNode);
   // connect parent and child
-  node.setLink(i, childNode.m_loc);
-  childNode.setLink(2, node.m_loc);
-  childNode.setSide(i);
-  // re-balance tree at each node
+  parentNode.setLink(i, glbNode.m_loc);
+  glbNode.setLink(2, parentNode.m_loc);
+  glbNode.setSide(i);
+  if (pos != 0) {
+    jam();
+    // add the new entry and return min entry
+    nodePushDown(signal, lubNode, pos - 1, ent);
+  }
+  // g.l.b node receives min entry from l.u.b node
+  nodePushUp(signal, glbNode, 0, ent);
+  // re-balance the tree
+  treeAddRebalance(signal, frag, parentNode, i);
+}
+
+/*
+ * Re-balance tree after adding a node.  The process starts with the
+ * parent of the added node.
+ */
+void
+Dbtux::treeAddRebalance(Signal* signal, Frag& frag, NodeHandle node, unsigned i)
+{
   while (true) {
     // height of subtree i has increased by 1
     int j = (i == 0 ? -1 : +1);
@@ -131,7 +163,10 @@ Dbtux::treeAdd(Signal* signal, Frag& frag, TreePos treePos, TreeEnt ent)
 }
 
 /*
- * Remove entry.
+ * Remove entry.  Optimize for nodes with slack.  Handle the case when
+ * there is no underflow i.e. occupancy remains at least minOccup.  For
+ * interior nodes this is a requirement.  For others it means that we do
+ * not need to consider merge of semi-leaf and leaf.
  */
 void
 Dbtux::treeRemove(Signal* signal, Frag& frag, TreePos treePos)
@@ -141,100 +176,150 @@ Dbtux::treeRemove(Signal* signal, Frag& frag, TreePos treePos)
   NodeHandle node(frag);
   selectNode(signal, node, treePos.m_loc);
   TreeEnt ent;
-  // check interior node first
+  if (node.getOccup() > tree.m_minOccup) {
+    // no underflow in any node type
+    jam();
+    nodePopDown(signal, node, pos, ent);
+    return;
+  }
   if (node.getChilds() == 2) {
+    // underflow in interior node
     jam();
-    ndbrequire(node.getOccup() >= tree.m_minOccup);
-    // check if no underflow
-    if (node.getOccup() > tree.m_minOccup) {
-      jam();
-      nodePopDown(signal, node, pos, ent);
-      return;
-    }
-    // save current handle
-    NodeHandle parentNode = node;
-    // find glb node
-    TupLoc childLoc = node.getLink(0);
-    while (childLoc != NullTupLoc) {
-      jam();
-      selectNode(signal, node, childLoc);
-      childLoc = node.getLink(1);
-    }
-    // use glb max as new parent min
-    ent = node.getEnt(node.getOccup() - 1);
-    nodePopUp(signal, parentNode, pos, ent);
-    // set up to remove glb max
-    pos = node.getOccup() - 1;
-    // fall thru to next case
+    treeRemoveInner(signal, frag, node, pos);
+    return;
   }
-  // remove the element
+  // remove entry in semi/leaf
   nodePopDown(signal, node, pos, ent);
-  ndbrequire(node.getChilds() <= 1);
-  // handle half-leaf
-  unsigned i;
-  for (i = 0; i <= 1; i++) {
+  if (node.getLink(0) != NullTupLoc) {
     jam();
-    TupLoc childLoc = node.getLink(i);
-    if (childLoc != NullTupLoc) {
-      // move to child
-      selectNode(signal, node, childLoc);
-      // balance of half-leaf parent requires child to be leaf
-      break;
+    treeRemoveSemi(signal, frag, node, 0);
+    return;
+  }
+  if (node.getLink(1) != NullTupLoc) {
+    jam();
+    treeRemoveSemi(signal, frag, node, 1);
+    return;
+  }
+  treeRemoveLeaf(signal, frag, node);
+}
+
+/*
+ * Remove entry when interior node underflows.  There is g.l.b node in
+ * left subtree to borrow an entry from.  The max entry of the g.l.b
+ * node becomes the min entry of this node.
+ */
+void
+Dbtux::treeRemoveInner(Signal* signal, Frag& frag, NodeHandle lubNode, unsigned pos)
+{
+  TreeHead& tree = frag.m_tree;
+  TreeEnt ent;
+  // find g.l.b node
+  NodeHandle glbNode(frag);
+  TupLoc loc = lubNode.getLink(0);
+  do {
+    jam();
+    selectNode(signal, glbNode, loc);
+    loc = glbNode.getLink(1);
+  } while (loc != NullTupLoc);
+  // borrow max entry from semi/leaf
+  nodePopDown(signal, glbNode, glbNode.getOccup() - 1, ent);
+  nodePopUp(signal, lubNode, pos, ent);
+  if (glbNode.getLink(0) != NullTupLoc) {
+    jam();
+    treeRemoveSemi(signal, frag, glbNode, 0);
+    return;
+  }
+  treeRemoveLeaf(signal, frag, glbNode);
+}
+
+/*
+ * Handle semi-leaf after removing an entry.  Move entries from leaf to
+ * semi-leaf to bring semi-leaf occupancy above minOccup, if possible.
+ * The leaf may become empty.
+ */
+void
+Dbtux::treeRemoveSemi(Signal* signal, Frag& frag, NodeHandle semiNode, unsigned i)
+{
+  TreeHead& tree = frag.m_tree;
+  ndbrequire(semiNode.getChilds() < 2);
+  TupLoc leafLoc = semiNode.getLink(i);
+  NodeHandle leafNode(frag);
+  selectNode(signal, leafNode, leafLoc);
+  if (semiNode.getOccup() < tree.m_minOccup) {
+    jam();
+    unsigned cnt = min(leafNode.getOccup(), tree.m_minOccup - semiNode.getOccup());
+    nodeSlide(signal, semiNode, leafNode, cnt, i);
+    if (leafNode.getOccup() == 0) {
+      // remove empty leaf
+      jam();
+      treeRemoveNode(signal, frag, leafNode);
     }
   }
-  ndbrequire(node.getChilds() == 0);
-  // get parent if any
-  TupLoc parentLoc = node.getLink(2);
-  NodeHandle parentNode(frag);
-  i = node.getSide();
-  // move all that fits into parent
+}
+
+/*
+ * Handle leaf after removing an entry.  If parent is semi-leaf, move
+ * entries to it as in the semi-leaf case.  If parent is interior node,
+ * do nothing.
+ */
+void
+Dbtux::treeRemoveLeaf(Signal* signal, Frag& frag, NodeHandle leafNode)
+{
+  TreeHead& tree = frag.m_tree;
+  TupLoc parentLoc = leafNode.getLink(2);
   if (parentLoc != NullTupLoc) {
     jam();
-    selectNode(signal, parentNode, node.getLink(2));
-    nodeSlide(signal, parentNode, node, i);
-    // fall thru to next case
-  }
-  // non-empty leaf
-  if (node.getOccup() >= 1) {
-    jam();
-    return;
-  }
-  // remove empty leaf
-  deleteNode(signal, node);
-  if (parentLoc == NullTupLoc) {
-    jam();
-    // tree is now empty
-    tree.m_root = NullTupLoc;
-    return;
-  }
-  node = parentNode;
-  node.setLink(i, NullTupLoc);
-#ifdef dbtux_min_occup_less_max_occup
-  // check if we created a half-leaf
-  if (node.getBalance() == 0) {
-    jam();
-    // move entries from the other child
-    TupLoc childLoc = node.getLink(1 - i);
-    NodeHandle childNode(frag);
-    selectNode(signal, childNode, childLoc);
-    nodeSlide(signal, node, childNode, 1 - i);
-    if (childNode.getOccup() == 0) {
+    NodeHandle parentNode(frag);
+    selectNode(signal, parentNode, parentLoc);
+    unsigned i = leafNode.getSide();
+    if (parentNode.getLink(1 - i) == NullTupLoc) {
+      // parent is semi-leaf
       jam();
-      deleteNode(signal, childNode);
-      node.setLink(1 - i, NullTupLoc);
-      // we are balanced again but our parent balance changes by -1
-      parentLoc = node.getLink(2);
-      if (parentLoc == NullTupLoc) {
+      if (parentNode.getOccup() < tree.m_minOccup) {
         jam();
-        return;
+        unsigned cnt = min(leafNode.getOccup(), tree.m_minOccup - parentNode.getOccup());
+        nodeSlide(signal, parentNode, leafNode, cnt, i);
       }
-      // fix side and become parent
-      i = node.getSide();
-      selectNode(signal, node, parentLoc);
     }
   }
-#endif
-  // re-balance tree at each node
+  if (leafNode.getOccup() == 0) {
+    jam();
+    // remove empty leaf
+    treeRemoveNode(signal, frag, leafNode);
+  }
+}
+
+/*
+ * Remove empty leaf.
+ */
+void
+Dbtux::treeRemoveNode(Signal* signal, Frag& frag, NodeHandle leafNode)
+{
+  TreeHead& tree = frag.m_tree;
+  ndbrequire(leafNode.getChilds() == 0);
+  TupLoc parentLoc = leafNode.getLink(2);
+  unsigned i = leafNode.getSide();
+  deleteNode(signal, leafNode);
+  if (parentLoc != NullTupLoc) {
+    jam();
+    NodeHandle parentNode(frag);
+    selectNode(signal, parentNode, parentLoc);
+    parentNode.setLink(i, NullTupLoc);
+    // re-balance the tree
+    treeRemoveRebalance(signal, frag, parentNode, i);
+    return;
+  }
+  // tree is now empty
+  tree.m_root = NullTupLoc;
+}
+
+/*
+ * Re-balance tree after removing a node.  The process starts with the
+ * parent of the removed node.
+ */
+void
+Dbtux::treeRemoveRebalance(Signal* signal, Frag& frag, NodeHandle node, unsigned i)
+{
   while (true) {
     // height of subtree i has decreased by 1
     int j = (i == 0 ? -1 : +1);
@@ -516,6 +601,8 @@ Dbtux::treeRotateSingle(Signal* signal,
 void
 Dbtux::treeRotateDouble(Signal* signal, Frag& frag, NodeHandle& node, unsigned i)
 {
+  TreeHead& tree = frag.m_tree;
+
   // old top node
   NodeHandle node6 = node;
   const TupLoc loc6 = node6.m_loc;
@@ -549,11 +636,14 @@ Dbtux::treeRotateDouble(Signal* signal, Frag& frag, NodeHandle& node, unsigned i
   // fill up leaf before it becomes internal
   if (loc3 == NullTupLoc && loc5 == NullTupLoc) {
     jam();
-    TreeHead& tree = frag.m_tree;
-    nodeSlide(signal, node4, node2, i);
-    // implied by rule of merging half-leaves with leaves
-    ndbrequire(node4.getOccup() >= tree.m_minOccup);
-    ndbrequire(node2.getOccup() != 0);
+    if (node4.getOccup() < tree.m_minOccup) {
+      jam();
+      unsigned cnt = tree.m_minOccup - node4.getOccup();
+      ndbrequire(cnt < node2.getOccup());
+      nodeSlide(signal, node4, node2, cnt, i);
+      ndbrequire(node4.getOccup() >= tree.m_minOccup);
+      ndbrequire(node2.getOccup() != 0);
+    }
   } else {
     if (loc3 != NullTupLoc) {
       jam();

@@ -591,7 +591,7 @@ private:
   void nodePopDown(Signal* signal, NodeHandle& node, unsigned pos, TreeEnt& ent);
   void nodePushDown(Signal* signal, NodeHandle& node, unsigned pos, TreeEnt& ent);
   void nodePopUp(Signal* signal, NodeHandle& node, unsigned pos, TreeEnt& ent);
-  void nodeSlide(Signal* signal, NodeHandle& dstNode, NodeHandle& srcNode, unsigned i);
+  void nodeSlide(Signal* signal, NodeHandle& dstNode, NodeHandle& srcNode, unsigned cnt, unsigned i);
   // scans linked to node
   void linkScan(NodeHandle& node, ScanOpPtr scanPtr);
   void unlinkScan(NodeHandle& node, ScanOpPtr scanPtr);
@@ -600,8 +600,19 @@ private:
   /*
    * DbtuxTree.cpp
    */
+  // add entry
   void treeAdd(Signal* signal, Frag& frag, TreePos treePos, TreeEnt ent);
+  void treeAddFull(Signal* signal, Frag& frag, NodeHandle lubNode, unsigned pos, TreeEnt ent);
+  void treeAddNode(Signal* signal, Frag& frag, NodeHandle lubNode, unsigned pos, TreeEnt ent, NodeHandle parentNode, unsigned i);
+  void treeAddRebalance(Signal* signal, Frag& frag, NodeHandle node, unsigned i);
+  // remove entry
   void treeRemove(Signal* signal, Frag& frag, TreePos treePos);
+  void treeRemoveInner(Signal* signal, Frag& frag, NodeHandle lubNode, unsigned pos);
+  void treeRemoveSemi(Signal* signal, Frag& frag, NodeHandle node, unsigned i);
+  void treeRemoveLeaf(Signal* signal, Frag& frag, NodeHandle node);
+  void treeRemoveNode(Signal* signal, Frag& frag, NodeHandle node);
+  void treeRemoveRebalance(Signal* signal, Frag& frag, NodeHandle node, unsigned i);
+  // rotate
   void treeRotateSingle(Signal* signal, Frag& frag, NodeHandle& node, unsigned i);
   void treeRotateDouble(Signal* signal, Frag& frag, NodeHandle& node, unsigned i);
 

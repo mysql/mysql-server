@@ -178,16 +178,19 @@ Dbtux::printNode(Signal* signal, Frag& frag, NdbOut& out, TupLoc loc, PrintPar& 
     out << "occupancy " << node.getOccup() << " of interior node";
     out << " less than min " << tree.m_minOccup << endl;
   }
-  // check missed half-leaf/leaf merge
+#ifdef dbtux_totally_groks_t_trees
+  // check missed semi-leaf/leaf merge
   for (unsigned i = 0; i <= 1; i++) {
     if (node.getLink(i) != NullTupLoc &&
         node.getLink(1 - i) == NullTupLoc &&
-        node.getOccup() + cpar[i].m_occup <= tree.m_maxOccup) {
+        // our semi-leaf seems to satify interior minOccup condition
+        node.getOccup() < tree.m_minOccup) {
       par.m_ok = false;
       out << par.m_path << sep;
       out << "missed merge with child " << i << endl;
     }
   }
+#endif
   // check inline prefix
   { ConstData data1 = node.getPref();
     Uint32 data2[MaxPrefSize];
