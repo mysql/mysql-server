@@ -104,6 +104,10 @@ SOURCE=.\bmove512.c
 # End Source File
 # Begin Source File
 
+SOURCE=.\bmove_upp.c
+# End Source File
+# Begin Source File
+
 SOURCE=".\ctype-big5.c"
 # End Source File
 # Begin Source File
@@ -120,11 +124,19 @@ SOURCE=".\ctype-euc_kr.c"
 # End Source File
 # Begin Source File
 
+SOURCE=".\ctype-extra.c"
+# End Source File
+# Begin Source File
+
 SOURCE=".\ctype-gb2312.c"
 # End Source File
 # Begin Source File
 
 SOURCE=".\ctype-gbk.c"
+# End Source File
+# Begin Source File
+
+SOURCE=".\ctype-latin1.c"
 # End Source File
 # Begin Source File
 
@@ -168,6 +180,10 @@ SOURCE=.\int2str.c
 # End Source File
 # Begin Source File
 
+SOURCE=.\is_prefix.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\llstr.c
 # End Source File
 # Begin Source File
@@ -188,34 +204,27 @@ SOURCE=.\str2int.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\Strings.asm
+SOURCE=.\strcend.c
+# End Source File
+# Begin Source File
 
-!IF  "$(CFG)" == "strings - Win32 Release"
+SOURCE=.\strend.c
+# End Source File
+# Begin Source File
 
-# Begin Custom Build
-OutDir=.\release
-InputPath=.\Strings.asm
-InputName=Strings
+SOURCE=.\strfill.c
+# End Source File
+# Begin Source File
 
-"$(OutDir)\$(InputName).obj" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	ml /Cx /nologo /DDOS386 /DM_I386 /Zm /coff /c /Fo $(Outdir)\$(InputName).obj $(InputPath)
+SOURCE=.\strmake.c
+# End Source File
+# Begin Source File
 
-# End Custom Build
+SOURCE=.\strmov.c
+# End Source File
+# Begin Source File
 
-!ELSEIF  "$(CFG)" == "strings - Win32 Debug"
-
-# Begin Custom Build
-OutDir=.\debug
-InputPath=.\Strings.asm
-InputName=Strings
-
-"$(OutDir)\$(InputName).obj" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	ml /Cx /nologo /DDOS386 /DM_I386 /Zm /coff /c /Fo $(Outdir)\$(InputName).obj $(InputPath)
-
-# End Custom Build
-
-!ENDIF 
-
+SOURCE=.\strnmov.c
 # End Source File
 # Begin Source File
 
@@ -235,34 +244,7 @@ SOURCE=.\strtoull.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\Strxmov.asm
-
-!IF  "$(CFG)" == "strings - Win32 Release"
-
-# Begin Custom Build
-OutDir=.\release
-InputPath=.\Strxmov.asm
-InputName=Strxmov
-
-"$(OutDir)\$(InputName).obj" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	ml /Cx /nologo /DDOS386 /DM_I386 /Zm /coff /c /Fo $(Outdir)\$(InputName).obj $(InputPath)
-
-# End Custom Build
-
-!ELSEIF  "$(CFG)" == "strings - Win32 Debug"
-
-# Begin Custom Build
-OutDir=.\debug
-InputPath=.\Strxmov.asm
-InputName=Strxmov
-
-"$(OutDir)\$(InputName).obj" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	ml /Cx /nologo /DDOS386 /DM_I386 /Zm /coff /c /Fo $(Outdir)\$(InputName).obj $(InputPath)
-
-# End Custom Build
-
-!ENDIF 
-
+SOURCE=.\strxmov.c
 # End Source File
 # Begin Source File
 

@@ -142,6 +142,10 @@ SOURCE=.\myrg_rnext.c
 # End Source File
 # Begin Source File
 
+SOURCE=.\myrg_rnext_same.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\myrg_rprev.c
 # End Source File
 # Begin Source File

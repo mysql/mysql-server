@@ -52,7 +52,7 @@ BSC32=bscmake.exe
 # ADD BSC32 /nologo
 LINK32=link.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /dll /machine:I386
-# ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib Wsock32.lib ..\lib_release\myisam.lib ..\lib_release\myisammrg.lib ..\lib_release\mysys.lib ..\lib_release\strings.lib ..\lib_release\regex.lib ..\lib_release\heap.lib ..\lib_release\innodb.lib ..\lib_release\bdb.lib ..\lib_release\zlib.lib # SUBTRACT LINK32 /nologo /dll /pdb:none /machine:I386 /out:"../lib_release/libmysqld.dll" /implib:"../lib_release/libmysqld.lib"
+# ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib Wsock32.lib ..\lib_release\myisam.lib ..\lib_release\myisammrg.lib ..\lib_release\mysys.lib ..\lib_release\strings.lib ..\lib_release\regex.lib ..\lib_release\heap.lib ..\lib_release\innodb.lib ..\lib_release\bdb.lib ..\lib_release\zlib.lib /nologo /dll /pdb:none /machine:I386 /out:"../lib_release/libmysqld.dll" /implib:"../lib_release/libmysqld.lib"
 
 !ELSEIF  "$(CFG)" == "libmysqld - Win32 Debug"
 
@@ -77,7 +77,7 @@ BSC32=bscmake.exe
 # ADD BSC32 /nologo
 LINK32=link.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /dll /debug /machine:I386 /pdbtype:sept
-# ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib Wsock32.lib ..\lib_debug\dbug.lib ..\lib_debug\mysys.lib ..\lib_debug\strings.lib ..\lib_debug\regex.lib ..\lib_debug\heap.lib ..\lib_debug\innodb.lib # SUBTRACT LINK32 /nologo /dll /pdb:none /debug /machine:I386 /nodefaultlib:"LIBCMTD" /out:"../lib_debug/libmysqld.dll" /implib:"../lib_debug/libmysqld.lib"
+# ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib Wsock32.lib ..\lib_debug\dbug.lib ..\lib_debug\mysys.lib ..\lib_debug\strings.lib ..\lib_debug\regex.lib ..\lib_debug\heap.lib ..\lib_debug\innodb.lib /nologo /dll /pdb:none /debug /machine:I386 /nodefaultlib:"LIBCMTD" /out:"../lib_debug/libmysqld.dll" /implib:"../lib_debug/libmysqld.lib"
 
 !ENDIF
 
@@ -180,6 +180,10 @@ SOURCE=..\sql\item_func.cpp
 # End Source File
 # Begin Source File
 
+SOURCE=.\item_row.cpp
+# End Source File
+# Begin Source File
+
 SOURCE=..\sql\item_strfunc.cpp
 # End Source File
 # Begin Source File
@@ -236,10 +240,6 @@ SOURCE=..\sql\mini_client.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=..\sql\net_pkg.cpp
-# End Source File
-# Begin Source File
-
 SOURCE=..\sql\net_serv.cpp
 # End Source File
 # Begin Source File
@@ -261,6 +261,10 @@ SOURCE=..\libmysql\password.c
 # Begin Source File
 
 SOURCE=..\sql\procedure.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\protocol.cpp
 # End Source File
 # Begin Source File
 
@@ -325,6 +329,10 @@ SOURCE=..\sql\sql_error.cpp
 # Begin Source File
 
 SOURCE=..\sql\sql_handler.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\sql_help.cpp
 # End Source File
 # Begin Source File
 
