@@ -7814,7 +7814,7 @@ Some known problems when running MySQL on Linux-Alpha:
 @itemize @bullet
 @item
 Debugging threaded applications like MySQL will not work with
-@code{gdb 4.18}.  You should download and use gdb 5.0 instead!
+@code{gdb 4.18}.  You should download and use gdb 5.1 instead!
 
 @item
 If you try linking @code{mysqld} statically when using @code{gcc}, the
@@ -52064,7 +52064,9 @@ more information if @code{mysqld} crashes.
 
 With some older @code{gdb} versions on Linux you must use @code{run
 --one-thread} if you want to be able to debug @code{mysqld} threads.  In
-this case you can only have one thread active at a time.
+this case you can only have one thread active at a time.  We recommend you
+to upgrade to gdb 5.1 ASAP as thread debugging works much better with this
+version!
 
 When running @code{mysqld} under gdb, you should disable the stack trace
 with @code{--skip-stack-trace} to be able to catch segfaults within gdb.
