@@ -421,6 +421,7 @@ enum db_type default_table_type=DB_TYPE_MYISAM;
 #include <process.h>
 #if !defined(EMBEDDED_LIBRARY)
 HANDLE hEventShutdown;
+static char *event_name;
 #include "nt_servc.h"
 static	 NTService  Service;	      // Service object for WinNT
 #endif
@@ -2063,7 +2064,7 @@ The server will not act as a slave.");
   (void) thr_setconcurrency(concurrency);	// 10 by default
 #if defined(__WIN__) && !defined(EMBEDDED_LIBRARY)	  //IRENA
   {
-    hEventShutdown=CreateEvent(0, FALSE, FALSE, "MySqlShutdown");
+    hEventShutdown=CreateEvent(0, FALSE, FALSE, event_name);
     pthread_t hThread;
     if (pthread_create(&hThread,&connection_attrib,handle_shutdown,0))
       sql_print_error("Warning: Can't create thread to handle shutdown requests");
@@ -2198,46 +2199,70 @@ int mysql_service(void *p)
 
 int main(int argc, char **argv)
 {
-  // check  environment variable OS
-  if (Service.GetOS())	// "OS" defined; Should be NT
+  if (Service.GetOS())	/* true NT family */
   {
-    if (argc == 2)
-    {
-      char path[FN_REFLEN];
-      my_path(path, argv[0], "");		   // Find name in path
-      fn_format(path,argv[0],path,"",1+4+16);    // Force use of full path
+    char file_path[FN_REFLEN];
+    my_path(file_path, argv[0], ""); /* Find name in path */
+    fn_format(file_path,argv[0],file_path,"",1+4+16); /* Force use of full path */
 
-      if (!strcmp(argv[1],"-install") || !strcmp(argv[1],"--install"))
+    if (argc == 2)
+    {	
+      if (Service.got_service_option(argv, "install"))
       {
-	Service.Install(1,MYSQL_SERVICENAME,MYSQL_SERVICENAME,path);
-	return 0;
+        Service.Install(1, MYSQL_SERVICENAME, MYSQL_SERVICENAME, file_path);
+        return 0;
       }
-      else if (!strcmp(argv[1],"-install-manual") || !strcmp(argv[1],"--install-manual"))
+      else if (Service.got_service_option(argv, "install-manual"))
       {
-        Service.Install(0,MYSQL_SERVICENAME,MYSQL_SERVICENAME,path);
-	return 0;
+        Service.Install(0, MYSQL_SERVICENAME, MYSQL_SERVICENAME, file_path);
+        return 0;
       }
-      else if (!strcmp(argv[1],"-remove") || !strcmp(argv[1],"--remove"))
+      else if (Service.got_service_option(argv, "remove"))
       {
-	Service.Remove(MYSQL_SERVICENAME);
-	return 0;
+        Service.Remove(MYSQL_SERVICENAME);
+        return 0;
+      }
+      else if (Service.IsService(argv[1]))
+      {
+        /* start an optional service */
+        load_default_groups[0]= argv[1];
+        event_name= argv[1];
+        start_mode= 1;
+        Service.Init(event_name, mysql_service );
+        return 0;
       }
     }
-    else if (argc == 1)		   // No arguments; start as a service
+    else if (argc == 3) /* install or remove any optional service */
     {
-      // init service
-      start_mode = 1;
-      long tmp=Service.Init(MYSQL_SERVICENAME,mysql_service);
+      uint length=strlen(file_path);
+      file_path[sizeof(file_path)-1]=0;
+      strxnmov(file_path + length, sizeof(file_path)-2, " ", argv[2], NullS);
+      if (Service.got_service_option(argv, "install"))
+      {
+        Service.Install(1, argv[2], argv[2], file_path);
+        return 0;
+      }
+      else if (Service.got_service_option(argv, "install-manual"))
+      {
+        Service.Install(0, argv[2], argv[2], file_path);
+        return 0;
+      }
+      else if (Service.got_service_option(argv, "remove"))
+      {
+        Service.Remove(argv[2]);
+        return 0;
+      }
+    }
+    else if (argc == 1 && Service.IsService(MYSQL_SERVICENAME))
+    {
+      /* start the default service */
+      start_mode= 1;
+      event_name= "MySqlShutdown";
+      Service.Init(MYSQL_SERVICENAME, mysql_service);
       return 0;
     }
   }
-
-  /*
-    This is a WIN95 machine or a start of mysqld as a standalone program
-    we have to pass the arguments, in case of NT-service this will be done
-    by ServiceMain()
-  */
-
+  /* Start as standalone server */
   Service.my_argc=argc;
   Service.my_argv=argv;
   mysql_service(NULL);
@@ -3825,9 +3850,15 @@ Starts the MySQL server\n");
   printf("Usage: %s [OPTIONS]\n", my_progname);
 #ifdef __WIN__
   puts("NT and Win32 specific options:\n\
+  --console                     Don't remove the console window\n\
   --install                     Install the default service (NT)\n\
   --install-manual              Install the default service started manually (NT)\n\
+  --install service_name        Install an optional service (NT)\n\
+  --install-manual service_name Install an optional service started manually (NT)\n\
   --remove                      Remove the default service from the service list (NT)\n\
+  --remove service_name         Remove the service_name from the service list (NT)\n\
+  --enable-named-pipe           Only to be used for the	default server (NT)\n\
+  --standalone                  Dummy option to start as a standalone server (NT)\
 ");
   puts("");
 #endif
