@@ -247,9 +247,9 @@ int berkeley_show_logs(THD *thd)
   my_pthread_setspecific_ptr(THR_MALLOC,&show_logs_root);
 
   if ((error= log_archive(db_env, &all_logs, DB_ARCH_ABS | DB_ARCH_LOG,
-			  (void* (*)(unsigned int)) sql_alloc)) ||
+			  (void* (*)(size_t)) sql_alloc)) ||
       (error= log_archive(db_env, &free_logs, DB_ARCH_ABS, 
-			  (void* (*)(unsigned int)) sql_alloc)))
+			  (void* (*)(size_t)) sql_alloc)))
   {
     DBUG_PRINT("error", ("log_archive failed (error %d)", error));
     db_env->err(db_env, error, "log_archive: DB_ARCH_ABS");
