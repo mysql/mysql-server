@@ -16,9 +16,7 @@
 
 #ifndef _my_sys_h
 #define _my_sys_h
-#ifdef	__cplusplus
-extern "C" {
-#endif
+C_MODE_START
 
 #ifdef HAVE_AIOWAIT
 #include <sys/asynch.h>			/* Used by record-cache */
@@ -649,8 +647,6 @@ extern void sleep(int sec);
 extern my_bool have_tcpip;		/* Is set if tcpip is used */
 #endif
 
-#ifdef	__cplusplus
-}
-#endif
+C_MODE_END
 #include "raid.h"
 #endif /* _my_sys_h */

@@ -4344,6 +4344,7 @@ both the normal and the @strong{MySQL-Max} server binaries.
 Here is a list of the different MySQL servers you can use:
 
 @multitable @columnfractions .25 .75
+@item @strong{Binary} @tab @strong{Description}
 @item @code{mysqld} @tab
 Compiled with full debugging and automatic memory allocation
 checking, symbolic links, InnoDB and BDB tables.
@@ -5655,6 +5656,7 @@ the compiler you are using:
 @tindex CXXFLAGS environment variable
 @tindex environment variable, CXXFLAGS
 @multitable @columnfractions .20 .80
+@item @strong{Compiler} @tab @strong{Recommended options}
 @item gcc 2.7.2.1 @tab
 CC=gcc CXX=gcc CXXFLAGS="-O3 -felide-constructors"
 @item egcs 1.0.3a @tab
@@ -8059,6 +8061,7 @@ MySQL clients.
 
 There are two versions of the MySQL command-line tool:
 @multitable @columnfractions .25 .75
+@item @strong{Binary} @tab @strong{Description}
 @item @code{mysql} @tab Compiled on native Windows, which offers very limited text editing capabilities.
 @item @code{mysqlc} @tab Compiled with the Cygnus GNU compiler and libraries, which offers @code{readline} editing.
 @end multitable
@@ -10791,6 +10794,7 @@ use @code{NULL} values.  To represent these in your text file, use
 this (where the whitespace between values is a single tab character):
 
 @multitable @columnfractions .15 .15 .15 .15 .25 .15
+@item @strong{name} @tab @strong{owner} @tab @strong{species} @tab @strong{sex} @tab @strong{birth} @tab @strong{death}
 @item @code{Whistler} @tab @code{Gwen} @tab @code{bird} @tab @code{\N} @tab @code{1997-12-09} @tab @code{\N}
 @end multitable
 
@@ -11770,6 +11774,7 @@ As with the @code{pet} table, it's easiest to load the initial records
 by creating a tab-delimited text file containing the information:
 
 @multitable @columnfractions .15 .15 .15 .55
+@item @strong{name} @tab @strong{date} @tab @strong{type} @tab @strong{remark}
 @item Fluffy @tab 1995-05-15 @tab litter @tab 4 kittens, 3 female, 1 male
 @item Buffy @tab 1993-06-23 @tab litter @tab 5 puppies, 2 female, 3 male
 @item Buffy @tab 1994-06-19 @tab litter @tab 3 puppies, 3 female
@@ -12872,6 +12877,7 @@ attempt to repair it.
 The following options affects how the repair works.
 
 @multitable @columnfractions .3 .7
+@item @strong{Option} @tab @strong{Description}
 @item DEFAULT  @tab The same as not giving any option to 
                     @code{--myisam-recover}.
 @item BACKUP   @tab If the data table was changed during recover, save a 
@@ -13152,6 +13158,7 @@ All MySQL clients that support option files support the
 following options:
 
 @multitable @columnfractions .40 .60
+@item @strong{Option} @tab @strong{Description}
 @item --no-defaults @tab Don't read any option files.
 @item --print-defaults @tab Print the program name and all options that it will get.
 @item --defaults-file=full-path-to-default-file @tab Only use the given configuration file.
@@ -16454,6 +16461,7 @@ Display a help message and exit.
 Set the value of a variable.  The possible variables and their default values
 for myisamchk can be examined with @code{myisamchk --help}:
 @multitable @columnfractions .3 .7
+@item @strong{Variable} @tab @strong{Value}
 @item key_buffer_size @tab 523264
 @item read_buffer_size @tab 262136
 @item write_buffer_size @tab 262136
@@ -17548,6 +17556,8 @@ the @strong{RELOAD} privilege.
 @code{flush_option} can be any of the following:
 
 @multitable @columnfractions .15 .85
+@item @strong{Option} @tab @strong{Description}
+
 @item @code{HOSTS}  @tab Empties the host cache tables.  You should flush the
 host tables if some of your hosts change IP number or if you get the
 error message @code{Host ... is blocked}.  When more than
@@ -17569,7 +17579,7 @@ signal to the @code{mysqld} server.
 @item @code{PRIVILEGES} @tab Reloads the privileges from the grant tables in
 the @code{mysql} database.
 
-@item @code{QUERY CACHE} @tab Defragment the query cache to better utilize the memory.  This command will not remove any queries from the cache.
+@item @code{QUERY CACHE} @tab Defragment the query cache to better utilise its memory.  This command will not remove any queries from the cache.
 
 @item @code{TABLES} @tab Closes all open tables and force all tables in use to be closed. This also flushes the query cache.
 
@@ -17598,6 +17608,8 @@ The @code{RESET} command is used to clear things. It also acts as an stronger
 version of the @code{FLUSH} command.  @xref{FLUSH}.
 
 @multitable @columnfractions .15 .85
+@item @strong{Option} @tab @strong{Description}
+
 @item @code{MASTER}
 @tab Deletes all binary logs listed in the index file, resetting the binlog
 index file to be empty. In pre-3.23.26 versions, @code{FLUSH MASTER} (Master)
@@ -18489,13 +18501,17 @@ long (like when inserting blobs), you should increase this!
 Don't cache results that are bigger than this. (Default 1M).
 
 @item @code{query_cache_size}
-The memory allocated to store results from old queries.  If this is zero
-the query cache is disabled.
+The memory allocated to store results from old queries.
+If this is 0, the query cache is disabled (default).
 
 @item @code{query_cache_startup_type}
-This may have be set to 0 (cache results but don't retrieve results from
-cache), 1 (cache results by defaults) or 2 (only cache @code{SELECT}'s marked
-with @code{SQL_CACHE}).
+This may be set (only numeric) to
+@multitable @columnfractions .1 .2 .7
+@item @strong{Value} @tab @strong{Alias} @tab @strong{Comment}
+@item 0 @tab OFF @tab Don't cache or retrieve results.
+@item 1 @tab ON @tab Cache all results except @code{SELECT SQL_NO_CACHE ...} queries.
+@item 2 @tab DEMAND @tab Cache only @code{SELECT SQL_CACHE ...} queries.
+@end multitable
 
 @item @code{safe_show_databases}
 Don't show databases for which the user doesn't have any database or
@@ -20457,7 +20473,7 @@ You can also set the following variables with @code{-O} or
 @cindex @code{select_limit}
 @cindex @code{max_join_size}
 @multitable @columnfractions .3 .2 .5
-@item Variable Name      @tab Default   @tab Description
+@item @strong{Variable Name} @tab @strong{Default} @tab @strong{Description}
 @item connect_timeout    @tab 0         @tab Number of seconds before timeout connection.
 @item max_allowed_packet @tab 16777216  @tab Max packetlength to send/receive from to server
 @item net_buffer_length  @tab 16384     @tab Buffer for TCP/IP and socket communication
@@ -20733,6 +20749,7 @@ The @code{mysqladmin status} command result has the following columns:
 
 @cindex uptime
 @multitable @columnfractions .3 .7
+@item @strong{Column} @tab @strong{Description}
 @item Uptime @tab Number of seconds the MySQL server has been up.
 @cindex threads
 @item Threads @tab Number of active threads (clients).
@@ -21411,6 +21428,7 @@ MySQL has several different log files that can help you find
 out what's going on inside @code{mysqld}:
 
 @multitable @columnfractions .3 .7
+@item @strong{Log file} @tab @strong{Description}
 @item The error log @tab Problems encountering starting, running or stopping @code{mysqld}.
 @item The isam log @tab Logs all changes to the ISAM tables. Used only for debugging the isam code.
 @item The query log @tab Established connections and executed queries.
@@ -21571,6 +21589,8 @@ You can use the following options to @code{mysqld} to affect what is logged
 to the binary log:
 
 @multitable @columnfractions .4 .6
+@item @strong{Option} @tab @strong{Description}
+
 @item @code{binlog-do-db=database_name} @tab
 Tells the master it should log updates for the specified database, and
 exclude all others not explicitly mentioned.
@@ -22135,8 +22155,8 @@ Example: @code{server-id=3}
 The following table has the options you can use for the @strong{MASTER}:
 
 @multitable @columnfractions .3 .7
-
 @item @strong{Option} @tab @strong{Description}
+
 @item @code{log-bin=filename} @tab
 Write to a binary update log to the specified location. Note that if you
 give it a parameter with an extension (for example,
@@ -22181,8 +22201,8 @@ Example: @code{binlog-ignore-db=accounting}
 The following table has the options you can use for the @strong{SLAVE}:
 
 @multitable @columnfractions .3 .7
-
 @item @strong{Option} @tab @strong{Description}
+
 @item @code{master-host=host} @tab
 Master hostname or IP address for replication. If not set, the slave
 thread will not be started. Note that the setting of @code{master-host}
@@ -25711,15 +25731,14 @@ flag again, the @code{SQL_MAX_JOIN_SIZE} variable will be ignored.
 You can set a default value for this variable by starting @code{mysqld} with
 @code{-O max_join_size=#}.
 
-@item SQL_QUERY_CACHE_TYPE = [OFF | ON | DEMAND]
-@item SQL_QUERY_CACHE_TYPE = [0   | 1  | 2]
-
-The numbers are standing for the correspoding verbose option.
-
+@item SQL_QUERY_CACHE_TYPE = OFF | ON | DEMAND
+@item SQL_QUERY_CACHE_TYPE = 0   | 1  | 2
+Set query cache setting for this thread.
 @multitable @columnfractions .3 .7
-@item 0 or OFF @tab Cache @code{SELECT} results, but don't retrieve results from cache.
-@item 1 or ON @tab Cache all @code{SELECT}'s that are not marked with @code{SQL_NO_CACHE}.
-@item 2 or DEMAND @tab Cache only @code{SELECT SQL_CACHE}) queries.
+@item @strong{Option} @tab @strong{Description}
+@item 0 or OFF @tab Don't cache or retrieve results.
+@item 1 or ON @tab Cache all results except @code{SELECT SQL_NO_CACHE ...} queries.
+@item 2 or DEMAND @tab Cache only @code{SELECT SQL_CACHE ...} queries.
 @end multitable
 
 @item SQL_SAFE_UPDATES = 0 | 1
@@ -26576,27 +26595,11 @@ them are forbidden by ANSI SQL92 as column and/or table names
 A few are reserved because MySQL needs them and is
 (currently) using a @code{yacc} parser:
 
-@c This is fixed by including the symbols table from lex.h here and then running
-@c fix-mysql-reserved-words in emacs (or let David do it):
-@c (defun fix-mysql-reserved-words ()
-@c  (interactive)
-@c  (let ((cnt 0))
-@c    (insert "\n@item ")
-@c    (while (looking-at "[ \t]*{ +\"\\([^\"]+\\)\"[ \t]*,.*\n")
-@c      (replace-match "@code{\\1}")
-@c      (incf cnt)
-@c      (if (> cnt 3)
-@c 	  (progn
-@c 	    (setf cnt 0)
-@c 	    (insert "\n@item "))
-@c 	(insert " @tab ")))))
-@c But remove the non alphanumeric entries by hand first.
-@c Updated after 3.23.4 990928 by David
-
 @c START_OF_RESERVED_WORDS
 
 @multitable @columnfractions .25 .25 .25 .25
-@c Reserved word list updated Tue Nov 20 13:26:39 2001 by arjen.
+@item @strong{Word} @tab @strong{Word} @tab @strong{Word} @tab @strong{Word}
+@c Reserved word list updated Fri Dec  7 10:49:17 2001 by arjen.
 @c To regenerate, use Support/update-reserved-words.pl.
 
 @item @code{ADD}                     @tab @code{ALL}                     
@@ -29330,6 +29333,7 @@ SQL simple regular expression comparison. Returns @code{1} (TRUE) or @code{0}
 in the pattern:
 
 @multitable @columnfractions .1 .9
+@item @strong{Char} @tab @strong{Description}
 @item @code{%} @tab Matches any number of characters, even zero characters
 @item @code{_} @tab Matches exactly one character
 @end multitable
@@ -29346,6 +29350,7 @@ with the escape character.  If you don't specify the @code{ESCAPE} character,
 @samp{\} is assumed:
 
 @multitable @columnfractions .1 .9
+@item @strong{String} @tab @strong{Description}
 @item @code{\%} @tab Matches one @code{%} character
 @item @code{\_} @tab Matches one @code{_} character
 @end multitable
@@ -30332,6 +30337,7 @@ the days that were lost when the calendar was changed.
 Formats the @code{date} value according to the @code{format} string. The
 following specifiers may be used in the @code{format} string:
 @multitable @columnfractions .1 .6
+@item @strong{Specifier} @tab @strong{Description}
 @item @code{%M} @tab Month name (@code{January}..@code{December})
 @item @code{%W} @tab Weekday name (@code{Sunday}..@code{Saturday})
 @item @code{%D} @tab Day of the month with English suffix (@code{1st}, @code{2nd}, @code{3rd}, etc.)
@@ -31219,11 +31225,11 @@ MySQL Version 3.23 this shouldn't normally be needed.
 
 @item
 @code{SQL_CACHE} tells MySQL to store the query result in the query cache
-even if you are using @code{SQL_QUERY_CACHE_METHOD} 2 (= @code{DEMAND}).
+if you are using @code{SQL_QUERY_CACHE_TYPE=2} (@code{DEMAND}).
 
 @item
-@code{SQL_NO_CACHE} tells MySL to not store the query result in the
-query cache.
+@code{SQL_NO_CACHE} tells MySQL to not allow the query result to be stored
+in the query cache.
 
 @item
 @cindex @code{GROUP BY}, extensions to ANSI SQL
@@ -32682,6 +32688,7 @@ The @code{DROP DATABASE} command removes from the given database
 directory all files with the following extensions:
 
 @multitable @columnfractions .25 .25 .25 .25
+@item @strong{Ext} @tab @strong{Ext} @tab @strong{Ext} @tab @strong{Ext}
 @item .BAK  @tab .DAT  @tab .HSH  @tab .ISD
 @item .ISM  @tab .ISM  @tab .MRG  @tab .MYD
 @item .MYI  @tab .db   @tab .frm  @tab
@@ -33012,6 +33019,7 @@ implemented in MySQL Version 3.23 and above.
 The different table types are:
 
 @multitable @columnfractions .20 .80
+@item @strong{Table type} @tab @strong{Description}
 @item BDB or Berkeley_db @tab Transaction-safe tables with page locking. @xref{BDB}.
 @item HEAP @tab The data for this table is only stored in memory. @xref{HEAP}.
 @item ISAM @tab The original table handler. @xref{ISAM}.
@@ -33033,6 +33041,7 @@ table. In most cases, you don't have to specify any of them.
 The options work for all table types, if not otherwise indicated:
 
 @multitable @columnfractions .20 .80
+@item @strong{Option} @tab @strong{Description}
 @item @code{AUTO_INCREMENT} @tab The next auto_increment value you want to set for your table (MyISAM).
 @item @code{AVG_ROW_LENGTH} @tab An approximation of the average row length for your table. You only need to set this for large tables with variable size records.
 @item @code{CHECKSUM} @tab Set this to 1 if you want MySQL to maintain a checksum for all rows (makes the table a little slower to update but makes it easier to find corrupted tables) (MyISAM).
@@ -33782,6 +33791,7 @@ The following commands automatically end a transaction (as if you had done
 a @code{COMMIT} before executing the command):
 
 @multitable @columnfractions .33 .33 .33
+@item @strong{Command}      @tab @strong{Command}   @tab @strong{Command}
 @item @code{ALTER TABLE}    @tab @code{BEGIN}       @tab @code{CREATE INDEX}
 @item @code{DROP DATABASE}  @tab @code{DROP TABLE}  @tab @code{RENAME TABLE}
 @item @code{TRUNCATE}       @tab                    @tab
@@ -34462,7 +34472,7 @@ The following options to @code{mysqld} can be used to change the behavior of
 @code{MyISAM} tables. @xref{SHOW VARIABLES}.
 
 @multitable @columnfractions .40 .60
-@item @strong{Option} @tab @strong{Meaning}
+@item @strong{Option} @tab @strong{Description}
 @item @code{--myisam-recover=#} @tab Automatic recover of crashed tables.
 @item @code{-O myisam_sort_buffer_size=#} @tab Buffer used when recovering tables.
 @item @code{--delay-key-write-for-all-tables} @tab Don't flush key buffers between writes for any MyISAM table
@@ -35380,6 +35390,7 @@ data is very often beneficial for performance.
 The meanings of the configuration parameters are the following:
 
 @multitable @columnfractions .30 .70
+@item @strong{Option} @tab @strong{Description}
 @item @code{innodb_data_home_dir} @tab 
 The common part of the directory path for all InnoDB data files.
 @item @code{innodb_data_file_path} @tab 
@@ -36952,7 +36963,7 @@ The following options to @code{mysqld} can be used to change the behavior of
 BDB tables:
 
 @multitable @columnfractions .30 .70
-@item @strong{Option} @tab @strong{Meaning}
+@item @strong{Option} @tab @strong{Description}
 @item @code{--bdb-home=directory} @tab  Base directory for BDB tables. This should be the same directory you use for --datadir.
 @item @code{--bdb-lock-detect=#} @tab  Berkeley lock detect. One of (DEFAULT, OLDEST, RANDOM, or YOUNGEST).
 @item @code{--bdb-logdir=directory} @tab Berkeley DB log file directory.
@@ -37282,6 +37293,7 @@ Installation instructions for MySQL Perl support are given in
 @strong{Portable DBI Methods}
 
 @multitable @columnfractions .3 .7
+@item @strong{Method} @tab @strong{Description}
 @item @code{connect} @tab Establishes a connection to a database server.
 @item @code{disconnect} @tab Disconnects from the database server.
 @item @code{prepare} @tab Prepares a SQL statement for execution.
@@ -37305,6 +37317,7 @@ Installation instructions for MySQL Perl support are given in
 @strong{MySQL-specific Methods}
 
 @multitable @columnfractions .3 .7
+@item @strong{Method} @tab @strong{Description}
 @item @code{insertid} @tab The latest @code{AUTO_INCREMENT} value.
 @item @code{is_blob} @tab Which columns are @code{BLOB} values.
 @item @code{is_key} @tab Which columns are keys.
@@ -37968,7 +37981,7 @@ set this in the opton argument. The following options are listed in the
 same order as they appear in the @strong{MyODBC} connect screen:
 
 @multitable @columnfractions .1 .9
-@item @strong{Bit} @tab @strong{Meaning}
+@item @strong{Bit} @tab @strong{Description}
 @item 1 @tab The client can't handle that @strong{MyODBC} returns the real width of a column.
 @item 2 @tab  The client can't handle that MySQL returns the true value of affected rows.  If this flag is set then MySQL returns 'found rows' instead.  One must have MySQL 3.21.14 or newer to get this to work.
 @item 4 @tab Make a debug log in c:\myodbc.log.  This is the same as putting @code{MYSQL_DEBUG=d:t:O,c::\myodbc.log} in @file{AUTOEXEC.BAT}
@@ -38563,7 +38576,7 @@ The type of the field.
 The @code{type} value may be one of the following:
 
 @multitable @columnfractions .3 .55
-@item @strong{Type value}                @tab @strong{Type meaning}
+@item @strong{Type value}                @tab @strong{Type description}
 @item @code{FIELD_TYPE_TINY}            @tab @code{TINYINT} field
 @item @code{FIELD_TYPE_SHORT}           @tab @code{SMALLINT} field
 @item @code{FIELD_TYPE_LONG}            @tab @code{INTEGER} field
@@ -38609,7 +38622,7 @@ Different bit-flags for the field.  The @code{flags} value may have zero
 or more of the following bits set:
 
 @multitable @columnfractions .3 .55
-@item @strong{Flag value}         @tab @strong{Flag meaning}
+@item @strong{Flag value}         @tab @strong{Flag description}
 @item @code{NOT_NULL_FLAG}       @tab Field can't be @code{NULL}
 @item @code{PRI_KEY_FLAG}        @tab Field is part of a primary key
 @item @code{UNIQUE_KEY_FLAG}     @tab Field is part of a unique key
@@ -38642,6 +38655,7 @@ You may use the following convenience macros to determine the boolean
 status of the @code{flags} value:
 
 @multitable @columnfractions .3 .5
+@item @strong{Flag status} @tab @strong{Description}
 @item @code{IS_NOT_NULL(flags)} @tab True if this field is defined as @code{NOT NULL}
 @item @code{IS_PRI_KEY(flags)}  @tab True if this field is a primary key
 @item @code{IS_BLOB(flags)}     @tab True if this field is a @code{BLOB} or @code{TEXT} (deprecated; test @code{field->type} instead)
@@ -38663,6 +38677,8 @@ greater detail in the next section.
 @xref{C API functions}.
 
 @multitable @columnfractions .3 .7
+@item @strong{Function} @tab @strong{Description}
+
 @item @strong{mysql_affected_rows()} @tab
 Returns the number of rows changed/deleted/inserted by the last @code{UPDATE},
 @code{DELETE}, or @code{INSERT} query.
@@ -40412,6 +40428,7 @@ Note that the group @code{client} is always read if you use
 The specified group in the option file may contain the following options:
 
 @multitable @columnfractions .3 .7
+@item @strong{Option} @tab @strong{Description}
 @item @code{connect_timeout} @tab Connect timeout in seconds. On Linux this timeout is also used for waiting for the first answer from the server.
 @item @code{compress} @tab Use the compressed client/server protocol.
 @item @code{database} @tab Connect to this database if no database was specified in the connect command.
@@ -40600,14 +40617,13 @@ The value of @code{client_flag} is usually 0, but can be set to a combination
 of the following flags in very special circumstances:
 
 @multitable @columnfractions .25 .7
-@item @strong{Flag name}       @tab @strong{Flag meaning}
-@code{mysqld} to be more ODBC-friendly.
+@item @strong{Flag name}       @tab @strong{Flag description}
 @item @code{CLIENT_COMPRESS}   @tab Use compression protocol.
 @item @code{CLIENT_FOUND_ROWS} @tab Return the number of found (matched) rows, not the number of affected rows.
 @item @code{CLIENT_IGNORE_SPACE} @tab Allow spaces after function names. Makes all functions names reserved words.
 @item @code{CLIENT_INTERACTIVE} @tab Allow @code{interactive_timeout} seconds (instead of @code{wait_timeout} seconds) of inactivity before closing the connection.
 @item @code{CLIENT_NO_SCHEMA}  @tab Don't allow the @code{db_name.tbl_name.col_name} syntax.  This is for ODBC. It causes the parser to generate an error if you use that syntax, which is useful for trapping bugs in some ODBC programs.
-@item @code{CLIENT_ODBC}       @tab The client is an ODBC client. This changes
+@item @code{CLIENT_ODBC}       @tab The client is an ODBC client. This changes @code{mysqld} to be more ODBC-friendly.
 @item @code{CLIENT_SSL}		@tab Use SSL (encrypted protocol).
 @end multitable
 @end itemize
@@ -41598,6 +41614,7 @@ embedded library, you normally only have to add calls to the following
 functions:
 
 @multitable @columnfractions .25 .7
+@item @strong{Function} @tab @strong{When to call}
 @item @code{mysql_server_init()} @tab Should be called before any other other MySQL function is called, preferably early in the @code{main()} function.
 @item @code{mysql_server_end()} @tab Should be called before your program exits.
 @item @code{mysql_thread_init()} @tab Should be called in each thread you create that will access MySQL.
@@ -43172,6 +43189,7 @@ You normally can get the following error codes in this case
 (which one you get is OS-dependent):
 
 @multitable @columnfractions .3 .7
+@item @strong{Error code} @tab @strong{Description}
 @item @code{CR_SERVER_GONE_ERROR} @tab The client couldn't send a question to the
 server.
 @item @code{CR_SERVER_LOST} @tab  The client didn't get an error when writing
@@ -52526,6 +52544,7 @@ flag[,modifier,modifier,...,modifier]
 The currently recognised flag characters are:
 
 @multitable @columnfractions .1 .9
+@item @strong{Flag} @tab @strong{Description}
 @item d	@tab Enable output from DBUG_<N> macros for the current state. May be followed by a list of keywords which selects output only for the DBUG macros with that keyword. An empty list of keywords implies output for all macros.
 @item D	@tab Delay after each debugger output line. The argument is the number of tenths of seconds to delay, subject to machine capabilities. That is, @code{-#D,20} is delay two seconds.
 @item f	@tab Limit debugging and/or tracing, and profiling to the list of named functions.  Note that a null list will disable all functions.	The appropriate "d" or "t" flags must still be given, this flag only limits their actions if they are enabled.
@@ -52884,6 +52903,7 @@ variables to modify the behavior of MySQL. @xref{Option files}.
 @tindex Environment variable, USER
 
 @multitable @columnfractions .2 .8
+@item @strong{Variable} @tab @strong{Description}
 @item @code{CCX}  @tab Set this to your C++ compiler when running configure.
 @item @code{CC}  @tab Set this to your C compiler when running configure.
 @item @code{CFLAGS} @tab Flags for your C compiler when running configure.
@@ -53062,6 +53082,7 @@ Within a bracket expression, the name of a character class enclosed in
 to that class. Standard character class names are:
 
 @multitable @columnfractions .33 .33 .33
+@item @strong{Name} @tab @strong{Name} @tab @strong{Name}
 @item alnum @tab digit @tab punct
 @item alpha @tab graph @tab space
 @item blank @tab lower @tab upper

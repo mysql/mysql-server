@@ -112,11 +112,13 @@ void _ftb_parse_query(FTB *ftb, byte **start, byte *end,
   while ((res=ft_get_word(start,end,&w,&param)))
   {
     byte  r=param.plusminus;
-    float weight=(param.pmsign ? nwghts : wghts)[(r>5)?5:((r<-5)?-5:r)];
+    float weight= (float) (param.pmsign ? nwghts : wghts)[(r>5)?5:((r<-5)?-5:r)];
     switch (res) {
       case 1: /* word found */
         ftbw=(FTB_WORD *)alloc_root(&ftb->mem_root,
-            sizeof(FTB_WORD) + (param.trunc ? MI_MAX_KEY_BUFF : w.len+extra));
+				    sizeof(FTB_WORD) +
+				    (param.trunc ? MI_MAX_KEY_BUFF :
+				     w.len+extra));
         ftbw->len=w.len+1;
         ftbw->yesno=param.yesno;
         ftbw->trunc=param.trunc; /* 0 or 1 */
@@ -216,7 +218,8 @@ FT_INFO * ft_init_boolean_search(MI_INFO *info, uint keynr, byte *query,
   ftb->queue.root=(byte **)alloc_root(&ftb->mem_root, (res+1)*sizeof(void*));
   reinit_queue(& ftb->queue, res, 0, 0, FTB_WORD_cmp, ftb);
   ftbe=(FTB_EXPR *)alloc_root(&ftb->mem_root, sizeof(FTB_EXPR));
-  ftbe->weight=ftbe->yesno=ftbe->nos=1;
+  ftbe->weight=1;
+  ftbe->yesno=ftbe->nos=1;
   ftbe->up=0;
   ftbe->ythresh=0;
   ftbe->docid=HA_POS_ERROR;
@@ -236,7 +239,8 @@ void _ftb_climb_the_tree(FTB_WORD *ftbw, my_off_t curdoc)
   {
     if (ftbe->docid != curdoc)
     {
-      ftbe->cur_weight=ftbe->yesses=ftbe->nos=0;
+      ftbe->cur_weight=0;
+      ftbe->yesses=ftbe->nos=0;
       ftbe->docid=curdoc;
     }
     if (ftbe->nos)
@@ -373,7 +377,8 @@ float ft_boolean_find_relevance(FT_INFO *ftb, byte *record, uint length)
       {
         if (ftbe->docid != HA_POS_ERROR)
         {
-          ftbe->cur_weight=ftbe->yesses=ftbe->nos=0;
+          ftbe->cur_weight=0;
+	  ftbe->yesses=ftbe->nos=0;
           ftbe->docid=HA_POS_ERROR;
         }
         else

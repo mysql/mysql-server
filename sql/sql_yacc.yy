@@ -3172,11 +3172,9 @@ option_value:
 	   }
 
 query_cache_type:
-	  '0'        { current_thd->query_cache_type = 0; }
+	  NUM        { current_thd->query_cache_type = set_zone(atoi($1.str),0,3); }
 	| OFF        { current_thd->query_cache_type = 0; }
-	| '1'        { current_thd->query_cache_type = 1; }
 	| ON         { current_thd->query_cache_type = 1; }
-	| '2'        { current_thd->query_cache_type = 2; }
 	| DEMAND_SYM { current_thd->query_cache_type = 2; }
 
 text_or_password:
