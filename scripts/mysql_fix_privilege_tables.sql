@@ -15,6 +15,7 @@ ALTER TABLE host type=MyISAM, CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin;
 ALTER TABLE func type=MyISAM, CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin;
 ALTER TABLE columns_priv type=MyISAM, CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin;
 ALTER TABLE tables_priv type=MyISAM, CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin;
+ALTER TABLE procs_priv type=MyISAM, CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin;
 ALTER TABLE user change Password Password char(41) binary not null default '';
 ALTER TABLE user add File_priv enum('N','Y') NOT NULL;
 CREATE TABLE IF NOT EXISTS func (
@@ -171,8 +172,46 @@ ALTER TABLE user ADD Show_view_priv enum('N','Y') DEFAULT 'N' NOT NULL AFTER Cre
 UPDATE user SET Create_view_priv=Create_priv, Show_view_priv=Create_priv where user<>"" AND @hadCreateViewPriv = 0;
 
 #
+#
+#
+SET @hadCreateRoutinePriv:=0;
+SELECT @hadCreateRoutinePriv:=1 FROM user WHERE Create_routine_priv LIKE '%';
+
+#
+# Create PROCEDUREs privileges (v5.0)
+#
+ALTER TABLE db ADD Create_routine_priv enum('N','Y') DEFAULT 'N' NOT NULL AFTER Show_view_priv;
+ALTER TABLE user ADD Create_routine_priv enum('N','Y') DEFAULT 'N' NOT NULL AFTER Show_view_priv;
+
+#
+# Alter PROCEDUREs privileges (v5.0)
+#
+ALTER TABLE db ADD Alter_routine_priv enum('N','Y') DEFAULT 'N' NOT NULL AFTER Create_routine_priv;
+ALTER TABLE user ADD Alter_routine_priv enum('N','Y') DEFAULT 'N' NOT NULL AFTER Create_routine_priv;
+
+ALTER TABLE db ADD Execute_priv enum('N','Y') DEFAULT 'N' NOT NULL AFTER Alter_routine_priv;
+
+#
+# Assign create/alter routine privileges to people who have create privileges
+#
+UPDATE user SET Create_routine_priv=Create_priv, Alter_routine_priv=Alter_priv where user<>"" AND @hadCreateRoutinePriv = 0;
+UPDATE db SET Create_routine_priv=Create_priv, Alter_routine_priv=Alter_priv, Execute_priv=Select_priv where user<>"" AND @hadCreateRoutinePriv = 0;
+
+#
 # Create some possible missing tables
 #
+CREATE TABLE IF NOT EXISTS procs_priv (
+Host char(60) binary DEFAULT '' NOT NULL,
+Db char(64) binary DEFAULT '' NOT NULL,
+User char(16) binary DEFAULT '' NOT NULL,
+Routine_name char(64) binary DEFAULT '' NOT NULL,
+Grantor char(77) DEFAULT '' NOT NULL,
+Timestamp timestamp(14),
+Proc_priv set('Execute','Alter Routine','Grant') DEFAULT '' NOT NULL,
+PRIMARY KEY (Host,Db,User,Routine_name),
+KEY Grantor (Grantor)
+) CHARACTER SET utf8 COLLATE utf8_bin comment='Procedure privileges';
+
 CREATE TABLE IF NOT EXISTS help_topic (
 help_topic_id int unsigned not null,
 name varchar(64) not null,

@@ -739,6 +739,45 @@ sp_find_procedure(THD *thd, sp_name *name)
 
 
 int
+sp_exists_routine(THD *thd, TABLE_LIST *tables, bool any, bool no_error)
+{
+  TABLE_LIST *table;
+  bool result= 0;
+  DBUG_ENTER("sp_exists_routine");
+  for (table= tables; table; table= table->next_global)
+  {
+    sp_name *name;
+    LEX_STRING lex_db;
+    LEX_STRING lex_name;
+    lex_db.length= strlen(table->db);
+    lex_name.length= strlen(table->real_name);
+    lex_db.str= thd->strmake(table->db, lex_db.length);
+    lex_name.str= thd->strmake(table->real_name, lex_name.length);
+    name= new sp_name(lex_db, lex_name);
+    name->init_qname(thd);
+    if (sp_find_procedure(thd, name) != NULL ||
+        sp_find_function(thd, name) != NULL)
+    {
+      if (any)
+        DBUG_RETURN(1);
+      result= 1;
+    }
+    else if (!any)
+    {
+      if (!no_error)
+      {
+	my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "FUNCTION or PROCEDURE", 
+		 table->real_name);
+	DBUG_RETURN(-1);
+      }
+      DBUG_RETURN(0);
+    }
+  }
+  DBUG_RETURN(result);
+}
+
+
+int
 sp_create_procedure(THD *thd, sp_head *sp)
 {
   int ret;
