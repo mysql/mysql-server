@@ -34,7 +34,8 @@ class ha_isammrg: public handler
   const char **bas_ext() const;
   ulong table_flags() const { return (HA_READ_RND_SAME |
 				      HA_REC_NOT_IN_SEQ | HA_FILE_BASED); }
-  ulong index_flags(uint idx, uint part) const { DBUG_ASSERT(0); return 0; }
+  ulong index_flags(uint idx, uint part, bool all_parts) const
+  { DBUG_ASSERT(0); return 0; }
 
   uint max_supported_keys()          const { return 0; }
   bool low_byte_first()	   const { return 0; }

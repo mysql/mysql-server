@@ -340,6 +340,23 @@ const char **ha_berkeley::bas_ext() const
 { static const char *ext[]= { ha_berkeley_ext, NullS }; return ext; }
 
 
+ulong ha_berkeley::index_flags(uint idx, uint part, bool all_parts) const
+{
+  ulong flags= (HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER | HA_KEYREAD_ONLY
+                | HA_READ_RANGE);
+  for (uint idx= all_parts ? 0 : part ; idx <= part ; idx++)
+  {
+    if (table->key_info[idx].key_part[part].field->type() == FIELD_TYPE_BLOB)
+    {
+      /* We can't use BLOBS to shortcut sorts */
+      flags&= ~ (HA_READ_ORDER | HA_KEYREAD_ONLY | HA_READ_RANGE);
+      break;
+    }
+  }
+  return flags;
+}
+
+
 static int
 berkeley_cmp_hidden_key(DB* file, const DBT *new_key, const DBT *saved_key)
 {

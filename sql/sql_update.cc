@@ -61,7 +61,10 @@ int mysql_update(THD *thd,
   bool		safe_update= thd->options & OPTION_SAFE_UPDATES;
   bool		used_key_is_modified, transactional_table, log_delayed;
   int		error=0;
-  uint		used_index, want_privilege;
+  uint		used_index;
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  uint		want_privilege;
+#endif
   ulong		query_id=thd->query_id, timestamp_query_id;
   ha_rows	updated, found;
   key_map	old_used_keys;
