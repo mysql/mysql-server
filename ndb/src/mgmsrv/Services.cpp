@@ -245,6 +245,12 @@ ParserRow<MgmApiSession> commands[] = {
     MGM_ARG("param", String, Mandatory, "Parameter"),
     MGM_ARG("value", String, Mandatory, "Value"),
 
+  MGM_CMD("get connection parameter",
+	  &MgmApiSession::getConnectionParameter, ""),
+    MGM_ARG("node1", String, Mandatory, "Node1 ID"),
+    MGM_ARG("node2", String, Mandatory, "Node2 ID"),
+    MGM_ARG("param", String, Mandatory, "Parameter"),
+
   MGM_CMD("listen event", &MgmApiSession::listen_event, ""),
     MGM_ARG("node", Int, Optional, "Node"),  
     MGM_ARG("filter", String, Mandatory, "Event category"),
@@ -1376,6 +1382,29 @@ MgmApiSession::setConnectionParameter(Parser_t::Context &ctx,
   m_output->println("");
 }
 
+void
+MgmApiSession::getConnectionParameter(Parser_t::Context &ctx,
+				      Properties const &args) {
+  BaseString node1, node2, param;
+  unsigned value = 0;
+
+  args.get("node1", node1);
+  args.get("node2", node2);
+  args.get("param", param);
+  
+  BaseString result;
+  int ret = m_mgmsrv.getConnectionDbParameter(atoi(node1.c_str()),
+					      atoi(node2.c_str()),
+					      atoi(param.c_str()),
+					      &value,
+					      result);
+  
+  m_output->println("set connection parameter reply");
+  m_output->println("message: %s", result.c_str());
+  m_output->println("value: %u", value);
+  m_output->println("result: %s", (ret>0)?"Ok":"Failed");
+  m_output->println("");
+}
 
 void
 MgmApiSession::listen_event(Parser<MgmApiSession>::Context & ctx,
