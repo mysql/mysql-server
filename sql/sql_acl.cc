@@ -2033,6 +2033,7 @@ int mysql_table_grant (THD *thd, TABLE_LIST *table_list,
 
   while ((Str = str_list++))
   {
+    int error;
     GRANT_TABLE *grant_table;
     if (!Str->host.str)
     {
@@ -2047,8 +2048,11 @@ int mysql_table_grant (THD *thd, TABLE_LIST *table_list,
       continue;
     }
     /* Create user if needed */
-    if (replace_user_table(thd, tables[0].table, *Str,
-			   0, revoke_grant, create_new_users))
+    pthread_mutex_lock(&acl_cache->lock);
+    error=replace_user_table(thd, tables[0].table, *Str,
+			     0, revoke_grant, create_new_users);
+    pthread_mutex_unlock(&acl_cache->lock);
+    if (error)
     {
       result= -1;				// Remember error
       continue;					// Add next user
@@ -2064,7 +2068,7 @@ int mysql_table_grant (THD *thd, TABLE_LIST *table_list,
       {
 	my_printf_error(ER_NONEXISTING_TABLE_GRANT,
 			ER(ER_NONEXISTING_TABLE_GRANT),MYF(0),
-			Str->user.str, Str->host.str, table_list->alias);
+			Str->user.str, Str->host.str, table_list->real_name);
 	result= -1;
 	continue;
       }
@@ -2593,6 +2597,7 @@ bool check_grant_db(THD *thd,const char *db)
 
 ulong get_table_grant(THD *thd, TABLE_LIST *table)
 {
+  uint privilege;
   char *user = thd->priv_user;
   const char *db = table->db ? table->db : thd->db;
   GRANT_TABLE *grant_table;
@@ -2604,8 +2609,9 @@ ulong get_table_grant(THD *thd, TABLE_LIST *table)
   table->grant.version=grant_version;
   if (grant_table)
     table->grant.privilege|= grant_table->privs;
+  privilege= table->grant.privilege;
   pthread_mutex_unlock(&LOCK_grant);
-  return table->grant.privilege;
+  return privilege;
 }
 
 
@@ -2716,6 +2722,7 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
   if (send_fields(thd,field_list,1))
     DBUG_RETURN(-1);
 
+  pthread_mutex_lock(&LOCK_grant);
   VOID(pthread_mutex_lock(&acl_cache->lock));
 
   /* Add first global access grants */
@@ -2971,13 +2978,16 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
 			 thd->packet.length()))
 	{
 	  error=-1;
-	  goto end;
+	  break;
 	}
       }
     }
   }
+
  end:
   VOID(pthread_mutex_unlock(&acl_cache->lock));
+  pthread_mutex_unlock(&LOCK_grant);
+
   send_eof(&thd->net);
   DBUG_RETURN(error);
 }

@@ -51252,9 +51252,15 @@ not yet 100% confident in this code.
 @item
 Fixed core dump bug when using the @code{BINARY} cast on a @code{NULL} value.
 @item
+Fixed race condition when someone did a @code{GRANT} at the same time a new
+user logged in or did a @code{USE DATABASE}.
+@item
 Fixed bug in @code{ALTER TABLE} and @code{RENAME TABLE} when running with
 @code{-O lower_case_table_names=1} (typically on windows) when giving the
 table name in uppercase.
+@item
+Fixed that @code{-O lower_case_table_names=1} also converts database
+names to lower case.
 @item
 Fixed unlikely core dump with @code{SELECT ... ORDER BY ... LIMIT}.
 @item
