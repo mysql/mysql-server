@@ -787,11 +787,6 @@ protected:
    
   int	 receiveTCKEYREF(NdbApiSignal*); 
 
-
-  int    receiveTRANSID_AI(const Uint32* aDataPtr, Uint32 aDataLength); 
-  int    receiveREAD_CONF(const Uint32* aDataPtr, Uint32 aDataLength); 
-
-
   int	 checkMagicNumber(bool b = true); // Verify correct object
 
   int    checkState_TransId(NdbApiSignal* aSignal);
@@ -815,8 +810,6 @@ protected:
   int branch_col_null(Uint32 type, Uint32 col, Uint32 Label);
   
   // Handle ATTRINFO signals   
-  int         receiveREAD_AI(Uint32* aDataPtr, Uint32 aLength); 
-				
   int 	      insertATTRINFO(Uint32 aData);
   int         insertATTRINFOloop(const Uint32* aDataPtr, Uint32 aLength);
 

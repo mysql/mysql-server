@@ -3299,8 +3299,8 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
   regTcPtr->dirtyOp       = LqhKeyReq::getDirtyFlag(Treqinfo);
   regTcPtr->opExec        = LqhKeyReq::getInterpretedFlag(Treqinfo);
   regTcPtr->opSimple      = LqhKeyReq::getSimpleFlag(Treqinfo);
-  regTcPtr->simpleRead    = ((Treqinfo >> 18) & 15);
   regTcPtr->operation     = LqhKeyReq::getOperation(Treqinfo);
+  regTcPtr->simpleRead    = regTcPtr->operation == ZREAD && regTcPtr->opSimple;
   regTcPtr->seqNoReplica  = LqhKeyReq::getSeqNoReplica(Treqinfo);
   UintR TreclenAiLqhkey   = LqhKeyReq::getAIInLqhKeyReq(Treqinfo);
   regTcPtr->apiVersionNo  = 0; 
@@ -3431,7 +3431,7 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
   if ((tfragDistKey != TdistKey) &&
       (regTcPtr->seqNoReplica == 0) &&
       (regTcPtr->dirtyOp == ZFALSE) &&
-      (regTcPtr->simpleRead != ZSIMPLE_READ)) {
+      (regTcPtr->simpleRead == ZFALSE)) {
     /* ----------------------------------------------------------------------
      * WE HAVE DIFFERENT OPINION THAN THE DIH THAT STARTED THE TRANSACTION. 
      * THE REASON COULD BE THAT THIS IS AN OLD DISTRIBUTION WHICH IS NO LONGER
@@ -3439,7 +3439,7 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
      * ONE IS ADDED TO THE DISTRIBUTION KEY EVERY TIME WE ADD A NEW REPLICA.
      * FAILED REPLICAS DO NOT AFFECT THE DISTRIBUTION KEY. THIS MEANS THAT THE 
      * MAXIMUM DEVIATION CAN BE ONE BETWEEN THOSE TWO VALUES.              
-     * ---------------------------------------------------------------------- */
+     * --------------------------------------------------------------------- */
     Int32 tmp = TdistKey - tfragDistKey;
     tmp = (tmp < 0 ? - tmp : tmp);
     if ((tmp <= 1) || (tfragDistKey == 0)) {
@@ -3879,7 +3879,7 @@ void Dblqh::tupkeyConfLab(Signal* signal)
 /* ---- GET OPERATION TYPE AND CHECK WHAT KIND OF OPERATION IS REQUESTED ---- */
   const TupKeyConf * const tupKeyConf = (TupKeyConf *)&signal->theData[0];
   TcConnectionrec * const regTcPtr = tcConnectptr.p;
-  if (regTcPtr->simpleRead == ZSIMPLE_READ) {
+  if (regTcPtr->simpleRead) {
     jam();
     /* ----------------------------------------------------------------------
      * THE OPERATION IS A SIMPLE READ. WE WILL IMMEDIATELY COMMIT THE OPERATION.
@@ -5467,6 +5467,8 @@ void Dblqh::commitContinueAfterBlockedLab(Signal* signal)
   TcConnectionrec * const regTcPtr = tcConnectptr.p;
   Fragrecord * const regFragptr = fragptr.p;
   Uint32 operation = regTcPtr->operation;
+  Uint32 simpleRead = regTcPtr->simpleRead;
+  Uint32 dirtyOp = regTcPtr->dirtyOp;
   if (regTcPtr->activeCreat == ZFALSE) {
     if ((cCommitBlocked == true) &&
         (regFragptr->fragActiveStatus == ZTRUE)) {
@@ -5504,13 +5506,18 @@ void Dblqh::commitContinueAfterBlockedLab(Signal* signal)
       tupCommitReq->hashValue = regTcPtr->hashValue;
       EXECUTE_DIRECT(tup, GSN_TUP_COMMITREQ, signal, 
 		     TupCommitReq::SignalLength);
-    }//if
-    Uint32 acc = refToBlock(regTcPtr->tcAccBlockref);
-    signal->theData[0] = regTcPtr->accConnectrec;
-    EXECUTE_DIRECT(acc, GSN_ACC_COMMITREQ, signal, 1);
-    Uint32 simpleRead = regTcPtr->simpleRead;
+      Uint32 acc = refToBlock(regTcPtr->tcAccBlockref);
+      signal->theData[0] = regTcPtr->accConnectrec;
+      EXECUTE_DIRECT(acc, GSN_ACC_COMMITREQ, signal, 1);
+    } else {
+      if(!dirtyOp){
+	Uint32 acc = refToBlock(regTcPtr->tcAccBlockref);
+	signal->theData[0] = regTcPtr->accConnectrec;
+	EXECUTE_DIRECT(acc, GSN_ACC_COMMITREQ, signal, 1);
+      }
+    }
     jamEntry();
-    if (simpleRead == ZSIMPLE_READ) {
+    if (simpleRead) {
       jam();
 /* ------------------------------------------------------------------------- */
 /*THE OPERATION WAS A SIMPLE READ THUS THE COMMIT PHASE IS ONLY NEEDED TO    */
@@ -5523,7 +5530,6 @@ void Dblqh::commitContinueAfterBlockedLab(Signal* signal)
       return;
     }//if
   }//if
-  Uint32 dirtyOp = regTcPtr->dirtyOp;
   Uint32 seqNoReplica = regTcPtr->seqNoReplica;
   if (regTcPtr->gci > regFragptr->newestGci) {
     jam();
@@ -6092,7 +6098,7 @@ void Dblqh::abortStateHandlerLab(Signal* signal)
 /* ------------------------------------------------------------------------- */
       return;
     }//if
-    if (regTcPtr->simpleRead == ZSIMPLE_READ) {
+    if (regTcPtr->simpleRead) {
       jam();
 /* ------------------------------------------------------------------------- */
 /*A SIMPLE READ IS CURRENTLY RELEASING THE LOCKS OR WAITING FOR ACCESS TO    */
@@ -6378,7 +6384,7 @@ void Dblqh::continueAbortLab(Signal* signal)
 void Dblqh::continueAfterLogAbortWriteLab(Signal* signal) 
 {
   TcConnectionrec * const regTcPtr = tcConnectptr.p;
-  if (regTcPtr->simpleRead == ZSIMPLE_READ) {
+  if (regTcPtr->simpleRead) {
     jam();
     TcKeyRef * const tcKeyRef = (TcKeyRef *) signal->getDataPtrSend();
     

@@ -2290,6 +2290,7 @@ void Dbtc::initApiConnectRec(Signal* signal,
   regApiPtr->m_exec_flag = 0;
   regApiPtr->returncode = 0;
   regApiPtr->returnsignal = RS_TCKEYCONF;
+  ndbassert(regApiPtr->firstTcConnect == RNIL);
   regApiPtr->firstTcConnect = RNIL;
   regApiPtr->lastTcConnect = RNIL;
   regApiPtr->globalcheckpointid = 0;
@@ -2484,18 +2485,30 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   }
   break;
   case CS_STARTED:
-    //------------------------------------------------------------------------
-    // Transaction is started already. Check that the operation is on the same
-    // transaction.
-    //------------------------------------------------------------------------
-    compare_transid1 = regApiPtr->transid[0] ^ tcKeyReq->transId1;
-    compare_transid2 = regApiPtr->transid[1] ^ tcKeyReq->transId2;
-    jam();
-    compare_transid1 = compare_transid1 | compare_transid2;
-    if (compare_transid1 != 0) {
-      TCKEY_abort(signal, 1);
-      return;
-    }//if
+    if(TstartFlag == 1 && regApiPtr->firstTcConnect == RNIL)
+    {
+      /**
+       * If last operation in last transaction was a simple/dirty read
+       *  it does not have to be committed or rollbacked hence,
+       *  the state will be CS_STARTED
+       */
+      jam();
+      initApiConnectRec(signal, regApiPtr);
+      regApiPtr->m_exec_flag = TexecFlag;
+    } else { 
+      //----------------------------------------------------------------------
+      // Transaction is started already. 
+      // Check that the operation is on the same transaction.
+      //-----------------------------------------------------------------------
+      compare_transid1 = regApiPtr->transid[0] ^ tcKeyReq->transId1;
+      compare_transid2 = regApiPtr->transid[1] ^ tcKeyReq->transId2;
+      jam();
+      compare_transid1 = compare_transid1 | compare_transid2;
+      if (compare_transid1 != 0) {
+	TCKEY_abort(signal, 1);
+	return;
+      }//if
+    }
     break;
   case CS_ABORTING:
     if (regApiPtr->abortState == AS_IDLE) {
@@ -2644,7 +2657,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   regCachePtr->schemaVersion = TtableSchemaVersion;
   regTcPtr->operation = TOperationType;
 
-  //  Uint8 TSimpleFlag         = tcKeyReq->getSimpleFlag(Treqinfo);
+  Uint8 TSimpleFlag         = tcKeyReq->getSimpleFlag(Treqinfo);
   Uint8 TDirtyFlag          = tcKeyReq->getDirtyFlag(Treqinfo);
   Uint8 TInterpretedFlag    = tcKeyReq->getInterpretedFlag(Treqinfo);
   Uint8 TDistrGroupFlag     = tcKeyReq->getDistributionGroupFlag(Treqinfo);
@@ -2652,11 +2665,9 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   Uint8 TDistrKeyFlag       = tcKeyReq->getDistributionKeyFlag(Treqinfo);
   Uint8 TexecuteFlag        = TexecFlag;
   
-  //RONM_TEST Disable simple reads temporarily
-  regCachePtr->opSimple = 0;
-  //  regCachePtr->opSimple = TSimpleFlag;
-  regTcPtr->dirtyOp  = TDirtyFlag;
+  regCachePtr->opSimple = TSimpleFlag;
   regCachePtr->opExec   = TInterpretedFlag;
+  regTcPtr->dirtyOp  = TDirtyFlag;
 
   regCachePtr->distributionGroupIndicator = TDistrGroupFlag;
   regCachePtr->distributionGroupType      = TDistrGroupTypeFlag;
@@ -2757,7 +2768,6 @@ void Dbtc::execTCKEYREQ(Signal* signal)
       }
     }
     
-    UintR Tattrlength = regCachePtr->attrlength;
     UintR TwriteCount = c_counters.cwriteCount;
     UintR Toperationsize = coperationsize;
     /* -------------------------------------------------------------------- 
@@ -2766,13 +2776,13 @@ void Dbtc::execTCKEYREQ(Signal* signal)
      *   TEMP TABLES DON'T PARTICIPATE.
      * -------------------------------------------------------------------- */
     if (localTabptr.p->storedTable) {
-      coperationsize = ((Toperationsize + Tattrlength) + TkeyLength) + 17;
+      coperationsize = ((Toperationsize + TattrLen) + TkeyLength) + 17;
     }
     c_counters.cwriteCount = TwriteCount + 1;
     switch (TOperationType) {
     case ZUPDATE:
       jam();
-      if (Tattrlength == 0) {
+      if (TattrLen == 0) {
         //TCKEY_abort(signal, 5);
         //return;
       }//if
@@ -2818,7 +2828,6 @@ void Dbtc::execTCKEYREQ(Signal* signal)
     if (regApiPtr->apiConnectstate == CS_START_COMMITTING) {
       jam();
       // Trigger execution at commit
-
       regApiPtr->apiConnectstate = CS_REC_COMMITTING;
     } else {
       jam();
@@ -2938,12 +2947,13 @@ void Dbtc::tckeyreq050Lab(Signal* signal)
   regTcPtr->tcNodedata[3] = Tdata6;
 
   Uint8 Toperation = regTcPtr->operation;
+  Uint8 Tdirty = regTcPtr->dirtyOp;
   tnoOfBackup = tnodeinfo & 3;
   tnoOfStandby = (tnodeinfo >> 8) & 3;
  
   regCachePtr->distributionKey = (tnodeinfo >> 16) & 255;
   if (Toperation == ZREAD) {
-    if (regCachePtr->opSimple == 1) {
+    if (Tdirty == 1) {
       jam();
       /*-------------------------------------------------------------*/
       /*       A SIMPLE READ CAN SELECT ANY OF THE PRIMARY AND       */
@@ -2962,14 +2972,6 @@ void Dbtc::tckeyreq050Lab(Signal* signal)
           regTcPtr->tcNodedata[0] = Tnode;
         }//if
       }//for
-      if (regCachePtr->attrlength == 0) {
-	/*-------------------------------------------------------------*/
-	// A simple read which does not read anything is a strange
-	// creature and we abort rather than continue.
-	/*-------------------------------------------------------------*/
-        TCKEY_abort(signal, 12);
-        return;
-      }//if
     }//if
     jam();
     regTcPtr->lastReplicaNo = 0;
@@ -3279,7 +3281,7 @@ void Dbtc::packLqhkeyreq040Lab(Signal* signal,
       releaseAttrinfo();
       if (Tboth) {
         jam();
-        releaseSimpleRead(signal);
+        releaseSimpleRead(signal, apiConnectptr, tcConnectptr.p);
         return;
       }//if
       regTcPtr->tcConnectstate = OS_OPERATING;
@@ -3341,8 +3343,21 @@ void Dbtc::releaseAttrinfo()
 /* ========================================================================= */
 /* -------   RELEASE ALL RECORDS CONNECTED TO A SIMPLE OPERATION     ------- */
 /* ========================================================================= */
-void Dbtc::releaseSimpleRead(Signal* signal) 
+void Dbtc::releaseSimpleRead(Signal* signal, 
+			     ApiConnectRecordPtr regApiPtr,
+			     TcConnectRecord* regTcPtr) 
 {
+  Uint32 Ttckeyrec = regApiPtr.p->tckeyrec;
+  Uint32 TclientData = regTcPtr->clientData;
+  Uint32 Tnode = regTcPtr->tcNodedata[0];
+  Uint32 Tlqhkeyreqrec = regApiPtr.p->lqhkeyreqrec;
+  Uint32 TsimpleReadCount = c_counters.csimpleReadCount;
+  ConnectionState state = regApiPtr.p->apiConnectstate;
+  
+  regApiPtr.p->tcSendArray[Ttckeyrec] = TclientData;
+  regApiPtr.p->tcSendArray[Ttckeyrec + 1] = TcKeyConf::SimpleReadBit | Tnode;
+  regApiPtr.p->tckeyrec = Ttckeyrec + 2;
+  
   unlinkReadyTcCon(signal);
   releaseTcCon();
 
@@ -3350,31 +3365,29 @@ void Dbtc::releaseSimpleRead(Signal* signal)
    * No LQHKEYCONF in Simple/Dirty read
    * Therefore decrese no LQHKEYCONF(REF) we are waiting for
    */
-  ApiConnectRecord * const regApiPtr = apiConnectptr.p;
-  UintR TsimpleReadCount = c_counters.csimpleReadCount;
-  UintR Tlqhkeyreqrec = regApiPtr->lqhkeyreqrec;
-
   c_counters.csimpleReadCount = TsimpleReadCount + 1;
-  regApiPtr->lqhkeyreqrec = Tlqhkeyreqrec - 1;
+  regApiPtr.p->lqhkeyreqrec = --Tlqhkeyreqrec;
+  
+  if(Tlqhkeyreqrec == 0)
+  {
+    /**
+     * Special case of lqhKeyConf_checkTransactionState:
+     * - commit with zero operations: handle only for simple read
+     */
+    sendtckeyconf(signal, state == CS_START_COMMITTING);
+    regApiPtr.p->apiConnectstate = 
+      (state == CS_START_COMMITTING ? CS_CONNECTED : state);
+    setApiConTimer(regApiPtr.i, 0, __LINE__);
 
-  /**
-   * If start committing and no operation in lists 
-   *   simply return
-   */
-  if (regApiPtr->apiConnectstate == CS_START_COMMITTING &&
-      regApiPtr->firstTcConnect == RNIL) {
-
-    jam();
-    setApiConTimer(apiConnectptr.i, 0, __LINE__);
-    regApiPtr->apiConnectstate = CS_CONNECTED;
+    if(state != regApiPtr.p->apiConnectstate)
+      ndbout_c("resettting state from %d to %d", state, regApiPtr.p->apiConnectstate);
     return;
-  }//if
-
+  }
+  
   /**
-   * Else Emulate LQHKEYCONF
+   * Emulate LQHKEYCONF
    */
-  lqhKeyConf_checkTransactionState(signal, regApiPtr);
-
+  lqhKeyConf_checkTransactionState(signal, regApiPtr.p);
 }//Dbtc::releaseSimpleRead()
 
 /* ------------------------------------------------------------------------- */
@@ -8490,6 +8503,10 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
     if (transP->apiConnectstate == CS_ABORTING &&
 	transP->abortState == AS_IDLE) {
       jam();
+    } else if(transP->apiConnectstate == CS_STARTED && 
+	      transP->firstTcConnect == RNIL){
+      jam();
+      // left over from simple/dirty read
     } else {
       jam();
       errCode = ZSTATE_ERROR;
@@ -9639,6 +9656,7 @@ void Dbtc::initApiConnect(Signal* signal)
     apiConnectptr.p->ndbapiBlockref = 0xFFFFFFFF; // Invalid ref
     apiConnectptr.p->commitAckMarker = RNIL;
     apiConnectptr.p->firstTcConnect = RNIL;
+    apiConnectptr.p->lastTcConnect = RNIL;
     apiConnectptr.p->triggerPending = false;
     apiConnectptr.p->isIndexOp = false;
     apiConnectptr.p->accumulatingIndexOp = RNIL;
@@ -9665,6 +9683,7 @@ void Dbtc::initApiConnect(Signal* signal)
       apiConnectptr.p->ndbapiBlockref = 0xFFFFFFFF; // Invalid ref
       apiConnectptr.p->commitAckMarker = RNIL;
       apiConnectptr.p->firstTcConnect = RNIL;
+      apiConnectptr.p->lastTcConnect = RNIL;
       apiConnectptr.p->triggerPending = false;
       apiConnectptr.p->isIndexOp = false;
       apiConnectptr.p->accumulatingIndexOp = RNIL;
@@ -9691,6 +9710,7 @@ void Dbtc::initApiConnect(Signal* signal)
     apiConnectptr.p->ndbapiBlockref = 0xFFFFFFFF; // Invalid ref
     apiConnectptr.p->commitAckMarker = RNIL;
     apiConnectptr.p->firstTcConnect = RNIL;
+    apiConnectptr.p->lastTcConnect = RNIL;
     apiConnectptr.p->triggerPending = false;
     apiConnectptr.p->isIndexOp = false;
     apiConnectptr.p->accumulatingIndexOp = RNIL;
@@ -11045,9 +11065,11 @@ void Dbtc::execTCINDXREQ(Signal* signal)
   // Seize index operation
   TcIndexOperationPtr indexOpPtr;
   if ((startFlag == 1) &&
-      ((regApiPtr->apiConnectstate == CS_CONNECTED) ||
-       ((regApiPtr->apiConnectstate == CS_ABORTING) && 
-	(regApiPtr->abortState == AS_IDLE)))) {
+      (regApiPtr->apiConnectstate == CS_CONNECTED ||
+       (regApiPtr->apiConnectstate == CS_STARTED && 
+	regApiPtr->firstTcConnect == RNIL)) ||
+      (regApiPtr->apiConnectstate == CS_ABORTING && 
+       regApiPtr->abortState == AS_IDLE)) {
     jam();
     // This is a newly started transaction, clean-up
     releaseAllSeizedIndexOperations(regApiPtr);
@@ -11702,7 +11724,7 @@ void Dbtc::readIndexTable(Signal* signal,
   tcKeyLength += MIN(keyLength, keyBufSize);
   tcKeyReq->tableSchemaVersion = indexOp->tcIndxReq.indexSchemaVersion;
   TcKeyReq::setOperationType(tcKeyRequestInfo, 
-			     opType == ZREAD ? opType : ZREAD_EX);
+			     opType == ZREAD ? ZREAD : ZREAD_EX);
   TcKeyReq::setAIInTcKeyReq(tcKeyRequestInfo, 1); // Allways send one AttrInfo
   TcKeyReq::setExecutingTrigger(tcKeyRequestInfo, 0);
   BlockReference originalReceiver = regApiPtr->ndbapiBlockref;
@@ -11727,6 +11749,9 @@ void Dbtc::readIndexTable(Signal* signal,
   AttributeHeader::init(dataPtr, indexData->primaryKeyPos, 0);
   tcKeyLength++;
   tcKeyReq->requestInfo = tcKeyRequestInfo;
+
+  ndbassert(TcKeyReq::getDirtyFlag(tcKeyRequestInfo) == 0);
+  ndbassert(TcKeyReq::getSimpleFlag(tcKeyRequestInfo) == 0);
   EXECUTE_DIRECT(DBTC, GSN_TCKEYREQ, signal, tcKeyLength);
  
   /**
@@ -11877,6 +11902,9 @@ void Dbtc::executeIndexOperation(Signal* signal,
   TcKeyReq::setExecuteFlag(tcKeyRequestInfo, 0);
   TcKeyReq::setExecutingTrigger(tcKeyRequestInfo, 0);
   tcKeyReq->requestInfo = tcKeyRequestInfo;
+
+  ndbassert(TcKeyReq::getDirtyFlag(tcKeyRequestInfo) == 0);
+  ndbassert(TcKeyReq::getSimpleFlag(tcKeyRequestInfo) == 0);
 
   /**
    * Decrease lqhkeyreqrec to compensate for addition
