@@ -250,10 +250,11 @@ int ha_myisam::check(THD* thd, HA_CHECK_OPT* check_opt)
 
   if (!mi_is_crashed(file) &&
       (((param.testflag & T_CHECK_ONLY_CHANGED) &&
-	(share->state.changed & (STATE_CHANGED | STATE_CRASHED |
-				 STATE_CRASHED_ON_REPAIR)) &&
+	!(share->state.changed & (STATE_CHANGED | STATE_CRASHED |
+				  STATE_CRASHED_ON_REPAIR)) &&
 	share->state.open_count == 0) ||
-       ((param.testflag & T_FAST) && share->state.open_count == 0)))
+       ((param.testflag & T_FAST) && (share->state.open_count ==
+				      (share->global_changed ? 1 : 0)))))
     return HA_ADMIN_ALREADY_DONE;
 
   error = chk_size(&param, file);
