@@ -398,6 +398,7 @@ bool check_global_access(THD *thd, ulong want_access);
 int mysql_backup_table(THD* thd, TABLE_LIST* table_list);
 int mysql_restore_table(THD* thd, TABLE_LIST* table_list);
 
+int mysql_checksum_table(THD* thd, TABLE_LIST* table_list);
 int mysql_check_table(THD* thd, TABLE_LIST* table_list,
 		      HA_CHECK_OPT* check_opt);
 int mysql_repair_table(THD* thd, TABLE_LIST* table_list,

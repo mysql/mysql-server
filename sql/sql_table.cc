@@ -2555,7 +2555,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
       delete_count++;
     }
     else
-      found_count++;    
+      found_count++;
   }
   end_read_record(&info);
   free_io_cache(from);
@@ -2587,3 +2587,67 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   *deleted=delete_count;
   DBUG_RETURN(error > 0 ? -1 : 0);
 }
+
+int mysql_checksum_table(THD* thd, TABLE_LIST* tables)
+{
+  TABLE_LIST *table;
+  List<Item> field_list;
+  Item *item;
+  Protocol *protocol= thd->protocol;
+  DBUG_ENTER("mysql_admin_table");
+
+  field_list.push_back(item = new Item_empty_string("Table", NAME_LEN*2));
+  item->maybe_null= 1;
+  field_list.push_back(item=new Item_int("Checksum",(longlong) 1,21));
+  item->maybe_null= 1;
+  if (protocol->send_fields(&field_list, 1))
+    DBUG_RETURN(-1);
+
+  for (table = tables; table; table = table->next)
+  {
+    char table_name[NAME_LEN*2+2];
+    char* db = (table->db) ? table->db : thd->db;
+    bool fatal_error=0;
+    strxmov(table_name,db ? db : "",".",table->real_name,NullS);
+
+    table->table = open_ltable(thd, table, TL_READ_NO_INSERT);
+#ifdef EMBEDDED_LIBRARY
+    thd->net.last_errno= 0;  // these errors shouldn't get client
+#endif
+
+    protocol->prepare_for_resend();
+    protocol->store(table_name, system_charset_info);
+
+    if (!table->table)
+    {
+      protocol->store_null();
+      thd->net.last_error[0]=0;
+    }
+    else
+    {
+      table->table->pos_in_table_list= table;
+
+      if (table->table->file->table_flags() & HA_HAS_CHECKSUM)
+        protocol->store((ulonglong)table->table->file->checksum());
+      else
+        protocol->store_null();
+#ifdef EMBEDDED_LIBRARY
+      thd->net.last_errno= 0;  // these errors shouldn't get client
+#endif
+
+      close_thread_tables(thd);
+      table->table=0;				// For query cache
+    }
+    if (protocol->write())
+      goto err;
+  }
+
+  send_eof(thd);
+  DBUG_RETURN(0);
+ err:
+  close_thread_tables(thd);			// Shouldn't be needed
+  if (table)
+    table->table=0;
+  DBUG_RETURN(-1);
+}
+

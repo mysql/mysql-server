@@ -669,7 +669,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	insert_values update delete truncate rename
 	show describe load alter optimize preload flush
 	reset purge begin commit rollback slave master_def master_defs
-	repair restore backup analyze check start
+	repair restore backup analyze check start checksum
 	field_list field_list_item field_spec kill column_def key_def
 	preload_list preload_keys
 	select_item_list select_item values_list no_braces
@@ -727,6 +727,7 @@ verb_clause:
 	| begin
 	| change
 	| check
+	| checksum
 	| commit
 	| create
 	| delete
@@ -1752,6 +1753,16 @@ backup:
         {
 	  Lex->backup_dir = $6.str;
         };
+
+checksum:
+        CHECKSUM_SYM table_or_tables
+	{
+	   LEX *lex=Lex;
+	   lex->sql_command = SQLCOM_CHECKSUM;
+	}
+	table_list
+	{}
+	;
 
 repair:
 	REPAIR opt_no_write_to_binlog table_or_tables
@@ -5152,7 +5163,7 @@ union_opt:
 	;
 
 optional_order_or_limit:
-      	/* Empty */ {}
+	/* Empty */ {}
 	|
 	  {
 	    THD *thd= YYTHD;
