@@ -606,13 +606,42 @@ mysql_connect(MYSQL *mysql,const char *host,
 /**************************************************************************
   Change user and database
 **************************************************************************/
+int cli_read_change_user_result(MYSQL *mysql, char *buff, const char *passwd)
+{
+  NET *net= &mysql->net;
+  ulong pkt_length;
+
+  pkt_length= net_safe_read(mysql);
+  
+  if (pkt_length == packet_error)
+    return 1;
+
+  if (pkt_length == 1 && net->read_pos[0] == 254 &&
+      mysql->server_capabilities & CLIENT_SECURE_CONNECTION)
+  {
+    /*
+      By sending this very specific reply server asks us to send scrambled
+      password in old format. The reply contains scramble_323.
+    */
+    scramble_323(buff, mysql->scramble, passwd);
+    if (my_net_write(net, buff, SCRAMBLE_LENGTH_323 + 1) || net_flush(net))
+    {
+      net->last_errno= CR_SERVER_LOST;
+      strmov(net->sqlstate, unknown_sqlstate);
+      strmov(net->last_error,ER(net->last_errno));
+      return 1;
+    }
+    /* Read what server thinks about out new auth message report */
+    if (net_safe_read(mysql) == packet_error)
+      return 1;
+  }
+  return 0;
+}
 
 my_bool	STDCALL mysql_change_user(MYSQL *mysql, const char *user,
 				  const char *passwd, const char *db)
 {
   char buff[512],*end=buff;
-  NET *net= &mysql->net;
-  ulong pkt_length;
   DBUG_ENTER("mysql_change_user");
 
   if (!user)
@@ -646,31 +675,8 @@ my_bool	STDCALL mysql_change_user(MYSQL *mysql, const char *user,
   /* Write authentication package */
   simple_command(mysql,COM_CHANGE_USER, buff,(ulong) (end-buff),1);
 
-  pkt_length= net_safe_read(mysql);
-
-  if (pkt_length == packet_error)
-    goto error;
-
-  if (pkt_length == 1 && net->read_pos[0] == 254 &&
-      mysql->server_capabilities & CLIENT_SECURE_CONNECTION)
-  {
-    /*
-      By sending this very specific reply server asks us to send scrambled
-      password in old format. The reply contains scramble_323.
-    */
-    scramble_323(buff, mysql->scramble, passwd);
-    if (my_net_write(net, buff, SCRAMBLE_LENGTH_323 + 1) || net_flush(net))
-    {
-      net->last_errno= CR_SERVER_LOST;
-      strmov(net->sqlstate, unknown_sqlstate);
-      strmov(net->last_error,ER(net->last_errno));
-      goto error;
-    }
-    /* Read what server thinks about out new auth message report */
-    if (net_safe_read(mysql) == packet_error)
-      goto error;
-  }
-
+  if ((*mysql->methods->read_change_user_result)(mysql, buff, passwd))
+    DBUG_RETURN(1);
   /* Free old connect information */
   my_free(mysql->user,MYF(MY_ALLOW_ZERO_PTR));
   my_free(mysql->passwd,MYF(MY_ALLOW_ZERO_PTR));
@@ -681,9 +687,6 @@ my_bool	STDCALL mysql_change_user(MYSQL *mysql, const char *user,
   mysql->passwd=my_strdup(passwd,MYF(MY_WME));
   mysql->db=    db ? my_strdup(db,MYF(MY_WME)) : 0;
   DBUG_RETURN(0);
-
-error:
-  DBUG_RETURN(1);
 }
 
 #if defined(HAVE_GETPWUID) && defined(NO_GETPWUID_DECL)
