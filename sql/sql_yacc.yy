@@ -123,6 +123,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token  RESET_SYM
 %token  PURGE
 %token  SLAVE
+%token  IO_THREAD
+%token  SQL_THREAD
 %token  START_SYM
 %token  STOP_SYM
 %token	TRUNCATE_SYM
@@ -1257,20 +1259,34 @@ opt_to:
 	| AS		{}
 
 slave:
-	SLAVE START_SYM
+	SLAVE START_SYM slave_thread_opts
          {
 	   LEX *lex=Lex;
            lex->sql_command = SQLCOM_SLAVE_START;
 	   lex->type = 0;
          }
          |
-	SLAVE STOP_SYM
+	SLAVE STOP_SYM slave_thread_opts
          {
 	   LEX *lex=Lex;
            lex->sql_command = SQLCOM_SLAVE_STOP;
 	   lex->type = 0;
          };
 
+slave_thread_opts: slave_thread_opt
+ | slave_thread_opts ',' slave_thread_opt
+
+slave_thread_opt:
+   /*empty*/ {} 
+  | SQL_THREAD
+    {
+      Lex->slave_thd_opt|=SLAVE_SQL;
+    }
+  | IO_THREAD
+    {
+      Lex->slave_thd_opt|=SLAVE_IO;
+    }
+  
 restore:
 	RESTORE_SYM table_or_tables
 	{

@@ -186,7 +186,7 @@ typedef struct st_lex {
   thr_lock_type lock_option;
   bool	drop_primary,drop_if_exists,local_file;
   bool  in_comment,ignore_space,verbose,simple_alter, option_type;
-
+  uint slave_thd_opt;
 } LEX;
 
 

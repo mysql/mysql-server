@@ -922,14 +922,10 @@ bool acl_check_host(const char *host, const char *ip)
 bool change_password(THD *thd, const char *host, const char *user,
 		     char *new_password)
 {
+  uint length=0;
   DBUG_ENTER("change_password");
   DBUG_PRINT("enter",("thd=%x, host='%s', user='%s', new_password='%s'",thd,host,user,new_password));
-  uint length=0;
-  if (!user[0])
-  {
-    send_error(&thd->net, ER_PASSWORD_ANONYMOUS_USER);
-    DBUG_RETURN(1);
-  }
+
   if (!initialized)
   {
     send_error(&thd->net, ER_PASSWORD_NOT_ALLOWED); /* purecov: inspected */
@@ -941,16 +937,21 @@ bool change_password(THD *thd, const char *host, const char *user,
   length=(uint) strlen(new_password);
   new_password[length & 16]=0;
 
-  if (!thd || (!thd->slave_thread && ( strcmp(thd->user,user) ||
-	       my_strcasecmp(host,thd->host ? thd->host : thd->ip))))
+  if (!thd->slave_thread &&
+      (strcmp(thd->user,user) ||
+       my_strcasecmp(host,thd->host ? thd->host : thd->ip)))
   {
     if (check_access(thd, UPDATE_ACL, "mysql",0,1))
       DBUG_RETURN(1);
   }
+  if (!thd->slave_thread && !thd->user[0])
+  {
+    send_error(&thd->net, ER_PASSWORD_ANONYMOUS_USER);
+    DBUG_RETURN(1);
+  }
   VOID(pthread_mutex_lock(&acl_cache->lock));
   ACL_USER *acl_user;
-  DBUG_PRINT("info",("host=%s, user=%s",host,user));
-  if (!(acl_user= find_acl_user(host,user)) || !acl_user->user)
+  if (!(acl_user= find_acl_user(host,user)))
   {
     send_error(&thd->net, ER_PASSWORD_NO_MATCH);
     VOID(pthread_mutex_unlock(&acl_cache->lock));
@@ -958,7 +959,8 @@ bool change_password(THD *thd, const char *host, const char *user,
   }
   if (update_user_table(thd,
 			acl_user->host.hostname ? acl_user->host.hostname : "",
-			acl_user->user, new_password))
+			acl_user->user ? acl_user->user : "",
+			new_password))
   {
     VOID(pthread_mutex_unlock(&acl_cache->lock)); /* purecov: deadcode */
     send_error(&thd->net,0); /* purecov: deadcode */
@@ -978,7 +980,7 @@ bool change_password(THD *thd, const char *host, const char *user,
   qinfo.q_len =
     my_sprintf(buff,
 	       (buff,"SET PASSWORD FOR \"%-.120s\"@\"%-.120s\"=\"%-.120s\"",
-		acl_user->user,
+		acl_user->user ? acl_user->user : "",
 		acl_user->host.hostname ? acl_user->host.hostname : "",
 		new_password));
   mysql_update_log.write(thd,buff,qinfo.q_len);
@@ -2743,9 +2745,9 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
 	    }
 	  }
 	}
-	db.append (" ON ",4);
+	db.append (" ON '",5);
 	db.append(acl_db->db);
-	db.append (".* TO '",7);
+	db.append ("'.* TO '",8);
 	db.append(lex_user->user.str,lex_user->user.length); 
 	db.append ("'@'",3);
 	db.append(lex_user->host.str, lex_user->host.length);

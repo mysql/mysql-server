@@ -563,6 +563,15 @@ EOF
     F301:UNIX_System_V:*:*)
        echo f301-fujitsu-uxpv`echo $UNAME_RELEASE | sed 's/ .*//'`
        exit 0 ;;
+    *:procnto*:*:* | *:QNX:[0123456789]*:*)
+       if test "${UNAME_MACHINE}" = "c86pc"; then
+         UNAME_MACHINE=pc
+       fi
+       echo `uname -p`-${UNAME_MACHINE}-nto-qnx
+       exit 0;;
+    *:QNX:*:*)
+       echo i386-pc-qnx
+       exit 0;;
     hp3[0-9][05]:NetBSD:*:*)
 	echo m68k-hp-netbsd${UNAME_RELEASE}
 	exit 0 ;;
