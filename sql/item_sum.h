@@ -82,6 +82,8 @@ public:
   virtual bool setup(THD *thd) {return 0;}
   virtual void make_unique() {}
   Item *get_tmp_table_item(THD *thd);
+
+  bool walk (Item_processor processor, byte *argument);
 };
 
 

@@ -2007,6 +2007,21 @@ int setup_fields(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
 }
 
 /*
+  Mark all items in list as not fixed (0 assigned to 'fixed' field)
+
+  SYNOPSYS
+    unfix_item_list()
+    item_list - list of items
+*/
+void unfix_item_list(List<Item> item_list)
+{
+  Item *item;
+  List_iterator_fast<Item> it(item_list);
+  while ((item= it++))
+    item->walk(&Item::remove_fixed, 0);
+}
+
+/*
   Remap table numbers if INSERT ... SELECT
   Check also that the 'used keys' and 'ignored keys' exists and set up the
   table structure accordingly

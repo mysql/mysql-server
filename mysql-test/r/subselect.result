@@ -1347,7 +1347,7 @@ a
 1
 2
 10
-drop table t1,t2;
+drop table t1,t2,t3;
 create table t2 (a int, b int);
 create table t3 (a int);
 insert into t3 values (6),(7),(3);

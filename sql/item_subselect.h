@@ -206,7 +206,8 @@ public:
 
   Item_in_subselect(THD *thd, Item * left_expr, st_select_lex *select_lex);
   Item_in_subselect(Item_in_subselect *item);
-  Item_in_subselect(): Item_exists_subselect(), abort_on_null(0) {}
+  Item_in_subselect()
+    :Item_exists_subselect(), abort_on_null(0), upper_not(0) {}
 
   subs_type substype() { return IN_SUBS; }
   void reset() 

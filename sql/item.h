@@ -195,6 +195,7 @@ public:
   }
 
   virtual bool remove_dependence_processor(byte * arg) { return 0; }
+  virtual bool remove_fixed(byte * arg) { fixed= 0; return 0; }
   
   // Row emulation
   virtual uint cols() { return 1; }

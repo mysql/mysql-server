@@ -900,7 +900,7 @@ insert into t1 values (1),(2),(3),(4);
 insert into t2 values (10),(20),(30),(40);
 insert into t3 values (1),(2),(10),(50);
 select a from t3 where t3.a in (select a from t1 where a <= 3 union select * from t2 where a <= 30);
-drop table t1,t2;
+drop table t1,t2,t3;
 
 #
 # correct ALL optimisation

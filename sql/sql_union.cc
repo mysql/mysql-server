@@ -156,6 +156,9 @@ int st_select_lex_unit::prepare(THD *thd, select_result *sel_result,
 	setup_fields(thd, select_cursor->ref_pointer_array, first_table,
 		     item_list, 0, 0, 1))
       goto err;
+    // Item list should be fix_fielded yet another time in JOIN::prepare
+    unfix_item_list(item_list);
+
     t_and_f= 1;
     while((item=it++))
     {
