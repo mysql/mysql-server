@@ -145,10 +145,11 @@ void free_prep_stmt(PREP_STMT *stmt, TREE_FREE mode, void *not_used)
 static bool send_prep_stmt(PREP_STMT *stmt, uint columns)
 {
   NET  *net=&stmt->thd->net;
-  char buff[8];
-  int4store(buff, stmt->stmt_id);
-  int2store(buff+4, columns);
-  int2store(buff+6, stmt->param_count);
+  char buff[9];
+  buff[0]= 0;
+  int4store(buff+1, stmt->stmt_id);
+  int2store(buff+5, columns);
+  int2store(buff+7, stmt->param_count);
 #ifndef EMBEDDED_LIBRARY
   /* This should be fixed to work with prepared statements
    */

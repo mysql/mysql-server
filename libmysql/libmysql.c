@@ -3925,9 +3925,9 @@ static my_bool read_prepare_result(MYSQL_STMT *stmt)
     DBUG_RETURN(1);
 
   pos= (uchar*) mysql->net.read_pos;
-  stmt->stmt_id= uint4korr(pos); pos+=4;
-  field_count=   uint2korr(pos); pos+=2;
-  param_count=   uint2korr(pos); pos+=2;
+  stmt->stmt_id= uint4korr(pos+1); pos+= 5;
+  field_count=   uint2korr(pos);   pos+= 2;
+  param_count=   uint2korr(pos);   pos+= 2;
 
   if (field_count != 0)
   {
