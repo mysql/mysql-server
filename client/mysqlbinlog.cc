@@ -54,6 +54,7 @@ static struct option long_options[] =
   {"table", 	  required_argument, 	0, 't'},
   {"user",	  required_argument,	0, 'u'},
   {"version",	  no_argument, 		0, 'V'},
+  {0,0,0,0}
 };
 
 void sql_print_error(const char *format,...);
@@ -102,15 +103,16 @@ static void die(const char* fmt, ...)
 
 static void print_version()
 {
-  printf("%s  Ver 1.7 for %s at %s\n",my_progname,SYSTEM_TYPE, MACHINE_TYPE);
+  printf("%s  Ver 1.8 for %s at %s\n",my_progname,SYSTEM_TYPE, MACHINE_TYPE);
 }
 
 
 static void usage()
 {
   print_version();
-  puts("By Sasha, for your professional use\n\
-This software comes with NO WARRANTY: see the file PUBLIC for details\n");
+  puts("By Monty and Sasha, for your professional use\n\
+This software comes with NO WARRANTY:  This is free software,\n\
+and you are welcome to modify and redistribute it under the GPL license\n");
 
   printf("\
 Dumps a MySQL binary log in a format usable for viewing or for pipeing to\n\
