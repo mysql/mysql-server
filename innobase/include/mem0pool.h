@@ -31,7 +31,8 @@ struct mem_area_struct{
 };
 
 /* Each memory area takes this many extra bytes for control information */
-#define MEM_AREA_EXTRA_SIZE	(sizeof(struct mem_area_struct))
+#define MEM_AREA_EXTRA_SIZE	(ut_calc_align(sizeof(struct mem_area_struct),\
+                                              UNIV_MEM_ALIGNMENT))
 
 /************************************************************************
 Creates a memory pool. */

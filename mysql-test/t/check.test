@@ -1,0 +1,18 @@
+connect (con1,localhost,root,,);
+connect (con2,localhost,root,,);
+connection con1;
+drop table if exists t1;
+#add a lot of keys to slow down check
+create table t1(n int not null, key(n), key(n), key(n), key(n));
+let $1=10000;
+while ($1)
+{
+ eval insert into t1 values ($1);
+ dec $1;
+}
+send check table t1 type=extended;
+connection con2;
+insert into t1 values (200000);
+connection con1;
+reap;
+drop table t1;

@@ -237,11 +237,15 @@ scripts/safe_mysqld
 sql-bench/Results-linux/ATIS-mysql_bdb-Linux_2.2.14_my_SMP_i686
 sql-bench/bench-init.pl
 sql-bench/compare-results
+sql-bench/compare-results-all
 sql-bench/copy-db
 sql-bench/crash-me
+sql-bench/gif/*
+sql-bench/graph-compare-results
 sql-bench/output/*
 sql-bench/run-all-tests
 sql-bench/server-cfg
+sql-bench/template.html
 sql-bench/test-ATIS
 sql-bench/test-alter-table
 sql-bench/test-big-tables

@@ -2,7 +2,7 @@
    This file is public domain and comes with NO WARRANTY of any kind 
 
    Dirk Munzinger (dmun@4t2.com)			
-   Version: 17.03.1999							*/
+   Version: 07.06.2001							*/
 
 "hashchk",
 "isamchk",
@@ -196,19 +196,19 @@
 "Netzfehler beim Lesen vom Master",
 "Netzfehler beim Schreiben zum Master",
 "Kann keinen FULLTEXT-Index finden der der Spaltenliste entspricht",
-"Can't execute the given command because you have active locked tables or an active transaction",
-"Unknown system variable '%-.64'",
-"Table '%-.64s' is marked as crashed and should be repaired",
-"Table '%-.64s' is marked as crashed and last (automatic?) repair failed",
-"Warning:  Some non-transactional changed tables couldn't be rolled back",
-"Multi-statement transaction required more than 'max_binlog_cache_size' bytes of storage. Increase this mysqld variable and try again',
-"This operation cannot be performed with a running slave, run SLAVE STOP first",
-"This operation requires a running slave, configure slave and do SLAVE START",
-"The server is not configured as slave, fix in config file or with CHANGE MASTER TO",
-"Could not initialize master info structure, check permisions on master.info",
-"Could not create slave thread, check system resources",
-"User %-.64s has already more than 'max_user_connections' active connections",
-"You may only use constant expressions with SET",
+"Kann das aktuelle Kommando wegen aktiver Tabellensperre oder aktiver Transaktion nicht ausführen",
+"Unbekannte System-Variabel '%-.64'",
+"Tabelle '%-.64s' ist als defekt makiert und sollte repariert werden",
+"Tabelle '%-.64s' ist als defekt makiert und der letzte (automatische) Reparaturversuch schlug fehl.",
+"Warnung:  Das Rollback konnte bei einigen Tabellen, die nicht mittels Transaktionen geändert wurden, nicht ausgeführt werden.",
+"Multi-Statement Transaktionen benötigen mehr als 'max_binlog_cache_size' Bytes An Speicher. Diese mysqld-Variabel vergrössern und nochmal versuchen.',
+"Diese Operation kann nicht bei einem aktiven Slave durchgeführt werden. Das Kommand SLAVE STOP muss zuerst ausgeführt werden.",
+"Diese Operationbenötigt einen aktiven Slave. Slave konfigurieren und mittels SLAVE START aktivieren.",
+"Der Server ist nicht als Slave konfigiriert. Im Konfigurations-File oder mittel CHANGE MASTER TO beheben.",
+"Konnte Master-Info-Struktur nicht initialisieren; Berechtigungen von master.info prüfen.",
+"Konnte keinen Slave-Thread starten. System-Resourcen überprüfen.",
+"Benutzer %-.64s hat mehr als 'max_user_connections' aktive Verbindungen",
+"Bei der Verwendung mit SET dürfen nur Constante Ausdrücke verwendet werden",
 "Lock wait timeout exceeded",
 "The total number of locks exceeds the lock table size",
 "Update locks cannot be acquired during a READ UNCOMMITTED transaction",

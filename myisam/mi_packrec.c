@@ -1010,7 +1010,7 @@ uint _mi_pack_get_block_info(MI_INFO *myisam, MI_BLOCK_INFO *info, File file,
   {
     ref_length=myisam->s->pack.ref_length;
     /*
-      We can't use my_pread() here because mi_rad_pack_record assumes
+      We can't use my_pread() here because mi_read_rnd_pack_record assumes
       position is ok
     */
     VOID(my_seek(file,filepos,MY_SEEK_SET,MYF(0)));

@@ -198,7 +198,7 @@ trx_sys_init_at_db_start(void)
 
 	if (UT_LIST_GET_LEN(trx_sys->trx_list) > 0) {
 		fprintf(stderr,
-	"Innobase: %lu uncommitted transaction(s) which must be rolled back\n",
+	"InnoDB: %lu uncommitted transaction(s) which must be rolled back\n",
 				UT_LIST_GET_LEN(trx_sys->trx_list));
 	}
 

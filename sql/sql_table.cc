@@ -221,6 +221,13 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
     db_options|=HA_OPTION_PACK_RECORD;
   file=get_new_handler((TABLE*) 0, create_info->db_type);
 
+  if ((create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
+      (file->option_flag() & HA_NO_TEMP_TABLES))
+  {
+    my_error(ER_ILLEGAL_HA,MYF(0),table_name);
+    DBUG_RETURN(-1);
+  }
+
   /* Don't pack keys in old tables if the user has requested this */
 
   while ((sql_field=it++))
@@ -1226,7 +1233,16 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     {
       if (drop->type == Alter_drop::COLUMN &&
 	  !my_strcasecmp(field->field_name, drop->name))
+      {
+	/* Reset auto_increment value if it was dropped */
+	if (MTYP_TYPENR(field->unireg_check) == Field::NEXT_NUMBER &&
+	    !(create_info->used_fields & HA_CREATE_USED_AUTO))
+	{
+	  create_info->auto_increment_value=0;
+	  create_info->used_fields|=HA_CREATE_USED_AUTO;
+	}
 	break;
+      }
     }
     if (drop)
     {

@@ -1362,6 +1362,7 @@ select_create::prepare(List<Item> &values)
   if (info.handle_duplicates == DUP_IGNORE ||
       info.handle_duplicates == DUP_REPLACE)
     table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
+  table->file->deactivate_non_unique_index((ha_rows) 0);
   DBUG_RETURN(0);
 }
 

@@ -66,11 +66,11 @@ uint my_pread(File Filedes, byte *Buffer, uint Count, my_off_t offset,
 		   my_filename(Filedes),my_errno);
       }
       if ((int) readbytes == -1 || (MyFlags & (MY_FNABP | MY_NABP)))
-	DBUG_RETURN(MY_FILE_ERROR);	/* Return with error */
+	DBUG_RETURN(MY_FILE_ERROR);		/* Return with error */
     }
     if (MyFlags & (MY_NABP | MY_FNABP))
-      DBUG_RETURN(0);			/* Ok vid l{sning */
-    DBUG_RETURN(readbytes); /* purecov: inspected */
+      DBUG_RETURN(0);				/* Read went ok; Return 0 */
+    DBUG_RETURN(readbytes);			/* purecov: inspected */
   }
 } /* my_pread */
 

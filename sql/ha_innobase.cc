@@ -679,7 +679,7 @@ ha_innobase::bas_ext() const
 				/* out: file extension strings, currently not
 				used */
 {
-	static const char* ext[] = {".not_used", NullS};
+	static const char* ext[] = {".InnoDB", NullS};
 
 	return(ext);
 }
@@ -778,6 +778,13 @@ ha_innobase::open(
 	/* Get pointer to a table object in InnoDB dictionary cache */
 
  	if (NULL == (ib_table = dict_table_get(norm_name, NULL))) {
+
+	  fprintf(stderr, "\
+Cannot find table %s from the internal data dictionary\n\
+of InnoDB though the .frm file for the table exists. Maybe you have deleted\n\
+and created again an InnoDB database but forgotten to delete the\n\
+corresponding .frm files of old InnoDB tables?\n",
+		  norm_name);
 
 	        free_share(share);
     		my_free((char*) upd_buff, MYF(0));

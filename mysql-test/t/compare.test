@@ -2,6 +2,7 @@
 # Bug when using comparions of strings and integers.
 #
 
+drop table if exists t1;
 CREATE TABLE t1 (id CHAR(12) not null, PRIMARY KEY (id));
 insert into t1 values ('000000000001'),('000000000002');
 explain select * from t1 where id=000000000001;

@@ -3,6 +3,7 @@
 #shift
 TO=dev-public@mysql.com
 FROM=$USER@mysql.com
+INTERNALS=internals@lists.mysql.com
 LIMIT=10000
 
 if [ "$REAL_EMAIL" = "" ]
@@ -22,7 +23,23 @@ then
 List-ID: <bk.mysql>
 From: $FROM
 To: $TO
-Subject: bk commit
+Subject: bk commit into 3.23 tree
+
+EOF
+  bk changes -v -r+
+  bk cset -r+ -d
+ ) | head -n $LIMIT | /usr/sbin/sendmail -t
+ echo "Notifying internals list at $INTERNALS"
+ (
+   cat <<EOF
+List-ID: <bk.mysql>
+From: $FROM
+To: $INTERNALS
+Subject: bk commit into 3.23 tree
+
+Below is the list of changes that have just been pushed into main
+3.23. repository. For information on how to access the repository
+see http://www.mysql.com/doc/I/n/Installing_source_tree.html
 
 EOF
   bk changes -v -r+

@@ -176,7 +176,7 @@ trx_rollback_all_without_sess(void)
 	if (UT_LIST_GET_FIRST(trx_sys->trx_list)) {
 
 		fprintf(stderr,
-		"Innobase: Starting rollback of uncommitted transactions\n");
+		"InnoDB: Starting rollback of uncommitted transactions\n");
 	} else {		
 		return;
 	}
@@ -196,7 +196,7 @@ loop:
 
 	if (trx == NULL) {
 		fprintf(stderr,
-		"Innobase: Rollback of uncommitted transactions completed\n");
+		"InnoDB: Rollback of uncommitted transactions completed\n");
 
  		mem_heap_free(heap);
 		
@@ -221,7 +221,7 @@ loop:
 
 	ut_a(thr == que_fork_start_command(fork, SESS_COMM_EXECUTE, 0));
 	
-	fprintf(stderr, "Innobase: Rolling back trx no %lu\n",
+	fprintf(stderr, "InnoDB: Rolling back trx no %lu\n",
 						ut_dulint_get_low(trx->id));
 	mutex_exit(&kernel_mutex);
 
@@ -238,7 +238,7 @@ loop:
 		mutex_exit(&kernel_mutex);
 
 		fprintf(stderr,
-		"Innobase: Waiting rollback of trx no %lu to end\n",
+		"InnoDB: Waiting rollback of trx no %lu to end\n",
 						ut_dulint_get_low(trx->id));
 		os_thread_sleep(100000);
 
@@ -264,7 +264,7 @@ loop:
 		mutex_exit(&(dict_sys->mutex));
 	}
 
-	fprintf(stderr, "Innobase: Rolling back of trx no %lu completed\n",
+	fprintf(stderr, "InnoDB: Rolling back of trx no %lu completed\n",
 					ut_dulint_get_low(trx->id));
 	mem_heap_free(heap);
 
