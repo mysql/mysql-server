@@ -969,7 +969,14 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
 			  group ? group : order,
 			  select_limit, 
 			  thd->select_limit))
-      goto err; /* purecov: inspected */
+    {
+      if (!join.join_tab[join.const_tables].select->quick)
+	error= return_zero_rows(&join, result, tables, fields,
+				0, select_options,
+				"Impossible WHERE noticed after reading const tables",
+				having,procedure);
+      goto err;
+    }
   }
   join.having=having;				// Actually a parameter
   thd->proc_info="Sending data";
