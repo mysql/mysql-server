@@ -77,7 +77,7 @@
 "BLOB column '%-.64s' can't be used in key specification with the used table type",
 "Too big column length for column '%-.64s' (max = %d). Use BLOB instead",
 "Incorrect table definition; There can only be one auto column and it must be defined as a key",
-"%s: ready for connections.\nVersion: '%s'  socket: '%s'  port: %d\n",
+"%s: ready for connections.\nVersion: '%s'  socket: '%s'  port: %d",
 "%s: Normal shutdown\n",
 "%s: Got signal %d. Aborting!\n",
 "%s: Shutdown Complete\n",
