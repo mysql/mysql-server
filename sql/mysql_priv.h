@@ -74,9 +74,6 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 ****************************************************************************/
 
 #define ACL_CACHE_SIZE		256
-/* Password lengh for 4.1 version previous versions had 16 bytes password hash */
-#define HASH_PASSWORD_LENGTH	45
-#define HASH_OLD_PASSWORD_LENGTH 16
 #define MAX_PASSWORD_LENGTH	32
 #define HOST_CACHE_SIZE		128
 #define MAX_ACCEPT_RETRY	10	// Test accept this many times
@@ -771,7 +768,7 @@ extern my_bool opt_safe_show_db, opt_local_infile, lower_case_table_names;
 extern my_bool opt_slave_compressed_protocol, use_temp_pool;
 extern my_bool opt_readonly;
 extern my_bool opt_enable_named_pipe;
-extern my_bool opt_old_passwords, use_old_passwords;
+extern my_bool opt_secure_auth;
 extern char *shared_memory_base_name, *mysqld_unix_port;
 extern bool opt_enable_shared_memory;
 

@@ -48,8 +48,9 @@ flush privileges;
 #connect (con1,localhost,test,gambling2,"");
 #show tables;
 connect (con1,localhost,test,gambling2,mysql);
+set password=old_password('gambling3');
 show tables;
-connect (con1,localhost,test,gambling2,test);
+connect (con1,localhost,test,gambling3,test);
 show tables;
 
 # Re enable this one day if error handling on connect will take place
@@ -63,7 +64,9 @@ show tables;
 #connect (con1,localhost,test,zorro,);
 #--error 1045
 
+
 # remove user 'test' so that other tests which may use 'test'
 # do not depend on this test.
+
 delete from mysql.user where user="test";
 flush privileges;

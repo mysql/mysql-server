@@ -1707,8 +1707,8 @@ file '%s')", fname);
 			      master_host) ||
 	init_strvar_from_file(mi->user, sizeof(mi->user), &mi->file,
 			      master_user) || 
-	init_strvar_from_file(mi->password, HASH_PASSWORD_LENGTH+1, &mi->file,
-			      master_password) ||
+        init_strvar_from_file(mi->password, SCRAMBLED_PASSWORD_CHAR_LENGTH+1,
+                              &mi->file, master_password) ||
 	init_intvar_from_file(&port, &mi->file, master_port) ||
 	init_intvar_from_file(&connect_retry, &mi->file,
 			      master_connect_retry))
