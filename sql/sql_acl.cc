@@ -1928,7 +1928,8 @@ static byte* get_key_column(GRANT_COLUMN *buff,uint *length,
 class GRANT_NAME :public Sql_alloc
 {
 public:
-  char *host,*db, *user, *tname, *hash_key, *orig_host;
+  acl_host_and_ip host;
+  char *db, *user, *tname, *hash_key;
   ulong privs;
   ulong sort;
   uint key_length;
@@ -1960,12 +1961,10 @@ GRANT_NAME::GRANT_NAME(const char *h, const char *d,const char *u,
   :privs(p)
 {
   /* Host given by user */
-  orig_host=  strdup_root(&memex,h);
-  /* Convert empty hostname to '%' for easy comparison */
-  host=  orig_host[0] ? orig_host : (char*) "%";
+  update_hostname(&host, strdup_root(&memex, h));
   db =   strdup_root(&memex,d);
   user = strdup_root(&memex,u);
-  sort=  get_sort(3,host,db,user);
+  sort=  get_sort(3,host.hostname,db,user);
   tname= strdup_root(&memex,t);
   if (lower_case_table_names)
   {
@@ -1989,17 +1988,12 @@ GRANT_TABLE::GRANT_TABLE(const char *h, const char *d,const char *u,
 
 GRANT_NAME::GRANT_NAME(TABLE *form)
 {
-  orig_host= host= get_field(&memex, form->field[0]);
+  update_hostname(&host, get_field(&memex, form->field[0]));
   db=    get_field(&memex,form->field[1]);
   user=  get_field(&memex,form->field[2]);
   if (!user)
     user= (char*) "";
-  if (!orig_host)
-  {
-    orig_host= (char*) "";
-    host= (char*) "%";
-  }
-  sort=  get_sort(3, orig_host, db, user);
+  sort=  get_sort(3, host.hostname, db, user);
   tname= get_field(&memex,form->field[3]);
   if (!db || !tname)
   {
@@ -2042,7 +2036,7 @@ GRANT_TABLE::GRANT_TABLE(TABLE *form, TABLE *col_privs)
   {
     uint key_prefix_len;
     KEY_PART_INFO *key_part= col_privs->key_info->key_part;
-    col_privs->field[0]->store(orig_host,(uint) strlen(orig_host),
+    col_privs->field[0]->store(host.hostname,(uint) strlen(host.hostname),
                                system_charset_info);
     col_privs->field[1]->store(db,(uint) strlen(db), system_charset_info);
     col_privs->field[2]->store(user,(uint) strlen(user), system_charset_info);
@@ -2128,17 +2122,12 @@ static GRANT_NAME *name_hash_search(HASH *name_hash,
   {
     if (exact)
     {
-      if ((host &&
-	   !my_strcasecmp(system_charset_info, host, grant_name->host)) ||
-	  (ip && !strcmp(ip,grant_name->host)))
+      if (compare_hostname(&grant_table->host, host, ip))
 	return grant_name;
     }
     else
     {
-      if (((host && !wild_case_compare(system_charset_info,
-				       host,grant_name->host)) ||
-	   (ip && !wild_case_compare(system_charset_info,
-				     ip,grant_name->host))) &&
+      if (compare_hostname(&grant_table->host, host, ip) &&
           (!found || found->sort < grant_name->sort))
 	found=grant_name;					// Host ok
     }
@@ -3227,7 +3216,7 @@ my_bool grant_init(THD *org_thd)
 
       if (check_no_resolve)
       {
-	if (hostname_requires_resolving(mem_check->host))
+	if (hostname_requires_resolving(mem_check->host.hostname))
 	{
           sql_print_warning("'procs_priv' entry '%s %s@%s' "
                             "ignored in --skip-name-resolve mode.",
@@ -3541,10 +3530,7 @@ bool check_grant_db(THD *thd,const char *db)
 							  idx);
     if (len < grant_table->key_length &&
 	!memcmp(grant_table->hash_key,helping,len) &&
-	(thd->host && !wild_case_compare(system_charset_info,
-                                         thd->host,grant_table->host) ||
-	 (thd->ip && !wild_case_compare(system_charset_info,
-                                        thd->ip,grant_table->host))))
+        compare_hostname(&grant_table->host, thd->host, thd->ip))
     {
       error=0;					// Found match
       break;
@@ -3964,7 +3950,7 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
 
     if (!strcmp(lex_user->user.str,user) &&
 	!my_strcasecmp(system_charset_info, lex_user->host.str,
-                       grant_table->orig_host))
+                       grant_table->host.hostname))
     {
       ulong table_access= grant_table->privs;
       if ((table_access | grant_table->cols) != 0)
@@ -5035,7 +5021,7 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
 							     counter);
 	if (!(user=grant_table->user))
 	  user= "";
-	if (!(host=grant_table->host))
+	if (!(host=grant_table->host.hostname))
 	  host= "";
 
 	if (!strcmp(lex_user->user.str,user) &&

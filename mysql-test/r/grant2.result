@@ -233,3 +233,19 @@ drop user mysqltest_B@'%';
 ERROR 42000: Access denied for user 'mysqltest_3'@'localhost' to database 'mysql'
 drop user mysqltest_B@'%';
 drop user mysqltest_3@localhost;
+create database mysqltest_1;
+create table mysqltest_1.t1 (i int);
+insert into mysqltest_1.t1 values (1),(2),(3);
+GRANT ALL ON mysqltest_1.t1 TO mysqltest_1@'127.0.0.0/255.0.0.0';
+show grants for current_user();
+Grants for mysqltest_1@127.0.0.0/255.0.0.0
+GRANT USAGE ON *.* TO 'mysqltest_1'@'127.0.0.0/255.0.0.0'
+GRANT ALL PRIVILEGES ON `mysqltest_1`.`t1` TO 'mysqltest_1'@'127.0.0.0/255.0.0.0'
+select * from t1;
+i
+1
+2
+3
+REVOKE ALL ON mysqltest_1.t1 FROM mysqltest_1@'127.0.0.0/255.0.0.0';
+drop table mysqltest_1.t1;
+drop database mysqltest_1;
