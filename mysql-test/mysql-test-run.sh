@@ -263,10 +263,9 @@ while test $# -gt 0; do
 	$ECHO "Note: you will get more meaningful output on a source distribution compiled with debugging option when running tests with --gdb option"
       fi
       DO_GDB=1
-      # We must use manager, as things doesn't work on Linux without it
       # This needs to be checked properly
       # USE_MANAGER=1
-      # USE_RUNNING_SERVER=""
+      USE_RUNNING_SERVER=""
       ;;
     --client-gdb )
       if [ x$BINARY_DIST = x1 ] ; then
