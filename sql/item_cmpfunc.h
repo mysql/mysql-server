@@ -544,8 +544,8 @@ public:
   cmp_item_row(): comparators(0), n(0) {}
   ~cmp_item_row()
   {
-    if(comparators)
-      for(uint i= 0; i < n; i++)
+    if (comparators)
+      for (uint i= 0; i < n; i++)
 	if (comparators[i])
 	  delete comparators[i];
   }

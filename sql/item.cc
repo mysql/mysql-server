@@ -502,18 +502,17 @@ bool Item_ref_on_list_position::fix_fields(THD *thd,
 					   struct st_table_list *tables,
 					   Item ** reference)
 {
-  ref= 0;
   List_iterator<Item> li(list);
   Item *item;
-  uint i= 0;
-  for (; (item= li++) && i < pos; i++);
-  if (i == pos)
+  for (uint i= 0; (item= li++) && i < pos; i++);
+  if (item)
   {
     ref= li.ref();
     return Item_ref_null_helper::fix_fields(thd, tables, reference);
   }
   else
   {
+    ref= 0;
     my_error(ER_CARDINALITY_COL, MYF(0), pos);
     return 1;
   }
@@ -1280,29 +1279,20 @@ longlong Item_cache_str::val_int()
 
 bool Item_cache_row::allocate(uint num)
 {
-  n= num;
+  item_count= num;
   THD *thd= current_thd;
-  if (!(values= (Item_cache **) thd->calloc(sizeof(Item_cache *)*n)))
-  {
-    my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
-    thd->fatal_error= 1;
-    return 1;
-  }
-  return 0;
+  return (!(values= 
+	    (Item_cache **) thd->calloc(sizeof(Item_cache *)*item_count)));
 }
 
 bool Item_cache_row::setup(Item * item)
 {
   if (!values && allocate(item->cols()))
     return 1;
-  for(uint i= 0; i < n; i++)
+  for (uint i= 0; i < item_count; i++)
   {
     if (!(values[i]= Item_cache::get_cache(item->el(i)->result_type())))
-    {
-      my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
-      current_thd->fatal_error= 1;
       return 1;
-    }
     values[i]->setup(item->el(i));
   }
   return 0;
@@ -1312,7 +1302,7 @@ void Item_cache_row::store(Item * item)
 {
   null_value= 0;
   item->bring_value();
-  for(uint i= 0; i < n; i++)
+  for (uint i= 0; i < item_count; i++)
   {
     values[i]->store(item->el(i));
     null_value|= values[i]->null_value;
@@ -1330,7 +1320,7 @@ void Item_cache_row::illegal_method_call(const char *method)
 
 bool Item_cache_row::check_cols(uint c)
 {
-  if (c != n)
+  if (c != item_count)
   {
     my_error(ER_CARDINALITY_COL, MYF(0), c);
     return 1;
@@ -1340,7 +1330,7 @@ bool Item_cache_row::check_cols(uint c)
 
 bool Item_cache_row::null_inside()
 {
-  for (uint i= 0; i < n; i++)
+  for (uint i= 0; i < item_count; i++)
   {
     if (values[i]->cols() > 1)
     {
@@ -1359,7 +1349,7 @@ bool Item_cache_row::null_inside()
 
 void Item_cache_row::bring_value()
 {
-  for (uint i= 0; i < n; i++)
+  for (uint i= 0; i < item_count; i++)
     values[i]->bring_value();
   return;
 }

@@ -96,7 +96,7 @@ int search_functions(MI_INFO *file_leafs, const char *mask,
   DBUG_ENTER("search_functions");
   int count= 0;
 
-  if(mi_scan_init(file_leafs))
+  if (mi_scan_init(file_leafs))
     DBUG_RETURN(-1);
 
   help_leaf leaf;
@@ -191,7 +191,7 @@ int search_categories(THD *thd,
   if (!(file_categories= open_help_file(thd,"function_category_name")))
     DBUG_RETURN(-1);
 
-  if(mi_scan_init(file_categories))
+  if (mi_scan_init(file_categories))
   {
     mi_close(file_categories);
     DBUG_RETURN(-1);
@@ -393,11 +393,11 @@ int mysqld_help(THD *thd, const char *mask)
 			    description->ptr(), example->ptr())))
       goto end;
   }
-  else if((res= send_header_2(protocol)) ||
-	  (res= send_variant_2_list(protocol,&function_list,false)) ||
-	  (search_categories(thd, mask, &categories_list, 0)<0 && 
-	   (res=1)) ||
-	  (res= send_variant_2_list(protocol,&categories_list,true)))
+  else if ((res= send_header_2(protocol)) ||
+	   (res= send_variant_2_list(protocol,&function_list,false)) ||
+	   (search_categories(thd, mask, &categories_list, 0)<0 && 
+	    (res=1)) ||
+	   (res= send_variant_2_list(protocol,&categories_list,true)))
   {
     goto end;
   }

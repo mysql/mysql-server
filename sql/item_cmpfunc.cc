@@ -153,11 +153,7 @@ int Arg_comparator::set_compare_func(Item_bool_func2 *item, Item_result type)
 	comparators[i].set_cmp_func(owner, (*a)->addr(i), (*b)->addr(i));
       }
     else
-    {
-      my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
-      current_thd->fatal_error= 1;
       return 1;
-    }
   }
   return 0;
 }
@@ -276,11 +272,7 @@ int Arg_comparator::compare_e_row()
 
 bool Item_in_optimizer::preallocate_row()
 {
-  if ((cache= Item_cache::get_cache(ROW_RESULT)))
-    return 0;
-  my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
-  current_thd->fatal_error= 1;
-  return 1;
+  return (!(cache= Item_cache::get_cache(ROW_RESULT)));
 }
 
 bool Item_in_optimizer::fix_fields(THD *thd, struct st_table_list *tables,
@@ -296,11 +288,7 @@ bool Item_in_optimizer::fix_fields(THD *thd, struct st_table_list *tables,
   used_tables_cache= args[0]->used_tables();
   const_item_cache= args[0]->const_item();
   if (!cache && !(cache= Item_cache::get_cache(args[0]->result_type())))
-  {
-    my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
-    thd->fatal_error= 1;
     return 1;
-  }
   cache->setup(args[0]);
   if (args[1]->fix_fields(thd, tables, args))
     return 1;
@@ -1246,18 +1234,10 @@ void cmp_item_row::store_value(Item *item)
 	item->null_value|= item->el(i)->null_value;
       }
       else
-      {
-	my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
-	thd->fatal_error= 1;
 	return;
-      }	  
   }
   else
-  {
-    my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
-    thd->fatal_error= 1;
     return;
-  }
 }
 
 void cmp_item_row::store_value_by_template(cmp_item *t, Item *item)
@@ -1281,18 +1261,10 @@ void cmp_item_row::store_value_by_template(cmp_item *t, Item *item)
 	item->null_value|= item->el(i)->null_value;
       }
       else
-      {
-	my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
-	current_thd->fatal_error= 1;
 	return;
-      }	  
   }
   else
-  {
-    my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
-    current_thd->fatal_error= 1;
     return;
-  }	  
 }
 
 int cmp_item_row::cmp(Item *arg)

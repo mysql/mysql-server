@@ -496,7 +496,7 @@ static void make_sortkey(register SORTPARAM *param,
 	    length=sort_field->length;
 	  }
 #ifdef USE_STRCOLL
-          if(use_strnxfrm(cs))
+          if (use_strnxfrm(cs))
           {
             if (item->binary())
             {

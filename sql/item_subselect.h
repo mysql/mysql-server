@@ -71,7 +71,7 @@ public:
   {
     null_value= 1;
   }
-  virtual void select_transformer(st_select_lex_unit *unit);
+  virtual void select_transformer(THD *thd, st_select_lex_unit *unit);
   bool assigned() { return value_assigned; }
   void assigned(bool a) { value_assigned= a; }
   enum Type type() const;
@@ -106,7 +106,7 @@ public:
     decimals= item->decimals;
   }
   void reset();
-  void select_transformer(st_select_lex_unit *unit);
+  void select_transformer(THD *thd, st_select_lex_unit *unit);
   void store(uint i, Item* item);
   double val();
   longlong val_int ();
@@ -173,10 +173,11 @@ public:
     null_value= 0;
     was_null= 0;
   }
-  virtual void select_transformer(st_select_lex_unit *unit);
-  void single_value_transformer(st_select_lex_unit *unit,
+  virtual void select_transformer(THD *thd, st_select_lex_unit *unit);
+  void single_value_transformer(THD *thd, st_select_lex_unit *unit,
 				Item *left_expr, compare_func_creator func);
-  void row_value_transformer(st_select_lex_unit *unit, Item *left_expr);
+  void row_value_transformer(THD *thd, st_select_lex_unit *unit,
+			     Item *left_expr);
   longlong val_int();
   double val();
   String *val_str(String*);
@@ -195,7 +196,7 @@ public:
   Item_allany_subselect(THD *thd, Item * left_expr, compare_func_creator f,
 		     st_select_lex *select_lex);
   Item_allany_subselect(Item_allany_subselect *item);
-  virtual void select_transformer(st_select_lex_unit *unit);
+  virtual void select_transformer(THD *thd, st_select_lex_unit *unit);
 };
 
 class subselect_engine: public Sql_alloc
