@@ -5529,8 +5529,7 @@ int Field_enum::store(const char *from,uint length,CHARSET_INFO *cs)
   }
 
   /* Remove end space */
-  while (length > 0 && my_isspace(system_charset_info,from[length-1]))
-    length--;
+  length= field_charset->cset->lengthsp(field_charset, from, length);
   uint tmp=find_type2(typelib, from, length, field_charset);
   if (!tmp)
   {
@@ -5632,7 +5631,7 @@ String *Field_enum::val_str(String *val_buffer __attribute__((unused)),
     val_ptr->set("", 0, field_charset);
   else
     val_ptr->set((const char*) typelib->type_names[tmp-1],
-		 (uint) strlen(typelib->type_names[tmp-1]),
+		 typelib->type_lengths[tmp-1],
 		 field_charset);
   return val_ptr;
 }
@@ -5669,13 +5668,14 @@ void Field_enum::sql_type(String &res) const
   res.append("enum(");
 
   bool flag=0;
-  for (const char **pos= typelib->type_names; *pos; pos++)
+  uint *len= typelib->type_lengths;
+  for (const char **pos= typelib->type_names; *pos; pos++, len++)
   {
     uint dummy_errors;
     if (flag)
       res.append(',');
     /* convert to res.charset() == utf8, then quote */
-    enum_item.copy(*pos, strlen(*pos), charset(), res.charset(), &dummy_errors);
+    enum_item.copy(*pos, *len, charset(), res.charset(), &dummy_errors);
     append_unescaped(&res, enum_item.ptr(), enum_item.length());
     flag= 1;
   }
@@ -5760,9 +5760,9 @@ String *Field_set::val_str(String *val_buffer,
     if (tmp & 1)
     {
       if (val_buffer->length())
-	val_buffer->append(field_separator);
+	val_buffer->append(&field_separator, 1, &my_charset_latin1);
       String str(typelib->type_names[bitnr],
-		 (uint) strlen(typelib->type_names[bitnr]),
+		 typelib->type_lengths[bitnr],
 		 field_charset);
       val_buffer->append(str);
     }
@@ -5782,13 +5782,14 @@ void Field_set::sql_type(String &res) const
   res.append("set(");
 
   bool flag=0;
-  for (const char **pos= typelib->type_names; *pos; pos++)
+  uint *len= typelib->type_lengths;
+  for (const char **pos= typelib->type_names; *pos; pos++, len++)
   {
     uint dummy_errors;
     if (flag)
       res.append(',');
     /* convert to res.charset() == utf8, then quote */
-    set_item.copy(*pos, strlen(*pos), charset(), res.charset(), &dummy_errors);
+    set_item.copy(*pos, *len, charset(), res.charset(), &dummy_errors);
     append_unescaped(&res, set_item.ptr(), set_item.length());
     flag= 1;
   }
