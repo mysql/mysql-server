@@ -4562,6 +4562,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   register TABLE_LIST *ptr;
   char *alias_str;
   DBUG_ENTER("add_table_to_list");
+  DBUG_PRINT("enter",("lock_option: %d", lock_type));
 
   if (!table)
     DBUG_RETURN(0);				// End of memory
@@ -4805,7 +4806,7 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
       if (lock_global_read_lock(thd))
 	return 1;
     }
-    my_dbopt_free();
+    my_dbopt_cleanup();
     result=close_cached_tables(thd,(options & REFRESH_FAST) ? 0 : 1, tables);
   }
   if (options & REFRESH_HOSTS)
