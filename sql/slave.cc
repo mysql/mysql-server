@@ -1104,14 +1104,16 @@ static inline int add_relay_log(RELAY_LOG_INFO* rli,LOG_INFO* linfo)
 
 static bool wait_for_relay_log_space(RELAY_LOG_INFO* rli)
 {
-  bool slave_killed;
+  bool slave_killed=0;
   MASTER_INFO* mi = rli->mi;
   const char* save_proc_info;
   THD* thd = mi->io_thd;
   DBUG_ENTER("wait_for_relay_log_space");
+
   pthread_mutex_lock(&rli->log_space_lock);
   save_proc_info = thd->proc_info;
   thd->proc_info = "Waiting for relay log space to free";
+
   while (rli->log_space_limit < rli->log_space_total &&
 	 !(slave_killed=io_slave_killed(thd,mi)))
   {

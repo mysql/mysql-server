@@ -454,8 +454,10 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
   field_list.push_back(new Item_empty_string("Default",NAME_LEN));
   field_list.push_back(new Item_empty_string("Extra",20));
   if (verbose)
+  {
     field_list.push_back(new Item_empty_string("Privileges",80));
-
+    field_list.push_back(new Item_empty_string("Comment",255));
+  }
         // Send first number of fields and records
   {
     char *pos;
@@ -522,7 +524,7 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
 
 	if (verbose)
 	{
-	  /* Add grant options */
+	  /* Add grant options & comments */
 	  col_access= get_column_grant(thd,table_list,field) & COL_ACLS;
 	  end=tmp;
 	  for (uint bitnr=0; col_access ; col_access>>=1,bitnr++)
@@ -534,6 +536,7 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
 	    }
 	  }
 	  net_store_data(packet,convert, tmp+1,end == tmp ? 0 : (uint) (end-tmp-1));
+	  net_store_data(packet, field->comment.str,field->comment.length);
 	}
         if (my_net_write(&thd->net,(char*) packet->ptr(),packet->length()))
           DBUG_RETURN(1);
@@ -571,21 +574,28 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
   {
     packet->length(0);
     net_store_data(packet,convert, table->table_name);
-    // a hack - we need to reserve some space for the length before
-    // we know what it is - let's assume that the length of create table
-    // statement will fit into 3 bytes ( 16 MB max :-) )
+    /*
+      A hack - we need to reserve some space for the length before
+      we know what it is - let's assume that the length of create table
+      statement will fit into 3 bytes ( 16 MB max :-) )
+    */
     ulong store_len_offset = packet->length();
     packet->length(store_len_offset + 4);
     if (store_create_info(thd, table, packet))
       DBUG_RETURN(-1);
     ulong create_len = packet->length() - store_len_offset - 4;
+    /*
+      Just in case somebody manages to create a table
+      with *that* much stuff in the definition
+    */
     if (create_len > 0x00ffffff) // better readable in HEX ...
-      DBUG_RETURN(1);  // just in case somebody manages to create a table
-    // with *that* much stuff in the definition
+      DBUG_RETURN(1); 
 
-    // now we have to store the length in three bytes, even if it would fit
-    // into fewer, so we cannot use net_store_data() anymore,
-    // and do it ourselves
+    /*
+      Now we have to store the length in three bytes, even if it would fit
+      into fewer, so we cannot use net_store_data() anymore,
+      and do it ourselves
+    */
     char* p = (char*)packet->ptr() + store_len_offset;
     *p++ = (char) 253; // The client the length is stored using 3-bytes
     int3store(p, create_len);
@@ -848,10 +858,10 @@ store_create_info(THD *thd, TABLE *table, String *packet)
       {                                             // Not null by default
         type.set(tmp,sizeof(tmp),default_charset_info);
         field->val_str(&type,&type);
-        packet->append('\'');
 	if (type.length())
-          append_unescaped(packet, type.c_ptr());
-        packet->append('\'');
+          append_unescaped(packet, type.ptr(), type.length());
+        else
+	  packet->append("''",2);
       }
       else if (field->maybe_null())
         packet->append("NULL", 4);                    // Null as default
@@ -860,7 +870,13 @@ store_create_info(THD *thd, TABLE *table, String *packet)
     }
 
     if (field->unireg_check == Field::NEXT_NUMBER)
-          packet->append(" auto_increment", 15 );
+      packet->append(" auto_increment", 15 );
+
+    if (field->comment.length)
+    {
+      packet->append(" COMMENT ",9);
+      append_unescaped(packet, field->comment.str, field->comment.length);
+    }
   }
 
   KEY *key_info=table->key_info;
@@ -890,8 +906,9 @@ store_create_info(THD *thd, TABLE *table, String *packet)
      append_identifier(thd,packet,key_info->name);
 
     // +BAR: send USING only in non-default case: non-spatial rtree
-    if((key_info->algorithm == HA_KEY_ALG_RTREE) && !(key_info->flags & HA_SPATIAL))
-          packet->append(" USING RTREE",12);
+    if((key_info->algorithm == HA_KEY_ALG_RTREE) &&
+       !(key_info->flags & HA_SPATIAL))
+      packet->append(" USING RTREE",12);
 
     packet->append(" (", 2);
 
@@ -972,9 +989,8 @@ store_create_info(THD *thd, TABLE *table, String *packet)
   table->file->append_create_info(packet);
   if (table->comment && table->comment[0])
   {
-    packet->append(" COMMENT='", 10);
-    append_unescaped(packet, table->comment);
-    packet->append('\'');
+    packet->append(" COMMENT=", 9);
+    append_unescaped(packet, table->comment, strlen(table->comment));
   }
   if (file->raid_type)
   {

@@ -309,6 +309,7 @@ static SYMBOL symbols[] = {
   { "SESSION",		SYM(SESSION_SYM),0,0},
   { "SET",		SYM(SET),0,0},
   { "SIGNED",		SYM(SIGNED_SYM),0,0},
+  { "SIMPLE",		SYM(SIMPLE_SYM),0,0},
   { "SHARE",		SYM(SHARE_SYM),0,0},
   { "SHOW",		SYM(SHOW),0,0},
   { "SHUTDOWN",		SYM(SHUTDOWN),0,0},

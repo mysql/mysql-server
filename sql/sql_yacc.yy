@@ -302,6 +302,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	SET
 %token	SERIALIZABLE_SYM
 %token	SESSION_SYM
+%token	SIMPLE_SYM
 %token	SHUTDOWN
 %token	SPATIAL_SYM
 %token	SQL_CACHE_SYM
@@ -520,7 +521,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	opt_table_alias
 
 %type <table>
-	table_ident
+	table_ident references
 
 %type <simple_string>
 	remember_name remember_end opt_len opt_ident opt_db text_or_password
@@ -532,7 +533,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %type <num>
 	type int_type real_type order_dir opt_field_spec set_option lock_option
 	udf_type if_exists opt_local opt_table_options table_options
-	table_option opt_if_not_exists 
+	table_option opt_if_not_exists delete_option 
 
 %type <ulong_num>
 	ULONG_NUM raid_types merge_insert_types
@@ -600,7 +601,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	opt_precision opt_ignore opt_column opt_restrict
 	grant revoke set lock unlock string_list field_options field_option
 	field_opt_list opt_binary table_lock_list table_lock varchar
-	references opt_on_delete opt_on_delete_list opt_on_delete_item use
+	ref_list opt_on_delete opt_on_delete_list opt_on_delete_item use
 	opt_delete_options opt_delete_option
 	opt_outer table_list table_name opt_option opt_place opt_low_priority
 	opt_attribute opt_attribute_list attribute column_list column_list_id
@@ -612,7 +613,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	table_to_table_list table_to_table opt_table_list opt_as
 	handler_rkey_function handler_read_or_scan
 	single_multi table_wild_list table_wild_one opt_wild union union_list
-	precision union_option
+	precision union_option opt_on_delete_item
 END_OF_INPUT
 
 %type <NONE>
@@ -756,6 +757,7 @@ create:
 	  bzero((char*) &lex->create_info,sizeof(lex->create_info));
 	  lex->create_info.options=$2 | $4;
 	  lex->create_info.db_type= default_table_type;
+	  lex->create_info.table_charset=default_charset_info;
 	}
 	create2
 
@@ -774,7 +776,7 @@ create:
 	  {
 	    LEX *lex=Lex;
 
-	    lex->key_list.push_back(new Key($2,$5,$4.str,lex->col_list));
+	    lex->key_list.push_back(new Key($2,$4.str, $5, lex->col_list));
 	    lex->col_list.empty();
 	  }
 	| CREATE DATABASE opt_if_not_exists ident default_charset
@@ -924,12 +926,19 @@ field_list_item:
 	| key_type opt_ident key_alg '(' key_list ')'
 	  {
 	    LEX *lex=Lex;
-	    lex->key_list.push_back(new Key($1,$3,$2,lex->col_list));
+	    lex->key_list.push_back(new Key($1,$2, $3, lex->col_list));
 	    lex->col_list.empty();		/* Alloced by sql_alloc */
 	  }
 	| opt_constraint FOREIGN KEY_SYM opt_ident '(' key_list ')' references
 	  {
-	    Lex->col_list.empty();		/* Alloced by sql_alloc */
+	    LEX *lex=Lex;
+	    lex->key_list.push_back(new foreign_key($4, lex->col_list,
+				    $8,
+				    lex->ref_list,
+				    lex->fk_delete_opt,
+				    lex->fk_update_opt,
+				    lex->fk_match_option));
+	    lex->col_list.empty();		/* Alloced by sql_alloc */
 	  }
 	| opt_constraint CHECK_SYM '(' expr ')'
 	  {
@@ -945,7 +954,7 @@ field_spec:
 	 {
 	   LEX *lex=Lex;
 	   lex->length=lex->dec=0; lex->type=0; lex->interval=0;
-	   lex->default_value=0;
+	   lex->default_value=lex->comment=0;
 	 }
 	type opt_attribute
 	{
@@ -953,8 +962,8 @@ field_spec:
 	  if (add_field_to_list($1.str,
 				(enum enum_field_types) $3,
 				lex->length,lex->dec,lex->type,
-				lex->default_value,lex->change,
-				lex->interval))
+				lex->default_value, lex->comment,
+				lex->change,lex->interval))
 	    YYABORT;
 	}
 
@@ -1093,6 +1102,7 @@ attribute:
 	| PRIMARY_SYM KEY_SYM { Lex->type|= PRI_KEY_FLAG | NOT_NULL_FLAG; }
 	| UNIQUE_SYM	  { Lex->type|= UNIQUE_FLAG; }
 	| UNIQUE_SYM KEY_SYM { Lex->type|= UNIQUE_KEY_FLAG; }
+	| COMMENT_SYM text_literal { Lex->comment= $2; }
 
 opt_binary:
 	/* empty */		{ Lex->charset=default_charset_info; }
@@ -1122,11 +1132,25 @@ default_charset:
 	  }
 
 references:
-	REFERENCES table_ident opt_on_delete {}
-	| REFERENCES table_ident '(' key_list ')' opt_on_delete
-	  {
-	    Lex->col_list.empty();		/* Alloced by sql_alloc */
-	  }
+	REFERENCES table_ident
+	{
+	  LEX *lex=Lex;	
+	  lex->fk_delete_opt= lex->fk_update_opt= lex->fk_match_option= 0;
+	  lex->ref_list.empty();
+	}
+	opt_ref_list
+	{
+	  $$=$2;
+	}
+	
+opt_ref_list:
+	/* empty */ {}
+	| '(' ref_list ')' opt_on_delete {}
+
+ref_list:
+	ref_list ',' ident	{ Lex->ref_list.push_back(new key_part_spec($3.str)); }
+	| ident			{ Lex->ref_list.push_back(new key_part_spec($1.str)); }
+
 
 opt_on_delete:
 	/* empty */ {}
@@ -1136,19 +1160,19 @@ opt_on_delete_list:
 	opt_on_delete_list opt_on_delete_item {}
 	| opt_on_delete_item {}
 
-
 opt_on_delete_item:
-	ON DELETE_SYM delete_option {}
-	| ON UPDATE_SYM delete_option {}
-	| MATCH FULL	{}
-	| MATCH PARTIAL {}
+	ON DELETE_SYM delete_option   { Lex->fk_delete_opt= $3; }
+	| ON UPDATE_SYM delete_option { Lex->fk_update_opt= $3; }
+	| MATCH FULL	{ Lex->fk_match_option= foreign_key::FK_MATCH_FULL; }
+	| MATCH PARTIAL { Lex->fk_match_option= foreign_key::FK_MATCH_PARTIAL; }
+	| MATCH SIMPLE_SYM { Lex->fk_match_option= foreign_key::FK_MATCH_SIMPLE; }
 
 delete_option:
-	RESTRICT	 {}
-	| CASCADE	 {}
-	| SET NULL_SYM {}
-	| NO_SYM ACTION {}
-	| SET DEFAULT {}
+	RESTRICT	 { $$= (int) foreign_key::FK_OPTION_RESTRICT; }
+	| CASCADE	 { $$= (int) foreign_key::FK_OPTION_CASCADE; }
+	| SET NULL_SYM   { $$= (int) foreign_key::FK_OPTION_SET_NULL; }
+	| NO_SYM ACTION  { $$= (int) foreign_key::FK_OPTION_NO_ACTION; }
+	| SET DEFAULT    { $$= (int) foreign_key::FK_OPTION_DEFAULT;  }
 
 key_type:
 	opt_constraint PRIMARY_SYM KEY_SYM  { $$= Key::PRIMARY; }
@@ -1225,6 +1249,7 @@ alter:
     	  bzero((char*) &lex->create_info,sizeof(lex->create_info));
 	  lex->create_info.db_type= DB_TYPE_DEFAULT;
 	  lex->create_info.row_type= ROW_TYPE_NOT_USED;
+	  lex->create_info.table_charset=default_charset_info;
           lex->alter_keys_onoff=LEAVE_AS_IS;
           lex->simple_alter=1;
 	}
@@ -1246,23 +1271,9 @@ alter_list_item:
 	     lex->change= $3.str; lex->simple_alter=0;
 	  }
           field_spec opt_place
-	| MODIFY_SYM opt_column field_ident
+	| MODIFY_SYM opt_column field_spec
 	  {
-	    LEX *lex=Lex;
-	    lex->length=lex->dec=0; lex->type=0; lex->interval=0;
-	    lex->default_value=0;
-            lex->simple_alter=0;
-	  }
-	  type opt_attribute
-	  {
-	    LEX *lex=Lex;
-	    if (add_field_to_list($3.str,
-				  (enum enum_field_types) $5,
-				  lex->length,lex->dec,lex->type,
-				  lex->default_value, $3.str,
-				  lex->interval))
-	     YYABORT;
-             lex->simple_alter=0;
+            Lex->simple_alter=0;
 	  }
 	  opt_place
 	| DROP opt_column field_ident opt_restrict
@@ -3209,6 +3220,7 @@ keyword:
 	| OFF			{}
 	| OPEN_SYM		{}
 	| PACK_KEYS_SYM		{}
+	| PARTIAL		{}
 	| PASSWORD		{}
 	| PREV_SYM		{}
 	| PROCESS		{}
@@ -3220,8 +3232,8 @@ keyword:
 	| RAID_CHUNKSIZE	{}
 	| RAID_STRIPED_SYM      {}
 	| RAID_TYPE		{}
-        | RELAY_LOG_FILE_SYM {}
-        | RELAY_LOG_POS_SYM {}
+        | RELAY_LOG_FILE_SYM	{}
+        | RELAY_LOG_POS_SYM	{}
 	| RELOAD		{}
 	| REPAIR		{}
 	| REPEATABLE_SYM	{}
@@ -3235,6 +3247,7 @@ keyword:
 	| SERIALIZABLE_SYM	{}
 	| SESSION_SYM		{}
 	| SIGNED_SYM		{}
+	| SIMPLE_SYM		{}
 	| SHARE_SYM		{}
 	| SHUTDOWN		{}
         | SLAVE		        {}

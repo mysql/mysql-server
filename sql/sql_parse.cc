@@ -2770,8 +2770,9 @@ link_in_list(SQL_LIST *list,byte *element,byte **next)
 
 bool add_field_to_list(char *field_name, enum_field_types type,
 		       char *length, char *decimals,
-		       uint type_modifier, Item *default_value,char *change,
-		       TYPELIB *interval)
+		       uint type_modifier,
+		       Item *default_value, Item *comment,
+		       char *change, TYPELIB *interval)
 {
   register create_field *new_field;
   THD	*thd=current_thd;
@@ -2787,14 +2788,14 @@ bool add_field_to_list(char *field_name, enum_field_types type,
   if (type_modifier & PRI_KEY_FLAG)
   {
     lex->col_list.push_back(new key_part_spec(field_name,0));
-    lex->key_list.push_back(new Key(Key::PRIMARY, HA_KEY_ALG_UNDEF, NullS,
+    lex->key_list.push_back(new Key(Key::PRIMARY, NullS, HA_KEY_ALG_UNDEF,
 				    lex->col_list));
     lex->col_list.empty();
   }
   if (type_modifier & (UNIQUE_FLAG | UNIQUE_KEY_FLAG))
   {
     lex->col_list.push_back(new key_part_spec(field_name,0));
-    lex->key_list.push_back(new Key(Key::UNIQUE, HA_KEY_ALG_UNDEF, NullS,
+    lex->key_list.push_back(new Key(Key::UNIQUE, NullS, HA_KEY_ALG_UNDEF,
 				    lex->col_list));
     lex->col_list.empty();
   }
@@ -2824,6 +2825,17 @@ bool add_field_to_list(char *field_name, enum_field_types type,
   new_field->change=change;
   new_field->interval=0;
   new_field->pack_length=0;
+  if (!comment)
+  {
+    new_field->comment.str=0;
+    new_field->comment.length=0;
+  }
+  else
+  {
+    /* In this case comment is always of type Item_string */
+    new_field->comment.str=   (char*) comment->str_value.ptr();
+    new_field->comment.length=comment->str_value.length();
+  }
   if (length)
     if (!(new_field->length= (uint) atoi(length)))
       length=0; /* purecov: inspected */
