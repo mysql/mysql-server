@@ -3,7 +3,7 @@
 #
 
 --disable_warnings
-drop table if exists t1,t2,t3,t4,t5;
+drop table if exists t0,t1,t2,t3,t4,t5;
 --enable_warnings
 
 CREATE TABLE t1 (
@@ -501,3 +501,28 @@ select s.*, '*', m.*, (s.match_1_h - m.home) UUX from
   order by UUX desc;
 
 drop table t1, t2;
+
+# Test for bug #5896  
+
+CREATE TABLE t0 (a0 int PRIMARY KEY);
+CREATE TABLE t1 (a1 int PRIMARY KEY);
+CREATE TABLE t2 (a2 int);
+CREATE TABLE t3 (a3 int);
+INSERT INTO t0 VALUES (1);
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1), (2);
+INSERT INTO t3 VALUES (1), (2);
+
+SELECT * FROM t1 LEFT JOIN t2 ON a1=0;
+EXPLAIN SELECT * FROM t1 LEFT JOIN t2 ON a1=0;
+SELECT * FROM t1 LEFT JOIN (t2,t3) ON a1=0;
+EXPLAIN SELECT * FROM t1 LEFT JOIN (t2,t3) ON a1=0;
+SELECT * FROM t0, t1 LEFT JOIN (t2,t3) ON a1=0 WHERE a0=a1;
+EXPLAIN SELECT * FROM t0, t1 LEFT JOIN (t2,t3) ON a1=0 WHERE a0=a1;
+
+INSERT INTO t0 VALUES (0);
+INSERT INTO t1 VALUES (0);
+SELECT * FROM t0, t1 LEFT JOIN (t2,t3) ON a1=5 WHERE a0=a1 AND a0=1;
+EXPLAIN SELECT * FROM t0, t1 LEFT JOIN (t2,t3) ON a1=5 WHERE a0=a1 AND a0=1;
+
+DROP TABLE t0,t1,t2,t3;
