@@ -317,10 +317,10 @@ int check_user(THD *thd, enum enum_server_command command,
       if ((ur.questions || ur.updates ||
            ur.connections || max_user_connections) &&
           get_or_create_user_conn(thd,thd->user,thd->host_or_ip,&ur))
-        DBUG_RETURN(1);
+        DBUG_RETURN(-1);
       if (thd->user_connect && thd->user_connect->user_resources.connections &&
           check_for_max_user_connections(thd, thd->user_connect))
-        DBUG_RETURN(1);
+        DBUG_RETURN(-1);
 
       /* Change database if necessary: OK or FAIL is sent in mysql_change_db */
       if (db && db[0])
