@@ -91,7 +91,7 @@ eval_func_item(THD *thd, Item *it, enum enum_field_types type)
   DBUG_RETURN(it);
 }
 
-sp_head::sp_head(LEX_STRING *name, LEX *lex)
+sp_head::sp_head(LEX_STRING *name, LEX *lex, LEX_STRING *comment, char suid)
   : Sql_alloc(), m_simple_case(FALSE), m_multi_query(FALSE)
 {
   DBUG_ENTER("sp_head::sp_head");
@@ -102,6 +102,16 @@ sp_head::sp_head(LEX_STRING *name, LEX *lex)
   m_name.str= name->str;
   m_defstr.length= lex->end_of_query - lex->buf;
   m_defstr.str= sql_strmake(dstr, m_defstr.length);
+
+  m_comment.length= 0;
+  m_comment.str= 0;
+  if (comment)
+  {
+    m_comment.length= comment->length;
+    m_comment.str= comment->str;
+  }
+
+  m_suid= suid;
   m_pcont= lex->spcont;
   my_init_dynamic_array(&m_instr, sizeof(sp_instr *), 16, 8);
   m_backpatch.empty();
@@ -119,11 +129,15 @@ sp_head::create(THD *thd)
   if (m_type == TYPE_ENUM_FUNCTION)
     ret= sp_create_function(thd,
 			    m_name.str, m_name.length,
-			    m_defstr.str, m_defstr.length);
+			    m_defstr.str, m_defstr.length,
+			    m_comment.str, m_comment.length,
+			    m_suid);
   else
     ret= sp_create_procedure(thd,
 			     m_name.str, m_name.length,
-			     m_defstr.str, m_defstr.length);
+			     m_defstr.str, m_defstr.length,
+			     m_comment.str, m_comment.length,
+			     m_suid);
 
   DBUG_RETURN(ret);
 }

@@ -93,6 +93,14 @@ db_find_routine(THD *thd, int type, char *name, uint namelen, sp_head **sphp)
   const char *defstr;
   int ret;
   bool opened;
+  const char *creator;
+  longlong created;
+  longlong modified;
+  bool suid= 1;
+  char *ptr;
+  uint length;
+  char buff[65];
+  String str(buff,sizeof(buff),&my_charset_bin);
 
   // QQ Set up our own mem_root here???
   ret= db_find_routine_aux(thd, type, name, namelen, TL_READ, &table, &opened);
@@ -103,6 +111,35 @@ db_find_routine(THD *thd, int type, char *name, uint namelen, sp_head **sphp)
     ret= SP_GET_FIELD_FAILED;
     goto done;
   }
+
+  //Get additional information
+  if ((creator= get_field(&thd->mem_root, table->field[3])) == NULL)
+  {
+    ret= SP_GET_FIELD_FAILED;
+    goto done;
+  }
+
+  created= table->field[4]->val_int();
+  modified= table->field[5]->val_int();
+
+  if ((ptr= get_field(&thd->mem_root, table->field[6])) == NULL)
+  {
+    ret= SP_GET_FIELD_FAILED;
+    goto done;
+  }
+  if (ptr[0] == 'N')
+    suid= 0;
+
+  table->field[7]->val_str(&str,&str);
+  length=str.length();
+  ptr= 0;
+  if (length)
+  {
+    ptr= (char*) alloc_root(&thd->mem_root,length+1);
+    memcpy(ptr,str.ptr(),(uint) length);
+    ptr[length]=0;
+  }
+
   if (opened)
   {
     close_thread_tables(thd, 0, 1);
@@ -113,7 +150,12 @@ db_find_routine(THD *thd, int type, char *name, uint namelen, sp_head **sphp)
   if (yyparse(thd) || thd->is_fatal_error || tmplex->sphead == NULL)
     ret= SP_PARSE_ERROR;
   else
+  {
     *sphp= tmplex->sphead;
+    (*sphp)->sp_set_info((char *) creator, (uint) strlen(creator),
+			 created, modified, suid, 
+			 ptr, length);
+  }
 
  done:
   if (table && opened)
@@ -123,13 +165,15 @@ db_find_routine(THD *thd, int type, char *name, uint namelen, sp_head **sphp)
 
 static int
 db_create_routine(THD *thd, int type,
-		  char *name, uint namelen, char *def, uint deflen)
+		  char *name, uint namelen, char *def, uint deflen,
+		  char *comment, uint commentlen, bool suid)
 {
   DBUG_ENTER("db_create_routine");
   DBUG_PRINT("enter", ("type: %d name: %*s def: %*s", type, namelen, name, deflen, def));
   int ret;
   TABLE *table;
   TABLE_LIST tables;
+  char creator[HOSTNAME_LENGTH+USERNAME_LENGTH+2];
 
   memset(&tables, 0, sizeof(tables));
   tables.db= (char*)"mysql";
@@ -140,10 +184,16 @@ db_create_routine(THD *thd, int type,
   else
   {
     restore_record(table, 2);	// Get default values for fields
+    strxmov(creator, thd->user, "@", thd->host_or_ip, NullS);
 
     table->field[0]->store(name, namelen, system_charset_info);
     table->field[1]->store((longlong)type);
     table->field[2]->store(def, deflen, system_charset_info);
+    table->field[3]->store(creator, (uint) strlen(creator), system_charset_info);
+    if (suid)
+      table->field[6]->store((longlong) suid);
+    if (comment)
+      table->field[7]->store(comment, commentlen, system_charset_info);
 
     if (table->file->write_row(table->record[0]))
       ret= SP_WRITE_ROW_FAILED;
@@ -199,13 +249,15 @@ sp_find_procedure(THD *thd, LEX_STRING *name)
 }
 
 int
-sp_create_procedure(THD *thd, char *name, uint namelen, char *def, uint deflen)
+sp_create_procedure(THD *thd, char *name, uint namelen, char *def, uint deflen,
+		    char *comment, uint commentlen, bool suid)
 {
   DBUG_ENTER("sp_create_procedure");
   DBUG_PRINT("enter", ("name: %*s def: %*s", namelen, name, deflen, def));
   int ret;
 
-  ret= db_create_routine(thd, TYPE_ENUM_PROCEDURE, name, namelen, def, deflen);
+  ret= db_create_routine(thd, TYPE_ENUM_PROCEDURE, name, namelen, def, deflen,
+			 comment, commentlen, suid);
 
   DBUG_RETURN(ret);
 }
@@ -248,13 +300,15 @@ sp_find_function(THD *thd, LEX_STRING *name)
 }
 
 int
-sp_create_function(THD *thd, char *name, uint namelen, char *def, uint deflen)
+sp_create_function(THD *thd, char *name, uint namelen, char *def, uint deflen,
+		   char *comment, uint commentlen, bool suid)
 {
   DBUG_ENTER("sp_create_function");
   DBUG_PRINT("enter", ("name: %*s def: %*s", namelen, name, deflen, def));
   int ret;
 
-  ret= db_create_routine(thd, TYPE_ENUM_FUNCTION, name, namelen, def, deflen);
+  ret= db_create_routine(thd, TYPE_ENUM_FUNCTION, name, namelen, def, deflen,
+			 comment, commentlen, suid);
 
   DBUG_RETURN(ret);
 }
