@@ -8567,36 +8567,39 @@ and change privileges with @code{GRANT} and @code{REVOKE} commands.
 @subsection Connecting to a Remote MySQL from Windows with SSH
 
 Here is a note about how to connect to get a secure connection to remote MySQL
-server with SSH (by David Carlson):
+server with SSH (by David Carlson @email{dcarlson@@mplcomm.com}):
 
 @itemize @bullet
 @item
-Install SSH client on your windows machine - I used a free SSH client
-from @uref{http://www.doc.ic.ac.uk/~ci2/ssh/}.
-Other useful links:
-@uref{http://www.npaci.edu/Security/npaci_security_software.html} and
-@uref{http://www.npaci.edu/Security/samples/ssh32_windows/index.html}.
+Install an SSH client on your windows machine - As a user, the best non-free
+one I've found is from @code{secureCRT} from @uref{http://www.vandyke.com/}.
+Another option is @code{f-secure} from @uref{http://www.f-secure.com/}. You
+can also find some free ones on @strong{Google} at
+@uref{http://directory.google.com/Top/Computers/Security/Products_and_Tools/Cryptography/SSH/Clients/Windows/}.
+
 @item
-Start SSH. Set Host Name = yourmysqlserver name or IP address. Set
-userid=your userid to log in to your server.
+Start your windows SSH client. Set @code{Host_Name = yourmysqlserver_URL_or_IP}. Set
+@code{userid=your_userid} to log in to your server (probably not the same as your @strong{MySQL} login/ password.
+
 @item
-Click on "local forwards". Set @code{local port: 3306},
-@code{host: localhost}, @code{remote port: 3306}.
+Set up port forwarding. Either do a remote forward (Set @code{local_port: 3306}, @code{remote_host: yourmysqlservername_or_ip}, @code{remote_port: 3306} )
+or a local forward (Set @code{port: 3306},  @code{host: localhost}, @code{remote port: 3306}).
+
 @item
 Save everything, otherwise you'll have to redo it the next time.
+
 @item
-Log in to your server with SSH.
+Log in to your server with SSH session you just created.
+
 @item
-Start some ODBC application (for example Access).
+Start some ODBC application on your windows machine (for example Access).
+
 @item
-Create a new file and link to mySQL using the ODBC driver the same way
-you normally do except for server, user "localhost".
+Create a new file in windows and link to @strong{MySQL} using the ODBC driver the same way
+you normally do, EXCEPT type in @code{localhost} for the @strong{MySQL} host server - not @code{yourmysqlservername}.
 @end itemize
 
-That's it. It works very well with a direct Internet connection. I'm
-having problems with SSH conflicting with my Win95 network and Wingate -
-but that'll be the topic of a posting on another software company's
-usegroup!
+You should now have your ODBC connection to @strong{MySQL} encrypted using SSH. 
 
 @cindex symbolic links
 @cindex using multiple disks to start data
