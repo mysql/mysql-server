@@ -810,8 +810,8 @@ start_master()
   $RM -f $MASTER_MYDDIR/log.*
   # Remove stale binary logs
   $RM -f $MYSQL_TEST_DIR/var/log/master-bin.*
-  # Remove old master.info files
-  $RM -f $MYSQL_TEST_DIR/var/master-data/master.info
+  # Remove old master.info and relay-log.info files
+  $RM -f $MYSQL_TEST_DIR/var/master-data/master.info $MYSQL_TEST_DIR/var/master-data/relay-log.info
 
   #run master initialization shell script if one exists
 
@@ -915,7 +915,7 @@ start_slave()
    slave_port=`expr $SLAVE_MYPORT + $1`
    slave_log="$SLAVE_MYLOG.$1"
    slave_err="$SLAVE_MYERR.$1"
-   slave_datadir="var/$slave_ident-data/"
+   slave_datadir="$SLAVE_MYDDIR/../$slave_ident-data/"
    slave_pid="$MYRUN_DIR/mysqld-$slave_ident.pid"
    slave_sock="$SLAVE_MYSOCK-$1"
   else
@@ -930,7 +930,7 @@ start_slave()
  fi
   # Remove stale binary logs and old master.info files
   $RM -f $MYSQL_TEST_DIR/var/log/$slave_ident-*bin.*
-  $RM -f $MYSQL_TEST_DIR/$slave_datadir/master.info
+  $RM -f $slave_datadir/master.info $slave_datadir/relay-log.info
 
   #run slave initialization shell script if one exists
   if [ -f "$slave_init_script" ] ;
