@@ -93,11 +93,11 @@ sub main
     $pec= $? >> 8;
     abort($dir, "Extracting from tar failed!\n") if ($pec);
 
-    # remove the 'PUBLIC' file from distribution and copy LICENSE
+    # remove the 'PUBLIC' file from distribution and copy MySQLEULA.txt
     # on the toplevel of the directory instead. file 'PUBLIC' shouldn't
     # exist in the new mysql distributions, but let's be sure..
     `rm -f $destdir/PUBLIC $destdir/README`;
-    `cp -p $WD/Docs/LICENSE $destdir/`;
+    `cp -p $WD/Docs/MySQLEULA.txt $destdir/`;
     
     # fix file copyrights
     &fix_usage_copyright();
@@ -129,7 +129,7 @@ sub fix_usage_copyright
   foreach my $Cfile (@Cfiles)
   {
     chop $Cfile;
-    `replace "This is free software," "This is commercial software," "and you are welcome to modify and redistribute it under the GPL license" "please see the file LICENSE for details" -- $Cfile`;
+    `replace "This is free software," "This is commercial software," "and you are welcome to modify and redistribute it under the GPL license" "please see the file MySQLEULA.txt for details" -- $Cfile`;
   }
 }
 
