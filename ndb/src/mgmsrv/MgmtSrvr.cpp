@@ -450,6 +450,8 @@ MgmtSrvr::MgmtSrvr(NodeId nodeId,
 	nodeTypes[nodeId] = NDB_MGM_NODE_TYPE_API;
       if(type == "DB")
 	nodeTypes[nodeId] = NDB_MGM_NODE_TYPE_NDB;
+      if(type == "REP")
+	nodeTypes[nodeId] = NDB_MGM_NODE_TYPE_API;
     }
   }
   

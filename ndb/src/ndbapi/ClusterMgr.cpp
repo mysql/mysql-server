@@ -409,9 +409,10 @@ ClusterMgr::reportNodeFailed(NodeId nodeId){
   const bool report = (theNode.m_state.startLevel != NodeState::SL_NOTHING);  
   theNode.m_state.startLevel = NodeState::SL_NOTHING;
   
-  if(report)
+  if(report){
     theFacade.ReportNodeDead(nodeId);
-  
+  }  
+
   theNode.nfCompleteRep = false;
 
   if(noOfConnectedNodes == 0){

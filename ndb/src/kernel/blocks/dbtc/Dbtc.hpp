@@ -380,11 +380,8 @@ public:
   /* WHEN THE TRIGGER IS DEACTIVATED.         */
   /* **************************************** */
   struct TcFiredTriggerData {
-    TcFiredTriggerData(AttributeBuffer::DataBufferPool & abp):
-      keyValues(abp),
-      beforeValues(abp),
-      afterValues(abp)
-    {}
+    TcFiredTriggerData() {}
+
     /**
      * Trigger id, used to identify the trigger
      **/
@@ -396,19 +393,24 @@ public:
     Uint32 fireingOperation;
 
     /**
+     * Used for scrapping in case of node failure
+     */
+    Uint32 nodeId;
+
+    /**
      * Trigger attribute info, primary key value(s)
      */
-    AttributeBuffer keyValues;
+    AttributeBuffer::Head keyValues;
     
     /**
      * Trigger attribute info, attribute value(s) before operation
      */
-    AttributeBuffer beforeValues;
+    AttributeBuffer::Head beforeValues;
     
     /**
      * Trigger attribute info, attribute value(s) after operation
      */
-    AttributeBuffer afterValues;
+    AttributeBuffer::Head afterValues;
 
     /**
      * Next ptr (used in pool/list)
@@ -416,15 +418,27 @@ public:
     union {
       Uint32 nextPool;
       Uint32 nextList;
+      Uint32 nextHash;
     };
     
     /**
      * Prev pointer (used in list)
      */
-    Uint32 prevList;
-
+    union {
+      Uint32 prevList;
+      Uint32 prevHash;
+    };
+    
     inline void print(NdbOut & s) const { 
       s << "[FiredTriggerData = " << triggerId << "]"; 
+    }
+
+    inline Uint32 hashValue() const {
+      return fireingOperation ^ nodeId;
+    }
+
+    inline bool equal(const TcFiredTriggerData & rec) const {
+      return fireingOperation == rec.fireingOperation && nodeId == rec.nodeId;
     }
   };
   typedef Ptr<TcFiredTriggerData> FiredTriggerPtr;
@@ -433,6 +447,7 @@ public:
    * Pool of trigger data record
    */
   ArrayPool<TcFiredTriggerData> c_theFiredTriggerPool;
+  DLHashTable<TcFiredTriggerData> c_firedTriggerHash;
   AttributeBuffer::DataBufferPool c_theTriggerAttrInfoPool;
 
   Uint32 c_maxNumberOfDefinedTriggers;
@@ -822,7 +837,6 @@ public:
     UintR triggerExecutionCount;
     UintR triggeringOperation;
     UintR savedState[LqhKeyConf::SignalLength];
-    UintR triggerError;
     
     // Index data
     bool isIndexOp; // Used to mark on-going TcKeyReq as index table access

@@ -34,7 +34,7 @@
  *
  */
 
-typedef enum ErrorCategory
+enum ErrorCategory
 {
    warning,
    ecError,
