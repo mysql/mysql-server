@@ -46897,6 +46897,8 @@ not yet 100% confident in this code.
 @appendixsubsec Changes in release 3.23.50
 @itemize @bullet
 @item
+Fixed bug when using @code{WHERE key_column = 'J' or key_column='j'}.
+@item
 Fixed core-dump bug when using @code{--log-bin} with @code{LOAD DATA
 INFILE} without an active database.
 @item
@@ -46934,7 +46936,7 @@ Don't give warning for statement that is only a comment;  This is needed for
 @code{mysqldump --disable-keys} to work.
 @item
 Fixed unlikely caching bug when doing a join without keys. In this case
-the last used field for a table always returned @code{NULL}.
+the last used column for a table always returned @code{NULL}.
 @item
 Added options to make @code{LOAD DATA LOCAL INFILE} more secure.
 @item

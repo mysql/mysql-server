@@ -251,7 +251,7 @@ static struct option long_options[] =
 
 static void print_version(void)
 {
-  printf("%s  Ver 1.11 for %s on %s\n",my_progname,SYSTEM_TYPE,MACHINE_TYPE);
+  printf("%s  Ver 1.12 for %s on %s\n",my_progname,SYSTEM_TYPE,MACHINE_TYPE);
 }
 
 static void usage(void)
@@ -594,10 +594,7 @@ static int compress(PACK_MRG_INFO *mrg,char *result_table)
 	else
 	{
 	  if (tmp_dir[0])
-	  {
-	    if (!(error=my_copy(new_name,org_name,MYF(MY_WME))))
-	      VOID(my_delete(new_name,MYF(MY_WME)));
-	  }
+	    error=my_copy(new_name,org_name,MYF(MY_WME));
 	  else
 	    error=my_rename(new_name,org_name,MYF(MY_WME));
 	  if (!error)
@@ -607,13 +604,8 @@ static int compress(PACK_MRG_INFO *mrg,char *result_table)
       else
       {
 	if (tmp_dir[0])
-	{
-
-	  if (!(error=my_copy(new_name,org_name,
-			      MYF(MY_WME | MY_HOLD_ORIGINAL_MODES
-				  | MY_COPYTIME))))
-	    VOID(my_delete(new_name,MYF(MY_WME)));
-	}
+	  error=my_copy(new_name,org_name,
+			MYF(MY_WME | MY_HOLD_ORIGINAL_MODES | MY_COPYTIME));
 	else
 	  error=my_redel(org_name,new_name,MYF(MY_WME | MY_COPYTIME));
       }
@@ -627,6 +619,7 @@ static int compress(PACK_MRG_INFO *mrg,char *result_table)
   if (error)
   {
     VOID(fprintf(stderr,"Aborting: %s is not compressed\n",org_name));
+    VOID(my_delete(new_name,MYF(MY_WME)));
     DBUG_RETURN(-1);
   }
   if (write_loop || verbose)
