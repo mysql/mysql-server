@@ -332,7 +332,9 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
   {
     char buff[160];
     if (duplic == DUP_IGNORE)
-      sprintf(buff,ER(ER_INSERT_INFO),info.records,info.records-info.copied,
+      sprintf(buff,ER(ER_INSERT_INFO),info.records,
+	      (lock_type == TL_WRITE_DELAYED) ? 0 : 
+	      info.records-info.copied,
 	      thd->cuted_fields);
     else
       sprintf(buff,ER(ER_INSERT_INFO),info.records,info.deleted,
