@@ -1190,6 +1190,21 @@ int Item_string::save_in_field(Field *field, bool no_conversions)
 	  -1 : 0;
 }
 
+int Item_uint::save_in_field(Field *field, bool no_conversions)
+{
+  longlong nr= val_int();
+  int res;
+
+  if (null_value)
+    return set_field_to_null(field);
+  field->set_notnull();
+  if (nr < 0)
+    res= field->store(ulonglong2double(nr);
+  else
+    res= field->store(nr);
+  return res ? -1 : 0;
+}
+
 
 int Item_int::save_in_field(Field *field, bool no_conversions)
 {

@@ -60,3 +60,14 @@ drop table t1;
 
 # just for fun :)
 select @a:=10, @b:=2, @a>@b, @a:="10", @b:="2", @a>@b, @a:=10, @b:=2, @a>@b, @a:="10", @b:="2", @a>@b;
+
+#
+# bug#1739
+# Item_func_set_user_var sets update_query_id, Item_func_get_user_var checks it
+#
+create table t1 (i int not null);
+insert t1 values (1),(2),(2),(3),(3),(3);
+select @a:=0; select @a, @a:=@a+count(*), count(*), @a from t1 group by i;
+select @a:=0; select @a+0, @a:=@a+0+count(*), count(*), @a+0 from t1 group by i;
+drop table t1;
+
