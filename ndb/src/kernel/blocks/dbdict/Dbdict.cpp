@@ -2245,9 +2245,9 @@ void Dbdict::checkSchemaStatus(Signal* signal)
 	  restartCreateTab(signal, tableId, oldEntry, false);
           return;
         }//if
-	ndbrequire(ok);
-	break;
       }
+      ndbrequire(ok);
+      break;
     }
     case SchemaFile::DROP_TABLE_STARTED:
       jam();
