@@ -356,7 +356,8 @@ ulong ha_berkeley::index_flags(uint idx, uint part, bool all_parts) const
     }
     switch (table->key_info[idx].key_part[i].field->key_type()) {
     case HA_KEYTYPE_TEXT:
-    case HA_KEYTYPE_VARTEXT:
+    case HA_KEYTYPE_VARTEXT1:
+    case HA_KEYTYPE_VARTEXT2:
       /*
         As BDB stores only one copy of equal strings, we can't use key read
         on these. Binary collations do support key read though.
@@ -391,6 +392,7 @@ berkeley_cmp_packed_key(DB *file, const DBT *new_key, const DBT *saved_key)
   KEY_PART_INFO *key_part= key->key_part, *end=key_part+key->key_parts;
   uint key_length=new_key->size;
 
+  DBUG_DUMP("key_in_index", saved_key_ptr, saved_key->size);
   for (; key_part != end && (int) key_length > 0; key_part++)
   {
     int cmp;
@@ -745,11 +747,11 @@ void ha_berkeley::unpack_row(char *record, DBT *row)
 
 void ha_berkeley::unpack_key(char *record, DBT *key, uint index)
 {
-  KEY *key_info=table->key_info+index;
+  KEY *key_info= table->key_info+index;
   KEY_PART_INFO *key_part= key_info->key_part,
-		*end=key_part+key_info->key_parts;
+		*end= key_part+key_info->key_parts;
+  char *pos= (char*) key->data;
 
-  char *pos=(char*) key->data;
   for (; key_part != end; key_part++)
   {
     if (key_part->null_bit)
@@ -773,8 +775,10 @@ void ha_berkeley::unpack_key(char *record, DBT *key, uint index)
 
 
 /*
-  Create a packed key from from a row
-  This will never fail as the key buffer is pre allocated.
+  Create a packed key from a row. This key will be written as such
+  to the index tree.
+
+  This will never fail as the key buffer is pre-allocated.
 */
 
 DBT *ha_berkeley::create_key(DBT *key, uint keynr, char *buff,
@@ -820,7 +824,10 @@ DBT *ha_berkeley::create_key(DBT *key, uint keynr, char *buff,
 
 
 /*
-  Create a packed key from from a MySQL unpacked key
+  Create a packed key from from a MySQL unpacked key (like the one that is
+  sent from the index_read()
+
+  This key is to be used to read a row
 */
 
 DBT *ha_berkeley::pack_key(DBT *key, uint keynr, char *buff,
@@ -1457,7 +1464,7 @@ int ha_berkeley::read_row(int error, char *buf, uint keynr, DBT *row,
 int ha_berkeley::index_read_idx(byte * buf, uint keynr, const byte * key,
 				uint key_len, enum ha_rkey_function find_flag)
 {
-  statistic_increment(table->in_use->status_var.ha_read_key_count,&LOCK_status);
+  table->in_use->status_var.ha_read_key_count++;
   DBUG_ENTER("index_read_idx");
   current_row.flags=DB_DBT_REALLOC;
   active_index=MAX_KEY;
@@ -1476,10 +1483,9 @@ int ha_berkeley::index_read(byte * buf, const byte * key,
   int error;
   KEY *key_info= &table->key_info[active_index];
   int do_prev= 0;
-
   DBUG_ENTER("ha_berkeley::index_read");
 
-  statistic_increment(table->in_use->status_var.ha_read_key_count,&LOCK_status);
+  table->in_use->status_var.ha_read_key_count++;
   bzero((char*) &row,sizeof(row));
   if (find_flag == HA_READ_BEFORE_KEY)
   {
@@ -1679,6 +1685,7 @@ DBT *ha_berkeley::get_pos(DBT *to, byte *pos)
       pos+=key_part->field->packed_col_length((char*) pos,key_part->length);
     to->size= (uint) (pos- (byte*) to->data);
   }
+  DBUG_DUMP("key", (char*) to->data, to->size);
   return to;
 }
 
