@@ -11,7 +11,7 @@ $opt_distribution=$opt_user=$opt_config_env=$opt_config_extra_env="";
 $opt_dbd_options=$opt_perl_options=$opt_config_options=$opt_make_options=$opt_suffix="";
 $opt_tmp=$opt_version_suffix="";
 $opt_bundled_zlib=$opt_help=$opt_delete=$opt_debug=$opt_stage=$opt_no_test=$opt_no_perl=$opt_one_error=$opt_with_low_memory=$opt_fast_benchmark=$opt_static_client=$opt_static_server=$opt_static_perl=$opt_sur=$opt_with_small_disk=$opt_local_perl=$opt_tcpip=$opt_build_thread=$opt_use_old_distribution=$opt_enable_shared=$opt_no_crash_me=$opt_no_strip=$opt_with_archive=$opt_with_cluster=$opt_with_csv=$opt_with_example=$opt_with_debug=$opt_no_benchmark=$opt_no_mysqltest=$opt_without_embedded=$opt_readline=0;
-$opt_skip_embedded_test=$opt_skip_ps_test=$opt_innodb=$opt_bdb=$opt_raid=$opt_libwrap=$opt_clearlogs=0;
+$opt_skip_embedded_test=$opt_skip_ps_test=$opt_innodb=$opt_bdb=$opt_raid=$opt_libwrap=$opt_clearlogs=$opt_with_federated=0;
 
 GetOptions(
 	"bdb",
@@ -58,8 +58,9 @@ GetOptions(
 	"with-archive",
 	"with-cluster",
 	"with-csv",
-	"with-example",
 	"with-debug",
+	"with-example",
+  "with-federated",
 	"with-low-memory",
 	"with-other-libc=s",
 	"with-small-disk",
@@ -264,7 +265,8 @@ if ($opt_stage <= 1)
   $opt_config_options.= " --with-berkeley-db" if ($opt_bdb);
   $opt_config_options.= " --with-zlib-dir=bundled" if ($opt_bundled_zlib);
   $opt_config_options.= " --with-client-ldflags=-all-static" if ($opt_static_client);
-	$opt_config_options.= " --with-debug" if ($opt_with_debug);
+  $opt_config_options.= " --with-debug" if ($opt_with_debug);
+  $opt_config_options.= " --without-ndb-debug" if ($opt_with_debug && $opt_with_cluster);
   $opt_config_options.= " --with-libwrap" if ($opt_libwrap);
   $opt_config_options.= " --with-low-memory" if ($opt_with_low_memory);
   $opt_config_options.= " --with-mysqld-ldflags=-all-static" if ($opt_static_server);
@@ -283,6 +285,7 @@ if ($opt_stage <= 1)
   $opt_config_options.= " --with-ndbcluster" if ($opt_with_cluster);
   $opt_config_options.= " --with-csv-storage-engine" if ($opt_with_csv);
   $opt_config_options.= " --with-example-storage-engine" if ($opt_with_example);
+  $opt_config_options.= " --with-federated-storage-engine" if ($opt_with_federated);
 
   # Only enable InnoDB when requested (required to be able to
   # build the "Classic" packages that do not include InnoDB)
@@ -640,10 +643,10 @@ If user is empty then no mail is sent.
 --version-suffix=suffix
 Set name suffix (e.g. 'com' or '-max') for a distribution
 
---with archive
+--with-archive
 Enable the Archive storage engine
 
---with cluster
+--with-cluster
 Compile and test with NDB Cluster enabled
 
 --with-csv
@@ -651,6 +654,9 @@ Enable the CSV storage engine
 
 --with-example
 Enable the Example storage engine
+
+--with-federated
+Enable the Federated storage engine
 
 --with-debug
 Build binaries with debug information (implies "--no-strip")

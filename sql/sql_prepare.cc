@@ -900,8 +900,12 @@ static bool mysql_test_insert(Prepared_statement *stmt,
   /*
      open temporary memory pool for temporary data allocated by derived
      tables & preparation procedure
+     Note that this is done without locks (should not be needed as we will not
+     access any data here)
+     If we would use locks, then we have to ensure we are not using
+     TL_WRITE_DELAYED as having two such locks can cause table corruption.
   */
-  if (open_and_lock_tables(thd, table_list))
+  if (open_normal_and_derived_tables(thd, table_list))
   {
     DBUG_RETURN(TRUE);
   }
@@ -1740,7 +1744,7 @@ bool mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
     DBUG_RETURN(TRUE);
   }
 
-  mysql_log.write(thd, COM_PREPARE, "%s", packet);
+  mysql_log.write(thd, COM_PREPARE, "[%lu] %s", stmt->id, packet);
 
   thd->current_arena= stmt;
   mysql_init_query(thd, (uchar *) thd->query, thd->query_length);
@@ -1989,6 +1993,10 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
     my_error(ER_OUTOFMEMORY, 0, expanded_query.length());
     goto err;
   }
+
+  mysql_log.write(thd, COM_EXECUTE, "[%lu] %s", stmt->id,
+                  expanded_query.length() ? expanded_query.c_ptr() :
+                                            stmt->query);
 
   thd->protocol= &thd->protocol_prep;           // Switch to binary protocol
   if (!(specialflag & SPECIAL_NO_PRIOR))

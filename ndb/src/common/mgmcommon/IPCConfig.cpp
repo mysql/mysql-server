@@ -371,8 +371,18 @@ IPCConfig::configureTransporters(Uint32 nodeId,
     }
     DBUG_PRINT("info", ("Transporter between this node %d and node %d using port %d, signalId %d, checksum %d",
                nodeId, remoteNodeId, server_port, sendSignalId, checksum));
+    /*
+      This may be a dynamic port. It depends on when we're getting
+      our configuration. If we've been restarted, we'll be getting
+      a configuration with our old dynamic port in it, hence the number
+      here is negative (and we try the old port number first).
+
+      On a first-run, server_port will be zero (with dynamic ports)
+
+      If we're not using dynamic ports, we don't do anything.
+    */
     if((int)server_port<0)
-      server_port= -server_port;		// A dynamic port
+      server_port= -server_port;
 
     switch(type){
     case CONNECTION_TYPE_SHM:{

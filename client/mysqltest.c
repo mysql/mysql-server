@@ -123,6 +123,17 @@ typedef struct
   } code;
 } match_err;
 
+typedef struct
+{
+  const char *name;
+  long        code;
+} st_error;
+
+static st_error global_error[] = {
+#include <mysqld_ername.h>
+  { 0, 0 }
+};
+
 static match_err global_expected_errno[MAX_EXPECTED_ERRORS];
 static uint global_expected_errors;
 
@@ -1340,6 +1351,7 @@ static uint get_errcodes(match_err *to,struct st_query* q)
 {
   char* p= q->first_argument;
   uint count= 0;
+
   DBUG_ENTER("get_errcodes");
 
   if (!*p)
@@ -1350,19 +1362,41 @@ static uint get_errcodes(match_err *to,struct st_query* q)
     if (*p == 'S')
     {
       /* SQLSTATE string */
-      int i;
-      p++;
-      for (i = 0; my_isalnum(charset_info, *p) && i < SQLSTATE_LENGTH; p++, i++)
-        to[count].code.sqlstate[i]= *p;
-      to[count].code.sqlstate[i]= '\0';
+      char *end= ++p + SQLSTATE_LENGTH;
+      char *to_ptr= to[count].code.sqlstate;
+
+      for (; my_isalnum(charset_info, *p) && p != end; p++)
+	*to_ptr++= *p;
+      *to_ptr= 0;
+
       to[count].type= ERR_SQLSTATE;
+    }
+    else if (*p == 'E')
+    {
+      /* SQL error as string */
+      st_error *e= global_error;
+      char *start= p++;
+      
+      for (; *p == '_' || my_isalnum(charset_info, *p); p++)
+	;
+      for (; e->name; e++)
+      {
+	if (!strncmp(start, e->name, (int) (p - start)))
+	{
+	  to[count].code.errnum= (uint) e->code;
+	  to[count].type= ERR_ERRNO;
+	  break;
+	}
+      }
+      if (!e->name)
+	die("Unknown SQL error '%s'\n", start);
     }
     else
     {
       long val;
-      p=str2int(p,10,(long) INT_MIN, (long) INT_MAX, &val);
-      if (p == NULL)
-        die("Invalid argument in %s\n", q->query);
+
+      if (!(p= str2int(p,10,(long) INT_MIN, (long) INT_MAX, &val)))
+	die("Invalid argument in %s\n", q->query);
       to[count].code.errnum= (uint) val;
       to[count].type= ERR_ERRNO;
     }
@@ -2321,6 +2355,9 @@ static struct my_option my_long_options[] =
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
+
+#include <help_start.h>
+
 static void print_version(void)
 {
   printf("%s  Ver %s Distrib %s, for %s (%s)\n",my_progname,MTEST_VERSION,
@@ -2338,6 +2375,8 @@ void usage()
   printf("  --no-defaults       Don't read default options from any options file.\n");
   my_print_variables(my_long_options);
 }
+
+#include <help_end.h>
 
 
 static my_bool
@@ -2850,6 +2889,7 @@ static int normal_handle_error(const char *query, struct st_query *q,
                 mysql_error(mysql));
     DBUG_RETURN(0);
   }
+  return 0; /* Keep compiler happy */
 }
 
 

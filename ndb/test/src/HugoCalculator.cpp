@@ -14,8 +14,26 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#include <ndb_global.h>
 #include "HugoCalculator.hpp"
 #include <NDBT.hpp>
+#include <Base64.hpp>
+
+static
+Uint32
+myRand(Uint64 * seed)
+{
+  const Uint64 mul= 0x5deece66dull;
+  const Uint64 add= 0xb;
+  Uint64 loc_result = *seed * mul + add;
+
+  * seed= loc_result;
+  return loc_result >> 1;
+}
+
+static char base64_table[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                             "abcdefghijklmnopqrstuvwxyz"
+                             "0123456789+/";
 
 /* *************************************************************
  * HugoCalculator
@@ -58,22 +76,11 @@ Int32
 HugoCalculator::calcValue(int record, 
 			  int attrib, 
 			  int updates) const {
-  const NdbDictionary::Column* attr = m_tab.getColumn(attrib);
-  // If this is the "id" column
-  if (attrib == m_idCol)
-    return record;
- 
-  // If this is the update column
-  if (attrib == m_updatesCol)
-    return updates;
+  
+  Int32 i;
+  calcValue(record, attrib, updates, (char*)&i, sizeof(i));
 
-
-  Int32 val;
-  if (attr->getPrimaryKey())
-    val = record + attrib;
-  else
-    val = record + attrib + updates;
-  return val;
+  return i;
 }
 #if 0
 HugoCalculator::U_Int32 calcValue(int record, int attrib, int updates) const;
@@ -82,58 +89,116 @@ HugoCalculator::Int64 calcValue(int record, int attrib, int updates) const;
 HugoCalculator::float calcValue(int record, int attrib, int updates) const;
 HugoCalculator::double calcValue(int record, int attrib, int updates) const;
 #endif
+
 const char* 
 HugoCalculator::calcValue(int record, 
 			  int attrib, 
 			  int updates, 
 			  char* buf,
 			  int len) const {
-  const char a[26] = {"UAWBORCTDPEFQGNYHISJMKXLZ"};
+  Uint64 seed;
   const NdbDictionary::Column* attr = m_tab.getColumn(attrib);
-  int val = calcValue(record, attrib, updates);
-
-  if (attr->getPrimaryKey()){
-    // Create a string where val is printed as chars in the beginning
-    // of the string, then fill with other chars
-    // The string length is set to the same size as the attribute
-    BaseString::snprintf(buf, len, "%d", val);
-    for(int i=strlen(buf); i < len; i++)
-      buf[i] = a[((val^i)%25)]; 
-  } else{
-    
-    // Fill buf with some pattern so that we can detect
-    // anomalies in the area that we don't fill with chars
-    int i;
-    for (i = 0; i<len; i++)
-      buf[i] = ((i+2) % 255);
-    
-    // Calculate length of the string to create. We want the string 
-    // length to be varied between max and min of this attribute.
-    if(attr->getType() == NdbDictionary::Column::Varchar)
-      len = val % (len + 1);
-    else
-      if((val % (len + 1)) == 0)
-	len = 0;
-    
-    // If len == 0 return NULL if this is a nullable attribute
-    if (len == 0){
-      if(attr->getNullable() == true)
-	return NULL;
-      else
-	len++;
+  Uint32 val;
+  do
+  {
+    if (attrib == m_idCol)
+    {
+      val= record;
+      memcpy(buf, &val, 4);
+      return buf;
     }
-    for(i=0; i < len; i++)
-      buf[i] = a[((val^i)%25)];
-    buf[len] = 0;
+    
+    // If this is the update column
+    if (attrib == m_updatesCol)
+    {
+      val= updates;
+      memcpy(buf, &val, 4);
+      return buf;
+    }
+    
+    if (attr->getPrimaryKey())
+    {
+      seed = record + attrib;
+    }
+    else
+    {
+      seed = record + attrib + updates;
+    }
+  } while (0);
+  
+  val = myRand(&seed);  
+  
+  if(attr->getNullable() && (((val >> 16) & 255) > 220))
+    return NULL;
 
+  int pos= 0;
+  switch(attr->getType()){
+  case NdbDictionary::Column::Tinyint:
+  case NdbDictionary::Column::Tinyunsigned:
+  case NdbDictionary::Column::Smallint:
+  case NdbDictionary::Column::Smallunsigned:
+  case NdbDictionary::Column::Mediumint:
+  case NdbDictionary::Column::Mediumunsigned:
+  case NdbDictionary::Column::Int:
+  case NdbDictionary::Column::Unsigned:
+  case NdbDictionary::Column::Bigint:
+  case NdbDictionary::Column::Bigunsigned:
+  case NdbDictionary::Column::Float:
+  case NdbDictionary::Column::Double:
+  case NdbDictionary::Column::Decimal:
+  case NdbDictionary::Column::Binary:
+  case NdbDictionary::Column::Datetime:
+  case NdbDictionary::Column::Time:
+  case NdbDictionary::Column::Date:
+  case NdbDictionary::Column::Bit:
+    while (len > 4)
+    {
+      memcpy(buf+pos, &val, 4);
+      pos += 4;
+      len -= 4;
+      val= myRand(&seed);
+    }
+    
+    memcpy(buf+pos, &val, len);
     if(attr->getType() == NdbDictionary::Column::Bit)
     {
       Uint32 bits= attr->getLength();
-      Uint32 pos = bits >> 5;
+      Uint32 tmp = bits >> 5;
       Uint32 size = bits & 31;
-      ((Uint32*)buf)[pos] &= ((1 << size) - 1);
+      ((Uint32*)buf)[tmp] &= ((1 << size) - 1);
     }
+    break;
+  case NdbDictionary::Column::Varbinary:
+  case NdbDictionary::Column::Varchar:
+  case NdbDictionary::Column::Text:
+  case NdbDictionary::Column::Char:
+  case NdbDictionary::Column::Longvarchar:
+  case NdbDictionary::Column::Longvarbinary:
+  {
+    char* ptr= (char*)&val;
+    while(len >= 4)
+    {
+      len -= 4;
+      buf[pos++] = base64_table[ptr[0] & 0x3f];
+      buf[pos++] = base64_table[ptr[1] & 0x3f];
+      buf[pos++] = base64_table[ptr[2] & 0x3f];
+      buf[pos++] = base64_table[ptr[3] & 0x3f];
+      val= myRand(&seed);
+    }
+    
+    for(; len; len--, pos++)
+      buf[pos] = base64_table[ptr[len] & 0x3f];
+
+    pos--;
+    break;
   }
+  case NdbDictionary::Column::Blob:
+  case NdbDictionary::Column::Undefined:
+    abort();
+    break;
+  }
+
+  
   return buf;
 } 
 
@@ -148,93 +213,39 @@ HugoCalculator::verifyRowValues(NDBT_ResultRow* const  pRow) const{
   // Check the values of each column
   for (int i = 0; i<m_tab.getNoOfColumns(); i++){
     if (i != m_updatesCol && id != m_idCol) {
-      
       const NdbDictionary::Column* attr = m_tab.getColumn(i);      
-      Uint32 len = attr->getLength();
-      switch (attr->getType()){
-      case NdbDictionary::Column::Bit:
-	len = 4 * ((len + 31) >> 5);
-      case NdbDictionary::Column::Char:
-      case NdbDictionary::Column::Varchar:
-      case NdbDictionary::Column::Binary:
-      case NdbDictionary::Column::Varbinary:{
-	char* buf = new char[len+1];
-	const char* res = calcValue(id, i, updates, buf, len);
-	if (res == NULL){
-	  if (!pRow->attributeStore(i)->isNULL()){
-	    g_err << "|- NULL ERROR: expected a NULL but the column was not null" << endl;
-	    g_err << "|- The row: \"" << (*pRow) << "\"" << endl;
-	    result = -1;
-	  }
-	} else{
-	  if (memcmp(res, pRow->attributeStore(i)->aRef(), len) != 0){
-	    //	  if (memcmp(res, pRow->attributeStore(i)->aRef(), pRow->attributeStore(i)->getLength()) != 0){
-	    g_err << "Column: " << attr->getName() << endl;
-	    const char* buf2 = pRow->attributeStore(i)->aRef();
-	    for (Uint32 j = 0; j < len; j++)
+      Uint32 len = attr->getSizeInBytes();
+      char buf[8000];
+      const char* res = calcValue(id, i, updates, buf, len);
+      if (res == NULL){
+	if (!pRow->attributeStore(i)->isNULL()){
+	  g_err << "|- NULL ERROR: expected a NULL but the column was not null" << endl;
+	  g_err << "|- The row: \"" << (*pRow) << "\"" << endl;
+	  result = -1;
+	}
+      } else{
+	if (memcmp(res, pRow->attributeStore(i)->aRef(), len) != 0){
+	  g_err << "Column: " << attr->getName() << endl;
+	  const char* buf2 = pRow->attributeStore(i)->aRef();
+	  for (Uint32 j = 0; j < len; j++)
+	  {
+	    g_err << j << ":" << hex << (Uint32)(Uint8)buf[j] << "[" << hex << (Uint32)(Uint8)buf2[j] << "]";
+	    if (buf[j] != buf2[j])
 	    {
-	      g_err << j << ":" << hex << (int)buf[j] << "[" << hex << (int)buf2[j] << "]";
-	      if (buf[j] != buf2[j])
-	      {
-		g_err << "==>Match failed!";
-	      }
-	      g_err << endl;
+	      g_err << "==>Match failed!";
 	    }
 	    g_err << endl;
-	    g_err << "|- Invalid data found in attribute " << i << ": \""
-		  << pRow->attributeStore(i)->aRef()
-		  << "\" != \"" << res << "\"" << endl
-		  << "Length of expected=" << (unsigned)strlen(res) << endl
-		  << "Lenght of read="
-		  << (unsigned)strlen(pRow->attributeStore(i)->aRef()) << endl;
-	    g_err << "|- The row: \"" << (* pRow) << "\"" << endl;
-	    result = -1;
 	  }
-	}
-	delete []buf;
-      }
-	break;
-      case NdbDictionary::Column::Int:
-      case NdbDictionary::Column::Unsigned:{
-	Int32 cval = calcValue(id, i, updates);
-	Int32 val = pRow->attributeStore(i)->int32_value();
-	if (val != cval){
-	  g_err << "|- Invalid data found: \"" << val << "\" != \"" 
-		<< cval << "\"" << endl;
+	  g_err << endl;
+	  g_err << "|- Invalid data found in attribute " << i << ": \""
+		<< pRow->attributeStore(i)->aRef()
+		<< "\" != \"" << res << "\"" << endl
+		<< "Length of expected=" << (unsigned)strlen(res) << endl
+		<< "Lenght of read="
+		<< (unsigned)strlen(pRow->attributeStore(i)->aRef()) << endl;
 	  g_err << "|- The row: \"" << (* pRow) << "\"" << endl;
 	  result = -1;
 	}
-	break;
-      }
-      case NdbDictionary::Column::Bigint:
-      case NdbDictionary::Column::Bigunsigned:{
-	Uint64 cval = calcValue(id, i, updates);
-	Uint64 val = pRow->attributeStore(i)->u_64_value();
-	if (val != cval){
-	  g_err << "|- Invalid data found: \"" << val << "\" != \"" 
-		<< cval << "\"" 
-		<< endl;
-	  g_err << "|- The row: \"" << (* pRow) << "\"" << endl;
-	  result = -1;
-	}
-      }
-	break;
-      case NdbDictionary::Column::Float:{
-	float cval = calcValue(id, i, updates);
-	float val = pRow->attributeStore(i)->float_value();
-	if (val != cval){
-	  g_err << "|- Invalid data found: \"" << val << "\" != \"" 
-		<< cval << "\"" << endl;
-	  g_err << "|- The row: \"" << (* pRow) << "\"" << endl;
-	  result = -1;
-	}
-      }
-	break;
-      case NdbDictionary::Column::Undefined:
-      default:
-	assert(0);
-	result = -1;
-	break;
       }
     }
   }

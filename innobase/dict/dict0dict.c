@@ -1374,8 +1374,9 @@ dict_index_add_to_cache(
 /*====================*/
 				/* out: TRUE if success */
 	dict_table_t*	table,	/* in: table on which the index is */
-	dict_index_t*	index)	/* in, own: index; NOTE! The index memory
+	dict_index_t*	index,	/* in, own: index; NOTE! The index memory
 				object is freed in this function! */
+	ulint		page_no)/* in: root page number of the index */
 {
 	dict_index_t*	new_index;
 	dict_tree_t*	tree;
@@ -1461,10 +1462,9 @@ dict_index_add_to_cache(
 		tree = dict_index_get_tree(
 					UT_LIST_GET_FIRST(cluster->indexes));
 		new_index->tree = tree;
-		new_index->page_no = tree->page;
 	} else {
 		/* Create an index tree memory object for the index */
-		tree = dict_tree_create(new_index);
+		tree = dict_tree_create(new_index, page_no);
 		ut_ad(tree);
 
 		new_index->tree = tree;
@@ -1749,7 +1749,6 @@ dict_index_build_internal_clust(
 	new_index->n_user_defined_cols = index->n_fields;
 	
 	new_index->id = index->id;
-	new_index->page_no = index->page_no;
 
 	if (table->type != DICT_TABLE_ORDINARY) {
 		/* The index is mixed: copy common key prefix fields */
@@ -1928,7 +1927,6 @@ dict_index_build_internal_non_clust(
 	new_index->n_user_defined_cols = index->n_fields;
 	
 	new_index->id = index->id;
-	new_index->page_no = index->page_no;
 
 	/* Copy fields from index to new_index */
 	dict_index_copy(new_index, index, 0, index->n_fields);
@@ -2922,9 +2920,9 @@ loop:
 	constraint_name = NULL;
 
 	if (ptr1 < ptr2) {
-		/* The user has specified a constraint name. Pick it so
+		/* The user may have specified a constraint name. Pick it so
 		that we can store 'databasename/constraintname' as the id of
-		the id of the constraint to system tables. */
+		of the constraint to system tables. */
 		ptr = ptr1;
 
 		ptr = dict_accept(ptr, "CONSTRAINT", &success);
@@ -2961,6 +2959,10 @@ loop:
 
 	ptr = dict_accept(ptr, "FOREIGN", &success);		
 	
+	if (!success) {
+		goto loop;
+	}
+
 	if (!isspace(*ptr)) {
 	        goto loop;
 	}
@@ -3565,9 +3567,10 @@ dict_tree_t*
 dict_tree_create(
 /*=============*/
 				/* out, own: created tree */
-	dict_index_t*	index)	/* in: the index for which to create: in the
+	dict_index_t*	index,	/* in: the index for which to create: in the
 				case of a mixed tree, this should be the
 				index of the cluster object */
+	ulint		page_no)/* in: root page number of the index */
 {
 	dict_tree_t*	tree;
 
@@ -3577,7 +3580,7 @@ dict_tree_create(
 
 	tree->type = index->type;
 	tree->space = index->space;
-	tree->page = index->page_no;
+	tree->page = page_no;
 
 	tree->id = index->id;
 	
