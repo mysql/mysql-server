@@ -2963,9 +2963,10 @@ tbuild(Par par)
       RUNSTEP(par, createindex, ST);
       RUNSTEP(par, invalidateindex, MT);
     }
-    RUNSTEP(par, readverify, MT);
+    RUNSTEP(par, pkupdate, MT);
+    RUNSTEP(par, readverify, ST);
     RUNSTEP(par, pkdelete, MT);
-    RUNSTEP(par, readverify, MT);
+    RUNSTEP(par, readverify, ST);
     RUNSTEP(par, dropindex, ST);
   }
   return 0;

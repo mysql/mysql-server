@@ -386,19 +386,20 @@ Dbtux::nodePopUp(Signal* signal, NodeHandle& node, unsigned pos, TreeEnt& ent)
 }
 
 /*
- * Move all possible entries from another node before the min (i=0) or
- * after the max (i=1).  XXX can be optimized
+ * Move number of entries from another node to this node before the min
+ * (i=0) or after the max (i=1).  Expensive but not often used.
  */
 void
-Dbtux::nodeSlide(Signal* signal, NodeHandle& dstNode, NodeHandle& srcNode, unsigned i)
+Dbtux::nodeSlide(Signal* signal, NodeHandle& dstNode, NodeHandle& srcNode, unsigned cnt, unsigned i)
 {
   Frag& frag = dstNode.m_frag;
   TreeHead& tree = frag.m_tree;
   ndbrequire(i <= 1);
-  while (dstNode.getOccup() < tree.m_maxOccup && srcNode.getOccup() != 0) {
+  while (cnt != 0) {
     TreeEnt ent;
     nodePopDown(signal, srcNode, i == 0 ? srcNode.getOccup() - 1 : 0, ent);
     nodePushUp(signal, dstNode, i == 0 ? 0 : dstNode.getOccup(), ent);
+    cnt--;
   }
 }
 
