@@ -23616,20 +23616,29 @@ Because the user could issue the @code{FLUSH LOGS} command, we need to
 know which log is currently active and which ones have been rotated out
 and in what sequence. This information is stored in the binary log index file.
 The default is `hostname`.index. You can use this option if you want to
-be a rebel.  (Example: @code{log-bin-index=db.index})
+be a rebel.
+
+Example: @code{log-bin-index=db.index}.
 
 @item @code{sql-bin-update-same} @tab
 If set, setting @code{SQL_LOG_BIN} to a value will automatically set
 @code{SQL_LOG_UPDATE} to the same value and vice versa.
 
 @item @code{binlog-do-db=database_name} @tab
-Tells the master it should log updates for the specified database, and
-exclude all others not explicitly mentioned.
-(Example: @code{binlog-do-db=some_database})
+Tells the master that it should log updates to the binary log if the
+current database is 'database_name'. All others database are ignored.
+Note that if you use this you should ensure that you only do updates in
+the current database.
+
+Example: @code{binlog-do-db=some_database}.
 
 @item @code{binlog-ignore-db=database_name} @tab
-Tells the master that updates to the given database should not be logged
-to the binary log (Example: @code{binlog-ignore-db=some_database})
+Tells the master that updates where the current database is
+'database_name' should not be stored in the binary log.  Note that if
+you use this you should ensure that you only do updates in the current
+database.
+
+Example: @code{binlog-ignore-db=some_database}
 @end multitable
 
 The following table has the options you can use for the @strong{SLAVE}:
@@ -23640,65 +23649,79 @@ The following table has the options you can use for the @strong{SLAVE}:
 @item @code{master-host=host} @tab
 Master hostname or IP address for replication. If not set, the slave
 thread will not be started.
-(Example: @code{master-host=db-master.mycompany.com})
+
+Example: @code{master-host=db-master.mycompany.com}.
 
 @item @code{master-user=username} @tab
 The user the slave thread will us for authentication when connecting to
 the master. The user must have @code{FILE} privilege. If the master user
-is not set, user @code{test} is assumed.  (Example:
-@code{master-user=scott})
+is not set, user @code{test} is assumed.
+
+Example: @code{master-user=scott}.
 
 @item @code{master-password=password} @tab
 The password the slave thread will authenticate with when connecting to
-the master. If not set, an empty password is assumed. (Example:
-@code{master-password=tiger})
+the master. If not set, an empty password is assumed.
+
+Example: @code{master-password=tiger}.
 
 @item @code{master-port=portnumber} @tab
 The port the master is listening on. If not set, the compiled setting of
 @code{MYSQL_PORT} is assumed. If you have not tinkered with
-@code{configure} options, this should be 3306.  (Example:
-@code{master-port=3306})
+@code{configure} options, this should be 3306.
+
+Example: @code{master-port=3306}.
 
 @item @code{master-connect-retry=seconds} @tab
 The number of seconds the slave thread will sleep before retrying to
 connect to the master in case the master goes down or the connection is
-lost.  Default is 60.  (Example: @code{master-connect-retry=60})
+lost.  Default is 60. 
+
+Example: @code{master-connect-retry=60}.
 
 @item @code{master-info-file=filename} @tab
 The location of the file that remembers where we left off on the master
 during the replication process. The default is master.info in the data
 directory.  Sasha: The only reason I see for ever changing the default
-is the desire to be rebelious.  (Example:
-@code{master-info-file=master.info})
+is the desire to be rebelious.
+
+Example: @code{master-info-file=master.info}.
 
 @item @code{replicate-do-table=db_name.table_name} @tab
-Tells the slave thread to restrict replication to the specified database.
-To specify more than one table, use the directive multiple times,
-once for each table. .
-(Example: @code{replicate-do-table=some_db.some_table})
+Tells the slave thread to restrict replication to the specified table.
+To specify more than one table, use the directive multiple times, once
+for each table.  This will work for cross-database updates, in
+contrast to @code{replicate-do-db}.
+
+Example: @code{replicate-do-table=some_db.some_table}.
 
 @item @code{replicate-ignore-table=db_name.table_name} @tab
 Tells the slave thread to not replicate to the specified table. To
-specify more than one table to ignore, use the directive multiple
-times, once for each table.(Example:
-@code{replicate-ignore-table=db_name.some_table})
+specify more than one table to ignore, use the directive multiple times,
+once for each table. This will work for cross-datbase updates,
+in contrast to @code{replicate-ignore-db}.
+
+Example: @code{replicate-ignore-table=db_name.some_table}.
 
 @item @code{replicate-wild-do-table=db_name.table_name} @tab
-Tells the slave thread to restrict replication to the tables that match the
-specified wildcard pattern. .
-To specify more than one table, use the directive multiple times,
-once for each table. .
-(Example: @code{replicate-do-table=foo%.bar%} will replicate only updates
+Tells the slave thread to restrict replication to the tables that match
+the specified wildcard pattern.  To specify more than one table, use the
+directive multiple times, once for each table.  This will work for
+cross-database updates.
+
+Example: @code{replicate-wild-do-table=foo%.bar%} will replicate only updates
 to tables in all databases that start with foo and whose table names
-start with bar)
+start with bar.
 
 @item @code{replicate-wild-ignore-table=db_name.table_name} @tab
-Tells the slave thread to not replicate to the tables that match the given
-wild card pattern. To
-specify more than one table to ignore, use the directive multiple
-times, once for each table.(Example:
-@code{replicate-ignore-table=foo%.bar%} - will not upates to tables in all databases that start with foo and whose table names
-start with bar)
+Tells the slave thread to not replicate to the tables that match the
+given wild card pattern. To specify more than one table to ignore, use
+the directive multiple times, once for each table. This will work for
+cross-database updates.
+
+Example: @code{replicate-wild-ignore-table=foo%.bar%} will not do updates
+to tables in databases that start with foo and whose table names start
+with bar.
 
 @item @code{replicate-ignore-db=database_name} @tab
 Tells the slave thread to not replicate to the specified database. To
@@ -23706,19 +23729,21 @@ specify more than one database to ignore, use the directive multiple
 times, once for each database. This option will not work if you use cross
 database updates. If you need cross database updates to work, make sure
 you have 3.23.28 or later, and use
-@code{replicate-wild-ignore-table=db_name.%}(Example:
-@code{replicate-ignore-db=some_db})
+@code{replicate-wild-ignore-table=db_name.%}
+
+Example: @code{replicate-ignore-db=some_db}.
 
 @item @code{replicate-do-db=database_name} @tab
-Tells the slave thread to restrict replication to the specified database.
-To specify more than one database, use the directive multiple times,
-once for each database. Note that this will only work if you do not use
-cross-database queries such as @code{UPDATE some_db.some_table SET
-foo='bar'} while having selected a different or no database. If you need
-cross database updates to work, make sure
-you have 3.23.28 or later, and use
-@code{replicate-wild-do-table=db_name.%}
-(Example: @code{replicate-do-db=some_db})
+
+Tells the slave thread to restrict replication to the specified
+database.  To specify more than one database, use the directive multiple
+times, once for each database. Note that this will only work if you do
+not use cross-database queries such as @code{UPDATE some_db.some_table
+SET foo='bar'} while having selected a different or no database. If you
+need cross database updates to work, make sure you have 3.23.28 or
+later, and use @code{replicate-wild-do-table=db_name.%}
+
+Example: @code{replicate-do-db=some_db}.
 
 @item @code{log-slave-updates} @tab
 Tells the slave to log the updates from the slave thread to the binary
@@ -23726,8 +23751,9 @@ log. Off by default. You will need to turn it on if you plan to
 daisy-chain the slaves.
 
 @item @code{replicate-rewrite-db=from_name->to_name} @tab
-Updates to a database with a different name than the original (Example:
-@code{replicate-rewrite-db=master_db_name->slave_db_name}
+Updates to a database with a different name than the original
+
+Example: @code{replicate-rewrite-db=master_db_name->slave_db_name}.
 
 @item @code{skip-slave-start} @tab
 Tells the slave server not to start the slave on the startup.  The user
