@@ -15,6 +15,7 @@ BUILD/compile-pentium-max $OTHER_LIBC \
   --prefix=/usr/local/mysql --with-extra-charset=complex \
   --enable-thread-safe-client --enable-local-infile \
   --with-server-suffix=-max
+nm -n sql/mysqld | gzip -9 -v 2>&1 > sql/mysqld.sym.gz
 scripts/make_binary_distribution
 make dist
 Build-tools/Do-rpm --local
@@ -22,4 +23,5 @@ BUILD/compile-pentium --with-other-libc=$OTHER_LIBC_DIR \
   --with-comment="Official MySQL Binary" \
   --prefix=/usr/local/mysql --with-extra-charset=complex \
   --enable-thread-safe-client --enable-local-infile
+nm -n sql/mysqld | gzip -9 -v 2>&1 > sql/mysqld.sym.gz
 scripts/make_binary_distribution 
