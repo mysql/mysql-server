@@ -3740,9 +3740,11 @@ copy_data_between_tables(TABLE *from,TABLE *to,
       goto err;
   };
 
-  /* Handler must be told explicitly to retrieve all columns, because
-     this function does not set field->query_id in the columns to the
-     current query id */
+  /*
+    Handler must be told explicitly to retrieve all columns, because
+    this function does not set field->query_id in the columns to the
+    current query id
+  */
   from->file->extra(HA_EXTRA_RETRIEVE_ALL_COLS);
   init_read_record(&info, thd, from, (SQL_SELECT *) 0, 1,1);
   if (ignore ||
