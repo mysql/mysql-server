@@ -31,10 +31,14 @@ CLEANFILES =		linked_client_sources linked_server_sources
 # This is just so that the linking is done early.
 config.h:	linked_client_sources linked_server_sources
 
-linked_client_sources:
-	cd libmysql; $(MAKE) link_sources
-	cd libmysql_r; $(MAKE) link_sources
+linked_client_sources:  @linked_client_targets@
 	echo timestamp > linked_client_sources
+
+linked_libmysql_sources:
+	cd libmysql; $(MAKE) link_sources
+
+linked_libmysql_r_sources: linked_libmysql_sources
+	cd libmysql_r; $(MAKE) link_sources
 
 #avoid recursive make calls in sql directory
 linked_server_sources:
