@@ -136,7 +136,7 @@ static int rl_digit_loop1 ();
 void
 _rl_vi_initialize_line ()
 {
-  register int i;
+  register uint i;
 
   for (i = 0; i < sizeof (vi_mark_chars) / sizeof (int); i++)
     vi_mark_chars[i] = -1;
@@ -183,7 +183,7 @@ _rl_vi_stuff_insert (count)
    puts you back into insert mode. */
 int
 rl_vi_redo (count, c)
-     int count, c;
+     int count, c __attribute__((unused));
 {
   if (!rl_explicit_arg)
     {
@@ -218,8 +218,8 @@ rl_vi_undo (count, key)
     
 /* Yank the nth arg from the previous line into this line at point. */
 int
-rl_vi_yank_arg (count, key)
-     int count, key;
+rl_vi_yank_arg (count, key) 
+     int count, key __attribute__((unused));
 {
   /* Readline thinks that the first word on a line is the 0th, while vi
      thinks the first word on a line is the 1st.  Compensate. */
@@ -300,7 +300,7 @@ rl_vi_search (count, key)
 /* Completion, from vi's point of view. */
 int
 rl_vi_complete (ignore, key)
-     int ignore, key;
+     int ignore __attribute__((unused)), key;
 {
   if ((rl_point < rl_end) && (!whitespace (rl_line_buffer[rl_point])))
     {
@@ -329,7 +329,7 @@ rl_vi_complete (ignore, key)
 /* Tilde expansion for vi mode. */
 int
 rl_vi_tilde_expand (ignore, key)
-     int ignore, key;
+     int ignore __attribute__((unused)), key;
 {
   rl_tilde_expand (0, key);
   _rl_vi_set_last (key, 1, rl_arg_sign);	/* XXX */
@@ -401,7 +401,7 @@ rl_vi_end_word (count, key)
 /* Move forward a word the way that 'W' does. */
 int
 rl_vi_fWord (count, ignore)
-     int count, ignore;
+     int count, ignore __attribute__((unused));
 {
   while (count-- && rl_point < (rl_end - 1))
     {
@@ -418,7 +418,7 @@ rl_vi_fWord (count, ignore)
 
 int
 rl_vi_bWord (count, ignore)
-     int count, ignore;
+     int count, ignore __attribute__((unused));
 {
   while (count-- && rl_point > 0)
     {
@@ -442,7 +442,7 @@ rl_vi_bWord (count, ignore)
 
 int
 rl_vi_eWord (count, ignore)
-     int count, ignore;
+     int count, ignore __attribute__((unused));
 {
   while (count-- && rl_point < (rl_end - 1))
     {
@@ -472,7 +472,7 @@ rl_vi_eWord (count, ignore)
 
 int
 rl_vi_fword (count, ignore)
-     int count, ignore;
+     int count, ignore __attribute__((unused));
 {
   while (count-- && rl_point < (rl_end - 1))
     {
@@ -498,7 +498,7 @@ rl_vi_fword (count, ignore)
 
 int
 rl_vi_bword (count, ignore)
-     int count, ignore;
+     int count, ignore __attribute__((unused));
 {
   while (count-- && rl_point > 0)
     {
@@ -537,7 +537,7 @@ rl_vi_bword (count, ignore)
 
 int
 rl_vi_eword (count, ignore)
-     int count, ignore;
+     int count, ignore __attribute__((unused));
 {
   while (count-- && rl_point < rl_end - 1)
     {
@@ -562,7 +562,7 @@ rl_vi_eword (count, ignore)
 
 int
 rl_vi_insert_beg (count, key)
-     int count, key;
+     int count __attribute__((unused)), key;
 {
   rl_beg_of_line (1, key);
   rl_vi_insertion_mode (1, key);
@@ -571,7 +571,7 @@ rl_vi_insert_beg (count, key)
 
 int
 rl_vi_append_mode (count, key)
-     int count, key;
+     int count __attribute__((unused)), key;
 {
   if (rl_point < rl_end)
     rl_point++;
@@ -581,7 +581,7 @@ rl_vi_append_mode (count, key)
 
 int
 rl_vi_append_eol (count, key)
-     int count, key;
+     int count __attribute__((unused)), key;
 {
   rl_end_of_line (1, key);
   rl_vi_append_mode (1, key);
@@ -591,7 +591,7 @@ rl_vi_append_eol (count, key)
 /* What to do in the case of C-d. */
 int
 rl_vi_eof_maybe (count, c)
-     int count, c;
+     int count __attribute__((unused)), c __attribute__((unused));
 {
   return (rl_newline (1, '\n'));
 }
@@ -602,7 +602,7 @@ rl_vi_eof_maybe (count, c)
    switching keymaps. */
 int
 rl_vi_insertion_mode (count, key)
-     int count, key;
+     int count __attribute__((unused)), key;
 {
   _rl_keymap = vi_insertion_keymap;
   _rl_vi_last_key_before_insert = key;
@@ -664,7 +664,7 @@ _rl_vi_done_inserting ()
 
 int
 rl_vi_movement_mode (count, key)
-     int count, key;
+     int count __attribute__((unused)), key;
 {
   if (rl_point > 0)
     rl_backward (1, key);
@@ -686,7 +686,7 @@ rl_vi_arg_digit (count, c)
 
 int
 rl_vi_change_case (count, ignore)
-     int count, ignore;
+     int count, ignore __attribute__((unused));
 {
   char c = 0;
 
@@ -724,7 +724,7 @@ rl_vi_change_case (count, ignore)
 
 int
 rl_vi_put (count, key)
-     int count, key;
+     int count __attribute__((unused)), key;
 {
   if (!_rl_uppercase_p (key) && (rl_point + 1 <= rl_end))
     rl_point++;
@@ -881,7 +881,7 @@ rl_digit_loop1 ()
 
 int
 rl_vi_delete_to (count, key)
-     int count, key;
+     int count __attribute__((unused)), key;
 {
   int c;
 
@@ -961,7 +961,7 @@ rl_vi_change_to (count, key)
 
 int
 rl_vi_yank_to (count, key)
-     int count, key;
+     int count __attribute__((unused)), key;
 {
   int c, save = rl_point;
 
@@ -1014,7 +1014,7 @@ rl_vi_delete (count, key)
 
 int
 rl_vi_back_to_indent (count, key)
-     int count, key;
+     int count __attribute__((unused)), key;
 {
   rl_beg_of_line (1, key);
   while (rl_point < rl_end && whitespace (rl_line_buffer[rl_point]))
@@ -1024,7 +1024,7 @@ rl_vi_back_to_indent (count, key)
 
 int
 rl_vi_first_print (count, key)
-     int count, key;
+     int count __attribute__((unused)), key;
 {
   return (rl_vi_back_to_indent (1, key));
 }
@@ -1071,7 +1071,7 @@ rl_vi_char_search (count, key)
 /* Match brackets */
 int
 rl_vi_match (ignore, key)
-     int ignore, key;
+     int ignore __attribute__((unused)), key;
 {
   int count = 1, brack, pos;
 
@@ -1152,7 +1152,7 @@ rl_vi_bracktype (c)
 
 int
 rl_vi_change_char (count, key)
-     int count, key;
+     int count, key __attribute__((unused));
 {
   int c;
 
@@ -1278,7 +1278,7 @@ rl_vi_overstrike_delete (count, key)
 
 int
 rl_vi_replace (count, key)
-     int count, key;
+     int count __attribute__((unused)), key __attribute__((unused));
 {
   int i;
 
@@ -1339,7 +1339,7 @@ rl_vi_possible_completions()
 /* Functions to save and restore marks. */
 int
 rl_vi_set_mark (count, key)
-     int count, key;
+     int count __attribute__((unused)), key __attribute__((unused));
 {
   int ch;
 
@@ -1356,7 +1356,7 @@ rl_vi_set_mark (count, key)
 
 int
 rl_vi_goto_mark (count, key)
-     int count, key;
+     int count __attribute__((unused)), key __attribute__((unused));
 {
   int ch;
 

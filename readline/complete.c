@@ -291,14 +291,14 @@ rl_complete (ignore, invoking_key)
 /* List the possible completions.  See description of rl_complete (). */
 int
 rl_possible_completions (ignore, invoking_key)
-     int ignore, invoking_key;
+     int ignore __attribute__((unused)), invoking_key __attribute__((unused));
 {
   return (rl_complete_internal ('?'));
 }
 
 int
 rl_insert_completions (ignore, invoking_key)
-     int ignore, invoking_key;
+     int ignore __attribute__((unused)), invoking_key __attribute__((unused));
 {
   return (rl_complete_internal ('*'));
 }
