@@ -91,7 +91,7 @@ character-set=latin1
 "BLOB-Feld '%-.64s' kann beim verwendeten Tabellentyp nicht als Schlüssel verwendet werden",
 "Feldlänge für Feld '%-.64s' zu groß (maximal %d). BLOB-Feld verwenden!",
 "Falsche Tabellendefinition. Es darf nur ein Auto-Feld geben und dieses muss als Schlüssel definiert werden",
-"%-.64s: Bereit für Verbindungen\n",
+"%-.64s: Bereit für Verbindungen",
 "%-.64s: Normal heruntergefahren\n",
 "%-.64s: Signal %d erhalten. Abbruch!\n",
 "%-.64s: Heruntergefahren (shutdown)\n",

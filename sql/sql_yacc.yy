@@ -1933,6 +1933,12 @@ alter_list_item:
 	    LEX *lex=Lex;
 	    lex->select_lex.db=$3->db.str;
 	    lex->name= $3->table.str;
+            if (check_table_name($3->table.str,$3->table.length) ||
+                $3->db.str && check_db_name($3->db.str))
+            {
+              net_printf(lex->thd,ER_WRONG_TABLE_NAME,$3->table.str);
+              YYABORT;
+            }
 	    lex->alter_info.flags|= ALTER_RENAME;
 	  }
 	| CONVERT_SYM TO_SYM charset charset_name_or_default opt_collate

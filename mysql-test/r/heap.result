@@ -217,3 +217,13 @@ DELETE from t1 where a < 100;
 SELECT * from t1;
 a
 DROP TABLE t1;
+CREATE TABLE `job_titles` (
+`job_title_id` int(6) unsigned NOT NULL default '0',
+`job_title` char(18) NOT NULL default '',
+PRIMARY KEY  (`job_title_id`),
+UNIQUE KEY `job_title_id` (`job_title_id`,`job_title`)
+) ENGINE=HEAP;
+SELECT MAX(job_title_id) FROM job_titles;
+MAX(job_title_id)
+NULL
+DROP TABLE job_titles;

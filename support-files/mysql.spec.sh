@@ -284,7 +284,18 @@ mv sql/mysqld sql/mysqld-max
 nm --numeric-sort sql/mysqld-max > sql/mysqld-max.sym
 
 # Install embedded server library in the build root
-install -m 644 libmysqld/libmysqld.a $RBR%{_libdir}/mysql
+install -m 644 libmysqld/libmysqld.a $RBR%{_libdir}/mysql/
+
+# Include libgcc.a in the devel subpackage (BUG 4921)
+if [ "$CC" = gcc ]
+then
+  libgcc=`$CC --print-libgcc-file`
+  if [ -f $libgcc ]
+  then
+    %define have_libgcc 1
+    install -m 644 $libgcc $RBR%{_libdir}/mysql/libmygcc.a
+  fi
+fi
 
 # Save libraries
 (cd libmysql/.libs; tar cf $RBR/shared-libs.tar *.so*)
@@ -448,7 +459,7 @@ fi
 %files server
 %defattr(-,root,root,0755)
 
-%doc COPYING README
+%doc COPYING README 
 %doc Docs/manual.{html,ps,texi,txt}
 %doc Docs/manual_toc.html
 %doc support-files/my-*.cnf
@@ -535,6 +546,7 @@ fi
 
 %files devel
 %defattr(-, root, root, 0755)
+%doc EXCEPTIONS-CLIENT
 %attr(755, root, root) %{_bindir}/comp_err
 %attr(755, root, root) %{_bindir}/mysql_config
 %dir %attr(755, root, root) %{_includedir}/mysql
@@ -543,6 +555,9 @@ fi
 %{_libdir}/mysql/libdbug.a
 %{_libdir}/mysql/libheap.a
 %{_libdir}/mysql/libmerge.a
+%if %{have_libgcc}
+%{_libdir}/mysql/libmygcc.a
+%endif
 %{_libdir}/mysql/libmyisam.a
 %{_libdir}/mysql/libmyisammrg.a
 %{_libdir}/mysql/libmysqlclient.a
@@ -579,6 +594,19 @@ fi
 # The spec file changelog only includes changes made to the spec file
 # itself
 %changelog 
+* Tue Aug 10 2004 Lenz Grimmer <lenz@mysql.com>
+
+- Added libmygcc.a to the devel subpackage (required to link applications
+  against the the embedded server libmysqld.a) (BUG 4921)
+
+* Mon Aug 09 2004 Lenz Grimmer <lenz@mysql.com>
+
+- Added EXCEPTIONS-CLIENT to the "devel" package
+
+* Mon Apr 05 2004 Lenz Grimmer <lenz@mysql.com>
+
+- added ncurses-devel to the build prerequisites (BUG 3377)
+
 * Thu Jul 29 2004 Lenz Grimmer <lenz@mysql.com>
 
 - disabled OpenSSL in the Max binaries again (the RPM packages were the
@@ -593,10 +621,6 @@ fi
 
 - added mysql_tzinfo_to_sql to the server subpackage
 - run "make clean" instead of "make distclean"
-
-* Mon Apr 05 2004 Lenz Grimmer <lenz@mysql.com>
-
-- added ncurses-devel to the build prerequisites (BUG 3377)
 
 * Thu Feb 12 2004 Lenz Grimmer <lenz@mysql.com>
 
