@@ -48,16 +48,16 @@ BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
 LINK32=link.exe
-# ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib odbc32.lib odbccp32.lib Ws2_32.lib /nologo /subsystem:console  /out:"..\tests\mysql_client_test.exe" /machine:IA64
+# ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib odbc32.lib odbccp32.lib Ws2_32.lib /nologo /subsystem:console  /out:"..\mysql_client_test.exe" /machine:IA64
 # SUBTRACT BASE LINK32 /pdb:none
-# ADD LINK32 ..\lib_release\mysys.lib ..\lib_release\strings.lib ..\lib_release\libmysql.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib odbc32.lib odbccp32.lib Ws2_32.lib bufferoverflowU.lib /nologo /subsystem:console  /nodefaultlib /out:"..\tests\mysql_client_test.exe" /machine:IA64 /machine:IA64
+# ADD LINK32 ..\lib_release\mysys.lib ..\lib_release\strings.lib ..\lib_release\libmysql.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib odbc32.lib odbccp32.lib Ws2_32.lib bufferoverflowU.lib /nologo /subsystem:console  /nodefaultlib /out:"..\mysql_client_test.exe" /machine:IA64 /machine:IA64
 # SUBTRACT LINK32 /pdb:none
 # Begin Target
 
 # Name "mysql_client_test - WinIA64 Release"
 # Begin Source File
 
-SOURCE=tests\mysql_client_test.c
+SOURCE=mysql_client_test.c
 DEP_CPP_MYSQL=\
 	"..\include\config-netware.h"\
 	"..\include\config-os2.h"\
