@@ -2160,13 +2160,14 @@ String *Item_func_conv_charset::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   String *arg= args[0]->val_str(str);
+  uint dummy_errors;
   if (!arg)
   {
     null_value=1;
     return 0;
   }
   null_value= str_value.copy(arg->ptr(),arg->length(),arg->charset(),
-                             conv_charset);
+                             conv_charset, &dummy_errors);
   return null_value ? 0 : &str_value;
 }
 
@@ -2249,11 +2250,12 @@ String *Item_func_charset::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   String *res = args[0]->val_str(str);
+  uint dummy_errors;
 
   if ((null_value=(args[0]->null_value || !res->charset())))
     return 0;
   str->copy(res->charset()->csname,strlen(res->charset()->csname),
-	    &my_charset_latin1, collation.collation);
+	    &my_charset_latin1, collation.collation, &dummy_errors);
   return str;
 }
 
@@ -2261,11 +2263,12 @@ String *Item_func_collation::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   String *res = args[0]->val_str(str);
+  uint dummy_errors;
 
   if ((null_value=(args[0]->null_value || !res->charset())))
     return 0;
   str->copy(res->charset()->name,strlen(res->charset()->name),
-	    &my_charset_latin1, collation.collation);
+	    &my_charset_latin1, collation.collation, &dummy_errors);
   return str;
 }
 

@@ -1832,8 +1832,9 @@ void Item_func_in::fix_length_and_dec()
         {
           Item_string *conv;
           String tmp, cstr, *ostr= arg[0]->val_str(&tmp);
+          uint dummy_errors;
           cstr.copy(ostr->ptr(), ostr->length(), ostr->charset(),
-                    cmp_collation.collation);
+                    cmp_collation.collation, &dummy_errors);
           conv= new Item_string(cstr.ptr(),cstr.length(), cstr.charset(),
                                 arg[0]->collation.derivation);
           conv->str_value.copy();
