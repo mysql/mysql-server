@@ -28,6 +28,7 @@
 #endif
 
 #include "sp_head.h"
+#include "sp.h"
 
 #ifdef HAVE_OPENSSL
 /*

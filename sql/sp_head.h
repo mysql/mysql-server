@@ -73,10 +73,10 @@ public:
   restore_lex(THD *thd);
 
   void
-  push_backpatch(uint ip);
+  push_backpatch(sp_instr *i);
 
   void
-  backpatch(uint dest);
+  backpatch();
 
 private:
 
@@ -85,7 +85,7 @@ private:
   LEX *m_mylex;			// My own lex
   LEX m_lex;			// Temp. store for the other lex
   DYNAMIC_ARRAY m_instr;	// The "instructions"
-  List<uint> m_backpatch;	// Instructions needing backpaching
+  List<sp_instr> m_backpatch;	// Instructions needing backpaching
 
   inline sp_instr *
   get_instr(uint i)
@@ -97,20 +97,6 @@ private:
   }
 
 }; // class sp_head : public Sql_alloc
-
-
-//
-// Find a stored procedure given its name. Returns NULL if not
-// found.
-//
-sp_head *
-sp_find(THD *thd, Item_string *name);
-
-int
-sp_create_procedure(THD *thd, char *name, uint namelen, char *def, uint deflen);
-
-int
-sp_drop(THD *thd, char *name, uint namelen);
 
 
 //
@@ -243,7 +229,7 @@ public:
     m_dest= dest;
   }
 
-private:
+protected:
 
   int m_dest;			// Where we will go
 
@@ -272,7 +258,6 @@ public:
 
 private:
 
-  int m_dest;			// Where we will go
   Item *m_expr;			// The condition
 
 }; // class sp_instr_jump_if : public sp_instr_jump
@@ -300,7 +285,6 @@ public:
 
 private:
 
-  int m_dest;			// Where we will go
   Item *m_expr;			// The condition
 
 }; // class sp_instr_jump_if_not : public sp_instr_jump

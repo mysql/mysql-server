@@ -125,6 +125,12 @@ class sp_pcontext : public Sql_alloc
   sp_label_t *
   find_label(char *name);
 
+  inline sp_label_t *
+  last_label()
+  {
+    return m_label.head();
+  }
+
   inline void
   pop_label()
   {

@@ -531,6 +531,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token  ITERATE_SYM
 %token  LEAVE_SYM
 %token  LOOP_SYM
+/* QQ This is temporary, until the REPEAT conflict is solved. */
+%token  SPREPEAT_SYM
 %token  UNTIL_SYM
 %token  WHILE_SYM
 %token  ASENSITIVE_SYM
@@ -1053,8 +1055,10 @@ sp_proc_stmt:
 	  }
 	  sp_unlabeled_control
 	  {
-	    /* QQ backpatch here */
-	    Lex->spcont->pop_label();
+	    LEX *lex= Lex;
+
+	    lex->spcont->pop_label();
+	    lex->sphead->backpatch();
 	  }
 	| LEAVE_SYM IDENT
 	  {
@@ -1068,10 +1072,9 @@ sp_proc_stmt:
 	    }
 	    else
 	    {
-	      uint ip= lex->sphead->instructions();
-	      sp_instr_jump *i= new sp_instr_jump(ip, 0);
+	      sp_instr_jump *i= new sp_instr_jump(lex->sphead->instructions());
 
-	      lex->sphead->push_backpatch(ip);
+	      lex->sphead->push_backpatch(i);  /* Jumping forward */
               lex->sphead->add_instr(i);
 	    }
 	  }
@@ -1088,7 +1091,7 @@ sp_proc_stmt:
 	    else
 	    {
 	      uint ip= lex->sphead->instructions();
-	      sp_instr_jump *i= new sp_instr_jump(ip, lab->ip);
+	      sp_instr_jump *i= new sp_instr_jump(ip, lab->ip); /* Jump back */
 
               lex->sphead->add_instr(i);
 	    }
@@ -1148,29 +1151,59 @@ sp_labeled_control:
 	    }
 	    else
 	    {
-	      /* QQ backpatch here */
 	      lex->spcont->pop_label();
+	      lex->sphead->backpatch();
 	    }
 	  }
 	;
 
 sp_unlabeled_control:
-	  begin
+	  BEGIN_SYM
 	    sp_decls
 	    sp_proc_stmts
 	  END
-	  {
+	  { /* QQ This is just a dummy for grouping declarations and statements
+	       together. No [[NOT] ATOMIC] yet, and we need to figure out how
+	       make it coexist with the existing BEGIN COMMIT/ROLLBACK. */
 	    Lex->spcont->pop($2);
 	  }
 	| LOOP_SYM
-	    sp_proc_stmts
-	  END LOOP_SYM
+	  sp_proc_stmts END LOOP_SYM
+	  {
+	    LEX *lex= Lex;
+	    uint ip= lex->sphead->instructions();
+	    sp_label_t *lab= lex->spcont->last_label();  /* Jumping back */
+	    sp_instr_jump *i = new sp_instr_jump(ip, lab->ip);
+
+	    lex->sphead->add_instr(i);
+	  }
 	| WHILE_SYM expr DO_SYM
-	    sp_proc_stmts
-	  END WHILE_SYM
-	| FUNC_ARG2		/* "REPEAT" actually... */
-	    sp_proc_stmts
-	  UNTIL_SYM expr END FUNC_ARG2
+	  {
+	    LEX *lex= Lex;
+	    uint ip= lex->sphead->instructions();
+	    sp_instr_jump_if_not *i = new sp_instr_jump_if_not(ip, $2);
+
+	    lex->sphead->push_backpatch(i);  /* Jumping forward */
+            lex->sphead->add_instr(i);
+	  }
+	  sp_proc_stmts END WHILE_SYM
+	  {
+	    LEX *lex= Lex;
+	    uint ip= lex->sphead->instructions();
+	    sp_label_t *lab= lex->spcont->last_label();  /* Jumping back */
+	    sp_instr_jump *i = new sp_instr_jump(ip, lab->ip);
+
+	    lex->sphead->add_instr(i);
+	  }
+	| SPREPEAT_SYM sp_proc_stmts UNTIL_SYM expr END SPREPEAT_SYM
+	  { /* ^^ QQ temp. until conflict solved        ^^ */
+	    LEX *lex= Lex;
+	    uint ip= lex->sphead->instructions();
+	    sp_label_t *lab= lex->spcont->last_label();  /* Jumping back */
+	    sp_instr_jump_if_not *i = new sp_instr_jump_if_not(ip, $4, lab->ip);
+
+            lex->sphead->add_instr(i);
+	  }
 	;
 
 create2:
