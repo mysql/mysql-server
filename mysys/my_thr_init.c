@@ -157,6 +157,9 @@ my_bool my_thread_init(void)
   tmp= &THR_KEY_mysys;
 #endif
   tmp->id= ++thread_id;
+#if defined(__WIN__) && defined(EMBEDDED_LIBRARY)
+  tmp->thread_self= (pthread_t)getpid();
+#endif
   pthread_mutex_init(&tmp->mutex,MY_MUTEX_INIT_FAST);
   pthread_cond_init(&tmp->suspend, NULL);
   tmp->init= 1;
