@@ -69,7 +69,6 @@ int my_chsize(File fd, my_off_t newlength, myf MyFlags)
 #endif
     /* Full file with 0 until it's as big as requested */
     bzero(buff,IO_SIZE);
-    my_seek(fd, old_length, MY_SEEK_SET, MYF(MY_WME+MY_FAE));
     while (newlength-oldsize > IO_SIZE)
     {
       if (my_write(fd,(byte*) buff,IO_SIZE,MYF(MY_NABP)))

@@ -588,11 +588,17 @@ run_testcase ()
 	if [ x$FORCE != x1 ] ; then
 	 $ECHO "Aborting. To continue, re-run with '--force'."
 	 $ECHO
-	 mysql_stop
+         if [ -z "$DO_GDB" ] && [ -z "$USE_RUNNING_SERVER" ] && [ -z "$DO_DDD" ]
+	 then
+	   mysql_stop
+   	 fi
 	 exit 1
 	fi
 	 
-	mysql_restart
+        if [ -z "$DO_GDB" ] && [ -z "$USE_RUNNING_SERVER" ] && [ -z "$DO_DDD" ]
+	then
+	  mysql_restart
+	fi
 	$ECHO "Resuming Tests"
 	$ECHO ""
       else

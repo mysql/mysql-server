@@ -19317,10 +19317,11 @@ new @code{INSERT DELAYED} commands are received within
 @code{delayed_insert_timeout} seconds, the handler terminates.
 
 @item
-If more than @code{delayed_queue_size} rows are pending already in a specific
-handler queue, the thread waits until there is room in the queue.  This is
-useful to ensure that the @code{mysqld} server doesn't use all memory for the
-delayed memory queue.
+If more than @code{delayed_queue_size} rows are pending already in a
+specific handler queue, the thread requesting @code{INSERT DELAYED}
+waits until there is room in the queue.  This is done to ensure that
+the @code{mysqld} server doesn't use all memory for the delayed memory
+queue.
 
 @item
 The handler thread will show up in the @strong{MySQL} process list

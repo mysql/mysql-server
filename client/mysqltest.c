@@ -43,7 +43,7 @@
 
 **********************************************************************/
 
-#define MTEST_VERSION "1.5"
+#define MTEST_VERSION "1.6"
 
 #include <global.h>
 #include <my_sys.h>
@@ -71,23 +71,24 @@
 #define MIN_VAR_ALLOC	  32
 #define BLOCK_STACK_DEPTH  32
 
-int record = 0, verbose = 0, silent = 0, opt_sleep=0;
+static int record = 0, verbose = 0, silent = 0, opt_sleep=0;
 static char *db = 0, *pass=0;
 const char* user = 0, *host = 0, *unix_sock = 0;
-int port = 0;
+static int port = 0;
 static uint start_lineno, *lineno;
 
 static char **default_argv;
 static const char *load_default_groups[]= { "mysqltest","client",0 };
 
-FILE* file_stack[MAX_INCLUDE_DEPTH];
-FILE** cur_file;
-FILE** file_stack_end;
-uint lineno_stack[MAX_INCLUDE_DEPTH];
-char TMPDIR[FN_REFLEN];
+static FILE* file_stack[MAX_INCLUDE_DEPTH];
+static FILE** cur_file;
+static FILE** file_stack_end;
+static uint lineno_stack[MAX_INCLUDE_DEPTH];
+static char TMPDIR[FN_REFLEN];
 
-int block_stack[BLOCK_STACK_DEPTH];
-int *cur_block, *block_stack_end;
+static int block_stack[BLOCK_STACK_DEPTH];
+static int *cur_block, *block_stack_end;
+static uint global_expected_errno=0;
 
 DYNAMIC_ARRAY q_lines;
 
@@ -137,13 +138,13 @@ struct st_query
   enum { Q_CONNECTION=1, Q_QUERY, Q_CONNECT,
 	 Q_SLEEP, Q_INC, Q_DEC,Q_SOURCE,
 	 Q_DISCONNECT,Q_LET, Q_ECHO, Q_WHILE, Q_END_BLOCK,
-	 Q_SYSTEM, Q_RESULT, Q_REQUIRE,
+	 Q_SYSTEM, Q_RESULT, Q_REQUIRE, Q_ERROR,
 	 Q_UNKNOWN, Q_COMMENT, Q_COMMENT_WITH_COMMAND} type;
 };
 
 const char *command_names[] = {
 "connection", "query","connect","sleep","inc","dec","source","disconnect",
-"let","echo","while","end","system","result", "require",0
+"let","echo","while","end","system","result", "require","error",0
 };
 
 TYPELIB command_typelib= {array_elements(command_names),"",
@@ -541,6 +542,20 @@ static void get_file_name(char *filename, struct st_query* q)
 }
 
 
+static int get_int(struct st_query* q)
+{
+  char* p=q->first_argument;
+  int res;
+  DBUG_ENTER("get_int");
+  while (*p && isspace(*p)) p++;
+  if (!*p)
+    die("Missing argument in %s\n", q->query);
+  res=atoi(p);
+  DBUG_PRINT("result",("res: %d",res));
+  DBUG_RETURN(res);
+}
+
+
 int select_connection(struct st_query* q)
 {
   char* p=q->first_argument, *name;
@@ -896,16 +911,16 @@ int read_query(struct st_query** q_ptr)
     get_dynamic(&q_lines, (gptr) q_ptr, parser.current_line) ;
     return 0;
   }
-  if (!(*q_ptr=q=(struct st_query*) my_malloc(sizeof(*q), MYF(MY_WME)))
-     || insert_dynamic(&q_lines, (gptr) &q)
-     )
-    die("Out of memory");
+  if (!(*q_ptr=q=(struct st_query*) my_malloc(sizeof(*q), MYF(MY_WME))) ||
+      insert_dynamic(&q_lines, (gptr) &q))
+    die(NullS);
 
   q->record_file[0] = 0;
   q->require_file=0;
-  q->abort_on_error = 1;
   q->first_word_len = 0;
-  q->expected_errno = 0;
+  q->expected_errno = global_expected_errno;
+  q->abort_on_error = global_expected_errno == 0;
+  global_expected_errno=0;
   q->type = Q_UNKNOWN;
   q->query=0;
   if (read_line(read_query_buf, sizeof(read_query_buf)))
@@ -1356,6 +1371,9 @@ int main(int argc, char** argv)
       case Q_RESULT:
 	get_file_name(save_file,q);
 	require_file=0;
+	break;
+      case Q_ERROR:
+	global_expected_errno=get_int(q);
 	break;
       case Q_REQUIRE:
 	get_file_name(save_file,q);
