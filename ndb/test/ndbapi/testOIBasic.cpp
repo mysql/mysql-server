@@ -2525,7 +2525,7 @@ tbusybuild(Par par)
   for (unsigned i = 0; i < par.m_subloop; i++) {
     RUNSTEP(par, pkupdateindexbuild, MT);
     RUNSTEP(par, invalidateindex, MT);
-    RUNSTEP(par, readverify, MT);
+    RUNSTEP(par, readverify, ST);
     RUNSTEP(par, dropindex, ST);
   }
   return 0;
@@ -2564,9 +2564,11 @@ ttimemaint(Par par)
     t1.off(par.m_totrows);
     RUNSTEP(par, createindex, ST);
     RUNSTEP(par, invalidateindex, MT);
+    RUNSTEP(par, readverify, ST);
     t2.on();
     RUNSTEP(par, pkupdate, MT);
     t2.off(par.m_totrows);
+    RUNSTEP(par, readverify, ST);
     RUNSTEP(par, dropindex, ST);
   }
   LL1("update - " << t1.time());

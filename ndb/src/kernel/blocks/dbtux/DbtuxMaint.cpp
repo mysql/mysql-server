@@ -111,19 +111,18 @@ Dbtux::execTUX_MAINT_REQ(Signal* signal)
     debugOut << endl;
   }
 #endif
-  // find position in tree
-  TreePos treePos;
-  treeSearch(signal, frag, c_searchKey, ent, treePos);
-#ifdef VM_TRACE
-  if (debugFlags & DebugMaint) {
-    debugOut << treePos << endl;
-  }
-#endif
   // do the operation
   req->errorCode = 0;
+  TreePos treePos;
   switch (opCode) {
   case TuxMaintReq::OpAdd:
     jam();
+    searchToAdd(signal, frag, c_searchKey, ent, treePos);
+#ifdef VM_TRACE
+    if (debugFlags & DebugMaint) {
+      debugOut << treePos << endl;
+    }
+#endif
     if (treePos.m_match) {
       jam();
       // there is no "Building" state so this will have to do
@@ -152,6 +151,12 @@ Dbtux::execTUX_MAINT_REQ(Signal* signal)
     break;
   case TuxMaintReq::OpRemove:
     jam();
+    searchToRemove(signal, frag, c_searchKey, ent, treePos);
+#ifdef VM_TRACE
+    if (debugFlags & DebugMaint) {
+      debugOut << treePos << endl;
+    }
+#endif
     if (! treePos.m_match) {
       jam();
       // there is no "Building" state so this will have to do
@@ -167,7 +172,6 @@ Dbtux::execTUX_MAINT_REQ(Signal* signal)
     ndbrequire(false);
     break;
   }
-  // commit and release nodes
 #ifdef VM_TRACE
   if (debugFlags & DebugTree) {
     printTree(signal, frag, debugOut);
