@@ -704,17 +704,17 @@ Query_cache::Query_cache(ulong query_cache_limit,
    query_cache_limit(query_cache_limit),
    queries_in_cache(0), hits(0), inserts(0), refused(0),
    total_blocks(0),
-   min_allocation_unit(min_allocation_unit),
-   min_result_data_size(min_result_data_size),
-   def_query_hash_size(def_query_hash_size),
-   def_table_hash_size(def_table_hash_size),
+   min_allocation_unit(ALIGN_SIZE(min_allocation_unit)),
+   min_result_data_size(ALIGN_SIZE(min_result_data_size)),
+   def_query_hash_size(ALIGN_SIZE(def_query_hash_size)),
+   def_table_hash_size(ALIGN_SIZE(def_table_hash_size)),
    initialized(0)
 {
   ulong min_needed=(ALIGN_SIZE(sizeof(Query_cache_block)) +
 		    ALIGN_SIZE(sizeof(Query_cache_block_table)) +
 		    ALIGN_SIZE(sizeof(Query_cache_query)) + 3);
   set_if_bigger(min_allocation_unit,min_needed);
-  this->min_allocation_unit = min_allocation_unit;
+  this->min_allocation_unit = ALIGN_SIZE(min_allocation_unit);
   set_if_bigger(this->min_result_data_size,min_allocation_unit);
 }
 
@@ -1073,7 +1073,8 @@ void Query_cache::invalidate(CHANGED_TABLE_LIST *tables_used)
       {
 	invalidate_table((byte*) tables_used->key, tables_used->key_length);
 	DBUG_PRINT("qcache", (" db %s, table %s", tables_used->key,
-			      tables_used->table_name));
+			      tables_used->key+
+			      strlen(tables_used->key)+1));
       }
     }
     STRUCT_UNLOCK(&structure_guard_mutex);
@@ -1218,6 +1219,7 @@ ulong Query_cache::init_cache()
   uint mem_bin_count, num, step;
   ulong mem_bin_size, prev_size, inc;
   ulong additional_data_size, max_mem_bin_size, approx_additional_data_size;
+  int align;
 
   DBUG_ENTER("Query_cache::init_cache");
   if (!initialized)
@@ -1228,7 +1230,13 @@ ulong Query_cache::init_cache()
   if (query_cache_size < approx_additional_data_size)
     goto err;
 
-  query_cache_size -= approx_additional_data_size;
+  query_cache_size-= approx_additional_data_size;
+  align= query_cache_size % ALIGN_SIZE(1);
+  if (align)
+  {
+    query_cache_size-= align;
+    approx_additional_data_size+= align;
+  }
 
   /*
     Count memory bins number.
@@ -1542,10 +1550,12 @@ Query_cache::write_block_data(ulong data_len, gptr data,
 			   ALIGN_SIZE(ntab*sizeof(Query_cache_block_table)) +
 			   header_len);
   ulong len = data_len + all_headers_len;
+  ulong align_len= ALIGN_SIZE(len);
   DBUG_ENTER("Query_cache::write_block_data");
   DBUG_PRINT("qcache", ("data: %ld, header: %ld, all header: %ld",
 		      data_len, header_len, all_headers_len));
-  Query_cache_block *block = allocate_block(max(len, min_allocation_unit),
+  Query_cache_block *block = allocate_block(max(align_len, 
+						min_allocation_unit),
 					    1, 0, under_guard);
   if (block != 0)
   {
@@ -1740,7 +1750,8 @@ my_bool Query_cache::allocate_data_chain(Query_cache_block **result_block,
 {
   ulong all_headers_len = (ALIGN_SIZE(sizeof(Query_cache_block)) +
 			   ALIGN_SIZE(sizeof(Query_cache_result)));
-  ulong len = data_len + all_headers_len;
+  ulong len= data_len + all_headers_len;
+  ulong align_len= ALIGN_SIZE(len);
   DBUG_ENTER("Query_cache::allocate_data_chain");
   DBUG_PRINT("qcache", ("data_len %lu, all_headers_len %lu",
 		      data_len, all_headers_len));
@@ -1748,7 +1759,7 @@ my_bool Query_cache::allocate_data_chain(Query_cache_block **result_block,
   ulong min_size = (first_block ?
 		    get_min_first_result_data_size():
 		    get_min_append_result_data_size());
-  *result_block = allocate_block(max(min_size,len),
+  *result_block = allocate_block(max(min_size, align_len),
 				 min_result_data_size == 0,
 				 all_headers_len + min_result_data_size,
 				 1);
@@ -1984,7 +1995,7 @@ Query_cache_block *
 Query_cache::allocate_block(ulong len, my_bool not_less, ulong min,
 			    my_bool under_guard)
 {
-  DBUG_ENTER("Query_cache::allocate_n_lock_block");
+  DBUG_ENTER("Query_cache::allocate_block");
   DBUG_PRINT("qcache", ("len %lu, not less %d, min %lu, uder_guard %d",
 		      len, not_less,min,under_guard));
 
@@ -2669,14 +2680,17 @@ my_bool Query_cache::move_by_type(byte **border,
     *border += len;
     *before = new_block;
     /* If result writing complete && we have free space in block */
-    ulong free_space = new_block->length - new_block->used;
+    ulong free_space= new_block->length - new_block->used;
+    free_space-= free_space % ALIGN_SIZE(1);
     if (query->result()->type == Query_cache_block::RESULT &&
 	new_block->length > new_block->used &&
 	*gap + free_space > min_allocation_unit &&
 	new_block->length - free_space > min_allocation_unit)
     {
-      *border -= free_space;
-      *gap += free_space;
+      *border-= free_space;
+      *gap+= free_space;
+      DBUG_PRINT("qcache",
+		 ("rest of result free space added to gap (%lu)", *gap));
       new_block->length -= free_space;
     }
     BLOCK_UNLOCK_WR(query_block);
@@ -2737,7 +2751,7 @@ my_bool Query_cache::join_results(ulong join_limit)
 	  header->length() > join_limit)
       {
 	Query_cache_block *new_result_block =
-	  get_free_block(header->length() +
+	  get_free_block(ALIGN_SIZE(header->length()) +
 			 ALIGN_SIZE(sizeof(Query_cache_block)) +
 			 ALIGN_SIZE(sizeof(Query_cache_result)), 1, 0);
 	if (new_result_block != 0)
@@ -3046,6 +3060,15 @@ my_bool Query_cache::check_integrity(bool not_locked)
   {
     DBUG_PRINT("qcache", ("block 0x%lx, type %u...", 
 			  (ulong) block, (uint) block->type));  
+    // Check allignment
+    if ((((ulonglong)block) % (ulonglong)ALIGN_SIZE(1)) !=
+	(((ulonglong)first_block) % (ulonglong)ALIGN_SIZE(1)))
+    {
+      DBUG_PRINT("error",
+		 ("block 0x%lx do not aligned by %d", (ulong) block,
+		  ALIGN_SIZE(1)));
+      result = 1;
+    }
     // Check memory allocation
     if (block->pnext == first_block) // Is it last block?
     {

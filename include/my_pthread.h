@@ -349,7 +349,7 @@ extern void my_pthread_attr_setprio(pthread_attr_t *attr, int priority);
 #undef	HAVE_GETHOSTBYADDR_R			/* No definition */
 #endif
 
-#if defined(HAVE_BROKEN_PTHREAD_COND_TIMEDWAIT)
+#if defined(HAVE_BROKEN_PTHREAD_COND_TIMEDWAIT) && !defined(SAFE_MUTEX)
 extern int my_pthread_cond_timedwait(pthread_cond_t *cond,
 				     pthread_mutex_t *mutex,
 				     struct timespec *abstime);

@@ -61,15 +61,16 @@ struct st_vio
 
 Vio *vio_new(my_socket sd, enum enum_vio_type type, my_bool localhost)
 {
-  Vio * vio = NULL;
-  vio = (Vio *) my_malloc (sizeof(*vio),MYF(MY_WME|MY_ZEROFILL));
-  if (vio)
+  DBUG_ENTER("vio_new");
+  Vio * vio;
+  
+  if ((vio= (Vio *) my_malloc(sizeof(*vio),MYF(MY_WME|MY_ZEROFILL))))
   {
     init_alloc_root(&vio->root, 8192, 8192);
     vio->root.min_malloc = sizeof(char *) + 4;
     vio->last_packet = &vio->packets;
   }
-  return (vio);
+  DBUG_RETURN(vio);
 }
 
 
@@ -84,19 +85,24 @@ Vio *vio_new_win32pipe(HANDLE hPipe)
 
 void vio_delete(Vio * vio)
 {
+  DBUG_ENTER("vio_delete");
   if (vio)
   {
-    if (vio->type != VIO_CLOSED) vio_close(vio);
+    if (vio->type != VIO_CLOSED)
+      vio_close(vio);
     free_root(&vio->root, MYF(0));
-    my_free((gptr)vio, MYF(0));
+    my_free((gptr) vio, MYF(0));
   }
+  DBUG_VOID_RETURN;
 }
 
 void vio_reset(Vio *vio)
 {
+  DBUG_ENTER("vio_reset");
   free_root(&vio->root, MYF(MY_KEEP_PREALLOC));
   vio->packets = vio->where_in_packet = vio->end_of_packet = 0;
   vio->last_packet = &vio->packets;
+  DBUG_VOID_RETURN;
 }
 
 int vio_errno(Vio *vio __attribute__((unused)))
@@ -124,6 +130,7 @@ int vio_read(Vio * vio, gptr buf, int size)
 
 int vio_write(Vio * vio, const gptr buf, int size)
 {
+  DBUG_ENTER("vio_write");
   char *packet;
   if (vio->reading)
   {
@@ -141,7 +148,7 @@ int vio_write(Vio * vio, const gptr buf, int size)
   }
   else
     size= -1;
-  return (size);
+  DBUG_RETURN(size);
 }
 
 int vio_blocking(Vio * vio, my_bool set_blocking_mode)

@@ -623,7 +623,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     key_cacheing=1;
     break;
   case 'V':
-    printf("test1 Ver 1.1 \n");
+    printf("test1 Ver 1.2 \n");
     exit(0);
   case '#':
     DEBUGGER_ON;
@@ -644,11 +644,8 @@ static void get_options(int argc, char *argv[])
   int ho_error;
 
   if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
-  {
-    printf("%s: handle_options() failed with error %d\n", my_progname,
-	   ho_error);
-    exit(1);
-  }
+    exit(ho_error);
+
   return;
 } /* get options */
 

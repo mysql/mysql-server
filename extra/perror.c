@@ -16,7 +16,7 @@
 
 /* Return error-text for system error messages and nisam messages */
 
-#define PERROR_VERSION "2.8"
+#define PERROR_VERSION "2.9"
 
 #include <my_global.h>
 #include <my_sys.h>
@@ -141,11 +141,8 @@ static int get_options(int *argc,char ***argv)
   int ho_error;
 
   if ((ho_error=handle_options(argc, argv, my_long_options, get_one_option)))
-  {
-    printf("%s: handle_options() failed with error %d\n", my_progname,
-	   ho_error);
-    exit(1);
-  }
+    exit(ho_error);
+
   if (!*argc && !print_all_codes)
   {
     usage();

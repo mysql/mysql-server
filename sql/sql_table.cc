@@ -1235,7 +1235,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   thd->proc_info="init";
   table_name=table_list->real_name;
   db=table_list->db;
-  if (!new_db)
+  if (!new_db || !strcmp(new_db,db))
     new_db=db;
   used_fields=create_info->used_fields;
 
@@ -1289,10 +1289,10 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   /* In some simple cases we need not to recreate the table */
 
   thd->proc_info="setup";
-  if (simple_alter)
+  if (simple_alter && !table->tmp_table)
   {
     error=0;
-    if (new_name != table_name)
+    if (new_name != table_name || new_db != db)
     {
       thd->proc_info="rename";
       VOID(pthread_mutex_lock(&LOCK_open));
@@ -1315,15 +1315,15 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     }
     if (!error)
     {
-      switch (keys_onoff)
-      {
-        case LEAVE_AS_IS: break;
-        case ENABLE:
-          error=table->file->activate_all_index(thd);
-          break;
-        case DISABLE:
-          table->file->deactivate_non_unique_index(HA_POS_ERROR);
-          break;
+      switch (keys_onoff) {
+      case LEAVE_AS_IS:
+	break;
+      case ENABLE:
+	error=table->file->activate_all_index(thd);
+	break;
+      case DISABLE:
+	table->file->deactivate_non_unique_index(HA_POS_ERROR);
+	break;
       }
     }
     if (!error)
@@ -1720,7 +1720,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   thd->proc_info="rename result table";
   sprintf(old_name,"%s2-%lx-%lx", tmp_file_prefix, current_pid,
 	  thd->thread_id);
-  if (new_name != table_name)
+  if (new_name != table_name || new_db != db)
   {
     if (!access(new_name_buff,F_OK))
     {
@@ -1738,7 +1738,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   {
     /*
       Win32 and InnoDB can't drop a table that is in use, so we must
-      close all the original table at before doing the rename
+      close the original table at before doing the rename
     */
     table_name=thd->strdup(table_name);		// must be saved
     if (close_cached_table(thd,table))
