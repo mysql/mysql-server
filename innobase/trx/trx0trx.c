@@ -816,7 +816,7 @@ trx_commit_off_kernel(
 
                         log_write_up_to(lsn, LOG_WAIT_ONE_GROUP, FALSE);
                 } else {
-                        ut_a(0);
+                        ut_error;
                 }
 
 		trx->commit_lsn = lsn;
@@ -1141,7 +1141,7 @@ trx_sig_send(
 		/* The signal is not compatible with the other signals in
 		the queue: do nothing */
 
-		ut_a(0);
+		ut_error;
 		
 		return(FALSE);
 	}
@@ -1189,7 +1189,7 @@ trx_sig_send(
 		signal to the end of the queue, if the session is not yet
 		in the error state: */
 
-		ut_a(0);
+		ut_error;
 	}
 
 	/* If there were no other signals ahead in the queue, try to start
@@ -1534,7 +1534,7 @@ trx_commit_complete_for_mysql(
 
                 log_write_up_to(lsn, LOG_WAIT_ONE_GROUP, FALSE);
         } else {
-                ut_a(0);
+                ut_error;
         }
 
 	trx->op_info = (char*)"";

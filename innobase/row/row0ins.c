@@ -856,7 +856,7 @@ row_ins_foreign_check_on_constraint(
 			"InnoDB: Make a detailed bug report and send it\n");
 	  	fprintf(stderr, "InnoDB: to mysql@lists.mysql.com\n");
 
-		ut_a(0);
+		ut_error;
 */
 		err = DB_SUCCESS;		
 

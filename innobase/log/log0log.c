@@ -1026,7 +1026,7 @@ log_io_complete(
 		return;
 	}
 
-	ut_a(0);	/* We currently use synchronous writing of the
+	ut_error;	/* We currently use synchronous writing of the
 			logs and cannot end up here! */
 
 	if (srv_unix_file_flush_method != SRV_UNIX_O_DSYNC

@@ -158,7 +158,7 @@ dict_create_sys_tables_tuple(
  	if (table->type == DICT_TABLE_CLUSTER_MEMBER) {
 		dfield_set_data(dfield, table->cluster_name,
 				ut_strlen(table->cluster_name));
-		ut_a(0); /* Oracle-style clusters are not supported yet */
+		ut_error; /* Oracle-style clusters are not supported yet */
 	} else {
 		dfield_set_data(dfield, NULL, UNIV_SQL_NULL);
 	}

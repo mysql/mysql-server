@@ -1184,7 +1184,7 @@ srv_table_reserve_slot_for_mysql(void)
 			  (ulint)difftime(ut_time(), slot->suspend_time));
 			}
 
-		        ut_a(0);
+		        ut_error;
 		}
 		
 		slot = srv_mysql_table + i;
