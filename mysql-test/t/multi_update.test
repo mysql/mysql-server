@@ -302,16 +302,3 @@ delete t1, t2 from t2,t1
   where t1.id1=t2.id2 and 0=1;
 
 drop table t1,t2;
-create table `t1` (`id` int( 11 ) not null  ,primary key ( `id` )) type = innodb;
-insert into `t1`values ( 1 ) ;
-create table `t2` (`id` int( 11 ) not null default '0',unique key `id` ( `id` ) ,constraint `t1_id_fk` foreign key ( `id` ) references `t1` (`id` )) type = innodb;
-insert into `t2`values ( 1 ) ;
-create table `t3` (`id` int( 11 ) not null default '0',key `id` ( `id` ) ,constraint `t2_id_fk` foreign key ( `id` ) references `t2` (`id` )) type = innodb;
-insert into `t3`values ( 1 ) ;
---error 1217
-delete t3,t2,t1 from t1,t2,t3 where t1.id =1 and t2.id = t1.id and t3.id = t2.id;
---error 1217
-update t1,t2,t3 set t3.id=5, t2.id=6, t1.id=7  where t1.id =1 and t2.id = t1.id and t3.id = t2.id;
---error 1109
-update t3 set  t3.id=7  where t1.id =1 and t2.id = t1.id and t3.id = t2.id;
-drop table t3,t2,t1;

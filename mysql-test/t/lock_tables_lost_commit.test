@@ -1,5 +1,7 @@
 # This is a test for bug 578
 
+-- source include/have_innodb.inc
+
 connect (con1,localhost,root,,);
 connect (con2,localhost,root,,);
 
