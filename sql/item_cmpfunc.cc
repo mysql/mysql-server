@@ -1071,6 +1071,7 @@ in_string::~in_string()
 {
   if (base)
   {
+    // base was allocated with help of sql_alloc => following is OK
     for (uint i=0 ; i < count ; i++)
       ((String*) base)[i].free();
   }

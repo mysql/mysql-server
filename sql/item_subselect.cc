@@ -150,7 +150,13 @@ void Item_singlerow_subselect::select_transformer(THD *thd,
   
   if (!select_lex->next_select() && !select_lex->table_list.elements &&
       select_lex->item_list.elements == 1 &&
-      // TODO: mark subselect items from item list separately
+      /*
+	We cant change name of Item_field or Item_ref, because it will
+	prevent it's correct resolving, but we should save name of
+	removed item => we do not make optimization if top item of
+	list is field or reference.
+	TODO: solve above problem
+      */
       !(select_lex->item_list.head()->type() == FIELD_ITEM ||
 	select_lex->item_list.head()->type() == REF_ITEM) 
       )

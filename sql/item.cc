@@ -673,7 +673,7 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 	  return 1;
 	if (r->fix_fields(thd, tables, ref) || r->check_cols(1))
 	  return 1;
-	// store pointer on SELECT_LEX from wich item is dependent
+	// store pointer on SELECT_LEX from which item is dependent
 	r->depended_from= last;
 	cursel->mark_as_dependent(last);
 	return 0;

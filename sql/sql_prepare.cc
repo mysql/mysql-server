@@ -438,7 +438,6 @@ static bool setup_params_data(PREP_STMT *stmt)
 }
 
 /*
-
   Validate the following information for INSERT statement:                         
     - field existance           
     - fields count                          

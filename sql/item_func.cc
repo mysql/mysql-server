@@ -2213,7 +2213,7 @@ void Item_func_get_user_var::fix_length_and_dec()
   }
   return;
 err:
-  thd->fatal_error= 1;
+  thd->fatal_error();
   return;
 }
 

@@ -376,13 +376,13 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
 	      thd->cuted_fields);
     ::send_ok(thd,info.copied+info.deleted,(ulonglong)id,buff);
   }
-  free_ulderlayed_joins(thd, &thd->lex.select_lex);
+  free_underlaid_joins(thd, &thd->lex.select_lex);
   DBUG_RETURN(0);
 
 abort:
   if (lock_type == TL_WRITE_DELAYED)
     end_delayed_insert(thd);
-  free_ulderlayed_joins(thd, &thd->lex.select_lex);
+  free_underlaid_joins(thd, &thd->lex.select_lex);
   DBUG_RETURN(-1);
 }
 

@@ -124,7 +124,7 @@ int mysql_update(THD *thd,
   table->grant.want_privilege=(SELECT_ACL & ~table->grant.privilege);
   if (setup_fields(thd, 0, update_table_list, values, 0, 0, 0))
   {
-    free_ulderlayed_joins(thd, &thd->lex.select_lex);
+    free_underlaid_joins(thd, &thd->lex.select_lex);
     DBUG_RETURN(-1);				/* purecov: inspected */
   }
 
@@ -135,7 +135,7 @@ int mysql_update(THD *thd,
       (select && select->check_quick(safe_update, limit)) || !limit)
   {
     delete select;
-    free_ulderlayed_joins(thd, &thd->lex.select_lex);
+    free_underlaid_joins(thd, &thd->lex.select_lex);
     if (error)
     {
       DBUG_RETURN(-1);				// Error in where
@@ -150,7 +150,7 @@ int mysql_update(THD *thd,
     if (safe_update && !using_limit)
     {
       delete select;
-      free_ulderlayed_joins(thd, &thd->lex.select_lex);
+      free_underlaid_joins(thd, &thd->lex.select_lex);
       send_error(thd,ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE);
       DBUG_RETURN(1);
     }
@@ -178,7 +178,7 @@ int mysql_update(THD *thd,
 			  DISK_BUFFER_SIZE, MYF(MY_WME)))
     {
       delete select; /* purecov: inspected */
-      free_ulderlayed_joins(thd, &thd->lex.select_lex);
+      free_underlaid_joins(thd, &thd->lex.select_lex);
       DBUG_RETURN(-1);
     }
     if (old_used_keys & ((key_map) 1 << used_index))
@@ -212,7 +212,7 @@ int mysql_update(THD *thd,
           == HA_POS_ERROR)
       {
 	delete select;
-	free_ulderlayed_joins(thd, &thd->lex.select_lex);
+	free_underlaid_joins(thd, &thd->lex.select_lex);
 	DBUG_RETURN(-1);
       }
     }
@@ -267,7 +267,7 @@ int mysql_update(THD *thd,
     if (error >= 0)
     {
       delete select;
-      free_ulderlayed_joins(thd, &thd->lex.select_lex);
+      free_underlaid_joins(thd, &thd->lex.select_lex);
       DBUG_RETURN(-1);
     }
   }
@@ -353,7 +353,7 @@ int mysql_update(THD *thd,
   }
 
   delete select;
-  free_ulderlayed_joins(thd, &thd->lex.select_lex);
+  free_underlaid_joins(thd, &thd->lex.select_lex);
   if (error >= 0)
     send_error(thd,thd->killed ? ER_SERVER_SHUTDOWN : 0); /* purecov: inspected */
   else

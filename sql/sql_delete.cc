@@ -92,7 +92,7 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, ORDER *order,
   if ((select && select->check_quick(safe_update, limit)) || !limit)
   {
     delete select;
-    free_ulderlayed_joins(thd, &thd->lex.select_lex);
+    free_underlaid_joins(thd, &thd->lex.select_lex);
     send_ok(thd,0L);
     DBUG_RETURN(0);				// Nothing to delete
   }
@@ -104,7 +104,7 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, ORDER *order,
     if (safe_update && !using_limit)
     {
       delete select;
-      free_ulderlayed_joins(thd, &thd->lex.select_lex);
+      free_underlaid_joins(thd, &thd->lex.select_lex);
       send_error(thd,ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE);
       DBUG_RETURN(1);
     }
@@ -134,7 +134,7 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, ORDER *order,
         == HA_POS_ERROR)
     {
       delete select;
-      free_ulderlayed_joins(thd, &thd->lex.select_lex);
+      free_underlaid_joins(thd, &thd->lex.select_lex);
       DBUG_RETURN(-1);		// This will force out message
     }
   }
@@ -210,7 +210,7 @@ cleanup:
     thd->lock=0;
   }
   delete select;
-  free_ulderlayed_joins(thd, &thd->lex.select_lex);
+  free_underlaid_joins(thd, &thd->lex.select_lex);
   if (error >= 0 || thd->net.report_error)
     send_error(thd,thd->killed ? ER_SERVER_SHUTDOWN: 0);
   else

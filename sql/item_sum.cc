@@ -51,7 +51,7 @@ Item_sum::Item_sum(THD *thd, Item_sum &item):
   else
     if (!(args=(Item**) sql_alloc(sizeof(Item*)*arg_count)))
       return;
-  for(uint i= 0; i < arg_count; i++)
+  for (uint i= 0; i < arg_count; i++)
     args[i]= item.args[i];
 }
 
@@ -999,6 +999,10 @@ int dump_leaf(byte* key, uint32 count __attribute__((unused)),
 
 Item_sum_count_distinct::~Item_sum_count_distinct()
 {
+  /*
+    Free table and tree if they belong to this item (if item have not pointer
+    to original item from which was made copy => it own its objects )
+  */
   if (!original)
   {
     if (table)
