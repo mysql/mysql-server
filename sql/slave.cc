@@ -644,13 +644,14 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
       // unless set explictly
       close_thread_tables(thd);
       free_root(&thd->mem_root,0);
+      delete ev;
+      
       if (thd->query_error)
       {
 	sql_print_error("Slave:  error running query '%s' ",
 			qev->query);
 	return 1;
       }
-      delete ev;
 	    
       if(thd->fatal_error)
       {
