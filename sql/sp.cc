@@ -64,8 +64,7 @@ db_find_routine_aux(THD *thd, int type, sp_name *name,
 		    enum thr_lock_type ltype, TABLE **tablep, bool *opened)
 {
   TABLE *table;
-  byte key[64+64+1];		// db, name, type
-  uint keylen;
+  byte key[NAME_LEN*2+4+1];	// db, name, optional key length type
   DBUG_ENTER("db_find_routine_aux");
   DBUG_PRINT("enter", ("type: %d name: %*s",
 		       type, name->m_name.length, name->m_name.str));
@@ -77,20 +76,6 @@ db_find_routine_aux(THD *thd, int type, sp_name *name,
   */
   if (!mysql_proc_table_exists && ltype == TL_READ)
     DBUG_RETURN(SP_OPEN_TABLE_FAILED);
-
-  // Put the key used to read the row together
-  keylen= name->m_db.length;
-  if (keylen > 64)
-    keylen= 64;
-  memcpy(key, name->m_db.str, keylen);
-  memset(key+keylen, (int)' ', 64-keylen); // Pad with space
-  keylen= name->m_name.length;
-  if (keylen > 64)
-    keylen= 64;
-  memcpy(key+64, name->m_name.str, keylen);
-  memset(key+64+keylen, (int)' ', 64-keylen); // Pad with space
-  key[128]= type;
-  keylen= sizeof(key);
 
   if (thd->lex->proc_table)
     table= thd->lex->proc_table->table;
@@ -120,8 +105,22 @@ db_find_routine_aux(THD *thd, int type, sp_name *name,
   }
   mysql_proc_table_exists= 1;
 
+  /*
+    Create key to find row. We have to use field->store() to be able to
+    handle VARCHAR and CHAR fields.
+    Assumption here is that the three first fields in the table are
+    'db', 'name' and 'type' and the first key is the primary key over the
+    same fields.
+  */
+  table->field[0]->store(name->m_db.str, name->m_db.length, &my_charset_bin);
+  table->field[1]->store(name->m_name.str, name->m_name.length,
+                         &my_charset_bin);
+  table->field[2]->store((longlong) type);
+  key_copy(key, table->record[0], table->key_info,
+           table->key_info->key_length);
+
   if (table->file->index_read_idx(table->record[0], 0,
-				  key, keylen,
+				  key, table->key_info->key_length,
 				  HA_READ_KEY_EXACT))
   {
     *tablep= NULL;
