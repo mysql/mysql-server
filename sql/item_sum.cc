@@ -1331,25 +1331,26 @@ String *Item_sum_udf_str::val_str(String *str)
 *****************************************************************************/
 
 /*
- function of sort for syntax:
- GROUP_CONCAT(DISTINCT expr,...)
+  function of sort for syntax:
+  GROUP_CONCAT(DISTINCT expr,...)
 */
 
 static int group_concat_key_cmp_with_distinct(void* arg, byte* key1, byte* key2)
 {
-  Item_func_group_concat* item = (Item_func_group_concat*)arg;
-/*
-  DISTINCT
-*/
-  for (int i=0; i<item->arg_count_field; i++)
+  Item_func_group_concat* item= (Item_func_group_concat*)arg;
+  for (int i= 0; i<item->arg_count_field; i++)
   {
-    Item *field_item=item->expr[i];
-    Field *field  = field_item->tmp_table_field();
+    Item *field_item= item->expr[i];
+    Field *field= field_item->tmp_table_field();
     if (field)
     {
-      uint offset = field->offset();
+      uint offset= field->offset();
 
-      int res = field->key_cmp(key1 + offset, key2 + offset);
+      int res= field->key_cmp(key1 + offset, key2 + offset);
+      /*
+        if key1 and key2 is not equal than field->key_cmp return offset. This function
+        must return value 1 for this case.
+      */
       if (res)
         return 1;
     }
@@ -1358,60 +1359,54 @@ static int group_concat_key_cmp_with_distinct(void* arg, byte* key1, byte* key2)
 }
 
 /*
- function of sort for syntax:
- GROUP_CONCAT(expr,... ORDER BY col,... )
+  function of sort for syntax:
+  GROUP_CONCAT(expr,... ORDER BY col,... )
 */
 
 static int group_concat_key_cmp_with_order(void* arg, byte* key1, byte* key2)
 {
-  Item_func_group_concat* item = (Item_func_group_concat*)arg;
-/*
-  ORDER
-*/
-  
+  Item_func_group_concat* item= (Item_func_group_concat*)arg;
   for (int i=0; i<item->arg_count_order; i++)
   {
-    ORDER *order_item = item->order[i];
-    Item *item=*order_item->item;
-    Field *field  = item->tmp_table_field();
+    ORDER *order_item= item->order[i];
+    Item *item= *order_item->item;
+    Field *field= item->tmp_table_field();
     if (field)
     {
-      uint offset = field->offset();
+      uint offset= field->offset();
 
-      bool dir = order_item->asc;
-      int res = field->key_cmp(key1 + offset, key2 + offset);
+      bool dir= order_item->asc;
+      int res= field->key_cmp(key1 + offset, key2 + offset);
       if (res)
         return dir ? res : -res;
     }
   }
+  /*
+    We can't return 0 becouse tree class remove this item as dubl value. 
+  */   
   return 1;
 }
 
 /*
- function of sort for syntax:
- GROUP_CONCAT(DISTINCT expr,... ORDER BY col,... )
-*/
-static int group_concat_key_cmp_with_distinct_and_order(void* arg, byte* key1, byte* key2)
-{
-  Item_func_group_concat* item = (Item_func_group_concat*)arg;
-/*
-  DISTINCT
-*/
-  if (!group_concat_key_cmp_with_distinct(arg,key1,key2))
-    return 0;
-/*
-  ORDER
+  function of sort for syntax:
+  GROUP_CONCAT(DISTINCT expr,... ORDER BY col,... )
 */
 
+static int group_concat_key_cmp_with_distinct_and_order(void* arg, byte* key1, byte* key2)
+{
+  Item_func_group_concat* item= (Item_func_group_concat*)arg;
+  if (!group_concat_key_cmp_with_distinct(arg,key1,key2))
+    return 0;
   return(group_concat_key_cmp_with_order(arg,key1,key2));
 }
 
 /*
- create result
- item is pointer to Item_func_group_concat
+  create result
+  item is pointer to Item_func_group_concat
 */
+
 static int dump_leaf_key(byte* key, uint32 count __attribute__((unused)),
-                  Item_func_group_concat *item)
+                  Item_func_group_concat *group_concat_item)
 {
   char buff[MAX_FIELD_WIDTH];
   String tmp((char *)&buff,sizeof(buff),default_charset_info);
@@ -1419,65 +1414,59 @@ static int dump_leaf_key(byte* key, uint32 count __attribute__((unused)),
 
   tmp.length(0);
   
-  for (int i=0; i < item->arg_show_fields; i++)
+  for (int i= 0; i < group_concat_item->arg_show_fields; i++)
   {
-    Item *show_item = item->expr[i];
+    Item *show_item= group_concat_item->expr[i];
     if (!show_item->const_item())
     {
-      Field *f  = show_item->tmp_table_field();
-      uint offset = f->offset();
-      char *sv = f->ptr;
-      f->ptr = (char *)key + offset;
-/*      
-  We can't check this field on NULL, becouse if f->is_null() return that the 
-  first field is NULL than it return and that all fields are NULL too. Maybe 
-  is it bag?
-*/
-      String *res = f->val_str(&tmp,&tmp2);
-      if (res)
-        item->result.append(*res);
-      f->ptr = sv;
+      Field *f= show_item->tmp_table_field();
+      uint offset= f->offset();
+      char *sv= f->ptr;
+      f->ptr= (char *)key + offset;
+      String *res= f->val_str(&tmp,&tmp2);
+      group_concat_item->result.append(*res);
+      f->ptr= sv;
     }
     else 
     {
-      String *res = show_item->val_str(&tmp);
+      String *res= show_item->val_str(&tmp);
       if (res)
-        item->result.append(*res);
+        group_concat_item->result.append(*res);
     }
   }
-  item->show_elements++;
-  if (item->tree_mode)
+  if (group_concat_item->tree_mode) // Last item of tree
   {
-/*
-    Last item of tree
-*/  
-    if (item->show_elements < item->tree->elements_in_tree)
-      item->result.append(*item->separator);
+    group_concat_item->show_elements++;
+    if (group_concat_item->show_elements < 
+        group_concat_item->tree->elements_in_tree)
+      group_concat_item->result.append(*group_concat_item->separator);
   }
   else
   {
-    item->result.append(*item->separator); 
+    group_concat_item->result.append(*group_concat_item->separator); 
   }
-/*
-  if length of result more than group_concat_max_len - stop !
-*/  
-  if (item->result.length() > item->group_concat_max_len)
+  /*
+    if length of result more than group_concat_max_len - stop !
+  */  
+  if (group_concat_item->result.length() > 
+      group_concat_item->group_concat_max_len)
   {
-    item->count_cut_values++;
-    item->result.length(item->group_concat_max_len);
-    item->warning_for_row = TRUE;
+    group_concat_item->count_cut_values++;
+    group_concat_item->result.length(group_concat_item->group_concat_max_len);
+    group_concat_item->warning_for_row= TRUE;
     return 1;
   }
   return 0;
 }
 
 /*
- Constructor of Item_func_group_concat
- is_distinct - distinct
- is_select - list of expression for show values
- is_order - list of sort columns 
- is_separator - string value of separator
+  Constructor of Item_func_group_concat
+  is_distinct - distinct
+  is_select - list of expression for show values
+  is_order - list of sort columns 
+  is_separator - string value of separator
 */
+
 Item_func_group_concat::Item_func_group_concat(int is_distinct,List<Item> *is_select,
                         SQL_LIST *is_order,String *is_separator):
 			Item_sum(),
@@ -1486,67 +1475,71 @@ Item_func_group_concat::Item_func_group_concat(int is_distinct,List<Item> *is_se
 			separator(is_separator),
 			tree(&tree_base),
 			table(0),
-                        distinct(is_distinct),  
+                        distinct(is_distinct),
 			tree_mode(0),
                         count_cut_values(0)
 {
-  original = 0;
-  quick_group = 0;
+  original= 0;
+  quick_group= 0;
   mark_as_sum_func();
   SELECT_LEX *select_lex= current_lex->current_select->select_lex();
+  order= 0;
     
-  arg_show_fields = arg_count_field = is_select->elements;
-  arg_count_order = is_order ? is_order->elements : 0;
-  arg_count = arg_count_field;
-   
-/*
- fill args items of show and sort
-*/
-  int i = 0;
-  if ((args=(Item**) sql_alloc(sizeof(Item*)*arg_count))&&
-     (expr=(Item**)sql_alloc(sizeof(Item*)*arg_count_field)))
-  {
-    List_iterator_fast<Item> li(*is_select);
-    Item *item_select;
-
-    while ((item_select=li++))
-    {
-      args[i] = item_select;
-      expr[i] = item_select;
-      i++;
-    }
-      
-    if (arg_count_order) 
-    {
-      order=(ORDER**)sql_alloc(sizeof(ORDER*)*arg_count_order);
-      if (order)
-      {
-        uint j = 0;	
-        for (ORDER *order_item = (ORDER*)is_order->first;
-             order_item != NULL;
-             order_item = order_item->next)
-        {
-          order[j++] = order_item;
-        }
-      }
-      else
-      {
-        my_error(ER_OUTOFMEMORY,MYF(0));
-      }
-    }
-    else
-    {
-      order = 0;
-    }
-  }
-  else
+  arg_show_fields= arg_count_field= is_select->elements;
+  arg_count_order= is_order ? is_order->elements : 0;
+  arg_count= arg_count_field;
+  
+  /*
+    We need to allocate:
+    args - arg_count+arg_count_order (for possible order items in temporare 
+           tables)
+    expr - arg_count_field
+    order - arg_count_order
+  */
+  args= (Item**)sql_alloc(sizeof(Item*)*(arg_count+arg_count_order+arg_count_field)+
+                          sizeof(ORDER*)*arg_count_order);
+  if (!args)
   {
     my_error(ER_OUTOFMEMORY,MYF(0));
+  } 
+  expr= args;
+  expr+= arg_count+arg_count_order;
+  if (arg_count_order) 
+  {
+    order= (ORDER**)(expr + arg_count_field);
+  }
+  /*
+    fill args items of show and sort
+  */
+  int i= 0;
+  List_iterator_fast<Item> li(*is_select);
+  Item *item_select;
+
+  while ((item_select= li++))
+  {
+    args[i]= expr[i]= item_select;
+    i++;
+  }
+      
+  if (order)
+  {
+    uint j= 0;	
+    for (ORDER *order_item= (ORDER*)is_order->first;
+                order_item != NULL;
+                order_item= order_item->next)
+    {
+      order[j++]= order_item;
+    }
   }
 }
 
+
 Item_func_group_concat::~Item_func_group_concat()
 {
+  /*
+    Free table and tree if they belong to this item (if item have not pointer
+    to original item from which was made copy => it own its objects )
+  */
   if (!original)
   {
     if (warning_available)
@@ -1569,7 +1562,8 @@ void Item_func_group_concat::reset()
 {
   result.length(0);
   result.copy();
-  warning_for_row = false;
+  null_value= TRUE;
+  warning_for_row= false;
   if (table)
   {
     table->file->extra(HA_EXTRA_NO_CACHE);
@@ -1581,20 +1575,30 @@ void Item_func_group_concat::reset()
   add();
 }
 
+
 bool Item_func_group_concat::add()
 {
   copy_fields(tmp_table_param);
   copy_funcs(tmp_table_param->items_to_copy);
 
+  bool record_is_null= TRUE;
+  for (int i= 0; i < arg_show_fields; i++)
+  {
+    Item *show_item= expr[i];
+    if (!show_item->const_item())
+    {
+      Field *f= show_item->tmp_table_field();
+      if (!f->is_null())
+        record_is_null= FALSE;      
+    }
+  }
+  if (record_is_null)
+    return 0;
+  null_value= FALSE;
   if (tree_mode)
   {
-    if (tree->elements_in_tree > max_elements_in_tree)
+    if (!tree_insert(tree, table->record[0], 0,tree->custom_arg))
       return 1;
-    else 
-    {
-      if (!tree_insert(tree, table->record[0], 0,tree->custom_arg))
-        return 1;
-    }
   }
   else
   {
@@ -1605,12 +1609,13 @@ bool Item_func_group_concat::add()
   return 0;
 }
 
+
 void Item_func_group_concat::reset_field()
 {
   if (tree_mode)
     reset_tree(tree);
-  (void) add();
 }
+
 
 bool
 Item_func_group_concat::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
@@ -1621,37 +1626,42 @@ Item_func_group_concat::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     return 1;
   }
   
-  thd->allow_sum_func=0;
-  maybe_null=0;
-  for (uint i=0 ; i < arg_count ; i++)
+  thd->allow_sum_func= 0;
+  maybe_null= 0;
+  for (uint i= 0 ; i < arg_count ; i++)
   {
     if (args[i]->fix_fields(thd, tables, args + i) || args[i]->check_cols(1))
       return 1;
     maybe_null |= args[i]->maybe_null;
   }
-  for (int i=0 ; i < arg_count_field ; i++)
+  for (int i= 0 ; i < arg_count_field ; i++)
   {
     if (expr[i]->fix_fields(thd, tables, expr + i) || expr[i]->check_cols(1))
       return 1;
     maybe_null |= expr[i]->maybe_null;
   }
-  for (int i=0 ; i < arg_count_order ; i++)
+  /*
+    Fix fields for order clause in function:
+    GROUP_CONCAT(expr,... ORDER BY col,... )
+  */
+  for (int i= 0 ; i < arg_count_order ; i++)
   {
-    ORDER *order_item = order[i];
+    ORDER *order_item= order[i];
     Item *item=*order_item->item;
     if (item->fix_fields(thd, tables, &item) || item->check_cols(1))
       return 1;
   }
-  result_field=0;
-  null_value=1;
+  result_field= 0;
+  null_value= 1;
   fix_length_and_dec();
-  thd->allow_sum_func=1;			
+  thd->allow_sum_func= 1;			
   if (!(tmp_table_param= new TMP_TABLE_PARAM))
     return 1;
-  tables_list = tables;
+  tables_list= tables;
   fixed= 1;
   return 0;
 }
+
 
 bool Item_func_group_concat::setup(THD *thd)
 {
@@ -1660,19 +1670,19 @@ bool Item_func_group_concat::setup(THD *thd)
 
   if (select_lex->linkage == GLOBAL_OPTIONS_TYPE)
     return 1;
-/*
-  all not constant fields are push to list and create temp table
-*/ 
-  for (uint i=0; i < arg_count; i++)
+  /*
+    all not constant fields are push to list and create temp table
+  */ 
+  for (uint i= 0; i < arg_count; i++)
   {
-    Item *item=args[i];
+    Item *item= args[i];
     if (list.push_back(item))
       return 1;
     if (item->const_item())
     {
       (void) item->val_int();
       if (item->null_value)
-	always_null=1;
+	always_null= 1;
     }
   }
         
@@ -1682,63 +1692,59 @@ bool Item_func_group_concat::setup(THD *thd)
     bool hidden_group_fields;
     setup_group(thd, args, tables_list, list, all_fields, *order,
                 &hidden_group_fields);
-/*
-  check wrong cols in order list (incorrect number of coloum or value of name)
-*/ 
-    for (int i=0; i<arg_count_order; i++)
-    {
-      ORDER *order_item = order[i];
-      Item *item=*order_item->item;
-      if (item->const_item())
-      {
-        my_printf_error(ER_BAD_FIELD_ERROR,ER(ER_BAD_FIELD_ERROR),
-                        MYF(0),item->full_name(),thd->where);
-        return 1;
-      }
-    }
   }
   
   count_field_types(tmp_table_param,all_fields,0);
-  if (!(table=create_tmp_table(thd, tmp_table_param, all_fields, order?*order:0,
-        0, 0, 0,select_lex->options | thd->options/*, select_lex->master_unit()*/)))
+  /*
+    We have to create a temporary table for that we get descriptions of fields 
+    (types, sizes and so on).
+  */
+  if (!(table=create_tmp_table(thd, tmp_table_param, all_fields, 0,
+        0, 0, 0,select_lex->options | thd->options)))
     return 1;
   table->file->extra(HA_EXTRA_NO_ROWS);
-  table->no_rows=1;
+  table->no_rows= 1;
   qsort_cmp2 compare_key;
   
-  tree_mode = distinct || arg_count_order;
-/*
-  choise function of sort
-*/  
+  tree_mode= distinct || arg_count_order;
+  /*
+    choise function of sort
+  */  
   if (tree_mode)
   {
     if (arg_count_order)
     {
       if (distinct)
-        compare_key = (qsort_cmp2) group_concat_key_cmp_with_distinct_and_order;
+        compare_key= (qsort_cmp2) group_concat_key_cmp_with_distinct_and_order;
       else
-        compare_key = (qsort_cmp2) group_concat_key_cmp_with_order;
+        compare_key= (qsort_cmp2) group_concat_key_cmp_with_order;
     }
     else
     {
       if (distinct)
-        compare_key = (qsort_cmp2) group_concat_key_cmp_with_distinct;
+        compare_key= (qsort_cmp2) group_concat_key_cmp_with_distinct;
       else 
-       compare_key = NULL; 
+       compare_key= NULL; 
     }
-/*
-  Create tree of sort
-*/
+    /*
+      Create a tree of sort. Tree is used for a sort and a remove dubl 
+      values (according with syntax of the function). If function does't
+      contain DISTINCT and ORDER BY clauses, we don't create this tree.
+    */
     init_tree(tree, min(thd->variables.max_heap_table_size,
               thd->variables.sortbuff_size/16), 0,
               table->reclength, compare_key, 0, NULL, (void*) this);
-    max_elements_in_tree = ((table->reclength) ? 
+    max_elements_in_tree= ((table->reclength) ? 
            thd->variables.max_heap_table_size/table->reclength : 1);
   };
-  item_thd = thd;
+  item_thd= thd;
 
-  group_concat_max_len = thd->variables.group_concat_max_len;
+  group_concat_max_len= thd->variables.group_concat_max_len;
 
+  /*
+    Copy table and tree_mode if they belong to this item (if item have not 
+    pointer to original item from which was made copy => it own its objects)
+  */
   if (original)
   {
     original->table= table;
@@ -1749,9 +1755,11 @@ bool Item_func_group_concat::setup(THD *thd)
 
 String* Item_func_group_concat::val_str(String* str)
 {
+  if (null_value)
+    return 0;
   if (tree_mode)
   {
-    show_elements = 0;
+    show_elements= 0;
     tree_walk(tree, (tree_walk_action)&dump_leaf_key, (void*)this,
               left_root_right);
   }
@@ -1760,12 +1768,10 @@ String* Item_func_group_concat::val_str(String* str)
     if (!warning_for_row)
       result.length(result.length()-separator->length());
   }
-  
-  null_value = result.length() == 0;
   if (count_cut_values && !warning_available)
   {
-    warning_available=TRUE;
-    warning = push_warning(item_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    warning_available= TRUE;
+    warning= push_warning(item_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                            ER_CUT_VALUE_GROUP_CONCAT, NULL);
   }
   return &result;
