@@ -67,7 +67,7 @@ int my_chsize(File fd, my_off_t newlength, int filler, myf MyFlags)
         my_error(EE_CANT_CHSIZE,MYF(ME_BELL+ME_WAITTANG),errno);
       DBUG_RETURN(1);
     }
-#elif define(HAVE_CHSIZE)
+#elif defined(HAVE_CHSIZE)
     if (oldsize > newlength || filler == 0)
     {
       if (chsize(fd,(off_t) newlength))
