@@ -68,6 +68,9 @@ m
 create temporary table temp_table (a char(80) not null);
 insert into temp_table values ("testing temporary tables part 2");
 create table t3 (n int);
+select count(*) from t3 where n >= 4;
+count(*)
+100
 create table t4 select * from temp_table;
 show binary logs;
 Log_name

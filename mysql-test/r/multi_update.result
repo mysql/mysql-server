@@ -341,6 +341,38 @@ select t1.a, t1.b,t2.a, t2.b from t1 left join t2  on t1.a=t2.a where t1.b=1 and
 a	b	a	b
 2	2	NULL	NULL
 drop table t1,t2;
+create table t1 (a int not null auto_increment primary key, b int not null);
+insert into t1 (b) values (1),(2),(3),(4);
+update t1, t1 as t2 set t1.b=t2.b+1 where t1.a=t2.a;
+select * from t1;
+a	b
+1	2
+2	3
+3	4
+4	5
+drop table t1;
+create table t1(id1 smallint(5), field char(5));
+create table t2(id2 smallint(5), field char(5));
+insert into t1 values (1, 'a'), (2, 'aa');
+insert into t2 values (1, 'b'), (2, 'bb');
+select * from t1;
+id1	field
+1	a
+2	aa
+select * from t2;
+id2	field
+1	b
+2	bb
+update t2 inner join t1 on t1.id1=t2.id2
+set t2.field=t1.field
+where 0=1;
+update t2, t1 set t2.field=t1.field
+where t1.id1=t2.id2 and 0=1;
+delete t1, t2 from t2 inner join t1 on t1.id1=t2.id2
+where 0=1;
+delete t1, t2 from t2,t1 
+where t1.id1=t2.id2 and 0=1;
+drop table t1,t2;
 create table t1 ( a int not null, b int not null) ;
 alter table t1 add index i1(a);
 delete from t1 where a > 2000000;
@@ -363,3 +395,4 @@ t2 rows after big delete	1900001
 select 't1 rows after big delete', count(*) from t1;
 t1 rows after big delete	count(*)
 t1 rows after big delete	1900001
+drop table t1,t2;

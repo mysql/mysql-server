@@ -37,4 +37,3 @@ void my_net_local_init(NET *net)
 #endif
 }
 }
-

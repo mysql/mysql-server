@@ -189,3 +189,22 @@ SELECT FOUND_ROWS();
 FOUND_ROWS()
 3
 drop table t1;
+create table t1 (id int, primary key (id));
+insert into t1 values (1), (2), (3), (4), (5);
+select SQL_CALC_FOUND_ROWS * from t1 where id > 3 limit 0, 1;
+id
+4
+select FOUND_ROWS();
+FOUND_ROWS()
+2
+select SQL_CALC_FOUND_ROWS * from t1 where id > 3 AND 1=2 limit 0, 1;
+id
+select FOUND_ROWS();
+FOUND_ROWS()
+0
+select SQL_CALC_FOUND_ROWS * from t1 where id > 6 limit 0, 1;
+id
+select FOUND_ROWS();
+FOUND_ROWS()
+0
+drop table t1;

@@ -287,6 +287,9 @@ C_MODE_END
 #endif
 #ifdef HAVE_ATOMIC_ADD
 #define __SMP__
+#ifdef HAVE_LINUX_CONFIG_H
+#include <linux/config.h>	/* May define CONFIG_SMP */
+#endif
 #ifndef CONFIG_SMP
 #define CONFIG_SMP
 #endif
@@ -626,10 +629,25 @@ extern double		my_atof(const char*);
 #define HAVE_LONG_LONG 1
 #endif
 
+/*
+  Some pre-ANSI-C99 systems like AIX 5.1 and Linux/GCC 2.95 define
+  ULONGLONG_MAX, LONGLONG_MIN, LONGLONG_MAX; we use them if they're defined.
+  Also on Windows we define these constants by hand in config-win.h.
+*/
+
 #if defined(HAVE_LONG_LONG) && !defined(LONGLONG_MIN)
 #define LONGLONG_MIN	((long long) 0x8000000000000000LL)
 #define LONGLONG_MAX	((long long) 0x7FFFFFFFFFFFFFFFLL)
 #endif
+
+#if defined(HAVE_LONG_LONG) && !defined(ULONGLONG_MAX)
+/* First check for ANSI C99 definition: */
+#ifdef ULLONG_MAX
+#define ULONGLONG_MAX  ULLONG_MAX
+#else
+#define ULONGLONG_MAX ((unsigned long long)(~0ULL))
+#endif
+#endif /* defined (HAVE_LONG_LONG) && !defined(ULONGLONG_MAX)*/
 
 #if SIZEOF_LONG == 4
 #define INT_MIN32	(long) 0x80000000L
