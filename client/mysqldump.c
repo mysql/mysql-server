@@ -179,7 +179,7 @@ static struct my_option my_long_options[] =
   {"single-transaction", OPT_TRANSACTION,
    "Dump all tables in single transaction to get consistent snapshot. Mutually exclusive with --lock-tables.",
    (gptr*) &opt_single_transaction, (gptr*) &opt_single_transaction, 0, GET_BOOL, NO_ARG,
-   0, 0, 0, 0, 0, 0},   
+   0, 0, 0, 0, 0, 0},
   {"no-create-db", 'n',
    "'CREATE DATABASE /*!32312 IF NOT EXISTS*/ db_name;' will not be put in the output. The above line will be added otherwise, if --databases or --all-databases option was given.}",
    (gptr*) &opt_create_db, (gptr*) &opt_create_db, 0, GET_BOOL, NO_ARG, 0, 0,
@@ -1072,7 +1072,7 @@ static void dumpTable(uint numFields, char *table)
 	      {
 		/* change any strings ("inf", "-inf", "nan") into NULL */
 		char *ptr = row[i];
-		if (isalpha(*ptr) || (*ptr == '-' && *(ptr+1) == 'i'))
+		if (isalpha(*ptr) || (*ptr == '-' && isalpha(ptr[1])))
 		  dynstr_append(&extended_row, "NULL");
 		else
 		{
@@ -1118,7 +1118,7 @@ static void dumpTable(uint numFields, char *table)
 	      if (opt_xml)
 		fprintf(md_result_file, "\t\t<field name=\"%s\">%s</field>\n",
 			field->name,!isalpha(*ptr) ?ptr: "NULL");
-	      else if (isalpha(*ptr) || (*ptr == '-' && *(ptr+1) == 'i'))
+	      else if (isalpha(*ptr) || (*ptr == '-' && isalpha(ptr[1])))
 	        fputs("NULL", md_result_file);
 	      else
 	      {
