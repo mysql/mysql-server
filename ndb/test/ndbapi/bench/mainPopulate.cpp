@@ -53,11 +53,11 @@ NDB_STD_OPTS_VARS;
 
 NDB_COMMAND(DbCreate, "DbCreate", "DbCreate", "DbCreate", 16384)
 {
+  ndb_init();
   int i;
   UserHandle *uh;
   
   useTableLogging = 0;
-  NDB_INIT(argv[0]);
   
   for(i = 1; i<argc; i++){
     if(strcmp(argv[i], "-l") == 0){
