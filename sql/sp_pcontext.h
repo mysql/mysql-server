@@ -99,7 +99,7 @@ class sp_pcontext : public Sql_alloc
   inline void
   pop(uint num = 1)
   {
-    if (num >= m_i)
+    if (num < m_i)
       m_i -= num;
   }
 
@@ -118,9 +118,6 @@ class sp_pcontext : public Sql_alloc
 
   sp_label_t *
   push_label(char *name, uint ip);
-
-  sp_label_t *
-  push_gen_label(uint ip);
 
   sp_label_t *
   find_label(char *name);

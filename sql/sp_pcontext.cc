@@ -107,20 +107,6 @@ sp_pcontext::push_label(char *name, uint ip)
 }
 
 sp_label_t *
-sp_pcontext::push_gen_label(uint ip)
-{
-  sp_label_t *lab= NULL;
-  char *s= my_malloc(10, MYF(MY_WME)); // 10=...
-
-  if (s)
-  {
-    sprintf(s, ".%08x", m_genlab++); // ...9+1
-    lab= push_label(s, ip);
-  }
-  return lab;
-}
-
-sp_label_t *
 sp_pcontext::find_label(char *name)
 {
   List_iterator_fast<sp_label_t> li(m_label);

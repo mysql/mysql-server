@@ -1030,7 +1030,6 @@ sp_decl_idents:
 	  }
 	;
 
-/* Dummy for the spset thing. Will go away when the SET problem is fixed. */
 sp_proc_stmt:
 	  {
 	    Lex->sphead->reset_lex(YYTHD);
@@ -1045,13 +1044,39 @@ sp_proc_stmt:
 	    lex->sphead->restore_lex(YYTHD);
           }
 	| IF sp_if END IF {}
-/*	| sp_case */
+	| CASE_SYM WHEN_SYM
+	  {
+	    Lex->sphead->m_simple_case= FALSE;
+	  }
+	  sp_case END CASE_SYM {}
+	| CASE_SYM expr WHEN_SYM
+	  {
+	    /* We "fake" this by using an anonymous variable which we
+	       set to the expression. Note that all WHENs are evaluate
+	       at the same frame level, so we then know that it's the
+	       top-most variable in the frame. */
+	    LEX *lex= Lex;
+	    uint offset= lex->spcont->current_framesize();
+	    sp_instr_set *i = new sp_instr_set(lex->sphead->instructions(),
+	                                       offset, $2, MYSQL_TYPE_STRING);
+	    LEX_STRING dummy;
+
+	    dummy.str= (char *)"";
+	    dummy.length= 0;
+	    lex->spcont->push(&dummy, MYSQL_TYPE_STRING, sp_param_in);
+	    lex->sphead->add_instr(i);
+	    lex->sphead->m_simple_case= TRUE;
+	  }
+	  sp_case END CASE_SYM
+	  {
+	    Lex->spcont->pop();
+	  }
 	| sp_labeled_control
 	  {}
 	| { /* Unlabeled controls get a secret label. */
 	    LEX *lex= Lex;
 
-	    lex->spcont->push_gen_label(lex->sphead->instructions());
+	    lex->spcont->push_label((char *)"", lex->sphead->instructions());
 	  }
 	  sp_unlabeled_control
 	  {
@@ -1127,7 +1152,7 @@ sp_if:
 	    uint ip= sp->instructions();
 	    sp_instr_jump_if_not *i = new sp_instr_jump_if_not(ip, $1);
 
-	    sp->push_backpatch(i, ctx->push_gen_label(0));  /* Forward only */
+	    sp->push_backpatch(i, ctx->push_label((char *)"", 0));
             sp->add_instr(i);
 	  }
 	  sp_proc_stmts
@@ -1139,21 +1164,64 @@ sp_if:
 
 	    sp->add_instr(i);
 	    sp->backpatch(ctx->pop_label());
-	    sp->push_backpatch(i, ctx->push_gen_label(0));  /* Forward only */
+	    sp->push_backpatch(i, ctx->push_label((char *)"", 0));
 	  }
 	  sp_elseifs
 	  {
 	    LEX *lex= Lex;
-	    sp_head *sp= lex->sphead;
-	    sp_pcontext *ctx= lex->spcont;
 
-	    sp->backpatch(ctx->pop_label());
+	    lex->sphead->backpatch(lex->spcont->pop_label());
 	  }
 	;
 
 sp_elseifs:
 	  /* Empty */
 	| ELSEIF_SYM sp_if
+	| ELSE sp_proc_stmts
+	;
+
+sp_case:
+	  expr THEN_SYM
+	  {
+	    sp_head *sp= Lex->sphead;
+	    sp_pcontext *ctx= Lex->spcont;
+	    uint ip= sp->instructions();
+	    sp_instr_jump_if_not *i;
+
+	    if (! sp->m_simple_case)
+	      i= new sp_instr_jump_if_not(ip, $1);
+	    else
+	    { /* Simple case: <caseval> = <whenval> */
+	      Item *var= (Item*) new Item_splocal(ctx->current_framesize()-1);
+	      Item *expr= Item_bool_func2::eq_creator(var, $1);
+
+	      i= new sp_instr_jump_if_not(ip, expr);
+	    }
+	    sp->push_backpatch(i, ctx->push_label((char *)"", 0));
+            sp->add_instr(i);
+	  }
+	  sp_proc_stmts
+	  {
+	    sp_head *sp= Lex->sphead;
+	    sp_pcontext *ctx= Lex->spcont;
+	    uint ip= sp->instructions();
+	    sp_instr_jump *i = new sp_instr_jump(ip);
+
+	    sp->add_instr(i);
+	    sp->backpatch(ctx->pop_label());
+	    sp->push_backpatch(i, ctx->push_label((char *)"", 0));
+	  }
+	  sp_whens
+	  {
+	    LEX *lex= Lex;
+
+	    lex->sphead->backpatch(lex->spcont->pop_label());
+	  }
+	;
+
+sp_whens:
+	  /* Empty */
+	| WHEN_SYM sp_case
 	| ELSE sp_proc_stmts
 	;
 
