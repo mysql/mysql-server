@@ -61,6 +61,9 @@
 #define NDB_TYPE_LONG_VARCHAR           23
 #define NDB_TYPE_LONG_VARBINARY         24
 
+// add at next merge 4.1->5.0
+// #define NDB_TYPE_TIME                25
+
 #define NDB_TYPE_MAX                    25
  
 #endif
