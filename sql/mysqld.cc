@@ -2325,7 +2325,7 @@ pthread_handler_decl(handle_connections_sockets,arg __attribute__((unused)))
     if (!(test_flags & TEST_BLOCKING))
       fcntl(sock, F_SETFL, flags);
 #endif
-    if (new_sock < 0)
+    if (new_sock == INVALID_SOCKET)
     {
       if ((error_count++ & 255) == 0)		// This can happen often
 	sql_perror("Error in accept");
