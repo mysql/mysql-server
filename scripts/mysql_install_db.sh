@@ -37,6 +37,7 @@ parse_arguments() {
       --basedir=*) basedir=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
       --ldata=*|--datadir=*) ldata=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
       --user=*) user=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
+      --skip-name-resolve) ip_only=1 ;;
       *)
         if test -n "$pick_args"
         then
@@ -133,6 +134,12 @@ then
     echo "This means that you should use IP addresses instead of hostnames"
     echo "when specifying MySQL privileges !"
   fi
+fi
+
+if test "$ip_only" -eq 1
+then
+  ip=`echo "$resolved" | awk '/ /{print $6}'`
+  hostname=$ip
 fi
 
 # Create database directories mysql & test
