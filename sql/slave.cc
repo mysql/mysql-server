@@ -451,6 +451,12 @@ int fetch_nx_table(THD* thd, MASTER_INFO* mi)
     goto err;
   }
 
+  if (!mi->host || !*mi->host)
+  {
+    nx_errno = ER_BAD_HOST_ERROR;
+    goto err;
+  }
+
   safe_connect(thd, mysql, mi);
   if (slave_killed(thd))
     goto err;
