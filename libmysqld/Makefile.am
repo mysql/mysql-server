@@ -89,10 +89,10 @@ libmysqld.a:	libmysqld_int.a $(INC_LIB)
 		  ar x $$file; \
 		  for obj in *.o ; do mv $$obj $${bfile}_$$obj ; done ; \
 		  ar q ../libmysqld_int2.a *.o ; \
-		  rm *.o ; \
+		  rm -f *.o ; \
 		done
 		mv libmysqld_int2.a libmysqld.a
-		rm tmp/*
+		rm -f tmp/*
 		$(RANLIB) libmysqld.a
 
 ## XXX: any time the client interface changes, we'll need to bump
