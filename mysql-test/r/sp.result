@@ -500,6 +500,23 @@ id	data
 hndlr3	13
 delete from t1;
 drop procedure hndlr3;
+create procedure bug822(a_id char(16), a_data int)
+begin
+declare n int;
+select count(*) into n from t1 where id = a_id and data = a_data;
+if n = 0 then
+insert into t1 (id, data) values (a_id, a_data);
+end if;
+end;
+call bug822('foo', 42);
+call bug822('foo', 42);
+call bug822('bar', 666);
+select * from t1;
+id	data
+foo	42
+bar	666
+delete from t1;
+drop procedure bug822;
 drop table if exists fac;
 create table fac (n int unsigned not null primary key, f bigint unsigned);
 create procedure ifac(n int unsigned)

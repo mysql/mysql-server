@@ -121,3 +121,20 @@ set res = 1;
 end if;
 end;
 ERROR HY000: Undefined CONDITION: bar
+create function f(val int) returns int
+begin
+declare x int;
+set x = val+3;
+end;
+ERROR HY000: No RETURN found in FUNCTION f
+create function f(val int) returns int
+begin
+declare x int;
+set x = val+3;
+if x < 4 then
+return x;
+end if;
+end;
+select f(10);
+ERROR HY000: FUNCTION f ended without RETURN
+drop function f;
