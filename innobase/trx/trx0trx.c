@@ -24,7 +24,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "thr0loc.h"
 #include "btr0sea.h"
 #include "os0proc.h"
-#include "xa.h"
+#include "trx0xa.h"
 
 /* Copy of the prototype for innobase_mysql_print_thd: this
 copy MUST be equal to the one in mysql/sql/ha_innodb.cc ! */
@@ -1740,10 +1740,6 @@ trx_prepare_off_kernel(
 		undo = trx->update_undo;
 
 		if (undo) {
-			mutex_enter(&kernel_mutex);
-			trx->no = trx_sys_get_new_trx_no();
-			
-			mutex_exit(&kernel_mutex);
 
 			/* It is not necessary to obtain trx->undo_mutex here
 			because only a single OS thread is allowed to do the
@@ -1781,11 +1777,6 @@ trx_prepare_off_kernel(
 
 		mutex_exit(&kernel_mutex);
 	
-		if (trx->insert_undo != NULL) {
-
-			trx_undo_insert_cleanup(trx);
-		}
-
 		/* Write the log to the log files AND flush them to disk */
 
 		/*-------------------------------------*/
@@ -1860,9 +1851,19 @@ trx_recover_for_mysql(
 	while (trx) {
 		if (trx->conc_state == TRX_PREPARED) {
 			xid_list[num_of_transactions] = trx->xid;
+
+			fprintf(stderr,
+"InnoDB: Transaction %lu %lu in prepared state after recovery\n",
+				(ulong) ut_dulint_get_high(trx->id),
+				(ulong) ut_dulint_get_low(trx->id));
+
+			fprintf(stderr,
+"InnoDB: Transaction contains changes to %lu rows\n",
+			(ulong)ut_conv_dulint_to_longlong(trx->undo_no));
+
 			num_of_transactions++;
 		
-			if ( (uint)num_of_transactions == len ) {
+			if ((uint)num_of_transactions == len ) {
 				break;
 			}
 		}

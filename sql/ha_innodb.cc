@@ -80,7 +80,7 @@ extern "C" {
 #include "../innobase/include/fsp0fsp.h"
 #include "../innobase/include/sync0sync.h"
 #include "../innobase/include/fil0fil.h"
-#include "../innobase/include/xa.h"
+#include "../innobase/include/trx0xa.h"
 }
 
 #define HA_INNOBASE_ROWS_IN_TABLE 10000 /* to get optimization right */
@@ -5935,7 +5935,7 @@ int innobase_xa_end(
 	int i;
 	XID xid;
 
-	while(trx_num = innobase_xa_recover(trx_list, trx_num_max)) {
+	while((trx_num = innobase_xa_recover(trx_list, trx_num_max))) {
 
 		for(i=0;i < trx_num; i++) {
 			xid = trx_list[i];
