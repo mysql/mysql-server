@@ -1,10 +1,10 @@
-#!@PERL@
+#!/usr/bin/perl
 
 use Getopt::Long;
 use POSIX qw(strftime);
 
 $|=1;
-$VER="2.1";
+$VER="2.2";
 
 $opt_config_file   = undef();
 $opt_example       = 0;
@@ -134,12 +134,13 @@ sub report_mysqlds
     @options = `$com`;
     chop @options;
 
-    $com = "$mysqladmin -u $opt_user -p$opt_password";
+    $com = "$mysqladmin -u $opt_user";
+    $com.= defined($opt_password) ? " -p$opt_password" : "";
     $com.= $opt_tcp_ip ? " -h 127.0.0.1" : "";
     for ($j = 0; defined($options[$j]); $j++)
     {
-      if ((($options[$j] =~ m/^(\-\-socket)(.*)$/) && !$opt_tcp_ip) ||
-	  ($options[$j] =~ m/^(\-\-port)(.*)$/))
+      if ((($options[$j] =~ m/^(\-\-socket\=)(.*)$/) && !$opt_tcp_ip) ||
+	  ($options[$j] =~ m/^(\-\-port\=)(.*)$/))
       {
 	$com.= " $options[$j]";
       }
@@ -242,12 +243,13 @@ sub stop_mysqlds()
     @options = `$com`;
     chop @options;
 
-    $com = "$mysqladmin -u $opt_user -p$opt_password";
+    $com = "$mysqladmin -u $opt_user";
+    $com.= defined($opt_password) ? " -p$opt_password" : "";
     $com.= $opt_tcp_ip ? " -h 127.0.0.1" : "";
     for ($j = 0; defined($options[$j]); $j++)
     {
-      if ((($options[$j] =~ m/^(\-\-socket)(.*)$/) && !$opt_tcp_ip) ||
-	  ($options[$j] =~ m/^(\-\-port)(.*)$/))
+      if ((($options[$j] =~ m/^(\-\-socket\=)(.*)$/) && !$opt_tcp_ip) ||
+	  ($options[$j] =~ m/^(\-\-port\=)(.*)$/))
       {
 	$com.= " $options[$j]";
       }
@@ -461,8 +463,10 @@ sub example
 #   safe_mysqld 'guards' every mysqld process and will restart it, if mysqld
 #   process fails due to signal kill -9, or similar. (Like segmentation fault,
 #   which MySQL should never do, of course ;) Please note that safe_mysqld
-#   script may require that you start it from a certain place. If you have
-#   problems starting, please see the script. Check especially the lines:
+#   script may require that you start it from a certain place. This means that
+#   you may have to CD to a certain directory, before you start the
+#   mysqld_multi. If you have problems starting, please see the script.
+#   Check especially the lines:
 #   --------------------------------------------------------------------------
 #   MY_PWD=`pwd`
 #   Check if we are starting this relative (for the binary release)
@@ -482,16 +486,15 @@ sub example
 # 7.You may want to use option '--user' for mysqld, but in order to do this
 #   you need to be root when you start this script. Having the option
 #   in the config file doesn't matter; you will just get a warning, if you are
-#   no the superuser and the mysqld's are started under *your* unix account.
-#   IMPORTANT: Make sure that the pid-file and the data directory is
+#   not the superuser and the mysqlds are started under *your* unix account.
+#   IMPORTANT: Make sure that the pid-file and the data directory are
 #   read+write(+execute for the latter one) accessible for *THAT* UNIX user,
 #   who the specific mysqld process is started as. *DON'T* use the UNIX root
 #   account for this, unless you *KNOW* what you are doing!
 # 8.MOST IMPORTANT: Make sure that you understand the meanings of the options
 #   that are passed to the mysqlds and why *WOULD YOU WANT* to have separate
 #   mysqld processes. Starting multiple mysqlds in one data directory *WON'T* 
-#   give you extra performance in a threaded system! It takes too much space
-#   to describe everything here, please consult the MySQL manual.
+#   give you extra performance in a threaded system!
 #
 [mysqld_multi]
 mysqld     = /usr/local/bin/safe_mysqld
