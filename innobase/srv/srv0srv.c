@@ -2819,7 +2819,11 @@ background_loop:
 		
 	srv_main_thread_op_info = (char*)"purging";
 
-	n_pages_purged = trx_purge();
+	if (srv_fast_shutdown && srv_shutdown_state > 0) {
+	        n_pages_purged = 0;
+	} else {
+	        n_pages_purged = trx_purge();
+	}
 
 	srv_main_thread_op_info = (char*)"reserving kernel mutex";
 
@@ -2831,7 +2835,12 @@ background_loop:
 	mutex_exit(&kernel_mutex);
 
 	srv_main_thread_op_info = (char*)"doing insert buffer merge";
-	n_bytes_merged = ibuf_contract_for_n_pages(TRUE, 20);
+
+	if (srv_fast_shutdown && srv_shutdown_state > 0) {
+	        n_bytes_merged = 0;
+	} else {
+	        n_bytes_merged = ibuf_contract_for_n_pages(TRUE, 20);
+	}
 
 	srv_main_thread_op_info = (char*)"reserving kernel mutex";
 
