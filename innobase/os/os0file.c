@@ -1083,6 +1083,7 @@ os_file_write(
 	DWORD		low;
 	DWORD		high;
 	ulint		i;
+	ulint		n_retries	= 0;
 
 	ut_a((offset & 0xFFFFFFFF) == offset);
 
@@ -1091,7 +1092,7 @@ os_file_write(
 	ut_ad(file);
 	ut_ad(buf);
 	ut_ad(n > 0);
-
+retry:
 	low = offset;
 	high = offset_high;
 	
@@ -1135,6 +1136,17 @@ os_file_write(
 		return(TRUE);
 	}
 
+	/* If InnoDB Hot Backup is running, then, at least in Windows 2000,
+	we may get here a specific error. Let us retry the operation 10
+	times. */
+	
+	if (GetLastError() == ERROR_LOCK_VIOLATION && n_retries < 10) {
+
+		n_retries++;
+
+		goto retry;
+	}	
+	
 	if (!os_has_said_disk_full) {
 	
 		ut_print_timestamp(stderr);
@@ -1147,7 +1159,7 @@ os_file_write(
 "InnoDB: what the error number means.\n"
 "InnoDB: Check that your OS and file system support files of this size.\n"
 "InnoDB: Check also that the disk is not full or a disk quota exceeded.\n",
-			name, offset_high, offset, n, len,
+			name, offset_high, offset, n, (ulint)len,
 			(ulint)GetLastError());
 
 		os_has_said_disk_full = TRUE;
@@ -1170,13 +1182,13 @@ os_file_write(
 
 		fprintf(stderr,
 "  InnoDB: Error: Write to file %s failed at offset %lu %lu.\n"
-"InnoDB: %lu bytes should have been written, only %lu were written.\n"
+"InnoDB: %lu bytes should have been written, only %ld were written.\n"
 "InnoDB: Operating system error number %lu.\n"
 "InnoDB: Look from section 13.2 at http://www.innodb.com/ibman.html\n"
 "InnoDB: what the error number means or use the perror program of MySQL.\n"
 "InnoDB: Check that your OS and file system support files of this size.\n"
 "InnoDB: Check also that the disk is not full or a disk quota exceeded.\n",
-			name, offset_high, offset, n, (ulint)ret,
+			name, offset_high, offset, n, (long int)ret,
 							(ulint)errno);
 		os_has_said_disk_full = TRUE;
 	}
