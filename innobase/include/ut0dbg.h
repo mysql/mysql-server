@@ -9,9 +9,9 @@ Created 1/30/1994 Heikki Tuuri
 #ifndef ut0dbg_h
 #define ut0dbg_h
 
+#include "univ.i"
 #include <assert.h>
 #include <stdlib.h>
-#include "univ.i"
 #include "os0thread.h"
 
 extern ulint	ut_dbg_zero; /* This is used to eliminate

@@ -2393,7 +2393,7 @@ Apart from the following links, you can find and download a lot of
 Information about the German MySQL mailing list.
 
 @item @uref{http://www2.rent-a-database.de/mysql/}
-@strong{MySQL} manual in German.
+@strong{MySQL} handbook in German.
 
 @item @uref{http://www.bitmover.com:8888//home/bk/mysql}
 Web access to the @strong{MySQL} BitKeeper repository.
