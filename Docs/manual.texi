@@ -46859,6 +46859,8 @@ as @code{NULL}.
 Fixed problem with @code{myisampack} when using pre-space filled CHAR columns.
 @item
 Applied patch from Yuri Dario for OS2.
+@item
+Fixed bug in @code{--safe-user-create}
 @end itemize
 
 @node News-3.23.42, News-3.23.41, News-3.23.43, News-3.23.x
