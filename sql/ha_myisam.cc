@@ -811,78 +811,94 @@ int ha_myisam::preload_keys(THD* thd, HA_CHECK_OPT *check_opt)
 }
 
 /*
-  Deactive all not unique index that can be recreated fast
-
+  disable indexes, making it persistent if requested
   SYNOPSIS
-    deactivate_non_unique_index()
-    rows		Rows to be inserted
-			0 if we don't know
-			HA_POS_ERROR if we want to force disabling
-                        and make it permanent (save on disk)
+    disable_indexes(all, save)
+    all         disable all indexes
+                if not set only non-unique indexes will be disabled
+                [all=1 is NOT IMPLEMENTED YET]
+    save        save the disabled state, so that it will persist
+                between queries/threads/reboots
+                [save=0 is NOT IMPLEMENTED YET]
 */
-
-void ha_myisam::deactivate_non_unique_index(ha_rows rows)
+int ha_myisam::disable_indexes(bool all, bool save)
 {
-  MYISAM_SHARE* share = file->s;
-  if (share->state.key_map == ((ulonglong) 1L << share->base.keys)-1)
-  {
-    if (!(specialflag & SPECIAL_SAFE_MODE))
-    {
-      if (rows == HA_POS_ERROR) // force disable and save it on disk!
-        mi_extra(file, HA_EXTRA_NO_KEYS, 0);
-      else
-      {
-	/*
-	  Only disable old index if the table was empty and we are inserting
-	  a lot of rows.
-	  We should not do this for only a few rows as this is slower and
-	  we don't want to update the key statistics based of only a few rows.
-	*/
-	if (file->state->records == 0 &&
-	    (!rows || rows >= MI_MIN_ROWS_TO_DISABLE_INDEXES))
-	  mi_disable_non_unique_index(file,rows);
-        else if (!file->bulk_insert &&
-		 (!rows || rows >= MI_MIN_ROWS_TO_USE_BULK_INSERT))
-          mi_init_bulk_insert(file,
-                              current_thd->variables.bulk_insert_buff_size,
-                              rows);
-      }
-    }
-    enable_activate_all_index=1;
-    info(HA_STATUS_CONST);			// Read new key info
-  }
-  else
-    enable_activate_all_index=0;
+  mi_extra(file, HA_EXTRA_NO_KEYS, 0);
+  info(HA_STATUS_CONST);                        // Read new key info
+  return 0;
 }
 
-
-bool ha_myisam::activate_all_index(THD *thd)
+int ha_myisam::enable_indexes()
 {
-  int error=0;
-  MI_CHECK param;
-  MYISAM_SHARE* share = file->s;
-  DBUG_ENTER("activate_all_index");
+  if (file->s->state.key_map == set_bits(ulonglong, file->s->base.keys))
+    return 0;
 
-  mi_end_bulk_insert(file);
-  if (enable_activate_all_index &&
-     share->state.key_map != set_bits(ulonglong, share->base.keys))
+  int error=0;
+  THD *thd=current_thd;
+  MI_CHECK param;
+  const char *save_proc_info=thd->proc_info;
+  thd->proc_info="Creating index";
+  myisamchk_init(&param);
+  param.op_name = (char*) "recreating_index";
+  param.testflag = (T_SILENT | T_REP_BY_SORT | T_QUICK |
+                    T_CREATE_MISSING_KEYS);
+  param.myf_rw&= ~MY_WAIT_IF_FULL;
+  param.sort_buffer_length=  thd->variables.myisam_sort_buff_size;
+  param.tmpdir=&mysql_tmpdir_list;
+  error=repair(thd,param,0) != HA_ADMIN_OK;
+  info(HA_STATUS_CONST);
+  thd->proc_info=save_proc_info;
+  return error;
+}
+
+/*
+  prepare for a many-rows insert operation
+  e.g. - disable indexes (if they can be recreated fast) or
+  activate special bulk-insert optimizations
+
+  SYNOPSIS
+    start_bulk_insert(rows)
+    rows        Rows to be inserted
+                0 if we don't know
+*/
+
+void ha_myisam::start_bulk_insert(ha_rows rows)
+{
+  THD *thd=current_thd;
+  ulong size= min(thd->variables.read_buff_size, table->avg_row_length*rows);
+
+  /* don't enable row cache if too few rows */
+  if (!rows && rows >  MI_MIN_ROWS_TO_USE_WRITE_CACHE)
+    mi_extra(file, HA_EXTRA_WRITE_CACHE, (void*) &size);
+
+  can_enable_indexes= (file->s->state.key_map ==
+                       set_bits(ulonglong, file->s->base.keys));
+
+  if (!(specialflag & SPECIAL_SAFE_MODE))
   {
-    const char *save_proc_info=thd->proc_info;
-    thd->proc_info="Creating index";
-    myisamchk_init(&param);
-    param.op_name = (char*) "recreating_index";
-    param.testflag = (T_SILENT | T_REP_BY_SORT | T_QUICK |
-		      T_CREATE_MISSING_KEYS);
-    param.myf_rw&= ~MY_WAIT_IF_FULL;
-    param.sort_buffer_length=  thd->variables.myisam_sort_buff_size;
-    param.tmpdir=&mysql_tmpdir_list;
-    error=repair(thd,param,0) != HA_ADMIN_OK;
-    info(HA_STATUS_CONST);
-    thd->proc_info=save_proc_info;
+    /*
+      Only disable old index if the table was empty and we are inserting
+      a lot of rows.
+      We should not do this for only a few rows as this is slower and
+      we don't want to update the key statistics based of only a few rows.
+    */
+    if (file->state->records == 0 && can_enable_indexes &&
+        (!rows || rows >= MI_MIN_ROWS_TO_DISABLE_INDEXES))
+      mi_disable_non_unique_index(file,rows);
+    else
+    if (!file->bulk_insert &&
+        (!rows || rows >= MI_MIN_ROWS_TO_USE_BULK_INSERT))
+    {
+      mi_init_bulk_insert(file, thd->variables.bulk_insert_buff_size, rows);
+    }
   }
-  else
-    enable_activate_all_index=1;
-  DBUG_RETURN(error);
+}
+
+int ha_myisam::end_bulk_insert()
+{
+  mi_end_bulk_insert(file);
+  int err=mi_extra(file, HA_EXTRA_NO_CACHE, 0);
+  return err ? err : can_enable_indexes ? enable_indexes() : 0;
 }
 
 
@@ -1113,12 +1129,6 @@ int ha_myisam::extra_opt(enum ha_extra_function operation, ulong cache_size)
   if ((specialflag & SPECIAL_SAFE_MODE) && operation == HA_EXTRA_WRITE_CACHE)
     return 0;
   return mi_extra(file, operation, (void*) &cache_size);
-}
-
-
-int ha_myisam::reset(void)
-{
-  return mi_extra(file, HA_EXTRA_RESET, 0);
 }
 
 int ha_myisam::delete_all_rows()

@@ -417,6 +417,7 @@ typedef struct st_mi_sort_param
 #define MI_MIN_SIZE_BULK_INSERT_TREE 16384             /* this is per key */
 #define MI_MIN_ROWS_TO_USE_BULK_INSERT 100
 #define MI_MIN_ROWS_TO_DISABLE_INDEXES 100
+#define MI_MIN_ROWS_TO_USE_WRITE_CACHE 10
 
 /* The UNIQUE check is done with a hashed long key */
 

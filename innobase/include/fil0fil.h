@@ -19,7 +19,7 @@ Created 10/25/1995 Heikki Tuuri
 /* When mysqld is run, the default directory "." is the mysqld datadir, but in
 ibbackup we must set it explicitly; the patgh must NOT contain the trailing
 '/' or '\' */
-extern char*	fil_path_to_mysql_datadir;
+extern const char*	fil_path_to_mysql_datadir;
 
 /* Initial size of a single-table tablespace in pages */
 #define FIL_IBD_FILE_INITIAL_SIZE	4

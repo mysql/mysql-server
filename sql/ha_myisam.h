@@ -39,7 +39,7 @@ class ha_myisam: public handler
   MI_INFO *file;
   ulong   int_table_flags;
   char    *data_file_name, *index_file_name;
-  bool enable_activate_all_index;
+  bool can_enable_indexes;
   int repair(THD *thd, MI_CHECK &param, bool optimize);
 
  public:
@@ -48,7 +48,7 @@ class ha_myisam: public handler
 		    HA_NULL_KEY | HA_CAN_FULLTEXT | HA_CAN_SQL_HANDLER |
 		    HA_DUPP_POS | HA_BLOB_KEY | HA_AUTO_PART_KEY |
 		    HA_FILE_BASED | HA_HAS_GEOMETRY),
-    enable_activate_all_index(1)
+    can_enable_indexes(1)
   {}
   ~ha_myisam() {}
   const char *table_type() const { return "MyISAM"; }
@@ -103,11 +103,12 @@ class ha_myisam: public handler
   void info(uint);
   int extra(enum ha_extra_function operation);
   int extra_opt(enum ha_extra_function operation, ulong cache_size);
-  int reset(void);
   int external_lock(THD *thd, int lock_type);
   int delete_all_rows(void);
-  void deactivate_non_unique_index(ha_rows rows);
-  bool activate_all_index(THD *thd);
+  int disable_indexes(bool all, bool save);
+  int enable_indexes();
+  void start_bulk_insert(ha_rows rows);
+  int end_bulk_insert();
   ha_rows records_in_range(int inx,
 			   const byte *start_key,uint start_key_len,
 			   enum ha_rkey_function start_search_flag,

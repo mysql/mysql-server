@@ -1,0 +1,31 @@
+-- source include/have_query_cache.inc
+-- source include/have_ndb.inc
+
+set GLOBAL query_cache_size=1355776;
+reset query cache;
+flush status;
+
+--disable_warnings
+drop table if exists t1,t2;
+--enable_warnings
+
+CREATE TABLE t1 (a int) ENGINE=ndbcluster;
+CREATE TABLE t2 (a int);
+
+select * from t1;
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+select * from t2;
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+select * from t1;
+select * from t2;
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+
+drop table t1, t2;
+
+SET GLOBAL query_cache_size=0;

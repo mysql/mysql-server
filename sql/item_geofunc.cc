@@ -697,8 +697,7 @@ longlong Item_func_srid::val_int()
   DBUG_ASSERT(fixed == 1);
   String *swkb= args[0]->val_str(&value);
   Geometry_buffer buffer;
-  Geometry *geom;
-
+  
   null_value= (!swkb || 
 	       !Geometry::create_from_wkb(&buffer,
 					  swkb->ptr() + SRID_SIZE,

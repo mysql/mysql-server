@@ -533,6 +533,22 @@ Item *Item_field::get_tmp_table_item(THD *thd)
 }
 
 
+/*
+  Create an item from a string we KNOW points to a valid longlong/ulonglong
+  end \0 terminated number string
+*/
+
+Item_int::Item_int(const char *str_arg, uint length)
+{
+  char *end_ptr= (char*) str_arg + length;
+  int error;
+  value= my_strtoll10(str_arg, &end_ptr, &error);
+  max_length= (uint) (end_ptr - str_arg);
+  name= (char*) str_arg;
+  fixed= 1;
+}
+
+
 String *Item_int::val_str(String *str)
 {
   // following assert is redundant, because fixed=1 assigned in constructor
@@ -546,6 +562,13 @@ void Item_int::print(String *str)
   // my_charset_bin is good enough for numbers
   str_value.set(value, &my_charset_bin);
   str->append(str_value);
+}
+
+
+Item_uint::Item_uint(const char *str_arg, uint length):
+  Item_int(str_arg, length)
+{
+  unsigned_flag= 1;
 }
 
 
@@ -635,12 +658,19 @@ Item_param::Item_param(unsigned position) :
   set_param_func(default_set_param_func)
 {
   name= (char*) "?";
+  /* 
+    Since we can't say whenever this item can be NULL or cannot be NULL
+    before mysql_stmt_execute(), so we assuming that it can be NULL until
+    value is set.
+  */
+  maybe_null= 1;
 }
 
 void Item_param::set_null()
 {
   DBUG_ENTER("Item_param::set_null");
-  maybe_null= null_value= value_is_set= 1;
+  /* These are cleared after each execution by reset() method */
+  null_value= value_is_set= 1;
   DBUG_VOID_RETURN;
 }
 
@@ -650,6 +680,7 @@ void Item_param::set_int(longlong i)
   int_value= (longlong)i;
   item_type= INT_ITEM;
   value_is_set= 1;
+  maybe_null= 0;
   DBUG_PRINT("info", ("integer: %lld", int_value));
   DBUG_VOID_RETURN;
 }
@@ -660,6 +691,7 @@ void Item_param::set_double(double value)
   real_value=value;
   item_type= REAL_ITEM;
   value_is_set= 1;
+  maybe_null= 0;
   DBUG_PRINT("info", ("double: %lg", real_value));
   DBUG_VOID_RETURN;
 }
@@ -671,6 +703,7 @@ void Item_param::set_value(const char *str, uint length)
   str_value.copy(str,length,default_charset());
   item_type= STRING_ITEM;
   value_is_set= 1;
+  maybe_null= 0;
   DBUG_PRINT("info", ("string: %s", str_value.ptr()));
   DBUG_VOID_RETURN;
 }
@@ -695,6 +728,7 @@ void Item_param::set_time(TIME *tm, timestamp_type type)
   item_is_time= TRUE;
   item_type= STRING_ITEM;
   value_is_set= 1;
+  maybe_null= 0;
 }
 
 
@@ -703,14 +737,33 @@ void Item_param::set_longdata(const char *str, ulong length)
   str_value.append(str,length);
   long_data_supplied= 1;
   value_is_set= 1;
+  maybe_null= 0;
+}
+
+
+/*
+    Resets parameter after execution.
+  
+  SYNOPSIS
+     Item_param::reset()
+ 
+  NOTES
+    We clear null_value here instead of setting it in set_* methods, 
+    because we want more easily handle case for long data.
+*/
+
+void Item_param::reset()
+{  
+  str_value.set("", 0, &my_charset_bin);
+  value_is_set= long_data_supplied= 0;
+  maybe_null= 1;
+  null_value= 0;
 }
 
 
 int Item_param::save_in_field(Field *field, bool no_conversions)
 {
-  THD *thd= current_thd;
-
-  DBUG_ASSERT(thd->command == COM_EXECUTE);
+  DBUG_ASSERT(current_thd->command == COM_EXECUTE);
   
   if (null_value)
     return (int) set_field_to_null(field);   
@@ -719,12 +772,12 @@ int Item_param::save_in_field(Field *field, bool no_conversions)
   if (item_result_type == INT_RESULT)
   {
     longlong nr=val_int();
-    return (field->store(nr)) ? -1 : 0;
+    return field->store(nr);
   }
   if (item_result_type == REAL_RESULT)
   {
     double nr=val();    
-    return (field->store(nr)) ? -1 : 0; 
+    return field->store(nr); 
   }  
   if (item_is_time)
   {
@@ -745,6 +798,8 @@ double Item_param::val()
 {
   DBUG_ASSERT(value_is_set == 1);
   int err;
+  if (null_value)
+    return 0.0;
   switch (item_result_type) {
   case STRING_RESULT:
     return (double) my_strntod(str_value.charset(), (char*) str_value.ptr(),
@@ -761,6 +816,8 @@ longlong Item_param::val_int()
 { 
   DBUG_ASSERT(value_is_set == 1);
   int err;
+  if (null_value)
+    return 0;
   switch (item_result_type) {
   case STRING_RESULT:
     return my_strntoll(str_value.charset(),
@@ -777,6 +834,8 @@ longlong Item_param::val_int()
 String *Item_param::val_str(String* str) 
 { 
   DBUG_ASSERT(value_is_set == 1);
+  if (null_value)
+    return NULL;
   switch (item_result_type) {
   case INT_RESULT:
     str->set(int_value, &my_charset_bin);
@@ -1257,14 +1316,15 @@ Field *Item::tmp_table_field_from_field_type(TABLE *table)
 void Item_field::make_field(Send_field *tmp_field)
 {
   field->make_field(tmp_field);
+  DBUG_ASSERT(tmp_field->table_name);
   if (name)
     tmp_field->col_name=name;			// Use user supplied name
 }
 
-/*
-** Set a field:s value from a item
-*/
 
+/*
+  Set a field:s value from a item
+*/
 
 void Item_field::save_org_in_field(Field *to)
 {
@@ -1351,7 +1411,10 @@ int Item::save_in_field(Field *field, bool no_conversions)
     str_value.set_quick(buff, sizeof(buff), cs);
     result=val_str(&str_value);
     if (null_value)
+    {
+      str_value.set_quick(0, 0, cs);
       return set_field_to_null_with_conversions(field, no_conversions);
+    }
     field->set_notnull();
     error=field->store(result->ptr(),result->length(),cs);
     str_value.set_quick(0, 0, cs);
@@ -2001,7 +2064,7 @@ bool field_is_equal_to_item(Field *field,Item *item)
     item_result=item->val_str(&item_tmp);
     if (item->null_value)
       return 1;					// This must be true
-    field->val_str(&field_tmp,&field_tmp);
+    field->val_str(&field_tmp);
     return !stringcmp(&field_tmp,item_result);
   }
   if (res_type == INT_RESULT)

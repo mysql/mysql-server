@@ -35,7 +35,7 @@
 
 
 typedef struct st_key_part {
-  uint16           key,part,part_length;
+  uint16           key,part, store_length, length;
   uint8            null_bit;
   Field            *field;
   Field::imagetype image_type;
@@ -74,6 +74,7 @@ class QUICK_RANGE :public Sql_alloc {
 class QUICK_SELECT_I
 {
 public:
+  bool sorted;
   ha_rows records;  /* estimate of # of records to be retrieved */
   double  read_time; /* time to perform this retrieval          */
   TABLE   *head;
@@ -167,6 +168,17 @@ public:
   bool reverse_sorted() { return 0; }
   bool unique_key_range();
   int get_type() { return QS_TYPE_RANGE; }
+};
+
+
+class QUICK_RANGE_SELECT_GEOM: public QUICK_RANGE_SELECT
+{
+public:
+  QUICK_RANGE_SELECT_GEOM(THD *thd, TABLE *table, uint index_arg,
+                          bool no_alloc, MEM_ROOT *parent_alloc)
+    :QUICK_RANGE_SELECT(thd, table, index_arg, no_alloc, parent_alloc)
+    {};
+  virtual int get_next();
 };
 
 

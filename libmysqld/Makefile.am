@@ -48,7 +48,7 @@ sqlsources = derror.cc field.cc field_conv.cc strfunc.cc filesort.cc \
 	key.cc lock.cc log.cc log_event.cc sql_state.c \
 	protocol.cc net_serv.cc opt_range.cc \
 	opt_sum.cc procedure.cc records.cc sql_acl.cc \
-	sql_load.cc sql_olap.cc \
+	sql_load.cc sql_olap.cc discover.cc \
 	sql_analyse.cc sql_base.cc sql_cache.cc sql_class.cc \
 	sql_crypt.cc sql_db.cc sql_delete.cc sql_error.cc sql_insert.cc \
 	sql_lex.cc sql_list.cc sql_manager.cc sql_map.cc sql_parse.cc \
@@ -58,7 +58,8 @@ sqlsources = derror.cc field.cc field_conv.cc strfunc.cc filesort.cc \
 	sql_update.cc sql_yacc.cc table.cc thr_malloc.cc time.cc \
 	unireg.cc uniques.cc stacktrace.c sql_union.cc hash_filo.cc \
 	spatial.cc gstream.cc sql_help.cc protocol_cursor.cc \
-	sp_head.cc sp_pcontext.cc sp.cc sp_cache.cc sp_rcontext.cc
+	sp_head.cc sp_pcontext.cc sp.cc sp_cache.cc sp_rcontext.cc \
+	parse_file.cc
 
 libmysqld_int_a_SOURCES= $(libmysqld_sources) $(libmysqlsources) $(sqlsources)
 libmysqld_a_SOURCES=

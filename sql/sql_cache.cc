@@ -661,7 +661,7 @@ void query_cache_end_of_result(THD *thd)
   if (thd->net.query_cache_query != 0)	// Quick check on unlocked structure
   {
 #ifdef EMBEDDED_LIBRARY
-    query_cache_insert(&thd->net, (byte*)thd, 
+    query_cache_insert(&thd->net, (char*)thd, 
 		       emb_count_querycache_size(thd));
 #endif
     STRUCT_LOCK(&query_cache.structure_guard_mutex);
@@ -2617,14 +2617,15 @@ TABLE_COUNTER_TYPE Query_cache::is_cacheable(THD *thd, uint32 query_len,
 	table_alias_charset used here because it depends of
 	lower_case_table_names variable
       */
-      if (tables_used->table->db_type == DB_TYPE_MRG_ISAM ||
-	  tables_used->table->tmp_table != NO_TMP_TABLE ||
+      if (tables_used->table->tmp_table != NO_TMP_TABLE ||
+	  (*tables_type & HA_CACHE_TBL_NOCACHE) ||
 	  (tables_used->db_length == 5 &&
 	   my_strnncoll(table_alias_charset, (uchar*)tables_used->db, 6,
 			(uchar*)"mysql",6) == 0))
       {
 	DBUG_PRINT("qcache", 
-		   ("select not cacheable: used MRG_ISAM, temporary or system table(s)"));
+		   ("select not cacheable: temporary, system or \
+other non-cacheable table(s)"));
 	DBUG_RETURN(0);
       }
       if (tables_used->table->db_type == DB_TYPE_MRG_MYISAM)

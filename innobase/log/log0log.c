@@ -511,7 +511,8 @@ log_group_calc_lsn_offset(
 
 	ut_a(offset < (((ib_longlong) 1) << 32)); /* offset must be < 4 GB */
 
-	/* printf("Offset is %lu gr_lsn_offset is %lu difference is %lu\n",
+	/* fprintf(stderr,
+		"Offset is %lu gr_lsn_offset is %lu difference is %lu\n",
 	       (ulint)offset,(ulint)gr_lsn_size_offset, (ulint)difference);
 	*/
 
@@ -931,8 +932,8 @@ log_group_check_flush_completion(
 	if (!log_sys->one_flushed && group->n_pending_writes == 0) {
 #ifdef UNIV_LOG_DEBUG
 		if (log_debug_writes) {
-			printf("Log flushed first to group %lu\n",
-			       (ulong) group->id);
+			fprintf(stderr,
+				"Log flushed first to group %lu\n", (ulong) group->id);
 		}
 #endif /* UNIV_LOG_DEBUG */
 	
@@ -945,7 +946,7 @@ log_group_check_flush_completion(
 #ifdef UNIV_LOG_DEBUG
 	if (log_debug_writes && (group->n_pending_writes == 0)) {
 
-		printf("Log flushed to group %lu\n", (ulong) group->id);
+		fprintf(stderr, "Log flushed to group %lu\n", (ulong) group->id);
 	}
 #endif /* UNIV_LOG_DEBUG */
 
@@ -1068,7 +1069,6 @@ static
 void
 log_group_file_header_flush(
 /*========================*/
-	ulint		type,		/* in: LOG_FLUSH or LOG_RECOVER */
 	log_group_t*	group,		/* in: log group */
 	ulint		nth_file,	/* in: header to the nth file in the
 					log file space */
@@ -1077,9 +1077,6 @@ log_group_file_header_flush(
 {
 	byte*	buf;
 	ulint	dest_offset;
-	
-	UT_NOT_USED(type);
-
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(log_sys->mutex)));
 #endif /* UNIV_SYNC_DEBUG */
@@ -1098,9 +1095,9 @@ log_group_file_header_flush(
 
 #ifdef UNIV_LOG_DEBUG
 	if (log_debug_writes) {
-		printf(
-		"Writing log file header to group %lu file %lu\n",
-		(ulong) group->id, (ulong) nth_file);
+		fprintf(stderr,
+			"Writing log file header to group %lu file %lu\n",
+			(ulong) group->id, (ulong) nth_file);
 	}
 #endif /* UNIV_LOG_DEBUG */
 
@@ -1134,7 +1131,6 @@ Writes a buffer to a log file group. */
 void
 log_group_write_buf(
 /*================*/
-	ulint		type,		/* in: LOG_FLUSH or LOG_RECOVER */
 	log_group_t*	group,		/* in: log group */
 	byte*		buf,		/* in: buffer */
 	ulint		len,		/* in: buffer len; must be divisible
@@ -1175,7 +1171,7 @@ loop:
 	   						&& write_header) {
 		/* We start to write a new log file instance in the group */
 
-		log_group_file_header_flush(type, group,
+		log_group_file_header_flush(group,
 				next_offset / group->file_size, start_lsn);
 	}
 
@@ -1190,15 +1186,14 @@ loop:
 #ifdef UNIV_LOG_DEBUG
 	if (log_debug_writes) {
 
-		printf(
+		fprintf(stderr,
 		"Writing log file segment to group %lu offset %lu len %lu\n"
-		"start lsn %lu %lu\n",
+		"start lsn %lu %lu\n"
+		"First block n:o %lu last block n:o %lu\n",
 			(ulong) group->id, (ulong) next_offset,
 		        (ulong) write_len,
 			(ulong) ut_dulint_get_high(start_lsn),
-			(ulong) ut_dulint_get_low(start_lsn));
-		printf(
-		"First block n:o %lu last block n:o %lu\n",
+			(ulong) ut_dulint_get_low(start_lsn).
 			(ulong) log_block_get_hdr_no(buf),
 			(ulong) log_block_get_hdr_no(
 				buf + write_len - OS_FILE_LOG_BLOCK_SIZE));
@@ -1279,7 +1274,7 @@ loop:
 	ut_ad(loop_count < 5);
 
 	if (loop_count > 2) {
-/*		printf("Log loop count %lu\n", loop_count); */
+/*		fprintf(stderr, "Log loop count %lu\n", loop_count); */
 	}
 	
 	mutex_enter(&(log_sys->mutex));
@@ -1342,7 +1337,8 @@ loop:
 
 #ifdef UNIV_LOG_DEBUG
 	if (log_debug_writes) {
-		printf("Writing log from %lu %lu up to lsn %lu %lu\n",
+		fprintf(stderr,
+			"Writing log from %lu %lu up to lsn %lu %lu\n",
 			(ulong) ut_dulint_get_high(log_sys->written_to_all_lsn),
 			(ulong) ut_dulint_get_low(log_sys->written_to_all_lsn),
 			(ulong) ut_dulint_get_high(log_sys->lsn),
@@ -1396,7 +1392,7 @@ loop:
 	/* Do the write to the log files */
 
 	while (group) {
-		log_group_write_buf(LOG_FLUSH, group,
+		log_group_write_buf(group,
 			log_sys->buf + area_start,
 			area_end - area_start,
 			ut_dulint_align_down(log_sys->written_to_all_lsn,
@@ -1762,11 +1758,11 @@ log_reset_first_header_and_checkpoint(
 	lsn = ut_dulint_add(start, LOG_BLOCK_HDR_SIZE);
 
 	/* Write the label of ibbackup --restore */
-	sprintf((char*) hdr_buf + LOG_FILE_WAS_CREATED_BY_HOT_BACKUP,
+	strcpy((char*) hdr_buf + LOG_FILE_WAS_CREATED_BY_HOT_BACKUP,
 				"ibbackup ");
 	ut_sprintf_timestamp(
-			(char*) hdr_buf + LOG_FILE_WAS_CREATED_BY_HOT_BACKUP
-						+ strlen("ibbackup "));
+			(char*) hdr_buf + (LOG_FILE_WAS_CREATED_BY_HOT_BACKUP
+						+ (sizeof "ibbackup ") - 1));
 	buf = hdr_buf + LOG_CHECKPOINT_1;
 	
 	mach_write_to_8(buf + LOG_CHECKPOINT_NO, ut_dulint_zero);
@@ -1909,7 +1905,7 @@ log_checkpoint(
 
 #ifdef UNIV_LOG_DEBUG
 	if (log_debug_writes) {
-		printf("Making checkpoint no %lu at lsn %lu %lu\n",
+		fprintf(stderr, "Making checkpoint no %lu at lsn %lu %lu\n",
 			(ulong) ut_dulint_get_low(log_sys->next_checkpoint_no),
 			(ulong) ut_dulint_get_high(oldest_lsn),
 			(ulong) ut_dulint_get_low(oldest_lsn));
@@ -2137,13 +2133,13 @@ void
 log_archived_file_name_gen(
 /*=======================*/
 	char*	buf,	/* in: buffer where to write */
-	ulint	id,	/* in: group id */
+	ulint	id __attribute__((unused)),
+			/* in: group id;
+			currently we only archive the first group */
 	ulint	file_no)/* in: file number */
 {
 	ut_a(0);
 
-	UT_NOT_USED(id);	/* Currently we only archive the first group */
-	
 	sprintf(buf, "%sib_arch_log_%010lu", srv_arch_dir, (ulong) file_no);
 }
 
@@ -2292,18 +2288,17 @@ loop:
 
 		if (!ret) {
 			fprintf(stderr,
-		   "InnoDB: Cannot create or open archive log file %s.\n",
-			  name);
-			fprintf(stderr, "InnoDB: Cannot continue operation.\n"
-       		  "InnoDB: Check that the log archive directory exists,\n"
-			  "InnoDB: you have access rights to it, and\n"
-			  "InnoDB: there is space available.\n");
-		  exit(1);
+		"InnoDB: Cannot create or open archive log file %s.\n"
+		"InnoDB: Cannot continue operation.\n"
+		"InnoDB: Check that the log archive directory exists,\n"
+		"InnoDB: you have access rights to it, and\n"
+		"InnoDB: there is space available.\n", name);
+			exit(1);
 		}
 
 #ifdef UNIV_LOG_DEBUG
 		if (log_debug_writes) {
-			printf("Created archive file %s\n", name);
+			fprintf(stderr, "Created archive file %s\n", name);
 		}
 #endif /* UNIV_LOG_DEBUG */
 
@@ -2334,7 +2329,7 @@ loop:
 	
 #ifdef UNIV_LOG_DEBUG
 	if (log_debug_writes) {
-		printf(
+		fprintf(stderr,
 		"Archiving starting at lsn %lu %lu, len %lu to group %lu\n",
 					(ulong) ut_dulint_get_high(start_lsn),
 					(ulong) ut_dulint_get_low(start_lsn),
@@ -2437,7 +2432,8 @@ log_archive_write_complete_groups(void)
 
 #ifdef UNIV_LOG_DEBUG
 	if (log_debug_writes && trunc_files) {
-		printf("Complete file(s) archived to group %lu\n",
+		fprintf(stderr,
+			"Complete file(s) archived to group %lu\n",
 							  (ulong) group->id);
 	}
 #endif /* UNIV_LOG_DEBUG */
@@ -2465,7 +2461,7 @@ log_archive_write_complete_groups(void)
 
 #ifdef UNIV_LOG_DEBUG
 	if (log_debug_writes) {
-		printf("Archiving writes completed\n");
+		fputs("Archiving writes completed\n", stderr);
 	}
 #endif /* UNIV_LOG_DEBUG */
 }
@@ -2488,7 +2484,7 @@ log_archive_check_completion_low(void)
 
 #ifdef UNIV_LOG_DEBUG
 		if (log_debug_writes) {
-			printf("Archiving read completed\n");
+			fputs("Archiving read completed\n", stderr);
 		}
 #endif /* UNIV_LOG_DEBUG */
 
@@ -2640,7 +2636,8 @@ loop:
 
 #ifdef UNIV_LOG_DEBUG
 	if (log_debug_writes) {
-		printf("Archiving from lsn %lu %lu to lsn %lu %lu\n",
+		fprintf(stderr,
+			"Archiving from lsn %lu %lu to lsn %lu %lu\n",
 			(ulong) ut_dulint_get_high(log_sys->archived_lsn),
 			(ulong) ut_dulint_get_low(log_sys->archived_lsn),
 			(ulong) ut_dulint_get_high(limit_lsn),
@@ -2755,7 +2752,7 @@ log_archive_close_groups(
 
 #ifdef UNIV_LOG_DEBUG
 		if (log_debug_writes) {
-			printf(
+			fprintf(stderr,
 			"Incrementing arch file no to %lu in log group %lu\n",
 				(ulong) group->archived_file_no + 2,
 			        (ulong) group->id);
@@ -3313,20 +3310,15 @@ Prints info of the log. */
 void
 log_print(
 /*======*/
-	char*	buf,	/* in/out: buffer where to print */
-	char*	buf_end)/* in: buffer end */
+	FILE*	file)	/* in: file where to print */
 {
 	double	time_elapsed;
 	time_t	current_time;
 
-	if (buf_end - buf < 300) {
-
-		return;
-	}
-
 	mutex_enter(&(log_sys->mutex));
 
-	buf += sprintf(buf, "Log sequence number %lu %lu\n"
+	fprintf(file,
+		"Log sequence number %lu %lu\n"
 	       "Log flushed up to   %lu %lu\n"
 	       "Last checkpoint at  %lu %lu\n",
 			(ulong) ut_dulint_get_high(log_sys->lsn),
@@ -3340,7 +3332,7 @@ log_print(
 			
 	time_elapsed = 0.001 + difftime(current_time,
 					log_sys->last_printout_time);
-	buf += sprintf(buf,
+	fprintf(file,
 	"%lu pending log writes, %lu pending chkp writes\n"
 	"%lu log i/o's done, %.2f log i/o's/second\n",
 	(ulong) log_sys->n_pending_writes,

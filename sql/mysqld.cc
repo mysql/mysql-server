@@ -33,6 +33,9 @@
 #ifdef HAVE_ISAM
 #include "ha_isam.h"
 #endif
+#ifdef HAVE_NDBCLUSTER_DB
+#include "ha_ndbcluster.h"
+#endif
 #include <nisam.h>
 #include <thr_alarm.h>
 #include <ft_global.h>
@@ -264,7 +267,7 @@ my_bool opt_local_infile, opt_external_locking, opt_slave_compressed_protocol;
 my_bool opt_safe_user_create = 0, opt_no_mix_types = 0;
 my_bool opt_show_slave_auth_info, opt_sql_bin_update = 0;
 my_bool opt_log_slave_updates= 0;
-my_bool	opt_console= 0, opt_bdb, opt_innodb, opt_isam;
+my_bool	opt_console= 0, opt_bdb, opt_innodb, opt_isam, opt_ndbcluster;
 my_bool opt_readonly, use_temp_pool, relay_log_purge;
 my_bool opt_sync_bdb_logs, opt_sync_frm;
 my_bool opt_secure_auth= 0;
@@ -330,7 +333,7 @@ char mysql_real_data_home[FN_REFLEN],
      language[LIBLEN],reg_ext[FN_EXTLEN], mysql_charsets_dir[FN_REFLEN],
      max_sort_char,*mysqld_user,*mysqld_chroot, *opt_init_file,
      *opt_init_connect, *opt_init_slave,
-     opt_ft_boolean_syntax[sizeof(ft_boolean_syntax)];
+     def_ft_boolean_syntax[sizeof(ft_boolean_syntax)];
 
 const char *opt_date_time_formats[3];
 
@@ -374,7 +377,8 @@ KEY_CACHE *sql_key_cache;
 CHARSET_INFO *system_charset_info, *files_charset_info ;
 CHARSET_INFO *national_charset_info, *table_alias_charset;
 
-SHOW_COMP_OPTION have_berkeley_db, have_innodb, have_isam;
+SHOW_COMP_OPTION have_berkeley_db, have_innodb, have_isam, 
+ have_ndbcluster, have_example_db;
 SHOW_COMP_OPTION have_raid, have_openssl, have_symlink, have_query_cache;
 SHOW_COMP_OPTION have_crypt, have_compress;
 
@@ -2378,6 +2382,17 @@ Warning: you need to use --log-bin to make --log-slave-updates work. \
 Now disabling --log-slave-updates.");
   }
 
+#ifdef HAVE_REPLICATION
+  if (opt_log_slave_updates && replicate_same_server_id)
+  {
+    sql_print_error("\
+Error: using --replicate-same-server-id in conjunction with \
+--log-slave-updates is impossible, it would lead to infinite loops in this \
+server.");
+    unireg_abort(1);
+  }
+#endif
+
   if (opt_error_log)
   {
     if (!log_error_file_ptr[0])
@@ -3666,7 +3681,7 @@ enum options_mysqld
   OPT_SKIP_SLAVE_START,        OPT_SKIP_INNOBASE,
   OPT_SAFEMALLOC_MEM_LIMIT,    OPT_REPLICATE_DO_TABLE,
   OPT_REPLICATE_IGNORE_TABLE,  OPT_REPLICATE_WILD_DO_TABLE,
-  OPT_REPLICATE_WILD_IGNORE_TABLE,
+  OPT_REPLICATE_WILD_IGNORE_TABLE, OPT_REPLICATE_SAME_SERVER_ID,
   OPT_DISCONNECT_SLAVE_EVENT_COUNT,
   OPT_ABORT_SLAVE_EVENT_COUNT,
   OPT_INNODB_DATA_HOME_DIR,
@@ -3679,7 +3694,7 @@ enum options_mysqld
   OPT_INNODB_FAST_SHUTDOWN,
   OPT_INNODB_FILE_PER_TABLE,
   OPT_SAFE_SHOW_DB,
-  OPT_INNODB, OPT_ISAM, OPT_SKIP_SAFEMALLOC,
+  OPT_INNODB, OPT_ISAM, OPT_NDBCLUSTER, OPT_SKIP_SAFEMALLOC,
   OPT_TEMP_POOL, OPT_TX_ISOLATION,
   OPT_SKIP_STACK_TRACE, OPT_SKIP_SYMLINKS,
   OPT_MAX_BINLOG_DUMP_EVENTS, OPT_SPORADIC_BINLOG_DUMP_FAIL,
@@ -3711,7 +3726,7 @@ enum options_mysqld
   OPT_MAX_SEEKS_FOR_KEY, OPT_MAX_TMP_TABLES, OPT_MAX_USER_CONNECTIONS,
   OPT_MAX_LENGTH_FOR_SORT_DATA,
   OPT_MAX_WRITE_LOCK_COUNT, OPT_BULK_INSERT_BUFFER_SIZE,
-  OPT_MAX_ERROR_COUNT,
+  OPT_MAX_ERROR_COUNT, OPT_MYISAM_DATA_POINTER_SIZE,
   OPT_MYISAM_BLOCK_SIZE, OPT_MYISAM_MAX_EXTRA_SORT_FILE_SIZE,
   OPT_MYISAM_MAX_SORT_FILE_SIZE, OPT_MYISAM_SORT_BUFFER_SIZE,
   OPT_NET_BUFFER_LENGTH, OPT_NET_RETRY_COUNT,
@@ -4143,6 +4158,15 @@ master-ssl",
   {"replicate-rewrite-db", OPT_REPLICATE_REWRITE_DB,
    "Updates to a database with a different name than the original. Example: replicate-rewrite-db=master_db_name->slave_db_name.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#ifdef HAVE_REPLICATION
+  {"replicate-same-server-id", OPT_REPLICATE_SAME_SERVER_ID,
+   "In replication, if set to 1, do not skip events having our server id. \
+Default value is 0 (to break infinite loops in circular replication). \
+Can't be set to 1 if --log-slave-updates is used.",
+   (gptr*) &replicate_same_server_id,
+   (gptr*) &replicate_same_server_id,
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+#endif
   // In replication, we may need to tell the other servers how to connect
   {"report-host", OPT_REPORT_HOST,
    "Hostname or IP of the slave to be reported to to the master during slave registration. Will appear in the output of SHOW SLAVE HOSTS. Leave unset if you do not want the slave to register itself with the master. Note that it is not sufficient for the master to simply read the IP of the slave off the socket once the slave connects. Due to NAT and other routing issues, that IP may not be valid for connecting to the slave from the master or other hosts.",
@@ -4196,7 +4220,7 @@ relay logs.",
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"show-slave-auth-info", OPT_SHOW_SLAVE_AUTH_INFO,
-   "Show user and password in SHOW SLAVE HOSTS.",
+   "Show user and password in SHOW SLAVE HOSTS on this master",
    (gptr*) &opt_show_slave_auth_info, (gptr*) &opt_show_slave_auth_info, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"concurrent-insert", OPT_CONCURRENT_INSERT,
@@ -4214,6 +4238,10 @@ Disable with --skip-innodb (will save memory).",
   {"isam", OPT_ISAM, "Enable isam (if this version of MySQL supports it). \
 Disable with --skip-isam.",
    (gptr*) &opt_isam, (gptr*) &opt_isam, 0, GET_BOOL, NO_ARG, 1, 0, 0,
+   0, 0, 0},
+  {"ndbcluster", OPT_NDBCLUSTER, "Enable NDB Cluster (if this version of MySQL supports it). \
+Disable with --skip-ndbcluster (will save memory).",
+   (gptr*) &opt_ndbcluster, (gptr*) &opt_ndbcluster, 0, GET_BOOL, NO_ARG, 1, 0, 0,
    0, 0, 0},
   {"skip-locking", OPT_SKIP_LOCK,
    "Deprecated option, use --skip-external-locking instead.",
@@ -4569,6 +4597,11 @@ The minimum value for this variable is 4096.",
    (gptr*) &opt_myisam_block_size, 0, GET_ULONG, REQUIRED_ARG,
    MI_KEY_BLOCK_LENGTH, MI_MIN_KEY_BLOCK_LENGTH, MI_MAX_KEY_BLOCK_LENGTH,
    0, MI_MIN_KEY_BLOCK_LENGTH, 0},
+  {"myisam_data_pointer_size", OPT_MYISAM_DATA_POINTER_SIZE,
+   "Default pointer size to be used for MyISAM tables.",
+   (gptr*) &myisam_data_pointer_size,
+   (gptr*) &myisam_data_pointer_size, 0, GET_ULONG, REQUIRED_ARG,
+   4, 2, 7, 0, 1, 0},
   {"myisam_max_extra_sort_file_size", OPT_MYISAM_MAX_EXTRA_SORT_FILE_SIZE,
    "Used to help MySQL to decide when to use the slow but safe key cache index create method.",
    (gptr*) &global_system_variables.myisam_max_extra_sort_file_size,
@@ -4895,10 +4928,13 @@ struct show_var_st status_vars[]= {
   {"Handler_rollback",         (char*) &ha_rollback_count,      SHOW_LONG},
   {"Handler_update",           (char*) &ha_update_count,        SHOW_LONG},
   {"Handler_write",            (char*) &ha_write_count,         SHOW_LONG},
+  {"Handler_discover",         (char*) &ha_discover_count,      SHOW_LONG},
   {"Key_blocks_not_flushed",   (char*) &dflt_key_cache_var.global_blocks_changed,
    SHOW_KEY_CACHE_LONG},
-  {"Key_blocks_used",          (char*) &dflt_key_cache_var.global_blocks_used,
-   SHOW_KEY_CACHE_LONG},
+  {"Key_blocks_used",          (char*) &dflt_key_cache_var.blocks_used,
+   SHOW_KEY_CACHE_CONST_LONG},
+  {"Key_blocks_unused",        (char*) &dflt_key_cache_var.blocks_unused,
+   SHOW_KEY_CACHE_CONST_LONG},
   {"Key_read_requests",        (char*) &dflt_key_cache_var.global_cache_r_requests,
    SHOW_KEY_CACHE_LONG},
   {"Key_reads",                (char*) &dflt_key_cache_var.global_cache_read,
@@ -4907,6 +4943,7 @@ struct show_var_st status_vars[]= {
    SHOW_KEY_CACHE_LONG},
   {"Key_writes",               (char*) &dflt_key_cache_var.global_cache_write,
    SHOW_KEY_CACHE_LONG},
+  {"Last_query_cost",          (char*) &last_query_cost,        SHOW_DOUBLE},
   {"Max_used_connections",     (char*) &max_used_connections,  SHOW_LONG},
   {"Not_flushed_delayed_rows", (char*) &delayed_rows_in_use,    SHOW_LONG_CONST},
   {"Open_files",               (char*) &my_file_opened,         SHOW_LONG_CONST},
@@ -4973,7 +5010,6 @@ struct show_var_st status_vars[]= {
   {"Threads_created",	       (char*) &thread_created,		SHOW_LONG_CONST},
   {"Threads_running",          (char*) &thread_running,         SHOW_INT_CONST},
   {"Uptime",                   (char*) 0,                       SHOW_STARTTIME},
-  {"Last_query_cost",          (char*) &last_query_cost,        SHOW_DOUBLE},
   {NullS, NullS, SHOW_LONG}
 };
 
@@ -5188,6 +5224,16 @@ static void mysql_init_variables(void)
   have_isam=SHOW_OPTION_YES;
 #else
   have_isam=SHOW_OPTION_NO;
+#endif
+#ifdef HAVE_EXAMPLE_DB
+  have_example_db= SHOW_OPTION_YES;
+#else
+  have_example_db= SHOW_OPTION_NO;
+#endif
+#ifdef HAVE_NDBCLUSTER_DB
+  have_ndbcluster=SHOW_OPTION_DISABLED;
+#else
+  have_ndbcluster=SHOW_OPTION_NO;
 #endif
 #ifdef USE_RAID
   have_raid=SHOW_OPTION_YES;
@@ -5659,6 +5705,14 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       have_isam= SHOW_OPTION_DISABLED;
 #endif
     break;
+  case OPT_NDBCLUSTER:
+#ifdef HAVE_NDBCLUSTER_DB
+    if (opt_ndbcluster)
+      have_ndbcluster=SHOW_OPTION_YES;
+    else
+      have_ndbcluster=SHOW_OPTION_DISABLED;
+#endif
+    break;
   case OPT_INNODB:
 #ifdef HAVE_INNOBASE_DB
     if (opt_innodb)
@@ -5719,7 +5773,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       fprintf(stderr, "Invalid ft-boolean-syntax string: %s\n", argument);
       exit(1);
     }
-    strmake(opt_ft_boolean_syntax, argument, sizeof(ft_boolean_syntax)-1);
+    strmake(ft_boolean_syntax, argument, sizeof(ft_boolean_syntax)-1);
     break;
   case OPT_SKIP_SAFEMALLOC:
 #ifdef SAFEMALLOC
@@ -5769,7 +5823,7 @@ static void get_options(int argc,char **argv)
   int ho_error;
 
   my_getopt_register_get_addr(mysql_getopt_value);
-  strmake(opt_ft_boolean_syntax, ft_boolean_syntax, 
+  strmake(def_ft_boolean_syntax, ft_boolean_syntax,
 	  sizeof(ft_boolean_syntax)-1);
   if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
     exit(ho_error);
@@ -5826,8 +5880,6 @@ static void get_options(int argc,char **argv)
   table_alias_charset= (lower_case_table_names ?
 			files_charset_info :
 			&my_charset_bin);
-  strmake(ft_boolean_syntax, opt_ft_boolean_syntax,
-	  sizeof(ft_boolean_syntax)-1);
 
   if (opt_short_log_format)
     opt_specialflag|= SPECIAL_SHORT_LOG_FORMAT;

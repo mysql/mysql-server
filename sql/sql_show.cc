@@ -181,7 +181,7 @@ int mysqld_show_storage_engines(THD *thd)
   Protocol *protocol= thd->protocol;
   DBUG_ENTER("mysqld_show_storage_engines");
 
-  field_list.push_back(new Item_empty_string("Type",10));
+  field_list.push_back(new Item_empty_string("Engine",10));
   field_list.push_back(new Item_empty_string("Support",10));
   field_list.push_back(new Item_empty_string("Comment",80));
 
@@ -436,7 +436,7 @@ mysql_find_files(THD *thd,List<char> *files, const char *db,const char *path,
       table_list.db= (char*) db;
       table_list.real_name=file->name;
       table_list.grant.privilege=col_access;
-      if (check_grant(thd,TABLE_ACLS,&table_list,1,1))
+      if (check_grant(thd, TABLE_ACLS, &table_list, 1, UINT_MAX, 1))
         continue;
     }
 #endif
@@ -471,7 +471,7 @@ int mysqld_extend_show_tables(THD *thd,const char *db,const char *wild)
   (void) sprintf(path,"%s/%s",mysql_data_home,db);
   (void) unpack_dirname(path,path);
   field_list.push_back(item=new Item_empty_string("Name",NAME_LEN));
-  field_list.push_back(item=new Item_empty_string("Type",10));
+  field_list.push_back(item=new Item_empty_string("Engine",10));
   item->maybe_null=1;
   field_list.push_back(item=new Item_empty_string("Row_format",10));
   item->maybe_null=1;
@@ -735,11 +735,11 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
           */
           protocol->store("CURRENT_TIMESTAMP", system_charset_info);
         }
-        else if (field->unireg_check != Field::NEXT_NUMBER && 
+        else if (field->unireg_check != Field::NEXT_NUMBER &&
                  !field->is_null())
         {                                               // Not null by default
           type.set(tmp, sizeof(tmp), field->charset());
-          field->val_str(&type,&type);
+          field->val_str(&type);
           protocol->store(type.ptr(),type.length(),type.charset());
         }
         else if (field->unireg_check == Field::NEXT_NUMBER ||
@@ -1298,10 +1298,10 @@ store_create_info(THD *thd, TABLE *table, String *packet)
       else if (!field->is_null())
       {                                             // Not null by default
         type.set(tmp, sizeof(tmp), field->charset());
-        field->val_str(&type,&type);
+        field->val_str(&type);
 	if (type.length())
 	{
-   	  String def_val;
+	  String def_val;
 	  /* convert to system_charset_info == utf8 */
 	  def_val.copy(type.ptr(), type.length(), field->charset(),
 		       system_charset_info);
@@ -2026,6 +2026,7 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
 
 #endif /* HAVE_OPENSSL */
       case SHOW_KEY_CACHE_LONG:
+      case SHOW_KEY_CACHE_CONST_LONG:
 	value= (value-(char*) &dflt_key_cache_var)+ (char*) sql_key_cache;
 	end= int10_to_str(*(long*) value, buff, 10);
         break;

@@ -52,9 +52,6 @@ Created 10/8/1995 Heikki Tuuri
 affects only FOREIGN KEY definition parsing */
 ibool	srv_lower_case_table_names	= FALSE;
 
-/* Buffer which can be used in printing fatal error messages */
-char	srv_fatal_errbuf[5000];
-
 /* The following counter is incremented whenever there is some user activity
 in the server */
 ulint	srv_activity_count	= 0;
@@ -303,12 +300,17 @@ ulint	srv_test_n_mutexes	= ULINT_MAX;
 /* Array of English strings describing the current state of an
 i/o handler thread */
 
-char* srv_io_thread_op_info[SRV_MAX_N_IO_THREADS];
-char* srv_io_thread_function[SRV_MAX_N_IO_THREADS];
+const char* srv_io_thread_op_info[SRV_MAX_N_IO_THREADS];
+const char* srv_io_thread_function[SRV_MAX_N_IO_THREADS];
 
 time_t	srv_last_monitor_time;
 
-mutex_t srv_innodb_monitor_mutex;
+mutex_t	srv_innodb_monitor_mutex;
+
+/* Mutex for locking srv_monitor_file */
+mutex_t	srv_monitor_file_mutex;
+/* Temporary file for innodb monitor output */
+FILE*	srv_monitor_file;
 
 ulint	srv_main_thread_process_no	= 0;
 ulint	srv_main_thread_id		= 0;
@@ -532,6 +534,20 @@ are indexed by the type of the thread. */
 ulint	srv_n_threads_active[SRV_MASTER + 1];
 ulint	srv_n_threads[SRV_MASTER + 1];
 
+/*************************************************************************
+Sets the info describing an i/o thread current state. */
+
+void
+srv_set_io_thread_op_info(
+/*======================*/
+	ulint		i,	/* in: the 'segment' of the i/o thread */
+	const char*	str)	/* in: constant char string describing the
+				state */
+{
+	ut_a(i < SRV_MAX_N_IO_THREADS);
+
+	srv_io_thread_op_info[i] = str;
+}
 
 /*************************************************************************
 Accessor function to get pointer to n'th slot in the server thread
@@ -631,10 +647,10 @@ srv_suspend_thread(void)
 	slot_no = thr_local_get_slot_no(os_thread_get_curr_id());
 
 	if (srv_print_thread_releases) {
-	
-		printf("Suspending thread %lu to slot %lu meter %lu\n",
-		(ulong) os_thread_get_curr_id(), (ulong) slot_no,
-		(ulong) srv_meter[SRV_RECOVERY]);
+		fprintf(stderr,
+			"Suspending thread %lu to slot %lu meter %lu\n",
+			(ulong) os_thread_get_curr_id(), (ulong) slot_no,
+			(ulong) srv_meter[SRV_RECOVERY]);
 	}
 
 	slot = srv_table_get_nth_slot(slot_no);
@@ -694,7 +710,7 @@ srv_release_threads(
 			os_event_set(slot->event);
 
 			if (srv_print_thread_releases) {
-				printf(
+				fprintf(stderr,
 		"Releasing thread %lu type %lu from slot %lu meter %lu\n",
 				(ulong) slot->id, (ulong) type, (ulong) i,
 		                (ulong) srv_meter[SRV_RECOVERY]);
@@ -853,7 +869,6 @@ srv_conc_enter_innodb(
 	ibool			has_slept = FALSE;
 	srv_conc_slot_t*	slot	  = NULL;
 	ulint			i;
-	char                    err_buf[1000];
 
 	if (srv_thread_concurrency >= 500) {
 		/* Disable the concurrency check */
@@ -874,12 +889,11 @@ srv_conc_enter_innodb(
 retry:
 	if (trx->declared_to_be_inside_innodb) {
 	        ut_print_timestamp(stderr);
-
-	        trx_print(err_buf, trx);
-
-	        fprintf(stderr,
+		fputs(
 "  InnoDB: Error: trying to declare trx to enter InnoDB, but\n"
-"InnoDB: it already is declared.\n%s\n", err_buf);
+"InnoDB: it already is declared.\n", stderr);
+		trx_print(stderr, trx);
+		putc('\n', stderr);
 		os_fast_mutex_unlock(&srv_conc_mutex);
 
 		return;
@@ -1420,15 +1434,13 @@ srv_refresh_innodb_monitor_stats(void)
 }
 
 /**********************************************************************
-Sprintfs to a buffer the output of the InnoDB Monitor. */
+Outputs to a file the output of the InnoDB Monitor. */
 
 void
-srv_sprintf_innodb_monitor(
-/*=======================*/
-	char*	buf,	/* in/out: buffer which must be at least 4 kB */
-	ulint	len)	/* in: length of the buffer */
+srv_printf_innodb_monitor(
+/*======================*/
+	FILE*	file)	/* in: output stream */
 {
-	char*	buf_end	= buf + len - 2000;
 	double	time_elapsed;
 	time_t	current_time;
 	ulint   n_reserved;
@@ -1446,28 +1458,20 @@ srv_sprintf_innodb_monitor(
 
 	srv_last_monitor_time = time(NULL);
 
-	ut_a(len >= 4096);	
+	rewind(file);
+	fputs("\n=====================================\n", file);
 
-	buf += sprintf(buf, "\n=====================================\n");
+	ut_print_timestamp(file);
+	fprintf(file,
+		" INNODB MONITOR OUTPUT\n"
+		"=====================================\n"
+		"Per second averages calculated from the last %lu seconds\n",
+		(ulong)time_elapsed);
 
-	ut_sprintf_timestamp(buf);
-	buf = buf + strlen(buf);
-	ut_a(buf < buf_end + 1500);
-	
-	buf += sprintf(buf, " INNODB MONITOR OUTPUT\n"
-	       	       "=====================================\n");
-
-	buf += sprintf(buf,
-"Per second averages calculated from the last %lu seconds\n",
-					(ulong) time_elapsed);
-	       	       
-	buf += sprintf(buf, "----------\n"
-		       "SEMAPHORES\n"
-		       "----------\n");
-	sync_print(buf, buf_end);
-
-	buf = buf + strlen(buf);
-	ut_a(buf < buf_end + 1500);
+	fputs("----------\n"
+		"SEMAPHORES\n"
+		"----------\n", file);
+	sync_print(file);
 
 	/* Conceptually, srv_innodb_monitor_mutex has a very high latching
 	order level in sync0sync.h, while dict_foreign_err_mutex has a very
@@ -1476,43 +1480,29 @@ srv_sprintf_innodb_monitor(
 
 	mutex_enter(&dict_foreign_err_mutex);
 
-	if (*dict_foreign_err_buf != '\0') {
-		buf += sprintf(buf,
-			"------------------------\n"
-		       	"LATEST FOREIGN KEY ERROR\n"
-		       	"------------------------\n");
-
-		if (buf_end - buf > 6000) {
-			buf+= sprintf(buf, "%.4000s", dict_foreign_err_buf);
-		}
-	}	
+	if (ftell(dict_foreign_err_file) != 0L) {
+		fputs("------------------------\n"
+			"LATEST FOREIGN KEY ERROR\n"
+			"------------------------\n", file);
+		ut_copy_file(file, dict_foreign_err_file);
+	}
 
 	mutex_exit(&dict_foreign_err_mutex);
 
-	ut_a(buf < buf_end + 1500);
+	lock_print_info(file);
+	fputs("--------\n"
+		"FILE I/O\n"
+		"--------\n", file);
+	os_aio_print(file);
 
-	lock_print_info(buf, buf_end);
-	buf = buf + strlen(buf);
-	
-	buf += sprintf(buf, "--------\n"
-		       "FILE I/O\n"
-		       "--------\n");
-	os_aio_print(buf, buf_end);
-	buf = buf + strlen(buf);
-	ut_a(buf < buf_end + 1500);
+	fputs("-------------------------------------\n"
+		"INSERT BUFFER AND ADAPTIVE HASH INDEX\n"
+		"-------------------------------------\n", file);
+	ibuf_print(file);
 
-	buf += sprintf(buf, "-------------------------------------\n"
-		       "INSERT BUFFER AND ADAPTIVE HASH INDEX\n"
-		       "-------------------------------------\n");
-	ibuf_print(buf, buf_end);
-	buf = buf + strlen(buf);
-	ut_a(buf < buf_end + 1500);
+	ha_print_info(file, btr_search_sys->hash_index);
 
-	ha_print_info(buf, buf_end, btr_search_sys->hash_index);
-	buf = buf + strlen(buf);
-	ut_a(buf < buf_end + 1500);
-
-	buf += sprintf(buf,
+	fprintf(file,
 		"%.2f hash searches/s, %.2f non-hash searches/s\n",
 			(btr_cur_n_sea - btr_cur_n_sea_old)
 						/ time_elapsed,
@@ -1521,74 +1511,66 @@ srv_sprintf_innodb_monitor(
 	btr_cur_n_sea_old = btr_cur_n_sea;
 	btr_cur_n_non_sea_old = btr_cur_n_non_sea;
 
-	buf += sprintf(buf,"---\n"
+	fputs("---\n"
 		       "LOG\n"
-		       "---\n");
-	log_print(buf, buf_end);
-	buf = buf + strlen(buf);
-	ut_a(buf < buf_end + 1500);
-	
-	buf += sprintf(buf, "----------------------\n"
+		"---\n", file);
+	log_print(file);
+
+	fputs("----------------------\n"
 		       "BUFFER POOL AND MEMORY\n"
-		       "----------------------\n");
-	buf += sprintf(buf,
+		"----------------------\n", file);
+	fprintf(file,
 	"Total memory allocated " ULINTPF
 	"; in additional pool allocated " ULINTPF "\n",
 				ut_total_allocated_memory,
 				mem_pool_get_reserved(mem_comm_pool));
 
 	if (mem_out_of_mem_err_msg_count > 0) {
-	        buf += sprintf(buf,
+	        fprintf(file,
 	"Mem allocation has spilled out of additional mem pool" ULINTPF
 						"times\n",
 					mem_out_of_mem_err_msg_count);
 	}
 
 	if (srv_use_awe) {
-		buf += sprintf(buf,
+		fprintf(file,
 	"In addition to that %lu MB of AWE memory allocated\n",
 		(ulong) (srv_pool_size / ((1024 * 1024) / UNIV_PAGE_SIZE)));
 	}
 	
-	buf_print_io(buf, buf_end);
-	buf = buf + strlen(buf);
-	ut_a(buf < buf_end + 1500);
+	buf_print_io(file);
 
-	buf += sprintf(buf, "--------------\n"
-		       "ROW OPERATIONS\n"
-		       "--------------\n");
-	buf += sprintf(buf,
-        "%ld queries inside InnoDB, %lu queries in queue\n",
-		       (long) srv_conc_n_threads,
+	fputs("--------------\n"
+		"ROW OPERATIONS\n"
+		"--------------\n", file);
+	fprintf(file, "%ld queries inside InnoDB, %lu queries in queue\n",
+       		       (long) srv_conc_n_threads,
 		       (ulong) srv_conc_n_waiting_threads);
-
         n_reserved = fil_space_get_n_reserved_extents(0);
         if (n_reserved > 0) {
-                buf += sprintf(buf,
+                fprintf(file,
         "%lu tablespace extents now reserved for B-tree split operations\n",
                                                     (ulong) n_reserved);
         }
 
 #ifdef UNIV_LINUX
-	buf += sprintf(buf,
-	"Main thread process no. %lu, id %lu, state: %.29s\n",
+	fprintf(file, "Main thread process no. %lu, id %lu, state: %s\n",
 		       (ulong) srv_main_thread_process_no,
 		       (ulong) srv_main_thread_id,
 		       srv_main_thread_op_info);
 #else
-	buf += sprintf(buf,
-	"Main thread id %lu, state: %.29s\n",
+	fprintf(file, "Main thread id %lu, state: %s\n",
 			(ulong) srv_main_thread_id,
 			srv_main_thread_op_info);
 #endif
-	buf += sprintf(buf,
+	fprintf(file,
 	"Number of rows inserted " ULINTPF
 	", updated " ULINTPF ", deleted " ULINTPF ", read " ULINTPF "\n",
 			srv_n_rows_inserted, 
 			srv_n_rows_updated, 
 			srv_n_rows_deleted, 
 			srv_n_rows_read);
-	buf += sprintf(buf,
+	fprintf(file,
 	"%.2f inserts/s, %.2f updates/s, %.2f deletes/s, %.2f reads/s\n",
 			(srv_n_rows_inserted - srv_n_rows_inserted_old)
 						/ time_elapsed,
@@ -1604,12 +1586,12 @@ srv_sprintf_innodb_monitor(
 	srv_n_rows_deleted_old = srv_n_rows_deleted;
 	srv_n_rows_read_old = srv_n_rows_read;
 
-	buf += sprintf(buf, "----------------------------\n"
+	fputs("----------------------------\n"
 		       "END OF INNODB MONITOR OUTPUT\n"
-		       "============================\n");
-	ut_a(buf < buf_end + 1900);
+		"============================\n", file);
 
 	mutex_exit(&srv_innodb_monitor_mutex);
+	fflush(file);
 }
 
 /*************************************************************************
@@ -1624,7 +1606,8 @@ ulint
 srv_lock_timeout_and_monitor_thread(
 /*================================*/
 			/* out: a dummy parameter */
-	void*	arg)	/* in: a dummy parameter required by
+	void*	arg __attribute__((unused)))
+			/* in: a dummy parameter required by
 			os_thread_create */
 {
 	srv_slot_t*	slot;
@@ -1634,11 +1617,10 @@ srv_lock_timeout_and_monitor_thread(
 	time_t		last_monitor_time;
 	ibool		some_waits;
 	double		wait_time;
-	char*		buf;
 	ulint		i;
 
 #ifdef UNIV_DEBUG_THREAD_CREATION
-	printf("Lock timeout thread starts, id %lu\n",
+	fprintf(stderr, "Lock timeout thread starts, id %lu\n",
 			     os_thread_pf(os_thread_get_curr_id()));
 #endif
 	UT_NOT_USED(arg);
@@ -1667,55 +1649,57 @@ loop:
 	    last_monitor_time = time(NULL);
 
 	    if (srv_print_innodb_monitor) {
+		srv_printf_innodb_monitor(stderr);
+	    }
 
-	        buf = mem_alloc(100000);
+	    mutex_enter(&srv_monitor_file_mutex);
+	    rewind(srv_monitor_file);
+	    srv_printf_innodb_monitor(srv_monitor_file);
+	    os_file_set_eof(srv_monitor_file);
+	    mutex_exit(&srv_monitor_file_mutex);
 
-	        srv_sprintf_innodb_monitor(buf, 90000);
-
-		ut_a(strlen(buf) < 99000);
-
-	    	printf("%s", buf);
-
-	    	mem_free(buf);
-            }
-
-            if (srv_print_innodb_tablespace_monitor
-                && difftime(current_time, last_table_monitor_time) > 60) {
+	    if (srv_print_innodb_tablespace_monitor
+		&& difftime(current_time, last_table_monitor_time) > 60) {
 
 		last_table_monitor_time = time(NULL);	
 
-		printf("================================================\n");
+		fputs("================================================\n",
+			stderr);
 
-		ut_print_timestamp(stdout);
+		ut_print_timestamp(stderr);
 
-		printf(" INNODB TABLESPACE MONITOR OUTPUT\n"
-		       "================================================\n");
+		fputs(" INNODB TABLESPACE MONITOR OUTPUT\n"
+			"================================================\n",
+			stderr);
 	       
 		fsp_print(0);
-		fprintf(stderr, "Validating tablespace\n");
+		fputs("Validating tablespace\n", stderr);
 		fsp_validate(0);
-		fprintf(stderr, "Validation ok\n");
-		printf("---------------------------------------\n"
+		fputs("Validation ok\n"
+			"---------------------------------------\n"
 	       		"END OF INNODB TABLESPACE MONITOR OUTPUT\n"
-	       		"=======================================\n");
+			"=======================================\n",
+			stderr);
 	    }
 
 	    if (srv_print_innodb_table_monitor
-                && difftime(current_time, last_table_monitor_time) > 60) {
+		&& difftime(current_time, last_table_monitor_time) > 60) {
 
 		last_table_monitor_time = time(NULL);	
 
-		printf("===========================================\n");
+		fputs("===========================================\n", stderr);
 
-		ut_print_timestamp(stdout);
+		ut_print_timestamp(stderr);
 
-		printf(" INNODB TABLE MONITOR OUTPUT\n"
-		       "===========================================\n");
+		fputs(" INNODB TABLE MONITOR OUTPUT\n"
+			"===========================================\n",
+			stderr);
 	    	dict_print();
 
-		printf("-----------------------------------\n"
+		fputs("-----------------------------------\n"
 	       		"END OF INNODB TABLE MONITOR OUTPUT\n"
-	       		"==================================\n");
+			"==================================\n",
+			stderr);
 	    }
 	}
 
@@ -1774,8 +1758,11 @@ loop:
 
 	srv_lock_timeout_and_monitor_active = FALSE;
 
+#if 0
+	/* The following synchronisation is disabled, since
+	the InnoDB monitor output is to be updated every 15 seconds. */
 	os_event_wait(srv_lock_timeout_thread_event);
-
+#endif
 	goto loop;
 
 exit_func:
@@ -1786,7 +1773,7 @@ exit_func:
 
 	os_thread_exit(NULL);
 #ifndef __WIN__
-        return(NULL);
+	return(NULL);
 #else
 	return(0);
 #endif
@@ -1804,19 +1791,18 @@ ulint
 srv_error_monitor_thread(
 /*=====================*/
 			/* out: a dummy parameter */
-	void*	arg)	/* in: a dummy parameter required by
+	void*	arg __attribute__((unused)))
+			/* in: a dummy parameter required by
 			os_thread_create */
 {
 	ulint	cnt	= 0;
 	dulint	old_lsn;
 	dulint	new_lsn;
 
-	UT_NOT_USED(arg);
-
 	old_lsn = srv_start_lsn;
 
 #ifdef UNIV_DEBUG_THREAD_CREATION
-	printf("Error monitor thread starts, id %lu\n",
+	fprintf(stderr, "Error monitor thread starts, id %lu\n",
 			      os_thread_pf(os_thread_get_curr_id()));
 #endif
 loop:
@@ -1852,11 +1838,10 @@ loop:
 
 	sync_array_print_long_waits();
 
-	/* Flush stdout and stderr so that a database user gets their output
+	/* Flush stderr so that a database user gets the output
 	to possible MySQL error file */
 
 	fflush(stderr);
-	fflush(stdout);
 
 	os_thread_sleep(2000000);
 
@@ -1873,7 +1858,7 @@ loop:
 	os_thread_exit(NULL);
 
 #ifndef __WIN__
-        return(NULL);
+	return(NULL);
 #else
 	return(0);
 #endif
@@ -1929,7 +1914,8 @@ ulint
 srv_master_thread(
 /*==============*/
 			/* out: a dummy parameter */
-	void*	arg)	/* in: a dummy parameter required by
+	void*	arg __attribute__((unused)))
+			/* in: a dummy parameter required by
 			os_thread_create */
 {
 	os_event_t	event;
@@ -1948,10 +1934,8 @@ srv_master_thread(
 	ibool		skip_sleep	= FALSE;
 	ulint		i;
 	
-	UT_NOT_USED(arg);
-
 #ifdef UNIV_DEBUG_THREAD_CREATION
-	printf("Master thread starts, id %lu\n",
+	fprintf(stderr, "Master thread starts, id %lu\n",
 			      os_thread_pf(os_thread_get_curr_id()));
 #endif
 	srv_main_thread_process_no = os_proc_get_number();

@@ -266,7 +266,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	Using where
 2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	3	
 Warnings:
-Note	1003	select high_priority test.t3.a AS `a` from test.t3 where (test.t3.a >= (select min(test.t2.b) from test.t2 limit 1))
+Note	1003	select high_priority test.t3.a AS `a` from test.t3 where (test.t3.a >= (select min(test.t2.b) from test.t2))
 select * from t3 where a >= all (select b from t2);
 a
 7
@@ -327,7 +327,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 2	DEPENDENT SUBQUERY	t7	eq_ref	PRIMARY	PRIMARY	4	test.t6.clinic_uq	1	
 Warnings:
 Note	1276	Field or reference 'clinic_uq' of SELECT #2 was resolved in SELECT #1
-Note	1003	select high_priority test.t6.patient_uq AS `patient_uq`,test.t6.clinic_uq AS `clinic_uq` from test.t6 where exists(select test.t7.uq AS `uq`,test.t7.name AS `name` from test.t7 where (test.t7.uq = test.t6.clinic_uq) limit 1)
+Note	1003	select high_priority test.t6.patient_uq AS `patient_uq`,test.t6.clinic_uq AS `clinic_uq` from test.t6 where exists(select test.t7.uq AS `uq`,test.t7.name AS `name` from test.t7 where (test.t7.uq = test.t6.clinic_uq))
 select * from t1 where a= (select a from t2,t4 where t2.b=t4.b);
 ERROR 23000: Column: 'a' in field list is ambiguous
 drop table if exists t1,t2,t3;
@@ -357,10 +357,10 @@ INSERT INTO t8 (pseudo,email) VALUES ('joce1','test1');
 INSERT INTO t8 (pseudo,email) VALUES ('2joce1','2test1');
 EXPLAIN EXTENDED SELECT pseudo,(SELECT email FROM t8 WHERE pseudo=(SELECT pseudo FROM t8 WHERE pseudo='joce')) FROM t8 WHERE pseudo=(SELECT pseudo FROM t8 WHERE pseudo='joce');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t8	const	PRIMARY	PRIMARY	35	const	1	
-4	SUBQUERY	t8	const	PRIMARY	PRIMARY	35		1	
+1	PRIMARY	t8	const	PRIMARY	PRIMARY	35	const	1	Using index
+4	SUBQUERY	t8	const	PRIMARY	PRIMARY	35		1	Using index
 2	SUBQUERY	t8	const	PRIMARY	PRIMARY	35	const	1	
-3	SUBQUERY	t8	const	PRIMARY	PRIMARY	35		1	
+3	SUBQUERY	t8	const	PRIMARY	PRIMARY	35		1	Using index
 Warnings:
 Note	1003	select high_priority test.t8.pseudo AS `pseudo`,(select test.t8.email AS `email` from test.t8 where (test.t8.pseudo = (select test.t8.pseudo AS `pseudo` from test.t8 where (test.t8.pseudo = _latin1'joce')))) AS `(SELECT email FROM t8 WHERE pseudo=(SELECT pseudo FROM t8 WHERE pseudo='joce'))` from test.t8 where (test.t8.pseudo = (select test.t8.pseudo AS `pseudo` from test.t8 where (test.t8.pseudo = _latin1'joce')))
 SELECT pseudo FROM t8 WHERE pseudo=(SELECT pseudo,email FROM
@@ -537,7 +537,7 @@ Warnings:
 Note	1003	select high_priority max(test.t1.numreponse) AS `MAX(numreponse)` from test.t1 where (test.t1.numeropost = _latin1'1')
 EXPLAIN EXTENDED SELECT numreponse FROM t1 WHERE numeropost='1' AND numreponse=(SELECT MAX(numreponse) FROM t1 WHERE numeropost='1');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	const	PRIMARY,numreponse	PRIMARY	7	const,const	1	
+1	PRIMARY	t1	const	PRIMARY,numreponse	PRIMARY	7	const,const	1	Using index
 2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
 Warnings:
 Note	1003	select high_priority test.t1.numreponse AS `numreponse` from test.t1 where ((test.t1.numeropost = _latin1'1') and (test.t1.numreponse = 3))
@@ -736,7 +736,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 3	DEPENDENT UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	select high_priority test.t2.id AS `id` from test.t2 where <in_optimizer>(test.t2.id,<exists>(select 1 AS `Not_used` having (<cache>(test.t2.id) = <null_helper>(1)) limit 1 union select 1 AS `Not_used` having (<cache>(test.t2.id) = <null_helper>(3)) limit 1))
+Note	1003	select high_priority test.t2.id AS `id` from test.t2 where <in_optimizer>(test.t2.id,<exists>(select 1 AS `Not_used` having (<cache>(test.t2.id) = <null_helper>(1)) union select 1 AS `Not_used` having (<cache>(test.t2.id) = <null_helper>(3))))
 SELECT * FROM t2 WHERE id IN (SELECT 5 UNION SELECT 3);
 id
 SELECT * FROM t2 WHERE id IN (SELECT 5 UNION SELECT 2);
@@ -899,7 +899,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 2	DEPENDENT SUBQUERY	t2	ref_or_null	a	a	5	func	2	Using where; Using index
 2	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	3	Using where
 Warnings:
-Note	1003	select high_priority test.t1.a AS `a`,<in_optimizer>(test.t1.a,<exists>(select 1 AS `Not_used` from test.t2 join test.t3 where ((test.t3.a = test.t2.a) and ((<cache>(test.t1.a) = test.t2.a) or isnull(test.t2.a))) having <is_not_null_test>(test.t2.a) limit 1)) AS `t1.a in (select t2.a from t2,t3 where t3.a=t2.a)` from test.t1
+Note	1003	select high_priority test.t1.a AS `a`,<in_optimizer>(test.t1.a,<exists>(select 1 AS `Not_used` from test.t2 join test.t3 where ((test.t3.a = test.t2.a) and ((<cache>(test.t1.a) = test.t2.a) or isnull(test.t2.a))) having <is_not_null_test>(test.t2.a))) AS `t1.a in (select t2.a from t2,t3 where t3.a=t2.a)` from test.t1
 drop table t1,t2,t3;
 create table t1 (a float);
 select 10.5 IN (SELECT * from t1 LIMIT 1);
@@ -1159,7 +1159,7 @@ CREATE TABLE `t1` (
 `id` mediumint(8) unsigned NOT NULL auto_increment,
 `pseudo` varchar(35) character set latin1 NOT NULL default '',
 PRIMARY KEY  (`id`),
-UNIQUE KEY `pseudo` (`pseudo`),
+UNIQUE KEY `pseudo` (`pseudo`)
 ) ENGINE=MyISAM PACK_KEYS=1 ROW_FORMAT=DYNAMIC;
 INSERT INTO t1 (pseudo) VALUES ('test');
 SELECT 0 IN (SELECT 1 FROM t1 a);
@@ -1170,7 +1170,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 Warnings:
-Note	1003	select high_priority <in_optimizer>(0,<exists>(select 1 AS `Not_used` from test.t1 a limit 1)) AS `0 IN (SELECT 1 FROM t1 a)`
+Note	1003	select high_priority <in_optimizer>(0,<exists>(select 1 AS `Not_used` from test.t1 a)) AS `0 IN (SELECT 1 FROM t1 a)`
 INSERT INTO t1 (pseudo) VALUES ('test1');
 SELECT 0 IN (SELECT 1 FROM t1 a);
 0 IN (SELECT 1 FROM t1 a)
@@ -1180,7 +1180,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 Warnings:
-Note	1003	select high_priority <in_optimizer>(0,<exists>(select 1 AS `Not_used` from test.t1 a limit 1)) AS `0 IN (SELECT 1 FROM t1 a)`
+Note	1003	select high_priority <in_optimizer>(0,<exists>(select 1 AS `Not_used` from test.t1 a)) AS `0 IN (SELECT 1 FROM t1 a)`
 drop table t1;
 CREATE TABLE `t1` (
 `i` int(11) NOT NULL default '0',
@@ -1264,7 +1264,7 @@ CREATE TABLE `t1` (
 `email` varchar(60) NOT NULL default '',
 PRIMARY KEY  (`id`),
 UNIQUE KEY `email` (`email`),
-UNIQUE KEY `pseudo` (`pseudo`),
+UNIQUE KEY `pseudo` (`pseudo`)
 ) ENGINE=MyISAM CHARSET=latin1 PACK_KEYS=1 ROW_FORMAT=DYNAMIC;
 INSERT INTO t1 (id,pseudo,email) VALUES (1,'test','test'),(2,'test1','test1');
 SELECT pseudo as a, pseudo as b FROM t1 GROUP BY (SELECT a) ORDER BY (SELECT id*1);
@@ -1312,7 +1312,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 2	DEPENDENT SUBQUERY	t1	eq_ref	PRIMARY	PRIMARY	4	func	1	Using where
 2	DEPENDENT SUBQUERY	t3	eq_ref	PRIMARY	PRIMARY	4	test.t1.b	1	Using where; Using index
 Warnings:
-Note	1003	select high_priority test.t2.a AS `a` from test.t2 where <in_optimizer>(test.t2.a,<exists>(select 1 AS `Not_used` from test.t1 join test.t3 where ((test.t1.b = test.t3.a) and (<cache>(test.t2.a) = test.t1.a)) limit 1))
+Note	1003	select high_priority test.t2.a AS `a` from test.t2 where <in_optimizer>(test.t2.a,<exists>(select 1 AS `Not_used` from test.t1 join test.t3 where ((test.t1.b = test.t3.a) and (<cache>(test.t2.a) = test.t1.a))))
 drop table t1, t2, t3;
 create table t1 (a int, b int, index a (a,b));
 create table t2 (a int, index a (a));
@@ -1351,7 +1351,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 2	DEPENDENT SUBQUERY	t3	index	a	a	5	NULL	3	Using index
 2	DEPENDENT SUBQUERY	t1	ref	a	a	10	func,test.t3.a	1000	Using where; Using index
 Warnings:
-Note	1003	select high_priority test.t2.a AS `a` from test.t2 where <in_optimizer>(test.t2.a,<exists>(select 1 AS `Not_used` from test.t1 join test.t3 where ((test.t1.b = test.t3.a) and (<cache>(test.t2.a) = test.t1.a)) limit 1))
+Note	1003	select high_priority test.t2.a AS `a` from test.t2 where <in_optimizer>(test.t2.a,<exists>(select 1 AS `Not_used` from test.t1 join test.t3 where ((test.t1.b = test.t3.a) and (<cache>(test.t2.a) = test.t1.a))))
 insert into t1 values (3,31);
 select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
 a
@@ -1491,7 +1491,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	Using where
 2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
 Warnings:
-Note	1003	select high_priority test.t3.a AS `a` from test.t3 where <not>((test.t3.a < (select max(test.t2.b) from test.t2 limit 1)))
+Note	1003	select high_priority test.t3.a AS `a` from test.t3 where <not>((test.t3.a < (select max(test.t2.b) from test.t2)))
 insert into t2 values (2,2), (2,1), (3,3), (3,1);
 select * from t3 where a > all (select max(b) from t2 group by a);
 a
@@ -1674,7 +1674,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 2	DEPENDENT SUBQUERY	t1	eq_ref	PRIMARY	PRIMARY	4	test.tt.id	7	Using where; Using index
 Warnings:
 Note	1276	Field or reference 'tt.id' of SELECT #2 was resolved in SELECT #1
-Note	1003	select high_priority test.tt.id AS `id`,test.tt.text AS `text` from test.t1 tt where not(exists(select test.t1.id AS `id` from test.t1 where ((test.t1.id < 8) and ((test.t1.id = test.tt.id) or isnull(test.t1.id))) having (test.t1.id is not null) limit 1))
+Note	1003	select high_priority test.tt.id AS `id`,test.tt.text AS `text` from test.t1 tt where not(exists(select test.t1.id AS `id` from test.t1 where ((test.t1.id < 8) and ((test.t1.id = test.tt.id) or isnull(test.t1.id))) having (test.t1.id is not null)))
 insert into t1 (id, text) values (1000, 'text1000'), (1001, 'text1001');
 create table t2 (id int not null, text varchar(20) not null default '', primary key (id));
 insert into t2 (id, text) values (1, 'text1'), (2, 'text2'), (3, 'text3'), (4, 'text4'), (5, 'text5'), (6, 'text6'), (7, 'text7'), (8, 'text8'), (9, 'text9'), (10, 'text10'), (11, 'text1'), (12, 'text2'), (13, 'text3'), (14, 'text4'), (15, 'text5'), (16, 'text6'), (17, 'text7'), (18, 'text8'), (19, 'text9'), (20, 'text10'),(21, 'text1'), (22, 'text2'), (23, 'text3'), (24, 'text4'), (25, 'text5'), (26, 'text6'), (27, 'text7'), (28, 'text8'), (29, 'text9'), (30, 'text10'), (31, 'text1'), (32, 'text2'), (33, 'text3'), (34, 'text4'), (35, 'text5'), (36, 'text6'), (37, 'text7'), (38, 'text8'), (39, 'text9'), (40, 'text10'), (41, 'text1'), (42, 'text2'), (43, 'text3'), (44, 'text4'), (45, 'text5'), (46, 'text6'), (47, 'text7'), (48, 'text8'), (49, 'text9'), (50, 'text10');
@@ -1715,3 +1715,15 @@ create table t3(flag int);
 select (select * from t3 where id not null) from t1, t2;
 ERROR 42000: You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use near 'null) from t1, t2' at line 1
 drop table t1,t2,t3;
+CREATE TABLE t1 (id INT);
+CREATE TABLE t2 (id INT);
+INSERT INTO t1 VALUES (1), (2);
+INSERT INTO t2 VALUES (1);
+SELECT t1.id, ( SELECT COUNT(t.id) FROM t2 AS t WHERE t.id = t1.id ) AS c FROM t1 LEFT JOIN t2 USING (id);
+id	c
+1	1
+2	0
+SELECT t1.id, ( SELECT COUNT(t.id) FROM t2 AS t WHERE t.id = t1.id ) AS c FROM t1 LEFT JOIN t2 USING (id) ORDER BY t1.id;
+id	c
+1	1
+2	0

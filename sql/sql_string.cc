@@ -843,7 +843,7 @@ outp:
 void String::print(String *str)
 {
   char *st= (char*)Ptr, *end= st+str_length;
-  for(; st < end; st++)
+  for (; st < end; st++)
   {
     uchar c= *st;
     switch (c)

@@ -288,8 +288,7 @@ recv_truncate_group(
 
 		len = ut_dulint_minus(end_lsn, start_lsn);
 		
-		log_group_write_buf(LOG_RECOVER, group, log_sys->buf, len,
-								start_lsn, 0);
+		log_group_write_buf(group, log_sys->buf, len, start_lsn, 0);
 		if (ut_dulint_cmp(end_lsn, finish_lsn) >= 0) {
 
 			return;
@@ -345,8 +344,7 @@ recv_copy_group(
 
 		len = ut_dulint_minus(end_lsn, start_lsn);
 		
-		log_group_write_buf(LOG_RECOVER, group, log_sys->buf, len,
-								start_lsn, 0);
+		log_group_write_buf(group, log_sys->buf, len, start_lsn, 0);
 		
 		if (ut_dulint_cmp(end_lsn, recovered_lsn) >= 0) {
 
@@ -541,7 +539,7 @@ recv_find_max_checkpoint(
 "InnoDB: the problem may be that during an earlier attempt you managed\n"
 "InnoDB: to create the InnoDB data files, but log file creation failed.\n"
 "InnoDB: If that is the case, please refer to section 3.1 of\n"
-"InnoDB: http://www.innodb.com/ibman.html\n");
+"InnoDB: http://www.innodb.com/ibman.php\n");
 
 		return(DB_ERROR);
 	}
@@ -609,7 +607,7 @@ recv_read_cp_info_for_backup(
 		*fsp_limit = 1000000000;
 	}
 
-/*	printf("fsp limit %lu MB\n", *fsp_limit); */
+/*	fprintf(stderr, "fsp limit %lu MB\n", *fsp_limit); */
 
 	*cp_no = mach_read_from_8(cp_buf + LOG_CHECKPOINT_NO);
 
@@ -685,7 +683,7 @@ recv_scan_log_seg_for_backup(
 		if (no != log_block_convert_lsn_to_no(*scanned_lsn)
 		    || !log_block_checksum_is_ok_or_old_format(log_block)) {
 /*
-			printf(
+			fprintf(stderr,
 "Log block n:o %lu, scanned lsn n:o %lu\n",
 			no, log_block_convert_lsn_to_no(*scanned_lsn));
 */
@@ -693,7 +691,7 @@ recv_scan_log_seg_for_backup(
 
 			log_block += OS_FILE_LOG_BLOCK_SIZE;
 /*
-			printf(
+			fprintf(stderr,
 "Next log block n:o %lu\n",
 			log_block_get_hdr_no(log_block));
 */			
@@ -710,7 +708,8 @@ recv_scan_log_seg_for_backup(
 			/* Garbage from a log buffer flush which was made
 			before the most recent database recovery */
 /*
-			printf("Scanned cp n:o %lu, block cp n:o %lu\n",
+			fprintf(stderr,
+				"Scanned cp n:o %lu, block cp n:o %lu\n",
 				*scanned_checkpoint_no,
 				log_block_get_checkpoint_no(log_block));
 */
@@ -728,7 +727,8 @@ recv_scan_log_seg_for_backup(
 		if (data_len < OS_FILE_LOG_BLOCK_SIZE) {
 			/* Log data ends here */
 
-			/* printf("Log block data len %lu\n", data_len); */
+			/* fprintf(stderr, "Log block data len %lu\n",
+				data_len); */
 
 			break;
 		}
@@ -939,7 +939,7 @@ recv_add_to_hash_table(
 					recv_fold(space, page_no), recv_addr);
 		recv_sys->n_addrs++;
 
-		/* printf("Inserting log rec for space %lu, page %lu\n",
+		/* fprintf(stderr, "Inserting log rec for space %lu, page %lu\n",
 					  space, page_no); */
 	}
 
@@ -1057,7 +1057,7 @@ recv_recover_page(
 		return;
 	}
 
-	/* printf("Recovering space %lu, page %lu\n", space, page_no); */
+	/* fprintf(stderr, "Recovering space %lu, page %lu\n", space, page_no); */
 
 	recv_addr->state = RECV_BEING_PROCESSED;
 	
@@ -1248,7 +1248,7 @@ recv_read_in_area(
 
 	buf_read_recv_pages(FALSE, space, page_nos, n);
 	/*
-        printf("Recv pages at %lu n %lu\n", page_nos[0], n);
+	fprintf(stderr, "Recv pages at %lu n %lu\n", page_nos[0], n);
 	*/
 	return(n);
 }
@@ -1311,9 +1311,9 @@ loop:
 			if (recv_addr->state == RECV_NOT_PROCESSED) {
 				if (!has_printed) {
 	    				ut_print_timestamp(stderr);
-					fprintf(stderr, 
+					fputs( 
 "  InnoDB: Starting an apply batch of log records to the database...\n"
-"InnoDB: Progress in percents: ");
+"InnoDB: Progress in percents: ",stderr);
 					has_printed = TRUE;
 				}
 				
@@ -1431,9 +1431,9 @@ recv_apply_log_recs_for_backup(void)
 
 	page = recv_backup_application_page;
 
-	printf( 
+	fputs(
 "InnoDB: Starting an apply batch of log records to the database...\n"
-"InnoDB: Progress in percents: ");
+"InnoDB: Progress in percents: ", stderr);
 	
 	n_hash_cells = hash_get_n_cells(recv_sys->addr_hash);
 
@@ -1445,7 +1445,7 @@ recv_apply_log_recs_for_backup(void)
 
 			if (!fil_tablespace_exists_in_mem(recv_addr->space)) {
 /*
-				printf(
+				fprintf(stderr,
 "InnoDB: Warning: cannot apply log record to tablespace %lu page %lu,\n"
 "InnoDB: because tablespace with that id does not exist.\n",
 				      recv_addr->space, recv_addr->page_no);
@@ -1478,7 +1478,7 @@ recv_apply_log_recs_for_backup(void)
 						recv_addr->space,
 						recv_addr->page_no + 1);
 			if (!success) {
-				printf(
+			  fprintf(stderr,
 "InnoDB: Fatal error: cannot extend tablespace %lu to hold %lu pages\n",
 				     recv_addr->space, recv_addr->page_no);
 				     
@@ -1492,9 +1492,9 @@ recv_apply_log_recs_for_backup(void)
 					recv_addr->page_no, 0, UNIV_PAGE_SIZE,
 					page, NULL);
 			if (error != DB_SUCCESS) {
-				printf(
+			  fprintf(stderr,
 "InnoDB: Fatal error: cannot read from tablespace %lu page number %lu\n",
-				     recv_addr->space, recv_addr->page_no);
+				     (ulong) recv_addr->space, (ulong) recv_addr->page_no);
 				     
 				exit(1);
 			}
@@ -1519,8 +1519,9 @@ skip_this_recv_addr:
 
 		if ((100 * i) / n_hash_cells
 				!= (100 * (i + 1)) / n_hash_cells) {
-			printf("%lu ", (100 * i) / n_hash_cells);
-			fflush(stdout);
+			fprintf(stderr, "%lu ",
+                                (ulong) ((100 * i) / n_hash_cells));
+			fflush(stderr);
 		}
 	}
 
@@ -1859,53 +1860,46 @@ recv_report_corrupt_log(
 	ulint	space,	/* in: space id, this may also be garbage */
 	ulint	page_no)/* in: page number, this may also be garbage */
 {
-	char*	err_buf;
-
 	fprintf(stderr,
 "InnoDB: ############### CORRUPT LOG RECORD FOUND\n"
 "InnoDB: Log record type %lu, space id %lu, page number %lu\n"
-"InnoDB: Log parsing proceeded successfully up to %lu %lu\n",
-	(ulong) type, (ulong) space, (ulong) page_no,
-	(ulong) ut_dulint_get_high(recv_sys->recovered_lsn),
-	(ulong) ut_dulint_get_low(recv_sys->recovered_lsn));
-
-	err_buf = ut_malloc(1000000);
-
-	fprintf(stderr,
+"InnoDB: Log parsing proceeded successfully up to %lu %lu\n"
 "InnoDB: Previous log record type %lu, is multi %lu\n"
 "InnoDB: Recv offset %lu, prev %lu\n",
-		(ulong) recv_previous_parsed_rec_type,
-		(ulong) recv_previous_parsed_rec_is_multi,
-		(ulong) (ptr - recv_sys->buf),
-		(ulong) recv_previous_parsed_rec_offset);
+	(ulong) type, (ulong) space, (ulong) page_no,
+	(ulong) ut_dulint_get_high(recv_sys->recovered_lsn),
+        (ulong) ut_dulint_get_low(recv_sys->recovered_lsn),
+	(ulong) recv_previous_parsed_rec_type,
+	(ulong) recv_previous_parsed_rec_is_multi,
+	(ulong) (ptr - recv_sys->buf),
+	(ulong) recv_previous_parsed_rec_offset);
 
 	if ((ulint)(ptr - recv_sys->buf + 100)
 					> recv_previous_parsed_rec_offset
 	    && (ulint)(ptr - recv_sys->buf + 100
 					- recv_previous_parsed_rec_offset)
 	       < 200000) {
+		fputs(
+"InnoDB: Hex dump of corrupt log starting 100 bytes before the start\n"
+"InnoDB: of the previous log rec,\n"
+"InnoDB: and ending 100 bytes after the start of the corrupt rec:\n",
+			stderr);
  
-		ut_sprintf_buf(err_buf,
+		ut_print_buf(stderr,
 		     recv_sys->buf + recv_previous_parsed_rec_offset - 100,
 		     ptr - recv_sys->buf + 200 -
 					recv_previous_parsed_rec_offset);
-		fprintf(stderr,
-"InnoDB: Hex dump of corrupt log starting 100 bytes before the start\n"
-"InnoDB: of the previous log rec,\n"
-"InnoDB: and ending 100 bytes after the start of the corrupt rec:\n%s\n",
-			err_buf);
+		putc('\n', stderr);
 	}
 
-	ut_free(err_buf);
-
-	fprintf(stderr,
+	fputs(
 	"InnoDB: WARNING: the log file may have been corrupt and it\n"
 	"InnoDB: is possible that the log scan did not proceed\n"
 	"InnoDB: far enough in recovery! Please run CHECK TABLE\n"
 	"InnoDB: on your InnoDB tables to check that they are ok!\n"
 	"InnoDB: If mysqld crashes after this recovery, look at\n"
-	"InnoDB: section 6.1 of http://www.innodb.com/ibman.html\n"
-	"InnoDB: about forcing recovery.\n");
+	"InnoDB: section 6.1 of http://www.innodb.com/ibman.php\n"
+	"InnoDB: about forcing recovery.\n", stderr);
 
 	fflush(stderr);
 }
@@ -2583,7 +2577,7 @@ recv_recovery_from_checkpoint_start(
 				log_hdr_buf, max_cp_group);
 
 	if (0 == ut_memcmp(log_hdr_buf + LOG_FILE_WAS_CREATED_BY_HOT_BACKUP,
-			(byte*)"ibbackup", ut_strlen((char*)"ibbackup"))) {
+			(byte*)"ibbackup", (sizeof "ibbackup") - 1)) {
 		/* This log file was created by ibbackup --restore: print
 		a note to the user about it */
 
@@ -2991,38 +2985,47 @@ recv_reset_log_files_for_backup(
 	ibool		success;
 	byte*		buf;
 	ulint		i;
-	char		name[5000];
-	
+	ulint		log_dir_len;
+	char*		name;
+	static
+	char	logfilename[] = "ib_logfile";
+
+	log_dir_len = strlen(log_dir);
+	/* reserve space for log_dir, "ib_logfile" and a number */
+	name = memcpy(mem_alloc(log_dir_len + ((sizeof logfilename) + 11)),
+		log_dir, log_dir_len);
+	memcpy(name + log_dir_len, logfilename, sizeof logfilename);
+
 	buf = ut_malloc(LOG_FILE_HDR_SIZE + OS_FILE_LOG_BLOCK_SIZE);
-	
-	memset(buf, LOG_FILE_HDR_SIZE + OS_FILE_LOG_BLOCK_SIZE, '\0');
+        memset(buf, LOG_FILE_HDR_SIZE + OS_FILE_LOG_BLOCK_SIZE, '\0');
+
 
 	for (i = 0; i < n_log_files; i++) {
 
-		sprintf(name, "%sib_logfile%lu", log_dir, (ulong) i);
+		sprintf(name + log_dir_len + sizeof logfilename, "%lu", (ulong) i);
 
 		log_file = os_file_create_simple(name, OS_FILE_CREATE,
 						OS_FILE_READ_WRITE, &success);
 		if (!success) {
-			printf(
+			fprintf(stderr,
 "InnoDB: Cannot create %s. Check that the file does not exist yet.\n", name);
 
 			exit(1);
 		}
 
-		printf(
-"Setting log file size to %lu %lu\n", (ulong) ut_get_high32(log_file_size),
-				      (ulong) (log_file_size & 0xFFFFFFFFUL));
+		fprintf(stderr,
+			"Setting log file size to %lu %lu\n",
+			(ulong) ut_get_high32(log_file_size),
+			(ulong) log_file_size & 0xFFFFFFFFUL);
 
 		success = os_file_set_size(name, log_file,
 					log_file_size & 0xFFFFFFFFUL,
 					ut_get_high32(log_file_size));
 
 		if (!success) {
-			printf(
-"InnoDB: Cannot set %s size to %lu %lu\n", name,
-					  (ulong) ut_get_high32(log_file_size),
-					  (ulong) (log_file_size & 0xFFFFFFFFUL));
+			fprintf(stderr,
+"InnoDB: Cannot set %s size to %lu %lu\n", name, (ulong) ut_get_high32(log_file_size),
+						(ulong) (log_file_size & 0xFFFFFFFFUL));
 			exit(1);
 		}
 
@@ -3037,12 +3040,12 @@ recv_reset_log_files_for_backup(
 	log_block_init_in_old_format(buf + LOG_FILE_HDR_SIZE, lsn);
 	log_block_set_first_rec_group(buf + LOG_FILE_HDR_SIZE,
 							LOG_BLOCK_HDR_SIZE);
-	sprintf(name, "%sib_logfile%lu", log_dir, (ulong) 0);
+	strcpy(name + log_dir_len + sizeof logfilename, "0");
 
 	log_file = os_file_create_simple(name, OS_FILE_OPEN,
 						OS_FILE_READ_WRITE, &success);
 	if (!success) {
-		printf("InnoDB: Cannot open %s.\n", name);
+		fprintf(stderr, "InnoDB: Cannot open %s.\n", name);
 
 		exit(1);
 	}
@@ -3052,6 +3055,7 @@ recv_reset_log_files_for_backup(
 	os_file_flush(log_file);
 	os_file_close(log_file);
 
+	mem_free(name);
 	ut_free(buf);
 }
 

@@ -15,7 +15,7 @@ create table t1 (
   primary key (c11)
 );
 create table t2 (
-  c21 integer,c22 integer,c23 integer,c24 integer,c25 integer,c26 integer,
+  c21 integer,c22 integer,c23 integer,c24 integer,c25 integer,c26 integer
 );
 create table t3 (
   c31 integer,c32 integer,c33 integer,c34 integer,c35 integer,c36 integer,
