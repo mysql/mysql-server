@@ -193,7 +193,7 @@ static int ismbchar_euc_kr(CHARSET_INFO *cs __attribute__((unused)),
 
 static int mbcharlen_euc_kr(CHARSET_INFO *cs __attribute__((unused)),uint c)
 {
-  return (iseuc_kr(c) ? 2 : 0);
+  return (iseuc_kr(c) ? 2 : 1);
 }
 
 
@@ -8591,9 +8591,9 @@ my_wc_mb_euc_kr(CHARSET_INFO *cs __attribute__((unused)),
   if (s >= e)
     return MY_CS_TOOSMALL;
   
-  if (wc<0x80)
+  if ((uint) wc < 0x80)
   {
-    s[0]=wc;
+    s[0]= (uchar) wc;
     return 1;
   }
   

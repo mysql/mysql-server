@@ -872,6 +872,37 @@ static int check_connection(THD *thd)
   return check_user(thd, COM_CONNECT, passwd, passwd_len, db, true);
 }
 
+
+void execute_init_command(THD *thd, sys_var_str *init_command_var,
+			  rw_lock_t *var_mutex)
+{
+  Vio* save_vio;
+  ulong save_client_capabilities;
+
+  thd->proc_info= "Execution of init_command";
+  /*
+    We need to lock init_command_var because
+    during execution of init_command_var query
+    values of init_command_var can't be changed
+  */
+  rw_rdlock(var_mutex);
+  thd->query= init_command_var->value;
+  thd->query_length= init_command_var->value_length;
+  save_client_capabilities= thd->client_capabilities;
+  thd->client_capabilities|= CLIENT_MULTI_QUERIES;
+  /*
+    We don't need return result of execution to client side.
+    To forbid this we should set thd->net.vio to 0.
+  */
+  save_vio= thd->net.vio;
+  thd->net.vio= 0;
+  dispatch_command(COM_QUERY, thd, thd->query, thd->query_length+1);
+  rw_unlock(var_mutex);
+  thd->client_capabilities= save_client_capabilities;
+  thd->net.vio= save_vio;
+}
+
+
 pthread_handler_decl(handle_one_connection,arg)
 {
   THD *thd=(THD*) arg;
@@ -944,9 +975,15 @@ pthread_handler_decl(handle_one_connection,arg)
     if (thd->client_capabilities & CLIENT_COMPRESS)
       net->compress=1;				// Use compression
 
-    thd->proc_info=0;				// Remove 'login'
-    thd->command=COM_SLEEP;
-    thd->version=refresh_version;
+    thd->version= refresh_version;
+    if (sys_init_connect.value && !(thd->master_access & SUPER_ACL))
+    {
+      execute_init_command(thd, &sys_init_connect, &LOCK_sys_init_connect);
+      if (thd->query_error)
+	thd->killed= THD::KILL_CONNECTION;
+    }
+
+    thd->proc_info=0;
     thd->set_time();
     while (!net->error && net->vio != 0 && !(thd->killed == THD::KILL_CONNECTION))
     {
@@ -1215,7 +1252,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   thread_running++;
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
 
-  thd->lex->select_lex.options=0;		// We store status here
+  thd->server_status&=
+           ~(SERVER_QUERY_NO_INDEX_USED | SERVER_QUERY_NO_GOOD_INDEX_USED);
   switch (command) {
   case COM_INIT_DB:
   {
@@ -1645,8 +1683,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
     if ((ulong) (thd->start_time - thd->time_after_lock) >
 	thd->variables.long_query_time ||
-	((thd->lex->select_lex.options &
-	  (QUERY_NO_INDEX_USED | QUERY_NO_GOOD_INDEX_USED)) &&
+	((thd->server_status &
+	  (SERVER_QUERY_NO_INDEX_USED | SERVER_QUERY_NO_GOOD_INDEX_USED)) &&
 	 (specialflag & SPECIAL_LOG_QUERIES_NOT_USING_INDEXES)))
     {
       long_query_count++;
@@ -3979,6 +4017,7 @@ mysql_init_query(THD *thd, bool lexonly)
   lex->select_lex.prev= &lex->unit.slave;
   lex->select_lex.link_next= lex->select_lex.slave= lex->select_lex.next= 0;
   lex->select_lex.link_prev= (st_select_lex_node**)&(lex->all_selects_list);
+  lex->select_lex.options=0;
   lex->select_lex.init_order();
   lex->select_lex.group_list.empty();
   lex->describe= 0;
