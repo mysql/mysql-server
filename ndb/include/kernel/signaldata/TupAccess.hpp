@@ -129,6 +129,8 @@ private:
 /*
  * Operate on entire tuple.  Used by TUX where the table has a single
  * Uint32 array attribute representing an index tree node.
+ *
+ * XXX this signal is no longer used by TUX and can be removed
  */
 class TupStoreTh {
   friend class Dbtup;

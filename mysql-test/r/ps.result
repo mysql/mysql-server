@@ -23,13 +23,13 @@ a	b
 deallocate prepare no_such_statement;
 ERROR HY000: Unknown prepared statement handler (no_such_statement) given to DEALLOCATE PREPARE
 execute stmt1;
-ERROR HY000: Wrong arguments to EXECUTE
+ERROR HY000: Incorrect arguments to EXECUTE
 prepare stmt2 from 'prepare nested_stmt from "select 1"';
-ERROR 42000: You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use near '"select 1"' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '"select 1"' at line 1
 prepare stmt2 from 'execute stmt1';
-ERROR 42000: You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use near 'stmt1' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'stmt1' at line 1
 prepare stmt2 from 'deallocate prepare z';
-ERROR 42000: You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use near 'z' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'z' at line 1
 prepare stmt3 from 'insert into t1 values (?,?)';
 set @arg1=5, @arg2='five';
 execute stmt3 using @arg1, @arg2;
@@ -84,11 +84,11 @@ NULL
 NULL
 NULL
 prepare stmt6 from 'select 1; select2';
-ERROR 42000: You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use near '; select2' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '; select2' at line 1
 prepare stmt6 from 'insert into t1 values (5,"five"); select2';
-ERROR 42000: You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use near '; select2' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '; select2' at line 1
 explain prepare stmt6 from 'insert into t1 values (5,"five"); select2';
-ERROR 42000: You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use near 'from 'insert into t1 values (5,"five"); select2'' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'from 'insert into t1 values (5,"five"); select2'' at line 1
 create table t2
 (
 a int
@@ -99,13 +99,13 @@ prepare stmt1 from 'select 1 FROM t2 where a=?' ;
 execute stmt1 using @arg00 ;
 1
 prepare stmt1 from @nosuchvar;
-ERROR 42000: You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use near 'NULL' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'NULL' at line 1
 set @ivar= 1234;
 prepare stmt1 from @ivar;
-ERROR 42000: You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use near '1234' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '1234' at line 1
 set @fvar= 123.4567;
 prepare stmt1 from @fvar;
-ERROR 42000: You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use near '123.4567' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '123.4567' at line 1
 set @str1 = 'select ?';
 set @str2 = convert(@str1 using ucs2);
 prepare stmt1 from @str2;

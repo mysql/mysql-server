@@ -155,6 +155,14 @@ NdbSqlUtil::m_typeList[] = {
   {
     Type::Timespec,
     NULL // cmpTimespec
+  },
+  {
+    Type::Blob,
+    NULL // cmpDatetime
+  },
+  {
+    Type::Clob,
+    cmpClob
   }
 };
 
@@ -282,6 +290,18 @@ int
 NdbSqlUtil::cmpTimespec(const Uint32* p1, const Uint32* p2, Uint32 full, Uint32 size)
 {
   return cmp(Type::Timespec, p1, p2, full, size);
+}
+
+int
+NdbSqlUtil::cmpBlob(const Uint32* p1, const Uint32* p2, Uint32 full, Uint32 size)
+{
+  return cmp(Type::Blob, p1, p2, full, size);
+}
+
+int
+NdbSqlUtil::cmpClob(const Uint32* p1, const Uint32* p2, Uint32 full, Uint32 size)
+{
+  return cmp(Type::Clob, p1, p2, full, size);
 }
 
 #ifdef NDB_SQL_UTIL_TEST

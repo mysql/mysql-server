@@ -31,6 +31,7 @@
 #include "NdbApiSignal.hpp"
 #include "NdbRecAttr.hpp"
 #include "NdbUtil.hpp"
+#include "NdbBlob.hpp"
 #include "ndbapi_limits.h"
 #include <signaldata/TcKeyReq.hpp>
 #include "NdbDictionaryImpl.hpp"
@@ -88,7 +89,8 @@ NdbOperation::NdbOperation(Ndb* aNdb) :
   m_tcReqGSN(GSN_TCKEYREQ),
   m_keyInfoGSN(GSN_KEYINFO),
   m_attrInfoGSN(GSN_ATTRINFO),
-  theBoundATTRINFO(NULL)
+  theBoundATTRINFO(NULL),
+  theBlobList(NULL)
 {
   theReceiver.init(NdbReceiver::NDB_OPERATION, this, false);
   theError.code = 0;
@@ -177,6 +179,7 @@ NdbOperation::init(NdbTableImpl* tab, NdbConnection* myConnection){
   theTotalNrOfKeyWordInSignal = 8;
   theMagicNumber        = 0xABCDEF01;
   theBoundATTRINFO      = NULL;
+  theBlobList = NULL;
 
   tSignal = theNdb->getSignal();
   if (tSignal == NULL)
@@ -215,6 +218,8 @@ NdbOperation::release()
   NdbCall*	tSaveCall;
   NdbSubroutine* tSubroutine;
   NdbSubroutine* tSaveSubroutine;
+  NdbBlob* tBlob;
+  NdbBlob* tSaveBlob;
 
   if (theTCREQ != NULL)
   {
@@ -278,6 +283,14 @@ NdbOperation::release()
     }
     theBoundATTRINFO = NULL;
   }
+  tBlob = theBlobList;
+  while (tBlob != NULL)
+  {
+    tSaveBlob = tBlob;
+    tBlob = tBlob->theNext;
+    theNdb->releaseNdbBlob(tSaveBlob);
+  }
+  theBlobList = NULL;
 }
 
 NdbRecAttr*
@@ -323,6 +336,18 @@ NdbOperation::setValue( Uint32 anAttrId,
 			Uint32 len)
 {
   return setValue(m_currentTable->getColumn(anAttrId), aValuePassed, len);
+}
+
+NdbBlob*
+NdbOperation::getBlobHandle(const char* anAttrName)
+{
+  return getBlobHandle(theNdbCon, m_currentTable->getColumn(anAttrName));
+}
+
+NdbBlob*
+NdbOperation::getBlobHandle(Uint32 anAttrId)
+{
+  return getBlobHandle(theNdbCon, m_currentTable->getColumn(anAttrId));
 }
 
 int
@@ -385,4 +410,8 @@ NdbOperation::write_attr(Uint32 anAttrId, Uint32 RegDest)
   return write_attr(m_currentTable->getColumn(anAttrId), RegDest);
 }
 
-
+const char*
+NdbOperation::getTableName() const
+{
+  return m_currentTable->m_externalName.c_str();
+}

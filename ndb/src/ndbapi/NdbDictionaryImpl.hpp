@@ -81,6 +81,7 @@ public:
   Uint32 m_keyInfoPos;
   Uint32 m_extType;             // used by restore (kernel type in versin v2x)
   bool getInterpretableType() const ;
+  bool getBlobType() const;
 
   /**
    * Equality/assign
@@ -143,6 +144,8 @@ public:
    * Aggregates
    */
   Uint32 m_noOfKeys;
+  unsigned short m_sizeOfKeysInWords;
+  unsigned short m_noOfBlobs;
 
   /**
    * Equality/assign
@@ -355,13 +358,12 @@ public:
   bool setTransporter(class Ndb * ndb, class TransporterFacade * tf);
   bool setTransporter(class TransporterFacade * tf);
   
-  int createTable(NdbTableImpl &t) 
-  { 
-    return m_receiver.createTable(m_ndb, t);
-  }
+  int createTable(NdbTableImpl &t);
+  int createBlobTables(NdbTableImpl &);
   int alterTable(NdbTableImpl &t);
   int dropTable(const char * name);
   int dropTable(NdbTableImpl &);
+  int dropBlobTables(NdbTableImpl &);
   int invalidateObject(NdbTableImpl &);
   int removeCachedObject(NdbTableImpl &);
 
@@ -432,6 +434,13 @@ bool
 NdbColumnImpl::getInterpretableType() const {
   return (m_type == NdbDictionary::Column::Unsigned ||
 	  m_type == NdbDictionary::Column::Bigunsigned);
+}
+
+inline
+bool 
+NdbColumnImpl::getBlobType() const {
+  return (m_type == NdbDictionary::Column::Blob ||
+	  m_type == NdbDictionary::Column::Clob);
 }
 
 inline

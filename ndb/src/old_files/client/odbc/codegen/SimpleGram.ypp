@@ -88,6 +88,7 @@ struct PhysAttr { int storage; int logging; };
     struct PhysAttr* m_phys_attr;
     NdbDictionary::Object::FragmentType m_storage_attr;
     bool m_logging_attr;
+    SqlType::Type m_sql_type;
 }
 
 /* keywords */
@@ -100,6 +101,7 @@ struct PhysAttr { int storage; int logging; };
     T_BLOB
     T_BY
     T_CHAR
+    T_CLOB
     T_CONSTRAINT
     T_CREATE
     T_DATETIME
@@ -128,6 +130,7 @@ struct PhysAttr { int storage; int logging; };
     T_LIMIT
     T_LOGGING
     T_LONGBLOB
+    T_LONGCLOB
     T_MEDIUM
     T_NOLOGGING
     T_NOT
@@ -248,6 +251,7 @@ struct PhysAttr { int storage; int logging; };
 %type <m_phys_attr>		phys_attr2
 %type <m_storage_attr>		storage_attr
 %type <m_logging_attr>		logging_attr
+%type <m_sql_type>		blob_type
 
 %%
 
@@ -606,10 +610,10 @@ data_type:
 	$$ = dataType;
     }
     |
-    blob_keyword
+    blob_type
     {
 	Plan_root* root = simpleParser.root();
-	SqlType sqlType(SqlType::Blob, true);
+	SqlType sqlType($1, true);
 	Plan_data_type* dataType = new Plan_data_type(root, sqlType);
 	root->saveNode(dataType);
 	$$ = dataType;
@@ -620,10 +624,26 @@ dummy_binary:
     |
     T_BINARY
     ;
-blob_keyword:
+blob_type:
     T_BLOB
+    {
+	$$ = SqlType::Blob;
+    }
     |
     T_LONGBLOB
+    {
+	$$ = SqlType::Blob;
+    }
+    |
+    T_CLOB
+    {
+	$$ = SqlType::Clob;
+    }
+    |
+    T_LONGCLOB
+    {
+	$$ = SqlType::Clob;
+    }
     ;
 create_column_rest:
     /* empty */

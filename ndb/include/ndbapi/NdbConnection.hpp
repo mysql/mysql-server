@@ -27,6 +27,7 @@ class NdbIndexScanOperation;
 class NdbIndexOperation;
 class NdbApiSignal;
 class Ndb;
+class NdbBlob;
 
 
 /**
@@ -159,6 +160,7 @@ class NdbConnection
   friend class NdbScanOperation;
   friend class NdbIndexOperation;
   friend class NdbIndexScanOperation;
+  friend class NdbBlob;
  
 public:
 
@@ -449,6 +451,10 @@ private:
   ~NdbConnection();
 
   void init();           // Initialize connection object for new transaction
+
+  int executeNoBlobs(ExecType execType, 
+	             AbortOption abortOption = AbortOnError,
+	             int force = 0 );
   
   /**
    * Set Connected node id 
@@ -532,10 +538,12 @@ private:
   void		setOperationErrorCodeAbort(int anErrorCode);
 
   int		checkMagicNumber();		       // Verify correct object
-  NdbOperation* getNdbOperation(class NdbTableImpl* aTable);
+  NdbOperation* getNdbOperation(class NdbTableImpl* aTable,
+                                NdbOperation* aNextOp = 0);
   NdbIndexScanOperation* getNdbScanOperation(class NdbTableImpl* aTable);
   NdbIndexOperation* getNdbIndexOperation(class NdbIndexImpl* anIndex, 
-                                          class NdbTableImpl* aTable);
+                                          class NdbTableImpl* aTable,
+                                          NdbOperation* aNextOp = 0);
   
   void		handleExecuteCompletion();
   
@@ -632,6 +640,8 @@ private:
   // The operation actually performing the scan
   NdbScanOperation* theScanningOp; 
   Uint32 theBuddyConPtr;
+  // optim: any blobs
+  bool theBlobFlag;
 
   static void sendTC_COMMIT_ACK(NdbApiSignal *,
 				Uint32 transId1, Uint32 transId2, 

@@ -157,11 +157,8 @@ grp	group_concat(c)
 3	D,D,E
 4	
 5	NULL
-Warnings:
-Warning	1260	1 line(s) was(were) cut by group_concat()
 show warnings;
 Level	Code	Message
-Warning	1260	1 line(s) was(were) cut by group_concat()
 set group_concat_max_len = 1024;
 select group_concat(sum(a)) from t1 group by grp;
 ERROR HY000: Invalid use of group function
@@ -310,3 +307,14 @@ GROUP_CONCAT(t1.a*t2.a ORDER BY t2.a)
 1,2
 2,4
 DROP TABLE t1, t2;
+CREATE TABLE t1 (a char(4));
+INSERT INTO t1 VALUES ('John'), ('Anna'), ('Bill');
+SELECT GROUP_CONCAT(a SEPARATOR '||') AS names FROM t1 
+HAVING names LIKE '%An%';
+names
+John||Anna||Bill
+SELECT GROUP_CONCAT(a SEPARATOR '###') AS names FROM t1 
+HAVING LEFT(names, 1) ='J';
+names
+John###Anna###Bill
+DROP TABLE t1;

@@ -121,7 +121,7 @@ create database mysqltest;
 create table mysqltest.t1 (a int,b int,c int);
 grant all on mysqltest.t1 to mysqltest_1@localhost;
 alter table t1 rename t2;
-ERROR 42000: insert command denied to user: 'mysqltest_1'@'localhost' for table 't2'
+ERROR 42000: insert command denied to user 'mysqltest_1'@'localhost' for table 't2'
 revoke all privileges on mysqltest.t1 from mysqltest_1@localhost;
 delete from mysql.user where user='mysqltest_1';
 drop database mysqltest;
@@ -468,5 +468,5 @@ t1	CREATE TABLE `t1` (
   UNIQUE KEY `b` (`b`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 ALTER TABLE t1 DROP PRIMARY KEY;
-ERROR 42000: Can't DROP 'PRIMARY'. Check that column/key exists
+ERROR 42000: Can't DROP 'PRIMARY'; check that column/key exists
 DROP TABLE t1;

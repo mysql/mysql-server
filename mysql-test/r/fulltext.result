@@ -253,11 +253,11 @@ KEY tig (ticket),
 fulltext index tix (inhalt)
 );
 select * from t2 where MATCH inhalt AGAINST (t2.inhalt);
-ERROR HY000: Wrong arguments to AGAINST
+ERROR HY000: Incorrect arguments to AGAINST
 select * from t2 where MATCH ticket AGAINST ('foobar');
 ERROR HY000: Can't find FULLTEXT index matching the column list
 select * from t2,t3 where MATCH (t2.inhalt,t3.inhalt) AGAINST ('foobar');
-ERROR HY000: Wrong arguments to MATCH
+ERROR HY000: Incorrect arguments to MATCH
 drop table t1,t2,t3;
 CREATE TABLE t1 (
 id int(11)  auto_increment,
@@ -362,4 +362,15 @@ aus Osnabrück	latin1_german2_ci
 SELECT t, collation(t) FROM t1 WHERE MATCH t AGAINST ('Osnabrueck');
 t	collation(t)
 aus Osnabrück	latin1_german2_ci
+DROP TABLE t1;
+CREATE TABLE t1 (s varchar(255), FULLTEXT (s)) DEFAULT CHARSET=utf8;
+insert into t1 (s) values ('pära para para'),('para para para');
+select * from t1 where match(s) against('para' in boolean mode);
+s
+pära para para
+para para para
+select * from t1 where match(s) against('par*' in boolean mode);
+s
+pära para para
+para para para
 DROP TABLE t1;
