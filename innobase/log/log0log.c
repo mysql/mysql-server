@@ -790,11 +790,7 @@ log_init(void)
 	log_sys->archiving_on = os_event_create(NULL);
 
 	/*----------------------------*/
-	
-	log_sys->online_backup_state = FALSE;
 
-	/*----------------------------*/
-	
 	log_block_init(log_sys->buf, log_sys->lsn);
 	log_block_set_first_rec_group(log_sys->buf, LOG_BLOCK_HDR_SIZE);
 
@@ -3001,66 +2997,6 @@ loop:
 	}
 
 	mutex_exit(&(log_sys->mutex));
-}
-
-/**********************************************************
-Switches the database to the online backup state. */
-
-ulint
-log_switch_backup_state_on(void)
-/*============================*/
-			/* out: DB_SUCCESS or DB_ERROR */
-{
-	dulint	backup_lsn;
-	
-	mutex_enter(&(log_sys->mutex));
-
-	if (log_sys->online_backup_state) {
-
-		/* The database is already in that state */
-
-		mutex_exit(&(log_sys->mutex));
-
-		return(DB_ERROR);
-	}
-
-	log_sys->online_backup_state = TRUE;
-
-	backup_lsn = log_sys->lsn;
-
-	log_sys->online_backup_lsn = backup_lsn;
-
-	mutex_exit(&(log_sys->mutex));
-
-	/* log_checkpoint_and_mark_file_spaces(); */
-
-	return(DB_SUCCESS);
-}
-
-/**********************************************************
-Switches the online backup state off. */
-
-ulint
-log_switch_backup_state_off(void)
-/*=============================*/
-			/* out: DB_SUCCESS or DB_ERROR */
-{
-	mutex_enter(&(log_sys->mutex));
-
-	if (!log_sys->online_backup_state) {
-
-		/* The database is already in that state */
-
-		mutex_exit(&(log_sys->mutex));
-
-		return(DB_ERROR);
-	}
-
-	log_sys->online_backup_state = FALSE;
-
-	mutex_exit(&(log_sys->mutex));
-
-	return(DB_SUCCESS);
 }
 
 /********************************************************************
