@@ -2109,6 +2109,68 @@ dict_accept(
 }
 
 /*************************************************************************
+Scans an id. For the lexical definition of an 'id', see the code below.
+Strips backquotes or double quotes from around the id. */
+static
+char*
+dict_scan_id(
+/*=========*/
+				/* out: scanned to */
+	char*	ptr,		/* in: scanned to */
+	char**	start,		/* out: start of the id; NULL if no id was
+				scannable */
+	ulint*	len,		/* out: length of the id */
+	ibool	accept_also_dot)/* in: TRUE if also a dot can appear in a
+				non-quoted id; in a quoted id it can appear
+				always */
+{
+	char quote	= '\0';
+
+	*start = NULL;
+
+	while (isspace(*ptr)) {
+		ptr++;
+	}
+
+	if (*ptr == '\0') {
+
+		return(ptr);
+	}
+
+	if (*ptr == '`' || *ptr == '"') {
+		quote = *ptr++;
+	}
+	
+	*start = ptr;
+
+	if (quote) {
+		while (*ptr != quote && *ptr != '\0') {
+			ptr++;
+		}
+	} else {
+		while (!isspace(*ptr) && *ptr != '(' && *ptr != ')'
+		       && (accept_also_dot || *ptr != '.')
+		       && *ptr != ',' && *ptr != '\0') {
+
+			ptr++;
+		}
+	}
+
+	*len = (ulint) (ptr - *start);
+	
+	if (quote) {
+		if (*ptr == quote) {
+			ptr++;
+		} else {
+			/* Syntax error */
+			*start = NULL;
+		}
+	}
+
+	return(ptr);
+}
+
+/*************************************************************************
 Tries to scan a column name. */
 static
 char*
@@ -2124,66 +2186,28 @@ dict_scan_col(
 	ulint*		column_name_len)/* out: column name length */
 {
 	dict_col_t*	col;
-	char*		old_ptr;
 	ulint		i;
 	
 	*success = FALSE;
 
-	while (isspace(*ptr)) {
-		ptr++;
+	ptr = dict_scan_id(ptr, column_name, column_name_len, TRUE);
+
+	if (column_name == NULL) {
+
+		return(ptr);	/* Syntax error */
 	}
 
-	if (*ptr == '\0') {
-
-		return(ptr);
-	}
-
-	if (*ptr == '`' || *ptr == '"') {
-	  	/* The identifier is quoted. Search for the end quote. We
-		cannot use the general code here as the name may contain
-		special characters like the space. */
-
-	  	char quote = *ptr;
-
-		ptr++;		/* Skip the quote */
-
-	  	old_ptr = ptr;
-
-	  	/* The column name should always end with 'quote' but we check
-		for an end zero just to be safe if this is called outside of
-		MySQL. */
-
-	  	while (*ptr && *ptr != quote) {
-	    		ptr++;
-		}
-	  	*column_name_len = (ulint)(ptr - old_ptr);
-
-	  	if (*ptr) {	/* Skip end quote */
-	    		ptr++;
-		} else {			
-			return(ptr);	/* Syntax error */
-		}
-	} else {
-	  	old_ptr = ptr;
-	
-	  	while (!isspace(*ptr) && *ptr != ',' && *ptr != ')'
-		 					&& *ptr != '\0') {
-			ptr++;
-	  	}
-	  	*column_name_len = (ulint)(ptr - old_ptr);
-	}
-	
 	if (table == NULL) {
 		*success = TRUE;
 		*column = NULL;
-		*column_name = old_ptr;
 	} else {
 	    	for (i = 0; i < dict_table_get_n_cols(table); i++) {
 
 			col = dict_table_get_nth_col(table, i);
 
 			if (ut_strlen(col->name) == *column_name_len
-			    && 0 == ut_cmp_in_lower_case(col->name, old_ptr,
+			    && 0 == ut_cmp_in_lower_case(col->name,
+							*column_name,
 							*column_name_len)) {
 		    		/* Found */
 
@@ -2214,163 +2238,99 @@ dict_scan_table_name(
 				the referenced table name; must be at least
 				2500 bytes */
 {
-	char*	dot_ptr		= NULL;
-	char*	old_ptr;
-	char	quote		= '\0';
+	char*	database_name	= NULL;
+	ulint	database_name_len = 999999999;	/* init to a dummy value to
+						suppress a compiler warning */
+	char*	table_name	= NULL;
+	ulint	table_name_len;
+	char*	scanned_id;
+	ulint	scanned_id_len;
 	ulint	i;
 	
 	*success = FALSE;
 	*table = NULL;
+	
+	ptr = dict_scan_id(ptr, &scanned_id, &scanned_id_len, FALSE);	
 
-	while (isspace(*ptr)) {
+	if (scanned_id == NULL) {
+		
+		return(ptr);	/* Syntax error */
+	}
+
+	if (*ptr == '.') {
+		/* We scanned the database name; scan also the table name */
+
 		ptr++;
-	}
 
-	if (*ptr == '\0') {
+		database_name = scanned_id;
+		database_name_len = scanned_id_len;
 
-		return(ptr);
-	}
+		ptr = dict_scan_id(ptr, &table_name, &table_name_len, FALSE);
 
-	if (*ptr == '`' || *ptr == '"') {
-		quote = *ptr;
-		ptr++;
-	}
+		if (table_name == NULL) {
 
-	old_ptr = ptr;
-
-	if (quote) {
-		while (*ptr != quote && *ptr != '\0') {
-			ptr++;
-		}
-
-		if (*ptr == '\0') {
-
-			return(old_ptr);	/* Syntax error */
+			return(ptr);	/* Syntax error */
 		}
 	} else {
-		while (!isspace(*ptr) && *ptr != '(' && *ptr != '\0') {
-
-			if (*ptr == '.') {
-				dot_ptr = ptr;
-			}
-			ptr++;
-		}
+		table_name = scanned_id;
+		table_name_len = scanned_id_len;
 	}
 
-	if (ptr - old_ptr > 2000) {
+	if (database_name == NULL) {
+		/* Use the database name of the foreign key table */
 
-		return(old_ptr);
+		database_name = name;
+			
+		i = 0;
+		while (name[i] != '/') {
+			i++;
+		}
+
+		database_name_len = i;
+	}
+
+	if (table_name_len + database_name_len > 2000) {
+
+		return(ptr);	/* Too long name */
 	}
 	
-	if (dot_ptr == NULL) {
-		/* Copy the database name from 'name' to the start */
-		for (i = 0;; i++) {
-			second_table_name[i] = name[i];
-			if (name[i] == '/') {
-				i++;
-				break;
-			}
-		}
 #ifdef __WIN__
-		ut_cpy_in_lower_case(second_table_name + i, old_ptr,
-				     				ptr - old_ptr);
+	ut_cpy_in_lower_case(second_table_name, database_name,
+							database_name_len);
 #else
-		if (srv_lower_case_table_names) {
-			ut_cpy_in_lower_case(second_table_name + i, old_ptr,
-				     				ptr - old_ptr);
-		} else {
-			ut_memcpy(second_table_name + i, old_ptr,
-								ptr - old_ptr);
-		}
-#endif
-		second_table_name[i + (ptr - old_ptr)] = '\0';
+	if (srv_lower_case_table_names) {
+		ut_cpy_in_lower_case(second_table_name, database_name,
+							database_name_len);
 	} else {
-#ifdef __WIN__
-		ut_cpy_in_lower_case(second_table_name, old_ptr,
-								ptr - old_ptr);
-#else
-		if (srv_lower_case_table_names) {
-			ut_cpy_in_lower_case(second_table_name, old_ptr,
-				   			ptr - old_ptr);
-		} else {
-			ut_memcpy(second_table_name, old_ptr, ptr - old_ptr);
-		}
-#endif
-		second_table_name[dot_ptr - old_ptr] = '/';
-		second_table_name[ptr - old_ptr] = '\0';
+		ut_memcpy(second_table_name, database_name,
+							database_name_len);
 	}
+#endif
+	second_table_name[database_name_len] = '/';
+
+#ifdef __WIN__
+	ut_cpy_in_lower_case(second_table_name + database_name_len + 1,
+						table_name, table_name_len);
+#else
+	if (srv_lower_case_table_names) {
+		ut_cpy_in_lower_case(second_table_name + database_name_len + 1,
+						table_name, table_name_len);
+	} else {
+		ut_memcpy(second_table_name + database_name_len + 1,
+						table_name, table_name_len);
+	}
+#endif
+	second_table_name[database_name_len + 1 + table_name_len] = '\0';
 
 	*success = TRUE;
 
 	*table = dict_table_get_low(second_table_name);
 
-	if (quote && *ptr == quote) {
-		ptr++;
-	}
-
 	return(ptr);
 }
 
 /*************************************************************************
-Scans an id. For the lexical definition of an 'id', see the code below.
-Strips backquotes from around the id. */
-static
-char*
-dict_scan_id(
-/*=========*/
-			/* out: scanned to */
-	char*	ptr,	/* in: scanned to */
-	char**	start,	/* out: start of the id; NULL if no id was
-			scannable */
-	ulint*	len)	/* out: length of the id */
-{
-	char quote	= '\0';
-
-	*start = NULL;
-
-	while (isspace(*ptr)) {
-		ptr++;
-	}
-
-	if (*ptr == '\0') {
-
-		return(ptr);
-	}
-
-	if (*ptr == '`' || *ptr == '"') {
-		quote = *ptr++;
-	}
-	
-	*start = ptr;
-
-	if (quote) {
-		while (*ptr != quote && *ptr != '\0') {
-			ptr++;
-		}
-	} else {
-		while (!isspace(*ptr) && *ptr != '(' && *ptr != ')'
-		       && *ptr != ',' && *ptr != '\0') {
-
-			ptr++;
-		}
-	}
-
-	*len = (ulint) (ptr - *start);
-	
-	if (quote) {
-		if (*ptr == quote) {
-			ptr++;
-		} else {
-			/* Syntax error */
-			*start = NULL;
-		}
-	}
-
-	return(ptr);
-}
-
-/*************************************************************************
-Skips one id. */
+Skips one id. The id is allowed to contain also '.'. */
 static
 char*
 dict_skip_word(
@@ -2385,7 +2345,7 @@ dict_skip_word(
 	
 	*success = FALSE;
 
-	ptr = dict_scan_id(ptr, &start, &len);
+	ptr = dict_scan_id(ptr, &start, &len, TRUE);
 
 	if (start) {
 		*success = TRUE;
@@ -3083,7 +3043,7 @@ loop:
 		goto syntax_error;
 	}
 
-	ptr = dict_scan_id(ptr, &start, &len);
+	ptr = dict_scan_id(ptr, &start, &len, TRUE);
 
 	if (start == NULL) {
 

@@ -167,7 +167,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
   String wrong_tables;
   db_type table_type;
   int error;
-  bool some_tables_deleted=0, tmp_table_deleted=0;
+  bool some_tables_deleted=0, tmp_table_deleted=0, foreign_key_error=0;
   DBUG_ENTER("mysql_rm_table_part2");
 
   if (lock_table_names(thd, tables))
@@ -212,6 +212,9 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
       error=ha_delete_table(table_type, path);
       if (error == ENOENT && if_exists)
 	error = 0;
+      if (error == HA_ERR_ROW_IS_REFERENCED)
+        foreign_key_error=1;	/* the table is referenced by a foreign key
+				constraint */
       if (!error || error == ENOENT)
       {
 	/* Delete the table definition file */
@@ -247,7 +250,10 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
   error= 0;
   if (wrong_tables.length())
   {
-    my_error(ER_BAD_TABLE_ERROR,MYF(0),wrong_tables.c_ptr());
+    if (!foreign_key_error)
+      my_error(ER_BAD_TABLE_ERROR,MYF(0),wrong_tables.c_ptr());
+    else
+      my_error(ER_ROW_IS_REFERENCED,MYF(0));
     error= 1;
   }
   DBUG_RETURN(error);
