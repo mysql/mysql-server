@@ -126,6 +126,20 @@ AC_PROG_CC
 AC_PROG_CXX
 AC_PROG_CPP
 
+# Print version of CC and CXX compiler (if they support --version)
+CC_VERSION=`$CC --version`
+if test $? -eq "0"
+then
+  AC_MSG_CHECKING("C Compiler version of $CC");
+  AC_MSG_RESULT($CC_VERSION)
+fi
+CXX_VERSION=`$CXX --version`
+if test $? -eq "0"
+then
+  AC_MSG_CHECKING("C++ compiler version of $CXX");
+  AC_MSG_RESULT($CXX_VERSION)
+fi
+
 # Fix for sgi gcc / sgiCC which tries to emulate gcc
 if test "$CC" = "sgicc"
 then
