@@ -77,14 +77,31 @@ int heap_create(const char *name, uint keys, HP_KEYDEF *keydef,
 	case HA_KEYTYPE_INT8:
 	  keyinfo->seg[j].flag|= HA_SWAP_KEY;
           break;
-        case HA_KEYTYPE_VARBINARY:
+        case HA_KEYTYPE_VARBINARY1:
           /* Case-insensitiveness is handled in coll->hash_sort */
-          keyinfo->seg[j].type= HA_KEYTYPE_VARTEXT;
+          keyinfo->seg[j].type= HA_KEYTYPE_VARTEXT1;
           /* fall_through */
-        case HA_KEYTYPE_VARTEXT:
+        case HA_KEYTYPE_VARTEXT1:
           if (!my_binary_compare(keyinfo->seg[j].charset))
             keyinfo->flag|= HA_END_SPACE_KEY;
           keyinfo->flag|= HA_VAR_LENGTH_KEY;
+          /* Save number of bytes used to store length */
+          keyinfo->seg[j].bit_start= 1;
+          break;
+        case HA_KEYTYPE_VARBINARY2:
+          /* Case-insensitiveness is handled in coll->hash_sort */
+          /* fall_through */
+        case HA_KEYTYPE_VARTEXT2:
+          if (!my_binary_compare(keyinfo->seg[j].charset))
+            keyinfo->flag|= HA_END_SPACE_KEY;
+          keyinfo->flag|= HA_VAR_LENGTH_KEY;
+          /* Save number of bytes used to store length */
+          keyinfo->seg[j].bit_start= 2;
+          /*
+            Make future comparison simpler by only having to check for
+            one type
+          */
+          keyinfo->seg[j].type= HA_KEYTYPE_VARTEXT1;
           break;
 	default:
 	  break;
