@@ -156,18 +156,18 @@ static int innobase_rollback_to_savepoint(THD* thd, void *savepoint);
 static int innobase_savepoint(THD* thd, void *savepoint);
 
 static handlerton innobase_hton = {
-  0, /* slot */
-  sizeof(trx_named_savept_t),   /* savepoint size. TODO: use it */
+  0,				/* slot */
+  sizeof(trx_named_savept_t),	/* savepoint size. TODO: use it */
   innobase_close_connection,
   innobase_savepoint,
   innobase_rollback_to_savepoint,
-  NULL,                         /* savepoint_release */
-  innobase_commit,
-  innobase_rollback,
-  innobase_xa_prepare, //makes flush_block_commit test to fail
-  NULL,                         /* recover */
-  NULL,                         /* commit_by_xid */
-  NULL,                         /* rollback_by_xid */
+  NULL,				/* savepoint_release */
+  innobase_commit,		/* commit */
+  innobase_rollback,		/* rollback */
+  innobase_xa_prepare,		/* prepare */
+  innobase_xa_recover,		/* recover */
+  innobase_commit_by_xid,	/* commit_by_xid */
+  innobase_rollback_by_xid,	/* rollback_by_xid */
 };
 
 /*********************************************************************
@@ -6019,36 +6019,4 @@ int innobase_rollback_by_xid(
 	}
 }
 
-/***********************************************************************
-This function is used to test commit/rollback of XA transactions */
-
-int innobase_xa_end(
-/*================*/
-	THD*	thd)	/* in: MySQL thread handle of the user for whom
-			transactions should be recovered */
-{
-        DBUG_ENTER("innobase_xa_end");
-
-	XID trx_list[100];
-	int trx_num, trx_num_max = 100;
-	int i;
-	XID xid;
-
-	while((trx_num = innobase_xa_recover(trx_list, trx_num_max))) {
-
-		for(i=0;i < trx_num; i++) {
-			xid = trx_list[i];
-
-			if ( i % 2) {
-				innobase_commit_by_xid(&xid);
-			} else {
-				innobase_rollback_by_xid(&xid);
-			}
-		}
-	}
-
-	free(trx_list);
-
-	DBUG_RETURN(0);
-}
 #endif /* HAVE_INNOBASE_DB */

@@ -4417,8 +4417,9 @@ lock_table_queue_validate(
 	lock = UT_LIST_GET_FIRST(table->locks);
 
 	while (lock) {
-		ut_a(((lock->trx)->conc_state == TRX_ACTIVE)
-		     || ((lock->trx)->conc_state == TRX_COMMITTED_IN_MEMORY));
+		ut_a((lock->trx)->conc_state == TRX_ACTIVE ||
+		      	(lock->trx)->conc_state == TRX_PREPARED || 
+			(lock->trx)->conc_state == TRX_COMMITTED_IN_MEMORY);
 	
 		if (!lock_get_wait(lock)) {
 
@@ -4464,9 +4465,9 @@ lock_rec_queue_validate(
 		lock = lock_rec_get_first(rec);
 
 		while (lock) {
-			ut_a(lock->trx->conc_state == TRX_ACTIVE
-		     	     || lock->trx->conc_state
-						== TRX_COMMITTED_IN_MEMORY);
+			ut_a(lock->trx->conc_state == TRX_ACTIVE ||
+			     lock->trx->conc_state == TRX_PREPARED ||
+			     lock->trx->conc_state == TRX_COMMITTED_IN_MEMORY);
 	
 			ut_a(trx_in_trx_list(lock->trx));
 			
@@ -4518,8 +4519,10 @@ lock_rec_queue_validate(
 	lock = lock_rec_get_first(rec);
 
 	while (lock) {
-		ut_a(lock->trx->conc_state == TRX_ACTIVE
-		     || lock->trx->conc_state == TRX_COMMITTED_IN_MEMORY);
+		ut_a(lock->trx->conc_state == TRX_ACTIVE ||
+		     lock->trx->conc_state == TRX_PREPARED ||
+		     lock->trx->conc_state == TRX_COMMITTED_IN_MEMORY);
+
 		ut_a(trx_in_trx_list(lock->trx));
 	
 		if (index) {
@@ -4600,8 +4603,9 @@ loop:
 	}
 
 	ut_a(trx_in_trx_list(lock->trx));
-	ut_a(lock->trx->conc_state == TRX_ACTIVE
-		     || lock->trx->conc_state == TRX_COMMITTED_IN_MEMORY);
+	ut_a(lock->trx->conc_state == TRX_ACTIVE ||
+	     lock->trx->conc_state == TRX_PREPARED ||
+	     lock->trx->conc_state == TRX_COMMITTED_IN_MEMORY);
 	
 	for (i = nth_bit; i < lock_rec_get_n_bits(lock); i++) {
 
