@@ -3,6 +3,8 @@ grant usage on *.* to user1@localhost;
 flush privileges;
 drop database if exists db1_secret;
 create database db1_secret;
+create procedure db1_secret.dummy() begin end;
+drop procedure db1_secret.dummy;
 use db1_secret;
 create table t1 ( u varchar(64), i int );
 create procedure stamp(i int)
@@ -27,12 +29,20 @@ db1_secret.db()
 db1_secret
 select * from db1_secret.t1;
 ERROR 42000: Access denied for user: 'user1'@'localhost' to database 'db1_secret'
+create procedure db1_secret.dummy() begin end;
+ERROR 42000: Unknown database 'db1_secret'
+drop procedure db1_secret.dummy;
+ERROR 42000: PROCEDURE db1_secret.dummy does not exist
 call db1_secret.stamp(3);
 select db1_secret.db();
 db1_secret.db()
 db1_secret
 select * from db1_secret.t1;
 ERROR 42000: Access denied for user: ''@'localhost' to database 'db1_secret'
+create procedure db1_secret.dummy() begin end;
+ERROR 42000: Unknown database 'db1_secret'
+drop procedure db1_secret.dummy;
+ERROR 42000: PROCEDURE db1_secret.dummy does not exist
 select * from t1;
 u	i
 root@localhost	1

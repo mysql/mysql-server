@@ -314,8 +314,18 @@ db_create_routine(THD *thd, int type, sp_head *sp)
   TABLE *table;
   TABLE_LIST tables;
   char definer[HOSTNAME_LENGTH+USERNAME_LENGTH+2];
+  char olddb[128];
+  bool dbchanged;
   DBUG_ENTER("db_create_routine");
   DBUG_PRINT("enter", ("type: %d name: %*s",type,sp->m_name.length,sp->m_name.str));
+
+  dbchanged= FALSE;
+  if ((ret= sp_use_new_db(thd, sp->m_db.str, olddb, sizeof(olddb),
+			  0, &dbchanged)))
+  {
+    ret= SP_NO_DB_ERROR;
+    goto done;
+  }
 
   memset(&tables, 0, sizeof(tables));
   tables.db= (char*)"mysql";
@@ -370,6 +380,8 @@ db_create_routine(THD *thd, int type, sp_head *sp)
 
 done:
   close_thread_tables(thd);
+  if (dbchanged)
+    (void)sp_change_db(thd, olddb, 1);
   DBUG_RETURN(ret);
 }
 

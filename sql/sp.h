@@ -27,6 +27,7 @@
 #define SP_GET_FIELD_FAILED  -5
 #define SP_PARSE_ERROR       -6
 #define SP_INTERNAL_ERROR    -7
+#define SP_NO_DB_ERROR       -8
 
 /* Drop all routines in database 'db' */
 int

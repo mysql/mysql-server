@@ -517,7 +517,6 @@ end case|
 call bug3287(2)|
 drop procedure bug3287|
 
-
 #
 # BUG#3297
 #
@@ -547,6 +546,13 @@ call bug3279(@x)|
 select @x|
 drop procedure bug3279|
 drop table t3|
+
+#
+# BUG#3339
+#
+--error 1049
+create procedure nodb.bug3339() begin end|
+
 
 drop table t1|
 
