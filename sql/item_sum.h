@@ -23,6 +23,8 @@
 
 #include <my_tree.h>
 
+class Item_arena;
+
 class Item_sum :public Item_result_field
 {
 public:
@@ -93,7 +95,7 @@ public:
   virtual void make_unique() {}
   Item *get_tmp_table_item(THD *thd);
   bool save_args_for_prepared_statements(THD *);
-  bool save_args(Statement* stmt);
+  bool save_args(Item_arena* stmt);
 
   bool walk (Item_processor processor, byte *argument);
 };
@@ -448,13 +450,7 @@ class Item_sum_hybrid :public Item_sum
   table_map used_tables() const { return used_table_cache; }
   bool const_item() const { return !used_table_cache; }
 
-  void clear()
-  {
-    sum=0.0;
-    sum_int=0;
-    value.length(0);
-    null_value=1;
-  }
+  void clear();
   double val();
   longlong val_int();
   void reset_field();

@@ -36,7 +36,7 @@ in the reset state. Explicit freeing of the mutex with mutex_free is
 necessary only if the memory block containing it is freed. */
 
 
-#define mutex_create(M)	mutex_create_func((M), IB__FILE__, __LINE__)
+#define mutex_create(M)	mutex_create_func((M), __FILE__, __LINE__)
 /*===================*/
 /**********************************************************************
 Creates, or rather, initializes a mutex object in a specified memory
@@ -48,7 +48,7 @@ void
 mutex_create_func(
 /*==============*/
 	mutex_t*	mutex,		/* in: pointer to memory */
-	char*		cfile_name,	/* in: file name where created */
+	const char*	cfile_name,	/* in: file name where created */
 	ulint		cline);		/* in: file line where created */
 /**********************************************************************
 Calling this function is obligatory only if the memory buffer containing
@@ -64,7 +64,7 @@ mutex_free(
 NOTE! The following macro should be used in mutex locking, not the
 corresponding function. */
 
-#define mutex_enter(M)    mutex_enter_func((M), IB__FILE__, __LINE__)
+#define mutex_enter(M)    mutex_enter_func((M), __FILE__, __LINE__)
 /**********************************************************************
 A noninlined function that reserves a mutex. In ha_innodb.cc we have disabled
 inlining of InnoDB functions, and no inlined functions should be called from
@@ -80,7 +80,7 @@ corresponding function. */
 
 /* NOTE! currently same as mutex_enter! */
 
-#define mutex_enter_fast(M)    	mutex_enter_func((M), IB__FILE__, __LINE__)
+#define mutex_enter_fast(M)    	mutex_enter_func((M), __FILE__, __LINE__)
 #define mutex_enter_fast_func  	mutex_enter_func;
 /**********************************************************************
 NOTE! Use the corresponding macro in the header file, not this function
@@ -92,7 +92,7 @@ void
 mutex_enter_func(
 /*=============*/
 	mutex_t*	mutex,		/* in: pointer to mutex */
-	char*		file_name, 	/* in: file name where locked */
+	const char*	file_name, 	/* in: file name where locked */
 	ulint		line);		/* in: line where locked */
 /************************************************************************
 Tries to lock the mutex for the current thread. If the lock is not acquired
@@ -103,9 +103,9 @@ mutex_enter_nowait(
 /*===============*/
 					/* out: 0 if succeed, 1 if not */
 	mutex_t*	mutex,		/* in: pointer to mutex */
-	char*	   	file_name, 	/* in: file name where mutex
+	const char*	file_name,	/* in: file name where mutex
 					requested */
-	ulint	   	line);		/* in: line where requested */
+	ulint		line);		/* in: line where requested */
 /**********************************************************************
 Unlocks a mutex owned by the current thread. */
 UNIV_INLINE
@@ -470,7 +470,7 @@ struct mutex_struct {
 #endif /* UNIV_SYNC_DEBUG */
 	ulint	level;		/* Level in the global latching
 				order; default SYNC_LEVEL_NONE */
-	char*	cfile_name;	/* File name where mutex created */
+	const char*	cfile_name;/* File name where mutex created */
 	ulint	cline;		/* Line where created */
 	ulint	magic_n;
 };

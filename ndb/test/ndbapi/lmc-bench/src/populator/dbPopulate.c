@@ -18,9 +18,7 @@
 * I N C L U D E D   F I L E S                                  *
 ***************************************************************/
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <ndb_global.h>
 
 #include "userInterface.h"
 

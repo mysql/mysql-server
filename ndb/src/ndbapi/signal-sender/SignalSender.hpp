@@ -17,11 +17,11 @@
 #ifndef SIGNAL_SENDER_HPP
 #define SIGNAL_SENDER_HPP
 
+#include <ndb_global.h>
 #include <TransporterDefinitions.hpp>
 #include <TransporterFacade.hpp>
 #include <ClusterMgr.hpp>
 #include <Vector.hpp>
-#include <stdio.h>
 
 struct SimpleSignal {
 public:

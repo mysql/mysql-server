@@ -24,7 +24,6 @@
 #include <random.h>
 #include <kernel/ndb_limits.h>
 #include <ndb_version.h>
-#include <assert.h>
 
 #define MGMERR(h) \
   ndbout << "latest_error="<<ndb_mgm_get_latest_error(h) \
@@ -168,7 +167,7 @@ NdbRestarter::getRandomNotMasterNodeId(int rand){
   if(master == -1)
     return -1;
 
-  int counter = 0;
+  Uint32 counter = 0;
   rand = rand % ndbNodes.size();
   while(counter++ < ndbNodes.size() && ndbNodes[rand].node_id == master)
     rand = (rand + 1) % ndbNodes.size();
@@ -197,7 +196,7 @@ NdbRestarter::getRandomNodeOtherNodeGroup(int nodeId, int rand){
     return -1;
   }
 
-  int counter = 0;
+  Uint32 counter = 0;
   rand = rand % ndbNodes.size();
   while(counter++ < ndbNodes.size() && ndbNodes[rand].node_group == node_group)
     rand = (rand + 1) % ndbNodes.size();

@@ -23,12 +23,6 @@
 
 #include <ndb_types.h>
 
-/***************************************************************
-* M A C R O S                                                  *
-***************************************************************/
-
-typedef Uint32 uint32;
-
 /***************************************************************/
 /* C O N S T A N T S                                           */
 /***************************************************************/
@@ -62,14 +56,14 @@ typedef char   GroupName[GROUP_NAME_LENGTH];
 typedef char   ChangedBy[CHANGED_BY_LENGTH];
 typedef char   ChangedTime[CHANGED_TIME_LENGTH];
 typedef char   SessionDetails[SESSION_DETAILS_LENGTH];
-typedef uint32 ServerId;
-typedef uint32 ServerBit;
-typedef uint32 GroupId;
-typedef uint32 Location;
-typedef uint32 Permission;
+typedef Uint32 ServerId;
+typedef Uint32 ServerBit;
+typedef Uint32 GroupId;
+typedef Uint32 Location;
+typedef Uint32 Permission;
 
-typedef uint32 Counter;
-typedef uint32 ActiveSessions;
+typedef Uint32 Counter;
+typedef Uint32 ActiveSessions;
 typedef unsigned int BranchExecuted;
 typedef unsigned int DoRollback;
 

@@ -33,10 +33,9 @@
 
 #include "TransporterDefinitions.hpp"
 #include <TransporterCallback.hpp>
-#include <stdlib.h>
 
 #ifdef DEBUG_TRANSPORTER
-#include <stdio.h>
+#include <ndb_global.h>
 #endif
 
 class SendBuffer {

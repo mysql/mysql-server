@@ -25,11 +25,7 @@
 #endif
 
 #include <NdbOut.hpp>
-#include <NdbStdio.h>
 #include <NdbMain.h>
-
-#include <string.h>
-#include <assert.h>
 
 typedef bool (*TESTFUNC)(const char*);
 typedef struct

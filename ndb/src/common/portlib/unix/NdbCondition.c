@@ -15,16 +15,10 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
-#include <NdbCondition.h>
-#include <pthread.h>
-#include <assert.h>
-#include <sys/types.h>
-#if defined NDB_MACOSX
-#include <stdlib.h>
-#else
-#include <malloc.h>
-#endif
+#include <ndb_global.h>
 
+#include <NdbCondition.h>
+#include <NdbThread.h>
 #include <NdbMutex.h>
 
 struct NdbCondition
@@ -67,8 +61,6 @@ NdbCondition_Wait(struct NdbCondition* p_cond,
   return result;
 }
 
-#if defined NDB_SOLARIS || defined NDB_HPUX
-#include <time.h>
 int 
 NdbCondition_WaitTimeout(struct NdbCondition* p_cond,
                          NdbMutex* p_mutex,
@@ -80,7 +72,16 @@ NdbCondition_WaitTimeout(struct NdbCondition* p_cond,
   if (p_cond == NULL || p_mutex == NULL)
     return 1;
   
+#ifdef HAVE_CLOCK_GETTIME
   clock_gettime(CLOCK_REALTIME, &abstime);
+#else
+  {
+    struct timeval tick_time;
+    gettimeofday(&tick_time, 0);
+    abstime.tv_sec  = tick_time.tv_sec;
+    abstime.tv_nsec = tick_time.tv_usec * 1000;
+  }
+#endif
 
   if(msecs >= 1000){
     secs  = msecs / 1000;
@@ -98,45 +99,6 @@ NdbCondition_WaitTimeout(struct NdbCondition* p_cond,
   
   return result;
 }
-#endif
-
-#if defined NDB_LINUX || defined NDB_MACOSX
-#include <unistd.h>
-#include <sys/time.h>
-
-int 
-NdbCondition_WaitTimeout(struct NdbCondition* p_cond,
-                         NdbMutex* p_mutex,
-                         int msecs){
-  int result;
-  struct timespec abstime; 
-  struct timeval tick_time;
-  int secs = 0;
-  
-  if (p_cond == NULL || p_mutex == NULL)
-    return 1;
-
-  gettimeofday(&tick_time, 0);
-
-  if(msecs >= 1000){
-    secs  = msecs / 1000;
-    msecs = msecs % 1000;
-  }
-  
-  
-  abstime.tv_sec  = tick_time.tv_sec + secs;
-  abstime.tv_nsec = tick_time.tv_usec * 1000 + msecs * 1000000;
-  if (abstime.tv_nsec >= 1000000000) {
-    abstime.tv_sec  += 1;
-    abstime.tv_nsec -= 1000000000;
-  }
-  
-  result = pthread_cond_timedwait(&p_cond->cond, p_mutex, &abstime);
-  
-  return result;
-}
-#endif
-
 
 int 
 NdbCondition_Signal(struct NdbCondition* p_cond){

@@ -36,12 +36,7 @@
  * Test of ODBC and SQL using a fixed set of tables.
  */
 
-#include <new>
-#include <NdbUnistd.h>
-#include <stdlib.h>
-#include <NdbString.h>
-#include <stdarg.h>
-#include <NdbStdio.h>
+#include <ndb_global.h>
 #include <ndb_version.h>
 #include <kernel/ndb_limits.h>
 #include <Bitmask.hpp>
@@ -49,9 +44,7 @@
 #ifdef ndbODBC
 #include <NdbApi.hpp>
 #endif
-#include <math.h>
 #include <sqlext.h>
-#include <assert.h>
 
 #undef BOOL
 

@@ -17,14 +17,15 @@
 #ifndef VMSignal_H
 #define VMSignal_H
 
+#include <ndb_global.h>
+#include <ndb_limits.h>
+#include <kernel_types.h>
+
 #include <ErrorReporter.hpp>
 #include <NodeBitmask.hpp>
 
-#include <ndb_limits.h>
-#include <kernel_types.h>
 #include <RefConvert.hpp>
 #include <TransporterDefinitions.hpp>
-#include <stdlib.h>
 
 /**
  * Struct used when sending to multiple blocks

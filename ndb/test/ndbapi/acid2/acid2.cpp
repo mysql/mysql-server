@@ -17,7 +17,6 @@
 
 #include <NdbApi.hpp>
 #include <NdbOut.hpp>
-#include <NdbStdio.h>
 #include <NdbThread.h>
 #include <NdbSleep.h>
 #include <NdbMutex.h>

@@ -17,12 +17,13 @@
 #ifndef COMMON_H
 #define COMMON_H
 
+#include <ndb_global.h>
+
 extern "C" {
 #include <dba.h>
 }
 
 #include <NdbOut.hpp>
-#include <stdlib.h>
 
 typedef struct Employee {
   UInt32_t   EmpNo;

@@ -306,6 +306,7 @@ class JOIN :public Sql_alloc
     return (do_send_rows && tmp_table_param.sum_func_count != 0 &&
 	    !group_list);
   }
+  int change_result(select_result *result);
 };
 
 
@@ -339,7 +340,7 @@ uint find_shortest_key(TABLE *table, const key_map *usable_keys);
 int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds);
 
 /* from sql_delete.cc, used by opt_range.cc */
-extern "C" int refposcmp2(void* arg, const void *a,const void *b);
+extern "C" int refpos_order_cmp(void* arg, const void *a,const void *b);
 
 /* class to copying an field/item to a key struct */
 

@@ -21,8 +21,8 @@
 #include "sp_head.h"
 #include "sp_cache.h"
 
-static char *
-create_string(THD *thd, ulong *lenp,
+static bool
+create_string(THD *thd, String *buf,
 	      int sp_type,
 	      sp_name *name,
 	      const char *params, ulong paramslen,
@@ -227,11 +227,10 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
   }
 
   {
-    char *defstr;
-    ulong deflen;
+    String defstr;
     LEX *oldlex= thd->lex;
     char olddb[128];
-    char *olddbptr;
+    bool dbchanged;
     enum enum_sql_command oldcmd= thd->lex->sql_command;
     ulong old_sql_mode= thd->variables.sql_mode;
     ha_rows select_limit= thd->variables.select_limit;
@@ -239,20 +238,22 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
     thd->variables.sql_mode= sql_mode;
     thd->variables.select_limit= HA_POS_ERROR;
 
-    if (!(defstr= create_string(thd, &deflen,
-				type,
-				name,
-				params, strlen(params),
-				returns, strlen(returns),
-				body, strlen(body),
-				&chistics)))
+    defstr.set_charset(system_charset_info);
+    if (!create_string(thd, &defstr,
+		       type,
+		       name,
+		       params, strlen(params),
+		       returns, strlen(returns),
+		       body, strlen(body),
+		       &chistics))
     {
       ret= SP_INTERNAL_ERROR;
       goto done;
     }
 
-    olddbptr= thd->db;
-    if ((ret= sp_use_new_db(thd, name->m_db.str, olddb, sizeof(olddb), 1)))
+    dbchanged= FALSE;
+    if ((ret= sp_use_new_db(thd, name->m_db.str, olddb, sizeof(olddb),
+			    1, &dbchanged)))
       goto done;
 
     {
@@ -265,7 +266,7 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
       List<Item> vals= thd->lex->value_list;
 
       mysql_init_query(thd, TRUE);
-      lex_start(thd, (uchar*)defstr, deflen);
+      lex_start(thd, (uchar*)defstr.c_ptr(), defstr.length());
       thd->lex->value_list= vals;
     }
 
@@ -274,8 +275,7 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
       LEX *newlex= thd->lex;
       sp_head *sp= newlex->sphead;
 
-      if (olddbptr != thd->db &&
-	  (ret= sp_change_db(thd, olddb, 1)))
+      if (dbchanged && (ret= sp_change_db(thd, olddb, 1)))
 	goto done;
       if (sp)
       {
@@ -288,12 +288,11 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
     }
     else
     {
-      if (olddbptr != thd->db &&
-	  (ret= sp_change_db(thd, olddb, 1)))
+      if (dbchanged && (ret= sp_change_db(thd, olddb, 1)))
 	goto done;
       *sphp= thd->lex->sphead;
       (*sphp)->set_info((char *)definer, (uint)strlen(definer),
-			created, modified, &chistics);
+			created, modified, &chistics, sql_mode);
     }
     thd->lex->sql_command= oldcmd;
     thd->variables.sql_mode= old_sql_mode;
@@ -315,8 +314,18 @@ db_create_routine(THD *thd, int type, sp_head *sp)
   TABLE *table;
   TABLE_LIST tables;
   char definer[HOSTNAME_LENGTH+USERNAME_LENGTH+2];
+  char olddb[128];
+  bool dbchanged;
   DBUG_ENTER("db_create_routine");
   DBUG_PRINT("enter", ("type: %d name: %*s",type,sp->m_name.length,sp->m_name.str));
+
+  dbchanged= FALSE;
+  if ((ret= sp_use_new_db(thd, sp->m_db.str, olddb, sizeof(olddb),
+			  0, &dbchanged)))
+  {
+    ret= SP_NO_DB_ERROR;
+    goto done;
+  }
 
   memset(&tables, 0, sizeof(tables));
   tables.db= (char*)"mysql";
@@ -371,6 +380,8 @@ db_create_routine(THD *thd, int type, sp_head *sp)
 
 done:
   close_thread_tables(thd);
+  if (dbchanged)
+    (void)sp_change_db(thd, olddb, 1);
   DBUG_RETURN(ret);
 }
 
@@ -955,9 +966,12 @@ sp_cache_functions(THD *thd, LEX *lex)
   return ret;
 }
 
-
-static char *
-create_string(THD *thd, ulong *lenp,
+/*
+ * Generates the CREATE... string from the table information.
+ * Returns TRUE on success, FALSE on (alloc) failure.
+ */
+static bool
+create_string(THD *thd, String *buf,
 	      int type,
 	      sp_name *name,
 	      const char *params, ulong paramslen,
@@ -965,35 +979,40 @@ create_string(THD *thd, ulong *lenp,
 	      const char *body, ulong bodylen,
 	      st_sp_chistics *chistics)
 {
-  char *buf, *ptr;
-  ulong buflen;
+  /* Make some room to begin with */
+  if (buf->alloc(100 + name->m_qname.length + paramslen + returnslen + bodylen +
+		 chistics->comment.length))
+    return FALSE;
 
-  buflen= 100 + name->m_qname.length + paramslen + returnslen + bodylen +
-    chistics->comment.length;
-  if (!(buf= thd->alloc(buflen)))
-    return 0;
-
-  ptr= strxmov(buf, "CREATE ",
-	       (type == TYPE_ENUM_FUNCTION) ? "FUNCTION" : "PROCEDURE",
-	       " `", name->m_db.str, "`.`", name->m_name.str, "`(", params, ")",
-	       NullS);
-
+  buf->append("CREATE ", 7);
   if (type == TYPE_ENUM_FUNCTION)
-    ptr= strxmov(ptr, " RETURNS ", returns, NullS);
-  *ptr++= '\n';
-
+    buf->append("FUNCTION ", 9);
+  else
+    buf->append("PROCEDURE ", 10);
+  append_identifier(thd, buf, name->m_db.str, name->m_db.length);
+  buf->append('.');
+  append_identifier(thd, buf, name->m_name.str, name->m_name.length);
+  buf->append('(');
+  buf->append(params, paramslen);
+  buf->append(')');
+  if (type == TYPE_ENUM_FUNCTION)
+  {
+    buf->append(" RETURNS ", 9);
+    buf->append(returns, returnslen);
+  }
+  buf->append('\n');
   if (chistics->detistic)
-    ptr= strmov(ptr, "    DETERMINISTIC\n");
+    buf->append( "    DETERMINISTIC\n", 18);
   if (chistics->suid == IS_NOT_SUID)
-    ptr= strmov(ptr, "    SQL SECURITY INVOKER\n");
+    buf->append("    SQL SECURITY INVOKER\n", 25);
   if (chistics->comment.length)
   {
-    ptr= strmov(strnmov(strmov(ptr, "    COMMENT '"),chistics->comment.str,
-			chistics->comment.length),"'\n");
+    buf->append("    COMMENT ");
+    append_unescaped(buf, chistics->comment.str, chistics->comment.length);
+    buf->append('\n');
   }
-  ptr= strmov(ptr, body);
-  *lenp= (ptr-buf);
-  return buf;
+  buf->append(body, bodylen);
+  return TRUE;
 }
 
 
@@ -1003,7 +1022,7 @@ create_string(THD *thd, ulong *lenp,
 
 int
 sp_use_new_db(THD *thd, char *newdb, char *olddb, uint olddblen,
-	      bool no_access_check)
+	      bool no_access_check, bool *dbchangedp)
 {
   bool changeit;
   DBUG_ENTER("sp_use_new_db");
@@ -1029,12 +1048,15 @@ sp_use_new_db(THD *thd, char *newdb, char *olddb, uint olddblen,
   }
   if (!changeit)
   {
+    *dbchangedp= FALSE;
     DBUG_RETURN(0);
   }
   else
   {
     int ret= sp_change_db(thd, newdb, no_access_check);
 
+    if (! ret)
+      *dbchangedp= TRUE;
     DBUG_RETURN(ret);
   }
 }

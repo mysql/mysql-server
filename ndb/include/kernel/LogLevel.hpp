@@ -17,8 +17,7 @@
 #ifndef _LOG_LEVEL_HPP
 #define _LOG_LEVEL_HPP
 
-#include <ndb_types.h>
-#include <assert.h>
+#include <ndb_global.h>
 
 /**
  * 

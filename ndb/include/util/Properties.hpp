@@ -17,10 +17,7 @@
 #ifndef PROPERTIES_HPP
 #define PROPERTIES_HPP
 
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <ndb_types.h>
+#include <ndb_global.h>
 #include <BaseString.hpp>
 #include <UtilBuffer.hpp>
 

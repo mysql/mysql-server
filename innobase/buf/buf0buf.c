@@ -1048,7 +1048,7 @@ buf_page_get_gen(
 	buf_frame_t*	guess,	/* in: guessed frame or NULL */
 	ulint		mode,	/* in: BUF_GET, BUF_GET_IF_IN_POOL,
 				BUF_GET_NO_LATCH, BUF_GET_NOWAIT */
-	char*		file,	/* in: file name */
+	const char*	file,	/* in: file name */
 	ulint		line,	/* in: line where called */
 	mtr_t*		mtr)	/* in: mini-transaction */
 {
@@ -1257,7 +1257,7 @@ buf_page_optimistic_get_func(
 				frames */
 	dulint		modify_clock,/* in: modify clock value if mode is
 				..._GUESS_ON_CLOCK */
-	char*		file,	/* in: file name */
+	const char*	file,	/* in: file name */
 	ulint		line,	/* in: line where called */
 	mtr_t*		mtr)	/* in: mini-transaction */
 {
@@ -1382,7 +1382,7 @@ buf_page_get_known_nowait(
 	ulint		rw_latch,/* in: RW_S_LATCH, RW_X_LATCH */
 	buf_frame_t*	guess,	/* in: the known page frame */
 	ulint		mode,	/* in: BUF_MAKE_YOUNG or BUF_KEEP_OLD */
-	char*		file,	/* in: file name */
+	const char*	file,	/* in: file name */
 	ulint		line,	/* in: line where called */
 	mtr_t*		mtr)	/* in: mini-transaction */
 {
@@ -1742,7 +1742,7 @@ buf_page_create(
 	buf_LRU_add_block(block, FALSE);
 		
 #ifdef UNIV_SYNC_DEBUG
-	buf_block_buf_fix_inc_debug(block, IB__FILE__, __LINE__);
+	buf_block_buf_fix_inc_debug(block, __FILE__, __LINE__);
 #else
 	buf_block_buf_fix_inc(block);
 #endif

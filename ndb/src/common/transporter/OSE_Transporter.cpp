@@ -23,11 +23,9 @@
 
 #include <NdbMutex.h>
 
-#include <NdbStdio.h>
 #include <NdbHost.h>
 #include <NdbOut.hpp>
 #include <time.h>
-#include <assert.h>
 
 OSE_Transporter::OSE_Transporter(int _prioASignalSize,
                                  int _prioBSignalSize,

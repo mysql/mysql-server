@@ -17,7 +17,7 @@
 #ifndef NDB_ERROR_H
 #define NDB_ERROR_H
 
-#include <stdio.h>
+#include <ndb_global.h>
 #include <NdbOut.hpp>
 #include "userInterface.h"
 #include <NdbError.hpp>

@@ -42,6 +42,22 @@ C_MODE_START
 #include "errmsg.h"
 #include <sql_common.h>
 
+void embedded_get_error(MYSQL *mysql)
+{
+  THD *thd=(THD *) mysql->thd;
+  NET *net= &mysql->net;
+  if ((net->last_errno= thd->net.last_errno))
+  {
+    memcpy(net->last_error, thd->net.last_error, sizeof(net->last_error));
+    memcpy(net->sqlstate, thd->net.sqlstate, sizeof(net->sqlstate));
+  }
+  else
+  {
+    net->last_error[0]= 0;
+    strmov(net->sqlstate, not_error_sqlstate);
+  }
+}
+
 static my_bool
 emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
 		     const char *header, ulong header_length,
@@ -86,16 +102,7 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
   if (!skip_check)
     result= thd->net.last_errno ? -1 : 0;
 
-  if ((net->last_errno= thd->net.last_errno))
-  {
-    memcpy(net->last_error, thd->net.last_error, sizeof(net->last_error));
-    memcpy(net->sqlstate, thd->net.sqlstate, sizeof(net->sqlstate));
-  }
-  else
-  {
-    net->last_error[0]= 0;
-    strmov(net->sqlstate, not_error_sqlstate);
-  }
+  embedded_get_error(mysql);
   mysql->server_status= thd->server_status;
   mysql->warning_count= ((THD*)mysql->thd)->total_warn_count;
   return result;
@@ -197,6 +204,8 @@ static int emb_stmt_execute(MYSQL_STMT *stmt)
     set_stmt_errmsg(stmt, net->last_error, net->last_errno, net->sqlstate);
     DBUG_RETURN(1);
   }
+  stmt->affected_rows= stmt->mysql->affected_rows;
+  stmt->insert_id= stmt->mysql->insert_id;
   DBUG_RETURN(0);
 }
 
@@ -237,6 +246,7 @@ static void emb_free_embedded_thd(MYSQL *mysql)
     free_rows(thd->data);
   thread_count--;
   delete thd;
+  mysql->thd=0;
 }
 
 static const char * emb_read_statistics(MYSQL *mysql)
@@ -496,8 +506,7 @@ int check_embedded_connection(MYSQL *mysql)
   thd->host= (char*)my_localhost;
   thd->host_or_ip= thd->host;
   thd->user= my_strdup(mysql->user, MYF(0));
-  check_user(thd, COM_CONNECT, NULL, 0, thd->db, true);
-  return 0;
+  return check_user(thd, COM_CONNECT, NULL, 0, thd->db, true);
 }
 
 #else
@@ -605,13 +614,14 @@ bool Protocol::send_fields(List<Item> *list, uint flag)
 
       if (!(res=item->val_str(&tmp)))
       {
-	client_field->def= strdup_root(field_alloc, "");
 	client_field->def_length= 0;
+	client_field->def= strmake_root(field_alloc, "",0);
       }
       else
       {
-	client_field->def= strdup_root(field_alloc, res->ptr());
 	client_field->def_length= res->length();
+	client_field->def= strmake_root(field_alloc, res->ptr(),
+					client_field->def_length);
       }
     }
     else

@@ -325,6 +325,35 @@ convert_error_code_to_mysql(
 }
 
 /*****************************************************************
+If you want to print a thd that is not associated with the current thread,
+you must call this function before reserving the InnoDB kernel_mutex, to
+protect MySQL from setting thd->query NULL. If you print a thd of the current
+thread, we know that MySQL cannot modify thd->query, and it is not necessary
+to call this. Call innobase_mysql_end_print_arbitrary_thd() after you release
+the kernel_mutex.
+NOTE that /mysql/innobase/lock/lock0lock.c must contain the prototype for this
+function! */
+extern "C"
+void
+innobase_mysql_prepare_print_arbitrary_thd(void)
+/*============================================*/
+{
+	VOID(pthread_mutex_lock(&LOCK_thread_count));
+}
+
+/*****************************************************************
+Relases the mutex reserved by innobase_mysql_prepare_print_arbitrary_thd().
+NOTE that /mysql/innobase/lock/lock0lock.c must contain the prototype for this
+function! */
+extern "C"
+void
+innobase_mysql_end_print_arbitrary_thd(void)
+/*========================================*/
+{
+	VOID(pthread_mutex_unlock(&LOCK_thread_count));
+}
+
+/*****************************************************************
 Prints info of a THD object (== user session thread) to the
 standard output. NOTE that /mysql/innobase/trx/trx0trx.c must contain
 the prototype for this function! */
@@ -335,9 +364,11 @@ innobase_mysql_print_thd(
 	FILE*   f,	/* in: output stream */
         void*   input_thd)/* in: pointer to a MySQL THD object */
 {
-  	THD*    thd;
+	const THD*	thd;
+	const char*	s;
+	char		buf[301];
 
-        thd = (THD*) input_thd;
+        thd = (const THD*) input_thd;
 
   	fprintf(f, "MySQL thread id %lu, query id %lu",
 		thd->thread_id, thd->query_id);
@@ -356,14 +387,31 @@ innobase_mysql_print_thd(
 		fputs(thd->user, f);
   	}
 
-	if (thd->proc_info) {
+	if ((s = thd->proc_info)) {
 		putc(' ', f);
-		fputs(thd->proc_info, f);
+		fputs(s, f);
 	}
 
-	if (thd->query) {
-		putc(' ', f);
-		fputs(thd->query, f);
+	if ((s = thd->query)) {
+		/* determine the length of the query string */
+		uint32 i, len;
+		
+		len = thd->query_length;
+
+		if (len > 300) {
+			len = 300;	/* ADDITIONAL SAFETY: print at most
+					300 chars to reduce the probability of
+					a seg fault if there is a race in
+					thd->query_length in MySQL; after
+					May 14, 2004 probably no race any more,
+					but better be safe */
+		}
+		
+                /* Use strmake to reduce the timeframe
+                   for a race, compared to fwrite() */
+		i= (uint) (strmake(buf, s, len) - buf);
+		putc('\n', f);
+		fwrite(buf, 1, i, f);
 	}
 
 	putc('\n', f);
@@ -701,6 +749,8 @@ ha_innobase::init_table_handle_for_HANDLER(void)
         prebuilt->read_just_key = FALSE;
 
 	prebuilt->used_in_HANDLER = TRUE;
+
+	prebuilt->keep_other_fields_on_keyread = FALSE;
 }
 
 /*************************************************************************
@@ -3928,18 +3978,11 @@ ha_innobase::records_in_range(
 /*==========================*/
 						/* out: estimated number of
 						rows */
-	int 			keynr,		/* in: index number */
-	const mysql_byte*	start_key,	/* in: start key value of the
-						range, may also be empty */
-	uint 			start_key_len,	/* in: start key val len, may
-						also be 0 */
-	enum ha_rkey_function 	start_search_flag,/* in: start search condition
-						e.g., 'greater than' */
-	const mysql_byte*	end_key,	/* in: range end key val, may
-						also be empty */
-	uint 			end_key_len,	/* in: range end key val len,
-						may also be 0 */
-	enum ha_rkey_function 	end_search_flag)/* in: range end search cond */
+	uint 			keynr,		/* in: index number */
+        key_range		*min_key,	/* in: start key value of the
+                                                   range, may also be 0 */
+	key_range		*max_key)	/* in: range end key val, may
+                                                   also be 0 */
 {
 	row_prebuilt_t* prebuilt	= (row_prebuilt_t*) innobase_prebuilt;
 	KEY*		key;
@@ -3959,12 +4002,6 @@ ha_innobase::records_in_range(
 	void*           heap2;
 
    	DBUG_ENTER("records_in_range");
-
-	/* We do not know if MySQL can call this function before calling
-	external_lock(). To be safe, update the thd of the current table
-	handle. */
-
-	update_thd(current_thd);
 
 	prebuilt->trx->op_info = (char*)"estimating records in index range";
 
@@ -3989,17 +4026,21 @@ ha_innobase::records_in_range(
 				range_start, (byte*) key_val_buff,
 				(ulint)upd_and_key_val_buff_len,
 				index,
-				(byte*) start_key,
-				(ulint) start_key_len);
+				(byte*) (min_key ? min_key->key :
+                                         (const mysql_byte*) 0),
+				(ulint) (min_key ? min_key->length : 0));
 
 	row_sel_convert_mysql_key_to_innobase(
 				range_end, (byte*) key_val_buff2,
 				buff2_len, index,
-				(byte*) end_key,
-				(ulint) end_key_len);
+				(byte*) (max_key ? max_key->key :
+                                         (const mysql_byte*) 0),
+				(ulint) (max_key ? max_key->length : 0));
 
-	mode1 = convert_search_mode_to_innobase(start_search_flag);
-	mode2 = convert_search_mode_to_innobase(end_search_flag);
+	mode1 = convert_search_mode_to_innobase(min_key ? min_key->flag :
+                                                HA_READ_KEY_EXACT);
+	mode2 = convert_search_mode_to_innobase(max_key ? max_key->flag :
+                                                HA_READ_KEY_EXACT);
 
 	n_rows = btr_estimate_n_rows_in_range(index, range_start,
 						mode1, range_end, mode2);
@@ -4540,9 +4581,11 @@ ha_innobase::extra(
                         if (prebuilt->blob_heap) {
                                 row_mysql_prebuilt_free_blob_heap(prebuilt);
                         }
+                        prebuilt->keep_other_fields_on_keyread = 0;
                         prebuilt->read_just_key = 0;
                         break;
   		case HA_EXTRA_RESET_STATE:
+	        	prebuilt->keep_other_fields_on_keyread = 0;
 	        	prebuilt->read_just_key = 0;
     	        	break;
 		case HA_EXTRA_NO_KEYREAD:
@@ -4561,6 +4604,9 @@ ha_innobase::extra(
 	        case HA_EXTRA_KEYREAD:
 	        	prebuilt->read_just_key = 1;
 	        	break;
+		case HA_EXTRA_KEYREAD_PRESERVE_FIELDS:
+			prebuilt->keep_other_fields_on_keyread = 1;
+			break;
 		default:/* Do nothing */
 			;
 	}
@@ -4609,6 +4655,7 @@ ha_innobase::start_stmt(
 	prebuilt->sql_stat_start = TRUE;
 	prebuilt->hint_need_to_fetch_extra_cols = 0;
 	prebuilt->read_just_key = 0;
+        prebuilt->keep_other_fields_on_keyread = FALSE;
 
 	if (!prebuilt->mysql_has_locked) {
 	        /* This handle is for a temporary table created inside
@@ -4686,6 +4733,7 @@ ha_innobase::external_lock(
 	prebuilt->hint_need_to_fetch_extra_cols = 0;
 
 	prebuilt->read_just_key = 0;
+	prebuilt->keep_other_fields_on_keyread = FALSE;
 
 	if (lock_type == F_WRLCK) {
 
@@ -5120,6 +5168,54 @@ ha_innobase::get_auto_increment()
 	}
 
 	return(nr);
+}
+
+int
+ha_innobase::cmp_ref(
+	const mysql_byte *ref1,
+	const mysql_byte *ref2)
+{
+	row_prebuilt_t*	 prebuilt = (row_prebuilt_t*) innobase_prebuilt;
+	enum_field_types mysql_type;
+	Field*		 field;
+	int result;
+
+	if (prebuilt->clust_index_was_generated)
+		return memcmp(ref1, ref2, DATA_ROW_ID_LEN);
+
+	/* Do type-aware comparison of Primary Key members. PK members
+	are always NOT NULL, so no checks for NULL are performed */
+	KEY_PART_INFO *key_part= table->key_info[table->primary_key].key_part;
+	KEY_PART_INFO *key_part_end= 
+	  key_part + table->key_info[table->primary_key].key_parts;
+	for (; key_part != key_part_end; ++key_part) {
+		field = key_part->field;
+		mysql_type = field->type();
+		if (mysql_type == FIELD_TYPE_TINY_BLOB
+		    || mysql_type == FIELD_TYPE_MEDIUM_BLOB
+		    || mysql_type == FIELD_TYPE_BLOB
+		    || mysql_type == FIELD_TYPE_LONG_BLOB) {
+		    
+			ut_a(!ref1[1]);
+			ut_a(!ref2[1]);
+			byte len1= *ref1;
+			byte len2= *ref2;
+			ref1 += 2;
+			ref2 += 2;
+			result =
+			  ((Field_blob*)field)->cmp((const char*)ref1, len1,
+			                            (const char*)ref2, len2);
+		} else {
+			result = 
+			  field->cmp((const char*)ref1, (const char*)ref2);
+		}
+
+		if (result)
+			return result;
+		ref1 += key_part->length;
+		ref2 += key_part->length;
+	}
+	return 0;
 }
 
 #endif /* HAVE_INNOBASE_DB */

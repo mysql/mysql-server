@@ -615,6 +615,7 @@ longlong Item_func_div::val_int()
 void Item_func_div::fix_length_and_dec()
 {
   decimals=max(args[0]->decimals,args[1]->decimals)+2;
+  set_if_smaller(decimals, NOT_FIXED_DEC);
   max_length=args[0]->max_length - args[0]->decimals + decimals;
   uint tmp=float_length(decimals);
   set_if_smaller(max_length,tmp);
@@ -2386,7 +2387,10 @@ longlong user_var_entry::val_int(my_bool *null_value)
   case INT_RESULT:
     return *(longlong*) value;
   case STRING_RESULT:
-    return strtoull(value,NULL,10);		// String is null terminated
+  {
+    int error;
+    return my_strtoll10(value, (char**) 0, &error);// String is null terminated
+  }
   case ROW_RESULT:
     DBUG_ASSERT(1);				// Impossible
     break;
@@ -3316,7 +3320,7 @@ Item_func_sp::fix_length_and_dec()
     switch (m_sp->result()) {
     case STRING_RESULT:
       maybe_null= 1;
-      max_length= 0;
+      max_length= MAX_BLOB_WIDTH;
       break;
     case REAL_RESULT:
       decimals= NOT_FIXED_DEC;

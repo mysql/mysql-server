@@ -1542,7 +1542,7 @@ int ha_berkeley::index_next_same(byte * buf, const byte *key, uint keylen)
   {
     error=read_row(cursor->c_get(cursor, &last_key, &row, DB_NEXT),
 		   (char*) buf, active_index, &row, &last_key, 1);
-    if (!error && ::key_cmp(table, key, active_index, keylen))
+    if (!error && ::key_cmp_if_same(table, key, active_index, keylen))
       error=HA_ERR_END_OF_FILE;
   }
   DBUG_RETURN(error);
@@ -1987,11 +1987,8 @@ double ha_berkeley::scan_time()
   return rows2double(records/3);
 }
 
-ha_rows ha_berkeley::records_in_range(int keynr,
-				      const byte *start_key,uint start_key_len,
-				      enum ha_rkey_function start_search_flag,
-				      const byte *end_key,uint end_key_len,
-				      enum ha_rkey_function end_search_flag)
+ha_rows ha_berkeley::records_in_range(uint keynr, key_range *start_key,
+                                      key_range *end_key)
 {
   DBT key;
   DB_KEY_RANGE start_range, end_range;
@@ -2000,25 +1997,27 @@ ha_rows ha_berkeley::records_in_range(int keynr,
   DBUG_ENTER("records_in_range");
 
   if ((start_key && kfile->key_range(kfile,transaction,
-				     pack_key(&key, keynr, key_buff, start_key,
-					      start_key_len),
-				     &start_range,0)) ||
+                                     pack_key(&key, keynr, key_buff,
+                                              start_key->key,
+                                              start_key->length),
+                                     &start_range,0)) ||
       (end_key && kfile->key_range(kfile,transaction,
-				   pack_key(&key, keynr, key_buff, end_key,
-					    end_key_len),
+				   pack_key(&key, keynr, key_buff,
+                                            end_key->key,
+                                            end_key->length),
 				   &end_range,0)))
     DBUG_RETURN(HA_BERKELEY_RANGE_COUNT); // Better than returning an error /* purecov: inspected */
 
   if (!start_key)
-    start_pos=0.0;
-  else if (start_search_flag == HA_READ_KEY_EXACT)
+    start_pos= 0.0;
+  else if (start_key->flag == HA_READ_KEY_EXACT)
     start_pos=start_range.less;
   else
     start_pos=start_range.less+start_range.equal;
 
   if (!end_key)
-    end_pos=1.0;
-  else if (end_search_flag == HA_READ_BEFORE_KEY)
+    end_pos= 1.0;
+  else if (end_key->flag == HA_READ_BEFORE_KEY)
     end_pos=end_range.less;
   else
     end_pos=end_range.less+end_range.equal;
@@ -2498,6 +2497,31 @@ end:
 ha_rows ha_berkeley::estimate_number_of_rows()
 {
   return share->rows + HA_BERKELEY_EXTRA_ROWS;
+}
+
+int ha_berkeley::cmp_ref(const byte *ref1, const byte *ref2)
+{
+  if (hidden_primary_key)
+    return memcmp(ref1, ref2, BDB_HIDDEN_PRIMARY_KEY_LENGTH);
+
+  int result;
+  Field *field;
+  KEY *key_info=table->key_info+table->primary_key;
+  KEY_PART_INFO *key_part=key_info->key_part;
+  KEY_PART_INFO *end=key_part+key_info->key_parts;
+
+  for (; key_part != end; key_part++)
+  {
+    field=  key_part->field; 
+    result= field->pack_cmp((const char*)ref1, (const char*)ref2, 
+                            key_part->length);
+    if (result)
+      return result;
+    ref1 += field->packed_col_length((const char*)ref1, key_part->length);
+    ref2 += field->packed_col_length((const char*)ref2, key_part->length);
+  }
+
+  return 0;
 }
 
 #endif /* HAVE_BERKELEY_DB */

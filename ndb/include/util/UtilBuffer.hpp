@@ -17,9 +17,7 @@
 #ifndef __BUFFER_HPP_INCLUDED__
 #define __BUFFER_HPP_INCLUDED__
 
-#include <unistd.h>
-#include <errno.h>
-#include <stdlib.h>
+#include <ndb_global.h>
 
 /* This class represents a buffer of binary data, where you can append
  * data at the end, and later read the entire bunch.

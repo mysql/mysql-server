@@ -331,7 +331,7 @@ int ha_key_cmp(register HA_KEYSEG *keyseg, register uchar *a,
 
       if (keyseg->flag & HA_REVERSE_SORT)
       {
-        swap(uchar*,a,b);
+        swap_variables(uchar*, a, b);
         swap_flag=1;                            /* Remember swap of a & b */
         end= a+ (int) (end-b);
       }
@@ -356,8 +356,8 @@ int ha_key_cmp(register HA_KEYSEG *keyseg, register uchar *a,
 	  if (*b != '-')
 	    return -1;
 	  a++; b++;
-	  swap(uchar*,a,b);
-	  swap(int,alength,blength);
+	  swap_variables(uchar*, a, b);
+	  swap_variables(int, alength, blength);
 	  swap_flag=1-swap_flag;
 	  alength--; blength--;
 	  end=a+alength;
@@ -385,7 +385,7 @@ int ha_key_cmp(register HA_KEYSEG *keyseg, register uchar *a,
       }
 
       if (swap_flag)                            /* Restore pointers */
-        swap(uchar*,a,b);
+        swap_variables(uchar*, a, b);
       break;
     }
 #ifdef HAVE_LONG_LONG
