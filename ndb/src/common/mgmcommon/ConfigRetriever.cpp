@@ -154,7 +154,7 @@ ConfigRetriever::getConfig() {
   if(p == 0)
     return 0;
   
-  if(!verifyConfig(p)){
+  if(!verifyConfig(p, _ownNodeId)){
     free(p);
     p= 0;
   }
@@ -239,7 +239,7 @@ ConfigRetriever::setConnectString(const char * connectString) {
 }
 
 bool
-ConfigRetriever::verifyConfig(const struct ndb_mgm_configuration * conf){
+ConfigRetriever::verifyConfig(const struct ndb_mgm_configuration * conf, Uint32 nodeid){
 
   char buf[255];
   ndb_mgm_configuration_iterator * it;
@@ -253,8 +253,8 @@ ConfigRetriever::verifyConfig(const struct ndb_mgm_configuration * conf){
   }
   NdbAutoPtr<ndb_mgm_configuration_iterator> ptr(it);
   
-  if(ndb_mgm_find(it, CFG_NODE_ID, _ownNodeId) != 0){
-    snprintf(buf, 255, "Unable to find node with id: %d", _ownNodeId);
+  if(ndb_mgm_find(it, CFG_NODE_ID, nodeid) != 0){
+    snprintf(buf, 255, "Unable to find node with id: %d", nodeid);
     setError(CR_ERROR, buf);
     return false;
   }
@@ -264,6 +264,11 @@ ConfigRetriever::verifyConfig(const struct ndb_mgm_configuration * conf){
     snprintf(buf, 255, "Unable to get hostname(%d) from config",CFG_NODE_HOST);
     setError(CR_ERROR, buf);
     return false;
+  }
+
+  const char * datadir;
+  if(!ndb_mgm_get_string_parameter(it, CFG_NODE_DATADIR, &datadir)){
+    NdbConfig_SetPath(datadir);
   }
 
   char localhost[MAXHOSTNAMELEN];
@@ -332,8 +337,8 @@ ConfigRetriever::verifyConfig(const struct ndb_mgm_configuration * conf){
     if(iter.get(CFG_CONNECTION_NODE_1, &nodeId1)) continue;
     if(iter.get(CFG_CONNECTION_NODE_2, &nodeId2)) continue;
     
-    if(nodeId1 != _ownNodeId && nodeId2 != _ownNodeId) continue;
-    remoteNodeId = (_ownNodeId == nodeId1 ? nodeId2 : nodeId1);
+    if(nodeId1 != nodeid && nodeId2 != nodeid) continue;
+    remoteNodeId = (nodeid == nodeId1 ? nodeId2 : nodeId1);
 
     const char * name;
     struct in_addr addr;
@@ -342,7 +347,7 @@ ConfigRetriever::verifyConfig(const struct ndb_mgm_configuration * conf){
       if(Ndb_getInAddr(&addr, name) != 0){
 	tmp.assfmt("Unable to lookup/illegal hostname %s, "
 		   "connection from node %d to node %d",
-		   name, _ownNodeId, remoteNodeId);
+		   name, nodeid, remoteNodeId);
 	setError(CR_ERROR, tmp.c_str());
 	return false;
       }
@@ -352,7 +357,7 @@ ConfigRetriever::verifyConfig(const struct ndb_mgm_configuration * conf){
       if(Ndb_getInAddr(&addr, name) != 0){
 	tmp.assfmt("Unable to lookup/illegal hostname %s, "
 		   "connection from node %d to node %d",
-		   name, _ownNodeId, remoteNodeId);
+		   name, nodeid, remoteNodeId);
 	setError(CR_ERROR, tmp.c_str());
 	return false;
       }

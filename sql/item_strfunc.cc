@@ -39,7 +39,8 @@ C_MODE_END
 
 String my_empty_string("",default_charset_info);
 
-static void my_coll_agg_error(DTCollation &c1, DTCollation &c2, const char *fname)
+static void my_coll_agg_error(DTCollation &c1, DTCollation &c2,
+                              const char *fname)
 {
   my_error(ER_CANT_AGGREGATE_2COLLATIONS,MYF(0),
   	   c1.collation->name,c1.derivation_name(),
@@ -62,8 +63,9 @@ double Item_str_func::val()
 {
   DBUG_ASSERT(fixed == 1);
   int err;
-  String *res;
-  res=val_str(&str_value);
+  char buff[64];
+  String *res, tmp(buff,sizeof(buff), &my_charset_bin);
+  res= val_str(&tmp);
   return res ? my_strntod(res->charset(), (char*) res->ptr(),res->length(),
 			  NULL, &err) : 0.0;
 }
@@ -72,8 +74,9 @@ longlong Item_str_func::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   int err;
-  String *res;
-  res=val_str(&str_value);
+  char buff[22];
+  String *res, tmp(buff,sizeof(buff), &my_charset_bin);
+  res= val_str(&tmp);
   return (res ?
 	  my_strntoll(res->charset(), res->ptr(), res->length(), 10, NULL,
 		      &err) :
@@ -986,10 +989,7 @@ String *Item_func_left::val_str(String *str)
   if (res->length() <= (uint) length ||
       res->length() <= (char_pos= res->charpos(length)))
     return res;
-  if (&str_value == res)
-    str_value.length(char_pos);
-  else
-    str_value.set(*res, 0, char_pos);
+  str_value.set(*res, 0, char_pos);
   return &str_value;
 }
 
@@ -2200,7 +2200,8 @@ String *Item_func_conv_charset::val_str(String *str)
     null_value=1;
     return 0;
   }
-  null_value= str_value.copy(arg->ptr(),arg->length(),arg->charset(),conv_charset);
+  null_value= str_value.copy(arg->ptr(),arg->length(),arg->charset(),
+                             conv_charset);
   return null_value ? 0 : &str_value;
 }
 

@@ -93,7 +93,7 @@ static int my_strnncoll_binary(CHARSET_INFO * cs __attribute__((unused)),
   NOTE
    This function is used for real binary strings, i.e. for
    BLOB, BINARY(N) and VARBINARY(N).
-   It does not ignore trailing spaces.
+   It compares trailing spaces as spaces.
 
   RETURN
   < 0	s < t
@@ -133,7 +133,8 @@ static int my_strnncoll_8bit_bin(CHARSET_INFO * cs __attribute__((unused)),
 
   NOTE
    This function is used for character strings with binary collations.
-   It ignores trailing spaces.
+   The shorter string is extended with end space to be as long as the longer
+   one.
 
   RETURN
   < 0	s < t

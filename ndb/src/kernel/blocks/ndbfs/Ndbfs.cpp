@@ -58,6 +58,8 @@ Ndbfs::Ndbfs(const Configuration & conf) :
   m_maxOpenedFiles(0)
 {
   theFileSystemPath = conf.fileSystemPath();
+  theBackupFilePath = conf.backupFilePath();
+
   theRequestPool = new Pool<Request>;
 
   const ndb_mgm_configuration_iterator * p = conf.getOwnConfigIterator();
@@ -559,7 +561,7 @@ Ndbfs::createAsyncFile(){
   }
 
   AsyncFile* file = new AsyncFile;
-  file->doStart(getOwnNodeId(), theFileSystemPath);
+  file->doStart(getOwnNodeId(), theFileSystemPath, theBackupFilePath);
 
   // Put the file in list of all files
   theFiles.push_back(file);

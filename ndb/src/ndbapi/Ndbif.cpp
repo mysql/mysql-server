@@ -97,7 +97,7 @@ Ndb::init(int aMaxNoOfTransactions)
   }
 
   theFirstTransId = ((Uint64)theNdbBlockNumber << 52)+((Uint64)theNode << 40);
-  theFirstTransId += theFacade->m_open_count;
+  theFirstTransId += theFacade->m_max_trans_id;
   theFacade->unlock_mutex();
 
   
@@ -175,7 +175,7 @@ error_handler:
     freeOperation();
   
   delete theDictionary;
-  TransporterFacade::instance()->close(theNdbBlockNumber);
+  TransporterFacade::instance()->close(theNdbBlockNumber, 0);
   return -1;
 }
 

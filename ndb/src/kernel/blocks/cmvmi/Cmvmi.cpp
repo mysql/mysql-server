@@ -46,6 +46,7 @@
 
 // Used here only to print event reports on stdout/console.
 EventLogger g_eventLogger;
+extern int simulate_error_during_shutdown;
 
 Cmvmi::Cmvmi(const Configuration & conf) :
   SimulatedBlock(CMVMI, conf)
@@ -147,6 +148,16 @@ void Cmvmi::execNDB_TAMPER(Signal* signal)
 
   if(ERROR_INSERTED(9997)){
     ndbrequire(false);
+  }
+
+  if(ERROR_INSERTED(9996)){
+    simulate_error_during_shutdown= SIGSEGV;
+    ndbrequire(false);
+  }
+
+  if(ERROR_INSERTED(9995)){
+    simulate_error_during_shutdown= SIGSEGV;
+    kill(getpid(), SIGABRT);
   }
 }//execNDB_TAMPER()
 

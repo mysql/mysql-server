@@ -205,4 +205,10 @@ a	b	c
 select * from t1 where b<=5 and c=0 or b<=5 and c=2;
 a	b	c
 19	4	0
+select count(*) from t1 where b = 0;
+count(*)
+0
+select count(*) from t1 where b = 1;
+count(*)
+1
 drop table t1;

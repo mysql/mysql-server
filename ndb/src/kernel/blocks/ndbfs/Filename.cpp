@@ -46,43 +46,31 @@ Filename::Filename() :
 }
 
 void
-Filename::init(Uint32 nodeid, const char * pFileSystemPath){
+Filename::init(Uint32 nodeid,
+	       const char * pFileSystemPath,
+	       const char * pBackupDirPath){
+  DBUG_ENTER("Filename::init");
+
   if (pFileSystemPath == NULL) {
     ERROR_SET(fatal, AFS_ERROR_NOPATH, ""," Filename::init()");
     return;
   }
 
-  strncpy(theBaseDirectory, pFileSystemPath, PATH_MAX);
-  
-  // the environment variable is set,
-  // check that it is pointing on a valid directory
-  // 
-  char buf2[PATH_MAX]; memset(buf2, 0,sizeof(buf2));
-#ifdef NDB_WIN32
-  char* szFilePart;
-  if(!GetFullPathName(theBaseDirectory, sizeof(buf2), buf2, &szFilePart)
-     || (::GetFileAttributes(theBaseDirectory)&FILE_ATTRIBUTE_READONLY)) 
-#else
-    if((::realpath(theBaseDirectory, buf2) == NULL)||
-       (::access(theBaseDirectory, W_OK) != 0))
-#endif
-      {
-	ERROR_SET(fatal, AFS_ERROR_INVALIDPATH, pFileSystemPath, " Filename::init()");
-      }
-  strncpy(theBaseDirectory, buf2, sizeof(theBaseDirectory));
-  // path seems ok, add delimiter if missing
-  if (strcmp(&theBaseDirectory[strlen(theBaseDirectory) - 1], 
-	     DIR_SEPARATOR) != 0)
-    strcat(theBaseDirectory, DIR_SEPARATOR);
-  
-  snprintf(buf2, sizeof(buf2), "ndb_%u_fs%s", nodeid, DIR_SEPARATOR);
-  strcat(theBaseDirectory, buf2);
+  snprintf(theFileSystemDirectory, sizeof(theFileSystemDirectory),
+	   "%sndb_%u_fs%s", pFileSystemPath, nodeid, DIR_SEPARATOR);
+  strncpy(theBackupDirectory, pBackupDirPath, sizeof(theBackupDirectory));
+
+  DBUG_PRINT("info", ("theFileSystemDirectory=%s", theFileSystemDirectory));
+  DBUG_PRINT("info", ("theBackupDirectory=%s", theBackupDirectory));
 
 #ifdef NDB_WIN32
-  CreateDirectory(theBaseDirectory, 0);
+  CreateDirectory(theFileSystemDirectory, 0);
 #else
-  mkdir(theBaseDirectory, S_IRUSR | S_IWUSR | S_IXUSR | S_IXGRP | S_IRGRP);
+  mkdir(theFileSystemDirectory, S_IRUSR | S_IWUSR | S_IXUSR | S_IXGRP | S_IRGRP);
 #endif
+  theBaseDirectory= 0;
+
+  DBUG_VOID_RETURN;
 }
 
 Filename::~Filename(){
@@ -94,10 +82,16 @@ Filename::set(BlockReference blockReference,
 {
   char buf[PATH_MAX];
   theLevelDepth = 0;
-  strncpy(theName, theBaseDirectory, PATH_MAX);
-  
+
   const Uint32 type = FsOpenReq::getSuffix(filenumber);
   const Uint32 version = FsOpenReq::getVersion(filenumber);
+
+  if (version == 2)
+    theBaseDirectory= theBackupDirectory;
+  else
+    theBaseDirectory= theFileSystemDirectory;
+  strncpy(theName, theBaseDirectory, PATH_MAX);
+      
   switch(version){
   case 1 :{
     const Uint32 diskNo = FsOpenReq::v1_getDisk(filenumber);

@@ -35,10 +35,10 @@ update t1 set name="Autodiscover" where id = 2;
 show status like 'handler_discover%';
 Variable_name	Value
 Handler_discover	4
-select * from t1 order by name;
+select * from t1 order by id;
 id	name
-2	Autodiscover
 1	Autodiscover
+2	Autodiscover
 3	Discover 3
 show status like 'handler_discover%';
 Variable_name	Value

@@ -287,6 +287,22 @@ Dbtux::execDROP_TAB_REQ(Signal* signal)
   const DropTabReq reqCopy = *(const DropTabReq*)signal->getDataPtr();
   const DropTabReq* const req = &reqCopy;
   IndexPtr indexPtr;
+
+  Uint32 tableId = req->tableId;
+  Uint32 senderRef = req->senderRef;
+  Uint32 senderData = req->senderData;
+  if (tableId >= c_indexPool.getSize()) {
+    jam();
+    // reply to sender
+    DropTabConf* const conf = (DropTabConf*)signal->getDataPtrSend();
+    conf->senderRef = reference();
+    conf->senderData = senderData;
+    conf->tableId = tableId;
+    sendSignal(senderRef, GSN_DROP_TAB_CONF,
+	       signal, DropTabConf::SignalLength, JBB);
+    return;
+  }
+  
   c_indexPool.getPtr(indexPtr, req->tableId);
   // drop works regardless of index state
 #ifdef VM_TRACE
