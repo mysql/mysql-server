@@ -690,3 +690,11 @@ INSERT INTO t2 VALUES (4,'vita'), (1,'vita'), (2,'vita'), (1,'vita');
 update t1, t2 set t2.name='lenka' where t2.id in (select id from t1);
 select * from t2;
 drop table t1,t2;
+
+#
+# correct NULL in <CONSTANT> IN (SELECT ...)
+#
+create table t1 (a int, unique index indexa (a)); 
+insert into t1 values (-1), (-4), (-2), (NULL); 
+select -10 IN (select a from t1 FORCE INDEX (indexa)); 
+drop table t1;

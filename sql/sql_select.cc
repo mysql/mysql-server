@@ -299,7 +299,7 @@ JOIN::prepare(Item ***rref_pointer_array,
     DBUG_RETURN(-1);				/* purecov: inspected */
 
   ref_pointer_array= *rref_pointer_array;
-
+  
   if (having)
   {
     thd->where="having clause";
@@ -313,6 +313,7 @@ JOIN::prepare(Item ***rref_pointer_array,
     if (having->with_sum_func)
       having->split_sum_func(ref_pointer_array, all_fields);
   }
+  
   if (setup_ftfuncs(select_lex)) /* should be after having->fix_fields */
     DBUG_RETURN(-1);
   /*
@@ -426,7 +427,7 @@ JOIN::optimize()
 
 #ifdef HAVE_REF_TO_FIELDS			// Not done yet
   /* Add HAVING to WHERE if possible */
-  if (having && !group_list && ! sum_func_count)
+  if (having && !group_list && !sum_func_count)
   {
     if (!conds)
     {

@@ -508,9 +508,31 @@ void Item_in_subselect::single_value_transformer(THD *thd,
       sl->item_list.push_back(new Item_int("Not_used", (longlong) 1, 21));
       if (sl->table_list.elements)
       {
-	item= (*func)(expr, new Item_asterisk_remover(this, item,
-						      (char *)"<no matter>",
-						      (char*)"<result>"));
+	Item *having= item, *isnull= item;
+	if (item->type() == Item::FIELD_ITEM &&
+	    ((Item_field*) item)->field_name[0] == '*')
+	{
+	  Item_asterisk_remover *remover;
+	  item= remover= new Item_asterisk_remover(this, item,
+						   (char*)"<no matter>",
+						   (char*)"<result>");
+	  having= 
+	    new Item_is_not_null_test(this,
+				      new Item_ref(remover->storage(),
+						   (char*)"<no matter>",
+						   (char*)"<null test>"));
+	  isnull=
+	    new Item_is_not_null_test(this,
+				      new Item_ref(remover->storage(),
+						   (char*)"<no matter>",
+						   (char*)"<null test>"));
+	}
+	having= new Item_is_not_null_test(this, having);
+	sl->having= (sl->having ?
+		     new Item_cond_and(having, sl->having) :
+		     having);
+	item= new Item_cond_or((*func)(expr, item),
+			       new Item_func_isnull(isnull));
 	sl->where= and_items(sl->where, item);
       }
       else
