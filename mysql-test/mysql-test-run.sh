@@ -16,6 +16,9 @@ USE_MANAGER=0
 MY_TZ=GMT-3
 TZ=$MY_TZ; export TZ # for UNIX_TIMESTAMP tests to work
 
+# For query_cache test
+ulimit -n 1024
+
 #++
 # Program Definitions
 #--
@@ -829,7 +832,6 @@ start_master()
       /bin/sh $master_init_script
   fi
   cd $BASEDIR # for gcov
-  #start master
   if [ -z "$DO_BENCH" ]
   then
     master_args="--no-defaults --log-bin=$MYSQL_TEST_DIR/var/log/master-bin \
@@ -848,6 +850,7 @@ start_master()
           --tmpdir=$MYSQL_TMP_DIR \
           --language=$LANGUAGE \
           --innodb_data_file_path=ibdata1:50M \
+	  --open-files-limit=1024 \
 	   $MASTER_40_ARGS \
            $SMALL_SERVER \
            $EXTRA_MASTER_OPT $EXTRA_MASTER_MYSQLD_OPT"
@@ -1363,6 +1366,9 @@ fi
 
 $ECHO  "Starting Tests"
 
+#
+# This can probably be deleted
+#
 if [ "$DO_BENCH" = 1 ]
 then
   BENCHDIR=$BASEDIR/sql-bench/

@@ -2158,7 +2158,10 @@ int main(int argc, char **argv)
 		  max_connections,table_cache_size));
       sql_print_error("Warning: Changed limits: max_connections: %ld  table_cache: %ld",max_connections,table_cache_size);
     }
+    open_files_limit= files;
   }
+#else
+  open_files_limit= 0;		/* Can't set or detect limit */
 #endif
   unireg_init(opt_specialflag); /* Set up extern variabels */
   init_errmessage();		/* Read error messages from file */
@@ -4903,6 +4906,19 @@ static void fix_paths(void)
 }
 
 
+/*
+  set how many open files we want to be able to handle
+
+  SYNOPSIS
+    set_maximum_open_files()  
+    max_file_limit		Files to open
+
+  NOTES
+    The request may not fulfilled becasue of system limitations
+
+  RETURN
+    Files available to open
+*/
 
 #ifdef SET_RLIMIT_NOFILE
 static uint set_maximum_open_files(uint max_file_limit)
