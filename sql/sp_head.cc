@@ -1004,6 +1004,27 @@ sp_head::restore_thd_mem_root(THD *thd)
 }
 
 
+bool check_show_routine_acceess(THD *thd, sp_head *sp, bool *full_access)
+{
+  TABLE_LIST tables;
+  bzero((char*) &tables,sizeof(tables));
+  tables.db= (char*) "mysql";
+  tables.table_name= tables.alias= (char*) "proc";
+  *full_access= !check_table_access(thd, SELECT_ACL, &tables, 1);
+  if (!(*full_access))
+    *full_access= (!strcmp(sp->m_definer_user.str, thd->priv_user) &&
+                   !strcmp(sp->m_definer_host.str, thd->priv_host));
+  if (!(*full_access))
+  {
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+    return check_some_routine_access(thd, (char * )sp->m_db.str,
+                                     (char * ) sp->m_name.str);
+#endif
+  }
+  return 0;
+}
+
+
 int
 sp_head::show_create_procedure(THD *thd)
 {
@@ -1016,11 +1037,15 @@ sp_head::show_create_procedure(THD *thd)
   sys_var *sql_mode_var;
   byte *sql_mode_str;
   ulong sql_mode_len;
+  bool full_access;
 
   DBUG_ENTER("sp_head::show_create_procedure");
   DBUG_PRINT("info", ("procedure %s", m_name.str));
   LINT_INIT(sql_mode_str);
   LINT_INIT(sql_mode_len);
+
+  if (check_show_routine_acceess(thd, this, &full_access))
+    return 1;
   
   old_sql_mode= thd->variables.sql_mode;
   thd->variables.sql_mode= m_sql_mode;
@@ -1047,7 +1072,8 @@ sp_head::show_create_procedure(THD *thd)
   protocol->store(m_name.str, m_name.length, system_charset_info);
   if (sql_mode_var)
     protocol->store((char*) sql_mode_str, sql_mode_len, system_charset_info);
-  protocol->store(m_defstr.str, m_defstr.length, system_charset_info);
+  if (full_access)
+    protocol->store(m_defstr.str, m_defstr.length, system_charset_info);
   res= protocol->write();
   send_eof(thd);
 
@@ -1085,10 +1111,14 @@ sp_head::show_create_function(THD *thd)
   sys_var *sql_mode_var;
   byte *sql_mode_str;
   ulong sql_mode_len;
+  bool full_access;
   DBUG_ENTER("sp_head::show_create_function");
   DBUG_PRINT("info", ("procedure %s", m_name.str));
   LINT_INIT(sql_mode_str);
   LINT_INIT(sql_mode_len);
+
+  if (check_show_routine_acceess(thd, this, &full_access))
+    return 1;
 
   old_sql_mode= thd->variables.sql_mode;
   thd->variables.sql_mode= m_sql_mode;
@@ -1114,7 +1144,8 @@ sp_head::show_create_function(THD *thd)
   protocol->store(m_name.str, m_name.length, system_charset_info);
   if (sql_mode_var)
     protocol->store((char*) sql_mode_str, sql_mode_len, system_charset_info);
-  protocol->store(m_defstr.str, m_defstr.length, system_charset_info);
+  if (full_access)
+    protocol->store(m_defstr.str, m_defstr.length, system_charset_info);
   res= protocol->write();
   send_eof(thd);
 

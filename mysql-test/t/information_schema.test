@@ -3,7 +3,8 @@
 # show databases
 
 show variables where variable_name like "skip_show_database";
-grant all privileges on test.* to mysqltest_1@localhost;
+grant select, update, execute on test.* to mysqltest_2@localhost;
+grant select, update on test.* to mysqltest_1@localhost;
 
 select * from information_schema.SCHEMATA where schema_name > 'm';
 select schema_name from information_schema.schemata;
@@ -104,6 +105,30 @@ select a.ROUTINE_NAME, b.name from information_schema.ROUTINES a,
 mysql.proc b where a.ROUTINE_NAME = convert(b.name using utf8);
 select count(*) from information_schema.ROUTINES;
 
+connect (user1,localhost,mysqltest_1,,);
+connect (user3,localhost,mysqltest_2,,);
+connection user1;
+select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES;
+--error 1305
+show create function sub1;
+connection user3;
+select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES;
+connection default;
+grant all privileges on test.* to mysqltest_1@localhost;
+connect (user2,localhost,mysqltest_1,,);
+connection user2;
+select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES;
+create function sub2(i int) returns int
+  return i+1;
+select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES;
+show create procedure sel2;
+show create function sub1;
+show create function sub2;
+connection default;
+disconnect user1;
+drop function sub2;
+show create procedure sel2;
+
 #
 # Test for views
 #
@@ -138,8 +163,8 @@ select * from information_schema.USER_PRIVILEGES where grantee like '%mysqltest_
 select * from information_schema.SCHEMA_PRIVILEGES where grantee like '%mysqltest_1%';
 select * from information_schema.TABLE_PRIVILEGES where grantee like '%mysqltest_1%';
 select * from information_schema.COLUMN_PRIVILEGES where grantee like '%mysqltest_1%';
-delete from mysql.user where user='mysqltest_1';
-delete from mysql.db where user='mysqltest_1';
+delete from mysql.user where user='mysqltest_1' or user='mysqltest_2';
+delete from mysql.db where user='mysqltest_1' or user='mysqltest_2';
 delete from mysql.tables_priv where user='mysqltest_1';
 delete from mysql.columns_priv where user='mysqltest_1';
 flush privileges;
@@ -160,13 +185,11 @@ TABLE_SCHEMA= "test";
 select * from information_schema.KEY_COLUMN_USAGE where
 TABLE_SCHEMA= "test";
 
-
-connect (user1,localhost,mysqltest_1,,);
-connection user1;
+connection user2;
 select table_name from information_schema.TABLES where table_schema like "test%";
 select table_name,column_name from information_schema.COLUMNS where table_schema like "test%";
 select ROUTINE_NAME from information_schema.ROUTINES;
-disconnect user1;
+disconnect user2;
 connection default;
 delete from mysql.user where user='mysqltest_1';
 drop table t1;
