@@ -1475,8 +1475,8 @@ add_key_field(KEY_FIELD **key_fields,uint and_level,
     bool optimizable=0;
     for (uint i=0; i<num_values; i++)
     {
-      used_tables|=(*value)->used_tables();
-      if (!((*value)->used_tables() & (field->table->map | RAND_TABLE_BIT)))
+      used_tables|=(value[i])->used_tables();
+      if (!((value[i])->used_tables() & (field->table->map | RAND_TABLE_BIT)))
         optimizable=1;
     }
     if (!optimizable)
