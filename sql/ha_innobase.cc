@@ -2031,6 +2031,12 @@ ha_innobase::external_lock(
 		trx->n_mysql_tables_in_use++;
 	} else {
 		trx->n_mysql_tables_in_use--;
+
+		if (trx->n_mysql_tables_in_use == 0 &&
+		    !(thd->options
+		      & (OPTION_NOT_AUTO_COMMIT | OPTION_BEGIN))) {
+		  innobase_commit(thd, trx);
+		}
 	}
 
 	DBUG_RETURN(error);
