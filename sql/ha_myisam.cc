@@ -818,26 +818,19 @@ int ha_myisam::preload_keys(THD* thd, HA_CHECK_OPT *check_opt)
     deactivate_non_unique_index()
     rows		Rows to be inserted
 			0 if we don't know
-			HA_POS_ERROR if we want to disable all keys
+			HA_POS_ERROR if we want to force disabling
+                        and make it permanent (save on disk)
 */
 
 void ha_myisam::deactivate_non_unique_index(ha_rows rows)
 {
   MYISAM_SHARE* share = file->s;
-  bool do_warning=0;
   if (share->state.key_map == ((ulonglong) 1L << share->base.keys)-1)
   {
     if (!(specialflag & SPECIAL_SAFE_MODE))
     {
-      if (rows == HA_POS_ERROR)
-      {
-	uint orig_update= file->update;
-	file->update ^= HA_STATE_CHANGED;
-	uint check_update= file->update;
+      if (rows == HA_POS_ERROR) // force disable and save it on disk!
         mi_extra(file, HA_EXTRA_NO_KEYS, 0);
-	do_warning= (file->update == check_update) && file->state->records;
-	file->update= orig_update;
-      }
       else
       {
 	/*
@@ -847,15 +840,16 @@ void ha_myisam::deactivate_non_unique_index(ha_rows rows)
 	  we don't want to update the key statistics based of only a few rows.
 	*/
 	if (file->state->records == 0 &&
-	    (!rows || rows >= MI_MIN_ROWS_TO_USE_BULK_INSERT))
+	    (!rows || rows >= MI_MIN_ROWS_TO_DISABLE_INDEXES))
 	  mi_disable_non_unique_index(file,rows);
         else
+        if (!file->bulk_insert &&
+            (!rows || rows >= MI_MIN_ROWS_TO_USE_BULK_INSERT))
         {
           mi_init_bulk_insert(file,
-			      current_thd->variables.bulk_insert_buff_size,
-			      rows);
-	  table->bulk_insert= 1;
-	}
+                              current_thd->variables.bulk_insert_buff_size,
+                              rows);
+        }
       }
     }
     enable_activate_all_index=1;
@@ -863,10 +857,6 @@ void ha_myisam::deactivate_non_unique_index(ha_rows rows)
   }
   else
     enable_activate_all_index=0;
-  if (do_warning)
-    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN, 
-			ER_ILLEGAL_HA,
-			ER(ER_ILLEGAL_HA), table->table_name);
 }
 
 
@@ -878,7 +868,6 @@ bool ha_myisam::activate_all_index(THD *thd)
   DBUG_ENTER("activate_all_index");
 
   mi_end_bulk_insert(file);
-  table->bulk_insert= 0;
   if (enable_activate_all_index &&
      share->state.key_map != set_bits(ulonglong, share->base.keys))
   {
@@ -1393,8 +1382,8 @@ longlong ha_myisam::get_auto_increment()
     return auto_increment_value;
   }
 
-  if (table->bulk_insert)
-    mi_flush_bulk_insert(file, table->next_number_index);
+  /* it's safe to call the following if bulk_insert isn't on */
+  mi_flush_bulk_insert(file, table->next_number_index);
 
   longlong nr;
   int error;
