@@ -394,13 +394,13 @@ if ($opt_stage <= 5 && !$opt_no_test && !$opt_no_mysqltest)
   info("Running test suite");
   system("mkdir $bench_tmpdir") if (! -d $bench_tmpdir);
   safe_cd("${test_dir}/mysql-test");
-  check_system("./mysql-test-run $flags --tmpdir=$bench_tmpdir --master_port=$mysql_tcp_port --slave_port=$slave_port --ndbcluster_port=$ndbcluster_port --manager-port=$manager_port --no-manager --sleep=10", "tests were successful");
+  check_system("./mysql-test-run $flags --tmpdir=$bench_tmpdir --master_port=$mysql_tcp_port --slave_port=$slave_port --ndbcluster_port=$ndbcluster_port --manager-port=$manager_port --no-manager --sleep=10", "were successful");
 
   unless ($opt_skip_ps_test)
   {
     log_timestamp();
     info("Running test suite using prepared statements");
-    check_system("./mysql-test-run $flags --ps-protocol --tmpdir=$bench_tmpdir --master_port=$mysql_tcp_port --slave_port=$slave_port --ndbcluster_port=$ndbcluster_port --manager-port=$manager_port --no-manager --sleep=10", "tests were successful");
+    check_system("./mysql-test-run $flags --ps-protocol --tmpdir=$bench_tmpdir --master_port=$mysql_tcp_port --slave_port=$slave_port --ndbcluster_port=$ndbcluster_port --manager-port=$manager_port --no-manager --sleep=10", "were successful");
   }
   
   unless ($opt_skip_embedded_test)
@@ -409,7 +409,7 @@ if ($opt_stage <= 5 && !$opt_no_test && !$opt_no_mysqltest)
     info("Running embedded server test suite");
     # Embedded server and NDB don't jive
     $flags=~ s/ --with-ndbcluster//;
-    check_system("./mysql-test-run $flags --embedded-server --tmpdir=$bench_tmpdir --master_port=$mysql_tcp_port --slave_port=$slave_port --manager-port=$manager_port --no-manager --sleep=10", "tests were successful");
+    check_system("./mysql-test-run $flags --embedded-server --tmpdir=$bench_tmpdir --master_port=$mysql_tcp_port --slave_port=$slave_port --manager-port=$manager_port --no-manager --sleep=10", "were successful");
   }
   # 'mysql-test-run' writes its own final message for log evaluation.
 }
