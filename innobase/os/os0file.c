@@ -823,7 +823,7 @@ os_file_create_directory(
     
 	rcode = CreateDirectory(pathname, NULL);
 	if (!(rcode != 0 ||
-		   (GetLastError() == ERROR_FILE_EXISTS && !fail_if_exists))) {
+	   (GetLastError() == ERROR_ALREADY_EXISTS && !fail_if_exists))) {
 		/* failure */
 		os_file_handle_error(pathname, "CreateDirectory");
 
@@ -907,8 +907,9 @@ try_again:
 
 	file = CreateFile(name,
 			access,
-			FILE_SHARE_READ,/* file can be read also by other
-					processes */
+			FILE_SHARE_READ | FILE_SHARE_WRITE,
+					/* file can be read ansd written also
+					by other processes */
 			NULL,	/* default security attributes */
 			create_flag,
 			attributes,
@@ -1013,7 +1014,7 @@ os_file_create_simple_no_error_handling(
 	DWORD		create_flag;
 	DWORD		access;
 	DWORD		attributes	= 0;
-	DWORD		share_mode	= FILE_SHARE_READ;
+	DWORD		share_mode	= FILE_SHARE_READ | FILE_SHARE_WRITE;
 	
 	ut_a(name);
 
@@ -1336,7 +1337,7 @@ loop:
 		return(TRUE);
 	}
 
-	if (GetLastError() == ERROR_PATH_NOT_FOUND) {
+	if (GetLastError() == ERROR_FILE_NOT_FOUND) {
 		/* the file does not exist, this not an error */
 
 		return(TRUE);
@@ -1397,7 +1398,7 @@ loop:
 		return(TRUE);
 	}
 
-	if (GetLastError() == ERROR_PATH_NOT_FOUND) {
+	if (GetLastError() == ERROR_FILE_NOT_FOUND) {
 		/* If the file does not exist, we classify this as a 'mild'
 		error and return */
 
