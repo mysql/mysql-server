@@ -380,7 +380,7 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
 	    break;
 	  case NdbReceiver::NDB_SCANRECEIVER:
 	    tCon->theScanningOp->receiver_delivered(tRec);
-	    theWaiter.m_state = NO_WAIT;
+	    theWaiter.m_state = (tWaitState == WAIT_SCAN? NO_WAIT: tWaitState);
 	    break;
 	  default:
 	    goto InvalidSignal;
@@ -721,15 +721,11 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
       
       if (tCon->checkMagicNumber() == 0){
 	tReturnCode = tCon->receiveSCAN_TABREF(aSignal);
-	if (tReturnCode != -1){
+	if (tReturnCode != -1 && tWaitState == WAIT_SCAN){
 	  theWaiter.m_state = NO_WAIT;
 	}
 	break;
       }
-      goto InvalidSignal;
-    }
-  case GSN_SCAN_TABINFO: 
-    {
       goto InvalidSignal;
     }
   case GSN_KEYINFO20: {
@@ -752,7 +748,7 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
       switch(com){
       case 1:
 	tCon->theScanningOp->receiver_delivered(tRec);
-	theWaiter.m_state = NO_WAIT;
+	theWaiter.m_state = (tWaitState == WAIT_SCAN ? NO_WAIT : tWaitState);
 	break;
       case 0:
 	break;
