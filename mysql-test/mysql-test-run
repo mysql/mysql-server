@@ -141,6 +141,12 @@ if [ "$1" = "-force" ] ; then
  shift 1
 fi
 
+if [ "$1" = "-record" ] ; then
+ RECORD=1
+ shift 1
+fi
+
+
 if [ "$1" = "-gcov" ];
 then
   if [ x$BINARY_DIST = x1 ] ; then
@@ -300,7 +306,7 @@ start_master()
 {
     cd $BASEDIR # for gcov
     #start master
-    master_args="--no-defaults --log-bin \
+    master_args="--no-defaults --log-bin=master-bin \
     	    --server-id=1 \
             --basedir=$MY_BASEDIR \
 	    --port=$MASTER_MYPORT \
@@ -330,7 +336,7 @@ start_slave()
 	    --master-host=127.0.0.1 \
 	    --master-port=$MASTER_MYPORT \
 	    --exit-info=256 \
-	    --log-bin --log-slave-updates \
+	    --log-bin=slave-bin --log-slave-updates \
             --basedir=$MY_BASEDIR \
             --datadir=$SLAVE_MYDDIR \
 	    --pid-file=$SLAVE_MYPID \
@@ -433,7 +439,12 @@ run_testcase ()
  master_opt_file=$TESTDIR/$tname-master.opt
  slave_opt_file=$TESTDIR/$tname-slave.opt
  SKIP_SLAVE=`$EXPR \( $tname : rpl \) = 0`
- 
+ if [ x$RECORD = x1 ]; then
+  extra_flags="-r"
+ else
+  extra_flags=""
+ fi
+  
  if [ -f $master_opt_file ] ;
  then
   EXTRA_MASTER_OPT=`cat $master_opt_file`
@@ -466,7 +477,8 @@ run_testcase ()
  cd $MYSQL_TEST_DIR
   
  if [ -f $tf ] ; then
-    mytime=`$TIME -p $MYSQL_TEST < $tf 2> $TIMEFILE`
+    mytime=`$TIME -p $MYSQL_TEST -R r/$tname.result $extra_flags \
+     < $tf 2> $TIMEFILE`
     res=$?
 
     if [ $res != 1 ]; then
@@ -547,13 +559,21 @@ $ECHO $DASH72
 
 if [ -z $1 ] ;
 then
-    for tf in $TESTDIR/*.$TESTSUFFIX
-    do
-     run_testcase $tf
-    done
+ if [ x$RECORD = x1 ]; then
+  echo "Will not run in record mode without a specific test case"
+ else
+  for tf in $TESTDIR/*.$TESTSUFFIX
+  do
+    run_testcase $tf
+  done
+ fi
 else
  tf=$TESTDIR/$1.$TESTSUFFIX
- run_testcase $tf
+ if [ -f $tf ] ; then
+  run_testcase $tf
+ else
+   echo "Test case $tf does not exist"
+ fi
 fi
 
 $ECHO $DASH72
