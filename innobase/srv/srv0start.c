@@ -1587,9 +1587,10 @@ NetWare. */
 
 		fprintf(stderr,
 "InnoDB: You have now successfully upgraded to the multiple tablespaces\n"
-"InnoDB: format. You should NOT DOWNGRADE again to an earlier version of\n"
-"InnoDB: InnoDB! But if you absolutely need to downgrade, see section 4.6 of\n"
-"InnoDB: http://www.innodb.com/ibman.php for instructions.\n");
+"InnoDB: format. You should NOT DOWNGRADE to an earlier version of\n"
+"InnoDB: InnoDB! But if you absolutely need to downgrade, see\n"
+"InnoDB: http://dev.mysql.com/doc/mysql/en/Multiple_tablespaces.html\n"
+"InnoDB: for instructions.\n");
 	}
 
 	if (srv_force_recovery == 0) {
