@@ -113,10 +113,15 @@ static bool make_datetime(date_time_format_types format, TIME *ltime,
 }
 
 
-/* Date formats corresponding to compound %r and %T conversion specifiers */
-static DATE_TIME_FORMAT time_ampm_format= {{}, '\0', 0,
+/*
+  Date formats corresponding to compound %r and %T conversion specifiers
+
+  Note: We should init at least first element of "positions" array
+        (first member) or hpux11 compiler will die horribly.
+*/
+static DATE_TIME_FORMAT time_ampm_format= {{0}, '\0', 0,
                                            {(char *)"%I:%i:%S %p", 11}};
-static DATE_TIME_FORMAT time_24hrs_format= {{}, '\0', 0,
+static DATE_TIME_FORMAT time_24hrs_format= {{0}, '\0', 0,
                                             {(char *)"%H:%i:%S", 8}};
 
 /*
