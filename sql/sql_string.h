@@ -190,7 +190,8 @@ public:
   bool copy(const char*s,uint32 arg_length, CHARSET_INFO *csfrom,
 	    CHARSET_INFO *csto);
   bool append(const String &s);
-  bool append(const char *s,uint32 arg_length=0);
+  bool append(const char *s);
+  bool append(const char *s,uint32 arg_length);
   bool append(const char *s,uint32 arg_length, CHARSET_INFO *cs);
   bool append(IO_CACHE* file, uint32 arg_length);
   bool append_with_prefill(const char *s, uint32 arg_length, 

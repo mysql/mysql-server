@@ -416,16 +416,18 @@ bool String::append(const String &s)
 
 
 /*
-  Append a latin1 string to the a string of the current character set
+  Append an ASCII string to the a string of the current character set
 */
-
 
 bool String::append(const char *s,uint32 arg_length)
 {
-  if (!arg_length)				// Default argument
-    if (!(arg_length= (uint32) strlen(s)))
-      return FALSE;
-  if (str_charset->mbmaxlen > 1)
+  if (!arg_length)
+    return FALSE;
+
+  /*
+    For an ASCII incompatible string, e.g. UCS-2, we need to convert
+  */
+  if (str_charset->mbminlen > 1)
   {
     uint32 add_length=arg_length * str_charset->mbmaxlen;
     if (realloc(str_length+ add_length))
@@ -434,6 +436,10 @@ bool String::append(const char *s,uint32 arg_length)
 				  s, arg_length, &my_charset_latin1);
     return FALSE;
   }
+
+  /*
+    For an ASCII compatinble string we can just append.
+  */
   if (realloc(str_length+arg_length))
     return TRUE;
   memcpy(Ptr+str_length,s,arg_length);
@@ -443,29 +449,36 @@ bool String::append(const char *s,uint32 arg_length)
 
 
 /*
+  Append a 0-terminated ASCII string
+*/
+
+bool String::append(const char *s)
+{
+  return append(s, strlen(s));
+}
+
+
+/*
   Append a string in the given charset to the string
   with character set recoding
 */
 
-
 bool String::append(const char *s,uint32 arg_length, CHARSET_INFO *cs)
 {
   uint32 dummy_offset;
-  uint32 add_length;
-
-  if (!arg_length && !(arg_length= (uint32)strlen(s)))
-      return FALSE;
-
-  add_length= arg_length * str_charset->mbmaxlen;
-  if (realloc(str_length + add_length)) 
-    return TRUE;
+  
   if (needs_conversion(arg_length, cs, str_charset, &dummy_offset))
   {
+    uint32 add_length= arg_length / cs->mbminlen * str_charset->mbmaxlen;
+    if (realloc(str_length + add_length)) 
+      return TRUE;
     str_length+= copy_and_convert(Ptr+str_length, add_length, str_charset,
 				  s, arg_length, cs);
   }
   else
   {
+    if (realloc(str_length + arg_length)) 
+      return TRUE;
     memcpy(Ptr + str_length, s, arg_length);
     str_length+= arg_length;
   }
