@@ -2360,8 +2360,10 @@ int Create_file_log_event::exec_event(struct st_relay_log_info* rli)
   strmov(p, ".info");			// strmov takes less code than memcpy
   strnmov(proc_info, "Making temp file ", 17); // no end 0
   thd->proc_info= proc_info;
-  if ((fd = my_open(fname_buf, O_WRONLY|O_CREAT|O_BINARY|O_TRUNC,
-		    MYF(MY_WME))) < 0 ||
+  my_delete(fname_buf, MYF(0)); // old copy may exist already
+  if ((fd= my_create(fname_buf, CREATE_MODE,
+		     O_WRONLY | O_BINARY | O_EXCL | O_NOFOLLOW,
+		     MYF(MY_WME))) < 0 ||
       init_io_cache(&file, fd, IO_SIZE, WRITE_CACHE, (my_off_t)0, 0,
 		    MYF(MY_WME|MY_NABP)))
   {
@@ -2383,8 +2385,10 @@ int Create_file_log_event::exec_event(struct st_relay_log_info* rli)
   my_close(fd, MYF(0));
   
   // fname_buf now already has .data, not .info, because we did our trick
-  if ((fd = my_open(fname_buf, O_WRONLY|O_CREAT|O_BINARY|O_TRUNC,
-		    MYF(MY_WME))) < 0)
+  my_delete(fname_buf, MYF(0)); // old copy may exist already
+  if ((fd= my_create(fname_buf, CREATE_MODE,
+		     O_WRONLY | O_BINARY | O_EXCL | O_NOFOLLOW,
+		     MYF(MY_WME))) < 0)
   {
     slave_print_error(rli,my_errno, "Error in Create_file event: could not open file '%s'", fname_buf);
     goto err;
@@ -2426,7 +2430,7 @@ int Append_block_log_event::exec_event(struct st_relay_log_info* rli)
   memcpy(p, ".data", 6);
   strnmov(proc_info, "Making temp file ", 17); // no end 0
   thd->proc_info= proc_info;
-  if ((fd = my_open(fname, O_WRONLY|O_APPEND|O_BINARY, MYF(MY_WME))) < 0)
+  if ((fd = my_open(fname, O_WRONLY|O_APPEND|O_BINARY|O_NOFOLLOW, MYF(MY_WME))) < 0)
   {
     slave_print_error(rli,my_errno, "Error in Append_block event: could not open file '%s'", fname);
     goto err;
@@ -2455,7 +2459,7 @@ int Execute_load_log_event::exec_event(struct st_relay_log_info* rli)
   Load_log_event* lev = 0;
 
   memcpy(p, ".info", 6);
-  if ((fd = my_open(fname, O_RDONLY|O_BINARY, MYF(MY_WME))) < 0 ||
+  if ((fd = my_open(fname, O_RDONLY|O_BINARY|O_NOFOLLOW, MYF(MY_WME))) < 0 ||
       init_io_cache(&file, fd, IO_SIZE, READ_CACHE, (my_off_t)0, 0,
 		    MYF(MY_WME|MY_NABP)))
   {
