@@ -1,14 +1,14 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 2000
+ * Copyright (c) 2000-2002
  *	Sleepycat Software.  All rights reserved.
  */
 
 #include "db_config.h"
 
 #ifndef lint
-static const char revid[] = "$Id: util_log.c,v 1.7 2000/11/30 00:58:31 ubell Exp $";
+static const char revid[] = "$Id: util_log.c,v 1.11 2002/02/01 18:15:30 bostic Exp $";
 #endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
@@ -31,7 +31,6 @@ static const char revid[] = "$Id: util_log.c,v 1.7 2000/11/30 00:58:31 ubell Exp
 #endif
 
 #include "db_int.h"
-#include "common_ext.h"
 
 /*
  * __db_util_logset --
@@ -46,12 +45,14 @@ __db_util_logset(progname, fname)
 {
 	FILE *fp;
 	time_t now;
+	u_int32_t id;
 
 	if ((fp = fopen(fname, "w")) == NULL)
 		goto err;
 
 	(void)time(&now);
-	fprintf(fp, "%s: %lu %s", progname, (u_long)getpid(), ctime(&now));
+	__os_id(&id);
+	fprintf(fp, "%s: %lu %s", progname, (u_long)id, ctime(&now));
 
 	if (fclose(fp) == EOF)
 		goto err;

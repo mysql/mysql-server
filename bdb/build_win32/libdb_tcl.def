@@ -1,16 +1,11 @@
-; $Id: libdb_tcl.def,v 11.2 1999/11/21 23:10:00 bostic Exp $
+; $Id: libdb_tcl.def,v 11.5 2002/04/03 12:01:27 mjc Exp $
 
 DESCRIPTION     'Berkeley DB TCL interface Library'
 EXPORTS
 	Db_tcl_Init
-	bdb_DbmCommand
-	bdb_HCommand
-	bdb_NdbmOpen
-	bdb_RandCommand
 	db_Cmd
 	dbc_Cmd
 	env_Cmd
-	ndbm_Cmd
 	tcl_EnvRemove
 	tcl_LockDetect
 	tcl_LockGet
@@ -22,9 +17,7 @@ EXPORTS
 	tcl_LogFlush
 	tcl_LogGet
 	tcl_LogPut
-	tcl_LogRegister
 	tcl_LogStat
-	tcl_LogUnregister
 	tcl_Mp
 	tcl_MpStat
 	tcl_MpSync
@@ -32,4 +25,3 @@ EXPORTS
 	tcl_Txn
 	tcl_TxnCheckpoint
 	tcl_TxnStat
-	txn_Cmd

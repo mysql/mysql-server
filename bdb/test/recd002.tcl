@@ -1,11 +1,13 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996, 1997, 1998, 1999, 2000
+# Copyright (c) 1996-2002
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id: recd002.tcl,v 11.22 2000/12/11 17:24:54 sue Exp $
+# $Id: recd002.tcl,v 11.30 2002/02/25 16:44:24 sandstro Exp $
 #
-# Recovery Test #2.  Verify that splits can be recovered.
+# TEST	recd002
+# TEST	Split recovery tests.  For every known split log message, makes sure
+# TEST	that we exercise redo, undo, and do-nothing condition.
 proc recd002 { method {select 0} args} {
 	source ./include.tcl
 	global rand_init
@@ -37,7 +39,7 @@ proc recd002 { method {select 0} args} {
 	    "-create -txn -lock_max 2000 -home $testdir"
 
 	puts "\tRecd002.a: creating environment"
-	set env_cmd "berkdb env $eflags"
+	set env_cmd "berkdb_env $eflags"
 	set dbenv [eval $env_cmd]
 	error_check_bad dbenv $dbenv NULL
 
@@ -80,8 +82,13 @@ proc recd002 { method {select 0} args} {
 		}
 		op_recover abort $testdir $env_cmd $testfile $cmd $msg
 		op_recover commit $testdir $env_cmd $testfile $cmd $msg
-		op_recover prepare $testdir $env_cmd $testfile2 $cmd $msg
+		#
+		# Note that since prepare-discard ultimately aborts
+		# the txn, it must come before prepare-commit.
+		#
 		op_recover prepare-abort $testdir $env_cmd $testfile2 \
+			$cmd $msg
+		op_recover prepare-discard $testdir $env_cmd $testfile2 \
 			$cmd $msg
 		op_recover prepare-commit $testdir $env_cmd $testfile2 \
 			$cmd $msg

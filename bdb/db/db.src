@@ -1,13 +1,14 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 1997, 1998, 1999, 2000
+ * Copyright (c) 1996-2002
  *	Sleepycat Software.  All rights reserved.
  *
- *	$Id: db.src,v 11.8 2000/02/17 20:24:07 bostic Exp $
+ * $Id: db.src,v 11.18 2002/04/17 19:02:58 krinsky Exp $
  */
 
-PREFIX	db
+PREFIX	__db
+DBPRIVATE
 
 INCLUDE	#include "db_config.h"
 INCLUDE
@@ -15,15 +16,17 @@ INCLUDE #ifndef NO_SYSTEM_INCLUDES
 INCLUDE #include <sys/types.h>
 INCLUDE
 INCLUDE #include <ctype.h>
-INCLUDE #include <errno.h>
 INCLUDE #include <string.h>
 INCLUDE #endif
 INCLUDE
 INCLUDE #include "db_int.h"
-INCLUDE #include "db_page.h"
-INCLUDE #include "db_dispatch.h"
-INCLUDE #include "db_am.h"
-INCLUDE #include "txn.h"
+INCLUDE #include "dbinc/crypto.h"
+INCLUDE #include "dbinc/db_page.h"
+INCLUDE #include "dbinc/db_dispatch.h"
+INCLUDE #include "dbinc/db_am.h"
+INCLUDE #include "dbinc/log.h"
+INCLUDE #include "dbinc/rep.h"
+INCLUDE #include "dbinc/txn.h"
 INCLUDE
 
 /*
@@ -44,29 +47,12 @@ INCLUDE
  */
 BEGIN addrem		41
 ARG	opcode		u_int32_t	lu
-ARG	fileid		int32_t		ld
-ARG	pgno		db_pgno_t	lu
+DB	fileid		int32_t		ld
+WRLOCK	pgno		db_pgno_t	lu
 ARG	indx		u_int32_t	lu
-ARG	nbytes		size_t		lu
-DBT	hdr		DBT		s
+ARG	nbytes		u_int32_t	lu
+PGDBT	hdr		DBT		s
 DBT	dbt		DBT		s
-POINTER	pagelsn		DB_LSN *	lu
-END
-
-/*
- * split -- Handles the split of a duplicate page.
- *
- * opcode:	defines whether we are splitting from or splitting onto
- * fileid:	file identifier of the file being modified.
- * pgno:	page number being split.
- * pageimage:	entire page contents.
- * pagelsn:	former lsn of the page.
- */
-DEPRECATED split	42
-ARG	opcode		u_int32_t	lu
-ARG	fileid		int32_t		ld
-ARG	pgno		db_pgno_t	lu
-DBT	pageimage	DBT		s
 POINTER	pagelsn		DB_LSN *	lu
 END
 
@@ -87,10 +73,10 @@ END
  */
 BEGIN big		43
 ARG	opcode		u_int32_t	lu
-ARG	fileid		int32_t		ld
-ARG	pgno		db_pgno_t	lu
-ARG	prev_pgno	db_pgno_t	lu
-ARG	next_pgno	db_pgno_t	lu
+DB	fileid		int32_t		ld
+WRLOCK	pgno		db_pgno_t	lu
+WRLOCKNZ prev_pgno	db_pgno_t	lu
+WRLOCKNZ next_pgno	db_pgno_t	lu
 DBT	dbt		DBT		s
 POINTER	pagelsn		DB_LSN *	lu
 POINTER	prevlsn		DB_LSN *	lu
@@ -106,8 +92,8 @@ END
  * lsn:		the page's original lsn.
  */
 BEGIN ovref		44
-ARG	fileid		int32_t		ld
-ARG	pgno		db_pgno_t	lu
+DB	fileid		int32_t		ld
+WRLOCK	pgno		db_pgno_t	lu
 ARG	adjust		int32_t		ld
 POINTER	lsn		DB_LSN *	lu
 END
@@ -125,30 +111,13 @@ END
  */
 BEGIN relink		45
 ARG	opcode		u_int32_t	lu
-ARG	fileid		int32_t		ld
-ARG	pgno		db_pgno_t	lu
+DB	fileid		int32_t		ld
+WRLOCK	pgno		db_pgno_t	lu
 POINTER	lsn		DB_LSN *	lu
-ARG	prev		db_pgno_t	lu
+WRLOCKNZ prev		db_pgno_t	lu
 POINTER	lsn_prev	DB_LSN *	lu
-ARG	next		db_pgno_t	lu
+WRLOCKNZ next		db_pgno_t	lu
 POINTER	lsn_next	DB_LSN *	lu
-END
-
-/*
- * Addpage -- Handles adding a new duplicate page onto the end of
- * an existing duplicate page.
- * fileid:	identifies the file being changed.
- * pgno:	page number to which a new page is being added.
- * lsn:		lsn of pgno
- * nextpgno:	new page number being added.
- * nextlsn:	lsn of nextpgno;
- */
-DEPRECATED addpage	46
-ARG	fileid		int32_t		ld
-ARG	pgno		db_pgno_t	lu
-POINTER	lsn		DB_LSN *	lu
-ARG	nextpgno	db_pgno_t	lu
-POINTER	nextlsn		DB_LSN *	lu
 END
 
 /*
@@ -172,7 +141,55 @@ END
  * noop -- do nothing, but get an LSN.
  */
 BEGIN noop		48
-ARG	fileid		int32_t		ld
-ARG	pgno		db_pgno_t	lu
+DB	fileid		int32_t		ld
+WRLOCK	pgno		db_pgno_t	lu
 POINTER	prevlsn		DB_LSN *	lu
+END
+
+/*
+ * pg_alloc: used to record allocating a new page.
+ *
+ * meta_lsn:	the meta-data page's original lsn.
+ * meta_pgno	the meta-data page number.
+ * page_lsn:	the allocated page's original lsn.
+ * pgno:	the page allocated.
+ * ptype:	the type of the page allocated.
+ * next:	the next page on the free list.
+ */
+BEGIN pg_alloc	49
+DB	fileid		int32_t		ld
+POINTER	meta_lsn	DB_LSN *	lu
+WRLOCK	meta_pgno	db_pgno_t	lu
+POINTER	page_lsn	DB_LSN *	lu
+WRLOCK	pgno		db_pgno_t	lu
+ARG	ptype		u_int32_t	lu
+ARG	next		db_pgno_t	lu
+END
+
+/*
+ * pg_free: used to record freeing a page.
+ *
+ * pgno:	the page being freed.
+ * meta_lsn:	the meta-data page's original lsn.
+ * meta_pgno:	the meta-data page number.
+ * header:	the header from the free'd page.
+ * next:	the previous next pointer on the metadata page.
+ */
+BEGIN pg_free		50
+DB	fileid		int32_t		ld
+WRLOCK	pgno		db_pgno_t	lu
+POINTER	meta_lsn	DB_LSN *	lu
+WRLOCK	meta_pgno	db_pgno_t	lu
+PGDBT	header		DBT		s
+ARG	next		db_pgno_t	lu
+END
+
+/*
+ * cksum --
+ *	This log record is written when we're unable to checksum a page,
+ *	before returning DB_RUNRECOVERY.  This log record causes normal
+ *	recovery to itself return DB_RUNRECOVERY, as only catastrophic
+ *	recovery can fix things.
+ */
+BEGIN cksum		51
 END

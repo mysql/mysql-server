@@ -1,6 +1,8 @@
-# $Id: README,v 11.3 2000/12/13 06:32:29 krinsky Exp $
+# $Id: README,v 11.5 2002/02/26 16:22:45 krinsky Exp $
 
 ex_access.c	Using just the DB access methods.
+
+ex_apprec	Application-specific recovery.
 
 ex_btrec.c	Using the BTREE access method with record numbers.
 
@@ -9,6 +11,10 @@ ex_env.c	Setting up the DB environment.
 ex_lock.c	Locking.
 
 ex_mpool.c	Shared memory buffer pools.
+
+ex_repquote	Replication.  This creates a toy stock quote server
+		with DB's single-master, multiple-client replication,
+		with communication over TCP.
 
 ex_tpcb.c	TPC/B.
 		Ex_tpcb sets up a framework in which to run a TPC/B test.

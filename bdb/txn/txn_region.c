@@ -1,14 +1,14 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 1997, 1998, 1999, 2000
+ * Copyright (c) 1996-2002
  *	Sleepycat Software.  All rights reserved.
  */
 
 #include "db_config.h"
 
 #ifndef lint
-static const char revid[] = "$Id: txn_region.c,v 11.36 2001/01/11 18:19:55 bostic Exp $";
+static const char revid[] = "$Id: txn_region.c,v 11.73 2002/08/06 04:42:37 bostic Exp $";
 #endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
@@ -28,98 +28,13 @@ static const char revid[] = "$Id: txn_region.c,v 11.36 2001/01/11 18:19:55 bosti
 #include <string.h>
 #endif
 
-#ifdef  HAVE_RPC
-#include "db_server.h"
-#endif
-
 #include "db_int.h"
-#include "db_page.h"
-#include "log.h"	/* for __log_lastckp */
-#include "txn.h"
-#include "db_am.h"
+#include "dbinc/log.h"
+#include "dbinc/txn.h"
 
-#ifdef HAVE_RPC
-#include "gen_client_ext.h"
-#include "rpc_client_ext.h"
-#endif
-
+static int __txn_findlastckp __P((DB_ENV *, DB_LSN *));
 static int __txn_init __P((DB_ENV *, DB_TXNMGR *));
-static int __txn_set_tx_max __P((DB_ENV *, u_int32_t));
-static int __txn_set_tx_recover __P((DB_ENV *,
-	       int (*)(DB_ENV *, DBT *, DB_LSN *, db_recops)));
-static int __txn_set_tx_timestamp __P((DB_ENV *, time_t *));
-
-/*
- * __txn_dbenv_create --
- *	Transaction specific initialization of the DB_ENV structure.
- *
- * PUBLIC: void __txn_dbenv_create __P((DB_ENV *));
- */
-void
-__txn_dbenv_create(dbenv)
-	DB_ENV *dbenv;
-{
-	dbenv->tx_max = DEF_MAX_TXNS;
-
-	dbenv->set_tx_max = __txn_set_tx_max;
-	dbenv->set_tx_recover = __txn_set_tx_recover;
-	dbenv->set_tx_timestamp = __txn_set_tx_timestamp;
-
-#ifdef HAVE_RPC
-	/*
-	 * If we have a client, overwrite what we just setup to point to
-	 * client functions.
-	 */
-	if (F_ISSET(dbenv, DB_ENV_RPCCLIENT)) {
-		dbenv->set_tx_max = __dbcl_set_tx_max;
-		dbenv->set_tx_recover = __dbcl_set_tx_recover;
-		dbenv->set_tx_timestamp = __dbcl_set_tx_timestamp;
-	}
-#endif
-}
-
-/*
- * __txn_set_tx_max --
- *	Set the size of the transaction table.
- */
-static int
-__txn_set_tx_max(dbenv, tx_max)
-	DB_ENV *dbenv;
-	u_int32_t tx_max;
-{
-	ENV_ILLEGAL_AFTER_OPEN(dbenv, "set_tx_max");
-
-	dbenv->tx_max = tx_max;
-	return (0);
-}
-
-/*
- * __txn_set_tx_recover --
- *	Set the transaction abort recover function.
- */
-static int
-__txn_set_tx_recover(dbenv, tx_recover)
-	DB_ENV *dbenv;
-	int (*tx_recover) __P((DB_ENV *, DBT *, DB_LSN *, db_recops));
-{
-	dbenv->tx_recover = tx_recover;
-	return (0);
-}
-
-/*
- * __txn_set_tx_timestamp --
- *	Set the transaction recovery timestamp.
- */
-static int
-__txn_set_tx_timestamp(dbenv, timestamp)
-	DB_ENV *dbenv;
-	time_t *timestamp;
-{
-	ENV_ILLEGAL_AFTER_OPEN(dbenv, "set_tx_timestamp");
-
-	dbenv->tx_timestamp = *timestamp;
-	return (0);
-}
+static size_t __txn_region_size __P((DB_ENV *));
 
 /*
  * __txn_open --
@@ -148,7 +63,7 @@ __txn_open(dbenv)
 	if (F_ISSET(dbenv, DB_ENV_CREATE))
 		F_SET(&tmgrp->reginfo, REGION_CREATE_OK);
 	if ((ret = __db_r_attach(dbenv,
-	    &tmgrp->reginfo, TXN_REGION_SIZE(dbenv->tx_max))) != 0)
+	    &tmgrp->reginfo, __txn_region_size(dbenv))) != 0)
 		goto err;
 
 	/* If we created the region, initialize it. */
@@ -161,14 +76,10 @@ __txn_open(dbenv)
 	    R_ADDR(&tmgrp->reginfo, tmgrp->reginfo.rp->primary);
 
 	/* Acquire a mutex to protect the active TXN list. */
-	if (F_ISSET(dbenv, DB_ENV_THREAD)) {
-		if ((ret = __db_mutex_alloc(
-		    dbenv, &tmgrp->reginfo, &tmgrp->mutexp)) != 0)
-			goto err;
-		if ((ret = __db_mutex_init(
-		    dbenv, tmgrp->mutexp, 0, MUTEX_THREAD)) != 0)
-			goto err;
-	}
+	if (F_ISSET(dbenv, DB_ENV_THREAD) &&
+	    (ret = __db_mutex_setup(dbenv, &tmgrp->reginfo, &tmgrp->mutexp,
+	    MUTEX_ALLOC | MUTEX_NO_RLOCK | MUTEX_THREAD)) != 0)
+		goto err;
 
 	R_UNLOCK(dbenv, &tmgrp->reginfo);
 
@@ -184,7 +95,7 @@ err:	if (tmgrp->reginfo.addr != NULL) {
 	}
 	if (tmgrp->mutexp != NULL)
 		__db_mutex_free(dbenv, &tmgrp->reginfo, tmgrp->mutexp);
-	__os_free(tmgrp, sizeof(*tmgrp));
+	__os_free(dbenv, tmgrp);
 	return (ret);
 }
 
@@ -200,15 +111,29 @@ __txn_init(dbenv, tmgrp)
 	DB_LSN last_ckp;
 	DB_TXNREGION *region;
 	int ret;
+#ifdef	HAVE_MUTEX_SYSTEM_RESOURCES
+	u_int8_t *addr;
+#endif
 
-	ZERO_LSN(last_ckp);
 	/*
-	 * If possible, fetch the last checkpoint LSN from the log system
-	 * so that the backwards chain of checkpoints is unbroken when
-	 * the environment is removed and recreated. [#2865]
+	 * Find the last checkpoint in the log.
 	 */
-	if (LOGGING_ON(dbenv) && (ret = __log_lastckp(dbenv, &last_ckp)) != 0)
-		return (ret);
+	ZERO_LSN(last_ckp);
+	if (LOGGING_ON(dbenv)) {
+		/*
+		 * The log system has already walked through the last
+		 * file.  Get the LSN of a checkpoint it may have found.
+		 */
+		__log_get_cached_ckp_lsn(dbenv, &last_ckp);
+
+		/*
+		 * If that didn't work, look backwards from the beginning of
+		 * the last log file until we find the last checkpoint.
+		 */
+		if (IS_ZERO_LSN(last_ckp) &&
+		    (ret = __txn_findlastckp(dbenv, &last_ckp)) != 0)
+			return (ret);
+	}
 
 	if ((ret = __db_shalloc(tmgrp->reginfo.addr,
 	    sizeof(DB_TXNREGION), 0, &tmgrp->reginfo.primary)) != 0) {
@@ -223,7 +148,7 @@ __txn_init(dbenv, tmgrp)
 
 	region->maxtxns = dbenv->tx_max;
 	region->last_txnid = TXN_MINIMUM;
-	ZERO_LSN(region->pending_ckp);
+	region->cur_maxid = TXN_MAXIMUM;
 	region->last_ckp = last_ckp;
 	region->time_ckp = time(NULL);
 
@@ -233,25 +158,86 @@ __txn_init(dbenv, tmgrp)
 	 */
 	region->logtype = 0;
 	region->locktype = 0;
-	region->naborts = 0;
-	region->ncommits = 0;
-	region->nbegins = 0;
-	region->nactive = 0;
-	region->maxnactive = 0;
+
+	memset(&region->stat, 0, sizeof(region->stat));
+	region->stat.st_maxtxns = region->maxtxns;
 
 	SH_TAILQ_INIT(&region->active_txn);
-
+#ifdef	HAVE_MUTEX_SYSTEM_RESOURCES
+	/* Allocate room for the txn maintenance info and initialize it. */
+	if ((ret = __db_shalloc(tmgrp->reginfo.addr,
+	    sizeof(REGMAINT) + TXN_MAINT_SIZE, 0, &addr)) != 0) {
+		__db_err(dbenv,
+		    "Unable to allocate memory for mutex maintenance");
+		return (ret);
+	}
+	__db_maintinit(&tmgrp->reginfo, addr, TXN_MAINT_SIZE);
+	region->maint_off = R_OFFSET(&tmgrp->reginfo, addr);
+#endif
 	return (0);
 }
 
 /*
- * __txn_close --
- *	Close a transaction region.
+ * __txn_findlastckp --
+ *	Find the last checkpoint in the log, walking backwards from the
+ *	beginning of the last log file.  (The log system looked through
+ *	the last log file when it started up.)
+ */
+static int
+__txn_findlastckp(dbenv, lsnp)
+	DB_ENV *dbenv;
+	DB_LSN *lsnp;
+{
+	DB_LOGC *logc;
+	DB_LSN lsn;
+	DBT dbt;
+	int ret, t_ret;
+	u_int32_t rectype;
+
+	if ((ret = dbenv->log_cursor(dbenv, &logc, 0)) != 0)
+		return (ret);
+
+	/* Get the last LSN. */
+	memset(&dbt, 0, sizeof(dbt));
+	if ((ret = logc->get(logc, &lsn, &dbt, DB_LAST)) != 0)
+		goto err;
+
+	/*
+	 * Twiddle the last LSN so it points to the beginning of the last
+	 * file;  we know there's no checkpoint after that, since the log
+	 * system already looked there.
+	 */
+	lsn.offset = 0;
+
+	/* Read backwards, looking for checkpoints. */
+	while ((ret = logc->get(logc, &lsn, &dbt, DB_PREV)) == 0) {
+		if (dbt.size < sizeof(u_int32_t))
+			continue;
+		memcpy(&rectype, dbt.data, sizeof(u_int32_t));
+		if (rectype == DB___txn_ckp) {
+			*lsnp = lsn;
+			break;
+		}
+	}
+
+err:	if ((t_ret = logc->close(logc, 0)) != 0 && ret == 0)
+		ret = t_ret;
+	/*
+	 * Not finding a checkpoint is not an error;  there may not exist
+	 * one in the log.
+	 */
+	return ((ret == 0 || ret == DB_NOTFOUND) ? 0 : ret);
+}
+
+/*
+ * __txn_dbenv_refresh --
+ *	Clean up after the transaction system on a close or failed open.
+ * Called only from __dbenv_refresh.  (Formerly called __txn_close.)
  *
- * PUBLIC: int __txn_close __P((DB_ENV *));
+ * PUBLIC: int __txn_dbenv_refresh __P((DB_ENV *));
  */
 int
-__txn_close(dbenv)
+__txn_dbenv_refresh(dbenv)
 	DB_ENV *dbenv;
 {
 	DB_TXN *txnp;
@@ -274,22 +260,23 @@ __txn_close(dbenv)
 	 */
 	if (TAILQ_FIRST(&tmgrp->txn_chain) != NULL) {
 		__db_err(dbenv,
-	"Error: closing the transaction region with active transactions\n");
+	"Error: closing the transaction region with active transactions");
 		ret = EINVAL;
 		while ((txnp = TAILQ_FIRST(&tmgrp->txn_chain)) != NULL) {
 			txnid = txnp->txnid;
-			if ((t_ret = txn_abort(txnp)) != 0) {
+			if ((t_ret = txnp->abort(txnp)) != 0) {
 				__db_err(dbenv,
-				    "Unable to abort transaction 0x%x: %s\n",
+				    "Unable to abort transaction 0x%x: %s",
 				    txnid, db_strerror(t_ret));
 				ret = __db_panic(dbenv, t_ret);
+				break;
 			}
 		}
 	}
 
 	/* Flush the log. */
 	if (LOGGING_ON(dbenv) &&
-	    (t_ret = log_flush(dbenv, NULL)) != 0 && ret == 0)
+	    (t_ret = dbenv->log_flush(dbenv, NULL)) != 0 && ret == 0)
 		ret = t_ret;
 
 	/* Discard the per-thread lock. */
@@ -300,94 +287,88 @@ __txn_close(dbenv)
 	if ((t_ret = __db_r_detach(dbenv, &tmgrp->reginfo, 0)) != 0 && ret == 0)
 		ret = t_ret;
 
-	__os_free(tmgrp, sizeof(*tmgrp));
+	__os_free(dbenv, tmgrp);
 
 	dbenv->tx_handle = NULL;
 	return (ret);
 }
 
-int
-txn_stat(dbenv, statp, db_malloc)
+/*
+ * __txn_region_size --
+ *	 Return the amount of space needed for the txn region.  Make the
+ *	 region large enough to hold txn_max transaction detail structures
+ *	 plus some space to hold thread handles and the beginning of the
+ *	 shalloc region and anything we need for mutex system resource
+ *	 recording.
+ */
+static size_t
+__txn_region_size(dbenv)
 	DB_ENV *dbenv;
-	DB_TXN_STAT **statp;
-	void *(*db_malloc) __P((size_t));
+{
+	size_t s;
+
+	s = sizeof(DB_TXNREGION) +
+	    dbenv->tx_max * sizeof(TXN_DETAIL) + 10 * 1024;
+#ifdef HAVE_MUTEX_SYSTEM_RESOURCES
+	if (F_ISSET(dbenv, DB_ENV_THREAD))
+		s += sizeof(REGMAINT) + TXN_MAINT_SIZE;
+#endif
+	return (s);
+}
+
+/*
+ * __txn_region_destroy
+ *	Destroy any region maintenance info.
+ *
+ * PUBLIC: void __txn_region_destroy __P((DB_ENV *, REGINFO *));
+ */
+void
+__txn_region_destroy(dbenv, infop)
+	DB_ENV *dbenv;
+	REGINFO *infop;
+{
+	__db_shlocks_destroy(infop, (REGMAINT *)R_ADDR(infop,
+	    ((DB_TXNREGION *)R_ADDR(infop, infop->rp->primary))->maint_off));
+
+	COMPQUIET(dbenv, NULL);
+	COMPQUIET(infop, NULL);
+}
+
+#ifdef CONFIG_TEST
+/*
+ * __txn_id_set --
+ *	Set the current transaction ID and current maximum unused ID (for
+ *	testing purposes only).
+ *
+ * PUBLIC: int __txn_id_set __P((DB_ENV *, u_int32_t, u_int32_t));
+ */
+int
+__txn_id_set(dbenv, cur_txnid, max_txnid)
+	DB_ENV *dbenv;
+	u_int32_t cur_txnid, max_txnid;
 {
 	DB_TXNMGR *mgr;
 	DB_TXNREGION *region;
-	DB_TXN_STAT *stats;
-	TXN_DETAIL *txnp;
-	size_t nbytes;
-	u_int32_t nactive, ndx;
-	int ret, slop;
+	int ret;
 
-#ifdef HAVE_RPC
-	if (F_ISSET(dbenv, DB_ENV_RPCCLIENT))
-		return (__dbcl_txn_stat(dbenv, statp, db_malloc));
-#endif
+	ENV_REQUIRES_CONFIG(dbenv, dbenv->tx_handle, "txn_id_set", DB_INIT_TXN);
 
-	PANIC_CHECK(dbenv);
-	ENV_REQUIRES_CONFIG(dbenv, dbenv->tx_handle, DB_INIT_TXN);
-
-	*statp = NULL;
-
-	slop = 200;
 	mgr = dbenv->tx_handle;
 	region = mgr->reginfo.primary;
+	region->last_txnid = cur_txnid;
+	region->cur_maxid = max_txnid;
 
-retry:	R_LOCK(dbenv, &mgr->reginfo);
-	nactive = region->nactive;
-	R_UNLOCK(dbenv, &mgr->reginfo);
-
-	/*
-	 * Allocate extra active structures to handle any transactions that
-	 * are created while we have the region unlocked.
-	 */
-	nbytes = sizeof(DB_TXN_STAT) + sizeof(DB_TXN_ACTIVE) * (nactive + slop);
-	if ((ret = __os_malloc(dbenv, nbytes, db_malloc, &stats)) != 0)
-		return (ret);
-
-	R_LOCK(dbenv, &mgr->reginfo);
-	stats->st_last_txnid = region->last_txnid;
-	stats->st_last_ckp = region->last_ckp;
-	stats->st_maxtxns = region->maxtxns;
-	stats->st_naborts = region->naborts;
-	stats->st_nbegins = region->nbegins;
-	stats->st_ncommits = region->ncommits;
-	stats->st_pending_ckp = region->pending_ckp;
-	stats->st_time_ckp = region->time_ckp;
-	stats->st_nactive = region->nactive;
-	if (stats->st_nactive > nactive + 200) {
-		R_UNLOCK(dbenv, &mgr->reginfo);
-		slop *= 2;
-		goto retry;
+	ret = 0;
+	if (cur_txnid < TXN_MINIMUM) {
+		__db_err(dbenv, "Current ID value %lu below minimum",
+		    cur_txnid);
+		ret = EINVAL;
 	}
-	stats->st_maxnactive = region->maxnactive;
-	stats->st_txnarray = (DB_TXN_ACTIVE *)&stats[1];
-
-	ndx = 0;
-	for (txnp = SH_TAILQ_FIRST(&region->active_txn, __txn_detail);
-	    txnp != NULL;
-	    txnp = SH_TAILQ_NEXT(txnp, links, __txn_detail)) {
-		stats->st_txnarray[ndx].txnid = txnp->txnid;
-		if (txnp->parent == INVALID_ROFF)
-			stats->st_txnarray[ndx].parentid = TXN_INVALID_ID;
-		else
-			stats->st_txnarray[ndx].parentid =
-			    ((TXN_DETAIL *)R_ADDR(&mgr->reginfo,
-			    txnp->parent))->txnid;
-		stats->st_txnarray[ndx].lsn = txnp->begin_lsn;
-		ndx++;
-
-		if (ndx >= stats->st_nactive)
-			break;
+	if (max_txnid < TXN_MINIMUM) {
+		__db_err(dbenv, "Maximum ID value %lu below minimum",
+		    max_txnid);
+		ret = EINVAL;
 	}
-
-	stats->st_region_wait = mgr->reginfo.rp->mutex.mutex_set_wait;
-	stats->st_region_nowait = mgr->reginfo.rp->mutex.mutex_set_nowait;
-	stats->st_regsize = mgr->reginfo.rp->size;
-
-	R_UNLOCK(dbenv, &mgr->reginfo);
-
-	*statp = stats;
-	return (0);
+	return (ret);
 }
+#endif

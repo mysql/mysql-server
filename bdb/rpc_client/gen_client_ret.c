@@ -1,14 +1,14 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 2000
- *      Sleepycat Software.  All rights reserved.
+ * Copyright (c) 2000-2002
+ *	Sleepycat Software.  All rights reserved.
  */
 
 #include "db_config.h"
 
 #ifndef lint
-static const char revid[] = "$Id: gen_client_ret.c,v 1.29 2000/12/31 19:26:23 bostic Exp $";
+static const char revid[] = "$Id: gen_client_ret.c,v 1.57 2002/08/06 06:18:37 bostic Exp $";
 #endif /* not lint */
 
 #ifdef HAVE_RPC
@@ -19,17 +19,19 @@ static const char revid[] = "$Id: gen_client_ret.c,v 1.29 2000/12/31 19:26:23 bo
 
 #include <string.h>
 #endif
-#include "db_server.h"
 
 #include "db_int.h"
-#include "db_page.h"
-#include "txn.h"
-#include "db_ext.h"
-#include "rpc_client_ext.h"
+#include "dbinc/db_page.h"
+#include "dbinc/db_am.h"
+#include "dbinc/txn.h"
 
-static void __db_db_stat_statsfree __P((u_int32_t *));
-static int __db_db_stat_statslist __P((__db_stat_statsreplist *, u_int32_t **));
+#include "dbinc_auto/db_server.h"
+#include "dbinc_auto/rpc_client_ext.h"
 
+/*
+ * PUBLIC: int __dbcl_env_close_ret
+ * PUBLIC:     __P((DB_ENV *, u_int32_t, __env_close_reply *));
+ */
 int
 __dbcl_env_close_ret(dbenv, flags, replyp)
 	DB_ENV *dbenv;
@@ -41,13 +43,36 @@ __dbcl_env_close_ret(dbenv, flags, replyp)
 	COMPQUIET(flags, 0);
 
 	ret = __dbcl_refresh(dbenv);
-	__os_free(dbenv, sizeof(*dbenv));
+	__os_free(NULL, dbenv);
 	if (replyp->status == 0 && ret != 0)
 		return (ret);
 	else
 		return (replyp->status);
 }
 
+/*
+ * PUBLIC: int __dbcl_env_create_ret
+ * PUBLIC:     __P((DB_ENV *, long, __env_create_reply *));
+ */
+int
+__dbcl_env_create_ret(dbenv, timeout, replyp)
+	DB_ENV * dbenv;
+	long timeout;
+	__env_create_reply *replyp;
+{
+
+	COMPQUIET(timeout, 0);
+
+	if (replyp->status != 0)
+		return (replyp->status);
+	dbenv->cl_id = replyp->envcl_id;
+	return (replyp->status);
+}
+
+/*
+ * PUBLIC: int __dbcl_env_open_ret __P((DB_ENV *,
+ * PUBLIC:     const char *, u_int32_t, int, __env_open_reply *));
+ */
 int
 __dbcl_env_open_ret(dbenv, home, flags, mode, replyp)
 	DB_ENV *dbenv;
@@ -68,6 +93,7 @@ __dbcl_env_open_ret(dbenv, home, flags, mode, replyp)
 	if (replyp->status != 0)
 		return (replyp->status);
 
+	dbenv->cl_id = replyp->envcl_id;
 	/*
 	 * If the user requested transactions, then we have some
 	 * local client-side setup to do also.
@@ -84,6 +110,10 @@ __dbcl_env_open_ret(dbenv, home, flags, mode, replyp)
 	return (replyp->status);
 }
 
+/*
+ * PUBLIC: int __dbcl_env_remove_ret
+ * PUBLIC:     __P((DB_ENV *, const char *, u_int32_t, __env_remove_reply *));
+ */
 int
 __dbcl_env_remove_ret(dbenv, home, flags, replyp)
 	DB_ENV *dbenv;
@@ -97,13 +127,16 @@ __dbcl_env_remove_ret(dbenv, home, flags, replyp)
 	COMPQUIET(flags, 0);
 
 	ret = __dbcl_refresh(dbenv);
-	__os_free(dbenv, sizeof(*dbenv));
+	__os_free(NULL, dbenv);
 	if (replyp->status == 0 && ret != 0)
 		return (ret);
 	else
 		return (replyp->status);
 }
 
+/*
+ * PUBLIC: int __dbcl_txn_abort_ret __P((DB_TXN *, __txn_abort_reply *));
+ */
 int
 __dbcl_txn_abort_ret(txnp, replyp)
 	DB_TXN *txnp;
@@ -113,6 +146,10 @@ __dbcl_txn_abort_ret(txnp, replyp)
 	return (replyp->status);
 }
 
+/*
+ * PUBLIC: int __dbcl_txn_begin_ret __P((DB_ENV *,
+ * PUBLIC:     DB_TXN *, DB_TXN **, u_int32_t, __txn_begin_reply *));
+ */
 int
 __dbcl_txn_begin_ret(envp, parent, txnpp, flags, replyp)
 	DB_ENV *envp;
@@ -130,29 +167,15 @@ __dbcl_txn_begin_ret(envp, parent, txnpp, flags, replyp)
 
 	if ((ret = __os_calloc(envp, 1, sizeof(DB_TXN), &txn)) != 0)
 		return (ret);
-	txn->txnid = replyp->txnidcl_id;
-	txn->mgrp = envp->tx_handle;
-	txn->parent = parent;
-	TAILQ_INIT(&txn->kids);
-	txn->flags = TXN_MALLOC;
-	if (parent != NULL)
-		TAILQ_INSERT_HEAD(&parent->kids, txn, klinks);
-
-	/*
-	 * XXX
-	 * In DB library the txn_chain is protected by the mgrp->mutexp.
-	 * However, that mutex is implemented in the environments shared
-	 * memory region.  The client library does not support all of the
-	 * region - that just get forwarded to the server.  Therefore,
-	 * the chain is unprotected here, but properly protected on the
-	 * server.
-	 */
-	TAILQ_INSERT_TAIL(&txn->mgrp->txn_chain, txn, links);
-
+	__dbcl_txn_setup(envp, txn, parent, replyp->txnidcl_id);
 	*txnpp = txn;
 	return (replyp->status);
 }
 
+/*
+ * PUBLIC: int __dbcl_txn_commit_ret
+ * PUBLIC:     __P((DB_TXN *, u_int32_t, __txn_commit_reply *));
+ */
 int
 __dbcl_txn_commit_ret(txnp, flags, replyp)
 	DB_TXN *txnp;
@@ -165,6 +188,83 @@ __dbcl_txn_commit_ret(txnp, flags, replyp)
 	return (replyp->status);
 }
 
+/*
+ * PUBLIC: int __dbcl_txn_discard_ret __P((DB_TXN *, u_int32_t,
+ * PUBLIC:      __txn_discard_reply *));
+ */
+int
+__dbcl_txn_discard_ret(txnp, flags, replyp)
+	DB_TXN * txnp;
+	u_int32_t flags;
+	__txn_discard_reply *replyp;
+{
+	COMPQUIET(flags, 0);
+
+	__dbcl_txn_end(txnp);
+	return (replyp->status);
+}
+
+/*
+ * PUBLIC: int __dbcl_txn_recover_ret __P((DB_ENV *, DB_PREPLIST *, long,
+ * PUBLIC:      long *, u_int32_t, __txn_recover_reply *));
+ */
+int
+__dbcl_txn_recover_ret(dbenv, preplist, count, retp, flags, replyp)
+	DB_ENV * dbenv;
+	DB_PREPLIST * preplist;
+	long count;
+	long * retp;
+	u_int32_t flags;
+	__txn_recover_reply *replyp;
+{
+	DB_PREPLIST *prep;
+	DB_TXN *txnarray, *txn;
+	u_int32_t i, *txnid;
+	int ret;
+	u_int8_t *gid;
+
+	COMPQUIET(flags, 0);
+	COMPQUIET(count, 0);
+
+	if (replyp->status != 0)
+		return (replyp->status);
+
+	*retp = (long) replyp->retcount;
+
+	if (replyp->retcount == 0)
+		return (replyp->status);
+
+	if ((ret = __os_calloc(dbenv, replyp->retcount, sizeof(DB_TXN),
+	    &txnarray)) != 0)
+		return (ret);
+	/*
+	 * We have a bunch of arrays that need to iterate in
+	 * lockstep with each other.
+	 */
+	i = 0;
+	txn = txnarray;
+	txnid = (u_int32_t *)replyp->txn.txn_val;
+	gid = (u_int8_t *)replyp->gid.gid_val;
+	prep = preplist;
+	while (i++ < replyp->retcount) {
+		__dbcl_txn_setup(dbenv, txn, NULL, *txnid);
+		prep->txn = txn;
+		memcpy(&prep->gid, gid, DB_XIDDATASIZE);
+		/*
+		 * Now increment all our array pointers.
+		 */
+		txn++;
+		gid += DB_XIDDATASIZE;
+		txnid++;
+		prep++;
+	}
+
+	return (0);
+}
+
+/*
+ * PUBLIC: int __dbcl_db_close_ret __P((DB *, u_int32_t, __db_close_reply *));
+ */
 int
 __dbcl_db_close_ret(dbp, flags, replyp)
 	DB *dbp;
@@ -183,6 +283,30 @@ __dbcl_db_close_ret(dbp, flags, replyp)
 		return (ret);
 }
 
+/*
+ * PUBLIC: int __dbcl_db_create_ret
+ * PUBLIC:     __P((DB *, DB_ENV *, u_int32_t, __db_create_reply *));
+ */
+int
+__dbcl_db_create_ret(dbp, dbenv, flags, replyp)
+	DB * dbp;
+	DB_ENV * dbenv;
+	u_int32_t flags;
+	__db_create_reply *replyp;
+{
+	COMPQUIET(dbenv, NULL);
+	COMPQUIET(flags, 0);
+
+	if (replyp->status != 0)
+		return (replyp->status);
+	dbp->cl_id = replyp->dbcl_id;
+	return (replyp->status);
+}
+
+/*
+ * PUBLIC: int __dbcl_db_get_ret
+ * PUBLIC:     __P((DB *, DB_TXN *, DBT *, DBT *, u_int32_t, __db_get_reply *));
+ */
 int
 __dbcl_db_get_ret(dbp, txnp, key, data, flags, replyp)
 	DB *dbp;
@@ -206,20 +330,26 @@ __dbcl_db_get_ret(dbp, txnp, key, data, flags, replyp)
 
 	oldkey = key->data;
 	ret = __dbcl_retcopy(dbenv, key, replyp->keydata.keydata_val,
-	    replyp->keydata.keydata_len);
+	    replyp->keydata.keydata_len, &dbp->my_rkey.data,
+	    &dbp->my_rkey.ulen);
 	if (ret)
 		return (ret);
 	ret = __dbcl_retcopy(dbenv, data, replyp->datadata.datadata_val,
-	    replyp->datadata.datadata_len);
+	    replyp->datadata.datadata_len, &dbp->my_rdata.data,
+	    &dbp->my_rdata.ulen);
 	/*
 	 * If an error on copying 'data' and we allocated for 'key'
 	 * free it before returning the error.
 	 */
 	if (ret && oldkey != NULL)
-		__os_free(key->data, key->size);
+		__os_free(dbenv, key->data);
 	return (ret);
 }
 
+/*
+ * PUBLIC: int __dbcl_db_key_range_ret __P((DB *, DB_TXN *,
+ * PUBLIC:     DBT *, DB_KEY_RANGE *, u_int32_t, __db_key_range_reply *));
+ */
 int
 __dbcl_db_key_range_ret(dbp, txnp, key, range, flags, replyp)
 	DB *dbp;
@@ -242,32 +372,114 @@ __dbcl_db_key_range_ret(dbp, txnp, key, range, flags, replyp)
 	return (replyp->status);
 }
 
+/*
+ * PUBLIC: int __dbcl_db_open_ret __P((DB *, DB_TXN *, const char *,
+ * PUBLIC:     const char *, DBTYPE, u_int32_t, int, __db_open_reply *));
+ */
 int
-__dbcl_db_open_ret(dbp, name, subdb, type, flags, mode, replyp)
+__dbcl_db_open_ret(dbp, txn, name, subdb, type, flags, mode, replyp)
 	DB *dbp;
+	DB_TXN *txn;
 	const char *name, *subdb;
 	DBTYPE type;
 	u_int32_t flags;
 	int mode;
 	__db_open_reply *replyp;
 {
+	COMPQUIET(txn, NULL);
 	COMPQUIET(name, NULL);
 	COMPQUIET(subdb, NULL);
 	COMPQUIET(type, 0);
 	COMPQUIET(flags, 0);
 	COMPQUIET(mode, 0);
 
-	dbp->type = replyp->type;
+	if (replyp->status == 0) {
+		dbp->cl_id = replyp->dbcl_id;
+		dbp->type = replyp->type;
+		/*
+		 * We get back the database's byteorder on the server.
+		 * Determine if our byteorder is the same or not by
+		 * calling __db_set_lorder.
+		 *
+		 * XXX
+		 * This MUST come before we set the flags because
+		 * __db_set_lorder checks that it is called before
+		 * the open flag is set.
+		 */
+		(void)__db_set_lorder(dbp, replyp->lorder);
 
-	/*
-	 * XXX
-	 * This is only for Tcl which peeks at the dbp flags.
-	 * When dbp->get_flags exists, this should go away.
-	 */
-	dbp->flags = replyp->dbflags;
+		/*
+		 * XXX
+		 * This is only for Tcl which peeks at the dbp flags.
+		 * When dbp->get_flags exists, this should go away.
+		 */
+		dbp->flags = replyp->dbflags;
+	}
 	return (replyp->status);
 }
 
+/*
+ * PUBLIC: int __dbcl_db_pget_ret __P((DB *, DB_TXN *, DBT *, DBT *, DBT *,
+ * PUBLIC:      u_int32_t, __db_pget_reply *));
+ */
+int
+__dbcl_db_pget_ret(dbp, txnp, skey, pkey, data, flags, replyp)
+	DB * dbp;
+	DB_TXN * txnp;
+	DBT * skey;
+	DBT * pkey;
+	DBT * data;
+	u_int32_t flags;
+	__db_pget_reply *replyp;
+{
+	DB_ENV *dbenv;
+	int ret;
+	void *oldskey, *oldpkey;
+
+	COMPQUIET(txnp, NULL);
+	COMPQUIET(flags, 0);
+
+	ret = 0;
+	if (replyp->status != 0)
+		return (replyp->status);
+
+	dbenv = dbp->dbenv;
+
+	oldskey = skey->data;
+	ret = __dbcl_retcopy(dbenv, skey, replyp->skeydata.skeydata_val,
+	    replyp->skeydata.skeydata_len, &dbp->my_rskey.data,
+	    &dbp->my_rskey.ulen);
+	if (ret)
+		return (ret);
+
+	oldpkey = pkey->data;
+	ret = __dbcl_retcopy(dbenv, pkey, replyp->pkeydata.pkeydata_val,
+	    replyp->pkeydata.pkeydata_len, &dbp->my_rkey.data,
+	    &dbp->my_rkey.ulen);
+	if (ret && oldskey != NULL) {
+		__os_free(dbenv, skey->data);
+		return (ret);
+	}
+	ret = __dbcl_retcopy(dbenv, data, replyp->datadata.datadata_val,
+	    replyp->datadata.datadata_len, &dbp->my_rdata.data,
+	    &dbp->my_rdata.ulen);
+	/*
+	 * If an error on copying 'data' and we allocated for '*key'
+	 * free it before returning the error.
+	 */
+	if (ret) {
+		if (oldskey != NULL)
+			__os_free(dbenv, skey->data);
+		if (oldpkey != NULL)
+			__os_free(dbenv, pkey->data);
+	}
+	return (ret);
+}
+
+/*
+ * PUBLIC: int __dbcl_db_put_ret
+ * PUBLIC:     __P((DB *, DB_TXN *, DBT *, DBT *, u_int32_t, __db_put_reply *));
+ */
 int
 __dbcl_db_put_ret(dbp, txnp, key, data, flags, replyp)
 	DB *dbp;
@@ -289,6 +501,10 @@ __dbcl_db_put_ret(dbp, txnp, key, data, flags, replyp)
 	return (ret);
 }
 
+/*
+ * PUBLIC: int __dbcl_db_remove_ret __P((DB *,
+ * PUBLIC:     const char *, const char *, u_int32_t, __db_remove_reply *));
+ */
 int
 __dbcl_db_remove_ret(dbp, name, subdb, flags, replyp)
 	DB *dbp;
@@ -310,12 +526,16 @@ __dbcl_db_remove_ret(dbp, name, subdb, flags, replyp)
 		return (ret);
 }
 
+/*
+ * PUBLIC: int __dbcl_db_rename_ret __P((DB *, const char *,
+ * PUBLIC:     const char *, const char *, u_int32_t, __db_rename_reply *));
+ */
 int
 __dbcl_db_rename_ret(dbp, name, subdb, newname, flags, replyp)
 	DB *dbp;
 	const char *name, *subdb, *newname;
 	u_int32_t flags;
-	__db_remove_reply *replyp;
+	__db_rename_reply *replyp;
 {
 	int ret;
 
@@ -332,82 +552,66 @@ __dbcl_db_rename_ret(dbp, name, subdb, newname, flags, replyp)
 		return (ret);
 }
 
+/*
+ * PUBLIC: int __dbcl_db_stat_ret
+ * PUBLIC:     __P((DB *, void *, u_int32_t, __db_stat_reply *));
+ */
 int
-__dbcl_db_stat_ret(dbp, sp, func, flags, replyp)
+__dbcl_db_stat_ret(dbp, sp, flags, replyp)
 	DB *dbp;
 	void *sp;
-	void *(*func) __P((size_t));
 	u_int32_t flags;
 	__db_stat_reply *replyp;
 {
-	int ret;
-	u_int32_t *__db_statslist;
+	int len, ret;
+	u_int32_t i, *q, *p, *retsp;
 
+	COMPQUIET(flags, 0);
+
+	if (replyp->status != 0 || sp == NULL)
+		return (replyp->status);
+
+	len = replyp->stats.stats_len * sizeof(u_int32_t);
+	if ((ret = __os_umalloc(dbp->dbenv, len, &retsp)) != 0)
+		return (ret);
+	for (i = 0, q = retsp, p = (u_int32_t *)replyp->stats.stats_val;
+	    i < replyp->stats.stats_len; i++, q++, p++)
+		*q = *p;
+	*(u_int32_t **)sp = retsp;
+	return (0);
+}
+
+/*
+ * PUBLIC: int __dbcl_db_truncate_ret __P((DB *, DB_TXN *, u_int32_t  *,
+ * PUBLIC:      u_int32_t, __db_truncate_reply *));
+ */
+int
+__dbcl_db_truncate_ret(dbp, txnp, countp, flags, replyp)
+	DB *dbp;
+	DB_TXN *txnp;
+	u_int32_t *countp, flags;
+	__db_truncate_reply *replyp;
+{
 	COMPQUIET(dbp, NULL);
-	COMPQUIET(func, NULL);
+	COMPQUIET(txnp, NULL);
 	COMPQUIET(flags, 0);
 
 	if (replyp->status != 0)
 		return (replyp->status);
+	*countp = replyp->count;
 
-	if ((ret =
-	    __db_db_stat_statslist(replyp->statslist, &__db_statslist)) != 0)
-		return (ret);
-
-	if (sp == NULL)
-		__db_db_stat_statsfree(__db_statslist);
-	else
-		*(u_int32_t **)sp = __db_statslist;
 	return (replyp->status);
 }
 
-static int
-__db_db_stat_statslist(locp, ppp)
-	__db_stat_statsreplist *locp;
-	u_int32_t **ppp;
-{
-	u_int32_t *pp;
-	int cnt, ret, size;
-	__db_stat_statsreplist *nl;
-
-	for (cnt = 0, nl = locp; nl != NULL; cnt++, nl = nl->next)
-		;
-
-	if (cnt == 0) {
-		*ppp = NULL;
-		return (0);
-	}
-	size = sizeof(*pp) * cnt;
-	if ((ret = __os_malloc(NULL, size, NULL, ppp)) != 0)
-		return (ret);
-	memset(*ppp, 0, size);
-	for (pp = *ppp, nl = locp; nl != NULL; nl = nl->next, pp++) {
-		*pp = *(u_int32_t *)nl->ent.ent_val;
-	}
-	return (0);
-}
-
-static void
-__db_db_stat_statsfree(pp)
-	u_int32_t *pp;
-{
-	size_t size;
-	u_int32_t *p;
-
-	if (pp == NULL)
-		return;
-	size = sizeof(*p);
-	for (p = pp; *p != 0; p++)
-		size += sizeof(*p);
-
-	__os_free(pp, size);
-}
-
+/*
+ * PUBLIC: int __dbcl_db_cursor_ret
+ * PUBLIC:     __P((DB *, DB_TXN *, DBC **, u_int32_t, __db_cursor_reply *));
+ */
 int
-__dbcl_db_cursor_ret(dbp, txnp, dbcpp, flags, replyp)
+__dbcl_db_cursor_ret(dbp, txnp, dbcp, flags, replyp)
 	DB *dbp;
 	DB_TXN *txnp;
-	DBC **dbcpp;
+	DBC **dbcp;
 	u_int32_t flags;
 	__db_cursor_reply *replyp;
 {
@@ -417,13 +621,17 @@ __dbcl_db_cursor_ret(dbp, txnp, dbcpp, flags, replyp)
 	if (replyp->status != 0)
 		return (replyp->status);
 
-	return (__dbcl_c_setup(replyp->dbcidcl_id, dbp, dbcpp));
+	return (__dbcl_c_setup(replyp->dbcidcl_id, dbp, dbcp));
 }
 
+/*
+ * PUBLIC: int __dbcl_db_join_ret
+ * PUBLIC:     __P((DB *, DBC **, DBC **, u_int32_t, __db_join_reply *));
+ */
 int
-__dbcl_db_join_ret(dbp, curs, dbcpp, flags, replyp)
+__dbcl_db_join_ret(dbp, curs, dbcp, flags, replyp)
 	DB *dbp;
-	DBC **curs, **dbcpp;
+	DBC **curs, **dbcp;
 	u_int32_t flags;
 	__db_join_reply *replyp;
 {
@@ -440,21 +648,25 @@ __dbcl_db_join_ret(dbp, curs, dbcpp, flags, replyp)
 	 * client-side cursor/db relationship to know what cursors
 	 * are open in the db, and to store their ID.  Nothing else.
 	 */
-	return (__dbcl_c_setup(replyp->dbcidcl_id, dbp, dbcpp));
+	return (__dbcl_c_setup(replyp->dbcidcl_id, dbp, dbcp));
 }
 
+/*
+ * PUBLIC: int __dbcl_dbc_close_ret __P((DBC *, __dbc_close_reply *));
+ */
 int
-__dbcl_dbc_close_ret(dbcp, replyp)
-	DBC *dbcp;
+__dbcl_dbc_close_ret(dbc, replyp)
+	DBC *dbc;
 	__dbc_close_reply *replyp;
 {
-	DB *dbp;
-
-	dbp = dbcp->dbp;
-	__dbcl_c_refresh(dbcp);
+	__dbcl_c_refresh(dbc);
 	return (replyp->status);
 }
 
+/*
+ * PUBLIC: int __dbcl_dbc_count_ret
+ * PUBLIC:     __P((DBC *, db_recno_t *, u_int32_t, __dbc_count_reply *));
+ */
 int
 __dbcl_dbc_count_ret(dbc, countp, flags, replyp)
 	DBC *dbc;
@@ -472,9 +684,13 @@ __dbcl_dbc_count_ret(dbc, countp, flags, replyp)
 	return (replyp->status);
 }
 
+/*
+ * PUBLIC: int __dbcl_dbc_dup_ret
+ * PUBLIC:     __P((DBC *, DBC **, u_int32_t, __dbc_dup_reply *));
+ */
 int
-__dbcl_dbc_dup_ret(dbcp, dbcpp, flags, replyp)
-	DBC *dbcp, **dbcpp;
+__dbcl_dbc_dup_ret(dbc, dbcp, flags, replyp)
+	DBC *dbc, **dbcp;
 	u_int32_t flags;
 	__dbc_dup_reply *replyp;
 {
@@ -483,12 +699,16 @@ __dbcl_dbc_dup_ret(dbcp, dbcpp, flags, replyp)
 	if (replyp->status != 0)
 		return (replyp->status);
 
-	return (__dbcl_c_setup(replyp->dbcidcl_id, dbcp->dbp, dbcpp));
+	return (__dbcl_c_setup(replyp->dbcidcl_id, dbc->dbp, dbcp));
 }
 
+/*
+ * PUBLIC: int __dbcl_dbc_get_ret
+ * PUBLIC:     __P((DBC *, DBT *, DBT *, u_int32_t, __dbc_get_reply *));
+ */
 int
-__dbcl_dbc_get_ret(dbcp, key, data, flags, replyp)
-	DBC *dbcp;
+__dbcl_dbc_get_ret(dbc, key, data, flags, replyp)
+	DBC *dbc;
 	DBT *key, *data;
 	u_int32_t flags;
 	__dbc_get_reply *replyp;
@@ -503,27 +723,89 @@ __dbcl_dbc_get_ret(dbcp, key, data, flags, replyp)
 	if (replyp->status != 0)
 		return (replyp->status);
 
-	dbenv = dbcp->dbp->dbenv;
+	dbenv = dbc->dbp->dbenv;
 	oldkey = key->data;
 	ret = __dbcl_retcopy(dbenv, key, replyp->keydata.keydata_val,
-	    replyp->keydata.keydata_len);
+	    replyp->keydata.keydata_len, &dbc->my_rkey.data,
+	    &dbc->my_rkey.ulen);
 	if (ret)
 		return (ret);
 	ret = __dbcl_retcopy(dbenv, data, replyp->datadata.datadata_val,
-	    replyp->datadata.datadata_len);
+	    replyp->datadata.datadata_len, &dbc->my_rdata.data,
+	    &dbc->my_rdata.ulen);
 
 	/*
 	 * If an error on copying 'data' and we allocated for 'key'
 	 * free it before returning the error.
 	 */
 	if (ret && oldkey != NULL)
-		__os_free(key->data, key->size);
+		__os_free(dbenv, key->data);
 	return (ret);
 }
 
+/*
+ * PUBLIC: int __dbcl_dbc_pget_ret __P((DBC *, DBT *, DBT *, DBT *, u_int32_t,
+ * PUBLIC:      __dbc_pget_reply *));
+ */
 int
-__dbcl_dbc_put_ret(dbcp, key, data, flags, replyp)
-	DBC *dbcp;
+__dbcl_dbc_pget_ret(dbc, skey, pkey, data, flags, replyp)
+	DBC * dbc;
+	DBT * skey;
+	DBT * pkey;
+	DBT * data;
+	u_int32_t flags;
+	__dbc_pget_reply *replyp;
+{
+	DB_ENV *dbenv;
+	int ret;
+	void *oldskey, *oldpkey;
+
+	COMPQUIET(flags, 0);
+
+	ret = 0;
+	if (replyp->status != 0)
+		return (replyp->status);
+
+	dbenv = dbc->dbp->dbenv;
+
+	oldskey = skey->data;
+	ret = __dbcl_retcopy(dbenv, skey, replyp->skeydata.skeydata_val,
+	    replyp->skeydata.skeydata_len, &dbc->my_rskey.data,
+	    &dbc->my_rskey.ulen);
+	if (ret)
+		return (ret);
+
+	oldpkey = pkey->data;
+	ret = __dbcl_retcopy(dbenv, pkey, replyp->pkeydata.pkeydata_val,
+	    replyp->pkeydata.pkeydata_len, &dbc->my_rkey.data,
+	    &dbc->my_rkey.ulen);
+	if (ret && oldskey != NULL) {
+		__os_free(dbenv, skey->data);
+		return (ret);
+	}
+	ret = __dbcl_retcopy(dbenv, data, replyp->datadata.datadata_val,
+	    replyp->datadata.datadata_len, &dbc->my_rdata.data,
+	    &dbc->my_rdata.ulen);
+	/*
+	 * If an error on copying 'data' and we allocated for '*key'
+	 * free it before returning the error.
+	 */
+	if (ret) {
+		if (oldskey != NULL)
+			__os_free(dbenv, skey->data);
+		if (oldpkey != NULL)
+			__os_free(dbenv, pkey->data);
+	}
+	return (ret);
+}
+
+/*
+ * PUBLIC: int __dbcl_dbc_put_ret
+ * PUBLIC:     __P((DBC *, DBT *, DBT *, u_int32_t, __dbc_put_reply *));
+ */
+int
+__dbcl_dbc_put_ret(dbc, key, data, flags, replyp)
+	DBC *dbc;
 	DBT *key, *data;
 	u_int32_t flags;
 	__dbc_put_reply *replyp;
@@ -533,7 +815,7 @@ __dbcl_dbc_put_ret(dbcp, key, data, flags, replyp)
 	if (replyp->status != 0)
 		return (replyp->status);
 
-	if (replyp->status == 0 && dbcp->dbp->type == DB_RECNO &&
+	if (replyp->status == 0 && dbc->dbp->type == DB_RECNO &&
 	    (flags == DB_AFTER || flags == DB_BEFORE))
 		*(db_recno_t *)key->data =
 		    *(db_recno_t *)replyp->keydata.keydata_val;

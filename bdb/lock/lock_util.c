@@ -1,14 +1,14 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 1997, 1998, 1999, 2000
+ * Copyright (c) 1996-2002
  *	Sleepycat Software.  All rights reserved.
  */
 
 #include "db_config.h"
 
 #ifndef lint
-static const char revid[] = "$Id: lock_util.c,v 11.5 2000/07/04 18:28:24 bostic Exp $";
+static const char revid[] = "$Id: lock_util.c,v 11.8 2002/03/27 04:32:20 bostic Exp $";
 #endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
@@ -18,10 +18,10 @@ static const char revid[] = "$Id: lock_util.c,v 11.5 2000/07/04 18:28:24 bostic 
 #endif
 
 #include "db_int.h"
-#include "db_page.h"
-#include "db_shash.h"
-#include "hash.h"
-#include "lock.h"
+#include "dbinc/db_page.h"
+#include "dbinc/db_shash.h"
+#include "dbinc/hash.h"
+#include "dbinc/lock.h"
 
 /*
  * __lock_cmp --

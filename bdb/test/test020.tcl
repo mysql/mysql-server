@@ -1,12 +1,12 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996, 1997, 1998, 1999, 2000
+# Copyright (c) 1996-2002
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id: test020.tcl,v 11.12 2000/10/19 23:15:22 ubell Exp $
+# $Id: test020.tcl,v 11.17 2002/05/22 15:42:47 sue Exp $
 #
-# DB Test 20 {access method}
-# Test in-memory databases.
+# TEST	test020
+# TEST	In-Memory database tests.
 proc test020 { method {nentries 10000} args } {
 	source ./include.tcl
 
@@ -17,12 +17,11 @@ proc test020 { method {nentries 10000} args } {
 		puts "Test020 skipping for method $method"
 		return
 	}
-	puts "Test020: $method ($args) $nentries equal key/data pairs"
-
 	# Create the database and open the dictionary
 	set t1 $testdir/t1
 	set t2 $testdir/t2
 	set t3 $testdir/t3
+	set txnenv 0
 	set eindex [lsearch -exact $args "-env"]
 	#
 	# Check if we are using an env.
@@ -31,10 +30,24 @@ proc test020 { method {nentries 10000} args } {
 	} else {
 		incr eindex
 		set env [lindex $args $eindex]
+		set txnenv [is_txnenv $env]
+		if { $txnenv == 1 } {
+			append args " -auto_commit "
+			#
+			# If we are using txns and running with the
+			# default, set the default down a bit.
+			#
+			if { $nentries == 10000 } {
+				set nentries 100
+			}
+		}
+		set testdir [get_home $env]
 	}
+	puts "Test020: $method ($args) $nentries equal key/data pairs"
+
 	cleanup $testdir $env
 	set db [eval {berkdb_open \
-	     -create -truncate -mode 0644} $args {$omethod}]
+	     -create -mode 0644} $args {$omethod}]
 	error_check_good dbopen [is_valid_db $db] TRUE
 	set did [open $dict]
 
@@ -60,19 +73,35 @@ proc test020 { method {nentries 10000} args } {
 		} else {
 			set key $str
 		}
+		if { $txnenv == 1 } {
+			set t [$env txn]
+			error_check_good txn [is_valid_txn $t $env] TRUE
+			set txn "-txn $t"
+		}
 		set ret [eval {$db put} \
 		    $txn $pflags {$key [chop_data $method $str]}]
 		error_check_good put $ret 0
 		set ret [eval {$db get} $txn $gflags {$key}]
 		error_check_good \
 		    get $ret [list [list $key [pad_data $method $str]]]
+		if { $txnenv == 1 } {
+			error_check_good txn [$t commit] 0
+		}
 		incr count
 	}
 	close $did
 	# Now we will get each key from the DB and compare the results
 	# to the original.
 	puts "\tTest020.b: dump file"
+	if { $txnenv == 1 } {
+		set t [$env txn]
+		error_check_good txn [is_valid_txn $t $env] TRUE
+		set txn "-txn $t"
+	}
 	dump_file $db $txn $t1 $checkfunc
+	if { $txnenv == 1 } {
+		error_check_good txn [$t commit] 0
+	}
 	error_check_good db_close [$db close] 0
 
 	# Now compare the keys to see if they match the dictionary (or ints)

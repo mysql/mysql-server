@@ -1,13 +1,14 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1999, 2000
+ * Copyright (c) 1999-2002
  *	Sleepycat Software.  All rights reserved.
  *
- *	$Id: qam.src,v 11.15 2001/01/16 20:10:55 ubell Exp $
+ * $Id: qam.src,v 11.28 2002/04/17 19:03:13 krinsky Exp $
  */
 
-PREFIX	qam
+PREFIX	__qam
+DBPRIVATE
 
 INCLUDE	#include "db_config.h"
 INCLUDE
@@ -15,51 +16,45 @@ INCLUDE #ifndef NO_SYSTEM_INCLUDES
 INCLUDE #include <sys/types.h>
 INCLUDE
 INCLUDE #include <ctype.h>
-INCLUDE #include <errno.h>
 INCLUDE #include <string.h>
 INCLUDE #endif
 INCLUDE
 INCLUDE #include "db_int.h"
-INCLUDE #include "db_page.h"
-INCLUDE #include "db_dispatch.h"
-INCLUDE #include "db_am.h"
-INCLUDE #include "qam.h"
-INCLUDE #include "txn.h"
+INCLUDE #include "dbinc/crypto.h"
+INCLUDE #include "dbinc/db_page.h"
+INCLUDE #include "dbinc/db_dispatch.h"
+INCLUDE #include "dbinc/db_am.h"
+INCLUDE #include "dbinc/log.h"
+INCLUDE #include "dbinc/qam.h"
+INCLUDE #include "dbinc/rep.h"
+INCLUDE #include "dbinc/txn.h"
 INCLUDE
-
-/*
- * inc
- * Used when we increment a record number.  These do not actually
- * tell you what record number you got, just that you incremented
- * the record number.  These operations are never undone.
- */
-BEGIN inc		76
-ARG	fileid		int32_t		ld
-POINTER	lsn		DB_LSN *	lu
-END
 
 /*
  * incfirst
  * Used when we increment first_recno.
  */
-BEGIN incfirst		77
-ARG	fileid		int32_t		ld
+BEGIN incfirst		84
+DB	fileid		int32_t		ld
 ARG	recno		db_recno_t	lu
+WRLOCK	meta_pgno	db_pgno_t	lu
 END
 
 /*
  * mvptr
  * Used when we change one or both of cur_recno and first_recno.
  */
-BEGIN mvptr		78
+BEGIN mvptr		85
 ARG	opcode		u_int32_t	lu
-ARG	fileid		int32_t		ld
+DB	fileid		int32_t		ld
 ARG	old_first	db_recno_t	lu
 ARG	new_first	db_recno_t	lu
 ARG	old_cur		db_recno_t	lu
 ARG	new_cur		db_recno_t	lu
 POINTER	metalsn		DB_LSN *	lu
+WRLOCK	meta_pgno	db_pgno_t	lu
 END
+
 
 /*
  * del
@@ -67,9 +62,9 @@ END
  * recno is the record that is being deleted.
  */
 BEGIN del		79
-ARG	fileid		int32_t		ld
+DB	fileid		int32_t		ld
 POINTER	lsn		DB_LSN *	lu
-ARG	pgno		db_pgno_t	lu
+WRLOCK	pgno		db_pgno_t	lu
 ARG	indx		u_int32_t	lu
 ARG	recno		db_recno_t	lu
 END
@@ -81,9 +76,9 @@ END
  * data is the record itself.
  */
 BEGIN add		80
-ARG	fileid		int32_t		ld
+DB	fileid		int32_t		ld
 POINTER	lsn		DB_LSN *	lu
-ARG	pgno		db_pgno_t	lu
+WRLOCK	pgno		db_pgno_t	lu
 ARG	indx		u_int32_t	lu
 ARG	recno		db_recno_t	lu
 DBT	data		DBT		s
@@ -92,30 +87,12 @@ DBT	olddata		DBT		s
 END
 
 /*
- * delete
- * Used when we remove a Queue extent file.
- */
-BEGIN delete		81
-DBT	name		DBT		s
-POINTER	lsn		DB_LSN *	lu
-END
-
-/*
- * rename
- * Used when we rename a Queue extent file.
- */
-BEGIN rename		82
-DBT	name		DBT		s
-DBT	newname		DBT		s
-END
-
-/*
  * delext
  * Used when we delete a record in extent based queue.
  * recno is the record that is being deleted.
  */
 BEGIN delext		83
-ARG	fileid		int32_t		ld
+DB	fileid		int32_t		ld
 POINTER	lsn		DB_LSN *	lu
 ARG	pgno		db_pgno_t	lu
 ARG	indx		u_int32_t	lu

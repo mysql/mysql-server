@@ -1,20 +1,23 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 2000
+# Copyright (c) 2000-2002
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id: test085.tcl,v 1.4 2000/12/11 17:24:55 sue Exp $
+# $Id: test085.tcl,v 1.13 2002/08/08 17:23:46 sandstro Exp $
 #
-# DB Test 85: Test of cursor behavior when a cursor is pointing to a deleted
-# btree key which then has duplicates added.
+# TEST	test085
+# TEST	Test of cursor behavior when a cursor is pointing to a deleted
+# TEST	btree key which then has duplicates added. [#2473]
 proc test085 { method {pagesize 512} {onp 3} {offp 10} {tnum 85} args } {
 	source ./include.tcl
 	global alphabet
 
 	set omethod [convert_method $method]
 	set args [convert_args $method $args]
+	set encargs ""
+	set args [split_encargs $args encargs]
 
-
+	set txnenv 0
 	set eindex [lsearch -exact $args "-env"]
 	#
 	# If we are using an env, then testfile should just be the db name.
@@ -26,6 +29,11 @@ proc test085 { method {pagesize 512} {onp 3} {offp 10} {tnum 85} args } {
 		set testfile test0$tnum.db
 		incr eindex
 		set env [lindex $args $eindex]
+		set txnenv [is_txnenv $env]
+		if { $txnenv == 1 } {
+			append args " -auto_commit "
+		}
+		set testdir [get_home $env]
 	}
 
 	set pgindex [lsearch -exact $args "-pagesize"]
@@ -45,6 +53,7 @@ proc test085 { method {pagesize 512} {onp 3} {offp 10} {tnum 85} args } {
 	set predatum "1234567890"
 	set datum $alphabet
 	set postdatum "0987654321"
+	set txn ""
 
 	append args " -pagesize $pagesize -dup"
 
@@ -61,8 +70,8 @@ proc test085 { method {pagesize 512} {onp 3} {offp 10} {tnum 85} args } {
 
 	# Repeat the test with both on-page and off-page numbers of dups.
 	foreach	ndups "$onp $offp" {
-		# Put operations we want to test on a cursor set to the 
-		# deleted item, the key to use with them, and what should 
+		# Put operations we want to test on a cursor set to the
+		# deleted item, the key to use with them, and what should
 		# come before and after them given a placement of
 		# the deleted item at the beginning or end of the dupset.
 		set final [expr $ndups - 1]
@@ -100,15 +109,22 @@ proc test085 { method {pagesize 512} {onp 3} {offp 10} {tnum 85} args } {
 		{{-prevnodup} "" $prekey $predatum end}
 		}
 
+		set txn ""
 		foreach pair $getops {
 			set op [lindex $pair 0]
 			puts "\tTest0$tnum: Get ($op) with $ndups duplicates,\
 			    cursor at the [lindex $pair 4]."
 			set db [eval {berkdb_open -create \
-	     	    	    -truncate -mode 0644} $omethod $args $testfile]
+			    -mode 0644} $omethod $encargs $args $testfile]
 			error_check_good "db open" [is_valid_db $db] TRUE
 
-			set dbc [test085_setup $db]
+			if { $txnenv == 1 } {
+				set t [$env txn]
+				error_check_good txn \
+				    [is_valid_txn $t $env] TRUE
+				set txn "-txn $t"
+			}
+			set dbc [test085_setup $db $txn]
 
 			set beginning [expr [string compare \
 			    [lindex $pair 4] "beginning"] == 0]
@@ -116,9 +132,10 @@ proc test085 { method {pagesize 512} {onp 3} {offp 10} {tnum 85} args } {
 			for { set i 0 } { $i < $ndups } { incr i } {
 				if { $beginning } {
 					error_check_good db_put($i) \
-					    [$db put $key [test085_ddatum $i]] 0
+					    [eval {$db put} $txn \
+					    {$key [test085_ddatum $i]}] 0
 				} else {
-					set c [$db cursor]
+					set c [eval {$db cursor} $txn]
 					set j [expr $ndups - $i - 1]
 					error_check_good db_cursor($j) \
 					    [is_valid_cursor $c $db] TRUE
@@ -128,14 +145,14 @@ proc test085 { method {pagesize 512} {onp 3} {offp 10} {tnum 85} args } {
 					error_check_good c_close [$c close] 0
 				}
 			}
-		
+
 			set gargs [lindex $pair 1]
 			set ekey ""
 			set edata ""
 			eval set ekey [lindex $pair 2]
 			eval set edata [lindex $pair 3]
 
-			set dbt [eval $dbc get $op $gargs] 
+			set dbt [eval $dbc get $op $gargs]
 			if { [string compare $ekey EMPTYLIST] == 0 } {
 				error_check_good dbt($op,$ndups) \
 				    [llength $dbt] 0
@@ -144,8 +161,27 @@ proc test085 { method {pagesize 512} {onp 3} {offp 10} {tnum 85} args } {
 				    [list [list $ekey $edata]]
 			}
 			error_check_good "dbc close" [$dbc close] 0
+			if { $txnenv == 1 } {
+				error_check_good txn [$t commit] 0
+			}
 			error_check_good "db close" [$db close] 0
 			verify_dir $testdir "\t\t"
+
+			# Remove testfile so we can do without truncate flag.
+			# This is okay because we've already done verify and
+			# dump/load.
+			if { $env == "NULL" } {
+				set ret [eval {berkdb dbremove} \
+				    $encargs $testfile]
+			} elseif { $txnenv == 1 } {
+				set ret [eval "$env dbremove" \
+				    -auto_commit $encargs $testfile]
+			} else {
+				set ret [eval {berkdb dbremove} \
+				    -env $env $encargs $testfile]
+			}
+			error_check_good dbremove $ret 0
+
 		}
 
 		foreach pair $putops {
@@ -154,21 +190,27 @@ proc test085 { method {pagesize 512} {onp 3} {offp 10} {tnum 85} args } {
 			puts "\tTest0$tnum: Put ($op) with $ndups duplicates,\
 			    cursor at the [lindex $pair 4]."
 			set db [eval {berkdb_open -create \
-	     	    	    -truncate -mode 0644} $omethod $args $testfile]
+			    -mode 0644} $omethod $args $encargs $testfile]
 			error_check_good "db open" [is_valid_db $db] TRUE
 
 			set beginning [expr [string compare \
 			    [lindex $pair 4] "beginning"] == 0]
-			
-			set dbc [test085_setup $db]
+
+			if { $txnenv == 1 } {
+				set t [$env txn]
+				error_check_good txn [is_valid_txn $t $env] TRUE
+				set txn "-txn $t"
+			}
+			set dbc [test085_setup $db $txn]
 
 			# Put duplicates.
 			for { set i 0 } { $i < $ndups } { incr i } {
 				if { $beginning } {
 					error_check_good db_put($i) \
-					    [$db put $key [test085_ddatum $i]] 0
+					    [eval {$db put} $txn \
+					    {$key [test085_ddatum $i]}] 0
 				} else {
-					set c [$db cursor]
+					set c [eval {$db cursor} $txn]
 					set j [expr $ndups - $i - 1]
 					error_check_good db_cursor($j) \
 					    [is_valid_cursor $c $db] TRUE
@@ -180,17 +222,17 @@ proc test085 { method {pagesize 512} {onp 3} {offp 10} {tnum 85} args } {
 			}
 
 			# Set up cursors for stability test.
-			set pre_dbc [$db cursor]
+			set pre_dbc [eval {$db cursor} $txn]
 			error_check_good pre_set [$pre_dbc get -set $prekey] \
 			    [list [list $prekey $predatum]]
-			set post_dbc [$db cursor]
+			set post_dbc [eval {$db cursor} $txn]
 			error_check_good post_set [$post_dbc get -set $postkey]\
 			    [list [list $postkey $postdatum]]
-			set first_dbc [$db cursor]
+			set first_dbc [eval {$db cursor} $txn]
 			error_check_good first_set \
 			    [$first_dbc get -get_both $key [test085_ddatum 0]] \
 			    [list [list $key [test085_ddatum 0]]]
-			set last_dbc [$db cursor]
+			set last_dbc [eval {$db cursor} $txn]
 			error_check_good last_set \
 			    [$last_dbc get -get_both $key [test085_ddatum \
 			    [expr $ndups - 1]]] \
@@ -227,23 +269,39 @@ proc test085 { method {pagesize 512} {onp 3} {offp 10} {tnum 85} args } {
 			    [$last_dbc get -current] \
 			    [list [list $key [test085_ddatum [expr $ndups -1]]]]
 
-
 			foreach c "$pre_dbc $post_dbc $first_dbc $last_dbc" {
 				error_check_good ${c}_close [$c close] 0
 			}
 
 			error_check_good "dbc close" [$dbc close] 0
+			if { $txnenv == 1 } {
+				error_check_good txn [$t commit] 0
+			}
 			error_check_good "db close" [$db close] 0
-			verify_dir $testdir "\t\t"	
+			verify_dir $testdir "\t\t"
+
+			# Remove testfile so we can do without truncate flag.
+			# This is okay because we've already done verify and
+			# dump/load.
+			if { $env == "NULL" } {
+				set ret [eval {berkdb dbremove} \
+				    $encargs $testfile]
+			} elseif { $txnenv == 1 } {
+				set ret [eval "$env dbremove" \
+				    -auto_commit $encargs $testfile]
+			} else {
+				set ret [eval {berkdb dbremove} \
+				    -env $env $encargs $testfile]
+			}
+			error_check_good dbremove $ret 0
 		}
 	}
 }
 
-
-# Set up the test database;  put $prekey, $key, and $postkey with their 
+# Set up the test database;  put $prekey, $key, and $postkey with their
 # respective data, and then delete $key with a new cursor.  Return that
 # cursor, still pointing to the deleted item.
-proc test085_setup { db } {
+proc test085_setup { db txn } {
 	upvar key key
 	upvar prekey prekey
 	upvar postkey postkey
@@ -251,13 +309,13 @@ proc test085_setup { db } {
 	upvar postdatum postdatum
 
 	# no one else should ever see this one!
-	set datum "bbbbbbbb"	
+	set datum "bbbbbbbb"
 
-	error_check_good pre_put [$db put $prekey $predatum] 0
-	error_check_good main_put [$db put $key $datum] 0
-	error_check_good post_put [$db put $postkey $postdatum] 0
+	error_check_good pre_put [eval {$db put} $txn {$prekey $predatum}] 0
+	error_check_good main_put [eval {$db put} $txn {$key $datum}] 0
+	error_check_good post_put [eval {$db put} $txn {$postkey $postdatum}] 0
 
-	set dbc [$db cursor]
+	set dbc [eval {$db cursor} $txn]
 	error_check_good db_cursor [is_valid_cursor $dbc $db] TRUE
 
 	error_check_good dbc_getset [$dbc get -get_both $key $datum] \

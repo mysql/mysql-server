@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 1997, 1998, 1999, 2000
+ * Copyright (c) 1996-2002
  *	Sleepycat Software.  All rights reserved.
  */
 /*
@@ -43,7 +43,7 @@
 #include "db_config.h"
 
 #ifndef lint
-static const char revid[] = "$Id: hsearch.c,v 11.5 2000/11/30 00:58:37 ubell Exp $";
+static const char revid[] = "$Id: hsearch.c,v 11.12 2002/02/22 01:55:57 mjc Exp $";
 #endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
@@ -58,6 +58,18 @@ static const char revid[] = "$Id: hsearch.c,v 11.5 2000/11/30 00:58:37 ubell Exp
 static DB	*dbp;
 static ENTRY	 retval;
 
+/*
+ * Translate HSEARCH calls into DB calls so that DB doesn't step on the
+ * application's name space.
+ *
+ * EXTERN: #if DB_DBM_HSEARCH != 0
+ *
+ * EXTERN: int __db_hcreate __P((size_t));
+ * EXTERN: ENTRY *__db_hsearch __P((ENTRY, ACTION));
+ * EXTERN: void __db_hdestroy __P((void));
+ *
+ * EXTERN: #endif
+ */
 int
 __db_hcreate(nel)
 	size_t nel;
@@ -71,9 +83,9 @@ __db_hcreate(nel)
 
 	if ((ret = dbp->set_pagesize(dbp, 512)) != 0 ||
 	    (ret = dbp->set_h_ffactor(dbp, 16)) != 0 ||
-	    (ret = dbp->set_h_nelem(dbp, nel)) != 0 ||
+	    (ret = dbp->set_h_nelem(dbp, (u_int32_t)nel)) != 0 ||
 	    (ret = dbp->open(dbp,
-	    NULL, NULL, DB_HASH, DB_CREATE, __db_omode("rw----"))) != 0)
+	    NULL, NULL, NULL, DB_HASH, DB_CREATE, __db_omode("rw----"))) != 0)
 		__os_set_errno(ret);
 
 	/*
@@ -98,12 +110,12 @@ __db_hsearch(item, action)
 	memset(&key, 0, sizeof(key));
 	memset(&val, 0, sizeof(val));
 	key.data = item.key;
-	key.size = strlen(item.key) + 1;
+	key.size = (u_int32_t)strlen(item.key) + 1;
 
 	switch (action) {
 	case ENTER:
 		val.data = item.data;
-		val.size = strlen(item.data) + 1;
+		val.size = (u_int32_t)strlen(item.data) + 1;
 
 		/*
 		 * Try and add the key to the database.  If we fail because

@@ -1,27 +1,26 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1997, 1998, 1999, 2000
+ * Copyright (c) 1997-2002
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: EnvExample.cpp,v 11.12 2000/10/27 20:32:00 dda Exp $
+ * $Id: EnvExample.cpp,v 11.24 2002/01/11 15:52:15 bostic Exp $
  */
 
-#include "db_config.h"
-
-#ifndef NO_SYSTEM_INCLUDES
 #include <sys/types.h>
 
 #include <errno.h>
-#include <iostream.h>
+#include <iostream>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#endif
 
 #include <db_cxx.h>
+
+using std::ostream;
+using std::cout;
+using std::cerr;
 
 #ifdef macintosh
 #define	DATABASE_HOME	":database"
@@ -36,10 +35,10 @@
 #endif
 #endif
 
-void	db_setup(char *, char *, ostream&);
-void	db_teardown(char *, char *, ostream&);
+void	db_setup(const char *, const char *, ostream&);
+void	db_teardown(const char *, const char *, ostream&);
 
-char *progname = "EnvExample";			/* Program name. */
+const char *progname = "EnvExample";			/* Program name. */
 
 //
 // An example of a program creating/configuring a Berkeley DB environment.
@@ -54,7 +53,7 @@ main(int, char **)
 	// and check error returns from all methods.
 	//
 	try {
-		char *data_dir, *home;
+		const char *data_dir, *home;
 
 		//
 		// All of the shared database files live in /home/database,
@@ -64,21 +63,21 @@ main(int, char **)
 		data_dir = CONFIG_DATA_DIR;
 
 		cout << "Setup env\n";
-		db_setup(DATABASE_HOME, data_dir, cerr);
+		db_setup(home, data_dir, cerr);
 
 		cout << "Teardown env\n";
-		db_teardown(DATABASE_HOME, data_dir, cerr);
-		return 0;
+		db_teardown(home, data_dir, cerr);
+		return (EXIT_SUCCESS);
 	}
 	catch (DbException &dbe) {
-		cerr << "AccessExample: " << dbe.what() << "\n";
-		return 1;
+		cerr << "EnvExample: " << dbe.what() << "\n";
+		return (EXIT_FAILURE);
 	}
 }
 
 // Note that any of the db calls can throw DbException
 void
-db_setup(char *home, char *data_dir, ostream& err_stream)
+db_setup(const char *home, const char *data_dir, ostream& err_stream)
 {
 	//
 	// Create an environment object and initialize it for error
@@ -98,7 +97,7 @@ db_setup(char *home, char *data_dir, ostream& err_stream)
 	(void)dbenv->set_data_dir(data_dir);
 
 	// Open the environment with full transactional support.
-	dbenv->open(DATABASE_HOME,
+	dbenv->open(home,
     DB_CREATE | DB_INIT_LOCK | DB_INIT_LOG | DB_INIT_MPOOL | DB_INIT_TXN, 0);
 
 	// Do something interesting...
@@ -108,7 +107,7 @@ db_setup(char *home, char *data_dir, ostream& err_stream)
 }
 
 void
-db_teardown(char *home, char *data_dir, ostream& err_stream)
+db_teardown(const char *home, const char *data_dir, ostream& err_stream)
 {
 	// Remove the shared database regions.
 	DbEnv *dbenv = new DbEnv(0);
