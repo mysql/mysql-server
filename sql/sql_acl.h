@@ -111,9 +111,9 @@ public:
   acl_host_and_ip host;
   uint hostname_length;
   USER_RESOURCES user_resource;
-  char *user,*password;
-  ulong salt[6]; // New password has longer length
-  uint8 pversion; // password version
+  char *user;
+  uint8 salt[SCRAMBLE_LENGTH+1];       // scrambled password in binary form
+  uint8 salt_len;        // 0 - no password, 4 - 3.20, 8 - 3.23, 20 - 4.1.1 
   enum SSL_type ssl_type;
   const char *ssl_cipher, *x509_issuer, *x509_subject;
 };
@@ -135,11 +135,8 @@ void acl_reload(THD *thd);
 void acl_free(bool end=0);
 ulong acl_get(const char *host, const char *ip, const char *bin_ip,
 	      const char *user, const char *db);
-ulong acl_getroot(THD *thd, const char *host, const char *ip, const char *user,
-		  const char *password,const char *scramble,
-                  char **priv_user, char *priv_host,
-		  bool old_ver, USER_RESOURCES *max,char* prepared_scramble,
-                  uint *cur_priv_version, ACL_USER **cached_user);
+int acl_getroot(THD *thd, USER_RESOURCES *mqh, const char *passwd,
+                uint passwd_len);
 bool acl_check_host(const char *host, const char *ip);
 bool check_change_password(THD *thd, const char *host, const char *user);
 bool change_password(THD *thd, const char *host, const char *user,
