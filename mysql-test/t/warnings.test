@@ -51,6 +51,7 @@ update t1 set c='mysql ab' where c='test';
 update t1 set d=c;
 create table t2(a tinyint NOT NULL, b char(3));
 insert into t2 select b,c from t1;
+insert into t2(b) values('mysqlab');
 drop table t1, t2;
 
 #

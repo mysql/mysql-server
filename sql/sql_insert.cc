@@ -231,7 +231,9 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
   info.update_fields=&update_fields;
   info.update_values=&update_values;
   // Don't count warnings for simple inserts
-  if (values_list.elements > 1 || (thd->options & OPTION_WARNINGS))
+  if ((thd->client_capabilities & CLIENT_PROTOCOL_41) || 
+      values_list.elements > 1 || 
+      (thd->options & OPTION_WARNINGS))
     thd->count_cuted_fields = 1;
   thd->cuted_fields = 0L;
   table->next_number_field=table->found_next_number_field;
