@@ -49,7 +49,7 @@ int mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists)
   char	path[FN_REFLEN];
   String wrong_tables;
   bool some_tables_deleted=0;
-  uint error;
+  uint error= 1;
   db_type table_type;
   TABLE_LIST *table;
   DBUG_ENTER("mysql_rm_table");
@@ -66,7 +66,6 @@ int mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists)
     {
       my_error(ER_TABLE_NOT_LOCKED_FOR_WRITE,MYF(0),
 	       tables->real_name);
-      error = 1;
       goto err;
     }
     while (global_read_lock && ! thd->killed)
@@ -76,9 +75,12 @@ int mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists)
 
   }
   
+  if (lock_table_names(thd, tables))
+    goto err;
+
   for (table=tables ; table ; table=table->next)
   {
-    char *db=table->db ? table->db : thd->db;
+    char *db=table->db ? table->db : (thd->db ? thd->db : (char*) "");
     if (!close_temporary_table(thd, db, table->real_name))
     {
       some_tables_deleted=1;			// Log query
@@ -149,9 +151,10 @@ int mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists)
   }
   
   error = 0;
+  unlock_table_names(thd, tables);
+
  err:  
   pthread_mutex_unlock(&LOCK_open);
-  VOID(pthread_cond_broadcast(&COND_refresh)); // Signal to refresh
 
   pthread_mutex_lock(&thd->mysys_var->mutex);
   thd->mysys_var->current_mutex= 0;
