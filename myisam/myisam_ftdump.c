@@ -20,9 +20,9 @@
 #include "ftdefs.h"
 #include <my_getopt.h>
 
-static void get_options(int *argc,char **argv[]);
 static void usage();
 static void complain(int val);
+static my_bool get_one_option(int, const struct my_option *, char *);
 
 static int count=0, stats=0, dump=0, lstats=0;
 static my_bool verbose;
@@ -66,7 +66,8 @@ int main(int argc,char *argv[])
   struct { MI_INFO *info; } aio0, *aio=&aio0; /* for GWS_IN_USE */
 
   MY_INIT(argv[0]);
-  get_options(&argc, &argv);
+  if (error=handle_options(&argc, &argv, my_long_options, get_one_option))
+    exit(error);
   if (count || dump)
     verbose=0;
   if (!count && !dump && !lstats && !query)
@@ -78,10 +79,19 @@ int main(int argc,char *argv[])
   if (argc < 2)
     usage();
 
-  if (!(info=mi_open(argv[0],2,HA_OPEN_ABORT_IF_LOCKED)))
-    goto err;
+  {
+    char *end;
+    inx= strtoll(argv[1], &end, 10);
+    if (*end)
+      usage();
+  }
 
-  inx=atoi(argv[1]);
+  if (!(info=mi_open(argv[0],2,HA_OPEN_ABORT_IF_LOCKED)))
+  {
+    error=my_errno;
+    goto err;
+  }
+
   *buf2=0;
   aio->info=info;
 
@@ -91,6 +101,8 @@ int main(int argc,char *argv[])
     printf("Key %d in table %s is not a FULLTEXT key\n", inx, info->filename);
     goto err;
   }
+
+  mi_lock_database(info, F_EXTRA_LCK);
 
   if (query)
   {
@@ -108,7 +120,7 @@ int main(int argc,char *argv[])
       printf("%d rows matched\n",result->ndocs);
 
     for(i=0 ; i<result->ndocs ; i++)
-      printf("%9qx %20.7f\n",result->doc[i].dpos,result->doc[i].weight);
+      printf("%9lx %20.7f\n",(ulong)result->doc[i].dpos,result->doc[i].weight);
 
     ft_nlq_close_search(result);
 #else
@@ -168,11 +180,12 @@ int main(int argc,char *argv[])
         }
       }
       if (dump)
-        printf("%9qx %20.7f %s\n",info->lastpos,weight,buf);
+        printf("%9lx %20.7f %s\n",(ulong)info->lastpos,weight,buf);
 
       if(verbose && (total%HOW_OFTEN_TO_WRITE)==0)
         printf("%10ld\r",total);
     }
+    mi_lock_database(info, F_UNLCK);
 
     if (stats)
     {
@@ -183,12 +196,12 @@ int main(int argc,char *argv[])
         if ((ulong) count >= total/2)
           break;
       }
-      printf("Total rows: %qu\nTotal words: %lu\n"
+      printf("Total rows: %lu\nTotal words: %lu\n"
              "Unique words: %lu\nLongest word: %lu chars (%s)\n"
              "Median length: %u\n"
              "Average global weight: %f\n"
              "Most common word: %lu times, weight: %f (%s)\n",
-             (ulonglong)info->state->records, total, uniq, maxlen, buf_maxlen,
+             (ulong)info->state->records, total, uniq, maxlen, buf_maxlen,
              inx, avg_gws/uniq, max_doc_cnt, min_gws, buf_min_gws);
     }
     if (lstats)
@@ -244,15 +257,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   }
   return 0;
 }
-
-
-static void get_options(int *argc, char **argv[])
-{
-  int ho_error;
-
-  if ((ho_error=handle_options(argc, argv, my_long_options, get_one_option)))
-    exit(ho_error);
-} /* get options */
 
 
 static void usage()
