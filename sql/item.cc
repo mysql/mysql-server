@@ -382,7 +382,7 @@ double Item_param::val()
 {
   switch (item_result_type) {
   case STRING_RESULT:
-    return (double)atof(str_value.ptr()); 
+    return (double)my_strntod(str_value.charset(),str_value.ptr(),str_value.length(),(char**)0); 
   case INT_RESULT:
     return (double)int_value;
   default:
