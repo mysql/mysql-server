@@ -178,7 +178,8 @@ NdbOut& operator<<(NdbOut& out, const NdbRecAttr &r)
     return out;
   }
 
-  uint length = r.getColumn()->getLength();
+  const NdbDictionary::Column* c = r.getColumn();
+  uint length = c->getLength();
   if (length > 1)
     out << "[";
 
@@ -237,6 +238,22 @@ NdbOut& operator<<(NdbOut& out, const NdbRecAttr &r)
       case NdbDictionary::Column::Double:
 	out << r.double_value();
 	break;
+      case NdbDictionary::Column::Olddecimal:
+        {
+          short len = 1 + c->getPrecision() + (c->getScale() > 0);
+          out.print("%.*s", len, r.aRef());
+        }
+        break;
+      case NdbDictionary::Column::Olddecimalunsigned:
+        {
+          short len = 0 + c->getPrecision() + (c->getScale() > 0);
+          out.print("%.*s", len, r.aRef());
+        }
+	break;
+      case NdbDictionary::Column::Decimal:
+      case NdbDictionary::Column::Decimalunsigned:
+        goto unknown;   // TODO
+        break;
       // for dates cut-and-paste from field.cc
       case NdbDictionary::Column::Datetime:
         {
@@ -346,6 +363,7 @@ NdbOut& operator<<(NdbOut& out, const NdbRecAttr &r)
           j = length;
         }
         break;
+      unknown:
       default: /* no print functions for the rest, just print type */
 	out << (int) r.getType();
 	j = length;
