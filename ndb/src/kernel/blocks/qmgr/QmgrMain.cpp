@@ -1934,17 +1934,27 @@ void Qmgr::execAPI_REGREQ(Signal* signal)
   switch(getNodeInfo(apiNodePtr.i).getType()){
   case NodeInfo::API:
     compatability_check = ndbCompatible_ndb_api(NDB_VERSION, version);
+    if (!compatability_check)
+      infoEvent("Connection attempt from api or mysqld id=%d with %s "
+		"incompatible with %s", apiNodePtr.i,
+		getVersionString(version,""), NDB_VERSION_STRING);
     break;
   case NodeInfo::MGM:
     compatability_check = ndbCompatible_ndb_mgmt(NDB_VERSION, version);
+    if (!compatability_check)
+      infoEvent("Connection attempt from management server id=%d with %s "
+		"incompatible with %s", apiNodePtr.i,
+		getVersionString(version,""), NDB_VERSION_STRING);
     break;
   case NodeInfo::REP:
-    compatability_check = ndbCompatible_ndb_api(NDB_VERSION, version);
-    break;
+    //    compatability_check = ndbCompatible_ndb_api(NDB_VERSION, version);
+    //    break;
   case NodeInfo::DB:
   case NodeInfo::INVALID:
   default:
     sendApiRegRef(signal, ref, ApiRegRef::WrongType);
+    infoEvent("Invalid connection attempt with type %d",
+	      getNodeInfo(apiNodePtr.i).getType());
     return;
   }
 
