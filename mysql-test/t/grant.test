@@ -107,6 +107,23 @@ grant ALL PRIVILEGES on *.* to drop_user@localhost with GRANT OPTION;
 grant ALL PRIVILEGES on test.* to drop_user@localhost with GRANT OPTION;
 grant select(a) on test.t1 to drop_user@localhost;
 show grants for drop_user@localhost;
+
+#
+# Bug3086
+#
+set sql_mode=ansi_quotes;
+show grants for drop_user@localhost;
+set sql_mode=default;
+
+set sql_quote_show_create=0;
+show grants for drop_user@localhost;
+set sql_mode="ansi_quotes";
+show grants for drop_user@localhost;
+set sql_quote_show_create=1;
+show grants for drop_user@localhost;
+set sql_mode="";
+show grants for drop_user@localhost;
+
 revoke all privileges, grant option from drop_user@localhost;
 show grants for drop_user@localhost;
 drop user drop_user@localhost;
