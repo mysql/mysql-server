@@ -206,6 +206,8 @@ Types of Commercial Support
 * Extended email support::      Extended email support
 * Login support::               Login support
 * Extended login support::      Extended login support
+* Telephone support::           Telephone support
+* Table handler support::       Support for other table handlers
 
 Installing MySQL
 
@@ -595,7 +597,7 @@ Replication in MySQL
 * Replication Options::         Replication Options in my.cnf
 * Replication SQL::             SQL Commands related to replication
 * Replication FAQ::             Frequently Asked Questions about replication
-* Troubleshooting Replication:: Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication
+* Troubleshooting Replication:: Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.
 
 Getting Maximum Performance from MySQL
 
@@ -895,7 +897,8 @@ Changes in release 4.0.x (Development; Alpha)
 
 Changes in release 3.23.x  (Stable)
 
-* News-3.23.34a::               
+* News-3.23.35::                Changes in release 3.23.35
+* News-3.23.34a::               Changes in release 3.23.34a
 * News-3.23.34::                Changes in release 3.23.34
 * News-3.23.33::                Changes in release 3.23.33
 * News-3.23.32::                Changes in release 3.23.32
@@ -3699,18 +3702,18 @@ EURO (European Union Euro) so the prices will differ slightly.
 
 @multitable @columnfractions .3 .3 .3
 @item @strong{Number of licenses} @tab @strong{Per copy} @tab @strong{Total}
-@item 1                  @tab US $200 @tab US $200
-@item 10 pack            @tab US $150 @tab US $1500
-@item 50 pack            @tab US $120 @tab US $6000
+@item 1                  @tab 200 EURO @tab 200 EURO
+@item 10 pack            @tab 150 EURO @tab 1500 EURO
+@item 50 pack            @tab 120 EURO @tab 6000 EURO
 @end multitable
 
 For high volume (OEM) purchases, the following prices apply:
 
 @multitable @columnfractions .25 .2 .3 .25
 @item @strong{Number of licenses}  @tab @strong{Per copy} @tab @strong{Minimum } @tab @strong{Minimum payment}
-@item 100-999   @tab US $40        @tab 100                     @tab US $4000
-@item 1000-2499 @tab US $25        @tab 200                     @tab US $5000
-@item 2500-4999 @tab US $20        @tab 400                     @tab US $8000
+@item 100-999   @tab 40 EURO   @tab 100                     @tab 4000 EURO
+@item 1000-2499 @tab 25 EURO   @tab 200                     @tab 5000 EURO
+@item 2500-4999 @tab 20 EURO   @tab 400                     @tab 8000 EURO
 @end multitable
 
 For OEM purchases, you must act as the middle-man for eventual problems
@@ -3739,14 +3742,15 @@ status instead of just fixing it in a later release.
 More comprehensive support is sold separately.  Descriptions of what each
 level of support includes are given in @ref{Support}.  Costs for the various
 types of commercial support are shown below.  Support level prices are in
-EURO (European Union Euro). One EURO is about 1.17 USD.
+EURO (European Union Euro). One EURO is about 1.06 USD.
 
 @multitable @columnfractions .5 .5
 @item @strong{Type of support}  @tab @strong{Cost per year}
-@item Basic e-mail support. @xref{Basic email support}. @tab EURO 170
+@item Basic e-mail support. @xref{Basic email support}. @tab EURO 200
 @item Extended e-mail support @xref{Extended email support}. @tab EURO 1000
 @item Login support @xref{Login support}.            @tab EURO 2000
 @item Extended login support @xref{Extended login support}.  @tab EURO 5000
+@item Telephone support @xref{Telephone support}.  @tab EURO 12000
 @end multitable
 
 You may upgrade from any lower level of support to a higher level of
@@ -3858,6 +3862,8 @@ please send e-mail to @email{webmaster@@mysql.com}.
 * Extended email support::      Extended email support
 * Login support::               Login support
 * Extended login support::      Extended login support
+* Telephone support::           Telephone support
+* Table handler support::       Support for other table handlers
 @end menu
 
 @cindex email, technical support
@@ -4022,7 +4028,7 @@ before talking on phone, to be able to work as efficiently as possible on
 solving the problem.
 @end itemize
 
-@node Extended login support,  , Login support, Support
+@node Extended login support, Telephone support, Login support, Support
 @subsection Extended Login Support
 
 Extended login support includes everything in login support with these
@@ -4058,6 +4064,45 @@ customers!  If the visit takes 16 hours or more, the first 8 hours is
 without charge.  For the hours above 8 hours, you will be charged with a
 rate that is at least 20 % less than our standard rates.
 @end itemize
+
+@node Telephone support, Table handler support, Extended login support, Support
+@subsection Telephone Support
+
+Telephone support includes everything in extended login support with
+these additions:
+
+@itemize @bullet
+@item
+We will provide you with a dynamic web page showing the current list of
+@code{MySQL} developers that you can phone when you have a critical
+problem.
+@item
+For non critical problem, you can request a @strong{MySQL} developer to
+phone back within 48 hours to discuss @code{MySQL} related issues.
+@end itemize
+
+@cindex support, BDB Tables
+@cindex support, INNOBASE Tables
+@cindex support, GEMENI Tables
+@node Table handler support,  , Telephone support, Support
+@subsection Support for other table handlers
+
+To get support for @code{BDB} tables, @code{INNOBASE} tables or
+@code{GEMINI} tales you has to pay and additional 30 % on the basic
+support price for each of the table handlers you want to get support on.
+This extra cost is cover the back support cost for the other table
+handlers.
+
+We at @code{MySQL AB} will help you create a proper bug report for the
+table handler and submit it to the developers for to specific table
+handler. We will also do our best to ensure that you will get a timely
+answer/solution from the developers of the table handler.
+
+Even if we are quite confident that we can solve most problems within a
+timely manner, we can't guarantee a quick solution for any problems you
+can get with the different table handlers. We will however do our best
+to help you get the problem solved.
+
 
 @node Installing, Compatibility, Licensing and Support, Top
 @chapter Installing MySQL
@@ -6166,9 +6211,12 @@ Download @strong{BitKeeper} from
 @item
 Follow the instructions to install it.
 @item
-Once @strong{BitKeeper} is installed,
-@code{bk clone bk://work.mysql.com:7000 mysql} - the initial download
-may take a while, depending on the speed of your connection.
+Once @strong{BitKeeper} is installed, if you want to clone 3.23 branch,
+@code{bk clone bk://work.mysql.com:7000 mysql}, and
+@code{bk clone bk://work.mysql.com:7001 mysql-4.0} for 4.0 branch
+
+The initial download may take a while, depending on the speed of your
+connection.
 @item
 You will need GNU autoconf/automake, libtool, and m4 to do the next stage.
 If you get some strange error during the first stage, check that you really
@@ -6194,8 +6242,7 @@ you @code{./configure} with different values for @code{prefix},
 @code{tcp-port}, and @code{unix-socket-path}.
 @item
 Play hard with your new installation and try to make the new features
-crash. Report bugs to @email{bugs@@lists.mysql.com}. As always, make
-sure you have a full test case for the bug that we can run.
+crash. Start by running @code{make test}. @xref{MySQL test suite}.
 @item
 If you have gotten to the @code{make} stage and it does not compile,
 please report it to @email{bugs@@lists.mysql.com}. If you have
@@ -23373,8 +23420,9 @@ SUM_OVER_ALL_KEYS(max_length_of_key + sizeof(char*) * 2)
 @node BDB overview, BDB install, BDB, BDB
 @subsection Overview over BDB tables
 
-BDB is included in the @strong{MySQL} source distribution starting
-from 3.23.34 and will be activated in the @strong{MySQL}-max binary.
+BDB tables are included in the @strong{MySQL} source distribution
+starting from 3.23.34 and will be activated in the @strong{MySQL}-max
+binary.
 
 Berkeley DB (@uref{http://www.sleepycat.com}) has provided
 @strong{MySQL} with a transaction-safe table handler. This will survive
@@ -23666,8 +23714,9 @@ NuSphere is working on removing these limitations.
 @node INNOBASE overview, INNOBASE start, INNOBASE, INNOBASE
 @subsection INNOBASE Tables overview
 
-Innobase is included in the @strong{MySQL} source distribution starting
-from 3.23.34a and will be activated in the @strong{MySQL}-max binary.
+Innobase tables are included in the @strong{MySQL} source distribution
+starting from 3.23.34 and will be activated in the @strong{MySQL}-max
+binary.
 
 If you have downloaded a binary version of @strong{MySQL} that includes
 support for Innobase, simply follow the instructions for
@@ -26617,7 +26666,7 @@ tables}.
 * Replication Options::         Replication Options in my.cnf
 * Replication SQL::             SQL Commands related to replication
 * Replication FAQ::             Frequently Asked Questions about replication
-* Troubleshooting Replication:: Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication
+* Troubleshooting Replication:: Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.
 @end menu
 
 @node Replication Intro, Replication Implementation, Replication, Replication
@@ -42048,7 +42097,8 @@ users uses this code as the rest of the code and because of this we are
 not yet 100 % confident in this code.
 
 @menu
-* News-3.23.34a::               
+* News-3.23.35::                Changes in release 3.23.35
+* News-3.23.34a::               Changes in release 3.23.34a
 * News-3.23.34::                Changes in release 3.23.34
 * News-3.23.33::                Changes in release 3.23.33
 * News-3.23.32::                Changes in release 3.23.32
@@ -42086,7 +42136,18 @@ not yet 100 % confident in this code.
 * News-3.23.0::                 Changes in release 3.23.0
 @end menu
 
-@node News-3.23.34a, News-3.23.34, News-3.23.x, News-3.23.x
+@node News-3.23.35, News-3.23.34a, News-3.23.x, News-3.23.x
+@appendixsubsec Changes in release 3.23.35
+@itemize @bullet
+@item
+Fixed newly introduce bug in @code{ORDER BY}.
+@item
+Fixed wrong define @code{CLIENT_TRANSACTIONS}.
+@item
+Fixed bug in @code{SHOW VARIABLES} when using INNOBASE tables.
+@end itemize
+
+@node News-3.23.34a, News-3.23.34, News-3.23.35, News-3.23.x
 @appendixsubsec Changes in release 3.23.34a
 @itemize @bullet
 Add extra files to distribution to allow one to compile Innobase.
@@ -46915,6 +46976,10 @@ in a database, it will take a long time to use the @code{mysql} client
 on the database if you are not using the @code{-A} option or if you are
 using @code{rehash}. This is especially notable when you have a big table
 cache.
+
+@item
+Th current replication protocol cannot deal with @code{LOAD DATA INFILE}
+and line terminator characters of more than 1 character.
 @end itemize
 
 The following problems are known and will be fixed in due time:
@@ -47221,6 +47286,9 @@ Don't allow more than a defined number of threads to run MyISAM recover
 at the same time.
 @item
 Change @code{INSERT ... SELECT} to use concurrent inserts.
+@item
+Return the original field types() when doing @code{SELECT MIN(column)
+... GROUP BY}.
 @item
 Add range checking to @code{MERGE} tables.
 @item
