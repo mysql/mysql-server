@@ -373,7 +373,7 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
     if (sort_form->key_read)		// QQ Can be removed after the reset
       file->extra(HA_EXTRA_KEYREAD);	// QQ is removed
     next_pos=(byte*) 0;			/* Find records in sequence */
-    file->ha_rnd_init();
+    file->ha_rnd_init(1);
     file->extra_opt(HA_EXTRA_CACHE,
 		    current_thd->variables.read_buff_size);
   }

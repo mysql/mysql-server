@@ -89,3 +89,14 @@ SELECT LOCATION FROM T1 WHERE EVENT_ID=2 UNION ALL  SELECT LOCATION FROM T1 WHER
 SELECT LOCATION FROM T1 WHERE EVENT_ID=2 UNION ALL  SELECT LOCATION FROM T1 WHERE EVENT_ID=3;
 SELECT LOCATION FROM T1 WHERE EVENT_ID=2 UNION ALL  SELECT LOCATION FROM T1 WHERE EVENT_ID=3;
 drop table T1;
+
+#
+# Test name conversion with ALTER TABLE / CREATE INDEX (Bug #3109)
+#
+
+create table T1 (A int);
+alter table T1 add index (A);
+show tables like 'T1%';
+alter table t1 add index (A);
+show tables like 't1%';
+drop table t1;
