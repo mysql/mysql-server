@@ -27,11 +27,11 @@ if (defined($gcc_version) && ! $opt_config_env)
   $tmp=`$gcc_version -v 2>&1`;
   if ($tmp =~ /version 2\.7\./)
   {
-    $opt_config_env= 'CC=gcc CFLAGS="-O2 -fomit-frame-pointer" CXX=gcc CXXFLAGS="-O2 -fomit-frame-pointer"';
+    $opt_config_env= 'CC=gcc CFLAGS="-O2 -fno-omit-frame-pointer" CXX=gcc CXXFLAGS="-O2 -fno-omit-frame-pointer"';
   }
   else
   {
-    $opt_config_env= 'CC=gcc CFLAGS="-O3 -fomit-frame-pointer" CXX=gcc CXXFLAGS="-O3 -fomit-frame-pointer -felide-constructors -fno-exceptions -fno-rtti"';
+    $opt_config_env= 'CC=gcc CFLAGS="-O3 -fno-omit-frame-pointer" CXX=gcc CXXFLAGS="-O3 -fno-omit-frame-pointer -felide-constructors -fno-exceptions -fno-rtti"';
   }
 }
 
