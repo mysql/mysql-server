@@ -169,7 +169,10 @@ To make maintaining easier please:
   <family>Japanese</family>
   <description>EUC-JP Japanese</description>
   <alias>euc-jp</alias>
-  <collation name="ujis_japanese_ci"	id="12"	order="Japanese"	flag="primary"/>
+  <collation name="ujis_japanese_ci"	id="12"	order="Japanese">
+    <flag>primary</flag>
+    <flag>compiled</flag>
+  </collation>
 </charset>
 
 <charset name="sjis">
@@ -178,7 +181,10 @@ To make maintaining easier please:
   <alias>s-jis</alias>
   <alias>shift-jis</alias>
   <alias>x-sjis</alias>
-  <collation name="sjis_japanese_ci" 	id="13"	order="Japanese"	flag="primary"/>
+  <collation name="sjis_japanese_ci" 	id="13"	order="Japanese">
+    <flag>primary</flag>
+    <flag>compiled</flag>
+  </collation>
 </charset>
 
 <charset name="cp1251">
@@ -376,7 +382,10 @@ To make maintaining easier please:
 <charset name="ucs2">
   <family>Unicode</family>
   <description>UCS-2 Unicode</description>
-  <collation name="ucs2_general_ci"	id="35"	flag="primary"/>
+  <collation name="ucs2_general_ci"	id="35">
+    <flag>primary</flag>
+    <flag>compiled</flag>
+  </collation>
 </charset>
 
 <charset name="cp866">
