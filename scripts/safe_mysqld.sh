@@ -88,16 +88,24 @@ then
 fi
 
 
-NOHUP_NICENESS=`nohup nice`
-if test $? -ne 0 || test x"$NOHUP_NICENESS" = x0 || test ! nice --1 echo foo > /dev/null 2>&1; then
-  NOHUP_NICENESS="nohup"
-else
-  NOHUP_NICENESS="nice --$NOHUP_NICENESS nohup"
+NOHUP_NICENESS="nohup"
+if test -w /
+then
+  NOHUP_NICENESS=`nohup nice`
+  if test $? -ne 0 || test x"$NOHUP_NICENESS" = x0 || test ! nice --1 echo foo > /dev/null 2>&1; then
+    NOHUP_NICENESS="nohup"
+  else
+    NOHUP_NICENESS="nice --$NOHUP_NICENESS nohup"
+  fi
 fi
 
 export MYSQL_UNIX_PORT
 export MYSQL_TCP_PORT
-touch $err_log; chown $user $err_log
+if test -w /
+then
+  # If we are root, change the err log to the right user.
+  touch $err_log; chown $user $err_log
+fi
 
 #
 # If there exists an old pid file, check if the daemon is already running
