@@ -5348,7 +5348,8 @@ end_send(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	if ((join->tables == 1) && !join->tmp_table && !join->sort_and_group
 	    && !join->send_group_parts && !join->having && !jt->select_cond &&
 	    !(jt->select && jt->select->quick) &&
-	    !(jt->table->file->table_flags() & HA_NOT_EXACT_COUNT))
+	    !(jt->table->file->table_flags() & HA_NOT_EXACT_COUNT) &&
+            (jt->ref.key < 0))
 	{
 	  /* Join over all rows in table;  Return number of found rows */
 	  TABLE *table=jt->table;
@@ -5429,7 +5430,8 @@ end_send_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	  DBUG_RETURN(-1);			/* purecov: inspected */
 	if (end_of_records)
 	{
-	  join->send_records++;
+	  if (!error)
+            join->send_records++;
 	  DBUG_RETURN(0);
 	}
 	if (!error &&
