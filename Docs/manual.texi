@@ -133,26 +133,17 @@ distribution for that version.
 
 @cindex overview
 @cindex general information
-@cindex online location of manual
-@cindex manual, online location
-
-This is the MySQL reference manual; it documents MySQL Version
-@value{mysql_version}.  As MySQL is work in progress, the manual gets
-updated frequently.  There is a very good chance that this version is
-out of date, unless you are looking at it online.  The most recent
-version of this manual is available at
-@uref{http://www.mysql.com/documentation/index.html} in many different
-formats.  If you have a hard time finding information in the manual, you
-can try the searchable PHP version at @uref{http://www.mysql.com/doc}.
 
 MySQL is a very fast, multi-threaded, multi-user, and robust SQL
 (Structured Query Language) database server.
 
-MySQL is free software.  It is licensed with the @strong{GNU
-GENERAL PUBLIC LICENSE} @uref{http://www.gnu.org/}.
+You can use MySQL free of charge under the
+@strong{GNU GENERAL PUBLIC LICENSE} @uref{http://www.gnu.org/}.
+You can also purchase commercial MySQL licenses from MySQL AB if you
+do not wish to be bound by the terms of the GPL.
 @xref{Licensing and Support}.
 
-@uref{http://www.mysql.com/, The MySQL home page}
+@uref{http://www.mysql.com/, The MySQL website}
 provides the latest information about MySQL.
 
 The following list describes some useful sections of the manual:
@@ -218,305 +209,48 @@ security bug in MySQL, you should send an e-mail to
 @cindex mailing list address
 @cindex @code{mysqlbug} script, location
 
-If you have any suggestions concerning additions or corrections to this
-manual, please send them to the manual team at @email{docs@@mysql.com}.
-
-This is a reference manual; it does not provide general instruction on SQL
-or relational database concepts.  If you want general information about SQL,
-see @ref{General-SQL}.  For books that focus more specifically on
-MySQL, see @ref{MySQL-Books}.
-
 
 @menu
-* MySQL and MySQL AB::          MySQL, MySQL AB, and Open Source
-* MySQL AB Logos and Trademarks::  MySQL AB Logos and Trademarks
+* Manual-info::                 
+* What-is::                     
+* What is MySQL AB::            
+* Licensing and Support::       MySQL Support and Licensing
 * MySQL 4.0 In A Nutshell::     MySQL 4.0 In A Nutshell
 * MySQL Information Sources::   MySQL Information Sources
-* Licensing and Support::       MySQL Support and Licensing
-* MySQL AB business model and services::  The Business Model and Services of MySQL AB
-* MySQL server licenses::       MySQL Server Licenses
 * Compatibility::               How Standards-compatible Is MySQL?
 * Comparisons::                 How MySQL Compares to Other Databases
 * TODO::                        MySQL and the future (The TODO)
 @end menu
 
 
-@node MySQL and MySQL AB, MySQL AB Logos and Trademarks, Introduction, Introduction
-@section MySQL, MySQL AB, and Open Source
+@node Manual-info, What-is, Introduction, Introduction
+@section About This Manual
 
-@menu
-* What-is::                     What is MySQL?
-* What is MySQL AB::            What is MySQL AB?
-* Manual-info::                 About this manual
-* History::                     History of MySQL
-* Features::                    The main features of MySQL
-* Stability::                   How stable is MySQL?
-* Table size::                  How Big Can MySQL Tables Be?
-* Year 2000 compliance::        Year 2000 compliance
-@end menu
+@cindex online location of manual
+@cindex manual, online location
 
+This is the MySQL reference manual; it documents MySQL Version
+@value{mysql_version}. Being a reference manual, it does not provide
+general instruction on SQL or relational database concepts.
 
-@node What-is, What is MySQL AB, MySQL and MySQL AB, MySQL and MySQL AB
-@subsection What Is MySQL
+As MySQL is work in progress, the manual gets updated frequently.
+The most recent version of this manual is available at
+@uref{http://www.mysql.com/documentation/} in many different formats,
+currently there are Texinfo, plain text, Info, HTML, PostScript, and
+PDF versions.
 
-@cindex MySQL, defined
-@cindex MySQL, introduction
-
-MySQL, the most popular Open Source SQL database, is developed and provided
-by MySQL AB.  MySQL AB is a commercial company that
-builds its business providing services around the MySQL database.
-@xref{What is MySQL AB}.
-
-@table @asis
-
-@item MySQL is a database management system.
-
-A database is a structured collection of data.  It may be anything from a
-simple shopping list to a picture gallery or the vast amounts of
-information in a corporate network.  To add, access, and process data
-stored in a computer database, you need a database management system
-such as MySQL.  Since computers are very good at handling large
-amounts of data, database management plays a central role in computing,
-as stand-alone utilities, or as parts of other applications.
-
-@cindex databases, defined
-
-@item MySQL is a relational database management system.
-
-A relational database stores data in separate tables rather than putting
-all the data in one big storeroom.  This adds speed and flexibility.  The
-tables are linked by defined relations making it possible to combine
-data from several tables on request.  The SQL part of MySQL
-stands for "Structured Query Language" - the most common standardized
-language used to access databases.
-
-@cindex relational databases, defined
-@cindex SQL, defined
-@item MySQL is Open Source Software.
-
-Open Source means that it is possible for anyone to use and modify.
-Anybody can download MySQL from the Internet and use it
-without paying anything.  Anybody so inclined can study the source code
-and change it to fit their needs.  MySQL uses the GPL (GNU
-General Public License) @uref{http://www.gnu.org}, to define what you
-may and may not do with the software in different situations.  If you
-feel uncomfortable with the GPL or need to embed MySQL into a
-commercial application you can buy a commercially licensed version from
-us.
-
-@cindex open source, defined
-@cindex General Public License
-
-@item Why use MySQL?
-
-MySQL is very fast, reliable, and easy to use.  If that is what
-you are looking for, you should give it a try.  MySQL also has a
-practical set of features developed in close cooperation with
-our users.  You can find a performance comparison of MySQL
-to some other database managers on our benchmark page.
-@xref{MySQL Benchmarks}.
-
-MySQL was originally developed to handle large databases
-much faster than existing solutions and has been successfully used in
-highly demanding production environments for several years.  Though
-under constant development, MySQL today offers a rich and
-useful set of functions.  The connectivity, speed, and security make
-MySQL highly suited for accessing databases on the Internet.
-
-@item The technical features of MySQL
-
-For advanced technical information, see @ref{Reference}.  MySQL is
-a client/server system that consists of a multi-threaded SQL server
-that supports different backends, several different client programs and
-libraries, administrative tools, and several programming interfaces.
-
-We also provide MySQL as a multi-threaded library which you can
-link into your application to get a smaller, faster, easier to manage
-product.
-
-@item MySQL has a lot of contributed software available.
-
-It is very likely that you will find that your favorite application or
-language already supports MySQL.
-
-@end table
-
-@cindex pronunciation, MySQL
-@cindex MySQL, pronunciation
-@cindex goals of MySQL
-The official way to pronounce MySQL is ``My Ess Que Ell'' (not
-MY-SEQUEL), but we don't mind you pronounce it like MY-SEQUEL
-or in some other localized way.
-
-@node What is MySQL AB, Manual-info, What-is, MySQL and MySQL AB
-@subsection What Is MySQL AB
-
-@cindex MySQL AB, defined
-
-MySQL AB is the Swedish company owned and run by the MySQL
-founders and main developers.  We are dedicated to developing MySQL 
-and spreading our database to new users.  MySQL AB owns the copyright
-to the MySQL server source code and the MySQL trademark.
-@xref{What-is}.
-
-@menu
-* Contact information::         Contact information
-@end menu
-
-We make money on support, services, commercial licenses and royalties, 
-and we use the revenues to fund product development and to expand the MySQL 
-business. The company has been profitable since its inception. In October 
-2001, we accepted venture financing from leading Scandinavian investors and 
-a handful of business angels. This investment is used to solidify our 
-business model and build a basis for sustainable growth.
-
-We have a number of partners worldwide that provide value-added products 
-and services around MySQL. If you are interested in working with us, please 
-e-mail us at @email{partner@@mysql.com}.
-
-Our main sources of income are:
-
-@itemize @bullet
-@item
-Commercial high quality support for MySQL provided by the 
-MySQL developers themselves.  If you are interested in purchasing
-a support contract, please visit @uref{https://order.mysql.com/} to view our
-support options and order support.
-
-@item
-Consulting services.  We have developers and consultants in 12 countries
-and partners in many other countries that can help you with almost any
-MySQL related issues.  If you need consulting services, please
-e-mail a good description of your needs to @email{info@@mysql.com}!  If we
-can't handle this ourselves we can usually find a partner or a developer
-that can help you with your problems.
-
-@item
-Licensing MySQL for use as an embedded database.  @xref{Licensing policy}.
-If you have a commercial product for which you need a fast,
-high quality database, but you can't afford to make your product Open Source,
-you can buy the right to use the MySQL server under a
-commercial copyright.  If you are interested in this you can buy
-MySQL licenses at @uref{https://order.mysql.com/} or contact us
-at @email{licensing@@mysql.com}.
-
-@item
-Advertising. @uref{http://www.mysql.com/} is a very popular web site with
-more than 10,000,000 page views per months (January 2001).  By putting a
-banner on this site you are guaranteed to reach a lot of potential customers
-in the open source, Linux and database communities. If you are interested
-in this e-mail @email{advertising@@mysql.com}.
-
-@item
-We are building a partner program to be able to provide MySQL
-services in every country.  If you are interested in becoming a partner
-of MySQL AB please visit
-@uref{http://www.mysql.com/information/partners.html} or e-mail
-@email{partner@@mysql.com}.
-
-@item
-We provide MySQL training classes for developers and database administrators.
-For more information, please e-mail us at @email{training@@mysql.com}.
-
-@item
-The MySQL brand has, since 1995, been associated with speed and
-reliability, and is known to be something you can depend upon.  If you are
-interested in using the MySQL trademark in your marketing, you
-can e-mail @email{info@@mysql.com} about this.
-@end itemize
-
-The MySQL core values show our dedication to MySQL and
-Open Source.
-
-We want MySQL to be:
-
-@itemize @bullet
-@item
-The best and the most widely used database in the world.
-@item
-Available and affordable for all.
-@item
-Easy to use.
-@item
-Continuously improving while remaining fast and safe.
-@item
-Fun to use and improve.
-@item
-Free from bugs.
-@end itemize
-
-MySQL AB and the people of MySQL AB:
-
-@itemize @bullet
-@item
-Promote Open Source Philosophy and support the Open Source Community.
-@item
-Aim to be good citizens.
-@item
-Prefer partners that share our values and mind-set.
-@item
-Answer e-mail and provide support.
-@item
-Are a virtual company, networking with others.
-@item
-Work against software patents.
-@end itemize
-
-@node Contact information,  , What is MySQL AB, What is MySQL AB
-@subsubsection Contact Information
-
-@cindex contact information
-@cindex licensing, contact information
-@cindex advertising, contact information
-@cindex employment, contact information
-@cindex partnering with MySQL
-@cindex employment with MySQL
-@cindex jobs at MySQL
-
-For commercial licensing, please contact the MySQL licensing
-team.  The much preferred method is by e-mail to
-@email{licensing@@mysql.com}.  Fax is also possible but handling of
-these may take much longer (Fax +46-8-729 69 05).
-
-If you represent a business that is interested in partnering with
-MySQL, please send e-mail to @email{partner@@mysql.com}.
-
-For timely, precise answers to technical questions about MySQL
-you should order one of our
-@uref{https://order.mysql.com/, support contracts}.
-MySQL support is provided by the MySQL developers so the
-standard is extremely high.
-If you have restricted access to the Internet, please contact our sales staff
-at @email{sales@@mysql.com}.
-
-If you are interested in placing a banner advertisement on our Web site,
-please send e-mail to @email{advertising@@mysql.com}.
-
-If you are interested in any of the jobs listed in our
-@uref{http://www.mysql.com/development/jobs/, jobs} section, please send e-mail
-to @email{jobs@@mysql.com}.
-
-For general discussion amongst our many users, please direct your attention to
-the appropriate @uref{http://www.mysql.com/documentation/lists.html, mailing
-list}.
-
-For general information inquires, please send e-mail to
-@email{info@@mysql.com}.
-
-For questions or comments about the workings or content of the Web site,
-please send e-mail to @email{webmaster@@mysql.com}.
-
-
-
-@node Manual-info, History, What is MySQL AB, MySQL and MySQL AB
-@subsection About This Manual
-
-This manual is currently available in Texinfo, plain text, Info, HTML,
-PostScript, and PDF versions.  The primary document is the Texinfo file.
+The primary document is the Texinfo file.
 The HTML version is produced automatically using a modified version of
-@code{texi2html}.  The plain text and Info versions are produced with
-@code{makeinfo}.  The Postscript version is produced using @code{texi2dvi}
-and @code{dvips}.  The PDF version is produced with @code{pdftex}.
+@code{texi2html}.
+The plain text and Info versions are produced with @code{makeinfo}.
+The Postscript version is produced using @code{texi2dvi} and @code{dvips}.
+The PDF version is produced with @code{pdftex}.
+
+If you have a hard time finding information in the manual, you can try
+our searchable PHP version at @uref{http://www.mysql.com/doc/}.
+
+If you have any suggestions concerning additions or corrections to this
+manual, please send them to the manual team at @email{docs@@mysql.com}.
 
 @cindex manual, available formats
 @cindex Texinfo
@@ -525,12 +259,14 @@ This manual is written and maintained by David Axmark, Michael (Monty)
 Widenius, Jeremy Cole, Arjen Lentz, and Paul DuBois. For other
 contributors, see @ref{Credits}.
 
+The copyright is owned by @code{MySQL AB}. @xref{What is MySQL AB}.
+
 @menu
 * Manual conventions::          Conventions Used in This Manual
 @end menu
 
 @node Manual conventions,  , Manual-info, Manual-info
-@subsubsection Conventions Used in This Manual
+@subsection Conventions Used in This Manual
 
 This manual uses certain typographical conventions:
 
@@ -654,7 +390,111 @@ alternatives are listed within braces (@samp{@{} and @samp{@}}):
 @end example
 
 
-@node History, Features, Manual-info, MySQL and MySQL AB
+@node What-is, What is MySQL AB, Manual-info, Introduction
+@section What Is MySQL
+
+@cindex MySQL, defined
+@cindex MySQL, introduction
+
+@code{MySQL}, the most popular Open Source SQL database, is developed
+and provided by @code{MySQL AB}.  MySQL AB is a commercial company
+that builds its business providing services around the MySQL database.
+@xref{What is MySQL AB}.
+
+@uref{http://www.mysql.com/, The MySQL website}
+provides the latest information about MySQL and MySQL AB.
+
+@table @asis
+
+@item MySQL is a database management system.
+
+A database is a structured collection of data.  It may be anything from a
+simple shopping list to a picture gallery or the vast amounts of
+information in a corporate network.  To add, access, and process data
+stored in a computer database, you need a database management system
+such as MySQL.  Since computers are very good at handling large
+amounts of data, database management plays a central role in computing,
+as stand-alone utilities, or as parts of other applications.
+
+@cindex databases, defined
+
+@item MySQL is a relational database management system.
+
+A relational database stores data in separate tables rather than putting
+all the data in one big storeroom.  This adds speed and flexibility.  The
+tables are linked by defined relations making it possible to combine
+data from several tables on request.  The SQL part of MySQL
+stands for "Structured Query Language" - the most common standardized
+language used to access databases.
+
+@cindex relational databases, defined
+@cindex SQL, defined
+@item MySQL is Open Source Software.
+
+Open Source means that it is possible for anyone to use and modify.
+Anybody can download MySQL from the Internet and use it
+without paying anything.  Anybody so inclined can study the source code
+and change it to fit their needs.  MySQL uses the GPL (GNU
+General Public License) @uref{http://www.gnu.org/}, to define what you
+may and may not do with the software in different situations.  If you
+feel uncomfortable with the GPL or need to embed MySQL into a commercial
+application you can buy a commercially licensed version from us.
+@xref{MySQL server licenses}.
+
+@cindex open source, defined
+@cindex General Public License
+
+@item Why use MySQL?
+
+MySQL is very fast, reliable, and easy to use.  If that is what
+you are looking for, you should give it a try.  MySQL also has a
+practical set of features developed in close cooperation with
+our users.  You can find a performance comparison of MySQL
+to some other database managers on our benchmark page.
+@xref{MySQL Benchmarks}.
+
+MySQL was originally developed to handle large databases
+much faster than existing solutions and has been successfully used in
+highly demanding production environments for several years.  Though
+under constant development, MySQL today offers a rich and
+useful set of functions.  The connectivity, speed, and security make
+MySQL highly suited for accessing databases on the Internet.
+
+@item The technical features of MySQL
+
+For advanced technical information, see @ref{Reference}.  MySQL is
+a client/server system that consists of a multi-threaded SQL server
+that supports different backends, several different client programs and
+libraries, administrative tools, and several programming interfaces.
+
+We also provide MySQL as a multi-threaded library which you can
+link into your application to get a smaller, faster, easier to manage
+product.
+
+@item MySQL has a lot of contributed software available.
+
+It is very likely that you will find that your favorite application or
+language already supports MySQL.
+
+@end table
+
+@cindex pronunciation, MySQL
+@cindex MySQL, pronunciation
+@cindex goals of MySQL
+The official way to pronounce MySQL is ``My Ess Que Ell'' (not
+MY-SEQUEL), but we don't mind if you pronounce it as MY-SEQUEL
+or in some other localized way.
+
+
+@menu
+* History::                     
+* Features::                    
+* Stability::                   
+* Table size::                  
+* Year 2000 compliance::        
+@end menu
+
+@node History, Features, What-is, What-is
 @subsection History of MySQL
 
 @cindex MySQL history
@@ -676,21 +516,20 @@ is also named My.  Which of the two gave its name to MySQL is
 still a mystery, even for us.
 
 
-@node Features, Stability, History, MySQL and MySQL AB
+@node Features, Stability, History, What-is
 @subsection The Main Features of MySQL
 
 @cindex main features of MySQL
 @cindex features of MySQL
 
 The following list describes some of the important characteristics
-of MySQL:
+of MySQL. @xref{MySQL 4.0 In A Nutshell}.
 
 @c This list is too technical and should be divided into one feature
 @c list comparable to commercial competition and a very technical on
 @c with max limits (from crash-me) and so on.
-@itemize @asis
-@item
-Internals and portability
+@table @asis
+@item Internals and Portability
 @itemize @bullet
 @item
 Written in C and C++.  Tested with a broad range of different compilers.
@@ -720,8 +559,7 @@ should be as fast as possible!  Usually there isn't any memory allocation
 at all after query initialization.
 @end itemize
 
-@item
-Column types
+@item Column Types
 @itemize @bullet
 @item
 Many column types: signed/unsigned integers 1, 2, 3, 4, and 8 bytes
@@ -739,8 +577,7 @@ columns that are not explicitly given values are set to their default
 values.
 @end itemize
 
-@item
-Commands and functions
+@item Commands and Functions
 @itemize @bullet
 @item
 Full operator and function support in the @code{SELECT} and @code{WHERE}
@@ -779,8 +616,7 @@ You can mix tables from different databases in the same query (as of
 Version 3.22).
 @end itemize
 
-@item
-Security
+@item Security
 @itemize @bullet
 @item
 A privilege and password system that is very flexible and secure, and
@@ -788,9 +624,8 @@ allows host-based verification.  Passwords are secure because all
 password traffic is encrypted when you connect to a server.
 @end itemize
 
-@item
+@item Scalability and Limits
 @itemize @bullet
-Scalability and limits
 @item
 Handles large databases.  We are using MySQL with some
 databases that contain 50,000,000 records and we know of users that
@@ -802,41 +637,27 @@ columns or parts of columns.  The maximum index width is 500 bytes
 of a @code{CHAR} or @code{VARCHAR} field.
 @end itemize
 
-@item
-Clients and tools
+@item Connectivity
 @itemize @bullet
 @item
-Includes @code{myisamchk}, a very fast utility for table checking,
-optimization, and repair.  All of the functionality of @code{myisamchk}
-is also available through the SQL interface as well.  
-@xref{MySQL Database Administration}.
-@item
-All MySQL programs can be invoked with the @code{--help} or @code{-?}
-options to obtain online assistance.
-@end itemize
-@item
-Connectivity
-@itemize @bullet
+Clients may connect to the MySQL server using TCP/IP Sockets,
+Unix Sockets (Unix), or Named Pipes (NT).
 @item
 ODBC (Open-DataBase-Connectivity) support for Win32 (with source).  All
 ODBC 2.5 functions and many others.  For example, you can use MS Access to
 connect to your MySQL server.  @xref{ODBC}.
-@item
-Clients may connect to the MySQL server using TCP/IP Sockets,
-Unix Sockets (Unix), or Named Pipes (NT).
 @end itemize
 
-@item
-Localization
+@item Localization
 @itemize @bullet
 @item
 The server can provide error messages to clients in many languages. 
 @xref{Languages}.
 @item
 Full support for several different character sets, including
-ISO-8859-1 (Latin1), german, big5, ujis, and more.  For example, the
-Scandinavian characters `@ringaccent{a}', `@"a' and `@"o' are allowed
-in table and column names.
+ISO-8859-1 (Latin1), german, big5, ujis, and more.  For example,
+the Scandinavian characters 'å', 'ä' and 'ö' are allowed in table
+and column names.
 @item
 All data is saved in the chosen character set.  All comparisons for normal
 string columns are case insensitive.
@@ -848,10 +669,22 @@ Czech sorting code.  MySQL supports many different character sets
 that can be specified at compile and run time.
 @end itemize
 
+@item Clients and Tools
+@itemize @bullet
+@item
+Includes @code{myisamchk}, a very fast utility for table checking,
+optimization, and repair.  All of the functionality of @code{myisamchk}
+is also available through the SQL interface as well.  
+@xref{MySQL Database Administration}.
+@item
+All MySQL programs can be invoked with the @code{--help} or @code{-?}
+options to obtain online assistance.
 @end itemize
 
+@end table
 
-@node Stability, Table size, Features, MySQL and MySQL AB
+
+@node Stability, Table size, Features, What-is
 @subsection How Stable Is MySQL?
 
 @cindex stability
@@ -986,14 +819,14 @@ We are still working on replication, so don't expect this to be rock
 solid yet.  On the other hand, some MySQL users are already
 using this with good results.
 
+@item InnoDB Tables -- Beta
+This is a recent addition to @code{MySQL}. They appear to work well and
+can be used after some initial testing.
+
 @item BDB Tables -- Beta
 The Berkeley DB code is very stable, but we are still improving the interface
 between MySQL and BDB tables, so it will take some time before this
 is tested as well as the other table types.
-
-@item InnoDB Tables -- Beta
-This is a recent addition to @code{MySQL}. They appear to work well and
-can be used after some initial testing.
 
 @item Automatic recovery of MyISAM tables - Beta
 This only affects the new code that checks if the table was closed properly
@@ -1014,7 +847,7 @@ Bugs are usually fixed right away with a patch; for serious bugs, there is
 almost always a new release.
 
 
-@node Table size, Year 2000 compliance, Stability, MySQL and MySQL AB
+@node Table size, Year 2000 compliance, Stability, What-is
 @subsection How Big Can MySQL Tables Be?
 
 @cindex tables, maximum size
@@ -1071,7 +904,7 @@ handle a collection of identical tables as one. @xref{MERGE, MERGE
 tables}.
 
 
-@node Year 2000 compliance,  , Table size, MySQL and MySQL AB
+@node Year 2000 compliance,  , Table size, What-is
 @subsection Year 2000 Compliance
 
 @cindex Year 2000 compliance
@@ -1172,10 +1005,509 @@ values).
 
 
 
-@c FIX: Start new by AGL - Erik's text on logos and trademarks
+@node What is MySQL AB, Licensing and Support, What-is, Introduction
+@section What Is MySQL AB
 
-@node MySQL AB Logos and Trademarks, MySQL 4.0 In A Nutshell, MySQL and MySQL AB, Introduction
-@section MySQL AB Logos and Trademarks
+@cindex MySQL AB, defined
+
+@code{MySQL AB} is the company of the MySQL founders and main developers
+behind the MySQL database and this manual. We are dedicated to developing
+MySQL and spreading our database to new users.
+MySQL AB owns the copyright to the MySQL source code, the MySQL logo and
+trademark and this manual. @xref{What-is}.
+
+@menu
+* MySQL AB business model and services::  The Business Model and Services of MySQL AB
+* Contact information::         Contact Information
+@end menu
+
+The MySQL core values show our dedication to MySQL and Open Source.
+
+We want MySQL to be:
+@itemize @bullet
+@item
+The best and the most widely used database in the world.
+@item
+Available and affordable for all.
+@item
+Easy to use.
+@item
+Continuously improving while remaining fast and safe.
+@item
+Fun to use and improve.
+@item
+Free from bugs.
+@end itemize
+
+MySQL AB and the people at MySQL AB:
+@itemize @bullet
+@item
+Promote Open Source Philosophy and support the Open Source Community.
+@item
+Aim to be good citizens.
+@item
+Prefer partners that share our values and mind-set.
+@item
+Answer e-mail and provide support.
+@item
+Are a virtual company, networking with others.
+@item
+Work against software patents.
+@end itemize
+
+@uref{http://www.mysql.com/, The MySQL website}
+provides the latest information about MySQL and MySQL AB.
+
+
+@node MySQL AB business model and services, Contact information, What is MySQL AB, What is MySQL AB
+@subsection The Business Model and Services of MySQL AB
+
+One of the most common questions we encounter is:
+``@emph{How can you make a living from something you give away for free?}''
+This is how.
+
+MySQL AB makes money on support, services, commercial licenses and
+royalties, and we use these revenues to fund product development and
+to expand the MySQL business.
+
+@menu
+* Business Services Support::   Support
+* Business Services Training::  Training
+* Business Services Consulting::  Consulting
+* Business Services Commercial licenses::  Commercial Licenses
+* Business Services Partnering::  Partnering
+* Business Services Advertising::  Advertising
+@end menu
+
+The company has been profitable since its inception. In October 2001,
+we accepted venture financing from leading Scandinavian investors and
+a handful of business angels. This investment is used to solidify our
+business model and build a basis for sustainable growth.
+
+
+@node Business Services Support, Business Services Training, MySQL AB business model and services, MySQL AB business model and services
+@subsubsection Support
+MySQL AB is run and owned by the founders and main developers of the MySQL
+database. The developers are committed to giving support to customers and
+other users in order to stay in touch with their needs and problems. All
+our support is given by qualified developers, not through call centers or
+dedicated support staff. Really tricky questions are even answered by
+Michael @code{Monty} Widenius himself, the author of the MySQL server.
+@xref{Support}.
+
+To order support at different levels, please visit the order section at
+@uref{http://www.mysql.com/support/}. If you have restricted access to the
+Internet, please contact our sales staff at @email{sales@@mysql.com}.
+
+
+@node Business Services Training, Business Services Consulting, Business Services Support, MySQL AB business model and services
+@subsubsection Training
+MySQL AB offers training on different levels all over the world.
+The trainers are backed by the development team to guarantee quality and
+continous development and also that no questions raised during the courses
+remain unanswered.
+
+If you're interested in participating in our courses, please visit the
+training section at @uref{http://www.mysql.com/training/}. If you have
+restricted access to the Internet, please contact our training staff at
+@email{training@@mysql.com}.
+
+
+@node Business Services Consulting, Business Services Commercial licenses, Business Services Training, MySQL AB business model and services
+@subsubsection Consulting
+MySQL AB offers consulting on different levels, all over the world.
+Consulting covers all questions affecting database performance such as
+database design, table design, query constructions, parameter tuning,
+hardware tuning, migration issues, replication, transactions etc.
+Our consultants are backed by the development team to guarantee quality
+work.
+
+If you're interested in consulting, please visit the consulting section
+at @uref{http://www.mysql.com/consulting/}. If you have restricted access
+to the Internet, please contact our consulting staff at
+@email{consulting@@mysql.com}.
+
+
+@node Business Services Commercial licenses, Business Services Partnering, Business Services Consulting, MySQL AB business model and services
+@subsubsection Commercial Licenses
+The MySQL database is released under the @code{GNU General Public License}
+(@code{GPL}). This means that it may often be used for free, but for
+certain uses you are required to purchase commercial licenses from
+MySQL AB at @uref{http://www.mysql.com/}.
+Since MySQL AB owns the copyright of the MySQL server, we are able to
+sell commercial licenses (this is called @code{Dual Licensing}). This
+does not in any way affect the @code{Open Source} commitment of MySQL AB.
+For details about when a commercial license is required, please see
+@ref{MySQL server licenses}.
+
+We also aim to offer commercial license packages covering both the MySQL
+database and closely connected third party software. Currently we have
+such an arrangement with the author of the @code{InnoDB} transactional
+table handler.
+
+
+@node Business Services Partnering, Business Services Advertising, Business Services Commercial licenses, MySQL AB business model and services
+@subsubsection Partnering
+@cindex partnering with MySQL
+The word @code{MySQL} and the MySQL dolphin logo are trademarks of
+MySQL AB. @xref{MySQL AB Logos and Trademarks}.
+These trademarks represent a significant value that the MySQL
+founders have built over the years.
+
+We have a partner programme whereby companies worldwide can offer
+value-added MySQL services or products and resell our products and
+services against a partner fee and a royalty. Partners also get to
+use special versions of the MySQL trademark to indentify these
+products and promote their business.
+
+If you are interested in becoming a MySQL AB partner, please mail to
+@email{partner@@mysql.com}.
+
+
+@node Business Services Advertising,  , Business Services Partnering, MySQL AB business model and services
+@subsubsection Advertising
+The MySQL website (@uref{http://www.mysql.com/}) is highly popular among
+people who make purchase decisions or recommendations. The website has
+more than 10 million page views per month (October 2001).
+
+Banners on @uref{http://www.mysql.com/} will be viewed by numerous
+potential buyers who maintain or set up websites and other database
+applications. For more information, please send an email to
+@email{advertising@@mysql.com}.
+
+
+@node Contact information,  , MySQL AB business model and services, What is MySQL AB
+@subsection Contact Information
+
+@cindex contact information
+@cindex employment, contact information
+@cindex licensing, contact information
+@cindex advertising, contact information
+@cindex employment with MySQL
+@cindex jobs at MySQL
+
+@uref{http://www.mysql.com/, The MySQL website}
+provides the latest information about MySQL and MySQL AB.
+
+For timely, precise answers to technical questions about MySQL,
+consider ordering a @uref{https://order.mysql.com/, support contract}
+from MySQL AB. MySQL support by MySQL is provided directly by the
+MySQL developers so the standard is extremely high. If you have
+restricted access to the Internet, please contact the MySQL AB sales
+staff at @email{sales@@mysql.com}.
+@xref{Support}.
+
+For information about MySQL training, please visit the training
+section at @uref{http://www.mysql.com/training/}. If you have
+restricted access to the Internet, please contact the MySQL AB
+training staff at @email{training@@mysql.com}.
+@xref{Business Services Training}.
+
+If you're interested in consulting, please visit the consulting
+section at @uref{http://www.mysql.com/consulting/}. If you have
+restricted access to the Internet, please contact the MySQL AB
+consulting staff at @email{consulting@@mysql.com}.
+@xref{Business Services Consulting}.
+
+For commercial licensing, please contact the MySQL AB licensing team
+via e-mail at @email{licensing@@mysql.com}. Fax is also possible but
+handling of these may take much longer (Fax +46-8-729 69 05).
+@xref{MySQL server licenses}.
+
+If you represent a business that is interested in partnering with
+MySQL AB, please send e-mail to @email{partner@@mysql.com}.
+@xref{Business Services Partnering}.
+
+If you are interested in placing a banner advertisement on the MySQL
+website (@uref{http://www.mysql.com/}), please send e-mail to
+@email{advertising@@mysql.com}.
+@xref{Business Services Advertising}.
+
+If you are interested in any of the MySQL AB jobs listed in our
+@uref{http://www.mysql.com/development/jobs/, jobs} section,
+please send an e-mail to @email{jobs@@mysql.com}.
+
+For general discussion amongst our many users, please direct your
+attention to the appropriate mailing list.
+@xref{Questions}.
+
+Reports of errors (often called bugs), as well as questions and
+comments, should be sent to the mailing list at
+@email{mysql@@lists.mysql.com}. If you have found a sensitive
+security bug in MySQL, you should send an e-mail to
+@email{security@@mysql.com}.
+@xref{Bug reports}.
+
+If you have any suggestions concerning additions or corrections to this
+manual, please send them to the manual team at @email{docs@@mysql.com}.
+
+For questions or comments about the workings or content of the Website,
+please send e-mail to @email{webmaster@@mysql.com}.
+
+For all other inquires, please send e-mail to @email{info@@mysql.com}.
+
+
+@node Licensing and Support, MySQL 4.0 In A Nutshell, What is MySQL AB, Introduction
+@section MySQL Support and Licensing
+
+@cindex licensing terms
+@cindex support terms
+
+This section describes MySQL support and licensing arrangements:
+
+@menu
+* Copyright::                   Copyrights used by MySQL
+* Support::                     
+* MySQL server licenses::       
+* MySQL AB Logos and Trademarks::  
+@end menu
+
+
+@node Copyright, Support, Licensing and Support, Licensing and Support
+@subsection Copyrights Used by MySQL
+
+@cindex copyrights
+
+@code{MySQL AB} owns the copyright to the MySQL source code,
+the MySQL logo and trademark and this manual.
+@xref{What is MySQL AB}.
+There are several different licenses relevant to the MySQL
+distribution:
+
+@enumerate
+@item
+The MySQL-specific source needed to build the @code{mysqlclient}
+library is licensed under the @code{LGPL} and the programs in the
+@file{client} directory are under the @code{GPL}. Each file states
+at the beginning which license it is under.
+
+@item
+The client library, and the GNU @code{getopt} library, are covered
+by the ``GNU LIBRARY GENERAL PUBLIC LICENSE.''  @xref{LGPL license}.
+The aim of this is to make it possible to add MySQL support (client
+side, i.e. the ability to connect to a MySQL server) into commercial
+products without a license.
+
+@item
+All the source in the server, and the GNU @code{readline} library,
+are covered by the ``GNU GENERAL PUBLIC LICENSE.''  @xref{GPL license}. 
+The text of this license can also be found as the file @file{COPYING}
+in the distributions.
+
+@item
+Some parts of the source (the @code{regexp} library) are covered
+by a Berkeley-style copyright.
+
+@item
+Older versions of MySQL (3.22 and earlier) are subject to a more
+@uref{http://www.mysql.com/support/arrangements/mypl.html, strict license}.
+See the documentation of the specific version for information.
+@end enumerate
+
+For information about how the MySQL licenses work in practise,
+please refer to @ref{MySQL server licenses}.
+Also see @ref{MySQL AB Logos and Trademarks}.
+
+
+@node Support, MySQL server licenses, Copyright, Licensing and Support
+@subsection Support offered by MySQL AB
+
+@cindex support, types
+@cindex types, of support
+@cindex commercial support, types
+@cindex costs, support
+@cindex licensing costs
+@cindex support costs
+@cindex prices, support
+
+Technical support from MySQL AB means individualized answers to your
+unique problems direct from the software engineers who code the MySQL
+database engine.
+
+We try to take a broad and inclusive view of technical support. Almost
+any problem involving MySQL is important to us if it's important to you.
+Typically customers seek help on how to get different commands and
+utilities to work, remove performance bottlenecks, restore crashed
+systems, understand operating system or networking impacts on MySQL,
+set-up best practises for backup and recovery, utilize APIs, etc.
+Our support covers only the MySQL server and our own utilities, not
+third-party products that access MySQL, though we try to help with
+these where we can.
+
+Detailed information about our different support options is given at
+@uref{http://www.mysql.com/support/}. Support contracts can also be
+ordered online at @uref{https://order.mysql.com/}. If you have
+restricted access to the Internet, contact our sales staff at
+@email{sales@@mysql.com}.
+
+Technical support is like life insurance. You can live happily
+without it for years, but when your hour arrives it becomes
+critically important, yet it's too late to buy it!
+If you use MySQL for important applications and encounter sudden
+troubles,  it might take too long to figure out all the answers
+yourself. You may need immediate access to the most experienced
+MySQL troubleshooters available, those employed by MySQL AB.
+
+
+@node MySQL server licenses, MySQL AB Logos and Trademarks, Support, Licensing and Support
+@subsection MySQL Server Licenses
+
+@cindex licensing policy
+@cindex technical support, licensing
+@cindex support, licensing
+@cindex General Public License, MySQL
+@cindex licensing, examples
+@cindex selling products
+@cindex products, selling
+
+The MySQL server is released under the GNU General Public License (GPL),
+which probably is the best known Open Source license. The formal terms
+of the GPL license can be found at @uref{http://www.gnu.org/}.
+See also @uref{http://www.gnu.org/copyleft/gpl-faq.html}.
+
+Since the MySQL server is released under the GPL, it may often be used
+for free, but for certain uses you need to buy commercial licenses from
+MySQL AB at @uref{http://www.mysql.com/}.
+
+Older versions of MySQL (3.22 and earlier) are subject to a more
+@uref{http://www.mysql.com/support/arrangements/mypl.html, strict license}.
+See the documentation of the specific version for information.
+
+Please note that the use of the MySQL server under commercial license,
+GPL or the old MySQL license does not automatically give you the right to
+use MySQL AB trademarks. @xref{MySQL AB Logos and Trademarks}.
+
+
+@menu
+* Using the MySQL server under a commercial license::  Using the MySQL Server Under a Commercial License
+* Using the MySQL server for free under GPL::  Using the MySQL Server for Free Under GPL
+@end menu
+
+@node Using the MySQL server under a commercial license, Using the MySQL server for free under GPL, MySQL server licenses, MySQL server licenses
+@subsubsection Using the MySQL Server Under a Commercial License
+
+The GPL license is contagious in the sense that when a program is linked
+to a GPL program the resulting product must also be released under GPL
+lest you break the license terms and forfeit your right to use the GPL
+program altogether.
+
+You need a commercial license:
+
+@itemize @bullet
+@item
+When you link a program with code from the MySQL server or from GPL
+released clients and don't want the resulting product to be GPL, maybe
+because you want to build a commercial product or keep the added non-GPL
+code closed source for other reasons. When purchasing commercial licenses,
+you are not using the MySQL server under GPL even though it's the same
+code.
+
+@item
+When you distribute a non-GPL application that ONLY works with the MySQL
+server and ships it with MySQL. This type of solution is actually
+considered to be linking even if it's done over a network.
+
+@item
+When you distribute copies of the MySQL server without providing the
+source code as required under the GPL license.
+
+@item
+When you want to support the further development of the MySQL database
+even if you don't formally need a commercial license. Purchasing suppport
+directly from MySQL AB is another good way of contributing to the
+development of MySQL, with immediate advantages for you.
+@xref{Support}.
+@end itemize
+
+If you require a license, you will need one for each installation of the
+MySQL server. This covers any number of CPUs on a machine, and there is
+no artificial limit on the number of clients that connect to the server
+in any way.
+
+To purchase commercial licenses and support, please visit the order section
+of our website at @uref{https://order.mysql.com/}. If you have restricted
+access to the Internet, please contact our sales staff at
+@email{sales@@mysql.com}. Fax is also possible but the handling of these
+may take much longer (Fax +46-8-729 69 05).
+
+
+@node Using the MySQL server for free under GPL,  , Using the MySQL server under a commercial license, MySQL server licenses
+@subsubsection Using the MySQL Server for Free Under GPL
+
+@cindex licensing, free
+@cindex free licensing
+
+You can use the MySQL server for free under the GPL:
+
+@itemize @bullet
+@item
+When you link a program with code from the MYSQL server and releases the
+resulting product under GPL.
+
+@item
+When you distribute the MySQL server source code bundled with other
+programs that are not linked to or dependant on MySQL for their
+functionality even if you sell the distribution commercially.
+
+@item
+When using the MySQL server internally in your company.
+
+@item
+When include the MySQL client code in a commercial program.
+The client part of MySQL is licensed under the LGPL
+@code{GNU Library General Public License}. The formal terms of the
+LGPL license can be found at @uref{http://www.gnu.org/}.
+
+However, the @code{mysql} command-line client does include code
+from the GNU @code{readline} library that is under the @code{GPL}.
+
+@item
+@cindex ISP services
+@cindex services, ISP
+@cindex services, web
+@cindex Internet Service Providers
+When you are an Internet Service Provider (ISPs) offering web
+hosting with MySQL servers for your customers.
+On the other hand, we do encourage people to use ISPs that have
+MySQL support, as this will give them the confidence that if
+they have some problem with the MySQL installation, their ISP
+will in fact have the resources to solve the problem for them.
+
+All ISPs that want to keep themselves up-to-date should subscribe
+to our @code{announce} mailing list so that they can be aware of
+critical issues that may be relevant for their MySQL installations.
+
+Note that even if an ISP does not have a commercial license for
+MySQL, they should at least give their customers read access to the
+source of the MySQL installation so that the customers can verify
+that it is patched correctly.
+
+@item
+@cindex web server, running
+@cindex running, a web server
+When you use MySQL in conjunction with a Web server, you do not need
+a commercial license. This is true even if you run a commercial Web
+server that uses MySQL, because you are not selling an embedded MySQL
+version yourself.  However, in this case we would like you to
+purchase MySQL support, because MySQL is helping your enterprise.
+@end itemize
+
+If your use of MySQL does not require a commercial license, we
+encourage you to purchase support from MySQL AB anyway. This way
+you contribute towards MySQL development and also gain immediate
+advantages for yourself. @xref{Support}.
+
+If you use MySQL in a commercial context such that you profit by 
+its use, we ask that you further the development of MySQL by 
+purchasing some level of support.  We feel that if MySQL helps 
+your business, it is reasonable to ask that you help MySQL.  
+(Otherwise, if you ask us support questions, you are not only using
+for free something into which we've put a lot a work, you're asking
+us to provide free support, too.)
+
+
+@node MySQL AB Logos and Trademarks,  , MySQL server licenses, Licensing and Support
+@subsection MySQL AB Logos and Trademarks
 
 Many users of the MySQL database want to display the MySQL AB dolphin logo
 on their websites, on their books or boxed products. We welcome and
@@ -1186,16 +1518,16 @@ stated in our trademark policy at
 
 @menu
 * The Original MySQL logo::     The Original MySQL Logo
-* MySQL Logos that may be Used Without Written Permission::  MySQL Logos that may be Used Without Written Permission
-* When need MySQL logo permission::  When do you need a Written Permission to use MySQL Logos?
-* MySQL AB Partnership Logos::  MySQL AB Partnership Logos
-* Using MySQL word in presentations::  Using the word @code{MySQL} in Printed Text or Presentations
-* Using MySQL word in company and product names::  Using the word @code{MySQL} in Company and Product Names
+* MySQL Logos that may be Used Without Written Permission::  
+* When need MySQL logo permission::  
+* MySQL AB Partnership Logos::  
+* Using MySQL word in presentations::  
+* Using MySQL word in company and product names::  
 @end menu
 
 
 @node The Original MySQL logo, MySQL Logos that may be Used Without Written Permission, MySQL AB Logos and Trademarks, MySQL AB Logos and Trademarks
-@subsection The Original MySQL Logo
+@subsubsection The Original MySQL Logo
 
 @c FIX: picture: MySQL logo
 
@@ -1209,7 +1541,7 @@ and by those having a written agreement allowing them to do so.
 
 
 @node MySQL Logos that may be Used Without Written Permission, When need MySQL logo permission, The Original MySQL logo, MySQL AB Logos and Trademarks
-@subsection MySQL Logos that may be Used Without Written Permission
+@subsubsection MySQL Logos that may be Used Without Written Permission
 
 @c FIX: pictures: powered by, works with, included - logos
 
@@ -1251,8 +1583,15 @@ Contact us at @email{trademark@@mysql.com} to inquire about special
 arrangements to fit your needs.
 
 
+@menu
+* When need MySQL logo permission::  
+* MySQL AB Partnership Logos::  
+* Using MySQL word in presentations::  
+* Using MySQL word in company and product names::  
+@end menu
+
 @node When need MySQL logo permission, MySQL AB Partnership Logos, MySQL Logos that may be Used Without Written Permission, MySQL AB Logos and Trademarks
-@subsection When do you need a Written Permission to use MySQL Logos?
+@subsubsection When do you need a Written Permission to use MySQL Logos?
 
 In the following cases you need a written permission from MySQL AB before
 using MySQL logos:
@@ -1274,19 +1613,18 @@ development of the MySQL database.
 
 
 @node MySQL AB Partnership Logos, Using MySQL word in presentations, When need MySQL logo permission, MySQL AB Logos and Trademarks
-@subsection MySQL AB Partnership Logos
+@subsubsection MySQL AB Partnership Logos
 
 @c FIX: pictures: partnership logos - Bertrand?
 
 MySQL partnership logos may only be used by companies and persons having
 a written partnership agreement with MySQL AB. Partnerships include
-certification as a MySQL trainer or consultant. If you are interested in
-entering our partnership programmes, please visit our website for details
-or mail to @email{partner@@mysql.com}.
+certification as a MySQL trainer or consultant.
+Please see @xref{Business Services Partnering,,Partnering}.
 
 
 @node Using MySQL word in presentations, Using MySQL word in company and product names, MySQL AB Partnership Logos, MySQL AB Logos and Trademarks
-@subsection Using the word @code{MySQL} in Printed Text or Presentations
+@subsubsection Using the word @code{MySQL} in Printed Text or Presentations
 
 MySQL AB welcomes references to the MySQL database, but note that the
 word @code{MySQL} is a trademark of MySQL AB. Because of this, you should
@@ -1298,19 +1636,13 @@ details.
 
 
 @node Using MySQL word in company and product names,  , Using MySQL word in presentations, MySQL AB Logos and Trademarks
-@subsection Using the word @code{MySQL} in Company and Product Names
+@subsubsection Using the word @code{MySQL} in Company and Product Names
 
 Use of the word @code{MySQL} in product or company names or in Internet
 domain names is not allowed without written permission from MySQL AB.
 
-@c FIX: End new by AGL - Erik's text on logos and trademarks
 
-
-
-@c FIX: Start new by AGL - Kaj's text MySQL 4.0 in a Nutshell
-
-
-@node MySQL 4.0 In A Nutshell, MySQL Information Sources, MySQL AB Logos and Trademarks, Introduction
+@node MySQL 4.0 In A Nutshell, MySQL Information Sources, Licensing and Support, Introduction
 @section MySQL 4.0 In A Nutshell
 
 Dateline: 16 October 2001, Uppsala, Sweden
@@ -1325,16 +1657,16 @@ for mission-critical, heavy load database systems.
 Other new features target the users of embedded databases.
 
 @menu
-* 4.0 NutShell Stepwise Rollout::  Stepwise Rollout
-* 4.0 Nutshell Development use possible immediately::  Development Use Possible Immediately
-* 4.0 Nutshell Embedded MySQL::  Embedded MySQL
-* 4.0 Nutshell Other features::  Other Features Available From MySQL 4.0.0
-* 4.0 Nutshell Future features::  Future MySQL 4.0 Features
-* 4.0 Nutshell 4.1 development release::  MySQL 4.1, The Following Development Release
+* Nutshell Stepwise Rollout::   Stepwise Rollout
+* Nutshell Ready for Immediate Development Use::  Ready for Immediate Development Use
+* Nutshell Embedded MySQL::     Embedded MySQL
+* Nutshell Other features::     Other Features Available From MySQL 4.0.0
+* Nutshell Future features::    Future MySQL 4.0 Features
+* Nutshell 4.1 development release::  MySQL 4.1, The Following Development Release
 @end menu
 
 
-@node 4.0 NutShell Stepwise Rollout, 4.0 Nutshell Development use possible immediately, MySQL 4.0 In A Nutshell, MySQL 4.0 In A Nutshell
+@node Nutshell Stepwise Rollout, Nutshell Ready for Immediate Development Use, MySQL 4.0 In A Nutshell, MySQL 4.0 In A Nutshell
 @subsection Stepwise Rollout
 
 The rollout of MySQL 4.0 will come in several steps, with
@@ -1342,12 +1674,12 @@ the first version labelled 4.0.0 already containing most of the
 new features. Additional features will be incorporated into
 MySQL 4.0.1, 4.0.2 onwards; very probably within two months,
 MySQL 4.0 will be labelled beta. Further new features will then
-be added in MySQL 4.1, which is targetted for alpha release
+be added in MySQL 4.1, which is targeted for alpha release
 in December/January.
 
 
-@node 4.0 Nutshell Development use possible immediately, 4.0 Nutshell Embedded MySQL, 4.0 NutShell Stepwise Rollout, MySQL 4.0 In A Nutshell
-@subsection Development Use Possible Immediately
+@node Nutshell Ready for Immediate Development Use, Nutshell Embedded MySQL, Nutshell Stepwise Rollout, MySQL 4.0 In A Nutshell
+@subsection Ready for Immediate Development Use
 
 Users are not recommended to switch their production systems
 to MySQL 4.0 until it is released in beta version later Q4/2001.
@@ -1360,11 +1692,11 @@ reach stable state before the deployment of user applications
 now under development.
 
 
-@node 4.0 Nutshell Embedded MySQL, 4.0 Nutshell Other features, 4.0 Nutshell Development use possible immediately, MySQL 4.0 In A Nutshell
+@node Nutshell Embedded MySQL, Nutshell Other features, Nutshell Ready for Immediate Development Use, MySQL 4.0 In A Nutshell
 @subsection Embedded MySQL
 
-With @code{libmysqld}, the realm of applications suitable for MySQL
-expands vastly. Using the embedded MySQL server library, one can
+@code{libmysqld} makes MySQL suitable for a vastly expanded realm of
+applications. Using the embedded MySQL server library, one can
 embed MySQL into various applications and electronics devices, where
 the end user has no knowledge of there actually being an underlying
 database. Embedded MySQL is ideal for use behind
@@ -1372,14 +1704,14 @@ the scenes in internet appliances, public kiosks, turn-key
 hardware/ software combination units, high performance internet
 servers, self-contained databases distributed on CD-ROM etc.
 
-Many embedded MySQL users will benefit from the
-@emph{dual licensing scheme} of MySQL, where besides the GPL license
-also commercial licensing is available for those not wishing to be bound
-by the GPL. The embedded MySQL library uses the same interface as the normal
+Many embedded MySQL users will benefit from the @emph{dual licensing}
+scheme of MySQL, where besides the GPL license also commercial
+licensing is available for those not wishing to be bound by the GPL.
+The embedded MySQL library uses the same interface as the normal
 client library, so it is convenient and easy to use.
 
 
-@node 4.0 Nutshell Other features, 4.0 Nutshell Future features, 4.0 Nutshell Embedded MySQL, MySQL 4.0 In A Nutshell
+@node Nutshell Other features, Nutshell Future features, Nutshell Embedded MySQL, MySQL 4.0 In A Nutshell
 @subsection Other Features Available From MySQL 4.0.0
 
 @itemize @bullet
@@ -1434,7 +1766,7 @@ possible to know how many rows a query would have returned without a
 @end itemize
 
 
-@node 4.0 Nutshell Future features, 4.0 Nutshell 4.1 development release, 4.0 Nutshell Other features, MySQL 4.0 In A Nutshell
+@node Nutshell Future features, Nutshell 4.1 development release, Nutshell Other features, MySQL 4.0 In A Nutshell
 @subsection Future MySQL 4.0 Features
 
 For the upcoming MySQL 4.0 releases (4.0.1, 4.0.2 and onwards), expect
@@ -1473,7 +1805,7 @@ in the client.
 @end itemize
 
 
-@node 4.0 Nutshell 4.1 development release,  , 4.0 Nutshell Future features, MySQL 4.0 In A Nutshell
+@node Nutshell 4.1 development release,  , Nutshell Future features, MySQL 4.0 In A Nutshell
 @subsection MySQL 4.1, The Following Development Release
 
 Internally, through a new .frm file format for table definitions,
@@ -1491,11 +1823,7 @@ speed, and ease of use, MySQL will then match the requirement
 checklist of very demanding buyers.
 
 
-@c FIX: End new by AGL - Kaj's text MySQL 4.0 in a Nutshell
-
-
-
-@node MySQL Information Sources, Licensing and Support, MySQL 4.0 In A Nutshell, Introduction
+@node MySQL Information Sources, Compatibility, MySQL 4.0 In A Nutshell, Introduction
 @section MySQL Information Sources
 
 @cindex manuals, about MySQL
@@ -1629,7 +1957,7 @@ can be retrieved via the Web.
 
 Sams' @emph{Teach Yourself MySQL in 21 Days} is a practical, step-by-step
 tutorial.  The reader will learn to design and employ this open source
-database technology into his or her Web site using practical, hands-on 
+database technology into his or her Website using practical, hands-on 
 examples to follow.
 @*
 
@@ -1887,8 +2215,7 @@ MySQL programs, tools and APIs from the
 @cindex @code{Contrib} directory
 
 @cindex URLs to MySQL information
-@cindex related information URLs
-MySQL
+@cindex MySQL related information URLs
 @subheading Tutorials and Manuals
 
 @table @asis
@@ -1915,7 +2242,7 @@ A lot of MySQL tutorials.
 MySQL manual in Chinese.
 
 @item @uref{http://www.linuxplanet.com/linuxplanet/tutorials/1046/1/}
-Setting Up a MySQL-based Web site.
+Setting Up a MySQL-based website.
 
 @item @uref{http://www.hotwired.com/webmonkey/backend/tutorials/tutorial1.html}
 MySQL-Perl tutorial.
@@ -2118,7 +2445,7 @@ Hawkeye Internet Server Suite.
 WebGroove Script: HTML compiler and server-side scripting language.
 
 @item @uref{http://www.ihtml.com/}
-A server-side Web site scripting language.
+A server-side website scripting language.
 
 @item @uref{ftp://ftp.igc.apc.org/pub/myodbc/README}
 How to use MySQL with ColdFusion on Solaris.
@@ -2130,7 +2457,7 @@ Calistra's ODBC MySQL Administrator.
 PHPclub - Tips and tricks for PHP.
 
 @item @uref{http://www.widgetchuck.com}
-The Widgetchuck; Web Site Tools and Gadgets
+The Widgetchuck; Website Tools and Gadgets
 
 @item @uref{http://www.adcycle.com/}
 AdCycle - advertising management software.
@@ -2406,7 +2733,9 @@ something similar.
 @end menu
 
 This section introduces you to the MySQL mailing lists, and gives
-some guidelines as to how to use them.
+some guidelines as to how to use them. By subscribing to a mailing
+list, you will receive as emails all other postings on the list,
+and you will be able to send in your own questions and answers.
 
 
 @node Mailing-list, Asking questions, Questions, Questions
@@ -2637,6 +2966,9 @@ posted on the @code{bugs} list will be corrected or documented in the next
 MySQL release!  If there are only small code changes involved
 to correct this problem, we will also post a patch that fixes the
 problem.
+
+If you have found a sensitive security bug in MySQL, you should send an
+e-mail to @email{security@@mysql.com}.
 
 Remember that it is possible to respond to a message containing too much
 information, but not to one containing too little.  Often people omit facts
@@ -2919,518 +3251,55 @@ Please don't post mail messages from your browser with HTML mode turned on!
 Many users don't read mail with a browser!
 
 
-@node Licensing and Support, MySQL AB business model and services, MySQL Information Sources, Introduction
-@section MySQL Support and Licensing
-
-@cindex licensing terms
-@cindex support terms
-
-@menu
-* Support::                     Support offered by MySQL AB
-* Copyright::                   Copyrights used by MySQL
-* Licensing policy::            MySQL licensing policy
-* Licensing examples::          Example licensing situations
-@end menu
-
-This section describes MySQL support and licensing arrangements:
-
-@itemize @bullet
-
-@item Support costs and benefits
-(@pxref{Support})
-
-@item The copyrights under which MySQL is distributed
-(@pxref{Copyright})
-
-@item When and why you should license MySQL
-(@pxref{Licensing policy})
-
-@item Sample situations illustrating when a license is required
-(@pxref{Licensing examples})
-
-@end itemize
-
-
-@node Support, Copyright, Licensing and Support, Licensing and Support
-@subsection Support offered by MySQL AB
-
-@cindex support, types
-@cindex types, of support
-@cindex commercial support, types
-@cindex costs, licensing and support
-@cindex licensing costs
-@cindex support costs
-@cindex prices, licensing and support
-
-MySQL AB offers several commercial support options.  A description
-of what each level of support includes is given at
-@uref{https://order.mysql.com}.  If you have restricted access to the
-Internet, contact our sales staff at @email{sales@@mysql.com}.
-
-Technical support from MySQL AB means personal answers to your
-personal problems direct from the software engineers who code the
-MySQL database engine.  It is often very helpful to receive
-quick, personally prepared answers tailored to your exact needs.
-This is what MySQL AB paid technical support offers. Our pricing
-model ensures that basic support is affordable even for those on
-limited budgets.
-
-We try to take a broad and inclusive view of technical support.
-Almost any problem involving MySQL is important to us if it's
-important to you.  Typically customers seek help on how to get
-different commands and utilities to work, remove performance
-bottlenecks, restore crashed systems, understand operating system
-or networking impacts on MySQL, establish best practices for backup
-and recovery, utilize APIs, etc.
-
-
-@node Copyright, Licensing policy, Support, Licensing and Support
-@subsection Copyrights Used by MySQL
-
-@cindex copyrights
-
-@menu
-* Copyright changes::           Possible future copyright changes
-@end menu
-
-There are several different copyrights on the MySQL distribution:
-
-@enumerate
-@item
-The MySQL-specific source needed to build the @code{mysqlclient}
-library is licensed under the @code{LGPL} and the programs in the
-@file{client} directory are under the @code{GPL}. Each file states at
-the beginning which license it is under.
-
-@item The client library, and the GNU @code{getopt} library, are covered
-by the ``GNU LIBRARY GENERAL PUBLIC LICENSE.''  @xref{LGPL license}.
-
-@item Some parts of the source (the @code{regexp} library) are covered
-by a Berkeley-style copyright.
-
-@item
-All the source in the server, and the GNU @code{readline} library,
-are covered by the ``GNU GENERAL PUBLIC LICENSE.''  @xref{GPL license}. 
-This is also available as the file @file{COPYING} in the distributions.
-
-@end enumerate
-
-The SQL client library should be free enough that it is
-possible to add MySQL support into commercial products
-without a license.  For this reason, we chose the LGPL license for the
-client code.
-@cindex licensing, free
-@cindex free licensing
-
-This means that you can use MySQL for free with any program that uses
-any of the free software licenses.  MySQL is also free for any end
-user for personal or company usage.
-
-However, if you use MySQL for something important to you, you may
-want to help secure its development by purchasing licenses or a support
-contract.  @xref{Support}.
-
-
-@node Copyright changes,  , Copyright, Copyright
-@subsubsection Copyright Changes
-
-Version 3.22 of MySQL is still using a more strict license.  
-See the documentation for that version for more information.
-
-
-@node Licensing policy, Licensing examples, Copyright, Licensing and Support
-@subsection MySQL Licensing Policy
-
-@cindex licensing policy
-@cindex technical support, licensing
-@cindex support, licensing
-@cindex General Public License, MySQL
-
-The formal terms of the GPL license can be found at @ref{GPL license}.
-For pricing and ordering information, see
-@uref{https://order.mysql.com/}.
-
-Basically, our licensing policy and interpretation of the GPL is as follows:
-
-For normal internal use, MySQL costs nothing.  You do not have
-to pay us if you do not want to.
-
-A license is required if:
-
-@itemize @minus
-@item
-You link a program, that is not free software, with code from the
-MySQL server or clients that has the GPL copyright. This
-happens for example when you use MySQL as an embedded server
-in your applications or when you add not free extensions to the
-MySQL server.  In this case your application/code would also
-become GPL through the GPL license that acts as a virus.  By licensing
-MySQL server from MySQL AB under a commercial
-license you will avoid this problem.
-See @uref{http://www.gnu.org/copyleft/gpl-faq.html}.
-@item
-You have a commercial application that ONLY works with MySQL
-and ships the application with the MySQL server.  This is
-because we view this as linking even if it is done over the network.
-
-@item
-You have a distribution of MySQL and you don't provide the
-source code for your copy of the MySQL server, as defined in
-the GPL license.
-@end itemize
-
-A license is @strong{not} required if:
-
-@itemize @minus
-
-@item
-You include the MySQL client code in a commercial
-program.  The client part of MySQL is licensed under the
-LGPL @code{GNU Library General Public License}.  The @code{mysql} command-line
-client does include code from the @code{readline} library that is under
-the @code{GPL}, however.
-
-@end itemize
-
-If your use of MySQL does not require a license, but you
-like MySQL and want to encourage further development, you are
-certainly welcome to purchase a license or MySQL support anyway.
-@xref{Support}.
-
-If you use MySQL in a commercial context such that you profit by 
-its use, we ask that you further the development of MySQL by 
-purchasing some level of support.  We feel that if MySQL helps 
-your business, it is reasonable to ask that you help MySQL.  
-(Otherwise, if you ask us support questions, you are not only using for 
-free something into which we've put a lot a work, you're asking us to 
-provide free support, too.)
-
-Note that older versions of MySQL are still using a more
-@uref{http://www.mysql.com/support/arrangements/mypl.html, strict license}.
-See the documentation for the specific version for more
-information.
-
-For circumstances under which a MySQL license is required, you
-need a license per machine that runs the @code{mysqld} server.  However,
-a multiple-CPU machine counts as a single machine, and there is no
-restriction on the number of MySQL servers that run on one
-machine, or on the number of clients concurrently connected to a server
-running on that machine.
-
-If you have any questions as to whether or not a license is required for
-your particular use of MySQL, please read this again and then
-contact us.  @xref{Contact information}.
-
-If you require a MySQL license, the easiest way to pay for it
-is to use the license form on MySQL's secure server at
-@uref{https://order.mysql.com/}.
-You can also get the latest pricing and ordering information by sending
-an e-mail to @email{sales@@mysql.com}.
-
-
-@node Licensing examples,  , Licensing policy, Licensing and Support
-@subsection Example Licensing Situations
-
-@menu
-* Products that use MySQL::     Selling products that use MySQL
-* ISP::                         ISP MySQL services
-* Web server::                  Running a web server using MySQL.
-@end menu
-
-@cindex licensing, examples
-@cindex selling products
-@cindex products, selling
-
-This section describes some situations illustrating whether or not you
-must license the MySQL server.  Generally these examples
-involve providing MySQL as an integral part of a product.
-
-Note that a single MySQL license covers any number of CPUs and
-@code{mysqld} servers on a machine!  There is no artificial limit on the
-number of clients that connect to the server in any way.
-
-
-@node Products that use MySQL, ISP, Licensing examples, Licensing examples
-@subsubsection Selling Products that use MySQL
-
-To determine whether or not you need a MySQL license when
-selling your application, you should ask whether the proper functioning
-of your application is dependent on the use of MySQL and
-whether you include the MySQL server with your product.  There
-are several cases to consider:
-
-@itemize @bullet
-@item
-Does your application require MySQL to function properly?
-
-@item
-If your product requires MySQL, you need a license for any
-machine that runs the @code{mysqld} server.  For example, if you've
-designed your application around MySQL, then you've really made
-a commercial product that requires the engine, so you need a license.
-
-@item
-If your application does not require MySQL, you do not need to obtain
-a license.  For example, if using MySQL just adds some new optional
-features to your product (such as adding logging to a database if
-MySQL is used rather than logging to a text file), it should
-fall within normal use, and a license would not be required.
-
-@item
-In other words, you need a license if you sell a product designed
-specifically for use with MySQL or that requires the
-MySQL server to function at all.  This is true whether or not
-you provide MySQL for your client as part of your product
-distribution.
-
-@item
-It also depends on what you're doing for the client.  Do you plan to
-provide your client with detailed instructions on installing
-MySQL with your software?  Then your product may be contingent
-on the use of MySQL; if so, you need to buy a license.  If you
-are simply tying into a database that you expect already to have been
-installed by the time your software is purchased, then you probably
-don't need a license.
-
-@end itemize
-
-
-@node ISP, Web server, Products that use MySQL, Licensing examples
-@subsubsection ISP MySQL Services
-
-@cindex ISP services
-@cindex services, ISP
-@cindex services, web
-@cindex Internet Service Providers
-
-Internet Service Providers (ISPs) often host MySQL servers for
-their customers.  With the GPL license this does not require a license.
-
-On the other hand, we do encourage people to use ISPs that have
-MySQL support, as this will give them the confidence that if
-they have some problem with their MySQL installation, their ISP
-will be able to solve the problem for them (in some cases with the help
-from the MySQL development team).
-
-All ISPs that want to keep themselves up-to-date should subscribe
-to our @code{announce} mailing list so that they can be aware of critical issues
-that may be relevant for their MySQL installations.
-
-Note that if the ISP doesn't have a license for MySQL,
-it should give its customers at least read access to the source of
-the MySQL installation so that its customers can verify that
-it is patched correctly.
-
-
-@node Web server,  , ISP, Licensing examples
-@subsubsection Running a Web Server Using MySQL
-
-@cindex web server, running
-@cindex running, a web server
-
-If you use MySQL in conjunction with a Web server, you
-do not have to pay for a license.
-
-This is true even if you run a commercial Web server that uses
-MySQL, because you are not selling an embedded MySQL
-version yourself.  However, in this case we would like you to purchase
-MySQL support, because MySQL is helping your enterprise.
-
-
-
-@c FIX: Start new by AGL - Erik's text on business model and services
-
-@node MySQL AB business model and services, MySQL server licenses, Licensing and Support, Introduction
-@section The Business Model and Services of MySQL AB
-
-MySQL AB is the company of the MySQL founders and main developers behind
-the MySQL database and this manual. One of the most common questions we
-encounter is: ``
-@emph{How can you make a living from something you give away for free?}''
-This is how.
-
-@menu
-* Business Services Support::   Support
-* Business Services Training::  Training
-* Business Services Consulting::  Consulting
-* Business Services Commercial licenses::  Commercial Licenses
-* Business Services Royalties::  Royalties
-@end menu
-
-
-@node Business Services Support, Business Services Training, MySQL AB business model and services, MySQL AB business model and services
-@subsection Support
-MySQL AB is run and owned by the founders and main developers of the MySQL
-database. The developers are committed to giving support to customers and
-other users in order to stay in touch with their needs and problems. All
-our support is given by qualified developers, not through call centers or
-dedicated support staff. Really tricky questions are even answered by
-Michael @code{Monty} Widenius himself, the author of the MySQL server.
-
-To order support at different levels, please visit the order section at
-@uref{http://www.mysql.com/support/}. If you have restricted access to the
-Internet, please contact our sales staff at @email{sales@@mysql.com}.
-
-
-@node Business Services Training, Business Services Consulting, Business Services Support, MySQL AB business model and services
-@subsection Training
-MySQL AB offers training on different levels all over the world.
-The trainers are backed by the development team to guarantee quality and
-continous development and also that no questions raised during the courses
-remain unanswered.
-
-If you're interested in participating in our courses, please visit the
-training section at @uref{http://www.mysql.com/training/}. If you have
-restricted access to the Internet, please contact our sales staff at
-@email{training@@mysql.com}.
-
-
-@node Business Services Consulting, Business Services Commercial licenses, Business Services Training, MySQL AB business model and services
-@subsection Consulting
-MySQL AB offers consulting all over the world on different levels.
-Consulting covers all questions affecting database performance such as
-database design, table design, query constructions, parameter tuning,
-hardware tuning, migration issues, replication, transactions etc.
-Our consultants are backed by the development team to guarantee quality
-work.
-
-If you're interested in consulting, please visit the consulting section
-at @uref{http://www.mysql.com/consulting/}. If you have restricted access
-to the Internet, please contact our sales staff at
-@email{consulting@@mysql.com}.
-
-
-@node Business Services Commercial licenses, Business Services Royalties, Business Services Consulting, MySQL AB business model and services
-@subsection Commercial Licenses
-The MySQL database is released under the GNU General Public License (GPL).
-This means that anybody can use it for free under the GPL rules. However
-if a company wishes to embed the database in a product, they have to buy
-commercial licenses of MySQL or else release their product under GPL too.
-Since MySQL AB owns the copyright of the MySQL server, we are able to sell
-commercial licenses. This does not in any way affect the Open Source
-commitment of MySQL AB. We also aim to offer commercial license packages
-covering both the MySQL database and closely connected third party
-software. Currently we have such an arrangement with the author of the
-InnoDB transaction handler.
-
-To buy commercial licenses, please visit the order section of
-@uref{https://order.mysql.com/}.
-
-
-@node Business Services Royalties,  , Business Services Commercial licenses, MySQL AB business model and services
-@subsection Royalties
-The word @code{MySQL} and the MySQL dolphin logo are trademarks of
-MySQL AB. These trademarks represent a significant value that the MySQL
-founders have built over the years. We think it's fair that companies
-wanting to get the benefit of these trademarks in their marketing
-contributes to the development of the MySQL database by paying some
-royalty. Also special versions of the trademarks are used as proofs
-of certification in our partner programmes.
-
-If you are interested in becoming a MySQL AB partner, please mail to
-@email{partner@@mysql.com}.
-
-
-@c FIX: End new by AGL - Erik's text on business model and services
-
-
-
-@c FIX: Start new by AGL - Erik's text on MySQL server licenses
-
-
-@node MySQL server licenses, Compatibility, MySQL AB business model and services, Introduction
-@section MySQL Server Licenses
-
-The MySQL server is released under the GNU General Public License (GPL),
-which probably is the best known Open Source license. Please visit
-@uref{http://www.gnu.org} to read the terms of this license.
-
-Since the MySQL server is released under the GPL, it may often be used
-for free, but for certain uses you need to buy commercial licenses from
-MySQL AB at @uref{http://www.mysql.com/}.
-
-
-@menu
-* Using the MySQL server under a commercial license::  Using the MySQL Server Under a Commercial License
-* Using the MySQL server for free under GPL::  Using the MySQL Server for Free Under GPL
-@end menu
-
-@node Using the MySQL server under a commercial license, Using the MySQL server for free under GPL, MySQL server licenses, MySQL server licenses
-@subsection Using the MySQL Server Under a Commercial License
-
-The GPL license is contagious in the sense that when a program is linked
-to a GPL program the resulting product must also be released under GPL
-lest you break the license terms and forfeit your right to use the GPL
-program altogether.
-
-You need a commercial license:
-
-@itemize @bullet
-@item
-When you link a program with code from the MySQL server or from GPL
-released clients and don't want the resulting product to be GPL, maybe
-because you want to build a commercial product or keep the added non-GPL
-code closed source for other reasons. When purchasing commercial licenses,
-you are not using the MySQL server under GPL even though it's the same
-code. You need one license per installation of the MySQL server.
-
-@item
-When you distribute a non-GPL application that ONLY works with the MySQL
-server and ships it with MySQL. This type of solution is actually
-considered to be linking even if it's done over a network.
-
-@item
-When you distribute copies of the MySQL server without providing the
-source code as required under the GPL license.
-
-@item
-When you want to support the further development of the MySQL database
-even if you don't formally need a commercial license. Another good way
-of contributing to the MySQL development while getting something useful
- in return, is to purchase support directly from MySQL AB.
-@end itemize
-
-For examples of situations when a commercial license is needed, please
-visit the online manual at @uref{http://www.mysql.com/doc/}.
-
-For buying commercial licenses and support, please visit the order section
-at @uref{https://order.mysql.com/}.
-
-
-@node Using the MySQL server for free under GPL,  , Using the MySQL server under a commercial license, MySQL server licenses
-@subsection Using the MySQL Server for Free Under GPL
-
-You can use the MySQL server for free under GPL:
-
-@itemize @bullet
-@item
-When you link a program with code from the MYSQL server and releases the
-resulting product under GPL
-
-@item
-When you distribute the MySQL server source code bundled with other
-programs that are not linked to or dependant on MySQL for their
-functionality even if you sell the distribution commercially
-
-@item
-When using the MySQL server internally in your company.
-@end itemize
-
-Please note that use of the MySQL server under commercial license or GPL
-does not automatically give you the right to use MySQL AB trademarks.
-
-
-@c FIX: End new by AGL - Erik's text on MySQL server licenses
-
-
-
-@node Compatibility, Comparisons, MySQL server licenses, Introduction
+@node Compatibility, Comparisons, MySQL Information Sources, Introduction
 @section How Standards-compatible Is MySQL?
 
 @cindex compatibility, with ANSI SQL
 @cindex standards compatibility
 @cindex extensions, to ANSI SQL
 @cindex ANSI SQL92, extensions to
+
+This section describes how MySQL relates to the ANSI SQL standards.
+MySQL has many extensions to the ANSI SQL standards, and here you
+will find out what they are, and how to use them.  You will also find 
+information about functionality missing from MySQL, and how to work 
+around some differences.
+
+Our goal is to not, without a very good reason, restrict MySQL usability
+for any usage.  Even if we don't have the resources to do development
+for every possible use, we are always willing to help and offer
+suggestions to people that is trying to use MySQL in new territories.
+
+One of our main goals with the product is to continue to work against
+getting to be ANSI 99 compliant, but without sacrificing speed or
+reliability.  We are not afraid to add extensions to SQL or support for
+non-SQL features if this greatly increase the usability of MySQL for a
+big part of our users.  (The new @code{HANDLER} interface in MySQL 4.0
+is an example of this strategy. @xref{HANDLER}.)
+
+We will continue to support transactional and not transactional
+databases to satisfy both heavy web/logging usage and mission critical
+24/7 usage.
+
+MySQL was from the start designed to work with medium large databases
+(10-100 million rows / about 100 MB per table) on small computer
+systems.  We will continue to extend MySQL to both work even better
+with terrabyte size data but we are also doing work to make it possible
+to compile a reduced MySQL version that is more suitable for hand held
+devices and embedded usage.  The compact design of MySQL makes both of
+these directions possible without any conflicts in the source tree.
+
+We are currently not targeting real time support or clustered databases
+(even if you can already do a lot of things with our replication
+services).
+
+We don't believe that one should have native XML support in the
+database, but will instead add the XML support our users request from
+us on the client side.  We think its better to keep the main server
+code as 'lean and clean' possible and instead develop libraries to
+solve the complexity on the client side.  This is part of the above
+mentioned strategy of not sacrificing speed or reliability in the
+server.
 
 @menu
 * Extensions to ANSI::          MySQL extensions to ANSI SQL92
@@ -3441,12 +3310,6 @@ does not automatically give you the right to use MySQL AB trademarks.
 * Commit-rollback::             How to cope without @code{COMMIT}-@code{ROLLBACK}
 * Bugs::                        Known errors and design deficiencies in MySQL
 @end menu
-
-This section describes how MySQL relates to the ANSI SQL standards.
-MySQL has many extensions to the ANSI SQL standards, and here you
-will find out what they are, and how to use them.  You will also find 
-information about functionality missing from MySQL, and how to work 
-around some differences.  
 
 
 @node Extensions to ANSI, Differences from ANSI, Compatibility, Compatibility
@@ -3980,8 +3843,8 @@ concerned about transactions. For them transactions are not an
 issue. For those of our users who are concerned with or have wondered
 about transactions vis-a-vis MySQL, there is a ``MySQL
 way'' as we have outlined above.  For those where safety is more
-important than speed, we recommend them to use the @code{BDB},
-or @code{InnoDB} tables for all their critical data. @xref{Table types}.
+important than speed, we recommend them to use the @code{InnoDB},
+or @code{BDB} tables for all their critical data. @xref{Table types}.
 
 One final note: We are currently working on a safe replication schema
 that we believe to be better than any commercial replication system we
@@ -4059,7 +3922,7 @@ and may be retrieved by @code{mysqldump} and ODBC. At a later stage we will
 implement the foreign key constraints for application that can't easily be
 coded to avoid them.
 
-MySQL 3.23.44 and forwards, InnoDB tables supports checking of foreign
+In MySQL 3.23.44 and up, InnoDB tables supports checking of foreign
 key constraints. @xref{InnoDB}.
 
 @menu
@@ -4233,12 +4096,12 @@ Entry level SQL92. ODBC levels 0-2.
 @cindex transaction-safe tables
 @cindex tables, updating
 @cindex updating, tables
-@cindex @code{BDB} tables
 @cindex @code{InnoDB} tables
+@cindex @code{BDB} tables
 
 The following mostly applies only for @code{ISAM}, @code{MyISAM}, and
-@code{HEAP} tables. If you only use transaction-safe tables (@code{BDB},
-or @code{InnoDB} tables) in an an update, you can do
+@code{HEAP} tables. If you only use transaction-safe tables (@code{InnoDB},
+or @code{BDB} tables) in an an update, you can do
 @code{COMMIT} and @code{ROLLBACK} also with MySQL.
 @xref{COMMIT}.
 
@@ -4562,7 +4425,7 @@ the error value 'empty string', with numeric value 0.
 
 @item
 If you set an @code{SET} column to an unsupported value, the value will
-be ignored. @xref{Bugs}.
+be ignored.
 
 @end itemize
 
@@ -4848,7 +4711,7 @@ We know that @code{mSQL} has a JDBC driver, but we have too little experience
 with it to compare.
 
 @item Rate of Development
-MySQL has a very small team of developers, but we are quite
+MySQL has a small core team of developers, but we are quite
 used to coding C and C++ very rapidly. Because threads, functions,
 @code{GROUP BY}, and so on are still not implemented in @code{mSQL}, it
 has a lot of catching up to do. To get some perspective on this, you
@@ -5330,7 +5193,7 @@ tables or disk based @code{MyISAM}.  @xref{Table types}.
 
 @item
 MySQL has support for two different table handlers that support
-transactions, @code{BerkeleyDB} and @code{InnoDB}.  Because every 
+transactions, @code{InnoDB} and @code{BerkeleyDB}.  Because every 
 transaction engine performs differently under different conditions, this 
 gives the application writer more options to find an optimal solution for
 his or her setup.  @xref{Table types}.
@@ -5775,7 +5638,7 @@ this without sacrifying the speed or compromise the code.
 We have now shifted development to MySQL Version 4.0.  Most of the basic
 things we want to have in 4.0 is already done.  The target is to quickly
 implement the rest of the following features and then shift development
-to MySQL 4.1.
+to MySQL 4.1. @xref{MySQL 4.0 In A Nutshell}.
 
 The news section for 4.0 includes a list of the features we have already
 implemented in the 4.0 tree. @xref{News-4.0.x}.
@@ -5787,7 +5650,7 @@ Allow users to change startup options without taking down the server.
 Fail safe replication.
 @item
 More functions for full-text search.
-@xref{Fulltext Features to Appear in MySQL 4.0}.
+@xref{Fulltext Features in MySQL 4.0}.
 @item
 New key cache
 @item
@@ -6245,7 +6108,7 @@ For a list of sites from which you can obtain MySQL, see
 @item
 To see which platforms are supported, see @ref{Which OS}. Please note that
 not all supported system are equally good for running MySQL on them.
-On some it is much more robust and efficient than others - see  @ref{Which OS}
+On some it is much more robust and efficient than others - see @ref{Which OS}
 for details.
 
 @item
@@ -6358,73 +6221,216 @@ installation chapter. @xref{Installing binary}.
 @node Windows installation,  , Linux-RPM, Quick Standard Installation
 @subsection Installing MySQL on Windows
 
-The following instructions apply to precompiled binary distributions.
-If you download a source distribution, you will have to compile and install
-it yourself.
+The MySQL server for Windows is available in two distribution types:
+@enumerate
+@item
+The binary distribution contains a setup program which installs
+everything you need so you can start the server immediately.
+@item
+The source distribution contains all the code and support files
+for building the executables using the VC++ 6.0 compiler.
+@xref{Windows source build}.
+@end enumerate
 
-If you don't have a copy of the MySQL distribution, you should 
-first download one from @uref{http://www.mysql.com/downloads/mysql-3.23.html}.
+Generally speaking, you should use the binary distribution.
 
-If you plan to connect to MySQL from some other program, you will
-probably also need the @strong{MyODBC} driver. You can find this at the
-@strong{MyODBC} download page
-(@uref{http://www.mysql.com/downloads/api-myodbc.html}).
+You will need the following:
+@itemize @bullet
+@item
+A Windows 32 bits Operational System of the family Win9x, ME,
+NT and Win 2000. The NT family permits running the MySQL server
+as a service. @xref{NT start}.
+@item
+TCP/IP protocol support.
+@item
+A copy of the MySQL binary or distribution for Windows, which
+can be downloaded from @uref{http://www.mysql.com/downloads/}.
 
-To install either distribution, unzip it in some empty directory and run the
-@code{Setup.exe} program.
+Note: The distribution files are supplied with a zipped format
+and we recommended the use of an adequate FTP client with resume
+feature to avoid corruption of files during the download process.
+@item
+A @code{ZIP} program to unpacked the distribution file.
+@item
+Enough space on the hard drive to unpack, install and to create the
+databases in accorandance with your requirements.
+@item
+If you plan to connect to the MySQL server via @code{ODBC}, you
+will also need the @code{MyODBC} driver. @xref{ODBC}.
+@end itemize
 
-By default, MySQL-Windows is configured to be installed in
-@file{C:\mysql}.  If you want to install MySQL elsewhere,
-install it in @file{C:\mysql} first, then move the installation to
-where you want it.  If you do move MySQL, you must indicate
-where everything is located by supplying a @code{--basedir} option when
-you start the server.  For example, if you have moved the MySQL
-distribution to @file{D:\programs\mysql}, you must start @code{mysqld}
-like this:
+
+@menu
+* Windows binary installation::  Installing the binaries
+* Windows prepare environment::  Preparing the Windows MySQL environment
+* Windows server first start::  Starting the server for the first time
+@end menu
+
+@node Windows binary installation, Windows prepare environment, Windows installation, Windows installation
+@subsubsection Installing the binaries
+
+@enumerate
+@item
+If you are working on an NT or Win2000 server, logon as a user with
+with administrator privileges.
+@item
+If you are doing an upgrade of an earlier MySQL installation,
+it is necessary to stop the server. If you are running the server
+as a service, use:
 
 @example
-C:\> D:\programs\mysql\bin\mysqld --basedir D:\programs\mysql
+C:\> NET STOP MySQL
 @end example
 
-Use @code{mysqld --help} to display all the options that @code{mysqld}
-understands!
+Otherwise, use:
 
-With all newer MySQL versions, you can also create a
-@file{C:\my.cnf} file that holds any default options for the
-MySQL server.  Copy the file @file{\mysql\my-xxxxx.cnf} to
-@file{C:\my.cnf} and edit it to suit your setup.  Note that you should
-specify all paths with @samp{/} instead of @samp{\}. If you use
-@samp{\}, you need to specify it twice, because @samp{\} is the escape
-character in MySQL.  @xref{Option files}.
+@example
+C:\mysql\bin> mysqladmin -u root shutdown
+@end example
+
+@item
+On NT/Win2000 machines, if you want to change the server executable
+(e.g. -max or -nt), it is also necessary to remove the service:
+
+@example
+C:\mysql\bin> mysqld-max-nt --remove
+@end example
+
+@item
+Unzip the distribution file to a temporary directory.
+@item
+Run the @file{setup.exe} file to begin the installation process.
+If you want to install into another directory than the default
+@file{c:\mysql}, use the @code{Browse} button to specify your
+preferred directory.
+@item
+Finish the install process.
+@end enumerate
+
+
+@node Windows prepare environment, Windows server first start, Windows binary installation, Windows installation
+@subsubsection Preparing the Windows MySQL environment
 
 Starting with MySQL 3.23.38, the Windows distribution includes
-both the normal and the @strong{MySQL-Max} binaries.  The main benefit
-of using the normal @code{mysqld.exe} binary is that it's a little
-faster and uses less resources.
-
+both the normal and the @strong{MySQL-Max} server binaries.
 Here is a list of the different MySQL servers you can use:
 
 @multitable @columnfractions .25 .75
 @item @code{mysqld} @tab
-Compiled with full debugging and automatic memory allocation checking,
-symbolic links, BDB and InnoDB tables.
+Compiled with full debugging and automatic memory allocation
+checking, symbolic links, InnoDB and BDB tables.
 @item @code{mysqld-opt} @tab
 Optimized binary with no support for transactional tables.
 @item @code{mysqld-nt} @tab
-Optimized binary for NT with support for named pipes. You can run this
-version on Win98, but in this case no named pipes are created and you must
-have TCP/IP installed.
+Optimized binary for NT with support for named pipes. You can
+run this version on Win98, but in this case no named pipes are
+created and you must have TCP/IP installed.
 @item @code{mysqld-max} @tab
-Optimized binary with support for symbolic links, BDB and InnoDB tables.
+Optimized binary with support for symbolic links,
+InnoDB and BDB tables.
 @item @code{mysqld-max-nt} @tab
-Like @code{mysqld-max}, but compiled with support for named pipes.
+Like @code{mysqld-max}, but compiled with support for named
+pipes.
 @end multitable
 
-All of the above binaries are optimized for the Pentium Pro processor but
-should work on any Intel processor >= i386.
+All of the above binaries are optimized for the Pentium Pro
+processor but should work on any Intel processor >= i386.
 
-NOTE: If you want to use InnoDB tables, there are certain startup
-options that must be specified in your @file{my.ini} file! @xref{InnoDB start}.
+
+In the following circumstances you will need to use the MySQL
+configuration file:
+@itemize @bullet
+@item
+The install directory is different than the default @file{c:\mysql}.
+@item
+If you want to use one of the these servers:
+@itemize @bullet
+@item mysqld.exe
+@item mysqld-max.exe
+@item mysqld-max-nt.exe
+@end itemize
+@item
+If you need to tune the server settings.
+@end itemize
+
+There are two configuration files with the same function:
+@file{my.cnf} and @file{my.ini} file, however please note that
+only of one these should can used. Both files are plain text.
+The @file{my.cnf} file should be created in the root directory
+of drive C and the @file{my.ini} file on the WinDir directory
+e.g: @file{C:\WINDOWS} or @file{C:\WINNT}.
+If your PC uses a boot loader where the C drive isn't the boot
+drive, then your only option is to use the @file{my.ini} file.
+Also note that if you use the @code{WinMySQLAdmin} tool, only
+the @file{my.ini} file is used. The @file{\mysql\bin} directory
+contains a help file with instructions for using this tool.
+
+Using @code{notepad.exe}, create the configuration file and
+edit the base section and keys:
+
+@example
+[mysqld]
+basedir=the_install_path  #e.g. c:/mysql
+datadir=the_data_path  #e.g. c:/mysql/data or d:/mydata/data
+@end example
+
+If the data directory is other than the default
+@file{c:\mysql\data}, you must cut the whole @file{\data\mysql}
+directory and paste it on the your option new directory,
+e.g.: @file{d:\mydata\mysql}.
+
+Note that you should specify all paths with @samp{/} or @samp{\\}
+instead of @samp{\}, because @samp{\} is the escape character in
+MySQL. @xref{Option files}.
+
+If you want to use the @code{InnoDB} transactional tables, you
+need to manually create two new directories to hold the InnoDB
+data and log files, e.g. @file{c:\ibdata} and @file{c:\iblogs}.
+You will also need to add some extra lines to the configuration
+file. @xref{InnoDB start}.
+
+If you don't want to use @code{InnoDB} tables, add the
+@code{skip-innodb} option to the configuration file.
+
+Now you are ready to test starting the server.
+
+
+@node Windows server first start,  , Windows prepare environment, Windows installation
+@subsubsection Starting the server for the first time
+
+Testing from a DOS command prompt is the best thing to do because
+the server prints messages, so if something is wrong with your
+configuration you will see a more accurate error message which
+will make it easier for you to identify and fix any problems.
+
+Make sure you are in the right directory, then enter:
+
+@example
+C:\mysql\bin> mysqld-max --standalone
+@end example
+
+You should see the below print messages:
+
+@example
+InnoDB: The first specified data file c:\ibdata\ibdata1 did not exist:
+InnoDB: a new database to be created!
+InnoDB: Setting file c:\ibdata\ibdata1 size to 209715200
+InnoDB: Database physically writes the file full: wait...
+InnoDB: Log file c:\iblogs\ib_logfile0 did not exist: new to be created
+InnoDB: Setting log file c:\iblogs\ib_logfile0 size to 31457280
+InnoDB: Log file c:\iblogs\ib_logfile1 did not exist: new to be created
+InnoDB: Setting log file c:\iblogs\ib_logfile1 size to 31457280
+InnoDB: Log file c:\iblogs\ib_logfile2 did not exist: new to be created
+InnoDB: Setting log file c:\iblogs\ib_logfile2 size to 31457280
+InnoDB: Doublewrite buffer not found: creating new
+InnoDB: Doublewrite buffer created
+InnoDB: creating foreign key constraint system tables
+InnoDB: foreign key constraint system tables created
+011024 10:58:25  InnoDB: Started
+@end  example
+
+For further information about running MySQL on Windows,
+see @ref{Windows}.
 
 
 @node General Installation Issues, Installing source, Quick Standard Installation, Installing
@@ -6722,9 +6728,9 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 
 @item
 @c EMAIL: mysql@widexs.nl (Wouter de Jong)
-@image{Flags/netherlands} Netherlands [Widexs BV] @
-@uref{http://mysql.widexs.nl/, WWW}
-@uref{ftp://mysql.widexs.nl/pub/mysql/, FTP}
+@image{Flags/netherlands} Netherlands [WideXS BV] @
+@uref{http://mysql.mirror.widexs.nl/, WWW}
+@uref{ftp://mirror.widexs.nl/pub/mysql/, FTP}
 
 @item
 @c EMAIL: peter@proserve.nl (ProServe - Peter Batenburg)
@@ -7029,8 +7035,8 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 @item
 @c EMAIL: darrinw@nixc.net (Darrin Walton)
 @image{Flags/usa} USA [NIXC/Vienna, VA] @
-@uref{http://www.nixc.net/mysql/, WWW}
-@uref{ftp://www.nixc.net/pub/mysql/, FTP}
+@uref{http://mysql.nixc.net/, WWW}
+@uref{ftp://mysql.nixc.net/pub/mysql/, FTP}
 
 @end itemize
 
@@ -7510,8 +7516,8 @@ NOT in the standard binary distributions.  Here is a list of the most
 common extra options that you may want to use:
 
 @itemize @bullet
-@item @code{--with-berkeley-db}
 @item @code{--with-innodb}
+@item @code{--with-berkeley-db}
 @item @code{--with-raid}
 @item @code{--with-libwrap}
 @item @code{--with-named-z-lib  (This is done for some of the binaries)}
@@ -7815,12 +7821,16 @@ If you want to compile a debug version of MySQL, you should add
 @code{--with-debug} or @code{--with-debug=full} to the above configure lines
 and remove any @code{-fomit-frame-pointer} options.
 
+For the Windows distribution, please see @ref{Windows installation}.
+
 
 @node Installing binary,  , MySQL binaries, General Installation Issues
 @subsection Installing a MySQL Binary Distribution
 
 @cindex installing, binary distribution
 @cindex binary distributions, installing
+
+For the Windows distribution, please see @ref{Windows binary installation}.
 
 @menu
 * Linux-RPM::                   Linux RPM files
@@ -8105,6 +8115,7 @@ of getting a solution to your problem!  You will find @code{mysqlbug} in the
 * Installing source tree::      Installing from the Development Source Tree
 * Compilation problems::        Problems Compiling?
 * MIT-pthreads::                MIT-pthreads Notes
+* Windows source build::        Windows Source Distribution
 @end menu
 
 
@@ -8296,7 +8307,7 @@ running.  @xref{Multiple servers}.
 
 Sometimes patches appear on the mailing list or are placed in the
 @uref{http://www.mysql.com/Downloads/Patches, patches area} of the
-MySQL Web site.
+MySQL website.
 
 To apply a patch from the mailing list, save the message in which the patch
 appears in a file, change into the top-level directory of your MySQL
@@ -8475,7 +8486,7 @@ following for all recent gcc versions:
 CFLAGS="-O3 -mpentiumpro" CXX=gcc CXXFLAGS="-O3 -mpentiumpro -felide-constructors -fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql --enable-assembler --with-mysqld-ldflags=-all-static
 @end example
 
-The binaries we provide on the MySQL Web site at
+The binaries we provide on the MySQL website at
 @uref{http://www.mysql.com} are all compiled with full optimization and
 should be perfect for most users.  @xref{MySQL binaries}.  There are some
 things you can tweak to make an even faster binary, but this is only for
@@ -8889,7 +8900,7 @@ link your clients with the new client library.  @xref{Debugging client}.
 @end itemize
 
 
-@node MIT-pthreads,  , Compilation problems, Installing source
+@node MIT-pthreads, Windows source build, Compilation problems, Installing source
 @subsection MIT-pthreads Notes
 
 @cindex MIT-pthreads
@@ -8979,6 +8990,75 @@ implicit declaration of function `int strtoul(...)'
 We haven't gotten @code{readline} to work with MIT-pthreads.  (This isn't
 needed, but may be interesting for someone.)
 @end itemize
+
+
+@node Windows source build,  , MIT-pthreads, Installing source
+@subsection Windows Source Distribution
+
+You will need the following:
+
+@itemize @bullet
+@item
+VC++ 6.0 compiler (updated with 4 or 5 SP and Pre-processor package)
+The Pre-processor package is necessary for the macro assembler.
+More details at:
+@uref{http://msdn.microsoft.com/vstudio/sp/vs6sp5/faq.asp}.
+@item
+The MySQL source distribution for Windows, which can be downloaded
+from @uref{http://www.mysql.com/downloads/}.
+@end itemize
+
+Building MySQL
+
+@enumerate
+@item
+Create a work directory (e.g.: workdir).
+@item
+Unpack the source distribution in the above directory.
+@item
+Start the VC++ 6.0 compiler.
+@item
+In the @code{File} menu, select @code{Open Workspace}.
+@item
+Open the @file{mysql.dsw} workspace you find on the work directory.
+@item
+From the @code{Build} menu,
+select the @code{Set Active Configuration} menu.
+@item
+Click over the screen selecting @code{mysqld - Win32 Debug}
+and click Ok.
+@item
+Press @code{F7} to begin the build of the debug server, libs and
+some client applications.
+@item
+When the compilation finishes, copy the libs and the executables
+to a separate directory.
+@item
+Compile the release versions that you want, in the same way.
+@item
+Create the directory for the MySQL stuff: e.g. @file{c:\mysql}
+@item
+From the workdir directory copy for the c:\mysql directory the
+following directories:
+
+@itemize @bullet
+@item Data
+@item Docs
+@item Share
+@end itemize
+
+@item
+Create the directory @file{c:\mysql\bin} and copy all the servers
+and clients that you compiled previously.
+@item
+If you want, also create the @file{lib} directory and copy the
+libs that you compiled previously.
+@item
+Do a clean using Visual Studio.
+@end enumerate
+
+Set up and start the server in the same as for the binary Windows
+distribution. @xref{Windows prepare environment}.
 
 
 @node Post-installation, Upgrade, Installing source, Installing
@@ -9376,11 +9456,11 @@ reload the grant tables.
 @cindex server, starting problems
 @cindex problems, starting the server
 
-If you are going to use tables that support transactions (BDB, InnoDB), 
+If you are going to use tables that support transactions (InnoDB, BDB), 
 you should first create a my.cnf file and set startup options
 for the table types you plan to use. @xref{Table types}.
 
-Generally, you start the @code{mysqld} server in one of three ways:
+Generally, you start the @code{mysqld} server in one of these ways:
 
 @itemize @bullet
 @item
@@ -9394,23 +9474,7 @@ for @code{mysqld} and then runs it with those options. @xref{safe_mysqld, ,
 @code{safe_mysqld}}.
 
 @item
-On NT you should install @code{mysqld} as a service as follows:
-@example
-bin\mysqld-nt --install               # Install MySQL as a service
-@end example
-
-You can now start/stop @code{mysqld} as follows:
-@example
-NET START mysql
-NET STOP mysql
-@end example
-
-Note that in this case you can't use any other options for @code{mysqld}!
-
-You can remove the service as follows:
-@example
-bin\mysqld-nt --remove                # remove MySQL as a service
-@end example
+For Windows NT/2000, please see @ref{NT start}.
 
 @item
 By invoking @code{mysqld} directly.
@@ -10553,9 +10617,9 @@ to the @code{LD_LIBRARY_PATH} environment variable.
 @node Windows, Solaris, Linux, Operating System Specific Notes
 @subsection Windows Notes
 
-This section describes installation and use of MySQL on Windows.
-This information is also provided in the @file{README} file that comes
-with the MySQL Windows distribution.
+This section describes using MySQL on Windows. This information
+is also provided in the @file{README} file that comes with the
+MySQL Windows distribution. @xref{Windows installation}.
 
 @menu
 * Win95 start::                 Starting MySQL on Win95 / Win98
@@ -10563,7 +10627,7 @@ with the MySQL Windows distribution.
 * Windows running::             Running MySQL on Windows
 * Windows and SSH::             Connecting to a remote MySQL from Windows with SSH
 * Windows symbolic links::      Splitting data across different disks under Win32
-* Windows compiling::           Compiling MySQL clients on Windows.
+* Windows client compiling::    Compiling MySQL clients on Windows.
 * Windows vs Unix::             MySQL-Windows compared to Unix MySQL
 @end menu
 
@@ -10573,16 +10637,18 @@ with the MySQL Windows distribution.
 
 MySQL uses TCP/IP to connect a client to a server. (This will
 allow any machine on your network to connect to your MySQL
-server.)  Because of this, you must install TCP/IP on your machine before
-starting MySQL.  You can find TCP/IP on your Windows CD-ROM.
+server.)  Because of this, you must install TCP/IP on your
+machine before starting MySQL.  You can find TCP/IP on your
+Windows CD-ROM.
 
-Note that if you are using an old Win95 release (for example OSR2), it's
-likely that you have an old Winsock package!  MySQL requires
-Winsock 2!  You can get the newest Winsock from 
-@uref{http://www.microsoft.com/}.  Win98 has the new Winsock 2 library, so 
-the above doesn't apply for Win98.
+Note that if you are using an old Win95 release (for example
+OSR2), it's likely that you have an old Winsock package;
+MySQL requires Winsock 2! You can get the newest Winsock from
+@uref{http://www.microsoft.com/}.  Win98 has the new Winsock 2
+library, so the above doesn't apply for Win98.
 
-To start the @code{mysqld} server, you should start an MS-DOS window and type:
+To start the @code{mysqld} server, you should start an MS-DOS
+window and type:
 
 @example
 C:\> C:\mysql\bin\mysqld
@@ -10598,102 +10664,112 @@ C:\> C:\mysql\bin\mysqladmin -u root shutdown
 
 Note that Win95 and Win98 don't support creation of named pipes.
 On Win95 and Win98, you can only use named pipes to connect to a
-remote MySQL server running on a Windows NT server host.
-(The MySQL server must also support named pipes, of
-course. For example, using @code{mysqld-opt} under NT will not allow
-named pipe connections.  You should use either @code{mysqld-nt} or
-@code{mysqld-max-nt}.)
+remote MySQL server running on a Windows NT/2000 server host.
+(The MySQL server must also support named pipes, of course.
+For example, using @code{mysqld-opt} under NT/2000 will not
+allow named pipe connections.  You should use either
+@code{mysqld-nt} or @code{mysqld-max-nt}.)
 
 If @code{mysqld} doesn't start, please check the
-@file{\mysql\data\mysql.err} file to see if the server wrote any message
-there to indicate the cause of the problem.  You can also try to start
-the server with @code{mysqld --standalone};  In this case, you may get
-some useful information on the screen that may help solve the problem.
+@file{\mysql\data\mysql.err} file to see if the server wrote any
+message there to indicate the cause of the problem.  You can also
+try to start the server with @code{mysqld --standalone};  In this
+case, you may get some useful information on the screen that may
+help solve the problem.
 
-The last option is to start @code{mysqld} with @code{--standalone
---debug}.  In this case @code{mysqld} will write a log file
-@file{C:\mysqld.trace} that should contain the reason why @code{mysqld}
-doesn't start. @xref{Making trace files}.
+The last option is to start @code{mysqld} with
+@code{--standalone --debug}.
+In this case @code{mysqld} will write a log file
+@file{C:\mysqld.trace} that should contain the reason why
+@code{mysqld} doesn't start. @xref{Making trace files}.
+
+Use @code{mysqld --help} to display all the options that
+@code{mysqld} understands!
 
 
 @node NT start, Windows running, Win95 start, Windows
 @subsubsection Starting MySQL on Windows NT or Windows 2000
 
-The Win95/Win98 section also applies to MySQL on NT/Win2000, with
-the following differences:
-
-To get MySQL to work with TCP/IP on NT, you must install
+To get MySQL to work with TCP/IP on Windows NT 4, you must install
 service pack 3 (or newer)!
 
-Note that everything in the following that applies for NT also applies
-for Win2000!
-
-For NT/Win2000, the server name is @code{mysqld-nt}.  Normally you
-should install MySQL as a service on NT/Win2000:
+Normally you should install MySQL as a service on NT/Win2000.
+In case the server was already running, first stop it using
+the following command:
 
 @example
-C:\> C:\mysql\bin\mysqld-nt --install
+C:\mysql\bin> mysqladmin -u root shutdown
 @end example
 
-or
+Now install the server service:
+
+@example
+C:\mysql\bin> mysqld-max-nt --install
+@end example
+
+For information about which server binary to run, see
+@ref{Windows prepare environment}.
+
+Please note that from MySQL version 3.23.44, you have the choice
+to set up the service as Manual (if you don't wish the Windows
+Service Control Manager SCM to automatically start the server
+during the boot process):
+
+@example
+C:\mysql\bin> mysqld-max-nt --install-manual
+@end example
+
+To start or stop the MySQL server service:
+
+@example
+C:\> NET START MySQL
+C:\> NET STOP MySQL
+@end example
+
+The service is installed with the name @code{MySQL}. Once
+installed, it must be started using the Services Control
+Manager (SCM) Utility found in the Control Panel, or by
+using the @code{NET START MySQL} command.
+
+If any options are required, they must be specified as
+``Startup parameters'' in the SCM utility before you
+start the MySQL service.
+
+Once running, @code{mysqld-max-nt} can be stopped using
+@code{mysqladmin}, from the SCM utility or by using the
+command @code{NET STOP MySQL}.
+If you use SCM to stop @code{mysqld-max-nt}, there is a strange
+message from SCM about @code{mysqld shutdown normally}.
+
+When run as a service, @code{mysqld-max-nt} has no access to a
+console and so no messages can be seen.
+On NT/2000 you can get the following service error messages:
+
+@multitable @columnfractions .3 .7
+@item Permission Denied @tab
+Means that it cannot find @code{mysqld-max-nt.exe}.
+@item Cannot Register @tab
+Means that the path is incorrect.
+@item Failed to install service. @tab
+Means that the service is already installed or that the Service
+Control Manager is in bad state.
+@end multitable
+
+If you have problems installing @code{mysqld-max-nt} as a
+service, try starting it with the full path:
 
 @example
 C:\> C:\mysql\bin\mysqld-max-nt --install
 @end example
 
-(Under Windows NT, you can actually install any of the server binaries
-as a service, but only those having names that end with @code{-nt.exe}
-provide support for named pipes.)
+If this doesn't work, you can get @code{mysqld-max-nt} to start
+properly by fixing the path in the registry!
 
-You can start and stop the MySQL service with these commands:
-
-@example
-C:\> NET START mysql
-C:\> NET STOP mysql
-@end example
-
-Note that in this case you can't use any other options for @code{mysqld-nt}!
-
-You can also run @code{mysqld-nt} as a stand-alone program on NT if you need
-to start @code{mysqld-nt} with any options!  If you start @code{mysqld-nt}
-without options on NT, @code{mysqld-nt} tries to start itself as a service
-with the default service options.  If you have stopped @code{mysqld-nt}, you
-have to start it with @code{NET START mysql}.
-
-The service is installed with the name @code{MySQL}. Once installed, it must
-be started using the Services Control Manager (SCM) Utility found in the
-Control Panel, or by using the @code{NET START MySQL} command.  If any options
-are desired, they must be specified as ``Startup parameters'' in the SCM utility
-before you start the MySQL service.  Once running, @code{mysqld-nt}
-can be stopped using @code{mysqladmin}, or from the SCM utility or by using
-the command @code{NET STOP MySQL}. If you use SCM to stop @code{mysqld-nt},
-there is a strange message from SCM about @code{mysqld shutdown normally}.
-When run as a service, @code{mysqld-nt} has no access to a console and so no
-messages can be seen.
-
-On NT you can get the following service error messages:
-
-@multitable @columnfractions .3 .7
-@item Permission Denied @tab Means that it cannot find @code{mysqld-nt.exe}.
-@item Cannot Register   @tab Means that the path is incorrect.
-@item Failed to install service. @tab Means that the service is already installed or that the Service Control Manager is in bad state.
-@end multitable
-
-If you have problems installing @code{mysqld-nt} as a service, try starting
-it with the full path:
+If you don't want to start @code{mysqld-max-nt} as a service,
+you can start it as follows:
 
 @example
-C:\> C:\mysql\bin\mysqld-nt --install
-@end example
-
-If this doesn't work, you can get @code{mysqld-nt} to start properly by fixing
-the path in the registry!
-
-If you don't want to start @code{mysqld-nt} as a service, you can start it as
-follows:
-
-@example
-C:\> C:\mysql\bin\mysqld-nt --standalone
+C:\> C:\mysql\bin\mysqld-max-nt --standalone
 @end example
 
 or
@@ -10702,8 +10778,8 @@ or
 C:\> C:\mysql\bin\mysqld --standalone --debug
 @end example
 
-The last version gives you a debug trace in @file{C:\mysqld.trace}.
-@xref{Making trace files}.
+The last version gives you a debug trace in
+@file{C:\mysqld.trace}. @xref{Making trace files}.
 
 
 @node Windows running, Windows and SSH, NT start, Windows
@@ -10712,17 +10788,21 @@ The last version gives you a debug trace in @file{C:\mysqld.trace}.
 @cindex TCP/IP
 @cindex named pipes
 
-MySQL supports TCP/IP on all Windows platforms and named pipes on NT.
-The default is to use named pipes for local connections on NT and TCP/IP for
-all other cases if the client has TCP/IP installed.  The host name specifies
-which protocol is used:
+MySQL supports TCP/IP on all Windows platforms and named pipes on
+NT/2000. The default is to use named pipes for local connections
+on NT/2000 and TCP/IP for all other cases if the client has TCP/IP
+installed. The host name specifies which protocol is used:
 
 @multitable @columnfractions .3 .7
 @item @strong{Host name} @tab @strong{Protocol}
-@item NULL (none) @tab  On NT, try named pipes first; if that doesn't work, use TCP/IP. On Win95/Win98, TCP/IP is used.
+@item NULL (none) @tab
+On NT/2000, try named pipes first; if that doesn't work, use TCP/IP.
+On Win95/Win98, TCP/IP is used.
 @item . @tab Named pipes
-@item localhost @tab TCP/IP to current host
-@item hostname  @tab TCP/IP
+@item localhost @tab
+TCP/IP to current host
+@item hostname  @tab
+TCP/IP
 @end multitable
 
 You can force a MySQL client to use named pipes by specifying the
@@ -10839,7 +10919,7 @@ for the MySQL host server --- not @code{yourmysqlservername}.
 You should now have an ODBC connection to MySQL, encrypted using SSH. 
 
 
-@node Windows symbolic links, Windows compiling, Windows and SSH, Windows
+@node Windows symbolic links, Windows client compiling, Windows and SSH, Windows
 @subsubsection Splitting Data Across Different Disks on Windows
 
 @cindex symbolic links
@@ -10879,7 +10959,7 @@ should instead use the @code{skip-symlink} option if you want to
 disable this.
 
 
-@node Windows compiling, Windows vs Unix, Windows symbolic links, Windows
+@node Windows client compiling, Windows vs Unix, Windows symbolic links, Windows
 @subsubsection Compiling MySQL Clients on Windows
 
 @cindex compiling, on Windows
@@ -10903,7 +10983,7 @@ Note that as the mysqlclient libraries are compiled as threaded libraries,
 you should also compile your code to be multi-threaded!
 
 
-@node Windows vs Unix,  , Windows compiling, Windows
+@node Windows vs Unix,  , Windows client compiling, Windows
 @subsubsection MySQL-Windows Compared to Unix MySQL
 
 @cindex Windows, versus Unix
@@ -12232,7 +12312,7 @@ that defines @code{HAVE_READDIR_R}.  You may have to remove the
 @code{HAVE_TERM_H} line as well.
 
 SGI recommends that you install all of the patches on this page as a set:
-http://support.sgi.com/surfzone/patches/patchset/6.2_indigo.rps.html
+@uref{http://support.sgi.com/surfzone/patches/patchset/6.2_indigo.rps.html}
 
 At the very minimum, you should install the latest kernel rollup, the
 latest @code{rld} rollup, and the latest @code{libc} rollup.
@@ -12277,7 +12357,7 @@ following is reported to work
 CC=cc CXX=CC CFLAGS='-O3 -n32 -TARG:platform=IP22 -I/usr/local/include \
 -L/usr/local/lib' CXXFLAGS='-O3 -n32 -TARG:platform=IP22 \
 -I/usr/local/include -L/usr/local/lib' ./configure --prefix=/usr/local/mysql \
---with-berkeley-db --with-innodb \
+--with-innodb --with-berkeley-db \
 --with-libwrap=/usr/local --with-named-curses-libs=/usr/local/lib/libncurses.a
 @end example
 
@@ -13223,7 +13303,7 @@ to think of real-world situations in which a similar type of database might
 be used.  For example, a database like this could be used by a farmer to keep
 track of livestock, or by a veterinarian to keep track of patient records.
 A menagerie distribution containing some of the queries and sample data used
-in the following sections can be obtained from the MySQL Web site.
+in the following sections can be obtained from the MySQL website.
 It's available in either
 @uref{http://www.mysql.com/Downloads/Contrib/Examples/menagerie.tar.gz,compressed @code{tar} format}
 or
@@ -14454,8 +14534,8 @@ by creating a tab-delimited text file containing the information:
 @item Buffy @tab 1994-06-19 @tab litter @tab 3 puppies, 3 female
 @item Chirpy @tab 1999-03-21 @tab vet @tab needed beak straightened
 @item Slim @tab 1997-08-03 @tab vet @tab broken rib
-@item Bowser @tab 1991-10-12 @tab kennel
-@item Fang @tab 1991-10-12 @tab kennel
+@item Bowser @tab 1991-10-12 @tab kennel @tab
+@item Fang @tab 1991-10-12 @tab kennel @tab 
 @item Fang @tab 1998-08-28 @tab birthday @tab Gave him a new chew toy
 @item Claws @tab 1998-03-17 @tab birthday @tab Gave him a new flea collar
 @item Whistler @tab 1998-12-09 @tab birthday @tab First birthday
@@ -14663,6 +14743,7 @@ mysql> SELECT * FROM shop;
 * example-Foreign keys::        Using foreign keys
 * Searching on two keys::       Searching on Two Keys
 * Calculating days::            Calculating visits per day
+* example-AUTO_INCREMENT::      Using AUTO_INCREMENT
 @end menu
 
 
@@ -14961,7 +15042,7 @@ DROP TABLE tmp;
 The above way to solve this query is in effect a @code{UNION} of two queries.
 
 
-@node Calculating days,  , Searching on two keys, Examples
+@node Calculating days, example-AUTO_INCREMENT, Searching on two keys, Examples
 @subsection Calculating visits per day
 
 @findex BIT_OR
@@ -14991,6 +15072,67 @@ Which returns:
 The above calculates how many different days was used for a given
 year/month combination, with automatic removal of duplicate entries.
 
+
+@node example-AUTO_INCREMENT,  , Calculating days, Examples
+@subsection Using AUTO_INCREMENT
+
+@cindex AUTO_INCREMENT
+The @code{AUTO_INCREMENT} attribute can be used to generate an unique
+identity for new rows:
+
+@example
+CREATE TABLE animals (id mediumint not null auto_increment,
+name char(30) not null,
+primary key (id));
+INSERT INTO animals (name) values ("dog"),("cat"),("penguin"),("lax"),("whale");
+SELECT * FROM animals;
+
+Which returns:
+
++----+---------+
+| id | name    |
++----+---------+
+|  1 | dog     |
+|  2 | cat     |
+|  3 | penguin |
+|  4 | lax     |
+|  5 | whale    |
++----+---------+
+@end example
+
+For MyISAM and BDB tables you can specify @code{AUTO_INCREMENT} on
+secondary column in a multi-column key.  In this case the generated
+value for the autoincrement column is calculated as
+@code{MAX(auto_increment_column)+1) WHERE prefix=given-prefix}.  This is
+useful when you want to put data into ordered groups.
+
+@example
+CREATE TABLE animals (grp enum ('fish','mammal','bird') not null,
+id mediumint not null auto_increment,
+name char(30) not null,
+primary key (grp,id));
+INSERT INTO animals (grp,name) values ("mammal","dog"),("mammal","cat"),("bird","penguin"),("fish","lax"),("mammal","whale");
+SELECT * FROM animals order by grp,id;
+
+Which returns:
+
++--------+----+---------+
+| grp    | id | name    |
++--------+----+---------+
+| fish   |  1 | lax     |
+| mammal |  1 | dog     |
+| mammal |  2 | cat     |
+| mammal |  3 | whale   |
+| bird   |  1 | penguin |
++--------+----+---------+
+@end example
+
+Note that in this case, the auto_increment value will be reused if you
+delete the row with the biggest auto_increment value in any group.
+
+You can get the used @code{AUTO_INCREMENT} key with the
+@code{LAST_INSERT_ID()} SQL function or the @code{mysql_insert_id()} API
+function.
 
 @node Batch mode, Twin, Examples, Tutorial
 @section Using @code{mysql} in Batch Mode
@@ -15116,11 +15258,8 @@ laboratory testing, neuroimaging, psychological status assessment, and family
 history collection. In addition, data are collected on medical and
 environmental risk factors.
 
-More information about Twin studies can be found at:
-
-@example
-@url{http://www.imm.ki.se/TWIN/TWINUKW.HTM}
-@end example
+More information about Twin studies can be found at: 
+@uref{http://www.imm.ki.se/TWIN/TWINUKW.HTM}
 
 The latter part of the project is administered with a Web interface
 written using Perl and MySQL.
@@ -16364,7 +16503,7 @@ new users with those privileges that the user has right to grant, you should
 give the user the following privilege:
 
 @example
-GRANT INSERT(user) on mysql.user to 'user'@'hostname';
+GRANT INSERT(user) on mysql.user to 'user'@@'hostname';
 @end example
 
 This will ensure that the user can't change any privilege columns directly,
@@ -16450,26 +16589,26 @@ The server uses the @code{user}, @code{db}, and @code{host} tables in the
 grant tables are shown below:
 
 @multitable @columnfractions .2 .25 .25 .25
-@item @strong{Table name} @tab @code{user} @tab @code{db} @tab @code{host}
+@item @strong{Table name}       @tab @code{user}        @tab @code{db}          @tab @code{host}
 
-@item @strong{Scope fields} @tab @code{Host}          @tab @code{Host}        @tab @code{Host}
-@item @tab @code{User}          @tab @code{Db}          @tab @code{Db}
-@item @tab @code{Password}      @tab @code{User}        @tab
+@item @strong{Scope fields}     @tab @code{Host}        @tab @code{Host}        @tab @code{Host}
+@item                           @tab @code{User}        @tab @code{Db}          @tab @code{Db}
+@item                           @tab @code{Password}    @tab @code{User}        @tab
 
 @item @strong{Privilege fields} @tab @code{Select_priv} @tab @code{Select_priv} @tab @code{Select_priv}
-@item @tab @code{Insert_priv}   @tab @code{Insert_priv} @tab @code{Insert_priv}
-@item @tab @code{Update_priv}   @tab @code{Update_priv} @tab @code{Update_priv}
-@item @tab @code{Delete_priv}   @tab @code{Delete_priv} @tab @code{Delete_priv}
-@item @tab @code{Index_priv}    @tab @code{Index_priv}  @tab @code{Index_priv}
-@item @tab @code{Alter_priv}    @tab @code{Alter_priv}  @tab @code{Alter_priv}
-@item @tab @code{Create_priv}   @tab @code{Create_priv} @tab @code{Create_priv}
-@item @tab @code{Drop_priv}     @tab @code{Drop_priv}   @tab @code{Drop_priv}
-@item @tab @code{Grant_priv}    @tab @code{Grant_priv}  @tab @code{Grant_priv}
-@item @tab @code{References_priv} @tab                  @tab
-@item @tab @code{Reload_priv}   @tab                    @tab
-@item @tab @code{Shutdown_priv} @tab                    @tab
-@item @tab @code{Process_priv}  @tab                    @tab
-@item @tab @code{File_priv}     @tab                    @tab
+@item                           @tab @code{Insert_priv} @tab @code{Insert_priv} @tab @code{Insert_priv}
+@item                           @tab @code{Update_priv} @tab @code{Update_priv} @tab @code{Update_priv}
+@item                           @tab @code{Delete_priv} @tab @code{Delete_priv} @tab @code{Delete_priv}
+@item                           @tab @code{Index_priv}  @tab @code{Index_priv}  @tab @code{Index_priv}
+@item                           @tab @code{Alter_priv}  @tab @code{Alter_priv}  @tab @code{Alter_priv}
+@item                           @tab @code{Create_priv} @tab @code{Create_priv} @tab @code{Create_priv}
+@item                           @tab @code{Drop_priv}   @tab @code{Drop_priv}   @tab @code{Drop_priv}
+@item                           @tab @code{Grant_priv}  @tab @code{Grant_priv}  @tab @code{Grant_priv}
+@item                           @tab @code{References_priv} @tab                @tab
+@item                           @tab @code{Reload_priv} @tab                    @tab
+@item                           @tab @code{Shutdown_priv} @tab                  @tab
+@item                           @tab @code{Process_priv} @tab                   @tab                   
+@item                           @tab @code{File_priv}    @tab                   @tab
 @end multitable
 
 For the second stage of access control (request verification), the server
@@ -16523,14 +16662,14 @@ Scope fields are strings, declared as shown below; the default value for
 each is the empty string:
 
 @multitable @columnfractions .15 .15 .7
-@item @strong{Field name} @tab @strong{Type}
-@item @code{Host}         @tab @code{CHAR(60)}
-@item @code{User}         @tab @code{CHAR(16)}
-@item @code{Password}     @tab @code{CHAR(16)}
-@item @code{Db}           @tab @code{CHAR(64)} @tab (@code{CHAR(60)} for the
+@item @strong{Field name} @tab @strong{Type}     @tab @strong{Notes}
+@item @code{Host}         @tab @code{CHAR(60)}   @tab
+@item @code{User}         @tab @code{CHAR(16)}   @tab
+@item @code{Password}     @tab @code{CHAR(16)}   @tab
+@item @code{Db}           @tab @code{CHAR(64)}   @tab (@code{CHAR(60)} for the
 @code{tables_priv} and @code{columns_priv} tables)
-@item @code{Table_name}   @tab @code{CHAR(60)}
-@item @code{Column_name}  @tab @code{CHAR(60)}
+@item @code{Table_name}   @tab @code{CHAR(60)}   @tab
+@item @code{Column_name}  @tab @code{CHAR(60)}   @tab
 @end multitable
 
 In the @code{user}, @code{db} and @code{host} tables,
@@ -16541,13 +16680,18 @@ In the @code{tables_priv} and @code{columns_priv} tables, the privilege
 fields are declared as @code{SET} fields:
 
 @multitable @columnfractions .2 .2 .6
-@item @strong{Table name} @tab @strong{Field name} @tab @strong{Possible set elements}
-@item @code{tables_priv} @tab @code{Table_priv} @tab @code{'Select', 'Insert',
-'Update', 'Delete', 'Create', 'Drop', 'Grant', 'References', 'Index', 'Alter'}
-@item @code{tables_priv} @tab @code{Column_priv} @tab @code{'Select', 'Insert',
-'Update', 'References'}
-@item @code{columns_priv} @tab @code{Column_priv} @tab @code{'Select', 'Insert',
-'Update', 'References'}
+@item @strong{Table name} 
+ @tab @strong{Field name} 
+ @tab @strong{Possible set elements}
+@item @code{tables_priv}
+ @tab @code{Table_priv}   
+ @tab @code{'Select', 'Insert', 'Update', 'Delete', 'Create', 'Drop', 'Grant', 'References', 'Index', 'Alter'}
+@item @code{tables_priv}
+ @tab @code{Column_priv}
+ @tab @code{'Select', 'Insert', 'Update', 'References'}
+@item @code{columns_priv}
+ @tab @code{Column_priv}
+ @tab @code{'Select', 'Insert', 'Update', 'References'}
 @end multitable
 
 Briefly, the server uses the grant tables like this:
@@ -17423,7 +17567,7 @@ hostname is an IP, even if you try to connect with a hostname:
 
 @example
 shell> mysqladmin -u root -pxxxx -h some-hostname ver
-Access denied for user: 'root@' (Using password: YES)
+Access denied for user: 'root@@' (Using password: YES)
 @end example
 
 This means that MySQL got some error when trying to resolve the
@@ -18475,8 +18619,8 @@ To get secure connections to work with MySQL you must do the following:
 
 @enumerate
 @item
-Install the openssh library. We have tested MySQL with openssl 0.9.6.
-@uref{http://www.openssh.org}.
+Install the openssl library. We have tested MySQL with openssl 0.9.6.
+@uref{http://www.openssl.org}.
 @item
 Configure MySQL with @code{--with-vio --with-openssl}.
 @item
@@ -20834,12 +20978,12 @@ fast. It applies only to index recreation during @code{REPAIR},
 @code{CREATE INDEX}, or @code{ALTER TABLE}.
 
 
-@item @code{have_bdb}
-@code{YES} if @code{mysqld} supports Berkeley DB tables. @code{DISABLED}
-if @code{--skip-bdb} is used.
 @item @code{have_innodb}
 @code{YES} if @code{mysqld} supports InnoDB tables. @code{DISABLED}
 if @code{--skip-innodb} is used.
+@item @code{have_bdb}
+@code{YES} if @code{mysqld} supports Berkeley DB tables. @code{DISABLED}
+if @code{--skip-bdb} is used.
 @item @code{have_raid}
 @code{YES} if @code{mysqld} supports the @code{RAID} option.
 @item @code{have_openssl}
@@ -22485,8 +22629,8 @@ the following configure options:
 @multitable @columnfractions .3 .7
 @item @strong{Option} @tab @strong{Comment}
 @item --with-server-suffix=-max @tab Add a suffix to the @code{mysqld} version string.
-@item --with-bdb @tab Support for Berkeley DB (BDB) tables
 @item --with-innodb @tab Support for InnoDB tables.
+@item --with-bdb @tab Support for Berkeley DB (BDB) tables
 @item CFLAGS=-DUSE_SYMDIR @tab Symbolic links support for Windows.
 @end multitable
 
@@ -22498,7 +22642,7 @@ standard @code{mysqld.exe} binary and the @code{mysqld-max.exe} binary.
 @uref{http://www.mysql.com/downloads/mysql-3.23.html}.
 @xref{Windows installation}.
 
-Note that as Berkeley DB and InnoDB are not available for all platforms,
+Note that as InnoDB and Berkeley DB are not available for all platforms,
 some of the @code{Max} binaries may not have support for both of these.
 You can check which table types are supported by doing the following
 query:
@@ -25496,26 +25640,26 @@ For example, (run on the same NT 4.0 machine):
 
 @multitable @columnfractions .6 .2 .2
 @item @strong{Reading 2000000 rows by index} @tab @strong{Seconds} @tab @strong{Seconds}
-@item mysql             @tab 367 @tab 249
-@item mysql_odbc	@tab 464
-@item db2_odbc		@tab 1206
-@item informix_odbc	@tab 121126
-@item ms-sql_odbc	@tab 1634
-@item oracle_odbc	@tab 20800
-@item solid_odbc	@tab 877
-@item sybase_odbc	@tab 17614
+@item mysql             @tab 367          @tab 249
+@item mysql_odbc	@tab 464          @tab
+@item db2_odbc		@tab 1206         @tab
+@item informix_odbc	@tab 121126       @tab
+@item ms-sql_odbc	@tab 1634         @tab
+@item oracle_odbc	@tab 20800        @tab
+@item solid_odbc	@tab 877          @tab
+@item sybase_odbc	@tab 17614        @tab
 @end multitable
 
 @multitable @columnfractions .6 .2 .2
 @item @strong{Inserting (350768) rows} @tab @strong{Seconds} @tab @strong{Seconds}
-@item mysql		@tab 381 @tab 206
-@item mysql_odbc	@tab 619
-@item db2_odbc		@tab 3460
-@item informix_odbc	@tab 2692
-@item ms-sql_odbc	@tab 4012
-@item oracle_odbc	@tab 11291
-@item solid_odbc	@tab 1801
-@item sybase_odbc	@tab 4802
+@item mysql		@tab 381          @tab 206
+@item mysql_odbc	@tab 619          @tab
+@item db2_odbc		@tab 3460         @tab
+@item informix_odbc	@tab 2692         @tab
+@item ms-sql_odbc	@tab 4012         @tab
+@item oracle_odbc	@tab 11291        @tab
+@item solid_odbc	@tab 1801         @tab
+@item sybase_odbc	@tab 4802         @tab
 @end multitable
 
 In the above test MySQL was run with a 8M index cache.
@@ -26774,7 +26918,7 @@ high lock speed.  For large tables, table locking is MUCH better than
 row locking for most applications, but there are, of course, some
 pitfalls.
 
-For @code{BDB} and @code{InnoDB} tables, MySQL only uses table
+For @code{InnoDB} and @code{BDB} tables, MySQL only uses table
 locking if you explicitely lock the table with @code{LOCK TABLES} or
 execute a command that will modify every row in the table, like
 @code{ALTER TABLE}.  For these table types we recommend you to not use
@@ -28178,7 +28322,7 @@ databases on different disks. @xref{Windows symbolic links}.
 @cindex databases, symbolic links
 
 Before MySQL 4.0 you should not symlink tables, if you are not
-very carefully with them. The problem is that if you run @code{ALTER
+very careful with them. The problem is that if you run @code{ALTER
 TABLE}, @code{REPAIR TABLE} or @code{OPTIMIZE TABLE} on a symlinked
 table, the symlinks will be removed and replaced by the original
 files. This happens because the above command works by creating a
@@ -28255,6 +28399,13 @@ Things that are not yet supported:
 @node Reference, Table types, MySQL Optimization, Top
 @chapter MySQL Language Reference
 
+MySQL has a very complex, but intuitive and easy to learn SQL
+interface.  This chapter describes the various commands, types, and functions 
+you will need to know in order to use MySQL efficiently and 
+effectively.  This chapter also serves as a reference to all functionality
+included in MySQL.  In order to use this chapter effectively, you
+may find it useful to refer to the various indexes.
+
 @menu
 * Language Structure::          Language Structure
 * Column types::                Column types
@@ -28265,13 +28416,6 @@ Things that are not yet supported:
 * Transactional Commands::      MySQL Transactional and Locking Commands
 * Fulltext Search::             MySQL Full-text Search
 @end menu
-
-MySQL has a very complex, but intuitive and easy to learn SQL
-interface.  This chapter describes the various commands, types, and functions 
-you will need to know in order to use MySQL efficiently and 
-effectively.  This chapter also serves as a reference to all functionality
-included in MySQL.  In order to use this chapter effectively, you
-may find it useful to refer to the various indexes.
 
 
 @node Language Structure, Column types, Reference, Reference
@@ -34896,9 +35040,9 @@ The @code{DROP DATABASE} command removes from the given database
 directory all files with the following extensions:
 
 @multitable @columnfractions .25 .25 .25 .25
-@item .BAK @tab .DAT @tab .HSH @tab .ISD
-@item .ISM @tab .ISM @tab .MRG @tab .MYD
-@item .MYI @tab .db  @tab .frm
+@item .BAK  @tab .DAT  @tab .HSH  @tab .ISD
+@item .ISM  @tab .ISM  @tab .MRG  @tab .MYD
+@item .MYI  @tab .db   @tab .frm  @tab
 @end multitable
 
 All subdirectories that consists of 2 digits (@code{RAID} directories)
@@ -35070,6 +35214,9 @@ values. Inserting a negative number is regarded as inserting a very large
 positive number.  This is done to avoid precision problems when
 numbers 'wrap' over from positive to negative and also to ensure that one
 doesn't accidentally get an auto_increment column that contains 0.
+
+In MyISAM and BDB tables you can specify @code{AUTO_INCREMENT} secondary
+column in a multi-column key.  @xref{example-AUTO_INCREMENT}.
 
 @cindex ODBC compatibility
 @cindex compatibility, with ODBC
@@ -35972,8 +36119,8 @@ By default, MySQL runs in @code{autocommit} mode. This means that
 as soon as you execute an update, MySQL will store the update on
 disk.
 
-If you are using transactions safe tables (like @code{BDB},
-@code{InnoDB}, you can put MySQL into
+If you are using transactions safe tables (like @code{InnoDB},
+@code{BDB}, you can put MySQL into
 non-@code{autocommit} mode with the following command:
 
 @example
@@ -36012,9 +36159,9 @@ The following commands automatically end a transaction (as if you had done
 a @code{COMMIT} before executing the command):
 
 @multitable @columnfractions .33 .33 .33
-@item @code{ALTER TABLE} @tab @code{BEGIN} @tab @code{CREATE INDEX}
-@item @code{DROP DATABASE} @tab @code{DROP TABLE} @tab @code{RENAME TABLE}
-@item @code{TRUNCATE}
+@item @code{ALTER TABLE}    @tab @code{BEGIN}       @tab @code{CREATE INDEX}
+@item @code{DROP DATABASE}  @tab @code{DROP TABLE}  @tab @code{RENAME TABLE}
+@item @code{TRUNCATE}       @tab                    @tab
 @end multitable
 
 You can change the isolation level for transactions with
@@ -36322,7 +36469,7 @@ have been assigned a low semantical value in @strong{this particular dataset}.
 @menu
 * Fulltext restrictions::       Fulltext restrictions
 * Fulltext Fine-tuning::        Fine-tuning MySQL Full-text Search
-* Fulltext Features to Appear in MySQL 4.0::  New Features of Full-text Search to Appear in MySQL 4.0
+* Fulltext Features in MySQL 4.0::  New Features of Full-text Search in MySQL 4.0
 * Fulltext TODO::               Full-text Search TODO
 @end menu
 
@@ -36339,7 +36486,7 @@ The argument to @code{AGAINST} must be a constant string.
 @end itemize
 
 
-@node Fulltext Fine-tuning, Fulltext Features to Appear in MySQL 4.0, Fulltext restrictions, Fulltext Search
+@node Fulltext Fine-tuning, Fulltext Features in MySQL 4.0, Fulltext restrictions, Fulltext Search
 @subsection Fine-tuning MySQL Full-text Search
 
 Unfortunately, full-text search has few user-tunable parameters yet,
@@ -36381,11 +36528,11 @@ There is no need to rebuild the indexes in this case.
 @end itemize
 
 
-@node Fulltext Features to Appear in MySQL 4.0, Fulltext TODO, Fulltext Fine-tuning, Fulltext Search
-@subsection New Features of Full-text Search to Appear in MySQL 4.0
+@node Fulltext Features in MySQL 4.0, Fulltext TODO, Fulltext Fine-tuning, Fulltext Search
+@subsection New Features of Full-text Search in MySQL 4.0
 
 This section includes a list of the fulltext features that are already
-implemented in the 4.0 tree. It explains
+implemented in the 4.0 tree. It explains the
 @strong{More functions for full-text search} entry of @ref{TODO MySQL 4.0}.
 
 @itemize @bullet
@@ -36419,7 +36566,7 @@ that does not have a 50% threshold.
 
 @end itemize
 
-@node Fulltext TODO,  , Fulltext Features to Appear in MySQL 4.0, Fulltext Search
+@node Fulltext TODO,  , Fulltext Features in MySQL 4.0, Fulltext Search
 @subsection Full-text Search TODO
 
 @itemize @bullet
@@ -36455,8 +36602,8 @@ parameters to @code{FULLTEXT} in @code{CREATE/ALTER TABLE}).
 
 As of MySQL Version 3.23.6, you can choose between three basic
 table formats (@code{ISAM}, @code{HEAP} and @code{MyISAM}.  Newer
-MySQL may support additional table type (@code{BDB},
-or @code{InnoDB}), depending on how you compile it.
+MySQL may support additional table type (@code{InnoDB},
+or @code{BDB}), depending on how you compile it.
  
 When you create a new table, you can tell MySQL which table
 type it should use for the table.  MySQL will always create a
@@ -36481,7 +36628,7 @@ You can convert tables between different types with the @code{ALTER
 TABLE} statement. @xref{ALTER TABLE, , @code{ALTER TABLE}}.
 
 Note that MySQL supports two different kinds of
-tables: transaction-safe tables (@code{BDB} and @code{InnoDB})
+tables: transaction-safe tables (@code{InnoDB} and @code{BDB})
 and not transaction-safe tables (@code{HEAP}, @code{ISAM},
 @code{MERGE}, and @code{MyISAM}).
 
@@ -36522,8 +36669,8 @@ of both worlds.
 * MERGE::                       MERGE tables
 * ISAM::                        ISAM tables
 * HEAP::                        HEAP tables
-* BDB::                         BDB or Berkeley_db tables
 * InnoDB::                      InnoDB tables
+* BDB::                         BDB or Berkeley_db tables
 @end menu
 
 
@@ -37233,7 +37380,7 @@ mysql> ALTER TABLE tbl_name TYPE = MYISAM;
 @end example
 
 
-@node HEAP, BDB, ISAM, Table types
+@node HEAP, InnoDB, ISAM, Table types
 @section HEAP Tables
 
 @cindex tables, @code{HEAP}
@@ -37313,302 +37460,7 @@ SUM_OVER_ALL_KEYS(max_length_of_key + sizeof(char*) * 2)
 @code{sizeof(char*)} is 4 on 32-bit machines and 8 on 64-bit machines.
 
 
-@node BDB, InnoDB, HEAP, Table types
-@section BDB or Berkeley_DB Tables
-
-@cindex tables, @code{BDB}
-@cindex tables, @code{Berkeley DB}
-
-@menu
-* BDB overview::                Overview of BDB Tables
-* BDB install::                 Installing BDB
-* BDB start::                   BDB startup options
-* BDB characteristic::          Some characteristic of @code{BDB} tables:
-* BDB TODO::                    Some things we need to fix for BDB in the near future:
-* BDB portability::             Operating systems supported by @strong{BDB}
-* BDB errors::                  Errors You May Get When Using BDB Tables
-@end menu
-
-@node BDB overview, BDB install, BDB, BDB
-@subsection Overview of BDB Tables
-
-Support for BDB tables is included in the MySQL source distribution
-starting from Version 3.23.34 and is activated in the MySQL-Max
-binary.
-
-BerkeleyDB, available at @uref{http://www.sleepycat.com/} has provided 
-MySQL with a transactional table handler.  By using BerkeleyDB
-tables, your tables may have a greater chance of surviving crashes, and also
-provides @code{COMMIT} and @code{ROLLBACK} on transactions.  The 
-MySQL source distribution comes with a BDB distribution that has a
-couple of small patches to make it work more smoothly with MySQL.
-You can't use a non-patched @code{BDB} version with MySQL.
-
-We at MySQL AB are working in close cooperation with Sleepycat to
-keep the quality of the MySQL/BDB interface high.
-
-When it comes to supporting BDB tables, we are committed to help our
-users to locate the problem and help creating a reproducable test case
-for any problems involving BDB tables.  Any such test case will be
-forwarded to Sleepycat who in turn will help us find and fix the
-problem.  As this is a two stage operation, any problems with BDB tables
-may take a little longer for us to fix than for other table handlers.
-However, as the BerkeleyDB code itself has been used by many other
-applications than MySQL, we don't envision any big problems with
-this.  @xref{Support}.
-
-
-@node BDB install, BDB start, BDB overview, BDB
-@subsection Installing BDB
-
-If you have downloaded a binary version of MySQL that includes
-support for BerkeleyDB, simply follow the instructions for installing a 
-binary version of MySQL.  
-@xref{Installing binary}.  @xref{mysqld-max, , @code{mysqld-max}}.
-
-To compile MySQL with Berkeley DB support, download MySQL
-Version 3.23.34 or newer and configure @code{MySQL} with the 
-@code{--with-berkeley-db} option.  @xref{Installing source}.
-
-@example
-cd /path/to/source/of/mysql-3.23.34
-./configure --with-berkeley-db
-@end example
-
-Please refer to the manual provided with the @code{BDB} distribution for
-more updated information.
-
-Even though Berkeley DB is in itself very tested and reliable,
-the MySQL interface is still considered beta quality.
-We are actively improving and optimizing it to get it stable very
-soon.
-
-
-@node BDB start, BDB characteristic, BDB install, BDB
-@subsection BDB startup options
-
-If you are running with @code{AUTOCOMMIT=0} then your changes in @code{BDB}
-tables will not be updated until you execute @code{COMMIT}.  Instead of commit
-you can execute @code{ROLLBACK} to forget your changes. @xref{COMMIT}.
-
-If you are running with @code{AUTOCOMMIT=1} (the default), your changes
-will be committed immediately.  You can start an extended transaction with
-the @code{BEGIN WORK} SQL command, after which your changes will not be
-committed until you execute @code{COMMIT} (or decide to @code{ROLLBACK}
-the changes).
-
-The following options to @code{mysqld} can be used to change the behavior of
-BDB tables:
-
-@multitable @columnfractions .30 .70
-@item @strong{Option} @tab @strong{Meaning}
-@item @code{--bdb-home=directory} @tab  Base directory for BDB tables. This should be the same directory you use for --datadir.
-@item @code{--bdb-lock-detect=#} @tab  Berkeley lock detect. One of (DEFAULT, OLDEST, RANDOM, or YOUNGEST).
-@item @code{--bdb-logdir=directory} @tab Berkeley DB log file directory.
-@item @code{--bdb-no-sync} @tab Don't synchronously flush logs.
-@item @code{--bdb-no-recover} @tab Don't start Berkeley DB in recover mode.
-@item @code{--bdb-shared-data} @tab Start Berkeley DB in multi-process mode (Don't use @code{DB_PRIVATE} when initializing Berkeley DB)
-@item @code{--bdb-tmpdir=directory} @tab Berkeley DB tempfile name.
-@item @code{--skip-bdb} @tab Don't use berkeley db.
-@item @code{-O bdb_max_lock=1000} @tab Set the maximum number of locks possible. @xref{SHOW VARIABLES}.
-@end multitable
-
-If you use @code{--skip-bdb}, MySQL will not initialize the
-Berkeley DB library and this will save a lot of memory. Of course,
-you cannot use @code{BDB} tables if you are using this option.
-
-Normally you should start @code{mysqld} without @code{--bdb-no-recover} if you
-intend to use BDB tables.  This may, however, give you problems when you
-try to start @code{mysqld} if the BDB log files are corrupted. @xref{Starting
-server}.
-
-With @code{bdb_max_lock} you can specify the maximum number of locks
-(10000 by default) you can have active on a BDB table. You should
-increase this if you get errors of type @code{bdb: Lock table is out of
-available locks} or @code{Got error 12 from ...}  when you have do long
-transactions or when @code{mysqld} has to examine a lot of rows to
-calculate the query.
-
-You may also want to change @code{binlog_cache_size} and
-@code{max_binlog_cache_size} if you are using big multi-line transactions.
-@xref{COMMIT}.
-
-
-@node BDB characteristic, BDB TODO, BDB start, BDB
-@subsection Some characteristic of @code{BDB} tables:
-
-@itemize @bullet
-@item
-To be able to rollback transactions BDB maintain log files.  For maximum
-performance you should place these on another disk than your databases
-by using the @code{--bdb_log_dir} options.
-@item
-MySQL performs a checkpoint each time a new BDB log
-file is started, and removes any log files that are not needed for
-current transactions.  One can also run @code{FLUSH LOGS} at any time
-to checkpoint the Berkeley DB tables.
-
-For disaster recovery, one should use table backups plus
-MySQL's binary log. @xref{Backup}.
-
-@strong{Warning}: If you delete old log files that are in use, BDB will
-not be able to do recovery at all and you may lose data if something
-goes wrong.
-@item
-MySQL requires a @code{PRIMARY KEY} in each BDB table to be
-able to refer to previously read rows. If you don't create one,
-MySQL will create an maintain a hidden @code{PRIMARY KEY} for
-you.  The hidden key has a length of 5 bytes and is incremented for each
-insert attempt.
-@item
-If all columns you access in a @code{BDB} table are part of the same index or
-part of the primary key, then MySQL can execute the query
-without having to access the actual row.  In a @code{MyISAM} table the
-above holds only if the columns are part of the same index.
-@item
-The @code{PRIMARY KEY} will be faster than any other key, as the
-@code{PRIMARY KEY} is stored together with the row data.  As the other keys are
-stored as the key data + the @code{PRIMARY KEY}, it's important to keep the
-@code{PRIMARY KEY} as short as possible to save disk and get better speed.
-@item
-@code{LOCK TABLES} works on @code{BDB} tables as with other tables.  If
-you don't use @code{LOCK TABLE}, MYSQL will issue an internal
-multiple-write lock on the table to ensure that the table will be
-properly locked if another thread issues a table lock.
-@item
-Internal locking in @code{BDB} tables is done on page level.
-@item
-@code{SELECT COUNT(*) FROM table_name} is slow as @code{BDB} tables doesn't
-maintain a count of the number of rows in the table.
-@item
-Scanning is slower than with @code{MyISAM} tables as one has data in BDB
-tables stored in B-trees and not in a separate data file.
-@item
-The application must always be prepared to handle cases where
-any change of a @code{BDB} table may make an automatic rollback and any
-read may fail with a deadlock error.
-@item
-Keys are not compressed to previous keys as with ISAM or MyISAM
-tables. In other words, the key information will take a little more
-space in @code{BDB} tables compared to MyISAM tables which don't use
-@code{PACK_KEYS=0}.
-@item
-There is often holes in the BDB table to allow you to insert new rows in
-the middle of the key tree.  This makes BDB tables somewhat larger than
-MyISAM tables.
-@item
-The optimizer needs to know an approximation of the number of rows in
-the table.  MySQL solves this by counting inserts and
-maintaining this in a separate segment in each BDB table.  If you don't
-do a lot of @code{DELETE} or @code{ROLLBACK}:s this number should be
-accurate enough for the MySQL optimizer, but as MySQL
-only store the number on close, it may be wrong if MySQL dies
-unexpectedly. It should not be fatal even if this number is not 100 %
-correct.  One can update the number of rows by executing @code{ANALYZE
-TABLE} or @code{OPTIMIZE TABLE}. @xref{ANALYZE TABLE} . @xref{OPTIMIZE
-TABLE}.
-@item
-If you get full disk with a @code{BDB} table, you will get an error
-(probably error 28) and the transaction should roll back.  This is in
-contrast with @code{MyISAM} and @code{ISAM} tables where @code{mysqld} will
-wait for enough free disk before continuing.
-@end itemize
-
-
-@node BDB TODO, BDB portability, BDB characteristic, BDB
-@subsection Some things we need to fix for BDB in the near future:
-
-@itemize @bullet
-@item
-It's very slow to open many BDB tables at the same time. If you are
-going to use BDB tables, you should not have a very big table cache (>
-256 ?) and you should use @code{--no-auto-rehash} with the @code{mysql}
-client.  We plan to partly fix this in 4.0.
-@item
-@code{SHOW TABLE STATUS} doesn't yet provide that much information for BDB
-tables.
-@item
-Optimize performance.
-@item
-Change to not use page locks at all when we are scanning tables.
-@end itemize
-
-
-@node BDB portability, BDB errors, BDB TODO, BDB
-@subsection Operating systems supported by @strong{BDB}
-
-If you after having built MySQL with support for BDB tables get
-the following error in the log file when you start @code{mysqld}:
-
-@example
-bdb: architecture lacks fast mutexes: applications cannot be threaded
-Can't init dtabases
-@end example
-
-This means that @code{BDB} tables are not supported for your architecture.
-In this case you have to rebuild MySQL without BDB table support.
-
-NOTE: The following list is not complete; We will update this as we get
-more information about this.
-
-Currently we know that BDB tables works with the following operating
-system.
-
-@itemize @bullet
-@item
-Linux 2.x intel
-@item
-Solaris sparc
-@item
-SCO OpenServer
-@item
-SCO UnixWare 7.0.1
-@end itemize
-
-It doesn't work with the following operating systems:
-
-@itemize @bullet
-@item
-Linux 2.x Alpha
-@item
-Max OS X
-@end itemize
-
-
-@node BDB errors,  , BDB portability, BDB
-@subsection Errors You May Get When Using BDB Tables
-
-@itemize @bullet
-@item
-If you get the following error in the @code{hostname.err log} when
-starting @code{mysqld}:
-
-@example
-bdb:  Ignoring log file: .../log.XXXXXXXXXX: unsupported log version #
-@end example
-it means that the new @code{BDB} version doesn't support the old log
-file format.  In this case you have to delete all @code{BDB} log BDB
-from your database directory (the files that has the format
-@code{log.XXXXXXXXXX} ) and restart @code{mysqld}.  We would also
-recommend you to do a @code{mysqldump --opt} of your old @code{BDB}
-tables, delete the old table and restore the dump.
-@item
-If you are running in not @code{auto_commit} mode and delete a table you
-are using by another thread you may get the following error messages in
-the MySQL error file:
-
-@example
-001119 23:43:56  bdb:  Missing log fileid entry
-001119 23:43:56  bdb:  txn_abort: Log undo failed for LSN: 1 3644744: Invalid
-@end example
-
-This is not fatal but we don't recommend that you delete tables if you are
-not in @code{auto_commit} mode, until this problem is fixed (the fix is
-not trivial).
-@end itemize
-
-
-@node InnoDB,  , BDB, Table types
+@node InnoDB, BDB, HEAP, Table types
 @section InnoDB Tables
 
 @menu
@@ -39166,6 +39018,301 @@ Finland
 @end example
 
 
+@node BDB,  , InnoDB, Table types
+@section BDB or Berkeley_DB Tables
+
+@cindex tables, @code{BDB}
+@cindex tables, @code{Berkeley DB}
+
+@menu
+* BDB overview::                Overview of BDB Tables
+* BDB install::                 Installing BDB
+* BDB start::                   BDB startup options
+* BDB characteristic::          Some characteristic of @code{BDB} tables:
+* BDB TODO::                    Some things we need to fix for BDB in the near future:
+* BDB portability::             Operating systems supported by @strong{BDB}
+* BDB errors::                  Errors You May Get When Using BDB Tables
+@end menu
+
+@node BDB overview, BDB install, BDB, BDB
+@subsection Overview of BDB Tables
+
+Support for BDB tables is included in the MySQL source distribution
+starting from Version 3.23.34 and is activated in the MySQL-Max
+binary.
+
+BerkeleyDB, available at @uref{http://www.sleepycat.com/} has provided 
+MySQL with a transactional table handler.  By using BerkeleyDB
+tables, your tables may have a greater chance of surviving crashes, and also
+provides @code{COMMIT} and @code{ROLLBACK} on transactions.  The 
+MySQL source distribution comes with a BDB distribution that has a
+couple of small patches to make it work more smoothly with MySQL.
+You can't use a non-patched @code{BDB} version with MySQL.
+
+We at MySQL AB are working in close cooperation with Sleepycat to
+keep the quality of the MySQL/BDB interface high.
+
+When it comes to supporting BDB tables, we are committed to help our
+users to locate the problem and help creating a reproducable test case
+for any problems involving BDB tables.  Any such test case will be
+forwarded to Sleepycat who in turn will help us find and fix the
+problem.  As this is a two stage operation, any problems with BDB tables
+may take a little longer for us to fix than for other table handlers.
+However, as the BerkeleyDB code itself has been used by many other
+applications than MySQL, we don't envision any big problems with
+this.  @xref{Support}.
+
+
+@node BDB install, BDB start, BDB overview, BDB
+@subsection Installing BDB
+
+If you have downloaded a binary version of MySQL that includes
+support for BerkeleyDB, simply follow the instructions for installing a 
+binary version of MySQL.  
+@xref{Installing binary}.  @xref{mysqld-max, , @code{mysqld-max}}.
+
+To compile MySQL with Berkeley DB support, download MySQL
+Version 3.23.34 or newer and configure @code{MySQL} with the 
+@code{--with-berkeley-db} option.  @xref{Installing source}.
+
+@example
+cd /path/to/source/of/mysql-3.23.34
+./configure --with-berkeley-db
+@end example
+
+Please refer to the manual provided with the @code{BDB} distribution for
+more updated information.
+
+Even though Berkeley DB is in itself very tested and reliable,
+the MySQL interface is still considered beta quality.
+We are actively improving and optimizing it to get it stable very
+soon.
+
+
+@node BDB start, BDB characteristic, BDB install, BDB
+@subsection BDB startup options
+
+If you are running with @code{AUTOCOMMIT=0} then your changes in @code{BDB}
+tables will not be updated until you execute @code{COMMIT}.  Instead of commit
+you can execute @code{ROLLBACK} to forget your changes. @xref{COMMIT}.
+
+If you are running with @code{AUTOCOMMIT=1} (the default), your changes
+will be committed immediately.  You can start an extended transaction with
+the @code{BEGIN WORK} SQL command, after which your changes will not be
+committed until you execute @code{COMMIT} (or decide to @code{ROLLBACK}
+the changes).
+
+The following options to @code{mysqld} can be used to change the behavior of
+BDB tables:
+
+@multitable @columnfractions .30 .70
+@item @strong{Option} @tab @strong{Meaning}
+@item @code{--bdb-home=directory} @tab  Base directory for BDB tables. This should be the same directory you use for --datadir.
+@item @code{--bdb-lock-detect=#} @tab  Berkeley lock detect. One of (DEFAULT, OLDEST, RANDOM, or YOUNGEST).
+@item @code{--bdb-logdir=directory} @tab Berkeley DB log file directory.
+@item @code{--bdb-no-sync} @tab Don't synchronously flush logs.
+@item @code{--bdb-no-recover} @tab Don't start Berkeley DB in recover mode.
+@item @code{--bdb-shared-data} @tab Start Berkeley DB in multi-process mode (Don't use @code{DB_PRIVATE} when initializing Berkeley DB)
+@item @code{--bdb-tmpdir=directory} @tab Berkeley DB tempfile name.
+@item @code{--skip-bdb} @tab Don't use berkeley db.
+@item @code{-O bdb_max_lock=1000} @tab Set the maximum number of locks possible. @xref{SHOW VARIABLES}.
+@end multitable
+
+If you use @code{--skip-bdb}, MySQL will not initialize the
+Berkeley DB library and this will save a lot of memory. Of course,
+you cannot use @code{BDB} tables if you are using this option.
+
+Normally you should start @code{mysqld} without @code{--bdb-no-recover} if you
+intend to use BDB tables.  This may, however, give you problems when you
+try to start @code{mysqld} if the BDB log files are corrupted. @xref{Starting
+server}.
+
+With @code{bdb_max_lock} you can specify the maximum number of locks
+(10000 by default) you can have active on a BDB table. You should
+increase this if you get errors of type @code{bdb: Lock table is out of
+available locks} or @code{Got error 12 from ...}  when you have do long
+transactions or when @code{mysqld} has to examine a lot of rows to
+calculate the query.
+
+You may also want to change @code{binlog_cache_size} and
+@code{max_binlog_cache_size} if you are using big multi-line transactions.
+@xref{COMMIT}.
+
+
+@node BDB characteristic, BDB TODO, BDB start, BDB
+@subsection Some characteristic of @code{BDB} tables:
+
+@itemize @bullet
+@item
+To be able to rollback transactions BDB maintain log files.  For maximum
+performance you should place these on another disk than your databases
+by using the @code{--bdb_log_dir} options.
+@item
+MySQL performs a checkpoint each time a new BDB log
+file is started, and removes any log files that are not needed for
+current transactions.  One can also run @code{FLUSH LOGS} at any time
+to checkpoint the Berkeley DB tables.
+
+For disaster recovery, one should use table backups plus
+MySQL's binary log. @xref{Backup}.
+
+@strong{Warning}: If you delete old log files that are in use, BDB will
+not be able to do recovery at all and you may lose data if something
+goes wrong.
+@item
+MySQL requires a @code{PRIMARY KEY} in each BDB table to be
+able to refer to previously read rows. If you don't create one,
+MySQL will create an maintain a hidden @code{PRIMARY KEY} for
+you.  The hidden key has a length of 5 bytes and is incremented for each
+insert attempt.
+@item
+If all columns you access in a @code{BDB} table are part of the same index or
+part of the primary key, then MySQL can execute the query
+without having to access the actual row.  In a @code{MyISAM} table the
+above holds only if the columns are part of the same index.
+@item
+The @code{PRIMARY KEY} will be faster than any other key, as the
+@code{PRIMARY KEY} is stored together with the row data.  As the other keys are
+stored as the key data + the @code{PRIMARY KEY}, it's important to keep the
+@code{PRIMARY KEY} as short as possible to save disk and get better speed.
+@item
+@code{LOCK TABLES} works on @code{BDB} tables as with other tables.  If
+you don't use @code{LOCK TABLE}, MYSQL will issue an internal
+multiple-write lock on the table to ensure that the table will be
+properly locked if another thread issues a table lock.
+@item
+Internal locking in @code{BDB} tables is done on page level.
+@item
+@code{SELECT COUNT(*) FROM table_name} is slow as @code{BDB} tables doesn't
+maintain a count of the number of rows in the table.
+@item
+Scanning is slower than with @code{MyISAM} tables as one has data in BDB
+tables stored in B-trees and not in a separate data file.
+@item
+The application must always be prepared to handle cases where
+any change of a @code{BDB} table may make an automatic rollback and any
+read may fail with a deadlock error.
+@item
+Keys are not compressed to previous keys as with ISAM or MyISAM
+tables. In other words, the key information will take a little more
+space in @code{BDB} tables compared to MyISAM tables which don't use
+@code{PACK_KEYS=0}.
+@item
+There is often holes in the BDB table to allow you to insert new rows in
+the middle of the key tree.  This makes BDB tables somewhat larger than
+MyISAM tables.
+@item
+The optimizer needs to know an approximation of the number of rows in
+the table.  MySQL solves this by counting inserts and
+maintaining this in a separate segment in each BDB table.  If you don't
+do a lot of @code{DELETE} or @code{ROLLBACK}:s this number should be
+accurate enough for the MySQL optimizer, but as MySQL
+only store the number on close, it may be wrong if MySQL dies
+unexpectedly. It should not be fatal even if this number is not 100 %
+correct.  One can update the number of rows by executing @code{ANALYZE
+TABLE} or @code{OPTIMIZE TABLE}. @xref{ANALYZE TABLE} . @xref{OPTIMIZE
+TABLE}.
+@item
+If you get full disk with a @code{BDB} table, you will get an error
+(probably error 28) and the transaction should roll back.  This is in
+contrast with @code{MyISAM} and @code{ISAM} tables where @code{mysqld} will
+wait for enough free disk before continuing.
+@end itemize
+
+
+@node BDB TODO, BDB portability, BDB characteristic, BDB
+@subsection Some things we need to fix for BDB in the near future:
+
+@itemize @bullet
+@item
+It's very slow to open many BDB tables at the same time. If you are
+going to use BDB tables, you should not have a very big table cache (>
+256 ?) and you should use @code{--no-auto-rehash} with the @code{mysql}
+client.  We plan to partly fix this in 4.0.
+@item
+@code{SHOW TABLE STATUS} doesn't yet provide that much information for BDB
+tables.
+@item
+Optimize performance.
+@item
+Change to not use page locks at all when we are scanning tables.
+@end itemize
+
+
+@node BDB portability, BDB errors, BDB TODO, BDB
+@subsection Operating systems supported by @strong{BDB}
+
+If you after having built MySQL with support for BDB tables get
+the following error in the log file when you start @code{mysqld}:
+
+@example
+bdb: architecture lacks fast mutexes: applications cannot be threaded
+Can't init dtabases
+@end example
+
+This means that @code{BDB} tables are not supported for your architecture.
+In this case you have to rebuild MySQL without BDB table support.
+
+NOTE: The following list is not complete; We will update this as we get
+more information about this.
+
+Currently we know that BDB tables works with the following operating
+system.
+
+@itemize @bullet
+@item
+Linux 2.x intel
+@item
+Solaris sparc
+@item
+SCO OpenServer
+@item
+SCO UnixWare 7.0.1
+@end itemize
+
+It doesn't work with the following operating systems:
+
+@itemize @bullet
+@item
+Linux 2.x Alpha
+@item
+Max OS X
+@end itemize
+
+
+@node BDB errors,  , BDB portability, BDB
+@subsection Errors You May Get When Using BDB Tables
+
+@itemize @bullet
+@item
+If you get the following error in the @code{hostname.err log} when
+starting @code{mysqld}:
+
+@example
+bdb:  Ignoring log file: .../log.XXXXXXXXXX: unsupported log version #
+@end example
+it means that the new @code{BDB} version doesn't support the old log
+file format.  In this case you have to delete all @code{BDB} log BDB
+from your database directory (the files that has the format
+@code{log.XXXXXXXXXX} ) and restart @code{mysqld}.  We would also
+recommend you to do a @code{mysqldump --opt} of your old @code{BDB}
+tables, delete the old table and restore the dump.
+@item
+If you are running in not @code{auto_commit} mode and delete a table you
+are using by another thread you may get the following error messages in
+the MySQL error file:
+
+@example
+001119 23:43:56  bdb:  Missing log fileid entry
+001119 23:43:56  bdb:  txn_abort: Log undo failed for LSN: 1 3644744: Invalid
+@end example
+
+This is not fatal but we don't recommend that you delete tables if you are
+not in @code{auto_commit} mode, until this problem is fixed (the fix is
+not trivial).
+@end itemize
+
+
 
 
 @node Clients, Extending MySQL, Table types, Top
@@ -39206,7 +39353,7 @@ databases, including MySQL.  PHP may be run as a separate program
 or compiled as a module for use with the Apache Web server.
 
 The distribution and documentation are available at the
-@uref{http://www.php.net/, PHP web site}.
+@uref{http://www.php.net/, PHP website}.
 
 @menu
 * PHP problems::                Common problems with MySQL and PHP
@@ -39808,13 +39955,13 @@ are known to work with @strong{MyODBC}.
 @node Installing MyODBC, ODBC administrator, ODBC, ODBC
 @subsection How To Install MyODBC
 
-@strong{MyODBC} is a 32-bit ODBC (2.50) level 0 (with level 1 and level
-2 features) driver for connecting an ODBC-aware application to
-MySQL.  @strong{MyODBC} works on Windows95, Windows98, NT, and
-on most Unix platforms.
+@strong{MyODBC} is a 32-bit ODBC (2.50) level 0 (with level 1 and
+level 2 features) driver for connecting an ODBC-aware application
+to MySQL.  @strong{MyODBC} works on Windows95, Windows98, NT, 2000
+and on most Unix platforms.
 
-@strong{MyODBC} is in public domain, and you can find the newest version
-at @uref{http://www.mysql.com/downloads/api-myodbc.html}.
+@strong{MyODBC} is in public domain, and you can find the newest
+version at @uref{http://www.mysql.com/downloads/api-myodbc.html}.
 
 If you have problem with @strong{MyODBC} and your program also works
 with OLEDB, you should try the OLEDB driver that you can find in the
@@ -42434,7 +42581,6 @@ The specified group in the option file may contain the following options:
 @item @code{port} @tab Default port number.
 @item @code{return-found-rows} @tab Tell @code{mysql_info()} to return found rows instead of updated rows when using @code{UPDATE}.
 @item @code{socket} @tab Default socket number.
-@item
 @item @code{user} @tab Default user.
 @end multitable
 
@@ -43307,7 +43453,7 @@ none.
 @tindex @code{mysql_store_result()}
 
 @menu
-* NULL mysql_store_result::     Why Is It that After @code{mysql_query()} Returns Success, @code{mysql_store_result()} Sometimes Returns @code{NULL?}
+* NULL mysql_store_result::     Why Is It that After @code{mysql_query()} Returns Success, @code{mysql_store_result()} Sometimes Returns @code{NULL}?
 * Query results::               What Results Can I Get From a Query?
 * Getting unique ID::           How Can I Get the Unique ID for the Last Inserted Row?
 * C API linking problems::      Problems Linking with the C API
@@ -43315,7 +43461,7 @@ none.
 
 
 @node NULL mysql_store_result, Query results, C API problems, C API problems
-@subsubsection Why Is It that After @code{mysql_query()} Returns Success, @code{mysql_store_result()} Sometimes Returns @code{NULL?}
+@subsubsection Why Is It that After @code{mysql_query()} Returns Success, @code{mysql_store_result()} Sometimes Returns @code{NULL}?
 
 It is possible for @code{mysql_store_result()} to return @code{NULL}
 following a successful call to @code{mysql_query()}.  When this happens, it
@@ -43489,7 +43635,7 @@ have your own alarm that can break a long read to a server.  If you
 install interrupt handlers for the @code{SIGPIPE} interrupt,
 the socket handling should be thread safe.
 
-In the older binaries we distribute on our Web site, the client
+In the older binaries we distribute on our website, the client
 libraries are not normally compiled with the thread-safe option (the
 Windows binaries are by default compiled to be thread safe).
 Newer binary distributions should have both a normal and a
@@ -43978,7 +44124,7 @@ We encourage everyone to promote free software by releasing
 code under the GPL or a compatible license.  For those who
 are not able to do this, another option is to purchase the
 MySQL code from MySQL AB under a looser license.  For details
-concerning this issue, please see @ref{Licensing policy}.
+concerning this issue, please see @ref{MySQL server licenses}.
 
 @node Cplusplus, Java, C, Clients
 @section MySQL C++ APIs
@@ -44992,7 +45138,7 @@ the master, put them in @code{mysql-test/t/test_name-master.opt}.
 If you have a question about the test suite, or have a test case to contribute,
 e-mail to @email{internals@@lists.mysql.com}. As the list does not accept 
 attachments, you should ftp all the relevant files to:
-@url{ftp://support.mysql.com/pub/mysql/Incoming}
+@uref{ftp://support.mysql.com/pub/mysql/Incoming}
 
 @end itemize
 
@@ -45210,7 +45356,7 @@ described in this manual. @xref{Asking questions}.
 * Commands out of sync::        @code{Commands out of sync} error in client
 * Ignoring user::               @code{Ignoring user} error
 * Cannot find table::           @code{Table 'xxx' doesn't exist} error
-* Cannot initialize character set::  @code{Can@'t initialize character set xxx} error.
+* Cannot initialize character set::  @code{Can't initialize character set xxx} error
 * Not enough file handles::     File Not Found
 @end menu
 
@@ -45713,7 +45859,7 @@ You can check which tables you have in the current database with
 
 
 @node Cannot initialize character set, Not enough file handles, Cannot find table, Common errors
-@appendixsubsec @code{Can@'t initialize character set xxx} error.
+@appendixsubsec @code{Can't initialize character set xxx} error
 
 @cindex multibyte character sets
 
@@ -46936,7 +47082,7 @@ more than one way to compute}
 Publications at Monash University in Australia}
 
 @item @uref{http://www.ipielle.emr.it/bts/index.html,
-Occupational Health & Safety Web site database (a project for the ECC)}
+Occupational Health & Safety Website database (a project for the ECC)}
 @c c.presutti@ipielle.emr.it
 
 @item @uref{http://data.mch.mcgill.ca/, Bioinformatics databases at the
@@ -46956,8 +47102,8 @@ An online magazine featuring music, literature, arts, and design content.
 @item @uref{http://www.currents.net/ccinfo/aboutcc.html,Computer Currents Magazine}
 @end itemize
 
-@cindex web sites
-@appendixsec Web Sites that Use MySQL as a Backend
+@cindex websites
+@appendixsec Websites that Use MySQL as a Backend
 
 @itemize @bullet
 
@@ -47055,8 +47201,8 @@ Made with MySQL and Modperl, all pages are generated dynamically out of
 the MySQL database
 @end itemize
 
-@cindex PHP, web sites
-@appendixsec Web Sites that Use @code{PHP} and MySQL
+@cindex PHP, websites
+@appendixsec Websites that Use @code{PHP} and MySQL
 
 @itemize @bullet
 @c @item @uref{http://www.wh200th.com,  White House 200th Anniversary site}
@@ -47116,7 +47262,7 @@ Ecommerce site that is selling computers.
 @item @uref{http://www.spring.de, Spring infotainment gmbh & co. kg}
 @c added 990905 "Oliver Pischke" <opischke@spring.de>
 
-@item @uref{http://www.wamdesign.com/, Develops Web sites using MySQL}
+@item @uref{http://www.wamdesign.com/, Develops websites using MySQL}
 @c Added 990905; max@wamdesign.com
 
 @item @uref{http://www.berkeleyconsultants.com, Berkeley Consultants Group}
@@ -47273,8 +47419,8 @@ MySQL users but doesn't provide that much information about how
 they are using MySQL.  @xref{Users}. This section gives you an idea
 of how other MySQL users are using MySQL to solve their problems.
 
-Please note that all new stories are added on the MySQL AB website,
-@url{http://www.mysql.com/}.
+Please note that all new stories are added on the MySQL website,
+@uref{http://www.mysql.com/}.
 Do let us know about @emph{your} success story too!
 
 @itemize @bullet
@@ -47617,7 +47763,7 @@ You can write queries and show tables, indexes, table syntax, and
 administrate user, host, and database and so on. This is beta and
 still has some bugs. You can test the program with all features. Please
 send bugs and hints to Marco Suess @email{ms@@it-netservice.de}. Original
-URL @url{http://www.it-netservice.de/pages/software/index.html}.
+URL @uref{http://www.it-netservice.de/pages/software/index.html}.
 
 @item @uref{http://www.mysql.com/Downloads/Win32/netadmin2.zip, netadmin2.zip}
 New version of netadmin. See above for details.
@@ -47857,7 +48003,7 @@ Apache authentication module for MySQL. By Zeev Suraski,
 @email{bourbon@@netvision.net.il}.
 
 @c @strong{Please} register this module at:
-@c @url{http://bourbon.netvision.net.il/mysql/mod_auth_mysql/register.html}. The
+@c @uref{http://bourbon.netvision.net.il/mysql/mod_auth_mysql/register.html}. The
 @c registering information is only used for statistical purposes and will
 @c encourage further development of this module!
 
@@ -48186,7 +48332,7 @@ Most of crash-me and the foundation for the MySQL benchmarks.
 Coordinator and initial main writer of the @strong{Reference Manual},
 including enhancements to @code{texi2html}.
 @item
-Automatic Web site updating from the manual.
+Automatic website updating from the manual.
 @item
 Initial Autoconf, Automake, and Libtool support.
 @item
@@ -48376,7 +48522,7 @@ and the @code{readline} library (for the @code{mysql} client).
 For a really great editor/environment used by almost everybody at
 TcX/MySQL AB/detron.
 @item Patrick Lynch
-For helping us acquire @code{http://www.mysql.com/}.
+For helping us acquire @uref{http://www.mysql.com/}.
 @item Fred Lindberg
 For setting up qmail to handle the MySQL mailing list and for the
 incredible help we got in managing the MySQL mailing lists.
@@ -48455,7 +48601,7 @@ Spanish error messages.
 Norwegian error messages and testing of Version 3.21.#.
 @item Timur I. Bakeyev @email{root@@timur.tatarstan.ru}
 Russian error messages.
-@item @email{brenno@@dewinter.com} && Filippo Grassilli @email{phil@@hyppo.com}
+@item @email{brenno@@dewinter.com} & Filippo Grassilli @email{phil@@hyppo.com}
 Italian error messages.
 @item Dirk Munzinger @email{dirk@@trinity.saar.de}
 German error messages.
@@ -48582,7 +48728,7 @@ Funded replication.
 @item NuSphere
 Editing of the MySQL manual.
 @item Stork Design studio
-The MySQL web site in use between 1998-2000.
+The MySQL website in use between 1998-2000.
 @item Intel
 Contributed to development on Windows and Linux platforms.
 @item Compaq
@@ -48847,6 +48993,14 @@ not yet 100% confident in this code.
 @node News-3.23.44, News-3.23.43, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.44
 @itemize @bullet
+@item
+Don't use @code{signal()} on windows because this appears to not be
+100 % reliable.
+@item
+Fixed bug when doing @code{WHERE column_name=NULL} on an indexed column
+that had @code{NULL} values.
+@item
+Fixed bug when doing @code{LEFT JOIN ...  ON (column_name = constant) WHERE column_name = constant}.
 @item
 When using replications, aborted queries that contained @code{%} could cause
 a core dum.
@@ -54382,7 +54536,7 @@ problems that may be unique to your environment.
 @xref{Operating System Specific Notes}.
 
 @menu
-* Compiling for debugging::     Compiling MYSQL for debugging.
+* Compiling for debugging::     Compiling MYSQL for debugging
 * Making trace files::          Creating trace files
 * Using gdb on mysqld::         Debugging mysqld under gdb
 * Using stack trace::           Using a stack trace
@@ -54392,7 +54546,7 @@ problems that may be unique to your environment.
 
 
 @node Compiling for debugging, Making trace files, Debugging server, Debugging server
-@appendixsubsec Compiling MYSQL for debugging.
+@appendixsubsec Compiling MYSQL for debugging
 
 If you have some very specific problem, you can always try to debug
 MySQL.  To do this you must configure MySQL with the

@@ -2065,6 +2065,7 @@ bool Item_func_match::fix_fields(THD *thd,struct st_table_list *tlist)
   }
   const_item_cache=0;
   table=((Item_field *)fields.head())->field->table;
+  record=table->record[0];
   return 0;
 }
 
@@ -2160,7 +2161,6 @@ bool Item_func_match::eq(const Item *item) const
   return 0;
 }
 
-#if 0
 double Item_func_match::val()
 {
   if (ft_handler==NULL)
@@ -2182,10 +2182,10 @@ double Item_func_match::val()
   if ((null_value=(docid==HA_OFFSET_ERROR)))
     return 0.0;
   else
-    return ft_handler->please->find_relevance(ft_handler, docid);
+    return ft_handler->please->find_relevance(ft_handler, docid, record);
 }
-#endif
 
+#if 0
 double Item_func_match_nl::val()
 {
   if (ft_handler==NULL)
@@ -2207,7 +2207,7 @@ double Item_func_match_nl::val()
   if ((null_value=(docid==HA_OFFSET_ERROR)))
     return 0.0;
   else
-    return ft_handler->please->find_relevance(ft_handler, docid);
+    return ft_handler->please->find_relevance(ft_handler, docid, record);
 }
 
 double Item_func_match_bool::val()
@@ -2226,9 +2226,11 @@ double Item_func_match_bool::val()
     join_key=0;
   }
 
-  null_value=1;
-  return -1.0;
+  return ft_handler->please->find_relevance(ft_handler, docid, record);
+  //null_value=1;
+  //return -1.0;
 }
+#endif
 
 /***************************************************************************
   System variables

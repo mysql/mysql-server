@@ -2,9 +2,10 @@
    This file is public domain and comes with NO WARRANTY of any kind
 
    Dutch error messages (share/dutch/errmsg.txt)
-   Arjen G. Lentz (agl@bitbike.com)
+   2001-08-02  Arjen Lentz (agl@bitbike.com)
    Completed earlier partial translation; worked on consistency and spelling.
-   Version: 02-08-2001
+   2001-10-24  Arjen Lentz (arjen@mysql.com)
+   Update for 4.0.x
 */
 
 "hashchk",
@@ -16,9 +17,9 @@
 "Kan database '%-.64s' niet aanmaken (Errcode: %d)",
 "Kan database '%-.64s' niet aanmaken. Database bestaat reeds",
 "Kan database '%-.64s' niet verwijderen. Database bestaat niet",
-"Error verwijderen database (kan '%-.64s' niet verwijderen, Errcode: %d)",
-"Error verwijderen database (kan rmdir '%-.64s' niet uitvoeren, Errcode: %d)",
-"Error bij het verwijderen van '%-.64s' (Errcode: %d)",
+"Fout bij verwijderen database (kan '%-.64s' niet verwijderen, Errcode: %d)",
+"Fout bij verwijderen database (kan rmdir '%-.64s' niet uitvoeren, Errcode: %d)",
+"Fout bij het verwijderen van '%-.64s' (Errcode: %d)",
 "Kan record niet lezen in de systeem tabel",
 "Kan de status niet krijgen van '%-.64s' (Errcode: %d)",
 "Kan de werkdirectory niet krijgen (Errcode: %d)",
@@ -167,8 +168,8 @@
 "Communicatiepakket kon niet worden gedecomprimeerd",
 "Fout bij het lezen van communicatiepakketten"
 "Timeout bij het lezen van communicatiepakketten",
-"Got an error writing communication packets",
-"Got timeout writing communication packets",
+"Fout bij het schrijven van communicatiepakketten",
+"Timeout bij het schrijven van communicatiepakketten",
 "Resultaat string is langer dan max_allowed_packet",
 "Het gebruikte tabel type ondersteunt geen BLOB/TEXT kolommen",
 "Het gebruikte tabel type ondersteunt geen AUTO_INCREMENT kolommen",
@@ -218,14 +219,15 @@
 "DROP DATABASE niet toegestaan terwijl thread een globale 'read lock' bezit",
 "CREATE DATABASE niet toegestaan terwijl thread een globale 'read lock' bezit",
 "Foutieve parameters voor %s",
-"%-.32s@%-.64s is not allowed to create new users",
-"Incorrect table definition; All MERGE tables must be in the same database",
-"Deadlock found when trying to get lock; Try restarting transaction",
-"Error connecting to master: %-.128s",
-"Error running query on master: %-.128s",
-"Error when executing command %s: %-.128s",
-"Wrong usage of %s and %s",
-"The used SELECT statements have a different number of columns",
-"Can't execute the query because you have a conflicting read lock",
-"Mixing of transactional and non-transactional tables is disabled",
-"Option '%s' used twice in statement",
+"%-.32s@%-.64s mag geen nieuwe gebruikers creeren",
+"Incorrecte tabel definitie; Alle MERGE tabellen moeten tot dezelfde database behoren",
+"Deadlock gevonden tijdens lock-aanvraag poging; Probeer herstart van de transactie",
+"Fout bij opbouwen verbinding naar master: %-.128s",
+"Fout bij uitvoeren query op master: %-.128s",
+"Fout tijdens uitvoeren van commando %s: %-.128s",
+"Foutief gebruik van %s en %s",
+"De gebruikte SELECT commando's hebben een verschillend aantal kolommen",
+"Kan de query niet uitvoeren vanwege een conflicterende read lock",
+"Het combineren van transactionele en niet-transactionele tabellen is uitgeschakeld.",
+"Optie '%s' tweemaal gebruikt in opdracht",
+"Het gebruikte tabel type ondersteund geen FULLTEXT indexen",

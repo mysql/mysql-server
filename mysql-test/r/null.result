@@ -40,3 +40,20 @@ insert into t1 values (null);
 select * from t1 where x != 0;
 x
 drop table t1;
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (
+indexed_field int default NULL,
+KEY indexed_field (indexed_field)
+);
+INSERT INTO t1 VALUES (NULL),(NULL);
+SELECT * FROM t1 WHERE indexed_field=NULL;
+indexed_field
+SELECT * FROM t1 WHERE indexed_field IS NULL;
+indexed_field
+NULL
+NULL
+SELECT * FROM t1 WHERE indexed_field<=>NULL;
+indexed_field
+NULL
+NULL
+DROP TABLE t1;
