@@ -148,6 +148,7 @@ LEX *lex_start(THD *thd, uchar *buf,uint length)
   lex->select_lex.expr_list.empty();
   lex->select_lex.ftfunc_list_alloc.empty();
   lex->select_lex.ftfunc_list= &lex->select->ftfunc_list_alloc;
+  lex->select= &lex->select_lex;
   lex->convert_set= (lex->thd= thd)->variables.convert_set;
   lex->yacc_yyss=lex->yacc_yyvs=0;
   lex->ignore_space=test(thd->sql_mode & MODE_IGNORE_SPACE);
@@ -956,6 +957,7 @@ void st_select_lex::init_query()
   table_list.next= (byte**) &table_list.first;
   item_list.empty();
   join= 0;
+  having_fix_field= 0;
 }
 
 void st_select_lex::init_select()
@@ -973,7 +975,7 @@ void st_select_lex::init_select()
   ftfunc_list_alloc.empty();
   ftfunc_list= &ftfunc_list_alloc;
   linkage= UNSPECIFIED_TYPE;
-  depended= having_fix_field= 0;
+  depended= 0;
 }
 
 /*
