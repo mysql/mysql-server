@@ -243,7 +243,12 @@ void mysql_binlog_send(THD* thd, char* log_ident, ulong pos, ushort flags)
     errmsg = "Binary log is not open";
     goto err;
   }
-
+  if(!server_id_supplied)
+    {
+      errmsg = "Misconfigured master - server id was not set";
+      goto err;
+    }
+  
   if (log_ident[0])
     mysql_bin_log.make_log_name(search_file_name, log_ident);
   else
@@ -498,7 +503,7 @@ int start_slave(THD* thd , bool net_report)
     return 1;
   pthread_mutex_lock(&LOCK_slave);
   if(!slave_running)
-    if(glob_mi.inited && glob_mi.host)
+    if(glob_mi.inited && glob_mi.host && server_id_supplied)
       {
 	pthread_t hThread;
 	if(pthread_create(&hThread, &connection_attrib, handle_slave, 0))
@@ -507,7 +512,8 @@ int start_slave(THD* thd , bool net_report)
 	  }
       }
     else
-      err = "Master host not set or master info not initialized";
+      err = "Master host not set, master info not initialized, or server id \
+not configured";
   else
     err =  "Slave already running";
 
