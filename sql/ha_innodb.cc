@@ -4780,7 +4780,6 @@ innodb_show_status(
 /*===============*/
 	THD*	thd)	/* in: the MySQL query thread of the caller */
 {
-        char*           buf;
         Protocol        *protocol= thd->protocol;
 	trx_t*		trx;
 
