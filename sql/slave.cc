@@ -1565,6 +1565,48 @@ int register_slave_on_master(MYSQL* mysql)
 }
 
 
+/*
+  Builds a String from a HASH of TABLE_RULE_ENT. Cannot be used for any other 
+  hash, as it assumes that the hash entries are TABLE_RULE_ENT.
+
+  SYNOPSIS
+    table_rule_ent_hash_to_str()
+    s               pointer to the String to fill
+    h               pointer to the HASH to read
+
+  RETURN VALUES
+    none
+*/
+
+void table_rule_ent_hash_to_str(String* s, HASH* h)
+{
+  s->length(0);
+  for (uint i=0 ; i < h->records ; i++)
+  {
+    TABLE_RULE_ENT* e= (TABLE_RULE_ENT*) hash_element(h, i);
+    if (s->length())
+      s->append(',');
+    s->append(e->db,e->key_len);
+  }
+}
+
+/*
+  Mostly the same thing as above
+*/
+
+void table_rule_ent_dynamic_array_to_str(String* s, DYNAMIC_ARRAY* a)
+{
+  s->length(0);
+  for (uint i=0 ; i < a->elements ; i++)
+  {
+    TABLE_RULE_ENT* e;
+    get_dynamic(a, (gptr)&e, i);
+    if (s->length())
+      s->append(',');
+    s->append(e->db,e->key_len);
+  }
+}
+
 int show_master_info(THD* thd, MASTER_INFO* mi)
 {
   // TODO: fix this for multi-master
@@ -1594,6 +1636,10 @@ int show_master_info(THD* thd, MASTER_INFO* mi)
   field_list.push_back(new Item_empty_string("Slave_SQL_Running", 3));
   field_list.push_back(new Item_empty_string("Replicate_do_db", 20));
   field_list.push_back(new Item_empty_string("Replicate_ignore_db", 20));
+  field_list.push_back(new Item_empty_string("Replicate_do_table", 20));
+  field_list.push_back(new Item_empty_string("Replicate_ignore_table", 23));
+  field_list.push_back(new Item_empty_string("Replicate_wild_do_table", 24));
+  field_list.push_back(new Item_empty_string("Replicate_wild_ignore_table", 28));
   field_list.push_back(new Item_return_int("Last_errno", 4, MYSQL_TYPE_LONG));
   field_list.push_back(new Item_empty_string("Last_error", 20));
   field_list.push_back(new Item_return_int("Skip_counter", 10,
@@ -1626,6 +1672,23 @@ int show_master_info(THD* thd, MASTER_INFO* mi)
     protocol->store(mi->rli.slave_running ? "Yes":"No", &my_charset_bin);
     protocol->store(&replicate_do_db);
     protocol->store(&replicate_ignore_db);
+    /*
+      We can't directly use some protocol->store for 
+      replicate_*_table,
+      as Protocol doesn't know the TABLE_RULE_ENT struct.
+      We first build Strings and then pass them to protocol->store.
+    */
+    char buf[256];
+    String tmp(buf, sizeof(buf), &my_charset_bin);
+    table_rule_ent_hash_to_str(&tmp, &replicate_do_table);
+    protocol->store(&tmp);
+    table_rule_ent_hash_to_str(&tmp, &replicate_ignore_table);
+    protocol->store(&tmp);
+    table_rule_ent_dynamic_array_to_str(&tmp, &replicate_wild_do_table);
+    protocol->store(&tmp);
+    table_rule_ent_dynamic_array_to_str(&tmp, &replicate_wild_ignore_table);
+    protocol->store(&tmp);
+
     protocol->store((uint32) mi->rli.last_slave_errno);
     protocol->store(mi->rli.last_slave_error, &my_charset_bin);
     protocol->store((uint32) mi->rli.slave_skip_counter);
