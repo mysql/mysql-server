@@ -83,7 +83,7 @@ _hash_init(HASH *hash,CHARSET_INFO *charset,
     Sets records to 0
 */
 
-static void inline hash_free_elements(HASH *hash)
+static inline void hash_free_elements(HASH *hash)
 {
   if (hash->free)
   {

@@ -1695,7 +1695,7 @@ err:
 
 static my_bool not_killed= 0;
 
-volatile my_bool *killed_ptr(MI_CHECK *param)
+volatile my_bool *killed_ptr(MI_CHECK *param __attribute__((unused)))
 {
   return &not_killed; 			/* always NULL */
 }

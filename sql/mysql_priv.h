@@ -897,7 +897,7 @@ extern uint test_flags,select_errors,ha_open_options;
 extern uint protocol_version, mysqld_port, dropping_tables;
 extern uint delay_key_write_options, lower_case_table_names;
 extern bool opt_endinfo, using_udf_functions, locked_in_memory;
-extern bool opt_using_transactions, mysql_embedded;
+extern bool opt_using_transactions, mysqld_embedded;
 extern bool using_update_log, opt_large_files, server_id_supplied;
 extern bool opt_log, opt_update_log, opt_bin_log, opt_slow_log, opt_error_log;
 extern bool opt_disable_networking, opt_skip_show_db;
