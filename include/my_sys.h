@@ -749,6 +749,7 @@ extern my_bool my_uncompress(byte *, ulong *, ulong *);
 extern byte *my_compress_alloc(const byte *packet, ulong *len, ulong *complen);
 extern ulong checksum(const byte *mem, uint count);
 extern uint my_bit_log2(ulong value);
+uint my_count_bits(ulonglong v);
 extern void my_sleep(ulong m_seconds);
 
 #ifdef __WIN__
