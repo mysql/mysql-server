@@ -1189,9 +1189,11 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
       switch (keys_onoff)
       {
         case LEAVE_AS_IS: break;
-        case ENABLE: error=table->file->activate_all_index(thd); break;
+        case ENABLE:
+          error=table->file->activate_all_index(thd);
+          break;
         case DISABLE:
-          table->file->deactivate_non_unique_index(table->file->records);
+          table->file->deactivate_non_unique_index(HA_POS_ERROR);
           break;
       }
     }
