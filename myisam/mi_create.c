@@ -164,6 +164,9 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
 
   if (packed || (flags & HA_PACK_RECORD))
     options|=HA_OPTION_PACK_RECORD;	/* Must use packed records */
+  /* We can't use checksum with static length rows */
+  if (!(options & HA_OPTION_PACK_RECORD))
+    options&= ~HA_OPTION_CHECKSUM;
   if (options & (HA_OPTION_PACK_RECORD | HA_OPTION_COMPRESS_RECORD))
     min_pack_length+=varchar_count;		/* Min length to pack */
   else
@@ -445,7 +448,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
   share.base.records=ci->max_rows;
   share.base.reloc=  ci->reloc_rows;
   share.base.reclength=real_reclength;
-  share.base.pack_reclength=reclength+ test(options & HA_OPTION_CHECKSUM);;
+  share.base.pack_reclength=reclength+ test(options & HA_OPTION_CHECKSUM);
   share.base.max_pack_length=pack_reclength;
   share.base.min_pack_length=min_pack_length;
   share.base.pack_bits=packed;
