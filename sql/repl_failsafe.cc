@@ -895,7 +895,7 @@ int load_master_data(THD* thd)
 
     cleanup_mysql_results(db_res, cur_table_res - 1, table_res);
 
-    // adjust position in the master
+    // adjust replication coordinates from the master
     if (master_status_res)
     {
       MYSQL_ROW row = mysql_fetch_row(master_status_res);
@@ -908,10 +908,18 @@ int load_master_data(THD* thd)
       */
       if (row && row[0] && row[1])
       {
+        /*
+          If the slave's master info is not inited, we init it, then we write
+          the new coordinates to it. Must call init_master_info() *before*
+          setting active_mi, because init_master_info() sets active_mi with
+          defaults.
+        */
+        if (init_master_info(active_mi, master_info_file, relay_log_info_file, 0))
+          send_error(&thd->net, ER_MASTER_INFO);
 	strmake(active_mi->master_log_name, row[0],
 		sizeof(active_mi->master_log_name));
 	active_mi->master_log_pos = strtoull(row[1], (char**) 0, 10);
-	/* don't hit the magic number */
+        /* at least in recent versions, the condition below should be false */
 	if (active_mi->master_log_pos < BIN_LOG_HEADER_SIZE)
 	  active_mi->master_log_pos = BIN_LOG_HEADER_SIZE;
         /*

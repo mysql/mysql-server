@@ -13,6 +13,7 @@ args=""
 port=""
 socket=""
 database="mysql"
+bindir=""
 
 file=mysql_fix_privilege_tables.sql
 
@@ -40,6 +41,7 @@ parse_arguments() {
       --port=*) port=`echo "$arg" | sed -e "s;--port=;;"` ;;
       --socket=*) socket=`echo "$arg" | sed -e "s;--socket=;;"` ;;
       --database=*) database=`echo "$arg" | sed -e "s;--database=;;"` ;;
+      --bindir=*) bindir=`echo "$arg" | sed -e "s;--bindir=;;"` ;;
       *)
         if test -n "$pick_args"
         then
@@ -76,11 +78,17 @@ parse_arguments PICK-ARGS-FROM-ARGV "$@"
 if test -z "$basedir"
 then
   basedir=@prefix@
-  bindir=@bindir@
+  if test -z "$bindir"
+  then
+     bindir=@bindir@
+  fi
   execdir=@libexecdir@ 
   pkgdatadir=@pkgdatadir@
 else
-  bindir="$basedir/bin"
+  if test -z "$bindir"
+  then
+    bindir="$basedir/bin"
+  fi
   if test -x "$basedir/libexec/mysqld"
   then
     execdir="$basedir/libexec"

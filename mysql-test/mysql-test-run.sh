@@ -10,7 +10,7 @@
 # Access Definitions
 #--
 DB=test
-DBPASSWD=
+DBPASSWD=""
 VERBOSE=""
 USE_MANAGER=0
 MY_TZ=GMT-3
@@ -469,12 +469,13 @@ if [ x$SOURCE_DIST = x1 ] ; then
   MYSQL_TEST="strace -o $MYSQL_TEST_DIR/var/log/mysqltest.strace $MYSQL_TEST"
  fi
 
- MYSQLADMIN="$BASEDIR/client/mysqladmin"
+ CLIENT_BINDIR="$BASEDIR/client"
+ MYSQLADMIN="$CLIENT_BINDIR/mysqladmin"
  WAIT_PID="$BASEDIR/extra/mysql_waitpid"
- MYSQL_MANAGER_CLIENT="$BASEDIR/client/mysqlmanagerc"
+ MYSQL_MANAGER_CLIENT="$CLIENT_BINDIR/mysqlmanagerc"
  MYSQL_MANAGER="$BASEDIR/tools/mysqlmanager"
- MYSQL_MANAGER_PWGEN="$BASEDIR/client/mysqlmanager-pwgen"
- MYSQL="$BASEDIR/client/mysql"
+ MYSQL_MANAGER_PWGEN="$CLIENT_BINDIR/mysqlmanager-pwgen"
+ MYSQL="$CLIENT_BINDIR/mysql"
  LANGUAGE="$BASEDIR/sql/share/english/"
  CHARSETSDIR="$BASEDIR/sql/share/charsets"
  INSTALL_DB="./install_test_db"
@@ -486,17 +487,18 @@ else
  else
    MYSQLD="$VALGRIND $BASEDIR/bin/mysqld"
  fi
- MYSQL_TEST="$BASEDIR/bin/mysqltest"
- MYSQL_DUMP="$BASEDIR/bin/mysqldump"
- MYSQL_BINLOG="$BASEDIR/bin/mysqlbinlog"
- MYSQLADMIN="$BASEDIR/bin/mysqladmin"
- WAIT_PID="$BASEDIR/bin/mysql_waitpid"
- MYSQL_MANAGER="$BASEDIR/bin/mysqlmanager"
- MYSQL_MANAGER_CLIENT="$BASEDIR/bin/mysqlmanagerc"
- MYSQL_MANAGER_PWGEN="$BASEDIR/bin/mysqlmanager-pwgen"
- MYSQL="$BASEDIR/bin/mysql"
+ CLIENT_BINDIR="$BASEDIR/bin"
+ MYSQL_TEST="$CLIENT_BINDIR/mysqltest"
+ MYSQL_DUMP="$CLIENT_BINDIR/mysqldump"
+ MYSQL_BINLOG="$CLIENT_BINDIR/mysqlbinlog"
+ MYSQLADMIN="$CLIENT_BINDIR/mysqladmin"
+ WAIT_PID="$CLIENT_BINDIR/mysql_waitpid"
+ MYSQL_MANAGER="$CLIENT_BINDIR/mysqlmanager"
+ MYSQL_MANAGER_CLIENT="$CLIENT_BINDIR/mysqlmanagerc"
+ MYSQL_MANAGER_PWGEN="$CLIENT_BINDIR/mysqlmanager-pwgen"
+ MYSQL="$CLIENT_BINDIR/mysql"
  INSTALL_DB="./install_test_db --bin"
- MYSQL_FIX_SYSTEM_TABLES="$BASEDIR/bin/mysql_fix_privilege_tables"
+ MYSQL_FIX_SYSTEM_TABLES="$CLIENT_BINDIR/mysql_fix_privilege_tables"
  if test -d "$BASEDIR/share/mysql/english"
  then
    LANGUAGE="$BASEDIR/share/mysql/english/"
@@ -507,11 +509,12 @@ else
   fi
 fi
 
-MYSQL_DUMP="$MYSQL_DUMP --no-defaults -uroot --socket=$MASTER_MYSOCK  $EXTRA_MYSQLDUMP_OPT"
+MYSQL_DUMP="$MYSQL_DUMP --no-defaults -uroot --socket=$MASTER_MYSOCK --password=$DBPASSWD $EXTRA_MYSQLDUMP_OPT"
 MYSQL_BINLOG="$MYSQL_BINLOG --no-defaults --local-load=$MYSQL_TMP_DIR $EXTRA_MYSQLBINLOG_OPT"
-MYSQL_FIX_SYSTEM_TABLES="$MYSQL_FIX_SYSTEM_TABLES --host=localhost --port=$MASTER_MYPORT --socket=$MASTER_MYSOCK --user=root --password="
-MYSQL="$MYSQL --host=localhost --port=$MASTER_MYPORT --socket=$MASTER_MYSOCK --user=root --password="
-export MYSQL MYSQL_DUMP MYSQL_BINLOG MYSQL_FIX_SYSTEM_TABLES
+MYSQL_FIX_SYSTEM_TABLES="$MYSQL_FIX_SYSTEM_TABLES --host=localhost --port=$MASTER_MYPORT --socket=$MASTER_MYSOCK --user=root --password=$DBPASSWD --bindir=$CLIENT_BINDIR"
+MYSQL="$MYSQL --host=localhost --port=$MASTER_MYPORT --socket=$MASTER_MYSOCK --user=root --password=$DBPASSWD"
+export MYSQL MYSQL_DUMP MYSQL_BINLOG MYSQL_FIX_SYSTEM_TABLES CLIENT_BINDIR
+
 
 if [ -z "$MASTER_MYSQLD" ]
 then
@@ -539,9 +542,9 @@ fi
 
 if [ -w / ]
 then
-    # We are running as root;  We need to add the --root argument
-    EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT --user=root"
-    EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT --user=root"
+  # We are running as root;  We need to add the --root argument
+  EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT --user=root"
+  EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT --user=root"
 fi
 
 

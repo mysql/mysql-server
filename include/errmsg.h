@@ -63,6 +63,7 @@ extern const char *client_errors[];	/* Error messages */
 #define CR_PROBE_MASTER_CONNECT 2025
 #define CR_SSL_CONNECTION_ERROR 2026
 #define CR_MALFORMED_PACKET     2027
+#define CR_WRONG_LICENSE	2028
 
 /* new 4.1 error codes */
 #define CR_NULL_POINTER		2028
