@@ -81,6 +81,8 @@ call foo()|
 drop procedure if exists foo|
 --error 1305
 show create procedure foo|
+--error 1305
+show create function foo|
 
 # LEAVE/ITERATE/GOTO with no match
 --error 1308
