@@ -22,6 +22,7 @@
 #include "mysql_priv.h"
 #include <m_ctype.h>
 #include "my_dir.h"
+#include "sp_rcontext.h"
 
 static void mark_as_dependent(SELECT_LEX *last, SELECT_LEX *current,
 			      Item_ident *item);
@@ -56,10 +57,10 @@ Item::Item():
   if (thd->lex.current_select)
   {
     SELECT_LEX_NODE::enum_parsing_place place= 
-      thd->lex.current_select->parsing_place;
+      thd->lex->current_select->parsing_place;
     if (place == SELECT_LEX_NODE::SELECT_LIST ||
 	place == SELECT_LEX_NODE::IN_HAVING)
-      thd->lex.current_select->select_n_having_items++;
+      thd->lex->current_select->select_n_having_items++;
   }
 }
 
@@ -202,6 +203,23 @@ bool Item::get_time(TIME *ltime)
 CHARSET_INFO * Item::default_charset() const
 {
   return current_thd->variables.collation_connection;
+}
+
+
+Item *
+Item_splocal::this_item()
+{
+  THD *thd= current_thd;
+
+  return thd->spcont->get_item(m_offset);
+}
+
+Item *
+Item_splocal::this_const_item() const
+{
+  THD *thd= current_thd;
+
+  return thd->spcont->get_item(m_offset);
 }
 
 bool DTCollation::aggregate(DTCollation &dt)
@@ -791,7 +809,7 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
       Item **refer= (Item **)not_found_item;
       uint counter;
       // Prevent using outer fields in subselects, that is not supported now
-      SELECT_LEX *cursel=(SELECT_LEX *) thd->lex.current_select;
+      SELECT_LEX *cursel=(SELECT_LEX *) thd->lex->current_select;
       if (cursel->master_unit()->first_select()->linkage != DERIVED_TABLE_TYPE)
 	for (SELECT_LEX *sl= cursel->outer_select();
 	     sl;
@@ -1252,17 +1270,17 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
   if (!ref)
   {
     TABLE_LIST *where= 0, *table_list;
-    SELECT_LEX *sl= thd->lex.current_select->outer_select();
+    SELECT_LEX *sl= thd->lex->current_select->outer_select();
     /*
       Finding only in current select will be performed for selects that have 
       not outer one and for derived tables (which not support using outer 
       fields for now)
     */
     if ((ref= find_item_in_list(this, 
-				*(thd->lex.current_select->get_item_list()),
+				*(thd->lex->current_select->get_item_list()),
 				&counter,
 				((sl && 
-				  thd->lex.current_select->master_unit()->
+				  thd->lex->current_select->master_unit()->
 				  first_select()->linkage !=
 				  DERIVED_TABLE_TYPE) ? 
 				  REPORT_EXCEPT_NOT_FOUND :
@@ -1312,7 +1330,7 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
       {
 	// Call to report error
 	find_item_in_list(this,
-			  *(thd->lex.current_select->get_item_list()),
+			  *(thd->lex->current_select->get_item_list()),
 			  &counter,
 			  REPORT_ALL_ERRORS);
         ref= 0;
@@ -1324,7 +1342,7 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 	Item_field* fld;
 	if (!((*reference)= fld= new Item_field(tmp)))
 	  return 1;
-	mark_as_dependent(last, thd->lex.current_select, fld);
+	mark_as_dependent(last, thd->lex->current_select, fld);
 	return 0;
       }
       else
@@ -1335,7 +1353,7 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 		   "forward reference in item list");
 	  return -1;
 	}
-	mark_as_dependent(last, thd->lex.current_select,
+	mark_as_dependent(last, thd->lex->current_select,
 			  this);
 	ref= last->ref_pointer_array + counter;
       }
@@ -1350,7 +1368,7 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 		 "forward reference in item list");
 	return -1;
       }
-      ref= thd->lex.current_select->ref_pointer_array + counter;
+      ref= thd->lex->current_select->ref_pointer_array + counter;
     }
   }
 
@@ -1363,8 +1381,8 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
   */
   if (((*ref)->with_sum_func && name &&
        (depended_from ||
-	!(thd->lex.current_select->linkage != GLOBAL_OPTIONS_TYPE &&
-	  thd->lex.current_select->having_fix_field))) ||
+	!(thd->lex->current_select->linkage != GLOBAL_OPTIONS_TYPE &&
+	  thd->lex->current_select->having_fix_field))) ||
       !(*ref)->fixed)
   {
     my_error(ER_ILLEGAL_REFERENCE, MYF(0), name, 

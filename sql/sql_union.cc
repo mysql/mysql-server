@@ -115,7 +115,7 @@ bool select_union::flush()
 int st_select_lex_unit::prepare(THD *thd, select_result *sel_result,
 				bool tables_and_fields_initied)
 {
-  SELECT_LEX *lex_select_save= thd->lex.current_select;
+  SELECT_LEX *lex_select_save= thd->lex->current_select;
   SELECT_LEX *select_cursor;
   DBUG_ENTER("st_select_lex_unit::prepare");
 
@@ -130,7 +130,7 @@ int st_select_lex_unit::prepare(THD *thd, select_result *sel_result,
   t_and_f= tables_and_fields_initied;
   
   bzero((char *)&tmp_table_param,sizeof(TMP_TABLE_PARAM));
-  thd->lex.current_select= select_cursor= first_select_in_union();
+  thd->lex->current_select= select_cursor= first_select_in_union();
   /* Global option */
   if (t_and_f)
   {
@@ -190,7 +190,7 @@ int st_select_lex_unit::prepare(THD *thd, select_result *sel_result,
     JOIN *join= new JOIN(thd, sl->item_list, 
 			 sl->options | thd->options | SELECT_NO_UNLOCK,
 			 union_result);
-    thd->lex.current_select= sl;
+    thd->lex->current_select= sl;
     offset_limit_cnt= sl->offset_limit;
     select_limit_cnt= sl->select_limit+sl->offset_limit;
     if (select_limit_cnt < sl->select_limit)
@@ -215,7 +215,7 @@ int st_select_lex_unit::prepare(THD *thd, select_result *sel_result,
   }
 
   item_list.empty();
-  thd->lex.current_select= lex_select_save;
+  thd->lex->current_select= lex_select_save;
   {
     List_iterator<Item> it(select_cursor->item_list);
     Field **field;
@@ -230,14 +230,14 @@ int st_select_lex_unit::prepare(THD *thd, select_result *sel_result,
 
   DBUG_RETURN(res || thd->is_fatal_error ? 1 : 0);
 err:
-  thd->lex.current_select= lex_select_save;
+  thd->lex->current_select= lex_select_save;
   DBUG_RETURN(-1);
 }
 
 
 int st_select_lex_unit::exec()
 {
-  SELECT_LEX *lex_select_save= thd->lex.current_select;
+  SELECT_LEX *lex_select_save= thd->lex->current_select;
   SELECT_LEX *select_cursor=first_select_in_union();
   ha_rows add_rows=0;
   DBUG_ENTER("st_select_lex_unit::exec");
@@ -305,13 +305,13 @@ int st_select_lex_unit::exec()
 	res= sl->join->error;
 	if (!res && union_result->flush())
 	{
-	  thd->lex.current_select= lex_select_save;
+	  thd->lex->current_select= lex_select_save;
 	  DBUG_RETURN(1);
 	}
       }
       if (res)
       {
-	thd->lex.current_select= lex_select_save;
+	thd->lex->current_select= lex_select_save;
 	DBUG_RETURN(res);
       }
       if (found_rows_for_union  && !sl->braces &&
@@ -333,7 +333,7 @@ int st_select_lex_unit::exec()
     if (!thd->is_fatal_error)			// Check if EOM
     {
       ulong options= thd->options;
-      thd->lex.current_select= fake_select_lex;
+      thd->lex->current_select= fake_select_lex;
       if (select_cursor->braces)
       {
 	offset_limit_cnt= global_parameters->offset_limit;
@@ -394,7 +394,7 @@ int st_select_lex_unit::exec()
       */
     }
   }
-  thd->lex.current_select= lex_select_save;
+  thd->lex->current_select= lex_select_save;
   DBUG_RETURN(res);
 }
 

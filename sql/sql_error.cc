@@ -184,7 +184,7 @@ my_bool mysqld_show_warnings(THD *thd, ulong levels_to_show)
     DBUG_RETURN(1);
 
   MYSQL_ERROR *err;
-  SELECT_LEX *sel= &thd->lex.select_lex;
+  SELECT_LEX *sel= &thd->lex->select_lex;
   ha_rows offset= sel->offset_limit, limit= sel->select_limit;
   Protocol *protocol=thd->protocol;
   

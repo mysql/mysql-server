@@ -1,0 +1,98 @@
+delete from mysql.proc;
+create procedure syntaxerror(t int);
+ERROR 42000: You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+create procedure syntaxerror(t int);
+ERROR 42000: You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+create procedure syntaxerror(t int);
+ERROR 42000: You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+create procedure proc1()
+set @x = 42;
+create function func1() returns int
+return 42;
+create procedure foo()
+create procedure bar() set @x=3;
+ERROR HY000: Can't create a PROCEDURE from within another stored routine
+create procedure foo()
+create function bar() returns double return 2.3;
+ERROR HY000: Can't create a FUNCTION from within another stored routine
+create procedure proc1()
+set @x = 42;
+ERROR HY000: PROCEDURE proc1 already exists
+create function func1() returns int
+return 42;
+ERROR HY000: FUNCTION func1 already exists
+drop procedure proc1;
+drop function func1;
+alter procedure foo;
+ERROR HY000: PROCEDURE foo does not exist
+alter function foo;
+ERROR HY000: FUNCTION foo does not exist
+drop procedure foo;
+ERROR HY000: PROCEDURE foo does not exist
+drop function foo;
+ERROR HY000: FUNCTION foo does not exist
+call foo();
+ERROR HY000: PROCEDURE foo does not exist
+drop procedure if exists foo;
+Warnings:
+Warning	1272	PROCEDURE foo does not exist
+create procedure foo()
+foo: loop
+leave bar;
+end loop;
+ERROR HY000: LEAVE with no matching label: bar
+create procedure foo()
+foo: loop
+iterate bar;
+end loop;
+ERROR HY000: ITERATE with no matching label: bar
+create procedure foo()
+foo: loop
+foo: loop
+set @x=2;
+end loop foo;
+end loop foo;
+ERROR HY000: Redefining label foo
+create procedure foo()
+foo: loop
+set @x=2;
+end loop bar;
+ERROR HY000: End-label bar without match
+create procedure foo(out x int)
+begin
+declare y int;
+set x = y;
+end;
+ERROR HY000: Referring to uninitialized variable y
+create procedure foo()
+begin
+select name from mysql.proc;
+select type from mysql.proc;
+end;
+call foo();
+ERROR HY000: SELECT in a stored procedure must have INTO
+drop procedure foo;
+create procedure foo()
+return 42;
+ERROR HY000: RETURN is only allowed in a FUNCTION
+create function foo() returns int
+begin
+declare x int;
+select max(c) into x from test.t;
+return x;
+end;
+ERROR HY000: Queries, like SELECT, INSERT, UPDATE (and others), are not allowed in a FUNCTION
+create procedure p(x int)
+insert into test.t1 values (x);
+create function f(x int) returns int
+return x+42;
+call p();
+ERROR HY000: Wrong number of arguments for PROCEDURE p, expected 1, got 0
+call p(1, 2);
+ERROR HY000: Wrong number of arguments for PROCEDURE p, expected 1, got 2
+select f();
+ERROR HY000: Wrong number of arguments for FUNCTION f, expected 1, got 0
+select f(1, 2);
+ERROR HY000: Wrong number of arguments for FUNCTION f, expected 1, got 2
+drop procedure p;
+drop function f;
