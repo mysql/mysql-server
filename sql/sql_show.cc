@@ -2334,25 +2334,13 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
                    "NO" : "YES");
       table->field[6]->store((const char*) pos,
                              strlen((const char*) pos), cs);
-
-      switch (field->type()) {
-      case FIELD_TYPE_TINY_BLOB:
-      case FIELD_TYPE_MEDIUM_BLOB:
-      case FIELD_TYPE_LONG_BLOB:
-      case FIELD_TYPE_BLOB:
-      case FIELD_TYPE_VAR_STRING:
-      case FIELD_TYPE_STRING:
-        if (field->has_charset())
-          table->field[8]->store((longlong) field->representation_length()/
-                                 field->charset()->mbmaxlen);
-        else
-          table->field[8]->store((longlong) field->representation_length());
+      if (field->has_charset())
+      {
+        table->field[8]->store((longlong) field->representation_length()/
+                               field->charset()->mbmaxlen);
         table->field[8]->set_notnull();
         table->field[9]->store((longlong) field->representation_length());
         table->field[9]->set_notnull();
-        break;
-      default:
-        break;
       }
 
       {
