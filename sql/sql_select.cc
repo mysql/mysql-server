@@ -6639,10 +6639,7 @@ static Item *eliminate_item_equal(COND *cond, COND_EQUAL *upper_levels,
   List<Item> eq_list;
   Item_func_eq *eq_item= 0;
   if (((Item *) item_equal)->const_item() && !item_equal->val_int())
-  {
-    cond= new Item_int((char*) "FALSE",0,1);
-    return cond;
-  } 
+    return new Item_int((longlong) 0,1); 
   Item *item_const= item_equal->get_const();
   Item_equal_iterator it(*item_equal);
   Item *head;
@@ -6685,9 +6682,14 @@ static Item *eliminate_item_equal(COND *cond, COND_EQUAL *upper_levels,
   }
 
   if (!cond && !eq_list.head())
+  {
+    if (!eq_item)
+      return new Item_int((longlong) 1,1);
     return eq_item;
+  }
 
-  eq_list.push_back(eq_item);
+  if (eq_item)
+    eq_list.push_back(eq_item);
   if (!cond)
     cond= new Item_cond_and(eq_list);
   else
