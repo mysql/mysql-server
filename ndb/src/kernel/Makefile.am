@@ -55,7 +55,7 @@ LDADD +=  \
               $(top_builddir)/ndb/src/common/util/libgeneral.la  \
          $(top_builddir)/dbug/libdbug.a \
          $(top_builddir)/mysys/libmysys.a \
-         $(top_builddir)/strings/libmystrings.a
+         $(top_builddir)/strings/libmystrings.a @NDB_SCI_LIBS@
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

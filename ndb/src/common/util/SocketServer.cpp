@@ -16,6 +16,7 @@
 
 
 #include <ndb_global.h>
+#include <my_pthread.h>
 
 #include <SocketServer.hpp>
 
@@ -176,9 +177,9 @@ extern "C"
 void* 
 socketServerThread_C(void* _ss){
   SocketServer * ss = (SocketServer *)_ss;
-  
+  my_thread_init(); 
   ss->doRun();
-  
+  my_thread_end(); 
   NdbThread_Exit(0);
   return 0;
 }
@@ -287,8 +288,10 @@ void*
 sessionThread_C(void* _sc){
   SocketServer::Session * si = (SocketServer::Session *)_sc;
 
+  my_thread_init();
   if(!transfer(si->m_socket)){
     si->m_stopped = true;
+    my_thread_end();
     NdbThread_Exit(0);
     return 0;
   }
@@ -301,6 +304,7 @@ sessionThread_C(void* _sc){
   }
   
   si->m_stopped = true;
+  my_thread_end();
   NdbThread_Exit(0);
   return 0;
 }
