@@ -250,10 +250,6 @@ if ($limits->{'unique_index'})
   timestr(timediff($end_time, $loop_time),"all") . "\n\n";
 }
 
-#if ($opt_fast && defined($server->{vacuum}))
-#{
-#  $server->vacuum(1,\$dbh);
-#}
 
 ####
 #### Do some selects on the table
@@ -1410,10 +1406,6 @@ if ($limits->{'insert_multi_value'})
   print "Time for multiple_value_insert (" . ($opt_loop_count) . "): " .
     timestr(timediff($end_time, $loop_time),"all") . "\n\n";
 
-  if ($opt_fast && defined($server->{vacuum}))
-  {
-    $server->vacuum(1,\$dbh);
-  }
   if ($opt_lock_tables)
   {
     $sth = $dbh->do("UNLOCK TABLES ") || die $DBI::errstr;
