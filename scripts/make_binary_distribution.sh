@@ -70,7 +70,7 @@ for i in extra/comp_err extra/replace extra/perror extra/resolveip \
   client/.libs/mysql client/.libs/mysqlshow client/.libs/mysqladmin \
   client/.libs/mysqldump client/.libs/mysqlimport client/.libs/mysqltest \
   client/.libs/mysqlcheck \
-  client/.libs/mysqlmanagerc client/libs/mysqlmanager-pwgen \
+  client/.libs/mysqlmanagerc client/.libs/mysqlmanager-pwgen \
   tools/.libs/mysqlmanager
 do
   if [ -f $i ]
