@@ -79,7 +79,7 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table,uint count,
 				 bool unlock, TABLE **write_locked);
 static int lock_external(THD *thd, TABLE **table,uint count);
 static int unlock_external(THD *thd, TABLE **table,uint count);
-static void print_lock_error(int error);
+static void print_lock_error(int error, const char *);
 
 
 MYSQL_LOCK *mysql_lock_tables(THD *thd,TABLE **tables,uint count)
@@ -187,7 +187,7 @@ static int lock_external(THD *thd, TABLE **tables, uint count)
 	(*tables)->file->external_lock(thd, F_UNLCK);
 	(*tables)->current_lock=F_UNLCK;
       }
-      print_lock_error(error);
+      print_lock_error(error, (*tables)->file->table_type());
       DBUG_RETURN(error);
     }
     else
@@ -380,7 +380,7 @@ static int unlock_external(THD *thd, TABLE **table,uint count)
     table++;
   } while (--count);
   if (error_code)
-    print_lock_error(error_code);
+    print_lock_error(error_code, (*table)->file->table_type());
   DBUG_RETURN(error_code);
 }
 
@@ -683,7 +683,7 @@ void unlock_table_names(THD *thd, TABLE_LIST *table_list,
 }
 
 
-static void print_lock_error(int error)
+static void print_lock_error(int error, const char *table)
 {
   int textno;
   DBUG_ENTER("print_lock_error");
@@ -698,11 +698,19 @@ static void print_lock_error(int error)
   case HA_ERR_LOCK_DEADLOCK:
     textno=ER_LOCK_DEADLOCK;
     break;
+  case HA_ERR_WRONG_COMMAND:
+    textno=ER_ILLEGAL_HA;
+    break;
   default:
     textno=ER_CANT_LOCK;
     break;
   }
-  my_error(textno,MYF(ME_BELL+ME_OLDWIN+ME_WAITTANG),error);
+
+  if ( textno == ER_ILLEGAL_HA )
+    my_error(textno, MYF(ME_BELL+ME_OLDWIN+ME_WAITTANG), table);
+  else
+    my_error(textno, MYF(ME_BELL+ME_OLDWIN+ME_WAITTANG), error);
+
   DBUG_VOID_RETURN;
 }
 
@@ -977,7 +985,7 @@ int transactional_lock_tables(THD *thd, TABLE_LIST *tables, uint counter)
 
     if ((error=(*start)->file->transactional_table_lock(thd, lock_type)))
     {
-      print_lock_error(error);
+      print_lock_error(error, (*start)->file->table_type());
       DBUG_RETURN(-1);
     }
     else
