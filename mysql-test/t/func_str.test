@@ -195,6 +195,17 @@ select trim(trailing 'foo' from 'foo');
 select trim(leading 'foo' from 'foo');
 
 #
+# crashing bug with QUOTE() and LTRIM() or TRIM() fixed
+# Bug #7495
+#
+
+select quote(ltrim(concat('    ', 'a')));
+select quote(trim(concat('    ', 'a')));
+
+# Bad results from QUOTE(). Bug #8248
+CREATE TABLE t1 SELECT 1 UNION SELECT 2 UNION SELECT 3;
+SELECT QUOTE('A') FROM t1;
+DROP TABLE t1;
 # Test collation and coercibility
 #
 
