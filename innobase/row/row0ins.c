@@ -1022,6 +1022,33 @@ row_ins_set_shared_rec_lock(
 
 	return(err);
 }
+
+/*************************************************************************
+Sets a exclusive lock on a record. Used in locking possible duplicate key
+records */
+static
+ulint
+row_ins_set_exclusive_rec_lock(
+/*============================*/
+				/* out: DB_SUCCESS or error code */
+	ulint		type, 	/* in: LOCK_ORDINARY, LOCK_GAP, or
+				LOCK_REC_NOT_GAP type lock */
+	rec_t*		rec,	/* in: record */
+	dict_index_t*	index,	/* in: index */
+	que_thr_t*	thr)	/* in: query thread */	
+{
+	ulint	err;
+
+	if (index->type & DICT_CLUSTERED) {
+		err = lock_clust_rec_read_check_and_lock(0, rec, index, LOCK_X,
+								type, thr);
+	} else {
+		err = lock_sec_rec_read_check_and_lock(0, rec, index, LOCK_X,
+								type, thr);
+	}
+
+	return(err);
+}
 	
 /*******************************************************************
 Checks if foreign key constraint fails for an index entry. Sets shared locks
@@ -1451,6 +1478,8 @@ row_ins_scan_sec_index_for_duplicate(
 	ulint		err		= DB_SUCCESS;
 	ibool		moved;
 	mtr_t		mtr;
+        trx_t           *trx;
+        ibool           success;
 
 	n_unique = dict_index_get_n_unique(index);
 
@@ -1488,8 +1517,24 @@ row_ins_scan_sec_index_for_duplicate(
 				
 		/* Try to place a lock on the index record */
 
-		err = row_ins_set_shared_rec_lock(LOCK_ORDINARY, rec, index,
-									thr);
+		trx = thr_get_trx(thr);      
+		ut_ad(trx);
+		dict_accept(*trx->mysql_query_str, "REPLACE", &success);
+
+		if (success) {
+
+			/* The manual defines the REPLACE semantics that it 
+			is either an INSERT or DELETE(s) for duplicate key
+			+ INSERT. Therefore, we should take X-lock for 
+			duplicates */
+			
+			err = row_ins_set_exclusive_rec_lock(
+						LOCK_ORDINARY,rec,index,thr);
+		} else {
+
+			err = row_ins_set_shared_rec_lock(
+						LOCK_ORDINARY, rec, index,thr);
+		}
 
 		if (err != DB_SUCCESS) {
 
@@ -1556,6 +1601,7 @@ row_ins_duplicate_error_in_clust(
 	page_t*	page;
 	ulint	n_unique;
 	trx_t*	trx	= thr_get_trx(thr);
+        ibool   success;
 
 	UT_NOT_USED(mtr);
 	
@@ -1588,9 +1634,27 @@ row_ins_duplicate_error_in_clust(
 			is needed in logical logging of MySQL to make
 			sure that in roll-forward we get the same duplicate
 			errors as in original execution */
-		
-			err = row_ins_set_shared_rec_lock(LOCK_REC_NOT_GAP,
-						rec, cursor->index, thr);
+
+			dict_accept(*trx->mysql_query_str, "REPLACE", 
+				    &success);
+
+			if (success) {
+
+				/* The manual defines the REPLACE semantics 
+				that it is either an INSERT or DELETE(s) 
+				for duplicate key + INSERT. Therefore, we 
+				should take X-lock for duplicates */
+				
+				err = row_ins_set_exclusive_rec_lock(
+					LOCK_REC_NOT_GAP,rec,cursor->index,
+					thr);
+			} else {
+				
+				err = row_ins_set_shared_rec_lock(
+					LOCK_REC_NOT_GAP,rec, cursor->index, 
+					thr);
+			} 
+
 			if (err != DB_SUCCESS) {
 					
 				return(err);
@@ -1611,8 +1675,30 @@ row_ins_duplicate_error_in_clust(
 
 		if (rec != page_get_supremum_rec(page)) {
 
-			err = row_ins_set_shared_rec_lock(LOCK_REC_NOT_GAP,
-						rec, cursor->index, thr);
+
+			/* The manual defines the REPLACE semantics that it 
+			is either an INSERT or DELETE(s) for duplicate key
+			+ INSERT. Therefore, we should take X-lock for
+			duplicates.
+		        */
+
+			/* Is the first word in MySQL query REPLACE ? */
+
+		 	dict_accept(*trx->mysql_query_str, "REPLACE", 
+				    &success);
+
+			if (success) {
+
+				err = row_ins_set_exclusive_rec_lock(
+						LOCK_REC_NOT_GAP,
+						rec,cursor->index,thr);
+			} else {
+
+				err = row_ins_set_shared_rec_lock(
+						LOCK_REC_NOT_GAP,rec, 
+						cursor->index, thr);
+			}
+
 			if (err != DB_SUCCESS) {
 					
 				return(err);
@@ -1913,6 +1999,7 @@ row_ins_index_entry_set_vals(
 	dfield_t*	row_field;
 	ulint		n_fields;
 	ulint		i;
+	dtype_t*        cur_type;
 
 	ut_ad(entry && row);
 
@@ -1926,10 +2013,18 @@ row_ins_index_entry_set_vals(
 
 		/* Check column prefix indexes */
 		if (ind_field->prefix_len > 0
-		    && dfield_get_len(row_field) != UNIV_SQL_NULL
-		    && dfield_get_len(row_field) > ind_field->prefix_len) {
-		    
-		        field->len = ind_field->prefix_len;
+		    && dfield_get_len(row_field) != UNIV_SQL_NULL) {
+
+			/* For prefix keys get the storage length
+			for the prefix_len characters. */
+
+			cur_type = dict_col_get_type(
+				dict_field_get_col(ind_field));
+
+			field->len = innobase_get_at_most_n_mbchars(
+				dtype_get_charset_coll(cur_type->prtype),
+				ind_field->prefix_len,
+				dfield_get_len(row_field),row_field->data);
 		} else {
 		        field->len = row_field->len;
 		}
@@ -2214,4 +2309,4 @@ error_handling:
 	}
 
 	return(thr);
-} 
+}
