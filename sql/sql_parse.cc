@@ -1208,23 +1208,26 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
     while (!thd->fatal_error && thd->lex.found_colon)
     {
+      char *packet= thd->lex.found_colon;
       /* 
         Multiple queries exits, execute them individually
       */
       if (thd->lock || thd->open_tables || thd->derived_tables)
         close_thread_tables(thd);		
 
-      uint length= thd->query_length-(uint)(thd->lex.found_colon-thd->query);
+      ulong length= thd->query_length-(ulong)(thd->lex.found_colon-thd->query);
       
       /* Remove garbage at start of query */
-      char *packet= thd->lex.found_colon;
-      while (my_isspace(system_charset_info,packet[0]) && length > 0)
+      while (my_isspace(system_charset_info, *packet) && length > 0)
       {
         packet++;
         length--;
       }
-      thd->query= packet;
       thd->query_length= length;
+      thd->query= packet;
+      VOID(pthread_mutex_lock(&LOCK_thread_count));
+      thd->query_id= query_id++;
+      VOID(pthread_mutex_unlock(&LOCK_thread_count));
       mysql_parse(thd, packet, length);
     }
 

@@ -4500,6 +4500,7 @@ static void send_data_long(MYSQL_BIND *param, longlong value)
   } 
 }
 
+
 /* Convert Double to buffer types */
 static void send_data_double(MYSQL_BIND *param, double value)
 {  
@@ -4589,7 +4590,8 @@ static void send_data_str(MYSQL_BIND *param, char *value, uint length)
     *param->length= length;
     length= min(length, param->buffer_length);
     memcpy(buffer, value, length);
-    buffer[length]='\0';
+    if (length != param->buffer_length)
+      buffer[length]='\0';
   } 
 }
 
@@ -4808,7 +4810,9 @@ static void fetch_result_str(MYSQL_BIND *param, uchar **row)
   ulong length= net_field_length(row);
   ulong copy_length= min(length, param->buffer_length);
   memcpy(param->buffer, (char *)*row, copy_length);
-  *(param->buffer+copy_length)= '\0';
+  /* Add an end null if there is room in the buffer */
+  if (copy_length != param->buffer_length)
+    *(param->buffer+copy_length)= '\0';
   *param->length= length; // return total length
   *row+= length;
 }
