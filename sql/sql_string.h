@@ -183,6 +183,7 @@ public:
   bool copy();					// Alloc string if not alloced
   bool copy(const String &s);			// Allocate new string
   bool copy(const char *s,uint32 arg_length, CHARSET_INFO *cs);	// Allocate new string
+  bool set_or_copy_aligned(const char *s, uint32 arg_length, CHARSET_INFO *cs);
   bool copy(const char*s,uint32 arg_length, CHARSET_INFO *csfrom,
 	    CHARSET_INFO *csto);
   bool append(const String &s);

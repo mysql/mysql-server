@@ -1322,6 +1322,7 @@ CHARSET_INFO my_charset_ucs2_general_ci=
     "",
     "",
     1,			/* strxfrm_multiply */
+    2,			/* mbminlen     */
     2,			/* mbmaxlen     */
     0,
     &my_charset_ucs2_handler,
@@ -1345,6 +1346,7 @@ CHARSET_INFO my_charset_ucs2_bin=
     "",
     "",
     1,			/* strxfrm_multiply */
+    2,			/* mbminlen     */
     2,			/* mbmaxlen     */
     0,
     &my_charset_ucs2_handler,
