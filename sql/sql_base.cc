@@ -1938,7 +1938,7 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count)
       return -1;
     for (table= tables; table; table= table->next_global)
     {
-      if (!table->placeholder())
+      if (!table->placeholder() && !table->schema_table)
 	*(ptr++)= table->table;
     }
     if (!(thd->lock=mysql_lock_tables(thd,start, (uint) (ptr - start))))

@@ -123,8 +123,8 @@ TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	DATA_TYPE	CHA
 NULL	testtets	t1	a	1	int	0	11	4	0	NULL	int(11)	NULL	YES		NULL		select,insert,update,references	
 show columns * where table_name = "t1";
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	CHARACTER_SET_NAME	TYPE	COLLATION_NAME	IS_NULLABLE	KEY	COLUMN_DEFAULT	EXTRA	PRIVILEGES	COMMENT
-NULL	testtets	t1	a	1	int	0	11	4	0	NULL	int(11)	NULL	YES		NULL			
-NULL	testtets	t1	b	2	varchar	30	30	30	31	latin1	varchar(30)	latin1_swedish_ci	YES	MUL	NULL			
+NULL	testtets	t1	a	1	int	0	11	4	0	NULL	int(11)	NULL	YES		NULL		select,insert,update,references	
+NULL	testtets	t1	b	2	varchar	30	30	30	31	latin1	varchar(30)	latin1_swedish_ci	YES	MUL	NULL		select,insert,update,references	
 drop view v1;
 drop tables testtets.t4, testtets.t1, t2, t3;
 drop database testtets;
