@@ -2943,7 +2943,7 @@ String *Item_func_compress::val_str(String *str)
   */
   ulong new_size= (ulong)((res->length()*120)/100)+12;
 
-  buffer.realloc((uint32)new_size + 4);
+  buffer.realloc((uint32)new_size + 4 + 1);
   Byte *body= ((Byte*)buffer.c_ptr()) + 4;
   
   if ((err= compress(body, &new_size,
@@ -2956,6 +2956,15 @@ String *Item_func_compress::val_str(String *str)
   }
   
   int4store(buffer.c_ptr(),res->length() & 0x3FFFFFFF);
+
+  /* This is for the stupid char fields which trim ' ': */
+  char *last_char= ((char*)body)+new_size-1;
+  if (*last_char == ' ')
+  {
+    *++last_char= '.';
+    new_size++;
+  }
+
   buffer.length((uint32)new_size + 4);
   
   return &buffer;

@@ -2342,8 +2342,8 @@ copy_data_between_tables(TABLE *from,TABLE *to,
 
   if (order)
   {
-    from->io_cache=(IO_CACHE*) my_malloc(sizeof(IO_CACHE),
-                                         MYF(MY_FAE | MY_ZEROFILL));
+    from->sort.io_cache=(IO_CACHE*) my_malloc(sizeof(IO_CACHE),
+                                              MYF(MY_FAE | MY_ZEROFILL));
     bzero((char*) &tables,sizeof(tables));
     tables.table = from;
     tables.alias = tables.real_name= from->real_name;
@@ -2355,9 +2355,9 @@ copy_data_between_tables(TABLE *from,TABLE *to,
 	setup_order(thd, thd->lex.select_lex.ref_pointer_array,
 		    &tables, fields, all_fields, order) ||
         !(sortorder=make_unireg_sortorder(order, &length)) ||
-        (from->found_records = filesort(thd, from, sortorder, length, 
-					(SQL_SELECT *) 0, HA_POS_ERROR,
-					&examined_rows))
+        (from->sort.found_records = filesort(thd, from, sortorder, length, 
+                                             (SQL_SELECT *) 0, HA_POS_ERROR,
+                                             &examined_rows))
         == HA_POS_ERROR)
       goto err;
   };

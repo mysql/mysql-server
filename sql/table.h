@@ -44,6 +44,17 @@ typedef struct st_grant_info
 
 enum tmp_table_type {NO_TMP_TABLE=0, TMP_TABLE=1, TRANSACTIONAL_TMP_TABLE=2};
 
+typedef struct st_filesort_info
+{
+  IO_CACHE *io_cache;           /* If sorted through filebyte                */
+  byte     *addon_buf;          /* Pointer to a buffer if sorted with fields */
+  uint      addon_length;       /* Length of the buffer                      */
+  struct st_sort_addon_field *addon_field;     /* Pointer to the fields info */
+  void    (*unpack)(struct st_sort_addon_field *, byte *); /* To unpack back */
+  byte     *record_pointers;    /* If sorted in memory                       */
+  ha_rows   found_records;      /* How many records in sort                  */
+} FILESORT_INFO;
+
 /* Table cache entry struct */
 
 class Field_timestamp;
@@ -120,9 +131,7 @@ struct st_table {
   table_map	map;                    /* ID bit of table (1,2,4,8,16...) */
   ulong		version,flush_version;
   uchar		*null_flags;
-  IO_CACHE	*io_cache;		/* If sorted trough filebyte */
-  byte		*record_pointers;	/* If sorted in memory */
-  ha_rows	found_records;		/* How many records in sort */
+  FILESORT_INFO sort;
   ORDER		*group;
   ha_rows	quick_rows[MAX_KEY];
   uint		quick_key_parts[MAX_KEY];
