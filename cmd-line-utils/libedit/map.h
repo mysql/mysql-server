@@ -1,4 +1,4 @@
-/*	$NetBSD: map.h,v 1.6 2001/01/09 17:22:09 jdolecek Exp $	*/
+/*	$NetBSD: map.h,v 1.7 2002/03/18 16:00:56 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
