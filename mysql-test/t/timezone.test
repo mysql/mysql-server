@@ -11,6 +11,8 @@ enable_query_log;
 DROP TABLE IF EXISTS t1;
 --enable_warnings
 
+# The following is because of daylight saving time
+--replace_result MEST MET
 show variables like "timezone";
 
 #
