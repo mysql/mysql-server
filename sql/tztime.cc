@@ -1725,7 +1725,7 @@ tz_load_from_db(THD *thd, const String *tz_name)
     goto end_with_unlock;
   }
   
-  tzid= table->field[1]->val_int();
+  tzid= (uint)table->field[1]->val_int();
   
   table->file->index_end();
 
@@ -1769,7 +1769,7 @@ tz_load_from_db(THD *thd, const String *tz_name)
                                4, HA_READ_KEY_EXACT);
   while (!res)
   {
-    ttid= table->field[1]->val_int();
+    ttid= (uint)table->field[1]->val_int();
 
     if (ttid > TZ_MAX_TYPES)
     {
@@ -1779,7 +1779,7 @@ tz_load_from_db(THD *thd, const String *tz_name)
       goto end_with_unlock;
     }
 
-    ttis[ttid].tt_gmtoff= table->field[2]->val_int();
+    ttis[ttid].tt_gmtoff= (long)table->field[2]->val_int();
     ttis[ttid].tt_isdst= (table->field[3]->val_int() > 0);
 
 #ifdef ABBR_ARE_USED
@@ -2115,7 +2115,8 @@ my_tz_find(THD *thd, const String * name)
       }
     }
   } else {
-    if ((tmp_tzname= (TZ_NAMES_ENTRY *)hash_search(&tz_names, name->ptr(),
+    if ((tmp_tzname= (TZ_NAMES_ENTRY *)hash_search(&tz_names,
+                                                   (const byte *)name->ptr(),
                                                    name->length())))
       result_tz= tmp_tzname->tz;
     else
