@@ -195,7 +195,7 @@ then
 fi
 
 mysqld_boot=" $execdir/mysqld --no-defaults --bootstrap --skip-grant-tables \
-    --basedir=$basedir --datadir=$ldata --skip-innodb --skip-bdb --skip-gemini $EXTRA_ARG"
+    --basedir=$basedir --datadir=$ldata --skip-innodb --skip-bdb $EXTRA_ARG"
 echo "running $mysqld_boot"
 
 if $mysqld_boot << END_OF_DATA

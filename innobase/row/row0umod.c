@@ -443,6 +443,8 @@ row_undo_mod_del_unmark_sec(
 			"InnoDB: Make a detailed bug report and send it\n");
 	  	fprintf(stderr, "InnoDB: to mysql@lists.mysql.com\n");
 
+		trx_print(thr_get_trx(thr));
+
 	  	mem_free(err_buf);
 	} else {
          	btr_cur = btr_pcur_get_btr_cur(&pcur);
@@ -552,7 +554,7 @@ row_undo_mod_upd_exist_sec(
 	while (node->index != NULL) {
 		index = node->index;
 
-		if (row_upd_changes_ord_field(node->row, node->index,
+		if (row_upd_changes_ord_field_binary(node->row, node->index,
 							node->update)) {
 
 			/* Build the newest version of the index entry */

@@ -814,6 +814,23 @@ AC_SUBST(orbit_libs)
 AC_SUBST(orbit_idl)
 ])
 
+AC_DEFUN([MYSQL_CHECK_ISAM], [
+  AC_ARG_WITH([isam], [\
+  --without-isam          Disable the ISAM table type],
+    [with_isam="$withval"],
+    [with_isam=yes])
+
+  isam_libs=
+  if test X"$with_isam" = X"yes"
+  then
+    AC_DEFINE(HAVE_ISAM)
+    isam_libs="\$(top_builddir)/isam/libnisam.a\
+ \$(top_builddir)/merge/libmerge.a"
+  fi
+  AC_SUBST(isam_libs)
+])
+
+
 dnl ---------------------------------------------------------------------------
 dnl Macro: MYSQL_CHECK_BDB
 dnl Sets HAVE_BERKELEY_DB if inst library is found
@@ -1156,48 +1173,6 @@ dnl circular references.
 
 dnl ---------------------------------------------------------------------------
 dnl END OF MYSQL_CHECK_INNODB SECTION
-dnl ---------------------------------------------------------------------------
-
-dnl ---------------------------------------------------------------------------
-dnl Macro: MYSQL_CHECK_GEMINI
-dnl Sets HAVE_GEMINI_DB if --with-gemini is used
-dnl ---------------------------------------------------------------------------
-
-AC_DEFUN([MYSQL_CHECK_GEMINI], [
-  AC_ARG_WITH([gemini],
-              [\
-  --with-gemini[=DIR]     Use Gemini DB located in DIR],
-              [gemini="$withval"],
-              [gemini=no])
-
-  AC_MSG_CHECKING([for Gemini DB])
-
-dnl     SORT OUT THE SUPPLIED ARGUMENTS TO DETERMINE WHAT TO DO
-dnl echo "DBG_GEM1: gemini='$gemini'"
-  have_gemini_db=no
-  gemini_includes=
-  gemini_libs=
-  case "$gemini" in
-    no) 
-      AC_MSG_RESULT([Not using Gemini DB])
-      ;;
-    yes | default | *)
-      have_gemini_db="yes"
-      gemini_includes="-I../gemini/incl -I../gemini"
-      gemini_libs="\
- ../gemini/api/libapi.a\
- ../gemini/db/libdb.a\
- ../gemini/dbut/libdbut.a"
-      AC_MSG_RESULT([Using Gemini DB])
-      ;;
-  esac
-
-  AC_SUBST(gemini_includes)
-  AC_SUBST(gemini_libs)
-])
-
-dnl ---------------------------------------------------------------------------
-dnl END OF MYSQL_CHECK_GEMINI SECTION
 dnl ---------------------------------------------------------------------------
 
 dnl ---------------------------------------------------------------------------

@@ -578,6 +578,17 @@ lock_sys_create(
 }
 
 /*************************************************************************
+Gets the size of a lock struct. */
+
+ulint
+lock_get_size(void)
+/*===============*/
+			/* out: size in bytes */
+{
+	return((ulint)sizeof(lock_t));
+}
+
+/*************************************************************************
 Gets the mode of a lock. */
 UNIV_INLINE
 ulint
@@ -709,10 +720,14 @@ lock_mode_stronger_or_eq(
 	ulint	mode2)	/* in: lock mode */
 {
 	ut_ad(mode1 == LOCK_X || mode1 == LOCK_S || mode1 == LOCK_IX
-							|| mode1 == LOCK_IS);
+				|| mode1 == LOCK_IS || mode1 == LOCK_AUTO_INC);
 	ut_ad(mode2 == LOCK_X || mode2 == LOCK_S || mode2 == LOCK_IX
-							|| mode2 == LOCK_IS);
+				|| mode2 == LOCK_IS || mode2 == LOCK_AUTO_INC);
 	if (mode1 == LOCK_X) {
+
+		return(TRUE);
+
+	} else if (mode1 == LOCK_AUTO_INC && mode2 == LOCK_AUTO_INC) {
 
 		return(TRUE);
 
@@ -743,9 +758,9 @@ lock_mode_compatible(
 	ulint	mode2)	/* in: lock mode */
 {
 	ut_ad(mode1 == LOCK_X || mode1 == LOCK_S || mode1 == LOCK_IX
-							|| mode1 == LOCK_IS);
+				|| mode1 == LOCK_IS || mode1 == LOCK_AUTO_INC);
 	ut_ad(mode2 == LOCK_X || mode2 == LOCK_S || mode2 == LOCK_IX
-							|| mode2 == LOCK_IS);
+				|| mode2 == LOCK_IS || mode2 == LOCK_AUTO_INC);
 
 	if (mode1 == LOCK_S && (mode2 == LOCK_IS || mode2 == LOCK_S)) {
 
@@ -755,12 +770,18 @@ lock_mode_compatible(
 
 		return(FALSE);
 
+	} else if (mode1 == LOCK_AUTO_INC && (mode2 == LOCK_IS
+					  	|| mode2 == LOCK_IX)) {
+		return(TRUE);
+
 	} else if (mode1 == LOCK_IS && (mode2 == LOCK_IS
 					  	|| mode2 == LOCK_IX
+					  	|| mode2 == LOCK_AUTO_INC
 					  	|| mode2 == LOCK_S)) {
 		return(TRUE);
 
 	} else if (mode1 == LOCK_IX && (mode2 == LOCK_IS
+					  	|| mode2 == LOCK_AUTO_INC
 					  	|| mode2 == LOCK_IX)) {
 		return(TRUE);
 	}
@@ -1836,7 +1857,7 @@ lock_grant(
 Cancels a waiting record lock request and releases the waiting transaction
 that requested it. NOTE: does NOT check if waiting lock requests behind this
 one can now be granted! */
-
+static
 void
 lock_rec_cancel(
 /*============*/
@@ -2812,7 +2833,18 @@ lock_table_create(
 	ut_ad(table && trx);
 	ut_ad(mutex_own(&kernel_mutex));
 
-	lock = mem_heap_alloc(trx->lock_heap, sizeof(lock_t));
+	if (type_mode == LOCK_AUTO_INC) {
+		/* Only one trx can have the lock on the table
+		at a time: we may use the memory preallocated
+		to the table object */
+
+		lock = table->auto_inc_lock;
+
+		ut_a(trx->auto_inc_lock == NULL);
+		trx->auto_inc_lock = lock;
+	} else {
+		lock = mem_heap_alloc(trx->lock_heap, sizeof(lock_t));
+	}
 
 	if (lock == NULL) {
 
@@ -2854,6 +2886,10 @@ lock_table_remove_low(
 	table = lock->un_member.tab_lock.table;
 	trx = lock->trx;
 
+	if (lock == trx->auto_inc_lock) {
+		trx->auto_inc_lock = NULL;
+	}
+	
 	UT_LIST_REMOVE(trx_locks, trx->trx_locks, lock);
 	UT_LIST_REMOVE(un_member.tab_lock.locks, table->locks, lock);
 }	
@@ -2988,7 +3024,7 @@ lock_table(
 
 	if (lock_table_other_has_incompatible(trx, LOCK_WAIT, table, mode)) {
 	
-		/* Another trx has request on the table in an incompatible
+		/* Another trx has a request on the table in an incompatible
 		mode: this trx must wait */
 
 		err = lock_table_enqueue_waiting(mode, table, thr);
@@ -3102,6 +3138,24 @@ lock_table_dequeue(
 /*=========================== LOCK RELEASE ==============================*/
 
 /*************************************************************************
+Releases an auto-inc lock a transaction possibly has on a table.
+Releases possible other transactions waiting for this lock. */
+
+void
+lock_table_unlock_auto_inc(
+/*=======================*/
+	trx_t*	trx)	/* in: transaction */
+{
+	if (trx->auto_inc_lock) {
+		mutex_enter(&kernel_mutex);
+
+		lock_table_dequeue(trx->auto_inc_lock);
+
+		mutex_exit(&kernel_mutex);
+	}
+}
+
+/*************************************************************************
 Releases transaction locks, and releases possible other transactions waiting
 because of these locks. */
 
@@ -3147,6 +3201,37 @@ lock_release_off_kernel(
 	}
 
 	mem_heap_empty(trx->lock_heap);
+
+	ut_a(trx->auto_inc_lock == NULL);
+}
+
+/*************************************************************************
+Cancels a waiting lock request and releases possible other transactions
+waiting behind it. */
+
+void
+lock_cancel_waiting_and_release(
+/*============================*/
+	lock_t*	lock)	/* in: waiting lock request */
+{
+	ut_ad(mutex_own(&kernel_mutex));
+
+	if (lock_get_type(lock) == LOCK_REC) {
+			
+		lock_rec_dequeue_from_page(lock);
+	} else {
+		ut_ad(lock_get_type(lock) == LOCK_TABLE);
+
+		lock_table_dequeue(lock);
+	}
+
+	/* Reset the wait flag and the back pointer to lock in trx */
+
+	lock_reset_lock_and_trx_wait(lock);
+
+	/* The following function releases the trx from lock wait */
+
+	trx_end_lock_wait(lock->trx);
 }
 
 /*************************************************************************
@@ -3237,8 +3322,10 @@ lock_table_print(
 		printf(" lock_mode IS");
 	} else if (lock_get_mode(lock) == LOCK_IX) {
 		printf(" lock_mode IX");
+	} else if (lock_get_mode(lock) == LOCK_AUTO_INC) {
+		printf(" lock_mode AUTO-INC");
 	} else {
-		ut_error;
+		printf(" unknown lock_mode %lu", lock_get_mode(lock));
 	}
 
 	if (lock_get_wait(lock)) {
@@ -3304,10 +3391,7 @@ lock_rec_print(
 	
 	page = buf_page_get_gen(space, page_no, RW_NO_LATCH,
 					NULL, BUF_GET_IF_IN_POOL,
-#ifdef UNIV_SYNC_DEBUG
-					IB__FILE__, __LINE__,
-#endif
-				&mtr);
+					IB__FILE__, __LINE__, &mtr);
 	if (page) {
 		page = buf_page_get_nowait(space, page_no, RW_S_LATCH, &mtr);
 	}
@@ -3417,6 +3501,11 @@ loop:
 	trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
 
 	i = 0;
+
+	/* Since we temporarily release the kernel mutex when
+	reading a database page in below, variable trx may be
+	obsolete now and we must loop through the trx list to
+	get probably the same trx, or some other trx. */
 	
 	while (trx && (i < nth_trx)) {
 		trx = UT_LIST_GET_NEXT(trx_list, trx);
@@ -3466,6 +3555,9 @@ loop:
 
 	i = 0;
 
+	/* Look at the note about the trx loop above why we loop here:
+	lock may be an obsolete pointer now. */
+	
 	lock = UT_LIST_GET_FIRST(trx->trx_locks);
 		
 	while (lock && (i < nth_lock)) {

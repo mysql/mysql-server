@@ -922,7 +922,8 @@ pars_process_assign_list(
 
 	changes_ord_field = UPD_NODE_NO_ORD_CHANGE;
 
-	if (row_upd_changes_some_index_ord_field(node->table, node->update)) {
+	if (row_upd_changes_some_index_ord_field_binary(node->table,
+							node->update)) {
 		changes_ord_field = 0;
 	}
 	

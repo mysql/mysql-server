@@ -15,14 +15,11 @@ waiting for the lock before suspending the thread. */
 void
 rw_lock_s_lock_spin(
 /*================*/
-        rw_lock_t*   	lock  	/* in: pointer to rw-lock */
-	#ifdef UNIV_SYNC_DEBUG
-	,ulint		pass,	/* in: pass value; != 0, if the lock will
+        rw_lock_t*   	lock,  	/* in: pointer to rw-lock */
+	ulint		pass,	/* in: pass value; != 0, if the lock will
 				be passed to another thread to unlock */
-	char*		file_name, /* in: file name where lock requested */
-	ulint		line	/* in: line where requested */
-	#endif
-);
+	char*		file_name,/* in: file name where lock requested */
+	ulint		line);	/* in: line where requested */
 /**********************************************************************
 Inserts the debug information for an rw-lock. */
 
@@ -128,14 +125,11 @@ ibool
 rw_lock_s_lock_low(
 /*===============*/
 				/* out: TRUE if success */
-        rw_lock_t*   	lock  	/* in: pointer to rw-lock */
-	#ifdef UNIV_SYNC_DEBUG
-	,ulint		pass,	/* in: pass value; != 0, if the lock will be
+        rw_lock_t*   	lock,  	/* in: pointer to rw-lock */
+	ulint		pass,	/* in: pass value; != 0, if the lock will be
 				passed to another thread to unlock */
 	char*		file_name, /* in: file name where lock requested */
-	ulint		line	/* in: line where requested */
-	#endif
-)
+	ulint		line)	/* in: line where requested */
 {
 	ut_ad(mutex_own(rw_lock_get_mutex(lock)));
 
@@ -150,6 +144,9 @@ rw_lock_s_lock_low(
 									line);
 		#endif
 		
+		lock->last_s_file_name = file_name;
+		lock->last_s_line = line;
+
 		return(TRUE);	/* locking succeeded */
 	}
 
@@ -164,18 +161,18 @@ UNIV_INLINE
 void
 rw_lock_s_lock_direct(
 /*==================*/
-        rw_lock_t*   	lock  	/* in: pointer to rw-lock */
-	#ifdef UNIV_SYNC_DEBUG
-	,char*		file_name, /* in: file name where lock requested */
-	ulint		line	/* in: line where requested */
-	#endif
-)
+        rw_lock_t*   	lock,  	/* in: pointer to rw-lock */
+	char*		file_name,/* in: file name where lock requested */
+	ulint		line)	/* in: line where requested */
 {
 	ut_ad(lock->writer == RW_LOCK_NOT_LOCKED);
 	ut_ad(rw_lock_get_reader_count(lock) == 0);
 	
 	/* Set the shared lock by incrementing the reader count */
 	lock->reader_count++;
+
+	lock->last_s_file_name = file_name;
+	lock->last_s_line = line;
 
 	#ifdef UNIV_SYNC_DEBUG
 	rw_lock_add_debug_info(lock, 0, RW_LOCK_SHARED, file_name, line);
@@ -190,12 +187,9 @@ UNIV_INLINE
 void
 rw_lock_x_lock_direct(
 /*==================*/
-        rw_lock_t*   	lock  	/* in: pointer to rw-lock */
-	#ifdef UNIV_SYNC_DEBUG
-	,char*		file_name, /* in: file name where lock requested */
-	ulint		line	/* in: line where requested */
-	#endif
-)
+        rw_lock_t*   	lock,  	/* in: pointer to rw-lock */
+	char*		file_name, /* in: file name where lock requested */
+	ulint		line)	/* in: line where requested */
 {
         ut_ad(rw_lock_validate(lock));
 	ut_ad(rw_lock_get_reader_count(lock) == 0);
@@ -206,6 +200,9 @@ rw_lock_x_lock_direct(
 	lock->writer_count++;
 	lock->pass = 0;
 			
+	lock->last_x_file_name = file_name;
+	lock->last_x_line = line;
+
 	#ifdef UNIV_SYNC_DEBUG
 	rw_lock_add_debug_info(lock, 0, RW_LOCK_EX, file_name, line);
 	#endif
@@ -221,14 +218,11 @@ UNIV_INLINE
 void
 rw_lock_s_lock_func(
 /*================*/
-        rw_lock_t*   	lock  	/* in: pointer to rw-lock */
-	#ifdef UNIV_SYNC_DEBUG
-	,ulint		pass,	/* in: pass value; != 0, if the lock will
+        rw_lock_t*   	lock,  	/* in: pointer to rw-lock */
+	ulint		pass,	/* in: pass value; != 0, if the lock will
 				be passed to another thread to unlock */
 	char*		file_name, /* in: file name where lock requested */
-	ulint		line	/* in: line where requested */
-	#endif
-)
+	ulint		line)	/* in: line where requested */
 {
 	/* NOTE: As we do not know the thread ids for threads which have
 	s-locked a latch, and s-lockers will be served only after waiting
@@ -245,11 +239,7 @@ rw_lock_s_lock_func(
 
 	mutex_enter(rw_lock_get_mutex(lock));
 
-	if (TRUE == rw_lock_s_lock_low(lock
-			#ifdef UNIV_SYNC_DEBUG
-			,pass, file_name, line
-			#endif
-			   )) {
+	if (TRUE == rw_lock_s_lock_low(lock, pass, file_name, line)) {
 		mutex_exit(rw_lock_get_mutex(lock));
 
 		return; /* Success */
@@ -257,11 +247,8 @@ rw_lock_s_lock_func(
 		/* Did not succeed, try spin wait */
 		mutex_exit(rw_lock_get_mutex(lock));
 
-		rw_lock_s_lock_spin(lock
-				#ifdef UNIV_SYNC_DEBUG
-				,pass, file_name, line
-				#endif
-			   	);
+		rw_lock_s_lock_spin(lock, pass, file_name, line);
+
 		return;
 	}
 }
@@ -275,12 +262,9 @@ ibool
 rw_lock_s_lock_func_nowait(
 /*=======================*/
 				/* out: TRUE if success */
-        rw_lock_t*   	lock  	/* in: pointer to rw-lock */
-	#ifdef UNIV_SYNC_DEBUG
-	,char*		file_name, /* in: file name where lock requested */
-	ulint		line	/* in: line where requested */
-	#endif
-)
+        rw_lock_t*   	lock,  	/* in: pointer to rw-lock */
+	char*		file_name,/* in: file name where lock requested */
+	ulint		line)	/* in: line where requested */
 {
 	ibool	success	= FALSE;
 
@@ -294,6 +278,9 @@ rw_lock_s_lock_func_nowait(
 		rw_lock_add_debug_info(lock, 0, RW_LOCK_SHARED, file_name,
 									line);
 		#endif
+
+		lock->last_s_file_name = file_name;
+		lock->last_s_line = line;
 		
 		success = TRUE;
 	}
@@ -312,12 +299,9 @@ ibool
 rw_lock_x_lock_func_nowait(
 /*=======================*/
 				/* out: TRUE if success */
-        rw_lock_t*   	lock  	/* in: pointer to rw-lock */
-	#ifdef UNIV_SYNC_DEBUG
-	,char*		file_name, /* in: file name where lock requested */
-	ulint		line	/* in: line where requested */
-	#endif
-)
+        rw_lock_t*   	lock,  	/* in: pointer to rw-lock */
+	char*		file_name, /* in: file name where lock requested */
+	ulint		line)	/* in: line where requested */
 {
 	ibool	success	= FALSE;
 	
@@ -337,6 +321,9 @@ rw_lock_x_lock_func_nowait(
 		#ifdef UNIV_SYNC_DEBUG
 		rw_lock_add_debug_info(lock, 0, RW_LOCK_EX, file_name, line);
 		#endif
+
+		lock->last_x_file_name = file_name;
+		lock->last_x_line = line;
 
 		success = TRUE;
 	}

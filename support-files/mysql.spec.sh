@@ -148,7 +148,7 @@ Summary(pt_BR): MySQL - Medições de desempenho
 Group(pt_BR): Aplicações/Banco_de_Dados
 Obsoletes: embedded
 
-%description devel
+%description embedded
 This package contains the MySQL server as library.
 
 %{see_base}
@@ -360,7 +360,7 @@ fi
 %attr(755, root, root) /usr/bin/mysqlbug
 %attr(755, root, root) /usr/bin/mysqltest
 %attr(755, root, root) /usr/bin/mysqlhotcopy
-%attr(755, root, root) /usr/bin/mysql_explain
+%attr(755, root, root) /usr/bin/mysql_explain_log
 %attr(755, root, root) /usr/bin/perror
 %attr(755, root, root) /usr/bin/replace
 %attr(755, root, root) /usr/bin/resolveip
@@ -423,6 +423,9 @@ fi
 %files bench
 %attr(-, root, root) /usr/share/sql-bench
 %attr(-, root, root) /usr/share/mysql-test
+%attr(755, root, root) /usr/bin/mysqlmanager
+%attr(755, root, root) /usr/bin/mysqlmanager-pwgen
+%attr(755, root, root) /usr/bin/mysqlmanagerc
 
 %files Max
 %attr(755, root, root) /usr/sbin/mysqld-max

@@ -220,7 +220,7 @@ row_purge_remove_sec_if_poss_low(
 	if (!found) {
 		/* Not found */
 
-		/* FIXME: printf("PURGE:........sec entry not found\n"); */
+		/* printf("PURGE:........sec entry not found\n"); */
 		/* dtuple_print(entry); */
 
 		btr_pcur_close(&pcur);
@@ -382,7 +382,7 @@ row_purge_upd_exist_or_extern(
 	while (node->index != NULL) {
 		index = node->index;
 
-		if (row_upd_changes_ord_field(NULL, node->index,
+		if (row_upd_changes_ord_field_binary(NULL, node->index,
 							node->update)) {
 			/* Build the older version of the index entry */
 			entry = row_build_index_entry(node->row, index, heap);

@@ -276,6 +276,12 @@ trx_purge_add_update_undo_to_history(
 	if (undo->state != TRX_UNDO_CACHED) {
 		/* The undo log segment will not be reused */
 
+		if (undo->id >= TRX_RSEG_N_SLOTS) {
+			fprintf(stderr,
+			"InnoDB: Error: undo->id is %lu\n", undo->id);
+			ut_a(0);
+		}
+
 		trx_rsegf_set_nth_undo(rseg_header, undo->id, FIL_NULL, mtr);
 
 		hist_size = mtr_read_ulint(rseg_header + TRX_RSEG_HISTORY_SIZE,

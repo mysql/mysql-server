@@ -123,6 +123,13 @@ dict_mem_index_free(
 /*================*/
 	dict_index_t*	index);	/* in: index */
 /**************************************************************************
+Creates and initializes a foreign constraint memory object. */
+
+dict_foreign_t*
+dict_mem_foreign_create(void);
+/*=========================*/
+				/* out, own: foreign constraint struct */
+/**************************************************************************
 Creates a procedure memory object. */
 
 dict_proc_t*
@@ -221,13 +228,54 @@ struct dict_index_struct{
 				dictionary cache */
 	btr_search_t*	search_info; /* info used in optimistic searches */
 	/*----------------------*/
-	ulint		stat_n_diff_key_vals;
+	ib_longlong*	stat_n_diff_key_vals;
 				/* approximate number of different key values
-				for this index; we periodically calculate
-				new estimates */
+				for this index, for each n-column prefix
+				where n <= dict_get_n_unique(index); we
+				periodically calculate new estimates */
 	ulint		stat_index_size;
 				/* approximate index size in database pages */
+	ulint		stat_n_leaf_pages;
+				/* approximate number of leaf pages in the
+				index tree */
 	ulint		magic_n;/* magic number */
+};
+
+/* Data structure for a foreign key constraint; an example:
+FOREIGN KEY (A, B) REFERENCES TABLE2 (C, D) */
+
+struct dict_foreign_struct{
+	mem_heap_t*	heap;		/* this object is allocated from
+					this memory heap */
+	char*		id;		/* id of the constraint as a
+					null-terminated string */
+	char*		foreign_table_name;/* foreign table name */
+	dict_table_t*	foreign_table;	/* table where the foreign key is */
+	char**		foreign_col_names;/* names of the columns in the
+					foreign key */
+	char*		referenced_table_name;/* referenced table name */
+	dict_table_t*	referenced_table;/* table where the referenced key
+					is */
+	char**		referenced_col_names;/* names of the referenced
+					columns in the referenced table */
+	ulint		n_fields;	/* number of indexes' first fields
+					for which the the foreign key
+					constraint is defined: we allow the
+					indexes to contain more fields than
+					mentioned in the constraint, as long
+					as the first fields are as mentioned */ 
+	dict_index_t*	foreign_index;	/* foreign index; we require that
+					both tables contain explicitly defined
+					indexes for the constraint: InnoDB
+					does not generate new indexes
+					implicitly */
+	dict_index_t*	referenced_index;/* referenced index */
+	UT_LIST_NODE_T(dict_foreign_t)
+			foreign_list;	/* list node for foreign keys of the
+					table */
+	UT_LIST_NODE_T(dict_foreign_t)
+			referenced_list;/* list node for referenced keys of the
+					table */
 };
 
 #define	DICT_INDEX_MAGIC_N	76789786
@@ -247,6 +295,13 @@ struct dict_table_struct{
 	dict_col_t*	cols;	/* array of column descriptions */
 	UT_LIST_BASE_NODE_T(dict_index_t)
 			indexes; /* list of indexes of the table */
+	UT_LIST_BASE_NODE_T(dict_foreign_t)
+			foreign_list;/* list of foreign key constraints
+				in the table; these refer to columns
+				in other tables */
+	UT_LIST_BASE_NODE_T(dict_foreign_t)
+			referenced_list;/* list of foreign key constraints
+				which refer to this table */
 	UT_LIST_NODE_T(dict_table_t)
 			table_LRU; /* node of the LRU list of tables */
 	ulint		mem_fix;/* count of how many times the table 
@@ -254,6 +309,13 @@ struct dict_table_struct{
 				currently NOT used */
 	ibool		cached;	/* TRUE if the table object has been added
 				to the dictionary cache */
+	lock_t*		auto_inc_lock;/* a buffer for an auto-inc lock
+				for this table: we allocate the memory here
+				so that individual transactions can get it
+				and release it without a need to allocate
+				space from the lock heap of the trx:
+				otherwise the lock heap would grow rapidly
+				if we do a large insert from a select */
 	UT_LIST_BASE_NODE_T(lock_t)
 			locks; /* list of locks on the table */
 	/*----------------------*/
@@ -278,7 +340,7 @@ struct dict_table_struct{
 				forget about value TRUE if it has to reload
 				the table definition from disk */
 	/*----------------------*/
-	ulint		stat_n_rows;
+	ib_longlong	stat_n_rows;
 				/* approximate number of rows in the table;
 				we periodically calculate new estimates */
 	ulint		stat_clustered_index_size;

@@ -188,6 +188,22 @@ btr_cur_pessimistic_insert(
 	que_thr_t*	thr,	/* in: query thread or NULL */
 	mtr_t*		mtr);	/* in: mtr */
 /*****************************************************************
+Updates a secondary index record when the update causes no size
+changes in its fields. The only case when this function is currently
+called is that in a char field characters change to others which
+are identified in the collation order. */
+
+ulint
+btr_cur_update_sec_rec_in_place(
+/*============================*/
+				/* out: DB_SUCCESS or error number */
+	btr_cur_t*	cursor,	/* in: cursor on the record to update;
+				cursor stays valid and positioned on the
+				same record */
+	upd_t*		update,	/* in: update vector */
+	que_thr_t*	thr,	/* in: query thread */
+	mtr_t*		mtr);	/* in: mtr */
+/*****************************************************************
 Updates a record when the update causes no size changes in its fields. */
 
 ulint
@@ -411,12 +427,13 @@ btr_estimate_n_rows_in_range(
 	dtuple_t*	tuple2,	/* in: range end, may also be empty tuple */
 	ulint		mode2);	/* in: search mode for range end */
 /***********************************************************************
-Estimates the number of different key values in a given index. */
+Estimates the number of different key values in a given index, for
+each n-column prefix of the index where n <= dict_index_get_n_unique(index).
+The estimates are stored in the array index->stat_n_diff_key_vals. */
 
-ulint
+void
 btr_estimate_number_of_different_key_vals(
 /*======================================*/
-				/* out: estimated number of key values */
 	dict_index_t*	index);	/* in: index */
 /***********************************************************************
 Marks not updated extern fields as not-owned by this record. The ownership

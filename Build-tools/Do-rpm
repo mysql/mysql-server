@@ -5,6 +5,7 @@
 function copy_to_bmachine
 {
  if [ x$local_build = x1 ]; then
+  rm -f $2
   cp $1 $2
  else
   scp $1 $owner@$bmachine:$2
@@ -14,6 +15,7 @@ function copy_to_bmachine
 function copy_from_bmachine
 {
  if [ x$local_build = x1 ]; then
+  rm -f $2
   cp $1 $2
  else
   scp $owner@$bmachine:$1 $2
@@ -90,10 +92,7 @@ while test $# -gt 0; do
 done
 
 echo "Removing old MySQL packages"
-rm -rf $rpmdir/BUILD/mysql-*
-rm -f $rpmdir/SOURCES/mysql-*
-rm -f $rpmdir/SRPMS/MySQL-*
-rm -f $rpmdir/SPEC/mysql-*
+rm -f $bpath/NEW-RPMS/MySQL-*rpm
 
 if [ ! -d "$logdir" ]; then
  echo "$logdir does not exist, creating"
@@ -105,12 +104,20 @@ if [ ! -f "$tarball" ]; then
  exit 1
 fi
 
-echo "Building RPM for MySQL version $VER on $bmachine"
-
 log=$logdir/Log-RPM-`date +%y%m%d-%H%M`
+
+echo "Building RPM for MySQL version $VER on $bmachine"
+echo "Details in $log"
 
 (
 set -x
+# remove old stuff
+rm -rf $rpmdir/BUILD/mysql-*
+rm -f $rpmdir/SOURCES/mysql-*
+rm -f $rpmdir/SRPMS/MySQL-*
+rm -f $rpmdir/SPECS/mysql-*
+rm -rf /var/tmp/mysql
+
 # Copy MySQL source and spec files
 
 #Sasha: I left the scp stuff commented out instead of deleted to make it
@@ -156,7 +163,7 @@ if [ ! x$skip_perl=x1 ]; then
   set -x
 
   # First clean up so we do not get old versions when wildcard matching
-  rm -f $rpmdir/SOURCES/DBI-*.spec
+  rm -f $rpmdir/SOURCES/DBI-*.spec $rpmdir/SOURCES/mysql*
   rm -f $rpmdir/RPMS/i386/Perl-*.rpm
   rm -f $rpmdir/SRPMS/Perl-*.rpm
   rm -f $rpmdir/RPMS/i386/MySQL*-$VER_NO_DASH*.rpm
@@ -226,5 +233,9 @@ if [ x$local_build != x1 ]; then
  # And the perl ones
  #scp $owner@$bmachine:$rpmdir/RPMS/i386/Perl*-*.rpm $bpath/NEW-RPMS
  #scp $owner@$bmachine:$rpmdir/SRPMS/Perl*-*.rpm $bpath/NEW-RPMS
+
+ #Remove some of the files that can interfere with future builds
+
+ rm -rf /var/tmp/mysql
 fi 
 )  > $log 2>&1
