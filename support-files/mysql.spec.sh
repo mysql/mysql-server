@@ -118,14 +118,14 @@ languages and applications need to dynamically load and use MySQL.
 
 %package Max
 Release: %{release}
-Summary: MySQL - server with Berkeley DB, OpenSSL and UDF support
+Summary: MySQL - server with Berkeley DB, RAID and UDF support
 Group: Applications/Databases
 Provides: mysql-Max
 Obsoletes: mysql-Max
 
 %description Max 
 Optional MySQL server binary that supports additional features like
-Berkeley DB, OpenSSL support and User Defined Functions (UDF).
+Berkeley DB, RAID and User Defined Functions (UDF).
 To activate this binary, just install this package in addition to
 the standard MySQL package.
 
@@ -224,14 +224,13 @@ mkdir -p $RBR
 PATH=${MYSQL_BUILD_PATH:-/bin:/usr/bin}
 export PATH
 
-# Build the 4.0 Max binary (includes BDB and OpenSSL and therefore
+# Build the 4.0 Max binary (includes BDB and UDFs and therefore
 # cannot be linked statically against the patched glibc)
 
 BuildMySQL "--enable-shared \
 		--with-berkeley-db \
 		--with-innodb \
-		--with-openssl \
-		--with-vio \
+		--with-raid \
 		--with-server-suffix='-Max'"
 
 # Save everything for debug
@@ -291,6 +290,10 @@ install -m644 $MBD/sql/mysqld.sym $RBR/usr/lib/mysql/mysqld.sym
 # Install logrotate and autostart
 install -m644 $MBD/support-files/mysql-log-rotate $RBR/etc/logrotate.d/mysql
 install -m755 $MBD/support-files/mysql.server $RBR/etc/rc.d/init.d/mysql
+
+# Create symbolic compatibility link safe_mysqld -> mysqld_safe
+# (safe_mysqld will be gone in MySQL 4.1)
+ln -sf ./mysqld_safe $RBR/usr/bin/safe_mysqld
 
 %pre
 if test -x /etc/rc.d/init.d/mysql
@@ -402,6 +405,7 @@ fi
 %attr(755, root, root) /usr/bin/replace
 %attr(755, root, root) /usr/bin/resolve_stack_dump
 %attr(755, root, root) /usr/bin/resolveip
+%attr(755, root, root) /usr/bin/safe_mysqld
 
 %attr(755, root, root) /usr/sbin/mysqld
 %attr(644, root, root) /usr/lib/mysql/mysqld.sym
@@ -476,6 +480,13 @@ fi
 %attr(644, root, root) /usr/lib/mysql/libmysqld.a
 
 %changelog 
+
+* Fri Aug 09 2002 Lenz Grimmer <lenz@mysql.com>
+ 
+- Turn off OpenSSL in MySQL-Max for now until it works properly again
+- enable RAID for the Max binary instead
+- added compatibility link: safe_mysqld -> mysqld_safe to ease the
+  transition from 3.23
 
 * Thu Jul 18 2002 Lenz Grimmer <lenz@mysql.com>
 
