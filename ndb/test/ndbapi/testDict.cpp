@@ -1211,7 +1211,7 @@ runTableRename(NDBT_Context* ctx, NDBT_Step* step){
     
     const NdbDictionary::Table * oldTable = dict->getTable(pTabName.c_str());
     if (oldTable) {
-      NdbDictionary::Table newTable = dict->getTableForAlteration(pTabName.c_str());
+      NdbDictionary::Table newTable = *oldTable;
       newTable.setName(pTabNewName.c_str());
       CHECK2(dict->alterTable(newTable) == 0,
 	     "TableRename failed");
@@ -1280,7 +1280,7 @@ runTableRenameNF(NDBT_Context* ctx, NDBT_Step* step){
     
     const NdbDictionary::Table * oldTable = dict->getTable(pTabName.c_str());
     if (oldTable) {
-      NdbDictionary::Table newTable = dict->getTableForAlteration(pTabName.c_str());
+      NdbDictionary::Table newTable = *oldTable;
       newTable.setName(pTabNewName.c_str());
       CHECK2(dict->alterTable(newTable) == 0,
 	     "TableRename failed");
@@ -1377,7 +1377,7 @@ runTableRenameSR(NDBT_Context* ctx, NDBT_Step* step){
     
     const NdbDictionary::Table * oldTable = dict->getTable(pTabName.c_str());
     if (oldTable) {
-      NdbDictionary::Table newTable = dict->getTableForAlteration(pTabName.c_str());
+      NdbDictionary::Table newTable = *oldTable;
       newTable.setName(pTabNewName.c_str());
       CHECK2(dict->alterTable(newTable) == 0,
 	     "TableRename failed");

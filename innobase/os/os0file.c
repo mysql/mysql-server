@@ -398,10 +398,19 @@ os_file_lock(
 	lk.l_start = lk.l_len = 0;
 	if (fcntl(fd, F_SETLK, &lk) == -1) {
 		fprintf(stderr,
-			"InnoDB: Unable to lock %s, error: %d", name, errno);
+			"InnoDB: Unable to lock %s, error: %d\n", name, errno);
+
+		if (errno == EAGAIN || errno == EACCES) {
+			fprintf(stderr,
+"InnoDB: Check that you do not already have another mysqld process\n"
+"InnoDB: using the same InnoDB data or log files.\n");
+		}
+
 		close(fd);
+
 		return(-1);
 	}
+
 	return(0);
 }
 #endif /* USE_FILE_LOCK */

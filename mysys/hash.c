@@ -146,7 +146,7 @@ void hash_reset(HASH *hash)
   handle inline functions that are not defined as native types
 */
 
-inline char*
+static inline char*
 hash_key(HASH *hash,const byte *record,uint *length,my_bool first)
 {
   if (hash->get_key)

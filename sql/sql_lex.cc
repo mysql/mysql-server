@@ -129,6 +129,7 @@ void lex_start(THD *thd, uchar *buf,uint length)
   lex->thd= lex->unit.thd= thd;
   lex->select_lex.init_query();
   lex->value_list.empty();
+  lex->update_list.empty();
   lex->param_list.empty();
   lex->view_list.empty();
   lex->unit.next= lex->unit.master=

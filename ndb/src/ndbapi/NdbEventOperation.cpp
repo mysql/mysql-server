@@ -121,5 +121,5 @@ NdbEventOperation::wait(void *p, int aMillisecondNumber)
 }
 
 NdbEventOperation::NdbEventOperation(NdbEventOperationImpl& impl) 
-  : m_impl(impl) {};
+  : m_impl(impl) {}
 

@@ -314,7 +314,7 @@ Dbdih::~Dbdih()
 
 }//Dbdih::~Dbdih()
 
-BLOCK_FUNCTIONS(Dbdih);
+BLOCK_FUNCTIONS(Dbdih)
 
 
 

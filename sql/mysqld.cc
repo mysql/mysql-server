@@ -17,7 +17,6 @@
 #include "mysql_priv.h"
 #include <m_ctype.h>
 #include <my_dir.h>
-#include "sql_acl.h"
 #include "slave.h"
 #include "sql_repl.h"
 #include "repl_failsafe.h"
@@ -55,6 +54,11 @@
 #endif
 #ifdef HAVE_NDBCLUSTER_DB
 #define OPT_NDBCLUSTER_DEFAULT 0
+#ifdef NDB_SHM_TRANSPORTER
+#define OPT_NDB_SHM_DEFAULT 1
+#else
+#define OPT_NDB_SHM_DEFAULT 0
+#endif
 #else
 #define OPT_NDBCLUSTER_DEFAULT 0
 #endif
@@ -289,6 +293,10 @@ my_bool opt_safe_user_create = 0, opt_no_mix_types = 0;
 my_bool opt_show_slave_auth_info, opt_sql_bin_update = 0;
 my_bool opt_log_slave_updates= 0;
 my_bool	opt_console= 0, opt_bdb, opt_innodb, opt_isam, opt_ndbcluster;
+#ifdef HAVE_NDBCLUSTER_DB
+const char *opt_ndbcluster_connectstring= 0;
+my_bool	opt_ndb_shm, opt_ndb_optimized_node_selection;
+#endif
 my_bool opt_readonly, use_temp_pool, relay_log_purge;
 my_bool opt_sync_bdb_logs, opt_sync_frm;
 my_bool opt_secure_auth= 0;
@@ -4108,6 +4116,7 @@ enum options_mysqld
   OPT_INNODB, OPT_ISAM,
   OPT_NDBCLUSTER, OPT_NDB_CONNECTSTRING, OPT_NDB_USE_EXACT_COUNT,
   OPT_NDB_FORCE_SEND, OPT_NDB_AUTOINCREMENT_PREFETCH_SZ,
+  OPT_NDB_SHM, OPT_NDB_OPTIMIZED_NODE_SELECTION,
   OPT_SKIP_SAFEMALLOC,
   OPT_TEMP_POOL, OPT_TX_ISOLATION,
   OPT_SKIP_STACK_TRACE, OPT_SKIP_SYMLINKS,
@@ -4577,23 +4586,45 @@ Disable with --skip-ndbcluster (will save memory).",
 #ifdef HAVE_NDBCLUSTER_DB
   {"ndb-connectstring", OPT_NDB_CONNECTSTRING,
    "Connect string for ndbcluster.",
-   (gptr*) &ndbcluster_connectstring, (gptr*) &ndbcluster_connectstring,
+   (gptr*) &opt_ndbcluster_connectstring,
+   (gptr*) &opt_ndbcluster_connectstring,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"ndb_autoincrement_prefetch_sz", OPT_NDB_AUTOINCREMENT_PREFETCH_SZ,
-   "Specify number of autoincrement values that are prefetched",
+  {"ndb-autoincrement-prefetch-sz", OPT_NDB_AUTOINCREMENT_PREFETCH_SZ,
+   "Specify number of autoincrement values that are prefetched.",
    (gptr*) &global_system_variables.ndb_autoincrement_prefetch_sz,
    (gptr*) &global_system_variables.ndb_autoincrement_prefetch_sz,
    0, GET_INT, REQUIRED_ARG, 32, 1, 256, 0, 0, 0},
-  {"ndb_force_send", OPT_NDB_FORCE_SEND,
-   "Force send of buffers to ndb immediately without waiting for other threads",
+  {"ndb-force-send", OPT_NDB_FORCE_SEND,
+   "Force send of buffers to ndb immediately without waiting for "
+   "other threads.",
    (gptr*) &global_system_variables.ndb_force_send,
    (gptr*) &global_system_variables.ndb_force_send,
    0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
+  {"ndb_force_send", OPT_NDB_FORCE_SEND,
+   "same as --ndb-force-send.",
+   (gptr*) &global_system_variables.ndb_force_send,
+   (gptr*) &global_system_variables.ndb_force_send,
+   0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
+  {"ndb-use-exact-count", OPT_NDB_USE_EXACT_COUNT,
+   "Use exact records count during query planning and for fast "
+   "select count(*), disable for faster queries.",
+   (gptr*) &global_system_variables.ndb_use_exact_count,
+   (gptr*) &global_system_variables.ndb_use_exact_count,
+   0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
   {"ndb_use_exact_count", OPT_NDB_USE_EXACT_COUNT,
-   "Use exact records count during query planning and for "
-   "fast select count(*)",
+   "same as --ndb-use-exact-count.",
    (gptr*) &global_system_variables.ndb_use_exact_count,
    (gptr*) &global_system_variables.ndb_use_exact_count,
+   0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
+  {"ndb-shm", OPT_NDB_SHM,
+   "Use shared memory connections when available.",
+   (gptr*) &opt_ndb_shm,
+   (gptr*) &opt_ndb_shm,
+   0, GET_BOOL, OPT_ARG, OPT_NDB_SHM_DEFAULT, 0, 0, 0, 0, 0},
+  {"ndb-optimized-node-selection", OPT_NDB_OPTIMIZED_NODE_SELECTION,
+   "Select nodes for transactions in a more optimal way.",
+   (gptr*) &opt_ndb_optimized_node_selection,
+   (gptr*) &opt_ndb_optimized_node_selection,
    0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
 #endif
   {"new", 'n', "Use very new possible 'unsafe' functions.",
@@ -4895,7 +4926,8 @@ log and this option does nothing anymore.",
     (gptr*) &delayed_queue_size, (gptr*) &delayed_queue_size, 0, GET_ULONG,
     REQUIRED_ARG, DELAYED_QUEUE_SIZE, 1, ~0L, 0, 1, 0},
   {"expire_logs_days", OPT_EXPIRE_LOGS_DAYS,
-   "Binary logs will be rotated after expire-log-days days ",
+   "If non-zero, binary logs will be purged after expire_logs_days "
+   "days; possible purges happen at startup and at binary log rotation.",
    (gptr*) &expire_logs_days,
    (gptr*) &expire_logs_days, 0, GET_ULONG,
    REQUIRED_ARG, 0, 0, 99, 0, 1, 0},
@@ -5141,7 +5173,7 @@ The minimum value for this variable is 4096.",
    "Default pointer size to be used for MyISAM tables.",
    (gptr*) &myisam_data_pointer_size,
    (gptr*) &myisam_data_pointer_size, 0, GET_ULONG, REQUIRED_ARG,
-   4, 2, 7, 0, 1, 0},
+   4, 2, 8, 0, 1, 0},
   {"myisam_max_extra_sort_file_size", OPT_MYISAM_MAX_EXTRA_SORT_FILE_SIZE,
    "Used to help MySQL to decide when to use the slow but safe key cache index create method.",
    (gptr*) &global_system_variables.myisam_max_extra_sort_file_size,

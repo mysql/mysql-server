@@ -269,7 +269,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	Using where
 2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	3	
 Warnings:
-Note	1003	select `test`.`t3`.`a` AS `a` from `test`.`t3` where (`test`.`t3`.`a` >= (select min(`test`.`t2`.`b`) from `test`.`t2`))
+Note	1003	select `test`.`t3`.`a` AS `a` from `test`.`t3` where <nop>((`test`.`t3`.`a` >= (select min(`test`.`t2`.`b`) from `test`.`t2`)))
 select * from t3 where a >= all (select b from t2);
 a
 7
@@ -1495,7 +1495,65 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	Using where
 2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
 Warnings:
-Note	1003	select `test`.`t3`.`a` AS `a` from `test`.`t3` where <not>((`test`.`t3`.`a` < (select max(`test`.`t2`.`b`) from `test`.`t2`)))
+select * from t3 where a >= some (select b from t2);
+a
+explain extended select * from t3 where a >= some (select b from t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
+Warnings:
+Note	1003	select test.t3.a AS `a` from test.t3 where <nop>((test.t3.a >= (select min(test.t2.b) from test.t2)))
+select * from t3 where a >= all (select b from t2 group by 1);
+a
+6
+7
+3
+explain extended select * from t3 where a >= all (select b from t2 group by 1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
+Warnings:
+Note	1003	select test.t3.a AS `a` from test.t3 where <not>((test.t3.a < <max>(select test.t2.b AS `b` from test.t2 group by test.t2.b)))
+select * from t3 where a >= some (select b from t2 group by 1);
+a
+explain extended select * from t3 where a >= some (select b from t2 group by 1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
+Warnings:
+Note	1003	select test.t3.a AS `a` from test.t3 where <nop>((test.t3.a >= <min>(select test.t2.b AS `b` from test.t2 group by test.t2.b)))
+select * from t3 where NULL >= any (select b from t2);
+a
+explain extended select * from t3 where NULL >= any (select b from t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
+Warnings:
+Note	1003	select test.t3.a AS `a` from test.t3
+select * from t3 where NULL >= any (select b from t2 group by 1);
+a
+explain extended select * from t3 where NULL >= any (select b from t2 group by 1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
+Warnings:
+Note	1003	select test.t3.a AS `a` from test.t3
+select * from t3 where NULL >= some (select b from t2);
+a
+explain extended select * from t3 where NULL >= some (select b from t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
+Warnings:
+Note	1003	select test.t3.a AS `a` from test.t3
+select * from t3 where NULL >= some (select b from t2 group by 1);
+a
+explain extended select * from t3 where NULL >= some (select b from t2 group by 1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
+Warnings:
+Note	1003	select test.t3.a AS `a` from test.t3
 insert into t2 values (2,2), (2,1), (3,3), (3,1);
 select * from t3 where a > all (select max(b) from t2 group by a);
 a
@@ -2038,4 +2096,39 @@ create table t1 (s1 int,s2 int);
 insert into t1 values (20,15);
 select * from t1 where  (('a',null) <=> (select 'a',s2 from t1 where s1 = 0));
 s1	s2
+drop table t1;
+create table t1 (s1 int);
+insert into t1 values (1),(null);
+select * from t1 where s1 < all (select s1 from t1);
+s1
+select s1, s1 < all (select s1 from t1) from t1;
+s1	s1 < all (select s1 from t1)
+1	0
+NULL	NULL
+drop table t1;
+CREATE TABLE t1 (
+Code char(3) NOT NULL default '',
+Name char(52) NOT NULL default '',
+Continent enum('Asia','Europe','North America','Africa','Oceania','Antarctica','South America') NOT NULL default 'Asia',
+Region char(26) NOT NULL default '',
+SurfaceArea float(10,2) NOT NULL default '0.00',
+IndepYear smallint(6) default NULL,
+Population int(11) NOT NULL default '0',
+LifeExpectancy float(3,1) default NULL,
+GNP float(10,2) default NULL,
+GNPOld float(10,2) default NULL,
+LocalName char(45) NOT NULL default '',
+GovernmentForm char(45) NOT NULL default '',
+HeadOfState char(60) default NULL,
+Capital int(11) default NULL,
+Code2 char(2) NOT NULL default ''
+) ENGINE=MyISAM;
+INSERT INTO t1 VALUES ('XXX','Xxxxx','Oceania','Xxxxxx',26.00,0,0,0,0,0,'Xxxxx','Xxxxx','Xxxxx',NULL,'XX');
+INSERT INTO t1 VALUES ('ASM','American Samoa','Oceania','Polynesia',199.00,0,68000,75.1,334.00,NULL,'Amerika Samoa','US Territory','George W. Bush',54,'AS');
+INSERT INTO t1 VALUES ('ATF','French Southern territories','Antarctica','Antarctica',7780.00,0,0,NULL,0.00,NULL,'Terres australes françaises','Nonmetropolitan Territory of France','Jacques Chirac',NULL,'TF');
+INSERT INTO t1 VALUES ('UMI','United States Minor Outlying Islands','Oceania','Micronesia/Caribbean',16.00,0,0,NULL,0.00,NULL,'United States Minor Outlying Islands','Dependent Territory of the US','George W. Bush',NULL,'UM');
+/*!40000 ALTER TABLE t1 ENABLE KEYS */;
+SELECT DISTINCT Continent AS c FROM t1 WHERE Code <> SOME ( SELECT Code FROM t1 WHERE Continent = c AND Population < 200);
+c
+Oceania
 drop table t1;

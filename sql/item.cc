@@ -73,7 +73,7 @@ Item::Item():
 }
 
 /*
-  Constructor used by Item_field, Item_ref & agregate (sum) functions.
+  Constructor used by Item_field, Item_*_ref & agregate (sum) functions.
   Used for duplicating lists in processing queries with temporary
   tables
 */
@@ -171,7 +171,7 @@ Item_ident::Item_ident(const char *db_name_par,const char *table_name_par,
 }
 
 
-/* Constructor used by Item_field & Item_ref (see Item comment) */
+/* Constructor used by Item_field & Item_*_ref (see Item comment) */
 
 Item_ident::Item_ident(THD *thd, Item_ident *item)
   :Item(thd, item),
@@ -1780,16 +1780,13 @@ resolve_ref_in_select_and_group(THD *thd, Item_ident *ref, SELECT_LEX *select)
       }
       return (select->ref_pointer_array + counter);
     }
-    else if (group_by_ref)
+    if (group_by_ref)
       return group_by_ref;
-    else
-    {
-      DBUG_ASSERT(FALSE);
-      return NULL; /* So there is no compiler warning. */
-    }
+    DBUG_ASSERT(FALSE);
+    return NULL; /* So there is no compiler warning. */
   }
-  else
-    return (Item**) not_found_item;
+
+  return (Item**) not_found_item;
 }
 
 
@@ -1847,6 +1844,7 @@ resolve_ref_in_select_and_group(THD *thd, Item_ident *ref, SELECT_LEX *select)
 
 bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
 {
+  enum_parsing_place place= NO_MATTER;
   DBUG_ASSERT(fixed == 0);
   if (!field)					// If field is not checked
   {
@@ -1885,13 +1883,14 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
           /* Search in the tables of the FROM clause of the outer select. */
 	  table_list= outer_sel->get_table_list();
 	  if (outer_sel->resolve_mode == SELECT_LEX::INSERT_MODE && table_list)
+	  {
             /*
               It is a primary INSERT st_select_lex => do not resolve against the
               first table.
             */
 	    table_list= table_list->next_local;
-
-          enum_parsing_place place= prev_subselect_item->parsing_place;
+          }
+          place= prev_subselect_item->parsing_place;
           /*
             Check table fields only if the subquery is used somewhere out of
             HAVING, or the outer SELECT does not use grouping (i.e. tables are
@@ -1926,7 +1925,6 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
 
           /* Search in the SELECT and GROUP lists of the outer select. */
 	  if (outer_sel->resolve_mode == SELECT_LEX::SELECT_MODE)
-	  {
             if (!(ref= resolve_ref_in_select_and_group(thd, this, outer_sel)))
               return TRUE; /* Some error occured (e.g. ambigous names). */
             if (ref != not_found_item)
@@ -1968,10 +1966,23 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
       }
       else if (ref != not_found_item)
       {
+        Item *save;
+        Item_ref *rf;
+
         /* Should have been checked in resolve_ref_in_select_and_group(). */
         DBUG_ASSERT(*ref && (*ref)->fixed);
-
-	Item_ref *rf= new Item_ref(ref, (char *)table_name, (char *)field_name);
+        /*
+          Here, a subset of actions performed by Item_ref::set_properties
+          is not enough. So we pass ptr to NULL into Item_[direct]_ref
+          constructor, so no initialization is performed, and call 
+          fix_fields() below.
+        */
+        save= *ref;
+        *ref= NULL;                             // Don't call set_properties()
+        rf= (place == IN_HAVING ?
+             new Item_ref(ref, (char*) table_name, (char*) field_name) :
+             new Item_direct_ref(ref, (char*) table_name, (char*) field_name));
+        *ref= save;
 	if (!rf)
 	  return TRUE;
         thd->change_item_tree(reference, rf);
@@ -2859,6 +2870,7 @@ bool Item_field::send(Protocol *protocol, String *buffer)
 bool Item_ref::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
 {
   DBUG_ASSERT(fixed == 0);
+  enum_parsing_place place= NO_MATTER;
   SELECT_LEX *current_sel= thd->lex->current_select;
 
   if (!ref)
@@ -2919,7 +2931,7 @@ bool Item_ref::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
             */
             table_list= table_list->next_local;
 
-          enum_parsing_place place= prev_subselect_item->parsing_place;
+          place= prev_subselect_item->parsing_place;
           /*
             Check table fields only if the subquery is used somewhere out of
             HAVING or the outer SELECT does not use grouping (i.e. tables are
@@ -3037,6 +3049,16 @@ bool Item_ref::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
                     "forward reference in item list"));
     return TRUE;
   }
+
+  set_properties();
+
+  if (ref && (*ref)->check_cols(1))
+    return 1;
+  return 0;
+}
+
+void Item_ref::set_properties()
+{
   max_length= (*ref)->max_length;
   maybe_null= (*ref)->maybe_null;
   decimals=   (*ref)->decimals;
@@ -3047,10 +3069,6 @@ bool Item_ref::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
   else
     alias_name_used= TRUE; // it is not field, so it is was resolved by alias
   fixed= 1;
-
-  if (ref && (*ref)->check_cols(1))
-    return TRUE;
-  return FALSE;
 }
 
 
@@ -3156,7 +3174,7 @@ bool Item_default_value::fix_fields(THD *thd,
     fixed= 1;
     return FALSE;
   }
-  if (arg->fix_fields(thd, table_list, &arg))
+  if (!arg->fixed && arg->fix_fields(thd, table_list, &arg))
     return TRUE;
   
   if (arg->type() == REF_ITEM)
@@ -3207,7 +3225,7 @@ bool Item_insert_value::fix_fields(THD *thd,
 				   Item **items)
 {
   DBUG_ASSERT(fixed == 0);
-  if (arg->fix_fields(thd, table_list, &arg))
+  if (!arg->fixed && arg->fix_fields(thd, table_list, &arg))
     return TRUE;
 
   if (arg->type() == REF_ITEM)

@@ -66,8 +66,8 @@ extern void        my_tz_free();
 
 
 /*
-  Check if we have pointer to the beggining of list of implictly used
-  time zone tables and fast-forward to its end.
+  Check if we have pointer to the begining of list of implicitly used time
+  zone tables, set SELECT_ACL for them and fast-forward to its end.
 
   SYNOPSIS
     my_tz_check_n_skip_implicit_tables()
@@ -87,6 +87,8 @@ inline bool my_tz_check_n_skip_implicit_tables(TABLE_LIST **table,
 {
   if (*table == tz_tables)
   {
+    for (int i= 0; i < 4; i++)
+      (*table)[i].grant.privilege= SELECT_ACL;
     (*table)+= 3;
     return TRUE;
   }
