@@ -15,10 +15,10 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
+#include <ndb_global.h>
+#include <assert.h>
 #include <editline/editline.h>
 #include <SignalSender.hpp>
-#include <assert.h>
-#include <stdlib.h>
 
 void
 print_help(){

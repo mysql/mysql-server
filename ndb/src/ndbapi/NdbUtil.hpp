@@ -29,8 +29,7 @@ Comment:
 #ifndef NdbUtil_H
 #define NdbUtil_H
 
-#include <stdlib.h>
-#include <ndb_types.h>
+#include <ndb_global.h>
 #include "AttrType.hpp"
 
 class NdbApiSignal;

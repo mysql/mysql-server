@@ -17,8 +17,7 @@
 #ifndef BUDDY_H
 #define BUDDY_H
 
-#include <stdlib.h>
-#include <stdio.h>
+#include <ndb_global.h>
 
 typedef unsigned int Uint32;
 typedef unsigned short Uint16;

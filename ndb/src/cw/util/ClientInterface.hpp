@@ -16,6 +16,7 @@
 
 #ifndef CLIENT_IF_HPP
 #define CLIENT_IF_HPP
+#include <ndb_global.h>
 #include <Parser.hpp>
 #include <InputStream.hpp>
 #include <Parser.hpp>
@@ -23,9 +24,6 @@
 #include <Properties.hpp>
 #include "SocketRegistry.hpp"
 #include "SocketService.hpp"
-#include "string.h"
-#include <stdio.h>
-#include <stdlib.h>
 
 class ClientInterface {
 private:

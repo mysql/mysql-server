@@ -14,6 +14,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#include <ndb_global.h>
+
 #include <NdbTCP.h>
 #include "TCP_Transporter.hpp"
 #include <NdbOut.hpp>
@@ -23,12 +25,8 @@
 #if defined NDB_OSE || defined NDB_SOFTOSE
 #define inet_send inet_send
 #else
-#include <NdbStdio.h>
 #define inet_send send
 #endif
-
-#include <stdlib.h>
-
 
 #ifdef NDB_WIN32
 class ndbstrerror

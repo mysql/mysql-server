@@ -28,14 +28,13 @@
  * Creates tables TB00 to TB15
  */
 
-#include <stdlib.h>
-#include <string.h>
+#include <ndb_global.h>
 #include <stdarg.h>
+
 #include <NdbMain.h>
 #include <NdbOut.hpp>
 #include <NdbApi.hpp>
 #include <NdbTest.hpp>
-#include <NdbStdio.h>
 
 // limits
 static int const MaxAttr = 64;

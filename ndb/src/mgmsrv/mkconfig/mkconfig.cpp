@@ -14,15 +14,15 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#include <ndb_global.h>
+#include <ndb_version.h>
+
 #include <NdbMain.h>
 #include <Properties.hpp>
-#include <stdlib.h>
 
 #include "InitConfigFileParser.hpp"
-#include "Config.hpp"
+#include <Config.hpp>
 #include <assert.h>
-#include <NdbUnistd.h>
-#include <ndb_version.h>
 
 void usage(const char * prg){
   ndbout << "Usage " << prg << ": <Init config> <Binary file>" << endl;

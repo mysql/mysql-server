@@ -31,28 +31,22 @@
 /*    must also have the same entry (same port number) in its       */
 /*    ./etc/services file.                                          */
 /* **************************************************************** */
+
+#include <ndb_global.h>
+
 /******** NDB INCLUDE ******/
 #include <NdbApi.hpp>
 /***************************/
 /*#include <sys/shm.h>*/
-#include <unistd.h>
-#include <stdlib.h>
-#include <strings.h>
 #include <pthread.h>
 #include <sys/sem.h>
-#include <sys/types.h>
 #include <sys/shm.h>
-#include <sys/socket.h>
-#include <errno.h>
 #include <netinet/in.h>
 #include <signal.h>
-#include <stdio.h>
 #include <netdb.h>
 #include <time.h>
 #include <synch.h>
 #include <sched.h>
-#include <limits.h>
-#include <math.h>
 
 extern "C" {
 #include "utv.h"

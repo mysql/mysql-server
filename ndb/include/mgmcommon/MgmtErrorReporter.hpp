@@ -22,8 +22,8 @@
 //******************************************************************************
 
 
+#include <ndb_global.h> // exit
 #include <NdbOut.hpp>
-#include <stdlib.h> // exit
 
 #define REPORT_WARNING(message) \
    ndbout << "WARNING: " << message << endl

@@ -17,16 +17,15 @@
 #ifndef DBA_INTERNAL_HPP
 #define DBA_INTERNAL_HPP
 
+#include <ndb_global.h>
+
 extern "C" {
 #include "dba.h"
 }
 
 #include <NdbApi.hpp>
 #include <NdbMutex.h>
-#include <string.h>
 #include <NdbOut.hpp>
-
-#include <stdlib.h>
 
 #ifndef INT_MAX
 #define INT_MAX          2147483647

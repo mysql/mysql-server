@@ -17,9 +17,6 @@
 #ifndef NDB_VERSION_H
 #define NDB_VERSION_H
 
-#include <stdio.h>
-#include <string.h>
-
 #include <version.h>
 
 #define MAKE_VERSION(A,B,C) (((A) << 16) | ((B) << 8)  | ((C) << 0))

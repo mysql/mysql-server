@@ -17,12 +17,10 @@
 #ifndef NDB_BITMASK_H
 #define NDB_BITMASK_H
 
-#include <ndb_types.h>
+#include <ndb_global.h>
 #include <NdbConstant.hpp>
 
 #ifndef NDB_ASSERT
-#include <stdio.h>
-#include <stdlib.h>
 #define NDB_ASSERT(x, s) \
   do { if (!(x)) { printf("%s\n", s); abort(); } } while (0)
 #endif

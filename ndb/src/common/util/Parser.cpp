@@ -15,12 +15,12 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
-#include "Parser.hpp"
-#include <stdio.h>
-#include <NdbOut.hpp>
-#include <string.h>
-#include <Properties.hpp>
+#include <ndb_global.h>
 #include <assert.h>
+
+#include "Parser.hpp"
+#include <NdbOut.hpp>
+#include <Properties.hpp>
 #include <Base64.hpp>
 
 #define DEBUG(x) ndbout << x << endl;

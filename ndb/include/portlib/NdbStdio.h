@@ -26,7 +26,7 @@
 #include <outfmt.h>
 #endif
 
-#include <stdio.h>
+#include <ndb_global.h>
 
 #ifdef NDB_WIN32
 #define snprintf _snprintf

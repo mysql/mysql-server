@@ -14,10 +14,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include "NDBT_ResultRow.hpp"
+#include <ndb_global.h>
 #include <assert.h>
-#include <stdio.h>
-#include <string.h>
+#include "NDBT_ResultRow.hpp"
 #include <NdbOut.hpp>
 
 NDBT_ResultRow::NDBT_ResultRow(const NdbDictionary::Table& tab,

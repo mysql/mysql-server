@@ -16,11 +16,12 @@
 
 
 
+#include <ndb_global.hpp>
+#include <assert.h>
+
 #include <ArrayList.hpp>
-#include <stdlib.h>
 #include <NdbOut.hpp>
 #include <NdbTick.h>
-#include <assert.h>
 
 struct A_Listable_Object {
   Uint32 next;

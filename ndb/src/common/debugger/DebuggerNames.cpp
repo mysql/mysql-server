@@ -14,15 +14,13 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#include <ndb_global.h>
+
 #include "DebuggerNames.hpp"
 
 #include <BlockNumbers.h>
 #include <GlobalSignalNumbers.h>
 #include <signaldata/SignalDataPrint.hpp>
-
-#include <NdbStdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 static const char *            localSignalNames[MAX_GSN+1];
 static SignalDataPrintFunction localPrintFunctions[MAX_GSN+1];

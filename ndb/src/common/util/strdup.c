@@ -16,7 +16,6 @@
 
 
 #include <ndb_global.h>
-#include <stdlib.h>
 
 #ifndef HAVE_STRDUP
 char *

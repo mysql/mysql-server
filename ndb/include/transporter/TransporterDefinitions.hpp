@@ -17,8 +17,8 @@
 #ifndef TransporterDefinitions_H
 #define TransporterDefinitions_H
 
+#include <ndb_global.h> 
 #include <kernel_types.h> 
-#include <string.h>
 #include <NdbOut.hpp>
 
 /**
