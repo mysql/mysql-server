@@ -44,6 +44,7 @@ static my_bool open_new_frm(const char *path, const char *alias,
 			    uint db_stat, uint prgflag,
 			    uint ha_open_flags, TABLE *outparam,
 			    TABLE_LIST *table_desc, MEM_ROOT *mem_root);
+static void relink_tables_for_multidelete(THD *thd);
 
 extern "C" byte *table_cache_key(const byte *record,uint *length,
 				 my_bool not_used __attribute__((unused)))
@@ -1857,21 +1858,23 @@ int open_and_lock_tables(THD *thd, TABLE_LIST *tables)
 {
   DBUG_ENTER("open_and_lock_tables");
   uint counter;
-  if (open_tables(thd, tables, &counter) || 
+  if (open_tables(thd, tables, &counter) ||
       lock_tables(thd, tables, counter) ||
-      mysql_handle_derived(thd->lex))
+      mysql_handle_derived(thd->lex, &mysql_derived_prepare) ||
+      (thd->fill_derived_tables() &&
+       mysql_handle_derived(thd->lex, &mysql_derived_filling)))
     DBUG_RETURN(thd->net.report_error ? -1 : 1); /* purecov: inspected */
-  relink_tables_for_derived(thd);
+  relink_tables_for_multidelete(thd);
   DBUG_RETURN(0);
 }
 
 
 /*
   Let us propagate pointers to open tables from global table list
-  to table lists in particular selects if needed.
+  to table lists for multi-delete
 */
 
-void relink_tables_for_derived(THD *thd)
+static void relink_tables_for_multidelete(THD *thd)
 {
   if (thd->lex->all_selects_list->next_select_in_list() ||
       thd->lex->time_zone_tables_used)

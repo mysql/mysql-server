@@ -222,6 +222,7 @@ struct st_table {
 #define VIEW_CHECK_SKIP       2
 
 struct st_lex;
+struct select_union;
 
 typedef struct st_table_list
 {
@@ -237,6 +238,11 @@ typedef struct st_table_list
   /* ... join ... USE INDEX ... IGNORE INDEX */
   List<String>	*use_index, *ignore_index;
   TABLE         *table;                 /* opened table */
+  /*
+    select_result for derived table to pass it from table creation to table
+    filling procedure
+  */
+  select_union  *derived_result;
   /*
     Reference from aux_tables to local list entry of main select of
     multi-delete statement:
@@ -306,6 +312,7 @@ typedef struct st_table_list
   void set_ancestor();
   int view_check_option(THD *thd, bool ignore_failure);
   bool setup_ancestor(THD *thd, Item **conds, uint8 check_option);
+  void cleanup_items();
   bool placeholder() {return derived || view; }
   void print(THD *thd, String *str);
   inline st_table_list *next_independent()

@@ -283,6 +283,7 @@ public:
  
   virtual bool remove_dependence_processor(byte * arg) { return 0; }
   virtual bool remove_fixed(byte * arg) { fixed= 0; return 0; }
+  virtual bool cleanup_processor(byte *arg);
   virtual bool collect_item_field_processor(byte * arg) { return 0; }
   virtual Item *equal_fields_propagator(byte * arg) { return this; }
   virtual Item *set_no_const_sub(byte *arg) { return this; }

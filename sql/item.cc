@@ -117,6 +117,23 @@ void Item::cleanup()
   DBUG_VOID_RETURN;
 }
 
+
+/*
+  cleanup() item if it is 'fixed'
+
+  SYNOPSIS
+    cleanup_processor()
+    arg - a dummy parameter, is not used here
+*/
+
+bool Item::cleanup_processor(byte *arg)
+{
+  if (fixed)
+    cleanup();
+  return FALSE;
+}
+
+
 Item_ident::Item_ident(const char *db_name_par,const char *table_name_par,
 		       const char *field_name_par)
   :orig_db_name(db_name_par), orig_table_name(table_name_par), 

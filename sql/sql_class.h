@@ -1131,8 +1131,12 @@ public:
   {
     return command == COM_PREPARE;
   }
-  inline gptr trans_alloc(unsigned int size) 
-  { 
+  inline bool fill_derived_tables()
+  {
+    return !only_prepare() && !lex->only_view_structure();
+  }
+  inline gptr trans_alloc(unsigned int size)
+  {
     return alloc_root(&transaction.mem_root,size);
   }
 
