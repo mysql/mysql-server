@@ -1008,7 +1008,7 @@ void mysql_read_default_options(struct st_mysql_options *options,
   else the lengths are calculated from the offset between pointers.
 **************************************************************************/
 
-static void STDCALL cli_fetch_lengths(ulong *to, MYSQL_ROW column, uint field_count)
+static void STDCALL cli_fetch_lengths(ulong *to, MYSQL_ROW column, unsigned int field_count)
 { 
   ulong *prev_length;
   byte *start=0;
@@ -1140,7 +1140,7 @@ unpack_fields(MYSQL_DATA *data,MEM_ROOT *alloc,uint fields,
 /* Read all rows (fields or data) from server */
 
 MYSQL_DATA *cli_read_rows(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
-			  uint fields)
+			  unsigned int fields)
 {
   uint	field;
   ulong pkt_len;
