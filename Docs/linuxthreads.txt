@@ -1,0 +1,15 @@
+Notes on compiling glibc for the standard MySQL binary:
+
+ - make sure you have gcc 2.95 and gmake 3.79 or newer
+ - wget ftp://ftp.gnu.org/pub/gnu/glibc/glibc-2.2.5.tar.gz
+ - wget ftp://ftp.gnu.org/pub/gnu/glibc/glibc-linuxthreads-2.2.5.tar.gz
+ - tar zxvf glibc-2.2.5.tar.gz ; cd glibc-2.2.5 ;
+   tar zxvf ../glibc-linuxthreads-2.2.5.tar.gz
+ - in linuxthreads/internals.h change STACK_SIZE to (128*1024)
+ - in linuxthreads/sysdeps/unix/sysv/linux/bits/local_lim.h change
+   PTHREAD_THREADS_MAX to 4096
+ - ./configure --prefix=/usr/local/mysql-glibc --enable-static-nss --disable-shared --enable-add-ons=linuxthreads
+ - make
+ - possible problems - if compiler is not properly installed, one can get
+ "cpp: too many input" files error - easiest way to solve - SUSE RPM for gcc
+ 2.95
