@@ -229,7 +229,14 @@ NdbOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
       theNoOfTupKeyLeft = tNoKeysDef;
       tErrorLine++;
       theErrorLine = tErrorLine;
+
       if (tNoKeysDef == 0) {
+	if (tDistrKey &&
+	    handle_distribution_key((Uint64*)aValue, totalSizeInWords))
+	{
+	  return -1;
+	}
+	
 	if (tOpType == UpdateRequest) {
 	  if (tInterpretInd == 1) {
 	    theStatus = GetValue;
@@ -259,18 +266,12 @@ NdbOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
 	  setErrorCodeAbort(4005);
 	  return -1;
 	}//if
-      }//if
-      if (!tDistrKey)
-      {
 	return 0;
-      } 
-      else 
-      {
-	return handle_distribution_key((Uint64*)aValue, totalSizeInWords);
-      }
+      }//if
     } else {
       return -1;
     }//if
+    return 0;
   }
   
   if (aValue == NULL) {
@@ -290,6 +291,8 @@ NdbOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
     setErrorCodeAbort(4225);
     return -1;
   }//if
+
+  ndbout_c("theStatus: %d", theStatus);
   
   // If we come here, set a general errorcode
   // and exit
@@ -515,17 +518,22 @@ NdbOperation::getKeyFromTCREQ(Uint32* data, unsigned size)
 int
 NdbOperation::handle_distribution_key(const Uint64* value, Uint32 len)
 {
-  if(theNoOfTupKeyLeft > 0)
+  if(theDistrKeyIndicator_ == 1 || 
+     (theNoOfTupKeyLeft > 0 && m_accessTable->m_noOfDistributionKeys > 1))
   {
+    ndbout_c("handle_distribution_key - exit");
     return 0;
   }
   
   if(m_accessTable->m_noOfDistributionKeys == 1)
   {
     setPartitionHash(value, len);
+    ndbout_c("handle_distribution_key - 1 key");
   }
   else 
   {
+    ndbout_c("handle_distribution_key - long");
+
     /**
      * Copy distribution key to linear memory
      */

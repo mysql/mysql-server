@@ -70,6 +70,7 @@ NdbIndexOperation::indxInit(const NdbIndexImpl * anIndex,
   }
   m_theIndex = anIndex;
   m_accessTable = anIndex->m_table;
+  theNoOfTupKeyLeft = m_accessTable->getNoOfPrimaryKeys();
   return 0;
 }
 
