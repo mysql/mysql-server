@@ -30,9 +30,9 @@
  * @section  General Concepts
  *
  * Each MGM API function needs a management server handle
- * of type <code>Mgm_C_Api::NdbMgmHandle</code>.
+ * of type Mgm_C_Api::NdbMgmHandle.
  * This handle is initally created by calling the
- * function <code>ndb_mgm_create_handle()</code>.
+ * function ndb_mgm_create_handle().
  *
  * A function can return:
  *  -# An integer value.

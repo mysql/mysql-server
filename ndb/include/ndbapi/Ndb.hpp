@@ -23,31 +23,31 @@
    The <em>NDB API</em> is a MySQL Cluster application interface 
    that implements transactions.
    The NDB API consists of the following fundamental classes:
-   - <code>Ndb_cluster_connection</code>, representing a connection to a cluster, 
-   - <code>Ndb</code> is the main class, representing the database, 
-   - <code>NdbTransaction</code> represents a transaction, 
-   - <code>NdbOperation</code> represents an operation using a primary key,
-   - <code>NdbScanOperation</code> represents an operation performing a full table scan.
-   - <code>NdbIndexOperation</code> represents an operation using a unique hash index,
-   - <code>NdbIndexScanOperation</code> represents an operation performing a scan using
+   - Ndb_cluster_connection, representing a connection to a cluster, 
+   - Ndb is the main class, representing the database, 
+   - NdbTransaction represents a transaction, 
+   - NdbOperation represents an operation using a primary key,
+   - NdbScanOperation represents an operation performing a full table scan.
+   - NdbIndexOperation represents an operation using a unique hash index,
+   - NdbIndexScanOperation represents an operation performing a scan using
      an ordered index,
-   - <code>NdbRecAttr</code> represents an attribute value
-   - <code>NdbDictionary</code> represents meta information about tables and attributes.
-   - <code>NdbError</code> contains the specification for an error.
+   - NdbRecAttr represents an attribute value
+   - NdbDictionary represents meta information about tables and attributes.
+   - NdbError contains the specification for an error.
    There are also some auxiliary classes.
      
    The main structure of an application program is as follows:
-   -# Construct and connect to a cluster using the <code>Ndb_cluster_connection</code>
+   -# Construct and connect to a cluster using the Ndb_cluster_connection
       object.
-   -# Construct and initialize <code>Ndb</code> object(s).
-   -# Define and execute transactions using <code>NdbTransaction</code> and <code>Ndb*Operation</code>.
-   -# Delete <code>Ndb</code> objects
+   -# Construct and initialize Ndb object(s).
+   -# Define and execute transactions using NdbTransaction and Ndb*Operation.
+   -# Delete Ndb objects
    -# Delete cluster connection
 
    The main structure of a transaction is as follows:
-   -# Start transaction (an <code>NdbTransaction</code>)
+   -# Start transaction (an NdbTransaction)
    -# Add and define operations associated with the transaction using
-      <code>Ndb*Operation</code>
+      Ndb*Operation
    -# Execute transaction
 
    The execution can be of two different types, 
@@ -69,41 +69,41 @@
    Synchronous transactions are defined and executed as follows:
   
     -# Start (create) the transaction, which is
-       referenced by an <code>NdbTransaction</code> object 
-       (typically created using <code>Ndb::startTransaction()</code>).
+       referenced by an NdbTransaction object 
+       (typically created using Ndb::startTransaction()).
        At this point, the transaction is only being defined,
        and is not yet sent to the NDB kernel.
     -# Define operations and add them to the transaction, 
-       using <code>NdbTransaction::getNdb*Operation()</code> and
-       methods of the <code>Ndb*Operation</code> class.
+       using NdbTransaction::getNdb*Operation() and
+       methods of the Ndb*Operation class.
        Note that the transaction has still not yet been sent to the NDB kernel.
-    -# Execute the transaction, using the <code>NdbTransaction::execute()</code> method.
-    -# Close the transaction (using <code>Ndb::closeTransaction()</code>).
+    -# Execute the transaction, using the NdbTransaction::execute() method.
+    -# Close the transaction (using Ndb::closeTransaction()).
   
    For an example of this process, see the program listing in @ref ndbapi_example1.cpp.
 
    To execute several parallel synchronous transactions, one can either 
-   use multiple <code>Ndb</code> objects in several threads, or start multiple 
+   use multiple Ndb objects in several threads, or start multiple 
    applications programs.  
 
    @section secNdbOperations            Operations
 
-   Each <code>NdbTransaction</code>
+   Each NdbTransaction
    consists of a list of operations which are represented by instances 
-   of <code>Ndb*Operation</code>.
+   of Ndb*Operation.
 
    <h3>Single row operations</h3>
-   After the operation is created using <code>NdbTransaction::getNdbOperation()</code>
-   (or <code>NdbTransaction::getNdbIndexOperation()</code>), it is defined in the following 
+   After the operation is created using NdbTransaction::getNdbOperation()
+   (or NdbTransaction::getNdbIndexOperation()), it is defined in the following 
    three steps:
-   -# Define the standard operation type, using <code>NdbOperation::readTuple()</code>
-   -# Specify search conditions, using <code>NdbOperation::equal()</code>
-   -# Specify attribute actions, using <code>NdbOperation::getValue()</code>
+   -# Define the standard operation type, using NdbOperation::readTuple()
+   -# Specify search conditions, using NdbOperation::equal()
+   -# Specify attribute actions, using NdbOperation::getValue()
 
    Here are two brief examples illustrating this process. For the sake of brevity, 
    we omit error-handling.
    
-   This first example uses an <code>NdbOperation</code>:
+   This first example uses an NdbOperation:
    @code
      // 1. Create
      MyOperation= MyTransaction->getNdbOperation("MYTABLENAME");
@@ -120,7 +120,7 @@
    For additional examples of this sort, see @ref ndbapi_example1.cpp and 
    @ref ndbapi_example2.cpp.
 
-   The second example uses an <code>NdbIndexOperation</code>:
+   The second example uses an NdbIndexOperation:
    @code
      // 1. Create
      MyOperation= MyTransaction->getNdbIndexOperation("MYINDEX", "MYTABLENAME");
@@ -138,8 +138,6 @@
 
    We will now discuss in somewhat greater detail each step involved in the creation 
    and use of synchronous transactions.
-
-  //  Edit stop point - JS, 20041228 0425+1000
 
    <h4>Step 1: Define single row operation type</h4>
    The following types of operations exist:
@@ -211,19 +209,19 @@
    - They can be used to update or delete multiple rows
    - They can operate on several nodes in parallell
 
-   After the operation is created using <code>NdbTransaction::getNdbScanOperation()</code>
-   (or <code>NdbTransaction::getNdbIndexScanOperation()</code>), it is defined in the following 
+   After the operation is created using NdbTransaction::getNdbScanOperation()
+   (or NdbTransaction::getNdbIndexScanOperation()), it is defined in the following 
    three steps:
-   -# Define the standard operation type, using <code>NdbScanOperation::readTuples()</code>
+   -# Define the standard operation type, using NdbScanOperation::readTuples()
    -# Specify search conditions, using @ref NdbScanFilter and/or @ref NdbIndexScanOperation::setBound
-   -# Specify attribute actions, using <code>NdbOperation::getValue()</code>
-   -# Executing the transaction, using <code>NdbTransaction::execute()</code>
-   -# Iterating through the result set using <code>NdbScanOperation::nextResult</code>
+   -# Specify attribute actions, using NdbOperation::getValue()
+   -# Executing the transaction, using NdbTransaction::execute()
+   -# Iterating through the result set using NdbScanOperation::nextResult
 
    Here are two brief examples illustrating this process. For the sake of brevity, 
    we omit error-handling.
    
-   This first example uses an <code>NdbScanOperation</code>:
+   This first example uses an NdbScanOperation:
    @code
      // 1. Create
      MyOperation= MyTransaction->getNdbScanOperation("MYTABLENAME");
@@ -242,7 +240,7 @@
      MyRecAttr= MyOperation->getValue("ATTR2", NULL);
    @endcode
 
-   The second example uses an <code>NdbIndexScanOperation</code>:
+   The second example uses an NdbIndexScanOperation:
    @code
      // 1. Create
      MyOperation= MyTransaction->getNdbIndexScanOperation("MYORDEREDINDEX", "MYTABLENAME");
@@ -309,7 +307,7 @@
    -# When iterating through the result set, for each row optionally call 
       either NdbScanOperation::updateCurrentTuple or 
       NdbScanOperation::deleteCurrentTuple
-   -# If performing <code>NdbScanOperation::updateCurrentTuple</code>, 
+   -# If performing NdbScanOperation::updateCurrentTuple, 
       set new values on record using ordinary @ref NdbOperation::setValue.
       NdbOperation::equal should _not_ be called as the primary key is 
       retreived from the scan.
@@ -337,10 +335,10 @@
 
    But Ndb will only lock a batch of rows per fragment at a time.
    How many rows will be locked per fragment is controlled by the 
-   <code>batch</code> parameter to @ref NdbScanOperation::readTuples.
+   batch parameter to @ref NdbScanOperation::readTuples.
 
    To let the application handle how locks are released 
-   @ref NdbScanOperation::nextResult have a parameter <code>fetch_allow</code>.
+   @ref NdbScanOperation::nextResult have a parameter fetch_allow.
    If NdbScanOperation::nextResult is called with fetch_allow = false, no
    locks may be released as result of the function call. Otherwise the locks
    for the current batch may be released.
