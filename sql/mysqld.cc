@@ -212,7 +212,7 @@ const char *sql_mode_names[] =
   "?", "ONLY_FULL_GROUP_BY", "NO_UNSIGNED_SUBTRACTION",
   "POSTGRESQL", "ORACLE", "MSSQL", "DB2", "SAPDB", "NO_KEY_OPTIONS",
   "NO_TABLE_OPTIONS", "NO_FIELD_OPTIONS", "MYSQL323", "MYSQL40", "ANSI",
-  NullS
+  "NO_AUTO_VALUE_ON_ZERO", NullS
 };
 TYPELIB sql_mode_typelib= { array_elements(sql_mode_names)-1,"",
 			    sql_mode_names };
@@ -229,6 +229,7 @@ bool opt_large_files= sizeof(my_off_t) > 4;
 /*
   Used with --help for detailed option
 */
+bool opt_help= 0;
 bool opt_verbose= 0;
 
 arg_cmp_func Arg_comparator::comparator_matrix[4][2] =
@@ -3642,8 +3643,9 @@ Disable with --skip-bdb (will save memory).",
    "Percentage of dirty pages allowed in bufferpool.", (gptr*) &srv_max_buf_pool_modified_pct,
    (gptr*) &srv_max_buf_pool_modified_pct, 0, GET_ULONG, REQUIRED_ARG, 90, 0, 100, 0, 0, 0},
 #endif /* End HAVE_INNOBASE_DB */
-  {"help", '?', "Display this help and exit.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
-   0, 0, 0, 0, 0},
+  {"help", '?', "Display this help and exit.", 
+   (gptr*) &opt_help, (gptr*) &opt_help, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
+   0, 0},
   {"verbose", 'v', "Used with --help option for detailed help",
    (gptr*) &opt_verbose, (gptr*) &opt_verbose, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
@@ -4882,15 +4884,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
 #endif
 #include <sslopt-case.h>
-  case 'v':
-    usage();
-    exit(0);
   case 'V':
     print_version();
-    exit(0);
-  case 'I':
-  case '?':
-    usage();
     exit(0);
   case 'T':
     test_flags= argument ? (uint) atoi(argument) : 0;
@@ -5365,6 +5360,11 @@ static void get_options(int argc,char **argv)
     exit(ho_error);
   }
 
+  if (opt_help)
+  {
+    usage();
+    exit(0);
+  }
 #if defined(HAVE_BROKEN_REALPATH)
   my_use_symdir=0;
   my_disable_symlinks=1;

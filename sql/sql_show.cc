@@ -75,7 +75,7 @@ mysqld_show_dbs(THD *thd,const char *wild)
   {
     if (thd->master_access & (DB_ACLS | SHOW_DB_ACL) ||
 	acl_get(thd->host, thd->ip, (char*) &thd->remote.sin_addr,
-		thd->priv_user, file_name) ||
+		thd->priv_user, file_name,0) ||
 	(grant_option && !check_grant_db(thd, file_name)))
     {
       protocol->prepare_for_resend();
@@ -415,7 +415,7 @@ mysql_find_files(THD *thd,List<char> *files, const char *db,const char *path,
 #endif
       {
         if (file->name[0] == '.' || !MY_S_ISDIR(file->mystat.st_mode) ||
-            (wild && wild_compare(file->name,wild)))
+            (wild && wild_compare(file->name,wild,0)))
           continue;
       }
     }
@@ -433,7 +433,7 @@ mysql_find_files(THD *thd,List<char> *files, const char *db,const char *path,
 	  if (wild_case_compare(system_charset_info,file->name,wild))
 	    continue;
 	}
-	else if (wild_compare(file->name,wild))
+	else if (wild_compare(file->name,wild,0))
 	  continue;
       }
     }
@@ -1031,7 +1031,7 @@ store_create_info(THD *thd, TABLE *table, String *packet)
   my_bool limited_mysql_mode= (thd->variables.sql_mode &
 			       (MODE_NO_FIELD_OPTIONS | MODE_MYSQL323 |
 				MODE_MYSQL40)) != 0;
-			       
+
   DBUG_ENTER("store_create_info");
   DBUG_PRINT("enter",("table: %s",table->real_name));
 
