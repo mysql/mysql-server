@@ -227,8 +227,8 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
   share.state.key_del=key_del;
   if (uniques)
   {
-    max_key_block_length= MI_KEY_BLOCK_LENGTH;
-    max_key_length= MI_UNIQUE_HASH_LENGTH;
+    max_key_block_length= myisam_block_size;
+    max_key_length= 	  MI_UNIQUE_HASH_LENGTH;
   }
 
   for (i=0, keydef=keydefs ; i < keys ; i++ , keydef++)
@@ -370,7 +370,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
       share.state.rec_per_key_part[key_segs-1]=1L;
     length+=key_length;
     keydef->block_length= MI_BLOCK_SIZE(length,pointer,MI_MAX_KEYPTR_SIZE);
-    if (keydef->block_length/MI_KEY_BLOCK_LENGTH > MI_MAX_KEY_BLOCK_SIZE)
+    if (keydef->block_length > MI_MAX_KEY_BLOCK_LENGTH)
     {
       my_errno=HA_WRONG_CREATE_OPTION;
       goto err;
@@ -386,7 +386,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
 				    (length*2)))*
       (ulong) keydef->block_length;
   }
-  for (i=max_key_block_length/MI_KEY_BLOCK_LENGTH ; i-- ; )
+  for (i=max_key_block_length/MI_MIN_KEY_BLOCK_LENGTH ; i-- ; )
     key_del[i]=HA_OFFSET_ERROR;
 
   unique_key_parts=0;
@@ -401,7 +401,8 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
   key_segs+=uniques;				/* Each unique has 1 key seg */
 
   base_pos=(MI_STATE_INFO_SIZE + keys * MI_STATE_KEY_SIZE +
-	    max_key_block_length/MI_KEY_BLOCK_LENGTH*MI_STATE_KEYBLOCK_SIZE+
+	    max_key_block_length/MI_MIN_KEY_BLOCK_LENGTH*
+	    MI_STATE_KEYBLOCK_SIZE+
 	    key_segs*MI_STATE_KEYSEG_SIZE);
   info_length=base_pos+(uint) (MI_BASE_INFO_SIZE+
 			       keys * MI_KEYDEF_SIZE+
@@ -420,7 +421,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
   mi_int2store(share.state.header.base_pos,base_pos);
   share.state.header.language= (ci->language ?
 				ci->language : MY_CHARSET_CURRENT);
-  share.state.header.max_block_size=max_key_block_length/MI_KEY_BLOCK_LENGTH;
+  share.state.header.max_block_size=max_key_block_length/MI_MIN_KEY_BLOCK_LENGTH;
 
   share.state.dellink = HA_OFFSET_ERROR;
   share.state.process=	(ulong) getpid();
@@ -433,7 +434,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
   share.base.rec_reflength=pointer;
   share.base.key_reflength=
     mi_get_pointer_length((tot_length + max_key_block_length * keys *
-			   MI_INDEX_BLOCK_MARGIN) / MI_KEY_BLOCK_LENGTH,
+			   MI_INDEX_BLOCK_MARGIN) / MI_MIN_KEY_BLOCK_LENGTH,
 			  3);
   share.base.keys= share.state.header.keys = keys;
   share.state.header.uniques= uniques;
@@ -575,7 +576,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
   {
     tmp_keydef.keysegs=1;
     tmp_keydef.flag=		HA_UNIQUE_CHECK;
-    tmp_keydef.block_length=	MI_KEY_BLOCK_LENGTH;
+    tmp_keydef.block_length=	myisam_block_size;
     tmp_keydef.keylength=	MI_UNIQUE_HASH_LENGTH + pointer;
     tmp_keydef.minlength=tmp_keydef.maxlength=tmp_keydef.keylength;
     tmp_keyseg.type= 		MI_UNIQUE_HASH_TYPE;

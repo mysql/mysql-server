@@ -41,7 +41,7 @@ int mi_rsame(MI_INFO *info, byte *record, int inx)
   info->update&= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
 
   /* Read row from data file */
-  if (_mi_readinfo(info,F_RDLCK,1))
+  if (fast_mi_readinfo(info))
     DBUG_RETURN(my_errno);
 
   if (inx >= 0)
@@ -51,7 +51,8 @@ int mi_rsame(MI_INFO *info, byte *record, int inx)
 				      info->lastpos);
     if (info->s->concurrent_insert)
       rw_rdlock(&info->s->key_root_lock[inx]);
-    VOID(_mi_search(info,info->s->keyinfo+inx,info->lastkey,0,SEARCH_SAME,
+    VOID(_mi_search(info,info->s->keyinfo+inx,info->lastkey, USE_WHOLE_KEY,
+		    SEARCH_SAME,
 		    info->s->state.key_root[inx]));
     if (info->s->concurrent_insert)
       rw_unlock(&info->s->key_root_lock[inx]);

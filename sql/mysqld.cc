@@ -214,8 +214,9 @@ SHOW_COMP_OPTION have_symlink=SHOW_OPTION_YES;
 static bool opt_skip_slave_start = 0; // if set, slave is not autostarted
 static bool opt_do_pstack = 0;
 static ulong opt_specialflag=SPECIAL_ENGLISH;
-static my_socket unix_sock= INVALID_SOCKET,ip_sock= INVALID_SOCKET;
 static ulong back_log,connect_timeout,concurrency;
+static ulong opt_myisam_block_size;
+static my_socket unix_sock= INVALID_SOCKET,ip_sock= INVALID_SOCKET;
 static my_string opt_logname=0,opt_update_logname=0,
        opt_binlog_index_name = 0,opt_slow_logname=0;
 static char mysql_home[FN_REFLEN],pidfile_name[FN_REFLEN];
@@ -310,10 +311,16 @@ ulong slow_launch_threads = 0;
 ulong myisam_max_sort_file_size, myisam_max_extra_sort_file_size;
   
 char mysql_real_data_home[FN_REFLEN],
-     mysql_data_home[2],language[LIBLEN],reg_ext[FN_EXTLEN],
+     language[LIBLEN],reg_ext[FN_EXTLEN],
      default_charset[LIBLEN],mysql_charsets_dir[FN_REFLEN], *charsets_list,
      blob_newline,f_fyllchar,max_sort_char,*mysqld_user,*mysqld_chroot,
      *opt_init_file;
+#ifndef EMBEDDED_LIBRARY
+char mysql_data_home_buff[2], *mysql_data_home=mysql_data_home_buff;
+#else
+char *mysql_data_home=mysql_real_data_home;
+#endif
+
 char *opt_bin_logname = 0; // this one needs to be seen in sql_parse.cc
 char server_version[SERVER_VERSION_LENGTH]=MYSQL_SERVER_VERSION;
 const char *first_keyword="first";
@@ -677,9 +684,8 @@ static sig_handler print_signal_warning(int sig)
 void unireg_end(int signal_number __attribute__((unused)))
 {
   clean_up();
-#ifndef EMBEDDED_LIBRARY
+  my_thread_end();
   pthread_exit(0);				// Exit is in main thread
-#endif
 }
 
 
@@ -688,6 +694,7 @@ void unireg_abort(int exit_code)
   if (exit_code)
     sql_print_error("Aborting\n");
   clean_up(); /* purecov: inspected */
+  my_thread_end();
   exit(exit_code); /* purecov: inspected */
 }
 
@@ -730,14 +737,13 @@ void clean_up(bool print_message)
   free_max_user_conn();
   end_slave_list();
 
-#ifndef __WIN__
+#if !defined(__WIN__) && !defined(EMBEDDED_LIBRARY)
   if (!opt_bootstrap)
     (void) my_delete(pidfile_name,MYF(0));	// This may not always exist
 #endif
   if (print_message)
     sql_print_error(ER(ER_SHUTDOWN_COMPLETE),my_progname);
   x_free((gptr) my_errmsg[ERRMAPP]);	/* Free messages */
-  my_thread_end();
 
   /* Tell main we are ready */
   (void) pthread_mutex_lock(&LOCK_thread_count);
@@ -1782,10 +1788,6 @@ int main(int argc, char **argv)
   init_thr_lock();
   init_slave_list();
   
-  /* Fix varibles that are base 1024*1024 */
-  myisam_max_temp_length= (my_off_t) min(((ulonglong) myisam_max_sort_file_size)*1024*1024, (ulonglong) MAX_FILE_SIZE);
-  myisam_max_extra_temp_length= (my_off_t) min(((ulonglong) myisam_max_extra_sort_file_size)*1024*1024, (ulonglong) MAX_FILE_SIZE);
-
   /* Setup log files */
   if (opt_log)
     open_log(&mysql_log, glob_hostname, opt_logname, ".log", LOG_NORMAL);
@@ -1796,17 +1798,18 @@ int main(int argc, char **argv)
     using_update_log=1;
   }
 
-  //make sure slave thread gets started
-  // if server_id is set, valid master.info is present, and master_host has
-  // not been specified
-  if(server_id && !master_host)
-    {
-      char fname[FN_REFLEN+128];
-      MY_STAT stat_area;
-      fn_format(fname, master_info_file, mysql_data_home, "", 4+16+32);
-      if(my_stat(fname, &stat_area, MYF(0)) && !init_master_info(&glob_mi))
-        master_host = glob_mi.host;
-    }
+  /*
+    make sure slave thread gets started if server_id is set,
+    valid master.info is present, and master_host has not been specified
+  */
+  if (server_id && !master_host)
+  {
+    char fname[FN_REFLEN+128];
+    MY_STAT stat_area;
+    fn_format(fname, master_info_file, mysql_data_home, "", 4+16+32);
+    if (my_stat(fname, &stat_area, MYF(0)) && !init_master_info(&glob_mi))
+      master_host = glob_mi.host;
+  }
 
   if (opt_bin_log && !server_id)
   {
@@ -2882,6 +2885,9 @@ CHANGEABLE_VAR changeable_vars[] = {
       ~0L, 1, ~0L, 0, 1 },
   { "myisam_bulk_insert_tree_size", (long*) &myisam_bulk_insert_tree_size,
       8192*1024, 4, ~0L, 0, 1 },
+  { "myisam_block_size", 	(long*) &opt_myisam_block_size,
+      MI_KEY_BLOCK_LENGTH, MI_MIN_KEY_BLOCK_LENGTH, MI_MAX_KEY_BLOCK_LENGTH,
+    0, MI_MIN_KEY_BLOCK_LENGTH },
   { "myisam_max_extra_sort_file_size",
     (long*) &myisam_max_extra_sort_file_size,
     (long) (MI_MAX_TEMP_LENGTH/(1024L*1024L)), 0, ~0L, 0, 1 },
@@ -4025,6 +4031,12 @@ static void get_options(int argc,char **argv)
   /* To be deleted in MySQL 4.0 */
   if (!record_rnd_cache_size)
     record_rnd_cache_size=my_default_record_cache_size;
+
+  /* Fix variables that are base 1024*1024 */
+  myisam_max_temp_length= (my_off_t) min(((ulonglong) myisam_max_sort_file_size)*1024*1024, (ulonglong) MAX_FILE_SIZE);
+  myisam_max_extra_temp_length= (my_off_t) min(((ulonglong) myisam_max_extra_sort_file_size)*1024*1024, (ulonglong) MAX_FILE_SIZE);
+
+  myisam_block_size=(uint) 1 << my_bit_log2(opt_myisam_block_size);
 }
 
 
