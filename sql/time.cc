@@ -418,13 +418,28 @@ ulong convert_month_to_period(ulong month)
 }
 
 
-/*****************************************************************************
-** convert a timestamp string to a TIME value.
-** At least the following formats are recogniced (based on number of digits)
-** YYMMDD, YYYYMMDD, YYMMDDHHMMSS, YYYYMMDDHHMMSS
-** YY-MM-DD, YYYY-MM-DD, YY-MM-DD HH.MM.SS
-** Returns the type of string
-*****************************************************************************/
+/*
+  Convert a timestamp string to a TIME value.
+
+  SYNOPSIS
+    str_to_TIME()
+    str			String to parse
+    length		Length of string
+    l_time		Date is stored here
+    fuzzy_date		1 if we should allow dates where one part is zero
+
+  DESCRIPTION
+    At least the following formats are recogniced (based on number of digits)
+    YYMMDD, YYYYMMDD, YYMMDDHHMMSS, YYYYMMDDHHMMSS
+    YY-MM-DD, YYYY-MM-DD, YY-MM-DD HH.MM.SS
+    YYYYMMDDTHHMMSS  where T is a the character T (ISO8601)
+    Also dates where all parts are zero are allowed
+
+  RETURN VALUES
+    TIMESTAMP_NONE	String wasn't a timestamp
+    TIMESTAMP_DATE	DATE string (YY MM and DD parts ok)
+    TIMESTAMP_FULL	Full timestamp
+*/
 
 timestamp_type
 str_to_TIME(const char *str, uint length, TIME *l_time,bool fuzzy_date)
@@ -441,9 +456,9 @@ str_to_TIME(const char *str, uint length, TIME *l_time,bool fuzzy_date)
   if (str == end)
     DBUG_RETURN(TIMESTAMP_NONE);
   /*
-  ** calculate first number of digits.
-  ** If length= 8 or >= 14 then year is of format YYYY.
-     (YYYY-MM-DD,  YYYYMMDD, YYYYYMMDDHHMMSS)
+    calculate first number of digits.
+    If length= 8 or >= 14 then year is of format YYYY.
+    (YYYY-MM-DD,  YYYYMMDD, YYYYYMMDDHHMMSS)
   */
   for (pos=str; pos != end && my_isdigit(system_charset_info,*pos) ; pos++) ;
   digits= (uint) (pos-str);
@@ -453,7 +468,8 @@ str_to_TIME(const char *str, uint length, TIME *l_time,bool fuzzy_date)
   for (i=0 ; i < 6 && str != end && my_isdigit(system_charset_info,*str) ; i++)
   {
     uint tmp_value=(uint) (uchar) (*str++ - '0');
-    while (str != end && my_isdigit(system_charset_info,str[0]) && field_length--)
+    while (str != end && my_isdigit(system_charset_info,str[0]) &&
+	   field_length--)
     {
       tmp_value=tmp_value*10 + (uint) (uchar) (*str - '0');
       str++;
@@ -483,7 +499,8 @@ str_to_TIME(const char *str, uint length, TIME *l_time,bool fuzzy_date)
     str++;
     uint tmp_value=(uint) (uchar) (*str - '0');
     field_length=3;
-    while (str++ != end && my_isdigit(system_charset_info,str[0]) && field_length--)
+    while (str++ != end && my_isdigit(system_charset_info,str[0]) &&
+	   field_length--)
       tmp_value=tmp_value*10 + (uint) (uchar) (*str - '0');
     date[6]=tmp_value;
     not_zero_date|= tmp_value;
@@ -505,7 +522,7 @@ str_to_TIME(const char *str, uint length, TIME *l_time,bool fuzzy_date)
     {
       for (; str != end ; str++)
       {
-	if (!isspace(*str))
+	if (!my_isspace(system_charset_info, *str))
 	{
 	  not_zero_date= 1;			// Give warning
 	  break;

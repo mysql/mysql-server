@@ -1082,7 +1082,7 @@ bool st_select_lex_unit::create_total_list_n_last_return(THD *thd, st_lex *lex,
 	for (cursor= **result; cursor; cursor= cursor->next)
 	  if (!strcmp(cursor->db, aux->db) &&
 	      !strcmp(cursor->real_name, aux->real_name) &&
-	      !strcmp(cursor->name, aux->name))
+	      !strcmp(cursor->alias, aux->alias))
 	    break;
 	if (!cursor)
 	{

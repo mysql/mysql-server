@@ -644,7 +644,7 @@ static void acl_update_user(const char *user, const char *host,
     {
       if (!acl_user->host.hostname && !host[0] ||
 	  acl_user->host.hostname &&
-	  !my_strcasecmp(host,acl_user->host.hostname))
+	  !my_strcasecmp(system_charset_info, host, acl_user->host.hostname))
       {
 	acl_user->access=privileges;
 	if (mqh->bits & 1)
@@ -733,7 +733,8 @@ static void acl_update_db(const char *user, const char *host, const char *db,
 	!strcmp(user,acl_db->user))
     {
       if (!acl_db->host.hostname && !host[0] ||
-	  acl_db->host.hostname && !my_strcasecmp(host,acl_db->host.hostname))
+	  acl_db->host.hostname &&
+	  !my_strcasecmp(system_charset_info, host, acl_db->host.hostname))
       {
 	if (!acl_db->db && !db[0] ||
 	    acl_db->db && !strcmp(db,acl_db->db))
@@ -1010,7 +1011,7 @@ bool check_change_password(THD *thd, const char *host, const char *user)
   }
   if (!thd->slave_thread &&
       (strcmp(thd->user,user) ||
-       my_strcasecmp(system_charset_info, host,thd->host_or_ip)))
+       my_strcasecmp(system_charset_info, host, thd->host_or_ip)))
   {
     if (check_access(thd, UPDATE_ACL, "mysql",0,1))
       return(1);
@@ -1662,7 +1663,6 @@ static GRANT_TABLE *table_hash_search(const char *host,const char* ip,
   char helping [NAME_LEN*2+USERNAME_LENGTH+3];
   uint len;
   GRANT_TABLE *grant_table,*found=0;
-  safe_mutex_assert_owner(&LOCK_grant);
 
   len  = (uint) (strmov(strmov(strmov(helping,user)+1,db)+1,tname)-helping)+ 1;
   for (grant_table=(GRANT_TABLE*) hash_search(&hash_tables,(byte*) helping,
@@ -1672,7 +1672,8 @@ static GRANT_TABLE *table_hash_search(const char *host,const char* ip,
   {
     if (exact)
     {
-      if ((host && !my_strcasecmp(host,grant_table->host)) ||
+      if ((host &&
+	   !my_strcasecmp(system_charset_info, host, grant_table->host)) ||
 	  (ip && !strcmp(ip,grant_table->host)))
 	return grant_table;
     }
@@ -1872,7 +1873,6 @@ static int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
   int error=0;
   ulong store_table_rights, store_col_rights;
   DBUG_ENTER("replace_table_table");
-  safe_mutex_assert_owner(&LOCK_grant);
 
   strxmov(grantor, thd->user, "@", thd->host_or_ip, NullS);
 
@@ -2734,7 +2734,7 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
     if (!(host=acl_user->host.hostname))
       host="%";
     if (!strcmp(lex_user->user.str,user) &&
-	!my_strcasecmp(lex_user->host.str,host))
+	!my_strcasecmp(system_charset_info, lex_user->host.str, host))
       break;
   }
   if (counter == acl_users.elements) 
@@ -2881,7 +2881,7 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
       host="";
 
     if (!strcmp(lex_user->user.str,user) &&
-	!my_strcasecmp(lex_user->host.str,host))
+	!my_strcasecmp(system_charset_info, lex_user->host.str, host))
     {
       want_access=acl_db->access;
       if (want_access) 
@@ -2940,7 +2940,7 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
       host="";
 
     if (!strcmp(lex_user->user.str,user) &&
-	!my_strcasecmp(lex_user->host.str,host))
+	!my_strcasecmp(system_charset_info, lex_user->host.str, host))
     {
       want_access=grant_table->privs;
       if ((want_access | grant_table->cols) != 0)

@@ -145,7 +145,7 @@ void Item_func_sha::fix_length_and_dec()
 String *Item_func_aes_encrypt::val_str(String *str)
 {
   char key_buff[80];
-  String tmp_key_value(key_buff, sizeof(key_buff));
+  String tmp_key_value(key_buff, sizeof(key_buff), system_charset_info);
   String *sptr= args[0]->val_str(str);			// String to encrypt
   String *key=  args[1]->val_str(&tmp_key_value);	// key
   int aes_length;
@@ -180,7 +180,8 @@ void Item_func_aes_encrypt::fix_length_and_dec()
 String *Item_func_aes_decrypt::val_str(String *str)
 {
   char key_buff[80];
-  String tmp_key_value(key_buff, sizeof(key_buff)), *sptr, *key;
+  String tmp_key_value(key_buff, sizeof(key_buff), system_charset_info);
+  String *sptr, *key;
   DBUG_ENTER("Item_func_aes_decrypt::val_str");
 
   sptr= args[0]->val_str(str);			// String to decrypt
