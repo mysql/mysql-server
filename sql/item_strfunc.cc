@@ -1539,37 +1539,46 @@ void Item_func_elt::update_used_tables()
 double Item_func_elt::val()
 {
   uint tmp;
+  null_value=1;
   if ((tmp=(uint) item->val_int()) == 0 || tmp > arg_count)
-  {
-    null_value=1;
     return 0.0;
-  }
+
+  double result= args[tmp-1]->val();
+  if (args[tmp-1]->is_null())
+    return 0.0;
+
   null_value=0;
-  return args[tmp-1]->val();
+  return result;
 }
 
 longlong Item_func_elt::val_int()
 {
   uint tmp;
+  null_value=1;
   if ((tmp=(uint) item->val_int()) == 0 || tmp > arg_count)
-  {
-    null_value=1;
     return 0;
-  }
+  
+  int result= args[tmp-1]->val_int();
+  if (args[tmp-1]->is_null())
+    return 0;
+
   null_value=0;
-  return args[tmp-1]->val_int();
+  return result;
 }
 
 String *Item_func_elt::val_str(String *str)
 {
   uint tmp;
+  null_value=1;
   if ((tmp=(uint) item->val_int()) == 0 || tmp > arg_count)
-  {
-    null_value=1;
     return NULL;
-  }
+
+  String *result= args[tmp-1]->val_str(str);
+  if (args[tmp-1]->is_null())
+    return NULL;
+
   null_value=0;
-  return args[tmp-1]->val_str(str);
+  return result;
 }
 
 
