@@ -150,7 +150,7 @@ static struct my_option my_long_options[] =
    "Fields in the i.file are opt. enclosed by ...", (gptr*) &opt_enclosed,
    (gptr*) &opt_enclosed, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0 ,0, 0},
   {"fields-escaped-by", OPT_ESC, "Fields in the i.file are escaped by ...",
-   (gptr*) &escaped, (gptr*) &escaped, 0, GET_STR, NO_ARG, 0, 0, 0, 0, 0, 0},
+   (gptr*) &escaped, (gptr*) &escaped, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"first-slave", 'x', "Locks all tables across all databases.",
    (gptr*) &opt_first_slave, (gptr*) &opt_first_slave, 0, GET_BOOL, NO_ARG,
    0, 0, 0, 0, 0, 0},
