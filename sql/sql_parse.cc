@@ -1334,7 +1334,9 @@ mysql_execute_command(void)
       Skip if we are in the slave thread, some table rules have been
       given and the table list says the query should not be replicated
     */
-    if (table_rules_on && tables && !tables_ok(thd,tables))
+    if (table_rules_on && tables && !tables_ok(thd,tables) &&
+        ((lex->sql_command != SQLCOM_DELETE_MULTI) ||
+         !tables_ok(thd,(TABLE_LIST *)thd->lex.auxilliary_table_list.first)))
     {
       /* we warn the slave SQL thread */
       my_error(ER_SLAVE_IGNORED_TABLE, MYF(0));
