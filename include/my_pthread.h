@@ -132,16 +132,17 @@ void pthread_exit(void *a);	 /* was #define pthread_exit(A) ExitThread(A)*/
 
 #define pthread_equal(A,B) ((A) == (B))
 #ifdef OS2
-int pthread_mutex_init (pthread_mutex_t *, const pthread_mutexattr_t *);
-int pthread_mutex_lock (pthread_mutex_t *);
-int pthread_mutex_unlock (pthread_mutex_t *);
-int pthread_mutex_destroy (pthread_mutex_t *);
+extern int pthread_mutex_init (pthread_mutex_t *, const pthread_mutexattr_t *);
+extern int pthread_mutex_lock (pthread_mutex_t *);
+extern int pthread_mutex_unlock (pthread_mutex_t *);
+extern int pthread_mutex_destroy (pthread_mutex_t *);
 #define my_pthread_setprio(A,B)  DosSetPriority(PRTYS_THREAD,PRTYC_NOCHANGE, B, A)
 #define pthread_kill(A,B) raise(B)
 #define pthread_exit(A) pthread_dummy()
 #else
 #define pthread_mutex_init(A,B)  InitializeCriticalSection(A)
 #define pthread_mutex_lock(A)	 (EnterCriticalSection(A),0)
+#define pthread_mutex_trylock(A) (WaitForSingleObject((A), 0) == WAIT_TIMEOUT)
 #define pthread_mutex_unlock(A)  LeaveCriticalSection(A)
 #define pthread_mutex_destroy(A) DeleteCriticalSection(A)
 #define my_pthread_setprio(A,B)  SetThreadPriority(GetCurrentThread(), (B))

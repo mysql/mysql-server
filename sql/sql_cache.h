@@ -17,8 +17,6 @@
 #ifndef _SQL_CACHE_H
 #define _SQL_CACHE_H
 
-#include <semaphore.h>
-
 /* Query cache */
 
 /*
@@ -105,7 +103,7 @@ struct Query_cache_query
   Query_cache_block *res;
   NET *wri;
   ulong len;
-  sem_t lock;			// R/W lock of block
+  pthread_cond_t lock;			// R/W lock of block
   pthread_mutex_t clients_guard;
   uint clients;
 
@@ -220,7 +218,8 @@ public:
   /* Info */
   ulong query_cache_size, query_cache_limit;
   /* statistics */
-  ulong free_memory, queries_in_cache, hits, inserts, refused;
+  ulong free_memory, queries_in_cache, hits, inserts, refused,
+    free_memory_blocks, total_blocks;
 
 protected:
   /*

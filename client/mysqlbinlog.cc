@@ -385,9 +385,9 @@ static void dump_remote_log_entries(const char* logname)
   }
 }
 
-static int check_header (IO_CACHE* file)
+static int check_header(IO_CACHE* file)
 {
-  char buf[PROBE_HEADER_LEN];
+  byte buf[PROBE_HEADER_LEN];
   int old_format;
 
   my_off_t pos = my_b_tell(file);

@@ -149,7 +149,7 @@ char* query_table_status(THD *thd,const char *db,const char *table_name);
 #define SELECT_SMALL_RESULT	8
 #define SELECT_BIG_RESULT	16
 #define OPTION_FOUND_ROWS	32
-#define SELECT_HIGH_PRIORITY	64		/* Intern */
+#define OPTION_TO_QUERY_CACHE   64
 #define SELECT_NO_JOIN_CACHE	256		/* Intern */
 
 #define OPTION_BIG_TABLES	512		/* for SQL OPTION */
@@ -179,7 +179,6 @@ char* query_table_status(THD *thd,const char *db,const char *table_name);
 
 #define SELECT_NO_UNLOCK	(QUERY_NO_GOOD_INDEX_USED*2)
 #define TMP_TABLE_ALL_COLUMNS	(SELECT_NO_UNLOCK*2)
-#define OPTION_TO_QUERY_CACHE   (TMP_TABLE_ALL_COLUMNS*2)
 
 
 #define MODE_REAL_AS_FLOAT      1

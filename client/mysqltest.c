@@ -43,7 +43,7 @@
 
 **********************************************************************/
 
-#define MTEST_VERSION "1.11"
+#define MTEST_VERSION "1.12"
 
 #include <my_global.h>
 #include <mysql_embed.h>
@@ -138,16 +138,16 @@ MYSQL_RES *last_result=0;
 
 PARSER parser;
 MASTER_POS master_pos;
-int* block_ok; /* set to 0 if the current block should not be executed */
+int *block_ok; /* set to 0 if the current block should not be executed */
 int false_block_depth = 0;
-const char* result_file = 0; /* if set, all results are concated and
-				compared against this file*/
+/* if set, all results are concated and compared against this file */
+const char *result_file = 0;
 
 typedef struct
 {
-  char* name;
+  char *name;
   int name_len;
-  char* str_val;
+  char *str_val;
   int str_val_len;
   int int_val;
   int alloced_len;
@@ -158,7 +158,7 @@ typedef struct
 VAR var_reg[10];
 /*Perl/shell-like variable registers */
 HASH var_hash;
-int disable_query_log=0;
+int disable_query_log=0, disable_result_log=0;
 
 struct connection cons[MAX_CONS];
 struct connection* cur_con, *next_con, *cons_end;
@@ -181,6 +181,7 @@ Q_PING,             Q_EVAL,
 Q_RPL_PROBE,        Q_ENABLE_RPL_PARSE,
 Q_DISABLE_RPL_PARSE, Q_EVAL_RESULT,
 Q_ENABLE_QUERY_LOG, Q_DISABLE_QUERY_LOG,
+Q_ENABLE_RESULT_LOG, Q_DISABLE_RESULT_LOG,
 Q_SERVER_START, Q_SERVER_STOP,Q_REQUIRE_MANAGER,
 Q_UNKNOWN,                             /* Unknown command.   */
 Q_COMMENT,                             /* Comments, ignored. */
@@ -215,6 +216,7 @@ const char *command_names[] = {
   "rpl_probe",        "enable_rpl_parse",
   "disable_rpl_parse", "eval_result",
   "enable_query_log", "disable_query_log",
+  "enable_result_log", "disable_result_log",
   "server_start", "server_stop",
   "require_manager",
   0
@@ -224,22 +226,22 @@ TYPELIB command_typelib= {array_elements(command_names),"",
 			  command_names};
 
 DYNAMIC_STRING ds_res;
-static void die(const char* fmt, ...);
+static void die(const char *fmt, ...);
 static void init_var_hash();
 static byte* get_var_key(const byte* rec, uint* len,
 			 my_bool __attribute__((unused)) t);
-static VAR* var_init(VAR* v, const char* name, int name_len, const char* val,
+static VAR* var_init(VAR* v, const char *name, int name_len, const char *val,
 		     int val_len);
 
 static void var_free(void* v);
 
-int dyn_string_cmp(DYNAMIC_STRING* ds, const char* fname);
-void reject_dump(const char* record_file, char* buf, int size);
+int dyn_string_cmp(DYNAMIC_STRING* ds, const char *fname);
+void reject_dump(const char *record_file, char *buf, int size);
 
 int close_connection(struct st_query* q);
-VAR* var_get(const char* var_name, const char** var_name_end, int raw);
-int eval_expr(VAR* v, const char* p, const char** p_end);
-static int read_server_arguments(const char* name);
+VAR* var_get(const char *var_name, const char** var_name_end, int raw);
+int eval_expr(VAR* v, const char *p, const char** p_end);
+static int read_server_arguments(const char *name);
 
 /* Definitions for replace */
 
@@ -259,9 +261,9 @@ static int insert_pointer_name(reg1 POINTER_ARRAY *pa,my_string name);
 void free_pointer_array(POINTER_ARRAY *pa);
 static int initialize_replace_buffer(void);
 static void free_replace_buffer(void);
-static void do_eval(DYNAMIC_STRING* query_eval, const char* query);
-void str_to_file(const char* fname, char* str, int size);
-int do_server_op(struct st_query* q,const char* op);
+static void do_eval(DYNAMIC_STRING* query_eval, const char *query);
+void str_to_file(const char *fname, char *str, int size);
+int do_server_op(struct st_query* q,const char *op);
 
 struct st_replace *glob_replace;
 static char *out_buff;
@@ -1960,20 +1962,20 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
   int query_len;
   DBUG_ENTER("run_query");
 
-  if(q->type != Q_EVAL)
-    {
-      query = q->query;
-      query_len = strlen(query);
-    }
+  if (q->type != Q_EVAL)
+  {
+    query = q->query;
+    query_len = strlen(query);
+  }
   else
-    {
-      init_dynamic_string(&eval_query, "", 16384, 65536);
-      do_eval(&eval_query, q->query);
-      query = eval_query.str;
-      query_len = eval_query.length;
-    }
+  {
+    init_dynamic_string(&eval_query, "", 16384, 65536);
+    do_eval(&eval_query, q->query);
+    query = eval_query.str;
+    query_len = eval_query.length;
+  }
 
-  if ( q->record_file[0])
+  if (q->record_file[0])
   {
     init_dynamic_string(&ds_tmp, "", 16384, 65536);
     ds = &ds_tmp;
@@ -2060,44 +2062,45 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
     goto end;
   }
 
-  if (!res) goto end;
+  if (!res)
+    goto end;
 
-  fields =  mysql_fetch_fields(res);
-  num_fields =	mysql_num_fields(res);
-  for( i = 0; i < num_fields; i++)
+  if (!disable_result_log)
   {
-    if (i)
-      dynstr_append_mem(ds, "\t", 1);
-    dynstr_append(ds, fields[i].name);
-  }
-
-  dynstr_append_mem(ds, "\n", 1);
-
-
-  while((row = mysql_fetch_row(res)))
-  {
-    lengths = mysql_fetch_lengths(res);
-    for(i = 0; i < num_fields; i++)
+    fields =  mysql_fetch_fields(res);
+    num_fields =	mysql_num_fields(res);
+    for (i = 0; i < num_fields; i++)
     {
-      val = (char*)row[i];
-      len = lengths[i];
-
-      if (!val)
-      {
-	val = (char*)"NULL";
-	len = 4;
-      }
-
       if (i)
 	dynstr_append_mem(ds, "\t", 1);
-      replace_dynstr_append_mem(ds, val, len);
+      dynstr_append(ds, fields[i].name);
     }
 
     dynstr_append_mem(ds, "\n", 1);
-  }
-  if (glob_replace)
-    free_replace();
 
+    while ((row = mysql_fetch_row(res)))
+    {
+      lengths = mysql_fetch_lengths(res);
+      for(i = 0; i < num_fields; i++)
+      {
+	val = (char*)row[i];
+	len = lengths[i];
+
+	if (!val)
+	{
+	  val = (char*)"NULL";
+	  len = 4;
+	}
+
+	if (i)
+	  dynstr_append_mem(ds, "\t", 1);
+	replace_dynstr_append_mem(ds, val, len);
+      }
+      dynstr_append_mem(ds, "\n", 1);
+    }
+    if (glob_replace)
+      free_replace();
+  }
   if (record)
   {
     if (!q->record_file[0] && !result_file)
@@ -2111,7 +2114,8 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
   }
 
 end:
-  if (res) mysql_free_result(res);
+  if (res)
+    mysql_free_result(res);
   last_result=0;
   if (ds == &ds_tmp)
     dynstr_free(&ds_tmp);
@@ -2288,10 +2292,12 @@ int main(int argc, char** argv)
       case Q_DIRTY_CLOSE:	
 	close_connection(q); break;
       case Q_RPL_PROBE: do_rpl_probe(q); break;
-      case Q_ENABLE_RPL_PARSE: do_enable_rpl_parse(q); break;
-      case Q_DISABLE_RPL_PARSE: do_disable_rpl_parse(q); break;
-      case Q_ENABLE_QUERY_LOG: disable_query_log=0; break;
-      case Q_DISABLE_QUERY_LOG: disable_query_log=1; break;
+      case Q_ENABLE_RPL_PARSE:   do_enable_rpl_parse(q); break;
+      case Q_DISABLE_RPL_PARSE:  do_disable_rpl_parse(q); break;
+      case Q_ENABLE_QUERY_LOG:   disable_query_log=0; break;
+      case Q_DISABLE_QUERY_LOG:  disable_query_log=1; break;
+      case Q_ENABLE_RESULT_LOG:  disable_result_log=0; break;
+      case Q_DISABLE_RESULT_LOG: disable_result_log=1; break;
       case Q_SOURCE: do_source(q); break;
       case Q_SLEEP: do_sleep(q); break;
       case Q_REQUIRE_MANAGER: do_require_manager(q); break;
