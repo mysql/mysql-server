@@ -1093,12 +1093,17 @@ void Item_sum_count_distinct::cleanup()
   if (!original)
   {
     if (table)
+    {
       free_tmp_table(current_thd, table);
+      table= 0;
+    }
     delete tmp_table_param;
+    tmp_table_param= 0;
     if (use_tree)
+    {
       delete_tree(tree);
-    table= 0;
-    use_tree= 0;
+      use_tree= 0;
+    }
   }
   DBUG_VOID_RETURN;
 }
@@ -1677,10 +1682,17 @@ void Item_func_group_concat::cleanup()
   {
     THD *thd= current_thd;
     if (table)
+    {
       free_tmp_table(thd, table);
+      table= 0;
+    }
     delete tmp_table_param;
+    tmp_table_param= 0;
     if (tree_mode)
-      delete_tree(tree); 
+    {
+      delete_tree(tree);
+      tree_mode= 0;
+    }
   }
   DBUG_VOID_RETURN;
 }

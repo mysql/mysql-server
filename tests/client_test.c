@@ -8117,6 +8117,7 @@ static void test_subqueries()
   myquery(rc);
 
   stmt= mysql_prepare(mysql, query, strlen(query));
+  mystmt_init(stmt);
   for (i= 0; i < 3; i++)
   {
     rc= mysql_execute(stmt);
@@ -8142,6 +8143,37 @@ static void test_bad_union()
   myerror(NULL); 
 }
 
+static void test_distinct()
+{
+  MYSQL_STMT *stmt;
+  int rc, i;
+  const char *query= "SELECT count(distinct b), group_concat(a) FROM t1";
+
+  myheader("test_subquery");
+  
+  rc = mysql_query(mysql, "DROP TABLE IF EXISTS t1");
+  myquery(rc);
+  
+  rc= mysql_query(mysql,"CREATE TABLE t1 (a int , b int);");
+  myquery(rc);
+
+  rc= mysql_query(mysql,
+		  "insert into t1 values (1,1), (2, 2), (3,3), (4,4), (5,5);");
+  myquery(rc);
+
+  for (i= 0; i < 3; i++)
+  {
+    stmt= mysql_prepare(mysql, query, strlen(query));
+    mystmt_init(stmt);
+    rc= mysql_execute(stmt);
+    mystmt(stmt, rc);
+    assert(1 == my_process_stmt_result(stmt));
+    mysql_stmt_close(stmt);
+  }
+
+  rc= mysql_query(mysql, "DROP TABLE t1");
+  myquery(rc);
+}
 
 /*
   Read and parse arguments and MySQL options from my.cnf
@@ -8390,6 +8422,7 @@ int main(int argc, char **argv)
                                prepared queries */
     test_subqueries();	    /* repeatable subqueries */
     test_bad_union();       /* correct setup of UNION */
+    test_distinct();	    /* distinct aggregate functions */
 
 
     end_time= time((time_t *)0);
