@@ -173,33 +173,6 @@ int mysqld_show_tables(THD *thd,const char *db,const char *wild)
 ** List all table types supported 
 ***************************************************************************/
 
-struct show_table_type_st {
-  const char *type;
-  SHOW_COMP_OPTION *value;
-  const char *comment;
-};
-
-
-SHOW_COMP_OPTION have_yes= SHOW_OPTION_YES;
-
-static struct show_table_type_st sys_table_types[]=
-{
-  {"MyISAM", &have_yes,
-   "Default type from 3.23 with great performance"},
-  {"HEAP"  , &have_yes,
-   "Hash based, stored in memory, useful for temporary tables"},
-  {"MERGE",  &have_yes,
-   "Collection of identical MyISAM tables"},
-  {"ISAM",   &have_isam,
-   "Obsolete table type; Is replaced by MyISAM"},
-  {"InnoDB", &have_innodb,
-   "Supports transactions, row-level locking and foreign keys"},
-  {"BDB",    &have_berkeley_db,
-   "Supports transactions and page-level locking"},
-  {NullS, NULL, NullS}
-};
-
-
 int mysqld_show_table_types(THD *thd)
 {
   List<Item> field_list;
@@ -213,8 +186,8 @@ int mysqld_show_table_types(THD *thd)
   if (protocol->send_fields(&field_list,1))
     DBUG_RETURN(1);
 
-  const char *default_type_name=
-    ha_table_typelib.type_names[thd->variables.table_type];
+  const char *default_type_name= 
+    ha_get_table_type((enum db_type)thd->variables.table_type);
 
   show_table_type_st *types;
   for (types= sys_table_types; types->type; types++)
@@ -702,7 +675,6 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
   restore_record(table,default_values);      // Get empty record
 
   Field **ptr,*field;
-  String *packet= &thd->packet;
   for (ptr=table->field; (field= *ptr) ; ptr++)
   {
     if (!wild || !wild[0] || 
@@ -892,7 +864,6 @@ mysqld_show_keys(THD *thd, TABLE_LIST *table_list)
   if (protocol->send_fields(&field_list,1))
     DBUG_RETURN(1);
 
-  String *packet= &thd->packet;
   KEY *key_info=table->key_info;
   table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK | HA_STATUS_TIME);
   for (uint i=0 ; i < table->keys ; i++,key_info++)

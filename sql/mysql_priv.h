@@ -432,8 +432,6 @@ bool check_stack_overrun(THD *thd,char *dummy);
 void table_cache_init(void);
 void table_cache_free(void);
 uint cached_tables(void);
-void reassign_key_cache(KEY_CACHE_ASMT *key_cache_asmt,
-                        KEY_CACHE_VAR *new_key_cache);
 void kill_mysql(void);
 void close_connection(THD *thd, uint errcode, bool lock);
 bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables, 
@@ -466,8 +464,8 @@ int mysql_optimize_table(THD* thd, TABLE_LIST* table_list,
 int mysql_assign_to_keycache(THD* thd, TABLE_LIST* table_list,
 			     LEX_STRING *key_cache_name);
 int mysql_preload_keys(THD* thd, TABLE_LIST* table_list);
-int reassign_keycache_tables(THD* thd, KEY_CACHE_VAR *src_cache,
-                             KEY_CACHE_VAR *dst_cache);
+int reassign_keycache_tables(THD* thd, KEY_CACHE *src_cache,
+                             KEY_CACHE *dst_cache);
 
 bool check_simple_select();
 
@@ -484,7 +482,7 @@ int mysql_select(THD *thd, Item ***rref_pointer_array,
 		 COND *conds, uint og_num, ORDER *order, ORDER *group,
 		 Item *having, ORDER *proc_param, ulong select_type, 
 		 select_result *result, SELECT_LEX_UNIT *unit, 
-		 SELECT_LEX *select_lex,  bool tables_and_fields_initied);
+		 SELECT_LEX *select_lex);
 void free_underlaid_joins(THD *thd, SELECT_LEX *select);
 void fix_tables_pointers(SELECT_LEX *select_lex);
 void fix_tables_pointers(SELECT_LEX_UNIT *select_lex);
@@ -493,7 +491,7 @@ int mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit,
 int mysql_explain_select(THD *thd, SELECT_LEX *sl, char const *type,
 			 select_result *result);
 int mysql_union(THD *thd, LEX *lex, select_result *result,
-		SELECT_LEX_UNIT *unit, bool tables_and_fields_initied);
+		SELECT_LEX_UNIT *unit);
 int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *s, TABLE_LIST *t);
 Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
 			Item ***copy_func, Field **from_field,
@@ -677,7 +675,6 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
 int setup_fields(THD *thd, Item** ref_pointer_array, TABLE_LIST *tables,
 		 List<Item> &item, bool set_query_id,
 		 List<Item> *sum_func_list, bool allow_sum_func);
-void unfix_item_list(List<Item> item_list);
 int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds);
 int setup_ftfuncs(SELECT_LEX* select);
 int init_ftfuncs(THD *thd, SELECT_LEX* select, bool no_order);
@@ -863,15 +860,13 @@ extern MY_BITMAP temp_pool;
 extern String my_empty_string;
 extern String my_null_string;
 extern SHOW_VAR init_vars[],status_vars[], internal_vars[];
-extern struct show_table_type_st table_type_vars[];
 extern SHOW_COMP_OPTION have_isam;
 extern SHOW_COMP_OPTION have_innodb;
 extern SHOW_COMP_OPTION have_berkeley_db;
 extern struct system_variables global_system_variables;
 extern struct system_variables max_system_variables;
 extern struct rand_struct sql_rand;
-extern KEY_CACHE_VAR *sql_key_cache;
-extern KEY_CACHE_HANDLE sql_key_cache_handle;
+extern KEY_CACHE *sql_key_cache;
 
 extern const char *opt_date_time_formats[];
 extern KNOWN_DATE_TIME_FORMAT known_date_time_formats[];

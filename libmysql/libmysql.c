@@ -15,10 +15,6 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include <my_global.h>
-#if defined(__WIN__) || defined(_WIN32) || defined(_WIN64)
-#include <winsock.h>
-#include <odbcinst.h>
-#endif
 #include <my_sys.h>
 #include <mysys_err.h>
 #include <m_string.h>
@@ -811,29 +807,33 @@ static MYSQL* spawn_init(MYSQL* parent, const char* host,
 			 const char* passwd)
 {
   MYSQL* child;
-  if (!(child = mysql_init(0)))
-    return 0;
+  DBUG_ENTER("spawn_init");
+  if (!(child= mysql_init(0)))
+    DBUG_RETURN(0);
 
-  child->options.user = my_strdup((user) ? user :
-				  (parent->user ? parent->user :
-				   parent->options.user), MYF(0));
-  child->options.password = my_strdup((passwd) ? passwd :
-				      (parent->passwd ?
-				       parent->passwd :
-				       parent->options.password), MYF(0));
-  child->options.port = port;
-  child->options.host = my_strdup((host) ? host :
-				  (parent->host ?
-				   parent->host :
-				   parent->options.host), MYF(0));
+  child->options.user= my_strdup((user) ? user :
+				 (parent->user ? parent->user :
+				  parent->options.user), MYF(0));
+  child->options.password= my_strdup((passwd) ? passwd :
+				     (parent->passwd ?
+				      parent->passwd :
+				      parent->options.password), MYF(0));
+  child->options.port= port;
+  child->options.host= my_strdup((host) ? host :
+				 (parent->host ?
+				  parent->host :
+				  parent->options.host), MYF(0));
   if (parent->db)
-    child->options.db = my_strdup(parent->db, MYF(0));
+    child->options.db= my_strdup(parent->db, MYF(0));
   else if (parent->options.db)
-    child->options.db = my_strdup(parent->options.db, MYF(0));
+    child->options.db= my_strdup(parent->options.db, MYF(0));
 
-  child->options.rpl_parse = child->options.rpl_probe = child->rpl_pivot = 0;
-
-  return child;
+  /*
+    rpl_pivot is set to 1 in mysql_init();  Reset it as we are not doing
+    replication here
+  */
+  child->rpl_pivot= 0;
+  DBUG_RETURN(child);
 }
 
 
@@ -846,9 +846,6 @@ STDCALL mysql_set_master(MYSQL* mysql, const char* host,
     mysql_close(mysql->master);
   if (!(mysql->master = spawn_init(mysql, host, port, user, passwd)))
     return 1;
-  mysql->master->rpl_pivot = 0;
-  mysql->master->options.rpl_parse = 0;
-  mysql->master->options.rpl_probe = 0;
   return 0;
 }
 
@@ -973,16 +970,16 @@ mysql_list_tables(MYSQL *mysql, const char *wild)
   DBUG_RETURN (mysql_store_result(mysql));
 }
 
-MYSQL_FIELD * STDCALL cli_list_fields(MYSQL *mysql)
+MYSQL_FIELD *cli_list_fields(MYSQL *mysql)
 {
   MYSQL_DATA *query;
   if (!(query= cli_read_rows(mysql,(MYSQL_FIELD*) 0, 
 			     protocol_41(mysql) ? 8 : 6)))
     return NULL;
 
-  mysql->field_count= query->rows;
+  mysql->field_count= (uint) query->rows;
   return unpack_fields(query,&mysql->field_alloc,
-		       query->rows, 1, mysql->server_capabilities);
+		       mysql->field_count, 1, mysql->server_capabilities);
 }
 
 
@@ -1112,7 +1109,7 @@ mysql_dump_debug_info(MYSQL *mysql)
   DBUG_RETURN(simple_command(mysql,COM_DEBUG,0,0,0));
 }
 
-const char * STDCALL cli_read_statistic(MYSQL *mysql)
+const char *cli_read_statistic(MYSQL *mysql)
 {
   mysql->net.read_pos[mysql->packet_length]=0;	/* End of stat string */
   if (!mysql->net.read_pos[0])
@@ -1589,7 +1586,7 @@ static my_bool my_realloc_str(NET *net, ulong length)
     1	error
 */
 
-my_bool STDCALL cli_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt)
+my_bool cli_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt)
 {
   uchar *pos;
   uint field_count;
@@ -2010,7 +2007,8 @@ static my_bool execute(MYSQL_STMT * stmt, char *packet, ulong length)
   DBUG_RETURN(0);
 }
 
-int STDCALL cli_stmt_execute(MYSQL_STMT *stmt)
+
+int cli_stmt_execute(MYSQL_STMT *stmt)
 {
   DBUG_ENTER("cli_stmt_execute");
 
@@ -2985,12 +2983,13 @@ static int stmt_fetch_row(MYSQL_STMT *stmt, uchar *row)
   return 0;
 }
 
-int STDCALL cli_unbuffered_fetch(MYSQL *mysql, char **row)
+int cli_unbuffered_fetch(MYSQL *mysql, char **row)
 {
   if (packet_error == net_safe_read(mysql))
     return 1;
 
-  *row= (mysql->net.read_pos[0] == 254) ? NULL : (mysql->net.read_pos+1);
+  *row= ((mysql->net.read_pos[0] == 254) ? NULL :
+	 (char*) (mysql->net.read_pos+1));
   return 0;
 }
 
@@ -3108,7 +3107,7 @@ no_data:
   Read all rows of data from server  (binary format)
 */
 
-MYSQL_DATA * STDCALL cli_read_binary_rows(MYSQL_STMT *stmt)
+MYSQL_DATA *cli_read_binary_rows(MYSQL_STMT *stmt)
 {
   ulong      pkt_len;
   uchar      *cp;
@@ -3318,7 +3317,7 @@ my_ulonglong STDCALL mysql_stmt_num_rows(MYSQL_STMT *stmt)
 my_bool STDCALL mysql_stmt_free_result(MYSQL_STMT *stmt)
 { 
   MYSQL *mysql;
-  DBUG_ENTER("mysql_stmt_close");
+  DBUG_ENTER("mysql_stmt_free_result");
 
   DBUG_ASSERT(stmt != 0);
   
@@ -3499,10 +3498,18 @@ my_bool STDCALL mysql_more_results(MYSQL *mysql)
   Reads and returns the next query results
 */
 
-my_bool STDCALL mysql_next_result(MYSQL *mysql)
+int STDCALL mysql_next_result(MYSQL *mysql)
 {
   DBUG_ENTER("mysql_next_result");
   
+  if (mysql->status != MYSQL_STATUS_READY)
+  {
+    strmov(mysql->net.sqlstate, unknown_sqlstate);
+    strmov(mysql->net.last_error,
+	   ER(mysql->net.last_errno=CR_COMMANDS_OUT_OF_SYNC));
+    DBUG_RETURN(1);
+  }
+
   mysql->net.last_error[0]= 0;
   mysql->net.last_errno= 0;
   strmov(mysql->net.sqlstate, not_error_sqlstate);
@@ -3511,8 +3518,9 @@ my_bool STDCALL mysql_next_result(MYSQL *mysql)
   if (mysql->last_used_con->server_status & SERVER_MORE_RESULTS_EXISTS)
     DBUG_RETURN((*mysql->methods->read_query_result)(mysql));
   
-  DBUG_RETURN(0);
+  DBUG_RETURN(-1);				/* No more results */
 }
+
 
 MYSQL_RES * STDCALL mysql_use_result(MYSQL *mysql)
 {

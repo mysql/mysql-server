@@ -50,14 +50,33 @@ ulong ha_read_count, ha_write_count, ha_delete_count, ha_update_count,
       ha_commit_count, ha_rollback_count,
       ha_read_rnd_count, ha_read_rnd_next_count;
 
-const char *ha_table_type[] = {
-  "", "DIAB_ISAM","HASH","MISAM","PISAM","RMS_ISAM","HEAP", "ISAM",
-  "MRG_ISAM","MYISAM", "MRG_MYISAM", "BDB", "INNODB", "GEMINI", "?", "?",NullS
-};
+static SHOW_COMP_OPTION have_yes= SHOW_OPTION_YES;
 
-TYPELIB ha_table_typelib=
+struct show_table_type_st sys_table_types[]=
 {
-  array_elements(ha_table_type)-3, "", ha_table_type
+  {"MyISAM",	&have_yes,
+   "Default type from 3.23 with great performance", DB_TYPE_MYISAM},
+  {"HEAP",	&have_yes,
+   "Hash based, stored in memory, useful for temporary tables", DB_TYPE_HEAP},
+  {"MEMORY",	&have_yes,
+   "Alias for HEAP", DB_TYPE_HEAP},
+  {"MERGE",	&have_yes,
+   "Collection of identical MyISAM tables", DB_TYPE_MRG_MYISAM},
+  {"MRG_MYISAM",&have_yes,
+   "Alias for MERGE", DB_TYPE_MRG_MYISAM},
+  {"ISAM",	&have_isam,
+   "Obsolete table type; Is replaced by MyISAM", DB_TYPE_ISAM},
+  {"MRG_ISAM",  &have_isam,
+   "Obsolete table type; Is replaced by MRG_MYISAM", DB_TYPE_MRG_ISAM},
+  {"InnoDB",	&have_innodb,
+   "Supports transactions, row-level locking and foreign keys", DB_TYPE_INNODB},
+  {"INNOBASE",	&have_innodb,
+   "Alias for INNODB", DB_TYPE_INNODB},
+  {"BDB",	&have_berkeley_db,
+   "Supports transactions and page-level locking", DB_TYPE_BERKELEY_DB},
+  {"BERKELEYDB",&have_berkeley_db,
+   "Alias for BDB", DB_TYPE_BERKELEY_DB},
+  {NullS, NULL, NullS, DB_TYPE_UNKNOWN}
 };
 
 const char *ha_row_type[] = {
@@ -70,35 +89,31 @@ const char *tx_isolation_names[] =
 TYPELIB tx_isolation_typelib= {array_elements(tx_isolation_names)-1,"",
 			       tx_isolation_names};
 
-enum db_type ha_resolve_by_name(char *name, uint namelen)
+enum db_type ha_resolve_by_name(const char *name, uint namelen)
 {
-  enum db_type result = DB_TYPE_UNKNOWN;
-  if (!my_strcasecmp(&my_charset_latin1, name, "HEAP") ||
-      !my_strcasecmp(&my_charset_latin1, name, "MEMORY")) {
-    result = DB_TYPE_HEAP;
-  } else
-  if (!my_strcasecmp(&my_charset_latin1, name, "MRG_MYISAM") ||
-      !my_strcasecmp(&my_charset_latin1, name, "MERGE")) {
-    result = DB_TYPE_MRG_MYISAM;
-  } else
-  if (!my_strcasecmp(&my_charset_latin1, name, "MYISAM")) {
-    result = DB_TYPE_MYISAM;
-  } else
-  if (!my_strcasecmp(&my_charset_latin1, name, "BDB") ||
-      !my_strcasecmp(&my_charset_latin1, name, "BERKELEYDB")) {
-    result = DB_TYPE_BERKELEY_DB;
-  } else
-  if (!my_strcasecmp(&my_charset_latin1, name, "INNODB") ||
-      !my_strcasecmp(&my_charset_latin1, name, "INNOBASE")) {
-    result = DB_TYPE_INNODB;
-  } else
-  if (!my_strcasecmp(&my_charset_latin1, name, "ISAM")) {
-    result = DB_TYPE_ISAM;
-  } else
   if (!my_strcasecmp(&my_charset_latin1, name, "DEFAULT")) {
-    result = (enum db_type) current_thd->variables.table_type;
+    return(enum db_type) current_thd->variables.table_type;
   }
-  return result;
+  
+  show_table_type_st *types;
+  for (types= sys_table_types; types->type; types++)
+  {
+    if (!my_strcasecmp(&my_charset_latin1, name, types->type))
+      return(enum db_type)types->db_type;
+  }
+  return DB_TYPE_UNKNOWN;
+}
+
+const char *ha_get_table_type(enum db_type db_type)
+{
+  show_table_type_st *types;
+  for (types= sys_table_types; types->type; types++)
+  {
+    if (db_type == types->db_type)
+      return types->type;
+  }
+  
+  return "none";
 }
 
 	/* Use other database handler if databasehandler is not incompiled */
@@ -136,12 +151,13 @@ enum db_type ha_checktype(enum db_type database_type)
   default:
     break;
   }
-  /* Use this as default */
-#if 0
-  return((enum db_type) current_thd->variables.table_type);
-#else
-  return(DB_TYPE_MYISAM);
-#endif
+  
+  return 
+    DB_TYPE_UNKNOWN != (enum db_type) current_thd->variables.table_type ?
+    (enum db_type) current_thd->variables.table_type :
+    DB_TYPE_UNKNOWN != (enum db_type) global_system_variables.table_type ?
+    (enum db_type) global_system_variables.table_type :
+    DB_TYPE_MYISAM;
 } /* ha_checktype */
 
 
@@ -1171,20 +1187,22 @@ void st_ha_check_opt::init()
 /* Init a key cache if it has not been initied before */
 
 
-int ha_init_key_cache(const char *name, KEY_CACHE_VAR *key_cache)
+int ha_init_key_cache(const char *name, KEY_CACHE *key_cache)
 {
   DBUG_ENTER("ha_init_key_cache");
 
-  if (!key_cache->cache)
+  if (!key_cache->key_cache_inited)
   {
     pthread_mutex_lock(&LOCK_global_system_variables);
-    long tmp_buff_size= (long) key_cache->buff_size;
-    long tmp_block_size= (long) key_cache->block_size;
+    long tmp_buff_size= (long) key_cache->param_buff_size;
+    long tmp_block_size= (long) key_cache->param_block_size;
+    uint division_limit= key_cache->param_division_limit;
+    uint age_threshold=  key_cache->param_age_threshold;
     pthread_mutex_unlock(&LOCK_global_system_variables);
-    DBUG_RETURN(!init_key_cache(&key_cache->cache,
+    DBUG_RETURN(!init_key_cache(key_cache,
 				tmp_block_size,
 				tmp_buff_size,
-				key_cache));
+				division_limit, age_threshold));
   }
   DBUG_RETURN(0);
 }
@@ -1192,18 +1210,21 @@ int ha_init_key_cache(const char *name, KEY_CACHE_VAR *key_cache)
 
 /* Resize key cache */
 
-int ha_resize_key_cache(KEY_CACHE_VAR *key_cache)
+int ha_resize_key_cache(KEY_CACHE *key_cache)
 {
   DBUG_ENTER("ha_resize_key_cache");
 
-  if (key_cache->cache)
+  if (key_cache->key_cache_inited)
   {
     pthread_mutex_lock(&LOCK_global_system_variables);
-    long tmp_buff_size= (long) key_cache->buff_size;
-    long tmp_block_size= (long) key_cache->block_size;
+    long tmp_buff_size= (long) key_cache->param_buff_size;
+    long tmp_block_size= (long) key_cache->param_block_size;
+    uint division_limit= key_cache->param_division_limit;
+    uint age_threshold=  key_cache->param_age_threshold;
     pthread_mutex_unlock(&LOCK_global_system_variables);
-    DBUG_RETURN(!resize_key_cache(&key_cache->cache, tmp_block_size,
-				  tmp_buff_size));
+    DBUG_RETURN(!resize_key_cache(key_cache, tmp_block_size,
+				  tmp_buff_size,
+				  division_limit, age_threshold));
   }
   DBUG_RETURN(0);
 }
@@ -1211,29 +1232,31 @@ int ha_resize_key_cache(KEY_CACHE_VAR *key_cache)
 
 /* Change parameters for key cache (like size) */
 
-int ha_change_key_cache_param(KEY_CACHE_VAR *key_cache)
+int ha_change_key_cache_param(KEY_CACHE *key_cache)
 {
-  if (key_cache->cache)
-    change_key_cache_param(key_cache->cache);
+  if (key_cache->key_cache_inited)
+  {
+    pthread_mutex_lock(&LOCK_global_system_variables);
+    uint division_limit= key_cache->param_division_limit;
+    uint age_threshold=  key_cache->param_age_threshold;
+    pthread_mutex_unlock(&LOCK_global_system_variables);
+    change_key_cache_param(key_cache, division_limit, age_threshold);
+  }
   return 0;
 }
 
 /* Free memory allocated by a key cache */
 
-int ha_end_key_cache(KEY_CACHE_VAR *key_cache)
+int ha_end_key_cache(KEY_CACHE *key_cache)
 {
-  if (key_cache->cache)
-  {
-    end_key_cache(key_cache->cache, 1);		// Can never fail
-    key_cache->cache= 0;
-  }
+  end_key_cache(key_cache, 1);		// Can never fail
   return 0;
 }
 
 /* Move all tables from one key cache to another one */
 
-int ha_change_key_cache(KEY_CACHE_VAR *old_key_cache,
-			KEY_CACHE_VAR *new_key_cache)
+int ha_change_key_cache(KEY_CACHE *old_key_cache,
+			KEY_CACHE *new_key_cache)
 {
   mi_change_key_cache(old_key_cache, new_key_cache);
   return 0;

@@ -57,7 +57,7 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			lex.h lex_symbol.h sql_acl.h sql_crypt.h  \
 			log_event.h sql_repl.h slave.h \
 			stacktrace.h sql_sort.h sql_cache.h set_var.h \
-			spatial.h gstream.h client_settings.h
+			spatial.h gstream.h client_settings.h \
 			sp_head.h sp_pcontext.h sp_rcontext.h sp.h sp_cache.h
 mysqld_SOURCES =	sql_lex.cc sql_handler.cc \
 			item.cc item_sum.cc item_buff.cc item_func.cc \

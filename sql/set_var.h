@@ -343,6 +343,26 @@ public:
 };
 
 
+class sys_var_thd_table_type :public sys_var_thd
+{
+protected:
+  ulong SV::*offset;
+public:
+  sys_var_thd_table_type(const char *name_arg, ulong SV::*offset_arg)
+    :sys_var_thd(name_arg), offset(offset_arg)
+  {}
+  bool check(THD *thd, set_var *var);
+SHOW_TYPE type() { return SHOW_CHAR; }
+  bool check_update_type(Item_result type)
+  {
+    return type != STRING_RESULT;		/* Only accept strings */
+  }
+  void set_default(THD *thd, enum_var_type type);
+  bool update(THD *thd, set_var *var);
+  byte *value_ptr(THD *thd, enum_var_type type, LEX_STRING *base);
+};
+
+
 class sys_var_thd_bit :public sys_var_thd
 {
   sys_update_func update_func;
@@ -560,7 +580,7 @@ class sys_var_key_buffer_size :public sys_var_key_cache_param
 {
 public:
   sys_var_key_buffer_size(const char *name_arg)
-    :sys_var_key_cache_param(name_arg, offsetof(KEY_CACHE_VAR, buff_size))
+    :sys_var_key_cache_param(name_arg, offsetof(KEY_CACHE, param_buff_size))
   {}
   bool update(THD *thd, set_var *var);
   SHOW_TYPE type() { return SHOW_LONGLONG; }
@@ -755,7 +775,7 @@ public:
     my_free((char*) name, MYF(0));
   }
   friend bool process_key_caches(int (* func) (const char *name,
-					       KEY_CACHE_VAR *));
+					       KEY_CACHE *));
   friend void delete_elements(I_List<NAMED_LIST> *list,
 			      void (*free_element)(const char*, gptr));
 };
@@ -788,6 +808,9 @@ gptr find_named(I_List<NAMED_LIST> *list, const char *name, uint length,
 		NAMED_LIST **found);
 
 /* key_cache functions */
-KEY_CACHE_VAR *get_key_cache(LEX_STRING *cache_name);
-KEY_CACHE_VAR *get_or_create_key_cache(const char *name, uint length);
-void free_key_cache(const char *name, KEY_CACHE_VAR *key_cache);
+KEY_CACHE *get_key_cache(LEX_STRING *cache_name);
+KEY_CACHE *get_or_create_key_cache(const char *name, uint length);
+void free_key_cache(const char *name, KEY_CACHE *key_cache);
+bool process_key_caches(int (* func) (const char *name, KEY_CACHE *));
+void delete_elements(I_List<NAMED_LIST> *list,
+		     void (*free_element)(const char*, gptr));

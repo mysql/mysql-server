@@ -289,6 +289,8 @@ character-set=latin2
 "Query cache failed to set size %lu, new query cache size is %lu",
 "Column '%-.64s' cannot be part of FULLTEXT index",
 "Unknown key cache '%-.100s'",
+"MySQL is started in --skip-name-resolve mode. You need to restart it without this switch for this grant to work",
+"Unknown table engine '%s'",
 "Can't create a %s from within another stored routine"
 "%s %s already exists"
 "%s %s does not exist"
@@ -300,7 +302,7 @@ character-set=latin2
 "Referring to uninitialized variable %s"
 "SELECT in a stored procedure must have INTO"
 "RETURN is only allowed in a FUNCTION"
-"Queries, like SELECT, INSERT, UPDATE (and others), are not allowed in a FUNCTION"
+"Statements like SELECT, INSERT, UPDATE (and others) are not allowed in a FUNCTION"
 "The update log is deprecated and replaced by the binary log. SET SQL_LOG_UPDATE has been ignored."
 "The update log is deprecated and replaced by the binary log. SET SQL_LOG_UPDATE has been translated to SET SQL_LOG_BIN."
 "Query execution was interrupted"
@@ -321,3 +323,4 @@ character-set=latin2
 "Duplicate condition: %s"
 "Duplicate cursor: %s"
 "Failed to ALTER %s %s"
+"Subselect value not supported"

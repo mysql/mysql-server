@@ -143,7 +143,7 @@ Variable_name	Value
 table_type	HEAP
 show global variables like 'table_type';
 Variable_name	Value
-table_type	INNODB
+table_type	InnoDB
 set GLOBAL query_cache_size=100000;
 set GLOBAL myisam_max_sort_file_size=2000000;
 show global variables like 'myisam_max_sort_file_size';
@@ -241,7 +241,7 @@ ERROR HY000: Unknown system variable 'unknown_variable'
 set max_join_size="hello";
 ERROR 42000: Wrong argument type to variable 'max_join_size'
 set table_type=UNKNOWN_TABLE_TYPE;
-ERROR 42000: Variable 'table_type' can't be set to the value of 'UNKNOWN_TABLE_TYPE'
+ERROR 42000: Unknown table engine 'UNKNOWN_TABLE_TYPE'
 set table_type=INNODB, big_tables=2;
 ERROR 42000: Variable 'big_tables' can't be set to the value of '2'
 show local variables like 'table_type';
@@ -360,7 +360,7 @@ set sql_log_bin=1;
 set sql_log_off=1;
 set sql_log_update=1;
 Warnings:
-Note	1296	The update log is deprecated and replaced by the binary log. SET SQL_LOG_UPDATE has been ignored.
+Note	1298	The update log is deprecated and replaced by the binary log. SET SQL_LOG_UPDATE has been ignored.
 set sql_low_priority_updates=1;
 set sql_max_join_size=200;
 select @@sql_max_join_size,@@max_join_size;

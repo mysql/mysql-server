@@ -279,7 +279,7 @@ int _mi_ft_del(MI_INFO *info, uint keynr, byte *keybuf, const byte *record,
 uint _ft_make_key(MI_INFO *info, uint keynr, byte *keybuf, FT_WORD *wptr,
 		  my_off_t filepos)
 {
-  byte buf[HA_FT_MAXLEN+16];
+  byte buf[HA_FT_MAXBYTELEN+16];
   DBUG_ENTER("_ft_make_key");
 
 #if HA_FT_WTYPE == HA_KEYTYPE_FLOAT
@@ -304,7 +304,7 @@ uint _mi_ft_convert_to_ft2(MI_INFO *info, uint keynr, uchar *key)
   my_off_t root;
   DYNAMIC_ARRAY *da=info->ft1_to_ft2;
   MI_KEYDEF *keyinfo=&info->s->ft2_keyinfo;
-  uchar *key_ptr=dynamic_array_ptr(da, 0), *end;
+  uchar *key_ptr= (uchar*) dynamic_array_ptr(da, 0), *end;
   uint length, key_length;
   DBUG_ENTER("_mi_ft_convert_to_ft2");
 
@@ -329,13 +329,13 @@ uint _mi_ft_convert_to_ft2(MI_INFO *info, uint keynr, uchar *key)
     DBUG_RETURN(-1);
 
   /* inserting the rest of key values */
-  end=dynamic_array_ptr(da, da->elements);
+  end= (uchar*) dynamic_array_ptr(da, da->elements);
   for (key_ptr+=length; key_ptr < end; key_ptr+=keyinfo->keylength)
     if(_mi_ck_real_write_btree(info, keyinfo, key_ptr, 0, &root, SEARCH_SAME))
       DBUG_RETURN(-1);
 
   /* now, writing the word key entry */
-  ft_intXstore(key+key_length, -da->elements);
+  ft_intXstore(key+key_length, - (int) da->elements);
   _mi_dpointer(info, key+key_length+HA_FT_WLEN, root);
 
   DBUG_RETURN(_mi_ck_real_write_btree(info,

@@ -1,4 +1,5 @@
 drop table if exists t1,t2,t3;
+drop database if exists test_$1;
 create table t1 (b char(0));
 insert into t1 values (""),(null);
 select * from t1;
@@ -200,17 +201,16 @@ t1	CREATE TABLE `t1` (
 ) TYPE=HEAP DEFAULT CHARSET=latin1
 drop table t1;
 SET SESSION table_type="gemini";
+ERROR 42000: Unknown table engine 'gemini'
 SELECT @@table_type;
 @@table_type
-GEMINI
+HEAP
 CREATE TABLE t1 (a int not null);
-Warnings:
-Warning	1265	Using storage engine MYISAM for table 't1'
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL default '0'
-) TYPE=MyISAM DEFAULT CHARSET=latin1
+) TYPE=HEAP DEFAULT CHARSET=latin1
 SET SESSION table_type=default;
 drop table t1;
 create table t1 ( k1 varchar(2), k2 int, primary key(k1,k2));
@@ -302,9 +302,6 @@ t3	CREATE TABLE `t3` (
 select * from t3;
 id	name
 drop table t2, t3;
-drop database if exists test_$1;
-Warnings:
-Note	1008	Can't drop database 'test_$1'; database doesn't exist
 create database test_$1;
 create table test_$1.t3 like t1;
 create temporary table t3 like test_$1.t3;
@@ -349,17 +346,16 @@ t1	CREATE TABLE `t1` (
 ) TYPE=HEAP DEFAULT CHARSET=latin1
 drop table t1;
 SET SESSION table_type="gemini";
+ERROR 42000: Unknown table engine 'gemini'
 SELECT @@table_type;
 @@table_type
-GEMINI
+HEAP
 CREATE TABLE t1 (a int not null);
-Warnings:
-Warning	1265	Using storage engine MYISAM for table 't1'
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL default '0'
-) TYPE=MyISAM DEFAULT CHARSET=latin1
+) TYPE=HEAP DEFAULT CHARSET=latin1
 SET SESSION table_type=default;
 drop table t1;
 create table t1(a int,b int,c int unsigned,d date,e char,f datetime,g time,h blob);
@@ -404,14 +400,13 @@ d	date			0000-00-00
 e	char(1)				
 f	datetime			0000-00-00 00:00:00	
 g	time			00:00:00	
-h	mediumblob				
+h	longblob				
 dd	time			00:00:00	
 select * from t2;
 a	b	c	d	e	f	g	h	dd
 1	-7	7	2000-01-01	b	2000-01-01 00:00:00	05:04:03	yet another binary data	02:00:00
 2	-2	2	1825-12-14	a	2003-01-01 03:02:01	04:03:02	binary data	02:00:00
 drop table t1, t2;
-drop database if exists test_$1;
 create database test_$1;
 use test_$1;
 select database();

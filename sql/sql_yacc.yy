@@ -81,7 +81,7 @@ inline Item *or_or_concat(THD *thd, Item* A, Item* B)
   enum Item_udftype udf_type;
   CHARSET_INFO *charset;
   thr_lock_type lock_type;
-  interval_type interval;
+  interval_type interval, interval_time_st;
   timestamp_type date_time_type;
   st_select_lex *select_lex;
   chooser_compare_func_creator boolfunc2creator;
@@ -459,6 +459,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	STRING_SYM
 %token	TEXT_SYM
 %token	TIMESTAMP
+%token	TIMESTAMP_ADD
+%token	TIMESTAMP_DIFF
 %token	TIME_SYM
 %token	TINYBLOB
 %token	TINYINT
@@ -502,6 +504,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	FIELD_FUNC
 %token	FORMAT_SYM
 %token	FOR_SYM
+%token  FRAC_SECOND_SYM
 %token	FROM_UNIXTIME
 %token	GEOMCOLLFROMTEXT
 %token	GEOMFROMTEXT
@@ -547,6 +550,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token  POLYGON
 %token	POSITION_SYM
 %token	PROCEDURE
+%token	QUARTER_SYM
 %token	RAND
 %token	REPLACE
 %token	RIGHT
@@ -636,7 +640,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 
 %type <simple_string>
 	remember_name remember_end opt_ident opt_db text_or_password
-	opt_escape
+	opt_escape opt_constraint
 
 %type <string>
 	text_string opt_gconcat_separator
@@ -670,7 +674,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	ident_list ident_list_arg
 
 %type <key_type>
-	key_type opt_unique_or_fulltext
+	key_type opt_unique_or_fulltext constraint_key_type
 
 %type <key_alg>
 	key_alg opt_btree_or_rtree
@@ -690,6 +694,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 
 %type <date_time_type> date_time_type;
 %type <interval> interval
+
+%type <interval_time_st> interval_time_st
 
 %type <db_type> table_types
 
@@ -727,7 +733,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	insert_values update delete truncate rename
 	show describe load alter optimize keycache preload flush
 	reset purge begin commit rollback savepoint
-	slave master_def master_defs master_file_def
+	slave master_def master_defs master_file_def slave_until_opts
 	repair restore backup analyze check start checksum
 	field_list field_list_item field_spec kill column_def key_def
 	keycache_list assign_to_keycache preload_list preload_keys
@@ -1523,7 +1529,7 @@ sp_proc_stmt:
 	      if (lex->sphead->m_type == TYPE_ENUM_FUNCTION &&
 		  lex->sql_command != SQLCOM_SET_OPTION)
 	      {
-		send_error(YYTHD, ER_SP_BADQUERY);
+		send_error(YYTHD, ER_SP_BADSTATEMENT);
 		YYABORT;
 	      }
 	      else
@@ -1548,10 +1554,15 @@ sp_proc_stmt:
 	    }
 	    else
 	    {
-	      sp_instr_freturn *i=
-	        new sp_instr_freturn(lex->sphead->instructions(),
-		                     $2, lex->sphead->m_returns);
+	      sp_instr_freturn *i;
 
+	      if ($2->type() == Item::SUBSELECT_ITEM)
+	      {  /* QQ For now, just disallow subselects as values */
+	        send_error(lex->thd, ER_SP_BADSTATEMENT);
+	        YYABORT;
+	      }
+	      i= new sp_instr_freturn(lex->sphead->instructions(),
+		                      $2, lex->sphead->m_returns);
 	      lex->sphead->add_instr(i);
 	      lex->sphead->m_has_return= TRUE;
 	    }
@@ -1777,7 +1788,7 @@ sp_case:
 	    { /* Simple case: <caseval> = <whenval> */
 	      LEX_STRING ivar;
 
-	      ivar.str= "_tmp_";
+	      ivar.str= (char *)"_tmp_";
 	      ivar.length= 5;
 	      Item *var= (Item*) new Item_splocal(ivar, 
 						  ctx->current_framesize()-1);
@@ -2084,7 +2095,7 @@ table_types:
 	{
 	  $$ = ha_resolve_by_name($1.str,$1.length);
 	  if ($$ == DB_TYPE_UNKNOWN) {
-	    net_printf(YYTHD, ER_UNKNOWN_TABLE, $1.str);
+	    net_printf(YYTHD, ER_UNKNOWN_TABLE_ENGINE, $1.str);
 	    YYABORT;
 	  }
 	};
@@ -2144,6 +2155,13 @@ key_def:
 	    lex->key_list.push_back(new Key($1,$2, $3, lex->col_list));
 	    lex->col_list.empty();		/* Alloced by sql_alloc */
 	  }
+	| opt_constraint constraint_key_type opt_ident key_alg '(' key_list ')'
+	  {
+	    LEX *lex=Lex;
+	    const char *key_name= $3 ? $3:$1;
+	    lex->key_list.push_back(new Key($2, key_name, $4, lex->col_list));
+	    lex->col_list.empty();		/* Alloced by sql_alloc */
+	  }
 	| opt_constraint FOREIGN KEY_SYM opt_ident '(' key_list ')' references
 	  {
 	    LEX *lex=Lex;
@@ -2167,8 +2185,8 @@ check_constraint:
 	;
 
 opt_constraint:
-	/* empty */
-	| CONSTRAINT opt_ident;
+	/* empty */		{ $$=(char*) 0; }
+	| CONSTRAINT opt_ident	{ $$=$2; };
 
 field_spec:
 	field_ident
@@ -2530,14 +2548,16 @@ delete_option:
 	| SET DEFAULT    { $$= (int) foreign_key::FK_OPTION_DEFAULT;  };
 
 key_type:
-	opt_constraint PRIMARY_SYM KEY_SYM  { $$= Key::PRIMARY; }
-	| key_or_index			    { $$= Key::MULTIPLE; }
+	key_or_index			    { $$= Key::MULTIPLE; }
 	| FULLTEXT_SYM			    { $$= Key::FULLTEXT; }
 	| FULLTEXT_SYM key_or_index	    { $$= Key::FULLTEXT; }
 	| SPATIAL_SYM			    { $$= Key::SPATIAL; }
-	| SPATIAL_SYM key_or_index	    { $$= Key::SPATIAL; }
-	| opt_constraint UNIQUE_SYM	    { $$= Key::UNIQUE; }
-	| opt_constraint UNIQUE_SYM key_or_index { $$= Key::UNIQUE; };
+	| SPATIAL_SYM key_or_index	    { $$= Key::SPATIAL; };
+
+constraint_key_type:
+	PRIMARY_SYM KEY_SYM  { $$= Key::PRIMARY; }
+	| UNIQUE_SYM	    { $$= Key::UNIQUE; }
+	| UNIQUE_SYM key_or_index { $$= Key::UNIQUE; };
 
 key_or_index:
 	KEY_SYM {}
@@ -3752,6 +3772,8 @@ simple_expr:
 			Geometry::wkbPolygon, Geometry::wkbLineString); }
 	| POSITION_SYM '(' no_in_expr IN_SYM expr ')'
 	  { $$ = new Item_func_locate($5,$3); }
+	| QUARTER_SYM '(' expr ')'
+	  { $$ = new Item_func_quarter($3); }
 	| RAND '(' expr ')'
 	  { $$= new Item_func_rand($3); Lex->uncacheable(UNCACHEABLE_RAND);}
 	| RAND '(' ')'
@@ -3785,6 +3807,10 @@ simple_expr:
 	  { $$= new Item_datetime_typecast($3); }
 	| TIMESTAMP '(' expr ',' expr ')'
 	  { $$= new Item_func_add_time($3, $5, 1, 0); }
+	| TIMESTAMP_ADD '(' interval_time_st ',' expr ',' expr ')'
+	  { $$= new Item_date_add_interval($7,$5,$3,0); }
+	| TIMESTAMP_DIFF '(' interval_time_st ',' expr ',' expr ')'
+	  { $$= new Item_func_timestamp_diff($5,$7,$3); }
 	| TRIM '(' expr ')'
 	  { $$= new Item_func_trim($3); }
 	| TRIM '(' LEADING expr FROM expr ')'
@@ -4275,23 +4301,29 @@ using_list:
 	  };
 
 interval:
-	 DAY_HOUR_SYM		{ $$=INTERVAL_DAY_HOUR; }
+	interval_time_st	{}
+	| DAY_HOUR_SYM		{ $$=INTERVAL_DAY_HOUR; }
 	| DAY_MICROSECOND_SYM	{ $$=INTERVAL_DAY_MICROSECOND; }
 	| DAY_MINUTE_SYM	{ $$=INTERVAL_DAY_MINUTE; }
 	| DAY_SECOND_SYM	{ $$=INTERVAL_DAY_SECOND; }
-	| DAY_SYM		{ $$=INTERVAL_DAY; }
 	| HOUR_MICROSECOND_SYM	{ $$=INTERVAL_HOUR_MICROSECOND; }
 	| HOUR_MINUTE_SYM	{ $$=INTERVAL_HOUR_MINUTE; }
 	| HOUR_SECOND_SYM	{ $$=INTERVAL_HOUR_SECOND; }
-	| HOUR_SYM		{ $$=INTERVAL_HOUR; }
 	| MICROSECOND_SYM	{ $$=INTERVAL_MICROSECOND; }
 	| MINUTE_MICROSECOND_SYM	{ $$=INTERVAL_MINUTE_MICROSECOND; }
 	| MINUTE_SECOND_SYM	{ $$=INTERVAL_MINUTE_SECOND; }
+	| SECOND_MICROSECOND_SYM	{ $$=INTERVAL_SECOND_MICROSECOND; }
+	| YEAR_MONTH_SYM	{ $$=INTERVAL_YEAR_MONTH; };
+
+interval_time_st:
+	DAY_SYM			{ $$=INTERVAL_DAY; }
+	| WEEK_SYM		{ $$=INTERVAL_WEEK; }
+	| HOUR_SYM		{ $$=INTERVAL_HOUR; }
+	| FRAC_SECOND_SYM	{ $$=INTERVAL_MICROSECOND; }
 	| MINUTE_SYM		{ $$=INTERVAL_MINUTE; }
 	| MONTH_SYM		{ $$=INTERVAL_MONTH; }
-	| SECOND_MICROSECOND_SYM	{ $$=INTERVAL_SECOND_MICROSECOND; }
+	| QUARTER_SYM		{ $$=INTERVAL_QUARTER; }
 	| SECOND_SYM		{ $$=INTERVAL_SECOND; }
-	| YEAR_MONTH_SYM	{ $$=INTERVAL_YEAR_MONTH; }
 	| YEAR_SYM		{ $$=INTERVAL_YEAR; };
 
 date_time_type:
@@ -4555,12 +4587,11 @@ select_var_ident:
            | ident_or_text
            {
              LEX *lex=Lex;
-	     if (!lex->spcont)
-	       YYABORT;
 	     sp_pvar_t *t;
-	     if (!(t=lex->spcont->find_pvar(&$1)))
+
+	     if (!lex->spcont || !(t=lex->spcont->find_pvar(&$1)))
 	     {
-	       send_error(lex->thd, ER_SP_UNDECLARED_VAR);
+	       net_printf(YYTHD, ER_SP_UNDECLARED_VAR, $1.str);
 	       YYABORT;
 	     }
 	     if (! lex->result)
@@ -5436,7 +5467,7 @@ param_marker:
         '?'
         {
 	  LEX *lex=Lex;
-          if (YYTHD->prepare_command)
+          if (YYTHD->command == COM_PREPARE)
           {
             lex->param_list.push_back($$=new Item_param((uint)(lex->tok_start-(uchar *)YYTHD->query)));
             lex->param_count++;
@@ -5799,6 +5830,7 @@ keyword:
 	| PREV_SYM		{}
 	| PROCESS		{}
 	| PROCESSLIST_SYM	{}
+	| QUARTER_SYM		{}
 	| QUERY_SYM		{}
 	| QUICK			{}
 	| RAID_0_SYM		{}
@@ -5850,6 +5882,8 @@ keyword:
 	| TRANSACTION_SYM	{}
 	| TRUNCATE_SYM		{}
 	| TIMESTAMP		{}
+	| TIMESTAMP_ADD		{}
+	| TIMESTAMP_DIFF	{}
 	| TIME_SYM		{}
 	| TYPE_SYM		{}
 	| FUNCTION_SYM		{}
@@ -5861,6 +5895,7 @@ keyword:
 	| VARIABLES		{}
 	| VALUE_SYM		{}
 	| WARNINGS		{}
+	| WEEK_SYM		{}
 	| WORK_SYM		{}
 	| X509_SYM		{}
 	| YEAR_SYM		{}
@@ -5925,6 +5960,11 @@ option_value:
 	    }
             else
 	    { /* An SP local variable */
+	      if ($3 && $3->type() == Item::SUBSELECT_ITEM)
+	      {  /* QQ For now, just disallow subselects as values */
+	        send_error(lex->thd, ER_SP_SUBSELECT_NYI);
+	        YYABORT;
+	      }
 	      sp_pvar_t *spv= lex->spcont->find_pvar(&$1.base_name);
               sp_instr_set *i= new sp_instr_set(lex->sphead->instructions(),
 	                                        spv->offset, $3, spv->type);

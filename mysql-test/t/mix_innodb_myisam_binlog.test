@@ -3,7 +3,7 @@
 # It would be nice to make this a replication test, but in 4.0 the
 # slave is always with --skip-innodb in the testsuite. I (Guilhem) however
 # did some tests manually on a slave; tables are replicated fine and
-# Exec_master_log_pos advances as expected.
+# Exec_Master_Log_Pos advances as expected.
 
 -- source include/have_innodb.inc
 

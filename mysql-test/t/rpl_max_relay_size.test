@@ -76,7 +76,7 @@ sync_with_master;
 --replace_result $MASTER_MYPORT MASTER_PORT 3306 MASTER_PORT 3334 MASTER_PORT
 --replace_column 1 # 33 #
 show slave status;
-# one more rotation, to be sure Relay_log_space is correctly updated
+# one more rotation, to be sure Relay_Log_Space is correctly updated
 flush logs;
 connection master;
 drop table t1;

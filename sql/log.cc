@@ -179,7 +179,7 @@ bool MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
 		     const char *new_name, const char *index_file_name_arg,
 		     enum cache_type io_cache_type_arg,
 		     bool no_auto_events_arg,
-                     ulong max_size)
+                     ulong max_size_arg)
 {
   char buff[512];
   File file= -1, index_file_nr= -1;
@@ -190,7 +190,7 @@ bool MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
   last_time=query_start=0;
   write_error=0;
 
-  init(log_type_arg,io_cache_type_arg,no_auto_events_arg,max_size);
+  init(log_type_arg,io_cache_type_arg,no_auto_events_arg,max_size_arg);
   
   if (!(name=my_strdup(log_name,MYF(MY_WME))))
     goto err;
@@ -1682,7 +1682,7 @@ void MYSQL_LOG:: wait_for_update(THD* thd, bool master_or_slave)
   const char* old_msg = thd->enter_cond(&update_cond, &LOCK_log,
                                         master_or_slave ?
                                         "Has read all relay log; waiting for \
-the I/O slave thread to update it" : 
+the slave I/O thread to update it" : 
                                         "Has sent all binlog to slave; \
 waiting for binlog to be updated"); 
   pthread_cond_wait(&update_cond, &LOCK_log);

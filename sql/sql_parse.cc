@@ -140,7 +140,7 @@ static int get_or_create_user_conn(THD *thd, const char *user,
 				   USER_RESOURCES *mqh)
 {
   int return_val=0;
-  uint temp_len, user_len, host_len;
+  uint temp_len, user_len;
   char temp_user[USERNAME_LENGTH+HOSTNAME_LENGTH+2];
   struct  user_conn *uc;
 
@@ -148,7 +148,6 @@ static int get_or_create_user_conn(THD *thd, const char *user,
   DBUG_ASSERT(host != 0);
 
   user_len=strlen(user);
-  host_len=strlen(host);
   temp_len= (strmov(strmov(temp_user, user)+1, host) - temp_user)+1;
   (void) pthread_mutex_lock(&LOCK_user_conn);
   if (!(uc = (struct  user_conn *) hash_search(&hash_user_connections,
@@ -949,7 +948,6 @@ pthread_handler_decl(handle_one_connection,arg)
     thd->command=COM_SLEEP;
     thd->version=refresh_version;
     thd->set_time();
-    thd->init_for_queries();
     while (!net->error && net->vio != 0 && !(thd->killed == THD::KILL_CONNECTION))
     {
       if (do_command(thd))
@@ -957,7 +955,6 @@ pthread_handler_decl(handle_one_connection,arg)
     }
     if (thd->user_connect)
       decrease_user_connections(thd->user_connect);
-    free_root(&thd->mem_root,MYF(0));
     if (net->error && net->vio != 0 && net->report_error)
     {
       if (!thd->killed && thd->variables.log_warnings)
@@ -1030,7 +1027,6 @@ extern "C" pthread_handler_decl(handle_bootstrap,arg)
   thd->priv_user=thd->user=(char*) my_strdup("boot", MYF(MY_WME));
 
   buff= (char*) thd->net.buff;
-  thd->init_for_queries();
   while (fgets(buff, thd->net.max_packet, file))
   {
     uint length=(uint) strlen(buff);
@@ -1203,13 +1199,13 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 {
   NET *net= &thd->net;
   bool error= 0;
+  DBUG_ENTER("dispatch_command");
+
+  thd->command=command;
   /*
     Commands which will always take a long time should be marked with
     this so that they will not get logged to the slow query log
   */
-  DBUG_ENTER("dispatch_command");
-
-  thd->command=command;
   thd->slow_command=FALSE;
   thd->set_time();
   VOID(pthread_mutex_lock(&LOCK_thread_count));
@@ -1537,8 +1533,6 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 #endif
     close_connection(thd, 0, 1);
     close_thread_tables(thd);			// Free before kill
-    free_root(&thd->mem_root,MYF(0));
-    free_root(&thd->transaction.mem_root,MYF(0));
     kill_mysql();
     error=TRUE;
     break;
@@ -2737,7 +2731,7 @@ mysql_execute_command(THD *thd)
 			(ORDER *)NULL,
 			select_lex->options | thd->options |
 			SELECT_NO_JOIN_CACHE | SELECT_NO_UNLOCK,
-			result, unit, select_lex, 0);
+			result, unit, select_lex);
       if (thd->net.report_error)
 	res= -1;
       delete result;
@@ -3197,6 +3191,19 @@ mysql_execute_command(THD *thd)
 	    goto error;
 	  break;			// We are allowed to do changes
 	}
+      }
+    }
+    if (specialflag & SPECIAL_NO_RESOLVE)
+    {
+      LEX_USER *user;
+      List_iterator <LEX_USER> user_list(lex->users_list);
+      while ((user=user_list++))
+      {
+	if (hostname_requires_resolving(user->host.str))
+	  push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+			      ER_WARN_HOSTNAME_WONT_WORK,
+			      ER(ER_WARN_HOSTNAME_WONT_WORK),
+			      user->host.str);
       }
     }
     if (tables)
@@ -4596,8 +4603,8 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
 					     LEX_STRING *alias,
 					     ulong table_options,
 					     thr_lock_type lock_type,
-					     List<String> *use_index,
-					     List<String> *ignore_index,
+					     List<String> *use_index_arg,
+					     List<String> *ignore_index_arg,
                                              LEX_STRING *option)
 {
   register TABLE_LIST *ptr;
@@ -4653,12 +4660,12 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   ptr->force_index= test(table_options & TL_OPTION_FORCE_INDEX);
   ptr->ignore_leaves= test(table_options & TL_OPTION_IGNORE_LEAVES);
   ptr->derived=	    table->sel;
-  if (use_index)
-    ptr->use_index=(List<String> *) thd->memdup((gptr) use_index,
-					       sizeof(*use_index));
-  if (ignore_index)
-    ptr->ignore_index=(List<String> *) thd->memdup((gptr) ignore_index,
-						   sizeof(*ignore_index));
+  if (use_index_arg)
+    ptr->use_index=(List<String> *) thd->memdup((gptr) use_index_arg,
+						sizeof(*use_index_arg));
+  if (ignore_index_arg)
+    ptr->ignore_index=(List<String> *) thd->memdup((gptr) ignore_index_arg,
+						   sizeof(*ignore_index_arg));
   ptr->option= option ? option->str : 0;
   /* check that used name is unique */
   if (lock_type != TL_IGNORE)

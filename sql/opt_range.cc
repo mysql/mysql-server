@@ -68,7 +68,7 @@ public:
   {}
   inline bool is_same(SEL_ARG *arg)
   {
-    if (type != arg->type)
+    if (type != arg->type || part != arg->part)
       return 0;
     if (type != KEY_RANGE)
       return 1;
@@ -1039,6 +1039,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
           /* find index_merge with minimal cost */
           while ((imerge= it++))
           {
+            bool    imerge_failed= false;
             double  imerge_cost= 0;
             ha_rows imerge_total_records= 0;
             double  tree_read_time;
@@ -1064,21 +1065,23 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
                                           &tree_read_time, &tree_records,
                                           &(imerge->best_keys[ptree - 
                                           imerge->trees])))
-                goto imerge_fail;
-
+                imerge_failed= true;
               imerge_cost += tree_read_time;
               imerge_total_records += tree_records;
             }
-            imerge_total_records= min(imerge_total_records, 
-                                      head->file->records);
-            imerge_cost += imerge_total_records / TIME_FOR_COMPARE;
-            if (imerge_cost < min_imerge_cost)
+
+            if (!imerge_failed)
             {
-              min_imerge= imerge;
-              min_imerge_cost= imerge_cost;
-              min_imerge_records= imerge_total_records;
+              imerge_total_records= min(imerge_total_records, 
+                                        head->file->records);
+              imerge_cost += imerge_total_records / TIME_FOR_COMPARE;
+              if (imerge_cost < min_imerge_cost)
+              {
+                min_imerge= imerge;
+                min_imerge_cost= imerge_cost;
+                min_imerge_records= imerge_total_records;
+              }
             }
-imerge_fail:;
           }
           
           if (!min_imerge)

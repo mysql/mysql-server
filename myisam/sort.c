@@ -84,7 +84,7 @@ static int NEAR_F write_merge_key_varlen(MI_SORT_PARAM *info,
 					 IO_CACHE *to_file,
 					 char* key, uint sort_length,
 					 uint count);
-inline int my_var_write(MI_SORT_PARAM *info,IO_CACHE *to_file,char *bufs);
+inline int my_var_write(MI_SORT_PARAM *info,IO_CACHE *to_file, byte *bufs);
 /*
   Creates a index of sorted keys
 
@@ -156,7 +156,7 @@ int _create_index_by_sort(MI_SORT_PARAM *info,my_bool no_messages,
       while ((maxbuffer= (int) (records/(keys-1)+1)) != skr);
 
     if ((sort_keys=(uchar **)my_malloc(keys*(sort_length+sizeof(char*))+
-				       HA_FT_MAXLEN, MYF(0))))
+				       HA_FT_MAXBYTELEN, MYF(0))))
     {
       if (my_init_dynamic_array(&buffpek, sizeof(BUFFPEK), maxbuffer,
 			     maxbuffer/2))
@@ -365,7 +365,7 @@ pthread_handler_decl(thr_find_all_keys,arg)
     }
     if ((sort_keys=(uchar **)my_malloc(keys*(sort_length+sizeof(char*))+
 				       ((info->keyinfo->flag & HA_FULLTEXT) ?
-					HA_FT_MAXLEN : 0), MYF(0))))
+					HA_FT_MAXBYTELEN : 0), MYF(0))))
     {
       if (my_init_dynamic_array(&info->buffpek, sizeof(BUFFPEK),
 				maxbuffer, maxbuffer/2))
@@ -622,21 +622,25 @@ static int NEAR_F write_keys(MI_SORT_PARAM *info, register uchar **sort_keys,
   DBUG_RETURN(0);
 } /* write_keys */
 
-inline int my_var_write(MI_SORT_PARAM *info,IO_CACHE *to_file,char *bufs)
+
+inline int my_var_write(MI_SORT_PARAM *info, IO_CACHE *to_file, byte *bufs)
 {
   int err;
-  uint16 len = _mi_keylength(info->keyinfo,bufs);
+  uint16 len = _mi_keylength(info->keyinfo, (uchar*) bufs);
 
-  if ((err= my_b_write(to_file,(byte*)&len,sizeof(len))))
+  /* The following is safe as this is a local file */
+  if ((err= my_b_write(to_file, (byte*)&len, sizeof(len))))
     return (err);
-  if ((err= my_b_write(to_file,(byte*)bufs,(uint) len)))
+  if ((err= my_b_write(to_file,bufs, (uint) len)))
     return (err);
   return (0);
 }
 
 
-static int NEAR_F write_keys_varlen(MI_SORT_PARAM *info, register uchar **sort_keys,
-                                    uint count, BUFFPEK *buffpek, IO_CACHE *tempfile)
+static int NEAR_F write_keys_varlen(MI_SORT_PARAM *info,
+				    register uchar **sort_keys,
+                                    uint count, BUFFPEK *buffpek,
+				    IO_CACHE *tempfile)
 {
   uchar **end;
   int err;
@@ -653,7 +657,7 @@ static int NEAR_F write_keys_varlen(MI_SORT_PARAM *info, register uchar **sort_k
   buffpek->count=count;
   for (end=sort_keys+count ; sort_keys != end ; sort_keys++)
   {
-    if ((err= my_var_write(info,tempfile,*sort_keys)))
+    if ((err= my_var_write(info,tempfile, (byte*) *sort_keys)))
       DBUG_RETURN(err);
   }
   DBUG_RETURN(0);
@@ -816,7 +820,7 @@ static int NEAR_F write_merge_key_varlen(MI_SORT_PARAM *info,
   for (idx=1;idx<=count;idx++)
   {
     int err;
-    if ((err= my_var_write(info,to_file,bufs)))
+    if ((err= my_var_write(info,to_file, (byte*) bufs)))
       return (err);
     bufs=bufs+sort_length;
   }

@@ -26,7 +26,7 @@ EXTRA_DIST =		$(noinst_SCRIPTS) $(BUILT_SOURCES) mysqld_error.txt \
 
 all:			$(targets) txt_files
 
-txt_files:		../INSTALL-SOURCE ../COPYING ../COPYING.LIB \
+txt_files:		../INSTALL-SOURCE ../COPYING ../INSTALL-WIN-SOURCE \
 			INSTALL-BINARY ../support-files/MacOSX/ReadMe.txt
 
 CLEAN_FILES:		$(BUILD_SOURCES)
@@ -194,6 +194,9 @@ GT = $(srcdir)/Support/generate-text-files.pl
 ../INSTALL-SOURCE:	mysql.info $(GT)
 	perl -w $(GT) mysql.info "Installing" "Tutorial" > $@
 
+../INSTALL-WIN-SOURCE:	mysql.info $(GT)
+	perl -w $(GT) mysql.info "Windows source build" "Post-installation" > $@
+
 # We put the description for the binary installation here so that
 # people who download source wont have to see it. It is moved up to
 # the toplevel by the script that makes the binary tar files.
@@ -201,10 +204,7 @@ INSTALL-BINARY:	mysql.info $(GT)
 	perl -w $(GT) mysql.info "Installing binary" "Installing source" > $@
 
 ../COPYING:		mysql.info $(GT)
-	perl -w $(GT) mysql.info "GPL license" "LGPL license" > $@
-
-../COPYING.LIB:		mysql.info $(GT)
-	perl -w $(GT) mysql.info "LGPL license" "Function Index" > $@
+	perl -w $(GT) mysql.info "GPL license" "Function Index" > $@
 
 ../support-files/MacOSX/ReadMe.txt:	mysql.info $(GT)
 	perl -w $(GT) mysql.info "Mac OS X installation" "NetWare installation" > $@

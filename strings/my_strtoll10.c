@@ -18,6 +18,7 @@
 #include <my_sys.h>
 #include <m_string.h>
 
+#undef  ULONGLONG_MAX
 #define ULONGLONG_MAX		(~(ulonglong) 0)
 #define MAX_NEGATIVE_NUMBER	((ulonglong) LL(0x8000000000000000))
 #define INIT_CNT  9
@@ -81,7 +82,7 @@ longlong my_strtoll10(const char *nptr, char **endptr, int *error)
   unsigned long i, j, k;
   ulonglong li;
   int negative;
-  long cutoff, cutoff2, cutoff3;
+  ulong cutoff, cutoff2, cutoff3;
 
   s= nptr;
   /* If fixed length string */
