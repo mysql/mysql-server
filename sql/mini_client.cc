@@ -1076,7 +1076,7 @@ static int mc_send_file_to_server(MYSQL *mysql, const char *filename)
     DBUG_RETURN(-1);
   }
 
-  while ((readcount = (int) my_read(fd,buf,sizeof(buf),MYF(0))) > 0)
+  while ((readcount = (int) my_read(fd,(byte*) buf,sizeof(buf),MYF(0))) > 0)
   {
     if (my_net_write(&mysql->net,buf,readcount))
     {

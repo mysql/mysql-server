@@ -153,7 +153,9 @@ int do_boolean(ALL_IN_ONE *aio, uint nested __attribute__((unused)),
 
         if (selem->count==1) /* document's first match */
         {
-          sptr->yes=sptr->no=sptr->doc.weight=0;
+          sptr->yes=0;
+	  sptr->no=0;
+	  sptr->doc.weight=0;
           sptr->aio=aio;
           sptr->wno=0;
         }

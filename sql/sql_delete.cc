@@ -324,7 +324,7 @@ bool multi_delete::send_data(List<Item> &values)
     }
     else
     {
-      error=tempfiles[secure_counter]->unique_add(table->file->ref);
+      error=tempfiles[secure_counter]->unique_add((char*) table->file->ref);
       if (error)
       {
 	error=-1;
@@ -378,7 +378,7 @@ void multi_delete::send_error(uint errcode,const char *err)
 
 int multi_delete::do_deletes (bool from_send_error)
 {
-  int error = 0, counter = 0, count;
+  int error = 0, counter = 0;
 
   if (from_send_error)
   {

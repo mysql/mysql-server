@@ -72,7 +72,7 @@ struct sql_ex_info
     char* line_term;
     char* line_start;
     char* escaped;
-    uchar field_term_len,enclosed_len,line_term_len,line_start_len,
+    uint8 field_term_len,enclosed_len,line_term_len,line_start_len,
       escaped_len;
     char opt_flags; 
     char empty_flags;
@@ -280,7 +280,7 @@ public:
 			    pthread_mutex_t* log_lock);
   void set_log_seq(THD* thd, MYSQL_LOG* log);
   virtual void pack_info(String* packet);
-  int net_send(THD* thd, const char* log_name, ulong pos);
+  int net_send(THD* thd, const char* log_name, my_off_t pos);
   static void init_show_field_list(List<Item>* field_list);
   virtual int exec_event(struct st_master_info* mi);
   virtual const char* get_db()
