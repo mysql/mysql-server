@@ -446,11 +446,10 @@ void close_temporary_tables(THD *thd)
   {
     if(query) // we might be out of memory, but this is not fatal
       {
-	p = strmov(p,table->table_cache_key); // here we assume it always starts
+	p = strxmov(p,table->table_cache_key,".",
+		    table->table_name,",", NullS);
+	// here we assume table_cache_key always starts
 	// with \0 terminated db name
-	*p++ = '.';
-	p = strmov(p,table->table_name);
-	*p++ = ',';
       }
     next=table->next;
     close_temporary(table);
@@ -474,7 +473,7 @@ TABLE **find_temporary_table(THD *thd, const char *db, const char *table_name)
   uint	key_length= (uint) (strmov(strmov(key,db)+1,table_name)-key)+1;
   TABLE *table,**prev;
 
-  *((ulong*)(key+key_length)) = thd->slave_proxy_id;
+  int4store(key+key_length,thd->slave_proxy_id);
   key_length += 4;
   
   prev= &thd->temporary_tables;
@@ -514,7 +513,7 @@ bool rename_temporary_table(THD* thd, TABLE *table, const char *db,
     (strmov((table->real_name=strmov(table->table_cache_key=key,
 				     db)+1),
 	    table_name) - table->table_cache_key)+1;
-  *((ulong*)(key+table->key_length)) = thd->slave_proxy_id;
+  int4store(key+table->key_length,thd->slave_proxy_id);
   table->key_length += 4;
   return 0;
 }
@@ -669,7 +668,7 @@ TABLE *open_table(THD *thd,const char *db,const char *table_name,
   if (thd->killed)
     DBUG_RETURN(0);
   key_length= (uint) (strmov(strmov(key,db)+1,table_name)-key)+1;
-  *((ulong*)(key + key_length)) = thd->slave_proxy_id;
+  int4store(key + key_length, thd->slave_proxy_id);
   key_length += 4;
   
   for (table=thd->temporary_tables; table ; table=table->next)
@@ -1413,8 +1412,8 @@ TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
   tmp_table->key_length= (uint) (strmov(strmov(tmp_table->table_cache_key,db)
 					+1, table_name)
 				 - tmp_table->table_cache_key)+1;
-  *((ulong*)(tmp_table->table_cache_key + tmp_table->key_length)) =
-	thd->slave_proxy_id;
+  int4store(tmp_table->table_cache_key + tmp_table->key_length,
+	    thd->slave_proxy_id);
   tmp_table->key_length += 4;
   
   if (link_in_list)

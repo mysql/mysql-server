@@ -1161,9 +1161,8 @@ static void safe_connect(THD* thd, MYSQL* mysql, MASTER_INFO* mi)
 	!mc_mysql_connect(mysql, mi->host, mi->user, mi->password, 0,
 			  mi->port, 0, 0))
   {
-    sql_print_error(
-		    "Slave thread: error connecting to master:%s, retry in %d sec",
-		    mc_mysql_error(mysql), mi->connect_retry);
+    sql_print_error("Slave thread: error connecting to master:%s(%d),\
+ retry in %d sec", mc_mysql_error(mysql), errno, mi->connect_retry);
     safe_sleep(thd, mi->connect_retry);
   }
   
