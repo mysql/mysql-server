@@ -16,7 +16,7 @@ load data infile '../../std_data/words.dat' into table t1;
 drop table t1;
 show binlog events;
 Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
-master-bin.001	4	Start	1	4	Server ver: 4.0.1-alpha-debug-log, Binlog ver: 3
+master-bin.001	4	Start	1	4	Server ver: VERSION, Binlog ver: 3
 master-bin.001	79	Query	1	79	use test; create table t1(n int not null auto_increment primary key)
 master-bin.001	172	Intvar	1	172	INSERT_ID=1
 master-bin.001	200	Query	1	200	use test; insert into t1 values (NULL)
@@ -41,7 +41,7 @@ insert into t1 values (1);
 drop table t1;
 show binlog events;
 Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
-master-bin.001	4	Start	1	4	Server ver: 4.0.1-alpha-debug-log, Binlog ver: 3
+master-bin.001	4	Start	1	4	Server ver: VERSION, Binlog ver: 3
 master-bin.001	79	Query	1	79	use test; create table t1(n int not null auto_increment primary key)
 master-bin.001	172	Intvar	1	172	INSERT_ID=1
 master-bin.001	200	Query	1	200	use test; insert into t1 values (NULL)
@@ -67,28 +67,15 @@ Log_name
 slave-bin.001
 slave-bin.002
 show binlog events in 'slave-bin.001' from 4;
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
-slave-bin.001	4	Start	2	4	Server ver: 4.0.1-alpha-debug-log, Binlog ver: 3
-slave-bin.001	79	Slave	2	79	host=127.0.0.1,port=9306,log=master-bin.001,pos=4
-slave-bin.001	132	Query	1	79	use test; create table t1(n int not null auto_increment primary key)
-slave-bin.001	225	Intvar	1	200	INSERT_ID=1
-slave-bin.001	253	Query	1	200	use test; insert into t1 values (NULL)
-slave-bin.001	316	Query	1	263	use test; drop table t1
-slave-bin.001	364	Query	1	311	use test; create table t1 (word char(20) not null)
-slave-bin.001	439	Create_file	1	386	db=test;table=t1;file_id=1;block_len=81
-slave-bin.001	618	Exec_load	1	556	;file_id=1
-slave-bin.001	641	Query	1	579	use test; drop table t1
-slave-bin.001	689	Rotate	1	627	slave-bin.002;pos=4; forced by master
-slave-bin.001	729	Stop	2	729	
 show binlog events in 'slave-bin.002' from 4;
 Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
-slave-bin.002	4	Slave	2	627	host=127.0.0.1,port=9306,log=master-bin.002,pos=4
+slave-bin.002	4	Slave	2	627	host=127.0.0.1,port=MASTER_PORT,log=master-bin.002,pos=4
 slave-bin.002	57	Query	1	4	use test; create table t1 (n int)
 slave-bin.002	115	Query	1	62	use test; insert into t1 values (1)
 slave-bin.002	175	Query	1	122	use test; drop table t1
 show slave status;
 Master_Host	Master_User	Master_Port	Connect_retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_do_db	Replicate_ignore_db	Last_errno	Last_error	Skip_counter	Exec_master_log_pos
-127.0.0.1	root	9306	1	master-bin.002	170	mysql-relay-bin.002	935	master-bin.002	Yes	Yes			0		0	170
+127.0.0.1	root	MASTER_PORT	1	master-bin.002	170	mysql-relay-bin.002	935	master-bin.002	Yes	Yes			0		0	170
 show new master for slave with master_log_file='master-bin.001' and
 master_log_pos=4 and  master_server_id=1;
 Log_name	Log_pos

@@ -26,6 +26,9 @@
 #include <my_dir.h>
 #include <assert.h>
 
+bool use_slave_mask = 0;
+MY_BITMAP slave_error_mask;
+
 volatile bool slave_sql_running = 0, slave_io_running = 0;
 char* slave_load_tmpdir = 0;
 MASTER_INFO main_mi;
@@ -217,6 +220,36 @@ err:
    pthread_mutex_unlock(&rli->data_lock);
  pthread_mutex_unlock(log_lock);
  return (*errmsg) ? 1 : 0;
+}
+
+/* called from get_options() in mysqld.cc on start-up */
+void init_slave_skip_errors(char* arg)
+{
+  char* p;
+  my_bool last_was_digit = 0;
+  if (bitmap_init(&slave_error_mask,MAX_SLAVE_ERROR,0))
+  {
+    fprintf(stderr, "Badly out of memory, please check your system status\n");
+    exit(1);
+  }
+  use_slave_mask = 1;
+  for (;isspace(*arg);++arg)
+    /* empty */;
+  if (!my_casecmp(arg,"all",3))
+  {
+    bitmap_set_all(&slave_error_mask);
+    return;
+  }
+  for (p= arg ; *p; )
+  {
+    long err_code;
+    if (!(p= str2int(p, 10, 0, LONG_MAX, &err_code)))
+      break;
+    if (err_code < MAX_SLAVE_ERROR)
+       bitmap_set_bit(&slave_error_mask,(uint)err_code);
+    while (!isdigit(*p) && *p)
+      p++;
+  }
 }
 
 // we assume we have a run lock on rli and that the both slave thread
