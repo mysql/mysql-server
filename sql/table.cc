@@ -349,7 +349,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
     uint pack_flag= uint2korr(strpos+6);
     uint interval_nr= (uint) strpos[10];
     enum_field_types field_type;
-    CHARSET_INFO *charset;
+    CHARSET_INFO *charset=NULL;
     LEX_STRING comment;
 
     if (new_frm_ver == 2)
@@ -384,6 +384,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 		 null_pos,null_bit,
 		 pack_flag,
 		 field_type,
+		 charset,
 		 (Field::utype) MTYP_TYPENR((uint) strpos[8]),
 		 (interval_nr ?
 		  outparam->intervals+interval_nr-1 :

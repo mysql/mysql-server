@@ -7,13 +7,13 @@ connection slave;
 --replace_result $MASTER_MYPORT MASTER_PORT
 eval change master to master_host='127.0.0.1',master_user='root',
  master_password='',master_port=$MASTER_MYPORT;
-slave start;
+start slave;
 connection master;
-slave stop;
+stop slave;
 --replace_result $SLAVE_MYPORT SLAVE_PORT
 eval change master to master_host='127.0.0.1',master_user='root',
  master_password='',master_port=$SLAVE_MYPORT;
-slave start;
+start slave;
 flush logs;
 sleep 5;
 --replace_result $SLAVE_MYPORT SLAVE_PORT

@@ -132,7 +132,7 @@ int _mi_search(register MI_INFO *info, register MI_KEYDEF *keyinfo,
     if (_mi_get_prev_key(info,keyinfo, buff, info->lastkey, keypos,
                          &info->lastkey_length))
       goto err;
-    if ((nextflag & SEARCH_LAST) &&
+    if (!(nextflag & SEARCH_SMALLER) &&
         ha_key_cmp(keyinfo->seg, info->lastkey, key, key_len, SEARCH_FIND,
                     &not_used))
     {
