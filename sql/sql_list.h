@@ -225,6 +225,15 @@ public:
 
 struct ilink {
   struct ilink **prev,*next;
+  static void *operator new(size_t size)
+  {
+    return (void*)my_malloc((uint)size, MYF(MY_WME | MY_FAE));
+  }
+  static void operator delete(void* ptr_arg, size_t size)
+  {
+     my_free((gptr)ptr_arg, MYF(MY_WME|MY_ALLOW_ZERO_PTR));
+  }
+
   inline ilink()
   {
     prev=0; next=0;
