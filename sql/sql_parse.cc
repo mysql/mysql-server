@@ -1886,6 +1886,13 @@ check_access(THD *thd,uint want_access,const char *db, uint *save_priv,
 
   if (db == any_db)
     return FALSE;				// Allow select on anything
+  
+  if (strlen(db) > NAME_LEN || check_db_name(db))
+    {
+      net_printf(&thd->net,ER_WRONG_DB_NAME, db);
+      return TRUE;
+    }
+
   if (db && (!thd->db || strcmp(db,thd->db)))
     db_access=acl_get(thd->host, thd->ip, (char*) &thd->remote.sin_addr,
 		      thd->priv_user, db); /* purecov: inspected */

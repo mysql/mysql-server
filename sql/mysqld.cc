@@ -260,7 +260,6 @@ ulong query_id=1L,long_query_count,long_query_time,aborted_threads,
       delayed_queue_size,delayed_insert_threads,delayed_insert_writes,
       delayed_rows_in_use,delayed_insert_errors,flush_time, thread_created;
 ulong filesort_rows, filesort_range_count, filesort_scan_count;
-extern "C" ulong locks_immediate, locks_waited;
 ulong filesort_merge_passes;
 ulong select_range_check_count, select_range_count, select_scan_count;
 ulong select_full_range_join_count,select_full_join_count;

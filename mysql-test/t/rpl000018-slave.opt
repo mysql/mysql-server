@@ -1,0 +1,1 @@
+--skip-slave-start --abort-slave-event-count=1

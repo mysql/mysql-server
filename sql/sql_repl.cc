@@ -392,7 +392,7 @@ sweepstakes if you report the bug";
 	thd->mysys_var->current_mutex = log_lock;
 	thd->mysys_var->current_cond = &COND_binlog_update;
 	const char* proc_info = thd->proc_info;
-	thd->proc_info = "Waiting for update";
+	thd->proc_info = "Slave connection: waiting for binlog update";
 	pthread_mutex_unlock(&thd->mysys_var->mutex);
 
 	bool read_packet = 0, fatal_error = 0;
