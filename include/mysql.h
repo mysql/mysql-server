@@ -558,7 +558,7 @@ typedef struct st_mysql_bind
   enum enum_field_types buffer_type;	/* buffer type */
   unsigned long buffer_length;    /* buffer length, must be set for str/binary */  
 
-  /* Following are for internal use. Set by mysql_bind_param */
+  /* Following are for internal use. Set by mysql_stmt_bind_param */
   unsigned char *inter_buffer;    /* for the current data position */
   unsigned long offset;           /* offset position for char/binary fetch */
   unsigned long	internal_length;  /* Used if length is 0 */
