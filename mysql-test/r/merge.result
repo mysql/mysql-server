@@ -470,4 +470,7 @@ CREATE TABLE t (  a int(11) NOT NULL default '0',  b int(11) NOT NULL default '0
 select max(b) from t where a = 2;
 max(b)
 NULL
+select max(b) from t1 where a = 2;
+max(b)
+1
 drop table if exists t,t1,t2;
