@@ -1529,4 +1529,4 @@ int main(int argc, const char** argv){
   return testIndex.execute(argc, argv);
 }
 
-
+template class Vector<Attrib*>;

@@ -1404,3 +1404,4 @@ int main(int argc, const char** argv){
   return testScan.execute(argc, argv);
 }
 
+template class Vector<Attrib*>;
