@@ -967,6 +967,7 @@ void st_select_lex_node::init_query()
   linkage= UNSPECIFIED_TYPE;
   no_table_names_allowed= uncacheable= dependent= 0;
   ref_pointer_array= 0;
+  cond_count= 0;
 }
 
 void st_select_lex_node::init_select()

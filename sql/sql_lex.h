@@ -207,6 +207,7 @@ public:
   Item **ref_pointer_array;
 
   uint select_items;    /* number of items in select_list */
+  uint cond_count;      /* number of arguments of and/or/xor in where/having */
   enum_parsing_place parsing_place; /* where we are parsing expression */
   bool with_sum_func;   /* sum function indicator */
   bool dependent;	/* dependent from outer select subselect */
