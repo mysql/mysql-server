@@ -743,9 +743,6 @@ void set_zero_time(MYSQL_TIME *tm)
 int my_time_to_str(const MYSQL_TIME *l_time, char *to)
 {
   uint extra_hours= 0;
-  /* Get extra hours, if we are getting data from the server */
-  if (l_time->year == 0 && l_time->month == 0)
-    extra_hours= l_time->day*24;
   return my_sprintf(to, (to, "%s%02d:%02d:%02d",
                          (l_time->neg ? "-" : ""),
                          extra_hours+ l_time->hour,
