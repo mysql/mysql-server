@@ -720,13 +720,10 @@ int ha_myisam::assign_to_keycache(THD* thd, HA_CHECK_OPT *check_opt)
 
   if ((error= mi_assign_to_key_cache(file, map, new_key_cache)))
   { 
-    switch (error) {
-    default: 
-      char buf[80];
-      my_snprintf(buf, sizeof(buf),
-                  "Failed to flush to index file (errno: %d)", error);
-      errmsg= buf;
-    }
+    char buf[80];
+    my_snprintf(buf, sizeof(buf),
+		"Failed to flush to index file (errno: %d)", error);
+    errmsg= buf;
     error= HA_ADMIN_CORRUPT;
   }
 

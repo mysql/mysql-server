@@ -1196,7 +1196,7 @@ int Item_uint::save_in_field(Field *field, bool no_conversions)
     TODO: To be fixed when wen have a
     field->store(longlong, unsigned_flag) method 
   */
-  Item_int::save_in_field(field, no_conversions);
+  return Item_int::save_in_field(field, no_conversions);
 }
 
 

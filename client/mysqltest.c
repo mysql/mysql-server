@@ -118,7 +118,6 @@ static FILE** cur_file;
 static FILE** file_stack_end;
 static uint lineno_stack[MAX_INCLUDE_DEPTH];
 static char TMPDIR[FN_REFLEN];
-static int  *block_ok_stack_end;
 
 static int *cur_block, *block_stack_end;
 static int block_stack[BLOCK_STACK_DEPTH];
@@ -1495,7 +1494,6 @@ int do_connect(struct st_query* q)
   char* p=q->first_argument;
   char buff[FN_REFLEN];
   int con_port;
-  int con_error;
   int free_con_sock = 0;
 
   DBUG_ENTER("do_connect");
@@ -1560,9 +1558,9 @@ int do_connect(struct st_query* q)
   /* Special database to allow one to connect without a database name */
   if (con_db && !strcmp(con_db,"*NO-ONE*"))
     con_db=0;
-  if ((con_error = safe_connect(&next_con->mysql, con_host,
-				con_user, con_pass,
-				con_db, con_port, con_sock ? con_sock: 0)))
+  if ((safe_connect(&next_con->mysql, con_host,
+		    con_user, con_pass,
+		    con_db, con_port, con_sock ? con_sock: 0)))
     die("Could not open connection '%s': %s", con_name,
 	mysql_error(&next_con->mysql));
 
@@ -2018,12 +2016,10 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 
 int parse_args(int argc, char **argv)
 {
-  int ho_error;
-
   load_defaults("my",load_default_groups,&argc,&argv);
   default_argv= argv;
 
-  if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
+  if ((handle_options(&argc, &argv, my_long_options, get_one_option)))
     exit(1);
 
   if (argc > 1)
@@ -2454,7 +2450,6 @@ int main(int argc, char **argv)
   memset(block_stack, 0, sizeof(block_stack));
   block_stack_end = block_stack + BLOCK_STACK_DEPTH;
   memset(block_ok_stack, 0, sizeof(block_stack));
-  block_ok_stack_end = block_ok_stack + BLOCK_STACK_DEPTH;
   cur_block = block_stack;
   block_ok = block_ok_stack;
   *block_ok = 1;

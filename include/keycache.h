@@ -91,9 +91,6 @@ typedef struct st_key_cache
   ulong global_cache_read;      /* number of reads from files to the cache  */
   int blocks;                   /* max number of blocks in the cache        */
   my_bool in_init;		/* Set to 1 in MySQL during init/resize     */
-
-  /* optional call back function */
-  void (*action)(struct st_key_cache *);
 } KEY_CACHE;
 
 /* The default key cache */

@@ -1652,8 +1652,7 @@ int mysql_assign_to_keycache(THD* thd, TABLE_LIST* tables,
   check_opt.key_cache= key_cache;
   DBUG_RETURN(mysql_admin_table(thd, tables, &check_opt,
 				"assign_to_keycache", TL_READ_NO_INSERT, 0, 
-                                HA_OPEN_TO_ASSIGN, 0,
-				&handler::assign_to_keycache));
+                                0, 0, &handler::assign_to_keycache));
 }
 
 

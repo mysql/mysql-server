@@ -1080,8 +1080,9 @@ int change_master(THD* thd, MASTER_INFO* mi)
        of replication is not 100% clear, so we guard against problems using
        max().
       */
-     mi->master_log_pos = max(BIN_LOG_HEADER_SIZE, mi->rli.master_log_pos);
-     strmake(mi->master_log_name,mi->rli.master_log_name,
+     mi->master_log_pos = max(BIN_LOG_HEADER_SIZE,
+			      mi->rli.group_master_log_pos);
+     strmake(mi->master_log_name, mi->rli.group_master_log_name,
              sizeof(mi->master_log_name)-1);
   }
 
