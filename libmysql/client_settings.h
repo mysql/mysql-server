@@ -18,7 +18,7 @@ extern uint		mysql_port;
 extern my_string	mysql_unix_port;
 
 #define CLIENT_CAPABILITIES (CLIENT_LONG_PASSWORD | CLIENT_LONG_FLAG |	  \
-                             CLIENT_LOCAL_FILES | CLIENT_TRANSACTIONS |   \
+                             CLIENT_TRANSACTIONS | \
 			     CLIENT_PROTOCOL_41 | CLIENT_SECURE_CONNECTION)
 
 sig_handler pipe_sig_handler(int sig __attribute__((unused)));
