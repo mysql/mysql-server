@@ -15,8 +15,8 @@ f1	float	NULL	YES		NULL
 f2	double	NULL	YES		NULL			
 insert into t1 values(10,10),(1e+5,1e+5),(1234567890,1234567890),(1e+10,1e+10),(1e+15,1e+15),(1e+20,1e+20),(1e+50,1e+50),(1e+150,1e+150);
 Warnings:
-Warning	1264	Data truncated; out of range for column 'f1' at row 7
-Warning	1264	Data truncated; out of range for column 'f1' at row 8
+Warning	1264	Out of range value adjusted for column 'f1' at row 7
+Warning	1264	Out of range value adjusted for column 'f1' at row 8
 insert into t1 values(-10,-10),(1e-5,1e-5),(1e-10,1e-10),(1e-15,1e-15),(1e-20,1e-20),(1e-50,1e-50),(1e-150,1e-150);
 select * from t1;
 f1	f2
@@ -146,12 +146,12 @@ drop table if exists t1;
 create table t1 (f float(4,3));
 insert into t1 values (-11.0),(-11),("-11"),(11.0),(11),("11");
 Warnings:
-Warning	1264	Data truncated; out of range for column 'f' at row 1
-Warning	1264	Data truncated; out of range for column 'f' at row 2
-Warning	1264	Data truncated; out of range for column 'f' at row 3
-Warning	1264	Data truncated; out of range for column 'f' at row 4
-Warning	1264	Data truncated; out of range for column 'f' at row 5
-Warning	1264	Data truncated; out of range for column 'f' at row 6
+Warning	1264	Out of range value adjusted for column 'f' at row 1
+Warning	1264	Out of range value adjusted for column 'f' at row 2
+Warning	1264	Out of range value adjusted for column 'f' at row 3
+Warning	1264	Out of range value adjusted for column 'f' at row 4
+Warning	1264	Out of range value adjusted for column 'f' at row 5
+Warning	1264	Out of range value adjusted for column 'f' at row 6
 select * from t1;
 f
 -9.999
@@ -164,12 +164,12 @@ drop table if exists t1;
 create table t1 (f double(4,3));
 insert into t1 values (-11.0),(-11),("-11"),(11.0),(11),("11");
 Warnings:
-Warning	1264	Data truncated; out of range for column 'f' at row 1
-Warning	1264	Data truncated; out of range for column 'f' at row 2
-Warning	1264	Data truncated; out of range for column 'f' at row 3
-Warning	1264	Data truncated; out of range for column 'f' at row 4
-Warning	1264	Data truncated; out of range for column 'f' at row 5
-Warning	1264	Data truncated; out of range for column 'f' at row 6
+Warning	1264	Out of range value adjusted for column 'f' at row 1
+Warning	1264	Out of range value adjusted for column 'f' at row 2
+Warning	1264	Out of range value adjusted for column 'f' at row 3
+Warning	1264	Out of range value adjusted for column 'f' at row 4
+Warning	1264	Out of range value adjusted for column 'f' at row 5
+Warning	1264	Out of range value adjusted for column 'f' at row 6
 select * from t1;
 f
 -9.999
