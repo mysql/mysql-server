@@ -2173,7 +2173,7 @@ connected:
       on with life.
     */
     thd->proc_info = "Registering slave on master";
-    if (register_slave_on_master(mysql) ||  update_slave_list(mysql))
+    if (register_slave_on_master(mysql) ||  update_slave_list(mysql, mi))
       goto err;
   }
   
