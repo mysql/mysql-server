@@ -39,17 +39,20 @@
 # If you want to affect other MySQL variables, you should make your changes
 # in the /etc/my.cnf, ~/.my.cnf or other MySQL configuration files.
 
+# If you change base dir, you must also change datadir
+
 basedir=
+datadir=
 
 # The following variables are only set for letting mysql.server find things.
 
 # Set some defaults
-datadir=@localstatedir@
 pid_file=
 if test -z "$basedir"
 then
   basedir=@prefix@
   bindir=@bindir@
+  datadir=@localstatedir@
 else
   bindir="$basedir/bin"
 fi
