@@ -348,9 +348,9 @@ static int _ftb_strstr(const byte *s0, const byte *e0,
     if (s0 >= e0)
       return 0;
     p=s1+1;
-    while (s0 < e0 && p < e1 && cs->to_upper[(uint) (uchar) *s0++] ==
-	   cs->to_upper[(uint) (uchar) *p++])
-      /* no-op */;
+    while (s0 < e0 && p < e1 && cs->to_upper[(uint) (uchar) *s0] ==
+	   cs->to_upper[(uint) (uchar) *p])
+      s0++, p++;
     if (p >= e1)
       return 1;
   }
