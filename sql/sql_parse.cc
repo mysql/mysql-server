@@ -1964,6 +1964,9 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
       break;
     }
 #endif
+  case SCH_OPEN_TABLES:
+  case SCH_VARIABLES:
+  case SCH_STATUS:
   case SCH_PROCEDURES:
   case SCH_CHARSETS:
   case SCH_COLLATIONS:
@@ -3121,25 +3124,6 @@ create_error:
   case SQLCOM_SHOW_COLUMN_TYPES:
     res= mysqld_show_column_types(thd);
     break;
-  case SQLCOM_SHOW_STATUS:
-    STATUS_VAR tmp;
-    if (lex->option_type == OPT_GLOBAL)
-    {
-      pthread_mutex_lock(&LOCK_status);
-      calc_sum_of_all_status(&tmp);
-    }
-    res= mysqld_show(thd, (lex->wild ? lex->wild->ptr() : NullS),
-		     status_vars, OPT_GLOBAL, &LOCK_status,
-		     (lex->option_type == OPT_GLOBAL ? 
-		      &tmp: &thd->status_var));
-    if (lex->option_type == OPT_GLOBAL)
-      pthread_mutex_unlock(&LOCK_status);
-    break;
-  case SQLCOM_SHOW_VARIABLES:
-    res= mysqld_show(thd, (lex->wild ? lex->wild->ptr() : NullS),
-		     init_vars, lex->option_type,
-		     &LOCK_global_system_variables, 0);
-    break;
   case SQLCOM_SHOW_LOGS:
 #ifdef DONT_ALLOW_SHOW_COMMANDS
     my_message(ER_NOT_ALLOWED_COMMAND, ER(ER_NOT_ALLOWED_COMMAND),
@@ -3153,9 +3137,6 @@ create_error:
       break;
     }
 #endif
-  case SQLCOM_SHOW_OPEN_TABLES:
-    res= mysqld_show_open_tables(thd,(lex->wild ? lex->wild->ptr() : NullS));
-    break;
   case SQLCOM_CHANGE_DB:
     mysql_change_db(thd,select_lex->db);
     break;
