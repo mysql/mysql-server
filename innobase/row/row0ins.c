@@ -473,6 +473,8 @@ row_ins_cascade_calc_update_vec(
 		
 			if (parent_ufield->field_no == parent_field_no) {
 
+				ulint	fixed_size;
+
 				/* A field in the parent index record is
 				updated. Let us make the update vector
 				field for the child table. */
@@ -512,22 +514,22 @@ row_ins_cascade_calc_update_vec(
 				need to pad with spaces the new value of the
 				child column */
 
-				if (dtype_is_fixed_size(type)
+				fixed_size = dtype_get_fixed_size(type);
+
+				if (fixed_size
 				    && ufield->new_val.len != UNIV_SQL_NULL
-				    && ufield->new_val.len
-				       < dtype_get_fixed_size(type)) {
+				    && ufield->new_val.len < fixed_size) {
 
 				        ufield->new_val.data =
 						mem_heap_alloc(heap,
-						  dtype_get_fixed_size(type));
-					ufield->new_val.len = 
-						dtype_get_fixed_size(type);
+								fixed_size);
+					ufield->new_val.len = fixed_size;
 					ut_a(dtype_get_pad_char(type)
 					     != ULINT_UNDEFINED);
 
 					memset(ufield->new_val.data,
 					       (byte)dtype_get_pad_char(type),
-					       dtype_get_fixed_size(type));
+					       fixed_size);
 					ut_memcpy(ufield->new_val.data,
 						parent_ufield->new_val.data,
 						parent_ufield->new_val.len);
