@@ -400,3 +400,12 @@ information_schema.columns
 where data_type = 'longtext';
 select table_name, column_name, data_type from information_schema.columns
 where data_type = 'datetime';
+
+#
+# Bug #8164  subquery with INFORMATION_SCHEMA.COLUMNS, 100 % CPU
+#
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES A
+WHERE NOT EXISTS 
+(SELECT * FROM INFORMATION_SCHEMA.COLUMNS B
+  WHERE A.TABLE_SCHEMA = B.TABLE_SCHEMA
+  AND A.TABLE_NAME = B.TABLE_NAME);
