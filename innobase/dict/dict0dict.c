@@ -2857,7 +2857,7 @@ col_loop1:
 		ut_print_name(ef, name);
 		fprintf(ef, " where the columns appear\n"
 "as the first columns. Constraint:\n%s\n"
-"nSee http://dev.mysql.com/doc/mysql/en/InnoDB_foreign_key_constraints.html\n"
+"See http://dev.mysql.com/doc/mysql/en/InnoDB_foreign_key_constraints.html\n"
 "for correct foreign key definition.\n",
 			start_of_latest_foreign);
 		mutex_exit(&dict_foreign_err_mutex);
