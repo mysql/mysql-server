@@ -217,7 +217,7 @@ static int vxprintf(func,arg,format,ap)
   void (*func)(char*,int,void*);
   void *arg;
   const char *format;
-  va_list ap;
+  pthread_va_list ap;
 {
   register const char *fmt; /* The format string. */
   register int c;           /* Next character in the format string */
@@ -673,7 +673,7 @@ int xprintf(
   const char *format,
   ...
 ){
-  va_list ap;
+  pthread_va_list ap;
   va_start(ap,format);
   return vxprintf(func,arg,format,ap);
 }
@@ -715,7 +715,7 @@ static void sout(txt,amt,arg)
 
 int sprintf(char *buf, const char *fmt, ...){
   int rc;
-  va_list ap;
+  pthread_va_list ap;
   struct s_strargument arg;
 
   va_start(ap,fmt);
@@ -725,7 +725,7 @@ int sprintf(char *buf, const char *fmt, ...){
   rc = vxprintf(sout,&arg,fmt,ap);
   va_end(ap);
 }
-int vsprintf(char *buf,const char *fmt,va_list ap){
+int vsprintf(char *buf,const char *fmt, pthread_va_list ap){
   struct s_strargument arg;
   arg.next = buf;
   arg.last = 0;
@@ -734,7 +734,7 @@ int vsprintf(char *buf,const char *fmt,va_list ap){
 }
 int snprintf(char *buf, size_t n, const char *fmt, ...){
   int rc;
-  va_list ap;
+  pthread_va_list ap;
   struct s_strargument arg;
 
   va_start(ap,fmt);
@@ -744,7 +744,7 @@ int snprintf(char *buf, size_t n, const char *fmt, ...){
   rc = vxprintf(sout,&arg,fmt,ap);
   va_end(ap);
 }  
-int vsnprintf(char *buf, size_t n, const char *fmt, va_list ap){
+int vsnprintf(char *buf, size_t n, const char *fmt, pthread_va_list ap){
   struct s_strargument arg;
   arg.next = buf;
   arg.last = &buf[n-1];
@@ -798,7 +798,7 @@ static void mout(zNewText,nNewChar,arg)
 ** routine naming conventions.
 */
 char *mprintf(const char *zFormat, ...){
-  va_list ap;
+  pthread_va_list ap;
   struct sgMprintf sMprintf;
   char *zNew;
   char zBuf[200];
@@ -825,7 +825,7 @@ char *mprintf(const char *zFormat, ...){
 ** The name is changed to TclVMPrintf() to conform with Tcl naming
 ** conventions.
 */
-char *vmprintf(const char *zFormat,va_list ap){
+char *vmprintf(const char *zFormat,pthread_va_list ap){
   struct sgMprintf sMprintf;
   char zBuf[200];
   sMprintf.nChar = 0;
@@ -858,7 +858,7 @@ static void fout(zNewText,nNewChar,arg)
 
 /* The public interface routines */
 int fprintf(FILE *pOut, const char *zFormat, ...){
-  va_list ap;
+  pthread_va_list ap;
   int retc;
 
   va_start(ap,zFormat);  
@@ -866,11 +866,11 @@ int fprintf(FILE *pOut, const char *zFormat, ...){
   va_end(ap);
   return retc;
 }
-int vfprintf(FILE *pOut, const char *zFormat, va_list ap){
+int vfprintf(FILE *pOut, const char *zFormat, pthread_va_list ap){
   return vxprintf(fout,pOut,zFormat,ap);
 }
 int printf(const char *zFormat, ...){
-  va_list ap;
+  pthread_va_list ap;
   int retc;
 
   va_start(ap,zFormat);
@@ -878,6 +878,6 @@ int printf(const char *zFormat, ...){
   va_end(ap);
   return retc;
 }
-int vprintf(const char *zFormat, va_list ap){
+int vprintf(const char *zFormat, pthread_va_list ap){
   return vxprintf(fout,stdout,zFormat,ap);
 }

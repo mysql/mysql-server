@@ -1596,13 +1596,17 @@ ac_save_CXXFLAGS="$CXXFLAGS"
 AC_CACHE_CHECK([style of gethost* routines], mysql_cv_gethost_style,
 AC_LANG_SAVE
 AC_LANG_CPLUSPLUS
-# Do not treat warnings as errors if we are linking agaist other libc
+
+# Do not treat warnings as errors if we are linking against other libc
 # this is to work around gcc not being permissive on non-system includes
 # with respect to ANSI C++
-if test "$ac_cv_prog_gxx" = "yes" -a "$with_other_libc" = "no" 
+# We also remove the -fbranch-probabilities option as this will give warnings
+# about not profiled code, which confuses configure
+if test "$ac_cv_prog_gxx" = "yes" -a "$with_other_libc" = "no"
 then
-  CXXFLAGS="$CXXFLAGS -Werror"
+  CXXFLAGS=`echo "$CXXFLAGS -Werror" | sed 's/-fbranch-probabilities//'`
 fi
+
 AC_TRY_COMPILE(
 [#undef inline
 #if !defined(SCO) && !defined(__osf__) && !defined(_REENTRANT)

@@ -9,7 +9,7 @@ SRCS:= cleanup.c cond.c fd.c fd_kern.c fd_pipe.c fd_sysv.c file.c globals.c \
        specific.c process.c wait.c errno.c schedparam.c _exit.c prio_queue.c \
        pthread_init.c init.cc sig.c info.c mutexattr.c select.c wrapper.c \
        dump_state.c pthread_kill.c stat.c readv.c writev.c condattr.c \
-       pthread_cancel.c panic.c $(SRCS)
+       pthread_cancel.c panic.c semaphore.c $(SRCS)
 
 ifeq ($(HAVE_SYSCALL_TEMPLATE),yes)
 SYSCALL_FILTER_RULE=	for s in $(AVAILABLE_SYSCALLS) ; do \

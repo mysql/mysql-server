@@ -27364,6 +27364,10 @@ If you connect using TCP/IP from another computer over a 100M Ethernet,
 things will be 8-11 % slower.
 
 @item
+When running our benchmark with secure connections (all data encrypted
+with internal ssl support) things where 55 % slower.
+
+@item
 If you compile with @code{--with-debug=full}, then you will loose 20 %
 for most queries, but some queries may take substantially longer (The
 MySQL benchmarks ran 35 % slower)
