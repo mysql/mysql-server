@@ -266,3 +266,51 @@ c	decimal(4,3)	YES		NULL
 d	double(4,3)	YES		NULL	
 f	float(4,3)	YES		NULL	
 drop table t1;
+SET sql_mode='';
+SET sql_quote_show_create=OFF;
+CREATE TABLE ```ab``cd``` (i INT);
+SHOW CREATE TABLE ```ab``cd```;
+Table	Create Table
+`ab`cd`	CREATE TABLE ```ab``cd``` (
+  i int(11) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+DROP TABLE ```ab``cd```;
+CREATE TABLE ```ab````cd``` (i INT);
+SHOW CREATE TABLE ```ab````cd```;
+Table	Create Table
+`ab``cd`	CREATE TABLE ```ab````cd``` (
+  i int(11) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+DROP TABLE ```ab````cd```;
+CREATE TABLE ```a` (i INT);
+SHOW CREATE TABLE ```a`;
+Table	Create Table
+`a	CREATE TABLE ```a` (
+  i int(11) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+DROP TABLE ```a`;
+SET sql_mode='ANSI_QUOTES';
+CREATE TABLE """a" (i INT);
+SHOW CREATE TABLE """a";
+Table	Create Table
+"a	CREATE TABLE """a" (
+  i int(11) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+DROP TABLE """a";
+SET sql_mode='';
+SET sql_quote_show_create=OFF;
+CREATE TABLE t1 (i INT);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE t1 (
+  i int(11) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+DROP TABLE t1;
+CREATE TABLE `table` (i INT);
+SHOW CREATE TABLE `table`;
+Table	Create Table
+table	CREATE TABLE `table` (
+  i int(11) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+DROP TABLE `table`;
+SET sql_quote_show_create=ON;

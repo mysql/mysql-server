@@ -51,6 +51,20 @@ t1	CREATE TABLE `t1` (
   `version` char(40) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
+select charset(charset(_utf8'a')), charset(collation(_utf8'a'));
+charset(charset(_utf8'a'))	charset(collation(_utf8'a'))
+utf8	utf8
+select collation(charset(_utf8'a')), collation(collation(_utf8'a'));
+collation(charset(_utf8'a'))	collation(collation(_utf8'a'))
+utf8_general_ci	utf8_general_ci
+create table t1 select charset(_utf8'a'), collation(_utf8'a');
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `charset(_utf8'a')` char(64) character set utf8 NOT NULL default '',
+  `collation(_utf8'a')` char(64) character set utf8 NOT NULL default ''
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
 select TRUE,FALSE,NULL;
 TRUE	FALSE	NULL
 1	0	NULL
