@@ -1061,9 +1061,9 @@ public:
     SAVEPOINT *savepoints;
     THD_TRANS all;			// Trans since BEGIN WORK
     THD_TRANS stmt;			// Trans for current statement
-    bool on;
-    XID  xid;
-    enum xa_states xa_state;
+    bool on;                            // see ha_enable_transaction()
+    XID  xid;                           // transaction identifier
+    enum xa_states xa_state;            // used by external XA only
     /*
        Tables changed in transaction (that must be invalidated in query cache).
        List contain only transactional tables, that not invalidated in query
