@@ -364,7 +364,12 @@ public:
 				thr_lock_type flags= TL_UNLOCK,
 				List<String> *use_index= 0,
 				List<String> *ignore_index= 0);
-
+  inline void init_order()
+  {
+    order_list.elements= 0;
+    order_list.first= 0;
+    order_list.next= (byte**) &order_list.first;
+  }
   
   friend void mysql_init_query(THD *thd);
 };
