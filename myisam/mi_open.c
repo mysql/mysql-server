@@ -314,7 +314,9 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
 	{
 	  disk_pos=mi_keyseg_read(disk_pos, pos);
 
-	  if (pos->type == HA_KEYTYPE_TEXT || pos->type == HA_KEYTYPE_VARTEXT)
+	  if (pos->type == HA_KEYTYPE_TEXT ||
+              pos->type == HA_KEYTYPE_VARTEXT1 ||
+              pos->type == HA_KEYTYPE_VARTEXT2)
 	  {
 	    if (!pos->language)
 	      pos->charset=default_charset_info;
@@ -389,7 +391,9 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
 	for (j=0 ; j < share->uniqueinfo[i].keysegs; j++,pos++)
 	{
 	  disk_pos=mi_keyseg_read(disk_pos, pos);
-	  if (pos->type == HA_KEYTYPE_TEXT || pos->type == HA_KEYTYPE_VARTEXT)
+	  if (pos->type == HA_KEYTYPE_TEXT ||
+              pos->type == HA_KEYTYPE_VARTEXT1 ||
+              pos->type == HA_KEYTYPE_VARTEXT2)
 	  {
 	    if (!pos->language)
 	      pos->charset=default_charset_info;

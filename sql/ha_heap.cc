@@ -488,8 +488,10 @@ int ha_heap::create(const char *name, TABLE *table_arg,
       else
       {
         if ((seg->type = field->key_type()) != (int) HA_KEYTYPE_TEXT &&
-            seg->type != HA_KEYTYPE_VARTEXT &&
-            seg->type != HA_KEYTYPE_VARBINARY)
+            seg->type != HA_KEYTYPE_VARTEXT1 &&
+            seg->type != HA_KEYTYPE_VARTEXT2 &&
+            seg->type != HA_KEYTYPE_VARBINARY1 &&
+            seg->type != HA_KEYTYPE_VARBINARY2)
           seg->type= HA_KEYTYPE_BINARY;
       }
       seg->start=   (uint) key_part->offset;
