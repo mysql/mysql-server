@@ -57,6 +57,7 @@ enum enum_server_command
 #define BLOB_FLAG	16		/* Field is a blob */
 #define UNSIGNED_FLAG	32		/* Field is unsigned */
 #define ZEROFILL_FLAG	64		/* Field is zerofill */
+#define BINARY_FLAG	128		/* Field is binary   */
 
 /* The following are only sent to new clients */
 #define ENUM_FLAG	256		/* field is an enum */

@@ -132,7 +132,7 @@ public:
       tmp->key_start= tmp->part_of_key= tmp->part_of_sortkey= 0;
       tmp->unireg_check=Field::NONE;
       tmp->flags&= (NOT_NULL_FLAG | BLOB_FLAG | UNSIGNED_FLAG |
-		    ZEROFILL_FLAG | ENUM_FLAG | SET_FLAG);
+		    ZEROFILL_FLAG | BINARY_FLAG | ENUM_FLAG | SET_FLAG);
       tmp->table_name= new_table->table_name;
       tmp->reset_fields();
     }
@@ -260,7 +260,11 @@ public:
 	    struct st_table *table_arg,CHARSET_INFO *charset)
     :Field(ptr_arg, len_arg, null_ptr_arg, null_bit_arg,
 	   unireg_check_arg, field_name_arg, table_arg)
-    { field_charset=charset; }
+    { 
+      field_charset=charset;
+      if (binary())
+        flags|=BINARY_FLAG;
+    }
   Item_result result_type () const { return STRING_RESULT; }
   void add_binary_or_charset(String &res) const;
   uint decimals() const { return NOT_FIXED_DEC; }

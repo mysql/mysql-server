@@ -33,6 +33,7 @@
 #include <m_ctype.h>				// For test_if_number
 #include <assert.h>
 
+#define files_charset_info my_charset_latin1
 
 MYSQL_LOG mysql_log,mysql_update_log,mysql_slow_log,mysql_bin_log;
 extern I_List<i_string> binlog_do_db, binlog_ignore_db;
@@ -1494,7 +1495,7 @@ static bool test_if_number(register const char *str,
   while (*str++ == ' ') ;
   if (*--str == '-' || *str == '+')
     str++;
-  while (my_isdigit(system_charset_info,*str) || (allow_wildcards &&
+  while (my_isdigit(files_charset_info,*str) || (allow_wildcards &&
 			   (*str == wild_many || *str == wild_one)))
   {
     flag=1;
@@ -1503,7 +1504,7 @@ static bool test_if_number(register const char *str,
   if (*str == '.')
   {
     for (str++ ;
-	 my_isdigit(system_charset_info,*str) ||
+	 my_isdigit(files_charset_info,*str) ||
 	   (allow_wildcards && (*str == wild_many || *str == wild_one)) ;
 	 str++, flag=1) ;
   }
