@@ -1,3 +1,6 @@
+CREATE DATABASE mysql;
+CREATE DATABASE test;
+
 USE mysql;
 
 CREATE TABLE db (Host char(60) binary DEFAULT '' NOT NULL, Db char(64) binary DEFAULT '' NOT NULL, User char(16) binary DEFAULT '' NOT NULL, Select_priv enum('N','Y') DEFAULT 'N' NOT NULL, Insert_priv enum('N','Y') DEFAULT 'N' NOT NULL, Update_priv enum('N','Y') DEFAULT 'N' NOT NULL, Delete_priv enum('N','Y') DEFAULT 'N' NOT NULL, Create_priv enum('N','Y') DEFAULT 'N' NOT NULL, Drop_priv enum('N','Y') DEFAULT 'N' NOT NULL, Grant_priv enum('N','Y') DEFAULT 'N' NOT NULL, References_priv enum('N','Y') DEFAULT 'N' NOT NULL, Index_priv enum('N','Y') DEFAULT 'N' NOT NULL, Alter_priv enum('N','Y') DEFAULT 'N' NOT NULL, Create_tmp_table_priv enum('N','Y') DEFAULT 'N' NOT NULL, Lock_tables_priv enum('N','Y') DEFAULT 'N' NOT NULL, PRIMARY KEY Host (Host,Db,User), KEY User (User)) comment='Database privileges';
