@@ -1445,7 +1445,7 @@ static bool mysql_insert_select_prepare_tester(THD *thd)
     and item_list belong to SELECT
   */
   first_select->resolve_mode= SELECT_LEX::SELECT_MODE;
-  mysql_insert_select_prepare(thd);
+  return mysql_insert_select_prepare(thd);
 }
 
 
