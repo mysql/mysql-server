@@ -27,9 +27,9 @@ class Item_sum :public Item_result_field
 {
 public:
   enum Sumfunctype
-  { COUNT_FUNC,COUNT_DISTINCT_FUNC,SUM_FUNC,AVG_FUNC,MIN_FUNC,
-    MAX_FUNC, UNIQUE_USERS_FUNC,STD_FUNC,VARIANCE_FUNC,SUM_BIT_FUNC,
-    UDF_SUM_FUNC, GROUP_CONCAT_FUNC
+  { COUNT_FUNC, COUNT_DISTINCT_FUNC, SUM_FUNC, SUM_DISTINCT_FUNC, AVG_FUNC,
+    MIN_FUNC, MAX_FUNC, UNIQUE_USERS_FUNC, STD_FUNC, VARIANCE_FUNC,
+    SUM_BIT_FUNC, UDF_SUM_FUNC, GROUP_CONCAT_FUNC
   };
 
   Item **args,*tmp_args[2];
@@ -135,6 +135,39 @@ class Item_sum_sum :public Item_sum_num
   void no_rows_in_result() {}
   const char *func_name() const { return "sum"; }
   Item *copy_or_same(THD* thd);
+};
+
+
+/*
+  Item_sum_sum_distinct - SELECT SUM(DISTINCT expr) FROM ... 
+  support. See also: MySQL manual, chapter 'Adding New Functions To MySQL'
+  and comments in item_sum.cc.
+*/
+
+class Unique;
+
+class Item_sum_sum_distinct :public Item_sum_num
+{
+  double sum;
+  Unique *tree;
+private:
+  Item_sum_sum_distinct(THD *thd, Item_sum_sum_distinct &item);
+public:
+  Item_sum_sum_distinct(Item *item_par);
+  ~Item_sum_sum_distinct();
+
+  bool setup(THD *thd);
+  void clear();
+  bool add();
+  double val();
+
+  inline void add(double val) { sum+= val; }
+  enum Sumfunctype sum_func () const { return SUM_DISTINCT_FUNC; }
+  void reset_field() {} // not used
+  void update_field() {} // not used
+  const char *func_name() const { return "sum_distinct"; }
+  Item *copy_or_same(THD* thd);
+  virtual void no_rows_in_result() {}
 };
 
 

@@ -1207,8 +1207,13 @@ class user_var_entry
   DTCollation collation;
 };
 
-
-/* Class for unique (removing of duplicates) */
+/*
+   Unique -- class for unique (removing of duplicates). 
+   Puts all values to the TREE. If the tree becomes too big,
+   it's dumped to the file. User can request sorted values, or
+   just iterate through them. In the last case tree merging is performed in
+   memory simultaneously with iteration, so it should be ~2-3x faster.
+ */
 
 class Unique :public Sql_alloc
 {
@@ -1222,10 +1227,10 @@ class Unique :public Sql_alloc
 
 public:
   ulong elements;
-  Unique(qsort_cmp2 comp_func, void * comp_func_fixed_arg,
+  Unique(qsort_cmp2 comp_func, void *comp_func_fixed_arg,
 	 uint size_arg, ulong max_in_memory_size_arg);
   ~Unique();
-  inline bool unique_add(gptr ptr)
+  inline bool unique_add(void *ptr)
   {
     if (tree.elements_in_tree > max_elements && flush())
       return 1;
@@ -1233,6 +1238,9 @@ public:
   }
 
   bool get(TABLE *table);
+
+  void reset();
+  bool walk(tree_walk_action action, void *walk_action_arg);
 
   friend int unique_write_to_file(gptr key, element_count count, Unique *unique);
   friend int unique_write_to_ptrs(gptr key, element_count count, Unique *unique);
