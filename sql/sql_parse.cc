@@ -1583,6 +1583,15 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 			packet, (uint) (pend-packet), thd->charset());
     table_list.alias= table_list.real_name= conv_name.str;
     packet= pend+1;
+
+    if (!my_strcasecmp(system_charset_info, table_list.db,
+                       information_schema_name.str))
+    {
+      ST_SCHEMA_TABLE *schema_table= find_schema_table(thd, table_list.alias);
+      if (schema_table)
+        table_list.schema_table= schema_table;
+    }
+
     /*  command not cachable => no gap for data base name */
     if (!(thd->query=fields=thd->memdup(packet,thd->query_length+1)))
       break;

@@ -294,6 +294,13 @@ use information_schema;
 show tables like "T%";
 
 #
+# Bug#7210: information_schema: can't access when table-name = reserved word
+#
+select table_name from tables where table_name='user';
+select column_name, privileges from columns
+where table_name='user' and column_name like '%o%';
+
+#
 # Bug#7212: information_schema: "Can't find file" errors if storage engine gone
 # Bug#7211: information_schema: crash if bad view
 #
