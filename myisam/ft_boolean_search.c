@@ -242,10 +242,10 @@ static void _ftb_init_index_search(FT_INFO *ftb)
       else /* 3 */
       {
         if (!is_tree_inited(& ftb->no_dupes))
-        {
           init_tree(& ftb->no_dupes,0,0,sizeof(my_off_t),
               _ftb_no_dupes_cmp,0,0,0);
-        }
+        else
+          reset_tree(& ftb->no_dupes);
       }
     }
     r=_mi_search(info, keyinfo, (uchar*) ftbw->word, ftbw->len,
