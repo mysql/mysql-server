@@ -983,8 +983,20 @@ longlong Item_func_crc32::val_int()
   null_value=0;
   return (longlong) crc32(0L, (Bytef*)res->ptr(), res->length());
 }
-#endif /* HAVE_COMPRESS */
 
+longlong Item_func_uncompressed_length::val_int()
+{
+  String *res= args[0]->val_str(&value);
+  if (!res)
+  {
+    null_value=1;
+    return 0; /* purecov: inspected */
+  }
+  null_value=0;
+  return uint4korr(res->c_ptr());
+}
+
+#endif /* HAVE_COMPRESS */
 
 longlong Item_func_length::val_int()
 {
