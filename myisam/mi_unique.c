@@ -69,8 +69,8 @@ my_bool mi_check_unique(MI_INFO *info, MI_UNIQUEDEF *def, byte *record,
 ha_checksum mi_unique_hash(MI_UNIQUEDEF *def, const byte *record)
 {
   const byte *pos, *end;
-  ulong crc=  0;
-  ulong seed= 4;
+  ha_checksum crc= 0;
+  ulong seed1=0, seed2= 4;
   HA_KEYSEG *keyseg;
 
   for (keyseg=def->seg ; keyseg < def->end ; keyseg++)
@@ -110,7 +110,9 @@ ha_checksum mi_unique_hash(MI_UNIQUEDEF *def, const byte *record)
     if (type == HA_KEYTYPE_TEXT || type == HA_KEYTYPE_VARTEXT)
     {
       keyseg->charset->coll->hash_sort(keyseg->charset,
-                                       (const uchar*) pos, length, &crc, &seed);
+                                       (const uchar*) pos, length, &seed1,
+                                       &seed2);
+      crc^= seed1;
     }
     else
       while (pos != end)
@@ -118,7 +120,7 @@ ha_checksum mi_unique_hash(MI_UNIQUEDEF *def, const byte *record)
 	     (((uchar)  *(uchar*) pos++))) +
 	  (crc >> (8*sizeof(ha_checksum)-8));
   }
-  return (ha_checksum)crc;
+  return crc;
 }
 
 	/*

@@ -141,13 +141,15 @@ sub main
   
     # remove temporary directory
     chdir($WD) or print "$! Unable to move up one dir\n";
+    `cd $WD`;
     my $cwd = getcwd();
     print "current dir is $cwd\n" if $opt_verbose ;
-    print "deleting temp dir $dir\n" if $opt_verbose; 
-    if (-d $dir) {
-      system("rm -rf $dir") or print "$! Unable to delete $dir!\n";
+    if (-e $dir) {
+      print "Trying to delete $dir\n" if $opt_verbose;
+      if ( system("rm -rf $dir")){ 
+        print "$! Unable to delete $dir!\n";
+      }
     }
-
   }
   exit(0);
 }  
@@ -156,14 +158,17 @@ sub main
 #### mysqld and MySQL client programs have a usage printed with --help.
 #### This usage includes a copyright, which needs to be modified
 ####
-
 sub fix_usage_copyright
 {
-  my @Cfiles = `find . -type f -name \"*.c*\"`;
-  foreach my $Cfile (@Cfiles)
+  my $findlist = `find . -type f -name \"*.c*\"`;
+  my @files = split("\n", $findlist);
+  my $cwd = getcwd();
+
+  foreach my $file (@files)
   {
-    chop $Cfile;
-    `replace "This is free software," "This is commercial software," "and you are welcome to modify and redistribute it under the GPL license" "please see the file MySQLEULA.txt for details" -- "$Cfile"` if -f $Cfile; 
+    next if ! -f $file;
+    print "processing file $file in cwd $cwd\n" if $opt_verbose;
+    `replace "This is free software," "This is commercial software," "and you are welcome to modify and redistribute it under the GPL license" "please see the file MySQLEULA.txt for details" -- "$file"` ;
   }
 }
 
@@ -173,12 +178,15 @@ sub fix_usage_copyright
 
 sub add_copyright
 {
-  my @files = `find . -type f -name "*"`;
+  my $findlist = `find . -type f -name "*"`;
+  my @files = split("\n", $findlist);
+  my $cwd = getcwd();
+
   foreach my $file (@files)
   {
-    chop $file;
     next if ! -f $file;
     next if -B $file;
+    print "processing file $file in cwd $cwd\n" if $opt_verbose;
     `$WD/Build-tools/mysql-copyright-2 "$file"`;
   }
 }

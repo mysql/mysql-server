@@ -1831,3 +1831,13 @@ Warnings:
 Note	1276	Field or reference 'up.a' of SELECT #2 was resolved in SELECT #1
 Note	1003	select test.up.a AS `a`,test.up.b AS `b` from test.t1 up where exists(select 1 AS `Not_used` from test.t1 where (test.t1.a = test.up.a))
 drop table t1;
+CREATE TABLE t1 (id int(11) default NULL,name varchar(10) default NULL);
+INSERT INTO t1 VALUES (1,'Tim'),(2,'Rebecca'),(3,NULL);
+CREATE TABLE t2 (id int(11) default NULL, pet varchar(10) default NULL);
+INSERT INTO t2 VALUES (1,'Fido'),(2,'Spot'),(3,'Felix');
+SELECT a.*, b.* FROM (SELECT * FROM t1) AS a JOIN t2 as b on a.id=b.id;
+id	name	id	pet
+1	Tim	1	Fido
+2	Rebecca	2	Spot
+3	NULL	3	Felix
+drop table t1,t2;
