@@ -5339,6 +5339,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
                ptr->table_name, information_schema_name.str);
       DBUG_RETURN(0);
     }
+    ptr->schema_table_name= ptr->table_name;
     ptr->schema_table= schema_table;
   }
   ptr->select_lex=  lex->current_select;
