@@ -1845,7 +1845,8 @@ buf_get_modified_ratio_pct(void)
 	mutex_enter(&(buf_pool->mutex));
 
 	ratio = (100 * UT_LIST_GET_LEN(buf_pool->flush_list))
-		     / (1 + UT_LIST_GET_LEN(buf_pool->LRU));
+		     / (1 + UT_LIST_GET_LEN(buf_pool->LRU)
+		        + UT_LIST_GET_LEN(buf_pool->free));
 
 		       /* 1 + is there to avoid division by zero */   
 
