@@ -501,7 +501,7 @@ int mysqld_extend_show_tables(THD *thd,const char *db,const char *wild)
   item->maybe_null=1;
   field_list.push_back(item=new Item_datetime("Check_time"));
   item->maybe_null=1;
-  field_list.push_back(item=new Item_empty_string("Charset",32));
+  field_list.push_back(item=new Item_empty_string("Collation",32));
   item->maybe_null=1;
   field_list.push_back(item=new Item_int("Checksum",(longlong) 1,21));
   item->maybe_null=1;
