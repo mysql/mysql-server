@@ -3992,7 +3992,7 @@ relay logs.",
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"show-slave-auth-info", OPT_SHOW_SLAVE_AUTH_INFO,
-   "Show user and password in SHOW SLAVE STATUS.",
+   "Show user and password in SHOW SLAVE HOSTS.",
    (gptr*) &opt_show_slave_auth_info, (gptr*) &opt_show_slave_auth_info, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"concurrent-insert", OPT_CONCURRENT_INSERT,
