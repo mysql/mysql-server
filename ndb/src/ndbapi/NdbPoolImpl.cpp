@@ -20,7 +20,8 @@ NdbMutex *NdbPool::pool_mutex = NULL;
 NdbPool *the_pool = NULL;
 
 NdbPool*
-NdbPool::create_instance(Uint32 max_ndb_obj,
+NdbPool::create_instance(Ndb_cluster_connection* cc,
+			 Uint32 max_ndb_obj,
                          Uint32 no_conn_obj,
                          Uint32 init_no_ndb_objects)
 {
@@ -32,7 +33,7 @@ NdbPool::create_instance(Uint32 max_ndb_obj,
   if (the_pool != NULL) {
     a_pool = NULL;
   } else {
-    the_pool = new NdbPool(max_ndb_obj, no_conn_obj);
+    the_pool = new NdbPool(cc, max_ndb_obj, no_conn_obj);
     if (!the_pool->init(init_no_ndb_objects)) {
       delete the_pool;
       the_pool = NULL;
@@ -76,7 +77,8 @@ NdbPool::initPoolMutex()
   return ret_result;
 }
 
-NdbPool::NdbPool(Uint32 max_no_objects,
+NdbPool::NdbPool(Ndb_cluster_connection* cc,
+		 Uint32 max_no_objects,
                  Uint32 no_conn_objects)
 {
   if (no_conn_objects > 1024) {
@@ -101,6 +103,7 @@ NdbPool::NdbPool(Uint32 max_no_objects,
   m_output_queue = 0;
   m_input_queue = 0;
   m_signal_count = 0;
+  m_cluster_connection = cc;
 }
 
 NdbPool::~NdbPool()
@@ -294,9 +297,9 @@ NdbPool::allocate_ndb(Uint32 &id,
     return false;
   }
   if (a_schema_name) {
-    a_ndb = new Ndb(a_schema_name, a_catalog_name);
+    a_ndb = new Ndb(m_cluster_connection, a_schema_name, a_catalog_name);
   } else {
-    a_ndb = new Ndb("");
+    a_ndb = new Ndb(m_cluster_connection, "");
   }
   if (a_ndb == NULL) {
     return false;
