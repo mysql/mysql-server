@@ -74,11 +74,25 @@ do_many($dbh,$server->create("bench",\@fields,\@index));
 print "Insert data into the table\n";
 
 $loop_time=new Benchmark;
+
+if ($opt_fast && defined($server->{transactions}))
+{
+  $dbh->{AutoCommit} = 0;
+  print "Transactions enabled\n" if ($opt_debug);
+}
+
 for ($i=0 ; $i < $opt_row_count ; $i++)
 {
   $query="insert into bench values ( " . ("$i," x ($opt_start_field_count-1)) . "$i)";
   $dbh->do($query) or die $DBI::errstr;
 }
+
+if ($opt_fast && defined($server->{transactions}))
+{
+  $dbh->commit;
+  $dbh->{AutoCommit} = 1;
+}
+
 $end_time=new Benchmark;
 
 print "Time for insert ($opt_row_count)",
