@@ -191,6 +191,7 @@ volatile ulong cached_thread_count=0;
 // replication parameters, if master_host is not NULL, we are slaving off the master
 my_string master_user = (char*) "test", master_password = 0, master_host=0,
   master_info_file = (char*) "master.info";
+const char *localhost=LOCAL_HOST;
 uint master_port = MYSQL_PORT, master_connect_retry = 60;
 
 ulong max_tmp_tables,max_heap_table_size;
@@ -1981,9 +1982,9 @@ pthread_handler_decl(handle_connections_sockets,arg __attribute__((unused)))
       continue;
     }
     if (!(vio_tmp=vio_new(new_sock,
-			  new_sock == unix_sock ? VIO_TYPE_SOCKET :
+			  sock == unix_sock ? VIO_TYPE_SOCKET :
 			  VIO_TYPE_TCPIP,
-			  new_sock == unix_sock)) ||
+			  sock == unix_sock)) ||
 	my_net_init(&thd->net,vio_tmp))
     {
       if (vio_tmp)
@@ -1997,14 +1998,7 @@ pthread_handler_decl(handle_connections_sockets,arg __attribute__((unused)))
       continue;
     }
     if (sock == unix_sock)
-    {
-      if (!(thd->host=my_strdup(LOCAL_HOST,MYF(0))))
-      {
-	close_connection(&thd->net,ER_OUT_OF_RESOURCES);
-	delete thd;
-	continue;
-      }
-    }
+      thd->host=(char*) localhost;
     create_new_thread(thd);
   }
 
