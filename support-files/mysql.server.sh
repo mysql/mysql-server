@@ -79,7 +79,7 @@ parse_arguments() {
   done
 }
 
-# Get arguments from the my.cnf file, groups [mysqld] and [mysql.server]
+# Get arguments from the my.cnf file, groups [mysqld] and [mysql_server]
 if test -x ./bin/my_print_defaults
 then
   print_defaults="./bin/my_print_defaults"
@@ -117,7 +117,7 @@ else
   test -z "$print_defaults" && print_defaults="my_print_defaults"
 fi
 
-parse_arguments `$print_defaults $defaults mysqld mysql.server`
+parse_arguments `$print_defaults $defaults mysqld mysql_server`
 
 # Safeguard (relative paths, core dumps..)
 cd $basedir
@@ -154,7 +154,7 @@ case "$mode" in
       sleep 1
       while [ -s $pid_file -a "$flags" != aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa ]
       do
-        [ -z "$flags" ] && echo -n "Wait for mysqld to exit" || echo -n "."
+        [ -z "$flags" ] && echo "Wait for mysqld to exit\c" || echo ".\c"
         flags=a$flags
         sleep 1
       done
