@@ -9,6 +9,70 @@ Created 1/16/1996 Heikki Tuuri
 #include "mach0data.h"
 
 /*************************************************************************
+Checks if a data main type is a string type. Also a BLOB is considered a
+string type. */
+
+ibool
+dtype_is_string_type(
+/*=================*/
+			/* out: TRUE if string type */
+	ulint	mtype)	/* in: InnoDB main data type code: DATA_CHAR, ... */
+{
+ 	if (mtype <= DATA_BLOB
+	    || mtype == DATA_MYSQL
+	    || mtype == DATA_VARMYSQL) {
+
+		return(TRUE);
+	}
+
+	return(FALSE);
+}
+
+/*************************************************************************
+Checks if a type is a binary string type. Note that for tables created with
+< 4.0.14, we do not know if a DATA_BLOB column is a BLOB or a TEXT column. For
+those DATA_BLOB columns this function currently returns FALSE. */
+UNIV_INLINE
+ibool
+dtype_is_binary_string_type(
+/*========================*/
+			/* out: TRUE if binary string type */
+	ulint	mtype,	/* in: main data type */
+	ulint	prtype)	/* in: precise type */
+{
+        if ((mtype == DATA_FIXBINARY)
+	    || (mtype == DATA_BINARY)
+	    || (mtype == DATA_BLOB && (prtype & DATA_BINARY_TYPE))) {
+
+		return(TRUE);
+	}
+
+	return(FALSE);
+}
+
+/*************************************************************************
+Checks if a type is a non-binary string type. That is, dtype_is_string_type is
+TRUE and dtype_is_binary_string_type is FALSE. Note that for tables created
+with < 4.0.14, we do not know if a DATA_BLOB column is a BLOB or a TEXT column.
+For those DATA_BLOB columns this function currently returns TRUE. */
+UNIV_INLINE
+ibool
+dtype_is_non_binary_string_type(
+/*============================*/
+			/* out: TRUE if non-binary string type */
+	ulint	mtype,	/* in: main data type */
+	ulint	prtype)	/* in: precise type */
+{
+	if (dtype_is_string_type(mtype) == TRUE
+	    && dtype_is_binary_string_type(mtype, prtype) == FALSE) {
+		
+		return(TRUE);
+	}
+
+	return(FALSE);
+}
+
+/*************************************************************************
 Sets a data type structure. */
 UNIV_INLINE
 void
@@ -27,7 +91,6 @@ dtype_set(
 	type->prtype = prtype;
 	type->len = len;
 	type->prec = prec;
-	type->chrset = 0;
 
 	ut_ad(dtype_validate(type));
 }
@@ -70,6 +133,33 @@ dtype_get_prtype(
 	ut_ad(type);
 
 	return(type->prtype);
+}
+
+/*************************************************************************
+Gets the MySQL charset-collation code for MySQL string types. */
+UNIV_INLINE
+ulint
+dtype_get_charset_coll(
+/*===================*/
+	ulint	prtype)	/* in: precise data type */
+{
+	return((prtype >> 16) & 0xFF);
+}
+
+/*************************************************************************
+Forms a precise type from the < 4.1.2 format precise type plus the
+charset-collation code. */
+ulint
+dtype_form_prtype(
+/*==============*/
+	ulint	old_prtype,	/* in: the MySQL type code and the flags
+				DATA_NONLATIN1 etc. */
+	ulint	charset_coll)	/* in: MySQL charset-collation code */
+{
+	ut_a(old_prtype < 256 * 256);
+	ut_a(charset_coll < 256);
+
+	return(old_prtype + (charset_coll << 16));
 }
 
 /*************************************************************************
@@ -155,12 +245,16 @@ dtype_new_store_for_order_and_null_size(
 
 	mach_write_to_2(buf + 2, type->len & 0xFFFFUL);
 
-	mach_write_to_2(buf + 4, type->chrset & 0xFFFFUL);
+	mach_write_to_2(buf + 4, dtype_get_charset_coll(type->prtype));
+
+	/* Note that the second last byte is left unused, because the
+	charset-collation code is always < 256 */
 }
 
 /**************************************************************************
 Reads to a type the stored information which determines its alphabetical
-ordering and the storage size of an SQL NULL value. */
+ordering and the storage size of an SQL NULL value. This is the < 4.1.x
+storage format. */
 UNIV_INLINE
 void
 dtype_read_for_order_and_null_size(
@@ -182,12 +276,15 @@ dtype_read_for_order_and_null_size(
 	}
 
 	type->len = mach_read_from_2(buf + 2);
+		
+	type->prtype = dtype_form_prtype(type->prtype,
+					data_mysql_default_charset_coll);
 }	
 
 /**************************************************************************
 Reads to a type the stored information which determines its alphabetical
-ordering and the storage size of an SQL NULL value. This is the 4.1.x storage
-format. */
+ordering and the storage size of an SQL NULL value. This is the >= 4.1.x
+storage format. */
 UNIV_INLINE
 void
 dtype_new_read_for_order_and_null_size(
@@ -195,6 +292,8 @@ dtype_new_read_for_order_and_null_size(
 	dtype_t*	type,	/* in: type struct */
 	byte*		buf)	/* in: buffer for stored type order info */
 {
+	ulint	charset_coll;
+
 	ut_ad(6 == DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE);
 	
 	type->mtype = buf[0] & 63;
@@ -210,8 +309,26 @@ dtype_new_read_for_order_and_null_size(
 
 	type->len = mach_read_from_2(buf + 2);
 
-	type->chrset = mach_read_from_2(buf + 4);
-}	
+	mach_read_from_2(buf + 4);
+
+	charset_coll = mach_read_from_2(buf + 4);
+
+	if (dtype_is_string_type(type->mtype)) {
+		ut_a(charset_coll < 256);
+
+		if (charset_coll == 0) {
+			/* This insert buffer record was inserted with MySQL
+			version < 4.1.2, and the charset-collation code was not
+			explicitly stored to dtype->prtype at that time. It
+			must be the default charset-collation of this MySQL
+			installation. */
+
+			charset_coll = data_mysql_default_charset_coll;
+		}
+		
+		type->prtype = dtype_form_prtype(type->prtype, charset_coll);
+	}						
+}
 
 /***************************************************************************
 Returns the size of a fixed size data type, 0 if not a fixed size type. */
