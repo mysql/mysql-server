@@ -193,6 +193,7 @@ typedef struct st_table_list
   bool          updating;               /* for replicate-do/ignore table */
   bool		force_index;		/* Prefer index over table scan */
   bool          ignore_leaves;          /* Preload only non-leaf nodes */
+  bool		non_cachable_table;	/* stop PS caching */
 } TABLE_LIST;
 
 typedef struct st_changed_table_list

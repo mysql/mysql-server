@@ -156,6 +156,7 @@ OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *wild)
     table_list.db= (char*) entry->table_cache_key;
     table_list.real_name= entry->real_name;
     table_list.grant.privilege=0;
+    table_list.non_cachable_table= 1;	// just safety for table on stack
     if (check_table_access(thd,SELECT_ACL | EXTRA_ACL,&table_list,1))
       continue;
     /* need to check if we haven't already listed it */
@@ -1332,6 +1333,7 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
     bzero((char*) &table_list, sizeof(table_list)); // just for safe
     table_list.db=(char*) db;
     table_list.real_name=(char*) name;
+    table_list.non_cachable_table= 1;	// just safety for table on stack
     safe_mutex_assert_owner(&LOCK_open);
 
     if ((error=lock_table_name(thd,&table_list)))
@@ -1886,7 +1888,7 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
   char name_buff[NAME_LEN+1];
 
 
-  if (!thd->no_table_fix_fields_cache && item->cached_table)
+  if (item->cached_table)
   {
     /*
       This shortcut is used by prepared statements. We assuming that 
@@ -1939,6 +1941,8 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
 	if (find)
 	{
 	  (*where)= item->cached_table= tables;
+	  if (tables->non_cachable_table)
+	    item->cached_table= 0;
 	  if (find == WRONG_GRANT)
 	    return (Field*) 0;
 	  if (db || !thd->where)
@@ -1998,6 +2002,8 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
       if (field == WRONG_GRANT)
 	return (Field*) 0;
       (*where)= item->cached_table= tables;
+      if (tables->non_cachable_table)
+	item->cached_table= 0;
       if (found)
       {
 	if (!thd->where)			// Returns first found

@@ -1698,6 +1698,7 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
     tables.alias = tables.real_name = (char*)table_name;
     tables.lock_type = TL_WRITE;
     tables.updating= 1;
+    tables.non_cachable_table= 1;	// just safety for table on stack
     // the table will be opened in mysql_load    
     if (table_rules_on && !tables_ok(thd, &tables))
     {
