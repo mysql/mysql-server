@@ -1,4 +1,4 @@
-#@PERL@
+#!@PERL@
 # Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
 #
 # This library is free software; you can redistribute it and/or
@@ -159,6 +159,7 @@ sub new
   $limits{'NEG'}		= 1; # Supports -id
   $limits{'func_extra_in_num'}	= 1; # Has function in
   $limits{'limit'}		= 1;		# supports the limit attribute
+  $limits{'unique_index'}	= 1; # Unique index works or not
 
   $smds{'time'}			= 1;
   $smds{'q1'} 	= 'b';		# with time not supp by mysql ('')
@@ -355,6 +356,7 @@ sub new
   $limits{'alter_table_dropcol'}= 0;
   $limits{'group_func_extra_std'} = 0;
   $limits{'limit'}		= 1;		# supports the limit attribute
+  $limits{'unique_index'}	= 1; # Unique index works or not
 
   $limits{'func_odbc_mod'}	= 0;
   $limits{'func_extra_%'}	= 0;
@@ -421,7 +423,7 @@ sub create
     $field =~ s/tinyint|smallint|mediumint|integer/int/i;
     # mSQL can't handle different visual lengths
     $field =~ s/int\(\d*\)/int/i;
-    # mSQL dosen't have float, change it to real
+    # mSQL doesn't have float, change it to real
     $field =~ s/float(\(\d*,\d*\)){0,1}/real/i;
     $field =~ s/double(\(\d*,\d*\)){0,1}/real/i;
     # mSQL doesn't have blob, it has text instead
@@ -551,7 +553,8 @@ sub new
   $limits{'max_index'}		= 64;		# Is this true ?
   $limits{'max_index_parts'}	= 16;		# Is this true ?
   $limits{'max_text_size'}	= 7000;		# 8000 crashes pg 6.3
-  $limits{'query_size'}		= 8191;
+  $limits{'query_size'}		= 16777216;
+  $limits{'unique_index'}	= 0; # Unique index works or not
 
   # the different cases per query ...
   $smds{'q1'} 	= 'b'; # with time
@@ -642,13 +645,17 @@ sub create
     $index =~ s/primary key/unique index primary_key/i;
     if ($index =~ /^unique.*\(([^\(]*)\)$/i)
     {
-      $indfield="using btree (" .$1.")";
+      # original: $indfield="using btree (" .$1.")";
+      # using btree doesn´t seem to work with Postgres anymore; it creates
+      # the table and adds the index, but it isn´t unique
+      $indfield=" (" .$1.")";	
       $in="unique index";
       $table="index_$nr"; $nr++;
     }
     elsif ($index =~ /^(.*index)\s+(\w*)\s+(\(.*\))$/i)
     {
-      $indfield="using btree " .$3;
+      # original: $indfield="using btree (" .$1.")";
+      $indfield=" " .$3;
       $in="index";
       $table="index_$nr"; $nr++;
     }
@@ -820,6 +827,7 @@ sub new
   $limits{'column_alias'}	= 1;
   $limits{'NEG'}		= 1;
   $limits{'func_extra_in_num'}	= 1;
+  $limits{'unique_index'}	= 1; # Unique index works or not
 
   # for the smds small benchmark test ....
   # the different cases per query ...
@@ -1057,6 +1065,7 @@ sub new
   $limits{'column_alias'}	= 0;
   $limits{'NEG'}		= 1;
   $limits{'func_extra_in_num'}	= 0;
+  $limits{'unique_index'}	= 1; # Unique index works or not
 
   # for the smds small benchmark test ....
   # the different cases per query ... EMPRESS
@@ -1333,6 +1342,7 @@ sub new
   $limits{'column_alias'}	= 1; # Alias for fields in select statement.
   $limits{'NEG'}		= 1; # Supports -id
   $limits{'func_extra_in_num'}	= 1; # Has function in
+  $limits{'unique_index'}	= 1; # Unique index works or not
 
   $smds{'time'}			= 1;
   $smds{'q1'} 	= 'b';		# with time not supp by mysql ('')
@@ -1580,7 +1590,7 @@ sub new
   $limits{'select_without_from'}= 0; # Can do 'select 1';
   $limits{'subqueries'}		= 1; # Doesn't support sub-queries.
   $limits{'table_wildcard'}	= 1; # Has SELECT table_name.*
-
+  $limits{'unique_index'}	= 1; # Unique index works or not
 
   return $self;
 }
@@ -1777,6 +1787,7 @@ sub new
   $limits{'column_alias'}	= 1; # Alias for fields in select statement.
   $limits{'NEG'}		= 1; # Supports -id
   $limits{'func_extra_in_num'}	= 1; # Has function in
+  $limits{'unique_index'}	= 1; # Unique index works or not
   return $self;
 }
 
@@ -1947,6 +1958,7 @@ sub new
   $limits{'column_alias'}	= 1; # Alias for fields in select statement.
   $limits{'NEG'}		= 1; # Supports -id
   $limits{'func_extra_in_num'}	= 0; # Has function in
+  $limits{'unique_index'}	= 1; # Unique index works or not
   return $self;
 }
 
@@ -2129,6 +2141,7 @@ sub new
   $limits{'column_alias'}	= 1; # Alias for fields in select statement.
   $limits{'NEG'}		= 1; # Supports -id
   $limits{'func_extra_in_num'}	= 0; # Has function in
+  $limits{'unique_index'}	= 1; # Unique index works or not
   return $self;
 }
 
@@ -2314,6 +2327,7 @@ sub new
   $limits{'column_alias'}	= 1; # Alias for fields in select statement.
   $limits{'NEG'}		= 1; # Supports -id
   $limits{'func_extra_in_num'}	= 1; # Has function in
+  $limits{'unique_index'}	= 1; # Unique index works or not
 
   $smds{'time'}			= 1;
   $smds{'q1'} 	= 'b';		# with time not supp by mysql ('')
@@ -2522,6 +2536,7 @@ sub new
   $limits{'column_alias'}	= 1; # Alias for fields in select statement.
   $limits{'NEG'}		= 1; # Supports -id
   $limits{'func_extra_in_num'}	= 0; # Has function in
+  $limits{'unique_index'}	= 1; # Unique index works or not
   return $self;
 }
 
@@ -2689,6 +2704,7 @@ sub new
   $limits{'NEG'}		= 1; # Supports -id
   $limits{'func_extra_in_num'}	= 1; # Has function in
   $limits{'limit'}		= 0; # Does not support the limit attribute
+  $limits{'unique_index'}	= 1; # Unique index works or not
 
   $smds{'time'}			= 1;
   $smds{'q1'} 	= 'b';		# with time not supp by mysql ('')

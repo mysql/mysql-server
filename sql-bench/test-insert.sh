@@ -1,4 +1,4 @@
-#@PERL@
+#!@PERL@
 # Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
 #
 # This library is free software; you can redistribute it and/or
@@ -215,16 +215,19 @@ if ($opt_fast && defined($server->{vacuum}))
 #### insert $opt_loop_count records with duplicate id
 ####
 
-print "Testing insert of duplicates\n";
-$loop_time=new Benchmark;
-for ($i=0 ; $i < $opt_loop_count ; $i++)
+if ($limits->{'unique_index'})
 {
-  $tmpvar^= ((($tmpvar + 63) + $i)*3 % $opt_loop_count);
-  $tmp=$tmpvar % ($total_rows);
-  $tmpquery = "$query" . "$tmp" . ",1,2,'D')";
-  if ($dbh->do($tmpquery))
+  print "Testing insert of duplicates\n";
+  $loop_time=new Benchmark;
+  for ($i=0 ; $i < $opt_loop_count ; $i++)
   {
-    die "Didn't get an error when inserting duplicate record $tmp\n";
+    $tmpvar^= ((($tmpvar + 63) + $i)*3 % $opt_loop_count);
+    $tmp=$tmpvar % ($total_rows);
+    $tmpquery = "$query" . "$tmp" . ",1,2,'D')";
+    if ($dbh->do($tmpquery))
+    {
+      die "Didn't get an error when inserting duplicate record $tmp\n";
+    }
   }
 }
 
