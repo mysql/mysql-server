@@ -63,7 +63,7 @@ done
 for i in extra/comp_err extra/replace extra/perror extra/resolveip \
   extra/my_print_defaults extra/resolve_stack_dump \
   isam/isamchk isam/pack_isam myisam/myisamchk \
-  myisam/myisampack sql/mysqld sql/mysqlbinlog \
+  myisam/myisampack sql/mysqld client/mysqlbinlog \
   client/mysql sql/mysqld client/mysqlshow client/mysqlcheck \
   client/mysqladmin client/mysqldump client/mysqlimport client/mysqltest \
   client/.libs/mysql client/.libs/mysqlshow client/.libs/mysqladmin \

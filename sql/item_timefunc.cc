@@ -525,7 +525,7 @@ String *Item_func_sec_to_time::val_str(String *str)
     seconds= -seconds;
     sign= "-";
   }
-  uint sec= (uint) (seconds % 3600);
+  uint sec= (uint) ((ulonglong) seconds % 3600);
   sprintf(buff,"%s%02lu:%02u:%02u",sign,(long) (seconds/3600),
 	  sec/60, sec % 60);
   str->copy(buff,(uint) strlen(buff));
