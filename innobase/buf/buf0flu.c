@@ -556,6 +556,15 @@ buf_flush_try_neighbors(
 
 		block = buf_page_hash_get(space, i);
 
+		if (block && flush_type == BUF_FLUSH_LRU && i != offset
+		    && !block->old) {
+
+		  /* We avoid flushing 'non-old' blocks in an LRU flush,
+		     because the flushed blocks are soon freed */
+
+		  continue;
+		}
+
 		if (block && buf_flush_ready_for_flush(block, flush_type)) {
 
 			mutex_exit(&(buf_pool->mutex));
