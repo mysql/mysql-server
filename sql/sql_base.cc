@@ -1949,14 +1949,15 @@ int setup_fields(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
   thd->allow_sum_func= allow_sum_func;
   thd->where="field list";
 
-  for (uint i= 0; (item= it++); i++)
+  Item **ref= ref_pointer_array;
+  while ((item= it++))
   {
     if (item->fix_fields(thd, tables, it.ref()) ||
 	item->check_cols(1))
       DBUG_RETURN(-1); /* purecov: inspected */
-    item= *(it.ref()); //Item can be chenged in fix fields
-    if (ref_pointer_array)
-      ref_pointer_array[i]= item;
+    item= *(it.ref()); //Item can be changed in fix fields
+    if (ref)
+      *(ref++)= item;
     if (item->with_sum_func && item->type() != Item::SUM_FUNC_ITEM &&
 	sum_func_list)
       item->split_sum_func(ref_pointer_array, *sum_func_list);

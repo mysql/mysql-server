@@ -535,7 +535,7 @@ protected:
   /* 
      select_lex used for:
      1) receiving expanded variant of item list (to check max possible 
-        nunber of elements);
+        number of elements);
      2) to have access to  ref_pointer_array, via wich item will refered.
   */
   st_select_lex *select_lex;

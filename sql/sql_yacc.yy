@@ -1797,7 +1797,7 @@ select_option:
 	      YYABORT;
 	    Select->options|= OPTION_FOUND_ROWS;
 	  }
-	| SQL_NO_CACHE_SYM { Lex->uncacheable();; }
+	| SQL_NO_CACHE_SYM { Lex->uncacheable(); }
 	| SQL_CACHE_SYM    { Select->options|= OPTION_TO_QUERY_CACHE; }
 	| ALL		{}
 	;

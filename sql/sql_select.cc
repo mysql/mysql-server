@@ -222,7 +222,7 @@ void fix_tables_pointers(SELECT_LEX_UNIT *unit)
   for (SELECT_LEX *sl= unit->first_select(); sl; sl= sl->next_select())
   {
     relink_tables(sl);
-    for(SELECT_LEX_UNIT *un= sl->first_inner_unit(); un; un= un->next_unit())
+    for (SELECT_LEX_UNIT *un= sl->first_inner_unit(); un; un= un->next_unit())
       fix_tables_pointers(un);
   }
 }
@@ -268,7 +268,7 @@ JOIN::prepare(Item ***rref_pointer_array,
 	      Item *having_init,
 	      ORDER *proc_param_init, SELECT_LEX *select,
 	      SELECT_LEX_UNIT *unit,
-	      bool fake_select_lex, bool tables_OK)
+	      bool fake_select_lex, bool tables_and_fields_initied)
 {
   DBUG_ENTER("JOIN::prepare");
 
@@ -285,9 +285,10 @@ JOIN::prepare(Item ***rref_pointer_array,
 
   /* Check that all tables, fields, conds and order are ok */
 
-  if ((tables_OK?0:(setup_tables(tables_list) ||
-		    setup_wild(thd, tables_list, fields_list,
-			       &all_fields, wild_num))) ||
+  if ((tables_and_fields_initied ? 0 : (setup_tables(tables_list) ||
+					setup_wild(thd, tables_list, 
+						   fields_list,
+						   &all_fields, wild_num))) ||
       setup_ref_array(thd, rref_pointer_array, (fields_list.elements +
 						select_lex->with_sum_func +
 						og_num)) ||
@@ -419,6 +420,7 @@ int
 JOIN::optimize()
 {
   DBUG_ENTER("JOIN::optimize");
+  // to prevent double initialization on EXPLAIN
   if (optimized)
     DBUG_RETURN(0);
   optimized= 1;
@@ -1280,7 +1282,8 @@ mysql_select(THD *thd, Item ***rref_pointer_array,
 	     COND *conds, uint og_num,  ORDER *order, ORDER *group,
 	     Item *having, ORDER *proc_param, ulong select_options,
 	     select_result *result, SELECT_LEX_UNIT *unit,
-	     SELECT_LEX *select_lex, bool fake_select_lex, bool tables_OK)
+	     SELECT_LEX *select_lex, bool fake_select_lex,
+	     bool tables_and_fields_initied)
 {
   int err;
   bool free_join= 1;
@@ -1307,7 +1310,8 @@ mysql_select(THD *thd, Item ***rref_pointer_array,
 
     if (join->prepare(rref_pointer_array, tables, wild_num,
 		      conds, og_num, order, group, having, proc_param,
-		      select_lex, unit, fake_select_lex, tables_OK))
+		      select_lex, unit, fake_select_lex,
+		      tables_and_fields_initied))
     {
       DBUG_RETURN(-1);
     }
@@ -4311,11 +4315,9 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   {
     uint alloc_length=ALIGN_SIZE(reclength+MI_UNIQUE_HASH_LENGTH+1);
     table->rec_buff_length=alloc_length;
-    byte * t;
-    if (!(t= table->record[0]= (byte *) my_malloc(alloc_length*3, MYF(MY_WME))))
+    if (!(table->record[0]= (byte *) my_malloc(alloc_length*3, MYF(MY_WME))))
       goto err;
-    table->record[1]= t+alloc_length;
-    //table->record[1]= table->record[0]+alloc_length;
+    table->record[1]= table->record[0]+alloc_length;
     table->record[2]= table->record[1]+alloc_length;
   }
   copy_func[0]=0;				// End marker
@@ -4853,8 +4855,10 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
     if (!join->select_lex->dependent ||
 	((!join->conds || join->conds->val_int()) &&
 	 (!join->having || join->having->val_int())))
+    {
       if (!(error=(*end_select)(join,join_tab,0)) || error == -3)
 	error=(*end_select)(join,join_tab,1);
+    }
   }
   else
   {
@@ -7099,12 +7103,8 @@ int setup_ref_array(THD* thd, Item ***rref_pointer_array, uint elements)
   if (*rref_pointer_array)
     return 0;
 
-  /* TODO: may be better allocate only one and all other on demand? */
-  if (!(*rref_pointer_array= 
-	(Item **)thd->alloc(sizeof(Item*) * elements * 5)))
-    return -1;
-  else 
-    return 0;
+  return (*rref_pointer_array= 
+	  (Item **)thd->alloc(sizeof(Item*) * elements * 5)) == 0;
 }
 
 /*
@@ -7441,26 +7441,42 @@ test_if_group_changed(List<Item_buff> &list)
 
 /*
   Setup copy_fields to save fields at start of new group
-  Only FIELD_ITEM:s and FUNC_ITEM:s needs to be saved between groups.
-  Change old item_field to use a new field with points at saved fieldvalue
-  This function is only called before use of send_fields
+
+  setup_copy_fields()
+    thd - THD pointer
+    param - temporary table parameters
+    ref_pointer_array - array of pointers to top elements of filed list
+    res_selected_fields - new list of items of select item list
+    res_all_fields - new list of all items
+    elements - number of elements in select item list
+    all_fields - all fields list
+
+  DESCRIPTION
+    Setup copy_fields to save fields at start of new group
+    Only FIELD_ITEM:s and FUNC_ITEM:s needs to be saved between groups.
+    Change old item_field to use a new field with points at saved fieldvalue
+    This function is only called before use of send_fields
+  
+  RETURN
+    0 - ok
+    !=0 - error
 */
 
 bool
 setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
 		  Item **ref_pointer_array,
-		  List<Item> &new_list1, List<Item> &new_list2,
-		  uint elements, List<Item> &fields)
+		  List<Item> &res_selected_fields, List<Item> &res_all_fields,
+		  uint elements, List<Item> &all_fields)
 {
   Item *pos;
-  List_iterator_fast<Item> li(fields);
+  List_iterator_fast<Item> li(all_fields);
   Copy_field *copy;
   DBUG_ENTER("setup_copy_fields");
-  new_list1.empty();
-  new_list2.empty();
-  List_iterator_fast<Item> itr(new_list2);
+  res_selected_fields.empty();
+  res_all_fields.empty();
+  List_iterator_fast<Item> itr(res_all_fields);
 
-  uint i, border= fields.elements - elements;
+  uint i, border= all_fields.elements - elements;
 
   if (!(copy=param->copy_field= new Copy_field[param->field_count]))
     goto err2;
@@ -7512,15 +7528,15 @@ setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
       if (param->copy_funcs.push_back(pos))
 	goto err;
     }
-    new_list2.push_back(pos);
-    ref_pointer_array[((i < border)? fields.elements-i-1 : i-border)]=
+    res_all_fields.push_back(pos);
+    ref_pointer_array[((i < border)? all_fields.elements-i-1 : i-border)]=
       pos;
   }
   param->copy_field_end= copy;
 
   for (i= 0; i < border; i++)
     itr++;
-  itr.sublist(new_list1, elements);
+  itr.sublist(res_selected_fields, elements);
   DBUG_RETURN(0);
 
  err:
@@ -7586,20 +7602,33 @@ make_sum_func_list(JOIN *join,List<Item> &fields)
 
 /*
   Change all funcs and sum_funcs to fields in tmp table,  and create
-  new list of all items
+  new list of all items.
+
+  change_to_use_tmp_fields()
+    thd - THD pointer
+    ref_pointer_array - array of pointers to top elements of filed list
+    res_selected_fields - new list of items of select item list
+    res_all_fields - new list of all items
+    elements - number of elements in select item list
+    all_fields - all fields list
+
+   RETURN
+    0 - ok
+    !=0 - error
 */
 
 static bool
 change_to_use_tmp_fields(THD *thd, Item **ref_pointer_array,
-			 List<Item> &new_list1, List<Item> &new_list2,
-			 uint elements, List<Item> &items)
+			 List<Item> &res_selected_fields,
+			 List<Item> &res_all_fields,
+			 uint elements, List<Item> &all_fields)
 {
-  List_iterator_fast<Item> it(items);
+  List_iterator_fast<Item> it(all_fields);
   Item *item_field,*item;
-  new_list1.empty();
-  new_list2.empty();
+  res_selected_fields.empty();
+  res_all_fields.empty();
 
-  uint i, border= items.elements - elements;
+  uint i, border= all_fields.elements - elements;
   for (i= 0; (item= it++); i++)
   {
     Field *field;
@@ -7607,6 +7636,7 @@ change_to_use_tmp_fields(THD *thd, Item **ref_pointer_array,
     if (item->with_sum_func && item->type() != Item::SUM_FUNC_ITEM)
       item_field= item;
     else
+    {
       if (item->type() == Item::FIELD_ITEM)
       {
 	item_field= item->get_tmp_table_item(thd);
@@ -7633,15 +7663,16 @@ change_to_use_tmp_fields(THD *thd, Item **ref_pointer_array,
       }
       else
 	item_field= item;
-    new_list2.push_back(item_field);
-    ref_pointer_array[((i < border)? items.elements-i-1 : i-border)]=
+    }
+    res_all_fields.push_back(item_field);
+    ref_pointer_array[((i < border)? all_fields.elements-i-1 : i-border)]=
       item_field;
   }
 
-  List_iterator_fast<Item> itr(new_list2);
+  List_iterator_fast<Item> itr(res_all_fields);
   for (i= 0; i < border; i++)
     itr++;
-  itr.sublist(new_list1, elements);
+  itr.sublist(res_selected_fields, elements);
   return FALSE;
 }
 
@@ -7649,31 +7680,43 @@ change_to_use_tmp_fields(THD *thd, Item **ref_pointer_array,
 /*
   Change all sum_func refs to fields to point at fields in tmp table
   Change all funcs to be fields in tmp table
+
+  change_refs_to_tmp_fields()
+    thd - THD pointer
+    ref_pointer_array - array of pointers to top elements of filed list
+    res_selected_fields - new list of items of select item list
+    res_all_fields - new list of all items
+    elements - number of elements in select item list
+    all_fields - all fields list
+
+   RETURN
+    0 - ok
+    !=0 - error
 */
 
 static bool
 change_refs_to_tmp_fields(THD *thd, Item **ref_pointer_array,
-			  List<Item> &new_list1,
-			  List<Item> &new_list2, uint elements,
-			  List<Item> &items)
+			  List<Item> &res_selected_fields,
+			  List<Item> &res_all_fields, uint elements,
+			  List<Item> &all_fields)
 {
-  List_iterator_fast<Item> it(items);
+  List_iterator_fast<Item> it(all_fields);
   Item *item, *new_item;
-  new_list1.empty();
-  new_list2.empty();
+  res_selected_fields.empty();
+  res_all_fields.empty();
 
-  uint i, border= items.elements - elements;
+  uint i, border= all_fields.elements - elements;
   for (i= 0; (item= it++); i++)
   {
-    new_list2.push_back(new_item= item->get_tmp_table_item(thd));
-    ref_pointer_array[((i < border)? items.elements-i-1 : i-border)]=
+    res_all_fields.push_back(new_item= item->get_tmp_table_item(thd));
+    ref_pointer_array[((i < border)? all_fields.elements-i-1 : i-border)]=
       new_item;
   }
 
-  List_iterator_fast<Item> itr(new_list2);
+  List_iterator_fast<Item> itr(res_all_fields);
   for (i= 0; i < border; i++)
     itr++;
-  itr.sublist(new_list1, elements);
+  itr.sublist(res_selected_fields, elements);
 
   return thd->is_fatal_error;
 }
@@ -8037,10 +8080,14 @@ int mysql_explain_select(THD *thd, SELECT_LEX *select_lex, char const *type,
 }
 
 /*
-  
+  Free joins of subselect of this select.
+
+  free_underlaid_joins()
+    thd - THD pointer
+    select - pointer to st_select_lex which subselects joins we will free
 */
 
-void free_ulderlayed_joins(THD *thd, SELECT_LEX *select)
+void free_underlaid_joins(THD *thd, SELECT_LEX *select)
 {
   for (SELECT_LEX_UNIT *unit= select->first_inner_unit();
        unit;

@@ -25,11 +25,11 @@
 #include "sql_select.h"
 
 int mysql_union(THD *thd, LEX *lex, select_result *result,
-		SELECT_LEX_UNIT *unit, bool tables_OK)
+		SELECT_LEX_UNIT *unit, bool tables_and_fields_initied)
 {
   DBUG_ENTER("mysql_union");
   int res= 0;
-  if (!(res= unit->prepare(thd, result, tables_OK)))
+  if (!(res= unit->prepare(thd, result, tables_and_fields_initied)))
     res= unit->exec();
   res|= unit->cleanup();
   DBUG_RETURN(res);
@@ -109,7 +109,7 @@ bool select_union::flush()
 }
 
 int st_select_lex_unit::prepare(THD *thd, select_result *result,
-				bool tables_OK)
+				bool tables_and_fields_initied)
 {
   DBUG_ENTER("st_select_lex_unit::prepare");
 
@@ -132,8 +132,9 @@ int st_select_lex_unit::prepare(THD *thd, select_result *result,
     if (found_rows_for_union)
       first_select()->options ^=  OPTION_FOUND_ROWS;
   }
-  if (tables_OK)
+  if (tables_and_fields_initied)
   {
+    // Item list and tables will be initialized by mysql_derived
     item_list= sl->item_list;
   }
   else
@@ -153,7 +154,7 @@ int st_select_lex_unit::prepare(THD *thd, select_result *result,
 	setup_fields(thd, sl->ref_pointer_array, first_table, item_list,
 		     0, 0, 1))
       goto err;
-    tables_OK= 1;
+    tables_and_fields_initied= 1;
   }
 
   bzero((char*) &tmp_table_param,sizeof(tmp_table_param));
@@ -201,8 +202,8 @@ int st_select_lex_unit::prepare(THD *thd, select_result *result,
 		       (ORDER*) sl->group_list.first,
 		       sl->having,
 		       (ORDER*) NULL,
-		       sl, this, 0, tables_OK);
-    tables_OK= 0;
+		       sl, this, 0, tables_and_fields_initied);
+    tables_and_fields_initied= 0;
     if (res | thd->is_fatal_error)
       goto err;
   }
@@ -231,7 +232,7 @@ int st_select_lex_unit::exec()
   DBUG_ENTER("st_select_lex_unit::exec");
   SELECT_LEX_NODE *lex_select_save= thd->lex.current_select;
   
-  if (executed && !(dependent||uncacheable))
+  if (executed && !(dependent || uncacheable))
     DBUG_RETURN(0);
   executed= 1;
   
