@@ -3717,6 +3717,7 @@ void Item_ref::set_properties()
     split_sum_func() doesn't try to change the reference.
   */
   with_sum_func= (*ref)->with_sum_func;
+  unsigned_flag= (*ref)->unsigned_flag;
   if ((*ref)->type() == FIELD_ITEM)
     alias_name_used= ((Item_ident *) (*ref))->alias_name_used;
   else
