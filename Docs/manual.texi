@@ -11498,7 +11498,7 @@ Note that @code{mysqlaccess} checks access using only the @code{user},
 privileges.
 
 @node Connection access, Request access, Privileges, Privilege system
-@section Access control, Stage 1: Connection Verification
+@section Access Control, Stage 1: Connection Verification
 @cindex access control
 @cindex control access
 @cindex connecting, verification
@@ -11521,7 +11521,7 @@ Your @strong{MySQL} user name
 @end itemize
 
 Identity checking is performed using the three @code{user} table scope fields
-(@code{Host}, @code{User} and @code{Password}).  The server accepts the
+(@code{Host}, @code{User}, and @code{Password}).  The server accepts the
 connection only if a @code{user} table entry matches your hostname and user
 name, and you supply the correct password.
 
@@ -11701,7 +11701,7 @@ If you have problems connecting to the server, print out the @code{user}
 table and sort it by hand to see where the first match is being made.
 
 @node Request access, Privilege changes, Connection access, Privilege system
-@section Access control, Stage 2: Request Verification
+@section Access Control, Stage 2: Request Verification
 
 Once you establish a connection, the server enters Stage 2.  For each request
 that comes in on the connection, the server checks whether you have
@@ -11784,9 +11784,9 @@ wild cards or be blank in either table.
 @end itemize
 
 The @code{tables_priv} and @code{columns_priv} tables are sorted on
-the @code{Host}, @code{Db} and @code{User} fields.  This is similar to
+the @code{Host}, @code{Db}, and @code{User} fields.  This is similar to
 @code{db} table sorting, although the sorting is simpler because
-only the @code{Host} field may contain wildcards.
+only the @code{Host} field may contain wild cards.
 
 The request verification process is described below.  (If you are familiar
 with the access-checking source code, you will notice that the description
@@ -12215,7 +12215,7 @@ mysql> FLUSH PRIVILEGES;
 @end example
 
 You can also use @code{xmysqladmin}, @code{mysql_webadmin}, and even
-@code{xmysql} to insert, change and update values in the grant tables.
+@code{xmysql} to insert, change, and update values in the grant tables.
 You can find these utilities in the
 @uref{http://www.mysql.com/Downloads/Contrib/,Contrib directory of the @strong{MySQL}
 Website}.
@@ -12225,7 +12225,7 @@ Website}.
 @findex SET PASSWORD statement
 @cindex setting, passwords
 @node Passwords, Access denied, Adding users, Privilege system
-@section Setting passwords
+@section Setting Up Passwords
 
 In most cases you should use @code{GRANT} to set up your users/passwords,
 so the following only applies for advanced users. @xref{GRANT, , @code{GRANT}}.
@@ -12428,7 +12428,7 @@ Another reason for this error on Linux is that you are using a binary
 @strong{MySQL} version that is compiled with a different glibc version
 than the one you are using.  In this case you should either upgrade your
 OS/glibc or download the source @strong{MySQL} version and compile this
-yourself; A source RPM is normally trivial to compile and install, so
+yourself.  A source RPM is normally trivial to compile and install, so
 this isn't a big problem.
 
 @item
