@@ -4,7 +4,7 @@ make -k clean
 /bin/rm -f config.cache mysql-*.tar.gz
 aclocal; autoheader; aclocal; automake; autoconf
 
-CC=ccc CFLAGS="-fast -O3 -fomit-frame-pointer" CXX=gcc CXXFLAGS="-O6 -fomit-frame-pointer -felide-constructors -fno-exceptions -fno-rtti -mcpu=ev6 -Wa,-mev6" CXXLDFLAGS='/usr/lib/compaq/libots-2.2.7/libots.so /usr/lib/compaq/cpml-5.0.0/libcpml_ev6.a' ./configure --prefix=/usr/local/mysql --disable-shared --with-extra-charsets=complex
+CC=ccc CFLAGS="-fast -O3 -fomit-frame-pointer" CXX=gcc CXXFLAGS="-O6 -fomit-frame-pointer -felide-constructors -fno-exceptions -fno-rtti -mcpu=ev6 -Wa,-mev6" CXXLDFLAGS='/usr/lib/compaq/libots-2.2.7/libots.so /usr/lib/compaq/cpml-5.0.0/libcpml_ev6.a' ./configure --prefix=/usr/local/mysql --disable-shared --with-extra-charsets=complex --enable-thread-safe-client
 make
 if [ $? = 0 ]
 then

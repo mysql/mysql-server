@@ -1,0 +1,64 @@
+Mail by sasha, should be rewritten as a HOWTO sometimes
+-----------
+
+I have set up a repository with BitKeeper on work. There are still some things
+about it that I would like to learn, but I have gotten far enough with it to
+replace CVS functionality were are currently using, so let's just go ahead and
+get started on it. Please follow the instructions below (make sure to save the
+message for future reference):
+
+a) http://www.bitmover.com/download
+        user: beta
+        password: get bitkeeper
+
+  get the version appropriate for your platform - download it to a temp
+directory, chmod +x  and then run it. You will have to tell it which directory
+to install, for consistency, let's use /usr/local/bin
+
+b) we will take advantage of bk capablity of working with master/slave
+repositories. The master will be on work.mysql.com, the slaves will be our
+individual machines. The master repository has already been set up on work, so
+you will need just to set up a slave repository on your machine:
+
+  mkdir bk
+  cd bk
+  bk clone yourusername@work:/home/bk/mysql mysql
+  cd mysql
+  bk -r edit
+
+Now you have the entire source tree in the current directory. Let's compile it:
+
+ BUILD/compile-pentium-debug
+
+After you edit a file, you need to check it in using bk citool or bk ci
+filename. Note that ci is different than commit - you ci a file, but you commit
+a change set. This is a very nice concept - instead of thinking of each
+individual file as CVS does, bk groups the changes you are making and allows you
+to document what you actually did between the commits as a whole, rather than
+just commenting on every file. When you commit, bk will ask you to comment on
+the change set.
+
+Commit is done just to your local repository. To make your changes global, you
+will need to run bk push. Be careful with that - it is a good idea to run bk
+push -l -n first too see what you are just about to push to the master
+repository.
+
+When somebody does a push, you will be getting a email ( I will set this up to
+day). You will then need to execute bk pull to update your sources. If there are
+any conflicts, bk will force you to resolve them by asking you questions on what
+to do with each conflict.
+
+To learn more about bk, use bk helptool - I will be doing this a lot in the next
+couple of days :-) If you find bugs or have questions/feature
+suggestions/comments for developers, feel free to e-mail dev@bitmover.com .
+Their developers, and especially the president of the company Larry McCoy really
+like MySQL and are very anxious to help us. Make sure it is obvious that you
+work for MySQL, of course. And, of course, do not bug them with little things
+that you can figure out on your own or with my help - they were nice to offer us
+support, but we should not abuse it.
+
+If you are working on 3.23 MySQL source, please make sure to convert to bk ASAP
+before you do any further developement - otherwise, things will get
+exponentially worse as the code mass increases. I will work on mysql-4.0 next
+and try to set it up so that when we update 3.23 source tree, the update makes
+it to mysql-4.0.

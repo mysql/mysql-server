@@ -119,7 +119,7 @@ Error in execute: Access denied for user: 'grant_user@localhost' to database 'gr
 drop table grant_test.test
 Error in execute: Access denied for user: 'grant_user@localhost' to database 'grant_test'
 grant ALL PRIVILEGES on grant_test.* to grant_user2@localhost
-Error in execute: Access denied for user: 'grant_user@localhost' (Using password: NO)
+Error in execute: Access denied for user: 'grant_user@localhost' to database 'grant_test'
 grant ALL PRIVILEGES on grant_test.* to grant_user@localhost WITH GRANT OPTION
 Connecting grant_user
 insert into grant_test.test values (5,0)
@@ -145,7 +145,9 @@ create table grant_test.test2 (a int not null)
 alter table grant_test.test2 add b int
 create index dummy on grant_test.test2 (a)
 drop table grant_test.test2
-show tables
+show tables from grant_test
+test
+
 insert into mysql.user (host,user) values ('error','grant_user',0)
 Error in execute: Access denied for user: 'grant_user@localhost' to database 'mysql'
 revoke ALL PRIVILEGES on grant_test.* from grant_user@localhost
@@ -239,7 +241,24 @@ grant drop on grant_test.test2 to grant_user@localhost with grant option
 grant drop on grant_test.test2 to grant_user@localhost with grant option
 grant select on grant_test.test2 to grant_user@localhost with grant option
 Error in execute: select command denied to user: 'grant_user@localhost' for table 'test2'
-drop table grant_test.test2
+rename table grant_test.test2 to grant_test.test3
+Error in execute: insert command denied to user: 'grant_user@localhost' for table 'test3'
+grant CREATE,DROP on grant_test.test3 to grant_user@localhost
+rename table grant_test.test2 to grant_test.test3
+Error in execute: insert command denied to user: 'grant_user@localhost' for table 'test3'
+create table grant_test.test3 (a int)
+grant INSERT on grant_test.test3 to grant_user@localhost
+drop table grant_test.test3
+rename table grant_test.test2 to grant_test.test3
+rename table grant_test.test3 to grant_test.test2
+Error in execute: alter command denied to user: 'grant_user@localhost' for table 'test3'
+grant ALTER on grant_test.test3 to grant_user@localhost
+rename table grant_test.test3 to grant_test.test2
+revoke DROP on grant_test.test2 from grant_user@localhost
+rename table grant_test.test2 to grant_test.test3
+drop table if exists grant_test.test2,grant_test.test3
+Error in execute: drop command denied to user: 'grant_user@localhost' for table 'test2'
+drop table if exists grant_test.test2,grant_test.test3
 create database grant_test
 Error in execute: Access denied for user: 'grant_user@localhost' to database 'grant_test'
 drop database grant_test
@@ -248,15 +267,15 @@ flush tables
 Error in execute: Access denied for user: 'grant_user@localhost' (Using password: NO)
 flush privileges
 select Host, Db, User, Table_name, Grantor, Table_priv, Column_priv from mysql.tables_priv
-localhost	grant_test	grant_user	test2	grant_user@localhost	Update,Delete,Create,Drop,Grant,Index,Alter	Insert
+localhost	grant_test	grant_user	test2	root@localhost	Update,Delete,Create,Grant,Index,Alter	Insert
 localhost	grant_test	grant_user	test	root@localhost	Select,Insert,Update,Delete	
+localhost	grant_test	grant_user	test3	root@localhost	Insert,Create,Drop,Alter	
 
 revoke ALL PRIVILEGES on grant_test.test from grant_user@localhost
 revoke ALL PRIVILEGES on grant_test.test2 from grant_user@localhost
+revoke ALL PRIVILEGES on grant_test.test3 from grant_user@localhost
 revoke GRANT OPTION on grant_test.test2 from grant_user@localhost
 select Host, Db, User, Table_name, Grantor, Table_priv, Column_priv from mysql.tables_priv
-localhost	grant_test	grant_user	test2	root@localhost	Grant,Index,Alter	
-
 select count(a) from test
 Error in execute: select command denied to user: 'grant_user@localhost' for table 'test'
 delete from grant_test.test where a=2
@@ -284,13 +303,10 @@ select a,A from test
 7	7
 
 select Host, Db, User, Table_name, Grantor, Table_priv, Column_priv from mysql.tables_priv
-localhost	grant_test	grant_user	test2	root@localhost	Grant,Index,Alter	
 localhost	grant_test	grant_user	test	root@localhost	Delete	Select,Update
 
 revoke ALL PRIVILEGES on grant_test.test from grant_user@localhost
 select Host, Db, User, Table_name, Grantor, Table_priv, Column_priv from mysql.tables_priv
-localhost	grant_test	grant_user	test2	root@localhost	Grant,Index,Alter	
-
 revoke GRANT OPTION on grant_test.test from grant_user@localhost
 Error in execute: There is no such grant defined for user 'grant_user' on host 'localhost' on table 'test'
 grant select(a) on grant_test.test to grant_user@localhost
@@ -328,7 +344,6 @@ Error in execute: select command denied to user: 'grant_user@localhost' for colu
 update test set b=3 where b > 0
 Error in execute: select command denied to user: 'grant_user@localhost' for column 'b' in table 'test'
 select Host, Db, User, Table_name, Grantor, Table_priv, Column_priv from mysql.tables_priv
-localhost	grant_test	grant_user	test2	root@localhost	Grant,Index,Alter	
 localhost	grant_test	grant_user	test	root@localhost		Select,Insert,Update
 
 select Host, Db, User, Table_name, Column_name, Column_priv from mysql.columns_priv
@@ -337,7 +352,6 @@ localhost	grant_test	grant_user	test	a	Select
 
 revoke select(a), update (b) on grant_test.test from grant_user@localhost
 select Host, Db, User, Table_name, Grantor, Table_priv, Column_priv from mysql.tables_priv
-localhost	grant_test	grant_user	test2	root@localhost	Grant,Index,Alter	
 localhost	grant_test	grant_user	test	root@localhost		Insert
 
 select Host, Db, User, Table_name, Column_name, Column_priv from mysql.columns_priv
@@ -355,7 +369,6 @@ insert into test (b) values (9)
 update test set b=6 where b > 0
 flush privileges
 select Host, Db, User, Table_name, Grantor, Table_priv, Column_priv from mysql.tables_priv
-localhost	grant_test	grant_user	test2	root@localhost	Grant,Index,Alter	
 localhost	grant_test	grant_user	test	root@localhost		Select,Insert,Update
 
 select Host, Db, User, Table_name, Column_name, Column_priv from mysql.columns_priv
@@ -402,7 +415,6 @@ select * from mysql.db where user = 'grant_user'
 localhost	grant_test	grant_user	N	Y	N	N	N	N	N	N	N	N
 
 select Host, Db, User, Table_name, Grantor, Table_priv, Column_priv from mysql.tables_priv where user = 'grant_user'
-localhost	grant_test	grant_user	test2	root@localhost	Grant,Index,Alter	
 localhost	grant_test	grant_user	test	root@localhost		Select,Insert,Update
 
 select Host, Db, User, Table_name, Column_name, Column_priv from mysql.columns_priv where user = 'grant_user'
@@ -418,8 +430,6 @@ select * from mysql.db where user = 'grant_user'
 localhost	grant_test	grant_user	N	Y	N	N	N	N	N	N	N	N
 
 select Host, Db, User, Table_name, Grantor, Table_priv, Column_priv from mysql.tables_priv where user = 'grant_user'
-localhost	grant_test	grant_user	test2	root@localhost	Grant,Index,Alter	
-
 select Host, Db, User, Table_name, Column_name, Column_priv from mysql.columns_priv where user = 'grant_user'
 delete from user where user='grant_user'
 flush privileges

@@ -26,7 +26,7 @@ SUBDIRS =		include @docs_dirs@ @readline_dir@ @sql_client_dirs@ \
 			@bench_dirs@ support-files
 
 # Relink after clean
-CLEANFILES =		linked_client_sources linked_server_sources
+CLEANFILES =		linked_client_sources linked_server_sources linked_libmysql_sources linked_libmysql_r_sources
 
 # This is just so that the linking is done early.
 config.h:	linked_client_sources linked_server_sources
@@ -36,9 +36,11 @@ linked_client_sources:  @linked_client_targets@
 
 linked_libmysql_sources:
 	cd libmysql; $(MAKE) link_sources
+	echo timestamp > linked_libmysql_sources
 
 linked_libmysql_r_sources: linked_libmysql_sources
 	cd libmysql_r; $(MAKE) link_sources
+	echo timestamp > linked_libmysql_r_sources
 
 #avoid recursive make calls in sql directory
 linked_server_sources:
