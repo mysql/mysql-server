@@ -104,24 +104,25 @@ const char *debug_option= 0;
 
 struct getargs args[] = {
   { "version", 'v', arg_flag, &_print_version,
-    "Print ndb_mgmd version"},
+    "Print ndb_mgmd version",""},
   { "config-file", 'c', arg_string, &glob.config_filename,
-    "Specify cluster configuration file (will default use config.ini if available)", "filename" },
+    "Specify cluster configuration file (default config.ini if available)",
+    "filename"},
 #ifndef DBUG_OFF
   { "debug", 0, arg_string, &debug_option,
-    "Specify debug options e.g. d:t:i:o,out.trace", "options" },
+    "Specify debug options e.g. d:t:i:o,out.trace", "options"},
 #endif
   { "daemon", 'd', arg_flag, &glob.daemon,
-    "Run ndb_mgmd in daemon mode (default)" },
+    "Run ndb_mgmd in daemon mode (default)",""},
   { NULL, 'l', arg_string, &glob.local_config_filename,
-    "Specify configuration file connect string (will default use Ndb.cfg if available)",
-    "filename" },
+    "Specify configuration file connect string (default Ndb.cfg if available)",
+    "filename"},
   { "interactive", 0, arg_flag, &glob.interactive,
-   "Run interactive. Not supported but provided for testing purposes", "" },
+   "Run interactive. Not supported but provided for testing purposes", ""},
   { "no-nodeid-checks", 0, arg_flag, &g_no_nodeid_checks,
-    "Do not provide any node id checks", "" },
+    "Do not provide any node id checks", ""},
   { "nodaemon", 0, arg_flag, &glob.non_interactive,
-    "Don't run as daemon, but don't read from stdin", "non-interactive" }
+    "Don't run as daemon, but don't read from stdin", "non-interactive"}
 };
 
 int num_args = sizeof(args) / sizeof(args[0]);
