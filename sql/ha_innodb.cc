@@ -3938,18 +3938,21 @@ innodb_show_status(
                 DBUG_RETURN(-1);
         }
 
-	/* We let the InnoDB Monitor to output at most 100 kB of text, add
+	/* We let the InnoDB Monitor to output at most 200 kB of text, add
 	a safety margin of 10 kB for buffer overruns */
 
-	buf = (char*)ut_malloc(110 * 1024);
+	buf = (char*)ut_malloc(210 * 1024);
 	
-	srv_sprintf_innodb_monitor(buf, 100 * 1024);
+	srv_sprintf_innodb_monitor(buf, 200 * 1024);
 	
 	List<Item> field_list;
 
 	field_list.push_back(new Item_empty_string("Status", strlen(buf)));
 
 	if(send_fields(thd, field_list, 1)) {
+
+		ut_free(buf);
+
 	  	DBUG_RETURN(-1);
 	}
 
