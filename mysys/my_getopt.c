@@ -620,32 +620,32 @@ static void init_variables(const struct my_option *options)
     {
       switch (options->var_type) {
       case GET_BOOL:
-	*((my_bool*) options->u_max_value)= *((my_bool*) options->value)=
-	  (my_bool) options->def_value;
+	*((my_bool*) options->u_max_value)= (my_bool) options->max_value;
+	*((my_bool*) options->value)= (my_bool) options->def_value;
 	break;
       case GET_INT:
-	*((int*) options->u_max_value)= *((int*) options->value)=
-	  (int) options->def_value;
+	*((int*) options->u_max_value)= (int) options->max_value;
+	*((int*) options->value)= (int) options->def_value;
 	break;
       case GET_UINT:
-	*((uint*) options->u_max_value)= *((uint*) options->value)=
-	  (uint) options->def_value;
+	*((uint*) options->u_max_value)= (uint) options->max_value;
+	*((uint*) options->value)= (uint) options->def_value;
 	break;
       case GET_LONG:
-	*((long*) options->u_max_value)= *((long*) options->value)=
-	  (long) options->def_value;
+	*((long*) options->u_max_value)= (long) options->max_value;
+	*((long*) options->value)= (long) options->def_value;
 	break;
       case GET_ULONG:
-	*((ulong*) options->u_max_value)= *((ulong*) options->value)=
-	  (ulong) options->def_value;
+	*((ulong*) options->u_max_value)= (ulong) options->max_value;
+	*((ulong*) options->value)= (ulong) options->def_value;
 	break;
       case GET_LL:
-	*((longlong*) options->u_max_value)= *((longlong*) options->value)=
-	  (longlong) options->def_value;
+	*((longlong*) options->u_max_value)= (longlong) options->max_value;
+	*((longlong*) options->value)= (longlong) options->def_value;
 	break;
       case GET_ULL:
-	*((ulonglong*) options->u_max_value)= *((ulonglong*) options->value)=
-	  (ulonglong) options->def_value;
+	*((ulonglong*) options->u_max_value)= (ulonglong) options->max_value;
+	*((ulonglong*) options->value)=  (ulonglong) options->def_value;
 	break;
       default: /* dummy default to avoid compiler warnings */
 	break;

@@ -280,6 +280,26 @@ class delayed_insert;
 
 #define THD_CHECK_SENTRY(thd) DBUG_ASSERT(thd->dbug_sentry == THD_SENTRY_MAGIC)
 
+struct system_variables
+{
+  my_bool opt_local_infile;
+  my_bool opt_warnings;
+  ulong join_buff_size;
+  ulong long_query_time;
+  ulong max_heap_table_size;
+  ulong max_item_sort_length;
+  ulong max_join_size;
+  ulong max_tmp_tables;
+  ulong myisam_max_extra_sort_file_size;
+  ulong myisam_max_sort_file_size;
+  ulong net_interactive_timeout;
+  ulong net_wait_timeout;
+  ulong record_rnd_cache_size;
+  ulong sortbuff_size;
+  ulong tmp_table_size;
+}; /* system variables */
+
+
 /* For each client connection we create a separate thread with THD serving as
    a thread/connection descriptor */
 
@@ -292,6 +312,7 @@ public:
   String  packet; // dynamic string buffer used for network I/O		
   struct  sockaddr_in remote; // client socket address
   struct  rand_struct rand; // used for authentication
+  struct  system_variables variables;
   
   /* query points to the current query,
      thread_stack is a pointer to the stack frame of handle_one_connection(),
