@@ -718,22 +718,20 @@ innobase_commit(
 
 	trx = check_trx_exists(thd);
 
+	/* Release possible statement level resources */
+	innobase_release_stat_resources(trx);
+
         if (trx->auto_inc_lock) {
 		  	
 		/* If we had reserved the auto-inc lock for
 		some table in this SQL statement, we release it now */
 		  	
-		srv_conc_enter_innodb(trx);
 		row_unlock_table_autoinc_for_mysql(trx);
-		srv_conc_exit_innodb(trx);
 	}
 
 	if (trx_handle != (void*)&innodb_dummy_stmt_trx_handle) {
 		innobase_commit_low(trx);
 	}
-
-	/* Release possible statement level resources */
-	innobase_release_stat_resources(trx);
 	
 	trx_mark_sql_stat_end(trx);
 
@@ -797,28 +795,22 @@ innobase_rollback(
 
 	trx = check_trx_exists(thd);
 
+	/* Release possible statement level resources */
+	innobase_release_stat_resources(trx);
+
         if (trx->auto_inc_lock) {
 		  	
 		/* If we had reserved the auto-inc lock for
 		some table in this SQL statement, we release it now */
 		  	
-		srv_conc_enter_innodb(trx);
 		row_unlock_table_autoinc_for_mysql(trx);
-		srv_conc_exit_innodb(trx);
 	}
-
-	srv_conc_enter_innodb(trx);
 
 	if (trx_handle != (void*)&innodb_dummy_stmt_trx_handle) {
 		error = trx_rollback_for_mysql(trx);
 	} else {
 		error = trx_rollback_last_sql_stat_for_mysql(trx);
 	}
-
-	srv_conc_exit_innodb(trx);
-
-	/* Release possible statement level resources */
-	innobase_release_stat_resources(trx);
 
 	trx_mark_sql_stat_end(trx);
 
