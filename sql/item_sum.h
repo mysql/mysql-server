@@ -697,6 +697,7 @@ class Item_func_group_concat : public Item_sum
   enum Sumfunctype sum_func () const {return GROUP_CONCAT_FUNC;}
   const char *func_name() const { return "group_concat"; }
   enum Type type() const { return SUM_FUNC_ITEM; }  
+  void fix_length_and_dec() { max_length=group_concat_max_len; }
   virtual Item_result result_type () const { return STRING_RESULT; }
   void reset();
   bool add();
@@ -715,4 +716,5 @@ class Item_func_group_concat : public Item_sum
     return res ? strtoll(res->c_ptr(),(char**) 0,10) : (longlong) 0;
   }
   String* val_str(String* str);
+  Item *copy_or_same(THD* thd) { return new Item_func_group_concat(thd, *this); }
 };
