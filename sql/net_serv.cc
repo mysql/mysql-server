@@ -431,13 +431,13 @@ net_real_write(NET *net,const char *packet,ulong len)
   big packet
 */
 
-static void my_net_skip_rest(NET *net, ulong remain, thr_alarm_t *alarmed)
+static void my_net_skip_rest(NET *net, ulong remain, thr_alarm_t *alarmed,
+			     ALARM *alarm_buff)
 {
-  ALARM alarm_buff;
   uint retry_count=0;
-  if (!thr_alarm_in_use(&alarmed))
+  if (!thr_alarm_in_use(alarmed))
   {
-    if (!thr_alarm(alarmed,net->timeout,&alarm_buff) ||
+    if (!thr_alarm(alarmed,net->timeout,alarm_buff) ||
 	(!vio_is_blocking(net->vio) && vio_blocking(net->vio,TRUE) < 0))
       return;					/* Can't setup, abort */
   }
@@ -606,7 +606,7 @@ my_real_read(NET *net, ulong *complen)
 	  {
 #ifdef MYSQL_SERVER
 	    if (i == 1)
-	      my_net_skip_rest(net, len, &alarmed);
+	      my_net_skip_rest(net, len, &alarmed, &alarm_buff);
 #endif
 	    len= packet_error;		/* Return error */
 	    goto end;
