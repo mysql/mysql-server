@@ -360,6 +360,7 @@ typedef struct st_table_list
   st_select_lex_unit *derived;		/* SELECT_LEX_UNIT of derived table */
   ST_SCHEMA_TABLE *schema_table;        /* Information_schema table */
   st_select_lex	*schema_select_lex;
+  bool schema_table_reformed;
   /* link to select_lex where this table was used */
   st_select_lex	*select_lex;
   st_lex	*view;			/* link on VIEW lex for merging */

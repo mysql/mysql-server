@@ -250,7 +250,9 @@ mutex_enter_func(
 	/* Note that we do not peek at the value of lock_word before trying
 	the atomic test_and_set; we could peek, and possibly save time. */
 
+#ifndef UNIV_HOTBACKUP
   mutex->count_using++;
+#endif /* UNIV_HOTBACKUP */
 	
   if (!mutex_test_and_set(mutex))
   {

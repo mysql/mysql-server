@@ -1546,6 +1546,7 @@ row_ins_scan_sec_index_for_duplicate(
 	dtuple_t*	entry,	/* in: index entry */
 	que_thr_t*	thr)	/* in: query thread */
 {
+#ifndef UNIV_HOTBACKUP
 	ulint		n_unique;
 	ulint		i;
 	int		cmp;
@@ -1662,6 +1663,12 @@ next_rec:
 	dtuple_set_n_fields_cmp(entry, n_fields_cmp);
 
 	return(err);
+#else /* UNIV_HOTBACKUP */
+	/* This function depends on MySQL code that is not included in
+	InnoDB Hot Backup builds.  Besides, this function should never
+	be called in InnoDB Hot Backup. */
+	ut_error;
+#endif /* UNIV_HOTBACKUP */
 }
 
 /*******************************************************************
@@ -1681,6 +1688,7 @@ row_ins_duplicate_error_in_clust(
 	que_thr_t*	thr,	/* in: query thread */
 	mtr_t*		mtr)	/* in: mtr */
 {
+#ifndef UNIV_HOTBACKUP
 	ulint	err;
 	rec_t*	rec;
 	page_t*	page;
@@ -1801,6 +1809,12 @@ row_ins_duplicate_error_in_clust(
 	err = DB_SUCCESS;
 func_exit:
 	return(err);
+#else /* UNIV_HOTBACKUP */
+	/* This function depends on MySQL code that is not included in
+	InnoDB Hot Backup builds.  Besides, this function should never
+	be called in InnoDB Hot Backup. */
+	ut_error;
+#endif /* UNIV_HOTBACKUP */
 }
 
 /*******************************************************************
