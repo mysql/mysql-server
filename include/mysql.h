@@ -547,9 +547,8 @@ typedef struct st_mysql_bind
   unsigned long offset;           /* offset position for char/binary fetch */
   unsigned long	internal_length;  /* Used if length is 0 */
   unsigned int	param_number;	  /* For null count and error messages */
+  my_bool       is_unsigned;      /* set if integer type is unsigned */
   my_bool	long_data_used;	  /* If used with mysql_send_long_data */
-  my_bool       binary_data;      /* data buffer is binary */
-  my_bool       null_field;       /* NULL data cache flag */
   my_bool	internal_is_null; /* Used if is_null is 0 */
   void (*store_param_func)(NET *net, struct st_mysql_bind *param);
   void (*fetch_result)(struct st_mysql_bind *, unsigned char **row);
