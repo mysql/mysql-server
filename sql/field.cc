@@ -245,6 +245,7 @@ static Field::field_cast_enum field_cast_date[]=
  Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
 static Field::field_cast_enum field_cast_newdate[]=
 {Field::FIELD_CAST_NEWDATE,
+ Field::FIELD_CAST_DATE,
  Field::FIELD_CAST_DATETIME,
  Field::FIELD_CAST_STRING, Field::FIELD_CAST_VARSTRING,
  Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
@@ -3511,9 +3512,17 @@ void Field_time::sql_type(String &res) const
 
 int Field_year::store(const char *from, uint len,CHARSET_INFO *cs)
 {
-  int not_used;				// We can ignore result from str2int
+  int err;
   char *end;
-  long nr= my_strntol(cs, from, len, 10, &end, &not_used);
+  long nr= my_strntol(cs, from, len, 10, &end, &err);
+
+  if (err)
+  {
+    if (table->in_use->count_cuted_fields)
+      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_TRUNCATED, 1);
+    *ptr= 0;
+    return 0;
+  }
 
   if (nr < 0 || nr >= 100 && nr <= 1900 || nr > 2155)
   {
@@ -6021,6 +6030,40 @@ Field *make_field(char *ptr, uint32 field_length,
     break;
   }
   return 0;
+}
+
+
+/*
+  Check if field_type is appropriate field type
+  to create field for tmp table using
+  item->tmp_table_field() method
+
+  SYNOPSIS
+    field_types_to_be_kept()
+    field_type     - field type
+
+  NOTE
+    it is used in function get_holder_example_field()
+    from item.cc
+
+  RETURN
+    1 - can use item->tmp_table_field() method
+    0 - can not use item->tmp_table_field() method
+
+*/
+
+bool field_types_to_be_kept(enum_field_types field_type)
+{
+  switch (field_type)
+  {
+    case FIELD_TYPE_DATE:
+    case FIELD_TYPE_NEWDATE:
+    case FIELD_TYPE_TIME:
+    case FIELD_TYPE_DATETIME:
+      return 1;
+    default:
+      return 0;
+  }
 }
 
 
