@@ -2376,8 +2376,15 @@ btr_index_rec_validate(
 
 		type = dict_index_get_nth_type(index, i);
 		
-		if (len != UNIV_SQL_NULL && dtype_is_fixed_size(type)
-		    			&& len != dtype_get_fixed_size(type)) {
+		if ((dict_index_get_nth_field(index, i)->prefix_len == 0
+		    && len != UNIV_SQL_NULL && dtype_is_fixed_size(type)
+		    && len != dtype_get_fixed_size(type))
+		   ||
+		   (dict_index_get_nth_field(index, i)->prefix_len > 0
+		    && len != UNIV_SQL_NULL && dtype_is_fixed_size(type)
+		    && len !=
+			   dict_index_get_nth_field(index, i)->prefix_len)) {
+
 			fprintf(stderr,
 "InnoDB: Record in index %s in table %s, page %lu, at offset %lu\n"
 "InnoDB: field %lu len is %lu, should be %lu\n",
