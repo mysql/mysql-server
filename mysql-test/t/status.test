@@ -17,7 +17,7 @@ SET SQL_LOG_BIN=0;
 drop table if exists t1;
 --enable_warnings
 
-create table t1(n int) type=myisam;
+create table t1(n int) engine=myisam;
 insert into t1 values(1);
 connection con2;
 lock tables t1 read;

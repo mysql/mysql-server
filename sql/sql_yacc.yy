@@ -42,6 +42,11 @@ int yylex(void *yylval, void *yythd);
 
 #define yyoverflow(A,B,C,D,E,F) if (my_yyoverflow((B),(D),(int*) (F))) { yyerror((char*) (A)); return 2; }
 
+#define WARN_DEPRECATED(A,B) \
+  push_warning_printf(((THD *)yythd), MYSQL_ERROR::WARN_LEVEL_WARN, \
+		      ER_WARN_DEPRECATED_SYNTAX, \
+		      ER(ER_WARN_DEPRECATED_SYNTAX), (A), (B)); 
+
 inline Item *or_or_concat(THD *thd, Item* A, Item* B)
 {
   return (thd->variables.sql_mode & MODE_PIPES_AS_CONCAT ?
@@ -467,6 +472,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	ELSE
 %token	ELT_FUNC
 %token	ENCODE_SYM
+%token	ENGINE_SYM
 %token	ENCRYPT
 %token	EXPORT_SET
 %token	EXTRACT_SYM
@@ -1067,7 +1073,8 @@ create_table_options:
 	| create_table_option ',' create_table_options;
 
 create_table_option:
-	TYPE_SYM opt_equal table_types          { Lex->create_info.db_type= $3; }
+	ENGINE_SYM opt_equal table_types        { Lex->create_info.db_type= $3; }
+	| TYPE_SYM opt_equal table_types        { Lex->create_info.db_type= $3; WARN_DEPRECATED("TYPE=database_engine","ENGINE=database_engine"); }
 	| MAX_ROWS opt_equal ulonglong_num	{ Lex->create_info.max_rows= $3; Lex->create_info.used_fields|= HA_CREATE_USED_MAX_ROWS;}
 	| MIN_ROWS opt_equal ulonglong_num	{ Lex->create_info.min_rows= $3; Lex->create_info.used_fields|= HA_CREATE_USED_MIN_ROWS;}
 	| AVG_ROW_LENGTH opt_equal ULONG_NUM	{ Lex->create_info.avg_row_length=$3; Lex->create_info.used_fields|= HA_CREATE_USED_AVG_ROW_LENGTH;}
@@ -3963,6 +3970,9 @@ show_param:
 	    lex->select_lex.db= $3;
 	    lex->select_lex.options= 0;
 	  }
+	| ENGINE_SYM table_types 
+	  { Lex->create_info.db_type= $2; }
+	  show_engine_param
 	| opt_full COLUMNS from_or_in table_ident opt_db wild
 	  {
 	    Lex->sql_command= SQLCOM_SHOW_FIELDS;
@@ -4028,7 +4038,7 @@ show_param:
 	| STATUS_SYM wild
 	  { Lex->sql_command= SQLCOM_SHOW_STATUS; }
         | INNOBASE_SYM STATUS_SYM
-          { Lex->sql_command = SQLCOM_SHOW_INNODB_STATUS;}
+          { Lex->sql_command = SQLCOM_SHOW_INNODB_STATUS; WARN_DEPRECATED("SHOW INNODB STATUS", "SHOW ENGINE INNODB STATUS"); }
 	| opt_full PROCESSLIST_SYM
 	  { Lex->sql_command= SQLCOM_SHOW_PROCESSLIST;}
 	| opt_var_type VARIABLES wild
@@ -4042,9 +4052,9 @@ show_param:
 	| COLLATION_SYM wild
 	  { Lex->sql_command= SQLCOM_SHOW_COLLATIONS; }
 	| BERKELEY_DB_SYM LOGS_SYM
-	  { Lex->sql_command= SQLCOM_SHOW_LOGS; }
+	  { Lex->sql_command= SQLCOM_SHOW_LOGS; WARN_DEPRECATED("SHOW BDB LOGS", "SHOW ENGINE BDB LOGS"); }
 	| LOGS_SYM
-	  { Lex->sql_command= SQLCOM_SHOW_LOGS; }
+	  { Lex->sql_command= SQLCOM_SHOW_LOGS; WARN_DEPRECATED("SHOW LOGS", "SHOW ENGINE BDB LOGS"); }
 	| GRANTS FOR_SYM user
 	  {
 	    LEX *lex=Lex;
@@ -4072,6 +4082,30 @@ show_param:
           {
 	    Lex->sql_command = SQLCOM_SHOW_SLAVE_STAT;
           };
+
+show_engine_param:
+	STATUS_SYM
+	  {
+	    switch (Lex->create_info.db_type) {
+	    case DB_TYPE_INNODB:
+	      Lex->sql_command = SQLCOM_SHOW_INNODB_STATUS;
+	      break;
+	    default:
+	      net_printf(YYTHD, ER_NOT_SUPPORTED_YET, "STATUS");
+	      YYABORT;
+	    }
+	  }
+	| LOGS_SYM
+	  {
+	    switch (Lex->create_info.db_type) {
+	    case DB_TYPE_BERKELEY_DB:
+	      Lex->sql_command = SQLCOM_SHOW_LOGS;
+	      break;
+	    default:
+	      net_printf(YYTHD, ER_NOT_SUPPORTED_YET, "LOGS");
+	      YYABORT;
+	    }
+	  };
 
 master_or_binary:
 	MASTER_SYM
@@ -4617,6 +4651,7 @@ keyword:
 	| DYNAMIC_SYM		{}
 	| END			{}
 	| ENUM			{}
+	| ENGINE_SYM		{}
 	| ERRORS		{}
 	| ESCAPE_SYM		{}
 	| EVENTS_SYM		{}

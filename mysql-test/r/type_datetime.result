@@ -71,7 +71,7 @@ CREATE TABLE `t1` (
 PRIMARY KEY  (`numfacture`),
 KEY `date` (`date`),
 KEY `expedition` (`expedition`)
-) TYPE=MyISAM;
+) ENGINE=MyISAM;
 INSERT INTO t1 (expedition) VALUES ('0001-00-00 00:00:00');
 SELECT * FROM t1 WHERE expedition='0001-00-00 00:00:00';
 date	numfacture	expedition

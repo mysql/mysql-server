@@ -37,7 +37,7 @@ bool     char(0) default NULL,
 not_null varchar(20) binary NOT NULL default '',
 misc     integer not null,
 PRIMARY KEY  (not_null)
-) TYPE=MyISAM;
+) ENGINE=MyISAM;
 INSERT INTO t1 VALUES (NULL,'a',4), (NULL,'b',5), (NULL,'c',6), (NULL,'d',7);
 select * from t1 where misc > 5 and bool is null;
 bool	not_null	misc

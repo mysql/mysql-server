@@ -6,7 +6,7 @@
 drop table if exists t1;
 --enable_warnings
 
-create table t1 (a int not null,b int not null, primary key (a)) type=heap comment="testing heaps" avg_row_length=100 min_rows=1 max_rows=100;
+create table t1 (a int not null,b int not null, primary key (a)) engine=heap comment="testing heaps" avg_row_length=100 min_rows=1 max_rows=100;
 insert into t1 values(1,1),(2,2),(3,3),(4,4);
 delete from t1 where a=1 or a=0;
 #show table status like "t1";
@@ -20,20 +20,20 @@ select * from t1;
 alter table t1 add c int not null, add key (c,a);
 drop table t1;
 
-create table t1 (a int not null,b int not null, primary key (a)) type=memory comment="testing heaps";
+create table t1 (a int not null,b int not null, primary key (a)) engine=memory comment="testing heaps";
 insert into t1 values(1,1),(2,2),(3,3),(4,4);
 delete from t1 where a > 0;
 select * from t1;
 drop table t1;
 
-create table t1 (a int not null,b int not null, primary key (a)) type=heap comment="testing heaps";
+create table t1 (a int not null,b int not null, primary key (a)) engine=heap comment="testing heaps";
 insert into t1 values(1,1),(2,2),(3,3),(4,4);
-alter table t1 modify a int not null auto_increment, type=myisam, comment="new myisam table";
+alter table t1 modify a int not null auto_increment, engine=myisam, comment="new myisam table";
 #show table status like "t1";
 select * from t1;
 drop table t1;
 
-create table t1 (a int not null) type=heap;
+create table t1 (a int not null) engine=heap;
 insert into t1 values (869751),(736494),(226312),(802616);
 select * from t1 where a > 736494;
 alter table t1 add unique uniq_id(a);
@@ -41,31 +41,31 @@ select * from t1 where a > 736494;
 select * from t1 where a = 736494;
 select * from t1 where a=869751 or a=736494;
 select * from t1 where a in (869751,736494,226312,802616);
-alter table t1 type=myisam;
+alter table t1 engine=myisam;
 explain select * from t1 where a in (869751,736494,226312,802616);
 drop table t1;
 
 create table t1 (x int not null, y int not null, key x (x), unique y (y))
-type=heap;
+engine=heap;
 insert into t1 values (1,1),(2,2),(1,3),(2,4),(2,5),(2,6);
 select * from t1 where x=1;
 select * from t1,t1 as t2 where t1.x=t2.y;
 explain select * from t1,t1 as t2 where t1.x=t2.y;
 drop table t1;
 
-create table t1 (a int) type=heap;
+create table t1 (a int) engine=heap;
 insert into t1 values(1);
 select max(a) from t1;
 drop table t1;
 
-CREATE TABLE t1 ( a int not null default 0, b int not null default 0,  key(a),  key(b)  ) TYPE=HEAP;
+CREATE TABLE t1 ( a int not null default 0, b int not null default 0,  key(a),  key(b)  ) ENGINE=HEAP;
 insert into t1 values(1,1),(1,2),(2,3),(1,3),(1,4),(1,5),(1,6);
 select * from t1 where a=1; 
 insert into t1 values(1,1),(1,2),(2,3),(1,3),(1,4),(1,5),(1,6);
 select * from t1 where a=1;
 drop table t1;
 
-create table t1 (id int unsigned not null, primary key (id)) type=HEAP;
+create table t1 (id int unsigned not null, primary key (id)) engine=HEAP;
 insert into t1 values(1);
 select max(id) from t1; 
 insert into t1 values(2);
@@ -73,16 +73,16 @@ select max(id) from t1;
 replace into t1 values(1);
 drop table t1;
 
-create table t1 (n int) type=heap;
+create table t1 (n int) engine=heap;
 drop table t1;
 
-create table t1 (n int) type=heap;
+create table t1 (n int) engine=heap;
 drop table if exists t1;
 
 # Test of non unique index
 
 CREATE table t1(f1 int not null,f2 char(20) not 
-null,index(f2)) type=heap;
+null,index(f2)) engine=heap;
 INSERT into t1 set f1=12,f2="bill";
 INSERT into t1 set f1=13,f2="bill";
 INSERT into t1 set f1=14,f2="bill";
@@ -100,7 +100,7 @@ drop table t1;
 # Test when using part key searches
 #
 
-create table t1 (btn char(10) not null, key(btn)) type=heap;
+create table t1 (btn char(10) not null, key(btn)) engine=heap;
 insert into t1 values ("hello"),("hello"),("hello"),("hello"),("hello"),("a"),("b"),("c"),("d"),("e"),("f"),("g"),("h"),("i");
 explain select * from t1 where btn like "q%";
 select * from t1 where btn like "q%";
@@ -119,7 +119,7 @@ CREATE TABLE t1 (
   b int default NULL,
   KEY a (a),
   UNIQUE b (b)
-) type=heap;
+) engine=heap;
 INSERT INTO t1 VALUES (NULL,99),(99,NULL),(1,1),(2,2),(1,3);
 SELECT * FROM t1 WHERE a=NULL;
 explain SELECT * FROM t1 WHERE a IS NULL;
@@ -135,7 +135,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (
   a int default NULL,
   key a (a)
-) TYPE=HEAP;
+) ENGINE=HEAP;
 INSERT INTO t1 VALUES (10), (10), (10);
 EXPLAIN SELECT * FROM t1 WHERE a=10;
 SELECT * FROM t1 WHERE a=10;
@@ -145,7 +145,7 @@ DROP TABLE t1;
 # Test when deleting all rows
 #
 
-CREATE TABLE t1 (a int not null, primary key(a)) type=heap;
+CREATE TABLE t1 (a int not null, primary key(a)) engine=heap;
 INSERT into t1 values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11);
 DELETE from t1 where a < 100;
 SELECT * from t1;
