@@ -198,7 +198,7 @@ DYNAMIC_STRING ds_res;
 static void die(const char* fmt, ...);
 static void init_var_hash();
 static byte* get_var_key(const byte* rec, uint* len,
-			 my_bool __attribute((unused)) t);
+			 my_bool __attribute__((unused)) t);
 static VAR* var_init(const char* name, int name_len, const char* val,
 		     int val_len);
 
@@ -1710,7 +1710,7 @@ void get_query_type(struct st_query* q)
 }
 
 static byte* get_var_key(const byte* var, uint* len,
-			 my_bool __attribute((unused)) t)
+			 my_bool __attribute__((unused)) t)
 {
   register char* key;
   key = ((VAR*)var)->name;
