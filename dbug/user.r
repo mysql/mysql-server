@@ -377,7 +377,7 @@ The factorial function is then called three times, with the arguments
 Note that the DBUG_PRINT takes exactly
 .B two
 arguments, with the second argument (a format string and list
-of printable values) enclosed in parenthesis.
+of printable values) enclosed in parentheses.
 .P
 Debug control strings consist of a header, the "-#", followed
 by a colon separated list of debugger arguments.
@@ -575,7 +575,7 @@ The second argument to a
 .B DBUG_PRINT 
 macro is a standard printf style
 format string and one or more arguments to print, all
-enclosed in parenthesis so that they collectively become a single macro
+enclosed in parentheses so that they collectively become a single macro
 argument.
 This is how variable numbers of printf arguments are supported.
 Also note that no explicit newline is required at the end of the format string.
@@ -807,7 +807,7 @@ and the corresponding argument list.
 Note that the format string and argument list are all one macro argument
 and
 .B must
-be enclosed in parenthesis.
+be enclosed in parentheses.
 .SP 1
 EX:\ \fCDBUG_PRINT\ ("eof",\ ("end\ of\ file\ found"));\fR
 .br
@@ -826,7 +826,7 @@ EX: \fCDBUG_DBUG\ ("net",\ packet,\ len);\fR
 .LI DBUG_SETJMP\ 
 Used in place of the setjmp() function to first save the current
 debugger state and then execute the standard setjmp call.
-This allows to the debugger to restore it's state when the
+This allows to the debugger to restore its state when the
 DBUG_LONGJMP macro is used to invoke the standard longjmp() call.
 Currently all instances of DBUG_SETJMP must occur within the
 same function and at the same function nesting level.

@@ -1648,4 +1648,5 @@ NdbIndexScanOperation::end_of_bound()
   
   m_first_bound_word = theKEYINFOptr + theTotalNrOfKeyWordInSignal;;
   m_this_bound_start = theTupKeyLen;
+  return 0;
 }

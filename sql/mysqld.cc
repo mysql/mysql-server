@@ -149,6 +149,7 @@ static VolumeID_t datavolid;
 static event_handle_t eh;
 static Report_t ref;
 static void *refneb= NULL;
+my_bool event_flag= FALSE;
 static int volumeid= -1;
 
   /* NEB event callback */
@@ -819,7 +820,8 @@ static void __cdecl kill_server(int sig_ptr)
     unireg_end();
 
 #ifdef __NETWARE__
-  pthread_join(select_thread, NULL);		// wait for main thread
+  if(!event_flag)
+    pthread_join(select_thread, NULL);		// wait for main thread
 #endif /* __NETWARE__ */
 
   pthread_exit(0);				/* purecov: deadcode */
@@ -1530,6 +1532,7 @@ static void check_data_home(const char *path)
 // down server event callback
 void mysql_down_server_cb(void *, void *)
 {
+  event_flag= TRUE;
   kill_server(0);
 }
 
@@ -1563,7 +1566,7 @@ void mysql_cb_init()
     Register for volume deactivation event
     Wrap the callback function, as it is called by non-LibC thread
   */
-  (void)NX_WRAP_INTERFACE(neb_event_callback, 1, &refneb);
+  (void *) NX_WRAP_INTERFACE(neb_event_callback, 1, &refneb);
   registerwithneb();
 
   NXVmRegisterExitHandler(mysql_cb_destroy, NULL);  // clean-up
@@ -1660,6 +1663,7 @@ ulong neb_event_callback(struct EventBlock *eblock)
     {
       consoleprintf("MySQL data volume is deactivated, shutting down MySQL Server \n");
       nw_panic = TRUE;
+      event_flag= TRUE;
       kill_server(0);
     }
   }

@@ -32,10 +32,11 @@ typedef struct st_archive_share {
   uint table_name_length,use_count;
   pthread_mutex_t mutex;
   THR_LOCK lock;
-  File meta_file;                   /* Meta file we use */
-  gzFile archive_write;             /* Archive file we are working with */
-  bool dirty;                       /* Flag for if a flush should occur */
-  ulonglong rows_recorded;          /* Number of rows in tables */
+  File meta_file;           /* Meta file we use */
+  gzFile archive_write;     /* Archive file we are working with */
+  bool dirty;               /* Flag for if a flush should occur */
+  ulonglong rows_recorded;  /* Number of rows in tables */
+  bool delayed;             /* If a delayed insert has happened since opena */
 } ARCHIVE_SHARE;
 
 /*
@@ -53,9 +54,10 @@ class ha_archive: public handler
   byte byte_buffer[IO_SIZE]; /* Initial buffer for our string */
   String buffer;             /* Buffer used for blob storage */
   ulonglong scan_rows;       /* Number of rows left in scan */
+  bool delayed_insert;       /* If the insert is delayed */
 
 public:
-  ha_archive(TABLE *table): handler(table)
+  ha_archive(TABLE *table): handler(table), delayed_insert(0)
   {
     /* Set our original buffer from pre-allocated memory */
     buffer.set(byte_buffer, IO_SIZE, system_charset_info);
@@ -72,7 +74,7 @@ public:
   ulong table_flags() const
   {
     return (HA_REC_NOT_IN_SEQ | HA_NOT_EXACT_COUNT | HA_NO_AUTO_INCREMENT |
-            HA_FILE_BASED);
+            HA_FILE_BASED | HA_CAN_INSERT_DELAYED);
   }
   ulong index_flags(uint idx, uint part, bool all_parts) const
   {
