@@ -17579,7 +17579,7 @@ signal to the @code{mysqld} server.
 @item @code{PRIVILEGES} @tab Reloads the privileges from the grant tables in
 the @code{mysql} database.
 
-@item @code{QUERY CACHE} @tab Defragment the query cache to better utilize the memory.  This command will not remove any queries from the cache.
+@item @code{QUERY CACHE} @tab Defragment the query cache to better utilise its memory.  This command will not remove any queries from the cache.
 
 @item @code{TABLES} @tab Closes all open tables and force all tables in use to be closed. This also flushes the query cache.
 
@@ -18501,13 +18501,14 @@ long (like when inserting blobs), you should increase this!
 Don't cache results that are bigger than this. (Default 1M).
 
 @item @code{query_cache_size}
-The memory allocated to store results from old queries.  If this is zero
-the query cache is disabled.
+The memory allocated to store results from old queries.
+If this is 0, the query cache is disabled (default).
 
 @item @code{query_cache_startup_type}
-This may have be set to 0 (cache results but don't retrieve results from
-cache), 1 (cache results by defaults) or 2 (only cache @code{SELECT}'s marked
-with @code{SQL_CACHE}).
+This may be set (only numeric) to
+0 (OFF, don't cache or retrieve results),
+1 (ON, cache all results except @code{SELECT SQL_NO_CACHE ...} queries) or
+2 (DEMAND, cache only @code{SELECT SQL_CACHE ...} queries).
 
 @item @code{safe_show_databases}
 Don't show databases for which the user doesn't have any database or
@@ -25727,16 +25728,14 @@ flag again, the @code{SQL_MAX_JOIN_SIZE} variable will be ignored.
 You can set a default value for this variable by starting @code{mysqld} with
 @code{-O max_join_size=#}.
 
-@item SQL_QUERY_CACHE_TYPE = [OFF | ON | DEMAND]
-@item SQL_QUERY_CACHE_TYPE = [0   | 1  | 2]
-
-The numbers stand for the corresponding verbose option.
-
+@item SQL_QUERY_CACHE_TYPE = OFF | ON | DEMAND
+@item SQL_QUERY_CACHE_TYPE = 0   | 1  | 2
+Set query cache setting for this thread.
 @multitable @columnfractions .3 .7
 @item @strong{Option} @tab @strong{Description}
-@item 0 or OFF @tab Cache @code{SELECT} results, but don't retrieve results from cache.
-@item 1 or ON @tab Cache all @code{SELECT}'s that are not marked with @code{SQL_NO_CACHE}.
-@item 2 or DEMAND @tab Cache only @code{SELECT SQL_CACHE}) queries.
+@item 0 or OFF @tab Don't cache or retrieve results.
+@item 1 or ON @tab Cache all results except @code{SELECT SQL_NO_CACHE ...} queries.
+@item 2 or DEMAND @tab Cache only @code{SELECT SQL_CACHE ...} queries.
 @end multitable
 
 @item SQL_SAFE_UPDATES = 0 | 1
@@ -31223,11 +31222,11 @@ MySQL Version 3.23 this shouldn't normally be needed.
 
 @item
 @code{SQL_CACHE} tells MySQL to store the query result in the query cache
-even if you are using @code{SQL_QUERY_CACHE_METHOD} 2 (= @code{DEMAND}).
+if you are using @code{SQL_QUERY_CACHE_TYPE=2} (@code{DEMAND}).
 
 @item
-@code{SQL_NO_CACHE} tells MySL to not store the query result in the
-query cache.
+@code{SQL_NO_CACHE} tells MySQL to not allow the query result to be stored
+in the query cache.
 
 @item
 @cindex @code{GROUP BY}, extensions to ANSI SQL
