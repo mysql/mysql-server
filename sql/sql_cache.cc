@@ -357,12 +357,6 @@ TODO list:
 #define DUMP(C)
 #endif
 
-#ifdef FN_NO_CASE_SENCE
-#define DB_NAME_PREPROCESS(C) tolower(C)
-#else
-#define DB_NAME_PREPROCESS(C) (C)
-#endif
-
 const char *query_cache_type_names[]= { "OFF", "ON", "DEMAND",NullS };
 TYPELIB query_cache_type_typelib=
 {
@@ -2478,12 +2472,18 @@ TABLE_COUNTER_TYPE Query_cache::is_cacheable(THD *thd, uint32 query_len,
 
       if (tables_used->table->db_type == DB_TYPE_MRG_ISAM ||
 	  tables_used->table->tmp_table != NO_TMP_TABLE ||
-	  (tables_used->db_length == 5 && 
-	   DB_NAME_PREPROCESS(tables_used->db[0])=='m' &&
-	   DB_NAME_PREPROCESS(tables_used->db[1])=='y' &&
-	   DB_NAME_PREPROCESS(tables_used->db[2])=='s' &&
-	   DB_NAME_PREPROCESS(tables_used->db[3])=='q' &&
-	   DB_NAME_PREPROCESS(tables_used->db[4])=='l'))
+	  (tables_used->db_length == 5 &&
+#ifdef FN_NO_CASE_SENCE
+	   // TODO: latin1 charset should be replaced with system charset
+	   my_strncasecmp(my_charset_latin1,tables_used->db,"mysql",5) == 0
+#else
+	   tables_used->db[0]=='m' &&
+	   tables_used->db[1]=='y' &&
+	   tables_used->db[2]=='s' &&
+	   tables_used->db[3]=='q' &&
+	   tables_used->db[4]=='l'
+#endif
+	   ))
       {
 	DBUG_PRINT("qcache", 
 		   ("select not cacheable: used MRG_ISAM, temporary or system table(s)"));
