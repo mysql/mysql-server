@@ -943,6 +943,7 @@ printNodeStatus(OutputStream *output,
     output->println("node.%d.dynamic_id: %d", nodeId, dynamicId);
     output->println("node.%d.node_group: %d", nodeId, nodeGroup);
     output->println("node.%d.connect_count: %d", nodeId, connectCount);
+    output->println("node.%d.address: %s", nodeId, mgmsrv.get_connect_address(nodeId));
   }
 
 }
