@@ -217,14 +217,18 @@ struct st_table {
   uint          derived_select_number;
   int		current_lock;           /* Type of lock on table */
   my_bool copy_blobs;			/* copy_blobs when storing */
+  
+  /* 
+    0 or JOIN_TYPE_{LEFT|RIGHT}. Currently this is only compared to 0.
+    If maybe_null !=0, this table is inner w.r.t. some outer join operation,
+    and null_row may be true.
+  */
+  uint maybe_null;
   /*
-    Used in outer joins: if true, all columns are considered to have NULL
-    values, including columns declared as "not null".
+    If true, the current table row is considered to have all columns set to 
+    NULL, including columns declared as "not null" (see maybe_null).
   */
   my_bool null_row;
-  /* 0 or JOIN_TYPE_{LEFT|RIGHT}, same as TABLE_LIST::outer_join */
-  my_bool outer_join;
-  my_bool maybe_null;                   /* true if (outer_join != 0) */
   my_bool force_index;
   my_bool distinct,const_table,no_rows;
   my_bool key_read, no_keyread;
@@ -388,6 +392,10 @@ typedef struct st_table_list
   uint          effective_algorithm;    /* which algorithm was really used */
   uint		privilege_backup;       /* place for saving privileges */
   GRANT_INFO	grant;
+  /* data need by some engines in query cache*/
+  ulonglong     engine_data;
+  /* call back function for asking handler about caching in query cache */
+  qc_engine_callback callback_func;
   thr_lock_type lock_type;
   uint		outer_join;		/* Which join type */
   uint		shared;			/* Used in multi-upd */

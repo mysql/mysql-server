@@ -2377,20 +2377,17 @@ longlong Item_func_release_lock::val_int()
 
 longlong Item_func_last_insert_id::val_int()
 {
+  THD *thd= current_thd;
   DBUG_ASSERT(fixed == 1);
   if (arg_count)
   {
-    longlong value=args[0]->val_int();
-    current_thd->insert_id(value);
-    null_value=args[0]->null_value;
-    return value;
+    longlong value= args[0]->val_int();
+    thd->insert_id(value);
+    null_value= args[0]->null_value;
+    return value;                       // Avoid side effect of insert_id()
   }
-  else
-  {
-    Item *it= get_system_var(current_thd, OPT_SESSION, "last_insert_id", 14,
-			     "last_insert_id()");
-    return it->val_int();
-  }
+  thd->lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
+  return thd->insert_id();
 }
 
 /* This function is just used to test speed of different functions */
@@ -3142,9 +3139,7 @@ void Item_func_match::init_search(bool no_order)
 
   if (join_key && !no_order)
     flags|=FT_SORTED;
-  ft_handler=table->file->ft_init_ext(flags, key,
-				      (byte*) ft_tmp->ptr(),
-				      ft_tmp->length());
+  ft_handler=table->file->ft_init_ext(flags, key, ft_tmp);
 
   if (join_key)
     table->file->ft_handler=ft_handler;
@@ -3186,12 +3181,12 @@ bool Item_func_match::fix_fields(THD *thd, TABLE_LIST *tlist, Item **ref)
   }
   /*
     Check that all columns come from the same table.
-    We've already checked that columns in MATCH are fields so 
+    We've already checked that columns in MATCH are fields so
     PARAM_TABLE_BIT can only appear from AGAINST argument.
   */
   if ((used_tables_cache & ~PARAM_TABLE_BIT) != item->used_tables())
     key=NO_SUCH_KEY;
-  
+
   if (key == NO_SUCH_KEY && !(flags & FT_BOOL))
   {
     my_error(ER_WRONG_ARGUMENTS,MYF(0),"MATCH");

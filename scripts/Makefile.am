@@ -140,6 +140,9 @@ SUFFIXES = .sh
 	  -e 's!@''IS_LINUX''@!@IS_LINUX@!' \
 	  -e "s!@""CONF_COMMAND""@!@CONF_COMMAND@!" \
 	  -e 's!@''MYSQLD_USER''@!@MYSQLD_USER@!' \
+	  -e 's!@''STATIC_NSS_FLAGS''@!@STATIC_NSS_FLAGS@!' \
+	  -e 's!@''NON_THREADED_LIBS''@!@NON_THREADED_LIBS@!' \
+	  -e 's!@''ZLIB_DEPS''@!@ZLIB_DEPS@!' \
 	  -e "s!@MAKE@!$(MAKE)!" \
 	$< > $@-t
 	@CHMOD@ +x $@-t
