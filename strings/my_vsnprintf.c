@@ -33,17 +33,6 @@
     length of result string
 */
 
-int my_snprintf(char* to, size_t n, const char* fmt, ...)
-{
-  int result;
-  va_list args;
-  va_start(args,fmt);
-  result= my_vsnprintf(to, n, fmt, args);
-  va_end(args);
-  return result;
-}
-
-
 int my_vsnprintf(char *to, size_t n, const char* fmt, va_list ap)
 {
   char *start=to, *end=to+n-1;
@@ -141,6 +130,15 @@ int my_vsnprintf(char *to, size_t n, const char* fmt, va_list ap)
   return (uint) (to - start);
 }
 
+int my_snprintf(char* to, size_t n, const char* fmt, ...)
+{
+  int result;
+  va_list args;
+  va_start(args,fmt);
+  result= my_vsnprintf(to, n, fmt, args);
+  va_end(args);
+  return result;
+}
 
 #ifdef MAIN
 #define OVERRUN_SENTRY  250
