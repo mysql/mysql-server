@@ -48,7 +48,7 @@ fast_cflags="-O3 -fno-omit-frame-pointer"
 # this is one is for someone who thinks 1% speedup is worth not being
 # able to backtrace
 reckless_cflags="-O3 -fomit-frame-pointer "
-debug_cflags="-DEXTRA_DEBUG -DFORCE_INIT_OF_VARS -DSAFEMALLOC -DSAFE_MUTEX -O0"
+debug_cflags="-DEXTRA_DEBUG -DFORCE_INIT_OF_VARS -DSAFEMALLOC -DSAFE_MUTEX -O1"
 
 base_cxxflags="-felide-constructors -fno-exceptions -fno-rtti"
 
