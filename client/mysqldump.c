@@ -35,7 +35,7 @@
 ** and adapted to mysqldump 05/11/01 by Jani Tolonen
 */
 
-#define DUMP_VERSION "8.20"
+#define DUMP_VERSION "8.21"
 
 #include <my_global.h>
 #include <my_sys.h>
