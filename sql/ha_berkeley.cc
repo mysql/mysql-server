@@ -2500,4 +2500,29 @@ ha_rows ha_berkeley::estimate_number_of_rows()
   return share->rows + HA_BERKELEY_EXTRA_ROWS;
 }
 
+int ha_berkeley::cmp_ref(const byte *ref1, const byte *ref2)
+{
+  if (hidden_primary_key)
+    return memcmp(ref1, ref2, BDB_HIDDEN_PRIMARY_KEY_LENGTH);
+
+  int result;
+  Field *field;
+  KEY *key_info=table->key_info+table->primary_key;
+  KEY_PART_INFO *key_part=key_info->key_part;
+  KEY_PART_INFO *end=key_part+key_info->key_parts;
+
+  for (; key_part != end; key_part++)
+  {
+    field=  key_part->field; 
+    result= field->pack_cmp((const char*)ref1, (const char*)ref2, 
+                            key_part->length);
+    if (result)
+      return result;
+    ref1 += field->packed_col_length((const char*)ref1, key_part->length);
+    ref2 += field->packed_col_length((const char*)ref2, key_part->length);
+  }
+
+  return 0;
+}
+
 #endif /* HAVE_BERKELEY_DB */
