@@ -35,7 +35,6 @@ link_sources:
 	  set -x; \
 	  ss=`echo $(mystringsobjects) | sed "s;\.lo;.c;g"`; \
 	  ds=`echo $(dbugobjects) | sed "s;\.lo;.c;g"`; \
-	  qs=`echo $(sqlobjects) | sed "s;\.lo;.c;g"`; \
 	  ms=`echo $(mysysobjects) | sed "s;\.lo;.c;g"`; \
 	  for f in $$ss; do \
 	    rm -f $(srcdir)/$$f; \
