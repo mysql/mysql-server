@@ -30,7 +30,8 @@
 #ifndef __WIN__
 #include <sys/wait.h>
 #include <unistd.h>
-#include <fnmatch.h>
+#include <signal.h>
+#include <fnmatch.h>                            /* FIXME HAVE_FNMATCH_H or something */
 #else
 #include <direct.h>
 #include <stdlib.h>
@@ -100,7 +101,7 @@ void init_args(arg_list_t *al)
 void add_arg(arg_list_t *al, const char *format, ...)
 {
   va_list ap;
-  char temp[PATH_MAX];
+  char temp[FN_REFLEN];
 
   ASSERT(al != NULL);
 
@@ -230,10 +231,10 @@ int wait_for_server_start(char *bin_dir __attribute__((unused)),
 {
   arg_list_t al;
   int err= 0, i;
-  char trash[PATH_MAX];
+  char trash[FN_REFLEN];
 
   /* mysqladmin file */
-  snprintf(trash, PATH_MAX, "%s/trash.out",tmp_dir);
+  snprintf(trash, FN_REFLEN, "%s/trash.out",tmp_dir);
 
   /* args */
   init_args(&al);
@@ -490,9 +491,9 @@ int stop_server(char *bin_dir __attribute__((unused)), char *mysqladmin_file,
 {
   arg_list_t al;
   int err= 0;
-  char trash[PATH_MAX];
+  char trash[FN_REFLEN];
 
-  snprintf(trash, PATH_MAX, "%s/trash.out",tmp_dir);
+  snprintf(trash, FN_REFLEN, "%s/trash.out",tmp_dir);
 
   /* args */
   init_args(&al);
@@ -548,7 +549,7 @@ int stop_server(char *bin_dir __attribute__((unused)), char *mysqladmin_file,
 #ifndef __WIN__
 pid_t get_server_pid(char *pid_file)
 {
-  char buf[PATH_MAX];
+  char buf[FN_REFLEN];
   int fd, err;
   char *p;
   pid_t id= 0;
@@ -556,7 +557,7 @@ pid_t get_server_pid(char *pid_file)
   /* discover id */
   fd= open(pid_file, O_RDONLY);
 
-  err= read(fd, buf, PATH_MAX);
+  err= read(fd, buf, FN_REFLEN);
 
   close(fd);
 
@@ -619,7 +620,7 @@ void del_tree(char *dir)
 #ifndef __WIN__
   DIR *parent= opendir(dir);
   struct dirent *entry;
-  char temp[PATH_MAX];
+  char temp[FN_REFLEN];
 
   if (parent == NULL)
   {
@@ -629,22 +630,36 @@ void del_tree(char *dir)
   while ((entry= readdir(parent)) != NULL)
   {
     /* create long name */
-    snprintf(temp, PATH_MAX, "%s/%s", dir, entry->d_name);
+    snprintf(temp, FN_REFLEN, "%s/%s", dir, entry->d_name);
 
     if (entry->d_name[0] == '.')
     {
       /* Skip */
     }
     else
-    if (S_ISDIR(entry->d_type))
     {
-      /* delete subdirectory */
-      del_tree(temp);
-    }
-    else
-    {
-      /* remove file */
-      remove(temp);
+/* FIXME missing test in acinclude.m4 */
+#ifndef STRUCT_DIRENT_HAS_D_TYPE
+      struct stat st;
+
+      if (lstat(entry->d_name, &st) == -1)
+      {
+        /* FIXME error */
+        return;
+      }
+      if (S_ISDIR(st.st_mode))
+#else
+      if (S_ISDIR(entry->d_type))
+#endif
+      {
+        /* delete subdirectory */
+        del_tree(temp);
+      }
+      else
+      {
+        /* remove file */
+        remove(temp);
+      }
     }
   }
   /* remove directory */
@@ -652,10 +667,10 @@ void del_tree(char *dir)
 #else
   struct _finddata_t parent;
   intptr_t handle;
-  char temp[PATH_MAX];
-  char mask[PATH_MAX];
+  char temp[FN_REFLEN];
+  char mask[FN_REFLEN];
 
-  snprintf(mask,MAX_PATH,"%s/*.*",dir);
+  snprintf(mask,FN_REFLEN,"%s/*.*",dir);
 
   if ((handle=_findfirst(mask,&parent)) == -1L)
   {
@@ -665,7 +680,7 @@ void del_tree(char *dir)
   do
   {
     /* create long name */
-    snprintf(temp, PATH_MAX, "%s/%s", dir, parent.name);
+    snprintf(temp, FN_REFLEN, "%s/%s", dir, parent.name);
     if (parent.name[0] == '.')
     {
       /* Skip */
@@ -700,11 +715,11 @@ int removef(const char *format, ...)
 {
 #ifdef __NETWARE__
   va_list ap;
-  char path[PATH_MAX];
+  char path[FN_REFLEN];
 
   va_start(ap, format);
 
-  vsnprintf(path, PATH_MAX, format, ap);
+  vsnprintf(path, FN_REFLEN, format, ap);
 
   va_end(ap);
   return remove(path);
@@ -712,15 +727,15 @@ int removef(const char *format, ...)
 #eldef __WIN__
   {
     va_list ap;
-    char path[PATH_MAX];
+    char path[FN_REFLEN];
     struct _finddata_t parent;
     intptr_t handle;
-    char temp[PATH_MAX];
+    char temp[FN_REFLEN];
     char *p;
 
     va_start(ap, format);
 
-    vsnprintf(path, PATH_MAX, format, ap);
+    vsnprintf(path, FN_REFLEN, format, ap);
 
     va_end(ap);
 
@@ -739,7 +754,7 @@ int removef(const char *format, ...)
     {
       if (! (parent.attrib & _A_SUBDIR))
       {
-        snprintf(temp, PATH_MAX, "%s/%s", path, parent.name);
+        snprintf(temp, FN_REFLEN, "%s/%s", path, parent.name);
         remove(temp);
       }
     }while (_findnext(handle,&parent) == 0);
@@ -749,14 +764,14 @@ int removef(const char *format, ...)
 #else
   DIR *parent;
   struct dirent *entry;
-  char temp[PATH_MAX];
+  char temp[FN_REFLEN];
   va_list ap;
-  char path[PATH_MAX];
+  char path[FN_REFLEN];
   char *p;
   /* Get path with mask */
   va_start(ap, format);
 
-  vsnprintf(path, PATH_MAX, format, ap);
+  vsnprintf(path, FN_REFLEN, format, ap);
 
   va_end(ap);
 
@@ -775,10 +790,21 @@ int removef(const char *format, ...)
   while ((entry= readdir(parent)) != NULL)
   {
     /* entry is not directory and entry matches with mask */
+#ifndef STRUCT_DIRENT_HAS_D_TYPE
+    struct stat st;
+
+    if (lstat(entry->d_name, &st) == -1)
+    {
+      return 1;
+    }
+
+    if (!S_ISDIR(st.st_mode) && !fnmatch(p, entry->d_name,0))
+#else
     if (!S_ISDIR(entry->d_type) && !fnmatch(p, entry->d_name,0))
+#endif
     {
       /* create long name */
-      snprintf(temp, PATH_MAX, "%s/%s", path, entry->d_name);
+      snprintf(temp, FN_REFLEN, "%s/%s", path, entry->d_name);
       /* Delete only files */
       remove(temp);
     }
@@ -795,7 +821,7 @@ int removef(const char *format, ...)
 
 void get_basedir(char *argv0, char *basedir)
 {
-  char temp[PATH_MAX];
+  char temp[FN_REFLEN];
   char *p;
   int position;
 
