@@ -924,7 +924,7 @@ int subselect_single_select_engine::prepare()
 		    (ORDER*) select_lex->group_list.first,
 		    select_lex->having,
 		    (ORDER*) 0, select_lex, 
-		    select_lex->master_unit(), 0))
+		    select_lex->master_unit()))
     return 1;
   thd->lex.current_select= save_select;
   return 0;
@@ -932,7 +932,7 @@ int subselect_single_select_engine::prepare()
 
 int subselect_union_engine::prepare()
 {
-  return unit->prepare(thd, result, 0);
+  return unit->prepare(thd, result);
 }
 
 int subselect_uniquesubquery_engine::prepare()
@@ -942,12 +942,12 @@ int subselect_uniquesubquery_engine::prepare()
   return 1;
 }
 
-static Item_result set_row(SELECT_LEX *select_lex, Item * item,
+static Item_result set_row(List<Item> &item_list, Item *item,
 			   Item_cache **row, bool *maybe_null)
 {
   Item_result res_type= STRING_RESULT;
   Item *sel_item;
-  List_iterator_fast<Item> li(select_lex->item_list);
+  List_iterator_fast<Item> li(item_list);
   for (uint i= 0; (sel_item= li++); i++)
   {
     item->max_length= sel_item->max_length;
@@ -962,7 +962,7 @@ static Item_result set_row(SELECT_LEX *select_lex, Item * item,
       row[i]->collation.set(sel_item->collation);
     }
   }
-  if (select_lex->item_list.elements > 1)
+  if (item_list.elements > 1)
     res_type= ROW_RESULT;
   return res_type;
 }
@@ -970,7 +970,7 @@ static Item_result set_row(SELECT_LEX *select_lex, Item * item,
 void subselect_single_select_engine::fix_length_and_dec(Item_cache **row)
 {
   DBUG_ASSERT(row || select_lex->item_list.elements==1);
-  res_type= set_row(select_lex, item, row, &maybe_null);
+  res_type= set_row(select_lex->item_list, item, row, &maybe_null);
   item->collation.set(row[0]->collation);
   if (cols() != 1)
     maybe_null= 0;
@@ -981,44 +981,11 @@ void subselect_union_engine::fix_length_and_dec(Item_cache **row)
   DBUG_ASSERT(row || unit->first_select()->item_list.elements==1);
 
   if (unit->first_select()->item_list.elements == 1)
-  {
-    uint32 mlen= 0, len;
-    Item *sel_item= 0;
-    for (SELECT_LEX *sl= unit->first_select(); sl; sl= sl->next_select())
-    {
-      List_iterator_fast<Item> li(sl->item_list);
-      Item *s_item= li++;
-      if ((len= s_item->max_length) > mlen)
-	mlen= len;
-      if (!sel_item)
-	sel_item= s_item;
-      maybe_null= s_item->maybe_null;
-    }
-    item->max_length= mlen;
-    res_type= sel_item->result_type();
-    item->decimals= sel_item->decimals;
-    if (row)
-    {
-      if (!(row[0]= Item_cache::get_cache(res_type)))
-	return;
-      row[0]->set_len_n_dec(mlen, sel_item->decimals);
-    }
-  }
+    res_type= set_row(unit->types, item, row, &maybe_null);
   else
   {
-    SELECT_LEX *sl= unit->first_select();
     bool fake= 0;
-    res_type= set_row(sl, item, row, &fake);
-    for (sl= sl->next_select(); sl; sl= sl->next_select())
-    {
-      List_iterator_fast<Item> li(sl->item_list);
-      Item *sel_item;
-      for (uint i= 0; (sel_item= li++); i++)
-      {
-	if (sel_item->max_length > row[i]->max_length)
-	  row[i]->max_length= sel_item->max_length;
-      }
-    }
+    res_type= set_row(unit->types, item, row, &fake);
   }
 }
 

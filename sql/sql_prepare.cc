@@ -682,7 +682,7 @@ static bool mysql_test_select_fields(PREP_STMT *stmt, TABLE_LIST *tables,
 
   if (join->prepare(&select_lex->ref_pointer_array, tables, 
 		    wild_num, conds, og_num, order, group, having, proc, 
-                    select_lex, unit, 0))
+                    select_lex, unit))
     DBUG_RETURN(1);
     if (send_prep_stmt(stmt, fields.elements) ||
         thd->protocol_simple.send_fields(&fields, 0) ||

@@ -482,7 +482,7 @@ int mysql_select(THD *thd, Item ***rref_pointer_array,
 		 COND *conds, uint og_num, ORDER *order, ORDER *group,
 		 Item *having, ORDER *proc_param, ulong select_type, 
 		 select_result *result, SELECT_LEX_UNIT *unit, 
-		 SELECT_LEX *select_lex,  bool tables_and_fields_initied);
+		 SELECT_LEX *select_lex);
 void free_underlaid_joins(THD *thd, SELECT_LEX *select);
 void fix_tables_pointers(SELECT_LEX *select_lex);
 void fix_tables_pointers(SELECT_LEX_UNIT *select_lex);
@@ -491,7 +491,7 @@ int mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit,
 int mysql_explain_select(THD *thd, SELECT_LEX *sl, char const *type,
 			 select_result *result);
 int mysql_union(THD *thd, LEX *lex, select_result *result,
-		SELECT_LEX_UNIT *unit, bool tables_and_fields_initied);
+		SELECT_LEX_UNIT *unit);
 int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *s, TABLE_LIST *t);
 Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
 			Item ***copy_func, Field **from_field,
@@ -675,7 +675,6 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
 int setup_fields(THD *thd, Item** ref_pointer_array, TABLE_LIST *tables,
 		 List<Item> &item, bool set_query_id,
 		 List<Item> *sum_func_list, bool allow_sum_func);
-void unfix_item_list(List<Item> item_list);
 int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds);
 int setup_ftfuncs(SELECT_LEX* select);
 int init_ftfuncs(THD *thd, SELECT_LEX* select, bool no_order);

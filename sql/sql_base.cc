@@ -2023,20 +2023,6 @@ int setup_fields(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
   DBUG_RETURN(test(thd->net.report_error));
 }
 
-/*
-  Mark all items in list as not fixed (0 assigned to 'fixed' field)
-
-  SYNOPSYS
-    unfix_item_list()
-    item_list - list of items
-*/
-void unfix_item_list(List<Item> item_list)
-{
-  Item *item;
-  List_iterator_fast<Item> it(item_list);
-  while ((item= it++))
-    item->walk(&Item::remove_fixed, 0);
-}
 
 /*
   Remap table numbers if INSERT ... SELECT
