@@ -527,7 +527,8 @@ public:
   {
     String *tmp=args[0]->val_str(a);
     null_value=args[0]->null_value;
-    tmp->set_charset(charset());
+    if (tmp)
+      tmp->set_charset(charset());
     return tmp;
   }
   void fix_length_and_dec()
