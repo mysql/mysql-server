@@ -1550,13 +1550,28 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
 			      (byte*) table->field[0]->ptr,0,
 			      HA_READ_KEY_EXACT))
   {
-    if (!create_user)
+    /* what == 'N' means revoke */
+    if (what == 'N')
     {
-      if (what == 'N')
-	my_error(ER_NONEXISTING_GRANT, MYF(0), combo.user.str, combo.host.str);
-      else
-	my_error(ER_NO_PERMISSION_TO_CREATE_USER, MYF(0),
-                 thd->user, thd->host_or_ip);
+      my_error(ER_NONEXISTING_GRANT, MYF(0), combo.user.str, combo.host.str);
+      goto end;
+    }
+    /*
+      There are four options which affect the process of creation of 
+      a new user(mysqld option --safe-create-user, 'insert' privilege
+      on 'mysql.user' table, using 'GRANT' with 'IDENTIFIED BY' and
+      SQL_MODE flag NO_AUTO_CREATE_USER). Below is the simplified rule
+      how it should work.
+      if (safe-user-create && ! INSERT_priv) => reject
+      else if (identified_by) => create
+      else if (no_auto_create_user) => reject
+      else create
+    */
+    else if (((thd->variables.sql_mode & MODE_NO_AUTO_CREATE_USER) &&
+              !password_len) || !create_user)
+    {
+      my_error(ER_NO_PERMISSION_TO_CREATE_USER, MYF(0),
+               thd->user, thd->host_or_ip);
       goto end;
     }
     old_row_exists = 0;
@@ -1570,6 +1585,17 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
   }
   else
   {
+    /*
+      Check that the user isn't trying to change a password for another
+      user if he doesn't have UPDATE privilege to the MySQL database
+    */
+    DBUG_ASSERT(combo.host.str);
+    if (thd->user && combo.password.str &&
+        (strcmp(thd->user,combo.user.str) ||
+         my_strcasecmp(&my_charset_latin1,
+                       combo.host.str, thd->host_or_ip)) &&
+        check_access(thd, UPDATE_ACL, "mysql",0,1,0))
+      goto end;
     old_row_exists = 1;
     store_record(table,record[1]);			// Save copy for update
     if (combo.password.str)			// If password given
