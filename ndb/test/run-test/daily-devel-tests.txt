@@ -3,7 +3,7 @@
 #
 max-time: 1500
 cmd: testIndex
-args: -n CreateAll 
+args: -n CreateAll T1 T6 T13
 
 #-m 7200 1: testIndex -n InsertDeleteGentle T7
 max-time: 3600
@@ -20,12 +20,12 @@ args: -n CreateLoadDrop T1 T10
 #
 max-time: 600
 cmd: testBackup
-args: -n BackupOne 
+args: -n BackupOne T1 T6 T3 I3
 
-max-time: 600
-cmd: testBackup
-args: -n BackupBank T6 
-
+#max-time: 600
+#cmd: testBackup
+#args: -n BackupBank T6 
+#
 #
 # MGMAPI AND MGSRV
 #

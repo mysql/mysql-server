@@ -349,12 +349,15 @@ TransporterFacade::start_instance(const char * connectString){
     
     if(s_config_retriever->do_connect() == -1)
       break;
-    
-    const Uint32 nodeId = s_config_retriever->allocNodeId();
+
+    Uint32 nodeId = s_config_retriever->allocNodeId();
+    for(Uint32 i = 0; nodeId == 0 && i<5; i++){
+      NdbSleep_SecSleep(3);
+      nodeId = s_config_retriever->allocNodeId();
+    }
     if(nodeId == 0)
       break;
-    
-    
+
     ndb_mgm_configuration * props = s_config_retriever->getConfig();
     if(props == 0)
       break;
