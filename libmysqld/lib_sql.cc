@@ -683,7 +683,7 @@ void *create_embedded_thd(Vio *vio, unsigned char *buff, int client_flag, char *
     thd->net.return_status= &thd->server_status;
 
   thd->db= db;
-  thd->db_length= db ? stripp_sp(db) : 0;
+  thd->db_length= db ? strip_sp(db) : 0;
   thd->db_access= DB_ACLS;
   thd->master_access= ~NO_ACCESS;
 
