@@ -1277,9 +1277,6 @@ int main(int argc, char** argv)
 
   if (!( mysql_init(&cur_con->mysql)))
     die("Failed in mysql_init()");
-
-  mysql_options(&cur_con->mysql, MYSQL_READ_DEFAULT_GROUP, "mysql");
-
   cur_con->name = my_strdup("default", MYF(MY_WME));
   if (!cur_con->name)
     die("Out of memory");

@@ -156,7 +156,7 @@ extern int heap_rlast(HP_INFO *info,byte *record);
 extern void heap_clear(HP_INFO *info);
 extern int heap_rkey(HP_INFO *info,byte *record,int inx,const byte *key);
 extern gptr heap_find(HP_INFO *info,int inx,const byte *key);
-extern int heap_check_heap(HP_INFO *info);
+extern int heap_check_heap(HP_INFO *info, my_bool print_status);
 extern byte *heap_position(HP_INFO *info);
 
 /* The following is for programs that uses the old HEAP interface where
