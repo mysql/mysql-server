@@ -86,6 +86,7 @@ void init_tree(TREE *tree, uint default_alloc_size, uint memory_limit,
   tree->custom_arg = custom_arg;
   tree->null_element.colour=BLACK;
   tree->null_element.left=tree->null_element.right=0;
+  tree->flag= 0;
   if (!free_element && size >= 0 &&
       ((uint) size <= sizeof(void*) || ((uint) size & (sizeof(void*)-1))))
   {
@@ -231,7 +232,11 @@ TREE_ELEMENT *tree_insert(TREE *tree, void *key, uint key_size,
     rb_insert(tree,parent,element);		/* rebalance tree */
   }
   else
+  {
+    if (tree->flag & TREE_NO_DUPS)
+      return(NULL);
     element->count++;
+  }
   DBUG_EXECUTE("check_tree", test_rb_tree(tree->root););
   return element;
 }

@@ -96,22 +96,23 @@ int hp_rb_write_key(HP_INFO *info, HP_KEYDEF *keyinfo, const byte *record,
   info->last_pos= NULL; /* For heap_rnext/heap_rprev */
   custom_arg.keyseg= keyinfo->seg;
   custom_arg.key_length= hp_rb_make_key(keyinfo, info->recbuf, record, recpos);
-  if ((keyinfo->flag & HA_NOSAME) &&
-      (!(keyinfo->flag & HA_NULL_PART_KEY) ||
-       !hp_if_null_in_key(keyinfo, record)))
+  if (keyinfo->flag & HA_NOSAME)
   {
     custom_arg.search_flag= SEARCH_FIND | SEARCH_SAME;
-    if (tree_search_key(&keyinfo->rb_tree, info->recbuf, info->parents, 
-	&info->last_pos, 0, &custom_arg))
-    {
-      my_errno= HA_ERR_FOUND_DUPP_KEY;
-      return 1;
-    }
+    keyinfo->rb_tree.flag= TREE_NO_DUPS;
   }
-  custom_arg.search_flag= SEARCH_SAME;
-  return tree_insert(&keyinfo->rb_tree, (void*)info->recbuf,
-		     custom_arg.key_length + sizeof(byte*),
-		     &custom_arg) ? 0 : 1;
+  else
+  {
+    custom_arg.search_flag= SEARCH_SAME;
+    keyinfo->rb_tree.flag= 0;
+  }
+  if (!tree_insert(&keyinfo->rb_tree, (void*)info->recbuf,
+		   custom_arg.key_length, &custom_arg))
+  {
+    my_errno= HA_ERR_FOUND_DUPP_KEY;
+    return 1;
+  }
+  return 0;
 }
 
 	/* Find where to place new record */

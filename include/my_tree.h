@@ -27,6 +27,8 @@ extern "C" {
 
 #define tree_set_pointer(element,ptr) *((byte **) (element+1))=((byte*) (ptr))
 
+#define TREE_NO_DUPS 1
+
 typedef enum { left_root_right, right_root_left } TREE_WALK;
 typedef uint32 element_count;
 typedef int (*tree_walk_action)(void *,element_count,void *);
@@ -55,10 +57,11 @@ typedef struct st_tree {
   TREE_ELEMENT **parents[MAX_TREE_HEIGHT];
   uint offset_to_key,elements_in_tree,size_of_element,memory_limit,allocated;
   qsort_cmp2 compare;
-  void* custom_arg;
+  void *custom_arg;
   MEM_ROOT mem_root;
   my_bool with_delete;
   tree_element_free free;
+  uint flag;
 } TREE;
 
 	/* Functions on whole tree */
