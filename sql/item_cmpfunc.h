@@ -30,61 +30,6 @@ public:
   void fix_length_and_dec() { decimals=0; max_length=1; }
 };
 
-class Item_bool_func2;
-
-class Compare_func
-{
-protected:
-  Item_bool_func2 *owner;
-public:
-  static void *operator new(size_t size)
-  {
-    return (void*) sql_alloc((uint) size);
-  }
-  static void operator delete(void *ptr,size_t size) {}
-
-  Compare_func(Item_bool_func2 *o) { owner= o; }
-  virtual ~Compare_func() {};
-  virtual int compare(Item *, Item*)= 0;
-
-  static Compare_func* get_compare_func(Item_bool_func2 *owner,
-					Item* a, Item* b);
-};
-
-class Compare_func_string: public Compare_func
-{
-public:
-  Compare_func_string(Item_bool_func2 *owner): Compare_func(owner) {};
-  int compare(Item *, Item*);
-};
-
-class Compare_func_real: public Compare_func
-{
-public:
-  Compare_func_real(Item_bool_func2 *owner): Compare_func(owner) {};
-  int compare(Item *, Item*);
-};
-
-class Compare_func_int: public Compare_func
-{
-public:
-  Compare_func_int(Item_bool_func2 *owner): Compare_func(owner) {};
-  int compare(Item *, Item*);
-};
-
-class Compare_func_row: public Compare_func
-{
-  Compare_func **cmp_func;
-public:
-  Compare_func_row(Item_bool_func2 *owner, Item* a, Item* b);
-  ~Compare_func_row()
-  {
-    if(cmp_func)
-      sql_element_free(cmp_func);
-  }
-  int compare(Item *, Item*);
-};
-
 class Item_bool_func2 :public Item_int_func
 {						/* Bool with 2 string args */
 protected:
@@ -92,10 +37,9 @@ protected:
 public:
   Item_bool_func2(Item *a,Item *b) :Item_int_func(a,b) {}
   void fix_length_and_dec();
-  Compare_func *cmp_func;
-  void set_cmp_func(Item *a, Item *b)
+  void set_cmp_func()
   {
-    cmp_func= Compare_func::get_compare_func(this, args[0], args[1]);
+    arg_store.set_compare_func(this);
   }
   optimize_type select_optimize() const { return OPTIMIZE_OP; }
   virtual enum Functype rev_functype() const { return UNKNOWN_FUNC; }
@@ -103,13 +47,14 @@ public:
   void print(String *str) { Item_func::print_op(str); }
   bool is_null() { return test(args[0]->is_null() || args[1]->is_null()); }
 
-  friend class Compare_func_string;
   static Item_bool_func2* eq_creator(Item *a, Item *b);
   static Item_bool_func2* ne_creator(Item *a, Item *b);
   static Item_bool_func2* gt_creator(Item *a, Item *b);
   static Item_bool_func2* lt_creator(Item *a, Item *b);
   static Item_bool_func2* ge_creator(Item *a, Item *b);
   static Item_bool_func2* le_creator(Item *a, Item *b);
+
+  friend class  Arg_comparator;
 };
 
 class Item_bool_rowready_func2 :public Item_bool_func2

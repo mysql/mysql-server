@@ -3340,7 +3340,7 @@ change_cond_ref_to_const(I_List<COND_CMP> *save_list,Item *and_father,
 	if ((tmp2=new COND_CMP(and_father,func)))
 	  save_list->push_back(tmp2);
       }
-      func->set_cmp_func(func->arguments()[0],func->arguments()[1]);
+      func->set_cmp_func();
     }
   }
   else if (left_item->eq(field,0) && right_item != value)
@@ -3360,7 +3360,7 @@ change_cond_ref_to_const(I_List<COND_CMP> *save_list,Item *and_father,
 	if ((tmp2=new COND_CMP(and_father,func)))
 	  save_list->push_back(tmp2);
       }
-      func->set_cmp_func(func->arguments()[0], func->arguments()[1]);
+      func->set_cmp_func();
     }
   }
 }

@@ -567,3 +567,4 @@ bkpull.log.5
 bkpull.log.6
 bkpush.log
 sql/sql_yacc.output
+libmysqld/item_row.cc
