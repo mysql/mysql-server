@@ -479,14 +479,6 @@ void THD::close_active_vio()
 }
 #endif
 
-void THD::add_possible_loop (Item *item)
-{
-  if (!possible_loops)
-  {
-    possible_loops= new List<Item>;
-  }
-  possible_loops->push_back(item);
-}
 
 /*****************************************************************************
 ** Functions to provide a interface to select results

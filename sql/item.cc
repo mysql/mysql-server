@@ -71,19 +71,6 @@ Item_ident::Item_ident(Item_ident &item):
   depended_from(item.depended_from)
 {}
 
-bool Item::check_loop(uint id)
-{
-  DBUG_ENTER("Item::check_loop");
-  DBUG_PRINT("info", ("id %u, name %s", id, name));
-  if (loop_id == id)
-  {
-    DBUG_PRINT("info", ("id match"));
-    DBUG_RETURN(1);
-  }
-  loop_id= id;
-  DBUG_RETURN(0);
-}
-
 bool Item::check_cols(uint c)
 {
   if (c != 1)
@@ -680,7 +667,6 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 	  return 1;
 	r->depended_from= last;
 	cursel->mark_as_dependent(last);
-	thd->add_possible_loop(r);
 	return 0;
       }
       else
@@ -1170,7 +1156,6 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 	}
 	ref= (depended_from= last)->ref_pointer_array + counter-1;
 	thd->lex.current_select->mark_as_dependent(last);
-	thd->add_possible_loop(this);
       }
     }
     else if (!ref)
@@ -1206,14 +1191,6 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
   if (ref && (*ref)->check_cols(1))
     return 1;
   return 0;
-}
-
-bool Item_ref::check_loop(uint id)
-{
-  DBUG_ENTER("Item_ref::check_loop");
-  if (Item_ident::check_loop(id))
-    DBUG_RETURN(1);
-  DBUG_RETURN((*ref)->check_loop(id));
 }
 
 bool Item_default_value::eq(const Item *item, bool binary_cmp) const

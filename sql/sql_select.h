@@ -261,7 +261,6 @@ class JOIN :public Sql_alloc
   int reinit();
   void exec();
   int cleanup(THD *thd);
-  bool check_loop(uint id);
   void restore_tmp();
 
   inline void init_items_ref_array()

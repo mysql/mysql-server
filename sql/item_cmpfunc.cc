@@ -925,16 +925,6 @@ void Item_func_case::set_outer_resolving()
   Item_func::set_outer_resolving();
 }
 
-bool Item_func_case::check_loop(uint id)
-{
-  DBUG_ENTER("Item_func_case::check_loop");
-  if (Item_func::check_loop(id))
-    DBUG_RETURN(1);
-
-  DBUG_RETURN((first_expr && first_expr->check_loop(id)) ||
-	      (else_expr && else_expr->check_loop(id)));
-}
-
 void Item_func_case::update_used_tables()
 {
   Item_func::update_used_tables();
@@ -1484,21 +1474,6 @@ Item_cond::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   fix_length_and_dec();
   fixed= 1;
   return 0;
-}
-
-bool Item_cond::check_loop(uint id)
-{
-  DBUG_ENTER("Item_cond::check_loop");
-  if (Item_func::check_loop(id))
-    DBUG_RETURN(1);
-  List_iterator<Item> li(list);
-  Item *item;
-  while ((item= li++))
-  {
-    if (item->check_loop(id))
-      DBUG_RETURN(1);
-  }
-  DBUG_RETURN(0);
 }
 
 void Item_cond::set_outer_resolving()

@@ -92,7 +92,6 @@ public:
   virtual bool get_date(TIME *ltime,bool fuzzydate);
   virtual bool get_time(TIME *ltime);
   virtual bool is_null() { return 0; };
-  virtual bool check_loop(uint id);
   virtual void top_level_item() {}
   virtual Item * get_same() { return this; }
   virtual Item * get_tmp_table_item() { return get_same(); }
@@ -500,7 +499,6 @@ public:
   enum Item_result result_type () const { return (*ref)->result_type(); }
   enum_field_types field_type() const   { return (*ref)->field_type(); }
   table_map used_tables() const		{ return (*ref)->used_tables(); }
-  bool check_loop(uint id);
 };
 
 class Item_in_subselect;
@@ -689,10 +687,6 @@ public:
   enum Type type() const { return DEFAULT_VALUE_ITEM; }
   bool eq(const Item *item, bool binary_cmp) const;
   bool fix_fields(THD *, struct st_table_list *, Item **);
-  bool check_loop(uint id)
-  {
-    return Item_field::check_loop(id) || arg->check_loop(id);
-  }
   void set_outer_resolving() { arg->set_outer_resolving(); }
   void print(String *str);
   virtual bool basic_const_item() const { return true; }

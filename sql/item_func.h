@@ -133,7 +133,6 @@ public:
   friend class udf_handler;
   Field *tmp_table_field() { return result_field; }
   Field *tmp_table_field(TABLE *t_arg);
-  bool check_loop(uint id);
   void set_outer_resolving();
   Item * get_tmp_table_item();
 };
@@ -627,13 +626,6 @@ public:
     const_item_cache&=  item->const_item();
     with_sum_func= with_sum_func || item->with_sum_func;
   }
-  bool check_loop(uint id)
-  {
-    DBUG_ENTER("Item_func_field::check_loop");
-    if (Item_int_func::check_loop(id))
-      DBUG_RETURN(1);
-    DBUG_RETURN(item->check_loop(id));
-  }
   void set_outer_resolving()
   {
     item->set_outer_resolving();
@@ -1013,7 +1005,6 @@ public:
 
   bool fix_index();
   void init_search(bool no_order);
-  bool check_loop(uint id);
   void set_outer_resolving();
 };
 

@@ -128,23 +128,6 @@ Item_func::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   return 0;
 }
 
-bool Item_func::check_loop(uint id)
-{
-  DBUG_ENTER("Item_func::check_loop");
-  if (Item_result_field::check_loop(id))
-    DBUG_RETURN(1);
-  if (arg_count)
-  {
-    Item **arg,**arg_end;
-    for (arg= args, arg_end= args+arg_count; arg != arg_end; arg++)
-    {
-      if ((*arg)->check_loop(id))
-	DBUG_RETURN(1);
-    }
-  }
-  DBUG_RETURN(0);
-}
-
 void Item_func::set_outer_resolving()
 {
   if (arg_count)
@@ -2363,20 +2346,6 @@ bool Item_func_match::fix_fields(THD *thd, TABLE_LIST *tlist, Item **ref)
   }
 
   return 0;
-}
-
-bool Item_func_match::check_loop(uint id)
-{
-  DBUG_ENTER("Item_func_match::check_loop");
-  if (Item_real_func::check_loop(id))
-    DBUG_RETURN(1);
-
-  List_iterator<Item> li(fields);
-  Item *item;
-  while ((item= li++))
-    if (item->check_loop(id))
-      DBUG_RETURN(1);
-  DBUG_RETURN(0);
 }
 
 void Item_func_match::set_outer_resolving()
