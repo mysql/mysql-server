@@ -774,7 +774,8 @@ char* getlogin(void);
 /* default to "root" on NetWare */
 static void read_user_name(char *name)
 {
-  (void)strmake(name,"root", USERNAME_LENGTH);
+  char *str=getenv("USER");
+  strmake(name, str ? str : "UNKNOWN_USER", USERNAME_LENGTH);
 }
 
 #elif !defined(MSDOS) && ! defined(VMS) && !defined(__WIN__) && !defined(OS2)
@@ -1221,7 +1222,7 @@ unpack_fields(MYSQL_DATA *data,MEM_ROOT *alloc,uint fields,
         field->flags|= NUM_FLAG;
       if (default_value && row->data[6])
       {
-        field->def=strdup_root(alloc,(char*) row->data[8]);
+        field->def=strdup_root(alloc,(char*) row->data[6]);
 	field->def_length= lengths[6];
       }
     }
@@ -1773,7 +1774,7 @@ mysql_init(MYSQL *mysql)
     outside program.
 */
 
-void STDCALL mysql_once_init(void)
+void mysql_once_init(void)
 {
   if (!mysql_client_init)
   {
@@ -4370,7 +4371,6 @@ int STDCALL mysql_execute(MYSQL_STMT *stmt)
     set_stmt_error(stmt, CR_NO_PREPARE_STMT);
     DBUG_RETURN(1);
   }
-  stmt->mysql->fields= stmt->fields;
   if (stmt->param_count)
   {
     NET        *net= &stmt->mysql->net;

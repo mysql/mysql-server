@@ -86,18 +86,11 @@ int mysql_ha_close(THD *thd, TABLE_LIST *tables, bool dont_send_ok)
   return 0;
 }
 
-int mysql_ha_closeall(THD *thd, TABLE_LIST *tables, bool dont_send_ok)
+int mysql_ha_closeall(THD *thd, TABLE_LIST *tables)
 {
   TABLE **ptr=find_table_ptr_by_name(thd, tables->db, tables->real_name, 0);
-
-  DBUG_ASSERT(dont_send_ok);
   if (*ptr)
-  {
-//    if (!dont_send_ok) VOID(pthread_mutex_lock(&LOCK_open));
     close_thread_table(thd, ptr);
-//    if (!dont_send_ok) VOID(pthread_mutex_unlock(&LOCK_open));
-  }
-//  if (!dont_send_ok) send_ok(&thd->net);
   return 0;
 }
 
