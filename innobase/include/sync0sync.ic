@@ -104,6 +104,10 @@ mutex_test_and_set(
 	ret = os_fast_mutex_trylock(&(mutex->os_fast_mutex));
 
 	if (ret == 0) {
+		/* We check that os_fast_mutex_trylock does not leak
+		and allow race conditions */
+		ut_a(mutex->lock_word == 0);
+
 		mutex->lock_word = 1;
 	}
 

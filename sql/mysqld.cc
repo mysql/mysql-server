@@ -1809,7 +1809,7 @@ int main(int argc, char **argv)
     exit( 1 );
   }
 #endif
-  load_defaults("my",load_default_groups,&argc,&argv);
+  load_defaults(MYSQL_CONFIG_NAME,load_default_groups,&argc,&argv);
   defaults_argv=argv;
 
   /* Get default temporary directory */
@@ -2373,7 +2373,15 @@ static void create_new_thread(THD *thd)
   for (uint i=0; i < 8 ; i++)			// Generate password teststring
     thd->scramble[i]= (char) (rnd(&sql_rand)*94+33);
   thd->scramble[8]=0;
-  thd->rand=sql_rand;
+  /* 
+     We need good random number initialization for new thread
+     Just coping global one will not work 
+  */
+  {
+    ulong tmp=(ulong) (rnd(&sql_rand) * 3000000);
+    randominit(&(thd->rand), tmp + (ulong) start_time,
+	       tmp + (ulong) thread_id);
+  }
   thd->real_id=pthread_self();			// Keep purify happy
 
   /* Start a new thread to handle connection */
@@ -3805,7 +3813,7 @@ Starts the MySQL server\n");
 ");
   puts("");
 #endif
-  print_defaults("my",load_default_groups);
+  print_defaults(MYSQL_CONFIG_NAME,load_default_groups);
   puts("");
   fix_paths();
   set_ports();

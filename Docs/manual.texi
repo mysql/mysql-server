@@ -50810,6 +50810,23 @@ not yet 100% confident in this code.
 @appendixsubsec Changes in release 3.23.52
 @itemize @bullet
 @item
+Fixed  a security bug with empty db column in db table
+@item
+Changed initialisation of @code{RND()} to make it less predicatable.
+@item
+Fixed problem with @code{GROUP BY} on result with expression that created a
+@code{BLOB} field.
+@item
+Fixed problem with privilege tables when downgrading from 4.0.2 to 3.23.
+@item
+Fixed thread bug in @code{SLAVE START}, @code{SLAVE STOP} and automatic repair
+of MyISAM tables that could cause table cache to be corrupted.
+@item
+Fixed possible thread related key-cache-corruption problem with
+@code{OPTIMIZE TABLE} and @code{REPAIR TABLE}.
+@item
+Added name of 'administrator command' logs.
+@item
 Fixed bug with creating an auto-increment value on second part of a
 @code{UNIQUE()} key where first part could contain NULL values.
 @item
@@ -50817,7 +50834,9 @@ Don't write slave-timeout reconnects to the error log.
 @item
 Fixed bug with slave net read timeouting
 @item
-Fixed bug in ALTERing  TABLE of BDB type.
+Fixed a core-dump bug with @code{MERGE} tables and @code{MAX()} function.
+@item
+Fixed bug in @code{ALTER TABLE} with BDB tables.
 @item
 Fixed bug when logging @code{LOAD DATA INFILE} to binary log with no 
 active database.

@@ -22,7 +22,7 @@ Created 10/21/1995 Heikki Tuuri
 
 #endif
 
-/* This specifies the file permissions InnoDB uses when it craetes files in
+/* This specifies the file permissions InnoDB uses when it creates files in
 Unix; the value of os_innodb_umask is initialized in ha_innodb.cc to
 my_umask */
 
@@ -2483,7 +2483,7 @@ loop:
 	buf += sprintf(buf, "\n");
 	
 	current_time = time(NULL);
-	time_elapsed = difftime(current_time, os_last_printout);
+	time_elapsed = 0.001 + difftime(current_time, os_last_printout);
 
 	buf += sprintf(buf,
 		"Pending flushes (fsync) log: %lu; buffer pool: %lu\n",
@@ -2515,6 +2515,21 @@ loop:
 	os_bytes_read_since_printout = 0;
 	
 	os_last_printout = current_time;
+}
+
+/**************************************************************************
+Refreshes the statistics used to print per-second averages. */
+
+void
+os_aio_refresh_stats(void)
+/*======================*/
+{
+	os_n_file_reads_old = os_n_file_reads;
+	os_n_file_writes_old = os_n_file_writes;
+	os_n_fsyncs_old = os_n_fsyncs;
+	os_bytes_read_since_printout = 0;
+	
+	os_last_printout = time(NULL);
 }
 
 /**************************************************************************

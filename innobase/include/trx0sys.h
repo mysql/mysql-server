@@ -257,6 +257,15 @@ void
 trx_sys_print_mysql_binlog_offset(void);
 /*===================================*/
 /*********************************************************************
+Prints to stdout the MySQL binlog info in the system header if the
+magic number shows it valid. */
+
+void
+trx_sys_print_mysql_binlog_offset_from_page(
+/*========================================*/
+	byte*	page);	/* in: buffer containing the trx system header page,
+			i.e., page number TRX_SYS_PAGE_NO in the tablespace */
+/*********************************************************************
 Prints to stderr the MySQL master log offset info in the trx system header if
 the magic number shows it valid. */
 
@@ -300,11 +309,11 @@ therefore 256; each slot is currently 8 bytes in size */
 #define TRX_SYS_MYSQL_LOG_NAME_LEN	512
 #define TRX_SYS_MYSQL_LOG_MAGIC_N	873422344
 
-/* The offset of the MySQL replication info on the trx system header page;
+/* The offset of the MySQL replication info in the trx system header;
 this contains the same fields as TRX_SYS_MYSQL_LOG_INFO below */
 #define TRX_SYS_MYSQL_MASTER_LOG_INFO	(UNIV_PAGE_SIZE - 2000)
 
-/* The offset of the MySQL binlog offset info on the trx system header page */
+/* The offset of the MySQL binlog offset info in the trx system header */
 #define TRX_SYS_MYSQL_LOG_INFO		(UNIV_PAGE_SIZE - 1000)
 #define	TRX_SYS_MYSQL_LOG_MAGIC_N_FLD	0	/* magic number which shows
 						if we have valid data in the
