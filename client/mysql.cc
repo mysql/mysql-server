@@ -701,6 +701,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     opt_mysql_unix_port= my_strdup(MYSQL_NAMEDPIPE, MYF(0));
 #endif
     break;
+#include <sslopt-case.h>
   case 'V':
     usage(1);
     exit(0);

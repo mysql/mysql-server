@@ -307,7 +307,7 @@ int mysqld_extend_show_tables(THD *thd,const char *db,const char *wild)
     packet->length(0);
     net_store_data(packet,convert, file_name);
     table_list.db=(char*) db;
-    table_list.real_name=table_list.name=file_name;
+    table_list.real_name= table_list.alias= file_name;
     if (!(table = open_ltable(thd, &table_list, TL_READ)))
     {
       for (uint i=0 ; i < field_list.elements ; i++)

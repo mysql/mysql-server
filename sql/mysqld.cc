@@ -1884,9 +1884,6 @@ int main(int argc, char **argv)
   charsets_list = list_charsets(MYF(MY_COMPILED_SETS|MY_CONFIG_SETS));
 
 #ifdef HAVE_OPENSSL
-  if (opt_ssl_key || opt_ssl_cert || opt_ssl_ca || opt_ssl_capath ||
-      opt_ssl_cipher)
-    opt_use_ssl= 1;
   if (opt_use_ssl)
   {
     /* having ssl_acceptor_fd != 0 signals the use of SSL */
@@ -3969,6 +3966,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     net_buffer_length=  atoi(argument);
     break;
 #endif
+#include <sslopt-case.h>
   case 'v':
   case 'V':
     print_version();

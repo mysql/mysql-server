@@ -470,7 +470,7 @@ int lock_table_name(THD *thd, TABLE_LIST *table_list)
   DBUG_ENTER("lock_table_name");
   safe_mutex_assert_owner(&LOCK_open);
 
-  key_length=(uint) (strmov(strmov(key,table_list->db)+1,table_list->name)
+  key_length=(uint) (strmov(strmov(key,table_list->db)+1,table_list->real_name)
 		     -key)+ 1;
 
   /* Only insert the table if we haven't insert it already */
@@ -499,7 +499,7 @@ int lock_table_name(THD *thd, TABLE_LIST *table_list)
     my_free((gptr) table,MYF(0));
     DBUG_RETURN(-1);
   }
-  if (remove_table_from_cache(thd, table_list->db, table_list->name))
+  if (remove_table_from_cache(thd, table_list->db, table_list->real_name))
     DBUG_RETURN(1);					// Table is in use
   DBUG_RETURN(0);
 }
