@@ -531,39 +531,10 @@ class Rand_log_event: public Log_event
   bool is_valid() { return 1; }
 };
 
-/*****************************************************************************
- *
- *  Rand log event class
- *
- ****************************************************************************/
-class Rand_log_event: public Log_event
-{
- public:
-  ulonglong seed1;
-  ulonglong seed2;
-
-#ifndef MYSQL_CLIENT
-  Rand_log_event(THD* thd_arg, ulonglong seed1_arg, ulonglong seed2_arg)
-    :Log_event(thd_arg),seed1(seed1_arg),seed2(seed2_arg)
-    {}
-  void pack_info(String* packet);
-  int exec_event(struct st_relay_log_info* rli);
-#else
-  void print(FILE* file, bool short_form = 0, char* last_db = 0);
-#endif
-
-  Rand_log_event(const char* buf, bool old_format);
-  ~Rand_log_event() {}
-  Log_event_type get_type_code() { return RAND_EVENT;}
-  int get_data_size() { return sizeof(ulonglong) * 2; }
-  int write_data(IO_CACHE* file);
-  bool is_valid() { return 1; }
-};
-
 class Stop_log_event: public Log_event
 {
 public:
-#ifndef MYSQL_CLIENT  
+#ifndef MYSQL_CLIENT
   Stop_log_event() :Log_event((THD*)0)
   {}
   int exec_event(struct st_relay_log_info* rli);
