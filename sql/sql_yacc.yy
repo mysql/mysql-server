@@ -1329,7 +1329,6 @@ alter_list_item:
 	    LEX *lex=Lex;
 	    lex->select->db=$3->db.str;
 	    lex->name= $3->table.str;
-	    lex->simple_alter=0; 
 	  }
         | create_table_options { Lex->simple_alter=0; }
 	| order_clause         { Lex->simple_alter=0; };

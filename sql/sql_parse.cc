@@ -590,7 +590,7 @@ pthread_handler_decl(handle_one_connection,arg)
 
 #if !defined( __WIN__) && !defined(OS2)	// Win32 calls this in pthread_create
   // The following calls needs to be done before we call DBUG_ macros
-  if (my_thread_init())
+  if (!(test_flags & TEST_NO_THREADS) & my_thread_init())
   {
     close_connection(&thd->net,ER_OUT_OF_RESOURCES);
     statistic_increment(aborted_connects,&LOCK_thread_count);
@@ -1972,6 +1972,7 @@ mysql_execute_command(void)
       }
       auxi->lock_type=walk->lock_type=TL_WRITE;
       auxi->table= (TABLE *) walk;		// Remember corresponding table
+      (void)add_item_to_list(new Item_field(auxi->db,auxi->real_name,"*"));
     }
     tables->grant.want_privilege=(SELECT_ACL & ~tables->grant.privilege);
     if (add_item_to_list(new Item_null()))
@@ -2583,8 +2584,17 @@ check_table_access(THD *thd,uint want_access,TABLE_LIST *tables,
       }
     }
     else if (check_access(thd,want_access,tables->db,&tables->grant.privilege,
+			  0, no_errors | grant_option))
+    {
+      if (grant_option) 
+      {
+	if ( check_access(thd,want_access & (uint) ~TABLE_ACLS,tables->db,&tables->grant.privilege,
 			  0, no_errors))
-      return TRUE;				// Access denied
+	return TRUE;			
+      }
+      else
+	return TRUE;
+    }
   }
   if (grant_option)
     return check_grant(thd,want_access & ~EXTRA_ACL,org_tables,

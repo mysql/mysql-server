@@ -36,12 +36,14 @@ const char *VER="0.2";
 const char *default_dbug_option="d:t:O,-";
 #endif
 
+#if 0
 static void
 fatal_error(	const char*	r)
 {
 	perror(r);
 	exit(0);
 }
+#endif
 
 typedef struct {
 	int	sd;
@@ -70,13 +72,13 @@ do_ssl_stuff(	TH_ARGS*	args)
 static void*
 client_thread(	void*	arg)
 {
-	my_thread_init();
-	do_ssl_stuff((TH_ARGS*)arg);
+  my_thread_init();
+  do_ssl_stuff((TH_ARGS*)arg);
+  return 0;
 }
 
 int
-main(	int	argc __attribute__((unused)),
-	char**	argv)
+main(int argc __attribute__((unused)), char** argv)
 {
 	char	server_key[] = "../SSL/server-key.pem",
 		server_cert[] = "../SSL/server-cert.pem";
