@@ -709,20 +709,37 @@ AC_DEFUN(MYSQL_CHECK_VIO, [
 ])
 
 AC_DEFUN(MYSQL_FIND_OPENSSL, [
-  for d in /usr/ssl/include /usr/local/ssl/include /usr/include \
+  incs="$1"
+  libs="$2"
+  case "$incs---$libs" in
+    ---)
+      for d in /usr/ssl/include /usr/local/ssl/include /usr/include \
 /usr/include/ssl /opt/ssl/include /opt/openssl/include \
 /usr/local/ssl/include /usr/local/include ; do
-   if test -f $d/openssl/ssl.h  ; then
-     OPENSSL_INCLUDE=-I$d
-   fi
-  done
+       if test -f $d/openssl/ssl.h  ; then
+         OPENSSL_INCLUDE=-I$d
+       fi
+      done
 
- for d in /usr/ssl/lib /usr/local/ssl/lib /usr/lib/openssl \
+      for d in /usr/ssl/lib /usr/local/ssl/lib /usr/lib/openssl \
 /usr/lib /usr/lib64 /opt/ssl/lib /opt/openssl/lib /usr/local/lib/ ; do
-  if test -f $d/libssl.a ; then
-    OPENSSL_LIB=$d
-  fi
- done
+      if test -f $d/libssl.a ; then
+        OPENSSL_LIB=$d
+      fi
+      done
+      ;;
+    ---* | *---)
+      AC_MSG_ERROR([if either 'includes' or 'libs' is specified, both must be specified])
+      ;;
+    * )
+      if test -f $incs/openssl/ssl.h  ; then
+        OPENSSL_INCLUDE=-I$incs
+      fi
+      if test -f $libs/libssl.a ; then
+        OPENSSL_LIB=$libs
+      fi
+      ;;
+  esac
 
   # On RedHat 9 we need kerberos to compile openssl
   for d in /usr/kerberos/include
@@ -752,11 +769,23 @@ AC_MSG_CHECKING(for OpenSSL)
               [openssl="$withval"],
               [openssl=no])
 
-  openssl_libs=""
-  openssl_includes=""
+  AC_ARG_WITH([openssl-includes],
+              [
+  --with-openssl-includes=DIR
+                          Find OpenSSL headers in DIR],
+              [openssl_includes="$withval"],
+              [openssl_includes=""])
+
+  AC_ARG_WITH([openssl-libs],
+              [
+  --with-openssl-libs=DIR
+                          Find OpenSSL libraries in DIR],
+              [openssl_libs="$withval"],
+              [openssl_libs=""])
+
   if test "$openssl" = "yes"
   then
-    MYSQL_FIND_OPENSSL
+    MYSQL_FIND_OPENSSL([$openssl_includes], [$openssl_libs])
     #force VIO use
     vio_dir="vio"
     vio_libs="../vio/libvio.la"
