@@ -42194,7 +42194,7 @@ DNS lookup takes a long time.
 @item
 Added @code{--character-sets-dir} to @code{myisampack}.
 @item
-Removed warnings when running @code{REPAIR TABLE .. EXTENDED}.
+Removed warnings when running @code{REPAIR TABLE ... EXTENDED}.
 @item
 Fixed core-dump bug when using @code{GROUP BY} on an alias, where
 the alias was the same as an existing column name.
@@ -48346,7 +48346,7 @@ really ``thread aware''.
 A regular expression (regex) is a powerful way of specifying a complex search.
 
 @strong{MySQL} uses Henry Spencer's implementation of regular
-expressions, which is aimed to conform to POSIX
+expressions, which is aimed at conformance with POSIX
 1003.2. @strong{MySQL} uses the extended version.
 
 This is a simplistic reference that skips the details. To get more exact
@@ -48363,7 +48363,7 @@ they can match more than one string. For example, the regexp
 @code{word}.
 
 As a more complex example, the regexp @code{B[an]*s} matches any of the
-strings @code{Bananas}, @code{Baaaaas}, @code{Bs} and any other string
+strings @code{Bananas}, @code{Baaaaas}, @code{Bs}, and any other string
 starting with a @code{B}, ending with an @code{s}, and containing any
 number of @code{a} or @code{n} characters in between.
 
@@ -48445,9 +48445,9 @@ An atom followed by a bound containing two integers @code{i} and
 @code{j} matches a sequence of @code{i} through @code{j} (inclusive)
 matches of the atom.
 
-Both arguments must @code{0 >= value <= RE_DUP_MAX (default 255)}.
-If there are two arguments, the second must be greater than or equal to the
-first.
+Both arguments must be in the range from @code{0} to @code{RE_DUP_MAX}
+(default 255), inclusive.  If there are two arguments, the second must be
+greater than or equal to the first.
 @item [a-dX]
 @itemx [^a-dX]
 Matches
