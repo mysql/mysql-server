@@ -1,3 +1,4 @@
+drop table if exists t1,t1aa,t2aa;
 show tables;
 Tables_in_db
 columns_priv

@@ -2,6 +2,11 @@
 # This test must examine integrity of system database "mysql"
 #
 
+# First delete some tables maybe left over from previous tests
+--disable_warnings
+drop table if exists t1,t1aa,t2aa;
+--enable_warnings
+
 -- disable_query_log
 use mysql;
 -- enable_query_log
