@@ -105,7 +105,7 @@ static long thread_id=0;
 my_bool my_thread_init(void)
 {
   struct st_my_thread_var *tmp;
-#ifdef EXTRA_DEBUG
+#ifdef EXTRA_DEBUG_THREADS
   fprintf(stderr,"my_thread_init(): thread_id=%ld\n",pthread_self());
 #endif  
 #if !defined(__WIN__) || defined(USE_TLS) || ! defined(SAFE_MUTEX)
@@ -152,7 +152,7 @@ end:
 void my_thread_end(void)
 {
   struct st_my_thread_var *tmp=my_thread_var;
-#ifdef EXTRA_DEBUG
+#ifdef EXTRA_DEBUG_THREADS
   fprintf(stderr,"my_thread_end(): tmp=%p,thread_id=%ld\n",
 	  tmp,pthread_self());
 #endif  
