@@ -24,7 +24,7 @@ insert into t1 values
 (0,4,3,5,"PENDING",1,7),(NULL,4,3,5,"PENDING",1,7),(31,4,3,5,"PENDING",1,7), (7,4,3,5,"PENDING",1,7), (NULL,4,3,5,"PENDING",1,7), (100,4,3,5,"PENDING",1,7), (99,4,3,5,"PENDING",1,7), (8,4,3,5,"PENDING",1,7), (NULL,4,3,5,"PENDING",1,7);
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	ndbcluster	9	Dynamic	9	0	0	NULL	0	0	102	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+t1	ndbcluster	9	Dynamic	9	0	0	NULL	0	0	101	NULL	NULL	NULL	latin1_swedish_ci	NULL		
 select * from t1 order by col1;
 col1	col2	col3	col4	col5	col6	to_be_deleted
 0	4	3	5	PENDING	1	7
