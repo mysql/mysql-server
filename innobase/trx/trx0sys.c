@@ -666,7 +666,8 @@ trx_sys_print_mysql_binlog_offset(void)
 {
 	trx_sysf_t*	sys_header;
 	mtr_t		mtr;
-	ulong           trx_sys_mysql_bin_log_pos_high, trx_sys_mysql_bin_log_pos_low;
+	ulint		trx_sys_mysql_bin_log_pos_high;
+	ulint		trx_sys_mysql_bin_log_pos_low;
 
 	mtr_start(&mtr);
 
