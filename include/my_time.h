@@ -27,6 +27,7 @@
 C_MODE_START
 
 extern ulonglong log_10_int[20];
+extern uchar days_in_month[];
 
 /*
   Portable time_t replacement.
