@@ -60,22 +60,6 @@ select * from t1 where a=8000;
 
 connection master;
 
-# binlog_cache_use and binlog_cache_disk_use status vars test
-# This test uses the previous test. Namely, it needs the long 
-# transaction that adds 8000 lines to the t1 table.
-
-show status like "binlog_cache_use";
-show status like "binlog_cache_disk_use";
-
-# transaction which should not be flushed to disk and so should not
-# increase binlog_cache_disk_use
-begin;
-delete from t1;
-commit;
-
-show status like "binlog_cache_use";
-show status like "binlog_cache_disk_use";
-
 # The following DROP is a very important cleaning task:
 # imagine the next test is run with --skip-innodb: it will do
 # DROP TABLE IF EXISTS t1; but this will delete the frm and leave

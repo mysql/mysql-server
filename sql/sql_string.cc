@@ -416,16 +416,18 @@ bool String::append(const String &s)
 
 
 /*
-  Append a latin1 string to the a string of the current character set
+  Append an ASCII string to the a string of the current character set
 */
-
 
 bool String::append(const char *s,uint32 arg_length)
 {
-  if (!arg_length)				// Default argument
-    if (!(arg_length= (uint32) strlen(s)))
-      return FALSE;
-  if (str_charset->mbmaxlen > 1)
+  if (!arg_length)
+    return FALSE;
+
+  /*
+    For an ASCII incompatible string, e.g. UCS-2, we need to convert
+  */
+  if (str_charset->mbminlen > 1)
   {
     uint32 add_length=arg_length * str_charset->mbmaxlen;
     if (realloc(str_length+ add_length))
@@ -434,6 +436,10 @@ bool String::append(const char *s,uint32 arg_length)
 				  s, arg_length, &my_charset_latin1);
     return FALSE;
   }
+
+  /*
+    For an ASCII compatinble string we can just append.
+  */
   if (realloc(str_length+arg_length))
     return TRUE;
   memcpy(Ptr+str_length,s,arg_length);
@@ -443,29 +449,39 @@ bool String::append(const char *s,uint32 arg_length)
 
 
 /*
+  Append a 0-terminated ASCII string
+*/
+
+bool String::append(const char *s)
+{
+  return append(s, strlen(s));
+}
+
+
+/*
   Append a string in the given charset to the string
   with character set recoding
 */
 
-
 bool String::append(const char *s,uint32 arg_length, CHARSET_INFO *cs)
 {
-  if (!arg_length)				// Default argument
-    if (!(arg_length= (uint32) strlen(s)))
-      return FALSE;
-  if (cs != str_charset && str_charset->mbmaxlen > 1)
+  uint32 dummy_offset;
+  
+  if (needs_conversion(arg_length, cs, str_charset, &dummy_offset))
   {
-    uint32 add_length=arg_length * str_charset->mbmaxlen;
-    if (realloc(str_length+ add_length))
+    uint32 add_length= arg_length / cs->mbminlen * str_charset->mbmaxlen;
+    if (realloc(str_length + add_length)) 
       return TRUE;
     str_length+= copy_and_convert(Ptr+str_length, add_length, str_charset,
 				  s, arg_length, cs);
-    return FALSE;
   }
-  if (realloc(str_length+arg_length))
-    return TRUE;
-  memcpy(Ptr+str_length,s,arg_length);
-  str_length+=arg_length;
+  else
+  {
+    if (realloc(str_length + arg_length)) 
+      return TRUE;
+    memcpy(Ptr + str_length, s, arg_length);
+    str_length+= arg_length;
+  }
   return FALSE;
 }
 
@@ -546,40 +562,6 @@ skip:
 	i=(char*) str; j=(char*) search+1;
 	while (j != search_end)
 	  if (*i++ != *j++) goto skip;
-	return (int) (str-Ptr) -1;
-      }
-    }
-  }
-  return -1;
-}
-
-/*
-  Search after a string without regarding to case
-  This needs to be replaced when we have character sets per string
-*/
-
-int String::strstr_case(const String &s,uint32 offset)
-{
-  if (s.length()+offset <= str_length)
-  {
-    if (!s.length())
-      return ((int) offset);	// Empty string is always found
-
-    register const char *str = Ptr+offset;
-    register const char *search=s.ptr();
-    const char *end=Ptr+str_length-s.length()+1;
-    const char *search_end=s.ptr()+s.length();
-skip:
-    while (str != end)
-    {
-      if (str_charset->sort_order[*str++] == str_charset->sort_order[*search])
-      {
-	register char *i,*j;
-	i=(char*) str; j=(char*) search+1;
-	while (j != search_end)
-	  if (str_charset->sort_order[*i++] != 
-              str_charset->sort_order[*j++]) 
-            goto skip;
 	return (int) (str-Ptr) -1;
       }
     }
@@ -857,4 +839,24 @@ void String::print(String *str)
       str->append(c);
     }
   }
+}
+
+
+/*
+  Exchange state of this object and argument.
+
+  SYNOPSIS
+    String::swap()
+
+  RETURN
+    Target string will contain state of this object and vice versa.
+*/
+
+void String::swap(String &s)
+{
+  swap_variables(char *, Ptr, s.Ptr);
+  swap_variables(uint32, str_length, s.str_length);
+  swap_variables(uint32, Alloced_length, s.Alloced_length);
+  swap_variables(bool, alloced, s.alloced);
+  swap_variables(CHARSET_INFO*, str_charset, s.str_charset);
 }
