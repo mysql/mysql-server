@@ -43,7 +43,7 @@
 
 **********************************************************************/
 
-#define MTEST_VERSION "1.6"
+#define MTEST_VERSION "1.7"
 
 #include <global.h>
 #include <my_sys.h>
@@ -156,6 +156,7 @@ struct st_query
          Q_SYNC_WITH_MASTER, Q_ERROR, 
          Q_SEND,             Q_REAP, 
          Q_DIRTY_CLOSE,      Q_REPLACE,
+	 Q_PING,
          Q_UNKNOWN,                             /* Unknown command.   */
          Q_COMMENT,                             /* Comments, ignored. */
          Q_COMMENT_WITH_COMMAND
@@ -174,6 +175,7 @@ const char *command_names[] = {
   "sync_with_master", "error",
   "send",             "reap", 
   "dirty_close",      "replace_result",
+  "ping",
   0
 };
 
@@ -1662,6 +1664,9 @@ int main(int argc, char** argv)
       case Q_SYNC_WITH_MASTER: do_sync_with_master(q); break;	
       case Q_COMMENT:				/* Ignore row */
       case Q_COMMENT_WITH_COMMAND:
+      case Q_PING:
+	(void) mysql_ping(&cur_con->mysql);
+	break;
       default: processed = 0; break;
       }
     }

@@ -2459,6 +2459,9 @@ A Windows GUI client by David Ecker.
 Kiosk; a @strong{MySQL} client for database management. Written in Perl.
 Will be a part of Bazaar.
 
+@item @uref{http://www.casestudio.com/}
+Db design tool that supports MySQL 3.23.
+
 @item @uref{http://home.skif.net/~voland/zeos/eng/index.html}@*
 Zeos - A client that supports @strong{MySQL}, Interbase and PostgreSQL.
 
@@ -42152,6 +42155,8 @@ Fixed newly introduce bug in @code{ORDER BY}.
 Fixed wrong define @code{CLIENT_TRANSACTIONS}.
 @item
 Fixed bug in @code{SHOW VARIABLES} when using INNOBASE tables.
+@item
+Setting and using user variables in @code{SELECT DISTINCT} didn't work.
 @end itemize
 
 @node News-3.23.34a, News-3.23.34, News-3.23.35, News-3.23.x
