@@ -1781,9 +1781,29 @@ Field *find_field_in_table(THD *thd,TABLE *table,const char *name,uint length,
   return field;
 }
 
+// Special Field pointer for find_field_in_tables returning
+const Field *not_found_field= (Field*) 0x1;
+/*
+  Find field in table list.
+
+  SYNOPSIS
+    find_field_in_tables()
+    thd - pointer to current thread structure
+    item - field item that should be found
+    tables - tables for scaning
+    report_error - if FALSE then do not report error if item not found and 
+      return not_found_field;
+
+  RETURN VALUES
+    0 - field is not found or field is not unique, error message is 
+      reported
+    not_found_field - function was called with report_error == FALSE and 
+      field if not found, no error message reported
+    found field
+*/
 
 Field *
-find_field_in_tables(THD *thd,Item_field *item,TABLE_LIST *tables,
+find_field_in_tables(THD *thd, Item_field *item, TABLE_LIST *tables,
 		     bool report_error)
 {
   Field *found=0;
@@ -1829,13 +1849,18 @@ find_field_in_tables(THD *thd,Item_field *item,TABLE_LIST *tables,
 	strxnmov(buff,sizeof(buff)-1,db,".",table_name,NullS);
 	table_name=buff;
       }
-      my_printf_error(ER_UNKNOWN_TABLE,ER(ER_UNKNOWN_TABLE),MYF(0),table_name,
-		      thd->where);
+      if (report_error)
+	my_printf_error(ER_UNKNOWN_TABLE, ER(ER_UNKNOWN_TABLE), MYF(0),
+			table_name, thd->where);
+      else
+	return (Field*) not_found_field;
     }
     else
       if (report_error)
 	my_printf_error(ER_BAD_FIELD_ERROR,ER(ER_BAD_FIELD_ERROR),MYF(0),
 			item->full_name(),thd->where);
+      else
+	return (Field*) not_found_field;
     return (Field*) 0;
   }
   bool allow_rowid= tables && !tables->next;	// Only one table
@@ -1850,11 +1875,10 @@ find_field_in_tables(THD *thd,Item_field *item,TABLE_LIST *tables,
 	return (Field*) 0;
       if (found)
       {
-	if (!report_error)			// Returns first found
+	if (!thd->where)			// Returns first found
 	  break;
-	if (report_error)
-	  my_printf_error(ER_NON_UNIQ_ERROR,ER(ER_NON_UNIQ_ERROR),MYF(0),
-			  name,thd->where);
+	my_printf_error(ER_NON_UNIQ_ERROR,ER(ER_NON_UNIQ_ERROR),MYF(0),
+			name,thd->where);
 	return (Field*) 0;
       }
       found=field;
@@ -1865,11 +1889,39 @@ find_field_in_tables(THD *thd,Item_field *item,TABLE_LIST *tables,
   if (report_error)
     my_printf_error(ER_BAD_FIELD_ERROR, ER(ER_BAD_FIELD_ERROR),
 		    MYF(0), item->full_name(), thd->where);
+  else
+    return (Field*) not_found_field;
   return (Field*) 0;
 }
 
+// Special Item pointer for find_item_in_list returning
+const Item **not_found_item= (const Item**) 0x1;
+
+/*
+  Find Item in list of items (find_field_in_tables analog)
+  
+  SYNOPSIS
+    find_item_in_list()
+    find - item to find
+    items - list of items
+    report_error
+      REPORT_ALL_ERRORS - report errors, return 0 if error
+      REPORT_EXCEPT_NOT_FOUND - do not report 'not found' error and return not_        found_item, report other errors, return 0
+      IGNORE_ERRORS - do not report errors, return 0 if error
+      
+  RETURN VALUES
+    0 - item is not found or item is not unique, error message is 
+      reported
+    not_found_item - function was called with report_error ==  
+      REPORT_EXCEPT_NOT_FOUND and  item if not found, no error 
+      message reported
+    found field 
+  
+*/
+
 Item **
-find_item_in_list(Item *find, List<Item> &items, bool report_error)
+find_item_in_list(Item *find, List<Item> &items,
+		  find_item_error_report_type report_error)
 {
   List_iterator<Item> li(items);
   Item **found=0,*item;
@@ -1894,7 +1946,7 @@ find_item_in_list(Item *find, List<Item> &items, bool report_error)
 	  {
 	    if ((*found)->eq(item,0))
 	      continue;				// Same field twice (Access?)
-	    if (report_error)
+	    if (report_error != IGNORE_ERRORS)
 	      my_printf_error(ER_NON_UNIQ_ERROR,ER(ER_NON_UNIQ_ERROR),MYF(0),
 			      find->full_name(), current_thd->where);
 	    return (Item**) 0;
@@ -1917,10 +1969,17 @@ find_item_in_list(Item *find, List<Item> &items, bool report_error)
       break;
     }
   }
-  if (!found && report_error)
-    my_printf_error(ER_BAD_FIELD_ERROR, ER(ER_BAD_FIELD_ERROR), MYF(0),
-		    find->full_name(), current_thd->where);
-  return found;
+  if (found)
+    return found;
+  else if (report_error != REPORT_EXCEPT_NOT_FOUND)
+  {
+    if (report_error == REPORT_ALL_ERRORS)
+      my_printf_error(ER_BAD_FIELD_ERROR, ER(ER_BAD_FIELD_ERROR), MYF(0),
+		      find->full_name(), current_thd->where);
+    return (Item **) 0;
+  }
+  else
+    return (Item **) not_found_item;
 }
 
 /****************************************************************************
