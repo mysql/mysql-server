@@ -53,6 +53,7 @@ This is a manual about @strong{MySQL} internals.
 * caching::                     How MySQL Handles Caching
 * flush tables::                How MySQL Handles @code{FLUSH TABLES}
 * filesort::                    How MySQL Does Sorting (@code{filesort})
+* selects::			How MySQL performs different selects
 * coding guidelines::           Coding Guidelines
 * mysys functions::             Functions In The @code{mysys} Library
 * DBUG::                        DBUG Tags To Use
@@ -220,7 +221,7 @@ After this it will give other threads a chance to open the same tables.
 
 @end itemize
 
-@node filesort, coding guidelines, flush tables, Top
+@node filesort, selects, flush tables, Top
 @chapter How MySQL Does Sorting (@code{filesort})
 
 @itemize @bullet
@@ -260,8 +261,350 @@ and then we read the rows in the sorted order into a row buffer
 
 @end itemize
 
+@node selects, coding guidelines, flush tables, Top
+@chapter How MySQL performs different selects
 
-@node coding guidelines, mysys functions, filesort, Top
+@node select steps,,,
+@section Steps of select executing
+
+Every select performed in such base steps:
+@itemize
+@item
+  JOIN::prepare
+@itemize @bullet
+@item
+    initialization and linking JOIN structure to st_select_lex
+@item
+    fix_fields() for all items (after fix_fields we know everything
+      about item)
+@item
+    moving HAVING to WHERE if possible
+@item
+    initialization procedure if exists
+@end itemize
+@item
+  JOIN::optimize
+@itemize @bullet
+@item
+    single select optimization
+@item
+    creation first temporary table if need
+@end itemize
+@item
+  JOIN::exec
+@itemize @bullet
+@item
+    performing select (may be created second temporary table)
+@end itemize
+@item
+  JOIN::cleanup
+@itemize @bullet
+@item
+    removing all temporary tables, other cleanup
+@end itemize
+@item
+  JOIN::reinit
+@itemize @bullet
+@item
+    prepare all structures to SELECT executing (with JOIN::exec)
+@end itemize
+@end itemize
+
+@node select select_result
+@section select_result CLASS
+
+Very important role in SELECT performing have select_result class and
+classes inherited from it (usually called with "select_" prefix). This
+class provide interface for results transmitting.
+
+Key methods in this class are following:
+@itemize @bullet
+@item
+  @strong{send_fields} sends giving item list headers (type, name, etc..)
+@item
+  @strong{send_data} sends giving item list values as row of table of result
+@item
+  @strong{send_error} send error to used used mainly for error interception,
+    making some operation and then ::send_error will be called.
+@end itemize
+
+For example there are fillowing select_result classes:
+@itemize
+@item 
+  @strong{select_send} used for sending results though network layer
+@item 
+  @strong{select_export} used for exporting data to file
+@item
+  @strong{multi_delete} used for multi-delete
+@item
+  @strong{select_insert} used for INSERT ... SELECT ...
+@item
+  @strong{multi_update} used for multi-update
+@end itemize
+
+@node select simple
+@section SIMPLE or PRIMARY SELECT.
+
+For performing single primary select SELECT used function mysql_select,
+which:
+@itemize @bullet
+@item
+  allocate JOIN;
+@item
+  JOIN::prepare;
+@item
+  JOIN::optimize;
+@item
+  JOIN::exec;
+@item
+  JOIN::cleanup.
+@end itemize
+In previous versions of mysql all SELECTs was performed with help of this
+function and mysql_select() was not divided on parts.
+
+@node select structure
+@section Structure Of Complex Select
+
+There 2 structures which describe SELECTS:
+@itemize @bullet
+@item
+  st_select_lex (SELECT_LEX) it represent SELECT itself
+@item
+  st_select_lex_unit (SELECT_LEX_UNIT) group several selects in bunch
+@end itemize
+and represent UNION operation (absence of UNION is union
+with 1 SELECT and this structure present in any case). In future this
+structure will be used for EXCEPT and INTERSECT.
+
+For example:
+@example
+(SELECT ... )UNION(SELECT ... (SELECT...)...(SELECT...UNION...SELECT))
+   1           2      3           4             5        6       7
+@end example
+
+will be represent as
+@example
+------------------------------------------------------------------------
+                                                                 level 1
+SELECT_LEX_UNIT(2)
+|
++---------------+
+|               |
+SELECT_LEX(1)   SELECT_LEX(3)
+                |
+--------------- | ------------------------------------------------------
+                |                                                level 2
+                +-------------------+
+                |                   |
+                SELECT_LEX_UNIT(4)  SELECT_LEX_UNIT(6)
+                |                   |
+                |                   +--------------+
+                |                   |              |
+                SELECT_LEX(4)       SELECT_LEX(5)  SELECT_LEX(7)
+
+------------------------------------------------------------------------
+@end example
+Note: single subselect 4 have it's own SELECT_LEX_UNIT.
+
+Most upper SELECT_LEX_UNIT (#2 in example) stored in LEX.
+First and most upper SELECT_LEX (#1 in example) stored in LEX, too.
+This two structures always exist.
+
+In time of creating or performing any JOIN::* operation 
+LEX::current_select point on appropriate SELECT_LEX.
+
+Only during parsing global (for whole UNION) ORDER_BY & LIMIT clauses
+LEX::current_select points to SELECT_LEX_UNIT of this unit to store this
+parameter in this SELECT_LEX_UNIT (SELECT_LEX and SELECT_LEX_UNIT are
+inherited from st_select_lex_node).
+
+@node select union
+@section Non-Subselect UNIONs Executing
+
+Non subselect unions performed with help of mysql_union(). for now it
+divided on following steps:
+@itemize
+@item
+  st_select_lex_unit::prepare
+@itemize @bullet
+@item
+    create temporary table for union results storing (if UNION witout
+      ALL option, 'distinct' parameter will be passed to table creation
+      procedure). Types/lengths of table's fields will be determinated
+      by first SELECT item list.
+@item
+    create select_union (inherited from select_result) which will
+      write selects results in this temporary table
+@item
+    allocate JOIN and perform JOIN::prepare for all SELECTs belonged
+      to UNION
+@end itemize
+@item
+  st_select_lex_unit::exec
+@itemize @bullet
+@item
+    delete rows from temporary table if it is not first call
+@item
+    if first call call JOIN::optimize else JOIN::reinit and then
+      JOIN::exec for all SELECTs (select_union will write result for
+      temporary table). If union is cacheable and this method called
+      second, (third, ...) time it will do nothing.
+@item
+    call mysql_select on temporary table with global ORDER BY and
+      LIMIT parameters after collecting results from all SELECTs.
+@end itemize
+@end itemize
+As far as mysql_select need SELECT_LEX structure SELECT_LEX of first
+SELECT of this UNION will be passed to it, but also fake_select_lex
+parameter will be passed to mysql_select() too, to prevent linking
+this SELECT_LEX with JOIN on this mysql_select() session.
+
+PROBLEM: this fake select need workaround in many places.
+
+@node select derived
+@section Derived Tables Executing
+
+Derived tables processing is first operation on any query. It performed
+before creation list of tables of whole query and opening/locking this
+tables.
+
+If lex->derived_tables flag present will be scanned all SELECT_LEX (there
+are list of all SELECT_LEX in reverse order (first SELECT in query will
+be last in this list) lex->all_selects_list).
+
+Pointer on derived table SELECT_LEX_UNIT stored in TABLE_LIST structure
+(TABLE_LIST::derived). And for any table which have this pointer will
+be called mysql_derived().
+
+mysql_derived():
+@itemize @bullet
+@item
+  Creates list of all tables used in this query, opens and locks it
+@item
+  Creates temporary table for storing results
+@item
+  Creates union_result for writing result in this table
+@item
+  Calls mysql_select or mysql_union for execute query
+@item
+  Removes all derived table subtree from SELECTs tree (if it is
+    not EXPLAIN)
+@item
+  Stores pointer to this temporary table in TABLE_LIST structure, then
+    this table will be used by outer query. This table table will not be
+    skipped in checking grants, because tables from which this table was
+    received was checked in mysql_derived.
+@item
+  Links this temporary table in thd->derived_tables for removing after
+    query executing. this table will be closed in close_thread_tables if
+    second parameter of it (bool skip_derived) will be true.
+@end itemize
+
+@node select subselect
+@section Subselects
+
+In expression subselect represented by Item inherited from Item_subselect.
+
+To hide difference in performing single SELECTs and UNIONs
+Item_subselect use two different engines, which provide uniformed
+interface for access to underplaid SELECT or UNION
+(subselect_single_select_engine and subselect_union_engine, both are
+inherited from subselect_engine).
+
+Engine will be created in time of Item_select constructing
+(Item_subselect::init method).
+
+On Item_subselect::fix_fields() will be called engine->prepare().
+
+Before calling any value getting method (val, val_int, val_str,
+bring_value (in case of row result)) will be called engine->exec(),
+which execute query or just do nothing if subselect is cacheable and
+already executed.
+
+Items inherited from provide it's own select_result classes. There are
+2 type of it:
+@itemize @bullet
+@item
+  select_singlerow_subselect it store values of giving row in
+    Item_singlerow_subselect cache  on send_data() call and report error
+    if Item_subselect have 'assigned' attribute.
+@item
+  select_exists_subselect just store 1 as value of
+    Item_exists_subselect on send_data() call. As far as
+    Item_in_subselect and Item_allany_subselect inherited from
+    Item_exists_subselect, they use same select_result class.
+@end itemize
+
+Item_select will never call cleanup() procedure for JOIN. Every
+JOIN::cleanup will call cleanup() for inner JOINs. Most upper
+JOIN::cleanup will be called by mysql_select() or mysql_union().
+
+@node select select engine
+@section Single Select Engine
+
+subselect_single_select_engine:
+@itemize @bullet
+@item
+  @strong{constructor} allocate JOIN and store pointers on SELECT_LEX and JOIN
+@item
+  @strong{prepare()} call JOIN::prepare
+@item
+  @strong{fix_length_and_dec()} prepare cache and receive type and
+    parameters of returning items (it called only by
+    Item_singlerow_subselect)
+@item
+  @strong{exec()} drop 'assigned flag of Item_subselect. If called first time
+    JOIN::optimize and JOINexec(), else do nothing or JOIN::reinit()
+    JOIN::exec() depending of type of subquery.
+@end itemize
+
+@node select union engine
+@section Union Engine
+
+subselect_union_engine:
+@itemize @bullet
+@item
+  @strong{constructor} just store pointer to st_select_lex_union
+    (SELECT_LEX_UNION)
+@item
+  @strong{prepare()} call st_select_lex_unit::prepare
+@item
+  @strong{fix_length_and_dec()} prepare cache and receive type and
+    parameters (maximum of length) of returning items (it called
+    only by Item_singlerow_subselect)
+@item
+  @strong{exec()} call st_select_lex_unit::exec(). st_select_lex_unit::exec()
+    can drop 'assigned' flag of Item_subselect if 
+    st_select_lex_unit::item is not 0.
+@end itemize
+
+@node selectexplain
+@section Explain Execution
+
+For EXPLAIN result showing for every SELECT will be called mysql_select
+with option SELECT_DESCRIBE.
+
+For main UNION will be called mysql_explain_union.
+
+mysql_explain_union call mysql_explain_select for every SELECT in given
+union.
+
+mysql_explain_select call mysql_select with SELECT_DESCRIBE.
+
+mysql_select create JOIN for select (if it not exists, because if it
+called for subselect JOIN can be created in JOIN::optimize of outer
+query when it decided to calculate value of subselect). Then it call
+JOIN::prepare, JOIN::optimize, JOIN exec and JOIN::cleanup as usual.
+
+JOIN::exec called for SELECT with SELECT_DESCRIBE option call
+select_describe.
+
+select_describe return to user description of SELECT and call
+mysql_explain_union for every inner UNION
+
+PROBLEM: how it will work with global query optimization?
+
+@node coding guidelines, mysys functions, selects, Top
 @chapter Coding Guidelines
 
 @itemize @bullet
@@ -1836,7 +2179,7 @@ able to provide the optimal information for all parameters.
 
 If number of columns, in the header packet, is not 0 then the
 prepared statement will contain a result set. In this case the packet
-is followed by a field description result set. @xref{4.1 field descr}.
+is followed by a field description result set. @xref{4.1 field desc}.
 
 
 @node 4.1 long data,,,
