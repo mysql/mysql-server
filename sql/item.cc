@@ -317,32 +317,27 @@ void Item_param::set_null()
 void Item_param::set_int(longlong i)
 {  
   int_value=(longlong)i; 
-  item_result_type = INT_RESULT;
   item_type = INT_ITEM;
 }
 
 void Item_param::set_double(double value)
 {  
   real_value=value;
-  item_result_type = REAL_RESULT;
   item_type = REAL_ITEM;
 }
 
 
-void Item_param::set_value(const char *str, uint length, CHARSET_INFO *cs)
+void Item_param::set_value(const char *str, uint length)
 {  
-  str_value.set(str,length,cs);
-  item_result_type = STRING_RESULT;
+  str_value.set(str,length,thd_charset());
   item_type = STRING_ITEM;
 }
 
 
-void Item_param::set_longdata(const char *str, ulong length, CHARSET_INFO *cs)
-{
-  /* TODO: Fix this for binary handling by making use of 
-     buffer_type.. 
-  */  
-  str_value.append(str,length);    
+void Item_param::set_longdata(const char *str, ulong length)
+{  
+  str_value.append(str,length);
+  long_data_supplied= 1;
 }
 
 

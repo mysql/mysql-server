@@ -157,6 +157,7 @@ static int _mi_find_writepos(MI_INFO *info,
 			     ulong *length)   /* length of block at filepos */
 {
   MI_BLOCK_INFO block_info;
+  ulong tmp;
   DBUG_ENTER("_mi_find_writepos");
 
   if (info->s->state.dellink != HA_OFFSET_ERROR)
@@ -182,21 +183,22 @@ static int _mi_find_writepos(MI_INFO *info,
   {
     /* No deleted blocks;  Allocate a new block */
     *filepos=info->state->data_file_length;
-    if ((*length=reclength+3 + test(reclength >= (65520-3))) <
+    if ((tmp=reclength+3 + test(reclength >= (65520-3))) <
 	info->s->base.min_block_length)
-      *length=info->s->base.min_block_length;
+      tmp= info->s->base.min_block_length;
     else
-      *length= ((*length+MI_DYN_ALIGN_SIZE-1) &
-		(~ (ulong) (MI_DYN_ALIGN_SIZE-1)));
+      tmp= ((tmp+MI_DYN_ALIGN_SIZE-1) &
+	    (~ (ulong) (MI_DYN_ALIGN_SIZE-1)));
     if (info->state->data_file_length >
-	(info->s->base.max_data_file_length- *length))
+	(info->s->base.max_data_file_length - tmp))
     {
       my_errno=HA_ERR_RECORD_FILE_FULL;
       DBUG_RETURN(-1);
     }
-    if (*length > MI_MAX_BLOCK_LENGTH)
-      *length=MI_MAX_BLOCK_LENGTH;
-    info->state->data_file_length+= *length;
+    if (tmp > MI_MAX_BLOCK_LENGTH)
+      tmp=MI_MAX_BLOCK_LENGTH;
+    *length= tmp;
+    info->state->data_file_length+= tmp;
     info->s->state.split++;
     info->update|=HA_STATE_WRITE_AT_END;
   }

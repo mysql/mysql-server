@@ -90,8 +90,8 @@ public:
   virtual CHARSET_INFO *charset() const { return str_value.charset(); };
   virtual bool binary() const { return str_value.charset()->state & MY_CS_BINSORT ? 1 : 0 ; }
   virtual void set_charset(CHARSET_INFO *cs) { str_value.set_charset(cs); }
-  
   virtual bool check_loop(uint id);
+  virtual void top_level_item() {}
 };
 
 
@@ -187,8 +187,8 @@ public:
   Item_param(char *name_par=0)
   { 
     name= name_par ? name_par : (char*) "?";
-    long_data_supplied = false;
-    item_type = STRING_ITEM;
+    long_data_supplied= false;
+    item_type= STRING_ITEM;
     item_result_type = STRING_RESULT;
   }
   enum Type type() const { return item_type; }
@@ -200,12 +200,13 @@ public:
   void set_null();
   void set_int(longlong i);
   void set_double(double i);
-  void set_value(const char *str, uint length, CHARSET_INFO *cs);
-  void set_long_str(const char *str, ulong length, CHARSET_INFO *cs);
-  void set_long_binary(const char *str, ulong length, CHARSET_INFO *cs);
-  void set_longdata(const char *str, ulong length, CHARSET_INFO *cs);
+  void set_value(const char *str, uint length);
+  void set_long_str(const char *str, ulong length);
+  void set_long_binary(const char *str, ulong length);
+  void set_longdata(const char *str, ulong length);
   void set_long_end();
   void reset() {}
+  void (*setup_param_func)(Item_param *param, uchar **pos);
   enum Item_result result_type () const
   { return item_result_type; }
   Item *new_item() { return new Item_param(name); }

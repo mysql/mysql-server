@@ -305,7 +305,10 @@ static void short_usage(void)
 static void write_header(FILE *sql_file, char *db_name)
 {
   if (opt_xml)
+  {
     fprintf(sql_file,"<?xml version=\"1.0\"?>\n");
+    fprintf(sql_file,"<mysqldump>\n");
+  }
   else
   {
     fprintf(sql_file, "-- MySQL dump %s\n--\n", DUMP_VERSION);
@@ -319,6 +322,12 @@ static void write_header(FILE *sql_file, char *db_name)
   return;
 } /* write_header */
 
+static void write_footer(FILE *sql_file)
+{
+  if (opt_xml)
+    fprintf(sql_file,"</mysqldump>");
+  fputs("\n", sql_file);
+} /* write_footer */
 
 static my_bool
 get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
@@ -1004,7 +1013,7 @@ static void dumpTable(uint numFields, char *table)
     rownr=0;
     init_length=(uint) strlen(insert_pat)+4;
     if (opt_xml)
-      fprintf(md_result_file, "\t<%s>\n", table);
+      fprintf(md_result_file, "\t<table name=\"%s\">\n", table);
 
     if (opt_autocommit)
       fprintf(md_result_file, "set autocommit=0;\n");
@@ -1094,9 +1103,9 @@ static void dumpTable(uint numFields, char *table)
 	      /* change any strings ("inf","nan",..) into NULL */
 	      char *ptr = row[i];
 	      if (opt_xml)
-		fprintf(md_result_file, "\t\t<%s>%s</%s>\n",
+		fprintf(md_result_file, "\t\t<field name=\"%s\">%s</field>\n",
 			field->name,
-			!my_isalpha(system_charset_info,*ptr) ?ptr: "NULL",field->name);
+			!my_isalpha(system_charset_info, *ptr) ? ptr: "NULL");
 	      else
 		fputs((!my_isalpha(system_charset_info,*ptr)) ? 
 		       ptr : "NULL", md_result_file);
@@ -1105,8 +1114,8 @@ static void dumpTable(uint numFields, char *table)
 	  else
 	  {
 	    if (opt_xml)
-	      fprintf(md_result_file, "\t\t<%s>%s</%s>\n",
-		      field->name, "NULL", field->name);
+	      fprintf(md_result_file, "\t\t<field name=\"%s\">%s</field>\n",
+		      field->name, "NULL");
 	    else
 	      fputs("NULL", md_result_file);
 	  }
@@ -1147,7 +1156,7 @@ static void dumpTable(uint numFields, char *table)
 
     /* XML - close table tag and supress regular output */
     if (opt_xml)
-	fprintf(md_result_file, "\t</%s>\n", table);
+	fprintf(md_result_file, "\t</table>\n");
     else if (extended_insert && row_break)
       fputs(";\n", md_result_file);		/* If not empty table */
     fflush(md_result_file);
@@ -1179,7 +1188,7 @@ static void print_quoted_xml(FILE *output, char *fname, char *str, uint len)
 {
   const char *end;
 
-  fprintf(output, "\t\t<%s>", fname);
+  fprintf(output, "\t\t<field name=\"%s\">", fname);
   for (end = str + len; str != end; str++)
   {
     if (*str == '<')
@@ -1193,7 +1202,7 @@ static void print_quoted_xml(FILE *output, char *fname, char *str, uint len)
     else
       fputc(*str, output);
   }
-  fprintf(output, "</%s>\n", fname);
+  fprintf(output, "</field>\n");
 }
 
 static char *getTableName(int reset)
@@ -1248,13 +1257,8 @@ static int dump_databases(char **db_names)
   int result=0;
   for ( ; *db_names ; db_names++)
   {
-    /* XML edit - add database element */
-    if (opt_xml)
-      fprintf(md_result_file, "<%s>\n", *db_names);
     if (dump_all_tables_in_db(*db_names))
       result=1;
-    if (opt_xml)
-      fprintf(md_result_file, "</%s>\n", *db_names);
   }
   return result;
 } /* dump_databases */
@@ -1267,7 +1271,7 @@ static int init_dumping(char *database)
     DBerror(sock, "when selecting the database");
     return 1;			/* If --force */
   }
-  if (!path)
+  if (!path && !opt_xml)
   {
     if (opt_databases || opt_alldbs)
     {
@@ -1313,6 +1317,8 @@ static int dump_all_tables_in_db(char *database)
 
   if (init_dumping(database))
     return 1;
+  if (opt_xml)
+    fprintf(md_result_file, "<database name=\"%s\">\n", database);
   if (lock_tables)
   {
     DYNAMIC_STRING query;
@@ -1339,6 +1345,8 @@ static int dump_all_tables_in_db(char *database)
     if (!dFlag && numrows > 0)
       dumpTable(numrows,table);
   }
+  if (opt_xml)
+    fprintf(md_result_file, "</database>\n");
   if (lock_tables)
     mysql_query(sock,"UNLOCK_TABLES");
   return 0;
@@ -1375,12 +1383,16 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
       DBerror(sock, "when doing refresh");
      /* We shall countinue here, if --force was given */
   }
+  if (opt_xml)
+    fprintf(md_result_file, "<database name=\"%s\">\n", db);
   for (; tables > 0 ; tables-- , table_names++)
   {
     numrows = getTableStructure(*table_names, db);
     if (!dFlag && numrows > 0)
       dumpTable(numrows, *table_names);
   }
+  if (opt_xml)
+    fprintf(md_result_file, "</database>\n");
   if (lock_tables)
     mysql_query(sock,"UNLOCK_TABLES");
   return 0;
@@ -1514,7 +1526,7 @@ int main(int argc, char **argv)
     }		      
   }
   dbDisconnect(current_host);
-  fputs("\n", md_result_file);
+  write_footer(md_result_file);
   if (md_result_file != stdout)
     my_fclose(md_result_file, MYF(0));
   my_free(opt_password, MYF(MY_ALLOW_ZERO_PTR));

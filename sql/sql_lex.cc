@@ -1180,7 +1180,6 @@ bool st_select_lex_unit::create_total_list_n_last_return(THD *thd, st_lex *lex,
 	if (!cursor)
 	{
 	  /* Add not used table to the total table list */
-	  aux->lock_type= lex->lock_option;
 	  if (!(cursor= (TABLE_LIST *) thd->memdup((char*) aux,
 						   sizeof(*aux))))
 	  {

@@ -179,7 +179,7 @@
 "Você está usando modo de atualização seguro e tentou atualizar uma tabela sem uma cláusula WHERE que use uma coluna chave",
 "Chave '%-.64s' não existe na tabela '%-.64s'",
 "Não pode abrir a tabela",
-"O manipulador de tabela não suporta checagem/reparação (check/repair)",
+"O manipulador de tabela não suporta %s",
 "Não lhe é permitido executar este comando em uma transação",
 "Obteve erro %d durante COMMIT",
 "Obteve erro %d durante ROLLBACK",

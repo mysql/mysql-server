@@ -274,6 +274,15 @@ buf_page_peek_block(
 	ulint	space,	/* in: space id */
 	ulint	offset);/* in: page number */
 /************************************************************************
+Resets the check_index_page_at_flush field of a page if found in the buffer
+pool. */
+
+void
+buf_reset_check_index_page_at_flush(
+/*================================*/
+	ulint	space,	/* in: space id */
+	ulint	offset);/* in: page number */
+/************************************************************************
 Sets file_page_was_freed TRUE if the page is found in the buffer pool.
 This function should be called when we free a file page and want the
 debug version to check that it is not accessed any more unless
@@ -648,6 +657,14 @@ struct buf_block_struct{
 					then it can wait for this rw-lock */
 	buf_block_t*	hash;		/* node used in chaining to the page
 					hash table */
+	ibool		check_index_page_at_flush;
+					/* TRUE if we know that this is
+					an index page, and want the database
+					to check its consistency before flush;
+					note that there may be pages in the
+					buffer pool which are index pages,
+					but this flag is not set because
+					we do not keep track of all pages */
 	/* 2. Page flushing fields */
 
 	UT_LIST_NODE_T(buf_block_t) flush_list;

@@ -29,7 +29,7 @@ void init_alloc_root(MEM_ROOT *mem_root, uint block_size,
   mem_root->min_malloc= 32;
   mem_root->block_size= block_size-MALLOC_OVERHEAD-sizeof(USED_MEM)-8;
   mem_root->error_handler= 0;
-  mem_root->block_num= 0;
+  mem_root->block_num= 4;			/* We shift this with >>2 */
   mem_root->first_block_usage= 0;
 #if !(defined(HAVE_purify) && defined(EXTRA_DEBUG))
   if (pre_alloc_size)
@@ -69,10 +69,11 @@ gptr alloc_root(MEM_ROOT *mem_root,unsigned int Size)
   reg2 USED_MEM **prev;
 
   Size= ALIGN_SIZE(Size);
-  if ( (*(prev= &mem_root->free)) != NULL )
+  if ((*(prev= &mem_root->free)) != NULL)
   {
-    if( (*prev)->left < Size &&
-	mem_root->first_block_usage++ >= MAX_BLOCK_USAGE_BEFORE_DROP )
+    if ((*prev)->left < Size &&
+	mem_root->first_block_usage++ >= ALLOC_MAX_BLOCK_USAGE_BEFORE_DROP &&
+	(*prev)->left < ALLOC_MAX_BLOCK_TO_DROP)
     {
       next= *prev;
       *prev= next->next;			/* Remove block from list */
@@ -85,7 +86,7 @@ gptr alloc_root(MEM_ROOT *mem_root,unsigned int Size)
   }
   if (! next)
   {						/* Time to alloc new block */
-    block_size= mem_root->block_size*((mem_root->block_num>>2)+1);
+    block_size= mem_root->block_size * (mem_root->block_num >> 2);
     get_size= Size+ALIGN_SIZE(sizeof(USED_MEM));
     get_size= max(get_size, block_size);
 
@@ -177,10 +178,8 @@ void free_root(MEM_ROOT *root, myf MyFlags)
     root->free=root->pre_alloc;
     root->free->left=root->pre_alloc->size-ALIGN_SIZE(sizeof(USED_MEM));
     root->free->next=0;
-    root->block_num= 1;
   }
-  else
-    root->block_num= 0;
+  root->block_num= 4;
   root->first_block_usage= 0;
   DBUG_VOID_RETURN;
 }

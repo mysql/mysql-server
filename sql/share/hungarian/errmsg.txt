@@ -181,7 +181,7 @@
 "On a biztonsagos update modot hasznalja, es        WHERE that uses a KEY column",
 "A '%-.64s' kulcs nem letezik a '%-.64s' tablaban",
 "Nem tudom megnyitni a tablat",
-"A tabla kezeloje (handler) nem tamogatja az ellenorzest/helyreallitast",
+"A tabla kezeloje (handler) nem tamogatja az %s",
 "Az On szamara nem engedelyezett a parancs vegrehajtasa a tranzakcioban",
 "%d hiba a COMMIT vegrehajtasa soran",
 "%d hiba a ROLLBACK vegrehajtasa soran",

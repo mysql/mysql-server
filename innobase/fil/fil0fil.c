@@ -967,6 +967,7 @@ fil_extend_last_data_file(
 	fil_node_t*	node;
 	fil_space_t*	space;
 	fil_system_t*	system		= fil_system;
+	byte*		buf2;
 	byte*		buf;
 	ibool		success;
 	ulint		i;
@@ -981,19 +982,23 @@ fil_extend_last_data_file(
 
 	fil_node_prepare_for_io(node, system, space);
 
-	buf = mem_alloc(1024 * 1024);
+	buf2 = mem_alloc(1024 * 1024 + UNIV_PAGE_SIZE);
+	buf = ut_align(buf2, UNIV_PAGE_SIZE);
 
 	memset(buf, '\0', 1024 * 1024);
 
 	for (i = 0; i < size_increase / ((1024 * 1024) / UNIV_PAGE_SIZE); i++) {
 
-		success = os_file_write(node->name, node->handle, buf,
+		/* If we use native Windows aio, then also this write is
+		done using it */
+
+		success = os_aio(OS_FILE_WRITE, OS_AIO_SYNC,
+			node->name, node->handle, buf,
 			(node->size << UNIV_PAGE_SIZE_SHIFT) & 0xFFFFFFFF,
 			node->size >> (32 - UNIV_PAGE_SIZE_SHIFT),
-			1024 * 1024);
+			1024 * 1024, NULL, NULL);
 
 		if (!success) {
-
 			break;
 		}
 
@@ -1003,7 +1008,7 @@ fil_extend_last_data_file(
 		os_has_said_disk_full = FALSE;
 	}
 
-	mem_free(buf);
+	mem_free(buf2);
 
 	fil_node_complete_io(node, system, OS_FILE_WRITE);
 
@@ -1528,7 +1533,6 @@ fil_page_set_type(
 	ulint	type)	/* in: type */
 {
 	ut_ad(page);
-	ut_ad((type == FIL_PAGE_INDEX) || (type == FIL_PAGE_UNDO_LOG));
 
 	mach_write_to_2(page + FIL_PAGE_TYPE, type);
 }	

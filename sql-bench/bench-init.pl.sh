@@ -39,7 +39,7 @@ require "$pwd/server-cfg" || die "Can't read Configuration file: $!\n";
 $|=1;				# Output data immediately
 
 $opt_skip_test=$opt_skip_create=$opt_skip_delete=$opt_verbose=$opt_fast_insert=$opt_lock_tables=$opt_debug=$opt_skip_delete=$opt_fast=$opt_force=$opt_log=$opt_use_old_results=$opt_help=$opt_odbc=$opt_small_test=$opt_small_tables=$opt_samll_key_tables=$opt_stage=$opt_old_headers=$opt_die_on_errors=$opt_tcpip=$opt_random=0;
-$opt_cmp=$opt_user=$opt_password="";
+$opt_cmp=$opt_user=$opt_password=$opt_connect_options="";
 $opt_server="mysql"; $opt_dir="output";
 $opt_host="localhost";$opt_database="test";
 $opt_machine=""; $opt_suffix="";
@@ -55,11 +55,11 @@ $log_prog_args=join(" ", skip_arguments(\@ARGV,"comments","cmp","server",
 					"use-old-results","skip-test",
 					"optimization","hw",
 					"machine", "dir", "suffix", "log"));
-GetOptions("skip-test=s","comments=s","cmp=s","server=s","user=s","host=s","database=s","password=s","loop-count=i","row-count=i","skip-create","skip-delete","verbose","fast-insert","lock-tables","debug","fast","force","field-count=i","regions=i","groups=i","time-limit=i","log","use-old-results","machine=s","dir=s","suffix=s","help","odbc","small-test","small-tables","small-key-tables","stage=i","threads=i","random","old-headers","die-on-errors","create-options=s","hires","tcpip","silent","optimization=s","hw=s","socket=s") || usage();
+GetOptions("skip-test=s","comments=s","cmp=s","server=s","user=s","host=s","database=s","password=s","loop-count=i","row-count=i","skip-create","skip-delete","verbose","fast-insert","lock-tables","debug","fast","force","field-count=i","regions=i","groups=i","time-limit=i","log","use-old-results","machine=s","dir=s","suffix=s","help","odbc","small-test","small-tables","small-key-tables","stage=i","threads=i","random","old-headers","die-on-errors","create-options=s","hires","tcpip","silent","optimization=s","hw=s","socket=s","connect-options=s") || usage();
 
 usage() if ($opt_help);
 $server=get_server($opt_server,$opt_host,$opt_database,$opt_odbc,
-                   machine_part(), $opt_socket);
+                   machine_part(), $opt_socket, $opt_connect_options);
 $limits=merge_limits($server,$opt_cmp);
 $date=date();
 @estimated=(0.0,0.0,0.0);		# For estimated time support
@@ -593,7 +593,11 @@ All benchmarks takes the following options:
  
 --hw='some comments'
  Add coments about hardware used for this test.
- 
+
+--connect-options='some connect options'
+  Add options, which uses at DBI connect.
+  For example --connect-options=mysql_read_default_file=/etc/my.cnf.
+
 EOF
   exit(0);
 }

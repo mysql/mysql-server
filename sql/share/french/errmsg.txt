@@ -179,7 +179,7 @@
 "Vous êtes en mode 'safe update' et vous essayez de faire un UPDATE sans clause WHERE utilisant un index",
 "L'index '%-.64s' n'existe pas sur la table '%-.64s'",
 "Impossible d'ouvrir la table",
-"Ce type de table ne supporte pas les check/repair",
+"Ce type de table ne supporte pas les %s",
 "Vous n'êtes pas autorisé à exécute cette commande dans une transaction",
 "Erreur %d lors du COMMIT",
 "Erreur %d lors du ROLLBACK",

@@ -57,6 +57,9 @@ typedef int my_socket;
 #include "mysql_com.h"
 #include "mysql_version.h"
 #include "typelib.h"
+#ifndef DBUG_OFF
+#define CHECK_EXTRA_ARGUMENTS
+#endif
 
 extern unsigned int mysql_port;
 extern char *mysql_unix_port;
@@ -424,7 +427,7 @@ int             STDCALL mysql_manager_fetch_line(MYSQL_MANAGER* con,
 */
 
 /* statement state */
-enum MY_STMT_STATE { MY_ST_UNKNOWN, MY_ST_PREPARE, MY_ST_EXECUTE };
+enum PREP_STMT_STATE { MY_ST_UNKNOWN, MY_ST_PREPARE, MY_ST_EXECUTE };
 
 /* bind structure */
 typedef struct st_mysql_bind
@@ -442,7 +445,7 @@ typedef struct st_mysql_bind
   my_bool	long_ended;		/* All data supplied for long */
   unsigned int	param_number;		/* For null count and error messages */
   void (*store_param_func)(NET *net, struct st_mysql_bind *param);
-  char *(*fetch_result)(struct st_mysql_bind *, const char *row);
+  void (*fetch_result)(struct st_mysql_bind *, unsigned char **row);
 } MYSQL_BIND;
 
 
@@ -462,10 +465,12 @@ typedef struct st_mysql_stmt
   unsigned long long_length;		/* long buffer alloced length */
   unsigned long	stmt_id;		/* Id for prepared statement */
   unsigned int	last_errno;		/* error code */
-  enum MY_STMT_STATE state;		/* statement state */
+  enum PREP_STMT_STATE state;		/* statement state */
   char		last_error[MYSQL_ERRMSG_SIZE]; /* error message */
   my_bool	long_alloced;		/* flag to indicate long alloced */
-  my_bool	types_supplied;		/* to indicate types supply */
+  my_bool	send_types_to_server;	/* to indicate types supply to server */
+  my_bool param_buffers;    /* to indicate the param bound buffers */
+  my_bool res_buffers;      /* to indicate the result bound buffers */
 } MYSQL_STMT;
 
 
