@@ -576,7 +576,8 @@ convertColumnTypeToAttrType(NdbDictionary::Column::Type _type)
   case NdbDictionary::Column::Varbinary:
     return String;
   case NdbDictionary::Column::Datetime:
-  case NdbDictionary::Column::Timespec:
+  case NdbDictionary::Column::Date:
+  case NdbDictionary::Column::Time:
   case NdbDictionary::Column::Undefined:
   default:
     return NoAttrTypeDef;
