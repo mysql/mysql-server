@@ -204,6 +204,7 @@ extern "C" {
     int version;                            ///< Internal version number
     int connect_count;                      ///< No of times node has connected
                                             ///< or disconnected to the mgm srv
+    char connect_address[sizeof("000.000.000.000")+1];
   };
 
   /**
@@ -214,6 +215,7 @@ extern "C" {
                                             ///< node_states array
     struct ndb_mgm_node_state               ///< An array with node_states
     node_states[1];
+    const char *hostname;
   };
 
   /**

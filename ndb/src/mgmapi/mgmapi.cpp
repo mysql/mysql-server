@@ -509,6 +509,9 @@ status_ackumulate(struct ndb_mgm_node_state * state,
     state->version = atoi(value);
   } else if(strcmp("connect_count", field) == 0){
     state->connect_count = atoi(value);    
+  } else if(strcmp("address", field) == 0){
+    strncpy(state->connect_address, value, sizeof(state->connect_address));
+    state->connect_address[sizeof(state->connect_address)-1]= 0;
   } else {
     ndbout_c("Unknown field: %s", field);
   }
@@ -575,22 +578,27 @@ ndb_mgm_get_status(NdbMgmHandle handle)
 
   ndb_mgm_cluster_state *state = (ndb_mgm_cluster_state*)
     malloc(sizeof(ndb_mgm_cluster_state)+
-	   noOfNodes*sizeof(ndb_mgm_node_state));
+	   noOfNodes*(sizeof(ndb_mgm_node_state)+sizeof("000.000.000.000#")));
 
-  state->no_of_nodes = noOfNodes;
+  state->hostname= 0;
+  state->no_of_nodes= noOfNodes;
   ndb_mgm_node_state * ptr = &state->node_states[0];
   int nodeId = 0;
-  int i = -1; ptr--;
+  int i;
+  for (i= 0; i < noOfNodes; i++) {
+    state->node_states[i].connect_address[0]= 0;
+  }
+  i = -1; ptr--;
   for(; i<noOfNodes; ){
     in.gets(buf, sizeof(buf));
     tmp.assign(buf);
-    
+
     if(tmp.trim() == ""){
       break;
     }
     
     Vector<BaseString> split;
-    tmp.split(split, ":.");
+    tmp.split(split, ":.", 4);
     if(split.size() != 4)
       break;
     
@@ -1512,8 +1520,10 @@ extern "C"
 void
 ndb_mgm_destroy_configuration(struct ndb_mgm_configuration *cfg)
 {
-  if (cfg)
-    delete (ConfigValues *)cfg;
+  if (cfg) {
+    ((ConfigValues *)cfg)->~ConfigValues();
+    free((void *)cfg);
+  }
 }
 
 extern "C"
