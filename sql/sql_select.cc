@@ -2133,11 +2133,21 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 	    s->table->used_keys && best_key) &&
 	  !(s->table->force_index && best_key))
       {						// Check full join
-        /*
-          Estimate cost of reading table. Note, that we don't read a table
-          on each iteration as in most cases join buffer is in use. 
-        */
+        /* Estimate cost of reading table. */
         tmp= (double) s->read_time;
+        if (s->on_expr)                         // Can't use join cache
+        {
+          /* We have to read the whole table for each record */
+          tmp*= record_count;
+        }
+        else
+        {
+          /* We read the table as many times as join buffer becomes full. */
+          tmp*= (1.0 + floor((double) cache_record_length(join,idx) *
+                             record_count /
+                             (double) thd->variables.join_buff_size));
+        }
+
         /*
           In case of full scan we check every row in the table: 
           here we take into account rows read and skipped, as well as rows
