@@ -112,6 +112,8 @@ static my_bool is_NT(void)
 }
 #endif
 
+extern ulong slave_net_timeout;
+
 /*
 ** Create a named pipe connection
 */
@@ -203,6 +205,7 @@ mc_mysql_init(MYSQL *mysql)
 #ifdef __WIN__
   mysql->options.connect_timeout=20;
 #endif
+  mysql->net.timeout = slave_net_timeout;
   return mysql;
 }
 
@@ -655,7 +658,7 @@ mc_mysql_connect(MYSQL *mysql,const char *host, const char *user,
     goto error;
   }
   vio_keepalive(net->vio,TRUE);
-
+  net->timeout=slave_net_timeout;
   /* Get version info */
   mysql->protocol_version= PROTOCOL_VERSION;	/* Assume this */
   if ((pkt_length=mc_net_safe_read(mysql)) == packet_error)
