@@ -159,14 +159,14 @@ time("1997-12-31 23:59:59.000001") as f9;
 describe t1;
 Field	Type	Null	Key	Default	Extra
 f1	date			0000-00-00	
-f2	datetime			0000-00-00 00:00:00	
-f3	time			00:00:00	
+f2	datetime	YES		NULL	
+f3	time	YES		NULL	
 f4	time			00:00:00	
 f5	time			00:00:00	
 f6	time			00:00:00	
-f7	datetime			0000-00-00 00:00:00	
-f8	date			0000-00-00	
-f9	time			00:00:00	
+f7	datetime	YES		NULL	
+f8	date	YES		NULL	
+f9	time	YES		NULL	
 select * from t1;
 f1	f2	f3	f4	f5	f6	f7	f8	f9
 1997-01-01	1998-01-02 01:01:00	49:01:01	46:58:57	-23:59:59	10:11:12	2001-12-01 01:01:01	1997-12-31	23:59:59
