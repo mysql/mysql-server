@@ -54,7 +54,7 @@ int mysql_create_view(THD *thd,
   TABLE_LIST *view= lex->unlink_first_table(&link_to_local);
   TABLE_LIST *tables= lex->query_tables;
   TABLE_LIST *tbl;
-  SELECT_LEX *select_lex= &lex->select_lex;
+  SELECT_LEX *select_lex= &lex->select_lex, *sl;
   SELECT_LEX_UNIT *unit= &lex->unit;
   int res= 0;
   DBUG_ENTER("mysql_create_view");
@@ -74,56 +74,59 @@ int mysql_create_view(THD *thd,
                    0, 0) ||
       grant_option && check_grant(thd, CREATE_VIEW_ACL, view, 0, 1, 0))
     DBUG_RETURN(1);
-  for (tbl= tables; tbl; tbl= tbl->next_local)
+  for (sl= select_lex; sl; sl= sl->next_select())
   {
-    /*
-      Ensure that we have some privilage on this table, more strict check
-      will be done on column level after preparation,
-
-      SELECT_ACL will be checked for sure for all fields because it is
-      listed first (if we have not rights to SELECT from whole table this
-      right will be written as tbl->grant.want_privilege and will be checked
-      later (except fields which need any privilege and can be updated).
-    */
-    if ((check_access(thd, SELECT_ACL, tbl->db,
-		      &tbl->grant.privilege, 0, 1) ||
-	 grant_option && check_grant(thd, SELECT_ACL, tbl, 0, 1, 1)) &&
-        (check_access(thd, INSERT_ACL, tbl->db,
-		      &tbl->grant.privilege, 0, 1) ||
-	 grant_option && check_grant(thd, INSERT_ACL, tbl, 0, 1, 1)) &&
-        (check_access(thd, DELETE_ACL, tbl->db,
-		      &tbl->grant.privilege, 0, 1) ||
-	 grant_option && check_grant(thd, DELETE_ACL, tbl, 0, 1, 1)) &&
-         (check_access(thd, UPDATE_ACL, tbl->db,
-		      &tbl->grant.privilege, 0, 1) ||
-	 grant_option && check_grant(thd, UPDATE_ACL, tbl, 0, 1, 1))
-        )
+    for (tbl= sl->get_table_list(); tbl; tbl= tbl->next_local)
     {
-      my_printf_error(ER_TABLEACCESS_DENIED_ERROR,
-                      ER(ER_TABLEACCESS_DENIED_ERROR),
-                      MYF(0),
-                      "ANY",
-                      thd->priv_user,
-                      thd->host_or_ip,
-                      tbl->real_name);
-      DBUG_RETURN(-1);
+      /*
+        Ensure that we have some privilage on this table, more strict check
+        will be done on column level after preparation,
+
+        SELECT_ACL will be checked for sure for all fields because it is
+        listed first (if we have not rights to SELECT from whole table this
+        right will be written as tbl->grant.want_privilege and will be checked
+        later (except fields which need any privilege and can be updated).
+      */
+      if ((check_access(thd, SELECT_ACL, tbl->db,
+                        &tbl->grant.privilege, 0, 1) ||
+           grant_option && check_grant(thd, SELECT_ACL, tbl, 0, 1, 1)) &&
+          (check_access(thd, INSERT_ACL, tbl->db,
+                        &tbl->grant.privilege, 0, 1) ||
+           grant_option && check_grant(thd, INSERT_ACL, tbl, 0, 1, 1)) &&
+          (check_access(thd, DELETE_ACL, tbl->db,
+                        &tbl->grant.privilege, 0, 1) ||
+           grant_option && check_grant(thd, DELETE_ACL, tbl, 0, 1, 1)) &&
+          (check_access(thd, UPDATE_ACL, tbl->db,
+                        &tbl->grant.privilege, 0, 1) ||
+           grant_option && check_grant(thd, UPDATE_ACL, tbl, 0, 1, 1))
+         )
+      {
+        my_printf_error(ER_TABLEACCESS_DENIED_ERROR,
+                        ER(ER_TABLEACCESS_DENIED_ERROR),
+                        MYF(0),
+                        "ANY",
+                        thd->priv_user,
+                        thd->host_or_ip,
+                        tbl->real_name);
+        DBUG_RETURN(-1);
+      }
+      /* mark this table as table which will be checked after preparation */
+      tbl->table_in_first_from_clause= 1;
+
+      /*
+        We need to check only SELECT_ACL for all normal fields, fields
+        where we need any privilege will be pmarked later
+      */
+      tbl->grant.want_privilege= SELECT_ACL;
+      /*
+        Make sure that all rights are loaded to table 'grant' field.
+
+        tbl->real_name will be correct name of table because VIEWs are
+        not opened yet.
+      */
+      fill_effective_table_privileges(thd, &tbl->grant, tbl->db,
+                                      tbl->real_name);
     }
-    /* mark this table as table which will be checked after preparation */
-    tbl->table_in_first_from_clause= 1;
-
-    /*
-      We need to check only SELECT_ACL for all normal fields, fields
-      where we need any privilege will be pmarked later
-    */
-    tbl->grant.want_privilege= SELECT_ACL;
-    /*
-      Make sure that all rights are loaded to table 'grant' field.
-
-      tbl->real_name will be correct name of table because VIEWs are
-      not opened yet.
-    */
-    fill_effective_table_privileges(thd, &tbl->grant, tbl->db,
-                                    tbl->real_name);
   }
 
   if (&lex->select_lex != lex->all_selects_list)
@@ -145,12 +148,10 @@ int mysql_create_view(THD *thd,
   }
   /*
     Mark fields for special privilege check (any privilege)
-
-    'if' should be changed if we made updateable UNION.
   */
-  if (lex->select_lex.next_select() == 0)
+  for (sl= select_lex; sl; sl= sl->next_select())
   {
-    List_iterator_fast<Item> it(lex->select_lex.item_list);
+    List_iterator_fast<Item> it(sl->item_list);
     Item *item;
     while ((item= it++))
     {
@@ -183,8 +184,15 @@ int mysql_create_view(THD *thd,
 
   // prepare select to resolve all fields
   lex->view_prepare_mode= 1;
-  if ((res= unit->prepare(thd, 0, 0)))
+  if (unit->prepare(thd, 0, 0))
+  {
+    /*
+      some errors from prepare are reported to user, if is not then
+      it will be checked after err: label
+    */
+    res= 1;
     goto err;
+  }
 
   /* view list (list of view fields names) */
   if (lex->view_list.elements)
@@ -228,9 +236,10 @@ int mysql_create_view(THD *thd,
   /*
     Compare/check grants on view with grants of underlaying tables
   */
+  for (sl= select_lex; sl; sl= sl->next_select())
   {
     char *db= view->db ? view->db : thd->db;
-    List_iterator_fast<Item> it(select_lex->item_list);
+    List_iterator_fast<Item> it(sl->item_list);
     Item *item;
     fill_effective_table_privileges(thd, &view->grant, db,
                                     view->real_name);
@@ -650,7 +659,8 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
     if (table->algorithm != VIEW_ALGORITHM_TMEPTABLE &&
 	lex->can_be_merged() &&
         (table->select_lex->master_unit() != &old_lex->unit ||
-         old_lex->can_use_merged()))
+         old_lex->can_use_merged()) &&
+        !old_lex->can_not_use_merged())
     {
       /*
         TODO: support multi tables substitutions
@@ -663,6 +673,7 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
       DBUG_ASSERT(view_table != 0);
 
       table->effective_algorithm= VIEW_ALGORITHM_MERGE;
+      DBUG_PRINT("info", ("algorithm: MERGE"));
       table->updatable= (table->updatable_view != 0);
 
       if (old_next)
@@ -692,6 +703,7 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
     }
 
     table->effective_algorithm= VIEW_ALGORITHM_TMEPTABLE;
+    DBUG_PRINT("info", ("algorithm: TEMPORARY TABLE"));
     lex->select_lex.linkage= DERIVED_TABLE_TYPE;
     table->updatable= 0;
 

@@ -81,4 +81,28 @@ explain select pk1,pk2,key1,key2 from t1 where key1 = 10 and key2=10 limit 10;
 select pk1,pk2,key1,key2 from t1 where key1 = 10 and key2=10 limit 10;
 
 drop table t1;
+# Testcase for BUG#4984
+create table t1
+( 
+  RUNID varchar(22), 
+  SUBMITNR varchar(5), 
+  ORDERNR char(1) , 
+  PROGRAMM varchar(8), 
+  TESTID varchar(4), 
+  UCCHECK char(1), 
+  ETEXT varchar(80), 
+  ETEXT_TYPE char(1),
+  INFO char(1), 
+  SEVERITY tinyint(3), 
+  TADIRFLAG char(1), 
+  PRIMARY KEY  (RUNID,SUBMITNR,ORDERNR,PROGRAMM,TESTID,UCCHECK), 
+  KEY `TVERM~KEY`  (PROGRAMM,TESTID,UCCHECK)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1; 
+ 
+update t1 set `ETEXT` = '', `ETEXT_TYPE`='', `INFO`='', `SEVERITY`='', `TADIRFLAG`='' 
+WHERE 
+ `RUNID`= '' AND `SUBMITNR`= '' AND `ORDERNR`='' AND `PROGRAMM`='' AND 
+ `TESTID`='' AND `UCCHECK`=''; 
+
+drop table t1;
 

@@ -236,6 +236,7 @@ protected:
   bool free_file;
 
 protected:
+  friend class TRP_ROR_INTERSECT;
   friend
   QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
                                                struct st_table_ref *ref);

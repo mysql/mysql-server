@@ -38,6 +38,7 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
 static void free_cache_entry(TABLE *entry);
 static void mysql_rm_tmp_tables(void);
 static my_bool open_new_frm(const char *path, const char *alias,
+                            const char *db, const char *table_name,
 			    uint db_stat, uint prgflag,
 			    uint ha_open_flags, TABLE *outparam,
 			    TABLE_LIST *table_desc, MEM_ROOT *mem_root);
@@ -1379,8 +1380,6 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
 {
   char path[FN_REFLEN];
   int error;
-  // we support new format only is have all parameters for it
-  uint new_frm_flag= (table_desc && mem_root) ? NO_ERR_ON_NEW_FRM : 0;
   uint discover_retry_count= 0;
   DBUG_ENTER("open_unireg_entry");
 
@@ -1388,12 +1387,12 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
   while ((error= openfrm(path, alias,
 		         (uint) (HA_OPEN_KEYFILE | HA_OPEN_RNDFILE |
 			         HA_GET_INDEX | HA_TRY_READ_ONLY |
-			       new_frm_flag),
+                                 NO_ERR_ON_NEW_FRM),
 		      READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD,
 		      thd->open_options, entry)) &&
       (error != 5 ||
        fn_format(path, path, 0, reg_ext, MY_UNPACK_FILENAME),
-       open_new_frm(path, alias,
+       open_new_frm(path, alias, db, name,
 		    (uint) (HA_OPEN_KEYFILE | HA_OPEN_RNDFILE |
 			    HA_GET_INDEX | HA_TRY_READ_ONLY),
 		    READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD,
@@ -1679,6 +1678,8 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type)
 
   thd->proc_info="Opening table";
   thd->current_tablenr= 0;
+  /* open_ltable can be used only for BASIC TABLEs */
+  table_list->required_type= FRMTYPE_TABLE;
   while (!(table= open_table(thd, table_list, 0, &refresh)) && refresh) ;
 
   if (table)
@@ -1923,6 +1924,7 @@ const Field *view_ref_found= (Field*) 0x2;
     thd				thread handler
     table_list			table where to find
     name			name of field
+    item_name                   name of item if it will be created (VIEW)
     length			length of name
     ref				expression substituted in VIEW should be
 				  passed using this reference (return
@@ -1939,11 +1941,13 @@ const Field *view_ref_found= (Field*) 0x2;
     #			pointer to field
 */
 
-Field *find_field_in_table(THD *thd, TABLE_LIST *table_list,
-			   const char *name, uint length, Item **ref,
-                           bool check_grants_table, bool check_grants_view,
-			   bool allow_rowid, 
-                           uint *cached_field_index_ptr)
+Field *
+find_field_in_table(THD *thd, TABLE_LIST *table_list,
+                    const char *name, const char *item_name,
+                    uint length, Item **ref,
+                    bool check_grants_table, bool check_grants_view,
+                    bool allow_rowid,
+                    uint *cached_field_index_ptr)
 {
   Field *fld;
   if (table_list->field_translation)
@@ -1971,7 +1975,7 @@ Field *find_field_in_table(THD *thd, TABLE_LIST *table_list,
           if (arena)
             thd->set_n_backup_item_arena(arena, &backup);
           *ref= new Item_ref(trans + i, 0, table_list->view_name.str,
-                             name);
+                             item_name);
           if (arena)
             thd->restore_backup_item_arena(arena, &backup);
           /* as far as Item_ref have defined refernce it do not need tables */
@@ -2162,7 +2166,8 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
 	  (!db || !tables->db ||  !tables->db[0] || !strcmp(db,tables->db)))
       {
 	found_table=1;
-	Field *find= find_field_in_table(thd, tables, name, length, ref,
+	Field *find= find_field_in_table(thd, tables, name, item->name,
+                                         length, ref,
 					 (test(tables->table->grant.
                                                want_privilege) &&
                                           check_privileges),
@@ -2225,7 +2230,8 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
       return (Field*) not_found_field;
     }
 
-    Field *field= find_field_in_table(thd, tables, name, length, ref,
+    Field *field= find_field_in_table(thd, tables, name, item->name,
+                                      length, ref,
 				      (test(tables->table->grant.
                                             want_privilege) &&
                                        check_privileges),
@@ -2682,7 +2688,8 @@ insert_fields(THD *thd, TABLE_LIST *tables, const char *db_name,
         const char *field_name= iterator->name();
         /* Skip duplicate field names if NATURAL JOIN is used */
         if (!natural_join_table ||
-            !find_field_in_table(thd, natural_join_table, field_name, 
+            !find_field_in_table(thd, natural_join_table, field_name,
+                                 field_name,
                                  strlen(field_name), &not_used_item, 0, 0, 0,
                                  &not_used_field_index))
         {
@@ -2889,6 +2896,7 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
           uint not_used_field_index= NO_CACHED_FIELD_INDEX;
 
           if ((t2_field= find_field_in_table(thd, tab2, t1_field_name,
+                                             t1_field_name,
                                              strlen(t1_field_name), &item_t2,
                                              0, 0, 0,
                                              &not_used_field_index)))
@@ -3209,6 +3217,8 @@ int init_ftfuncs(THD *thd, SELECT_LEX *select_lex, bool no_order)
     open_new_frm()
     path	  path to .frm
     alias	  alias for table
+    db            database
+    table_name    name of table
     db_stat	  open flags (for example HA_OPEN_KEYFILE|HA_OPEN_RNDFILE..)
 		  can be 0 (example in ha_example_table)
     prgflag	  READ_ALL etc..
@@ -3218,7 +3228,9 @@ int init_ftfuncs(THD *thd, SELECT_LEX *select_lex, bool no_order)
     mem_root	  temporary MEM_ROOT for parsing
 */
 static my_bool
-open_new_frm(const char *path, const char *alias, uint db_stat, uint prgflag,
+open_new_frm(const char *path, const char *alias,
+             const char *db, const char *table_name,
+             uint db_stat, uint prgflag,
 	     uint ha_open_flags, TABLE *outparam, TABLE_LIST *table_desc,
 	     MEM_ROOT *mem_root)
 {
@@ -3226,28 +3238,36 @@ open_new_frm(const char *path, const char *alias, uint db_stat, uint prgflag,
   LEX_STRING pathstr;
   pathstr.str= (char *)path;
   pathstr.length= strlen(path);
+
+  if (!mem_root)
+    mem_root= &current_thd->mem_root;
+
   File_parser *parser= sql_parse_prepare(&pathstr, mem_root, 1);
   if (parser)
   {
     if (!strncmp("VIEW", parser->type()->str, parser->type()->length))
     {
-      if (mysql_make_view(parser, table_desc))
+      if (table_desc == 0 || table_desc->required_type == FRMTYPE_TABLE)
       {
-	bzero(outparam, sizeof(*outparam));	// do not run repair
-	DBUG_RETURN(1);
+        my_error(ER_WRONG_OBJECT, MYF(0), db, table_name, "BASE TABLE");
+        goto err;
       }
+      if (mysql_make_view(parser, table_desc))
+        goto err;
     }
     else
     {
       /* only VIEWs are supported now */
       my_error(ER_FRM_UNKNOWN_TYPE, MYF(0), path,  parser->type()->str);
-      bzero(outparam, sizeof(outparam));	// do not run repair
-      DBUG_RETURN(1);
+      goto err;
     }
   }
   else
-  {
-    DBUG_RETURN(1);
-  }
+    goto err;
+
   DBUG_RETURN(0);
+
+err:
+  bzero(outparam, sizeof(TABLE));	// do not run repair
+  DBUG_RETURN(1);
 }

@@ -63,6 +63,47 @@ iterate foo;
 end|
 ERROR 42000: ITERATE with no matching label: foo
 create procedure foo()
+begin
+goto foo;
+end|
+ERROR 42000: GOTO with no matching label: foo
+create procedure foo()
+begin
+begin
+label foo;
+end;
+goto foo;
+end|
+ERROR 42000: GOTO with no matching label: foo
+create procedure foo()
+begin
+goto foo;
+begin
+label foo;
+end;
+end|
+ERROR 42000: GOTO with no matching label: foo
+create procedure foo()
+begin
+begin
+goto foo;
+end;
+begin
+label foo;
+end;
+end|
+ERROR 42000: GOTO with no matching label: foo
+create procedure foo()
+begin
+begin
+label foo;
+end;
+begin
+goto foo;
+end;
+end|
+ERROR 42000: GOTO with no matching label: foo
+create procedure foo()
 foo: loop
 foo: loop
 set @x=2;
@@ -283,6 +324,16 @@ declare continue handler for sqlstate '42S99' set x = 1;
 declare c cursor for select * from t1;
 end|
 ERROR 42000: Cursor declaration after handler declaration
+create procedure p()
+begin
+declare continue handler for sqlexception
+begin
+goto L1;
+end;
+select field from t1;
+label L1;
+end|
+ERROR HY000: GOTO is not allowed in a stored procedure handler
 create procedure bug1965()
 begin
 declare c cursor for select val from t1 order by valname;
@@ -294,12 +345,6 @@ ERROR 42S22: Unknown column 'valname' in 'order clause'
 drop procedure bug1965|
 select 1 into a|
 ERROR 42000: Undeclared variable: a
-create procedure bug336(id char(16))
-begin
-declare x int;
-set x = (select sum(t.data) from test.t2 t);
-end|
-ERROR 0A000: Subselect value not supported
 create function bug1654()
 returns int
 return (select sum(t.data) from test.t2 t)|

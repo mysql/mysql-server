@@ -1,7 +1,9 @@
 #
 # Basic stored PROCEDURE tests
 #
-#
+# Please keep this file free of --error cases and other
+# things that will not run in a single debugged mysqld
+# process (e.g. master-slave things).
 
 use test;
 
@@ -463,6 +465,121 @@ select * from t1|
 delete from t1|
 drop procedure i|
 
+
+# The non-standard GOTO, for compatibility
+#
+# QQQ The "label" syntax is temporary, it will (hopefully)
+#     change to the more common "L:" syntax soon.
+#
+create procedure goto1()
+begin
+  declare y int;
+
+label a;
+  select * from t1;
+  select count(*) into y from t1;
+  if y > 2 then
+    goto b;
+  end if;
+  insert into t1 values ("j", y);
+  goto a;
+label b;
+end|
+
+call goto1()|
+drop procedure goto1|
+
+# With dummy handlers, just to test restore of contexts with jumps
+create procedure goto2(a int)
+begin
+  declare x int default 0;
+  declare continue handler for sqlstate '42S98' set x = 1;
+
+label a;
+  select * from t1;
+b:
+  while x < 2 do
+    begin
+      declare continue handler for sqlstate '42S99' set x = 2;
+
+      if a = 0 then
+        set x = x + 1;
+        iterate b;
+      elseif a = 1 then
+        leave b;
+      elseif a = 2 then
+        set a = 1;
+        goto a;
+      end if;
+    end;
+  end while b;
+
+  select * from t1;
+end|
+
+call goto2(0)|
+call goto2(1)|
+call goto2(2)|
+
+drop procedure goto2|
+delete from t1|
+
+# Check label visibility for some more cases. We don't call these.
+create procedure goto3()
+begin
+ label L1;
+   begin
+   end;
+ goto L1;
+end|
+drop procedure goto3|
+
+create procedure goto4()
+begin
+  begin
+   label lab1;
+    begin
+      goto lab1;
+    end;
+  end;
+end|
+drop procedure goto4|
+
+create procedure goto5()
+begin
+  begin
+    begin
+      goto lab1;
+    end;
+   label lab1;
+  end;
+end|
+drop procedure goto5|
+
+create procedure goto6()
+begin
+  label L1;
+  goto L5;
+  begin
+    label L2;
+    goto L1;
+    goto L5;
+    begin
+      label L3;
+      goto L1;
+      goto L2;
+      goto L3;
+      goto L4;
+      goto L5;
+    end;
+    goto L2;
+    goto L4;
+    label L4;
+  end;
+  label L5;
+  goto L1;
+end|
+drop procedure goto6|
 
 # SELECT with one of more result set sent back to the clinet
 insert into t1 values ("foo", 3), ("bar", 19)|
@@ -1698,12 +1815,8 @@ begin
   show columns from t1;
   show grants for 'root'@'localhost';
   show keys from t1;
-  show master status;
   show open tables like 'foo';
   show privileges;
-  show processlist;
-  show slave hosts;
-  show slave status;
   show status like 'foo';
   show tables like 'foo';
   show variables like 'foo';
@@ -1711,11 +1824,25 @@ begin
 end|
 #show binlog events;
 #show storage engines;
+#show master status;
+#show slave hosts;
+#show slave status;
 
 call bug4902()|
 call bug4902()|
 
 drop procedure bug4902|
+
+# We need separate SP for SHOW PROCESSLIST  since we want use replace_column
+create procedure bug4902_2()
+begin
+  show processlist;
+end|
+--replace_column 1 # 6 #
+call bug4902_2()|
+--replace_column 1 # 6 #
+call bug4902_2()|
+drop procedure bug4902_2|
 
 #
 # BUG#4904
@@ -1734,6 +1861,68 @@ end|
 call bug4904()|
 
 drop procedure bug4904|
+
+#
+# BUG#336
+#
+create procedure bug336(out y int)
+begin
+  declare x int;
+  set x = (select sum(t.data) from test.t1 t);
+  set y = x;
+end|
+
+insert into t1 values ("a", 2), ("b", 3)|
+call bug336(@y)|
+select @y|
+delete from t1|
+drop procedure bug336|
+
+#
+# BUG#3157
+#
+create procedure bug3157()
+begin
+  if exists(select * from t1) then
+    set @n= @n + 1;
+  end if;
+  if (select count(*) from t1) then
+    set @n= @n + 1;
+  end if;
+end|
+
+set @n = 0|
+insert into t1 values ("a", 1)|
+call bug3157()|
+select @n|
+delete from t1|
+drop procedure bug3157|
+
+#
+# BUG#5251: mysql changes creation time of a procedure/function when altering
+#
+create procedure bug5251()
+begin
+end|
+
+select created into @c1 from mysql.proc
+  where db='test' and name='bug5251'|
+--sleep 2
+alter procedure bug5251 comment 'foobar'|
+select count(*) from mysql.proc
+  where  db='test' and name='bug5251' and created = @c1|
+
+drop procedure bug5251|
+
+#
+# BUG#5279: Stored procedure packets out of order if CHECKSUM TABLE
+#
+create procedure bug5251()
+  checksum table t1|
+
+call bug5251()|
+call bug5251()|
+drop procedure bug5251|
 
 
 #
@@ -1935,3 +2124,9 @@ call p1();
 drop procedure p1;
 drop table t1;
 
+#
+# backticks
+#
+create function `foo` () returns int return 5;
+select `foo` ();
+drop function `foo`;

@@ -32,10 +32,10 @@ c
 11
 show create table v1;
 Table	Create Table
-v1	CREATE VIEW test.v1 AS select (`test`.`t1`.`b` + 1) AS `c` from `test`.`t1`
+v1	CREATE VIEW `test`.`v1` AS select (`test`.`t1`.`b` + 1) AS `c` from `test`.`t1`
 show create view v1;
 Table	Create Table
-v1	CREATE VIEW test.v1 AS select (`test`.`t1`.`b` + 1) AS `c` from `test`.`t1`
+v1	CREATE VIEW `test`.`v1` AS select (`test`.`t1`.`b` + 1) AS `c` from `test`.`t1`
 show create view t1;
 ERROR HY000: 'test.t1' is not VIEW
 drop table t1;
@@ -55,7 +55,7 @@ Note	1003	select (`test`.`t1`.`b` + 1) AS `c` from `test`.`v1`
 create algorithm=temptable view v2 (c) as select b+1 from t1;
 show create table v2;
 Table	Create Table
-v2	CREATE ALGORITHM=TMPTABLE VIEW test.v2 AS select (`test`.`t1`.`b` + 1) AS `c` from `test`.`t1`
+v2	CREATE ALGORITHM=TMPTABLE VIEW `test`.`v2` AS select (`test`.`t1`.`b` + 1) AS `c` from `test`.`t1`
 select c from v2;
 c
 3
@@ -306,14 +306,14 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	0	const row not found
 show create table mysqltest.v1;
 Table	Create Table
-v1	CREATE VIEW mysqltest.v1 AS select (`mysqltest`.`t1`.`a` + 1) AS `c`,(`mysqltest`.`t1`.`b` + 1) AS `d` from `mysqltest`.`t1`
+v1	CREATE VIEW `mysqltest`.`v1` AS select (`mysqltest`.`t1`.`a` + 1) AS `c`,(`mysqltest`.`t1`.`b` + 1) AS `d` from `mysqltest`.`t1`
 explain select c from mysqltest.v2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	0	const row not found
 2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 show create table mysqltest.v2;
 Table	Create Table
-v2	CREATE ALGORITHM=TMPTABLE VIEW mysqltest.v2 AS select (`mysqltest`.`t1`.`a` + 1) AS `c`,(`mysqltest`.`t1`.`b` + 1) AS `d` from `mysqltest`.`t1`
+v2	CREATE ALGORITHM=TMPTABLE VIEW `mysqltest`.`v2` AS select (`mysqltest`.`t1`.`a` + 1) AS `c`,(`mysqltest`.`t1`.`b` + 1) AS `d` from `mysqltest`.`t1`
 explain select c from mysqltest.v3;
 ERROR HY000: EXPLAIN/SHOW can not be issued; lacking privileges for underlying table
 show create table mysqltest.v3;
@@ -328,27 +328,27 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	0	const row not found
 show create table mysqltest.v1;
 Table	Create Table
-v1	CREATE VIEW mysqltest.v1 AS select (`mysqltest`.`t1`.`a` + 1) AS `c`,(`mysqltest`.`t1`.`b` + 1) AS `d` from `mysqltest`.`t1`
+v1	CREATE VIEW `mysqltest`.`v1` AS select (`mysqltest`.`t1`.`a` + 1) AS `c`,(`mysqltest`.`t1`.`b` + 1) AS `d` from `mysqltest`.`t1`
 explain select c from mysqltest.v2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	0	const row not found
 2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 show create table mysqltest.v2;
 Table	Create Table
-v2	CREATE ALGORITHM=TMPTABLE VIEW mysqltest.v2 AS select (`mysqltest`.`t1`.`a` + 1) AS `c`,(`mysqltest`.`t1`.`b` + 1) AS `d` from `mysqltest`.`t1`
+v2	CREATE ALGORITHM=TMPTABLE VIEW `mysqltest`.`v2` AS select (`mysqltest`.`t1`.`a` + 1) AS `c`,(`mysqltest`.`t1`.`b` + 1) AS `d` from `mysqltest`.`t1`
 explain select c from mysqltest.v3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
 show create table mysqltest.v3;
 Table	Create Table
-v3	CREATE VIEW mysqltest.v3 AS select (`mysqltest`.`t2`.`a` + 1) AS `c`,(`mysqltest`.`t2`.`b` + 1) AS `d` from `mysqltest`.`t2`
+v3	CREATE VIEW `mysqltest`.`v3` AS select (`mysqltest`.`t2`.`a` + 1) AS `c`,(`mysqltest`.`t2`.`b` + 1) AS `d` from `mysqltest`.`t2`
 explain select c from mysqltest.v4;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	0	const row not found
 2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 show create table mysqltest.v4;
 Table	Create Table
-v4	CREATE ALGORITHM=TMPTABLE VIEW mysqltest.v4 AS select (`mysqltest`.`t2`.`a` + 1) AS `c`,(`mysqltest`.`t2`.`b` + 1) AS `d` from `mysqltest`.`t2`
+v4	CREATE ALGORITHM=TMPTABLE VIEW `mysqltest`.`v4` AS select (`mysqltest`.`t2`.`a` + 1) AS `c`,(`mysqltest`.`t2`.`b` + 1) AS `d` from `mysqltest`.`t2`
 revoke all privileges on mysqltest.* from mysqltest_1@localhost;
 delete from mysql.user where user='mysqltest_1';
 drop database mysqltest;
@@ -761,7 +761,7 @@ set sql_updatable_view_key=LIMIT1;
 update v1 set x=x+1;
 update v2 set x=x+1;
 Warnings:
-Note	1354	View being update does not have complete key of underlying table in it
+Note	1354	View being updated does not have complete key of underlying table in it
 update v1 set x=x+1 limit 1;
 update v2 set x=x+1 limit 1;
 ERROR HY000: The target table v2 of the UPDATE is not updatable
@@ -769,7 +769,7 @@ set sql_updatable_view_key=NO;
 update v1 set x=x+1 limit 1;
 update v2 set x=x+1 limit 1;
 Warnings:
-Note	1354	View being update does not have complete key of underlying table in it
+Note	1354	View being updated does not have complete key of underlying table in it
 set sql_updatable_view_key=DEFAULT;
 select * from t1;
 a	b	c
@@ -830,7 +830,7 @@ a	b	c
 30	4	-60
 50	6	-100
 40	5	NULL
-drop table t1;
+drop table t1, t2;
 drop view v1,v2,v3,v4,v5;
 create database mysqltest;
 create table mysqltest.t1 (a int, b int, primary key(a));
@@ -946,7 +946,7 @@ create table t1 ("a*b" int);
 create view v1 as select "a*b" from t1;
 show create view v1;
 Table	Create Table
-v1	CREATE VIEW test.v1 AS select `test`.`t1`.`a*b` AS `a*b` from `test`.`t1`
+v1	CREATE VIEW "test"."v1" AS select `test`.`t1`.`a*b` AS `a*b` from `test`.`t1`
 drop view v1;
 drop table t1;
 set sql_mode=default;
@@ -1014,3 +1014,155 @@ p2
 p4
 drop view v1;
 drop table t1;
+create table t1 (a int);
+create view v1 as select a from t1;
+insert into t1 values (1);
+SET @v0 = '2';
+PREPARE stmt FROM 'UPDATE v1 SET a = ?';
+EXECUTE stmt USING @v0;
+DEALLOCATE PREPARE stmt;
+SET @v0 = '3';
+PREPARE stmt FROM 'insert into v1 values (?)';
+EXECUTE stmt USING @v0;
+DEALLOCATE PREPARE stmt;
+SET @v0 = '4';
+PREPARE stmt FROM 'insert into v1 (a) values (?)';
+EXECUTE stmt USING @v0;
+DEALLOCATE PREPARE stmt;
+select * from t1;
+a
+2
+3
+4
+drop view v1;
+drop table t1;
+CREATE VIEW v02 AS SELECT * FROM DUAL;
+ERROR HY000: No tables used
+SHOW TABLES;
+Tables_in_test	table_type
+v4	VIEW
+CREATE VIEW v1 AS SELECT EXISTS (SELECT 1 UNION SELECT 2);
+select * from v1;
+EXISTS (SELECT 1 UNION SELECT 2)
+1
+drop view v1;
+create table t1 (col1 int,col2 char(22));
+create view v1 as select * from t1;
+create index i1 on v1 (col1);
+ERROR HY000: 'test.v1' is not BASE TABLE
+drop view v1;
+drop table t1;
+CREATE VIEW v1 (f1,f2,f3,f4) AS SELECT connection_id(), pi(), current_user(), version();
+SHOW CREATE VIEW v1;
+Table	Create Table
+v1	CREATE VIEW `test`.`v1` AS select sql_no_cache connection_id() AS `f1`,pi() AS `f2`,current_user() AS `f3`,version() AS `f4`
+drop view v1;
+create table t1 (s1 int);
+create table t2 (s2 int);
+insert into t1 values (1), (2);
+insert into t2 values (2), (3);
+create view v1 as select * from t1,t2 union all select * from t1,t2;
+select * from v1;
+s1	s2
+1	2
+2	2
+1	3
+2	3
+1	2
+2	2
+1	3
+2	3
+drop view v1;
+drop tables t1, t2;
+create table t1 (col1 int);
+insert into t1 values (1);
+create view v1 as select count(*) from t1;
+insert into t1 values (null);
+select * from v1;
+count(*)
+2
+drop view v1;
+drop table t1;
+create table t1 (a int);
+create table t2 (a int);
+create view v1 as select a from t1;
+create view v2 as select a from t2 where a in (select a from v1);
+show create view v2;
+Table	Create Table
+v2	CREATE VIEW `test`.`v2` AS select `test`.`t2`.`a` AS `a` from `test`.`t2` where `a` in (select `v1`.`a` AS `a` from `test`.`v1`)
+drop view v2, v1;
+drop table t1, t2;
+CREATE VIEW `v 1` AS select 5 AS `5`;
+show create view `v 1`;
+Table	Create Table
+v 1	CREATE VIEW `test`.`v 1` AS select 5 AS `5`
+drop view `v 1`;
+create database mysqltest;
+create table mysqltest.t1 (a int, b int);
+create view mysqltest.v1 as select a from mysqltest.t1;
+alter view mysqltest.v1 as select b from mysqltest.t1;
+alter view mysqltest.v1 as select a from mysqltest.t1;
+drop database mysqltest;
+CREATE TABLE t1 (c1 int not null auto_increment primary key, c2 varchar(20), fulltext(c2));
+insert into t1 (c2) VALUES ('real Beer'),('Water'),('Kossu'),('Coca-Cola'),('Vodka'),('Wine'),('almost real Beer');
+select * from t1 WHERE match (c2) against ('Beer');
+c1	c2
+1	real Beer
+7	almost real Beer
+CREATE VIEW v1 AS SELECT  * from t1 WHERE match (c2) against ('Beer');
+select * from v1;
+c1	c2
+1	real Beer
+7	almost real Beer
+drop view v1;
+drop table t1;
+create table t1 (a int);
+insert into t1 values (1),(1),(2),(2),(3),(3);
+create view v1 as select a from t1;
+select distinct a from v1;
+a
+1
+2
+3
+select distinct a from v1 limit 2;
+a
+1
+2
+select distinct a from t1 limit 2;
+a
+1
+2
+prepare stmt1 from "select distinct a from v1 limit 2";
+execute stmt1;
+a
+1
+2
+execute stmt1;
+a
+1
+2
+deallocate prepare stmt1;
+drop view v1;
+drop table t1;
+create table t1 (tg_column bigint);
+create view v1 as select count(tg_column) as vg_column from t1;
+select avg(vg_column) from v1;
+avg(vg_column)
+0.0000
+drop view v1;
+drop table t1;
+create table t1 (col1 bigint not null, primary key (col1));
+create table t2 (col1 bigint not null, key (col1));
+create view v1 as select * from t1;
+create view v2 as select * from t2;
+insert into v1 values (1);
+insert into v2 values (1);
+create view v3 (a,b) as select v1.col1 as a, v2.col1 as b from v1, v2 where v1.col1 = v2.col1;
+select * from v3;
+a	b
+1	1
+show create view v3;
+Table	Create Table
+v3	CREATE VIEW `test`.`v3` AS select `v1`.`col1` AS `a`,`v2`.`col1` AS `b` from `test`.`v1` join `test`.`v2` where (`v1`.`col1` = `v2`.`col1`)
+drop view v3, v2, v1;
+drop table t2, t1;
