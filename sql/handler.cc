@@ -588,6 +588,11 @@ int handler::analyze(THD* thd, HA_CHECK_OPT* check_opt)
   return HA_ADMIN_NOT_IMPLEMENTED;
 }
 
+int handler::preload_keys(THD* thd, HA_CHECK_OPT* check_opt)
+{
+  return HA_ADMIN_NOT_IMPLEMENTED;
+}
+
 /*
   Read first row (only) from a table
   This is never called for InnoDB or BDB tables, as these table types
