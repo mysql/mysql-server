@@ -116,10 +116,10 @@ for that version.
 @end ifinfo
 
 @menu
-* Introduction::                General Information about MySQL
+* Introduction::                General Information
 * Installing::                  Installing MySQL
 * Tutorial::                    MySQL Tutorial
-* MySQL Database Administration::  MySQL Database Administration
+* MySQL Database Administration::  Database Administration
 * MySQL Optimisation::          MySQL Optimisation
 * Reference::                   MySQL Language Reference
 * Table types::                 MySQL Table Types
@@ -140,7 +140,7 @@ for that version.
 
 
 @node Introduction, Installing, Top, Top
-@chapter General Information About MySQL
+@chapter General Information
 
 @cindex overview
 @cindex general information
@@ -11471,7 +11471,7 @@ perl} indicates the command to use.
 
 
 @node Tutorial, MySQL Database Administration, Installing, Top
-@chapter Tutorial Introduction to MySQL
+@chapter Tutorial Introduction
 
 @cindex tutorial
 @cindex terminal monitor, defined
@@ -14049,7 +14049,7 @@ FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"' ESCAPED BY '\\'
 
 
 @node MySQL Database Administration, MySQL Optimisation, Tutorial, Top
-@chapter MySQL Database Administration
+@chapter Database Administration
 
 @menu
 * Configuring MySQL::           Configuring MySQL
@@ -55788,7 +55788,7 @@ variables to modify the behavior of MySQL. @xref{Option files}.
 
 
 @node Regexp, GPL license, Environment variables, Top
-@appendix MySQL Regular Expression Syntax
+@appendix MySQL Regular Expressions
 
 @cindex regex
 @cindex regular expression syntax, described
