@@ -44,7 +44,7 @@
 #include <locale.h>
 #endif
 
-const char *VER= "14.0";
+const char *VER= "14.1";
 
 /* Don't try to make a nice table if the data is too big */
 #define MAX_COLUMN_LENGTH	     1024
@@ -200,7 +200,9 @@ static int com_nopager(String *str, char*), com_pager(String *str, char*),
 static int read_lines(bool execute_commands);
 static int sql_connect(char *host,char *database,char *user,char *password,
 		       uint silent);
-static int put_info(const char *str,INFO_TYPE info,uint error=0);
+static int put_info(const char *str,INFO_TYPE info,uint error=0,
+		    const char *sql_state=0);
+static int put_error(MYSQL *mysql);
 static void safe_put_field(const char *pos,ulong length);
 static void xmlencode_print(const char *src, uint length);
 static void init_pager();
@@ -1437,7 +1439,7 @@ int mysql_real_query_for_lazy(const char *buf, int length)
   {
     if (!mysql_real_query(&mysql,buf,length))
       return 0;    
-    uint error=put_info(mysql_error(&mysql),INFO_ERROR, mysql_errno(&mysql));
+    int error= put_error(&mysql);
     if (mysql_errno(&mysql) != CR_SERVER_GONE_ERROR || retry > 1 ||
       !opt_reconnect)
       return error;
@@ -1452,8 +1454,7 @@ int mysql_store_result_for_lazy(MYSQL_RES **result)
     return 0;
 
   if (mysql_error(&mysql)[0])
-    return put_info(mysql_error(&mysql),INFO_ERROR,mysql_errno(&mysql));
-
+    return put_error(&mysql);
   return 0;
 }
 
@@ -1664,9 +1665,7 @@ com_go(String *buffer,char *line __attribute__((unused)))
   if (quick)
   {
     if (!(result=mysql_use_result(&mysql)) && mysql_field_count(&mysql))
-    {
-      return put_info(mysql_error(&mysql),INFO_ERROR,mysql_errno(&mysql));
-    }
+      return put_error(&mysql);
   }
   else
   {
@@ -1728,7 +1727,7 @@ com_go(String *buffer,char *line __attribute__((unused)))
   put_info("",INFO_RESULT);			// Empty row
 
   if (result && !mysql_eof(result))	/* Something wrong when using quick */
-    error=put_info(mysql_error(&mysql),INFO_ERROR,mysql_errno(&mysql));
+    error= put_error(&mysql);
   else if (unbuffered)
     fflush(stdout);
   mysql_free_result(result);
@@ -2442,12 +2441,12 @@ com_use(String *buffer __attribute__((unused)), char *line)
       if (mysql_select_db(&mysql,tmp))
       {
 	if (mysql_errno(&mysql) != CR_SERVER_GONE_ERROR)
-	  return put_info(mysql_error(&mysql),INFO_ERROR,mysql_errno(&mysql));
+	  return put_error(&mysql);
 
 	if (reconnect())
         return opt_reconnect ? -1 : 1;                      // Fatal error
 	if (mysql_select_db(&mysql,tmp))
-	  return put_info(mysql_error(&mysql),INFO_ERROR,mysql_errno(&mysql));
+	  return put_error(&mysql);
       }
       my_free(current_db,MYF(MY_ALLOW_ZERO_PTR));
       current_db=my_strdup(tmp,MYF(MY_WME));
@@ -2569,7 +2568,7 @@ sql_real_connect(char *host,char *database,char *user,char *password,
 	(mysql_errno(&mysql) != CR_CONN_HOST_ERROR &&
 	 mysql_errno(&mysql) != CR_CONNECTION_ERROR))
     {
-      put_info(mysql_error(&mysql),INFO_ERROR,mysql_errno(&mysql));
+      (void) put_error(&mysql);
       (void) fflush(stdout);
       return ignore_errors ? -1 : 1;		// Abort
     }
@@ -2719,7 +2718,7 @@ select_limit, max_join_size);
 
 
 static int
-put_info(const char *str,INFO_TYPE info_type,uint error)
+put_info(const char *str,INFO_TYPE info_type, uint error, const char *sqlstate)
 {
   FILE *file= (info_type == INFO_ERROR ? stderr : stdout);
   static int inited=0;
@@ -2764,7 +2763,12 @@ put_info(const char *str,INFO_TYPE info_type,uint error)
 	putchar('\007');		      	/* This should make a bell */
       vidattr(A_STANDOUT);
       if (error)
-        (void) tee_fprintf(file, "ERROR %d: ", error);
+      {
+	if (sqlstate)
+          (void) tee_fprintf(file, "ERROR %d (%s): ", error, sqlstate);
+        else
+          (void) tee_fprintf(file, "ERROR %d: ", error);
+      }
       else
         tee_puts("ERROR: ", file);
     }
@@ -2777,6 +2781,14 @@ put_info(const char *str,INFO_TYPE info_type,uint error)
     fflush(file);
   return info_type == INFO_ERROR ? -1 : 0;
 }
+
+
+static int
+put_error(MYSQL *mysql)
+{
+  return put_info(mysql_error(mysql), INFO_ERROR, mysql_errno(mysql),
+		  mysql_sqlstate(mysql));
+}  
 
 
 static void remove_cntrl(String &buffer)
@@ -2929,14 +2941,18 @@ static const char* construct_prompt()
 	add_int_to_prompt(++prompt_counter);
 	break;
       case 'v':
-	processed_prompt.append(mysql_get_server_info(&mysql));
+	if (connected)
+	  processed_prompt.append(mysql_get_server_info(&mysql));
+	else
+	  processed_prompt.append("not_connected");
 	break;
       case 'd':
 	processed_prompt.append(current_db ? current_db : "(none)");
 	break;
       case 'h':
       {
-	const char *prompt=mysql_get_host_info(&mysql);
+	const char *prompt;
+	prompt= connected ? mysql_get_host_info(&mysql) : "not_connected";
 	if (strstr(prompt, "Localhost"))
 	  processed_prompt.append("localhost");
 	else
@@ -2948,8 +2964,13 @@ static const char* construct_prompt()
       }
       case 'p':
 #ifndef EMBEDDED_LIBRARY
+	if (!connected)
+	{
+	  processed_prompt.append("not_connected");
+	  break;
+	}
 	if (strstr(mysql_get_host_info(&mysql),"TCP/IP") ||
-	    ! mysql.unix_socket)
+	    !mysql.unix_socket)
 	  add_int_to_prompt(mysql.port);
 	else
 	{
@@ -3097,4 +3118,3 @@ void sql_element_free(void *ptr)
   my_free((gptr) ptr,MYF(0));
 }
 #endif /* EMBEDDED_LIBRARY */
-

@@ -287,7 +287,7 @@ int init_relay_log_pos(RELAY_LOG_INFO* rli,const char* log,
       goto err;
     rli->cur_log = &rli->cache_buf;
   }
-  if (pos > BIN_LOG_HEADER_SIZE)
+  if (pos >= BIN_LOG_HEADER_SIZE)
     my_b_seek(rli->cur_log,(off_t)pos);
 
 err:
@@ -1388,9 +1388,7 @@ static bool wait_for_relay_log_space(RELAY_LOG_INFO* rli)
   while (rli->log_space_limit < rli->log_space_total &&
 	 !(slave_killed=io_slave_killed(thd,mi)) &&
          !rli->ignore_log_space_limit)
-  {
     pthread_cond_wait(&rli->log_space_cond, &rli->log_space_lock);
-  }
   thd->proc_info = save_proc_info;
   pthread_mutex_unlock(&rli->log_space_lock);
   DBUG_RETURN(slave_killed);
@@ -2101,7 +2099,11 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
   Log_event * ev = next_event(rli);
   DBUG_ASSERT(rli->sql_thd==thd);
   if (sql_slave_killed(thd,rli))
+  {
+    /* do not forget to free ev ! */
+    if (ev) delete ev;
     return 1;
+  }
   if (ev)
   {
     int type_code = ev->get_type_code();
@@ -2152,8 +2154,13 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
   else
   {
     sql_print_error("\
-Could not parse log event entry, check the master for binlog corruption\n\
-This may also be a network problem, or just a bug in the master or slave code.\
+Could not parse relay log event entry. The possible reasons are: the master's \
+binary log is corrupted (you can check this by running 'mysqlbinlog' on the \
+binary log), the slave's relay log is corrupted (you can check this by running \
+'mysqlbinlog' on the relay log), a network problem, or a bug in the master's \
+or slave's MySQL code. If you want to check the master's binary log or slave's \
+relay log, you will be able to know their names by issuing 'SHOW SLAVE STATUS' \
+on this slave.\
 ");
     return 1;
   }
@@ -2376,6 +2383,18 @@ reconnect done to recover from failed read");
 	goto err;
       }
       flush_master_info(mi);
+      /*
+        See if the relay logs take too much space.
+        We don't lock mi->rli.log_space_lock here; this dirty read saves time
+        and does not introduce any problem:
+        - if mi->rli.ignore_log_space_limit is 1 but becomes 0 just after (so
+        the clean value is 0), then we are reading only one more event as we
+        should, and we'll block only at the next event. No big deal.
+        - if mi->rli.ignore_log_space_limit is 0 but becomes 1 just after (so
+        the clean value is 1), then we are going into wait_for_relay_log_space()
+        for no reason, but this function will do a clean read, notice the clean
+        value and exit immediately.
+      */
       if (mi->rli.log_space_limit && mi->rli.log_space_limit <
 	  mi->rli.log_space_total &&
           !mi->rli.ignore_log_space_limit)
@@ -2489,7 +2508,9 @@ slave_begin:
   pthread_cond_broadcast(&rli->start_cond);
 
   //tell the I/O thread to take relay_log_space_limit into account from now on
+  pthread_mutex_lock(&rli->log_space_lock);
   rli->ignore_log_space_limit= 0;
+  pthread_mutex_unlock(&rli->log_space_lock);
 
   if (init_relay_log_pos(rli,
 			 rli->group_relay_log_name,
@@ -3223,7 +3244,12 @@ Log_event* next_event(RELAY_LOG_INFO* rli)
         pthread_mutex_lock(&rli->log_space_lock);
         // prevent the I/O thread from blocking next times
         rli->ignore_log_space_limit= 1; 
-        // If the I/O thread is blocked, unblock it
+        /*
+          If the I/O thread is blocked, unblock it.
+          Ok to broadcast after unlock, because the mutex is only destroyed in
+          ~st_relay_log_info(), i.e. when rli is destroyed, and rli will not be
+          destroyed before we exit the present function.
+        */
         pthread_mutex_unlock(&rli->log_space_lock);
         pthread_cond_broadcast(&rli->log_space_cond);
         // Note that wait_for_update unlocks lock_log !

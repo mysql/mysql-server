@@ -309,11 +309,14 @@ public:
 };
 
 
+extern void fix_sql_mode_var(THD *thd, enum_var_type type);
+
 class sys_var_thd_sql_mode :public sys_var_thd_enum
 {
 public:
   sys_var_thd_sql_mode(const char *name_arg, ulong SV::*offset_arg)
-    :sys_var_thd_enum(name_arg, offset_arg, &sql_mode_typelib)
+    :sys_var_thd_enum(name_arg, offset_arg, &sql_mode_typelib,
+		      fix_sql_mode_var)
   {}
   bool check(THD *thd, set_var *var)
   {
@@ -636,6 +639,7 @@ void set_var_free();
 sys_var *find_sys_var(const char *str, uint length=0);
 int sql_set_variables(THD *thd, List<set_var_base> *var_list);
 void fix_delay_key_write(THD *thd, enum_var_type type);
+ulong fix_sql_mode(ulong sql_mode);
 
 extern sys_var_str sys_charset_system;
 CHARSET_INFO *get_old_charset_by_name(const char *old_name);

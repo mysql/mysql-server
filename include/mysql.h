@@ -274,7 +274,8 @@ typedef struct st_mysql
   my_bool	free_me;		/* If free in mysql_close */
   my_ulonglong insert_id;		/* id if insert on table with NEXTNR */
   unsigned int last_errno;
-  char *last_error;
+  char *last_error;			/* Used by embedded server */
+  char sqlstate[SQLSTATE_LENGTH+1];	/* Used by embedded server */
 } MYSQL;
 
 #endif

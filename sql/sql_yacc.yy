@@ -804,6 +804,18 @@ master_def:
        MASTER_LOG_POS_SYM EQ ulonglong_num
        {
 	 Lex->mi.pos = $3;
+         /* 
+            If the user specified a value < BIN_LOG_HEADER_SIZE, adjust it
+            instead of causing subsequent errors. 
+            We need to do it in this file, because only there we know that 
+            MASTER_LOG_POS has been explicitely specified. On the contrary
+            in change_master() (sql_repl.cc) we cannot distinguish between 0
+            (MASTER_LOG_POS explicitely specified as 0) and 0 (unspecified),
+            whereas we want to distinguish (specified 0 means "read the binlog
+            from 0" (4 in fact), unspecified means "don't change the position
+            (keep the preceding value)").
+         */
+         Lex->mi.pos = max(BIN_LOG_HEADER_SIZE, Lex->mi.pos);
        }
        |
        MASTER_CONNECT_RETRY_SYM EQ ULONG_NUM
@@ -819,6 +831,8 @@ master_def:
        RELAY_LOG_POS_SYM EQ ULONG_NUM
        {
 	 Lex->mi.relay_log_pos = $3;
+         /* Adjust if < BIN_LOG_HEADER_SIZE (same comment as Lex->mi.pos) */
+         Lex->mi.relay_log_pos = max(BIN_LOG_HEADER_SIZE, Lex->mi.relay_log_pos);
        }
        ;
 
@@ -2975,7 +2989,7 @@ olap_opt:
 	    }
 	    lex->current_select->select_lex()->olap= CUBE_TYPE;
 	    net_printf(lex->thd, ER_NOT_SUPPORTED_YET, "CUBE");
-	    YYABORT;	/* To be deleted in 4.1 */
+	    YYABORT;	/* To be deleted in 5.1 */
 	  }
 	| WITH ROLLUP_SYM
           {
@@ -2987,8 +3001,6 @@ olap_opt:
 	      YYABORT;
 	    }
 	    lex->current_select->select_lex()->olap= ROLLUP_TYPE;
-	    net_printf(lex->thd, ER_NOT_SUPPORTED_YET, "ROLLUP");
-	    YYABORT;	/* To be deleted in 4.1 */
 	  }
 	;
 
@@ -3043,20 +3055,7 @@ opt_limit_clause:
 	;
 
 limit_clause:
-	LIMIT
-	  {
-	    LEX *lex= Lex;
-	    if (lex->current_select->linkage != GLOBAL_OPTIONS_TYPE &&
-	        lex->current_select->select_lex()->olap !=
-		UNSPECIFIED_OLAP_TYPE)
-	    {
-	      net_printf(lex->thd, ER_WRONG_USAGE, "CUBE/ROLLUP",
-		        "LIMIT");
-	      YYABORT;
-	    }
-	  }
-	  limit_options
-	  {}
+	LIMIT limit_options {}
 	;
 
 limit_options:
@@ -3217,7 +3216,7 @@ do:	DO_SYM
 	;
 
 /*
-  Drop : delete tables or index
+  Drop : delete tables or index or user
 */
 
 drop:
@@ -3251,7 +3250,16 @@ drop:
 	    LEX *lex=Lex;
 	    lex->sql_command = SQLCOM_DROP_FUNCTION;
 	    lex->udf.name = $3;
-	  };
+	  }
+	| DROP USER
+	  {
+	    LEX *lex=Lex;
+	    lex->sql_command = SQLCOM_DROP_USER;
+	    lex->users_list.empty();
+	  } 
+	  user_list
+	  {}
+	  ;
 
 
 table_list:
@@ -4179,8 +4187,10 @@ user:
 	  THD *thd= YYTHD;
 	  if (!($$=(LEX_USER*) thd->alloc(sizeof(st_lex_user))))
 	    YYABORT;
-	  $$->user = $1; $$->host.str=NullS;
-	  }
+	  $$->user = $1;
+	  $$->host.str= (char *) "%";
+	  $$->host.length= 1;
+	}
 	| ident_or_text '@' ident_or_text
 	  {
 	    THD *thd= YYTHD;
@@ -4343,6 +4353,7 @@ keyword:
 	| SHARE_SYM		{}
 	| SHUTDOWN		{}
 	| SLAVE			{}
+	| SOUNDS_SYM		{}
 	| SQL_CACHE_SYM		{}
 	| SQL_BUFFER_RESULT	{}
 	| SQL_NO_CACHE_SYM	{}
@@ -4363,12 +4374,13 @@ keyword:
 	| UDF_SYM		{}
 	| UNCOMMITTED_SYM	{}
 	| UNICODE_SYM		{}
+	| USER			{}
 	| USE_FRM		{}
 	| VARIABLES		{}
 	| VALUE_SYM		{}
 	| WORK_SYM		{}
+	| X509_SYM		{}
 	| YEAR_SYM		{}
-	| SOUNDS_SYM            {}
 	;
 
 /* Option functions */
@@ -4634,8 +4646,18 @@ revoke:
 	  lex->ssl_cipher= lex->x509_subject= lex->x509_issuer= 0;
 	  bzero((char*) &lex->mqh, sizeof(lex->mqh));
 	}
+	revoke_command
+	{}
+        ;
+
+revoke_command:
 	grant_privileges ON opt_table FROM user_list
 	{}
+	|
+	ALL PRIVILEGES ',' GRANT FROM user_list
+	{
+	  Lex->sql_command = SQLCOM_REVOKE_ALL;
+	}
 	;
 
 grant:

@@ -553,14 +553,14 @@ int send_variant_2_list(MEM_ROOT *mem_root, Protocol *protocol,
 
   String **pointers= (String**)alloc_root(mem_root,
 					  sizeof(String*)*names->elements);
-  String **pos= pointers;
+  String **pos;
+  String **end= pointers + names->elements;
 
   List_iterator<String> it(*names);
-  while ((*pos++= it++));
+  for ( pos= pointers; pos!=end; (*pos++= it++));
 
   qsort(pointers,names->elements,sizeof(String*),string_ptr_cmp);
 
-  String **end= pointers + names->elements;
   for (pos= pointers; pos!=end; pos++)
   {
     protocol->prepare_for_resend();
