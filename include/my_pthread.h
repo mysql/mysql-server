@@ -624,6 +624,7 @@ extern int pthread_dummy(int);
 /* All thread specific variables are in the following struct */
 
 #define THREAD_NAME_SIZE 10
+#ifndef DEFAULT_THREAD_STACK
 #if defined(__ia64__)
 /*
   MySQL can survive with 32K, but some glibc libraries require > 128K stack
@@ -632,6 +633,7 @@ extern int pthread_dummy(int);
 #define DEFAULT_THREAD_STACK	(192*1024L)
 #else
 #define DEFAULT_THREAD_STACK	(192*1024L)
+#endif
 #endif
 
 struct st_my_thread_var
