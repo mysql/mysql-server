@@ -156,7 +156,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
     {
       if (wrong_tables.length())
 	wrong_tables.append(',');
-      wrong_tables.append(String(table->real_name));
+      wrong_tables.append(String(table->real_name,default_charset_info));
     }
   }
   if (some_tables_deleted)
@@ -476,23 +476,22 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
        checking for proper key parts number:
     */
    
-printf("key_info->flags=%d key_info->algorithm=%d\n",
-  key_info->flags,key_info->algorithm);
- 
-    if(key_info->flags == HA_SPATIAL){
-      if(key_info->key_parts!=1){
+    if (key_info->flags == HA_SPATIAL)
+    {
+      if (key_info->key_parts != 1)
+      {
         my_printf_error(ER_WRONG_ARGUMENTS,
                         ER(ER_WRONG_ARGUMENTS),MYF(0),"SPATIAL INDEX");
         DBUG_RETURN(-1);
       }
-    }else
+    }
+    else if (key_info->algorithm == HA_KEY_ALG_RTREE)
     {
-      if(key_info->algorithm == HA_KEY_ALG_RTREE){
-        if((key_info->key_parts&1)==1){
-          my_printf_error(ER_WRONG_ARGUMENTS,
-                          ER(ER_WRONG_ARGUMENTS),MYF(0),"RTREE INDEX");
-          DBUG_RETURN(-1);
-        }
+      if ((key_info->key_parts & 1) == 1)
+      {
+	my_printf_error(ER_WRONG_ARGUMENTS,
+			ER(ER_WRONG_ARGUMENTS),MYF(0),"RTREE INDEX");
+	DBUG_RETURN(-1);
       }
     }
     

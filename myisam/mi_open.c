@@ -920,7 +920,7 @@ uint mi_keydef_write(File file, MI_KEYDEF *keydef)
   uchar *ptr=buff;
 
   *ptr++ = (uchar) keydef->keysegs;
-  *ptr++ = keydef->key_alg;			/* +BAR Rtree or Btree */
+  *ptr++ = keydef->key_alg;			/* Rtree or Btree */
   mi_int2store(ptr,keydef->flag);		ptr +=2;
   mi_int2store(ptr,keydef->block_length);	ptr +=2;
   mi_int2store(ptr,keydef->keylength);		ptr +=2;
@@ -932,7 +932,7 @@ uint mi_keydef_write(File file, MI_KEYDEF *keydef)
 char *mi_keydef_read(char *ptr, MI_KEYDEF *keydef)
 {
    keydef->keysegs	= (uint) *ptr++;
-   keydef->key_alg	= *ptr++; /* +BAR Rtree or Btree */
+   keydef->key_alg	= *ptr++;		/* Rtree or Btree */
 
    keydef->flag		= mi_uint2korr(ptr);	ptr +=2;
    keydef->block_length = mi_uint2korr(ptr);	ptr +=2;

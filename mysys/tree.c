@@ -380,17 +380,17 @@ void *tree_search_key(TREE *tree, const void *key,
   Search first (the most left) or last (the most right) tree element 
 */
 void *tree_search_edge(TREE *tree, TREE_ELEMENT **parents, 
-                        TREE_ELEMENT ***last_pos, int child_offs)
+		       TREE_ELEMENT ***last_pos, int child_offs)
 {
-  TREE_ELEMENT *element = tree->root;
+  TREE_ELEMENT *element= tree->root;
   
-  *parents = &tree->null_element;
+  *parents= &tree->null_element;
   while (element != &tree->null_element)
   {
-    *++parents = element;
-    element = ELEMENT_CHILD(element, child_offs);
+    *++parents= element;
+    element= ELEMENT_CHILD(element, child_offs);
   }
-  *last_pos = parents;
+  *last_pos= parents;
   return **last_pos != &tree->null_element ? 
     ELEMENT_KEY(tree, **last_pos) : NULL;
 }
@@ -398,26 +398,26 @@ void *tree_search_edge(TREE *tree, TREE_ELEMENT **parents,
 void *tree_search_next(TREE *tree, TREE_ELEMENT ***last_pos, int l_offs, 
                        int r_offs)
 {
-  TREE_ELEMENT *x = **last_pos;
+  TREE_ELEMENT *x= **last_pos;
   
   if (ELEMENT_CHILD(x, r_offs) != &tree->null_element)
   {
-    x = ELEMENT_CHILD(x, r_offs);
-    *++*last_pos = x;
+    x= ELEMENT_CHILD(x, r_offs);
+    *++*last_pos= x;
     while (ELEMENT_CHILD(x, l_offs) != &tree->null_element)
     {
-      x = ELEMENT_CHILD(x, l_offs);
-      *++*last_pos = x;
+      x= ELEMENT_CHILD(x, l_offs);
+      *++*last_pos= x;
     }
     return ELEMENT_KEY(tree, x);
   }
   else
   {
-    TREE_ELEMENT *y = *--*last_pos;
+    TREE_ELEMENT *y= *--*last_pos;
     while (y != &tree->null_element && x == ELEMENT_CHILD(y, r_offs))
     {
-      x = y;
-      y = *--*last_pos;
+      x= y;
+      y= *--*last_pos;
     }
     return y == &tree->null_element ? NULL : ELEMENT_KEY(tree, y);
   }
@@ -431,28 +431,26 @@ uint tree_record_pos(TREE *tree, const void *key,
                      enum ha_rkey_function flag, void *custom_arg)
 {
   int cmp;
-  TREE_ELEMENT *element = tree->root;
-  uint left = 1;
-  uint right = tree->elements_in_tree;
-  uint last_left_step_pos = tree->elements_in_tree;
-  uint last_right_step_pos = 1;
-  uint last_equal_pos = HA_POS_ERROR;
+  TREE_ELEMENT *element= tree->root;
+  double left= 1;
+  double right= tree->elements_in_tree;
+  uint last_equal_pos= HA_POS_ERROR;
 
   while (element != &tree->null_element)
   {
-    if ((cmp = (*tree->compare)(custom_arg, ELEMENT_KEY(tree, element), 
-                                key)) == 0)
+    if ((cmp= (*tree->compare)(custom_arg, ELEMENT_KEY(tree, element), 
+			       key)) == 0)
     {
       switch (flag) {
       case HA_READ_KEY_EXACT:
-        last_equal_pos = (left + right) >> 1;
-        cmp = 1;
+        last_equal_pos= (left + right) / 2;
+        cmp= 1;
         break;
       case HA_READ_BEFORE_KEY:
-        cmp = 1;
+        cmp= 1;
         break;
       case HA_READ_AFTER_KEY:
-        cmp = -1;
+        cmp= -1;
         break;
       default:
         return HA_POS_ERROR;
@@ -460,24 +458,22 @@ uint tree_record_pos(TREE *tree, const void *key,
     }
     if (cmp < 0) /* element < key */
     {
-      last_right_step_pos = (left + right) >> 1;
-      element = element->right;
-      left = last_right_step_pos;
+      element= element->right;
+      left= (left + right) / 2;
     }
     else
     {
-      last_left_step_pos = (left + right) >> 1;
-      element = element->left;
-      right = last_left_step_pos;
+      element= element->left;
+      right= (left + right) / 2;
     }
   }
   switch (flag) {
   case HA_READ_KEY_EXACT:
     return last_equal_pos;
   case HA_READ_BEFORE_KEY:
-    return last_right_step_pos;
+    return (uint) right;
   case HA_READ_AFTER_KEY:
-    return last_left_step_pos;
+    return (uint) left;
   default:
     return HA_POS_ERROR;
   }

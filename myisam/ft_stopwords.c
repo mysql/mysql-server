@@ -28,9 +28,9 @@ static TREE *stopwords3=NULL;
 static int FT_STOPWORD_cmp(void* cmp_arg __attribute__((unused)),
 			   FT_STOPWORD *w1, FT_STOPWORD *w2)
 {
-  return _mi_compare_text(default_charset_info,
-			  (uchar *)w1->pos,w1->len,
-			  (uchar *)w2->pos,w2->len,0);
+  return mi_compare_text(default_charset_info,
+			 (uchar *)w1->pos,w1->len,
+			 (uchar *)w2->pos,w2->len,0);
 }
 
 int ft_init_stopwords(const char **sws)

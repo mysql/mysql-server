@@ -484,7 +484,7 @@ static bool pack_fields(File file,List<create_field> &create_fields)
 	/* Write intervals */
   if (int_count)
   {
-    String tmp((char*) buff,sizeof(buff));
+    String tmp((char*) buff,sizeof(buff), default_charset_info);
     tmp.length(0);
     it.rewind();
     int_count=0;
@@ -561,6 +561,7 @@ static bool make_empty_rec(File file,enum db_type table_type,
 			       field->interval,
 			       field->field_name,
 			       &table);
+
     if (!(field->flags & NOT_NULL_FLAG))
       null_count++;
 
@@ -581,9 +582,9 @@ static bool make_empty_rec(File file,enum db_type table_type,
       regfield->store((longlong) 1);
     }
     else if (type == Field::YES)		// Old unireg type
-      regfield->store(ER(ER_YES),(uint) strlen(ER(ER_YES)));
+      regfield->store(ER(ER_YES),(uint) strlen(ER(ER_YES)),default_charset_info);
     else if (type == Field::NO)			// Old unireg type
-      regfield->store(ER(ER_NO), (uint) strlen(ER(ER_NO)));
+      regfield->store(ER(ER_NO), (uint) strlen(ER(ER_NO)),default_charset_info);
     else
       regfield->reset();
     delete regfield;

@@ -35,7 +35,7 @@
 #endif /* HAVE_OPENSSL */
 #include "md5.h"
 
-String empty_string("");
+String empty_string("",default_charset_info);
 
 uint nr_of_decimals(const char *str)
 {
@@ -371,7 +371,7 @@ error:
 String *Item_func_concat_ws::val_str(String *str)
 {
   char tmp_str_buff[10];
-  String tmp_sep_str(tmp_str_buff, sizeof(tmp_str_buff)),
+  String tmp_sep_str(tmp_str_buff, sizeof(tmp_str_buff),default_charset_info),
          *sep_str, *res, *res2,*use_as_buff;
   uint i;
 
@@ -989,7 +989,7 @@ String *Item_func_ltrim::val_str(String *str)
   if ((null_value=args[0]->null_value))
     return 0;					/* purecov: inspected */
   char buff[MAX_FIELD_WIDTH];
-  String tmp(buff,sizeof(buff));
+  String tmp(buff,sizeof(buff),res->charset());
   String *remove_str=args[1]->val_str(&tmp);
   uint remove_length;
   LINT_INIT(remove_length);
@@ -1027,7 +1027,7 @@ String *Item_func_rtrim::val_str(String *str)
   if ((null_value=args[0]->null_value))
     return 0; /* purecov: inspected */
   char buff[MAX_FIELD_WIDTH];
-  String tmp(buff,sizeof(buff));
+  String tmp(buff,sizeof(buff),res->charset());
   String *remove_str=args[1]->val_str(&tmp);
   uint remove_length;
   LINT_INIT(remove_length);
@@ -1099,7 +1099,7 @@ String *Item_func_trim::val_str(String *str)
   if ((null_value=args[0]->null_value))
     return 0;					/* purecov: inspected */
   char buff[MAX_FIELD_WIDTH];
-  String tmp(buff,sizeof(buff));
+  String tmp(buff,sizeof(buff),res->charset());
   String *remove_str=args[1]->val_str(&tmp);
   uint remove_length;
   LINT_INIT(remove_length);
@@ -1154,7 +1154,7 @@ String *Item_func_password::val_str(String *str)
   if (res->length() == 0)
     return &empty_string;
   make_scrambled_password(tmp_value,res->c_ptr());
-  str->set(tmp_value,16);
+  str->set(tmp_value,16,res->charset());
   return str;
 }
 
@@ -1188,7 +1188,7 @@ String *Item_func_encrypt::val_str(String *str)
   }
   pthread_mutex_lock(&LOCK_crypt);
   char *tmp=crypt(res->c_ptr(),salt_ptr);
-  str->set(tmp,(uint) strlen(tmp));
+  str->set(tmp,(uint) strlen(tmp),res->charset());
   str->copy();
   pthread_mutex_unlock(&LOCK_crypt);
   return str;
@@ -1240,7 +1240,7 @@ String *Item_func_database::val_str(String *str)
   if (!current_thd->db)
     str->length(0);
   else
-    str->set((const char*) current_thd->db,(uint) strlen(current_thd->db));
+    str->set((const char*) current_thd->db,(uint) strlen(current_thd->db), default_charset_info);
   return str;
 }
 
@@ -2035,7 +2035,7 @@ String* Item_func_export_set::val_str(String* str)
     }
     break;
   case 3:
-    sep_buf.set(",", 1);
+    sep_buf.set(",", 1, default_charset_info);
     sep = &sep_buf;
   }
   null_value=0;
@@ -2154,7 +2154,7 @@ String *Item_func_geometry_type::val_str(String *str)
   if ((null_value=(args[0]->null_value ||
                    geom.create_from_wkb(wkt->ptr(),wkt->length()))))
     return 0;
-  str->copy(geom.get_class_info()->m_name);
+  str->copy(geom.get_class_info()->m_name,strlen(geom.get_class_info()->m_name));
   return str;
 }
 

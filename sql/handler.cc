@@ -665,7 +665,7 @@ void handler::print_error(int error, myf errflag)
     {
       /* Write the dupplicated key in the error message */
       char key[MAX_KEY_LENGTH];
-      String str(key,sizeof(key));
+      String str(key,sizeof(key),default_charset_info);
       key_unpack(&str,table,(uint) key_nr);
       uint max_length=MYSQL_ERRMSG_SIZE-(uint) strlen(ER(ER_DUP_ENTRY));
       if (str.length() >= max_length)

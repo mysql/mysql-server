@@ -123,7 +123,7 @@ bool String::set(double num,uint decimals)
   char *pos,*to;
 
   VOID(fconvert(num,(int) decimals,&decpt,&sign,buff+1));
-  if (!isdigit(buff[1]))
+  if (!my_isdigit(system_charset_info, buff[1]))
   {						// Nan or Inf
     pos=buff+1;
     if (sign)
@@ -203,6 +203,7 @@ bool String::copy(const String &str)
   str_length=str.str_length;
   bmove(Ptr,str.Ptr,str_length);		// May be overlapping
   Ptr[str_length]=0;
+  str_charset=str.str_charset;
   return FALSE;
 }
 
@@ -489,7 +490,7 @@ void String::qs_append(double d)
 void String::qs_append(double *d)
 {
   double ld;
-  float8get(ld, d);
+  float8get(ld, (char*) d);
   qs_append(ld);
 }
 
@@ -586,6 +587,7 @@ String *copy_if_not_alloced(String *to,String *from,uint32 from_length)
     return from;				// Actually an error
   if ((to->str_length=min(from->str_length,from_length)))
     memcpy(to->Ptr,from->Ptr,to->str_length);
+  to->str_charset=from->str_charset;
   return to;
 }
 
