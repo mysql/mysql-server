@@ -21,6 +21,8 @@ LDADD_LOC = $(top_builddir)/ndb/test/src/libNDBT.a \
 wrappersdir=$(prefix)/bin
 wrappers_SCRIPTS=atrt-testBackup atrt-mysql-test-run
 
+noinst_HEADERS = run-test.hpp $(test_DATA) $(test_SCRIPTS) $(wrappers_SCRIPTS) README.ATRT
+
 # Don't update the files from bitkeeper
 %::SCCS/s.%
 
