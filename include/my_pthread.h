@@ -429,6 +429,7 @@ struct tm *localtime_r(const time_t *clock, struct tm *res);
 #endif /* defined(__WIN__) */
 
 #if defined(HPUX) && !defined(DONT_REMAP_PTHREAD_FUNCTIONS)
+#undef pthread_cond_timedwait
 #define pthread_cond_timedwait(a,b,c) my_pthread_cond_timedwait((a),(b),(c))
 #define pthread_mutex_trylock(a) my_pthread_mutex_trylock((a)) 
 int my_pthread_cond_timedwait(pthread_cond_t *cond, pthread_mutex_t *mutex,

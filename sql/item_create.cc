@@ -429,9 +429,9 @@ Item *create_func_cast(Item *a, Item_cast cast_type)
   return res;
 }
 
-Item *create_func_check_lock(Item* a)
+Item *create_func_is_free_lock(Item* a)
 {
   current_thd->safe_to_cache_query=0;
-  return new Item_func_check_lock(a);
+  return new Item_func_is_free_lock(a);
 }
 
