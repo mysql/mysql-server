@@ -319,7 +319,7 @@ then
   # mysqld doesn't use run-time-type-checking, so we disable it.
   CXXFLAGS="$CXXFLAGS -fno-implicit-templates -fno-exceptions -fno-rtti"
 
-  # If you are using 'gcc' 3.0 (not g++) to compile C++ programs,
+  # If you are using 'gcc' 3.0 (not g++) to compile C++ programs on Linux,
   # we will gets some problems when linking static programs.
   # The following code is used to fix this problem.
 
@@ -327,8 +327,7 @@ then
   then
     if $CXX -v 2>&1 | grep 'version 3' > /dev/null 2>&1
     then
-      CXXFLAGS="$CXXFLAGS -DUSE_MYSYS_NEW"
-      CXXLDFLAGS="$CXXLDFLAGS -Wl,--defsym -Wl,__cxa_pure_virtual=0"
+      CXXFLAGS="$CXXFLAGS -DUSE_MYSYS_NEW -DDEFINE_CXA_PURE_VIRTUAL"
     fi
   fi
 fi
@@ -368,6 +367,7 @@ AC_PATH_PROG(HOSTNAME, hostname, hostname)
 # Check for a GNU tar named 'gtar', or 'gnutar' (MacOS X) and
 # fall back to 'tar' otherwise and hope that it's a GNU tar as well
 AC_CHECK_PROGS(TAR, gnutar gtar tar)
+
 dnl We use a path for perl so the script startup works
 dnl We make sure to use perl, not perl5, in hopes that the RPMs will
 dnl not depend on the perl5 binary being installed (probably a bug in RPM)
@@ -654,15 +654,13 @@ AC_ARG_WITH(mysqld-user,
     )
 AC_SUBST(MYSQLD_USER)
 
-# If we should allove LOAD DATA LOCAL
+# If we should allow LOAD DATA LOCAL
 AC_MSG_CHECKING(if we should should enable LOAD DATA LOCAL by default)
 AC_ARG_ENABLE(local-infile,
-    [  --enable-local-infile
-                          Enable LOAD DATA LOCAL INFILE (default: disabled)],
+    [  --enable-local-infile   Enable LOAD DATA LOCAL INFILE (default: disabled)],
     [ ENABLED_LOCAL_INFILE=$enableval ],
     [ ENABLED_LOCAL_INFILE=no ]
     )
-
 if test "$ENABLED_LOCAL_INFILE" = "yes"
 then
   AC_MSG_RESULT([yes])
@@ -724,7 +722,7 @@ MYSQL_CHECK_ZLIB_WITH_COMPRESS($with_named_zlib)
 #--------------------------------------------------------------------
 
 AC_ARG_WITH(libwrap,
-[  --with-libwrap[=DIR]    Compile in libwrap (tcp_wrappers) support],[
+[  --with-libwrap[=DIR]      Compile in libwrap (tcp_wrappers) support],[
   case "$with_libwrap" in
   no) : ;;
   yes|*)
@@ -1346,6 +1344,7 @@ else
   DEBUG_OPTIMIZE_CXX=""
   OPTIMIZE_CXXFLAGS="-O"
 fi
+
 AC_ARG_WITH(debug,
     [  --without-debug         Build a production version without debugging code],
     [with_debug=$withval],
@@ -1578,13 +1577,15 @@ ac_save_CXXFLAGS="$CXXFLAGS"
 AC_CACHE_CHECK([style of gethost* routines], mysql_cv_gethost_style,
 AC_LANG_SAVE
 AC_LANG_CPLUSPLUS
-# Do not treat warnings as errors if we are linking agaist other libc
+
+# Do not treat warnings as errors if we are linking against other libc
 # this is to work around gcc not being permissive on non-system includes
 # with respect to ANSI C++
 if test "$ac_cv_prog_gxx" = "yes" -a "$with_other_libc" = "no" 
 then
   CXXFLAGS="$CXXFLAGS -Werror"
 fi
+
 AC_TRY_COMPILE(
 [#undef inline
 #if !defined(SCO) && !defined(__osf__) && !defined(_REENTRANT)
