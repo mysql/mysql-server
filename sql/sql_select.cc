@@ -972,10 +972,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
 			  group ? group : order,
 			  select_limit, 
 			  thd->select_limit))
-    {
-      if (!join.join_tab[join.const_tables].select->quick)
-	goto err;
-    }
+      goto err;
   }
   join.having=having;				// Actually a parameter
   thd->proc_info="Sending data";
@@ -1493,11 +1490,15 @@ add_key_field(KEY_FIELD **key_fields,uint and_level,
     }
   }
   DBUG_ASSERT(num_values == 1);
-  // DBUG_ASSERT(eq_func);   /* QQ: Can I uncomment this ASSERT ? */
+  /*
+    For the moment eq_func is always true. This slot is reserved for future
+    extensions where we want to remembers other things than just eq comparisons
+  */
+  DBUG_ASSERT(eq_func);
   /* Store possible eq field */
   (*key_fields)->field=field;
   (*key_fields)->eq_func=eq_func;
-  (*key_fields)->val=*value;
+  (*key_fields)->val= *value;
   (*key_fields)->level=(*key_fields)->const_level=and_level;
   (*key_fields)->exists_optimize=exists_optimize;
   (*key_fields)++;
@@ -1585,6 +1586,8 @@ add_key_fields(JOIN_TAB *stat,KEY_FIELD **key_fields,uint *and_level,
     if (cond_func->arguments()[0]->type() == Item::FIELD_ITEM)
     {
       Item *tmp=new Item_null;
+      if (!tmp)					// Should never be true
+	return;
       add_key_field(key_fields,*and_level,
 		    ((Item_field*) (cond_func->arguments()[0]))->field,
 		    cond_func->functype() == Item_func::ISNULL_FUNC,
