@@ -561,7 +561,7 @@ public:
     {
       Statement *stmt;
       stmt= (Statement *) hash_search(&st_hash, (byte *) &id, sizeof(id));
-      if (stmt->name.str)
+      if (stmt && stmt->name.str)
         return NULL;
       last_found_statement= stmt;
     }
