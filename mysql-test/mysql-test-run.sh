@@ -208,7 +208,6 @@ export UMASK UMASK_DIR
 MASTER_RUNNING=0
 MASTER1_RUNNING=0
 MASTER_MYPORT=9306
-MASTER_MYPORT1=9307
 SLAVE_RUNNING=0
 SLAVE_MYPORT=9308 # leave room for 2 masters for cluster tests
 MYSQL_MANAGER_PORT=9305 # needs to be out of the way of slaves
@@ -495,7 +494,7 @@ SLAVE_MYERR="$MYSQL_TEST_DIR/var/log/slave.err"
 CURRENT_TEST="$MYSQL_TEST_DIR/var/log/current_test"
 SMALL_SERVER="--key_buffer_size=1M --sort_buffer=256K --max_heap_table_size=1M"
 
-export MASTER_MYPORT MASTER_MYPORT1 SLAVE_MYPORT MYSQL_TCP_PORT MASTER_MYSOCK MASTER_MYSOCK1
+export MASTER_MYPORT SLAVE_MYPORT MYSQL_TCP_PORT MASTER_MYSOCK MASTER_MYSOCK1
 
 NDBCLUSTER_BASE_PORT=`expr $NDBCLUSTER_PORT + 2`
 NDBCLUSTER_OPTS="--port=$NDBCLUSTER_PORT --port-base=$NDBCLUSTER_BASE_PORT --data-dir=$MYSQL_TEST_DIR/var --ndb_mgm-extra-opts=$NDB_MGM_EXTRA_OPTS --ndb_mgmd-extra-opts=$NDB_MGMD_EXTRA_OPTS --ndbd-extra-opts=$NDBD_EXTRA_OPTS"
@@ -1145,6 +1144,8 @@ start_master()
    id=`$EXPR $1 + 101`;
    this_master_myport=`$EXPR $MASTER_MYPORT + $1`
    NOT_FIRST_MASTER_EXTRA_OPTS="--skip-innodb"
+   eval "MASTER_MYPORT$1=$this_master_myport"
+   export MASTER_MYPORT$1
   else
    id=1;
    this_master_myport=$MASTER_MYPORT
@@ -1763,7 +1764,7 @@ then
     $MYSQLADMIN --no-defaults --socket=$MASTER_MYSOCK1 -u root -O connect_timeout=5 -O shutdown_timeout=20 shutdown > /dev/null 2>&1
     $MYSQLADMIN --no-defaults --socket=$SLAVE_MYSOCK -u root -O connect_timeout=5 -O shutdown_timeout=20 shutdown > /dev/null 2>&1
     $MYSQLADMIN --no-defaults --host=$hostname --port=$MASTER_MYPORT -u root -O connect_timeout=5 -O shutdown_timeout=20 shutdown > /dev/null 2>&1
-    $MYSQLADMIN --no-defaults --host=$hostname --port=$MASTER_MYPORT1 -u root -O connect_timeout=5 -O shutdown_timeout=20 shutdown > /dev/null 2>&1
+    $MYSQLADMIN --no-defaults --host=$hostname --port=`expr $MASTER_MYPORT+1` -u root -O connect_timeout=5 -O shutdown_timeout=20 shutdown > /dev/null 2>&1
     $MYSQLADMIN --no-defaults --host=$hostname --port=$SLAVE_MYPORT -u root -O connect_timeout=5 -O shutdown_timeout=20 shutdown > /dev/null 2>&1
     $MYSQLADMIN --no-defaults --host=$hostname --port=`expr $SLAVE_MYPORT + 1` -u root -O connect_timeout=5 -O shutdown_timeout=20 shutdown > /dev/null 2>&1
     sleep_until_file_deleted 0 $MASTER_MYPID
