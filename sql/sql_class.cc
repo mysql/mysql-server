@@ -1754,7 +1754,8 @@ bool select_dumpvar::send_data(List<Item> &items)
 bool select_dumpvar::send_eof()
 {
   if (! row_count)
-    send_warning(thd, ER_SP_FETCH_NO_DATA);
+    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                 ER_SP_FETCH_NO_DATA, ER(ER_SP_FETCH_NO_DATA));
   ::send_ok(thd,row_count);
   return 0;
 }

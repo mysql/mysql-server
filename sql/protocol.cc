@@ -131,36 +131,6 @@ void net_send_error(THD *thd, uint sql_errno, const char *err)
   DBUG_VOID_RETURN;
 }
 
-
-/*
-  Send a warning to the end user
-
-  SYNOPSIS
-    send_warning()
-    thd			Thread handler
-    sql_errno		Warning number (error message)
-    err			Error string.  If not set, use ER(sql_errno)
-
-  DESCRIPTION
-    Register the warning so that the user can get it with mysql_warnings()
-    Send an ok (+ warning count) to the end user.
-*/
-
-void send_warning(THD *thd, uint sql_errno, const char *err)
-{
-  DBUG_ENTER("send_warning");  
-  if (thd->spcont &&
-      thd->spcont->find_handler(sql_errno, MYSQL_ERROR::WARN_LEVEL_WARN))
-  {
-    DBUG_VOID_RETURN;
-  }
-  push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, sql_errno,
-	       err ? err : ER(sql_errno));
-  send_ok(thd);
-  DBUG_VOID_RETURN;
-}
-
-
 /*
    Write error package and flush to client
    It's a little too low level, but I don't want to use another buffer for
