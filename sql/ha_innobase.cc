@@ -418,7 +418,7 @@ innobase_init(void)
 	int	err;
 	bool	ret;
 	ibool	test_bool;
-	static  char *current_dir[3];
+	static  char current_dir[3];
   	DBUG_ENTER("innobase_init");
 
 	/* Use current_dir if no paths are set */
@@ -431,13 +431,14 @@ innobase_init(void)
 
 	if (!innobase_data_file_path)
 	{
-	  fprintf(stderr,"Can't initialize innobase as 'innobase_data_file_path' is not set\n");
-	  DBUG_RETURN(TRUE);
+	  fprintf(stderr,"Can't initialize Innobase as 'innobase_data_file_path' is not set\n");
+	  innobase_skip=1;
+	  DBUG_RETURN(FALSE);			// Continue without innobase
 	}
 
 	srv_data_home = (innobase_data_home_dir ? innobase_data_home_dir :
 			 current_dir);
-	srv_logs_home = "";
+	srv_logs_home = (char*) "";
 	srv_arch_dir =  (innobase_log_arch_dir ? innobase_log_arch_dir :
 			 current_dir);
 
@@ -2167,8 +2168,9 @@ create_clustered_index_when_no_primary(
 	/* The first '0' below specifies that everything in Innobase is
 	currently created in file space 0 */
 
-	index = dict_mem_index_create((char*) table_name, "GEN_CLUST_INDEX",
-						0, DICT_CLUSTERED, 0);
+	index = dict_mem_index_create((char*) table_name,
+				      (char*) "GEN_CLUST_INDEX",
+				      0, DICT_CLUSTERED, 0);
 	error = row_create_index_for_mysql(index, trx);
 
 	error = convert_error_code_to_mysql(error);
@@ -2208,7 +2210,7 @@ ha_innobase::create(
 
   	/* Create the table definition in Innobase */
 
-  	if (error = create_table_def(trx, form, norm_name)) {
+  	if ((error = create_table_def(trx, form, norm_name))) {
 
 		trx_commit_for_mysql(trx);
 
@@ -2248,8 +2250,8 @@ ha_innobase::create(
 	if (primary_key_no != -1) {
 		/* In Innobase the clustered index must always be created
 		first */
-	    	if (error = create_index(trx, form, norm_name,
-						(uint) primary_key_no)) {
+	    	if ((error = create_index(trx, form, norm_name,
+					  (uint) primary_key_no))) {
 			trx_commit_for_mysql(trx);
 
   			trx_free_for_mysql(trx);
@@ -2262,7 +2264,7 @@ ha_innobase::create(
 
 		if (i != (uint) primary_key_no) {
 
-    			if (error = create_index(trx, form, norm_name, i)) {
+    			if ((error = create_index(trx, form, norm_name, i))) {
 
 				trx_commit_for_mysql(trx);
 
@@ -2564,7 +2566,8 @@ ha_innobase::update_table_comment(
   if (!str)
     return (char*)comment;
 
-  sprintf(str,"%s Innobase free: %lu kB", comment,innobase_get_free_space());
+  sprintf(str,"%s Innobase free: %lu kB", comment,
+	  (ulong) innobase_get_free_space());
 
   return((char*) str);
 }

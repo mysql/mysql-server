@@ -1644,11 +1644,14 @@ copy_data_between_tables(TABLE *from,TABLE *to,
 
   found_count=delete_count=0;
 
-  if(order) {
+  if (order)
+  {
     from->io_cache=(IO_CACHE*) my_malloc(sizeof(IO_CACHE),
                                          MYF(MY_FAE | MY_ZEROFILL));
     bzero((char*) &tables,sizeof(tables));
     tables.table = from;
+    tables.name  = tables.real_name= from->real_name;
+    tables.db	 = from->table_cache_key;
     error=1;
 
     if (setup_order(thd, &tables, fields, all_fields, order) ||

@@ -13,6 +13,6 @@ if test -d /usr/local/BerkeleyDB-dbug/
 then
  extra_configs="$extra_configs --with-berkeley-db=/usr/local/BerkeleyDB-dbug/"
 fi
-extra_configs="$extra_configs --with-innobase"
+extra_configs="$extra_configs --with-innobase-db"
 
 . "$path/FINISH.sh"

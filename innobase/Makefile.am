@@ -24,3 +24,5 @@ SUBDIRS =		os ut btr buf com data dict dyn eval fil fsp fut \
 			ha ibuf lock log mach mem mtr odbc page pars que \
 			read rem row srv sync thr trx usr
 
+# Don't update the files from bitkeeper
+%::SCCS/s.%

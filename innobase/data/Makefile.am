@@ -22,4 +22,3 @@ libs_LIBRARIES =	libdata.a
 libdata_a_SOURCES =	data0data.c data0type.c
 
 EXTRA_PROGRAMS =	
-
