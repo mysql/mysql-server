@@ -1224,6 +1224,7 @@ run_testcase ()
 
  if [ "$DO_TEST" ] ; then
    if $EXPR \( "$tname" : "$DO_TEST" \) > /dev/null ; then
+     : #empty command to keep some shells happy
    else
      #skip_test $tname
      return
