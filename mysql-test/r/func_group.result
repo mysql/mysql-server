@@ -842,3 +842,16 @@ col1	count(col1)	sum(col1)	avg(col1)
 -5.000000000010	4	-20.000000000040	-5.0000000000100000
 -5.000000000000	2	-10.000000000000	-5.0000000000000000
 DROP TABLE t1;
+create table t1 (col1 decimal(16,12));
+insert into t1 values (-5.00000000001);
+insert into t1 values (-5.00000000001);
+select col1,sum(col1),max(col1),min(col1) from t1 group by col1;
+col1	sum(col1)	max(col1)	min(col1)
+-5.000000000010	-10.000000000020	-5.000000000010	-5.000000000010
+delete from t1;
+insert into t1 values (5.00000000001);
+insert into t1 values (5.00000000001);
+select col1,sum(col1),max(col1),min(col1) from t1 group by col1;
+col1	sum(col1)	max(col1)	min(col1)
+5.000000000010	10.000000000020	5.000000000010	5.000000000010
+DROP TABLE t1;
