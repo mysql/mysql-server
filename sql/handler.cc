@@ -260,13 +260,13 @@ int ha_autocommit_or_rollback(THD *thd, int error)
 /*
   This function is called when MySQL writes the log segment of a
   transaction to the binlog. It is called when the LOCK_log mutex is
-  reserved. Here we communicate to transactional table handlers whta
+  reserved. Here we communicate to transactional table handlers what
   binlog position corresponds to the current transaction. The handler
   can store it and in recovery print to the user, so that the user
   knows from what position in the binlog to start possible
   roll-forward, for example, if the crashed server was a slave in
   replication. This function also calls the commit of the table
-  handler, because the order of trasnactions in the log of the table
+  handler, because the order of transactions in the log of the table
   handler must be the same as in the binlog.
 
   arguments:
@@ -297,7 +297,6 @@ int ha_report_binlog_offset_and_commit(THD *thd,
 #endif
   return error;
 }
-
 
 int ha_commit_trans(THD *thd, THD_TRANS* trans)
 {
