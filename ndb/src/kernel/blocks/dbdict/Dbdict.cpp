@@ -7762,8 +7762,9 @@ Dbdict::createEventComplete_RT_USER_GET(Signal* signal,
 #endif
 
   NodeReceiverGroup rg(DBDICT, c_aliveNodes);
-  evntRecPtr.p->m_reqTracker.init<CreateEvntRef>
-    (c_counterMgr, rg, GSN_CREATE_EVNT_REF, evntRecPtr.i);
+  RequestTracker & p = evntRecPtr.p->m_reqTracker;
+  p.init<CreateEvntRef>(c_counterMgr, rg, GSN_CREATE_EVNT_REF, evntRecPtr.i);
+
   sendSignal(rg, GSN_CREATE_EVNT_REQ, signal, CreateEvntReq::SignalLength, JBB);
 }
 
@@ -8111,7 +8112,8 @@ void Dbdict::execSUB_START_REQ(Signal* signal)
     
     subbPtr.p->m_senderRef = origSenderRef; // not sure if API sets correctly
     NodeReceiverGroup rg(DBDICT, c_aliveNodes);
-    subbPtr.p->m_reqTracker.init<SubStartRef>(c_counterMgr, rg, GSN_SUB_START_REF, subbPtr.i);
+    RequestTracker & p = subbPtr.p->m_reqTracker;
+    p.init<SubStartRef>(c_counterMgr, rg, GSN_SUB_START_REF, subbPtr.i);
     
     SubStartReq* req = (SubStartReq*) signal->getDataPtrSend();
     
@@ -8324,7 +8326,8 @@ void Dbdict::execSUB_STOP_REQ(Signal* signal)
 #endif
     subbPtr.p->m_senderRef = origSenderRef; // not sure if API sets correctly
     NodeReceiverGroup rg(DBDICT, c_aliveNodes);
-    subbPtr.p->m_reqTracker.init<SubStopRef>(c_counterMgr, rg, GSN_SUB_STOP_REF, subbPtr.i);
+    RequestTracker & p = subbPtr.p->m_reqTracker;
+    p.init<SubStopRef>(c_counterMgr, rg, GSN_SUB_STOP_REF, subbPtr.i);
 
     SubStopReq* req = (SubStopReq*) signal->getDataPtrSend();
 
@@ -8611,7 +8614,8 @@ Dbdict::dropEventUTIL_EXECUTE_READ(Signal* signal,
   parseReadEventSys(signal, evntRecPtr.p->m_eventRec);
 
   NodeReceiverGroup rg(DBDICT, c_aliveNodes);
-  evntRecPtr.p->m_reqTracker.init<SubRemoveRef>(c_counterMgr, rg, GSN_SUB_REMOVE_REF,
+  RequestTracker & p = evntRecPtr.p->m_reqTracker;
+  p.init<SubRemoveRef>(c_counterMgr, rg, GSN_SUB_REMOVE_REF,
 						evntRecPtr.i);
 
   SubRemoveReq* req = (SubRemoveReq*) signal->getDataPtrSend();
