@@ -312,7 +312,7 @@ int mysqld_extend_show_tables(THD *thd,const char *db,const char *wild)
       casedn_str(file_name);
     if (!(table = open_ltable(thd, &table_list, TL_READ)))
     {
-      for (uint i=0 ; i < field_list.elements ; i++)
+      for (uint i=2 ; i < field_list.elements ; i++)
         net_store_null(packet);
       net_store_data(packet,thd->net.last_error);
       thd->net.last_error[0]=0;
