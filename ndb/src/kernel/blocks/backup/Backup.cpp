@@ -992,7 +992,11 @@ Backup::execUTIL_SEQUENCE_CONF(Signal* signal)
   }//if
   ndbrequire(ptr.p->masterData.state.getState() == DEFINING);
 
-  ptr.p->backupId = conf->sequenceValue[0];
+  {
+    Uint64 backupId;
+    memcpy(&backupId,conf->sequenceValue,8);
+    ptr.p->backupId= (Uint32)backupId;
+  }
   ptr.p->backupKey[0] = (getOwnNodeId() << 16) | (ptr.p->backupId & 0xFFFF);
   ptr.p->backupKey[1] = NdbTick_CurrentMillisecond();
 

@@ -282,7 +282,7 @@ Ndb::waitUntilReady(int timeout)
   }
 
   if (theImpl->m_ndb_cluster_connection.wait_until_ready
-      (timeout-secondsCounter,30))
+      (timeout-secondsCounter,30) < 0)
   {
     theError.code = 4009;
     DBUG_RETURN(-1);

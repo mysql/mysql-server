@@ -133,8 +133,7 @@ MgmtSrvr::signalRecvThreadRun()
   }
 }
 
-
-EventLogger g_EventLogger;
+extern EventLogger g_eventLogger;
 
 static NdbOut&
 operator<<(NdbOut& out, const LogLevel & ll)
@@ -200,7 +199,7 @@ MgmtSrvr::logLevelThreadRun()
 void
 MgmtSrvr::startEventLog() 
 {
-  g_EventLogger.setCategory("MgmSrvr");
+  g_eventLogger.setCategory("MgmSrvr");
 
   ndb_mgm_configuration_iterator * iter = ndb_mgm_create_configuration_iterator
     ((ndb_mgm_configuration*)_config->m_configValues, CFG_SECTION_NODE);
@@ -226,7 +225,7 @@ MgmtSrvr::startEventLog()
     logdest.assfmt("FILE:filename=%s,maxsize=1000000,maxfiles=6", 
 		   clusterLog);
   }
-  if(!g_EventLogger.addHandler(logdest)) {
+  if(!g_eventLogger.addHandler(logdest)) {
     ndbout << "Warning: could not add log destination \""
 	   << logdest.c_str() << "\"" << endl;
   }
@@ -250,21 +249,21 @@ MgmtSrvr::setEventLogFilter(int severity, int enable)
 {
   Logger::LoggerLevel level = (Logger::LoggerLevel)severity;
   if (enable > 0) {
-    g_EventLogger.enable(level);
+    g_eventLogger.enable(level);
   } else if (enable == 0) {
-    g_EventLogger.disable(level);
-  } else if (g_EventLogger.isEnable(level)) {
-    g_EventLogger.disable(level);
+    g_eventLogger.disable(level);
+  } else if (g_eventLogger.isEnable(level)) {
+    g_eventLogger.disable(level);
   } else {
-    g_EventLogger.enable(level);
+    g_eventLogger.enable(level);
   }
-  return g_EventLogger.isEnable(level);
+  return g_eventLogger.isEnable(level);
 }
 
 bool 
 MgmtSrvr::isEventLogFilterEnabled(int severity) 
 {
-  return g_EventLogger.isEnable((Logger::LoggerLevel)severity);
+  return g_eventLogger.isEnable((Logger::LoggerLevel)severity);
 }
 
 static ErrorItem errorTable[] = 
@@ -1990,7 +1989,7 @@ MgmtSrvr::handleReceivedSignal(NdbApiSignal* signal)
   }
 
   default:
-    g_EventLogger.error("Unknown signal received. SignalNumber: "
+    g_eventLogger.error("Unknown signal received. SignalNumber: "
 			"%i from (%d, %x)",
 			gsn,
 			refToNode(signal->theSendersBlockRef),
@@ -2066,7 +2065,7 @@ MgmtSrvr::handleStopReply(NodeId nodeId, Uint32 errCode)
   
  error:
   if(errCode != 0){
-    g_EventLogger.error("Unexpected signal received. SignalNumber: %i from %d",
+    g_eventLogger.error("Unexpected signal received. SignalNumber: %i from %d",
 			GSN_STOP_REF, nodeId);
   }
 }
@@ -2286,7 +2285,7 @@ MgmtSrvr::alloc_node_id(NodeId * nodeId,
     m_reserved_nodes.set(id_found);
     char tmp_str[128];
     m_reserved_nodes.getText(tmp_str);
-    g_EventLogger.info("Mgmt server state: nodeid %d reserved for ip %s, m_reserved_nodes %s.",
+    g_eventLogger.info("Mgmt server state: nodeid %d reserved for ip %s, m_reserved_nodes %s.",
 		       id_found, get_connect_address(id_found), tmp_str);
     DBUG_RETURN(true);
   }
@@ -2346,7 +2345,7 @@ MgmtSrvr::alloc_node_id(NodeId * nodeId,
 			  *nodeId);
   }
 
-  g_EventLogger.warning("Allocate nodeid (%d) failed. Connection from ip %s. "
+  g_eventLogger.warning("Allocate nodeid (%d) failed. Connection from ip %s. "
 			"Returned error string \"%s\"",
 			*nodeId,
 			client_addr != 0 ? inet_ntoa(((struct sockaddr_in *)(client_addr))->sin_addr) : "<none>",
@@ -2369,10 +2368,10 @@ MgmtSrvr::alloc_node_id(NodeId * nodeId,
       }
     }
     if (tmp_connected.length() > 0)
-      g_EventLogger.info("Mgmt server state: node id's %s connected but not reserved", 
+      g_eventLogger.info("Mgmt server state: node id's %s connected but not reserved", 
 			 tmp_connected.c_str());
     if (tmp_not_connected.length() > 0)
-      g_EventLogger.info("Mgmt server state: node id's %s not connected but reserved",
+      g_eventLogger.info("Mgmt server state: node id's %s not connected but reserved",
 			 tmp_not_connected.c_str());
   }
   DBUG_RETURN(false);
@@ -2404,7 +2403,7 @@ MgmtSrvr::eventReport(NodeId nodeId, const Uint32 * theData)
   
   EventReport::EventType type = eventReport->getEventType();
   // Log event
-  g_EventLogger.log(type, theData, nodeId, 
+  g_eventLogger.log(type, theData, nodeId, 
 		    &m_event_listner[0].m_logLevel);  
   m_event_listner.log(type, theData, nodeId);
 }
@@ -2647,7 +2646,7 @@ MgmtSrvr::Allocated_resources::~Allocated_resources()
 
     char tmp_str[128];
     m_mgmsrv.m_reserved_nodes.getText(tmp_str);
-    g_EventLogger.info("Mgmt server state: nodeid %d freed, m_reserved_nodes %s.",
+    g_eventLogger.info("Mgmt server state: nodeid %d freed, m_reserved_nodes %s.",
 		       get_nodeid(), tmp_str);
   }
 }

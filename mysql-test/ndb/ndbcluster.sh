@@ -191,7 +191,7 @@ if ( cd "$fs_ndb" ; $exec_mgmtsrvr -f config.ini ) ; then :; else
   echo "Unable to start $exec_mgmtsrvr from `pwd`"
   exit 1
 fi
-if sleep_until_file_created $fs_ndb/ndb_3.pid 30
+if sleep_until_file_created $fs_ndb/ndb_3.pid 120
 then :; else
   exit 1
 fi
@@ -201,7 +201,7 @@ cat `find "$fs_ndb" -name 'ndb_*.pid'` > "$fs_ndb/$pidfile"
 
 echo "Starting ndbd"
 ( cd "$fs_ndb" ; $exec_ndb $flags_ndb & )
-if sleep_until_file_created $fs_ndb/ndb_1.pid 30
+if sleep_until_file_created $fs_ndb/ndb_1.pid 120
 then :; else
   stop_default_ndbcluster
   exit 1
@@ -212,7 +212,7 @@ cat `find "$fs_ndb" -name 'ndb_*.pid'` > "$fs_ndb/$pidfile"
 
 echo "Starting ndbd"
 ( cd "$fs_ndb" ; $exec_ndb $flags_ndb & )
-if sleep_until_file_created $fs_ndb/ndb_2.pid 30
+if sleep_until_file_created $fs_ndb/ndb_2.pid 120
 then :; else
   stop_default_ndbcluster
   exit 1

@@ -174,6 +174,17 @@ bool mysql_create_frm(THD *thd, my_string file_name,
     goto err2;
   if (my_close(file,MYF(MY_WME)))
     goto err3;
+
+  {
+    /* Unescape all UCS2 intervals: were escaped in pack_headers */
+    List_iterator<create_field> it(create_fields);
+    create_field *field;
+    while ((field=it++))
+    {
+      if (field->interval && field->charset->mbminlen > 1)
+        unhex_type2(field->interval);
+    }
+  }
   DBUG_RETURN(0);
 
 err:

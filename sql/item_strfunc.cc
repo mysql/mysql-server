@@ -1302,9 +1302,18 @@ String *Item_func_trim::val_str(String *str)
     return 0;					/* purecov: inspected */
   char buff[MAX_FIELD_WIDTH];
   String tmp(buff,sizeof(buff),res->charset());
-  String *remove_str= (arg_count==2) ? args[1]->val_str(&tmp) : &remove;
   uint remove_length;
   LINT_INIT(remove_length);
+  String *remove_str; /* The string to remove from res. */
+
+  if (arg_count == 2)
+  {
+    remove_str= args[1]->val_str(&tmp);
+    if ((null_value= args[1]->null_value))
+      return 0;
+  }
+  else
+    remove_str= &remove; /* Default value. */
 
   if (!remove_str || (remove_length=remove_str->length()) == 0 ||
       remove_length > res->length())
@@ -1553,9 +1562,14 @@ void Item_func_soundex::fix_length_and_dec()
   else return 0
 */
 
-static char get_scode(CHARSET_INFO *cs,char *ptr)
+static char soundex_toupper(char ch)
 {
-  uchar ch=my_toupper(cs,*ptr);
+  return (ch >= 'a' && ch <= 'z') ? ch - 'a' + 'A' : ch;
+}
+
+static char get_scode(char *ptr)
+{
+  uchar ch= soundex_toupper(*ptr);
   if (ch < 'A' || ch > 'Z')
   {
 					// Thread extended alfa (country spec)
@@ -1585,8 +1599,8 @@ String *Item_func_soundex::val_str(String *str)
     from++; /* purecov: inspected */
   if (from == end)
     return &my_empty_string;		// No alpha characters.
-  *to++ = my_toupper(cs,*from);		// Copy first letter
-  last_ch = get_scode(cs,from);		// code of the first letter
+  *to++ = soundex_toupper(*from);	// Copy first letter
+  last_ch = get_scode(from);		// code of the first letter
 					// for the first 'double-letter check.
 					// Loop on input letters until
 					// end of input (null) or output
@@ -1595,7 +1609,7 @@ String *Item_func_soundex::val_str(String *str)
   {
     if (!my_isalpha(cs,*from))
       continue;
-    ch=get_scode(cs,from);
+    ch=get_scode(from);
     if ((ch != '0') && (ch != last_ch)) // if not skipped or double
     {
        *to++ = ch;			// letter, copy to output
@@ -2596,16 +2610,16 @@ String *Item_func_quote::val_str(String *str)
 
   /*
     We have to use realloc() instead of alloc() as we want to keep the
-    old result in str
+    old result in arg
   */
-  if (str->realloc(new_length))
+  if (arg->realloc(new_length))
     goto null;
 
   /*
     As 'arg' and 'str' may be the same string, we must replace characters
     from the end to the beginning
   */
-  to= (char*) str->ptr() + new_length - 1;
+  to= (char*) arg->ptr() + new_length - 1;
   *to--= '\'';
   for (start= (char*) arg->ptr(),end= start + arg_length; end-- != start; to--)
   {
@@ -2633,10 +2647,10 @@ String *Item_func_quote::val_str(String *str)
     }
   }
   *to= '\'';
-  str->length(new_length);
+  arg->length(new_length);
   str->set_charset(collation.collation);
   null_value= 0;
-  return str;
+  return arg;
 
 null:
   null_value= 1;
