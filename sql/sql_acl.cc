@@ -943,16 +943,41 @@ end:
   DBUG_RETURN(error);
 }
 
+
+/* Return 1 if we are allowed to create new users */
+
+static bool test_if_create_new_users(THD *thd)
+{
+  bool create_new_users=1;    // Assume that we are allowed to create new users
+  if (opt_safe_user_create && !(thd->master_access & INSERT_ACL))
+  {
+    TABLE_LIST tl;
+    uint db_access;
+    bzero((char*) &tl,sizeof(tl));
+    tl.db=	   (char*) "mysql";
+    tl.real_name= (char*) "user";
+    db_access=acl_get(thd->host, thd->ip, (char*) &thd->remote.sin_addr,
+		      thd->priv_user, tl.db);
+    if (!(db_access & INSERT_ACL))
+    {
+      if (check_grant(thd,INSERT_ACL,&tl,0,1))
+	create_new_users=0;
+    }
+  }
+  return create_new_users;
+}
+
+
 /****************************************************************************
 ** Handle GRANT commands
 ****************************************************************************/
 
 static int replace_user_table(TABLE *table, const LEX_USER &combo,
-			      uint rights, char what)
+			      uint rights, char what, bool create_user)
 {
   int error = -1;
   uint i,j;
-  bool ima=0;
+  bool old_row_exists=0;
   char *password,empty_string[1];
   DBUG_ENTER("replace_user_table");
 
@@ -971,14 +996,21 @@ static int replace_user_table(TABLE *table, const LEX_USER &combo,
 			      (byte*) table->field[0]->ptr,0,
 			      HA_READ_KEY_EXACT))
   {
-    if (what == 'N')
+    if (!create_user)
     {
-      my_printf_error(ER_NONEXISTING_GRANT,ER(ER_NONEXISTING_GRANT),
-		      MYF(0),combo.user.str,combo.host.str);
+      THD *thd=current_thd;
+      if (what == 'N')
+	my_printf_error(ER_NONEXISTING_GRANT,ER(ER_NONEXISTING_GRANT),
+			MYF(0),combo.user.str,combo.host.str);
+      else
+	my_printf_error(ER_NO_PERMISSON_TO_CREATE_USER,
+			ER(ER_NO_PERMISSON_TO_CREATE_USER),
+			MYF(0),thd->user,
+			thd->host ? thd->host : thd->ip ? thd->ip: "");
       error= -1;
       goto end;
     }
-    ima = 0; // no row; ima on Serbian means 'there is something'
+    old_row_exists = 0;
     restore_record(table,2);			// cp empty row from record[2]
     table->field[0]->store(combo.host.str,combo.host.length);
     table->field[1]->store(combo.user.str,combo.user.length);
@@ -986,7 +1018,7 @@ static int replace_user_table(TABLE *table, const LEX_USER &combo,
   }
   else
   {
-    ima = 1;
+    old_row_exists = 1;
     store_record(table,1);			// Save copy for update
     if (combo.password.str)			// If password given
       table->field[2]->store(password,(uint) strlen(password));
@@ -1001,7 +1033,7 @@ static int replace_user_table(TABLE *table, const LEX_USER &combo,
   }
   rights=get_access(table,3);
 
-  if (ima)  // there is a row, therefore go to update, instead of insert
+  if (old_row_exists)
   {
     /*
       We should NEVER delete from the user table, as a uses can still
@@ -1033,7 +1065,7 @@ static int replace_user_table(TABLE *table, const LEX_USER &combo,
     acl_cache->clear(1);			// Clear privilege cache
     if (!combo.password.str)
       password=0;				// No password given on command
-    if (ima)
+    if (old_row_exists)
       acl_update_user(combo.user.str,combo.host.str,password,rights);
     else
       acl_insert_user(combo.user.str,combo.host.str,password,rights);
@@ -1052,7 +1084,7 @@ static int replace_db_table(TABLE *table, const char *db,
 			    uint rights, char what)
 {
   uint i,j,store_rights;
-  bool ima=0;
+  bool old_row_exists=0;
   int error;
   DBUG_ENTER("replace_db_table");
 
@@ -1076,7 +1108,7 @@ static int replace_db_table(TABLE *table, const char *db,
 		      combo.user.str,combo.host.str);
       goto abort;
     }
-    ima = 0; // no row
+    old_row_exists = 0;
     restore_record(table,2);			// cp empty row from record[2]
     table->field[0]->store(combo.host.str,combo.host.length);
     table->field[1]->store(db,(uint) strlen(db));
@@ -1084,7 +1116,7 @@ static int replace_db_table(TABLE *table, const char *db,
   }
   else
   {
-    ima = 1;
+    old_row_exists = 1;
     store_record(table,1);
   }
 
@@ -1097,8 +1129,9 @@ static int replace_db_table(TABLE *table, const char *db,
   rights=get_access(table,3);
   rights=fix_rights_for_db(rights);
 
-  if (ima) // there is a row, therefore go update, else insert
+  if (old_row_exists)
   {
+    // update old existing row
     if (rights)
     {
       if ((error=table->file->update_row(table->record[1],table->record[0])))
@@ -1117,7 +1150,7 @@ static int replace_db_table(TABLE *table, const char *db,
   }
 
   acl_cache->clear(1);				// Clear privilege cache
-  if (ima)
+  if (old_row_exists)
     acl_update_db(combo.user.str,combo.host.str,db,rights);
   else
     acl_insert_db(combo.user.str,combo.host.str,db,rights);
@@ -1324,7 +1357,7 @@ static int replace_column_table(GRANT_TABLE *g_t,
   while ((xx=iter++))
   {
     uint privileges = xx->rights;
-    bool ima=0;
+    bool old_row_exists=0;
     key_restore(table,key,0,key_length);
     table->field[4]->store(xx->column.ptr(),xx->column.length());
 
@@ -1339,7 +1372,7 @@ static int replace_column_table(GRANT_TABLE *g_t,
 	result= -1; /* purecov: inspected */
 	continue; /* purecov: inspected */
       }
-      ima = 0;
+      old_row_exists = 0;
       restore_record(table,2);			// Get empty record
       key_restore(table,key,0,key_length);
       table->field[4]->store(xx->column.ptr(),xx->column.length());
@@ -1353,13 +1386,13 @@ static int replace_column_table(GRANT_TABLE *g_t,
 	privileges = tmp & ~(privileges | rights);
       else
 	privileges |= tmp;
-      ima = 1;
+      old_row_exists = 1;
       store_record(table,1);			// copy original row
     }
 
     table->field[6]->store((longlong) get_rights_for_column(privileges));
 
-    if (ima) // there is a row, therefore go update, else insert
+    if (old_row_exists)
     {
       if (privileges)
 	error=table->file->update_row(table->record[1],table->record[0]);
@@ -1465,7 +1498,7 @@ static int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
 			       uint rights, uint kolone, bool revoke_grant)
 {
   char grantor[HOSTNAME_LENGTH+1+USERNAME_LENGTH];
-  int ima = 1;
+  int old_row_exists = 1;
   int error=0;
   uint store_table_rights,store_col_rights;
   DBUG_ENTER("replace_table_table");
@@ -1505,13 +1538,13 @@ static int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
 		      table_name);		/* purecov: deadcode */
       DBUG_RETURN(-1);				/* purecov: deadcode */
     }
-    ima = 0;					// no row
+    old_row_exists = 0;
     restore_record(table,1);			// Get saved record
   }
 
   store_table_rights=get_rights_for_table(rights);
   store_col_rights=get_rights_for_column(kolone);
-  if (ima)
+  if (old_row_exists)
   {
     uint j,k;
     store_record(table,1);
@@ -1536,7 +1569,7 @@ static int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
   rights=fix_rights_for_table(store_table_rights);
   kolone=fix_rights_for_column(store_col_rights);
 
-  if (ima) // there is a row, therefore go update, else insert
+  if (old_row_exists)
   {
     if (store_table_rights || store_col_rights)
     {
@@ -1668,10 +1701,12 @@ int mysql_table_grant (THD *thd, TABLE_LIST *table_list,
       continue;
     }
     /* Create user if needed */
-    if ((replace_user_table(tables[0].table,
+    if (replace_user_table(tables[0].table,
 			    *Str,
 			    0,
-			    revoke_grant ? 'N' : 'Y')))
+			   revoke_grant ? 'N' : 'Y',
+			   (revoke_grant ? 0 :
+			    test_if_create_new_users(thd))))
     {
       result= -1;				// Remember error
       continue;					// Add next user
@@ -1773,6 +1808,7 @@ int mysql_grant (THD *thd, const char *db, List <LEX_USER> &list, uint rights,
   List_iterator <LEX_USER> str_list (list);
   LEX_USER *Str;
   char what;
+  bool create_new_users=0;
   TABLE_LIST tables[2];
   DBUG_ENTER("mysql_grant");
 
@@ -1799,8 +1835,10 @@ int mysql_grant (THD *thd, const char *db, List <LEX_USER> &list, uint rights,
     DBUG_RETURN(-1);				/* purecov: deadcode */
   }
 
- // go through users in user_list
+  if (!revoke_grant)
+    create_new_users= test_if_create_new_users(thd);
 
+  // go through users in user_list
   pthread_mutex_lock(&LOCK_grant);
   VOID(pthread_mutex_lock(&acl_cache->lock));
   grant_version++;
@@ -1822,11 +1860,14 @@ int mysql_grant (THD *thd, const char *db, List <LEX_USER> &list, uint rights,
     }
     if ((replace_user_table(tables[0].table,
 			    *Str,
-			    (!db ? rights : 0), what)))
+			    (!db ? rights : 0), what, create_new_users)))
       result= -1;
-    if (db && replace_db_table(tables[1].table, db, *Str, rights & DB_ACLS,
-			       what))
-      result= -1;
+    else
+    {
+      if (db && replace_db_table(tables[1].table, db, *Str, rights & DB_ACLS,
+				 what))
+	result= -1;
+    }
   }
   VOID(pthread_mutex_unlock(&acl_cache->lock));
   pthread_mutex_unlock(&LOCK_grant);
@@ -1978,7 +2019,7 @@ void grant_reload(void)
 ****************************************************************************/
 
 bool check_grant(THD *thd, uint want_access, TABLE_LIST *tables,
-		 uint show_table)
+		 uint show_table, bool no_errors)
 {
   TABLE_LIST *table;
   char *user = thd->priv_user;
@@ -2026,7 +2067,7 @@ bool check_grant(THD *thd, uint want_access, TABLE_LIST *tables,
 
  err:
   pthread_mutex_unlock(&LOCK_grant);
-  if (show_table != 1)				// Not a silent skip of table
+  if (!no_errors)				// Not a silent skip of table
   {
     const char *command="";
     if (want_access & SELECT_ACL)

@@ -215,4 +215,5 @@
 "Update locks kunnen niet worden verkregen tijdens een READ UNCOMMITTED transactie",
 "DROP DATABASE niet toegestaan terwijl thread een globale 'read lock' bezit",
 "CREATE DATABASE niet toegestaan terwijl thread een globale 'read lock' bezit",
-"Foutieve parameters voor %s"
+"Foutieve parameters voor %s",
+"%-.32s@%-.64s is not allowed to create new users",

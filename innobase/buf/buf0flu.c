@@ -10,6 +10,7 @@ Created 11/11/1995 Heikki Tuuri
 
 #ifdef UNIV_NONINL
 #include "buf0flu.ic"
+#include "trx0sys.h"
 #endif
 
 #include "ut0byte.h"

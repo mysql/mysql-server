@@ -1368,24 +1368,27 @@ add_ft_keys(DYNAMIC_ARRAY *keyuse_array,
 
   if (cond->type() == Item::FUNC_ITEM)
   {
-    Item_func *func=(Item_func *)cond,
-              *arg0=(Item_func *)(func->arguments()[0]),
-              *arg1=(Item_func *)(func->arguments()[1]);
-
-    if (func->functype() == Item_func::FT_FUNC)
+    Item_func *func=(Item_func *)cond;
+    Item_func::Functype functype=  func->functype();
+    if (functype == Item_func::FT_FUNC)
       cond_func=(Item_func_match *)cond;
-    else if ((func->functype() == Item_func::GE_FUNC ||
-              func->functype() == Item_func::GT_FUNC)  &&
-              arg0->type() == Item::FUNC_ITEM          &&
-              arg0->functype() == Item_func::FT_FUNC   &&
-              arg1->const_item() && arg1->val()>=0)
-      cond_func=(Item_func_match *)arg0;
-    else if ((func->functype() == Item_func::LE_FUNC ||
-              func->functype() == Item_func::LT_FUNC)  &&
-              arg1->type() == Item::FUNC_ITEM          &&
-              arg1->functype() == Item_func::FT_FUNC   &&
-              arg0->const_item() && arg0->val()>=0)
-      cond_func=(Item_func_match *)arg1;
+    else if (func->arg_count == 2)
+    {
+      Item_func *arg0=(Item_func *)(func->arguments()[0]),
+                *arg1=(Item_func *)(func->arguments()[1]);
+      if ((functype == Item_func::GE_FUNC ||
+           functype == Item_func::GT_FUNC)  &&
+     	   arg0->type() == Item::FUNC_ITEM          &&
+           arg0->functype() == Item_func::FT_FUNC   &&
+           arg1->const_item() && arg1->val()>=0)
+        cond_func=(Item_func_match *) arg0;
+      else if ((functype == Item_func::LE_FUNC ||
+                functype == Item_func::LT_FUNC)  &&
+                arg1->type() == Item::FUNC_ITEM          &&
+                arg1->functype() == Item_func::FT_FUNC   &&
+                arg0->const_item() && arg0->val()>=0)
+        cond_func=(Item_func_match *) arg1;
+    }
   }
   else if (cond->type() == Item::COND_ITEM)
   {
@@ -1394,18 +1397,21 @@ add_ft_keys(DYNAMIC_ARRAY *keyuse_array,
     if (((Item_cond*) cond)->functype() == Item_func::COND_AND_FUNC)
     {
       Item *item;
-      /* I'm too lazy to implement proper recursive descent here,
+      /*
+         I', (Sergei) too lazy to implement proper recursive descent here,
          and anyway, nobody will use such a stupid queries
          that will require it :-)
          May be later...
-       */
+      */
       while ((item=li++))
+      {
         if (item->type() == Item::FUNC_ITEM &&
             ((Item_func *)item)->functype() == Item_func::FT_FUNC)
         {
           cond_func=(Item_func_match *)item;
           break;
         }
+      }
     }
   }
 

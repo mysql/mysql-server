@@ -213,7 +213,8 @@ static bool opt_log,opt_update_log,opt_bin_log,opt_slow_log,opt_noacl,
 	    opt_disable_networking=0, opt_bootstrap=0,opt_skip_show_db=0,
 	    opt_myisam_log=0,
             opt_large_files=sizeof(my_off_t) > 4;
-bool opt_sql_bin_update = 0, opt_log_slave_updates = 0, opt_safe_show_db=0;
+bool opt_sql_bin_update = 0, opt_log_slave_updates = 0, opt_safe_show_db=0,
+     opt_safe_user_create=0;
 FILE *bootstrap_file=0;
 int segfaulted = 0; // ensure we do not enter SIGSEGV handler twice
 extern MASTER_INFO glob_mi;
@@ -261,7 +262,7 @@ ulong keybuff_size,sortbuff_size,max_item_sort_length,table_cache_size,
       query_buff_size, lower_case_table_names, mysqld_net_retry_count,
       net_interactive_timeout, slow_launch_time = 2L,
       net_read_timeout,net_write_timeout,slave_open_temp_tables=0,
-      open_files_limit=0, max_binlog_size;
+      open_files_limit=0, max_binlog_size, record_rnd_cache_size;
 ulong slave_net_timeout;
 ulong thread_cache_size=0, binlog_cache_size=0, max_binlog_cache_size=0;
 volatile ulong cached_thread_count=0;
@@ -1488,9 +1489,13 @@ static void open_log(MYSQL_LOG *log, const char *hostname,
   // get rid of extention if the log is binary to avoid problems
   if (type == LOG_BIN)
   {
-    char* p = strrchr((char*) opt_name, FN_EXTCHAR);
+    char *p = fn_ext(opt_name);
     if (p)
-      *p = 0;
+    {
+      uint length=(uint) (p-opt_name);
+      strmake(tmp,opt_name,min(length,FN_REFLEN));
+      opt_name=tmp;
+    }
   }
   log->open(opt_name,type);
 }
@@ -2479,7 +2484,7 @@ enum options {
                OPT_GEMINI_UNBUFFERED_IO, OPT_SKIP_SAFEMALLOC,
 	       OPT_SKIP_STACK_TRACE, OPT_SKIP_SYMLINKS,
 	       OPT_MAX_BINLOG_DUMP_EVENTS, OPT_SPORADIC_BINLOG_DUMP_FAIL,
-	       OPT_SQL_MODE
+	       OPT_SAFE_USER_CREATE, OPT_SQL_MODE
 };
 
 static struct option long_options[] = {
@@ -2591,7 +2596,7 @@ static struct option long_options[] = {
      (int) OPT_REPLICATE_REWRITE_DB},
   {"safe-mode",             no_argument,       0, (int) OPT_SAFE},
   {"safe-show-database",    no_argument,       0, (int) OPT_SAFE_SHOW_DB},
-  {"socket",                required_argument, 0, (int) OPT_SOCKET},
+  {"safe-user-create",	    no_argument,       0, (int) OPT_SAFE_USER_CREATE},
   {"server-id",		    required_argument, 0, (int) OPT_SERVER_ID},
   {"set-variable",          required_argument, 0, 'O'},
   {"skip-bdb",              no_argument,       0, (int) OPT_BDB_SKIP},
@@ -2611,6 +2616,7 @@ static struct option long_options[] = {
   {"skip-stack-trace",	    no_argument,       0, (int) OPT_SKIP_STACK_TRACE},
   {"skip-symlink",	    no_argument,       0, (int) OPT_SKIP_SYMLINKS},
   {"skip-thread-priority",  no_argument,       0, (int) OPT_SKIP_PRIOR},
+  {"socket",                required_argument, 0, (int) OPT_SOCKET},
   {"sql-bin-update-same",   no_argument,       0, (int) OPT_SQL_BIN_UPDATE_SAME},
   {"sql-mode",              required_argument, 0, (int) OPT_SQL_MODE},
 #include "sslopt-longopts.h"
@@ -2750,6 +2756,8 @@ CHANGEABLE_VAR changeable_vars[] = {
       0, MALLOC_OVERHEAD, (long) ~0, MALLOC_OVERHEAD, IO_SIZE },
   { "record_buffer",           (long*) &my_default_record_cache_size,
       128*1024L, IO_SIZE*2+MALLOC_OVERHEAD, ~0L, MALLOC_OVERHEAD, IO_SIZE },
+  { "record_rnd_buffer",           (long*) &record_rnd_cache_size,
+      0, IO_SIZE*2+MALLOC_OVERHEAD, ~0L, MALLOC_OVERHEAD, IO_SIZE },
   { "slave_net_timeout",        (long*) &slave_net_timeout, 
       SLAVE_NET_TIMEOUT, 1, 65535, 0, 1 },
   { "slow_launch_time",        (long*) &slow_launch_time, 
@@ -2865,6 +2873,7 @@ struct show_var_st init_vars[]= {
   {"port",                    (char*) &mysql_port,                  SHOW_INT},
   {"protocol_version",        (char*) &protocol_version,            SHOW_INT},
   {"record_buffer",           (char*) &my_default_record_cache_size,SHOW_LONG},
+  {"record_rnd_buffer",       (char*) &record_rnd_cache_size,	    SHOW_LONG},
   {"query_buffer_size",       (char*) &query_buff_size,		    SHOW_LONG},
   {"safe_show_database",      (char*) &opt_safe_show_db,            SHOW_BOOL},
   {"server_id",               (char*) &server_id,		    SHOW_LONG},
@@ -3040,6 +3049,8 @@ static void usage(void)
   --safe-mode		Skip some optimize stages (for testing)\n\
   --safe-show-database  Don't show databases for which the user has no\n\
                         privileges\n\
+  --safe-user-create	Don't new users cretaion without privileges to the\n\
+		        mysql.user table\n\
   --skip-concurrent-insert\n\
 		        Don't use concurrent insert with MyISAM\n\
   --skip-delay-key-write\n\
@@ -3774,6 +3785,9 @@ static void get_options(int argc,char **argv)
     case OPT_SAFE_SHOW_DB:
       opt_safe_show_db=1;
       break;
+    case OPT_SAFE_USER_CREATE:
+      opt_safe_user_create=1;
+      break;
     case OPT_SKIP_SAFEMALLOC:
 #ifdef SAFEMALLOC
       sf_malloc_quick=1;
@@ -3797,6 +3811,9 @@ static void get_options(int argc,char **argv)
   fix_paths();
   default_table_type_name=ha_table_typelib.type_names[default_table_type-1];
   default_tx_isolation_name=tx_isolation_typelib.type_names[default_tx_isolation];
+  /* To be deleted in MySQL 4.0 */
+  if (!record_rnd_cache_size)
+    record_rnd_cache_size=my_default_record_cache_size;
 }
 
 

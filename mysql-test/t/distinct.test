@@ -198,3 +198,12 @@ insert into t2 values (1,1),(2,2),(3,3);
 select t1.a,sec_to_time(sum(time_to_sec(t))) from t1 left join t2 on (t1.b=t2.a) group by t1.a,t2.b;
 select distinct t1.a,sec_to_time(sum(time_to_sec(t))) from t1 left join t2 on (t1.b=t2.a) group by t1.a,t2.b;
 drop table t1,t2;
+
+#
+# Test problem with DISTINCT and HAVING
+#
+create table t1 (a int not null,b char(5), c text);
+insert into t1 (a) values (1),(2),(3),(4),(1),(2),(3),(4);
+select distinct a from t1 group by b,a having a > 2 order by a desc;
+select distinct a,c from t1 group by b,c,a having a > 2 order by a desc;
+drop table t1;
