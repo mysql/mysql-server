@@ -133,6 +133,16 @@ MgmtSrvr::signalRecvThreadRun()
 
 EventLogger g_EventLogger;
 
+static NdbOut&
+operator<<(NdbOut& out, const LogLevel & ll)
+{
+  out << "[LogLevel: ";
+  for(size_t i = 0; i<LogLevel::LOGLEVEL_CATEGORIES; i++)
+    out << ll.getLogLevel((LogLevel::EventCategory)i) << " ";
+  out << "]";
+  return out;
+}
+
 void
 MgmtSrvr::logLevelThreadRun() 
 {
@@ -166,6 +176,10 @@ MgmtSrvr::logLevelThreadRun()
       req = m_log_level_requests[0];
       m_log_level_requests.erase(0, false);
       m_log_level_requests.unlock();
+      
+      LogLevel tmp;
+      tmp = req;
+      ndbout << "req3: " << tmp << endl;
       
       if(req.blockRef == 0){
 	req.blockRef = _ownReference;
@@ -564,13 +578,15 @@ MgmtSrvr::MgmtSrvr(NodeId nodeId,
   {
     MgmStatService::StatListener se;
     se.m_socket = -1;
-    for(size_t t = 0; t<LogLevel::LOGLEVEL_CATEGORIES; t++)
+    for(size_t t = 0; t<LogLevel::LOGLEVEL_CATEGORIES; t++){
       se.m_logLevel.setLogLevel((LogLevel::EventCategory)t, 7);
+    }
     se.m_logLevel.setLogLevel(LogLevel::llError, 15);
+    se.m_logLevel.setLogLevel(LogLevel::llBackup, 15);
     m_statisticsListner.m_clients.push_back(se);
     m_statisticsListner.m_logLevel = se.m_logLevel;
   }
-
+  
   DBUG_VOID_RETURN;
 }
 
@@ -1557,8 +1573,8 @@ MgmtSrvr::send(NdbApiSignal* signal, Uint32 node, Uint32 node_type){
   Uint32 max = (node == 0) ? MAX_NODES : node + 1;
   
   for(; node < max; node++){
-    while(nodeTypes[node] != node_type && node < max) node++;
-    if(nodeTypes[node] != node_type)
+    while(nodeTypes[node] != (int)node_type && node < max) node++;
+    if(nodeTypes[node] != (int)node_type)
       break;
     theFacade->sendSignalUnCond(signal, node);
   }
@@ -1969,7 +1985,6 @@ MgmtSrvr::handleReceivedSignal(NdbApiSignal* signal)
     event.Completed.NoOfLogBytes = rep->noOfLogBytes;
     event.Completed.NoOfRecords = rep->noOfRecords;
     event.Completed.NoOfLogRecords = rep->noOfLogRecords;
-
     event.Completed.stopGCP = rep->stopGCP;
     event.Completed.startGCP = rep->startGCP;
     event.Nodes = rep->nodes;
@@ -2352,9 +2367,9 @@ MgmtSrvr::eventReport(NodeId nodeId, const Uint32 * theData)
   const EventReport * const eventReport = (EventReport *)&theData[0];
   
   EventReport::EventType type = eventReport->getEventType();
-
   // Log event
-  g_EventLogger.log(type, theData, nodeId);  
+  g_EventLogger.log(type, theData, nodeId, 
+		    &m_statisticsListner.m_clients[0].m_logLevel);  
   m_statisticsListner.log(type, theData, nodeId);
 }
 
@@ -2467,98 +2482,6 @@ MgmtSrvr::abortBackup(Uint32 backupId)
 void
 MgmtSrvr::backupCallback(BackupEvent & event)
 {
-  char str[255];
-  
-  bool ok = false;
-  switch(event.Event){
-  case BackupEvent::BackupStarted:
-    ok = true;
-    snprintf(str, sizeof(str), 
-	     "Backup %d started", event.Started.BackupId);
-    break;
-  case BackupEvent::BackupFailedToStart:
-    ok = true;
-    snprintf(str, sizeof(str), 
-	     "Backup failed to start (Backup error %d)", 
-	     event.FailedToStart.ErrorCode);
-    break;
-  case BackupEvent::BackupCompleted:
-    ok = true;
-    snprintf(str, sizeof(str), 
-	     "Backup %d completed", 
-	     event.Completed.BackupId);
-    g_EventLogger.info(str);
-
-    snprintf(str, sizeof(str), 
-	     " StartGCP: %d StopGCP: %d", 
-	     event.Completed.startGCP, event.Completed.stopGCP);
-    g_EventLogger.info(str);
-
-    snprintf(str, sizeof(str), 
-	     " #Records: %d #LogRecords: %d", 
-	     event.Completed.NoOfRecords, event.Completed.NoOfLogRecords);
-    g_EventLogger.info(str);
-
-    snprintf(str, sizeof(str), 
-	     " Data: %d bytes Log: %d bytes", 
-	     event.Completed.NoOfBytes, event.Completed.NoOfLogBytes);
-    break;
-  case BackupEvent::BackupAborted:
-    ok = true;
-    snprintf(str, sizeof(str), 
-	     "Backup %d has been aborted reason %d",
-	     event.Aborted.BackupId,
-	     event.Aborted.Reason);
-    break;
-  }
-  if(!ok){
-    snprintf(str, sizeof(str), 
-	     "Unknown backup event: %d",
-	     event.Event);
-    
-  }
-  g_EventLogger.info(str);
-
-  switch (theWaitState){
-  case WAIT_BACKUP_STARTED:
-    switch(event.Event){
-    case BackupEvent::BackupStarted:
-    case BackupEvent::BackupFailedToStart:
-      m_lastBackupEvent = event;
-      theWaitState = NO_WAIT;
-      break;
-    default:
-      snprintf(str, sizeof(str), 
-	       "Received event %d in unexpected state WAIT_BACKUP_STARTED",
-               event.Event);
-      g_EventLogger.info(str);
-      return;
-    }
-      
-    break;
-  case WAIT_BACKUP_COMPLETED:
-    switch(event.Event){
-    case BackupEvent::BackupCompleted:
-    case BackupEvent::BackupAborted:
-    case BackupEvent::BackupFailedToStart:
-      m_lastBackupEvent = event;
-      theWaitState = NO_WAIT;
-      break;
-    default:
-      snprintf(str, sizeof(str), 
-	       "Received event %d in unexpected state WAIT_BACKUP_COMPLETED",
-               event.Event);
-      g_EventLogger.info(str);
-      return;
-    }
-    break;
-  default:
-    snprintf(str, sizeof(str), "Received event %d in unexpected state = %d",
-             event.Event, theWaitState);
-    g_EventLogger.info(str);
-    return;
-  
-  }
 }
 
 
