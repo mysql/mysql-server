@@ -35,7 +35,7 @@
 ** and adapted to mysqldump 05/11/01 by Jani Tolonen
 */
 
-#define DUMP_VERSION "9.00"
+#define DUMP_VERSION "9.01"
 
 #include <my_global.h>
 #include <my_sys.h>
@@ -257,7 +257,6 @@ static void print_version(void)
 
 static void usage(void)
 {
-  uint i;
   print_version();
   puts("By Igor Romanenko, Monty, Jani & Sinisa");
   puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,\nand you are welcome to modify and redistribute it under the GPL license\n");
