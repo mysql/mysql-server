@@ -1077,6 +1077,9 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
 
     thd->open_options|= extra_open_options;
     table->table = open_ltable(thd, table, lock_type);
+#ifdef EMBEDDED_LIBRARY
+    thd->net.last_errno= 0;  // these errors shouldn't get client
+#endif
     thd->open_options&= ~extra_open_options;
     packet->length(0);
     if (prepare_func)
@@ -1195,8 +1198,8 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
     }
     close_thread_tables(thd);
     table->table=0;				// For query cache
-    if (my_net_write(&thd->net, (char*) packet->ptr(),
-		     packet->length()))
+    if (SEND_ROW(thd, &thd->net, field_list.elements, 
+			  (char *)thd->packet.ptr(), thd->packet.length()))
       goto err;
   }
 
