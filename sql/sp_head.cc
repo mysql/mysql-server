@@ -134,7 +134,7 @@ sp_eval_func_item(THD *thd, Item *it, enum enum_field_types type)
       }
     case REAL_RESULT:
       {
-	double d= it->val();
+	double d= it->val_real();
 
 	if (it->null_value)
 	{
@@ -148,7 +148,7 @@ sp_eval_func_item(THD *thd, Item *it, enum enum_field_types type)
 	  uint8 decimals= it->decimals;
 	  uint32 max_length= it->max_length;
 	  DBUG_PRINT("info", ("REAL_RESULT: %g", d));
-	  it= new Item_real(it->val());
+	  it= new Item_real(it->val_real());
 	  it->decimals= decimals;
 	  it->max_length= max_length;
 	}

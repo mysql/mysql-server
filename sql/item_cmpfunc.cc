@@ -104,7 +104,7 @@ Item_bool_func2* Le_creator::create(Item *a, Item *b) const
 longlong Item_func_not::val_int()
 {
   DBUG_ASSERT(fixed == 1);
-  double value=args[0]->val();
+  double value= args[0]->val_real();
   null_value=args[0]->null_value;
   return !null_value && value == 0 ? 1 : 0;
 }
@@ -116,7 +116,7 @@ longlong Item_func_not::val_int()
 longlong Item_func_not_all::val_int()
 {
   DBUG_ASSERT(fixed == 1);
-  double value= args[0]->val();
+  double value= args[0]->val_real();
   if (abort_on_null)
   {
     null_value= 0;
@@ -384,10 +384,10 @@ int Arg_comparator::compare_e_binary_string()
 
 int Arg_comparator::compare_real()
 {
-  double val1= (*a)->val();
+  double val1= (*a)->val_real();
   if (!(*a)->null_value)
   {
-    double val2= (*b)->val();
+    double val2= (*b)->val_real();
     if (!(*b)->null_value)
     {
       owner->null_value= 0;
@@ -402,8 +402,8 @@ int Arg_comparator::compare_real()
 
 int Arg_comparator::compare_e_real()
 {
-  double val1= (*a)->val();
-  double val2= (*b)->val();
+  double val1= (*a)->val_real();
+  double val2= (*b)->val_real();
   if ((*a)->null_value || (*b)->null_value)
     return test((*a)->null_value && (*b)->null_value);
   return test(val1 == val2);
@@ -754,7 +754,7 @@ void Item_func_interval::fix_length_and_dec()
         (intervals=(double*) sql_alloc(sizeof(double)*(row->cols()-1))))
     {
       for (uint i=1 ; i < row->cols(); i++)
-        intervals[i-1]=row->el(i)->val();
+        intervals[i-1]= row->el(i)->val_real();
     }
   }
   maybe_null= 0;
@@ -776,7 +776,7 @@ void Item_func_interval::fix_length_and_dec()
 longlong Item_func_interval::val_int()
 {
   DBUG_ASSERT(fixed == 1);
-  double value= row->el(0)->val();
+  double value= row->el(0)->val_real();
   uint i;
 
   if (row->el(0)->null_value)
@@ -799,7 +799,7 @@ longlong Item_func_interval::val_int()
 
   for (i=1 ; i < row->cols() ; i++)
   {
-    if (row->el(i)->val() > value)
+    if (row->el(i)->val_real() > value)
       return i-1;
   }
   return i-1;
@@ -873,7 +873,7 @@ longlong Item_func_between::val_int()
   }
   else if (cmp_type == INT_RESULT)
   {
-    longlong value=args[0]->val_int(),a,b;
+    longlong value=args[0]->val_int(), a, b;
     if ((null_value=args[0]->null_value))
       return 0;					/* purecov: inspected */
     a=args[1]->val_int();
@@ -893,11 +893,11 @@ longlong Item_func_between::val_int()
   }
   else
   {
-    double value=args[0]->val(),a,b;
+    double value= args[0]->val_real(),a,b;
     if ((null_value=args[0]->null_value))
       return 0;					/* purecov: inspected */
-    a=args[1]->val();
-    b=args[2]->val();
+    a= args[1]->val_real();
+    b= args[2]->val_real();
     if (!args[1]->null_value && !args[2]->null_value)
       return (value >= a && value <= b) ? 1 : 0;
     if (args[1]->null_value && args[2]->null_value)
@@ -954,16 +954,16 @@ Field *Item_func_ifnull::tmp_table_field(TABLE *table)
 }
 
 double
-Item_func_ifnull::val()
+Item_func_ifnull::val_real()
 {
   DBUG_ASSERT(fixed == 1);
-  double value=args[0]->val();
+  double value= args[0]->val_real();
   if (!args[0]->null_value)
   {
     null_value=0;
     return value;
   }
-  value=args[1]->val();
+  value= args[1]->val_real();
   if ((null_value=args[1]->null_value))
     return 0.0;
   return value;
@@ -1042,11 +1042,11 @@ Item_func_if::fix_length_and_dec()
 
 
 double
-Item_func_if::val()
+Item_func_if::val_real()
 {
   DBUG_ASSERT(fixed == 1);
   Item *arg= args[0]->val_int() ? args[1] : args[2];
-  double value=arg->val();
+  double value= arg->val_real();
   null_value=arg->null_value;
   return value;
 }
@@ -1095,7 +1095,7 @@ Item_func_nullif::fix_length_and_dec()
 */
 
 double
-Item_func_nullif::val()
+Item_func_nullif::val_real()
 {
   DBUG_ASSERT(fixed == 1);
   double value;
@@ -1104,7 +1104,7 @@ Item_func_nullif::val()
     null_value=1;
     return 0.0;
   }
-  value=args[0]->val();
+  value= args[0]->val_real();
   null_value=args[0]->null_value;
   return value;
 }
@@ -1179,7 +1179,7 @@ Item *Item_func_case::find_item(String *str)
 	  return else_expr_num != -1 ? args[else_expr_num] : 0;
 	break;
       case REAL_RESULT:
-	first_expr_real= args[first_expr_num]->val();
+	first_expr_real= args[first_expr_num]->val_real();
 	if (args[first_expr_num]->null_value)
 	  return else_expr_num != -1 ? args[else_expr_num] : 0;
 	break;
@@ -1212,7 +1212,7 @@ Item *Item_func_case::find_item(String *str)
         return args[i+1];
       break;
     case REAL_RESULT: 
-      if (args[i]->val()==first_expr_real && !args[i]->null_value) 
+      if (args[i]->val_real() == first_expr_real && !args[i]->null_value)
         return args[i+1];
       break;
     case ROW_RESULT:
@@ -1264,7 +1264,7 @@ longlong Item_func_case::val_int()
   return res;
 }
 
-double Item_func_case::val()
+double Item_func_case::val_real()
 {
   DBUG_ASSERT(fixed == 1);
   char buff[MAX_FIELD_WIDTH];
@@ -1277,7 +1277,7 @@ double Item_func_case::val()
     null_value=1;
     return 0;
   }
-  res=item->val();
+  res= item->val_real();
   null_value=item->null_value;
   return res;
 }
@@ -1400,13 +1400,13 @@ longlong Item_func_coalesce::val_int()
   return 0;
 }
 
-double Item_func_coalesce::val()
+double Item_func_coalesce::val_real()
 {
   DBUG_ASSERT(fixed == 1);
   null_value=0;
   for (uint i=0 ; i < arg_count ; i++)
   {
-    double res=args[i]->val();
+    double res= args[i]->val_real();
     if (!args[i]->null_value)
       return res;
   }
@@ -1559,12 +1559,12 @@ in_double::in_double(uint elements)
 
 void in_double::set(uint pos,Item *item)
 {
-  ((double*) base)[pos]=item->val();
+  ((double*) base)[pos]= item->val_real();
 }
 
 byte *in_double::get_value(Item *item)
 {
-  tmp= item->val();
+  tmp= item->val_real();
   if (item->null_value)
     return 0;					/* purecov: inspected */
   return (byte*) &tmp;

@@ -1345,7 +1345,7 @@ bool select_max_min_finder_subselect::send_data(List<Item> &items)
 bool select_max_min_finder_subselect::cmp_real()
 {
   Item *maxmin= ((Item_singlerow_subselect *)item)->el(0);
-  double val1= cache->val(), val2= maxmin->val();
+  double val1= cache->val_real(), val2= maxmin->val_real();
   if (fmax)
     return (cache->null_value && !maxmin->null_value) ||
       (!cache->null_value && !maxmin->null_value &&

@@ -707,7 +707,7 @@ static void make_sortkey(register SORTPARAM *param,
 	}
       case REAL_RESULT:
 	{
-	  double value=item->val();
+	  double value= item->val_real();
 	  if ((maybe_null=item->null_value))
 	  {
 	    bzero((char*) to,sort_field->length+1);
