@@ -3332,7 +3332,8 @@ Backup::execBACKUP_FRAGMENT_REQ(Signal* signal)
     req->transId1 = 0;
     req->transId2 = (BACKUP << 20) + (getOwnNodeId() << 8);
 
-    for(unsigned int i = 0; i<parallelism; i++) {
+    Uint32 i;
+    for(i = 0; i<parallelism; i++) {
       jam();
       req->clientOpPtr[i] = filePtr.i;
     }//for
@@ -3350,7 +3351,7 @@ Backup::execBACKUP_FRAGMENT_REQ(Signal* signal)
     signal->theData[7] = 0;
     
     Uint32 dataPos = 8;
-    for(Uint32 i = 0; i<table.noOfAttributes; i++) {
+    for(i = 0; i<table.noOfAttributes; i++) {
       jam();
       AttributePtr attr;
       table.attributes.getPtr(attr, i);

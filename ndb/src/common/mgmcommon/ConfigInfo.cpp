@@ -2200,13 +2200,14 @@ const int ConfigInfo::m_NoOfParams = sizeof(m_ParamInfo) / sizeof(ParamInfo);
 inline void require(bool v) { if(!v) abort();}
 
 ConfigInfo::ConfigInfo() {
+  int i;
   Properties *section;
   const Properties *oldpinfo;
 
   m_info.setCaseInsensitiveNames(true);
   m_systemDefaults.setCaseInsensitiveNames(true);
 
-  for (int i=0; i<m_NoOfParams; i++) {
+  for (i=0; i<m_NoOfParams; i++) {
     const ParamInfo & param = m_ParamInfo[i];
     
     // Create new section if it did not exist
@@ -2261,7 +2262,7 @@ ConfigInfo::ConfigInfo() {
     }
   }
   
-  for (int i=0; i<m_NoOfParams; i++) {
+  for (i=0; i<m_NoOfParams; i++) {
     if(m_ParamInfo[i]._section == NULL){
       ndbout << "Check that each entry has a section failed." << endl;
       ndbout << "Parameter \"" << m_ParamInfo[i]._fname << endl; 
@@ -3029,13 +3030,14 @@ transform(InitConfigFileParser::Context & ctx,
 
 bool
 fixDepricated(InitConfigFileParser::Context & ctx, const char * data){
+  const char * name;
   /**
    * Transform old values to new values
    * Transform new values to old values (backward compatible)
    */
   Properties tmp;
   Properties::Iterator it(ctx.m_currentSection);
-  for (const char* name = it.first(); name != NULL; name = it.next()) {
+  for (name = it.first(); name != NULL; name = it.next()) {
     const DepricationTransform * p = &f_deprication[0];
     while(p->m_section != 0){
       if(strcmp(p->m_section, ctx.fname) == 0){
@@ -3056,7 +3058,7 @@ fixDepricated(InitConfigFileParser::Context & ctx, const char * data){
   }
   
   Properties::Iterator it2(&tmp);
-  for (const char* name = it2.first(); name != NULL; name = it2.next()) {
+  for (name = it2.first(); name != NULL; name = it2.next()) {
     PropertiesType type;
     require(tmp.getTypeOf(name, &type));
     switch(type){
@@ -3162,11 +3164,12 @@ addNodeConnections(Vector<ConfigInfo::ConfigRuleSection>&sections,
 		   struct InitConfigFileParser::Context &ctx, 
 		   const char * ruleData)
 {
+  Uint32 i;
   Properties * props= ctx.m_config;
   Properties p_connections;
   Properties p_connections2;
 
-  for (Uint32 i = 0;; i++){
+  for (i = 0;; i++){
     const Properties * tmp;
     Uint32 nodeId1, nodeId2;
 
@@ -3187,8 +3190,8 @@ addNodeConnections(Vector<ConfigInfo::ConfigRuleSection>&sections,
   Properties p_db_nodes;
   Properties p_api_mgm_nodes;
 
-  Uint32 i_db= 0, i_api_mgm= 0;
-  for (Uint32 i= 0, n= 0; n < nNodes; i++){
+  Uint32 i_db= 0, i_api_mgm= 0, n;
+  for (i= 0, n= 0; n < nNodes; i++){
     const Properties * tmp;
     if(!props->get("Node", i, &tmp)) continue;
     n++;
@@ -3205,7 +3208,7 @@ addNodeConnections(Vector<ConfigInfo::ConfigRuleSection>&sections,
 
   Uint32 nodeId1, nodeId2, dummy;
 
-  for (Uint32 i= 0; p_db_nodes.get("", i, &nodeId1); i++){
+  for (i= 0; p_db_nodes.get("", i, &nodeId1); i++){
     for (Uint32 j= i+1;; j++){
       if(!p_db_nodes.get("", j, &nodeId2)) break;
       if(!p_connections2.get("", nodeId1+nodeId2<<16, &dummy)) {
@@ -3222,7 +3225,7 @@ addNodeConnections(Vector<ConfigInfo::ConfigRuleSection>&sections,
     }
   }
 
-  for (Uint32 i= 0; p_api_mgm_nodes.get("", i, &nodeId1); i++){
+  for (i= 0; p_api_mgm_nodes.get("", i, &nodeId1); i++){
     if(!p_connections.get("", nodeId1, &dummy)) {
       for (Uint32 j= 0;; j++){
 	if(!p_db_nodes.get("", j, &nodeId2)) break;
@@ -3241,3 +3244,5 @@ addNodeConnections(Vector<ConfigInfo::ConfigRuleSection>&sections,
 
   return true;
 }
+
+template class Vector<ConfigInfo::ConfigRuleSection>;

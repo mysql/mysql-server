@@ -992,3 +992,6 @@ TransporterFacade::ThreadData::close(int number){
   m_statusFunction[number] = 0;
   return 0;
 }
+
+template class Vector<NodeStatusFunction>;
+template class Vector<TransporterFacade::ThreadData::Object_Execute>;

@@ -2138,7 +2138,8 @@ void Qmgr::execPREP_FAILREQ(Signal* signal)
   Uint16 TfailureNr = prepFail->failNo;
   cnoPrepFailedNodes = prepFail->noOfNodes;
   UintR arrayIndex = 0;
-  for (Uint32 Tindex = 0; Tindex < MAX_NDB_NODES; Tindex++) {
+  Uint32 Tindex;
+  for (Tindex = 0; Tindex < MAX_NDB_NODES; Tindex++) {
     if (NodeBitmask::get(prepFail->theNodes, Tindex)){
       cprepFailedNodes[arrayIndex] = Tindex;
       arrayIndex++;
@@ -2166,7 +2167,7 @@ void Qmgr::execPREP_FAILREQ(Signal* signal)
 
   guard0 = cnoPrepFailedNodes - 1;
   arrGuard(guard0, MAX_NDB_NODES);
-  for (Uint32 Tindex = 0; Tindex <= guard0; Tindex++) {
+  for (Tindex = 0; Tindex <= guard0; Tindex++) {
     jam();
     failReport(signal,
                cprepFailedNodes[Tindex],
