@@ -1368,6 +1368,18 @@ int open_tables(THD *thd,TABLE_LIST *start)
       tables->table->reginfo.lock_type=tables->lock_type;
     tables->table->grant= tables->grant;
   }
+  if (opt_no_mix_types && start)
+  {
+    bool checking; TABLE_LIST *tl;
+    for (tl=start, checking = tl->table->file->has_transactions(), tl=tl->next; tl ; tl=tl->next)
+    { 
+      if (((tl->table->file->has_transactions()) ^ checking))
+      {
+	send_error(&thd->net,ER_MIXING_NOT_ALLOWED);
+	DBUG_RETURN(-1);
+      }
+    }
+  }
   thd->proc_info=0;
   DBUG_RETURN(result);
 }

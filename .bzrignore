@@ -391,3 +391,4 @@ support-files/mysql.spec
 tags
 tmp/*
 vio/viotest-ssl
+=6

@@ -562,7 +562,7 @@ extern ulong keybuff_size,sortbuff_size,max_item_sort_length,table_cache_size,
 extern ulong specialflag, current_pid;
 extern bool low_priority_updates, using_update_log;
 extern bool opt_sql_bin_update, opt_safe_show_db, opt_warnings,
-					     opt_safe_user_create;
+					     opt_safe_user_create, opt_no_mix_types;
 extern char language[LIBLEN],reg_ext[FN_EXTLEN],blob_newline;
 extern const char **errmesg;			/* Error messages */
 extern const char *default_tx_isolation_name;
