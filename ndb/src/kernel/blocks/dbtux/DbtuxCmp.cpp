@@ -25,43 +25,35 @@
  * many (additional) initial attributes were equal.
  */
 int
-Dbtux::cmpTreeAttrs(const Frag& frag, CmpPar& cmpPar)
+Dbtux::cmpSearchKey(const Frag& frag, unsigned& start, TableData data1, ConstData data2, unsigned size2)
 {
-  const DescEnt& descEnt = getDescEnt(frag.m_descPage, frag.m_descOff);
-  ConstData data1 = cmpPar.m_data1;
-  ConstData data2 = cmpPar.m_data2;
-  // number of words of attribute data left
-  unsigned len2 = cmpPar.m_len2;
   const unsigned numAttrs = frag.m_numAttrs;
-  unsigned index = cmpPar.m_first;
-  ndbrequire(index < numAttrs);
-  // skip to right position in search key  XXX do it before the call
-  for (unsigned i = 0; i < index; i++) {
-    jam();
-    data1 += AttributeHeaderSize + data1.ah().getDataSize();
-  }
-  unsigned numEq = 0;
+  const DescEnt& descEnt = getDescEnt(frag.m_descPage, frag.m_descOff);
+  // number of words of attribute data left
+  unsigned len2 = size2;
+  // skip to right position in search key
+  data1 += start;
   int ret = 0;
-  while (index < numAttrs) {
+  while (start < numAttrs) {
     if (len2 < AttributeHeaderSize) {
       jam();
       ret = NdbSqlUtil::CmpUnknown;
       break;
     }
     len2 -= AttributeHeaderSize;
-    if (! data1.ah().isNULL()) {
+    if (*data1 != 0) {
       if (! data2.ah().isNULL()) {
         jam();
         // current attribute
-        const DescAttr& descAttr = descEnt.m_descAttr[index];
+        const DescAttr& descAttr = descEnt.m_descAttr[start];
         const unsigned typeId = descAttr.m_typeId;
         // full data size
-        const unsigned size1 = data1.ah().getDataSize();
+        const unsigned size1 = AttributeDescriptor::getSizeInWords(descAttr.m_attrDesc);
         ndbrequire(size1 != 0 && size1 == data2.ah().getDataSize());
         const unsigned size2 = min(size1, len2);
         len2 -= size2;
         // compare
-        const Uint32* const p1 = &data1[AttributeHeaderSize];
+        const Uint32* const p1 = *data1;
         const Uint32* const p2 = &data2[AttributeHeaderSize];
         ret = NdbSqlUtil::cmp(typeId, p1, p2, size1, size2);
         if (ret != 0) {
@@ -82,14 +74,12 @@ Dbtux::cmpTreeAttrs(const Frag& frag, CmpPar& cmpPar)
         break;
       }
     }
-    data1 += AttributeHeaderSize + data1.ah().getDataSize();
+    data1 += 1;
     data2 += AttributeHeaderSize + data2.ah().getDataSize();
-    numEq++;
-    index++;
+    start++;
   }
   // XXX until data format errors are handled
   ndbrequire(ret != NdbSqlUtil::CmpError);
-  cmpPar.m_numEq += numEq;      // add to previous count
   return ret;
 }
 

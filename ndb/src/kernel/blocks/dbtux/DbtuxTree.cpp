@@ -45,36 +45,28 @@ loop: {
     const unsigned occup = node.getOccup();
     ndbrequire(occup != 0);
     // number of equal initial attributes in bounding node
-    unsigned numEq = ZNIL;
+    unsigned start = ZNIL;
     for (unsigned i = 0; i <= 1; i++) {
       jam();
+      unsigned start1 = 0;
       // compare prefix
-      CmpPar cmpPar;
-      cmpPar.m_data1 = searchPar.m_data;
-      cmpPar.m_data2 = node.getPref(i);
-      cmpPar.m_len2 = tree.m_prefSize;
-      cmpPar.m_first = 0;
-      cmpPar.m_numEq = 0;
-      int ret = cmpTreeAttrs(frag, cmpPar);
+      int ret = cmpSearchKey(frag, start1, searchPar.m_data, node.getPref(i), tree.m_prefSize);
       if (ret == NdbSqlUtil::CmpUnknown) {
         jam();
         // read full value
         ReadPar readPar;
         readPar.m_ent = node.getMinMax(i);
-        ndbrequire(cmpPar.m_numEq < numAttrs);
-        readPar.m_first = cmpPar.m_numEq;
-        readPar.m_count = numAttrs - cmpPar.m_numEq;
+        ndbrequire(start1 < numAttrs);
+        readPar.m_first = start1;
+        readPar.m_count = numAttrs - start1;
         readPar.m_data = 0;     // leave in signal data
         tupReadAttrs(signal, frag, readPar);
         // compare full value
-        cmpPar.m_data2 = readPar.m_data;
-        cmpPar.m_len2 = ZNIL;   // big
-        cmpPar.m_first = readPar.m_first;
-        ret = cmpTreeAttrs(frag, cmpPar);
+        ret = cmpSearchKey(frag, start1, searchPar.m_data, readPar.m_data);
         ndbrequire(ret != NdbSqlUtil::CmpUnknown);
       }
-      if (numEq > cmpPar.m_numEq)
-        numEq = cmpPar.m_numEq;
+      if (start > start1)
+        start = start1;
       if (ret == 0) {
         jam();
         // keys are equal, compare entry values
@@ -111,21 +103,17 @@ loop: {
       jam();
       int ret = 0;
       // compare remaining attributes
-      if (numEq < numAttrs) {
+      if (start < numAttrs) {
         jam();
         ReadPar readPar;
         readPar.m_ent = node.getEnt(j);
-        readPar.m_first = numEq;
-        readPar.m_count = numAttrs - numEq;
+        readPar.m_first = start;
+        readPar.m_count = numAttrs - start;
         readPar.m_data = 0;     // leave in signal data
         tupReadAttrs(signal, frag, readPar);
         // compare
-        CmpPar cmpPar;
-        cmpPar.m_data1 = searchPar.m_data;
-        cmpPar.m_data2 = readPar.m_data;
-        cmpPar.m_len2 = ZNIL;  // big
-        cmpPar.m_first = readPar.m_first;
-        ret = cmpTreeAttrs(frag, cmpPar);
+        unsigned start1 = start;
+        ret = cmpSearchKey(frag, start1, searchPar.m_data, readPar.m_data);
         ndbrequire(ret != NdbSqlUtil::CmpUnknown);
       }
       if (ret == 0) {

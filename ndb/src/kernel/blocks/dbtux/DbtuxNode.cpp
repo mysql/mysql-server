@@ -28,6 +28,7 @@ Dbtux::allocNode(Signal* signal, NodeHandle& node)
   Uint32 pageOffset = NullTupLoc.m_pageOffset;
   Uint32* node32 = 0;
   int errorCode = c_tup->tuxAllocNode(signal, frag.m_tupIndexFragPtrI, pageId, pageOffset, node32);
+  jamEntry();
   if (errorCode == 0) {
     jam();
     node.m_loc = TupLoc(pageId, pageOffset);
@@ -63,6 +64,7 @@ Dbtux::selectNode(Signal* signal, NodeHandle& node, TupLoc loc, AccSize acc)
   Uint32 pageOffset = loc.m_pageOffset;
   Uint32* node32 = 0;
   c_tup->tuxGetNode(frag.m_tupIndexFragPtrI, pageId, pageOffset, node32);
+  jamEntry();
   node.m_loc = loc;
   node.m_node = reinterpret_cast<TreeNode*>(node32);
   node.m_acc = AccNone;
@@ -103,6 +105,7 @@ Dbtux::deleteNode(Signal* signal, NodeHandle& node)
   Uint32 pageOffset = loc.m_pageOffset;
   Uint32* node32 = reinterpret_cast<Uint32*>(node.m_node);
   c_tup->tuxFreeNode(signal, frag.m_tupIndexFragPtrI, pageId, pageOffset, node32);
+  jamEntry();
   // invalidate handle and storage
   node.m_loc = NullTupLoc;
   node.m_node = 0;
