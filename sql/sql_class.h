@@ -427,7 +427,7 @@ class Statement
 public:
   /* FIXME: must be private */
   LEX     main_lex;
-public:
+
   /*
     Uniquely identifies each statement object in thread scope; change during
     statement lifetime. FIXME: must be const
@@ -476,7 +476,7 @@ public:
   char *query;
   uint32 query_length;                          // current query length
   /*
-    List of items created in the parser for this query. Every item puts 
+    List of items created in the parser for this query. Every item puts
     itself to the list on creation (see Item::Item() for details))
   */
   Item *free_list;
@@ -503,6 +503,32 @@ public:
   void set_statement(Statement *stmt);
   /* return class type */
   virtual Type type() const;
+
+  inline gptr alloc(unsigned int size) { return alloc_root(&mem_root,size); }
+  inline gptr calloc(unsigned int size)
+  {
+    gptr ptr;
+    if ((ptr=alloc_root(&mem_root,size)))
+      bzero((char*) ptr,size);
+    return ptr;
+  }
+  inline char *strdup(const char *str)
+  { return strdup_root(&mem_root,str); }
+  inline char *strmake(const char *str, uint size)
+  { return strmake_root(&mem_root,str,size); }
+  inline char *memdup(const char *str, uint size)
+  { return memdup_root(&mem_root,str,size); }
+  inline char *memdup_w_gap(const char *str, uint size, uint gap)
+  {
+    gptr ptr;
+    if ((ptr=alloc_root(&mem_root,size+gap)))
+      memcpy(ptr,str,size);
+    return ptr;
+  }
+
+  void set_n_backup_item_arena(Statement *set, Statement *backup);
+  void restore_backup_item_arena(Statement *set, Statement *backup);
+  void Statement::set_item_arena(Statement *set);
 };
 
 
@@ -690,6 +716,10 @@ public:
   Vio* active_vio;
 #endif
   /*
+    Current prepared Statement if there one, or 0
+  */
+  Statement *current_statement;
+  /*
     next_insert_id is set on SET INSERT_ID= #. This is used as the next
     generated auto_increment value in handler.cc
   */
@@ -850,34 +880,14 @@ public:
     return 0;
 #endif
   }
-  inline gptr alloc(unsigned int size) { return alloc_root(&mem_root,size); }
-  inline gptr calloc(unsigned int size)
-  {
-    gptr ptr;
-    if ((ptr=alloc_root(&mem_root,size)))
-      bzero((char*) ptr,size);
-    return ptr;
-  }
-  inline char *strdup(const char *str)
-  { return strdup_root(&mem_root,str); }
-  inline char *strmake(const char *str, uint size)
-  { return strmake_root(&mem_root,str,size); }
-  inline char *memdup(const char *str, uint size)
-  { return memdup_root(&mem_root,str,size); }
-  inline char *memdup_w_gap(const char *str, uint size, uint gap)
-  {
-    gptr ptr;
-    if ((ptr=alloc_root(&mem_root,size+gap)))
-      memcpy(ptr,str,size);
-    return ptr;
-  }
-  bool convert_string(LEX_STRING *to, CHARSET_INFO *to_cs,
-		      const char *from, uint from_length,
-		      CHARSET_INFO *from_cs);
   inline gptr trans_alloc(unsigned int size) 
   { 
     return alloc_root(&transaction.mem_root,size);
   }
+
+  bool convert_string(LEX_STRING *to, CHARSET_INFO *to_cs,
+		      const char *from, uint from_length,
+		      CHARSET_INFO *from_cs);
   void add_changed_table(TABLE *table);
   void add_changed_table(const char *key, long key_length);
   CHANGED_TABLE_LIST * changed_table_dup(const char *key, long key_length);
@@ -900,6 +910,33 @@ public:
   }
   inline CHARSET_INFO *charset() { return variables.character_set_client; }
   void update_charset();
+
+  inline void allocate_temporary_memory_pool_for_ps_preparing()
+  {
+    DBUG_ASSERT(current_statement!=0);
+    /*
+      We do not want to have in PS memory all that junk,
+      which will be created by preparation => substitute memory
+      from original thread pool.
+
+      We know that PS memory pool is now copied to THD, we move it back
+      to allow some code use it.
+    */
+    current_statement->set_item_arena(this);
+    init_sql_alloc(&mem_root,
+		   variables.query_alloc_block_size,
+		   variables.query_prealloc_size);
+    free_list= 0;
+  }
+  inline void free_temporary_memory_pool_for_ps_preparing()
+  {
+    DBUG_ASSERT(current_statement!=0);
+    cleanup_items(current_statement->free_list);
+    free_items(free_list);
+    close_thread_tables(this); // to close derived tables
+    free_root(&mem_root, MYF(0));
+    set_item_arena(current_statement);
+  }
 };
 
 /* Flags for the THD::system_thread (bitmap) variable */

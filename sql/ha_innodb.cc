@@ -290,7 +290,7 @@ convert_error_code_to_mysql(
 
         } else if (error == (int) DB_CANNOT_DROP_CONSTRAINT) {
 
-    		return(HA_ERR_ROW_IS_REFERENCED);
+		return(HA_ERR_ROW_IS_REFERENCED);
 
         } else if (error == (int) DB_COL_APPEARS_TWICE_IN_INDEX) {
 
@@ -755,7 +755,7 @@ innobase_init(void)
 	        srv_set_thread_priorities = TRUE;
 	        srv_query_thread_priority = QUERY_PRIOR;
 	}
-	
+
 	/* Set InnoDB initialization parameters according to the values
 	read from MySQL .cnf file */
 
@@ -870,16 +870,22 @@ innobase_init(void)
 
 	srv_print_verbose_log = mysql_embedded ? 0 : 1;
 
-	if (strcmp(default_charset_info->name, "latin1") == 0) {
+		/* Store the default charset-collation number of this MySQL
+	installation */
 
-		/* Store the character ordering table to InnoDB.
-		For non-latin1 charsets we use the MySQL comparison
-		functions, and consequently we do not need to know
-		the ordering internally in InnoDB. */
+	data_mysql_default_charset_coll = (ulint)default_charset_info->number;
 
-		memcpy(srv_latin1_ordering,
-				default_charset_info->sort_order, 256);
-	}
+	data_mysql_latin1_swedish_charset_coll =
+					(ulint)my_charset_latin1.number;
+
+	/* Store the latin1_swedish_ci character ordering table to InnoDB. For
+	non-latin1_swedish_ci charsets we use the MySQL comparison functions,
+	and consequently we do not need to know the ordering internally in
+	InnoDB. */
+
+	ut_a(0 == ut_strcmp((char*)my_charset_latin1.name,
+						(char*)"latin1_swedish_ci"));
+	memcpy(srv_latin1_ordering, my_charset_latin1.sort_order, 256);
 
 	/* Since we in this module access directly the fields of a trx
         struct, and due to different headers and flags it might happen that
@@ -1661,10 +1667,10 @@ reset_null_bits(
 
 extern "C" {
 /*****************************************************************
-InnoDB uses this function is to compare two data fields for which the
-data type is such that we must use MySQL code to compare them. NOTE that the
-prototype of this function is in rem0cmp.c in InnoDB source code!
-If you change this function, remember to update the prototype there! */
+InnoDB uses this function to compare two data fields for which the data type
+is such that we must use MySQL code to compare them. NOTE that the prototype
+of this function is in rem0cmp.c in InnoDB source code! If you change this
+function, remember to update the prototype there! */
 
 int
 innobase_mysql_cmp(
@@ -1672,6 +1678,7 @@ innobase_mysql_cmp(
 					/* out: 1, 0, -1, if a is greater,
 					equal, less than b, respectively */
 	int		mysql_type,	/* in: MySQL type */
+	uint		charset_number,	/* in: number of the charset */
 	unsigned char*	a,		/* in: data field */
 	unsigned int	a_length,	/* in: data field length,
 					not UNIV_SQL_NULL */
@@ -1679,6 +1686,7 @@ innobase_mysql_cmp(
 	unsigned int	b_length)	/* in: data field length,
 					not UNIV_SQL_NULL */
 {
+	CHARSET_INFO*		charset;
 	enum_field_types	mysql_tp;
 	int                     ret;
 
@@ -1695,9 +1703,27 @@ innobase_mysql_cmp(
 	case FIELD_TYPE_MEDIUM_BLOB:
 	case FIELD_TYPE_BLOB:
 	case FIELD_TYPE_LONG_BLOB:
-               // BAR TODO: Discuss with heikki.tuuri@innodb.com
-               // so that he sends CHARSET_INFO for the field to this function.
-                ret = my_strnncoll(default_charset_info,
+		/* Use the charset number to pick the right charset struct for
+		the comparison. Since the MySQL function get_charset may be
+		slow before Bar removes the mutex operation there, we first
+		look at 2 common charsets directly. */
+
+		if (charset_number == default_charset_info->number) {
+			charset = default_charset_info;
+		} else if (charset_number == my_charset_latin1.number) {
+			charset = &my_charset_latin1;
+		} else {
+			charset = get_charset(charset_number, MYF(MY_WME));
+
+			if (charset == NULL) {
+				fprintf(stderr,
+"InnoDB: fatal error: InnoDB needs charset %lu for doing a comparison,\n"
+"InnoDB: but MySQL cannot find that charset.\n", (ulong)charset_number);
+				ut_a(0);
+			}
+		}
+
+                ret = my_strnncoll(charset,
                                   a, a_length,
                                   b, b_length);
 		if (ret < 0) {
@@ -1724,9 +1750,9 @@ get_innobase_type_from_mysql_type(
 			/* out: DATA_BINARY, DATA_VARCHAR, ... */
 	Field*	field)	/* in: MySQL field */
 {
-	/* The following asserts check that the MySQL type code fits in
-	8 bits: this is used in ibuf and also when DATA_NOT_NULL is
-	ORed to the type */
+	/* The following asserts try to check that the MySQL type code fits in
+	8 bits: this is used in ibuf and also when DATA_NOT_NULL is ORed to
+	the type */
 
 	DBUG_ASSERT((ulint)FIELD_TYPE_STRING < 256);
 	DBUG_ASSERT((ulint)FIELD_TYPE_VAR_STRING < 256);
@@ -1741,8 +1767,8 @@ get_innobase_type_from_mysql_type(
 
 						return(DATA_BINARY);
 					} else if (strcmp(
-						   default_charset_info->name,
-							"latin1") == 0) {
+						  field->charset()->name,
+						 "latin1_swedish_ci") == 0) {
 						return(DATA_VARCHAR);
 					} else {
 						return(DATA_VARMYSQL);
@@ -1751,8 +1777,8 @@ get_innobase_type_from_mysql_type(
 
 						return(DATA_FIXBINARY);
 					} else if (strcmp(
-						   default_charset_info->name,
-							"latin1") == 0) {
+						   field->charset()->name,
+						   "latin1_swedish_ci") == 0) {
 						return(DATA_CHAR);
 					} else {
 						return(DATA_MYSQL);
@@ -3237,7 +3263,7 @@ create_table_def(
   	ulint		nulls_allowed;
 	ulint		unsigned_type;
 	ulint		binary_type;
-	ulint		nonlatin1_type;
+	ulint		charset_no;
   	ulint		i;
 
   	DBUG_ENTER("create_table_def");
@@ -3266,24 +3292,28 @@ create_table_def(
 			unsigned_type = 0;
 		}
 
-		if (col_type == DATA_BLOB
-		    && strcmp(default_charset_info->name, "latin1") != 0) {
-			nonlatin1_type = DATA_NONLATIN1;
-		} else {
-		        nonlatin1_type = 0;
-		}
-
 		if (field->binary()) {
 			binary_type = DATA_BINARY_TYPE;
-		        nonlatin1_type = 0;
 		} else {
 			binary_type = 0;
 		}
 
+		charset_no = 0;	
+
+		if (dtype_is_string_type(col_type)) {
+
+			charset_no = (ulint)field->charset()->number;
+
+			ut_a(charset_no < 256); /* in ut0type.h we assume that
+						the number fits in one byte */
+		}
+
 		dict_mem_table_add_col(table, (char*) field->field_name,
-					col_type, (ulint)field->type()
+					col_type, dtype_form_prtype( 
+					(ulint)field->type()
 					| nulls_allowed | unsigned_type
-					| nonlatin1_type | binary_type,
+					| binary_type,
+					+ charset_no),
 					field->pack_length(), 0);
 	}
 
@@ -3467,7 +3497,7 @@ ha_innobase::create(
 		/* The limit probably should be REC_MAX_N_FIELDS - 3 = 1020,
 		but we play safe here */
 
-	     DBUG_RETURN(HA_ERR_TO_BIG_ROW);
+	        DBUG_RETURN(HA_ERR_TO_BIG_ROW);
 	} 
 
 	/* Get the transaction associated with the current thd, or create one
@@ -3681,7 +3711,7 @@ ha_innobase::delete_table(
 	int	error;
 	trx_t*	parent_trx;
 	trx_t*	trx;
-	THD	*thd= current_thd;
+	THD     *thd= current_thd;
 	char	norm_name[1000];
 
  	DBUG_ENTER("ha_innobase::delete_table");
@@ -4408,7 +4438,7 @@ ha_innobase::get_foreign_key_create_info(void)
         prebuilt->trx->op_info = (char*)"";
 
   	return(str);
-}
+}			
 
 /***********************************************************************
 Checks if a table is referenced by a foreign key. The MySQL manual states that
@@ -4649,10 +4679,10 @@ ha_innobase::external_lock(
 		if (trx->isolation_level == TRX_ISO_SERIALIZABLE
 		    && prebuilt->select_lock_type == LOCK_NONE
 		    && (thd->options
-				 & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))) {
+				& (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))) {
 
-		    	/* To get serializable execution, we let InnoDB
-		    	conceptually add 'LOCK IN SHARE MODE' to all SELECTs
+			/* To get serializable execution, we let InnoDB
+			conceptually add 'LOCK IN SHARE MODE' to all SELECTs
 			which otherwise would have been consistent reads. An
 			exception is consistent reads in the AUTOCOMMIT=1 mode:
 			we know that they are read-only transactions, and they

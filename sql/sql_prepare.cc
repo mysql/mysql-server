@@ -621,8 +621,18 @@ static bool mysql_test_insert_fields(Prepared_statement *stmt,
       (grant_option && check_grant(thd,privilege,table_list,0,0)))
     DBUG_RETURN(1); 
 #endif
+
+  /* 
+     open temporary memory pool for temporary data allocated by derived
+     tables & preparation procedure
+  */
+  thd->allocate_temporary_memory_pool_for_ps_preparing();
   if (open_and_lock_tables(thd, table_list))
-    DBUG_RETURN(1); 
+  {
+    thd->free_temporary_memory_pool_for_ps_preparing();
+    DBUG_RETURN(1);
+  }
+
   table= table_list->table;
 
   if ((values= its++))
@@ -631,7 +641,11 @@ static bool mysql_test_insert_fields(Prepared_statement *stmt,
     ulong counter= 0;
     
     if (check_insert_fields(thd,table,fields,*values,1))
+    {
+      thd->free_temporary_memory_pool_for_ps_preparing();
       DBUG_RETURN(1);
+    }
+    thd->free_temporary_memory_pool_for_ps_preparing();
 
     value_count= values->elements;
     its.rewind();
@@ -647,6 +661,10 @@ static bool mysql_test_insert_fields(Prepared_statement *stmt,
         DBUG_RETURN(1);
       }
     }
+  }
+  else
+  {
+    thd->free_temporary_memory_pool_for_ps_preparing();
   }
   if (send_prep_stmt(stmt, 0))
     DBUG_RETURN(1);
@@ -677,12 +695,21 @@ static bool mysql_test_upd_fields(Prepared_statement *stmt,
       (grant_option && check_grant(thd,UPDATE_ACL,table_list,0,0)))
     DBUG_RETURN(1);
 #endif
+
+  /* 
+     open temporary memory pool for temporary data allocated by derived
+     tables & preparation procedure
+  */
+  thd->allocate_temporary_memory_pool_for_ps_preparing();
+
   if (open_and_lock_tables(thd, table_list))
-    DBUG_RETURN(1);
+    goto err;
   if (setup_tables(table_list) ||
-      setup_fields(thd, 0, table_list, fields, 1, 0, 0) || 
-      setup_conds(thd, table_list, &conds) || thd->net.report_error)      
-    DBUG_RETURN(1);
+      setup_fields(thd, 0, table_list, fields, 1, 0, 0) ||
+      setup_conds(thd, table_list, &conds) || thd->net.report_error)
+    goto err;
+
+  thd->free_temporary_memory_pool_for_ps_preparing();
 
   /* 
      Currently return only column list info only, and we are not
@@ -691,6 +718,9 @@ static bool mysql_test_upd_fields(Prepared_statement *stmt,
   if (send_prep_stmt(stmt, 0))
     DBUG_RETURN(1);
   DBUG_RETURN(0);
+err:
+  thd->free_temporary_memory_pool_for_ps_preparing();
+  DBUG_RETURN(1);
 }
 
 /*
@@ -735,41 +765,51 @@ static bool mysql_test_select_fields(Prepared_statement *stmt,
   if ((&lex->select_lex != lex->all_selects_list &&
        lex->unit.create_total_list(thd, lex, &tables)))
    DBUG_RETURN(1);
-    
+
+  /* 
+     open temporary memory pool for temporary data allocated by derived
+     tables & preparation procedure
+  */
+  thd->allocate_temporary_memory_pool_for_ps_preparing();
   if (open_and_lock_tables(thd, tables))
-    DBUG_RETURN(1);
+    goto err;
 
   if (lex->describe)
   {
     if (send_prep_stmt(stmt, 0))
-      DBUG_RETURN(1);      
+      goto err;
   }
   else 
   {
     if (!result && !(result= new select_send()))
     {
       send_error(thd, ER_OUT_OF_RESOURCES);
-      DBUG_RETURN(1);
+      goto err;
     }
 
-    JOIN *join= new JOIN(thd, fields, select_options, result);
     thd->used_tables= 0;	// Updated by setup_fields  
 
-    if (join->prepare(&select_lex->ref_pointer_array,
-		      (TABLE_LIST*)select_lex->get_table_list(),
-                      wild_num, conds, og_num, order, group, having, proc, 
-                      select_lex, unit))
-      DBUG_RETURN(1);
+    if (unit->prepare(thd, result, 0))
+      goto err_prep;
+
     if (send_prep_stmt(stmt, fields.elements) ||
         thd->protocol_simple.send_fields(&fields, 0)
 #ifndef EMBEDDED_LIBRARY
-         || net_flush(&thd->net)
+	|| net_flush(&thd->net)
 #endif
-       )
-      DBUG_RETURN(1);
-    join->cleanup();
+	)
+      goto err_prep;
+
+    unit->cleanup();
   }
-  DBUG_RETURN(0);  
+  thd->free_temporary_memory_pool_for_ps_preparing();
+  DBUG_RETURN(0);
+
+err_prep:
+  unit->cleanup();
+err:
+  thd->free_temporary_memory_pool_for_ps_preparing();
+  DBUG_RETURN(1);
 }
 
 
@@ -898,6 +938,7 @@ bool mysql_stmt_prepare(THD *thd, char *packet, uint packet_length)
 
   thd->stmt_backup.set_statement(thd);
   thd->set_statement(stmt);
+  thd->current_statement= stmt;
 
   if (alloc_query(thd, packet, packet_length))
     goto alloc_query_err;
@@ -925,9 +966,9 @@ bool mysql_stmt_prepare(THD *thd, char *packet, uint packet_length)
     sl->prep_where= sl->where;
   }
 
-  cleanup_items(thd->free_list);
   stmt->set_statement(thd);
   thd->set_statement(&thd->stmt_backup);
+  thd->current_statement= 0;
 
   if (init_param_items(stmt))
     goto init_param_err;
@@ -944,8 +985,14 @@ init_param_err:
 alloc_query_err:
   /* Statement map deletes statement on erase */
   thd->stmt_map.erase(stmt);
+  thd->current_statement= 0;
   DBUG_RETURN(1);
 insert_stmt_err:
+  stmt->set_statement(thd);
+  thd->set_statement(&thd->stmt_backup);
+  /* Statement map deletes statement on erase */
+  thd->stmt_map.erase(stmt);
+  thd->current_statement= 0;
   delete stmt;
   DBUG_RETURN(1);
 }
@@ -1010,24 +1057,36 @@ void mysql_stmt_execute(THD *thd, char *packet)
     /* Fix ORDER list */
     for (order=(ORDER *)sl->order_list.first ; order ; order=order->next)
       order->item= (Item **)(order+1);
+
+    /*
+      TODO: When the new table structure is ready, then have a status bit 
+      to indicate the table is altered, and re-do the setup_* 
+      and open the tables back.
+    */
+    for (TABLE_LIST *tables= (TABLE_LIST*) sl->table_list.first;
+	 tables;
+	 tables= tables->next)
+    {
+      tables->table= 0; // safety - nasty init
+      tables->table_list= 0;
+    }
+    
+    {
+      SELECT_LEX_UNIT *unit= sl->master_unit();
+      unit->unclean();
+      unit->types.empty();
+      // for derived tables & PS (which can't be reset by Item_subquery)
+      unit->reinit_exec_mechanism();
+    }
   }
 
-  /*
-    TODO: When the new table structure is ready, then have a status bit 
-    to indicate the table is altered, and re-do the setup_* 
-    and open the tables back.
-  */
-  for (TABLE_LIST *tables= (TABLE_LIST*) stmt->lex->select_lex.table_list.first;
-       tables;
-       tables= tables->next)
-    tables->table= 0; // safety - nasty init
 
 #ifndef EMBEDDED_LIBRARY
   if (stmt->param_count && setup_params_data(stmt))
-    DBUG_VOID_RETURN;
+    goto end;
 #else
   if (stmt->param_count && (*stmt->setup_params_data)(stmt))
-    DBUG_VOID_RETURN;
+    goto end;
 #endif
 
   if (!(specialflag & SPECIAL_NO_PRIOR))
@@ -1048,8 +1107,10 @@ void mysql_stmt_execute(THD *thd, char *packet)
 
   free_items(thd->free_list);
   cleanup_items(stmt->free_list);
+  close_thread_tables(thd); // to close derived tables
   free_root(&thd->mem_root, MYF(0));
   thd->set_statement(&thd->stmt_backup);
+end:
   DBUG_VOID_RETURN;
 }
 

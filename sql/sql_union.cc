@@ -453,3 +453,9 @@ int st_select_lex_unit::cleanup()
   }
   DBUG_RETURN(error);
 }
+
+
+void st_select_lex_unit::reinit_exec_mechanism()
+{
+  prepared= optimized= executed= 0;
+}

@@ -384,8 +384,8 @@ typedef unsigned short ushort;
 #define sgn(a)		(((a) < 0) ? -1 : ((a) > 0) ? 1 : 0)
 #define swap(t,a,b)	{ register t dummy; dummy = a; a = b; b = dummy; }
 #define test(a)		((a) ? 1 : 0)
-#define set_if_bigger(a,b)  { if ((a) < (b)) (a)=(b); }
-#define set_if_smaller(a,b) { if ((a) > (b)) (a)=(b); }
+#define set_if_bigger(a,b)  do { if ((a) < (b)) (a)=(b); } while(0)
+#define set_if_smaller(a,b) do { if ((a) > (b)) (a)=(b); } while(0)
 #define test_all_bits(a,b) (((a) & (b)) == (b))
 #define set_bits(type, bit_count) (sizeof(type)*8 <= (bit_count) ? ~(type) 0 : ((((type) 1) << (bit_count)) - (type) 1))
 #define array_elements(A) ((uint) (sizeof(A)/sizeof(A[0])))
@@ -535,7 +535,10 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #define FN_LIBCHAR	'/'
 #define FN_ROOTDIR	"/"
 #endif
-#define MY_NFILE	1024	/* This is only used to save filenames */
+#endif
+#define MY_NFILE	64	/* This is only used to save filenames */
+#ifndef OS_FILE_LIMIT
+#define OS_FILE_LIMIT	65535
 #endif
 
 /* #define EXT_IN_LIBNAME     */

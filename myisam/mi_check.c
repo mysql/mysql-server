@@ -409,7 +409,7 @@ int chk_key(MI_CHECK *param, register MI_INFO *info)
     if (chk_index(param,info,keyinfo,share->state.key_root[key],info->buff,
 		  &keys, param->key_crc+key,1))
       DBUG_RETURN(-1);
-    if(!(keyinfo->flag & HA_FULLTEXT))
+    if(!(keyinfo->flag & (HA_FULLTEXT | HA_SPATIAL)))
     {
       if (keys != info->state->records)
       {
@@ -557,6 +557,10 @@ static int chk_index(MI_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
   char llbuff[22];
   DBUG_ENTER("chk_index");
   DBUG_DUMP("buff",(byte*) buff,mi_getint(buff));
+
+  /* TODO: implement appropriate check for RTree keys */
+  if (keyinfo->flag & HA_SPATIAL)
+    DBUG_RETURN(0);
 
   if (!(temp_buff=(uchar*) my_alloca((uint) keyinfo->block_length)))
   {
@@ -1073,7 +1077,7 @@ int chk_data_link(MI_CHECK *param, MI_INFO *info,int extend)
     for (key=0 ; key < info->s->base.keys;  key++)
     {
       if (key_checksum[key] != param->key_crc[key] &&
-          !(info->s->keyinfo[key].flag & HA_FULLTEXT))
+          !(info->s->keyinfo[key].flag & (HA_FULLTEXT | HA_SPATIAL)))
       {
 	mi_check_print_error(param,"Checksum for key: %2d doesn't match checksum for records",
 		    key+1);

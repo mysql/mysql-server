@@ -2080,6 +2080,14 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
 {
   if (!wild_num)
     return 0;
+  Statement *stmt= thd->current_statement, backup;
+
+  /*
+    If we are in preparing prepared statement phase then we have change
+    temporary mem_root to statement mem root to save changes of SELECT list
+  */
+  if (stmt)
+    thd->set_n_backup_item_arena(stmt, &backup);
   reg2 Item *item;
   List_iterator<Item> it(fields);
   while ( wild_num && (item= it++))
@@ -2091,7 +2099,11 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
       uint elem= fields.elements;
       if (insert_fields(thd,tables,((Item_field*) item)->db_name,
 			((Item_field*) item)->table_name, &it))
+      {
+	if (stmt)
+	  thd->restore_backup_item_arena(stmt, &backup);
 	return (-1);
+      }
       if (sum_func_list)
       {
 	/*
@@ -2104,6 +2116,8 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
       wild_num--;
     }
   }
+  if (stmt)
+      thd->restore_backup_item_arena(stmt, &backup);
   return 0;
 }
 

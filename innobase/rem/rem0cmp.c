@@ -61,10 +61,11 @@ must be a copy of the the one in ha_innobase.cc! */
 
 int
 innobase_mysql_cmp(
-/*===============*/	
+/*===============*/
 					/* out: 1, 0, -1, if a is greater,
 					equal, less than b, respectively */
-	int		mysql_type,	/* in: MySQL type */ 
+	int		mysql_type,	/* in: MySQL type */
+	uint		charset_number,	/* in: number of the charset */
 	unsigned char*	a,		/* in: data field */
 	unsigned int	a_length,	/* in: data field length,
 					not UNIV_SQL_NULL */
@@ -97,16 +98,28 @@ cmp_types_are_equal(
 	dtype_t*	type1,	/* in: type 1 */
 	dtype_t*	type2)	/* in: type 2 */
 {
-        if ((type1->mtype == DATA_VARCHAR && type2->mtype == DATA_CHAR)
-          || (type1->mtype == DATA_CHAR && type2->mtype == DATA_VARCHAR)
-          || (type1->mtype == DATA_FIXBINARY && type2->mtype == DATA_BINARY)
-          || (type1->mtype == DATA_BINARY && type2->mtype == DATA_FIXBINARY)
-          || (type1->mtype == DATA_MYSQL && type2->mtype == DATA_VARMYSQL)
-          || (type1->mtype == DATA_VARMYSQL && type2->mtype == DATA_MYSQL)) {
+	if (dtype_is_non_binary_string_type(type1->mtype, type1->prtype)
+	    && dtype_is_non_binary_string_type(type2->mtype, type2->prtype)) {
 
-                return(TRUE);
+		/* Both are non-binary string types: they can be compared if
+		and only if the charset-collation is the same */
+
+		if (dtype_get_charset_coll(type1->prtype)
+				== dtype_get_charset_coll(type2->prtype)) {
+			return(TRUE);
+		}
+
+		return(FALSE);
         }
 
+	if (dtype_is_binary_string_type(type1->mtype, type1->prtype)
+	    && dtype_is_binary_string_type(type2->mtype, type2->prtype)) {
+
+		/* Both are binary string types: they can be compared */
+
+		return(TRUE);
+	}
+	
         if (type1->mtype != type2->mtype) {
 
 		return(FALSE);
@@ -127,11 +140,6 @@ cmp_types_are_equal(
 	
 		return(FALSE);
 	}
-
-	if (type1->mtype == DATA_BLOB && (type1->prtype & DATA_BINARY_TYPE)
-			           != (type2->prtype & DATA_BINARY_TYPE)) {
-	        return(FALSE);
-	} 
 
 	return(TRUE);
 }
@@ -269,6 +277,7 @@ cmp_whole_field(
 
 		return(innobase_mysql_cmp(
 				(int)(type->prtype & DATA_MYSQL_TYPE_MASK),
+				(uint)dtype_get_charset_coll(type->prtype),
 				a, a_length, b, b_length));
 	default:
 	        fprintf(stderr,
@@ -322,7 +331,9 @@ cmp_data_data_slow(
 	
 	if (cur_type->mtype >= DATA_FLOAT
 	    || (cur_type->mtype == DATA_BLOB
-	        && (cur_type->prtype & DATA_NONLATIN1))) {
+	        && 0 == (cur_type->prtype & DATA_BINARY_TYPE)
+		&& dtype_get_charset_coll(cur_type->prtype) !=
+				data_mysql_latin1_swedish_charset_coll)) {
 
 		return(cmp_whole_field(cur_type, data1, len1, data2, len2));
 	}
@@ -523,8 +534,10 @@ cmp_dtuple_rec_with_match(
 		}
 
 		if (cur_type->mtype >= DATA_FLOAT
-		    || (cur_type->mtype == DATA_BLOB
-	                && (cur_type->prtype & DATA_NONLATIN1))) {
+	    	    || (cur_type->mtype == DATA_BLOB
+	        	&& 0 == (cur_type->prtype & DATA_BINARY_TYPE)
+			&& dtype_get_charset_coll(cur_type->prtype) !=
+				data_mysql_latin1_swedish_charset_coll)) {
 
 			ret = cmp_whole_field(cur_type,
 				dfield_get_data(dtuple_field), dtuple_f_len,
@@ -845,8 +858,10 @@ cmp_rec_rec_with_match(
 		}
 
 		if (cur_type->mtype >= DATA_FLOAT
-		    || (cur_type->mtype == DATA_BLOB
-	                && (cur_type->prtype & DATA_NONLATIN1))) {
+	    	    || (cur_type->mtype == DATA_BLOB
+	        	&& 0 == (cur_type->prtype & DATA_BINARY_TYPE)
+			&& dtype_get_charset_coll(cur_type->prtype) !=
+				data_mysql_latin1_swedish_charset_coll)) {
 
 			ret = cmp_whole_field(cur_type,
 						rec1_b_ptr, rec1_f_len,

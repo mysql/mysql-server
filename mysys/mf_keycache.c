@@ -1961,7 +1961,7 @@ int key_cache_write(KEY_CACHE *keycache,
       else if (! (block->status & BLOCK_CHANGED))
         link_to_changed_list(keycache, block);
 
-      set_if_smaller(block->offset, offset)
+      set_if_smaller(block->offset, offset);
       set_if_bigger(block->length, read_length+offset);
 
       if (! (block->status & BLOCK_ERROR))
