@@ -426,7 +426,7 @@ void THD::close_active_vio()
     vio_close(active_vio);
     active_vio = 0;
   }
-  DBUG_RETURN;
+  DBUG_VOID_RETURN;
 }
 #endif
 
