@@ -27,6 +27,7 @@
 
 #include <sys/wait.h>
 #include <my_sys.h>
+#include <signal.h>
 #include <m_string.h>
 #include <mysql.h>
 
