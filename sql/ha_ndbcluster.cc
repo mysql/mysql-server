@@ -2171,6 +2171,7 @@ int ha_ndbcluster::delete_row(const byte *record)
   DBUG_ENTER("delete_row");
 
   statistic_increment(thd->status_var.ha_delete_count,&LOCK_status);
+  m_rows_changed++;
 
   if (cursor)
   {
@@ -2220,8 +2221,6 @@ int ha_ndbcluster::delete_row(const byte *record)
           return res;  
     }
   }
-
-  m_rows_changed++;
 
   // Execute delete operation
   if (execute_no_commit(this,trans) != 0) {
