@@ -571,7 +571,7 @@ static void make_sortkey(register SORTPARAM *param,
 	  change_double_for_sort(value,(byte*) to);
 	  break;
 	}
-      case ROW_RESULT: 
+      default: 
 	// This case should never be choosen
 	DBUG_ASSERT(0);
 	break;
@@ -954,7 +954,7 @@ sortlength(SORT_FIELD *sortorder, uint s_length)
       case REAL_RESULT:
 	sortorder->length=sizeof(double);
 	break;
-      case ROW_RESULT: 
+      default: 
 	// This case should never be choosen
 	DBUG_ASSERT(0);
 	break;
