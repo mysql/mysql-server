@@ -1113,6 +1113,7 @@ Dbtup::updateStartLab(Signal* signal,
                                 regOperPtr->attrinbufLen);
     if (retValue == -1) {
       tupkeyErrorLab(signal);
+      return -1;
     }//if
   } else {
     jam();
