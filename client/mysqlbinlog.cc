@@ -396,8 +396,8 @@ static int check_header(IO_CACHE* file)
     if (buf[4] == START_EVENT)
     {
       uint event_len;
-      event_len = uint4korr(buf + 4);
-      old_format = (event_len < LOG_EVENT_HEADER_LEN + START_HEADER_LEN);
+      event_len = uint4korr(buf + EVENT_LEN_OFFSET);
+      old_format = (event_len < (LOG_EVENT_HEADER_LEN + START_HEADER_LEN));
     }
   }
   my_b_seek(file, pos);
