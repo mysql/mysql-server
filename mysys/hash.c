@@ -174,6 +174,7 @@ static uint hash_rec_mask(HASH *hash,HASH_LINK *pos,uint buffmax,
 
 
 /* for compilers which can not handle inline */
+static
 #if !defined(__SUNPRO_C) && !defined(__USLC__) && !defined(__sgi)
 inline
 #endif
