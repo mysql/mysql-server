@@ -389,6 +389,13 @@ bool mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
   uint create_options= create_info ? create_info->options : 0;
   uint path_len;
   DBUG_ENTER("mysql_create_db");
+
+  /* do not create 'information_schema' db */
+  if (!my_strcasecmp(system_charset_info, db, information_schema_name.str))
+  {
+    my_error(ER_DB_CREATE_EXISTS, MYF(0), db);
+    DBUG_RETURN(-1);
+  }
   
   VOID(pthread_mutex_lock(&LOCK_mysql_create_db));
 
@@ -1015,6 +1022,7 @@ bool mysql_change_db(THD *thd, const char *name)
   char *dbname=my_strdup((char*) name,MYF(MY_WME));
   char	path[FN_REFLEN];
   HA_CREATE_INFO create;
+  bool schema_db= 0;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   ulong db_access;
 #endif
@@ -1034,6 +1042,15 @@ bool mysql_change_db(THD *thd, const char *name)
     DBUG_RETURN(1);
   }
   DBUG_PRINT("info",("Use database: %s", dbname));
+  if (!my_strcasecmp(system_charset_info, dbname, information_schema_name.str))
+  {
+    schema_db= 1;
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+    db_access= SELECT_ACL;
+#endif
+    goto end;
+  }
+
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (test_all_bits(thd->master_access,DB_ACLS))
     db_access=DB_ACLS;
@@ -1064,6 +1081,7 @@ bool mysql_change_db(THD *thd, const char *name)
     my_free(dbname,MYF(0));
     DBUG_RETURN(1);
   }
+end:
   send_ok(thd);
   x_free(thd->db);
   thd->db=dbname;				// THD::~THD will free this
@@ -1071,11 +1089,19 @@ bool mysql_change_db(THD *thd, const char *name)
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   thd->db_access=db_access;
 #endif
-  strmov(path+unpack_dirname(path,path), MY_DB_OPT_FILE);
-  load_db_opt(thd, path, &create);
-  thd->db_charset= create.default_table_charset ?
-		   create.default_table_charset :
-		   thd->variables.collation_server;
-  thd->variables.collation_database= thd->db_charset;
+  if (schema_db)
+  {
+    thd->db_charset= system_charset_info;
+    thd->variables.collation_database= system_charset_info;
+  }
+  else
+  {
+    strmov(path+unpack_dirname(path,path), MY_DB_OPT_FILE);
+    load_db_opt(thd, path, &create);
+    thd->db_charset= create.default_table_charset ?
+      create.default_table_charset :
+      thd->variables.collation_server;
+    thd->variables.collation_database= thd->db_charset;
+  }
   DBUG_RETURN(0);
 }
