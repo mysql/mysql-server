@@ -28,7 +28,7 @@
 #include <my_pthread.h>				/* because of signal()	*/
 #endif
 
-#define ADMIN_VERSION "8.13"
+#define ADMIN_VERSION "8.14"
 #define MAX_MYSQL_VAR 64
 #define MAX_TIME_TO_WAIT 3600			/* Wait for shutdown */
 #define MAX_TRUNC_LENGTH 3
@@ -37,9 +37,9 @@ char truncated_var_names[MAX_MYSQL_VAR][MAX_TRUNC_LENGTH];
 char ex_var_names[MAX_MYSQL_VAR][FN_REFLEN];
 ulonglong last_values[MAX_MYSQL_VAR];
 static int interval=0;
-static my_bool option_force=0,interrupted=0,new_line=0,option_silent=0,
+static my_bool option_force=0,interrupted=0,new_line=0,
                opt_compress=0, opt_relative=0, opt_verbose=0, opt_vertical=0;
-static uint tcp_port = 0, option_wait = 0;
+static uint tcp_port = 0, option_wait = 0, option_silent=0;
 static ulong opt_connect_timeout;
 static my_string unix_port=0;
 
@@ -201,7 +201,7 @@ int main(int argc,char *argv[])
       }
       break;
     case 's':
-      option_silent = 1;
+      option_silent++;
       break;
     case 'S':
       unix_port= optarg;
@@ -367,21 +367,22 @@ static my_bool sql_connect(MYSQL *mysql,const char *host, const char *user,
       fprintf(stderr,"Got error: %s\n", mysql_error(mysql));
       if (!option_force)
 	return 1;
-      sleep(5);
     }
-    else if (!info)
+    else if (!option_silent)
     {
-      info=1;
-      fputs("Waiting for MySQL server to answer",stderr);
-      (void) fflush(stderr);
-      sleep(5);
+      if (!info)
+      {
+	info=1;
+	fputs("Waiting for MySQL server to answer",stderr);
+	(void) fflush(stderr);
+      }
+      else
+      {
+	putc('.',stderr); 
+	(void) fflush(stderr);
+      }
     }
-    else
-    {
-      putc('.',stderr); 
-      (void) fflush(stderr);
-      sleep(5);
-    }
+    sleep(5);
   }
 }
 
@@ -739,7 +740,10 @@ static my_bool execute_commands(MYSQL *mysql,int argc, char **argv)
     case ADMIN_PING:
       mysql->reconnect=0;	/* We want to know of reconnects */
       if (!mysql_ping(mysql))
-        puts("mysqld is alive");
+      {
+	if (option_silent < 2)
+	  puts("mysqld is alive");
+      }
       else
       {
 	if (mysql_errno(mysql) == CR_SERVER_GONE_ERROR)

@@ -7,7 +7,7 @@ Master_Host	Master_User	Master_Port	Connect_retry	Log_File	Pos	Slave_Running	Rep
 Master_Host	Master_User	Master_Port	Connect_retry	Log_File	Pos	Slave_Running	Replicate_do_db	Replicate_ignore_db
 127.0.0.1	root	9306	60		4	No		
 Master_Host	Master_User	Master_Port	Connect_retry	Log_File	Pos	Slave_Running	Replicate_do_db	Replicate_ignore_db
-127.0.0.1	root	9306	60		4	Yes		
+127.0.0.1	root	9306	60	master-bin.001	73	Yes		
 n
 10
 45

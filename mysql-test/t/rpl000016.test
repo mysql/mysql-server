@@ -27,6 +27,7 @@ create table t2(m int);
 insert into t2 values (34),(67),(123);
 flush logs;
 show master logs;
+sleep 2; # If a slow machine
 purge master logs to 'master-bin.003';
 show master logs;
 insert into t2 values (65);

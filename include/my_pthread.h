@@ -433,6 +433,8 @@ int safe_cond_timedwait(pthread_cond_t *cond, safe_mutex_t *mp,
 #undef pthread_mutex_wait
 #undef pthread_mutex_timedwait
 #undef pthread_mutex_t
+#undef pthread_cond_wait
+#undef pthread_cond_timedwait
 #define pthread_mutex_init(A,B) safe_mutex_init((A),(B))
 #define pthread_mutex_lock(A) safe_mutex_lock((A),__FILE__,__LINE__)
 #define pthread_mutex_unlock(A) safe_mutex_unlock((A),__FILE__,__LINE__)
