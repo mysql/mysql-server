@@ -143,6 +143,7 @@ int main(int argc, char **argv)
       if (error == 1)
 	fprintf(stderr, "WARNING: Defaults file '%s' not found!\n",
 		config_file);
+      /* This error is not available now. For the future */
       if (error == 2)
 	fprintf(stderr, "WARNING: Defaults file '%s' is not a regular file!\n",
 		config_file);

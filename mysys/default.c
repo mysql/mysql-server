@@ -320,8 +320,6 @@ static int search_default_file(DYNAMIC_ARRAY *args, MEM_ROOT *alloc,
               name);
       return 0;
     }
-    else if ((stat_info.st_mode & S_IFMT) != S_IFREG)
-      return 2;
   }
 #endif
   if (!(fp = my_fopen(fn_format(name,name,"","",4),O_RDONLY,MYF(0))))
