@@ -218,77 +218,75 @@ String *Item_func_concat_ws::val_str(String *str)
     goto null;
 
   use_as_buff= &tmp_value;
-  str->length(0);
+  str->length(0);				// QQ; Should be removed
   res=str;
 
   // Skip until non-null and non-empty argument is found.
   // If not, return the empty string
-  for (i=0; !(res= args[i]->val_str(str)) || !res->length(); i++)
-  {
-    if ((i + 1) == arg_count)
-      return &empty_string;
-  }
+  for (i=0;
+       !(res= args[i]->val_str(str)) || !res->length() && i < arg_count;
+       i++) ;
+  if (i ==  arg_count)
+    return &empty_string;
 
   for (i++; i < arg_count ; i++)
   {
     if (!(res2= args[i]->val_str(use_as_buff)) || !res2->length())
-      continue;
-    else
+      continue;					// Skipp NULL and empty string
+
+    if (res->length() + sep_str->length() + res2->length() >
+	max_allowed_packet)
+      goto null;				// Error check
+    if (res->alloced_length() >=
+	res->length() + sep_str->length() + res2->length())
+    {						// Use old buffer
+      res->append(*sep_str);			// res->length() > 0 always
+      res->append(*res2);
+      use_as_buff= &tmp_value;
+    }
+    else if (str->alloced_length() >=
+	     res->length() + sep_str->length() + res2->length())
     {
-      if (res->length() + sep_str->length() + res2->length() >
-	  max_allowed_packet)
-	goto null;				// Error check
-      if (res->alloced_length() >=
-	  res->length() + sep_str->length() + res2->length())
-      {						// Use old buffer
-	res->append(*sep_str);                  // res->length() > 0 always
-	res->append(*res2);
-	use_as_buff= &tmp_value;
-      }
-      else if (str->alloced_length() >=
-	       res->length() + sep_str->length() + res2->length())
-      {
-	str->copy(*res);
-	str->append(*sep_str);
-	str->append(*res2);
-	res=str;
-	use_as_buff= &tmp_value;
-      }
-      else if (res == &tmp_value)
-      {
-	if ((res->length() && res->append(*sep_str)) || res->append(*res2))
-	  goto null; // Must be a blob
-      }
-      else if (tmp_value.is_alloced() && res2->ptr() >= tmp_value.ptr() &&
-    	       res2->ptr() <= tmp_value.ptr() + tmp_value.alloced_length())
-      {
-    	/*
-    	  This happens really seldom:
-    	  In this case res2 is sub string of tmp_value.  We will
-    	  now work in place in tmp_value to set it to res | res2
-    	*/
-    	/* Chop the last characters in tmp_value that isn't in res2 */
-    	tmp_value.length((uint32) (res2->ptr() - tmp_value.ptr()) +
-    			 res2->length());
-    	/* Place res2 at start of tmp_value, remove chars before res2 */
-	if (res->append(*sep_str))
-	  goto null;
-    	if (tmp_value.replace(0,(uint32) (res2->ptr() - tmp_value.ptr()),
-    			      *res))
-    	  goto null;
-    	res= &tmp_value;
-    	use_as_buff=str;			// Put next arg here
-      }
-      else
-      {						// Two big const strings
-	if (tmp_value.alloc(max_length) ||
-	    tmp_value.copy(*res) ||
-	    tmp_value.append(*sep_str) ||
-	    tmp_value.append(*res2))
-	  goto null;
-	res= &tmp_value;
-	use_as_buff=str;
-      }
+      str->copy(*res);
+      str->append(*sep_str);
+      str->append(*res2);
+      res=str;
+      use_as_buff= &tmp_value;
+    }
+    else if (res == &tmp_value)
+    {
+      if ((res->length() && res->append(*sep_str)) || res->append(*res2))
+	goto null; // Must be a blob
+    }
+    else if (tmp_value.is_alloced() && res2->ptr() >= tmp_value.ptr() &&
+	     res2->ptr() <= tmp_value.ptr() + tmp_value.alloced_length())
+    {
+      /*
+	This happens really seldom:
+	In this case res2 is sub string of tmp_value.  We will
+	now work in place in tmp_value to set it to res | res2
+      */
+      /* Chop the last characters in tmp_value that isn't in res2 */
+      tmp_value.length((uint32) (res2->ptr() - tmp_value.ptr()) +
+		       res2->length());
+      /* Place res2 at start of tmp_value, remove chars before res2 */
+      if (res->append(*sep_str))
+	goto null;
+      if (tmp_value.replace(0,(uint32) (res2->ptr() - tmp_value.ptr()),
+			    *res))
+	goto null;
+      res= &tmp_value;
+      use_as_buff=str;			// Put next arg here
+    }
+    else
+    {						// Two big const strings
+      if (tmp_value.alloc(max_length) ||
+	  tmp_value.copy(*res) ||
+	  tmp_value.append(*sep_str) ||
+	  tmp_value.append(*res2))
+	goto null;
+      res= &tmp_value;
+      use_as_buff=str;
     }
   }
   return res;

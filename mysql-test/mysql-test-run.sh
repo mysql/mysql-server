@@ -241,7 +241,7 @@ SLAVE_MYSQLD=$MYSQLD #this can be changed later if we are doing gcov
 #--
 wait_for_server_start ()
 {
-   $MYSQLADMIN --no-defaults -u $DBUSER --silent -w2 --host=$hostname --port=$1  ping >/dev/null
+   $MYSQLADMIN --no-defaults -u $DBUSER --silent -O connect_timeout=10 -w2 --host=$hostname --port=$1  ping >/dev/null 2>&1
 }
 
 prompt_user ()

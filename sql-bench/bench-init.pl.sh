@@ -152,8 +152,9 @@ sub merge_limits
   {
     foreach $name (split(",",$cmp))
     {
-      $tmp_server= get_server($name,$opt_host, $opt_database,
-			      $opt_odbc) || die "Unknown SQL server: $name\n";
+      $tmp_server= (get_server($name,$opt_host, $opt_database,
+			       $opt_odbc,machine_part())
+		    || die "Unknown SQL server: $name\n");
       $limits=$tmp_server->{'limits'};
       %new_limits=();
       foreach $limit (keys(%$limits))
@@ -365,11 +366,13 @@ sub print_time
 
 sub machine_part
 {
-  my ($name);
+  my ($name,$orig);
   return $opt_machine if (length($opt_machine)); # Specified by user
-  $name=machine();
-  $name="win9$1" if ($name =~ /win.*9(\d)/i);
-  $name="NT_$1" if ($name =~ /Windows NT.*(\d+\.\d+)/i);
+# Specified by user
+  $orig=$name=machine();
+  $name="win9$1" if ($orig =~ /win.*9(\d)/i);
+  $name="NT_$1" if ($orig =~ /Windows NT.*(\d+\.\d+)/i);
+  $name="win2k" if ($orig =~ /Windows 2000/i);
   $name =~ s/\s+/_/g;		# Make the filenames easier to parse
   $name =~ s/-/_/g;
   $name =~ s/\//_/g;

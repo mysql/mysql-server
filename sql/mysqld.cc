@@ -278,6 +278,7 @@ char server_version[SERVER_VERSION_LENGTH]=MYSQL_SERVER_VERSION;
 const char *first_keyword="first";
 const char **errmesg;			/* Error messages */
 const char *myisam_recover_options_str="OFF";
+enum_tx_isolation default_tx_isolation=ISO_READ_COMMITTED;
 my_string mysql_unix_port=NULL,mysql_tmpdir=NULL;
 ulong my_bind_addr;			/* the address we bind to */
 DATE_FORMAT dayord;
@@ -2426,7 +2427,7 @@ enum options {
                OPT_INNOBASE_FLUSH_LOG_AT_TRX_COMMIT, 
                OPT_SAFE_SHOW_DB,
 	       OPT_GEMINI_SKIP, OPT_INNOBASE_SKIP,
-               OPT_TEMP_POOL
+               OPT_TEMP_POOL, OPT_TX_ISOLATION
 };
 
 static struct option long_options[] = {
@@ -2553,6 +2554,7 @@ static struct option long_options[] = {
 #ifdef __WIN__
   {"standalone",            no_argument,       0, (int) OPT_STANDALONE},
 #endif
+  {"transaction-isolation", required_argument, 0, (int) OPT_TX_ISOLATION},
   {"temp-pool",             no_argument,       0, (int) OPT_TEMP_POOL},
   {"tmpdir",                required_argument, 0, 't'},
   {"use-locking",           no_argument,       0, (int) OPT_USE_LOCKING},
@@ -2946,6 +2948,8 @@ static void usage(void)
 			Don't give threads different priorities.\n\
   --socket=...		Socket file to use for connection\n\
   -t, --tmpdir=path	Path for temporary files\n\
+  --transaction-isolation\n\
+		        Default transaction isolation level\n\
   --temp-pool           Use a pool of temporary files\n\
   -u, --user=user_name	Run mysqld daemon as user\n\
   -V, --version		output version information and exit");
@@ -3080,6 +3084,7 @@ static void get_options(int argc,char **argv)
     case 'a':
       opt_ansi_mode=1;
       thd_startup_options|=OPTION_ANSI_MODE;
+      default_tx_isolation= ISO_SERIALIZABLE;
       break;
     case 'b':
       strmov(mysql_home,optarg);
@@ -3455,6 +3460,17 @@ static void get_options(int argc,char **argv)
       charsets_dir = mysql_charsets_dir;
       break;
 #include "sslopt-case.h"
+    case OPT_TX_ISOLATION:
+    {
+      int type;
+      if ((type=find_type(optarg, &tx_isolation_typelib, 2)) <= 0)
+      {
+	fprintf(stderr,"Unknown transaction isolation type: %s\n",optarg);
+	exit(1);
+      }
+      default_tx_isolation= (enum_tx_isolation) (type-1);
+      break;
+    }
 #ifdef HAVE_BERKELEY_DB
     case OPT_BDB_LOG:
       berkeley_logdir=optarg;

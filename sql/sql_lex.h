@@ -139,7 +139,9 @@ typedef struct st_lex {
   enum_sql_command sql_command;
   enum lex_states next_state;
   enum enum_duplicates duplicates;
+  enum enum_tx_isolation tx_isolation;
   uint in_sum_expr,grant,grant_tot_col,which_columns, sort_default;
+  uint gemini_spin_retries;
   thr_lock_type lock_option;
   bool	create_refs,drop_primary,drop_if_exists,local_file;
   bool  in_comment,ignore_space,verbose;

@@ -237,7 +237,7 @@ static inline void link_file_to_changed(SEC_LINK *next)
 #endif
 
 #ifndef DBUG_OFF
-static void test_key_cache(char *where, my_bool lock);
+static void test_key_cache(const char *where, my_bool lock);
 #endif
 
 
@@ -622,9 +622,10 @@ int flush_key_blocks(File file, enum flush_type type)
 
 	/* Test if disk-cachee is ok */
 
-static void test_key_cache(char *where, my_bool lock)
+static void test_key_cache(const char *where, my_bool lock)
 {
-  reg1 uint i,found,error,changed;
+  reg1 uint i,error;
+  ulong found,changed;
   SEC_LINK *pos,**prev;
 
   if (lock)
@@ -642,13 +643,13 @@ static void test_key_cache(char *where, my_bool lock)
 	error=1;
 	DBUG_PRINT("error",
 		   ("hash: %d  pos: %lx  : prev: %lx  !=  pos->prev: %lx",
-		    i,pos,prev,pos->prev_hash));
+		    i,(ulong) pos,(ulong) prev,(ulong) pos->prev_hash));
       }
 
       if (((pos->diskpos/KEYCACHE_BLOCK_SIZE)+pos->file) % _my_hash_blocks != i)
       {
 	DBUG_PRINT("error",("hash: %d  pos: %lx  : Wrong disk_buffer %ld",
-			    i,pos,pos->diskpos));
+			    i,(ulong) pos,(ulong) pos->diskpos));
 	error=1;
       }
     }
@@ -667,7 +668,7 @@ static void test_key_cache(char *where, my_bool lock)
       pos= _my_hash_root[i]; found=0;
       while (pos && found < 10)
       {
-	DBUG_PRINT("loop",("pos: %lx  prev: %lx  next: %lx  file: %d  disk_buffer: %ld", pos,pos->prev_hash,pos->next_hash,pos->file,pos->diskpos));
+	DBUG_PRINT("loop",("pos: %lx  prev: %lx  next: %lx  file: %d  disk_buffer: %ld", (ulong) pos, (ulong) pos->prev_hash, (ulong) pos->next_hash, (ulong) pos->file, (ulong) pos->diskpos));
 	found++; pos= pos->next_hash;
       }
     }
@@ -685,7 +686,9 @@ static void test_key_cache(char *where, my_bool lock)
       if (pos->next_used->prev_used != pos)
       {
 	DBUG_PRINT("error",("pos: %lx  next_used: %lx  next_used->prev: %lx",
-			    pos,pos->next_used,pos->next_used->prev_hash));
+			    (ulong) pos,
+			    (ulong) pos->next_used,
+			    (ulong) pos->next_used->prev_hash));
 	error=1;
       }
       pos=pos->next_used;
@@ -696,7 +699,7 @@ static void test_key_cache(char *where, my_bool lock)
   }
   if (found != _my_blocks_used)
   {
-    DBUG_PRINT("error",("Found %d of %d keyblocks",found,_my_blocks_used));
+    DBUG_PRINT("error",("Found %lu of %lu keyblocks",found,_my_blocks_used));
     error=1;
   }
 
@@ -751,7 +754,7 @@ static void test_key_cache(char *where, my_bool lock)
   }
   if (changed != 0)
   {
-    DBUG_PRINT("error",("Found %d blocks that wasn't in changed blocks",
+    DBUG_PRINT("error",("Found %lu blocks that wasn't in changed blocks",
 			changed));
     error=1;
   }

@@ -971,7 +971,7 @@ bool do_command(THD *thd)
     send_ok(net);				// Tell client we are alive
     break;
   case COM_PROCESS_INFO:
-    if (!thd->priv_user[0] && check_access(thd,PROCESS_ACL,any_db))
+    if (!thd->priv_user[0] && check_process_priv(thd))
       break;
     mysql_log.write(thd,command,NullS);
     mysqld_list_processes(thd,thd->master_access & PROCESS_ACL ? NullS :
@@ -984,7 +984,7 @@ bool do_command(THD *thd)
     break;
   }
   case COM_DEBUG:
-    if (check_access(thd,PROCESS_ACL,any_db))
+    if (check_process_priv(thd))
       break;					/* purecov: inspected */
     mysql_print_status(thd);
     mysql_log.write(thd,command,NullS);
@@ -1110,12 +1110,16 @@ mysql_execute_command(void)
 #endif
       break;
     }
-
-    if (lex->options & SELECT_HIGH_PRIORITY)
+    else
     {
+      /*
+	Normal select:
+	Change lock if we are using SELECT HIGH PRIORITY,
+	FOR UPDATE or IN SHARE MODE
+      */
       TABLE_LIST *table;
       for (table = tables ; table ; table=table->next)
-	table->lock_type=TL_READ_HIGH_PRIORITY;
+	table->lock_type= lex->lock_option;
     }
 
     if (!(res=open_and_lock_tables(thd,tables)))
@@ -1141,7 +1145,7 @@ mysql_execute_command(void)
   }
   case SQLCOM_PURGE:
     {
-      if(check_access(thd, PROCESS_ACL, any_db))
+      if (check_process_priv(thd))
 	goto error;
       res = purge_master_logs(thd, lex->to_log);
       break;
@@ -1174,14 +1178,14 @@ mysql_execute_command(void)
     }
   case SQLCOM_SHOW_SLAVE_STAT:
     {
-      if(check_access(thd, PROCESS_ACL, any_db))
+      if (check_process_priv(thd))
 	goto error;
       res = show_master_info(thd);
       break;
     }
   case SQLCOM_SHOW_MASTER_STAT:
     {
-      if (check_access(thd, PROCESS_ACL, any_db))
+      if (check_process_priv(thd))
 	goto error;
       res = show_binlog_info(thd);
       break;
@@ -1414,7 +1418,7 @@ mysql_execute_command(void)
     DBUG_VOID_RETURN;
 #else
     {
-      if(check_access(thd, PROCESS_ACL, any_db))
+      if (check_process_priv(thd))
 	goto error;
       res = show_binlogs(thd);
       break;
@@ -1632,13 +1636,13 @@ mysql_execute_command(void)
     DBUG_VOID_RETURN;
 #else
     if ((specialflag & SPECIAL_SKIP_SHOW_DB) &&
-	check_access(thd,PROCESS_ACL,any_db))
+	check_process_priv(thd))
       goto error;
     res= mysqld_show_dbs(thd, (lex->wild ? lex->wild->ptr() : NullS));
     break;
 #endif
   case SQLCOM_SHOW_PROCESSLIST:
-    if (!thd->priv_user[0] && check_access(thd,PROCESS_ACL,any_db))
+    if (!thd->priv_user[0] && check_process_priv(thd))
       break;
     mysqld_list_processes(thd,thd->master_access & PROCESS_ACL ? NullS :
 			  thd->priv_user,lex->verbose);
@@ -1778,6 +1782,12 @@ mysql_execute_command(void)
     thd->update_lock_default= ((thd->options & OPTION_LOW_PRIORITY_UPDATES) ?
 			       TL_WRITE_LOW_PRIORITY : TL_WRITE);
     thd->default_select_limit=lex->select_limit;
+    thd->tx_isolation=lex->tx_isolation;
+    if (thd->gemini_spin_retries != lex->gemini_spin_retries)
+    {
+      thd->gemini_spin_retries= lex->gemini_spin_retries;
+      ha_set_spin_retries(thd->gemini_spin_retries);
+    }
     DBUG_PRINT("info",("options: %ld  limit: %ld",
 		       thd->options,(long) thd->default_select_limit));
 
@@ -2089,6 +2099,12 @@ check_access(THD *thd,uint want_access,const char *db, uint *save_priv,
 	     thd->host ? thd->host : (thd->ip ? thd->ip : "unknown"),
 	     db ? db : thd->db ? thd->db : "unknown"); /* purecov: tested */
   return TRUE;					/* purecov: tested */
+}
+
+
+bool check_process_priv(THD *thd)
+{
+  return (check_access(thd ? thd : current_thd,PROCESS_ACL,any_db));
 }
 
 
