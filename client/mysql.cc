@@ -44,7 +44,7 @@
 #include <locale.h>
 #endif
 
-const char *VER= "14.2";
+const char *VER= "14.3";
 
 /* Don't try to make a nice table if the data is too big */
 #define MAX_COLUMN_LENGTH	     1024
@@ -1665,79 +1665,82 @@ com_go(String *buffer,char *line __attribute__((unused)))
     buffer->length(0); // Remove query on error
     return error;
   }
-
   error=0;
   buffer->length(0);
 
-  if (quick)
+  do
   {
-    if (!(result=mysql_use_result(&mysql)) && mysql_field_count(&mysql))
-      return put_error(&mysql);
-  }
-  else
-  {
-    error= mysql_store_result_for_lazy(&result);
-    if (error)
-      return error;
-  }
-
-  if (verbose >= 3 || !opt_silent)
-    mysql_end_timer(timer,time_buff);
-  else
-    time_buff[0]=0;
-  if (result)
-  {
-    if (!mysql_num_rows(result) && ! quick)
+    if (quick)
     {
-      strmov(buff, "Empty set");
+      if (!(result=mysql_use_result(&mysql)) && mysql_field_count(&mysql))
+	return put_error(&mysql);
     }
     else
     {
-      init_pager();
-      if (opt_html)
-	print_table_data_html(result);
-      else if (opt_xml)
-	print_table_data_xml(result);
-      else if (vertical)
-	print_table_data_vertically(result);
-      else if (opt_silent && verbose <= 2 && !output_tables)
-	print_tab_data(result);
-      else
-	print_table_data(result);
-      sprintf(buff,"%ld %s in set",
-	      (long) mysql_num_rows(result),
-	      (long) mysql_num_rows(result) == 1 ? "row" : "rows");
-      end_pager();
+      error= mysql_store_result_for_lazy(&result);
+      if (error)
+	return error;
     }
-  }
-  else if (mysql_affected_rows(&mysql) == ~(ulonglong) 0)
-    strmov(buff,"Query OK");
-  else
-    sprintf(buff,"Query OK, %ld %s affected",
-	    (long) mysql_affected_rows(&mysql),
-	    (long) mysql_affected_rows(&mysql) == 1 ? "row" : "rows");
 
-  pos=strend(buff);
-  if ((warnings= mysql_warning_count(&mysql)))
-  {
-    *pos++= ',';
-    *pos++= ' ';
-    pos=int2str(warnings, pos, 10);
-    pos=strmov(pos, " warning");
-    if (warnings != 1)
-      *pos++= 's';
-  }
-  strmov(pos, time_buff);
-  put_info(buff,INFO_RESULT);
-  if (mysql_info(&mysql))
-    put_info(mysql_info(&mysql),INFO_RESULT);
-  put_info("",INFO_RESULT);			// Empty row
+    if (verbose >= 3 || !opt_silent)
+      mysql_end_timer(timer,time_buff);
+    else
+      time_buff[0]=0;
+    if (result)
+    {
+      if (!mysql_num_rows(result) && ! quick)
+      {
+	strmov(buff, "Empty set");
+      }
+      else
+      {
+	init_pager();
+	if (opt_html)
+	  print_table_data_html(result);
+	else if (opt_xml)
+	  print_table_data_xml(result);
+	else if (vertical)
+	  print_table_data_vertically(result);
+	else if (opt_silent && verbose <= 2 && !output_tables)
+	  print_tab_data(result);
+	else
+	  print_table_data(result);
+	sprintf(buff,"%ld %s in set",
+		(long) mysql_num_rows(result),
+		(long) mysql_num_rows(result) == 1 ? "row" : "rows");
+	end_pager();
+      }
+    }
+    else if (mysql_affected_rows(&mysql) == ~(ulonglong) 0)
+      strmov(buff,"Query OK");
+    else
+      sprintf(buff,"Query OK, %ld %s affected",
+	      (long) mysql_affected_rows(&mysql),
+	      (long) mysql_affected_rows(&mysql) == 1 ? "row" : "rows");
 
-  if (result && !mysql_eof(result))	/* Something wrong when using quick */
-    error= put_error(&mysql);
-  else if (unbuffered)
-    fflush(stdout);
-  mysql_free_result(result);
+    pos=strend(buff);
+    if ((warnings= mysql_warning_count(&mysql)))
+    {
+      *pos++= ',';
+      *pos++= ' ';
+      pos=int2str(warnings, pos, 10);
+      pos=strmov(pos, " warning");
+      if (warnings != 1)
+	*pos++= 's';
+    }
+    strmov(pos, time_buff);
+    put_info(buff,INFO_RESULT);
+    if (mysql_info(&mysql))
+      put_info(mysql_info(&mysql),INFO_RESULT);
+    put_info("",INFO_RESULT);			// Empty row
+
+    if (result && !mysql_eof(result))	/* Something wrong when using quick */
+      error= put_error(&mysql);
+    else if (unbuffered)
+      fflush(stdout);
+    mysql_free_result(result);
+  } while (!mysql_next_result(&mysql));
+
   return error;				/* New command follows */
 }
 
@@ -2416,6 +2419,7 @@ com_delimiter(String *buffer __attribute__((unused)), char *line)
   }
   strmake(delimiter, tmp, sizeof(delimiter) - 1);
   delimiter_length= strlen(delimiter);
+  delimiter_str= delimiter;
   return 0;
 }
 
