@@ -216,12 +216,12 @@ Item_sum_num::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   DBUG_ASSERT(fixed == 0);
 
   if (save_args_for_prepared_statement(thd))
-    return 1;
+    return TRUE;
   
   if (!thd->allow_sum_func)
   {
     my_error(ER_INVALID_GROUP_FUNC_USE,MYF(0));
-    return 1;
+    return TRUE;
   }
   thd->allow_sum_func=0;			// No included group funcs
   decimals=0;
@@ -229,7 +229,7 @@ Item_sum_num::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   for (uint i=0 ; i < arg_count ; i++)
   {
     if (args[i]->fix_fields(thd, tables, args + i) || args[i]->check_cols(1))
-      return 1;
+      return TRUE;
     if (decimals < args[i]->decimals)
       decimals=args[i]->decimals;
     maybe_null |= args[i]->maybe_null;
@@ -240,7 +240,7 @@ Item_sum_num::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   fix_length_and_dec();
   thd->allow_sum_func=1;			// Allow group functions
   fixed= 1;
-  return 0;
+  return FALSE;
 }
 
 
@@ -250,13 +250,13 @@ Item_sum_hybrid::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   DBUG_ASSERT(fixed == 0);
 
   if (save_args_for_prepared_statement(thd))
-    return 1;
+    return TRUE;
 
   Item *item= args[0];
   if (!thd->allow_sum_func)
   {
     my_error(ER_INVALID_GROUP_FUNC_USE,MYF(0));
-    return 1;
+    return TRUE;
   }
   thd->allow_sum_func=0;			// No included group funcs
 
@@ -264,7 +264,7 @@ Item_sum_hybrid::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   if (!item->fixed &&
       item->fix_fields(thd, tables, args) ||
       (item= args[0])->check_cols(1))
-    return 1;
+    return TRUE;
 
   hybrid_type= item->result_type();
   if (hybrid_type == INT_RESULT)
@@ -295,7 +295,7 @@ Item_sum_hybrid::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   else
     hybrid_field_type= Item::field_type();
   fixed= 1;
-  return 0;
+  return FALSE;
 }
 
 
@@ -2061,12 +2061,12 @@ Item_func_group_concat::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   DBUG_ASSERT(fixed == 0);
 
   if (save_args_for_prepared_statement(thd))
-    return 1;
+    return TRUE;
 
   if (!thd->allow_sum_func)
   {
     my_error(ER_INVALID_GROUP_FUNC_USE,MYF(0));
-    return 1;
+    return TRUE;
   }
   
   thd->allow_sum_func= 0;
@@ -2080,7 +2080,7 @@ Item_func_group_concat::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   for (i=0 ; i < arg_count ; i++)  
   {
     if (args[i]->fix_fields(thd, tables, args + i) || args[i]->check_cols(1))
-      return 1;
+      return TRUE;
     if (i < arg_count_field)
       maybe_null|= args[i]->maybe_null;
   }
@@ -2090,10 +2090,10 @@ Item_func_group_concat::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   max_length= group_concat_max_len;
   thd->allow_sum_func= 1;
   if (!(tmp_table_param= new TMP_TABLE_PARAM))
-    return 1;
+    return TRUE;
   tables_list= tables;
   fixed= 1;
-  return 0;
+  return FALSE;
 }
 
 

@@ -1318,7 +1318,7 @@ bool Item::fix_fields(THD *thd,
   // We do not check fields which are fixed during construction
   DBUG_ASSERT(fixed == 0 || basic_const_item());
   fixed= 1;
-  return 0;
+  return FALSE;
 }
 
 double Item_ref_null_helper::val()
@@ -1486,9 +1486,9 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 	}
       }
       if (!tmp)
-	return -1;
+	return TRUE;
       if (!refer)
-	return 1;
+	return TRUE;
       if (tmp == not_found_field && refer == (Item **)not_found_item)
       {
 	if (upward_lookup)
@@ -1502,7 +1502,7 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 	  // Call to report error
 	  find_field_in_tables(thd, this, tables, ref, 1, 1);
 	}
-	return -1;
+	return TRUE;
       }
       else if (refer != (Item **)not_found_item)
       {
@@ -1510,7 +1510,7 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 	{
 	  my_error(ER_ILLEGAL_REFERENCE, MYF(0), name,
 		   "forward reference in item list");
-	  return -1;
+	  return TRUE;
 	}
 
 	Item_ref *rf;
@@ -1520,16 +1520,16 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 			       (char *)field_name);
 	register_item_tree_changing(ref);
 	if (!rf)
-	  return 1;
+	  return TRUE;
 	/*
 	  rf is Item_ref => never substitute other items (in this case)
 	  during fix_fields() => we can use rf after fix_fields()
 	*/
 	if (rf->fix_fields(thd, tables, ref) || rf->check_cols(1))
-	  return 1;
+	  return TRUE;
 
 	mark_as_dependent(thd, last, cursel, rf);
-	return 0;
+	return FALSE;
       }
       else
       {
@@ -1542,7 +1542,7 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 				 (char *)cached_table->alias,
 				 (char *)field_name);
 	  if (!rf)
-	    return 1;
+	    return TRUE;
 	  /*
 	    rf is Item_ref => never substitute other items (in this case)
 	    during fix_fields() => we can use rf after fix_fields()
@@ -1552,7 +1552,7 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
       }
     }
     else if (!tmp)
-      return -1;
+      return TRUE;
 
     /*
       if it is not expression from merged VIEW we will set this field.
@@ -1603,12 +1603,12 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
                       thd->host_or_ip,
                       field_name,
                       tab);
-      return 1;
+      return TRUE;
     }
   }
 #endif
   fixed= 1;
-  return 0;
+  return FALSE;
 }
 
 void Item_field::cleanup()
@@ -2248,9 +2248,9 @@ bool Item_ref::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
       }
 
       if (!ref)
-	return 1;
+	return TRUE;
       else if (!tmp)
-	return -1;
+	return TRUE;
       else if (ref == (Item **)not_found_item && tmp == not_found_field)
       {
 	if (upward_lookup)
@@ -2268,7 +2268,7 @@ bool Item_ref::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
 			    REPORT_ALL_ERRORS);
 	}
         ref= 0;
-	return 1;
+	return TRUE;
       }
       else if (tmp != not_found_field)
       {
@@ -2277,10 +2277,10 @@ bool Item_ref::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
 	{
 	  Item_field* fld;
 	  if (!((*reference)= fld= new Item_field(tmp)))
-	    return 1;
+	    return TRUE;
 	  mark_as_dependent(thd, last, thd->lex->current_select, fld);
 	  register_item_tree_changing(reference);
-	  return 0;
+	  return FALSE;
 	}
         /*
 	  We can leave expression substituted from view for next PS/SP
@@ -2300,7 +2300,7 @@ bool Item_ref::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
 	{
 	  my_error(ER_ILLEGAL_REFERENCE, MYF(0), name,
 		   "forward reference in item list");
-	  return -1;
+	  return TRUE;
 	}
 	mark_as_dependent(thd, last, thd->lex->current_select,
 			  this);
@@ -2308,14 +2308,14 @@ bool Item_ref::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
       }
     }
     else if (!ref)
-      return 1;
+      return TRUE;
     else
     {
       if (!(*ref)->fixed)
       {
 	my_error(ER_ILLEGAL_REFERENCE, MYF(0), name,
 		 "forward reference in item list");
-	return -1;
+	return TRUE;
       }
       ref= thd->lex->current_select->ref_pointer_array + counter;
     }
@@ -2338,7 +2338,7 @@ bool Item_ref::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
 	     ((*ref)->with_sum_func?
 	      "reference on group function":
 	      "forward reference in item list"));
-    return 1;
+    return TRUE;
   }
   max_length= (*ref)->max_length;
   maybe_null= (*ref)->maybe_null;
@@ -2348,8 +2348,8 @@ bool Item_ref::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
   fixed= 1;
 
   if (ref && (*ref)->check_cols(1))
-    return 1;
-  return 0;
+    return TRUE;
+  return FALSE;
 }
 
 
@@ -2455,17 +2455,17 @@ bool Item_default_value::fix_fields(THD *thd,
   if (!arg)
   {
     fixed= 1;
-    return 0;
+    return FALSE;
   }
   if (arg->fix_fields(thd, table_list, &arg))
-    return 1;
+    return TRUE;
   
   if (arg->type() == REF_ITEM)
   {
     Item_ref *ref= (Item_ref *)arg;
     if (ref->ref[0]->type() != FIELD_ITEM)
     {
-      return 1;
+      return TRUE;
     }
     arg= ref->ref[0];
   }
@@ -2474,16 +2474,16 @@ bool Item_default_value::fix_fields(THD *thd,
   {
     my_printf_error(ER_NO_DEFAULT_FOR_FIELD, ER(ER_NO_DEFAULT_FOR_FIELD),
                     MYF(0), field_arg->field->field_name);
-    return 1;
+    return TRUE;
   }
   if (!(def_field= (Field*) sql_alloc(field_arg->field->size_of())))
-    return 1;
+    return TRUE;
   memcpy(def_field, field_arg->field, field_arg->field->size_of());
   def_field->move_field(def_field->table->default_values -
                         def_field->table->record[0]);
   set_field(def_field);
   fixed= 1;
-  return 0;
+  return FALSE;
 }
 
 void Item_default_value::print(String *str)
@@ -2511,14 +2511,14 @@ bool Item_insert_value::fix_fields(THD *thd,
 {
   DBUG_ASSERT(fixed == 0);
   if (arg->fix_fields(thd, table_list, &arg))
-    return 1;
+    return TRUE;
 
   if (arg->type() == REF_ITEM)
   {
     Item_ref *ref= (Item_ref *)arg;
     if (ref->ref[0]->type() != FIELD_ITEM)
     {
-      return 1;
+      return TRUE;
     }
     arg= ref->ref[0];
   }
@@ -2527,7 +2527,7 @@ bool Item_insert_value::fix_fields(THD *thd,
   {
     Field *def_field= (Field*) sql_alloc(field_arg->field->size_of());
     if (!def_field)
-      return 1;
+      return TRUE;
     memcpy(def_field, field_arg->field, field_arg->field->size_of());
     def_field->move_field(def_field->table->insert_values -
                           def_field->table->record[0]);
@@ -2541,7 +2541,7 @@ bool Item_insert_value::fix_fields(THD *thd,
 			     tmp_field->table, &my_charset_bin));
   }
   fixed= 1;
-  return 0;
+  return FALSE;
 }
 
 void Item_insert_value::print(String *str)

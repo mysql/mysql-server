@@ -49,7 +49,7 @@ flush privileges;
 #show tables;
 connect (con1,localhost,test,gambling2,mysql);
 set password="";
---error 1105
+--error 1371
 set password='gambling3';
 set password=old_password('gambling3');
 show tables;

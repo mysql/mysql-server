@@ -38,12 +38,13 @@ static File_option triggers_file_parameters[]=
     methods.
 
   RETURN VALUE
-    0 - Success, non-0 in case of error.
+    FALSE Success
+    TRUE  error
 */
-int mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
+bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
 {
   TABLE *table;
-  int result= 0;
+  bool result= 0;
 
   DBUG_ENTER("mysql_create_or_drop_trigger");
 
@@ -53,7 +54,7 @@ int mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
   */
 
   if (open_and_lock_tables(thd, tables))
-    DBUG_RETURN(-1);
+    DBUG_RETURN(TRUE);
 
   /*
     TODO: We should check if user has TRIGGER privilege for table here.
@@ -61,7 +62,7 @@ int mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
     we don't have proper privilege checking for triggers in place yet.
   */
   if (check_global_access(thd, SUPER_ACL))
-    DBUG_RETURN(1);
+    DBUG_RETURN(TRUE);
 
   table= tables->table;
 
@@ -74,7 +75,7 @@ int mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
   if (tables->view || table->tmp_table != NO_TMP_TABLE)
   {
     my_error(ER_TRG_ON_VIEW_OR_TEMP_TABLE, MYF(0), tables->alias);
-    DBUG_RETURN(-1);
+    DBUG_RETURN(TRUE);
   }
 
   if (!table->triggers)
@@ -82,11 +83,11 @@ int mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
     if (!create)
     {
       my_error(ER_TRG_DOES_NOT_EXIST, MYF(0));
-      DBUG_RETURN(-1);
+      DBUG_RETURN(TRUE);
     }
 
     if (!(table->triggers= new (&table->mem_root) Table_triggers_list()))
-      DBUG_RETURN(-1);
+      DBUG_RETURN(TRUE);
   }
 
   /*
@@ -96,12 +97,12 @@ int mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
     global read lock is held without helding LOCK_open).
   */
   if (wait_if_global_read_lock(thd, 0, 0))
-    DBUG_RETURN(-1);
+    DBUG_RETURN(TRUE);
 
   VOID(pthread_mutex_lock(&LOCK_open));
-  if ((create ? table->triggers->create_trigger(thd, tables):
-                table->triggers->drop_trigger(thd, tables)))
-    result= -1;
+  result= (create ?
+           table->triggers->create_trigger(thd, tables):
+           table->triggers->drop_trigger(thd, tables));
 
   /* It is sensible to invalidate table in any case */
   close_cached_table(thd, table);

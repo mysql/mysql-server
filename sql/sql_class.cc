@@ -762,7 +762,7 @@ select_result::select_result()
 
 void select_result::send_error(uint errcode,const char *err)
 {
-  ::send_error(thd, errcode, err);
+  my_message(errcode, err, MYF(0));
 }
 
 
@@ -865,7 +865,7 @@ bool select_send::send_eof()
 
 void select_to_file::send_error(uint errcode,const char *err)
 {
-  ::send_error(thd,errcode,err);
+  my_message(errcode, err, MYF(0));
   if (file > 0)
   {
     (void) end_io_cache(&cache);

@@ -87,21 +87,21 @@ static bool check_fields(THD *thd, List<Item> &items)
 }
 
 
-int mysql_update(THD *thd,
-                 TABLE_LIST *table_list,
-                 List<Item> &fields,
-		 List<Item> &values,
-                 COND *conds,
-                 uint order_num, ORDER *order,
-		 ha_rows limit,
-		 enum enum_duplicates handle_duplicates)
+bool mysql_update(THD *thd,
+                  TABLE_LIST *table_list,
+                  List<Item> &fields,
+                  List<Item> &values,
+                  COND *conds,
+                  uint order_num, ORDER *order,
+                  ha_rows limit,
+                  enum enum_duplicates handle_duplicates)
 {
   bool		using_limit= limit != HA_POS_ERROR;
   bool		safe_update= thd->options & OPTION_SAFE_UPDATES;
   bool		used_key_is_modified, transactional_table, log_delayed;
   bool          ignore_err= (thd->lex->duplicates == DUP_IGNORE);
+  bool          res;
   int		error=0;
-  int           res;
   uint		used_index;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   uint		want_privilege;
@@ -117,8 +117,8 @@ int mysql_update(THD *thd,
   LINT_INIT(used_index);
   LINT_INIT(timestamp_query_id);
 
-  if ((error= open_and_lock_tables(thd, table_list)))
-    DBUG_RETURN(error);
+  if (open_and_lock_tables(thd, table_list))
+    DBUG_RETURN(TRUE);
   thd->proc_info="init";
   table= table_list->table;
   table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
@@ -156,16 +156,16 @@ int mysql_update(THD *thd,
     res= setup_fields(thd, 0, table_list, fields, 1, 0, 0);
     thd->lex->select_lex.no_wrap_view_item= 0;
     if (res)
-      DBUG_RETURN(-1);				/* purecov: inspected */
+      DBUG_RETURN(TRUE);			/* purecov: inspected */
   }
   if (table_list->view && check_fields(thd, fields))
   {
-    DBUG_RETURN(-1);
+    DBUG_RETURN(TRUE);
   }
   if (!table_list->updatable || check_key_in_view(thd, table_list))
   {
     my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table_list->alias, "UPDATE");
-    DBUG_RETURN(-1);
+    DBUG_RETURN(TRUE);
   }
   if (table->timestamp_field)
   {
@@ -184,7 +184,7 @@ int mysql_update(THD *thd,
   if (setup_fields(thd, 0, table_list, values, 0, 0, 0))
   {
     free_underlaid_joins(thd, &thd->lex->select_lex);
-    DBUG_RETURN(-1);				/* purecov: inspected */
+    DBUG_RETURN(TRUE);				/* purecov: inspected */
   }
 
   // Don't count on usage of 'only index' when calculating which key to use
@@ -197,10 +197,10 @@ int mysql_update(THD *thd,
     free_underlaid_joins(thd, &thd->lex->select_lex);
     if (error)
     {
-      DBUG_RETURN(-1);				// Error in where
+      DBUG_RETURN(TRUE);				// Error in where
     }
     send_ok(thd);				// No matching records
-    DBUG_RETURN(0);
+    DBUG_RETURN(FALSE);
   }
   /* If running in safe sql mode, don't allow updates without keys */
   if (table->quick_keys.is_clear_all())
@@ -363,7 +363,15 @@ int mysql_update(THD *thd,
     {
       store_record(table,record[1]);
       if (fill_record(fields,values, 0) || thd->net.report_error)
+      {
+	/* Field::store methods can't send errors */
+	if (!thd->net.report_error)
+	{
+	  /* TODO: convert last warning to error */
+	  my_error(ER_UNKNOWN_ERROR, MYF(0));
+	}
 	break; /* purecov: inspected */
+      }
       found++;
 
       if (table->triggers)
@@ -456,9 +464,7 @@ int mysql_update(THD *thd,
   }
 
   free_underlaid_joins(thd, &thd->lex->select_lex);
-  if (error >= 0)
-    send_error(thd,thd->killed_errno()); /* purecov: inspected */
-  else
+  if (error < 0)
   {
     char buff[80];
     sprintf(buff, ER(ER_UPDATE_INFO), (ulong) found, (ulong) updated,
@@ -472,7 +478,7 @@ int mysql_update(THD *thd,
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;		/* calc cuted fields */
   thd->abort_on_warning= 0;
   free_io_cache(table);
-  DBUG_RETURN(0);
+  DBUG_RETURN(FALSE);
 
 err:
   delete select;
@@ -483,7 +489,7 @@ err:
     table->file->extra(HA_EXTRA_NO_KEYREAD);
   }
   thd->abort_on_warning= 0;
-  DBUG_RETURN(-1);
+  DBUG_RETURN(TRUE);
 }
 
 /*
@@ -555,11 +561,11 @@ int mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
     thd         thread handler
 
   RETURN
-    0   OK
-    -1  Error
+    FALSE OK
+    TRUE  Error
 */
 
-int mysql_multi_update_prepare(THD *thd)
+bool mysql_multi_update_prepare(THD *thd)
 {
   LEX *lex= thd->lex;
   TABLE_LIST *table_list= lex->query_tables;
@@ -597,7 +603,7 @@ int mysql_multi_update_prepare(THD *thd)
        res= setup_fields(thd, 0, table_list, *fields, 1, 0, 0),
        thd->lex->select_lex.no_wrap_view_item= 0,
        res))
-    DBUG_RETURN(-1);
+    DBUG_RETURN(TRUE);
 
   for (tl= table_list; tl ; tl= tl->next_local)
   {
@@ -610,7 +616,7 @@ int mysql_multi_update_prepare(THD *thd)
 
   if (update_view && check_fields(thd, *fields))
   {
-    DBUG_RETURN(-1);
+    DBUG_RETURN(TRUE);
   }
 
   {
@@ -650,36 +656,36 @@ int mysql_multi_update_prepare(THD *thd)
           (tables_for_update & tl->table->map))
       {
 	my_error(ER_NON_UPDATABLE_TABLE, MYF(0), tl->alias, "UPDATE");
-	DBUG_RETURN(-1);
+	DBUG_RETURN(TRUE);
       }
     }
   }
-  DBUG_RETURN (0);
+  DBUG_RETURN(FALSE);
 }
 
 
-int mysql_multi_update(THD *thd,
-		       TABLE_LIST *table_list,
-		       List<Item> *fields,
-		       List<Item> *values,
-		       COND *conds,
-		       ulong options,
-		       enum enum_duplicates handle_duplicates,
-		       SELECT_LEX_UNIT *unit, SELECT_LEX *select_lex)
+bool mysql_multi_update(THD *thd,
+                        TABLE_LIST *table_list,
+                        List<Item> *fields,
+                        List<Item> *values,
+                        COND *conds,
+                        ulong options,
+                        enum enum_duplicates handle_duplicates,
+                        SELECT_LEX_UNIT *unit, SELECT_LEX *select_lex)
 {
-  int res;
+  bool res;
   multi_update *result;
   DBUG_ENTER("mysql_multi_update");
 
-  if ((res= open_and_lock_tables(thd, table_list)))
-    DBUG_RETURN(res);
+  if (open_and_lock_tables(thd, table_list))
+    DBUG_RETURN(TRUE);
 
   if ((res= mysql_multi_update_prepare(thd)))
     DBUG_RETURN(res);
 
   if (!(result= new multi_update(thd, table_list, fields, values,
 				 handle_duplicates)))
-    DBUG_RETURN(-1);
+    DBUG_RETURN(TRUE);
 
   thd->no_trans_update= 0;
   thd->abort_on_warning= test(thd->variables.sql_mode &
@@ -696,7 +702,7 @@ int mysql_multi_update(THD *thd,
 		    result, unit, select_lex);
   delete result;
   thd->abort_on_warning= 0;
-  DBUG_RETURN(res);
+  DBUG_RETURN(TRUE);
 }
 
 
@@ -1023,7 +1029,15 @@ bool multi_update::send_data(List<Item> &not_used_values)
       table->status|= STATUS_UPDATED;
       store_record(table,record[1]);
       if (fill_record(*fields_for_table[offset], *values_for_table[offset], 0))
+      {
+	/* Field::store methods can't send errors */
+	if (!thd->net.report_error)
+	{
+	  /* TODO: convert last warning to error */
+	  my_error(ER_UNKNOWN_ERROR, MYF(0));
+	}
 	DBUG_RETURN(1);
+      }
       found++;
       if (compare_record(table, thd->query_id))
       {
@@ -1087,7 +1101,7 @@ bool multi_update::send_data(List<Item> &not_used_values)
 void multi_update::send_error(uint errcode,const char *err)
 {
   /* First send error what ever it is ... */
-  ::send_error(thd,errcode,err);
+  my_error(errcode, MYF(0), err);
 
   /* If nothing updated return */
   if (!updated)
@@ -1278,7 +1292,6 @@ bool multi_update::send_eof()
     /* Safety: If we haven't got an error before (should not happen) */
     my_message(ER_UNKNOWN_ERROR, "An error occured in multi-table update",
 	       MYF(0));
-    ::send_error(thd);
     return 1;
   }
 

@@ -631,17 +631,17 @@ bool Item_in_optimizer::fix_fields(THD *thd, struct st_table_list *tables,
 {
   DBUG_ASSERT(fixed == 0);
   if (fix_left(thd, tables, ref))
-    return 1;
+    return TRUE;
   if (args[0]->maybe_null)
     maybe_null=1;
 
   if (!args[1]->fixed && args[1]->fix_fields(thd, tables, args+1))
-    return 1;
+    return TRUE;
   Item_in_subselect * sub= (Item_in_subselect *)args[1];
   if (args[0]->cols() != sub->engine->cols())
   {
     my_error(ER_OPERAND_COLUMNS, MYF(0), args[0]->cols());
-    return 1;
+    return TRUE;
   }
   if (args[1]->maybe_null)
     maybe_null=1;
@@ -650,7 +650,7 @@ bool Item_in_optimizer::fix_fields(THD *thd, struct st_table_list *tables,
   not_null_tables_cache|= args[1]->not_null_tables();
   const_item_cache&= args[1]->const_item();
   fixed= 1;
-  return 0;
+  return FALSE;
 }
 
 
@@ -1964,7 +1964,7 @@ Item_cond::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   and_tables_cache= ~(table_map) 0;
 
   if (check_stack_overrun(thd, buff))
-    return 1;					// Fatal error flag is set!
+    return TRUE;				// Fatal error flag is set!
   while ((item=li++))
   {
     table_map tmp_table_map;
@@ -1982,7 +1982,7 @@ Item_cond::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     if ((!item->fixed &&
 	 item->fix_fields(thd, tables, li.ref())) ||
 	(item= *li.ref())->check_cols(1))
-      return 1; /* purecov: inspected */
+      return TRUE; /* purecov: inspected */
     used_tables_cache|=     item->used_tables();
     tmp_table_map=	    item->not_null_tables();
     not_null_tables_cache|= tmp_table_map;
@@ -1995,7 +1995,7 @@ Item_cond::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   thd->lex->current_select->cond_count+= list.elements;
   fix_length_and_dec();
   fixed= 1;
-  return 0;
+  return FALSE;
 }
 
 bool Item_cond::walk(Item_processor processor, byte *arg)
@@ -2306,12 +2306,12 @@ bool Item_func_like::fix_fields(THD *thd, TABLE_LIST *tlist, Item ** ref)
   DBUG_ASSERT(fixed == 0);
   if (Item_bool_func2::fix_fields(thd, tlist, ref) ||
       escape_item->fix_fields(thd, tlist, &escape_item))
-    return 1;
+    return TRUE;
 
   if (!escape_item->const_during_execution())
   {
     my_error(ER_WRONG_ARGUMENTS,MYF(0),"ESCAPE");
-    return 1;
+    return TRUE;
   }
   
   if (escape_item->const_item())
@@ -2329,7 +2329,7 @@ bool Item_func_like::fix_fields(THD *thd, TABLE_LIST *tlist, Item ** ref)
     {
       String* res2 = args[1]->val_str(&tmp_value2);
       if (!res2)
-        return 0;				// Null argument
+        return FALSE;				// Null argument
       
       const size_t len   = res2->length();
       const char*  first = res2->ptr();
@@ -2362,7 +2362,7 @@ bool Item_func_like::fix_fields(THD *thd, TABLE_LIST *tlist, Item ** ref)
       }
     }
   }
-  return 0;
+  return FALSE;
 }
 
 #ifdef USE_REGEX
@@ -2373,13 +2373,13 @@ Item_func_regex::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   DBUG_ASSERT(fixed == 0);
   if (args[0]->fix_fields(thd, tables, args) || args[0]->check_cols(1) ||
       args[1]->fix_fields(thd,tables, args + 1) || args[1]->check_cols(1))
-    return 1;					/* purecov: inspected */
+    return TRUE;				/* purecov: inspected */
   with_sum_func=args[0]->with_sum_func || args[1]->with_sum_func;
   max_length= 1;
   decimals= 0;
 
   if (agg_arg_collations(cmp_collation, args, 2))
-    return 1;
+    return TRUE;
 
   used_tables_cache=args[0]->used_tables() | args[1]->used_tables();
   not_null_tables_cache= (args[0]->not_null_tables() |
@@ -2393,7 +2393,7 @@ Item_func_regex::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     if (args[1]->null_value)
     {						// Will always return NULL
       maybe_null=1;
-      return 0;
+      return FALSE;
     }
     int error;
     if ((error=regcomp(&preg,res->c_ptr(),
@@ -2404,7 +2404,7 @@ Item_func_regex::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     {
       (void) regerror(error,&preg,buff,sizeof(buff));
       my_printf_error(ER_REGEXP_ERROR,ER(ER_REGEXP_ERROR),MYF(0),buff);
-      return 1;
+      return TRUE;
     }
     regex_compiled=regex_is_const=1;
     maybe_null=args[0]->maybe_null;
@@ -2412,7 +2412,7 @@ Item_func_regex::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   else
     maybe_null=1;
   fixed= 1;
-  return 0;
+  return FALSE;
 }
 
 

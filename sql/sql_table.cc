@@ -57,15 +57,15 @@ static int copy_data_between_tables(TABLE *from,TABLE *to,
     Wait if global_read_lock (FLUSH TABLES WITH READ LOCK) is set.
 
   RETURN
-    0		ok.  In this case ok packet is sent to user
-    -1		Error  (Error message given but not sent to user)
+    FALSE OK.  In this case ok packet is sent to user
+    TRUE  Error
 
 */
 
-int mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
-		   my_bool drop_temporary)
+bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
+                    my_bool drop_temporary)
 {
-  int error= 0;
+  bool error= FALSE;
   DBUG_ENTER("mysql_rm_table");
 
   /* mark for close and remove all cached entries */
@@ -80,7 +80,7 @@ int mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
     {
       my_error(ER_TABLE_NOT_LOCKED_FOR_WRITE,MYF(0),
 	       tables->real_name);
-      error= 1;
+      error= TRUE;
       goto err;
     }
     while (global_read_lock && ! thd->killed)
@@ -100,9 +100,9 @@ int mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
   pthread_mutex_unlock(&thd->mysys_var->mutex);
 
   if (error)
-    DBUG_RETURN(-1);
+    DBUG_RETURN(TRUE);
   send_ok(thd);
-  DBUG_RETURN(0);
+  DBUG_RETURN(FALSE);
 }
 
 
@@ -1101,22 +1101,22 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
     and must be zero for standard create of table.
 
   RETURN VALUES
-    0	ok
-    -1	error
+    FALSE OK
+    TRUE  error
 */
 
-int mysql_create_table(THD *thd,const char *db, const char *table_name,
-		       HA_CREATE_INFO *create_info,
-		       List<create_field> &fields,
-		       List<Key> &keys,bool tmp_table,
-		       uint select_field_count)
+bool mysql_create_table(THD *thd,const char *db, const char *table_name,
+                        HA_CREATE_INFO *create_info,
+                        List<create_field> &fields,
+                        List<Key> &keys,bool tmp_table,
+                        uint select_field_count)
 {
   char		path[FN_REFLEN];
   const char	*alias;
-  int		error= -1;
   uint		db_options, key_count;
   KEY		*key_info_buffer;
   handler	*file;
+  bool		error= TRUE;
   enum db_type	new_db_type;
   DBUG_ENTER("mysql_create_table");
 
@@ -1124,7 +1124,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
   if (!fields.elements)
   {
     my_error(ER_TABLE_MUST_HAVE_COLUMNS,MYF(0));
-    DBUG_RETURN(-1);
+    DBUG_RETURN(TRUE);
   }
   if ((new_db_type= ha_checktype(create_info->db_type)) !=
       create_info->db_type)
@@ -1154,7 +1154,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
       (file->table_flags() & HA_NO_TEMP_TABLES))
   {
     my_error(ER_ILLEGAL_HA,MYF(0),table_name);
-    DBUG_RETURN(-1);
+    DBUG_RETURN(TRUE);
   }
 #endif
 
@@ -1179,7 +1179,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
 			  keys, tmp_table, db_options, file,
 			  key_info_buffer, &key_count,
 			  select_field_count))
-    DBUG_RETURN(-1);
+    DBUG_RETURN(TRUE);
 
       /* Check if table exists */
   if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
@@ -1202,10 +1202,10 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
     if (create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS)
     {
       create_info->table_existed= 1;		// Mark that table existed
-      DBUG_RETURN(0);
+      DBUG_RETURN(FALSE);
     }
     my_error(ER_TABLE_EXISTS_ERROR, MYF(0), alias);
-    DBUG_RETURN(-1);
+    DBUG_RETURN(TRUE);
   }
   if (wait_if_global_read_lock(thd, 0, 1))
     DBUG_RETURN(error);
@@ -1217,7 +1217,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
       if (create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS)
       {
 	create_info->table_existed= 1;		// Mark that table existed
-	error= 0;
+	error= FALSE;
       }
       else
 	my_error(ER_TABLE_EXISTS_ERROR,MYF(0),table_name);
@@ -1246,7 +1246,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
       if (create_if_not_exists)
       {
        create_info->table_existed= 1;   // Mark that table existed
-       error= 0;
+       error= FALSE;
       }
       else
        my_error(ER_TABLE_EXISTS_ERROR,MYF(0),table_name);
@@ -1285,7 +1285,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
                                HA_LEX_CREATE_TMP_TABLE));
     mysql_bin_log.write(&qinfo);
   }
-  error=0;
+  error= FALSE;
 end:
   VOID(pthread_mutex_unlock(&LOCK_open));
   start_waiting_global_read_lock(thd);
@@ -1547,7 +1547,7 @@ static int send_check_errmsg(THD *thd, TABLE_LIST* table,
   protocol->store((char*) operator_name, system_charset_info);
   protocol->store("error", 5, system_charset_info);
   protocol->store(errmsg, system_charset_info);
-  thd->net.last_error[0]=0;
+  thd->clear_error();
   if (protocol->write())
     return -1;
   return 1;
@@ -1722,16 +1722,16 @@ end:
 }
 
 
-static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
-			     HA_CHECK_OPT* check_opt,
-			     const char *operator_name,
-			     thr_lock_type lock_type,
-			     bool open_for_modify,
-			     uint extra_open_options,
-			     int (*prepare_func)(THD *, TABLE_LIST *,
-						 HA_CHECK_OPT *),
-			     int (handler::*operator_func)
-			     (THD *, HA_CHECK_OPT *))
+static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
+                              HA_CHECK_OPT* check_opt,
+                              const char *operator_name,
+                              thr_lock_type lock_type,
+                              bool open_for_modify,
+                              uint extra_open_options,
+                              int (*prepare_func)(THD *, TABLE_LIST *,
+                                                  HA_CHECK_OPT *),
+                              int (handler::*operator_func)
+                              (THD *, HA_CHECK_OPT *))
 {
   TABLE_LIST *table;
   List<Item> field_list;
@@ -1749,7 +1749,7 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
   item->maybe_null = 1;
   if (protocol->send_fields(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
-    DBUG_RETURN(-1);
+    DBUG_RETURN(TRUE);
 
   mysql_ha_close(thd, tables, /*dont_send_ok*/ 1, /*dont_lock*/ 1);
   for (table= tables; table; table= table->next_local)
@@ -1761,9 +1761,6 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
 
     thd->open_options|= extra_open_options;
     table->table = open_ltable(thd, table, lock_type);
-#ifdef EMBEDDED_LIBRARY
-    thd->net.last_errno= 0;  // these errors shouldn't get client
-#endif
     thd->open_options&= ~extra_open_options;
 
     if (prepare_func)
@@ -1785,7 +1782,7 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
       if (!(err_msg=thd->net.last_error))
 	err_msg=ER(ER_CHECK_NO_SUCH_TABLE);
       protocol->store(err_msg, system_charset_info);
-      thd->net.last_error[0]=0;
+      thd->clear_error();
       if (protocol->write())
 	goto err;
       continue;
@@ -1829,9 +1826,7 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
     }
 
     int result_code = (table->table->file->*operator_func)(thd, check_opt);
-#ifdef EMBEDDED_LIBRARY
-    thd->net.last_errno= 0;  // these errors shouldn't get client
-#endif
+    thd->clear_error();  // these errors shouldn't get client
     protocol->prepare_for_resend();
     protocol->store(table_name, system_charset_info);
     protocol->store(operator_name, system_charset_info);
@@ -1932,16 +1927,16 @@ send_result_message:
   }
 
   send_eof(thd);
-  DBUG_RETURN(0);
+  DBUG_RETURN(FALSE);
  err:
   close_thread_tables(thd);			// Shouldn't be needed
   if (table)
     table->table=0;
-  DBUG_RETURN(-1);
+  DBUG_RETURN(TRUE);
 }
 
 
-int mysql_backup_table(THD* thd, TABLE_LIST* table_list)
+bool mysql_backup_table(THD* thd, TABLE_LIST* table_list)
 {
   DBUG_ENTER("mysql_backup_table");
   DBUG_RETURN(mysql_admin_table(thd, table_list, 0,
@@ -1950,7 +1945,7 @@ int mysql_backup_table(THD* thd, TABLE_LIST* table_list)
 }
 
 
-int mysql_restore_table(THD* thd, TABLE_LIST* table_list)
+bool mysql_restore_table(THD* thd, TABLE_LIST* table_list)
 {
   DBUG_ENTER("mysql_restore_table");
   DBUG_RETURN(mysql_admin_table(thd, table_list, 0,
@@ -1960,7 +1955,7 @@ int mysql_restore_table(THD* thd, TABLE_LIST* table_list)
 }
 
 
-int mysql_repair_table(THD* thd, TABLE_LIST* tables, HA_CHECK_OPT* check_opt)
+bool mysql_repair_table(THD* thd, TABLE_LIST* tables, HA_CHECK_OPT* check_opt)
 {
   DBUG_ENTER("mysql_repair_table");
   DBUG_RETURN(mysql_admin_table(thd, tables, check_opt,
@@ -1970,7 +1965,7 @@ int mysql_repair_table(THD* thd, TABLE_LIST* tables, HA_CHECK_OPT* check_opt)
 }
 
 
-int mysql_optimize_table(THD* thd, TABLE_LIST* tables, HA_CHECK_OPT* check_opt)
+bool mysql_optimize_table(THD* thd, TABLE_LIST* tables, HA_CHECK_OPT* check_opt)
 {
   DBUG_ENTER("mysql_optimize_table");
   DBUG_RETURN(mysql_admin_table(thd, tables, check_opt,
@@ -1988,11 +1983,11 @@ int mysql_optimize_table(THD* thd, TABLE_LIST* tables, HA_CHECK_OPT* check_opt)
     tables	Table list (one table only)
 
   RETURN VALUES
-    0	  ok
-   -1	  error
+   FALSE ok
+   TRUE  error
 */
 
-int mysql_assign_to_keycache(THD* thd, TABLE_LIST* tables,
+bool mysql_assign_to_keycache(THD* thd, TABLE_LIST* tables,
 			     LEX_STRING *key_cache_name)
 {
   HA_CHECK_OPT check_opt;
@@ -2005,7 +2000,7 @@ int mysql_assign_to_keycache(THD* thd, TABLE_LIST* tables,
   {
     pthread_mutex_unlock(&LOCK_global_system_variables);
     my_error(ER_UNKNOWN_KEY_CACHE, MYF(0), key_cache_name->str);
-    DBUG_RETURN(-1);
+    DBUG_RETURN(TRUE);
   }
   pthread_mutex_unlock(&LOCK_global_system_variables);
   check_opt.key_cache= key_cache;
@@ -2063,11 +2058,11 @@ int reassign_keycache_tables(THD *thd, KEY_CACHE *src_cache,
     tables	Table list (one table only)
 
   RETURN VALUES
-    0	  ok
-   -1	  error
+    FALSE ok
+    TRUE  error
 */
 
-int mysql_preload_keys(THD* thd, TABLE_LIST* tables)
+bool mysql_preload_keys(THD* thd, TABLE_LIST* tables)
 {
   DBUG_ENTER("mysql_preload_keys");
   DBUG_RETURN(mysql_admin_table(thd, tables, 0,
@@ -2087,13 +2082,13 @@ int mysql_preload_keys(THD* thd, TABLE_LIST* tables)
     table_ident Src table_ident
 
   RETURN VALUES
-    0	  ok
-    -1	error
+    FALSE OK
+    TRUE  error
 */
 
-int mysql_create_like_table(THD* thd, TABLE_LIST* table,
-			    HA_CREATE_INFO *create_info,
-			    Table_ident *table_ident)
+bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
+                             HA_CREATE_INFO *create_info,
+                             Table_ident *table_ident)
 {
   TABLE **tmp_table;
   char src_path[FN_REFLEN], dst_path[FN_REFLEN];
@@ -2101,7 +2096,8 @@ int mysql_create_like_table(THD* thd, TABLE_LIST* table,
   char *table_name= table->real_name;
   char *src_db= thd->db;
   char *src_table= table_ident->table.str;
-  int  err, res= -1;
+  int  err;
+  bool res= TRUE;
   TABLE_LIST src_tables_list;
   DBUG_ENTER("mysql_create_like_table");
 
@@ -2114,7 +2110,7 @@ int mysql_create_like_table(THD* thd, TABLE_LIST* table,
       table_ident->db.str && check_db_name((src_db= table_ident->db.str)))
   {
     my_error(ER_WRONG_TABLE_NAME, MYF(0), src_table);
-    DBUG_RETURN(-1);
+    DBUG_RETURN(TRUE);
   }
 
   bzero((gptr)&src_tables_list, sizeof(src_tables_list));
@@ -2201,7 +2197,7 @@ int mysql_create_like_table(THD* thd, TABLE_LIST* table,
 			       HA_LEX_CREATE_TMP_TABLE));
     mysql_bin_log.write(&qinfo);
   }
-  res= 0;
+  res= FALSE;
   goto err;
 
 table_exists:
@@ -2212,7 +2208,7 @@ table_exists:
 		ER(ER_TABLE_EXISTS_ERROR), table_name);
     push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
 		 ER_TABLE_EXISTS_ERROR,warn_buff);
-    res= 0;
+    res= FALSE;
   }
   else
     my_error(ER_TABLE_EXISTS_ERROR, MYF(0), table_name);
@@ -2225,7 +2221,7 @@ err:
 }
 
 
-int mysql_analyze_table(THD* thd, TABLE_LIST* tables, HA_CHECK_OPT* check_opt)
+bool mysql_analyze_table(THD* thd, TABLE_LIST* tables, HA_CHECK_OPT* check_opt)
 {
 #ifdef OS2
   thr_lock_type lock_type = TL_WRITE;
@@ -2240,7 +2236,7 @@ int mysql_analyze_table(THD* thd, TABLE_LIST* tables, HA_CHECK_OPT* check_opt)
 }
 
 
-int mysql_check_table(THD* thd, TABLE_LIST* tables,HA_CHECK_OPT* check_opt)
+bool mysql_check_table(THD* thd, TABLE_LIST* tables,HA_CHECK_OPT* check_opt)
 {
 #ifdef OS2
   thr_lock_type lock_type = TL_WRITE;
@@ -2528,13 +2524,13 @@ int mysql_drop_indexes(THD *thd, TABLE_LIST *table_list,
   Alter table
 */
 
-int mysql_alter_table(THD *thd,char *new_db, char *new_name,
-		      HA_CREATE_INFO *create_info,
-		      TABLE_LIST *table_list,
-		      List<create_field> &fields, List<Key> &keys,
-		      uint order_num, ORDER *order,
-		      enum enum_duplicates handle_duplicates,
-		      ALTER_INFO *alter_info, bool do_send_ok)
+bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
+                       HA_CREATE_INFO *create_info,
+                       TABLE_LIST *table_list,
+                       List<create_field> &fields, List<Key> &keys,
+                       uint order_num, ORDER *order,
+                       enum enum_duplicates handle_duplicates,
+                       ALTER_INFO *alter_info, bool do_send_ok)
 {
   TABLE *table,*new_table;
   int error;
@@ -2563,7 +2559,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     DBUG_RETURN(mysql_discard_or_import_tablespace(thd,table_list,
 						   alter_info->tablespace_op));
   if (!(table=open_ltable(thd,table_list,TL_WRITE_ALLOW_READ)))
-    DBUG_RETURN(-1);
+    DBUG_RETURN(TRUE);
 
   /* Check that we are not trying to rename to an existing table */
   if (new_name)
@@ -2595,7 +2591,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
 	if (find_temporary_table(thd,new_db,new_name_buff))
 	{
 	  my_error(ER_TABLE_EXISTS_ERROR,MYF(0),new_name_buff);
-	  DBUG_RETURN(-1);
+	  DBUG_RETURN(TRUE);
 	}
       }
       else
@@ -2605,7 +2601,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
 	{
 	  /* Table will be closed in do_command() */
 	  my_error(ER_TABLE_EXISTS_ERROR,MYF(0), new_alias);
-	  DBUG_RETURN(-1);
+	  DBUG_RETURN(TRUE);
 	}
       }
     }
@@ -2788,7 +2784,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
 	if (def->sql_type == FIELD_TYPE_BLOB)
 	{
 	  my_error(ER_BLOB_CANT_HAVE_DEFAULT,MYF(0),def->change);
-	  DBUG_RETURN(-1);
+	  DBUG_RETURN(TRUE);
 	}
 	def->def=alter->def;			// Use new default
 	alter_it.remove();
@@ -2802,7 +2798,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     if (def->change && ! def->field)
     {
       my_error(ER_BAD_FIELD_ERROR,MYF(0),def->change,table_name);
-      DBUG_RETURN(-1);
+      DBUG_RETURN(TRUE);
     }
     if (!def->after)
       create_list.push_back(def);
@@ -2820,7 +2816,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
       if (!find)
       {
 	my_error(ER_BAD_FIELD_ERROR,MYF(0),def->after,table_name);
-	DBUG_RETURN(-1);
+	DBUG_RETURN(TRUE);
       }
       find_it.after(def);			// Put element after this
     }
@@ -2829,12 +2825,12 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   {
     my_error(ER_BAD_FIELD_ERROR,MYF(0),alter_info->alter_list.head()->name,
 	     table_name);
-    DBUG_RETURN(-1);
+    DBUG_RETURN(TRUE);
   }
   if (!create_list.elements)
   {
     my_error(ER_CANT_REMOVE_ALL_FIELDS,MYF(0));
-    DBUG_RETURN(-1);
+    DBUG_RETURN(TRUE);
   }
 
   /*
@@ -2923,7 +2919,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
 	  !my_strcasecmp(system_charset_info,key->name,primary_key_name))
       {
 	my_error(ER_WRONG_NAME_FOR_INDEX, MYF(0), key->name);
-	DBUG_RETURN(-1);
+	DBUG_RETURN(TRUE);
       }
     }
   }
@@ -3261,10 +3257,10 @@ end_temporary:
   if (do_send_ok)
     send_ok(thd,copied+deleted,0L,tmp_name);
   thd->some_tables_deleted=0;
-  DBUG_RETURN(0);
+  DBUG_RETURN(FALSE);
 
  err:
-  DBUG_RETURN(-1);
+  DBUG_RETURN(TRUE);
 }
 
 
@@ -3433,8 +3429,8 @@ copy_data_between_tables(TABLE *from,TABLE *to,
  RETURN
     Like mysql_alter_table().
 */
-int mysql_recreate_table(THD *thd, TABLE_LIST *table_list,
-                         bool do_send_ok)
+bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list,
+                          bool do_send_ok)
 {
   DBUG_ENTER("mysql_recreate_table");
   LEX *lex= thd->lex;
@@ -3455,7 +3451,7 @@ int mysql_recreate_table(THD *thd, TABLE_LIST *table_list,
 }
 
 
-int mysql_checksum_table(THD *thd, TABLE_LIST *tables, HA_CHECK_OPT *check_opt)
+bool mysql_checksum_table(THD *thd, TABLE_LIST *tables, HA_CHECK_OPT *check_opt)
 {
   TABLE_LIST *table;
   List<Item> field_list;
@@ -3469,7 +3465,7 @@ int mysql_checksum_table(THD *thd, TABLE_LIST *tables, HA_CHECK_OPT *check_opt)
   item->maybe_null= 1;
   if (protocol->send_fields(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
-    DBUG_RETURN(-1);
+    DBUG_RETURN(TRUE);
 
   for (table= tables; table; table= table->next_local)
   {
@@ -3488,7 +3484,7 @@ int mysql_checksum_table(THD *thd, TABLE_LIST *tables, HA_CHECK_OPT *check_opt)
     {
       /* Table didn't exist */
       protocol->store_null();
-      thd->net.last_error[0]=0;
+      thd->clear_error();
     }
     else
     {
@@ -3550,11 +3546,11 @@ int mysql_checksum_table(THD *thd, TABLE_LIST *tables, HA_CHECK_OPT *check_opt)
   }
 
   send_eof(thd);
-  DBUG_RETURN(0);
+  DBUG_RETURN(FALSE);
 
  err:
   close_thread_tables(thd);			// Shouldn't be needed
   if (table)
     table->table=0;
-  DBUG_RETURN(-1);
+  DBUG_RETURN(TRUE);
 }
