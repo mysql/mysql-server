@@ -228,8 +228,10 @@ class Item_func_des_encrypt :public Item_str_func
 public:
   Item_func_des_encrypt(Item *a) :Item_str_func(a) {}
   Item_func_des_encrypt(Item *a, Item *b): Item_str_func(a,b) {}
+  Item_func_des_encrypt(Item *a, Item *b, Item *c): Item_str_func(a,b,c) {}
   String *val_str(String *);
   void fix_length_and_dec() { maybe_null=1; max_length = 13; }
+  const char *func_name() const { return "des_encrypt"; }
 };
 
 class Item_func_des_decrypt :public Item_str_func
@@ -238,8 +240,10 @@ class Item_func_des_decrypt :public Item_str_func
 public:
   Item_func_des_decrypt(Item *a) :Item_str_func(a) {}
   Item_func_des_decrypt(Item *a, Item *b): Item_str_func(a,b) {}
+  Item_func_des_decrypt(Item *a, Item *b, Item *c): Item_str_func(a,b,c) {}
   String *val_str(String *);
   void fix_length_and_dec() { maybe_null=1; max_length = 13; }
+  const char *func_name() const { return "des_decrypt"; }
 };
 
 class Item_func_encrypt :public Item_str_func

@@ -202,133 +202,114 @@ void Item_func_concat::fix_length_and_dec()
 }
 
 #define bin_to_ascii(c) ((c)>=38?((c)-38+'a'):(c)>=12?((c)-12+'A'):(c)+'.')
-
+#define ascii_to_bin(c) ((c)<=57 ? (c)-46 : (c)<=90 ? (c)-53 : (c)-59)
+ 
 String *Item_func_des_encrypt::val_str(String *str)
 {
   String *res  =args[0]->val_str(str);
-
 #ifdef HAVE_OPENSSL
   des_key_schedule ks1, ks2, ks3;
   des_cblock ivec={0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
   union {
-	  des_cblock allkeys[3];
-	  des_cblock key1;
-	  des_cblock key2;
-	  des_cblock key3;
+	  des_cblock allkeys[3]; // 24 bytes (168 bits) total
+	  des_cblock key1, key2, key3; // 8 bytes each
   } key;
-
-
 
   if ((null_value=args[0]->null_value))
     return 0;
   if (res->length() == 0)
     return &empty_string;
-  String *in_str=args[1]->val_str(&tmp_value);
-  char *tmp=my_malloc(res->length()+8, MYF(0));
-  DBUG_PRINT("info",("DES: key string='%s'",in_str->c_ptr()));
-  DBUG_PRINT("info",("DES: data string='%s'",res->c_ptr()));
-  DBUG_PRINT("info",("DES: cipher pointer='%x'",EVP_get_cipherbyname("DES-EDE3-CBC")));
+  String *keystr=args[1]->val_str(&tmp_value);
+  int32 mode=0; 
+  if(arg_count == 3 && !args[2]->null_value) 
+    mode=args[2]->val_int();
+  // We make good 24-byte (168 bit) key from given plaintext key with MD5
   EVP_BytesToKey(EVP_get_cipherbyname("DES-EDE3-CBC"),EVP_md5(),NULL,
-	(unsigned char *)in_str->c_ptr(),
-	in_str->length(),1,(uchar *)&key.allkeys,ivec);
+	(uchar *)keystr->c_ptr(),
+	keystr->length(),1,(uchar *)&key.allkeys,ivec);
+  // Here we set all 64-bit (56 actually) one by one
   des_set_key_unchecked(&key.key1,ks1);
   des_set_key_unchecked(&key.key2,ks2);
   des_set_key_unchecked(&key.key3,ks3);
-  DBUG_PRINT("info",("DES: checkpoint"));
+  /* The problem: DES algorithm requires original data to be in 8-bytes
+   * chunks. Missing bytes get filled with zeros and result of encryption 
+   * can be up to 7 bytes longer than original string. When decrypted, 
+   * we do not know the size of original string :(
+   * We add one byte with value 0x0..0x7 to original plaintext marking
+   * change of string length */
+  uchar tail=8-(res->length() % 8);  // 1..8
+  for(int i=0 ; i < (tail-1) ; ++i) res->append('*');  
+  res->append(tail-1);  // Write tail length 0..7 to last pos
+  // Real encryption 
   des_ede3_cbc_encrypt(
-	(const unsigned char*)(res->c_ptr()) ,
- 	(uchar*)tmp,
-	res->length(),
-	ks1,	ks2,	ks3,	&ivec,	TRUE);
-  res->length(res->length()+8-(res->length() % 8));
-  DBUG_PRINT("info",("DES: checkpoint"));
-    DBUG_PRINT("info",("DES: string length='%d' versus '%d'",res->length(),strlen(res->c_ptr())));
-    DBUG_PRINT("info",("DES: crypted data string='%s'",tmp));
+	(const uchar*)(res->c_ptr()), 
+	(uchar*)(res->c_ptr()), 
+	res->length(), ks1, ks2, ks3, &ivec, TRUE);
+  if(mode) {
+    // In case of ASCII mode we should convert binary string into ASCII
     str->set((const char*)0,(uint)0); 
-    for(uint i=0 ; i < res->length() ; ++i)
-    {
-	    str->append(tmp[i]);
-//	    str->append(bin_to_ascii(tmp[i] & 0x3f));
-//	    str->append(bin_to_ascii((tmp[i] >> 5) & 0x3f));
-    }
-    DBUG_PRINT("info",("DES: crypted data plain string='%s'",str->c_ptr()));
-    str->copy(); 
-    DBUG_PRINT("info",("DES: crypted data plain string='%s'",str->c_ptr()));
-    my_free(tmp,MYF(0));
-  return str;
+    for(uint i=0 ; i < res->length() ; ++i) {
+	str->append(bin_to_ascii((uchar)res->c_ptr()[i] & 0x3f)); 
+        str->append(bin_to_ascii(((uchar)res->c_ptr()[i] >> 5 ) & 0x3f));
+    } 
+    return str;
+  } else
+    return res;
 #else
   null_value=1;
   return 0;
 #endif	/* HAVE_OPENSSL */
 }
-
 
 String *Item_func_des_decrypt::val_str(String *str)
 {
   String *res  =args[0]->val_str(str);
-
 #ifdef HAVE_OPENSSL
   des_key_schedule ks1, ks2, ks3;
   des_cblock ivec={0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
   union {
-	  des_cblock allkeys[3];
-	  des_cblock key1;
-	  des_cblock key2;
-	  des_cblock key3;
+	  des_cblock allkeys[3]; // 24 bytes total
+	  des_cblock key1, key2, key3; // 8 bytes each
   } key;
-
 
   if ((null_value=args[0]->null_value))
     return 0;
   if (res->length() == 0)
     return &empty_string;
-  String *in_str=args[1]->val_str(&tmp_value);
-  char *tmp=my_malloc(res->length()+8, MYF(0));
-  DBUG_PRINT("info",("DES: key string='%s'",in_str->c_ptr()));
-  DBUG_PRINT("info",("DES: data string='%s'",res->c_ptr()));
-/*  int EVP_BytesToKey(const EVP_CIPHER *type, EVP_MD *md,
-	const unsigned char *salt, const unsigned char *data, int datal,
-	int count, unsigned char *key, unsigned char *iv)
-*/	   
+  String *keystr=args[1]->val_str(&tmp_value);
+  int32 mode=0; 
+  if(arg_count == 3 && !args[2]->null_value) 
+    mode=args[2]->val_int();
+  // We make good 24-byte (168 bit) key from given plaintext key with MD5
   EVP_BytesToKey(EVP_get_cipherbyname("DES-EDE3-CBC"),EVP_md5(),NULL,
-	(unsigned char *)in_str->c_ptr(),
-	in_str->length(),1,(uchar *)&key.allkeys,ivec);
+	(uchar *)keystr->c_ptr(),
+	keystr->length(),1,(uchar *)&key.allkeys,ivec);
+  // Here we set all 64-bit keys (56 effective) one by one
   des_set_key_unchecked(&key.key1,ks1);
   des_set_key_unchecked(&key.key2,ks2);
   des_set_key_unchecked(&key.key3,ks3);
-  DBUG_PRINT("info",("DES: cipher pointer='%x'",EVP_get_cipherbyname("DES-EDE3-CBC")));
-  EVP_BytesToKey(EVP_get_cipherbyname("DES-EDE3-CBC"),EVP_md5(),NULL,
-	(unsigned char *)in_str->c_ptr(),
-	in_str->length(),1,(uchar *)&key.allkeys,ivec);
-
-  DBUG_PRINT("info",("DES: checkpoint"));
-  des_ede3_cbc_encrypt(
-	(const unsigned char*)(res->c_ptr()) ,
- 	(uchar*)tmp,
-	res->length(),
-	ks1,	ks2,	ks3,	&ivec,	FALSE);
-
-  DBUG_PRINT("info",("DES: checkpoint"));
-    DBUG_PRINT("info",("DES: string length='%d' versus '%d'",res->length(),strlen(res->c_ptr())));
-    DBUG_PRINT("info",("DES: crypted data string='%s'",tmp));
-    str->set((const char*)0,(uint)0); 
-    for(uint i=0 ; i < res->length() ; ++i)
-    {
-	    str->append(tmp[i]);
-//	    str->append(bin_to_ascii(tmp[i] & 0x3f));
-//	    str->append(bin_to_ascii((tmp[i] >> 5) & 0x3f));
+  str->set((const char*)0,(uint)0); 
+  if(mode) {
+    for(uint i=0 ; i < res->length() ; i+=2) {
+      str->append((ascii_to_bin(res->c_ptr()[i])) 
+		| (ascii_to_bin(res->c_ptr()[i+1]) << 5 ));
     }
-    DBUG_PRINT("info",("DES: crypted data plain string='%s'",str->c_ptr()));
-    str->copy(); 
-    DBUG_PRINT("info",("DES: crypted data plain string='%s'",str->c_ptr()));
-    my_free(tmp,MYF(0));
-  return str;
+  } else
+    str->copy(res->c_ptr());
+  // Real decryption 
+  des_ede3_cbc_encrypt(
+	(const uchar*)(str->c_ptr()), 
+	(uchar*)(res->c_ptr()), 
+	str->length(),                 
+	ks1, ks2, ks3, &ivec, FALSE);
+  uchar tail=(res->c_ptr()[str->length()-1]) & 0x7;
+  res->length(str->length()-tail-1);
+  return res;
 #else
   null_value=1;
   return 0;
 #endif	/* HAVE_OPENSSL */
 }
-
 
 
 
