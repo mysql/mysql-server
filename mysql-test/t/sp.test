@@ -1573,6 +1573,25 @@ select 1+2|
 
 drop procedure bug3843|
 
+#
+# BUG#3368
+#
+--disable_warnings
+drop table if exists t3|
+--enable_warnings
+create table t3 ( s1 char(10) )|
+insert into t3 values ('a'), ('b')|
+
+create procedure bug3368(v char(10))
+begin
+  select group_concat(v) from t3;
+end|
+
+call bug3368('x')|
+call bug3368('yz')|
+drop procedure bug3368|
+drop table t3|
+
 
 #
 # Some "real" examples
