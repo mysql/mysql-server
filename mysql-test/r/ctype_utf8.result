@@ -871,3 +871,17 @@ drop table t1;
 select convert(_koi8r'É' using utf8) < convert(_koi8r'Ê' using utf8);
 convert(_koi8r'É' using utf8) < convert(_koi8r'Ê' using utf8)
 1
+set names latin1;
+create table t1 (a varchar(10)) character set utf8;
+insert into t1 values ('test');
+select ifnull(a,'') from t1;
+ifnull(a,'')
+test
+drop table t1;
+select repeat(_utf8'+',3) as h union select NULL;
+h
++++
+NULL
+select ifnull(NULL, _utf8'string');
+ifnull(NULL, _utf8'string')
+string
