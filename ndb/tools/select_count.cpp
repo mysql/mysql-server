@@ -30,8 +30,7 @@ static int
 select_count(Ndb* pNdb, const NdbDictionary::Table* pTab,
 	     int parallelism,
 	     int* count_rows,
-	     UtilTransactions::ScanLock lock,
-	     NdbConnection* pBuddyTrans=0);
+	     UtilTransactions::ScanLock lock);
 
 int main(int argc, const char** argv){
   const char* _dbname = "TEST_DB";
@@ -95,14 +94,13 @@ int
 select_count(Ndb* pNdb, const NdbDictionary::Table* pTab,
 	     int parallelism,
 	     int* count_rows,
-	     UtilTransactions::ScanLock lock,
-	     NdbConnection* pBuddyTrans){
+	     UtilTransactions::ScanLock lock){
   
   int                  retryAttempt = 0;
   const int            retryMax = 100;
   int                  check;
   NdbConnection	       *pTrans;
-  NdbOperation	       *pOp;
+  NdbScanOperation	       *pOp;
 
   while (true){
 
@@ -112,7 +110,7 @@ select_count(Ndb* pNdb, const NdbDictionary::Table* pTab,
       return NDBT_FAILED;
     }
 
-    pTrans = pNdb->hupp(pBuddyTrans);
+    pTrans = pNdb->startTransaction();
     if (pTrans == NULL) {
       const NdbError err = pNdb->getNdbError();
 
@@ -124,26 +122,27 @@ select_count(Ndb* pNdb, const NdbDictionary::Table* pTab,
       ERR(err);
       return NDBT_FAILED;
     }
-    pOp = pTrans->getNdbOperation(pTab->getName());	
+    pOp = pTrans->getNdbScanOperation(pTab->getName());	
     if (pOp == NULL) {
       ERR(pTrans->getNdbError());
       pNdb->closeTransaction(pTrans);
       return NDBT_FAILED;
     }
 
+    NdbResultSet * rs;
     switch(lock){
     case UtilTransactions::SL_ReadHold:
-      check = pOp->openScanReadHoldLock(parallelism);
+      rs = pOp->readTuples(NdbScanOperation::LM_Read, 0, parallelism);
       break;
     case UtilTransactions::SL_Exclusive:
-      check = pOp->openScanExclusive(parallelism);
+      rs = pOp->readTuples(NdbScanOperation::LM_Exclusive, 0, parallelism);
       break;
     case UtilTransactions::SL_Read:
     default:
-      check = pOp->openScanRead(parallelism);
+      rs = pOp->readTuples(NdbScanOperation::LM_Dirty, 0, parallelism);
     }
     
-    if( check == -1 ) {
+    if( rs == 0 ) {
       ERR(pTrans->getNdbError());
       pNdb->closeTransaction(pTrans);
       return NDBT_FAILED;
@@ -156,7 +155,7 @@ select_count(Ndb* pNdb, const NdbDictionary::Table* pTab,
       return NDBT_FAILED;
     }
   
-    check = pTrans->executeScan();   
+    check = pTrans->execute(NoCommit);
     if( check == -1 ) {
       ERR(pTrans->getNdbError());
       pNdb->closeTransaction(pTrans);
@@ -165,11 +164,11 @@ select_count(Ndb* pNdb, const NdbDictionary::Table* pTab,
 
     int eof;
     int rows = 0;
-    eof = pTrans->nextScanResult();
+    eof = rs->nextResult();
 
     while(eof == 0){
       rows++;
-      eof = pTrans->nextScanResult();
+      eof = rs->nextResult();
     }
     if (eof == -1) {
       const NdbError err = pTrans->getNdbError();

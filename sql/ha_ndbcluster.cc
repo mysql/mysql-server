@@ -462,10 +462,10 @@ void ha_ndbcluster::release_metadata()
   DBUG_VOID_RETURN;
 }
 
-NdbCursorOperation::LockMode get_ndb_lock_type(enum thr_lock_type type)
+NdbScanOperation::LockMode get_ndb_lock_type(enum thr_lock_type type)
 {
   return (type == TL_WRITE_ALLOW_WRITE) ? 
-    NdbCursorOperation::LM_Exclusive : NdbCursorOperation::LM_Read;
+    NdbScanOperation::LM_Exclusive : NdbScanOperation::LM_Read;
 }
 
 static const ulong index_type_flags[]=
@@ -795,7 +795,7 @@ inline int ha_ndbcluster::next_result(byte *buf)
   Set bounds for a ordered index scan, use key_range
 */
 
-int ha_ndbcluster::set_bounds(NdbOperation *op,
+int ha_ndbcluster::set_bounds(NdbIndexScanOperation *op,
 			      const key_range *key,
 			      int bound)
 {
@@ -843,7 +843,7 @@ int ha_ndbcluster::set_bounds(NdbOperation *op,
       so if this bound was not EQ, bail out and make 
       a best effort attempt
     */
-    if (bound != NdbOperation::BoundEQ)
+    if (bound != NdbIndexScanOperation::BoundEQ)
       break;
   }
 
@@ -861,7 +861,7 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
 {  
   NdbConnection *trans= m_active_trans;
   NdbResultSet *cursor;
-  NdbScanOperation *op;
+  NdbIndexScanOperation *op;
   const char *index_name;
 
   DBUG_ENTER("ordered_index_scan");
@@ -869,19 +869,19 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
   DBUG_PRINT("enter", ("Starting new ordered scan on %s", m_tabname));
   
   index_name= get_index_name(active_index);
-  if (!(op= trans->getNdbScanOperation(index_name, m_tabname)))
+  if (!(op= trans->getNdbIndexScanOperation(index_name, m_tabname)))
     ERR_RETURN(trans->getNdbError());
-  if (!(cursor= op->readTuples(parallelism, get_ndb_lock_type(m_lock.type))))
+  if (!(cursor= op->readTuples(get_ndb_lock_type(m_lock.type), 0,parallelism)))
     ERR_RETURN(trans->getNdbError());
   m_active_cursor= cursor;
 
   if (start_key && 
       set_bounds(op, start_key, 
 		 (start_key->flag == HA_READ_KEY_EXACT) ? 
-		 NdbOperation::BoundEQ :
+		 NdbIndexScanOperation::BoundEQ :
 		 (start_key->flag == HA_READ_AFTER_KEY) ? 
-		 NdbOperation::BoundLT : 
-		 NdbOperation::BoundLE))
+		 NdbIndexScanOperation::BoundLT : 
+		 NdbIndexScanOperation::BoundLE))
     DBUG_RETURN(1);
 
   if (end_key)
@@ -892,8 +892,8 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
     }
     else if (set_bounds(op, end_key, 
 			(end_key->flag == HA_READ_AFTER_KEY) ? 
-			NdbOperation::BoundGE : 
-			NdbOperation::BoundGT))
+			NdbIndexScanOperation::BoundGE : 
+			NdbIndexScanOperation::BoundGT))
       DBUG_RETURN(1);    
   }
   DBUG_RETURN(define_read_attrs(buf, op));
@@ -931,10 +931,10 @@ int ha_ndbcluster::filtered_scan(const byte *key, uint key_len,
 
   if (!(op= trans->getNdbScanOperation(m_tabname)))
     ERR_RETURN(trans->getNdbError());
-  if (!(cursor= op->readTuples(parallelism, get_ndb_lock_type(m_lock.type))))
+  if (!(cursor= op->readTuples(get_ndb_lock_type(m_lock.type), 0,parallelism)))
     ERR_RETURN(trans->getNdbError());
   m_active_cursor= cursor;
-
+  
   {
     // Start scan filter
     NdbScanFilter sf(op);
@@ -1000,7 +1000,7 @@ int ha_ndbcluster::full_table_scan(byte *buf)
 
   if (!(op=trans->getNdbScanOperation(m_tabname)))
     ERR_RETURN(trans->getNdbError());  
-  if (!(cursor= op->readTuples(parallelism, get_ndb_lock_type(m_lock.type))))
+  if (!(cursor= op->readTuples(get_ndb_lock_type(m_lock.type), 0,parallelism)))
     ERR_RETURN(trans->getNdbError());
   m_active_cursor= cursor;
   DBUG_RETURN(define_read_attrs(buf, op));
