@@ -8,7 +8,7 @@ load data infile '../../std_data/words.dat' into table t1;
 drop table if exists t2;
 create table t2 (word char(20) not null);
 load data infile '../../std_data/words.dat' into table t2;
-create table t3 (word char(20) not null);
+create table t3 (word char(20) not null primary key);
 connection slave;
 use test;
 drop table if exists t1;
