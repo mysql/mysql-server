@@ -520,7 +520,7 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
     }
     case ADMIN_FLUSH_PRIVILEGES:
     case ADMIN_RELOAD:
-      if (mysql_refresh(mysql,REFRESH_GRANT) < 0)
+      if (mysql_query(mysql,"flush privileges"))
       {
 	my_printf_error(0,"reload failed; error: '%s'",MYF(ME_BELL),
 			mysql_error(mysql));
@@ -531,7 +531,7 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
       if (mysql_refresh(mysql,
 			(uint) ~(REFRESH_GRANT | REFRESH_STATUS |
 				 REFRESH_READ_LOCK | REFRESH_SLAVE |
-				 REFRESH_MASTER)) < 0)
+				 REFRESH_MASTER)))
       {
 	my_printf_error(0,"refresh failed; error: '%s'",MYF(ME_BELL),
 			mysql_error(mysql));
@@ -539,7 +539,7 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
       }
       break;
     case ADMIN_FLUSH_THREADS:
-      if (mysql_refresh(mysql,(uint) REFRESH_THREADS) < 0)
+      if (mysql_refresh(mysql,(uint) REFRESH_THREADS))
       {
 	my_printf_error(0,"refresh failed; error: '%s'",MYF(ME_BELL),
 			mysql_error(mysql));
@@ -726,7 +726,7 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
     }
     case ADMIN_FLUSH_HOSTS:
     {
-      if (mysql_refresh(mysql,REFRESH_HOSTS))
+      if (mysql_query(mysql,"flush hosts"))
       {
 	my_printf_error(0,"refresh failed; error: '%s'",MYF(ME_BELL),
 			mysql_error(mysql));
@@ -736,7 +736,7 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
     }
     case ADMIN_FLUSH_TABLES:
     {
-      if (mysql_refresh(mysql,REFRESH_TABLES))
+      if (mysql_query(mysql,"flush tables"))
       {
 	my_printf_error(0,"refresh failed; error: '%s'",MYF(ME_BELL),
 			mysql_error(mysql));
@@ -746,7 +746,7 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
     }
     case ADMIN_FLUSH_STATUS:
     {
-      if (mysql_refresh(mysql,REFRESH_STATUS))
+      if (mysql_query(mysql,"flush status"))
       {
 	my_printf_error(0,"refresh failed; error: '%s'",MYF(ME_BELL),
 			mysql_error(mysql));
@@ -793,7 +793,7 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
     }
 
     case ADMIN_START_SLAVE:
-      if (mysql_query(mysql, "SLAVE START"))
+      if (mysql_query(mysql, "START SLAVE"))
       {
 	my_printf_error(0, "Error starting slave: %s", MYF(ME_BELL),
 			mysql_error(mysql));
@@ -803,7 +803,7 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
 	puts("Slave started");
       break;
     case ADMIN_STOP_SLAVE:
-      if (mysql_query(mysql, "SLAVE STOP"))
+      if (mysql_query(mysql, "STOP SLAVE"))
       {
 	  my_printf_error(0, "Error stopping slave: %s", MYF(ME_BELL),
 			  mysql_error(mysql));
