@@ -894,7 +894,7 @@ int load_master_data(THD* thd)
 	if (active_mi->master_log_pos < BIN_LOG_HEADER_SIZE)
 	  active_mi->master_log_pos = BIN_LOG_HEADER_SIZE;
 	active_mi->rli.pending = 0;
-	flush_master_info(active_mi);
+	flush_master_info(active_mi, 0);
       }
       mc_mysql_free_result(master_status_res);
     }

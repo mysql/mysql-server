@@ -1657,7 +1657,7 @@ file '%s')", fname);
   mi->inited = 1;
   // now change cache READ -> WRITE - must do this before flush_master_info
   reinit_io_cache(&mi->file, WRITE_CACHE,0L,0,1);
-  if ((error=test(flush_master_info(mi))))
+  if ((error= test(flush_master_info(mi, 1))))
     sql_print_error("Failed to flush master info file");
   pthread_mutex_unlock(&mi->data_lock);
   DBUG_RETURN(error);
@@ -1784,13 +1784,15 @@ int show_master_info(THD* thd, MASTER_INFO* mi)
 }
 
 
-bool flush_master_info(MASTER_INFO* mi)
+bool flush_master_info(MASTER_INFO* mi, bool flush_relay_log_cache)
 {
   IO_CACHE* file = &mi->file;
   char lbuf[22];
   DBUG_ENTER("flush_master_info");
   DBUG_PRINT("enter",("master_pos: %ld", (long) mi->master_log_pos));
 
+  if (flush_relay_log_cache)   /* Comments for this are in MySQL 4.1 */
+    flush_io_cache(mi->rli.relay_log.get_log_file());
   my_b_seek(file, 0L);
   my_b_printf(file, "%s\n%s\n%s\n%s\n%s\n%d\n%d\n",
 	      mi->master_log_name, llstr(mi->master_log_pos, lbuf),
@@ -2542,7 +2544,7 @@ reconnect done to recover from failed read");
 	sql_print_error("Slave I/O thread could not queue event from master");
 	goto err;
       }
-      flush_master_info(mi);
+      flush_master_info(mi, 1);
       /*
         See if the relay logs take too much space.
         We don't lock mi->rli.log_space_lock here; this dirty read saves time
