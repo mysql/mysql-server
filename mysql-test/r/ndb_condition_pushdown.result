@@ -1,32 +1,620 @@
 DROP TABLE IF EXISTS t1,t2;
-CREATE TABLE t1 (pk1 int unsigned NOT NULL PRIMARY KEY,   attr1 int unsigned NOT NULL,   attr2 int unsigned,   attr3 VARCHAR(10) ) ENGINE=ndbcluster;
-insert into t1 values (0,0,0, "a"),(1,1,1,"b"),(2,2,NULL,NULL),(3,3,3,"d"),(4,4,4,"e"),(5,5,5,"f");
-CREATE TABLE  t2 (pk1 int unsigned NOT NULL PRIMARY KEY,   attr1 int unsigned NOT NULL,   attr2 bigint unsigned, attr3 tinyint unsigned,  attr4 VARCHAR(10) ) ENGINE=ndbcluster;
-insert into t2 values (0,0,0,0,"a"),(1,1,9223372036854775803,1,"b"),(2,2,9223372036854775804,2,"c"),(3,3,9223372036854775805,3,"d"),(4,4,9223372036854775806,4,"e"),(5,5,9223372036854775807,5,"f");
-set @old_ndbcpd = @@session.ndb_condition_pushdown;
-set ndb_condition_pushdown = off;
-select * from t1 where attr3 is null or attr1 > 2 and pk1= 3 order by pk1;
+CREATE TABLE t1 (
+auto int(5) unsigned NOT NULL auto_increment,
+string char(10) default "hello",
+vstring varchar(10) default "hello",
+bin binary(7) default "hello",
+vbin varbinary(7) default "hello",	
+tiny tinyint(4) DEFAULT '0' NOT NULL ,
+short smallint(6) DEFAULT '1' NOT NULL ,
+medium mediumint(8) DEFAULT '0' NOT NULL,
+long_int int(11) DEFAULT '0' NOT NULL,
+longlong bigint(13) DEFAULT '0' NOT NULL,
+real_float float(13,1) DEFAULT 0.0 NOT NULL,
+real_double double(16,4),
+utiny tinyint(3) unsigned DEFAULT '0' NOT NULL,
+ushort smallint(5) unsigned zerofill DEFAULT '00000' NOT NULL,
+umedium mediumint(8) unsigned DEFAULT '0' NOT NULL,
+ulong int(11) unsigned DEFAULT '0' NOT NULL,
+ulonglong bigint(13) unsigned DEFAULT '0' NOT NULL,
+bits bit(3),
+options enum('zero','one','two','three','four') not null,
+flags set('zero','one','two','three','four') not null,
+date_field date,
+year_field year,
+time_field time,      
+date_time datetime,
+time_stamp timestamp,
+PRIMARY KEY (auto)
+) engine=ndb;
+insert into t1 values 
+(NULL,"aaaa","aaaa","aaaa","aaaa",-1,-1,-1,-1,-1,1.1,1.1,1,1,1,1,1, 
+b'001','one','one',
+'1901-01-01','1901', 
+'01:01:01','1901-01-01 01:01:01',NULL),
+(NULL,"bbbb","bbbb","bbbb","bbbb",-2,-2,-2,-2,-2,2.2,2.2,2,2,2,2,2,
+b'010','two','one,two',
+'1902-02-02','1902', 
+'02:02:02','1902-02-02 02:02:02',NULL),
+(NULL,"cccc","cccc","cccc","cccc",-3,-3,-3,-3,-3,3.3,3.3,3,3,3,3,3,
+b'011','three','one,two,three',
+'1903-03-03','1903', 
+'03:03:03','1903-03-03 03:03:03',NULL),
+(NULL,"dddd","dddd","dddd","dddd",-4,-4,-4,-4,-4,4.4,4.4,4,4,4,4,4,
+b'100','four','one,two,three,four',
+'1904-04-04','1904', 
+'04:04:04','1904-04-04 04:04:04',NULL);
+CREATE TABLE t2 (pk1 int unsigned NOT NULL PRIMARY KEY,   attr1 int unsigned NOT NULL,   attr2 int unsigned,   attr3 VARCHAR(10) ) ENGINE=ndbcluster;
+insert into t2 values (0,0,0, "a"),(1,1,1,"b"),(2,2,NULL,NULL),(3,3,3,"d"),(4,4,4,"e"),(5,5,5,"f");
+CREATE TABLE  t3 (pk1 int unsigned NOT NULL PRIMARY KEY,   attr1 int unsigned NOT NULL,   attr2 bigint unsigned, attr3 tinyint unsigned,  attr4 VARCHAR(10) ) ENGINE=ndbcluster;
+insert into t3 values (0,0,0,0,"a"),(1,1,9223372036854775803,1,"b"),(2,2,9223372036854775804,2,"c"),(3,3,9223372036854775805,3,"d"),(4,4,9223372036854775806,4,"e"),(5,5,9223372036854775807,5,"f");
+CREATE TABLE  t4 (pk1 int unsigned NOT NULL PRIMARY KEY,   attr1 int unsigned NOT NULL,   attr2 bigint unsigned, attr3 tinyint unsigned,  attr4 VARCHAR(10) , KEY (attr1)) ENGINE=ndbcluster;
+insert into t4 values (0,0,0,0,"a"),(1,1,9223372036854775803,1,"b"),(2,2,9223372036854775804,2,"c"),(3,3,9223372036854775805,3,"d"),(4,4,9223372036854775806,4,"e"),(5,5,9223372036854775807,5,"f");
+set @old_ecpd = @@session.engine_condition_pushdown;
+set engine_condition_pushdown = off;
+select auto from t1 where 
+string = "aaaa" and 
+vstring = "aaaa" and 
+bin = "aaaa" and 
+vbin = "aaaa" and 
+tiny = -1 and 
+short = -1 and 
+medium = -1 and 
+long_int = -1 and 
+longlong = -1 and 
+real_float > 1.0 and real_float < 2.0 and 
+real_double > 1.0 and real_float < 2.0 and
+utiny = 1 and 
+ushort = 1 and 
+umedium = 1 and 
+ulong = 1 and 
+ulonglong = 1 and 
+bits = b'001' and
+options = 'one' and 
+flags = 'one' and 
+date_field = '1901-01-01' and
+year_field = '1901' and
+time_field = '01:01:01' and 
+date_time = '1901-01-01 01:01:01' 
+order by auto;
+auto
+1
+select auto from t1 where 
+string != "aaaa" and 
+vstring != "aaaa" and 
+bin != "aaaa" and 
+vbin != "aaaa" and 
+tiny != -1 and 
+short != -1 and 
+medium != -1 and 
+long_int != -1 and 
+longlong != -1 and 
+(real_float < 1.0 or real_float > 2.0) and 
+(real_double < 1.0 or real_float > 2.0) and
+utiny != 1 and 
+ushort != 1 and 
+umedium != 1 and 
+ulong != 1 and 
+ulonglong != 1 and 
+bits != b'001' and
+options != 'one' and 
+flags != 'one' and 
+date_field != '1901-01-01' and
+year_field != '1901' and
+time_field != '01:01:01' and 
+date_time != '1901-01-01 01:01:01' 
+order by auto;
+auto
+2
+3
+4
+select auto from t1 where 
+string > "aaaa" and 
+vstring > "aaaa" and 
+bin > "aaaa" and 
+vbin > "aaaa" and 
+tiny < -1 and 
+short < -1 and 
+medium < -1 and 
+long_int < -1 and 
+longlong < -1 and 
+real_float > 1.1 and 
+real_double > 1.1 and 
+utiny > 1 and 
+ushort > 1 and 
+umedium > 1 and 
+ulong > 1 and 
+ulonglong > 1 and
+bits > b'001' and
+(options = 'two' or options = 'three' or options = 'four') and
+(flags = 'one,two' or flags = 'one,two,three' or flags = 'one,two,three,four') and
+date_field > '1901-01-01' and
+year_field > '1901' and
+time_field > '01:01:01' and
+date_time > '1901-01-01 01:01:01'
+order by auto;
+auto
+2
+3
+4
+select auto from t1 where 
+string >= "aaaa" and 
+vstring >= "aaaa" and 
+bin >= "aaaa" and 
+vbin >= "aaaa" and 
+tiny <= -1 and 
+short <= -1 and 
+medium <= -1 and 
+long_int <= -1 and 
+longlong <= -1 and 
+real_float >= 1.0 and 
+real_double >= 1.0 and 
+utiny >= 1 and 
+ushort >= 1 and 
+umedium >= 1 and 
+ulong >= 1 and 
+ulonglong >= 1 and 
+bits >= b'001' and
+(options = 'one' or options = 'two' or options = 'three' or options = 'four') and
+(flags = 'one' or flags = 'one,two' or flags = 'one,two,three' or flags = 'one,two,three,four') and
+date_field >= '1901-01-01' and
+year_field >= '1901' and
+time_field >= '01:01:01' and 
+date_time >= '1901-01-01 01:01:01' 
+order by auto;
+auto
+1
+2
+3
+4
+select auto from t1 where 
+string < "dddd" and 
+vstring < "dddd" and 
+bin < "dddd" and 
+vbin < "dddd" and 
+tiny > -4 and 
+short > -4 and 
+medium > -4 and 
+long_int > -4 and 
+longlong > -4 and 
+real_float < 4.4 and 
+real_double < 4.4 and
+utiny < 4 and 
+ushort < 4 and 
+umedium < 4 and 
+ulong < 4 and 
+ulonglong < 4 and 
+bits < b'100' and
+(options = 'one' or options = 'two' or options = 'three') and
+(flags = 'one' or flags = 'one,two' or flags = 'one,two,three') and
+date_field < '1904-01-01' and
+year_field < '1904' and
+time_field < '04:04:04' and 
+date_time < '1904-04-04 04:04:04' 
+order by auto;
+auto
+1
+2
+3
+select auto from t1 where 
+string <= "dddd" and 
+vstring <= "dddd" and 
+bin <= "dddd" and 
+vbin <= "dddd" and 
+tiny >= -4 and 
+short >= -4 and 
+medium >= -4 and 
+long_int >= -4 and 
+longlong >= -4 and 
+real_float <= 4.5 and 
+real_double <= 4.5 and 
+utiny <= 4 and 
+ushort <= 4 and 
+umedium <= 4 and 
+ulong <= 4 and 
+ulonglong <= 4 and 
+bits <= b'100' and
+(options = 'one' or options = 'two' or options = 'three' or options = 'four') and 
+(flags = 'one' or flags = 'one,two' or flags = 'one,two,three' or flags = 'one,two,three,four') and
+date_field <= '1904-04-04' and
+year_field <= '1904' and
+time_field <= '04:04:04' and 
+date_time <= '1904-04-04 04:04:04' 
+order by auto;
+auto
+1
+2
+3
+4
+select * from t2 where attr3 is null or attr1 > 2 and pk1= 3 order by pk1;
 pk1	attr1	attr2	attr3
 2	2	NULL	NULL
 3	3	3	d
-select * from t2 where attr2 >  9223372036854775803 and attr3 != 3 order by pk1;
+select * from t3 where attr2 >  9223372036854775803 and attr3 != 3 order by pk1;
 pk1	attr1	attr2	attr3	attr4
 2	2	9223372036854775804	2	c
 4	4	9223372036854775806	4	e
 5	5	9223372036854775807	5	f
-select * from t1,t2 where t1.attr1 > 1 and t1.attr2 = t2.attr2 and t2.attr1 < 5 order by t1.pk1;
+select * from t2,t3 where t2.attr1 > 1 and t2.attr2 = t3.attr2 and t3.attr1 < 5 order by t2.pk1;
 pk1	attr1	attr2	attr3	pk1	attr1	attr2	attr3	attr4
-set ndb_condition_pushdown = on;
-select * from t1 where attr3 is null or attr1 > 2 and pk1= 3 order by pk1;
+select * from t4 where attr1 < 5 and attr2 > 9223372036854775803 and attr3 != 3 order by t4.pk1;
+pk1	attr1	attr2	attr3	attr4
+2	2	9223372036854775804	2	c
+4	4	9223372036854775806	4	e
+select * from t3,t4 where t4.attr1 > 1 and t4.attr2 = t3.attr2 and t4.attr3 < 5 order by t4.pk1;
+pk1	attr1	attr2	attr3	attr4	pk1	attr1	attr2	attr3	attr4
+2	2	9223372036854775804	2	c	2	2	9223372036854775804	2	c
+3	3	9223372036854775805	3	d	3	3	9223372036854775805	3	d
+4	4	9223372036854775806	4	e	4	4	9223372036854775806	4	e
+set engine_condition_pushdown = on;
+select auto from t1 where 
+string = "aaaa" and 
+vstring = "aaaa" and 
+bin = "aaaa" and 
+vbin = "aaaa" and 
+tiny = -1 and 
+short = -1 and 
+medium = -1 and 
+long_int = -1 and 
+longlong = -1 and 
+real_float > 1.0 and real_float < 2.0 and 
+real_double > 1.0 and real_float < 2.0 and
+utiny = 1 and 
+ushort = 1 and 
+umedium = 1 and 
+ulong = 1 and 
+ulonglong = 1 and 
+/* bits = b'001' and */
+options = 'one' and 
+flags = 'one' and 
+date_field = '1901-01-01' and
+year_field = '1901' and
+time_field = '01:01:01' and 
+date_time = '1901-01-01 01:01:01' 
+order by auto;
+auto
+1
+select auto from t1 where 
+string != "aaaa" and 
+vstring != "aaaa" and 
+bin != "aaaa" and 
+vbin != "aaaa" and 
+tiny != -1 and 
+short != -1 and 
+medium != -1 and 
+long_int != -1 and 
+longlong != -1 and 
+(real_float < 1.0 or real_float > 2.0) and 
+(real_double < 1.0 or real_float > 2.0) and
+utiny != 1 and 
+ushort != 1 and 
+umedium != 1 and 
+ulong != 1 and 
+ulonglong != 1 and 
+/* bits != b'001' and */
+options != 'one' and 
+flags != 'one' and 
+date_field != '1901-01-01' and
+year_field != '1901' and
+time_field != '01:01:01' and 
+date_time != '1901-01-01 01:01:01' 
+order by auto;
+auto
+2
+3
+4
+select auto from t1 where 
+string > "aaaa" and 
+vstring > "aaaa" and 
+bin > "aaaa" and 
+vbin > "aaaa" and 
+tiny < -1 and 
+short < -1 and 
+medium < -1 and 
+long_int < -1 and 
+longlong < -1 and 
+real_float > 1.1 and 
+real_double > 1.1 and 
+utiny > 1 and 
+ushort > 1 and 
+umedium > 1 and 
+ulong > 1 and 
+ulonglong > 1 and
+/* bits > b'001' and */
+(options = 'two' or options = 'three' or options = 'four') and
+(flags = 'one,two' or flags = 'one,two,three' or flags = 'one,two,three,four') and
+date_field > '1901-01-01' and
+year_field > '1901' and
+time_field > '01:01:01' and
+date_time > '1901-01-01 01:01:01'
+order by auto;
+auto
+2
+3
+4
+select auto from t1 where 
+string >= "aaaa" and 
+vstring >= "aaaa" and 
+bin >= "aaaa" and 
+vbin >= "aaaa" and 
+tiny <= -1 and 
+short <= -1 and 
+medium <= -1 and 
+long_int <= -1 and 
+longlong <= -1 and 
+real_float >= 1.0 and 
+real_double >= 1.0 and 
+utiny >= 1 and 
+ushort >= 1 and 
+umedium >= 1 and 
+ulong >= 1 and 
+ulonglong >= 1 and 
+/* bits >= b'001' and */
+(options = 'one' or options = 'two' or options = 'three' or options = 'four') and
+(flags = 'one' or flags = 'one,two' or flags = 'one,two,three' or flags = 'one,two,three,four') and
+date_field >= '1901-01-01' and
+year_field >= '1901' and
+time_field >= '01:01:01' and 
+date_time >= '1901-01-01 01:01:01' 
+order by auto;
+auto
+1
+2
+3
+4
+select auto from t1 where 
+string < "dddd" and 
+vstring < "dddd" and 
+bin < "dddd" and 
+vbin < "dddd" and 
+tiny > -4 and 
+short > -4 and 
+medium > -4 and 
+long_int > -4 and 
+longlong > -4 and 
+real_float < 4.4 and 
+real_double < 4.4 and
+utiny < 4 and 
+ushort < 4 and 
+umedium < 4 and 
+ulong < 4 and 
+ulonglong < 4 and 
+/* bits < b'100' and */
+(options = 'one' or options = 'two' or options = 'three') and
+(flags = 'one' or flags = 'one,two' or flags = 'one,two,three') and
+date_field < '1904-01-01' and
+year_field < '1904' and
+time_field < '04:04:04' and 
+date_time < '1904-04-04 04:04:04' 
+order by auto;
+auto
+1
+2
+3
+select auto from t1 where 
+string <= "dddd" and 
+vstring <= "dddd" and 
+bin <= "dddd" and 
+vbin <= "dddd" and 
+tiny >= -4 and 
+short >= -4 and 
+medium >= -4 and 
+long_int >= -4 and 
+longlong >= -4 and 
+real_float <= 4.5 and 
+real_double <= 4.5 and 
+utiny <= 4 - 1 + 1 and /* Checking function composition */
+ushort <= 4 and 
+umedium <= 4 and 
+ulong <= 4 and 
+ulonglong <= 4 and 
+/* bits <= b'100' and */
+(options = 'one' or options = 'two' or options = 'three' or options = 'four') and 
+(flags = 'one' or flags = 'one,two' or flags = 'one,two,three' or flags = 'one,two,three,four') and
+date_field <= '1904-04-04' and
+year_field <= '1904' and
+time_field <= '04:04:04' and 
+date_time <= '1904-04-04 04:04:04' 
+order by auto;
+auto
+1
+2
+3
+4
+create index medium_index on t1(medium);
+select auto from t1 where 
+string = "aaaa" and 
+vstring = "aaaa" and 
+bin = "aaaa" and 
+vbin = "aaaa" and 
+tiny = -1 and 
+short = -1 and 
+medium = -1 and 
+long_int = -1 and 
+longlong = -1 and 
+real_float > 1.0 and real_float < 2.0 and 
+real_double > 1.0 and real_float < 2.0 and
+utiny = 1 and 
+ushort = 1 and 
+umedium = 1 and 
+ulong = 1 and 
+ulonglong = 1 and 
+/* bits = b'001' and */
+options = 'one' and 
+flags = 'one' and 
+date_field = '1901-01-01' and
+year_field = '1901' and
+time_field = '01:01:01' and 
+date_time = '1901-01-01 01:01:01' 
+order by auto;
+auto
+1
+select auto from t1 where 
+string != "aaaa" and 
+vstring != "aaaa" and 
+bin != "aaaa" and 
+vbin != "aaaa" and 
+tiny != -1 and 
+short != -1 and 
+medium != -1 and 
+long_int != -1 and 
+longlong != -1 and 
+(real_float < 1.0 or real_float > 2.0) and 
+(real_double < 1.0 or real_float > 2.0) and
+utiny != 1 and 
+ushort != 1 and 
+umedium != 1 and 
+ulong != 1 and 
+ulonglong != 1 and 
+/* bits != b'001' and */
+options != 'one' and 
+flags != 'one' and 
+date_field != '1901-01-01' and
+year_field != '1901' and
+time_field != '01:01:01' and 
+date_time != '1901-01-01 01:01:01' 
+order by auto;
+auto
+2
+3
+4
+select auto from t1 where 
+string > "aaaa" and 
+vstring > "aaaa" and 
+bin > "aaaa" and 
+vbin > "aaaa" and 
+tiny < -1 and 
+short < -1 and 
+medium < -1 and 
+long_int < -1 and 
+longlong < -1 and 
+real_float > 1.1 and 
+real_double > 1.1 and 
+utiny > 1 and 
+ushort > 1 and 
+umedium > 1 and 
+ulong > 1 and 
+ulonglong > 1 and
+/* bits > b'001' and */
+(options = 'two' or options = 'three' or options = 'four') and
+(flags = 'one,two' or flags = 'one,two,three' or flags = 'one,two,three,four') and
+date_field > '1901-01-01' and
+year_field > '1901' and
+time_field > '01:01:01' and
+date_time > '1901-01-01 01:01:01'
+order by auto;
+auto
+2
+3
+4
+select auto from t1 where 
+string >= "aaaa" and 
+vstring >= "aaaa" and 
+bin >= "aaaa" and 
+vbin >= "aaaa" and 
+tiny <= -1 and 
+short <= -1 and 
+medium <= -1 and 
+long_int <= -1 and 
+longlong <= -1 and 
+real_float >= 1.0 and 
+real_double >= 1.0 and 
+utiny >= 1 and 
+ushort >= 1 and 
+umedium >= 1 and 
+ulong >= 1 and 
+ulonglong >= 1 and 
+/* bits >= b'001' and */
+(options = 'one' or options = 'two' or options = 'three' or options = 'four') and
+(flags = 'one' or flags = 'one,two' or flags = 'one,two,three' or flags = 'one,two,three,four') and
+date_field >= '1901-01-01' and
+year_field >= '1901' and
+time_field >= '01:01:01' and 
+date_time >= '1901-01-01 01:01:01' 
+order by auto;
+auto
+1
+2
+3
+4
+select auto from t1 where 
+string < "dddd" and 
+vstring < "dddd" and 
+bin < "dddd" and 
+vbin < "dddd" and 
+tiny > -4 and 
+short > -4 and 
+medium > -4 and 
+long_int > -4 and 
+longlong > -4 and 
+real_float < 4.4 and 
+real_double < 4.4 and
+utiny < 4 and 
+ushort < 4 and 
+umedium < 4 and 
+ulong < 4 and 
+ulonglong < 4 and 
+/* bits < b'100' and */
+(options = 'one' or options = 'two' or options = 'three') and
+(flags = 'one' or flags = 'one,two' or flags = 'one,two,three') and
+date_field < '1904-01-01' and
+year_field < '1904' and
+time_field < '04:04:04' and 
+date_time < '1904-04-04 04:04:04' 
+order by auto;
+auto
+1
+2
+3
+select auto from t1 where 
+string <= "dddd" and 
+vstring <= "dddd" and 
+bin <= "dddd" and 
+vbin <= "dddd" and 
+tiny >= -4 and 
+short >= -4 and 
+medium >= -4 and 
+long_int >= -4 and 
+longlong >= -4 and 
+real_float <= 4.5 and 
+real_double <= 4.5 and 
+utiny <= 4 - 1 + 1 and /* Checking function composition */
+ushort <= 4 and 
+umedium <= 4 and 
+ulong <= 4 and 
+ulonglong <= 4 and 
+/* bits <= b'100' and */
+(options = 'one' or options = 'two' or options = 'three' or options = 'four') and 
+(flags = 'one' or flags = 'one,two' or flags = 'one,two,three' or flags = 'one,two,three,four') and
+date_field <= '1904-04-04' and
+year_field <= '1904' and
+time_field <= '04:04:04' and 
+date_time <= '1904-04-04 04:04:04' 
+order by auto;
+auto
+1
+2
+3
+4
+select * from t2 where attr3 is null or attr1 > 2 and pk1= 3 order by pk1;
 pk1	attr1	attr2	attr3
 2	2	NULL	NULL
 3	3	3	d
-select * from t2 where attr2 >  9223372036854775803 and attr3 != 3 order by pk1;
+select * from t3 where attr2 >  9223372036854775803 and attr3 != 3 order by pk1;
 pk1	attr1	attr2	attr3	attr4
 2	2	9223372036854775804	2	c
 4	4	9223372036854775806	4	e
 5	5	9223372036854775807	5	f
-select * from t1,t2 where t1.attr1 > 1 and t1.attr2 = t2.attr2 and t2.attr1 < 5 order by t1.pk1;
+select * from t2,t3 where t2.attr1 > 1 and t2.attr2 = t3.attr2 and t3.attr1 < 5 order by t2.pk1;
 pk1	attr1	attr2	attr3	pk1	attr1	attr2	attr3	attr4
-set ndb_condition_pushdown = @old_ndbcpd;
-DROP TABLE t1,t2;
+select * from t4 where attr1 < 5 and attr2 > 9223372036854775803 and attr3 != 3 order by t4.pk1;
+pk1	attr1	attr2	attr3	attr4
+2	2	9223372036854775804	2	c
+4	4	9223372036854775806	4	e
+select * from t3,t4 where t4.attr1 > 1 and t4.attr2 = t3.attr2 and t4.attr3 < 5 order by t4.pk1;
+pk1	attr1	attr2	attr3	attr4	pk1	attr1	attr2	attr3	attr4
+2	2	9223372036854775804	2	c	2	2	9223372036854775804	2	c
+3	3	9223372036854775805	3	d	3	3	9223372036854775805	3	d
+4	4	9223372036854775806	4	e	4	4	9223372036854775806	4	e
+set engine_condition_pushdown = @old_ecpd;
+DROP TABLE t1,t2,t3,t4;
