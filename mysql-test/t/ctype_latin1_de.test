@@ -66,7 +66,7 @@ drop table t1;
 #
 # The below checks both binary and character comparisons.
 #
-create table t1 (word varchar(255) not null, word2 varchar(255) not null, index(word));
+create table t1 (word varchar(255) not null, word2 varchar(255) not null default '', index(word));
 show create table t1;
 insert into t1 (word) values ('ss'),(0xDF),(0xE4),('ae');
 update t1 set word2=word;

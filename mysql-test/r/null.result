@@ -88,7 +88,7 @@ b	ifnull(t2.b,"this is null")
 NULL	this is null
 NULL	this is null
 drop table t1;
-CREATE TABLE t1 (a varchar(16) NOT NULL, b smallint(6) NOT NULL, c datetime NOT NULL, d smallint(6) NOT NULL);
+CREATE TABLE t1 (a varchar(16) NOT NULL default '', b smallint(6) NOT NULL default '', c datetime NOT NULL default '0000-00-00 00:00:00', d smallint(6) NOT NULL default 0);
 INSERT INTO t1 SET a = "", d= "2003-01-14 03:54:55";
 Warnings:
 Warning	1265	Data truncated for column 'd' at row 1
