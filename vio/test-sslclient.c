@@ -25,11 +25,11 @@
 #ifndef __GNU_LIBRARY__
 #define __GNU_LIBRARY__               // Skip warnings in getopt.h
 #endif
-#include <getopt.h>
+#include <my_getopt.h>
 #include <signal.h>
 #include <violite.h>
 
-const char *VER="0.1";
+const char *VER="0.2";
 
 
 #ifndef DBUG_OFF

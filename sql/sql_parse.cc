@@ -59,9 +59,9 @@ extern "C" pthread_mutex_t THR_LOCK_keycache;
 extern "C" int gethostname(char *name, int namelen);
 #endif
 
-static int check_for_max_user_connections(UC *uc);
+static int check_for_max_user_connections(USER_CONN *uc);
 static bool check_mqh(THD *thd);
-static void decrease_user_connections(UC *uc);
+static void decrease_user_connections(USER_CONN *uc);
 static bool check_db_used(THD *thd,TABLE_LIST *tables);
 static bool check_merge_table_access(THD *thd, char *db, TABLE_LIST *tables);
 static bool check_dup(const char *db, const char *name, TABLE_LIST *tables);
@@ -126,18 +126,19 @@ extern  pthread_mutex_t LOCK_user_conn;
 
 static int get_or_create_user_conn(THD *thd, const char *user,
 				   const char *host,
-				   uint max_questions) 
+				   USER_RESOURCES *mqh) 
 {
   int return_val=0;
-  uint temp_len;
+  uint temp_len, user_len, host_len;
   char temp_user[USERNAME_LENGTH+HOSTNAME_LENGTH+2];
   struct  user_conn *uc;
 
   DBUG_ASSERT(user != 0);
   DBUG_ASSERT(host != 0);
 
-  temp_len= (uint) (strxnmov(temp_user, sizeof(temp_user)-1, user, "@", host,
-			     NullS) - temp_user);
+  user_len=strlen(user);
+  host_len=strlen(host);
+  temp_len= (strmov(strmov(temp_user, user)+1, host) - temp_user)+1;
   (void) pthread_mutex_lock(&LOCK_user_conn);
   if (!(uc = (struct  user_conn *) hash_search(&hash_user_connections,
 					       (byte*) temp_user, temp_len)))
@@ -153,10 +154,14 @@ static int get_or_create_user_conn(THD *thd, const char *user,
     }
     uc->user=(char*) (uc+1);
     memcpy(uc->user,temp_user,temp_len+1);
+    uc->user_len= user_len;
+    uc->host=uc->user + uc->user_len +  1;
     uc->len = temp_len;
-    uc->connections = 1; 
-    uc->questions=0;
-    uc->max_questions=max_questions;
+    uc->connections = 1;
+    uc->questions=uc->updates=uc->conn_per_hour=0;
+    uc->user_resources=*mqh;
+    if (max_user_connections && mqh->connections > max_user_connections) 
+      uc->user_resources.connections = max_user_connections;
     uc->intime=thd->thr_create_time;
     if (hash_insert(&hash_user_connections, (byte*) uc))
     {
@@ -184,9 +189,9 @@ static bool check_user(THD *thd,enum_server_command command, const char *user,
 		       const char *passwd, const char *db, bool check_count)
 {
   NET *net= &thd->net;
-  uint max_questions=0;
   thd->db=0;
   thd->db_length=0;
+  USER_RESOURCES ur;
 
   if (!(thd->user = my_strdup(user, MYF(0))))
   {
@@ -197,7 +202,7 @@ static bool check_user(THD *thd,enum_server_command command, const char *user,
 				 passwd, thd->scramble, &thd->priv_user,
 				 protocol_version == 9 ||
 				 !(thd->client_capabilities &
-				   CLIENT_LONG_PASSWORD),&max_questions);
+				   CLIENT_LONG_PASSWORD),&ur);
   DBUG_PRINT("info",
 	     ("Capabilities: %d  packet_length: %d  Host: '%s'  User: '%s'  Using password: %s  Access: %u  db: '%s'",
 	      thd->client_capabilities, thd->max_packet_length,
@@ -237,9 +242,10 @@ static bool check_user(THD *thd,enum_server_command command, const char *user,
 		  db ? db : (char*) "");
   thd->db_access=0;
   /* Don't allow user to connect if he has done too many queries */
-  if ((max_questions || max_user_connections) &&  get_or_create_user_conn(thd,user,thd->host_or_ip,max_questions))
+  if ((ur.questions || ur.updates || ur.connections) &&
+      get_or_create_user_conn(thd,user,thd->host_or_ip,&ur))
     return -1;
-  if (max_user_connections && thd->user_connect && 
+  if (thd->user_connect && thd->user_connect->user_resources.connections && 
       check_for_max_user_connections(thd->user_connect))
     return -1;
   if (db && db[0])
@@ -253,6 +259,7 @@ static bool check_user(THD *thd,enum_server_command command, const char *user,
     send_ok(net);				// Ready to handle questions
   return 0;					// ok
 }
+
 
 /*
   Check for maximum allowable user connections, if the mysqld server is
@@ -280,32 +287,38 @@ void init_max_user_conn(void)
 }
 
 
-static int check_for_max_user_connections(UC *uc)
+static int check_for_max_user_connections(USER_CONN *uc)
 {
   int error=0;
   DBUG_ENTER("check_for_max_user_connections");
   
-  if (max_user_connections <=  (uint) uc->connections) 
+  if (max_user_connections && ( max_user_connections <=  (uint) uc->connections))
   {
     net_printf(&(current_thd->net),ER_TOO_MANY_USER_CONNECTIONS, uc->user);
     error=1;
     goto end;
   }
   uc->connections++; 
-
+  if (uc->user_resources.connections &&  uc->conn_per_hour++ >= uc->user_resources.connections)
+  {
+    net_printf(&current_thd->net, ER_USER_LIMIT_REACHED, uc->user, "max_connections",
+	       (long) uc->user_resources.connections);
+    error=1;
+    goto end;
+  }
 end:
   DBUG_RETURN(error);
 }
 
 
-static void decrease_user_connections(UC *uc)
+static void decrease_user_connections(USER_CONN *uc)
 {
-  if (!max_user_connections)
+/*  if (!max_user_connections)
     return;
+*/
 
   DBUG_ENTER("decrease_user_connections");
-
-  if (!--uc->connections && !mqh_used)
+  if (!mqh_used && uc->connections && !--uc->connections)
   {
     /* Last connection for user; Delete it */
     (void) pthread_mutex_lock(&LOCK_user_conn);
@@ -326,70 +339,92 @@ void free_max_user_conn(void)
   Check if maximum queries per hour limit has been reached
   returns 0 if OK.
 
-  In theory we would need a mutex in the UC structure for this to be 100 %
+  In theory we would need a mutex in the USER_CONN structure for this to be 100 %
   safe, but as the worst scenario is that we would miss counting a couple of
   queries, this isn't critical.
 */
+
+char  uc_update_queries[SQLCOM_END];
 
 static bool check_mqh(THD *thd)
 {
   bool error=0;
   DBUG_ENTER("check_mqh");
-  UC *uc=thd->user_connect;
+  USER_CONN *uc=thd->user_connect;
   DBUG_ASSERT(uc != 0);
+  uint check_command = thd->lex.sql_command;
+  
 
-  bool my_start = thd->start_time != 0;
-  time_t check_time = (my_start) ?  thd->start_time : time(NULL);
-  if (check_time  - uc->intime >= 3600)
+  if (check_command < (uint) SQLCOM_END)
   {
-    (void) pthread_mutex_lock(&LOCK_user_conn);
-    uc->questions=1;
-    uc->intime=check_time;
-    (void) pthread_mutex_unlock(&LOCK_user_conn);
+    if (uc->user_resources.updates && uc_update_queries[check_command]  && 
+	++(uc->updates) > uc->user_resources.updates)
+    {
+      net_printf(&thd->net, ER_USER_LIMIT_REACHED, uc->user, "max_updates",
+		 (long) uc->user_resources.updates);
+      error=1;
+      goto end;
+    }
   }
-  else if (uc->max_questions && ++(uc->questions) > uc->max_questions)
+  else
   {
-    net_printf(&thd->net, ER_USER_LIMIT_REACHED, uc->user, "max_questions",
-	       (long) uc->max_questions);
-    error=1;
-    goto end;
+    bool my_start = thd->start_time != 0;
+    time_t check_time = (my_start) ?  thd->start_time : time(NULL);
+    
+    if (check_time  - uc->intime >= 3600)
+    {
+      (void) pthread_mutex_lock(&LOCK_user_conn);
+      uc->questions=1;
+      uc->updates=0;
+      uc->conn_per_hour=0;
+      uc->intime=check_time;
+      (void) pthread_mutex_unlock(&LOCK_user_conn);
+    }
+    else if (uc->user_resources.questions && ++(uc->questions) > uc->user_resources.questions)
+    {
+      net_printf(&thd->net, ER_USER_LIMIT_REACHED, uc->user, "max_questions",
+		 (long) uc->user_resources.questions);
+      error=1;
+      goto end;
+    }
   }
-
 end:
   DBUG_RETURN(error);
 }
 
 
-static void reset_mqh(THD *thd, LEX_USER *lu, uint mq)
+static void reset_mqh(THD *thd, LEX_USER *lu, USER_RESOURCES  *mqh, bool get_them=false)
 {
 
   (void) pthread_mutex_lock(&LOCK_user_conn);
   if (lu)  // for GRANT 
   {
-    UC *uc;
+    USER_CONN *uc;
     uint temp_len=lu->user.length+lu->host.length+2;
     char temp_user[USERNAME_LENGTH+HOSTNAME_LENGTH+2];
 
     memcpy(temp_user,lu->user.str,lu->user.length);
     memcpy(temp_user+lu->user.length+1,lu->host.str,lu->host.length);
-    temp_user[lu->user.length]=temp_user[temp_len-1]=0;
+    temp_user[lu->user.length]='\0'; temp_user[temp_len-1]=0;
     if ((uc = (struct  user_conn *) hash_search(&hash_user_connections,
-						(byte*) temp_user, temp_len)))
+						(byte*) temp_user, temp_len-1)))
     {
       uc->questions=0;
-      uc->max_questions=mq;
+      uc->user_resources=*mqh;
+      uc->updates=0;
+      uc->conn_per_hour=0;
     }
   }
-  else // for FLUSH PRIVILEGES
+  else // for FLUSH PRIVILEGES and FLUSH USER_RESOURCES
   {
     for (uint idx=0;idx < hash_user_connections.records; idx++)
     {
-      char user[USERNAME_LENGTH+1];
-      char *where;
-      UC *uc=(struct user_conn *) hash_element(&hash_user_connections, idx);
-      where=strchr(uc->user,'@');
-      strmake(user,uc->user,where - uc->user);
-      uc->max_questions=get_mqh(user,where+1);
+      USER_CONN *uc=(struct user_conn *) hash_element(&hash_user_connections, idx);
+      if (get_them)
+	get_mqh(uc->user,uc->host,uc);
+      uc->questions=0;
+      uc->updates=0;
+      uc->conn_per_hour=0;
     }
   }
   (void) pthread_mutex_unlock(&LOCK_user_conn);
@@ -555,7 +590,7 @@ pthread_handler_decl(handle_one_connection,arg)
 
 #if !defined( __WIN__) && !defined(OS2)	// Win32 calls this in pthread_create
   // The following calls needs to be done before we call DBUG_ macros
-  if (my_thread_init())
+  if (!(test_flags & TEST_NO_THREADS) & my_thread_init())
   {
     close_connection(&thd->net,ER_OUT_OF_RESOURCES);
     statistic_increment(aborted_connects,&LOCK_thread_count);
@@ -710,7 +745,7 @@ pthread_handler_decl(handle_bootstrap,arg)
     thd->query= thd->memdup_w_gap(buff, length+1, thd->db_length+1);
     thd->query[length] = '\0';
     thd->query_id=query_id++;
-    if (thd->user_connect && check_mqh(thd))
+    if (mqh_used && thd->user_connect && check_mqh(thd))
     {
       thd->net.error = 0;
       close_thread_tables(thd);			// Free tables
@@ -897,7 +932,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     char *save_user=	    thd->user;
     char *save_priv_user=   thd->priv_user;
     char *save_db=	    thd->db;
-    UC *save_uc=            thd->user_connect;
+    USER_CONN *save_uc=            thd->user_connect;
 
     if ((uint) ((uchar*) db - net->read_pos) > packet_length)
     {						// Check if protocol is ok
@@ -951,7 +986,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       my_pthread_setprio(pthread_self(),QUERY_PRIOR);
     mysql_log.write(thd,command,"%s",thd->query);
     DBUG_PRINT("query",("%s",thd->query));
-    if (thd->user_connect && check_mqh(thd))
+    if (mqh_used && thd->user_connect && check_mqh(thd))
     {
       error = TRUE;				// Abort client
       net->error = 0;				// Don't give abort message
@@ -1010,7 +1045,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       thread_safe_increment(com_stat[SQLCOM_CREATE_DB],&LOCK_thread_count);
       char *db=thd->strdup(packet);
       // null test to handle EOM
-      if (!db || !stripp_sp(db) || check_db_name(db))
+      if (!db || !strip_sp(db) || check_db_name(db))
       {
 	net_printf(&thd->net,ER_WRONG_DB_NAME, db ? db : "NULL");
 	break;
@@ -1026,7 +1061,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       thread_safe_increment(com_stat[SQLCOM_DROP_DB],&LOCK_thread_count);
       char *db=thd->strdup(packet);
       // null test to handle EOM
-      if (!db || !stripp_sp(db) || check_db_name(db))
+      if (!db || !strip_sp(db) || check_db_name(db))
       {
 	net_printf(&thd->net,ER_WRONG_DB_NAME, db ? db : "NULL");
 	break;
@@ -1076,8 +1111,6 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 	send_error(net,0);
       else
 	send_eof(net);
-      if (mqh_used)
-	reset_mqh(thd,(LEX_USER *) NULL, 0);
       break;
     }
   case COM_SHUTDOWN:
@@ -1680,7 +1713,6 @@ mysql_execute_command(void)
 	check_table_access(thd,SELECT_ACL | INSERT_ACL, tables))
       goto error; /* purecov: inspected */
     res = mysql_repair_table(thd, tables, &lex->check_opt);
-    query_cache_invalidate3(thd, tables, 0);
     break;
   }
   case SQLCOM_CHECK:
@@ -1689,7 +1721,6 @@ mysql_execute_command(void)
 	check_table_access(thd, SELECT_ACL | EXTRA_ACL , tables))
       goto error; /* purecov: inspected */
     res = mysql_check_table(thd, tables, &lex->check_opt);
-    query_cache_invalidate3(thd, tables, 0);
     break;
   }
   case SQLCOM_ANALYZE:
@@ -1718,6 +1749,7 @@ mysql_execute_command(void)
       bzero((char*) &create_info,sizeof(create_info));
       create_info.db_type=DB_TYPE_DEFAULT;
       create_info.row_type=ROW_TYPE_DEFAULT;
+      create_info.table_charset=default_charset_info;
       res= mysql_alter_table(thd, NullS, NullS, &create_info,
 			     tables, lex->create_list,
 			     lex->key_list, lex->drop_list, lex->alter_list,
@@ -1772,6 +1804,7 @@ mysql_execute_command(void)
       tables->grant.want_privilege=(SELECT_ACL & ~tables->grant.privilege);
       if ((res=open_and_lock_tables(thd,tables)))
 	break;
+      thd->select_limit=HA_POS_ERROR;
       if (!setup_fields(thd,tables,select_lex->item_list,1,0,0) && 
 	  !setup_fields(thd,tables,lex->value_list,0,0,0) &&  ! thd->fatal_error &&
 	  (result=new multi_update(thd,tables,select_lex->item_list,lex->duplicates,
@@ -1939,6 +1972,7 @@ mysql_execute_command(void)
       }
       auxi->lock_type=walk->lock_type=TL_WRITE;
       auxi->table= (TABLE *) walk;		// Remember corresponding table
+      (void)add_item_to_list(new Item_field(auxi->db,auxi->real_name,"*"));
     }
     tables->grant.want_privilege=(SELECT_ACL & ~tables->grant.privilege);
     if (add_item_to_list(new Item_null()))
@@ -1952,8 +1986,9 @@ mysql_execute_command(void)
     /* Fix tables-to-be-deleted-from list to point at opened tables */
     for (auxi=(TABLE_LIST*) aux_tables ; auxi ; auxi=auxi->next)
       auxi->table= ((TABLE_LIST*) auxi->table)->table;
-    if (!thd->fatal_error && (result=new multi_delete(thd,aux_tables,
-						      lex->lock_option,table_count)))
+    if (!thd->fatal_error && (result= new multi_delete(thd,aux_tables,
+						       lex->lock_option,
+						       table_count)))
     {
       res=mysql_select(thd,tables,select_lex->item_list,
 		       select_lex->where,
@@ -2198,7 +2233,8 @@ mysql_execute_command(void)
     }
     if (check_db_used(thd,tables) || end_active_trans(thd))
       goto error;
-    if (grant_option && check_grant(thd,SELECT_ACL | INSERT_ACL | UPDATE_ACL | DELETE_ACL,tables))
+    if (check_table_access(thd, SELECT_ACL | INSERT_ACL | UPDATE_ACL | DELETE_ACL , tables) 
+	|| (grant_option && check_grant(thd,SELECT_ACL | INSERT_ACL | UPDATE_ACL | DELETE_ACL,tables)))
       goto error;
     thd->in_lock_tables=1;
     thd->options|= OPTION_TABLE_LOCK;
@@ -2214,7 +2250,7 @@ mysql_execute_command(void)
     break;
   case SQLCOM_CREATE_DB:
   {
-    if (!stripp_sp(lex->name) || check_db_name(lex->name))
+    if (!strip_sp(lex->name) || check_db_name(lex->name))
     {
       net_printf(&thd->net,ER_WRONG_DB_NAME, lex->name);
       break;
@@ -2226,7 +2262,7 @@ mysql_execute_command(void)
   }
   case SQLCOM_DROP_DB:
   {
-    if (!stripp_sp(lex->name) || check_db_name(lex->name))
+    if (!strip_sp(lex->name) || check_db_name(lex->name))
     {
       net_printf(&thd->net,ER_WRONG_DB_NAME, lex->name);
       break;
@@ -2328,12 +2364,12 @@ mysql_execute_command(void)
 	  Query_log_event qinfo(thd, thd->query);
 	  mysql_bin_log.write(&qinfo);
 	}
-	if (mqh_used && lex->mqh)
+	if (mqh_used && (lex->mqh.questions || lex->mqh.updates || lex->mqh.connections) && lex->sql_command == SQLCOM_GRANT)
 	{
 	  List_iterator <LEX_USER> str_list(lex->users_list);
 	  LEX_USER *user;
 	  while ((user=str_list++))
-	    reset_mqh(thd,user,lex->mqh);
+	    reset_mqh(thd,user,&(lex->mqh));
 	}
       }
     }
@@ -2548,8 +2584,17 @@ check_table_access(THD *thd,uint want_access,TABLE_LIST *tables,
       }
     }
     else if (check_access(thd,want_access,tables->db,&tables->grant.privilege,
+			  0, no_errors | grant_option))
+    {
+      if (grant_option) 
+      {
+	if ( check_access(thd,want_access & (uint) ~TABLE_ACLS,tables->db,&tables->grant.privilege,
 			  0, no_errors))
-      return TRUE;				// Access denied
+	return TRUE;			
+      }
+      else
+	return TRUE;
+    }
   }
   if (grant_option)
     return check_grant(thd,want_access & ~EXTRA_ACL,org_tables,
@@ -2721,7 +2766,7 @@ void mysql_init_multi_delete(LEX *lex)
 {
   lex->sql_command =  SQLCOM_DELETE_MULTI;
   mysql_init_select(lex);
-  lex->select->select_limit=HA_POS_ERROR;
+  lex->select->select_limit=lex->thd->select_limit=HA_POS_ERROR;
   lex->auxilliary_table_list=lex->select_lex.table_list;
   lex->select->table_list.elements=0; 
   lex->select->table_list.first=0;
@@ -2740,8 +2785,15 @@ mysql_parse(THD *thd,char *inBuf,uint length)
     LEX *lex=lex_start(thd, (uchar*) inBuf, length);
     if (!yyparse() && ! thd->fatal_error)
     {
-      mysql_execute_command();
-      query_cache_end_of_result(&thd->net);
+      if (mqh_used && thd->user_connect && check_mqh(thd))
+      {
+	thd->net.error = 0;
+      }
+      else
+      {
+	mysql_execute_command();
+	query_cache_end_of_result(&thd->net);
+      }
     }
     else
       query_cache_abort(&thd->net);
@@ -2770,8 +2822,9 @@ link_in_list(SQL_LIST *list,byte *element,byte **next)
 
 bool add_field_to_list(char *field_name, enum_field_types type,
 		       char *length, char *decimals,
-		       uint type_modifier, Item *default_value,char *change,
-		       TYPELIB *interval)
+		       uint type_modifier,
+		       Item *default_value, Item *comment,
+		       char *change, TYPELIB *interval)
 {
   register create_field *new_field;
   THD	*thd=current_thd;
@@ -2787,14 +2840,14 @@ bool add_field_to_list(char *field_name, enum_field_types type,
   if (type_modifier & PRI_KEY_FLAG)
   {
     lex->col_list.push_back(new key_part_spec(field_name,0));
-    lex->key_list.push_back(new Key(Key::PRIMARY, HA_KEY_ALG_UNDEF, NullS,
+    lex->key_list.push_back(new Key(Key::PRIMARY, NullS, HA_KEY_ALG_UNDEF,
 				    lex->col_list));
     lex->col_list.empty();
   }
   if (type_modifier & (UNIQUE_FLAG | UNIQUE_KEY_FLAG))
   {
     lex->col_list.push_back(new key_part_spec(field_name,0));
-    lex->key_list.push_back(new Key(Key::UNIQUE, HA_KEY_ALG_UNDEF, NullS,
+    lex->key_list.push_back(new Key(Key::UNIQUE, NullS, HA_KEY_ALG_UNDEF,
 				    lex->col_list));
     lex->col_list.empty();
   }
@@ -2824,15 +2877,28 @@ bool add_field_to_list(char *field_name, enum_field_types type,
   new_field->change=change;
   new_field->interval=0;
   new_field->pack_length=0;
+  new_field->charset=0;				// QQ: To be fixed
+
+  if (!comment)
+  {
+    new_field->comment.str=0;
+    new_field->comment.length=0;
+  }
+  else
+  {
+    /* In this case comment is always of type Item_string */
+    new_field->comment.str=   (char*) comment->str_value.ptr();
+    new_field->comment.length=comment->str_value.length();
+  }
   if (length)
     if (!(new_field->length= (uint) atoi(length)))
       length=0; /* purecov: inspected */
   uint sign_len=type_modifier & UNSIGNED_FLAG ? 0 : 1;
 
   if (new_field->length && new_field->decimals &&
-      new_field->length < new_field->decimals+2 &&
+      new_field->length < new_field->decimals+1 &&
       new_field->decimals != NOT_FIXED_DEC)
-    new_field->length=new_field->decimals+2; /* purecov: inspected */
+    new_field->length=new_field->decimals+1; /* purecov: inspected */
 
   switch (type) {
   case FIELD_TYPE_TINY:
@@ -2960,7 +3026,9 @@ bool add_field_to_list(char *field_name, enum_field_types type,
       new_field->interval=interval;
       new_field->length=0;
       for (const char **pos=interval->type_names; *pos ; pos++)
-	new_field->length+=(uint) strlen(*pos)+1;
+      {
+	new_field->length+=(uint) strip_sp((char*) *pos)+1;
+      }
       new_field->length--;
       set_if_smaller(new_field->length,MAX_FIELD_WIDTH-1);
       if (default_value)
@@ -2981,10 +3049,10 @@ bool add_field_to_list(char *field_name, enum_field_types type,
     {
       new_field->interval=interval;
       new_field->pack_length=interval->count < 256 ? 1 : 2; // Should be safe
-      new_field->length=(uint) strlen(interval->type_names[0]);
+      new_field->length=(uint) strip_sp((char*) interval->type_names[0]);
       for (const char **pos=interval->type_names+1; *pos ; pos++)
       {
-	uint length=(uint) strlen(*pos);
+	uint length=(uint) strip_sp((char*) *pos);
 	set_if_bigger(new_field->length,length);
       }
       set_if_smaller(new_field->length,MAX_FIELD_WIDTH-1);
@@ -3287,6 +3355,8 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables)
   {
     acl_reload();
     grant_reload();
+    if (mqh_used)
+      reset_mqh(thd,(LEX_USER *) NULL, 0, true);
   }
   if (options & REFRESH_LOG)
   {
@@ -3333,14 +3403,16 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables)
        result=load_des_key_file(des_key_file);
    }
 #endif
-   if (options & REFRESH_SLAVE)
-  {
-    LOCK_ACTIVE_MI;
-    if (reset_slave(active_mi))
-      result=1;
-    UNLOCK_ACTIVE_MI;
-  }
-  return result;
+ if (options & REFRESH_SLAVE)
+ {
+   LOCK_ACTIVE_MI;
+   if (reset_slave(active_mi))
+     result=1;
+   UNLOCK_ACTIVE_MI;
+ }
+ if (options & REFRESH_USER_RESOURCES)
+   reset_mqh(thd,(LEX_USER *) NULL, 0);
+ return result;
 }
 
 

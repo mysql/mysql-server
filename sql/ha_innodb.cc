@@ -102,13 +102,14 @@ my_bool	innobase_use_native_aio			= FALSE;
 my_bool	innobase_fast_shutdown			= TRUE;
 
 /*
-  Set default InnoDB size to 64M and let it be auto-extending. Thus users
-  can use InnoDB without having to specify any startup options.
+  Set default InnoDB data file size to 10 MB and let it be
+  auto-extending. Thus users can use InnoDB without having to
+  specify any startup options.
 */
 
 /* innobase_data_file_path=ibdata:15,idata2:1,... */
 
-char *innobase_data_file_path= (char*) "ibdata1:64M:autoextend";
+char *innobase_data_file_path= (char*) "ibdata1:10M:autoextend";
 static char *internal_innobase_data_file_path=0;
 
 /* The following counter is used to convey information to InnoDB
@@ -653,6 +654,7 @@ innobase_close_connection(
 				(thd->transaction.all.innobase_tid));
 		trx_free_for_mysql((trx_t*)
 				(thd->transaction.all.innobase_tid));
+		thd->transaction.all.innobase_tid = NULL;
 	}
 
 	return(0);

@@ -318,13 +318,15 @@ int mysql_update(THD *thd,
   }
   if (using_transactions && ha_autocommit_or_rollback(thd, error >= 0))
     error=1;
+  if (updated)
+  {
+    query_cache_invalidate3(thd, table_list, 1);
+  }
   if (thd->lock)
   {
     mysql_unlock_tables(thd, thd->lock);
     thd->lock=0;
   }
-  if (updated)
-    query_cache_invalidate3(thd, table_list, 1);
 
   delete select;
   if (error >= 0)
@@ -643,6 +645,10 @@ void multi_update::send_error(uint errcode,const char *err)
   /* If nothing updated return */
   if (!updated)
     return;
+
+  /* Somthing alredy updated consequently we have to invalidate cache */
+  query_cache_invalidate3(thd, update_tables, 1);
+
   /* Below can happen when thread is killed early ... */
   if (!table_being_updated)
     table_being_updated=update_tables;
@@ -789,8 +795,9 @@ bool multi_update::send_eof()
     sprintf(buff,ER(ER_UPDATE_INFO), (long) found, (long) updated,
 	    (long) thd->cuted_fields);
     if (updated)
+    {
       query_cache_invalidate3(thd, update_tables, 1);
-
+    }
     ::send_ok(&thd->net,
 	      (thd->client_capabilities & CLIENT_FOUND_ROWS) ? found : updated,
 	      thd->insert_id_used ? thd->insert_id() : 0L,buff);

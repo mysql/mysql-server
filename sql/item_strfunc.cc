@@ -475,7 +475,7 @@ null:
 
 void Item_func_concat_ws::fix_length_and_dec()
 {
-  max_length=0;
+  max_length=separator->max_length*(arg_count-1);
   for (uint i=0 ; i < arg_count ; i++)
     max_length+=args[i]->max_length;
   if (max_length > MAX_BLOB_WIDTH)
@@ -2342,7 +2342,8 @@ String *Item_func_spatial_collection::val_str(String *str)
     }
     else
     {
-      uint32 wkb_type, len=res->length();
+      enum Geometry::wkbType wkb_type;
+      uint32 len=res->length();
       const char *data=res->ptr()+1;
 
       /* 
@@ -2351,75 +2352,74 @@ String *Item_func_spatial_collection::val_str(String *str)
          do this checking now
       */
       
-      if (len<5)
+      if (len < 5)
         goto ret;
-      wkb_type=uint4korr(data);
+      wkb_type= (Geometry::wkbType) uint4korr(data);
       data+=4;
       len-=5;
-      if ( wkb_type != item_type )
+      if (wkb_type != item_type)
         goto ret;
       
-      switch(coll_type)
-      {
-         case Geometry::wkbMultiPoint:
-         case Geometry::wkbMultiLineString:
-         case Geometry::wkbMultiPolygon:
-           if (len<WKB_HEADER_SIZE) 
-             goto ret;
+      switch (coll_type) {
+      case Geometry::wkbMultiPoint:
+      case Geometry::wkbMultiLineString:
+      case Geometry::wkbMultiPolygon:
+	if (len < WKB_HEADER_SIZE) 
+	  goto ret;
            
-           data+=WKB_HEADER_SIZE;
-           len-=WKB_HEADER_SIZE;
-           if (str->reserve(len,512))
-             goto ret;
-           str->q_append(data,len);
-           break;
+	data+=WKB_HEADER_SIZE;
+	len-=WKB_HEADER_SIZE;
+	if (str->reserve(len,512))
+	  goto ret;
+	str->q_append(data,len);
+	break;
 
-         case Geometry::wkbLineString:
-           if (str->reserve(POINT_DATA_SIZE,512))
-             goto ret;
-           str->q_append(data,POINT_DATA_SIZE);
-           break;
+      case Geometry::wkbLineString:
+	if (str->reserve(POINT_DATA_SIZE,512))
+	  goto ret;
+	str->q_append(data,POINT_DATA_SIZE);
+	break;
 
-         case Geometry::wkbPolygon:
-           { 
-             uint32 n_points;
-             double x1, y1, x2, y2;
+      case Geometry::wkbPolygon:
+      { 
+	uint32 n_points;
+	double x1, y1, x2, y2;
 
-             if (len < WKB_HEADER_SIZE + 4 + 8 + 8) 
-               goto ret;
-             data+=WKB_HEADER_SIZE;
-             len-=WKB_HEADER_SIZE;
+	if (len < WKB_HEADER_SIZE + 4 + 8 + 8) 
+	  goto ret;
+	data+=WKB_HEADER_SIZE;
+	len-=WKB_HEADER_SIZE;
 
-             uint32 llen=len;
-             const char *ldata=data;
+	uint32 llen=len;
+	const char *ldata=data;
              
-             n_points=uint4korr(data);
-             data+=4;
-             float8get(x1,data);
-             data+=8;
-             float8get(y1,data);
-             data+=8;
+	n_points=uint4korr(data);
+	data+=4;
+	float8get(x1,data);
+	data+=8;
+	float8get(y1,data);
+	data+=8;
              
-             len-= 4 + 8 + 8;
+	len-= 4 + 8 + 8;
              
-             if (len < n_points * POINT_DATA_SIZE)
-               goto ret;
-             data+=(n_points-2) * POINT_DATA_SIZE;
+	if (len < n_points * POINT_DATA_SIZE)
+	  goto ret;
+	data+=(n_points-2) * POINT_DATA_SIZE;
 
-             float8get(x2,data);
-             float8get(y2,data+8);
+	float8get(x2,data);
+	float8get(y2,data+8);
              
-             if ((x1 != x2) || (y1 != y2))
-               goto ret;
+	if ((x1 != x2) || (y1 != y2))
+	  goto ret;
              
-             if (str->reserve(llen,512))
-               goto ret;
-             str->q_append(ldata, llen);
-           }
-           break;
+	if (str->reserve(llen,512))
+	  goto ret;
+	str->q_append(ldata, llen);
+      }
+      break;
          
-         default:
-           goto ret;
+      default:
+	goto ret;
       }
     }
   }

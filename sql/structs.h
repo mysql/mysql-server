@@ -162,13 +162,16 @@ typedef struct	st_lex_user {
 } LEX_USER;
 
 
+typedef struct user_resources {
+  uint questions, updates, connections;
+} USER_RESOURCES;
+
 typedef struct  user_conn {
-  char *user;
-  uint len, connections, questions, max_questions;
+  char *user, *host;
+  uint len, connections, conn_per_hour, updates, questions, user_len;
+  USER_RESOURCES user_resources;
   time_t intime;
-} UC;
-
-
+} USER_CONN;
 	/* Bits in form->update */
 #define REG_MAKE_DUPP		1	/* Make a copy of record when read */
 #define REG_NEW_RECORD		2	/* Write a new record if not found */

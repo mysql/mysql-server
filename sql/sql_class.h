@@ -69,11 +69,13 @@ class MYSQL_LOG {
   char log_file_name[FN_REFLEN],index_file_name[FN_REFLEN];
   bool write_error,inited;
   uint file_id; // current file sequence number for load data infile
-  // binary logging
-  bool no_rotate; // for binlog - if log name can never change
-  // we should not try to rotate it or write any rotation events
-  // the user should use FLUSH MASTER instead of FLUSH LOGS for
-  // purging
+  /*
+    For binlog - if log name can never change
+    we should not try to rotate it or write any rotation events
+    the user should use FLUSH MASTER instead of FLUSH LOGS for
+    purging
+  */
+  bool no_rotate;
   enum cache_type io_cache_type;
   bool need_start_event;
   pthread_cond_t update_cond;
@@ -182,7 +184,7 @@ typedef struct st_copy_info {
   ha_rows copied;
   ha_rows error;
   enum enum_duplicates handle_duplicates;
-  int escape_char;
+  int escape_char, errorno;
 } COPY_INFO;
 
 
@@ -215,19 +217,40 @@ public:
 
 class Key :public Sql_alloc {
 public:
-  enum Keytype { PRIMARY, UNIQUE, MULTIPLE, FULLTEXT, SPATIAL };
+  enum Keytype { PRIMARY, UNIQUE, MULTIPLE, FULLTEXT, SPATIAL, FOREIGN_KEY};
   enum Keytype type;
   enum ha_key_alg algorithm;
   List<key_part_spec> columns;
-  const char *Name;
+  const char *name;
 
-  Key(enum Keytype type_par, enum ha_key_alg alg_par, const char *name_arg, List<key_part_spec> &cols)
-    :type(type_par), algorithm(alg_par), columns(cols), Name(name_arg)
+  Key(enum Keytype type_par, const char *name_arg, enum ha_key_alg alg_par,
+      List<key_part_spec> &cols)
+    :type(type_par), algorithm(alg_par), columns(cols), name(name_arg)
   {}
   ~Key() {}
-  const char *name() { return Name; }
 };
 
+class Table_ident;
+
+class foreign_key: public Key {
+public:
+  enum fk_match_opt { FK_MATCH_UNDEF, FK_MATCH_FULL,
+		      FK_MATCH_PARTIAL, FK_MATCH_SIMPLE};
+  enum fk_option { FK_OPTION_UNDEF, FK_OPTION_RESTRICT, FK_OPTION_CASCADE,
+		   FK_OPTION_SET_NULL, FK_OPTION_NO_ACTION, FK_OPTION_DEFAULT};
+
+  Table_ident *ref_table;
+  List<key_part_spec> ref_columns;
+  uint delete_opt, update_opt, match_opt;
+  foreign_key(const char *name_arg, List<key_part_spec> &cols,
+	      Table_ident *table,   List<key_part_spec> &ref_cols,
+	      uint delete_opt_arg, uint update_opt_arg, uint match_opt_arg)
+    :Key(FOREIGN_KEY, name_arg, HA_KEY_ALG_UNDEF, cols),
+    ref_table(table), ref_columns(cols),
+    delete_opt(delete_opt_arg), update_opt(update_opt_arg),
+    match_opt(match_opt_arg)
+  {}
+};
 
 typedef struct st_mysql_lock
 {
@@ -247,8 +270,8 @@ public:
 
 #include "sql_lex.h"				/* Must be here */
 
-// needed to be able to have an I_List of char* strings.in mysqld.cc where we cannot use String
-// because it is Sql_alloc'ed
+/* Needed to be able to have an I_List of char* strings in mysqld.cc. */
+
 class i_string: public ilink
 {
 public:
@@ -257,7 +280,7 @@ public:
   i_string(char* s) : ptr(s) {}
 };
 
-//needed for linked list of two strings for replicate-rewrite-db
+/* needed for linked list of two strings for replicate-rewrite-db */
 class i_string_pair: public ilink
 {
 public:
@@ -275,39 +298,42 @@ class delayed_insert;
 
 #define THD_CHECK_SENTRY(thd) DBUG_ASSERT(thd->dbug_sentry == THD_SENTRY_MAGIC)
 
-/* For each client connection we create a separate thread with THD serving as
-   a thread/connection descriptor */
+/*
+  For each client connection we create a separate thread with THD serving as
+  a thread/connection descriptor.
+*/
 
 class THD :public ilink {
 public:
-  NET	  net; // client connection descriptor
-  LEX	  lex; // parse tree descriptor
-  MEM_ROOT mem_root; // 1 command-life memory allocation pool
-  HASH     user_vars; // hash for user variables
-  String  packet; // dynamic string buffer used for network I/O		
-  struct  sockaddr_in remote; // client socket address
-  struct  rand_struct rand; // used for authentication
+  NET	  net;				// client connection descriptor
+  LEX	  lex;				// parse tree descriptor
+  MEM_ROOT mem_root;			// 1 command-life memory
+  HASH     user_vars;			// hash for user variables
+  String  packet;			// buffer used for network I/O		
+  struct  sockaddr_in remote;		// client socket address
+  struct  rand_struct rand;		// used for authentication
   
-  /* query points to the current query,
-     thread_stack is a pointer to the stack frame of handle_one_connection(),
-     which is called first in the thread for handling a client 
-   */
+  /*
+    Query points to the current query,
+    thread_stack is a pointer to the stack frame of handle_one_connection(),
+    which is called first in the thread for handling a client 
+  */
   char	  *query,*thread_stack;
   /*
     host - host of the client
     user - user of the client, set to NULL until the user has been read from
      the connection
-    priv_user - not sure why we have it, but it is set to "boot" when we run
-     with --bootstrap
+    priv_user - The user privilege we are using. May be '' for anonymous user.
     db - currently selected database
     ip - client IP
    */
   
   char	  *host,*user,*priv_user,*db,*ip;
-  /* proc_info points to a string that will show in the Info column of
-     SHOW PROCESSLIST output
-     host_or_ip points to host if host is available, otherwise points to ip   
-   */
+  /*
+    Proc_info points to a string that will show in the Info column of
+    SHOW PROCESSLIST output
+    host_or_ip points to host if host is available, otherwise points to ip   
+  */
   const   char *proc_info, *host_or_ip;
   
   /*
@@ -334,7 +360,8 @@ public:
    */
   TABLE   *open_tables,*temporary_tables, *handler_tables;
   // TODO: document the variables below
-  MYSQL_LOCK *lock,*locked_tables;
+  MYSQL_LOCK *lock;				/* Current locks */
+  MYSQL_LOCK *locked_tables;			/* Tables locked with LOCK */
   ULL	  *ull;
 #ifndef DBUG_OFF
   uint dbug_sentry; // watch out for memory corruption
@@ -382,7 +409,7 @@ public:
   ha_rows    select_limit,offset_limit,default_select_limit,cuted_fields,
              max_join_size, sent_row_count, examined_row_count;
   table_map  used_tables;
-  UC *user_connect;
+  USER_CONN *user_connect;
   ulong	     query_id,version, inactive_timeout,options,thread_id;
   long	     dbug_thread_id;
   pthread_t  real_id;
@@ -538,7 +565,7 @@ public:
 #include "log_event.h"
 
 /*
-** This is used to get result from a select
+  This is used to get result from a select
 */
 
 class JOIN;
@@ -666,6 +693,7 @@ class select_union :public select_result {
   TABLE *table;
   COPY_INFO info;
   uint save_time_stamp;
+  TMP_TABLE_PARAM *tmp_table_param;
 
   select_union(TABLE *table_par);
   ~select_union();
@@ -787,7 +815,6 @@ public:
 
  class multi_update : public select_result {
    TABLE_LIST *update_tables, *table_being_updated;
-//   Unique  **tempfiles;
    COPY_INFO *infos;
    TABLE **tmp_tables;
    THD *thd;

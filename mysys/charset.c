@@ -123,7 +123,7 @@ static my_bool read_charset_index(CS_ID ***charsets, myf myflags)
   fb.buf[0] = '\0';
   fb.p = fb.buf;
 
-  if (init_dynamic_array(&cs, sizeof(CS_ID *), 32, 32))
+  if (my_init_dynamic_array(&cs, sizeof(CS_ID *), 32, 32))
     return TRUE;
 
   while (!get_word(&fb, buf) && !get_word(&fb, num_buf))
@@ -181,7 +181,7 @@ static my_bool init_available_charsets(myf myflags)
     pthread_mutex_lock(&THR_LOCK_charset);
     if (!cs_info_table.buffer)			/* If not initialized */
     {
-      init_dynamic_array(&cs_info_table, sizeof(CHARSET_INFO*), 16, 8);
+      my_init_dynamic_array(&cs_info_table, sizeof(CHARSET_INFO*), 16, 8);
       error = read_charset_index(&available_charsets, myflags);
     }
     charset_initialized=1;

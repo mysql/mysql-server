@@ -233,4 +233,6 @@
 "Ne mogu da izvršim upit zbog toga što imate zakljuèavanja èitanja podataka u konfliktu",
 "Mešanje tabela koje podržavaju transakcije i onih koje ne podržavaju transakcije je iskljuèeno",
 "Opcija '%s' je upotrebljena dva puta u istom iskazu",
-"User '%-64s' has exceeded the '%s' resource (current value: %ld)",
+"User '%-.64s' has exceeded the '%s' resource (current value: %ld)",
+"Wrong foreign key definition for '%-.64s': %s",
+"Key reference and table reference doesn't match",
