@@ -16,9 +16,18 @@ round(5.64,1)	round(5.64,2)	round(5.64,-1)	round(5.64,-2)
 select abs(-10), sign(-5), sign(5), sign(0);
 abs(-10)	sign(-5)	sign(5)	sign(0)
 10	-1	1	0
-select log(exp(10)),exp(log(sqrt(10))*2);
-log(exp(10))	exp(log(sqrt(10))*2)
-10.000000	10.000000
+select log(exp(10)),exp(log(sqrt(10))*2),log(-1),log(NULL),log(1,1),log(3,9),log(-1,2),log(NULL,2);
+log(exp(10))	exp(log(sqrt(10))*2)	log(-1)	log(NULL)	log(1,1)	log(3,9)	log(-1,2)	log(NULL,2)
+10.000000	10.000000	NULL	NULL	NULL	2.000000	NULL	NULL
+select ln(exp(10)),exp(ln(sqrt(10))*2),ln(-1),ln(0),ln(NULL);
+ln(exp(10))	exp(ln(sqrt(10))*2)	ln(-1)	ln(0)	ln(NULL)
+10.000000	10.000000	NULL	NULL	NULL
+select log2(8),log2(15),log2(-2),log2(0),log2(NULL);
+log2(8)	log2(15)	log2(-2)	log2(0)	log2(NULL)
+3.000000	3.906891	NULL	NULL	NULL
+select log10(100),log10(18),log10(-4),log10(0),log10(NULL);
+log10(100)	log10(18)	log10(-4)	log10(0)	log10(NULL)
+2.000000	1.255273	NULL	NULL	NULL
 select pow(10,log10(10)),power(2,4);
 pow(10,log10(10))	power(2,4)
 10.000000	16.000000

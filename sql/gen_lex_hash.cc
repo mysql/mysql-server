@@ -74,13 +74,13 @@ static struct my_option my_long_options[] =
   {"version", 'V', "Output version information and exit",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"rnd1", 'r', "Set 1 part of rnd value for hash generator",
-   (gptr*) &best_t1, (gptr*) &best_t1, 0, GET_ULONG, REQUIRED_ARG, 6657025L,
+   (gptr*) &best_t1, (gptr*) &best_t1, 0, GET_ULONG, REQUIRED_ARG, 5075635L,
    0, 0, 0, 0, 0},
   {"rnd2", 'R', "Set 2 part of rnd value for hash generator",
-   (gptr*) &best_t2, (gptr*) &best_t2, 0, GET_ULONG, REQUIRED_ARG, 6114496L,
+   (gptr*) &best_t2, (gptr*) &best_t2, 0, GET_ULONG, REQUIRED_ARG, 1345933L,
    0, 0, 0, 0, 0},
   {"type", 't', "Set type of char table to generate",
-   (gptr*) &best_type, (gptr*) &best_type, 0, GET_UINT, REQUIRED_ARG, 1, 0, 0,
+   (gptr*) &best_type, (gptr*) &best_type, 0, GET_UINT, REQUIRED_ARG, 4, 0, 0,
    0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
@@ -479,7 +479,7 @@ int main(int argc,char **argv)
 
   MY_INIT(argv[0]);
 
-  start_value=1109118L;   /* mode=4903  add=3  type: 0 */
+  start_value=3807640L;   /* mode=6971  add=3  type: 0 */
   if (get_options(argc,(char **) argv))
     exit(1);
 

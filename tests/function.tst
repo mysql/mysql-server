@@ -7,7 +7,7 @@
 #
 select 1+1,1-1,1+1*2,8/5,8%5,mod(8,5),mod(8,5)|0,-(1+1)*-2,sign(-5) ;
 select floor(5.5),floor(-5.5),ceiling(5.5),ceiling(-5.5),round(5.5),round(-5.5);
-select abs(-10),log(exp(10)),exp(log(sqrt(10))*2),pow(10,log10(10)),rand(999999),rand();
+select abs(-10),log(exp(10)),ln(exp(10)),log2(65535),log(2,65535),exp(log(sqrt(10))*2),pow(10,log10(10)),rand(999999),rand();
 select least(6,1.0,2.0),greatest(3,4,5,0) ;
 select 1 | (1+1),5 & 3,bit_count(7) ;
 #

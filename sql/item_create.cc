@@ -220,9 +220,14 @@ Item *create_func_char_length(Item* a)
   return new Item_func_char_length(a);
 }
 
-Item *create_func_log(Item* a)
+Item *create_func_ln(Item* a)
 {
-  return new Item_func_log(a);
+  return new Item_func_ln(a);
+}
+
+Item *create_func_log2(Item* a)
+{
+  return new Item_func_log2(a);
 }
 
 Item *create_func_log10(Item* a)
