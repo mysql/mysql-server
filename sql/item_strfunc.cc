@@ -1438,6 +1438,8 @@ String *Item_func_soundex::val_str(String *str)
 {
   String *res  =args[0]->val_str(str);
   char last_ch,ch;
+  CHARSET_INFO *cs=my_charset_latin1;
+
   if ((null_value=args[0]->null_value))
     return 0; /* purecov: inspected */
 
@@ -1445,22 +1447,23 @@ String *Item_func_soundex::val_str(String *str)
     return str; /* purecov: inspected */
   char *to= (char *) tmp_value.ptr();
   char *from= (char *) res->ptr(), *end=from+res->length();
-
-  while (from != end && my_isspace(str->charset(),*from)) // Skip pre-space
+  tmp_value.set_charset(cs);
+  
+  while (from != end && my_isspace(cs,*from)) // Skip pre-space
     from++; /* purecov: inspected */
   if (from == end)
     return &empty_string;		// No alpha characters.
-  *to++ = my_toupper(str->charset(),*from);// Copy first letter
-  last_ch = get_scode(str->charset(),from);// code of the first letter
+  *to++ = my_toupper(cs,*from);		// Copy first letter
+  last_ch = get_scode(cs,from);		// code of the first letter
 					// for the first 'double-letter check.
 					// Loop on input letters until
 					// end of input (null) or output
 					// letter code count = 3
   for (from++ ; from < end ; from++)
   {
-    if (!my_isalpha(str->charset(),*from))
+    if (!my_isalpha(cs,*from))
       continue;
-    ch=get_scode(str->charset(),from);
+    ch=get_scode(cs,from);
     if ((ch != '0') && (ch != last_ch)) // if not skipped or double
     {
        *to++ = ch;			// letter, copy to output
