@@ -551,6 +551,7 @@ int mysql_ha_flush(THD *thd, TABLE_LIST *tables, uint mode_flags);
 #define MYSQL_HA_FLUSH_ALL          0x02
 
 /* sql_base.cc */
+#define TMP_TABLE_KEY_EXTRA 8
 void set_item_name(Item *item,char *pos,uint length);
 bool add_field_to_list(char *field_name, enum enum_field_types type,
 		       char *length, char *decimal,

@@ -1142,7 +1142,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       if (check_access(thd,CREATE_ACL,db,0,1))
 	break;
       mysql_log.write(thd,command,packet);
-      mysql_create_db(thd,(lower_case_table_names == 2 ? alias : db),0,0);
+      if (mysql_create_db(thd, (lower_case_table_names == 2 ? alias : db),
+                          0, 0) < 0)
+        send_error(&thd->net, thd->killed ? ER_SERVER_SHUTDOWN : 0);
       break;
     }
   case COM_DROP_DB:				// QQ: To be removed
@@ -1163,7 +1165,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 	break;
       }
       mysql_log.write(thd,command,db);
-      mysql_rm_db(thd, (lower_case_table_names == 2 ? alias : db), 0, 0);
+      if (mysql_rm_db(thd, (lower_case_table_names == 2 ? alias : db),
+                      0, 0) < 0)
+        send_error(&thd->net, thd->killed ? ER_SERVER_SHUTDOWN : 0);
       break;
     }
   case COM_BINLOG_DUMP:

@@ -704,4 +704,17 @@ Qcache_queries_in_cache	1
 unlock table;
 drop table t1,t2;
 set query_cache_wlock_invalidate=default;
+CREATE TABLE t1 (id INT PRIMARY KEY);
+insert into t1 values (1),(2),(3);
+select * from t1;
+id
+1
+2
+3
+create temporary table t1 (a int not null auto_increment
+primary key);
+select * from t1;
+a
+drop table t1;
+drop table t1;
 set GLOBAL query_cache_size=0;
