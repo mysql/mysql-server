@@ -2453,7 +2453,7 @@ int main(int argc, char **argv)
   my_bool require_file=0, q_send_flag=0;
   char save_file[FN_REFLEN];
   MY_INIT(argv[0]);
-
+  {
   DBUG_ENTER("main");
   DBUG_PROCESS(argv[0]);
 
@@ -2678,6 +2678,7 @@ int main(int argc, char **argv)
   free_used_memory();
   exit(error ? 1 : 0);
   return error ? 1 : 0;				/* Keep compiler happy */
+  }
 }
 
 
