@@ -242,7 +242,7 @@ character-set=latin1
 "Optie '%s' tweemaal gebruikt in opdracht",
 "Gebruiker '%-.64s' heeft het maximale gebruik van de '%s' faciliteit overschreden (huidige waarde: %ld)",
 "Toegang geweigerd. U moet het %-.128s privilege hebben voor deze operatie",
-"Variabele '%-.64s' is LOCAL en kan niet worden gebruikt met SET GLOBAL",
+"Variabele '%-.64s' is SESSION en kan niet worden gebruikt met SET GLOBAL",
 "Variabele '%-.64s' is GLOBAL en dient te worden gewijzigd met SET GLOBAL",
 "Variabele '%-.64s' heeft geen standaard waarde",
 "Variabele '%-.64s' kan niet worden gewijzigd naar de waarde '%-.64s'",

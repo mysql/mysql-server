@@ -1180,9 +1180,18 @@ err:
 }
 
 
-	/* Execute one command from socket (query or simple command) */
-
 #ifndef EMBEDDED_LIBRARY
+
+/*
+  Read one command from socket and execute it (query or simple command).
+  This function is called in loop from thread function.
+  SYNOPSIS
+    do_command()
+  RETURN VALUE
+    0  success
+    1  request of thread shutdown (see dispatch_command() description)
+*/
+
 bool do_command(THD *thd)
 {
   char *packet;

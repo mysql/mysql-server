@@ -93,7 +93,7 @@ double my_strtod(const char *str, char **end)
         if (neg)
           result= 0.0;
         else
-          result= DBL_MAX;
+          result= DBL_MAX*10;
         goto done;
       }
       while (exp >= 100)
@@ -112,9 +112,6 @@ double my_strtod(const char *str, char **end)
 done:
   if (end)
     *end = (char *)str;
-
-  if (isinf(result))
-    result=DBL_MAX;
 
   return negative ? -result : result;
 }
