@@ -1875,7 +1875,7 @@ mysql_execute_command(THD *thd)
   if (&lex->select_lex != lex->all_selects_list &&
       lex->unit.create_total_list(thd, lex, &tables))
     DBUG_VOID_RETURN;
-  
+
   /*
     When option readonly is set deny operations which change tables.
     Except for the replication thread and the 'super' users.
@@ -1892,6 +1892,13 @@ mysql_execute_command(THD *thd)
   switch (lex->sql_command) {
   case SQLCOM_SELECT:
   {
+    /* assign global limit variable if limit is not given */
+    {
+      SELECT_LEX *param= lex->unit.global_parameters;
+      if (!param->explicit_limit)
+	param->select_limit= thd->variables.select_limit;
+    }
+
     select_result *result=lex->result;
     if (tables)
     {
@@ -3743,9 +3750,7 @@ mysql_init_select(LEX *lex)
 {
   SELECT_LEX *select_lex= lex->current_select;
   select_lex->init_select();
-  select_lex->select_limit= (&lex->select_lex == select_lex) ?
-	lex->thd->variables.select_limit :	/* Primry UNION */
-	HA_POS_ERROR;				/* subquery */
+  select_lex->select_limit= HA_POS_ERROR;
   if (select_lex == &lex->select_lex)
   {
     lex->exchange= 0;
@@ -3797,9 +3802,7 @@ mysql_new_select(LEX *lex, bool move_down)
       fake->select_number= INT_MAX;
       fake->make_empty_select();
       fake->linkage= GLOBAL_OPTIONS_TYPE;
-      fake->select_limit= (&lex->unit == unit) ?
-	lex->thd->variables.select_limit :	/* Primry UNION */
-	HA_POS_ERROR;				/* subquery */
+      fake->select_limit= HA_POS_ERROR;
     }
   }
 
