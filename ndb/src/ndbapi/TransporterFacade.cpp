@@ -343,27 +343,39 @@ TransporterFacade*
 TransporterFacade::start_instance(const char * connectString){
 
   // TransporterFacade used from API get config from mgmt srvr
-  s_config_retriever= new ConfigRetriever;
+  s_config_retriever= new ConfigRetriever(NDB_VERSION, NODE_TYPE_API);
 
-  ConfigRetriever &configRetriever= *s_config_retriever;
-  configRetriever.setConnectString(connectString);
-  ndb_mgm_configuration * props = configRetriever.getConfig(NDB_VERSION, 
-							    NODE_TYPE_API);
-  if (props == 0) {
-    ndbout << "Configuration error: ";
-    const char* erString = configRetriever.getErrorString();
-    if (erString == 0) {
-      erString = "No error specified!";
-    }
-    ndbout << erString << endl;
-    return 0;
+  s_config_retriever->setConnectString(connectString);
+  const char* error = 0;
+  do {
+    if(s_config_retriever->init() == -1)
+      break;
+    
+    if(s_config_retriever->do_connect() == -1)
+      break;
+    
+    const Uint32 nodeId = s_config_retriever->allocNodeId();
+    if(nodeId == 0)
+      break;
+    
+    
+    ndb_mgm_configuration * props = s_config_retriever->getConfig();
+    if(props == 0)
+      break;
+    
+    TransporterFacade * tf = start_instance(nodeId, props);
+    
+    free(props);
+    return tf;
+  } while(0);
+  
+  ndbout << "Configuration error: ";
+  const char* erString = s_config_retriever->getErrorString();
+  if (erString == 0) {
+    erString = "No error specified!";
   }
-  const int nodeId = configRetriever.getOwnNodeId();
-  
-  TransporterFacade * tf = start_instance(nodeId, props);
-  
-  free(props);
-  return tf;
+  ndbout << erString << endl;
+  return 0;
 }
 
 TransporterFacade* 

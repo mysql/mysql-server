@@ -1438,11 +1438,7 @@ ndb_mgm_get_configuration(NdbMgmHandle handle, unsigned int version) {
   
   const Properties *prop;
   prop = ndb_mgm_call(handle, reply, "get config", &args);
-  
-  if(prop == NULL) {
-    SET_ERROR(handle, EIO, "Unable to fetch config");
-    return 0;
-  }
+  CHECK_REPLY(prop, 0);
   
   do {
     const char * buf;
@@ -1537,17 +1533,14 @@ ndb_mgm_alloc_nodeid(NdbMgmHandle handle, unsigned int version, unsigned *pnodei
   
   const Properties *prop;
   prop= ndb_mgm_call(handle, reply, "get nodeid", &args);
-  
-  if(prop == NULL) {
-    SET_ERROR(handle, EIO, "Unable to alloc nodeid");
-    return -1;
-  }
+  CHECK_REPLY(prop, -1);
 
   int res= -1;
   do {
     const char * buf;
     if(!prop->get("result", &buf) || strcmp(buf, "Ok") != 0){
-      ndbout_c("ERROR Message: %s\n", buf);
+      setError(handle, NDB_MGM_COULD_NOT_CONNECT_TO_SOCKET, __LINE__,
+	       "Could not alloc node id: %s",buf);
       break;
     }
     if(!prop->get("nodeid", pnodeid) != 0){
@@ -1621,11 +1614,7 @@ ndb_mgm_set_int_parameter(NdbMgmHandle handle,
   
   const Properties *prop;
   prop= ndb_mgm_call(handle, reply, "set parameter", &args);
-  
-  if(prop == NULL) {
-    SET_ERROR(handle, EIO, "Unable set parameter");
-    return -1;
-  }
+  CHECK_REPLY(prop, -1);
 
   int res= -1;
   do {

@@ -69,9 +69,10 @@ NDB_MAIN(ndb_kernel){
   }
   
   { // Do configuration
-    theConfig->setupConfiguration();
+    signal(SIGPIPE, SIG_IGN);
+    theConfig->fetch_configuration();
   }
-
+  
   if (theConfig->getDaemonMode()) {
     // Become a daemon
     char *lockfile= NdbConfig_PidFileName(globalData.ownId);
@@ -88,8 +89,6 @@ NDB_MAIN(ndb_kernel){
     /**
      * Parent
      */
-    theConfig->closeConfiguration();
-
     catchsigs(true);
 
     int status = 0;
@@ -132,11 +131,13 @@ NDB_MAIN(ndb_kernel){
       exit(0);
     }
     g_eventLogger.info("Ndb has terminated (pid %d) restarting", child);
+    theConfig->fetch_configuration();
   }
 
   g_eventLogger.info("Angel pid: %d ndb pid: %d", getppid(), getpid());
+  theConfig->setupConfiguration();
   systemInfo(* theConfig, * theConfig->m_logLevel); 
-
+  
     // Load blocks
   globalEmulatorData.theSimBlockList->load(* theConfig);
     

@@ -401,34 +401,26 @@ MgmApiSession::get_nodeid(Parser_t::Context &,
 
   struct sockaddr addr;
   socklen_t addrlen= sizeof(addr);
-  int r;
-  if (r= getpeername(m_socket, &addr, &addrlen)) {
+  int r = getpeername(m_socket, &addr, &addrlen);
+  if (r != 0 ) {
     m_output->println(cmd);
     m_output->println("result: getpeername(%d) failed, err= %d", m_socket, r);
     m_output->println("");
     return;
   }
 
-  NodeId free_id= 0;
   NodeId tmp= nodeid;
-  if (m_mgmsrv.getFreeNodeId(&tmp, (enum ndb_mgm_node_type)nodetype, &addr, &addrlen))
-    free_id= tmp;
+  if(tmp == 0 || !m_allocated_resources->is_reserved(tmp)){
+    if (!m_mgmsrv.alloc_node_id(&tmp, (enum ndb_mgm_node_type)nodetype, 
+				&addr, &addrlen)){
+      m_output->println(cmd);
+      m_output->println("result: no free nodeid %d for nodetype %d",
+			nodeid, nodetype);
+      m_output->println("");
+      return;
+    }
+  }    
   
-  if (nodeid != 0 && free_id != nodeid){
-    m_output->println(cmd);
-    m_output->println("result: no free nodeid %d for nodetype %d",
-		      nodeid, nodetype);
-    m_output->println("");
-    return;
-  }
-  
-  if (free_id == 0){
-    m_output->println(cmd);
-    m_output->println("result: no free nodeid for nodetype %d", nodetype);
-    m_output->println("");
-    return;
-  }
-
 #if 0
   if (!compatible){
     m_output->println(cmd);
@@ -438,14 +430,13 @@ MgmApiSession::get_nodeid(Parser_t::Context &,
     return;
   }
 #endif
-
+  
   m_output->println(cmd);
-  m_output->println("nodeid: %u", free_id);
+  m_output->println("nodeid: %u", tmp);
   m_output->println("result: Ok");
   m_output->println("");
-
-  m_allocated_resources->reserve_node(free_id);
-
+  m_allocated_resources->reserve_node(tmp);
+  
   return;
 }
 
