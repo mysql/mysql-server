@@ -964,6 +964,7 @@ void Item_func_rand::fix_length_and_dec()
 {
   decimals=NOT_FIXED_DEC; 
   max_length=float_length(decimals);
+  used_tables_cache|= RAND_TABLE_BIT;
   if (arg_count)
   {					// Only use argument once in query
     uint32 tmp= (uint32) (args[0]->val_int());
