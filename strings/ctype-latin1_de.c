@@ -339,7 +339,7 @@ my_bool my_like_range_latin1_de(const char *ptr, uint ptr_length,
       *min_length = (uint)(min_str - min_org);
       *max_length = res_length;
       do {
-	*min_str++ = ' ';			// Because if key compression
+	*min_str++ = ' ';			/* Because if key compression */
 	*max_str++ = max_sort_char;
       } while (min_str != min_end);
       return 0;
@@ -356,6 +356,6 @@ my_bool my_like_range_latin1_de(const char *ptr, uint ptr_length,
   }
 
   while (min_str != min_end)
-    *min_str++ = *max_str++ = ' ';		// Because if key compression
+    *min_str++ = *max_str++ = ' ';		/* Because if key compression */
   return 0;
 }

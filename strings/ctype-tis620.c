@@ -460,8 +460,8 @@ static uchar* thai2sortable(const uchar * tstr,uint len)
 
   const uchar* p = tstr;
   uchar		*outBuf;
-//  uchar	*pRight1, *pRight2, *pRight3, *pRight4;
-//  uchar	*pLeft1, *pLeft2, *pLeft3, *pLeft4;
+/*  uchar	*pRight1, *pRight2, *pRight3, *pRight4; */
+/*  uchar	*pLeft1, *pLeft2, *pLeft3, *pLeft4; */
   uchar		*pRight1, *pRight2, *pRight3;
   uchar		*pLeft1, *pLeft2, *pLeft3;
   uint	bufSize;
@@ -496,11 +496,11 @@ static uchar* thai2sortable(const uchar * tstr,uint len)
       *pRight1++ = t_ctype[p[1]][0];
       *pRight2++ = t_ctype[p[1]][1];
       *pRight3++ = t_ctype[p[1]][2];
-//	*pRight4++ = t_ctype[p[1]][3];
+/*	*pRight4++ = t_ctype[p[1]][3]; */
       *pRight1++ = t_ctype[*p][0];
       *pRight2++ = t_ctype[*p][1];
       *pRight3++ = t_ctype[*p][2];
-//	*pRight4++ = t_ctype[*p][3];
+/*	*pRight4++ = t_ctype[*p][3]; */
       len--;
       p += 2;
     } else {
@@ -517,17 +517,17 @@ static uchar* thai2sortable(const uchar * tstr,uint len)
   }
   *pRight1++ = L2_BLANK;
   *pRight2++ = L3_BLANK;
-//  *pRight3++ = L4_BLANK;
+/*  *pRight3++ = L4_BLANK; */
   *pRight3++ = '\0';
-//  *pRight4++ = '\0';
+/*  *pRight4++ = '\0'; */
   memcpy(pRight1, pLeft2, pRight2 - pLeft2);
   pRight1 += pRight2 - pLeft2;
   memcpy(pRight1, pLeft3, pRight3 - pLeft3);
-//  pRight1 += pRight3 - pLeft3;
-//  memcpy(pRight1, pLeft4, pRight4 - pLeft4);
+/*  pRight1 += pRight3 - pLeft3; */
+/*  memcpy(pRight1, pLeft4, pRight4 - pLeft4); */
   free(pLeft2);
   free(pLeft3);
-//  free(pLeft4);
+/*  free(pLeft4); */
   return(outBuf);
 }
 
@@ -619,22 +619,22 @@ my_bool my_like_range_tis620(const char *ptr, uint ptr_length, pchar escape,
   {
     if (*ptr == escape && ptr+1 != end)
     {
-      ptr++;					// Skipp escape
+      ptr++;					/* Skipp escape */
       *min_str++= *max_str++ = *ptr;
       continue;
     }
-    if (*ptr == wild_one)			// '_' in SQL
+    if (*ptr == wild_one)			/* '_' in SQL */
     {
-      *min_str++='\0';				// This should be min char
+      *min_str++='\0';				/* This should be min char */
       *max_str++=max_sort_chr;
       continue;
     }
-    if (*ptr == wild_many)			// '%' in SQL
+    if (*ptr == wild_many)			/* '%' in SQL */
     {
       *min_length= (uint) (min_str - min_org);
       *max_length=res_length;
       do {
-	*min_str++ = ' ';			// Because if key compression
+	*min_str++ = ' ';			/* Because if key compression */
 	*max_str++ = max_sort_chr;
       } while (min_str != min_end);
       return 0;
@@ -644,7 +644,7 @@ my_bool my_like_range_tis620(const char *ptr, uint ptr_length, pchar escape,
   *min_length= *max_length = (uint) (min_str - min_org);
 
   while (min_str != min_end)
-    *min_str++ = *max_str++ = ' ';		// Because if key compression
+    *min_str++ = *max_str++ = ' ';		/* Because if key compression */
   return 0;
 }
 
