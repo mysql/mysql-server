@@ -406,7 +406,6 @@ private:
     Uint32 m_accLockOp;
     Uint8 m_readCommitted;      // no locking
     Uint8 m_lockMode;
-    Uint8 m_keyInfo;
     ScanBound m_boundMin;
     ScanBound m_boundMax;
     ScanBound* m_bound[2];      // pointers to above 2
@@ -1030,7 +1029,6 @@ Dbtux::ScanOp::ScanOp(ScanBoundPool& scanBoundPool) :
   m_accLockOp(RNIL),
   m_readCommitted(0),
   m_lockMode(0),
-  m_keyInfo(0),
   m_boundMin(scanBoundPool),
   m_boundMax(scanBoundPool),
   m_scanPos(),

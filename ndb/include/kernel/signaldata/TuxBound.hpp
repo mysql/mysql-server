@@ -50,6 +50,8 @@ private:
    * Number of words of bound info included after fixed signal data.
    */
   Uint32 boundAiLength;
+  
+  Uint32 data[1];
 };
 
 #endif
