@@ -3742,7 +3742,7 @@ show_param:
 	    Lex->mi.pos = $12;
 	    Lex->mi.server_id = $16;
           }
-        | BINARY LOGS_SYM
+        | master_or_binary LOGS_SYM
           {
 	    Lex->sql_command = SQLCOM_SHOW_BINLOGS;
           }
@@ -3802,6 +3802,8 @@ show_param:
 	  { Lex->sql_command= SQLCOM_SHOW_CHARSETS; }
 	| COLLATION_SYM wild
 	  { Lex->sql_command= SQLCOM_SHOW_COLLATIONS; }
+	| BERKELEY_DB_SYM LOGS_SYM
+	  { Lex->sql_command= SQLCOM_SHOW_LOGS; }
 	| LOGS_SYM
 	  { Lex->sql_command= SQLCOM_SHOW_LOGS; }
 	| GRANTS FOR_SYM user
@@ -3831,6 +3833,10 @@ show_param:
           {
 	    Lex->sql_command = SQLCOM_SHOW_SLAVE_STAT;
           };
+
+master_or_binary:
+	MASTER_SYM
+	| BINARY;
 
 opt_db:
 	/* empty */  { $$= 0; }
@@ -3949,8 +3955,7 @@ purge:
 	;
 
 purge_options:
-	LOGS_SYM purge_option
-	| MASTER_SYM LOGS_SYM purge_option
+	master_or_binary LOGS_SYM purge_option
 	;
 
 purge_option:
