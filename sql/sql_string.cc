@@ -28,7 +28,7 @@
 #include <floatingpoint.h>
 #endif
 
-CHARSET_INFO *system_charset_info= &my_charset_latin1;
+CHARSET_INFO *system_charset_info= &my_charset_utf8;
 extern gptr sql_alloc(unsigned size);
 extern void sql_element_free(void *ptr);
 static uint32
@@ -328,6 +328,34 @@ bool String::append(const char *s,uint32 arg_length)
       return TRUE;
     str_length+= copy_and_convert(Ptr+str_length, add_length, str_charset,
 				  s, arg_length, &my_charset_latin1);
+    return FALSE;
+  }
+  if (realloc(str_length+arg_length))
+    return TRUE;
+  memcpy(Ptr+str_length,s,arg_length);
+  str_length+=arg_length;
+  return FALSE;
+}
+
+
+/*
+  Append a string in the given charset to the string
+  with character set recoding
+*/
+
+
+bool String::append(const char *s,uint32 arg_length, CHARSET_INFO *cs)
+{
+  if (!arg_length)				// Default argument
+    if (!(arg_length= (uint32) strlen(s)))
+      return FALSE;
+  if (str_charset->mbmaxlen > 1)
+  {
+    uint32 add_length=arg_length * str_charset->mbmaxlen;
+    if (realloc(str_length+ add_length))
+      return TRUE;
+    str_length+= copy_and_convert(Ptr+str_length, add_length, str_charset,
+				  s, arg_length, cs);
     return FALSE;
   }
   if (realloc(str_length+arg_length))

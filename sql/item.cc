@@ -39,7 +39,7 @@ Item::Item():
 {
   marker= 0;
   maybe_null=null_value=with_sum_func=unsigned_flag=0;
-  coercibility=COER_NOCOLL;
+  coercibility=COER_IMPLICIT;
   name= 0;
   decimals= 0; max_length= 0;
   THD *thd= current_thd;
@@ -90,19 +90,23 @@ bool Item::check_cols(uint c)
   return 0;
 }
 
-void Item::set_name(const char *str,uint length)
+void Item::set_name(const char *str,uint length, CHARSET_INFO *cs)
 {
   if (!length)
-    name= (char*) str;				// Used by AS
-  else
-  {
-    while (length && !my_isgraph(system_charset_info,*str))
-    {						// Fix problem with yacc
-      length--;
-      str++;
-    }
-    name=sql_strmake(str,min(length,MAX_FIELD_WIDTH));
+    length= str ? strlen(str) : 0;
+  while (length && !my_isgraph(cs,*str))
+  {						// Fix problem with yacc
+    length--;
+    str++;
   }
+  if (!my_charset_same(cs, system_charset_info))
+  {
+    String tmp;
+    tmp.copy(str, length, cs, system_charset_info);
+    name=sql_strmake(tmp.ptr(),min(tmp.length(),MAX_FIELD_WIDTH));
+  }
+  else
+    name=sql_strmake(str,min(length,MAX_FIELD_WIDTH));
 }
 
 /*
@@ -168,6 +172,41 @@ CHARSET_INFO * Item::default_charset() const
   return current_thd->db_charset;
 }
 
+bool Item::set_charset(CHARSET_INFO *cs1, enum coercion co1,
+		       CHARSET_INFO *cs2, enum coercion co2)
+{
+  if (cs1 == &my_charset_bin || cs2 == &my_charset_bin)
+  {
+    set_charset(&my_charset_bin, COER_NOCOLL);
+    return 0;
+  }
+
+  if (!my_charset_same(cs1,cs2))
+    return 1;
+
+  if (co1 < co2)
+  {
+    set_charset(cs1, co1);
+  }
+  else if (co2 < co1)
+  {
+    set_charset(cs2, co2);
+  }
+  else  // co2 == co1
+  {
+    if (cs1 != cs2)
+    {
+      CHARSET_INFO *bin= get_charset_by_csname(cs1->csname, MY_CS_BINSORT,MYF(0));
+      if (!bin)
+	return 1;
+      set_charset(bin, COER_NOCOLL);
+    }
+    else
+      set_charset(cs2, co2);
+  }
+  return 0;
+}
+
 Item_field::Item_field(Field *f) :Item_ident(NullS,f->table_name,f->field_name)
 {
   set_field(f);
@@ -191,8 +230,7 @@ void Item_field::set_field(Field *field_par)
   table_name=field_par->table_name;
   field_name=field_par->field_name;
   unsigned_flag=test(field_par->flags & UNSIGNED_FLAG);
-  set_charset(field_par->charset());
-  coercibility= COER_IMPLICIT;
+  set_charset(field_par->charset(), COER_IMPLICIT);
 }
 
 const char *Item_ident::full_name() const

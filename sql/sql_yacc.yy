@@ -459,6 +459,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	FROM_UNIXTIME
 %token	GEOMCOLLFROMTEXT
 %token	GEOMFROMTEXT
+%token	GEOMFROMWKB
 %token  GEOMETRYCOLLECTION
 %token	GROUP_UNIQUE_USERS
 %token	HOUR_MINUTE_SYM
@@ -559,7 +560,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %type <lex_str>
 	IDENT TEXT_STRING REAL_NUM FLOAT_NUM NUM LONG_NUM HEX_NUM LEX_HOSTNAME
 	ULONGLONG_NUM field_ident select_alias ident ident_or_text
-        UNDERSCORE_CHARSET
+        UNDERSCORE_CHARSET IDENT_sys TEXT_STRING_sys TEXT_STRING_db
 
 %type <lex_str_ptr>
 	opt_table_alias
@@ -773,22 +774,22 @@ master_defs:
        | master_defs ',' master_def;
 
 master_def:
-       MASTER_HOST_SYM EQ TEXT_STRING
+       MASTER_HOST_SYM EQ TEXT_STRING_sys
        {
 	 Lex->mi.host = $3.str;
        }
        |
-       MASTER_USER_SYM EQ TEXT_STRING
+       MASTER_USER_SYM EQ TEXT_STRING_sys
        {
 	 Lex->mi.user = $3.str;
        }
        |
-       MASTER_PASSWORD_SYM EQ TEXT_STRING
+       MASTER_PASSWORD_SYM EQ TEXT_STRING_sys
        {
 	 Lex->mi.password = $3.str;
        }
        |
-       MASTER_LOG_FILE_SYM EQ TEXT_STRING
+       MASTER_LOG_FILE_SYM EQ TEXT_STRING_sys
        {
 	 Lex->mi.log_file_name = $3.str;
        }
@@ -808,7 +809,7 @@ master_def:
 	 Lex->mi.connect_retry = $3;
        }
        |
-       RELAY_LOG_FILE_SYM EQ TEXT_STRING
+       RELAY_LOG_FILE_SYM EQ TEXT_STRING_sys
        {
 	 Lex->mi.relay_log_name = $3.str;
        }
@@ -878,14 +879,14 @@ create:
 	    lex->name=$4.str;
             lex->create_info.options=$3;
 	  }
-	| CREATE udf_func_type UDF_SYM IDENT
+	| CREATE udf_func_type UDF_SYM IDENT_sys
 	  {
 	    LEX *lex=Lex;
 	    lex->sql_command = SQLCOM_CREATE_FUNCTION;
 	    lex->udf.name = $4;
 	    lex->udf.type= $2;
 	  }
-	  UDF_RETURNS_SYM udf_type UDF_SONAME_SYM TEXT_STRING
+	  UDF_RETURNS_SYM udf_type UDF_SONAME_SYM TEXT_STRING_sys
 	  {
 	    LEX *lex=Lex;
 	    lex->udf.returns=(Item_result) $7;
@@ -967,8 +968,8 @@ create_table_option:
 	| MAX_ROWS opt_equal ulonglong_num	{ Lex->create_info.max_rows= $3; Lex->create_info.used_fields|= HA_CREATE_USED_MAX_ROWS;}
 	| MIN_ROWS opt_equal ulonglong_num	{ Lex->create_info.min_rows= $3; Lex->create_info.used_fields|= HA_CREATE_USED_MIN_ROWS;}
 	| AVG_ROW_LENGTH opt_equal ULONG_NUM	{ Lex->create_info.avg_row_length=$3; Lex->create_info.used_fields|= HA_CREATE_USED_AVG_ROW_LENGTH;}
-	| PASSWORD opt_equal TEXT_STRING	{ Lex->create_info.password=$3.str; }
-	| COMMENT_SYM opt_equal TEXT_STRING	{ Lex->create_info.comment=$3.str; }
+	| PASSWORD opt_equal TEXT_STRING_sys	{ Lex->create_info.password=$3.str; }
+	| COMMENT_SYM opt_equal TEXT_STRING_sys	{ Lex->create_info.comment=$3.str; }
 	| AUTO_INC opt_equal ulonglong_num	{ Lex->create_info.auto_increment_value=$3; Lex->create_info.used_fields|= HA_CREATE_USED_AUTO;}
 	| PACK_KEYS_SYM opt_equal ULONG_NUM	{ Lex->create_info.table_options|= $3 ? HA_OPTION_PACK_KEYS : HA_OPTION_NO_PACK_KEYS; Lex->create_info.used_fields|= HA_CREATE_USED_PACK_KEYS;}
 	| PACK_KEYS_SYM opt_equal DEFAULT	{ Lex->create_info.table_options&= ~(HA_OPTION_PACK_KEYS | HA_OPTION_NO_PACK_KEYS); Lex->create_info.used_fields|= HA_CREATE_USED_PACK_KEYS;}
@@ -1002,8 +1003,9 @@ create_table_option:
 	    Lex->create_info.used_fields|= HA_CREATE_USED_CHARSET;
 	  }
 	| INSERT_METHOD opt_equal merge_insert_types   { Lex->create_info.merge_insert_method= $3; Lex->create_info.used_fields|= HA_CREATE_USED_INSERT_METHOD;}
-	| DATA_SYM DIRECTORY_SYM opt_equal TEXT_STRING { Lex->create_info.data_file_name= $4.str; }
-	| INDEX DIRECTORY_SYM opt_equal TEXT_STRING    { Lex->create_info.index_file_name= $4.str; };
+	| DATA_SYM DIRECTORY_SYM opt_equal TEXT_STRING_sys
+	  { Lex->create_info.data_file_name= $4.str; }
+	| INDEX DIRECTORY_SYM opt_equal TEXT_STRING_sys { Lex->create_info.index_file_name= $4.str; };
 
 table_types:
 	ISAM_SYM	{ $$= DB_TYPE_ISAM; }
@@ -1312,7 +1314,9 @@ charset_name:
 	    net_printf(YYTHD,ER_UNKNOWN_CHARACTER_SET,$1.str);
 	    YYABORT;
 	  }
-	};
+	}
+	| BINARY { $$= &my_charset_bin; }
+	;
 
 charset_name_or_default:
 	charset_name { $$=$1;   }
@@ -1639,7 +1643,7 @@ restore:
 	{
 	   Lex->sql_command = SQLCOM_RESTORE_TABLE;
 	}
-	table_list FROM TEXT_STRING
+	table_list FROM TEXT_STRING_sys
         {
 	  Lex->backup_dir = $6.str;
         };
@@ -1649,7 +1653,7 @@ backup:
 	{
 	   Lex->sql_command = SQLCOM_BACKUP_TABLE;
 	}
-	table_list TO_SYM TEXT_STRING
+	table_list TO_SYM TEXT_STRING_sys
         {
 	  Lex->backup_dir = $6.str;
         };
@@ -1899,9 +1903,9 @@ select_item:
 	    if (add_item_to_list(YYTHD, $2))
 	      YYABORT;
 	    if ($4.str)
-	      $2->set_name($4.str);
+	      $2->set_name($4.str,$4.length,system_charset_info);
 	    else if (!$2->name)
-	      $2->set_name($1,(uint) ($3 - $1));
+	      $2->set_name($1,(uint) ($3 - $1), YYTHD->charset());
 	  };
 
 remember_name:
@@ -1915,11 +1919,12 @@ select_item2:
 	| expr		{ $$=$1; };
 
 select_alias:
-	{ $$.str=0;}
-	| AS ident { $$=$2; }
-	| AS TEXT_STRING  { $$=$2; }
-	| ident { $$=$1; }
-	| TEXT_STRING  { $$=$1; };
+	/* empty */		{ $$.str=0;}
+	| AS ident		{ $$=$2; }
+	| AS TEXT_STRING_sys	{ $$=$2; }
+	| ident			{ $$=$1; }
+	| TEXT_STRING_sys	{ $$=$1; }
+	;
 
 optional_braces:
 	/* empty */ {}
@@ -2221,9 +2226,9 @@ simple_expr:
 	    Lex->uncacheable();;
 	  }
 	| ENCRYPT '(' expr ',' expr ')'   { $$= new Item_func_encrypt($3,$5); }
-	| DECODE_SYM '(' expr ',' TEXT_STRING ')'
+	| DECODE_SYM '(' expr ',' TEXT_STRING_db ')'
 	  { $$= new Item_func_decode($3,$5.str); }
-	| ENCODE_SYM '(' expr ',' TEXT_STRING ')'
+	| ENCODE_SYM '(' expr ',' TEXT_STRING_db ')'
 	 { $$= new Item_func_encode($3,$5.str); }
 	| DES_DECRYPT_SYM '(' expr ')'
         { $$= new Item_func_des_decrypt($3); }
@@ -2254,7 +2259,11 @@ simple_expr:
 	| GEOMFROMTEXT '(' expr ')'
 	  { $$= new Item_func_geometry_from_text($3); }
 	| GEOMFROMTEXT '(' expr ',' expr ')'
-	  { $$= new Item_func_geometry_from_text($3); }
+	  { $$= new Item_func_geometry_from_text($3, $5); }
+	| GEOMFROMWKB '(' expr ')'
+	  { $$= new Item_func_geometry_from_wkb($3); }
+	| GEOMFROMWKB '(' expr ',' expr ')'
+	  { $$= new Item_func_geometry_from_wkb($3, $5); }
 	| GEOMETRYCOLLECTION '(' expr_list ')'
 	  { $$= new Item_func_spatial_collection(* $3,
                        Geometry::wkbGeometryCollection,
@@ -2300,7 +2309,7 @@ simple_expr:
  	| GEOMCOLLFROMTEXT '(' expr ')'
 	  { $$= new Item_func_geometry_from_text($3); }
 	| GEOMCOLLFROMTEXT '(' expr ',' expr ')'
-	  { $$= new Item_func_geometry_from_text($3); }
+	  { $$= new Item_func_geometry_from_text($3, $5); }
 	| GREATEST_SYM '(' expr ',' expr_list ')'
 	  { $5->push_front($3); $$= new Item_func_max(*$5); }
 	| LEAST_SYM '(' expr ',' expr_list ')'
@@ -2312,7 +2321,7 @@ simple_expr:
  	| LINEFROMTEXT '(' expr ')'
 	  { $$= new Item_func_geometry_from_text($3); }
 	| LINEFROMTEXT '(' expr ',' expr ')'
-	  { $$= new Item_func_geometry_from_text($3); }
+	  { $$= new Item_func_geometry_from_text($3, $5); }
 	| MASTER_POS_WAIT '(' expr ',' expr ')'
 	  { 
 	    $$= new Item_master_pos_wait($3, $5);
@@ -2335,15 +2344,15 @@ simple_expr:
  	| MLINEFROMTEXT '(' expr ')'
 	  { $$= new Item_func_geometry_from_text($3); }
 	| MLINEFROMTEXT '(' expr ',' expr ')'
-	  { $$= new Item_func_geometry_from_text($3); }
+	  { $$= new Item_func_geometry_from_text($3, $5); }
 	| MPOINTFROMTEXT '(' expr ')'
 	  { $$= new Item_func_geometry_from_text($3); }
 	| MPOINTFROMTEXT '(' expr ',' expr ')'
-	  { $$= new Item_func_geometry_from_text($3); }
+	  { $$= new Item_func_geometry_from_text($3, $5); }
 	| MPOLYFROMTEXT '(' expr ')'
 	  { $$= new Item_func_geometry_from_text($3); }
 	| MPOLYFROMTEXT '(' expr ',' expr ')'
-	  { $$= new Item_func_geometry_from_text($3); }
+	  { $$= new Item_func_geometry_from_text($3, $5); }
 	| MULTIPOINT '(' expr_list ')'
 	  { $$= new Item_func_spatial_collection(* $3,
                     Geometry::wkbMultiPoint, Geometry::wkbPoint); }
@@ -2363,11 +2372,11 @@ simple_expr:
  	| POINTFROMTEXT '(' expr ')'
 	  { $$= new Item_func_geometry_from_text($3); }
 	| POINTFROMTEXT '(' expr ',' expr ')'
-	  { $$= new Item_func_geometry_from_text($3); }
+	  { $$= new Item_func_geometry_from_text($3, $5); }
 	| POLYFROMTEXT '(' expr ')'
 	  { $$= new Item_func_geometry_from_text($3); }
 	| POLYFROMTEXT '(' expr ',' expr ')'
-	  { $$= new Item_func_geometry_from_text($3); }
+	  { $$= new Item_func_geometry_from_text($3, $5); }
 	| POLYGON '(' expr_list ')'
 	  { $$= new Item_func_spatial_collection(* $3,
 			Geometry::wkbPolygon, Geometry::wkbLineString); }
@@ -2820,8 +2829,8 @@ having_clause:
 	;
 
 opt_escape:
-	ESCAPE_SYM TEXT_STRING	{ $$= $2.str; }
-	| /* empty */		{ $$= (char*) "\\"; };
+	ESCAPE_SYM TEXT_STRING_db	{ $$= $2.str; }
+	| /* empty */			{ $$= (char*) "\\"; };
 
 
 /*
@@ -3017,7 +3026,7 @@ procedure_item:
 	    if (add_proc_to_list(lex->thd, $2))
 	      YYABORT;
 	    if (!$2->name)
-	      $2->set_name($1,(uint) ((char*) lex->tok_end - $1));
+	      $2->set_name($1,(uint) ((char*) lex->tok_end - $1), YYTHD->charset());
 	  }
           ;
 
@@ -3046,7 +3055,7 @@ select_var_ident:  '@' ident_or_text
            ;
 
 into:
-        INTO OUTFILE TEXT_STRING
+        INTO OUTFILE TEXT_STRING_sys
 	{
 	  LEX *lex=Lex;
 	  if (!lex->describe)
@@ -3058,7 +3067,7 @@ into:
 	  }
 	}
 	opt_field_term opt_line_term
-	| INTO DUMPFILE TEXT_STRING
+	| INTO DUMPFILE TEXT_STRING_sys
 	{
 	  LEX *lex=Lex;
 	  if (!lex->describe)
@@ -3120,7 +3129,7 @@ drop:
 	    lex->drop_if_exists=$3;
 	    lex->name=$4.str;
 	 }
-	| DROP UDF_SYM IDENT
+	| DROP UDF_SYM IDENT_sys
 	  {
 	    LEX *lex=Lex;
 	    lex->sql_command = SQLCOM_DROP_FUNCTION;
@@ -3481,7 +3490,7 @@ show_param:
 	      YYABORT;
 	  }
         | NEW_SYM MASTER_SYM FOR_SYM SLAVE WITH MASTER_LOG_FILE_SYM EQ
-	  TEXT_STRING AND MASTER_LOG_POS_SYM EQ ulonglong_num
+	  TEXT_STRING_sys AND MASTER_LOG_POS_SYM EQ ulonglong_num
 	  AND MASTER_SERVER_ID_SYM EQ
 	ULONG_NUM
           {
@@ -3596,7 +3605,7 @@ from_or_in:
 
 binlog_in:
 	/* empty */ { Lex->mi.log_file_name = 0; }
-        | IN_SYM TEXT_STRING { Lex->mi.log_file_name = $2.str; };
+        | IN_SYM TEXT_STRING_sys { Lex->mi.log_file_name = $2.str; };
 
 binlog_from:
 	/* empty */ { Lex->mi.pos = 4; /* skip magic number */ }
@@ -3699,7 +3708,7 @@ purge_options:
 	;
 
 purge_option:
-        TO_SYM TEXT_STRING
+        TO_SYM TEXT_STRING_sys
         {
 	   Lex->sql_command = SQLCOM_PURGE;
 	   Lex->to_log = $2.str;
@@ -3743,7 +3752,7 @@ use:	USE_SYM ident
 
 /* import, export of files */
 
-load:	LOAD DATA_SYM load_data_lock opt_local INFILE TEXT_STRING
+load:	LOAD DATA_SYM load_data_lock opt_local INFILE TEXT_STRING_sys
 	{
 	  LEX *lex=Lex;
 	  lex->sql_command= SQLCOM_LOAD;
@@ -3827,17 +3836,21 @@ opt_ignore_lines:
 /* Common definitions */
 
 text_literal:
-	TEXT_STRING
-	{ $$ = new Item_string($1.str,$1.length,
-			       YYTHD->variables.thd_charset); }
+	TEXT_STRING_db
+	{
+	  THD *thd= YYTHD;
+	  CHARSET_INFO *cs= my_charset_same(thd->charset(),thd->db_charset) ?
+			    thd->charset() : thd->db_charset;
+	  $$ = new Item_string($1.str,$1.length,cs);
+	}
 	| UNDERSCORE_CHARSET TEXT_STRING
 	  { $$ = new Item_string($2.str,$2.length,Lex->charset,Item::COER_IMPLICIT); }
-	| text_literal TEXT_STRING
+	| text_literal TEXT_STRING_db
 	  { ((Item_string*) $1)->append($2.str,$2.length); };
 
 text_string:
-	TEXT_STRING
-	{ $$=  new String($1.str,$1.length,YYTHD->variables.thd_charset); }
+	TEXT_STRING_db
+	{ $$=  new String($1.str,$1.length,YYTHD->db_charset); }
 	| HEX_NUM
 	  {
 	    Item *tmp = new Item_varbinary($1.str,$1.length);
@@ -3960,8 +3973,63 @@ table_ident:
 	| '.' ident		{ $$=new Table_ident($2);}
    /* For Delphi */;
 
+IDENT_sys:
+	IDENT
+	{
+	  THD *thd= YYTHD;
+	  if (my_charset_same(thd->charset(),system_charset_info))
+	  {
+	    $$=$1;
+	  }
+	  else
+	  {
+	    String ident;
+	    ident.copy($1.str,$1.length,thd->charset(),system_charset_info);
+	    $$.str= thd->strmake(ident.ptr(),ident.length());
+	    $$.length= ident.length();
+	  }
+	}
+	;
+
+TEXT_STRING_sys:
+	TEXT_STRING
+	{
+	  THD *thd= YYTHD;
+	  if (my_charset_same(thd->charset(),system_charset_info))
+	  {
+	    $$=$1;
+	  }
+	  else
+	  {
+	    String ident;
+	    ident.copy($1.str,$1.length,thd->charset(),system_charset_info);
+	    $$.str= thd->strmake(ident.ptr(),ident.length());
+	    $$.length= ident.length();
+	  }
+	}
+	;
+
+TEXT_STRING_db:
+	TEXT_STRING
+	{
+	  THD *thd= YYTHD;
+	  if (my_charset_same(thd->charset(),thd->db_charset))
+	  {
+	    $$=$1;
+	  }
+	  else
+	  {
+	    String ident;
+	    ident.copy($1.str,$1.length,thd->charset(),thd->db_charset);
+	    $$.str= thd->strmake(ident.ptr(),ident.length());
+	    $$.length= ident.length();
+	  }
+	}
+	;
+
+
 ident:
-	IDENT	    { $$=$1; }
+	IDENT_sys	    { $$=$1; }
 	| keyword
 	{
 	  LEX *lex= Lex;
@@ -3973,9 +4041,9 @@ ident:
 	;
 
 ident_or_text:
-	ident 		{ $$=$1;}
-	| TEXT_STRING	{ $$=$1;}
-	| LEX_HOSTNAME	{ $$=$1;};
+	ident 			{ $$=$1;}
+	| TEXT_STRING_sys	{ $$=$1;}
+	| LEX_HOSTNAME		{ $$=$1;};
 
 user:
 	ident_or_text
@@ -4242,9 +4310,15 @@ option_value:
 	  }
 	| charset opt_equal set_expr_or_default
 	{
-	  LEX *lex=Lex;
+	  THD *thd= YYTHD;
+	  LEX *lex= &thd->lex;
+	  if (!$3)
+	  {
+	    CHARSET_INFO *cl= thd->db_charset;
+	    $3= new Item_string(cl->name, strlen(cl->name), &my_charset_latin1);
+	  }
 	  lex->var_list.push_back(new set_var(lex->option_type,
-					      find_sys_var("convert_character_set"),
+					      find_sys_var("client_collation"),
 					      $3));
 	}
 	| NAMES_SYM charset_name_or_default opt_collate

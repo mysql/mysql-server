@@ -2084,7 +2084,6 @@ static int init_common_variables(const char *conf_file_name, int argc,
 #endif
   if (!(default_charset_info= get_charset_by_name(sys_charset.value, MYF(MY_WME))))
     return 1;
-  system_charset_info= default_charset_info;
   charsets_list= list_charsets(MYF(MY_CS_COMPILED | MY_CS_CONFIG));
 
   if (use_temp_pool && bitmap_init(&temp_pool,1024,1))

@@ -20,7 +20,6 @@
 
 #define PACKET_BUFFET_EXTRA_ALLOC	1024
 
-class CONVERT;
 class i_string;
 class THD;
 #ifdef EMBEDDED_LIBRARY
@@ -37,15 +36,12 @@ protected:
 #endif
   uint field_count;
   bool net_store_data(const char *from, uint length);
-  bool convert_str(const char *from, uint length);
 #ifdef EMBEDDED_LIBRARY
   char **next_field;
   MYSQL_FIELD *next_mysql_field;
   MEM_ROOT *alloc;
 #endif
 public:
-  CONVERT *convert;
-
   Protocol() {}
   Protocol(THD *thd) { init(thd); }
   void init(THD* thd);
