@@ -199,3 +199,7 @@ bdb/dist/tags
 bdb/build_unix/*
 sql/.gdbinit
 BitKeeper/etc/level
+*.gcov
+*.bb
+*.bbg
+*.da

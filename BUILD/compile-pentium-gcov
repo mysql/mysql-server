@@ -4,6 +4,6 @@ path=`dirname $0`
 . "$path/SETUP.sh"
 
 extra_flags="$pentium_cflags -O2 -fprofile-arcs -ftest-coverage"
-extra_configs="$pentium_configs $debug_configs"
+extra_configs="$pentium_configs $debug_configs --disable-shared"
 
 . "$path/FINISH.sh"
