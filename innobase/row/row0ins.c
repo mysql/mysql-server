@@ -1029,7 +1029,7 @@ records */
 static
 ulint
 row_ins_set_exclusive_rec_lock(
-/*========================*/
+/*============================*/
 				/* out: DB_SUCCESS or error code */
 	ulint		type, 	/* in: LOCK_ORDINARY, LOCK_GAP, or
 				LOCK_REC_NOT_GAP type lock */
@@ -1517,29 +1517,24 @@ row_ins_scan_sec_index_for_duplicate(
 				
 		/* Try to place a lock on the index record */
 
-                /* The manual defines the REPLACE semantics that it 
-                   is either an INSERT or DELETE(s) for duplicate key
-                   + INSERT. Therefore, we should take X-lock for
-                   duplicates.
-		*/
-
-		trx = thr_get_trx(thr);*/* Get Transaction */
-
-                /* Is the first word in MySQL query REPLACE ? */
-
-		ut_ad(trx)
+		trx = thr_get_trx(thr);      
+		ut_ad(trx);
 		dict_accept(*trx->mysql_query_str, "REPLACE", &success);
 
-                if (success) {
+		if (success) {
 
-		    err = row_ins_set_exclusive_rec_lock(
-			LOCK_ORDINARY,rec,index,thr);
+			/* The manual defines the REPLACE semantics that it 
+			is either an INSERT or DELETE(s) for duplicate key
+			+ INSERT. Therefore, we should take X-lock for 
+			duplicates */
+			
+			err = row_ins_set_exclusive_rec_lock(
+						LOCK_ORDINARY,rec,index,thr);
 		} else {
 
-		      err = row_ins_set_shared_rec_lock(
-                         LOCK_ORDINARY, rec, index,thr);
+			err = row_ins_set_shared_rec_lock(
+						LOCK_ORDINARY, rec, index,thr);
 		}
-
 
 		if (err != DB_SUCCESS) {
 
@@ -1640,25 +1635,21 @@ row_ins_duplicate_error_in_clust(
 			sure that in roll-forward we get the same duplicate
 			errors as in original execution */
 
-                        /* The manual defines the REPLACE semantics that it 
-                           is either an INSERT or DELETE(s) for duplicate key
-                           + INSERT. Therefore, we should take X-lock for
-                           duplicates.
-		        */
+			dict_accept(*trx->mysql_query_str, "REPLACE", &success);
 
-                        
-                        /* Is the first word in MySQL query REPLACE ? */
+			if (success) {
 
-		         dict_accept(*trx->mysql_query_str, "REPLACE", &success);
-
-                        if (success) {
-
-		            err = row_ins_set_exclusive_rec_lock(
-			       LOCK_REC_NOT_GAP,rec,cursor->index,thr);
-		        } else {
-		  
-			    err = row_ins_set_shared_rec_lock(
-                               LOCK_REC_NOT_GAP,rec, cursor->index, thr);
+				/* The manual defines the REPLACE semantics that it 
+				is either an INSERT or DELETE(s) for duplicate key
+				+ INSERT. Therefore, we should take X-lock for
+				duplicates */
+				
+				err = row_ins_set_exclusive_rec_lock(
+					LOCK_REC_NOT_GAP,rec,cursor->index,thr);
+			} else {
+				
+				err = row_ins_set_shared_rec_lock(
+					LOCK_REC_NOT_GAP,rec, cursor->index, thr);
 			} 
 
 			if (err != DB_SUCCESS) {
@@ -2304,4 +2295,4 @@ error_handling:
 	}
 
 	return(thr);
-} 
+}
