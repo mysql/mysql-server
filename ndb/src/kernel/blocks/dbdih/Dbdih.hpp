@@ -147,7 +147,6 @@ public:
     Uint32 nfConnect;
     Uint32 table;
     Uint32 userpointer;
-    Uint32 nodeCount;
     BlockReference userblockref;
   };
   typedef Ptr<ConnectRecord> ConnectRecordPtr;
