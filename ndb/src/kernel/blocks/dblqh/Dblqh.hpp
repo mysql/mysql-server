@@ -550,6 +550,11 @@ public:
     UintR scanErrorCounter;
     UintR scanLocalFragid;
     UintR scanSchemaVersion;
+
+    /**
+     * This is _always_ main table, even in range scan
+     *   in which case scanTcrec->fragmentptr is different
+     */
     Uint32 fragPtrI;
     UintR scanStoredProcId;
     ScanState scanState;
