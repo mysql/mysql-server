@@ -3009,9 +3009,6 @@ create_error:
 	lex->select_lex.resolve_mode= SELECT_LEX::INSERT_MODE;
         delete result;
       }
-      /* in case of error first_table->table can be 0 */
-      if (first_table->table)
-        first_table->table->insert_values= 0;
       /* revert changes for SP */
       lex->select_lex.table_list.first= (byte*) first_table;
     }

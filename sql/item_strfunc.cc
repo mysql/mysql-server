@@ -1185,21 +1185,29 @@ String *Item_func_substr_index::val_str(String *str)
 String *Item_func_ltrim::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-  String *res  =args[0]->val_str(str);
-  if ((null_value=args[0]->null_value))
-    return 0;					/* purecov: inspected */
-  char buff[MAX_FIELD_WIDTH];
-  String tmp(buff,sizeof(buff),res->charset());
-  String *remove_str= (arg_count==2) ? args[1]->val_str(&tmp) : &remove;
+  char buff[MAX_FIELD_WIDTH], *ptr, *end;
+  String tmp(buff,sizeof(buff),system_charset_info);
+  String *res, *remove_str;
   uint remove_length;
   LINT_INIT(remove_length);
 
-  if (!remove_str || (remove_length=remove_str->length()) == 0 ||
+  res= args[0]->val_str(str);
+  if ((null_value=args[0]->null_value))
+    return 0;
+  remove_str= &remove;                          /* Default value. */
+  if (arg_count == 2)
+  {
+    remove_str= args[1]->val_str(&tmp);
+    if ((null_value= args[1]->null_value))
+      return 0;
+  }
+
+  if ((remove_length= remove_str->length()) == 0 ||
       remove_length > res->length())
     return res;
 
-  char *ptr=(char*) res->ptr();
-  char *end=ptr+res->length();
+  ptr= (char*) res->ptr();
+  end= ptr+res->length();
   if (remove_length == 1)
   {
     char chr=(*remove_str)[0];
@@ -1224,21 +1232,29 @@ String *Item_func_ltrim::val_str(String *str)
 String *Item_func_rtrim::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-  String *res  =args[0]->val_str(str);
-  if ((null_value=args[0]->null_value))
-    return 0; /* purecov: inspected */
-  char buff[MAX_FIELD_WIDTH];
-  String tmp(buff,sizeof(buff),res->charset());
-  String *remove_str= (arg_count==2) ? args[1]->val_str(&tmp) : &remove;
+  char buff[MAX_FIELD_WIDTH], *ptr, *end;
+  String tmp(buff, sizeof(buff), system_charset_info);
+  String *res, *remove_str;
   uint remove_length;
   LINT_INIT(remove_length);
 
-  if (!remove_str || (remove_length=remove_str->length()) == 0 ||
+  res= args[0]->val_str(str);
+  if ((null_value=args[0]->null_value))
+    return 0;
+  remove_str= &remove;                          /* Default value. */
+  if (arg_count == 2)
+  {
+    remove_str= args[1]->val_str(&tmp);
+    if ((null_value= args[1]->null_value))
+      return 0;
+  }
+
+  if ((remove_length= remove_str->length()) == 0 ||
       remove_length > res->length())
     return res;
 
-  char *ptr=(char*) res->ptr();
-  char *end=ptr+res->length();
+  ptr= (char*) res->ptr();
+  end= ptr+res->length();
 #ifdef USE_MB
   char *p=ptr;
   register uint32 l;
@@ -1297,31 +1313,31 @@ String *Item_func_rtrim::val_str(String *str)
 String *Item_func_trim::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-  String *res  =args[0]->val_str(str);
-  if ((null_value=args[0]->null_value))
-    return 0;					/* purecov: inspected */
-  char buff[MAX_FIELD_WIDTH];
-  String tmp(buff,sizeof(buff),res->charset());
+  char buff[MAX_FIELD_WIDTH], *ptr, *end;
+  const char *r_ptr;
+  String tmp(buff, sizeof(buff), system_charset_info);
+  String *res, *remove_str;
   uint remove_length;
   LINT_INIT(remove_length);
-  String *remove_str; /* The string to remove from res. */
 
+  res= args[0]->val_str(str);
+  if ((null_value=args[0]->null_value))
+    return 0;
+  remove_str= &remove;                          /* Default value. */
   if (arg_count == 2)
   {
     remove_str= args[1]->val_str(&tmp);
     if ((null_value= args[1]->null_value))
       return 0;
   }
-  else
-    remove_str= &remove; /* Default value. */
 
-  if (!remove_str || (remove_length=remove_str->length()) == 0 ||
+  if ((remove_length= remove_str->length()) == 0 ||
       remove_length > res->length())
     return res;
 
-  char *ptr=(char*) res->ptr();
-  char *end=ptr+res->length();
-  const char *r_ptr=remove_str->ptr();
+  ptr= (char*) res->ptr();
+  end= ptr+res->length();
+  r_ptr= remove_str->ptr();
   while (ptr+remove_length <= end && !memcmp(ptr,r_ptr,remove_length))
     ptr+=remove_length;
 #ifdef USE_MB
