@@ -1442,9 +1442,7 @@ innobase_start_or_create_for_mysql(void)
 
 	os_fast_mutex_unlock(&srv_os_test_mutex);
 
-#if defined(__NETWARE__) || defined(SAFE_MUTEX_DETECT_DESTROY)
-	os_fast_mutex_free(&srv_os_test_mutex);  /* all platforms? */
-#endif /* __NETWARE__ */
+	os_fast_mutex_free(&srv_os_test_mutex);
 
 	if (srv_print_verbose_log) {
 	  	ut_print_timestamp(stderr);
@@ -1484,7 +1482,7 @@ innobase_shutdown_for_mysql(void)
 	  	return(DB_SUCCESS);
 	}
 
-	/* Flush buffer pool to disk, write the current lsn to
+	/* 1. Flush buffer pool to disk, write the current lsn to
 	the tablespace header(s), and copy all log data to archive */
 
 	logs_empty_and_mark_files_at_shutdown();
@@ -1496,7 +1494,7 @@ innobase_shutdown_for_mysql(void)
 		srv_conc_n_threads);
 	}
 
-	/* Now we will exit all threads InnoDB created */
+	/* 2. Make all threads created by InnoDB to exit */
 
 	srv_shutdown_state = SRV_SHUTDOWN_EXIT_THREADS;
 
@@ -1521,7 +1519,7 @@ innobase_shutdown_for_mysql(void)
 
 		os_aio_wake_all_threads_at_shutdown();
 
-		os_mutex_enter(os_thread_count_mutex);
+		os_mutex_enter(os_sync_mutex);
 
 		if (os_thread_count == 0) {
 		        /* All the threads have exited or are just exiting;
@@ -1530,14 +1528,14 @@ innobase_shutdown_for_mysql(void)
 			they have exited? Now we just sleep 0.1 seconds and
 			hope that is enough! */
 
-			os_mutex_exit(os_thread_count_mutex);
+			os_mutex_exit(os_sync_mutex);
 
 			os_thread_sleep(100000);
 
 			break;
 		}
 
-		os_mutex_exit(os_thread_count_mutex);
+		os_mutex_exit(os_sync_mutex);
 
 		os_thread_sleep(100000);
 	}
@@ -1548,19 +1546,21 @@ innobase_shutdown_for_mysql(void)
 		      os_thread_count);
 	}
 
-#if defined(__NETWARE__) || defined(SAFE_MUTEX_DETECT_DESTROY)
+	/* 3. Free all InnoDB's own mutexes */
 
-	/* TODO: Where should this be called? */
+	sync_close();
+
+	/* 4. Free all OS synchronization primitives (in Windows currently
+	events are not freed) */
+
 	srv_free();
+	os_sync_free();
 
-	/* TODO: Where should this be called? */
-	srv_general_free();
-#endif
+	/* 5. Free all allocated memory (and the os_fast_mutex created in
+	ut0mem.c */
 
-#if defined(NOT_WORKING_YET) || defined(__NETWARE__) || defined(SAFE_MUTEX_DETECT_DESTROY)
-        /* NetWare requires this free */
         ut_free_all_mem();
-#endif 
+
 	if (srv_print_verbose_log) {
 	        ut_print_timestamp(stderr);
 	        fprintf(stderr, "  InnoDB: Shutdown completed\n");

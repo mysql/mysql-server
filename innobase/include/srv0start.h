@@ -86,11 +86,12 @@ extern	ibool	srv_startup_is_before_trx_rollback_phase;
 extern	ibool	srv_is_being_shut_down;
 
 /* At a shutdown the value first climbs from 0 to SRV_SHUTDOWN_CLEANUP
-and then to SRV_SHUTDOWN_LAST_PHASE */
+and then to SRV_SHUTDOWN_LAST_PHASE, and so on */
 
 extern  ulint   srv_shutdown_state;
 
-#define SRV_SHUTDOWN_CLEANUP	1
-#define SRV_SHUTDOWN_LAST_PHASE	2
+#define SRV_SHUTDOWN_CLEANUP	   1
+#define SRV_SHUTDOWN_LAST_PHASE	   2
+#define SRV_SHUTDOWN_EXIT_THREADS  3
 
 #endif

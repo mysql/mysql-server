@@ -101,9 +101,9 @@ os_thread_create(
 	os_thread_t	thread;
 	ulint           win_thread_id;
 
-	os_mutex_enter(os_thread_count_mutex);
+	os_mutex_enter(os_sync_mutex);
 	os_thread_count++;
-	os_mutex_exit(os_thread_count_mutex);
+	os_mutex_exit(os_sync_mutex);
 
 	thread = CreateThread(NULL,	/* no security attributes */
 				0,	/* default size stack */
@@ -147,9 +147,9 @@ os_thread_create(
 		 exit(1);
 	}
 #endif
-	os_mutex_enter(os_thread_count_mutex);
+	os_mutex_enter(os_sync_mutex);
 	os_thread_count++;
-	os_mutex_exit(os_thread_count_mutex);
+	os_mutex_exit(os_sync_mutex);
 
 #if defined(UNIV_HOTBACKUP) && defined(UNIV_HPUX10)
 	ret = pthread_create(&pthread, pthread_attr_default, start_f, arg);
@@ -185,9 +185,9 @@ os_thread_exit(
 	void*	exit_value)	/* in: exit value; in Windows this void*
 				is cast as a DWORD */
 {
-	os_mutex_enter(os_thread_count_mutex);
+	os_mutex_enter(os_sync_mutex);
 	os_thread_count--;
-	os_mutex_exit(os_thread_count_mutex);
+	os_mutex_exit(os_sync_mutex);
 
 #ifdef __WIN__
         ExitThread((DWORD)exit_value);
