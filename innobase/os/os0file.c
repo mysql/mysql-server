@@ -369,7 +369,16 @@ os_file_handle_error(
 	return(FALSE);	
 }
 
-#if !defined(__WIN__) && !defined(UNIV_HOTBACKUP)
+#undef USE_FILE_LOCK
+#define USE_FILE_LOCK
+#if defined(UNIV_HOTBACKUP) || defined(__WIN__) || defined(__FreeBSD__)
+/* InnoDB Hot Backup does not lock the data files.
+ * On Windows, mandatory locking is used.
+ * On FreeBSD with LinuxThreads, advisory locking does not work properly.
+ */
+# undef USE_FILE_LOCK
+#endif
+#ifdef USE_FILE_LOCK
 /********************************************************************
 Obtain an exclusive lock on a file. */
 static
@@ -393,7 +402,7 @@ os_file_lock(
 	}
 	return 0;
 }
-#endif /* !defined(__WIN__) && !defined(UNIV_HOTBACKUP) */
+#endif /* USE_FILE_LOCK */
 
 /********************************************************************
 Does error handling when a file operation fails. */
@@ -852,7 +861,7 @@ try_again:
 		if (retry) {
 			goto try_again;
 		}
-#ifndef UNIV_HOTBACKUP
+#ifdef USE_FILE_LOCK
 	} else if (os_file_lock(file, name)) {
 		*success = FALSE;
 		file = -1;
@@ -961,7 +970,7 @@ os_file_create_simple_no_error_handling(
 	
 	if (file == -1) {
 		*success = FALSE;
-#ifndef UNIV_HOTBACKUP
+#ifdef USE_FILE_LOCK
 	} else if (os_file_lock(file, name)) {
 		*success = FALSE;
 		file = -1;
@@ -1172,7 +1181,7 @@ try_again:
 		if (retry) {
 			goto try_again;
 		}
-#ifndef UNIV_HOTBACKUP
+#ifdef USE_FILE_LOCK
 	} else if (os_file_lock(file, name)) {
 		*success = FALSE;
 		file = -1;

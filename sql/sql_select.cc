@@ -1584,8 +1584,7 @@ mysql_select(THD *thd, Item ***rref_pointer_array,
       if (select_lex->linkage != GLOBAL_OPTIONS_TYPE)
       {
 	//here is EXPLAIN of subselect or derived table
-	join->result= result;
-	if (!join->procedure && result->prepare(join->fields_list, unit))
+	if (join->change_result(result))
 	{
 	  DBUG_RETURN(-1);
 	}
@@ -9385,7 +9384,7 @@ void st_select_lex::print(THD *thd, String *str)
   if (!thd->lex->safe_to_cache_query)
     str->append("sql_no_cache ", 13);
   if (options & OPTION_TO_QUERY_CACHE)
-    str->append("cache ", 6);
+    str->append("sql_cache ", 10);
 
   //Item List
   bool first= 1;
@@ -9512,4 +9511,28 @@ void st_select_lex::print(THD *thd, String *str)
   print_limit(thd, str);
 
   // PROCEDURE unsupported here
+}
+
+
+/*
+  change select_result object of JOIN
+
+  SYNOPSIS
+    JOIN::change_result()
+    res		new select_result object
+
+  RETURN
+    0 - OK
+    -1 - error
+*/
+
+int JOIN::change_result(select_result *res)
+{
+  DBUG_ENTER("JOIN::change_result");
+  result= res;
+  if (!procedure && result->prepare(fields_list, select_lex->master_unit()))
+  {
+    DBUG_RETURN(-1);
+  }
+  DBUG_RETURN(0);
 }
