@@ -890,6 +890,10 @@ public:
 };
 
 
+/*
+  The same as Item_ref, but get value from val_* family of method to get
+  value of item on which it referred instead of result* family.
+*/
 class Item_direct_ref :public Item_ref
 {
 public:
