@@ -6620,6 +6620,41 @@ static const char turkish[]=
     "& U < \\u00FC <<< \\u00DC ";
     
 
+static const char czech[]=
+    "& C < \\u010D <<< \\u010C "
+    "& H <      ch <<<      Ch <<< CH"
+    "& R < \\u0159 <<< \\u0158"
+    "& S < \\u0161 <<< \\u0160"
+    "& Z < \\u017E <<< \\u017D";
+
+static const char danish[]=  /* Also good for Norwegian */
+    "& Y << \\u00FC <<< \\u00DC << \\u0171 <<< \\u0170"
+    "& Z  < \\u00E6 <<< \\u00C6 << \\u00E4 <<< \\u00C4"
+        " < \\u00F8 <<< \\u00D8 << \\u00F6 <<< \\u00D6 << \\u0151 <<< \\u0150"
+        " < \\u00E5 <<< \\u00C5 << aa <<<  Aa <<< AA";
+
+static const char lithuanian[]=
+    "& C << ch <<< Ch <<< CH< \\u010D <<< \\u010C"
+    "& E << \\u0119 <<< \\u0118 << \\u0117 <<< \\u0116"
+    "& I << y <<< Y"
+    "& S  < \\u0161 <<< \\u0160"
+    "& Z  < \\u017E <<< \\u017D";
+
+static const char slovak[]=
+    "& A < \\u00E4 <<< \\u00C4"
+    "& C < \\u010D <<< \\u010C"
+    "& H < ch <<< Ch <<< CH"
+    "& O < \\u00F4 <<< \\u00D4"
+    "& S < \\u0161 <<< \\u0160"
+    "& Z < \\u017E <<< \\017D";
+
+static const char spanish2[]=	/* Also good for Asturian and Galician */
+    "&C <  ch <<< Ch <<< CH"
+    "&L <  ll <<< Ll <<< LL"
+    "&N < \\u00F1 <<< \\u00D1"
+    "&R << rr <<< Rr <<< RR";
+
+
 /*
   Unicode Collation Algorithm:
   Collation element (weight) scanner, 
@@ -6633,6 +6668,7 @@ typedef struct my_uca_scanner_st
   const uchar  *send;	/* End of the input string                */
   uchar *uca_length;
   uint16 **uca_weight;
+  uint16 *contractions;
   uint16 implicit[2];
   int page;
   int code;
@@ -6666,6 +6702,7 @@ static void my_uca_scanner_init(my_uca_scanner *scanner,
   scanner->wbeg= nochar; 
   scanner->uca_length= cs->sort_order;
   scanner->uca_weight= cs->sort_order_big;
+  scanner->contractions= cs->contractions;
 }
 
 
@@ -6731,6 +6768,22 @@ static int my_uca_scanner_next(my_uca_scanner *scanner)
     scanner->page= (unsigned char)scanner->sbeg[0];
     scanner->code= (unsigned char)scanner->sbeg[1];
     scanner->sbeg+= 2;
+    
+    if (scanner->contractions && (scanner->sbeg <= scanner->send))
+    {
+      int cweight;
+      
+      if (!scanner->page && !scanner->sbeg[0] &&
+          (scanner->sbeg[1] > 0x40) && (scanner->sbeg[1] < 0x80) &&
+          (scanner->code > 0x40) && (scanner->code < 0x80) &&
+          (cweight= scanner->contractions[(scanner->code-0x40)*0x40+scanner->sbeg[1]-0x40]))
+        {
+          scanner->implicit[0]= 0;
+          scanner->wbeg= scanner->implicit;
+          scanner->sbeg+=2;
+          return cweight;
+        }
+    }
     
     if (!ucaw[scanner->page])
       goto implicit;
@@ -7354,7 +7407,7 @@ static my_coll_lexem_num my_coll_lexem_next(MY_COLL_LEXEM *lexem)
 typedef struct my_coll_rule_item_st
 {
   uint base;     /* Base character                             */
-  uint curr;     /* Current character                          */
+  uint curr[2];  /* Current character                          */
   int diff[3];   /* Primary, Secondary and Tertiary difference */
 } MY_COLL_RULE;
 
@@ -7436,7 +7489,18 @@ static int my_coll_rule_parse(MY_COLL_RULE *rule, size_t mitems,
       }
       else if (prevlexnum == MY_COLL_LEXEM_DIFF)
       {
-        item.curr= lexem.code;
+        MY_COLL_LEXEM savlex;
+        savlex= lexem;
+        item.curr[0]= lexem.code;
+        if ((lexnum= my_coll_lexem_next(&lexem)) == MY_COLL_LEXEM_CHAR)
+        {
+          item.curr[1]= lexem.code;
+        }
+        else
+        {
+          item.curr[1]= 0;
+          lexem=savlex;   /* Restore previous parser state */
+        }
         if (lexem.diff == 3)
         {
           item.diff[2]++;
@@ -7499,7 +7563,8 @@ static my_bool create_tailoring(CHARSET_INFO *cs, void *(*alloc)(uint))
   const uchar *deflengths= my_charset_ucs2_general_uca.sort_order;
   uint16     **defweights= my_charset_ucs2_general_uca.sort_order_big;
   int rc, i;
-
+  int ncontractions= 0;
+  
   if (!cs->tailoring)
     return 1;
   
@@ -7531,18 +7596,26 @@ static my_bool create_tailoring(CHARSET_INFO *cs, void *(*alloc)(uint))
   */
   for (i=0; i < rc; i++)
   {
-    uint pageb= (rule[i].base >> 8) & 0xFF;
-    uint pagec= (rule[i].curr >> 8) & 0xFF;
+    if (!rule[i].curr[1]) /* If not a contraction */
+    {
+      uint pageb= (rule[i].base >> 8) & 0xFF;
+      uint pagec= (rule[i].curr[0] >> 8) & 0xFF;
     
-    if (newlengths[pagec] < deflengths[pageb])
-      newlengths[pagec]= deflengths[pageb];
+      if (newlengths[pagec] < deflengths[pageb])
+        newlengths[pagec]= deflengths[pageb];
+    }
+    else
+      ncontractions++;
   }
   
   for (i=0; i < rc;  i++)
   {
     uint pageb= (rule[i].base >> 8) & 0xFF;
-    uint pagec= (rule[i].curr >> 8) & 0xFF;
+    uint pagec= (rule[i].curr[0] >> 8) & 0xFF;
     uint chb, chc;
+    
+    if (rule[i].curr[1]) /* Skip contraction */
+      continue;
     
     if (!newweights[pagec])
     {
@@ -7565,7 +7638,7 @@ static my_bool create_tailoring(CHARSET_INFO *cs, void *(*alloc)(uint))
       Aply the alternative rule:
       shift to the base character and primary difference.
     */
-    chc= rule[i].curr & 0xFF;
+    chc= rule[i].curr[0] & 0xFF;
     chb= rule[i].base & 0xFF;
     memcpy(newweights[pagec] + chc*newlengths[pagec],
            defweights[pageb] + chb*deflengths[pageb],
@@ -7581,7 +7654,43 @@ static my_bool create_tailoring(CHARSET_INFO *cs, void *(*alloc)(uint))
   
   cs->sort_order= newlengths;
   cs->sort_order_big= newweights;
+  cs->contractions= NULL;
   
+  /* Now process contractions */
+  if (ncontractions)
+  {
+    uint size= 0x40*0x40*sizeof(uint16); /* 8K, for basic latin letter only */
+    if (!(cs->contractions= (uint16*) alloc(size)))
+        return 1;
+    bzero((void*)cs->contractions, size);
+    for (i=0; i < rc; i++)
+    {
+      if (rule[i].curr[1])
+      {
+        uint pageb= (rule[i].base >> 8) & 0xFF;
+        uint chb= rule[i].base & 0xFF;
+        uint16 *offsb= defweights[pageb] + chb*deflengths[pageb];
+        uint offsc;
+        
+        if (offsb[1] || 
+            rule[i].curr[0] < 0x40 || rule[i].curr[0] > 0x7f ||
+            rule[i].curr[1] < 0x40 || rule[i].curr[1] > 0x7f)
+        {
+          /* 
+           TODO: add error reporting;
+           We support only basic latin letters contractions at this point.
+           Also, We don't support contractions with weight longer than one.
+           Otherwise, we'd need much more memory.
+          */
+          return 1;
+        }
+        offsc= (rule[i].curr[0]-0x40)*0x40+(rule[i].curr[1]-0x40);
+        
+        /* Copy base weight applying primary difference */
+        cs->contractions[offsc]= offsb[0] + rule[i].diff[0];
+      }
+    }
+  }
   return 0;
 }
 
@@ -7615,6 +7724,7 @@ CHARSET_INFO my_charset_ucs2_general_uca=
     NULL,		/* to_lower     */
     NULL,		/* to_upper     */
     uca_length,		/* sort_order   */
+    NULL,		/* contractions */
     uca_weight,		/* sort_order_big*/
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
@@ -7642,6 +7752,7 @@ CHARSET_INFO my_charset_ucs2_icelandic_uca_ci=
     NULL,		/* to_lower     */
     NULL,		/* to_upper     */
     NULL,		/* sort_order   */
+    NULL,		/* contractions */
     NULL,		/* sort_order_big*/
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
@@ -7668,6 +7779,7 @@ CHARSET_INFO my_charset_ucs2_latvian_uca_ci=
     NULL,		/* to_lower     */
     NULL,		/* to_upper     */
     NULL,		/* sort_order   */
+    NULL,		/* contractions */
     NULL,		/* sort_order_big*/
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
@@ -7694,6 +7806,7 @@ CHARSET_INFO my_charset_ucs2_romanian_uca_ci=
     NULL,		/* to_lower     */
     NULL,		/* to_upper     */
     NULL,		/* sort_order   */
+    NULL,		/* contractions */
     NULL,		/* sort_order_big*/
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
@@ -7720,6 +7833,7 @@ CHARSET_INFO my_charset_ucs2_slovenian_uca_ci=
     NULL,		/* to_lower     */
     NULL,		/* to_upper     */
     NULL,		/* sort_order   */
+    NULL,		/* contractions */
     NULL,		/* sort_order_big*/
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
@@ -7746,6 +7860,7 @@ CHARSET_INFO my_charset_ucs2_polish_uca_ci=
     NULL,		/* to_lower     */
     NULL,		/* to_upper     */
     NULL,		/* sort_order   */
+    NULL,		/* contractions */
     NULL,		/* sort_order_big*/
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
@@ -7772,6 +7887,7 @@ CHARSET_INFO my_charset_ucs2_estonian_uca_ci=
     NULL,		/* to_lower     */
     NULL,		/* to_upper     */
     NULL,		/* sort_order   */
+    NULL,		/* contractions */
     NULL,		/* sort_order_big*/
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
@@ -7798,6 +7914,7 @@ CHARSET_INFO my_charset_ucs2_spanish_uca_ci=
     NULL,		/* to_lower     */
     NULL,		/* to_upper     */
     NULL,		/* sort_order   */
+    NULL,		/* contractions */
     NULL,		/* sort_order_big*/
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
@@ -7824,6 +7941,7 @@ CHARSET_INFO my_charset_ucs2_swedish_uca_ci=
     NULL,		/* to_lower     */
     NULL,		/* to_upper     */
     NULL,		/* sort_order   */
+    NULL,		/* contractions */
     NULL,		/* sort_order_big*/
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
@@ -7850,6 +7968,143 @@ CHARSET_INFO my_charset_ucs2_turkish_uca_ci=
     NULL,		/* to_lower     */
     NULL,		/* to_upper     */
     NULL,		/* sort_order   */
+    NULL,		/* contractions */
+    NULL,		/* sort_order_big*/
+    NULL,		/* tab_to_uni   */
+    NULL,		/* tab_from_uni */
+    NULL,		/* state_map    */
+    NULL,		/* ident_map    */
+    8,			/* strxfrm_multiply */
+    2,			/* mbminlen     */
+    2,			/* mbmaxlen     */
+    9,			/* min_sort_char */
+    0xFFFF,		/* max_sort_char */
+    &my_charset_ucs2_handler,
+    &my_collation_ucs2_uca_handler
+};
+
+CHARSET_INFO my_charset_ucs2_czech_uca_ci=
+{
+    137,0,0,		/* number       */
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    "ucs2",		/* cs name    */
+    "ucs2_czech_ci",	/* name         */
+    "",			/* comment      */
+    czech,		/* tailoring    */
+    NULL,		/* ctype        */
+    NULL,		/* to_lower     */
+    NULL,		/* to_upper     */
+    NULL,		/* sort_order   */
+    NULL,		/* contractions */
+    NULL,		/* sort_order_big*/
+    NULL,		/* tab_to_uni   */
+    NULL,		/* tab_from_uni */
+    NULL,		/* state_map    */
+    NULL,		/* ident_map    */
+    8,			/* strxfrm_multiply */
+    2,			/* mbminlen     */
+    2,			/* mbmaxlen     */
+    9,			/* min_sort_char */
+    0xFFFF,		/* max_sort_char */
+    &my_charset_ucs2_handler,
+    &my_collation_ucs2_uca_handler
+};
+
+
+CHARSET_INFO my_charset_ucs2_danish_uca_ci=
+{
+    138,0,0,		/* number       */
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    "ucs2",		/* cs name    */
+    "ucs2_danish_ci",	/* name         */
+    "",			/* comment      */
+    danish,		/* tailoring    */
+    NULL,		/* ctype        */
+    NULL,		/* to_lower     */
+    NULL,		/* to_upper     */
+    NULL,		/* sort_order   */
+    NULL,		/* contractions */
+    NULL,		/* sort_order_big*/
+    NULL,		/* tab_to_uni   */
+    NULL,		/* tab_from_uni */
+    NULL,		/* state_map    */
+    NULL,		/* ident_map    */
+    8,			/* strxfrm_multiply */
+    2,			/* mbminlen     */
+    2,			/* mbmaxlen     */
+    9,			/* min_sort_char */
+    0xFFFF,		/* max_sort_char */
+    &my_charset_ucs2_handler,
+    &my_collation_ucs2_uca_handler
+};
+
+CHARSET_INFO my_charset_ucs2_lithuanian_uca_ci=
+{
+    139,0,0,		/* number       */
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    "ucs2",		/* cs name    */
+    "ucs2_lithuanian_ci",/* name         */
+    "",			/* comment      */
+    lithuanian,		/* tailoring    */
+    NULL,		/* ctype        */
+    NULL,		/* to_lower     */
+    NULL,		/* to_upper     */
+    NULL,		/* sort_order   */
+    NULL,		/* contractions */
+    NULL,		/* sort_order_big*/
+    NULL,		/* tab_to_uni   */
+    NULL,		/* tab_from_uni */
+    NULL,		/* state_map    */
+    NULL,		/* ident_map    */
+    8,			/* strxfrm_multiply */
+    2,			/* mbminlen     */
+    2,			/* mbmaxlen     */
+    9,			/* min_sort_char */
+    0xFFFF,		/* max_sort_char */
+    &my_charset_ucs2_handler,
+    &my_collation_ucs2_uca_handler
+};
+
+CHARSET_INFO my_charset_ucs2_slovak_uca_ci=
+{
+    140,0,0,		/* number       */
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    "ucs2",		/* cs name    */
+    "ucs2_slovak_ci",	/* name         */
+    "",			/* comment      */
+    lithuanian,		/* tailoring    */
+    NULL,		/* ctype        */
+    NULL,		/* to_lower     */
+    NULL,		/* to_upper     */
+    NULL,		/* sort_order   */
+    NULL,		/* contractions */
+    NULL,		/* sort_order_big*/
+    NULL,		/* tab_to_uni   */
+    NULL,		/* tab_from_uni */
+    NULL,		/* state_map    */
+    NULL,		/* ident_map    */
+    8,			/* strxfrm_multiply */
+    2,			/* mbminlen     */
+    2,			/* mbmaxlen     */
+    9,			/* min_sort_char */
+    0xFFFF,		/* max_sort_char */
+    &my_charset_ucs2_handler,
+    &my_collation_ucs2_uca_handler
+};
+
+CHARSET_INFO my_charset_ucs2_spanish2_uca_ci=
+{
+    141,0,0,		/* number       */
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    "ucs2",		/* cs name    */
+    "ucs2_spanish2_ci",	/* name         */
+    "",			/* comment      */
+    spanish2,		/* tailoring    */
+    NULL,		/* ctype        */
+    NULL,		/* to_lower     */
+    NULL,		/* to_upper     */
+    NULL,		/* sort_order   */
+    NULL,		/* contractions */
     NULL,		/* sort_order_big*/
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */

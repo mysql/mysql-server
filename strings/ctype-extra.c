@@ -29,6 +29,7 @@ CHARSET_INFO compiled_charsets[] = {
     NULL,		/* to_lower   */
     NULL,		/* to_upper   */
     NULL,		/* sort_order */
+    NULL,		/* contractions */
     NULL,		/* sort_order_big*/
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
