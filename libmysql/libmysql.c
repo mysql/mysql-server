@@ -1955,6 +1955,8 @@ mysql_fetch_row(MYSQL_RES *res)
 	DBUG_PRINT("info",("end of data"));
 	res->eof=1;
 	res->handle->status=MYSQL_STATUS_READY;
+	/* Don't clear handle in mysql_free_results */
+	res->handle=0;
       }
     }
     DBUG_RETURN((MYSQL_ROW) NULL);
