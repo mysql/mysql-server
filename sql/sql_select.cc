@@ -923,7 +923,13 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
       JOIN_TAB *end_table= &join.join_tab[join.tables];
       for (; table < end_table ; table++)
       {
-	if (table->select_cond)
+	/*
+	  table->keyuse is set in the case there was an original WHERE clause
+	  on the table that was optimized away.
+	  table->on_expr tells us that it was a LEFT JOIN and there will be
+	  at least one row generated from the table.
+	*/
+	if (table->select_cond || (table->keyuse && !table->on_expr))
 	{
 	  /* We have to sort all rows */
 	  select_limit= HA_POS_ERROR;
