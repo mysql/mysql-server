@@ -1520,7 +1520,6 @@ the problem, but since we have already crashed, something is definitely wrong\n\
 and this may fail.\n\n");
   fprintf(stderr, "key_buffer_size=%lu\n", (ulong) keybuff_size);
   fprintf(stderr, "read_buffer_size=%ld\n", global_system_variables.read_buff_size);
-  fprintf(stderr, "sort_buffer_size=%ld\n", thd->variables.sortbuff_size);
   fprintf(stderr, "max_used_connections=%ld\n", max_used_connections);
   fprintf(stderr, "max_connections=%ld\n", max_connections);
   fprintf(stderr, "threads_connected=%d\n", thread_count);
@@ -1528,7 +1527,7 @@ and this may fail.\n\n");
 key_buffer_size + (read_buffer_size + sort_buffer_size)*max_connections = %ld K\n\
 bytes of memory\n", ((ulong) keybuff_size +
 		     (global_system_variables.read_buff_size +
-		      thd->variables.sortbuff_size) *
+		      global_system_variables.sortbuff_size) *
 		     max_connections)/ 1024);
   fprintf(stderr, "Hope that's ok; if not, decrease some variables in the equation.\n\n");
   
@@ -1557,14 +1556,9 @@ the thread stack. Please read http://www.mysql.com/doc/L/i/Linux.html\n\n",
 Some pointers may be invalid and cause the dump to abort...\n");
     safe_print_str("thd->query", thd->query, 1024);
     fprintf(stderr, "thd->thread_id=%ld\n", thd->thread_id);
-    fprintf(stderr, "\n\
-Successfully dumped variables, if you ran with --log, take a look at the\n\
-details of what thread %ld did to cause the crash.  In some cases of really\n\
-bad corruption, the values shown above may be invalid.\n\n",
-	  thd->thread_id);
   }
   fprintf(stderr, "\
-The manual page at http://www.mysql.com/doc/C/r/Crashing.html contains\n\
+The manual page at http://www.mysql.com/doc/en/Crashing.html contains\n\
 information that should help you find out what is causing the crash.\n");
   fflush(stderr);
 #endif /* HAVE_STACKTRACE */
@@ -1639,6 +1633,7 @@ static void init_signals(void)
   sigaddset(&set,SIGHUP);
 
   /* Fix signals if blocked by parents (can happen on Mac OS X) */
+  sigemptyset(&sa.sa_mask);
   sa.sa_flags = 0;
   sa.sa_handler = print_signal_warning;
   sigaction(SIGTERM, &sa, (struct sigaction*) 0);
@@ -2279,7 +2274,7 @@ int main(int argc, char **argv)
 #endif
   /* init_slave() must be called after the thread keys are created */
   init_slave();
-  
+
   DBUG_ASSERT(current_thd == 0);
   if (opt_bin_log && !server_id)
   {
@@ -2306,7 +2301,6 @@ The server will not act as a slave.");
 	     opt_binlog_index_name,LOG_BIN);
     using_update_log=1;
   }
-
 
   if (opt_bootstrap)
   {

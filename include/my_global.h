@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (C) 2000-2003 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -639,6 +639,9 @@ typedef long		my_ptrdiff_t;
 #else
 typedef long long	my_ptrdiff_t;
 #endif
+
+/* typedef used for length of string;  Should be unsigned! */
+typedef ulong		size_str;
 
 #define MY_ALIGN(A,L)	(((A) + (L) - 1) & ~((L) - 1))
 #define ALIGN_SIZE(A)	MY_ALIGN((A),sizeof(double))
