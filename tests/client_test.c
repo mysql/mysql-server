@@ -8494,6 +8494,43 @@ static void test_bug3117()
   myquery(rc);
 }
 
+
+static void test_on()
+{
+  MYSQL_STMT *stmt;
+  int rc, i;
+  const char *query= "SELECT * FROM t2 join t1 on (t1.a=t2.a)";
+
+  myheader("test_on");
+  
+  rc = mysql_query(mysql, "DROP TABLE IF EXISTS t1,t2");
+  myquery(rc);
+  
+  rc= mysql_query(mysql,"CREATE TABLE t1 (a int , b int);");
+  myquery(rc);
+
+  rc= mysql_query(mysql,
+		  "insert into t1 values (1,1), (2, 2), (3,3), (4,4), (5,5);");
+  myquery(rc);
+
+  rc= mysql_query(mysql,"create table t2 select * from t1;");
+  myquery(rc);
+
+  stmt= mysql_prepare(mysql, query, strlen(query));
+  mystmt_init(stmt);
+  for (i= 0; i < 3; i++)
+  {
+    rc= mysql_execute(stmt);
+    mystmt(stmt, rc);
+    assert(5 == my_process_stmt_result(stmt));
+  }
+  mysql_stmt_close(stmt);
+
+  rc= mysql_query(mysql, "DROP TABLE t1,t2");
+  myquery(rc);
+}
+
+
 /*
   Read and parse arguments and MySQL options from my.cnf
 */
@@ -8753,6 +8790,8 @@ int main(int argc, char **argv)
 			       Item_field -> Item_ref */
     test_union();	    /* test union with prepared statements */
     test_bug3117();	    /* BUG#3117: LAST_INSERT_ID() */
+    test_on();		    /* ... join ... on(), BUG#2794 */
+
 
     end_time= time((time_t *)0);
     total_time+= difftime(end_time, start_time);
