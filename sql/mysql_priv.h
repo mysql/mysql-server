@@ -930,11 +930,6 @@ void sql_print_information(const char *format, ...);
 
 bool fn_format_relative_to_data_home(my_string to, const char *name,
 				     const char *dir, const char *extension);
-bool open_log(MYSQL_LOG *log, const char *hostname,
-	      const char *opt_name, const char *extension,
-	      const char *index_file_name,
-	      enum_log_type type, bool read_append,
-	      bool no_auto_events, ulong max_size);
 File open_binlog(IO_CACHE *log, const char *log_file_name,
                  const char **errmsg);
 handlerton *binlog_init();
