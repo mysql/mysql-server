@@ -255,12 +255,24 @@ double Item_sum_avg::val()
 ** Standard deviation
 */
 
-void Item_sum_std::reset()
+double Item_sum_std::val()
 {
-  sum=sum_sqr=0.0; count=0; (void) Item_sum_std::add();
+  double tmp= Item_sum_variance::val();
+  return tmp <= 0.0 ? 0.0 : sqrt(tmp);
 }
 
-bool Item_sum_std::add()
+/*
+** variance
+*/
+
+void Item_sum_variance::reset()
+{
+  sum=sum_sqr=0.0; 
+  count=0; 
+  (void) Item_sum_variance::add();
+}
+
+bool Item_sum_variance::add()
 {
   double nr=args[0]->val();
   if (!args[0]->null_value)
@@ -272,7 +284,7 @@ bool Item_sum_std::add()
   return 0;
 }
 
-double Item_sum_std::val()
+double Item_sum_variance::val()
 {
   if (!count)
   {
@@ -283,11 +295,10 @@ double Item_sum_std::val()
   /* Avoid problems when the precision isn't good enough */
   double tmp=ulonglong2double(count);
   double tmp2=(sum_sqr - sum*sum/tmp)/tmp;
-  return tmp2 <= 0.0 ? 0.0 : sqrt(tmp2);
+  return tmp2 <= 0.0 ? 0.0 : tmp2;
 }
 
-
-void Item_sum_std::reset_field()
+void Item_sum_variance::reset_field()
 {
   double nr=args[0]->val();
   char *res=result_field->ptr;
@@ -304,7 +315,7 @@ void Item_sum_std::reset_field()
   }
 }
 
-void Item_sum_std::update_field(int offset)
+void Item_sum_variance::update_field(int offset)
 {
   double nr,old_nr,old_sqr;
   longlong field_count;
@@ -838,6 +849,17 @@ String *Item_avg_field::val_str(String *str)
 }
 
 Item_std_field::Item_std_field(Item_sum_std *item)
+  : Item_variance_field(item)
+{
+}
+
+double Item_std_field::val()
+{
+  double tmp= Item_variance_field::val();
+  return tmp <= 0.0 ? 0.0 : sqrt(tmp);
+}
+
+Item_variance_field::Item_variance_field(Item_sum_variance *item)
 {
   name=item->name;
   decimals=item->decimals;
@@ -846,7 +868,7 @@ Item_std_field::Item_std_field(Item_sum_std *item)
   maybe_null=1;
 }
 
-double Item_std_field::val()
+double Item_variance_field::val()
 {
   double sum,sum_sqr;
   longlong count;
@@ -862,10 +884,10 @@ double Item_std_field::val()
   null_value=0;
   double tmp= (double) count;
   double tmp2=(sum_sqr - sum*sum/tmp)/tmp;
-  return tmp2 <= 0.0 ? 0.0 : sqrt(tmp2);
+  return tmp2 <= 0.0 ? 0.0 : tmp2;
 }
 
-String *Item_std_field::val_str(String *str)
+String *Item_variance_field::val_str(String *str)
 {
   double nr=val();
   if (null_value)

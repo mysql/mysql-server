@@ -686,7 +686,7 @@ void Item_avg_field::make_field(Send_field *tmp_field)
   init_make_field(tmp_field,FIELD_TYPE_DOUBLE);
 }
 
-void Item_std_field::make_field(Send_field *tmp_field)
+void Item_variance_field::make_field(Send_field *tmp_field)
 {
   init_make_field(tmp_field,FIELD_TYPE_DOUBLE);
 }

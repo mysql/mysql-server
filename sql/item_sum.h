@@ -27,7 +27,7 @@ class Item_sum :public Item_result_field
 {
 public:
   enum Sumfunctype {COUNT_FUNC,COUNT_DISTINCT_FUNC,SUM_FUNC,AVG_FUNC,MIN_FUNC,
-		    MAX_FUNC, UNIQUE_USERS_FUNC,STD_FUNC,SUM_BIT_FUNC,
+		    MAX_FUNC, UNIQUE_USERS_FUNC,STD_FUNC,VARIANCE_FUNC,SUM_BIT_FUNC,
 		    UDF_SUM_FUNC };
 
   Item **args,*tmp_args[2];
@@ -235,14 +235,14 @@ class Item_sum_avg :public Item_sum_num
   const char *func_name() const { return "avg"; }
 };
 
-class Item_sum_std;
+class Item_sum_variance;
 
-class Item_std_field :public Item_result_field
+class Item_variance_field :public Item_result_field
 {
 public:
   Field *field;
-  Item_std_field(Item_sum_std *item);
-  enum Type type() const { return FIELD_STD_ITEM; }
+  Item_variance_field(Item_sum_variance *item);
+  enum Type type() const {return FIELD_VARIANCE_ITEM; }
   double val();
   longlong val_int() { return (longlong) val(); }
   String *val_str(String*);
@@ -251,26 +251,59 @@ public:
   void fix_length_and_dec() {}
 };
 
-class Item_sum_std :public Item_sum_num
+/*
+
+variance(a) =
+
+= sqrt ( sum (ai - avg(a))^2 / count(a) )
+= sqrt ( sum (ai^2 - 2*ai*avg(a) + avg(a)^2) / count(a) )
+= sqrt ( (sum(ai^2) - sum(2*ai*avg(a)) + sum(avg(a)^2))/count(a) ) = 
+= sqrt ( (sum(ai^2) - 2*avg(a)*sum(a) + count(a)*avg(a)^2)/count(a) ) = 
+= sqrt ( (sum(ai^2) - 2*sum(a)*sum(a)/count(a) + count(a)*sum(a)^2/count(a)^2 )/count(a) ) = 
+= sqrt ( (sum(ai^2) - 2*sum(a)^2/count(a) + sum(a)^2/count(a) )/count(a) ) = 
+= sqrt ( (sum(ai^2) - sum(a)^2/count(a))/count(a) )
+
+ */
+
+class Item_sum_variance : public Item_sum_num
 {
-  double sum;
-  double sum_sqr;
+  double sum, sum_sqr;
   ulonglong count;
   void fix_length_and_dec() { decimals+=4; maybe_null=1; }
 
   public:
-  Item_sum_std(Item *item_par) :Item_sum_num(item_par),count(0) {}
-  enum Sumfunctype sum_func () const { return STD_FUNC; }
+  Item_sum_variance(Item *item_par) :Item_sum_num(item_par),count(0) {}
+  enum Sumfunctype sum_func () const { return VARIANCE_FUNC; }
   void reset();
   bool add();
   double val();
   void reset_field();
   void update_field(int offset);
   Item *result_item(Field *field)
-  { return new Item_std_field(this); }
-  const char *func_name() const { return "std"; }
+  { return new Item_variance_field(this); }
+  const char *func_name() const { return "variance"; }
 };
 
+class Item_sum_std;
+
+class Item_std_field :public Item_variance_field
+{
+public:
+  Item_std_field(Item_sum_std *item);
+  enum Type type() const { return FIELD_STD_ITEM; }
+  double val();
+};
+
+class Item_sum_std :public Item_sum_variance
+{
+  public:
+  Item_sum_std(Item *item_par) :Item_sum_variance(item_par){}
+  enum Sumfunctype sum_func () const { return STD_FUNC; }
+  double val();
+  Item *result_item(Field *field)
+    { return new Item_std_field(this); }
+  const char *func_name() const { return "std"; }
+};
 
 // This class is a string or number function depending on num_func
 
