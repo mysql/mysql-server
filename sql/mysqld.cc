@@ -4637,7 +4637,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       berkeley_lock_type=berkeley_lock_types[type-1];
     else
     {
-      if (test_if_int(argument,(uint) strlen(argument)))
+      if (test_if_int(argument,(uint) strlen(argument), my_charset_latin1))
 	berkeley_lock_scan_time=atoi(argument);
       else
       {
