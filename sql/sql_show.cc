@@ -1891,10 +1891,10 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
   LEX *lex= thd->lex;
   TABLE *table= tables->table;
   SELECT_LEX *select_lex= &lex->select_lex;
+  SELECT_LEX *lsel= tables->schema_select_lex;
   ST_SCHEMA_TABLE *schema_table= tables->schema_table;
   DBUG_ENTER("fill_schema_tables");
 
-  SELECT_LEX *lsel= tables->schema_select_lex;
   if (lsel)
   {
     TABLE *old_open_tables= thd->open_tables;
@@ -1947,7 +1947,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
 #endif
     {
       List<char> files;
-      (void) sprintf(path,"%s/%s",mysql_data_home,base_name);
+      strxmov(path, mysql_data_home, "/", base_name, NullS);
       end= path + (len= unpack_dirname(path,path));
       len= FN_LEN - len;
       if (mysql_find_files(thd, &files, base_name, 
@@ -2035,7 +2035,7 @@ int fill_schema_shemata(THD *thd, TABLE_LIST *tables, COND *cond)
 	(grant_option && !check_grant_db(thd, file_name)))
 #endif
     {
-      (void) sprintf(path,"%s/%s",mysql_data_home, file_name);
+      strxmov(path, mysql_data_home, "/", file_name, NullS);
       length=unpack_dirname(path,path);		// Convert if not unix
       found_libchar= 0;
       if (length && path[length-1] == FN_LIBCHAR)
@@ -2050,8 +2050,8 @@ int fill_schema_shemata(THD *thd, TABLE_LIST *tables, COND *cond)
       load_db_opt(thd, path, &create);
       restore_record(table, default_values);
       table->field[1]->store(file_name, strlen(file_name), system_charset_info);
-      table->field[2]->store(create.default_table_charset->name, 
-			     strlen(create.default_table_charset->name),
+      table->field[2]->store(create.default_table_charset->csname, 
+			     strlen(create.default_table_charset->csname),
 			     system_charset_info);
       table->file->write_row(table->record[0]);
     }
@@ -2187,9 +2187,10 @@ static int get_schema_tables_record(THD *thd, struct st_table_list *tables,
     if (file->raid_type)
     {
       char buff[100];
-      sprintf(buff," raid_type=%s raid_chunks=%d raid_chunksize=%ld",
-              my_raid_type(file->raid_type), file->raid_chunks,
-              file->raid_chunksize/RAID_BLOCK_SIZE);
+      my_snprintf(buff,sizeof(buff),
+                  " raid_type=%s raid_chunks=%d raid_chunksize=%ld",
+                  my_raid_type(file->raid_type), file->raid_chunks,
+                  file->raid_chunksize/RAID_BLOCK_SIZE);
       ptr=strmov(ptr,buff);
     }
     table->field[19]->store(option_buff+1,
@@ -2630,7 +2631,17 @@ static int get_schema_views_record(THD *thd, struct st_table_list *tables,
       table->field[1]->store(tables->view_db.str, tables->view_db.length, cs);
       table->field[2]->store(tables->view_name.str,tables->view_name.length,cs);
       table->field[3]->store(tables->query.str, tables->query.length, cs);
-      table->field[4]->store("NONE", 4, cs);
+
+      if (tables->with_check != VIEW_CHECK_NONE)
+      {
+        if (tables->with_check == VIEW_CHECK_LOCAL)
+          table->field[4]->store("WITH LOCAL CHECK OPTION", 23, cs);
+        else
+          table->field[4]->store("WITH CASCADED CHECK OPTION", 26, cs);
+      }
+      else
+        table->field[4]->store("NONE", 4, cs);
+
       if (tables->updatable_view)
         table->field[5]->store("YES", 3, cs);
       else
@@ -2668,7 +2679,7 @@ static int get_schema_constarints_record(THD *thd, struct st_table_list *tables,
       table->field[3]->store(base_name, strlen(base_name), cs);
       table->field[4]->store(file_name, strlen(file_name), cs);
       if (i == primary_key && !strcmp(key_info->name, primary_key_name))
-        table->field[5]->store("PRIMARY", 7, cs);
+        table->field[5]->store("PRIMARY KEY", 11, cs);
       else if (key_info->flags & HA_NOSAME)
         table->field[5]->store("UNIQUE", 6, cs);
       table->file->write_row(table->record[0]);
@@ -2685,7 +2696,7 @@ static int get_schema_constarints_record(THD *thd, struct st_table_list *tables,
                              f_key_info->forein_id->length, cs);
       table->field[3]->store(base_name, strlen(base_name), cs);
       table->field[4]->store(file_name, strlen(file_name), cs);
-      table->field[5]->store("FOREIGN", 7, system_charset_info);
+      table->field[5]->store("FOREIGN KEY", 11, system_charset_info);
       table->field[6]->store(f_key_info->constraint_method->str,
                              f_key_info->constraint_method->length, cs);
       table->field[6]->set_notnull();
@@ -3099,6 +3110,8 @@ bool get_schema_tables_result(JOIN *join)
     if (!tab->table || !tab->table->pos_in_table_list)
       break;
     TABLE_LIST *table_list= tab->table->pos_in_table_list;
+    TABLE_LIST *save_next_global= table_list->next_global;
+
     if (table_list->schema_table && thd->fill_derived_tables())
     {
       TABLE *old_derived_tables= thd->derived_tables;
@@ -3112,11 +3125,13 @@ bool get_schema_tables_result(JOIN *join)
       {
         thd->derived_tables= old_derived_tables;
         thd->lock= sql_lock;
+        table_list->next_global= save_next_global;
         DBUG_RETURN(TRUE);
       }
       thd->lock= sql_lock;
       thd->lex->sql_command= SQLCOM_SELECT;
       thd->derived_tables= old_derived_tables;
+      table_list->next_global= save_next_global;
     }
   }
   DBUG_RETURN(FALSE);
@@ -3178,7 +3193,7 @@ ST_FIELD_INFO columns_fields_info[]=
   {"KEY", 3, MYSQL_TYPE_STRING, 0, 0, 1, "Key"},
   {"COLUMN_DEFAULT", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, 1, "Default"},
   {"EXTRA", 20, MYSQL_TYPE_STRING, 0, 0, 1, "Extra"},
-  {"PRIVILIGES", 80, MYSQL_TYPE_STRING, 0, 0, 1, "Privileges"},
+  {"PRIVILEGES", 80, MYSQL_TYPE_STRING, 0, 0, 1, "Privileges"},
   {"COMMENT", 255, MYSQL_TYPE_STRING, 0, 0, 1, "Comment"},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0, 0}
 };
@@ -3265,7 +3280,7 @@ ST_FIELD_INFO view_fields_info[]=
   {"TABLE_SCHEMA", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 1, 0},
   {"TABLE_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 1, 0},
   {"VIEW_DEFINITION", 65535, MYSQL_TYPE_STRING, 0, 0, 1, 0},
-  {"CHECK_OPTION", 4, MYSQL_TYPE_STRING, 0, 0, 1, 0},
+  {"CHECK_OPTION", 30, MYSQL_TYPE_STRING, 0, 0, 1, 0},
   {"IS_UPDATABLE", 3, MYSQL_TYPE_STRING, 0, 0, 1, 0},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0, 0}
 };

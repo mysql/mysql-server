@@ -185,4 +185,40 @@ drop table t2;
 drop table t1;
 drop procedure sel2;
 drop function sub1;
+
+create table t1(a int);
+create view v1 (c) as select a from t1 with check option;
+create view v2 (c) as select a from t1 WITH LOCAL CHECK OPTION;
+create view v3 (c) as select a from t1 WITH CASCADED CHECK OPTION;
+select * from information_schema.views;
+grant select (a) on test.t1 to joe@localhost with grant option;
+select * from INFORMATION_SCHEMA.COLUMN_PRIVILEGES;
+select * from INFORMATION_SCHEMA.TABLE_PRIVILEGES;
+drop view v1, v2, v3;
+drop table t1;
+delete from mysql.user where user='joe';
+delete from mysql.db where user='joe';
+delete from mysql.tables_priv where user='joe';
+delete from mysql.columns_priv where user='joe';
+flush privileges;
+
+delimiter //;
+create procedure px5 ()
+begin
+declare v int;
+declare c cursor for select version from
+information_schema.tables;
+open c;
+fetch c into v;
+select v;
+close c;
+end;//
+
+call px5()//
+call px5()//
+delimiter ;//
+
+
+
+
  
