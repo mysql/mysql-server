@@ -135,6 +135,6 @@ done:
 
 double my_atof(const char *nptr)
 {
-  return (strtod(nptr, 0));
+  return (my_strtod(nptr, 0));
 }
 
