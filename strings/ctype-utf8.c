@@ -2179,7 +2179,7 @@ int my_strcasecmp_utf8(CHARSET_INFO *cs, const char *s, const char *t)
     
     /* Do the same for the second string */
     
-    if (t[0] >= 0)
+    if (((int8)t[0]) >= 0)
     {
       /* Convert single byte character into weight */
       t_wc= plane00[(uchar) t[0]].tolower;
