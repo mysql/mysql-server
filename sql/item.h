@@ -422,7 +422,7 @@ public:
 
 class Item_param :public Item
 {
-public:    
+public:
   enum enum_item_param_state
   {
     NO_VALUE, NULL_VALUE, INT_VALUE, REAL_VALUE,
@@ -442,8 +442,8 @@ public:
   String str_value_ptr;
   union
   {
-    longlong integer;                           
-    double   real;                              
+    longlong integer;
+    double   real;
     /*
       Character sets conversion info for string values.
       Character sets of client and connection defined at bind time are used
@@ -456,7 +456,7 @@ public:
       /*
         This points at character set of connection if conversion
         to it is required (i. e. if placeholder typecode is not BLOB).
-        Otherwise it's equal to character_set_client (to simplify 
+        Otherwise it's equal to character_set_client (to simplify
         check in convert_str_value()).
       */
       CHARSET_INFO *final_character_set_of_str_value;
@@ -477,10 +477,10 @@ public:
     supply for this placeholder in mysql_stmt_execute.
   */
   enum enum_field_types param_type;
-  /*         
+  /*
     Offset of placeholder inside statement text. Used to create
     no-placeholders version of this statement for the binary log.
-  */         
+  */
   uint pos_in_query;
 
   Item_param(uint pos_in_query_arg);
@@ -515,16 +515,18 @@ public:
   const String *query_val_str(String *str) const;
 
   bool convert_str_value(THD *thd);
-  
+
   Item *new_item() { return new Item_param(pos_in_query); }
-  /* 
-    If value for parameter was not set we treat it as non-const 
-    so noone will use parameters value in fix_fields still 
+  /*
+    If value for parameter was not set we treat it as non-const
+    so noone will use parameters value in fix_fields still
     parameter is constant during execution.
   */
   virtual table_map used_tables() const
   { return state != NO_VALUE ? (table_map)0 : PARAM_TABLE_BIT; }
   void print(String *str) { str->append('?'); }
+  /* parameter never equal to other parameter of other item */
+  bool eq(const Item *item, bool binary_cmp) const { return 0; }
 };
 
 class Item_int :public Item_num

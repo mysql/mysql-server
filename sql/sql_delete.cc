@@ -197,6 +197,7 @@ cleanup:
     query_cache_invalidate3(thd, table_list, 1);
   }
 
+  delete select;
   transactional_table= table->file->has_transactions();
   log_delayed= (transactional_table || table->tmp_table);
   /*
@@ -214,7 +215,7 @@ cleanup:
     {
       if (error <= 0)
         thd->clear_error();
-      Query_log_event qinfo(thd, thd->query, thd->query_length, 
+      Query_log_event qinfo(thd, thd->query, thd->query_length,
 			    log_delayed);
       if (mysql_bin_log.write(&qinfo) && transactional_table)
 	error=1;
@@ -233,7 +234,6 @@ cleanup:
     mysql_unlock_tables(thd, thd->lock);
     thd->lock=0;
   }
-  delete select;
   free_underlaid_joins(thd, &thd->lex->select_lex);
   if (error >= 0 || thd->net.report_error)
     send_error(thd,thd->killed ? ER_SERVER_SHUTDOWN: 0);

@@ -114,11 +114,34 @@ ID	[a-z_A-Z][a-z_A-Z0-9]*
 }
 
 "'"		{
+/* Quoted character string literals are handled in an explicit
+start state 'quoted'.  This state is entered and the buffer for
+the scanned string is emptied upon encountering a starting quote.
+
+In the state 'quoted', only two actions are possible (defined below). */
 			BEGIN(quoted);
 			stringbuf_len = 0;
 }
-<quoted>[^\']+		string_append(yytext, yyleng);
-<quoted>"'"+	{	string_append(yytext, yyleng / 2);
+<quoted>[^\']+	{
+			/* Got a sequence of characters other than "'":
+			append to string buffer */
+			string_append(yytext, yyleng);
+}
+<quoted>"'"+	{
+			/* Got a sequence of "'" characters:
+			append half of them to string buffer,
+			as "''" represents a single "'".
+			We apply truncating division,
+			so that "'''" will result in "'". */
+
+			string_append(yytext, yyleng / 2);
+
+			/* If we got an odd number of quotes, then the
+			last quote we got is the terminating quote.
+			At the end of the string, we return to the
+			initial start state and report the scanned
+			string literal. */
+
 			if (yyleng % 2) {
 				BEGIN(INITIAL);
 				yylval = sym_tab_add_str_lit(
