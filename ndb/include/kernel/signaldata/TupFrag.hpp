@@ -105,8 +105,6 @@ public:
   enum ErrorCode {
     NoError = 0,
     InvalidRequest = 800,
-    NoFreeFragmentOper = 830,
-    NoFreeIndexFragment = 852,
     NoFreeFragment = 604,
     NoFreeAttributes = 827
   };
