@@ -1422,7 +1422,7 @@ String *Item_func_soundex::val_str(String *str)
   char *to= (char *) tmp_value.ptr();
   char *from= (char *) res->ptr(), *end=from+res->length();
 
-  while (from != end && isspace(*from)) // Skip pre-space
+  while (from != end && !isalpha(*from)) // Skip pre-space
     from++; /* purecov: inspected */
   if (from == end)
     return &empty_string;		// No alpha characters.

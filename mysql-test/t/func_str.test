@@ -35,7 +35,7 @@ SELECT CONCAT('"',CONCAT_WS('";"',repeat('a',60),repeat('b',60),repeat('c',60),r
 select insert('txs',2,1,'hi'),insert('is ',4,0,'a'),insert('txxxxt',2,4,'es');
 select replace('aaaa','a','b'),replace('aaaa','aa','b'),replace('aaaa','a','bb'),replace('aaaa','','b'),replace('bbbb','a','c');
 select replace(concat(lcase(concat('THIS',' ','IS',' ','A',' ')),ucase('false'),' ','test'),'FALSE','REAL') ;
-select soundex(''),soundex('he'),soundex('hello all folks');
+select soundex(''),soundex('he'),soundex('hello all folks'),soundex('#3556 in bugdb');
 select md5('hello');
 select sha('abc');
 select sha1('abc');
