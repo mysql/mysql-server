@@ -2332,6 +2332,9 @@ MgmtSrvr::alloc_node_id(NodeId * nodeId,
   bool found_matching_id= false;
   bool found_matching_type= false;
   bool found_free_node= false;
+  const char *config_hostname = 0;
+  struct in_addr config_addr= {0};
+  int r_config_addr= -1;
   unsigned type_c= 0;
 
   ndb_mgm_configuration_iterator iter(*(ndb_mgm_configuration *)_config->m_configValues,
@@ -2349,18 +2352,16 @@ MgmtSrvr::alloc_node_id(NodeId * nodeId,
     if (connected_nodes.get(tmp))
       continue;
     found_free_node= true;
-    const char *config_hostname = 0;
     if(iter.get(CFG_NODE_HOST, &config_hostname)) abort();
 
     if (config_hostname && config_hostname[0] != 0 && client_addr) {
       // check hostname compatability
-      struct in_addr config_addr;
-      const void *tmp= &(((sockaddr_in*)client_addr)->sin_addr);
-      if(Ndb_getInAddr(&config_addr, config_hostname) != 0
-	 || memcmp(&config_addr, tmp, sizeof(config_addr)) != 0) {
+      const void *tmp_in= &(((sockaddr_in*)client_addr)->sin_addr);
+      if((r_config_addr= Ndb_getInAddr(&config_addr, config_hostname)) != 0
+	 || memcmp(&config_addr, tmp_in, sizeof(config_addr)) != 0) {
 	struct in_addr tmp_addr;
 	if(Ndb_getInAddr(&tmp_addr, "localhost") != 0
-	   || memcmp(&tmp_addr, tmp, sizeof(config_addr)) != 0) {
+	   || memcmp(&tmp_addr, tmp_in, sizeof(config_addr)) != 0) {
 	  // not localhost
 #if 0
 	  ndbout << "MgmtSrvr::getFreeNodeId compare failed for \"" << config_hostname
@@ -2402,7 +2403,7 @@ MgmtSrvr::alloc_node_id(NodeId * nodeId,
     if (found_matching_id)
       if (found_matching_type)
 	if (found_free_node)
-	  error_string.appfmt("Connection done from wrong host %s.",
+	  error_string.appfmt("Connection done from wrong host ip %s.",
 			      inet_ntoa(((struct sockaddr_in *)(client_addr))->sin_addr));
 	else
 	  error_string.appfmt("No free node id found for %s.", type_string.c_str());
@@ -2413,10 +2414,13 @@ MgmtSrvr::alloc_node_id(NodeId * nodeId,
   } else {
     if (found_matching_id)
       if (found_matching_type)
-	if (found_free_node)
-	  error_string.appfmt("Connection with id %d done from wrong host %s, expected host XX.",
+	if (found_free_node) {
+	  // have to split these into two since inet_ntoa overwrites itself
+	  error_string.appfmt("Connection with id %d done from wrong host ip %s,",
 			      *nodeId, inet_ntoa(((struct sockaddr_in *)(client_addr))->sin_addr));
-	else
+	  error_string.appfmt(" expected %s(%s).", config_hostname,
+			      r_config_addr ? "lookup failed" : inet_ntoa(config_addr));
+	} else
 	  error_string.appfmt("Id %d already allocated by another node.", *nodeId);
       else
 	error_string.appfmt("Id %d configured as %s, connect attempted as %s.",
