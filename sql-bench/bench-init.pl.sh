@@ -31,7 +31,7 @@
 # $server	Object for current server
 # $limits	Hash reference to limits for benchmark
 
-$benchmark_version="2.13";
+$benchmark_version="2.14";
 use Getopt::Long;
 
 require "$pwd/server-cfg" || die "Can't read Configuration file: $!\n";
@@ -292,6 +292,35 @@ sub do_query
   print "$query\n" if ($opt_debug);
   $dbh->do($query) or
     die "\nError executing '$query':\n$DBI::errstr\n";
+}
+
+#
+# Run a query X times
+#
+
+sub time_fetch_all_rows
+{
+  my($test_text,$result_text,$query,$dbh,$test_count)=@_;
+  my($i,$loop_time,$end_time,$count,$rows,$estimated);
+
+  print $test_text . "\n"   if (defined($test_text));
+  $count=$rows=0;
+  $loop_time=new Benchmark;
+  for ($i=1 ; $i <= $test_count ; $i++)
+  {
+    $count++;
+    $rows+=fetch_all_rows($dbh,$query) or die $DBI::errstr;
+    $end_time=new Benchmark;
+    last if ($estimated=predict_query_time($loop_time,$end_time,\$count,$i,
+					   $test_count));
+  }
+  $end_time=new Benchmark;
+  if ($estimated)
+  { print "Estimated time"; }
+  else
+  { print "Time"; }
+  print " for $result_text ($count:$rows) " .
+    timestr(timediff($end_time, $loop_time),"all") . "\n\n";
 }
 
 
