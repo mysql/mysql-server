@@ -405,7 +405,6 @@ struct system_variables
 
 void free_tmp_table(THD *thd, TABLE *entry);
 
-class Prepared_statement;
 
 /*
   State of a single command executed against this connection.
@@ -760,6 +759,16 @@ public:
   ~THD();
 
   void init(void);
+  /*
+    Initialize memory roots necessary for query processing and (!)
+    pre-allocate memory for it. We can't do that in THD constructor because
+    there are use cases (acl_init, delayed inserts, watcher threads,
+    killing mysqld) where it's vital to not allocate excessive and not used
+    memory. Note, that we still don't return error from init_for_queries():
+    if preallocation fails, we should notice that at the first call to
+    alloc_root. 
+  */
+  void init_for_queries();
   void change_user(void);
   void cleanup(void);
   bool store_globals();
