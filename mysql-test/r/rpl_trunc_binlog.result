@@ -8,3 +8,6 @@ stop slave;
 flush logs;
 reset slave;
 start slave;
+show slave status;
+Master_Host	Master_User	Master_Port	Connect_retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_do_db	Replicate_ignore_db	Last_errno	Last_error	Skip_counter	Exec_master_log_pos	Relay_log_space
+127.0.0.1	root	MASTER_PORT	1	master-bin.002	4	slave-relay-bin.002	161	master-bin.001	Yes	No			0	Rolling back unfinished transaction (no COMMIT or ROLLBACK) from relay log. Probably cause is that the master died while writing the transaction to it's binary log.	0	79	317
