@@ -5000,10 +5000,10 @@ String *Field_blob::val_str(String *val_buffer __attribute__((unused)),
 int Field_blob::cmp(const char *a,uint32 a_length, const char *b,
 		    uint32 b_length)
 {
-  int diff=my_strnncoll(field_charset,
-			(const uchar*)a,min(a_length,b_length),
-			(const uchar*)b,min(a_length,b_length));
-  return diff ? diff : (int) (a_length - b_length);
+  return field_charset->coll->strnncoll(field_charset, 
+                                        (const uchar*)a, a_length,
+                                        (const uchar*)b, b_length,
+                                        0);
 }
 
 
@@ -5087,8 +5087,8 @@ void Field_blob::get_key_image(char *buff,uint length,
 
   get_ptr(&blob);
   uint char_length= length / cs->mbmaxlen;
-  char_length= my_charpos(cs, blob, blob + length, char_length);
-  set_if_smaller(length, char_length);
+  char_length= my_charpos(cs, blob, blob + blob_length, char_length);
+  set_if_smaller(blob_length, char_length);
 
   if ((uint32) length > blob_length)
   {

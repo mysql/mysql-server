@@ -592,3 +592,23 @@ SELECT id FROM t1 WHERE (list_id = 1) AND (term = "letterb");
 SELECT id FROM t1 WHERE (list_id = 1) AND (term = "lettera");
 SELECT id FROM t1 WHERE (list_id = 1) AND (term = "letterd");
 DROP TABLE t1;
+
+
+#
+# Bug #6043 erratic searching for diacriticals in indexed MyISAM UTF-8 table
+#
+SET NAMES latin1;
+CREATE TABLE t1 (
+    id int unsigned NOT NULL auto_increment,
+    list_id smallint unsigned NOT NULL,
+    term text NOT NULL,
+    PRIMARY KEY(id),
+    INDEX(list_id, term(19))
+) TYPE=MyISAM CHARSET=utf8;
+INSERT INTO t1 set list_id = 1, term = "testétest";
+INSERT INTO t1 set list_id = 1, term = "testetest";
+INSERT INTO t1 set list_id = 1, term = "testètest";
+SELECT id, term FROM t1 where (list_id = 1) AND (term = "testétest");
+SELECT id, term FROM t1 where (list_id = 1) AND (term = "testetest");
+SELECT id, term FROM t1 where (list_id = 1) AND (term = "testètest");
+DROP TABLE t1;
