@@ -628,16 +628,29 @@ longlong handler::get_auto_increment()
 {
   longlong nr;
   int error;
+
   (void) extra(HA_EXTRA_KEYREAD);
   index_init(table->next_number_index);
-  error=index_last(table->record[1]);
+  if (!table->next_number_key_offset)
+  {						// Autoincrement at key-start
+    error=index_last(table->record[1]);
+  }
+  else
+  {
+    byte key[MAX_KEY_LENGTH];
+    key_copy(key,table,table->next_number_index,
+             table->next_number_key_offset);
+    error=index_read(table->record[1], key, table->next_number_key_offset,
+                     HA_READ_PREFIX_LAST);
+  }
+
   if (error)
     nr=1;
   else
     nr=(longlong) table->next_number_field->
       val_int_offset(table->rec_buff_length)+1;
-  (void) extra(HA_EXTRA_NO_KEYREAD);
   index_end();
+  (void) extra(HA_EXTRA_NO_KEYREAD);
   return nr;
 }
 
