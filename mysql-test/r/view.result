@@ -1726,3 +1726,55 @@ select * from v1 where F1 = 1;
 f1
 drop view v1;
 drop table t1;
+create table t1(c1 int);
+create table t2(c2 int);
+insert into t1 values (1),(2),(3);
+insert into t2 values (1);
+SELECT c1 FROM t1 WHERE c1 IN (SELECT c2 FROM t2);
+c1
+1
+SELECT c1 FROM t1 WHERE EXISTS (SELECT c2 FROM t2 WHERE c2 = c1);
+c1
+1
+create view v1 as SELECT c1 FROM t1 WHERE c1 IN (SELECT c2 FROM t2);
+create view v2 as SELECT c1 FROM t1 WHERE EXISTS (SELECT c2 FROM t2 WHERE c2 = c1);
+select * from v1;
+c1
+1
+select * from v2;
+c1
+1
+select * from (select c1 from v2) X;
+c1
+1
+drop view v2, v1;
+drop table t1, t2;
+CREATE TABLE t1 (C1 INT, C2 INT);
+CREATE TABLE t2 (C2 INT);
+CREATE VIEW v1 AS SELECT C2 FROM t2;
+CREATE VIEW v2 AS SELECT C1 FROM t1 LEFT OUTER JOIN v1 USING (C2);
+SELECT * FROM v2;
+C1
+drop view v2, v1;
+drop table t1, t2;
+create table t1 (col1 char(5),col2 int,col3 int);
+insert into t1 values ('one',10,25), ('two',10,50), ('two',10,50), ('one',20,25), ('one',30,25);
+create view v1 as select * from t1;
+select col1,group_concat(col2,col3) from t1 group by col1;
+col1	group_concat(col2,col3)
+one	1025,2025,3025
+two	1050,1050
+select col1,group_concat(col2,col3) from v1 group by col1;
+col1	group_concat(col2,col3)
+two	1025,2025,3025
+two	1050,1050
+drop view v1;
+drop table t1;
+create table t1 (s1 int, s2 char);
+create view v1 as select s1, s2 from t1;
+select s2 from v1 vq1 where 2 = (select count(*) from v1 vq2 having vq1.s2 = vq2.s2);
+ERROR 42S22: Unknown column 'vq2.s2' in 'having clause'
+select s2 from v1 vq1 where 2 = (select count(*) aa from v1 vq2 having vq1.s2 = aa);
+s2
+drop view v1;
+drop table t1;

@@ -244,15 +244,13 @@ int str2my_decimal(uint mask, const char *str, my_decimal *d, char **end)
 int str2my_decimal(uint mask, const char *from, uint length,
                    CHARSET_INFO *charset, my_decimal *decimal_value);
 
-
-#ifdef MYSQL_SERVER
+#if defined(MYSQL_SERVER) || defined(EMBEDDED_LIBRARY)
 inline
 int string2my_decimal(uint mask, const String *str, my_decimal *d)
 {
   return str2my_decimal(mask, str->ptr(), str->length(), str->charset(), d);
 }
 #endif
-
 
 inline
 int double2my_decimal(uint mask, double val, my_decimal *d)

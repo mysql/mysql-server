@@ -2097,7 +2097,7 @@ bool sys_var_character_set_server::check(THD *thd, set_var *var)
       (mysql_bin_log.is_open() ||
        active_mi->slave_running || active_mi->rli.slave_running))
   {
-    my_error(ER_LOGING_PROHIBIT_CHANGING_OF, MYF(0),
+    my_error(ER_LOGGING_PROHIBIT_CHANGING_OF, MYF(0),
 	     "character set, collation");
     return 1;
   }
@@ -2204,7 +2204,7 @@ bool sys_var_collation_server::check(THD *thd, set_var *var)
       (mysql_bin_log.is_open() ||
        active_mi->slave_running || active_mi->rli.slave_running))
   {
-    my_error(ER_LOGING_PROHIBIT_CHANGING_OF, MYF(0),
+    my_error(ER_LOGGING_PROHIBIT_CHANGING_OF, MYF(0),
 	     "character set, collation");
     return 1;
   }
@@ -2554,7 +2554,7 @@ bool sys_var_thd_time_zone::check(THD *thd, set_var *var)
       (mysql_bin_log.is_open() ||
        active_mi->slave_running || active_mi->rli.slave_running))
   {
-    my_error(ER_LOGING_PROHIBIT_CHANGING_OF, MYF(0), "time zone");
+    my_error(ER_LOGGING_PROHIBIT_CHANGING_OF, MYF(0), "time zone");
     return 1;
   }
 #endif

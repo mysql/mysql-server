@@ -80,8 +80,13 @@ static int binlog_close_connection(THD *thd)
   return 0;
 }
 
-static inline void binlog_cleanup_trans(IO_CACHE *trans_log)
+static int binlog_end_trans(THD *thd, IO_CACHE *trans_log, Log_event *end_ev)
 {
+  int error=0;
+  DBUG_ENTER("binlog_end_trans");
+  if (end_ev)
+    error= mysql_bin_log.write(thd, trans_log, end_ev);
+
   statistic_increment(binlog_cache_use, &LOCK_status);
   if (trans_log->disk_writes != 0)
   {
@@ -90,6 +95,7 @@ static inline void binlog_cleanup_trans(IO_CACHE *trans_log)
   }
   reinit_io_cache(trans_log, WRITE_CACHE, (my_off_t) 0, 0, 1); // cannot fail
   trans_log->end_of_file= max_binlog_cache_size;
+  DBUG_RETURN(error);
 }
 
 static int binlog_prepare(THD *thd, bool all)
@@ -105,7 +111,6 @@ static int binlog_prepare(THD *thd, bool all)
 
 static int binlog_commit(THD *thd, bool all)
 {
-  int error;
   IO_CACHE *trans_log= (IO_CACHE*)thd->ha_data[binlog_hton.slot];
   DBUG_ENTER("binlog_commit");
   DBUG_ASSERT(mysql_bin_log.is_open() &&
@@ -116,11 +121,8 @@ static int binlog_commit(THD *thd, bool all)
     // we're here because trans_log was flushed in MYSQL_LOG::log()
     DBUG_RETURN(0);
   }
-
-  /* Update the binary log as we have cached some queries */
-  error= mysql_bin_log.write(thd, trans_log);
-  binlog_cleanup_trans(trans_log);
-  DBUG_RETURN(error);
+  Query_log_event qev(thd, "COMMIT", 6, TRUE, FALSE);
+  DBUG_RETURN(binlog_end_trans(thd, trans_log, &qev));
 }
 
 static int binlog_rollback(THD *thd, bool all)
@@ -144,10 +146,10 @@ static int binlog_rollback(THD *thd, bool all)
   if (unlikely(thd->options & OPTION_STATUS_NO_TRANS_UPDATE))
   {
     Query_log_event qev(thd, "ROLLBACK", 8, TRUE, FALSE);
-    qev.write(trans_log);
-    error= mysql_bin_log.write(thd, trans_log);
+    error= binlog_end_trans(thd, trans_log, &qev);
   }
-  binlog_cleanup_trans(trans_log);
+  else
+    error= binlog_end_trans(thd, trans_log, 0);
   DBUG_RETURN(error);
 }
 
@@ -1735,7 +1737,9 @@ COLLATION_CONNECTION=%u,COLLATION_DATABASE=%u,COLLATION_SERVER=%u",
       }
     }
 
-    /* Write the SQL command */
+    /* 
+       Write the SQL command 
+     */
 
     if (event_info->write(file))
       goto err;
@@ -1822,11 +1826,11 @@ uint MYSQL_LOG::next_file_id()
       that the same updates are run on the slave.
 */
 
-bool MYSQL_LOG::write(THD *thd, IO_CACHE *cache)
+bool MYSQL_LOG::write(THD *thd, IO_CACHE *cache, Log_event *commit_event)
 {
   bool error= 0;
   VOID(pthread_mutex_lock(&LOCK_log));
-  DBUG_ENTER("MYSQL_LOG::write(THD *, IO_CACHE *)");
+  DBUG_ENTER("MYSQL_LOG::write(THD *, IO_CACHE *, Log_event *)");
 
   if (likely(is_open()))                       // Should always be true
   {
@@ -1835,9 +1839,8 @@ bool MYSQL_LOG::write(THD *thd, IO_CACHE *cache)
     /*
       Log "BEGIN" at the beginning of the transaction.
       which may contain more than 1 SQL statement.
-      There is no need to append "COMMIT", as  it's already in the 'cache'
-      (in fact, Xid_log_event is there which does the commit on slaves)
     */
+    if (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
     {
       Query_log_event qinfo(thd, "BEGIN", 5, TRUE, FALSE);
       /*
@@ -1869,10 +1872,14 @@ bool MYSQL_LOG::write(THD *thd, IO_CACHE *cache)
       if (my_b_write(&log_file, cache->read_pos, length))
 	goto err;
       cache->read_pos=cache->read_end;		// Mark buffer used up
+      DBUG_EXECUTE_IF("half_binlogged_transaction", goto DBUG_skip_commit;);
     } while ((length=my_b_fill(cache)));
 
+    if (commit_event->write(&log_file))
+      goto err;
+DBUG_skip_commit:
     if (flush_io_cache(&log_file) || sync_binlog(&log_file))
-	goto err;
+      goto err;
     DBUG_EXECUTE_IF("half_binlogged_transaction", abort(););
     if (cache->error)				// Error on read
     {
@@ -2985,10 +2992,9 @@ void TC_LOG_BINLOG::close()
 int TC_LOG_BINLOG::log(THD *thd, my_xid xid)
 {
   Xid_log_event xle(thd, xid);
-  if (xle.write((IO_CACHE*)thd->ha_data[binlog_hton.slot]))
-    return 0;
+  IO_CACHE *trans_log= (IO_CACHE*)thd->ha_data[binlog_hton.slot];
   thread_safe_increment(prepared_xids, &LOCK_prep_xids);
-  return !binlog_commit(thd,1);                 // invert return value
+  return !binlog_end_trans(thd, trans_log, &xle);  // invert return value
 }
 
 void TC_LOG_BINLOG::unlog(ulong cookie, my_xid xid)

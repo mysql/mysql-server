@@ -11384,22 +11384,24 @@ find_order_in_list(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
   /* Check whether the resolved field is not ambiguos. */
   if (select_item != not_found_item)
   {
+    Item *view_ref= NULL;
     /*
       If we have found field not by its alias in select list but by its
       original field name, we should additionaly check if we have conflict
       for this name (in case if we would perform lookup in all tables).
     */
-    if (unaliased && !order_item->fixed && order_item->fix_fields(thd, tables, order->item))
+    if (unaliased && !order_item->fixed && order_item->fix_fields(thd, tables,
+                                                                  order->item))
       return 1;
 
     /* Lookup the current GROUP field in the FROM clause. */
     order_item_type= order_item->type();
     if (is_group_field &&
-        order_item_type == Item::FIELD_ITEM || order_item_type == Item::REF_ITEM)
+        order_item_type == Item::FIELD_ITEM ||
+        order_item_type == Item::REF_ITEM)
     {
-      Item **view_ref= NULL;
       from_field= find_field_in_tables(thd, (Item_ident*) order_item, tables,
-                                       view_ref, IGNORE_ERRORS, TRUE);
+                                       &view_ref, IGNORE_ERRORS, TRUE);
       if(!from_field)
        from_field= (Field*) not_found_field;
     }
@@ -11407,9 +11409,19 @@ find_order_in_list(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
       from_field= (Field*) not_found_field;
 
     if (from_field == not_found_field ||
-        from_field && from_field != view_ref_found &&
-        (*select_item)->type() == Item::FIELD_ITEM &&
-        ((Item_field*) (*select_item))->field->eq(from_field))
+        from_field &&
+        (from_field != view_ref_found ?
+         /* it is field of base table => check that fields are same */
+         ((*select_item)->type() == Item::FIELD_ITEM &&
+          ((Item_field*) (*select_item))->field->eq(from_field)) :
+         /*
+           in is field of view table => check that references on translation
+           table are same
+         */
+         ((*select_item)->type() == Item::Item::REF_ITEM &&
+          view_ref->type() == Item::Item::REF_ITEM &&
+          ((Item_ref *) (*select_item))->ref ==
+          ((Item_ref *) view_ref)->ref)))
       /*
         If there is no such field in the FROM clause, or it is the same field as
         the one found in the SELECT clause, then use the Item created for the

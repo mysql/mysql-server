@@ -129,13 +129,13 @@ static bool end_active_trans(THD *thd)
 		      OPTION_TABLE_LOCK))
   {
     DBUG_PRINT("info",("options: 0x%lx", (ulong) thd->options));
-    thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE);
     /* Safety if one did "drop table" on locked tables */
     if (!thd->locked_tables)
       thd->options&= ~OPTION_TABLE_LOCK;
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
     if (ha_commit(thd))
       error=1;
+    thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE);
   }
   DBUG_RETURN(error);
 }
@@ -1007,6 +1007,7 @@ void execute_init_command(THD *thd, sys_var_str *init_command_var,
   */
   save_vio= thd->net.vio;
   thd->net.vio= 0;
+  thd->net.no_send_error= 0;
   dispatch_command(COM_QUERY, thd, thd->query, thd->query_length+1);
   rw_unlock(var_mutex);
   thd->client_capabilities= save_client_capabilities;
@@ -1066,6 +1067,7 @@ pthread_handler_decl(handle_one_connection,arg)
     int error;
     NET *net= &thd->net;
     thd->thread_stack= (char*) &thd;
+    net->no_send_error= 0;
 
     if ((error=check_connection(thd)))
     {						// Wrong permissions
@@ -1104,6 +1106,7 @@ pthread_handler_decl(handle_one_connection,arg)
     thd->init_for_queries();
     while (!net->error && net->vio != 0 && !(thd->killed == THD::KILL_CONNECTION))
     {
+      net->no_send_error= 0;
       if (do_command(thd))
 	break;
     }
@@ -1337,9 +1340,9 @@ int end_trans(THD *thd, enum enum_mysql_completiontype completion)
      even if there is a problem with the OPTION_AUTO_COMMIT flag
      (Which of course should never happen...)
     */
-    thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE);
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
     res= ha_commit(thd);
+    thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE);
     break;
   case COMMIT_RELEASE:
     do_release= 1; /* fall through */
@@ -1451,6 +1454,106 @@ bool do_command(THD *thd)
   DBUG_RETURN(dispatch_command(command,thd, packet+1, (uint) packet_length));
 }
 #endif  /* EMBEDDED_LIBRARY */
+
+static void release_local_lock(THD *thd, TABLE_LIST *locked_tables,
+                               bool old_innodb_table_locks)
+{
+  if (locked_tables)
+  {
+#ifdef HAVE_INNOBASE_DB
+    thd->variables.innodb_table_locks= old_innodb_table_locks;
+#endif
+    if (thd->locked_tables)
+      sp_unlock_tables(thd);
+  }
+
+}
+
+static bool process_nested_sp(THD *thd, LEX *lex, TABLE_LIST** locked_tables)
+{
+  DBUG_ENTER("process_nested_sp");
+  while (1)
+  {
+    if (sp_cache_routines(thd, lex, TYPE_ENUM_FUNCTION))
+      DBUG_RETURN(TRUE);
+    if (sp_cache_routines(thd, lex, TYPE_ENUM_PROCEDURE))
+      DBUG_RETURN(TRUE);
+    if (!thd->locked_tables &&
+        lex->sql_command != SQLCOM_CREATE_TABLE &&
+        lex->sql_command != SQLCOM_CREATE_VIEW)
+    {
+      MEM_ROOT *thdmemroot= NULL;
+
+      sp_merge_routine_tables(thd, lex);
+      // QQ Preopen tables to find views and triggers.
+      // This means we open, close and open again, which sucks, but
+      // right now it's the easiest way to get it to work. A better
+      // solution will hopefully be found soon...
+      if (lex->sptabs.records || lex->query_tables)
+      {
+        uint procs, funs, tabs;
+
+        if (thd->mem_root != thd->current_arena->mem_root)
+        {
+          thdmemroot= thd->mem_root;
+          thd->mem_root= thd->current_arena->mem_root;
+        }
+        if (!sp_merge_table_list(thd, &lex->sptabs, lex->query_tables))
+          DBUG_RETURN(TRUE);
+        procs= lex->spprocs.records;
+        funs= lex->spfuns.records;
+        tabs= lex->sptabs.records;
+
+        if (((*locked_tables)= sp_hash_to_table_list(thd, &lex->sptabs)))
+        {
+          // We don't want these updated now
+          uint ctmpdtabs= thd->status_var.created_tmp_disk_tables;
+          uint ctmptabs= thd->status_var.created_tmp_tables;
+          uint count;
+
+          thd->shortcut_make_view= TRUE;
+          open_tables(thd, *locked_tables, &count);
+          thd->shortcut_make_view= FALSE;
+          close_thread_tables(thd);
+          thd->status_var.created_tmp_disk_tables= ctmpdtabs;
+          thd->status_var.created_tmp_tables= ctmptabs;
+          thd->clear_error();
+          mysql_reset_errors(thd);
+          (*locked_tables)= NULL;
+        }
+        // A kludge: Decrease all temp. table's query ids to allow a
+        // second opening.
+        for (TABLE *table= thd->temporary_tables; table ; table=table->next)
+          table->query_id-= 1;
+        if (procs < lex->spprocs.records ||
+            funs < lex->spfuns.records ||
+            tabs < lex->sptabs.records)
+        {
+          if (thdmemroot)
+            thd->mem_root= thdmemroot;
+          continue;		// Found more SPs or tabs, try again
+        }
+      }
+      if (lex->sptabs.records &&
+          (lex->spfuns.records || lex->spprocs.records) &&
+          sp_merge_table_list(thd, &lex->sptabs, lex->query_tables))
+      {
+        if (((*locked_tables)= sp_hash_to_table_list(thd, &lex->sptabs)))
+        {
+#ifdef HAVE_INNOBASE_DB
+          thd->variables.innodb_table_locks= FALSE;
+#endif
+          sp_open_and_lock_tables(thd, *locked_tables);
+        }
+      }
+      if (thdmemroot)
+        thd->mem_root= thdmemroot;
+    }
+    break;
+  } // while (1)
+  DBUG_RETURN(FALSE);
+}
+
 
 /*
    Perform one connection-level (COM_XXXX) command.
@@ -1702,8 +1805,15 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 #else
   {
     char *fields, *pend;
+    /* Locked closure of all tables */
+    TABLE_LIST *locked_tables= NULL;
     TABLE_LIST table_list;
     LEX_STRING conv_name;
+    /* Saved variable value */
+#ifdef HAVE_INNOBASE_DB
+    my_bool old_innodb_table_locks= thd->variables.innodb_table_locks;
+#endif
+
 
     statistic_increment(thd->status_var.com_stat[SQLCOM_SHOW_FIELDS],
 			&LOCK_status);
@@ -1747,12 +1857,16 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     thd->lex->
       select_lex.table_list.link_in_list((byte*) &table_list,
                                          (byte**) &table_list.next_local);
+    thd->lex->query_tables= &table_list;
+    thd->shortcut_make_view= 0;
+    process_nested_sp(thd, thd->lex, &locked_tables);
 
     /* switch on VIEW optimisation: do not fill temporary tables */
     thd->lex->sql_command= SQLCOM_SHOW_FIELDS;
     mysqld_list_fields(thd,&table_list,fields);
     thd->lex->unit.cleanup();
     thd->cleanup_after_query();
+    release_local_lock(thd, locked_tables, old_innodb_table_locks);
     break;
   }
 #endif
@@ -2226,6 +2340,7 @@ mysql_execute_command(THD *thd)
   my_bool old_innodb_table_locks= thd->variables.innodb_table_locks;
 #endif
   DBUG_ENTER("mysql_execute_command");
+  thd->net.no_send_error= 0;
 
   /*
     In many cases first table of main SELECT_LEX have special meaning =>
@@ -2252,85 +2367,8 @@ mysql_execute_command(THD *thd)
       lex->sql_command != SQLCOM_LOCK_TABLES &&
       lex->sql_command != SQLCOM_UNLOCK_TABLES)
   {
-    while (1)
-    {
-      if (sp_cache_routines(thd, lex, TYPE_ENUM_FUNCTION))
-	DBUG_RETURN(-1);
-      if (sp_cache_routines(thd, lex, TYPE_ENUM_PROCEDURE))
-	DBUG_RETURN(-1);
-      if (!thd->locked_tables &&
-	  lex->sql_command != SQLCOM_CREATE_TABLE &&
-	  lex->sql_command != SQLCOM_CREATE_VIEW)
-      {
-	MEM_ROOT *thdmemroot= NULL;
-
-	sp_merge_routine_tables(thd, lex);
-	// QQ Preopen tables to find views and triggers.
-	// This means we open, close and open again, which sucks, but
-	// right now it's the easiest way to get it to work. A better
-	// solution will hopefully be found soon...
-	if (lex->sptabs.records || lex->query_tables)
-	{
-	  uint procs, funs, tabs;
-
-	  if (thd->mem_root != thd->current_arena->mem_root)
-	  {
-	    thdmemroot= thd->mem_root;
-	    thd->mem_root= thd->current_arena->mem_root;
-	  }
-	  if (!sp_merge_table_list(thd, &lex->sptabs, lex->query_tables))
-	    DBUG_RETURN(-1);
-	  procs= lex->spprocs.records;
-	  funs= lex->spfuns.records;
-	  tabs= lex->sptabs.records;
-
-	  if ((locked_tables= sp_hash_to_table_list(thd, &lex->sptabs)))
-	  {
-	    // We don't want these updated now
-	    uint ctmpdtabs= thd->status_var.created_tmp_disk_tables;
-	    uint ctmptabs= thd->status_var.created_tmp_tables;
-	    uint count;
-
-	    thd->shortcut_make_view= TRUE;
-	    open_tables(thd, locked_tables, &count);
-	    thd->shortcut_make_view= FALSE;
-	    close_thread_tables(thd);
-	    thd->status_var.created_tmp_disk_tables= ctmpdtabs;
-	    thd->status_var.created_tmp_tables= ctmptabs;
-	    thd->clear_error();
-	    mysql_reset_errors(thd);
-	    locked_tables= NULL;
-	  }
-	  // A kludge: Decrease all temp. table's query ids to allow a
-	  // second opening.
-	  for (TABLE *table= thd->temporary_tables; table ; table=table->next)
-	    table->query_id-= 1;
-	  if (procs < lex->spprocs.records ||
-	      funs < lex->spfuns.records ||
-	      tabs < lex->sptabs.records)
-	  {
-	    if (thdmemroot)
-	      thd->mem_root= thdmemroot;
-	    continue;		// Found more SPs or tabs, try again
-	  }
-	}
-	if (lex->sptabs.records &&
-	    (lex->spfuns.records || lex->spprocs.records) &&
-	    sp_merge_table_list(thd, &lex->sptabs, lex->query_tables))
-	{
-	  if ((locked_tables= sp_hash_to_table_list(thd, &lex->sptabs)))
-	  {
-#ifdef HAVE_INNOBASE_DB
-	    thd->variables.innodb_table_locks= FALSE;
-#endif
-	    sp_open_and_lock_tables(thd, locked_tables);
-	  }
-	}
-	if (thdmemroot)
-	  thd->mem_root= thdmemroot;
-      }
-      break;
-    } // while (1)
+    if (process_nested_sp(thd, lex, &locked_tables))
+      DBUG_RETURN(TRUE);
   }
 
   /*
@@ -4330,7 +4368,13 @@ unsent_create_error:
     }
   case SQLCOM_CREATE_VIEW:
     {
-      res= mysql_create_view(thd, thd->lex->create_view_mode);
+      if (!(res= mysql_create_view(thd, thd->lex->create_view_mode)) &&
+          mysql_bin_log.is_open())
+      {
+        thd->clear_error();
+        Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
+        mysql_bin_log.write(&qinfo);
+      }
       break;
     }
   case SQLCOM_DROP_VIEW:
@@ -4338,7 +4382,13 @@ unsent_create_error:
       if (check_table_access(thd, DROP_ACL, all_tables, 0) ||
           end_active_trans(thd))
         goto error;
-      res= mysql_drop_view(thd, first_table, thd->lex->drop_mode);
+      if (!(res= mysql_drop_view(thd, first_table, thd->lex->drop_mode)) &&
+          mysql_bin_log.is_open())
+      {
+        thd->clear_error();
+        Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
+        mysql_bin_log.write(&qinfo);
+      }
       break;
     }
   case SQLCOM_CREATE_TRIGGER:
@@ -4548,14 +4598,7 @@ cleanup:
       thd->lock= 0;
   }
 
-  if (locked_tables)
-  {
-#ifdef HAVE_INNOBASE_DB
-    thd->variables.innodb_table_locks= old_innodb_table_locks;
-#endif
-    if (thd->locked_tables)
-      sp_unlock_tables(thd);
-  }
+  release_local_lock(thd, locked_tables, old_innodb_table_locks);
   DBUG_RETURN(res || thd->net.report_error);
 }
 
