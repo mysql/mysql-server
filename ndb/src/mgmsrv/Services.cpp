@@ -1546,19 +1546,19 @@ MgmApiSession::check_connection(Parser_t::Context &ctx,
 
 void
 MgmApiSession::transporter_connect(Parser_t::Context &ctx,
-				   Properties const &args) {
-  NDB_SOCKET_TYPE s= m_socket;
+				   Properties const &args)
+{
+  m_mgmsrv.transporter_connect(m_socket);
 
   m_stop= true;
   m_stopped= true; // force a stop (no closing socket)
   m_socket= NDB_INVALID_SOCKET;   // so nobody closes it
-
-  m_mgmsrv.transporter_connect(s);
 }
 
 void
 MgmApiSession::get_mgmd_nodeid(Parser_t::Context &ctx,
-			       Properties const &args) {
+			       Properties const &args)
+{
   m_output->println("get mgmd nodeid reply");
   m_output->println("nodeid:%u",m_mgmsrv.getOwnNodeId());  
   m_output->println("");

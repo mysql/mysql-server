@@ -198,7 +198,6 @@ public:
     IndexNameTooLong = 4241,
     TooManyIndexes = 4242,
     IndexExists = 4244,
-    AttributeNotStored = 4245,
     AttributeNullable = 4246,
     BadRequestType = 4247,
     InvalidName = 4248,

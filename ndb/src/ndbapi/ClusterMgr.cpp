@@ -260,6 +260,7 @@ ClusterMgr::Node::Node()
   : m_state(NodeState::SL_NOTHING) { 
   compatible = nfCompleteRep = true;
   connected = defined = m_alive = false; 
+  m_state.m_connected_nodes.clear();
 }
 
 /******************************************************************************
@@ -434,6 +435,9 @@ ClusterMgr::reportDisconnected(NodeId nodeId){
 
   noOfConnectedNodes--;
   theNodes[nodeId].connected = false;
+
+  theNodes[nodeId].m_state.m_connected_nodes.clear();
+
   reportNodeFailed(nodeId);
 }
 
