@@ -957,7 +957,7 @@ MgmtSrvr::restart(bool nostart, bool initalStart, bool abort,
   while(getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_NDB) && nodes.get(nodeId)) {
     enum ndb_mgm_node_status s;
     s = NDB_MGM_NODE_STATUS_NO_CONTACT;
-    while (s == NDB_MGM_NODE_STATUS_NO_CONTACT && waitTime > 0) {
+    while (s != NDB_MGM_NODE_STATUS_NOT_STARTED && waitTime > 0) {
       Uint32 startPhase = 0, version = 0, dynamicId = 0, nodeGroup = 0;
       Uint32 connectCount = 0;
       bool system;

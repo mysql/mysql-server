@@ -221,28 +221,14 @@ void Dbtc::execCONTINUEB(Signal* signal)
     /* -------------------------------------------------------------------- */
     // Report information about transaction activity once per second.
     /* -------------------------------------------------------------------- */
-    if (signal->theData[1] == 0) {
-      signal->theData[0] = EventReport::TransReportCounters;
-      signal->theData[1] = ctransCount;
-      signal->theData[2] = ccommitCount;
-      signal->theData[3] = creadCount;
-      signal->theData[4] = csimpleReadCount;
-      signal->theData[5] = cwriteCount;
-      signal->theData[6] = cattrinfoCount;
-      signal->theData[7] = cconcurrentOp;
-      signal->theData[8] = cabortCount;
-      sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 9, JBB);
-    }//if
-    ctransCount = 0;
-    ccommitCount = 0;
-    creadCount = 0;
-    csimpleReadCount = 0;
-    cwriteCount = 0;
-    cattrinfoCount = 0;
-    cabortCount = 0;
-    signal->theData[0] = TcContinueB::ZTRANS_EVENT_REP;
-    signal->theData[1] = 0;
-    sendSignalWithDelay(cownref, GSN_CONTINUEB, signal, 5000, 2);
+    if (c_counters.c_trans_status == TransCounters::Timer){
+      Uint32 len = c_counters.report(signal);
+      sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, len, JBB);
+      
+      c_counters.reset();
+      signal->theData[0] = TcContinueB::ZTRANS_EVENT_REP;
+      sendSignalWithDelay(cownref, GSN_CONTINUEB, signal, 5000, 1);
+    }
     return;
   case TcContinueB::ZCONTINUE_TIME_OUT_FRAG_CONTROL:
     jam();
@@ -693,9 +679,10 @@ void Dbtc::execNDB_STTOR(Signal* signal)
     jam();
     intstartphase3x010Lab(signal);      /* SEIZE CONNECT RECORD IN EACH LQH*/
 // Start transaction event reporting.
+    c_counters.c_trans_status = TransCounters::Timer;
+    c_counters.reset();
     signal->theData[0] = TcContinueB::ZTRANS_EVENT_REP;
-    signal->theData[1] = 1;
-    sendSignalWithDelay(cownref, GSN_CONTINUEB, signal, 10, 2);
+    sendSignalWithDelay(cownref, GSN_CONTINUEB, signal, 10, 1);
     return;
   case ZINTSPH6:
     jam();
@@ -2245,7 +2232,7 @@ void Dbtc::initApiConnectRec(Signal* signal,
 {
   const TcKeyReq * const tcKeyReq = (TcKeyReq *)&signal->theData[0];
   UintR TfailureNr = cfailure_nr;
-  UintR TtransCount = ctransCount;
+  UintR TtransCount = c_counters.ctransCount;
   UintR Ttransid0 = tcKeyReq->transId1;
   UintR Ttransid1 = tcKeyReq->transId2;
 
@@ -2273,7 +2260,7 @@ void Dbtc::initApiConnectRec(Signal* signal,
   if(releaseIndexOperations)
     releaseAllSeizedIndexOperations(regApiPtr);
 
-  ctransCount = TtransCount + 1;
+  c_counters.ctransCount = TtransCount + 1;
 }//Dbtc::initApiConnectRec()
 
 int
@@ -2298,7 +2285,7 @@ Dbtc::seizeTcRecord(Signal* signal)
   TcConnectRecord * const regTcPtr = 
                            &localTcConnectRecord[TfirstfreeTcConnect];
 
-  UintR TconcurrentOp = cconcurrentOp;
+  UintR TconcurrentOp = c_counters.cconcurrentOp;
   UintR TlastTcConnect = regApiPtr->lastTcConnect;
   UintR TtcConnectptrIndex = tcConnectptr.i;
   TcConnectRecordPtr tmpTcConnectptr;
@@ -2306,7 +2293,7 @@ Dbtc::seizeTcRecord(Signal* signal)
   cfirstfreeTcConnect = regTcPtr->nextTcConnect;
   tcConnectptr.p = regTcPtr;
 
-  cconcurrentOp = TconcurrentOp + 1;
+  c_counters.cconcurrentOp = TconcurrentOp + 1;
   regTcPtr->prevTcConnect = TlastTcConnect;
   regTcPtr->nextTcConnect = RNIL;
   regTcPtr->accumulatingTriggerData.i = RNIL;  
@@ -2576,7 +2563,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   UintR TapiConnectptrIndex = apiConnectptr.i;
   UintR TsenderData = tcKeyReq->senderData;
   UintR TattrLen = tcKeyReq->getAttrinfoLen(tcKeyReq->attrLen);
-  UintR TattrinfoCount = cattrinfoCount;
+  UintR TattrinfoCount = c_counters.cattrinfoCount;
 
   regTcPtr->apiConnect = TapiConnectptrIndex;
   regTcPtr->clientData = TsenderData;
@@ -2597,7 +2584,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   }
 
   regCachePtr->attrlength = TattrLen;
-  cattrinfoCount = TattrinfoCount + TattrLen;
+  c_counters.cattrinfoCount = TattrinfoCount + TattrLen;
 
   UintR TtabptrIndex = localTabptr.i;
   UintR TtableSchemaVersion = tcKeyReq->tableSchemaVersion;
@@ -2689,17 +2676,17 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   regCachePtr->attrinfo15[3] = Tdata5;
 
   if (TOperationType == ZREAD) {
-    Uint8 TreadCount = creadCount;
+    Uint32 TreadCount = c_counters.creadCount;
     jam();
     regCachePtr->opLock = 0;
-    creadCount = TreadCount + 1;
+    c_counters.creadCount = TreadCount + 1;
   } else if(TOperationType == ZREAD_EX){
-    Uint8 TreadCount = creadCount;
+    Uint32 TreadCount = c_counters.creadCount;
     jam();
     TOperationType = ZREAD;
     regTcPtr->operation = ZREAD;
     regCachePtr->opLock = ZUPDATE;
-    creadCount = TreadCount + 1;
+    c_counters.creadCount = TreadCount + 1;
   } else {
     if(regApiPtr->commitAckMarker == RNIL){
       jam();
@@ -2720,7 +2707,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
     }
     
     UintR Tattrlength = regCachePtr->attrlength;
-    UintR TwriteCount = cwriteCount;
+    UintR TwriteCount = c_counters.cwriteCount;
     UintR Toperationsize = coperationsize;
     /* -------------------------------------------------------------------- 
      *   THIS IS A TEMPORARY TABLE, DON'T UPDATE coperationsize. 
@@ -2730,7 +2717,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
     if (localTabptr.p->storedTable) {
       coperationsize = ((Toperationsize + Tattrlength) + TkeyLength) + 17;
     }
-    cwriteCount = TwriteCount + 1;
+    c_counters.cwriteCount = TwriteCount + 1;
     switch (TOperationType) {
     case ZUPDATE:
       jam();
@@ -3312,10 +3299,10 @@ void Dbtc::releaseSimpleRead(Signal* signal)
    * Therefore decrese no LQHKEYCONF(REF) we are waiting for
    */
   ApiConnectRecord * const regApiPtr = apiConnectptr.p;
-  UintR TsimpleReadCount = csimpleReadCount;
+  UintR TsimpleReadCount = c_counters.csimpleReadCount;
   UintR Tlqhkeyreqrec = regApiPtr->lqhkeyreqrec;
 
-  csimpleReadCount = TsimpleReadCount + 1;
+  c_counters.csimpleReadCount = TsimpleReadCount + 1;
   regApiPtr->lqhkeyreqrec = Tlqhkeyreqrec - 1;
 
   /**
@@ -3373,7 +3360,7 @@ void Dbtc::releaseTcCon()
 {
   TcConnectRecord * const regTcPtr = tcConnectptr.p;
   UintR TfirstfreeTcConnect = cfirstfreeTcConnect;
-  UintR TconcurrentOp = cconcurrentOp;
+  UintR TconcurrentOp = c_counters.cconcurrentOp;
   UintR TtcConnectptrIndex = tcConnectptr.i;
 
   regTcPtr->tcConnectstate = OS_CONNECTED;
@@ -3382,7 +3369,7 @@ void Dbtc::releaseTcCon()
   regTcPtr->isIndexOp = false;
   regTcPtr->indexOp = RNIL;
   cfirstfreeTcConnect = TtcConnectptrIndex;
-  cconcurrentOp = TconcurrentOp - 1;
+  c_counters.cconcurrentOp = TconcurrentOp - 1;
 }//Dbtc::releaseTcCon()
 
 void Dbtc::execPACKED_SIGNAL(Signal* signal) 
@@ -4466,7 +4453,7 @@ void Dbtc::sendApiCommit(Signal* signal)
     return;
   }//if
   UintR TapiConnectFilesize = capiConnectFilesize;
-  UintR TcommitCount = ccommitCount;
+  UintR TcommitCount = c_counters.ccommitCount;
   UintR TapiIndex = apiConnectptr.i;
   UintR TnewApiIndex = regApiPtr->apiCopyRecord;
   UintR TapiFailState = regApiPtr->apiFailState;
@@ -4474,7 +4461,7 @@ void Dbtc::sendApiCommit(Signal* signal)
 
   tmpApiConnectptr.p = apiConnectptr.p;
   tmpApiConnectptr.i = TapiIndex;
-  ccommitCount = TcommitCount + 1;
+  c_counters.ccommitCount = TcommitCount + 1;
   apiConnectptr.i = TnewApiIndex;
   ptrCheckGuard(apiConnectptr, TapiConnectFilesize, localApiConnectRecord);
   copyApi(signal);
@@ -8597,6 +8584,10 @@ void Dbtc::initScanrec(ScanRecordPtr scanptr,
     ptr.p->scanFragConcurrency = noOprecPerFrag;
     ptr.p->m_apiPtr = cdata[i];
   }//for
+
+  (* (scanptr.p->rangeScan ? 
+      &c_counters.c_range_scan_count : 
+      &c_counters.c_scan_count))++;
 }//Dbtc::initScanrec()
 
 void Dbtc::scanTabRefLab(Signal* signal, Uint32 errCode) 
@@ -9213,6 +9204,7 @@ void Dbtc::execSCAN_NEXTREQ(Signal* signal)
        *  We will send a SCAN_TABREF to indicate a time-out occurred.
        *********************************************************************/
       DEBUG("scanTabRefLab: ZSCANTIME_OUT_ERROR2");
+      ndbout_c("apiConnectptr(%d) -> abort", apiConnectptr.i);
       ndbrequire(false); //B2 indication of strange things going on
       scanTabRefLab(signal, ZSCANTIME_OUT_ERROR2);
       return;
@@ -9882,7 +9874,7 @@ void Dbtc::initialiseTcConnect(Signal* signal)
   ptrAss(tcConnectptr, tcConnectRecord);
   tcConnectptr.p->nextTcConnect = RNIL;
   cfirstfreeTcConnect = titcTmp;
-  cconcurrentOp = 0;
+  c_counters.cconcurrentOp = 0;
 }//Dbtc::initialiseTcConnect()
 
 /* ------------------------------------------------------------------------- */
@@ -9953,7 +9945,7 @@ void Dbtc::releaseAbortResources(Signal* signal)
 {
   TcConnectRecordPtr rarTcConnectptr;
 
-  cabortCount++;
+  c_counters.cabortCount++;
   if (apiConnectptr.p->cachePtr != RNIL) {
     cachePtr.i = apiConnectptr.p->cachePtr;
     ptrCheckGuard(cachePtr, ccacheFilesize, cacheRecord);
@@ -10127,7 +10119,7 @@ void Dbtc::seizeTcConnect(Signal* signal)
   tcConnectptr.i = cfirstfreeTcConnect;
   ptrCheckGuard(tcConnectptr, ctcConnectFilesize, tcConnectRecord);
   cfirstfreeTcConnect = tcConnectptr.p->nextTcConnect;
-  cconcurrentOp++;
+  c_counters.cconcurrentOp++;
   tcConnectptr.p->isIndexOp = false;
 }//Dbtc::seizeTcConnect()
 
@@ -10538,6 +10530,25 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
     if(signal->getLength() > 1){
       set_appl_timeout_value(signal->theData[1]);
     }
+  }
+
+  if (dumpState->args[0] == DumpStateOrd::StartTcTimer){
+    c_counters.c_trans_status = TransCounters::Started;
+    c_counters.reset();
+  }
+
+  if (dumpState->args[0] == DumpStateOrd::StopTcTimer){
+    c_counters.c_trans_status = TransCounters::Off;
+    Uint32 len = c_counters.report(signal);
+    sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, len, JBB);
+    c_counters.reset();
+  }
+  
+  if (dumpState->args[0] == DumpStateOrd::StartPeriodicTcTimer){
+    c_counters.c_trans_status = TransCounters::Timer;
+    c_counters.reset();
+    signal->theData[0] = TcContinueB::ZTRANS_EVENT_REP;
+    sendSignalWithDelay(cownref, GSN_CONTINUEB, signal, 5000, 1);
   }
 }//Dbtc::execDUMP_STATE_ORD()
 
