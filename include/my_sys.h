@@ -115,6 +115,7 @@ extern int NEAR my_errno;		/* Last error in mysys */
 
 #ifdef SAFEMALLOC
 #define my_malloc(SZ,FLAG) _mymalloc( SZ, __FILE__, __LINE__, FLAG )
+#define my_malloc_ci(SZ,FLAG) _mymalloc( SZ, sFile, uLine, FLAG )
 #define my_realloc(PTR,SZ,FLAG) _myrealloc( PTR, SZ, __FILE__, __LINE__, FLAG )
 #define my_checkmalloc() _sanity( __FILE__, __LINE__ )
 #define my_free(PTR,FLAG) _myfree( PTR, __FILE__, __LINE__,FLAG)
@@ -124,6 +125,9 @@ extern int NEAR my_errno;		/* Last error in mysys */
 #define NORMAL_SAFEMALLOC sf_malloc_quick=0
 extern uint sf_malloc_prehunc,sf_malloc_endhunc,sf_malloc_quick;
 extern ulonglong safemalloc_mem_limit;
+#define CALLER_INFO_PROTO   , const char *sFile, uint uLine
+#define CALLER_INFO         , __FILE__, __LINE__
+#define ORIG_CALLER_INFO    , sFile, uLine
 #else
 #define my_checkmalloc() (0)
 #undef TERMINATE
@@ -131,11 +135,15 @@ extern ulonglong safemalloc_mem_limit;
 #define QUICK_SAFEMALLOC
 #define NORMAL_SAFEMALLOC
 extern gptr my_malloc(uint Size,myf MyFlags);
+#define my_malloc_ci(SZ,FLAG) my_malloc( SZ, FLAG )
 extern gptr my_realloc(gptr oldpoint,uint Size,myf MyFlags);
 extern void my_no_flags_free(gptr ptr);
 extern gptr my_memdup(const byte *from,uint length,myf MyFlags);
 extern my_string my_strdup(const char *from,myf MyFlags);
 #define my_free(PTR,FG) my_no_flags_free(PTR)
+#define CALLER_INFO_PROTO   /* nothing */
+#define CALLER_INFO         /* nothing */
+#define ORIG_CALLER_INFO    /* nothing */
 #endif
 #ifdef HAVE_ALLOCA
 #define my_alloca(SZ) alloca((size_t) (SZ))
@@ -541,8 +549,10 @@ extern my_bool real_open_cached_file(IO_CACHE *cache);
 extern void close_cached_file(IO_CACHE *cache);
 File create_temp_file(char *to, const char *dir, const char *pfx,
 		      int mode, myf MyFlags);
-extern my_bool init_dynamic_array(DYNAMIC_ARRAY *array,uint element_size,
-				  uint init_alloc,uint alloc_increment);
+#define init_dynamic_array(A,B,C,D) _init_dynamic_array(A,B,C,D CALLER_INFO)
+#define init_dynamic_array_ci(A,B,C,D) _init_dynamic_array(A,B,C,D ORIG_CALLER_INFO)
+extern my_bool _init_dynamic_array(DYNAMIC_ARRAY *array,uint element_size,
+	  uint init_alloc,uint alloc_increment CALLER_INFO_PROTO);
 extern my_bool insert_dynamic(DYNAMIC_ARRAY *array,gptr element);
 extern byte *alloc_dynamic(DYNAMIC_ARRAY *array);
 extern byte *pop_dynamic(DYNAMIC_ARRAY*);

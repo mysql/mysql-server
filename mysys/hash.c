@@ -37,15 +37,15 @@ static uint calc_hashnr_caseup(const byte *key,uint length);
 static int hashcmp(HASH *hash,HASH_LINK *pos,const byte *key,uint length);
 
 
-my_bool hash_init(HASH *hash,uint size,uint key_offset,uint key_length,
+my_bool _hash_init(HASH *hash,uint size,uint key_offset,uint key_length,
 		  hash_get_key get_key,
-		  void (*free_element)(void*),uint flags)
+		  void (*free_element)(void*),uint flags CALLER_INFO_PROTO)
 {
   DBUG_ENTER("hash_init");
   DBUG_PRINT("enter",("hash: %lx  size: %d",hash,size));
 
   hash->records=0;
-  if (init_dynamic_array(&hash->array,sizeof(HASH_LINK),size,0))
+  if (init_dynamic_array_ci(&hash->array,sizeof(HASH_LINK),size,0))
   {
     hash->free=0;				/* Allow call to hash_free */
     DBUG_RETURN(TRUE);

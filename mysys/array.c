@@ -29,12 +29,12 @@
   even if space allocation failed
 */
 
-my_bool init_dynamic_array(DYNAMIC_ARRAY *array, uint element_size,
-			   uint init_alloc, uint alloc_increment)
+my_bool _init_dynamic_array(DYNAMIC_ARRAY *array, uint element_size,
+		   uint init_alloc, uint alloc_increment CALLER_INFO_PROTO)
 {
   DBUG_ENTER("init_dynamic_array");
   if (!alloc_increment)
-  { 
+  {
     alloc_increment=max((8192-MALLOC_OVERHEAD)/element_size,16);
     if (init_alloc > 8 && alloc_increment > init_alloc * 2)
       alloc_increment=init_alloc*2;
@@ -46,7 +46,7 @@ my_bool init_dynamic_array(DYNAMIC_ARRAY *array, uint element_size,
   array->max_element=init_alloc;
   array->alloc_increment=alloc_increment;
   array->size_of_element=element_size;
-  if (!(array->buffer=(char*) my_malloc(element_size*init_alloc,MYF(MY_WME))))
+  if (!(array->buffer=(char*) my_malloc_ci(element_size*init_alloc,MYF(MY_WME))))
   {
     array->max_element=0;
     DBUG_RETURN(TRUE);
