@@ -33,6 +33,21 @@ unlock tables;
 connection con1;
 reap;
 
+#test if drop database will wait until we release the global read lock
+connection con1;
+drop database if exists foo;
+create database foo;
+create table foo.t1(n int);
+insert into foo.t1 values (23);
+flush tables with read lock;
+connection con2;
+send drop database foo;
+connection con1;
+select * from foo.t1;
+unlock tables;
+connection con2;
+reap;
+
 # test if dirty close releases global read lock
 connection con1;
 create table t1 (n int);
