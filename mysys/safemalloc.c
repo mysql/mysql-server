@@ -73,9 +73,7 @@
 #include "my_static.h"
 #include "mysys_err.h"
 
-#ifndef DBUG_OFF
-ulonglong safemalloc_mem_limit = 0;
-#endif
+ulonglong safemalloc_mem_limit = ~(ulonglong)0;
 
 #define pNext		tInt._pNext
 #define pPrev		tInt._pPrev
@@ -133,12 +131,9 @@ gptr _mymalloc (uint uSize, const char *sFile, uint uLine, myf MyFlags)
     if (!sf_malloc_quick)
       (void) _sanity (sFile, uLine);
 
-#ifndef DBUG_OFF    
-    if(safemalloc_mem_limit &&
-       uSize + lCurMemory > safemalloc_mem_limit)
+    if(uSize + lCurMemory > safemalloc_mem_limit)
       pTmp = 0;
     else
-#endif      
        /* Allocate the physical memory */
        pTmp = (struct remember *) malloc (
 		sizeof (struct irem)			/* remember data  */

@@ -813,7 +813,7 @@ MySQL change history
 
 Changes in release 3.23.x  (Recommended; beta)
 
-* News-3.23.28::                
+* News-3.23.28::                Changes in release 3.23.28 
 * News-3.23.27::                Changes in release 3.23.27
 * News-3.23.26::                Changes in release 3.23.26
 * News-3.23.25::                Changes in release 3.23.25
@@ -38293,6 +38293,21 @@ Fixed the output of @code{SHOW MASTER STATUS} to be consistent with
 Added @code{PURGE MASTER LOGS TO}.
 @item
 Added @code{SHOW MASTER LOGS}.
+@item
+Added @code{--safemalloc-mem-limit} option to mysqld to simulate memory
+shortage when compiled @code{--with-debug=full}
+@item
+Fixed several coredumps in out-of-memory conditions
+@item
+@code{SHOW SLAVE STATUS} was using unititialized mutex if the slave had
+not been  started yet
+@item
+Fixed bug in @code{ELT()} and @code{MAKE_SET()} when the query used
+a temporary table
+@item
+@code{CHANGE MASTER TO} without specifying @code{MASTER_LOG_POS} would
+set it to 0 instead of 4 and hit the magic number in the master binlog.
+
 @end itemize
 
 @node News-3.23.27, News-3.23.26, News-3.23.28, News-3.23.x
