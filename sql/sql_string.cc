@@ -28,10 +28,6 @@
 #include <floatingpoint.h>
 #endif
 
-CHARSET_INFO *system_charset_info= &my_charset_utf8_general_ci;
-CHARSET_INFO *files_charset_info= &my_charset_utf8_general_ci;
-CHARSET_INFO *national_charset_info= &my_charset_utf8_general_ci;
-
 extern gptr sql_alloc(unsigned size);
 extern void sql_element_free(void *ptr);
 

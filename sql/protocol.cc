@@ -102,7 +102,8 @@ void send_error(THD *thd, uint sql_errno, const char *err)
     if (thd->client_capabilities & CLIENT_PROTOCOL_41)
     {
       /* The first # is to make the protocol backward compatible */
-      strmov(buff+2, "#000000");
+      buff[2]= '#';
+      strmov(buff+3, mysql_errno_to_sqlstate(sql_errno));
       pos= buff + 2 + SQLSTATE_LENGTH +1;
     }
     length= (uint) (strmake(pos, err, MYSQL_ERRMSG_SIZE-1) - buff);
@@ -222,8 +223,8 @@ net_printf(THD *thd, uint errcode, ...)
     int2store(pos, errcode);
     if (thd->client_capabilities & CLIENT_PROTOCOL_41)
     {
-      /* The first # is to make the protocol backward compatible */
-      memcpy(pos+2, "#000000", SQLSTATE_LENGTH +1);
+      pos[2]= '#';      /* To make the protocol backward compatible */
+      memcpy(pos+3, mysql_errno_to_sqlstate(errcode), SQLSTATE_LENGTH);
     }
   }
   VOID(net_real_write(net,(char*) net->buff,length+head_length+1+offset));

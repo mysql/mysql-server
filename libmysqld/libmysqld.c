@@ -450,6 +450,7 @@ static inline int mysql_init_charset(MYSQL *mysql)
   if (!mysql->charset)
   {
     mysql->last_errno=CR_CANT_READ_CHARSET;
+    strmov(mysql->sqlstate, "HY0000");
     if (mysql->options.charset_dir)
       sprintf(mysql->last_error,ER(mysql->last_errno),
               charset_name ? charset_name : "unknown",
@@ -1130,6 +1131,7 @@ mysql_stat(MYSQL *mysql)
   if (!mysql->net.read_pos[0])
   {
     mysql->net.last_errno=CR_WRONG_HOST_INFO;
+    strmov(mysql->sqlstate, unknown_sqlstate);
     strmov(mysql->net.last_error, ER(mysql->net.last_errno));
     return mysql->net.last_error;
   }
@@ -1284,17 +1286,22 @@ unsigned int STDCALL mysql_field_count(MYSQL *mysql)
 
 my_ulonglong STDCALL mysql_affected_rows(MYSQL *mysql)
 {
-  return (mysql)->affected_rows;
+  return mysql->affected_rows;
 }
 
 my_ulonglong STDCALL mysql_insert_id(MYSQL *mysql)
 {
-  return (mysql)->insert_id;
+  return mysql->insert_id;
 }
 
 uint STDCALL mysql_errno(MYSQL *mysql)
 {
   return mysql->last_errno;
+}
+
+const char *STDCALL mysql_sqlstate(MYSQL *mysql)
+{
+  return mysql->sqlstate;
 }
 
 const char * STDCALL mysql_error(MYSQL *mysql)

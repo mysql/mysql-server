@@ -2971,7 +2971,7 @@ olap_opt:
 	    }
 	    lex->current_select->select_lex()->olap= CUBE_TYPE;
 	    net_printf(lex->thd, ER_NOT_SUPPORTED_YET, "CUBE");
-	    YYABORT;	/* To be deleted in 4.1 */
+	    YYABORT;	/* To be deleted in 5.1 */
 	  }
 	| WITH ROLLUP_SYM
           {
@@ -2983,8 +2983,6 @@ olap_opt:
 	      YYABORT;
 	    }
 	    lex->current_select->select_lex()->olap= ROLLUP_TYPE;
-	    net_printf(lex->thd, ER_NOT_SUPPORTED_YET, "ROLLUP");
-	    YYABORT;	/* To be deleted in 4.1 */
 	  }
 	;
 
@@ -3039,20 +3037,7 @@ opt_limit_clause:
 	;
 
 limit_clause:
-	LIMIT
-	  {
-	    LEX *lex= Lex;
-	    if (lex->current_select->linkage != GLOBAL_OPTIONS_TYPE &&
-	        lex->current_select->select_lex()->olap !=
-		UNSPECIFIED_OLAP_TYPE)
-	    {
-	      net_printf(lex->thd, ER_WRONG_USAGE, "CUBE/ROLLUP",
-		        "LIMIT");
-	      YYABORT;
-	    }
-	  }
-	  limit_options
-	  {}
+	LIMIT limit_options {}
 	;
 
 limit_options:

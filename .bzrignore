@@ -617,3 +617,5 @@ vio/test-sslclient
 vio/test-sslserver
 vio/viotest-ssl
 include/readline/*.h
+strings/str_test
+libmysqld/sql_state.c

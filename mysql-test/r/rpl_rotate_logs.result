@@ -1,9 +1,9 @@
 drop table if exists t1, t2, t3, t4;
 drop table if exists t1, t2, t3, t4;
 start slave;
-Could not initialize master info structure, check permisions on master.info
+ERROR HY000: Could not initialize master info structure, check permisions on master.info
 start slave;
-Could not initialize master info structure, check permisions on master.info
+ERROR HY000: Could not initialize master info structure, check permisions on master.info
 change master to master_host='127.0.0.1',master_port=MASTER_PORT, master_user='root';
 Could not initialize master info
 reset slave;

@@ -44,7 +44,8 @@ sqlsources = derror.cc field.cc field_conv.cc filesort.cc \
 	item_func.cc item_strfunc.cc item_sum.cc item_timefunc.cc \
 	item_uniq.cc item_subselect.cc item_row.cc\
 	key.cc lock.cc log.cc log_event.cc mf_iocache.cc\
-	mini_client.cc protocol.cc net_serv.cc opt_ft.cc opt_range.cc \
+	mini_client.cc protocol.cc net_serv.cc sql_state.c \
+	opt_ft.cc opt_range.cc \
 	opt_sum.cc procedure.cc records.cc sql_acl.cc \
 	repl_failsafe.cc slave.cc sql_load.cc sql_olap.cc \
 	sql_analyse.cc sql_base.cc sql_cache.cc sql_class.cc \

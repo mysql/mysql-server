@@ -15,6 +15,13 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 /*
+  This file is the net layer API for the MySQL client/server protocol,
+  which is a tightly coupled, proprietary protocol owned by MySQL AB.
+  Any re-implementations of this protocol must also be under GPL
+  unless one has got an license from MySQL AB stating otherwise.
+*/
+
+/*
   Write and read of logical packets to/from socket
 
   Writes are cached into net_buffer_length big packets.

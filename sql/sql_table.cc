@@ -1731,10 +1731,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     fn_same(new_name_buff,table_name,3);
     if (lower_case_table_names)
       my_casedn_str(system_charset_info,new_name);
-    if ((lower_case_table_names &&
-	 !my_strcasecmp(system_charset_info, new_name_buff,table_name)) ||
-	(!lower_case_table_names &&
-	 !strcmp(new_name_buff,table_name)))
+    if (!my_strcasecmp(table_alias_charset, new_name_buff, table_name))
       new_name=table_name;			// No. Make later check easier
     else
     {
