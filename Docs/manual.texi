@@ -52,9 +52,8 @@
 @smallbook
 @end ifset
 
-@ifset nusphere
+@c We want the contents at the beginning, where it's supposed to be.
 @setcontentsaftertitlepage
-@end ifset
 
 @c %**end of header
 
@@ -43777,8 +43776,5 @@ That's all there is to it!
 @unnumbered Concept Index
 
 @printindex cp
-
-@summarycontents
-@contents
 
 @bye
