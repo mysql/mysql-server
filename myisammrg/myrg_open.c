@@ -36,7 +36,7 @@ int mode;
 int handle_locking;
 {
   int save_errno,i,errpos;
-  uint files,dir_length,length;
+  uint files,dir_length,length,options;
   ulonglong file_offset;
   char name_buff[FN_REFLEN*2],buff[FN_REFLEN],*end;
   MYRG_INFO info,*m_info;
@@ -93,16 +93,22 @@ int handle_locking;
   m_info->tables=files;
   errpos=2;
 
+  options= (uint) ~0;
   for (i=files ; i-- > 0 ; )
   {
     m_info->open_tables[i].table=isam;
     m_info->options|=isam->s->options;
+    options&=isam->s->options;
     m_info->records+=isam->state->records;
     m_info->del+=isam->state->del;
     m_info->data_file_length+=isam->state->data_file_length;
     if (i)
       isam=(MI_INFO*) (isam->open_list.next->data);
   }
+  /* Don't force readonly if not all tables are readonly */
+  if (! (options & (HA_OPTION_COMPRESS_RECORD | HA_OPTION_READ_ONLY_DATA)))
+    m_info->options&= ~(HA_OPTION_COMPRESS_RECORD | HA_OPTION_READ_ONLY_DATA);
+
   /* Fix fileinfo for easyer debugging (actually set by rrnd) */
   file_offset=0;
   for (i=0 ; (uint) i < files ; i++)
