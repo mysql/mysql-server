@@ -17,7 +17,12 @@
 C_MODE_START
 
 enum get_opt_var_type { GET_NO_ARG, GET_BOOL, GET_INT, GET_UINT, GET_LONG,
-			GET_ULONG, GET_LL, GET_ULL, GET_STR, GET_STR_ALLOC };
+			GET_ULONG, GET_LL, GET_ULL, GET_STR, GET_STR_ALLOC
+                      };
+
+#define GET_ASK_ADDR	128
+#define GET_TYPE_MASK	127
+
 enum get_opt_arg_type { NO_ARG, OPT_ARG, REQUIRED_ARG };
 
 struct my_option
@@ -48,6 +53,8 @@ extern int handle_options (int *argc, char ***argv,
 						     char *));
 extern void my_print_help(const struct my_option *options);
 extern void my_print_variables(const struct my_option *options);
+extern void my_getopt_register_get_addr(gptr* (*func_addr)(char *, uint,
+							   const struct my_option *));
 
 ulonglong getopt_ull_limit_value(ulonglong num, const struct my_option *optp);
 my_bool getopt_compare_strings(const char *s, const char *t, uint length);
