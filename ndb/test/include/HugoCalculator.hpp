@@ -38,7 +38,7 @@ public:
   float calcValue(int record, int attrib, int updates) const;
   double calcValue(int record, int attrib, int updates) const;
 #endif
-  const char* calcValue(int record, int attrib, int updates, char* buf) const;
+  const char* calcValue(int record, int attrib, int updates, char* buf, int len) const;
 
   int verifyRowValues(NDBT_ResultRow* const  pRow) const;
   int getIdValue(NDBT_ResultRow* const pRow) const;
