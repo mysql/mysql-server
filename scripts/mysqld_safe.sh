@@ -272,7 +272,6 @@ echo "Starting $MYSQLD daemon with databases from $DATADIR"
 echo "`date +'%y%m%d %H:%M:%S  mysqld started'`" >> $err_log
 while true
 do
-  rm -f $MYSQL_UNIX_PORT $pid_file	# Some extra safety
   if test -z "$args"
   then
     $NOHUP_NICENESS $ledir/$MYSQLD $defaults --basedir=$MY_BASEDIR_VERSION --datadir=$DATADIR $USER_OPTION --pid-file=$pid_file @MYSQLD_DEFAULT_SWITCHES@ >> $err_log 2>&1
@@ -311,7 +310,7 @@ do
 	I=`expr $I + 1`
     done
   fi
-
+  rm -f $MYSQL_UNIX_PORT $pid_file	# Some extra safety
   echo "`date +'%y%m%d %H:%M:%S'`  mysqld restarted" | tee -a $err_log
 done
 
