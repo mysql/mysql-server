@@ -45,7 +45,7 @@ $opt_skip_manual= undef;
 $version= "unknown";
 
 GetOptions(
-	"build_command|b=s",
+	"build-command|b=s",
 	"changelog|c:s",
 	"directory|d=s",
 	"delete",
