@@ -23653,8 +23653,7 @@ slaves. In Versions 3.23.26 and later, you should use
 Because the user could issue the @code{FLUSH LOGS} command, we need to
 know which log is currently active and which ones have been rotated out
 and in what sequence. This information is stored in the binary log index file.
-The default is @file{`hostname`.index}. You can use this option if you want to
-be a rebel.
+The default is @file{`hostname`.index}. You should not need to change this.
 
 Example: @code{log-bin-index=db.index}
 
