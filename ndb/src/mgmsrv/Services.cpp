@@ -218,6 +218,7 @@ ParserRow<MgmApiSession> commands[] = {
 
   MGM_CMD("set logfilter", &MgmApiSession::setLogFilter, ""),
     MGM_ARG("level", Int, Mandatory, "Severety level"),
+    MGM_ARG("enable", Int, Mandatory, "1=disable, 0=enable, -1=toggle"),
 
   MGM_CMD("config lock", &MgmApiSession::configLock, ""),
 
@@ -1203,10 +1204,12 @@ void
 MgmApiSession::setLogFilter(Parser_t::Context &ctx,
 			    const class Properties &args) {
   Uint32 level;
+  Uint32 enable;
 
   args.get("level", &level);
+  args.get("enable", &enable);
 
-  int result = m_mgmsrv.setEventLogFilter(level);
+  int result = m_mgmsrv.setEventLogFilter(level, enable);
 
   m_output->println("set logfilter reply");
   m_output->println("result: %d", result);
