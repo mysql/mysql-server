@@ -3552,6 +3552,14 @@ innodb_show_status(
 
   	DBUG_ENTER("innodb_show_status");
 
+	if (innodb_skip) {
+
+	        fprintf(stderr,
+      "Cannot call SHOW INNODB STATUS because skip-innodb is defined\n");
+
+		DBUG_RETURN(-1);
+	}
+
 	/* We let the InnoDB Monitor to output at most 100 kB of text, add
 	a safety margin of 10 kB for buffer overruns */
 
