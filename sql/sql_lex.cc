@@ -1270,28 +1270,6 @@ bool st_select_lex::test_limit()
   return(0);
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 /*  
   Interface method of table list creation for query
   
@@ -1316,13 +1294,8 @@ bool st_select_lex_unit::create_total_list(THD *thd, st_lex *lex,
 					   bool check_derived)
 {
   *result= 0;
-  for (SELECT_LEX_UNIT *unit= this; unit; unit= unit->next_unit())
-  {
-    if ((res= unit->create_total_list_n_last_return(thd, lex, &result,
-						    check_derived)))
-      return res;
-  }
-  return 0;
+  res= create_total_list_n_last_return(thd, lex, &result, check_derived);
+  return res;
 }
 
 /*  
