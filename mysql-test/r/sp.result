@@ -2545,11 +2545,12 @@ begin
 truncate table t1; insert t1 values (1); rollback;
 end
 |
-begin;
+set autocommit=0;
 insert t1 values (2);
 call sp1();
 ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
 commit;
+set autocommit=1;
 select * from t1;
 a
 2
