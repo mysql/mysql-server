@@ -105,8 +105,8 @@ public:
   virtual Statement::Type type() const;
 };
 
-static void execute_stmt(THD *thd, Prepared_statement *stmt, 
-                         String *expanded_query, bool set_context=false);
+static void execute_stmt(THD *thd, Prepared_statement *stmt,
+                         String *expanded_query, bool set_context);
 
 /******************************************************************************
   Implementation
@@ -1810,7 +1810,7 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
     goto set_params_data_err;
 #endif
   thd->protocol= &thd->protocol_prep;           // Switch to binary protocol
-  execute_stmt(thd, stmt, &expanded_query);
+  execute_stmt(thd, stmt, &expanded_query, true);
   thd->protocol= &thd->protocol_simple;         // Use normal protocol
   DBUG_VOID_RETURN;
 
@@ -1862,7 +1862,7 @@ void mysql_sql_stmt_execute(THD *thd, LEX_STRING *stmt_name)
     my_error(ER_WRONG_ARGUMENTS, MYF(0), "EXECUTE");
     send_error(thd);
   }
-  execute_stmt(thd, stmt, &expanded_query);
+  execute_stmt(thd, stmt, &expanded_query, false);
   DBUG_VOID_RETURN;
 }
 
