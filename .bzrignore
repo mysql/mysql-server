@@ -8,14 +8,18 @@
 *.lo
 *.o
 *.spec
+*/*_pure_*warnings
+*/.pure
 *~
 .*.swp
 .deps
 .gdb_history
+.gdbinit
 .libs
 .o
 .out
 .snprj/*
+.vimrc
 BitKeeper/etc/config
 BitKeeper/etc/csets
 BitKeeper/etc/csets-in
@@ -119,6 +123,8 @@ bdb/include/gen_server_ext.h
 bdb/include/hash_auto.h
 bdb/include/log_auto.h
 bdb/include/qam_auto.h
+bdb/include/rpc_client_ext.h
+bdb/include/rpc_server_ext.h
 bdb/include/txn_auto.h
 bdb/java/src/com/sleepycat/db/DbConstants.java
 bdb/log/log_auto.c
@@ -166,6 +172,7 @@ heap/hp_test2
 include/my_config.h
 include/my_global.h
 include/mysql_version.h
+include/widec.h
 innobase/ib_config.h
 innobase/ib_config.h.in
 isam/isamchk
@@ -199,6 +206,8 @@ myisam/mi_test_all
 myisam/myisamchk
 myisam/myisamlog
 myisam/myisampack
+myisam/test1.MYD
+myisam/test1.MYI
 mysql-test/gmon.out
 mysql-test/install_test_db
 mysql-test/mysql-test-run
@@ -287,10 +296,3 @@ support-files/mysql.server
 support-files/mysql.spec
 tags
 tmp/*
-myisam/test1.MYD
-myisam/test1.MYI
-.gdbinit
-.vimrc
-*/.pure
-*/*_pure_*warnings
-include/widec.h
