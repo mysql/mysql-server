@@ -157,7 +157,7 @@ struct Geometry_buffer;
 class Geometry
 {
 public:
-  static void *operator new(unsigned size_t, void *buffer)
+  static void *operator new(size_t size, void *buffer)
   {
     return buffer;
   }
