@@ -33,6 +33,14 @@ select 'A' like 'a';
 select 'A' like 'a' collate utf8_bin;
 select _utf8 0xD0B0D0B1D0B2 like concat(_utf8'%',_utf8 0xD0B1,_utf8 '%');
 
+# Bug #6040: can't retrieve records with umlaut
+# characters in case insensitive manner.
+# Case insensitive search LIKE comparison
+# was broken for multibyte characters:
+select convert(_latin1'Günter André' using utf8) like CONVERT(_latin1'GÜNTER%' USING utf8);
+select CONVERT(_koi8r'×ÁÓÑ' USING utf8) LIKE CONVERT(_koi8r'÷áóñ' USING utf8);
+select CONVERT(_koi8r'÷áóñ' USING utf8) LIKE CONVERT(_koi8r'×ÁÓÑ' USING utf8);
+
 #
 # Check the following:
 # "a"  == "a "

@@ -1,0 +1,222 @@
+
+CHARSET_INFO
+============
+A structure containing data for charset+collation pair implementation. 
+
+Virtual functions which use this data are collected
+into separate structures MY_CHARSET_HANDLER and
+MY_COLLATION_HANDLER.
+
+
+typedef struct charset_info_st
+{
+  uint      number;
+  uint      primary_number;
+  uint      binary_number;
+  uint      state;
+
+  const char *csname;
+  const char *name;
+  const char *comment;
+
+  uchar    *ctype;
+  uchar    *to_lower;
+  uchar    *to_upper;
+  uchar    *sort_order;
+
+  uint16      *tab_to_uni;
+  MY_UNI_IDX  *tab_from_uni;
+
+  uchar state_map[256];
+  uchar ident_map[256];
+
+  uint      strxfrm_multiply;
+  uint      mbminlen;
+  uint      mbmaxlen;
+  char      max_sort_char; /* For LIKE optimization */
+
+  MY_CHARSET_HANDLER *cset;
+  MY_COLLATION_HANDLER *coll;
+
+} CHARSET_INFO;
+
+
+CHARSET_INFO fields description:
+===============================
+
+
+Numbers (identifiers)
+---------------------
+
+number - an ID uniquely identifying this charset+collation pair.
+
+primary_number - ID of a charset+collation pair, which consists
+of the same character set and the default collation of this
+character set. Not really used now. Intended to optimize some
+parts of the code where we need to find the default collation
+using its non-default counterpart for the given character set.
+
+binary_numner - ID of a charset+collation pair, which consists
+of the same character set and the binary collation of this
+character set. Not really used now. Intended to optimize
+"SELECT BINARY x" in the future.
+
+Names
+-----
+
+  csname  - name of the character set for this charset+collation pair.
+  name    - name of the collation for this charset+collation pair.
+  comment - a text comment, dysplayed in "Description" column of
+            SHOW CHARACTER SET output.
+
+Conversion tables
+-----------------
+  
+  ctype      - pointer to array[257] of "type of characters"
+               bit mask for each chatacter, e.g. if a 
+               character is a digit or a letter or a separator, etc.
+  to_lower   - pointer to arrat[256] used in LCASE()
+  to_upper   - pointer to array[256] used in UCASE()
+  sort_order - pointer to array[256] used for strings comparison
+
+
+
+Unicode conversion data
+-----------------------
+For 8bit character sets:
+
+tab_to_uni  : array[256] of charset->Unicode translation
+tab_from_uni: a structure for Unicode->charset translation
+
+Non-8 bit charsets have their own structures per charset
+hidden in correspondent ctype-xxx.c file and don't use
+tab_to_uni and tab_from_uni tables.
+
+
+Parser maps
+-----------
+state_map[]
+ident_map[]
+
+ These maps are to quickly identify if a character is
+an identificator part, a digit, a special character, 
+or a part of other SQL language lexical item.
+
+Probably can be combined with ctype array in the future.
+But for some reasons these two arrays are used in the parser,
+while a separate ctype[] array is used in the other part of the
+code, like fulltext, etc.
+
+
+Misc fields
+-----------
+
+  strxfrm_multiply - how many times a sort key (i.e. a string
+                     which can be passed into memcmp() for comparison)
+                     can be longer than the original string. 
+                     Usually it is 1. For some complex
+                     collations it can be bigger. For example
+                     in latin1_german2_ci, a sort key is up to
+                     twice longer than the original string.
+                     e.g. Letter 'A' with two dots above is
+                     substituted with 'AE'. 
+  mbminlen         - mininum multibyte sequence length.
+                     Now always 1 accept ucs2. For ucs2
+                     it is 2.
+  mbmaxlen         - maximum multibyte sequence length.
+                     1 for 8bit charsets. Can be also 2 or 3.
+
+
+
+MY_CHARSET_HANDLER
+==================
+
+MY_CHARSET_HANDLER is a collection of character-set
+related routines. Defined in m_ctype.h. Have the 
+following set of functions:
+
+Multibyte routines
+------------------
+ismbchar()  - detects if the given string is a multibyte sequence
+mbcharlen() - retuturns length of multibyte sequence starting with
+              the given character
+numchars()  - returns number of characters in the given string, e.g.
+              in SQL function CHAR_LENGTH().
+charpos()   - calculates the offset of the given position in the string.
+              Used in SQL functions LEFT(), RIGHT(), SUBSTRING(), 
+              INSERT()
+
+well_formed_length()
+            - finds the length of correctly formed multybyte beginning.
+              Used in INSERTs to cut a beginning of the given string
+              which is
+              a) "well formed" according to the given character set.
+              b)  can fit into the given data type
+              Terminates the string in the good position, taking in account
+              multibyte character boundaries.
+
+lengthsp()  - returns the length of the given string without traling spaces.
+
+
+Unicode conversion routines
+---------------------------
+mb_wc       - converts the left multibyte sequence into it Unicode code.
+mc_mb       - converts the given Unicode code into multibyte sequence.
+
+
+Case and sort convertion
+------------------------
+caseup_str  - converts the given 0-terminated string into the upper case
+casedn_str  - converts the given 0-terminated string into the lower case
+caseup      - converts the given string into the lower case using length
+casedn      - converts the given string into the lower case using length
+
+Number-to-string conversion routines
+------------------------------------
+snprintf()
+long10_to_str()
+longlong10_to_str()
+
+The names are pretty self-descripting.
+
+String padding routines
+-----------------------
+fill()     - writes the given Unicode value into the given string
+             with the given length. Used to pad the string, usually
+             with space character, according to the given charset.
+
+String-to-numner conversion routines
+------------------------------------
+strntol()
+strntoul()
+strntoll()
+strntoull()
+strntod()
+
+These functions are almost for the same thing with their
+STDLIB counterparts, but also:
+  - accept length instead of 0-terminator
+  - and are character set dependant
+
+Simple scanner routines
+-----------------------
+scan()    - to skip leading spaces in the given string.
+            Used when a string value is inserted into a numeric field.
+
+
+
+MY_COLLATION_HANDLER
+====================
+strnncoll()   - compares two strings according to the given collation
+strnncollsp() - like the above but ignores trailing spaces
+strnxfrm()    - makes a sort key suitable for memcmp() corresponding
+                to the given string
+like_range()  - creates a LIKE range, for optimizer
+wildcmp()     - wildcard comparison, for LIKE
+strcasecmp()  - 0-terminated string comparison
+instr()       - finds the first substring appearence in the string
+hash_sort()   - calculates hash value taking in account
+                the collation rules, e.g. case-insensitivity, 
+                accent sensitivity, etc.
+
+ 
