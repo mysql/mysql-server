@@ -2298,15 +2298,18 @@ String *Item_func_unhex::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   /* Convert given hex string to a binary string */
+
   String *res= args[0]->val_str(str);
-  const char *from=res->ptr(), *end;
-  char *to;
-  int r;
   if (!res || tmp_value.alloc((1+res->length())/2))
   {
     null_value=1;
     return 0;
   }
+
+  const char *from=res->ptr(), *end;
+  char *to;
+  int r;
+
   null_value=0;
   tmp_value.length((1+res->length())/2);
   to= (char*) tmp_value.ptr();
