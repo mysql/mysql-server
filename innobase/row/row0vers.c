@@ -88,6 +88,8 @@ row_vers_impl_x_locked_off_kernel(
 		a rollback we always undo the modifications to secondary index
 		records before the clustered index record. */
 
+		mtr_commit(&mtr);
+
 	        return(NULL);
 	}
 
