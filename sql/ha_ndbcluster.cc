@@ -475,7 +475,8 @@ static const ulong index_type_flags[]=
 
   /* PRIMARY_KEY_INDEX */
   HA_NOT_READ_PREFIX_LAST | 
-  HA_ONLY_WHOLE_INDEX,
+  HA_ONLY_WHOLE_INDEX | 
+  HA_WRONG_ASCII_ORDER,
 
   /* PRIMARY_KEY_ORDERED_INDEX */
   /* 
@@ -483,19 +484,23 @@ static const ulong index_type_flags[]=
      thus ORDERD BY clauses can be optimized by reading directly 
      through the index.
   */
-  HA_NOT_READ_PREFIX_LAST,
+  HA_NOT_READ_PREFIX_LAST | 
+  HA_WRONG_ASCII_ORDER,
 
   /* UNIQUE_INDEX */
   HA_NOT_READ_PREFIX_LAST |
-  HA_ONLY_WHOLE_INDEX,
+  HA_ONLY_WHOLE_INDEX |
+  HA_WRONG_ASCII_ORDER,
 
   /* UNIQUE_ORDERED_INDEX */
-  HA_NOT_READ_PREFIX_LAST,
+  HA_NOT_READ_PREFIX_LAST |
+  HA_WRONG_ASCII_ORDER,
 
   /* ORDERED_INDEX */
   HA_READ_NEXT |              
   HA_READ_PREV | 
-  HA_NOT_READ_AFTER_KEY
+  HA_NOT_READ_PREFIX_LAST |
+  HA_WRONG_ASCII_ORDER
 };
 
 static const int index_flags_size= sizeof(index_type_flags)/sizeof(ulong);
