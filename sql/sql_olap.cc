@@ -143,18 +143,6 @@ int handle_olaps(LEX *lex, SELECT_LEX *select_lex)
   int count=select_lex->group_list.elements;
   int sl_return=0;
 
-// a fix for UNION's
-  for (TABLE_LIST *cursor= (TABLE_LIST *)select_lex->table_list.first;
-       cursor;
-       cursor=cursor->next)
-  {
-    if (cursor->do_redirect)
-    {
-      //Sinisa TODO: there are function for this purpose: fix_tables_pointers
-      cursor->table= cursor->table_list->table;
-      cursor->do_redirect= 0;
-    }
-  }
 
   lex->last_selects=select_lex;
 

@@ -79,7 +79,6 @@ int mysql_update(THD *thd,
   if ((open_and_lock_tables(thd, table_list)))
     DBUG_RETURN(-1);
   thd->proc_info="init";
-  fix_tables_pointers(thd->lex->all_selects_list);
   table= table_list->table;
   table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
 
@@ -431,7 +430,6 @@ int mysql_multi_update(THD *thd,
 #endif
   if ((res=open_and_lock_tables(thd,table_list)))
     DBUG_RETURN(res);
-  fix_tables_pointers(thd->lex->all_selects_list);
 
   select_lex->select_limit= HA_POS_ERROR;
 
