@@ -3428,7 +3428,7 @@ static void fetch_string_with_conversion(MYSQL_BIND *param, char *value,
 {
   char *buffer= (char *)param->buffer;
   int err= 0;
-  char *endptr;
+  char *endptr= value + length;
 
   /*
     This function should support all target buffer types: the rest
@@ -3439,39 +3439,33 @@ static void fetch_string_with_conversion(MYSQL_BIND *param, char *value,
     break;
   case MYSQL_TYPE_TINY:
   {
-    longlong data= my_strntoll(&my_charset_latin1, value, length, 10,
-                                 &endptr, &err);
+    longlong data= my_strtoll10(value, &endptr, &err);
     *param->error= (IS_TRUNCATED(data, param->is_unsigned,
-                                 INT_MIN8, INT_MAX8, UINT_MAX8) |
-                    test(err));
+                                 INT_MIN8, INT_MAX8, UINT_MAX8) || err > 0);
     *buffer= (uchar) data;
     break;
   }
   case MYSQL_TYPE_SHORT:
   {
-    longlong data= my_strntoll(&my_charset_latin1, value, length, 10,
-                               &endptr, &err);
+    longlong data= my_strtoll10(value, &endptr, &err);
     *param->error= (IS_TRUNCATED(data, param->is_unsigned,
-                                 INT_MIN16, INT_MAX16, UINT_MAX16) |
-                    test(err));
+                                 INT_MIN16, INT_MAX16, UINT_MAX16) || err > 0);
     shortstore(buffer, (short) data);
     break;
   }
   case MYSQL_TYPE_LONG:
   {
-    longlong data= my_strntoll(&my_charset_latin1, value, length, 10,
-                               &endptr, &err);
+    longlong data= my_strtoll10(value, &endptr, &err);
     *param->error= (IS_TRUNCATED(data, param->is_unsigned,
-                                 INT_MIN32, INT_MAX32, UINT_MAX32) |
-                    test(err));
+                                 INT_MIN32, INT_MAX32, UINT_MAX32) || err > 0);
     longstore(buffer, (int32) data);
     break;
   }
   case MYSQL_TYPE_LONGLONG:
   {
-    longlong data= my_strntoll(&my_charset_latin1, value, length, 10,
-                               &endptr, &err);
-    *param->error= test(err);
+    longlong data= my_strtoll10(value, &endptr, &err);
+    *param->error= param->is_unsigned ? err != 0 :
+                                       (err > 0 || (err == 0 && data < 0));
     longlongstore(buffer, data);
     break;
   }
@@ -3554,10 +3548,9 @@ static void fetch_string_with_conversion(MYSQL_BIND *param, char *value,
 */
 
 static void fetch_long_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
-                                       longlong value)
+                                       longlong value, my_bool is_unsigned)
 {
   char *buffer= (char *)param->buffer;
-  uint field_is_unsigned= field->flags & UNSIGNED_FLAG;
 
   switch (param->buffer_type) {
   case MYSQL_TYPE_NULL: /* do nothing */
@@ -3579,38 +3572,38 @@ static void fetch_long_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
     break;
   case MYSQL_TYPE_LONGLONG:
     longlongstore(buffer, value);
+    *param->error= param->is_unsigned != is_unsigned && value < 0;
     break;
   case MYSQL_TYPE_FLOAT:
   {
+    /*
+      We need to store data in the buffer before the truncation check to
+      workaround Intel FPU executive precision feature.
+      (See http://gcc.gnu.org/bugzilla/show_bug.cgi?id=323 for details)
+      AFAIU it does not guarantee to work.
+    */
     float data;
-    if (field_is_unsigned)
-    {
+    if (is_unsigned)
       data= (float) ulonglong2double(value);
-      *param->error= (ulonglong) data != (ulonglong) value;
-    }
     else
-    {
       data= (float) value;
-      /*       printf("%lld, %f\n", value, data); */
-      *param->error= value != ((longlong) data);
-    }
     floatstore(buffer, data);
+    *param->error= is_unsigned ?
+                   ((ulonglong) value) != ((ulonglong) (*(float*) buffer)) :
+                   ((longlong) value) != ((longlong) (*(float*) buffer));
     break;
   }
   case MYSQL_TYPE_DOUBLE:
   {
     double data;
-    if (field_is_unsigned)
-    {
+    if (is_unsigned)
       data= ulonglong2double(value);
-      *param->error= (ulonglong) data != (ulonglong) value;
-    }
     else
-    {
       data= value;
-      *param->error= (longlong) data != value;
-    }
     doublestore(buffer, data);
+    *param->error= is_unsigned ?
+                   ((ulonglong) value) != ((ulonglong) (*(double*) buffer)) :
+                   ((longlong) value) != ((longlong) (*(double*) buffer));
     break;
   }
   case MYSQL_TYPE_TIME:
@@ -3626,7 +3619,7 @@ static void fetch_long_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
   default:
   {
     char buff[22];                              /* Enough for longlong */
-    char *end= longlong10_to_str(value, buff, field_is_unsigned ? 10: -10);
+    char *end= longlong10_to_str(value, buff, is_unsigned ? 10: -10);
     /* Resort to string conversion which supports all typecodes */
     uint length= (uint) (end-buff);
 
@@ -3665,74 +3658,67 @@ static void fetch_float_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
   case MYSQL_TYPE_NULL: /* do nothing */
     break;
   case MYSQL_TYPE_TINY:
-  {
+    /*
+      We need to _store_ data in the buffer before the truncation check to
+      workaround Intel FPU executive precision feature.
+      (See http://gcc.gnu.org/bugzilla/show_bug.cgi?id=323 for details)
+      Sic: AFAIU it does not guarantee to work.
+    */
     if (param->is_unsigned)
-    {
-      int8 data= (int8) value;
-      *param->error= (double) data != value;
-      *buffer= (uchar) data;
-    }
+      *buffer= (uint8) value;
     else
-    {
-      uchar data= (uchar) value;
-      *param->error= (double) data != value;
-      *buffer= data;
-    }
+      *buffer= (int8) value;
+    *param->error= value != (param->is_unsigned ? (double) ((uint8) *buffer) :
+                                                  (double) ((int8) *buffer));
     break;
-  }
   case MYSQL_TYPE_SHORT:
-  {
     if (param->is_unsigned)
     {
       ushort data= (ushort) value;
-      *param->error= (double) data != value;
       shortstore(buffer, data);
     }
     else
     {
       short data= (short) value;
-      *param->error= (double) data != value;
       shortstore(buffer, data);
     }
+    *param->error= value != (param->is_unsigned ? (double) (*(ushort*) buffer):
+                                                  (double) (*(short*) buffer));
     break;
-  }
   case MYSQL_TYPE_LONG:
-  {
     if (param->is_unsigned)
     {
       uint32 data= (uint32) value;
-      *param->error= (double) data != value;
       longstore(buffer, data);
     }
     else
     {
       int32 data= (int32) value;
-      *param->error= (double) data != value;
       longstore(buffer, data);
     }
-    break;
-  }
+    *param->error= value != (param->is_unsigned ? (double) (*(uint32*) buffer):
+                                                  (double) (*(int32*) buffer));
+      break;
   case MYSQL_TYPE_LONGLONG:
-  {
     if (param->is_unsigned)
     {
       ulonglong data= (ulonglong) value;
-      *param->error= (double) data != value;
       longlongstore(buffer, data);
     }
     else
     {
       longlong data= (longlong) value;
-      *param->error= (double) data != value;
       longlongstore(buffer, data);
     }
+    *param->error= value != (param->is_unsigned ?
+                             (double) (*(ulonglong*) buffer) :
+                             (double) (*(longlong*) buffer));
     break;
-  }
   case MYSQL_TYPE_FLOAT:
   {
     float data= (float) value;
-    *param->error= data != value;
     floatstore(buffer, data);
+    *param->error= (*(float*) buffer) != value;
     break;
   }
   case MYSQL_TYPE_DOUBLE:
@@ -3824,7 +3810,7 @@ static void fetch_datetime_with_conversion(MYSQL_BIND *param,
   case MYSQL_TYPE_LONGLONG:
   {
     longlong value= (longlong) TIME_to_ulonglong(time);
-    fetch_long_with_conversion(param, field, value);
+    fetch_long_with_conversion(param, field, value, TRUE);
     break;
   }
   default:
@@ -3872,7 +3858,7 @@ static void fetch_result_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
     /* sic: we need to cast to 'signed char' as 'char' may be unsigned */
     longlong data= field_is_unsigned ? (longlong) value :
                                        (longlong) (signed char) value;
-    fetch_long_with_conversion(param, field, data);
+    fetch_long_with_conversion(param, field, data, 0);
     *row+= 1;
     break;
   }
@@ -3882,7 +3868,7 @@ static void fetch_result_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
     short value= sint2korr(*row);
     longlong data= field_is_unsigned ? (longlong) (unsigned short) value :
                                        (longlong) value;
-    fetch_long_with_conversion(param, field, data);
+    fetch_long_with_conversion(param, field, data, 0);
     *row+= 2;
     break;
   }
@@ -3892,14 +3878,15 @@ static void fetch_result_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
     long value= sint4korr(*row);
     longlong data= field_is_unsigned ? (longlong) (unsigned long) value :
                                        (longlong) value;
-    fetch_long_with_conversion(param, field, data);
+    fetch_long_with_conversion(param, field, data, 0);
     *row+= 4;
     break;
   }
   case MYSQL_TYPE_LONGLONG:
   {
     longlong value= (longlong)sint8korr(*row);
-    fetch_long_with_conversion(param, field, value);
+    fetch_long_with_conversion(param, field, value,
+                               field->flags & UNSIGNED_FLAG);
     *row+= 8;
     break;
   }
