@@ -66,7 +66,6 @@ String *Item_func_geometry_from_wkb::val_str(String *str)
   String arg_val;
   String *wkb= args[0]->val_str(&arg_val);
   Geometry_buffer buffer;
-  Geometry *geom;
   uint32 srid= 0;
 
   if ((arg_count == 2) && !args[1]->null_value)
@@ -78,7 +77,7 @@ String *Item_func_geometry_from_wkb::val_str(String *str)
   str->q_append(srid);
   if ((null_value= 
        (args[0]->null_value ||
-	!(geom= Geometry::create_from_wkb(&buffer, wkb->ptr(), wkb->length())) ||
+	!Geometry::create_from_wkb(&buffer, wkb->ptr(), wkb->length()) ||
 	str->append(*wkb))))
     return 0;
   return str;
@@ -126,12 +125,11 @@ String *Item_func_as_wkb::val_str(String *str)
   String arg_val;
   String *swkb= args[0]->val_str(&arg_val);
   Geometry_buffer buffer;
-  Geometry *geom;
 
   if ((null_value=
        (args[0]->null_value ||
-	!(geom= Geometry::create_from_wkb(&buffer, swkb->ptr() + SRID_SIZE,
-					  swkb->length() - SRID_SIZE)))))
+	!(Geometry::create_from_wkb(&buffer, swkb->ptr() + SRID_SIZE,
+				    swkb->length() - SRID_SIZE)))))
     return 0;
 
   str->copy(swkb->ptr() + SRID_SIZE, swkb->length() - SRID_SIZE,
@@ -701,10 +699,10 @@ longlong Item_func_srid::val_int()
   Geometry_buffer buffer;
   Geometry *geom;
 
-  null_value= !swkb || 
-    !(geom= Geometry::create_from_wkb(&buffer,
-				      swkb->ptr() + SRID_SIZE,
-				      swkb->length() - SRID_SIZE));
+  null_value= (!swkb || 
+	       !Geometry::create_from_wkb(&buffer,
+					  swkb->ptr() + SRID_SIZE,
+					  swkb->length() - SRID_SIZE));
   if (null_value)
     return 0;
 

@@ -48,7 +48,9 @@
 extern "C" int gethostname(char *name, int namelen);
 #endif
 
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
 static int check_for_max_user_connections(THD *thd, USER_CONN *uc);
+#endif
 static void decrease_user_connections(USER_CONN *uc);
 static bool check_db_used(THD *thd,TABLE_LIST *tables);
 static bool check_merge_table_access(THD *thd, char *db, TABLE_LIST *tables);
@@ -426,6 +428,8 @@ void init_max_user_conn(void)
     1	error
 */
 
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+
 static int check_for_max_user_connections(THD *thd, USER_CONN *uc)
 {
   int error=0;
@@ -456,7 +460,7 @@ static int check_for_max_user_connections(THD *thd, USER_CONN *uc)
   (void) pthread_mutex_unlock(&LOCK_user_conn);
   DBUG_RETURN(error);
 }
-
+#endif /* NO_EMBEDDED_ACCESS_CHECKS */
 
 /*
   Decrease user connection count
@@ -545,15 +549,15 @@ bool is_update_query(enum enum_sql_command command)
 
 static bool check_mqh(THD *thd, uint check_command)
 {
+#ifdef NO_EMBEDDED_ACCESS_CHECKS
+  return(0);
+#else
   bool error=0;
   time_t check_time = thd->start_time ?  thd->start_time : time(NULL);
   USER_CONN *uc=thd->user_connect;
   DBUG_ENTER("check_mqh");
   DBUG_ASSERT(uc != 0);
 
-#ifdef NO_EMBEDDED_ACCESS_CHECKS
-  DBUG_RETURN(0);
-#else
   /* If more than a hour since last check, reset resource checking */
   if (check_time  - uc->intime >= 3600)
   {
@@ -3158,7 +3162,7 @@ unsent_create_error:
       net_printf(thd,ER_WRONG_DB_NAME, lex->name);
       break;
     }
-    if (check_access(thd,DROP_ACL,lex->name,0,1,0))
+    if (check_access(thd,SELECT_ACL,lex->name,0,1,0))
       break;
     if (thd->locked_tables || thd->active_transaction())
     {
@@ -3548,7 +3552,10 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
   DBUG_ENTER("check_access");
   DBUG_PRINT("enter",("want_access: %lu  master_access: %lu", want_access,
 		      thd->master_access));
-  ulong db_access,dummy;
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  ulong db_access;
+#endif
+  ulong dummy;
   if (save_priv)
     *save_priv=0;
   else
@@ -3740,6 +3747,10 @@ static bool check_db_used(THD *thd,TABLE_LIST *tables)
 #define used_stack(A,B) (long) (B - A)
 #endif
 
+#ifndef DBUG_OFF
+long max_stack_used;
+#endif
+
 #ifndef EMBEDDED_LIBRARY
 bool check_stack_overrun(THD *thd,char *buf __attribute__((unused)))
 {
@@ -3752,6 +3763,9 @@ bool check_stack_overrun(THD *thd,char *buf __attribute__((unused)))
     thd->fatal_error();
     return 1;
   }
+#ifndef DBUG_OFF
+  max_stack_used= max(max_stack_used, stack_used);
+#endif
   return 0;
 }
 #endif /* EMBEDDED_LIBRARY */

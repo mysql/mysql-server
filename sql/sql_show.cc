@@ -31,9 +31,11 @@ static const char *grant_names[]={
   "select","insert","update","delete","create","drop","reload","shutdown",
   "process","file","grant","references","index","alter"};
 
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
 static TYPELIB grant_types = { sizeof(grant_names)/sizeof(char **),
                                "grant_types",
                                grant_names};
+#endif
 
 static int mysql_find_files(THD *thd,List<char> *files, const char *db,
                             const char *path, const char *wild, bool dir);
@@ -367,7 +369,9 @@ mysql_find_files(THD *thd,List<char> *files, const char *db,const char *path,
   char *ext;
   MY_DIR *dirp;
   FILEINFO *file;
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
   uint col_access=thd->col_access;
+#endif
   TABLE_LIST table_list;
   DBUG_ENTER("mysql_find_files");
 
@@ -829,7 +833,9 @@ int mysqld_show_create_db(THD *thd, char *dbname,
   char	path[FN_REFLEN];
   char buff[2048];
   String buffer(buff, sizeof(buff), system_charset_info);
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
   uint db_access;
+#endif
   bool found_libchar;
   HA_CREATE_INFO create;
   uint create_options = create_info ? create_info->options : 0;
@@ -1138,7 +1144,6 @@ append_identifier(THD *thd, String *packet, const char *name, uint length)
 {
   const char *name_end;
   char quote_char;
-  uint part_len;
 
   if (thd->variables.sql_mode & MODE_ANSI_QUOTES)
     quote_char= '\"';
@@ -1274,7 +1279,7 @@ store_create_info(THD *thd, TABLE *table, String *packet)
 
 
     /* 
-      Again we are using CURRENT_TIMESTAMP instead of NOW becaus eit is
+      Again we are using CURRENT_TIMESTAMP instead of NOW because it is
       more standard 
     */
     has_now_default= table->timestamp_field == field && 

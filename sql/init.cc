@@ -46,7 +46,5 @@ void unireg_init(ulong options)
     log_10[i]= nr ; nr*= 10.0;
   }
   specialflag|=options;			/* Set options from argv */
-
-  thread_stack_min=thread_stack - STACK_MIN_SIZE;
   DBUG_VOID_RETURN;
 }

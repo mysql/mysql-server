@@ -839,7 +839,8 @@ bool update_sys_var_str(sys_var_str *var_str, rw_lock_t *var_mutex,
 {
   char *res= 0, *old_value=(char *)(var ? var->value->str_value.ptr() : 0);
   uint new_length= (var ? var->value->str_value.length() : 0);
-  if (!old_value) old_value="";
+  if (!old_value)
+    old_value= (char*) "";
   if (!(res= my_strdup_with_length(old_value, new_length, MYF(0))))
     return 1;
   /*

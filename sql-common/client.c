@@ -2044,7 +2044,7 @@ error:
     /* Free alloced memory */
     end_server(mysql);
     mysql_close_free(mysql);
-    if (!(client_flag & CLIENT_REMEMBER_OPTIONS))
+    if (!(((ulong) client_flag) & CLIENT_REMEMBER_OPTIONS))
       mysql_close_free_options(mysql);
   }
   DBUG_RETURN(0);

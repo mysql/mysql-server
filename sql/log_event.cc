@@ -83,7 +83,7 @@ inline int ignored_error_code(int err_code)
   pretty_print_str()
 */
 
-#ifndef MYSQL_CLIENT
+#if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
 static char *pretty_print_str(char *packet, char *str, int len)
 {
   char *end= str + len;

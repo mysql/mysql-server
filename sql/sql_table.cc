@@ -628,15 +628,15 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
         if (!timestamps)
         {
           sql_field->unireg_check= Field::TIMESTAMP_DNUN_FIELD;
-          ++timestamps_with_niladic;
+          timestamps_with_niladic++;
         }
         else
           sql_field->unireg_check= Field::NONE;
       }
-      else if(sql_field->unireg_check != Field::NONE)
-        ++timestamps_with_niladic;
+      else if (sql_field->unireg_check != Field::NONE)
+        timestamps_with_niladic++;
       
-      ++timestamps;
+      timestamps++;
       /* fall-through */
     default:
       sql_field->pack_flag=(FIELDFLAG_NUMBER |
@@ -1963,11 +1963,6 @@ int mysql_create_like_table(THD* thd, TABLE_LIST* table,
   /* 
     Create a new table by copying from source table
   */  
-#ifndef DBUG_OFF
-  // The code stated below is for test synchronization.test Bug #2385
-  if (test_flags & TEST_SYNCHRONIZATION)
-    sleep(3);
-#endif
   if (my_copy(src_path, dst_path, MYF(MY_WME|MY_DONT_OVERWRITE_FILE)))
     goto err;
 
