@@ -2201,17 +2201,49 @@ static int com_source(String *buffer, char *line)
 static int
 com_use(String *buffer __attribute__((unused)), char *line)
 {
-  char *tmp, buff[FN_REFLEN + 1];
+  char tmp[FN_REFLEN], buff[FN_REFLEN + 1];
   MYSQL_RES *res;
   MYSQL_ROW row;
+  char *c_buff, *c_tmp;
 
   while (isspace(*line))
     line++;
   strnmov(buff,line,sizeof(buff)-1);		// Don't destroy history
   if (buff[0] == '\\')				// Short command
     buff[1]=' ';
-  tmp=(char *) strtok(buff," \t;");		// Skip connect command
-  if (!tmp || !(tmp=(char *) strtok(NullS," \t;")))
+  c_buff= buff;
+  while ((*c_buff != ' ') && (*c_buff != '\t')) // Skip connect command
+    c_buff++;
+  c_buff++;
+
+  while ((*c_buff == ' ') || (*c_buff == '\t'))
+    c_buff++;
+  c_tmp= tmp;
+  if (*c_buff == '`')                           // Handling backticks
+  {
+    c_buff++;
+    for (; *c_buff; c_tmp++)
+    {
+      if (*c_buff == '`')
+      {
+	if (c_buff[1] == '`')
+	{
+	  *c_tmp= '`';
+	  c_buff+= 2;
+	}
+	else
+	  break;
+      }
+      else
+	*c_tmp= *(c_buff++);
+    }
+  }
+  else
+    for (; !strchr(" \t;", *c_buff); c_buff++, c_tmp++)
+      *c_tmp= *c_buff;
+  *c_tmp= '\0';
+  
+  if (!*tmp)
   {
     put_info("USE must be followed by a database name",INFO_ERROR);
     return 0;
