@@ -732,7 +732,9 @@ JOIN::exec()
       result->send_fields(fields_list,1);
       if (!having || having->val_int())
       {
-	if (do_send_rows && result->send_data(fields_list))
+	if (do_send_rows && (procedure ? (procedure->send_row(fields_list) ||
+                                          procedure->end_of_records())
+                                       : result->send_data(fields_list)))
 	  error= 1;
 	else
 	{
