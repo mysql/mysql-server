@@ -1114,12 +1114,10 @@ trx_finish_rollback_off_kernel(
 		return(NULL);
 	}
 
-#ifdef UNIV_DEBUG
 	if (lock_print_waits) {			
 		fprintf(stderr, "Trx %lu rollback finished\n",
 						ut_dulint_get_low(trx->id));
 	}
-#endif /* UNIV_DEBUG */
 
 	trx_commit_off_kernel(trx);
 

@@ -3236,8 +3236,7 @@ fseg_validate_low(
 
 	return(TRUE);
 }
-
-#ifdef UNIV_DEBUG
+	
 /***********************************************************************
 Validates a segment. */
 
@@ -3262,7 +3261,6 @@ fseg_validate(
 
 	return(ret);
 }
-#endif /* UNIV_DEBUG */
 
 /***********************************************************************
 Writes info of a segment. */
@@ -3313,7 +3311,6 @@ fseg_print_low(
 		n_frag, n_free, n_not_full, n_used);
 }
 
-#ifdef UNIV_DEBUG
 /***********************************************************************
 Writes info of a segment. */
 
@@ -3334,7 +3331,6 @@ fseg_print(
 
 	fseg_print_low(inode, mtr);
 }
-#endif /* UNIV_DEBUG */
 
 /***********************************************************************
 Validates the file space system and its segments. */

@@ -2162,7 +2162,6 @@ btr_discard_page(
 	ut_ad(btr_check_node_ptr(tree, merge_page, mtr));
 }	
 
-#ifdef UNIV_DEBUG
 /*****************************************************************
 Prints size info of a B-tree. */
 
@@ -2283,7 +2282,6 @@ btr_print_tree(
 
 	btr_validate_tree(tree);
 }
-#endif /* UNIV_DEBUG */
 
 /****************************************************************
 Checks that the node pointer to a page is appropriate. */

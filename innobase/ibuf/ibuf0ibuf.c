@@ -172,15 +172,13 @@ because ibuf merge is done to a page when it is read in, and it is
 still physically like the index page even if the index would have been
 dropped! So, there seems to be no problem. */
 
-#ifdef UNIV_DEBUG
 /**********************************************************************
 Validates the ibuf data structures when the caller owns ibuf_mutex. */
-static
+
 ibool
 ibuf_validate_low(void);
 /*===================*/
 			/* out: TRUE if ok */
-#endif /* UNIV_DEBUG */
 
 /**********************************************************************
 Sets the flag in the current OS thread local storage denoting that it is
@@ -2754,10 +2752,9 @@ reset_bit:
 #endif
 }
 
-#ifdef UNIV_DEBUG
 /**********************************************************************
 Validates the ibuf data structures when the caller owns ibuf_mutex. */
-static
+
 ibool
 ibuf_validate_low(void)
 /*===================*/
@@ -2784,7 +2781,6 @@ ibuf_validate_low(void)
 
 	return(TRUE);
 }
-#endif /* UNIV_DEBUG */
 
 /**********************************************************************
 Prints info of ibuf. */

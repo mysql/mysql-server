@@ -490,7 +490,6 @@ flst_validate(
 	return(TRUE);
 }
 
-#ifdef UNIV_DEBUG
 /************************************************************************
 Prints info of a file-based list. */
 
@@ -516,4 +515,3 @@ flst_print(
 		buf_frame_get_space_id(frame), buf_frame_get_page_no(frame),
 		(ulint) (base - frame), len);
 }
-#endif /* UNIV_DEBUG */
