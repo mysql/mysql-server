@@ -3,6 +3,9 @@
 dst=$1
 shift
 
+type=$1
+shift
+
 add_lib(){
     echo `dirname $2`/$1/`basename $2 | sed "s/\.[l]*a/$3.lib/g"`
 }
@@ -13,17 +16,28 @@ out_tls_rel=
 out_tls_deb=
 for i in $*
 do
+# mysql VC++ project files have for some unknown reason
+# choosen NOT to put libdbug.lib in $(topdir)./dbug but rather in $(topdir)
+# the same goes for mysys and strings
+  lib=$i
+  case $i in
+  *libdbug.a | *libmysys.a | *libmystrings.a) 
+  lib=`echo $i | sed s'!dbug\/lib!!' | sed 's!mysys\/lib!!' | sed 's!strings\/libmy!!'`
+  echo "Changing from $i to $lib"
+  ;;
+  esac
+ 
   if [ `echo $i | grep -c gcc` -eq 0 ]
       then
-      out_rel="${out_rel} `add_lib lib_release $i`"
-      out_deb="${out_deb} `add_lib lib_debug $i`"
-      out_tls_rel="${out_tls_rel} `add_lib lib_release $i _tls`"
-      out_tls_deb="${out_tls_deb} `add_lib lib_debug $i _tls`"
+      out_rel="${out_rel} `add_lib lib_release $lib`"
+      out_deb="${out_deb} `add_lib lib_debug $lib`"
+      out_tls_rel="${out_tls_rel} `add_lib lib_release $lib _tls`"
+      out_tls_deb="${out_tls_deb} `add_lib lib_debug $lib _tls`"
   fi
 done
 
 fix(){
-    echo "# ADD BASE LIB32 $*\n# ADD LIB32 $*\n"
+    echo "# ADD BASE ${type}32 $*\n# ADD ${type}32 $*\n"
 }
 
 if [ "$out_rel" ]
