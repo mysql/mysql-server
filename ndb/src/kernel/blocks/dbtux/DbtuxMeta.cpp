@@ -184,7 +184,7 @@ Dbtux::execTUX_ADD_ATTRREQ(Signal* signal)
     }
 #endif
     // check if type is valid and has a comparison method
-    const NdbSqlUtil::Type& type = NdbSqlUtil::type(descAttr.m_typeId);
+    const NdbSqlUtil::Type& type = NdbSqlUtil::getType(descAttr.m_typeId);
     if (type.m_typeId == NdbSqlUtil::Type::Undefined ||
         type.m_cmp == 0) {
       jam();
