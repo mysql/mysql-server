@@ -4032,14 +4032,15 @@ bool_test:
 bool_pri:
 	bool_pri IS NULL_SYM	{ $$= new Item_func_isnull($1); }
 	| bool_pri IS not NULL_SYM { $$= new Item_func_isnotnull($1); }
-	| predicate BETWEEN_SYM bit_expr AND_SYM bool_pri
-	  { $$= new Item_func_between($1,$3,$5); }
-	| predicate not BETWEEN_SYM bit_expr AND_SYM bool_pri
-	  { $$= negate_expression(YYTHD, new Item_func_between($1,$4,$6)); }
+	| bool_pri EQUAL_SYM predicate	{ $$= new Item_func_equal($1,$3); }
+	| bool_pri comp_op predicate %prec EQ
+	  { $$= (*$2)(0)->create($1,$3); }
+	| bool_pri comp_op all_or_any in_subselect %prec EQ
+	  { $$= all_any_subquery_creator($1, $2, $3, $4); }
 	| predicate ;
 
 predicate:
-	 bit_expr IN_SYM '(' expr_list ')'
+	bit_expr IN_SYM '(' expr_list ')'
 	  { $4->push_front($1); $$= new Item_func_in(*$4); }
 	| bit_expr not IN_SYM '(' expr_list ')'
 	  { $5->push_front($1); $$= negate_expression(YYTHD, new Item_func_in(*$5)); }
@@ -4047,6 +4048,10 @@ predicate:
 	  { $$= new Item_in_subselect($1, $3); }
 	| bit_expr not IN_SYM in_subselect
           { $$= negate_expression(YYTHD, new Item_in_subselect($1, $4)); }
+	| bit_expr BETWEEN_SYM bit_expr AND_SYM predicate
+	  { $$= new Item_func_between($1,$3,$5); }
+	| bit_expr not BETWEEN_SYM bit_expr AND_SYM predicate
+	  { $$= negate_expression(YYTHD, new Item_func_between($1,$4,$6)); }
 	| bit_expr SOUNDS_SYM LIKE bit_expr
 	  { $$= new Item_func_eq(new Item_func_soundex($1),
 				 new Item_func_soundex($4)); }
@@ -4057,11 +4062,6 @@ predicate:
 	| bit_expr REGEXP bit_expr	{ $$= new Item_func_regex($1,$3); }
 	| bit_expr not REGEXP bit_expr
           { $$= negate_expression(YYTHD, new Item_func_regex($1,$4)); }
-	| bit_expr EQUAL_SYM bit_expr	{ $$= new Item_func_equal($1,$3); }
-	| bit_expr comp_op bit_expr %prec EQ
-	  { $$= (*$2)(0)->create($1,$3); }
-	| bit_expr comp_op all_or_any in_subselect %prec EQ
-	  { $$= all_any_subquery_creator($1, $2, $3, $4); }
 	| bit_expr ;
 
 bit_expr:
