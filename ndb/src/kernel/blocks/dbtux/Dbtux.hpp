@@ -250,8 +250,8 @@ private:
   static const unsigned NodeHeadSize = sizeof(TreeNode) >> 2;
 
   /*
-   * Tree nodes are not always accessed fully, for cache reasons.  There
-   * are 3 access sizes.
+   * Tree node "access size" was for an early version with signal
+   * interface to TUP.  It is now used only to compute sizes.
    */
   enum AccSize {
     AccNone = 0,
@@ -522,7 +522,6 @@ private:
     Frag& m_frag;               // fragment using the node
     TupLoc m_loc;               // physical node address
     TreeNode* m_node;           // pointer to node storage
-    AccSize m_acc;              // accessed size
     NodeHandle(Frag& frag);
     NodeHandle(const NodeHandle& node);
     NodeHandle& operator=(const NodeHandle& node);
@@ -583,9 +582,8 @@ private:
    * DbtuxNode.cpp
    */
   int allocNode(Signal* signal, NodeHandle& node);
-  void accessNode(Signal* signal, NodeHandle& node, AccSize acc);
-  void selectNode(Signal* signal, NodeHandle& node, TupLoc loc, AccSize acc);
-  void insertNode(Signal* signal, NodeHandle& node, AccSize acc);
+  void selectNode(Signal* signal, NodeHandle& node, TupLoc loc);
+  void insertNode(Signal* signal, NodeHandle& node);
   void deleteNode(Signal* signal, NodeHandle& node);
   void setNodePref(Signal* signal, NodeHandle& node);
   // node operations
@@ -1086,8 +1084,7 @@ inline
 Dbtux::NodeHandle::NodeHandle(Frag& frag) :
   m_frag(frag),
   m_loc(),
-  m_node(0),
-  m_acc(AccNone)
+  m_node(0)
 {
 }
 
@@ -1095,8 +1092,7 @@ inline
 Dbtux::NodeHandle::NodeHandle(const NodeHandle& node) :
   m_frag(node.m_frag),
   m_loc(node.m_loc),
-  m_node(node.m_node),
-  m_acc(node.m_acc)
+  m_node(node.m_node)
 {
 }
 
@@ -1106,7 +1102,6 @@ Dbtux::NodeHandle::operator=(const NodeHandle& node)
   ndbassert(&m_frag == &node.m_frag);
   m_loc = node.m_loc;
   m_node = node.m_node;
-  m_acc = node.m_acc;
   return *this;
 }
 
@@ -1192,7 +1187,6 @@ inline Dbtux::Data
 Dbtux::NodeHandle::getPref()
 {
   TreeHead& tree = m_frag.m_tree;
-  ndbrequire(m_acc >= AccPref);
   return tree.getPref(m_node);
 }
 
@@ -1203,11 +1197,6 @@ Dbtux::NodeHandle::getEnt(unsigned pos)
   TreeEnt* entList = tree.getEntList(m_node);
   const unsigned occup = m_node->m_occup;
   ndbrequire(pos < occup);
-  if (pos == 0 || pos == occup - 1) {
-    ndbrequire(m_acc >= AccPref)
-  } else {
-    ndbrequire(m_acc == AccFull)
-  }
   return entList[(1 + pos) % occup];
 }
 

@@ -46,7 +46,7 @@ Dbtux::searchToAdd(Signal* signal, Frag& frag, ConstData searchKey, TreeEnt sear
   NodeHandle bottomNode(frag);
   while (true) {
     jam();
-    selectNode(signal, currNode, currNode.m_loc, AccPref);
+    selectNode(signal, currNode, currNode.m_loc);
     int ret;
     // compare prefix
     unsigned start = 0;
@@ -100,8 +100,6 @@ Dbtux::searchToAdd(Signal* signal, Frag& frag, ConstData searchKey, TreeEnt sear
     }
     break;
   }
-  // access rest of current node
-  accessNode(signal, currNode, AccFull);
   // anticipate
   treePos.m_loc = currNode.m_loc;
   // binary search
@@ -184,7 +182,7 @@ Dbtux::searchToRemove(Signal* signal, Frag& frag, ConstData searchKey, TreeEnt s
   NodeHandle glbNode(frag);     // potential g.l.b of final node
   while (true) {
     jam();
-    selectNode(signal, currNode, currNode.m_loc, AccPref);
+    selectNode(signal, currNode, currNode.m_loc);
     int ret;
     // compare prefix
     unsigned start = 0;
@@ -235,8 +233,6 @@ Dbtux::searchToRemove(Signal* signal, Frag& frag, ConstData searchKey, TreeEnt s
     }
     break;
   }
-  // access rest of current node
-  accessNode(signal, currNode, AccFull);
   // anticipate
   treePos.m_loc = currNode.m_loc;
   // pos 0 was handled above
@@ -275,7 +271,7 @@ Dbtux::searchToScan(Signal* signal, Frag& frag, ConstData boundInfo, unsigned bo
   NodeHandle bottomNode(frag);
   while (true) {
     jam();
-    selectNode(signal, currNode, currNode.m_loc, AccPref);
+    selectNode(signal, currNode, currNode.m_loc);
     int ret;
     // compare prefix
     ret = cmpScanBound(frag, 0, boundInfo, boundCount, currNode.getPref(), tree.m_prefSize);
@@ -324,8 +320,6 @@ Dbtux::searchToScan(Signal* signal, Frag& frag, ConstData boundInfo, unsigned bo
     }
     break;
   }
-  // access rest of current node
-  accessNode(signal, currNode, AccFull);
   for (unsigned j = 0, occup = currNode.getOccup(); j < occup; j++) {
     jam();
     int ret;

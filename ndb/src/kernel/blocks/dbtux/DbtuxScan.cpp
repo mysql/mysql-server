@@ -275,7 +275,7 @@ Dbtux::execNEXT_SCANREQ(Signal* signal)
       jam();
       const TupLoc loc = scan.m_scanPos.m_loc;
       NodeHandle node(frag);
-      selectNode(signal, node, loc, AccHead);
+      selectNode(signal, node, loc);
       unlinkScan(node, scanPtr);
       scan.m_scanPos.m_loc = NullTupLoc;
     }
@@ -710,7 +710,7 @@ Dbtux::scanFirst(Signal* signal, ScanOpPtr scanPtr)
   scan.m_state = ScanOp::Next;
   // link the scan to node found
   NodeHandle node(frag);
-  selectNode(signal, node, treePos.m_loc, AccFull);
+  selectNode(signal, node, treePos.m_loc);
   linkScan(node, scanPtr);
 }
 
@@ -767,7 +767,7 @@ Dbtux::scanNext(Signal* signal, ScanOpPtr scanPtr)
   TreePos pos = scan.m_scanPos;
   // get and remember original node
   NodeHandle origNode(frag);
-  selectNode(signal, origNode, pos.m_loc, AccHead);
+  selectNode(signal, origNode, pos.m_loc);
   ndbrequire(islinkScan(origNode, scanPtr));
   // current node in loop
   NodeHandle node = origNode;
@@ -784,7 +784,7 @@ Dbtux::scanNext(Signal* signal, ScanOpPtr scanPtr)
     }
     if (node.m_loc != pos.m_loc) {
       jam();
-      selectNode(signal, node, pos.m_loc, AccHead);
+      selectNode(signal, node, pos.m_loc);
     }
     if (pos.m_dir == 4) {
       // coming down from parent proceed to left child
@@ -811,8 +811,6 @@ Dbtux::scanNext(Signal* signal, ScanOpPtr scanPtr)
       jam();
       unsigned occup = node.getOccup();
       ndbrequire(occup >= 1);
-      // access full node
-      accessNode(signal, node, AccFull);
       // advance position
       if (! pos.m_match)
         pos.m_match = true;
