@@ -74,14 +74,14 @@ Dbtux::execTUX_MAINT_REQ(Signal* signal)
   ndbrequire(fragPtr.i != RNIL);
   Frag& frag = *fragPtr.p;
   // set up index keys for this operation
-  setKeyAttrs(frag, c_keyAttrs);
+  setKeyAttrs(frag);
   // set up search entry
   TreeEnt ent;
   ent.m_tupLoc = TupLoc(req->pageId, req->pageOffset);
   ent.m_tupVersion = req->tupVersion;
   ent.m_fragBit = fragBit;
   // read search key
-  readKeyAttrs(frag, ent, 0, c_keyAttrs, c_searchKey);
+  readKeyAttrs(frag, ent, 0, c_searchKey);
   // check if all keys are null
   {
     const unsigned numAttrs = frag.m_numAttrs;
