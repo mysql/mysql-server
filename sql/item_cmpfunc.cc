@@ -188,25 +188,17 @@ void Item_bool_func2::fix_length_and_dec()
   {
     uint strong= 0;
     uint weak= 0;
+    DTCollation coll;
 
-    if ((args[0]->collation.derivation < args[1]->collation.derivation) && 
-	!my_charset_same(args[0]->collation.collation, 
-			 args[1]->collation.collation) &&
-        (args[0]->collation.collation->state & MY_CS_UNICODE))
-    {
-      weak= 1;
-    }
-    else if ((args[1]->collation.derivation < args[0]->collation.derivation) && 
-	     !my_charset_same(args[0]->collation.collation,
-			      args[1]->collation.collation) &&
-             (args[1]->collation.collation->state & MY_CS_UNICODE))
-    {
-      strong= 1;
-    }
-    
-    if (strong || weak)
+    if (args[0]->result_type() == STRING_RESULT &&
+        args[1]->result_type() == STRING_RESULT &&
+        !my_charset_same(args[0]->collation.collation,
+                         args[1]->collation.collation) &&
+        !coll.set(args[0]->collation, args[1]->collation, TRUE))
     {
       Item* conv= 0;
+      strong= coll.strong;
+      weak= strong ? 0 : 1;
       if (args[weak]->type() == STRING_ITEM)
       {
         String tmp, cstr;
@@ -219,9 +211,20 @@ void Item_bool_func2::fix_length_and_dec()
       }
       else
       {
-	conv= new Item_func_conv_charset(args[weak],args[strong]->collation.collation);
+        THD *thd= current_thd;
+        /*
+          In case we're in statement prepare, create conversion item
+          in its memory: it will be reused on each execute.
+        */
+        Item_arena *arena= thd->current_arena, backup;
+        if (arena->is_stmt_prepare())
+          thd->set_n_backup_item_arena(arena, &backup);
+	conv= new Item_func_conv_charset(args[weak],
+                                         args[strong]->collation.collation);
+        if (arena->is_stmt_prepare())
+          thd->restore_backup_item_arena(arena, &backup);
         conv->collation.set(args[weak]->collation.derivation);
-        conv->fix_fields(current_thd, 0, &conv);
+        conv->fix_fields(thd, 0, &conv);
       }
       args[weak]= conv ? conv : args[weak];
     }
@@ -1743,12 +1746,58 @@ void Item_func_in::fix_length_and_dec()
   uint const_itm= 1;
   
   agg_cmp_type(&cmp_type, args, arg_count);
-  if ((cmp_type == STRING_RESULT) &&
-      (agg_arg_collations_for_comparison(cmp_collation, args, arg_count)))
-    return;
-  
+
   for (arg=args+1, arg_end=args+arg_count; arg != arg_end ; arg++)
     const_itm&= arg[0]->const_item();
+
+
+  if (cmp_type == STRING_RESULT)
+  {
+    /*
+      We allow consts character set conversion for
+
+        item IN (const1, const2, const3, ...)
+
+      if item is in a superset for all arguments,
+      and if it is a stong side according to coercibility rules.
+   
+      TODO: add covnersion for non-constant IN values
+      via creating Item_func_conv_charset().
+    */
+
+    if (agg_arg_collations_for_comparison(cmp_collation,
+                                          args, arg_count, TRUE))
+      return;
+    if ((!my_charset_same(args[0]->collation.collation, 
+                          cmp_collation.collation) || !const_itm))
+    {
+      if (agg_arg_collations_for_comparison(cmp_collation,
+                                            args, arg_count, FALSE))
+        return;
+    }
+    else
+    {
+      /* 
+         Conversion is possible:
+         All IN arguments are constants.
+      */
+      for (arg= args+1, arg_end= args+arg_count; arg < arg_end; arg++)
+      {
+        if (!my_charset_same(cmp_collation.collation,
+                             arg[0]->collation.collation))
+        {
+          Item_string *conv;
+          String tmp, cstr, *ostr= arg[0]->val_str(&tmp);
+          cstr.copy(ostr->ptr(), ostr->length(), ostr->charset(),
+                    cmp_collation.collation);
+          conv= new Item_string(cstr.ptr(),cstr.length(), cstr.charset(),
+                                arg[0]->collation.derivation);
+          conv->str_value.copy();
+          arg[0]= conv;
+        }
+      }
+    }
+  }
   
   /*
     Row item with NULLs inside can return NULL or FALSE => 
@@ -2030,15 +2079,6 @@ void Item_cond::neg_arguments(THD *thd)
     {
       if (!(new_item= new Item_func_not(item)))
 	return;					// Fatal OEM error
-      /*
-	We can use 0 as tables list because Item_func_not do not use it
-	on fix_fields and its arguments are already fixed.
-
-	We do not check results of fix_fields, because there are not way
-	to return error in this functions interface, thd->net.report_error
-	will be checked on upper level call.
-      */
-      new_item->fix_fields(thd, 0, &new_item);
     }
     VOID(li.replace(new_item));
   }
@@ -2716,9 +2756,6 @@ longlong Item_cond_xor::val_int()
        IS NULL(a)         -> IS NOT NULL(a)
        IS NOT NULL(a)     -> IS NULL(a)
 
-  NOTE
-    This method is used in the eliminate_not_funcs() function.
-
   RETURN
     New item or
     NULL if we cannot apply NOT transformation (see Item::neg_transformer()).
@@ -2726,26 +2763,13 @@ longlong Item_cond_xor::val_int()
 
 Item *Item_func_not::neg_transformer(THD *thd)	/* NOT(x)  ->  x */
 {
-  // We should apply negation elimination to the argument of the NOT function
-  return eliminate_not_funcs(thd, args[0]);
+  return args[0];
 }
 
 
 Item *Item_bool_rowready_func2::neg_transformer(THD *thd)
 {
   Item *item= negated_item();
-  if (item)
-  {
-    /*
-      We can use 0 as tables list because Item_func* family do not use it
-      on fix_fields and its arguments are already fixed.
-      
-      We do not check results of fix_fields, because there are not way
-      to return error in this functions interface, thd->net.report_error
-      will be checked on upper level call.
-    */
-    item->fix_fields(thd, 0, &item);
-  }
   return item;
 }
 
@@ -2754,9 +2778,6 @@ Item *Item_bool_rowready_func2::neg_transformer(THD *thd)
 Item *Item_func_isnull::neg_transformer(THD *thd)
 {
   Item *item= new Item_func_isnotnull(args[0]);
-  // see comment before fix_fields in Item_bool_rowready_func2::neg_transformer
-  if (item)
-    item->fix_fields(thd, 0, &item);
   return item;
 }
 
@@ -2765,9 +2786,6 @@ Item *Item_func_isnull::neg_transformer(THD *thd)
 Item *Item_func_isnotnull::neg_transformer(THD *thd)
 {
   Item *item= new Item_func_isnull(args[0]);
-  // see comment before fix_fields in Item_bool_rowready_func2::neg_transformer
-  if (item)
-    item->fix_fields(thd, 0, &item);
   return item;
 }
 
@@ -2777,9 +2795,6 @@ Item *Item_cond_and::neg_transformer(THD *thd)	/* NOT(a AND b AND ...)  -> */
 {
   neg_arguments(thd);
   Item *item= new Item_cond_or(list);
-  // see comment before fix_fields in Item_bool_rowready_func2::neg_transformer
-  if (item)
-    item->fix_fields(thd, 0, &item);
   return item;
 }
 
@@ -2789,9 +2804,6 @@ Item *Item_cond_or::neg_transformer(THD *thd)	/* NOT(a OR b OR ...)  -> */
 {
   neg_arguments(thd);
   Item *item= new Item_cond_and(list);
-  // see comment before fix_fields in Item_bool_rowready_func2::neg_transformer
-  if (item)
-    item->fix_fields(thd, 0, &item);
   return item;
 }
 

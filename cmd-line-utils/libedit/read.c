@@ -198,6 +198,10 @@ read_preread(EditLine *el)
 		return (0);
 
 #ifdef FIONREAD
+
+#ifndef MIN // definition of MIN is lacking on hpux..
+#define MIN(x,y) (((x)<(y))?(x):(y))
+#endif
 	(void) ioctl(el->el_infd, FIONREAD, (ioctl_t) & chrs);
 	if (chrs > 0) {
 		char buf[EL_BUFSIZ];
@@ -262,7 +266,7 @@ read_getcmd(EditLine *el, el_action_t *cmdnum, char *ch)
 		cmd = el->el_map.current[(unsigned char) *ch];
 		if (cmd == ED_SEQUENCE_LEAD_IN) {
 			key_value_t val;
-			switch (key_get(el, ch, &val)) {
+			switch (el_key_get(el, ch, &val)) {
 			case XK_CMD:
 				cmd = val.cmd;
 				break;
@@ -459,7 +463,8 @@ el_gets(EditLine *el, int *nread)
 #endif /* DEBUG_READ */
 			break;
 		}
-		if ((uint)cmdnum >= (uint)(el->el_map.nfunc)) {	/* BUG CHECK command */
+		if ((unsigned int)cmdnum >= (unsigned int)(el->el_map.nfunc)) 
+                {	/* BUG CHECK command */
 #ifdef DEBUG_EDIT
 			(void) fprintf(el->el_errfile,
 			    "ERROR: illegal command from key 0%o\r\n", ch);

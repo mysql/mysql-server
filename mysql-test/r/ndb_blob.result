@@ -93,6 +93,9 @@ a	length(b)	substr(b,1+4*900,2)	length(d)	substr(d,1+6*900,3)
 2	4512	b1	6000	dd1
 update t1 set d=null where a=1;
 commit;
+select a from t1 where d is null;
+a
+1
 delete from t1 where a=1;
 delete from t1 where a=2;
 commit;
@@ -372,3 +375,5 @@ rollback;
 select count(*) from t1;
 count(*)
 0
+drop table t1;
+drop database mysqltest;
