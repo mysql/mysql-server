@@ -140,7 +140,6 @@ Dbtux::insertNode(Signal* signal, Frag& frag, NodeHandlePtr& nodePtr, AccSize ac
   tmpPtr.p->m_next = frag.m_nodeList;
   frag.m_nodeList = tmpPtr.i;
   tmpPtr.p->m_acc = acc;
-  tmpPtr.p->m_flags |= NodeHandle::DoInsert;
   nodePtr = tmpPtr;
 }
 
@@ -159,7 +158,6 @@ Dbtux::deleteNode(Signal* signal, Frag& frag, NodeHandlePtr& nodePtr)
   // invalidate handle and storage
   tmpPtr.p->m_loc = NullTupLoc;
   tmpPtr.p->m_node = 0;
-  tmpPtr.p->m_flags |= NodeHandle::DoDelete;
   // scans have already been moved by popDown or popUp
 }
 
@@ -169,7 +167,6 @@ Dbtux::deleteNode(Signal* signal, Frag& frag, NodeHandlePtr& nodePtr)
 void
 Dbtux::accessNode(Signal* signal, Frag& frag, NodeHandlePtr& nodePtr, AccSize acc)
 {
-  TreeHead& tree = frag.m_tree;
   NodeHandlePtr tmpPtr = nodePtr;
   ndbrequire(tmpPtr.p->m_loc != NullTupLoc && tmpPtr.p->m_node != 0);
   if (tmpPtr.p->m_acc >= acc)
@@ -182,13 +179,12 @@ Dbtux::accessNode(Signal* signal, Frag& frag, NodeHandlePtr& nodePtr, AccSize ac
  * Set prefix.
  */
 void
-Dbtux::setNodePref(Signal* signal, Frag& frag, NodeHandlePtr& nodePtr, unsigned i)
+Dbtux::setNodePref(Signal* signal, Frag& frag, NodeHandle& node, unsigned i)
 {
   TreeHead& tree = frag.m_tree;
-  NodeHandlePtr tmpPtr = nodePtr;
   ReadPar readPar;
   ndbrequire(i <= 1);
-  readPar.m_ent = tmpPtr.p->getMinMax(i);
+  readPar.m_ent = node.getMinMax(i);
   readPar.m_first = 0;
   readPar.m_count = frag.m_numAttrs;
   // leave in signal data
@@ -200,9 +196,8 @@ Dbtux::setNodePref(Signal* signal, Frag& frag, NodeHandlePtr& nodePtr, unsigned 
   copyPar.m_items = readPar.m_count;
   copyPar.m_headers = true;
   copyPar.m_maxwords = tree.m_prefSize;
-  Data pref = tmpPtr.p->getPref(i);
+  Data pref = node.getPref(i);
   copyAttrs(pref, readPar.m_data, copyPar);
-  nodePtr.p->m_flags |= NodeHandle::DoUpdate;
 }
 
 /*
@@ -212,31 +207,11 @@ Dbtux::setNodePref(Signal* signal, Frag& frag, NodeHandlePtr& nodePtr, unsigned 
 void
 Dbtux::commitNodes(Signal* signal, Frag& frag, bool updateOk)
 {
-  TreeHead& tree = frag.m_tree;
   NodeHandlePtr nodePtr;
   nodePtr.i = frag.m_nodeList;
   frag.m_nodeList = RNIL;
   while (nodePtr.i != RNIL) {
     c_nodeHandlePool.getPtr(nodePtr);
-    const unsigned flags = nodePtr.p->m_flags;
-    if (flags & NodeHandle::DoDelete) {
-      jam();
-      ndbrequire(updateOk);
-      // delete already done
-    } else if (flags & NodeHandle::DoUpdate) {
-      jam();
-      ndbrequire(updateOk);
-      // set prefixes
-      if (flags & (1 << 0)) {
-        jam();
-        setNodePref(signal, frag, nodePtr, 0);
-      }
-      if (flags & (1 << 1)) {
-        jam();
-        setNodePref(signal, frag, nodePtr, 1);
-      }
-      // update already done via pointer
-    }
     // release
     NodeHandlePtr tmpPtr = nodePtr;
     nodePtr.i = nodePtr.p->m_next;
@@ -290,13 +265,13 @@ Dbtux::NodeHandle::pushUp(Signal* signal, unsigned pos, const TreeEnt& ent)
     tmpList[i] = tmpList[i - 1];
   }
   tmpList[pos] = ent;
-  if (occup == 0 || pos == 0)
-    m_flags |= (1 << 0);
-  if (occup == 0 || pos == occup)
-    m_flags |= (1 << 1);
   entList[0] = entList[occup + 1];
   setOccup(occup + 1);
-  m_flags |= DoUpdate;
+  // fix prefixes
+  if (occup == 0 || pos == 0)
+    m_tux.setNodePref(signal, m_frag, *this, 0);
+  if (occup == 0 || pos == occup)
+    m_tux.setNodePref(signal, m_frag, *this, 1);
 }
 
 /*
@@ -364,13 +339,13 @@ Dbtux::NodeHandle::popDown(Signal* signal, unsigned pos, TreeEnt& ent)
     jam();
     tmpList[i] = tmpList[i + 1];
   }
-  if (occup != 1 && pos == 0)
-    m_flags |= (1 << 0);
-  if (occup != 1 && pos == occup - 1)
-    m_flags |= (1 << 1);
   entList[0] = entList[occup - 1];
   setOccup(occup - 1);
-  m_flags |= DoUpdate;
+  // fix prefixes
+  if (occup != 1 && pos == 0)
+    m_tux.setNodePref(signal, m_frag, *this, 0);
+  if (occup != 1 && pos == occup - 1)
+    m_tux.setNodePref(signal, m_frag, *this, 1);
 }
 
 /*
@@ -441,12 +416,12 @@ Dbtux::NodeHandle::pushDown(Signal* signal, unsigned pos, TreeEnt& ent)
   }
   tmpList[pos] = ent;
   ent = oldMin;
-  if (true)
-    m_flags |= (1 << 0);
-  if (occup == 1 || pos == occup - 1)
-    m_flags |= (1 << 1);
   entList[0] = entList[occup];
-  m_flags |= DoUpdate;
+  // fix prefixes
+  if (true)
+    m_tux.setNodePref(signal, m_frag, *this, 0);
+  if (occup == 1 || pos == occup - 1)
+    m_tux.setNodePref(signal, m_frag, *this, 1);
 }
 
 /*
@@ -518,12 +493,12 @@ Dbtux::NodeHandle::popUp(Signal* signal, unsigned pos, TreeEnt& ent)
     tmpList[i] = tmpList[i - 1];
   }
   tmpList[0] = newMin;
-  if (true)
-    m_flags |= (1 << 0);
-  if (occup == 1 || pos == occup - 1)
-    m_flags |= (1 << 1);
   entList[0] = entList[occup];
-  m_flags |= DoUpdate;
+  // fix prefixes
+  if (true)
+    m_tux.setNodePref(signal, m_frag, *this, 0);
+  if (occup == 1 || pos == occup - 1)
+    m_tux.setNodePref(signal, m_frag, *this, 1);
 }
 
 /*

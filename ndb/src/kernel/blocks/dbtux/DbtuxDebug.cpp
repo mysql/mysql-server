@@ -355,7 +355,6 @@ operator<<(NdbOut& out, const Dbtux::NodeHandle& node)
   out << "[NodeHandle " << hex << &node;
   out << " [loc " << node.m_loc << "]";
   out << " [acc " << dec << node.m_acc << "]";
-  out << " [flags " << hex << node.m_flags << "]";
   out << " [node " << *node.m_node << "]";
   if (node.m_acc >= Dbtux::AccPref) {
     for (unsigned i = 0; i <= 1; i++) {
