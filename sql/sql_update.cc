@@ -554,13 +554,6 @@ int mysql_multi_update(THD *thd,
     }
   }
 
-  /*
-    If we have no WHERE clause, make it true otherwise the Select
-    examines the privileges
-  */
-  if (!conds)
-    conds= new Item_int("1", 1LL, 1);
-  
   if (!(result=new multi_update(thd, table_list, fields, values,
 				handle_duplicates)))
     DBUG_RETURN(-1);
