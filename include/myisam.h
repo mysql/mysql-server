@@ -351,6 +351,7 @@ typedef struct st_mi_check_param
   char *op_name;
 } MI_CHECK;
 
+
 typedef struct st_sort_info
 {
   MI_INFO *info;
@@ -367,6 +368,7 @@ typedef struct st_sort_info
   pthread_mutex_t mutex;
   pthread_cond_t  cond;
 } SORT_INFO;
+
 
 typedef struct st_mi_sort_param
 {
@@ -390,6 +392,7 @@ typedef struct st_mi_sort_param
   int (*key_write)(struct st_mi_sort_param *, const void *);
   void (*lock_in_memory)(MI_CHECK *);
 } MI_SORT_PARAM;
+
 
 /* functions in mi_check */
 void myisamchk_init(MI_CHECK *param);
@@ -422,8 +425,6 @@ int movepoint(MI_INFO *info,byte *record,my_off_t oldpos,
 int sort_write_record(MI_SORT_PARAM *sort_param);
 int write_data_suffix(SORT_INFO *sort_info, my_bool fix_datafile);
 int _create_index_by_sort(MI_SORT_PARAM *info,my_bool no_messages, ulong);
-void *_thr_find_all_keys(MI_SORT_PARAM *info);
-int _thr_write_keys(MI_SORT_PARAM *sort_param);
 int test_if_almost_full(MI_INFO *info);
 int recreate_table(MI_CHECK *param, MI_INFO **org_info, char *filename);
 void mi_disable_non_unique_index(MI_INFO *info, ha_rows rows);

@@ -881,7 +881,7 @@ static int create_table_from_dump(THD* thd, NET* net, const char* db,
   
   /* we do not want to log create table statement */
   save_options = thd->options;
-  thd->options &= ~OPTION_BIN_LOG;
+  thd->options &= ~(ulong) OPTION_BIN_LOG;
   thd->proc_info = "Creating table from master dump";
   // save old db in case we are creating in a different database
   char* save_db = thd->db;

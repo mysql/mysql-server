@@ -2130,6 +2130,7 @@ int mi_repair_by_sort_r(MI_CHECK *param, register MI_INFO *info,
   IO_CACHE_SHARE io_share;
   SORT_INFO sort_info;
   ulonglong key_map=share->state.key_map;
+  pthread_attr_t thr_attr;
   DBUG_ENTER("mi_repair_by_sort_r");
 
   start_records=info->state->records;
@@ -2307,6 +2308,9 @@ int mi_repair_by_sort_r(MI_CHECK *param, register MI_INFO *info,
   pthread_mutex_lock(&sort_info.mutex);
 
   init_io_cache_share(&param->read_cache, &io_share, i);
+  (void) pthread_attr_init(&thr_attr);
+  (void) pthread_attr_setdetachstate(&thr_attr,PTHREAD_CREATE_DETACHED);
+
   for (i=0 ; i < sort_info.total_keys ; i++)
   {
     sort_param[i].read_cache=param->read_cache;
@@ -2322,8 +2326,9 @@ int mi_repair_by_sort_r(MI_CHECK *param, register MI_INFO *info,
 #else
     param->sort_buffer_length*sort_param[i].key_length/total_key_length;
 #endif
-    if (pthread_create(& sort_param[i].thr, 0,
-		       (void *(*)(void*))_thr_find_all_keys, sort_param+i))
+    if (pthread_create(&sort_param[i].thr, &thr_attr,
+		       thr_find_all_keys,
+		       (void *) (sort_param+i)))
     {
       mi_check_print_error(param,"Cannot start a repair thread");
       remove_io_thread(&param->read_cache);
@@ -2332,13 +2337,14 @@ int mi_repair_by_sort_r(MI_CHECK *param, register MI_INFO *info,
     else
       sort_info.threads_running++;
   }
+  (void) pthread_attr_destroy(&thr_attr);
 
   /* waiting for all threads to finish */
   while (sort_info.threads_running)
     pthread_cond_wait(&sort_info.cond, &sort_info.mutex);
   pthread_mutex_unlock(&sort_info.mutex);
 
-  if ((got_error= _thr_write_keys(sort_param)))
+  if ((got_error= thr_write_keys(sort_param)))
   {
     param->retry_repair=1;
     goto err;

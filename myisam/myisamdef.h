@@ -659,6 +659,10 @@ void mi_check_print_error _VARARGS((MI_CHECK *param, const char *fmt,...));
 void mi_check_print_warning _VARARGS((MI_CHECK *param, const char *fmt,...));
 void mi_check_print_info _VARARGS((MI_CHECK *param, const char *fmt,...));
 int flush_pending_blocks(MI_SORT_PARAM *param);
+int thr_write_keys(MI_SORT_PARAM *sort_param);
+#ifdef THREAD
+pthread_handler_decl(thr_find_all_keys,arg);
+#endif
 
 #ifdef __cplusplus
 }

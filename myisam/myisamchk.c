@@ -99,7 +99,7 @@ int main(int argc, char **argv)
   while (--argc >= 0)
   {
     int new_error=myisamchk(&check_param, *(argv++));
-    if (check_param.testflag & T_REP_ANY != T_REP)
+    if ((check_param.testflag & T_REP_ANY) != T_REP)
       check_param.testflag&= ~T_REP;
     VOID(fflush(stdout));
     VOID(fflush(stderr));

@@ -65,8 +65,7 @@ LIB32=link.exe -lib
 # PROP Intermediate_Dir "debug"
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /W3 /GX /Z7 /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /YX /FD /c
-# ADD CPP /nologo /G6 /MTd /W3 /ZI /Od /I "../include" /I "../" /D "_DEBUG" /D "SAFEMALLOC" /D "SAFE_MUTEX" /D "_WINDOWS" /D "USE_TLS" /FD /c
-# SUBTRACT CPP /YX
+# ADD CPP /nologo /G6 /MTd /W3 /Zi /Od /I "../include" /I "../" /D "_DEBUG" /D "SAFEMALLOC" /D "SAFE_MUTEX" /D "_WINDOWS" /D "USE_TLS" /FD /c
 # ADD BASE RSC /l 0x409
 # ADD RSC /l 0x409
 BSC32=bscmake.exe
@@ -172,18 +171,6 @@ SOURCE=..\libmysql\get_password.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\mysys\getopt.c
-# End Source File
-# Begin Source File
-
-SOURCE=..\mysys\getopt1.c
-# End Source File
-# Begin Source File
-
-SOURCE=..\mysys\getvar.c
-# End Source File
-# Begin Source File
-
 SOURCE=..\strings\int2str.c
 # End Source File
 # Begin Source File
@@ -229,6 +216,19 @@ SOURCE=..\mysys\mf_format.c
 # Begin Source File
 
 SOURCE=..\mysys\mf_iocache.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\mysys\mf_iocache2.c
+
+!IF  "$(CFG)" == "mysqlclient - Win32 Release"
+
+!ELSEIF  "$(CFG)" == "mysqlclient - Win32 Debug"
+
+# ADD CPP /Od
+
+!ENDIF 
+
 # End Source File
 # Begin Source File
 
@@ -289,6 +289,14 @@ SOURCE=..\mysys\my_fopen.c
 # Begin Source File
 
 SOURCE=..\mysys\my_fstream.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\mysys\my_gethostbyname.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\mysys\my_getopt.c
 # End Source File
 # Begin Source File
 
@@ -365,6 +373,10 @@ SOURCE=..\mysys\my_tempnam.c
 # Begin Source File
 
 SOURCE=..\mysys\my_thr_init.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\mysys\my_vsnprintf.c
 # End Source File
 # Begin Source File
 
@@ -465,6 +477,10 @@ SOURCE=..\strings\strtoull.c
 # Begin Source File
 
 SOURCE=..\strings\strxmov.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\strings\strxnmov.c
 # End Source File
 # Begin Source File
 

@@ -66,8 +66,7 @@ LIB32=link.exe -lib
 # PROP Intermediate_Dir "debug"
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /W3 /GX /Z7 /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /YX /FD /c
-# ADD CPP /nologo /G6 /MTd /W3 /ZI /Od /I "../include" /D "_DEBUG" /D "SAFEMALLOC" /D "SAFE_MUTEX" /D "_WINDOWS" /D "USE_SYMDIR" /FD /c
-# SUBTRACT CPP /Fr
+# ADD CPP /nologo /G6 /MTd /W3 /Zi /Od /I "../include" /D "_DEBUG" /D "SAFEMALLOC" /D "SAFE_MUTEX" /D "_WINDOWS" /D "USE_SYMDIR" /FD /c
 # ADD BASE RSC /l 0x409
 # ADD RSC /l 0x409
 BSC32=bscmake.exe
@@ -142,23 +141,15 @@ SOURCE=.\errors.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\getopt.c
-# End Source File
-# Begin Source File
-
-SOURCE=.\getopt1.c
-# End Source File
-# Begin Source File
-
-SOURCE=.\getvar.c
-# End Source File
-# Begin Source File
-
 SOURCE=.\hash.c
 # End Source File
 # Begin Source File
 
 SOURCE=.\list.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\md5.c
 # End Source File
 # Begin Source File
 
@@ -210,10 +201,6 @@ SOURCE=.\mf_pack.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\mf_pack2.c
-# End Source File
-# Begin Source File
-
 SOURCE=.\mf_path.c
 # End Source File
 # Begin Source File
@@ -242,7 +229,7 @@ SOURCE=.\mf_soundex.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\mf_stripp.c
+SOURCE=.\mf_strip.c
 # End Source File
 # Begin Source File
 
@@ -259,6 +246,10 @@ SOURCE=.\mf_wfile.c
 # Begin Source File
 
 SOURCE=.\mulalloc.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\my_aes.c
 # End Source File
 # Begin Source File
 
@@ -319,6 +310,14 @@ SOURCE=.\my_fopen.c
 # Begin Source File
 
 SOURCE=.\my_fstream.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\my_gethostbyname.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\my_getopt.c
 # End Source File
 # Begin Source File
 
@@ -438,6 +437,10 @@ SOURCE=.\my_wincond.c
 # End Source File
 # Begin Source File
 
+SOURCE=.\my_winsem.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\my_winthread.c
 # End Source File
 # Begin Source File
@@ -462,7 +465,15 @@ SOURCE=.\raid.cpp
 # End Source File
 # Begin Source File
 
+SOURCE=.\rijndael.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\safemalloc.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\sha1.c
 # End Source File
 # Begin Source File
 

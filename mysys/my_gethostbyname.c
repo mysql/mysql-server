@@ -56,7 +56,6 @@ struct hostent *my_gethostbyname_r(const char *name,
 				   struct hostent *result, char *buffer,
 				   int buflen, int *h_errnop)
 {
-  DBUG_ASSERT(buflen >= sizeof(struct hostent_data));
   if (gethostbyname_r(name,result,(struct hostent_data *) buffer) == -1)
   {
     *h_errnop= errno;

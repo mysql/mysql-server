@@ -92,10 +92,6 @@ SOURCE=.\mrg_create.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\mrg_def.h
-# End Source File
-# Begin Source File
-
 SOURCE=.\mrg_delete.c
 # End Source File
 # Begin Source File
@@ -133,10 +129,6 @@ SOURCE=.\mrg_static.c
 # Begin Source File
 
 SOURCE=.\mrg_update.c
-# End Source File
-# Begin Source File
-
-SOURCE=.\mrgdef.h
 # End Source File
 # End Target
 # End Project

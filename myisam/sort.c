@@ -277,8 +277,9 @@ static ha_rows NEAR_F find_all_keys(MI_SORT_PARAM *info, uint keys,
 
 /* Search after all keys and place them in a temp. file */
 
-void *_thr_find_all_keys(MI_SORT_PARAM *info)
+pthread_handler_decl(thr_find_all_keys,arg)
 {
+  MI_SORT_PARAM *info= (MI_SORT_PARAM*) arg;
   int error;
   uint memavl,old_memavl,keys,sort_length;
   uint idx, maxbuffer;
@@ -401,10 +402,10 @@ ok:
   pthread_cond_signal(&info->sort_info->cond);
   pthread_mutex_unlock(&info->sort_info->mutex);
   return NULL;
-} /* _thr_find_all_keys */
+}
 
 
-int _thr_write_keys(MI_SORT_PARAM *sort_param)
+int thr_write_keys(MI_SORT_PARAM *sort_param)
 {
   SORT_INFO *sort_info=sort_param->sort_info;
   MI_CHECK *param=sort_info->param;
