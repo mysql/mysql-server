@@ -15,6 +15,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include <ndb_global.h>
+#include <my_pthread.h>
 
 #include <ndb_version.h>
 #include "Configuration.hpp"
@@ -26,6 +27,7 @@
 #include <NdbOut.hpp>
 #include <NdbMain.h>
 #include <NdbDaemon.h>
+#include <NdbSleep.h>
 #include <NdbConfig.h>
 #include <WatchDog.hpp>
 
@@ -39,6 +41,7 @@
 #endif
 
 extern EventLogger g_eventLogger;
+extern NdbMutex * theShutdownMutex;
 
 void catchsigs(bool ignore); // for process signal handling
 
@@ -328,16 +331,18 @@ handler_shutdown(int signum){
 extern "C"
 void 
 handler_error(int signum){
+  // only let one thread run shutdown
+  static long thread_id= 0;
+
+  if (thread_id != 0 && thread_id == my_thread_id())
+    ; // Shutdown thread received signal
+  if(theShutdownMutex && NdbMutex_Trylock(theShutdownMutex) != 0)
+    while(true)
+      NdbSleep_MilliSleep(10);
+  thread_id= my_thread_id();
   g_eventLogger.info("Received signal %d. Running error handler.", signum);
   // restart the system
   char errorData[40];
   snprintf(errorData, 40, "Signal %d received", signum);
   ERROR_SET(fatal, 0, errorData, __FILE__);
 }
-
-
-
-
-
-
-
