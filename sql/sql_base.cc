@@ -1976,6 +1976,7 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
       Item_cond_and *cond_and=new Item_cond_and();
       if (!cond_and)				// If not out of memory
 	DBUG_RETURN(1);
+      cond_and->top_level_item();
 
       uint i,j;
       for (i=0 ; i < t1->fields ; i++)

@@ -85,6 +85,7 @@ public:
   virtual bool get_time(TIME *ltime);
   virtual bool is_null() { return 0; }
   virtual unsigned int size_of()= 0;
+  virtual void top_level_item() {}
 };
 
 

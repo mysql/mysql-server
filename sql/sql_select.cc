@@ -360,6 +360,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
     {
       conds->fix_fields(thd,tables);
       conds->change_ref_to_fields(thd,tables);
+      conds->top_level_item();
       having=0;
     }
   }
@@ -869,6 +870,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
 						      sort_table_cond)))
 	    goto err;
 	table->select_cond=table->select->cond;
+	table->select_cond->top_level_item();
 	DBUG_EXECUTE("where",print_where(table->select->cond,
 					 "select and having"););
 	having=make_cond_for_table(having,~ (table_map) 0,~used_tables);
@@ -5490,6 +5492,7 @@ make_cond_for_table(COND *cond,table_map tables,table_map used_table)
   {
     if (((Item_cond*) cond)->functype() == Item_func::COND_AND_FUNC)
     {
+      /* Create new top level AND item */
       Item_cond_and *new_cond=new Item_cond_and;
       if (!new_cond)
 	DBUG_RETURN((COND*) 0);			// OOM /* purecov: inspected */
@@ -5527,6 +5530,7 @@ make_cond_for_table(COND *cond,table_map tables,table_map used_table)
 	new_cond->argument_list()->push_back(fix);
       }
       new_cond->used_tables_cache=((Item_cond_or*) cond)->used_tables_cache;
+      new_cond->top_level_item();
       DBUG_RETURN(new_cond);
     }
   }
@@ -5886,6 +5890,7 @@ static bool fix_having(JOIN *join, Item **having)
 						  sort_table_cond)))
 	DBUG_RETURN(1);
     table->select_cond=table->select->cond;
+    table->select_cond->top_level_item();
     DBUG_EXECUTE("where",print_where(table->select_cond,
 				     "select and having"););
     *having=make_cond_for_table(*having,~ (table_map) 0,~used_tables);
