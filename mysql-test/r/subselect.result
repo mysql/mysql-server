@@ -1625,3 +1625,11 @@ PIPPO
 1
 NULL
 DROP TABLE t1, t2;
+create table t1 (a int);
+insert into t1 values (1);
+explain select benchmark(1000, (select a from t1 where a=sha(rand())));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	UNCACHEABLE SUBQUERY	t1	system	NULL	NULL	NULL	NULL	1	
+drop table t1;
+

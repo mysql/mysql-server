@@ -1075,3 +1075,11 @@ s.id_cns = cns.id ORDER BY s.anno_dep DESC LIMIT 1) AS PIPPO FROM
 t2 AS cns;
 
 DROP TABLE t1, t2;
+
+#
+# Static tables & rund() in subqueries
+#
+create table t1 (a int);
+insert into t1 values (1);
+explain select benchmark(1000, (select a from t1 where a=sha(rand())));
+drop table t1;

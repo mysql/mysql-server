@@ -586,7 +586,9 @@ JOIN::optimize()
     DBUG_RETURN(1);				// error == -1
   }
   if (const_table_map != found_const_table_map &&
-      !(select_options & SELECT_DESCRIBE))
+      !(select_options & SELECT_DESCRIBE) &&
+      !((conds->used_tables() & RAND_TABLE_BIT) &&
+	select_lex->master_unit() != &thd->lex->unit))// not upper level SELECT
   {
     zero_result_cause= "no matching row in const table";
     DBUG_PRINT("error",("Error: %s", zero_result_cause));
@@ -3387,7 +3389,9 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
     table_map used_tables;
     if (join->tables > 1)
       cond->update_used_tables();		// Tablenr may have changed
-    if (join->const_tables == join->tables)
+    if (join->const_tables == join->tables &&
+	join->thd->lex->current_select->master_unit() ==
+	&join->thd->lex->unit)		// not upper level SELECT
       join->const_table_map|=RAND_TABLE_BIT;
     {						// Check const tables
       COND *const_cond=
