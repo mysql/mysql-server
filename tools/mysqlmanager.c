@@ -355,7 +355,7 @@ LOG_MSG_FUNC(log_info,LOG_INFO)
 #ifndef DBUG_OFF
 LOG_MSG_FUNC(log_debug,LOG_DEBUG)
 #else
-void log_debug(const char* __attribute__((unused)) fmt,...) {}
+void log_debug(const char* fmt __attribute__((unused)),...) {}
 #endif
 
 static void handle_sigterm(int sig __attribute__((unused)))

@@ -532,6 +532,7 @@ end:
 #else
 #define UNLOCK_MUTEX
 #define LOCK_MUTEX
+#define max_allowed_packet (*mysql_get_parameters()->p_max_allowed_packet)
 #endif
 
 // allocates memory - the caller is responsible for clean-up

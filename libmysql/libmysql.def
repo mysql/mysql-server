@@ -59,7 +59,6 @@ EXPORTS
 	is_prefix
 	list_add
 	list_delete
-	max_allowed_packet
 	my_casecmp
 	my_init
 	my_end
@@ -70,7 +69,6 @@ EXPORTS
 	my_realloc
 	mysql_thread_end
 	mysql_thread_init
-	net_buffer_length
 	set_dynamic
 	strcend
 	strdup_root
@@ -111,19 +109,4 @@ EXPORTS
 	load_defaults
 	free_defaults
 	my_path
-
-
-	
-	
-	
-	
-	
-	
-
-	
-
-
-
-
-
-
+	mysql_get_parameters

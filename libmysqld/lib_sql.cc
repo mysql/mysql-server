@@ -23,6 +23,11 @@
 #define mysql_unix_port mysql_inix_port1
 #define mysql_port mysql_port1
 
+extern "C"
+{
+  unsigned long max_allowed_packet, net_buffer_length;
+}
+
 #if defined (__WIN__)
 #include "../sql/mysqld.cpp"
 #else
@@ -315,7 +320,6 @@ extern "C"
 
 static my_bool  org_my_init_done;
 my_bool         server_inited;
-ulong		max_allowed_packet, net_buffer_length;
 char **		copy_arguments_ptr= 0; 
 
 int STDCALL mysql_server_init(int argc, char **argv, char **groups)
