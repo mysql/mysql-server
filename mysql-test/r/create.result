@@ -161,3 +161,63 @@ drop table if exists t1;
 create table t1 (a int, key(a));
 create table t2 (b int, foreign key(b) references t1(a), key(b));
 drop table if exists t1,t2;
+drop table if exists t1, t2, t3;
+create table t1(id int not null, name char(20));
+insert into t1 values(10,'mysql'),(20,'monty- the creator');
+create table t2(id int not null);
+insert into t2 values(10),(20);
+create table t3 like t1;
+show create table t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `id` int(11) NOT NULL default '0',
+  `name` char(20) character set latin1 default NULL
+) TYPE=MyISAM CHARSET=latin1
+select * from t3;
+id	name
+create table if not exists t3 like t1;
+Warnings:
+Warning	1050	Table 't3' already exists
+select @@warning_count;
+@@warning_count
+1
+create temporary table t3 like t2;
+show create table t3;
+Table	Create Table
+t3	CREATE TEMPORARY TABLE `t3` (
+  `id` int(11) NOT NULL default '0'
+) TYPE=MyISAM CHARSET=latin1
+select * from t3;
+id
+drop table t3;
+show create table t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `id` int(11) NOT NULL default '0',
+  `name` char(20) character set latin1 default NULL
+) TYPE=MyISAM CHARSET=latin1
+select * from t3;
+id	name
+drop table t3;
+create database test_$1;
+drop table if exists test_$1.t3;
+create table test_$1.t3 like t1;
+create temporary table t3 like test_$1.t3;
+show create table t3;
+Table	Create Table
+t3	CREATE TEMPORARY TABLE `t3` (
+  `id` int(11) NOT NULL default '0',
+  `name` char(20) character set latin1 default NULL
+) TYPE=MyISAM CHARSET=latin1
+create table t3 like t1;
+create table t3 like test_$1.t3;
+Table 't3' already exists
+create table non_existing_database.t1 like t1;
+Got one of the listed errors
+create table t3 like non_existing_table;
+Unknown table 'non_existing_table'
+create temporary table t3 like t1;
+Table 't3' already exists
+drop table t1, t2, t3;
+drop table t3;
+drop database test_$1;
