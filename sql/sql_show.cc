@@ -124,12 +124,14 @@ int mysqld_show_open_tables(THD *thd,const char *wild)
     net_store_data(&thd->packet,open_list->in_use);
     net_store_data(&thd->packet,open_list->locked);
     if (my_net_write(&thd->net,(char*) thd->packet.ptr(),thd->packet.length()))
+    {
       DBUG_RETURN(-1);
+    }
   }
-
   send_eof(&thd->net);
   DBUG_RETURN(0);
 }
+
 
 /***************************************************************************
 ** List all tables in a database (fast version)

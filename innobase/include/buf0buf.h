@@ -463,6 +463,12 @@ buf_print_io(
 /*=========*/
 	char*	buf,	/* in/out: buffer where to print */
 	char*	buf_end);/* in: buffer end */
+/**************************************************************************
+Refreshes the statistics used to print per-second averages. */
+
+void
+buf_refresh_io_stats(void);
+/*======================*/
 /*************************************************************************
 Checks that all file pages in the buffer are in a replaceable state. */
 
