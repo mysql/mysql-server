@@ -56,13 +56,10 @@ sp_pcontext::find_pvar(LEX_STRING *name)
   while (i-- > 0)
   {
     sp_pvar_t *p= find_pvar(i);
-    uint len= (p->name.length > name->length ?
-	       p->name.length : name->length);
 
-    if (my_strncasecmp(system_charset_info,
-		       name->str,
-		       p->name.str,
-		       len) == 0)
+    if (my_strnncoll(system_charset_info,
+		     (const uchar *)name->str, name->length,
+		     (const uchar *)p->name.str, p->name.length) == 0)
     {
       return p;
     }

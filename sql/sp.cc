@@ -306,7 +306,11 @@ sp_add_fun_to_lex(LEX *lex, LEX_STRING fun)
 
   while ((fn= li++))
   {
-    if (my_strncasecmp(system_charset_info, fn, fun.str, fun.length) == 0)
+    uint len= strlen(fn);
+
+    if (my_strnncoll(system_charset_info,
+		     (const uchar *)fn, len,
+		     (const uchar *)fun.str, fun.length) == 0)
       break;
   }
   if (! fn)
@@ -389,7 +393,12 @@ sp_find_cached_function(THD *thd, char *name, uint namelen)
 
   while ((sp= li++))
   {
-    if (my_strncasecmp(system_charset_info, name, sp->name(), namelen) == 0)
+    uint len;
+    const uchar *n= (const uchar *)sp->name(&len);
+
+    if (my_strnncoll(system_charset_info,
+		     (const uchar *)name, namelen,
+		     n, len) == 0)
       break;
   }
   return sp;

@@ -390,17 +390,21 @@ drop procedure into_dumpfile|
 create procedure create_select(x char(16), y int)
 begin
   insert into test.t1 values (x, y);
-  create table test.t2 select * from test.t1;
-  insert into test.t2 values (concat(x, "2"), y+2);
+  create table test.t3 select * from test.t1;
+  insert into test.t3 values (concat(x, "2"), y+2);
 end|
 
-# This doesn't work right now. It suffers from the same problem as the ones
-# above, but the fix caused create.test to hang. :-(
-#call create_select("cs", 90)|
-#select * from t1, t2|
-#delete from t1|
-#drop table t2|
+--disable_warnings
+drop table if exists t3|
+--enable_warnings
+call create_select("cs", 90)|
+select * from t1, t3|
+--disable_warnings
+drop table if exists t3|
+--enable_warnings
+delete from t1|
 drop procedure create_select|
+
 
 # A minimal, constant FUNCTION.
 create function e() returns double
@@ -574,7 +578,7 @@ begin
 end|
 
 # This isn't the fastest way in the world to compute prime numbers, so
-# don't be too ambition. ;-)
+# don't be too ambitious. ;-)
 call ip(200)|
 # We don't want to select the entire table here, just pick a few
 # examples.
