@@ -148,7 +148,7 @@ Summary(pt_BR): MySQL - Medições de desempenho
 Group(pt_BR): Aplicações/Banco_de_Dados
 Obsoletes: embedded
 
-%description devel
+%description embedded
 This package contains the MySQL server as library.
 
 %{see_base}
