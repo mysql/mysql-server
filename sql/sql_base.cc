@@ -149,7 +149,7 @@ OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *wild)
     if (wild)
     {
       strxmov(name,entry->table_cache_key,".",entry->real_name,NullS);
-      if (wild_compare(name,wild))
+      if (wild_compare(name,wild,0))
 	continue;
     }
 

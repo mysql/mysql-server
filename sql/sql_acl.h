@@ -85,7 +85,7 @@ my_bool  acl_init(THD *thd, bool dont_read_acl_tables);
 void acl_reload(THD *thd);
 void acl_free(bool end=0);
 ulong acl_get(const char *host, const char *ip, const char *bin_ip,
-	      const char *user, const char *db);
+	      const char *user, const char *db, my_bool db_is_pattern);
 ulong acl_getroot(THD *thd, const char *host, const char *ip, const char *user,
 		  const char *password,const char *scramble,
                   char **priv_user, char *priv_host,
