@@ -176,9 +176,7 @@ static void STDCALL emb_fetch_lengths(ulong *to, MYSQL_ROW column, uint field_co
   MYSQL_ROW end;
 
   for (end=column + field_count; column != end ; column++,to++)
-  {
-    *to= *column ? strlen(*column) : 0;
-  }
+    *to= *column ? *(uint *)((*column) - sizeof(uint)) : 0;
 }
 
 
