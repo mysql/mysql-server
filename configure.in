@@ -1814,23 +1814,23 @@ fi
 AC_SUBST(readline_dir)
 AC_SUBST(readline_link)
 
-# Choose a character set
-dnl in order to add new charset, you must add charset name to
-dnl CHARSETS_AVAILABLE list and add the charset name to
-dnl sql/share/charsets/Index.  If the character set uses strcoll
-dnl or other special handling, you must also create
-dnl strings/ctype-$charset_name.c
+dnl In order to add new charset, you must add charset name to
+dnl this CHARSETS_AVAILABLE list and sql/share/charsets/Index.
+dnl If the character set uses strcoll or other special handling,
+dnl you must also create strings/ctype-$charset_name.c
 
-CHARSETS_AVAILABLE="big5 cp1251 cp1257 croat czech danish dec8 dos estonia euc_kr gb2312 gbk german1 greek hebrew hp8 hungarian koi8_ru koi8_ukr latin1 latin2 latin5 swe7 usa7 win1250 win1251 win1251ukr ujis sjis tis620"
-DEFAULT_CHARSET=latin1
-
-dnl win1251 is deprecated - it's available, but not listed here in the help
-AC_ARG_WITH(charset,
-  [  --with-charset=CHARSET  Use CHARSET by default (one of: big5 cp1251 cp1257
+AC_DIVERT_PUSH(0)
+CHARSETS_AVAILABLE="big5 cp1251 cp1257
                           croat czech danish dec8 dos estonia euc_kr gb2312 gbk
                           german1 greek hebrew hp8 hungarian koi8_ru koi8_ukr
-                          latin1 latin2 latin5 swe7 usa7 win1250 win1251ukr
-                          ujis sjis tis620; Default is latin1)],
+                          latin1 latin1_de latin2 latin5 sjis swe7 tis620 ujis
+                          usa7 win1250 win1251ukr"
+CHARSETS_DEPRECATED="win1251"
+DEFAULT_CHARSET=latin1_de
+AC_DIVERT_POP
+
+AC_ARG_WITH(charset,
+  [  --with-charset=CHARSET  Use CHARSET by default (one of: $CHARSETS_AVAILABLE; Default is $DEFAULT_CHARSET)],
   [default_charset="$withval"],
   [default_charset="$DEFAULT_CHARSET"])
 
@@ -1851,7 +1851,7 @@ elif test "$extra_charsets" = complex; then
   CHARSETS=`echo $CHARSETS`     # get rid of line breaks
 else
   if test "$extra_charsets" = all; then
-    CHARSETS="$CHARSETS_AVAILABLE"
+    CHARSETS="$CHARSETS_AVAILABLE $CHARSETS_DEPRECATED"
   else
     CHARSETS=`echo $extra_charsets | sed -e 's/,/ /g'`
   fi
@@ -1872,7 +1872,7 @@ CHARSETS=$TMP_CHARSETS
 for cs in $CHARSETS
 do
   charset_okay=0
-  for charset in $CHARSETS_AVAILABLE
+  for charset in $CHARSETS_AVAILABLE $CHARSETS_DEPRECATED
   do
     if test $cs = $charset; then charset_okay=1; fi
   done
