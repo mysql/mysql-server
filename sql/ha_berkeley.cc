@@ -1502,7 +1502,7 @@ int ha_berkeley::index_first(byte * buf)
   statistic_increment(ha_read_first_count,&LOCK_status);
   bzero((char*) &row,sizeof(row));
   DBUG_RETURN(read_row(cursor->c_get(cursor, &last_key, &row, DB_FIRST),
-		       (char*) buf, active_index, &row, &last_key, 0));
+		       (char*) buf, active_index, &row, &last_key, 1));
 }
 
 int ha_berkeley::index_last(byte * buf)
