@@ -30,9 +30,10 @@ extern "C" int add_history(const char *command); /* From readline directory */
 
 #include <NdbMain.h>
 #include <NdbHost.h>
+#include <BaseString.hpp>
+#include <NdbOut.hpp>
 #include <mgmapi.h>
 #include <ndb_version.h>
-#include <LocalConfig.hpp>
 
 #include "ndb_mgmclient.hpp"
 
