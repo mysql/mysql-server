@@ -274,4 +274,5 @@ select @@session.key_buffer_size;
 # expected: check that there is no overflow when 64-bit unsigned
 # variables are set
 set global myisam_max_sort_file_size=4294967296;
+--replace_result 4294967296 MAX_FILE_SIZE 2146435072 MAX_FILE_SIZE
 show global variables like 'myisam_max_sort_file_size';
