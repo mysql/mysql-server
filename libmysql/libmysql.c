@@ -460,19 +460,17 @@ simple_command(MYSQL *mysql,enum enum_server_command command, const char *arg,
     {
       net->last_errno=CR_NET_PACKET_TOO_LARGE;
       strmov(net->last_error,ER(net->last_errno));
-      return(packet_error);
+      goto end;
     }
-    else
+    end_server(mysql);
+    if (mysql_reconnect(mysql))
+      goto end;
+    if (net_write_command(net,(uchar) command,arg,
+			  length ? length : (ulong) strlen(arg)))
     {
-      end_server(mysql);
-      if (mysql_reconnect(mysql) ||
-	  net_write_command(net,(uchar) command,arg,
-			    length ? length : (ulong) strlen(arg)))
-      {
-	net->last_errno=CR_SERVER_GONE_ERROR;
-	strmov(net->last_error,ER(net->last_errno));
-	goto end;
-      }
+      net->last_errno= CR_SERVER_GONE_ERROR;
+      strmov(net->last_error,ER(net->last_errno));
+      goto end;
     }
   }
   result=0;
