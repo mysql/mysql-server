@@ -3173,7 +3173,8 @@ void my_net_local_init(NET *net)
   trailing '. The caller must supply whichever of those is desired.
 */
 
-ulong mysql_hex_string(char *to, const char *from, ulong length)
+ulong STDCALL
+mysql_hex_string(char *to, const char *from, ulong length)
 {
   char *to0= to;
   const char *end;
