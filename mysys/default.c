@@ -60,7 +60,11 @@ DATADIR,
 NullS,
 };
 
+#ifdef __WIN__
 static const char *f_extensions[]= { ".ini", ".cnf", 0 };
+#else
+static const char *f_extensions[]= { ".cnf", 0 };
+#endif
 
 static int search_default_file(DYNAMIC_ARRAY *args,MEM_ROOT *alloc,
 			       const char *dir, const char *config_file,
