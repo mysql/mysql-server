@@ -29,7 +29,7 @@ drop table t1,t2,t3
 CREATE TABLE t1 (a char(257) default "hello");
 ERROR 42000: Too big column length for column 'a' (max = 255). Use BLOB instead
 CREATE TABLE t2 (a blob default "hello");
-ERROR 42000: BLOB column 'a' can't have a default value
+ERROR 42000: BLOB/TEXT column 'a' can't have a default value
 drop table if exists t1,t2;
 create table t1 (nr int(5) not null auto_increment,b blob,str char(10), primary key (nr));
 insert into t1 values (null,"a","A");
@@ -486,8 +486,19 @@ fish	10
 drop table t1;
 create table t1 (id integer auto_increment unique,imagem LONGBLOB not null);
 insert into t1 (id) values (1);
+select 
+charset(load_file('../../std_data/words.dat')),
+collation(load_file('../../std_data/words.dat')),
+coercibility(load_file('../../std_data/words.dat'));
+charset(load_file('../../std_data/words.dat'))	collation(load_file('../../std_data/words.dat'))	coercibility(load_file('../../std_data/words.dat'))
+binary	binary	3
 update t1 set imagem=load_file('../../std_data/words.dat') where id=1;
 select if(imagem is null, "ERROR", "OK"),length(imagem) from t1 where id = 1;
 if(imagem is null, "ERROR", "OK")	length(imagem)
 OK	581
+drop table t1;
+create table t1 select load_file('../../std_data/words.dat');
+show full fields from t1;
+Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
+load_file('../../std_data/words.dat')	mediumblob	NULL	YES		NULL		select,insert,update,references	
 drop table t1;

@@ -38,7 +38,7 @@ int heap_rkey(HP_INFO *info, byte *record, int inx, const byte *key,
 
     custom_arg.keyseg= info->s->keydef[inx].seg;
     custom_arg.key_length= info->lastkey_len= 
-      hp_rb_pack_key(keyinfo, (uchar*) info->recbuf,
+      hp_rb_pack_key(keyinfo, (uchar*) info->lastkey,
 		     (uchar*) key, key_len);
     custom_arg.search_flag= SEARCH_FIND | SEARCH_SAME;
     /* for next rkey() after deletion */
@@ -48,7 +48,7 @@ int heap_rkey(HP_INFO *info, byte *record, int inx, const byte *key,
       info->last_find_flag= HA_READ_KEY_OR_PREV;
     else
       info->last_find_flag= find_flag;
-    if (!(pos= tree_search_key(&keyinfo->rb_tree, info->recbuf, info->parents,
+    if (!(pos= tree_search_key(&keyinfo->rb_tree, info->lastkey, info->parents,
 			       &info->last_pos, find_flag, &custom_arg)))
     {
       info->update= 0;

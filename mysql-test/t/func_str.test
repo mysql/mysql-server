@@ -149,6 +149,13 @@ select collation(rtrim(_latin2' a ')), coercibility(rtrim(_latin2' a '));
 select collation(trim(LEADING _latin2' ' FROM _latin2'a')), coercibility(trim(LEADING _latin2'a' FROM _latin2'a'));
 select collation(trim(TRAILING _latin2' ' FROM _latin2'a')), coercibility(trim(TRAILING _latin2'a' FROM _latin2'a'));
 select collation(trim(BOTH _latin2' ' FROM _latin2'a')), coercibility(trim(BOTH _latin2'a' FROM _latin2'a'));
+select collation(repeat(_latin2'a',10)), coercibility(repeat(_latin2'a',10));
+select collation(reverse(_latin2'ab')), coercibility(reverse(_latin2'ab'));
+select collation(quote(_latin2'ab')), coercibility(quote(_latin2'ab'));
+select collation(soundex(_latin2'ab')), coercibility(soundex(_latin2'ab'));
+select collation(substring(_latin2'ab',1)), coercibility(substring(_latin2'ab',1));
+select collation(insert(_latin2'abcd',2,3,_latin2'ef')), coercibility(insert(_latin2'abcd',2,3,_latin2'ef'));
+
 create table t1 
 select
   left(_latin2'a',1),
@@ -163,7 +170,13 @@ select
   rtrim(_latin2' a '),
   trim(LEADING _latin2' ' FROM _latin2' a '),
   trim(TRAILING _latin2' ' FROM _latin2' a '),
-  trim(BOTH _latin2' ' FROM _latin2' a ')
+  trim(BOTH _latin2' ' FROM _latin2' a '),
+  repeat(_latin2'a',10),
+  reverse(_latin2'ab'),
+  quote(_latin2'ab'),
+  soundex(_latin2'ab'),
+  substring(_latin2'ab',1),
+  insert(_latin2'abcd',2,3,_latin2'ef')
 ;
 
 show create table t1;

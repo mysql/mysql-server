@@ -368,6 +368,7 @@ static my_bool my_read_charset_file(const char *filename, myf myflags)
 char *get_charsets_dir(char *buf)
 {
   const char *sharedir= SHAREDIR;
+  char *res;
   DBUG_ENTER("get_charsets_dir");
 
   if (charsets_dir != NULL)
@@ -381,9 +382,9 @@ char *get_charsets_dir(char *buf)
       strxmov(buf, DEFAULT_CHARSET_HOME, "/", sharedir, "/", CHARSET_DIR,
 	      NullS);
   }
-  convert_dirname(buf,buf,NullS);
+  res= convert_dirname(buf,buf,NullS);
   DBUG_PRINT("info",("charsets dir: '%s'", buf));
-  DBUG_RETURN(strend(buf));
+  DBUG_RETURN(res);
 }
 
 CHARSET_INFO *all_charsets[256];
@@ -613,6 +614,9 @@ CHARSET_INFO *get_charset_by_csname(const char *cs_name,
 {
   CHARSET_INFO *cs=NULL;
   CHARSET_INFO **css;
+  DBUG_ENTER("get_charset_by_csname");
+  DBUG_PRINT("enter",("name: '%s'", cs_name));
+
   (void) init_available_charsets(MYF(0));	/* If it isn't initialized */
   
   for (css= all_charsets; css < all_charsets+255; ++css)
@@ -624,7 +628,7 @@ CHARSET_INFO *get_charset_by_csname(const char *cs_name,
       cs= css[0]->number ? get_internal_charset(css[0]->number,flags) : NULL;
       break;
     }
-  }  
+  }
   
   if (!cs && (flags & MY_WME))
   {
@@ -633,5 +637,5 @@ CHARSET_INFO *get_charset_by_csname(const char *cs_name,
     my_error(EE_UNKNOWN_CHARSET, MYF(ME_BELL), cs_name, index_file);
   }
 
-  return cs;
+  DBUG_RETURN(cs);
 }

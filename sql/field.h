@@ -37,7 +37,11 @@ class Field
   void operator=(Field &);
 public:
   static void *operator new(size_t size) {return (void*) sql_alloc((uint) size); }
-  static void operator delete(void *ptr_arg, size_t size) {} /*lint -e715 */
+  static void operator delete(void *ptr_arg, size_t size) {
+#ifdef PEDANTIC_SAFEMALLOC
+    bfill(ptr_arg, size, 0x8F);
+#endif
+  }
 
   char		*ptr;			// Position to field in record
   uchar		*null_ptr;		// Byte where null_bit is
@@ -46,7 +50,7 @@ public:
   LEX_STRING	comment;
   ulong		query_id;		// For quick test of used fields
   /* Field is part of the following keys */
-  key_map 	key_start,part_of_key,part_of_sortkey;
+  key_map	key_start,part_of_key,part_of_sortkey;
   enum utype  { NONE,DATE,SHIELD,NOEMPTY,CASEUP,PNR,BGNR,PGNR,YES,NO,REL,
 		CHECK,EMPTY,UNKNOWN_FIELD,CASEDN,NEXT_NUMBER,INTERVAL_FIELD,
 		BIT_FIELD, TIMESTAMP_FIELD,CAPITALIZE,BLOB_FIELD};
@@ -130,6 +134,7 @@ public:
   virtual void sort_string(char *buff,uint length)=0;
   virtual bool optimize_range(uint idx);
   virtual bool store_for_compare() { return 0; }
+  virtual void free() {}
   Field *new_field(MEM_ROOT *root, struct st_table *new_table)
   {
     Field *tmp= (Field*) memdup_root(root,(char*) this,size_of());
@@ -933,11 +938,11 @@ public:
   int pack_cmp(const char *b, uint key_length);
   uint packed_col_length(const char *col_ptr, uint length);
   uint max_packed_col_length(uint max_length);
-  inline void free() { value.free(); }
+  void free() { value.free(); }
   inline void clear_temporary() { bzero((char*) &value,sizeof(value)); }
   friend void field_conv(Field *to,Field *from);
   uint size_of() const { return sizeof(*this); }
-  bool has_charset(void) const 
+  bool has_charset(void) const
   { return charset() == &my_charset_bin ? FALSE : TRUE; }
 };
 
@@ -945,7 +950,7 @@ public:
 class Field_geom :public Field_blob {
 public:
   enum geometry_type geom_type;
-  
+
   Field_geom(char *ptr_arg, uchar *null_ptr_arg, uint null_bit_arg,
 	     enum utype unireg_check_arg, const char *field_name_arg,
 	     struct st_table *table_arg,uint blob_pack_length,

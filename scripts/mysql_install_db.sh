@@ -8,18 +8,8 @@
 # All unrecognized arguments to this script are passed to mysqld.
 
 in_rpm=0
-case "$1" in
-    --rpm)
-      in_rpm="1"; shift
-      ;;
-esac
 windows=0
-case "$1" in
-    --windows)
-      windows="1"; shift
-      ;;
-esac
-defaults=
+defaults=""
 case "$1" in
     --no-defaults|--defaults-file=*|--defaults-extra-file=*)
       defaults="$1"; shift
@@ -44,6 +34,8 @@ parse_arguments() {
       --ldata=*|--datadir=*) ldata=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
       --user=*) user=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
       --verbose) verbose=1 ;;
+      --rpm) in_rpm=1 ;;
+      --windows) windows=1 ;;
       *)
         if test -n "$pick_args"
         then
@@ -61,6 +53,9 @@ parse_arguments() {
 if test -x ./bin/my_print_defaults
 then
   print_defaults="./bin/my_print_defaults"
+elif test -x ./extra/my_print_defaults
+then
+  print_defaults="./extra/my_print_defaults"
 elif test -x @bindir@/my_print_defaults
 then
   print_defaults="@bindir@/my_print_defaults"
@@ -79,6 +74,7 @@ basedir=
 force=0
 verbose=0
 fill_help_tables=""
+
 parse_arguments `$print_defaults $defaults mysqld mysql_install_db`
 parse_arguments PICK-ARGS-FROM-ARGV "$@"
 
@@ -103,7 +99,7 @@ else
 fi
 
 # find fill_help_tables.sh
-for i in $basedir/support-files $basedir/share $basedir/share/mysql $basedir/scripts `pwd` @pkgdatadir@
+for i in $basedir/support-files $basedir/share $basedir/share/mysql $basedir/scripts `pwd` `pwd`/scripts @pkgdatadir@
 do
   if test -f $i/fill_help_tables.sql
   then
@@ -115,22 +111,28 @@ if test -f $pkgdatadir/fill_help_tables.sql
 then
   fill_help_tables=$pkgdatadir/fill_help_tables.sql
 else
-  if test $verbose -eq 1
-  then
-    echo "Could not find help file 'fill_help_tables.sql' ;$pkgdatadir; ;$basedir;".
-  fi
+  echo "Could not find help file 'fill_help_tables.sql' in @pkgdatadir@ or inside $basedir".
+  exit 1;
 fi
 
 mdata=$ldata/mysql
+mysqld=$execdir/mysqld
+mysqld_opt=""
 
-if test "$windows" -eq 0 -a ! -x $execdir/mysqld
+if test "$windows" = 1
+then
+  mysqld="./sql/mysqld"
+  mysqld_opt="--language=./sql/share/english"
+fi
+
+if test ! -x $mysqld
 then
   if test "$in_rpm" -eq 1
   then
-    echo "FATAL ERROR $execdir/mysqld not found!"
+    echo "FATAL ERROR $mysqld not found!"
     exit 1
   else
-    echo "Didn't find $execdir/mysqld"
+    echo "Didn't find $mysqld"
     echo "You should do a 'make install' before executing this script"
     exit 1
   fi
@@ -184,23 +186,28 @@ else
   create_option="real"
 fi
 
-echo "Installing all prepared tables"
+if test "$in_rpm" -eq 0 -a "$windows" -eq 0
+then
+  echo "Installing all prepared tables"
+fi
 if (
-   mysql_create_system_tables $create_option $mdata $hostname $windows 
+   $pkgdatadir/mysql_create_system_tables $create_option $mdata $hostname $windows 
    if test -n "$fill_help_tables"
    then
      cat $fill_help_tables
    fi
-) | eval "$execdir/mysqld $defaults --bootstrap --skip-grant-tables \
+) | eval "$mysqld $defaults $mysqld_opt --bootstrap --skip-grant-tables \
          --basedir=$basedir --datadir=$ldata --skip-innodb --skip-bdb $args" 
 then
-  echo ""
-  if test "$in_rpm" -eq 0 || "$windows" -eq 0
+  if test "$in_rpm" -eq 0 -a "$windows" -eq 0
   then
+    echo ""
     echo "To start mysqld at boot time you have to copy support-files/mysql.server"
     echo "to the right place for your system"
     echo
   fi
+  if test "$windows" -eq 0
+  then
   echo "PLEASE REMEMBER TO SET A PASSWORD FOR THE MySQL root USER !"
   echo "This is done with:"
   echo "$bindir/mysqladmin -u root password 'new-password'"
@@ -216,7 +223,7 @@ then
     echo "able to use the new GRANT command!"
   fi
   echo
-  if test "$in_rpm" -eq 0 -a "$windows" -eq 0
+  if test "$in_rpm" -eq 0
   then
     echo "You can start the MySQL daemon with:"
     echo "cd @prefix@ ; $bindir/mysqld_safe &"
@@ -230,13 +237,14 @@ then
   echo "The latest information about MySQL is available on the web at"
   echo "http://www.mysql.com"
   echo "Support MySQL by buying support/licenses at https://order.mysql.com"
+  fi
   exit 0
 else
   echo "Installation of grant tables failed!"
   echo
   echo "Examine the logs in $ldata for more information."
   echo "You can also try to start the mysqld daemon with:"
-  echo "$execdir/mysqld --skip-grant &"
+  echo "$mysqld --skip-grant &"
   echo "You can use the command line tool"
   echo "$bindir/mysql to connect to the mysql"
   echo "database and look at the grant tables:"

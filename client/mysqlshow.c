@@ -155,16 +155,16 @@ int main(int argc, char **argv)
 
 static struct my_option my_long_options[] =
 {
-  {"character-sets-dir", 'c', "Directory where character sets are",
+  {"character-sets-dir", 'c', "Directory where character sets are.",
    (gptr*) &charsets_dir, (gptr*) &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0,
    0, 0, 0, 0, 0},
   {"default-character-set", OPT_DEFAULT_CHARSET,
    "Set the default character set.", (gptr*) &default_charset,
    (gptr*) &default_charset, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"compress", 'C', "Use compression in server/client protocol",
+  {"compress", 'C', "Use compression in server/client protocol.",
    (gptr*) &opt_compress, (gptr*) &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
-  {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'",
+  {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"help", '?', "Display this help and exit.", 0, 0, 0, GET_NO_ARG, NO_ARG,
    0, 0, 0, 0, 0, 0},
@@ -173,10 +173,10 @@ static struct my_option my_long_options[] =
   {"status", 'i', "Shows a lot of extra information about each table.",
    (gptr*) &opt_status, (gptr*) &opt_status, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
-  {"keys", 'k', "Show keys for table", (gptr*) &opt_show_keys,
+  {"keys", 'k', "Show keys for table.", (gptr*) &opt_show_keys,
    (gptr*) &opt_show_keys, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"password", 'p',
-   "Password to use when connecting to server. If password is not given it's asked from the tty.", 
+   "Password to use when connecting to server. If password is not given it's asked from the tty.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"port", 'P', "Port number to use for connection.", (gptr*) &opt_mysql_port,
    (gptr*) &opt_mysql_port, 0, GET_UINT, REQUIRED_ARG, MYSQL_PORT, 0, 0, 0, 0,
@@ -185,11 +185,11 @@ static struct my_option my_long_options[] =
   {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"protocol", OPT_MYSQL_PROTOCOL, "The protocol of connection (tcp,socket,pipe,memory)",
+  {"protocol", OPT_MYSQL_PROTOCOL, "The protocol of connection (tcp,socket,pipe,memory).",
    0, 0, 0, GET_STR,  REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef HAVE_SMEM
   {"shared_memory_base_name", OPT_SHARED_MEMORY_BASE_NAME,
-   "Base name of shared memory", (gptr*) &shared_memory_base_name, (gptr*) &shared_memory_base_name, 
+   "Base name of shared memory.", (gptr*) &shared_memory_base_name, (gptr*) &shared_memory_base_name,
    0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"socket", 'S', "Socket file to use for connection.",
@@ -207,7 +207,7 @@ static struct my_option my_long_options[] =
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
-  
+
   
 static void print_version(void)
 {

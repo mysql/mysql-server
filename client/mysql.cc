@@ -563,12 +563,12 @@ static struct my_option my_long_options[] =
   {"prompt", OPT_PROMPT, "Set the mysql prompt to this value.",
    (gptr*) &current_prompt, (gptr*) &current_prompt, 0, GET_STR_ALLOC,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"protocol", OPT_MYSQL_PROTOCOL, "The protocol of connection (tcp,socket,pipe,memory)",
+  {"protocol", OPT_MYSQL_PROTOCOL, "The protocol of connection (tcp,socket,pipe,memory).",
    0, 0, 0, GET_STR,  REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"quick", 'q',
-   "Don't cache result, print it row by row. This may slow down the server if the output is suspended. Doesn't use history file. ",
+   "Don't cache result, print it row by row. This may slow down the server if the output is suspended. Doesn't use history file.",
    (gptr*) &quick, (gptr*) &quick, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"raw", 'r', "Write fields without conversion. Used with --batch",
+  {"raw", 'r', "Write fields without conversion. Used with --batch.",
    (gptr*) &opt_raw_data, (gptr*) &opt_raw_data, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
   {"reconnect", OPT_RECONNECT, "Reconnect if the connection is lost. Disable with --disable-reconnect. This option is enabled by default.", 
@@ -577,7 +577,7 @@ static struct my_option my_long_options[] =
    0, 0},
 #ifdef HAVE_SMEM
   {"shared_memory_base_name", OPT_SHARED_MEMORY_BASE_NAME,
-   "Base name of shared memory", (gptr*) &shared_memory_base_name, (gptr*) &shared_memory_base_name, 
+   "Base name of shared memory.", (gptr*) &shared_memory_base_name, (gptr*) &shared_memory_base_name, 
    0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"socket", 'S', "Socket file to use for connection.",
@@ -601,7 +601,7 @@ static struct my_option my_long_options[] =
   {"i-am-a-dummy", 'U', "Synonym for option --safe-updates, -U.",
    (gptr*) &safe_updates, (gptr*) &safe_updates, 0, GET_BOOL, OPT_ARG, 0, 0,
    0, 0, 0, 0},
-  {"verbose", 'v', "Write more. (-v -v -v gives the table output format)", 0,
+  {"verbose", 'v', "Write more. (-v -v -v gives the table output format).", 0,
    0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"version", 'V', "Output version information and exit.", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -1525,6 +1525,9 @@ static int com_server_help(String *buffer __attribute__((unused)),
       char last_char;
       
       int num_name, num_cat;
+      LINT_INIT(num_name);
+      LINT_INIT(num_cat);
+
       if (num_fields == 2)
       {
 	put_info("Many help items for your request exist", INFO_INFO);
@@ -1841,7 +1844,7 @@ print_table_data(MYSQL_RES *result)
     separator.fill(separator.length()+length+2,'-');
     separator.append('+');
   }
-  tee_puts(separator.c_ptr(), PAGER);
+  tee_puts(separator.c_ptr_safe(), PAGER);
   if (column_names)
   {
     mysql_field_seek(result,0);

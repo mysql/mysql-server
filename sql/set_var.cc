@@ -168,7 +168,11 @@ sys_var_thd_ulong	sys_max_error_count("max_error_count",
 					    &SV::max_error_count);
 sys_var_thd_ulong	sys_max_heap_table_size("max_heap_table_size",
 						&SV::max_heap_table_size);
-sys_var_thd_ulong       sys_pseudo_thread_id("pseudo_thread_id",
+/* 
+   sys_pseudo_thread_id has its own class (instead of sys_var_thd_ulong) because
+   we want a check() function.
+*/
+sys_var_pseudo_thread_id sys_pseudo_thread_id("pseudo_thread_id",
 					     &SV::pseudo_thread_id);
 sys_var_thd_ha_rows	sys_max_join_size("max_join_size",
 					  &SV::max_join_size,
@@ -596,7 +600,7 @@ struct show_var_st init_vars[]= {
   {"open_files_limit",	      (char*) &open_files_limit,	    SHOW_LONG},
   {"pid_file",                (char*) pidfile_name,                 SHOW_CHAR},
   {"log_error",               (char*) log_error_file,               SHOW_CHAR},
-  {"port",                    (char*) &mysql_port,                  SHOW_INT},
+  {"port",                    (char*) &mysqld_port,                  SHOW_INT},
   {"protocol_version",        (char*) &protocol_version,            SHOW_INT},
   {sys_pseudo_thread_id.name, (char*) &sys_pseudo_thread_id,        SHOW_SYS},
   {sys_read_buff_size.name,   (char*) &sys_read_buff_size,	    SHOW_SYS},
@@ -627,7 +631,7 @@ struct show_var_st init_vars[]= {
   {"skip_show_database",      (char*) &opt_skip_show_db,            SHOW_BOOL},
   {sys_slow_launch_time.name, (char*) &sys_slow_launch_time,        SHOW_SYS},
 #ifdef HAVE_SYS_UN_H
-  {"socket",                  (char*) &mysql_unix_port,             SHOW_CHAR_PTR},
+  {"socket",                  (char*) &mysqld_unix_port,             SHOW_CHAR_PTR},
 #endif
   {sys_sort_buffer.name,      (char*) &sys_sort_buffer, 	    SHOW_SYS},
   {sys_sql_mode.name,         (char*) &sys_sql_mode,                SHOW_SYS},
@@ -1452,6 +1456,17 @@ bool sys_var_insert_id::update(THD *thd, set_var *var)
 byte *sys_var_insert_id::value_ptr(THD *thd, enum_var_type type)
 {
   return (byte*) &thd->current_insert_id;
+}
+
+bool sys_var_pseudo_thread_id::check(THD *thd, set_var *var)
+{
+  if (thd->master_access & SUPER_ACL)
+    return 0;
+  else
+  {
+    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "SUPER");
+    return 1;
+  }
 }
 
 

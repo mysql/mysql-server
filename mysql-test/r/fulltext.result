@@ -172,9 +172,9 @@ CREATE TABLE t1 (
 id int(11)  auto_increment,
 title varchar(100)  default '',
 PRIMARY KEY  (id),
-KEY ind5 (title),
-FULLTEXT KEY FT1 (title)
+KEY ind5 (title)
 ) TYPE=MyISAM;
+CREATE FULLTEXT INDEX ft1 ON t1(title);
 insert into t1 (title) values ('this is a test');
 select * from t1 where match title against ('test' in boolean mode);
 id	title
