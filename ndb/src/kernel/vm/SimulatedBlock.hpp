@@ -350,14 +350,14 @@ protected:
    * Allocates memory for the datastructures where ndb keeps the data
    *
    */
-  void* allocRecord(const char * type, size_t s, size_t n);
+  void* allocRecord(const char * type, size_t s, size_t n, bool clear = true);
   
   /**
    * Deallocate record
    *
    * NOTE: Also resets pointer
    */
-  void deallocRecord(void **, const char * type, size_t s, size_t n) const ;
+  void deallocRecord(void **, const char * type, size_t s, size_t n);
   
   /**
    * General info event (sent to cluster log)

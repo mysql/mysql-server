@@ -121,7 +121,8 @@ void Dblqh::initRecords()
 
   logPageRecord = (LogPageRecord*)allocRecord("LogPageRecord",
 					      sizeof(LogPageRecord),
-					      clogPageFileSize);
+					      clogPageFileSize,
+					      false);
 
   pageRefRecord = (PageRefRecord*)allocRecord("PageRefRecord",
 					      sizeof(PageRefRecord),

@@ -94,7 +94,8 @@ void Dbacc::initRecords()
 
   page8 = (Page8*)allocRecord("Page8",
 			      sizeof(Page8), 
-			      cpagesize);
+			      cpagesize,
+			      false);
 
   rootfragmentrec = (Rootfragmentrec*)allocRecord("Rootfragmentrec",
 						  sizeof(Rootfragmentrec), 
@@ -114,7 +115,8 @@ void Dbacc::initRecords()
 
   undopage = (Undopage*)allocRecord("Undopage",
 				    sizeof(Undopage), 
-				    cundopagesize);
+				    cundopagesize,
+				    false);
   
   // Initialize BAT for interface to file system
 
