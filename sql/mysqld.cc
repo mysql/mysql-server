@@ -3813,6 +3813,7 @@ pthread_handler_decl(handle_connections_shared_memory,arg)
     HANDLE event_client_read= 0;    // for transfer data server <-> client
     HANDLE event_server_wrote= 0;
     HANDLE event_server_read= 0;
+    HANDLE event_conn_closed= 0;
     THD *thd= 0;
 
     p= int10_to_str(connect_number, connect_number_char, 10);
@@ -3866,6 +3867,12 @@ pthread_handler_decl(handle_connections_shared_memory,arg)
       errmsg= "Could not create server write event";
       goto errorconn;
     }
+    strmov(suffix_pos, "CONNECTION_CLOSED");
+    if ((event_conn_closed= CreateEvent(0,TRUE,FALSE,tmp)) == 0)
+    {
+      errmsg= "Could not create closed connection event";
+      goto errorconn;
+    }
     if (abort_loop)
       goto errorconn;
     if (!(thd= new THD))
@@ -3889,7 +3896,8 @@ pthread_handler_decl(handle_connections_shared_memory,arg)
 						   event_client_wrote,
 						   event_client_read,
 						   event_server_wrote,
-						   event_server_read)) ||
+						   event_server_read,
+                                                   event_conn_closed)) ||
 	my_net_init(&thd->net, thd->net.vio))
     {
       close_connection(thd, ER_OUT_OF_RESOURCES, 1);
@@ -3916,6 +3924,7 @@ errorconn:
     if (event_server_read)	CloseHandle(event_server_read);
     if (event_client_wrote)	CloseHandle(event_client_wrote);
     if (event_client_read)	CloseHandle(event_client_read);
+    if (event_conn_closed)	CloseHandle(event_conn_closed);
     delete thd;
   }
 
