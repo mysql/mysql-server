@@ -434,6 +434,7 @@ NdbSqlUtil::cmpDouble(const void* info, const void* p1, unsigned n1, const void*
   return CmpUnknown;
 }
 
+int
 NdbSqlUtil::cmp_olddecimal(const uchar* s1, const uchar* s2, unsigned n)
 {
   int sgn = +1;
