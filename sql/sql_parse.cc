@@ -5925,7 +5925,6 @@ int mysql_create_index(THD *thd, TABLE_LIST *table_list, List<Key> &keys)
   List<create_field> fields;
   ALTER_INFO alter_info;
   alter_info.flags= ALTER_ADD_INDEX;
-  alter_info.is_simple= 0;
   HA_CREATE_INFO create_info;
   DBUG_ENTER("mysql_create_index");
   bzero((char*) &create_info,sizeof(create_info));
@@ -5949,7 +5948,6 @@ int mysql_drop_index(THD *thd, TABLE_LIST *table_list, ALTER_INFO *alter_info)
   create_info.default_table_charset= thd->variables.collation_database;
   alter_info->clear();
   alter_info->flags= ALTER_DROP_INDEX;
-  alter_info->is_simple= 0;
   DBUG_RETURN(mysql_alter_table(thd,table_list->db,table_list->real_name,
 				&create_info, table_list,
 				fields, keys, 0, (ORDER*)0,

@@ -785,7 +785,7 @@ bool ha_flush_logs()
 int ha_delete_table(enum db_type table_type, const char *path)
 {
   char tmp_path[FN_REFLEN];
-  handler *file=get_new_handler((TABLE*) 0, table_type);
+  handler *file=(table_type== DB_TYPE_UNKNOWN ? 0 : get_new_handler((TABLE*) 0, table_type));
   if (!file)
     return ENOENT;
   if (lower_case_table_names == 2 && !(file->table_flags() & HA_FILE_BASED))
