@@ -39,6 +39,61 @@ static void my_coll_agg_error(DTCollation &c1, DTCollation &c2, const char *fnam
 	   fname);
 }
 
+static void my_coll_agg_error(DTCollation &c1, 
+			       DTCollation &c2,
+			       DTCollation &c3,
+			       const char *fname)
+{
+  my_error(ER_CANT_AGGREGATE_3COLLATIONS,MYF(0),
+  	   c1.collation->name,c1.derivation_name(),
+	   c2.collation->name,c2.derivation_name(),
+	   c3.collation->name,c3.derivation_name(),
+	   fname);
+}
+
+static void my_coll_agg_error(Item** args, uint ac, const char *fname)
+{
+  if (2 == ac)
+    my_coll_agg_error(args[0]->collation, args[1]->collation, fname);
+  else if (3 == ac)
+    my_coll_agg_error(args[0]->collation,
+		      args[1]->collation,
+		      args[2]->collation,
+		      fname);
+  else
+    my_error(ER_CANT_AGGREGATE_NCOLLATIONS,MYF(0),fname);
+}
+
+bool Item_func::agg_arg_collations(DTCollation &c, uint from, uint argc)
+{
+  uint i;
+  c.set(args[from]->collation);
+  for (i= from+1; i < argc; i++)
+  {
+    if (c.aggregate(args[i]->collation))
+    {
+      my_coll_agg_error(args+from, argc-from, func_name());
+      return TRUE;
+    }
+  }
+  return FALSE;
+}
+
+bool Item_func::agg_arg_collations_for_comparison(DTCollation &c, 
+						  uint from, uint argc)
+{
+  if (agg_arg_collations(c, from, argc))
+    return FALSE;
+
+  if (c.derivation == DERIVATION_NONE)
+  {
+    my_coll_agg_error(args+from, argc-from, func_name());
+    return TRUE;
+  }
+  return FALSE;
+}
+
+
 /* return TRUE if item is a constant */
 
 bool
