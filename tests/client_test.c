@@ -9670,12 +9670,12 @@ static void test_union_param()
 
   /* bind parameters */
   bind[0].buffer_type=    FIELD_TYPE_STRING;
-  bind[0].buffer=         &my_val;
+  bind[0].buffer=         (char*) &my_val;
   bind[0].buffer_length=  4;
   bind[0].length=         &my_length;
   bind[0].is_null=        (char*)&my_null;
   bind[1].buffer_type=    FIELD_TYPE_STRING;
-  bind[1].buffer=         &my_val;
+  bind[1].buffer=         (char*) &my_val;
   bind[1].buffer_length=  4;
   bind[1].length=         &my_length;
   bind[1].is_null=        (char*)&my_null;
@@ -9872,7 +9872,90 @@ static void test_ps_i18n()
   mysql_stmt_close(stmt);
 
   stmt_text= "DROP TABLE t1";
-  mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  myquery(rc);
+  stmt_text= "SET NAMES DEFAULT";
+  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  myquery(rc);
+}
+
+
+static void test_bug3796()
+{
+  MYSQL_STMT *stmt;
+  MYSQL_BIND bind[1];
+  const char *concat_arg0= "concat_with_";
+  const int OUT_BUFF_SIZE= 30;
+  char out_buff[OUT_BUFF_SIZE];
+  char canonical_buff[OUT_BUFF_SIZE];
+  ulong out_length;
+  const char *stmt_text;
+  int rc;
+  
+  myheader("test_bug3796");
+
+  /* Create and fill test table */
+  stmt_text= "DROP TABLE IF EXISTS t1";
+  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  myquery(rc);
+
+  stmt_text= "CREATE TABLE t1 (a INT, b VARCHAR(30))";
+  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  myquery(rc);
+  
+  stmt_text= "INSERT INTO t1 VALUES(1,'ONE'), (2,'TWO')";
+  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  myquery(rc);
+
+  /* Create statement handle and prepare it with select */
+  stmt = mysql_stmt_init(mysql);
+  stmt_text= "SELECT concat(?, b) FROM t1";
+
+  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  check_execute(stmt, rc);
+  
+  /* Bind input buffers */
+  bzero(bind, sizeof(bind));
+
+  bind[0].buffer_type= MYSQL_TYPE_STRING;
+  bind[0].buffer= (char*) concat_arg0;
+  bind[0].buffer_length= strlen(concat_arg0);
+ 
+  mysql_stmt_bind_param(stmt, bind);
+
+  /* Execute the select statement */
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  bind[0].buffer= (char*) out_buff;
+  bind[0].buffer_length= OUT_BUFF_SIZE;
+  bind[0].length= &out_length;
+
+  mysql_stmt_bind_result(stmt, bind);
+
+  rc= mysql_stmt_fetch(stmt);
+  printf("Concat result: '%s'\n", out_buff);
+  check_execute(stmt, rc);
+  strcpy(canonical_buff, concat_arg0);
+  strcat(canonical_buff, "ONE");
+  assert(strlen(canonical_buff) == out_length &&
+         strncmp(out_buff, canonical_buff, out_length) == 0);
+
+  rc= mysql_stmt_fetch(stmt);
+  check_execute(stmt, rc);
+  strcpy(canonical_buff + strlen(concat_arg0), "TWO");
+  assert(strlen(canonical_buff) == out_length &&
+         strncmp(out_buff, canonical_buff, out_length) == 0);
+  printf("Concat result: '%s'\n", out_buff);
+  
+  rc= mysql_stmt_fetch(stmt);
+  assert(rc == MYSQL_NO_DATA);
+
+  mysql_stmt_close(stmt);
+
+  stmt_text= "DROP TABLE IF EXISTS t1";
+  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  myquery(rc);
 }
 
 /*
@@ -10164,6 +10247,7 @@ int main(int argc, char **argv)
     test_order_param();	    /* ORDER BY with parameters in select list
 			       (Bug #3686 */
     test_ps_i18n();         /* test for i18n support in binary protocol */
+    test_bug3796();         /* test for select concat(?, <string>) */
 
     end_time= time((time_t *)0);
     total_time+= difftime(end_time, start_time);
