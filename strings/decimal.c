@@ -206,7 +206,7 @@ int decimal2string(decimal *from, char *to, int *to_len)
   DBUG_ASSERT(*to_len > 2+from->sign);
 
   /* removing leading zeroes */
-  i=intg % DIG_PER_DEC1;
+  i=((intg-1) % DIG_PER_DEC1)+1;
   while (intg > 0 && *buf0 == 0)
   {
     intg-=i;
@@ -1874,6 +1874,7 @@ main()
 
   printf("==== do_add ====\n");
   test_da(".00012345000098765" ,"123.45");
+  test_da(".1" ,".45");
   test_da("1234500009876.5" ,".00012345000098765");
   test_da("9999909999999.5" ,".555");
   test_da("99999999" ,"1");
