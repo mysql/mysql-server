@@ -620,6 +620,11 @@ int handler::analyze(THD* thd, HA_CHECK_OPT* check_opt)
   return HA_ADMIN_NOT_IMPLEMENTED;
 }
 
+int handler::assign_to_keycache(THD* thd, HA_CHECK_OPT* check_opt)
+{
+  return HA_ADMIN_NOT_IMPLEMENTED;
+}
+
 int handler::preload_keys(THD* thd, HA_CHECK_OPT* check_opt)
 {
   return HA_ADMIN_NOT_IMPLEMENTED;

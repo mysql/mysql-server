@@ -305,6 +305,7 @@ public:
   virtual int optimize(THD* thd,HA_CHECK_OPT* check_opt);
   virtual int analyze(THD* thd, HA_CHECK_OPT* check_opt);
   virtual int backup(THD* thd, HA_CHECK_OPT* check_opt);
+  virtual int assign_to_keycache(THD* thd, HA_CHECK_OPT* check_opt);
   virtual int preload_keys(THD* thd, HA_CHECK_OPT* check_opt);
   /*
     restore assumes .frm file must exist, and that generate_table() has been

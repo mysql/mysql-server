@@ -59,7 +59,8 @@ enum enum_sql_command {
   SQLCOM_CHANGE_DB, SQLCOM_CREATE_DB, SQLCOM_DROP_DB, SQLCOM_ALTER_DB,
   SQLCOM_REPAIR, SQLCOM_REPLACE, SQLCOM_REPLACE_SELECT,
   SQLCOM_CREATE_FUNCTION, SQLCOM_DROP_FUNCTION,
-  SQLCOM_REVOKE,SQLCOM_OPTIMIZE, SQLCOM_CHECK, SQLCOM_PRELOAD_KEYS,
+  SQLCOM_REVOKE,SQLCOM_OPTIMIZE, SQLCOM_CHECK, 
+  SQLCOM_ASSIGN_TO_KEYCACHE, SQLCOM_PRELOAD_KEYS,
   SQLCOM_FLUSH, SQLCOM_KILL,  SQLCOM_ANALYZE,
   SQLCOM_ROLLBACK, SQLCOM_COMMIT, SQLCOM_SLAVE_START, SQLCOM_SLAVE_STOP,
   SQLCOM_BEGIN, SQLCOM_LOAD_MASTER_TABLE, SQLCOM_CHANGE_MASTER,
@@ -252,7 +253,8 @@ public:
 					ulong table_options,
 					thr_lock_type flags= TL_UNLOCK,
 					List<String> *use_index= 0,
-					List<String> *ignore_index= 0);
+					List<String> *ignore_index= 0,
+                                        LEX_STRING *option= 0);
   virtual void set_lock_for_tables(thr_lock_type lock_type) {}
   void mark_as_dependent(st_select_lex *last);
 
@@ -409,7 +411,8 @@ public:
 				ulong table_options,
 				thr_lock_type flags= TL_UNLOCK,
 				List<String> *use_index= 0,
-				List<String> *ignore_index= 0);
+				List<String> *ignore_index= 0,
+                                LEX_STRING *option= 0);
   void set_lock_for_tables(thr_lock_type lock_type);
   inline void init_order()
   {

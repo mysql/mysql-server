@@ -657,11 +657,11 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %type <NONE>
 	query verb_clause create change select do drop insert replace insert2
 	insert_values update delete truncate rename
-	show describe load alter optimize preload flush
+	show describe load alter optimize keycache preload flush
 	reset purge begin commit rollback slave master_def master_defs
 	repair restore backup analyze check start
 	field_list field_list_item field_spec kill column_def key_def
-	preload_list preload_keys
+	keycache_list assign_to_keycache preload_list preload_keys
 	select_item_list select_item values_list no_braces
 	opt_limit_clause delete_limit_clause fields opt_values values
 	procedure_list procedure_list2 procedure_item
@@ -730,6 +730,7 @@ verb_clause:
 	| lock
 	| kill
 	| optimize
+        | keycache
 	| preload
 	| purge
 	| rename
@@ -1843,6 +1844,34 @@ table_to_table:
 	    YYABORT;
 	};
 
+keycache:
+        CACHE_SYM INDEX 
+        {
+          LEX *lex=Lex;
+          lex->sql_command=SQLCOM_ASSIGN_TO_KEYCACHE;
+        }
+        keycache_list
+        {}
+        ;
+
+keycache_list:
+        assign_to_keycache
+        | keycache_list ',' assign_to_keycache;
+
+assign_to_keycache:
+        table_ident cache_keys_spec ident
+        {
+          LEX *lex=Lex;
+          SELECT_LEX *sel= &lex->select_lex;
+          if (!sel->add_table_to_list(lex->thd, $1, NULL, 0,
+                                      TL_WRITE,
+                                      sel->get_use_index(),
+                                      (List<String> *)0,
+                                      &($3)))        
+            YYABORT;
+        }
+        ;
+
 preload:
 	LOAD INDEX INTO CACHE_SYM
 	{
@@ -1858,7 +1887,7 @@ preload_list:
 	| preload_list ',' preload_keys;
 
 preload_keys:
-	table_ident preload_keys_spec opt_ignore_leaves
+	table_ident cache_keys_spec opt_ignore_leaves
 	{
 	  LEX *lex=Lex;
 	  SELECT_LEX *sel= &lex->select_lex;
@@ -1870,9 +1899,9 @@ preload_keys:
 	}
 	;
 
-preload_keys_spec:
+cache_keys_spec:
 	keys_or_index { Select->select_lex()->interval_list.empty(); }
-	preload_key_list_or_empty 
+	cache_key_list_or_empty 
 	{
 	  LEX *lex=Lex;
 	  SELECT_LEX *sel= &lex->select_lex;
@@ -1881,7 +1910,7 @@ preload_keys_spec:
 	}          
 	;
 
-preload_key_list_or_empty:
+cache_key_list_or_empty:
 	/* empty */
 	| '(' key_usage_list2 ')' {}
 	;

@@ -1205,7 +1205,8 @@ TABLE_LIST *st_select_lex_node::add_table_to_list(THD *thd, Table_ident *table,
 						  ulong table_join_options,
 						  thr_lock_type flags,
 						  List<String> *use_index,
-						  List<String> *ignore_index)
+						  List<String> *ignore_index,
+                                                  LEX_STRING *option)
 {
   return 0;
 }
