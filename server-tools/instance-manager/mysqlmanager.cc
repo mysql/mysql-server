@@ -77,6 +77,8 @@ int main(int argc, char *argv[])
     angel(options);
   }
   manager(options);
+  options.cleanup();
+  my_end(0);
   return 0;
 }
 

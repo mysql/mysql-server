@@ -38,6 +38,8 @@ const char *Options::default_mysqld_path= QUOTE(DEFAULT_MYSQLD_PATH);
 const char *Options::bind_address= 0;              /* No default value */
 uint Options::monitoring_interval= DEFAULT_MONITORING_INTERVAL;
 uint Options::port_number= DEFAULT_PORT;
+/* just to declare */
+char **Options::saved_argv;
 
 /*
   List of options, accepted by the instance manager.
@@ -81,7 +83,7 @@ static struct my_option my_long_options[] =
 
   { "port", OPT_PORT, "Port number to use for connections",
     (gptr *) &Options::port_number, (gptr *) &Options::port_number,
-    0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+    0, GET_UINT, REQUIRED_ARG, DEFAULT_PORT, 0, 0, 0, 0, 0 },
 
   { "password-file", OPT_PASSWORD_FILE, "Look for Instane Manager users"
                                         " and passwords here.",
@@ -98,7 +100,8 @@ static struct my_option my_long_options[] =
                                             " in seconds.",
                    (gptr *) &Options::monitoring_interval,
                    (gptr *) &Options::monitoring_interval,
-                   0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+                   0, GET_UINT, REQUIRED_ARG, DEFAULT_MONITORING_INTERVAL,
+                   0, 0, 0, 0, 0 },
 
   { "run-as-service", OPT_RUN_AS_SERVICE,
     "Daemonize and start angel process.", (gptr *) &Options::run_as_service,
@@ -171,5 +174,11 @@ void Options::load(int argc, char **argv)
 
   if (int rc= handle_options(&argc, &argv, my_long_options, get_one_option))
     exit(rc);
+  Options::saved_argv= argv;
 }
 
+void Options::cleanup()
+{
+  /* free_defaults returns nothing */
+  free_defaults(Options::saved_argv);
+}
