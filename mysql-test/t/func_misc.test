@@ -8,6 +8,10 @@ select inet_ntoa(inet_aton("255.255.255.255.255.255.255.255"));
 select inet_aton("255.255.255.255.255"),inet_aton("255.255.1.255"),inet_aton("0.1.255");
 select inet_ntoa(1099511627775),inet_ntoa(4294902271),inet_ntoa(511);
 
+select hex(inet_aton('127'));
+select hex(inet_aton('127.1'));
+select hex(inet_aton('127.1.1'));
+
 #
 # Test for core dump with nan
 #

@@ -975,9 +975,10 @@ String *Item_func_right::val_str(String *str)
   if (res->length() <= (uint) length)
     return res; /* purecov: inspected */
 
-  uint start=res->numchars()-(uint) length;
-  if (start<=0) return res;
-  start=res->charpos(start);
+  uint start=res->numchars();
+  if (start <= (uint) length)
+    return res;
+  start=res->charpos(start - (uint) length);
   tmp_value.set(*res,start,res->length()-start);
   return &tmp_value;
 }
@@ -2022,9 +2023,8 @@ String *Item_func_lpad::val_str(String *str)
 {
   uint32 res_char_length,pad_char_length;
   ulong count= (long) args[1]->val_int(), byte_count;
-  String a1,a3;
-  String *res= args[0]->val_str(&a1);
-  String *pad= args[2]->val_str(&a3);
+  String *res= args[0]->val_str(&tmp_value);
+  String *pad= args[2]->val_str(&lpad_str);
 
   if (!res || args[1]->null_value || !pad)
     goto err;

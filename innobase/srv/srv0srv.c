@@ -2739,8 +2739,6 @@ loop:
 
 	cnt++;
 
-	os_thread_sleep(2000000);
-
 	/* Try to track a strange bug reported by Harald Fuchs and others,
 	where the lsn seems to decrease at times */
 
@@ -2781,6 +2779,8 @@ loop:
 
 	fflush(stderr);
 	fflush(stdout);
+
+	os_thread_sleep(2000000);
 
 	if (srv_shutdown_state < SRV_SHUTDOWN_LAST_PHASE) {
 

@@ -285,6 +285,19 @@ int handle_options(int *argc, char ***argv,
 	    return EXIT_AMBIGUOUS_OPTION;
 	  }
 	}
+	if ((optp->var_type & GET_TYPE_MASK) == GET_DISABLED)
+	{
+	  if (my_getopt_print_errors)
+	    fprintf(stderr,
+		    "%s: %s: Option '%s' used, but is disabled\n", my_progname,
+		    option_is_loose ? "WARNING" : "ERROR", opt_str);
+	  if (option_is_loose)
+	  {
+	    (*argc)--;
+	    continue;
+	  }
+	  return EXIT_OPTION_DISABLED;
+	}
 	if (must_be_var && (optp->var_type & GET_TYPE_MASK) == GET_NO_ARG)
 	{
 	  if (my_getopt_print_errors)
@@ -358,6 +371,14 @@ int handle_options(int *argc, char ***argv,
 	    {
 	      /* Option recognized. Find next what to do with it */
 	      opt_found= 1;
+	      if ((optp->var_type & GET_TYPE_MASK) == GET_DISABLED)
+	      {
+		if (my_getopt_print_errors)
+		  fprintf(stderr,
+			  "%s: ERROR: Option '-%c' used, but is disabled\n",
+			  my_progname, optp->id);
+		return EXIT_OPTION_DISABLED;
+	      }
 	      if ((optp->var_type & GET_TYPE_MASK) == GET_BOOL &&
 		  optp->arg_type == NO_ARG)
 	      {
@@ -550,7 +571,7 @@ static int findopt(char *optpat, uint length,
 		   const struct my_option **opt_res,
 		   char **ffname)
 {
-  int count;
+  uint count;
   struct my_option *opt= (struct my_option *) *opt_res;
 
   for (count= 0; opt->name; opt++)
@@ -562,7 +583,8 @@ static int findopt(char *optpat, uint length,
 	*ffname= (char *) opt->name;	/* We only need to know one prev */
       if (!opt->name[length])		/* Exact match */
 	return 1;
-      count++;
+      if (!count || strcmp(*ffname, opt->name)) /* Don't count synonyms */
+	count++;
     }
   }
   return count;
@@ -882,7 +904,8 @@ void my_print_variables(const struct my_option *options)
 	longlong2str(*((ulonglong*) value), buff, 10);
 	printf("%s\n", buff);
 	break;
-      default: /* dummy default to avoid compiler warnings */
+      default:
+	printf("(Disabled)\n");
 	break;
       }
     }
