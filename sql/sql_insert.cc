@@ -460,6 +460,7 @@ int mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
     my_error(ER_UPDATE_TABLE_USED, MYF(0), table_list->real_name);
     DBUG_RETURN(-1);
   }
+  thd->lex->select_lex.first_execution= 0;
   DBUG_RETURN(0);
 }
 

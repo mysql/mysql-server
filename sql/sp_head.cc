@@ -186,8 +186,8 @@ sp_head::operator new(size_t size)
   bzero((char *)&own_root, sizeof(own_root));
   init_alloc_root(&own_root, MEM_ROOT_BLOCK_SIZE, MEM_ROOT_PREALLOC);
   sp= (sp_head *)alloc_root(&own_root, size);
-  sp->m_mem_root= own_root;
-  
+  sp->mem_root= own_root;
+  DBUG_PRINT("info", ("mem_root 0x%lx", (ulong) &sp->mem_root));
   DBUG_RETURN(sp);
 }
 
@@ -198,16 +198,18 @@ sp_head::operator delete(void *ptr, size_t size)
   MEM_ROOT own_root;
   sp_head *sp= (sp_head *)ptr;
 
-  DBUG_PRINT("info", ("root: %lx", &sp->m_mem_root));
-  memcpy(&own_root, (const void *)&sp->m_mem_root, sizeof(MEM_ROOT));
+  memcpy(&own_root, (const void *)&sp->mem_root, sizeof(MEM_ROOT));
+  DBUG_PRINT("info", ("mem_root 0x%lx moved to 0x%lx",
+                      (ulong) &sp->mem_root, (ulong) &own_root));
   free_root(&own_root, MYF(0));
 
   DBUG_VOID_RETURN;
 }
 
+
 sp_head::sp_head()
-  : Sql_alloc(), m_returns_cs(NULL), m_has_return(FALSE), m_simple_case(FALSE),
-    m_multi_results(FALSE), m_free_list(NULL)
+  :Item_arena((bool)FALSE), m_returns_cs(NULL), m_has_return(FALSE),
+   m_simple_case(FALSE), m_multi_results(FALSE)
 {
   DBUG_ENTER("sp_head::sp_head");
 
@@ -215,6 +217,7 @@ sp_head::sp_head()
   m_lex.empty();
   DBUG_VOID_RETURN;
 }
+
 
 void
 sp_head::init(LEX *lex)
@@ -359,7 +362,7 @@ sp_head::destroy()
     delete i;
   delete_dynamic(&m_instr);
   m_pcont->destroy();
-  free_items(m_free_list);
+  free_items(free_list);
   while ((lex= (LEX *)m_lex.pop()))
   {
     if (lex != &m_thd->main_lex) // We got interrupted and have lex'es left
@@ -392,6 +395,7 @@ sp_head::execute(THD *thd)
   if (ctx)
     ctx->clear_handler();
   thd->query_error= 0;
+  thd->current_arena= this;
   do
   {
     sp_instr *i;
@@ -430,6 +434,9 @@ sp_head::execute(THD *thd)
  done:
   DBUG_PRINT("info", ("ret=%d killed=%d query_error=%d",
 		      ret, thd->killed, thd->query_error));
+  if (thd->current_arena)
+    cleanup_items(thd->current_arena->free_list);
+  thd->current_arena= 0;
   if (thd->killed || thd->query_error || thd->net.report_error)
     ret= -1;
   /* If the DB has changed, the pointer has changed too, but the
@@ -687,21 +694,6 @@ sp_head::restore_lex(THD *thd)
   // Update some state in the old one first
   oldlex->ptr= sublex->ptr;
   oldlex->next_state= sublex->next_state;
-  for (sl= sublex->all_selects_list ;
-       sl ;
-       sl= sl->next_select_in_list())
-  {
-    // Save WHERE clause pointers to avoid damaging by optimisation
-    sl->prep_where= sl->where;
-    if (sl->with_wild)
-    {
-      // Copy item_list. We will restore it before calling the
-      // sub-statement, so it's ok to pop them.
-      sl->item_list_copy.empty();
-      while (Item *it= sl->item_list.pop())
-	sl->item_list_copy.push_back(it);
-    }
-  }
 
   // Collect some data from the sub statement lex.
   sp_merge_funs(oldlex, sublex);
@@ -792,19 +784,19 @@ sp_head::set_info(char *definer, uint definerlen,
   if (! p)
     p= definer;		// Weird...
   len= p-definer;
-  m_definer_user.str= strmake_root(&m_mem_root, definer, len);
+  m_definer_user.str= strmake_root(&mem_root, definer, len);
   m_definer_user.length= len;
   len= definerlen-len-1;
-  m_definer_host.str= strmake_root(&m_mem_root, p+1, len);
+  m_definer_host.str= strmake_root(&mem_root, p+1, len);
   m_definer_host.length= len;
   m_created= created;
   m_modified= modified;
-  m_chistics= (st_sp_chistics *)alloc_root(&m_mem_root, sizeof(st_sp_chistics));
+  m_chistics= (st_sp_chistics *)alloc_root(&mem_root, sizeof(st_sp_chistics));
   memcpy(m_chistics, chistics, sizeof(st_sp_chistics));
   if (m_chistics->comment.length == 0)
     m_chistics->comment.str= 0;
   else
-    m_chistics->comment.str= strmake_root(&m_mem_root,
+    m_chistics->comment.str= strmake_root(&mem_root,
 					  m_chistics->comment.str,
 					  m_chistics->comment.length);
 }
@@ -812,26 +804,33 @@ sp_head::set_info(char *definer, uint definerlen,
 void
 sp_head::reset_thd_mem_root(THD *thd)
 {
+  DBUG_ENTER("sp_head::reset_thd_mem_root");
   m_thd_root= thd->mem_root;
-  thd->mem_root= m_mem_root;
-  m_free_list= thd->free_list; // Keep the old list
+  thd->mem_root= mem_root;
+  DBUG_PRINT("info", ("mem_root 0x%lx moved to thd mem root 0x%lx",
+                      (ulong) &mem_root, (ulong) &thd->mem_root));
+  free_list= thd->free_list; // Keep the old list
   thd->free_list= NULL;	// Start a new one
   /* Copy the db, since substatements will point to it */
   m_thd_db= thd->db;
   thd->db= strmake_root(&thd->mem_root, thd->db, thd->db_length);
   m_thd= thd;
+  DBUG_VOID_RETURN;
 }
 
 void
 sp_head::restore_thd_mem_root(THD *thd)
 {
-  Item *flist= m_free_list;	// The old list
-  m_free_list= thd->free_list; // Get the new one
+  DBUG_ENTER("sp_head::restore_thd_mem_root");
+  Item *flist= free_list;	// The old list
+  set_item_arena(thd);          // Get new fre_list and mem_root
+  DBUG_PRINT("info", ("mem_root 0x%lx returned from thd mem root 0x%lx",
+                      (ulong) &mem_root, (ulong) &thd->mem_root));
   thd->free_list= flist;	// Restore the old one
   thd->db= m_thd_db;		// Restore the original db pointer
-  m_mem_root= thd->mem_root;
   thd->mem_root= m_thd_root;
   m_thd= NULL;
+  DBUG_VOID_RETURN;
 }
 
 
@@ -919,7 +918,6 @@ int
 sp_instr_stmt::exec_stmt(THD *thd, LEX *lex)
 {
   LEX *olex;			// The other lex
-  Item *freelist;
   SELECT_LEX *sl;
   int res;
 
@@ -927,94 +925,24 @@ sp_instr_stmt::exec_stmt(THD *thd, LEX *lex)
   thd->lex= lex;		// Use my own lex
   thd->lex->thd = thd;		// QQ Not reentrant!
   thd->lex->unit.thd= thd;	// QQ Not reentrant
-  freelist= thd->free_list;
   thd->free_list= NULL;
 
   VOID(pthread_mutex_lock(&LOCK_thread_count));
   thd->query_id= query_id++;
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
 
-  // Copy WHERE clause pointers to avoid damaging by optimisation
-  // Also clear ref_pointer_arrays.
-  for (sl= lex->all_selects_list ;
-       sl ;
-       sl= sl->next_select_in_list())
-  {
-    if (lex->sql_command == SQLCOM_CREATE_TABLE ||
-	lex->sql_command == SQLCOM_INSERT_SELECT)
-    {				// Destroys sl->table_list.first
-      sl->table_list_first_copy= sl->table_list.first;
-    }
-    if (sl->with_wild)
-    {
-      // Restore item_list
-      // Note: We have to do this before executing the sub-statement,
-      //       to make sure that the list nodes are in the right
-      //       memroot.
-      List_iterator_fast<Item> li(sl->item_list_copy);
-
-      sl->item_list.empty();
-      while (Item *it= li++)
-	sl->item_list.push_back(it);
-    }
-    sl->ref_pointer_array= 0;
-    if (sl->prep_where)
-      sl->where= sl->prep_where->copy_andor_structure(thd);
-    for (ORDER *order= (ORDER *)sl->order_list.first ;
-	 order ;
-	 order= order->next)
-    {
-      order->item_copy= order->item;
-    }
-    for (ORDER *group= (ORDER *)sl->group_list.first ;
-	 group ;
-	 group= group->next)
-    {
-      group->item_copy= group->item;
-    }
-  }
+  reset_stmt_for_execute(thd, lex);
 
   res= mysql_execute_command(thd);
 
+  lex->unit.cleanup();
   if (thd->lock || thd->open_tables || thd->derived_tables)
   {
     thd->proc_info="closing tables";
     close_thread_tables(thd);			/* Free tables */
   }
 
-  for (sl= lex->all_selects_list ;
-       sl ;
-       sl= sl->next_select_in_list())
-  {
-    TABLE_LIST *tabs;
-
-    if (lex->sql_command == SQLCOM_CREATE_TABLE ||
-	lex->sql_command == SQLCOM_INSERT_SELECT)
-    {				// Restore sl->table_list.first
-      sl->table_list.first= sl->table_list_first_copy;
-    }
-    // We have closed all tables, get rid of pointers to them
-    for (tabs=(TABLE_LIST *)sl->table_list.first ;
-	 tabs ;
-	 tabs= tabs->next)
-    {
-      tabs->table= NULL;
-    }
-    for (ORDER *order= (ORDER *)sl->order_list.first ;
-	 order ;
-	 order= order->next)
-    {
-      order->item= order->item_copy;
-    }
-    for (ORDER *group= (ORDER *)sl->group_list.first ;
-	 group ;
-	 group= group->next)
-    {
-      group->item= group->item_copy;
-    }
-  }
   thd->lex= olex;		// Restore the other lex
-  thd->free_list= freelist;
 
   return res;
 }
