@@ -361,6 +361,7 @@ row_undo_mod_del_unmark_sec(
 	btr_cur_t*	btr_cur;
 	ulint		err;
 	ibool		found;
+	char*           err_buf;
 
 	UT_NOT_USED(node);
 	
@@ -369,13 +370,31 @@ row_undo_mod_del_unmark_sec(
 	
 	found = row_search_index_entry(index, entry, BTR_MODIFY_LEAF, &pcur,
 									&mtr);
-	ut_a(found);
+	if (!found) {
+	  err_buf = mem_alloc(1000);
+	  dtuple_sprintf(err_buf, 900, entry);
 
-	btr_cur = btr_pcur_get_btr_cur(&pcur);
+	  fprintf(stderr, "InnoDB: error in sec index entry del undo in\n"
+		  "InnoDB: index %s table %s\n", index->name,
+		  index->table->name);
+	  fprintf(stderr, "InnoDB: tuple %s\n", err_buf);
 
-	err = btr_cur_del_mark_set_sec_rec(BTR_NO_LOCKING_FLAG,
+	  rec_sprintf(err_buf, 900, btr_pcur_get_rec(&pcur));
+	  fprintf(stderr, "InnoDB: record %s\n", err_buf);
+
+	  fprintf(stderr, "InnoDB: Make a detailed bug report and send it\n");
+	  fprintf(stderr, "InnoDB: to mysql@lists.mysql.com\n");
+
+	  mem_free(err_buf);
+
+	} else {
+
+         	btr_cur = btr_pcur_get_btr_cur(&pcur);
+
+	        err = btr_cur_del_mark_set_sec_rec(BTR_NO_LOCKING_FLAG,
 						btr_cur, FALSE, thr, &mtr);
-	ut_ad(err == DB_SUCCESS);
+	        ut_ad(err == DB_SUCCESS);
+	}
 
 	btr_pcur_close(&pcur);
 	mtr_commit(&mtr);

@@ -400,7 +400,22 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
     goto err;					/* purecov: inspected */
   }
   if (join.const_tables && !thd->locked_tables)
+  {
+    TABLE **table, **end;
+    for (table=join.table, end=table + join.const_tables ;
+	 table != end;
+	 table++)
+    {
+      /* BDB tables require that we call index_end() before doing an unlock */
+      if ((*table)->key_read)
+      {
+	(*table)->key_read=0;
+	(*table)->file->extra(HA_EXTRA_NO_KEYREAD);
+      }
+      (*table)->file->index_end();
+    }
     mysql_unlock_some_tables(thd, join.table,join.const_tables);
+  }
   if (!conds && join.outer_join)
   {
     /* Handle the case where we have an OUTER JOIN without a WHERE */
@@ -2761,7 +2776,12 @@ return_zero_rows(select_result *result,TABLE_LIST *tables,List<Item> &fields,
     if (send_row)
       result->send_data(fields);
     if (tables)					// Not from do_select()
+    {
+      /* Close open cursors */
+      for (TABLE_LIST *table=tables; table ; table=table->next)
+	table->table->file->index_end();
       result->send_eof();			// Should be safe
+    }
   }
   DBUG_RETURN(0);
 }

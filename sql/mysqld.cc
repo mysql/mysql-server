@@ -210,7 +210,7 @@ static char mysql_home[FN_REFLEN],pidfile_name[FN_REFLEN];
 static pthread_t select_thread;
 static bool opt_log,opt_update_log,opt_bin_log,opt_slow_log,opt_noacl,
 	    opt_disable_networking=0, opt_bootstrap=0,opt_skip_show_db=0,
-            opt_ansi_mode=0,opt_myisam_log=0,
+	    opt_ansi_mode=0,opt_myisam_log=0,
             opt_large_files=sizeof(my_off_t) > 4;
 bool opt_sql_bin_update = 0, opt_log_slave_updates = 0, opt_safe_show_db=0;
 FILE *bootstrap_file=0;
@@ -275,7 +275,7 @@ ulong max_tmp_tables,max_heap_table_size;
 ulong bytes_sent = 0L, bytes_received = 0L;
 
 bool opt_endinfo,using_udf_functions,low_priority_updates, locked_in_memory;
-bool opt_using_transactions, using_update_log;
+bool opt_using_transactions, using_update_log, opt_warnings=0;
 bool volatile abort_loop,select_thread_in_use,grant_option;
 bool volatile ready_to_exit,shutdown_in_progress;
 ulong refresh_version=1L,flush_version=1L;	/* Increments on each reload */
@@ -1190,7 +1190,7 @@ Some pointers may be invalid and cause the dump to abort...\n");
     fprintf(stderr, "\n
 Successfully dumped variables, if you ran with --log, take a look at the\n\
 details of what thread %ld did to cause the crash.  In some cases of really\n\
-bad corruption, the above values may be invalid\n\n",
+bad corruption, the values shown above may be invalid\n\n",
 	  thd->thread_id);
   }
   fprintf(stderr, "\
@@ -2455,7 +2455,7 @@ enum options {
                OPT_INNODB_LOG_ARCH_DIR, 
                OPT_INNODB_LOG_ARCHIVE, 
                OPT_INNODB_FLUSH_LOG_AT_TRX_COMMIT, 
-               OPT_INNODB_UNIX_FILE_FLUSH_METHOD, 
+               OPT_INNODB_UNIX_FILE_FLUSH_METHOD,
                OPT_SAFE_SHOW_DB,
 	       OPT_GEMINI_SKIP, OPT_INNODB_SKIP,
                OPT_TEMP_POOL, OPT_TX_ISOLATION,
@@ -2516,7 +2516,7 @@ static struct option long_options[] = {
      OPT_INNODB_LOG_ARCHIVE},
   {"innodb_flush_log_at_trx_commit", optional_argument, 0,
      OPT_INNODB_FLUSH_LOG_AT_TRX_COMMIT},
-  {"innodb_unix_file_flush_method", required_argument, 0,
+  {"innodb_flush_method", required_argument, 0,
     OPT_INNODB_UNIX_FILE_FLUSH_METHOD},
 #endif
   {"help",                  no_argument,       0, '?'},
@@ -2603,6 +2603,7 @@ static struct option long_options[] = {
 #endif
   {"user",                  required_argument, 0, 'u'},
   {"version",               no_argument,       0, 'V'},
+  {"warnings",		    no_argument,       0, 'W'},
   {0, 0, 0, 0}
 };
 
@@ -3010,6 +3011,8 @@ static void usage(void)
 			Start without grant tables. This gives all users\n\
 			FULL ACCESS to all tables!\n\
   --safe-mode		Skip some optimize stages (for testing)\n\
+  --safe-show-database  Don't show databases for which the user has no\n\
+                        privileges\n\
   --skip-concurrent-insert\n\
 		        Don't use concurrent insert with MyISAM\n\
   --skip-delay-key-write\n\
@@ -3033,7 +3036,8 @@ static void usage(void)
 		        Default transaction isolation level\n\
   --temp-pool           Use a pool of temporary files\n\
   -u, --user=user_name	Run mysqld daemon as user\n\
-  -V, --version		output version information and exit");
+  -V, --version		output version information and exit\n\
+  -W, --warnings        Log some not critical warnings to the log file\n");
 #ifdef __WIN__
   puts("NT and Win32 specific options:\n\
   --console		Don't remove the console window\n\
@@ -3073,7 +3077,7 @@ static void usage(void)
   puts("\
   --innodb_data_home_dir=dir   The common part for Innodb table spaces\n\
   --innodb_data_file_path=dir  Path to individual files and their sizes\n\
-  --innodb_flush_method=#      Which method to flush data\n\
+  --innodb_flush_method=#  With which method to flush data\n\
   --innodb_flush_log_at_trx_commit[=#]\n\
 			       Set to 0 if you don't want to flush logs\n\
   --innodb_log_arch_dir=dir    Where full logs should be archived\n\
@@ -3167,7 +3171,7 @@ static void get_options(int argc,char **argv)
   int c,option_index=0;
 
   myisam_delay_key_write=1;			// Allow use of this
-  while ((c=getopt_long(argc,argv,"ab:C:h:#::T::?l::L:O:P:sS::t:u:noVvI?",
+  while ((c=getopt_long(argc,argv,"ab:C:h:#::T::?l::L:O:P:sS::t:u:noVvWI?",
 			long_options, &option_index)) != EOF)
   {
     switch(c) {
@@ -3176,6 +3180,9 @@ static void get_options(int argc,char **argv)
       DBUG_PUSH(optarg ? optarg : default_dbug_option);
 #endif
       opt_endinfo=1;				/* unireg: memory allocation */
+      break;
+    case 'W':
+      opt_warnings=1;
       break;
     case 'a':
       opt_ansi_mode=1;

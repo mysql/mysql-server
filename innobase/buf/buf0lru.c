@@ -260,9 +260,9 @@ loop:
 */
 		if (n_iterations > 30) {
 			fprintf(stderr,
-		"Innobase: Warning: difficult to find free blocks from\n"
-		"Innobase: the buffer pool! Consider increasing the\n"
-		"Innobase: buffer pool size.\n");
+		"InnoDB: Warning: difficult to find free blocks from\n"
+		"InnoDB: the buffer pool (%lu search iterations)! Consider\n"
+		"InnoDB: increasing the buffer pool size.\n", n_iterations);
 		}
 	}
 

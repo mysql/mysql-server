@@ -293,6 +293,32 @@ buf_page_peek_block(
 	ulint	space,	/* in: space id */
 	ulint	offset);/* in: page number */
 /************************************************************************
+Sets file_page_was_freed TRUE if the page is found in the buffer pool.
+This function should be called when we free a file page and want the
+debug version to check that it is not accessed any more unless
+reallocated. */
+
+buf_block_t*
+buf_page_set_file_page_was_freed(
+/*=============================*/
+			/* out: control block if found from page hash table,
+			otherwise NULL */
+	ulint	space,	/* in: space id */
+	ulint	offset);	/* in: page number */
+/************************************************************************
+Sets file_page_was_freed FALSE if the page is found in the buffer pool.
+This function should be called when we free a file page and want the
+debug version to check that it is not accessed any more unless
+reallocated. */
+
+buf_block_t*
+buf_page_reset_file_page_was_freed(
+/*===============================*/
+			/* out: control block if found from page hash table,
+			otherwise NULL */
+	ulint	space,	/* in: space id */
+	ulint	offset);	/* in: page number */
+/************************************************************************
 Recommends a move of a block to the start of the LRU list if there is danger
 of dropping from the buffer pool. NOTE: does not reserve the buffer pool
 mutex. */
@@ -706,6 +732,9 @@ struct buf_block_struct{
 					which bufferfixes the block acquires
 					an s-latch here; so we can use the
 					debug utilities in sync0rw */
+        ibool           file_page_was_freed;
+                                        /* this is set to TRUE when fsp
+                                        frees a page in buffer pool */
 };
 
 /* The buffer pool structure. NOTE! The definition appears here only for

@@ -182,8 +182,8 @@ buf_flush_write_complete(
 		buf_pool->LRU_flush_ended++;
 	}
 
-/* 	printf("n pending flush %lu\n",
-				buf_pool->n_flush[block->flush_type]); */
+	/* 	printf("n pending flush %lu\n",
+		buf_pool->n_flush[block->flush_type]); */
 
 	if ((buf_pool->n_flush[block->flush_type] == 0)
 	    && (buf_pool->init_flush[block->flush_type] == FALSE)) {
@@ -421,6 +421,8 @@ buf_flush_try_neighbors(
 	/* In simulated aio we wake up the i/o-handler threads now that
 	we have posted a batch of writes: */
 	
+	/*	printf("Flush count %lu ; Waking i/o handlers\n", count); */
+
 	os_aio_simulated_wake_handler_threads();
 
 	return(count);
