@@ -2,6 +2,24 @@
 # system functions
 #
 
-select database(),user() like "%@%";
+select database();
+select charset(database());
+select database() = "test";
+select database() = _utf8"test";
+select database() = _latin1"test";
+
+select user() like "%@%";
+select user() like _utf8"%@%";
+select user() like _latin1"%@%";
+select charset(user());
+
+select version()>="3.23.29";
 select version()>=_utf8"3.23.29";
+select version()>=_latin1"3.23.29";
+select charset(version());
+
+create table t1 select database(), user(), version();
+show create table t1;
+drop table t1;
+
 select TRUE,FALSE,NULL;
