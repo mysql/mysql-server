@@ -37,7 +37,7 @@
 **   Tõnu Samuel  <tonu@please.do.not.remove.this.spam.ee>
 **/
 
-#define DUMP_VERSION "8.11"
+#define DUMP_VERSION "8.12"
 
 #include <global.h>
 #include <my_sys.h>
@@ -863,9 +863,14 @@ static char *add_load_option(char *ptr,const char *object,
 {
   if (object)
   {
-    ptr= strxmov(ptr," ",statement," '",NullS);
-    ptr= field_escape(ptr,object,(uint) strlen(object));
-    *ptr++= '\'';
+	if (!strncasecmp(object,"0x",2))	/* hex constant; don't escape */
+		ptr= strxmov(ptr," ",statement," ",object,NullS);
+	else								/* char constant; escape */
+	{
+		ptr= strxmov(ptr," ",statement," '",NullS);
+		ptr= field_escape(ptr,object,(uint) strlen(object));
+		*ptr++= '\'';
+	}
   }
   return ptr;
 } /* add_load_option */

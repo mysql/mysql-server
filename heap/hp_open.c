@@ -38,6 +38,7 @@ HP_INFO *heap_open(const char *name, int mode, uint keys, HP_KEYDEF *keydef,
   pthread_mutex_lock(&THR_LOCK_heap);
   if (!(share=_hp_find_named_heap(name)))
   {
+    DBUG_PRINT("info",("Initializing new table"));
     for (i=key_segs=max_length=0 ; i < keys ; i++)
     {
       key_segs+= keydef[i].keysegs;

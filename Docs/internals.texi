@@ -289,6 +289,151 @@ Use pointers rather than array indexing when operating on strings.
 
 @end itemize
 
+@node mysys functions
+@chapter mysys functions
+
+Functions i mysys: (For flags se my_sys.h)
+
+ int my_copy _A((const char *from,const char *to,myf MyFlags));
+	- Copy file
+
+ int my_delete _A((const char *name,myf MyFlags));
+	- Delete file
+
+ int my_getwd _A((string buf,uint size,myf MyFlags));
+ int my_setwd _A((const char *dir,myf MyFlags));
+	- Get and set working directory
+
+ string my_tempnam _A((const char *pfx,myf MyFlags));
+	- Make a uniq temp file name by using dir and adding something after
+	 pfx to make name uniq. Name is made by adding a uniq 6 length-string
+	 and TMP_EXT after pfx.
+	 Returns pointer to malloced area for filename. Should be freed by
+	 free().
+
+ File my_open _A((const char *FileName,int Flags,myf MyFlags));
+ File my_create _A((const char *FileName,int CreateFlags,
+			  int AccsesFlags, myf MyFlags));
+ int my_close _A((File Filedes,myf MyFlags));
+ uint my_read _A((File Filedes,byte *Buffer,uint Count,myf MyFlags));
+ uint my_write _A((File Filedes,const byte *Buffer,uint Count,
+			 myf MyFlags));
+ ulong my_seek _A((File fd,ulong pos,int whence,myf MyFlags));
+ ulong my_tell _A((File fd,myf MyFlags));
+	- Use instead of open,open-with-create-flag, close read and write
+	  to get automatic error-messages (flag: MYF_WME) and only have
+	  to test for != 0 if error (flag: MY_NABP).
+
+ int my_rename _A((const char *from,const char *to,myf MyFlags));
+	- Rename file
+
+ FILE *my_fopen _A((const char *FileName,int Flags,myf MyFlags));
+ FILE *my_fdopen _A((File Filedes,int Flags,myf MyFlags));
+ int my_fclose _A((FILE *fd,myf MyFlags));
+ uint my_fread _A((FILE *stream,byte *Buffer,uint Count,myf MyFlags));
+ uint my_fwrite _A((FILE *stream,const byte *Buffer,uint Count,
+			  myf MyFlags));
+ ulong my_fseek _A((FILE *stream,ulong pos,int whence,myf MyFlags));
+ ulong my_ftell _A((FILE *stream,myf MyFlags));
+	- Same read-interface for streams as for files
+
+ gptr _mymalloc _A((uint uSize,const char *sFile,
+			  uint uLine, myf MyFlag));
+ gptr _myrealloc _A((string pPtr,uint uSize,const char *sFile,
+			   uint uLine, myf MyFlag));
+ void _myfree _A((gptr pPtr,const char *sFile,uint uLine));
+ int _sanity _A((const char *sFile,unsigned int uLine));
+ gptr _myget_copy_of_memory _A((const byte *from,uint length,
+				      const char *sFile, uint uLine,
+				      myf MyFlag));
+	- malloc(size,myflag) is mapped to this functions if not compiled
+	  with -DSAFEMALLOC
+
+ void TERMINATE _A((void));
+	- Writes malloc-info on stdout if compiled with -DSAFEMALLOC.
+
+ int my_chsize _A((File fd,ulong newlength,myf MyFlags));
+	- Change size of file
+
+ void my_error _D((int nr,myf MyFlags, ...));
+	- Writes message using error number (se mysys/errors.h) on
+	  stdout or curses if  MYSYS_PROGRAM_USES_CURSES() is called.
+
+ void my_message _A((const char *str,myf MyFlags));
+	- Writes message-string on
+	 stdout or curses if  MYSYS_PROGRAM_USES_CURSES() is called.
+
+ void my_init _A((void ));
+	- Start each program (in main) with this.
+ void my_end _A((int infoflag));
+	- Gives info about program.
+	- If infoflag & MY_CHECK_ERROR prints if some files are left open
+	- If infoflag & MY_GIVE_INFO   prints timing info and malloc info
+	  about prog.
+
+ int my_redel _A((const char *from, const char *to, int MyFlags));
+	- Delete from before rename of to to from. Copyes state from old
+	  file to new file. If MY_COPY_TIME is set sets old time.
+
+ int my_copystat _A((const char *from, const char *to, int MyFlags));
+	- Copye state from old file to new file.
+	  If MY_COPY_TIME is set sets copy also time.
+
+ string my_filename _A((File fd));
+	- Give filename of open file.
+
+ int dirname _A((string to,const char *name));
+	- Copy name of directory from filename.
+
+ int test_if_hard_path _A((const char *dir_name));
+	- Test if dirname is a hard path (Starts from root)
+
+ void convert_dirname _A((string name));
+	- Convert dirname acording to system.
+	  - In MSDOS changes all caracters to capitals and changes '/' to
+	    '\'
+ string fn_ext _A((const char *name));
+	- Returns pointer to extension in filename
+ string fn_format _A((string to,const char *name,const char *dsk,
+			    const char *form,int flag));
+	format a filename with replace of library and extension and
+	converts between different systems.
+	params to and name may be identicall
+	function dosn't change name if name != to
+	Flag may be:	1   force replace filnames library with 'dsk'
+			2   force replace extension with 'form' */
+			4   force Unpack filename (replace ~ with home)
+			8   Pack filename as short as possibly for output to
+			    user.
+	All open requests should allways use at least:
+	"open(fn_format(temp_buffe,name,"","",4),...)" to unpack home and
+	convert filename to system-form.
+
+ string fn_same _A((string toname,const char *name,int flag));
+	- Copys directory and extension from name to toname if neaded.
+	  copy can be forced by same flags that in fn_format.
+
+ int wild_compare _A((const char *str,const char *wildstr));
+	- Compare if str matches wildstr. Wildstr can contain "*" and "?"
+	  as match-characters.
+	  Returns 0 if match.
+
+ void get_date _A((string to,int timeflag));
+	- Get current date in a form ready for printing.
+
+ void soundex _A((string out_pntr, string in_pntr))
+	- Makes in_pntr to a 5 chars long string. All words that sounds
+	  alike have the same string.
+
+ int init_key_cache _A((ulong use_mem,ulong leave_this_much_mem));
+	- Use cacheing of keys in MISAM, PISAM, and ISAM.
+	  KEY_CACHE_SIZE is a good size.
+	  - Remember to lock databases for optimal cacheing
+
+ void end_key_cache _A((void));
+	- End key-cacheing.
+
+
 @c The Index was empty, and ugly, so I removed it. (jcole, Sep 7, 2000)
 
 @c @node Index

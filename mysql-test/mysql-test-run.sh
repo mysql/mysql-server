@@ -54,35 +54,32 @@ TOT_TEST=0
 USERT=0
 SYST=0
 REALT=0
-MY_TMP_DIR=$MYSQL_TEST_DIR/var/tmp
-TIMEFILE="$MYSQL_TEST_DIR/var/tmp/mysqltest-time"
+MYSQL_TMP_DIR=$MYSQL_TEST_DIR/var/tmp
+TIMEFILE="$MYSQL_TMP_DIR/mysqltest-time"
 RES_SPACE="      "
 MYSQLD_SRC_DIRS="strings mysys include extra regex isam merge myisam \
  myisammrg heap sql"
-GCOV_MSG=/tmp/mysqld-gcov.out
-GCOV_ERR=/tmp/mysqld-gcov.err  
+GCOV_MSG=$MYSQL_TMP_DIR/mysqld-gcov.out
+GCOV_ERR=$MYSQL_TMP_DIR/mysqld-gcov.err  
 
 MASTER_RUNNING=0
 SLAVE_RUNNING=0
 
-[ -d $MY_TMP_DIR ]  || mkdir -p $MY_TMP_DIR
-
 #++
 # mysqld Environment Parameters
 #--
-MYRUN_DIR=var/run
+MYRUN_DIR=$MYSQL_TEST_DIR/var/run
 MASTER_MYPORT=9306
 MASTER_MYDDIR="$MYSQL_TEST_DIR/var/lib"
-MASTER_MYSOCK="$MYSQL_TEST_DIR/var/tmp/mysql.sock"
-MASTER_MYPID="$MYSQL_TEST_DIR/var/run/mysqld.pid"
+MASTER_MYSOCK="$MYSQL_TMP_DIR/mysql.sock"
+MASTER_MYPID="$MYRUN_DIR/mysqld.pid"
 MASTER_MYLOG="$MYSQL_TEST_DIR/var/log/mysqld.log"
 MASTER_MYERR="$MYSQL_TEST_DIR/var/log/mysqld.err"
 
-
 SLAVE_MYPORT=9307
 SLAVE_MYDDIR="$MYSQL_TEST_DIR/var/slave-data"
-SLAVE_MYSOCK="$MYSQL_TEST_DIR/var/tmp/mysql-slave.sock"
-SLAVE_MYPID="$MYSQL_TEST_DIR/var/run/mysqld-slave.pid"
+SLAVE_MYSOCK="$MYSQL_TMP_DIR/mysql-slave.sock"
+SLAVE_MYPID="$MYRUN_DIR/mysqld-slave.pid"
 SLAVE_MYLOG="$MYSQL_TEST_DIR/var/log/mysqld-slave.log"
 SLAVE_MYERR="$MYSQL_TEST_DIR/var/log/mysqld-slave.err"
 
@@ -91,6 +88,15 @@ if [ x$SOURCE_DIST = x1 ] ; then
 else
  MY_BASEDIR=$BASEDIR
 fi  
+
+# Create the directories
+
+# This should be fixed to be not be dependent on the contence of MYSQL_TMP_DIR
+# or MYRUN_DIR
+# (mkdir -p is not portable)
+[ -d $MYSQL_TEST_DIR/var ] || mkdir $MYSQL_TEST_DIR/var
+[ -d $MYSQL_TEST_DIR/var/tmp ] || mkdir $MYSQL_TEST_DIR/var/tmp
+[ -d $MYSQL_TEST_DIR/var/run ] || mkdir $MYSQL_TEST_DIR/var/run
 
 #++
 # Program Definitions
@@ -124,15 +130,15 @@ else
  MYSQLD="$BASEDIR/bin/mysqld"
  MYSQL_TEST="$BASEDIR/bin/mysqltest"
  MYSQLADMIN="$BASEDIR/bin/mysqladmin"
- INSTALL_DB="../scripts/install_test_db -bin"
+ INSTALL_DB="./install_test_db -bin"
 fi
 
 
 SLAVE_MYSQLD=$MYSQLD #this will be changed later if we are doing gcov
 
 MYSQL_TEST="$MYSQL_TEST --no-defaults --socket=$MASTER_MYSOCK --database=$DB --user=$DBUSER --password=$DBPASSWD --silent -v"
-GDB_MASTER_INIT=/tmp/gdbinit.master
-GDB_SLAVE_INIT=/tmp/gdbinit.slave
+GDB_MASTER_INIT=$MYSQL_TMP_DIR/gdbinit.master
+GDB_SLAVE_INIT=$MYSQL_TMP_DIR/gdbinit.slave
 
 while test $# -gt 0; do
   case "$1" in
@@ -150,6 +156,16 @@ while test $# -gt 0; do
 	$ECHO "Note: you will get more meaningful output on a source distribution compiled with debugging option when running tests with -gdb option"
       fi
       DO_GDB=1
+      ;;
+    --ddd )
+      if [ x$BINARY_DIST = x1 ] ; then
+	$ECHO "Note: you will get more meaningful output on a source distribution compiled with debugging option when running tests with -gdb option"
+      fi
+      DO_DDD=1
+      ;;
+    --debug)
+      EXTRA_MASTER_MYSQLD_OPT=--debug=d:t:O,$MYSQL_TMP_DIR/master.trace
+      EXTRA_SLAVE_MYSQLD_OPT=--debug=d:t:O,$MYSQL_TMP_DIR/slave.trace
       ;;
     -- )  shift; break ;;
     --* ) $ECHO "Unrecognized option: $1"; exit 1 ;;
@@ -200,7 +216,7 @@ total_inc () {
 
 report_stats () {
     if [ $TOT_FAIL = 0 ]; then
-	$ECHO "All tests successful."
+	$ECHO "All $TOT_TEST tests were successful."
     else
 	xten=`$EXPR $TOT_PASS \* 10000`   
 	raw=`$EXPR $xten / $TOT_TEST`     
@@ -216,7 +232,6 @@ mysql_install_db () {
     $ECHO "Removing Stale Files"
     $RM -rf $MASTER_MYDDIR $SLAVE_MYDDIR $SLAVE_MYLOG $MASTER_MYLOG \
      $SLAVE_MYERR $MASTER_MYERR
-    [ -d $MYRUN_DIR ] || mkdir -p $MYRUN_DIR
     $ECHO "Installing Master Databases"
     $INSTALL_DB
     if [ $? != 0 ]; then
@@ -249,13 +264,15 @@ gcov_collect () {
 	cd $MYSQL_TEST_DIR
     done
 
-    $ECHO "gcov  info in $GCOV_MSG, errors in $GCOV_ERR"
+    $ECHO "gcov info in $GCOV_MSG, errors in $GCOV_ERR"
 }
 
 start_master()
 {
     [ x$MASTER_RUNNING = 1 ] && return
     cd $BASEDIR # for gcov
+    # Remove old berkeley db log files that can confuse the server
+    $RM -f $MASTER_MYDDIR/log.*	
     #start master
     master_args="--no-defaults --log-bin=master-bin \
     	    --server-id=1 \
@@ -266,8 +283,13 @@ start_master()
 	    --pid-file=$MASTER_MYPID \
 	    --socket=$MASTER_MYSOCK \
             --log=$MASTER_MYLOG \
-	    --language=english $EXTRA_MASTER_OPT"
-    if [ x$DO_GDB = x1 ]
+	    --language=english $EXTRA_MASTER_OPT $EXTRA_MASTER_MYSQLD_OPT"
+    if [ x$DO_DDD = x1 ]
+    then
+      $ECHO "set args $master_args" > $GDB_MASTER_INIT
+      ddd --debugger "gdb -x $GDB_MASTER_INIT" $MYSQLD &
+      prompt_user "Hit enter to continue after you've started the master"
+    elif [ x$DO_GDB = x1 ]
     then
       $ECHO "set args $master_args" > $GDB_MASTER_INIT
       xterm -title "Master" -e gdb -x $GDB_MASTER_INIT $MYSQLD &
@@ -292,6 +314,7 @@ start_slave()
      master_info=$SLAVE_MASTER_INFO
    fi	    
     
+    $RM -f $SLAVE_MYDDIR/log.*	
     slave_args="--no-defaults $master_info \
     	    --exit-info=256 \
 	    --log-bin=slave-bin --log-slave-updates \
@@ -301,8 +324,13 @@ start_slave()
 	    --port=$SLAVE_MYPORT \
 	    --socket=$SLAVE_MYSOCK \
             --log=$SLAVE_MYLOG \
-            --language=english $EXTRA_SLAVE_OPT"
-    if [ x$DO_GDB = x1 ]
+            --language=english $EXTRA_SLAVE_OPT $EXTRA_SLAVE_MYSQLD_OPT"
+    if [ x$DO_DDD = x1 ]
+    then
+      $ECHO "set args $master_args" > $GDB_SLAVE_INIT
+      ddd --debugger "gdb -x $GDB_SLAVE_INIT" $MYSQLD &
+      prompt_user "Hit enter to continue after you've started the master"
+    elif [ x$DO_GDB = x1 ]
     then
       $ECHO "set args $slave_args" > $GDB_SLAVE_INIT
       xterm -title "Slave" -e gdb -x $GDB_SLAVE_INIT $SLAVE_MYSQLD &
@@ -447,12 +475,12 @@ run_testcase ()
  cd $MYSQL_TEST_DIR
   
  if [ -f $tf ] ; then
-    $RM -f r/$tname.*.reject
+    $RM -f r/$tname.*reject
     mytime=`$TIME -p $MYSQL_TEST -R r/$tname.result $extra_flags \
      < $tf 2> $TIMEFILE`
     res=$?
 
-    if [ $res == 0 ]; then
+    if [ $res = 0 ]; then
 	mytime=`$CAT $TIMEFILE | $TR '\n' '-'`
 
 	USERT=`$ECHO $mytime | $CUT -d - -f 2 | $CUT -d ' ' -f 2`
@@ -473,12 +501,12 @@ run_testcase ()
 
 
 
-    if [ $res == 0 ]; then
+    if [ $res = 0 ]; then
       total_inc
       pass_inc
       $ECHO "$RES_SPACE [ pass ]"
     else
-      if [ $res == 1 ]; then
+      if [ $res = 1 ]; then
 	total_inc
         fail_inc
 	$ECHO "$RES_SPACE [ fail ]"
@@ -504,16 +532,24 @@ run_testcase ()
 }
 
 
+######################################################################
+# Main script starts here
+######################################################################
+
 [ "$DO_GCOV" -a ! -x "$GCOV" ] && error "No gcov found"
 
 [ "$DO_GCOV" ] && gcov_prepare 
+
+# Ensure that no old mysqld test servers are running
+$MYSQLADMIN --no-defaults --socket=$MASTER_MYSOCK -u root -O connect_timeout=5 shutdown > /dev/null 2>&1
+$MYSQLADMIN --no-defaults --socket=$SLAVE_MYSOCK -u root -O connect_timeout=5 shutdown > /dev/null 2>&1
 
 $ECHO "Installing Test Databases"
 mysql_install_db
 
 #do not automagically start deamons if we are in gdb or running only one test
 #case
-if [ -z "$DO_GDB" ] && [ -z "$1" ]
+if [ -z "$DO_GDB" ] && [ -z "$1" ] && [ -z "$DO_DDD" ]
 then
  mysql_start
 fi
@@ -552,7 +588,7 @@ $ECHO
 
 $RM -f $TIMEFILE
 
-if [ -z "$DO_GDB" ] ;
+if [ -z "$DO_GDB" ] && [ -z "$DO_DDD" ]
 then
     mysql_stop
 fi

@@ -82,7 +82,7 @@ int mrg_rrnd(MRG_INFO *info,byte *buf,mrg_off_t filepos)
     }
   }
   info->current_table=find_table(info->open_tables,
-				 info->end_table,filepos);
+				 info->end_table-1,filepos);
   isam_info=info->current_table->table;
   isam_info->update&= HA_STATE_CHANGED;
   return ((*isam_info->s->read_rnd)(isam_info,(byte*) buf,

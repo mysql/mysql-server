@@ -242,11 +242,11 @@ HELLO	1
 HELLO MY	1
 a	1
 hello	1
-_field_140	min(t3._field_131)	min(t3._field_135)	min(t3._field_139)	min(t3._field_137)	min(link_alias_142._field_165)	min(link_alias_133._field_72)	min(t3._field_145)	min(link_alias_148._field_156)	min(t3._field_140)	t3_id
+_field_140	min(t3._field_131)	min(t3._field_135)	min(t3._field_139)	min(t3._field_137)	min(link_alias_142._field_165)	min(link_alias_133._field_72)	min(t3._field_145)	min(link_alias_148._field_156)	replace(min(t3._field_140), "\r","^M")	t3_id
 test
 job
-1	test job 1	0000-00-00 00:00:00	1999-02-25 22:43:32	0	High	admin	0	tomato	test
-job
+1	test job 1	0000-00-00 00:00:00	1999-02-25 22:43:32	0	High	admin	0	tomato	test^M
+job^M
 1	1
 stamp
 19990402000000
