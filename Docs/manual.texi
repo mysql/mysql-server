@@ -1404,7 +1404,8 @@ for free, but for certain uses you may want or need to buy commercial
 licenses from MySQL AB at @uref{https://order.mysql.com/}.
 
 Older versions of MySQL (3.22 and earlier) are subject to a more
-@uref{http://www.mysql.com/support/arrangements/mypl.html, strict license}.
+strict license
+(@uref{http://www.mysql.com/support/arrangements/mypl.html}).
 See the documentation of the specific version for information.
 
 Please note that the use of the MySQL server under commercial license,
@@ -1916,7 +1917,7 @@ address replaced by a @samp{=}.  For example, to subscribe
 Mail to @email{mysql-subscribe@@lists.mysql.com} or
 @email{mysql-unsubscribe@@lists.mysql.com} is handled automatically by the
 ezmlm mailing list processor.  Information about ezmlm is available at
-@uref{http://www.ezmlm.org, The ezmlm website}.
+the ezmlm website (@uref{http://www.ezmlm.org/}).
 
 To post a message to the list itself, send your message to
 @code{mysql@@lists.mysql.com}.  However, please @emph{do not} send mail about
@@ -2027,7 +2028,7 @@ Email @code{subscribe mysql your@@e-mail.address} to this list.
 @item @email{mysql-de-request@@lists.4t2.com} A German mailing list
 Email @code{subscribe mysql-de your@@e-mail.address} to this list.
 You can find information about this mailing list at
-@uref{http://www.4t2.com/mysql}.
+@uref{http://www.4t2.com/mysql/}.
 @item @email{mysql-br-request@@listas.linkway.com.br} A Portugese mailing list
 Email @code{subscribe mysql-br your@@e-mail.address} to this list.
 @item @email{mysql-alta@@elistas.net} A Spanish mailing list
@@ -2406,7 +2407,7 @@ Many users don't read mail with a browser!
 @subsection Books About MySQL
 
 For the latest book information, with user comments, please visit
-@uref{http://www.mysql.com/portal/books/html/index.html}.
+@uref{http://www.mysql.com/portal/books/html/}.
 
 While this manual is still the right place for up to date technical
 information, its primary goal is to contain everything there is to know
@@ -2763,7 +2764,7 @@ A complete reference to DBI.
 
 The MySQL book portal is split into different sections to make it easy
 to locate books for various purposes.
-@uref{http://www.mysql.com/portal/books/html/index.html}
+@uref{http://www.mysql.com/portal/books/html/}
 
 Tutorials can be found at:
 @uref{http://www.mysql.com/portal/development/html/development-61-1.html}
@@ -2772,11 +2773,11 @@ Tutorials can be found at:
 @subsection Useful MySQL-related Links
 
 The MySQL development portal is the ultimate source of MySQL related
-links. @uref{http://www.mysql.com/portal/development/html/index.html}
+links. @uref{http://www.mysql.com/portal/development/html/}
 
 Apart from the following links, you can find and download a lot of
-MySQL programs, tools and APIs from the
-@uref{http://www.mysql.com/Downloads/Contrib/, Contrib directory}.
+MySQL programs, tools and APIs in the Contrib directory
+(@uref{http://www.mysql.com/Downloads/Contrib/}).
 @cindex @code{Contrib} directory
 
 @cindex URLs to MySQL information
@@ -2787,13 +2788,13 @@ MySQL programs, tools and APIs from the
 @item @uref{http://michael.bacarella.com/research/mysqlmyths.html, MySQL Myths Debunked}
 MySQL used in the real world.
 
-@item @uref{http://www.4t2.com/mysql}
+@item @uref{http://www.4t2.com/mysql/}
 Information about the German MySQL mailing list.
 
 @item @uref{http://www2.rent-a-database.de/mysql/}
 MySQL handbook in German.
 
-@item @uref{http://www.bitmover.com:8888//home/bk/mysql}
+@item @uref{http://www.bitmover.com:8888/home/bk/mysql/}
 Web access to the MySQL BitKeeper repository.
 
 @item @uref{http://www.analysisandsolutions.com/code/mybasic.htm}
@@ -2906,19 +2907,19 @@ which services were discovered on which dial-up numbers in your organisation.
 @subheading SQL Clients and Report Writers
 
 @table @asis
-@item @uref{http://www.urbanresearch.com/software/utils/urbsql/index.html, urSQL}
+@item @uref{http://www.urbanresearch.com/software/utils/urbsql/} (urSQL)
 SQL Editor and Query Utility. Custom syntax highlighting, editable
 results grid, exportable result-sets, basic MySQL admin functions,
 Etc.. For Windows.
 
-@item @uref{http://www.edatanew.com/, MySQL Data Manager}
+@item @uref{http://www.edatanew.com/} (MySQL Data Manager)
 MySQL Data Manager * is platform independent web client
 (written in perl) for MySQL server over TCP/IP.
 
 @item @uref{http://ksql.sourceforge.net/}
 KDE MySQL client.
 
-@item @uref{http://www.ecker-software.de}
+@item @uref{http://www.ecker-software.de/}
 A Windows GUI client by David Ecker.
 
 @item @uref{http://www.icaap.org/software/kiosk/}
@@ -2928,22 +2929,22 @@ Will be a part of Bazaar.
 @item @uref{http://www.casestudio.com/}
 Db design tool that supports MySQL 3.23.
 
-@item @uref{http://home.skif.net/~voland/zeos/eng/index.html}
+@item @uref{http://home.skif.net/~voland/zeos/eng/}
 Zeos - A client that supports MySQL, Interbase and PostgreSQL.
 
 @item @uref{http://www.geocities.com/SiliconValley/Ridge/4280/GenericReportWriter/grwhome.html}
 A free report writer in Java
 
-@item @uref{http://www.javaframework.de}
+@item @uref{http://www.javaframework.de/}
 MySQLExport - Export of MySQL create statements and data in a lot of
 different formats (SQL, HTML, CVS, text, ZIP, GZIP...).
 
-@item @uref{http://dlabs.4t2.com}
+@item @uref{http://dlabs.4t2.com/}
 M2D, a MySQL Administration client for Windows.  M2D supports 
 administration of MySQL databases, creation of new databases and 
 tables, editing, and more.
 
-@item @uref{http://dlabs.4t2.com}
+@item @uref{http://dlabs.4t2.com/}
 Dexter, a small server written in Perl which can be used as a proxy server for
 MySQL or as a database extender.
 
@@ -2965,7 +2966,7 @@ SuSE Linux (6.1 and above)
 @item @uref{http://www.redhat.com/}
 RedHat Linux (7.0 and above)
 
-@item @uref{http://distro.conectiva.com.br}
+@item @uref{http://distro.conectiva.com.br/}
 Conectiva Linux (4.0 and above)
 @end table
 
@@ -2975,7 +2976,7 @@ Conectiva Linux (4.0 and above)
 @item @uref{http://www.php.net/}
 PHP: A server-side HTML-embedded scripting language.
 
-@item @uref{http://www.midgard-project.org}
+@item @uref{http://www.midgard-project.org/}
 The Midgard Application Server; a powerful Web development environment
 based on MySQL and PHP.
 
@@ -2988,7 +2989,7 @@ client will stop you.  It works as standalone server or as Java servlet.
 @item @uref{http://www.chilisoft.com/}
 Platform independent ASP from Chili!Soft
 
-@item @uref{http://www.voicenet.com/~zellert/tjFM}
+@item @uref{http://www.voicenet.com/~zellert/tjFM/}
 A JDBC driver for MySQL.
 
 @item @uref{http://www.wernhart.priv.at/php/}
@@ -3021,7 +3022,7 @@ Calistra's ODBC MySQL Administrator.
 @item @uref{http://phpclub.net/}
 PHPclub - Tips and tricks for PHP.
 
-@item @uref{http://www.widgetchuck.com}
+@item @uref{http://www.widgetchuck.com/}
 The Widgetchuck; Website Tools and Gadgets
 
 @item @uref{http://www.adcycle.com/}
@@ -3131,7 +3132,7 @@ MySQL database and use embedded SQL in their programs.
 @subheading Other MySQL-related Links
 
 @table @asis
-@item @uref{http://www.satisoft.com/, SAT}
+@item @uref{http://www.satisoft.com/} (SAT)
 The Small Application Toolkit (SAT) is a collection of utilities
 intended to simplify the development of small, multi-user, GUI based
 applications in a (Microsoft -or- X) Windows Client / Unix Server
@@ -3152,7 +3153,7 @@ Commercial Web defect tracking system.
 @item @uref{http://www.stonekeep.com/pts/}
 PTS: Project Tracking System.
 
-@item @uref{http://tomato.nvgc.vt.edu/~hroberts/mot}
+@item @uref{http://tomato.nvgc.vt.edu/~hroberts/mot/}
 Job and software tracking system.
 
 @item @uref{http://www.cynergi.net/exportsql/}
@@ -3178,7 +3179,7 @@ Y2K tester.
 @item @uref{http://java.sun.com/products/jdbc/}
 The JDBC database access API.
 
-@item @uref{http://www.gagme.com/mysql}
+@item @uref{http://www.gagme.com/mysql/}
 Patch for @code{mSQL} Tcl.
 
 @item @uref{http://www.amsoft.ru/easysql/}
@@ -3209,7 +3210,7 @@ MySQL, PHP3, and Linux.
 
 @c Added 990521
 @c EMAIL: info@worldrecords.com (Jim Rota)
-@item @uref{http://www.worldrecords.com}
+@item @uref{http://www.worldrecords.com/}
 World Records - A search engine for information about music that uses
 MySQL and PHP.
 
@@ -3226,7 +3227,7 @@ SQL statements from an html form.
 @item @uref{http://www.gusnet.cx/proj/telsql/}
 Basic telephone database using @code{DBI}/@code{DBD}.
 
-@item @uref{http://tecfa.unige.ch/guides/java/staf2x/ex/jdbc/coffee-break}
+@item @uref{http://tecfa.unige.ch/guides/java/staf2x/ex/jdbc/coffee-break/}
 JDBC examples by Daniel K. Schneider.
 
 @item @uref{http://www.ooc.com/}
@@ -3236,7 +3237,7 @@ Object Oriented Concepts Inc; CORBA applications with examples in source.
 @item @uref{http://www.stopbit.com/}
 Stopbit - A technology news site using MySQL and PHP.
 
-@item @uref{http://www.penguinservices.com/scripts}
+@item @uref{http://www.penguinservices.com/scripts/}
 Online shopping cart system.
 
 @c Added 990928 from editor@city-gallery.com
@@ -3256,7 +3257,7 @@ as BLOBs.  All other information is stored on the shared MySQL server.
 @item @uref{http://black.hole-in-the.net/guy/webdb/}
 Homepage of the webdb-l (Web Databases) mailing list.
 
-@item @uref{http://www.symbolstone.org/technology/perl/DBI/index.html}
+@item @uref{http://www.symbolstone.org/technology/perl/DBI/}
 Perl @code{DBI}/@code{DBD} modules homepage.
 
 @item @uref{http://www.student.uni-koeln.de/cygwin/}
@@ -5040,8 +5041,9 @@ code, we are better able to coordinate new features and releases.
 
 @cindex PostgreSQL/MySQL, features
 
-On the @uref{http://www.mysql.com/information/crash-me.php, crash-me}
-page you can find a list of those database constructs and limits that
+On the crash-me page
+(@uref{http://www.mysql.com/information/crash-me.php})
+you can find a list of those database constructs and limits that
 one can detect automatically with a program.  Note however that a lot of
 the numerical limits may be changed with startup options for respective
 database.  The above web page is however extremely useful when you want to
@@ -5092,15 +5094,15 @@ but we assume that this is not an easy thing to fix permanently.
 @item
 A working, tested replication feature used by sites like:
 @itemize @minus
-@item Yahoo Finance (@uref{http://finance.yahoo.com})
+@item Yahoo Finance (@uref{http://finance.yahoo.com/})
 @item Mobile.de (@uref{http://www.mobile.de/})
-@item Slashdot (@uref{http://www.slashdot.org})
+@item Slashdot (@uref{http://www.slashdot.org/})
 @end itemize
 
 @item
 Included in the MySQL distribution are two different testing suites, 
-@file{mysql-test-run} and 
-@uref{http://www.mysql.com/information/crash-me.php,crash-me}, as well
+@file{mysql-test-run} and crash-me
+(@uref{http://www.mysql.com/information/crash-me.php}), as well
 as a benchmark suite.  The test system is actively updated with code to
 test each new feature and almost all reproduceable bugs that have come to
 our attention.  We test MySQL with these on a lot of platforms before
@@ -5202,7 +5204,7 @@ system.
 
 @item
 Because MySQL uses threads, which are not yet flawless on many OSes, one
-must either use binaries from @uref{http://www.mysql.com/downloads}, or
+must either use binaries from @uref{http://www.mysql.com/downloads/}, or
 carefully follow our instructions on
 @uref{http://www.mysql.com/doc/I/n/Installing_source.html} to get an
 optimal binary that works in all cases.
@@ -5439,7 +5441,7 @@ databases of course).
 They refer to the TPC-C tests, but they don't mention anywhere that the
 test they did was not a true TPC-C test and they were not even allowed to
 call it a TPC-C test.  A TPC-C test can only be conducted by the rules
-approved by the TPC Council (@uref{http://www.tpc.org}). Great Bridge 
+approved by the TPC Council (@uref{http://www.tpc.org/}). Great Bridge 
 didn't do that.  By doing this they have both violated the TPC trademark
 and miscredited their own benchmarks.  The rules set by the TPC Council 
 are very strict to ensure that no one can produce false results or make
@@ -5481,8 +5483,8 @@ only partial, chosen results (instead of publishing it all).
 @end itemize
 
 Tim Perdue, a long time PostgreSQL fan and a reluctant MySQL user
-published a comparison on
-@uref{http://www.phpbuilder.com/columns/tim20001112.php3,phpbuider}.
+published a comparison on PHPbuilder
+(@uref{http://www.phpbuilder.com/columns/tim20001112.php3}).
 
 When we became aware of the comparison, we phoned Tim Perdue about this
 because there were a lot of strange things in his results.  For example,
@@ -5907,7 +5909,7 @@ Fix that the type for @code{MAX(column)} is the same as the column type.
 @example
 create table t1 (a DATE);
 insert into t1 values (now());
-create table t2 select max(a) from t1;
+create table t2 select MAX(a) from t1;
 show columns from t2;
 @end example
 @item
@@ -6455,7 +6457,7 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 @c Added: 990614
 @c EMAIL: kas@informatics.muni.cz (Jan Kasprzak)
 @image{Flags/czech-republic} Czech Republic [Masaryk University in Brno] @
-@uref{http://mysql.linux.cz/index.html, WWW}
+@uref{http://mysql.linux.cz/, WWW}
 @uref{ftp://ftp.fi.muni.cz/pub/mysql/, FTP}
 
 @item
@@ -8252,7 +8254,7 @@ running.  @xref{Multiple servers}.
 
 Sometimes patches appear on the mailing list or are placed in the
 patches area of the MySQL website
-(@uref{http://www.mysql.com/Downloads/Patches}).
+(@uref{http://www.mysql.com/Downloads/Patches/}).
 
 To apply a patch from the mailing list, save the message in which the patch
 appears in a file, change into the top-level directory of your MySQL
@@ -10096,7 +10098,7 @@ binary in most cases is the best choice.
 MySQL uses LinuxThreads on Linux.  If you are using an old
 Linux version that doesn't have @code{glibc2}, you must install
 LinuxThreads before trying to compile MySQL.   You can get 
-LinuxThreads at @uref{http://www.mysql.com/Downloads/Linux}.
+LinuxThreads at @uref{http://www.mysql.com/Downloads/Linux/}.
 
 @strong{Note:} We have seen some strange problems with Linux 2.2.14 and
 MySQL on SMP systems; If you have a SMP system, we recommend
@@ -10228,9 +10230,9 @@ threads that only
 hold the mutex for a short time. On an SMP system, ironic as it is, if
 you link MySQL against unmodified @strong{LinuxThreads},
 removing processors from the machine improves MySQL performance
-in many cases.  We have made a patch available for @strong{glibc 2.1.3},
-@uref{http://www.mysql.com/Downloads/Linux/linuxthreads-2.1-patch,linuxthreads-2.1-patch}
-to correct this behavior.
+in many cases.  We have made a patch available for @strong{glibc 2.1.3}
+to correct this behavior
+(@uref{http://www.mysql.com/Downloads/Linux/linuxthreads-2.1-patch}).
 
 With @strong{glibc-2.2.2}
 MySQL version 3.23.36 will use the adaptive mutex, which is much
@@ -10239,7 +10241,9 @@ that under some conditions, the current mutex code in @strong{glibc-2.2.2}
 overspins, which hurts MySQL performance. The chance of this
 condition can be reduced by renicing @code{mysqld} process to the highest
 priority. We have also been able to correct the overspin behavior with
-a patch, available @uref{http://www.mysql.com/Downloads/Linux/linuxthreads-2.2.2.patch,here}. It combines the correction of overspin, maximum number of
+a patch, available at
+@uref{http://www.mysql.com/Downloads/Linux/linuxthreads-2.2.2.patch}.
+It combines the correction of overspin, maximum number of
 threads, and stack spacing all in one. You will need to apply it in the
 @code{linuxthreads} directory with
 @code{patch -p0 </tmp/linuxthreads-2.2.2.patch}.
@@ -10511,7 +10515,7 @@ kernel 2.2.13-SMP, Compaq C compiler (V6.2-504) and Compaq C++ compiler
 (V6.3-005) on a Comaq DS20 machine with an Alpha EV6 processor.
 
 You can find the above compilers at 
-@uref{http://www.support.compaq.com/alpha-tools}).  By using these compilers,
+@uref{http://www.support.compaq.com/alpha-tools/}).  By using these compilers,
 instead of gcc, we get about 9-14 % better performance with MySQL.
 
 Note that the configure line optimised the binary for the current CPU; This
@@ -11459,7 +11463,8 @@ FreeBSD 3.x is recommended for running MySQL since the thread package
 is much more integrated.
 
 The easiest and therefor the preferred way to install is to use the 
-mysql-server and mysql-client ports available on @uref{http://www.freebsd.org}.
+mysql-server and mysql-client ports available on
+@uref{http://www.freebsd.org/}.
 
 Using these gives you:
 @itemize @bullet
@@ -12680,7 +12685,7 @@ Windows, you should do the following:
 @itemize @bullet
 @item 
 Get ActiveState Perl from 
-@uref{http://www.activestate.com/Products/ActivePerl/index.html}
+@uref{http://www.activestate.com/Products/ActivePerl/}
 and install it.
 
 @item
@@ -13259,10 +13264,10 @@ be used.  For example, a database like this could be used by a farmer to keep
 track of livestock, or by a veterinarian to keep track of patient records.
 A menagerie distribution containing some of the queries and sample data used
 in the following sections can be obtained from the MySQL website.
-It's available in either
-@uref{http://www.mysql.com/Downloads/Contrib/Examples/menagerie.tar.gz,compressed @code{tar} format}
-or
-@uref{http://www.mysql.com/Downloads/Contrib/Examples/menagerie.zip,Zip format}.
+It's available in either compressed @code{tar} format
+(@uref{http://www.mysql.com/Downloads/Contrib/Examples/menagerie.tar.gz})
+or Zip format
+(@uref{http://www.mysql.com/Downloads/Contrib/Examples/menagerie.zip}).
 
 Use the @code{SHOW} statement to find out what databases currently exist
 on the server:
@@ -16340,8 +16345,8 @@ who is able to watch the connection.  If you are concerned about this,
 you can use the compressed protocol (in MySQL Version 3.22 and above)
 to make things much harder.  To make things even more secure you should use 
 @code{ssh}.  You can find an open source @code{ssh} client at 
-@uref{http://www.openssh.org}, and a commercial @code{ssh} client at 
-@uref{http://www.ssh.com}.  With this, you can get an encrypted TCP/IP 
+@uref{http://www.openssh.org/}, and a commercial @code{ssh} client at 
+@uref{http://www.ssh.com/}.  With this, you can get an encrypted TCP/IP 
 connection between a MySQL server and a MySQL client.
 
 If you are using MySQL 4.0, you can also use internal openssl support.
@@ -18579,7 +18584,7 @@ To get secure connections to work with MySQL you must do the following:
 @enumerate
 @item
 Install the openssl library. We have tested MySQL with openssl 0.9.6.
-@uref{http://www.openssl.org}.
+@uref{http://www.openssl.org/}.
 @item
 Configure MySQL with @code{--with-vio --with-openssl}.
 @item
@@ -37502,7 +37507,7 @@ InnoDB tables can be of any size also on those operating
 systems where file size is limited to 2 GB.
 
 You can find the latest information about InnoDB at
-@uref{http://www.innodb.com}. The most up-to-date version of the
+@uref{http://www.innodb.com/}. The most up-to-date version of the
 InnoDB manual is always placed there, and you can also order
 commercial licenses and support for InnoDB.
 
@@ -39526,7 +39531,7 @@ database type. For MySQL, this driver is called
 For more information on the Perl5 DBI, please visit the @code{DBI} Web
 page and read the documentation:
 @example
-@uref{http://www.symbolstone.org/technology/perl/DBI/index.html}
+@uref{http://www.symbolstone.org/technology/perl/DBI/}
 @end example
 For more information on Object Oriented Programming
 (OOP) as defined in Perl5, see the Perl OOP page:
@@ -40038,7 +40043,7 @@ translate to other formats.
 You can find the latest @code{DBI} information at
 the @code{DBI} Web page:
 @example
-@uref{http://www.symbolstone.org/technology/perl/DBI/index.html}
+@uref{http://www.symbolstone.org/technology/perl/DBI/}
 @end example
 
 
@@ -40319,7 +40324,7 @@ To make Access work:
 @item
 If you are using Access 2000, you should get and install the newest
 (version 2.6 or above) Microsoft MDAC (@code{Microsoft Data Access
-Components}) from @uref{http://www.microsoft.com/data}.  This will fix
+Components}) from @uref{http://www.microsoft.com/data/}.  This will fix
 the following bug in Access: when you export data to MySQL, the
 table and column names aren't specified.  Another way to around this bug
 is to upgrade to MyODBC Version 2.50.33 and MySQL Version
@@ -40685,7 +40690,7 @@ send the whole MyODBC or ODBC log file!
 If you are unable to find out what's wrong, the last option is to
 make an archive (tar or zip) that contains a MyODBC trace file, the ODBC
 log file, and a README file that explains the problem.  You can send this
-to @uref{ftp://support.mysql.com/pub/mysql/secret}.  Only we at 
+to @uref{ftp://support.mysql.com/pub/mysql/secret/}.  Only we at 
 MySQL AB will have access to the files you upload, and we will
 be very discrete with the data!
 
@@ -44181,8 +44186,8 @@ concerning this issue, please see @ref{MySQL server licenses}.
 
 @cindex C++ APIs
 
-Two APIs are available in the MySQL
-@uref{http://www.mysql.com/Downloads/Contrib/,Contrib directory}.
+Two APIs are available in the MySQL Contrib directory
+(@uref{http://www.mysql.com/Downloads/Contrib/}).
 
 
 @node Borland C++,  , Cplusplus, Cplusplus
@@ -44230,12 +44235,13 @@ documentation for MySQL-specific features.
 
 @cindex Python APIs
 
-The MySQL @uref{http://www.mysql.com/Downloads/Contrib/,Contrib directory}
+The MySQL Contrib directory
+(@uref{http://www.mysql.com/Downloads/Contrib/})
 contains a Python interface written by Joseph Skinner.
 
 You can also use the Python interface to iODBC to access a
 MySQL server.
-@uref{http://starship.skyport.net/~lemburg/,mxODBC}
+@uref{http://starship.skyport.net/~lemburg/} (mxODBC)
 
 
 @node Tcl, Eiffel, Python, Clients
@@ -44243,9 +44249,9 @@ MySQL server.
 
 @cindex Tcl APIs
 
-@uref{http://www.binevolve.com/~tdarugar/tcl-sql/, Tcl at binevolve}.
-The
-@uref{http://www.mysql.com/Downloads/Contrib,Contrib directory} contains a Tcl
+@uref{http://www.binevolve.com/~tdarugar/tcl-sql/} (Tcl at binevolve).
+The Contrib directory
+(@uref{http://www.mysql.com/Downloads/Contrib/}) contains a Tcl
 interface that is based on msqltcl 1.50.
 
 
@@ -44255,7 +44261,8 @@ interface that is based on msqltcl 1.50.
 @cindex Eiffel Wrapper
 @cindex wrappers, Eiffel
 
-The MySQL @uref{http://www.mysql.com/Downloads/Contrib/,Contrib directory}
+The MySQL Contrib directory
+(@uref{http://www.mysql.com/Downloads/Contrib/})
 contains an Eiffel wrapper written by Michael Ravits.
 
 
@@ -44480,7 +44487,7 @@ the master, put them in @code{mysql-test/t/test_name-master.opt}.
 If you have a question about the test suite, or have a test case to contribute,
 e-mail to @email{internals@@lists.mysql.com}. As the list does not accept 
 attachments, you should ftp all the relevant files to:
-@uref{ftp://support.mysql.com/pub/mysql/Incoming}
+@uref{ftp://support.mysql.com/pub/mysql/Incoming/}
 
 @end itemize
 
@@ -47098,12 +47105,12 @@ more than one way to compute}
 
 @item @uref{http://www.blitzsuche.de/, Blitzsuche}
 
-@item @uref{http://www.indoseek.co.id, Indoseek Indonesia}
+@item @uref{http://www.indoseek.co.id/, Indoseek Indonesia}
 
 @item @uref{http://www.yaboo.dk/, Yaboo - Yet Another BOOkmarker}
 
 
-@item @uref{http://www.ozsearch.com.au, OzSearch Internet Guide}
+@item @uref{http://www.ozsearch.com.au/, OzSearch Internet Guide}
 
 @item @uref{http://www.splatsearch.com/, Splat! Search}
 
@@ -47118,15 +47125,15 @@ more than one way to compute}
 
 @item @uref{http://www.tucows.com/, TuCows Network; Free Software archive}
 
-@item @uref{http://www.jobvertise.com,Jobvertise: Post and search for jobs}
+@item @uref{http://www.jobvertise.com/,Jobvertise: Post and search for jobs}
 
-@item @uref{http://www.musicdatabase.com, The Music Database}
+@item @uref{http://www.musicdatabase.com/, The Music Database}
 
-@item @uref{http://www.soccersearch.com, Football (Soccer) search page}
+@item @uref{http://www.soccersearch.com/, Football (Soccer) search page}
 
 @item @uref{http://www.headrush.net/takedown, TAKEDOWN - wrestling}
 
-@item @uref{http://www.lyrics.net, The International Lyrics Network}
+@item @uref{http://www.lyrics.net/, The International Lyrics Network}
 
 @item @uref{http://TheMatrix.com/~matrix/band_search.phtml, Musicians looking for other musicians (Free Service)}
 
@@ -47136,7 +47143,7 @@ more than one way to compute}
 
 @item @uref{http://www.game-developer.com/,The Game Development Search Engine}
 
-@item @uref{www.theinnkeeper.com, The Innkeeper Vacation Guides}
+@item @uref{http://www.theinnkeeper.com/, The Innkeeper Vacation Guides}
 
 @item @uref{http://www.macgamedatabase.com/, The Mac Game Database uses PHP and MySQL}
 @c From: Marc Antony Vose <suzerain@suzerain.com>
@@ -47144,7 +47151,7 @@ more than one way to compute}
 @item @uref{http://www.csse.monash.edu.au/publications/, Research
 Publications at Monash University in Australia}
 
-@item @uref{http://www.ipielle.emr.it/bts/index.html,
+@item @uref{http://www.ipielle.emr.it/bts/,
 Occupational Health & Safety Website database (a project for the ECC)}
 @c c.presutti@ipielle.emr.it
 
@@ -47158,10 +47165,10 @@ Montreal Children's Hospital using MySQL}
 @appendixsec Online Magazines
 
 @itemize @bullet
-@item @uref{http://www.spoiler.com, Spoiler Webzine}.
+@item @uref{http://www.spoiler.com/, Spoiler Webzine}.
 An online magazine featuring music, literature, arts, and design content.
 @item @uref{http://www.linux-magazin.de/newsflash/, Daily news about Linux in German language}
-@item @uref{http://www.betazine.com,Betazine - The Ultimate Online Beta Tester's Magazine}
+@item @uref{http://www.betazine.com/,Betazine - The Ultimate Online Beta Tester's Magazine}
 @item @uref{http://www.currents.net/ccinfo/aboutcc.html,Computer Currents Magazine}
 @end itemize
 
@@ -47170,26 +47177,26 @@ An online magazine featuring music, literature, arts, and design content.
 
 @itemize @bullet
 
-@item @uref{http://liftoff.msfc.nasa.gov, NASA}
-@item @uref{http://kids.msfc.nasa.gov, NASA KIDS}
-@item @uref{http://science.nasa.gov, Sience@@NASA}
+@item @uref{http://liftoff.msfc.nasa.gov/, NASA}
+@item @uref{http://kids.msfc.nasa.gov/, NASA KIDS}
+@item @uref{http://science.nasa.gov/, Sience@@NASA}
 
 @item @uref{http://www.handy.de/, handy.de}
 
-@item @uref{http://lindev.jmc.tju.edu/qwor, Qt Widget and Object Repository}
+@item @uref{http://lindev.jmc.tju.edu/qwor/, Qt Widget and Object Repository}
 
-@item @uref{http://www.samba-choro.com.br, Brazilian samba site (in Portuguese)}
+@item @uref{http://www.samba-choro.com.br/, Brazilian samba site (in Portuguese)}
 
 @item @uref{http://pgss.iss.uw.edu.pl/en_index.ISS, Polish General Social Survey}
 
-@item @uref{http://www.expo2000.com, Expo2000} World-wide distribution of
+@item @uref{http://www.expo2000.com/, Expo2000} World-wide distribution of
 tickets for this event is implemented using MySQL and tcl/tk. More than
 5000 travel agencies all over the world have access to it.
 
 @item @uref{http://www.freevote.com/, FreeVote.com is a free voting
 service with millions of users.}
 
-@item @uref{http://f1.tauzero.se, Forza Motorsport}
+@item @uref{http://f1.tauzero.se/, Forza Motorsport}
 
 @item @uref{http://www.dreamhost.com/, DreamHost Web Hosting}
 
@@ -47200,7 +47207,7 @@ service with millions of users.}
 
 @itemize @bullet
 
-@item @uref{http://www.wix.com/mysql-hosting, Registry of Web providers that
+@item @uref{http://www.wix.com/mysql-hosting/, Registry of Web providers that
 support MySQL}
 
 @item @uref{http://www.yi.org/, Dynamic DNS Services}
@@ -47209,7 +47216,7 @@ support MySQL}
 
 @item @uref{http://www.ods.org/, Open DNS Project; free dynamic DNS service}
 
-@c @item @uref{http://dynodns.net, Free dynamic DNS implementation}
+@c @item @uref{http://dynodns.net/, Free dynamic DNS implementation}
 @c EMAIL: A Moore <amoore@mooresystems.com>
 
 @item @uref{http://www.hn.org/, Hammernode; Public DNS Servers}
@@ -47218,39 +47225,39 @@ support MySQL}
 
 @item @uref{http://worldcommunity.com/, Online Database}
 
-@item @uref{http://www.bigbiz.com, BigBiz Internet Services}
+@item @uref{http://www.bigbiz.com/, BigBiz Internet Services}
 
-@item @uref{http://virt.circle.net, The Virt Gazette}
+@item @uref{http://virt.circle.net/, The Virt Gazette}
 
-@item @uref{http://www.california.com, Global InfoNet Inc}
+@item @uref{http://www.california.com/, Global InfoNet Inc}
 
-@item @uref{http://www.webhosters.com, WebHosters - A Guide to WWW Providers}
+@item @uref{http://www.webhosters.com/, WebHosters - A Guide to WWW Providers}
 
-@item @uref{http://online.dn.ru, Internet information server}
+@item @uref{http://online.dn.ru/, Internet information server}
 
-@item @uref{http://www.worldnetla.net, WorldNet Communications - An Internet Services Provider}
+@item @uref{http://www.worldnetla.net/, WorldNet Communications - An Internet Services Provider}
 
 @item @uref{http://www.netizen.com.au/, Netizen: Australian-based Web consultancy}
 
-@item @uref{http://www.trainingpages.co.uk, Search site for training courses in the UK}
+@item @uref{http://www.trainingpages.co.uk/, Search site for training courses in the UK}
 
-@item @uref{http://chat.nitco.com, Gannon Chat (GPL). Written in Perl and Javascript}
+@item @uref{http://chat.nitco.com/, Gannon Chat (GPL). Written in Perl and Javascript}
 
 @item @uref{http://www.addurls.com/,A general links directory}
 
-@item @uref{http://www.bookmarktracker.com, A Web-based bookmark management service}
+@item @uref{http://www.bookmarktracker.com/, A Web-based bookmark management service}
 
-@item @uref{http://www.cdrom.com,Walnut Creek CDROM}
+@item @uref{http://www.cdrom.com/,Walnut Creek CDROM}
 
 @item @uref{http://www.wwwthreads.org/, WWWThreads; Interactive discussion Forums}
 
-@item @uref{http://pvmon.portici.enea.it/Meteo, In Italian; Storage data from meteo station}
+@item @uref{http://pvmon.portici.enea.it/Meteo/, In Italian; Storage data from meteo station}
 
 @item @uref{http://www.buysell.net/, Online "Person To Person" Auction}
 
-@item @uref{http://tips.pair.com,Tips on Web development}
+@item @uref{http://tips.pair.com/,Tips on Web development}
 
-@item @uref{http://www.mailfriends.com, Mailfriends.com is a FREE service for
+@item @uref{http://www.mailfriends.com/, Mailfriends.com is a FREE service for
 everybody who wants to find friends over the internet.}
 
 @item @uref{http://www.uninova.com/cgi-bin/wctelnets?list, Web Page Telnet BBS List}
@@ -47259,7 +47266,7 @@ everybody who wants to find friends over the internet.}
 
 @c @item @uref{http://cabinboy.powersurfr.com, An Internet RFC search engine}
 
-@item @uref{http://www.dslreports.com, DSL-provider search with reviews}.
+@item @uref{http://www.dslreports.com/, DSL-provider search with reviews}.
 Made with MySQL and Modperl, all pages are generated dynamically out of
 the MySQL database
 @end itemize
@@ -47268,19 +47275,19 @@ the MySQL database
 @appendixsec Websites that Use @code{PHP} and MySQL
 
 @itemize @bullet
-@c @item @uref{http://www.wh200th.com,  White House 200th Anniversary site}
+@c @item @uref{http://www.wh200th.com/,  White House 200th Anniversary site}
 
 @item @uref{http://support.jgaa.com/, Jgaa's Internet - Official Support Site}
 
-@item @uref{http://io.incluso.com, Ionline - online publication:} MySQL,
+@item @uref{http://io.incluso.com/, Ionline - online publication:} MySQL,
 PHP, Java, Web programming, DB development
 
-@item @uref{http://www.baboo.com, BaBoo (Browse and Bookmark). Free Web-based bookmark manager and Calendar}
+@item @uref{http://www.baboo.com/, BaBoo (Browse and Bookmark). Free Web-based bookmark manager and Calendar}
 
 @item @uref{http://www.courses.pjc.cc.fl.us/Schedule/index.php, Course
 Schedule System at Pensacola Junior College}
 
-@item @uref{http://www.fccj.org, Florida Community College at Jacksonville}
+@item @uref{http://www.fccj.org/, Florida Community College at Jacksonville}
 
 @item @uref{http://www.32bit.com/, 32bit.com; An extensive shareware / freeware archive}
 
@@ -47293,7 +47300,7 @@ provides scripts, among other things, for remote users, like counters,
 guestbooks etc.
 @c Added 990608; EMAIL: spacedmp@SpaceDump.Burken.NU (Anders Olausson)
 
-@item @uref{http://tips.pair.com, tips.pair.com} Contains tips on html,
+@item @uref{http://tips.pair.com/, tips.pair.com} Contains tips on html,
 javascript, 2d/3d graphics, and PHP3/MySQL. All pages are generated from
 a database.
 @c Added 990614; EMAIL: downey@image.dk (Rune Madsen)
@@ -47307,7 +47314,7 @@ Ecommerce site that is selling computers.
 
 @itemize @bullet
 
-@item @uref{http://www.ayni.com, Ayni AG}
+@item @uref{http://www.ayni.com/, Ayni AG}
 
 @item @uref{http://worldcommunity.com/, Online Database}
 
@@ -47317,18 +47324,18 @@ Ecommerce site that is selling computers.
 
 @item @uref{http://www.worldcommunity.com/, WCN - The World Community Network}
 
-@item @uref{http://www.chipcastle.com, Chip Castle Dot Com Inc}
+@item @uref{http://www.chipcastle.com/, Chip Castle Dot Com Inc}
 @c Added 990603 EMAIL: chip@chipcastle.com (Chip Castle)
 
 @item @uref{http://www.cyber.com.au/, Cybersource Pty. Ltd}
 
-@item @uref{http://www.spring.de, Spring infotainment gmbh & co. kg}
+@item @uref{http://www.spring.de/, Spring infotainment gmbh & co. kg}
 @c added 990905 "Oliver Pischke" <opischke@spring.de>
 
 @item @uref{http://www.wamdesign.com/, Wam Design develops websites using MySQL}
 @c Added 990905; max@wamdesign.com
 
-@item @uref{http://www.berkeleyconsultants.com, Berkeley Consultants Group}
+@item @uref{http://www.berkeleyconsultants.com/, Berkeley Consultants Group}
 
 @item @uref{http://www.jammconsulting.com/, JAMM Consulting Inc.}
 
@@ -47347,7 +47354,7 @@ AZC.COM's Feature Showcase}
 
 @item @uref{http://www.teach.org.uk/subjects/trainingcourse/g.html, Course Search}
 
-@item @uref{http://www.northerbys.com, Northerbys Online Auctions}
+@item @uref{http://www.northerbys.com/, Northerbys Online Auctions}
 
 @item @uref{http://www.schiphol.nl/flights/home.htm, Amsterdam Airport Schiphol}
 
@@ -47355,9 +47362,9 @@ AZC.COM's Feature Showcase}
 
 @item @uref{http://TheMatrix.com/~flmm/GEAR.html, Used Audio Gear Database}
 
-@item @uref{http://www.kiss.de/musik-mueller, Musical note-sheets}
+@item @uref{http://www.kiss.de/musik-mueller/, Musical note-sheets}
 
-@item @uref{http://www.bagism.com, Bagism - A John Lennon fan page}
+@item @uref{http://www.bagism.com/, Bagism - A John Lennon fan page}
 
 @item @uref{http://www.selftaught.com/, US Folk art broker}
 
@@ -47400,58 +47407,58 @@ ANSI-92 compliance)}
 
 @item @uref{http://www.whirlycott.com/, Whirlycott: Website Design}
 
-@item @uref{http://www.mtp.dk, Museum Tusculanum Press}
+@item @uref{http://www.mtp.dk/, Museum Tusculanum Press}
 
-@item @uref{http://csdgi.historie.ku.dk/biblio, Centro Siciliano di Documentazione}
+@item @uref{http://csdgi.historie.ku.dk/biblio/, Centro Siciliano di Documentazione}
 
-@item @uref{http://caribou.dyn.ml.org:8000, Quake statistics database}
+@item @uref{http://caribou.dyn.ml.org:8000/, Quake statistics database}
 
-@item @uref{http://www.astroforum.ch, Astroforum: Astrologie and related things (in German)}
+@item @uref{http://www.astroforum.ch/, Astroforum: Astrologie and related things (in German)}
 
-@item @uref{http://www.opendebate.com, OpenDebate - Interactive Polls & Open Discussion}
+@item @uref{http://www.opendebate.com/, OpenDebate - Interactive Polls & Open Discussion}
 
 @item @uref{http://vermeer.organik.uni-erlangen.de/dissertationen/, Online chemical dissertation server}
 
-@item @uref{http://www.freschinfo.com, FreSch! The Free Scholarship Search Service}
+@item @uref{http://www.freschinfo.com/, FreSch! The Free Scholarship Search Service}
 
-@item @uref{http://www.nada.kth.se/~staffanu/pinball, Stockholm Pinball Locator}
+@item @uref{http://www.nada.kth.se/~staffanu/pinball/, Stockholm Pinball Locator}
 
-@item @uref{http://www.hek.com, HEK A construction company}
+@item @uref{http://www.hek.com/, HEK A construction company}
 
-@item @uref{http://www.ebi.nl, Elsevier Business Information}
+@item @uref{http://www.ebi.nl/, Elsevier Business Information}
 
 @item @uref{http://vaccination.medicallink.se/, Medical Links (Using ColdFusion and MySQL)}
 
-@item @uref{http://www.joblink-usa.com, Search for jobs & people at JobLink-USA}
+@item @uref{http://www.joblink-usa.com/, Search for jobs & people at JobLink-USA}
 
-@item @uref{http://www.skydive.net/competfs, Competition Formation Skydiving}
+@item @uref{http://www.skydive.net/competfs/, Competition Formation Skydiving}
 
-@item @uref{http://www.galaxy-net.net/Galaxy-NET Telecommunications, E-commerce and internal accounting}
+@item @uref{http://www.galaxy-net.net/, Galaxy-NET Telecommunications; E-commerce and internal accounting}
 
 @item @uref{http://www.borsen.dk/, Denmark's leading business daily newspaper B@o{}rsen}
 
 @item @uref{http://tmmm.simplenet.com/indb/, The Internet NES Database}
 
-@item @uref{http://www.russia.cz, Travel agency in Prague in 3 languages}
+@item @uref{http://www.russia.cz/, Travel agency in Prague in 3 languages}
 
-@item @uref{http://www.linkstation.de, Linkstation}
+@item @uref{http://www.linkstation.de/, Linkstation}
 
-@item @uref{http://www.peoplestaff.com, Searchable online database at Peoplestaff}
+@item @uref{http://www.peoplestaff.com/, Searchable online database at Peoplestaff}
 
-@item @uref{http://www.dreamhorse.com, A searchable database system for horse classified ads}
+@item @uref{http://www.dreamhorse.com/, A searchable database system for horse classified ads}
 
 @item @uref{http://pootpoot.com/,The Poot site}
 
 @item @uref{http://grateful.net/hw_html/,"Playin' in the LAN"; a network monitoring suite}
 
 @c Update from  Christopher Milton <cmilton@bwn.net> 1999-12-21
-@item @uref{http://www.usapa.army.mil,U.S. Army Publishing Agency}
+@item @uref{http://www.usapa.army.mil/,U.S. Army Publishing Agency}
 
 @item @uref{http://www.nekretnine.co.yu/,Realestate handling in Yugoslavia}
 
 @item @uref{http://demo.cpsoft.com/pims/devFAQ.html, PIMS; a Patient Information Management System}
 
-@item @uref{http://cpsoft.com,Pilkington Software Inc}
+@item @uref{http://cpsoft.com/,Pilkington Software Inc}
 
 @item @uref{http://www.no-quarter.org/,A Vietnam Veteran's Memorial (The Wall) database}
 
@@ -47459,7 +47466,7 @@ ANSI-92 compliance)}
 
 @item @uref{http://www.montereyhigh.com/office/dbul.php3, A daily bulletin at Monterey High school}
 
-@item @uref{http://www.myEastside.com,Community-owned site serving Lake
+@item @uref{http://www.myEastside.com/,Community-owned site serving Lake
 Washington's Eastside residents and businesses}
 
 @item @uref{http://bowling-france.net/,French bowling site}
@@ -47629,7 +47636,7 @@ by Roland Haenel's C++ API and Ed Carp's MyC library.
 MySQL C++ API (more than just a wrapper library). Originally by
 @email{kevina@@clark.net}. Nowadays maintained by Sinisa at MySQL AB.
 
-@item @uref{http://nelsonjr.homepage.com/NJrAPI,NJrAPI}
+@item @uref{http://nelsonjr.homepage.com/NJrAPI/,NJrAPI}
 A C++ database independent library that supports MySQL.
 @end itemize
 
@@ -47656,7 +47663,7 @@ A library to use MySQL with Delphi}.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/mysql-ruby-2.2.0.tar.gz, mysql-ruby-2.2.0.tar.gz}
 MySQL Ruby module. By TOMITA Masahiro @email{tommy@@tmtm.org}
-@uref{http://www.netlab.co.jp/ruby/. Ruby} is an Object-Oriented Interpreter Language.
+@uref{http://www.netlab.co.jp/ruby/, Ruby} is an Object-Oriented Interpreter Language.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/JdmMysqlDriver-0.1.0.tar.gz,JdmMysqlDriver-0.1.0.tar.gz}
 A VisualWorks 3.0 Smalltalk driver for MySQL. By
@@ -47776,7 +47783,7 @@ database servers, whilst supporting multiple operating systems and
 languages. You can currently import/export database, enter queries, get
 result sets, edit scripts, run scripts, add, alter, and delete users,
 and retrieve client and server information. Uses QT 2.2. GPL
-@uref{http://sql.kldp.org/mysql, Home page for MySQL Navigator}.
+@uref{http://sql.kldp.org/mysql/, Home page for MySQL Navigator}.
 
 @item @uref{http://www.mysql.com/Downloads/Win32/secman.zip,  MySQL Security GUI}
 A user and security management GUI for MySQL on Windows. 
@@ -47790,8 +47797,8 @@ An administration tool for the MySQL server using QT / KDE.  Tested
 only on Linux.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/mysql-admin-using-java+swing.tar.gz, Java client using Swing} By Fredy Fischer, @email{se-afs@@dial.eunet.ch}.
-You can always find the latest version
-@uref{http://www.trash.net/~ffischer/admin/index.html, here}.
+You can always find the latest version at
+@uref{http://www.trash.net/~ffischer/admin/}.
 
 @item @uref{http://www.mysql.com/Downloads/Win32/MySQL-Maker-1.0.zip,MySQL-Maker 1.0}.
 Shareware MySQL client for Windows. It's a WYSIWYG tool which allows
@@ -47804,13 +47811,13 @@ these tables directly without ODBC-driver.
 Windows GUI (binary only) to administrate a database, by David B. Mansel,
 @email{david@@zhadum.org}.
 
-@item @uref{http://home.online.no/~runeberg/myqa, MyQA}
+@item @uref{http://home.online.no/~runeberg/myqa/, MyQA}
 is a Linux-based query client for the MySQL database server. MyQA
 lets you enter SQL queries, execute them, and view the results, all in a
 graphical user interface. The GUI is roughly similar to that of the
 'Query Analyzer' client that comes with MS SQL Server.
 
-@item @uref{http://members.xoom.com/_opex_/mysqlmanager/index.html, MySQL Manager}
+@item @uref{http://members.xoom.com/_opex_/mysqlmanager/, MySQL Manager}
 a graphical MySQL server manager for MySQL server written in Java, for Windows
 
 
@@ -47823,13 +47830,13 @@ You can write queries and show tables, indexes, table syntax, and
 administrate user, host, and database and so on. This is beta and
 still has some bugs. You can test the program with all features. Please
 send bugs and hints to Marco Suess @email{ms@@it-netservice.de}. Original
-URL @uref{http://www.it-netservice.de/pages/software/index.html}.
+URL @uref{http://www.it-netservice.de/pages/software/}.
 
 @item @uref{http://www.mysql.com/Downloads/Win32/netadmin2.zip, netadmin2.zip}
 New version of netadmin. See above for details.
 
 @item @uref{http://www.mysql.com/Downloads/Win32/ARTADMIN203.EXE,Atronic's MySQL client for Windows 2.0.3.0}.
-Home page for this can be found at: @uref{http://www.artronic.hr}.
+Home page for this can be found at: @uref{http://www.artronic.hr/}.
 
 @item @uref{http://www.mysql.com/Downloads/Win32/mysqlfront.zip, mysqlfront}
 Home page: @uref{http://www.mysqlfront.de/}.
@@ -47838,7 +47845,7 @@ import-/export-files. (Freeware).  By Ansgar Becker.
 
 @item @uref{http://www.mysql.com/Downloads/Win32/W9xstop.zip,Utility from Artronic to stop MySQL on win9x}.
 
-@item @uref{http://bardo.hyperlink.cz/mysqlmon,a light weight GUI client for Windows}.
+@item @uref{http://bardo.hyperlink.cz/mysqlmon/,a light weight GUI client for Windows}.
 
 @item @uref{http://dbtools.vila.bol.com.br/, Dbtools}
 A tool to manage MySQL databases. Currently only for Windows.
@@ -47861,15 +47868,15 @@ tables.  Originally by Gilbert Therrien, @email{gilbert@@ican.net} but
 now in public domain and supported by MySQL AB.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/xmysql-1.9.tar.gz, xmysql-1.9.tar.gz}.
-@item @uref{http://web.wt.net/~dblhack, xmysql home page}
+@item @uref{http://web.wt.net/~dblhack/, xmysql home page}
 A front end to the MySQL database engine. It allows for simple
 queries and table maintenance, as well as batch queries. By Rick
 Mehalick, @email{dblhack@@wt.net}.
-Requires @uref{http://bragg.phys.uwm.edu/xforms,xforms 0.88} to work.
-@item @uref{http://www.tamos.net/sw/dbMetrix,dbMetrix}
+Requires @uref{http://bragg.phys.uwm.edu/xforms/,xforms 0.88} to work.
+@item @uref{http://www.tamos.net/sw/dbMetrix/,dbMetrix}
 An open source client for exploring databases and executing SQL. Supports
 MySQL, Oracle, PostgreSQL, and mSQL.
-@item @uref{http://www.multimania.com/bbrox/GtkSQL,GtkSQL}
+@item @uref{http://www.multimania.com/bbrox/GtkSQL/,GtkSQL}
 A query tool for MySQL and PostgreSQL.
 @item @uref{http://dbman.linux.cz/,dbMan}
 A query tool written in Perl. Uses DBI and Tk.
@@ -47959,7 +47966,7 @@ html templates. By Alex Krohn.
 This cgi scripts in Perl enables you to edit content of Mysql
 database. By Tomas Zeman.
 @item
-@uref{http://worldcommunity.com/opensource/futuresql, FutureSQL Web Database Administration Tool}.
+@uref{http://worldcommunity.com/opensource/futuresql/, FutureSQL Web Database Administration Tool}.
 FutureSQL by Peter F. Brown, is a free, open source rapid application
 development Web database administration tool, written in Perl,
 using MySQL. It uses @code{DBI:DBD} and @code{CGI.pm}.
@@ -47981,7 +47988,7 @@ Apache module to include HTML from MySQL queries into your pages,
 and run update queries.  Originally written to implement a simple fast
 low-overhead banner-rotation system.  By Sasha Pachev.
 
-@item @uref{http://htcheck.sourceforge.net, htCheck} - URL checker with
+@item @uref{http://htcheck.sourceforge.net/, htCheck} - URL checker with
 MySQL backend. Spidered URLs can later be queried using SQL to retrieve
 various kinds of information, eg. broken links. Written by Gabriele Bartolini.
 
@@ -47997,7 +48004,7 @@ SQL/HTML is an HTML database manager for MySQL using @code{DBI} 1.06.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/udmsearch-3.0.23.tar.gz, UdmSearch 3.0.23 (stable version)}.
 @item @uref{http://www.mysql.com/Downloads/Contrib/mnogosearch-3.1.12.tar.gz, mnogosearch 3.1.12 (development but recommended version)}.
-@item @uref{http://search.mnoGo.ru, UdmSearch home page}
+@item @uref{http://search.mnoGo.ru/, UdmSearch home page}
 A SQL-based search engine for Internet. By
 Alexander I. Barkov @email{bar@@izhcom.ru}.
 
@@ -48207,7 +48214,7 @@ MySQL databases from within Access. Main functions are:
 @item Show a "Database Definition Report
 @end itemize
 
-Written by Hubertus Hiden. @uref{http://www.accessmysql.com, MyAccess homepage}.
+Written by Hubertus Hiden. @uref{http://www.accessmysql.com/, MyAccess homepage}.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/radius-0.3.tar.gz, radius-0.3.tar.gz}
 Patches for @code{radiusd} to make it support MySQL. By Wim Bonis,
@@ -48607,7 +48614,7 @@ time ago).
 @item Yan Cailin
 First translator of the MySQL Reference Manual into simplified
 chinese in early 2000 on which the Big5 and HK coded
-(@uref{http://mysql.hitstar.com, mysql.hitstar.com}) versions were
+(@uref{http://mysql.hitstar.com/}) versions were
 based. @uref{http://linuxdb.yeah.net, Personal home page at
 linuxdb.yeah.net}.
 @item Giovanni Maruzzelli @email{maruzz@@matrice.it}
@@ -48815,8 +48822,8 @@ source code.
 
 Note that we tend to update the manual at the same time we make changes to 
 MySQL.  If you find a version listed below that you can't
-find on the
-@uref{http://www.mysql.com/downloads/,MySQL download page},
+find on the MySQL download page
+(@uref{http://www.mysql.com/downloads/}),
 this means that the version has not yet been released!
 
 @menu
@@ -54585,13 +54592,13 @@ Leroy, @email{Xavier.Leroy@@inria.fr}.
 
 The hard part of porting to a new Unix variant without good native
 thread support is probably to port MIT-pthreads. See
-@file{mit-pthreads/README} and
-@uref{http://www.humanfactor.com/pthreads/, Programming POSIX Threads}.
+@file{mit-pthreads/README} and Programming POSIX Threads
+(@uref{http://www.humanfactor.com/pthreads/}).
 
 The MySQL distribution includes a patched version of
-Provenzano's Pthreads from MIT (see
-@uref{http://www.mit.edu:8001/people/proven/pthreads.html, MIT Pthreads
-web page}). This can be used for some operating systems that do not
+Provenzano's Pthreads from MIT (see the MIT Pthreads webpage at
+@uref{http://www.mit.edu:8001/people/proven/pthreads.html}).
+This can be used for some operating systems that do not
 have POSIX threads.
 
 It is also possible to use another user level thread package named
@@ -54791,7 +54798,7 @@ If you make a bug report about this, please only send the lines from the
 trace file to the appropriate mailing list where something seems to go
 wrong! If you can't locate the wrong place, you can ftp the trace file,
 together with a full bug report, to
-@uref{ftp://support.mysql.com/pub/mysql/secret} so that a MySQL
+@uref{ftp://support.mysql.com/pub/mysql/secret/} so that a MySQL
 developer can take a look a this.
 
 The trace file is made with the @strong{DBUG} package by Fred Fish.
@@ -55042,7 +55049,7 @@ the name @code{hostname-bin.#}.
 If the tables are corrupted again or you can get @code{mysqld} to die with the
 above command, you have found reproducible bug that should be easy to
 fix! FTP the tables and the binary log to
-@uref{ftp://support.mysql.com/pub/mysql/secret} and send a mail to
+@uref{ftp://support.mysql.com/pub/mysql/secret/} and send a mail to
 @email{bugs@@lists.mysql.com} or (if you are a support customer) to
 @email{support@@mysql.com} about the problem and the MySQL team
 will fix it as soon as possible.
