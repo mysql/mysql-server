@@ -1,15 +1,15 @@
 /* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
-   
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2 of the License, or
    (at your option) any later version.
-   
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
@@ -81,7 +81,6 @@ static SYMBOL symbols[] = {
   { "CHANGED",		SYM(CHANGED),0,0},
   { "CHECK",		SYM(CHECK_SYM),0,0},
   { "CHECKSUM",		SYM(CHECKSUM_SYM),0,0},
-  { "COLLECTION",       SYM(COLLECTION),0,0},
   { "COLUMN",		SYM(COLUMN_SYM),0,0},
   { "COLUMNS",		SYM(COLUMNS),0,0},
   { "COMMENT",		SYM(COMMENT_SYM),0,0},
@@ -142,6 +141,7 @@ static SYMBOL symbols[] = {
   { "FROM",		SYM(FROM),0,0},
   { "FOR",		SYM(FOR_SYM),0,0},
   { "FULL",		SYM(FULL),0,0},
+  { "FULLTEXT",		SYM(FULLTEXT_SYM),0,0},
   { "FUNCTION",		SYM(UDF_SYM),0,0},
   { "GRANT",		SYM(GRANT),0,0},
   { "GRANTS",	        SYM(GRANTS),0,0},
@@ -191,14 +191,14 @@ static SYMBOL symbols[] = {
   { "LONGBLOB",		SYM(LONGBLOB),0,0},
   { "LONGTEXT",		SYM(LONGTEXT),0,0},
   { "LOW_PRIORITY",	SYM(LOW_PRIORITY),0,0},
-  { "MASTER",           SYM(MASTER_SYM),0,0}, 
-  { "MASTER_CONNECT_RETRY",           SYM(MASTER_CONNECT_RETRY_SYM),0,0}, 
-  { "MASTER_HOST",           SYM(MASTER_HOST_SYM),0,0}, 
-  { "MASTER_LOG_FILE",           SYM(MASTER_LOG_FILE_SYM),0,0}, 
-  { "MASTER_LOG_POS",           SYM(MASTER_LOG_POS_SYM),0,0}, 
-  { "MASTER_PASSWORD",           SYM(MASTER_PASSWORD_SYM),0,0}, 
-  { "MASTER_PORT",           SYM(MASTER_PORT_SYM),0,0}, 
-  { "MASTER_USER",           SYM(MASTER_USER_SYM),0,0}, 
+  { "MASTER",           SYM(MASTER_SYM),0,0},
+  { "MASTER_CONNECT_RETRY",           SYM(MASTER_CONNECT_RETRY_SYM),0,0},
+  { "MASTER_HOST",           SYM(MASTER_HOST_SYM),0,0},
+  { "MASTER_LOG_FILE",           SYM(MASTER_LOG_FILE_SYM),0,0},
+  { "MASTER_LOG_POS",           SYM(MASTER_LOG_POS_SYM),0,0},
+  { "MASTER_PASSWORD",           SYM(MASTER_PASSWORD_SYM),0,0},
+  { "MASTER_PORT",           SYM(MASTER_PORT_SYM),0,0},
+  { "MASTER_USER",           SYM(MASTER_USER_SYM),0,0},
   { "MAX_ROWS",		SYM(MAX_ROWS),0,0},
   { "MATCH",		SYM(MATCH),0,0},
   { "MEDIUMBLOB",	SYM(MEDIUMBLOB),0,0},

@@ -372,6 +372,7 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param)
   param.table_name = table->table_name;
   param.tmpfile_createflag = O_RDWR | O_TRUNC;
   param.using_global_keycache = 1;
+  param.thd=thd;
 
   VOID(fn_format(fixed_name,file->filename,"",MI_NAME_IEXT,
 		     4+ (param.opt_follow_links ? 16 : 0)));

@@ -839,19 +839,28 @@ public:
   TABLE *table;
   uint key;
   bool first_call, join_key;
+  Item_func_match *master;
   FT_DOCLIST *ft_handler;
 
   Item_func_match(List<Item> &a, Item *b): Item_real_func(b),
-  fields(a), table(0), ft_handler(0)
-  {}
-  ~Item_func_match() { ft_close_search(ft_handler);
-                       if(join_key) table->file->ft_handler=0; }
+  fields(a), table(0), ft_handler(0), master(0)  {}
+  ~Item_func_match()
+  {
+    if (!master)
+    {
+      ft_close_search(ft_handler);
+      if(join_key)
+        table->file->ft_handler=0;
+    }
+  }
   const char *func_name() const { return "match"; }
   enum Functype functype() const { return FT_FUNC; }
   void update_used_tables() {}
   bool fix_fields(THD *thd,struct st_table_list *tlist);
-  bool fix_index();
-
+  bool eq(const Item *) const;
   double val();
   longlong val_int() { return val()!=0.0; }
+
+  bool fix_index();
+  void init_search();
 };
