@@ -5403,20 +5403,6 @@ new_create_field(THD *thd, char *field_name, enum_field_types type,
   case FIELD_TYPE_LONG_BLOB:
   case FIELD_TYPE_MEDIUM_BLOB:
   case FIELD_TYPE_GEOMETRY:
-    if (new_field->length)
-    {
-      /* The user has given a length to the blob column */
-      if (new_field->length < 256)
-	type= FIELD_TYPE_TINY_BLOB;
-      else if (new_field->length < 65536)
-	type= FIELD_TYPE_BLOB;
-      else if (new_field->length < 256L*256L*256L)
-	type= FIELD_TYPE_MEDIUM_BLOB;
-      else
-	type= FIELD_TYPE_LONG_BLOB;
-      new_field->length= 0;
-    }
-    new_field->sql_type= type;
     if (default_value)				// Allow empty as default value
     {
       String str,*res;
