@@ -109,7 +109,7 @@ static HashTable ht;
 enum enum_info_type { INFO_INFO,INFO_ERROR,INFO_RESULT};
 typedef enum enum_info_type INFO_TYPE;
 
-const char *VER="11.4";
+const char *VER="11.5";
 
 static MYSQL mysql;			/* The connection */
 static bool info_flag=0,ignore_errors=0,wait_flag=0,quick=0,
@@ -763,16 +763,6 @@ static int read_lines(bool execute_commands)
 	status.query_start_line=line_number;
     }
     else
-#ifdef __WIN__
-    {
-      tee_fprintf(stdout, glob_buffer.is_empty() ? "mysql> " :
-		  !in_string ? "    -> " :
-		  in_string == '\'' ?
-		  "    '> " : "    \"> ");
-      linebuffer[0]=(char) sizeof(linebuffer);
-      line=_cgets(linebuffer);
-    }
-#else
     {
       if (opt_outfile)
       {
@@ -783,14 +773,24 @@ static int read_lines(bool execute_commands)
 	      in_string == '\'' ?
 	      "    '> " : "    \"> ", OUTFILE);
       }
+#ifdef __WIN__
+      tee_fprintf(stdout, glob_buffer.is_empty() ? "mysql> " :
+		  !in_string ? "    -> " :
+		  in_string == '\'' ?
+		  "    '> " : "    \"> ");
+      linebuffer[0]=(char) sizeof(linebuffer);
+      line=_cgets(linebuffer);
+      if (opt_outfile)
+	fprintf(OUTFILE, "%s\n", line);
+#else
       line=readline((char*) (glob_buffer.is_empty() ? "mysql> " :
 			     !in_string ? "    -> " :
 			     in_string == '\'' ?
 			     "    '> " : "    \"> "));
       if (opt_outfile)
 	fprintf(OUTFILE, "%s\n", line);
-    }
 #endif
+    }
     if (!line)					// End of file
     {
       status.exit_status=0;
