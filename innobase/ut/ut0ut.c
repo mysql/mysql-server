@@ -63,7 +63,7 @@ ut_get_high32(
 }
 
 /************************************************************
-The following function returns a clock time in milliseconds. */
+The following function returns elapsed CPU time in milliseconds. */
 
 ulint
 ut_clock(void)
@@ -172,6 +172,50 @@ ut_sprintf_timestamp(
   	cal_tm_ptr = localtime(&tm);
 #endif
   	sprintf(buf, "%02d%02d%02d %2d:%02d:%02d",
+	  cal_tm_ptr->tm_year % 100,
+	  cal_tm_ptr->tm_mon + 1,
+	  cal_tm_ptr->tm_mday,
+	  cal_tm_ptr->tm_hour,
+	  cal_tm_ptr->tm_min,
+	  cal_tm_ptr->tm_sec);
+#endif
+}
+
+/**************************************************************
+Sprintfs a timestamp to a buffer with no spaces and with ':' characters
+replaced by '_'. */
+
+void
+ut_sprintf_timestamp_without_extra_chars(
+/*=====================================*/
+	char*	buf) /* in: buffer where to sprintf */
+{
+#ifdef __WIN__
+  	SYSTEMTIME cal_tm;
+
+  	GetLocalTime(&cal_tm);
+
+  	sprintf(buf, "%02d%02d%02d_%2d_%02d_%02d",
+	  (int)cal_tm.wYear % 100,
+	  (int)cal_tm.wMonth,
+	  (int)cal_tm.wDay,
+	  (int)cal_tm.wHour,
+	  (int)cal_tm.wMinute,
+	  (int)cal_tm.wSecond);
+#else
+	struct tm  cal_tm;
+  	struct tm* cal_tm_ptr;
+  	time_t     tm;
+
+  	time(&tm);
+
+#ifdef HAVE_LOCALTIME_R
+  	localtime_r(&tm, &cal_tm);
+  	cal_tm_ptr = &cal_tm;
+#else
+  	cal_tm_ptr = localtime(&tm);
+#endif
+  	sprintf(buf, "%02d%02d%02d_%2d_%02d_%02d",
 	  cal_tm_ptr->tm_year % 100,
 	  cal_tm_ptr->tm_mon + 1,
 	  cal_tm_ptr->tm_mday,

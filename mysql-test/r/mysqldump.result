@@ -5,7 +5,7 @@ INSERT INTO t1 VALUES (1), (2);
 <mysqldump>
 <database name="test">
 	<table_structure name="t1">
-		<field Field="a" Type="int(11)" Null="YES" />
+		<field Field="a" Type="int(11)" Null="YES" Key="" Extra="" />
 	</table_structure>
 	<table_data name="t1">
 	<row>
@@ -18,13 +18,38 @@ INSERT INTO t1 VALUES (1), (2);
 </database>
 </mysqldump>
 DROP TABLE t1;
+CREATE TABLE t1(a int, b text, c varchar(3));
+INSERT INTO t1 VALUES (1, "test", "tes"), (2, "TEST", "TES");
+<?xml version="1.0"?>
+<mysqldump>
+<database name="test">
+	<table_structure name="t1">
+		<field Field="a" Type="int(11)" Null="YES" Key="" Extra="" />
+		<field Field="b" Type="text" Null="YES" Key="" Extra="" />
+		<field Field="c" Type="char(3)" Null="YES" Key="" Extra="" />
+	</table_structure>
+	<table_data name="t1">
+	<row>
+		<field name="a">1</field>
+		<field name="b">test</field>
+		<field name="c">tes</field>
+	</row>
+	<row>
+		<field name="a">2</field>
+		<field name="b">TEST</field>
+		<field name="c">TES</field>
+	</row>
+	</table_data>
+</database>
+</mysqldump>
+DROP TABLE t1;
 CREATE TABLE `"t"1` (`a"b"` char(2));
 INSERT INTO `"t"1` VALUES ("1\""), ("\"2");
 <?xml version="1.0"?>
 <mysqldump>
 <database name="test">
 	<table_structure name="&quot;t&quot;1">
-		<field Field="a&quot;b&quot;" Type="char(2)" Null="YES" />
+		<field Field="a&quot;b&quot;" Type="char(2)" Null="YES" Key="" Extra="" />
 	</table_structure>
 	<table_data name="&quot;t&quot;1">
 	<row>

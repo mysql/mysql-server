@@ -2346,8 +2346,13 @@ row_drop_table_for_mysql(
 		/* Do not drop possible .ibd tablespace if something went
 		wrong: we do not want to delete valuable data of the user */
 
-		if (err == DB_SUCCESS && space_id != 0
-		    && fil_tablespace_exists_in_mem(space_id)) {
+		if (err == DB_SUCCESS && space_id > 0) {
+			if (!fil_space_for_table_exists_in_mem(space_id, name,
+								FALSE, TRUE)) {
+				err = DB_ERROR;
+
+				goto funct_exit;
+			}
 
 			success = fil_delete_tablespace(space_id);
 

@@ -102,7 +102,7 @@ char**	srv_log_group_home_dirs = NULL;
 ulint	srv_n_log_groups	= ULINT_MAX;
 ulint	srv_n_log_files		= ULINT_MAX;
 ulint	srv_log_file_size	= ULINT_MAX;	/* size in database pages */ 
-ibool	srv_log_archive_on	= TRUE;
+ibool	srv_log_archive_on	= FALSE;
 ulint	srv_log_buffer_size	= ULINT_MAX;	/* size in database pages */ 
 ulint	srv_flush_log_at_trx_commit = 1;
 
@@ -3209,11 +3209,13 @@ flush_loop:
 		goto loop;
 	}
 	mutex_exit(&kernel_mutex);
-
+/*
 	srv_main_thread_op_info =
 				(char*)"archiving log (if log archive is on)";
 	
 	log_archive_do(FALSE, &n_bytes_archived);
+*/
+	n_bytes_archived = 0;
 
 	/* Keep looping in the background loop if still work to do */
 

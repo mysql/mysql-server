@@ -301,9 +301,12 @@ dict_build_table_def_step(
 		- page 2 is the first inode page,
 		- page 3 will contain the root of the clustered index of the
 		  table we create here. */
+	
+		table->space = 0;	/* reset to zero for the call below */
 
 		error = fil_create_new_single_table_tablespace(
-					&(table->space), table->name, 4);
+					&(table->space), table->name,
+					FIL_IBD_FILE_INITIAL_SIZE);
 		if (error != DB_SUCCESS) {
 
 			return(error);
@@ -311,7 +314,7 @@ dict_build_table_def_step(
 
 		mtr_start(&mtr);
 
-		fsp_header_init(table->space, 4, &mtr);
+		fsp_header_init(table->space, FIL_IBD_FILE_INITIAL_SIZE, &mtr);
 		
 		mtr_commit(&mtr);
 	}
