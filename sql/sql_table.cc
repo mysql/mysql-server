@@ -982,6 +982,7 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
       pthread_mutex_unlock(&LOCK_open);
       if (thd->killed)
 	goto err;
+      open_for_modify=0;
     }
 
     int result_code = (table->table->file->*operator_func)(thd, check_opt);
@@ -1029,6 +1030,9 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
     }
     if (fatal_error)
       table->table->version=0;			// Force close of table
+    else if (open_for_modify)
+      remove_table_from_cache(thd, table->table->table_cache_key,
+			      table->table->real_name);
     close_thread_tables(thd);
     if (my_net_write(&thd->net, (char*) packet->ptr(),
 		     packet->length()))
