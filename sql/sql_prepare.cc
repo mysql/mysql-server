@@ -74,7 +74,10 @@ Long data handling:
 
 #define IS_PARAM_NULL(pos, param_no) pos[param_no/8] & (1 << param_no & 7)
 
+#define STMT_QUERY_LOG_LENGTH 8192
+
 extern int yyparse(void *thd);
+static String null_string("NULL", 4, default_charset_info);
 
 /*
   Find prepared statement in thd
@@ -129,6 +132,8 @@ int compare_prep_stmt(void *not_used, PREP_STMT *stmt, ulong *key)
 void free_prep_stmt(PREP_STMT *stmt, TREE_FREE mode, void *not_used)
 {     
   my_free((char *)stmt->param, MYF(MY_ALLOW_ZERO_PTR));
+  if (stmt->query)
+    stmt->query->free();
   free_items(stmt->free_list);
   free_root(&stmt->mem_root, MYF(0));
 }
@@ -374,8 +379,8 @@ static void setup_param_functions(Item_param *param, uchar param_type)
     param->setup_param_func= setup_param_date;
     param->item_result_type= STRING_RESULT;
     break;
-  case FIELD_TYPE_DATETIME:
-  case FIELD_TYPE_TIMESTAMP:
+  case MYSQL_TYPE_DATETIME:
+  case MYSQL_TYPE_TIMESTAMP:
     param->setup_param_func= setup_param_datetime;
     param->item_result_type= STRING_RESULT;
     break;
@@ -386,9 +391,81 @@ static void setup_param_functions(Item_param *param, uchar param_type)
 }
 
 /*
-  Update the parameter markers by reading the data           
-  from client ..                                             
+  Update the parameter markers by reading data from client packet 
+  and if binary/update log is set, generate the valid query.
 */
+
+static bool insert_params_withlog(PREP_STMT *stmt, uchar *pos, uchar *read_pos)
+{
+  THD *thd= stmt->thd;
+  List<Item> &params= thd->lex.param_list;
+  List_iterator<Item> param_iterator(params);
+  Item_param *param;
+  DBUG_ENTER("insert_params_withlog"); 
+  
+  String str, *res, *query= new String(stmt->query->alloced_length());  
+  query->copy(*stmt->query);
+  
+  ulong param_no= 0;  
+  uint32 length= 0;
+  
+  while ((param= (Item_param *)param_iterator++))
+  {
+    if (param->long_data_supplied)
+      res= param->query_val_str(&str);       
+    
+    else
+    {
+      if (IS_PARAM_NULL(pos,param_no))
+      {
+        param->maybe_null= param->null_value= 1;
+        res= &null_string;
+      }
+      else
+      {
+        param->maybe_null= param->null_value= 0;
+        param->setup_param_func(param,&read_pos);
+        res= param->query_val_str(&str);
+      }
+    }
+    if (query->replace(param->pos_in_query+length, 1, *res))
+      DBUG_RETURN(1);
+    
+    length+= res->length()-1;
+    param_no++;
+  }
+  if (alloc_query(stmt->thd, (char *)query->ptr(), query->length()+1))
+    DBUG_RETURN(1);
+  
+  query->free();
+  DBUG_RETURN(0);
+}
+
+static bool insert_params(PREP_STMT *stmt, uchar *pos, uchar *read_pos)
+{
+  THD *thd= stmt->thd;
+  List<Item> &params= thd->lex.param_list;
+  List_iterator<Item> param_iterator(params);
+  Item_param *param;
+  DBUG_ENTER("insert_params"); 
+  
+  ulong param_no= 0;  
+  while ((param= (Item_param *)param_iterator++))
+  {
+    if (!param->long_data_supplied)   
+    {
+      if (IS_PARAM_NULL(pos,param_no))
+        param->maybe_null= param->null_value= 1;
+      else
+      {
+        param->maybe_null= param->null_value= 0;
+        param->setup_param_func(param,&read_pos);
+      }
+    }
+    param_no++;
+  }
+  DBUG_RETURN(0);
+}
 
 static bool setup_params_data(PREP_STMT *stmt)
 {                                       
@@ -418,21 +495,7 @@ static bool setup_params_data(PREP_STMT *stmt)
     }
     param_iterator.rewind();
   }    
-  ulong param_no= 0;
-  while ((param= (Item_param *)param_iterator++))
-  {
-    if (!param->long_data_supplied)
-    {
-      if (IS_PARAM_NULL(pos,param_no))
-        param->maybe_null= param->null_value= 1;
-      else
-      {
-        param->maybe_null= param->null_value= 0;
-        param->setup_param_func(param,&read_pos);
-      }
-    }
-    param_no++;
-  }
+  stmt->setup_params(stmt,pos,read_pos);
   DBUG_RETURN(0);
 }
 
@@ -707,21 +770,42 @@ static bool parse_prepare_query(PREP_STMT *stmt,
 
 static bool init_param_items(PREP_STMT *stmt)
 {
-  List<Item> &params= stmt->thd->lex.param_list;
+  THD *thd= stmt->thd;
+  List<Item> &params= thd->lex.param_list;
   Item_param **to;
+  uint32 length= thd->query_length;
  
-  stmt->lex=  stmt->thd->lex;
+  stmt->lex=  thd->lex;
+
+  if (mysql_bin_log.is_open() || mysql_update_log.is_open())
+  {
+    stmt->log_full_query= 1;
+    stmt->setup_params= insert_params_withlog;
+  }
+  else
+    stmt->setup_params= insert_params; // not fully qualified query
+   
   if (!stmt->param_count)
     stmt->param= (Item_param **)0;
   else
-  {
+  {    
     if (!(stmt->param= to= (Item_param **)
           my_malloc(sizeof(Item_param *)*(stmt->param_count+1), 
                     MYF(MY_WME))))
       return 1;
+
+    if (stmt->log_full_query)
+    {
+      length= thd->query_length+(stmt->param_count*2)+1;
+ 
+      if ( length < STMT_QUERY_LOG_LENGTH ) 
+        length= STMT_QUERY_LOG_LENGTH;
+    }
     List_iterator<Item> param_iterator(params);
     while ((*(to++)= (Item_param *)param_iterator++));
-  }
+  }  
+  stmt->query= new String(length);
+  stmt->query->copy(thd->query, thd->query_length, default_charset_info);
   return 0;
 }
 
@@ -741,6 +825,12 @@ static void init_stmt_execute(PREP_STMT *stmt)
   */  
   for (; tables ; tables= tables->next)
     tables->table= 0; //safety - nasty init
+  
+  if (!(stmt->log_full_query && stmt->param_count))
+  {
+    thd->query= stmt->query->c_ptr();
+    thd->query_length= stmt->query->length();
+  }
 }
 
 /*
