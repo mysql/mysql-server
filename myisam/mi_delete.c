@@ -826,8 +826,8 @@ static uint remove_key(MI_KEYDEF *keyinfo, uint nod_flag,
 	  else
 	    get_key_length(rest_length,keypos);
 
-	  if (next_length > prev_length)
-	  {		/* Key after is based on deleted key */
+          /* Key after is based on deleted key */
+          {
 	    uint pack_length,tmp;
 	    bmove_upp((char*) keypos,(char*) (lastkey+next_length),
 		      tmp=(next_length-prev_length));

@@ -252,3 +252,22 @@ select c from t1 where c=0xD0B1212223D0B1D0B1D0B1D0B1D0B1;
 select t from t1 where t=0xD0B1D0B1212223D0B1D0B1D0B1D0B1;
 drop table t1;
 
+#
+# BUG#6151 - myisam index corruption
+#
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (
+  c1 int,
+  c2 varbinary(240),
+  UNIQUE KEY (c1),
+  KEY (c2)
+) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1,'\Z\Z\Z\Z');
+INSERT INTO t1 VALUES (2,'\Z\Z\Z\Z\Z\Z');
+INSERT INTO t1 VALUES (3,'\Z\Z\Z\Z');
+select c1 from t1 where c2='\Z\Z\Z\Z';
+DELETE FROM t1 WHERE (c1 = 1);
+select c1 from t1 where c2='\Z\Z\Z\Z';
+DELETE FROM t1 WHERE (c1 = 3);
+select c1 from t1 where c2='\Z\Z\Z\Z';
+
