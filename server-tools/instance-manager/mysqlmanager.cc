@@ -179,7 +179,7 @@ static volatile sig_atomic_t is_terminated= 0;
 
 void terminate(int signo)
 {
-  is_terminated= signo; 
+  is_terminated= signo;
 }
 
 

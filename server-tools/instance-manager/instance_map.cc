@@ -158,8 +158,8 @@ int Instance_map::flush_instances()
   hash_free(&hash);
   hash_init(&hash, default_charset_info, START_HASH_SIZE, 0, 0,
             get_instance_key, delete_instance, 0);
-  rc= load();
   pthread_mutex_unlock(&LOCK_instance_map);
+  rc= load();
   return rc;
 }
 

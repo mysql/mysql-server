@@ -408,7 +408,7 @@ int Stop_instance::execute(struct st_net *net, ulong connection_id)
                stop_guard(instance);
     if (err_code= instance->stop())
       return err_code;
-
+    printf("instance was stopped\n");
     net_send_ok(net, connection_id);
     return 0;
   }
