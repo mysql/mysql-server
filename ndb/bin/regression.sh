@@ -294,7 +294,7 @@ executeTest 'testScan -n ScanUpdate2' T6
 executeTest 'drop_tab' T6
 
 executeTest 'testScan -n ScanDelete'
-executeTest 'drop_all_tab'
+executeTest 'drop_all_tabs'
 
 executeTest 'testScan -n ScanDelete2' T10
 executeTest 'drop_tab' T10
