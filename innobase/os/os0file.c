@@ -196,7 +196,7 @@ os_file_get_last_error(void)
 
 	err = (ulint) GetLastError();
 
-	if (err != ERROR_FILE_EXISTS && err != ERROR_DISK_FULL) {
+	if (err != ERROR_DISK_FULL && err != ERROR_FILE_EXISTS) {
 		ut_print_timestamp(stderr);
 	     	fprintf(stderr,
   "  InnoDB: Operating system error number %li in a file operation.\n"
@@ -220,6 +220,8 @@ os_file_get_last_error(void)
 		}
 	}
 
+	fflush(stderr);
+
 	if (err == ERROR_FILE_NOT_FOUND) {
 		return(OS_FILE_NOT_FOUND);
 	} else if (err == ERROR_DISK_FULL) {
@@ -232,7 +234,7 @@ os_file_get_last_error(void)
 #else
 	err = (ulint) errno;
 
-	if (err != EEXIST && err != ENOSPC ) {
+	if (err != ENOSPC && err != EEXIST) {
 		ut_print_timestamp(stderr);
 
 	     	fprintf(stderr,
@@ -256,6 +258,8 @@ os_file_get_last_error(void)
 		}
 	}
 
+	fflush(stderr);
+
 	if (err == ENOSPC ) {
 		return(OS_FILE_DISK_FULL);
 #ifdef POSIX_ASYNC_IO
@@ -278,7 +282,8 @@ static
 ibool
 os_file_handle_error(
 /*=================*/
-				/* out: TRUE if we should retry the operation */
+				/* out: TRUE if we should retry the
+				operation */
 	os_file_t	file,	/* in: file pointer */
 	char*		name)	/* in: name of a file or NULL */
 {
@@ -308,12 +313,15 @@ os_file_handle_error(
 
 		os_has_said_disk_full = TRUE;
 
+		fflush(stderr);
+
 		return(FALSE);
 
 	} else if (err == OS_FILE_AIO_RESOURCES_RESERVED) {
 		return(TRUE);
 
 	} else if (err == OS_FILE_ALREADY_EXISTS) {
+
 		return(FALSE);
 	} else {
 	        if (name) {
@@ -321,6 +329,8 @@ os_file_handle_error(
 	        }
 	  
 		fprintf(stderr, "InnoDB: Cannot continue operation.\n");
+
+		fflush(stderr);
 
 		exit(1);
 	}
@@ -1063,7 +1073,17 @@ error_handling:
 	if (retry) {
 		goto try_again;
 	}
-	
+       
+	fprintf(stderr,
+"InnoDB: Fatal error: cannot read from file. OS error number %lu.\n",
+#ifdef __WIN__
+		(ulint)GetLastError()
+#else
+		(ulint)errno
+#endif
+		);
+	fflush(stderr);
+
 	ut_error;
 
 	return(FALSE);

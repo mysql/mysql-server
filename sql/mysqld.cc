@@ -3755,8 +3755,10 @@ struct my_option my_long_options[] =
   {"safemalloc-mem-limit", OPT_SAFEMALLOC_MEM_LIMIT,
    "Simulate memory shortage when compiled with the --with-debug=full option",
    0, 0, 0, GET_ULL, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"new", 'n', "Use very new possible 'unsafe' functions", 0, 0, 0, GET_NO_ARG,
-   NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"new", 'n', "Use very new possible 'unsafe' functions",
+   (gptr*) &global_system_variables.new_mode,
+   (gptr*) &max_system_variables.new_mode,
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef NOT_YET
   {"no-mix-table-types", OPT_NO_MIX_TYPE, "Don't allow commands with uses two different table types",
    (gptr*) &opt_no_mix_types, (gptr*) &opt_no_mix_types, 0, GET_BOOL, NO_ARG,
@@ -3944,8 +3946,8 @@ struct my_option my_long_options[] =
    (gptr*) &my_use_symdir, (gptr*) &my_use_symdir, 0, GET_BOOL, NO_ARG,
    IF_PURIFY(0,1), 0, 0, 0, 0, 0},
 #endif
-  {"user", 'u', "Run mysqld daemon as user", (gptr*) &mysqld_user,
-   (gptr*) &mysqld_user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"user", 'u', "Run mysqld daemon as user", 0, 0, 0, GET_STR, REQUIRED_ARG,
+   0, 0, 0, 0, 0, 0},
   {"version", 'V', "Output version information and exit", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {"version", 'v', "Synonym for option -v", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0,
@@ -4121,9 +4123,9 @@ struct my_option my_long_options[] =
    (gptr*) &max_connect_errors, (gptr*) &max_connect_errors, 0, GET_ULONG,
     REQUIRED_ARG, MAX_CONNECT_ERRORS, 1, ~0L, 0, 1, 0},
   {"max_delayed_threads", OPT_MAX_DELAYED_THREADS,
-   "Don't start more than this number of threads to handle INSERT DELAYED statements.",
+   "Don't start more than this number of threads to handle INSERT DELAYED statements. This option does not yet have effect (on TODO), unless it is set to zero, which means INSERT DELAYED is not used.",
    (gptr*) &max_insert_delayed_threads, (gptr*) &max_insert_delayed_threads,
-   0, GET_ULONG, REQUIRED_ARG, 20, 1, 16384, 0, 1, 0},
+   0, GET_ULONG, REQUIRED_ARG, 20, 0, 16384, 0, 1, 0},
   {"max_error_count", OPT_MAX_ERROR_COUNT,
    "Max number of errors/warnings to store for a statement",
    (gptr*) &global_system_variables.max_error_count,
@@ -4607,11 +4609,14 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     /* Correct pointer set by my_getopt (for embedded library) */
     mysql_data_home= mysql_real_data_home;
     break;
+  case 'u':
+    if (!mysqld_user)
+      mysqld_user= argument;
+    else
+      fprintf(stderr, "Warning: Ignoring user change to '%s' because the user was set to '%s' earlier on the command line\n", argument, mysqld_user);
+    break;
   case 'L':
     strmake(language, argument, sizeof(language)-1);
-    break;
-  case 'n':
-    opt_specialflag|= SPECIAL_NEW_FUNC;
     break;
   case 'o':
     protocol_version=PROTOCOL_VERSION-1;
@@ -4808,8 +4813,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case (int) OPT_SAFE:
     opt_specialflag|= SPECIAL_SAFE_MODE;
     delay_key_write_options= (uint) DELAY_KEY_WRITE_NONE;
-    myisam_recover_options= HA_RECOVER_NONE;	// To be changed
-    ha_open_options&= ~(HA_OPEN_ABORT_IF_CRASHED | HA_OPEN_DELAY_KEY_WRITE);
+    myisam_recover_options= HA_RECOVER_DEFAULT;
+    ha_open_options&= ~(HA_OPEN_DELAY_KEY_WRITE);
     break;
   case (int) OPT_SKIP_PRIOR:
     opt_specialflag|= SPECIAL_NO_PRIOR;

@@ -78,3 +78,9 @@ EXPLAIN SELECT * FROM t1 WHERE expedition='0001-00-00 00:00:00';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	expedition	expedition	8	const	1	Using where
 drop table t1;
+create table t1 (a datetime not null, b datetime not null);
+insert into t1 values (now(), now());
+insert into t1 values (now(), now());
+select * from t1 where a is null or b is null;
+a	b
+drop table t1;

@@ -776,12 +776,18 @@ int reset_slave(THD *thd, MASTER_INFO* mi)
     error=1;
     goto err;
   }
+  //delete relay logs, clear relay log coordinates
   if ((error= purge_relay_logs(&mi->rli, thd,
 			       1 /* just reset */,
 			       &errmsg)))
     goto err;
   
+  //Clear master's log coordinates (only for good display of SHOW SLAVE STATUS)
+  mi->master_log_name[0]= 0;
+  mi->master_log_pos= BIN_LOG_HEADER_SIZE;
+  //close master_info_file, relay_log_info_file, set mi->inited=rli->inited=0
   end_master_info(mi);
+  //and delete these two files
   fn_format(fname, master_info_file, mysql_data_home, "", 4+32);
   if (my_stat(fname, &stat_area, MYF(0)) && my_delete(fname, MYF(MY_WME)))
   {

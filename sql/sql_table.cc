@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+/* Copyright (C) 2000-2003 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -65,7 +65,7 @@ static int copy_data_between_tables(TABLE *from,TABLE *to,
 int mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
 		   my_bool drop_temporary)
 {
-  int error;
+  int error= 0;
   DBUG_ENTER("mysql_rm_table");
 
   /* mark for close and remove all cached entries */
@@ -80,7 +80,7 @@ int mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
     {
       my_error(ER_TABLE_NOT_LOCKED_FOR_WRITE,MYF(0),
 	       tables->real_name);
-      error = 1;
+      error= 1;
       goto err;
     }
     while (global_read_lock && ! thd->killed)
@@ -93,7 +93,6 @@ int mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
 
  err:
   pthread_mutex_unlock(&LOCK_open);
-  VOID(pthread_cond_broadcast(&COND_refresh)); // Signal to refresh
 
   pthread_mutex_lock(&thd->mysys_var->mutex);
   thd->mysys_var->current_mutex= 0;
@@ -139,7 +138,6 @@ int mysql_rm_table_part2_with_lock(THD *thd,
 			     dont_log_query);
 
   pthread_mutex_unlock(&LOCK_open);
-  VOID(pthread_cond_broadcast(&COND_refresh)); // Signal to refresh
 
   pthread_mutex_lock(&thd->mysys_var->mutex);
   thd->mysys_var->current_mutex= 0;
@@ -188,9 +186,12 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
   bool some_tables_deleted=0, tmp_table_deleted=0;
   DBUG_ENTER("mysql_rm_table_part2");
 
+  if (lock_table_names(thd, tables))
+    DBUG_RETURN(1);
+
   for (table=tables ; table ; table=table->next)
   {
-    char *db=table->db ? table->db : thd->db;
+    char *db=table->db;
     mysql_ha_closeall(thd, table);
     if (!close_temporary_table(thd, db, table->real_name))
     {
@@ -266,11 +267,12 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
     }
   }
 
-  error = 0;
+  unlock_table_names(thd, tables);
+  error= 0;
   if (wrong_tables.length())
   {
     my_error(ER_BAD_TABLE_ERROR,MYF(0),wrong_tables.c_ptr());
-    error=1;
+    error= 1;
   }
   DBUG_RETURN(error);
 }
@@ -417,6 +419,12 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
     }
     if (!(sql_field->flags & NOT_NULL_FLAG))
       null_fields++;
+
+    if (check_column_name(sql_field->field_name))
+    {
+      my_error(ER_WRONG_COLUMN_NAME, MYF(0), sql_field->field_name);
+      DBUG_RETURN(-1);
+    }
 
     /* Check if we have used the same field name before */
     for (dup_no=0; (dup_field=it2++) != sql_field; dup_no++)
@@ -979,12 +987,6 @@ TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
   while ((item=it++))
   {
     create_field *cr_field;
-    if (strlen(item->name) > NAME_LEN ||
-	check_column_name(item->name))
-    {
-      my_error(ER_WRONG_COLUMN_NAME,MYF(0),item->name);
-      DBUG_RETURN(0);
-    }
     Field *field;
     if (item->type() == Item::FUNC_ITEM)
       field=item->tmp_table_field(&tmp_table);

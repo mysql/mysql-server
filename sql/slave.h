@@ -186,7 +186,6 @@ typedef struct st_relay_log_info
   /* if not set, the value of other members of the structure are undefined */
   bool inited;
   volatile bool abort_slave, slave_running;
-  bool log_pos_current;
   bool skip_log_purge;
   bool inside_transaction;
 

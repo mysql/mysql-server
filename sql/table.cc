@@ -1229,6 +1229,8 @@ bool check_db_name(char *name)
 bool check_table_name(const char *name, uint length)
 {
   const char *end= name+length;
+  if (!length || length > NAME_LEN)
+    return 1;
 
   while (name != end)
   {
@@ -1252,6 +1254,8 @@ bool check_table_name(const char *name, uint length)
 
 bool check_column_name(const char *name)
 {
+  const char *start= name;
+
   while (*name)
   {
 #if defined(USE_MB) && defined(USE_MB_IDENT)
@@ -1270,7 +1274,8 @@ bool check_column_name(const char *name)
       return 1;
     name++;
   }
-  return 0;
+  /* Error if empty or too long column name */
+  return (name == start || (uint) (name - start) > NAME_LEN);
 }
 
 /*

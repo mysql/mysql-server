@@ -550,6 +550,15 @@ err:
     sql_print_error("Error in Log_event::read_log_event(): '%s', \
 data_len=%d,event_type=%d",error,data_len,head[EVENT_TYPE_OFFSET]);
     my_free(buf, MYF(MY_ALLOW_ZERO_PTR));
+    /*
+      The SQL slave thread will check if file->error<0 to know
+      if there was an I/O error. Even if there is no "low-level" I/O errors
+      with 'file', any of the high-level above errors is worrying
+      enough to stop the SQL thread now ; as we are skipping the current event,
+      going on with reading and successfully executing other events can
+      only corrupt the slave's databases. So stop.
+    */
+    file->error= -1;
   }
   return res;
 }
@@ -1545,6 +1554,7 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
     tables.db = thd->db;
     tables.alias = tables.real_name = (char*)table_name;
     tables.lock_type = TL_WRITE;
+    tables.updating= 1;
     // the table will be opened in mysql_load    
     if (table_rules_on && !tables_ok(thd, &tables))
     {

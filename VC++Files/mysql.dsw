@@ -114,7 +114,7 @@ Package=<4>
 
 ###############################################################################
 
-Project: "libmySQL"=".\libmysql\libmySQL.dsp" - Package Owner=<4>
+Project: "libmysql"=".\libmysql\libmysql.dsp" - Package Owner=<4>
 
 Package=<5>
 {{{
@@ -192,7 +192,7 @@ Package=<5>
 Package=<4>
 {{{
     Begin Project Dependency
-    Project_Dep_Name libmySQL
+    Project_Dep_Name libmysql
     End Project Dependency
 }}}
 
@@ -708,7 +708,7 @@ Package=<5>
 Package=<4>
 {{{
     Begin Project Dependency
-    Project_Dep_Name libmySQL
+    Project_Dep_Name libmysql
     End Project Dependency
 }}}
 

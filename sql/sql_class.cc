@@ -480,6 +480,7 @@ int THD::send_explain_fields(select_result *result)
 #ifdef SIGNAL_WITH_VIO_CLOSE
 void THD::close_active_vio()
 {
+  DBUG_ENTER("close_active_vio");
   safe_mutex_assert_owner(&LOCK_delete); 
 #ifndef EMBEDDED_LIBRARY
   if (active_vio)
@@ -488,6 +489,7 @@ void THD::close_active_vio()
     active_vio = 0;
   }
 #endif
+  DBUG_VOID_RETURN;
 }
 #endif
 
@@ -530,6 +532,16 @@ bool select_send::send_data(List<Item> &items)
     return 0;
   }
 
+#ifdef HAVE_INNOBASE_DB
+  /*
+    We may be passing the control from mysqld to the client: release the
+    InnoDB adaptive hash S-latch to avoid thread deadlocks if it was reserved
+    by thd
+  */
+  if (thd->transaction.all.innobase_tid)
+    ha_release_temporary_latches(thd);
+#endif
+
   List_iterator_fast<Item> li(items);
   Protocol *protocol= thd->protocol;
   char buff[MAX_FIELD_WIDTH];
@@ -555,6 +567,14 @@ bool select_send::send_data(List<Item> &items)
 
 bool select_send::send_eof()
 {
+#ifdef HAVE_INNOBASE_DB
+  /* We may be passing the control from mysqld to the client: release the
+     InnoDB adaptive hash S-latch to avoid thread deadlocks if it was reserved
+     by thd */
+  if (thd->transaction.all.innobase_tid)
+    ha_release_temporary_latches(thd);
+#endif
+
   /* Unlock tables before sending packet to gain some speed */
   if (thd->lock)
   {

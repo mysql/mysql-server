@@ -1722,9 +1722,25 @@ drop table t4, t3, t2, t1;
 
 #
 # Test of DO
+#
 
 DO 1;
 DO benchmark(100,1+1),1,1;
+
+#
+# random in WHERE clause
+#
+
+CREATE TABLE t1 (
+  id mediumint(8) unsigned NOT NULL auto_increment,
+  pseudo varchar(35) NOT NULL default '',
+  PRIMARY KEY  (id),
+  UNIQUE KEY pseudo (pseudo)
+);
+INSERT INTO t1 (pseudo) VALUES ('test');
+INSERT INTO t1 (pseudo) VALUES ('test1');
+SELECT 1 as rnd1 from t1 where rand() > 2;
+DROP TABLE t1;
 
 #
 # Test of bug with SUM(CASE...)

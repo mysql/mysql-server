@@ -38,6 +38,7 @@
 #include "mysys_priv.h"
 #include "m_string.h"
 #include "m_ctype.h"
+#include <my_dir.h>
 
 char *defaults_extra_file=0;
 
@@ -61,13 +62,13 @@ DATADIR,
 NullS,
 };
 
-#define default_ext   	".cnf"		/* extension for config file */
+#define default_ext	".cnf"		/* extension for config file */
 #ifdef __WIN__
 #include <winbase.h>
 #define windows_ext	".ini"
 #endif
 
-static my_bool search_default_file(DYNAMIC_ARRAY *args, MEM_ROOT *alloc,
+static my_bool search_default_file(DYNAMIC_ARRAY *args,MEM_ROOT *alloc,
 				   const char *dir, const char *config_file,
 				   const char *ext, TYPELIB *group);
 
@@ -242,6 +243,20 @@ static my_bool search_default_file(DYNAMIC_ARRAY *args, MEM_ROOT *alloc,
   {
     strmov(name,config_file);
   }
+  fn_format(name,name,"","",4);
+#if !defined(__WIN__) && !defined(OS2)
+  {
+    MY_STAT stat_info;
+    if (!my_stat(name,&stat_info,MYF(0)))
+      return 0;
+    if (stat_info.st_mode & S_IWOTH) /* ignore world-writeable files */
+    {
+      fprintf(stderr, "warning: World-writeable config file %s is ignored\n",
+              name);
+      return 0;
+    }
+  }
+#endif
   if (!(fp = my_fopen(fn_format(name,name,"","",4),O_RDONLY,MYF(0))))
     return 0;					/* Ignore wrong files */
 

@@ -98,6 +98,8 @@ public:
   virtual void split_sum_func(Item **ref_pointer_array, List<Item> &fields) {}
   virtual bool get_date(TIME *ltime,bool fuzzydate);
   virtual bool get_time(TIME *ltime);
+  virtual bool get_date_result(TIME *ltime,bool fuzzydate)
+  { return get_date(ltime,fuzzydate); }
   virtual bool is_null() { return 0; };
   virtual void top_level_item() {}
   virtual void set_result_field(Field *field) {}
@@ -186,8 +188,9 @@ public:
   }
   Field *tmp_table_field() { return result_field; }
   Field *tmp_table_field(TABLE *t_arg) { return result_field; }
-  bool get_date(TIME *ltime,bool fuzzydate);  
-  bool get_time(TIME *ltime);  
+  bool get_date(TIME *ltime,bool fuzzydate);
+  bool get_date_result(TIME *ltime,bool fuzzydate);
+  bool get_time(TIME *ltime);
   bool is_null() { return field->is_null(); }
   Item *get_tmp_table_item(THD *thd);
   friend class Item_default_value;
@@ -512,8 +515,8 @@ public:
     return (*ref)->null_value;
   }
   bool get_date(TIME *ltime,bool fuzzydate)
-  {  
-    return (null_value=(*ref)->get_date(ltime,fuzzydate));
+  {
+    return (null_value=(*ref)->get_date_result(ltime,fuzzydate));
   }
   bool send(Protocol *prot, String *tmp){ return (*ref)->send(prot, tmp); }
   void make_field(Send_field *field)	{ (*ref)->make_field(field); }

@@ -32,3 +32,18 @@ PRIMARY KEY  (`i`)
 DELETE FROM t USING t WHERE post='1';
 Unknown column 'post' in 'where clause'
 drop table if exists t;
+CREATE TABLE t1 (
+bool     char(0) default NULL,
+not_null varchar(20) binary NOT NULL default '',
+misc     integer not null,
+PRIMARY KEY  (not_null)
+) TYPE=MyISAM;
+INSERT INTO t1 VALUES (NULL,'a',4), (NULL,'b',5), (NULL,'c',6), (NULL,'d',7);
+select * from t1 where misc > 5 and bool is null;
+bool	not_null	misc
+NULL	c	6
+NULL	d	7
+delete   from t1 where misc > 5 and bool is null;
+select * from t1 where misc > 5 and bool is null;
+bool	not_null	misc
+drop table t1;

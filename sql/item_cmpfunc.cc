@@ -1759,12 +1759,16 @@ longlong Item_func_like::val_int()
 
 Item_func::optimize_type Item_func_like::select_optimize() const
 {
-  if (args[1]->type() == STRING_ITEM)
+  if (args[1]->const_item())
   {
-    if (((Item_string *) args[1])->str_value[0] != wild_many)
+    String* res2= args[1]->val_str((String *)&tmp_value2);
+
+    if (!res2)
+      return OPTIMIZE_NONE;
+
+    if (*res2->ptr() != wild_many)
     {
-      if ((args[0]->result_type() != STRING_RESULT) ||
-	  ((Item_string *) args[1])->str_value[0] != wild_one)
+      if (args[0]->result_type() != STRING_RESULT || *res2->ptr() != wild_one)
 	return OPTIMIZE_OP;
     }
   }

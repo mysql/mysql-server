@@ -71,7 +71,7 @@ public:
   virtual String *val_str(String*,String *)=0;
   virtual Item_result result_type () const=0;
   virtual Item_result cmp_type () const { return result_type(); }
-  bool eq(Field *field) { return ptr == field->ptr; }
+  bool eq(Field *field) { return ptr == field->ptr && null_ptr == field->null_ptr; }
   virtual bool eq_def(Field *field);
   virtual uint32 pack_length() const { return (uint32) field_length; }
   virtual void reset(void) { bzero(ptr,pack_length()); }

@@ -780,6 +780,7 @@ void mysql_unlock_read_tables(THD *thd, MYSQL_LOCK *sql_lock);
 void mysql_unlock_some_tables(THD *thd, TABLE **table,uint count);
 void mysql_lock_remove(THD *thd, MYSQL_LOCK *locked,TABLE *table);
 void mysql_lock_abort(THD *thd, TABLE *table);
+void mysql_lock_abort_for_thread(THD *thd, TABLE *table);
 MYSQL_LOCK *mysql_lock_merge(MYSQL_LOCK *a,MYSQL_LOCK *b);
 bool lock_global_read_lock(THD *thd);
 void unlock_global_read_lock(THD *thd);
@@ -791,6 +792,9 @@ int lock_and_wait_for_table_name(THD *thd, TABLE_LIST *table_list);
 int lock_table_name(THD *thd, TABLE_LIST *table_list);
 void unlock_table_name(THD *thd, TABLE_LIST *table_list);
 bool wait_for_locked_table_names(THD *thd, TABLE_LIST *table_list);
+bool lock_table_names(THD *thd, TABLE_LIST *table_list);
+void unlock_table_names(THD *thd, TABLE_LIST *table_list,
+			TABLE_LIST *last_table= 0);
 
 
 /* old unireg functions */

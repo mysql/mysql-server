@@ -78,7 +78,8 @@ CREATE TABLE t1 (
 
 INSERT INTO t1 VALUES (1,'1970-01-01','1997-10-17 00:00:00',2529,1,21000,11886,'check',0,'F',16200,6);
 
-!$1056 SELECT COUNT(P.URID),SUM(P.amount),P.method, MIN(PP.recdate+0) > 19980501000000   AS IsNew FROM t1 AS P JOIN t1 as PP WHERE P.URID = PP.URID GROUP BY method,IsNew;
+--error 1056
+SELECT COUNT(P.URID),SUM(P.amount),P.method, MIN(PP.recdate+0) > 19980501000000   AS IsNew FROM t1 AS P JOIN t1 as PP WHERE P.URID = PP.URID GROUP BY method,IsNew;
 
 drop table t1;
 
@@ -265,6 +266,14 @@ select sql_big_result score,count(*) from t1 group by score desc;
 drop table t1;
 
 #
+
+# not purely group_by bug, but group_by is involved...
+
+create table t1 (a date default null, b date default null);
+insert t1 values ('1999-10-01','2000-01-10'), ('1997-01-01','1998-10-01');
+select a,min(b) c,count(distinct rand()) from t1 group by a having c<a + interval 1 day;
+drop table t1;
+
 # Compare with hash keys
 #
 

@@ -29,7 +29,7 @@
 	<key>IFPkgFlagRestartAction</key>
 	<string>NoRestart</string>
 	<key>IFPkgFlagRootVolumeOnly</key>
-	<false/>
+	<true/>
 	<key>IFPkgFlagUpdateInstalledLanguages</key>
 	<false/>
 	<key>IFPkgFormatVersion</key>

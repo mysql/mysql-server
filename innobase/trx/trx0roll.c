@@ -21,6 +21,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "que0que.h"
 #include "usr0sess.h"
 #include "srv0que.h"
+#include "srv0start.h"
 #include "row0undo.h"
 #include "row0mysql.h"
 #include "lock0lock.h"
@@ -28,6 +29,12 @@ Created 3/26/1996 Heikki Tuuri
 
 /* This many pages must be undone before a truncate is tried within rollback */
 #define TRX_ROLL_TRUNC_THRESHOLD	1
+
+/* In crash recovery we set this to the undo n:o of the current trx to be
+rolled back. Then we can print how many % the rollback has progressed. */
+ib_longlong	trx_roll_max_undo_no;
+/* Auxiliary variable which tells the previous progress % we printed */
+ulint		trx_roll_progress_printed_pct;
 
 /***********************************************************************
 Rollback a transaction used in MySQL. */
@@ -174,6 +181,8 @@ trx_rollback_or_clean_all_without_sess(void)
 	roll_node_t*	roll_node;
 	trx_t*		trx;
 	dict_table_t*	table;
+	ib_longlong	rows_to_undo;
+	char*		unit		= (char*)"";
 	int		err;
 
 	mutex_enter(&kernel_mutex);
@@ -219,8 +228,7 @@ loop:
 
 	trx->sess = trx_dummy_sess;
 	
-	if (trx->conc_state == TRX_COMMITTED_IN_MEMORY) {
-
+	if (trx->conc_state == TRX_COMMITTED_IN_MEMORY) {	
 		fprintf(stderr, "InnoDB: Cleaning up trx with id %lu %lu\n",
 					ut_dulint_get_high(trx->id),
 					ut_dulint_get_low(trx->id));
@@ -248,9 +256,19 @@ loop:
 
 	ut_a(thr == que_fork_start_command(fork, SESS_COMM_EXECUTE, 0));
 	
-	fprintf(stderr, "InnoDB: Rolling back trx with id %lu %lu\n",
+	trx_roll_max_undo_no = ut_conv_dulint_to_longlong(trx->undo_no);
+	trx_roll_progress_printed_pct = 0;
+	rows_to_undo = trx_roll_max_undo_no;
+	if (rows_to_undo > 1000000000) {
+		rows_to_undo = rows_to_undo / 1000000;
+		unit = (char*)"M";
+	}
+
+	fprintf(stderr,
+"InnoDB: Rolling back trx with id %lu %lu, %lu%s rows to undo",
 					ut_dulint_get_high(trx->id),
-					ut_dulint_get_low(trx->id));
+					ut_dulint_get_low(trx->id),
+					(ulint)rows_to_undo, unit);
 	mutex_exit(&kernel_mutex);
 
 	if (trx->dict_operation) {
@@ -300,7 +318,7 @@ loop:
 		row_mysql_unlock_data_dictionary(trx);
 	}
 
-	fprintf(stderr, "InnoDB: Rolling back of trx id %lu %lu completed\n",
+	fprintf(stderr, "\nInnoDB: Rolling back of trx id %lu %lu completed\n",
 					ut_dulint_get_high(trx->id),
 					ut_dulint_get_low(trx->id));
 	mem_heap_free(heap);
@@ -614,6 +632,7 @@ trx_roll_pop_top_rec_of_trx(
 	dulint		undo_no;
 	ibool		is_insert;
 	trx_rseg_t*	rseg;
+	ulint		progress_pct;
 	mtr_t		mtr;
 	
 	rseg = trx->rseg;
@@ -675,6 +694,26 @@ try_again:
 	undo_no = trx_undo_rec_get_undo_no(undo_rec);
 
 	ut_ad(ut_dulint_cmp(ut_dulint_add(undo_no, 1), trx->undo_no) == 0);
+
+	/* We print rollback progress info if we are in a crash recovery
+	and the transaction has at least 1000 row operations to undo */
+
+	if (srv_is_being_started && trx_roll_max_undo_no > 1000) {
+	  progress_pct = 100 - (ulint)
+				((ut_conv_dulint_to_longlong(undo_no) * 100)
+				/ trx_roll_max_undo_no);
+		if (progress_pct != trx_roll_progress_printed_pct) {
+			if (trx_roll_progress_printed_pct == 0) {
+				fprintf(stderr,
+			"\nInnoDB: Progress in percents: %lu", progress_pct);
+			} else {
+				fprintf(stderr,
+				" %lu", progress_pct);
+			}
+			fflush(stderr);
+			trx_roll_progress_printed_pct = progress_pct;
+		}
+	}
 
 	trx->undo_no = undo_no;
 

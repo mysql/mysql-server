@@ -4,13 +4,13 @@
 --disable_warnings
 drop table if exists t1;
 --enable_warnings
-create table t1 (a char (20) not null, b int not null auto_increment, index (a,b),index(b));
+create table t1 (a char (20) not null, b int not null auto_increment, index (a,b));
 insert into t1 (a) values ('ä'),('ac'),('ae'),('ad'),('Äc'),('aeb');
 insert into t1 (a) values ('üc'),('uc'),('ue'),('ud'),('Ü'),('ueb'),('uf');
 insert into t1 (a) values ('ö'),('oc'),('Öa'),('oe'),('od'),('Öc'),('oeb');
 insert into t1 (a) values ('s'),('ss'),('ß'),('ßb'),('ssa'),('ssc'),('ßa');
 insert into t1 (a) values ('eä'),('uü'),('öo'),('ää'),('ääa'),('aeae');
-insert into t1 (a) values ('q'),('a'),('u'),('o'),('é'),('É');
+insert into t1 (a) values ('q'),('a'),('u'),('o'),('é'),('É'),('a');
 select a,b from t1 order by a,b;
 select a,b from t1 order by upper(a),b;
 select a from t1 order by a desc;

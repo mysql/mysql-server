@@ -398,7 +398,8 @@ struct system_variables
   ulong pseudo_thread_id;
 
   my_bool log_warnings;
-  my_bool low_priority_updates; 
+  my_bool low_priority_updates;
+  my_bool new_mode;
 
   CONVERT	*convert_set;
   CHARSET_INFO 	*thd_charset;
@@ -447,8 +448,9 @@ public:
     db - currently selected database
     ip - client IP
    */
-  
   char	  *host,*user,*priv_user,*db,*ip;
+  /* remote (peer) port */
+  uint16 peer_port;
   /* Points to info-string that will show in SHOW PROCESSLIST */
   const char *proc_info;
   /* points to host if host is available, otherwise points to ip */
@@ -996,7 +998,7 @@ class multi_update : public select_result
 {
   TABLE_LIST *all_tables, *update_tables, *table_being_updated;
   THD *thd;
-  TABLE **tmp_tables, *main_table;
+  TABLE **tmp_tables, *main_table, *table_to_update;
   TMP_TABLE_PARAM *tmp_table_param;
   ha_rows updated, found;
   List <Item> *fields, *values;

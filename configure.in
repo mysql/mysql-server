@@ -2586,7 +2586,7 @@ EOF
     echo ""
     echo "Configuring MIT Pthreads"
     # We will never install so installation paths are not needed.
-    (cd mit-pthreads; sh ./configure)
+    (cd mit-pthreads && sh ./configure) || exit 1
     echo "End of MIT Pthreads configuration"
     echo ""
     LIBS="$MT_LD_ADD $LIBS"

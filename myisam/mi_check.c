@@ -3824,7 +3824,7 @@ void mi_disable_non_unique_index(MI_INFO *info, ha_rows rows)
     MI_KEYDEF *key=share->keyinfo;
     for (i=0 ; i < share->base.keys ; i++,key++)
     {
-      if (!(key->flag & (HA_NOSAME | HA_SPATIAL)) && 
+      if (!(key->flag & (HA_NOSAME | HA_SPATIAL | HA_AUTO_KEY)) && 
 	  ! mi_too_big_key_for_sort(key,rows) && info->s->base.auto_key != i+1)
       {
 	share->state.key_map&= ~ ((ulonglong) 1 << i);

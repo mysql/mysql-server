@@ -3,7 +3,7 @@ Microsoft Developer Studio Workspace File, Format Version 5.00
 
 ###############################################################################
 
-Project: "libmySQL"=".\libmySQL.dsp" - Package Owner=<4>
+Project: "libmysql"=".\libmysql.dsp" - Package Owner=<4>
 
 Package=<5>
 {{{

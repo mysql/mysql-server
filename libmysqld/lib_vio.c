@@ -199,7 +199,7 @@ my_socket vio_fd(Vio* vio)
 }
 
 
-my_bool vio_peer_addr(Vio * vio, char *buf)
+my_bool vio_peer_addr(Vio * vio, char *buf, uint16 *port)
 {
   return(0);
 }

@@ -1020,6 +1020,7 @@ append_identifier(THD *thd, String *packet, const char *name)
   }
 }
 
+#define LIST_PROCESS_HOST_LEN 64
 
 static int
 store_create_info(THD *thd, TABLE *table, String *packet)
@@ -1292,7 +1293,7 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
 
   field_list.push_back(new Item_int("Id",0,11));
   field_list.push_back(new Item_empty_string("User",16));
-  field_list.push_back(new Item_empty_string("Host",64));
+  field_list.push_back(new Item_empty_string("Host",LIST_PROCESS_HOST_LEN));
   field_list.push_back(field=new Item_empty_string("db",NAME_LEN));
   field->maybe_null=1;
   field_list.push_back(new Item_empty_string("Command",16));
@@ -1326,7 +1327,14 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
         thd_info->user=thd->strdup(tmp->user ? tmp->user :
 				   (tmp->system_thread ?
 				    "system user" : "unauthenticated user"));
-        thd_info->host= thd->strdup(tmp->host_or_ip);
+	if (tmp->peer_port && (tmp->host || tmp->ip))
+	{
+	  if ((thd_info->host= thd->alloc(LIST_PROCESS_HOST_LEN+1)))
+	    my_snprintf((char *) thd_info->host, LIST_PROCESS_HOST_LEN,
+			"%s:%u", thd->host_or_ip, tmp->peer_port);
+	}
+	else
+	  thd_info->host= thd->strdup(thd->host_or_ip);
         if ((thd_info->db=tmp->db))             // Safe test
           thd_info->db=thd->strdup(thd_info->db);
         thd_info->command=(int) tmp->command;
