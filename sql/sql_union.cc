@@ -136,7 +136,7 @@ int st_select_lex_unit::prepare(THD *thd, select_result *sel_result,
     found_rows_for_union= first_select()->options & OPTION_FOUND_ROWS && 
       global_parameters->select_limit;
     if (found_rows_for_union)
-      first_select()->options ^=  OPTION_FOUND_ROWS;
+      first_select()->options&=  ~OPTION_FOUND_ROWS;
   }
   if (t_and_f)
   {
@@ -154,8 +154,6 @@ int st_select_lex_unit::prepare(THD *thd, select_result *sel_result,
       goto err;
     List_iterator<Item> it(select_cursor->item_list);	
     Item *item;
-    while((item=it++))
-      item->maybe_null=1;
     item_list= select_cursor->item_list;
     select_cursor->with_wild= 0;
     if (setup_ref_array(thd, &select_cursor->ref_pointer_array, 
@@ -167,6 +165,12 @@ int st_select_lex_unit::prepare(THD *thd, select_result *sel_result,
 		     item_list, 0, 0, 1))
       goto err;
     t_and_f= 1;
+    while((item=it++))
+    {
+      item->maybe_null=1;
+      if (item->type() == Item::FIELD_ITEM)
+	((class Item_field *)item)->field->table->maybe_null=1;
+    }
   }
 
   tmp_table_param.field_count=item_list.elements;
@@ -241,7 +245,6 @@ err:
 
 int st_select_lex_unit::exec()
 {
-  int do_print_slow= 0;
   SELECT_LEX *lex_select_save= thd->lex.current_select;
   SELECT_LEX *select_cursor=first_select_in_union();
   DBUG_ENTER("st_select_lex_unit::exec");
@@ -312,7 +315,6 @@ int st_select_lex_unit::exec()
 	thd->lex.current_select= lex_select_save;
 	DBUG_RETURN(res);
       }
-      do_print_slow|= select_cursor->options;
     }
   }
   optimized= 1;
@@ -373,12 +375,6 @@ int st_select_lex_unit::exec()
 	Mark for slow query log if any of the union parts didn't use
 	indexes efficiently
       */
-      select_cursor->options= ((select_cursor->options &
-				~(QUERY_NO_INDEX_USED |
-				  QUERY_NO_GOOD_INDEX_USED)) |
-			       do_print_slow &
-			       (QUERY_NO_INDEX_USED |
-				QUERY_NO_GOOD_INDEX_USED));
     }
   }
   thd->lex.current_select= lex_select_save;
