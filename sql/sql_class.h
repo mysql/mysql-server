@@ -481,6 +481,7 @@ public:
   table_map  used_tables;
   USER_CONN *user_connect;
   CHARSET_INFO *db_charset;   
+  CHARSET_INFO *thd_charset;
   List	     <MYSQL_ERROR> warn_list;  
   uint	     warn_count[(uint) MYSQL_ERROR::WARN_LEVEL_END];
   uint	     total_warn_count, old_total_warn_count;
