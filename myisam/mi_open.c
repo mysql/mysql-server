@@ -734,6 +734,8 @@ static void setup_key_functions(register MI_KEYDEF *keyinfo)
 #ifdef HAVE_RTREE_KEYS
     keyinfo->ck_insert = rtree_insert;
     keyinfo->ck_delete = rtree_delete;
+#else
+    DBUG_ASSERT(0); /* mi_open should check it never happens */
 #endif
   }
   else
