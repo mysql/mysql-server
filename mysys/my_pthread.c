@@ -95,9 +95,9 @@ void *my_pthread_getspecific_imp(pthread_key_t key)
 don't kill the LibC Reaper thread or the main thread
 */
 #include <nks/thread.h>
+#undef pthread_exit
 void my_pthread_exit(void *status)
 {
-#undef pthread_exit
   NXThreadId_t tid = NXThreadGetId();
   NXContext_t ctx;
   char name[PATH_MAX] = "";
