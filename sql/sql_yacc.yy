@@ -6437,16 +6437,20 @@ load_data:
         {
 	  LEX *lex=Lex;
 	  lex->fname_end= lex->ptr;
-	  lex->field_list.empty();
-	  lex->update_list.empty();
-	  lex->value_list.empty();
 	}
-	TABLE_SYM table_ident opt_field_term opt_line_term
-	opt_ignore_lines opt_field_or_var_spec opt_load_data_set_spec
-	{
-	  if (!Select->add_table_to_list(YYTHD, $10, NULL, TL_OPTION_UPDATING))
-	    YYABORT;
-	}
+        TABLE_SYM table_ident
+        {
+          LEX *lex=Lex;
+          if (!Select->add_table_to_list(YYTHD, $10, NULL, TL_OPTION_UPDATING,
+                                         lex->lock_option))
+            YYABORT;
+          lex->field_list.empty();
+          lex->update_list.empty();
+          lex->value_list.empty();
+        }
+        opt_field_term opt_line_term opt_ignore_lines opt_field_or_var_spec
+        opt_load_data_set_spec
+        {}
         |
 	FROM MASTER_SYM
         {

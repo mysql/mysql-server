@@ -1,4 +1,4 @@
-drop table if exists t1;
+drop table if exists t1, t2;
 create table t1 (a date, b date, c date not null, d date);
 load data infile '../../std_data/loaddata1.dat' into table t1 fields terminated by ',';
 Warnings:
@@ -111,4 +111,12 @@ a	b	c
 5	6	5+6+123+6+NIL
 load data infile '../../std_data/loaddata5.dat' into table t1 fields terminated by '' enclosed by '' (a, @b);
 ERROR HY000: Can't load value from file with fixed size rows to variable
-drop table t1;
+create table t2 (num int primary key, str varchar(10));
+insert into t2 values (10,'Ten'), (15,'Fifteen');
+truncate table t1;
+load data infile '../../std_data/rpl_loaddata.dat' into table t1 (@dummy,@n) set a= @n, c= (select str from t2 where num=@n);
+select * from t1;
+a	b	c
+10	NULL	Ten
+15	NULL	Fifteen
+drop table t1, t2;

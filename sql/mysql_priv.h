@@ -945,7 +945,7 @@ bool mysql_load(THD *thd, sql_exchange *ex, TABLE_LIST *table_list,
 	        List<Item> &fields_vars, List<Item> &set_fields,
                 List<Item> &set_values_list,
                 enum enum_duplicates handle_duplicates, bool ignore,
-                bool local_file, thr_lock_type lock_type);
+                bool local_file);
 int write_record(THD *thd, TABLE *table, COPY_INFO *info);
 
 /* sql_manager.cc */

@@ -3355,7 +3355,7 @@ unsent_create_error:
 
     res= mysql_load(thd, lex->exchange, first_table, lex->field_list,
                     lex->update_list, lex->value_list, lex->duplicates,
-                    lex->ignore, (bool) lex->local_file, lex->lock_option);
+                    lex->ignore, (bool) lex->local_file);
     break;
   }
 
