@@ -1789,6 +1789,9 @@ compiler."
 	*-*-cygwin* | *-*-mingw* | *-*-os2* | *-*-beos*)
 	  # these systems don't actually have a c library (as such)!
 	  ;;
+        *-*-freebsd*)
+          # FreeBSD needs to handle -lc (or -lc_r) itself
+          ;;
 	*)
 	  # Add libc to deplibs on all other systems.
 	  deplibs="$deplibs -lc"

@@ -178,6 +178,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
 	((share->state.changed & STATE_CRASHED) ||
 	 (my_disable_locking && share->state.open_count)))
     {
+      DBUG_PRINT("error",("Table is marked as crashed"));
       my_errno=((share->state.changed & STATE_CRASHED_ON_REPAIR) ?
 		HA_ERR_CRASHED_ON_REPAIR : HA_ERR_CRASHED);
       goto err;
@@ -209,6 +210,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
 #elif !defined(USE_RAID)
     if (share->base.raid_type)
     {
+      DBUG_PRINT("error",("Table uses RAID but we don't have RAID support"));
       my_errno=HA_ERR_UNSUPPORTED;
       goto err;
     }
@@ -219,6 +221,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
     if (share->base.max_key_length > MI_MAX_KEY_BUFF || keys > MI_MAX_KEY ||
 	key_parts >= MI_MAX_KEY * MI_MAX_KEY_SEG)
     {
+      DBUG_PRINT("error",("Wrong key info:  Max_key_length: %d  keys: %d  key_parts: %d", share->base.max_key_length, keys, key_parts));
       my_errno=HA_ERR_UNSUPPORTED;
       goto err;
     }

@@ -45,7 +45,7 @@ mystringsextra= 	strto.c ctype_autoconf.c
 dbugobjects =		dbug.lo # IT IS IN SAFEMALLOC.C sanity.lo
 mysysheaders =		mysys_priv.h my_static.h
 mysysobjects1 =		my_init.lo my_static.lo my_malloc.lo my_realloc.lo \
-			my_create.lo my_delete.lo my_tempnam.lo my_open.lo \
+			my_create.lo my_delete.lo mf_tempfile.lo my_open.lo \
 			mf_casecnv.lo my_read.lo my_write.lo errors.lo \
 			my_error.lo my_getwd.lo my_div.lo \
 			mf_pack.lo my_messnc.lo mf_dirname.lo mf_fn_ext.lo\

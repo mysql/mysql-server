@@ -149,7 +149,12 @@ void MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
     fn_format(index_file_name, name, mysql_data_home, ".index", 6);
   
   db[0]=0;
-  file=my_fopen(log_file_name,O_APPEND | O_WRONLY,MYF(MY_WME | ME_WAITTANG));
+  MY_STAT tmp_stat;
+  bool do_magic = ((log_type == LOG_BIN) && !my_stat(log_file_name,
+						     &tmp_stat, MYF(0)));
+  
+  file=my_fopen(log_file_name,O_APPEND | O_WRONLY | O_BINARY,
+		MYF(MY_WME | ME_WAITTANG));
   if (!file)
   {
     my_free(name,MYF(0));    
@@ -186,10 +191,18 @@ void MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
   }
   else if (log_type == LOG_BIN)
   {
-    Start_log_event s;
-    if(!index_file && 
-       !(index_file = my_fopen(index_file_name,O_APPEND | O_RDWR,
-			       MYF(MY_WME))))
+
+    // Explanation of the boolean black magic:
+    //
+    // if we are supposed to write magic number try write
+    // clean up if failed
+    // then if index_file has not been previously opened, try to open it
+    // clean up if failed
+    if((do_magic && my_fwrite(file, (byte*)BINLOG_MAGIC, 4,
+			     MYF(MY_NABP|MY_WME)) ||
+	(!index_file && 
+       !(index_file = my_fopen(index_file_name,O_APPEND | O_BINARY | O_RDWR,
+			       MYF(MY_WME))))))
     {
       my_fclose(file,MYF(MY_WME));
       my_free(name,MYF(0));    
@@ -198,6 +211,7 @@ void MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
       log_type=LOG_CLOSED;
       return;
     }
+    Start_log_event s;
     s.write(file);
     pthread_mutex_lock(&LOCK_index);
     my_fseek(index_file, 0L, MY_SEEK_END, MYF(MY_WME));
@@ -461,6 +475,25 @@ void MYSQL_LOG::write(Query_log_event* event_info)
 	  goto err;
 	}
       }
+
+      if(thd->convert_set)
+	{
+	  char buf[1024] = "SET CHARACTER SET ";
+	  char* p = strend(buf);
+	  p = strmov(p, thd->convert_set->name);
+	  int save_query_length = thd->query_length;
+	  // just in case somebody wants it later
+	  thd->query_length = (uint)(p - buf);
+	  Query_log_event e(thd, buf);
+	  if(e.write(file))
+	    {
+	      sql_print_error(ER(ER_ERROR_ON_WRITE), name, errno);
+	      goto err;
+	    }
+
+	  thd->query_length = save_query_length; // clean up
+	  
+	}
 	  
       if (event_info->write(file))
       {

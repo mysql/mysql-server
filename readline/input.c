@@ -368,7 +368,7 @@ rl_read_key ()
   else
     {
       /* If input is coming from a macro, then use that. */
-      if (c = _rl_next_macro_key ())
+      if ((c = _rl_next_macro_key ()))
 	return (c);
 
       /* If the user has an event function, then call it periodically. */

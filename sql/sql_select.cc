@@ -137,7 +137,8 @@ static void copy_sum_funcs(Item_sum **func_ptr);
 static bool add_ref_to_table_cond(THD *thd, JOIN_TAB *join_tab);
 static void init_sum_functions(Item_sum **func);
 static bool update_sum_func(Item_sum **func);
-static void select_describe(JOIN *join, bool need_tmp_table, bool need_order);
+static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
+			    bool distinct);
 static void describe_info(const char *info);
 
 /*****************************************************************************
@@ -172,6 +173,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
   no_order=0;
   bzero((char*) &keyuse,sizeof(keyuse));
   thd->proc_info="init";
+  thd->used_tables=0;				// Updated by setup_fields
 
   if (setup_fields(thd,tables,fields,1,&all_fields) ||
       setup_conds(thd,tables,&conds) ||
@@ -262,7 +264,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
   join.join_tab=0;
   join.tmp_table_param.copy_field=0;
   join.sum_funcs=0;
-  join.send_records=0L;
+  join.send_records=join.found_records=0;
   join.tmp_table_param.end_write_records= HA_POS_ERROR;
   join.first_record=join.sort_and_group=0;
   join.select_options=select_options;
@@ -507,7 +509,8 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
       order=0;
     select_describe(&join,need_tmp,
 		    (order != 0 &&
-		     (!need_tmp || order != group || simple_group)));
+		     (!need_tmp || order != group || simple_group)),
+		    select_distinct);
     error=0;
     goto err;
   }
@@ -558,6 +561,26 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
 	order=0;
       }
     }
+
+    /*
+      Optimize distinct when used on some of the tables
+      SELECT DISTINCT t1.a FROM t1,t2 WHERE t1.b=t2.b
+      In this case we can stop scanning t2 when we have found one t1.a
+    */
+
+    if (tmp_table->distinct)
+    {
+      table_map used_tables= thd->used_tables;
+      JOIN_TAB *join_tab=join.join_tab+join.tables-1;
+      do
+      {
+	if (used_tables & join_tab->table->map)
+	  break;
+	join_tab->not_used_in_distinct=1;
+      } while (join_tab-- != join.join_tab);
+    }
+
+    /* Copy data to the temporary table */
     thd->proc_info="Copying to tmp table";
     if (do_select(&join,(List<Item> *) 0,tmp_table,0))
       goto err;					/* purecov: inspected */
@@ -2123,7 +2146,7 @@ make_simple_join(JOIN *join,TABLE *tmp_table)
   join->tmp_table_param.copy_field=0;
   join->first_record=join->sort_and_group=0;
   join->sum_funcs=0;
-  join->send_records=0L;
+  join->send_records=(ha_rows) 0;
   join->group=0;
 
   join_tab->cache.buff=0;			/* No cacheing */
@@ -2131,15 +2154,16 @@ make_simple_join(JOIN *join,TABLE *tmp_table)
   join_tab->select=0;
   join_tab->select_cond=0;
   join_tab->quick=0;
-  bzero((char*) &join_tab->read_record,sizeof(join_tab->read_record));
   join_tab->type= JT_ALL;			/* Map through all records */
   join_tab->keys= (uint) ~0;			/* test everything in quick */
   join_tab->info=0;
   join_tab->on_expr=0;
   join_tab->ref.key = -1;
+  join_tab->not_used_in_distinct=0;
+  join_tab->read_first_record= join_init_read_record;
+  bzero((char*) &join_tab->read_record,sizeof(join_tab->read_record));
   tmp_table->status=0;
   tmp_table->null_row=0;
-  join_tab->read_first_record= join_init_read_record;
   return FALSE;
 }
 
@@ -3257,7 +3281,6 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     if (item->with_sum_func && type != Item::SUM_FUNC_ITEM ||
 	item->const_item())
       continue;
-
     if (type == Item::SUM_FUNC_ITEM && !group && !save_sum_fields)
     {						/* Can't calc group yet */
       ((Item_sum*) item)->result_field=0;
@@ -3914,7 +3937,9 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
 
   if (!(error=(*join_tab->read_first_record)(join_tab)))
   {
-    bool not_exists_optimize=join_tab->table->reginfo.not_exists_optimize;
+    bool not_exists_optimize= join_tab->table->reginfo.not_exists_optimize;
+    bool not_used_in_distinct=join_tab->not_used_in_distinct;
+    ha_rows found_records=join->found_records;
     READ_RECORD *info= &join_tab->read_record;
 
     do
@@ -3933,6 +3958,8 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
 	{
 	  if ((error=(*next_select)(join,join_tab+1,0)) < 0)
 	    return error;
+	  if (not_used_in_distinct && found_records != join->found_records)
+	    return 0;
 	}
       }
     } while (!(error=info->read_record(info)));
@@ -4546,23 +4573,21 @@ end_write(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
     }
     if (!join->having || join->having->val_int())
     {
+      join->found_records++;
       if ((error=table->file->write_row(table->record[0])))
       {
-	if (error != HA_ERR_FOUND_DUPP_KEY &&
-	    error != HA_ERR_FOUND_DUPP_UNIQUE)
-	{
-	  if (create_myisam_from_heap(table, &join->tmp_table_param, error,1))
-	    DBUG_RETURN(1);			// Not a table_is_full error
-	  table->uniques=0;			// To ensure rows are the same
-	}
-      }
-      else
-      {
+	if (error == HA_ERR_FOUND_DUPP_KEY ||
+	    error == HA_ERR_FOUND_DUPP_UNIQUE)
+	  goto end;
+	if (create_myisam_from_heap(table, &join->tmp_table_param, error,1))
+	  DBUG_RETURN(1);			// Not a table_is_full error
+	table->uniques=0;			// To ensure rows are the same
 	if (++join->send_records >= join->tmp_table_param.end_write_records)
 	  DBUG_RETURN(-3);
       }
     }
   }
+end:
   DBUG_RETURN(0);
 }
 
@@ -4586,6 +4611,7 @@ end_update(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
     DBUG_RETURN(-2);				/* purecov: inspected */
   }
 
+  join->found_records++;
   copy_fields(&join->tmp_table_param);		// Groups are copied twice.
   /* Make a key of group index */
   for (group=table->group ; group ; group=group->next)
@@ -5053,7 +5079,6 @@ create_sort_index(JOIN_TAB *tab,ORDER *order,ha_rows select_limit)
       }
     }
     else
-//    if (tab->type != JT_FT) /* Beware! SerG */
     {
       /*
 	We have a ref on a const;  Change this to a range that filesort
@@ -6336,12 +6361,13 @@ static bool add_ref_to_table_cond(THD *thd, JOIN_TAB *join_tab)
 ** Send a description about what how the select will be done to stdout
 ****************************************************************************/
 
-static void select_describe(JOIN *join, bool need_tmp_table, bool need_order)
+static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
+			    bool distinct)
 {
-  DBUG_ENTER("select_describe");
-
   List<Item> field_list;
   Item *item;
+  THD *thd=join->thd;
+  DBUG_ENTER("select_describe");
 
   field_list.push_back(new Item_empty_string("table",NAME_LEN));
   field_list.push_back(new Item_empty_string("type",10));
@@ -6357,11 +6383,12 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order)
   item->maybe_null=1;
   field_list.push_back(new Item_real("rows",0.0,0,10));
   field_list.push_back(new Item_empty_string("Extra",255));
-  if (send_fields(join->thd,field_list,1))
+  if (send_fields(thd,field_list,1))
     return; /* purecov: inspected */
 
   char buff[512],*buff_ptr;
-  String tmp(buff,sizeof(buff)),*packet= &join->thd->packet;
+  String tmp(buff,sizeof(buff)),*packet= &thd->packet;
+  table_map used_tables=0;
   for (uint i=0 ; i < join->tables ; i++)
   {
     JOIN_TAB *tab=join->join_tab+i;
@@ -6474,11 +6501,22 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order)
       }
       buff_ptr=strmov(buff_ptr,"Using filesort");
     }
+    if (distinct & test_all_bits(used_tables,thd->used_tables))
+    {
+      if (buff != buff_ptr)
+      {
+	buff_ptr[0]=';' ; buff_ptr[1]=' '; buff_ptr+=2;
+      }
+      buff_ptr=strmov(buff_ptr,"Distinct");
+    }
     net_store_data(packet,buff,(uint) (buff_ptr - buff));
-    if (my_net_write(&join->thd->net,(char*) packet->ptr(),packet->length()))
+    if (my_net_write(&thd->net,(char*) packet->ptr(),packet->length()))
       DBUG_VOID_RETURN;				/* purecov: inspected */
+
+    // For next iteration
+    used_tables|=table->map;
   }
-  send_eof(&join->thd->net);
+  send_eof(&thd->net);
   DBUG_VOID_RETURN;
 }
 
