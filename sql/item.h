@@ -239,6 +239,7 @@ public:
   virtual void top_level_item() {}
   virtual void set_result_field(Field *field) {}
   virtual bool is_result_field() { return 0; }
+  virtual bool is_bool_func() { return 0; }
   virtual void save_in_result_field(bool no_conversions) {}
   virtual void no_rows_in_result() {}
   virtual Item *copy_or_same(THD *thd) { return this; }
@@ -268,8 +269,7 @@ public:
   virtual void bring_value() {}
 
   Field *tmp_table_field_from_field_type(TABLE *table);
-  
-  /* Used in sql_select.cc:eliminate_not_funcs() */
+
   virtual Item *neg_transformer(THD *thd) { return NULL; }
   void delete_self()
   {
