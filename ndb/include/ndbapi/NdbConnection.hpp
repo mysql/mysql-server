@@ -19,6 +19,7 @@
 
 #include <ndb_types.h>
 #include <NdbError.hpp>
+#include <NdbDictionary.hpp>
 
 class NdbConnection;
 class NdbOperation;
@@ -440,6 +441,14 @@ public:
    */
   int executePendingBlobOps(Uint8 flags = 0xFF);
 
+  // Fast path calls for MySQL ha_ndbcluster
+  NdbOperation* getNdbOperation(NdbDictionary::Table * table);
+  NdbIndexOperation* getNdbIndexOperation(NdbDictionary::Index * index,
+					  NdbDictionary::Table * table);
+  NdbScanOperation* getNdbScanOperation(NdbDictionary::Table * table);
+  NdbIndexScanOperation* getNdbIndexScanOperation(NdbDictionary::Index * index,
+						  NdbDictionary::Table * table);
+
 private:						
   /**
    * Release completed operations
@@ -553,6 +562,8 @@ private:
   NdbIndexOperation* getNdbIndexOperation(class NdbIndexImpl* anIndex, 
                                           class NdbTableImpl* aTable,
                                           NdbOperation* aNextOp = 0);
+  NdbIndexScanOperation* getNdbIndexScanOperation(NdbIndexImpl* index,
+						  NdbTableImpl* table);
   
   void		handleExecuteCompletion();
   

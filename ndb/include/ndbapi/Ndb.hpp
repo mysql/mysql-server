@@ -1416,8 +1416,13 @@ public:
    */
   Uint64 getAutoIncrementValue(const char* aTableName, 
 			       Uint32 cacheSize = 1);
+  Uint64 getAutoIncrementValue(NdbDictionary::Table * aTable, 
+			       Uint32 cacheSize = 1);
   Uint64 readAutoIncrementValue(const char* aTableName);
+  Uint64 readAutoIncrementValue(NdbDictionary::Table * aTable);
   bool setAutoIncrementValue(const char* aTableName, Uint64 val, 
+			     bool increase = false);
+  bool setAutoIncrementValue(NdbDictionary::Table * aTable, Uint64 val, 
 			     bool increase = false);
   Uint64 getTupleIdFromNdb(const char* aTableName, 
 			   Uint32 cacheSize = 1000);
