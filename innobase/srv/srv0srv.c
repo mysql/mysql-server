@@ -58,6 +58,10 @@ ulint	srv_activity_count	= 0;
 /* The following is the maximum allowed duration of a lock wait. */
 ulint	srv_fatal_semaphore_wait_threshold = 600;
 
+/* How much data manipulation language (DML) statements need to be delayed,
+in microseconds, in order to reduce the lagging of the purge thread. */
+ulint	srv_dml_needed_delay = 0;
+
 ibool	srv_lock_timeout_and_monitor_active = FALSE;
 ibool	srv_error_monitor_active = FALSE;
 
@@ -841,6 +845,8 @@ srv_general_init(void)
 
 /*======================= InnoDB Server FIFO queue =======================*/
 
+/* Maximum allowable purge history length.  <=0 means 'infinite'. */
+ulint	srv_max_purge_lag		= 0;
 
 /*************************************************************************
 Puts an OS thread to wait if there are too many concurrent threads

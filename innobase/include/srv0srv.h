@@ -99,6 +99,7 @@ extern ibool	srv_use_doublewrite_buf;
 extern ibool    srv_set_thread_priorities;
 extern int      srv_query_thread_priority;
 
+extern ulint	srv_max_purge_lag;
 /*-------------------------------------------*/
 
 extern ulint	srv_n_rows_inserted;
@@ -152,6 +153,7 @@ extern	ulint	srv_test_array_size;
 
 extern ulint	srv_activity_count;
 extern ulint	srv_fatal_semaphore_wait_threshold;
+extern ulint	srv_dml_needed_delay;
 
 extern mutex_t*	kernel_mutex_temp;/* mutex protecting the server, trx structs,
 				query threads, and lock table: we allocate
