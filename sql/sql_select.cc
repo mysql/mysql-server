@@ -4709,7 +4709,10 @@ join_read_const(JOIN_TAB *tab)
       empty_record(table);
       if (error != HA_ERR_KEY_NOT_FOUND)
       {
-	sql_print_error("read_const: Got error %d when reading table %s",
+	/* Locking reads can legally return also these errors, do not
+	   print them to the .err log */
+	if (error != HA_ERR_LOCK_DEADLOCK && error != HA_ERR_LOCK_WAIT_TIMEOUT)
+	  sql_print_error("read_const: Got error %d when reading table %s",
 			error, table->path);
 	table->file->print_error(error,MYF(0));
 	return 1;
@@ -4772,7 +4775,8 @@ join_read_always_key(JOIN_TAB *tab)
   {
     if (error != HA_ERR_KEY_NOT_FOUND)
     {
-      sql_print_error("read_const: Got error %d when reading table %s",error,
+      if (error != HA_ERR_LOCK_DEADLOCK && error != HA_ERR_LOCK_WAIT_TIMEOUT)
+	sql_print_error("read_const: Got error %d when reading table %s",error,
 		      table->path);
       table->file->print_error(error,MYF(0));
       return 1;
@@ -4801,7 +4805,8 @@ join_read_last_key(JOIN_TAB *tab)
   {
     if (error != HA_ERR_KEY_NOT_FOUND)
     {
-      sql_print_error("read_const: Got error %d when reading table %s",error,
+      if (error != HA_ERR_LOCK_DEADLOCK && error != HA_ERR_LOCK_WAIT_TIMEOUT)
+	sql_print_error("read_const: Got error %d when reading table %s",error,
 		      table->path);
       table->file->print_error(error,MYF(0));
       return 1;
@@ -4833,7 +4838,8 @@ join_read_next_same(READ_RECORD *info)
   {
     if (error != HA_ERR_END_OF_FILE)
     {
-      sql_print_error("read_next: Got error %d when reading table %s",error,
+      if (error != HA_ERR_LOCK_DEADLOCK && error != HA_ERR_LOCK_WAIT_TIMEOUT)
+	sql_print_error("read_next: Got error %d when reading table %s",error,
 		      table->path);
       table->file->print_error(error,MYF(0));
       return 1;
@@ -4855,7 +4861,8 @@ join_read_prev_same(READ_RECORD *info)
   {
     if (error != HA_ERR_END_OF_FILE)
     {
-      sql_print_error("read_next: Got error %d when reading table %s",error,
+      if (error != HA_ERR_LOCK_DEADLOCK && error != HA_ERR_LOCK_WAIT_TIMEOUT)
+	sql_print_error("read_next: Got error %d when reading table %s",error,
 		      table->path);
       table->file->print_error(error,MYF(0));
       error= 1;
@@ -4926,7 +4933,8 @@ join_read_first(JOIN_TAB *tab)
   {
     if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
     {
-      sql_print_error("read_first_with_key: Got error %d when reading table",
+      if (error != HA_ERR_LOCK_DEADLOCK && error != HA_ERR_LOCK_WAIT_TIMEOUT)
+	sql_print_error("read_first_with_key: Got error %d when reading table",
 		      error);
       table->file->print_error(error,MYF(0));
       return 1;
@@ -4945,7 +4953,9 @@ join_read_next(READ_RECORD *info)
   {
     if (error != HA_ERR_END_OF_FILE)
     {
-      sql_print_error("read_next_with_key: Got error %d when reading table %s",
+      if (error != HA_ERR_LOCK_DEADLOCK && error != HA_ERR_LOCK_WAIT_TIMEOUT)
+	sql_print_error(
+		    "read_next_with_key: Got error %d when reading table %s",
 		      error, info->table->path);
       info->file->print_error(error,MYF(0));
       return 1;
@@ -4977,7 +4987,8 @@ join_read_last(JOIN_TAB *tab)
   {
     if (error != HA_ERR_END_OF_FILE)
     {
-      sql_print_error("read_last_with_key: Got error %d when reading table",
+      if (error != HA_ERR_LOCK_DEADLOCK && error != HA_ERR_LOCK_WAIT_TIMEOUT)
+	sql_print_error("read_last_with_key: Got error %d when reading table",
 		      error, table->path);
       table->file->print_error(error,MYF(0));
       return 1;
@@ -4996,7 +5007,9 @@ join_read_prev(READ_RECORD *info)
   {
     if (error != HA_ERR_END_OF_FILE)
     {
-      sql_print_error("read_prev_with_key: Got error %d when reading table: %s",
+      if (error != HA_ERR_LOCK_DEADLOCK && error != HA_ERR_LOCK_WAIT_TIMEOUT)
+	sql_print_error(
+		  "read_prev_with_key: Got error %d when reading table: %s",
 		      error,info->table->path);
       info->file->print_error(error,MYF(0));
       return 1;
@@ -5024,7 +5037,8 @@ join_ft_read_first(JOIN_TAB *tab)
   {
     if (error != HA_ERR_END_OF_FILE)
     {
-      sql_print_error("ft_read_first: Got error %d when reading table %s",
+      if (error != HA_ERR_LOCK_DEADLOCK && error != HA_ERR_LOCK_WAIT_TIMEOUT)
+	sql_print_error("ft_read_first: Got error %d when reading table %s",
                       error, table->path);
       table->file->print_error(error,MYF(0));
       return 1;
@@ -5042,7 +5056,8 @@ join_ft_read_next(READ_RECORD *info)
   {
     if (error != HA_ERR_END_OF_FILE)
     {
-      sql_print_error("ft_read_next: Got error %d when reading table %s",
+      if (error != HA_ERR_LOCK_DEADLOCK && error != HA_ERR_LOCK_WAIT_TIMEOUT)
+	sql_print_error("ft_read_next: Got error %d when reading table %s",
                       error, info->table->path);
       info->file->print_error(error,MYF(0));
       return 1;

@@ -529,6 +529,9 @@ open_or_create_log_file(
 					new database */
 	ibool*	log_file_created,	/* out: TRUE if new log file
 					created */
+	ibool	log_file_has_been_opened,/* in: TRUE if a log file has been
+					opened before: then it is an error
+					to try to create another log file */
 	ulint	k,			/* in: log group number */
 	ulint	i)			/* in: log file number in group */
 {
@@ -581,12 +584,17 @@ open_or_create_log_file(
 		}					
 	} else {
 		*log_file_created = TRUE;
-					
+
 	    	ut_print_timestamp(stderr);
 
 		fprintf(stderr,
 		"  InnoDB: Log file %s did not exist: new to be created\n",
 									name);
+		if (log_file_has_been_opened) {
+
+			return(DB_ERROR);
+		}
+
 		fprintf(stderr, "InnoDB: Setting log file %s size to %lu MB\n",
 			             name, srv_log_file_size
 			>> (20 - UNIV_PAGE_SIZE_SHIFT));
@@ -1160,7 +1168,8 @@ innobase_start_or_create_for_mysql(void)
 		for (i = 0; i < srv_n_log_files; i++) {
 
 			err = open_or_create_log_file(create_new_db,
-						&log_file_created, k, i);
+						&log_file_created,
+						log_opened, k, i);
 			if (err != DB_SUCCESS) {
 
 				return((int) err);
