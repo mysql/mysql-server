@@ -18,8 +18,8 @@
 
 #ifdef HAVE_OPENSSL
 
-#include <my_sys.h>
 #include <mysql_com.h>
+#include <my_sys.h>
 #include <violite.h>
 
 

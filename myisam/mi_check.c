@@ -3563,11 +3563,13 @@ int update_state_info(MI_CHECK *param, MI_INFO *info,uint update)
     share->state.rec_per_key_rows=info->state->records;
     share->state.changed&= ~STATE_NOT_ANALYZED;
     if (info->state->records)
+    {
       for (i=0; i<key_parts; i++)
       {
         if (!(share->state.rec_per_key_part[i]=param->rec_per_key_part[i]))
           share->state.changed|= STATE_NOT_ANALYZED;
       }
+    }
   }
   if (update & (UPDATE_STAT | UPDATE_SORT | UPDATE_TIME | UPDATE_AUTO_INC))
   {
