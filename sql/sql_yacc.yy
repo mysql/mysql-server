@@ -1040,7 +1040,7 @@ create:
 	    /* Order is important here: new - reset - init */
 	    sp= new sp_head();
 	    sp->reset_thd_mem_root(YYTHD);
-	    sp->init(&$3, lex);
+	    sp->init(lex);
 
 	    sp->m_type= TYPE_ENUM_PROCEDURE;
 	    lex->sphead= sp;
@@ -1052,10 +1052,18 @@ create:
 	    sp->m_old_cmq= YYTHD->client_capabilities & CLIENT_MULTI_QUERIES;
 	    YYTHD->client_capabilities &= (~CLIENT_MULTI_QUERIES);
 	  }
-          '(' sp_pdparam_list ')'
+          '('
 	  {
 	    LEX *lex= Lex;
 
+	    lex->sphead->m_param_begin= lex->tok_start+1;
+	  }
+	  sp_pdparam_list
+	  ')'
+	  {
+	    LEX *lex= Lex;
+
+	    lex->sphead->m_param_end= lex->tok_start;
 	    lex->spcont->set_params();
 	    bzero((char *)&lex->sp_chistics, sizeof(st_sp_chistics));
 	  }
@@ -1064,11 +1072,13 @@ create:
 	    LEX *lex= Lex;
 
 	    lex->sphead->m_chistics= &lex->sp_chistics;
+	    lex->sphead->m_body_begin= lex->tok_start;
 	  }
 	  sp_proc_stmt
 	  {
 	    LEX *lex= Lex;
 
+	    lex->sphead->init_strings(&$3, lex);
 	    lex->sql_command= SQLCOM_CREATE_PROCEDURE;
 	    /* Restore flag if it was cleared above */
 	    if (lex->sphead->m_old_cmq)
@@ -1103,7 +1113,7 @@ create_function_tail:
 	    /* Order is important here: new - reset - init */
 	    sp= new sp_head();
 	    sp->reset_thd_mem_root(YYTHD);
-	    sp->init(&lex->udf.name, lex);
+	    sp->init(lex);
 
 	    sp->m_type= TYPE_ENUM_FUNCTION;
 	    lex->sphead= sp;
@@ -1114,16 +1124,25 @@ create_function_tail:
 	     */
 	    sp->m_old_cmq= YYTHD->client_capabilities & CLIENT_MULTI_QUERIES;
 	    YYTHD->client_capabilities &= ~CLIENT_MULTI_QUERIES;
+	    lex->sphead->m_param_begin= lex->tok_start+1;
 	  }
           sp_fdparam_list ')'
 	  {
-	    Lex->spcont->set_params();
+	    LEX *lex= Lex;
+
+	    lex->spcont->set_params();
+	    lex->sphead->m_param_end= lex->tok_start;
 	  }
-	  RETURNS_SYM type
+	  RETURNS_SYM
+	  {
+	    Lex->sphead->m_returns_begin= Lex->tok_start;
+	  }
+	  type
 	  {
 	    LEX *lex= Lex;
 
-	    lex->sphead->m_returns= (enum enum_field_types)$7;
+	    lex->sphead->m_returns_end= lex->tok_start;
+	    lex->sphead->m_returns= (enum enum_field_types)$8;
 	    bzero((char *)&lex->sp_chistics, sizeof(st_sp_chistics));
 	  }
 	  sp_c_chistics
@@ -1131,16 +1150,19 @@ create_function_tail:
 	    LEX *lex= Lex;
 
 	    lex->sphead->m_chistics= &lex->sp_chistics;
+	    lex->sphead->m_body_begin= lex->tok_start;
 	  }
 	  sp_proc_stmt
 	  {
 	    LEX *lex= Lex;
+	    sp_head *sp= lex->sphead;
 
 	    lex->sql_command= SQLCOM_CREATE_SPFUNCTION;
+	    sp->init_strings(&lex->udf.name, lex);
 	    /* Restore flag if it was cleared above */
-	    if (lex->sphead->m_old_cmq)
+	    if (sp->m_old_cmq)
 	      YYTHD->client_capabilities |= CLIENT_MULTI_QUERIES;
-	    lex->sphead->restore_thd_mem_root(YYTHD);
+	    sp->restore_thd_mem_root(YYTHD);
 	  }
 	;
 
@@ -5884,6 +5906,7 @@ keyword:
 	| RESET_SYM		{}
 	| RESOURCES		{}
 	| RESTORE_SYM		{}
+	| RETURNS_SYM           {}
 	| ROLLBACK_SYM		{}
 	| ROLLUP_SYM		{}
 	| ROWS_SYM		{}

@@ -56,6 +56,18 @@ public:
   List<char *> m_calls;		// Called procedures.
   List<char *> m_tables;	// Used tables.
 #endif
+  LEX_STRING m_name;
+  LEX_STRING m_params;
+  LEX_STRING m_retstr;		// For FUNCTIONs only
+  LEX_STRING m_body;
+  LEX_STRING m_defstr;
+  char *m_creator;
+  uint m_creatorlen;
+  longlong m_created;
+  longlong m_modified;
+  // Pointers set during parsing
+  uchar *m_param_begin, *m_param_end, *m_returns_begin, *m_returns_end,
+    *m_body_begin;
 
   static void *
   operator new(size_t size);
@@ -67,7 +79,11 @@ public:
 
   // Initialize after we have reset mem_root
   void
-  init(LEX_STRING *name, LEX *lex);
+  init(LEX *lex);
+
+  // Initialize strings after parsing header
+  void
+  init_strings(LEX_STRING *name, LEX *lex);
 
   int
   create(THD *thd);
@@ -136,6 +152,8 @@ public:
     return m_name.str;
   }
 
+  char *create_string(THD *thd, ulong *lenp);
+
   inline Item_result result()
   {
     return sp_map_result_type(m_returns);
@@ -143,15 +161,13 @@ public:
 
   void set_info(char *creator, uint creatorlen,
 		longlong created, longlong modified,
-		bool suid, char *comment, uint commentlen)
+		st_sp_chistics *chistics)
   {
     m_creator= creator;
     m_creatorlen= creatorlen;
     m_created= created;
     m_modified= modified;
-    m_chistics->comment.length= commentlen;
-    m_chistics->comment.str= comment;
-    m_chistics->suid= (suid ? IS_SUID : IS_NOT_SUID);
+    m_chistics= chistics;
   }
 
   inline void reset_thd_mem_root(THD *thd)
@@ -179,13 +195,6 @@ private:
   MEM_ROOT m_thd_root;		// Temp. store for thd's mem_root
   Item *m_free_list;		// Where the items go
   THD *m_thd;			// Set if we have reset mem_root
-
-  LEX_STRING m_name;
-  LEX_STRING m_defstr;
-  char *m_creator;
-  uint m_creatorlen;
-  longlong m_created;
-  longlong m_modified;
 
   sp_pcontext *m_pcont;		// Parse context
   List<LEX> m_lex;		// Temp. store for the other lex

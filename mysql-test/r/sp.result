@@ -691,6 +691,43 @@ delete from t1;
 delete from t2;
 drop table t3;
 drop procedure cur2;
+create procedure chistics()
+language sql
+not deterministic
+sql security definer
+comment 'Characteristics procedure test'
+ insert into t1 values ("chistics", 1);
+call chistics();
+select * from t1;
+id	data
+chistics	1
+delete from t1;
+alter procedure chistics sql security invoker name chistics2;
+show create procedure chistics2;
+Procedure	Create Procedure
+chistics2	CREATE PROCEDURE chistics2()
+    SQL SECURITY INVOKER
+    COMMENT 'Characteristics procedure test'
+insert into t1 values ("chistics", 1)
+drop procedure chistics2;
+create function chistics() returns int
+language sql
+deterministic
+sql security invoker
+comment 'Characteristics procedure test'
+ return 42;
+select chistics();
+chistics()
+42
+alter function chistics name chistics2 comment 'Characteristics function test';
+show create function chistics2;
+Function	Create Function
+chistics2	CREATE FUNCTION chistics2() RETURNS int
+    DETERMINISTIC
+    SQL SECURITY INVOKER
+    COMMENT 'Characteristics function test'
+return 42
+drop function chistics2;
 insert into t1 values ("foo", 1), ("bar", 2), ("zip", 3);
 set @@sql_mode = 'ANSI';
 create procedure modes(out c1 int, out c2 int)
@@ -881,7 +918,7 @@ n	f
 drop table fac;
 show function status like '%f%';
 Name	Type	Definer	Modified	Created	Security_type	Comment
-fac	FUNCTION	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	INVOKER	
+fac	FUNCTION	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
 drop procedure ifac;
 drop function fac;
 show function status like '%f%';
@@ -946,7 +983,7 @@ end while;
 end;
 show create procedure opp;
 Procedure	Create Procedure
-opp	create procedure opp(n bigint unsigned, out pp bool)
+opp	CREATE PROCEDURE opp(n bigint unsigned, out pp bool)
 begin
 declare r double;
 declare b, s bigint unsigned default 0;
@@ -974,8 +1011,8 @@ end loop;
 end
 show procedure status like '%p%';
 Name	Type	Definer	Modified	Created	Security_type	Comment
-ip	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	INVOKER	
-opp	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	INVOKER	
+ip	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
+opp	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
 call ip(200);
 select * from primes where i=45 or i=100 or i=199;
 i	p
@@ -1043,8 +1080,8 @@ alter procedure bar2 name bar comment "3333333333";
 alter procedure bar;
 show create procedure bar;
 Procedure	Create Procedure
-bar	create procedure bar(x char(16), y int)
-comment "111111111111" sql security invoker
+bar	CREATE PROCEDURE bar(x char(16), y int)
+    COMMENT '3333333333'
 insert into test.t1 values (x, y)
 show procedure status like 'bar';
 Name	Type	Definer	Modified	Created	Security_type	Comment

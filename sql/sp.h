@@ -32,8 +32,7 @@ sp_head *
 sp_find_procedure(THD *thd, LEX_STRING *name);
 
 int
-sp_create_procedure(THD *thd, char *name, uint namelen, char *def, uint deflen,
-		    st_sp_chistics *chistics);
+sp_create_procedure(THD *thd, sp_head *sp);
 
 int
 sp_drop_procedure(THD *thd, char *name, uint namelen);
@@ -54,8 +53,7 @@ sp_head *
 sp_find_function(THD *thd, LEX_STRING *name);
 
 int
-sp_create_function(THD *thd, char *name, uint namelen, char *def, uint deflen,
-		   st_sp_chistics *chistics);
+sp_create_function(THD *thd, sp_head *sp);
 
 int
 sp_drop_function(THD *thd, char *name, uint namelen);
