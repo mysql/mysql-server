@@ -6122,7 +6122,7 @@ and are configured with the following compilers and options:
 @code{CFLAGS="-O3 -mpentium -mstack-align-double" CXX=gcc CXXFLAGS="-O3 -mpentium -mstack-align-double -felide-constructors -fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql --enable-assembler --with-mysqld-ldflags=-all-static --with-extra-charsets=complex}
 
 @item Linux 2.2.x with x686 with @code{gcc} 2.95.2
-@code{CFLAGS="-O3 -mpentiumpro" CXX=gcc CXXFLAGS="-O3 -mpentiumpro -felide-constructors -fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql --enable-assembler --with-mysqld-ldflags=-all-static --disable-shared --with-extra-charset=complex}
+@code{CFLAGS="-O3 -mpentiumpro" CXX=gcc CXXFLAGS="-O3 -mpentiumpro -felide-constructors -fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql --enable-assembler --with-mysqld-ldflags=-all-static --disable-shared --with-extra-charsets=complex}
 
 @item SCO 3.2v5.0.4 i386 with @code{gcc} 2.7-95q4
 @code{CC=gcc CXX=gcc CXXFLAGS=-O3 ./configure --prefix=/usr/local/mysql --with-extra-charsets=complex}
@@ -20530,7 +20530,7 @@ the @code{SELECT} statement.
 
 You can change the character set with the @code{--default-character-set}
 option when you start the server.  The character sets available depend
-on the @code{--with-charset=charset} and @code{--with-extra-charset=
+on the @code{--with-charset=charset} and @code{--with-extra-charsets=
 list-of-charset | complex | all} options to @code{configure}, and the
 character set configuration files listed in
 @file{SHAREDIR/charsets/Index}.  @xref{configure options}.
