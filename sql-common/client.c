@@ -1238,7 +1238,8 @@ MYSQL_DATA *cli_read_rows(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
   {
     mysql->warning_count= uint2korr(cp+1);
     mysql->server_status= uint2korr(cp+3);
-    DBUG_PRINT("info",("warning_count:  %ld", mysql->warning_count));
+    DBUG_PRINT("info",("status: %u  warning_count:  %u",
+		       mysql->server_status, mysql->warning_count));
   }
   DBUG_PRINT("exit",("Got %d rows",result->rows));
   DBUG_RETURN(result);
@@ -2262,6 +2263,9 @@ get_info:
   {
     mysql->affected_rows= net_field_length_ll(&pos);
     mysql->insert_id=	  net_field_length_ll(&pos);
+    DBUG_PRINT("info",("affected_rows: %lu  insert_id: %lu",
+		       (ulong) mysql->affected_rows,
+		       (ulong) mysql->insert_id));
     if (protocol_41(mysql))
     {
       mysql->server_status=uint2korr(pos); pos+=2;
@@ -2269,10 +2273,11 @@ get_info:
     }
     else if (mysql->server_capabilities & CLIENT_TRANSACTIONS)
     {
+      /* MySQL 4.0 protocol */
       mysql->server_status=uint2korr(pos); pos+=2;
       mysql->warning_count= 0;
     }
-    DBUG_PRINT("info",("status: %ld  warning_count:  %ld",
+    DBUG_PRINT("info",("status: %u  warning_count: %u",
 		       mysql->server_status, mysql->warning_count));
     if (pos < mysql->net.read_pos+length && net_field_length(&pos))
       mysql->info=(char*) pos;

@@ -22,9 +22,6 @@ extern const char	*not_error_sqlstate;
 extern "C" {
 #endif
 
-ulong STDCALL net_field_length(uchar **packet);
-my_ulonglong net_field_length_ll(uchar **packet);
-
 MYSQL_FIELD *unpack_fields(MYSQL_DATA *data,MEM_ROOT *alloc,uint fields,
 			   my_bool default_value, uint server_capabilities);
 void free_rows(MYSQL_DATA *cur);

@@ -104,16 +104,16 @@ Item *Item_sum::get_tmp_table_item(THD *thd)
   Item_sum* sum_item= (Item_sum *) copy_or_same(thd);
   if (sum_item && sum_item->result_field)	   // If not a const sum func
   {
-    Field *result_field= sum_item->result_field;
+    Field *result_field_tmp= sum_item->result_field;
     for (uint i=0 ; i < sum_item->arg_count ; i++)
     {
       Item *arg= sum_item->args[i];
       if (!arg->const_item())
       {
 	if (arg->type() == Item::FIELD_ITEM)
-	  ((Item_field*) arg)->field= result_field++;
+	  ((Item_field*) arg)->field= result_field_tmp++;
 	else
-	  sum_item->args[i]= new Item_field(result_field++);
+	  sum_item->args[i]= new Item_field(result_field_tmp++);
       }
     }
   }

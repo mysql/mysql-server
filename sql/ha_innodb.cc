@@ -3640,7 +3640,7 @@ ha_innobase::discard_or_import_tablespace(
 	my_bool discard)	/* in: TRUE if discard, else import */
 {
 	row_prebuilt_t* prebuilt	= (row_prebuilt_t*) innobase_prebuilt;
-	dict_table_t*	table;
+	dict_table_t*	dict_table;
 	trx_t*		trx;
 	int		err;
 
@@ -3650,13 +3650,13 @@ ha_innobase::discard_or_import_tablespace(
 	ut_a(prebuilt->trx ==
 		(trx_t*) current_thd->transaction.all.innobase_tid);
 
-	table = prebuilt->table;
+	dict_table = prebuilt->table;
 	trx = prebuilt->trx;
 
 	if (discard) {
-		err = row_discard_tablespace_for_mysql(table->name, trx);
+		err = row_discard_tablespace_for_mysql(dict_table->name, trx);
 	} else {
-		err = row_import_tablespace_for_mysql(table->name, trx);
+		err = row_import_tablespace_for_mysql(dict_table->name, trx);
 	}
 
 	if (err == DB_SUCCESS) {

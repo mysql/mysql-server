@@ -74,7 +74,7 @@ int wild_compare(register const char *str, register const char *wildstr,
         DBUG_RETURN(0);		/* '*' as last char: OK */
       if ((cmp= *wildstr) == wild_prefix && wildstr[1] && !str_is_pattern)
         cmp=wildstr[1];
-      for(;;str++)
+      for (;;str++)
       {
         while (*str && *str != cmp)
           str++;
@@ -83,7 +83,7 @@ int wild_compare(register const char *str, register const char *wildstr,
 	if (wild_compare(str,wildstr,str_is_pattern) == 0)
           DBUG_RETURN (0);
       }
-      DBUG_RETURN(1);
+      /* We will never come here */
     }
   }
   DBUG_RETURN (*str != 0);

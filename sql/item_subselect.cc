@@ -306,8 +306,7 @@ void Item_singlerow_subselect::fix_length_and_dec()
   }
   else
   {
-    THD *thd= current_thd;
-    if (!(row= (Item_cache**)thd->alloc(sizeof(Item_cache*)*max_columns)))
+    if (!(row= (Item_cache**) sql_alloc(sizeof(Item_cache*)*max_columns)))
       return;
     engine->fix_length_and_dec(row);
     value= *row;
@@ -550,8 +549,8 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 
   SELECT_LEX *select_lex= join->select_lex;
 
-  THD *thd= join->thd;
-  thd->where= "scalar IN/ALL/ANY subquery";
+  THD *thd_tmp= join->thd;
+  thd_tmp->where= "scalar IN/ALL/ANY subquery";
 
   if (select_lex->item_list.elements > 1)
   {
@@ -595,7 +594,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
       select_lex->item_list.empty();
       select_lex->item_list.push_back(item);
     
-      if (item->fix_fields(thd, join->tables_list, &item))
+      if (item->fix_fields(thd_tmp, join->tables_list, &item))
       {
 	DBUG_RETURN(RES_ERROR);
       }
@@ -609,14 +608,14 @@ Item_in_subselect::single_value_transformer(JOIN *join,
       subs= new Item_maxmin_subselect(this, select_lex, func->l_op());
     }
     // left expression belong to outer select
-    SELECT_LEX *current= thd->lex.current_select, *up;
-    thd->lex.current_select= up= current->return_after_parsing();
-    if (left_expr->fix_fields(thd, up->get_table_list(), &left_expr))
+    SELECT_LEX *current= thd_tmp->lex.current_select, *up;
+    thd_tmp->lex.current_select= up= current->return_after_parsing();
+    if (left_expr->fix_fields(thd_tmp, up->get_table_list(), &left_expr))
     {
-      thd->lex.current_select= current;
+      thd_tmp->lex.current_select= current;
       DBUG_RETURN(RES_ERROR);
     }
-    thd->lex.current_select= current;
+    thd_tmp->lex.current_select= current;
     substitution= func->create(left_expr, subs);
     DBUG_RETURN(RES_OK);
   }
@@ -627,16 +626,16 @@ Item_in_subselect::single_value_transformer(JOIN *join,
     SELECT_LEX_UNIT *unit= select_lex->master_unit();
     substitution= optimizer= new Item_in_optimizer(left_expr, this);
 
-    SELECT_LEX *current= thd->lex.current_select, *up;
+    SELECT_LEX *current= thd_tmp->lex.current_select, *up;
 
-    thd->lex.current_select= up= current->return_after_parsing();
+    thd_tmp->lex.current_select= up= current->return_after_parsing();
     //optimizer never use Item **ref => we can pass 0 as parameter
-    if (!optimizer || optimizer->fix_left(thd, up->get_table_list(), 0))
+    if (!optimizer || optimizer->fix_left(thd_tmp, up->get_table_list(), 0))
     {
-      thd->lex.current_select= current;
+      thd_tmp->lex.current_select= current;
       DBUG_RETURN(RES_ERROR);
     }
-    thd->lex.current_select= current;
+    thd_tmp->lex.current_select= current;
 
     /*
       As far as  Item_ref_in_optimizer do not substitude itself on fix_fields
@@ -664,7 +663,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 						this->full_name()));
     join->having= and_items(join->having, item);
     select_lex->having_fix_field= 1;
-    if (join->having->fix_fields(thd, join->tables_list, &join->having))
+    if (join->having->fix_fields(thd_tmp, join->tables_list, &join->having))
     {
       select_lex->having_fix_field= 0;
       DBUG_RETURN(RES_ERROR);
@@ -688,7 +687,8 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 		       new Item_cond_and(having, join->having) :
 		       having);
 	select_lex->having_fix_field= 1;
-	if (join->having->fix_fields(thd, join->tables_list, &join->having))
+	if (join->having->fix_fields(thd_tmp, join->tables_list,
+				     &join->having))
 	{
 	  select_lex->having_fix_field= 0;
 	  DBUG_RETURN(RES_ERROR);
@@ -699,7 +699,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
       }
       item->name= (char *)in_additional_cond;
       join->conds= and_items(join->conds, item);
-      if (join->conds->fix_fields(thd, join->tables_list, &join->conds))
+      if (join->conds->fix_fields(thd_tmp, join->tables_list, &join->conds))
 	DBUG_RETURN(RES_ERROR);
     }
     else
@@ -711,7 +711,8 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 							(char *)"<no matter>",
 							(char *)"<result>"));
 	select_lex->having_fix_field= 1;
-	if (join->having->fix_fields(thd, join->tables_list, &join->having))
+	if (join->having->fix_fields(thd_tmp, join->tables_list,
+				     &join->having))
 	{
 	  select_lex->having_fix_field= 0;
 	  DBUG_RETURN(RES_ERROR);
@@ -725,11 +726,11 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 	// fix_field of item will be done in time of substituting 
 	substitution= item;
 	have_to_be_excluded= 1;
-	if (thd->lex.describe)
+	if (thd_tmp->lex.describe)
 	{
 	  char warn_buff[MYSQL_ERRMSG_SIZE];
 	  sprintf(warn_buff, ER(ER_SELECT_REDUCED), select_lex->select_number);
-	  push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+	  push_warning(thd_tmp, MYSQL_ERROR::WARN_LEVEL_NOTE,
 		       ER_SELECT_REDUCED, warn_buff);
 	}
 	DBUG_RETURN(RES_REDUCE);
@@ -739,13 +740,14 @@ Item_in_subselect::single_value_transformer(JOIN *join,
   DBUG_RETURN(RES_OK);
 }
 
+
 Item_subselect::trans_res
 Item_in_subselect::row_value_transformer(JOIN *join)
 {
   DBUG_ENTER("Item_in_subselect::row_value_transformer");
 
-  THD *thd= join->thd;
-  thd->where= "row IN/ALL/ANY subquery";
+  THD *thd_tmp= join->thd;
+  thd_tmp->where= "row IN/ALL/ANY subquery";
 
   SELECT_LEX *select_lex= join->select_lex;
 
@@ -761,22 +763,22 @@ Item_in_subselect::row_value_transformer(JOIN *join)
     SELECT_LEX_UNIT *unit= select_lex->master_unit();
     substitution= optimizer= new Item_in_optimizer(left_expr, this);
 
-    SELECT_LEX *current= thd->lex.current_select, *up;
-    thd->lex.current_select= up= current->return_after_parsing();
+    SELECT_LEX *current= thd_tmp->lex.current_select, *up;
+    thd_tmp->lex.current_select= up= current->return_after_parsing();
     //optimizer never use Item **ref => we can pass 0 as parameter
-    if (!optimizer || optimizer->fix_left(thd, up->get_table_list(), 0))
+    if (!optimizer || optimizer->fix_left(thd_tmp, up->get_table_list(), 0))
     {
-      thd->lex.current_select= current;
+      thd_tmp->lex.current_select= current;
       DBUG_RETURN(RES_ERROR);
     }
-    thd->lex.current_select= current;
+    thd_tmp->lex.current_select= current;
     unit->uncacheable|= UNCACHEABLE_DEPENDENT;
   }
 
   uint n= left_expr->cols();
 
   select_lex->uncacheable|= UNCACHEABLE_DEPENDENT;
-  select_lex->setup_ref_array(thd,
+  select_lex->setup_ref_array(thd_tmp,
 			      select_lex->order_list.elements +
 			      select_lex->group_list.elements);
   Item *item= 0;
@@ -802,7 +804,7 @@ Item_in_subselect::row_value_transformer(JOIN *join)
   {
     join->having= and_items(join->having, item);
     select_lex->having_fix_field= 1;
-    if (join->having->fix_fields(thd, join->tables_list, &join->having))
+    if (join->having->fix_fields(thd_tmp, join->tables_list, &join->having))
     {
       select_lex->having_fix_field= 0;
       DBUG_RETURN(RES_ERROR);
@@ -812,7 +814,7 @@ Item_in_subselect::row_value_transformer(JOIN *join)
   else
   {
     join->conds= and_items(join->conds, item);
-    if (join->conds->fix_fields(thd, join->tables_list, &join->having))
+    if (join->conds->fix_fields(thd_tmp, join->tables_list, &join->having))
       DBUG_RETURN(RES_ERROR);
   }
   DBUG_RETURN(RES_OK);
@@ -880,7 +882,7 @@ subselect_single_select_engine(st_select_lex *select,
   unit->select_limit_cnt= unit->global_parameters->select_limit+
     unit->global_parameters ->offset_limit;
   if (unit->select_limit_cnt < unit->global_parameters->select_limit)
-    unit->select_limit_cnt= HA_POS_ERROR;		// no limit
+    unit->select_limit_cnt= HA_POS_ERROR;	// no limit
   if (unit->select_limit_cnt == HA_POS_ERROR)
     select_lex->options&= ~OPTION_FOUND_ROWS;
   unit->item= item;
@@ -889,16 +891,16 @@ subselect_single_select_engine(st_select_lex *select,
 
 
 subselect_union_engine::subselect_union_engine(st_select_lex_unit *u,
-					       select_subselect *result,
-					       Item_subselect *item)
-  :subselect_engine(item, result)
+					       select_subselect *result_arg,
+					       Item_subselect *item_arg)
+  :subselect_engine(item_arg, result_arg)
 {
   unit= u;
-  if (!result)
-    //out of memory
+  if (!result_arg)				//out of memory
     current_thd->fatal_error();
-  unit->item= item;
+  unit->item= item_arg;
 }
+
 
 int subselect_single_select_engine::prepare()
 {
@@ -907,8 +909,7 @@ int subselect_single_select_engine::prepare()
   join= new JOIN(thd, select_lex->item_list, select_lex->options, result);
   if (!join || !result)
   {
-    //out of memory
-    thd->fatal_error();
+    thd->fatal_error();				//out of memory
     return 1;
   }
   prepared= 1;
