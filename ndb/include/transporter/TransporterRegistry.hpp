@@ -87,6 +87,7 @@ public:
  */
 class TransporterRegistry {
   friend class OSE_Receiver;
+  friend class SHM_Transporter;
   friend class Transporter;
   friend class TransporterService;
 public:
@@ -312,7 +313,7 @@ private:
   Uint32 poll_TCP(Uint32 timeOutMillis);
   Uint32 poll_SCI(Uint32 timeOutMillis);
   Uint32 poll_SHM(Uint32 timeOutMillis);
-  
+
   int m_shm_own_pid;
 };
 
