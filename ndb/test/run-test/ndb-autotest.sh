@@ -182,8 +182,10 @@ start(){
 	[ "`find . -name 'result*'`" ] && mv result* $3
 	cd $3
 	sh $html . $1 $DATE
-	cd ../..
-	tar cvz /tmp/res.$$.tgz `basename $3`/$DATE
+	cd ..
+	p2=`pwd`
+	cd ..
+	tar cfz /tmp/res.$$.tgz `basename $p2`/$DATE
 	scp /tmp/res.$$.tgz $result_host:$result_path
 	ssh $result_host "cd $result_path && tar xfz res.$$.tgz && rm -f res.$$.tgz"
 	rm -f /tmp/res.$$.tgz
