@@ -5,7 +5,6 @@ DIRS := \
         common  \
         kernel  \
         ndbapi  \
-	env     \
 	mgmsrv  \
         mgmapi  \
 	rep \

@@ -20,6 +20,7 @@ clean:
 		$(MAKE) -C $$f $@;\
 	done
 
+clean_dep: clean
 cleanall: clean
 tidy: clean
 distclean: clean
