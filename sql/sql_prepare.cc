@@ -1083,7 +1083,11 @@ static void reset_stmt_for_execute(Prepared_statement *stmt)
 	 tables;
 	 tables= tables->next)
     {
-      tables->table= 0; // safety - nasty init
+      /*
+        Reset old pointers to TABLEs: they are not valid since the tables
+        were closed in the end of previous prepare or execute call.
+      */
+      tables->table= 0;
       tables->table_list= 0;
     }
     
