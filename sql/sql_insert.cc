@@ -188,7 +188,6 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
     res= open_and_lock_tables(thd, table_list);
   if (res)
     DBUG_RETURN(-1);
-  fix_tables_pointers(thd->lex->all_selects_list);
 
   table= table_list->table;
   thd->proc_info="init";
@@ -647,7 +646,8 @@ public:
     thd.command=COM_DELAYED_INSERT;
     thd.lex->current_select= 0; /* for my_message_sql */
 
-    bzero((char*) &thd.net,sizeof(thd.net));	// Safety
+    bzero((char*) &thd.net, sizeof(thd.net));		// Safety
+    bzero((char*) &table_list, sizeof(table_list));	// Safety
     thd.system_thread= SYSTEM_THREAD_DELAYED_INSERT;
     thd.host_or_ip= "";
     bzero((char*) &info,sizeof(info));

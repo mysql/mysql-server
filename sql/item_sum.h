@@ -60,8 +60,10 @@ public:
   Item_sum(THD *thd, Item_sum *item);
   void cleanup()
   {
+    DBUG_ENTER("Item_sum::cleanup");
     Item_result_field::cleanup();
     result_field=0;
+    DBUG_VOID_RETURN;
   }
 
   enum Type type() const { return SUM_FUNC_ITEM; }
