@@ -224,7 +224,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	NATURAL
 %token	NCHAR_SYM
 %token	NOT
-%token  NO_FOREIGN_KEY_CHECKS
+%token  FOREIGN_KEY_CHECKS
 %token	NO_SYM
 %token	NULL_SYM
 %token	NUM
@@ -253,7 +253,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	REAL_NUM
 %token	REFERENCES
 %token	REGEXP
-%token  RELAXED_UNIQUE_CHECKS
 %token	RELOAD
 %token	RENAME
 %token	REPEATABLE_SYM
@@ -289,6 +288,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token  UNCOMMITTED_SYM
 %token	UNION_SYM
 %token	UNIQUE_SYM
+%token  UNIQUE_CHECKS
 %token	USAGE
 %token	USE_SYM
 %token	USING
@@ -2606,7 +2606,7 @@ keyword:
 	| MYISAM_SYM		{}
 	| NATIONAL_SYM		{}
 	| NCHAR_SYM		{}
-	| NO_FOREIGN_KEY_CHECKS {}
+	| FOREIGN_KEY_CHECKS	{}
 	| NO_SYM		{}
 	| OPEN_SYM		{}
 	| PACK_KEYS_SYM		{}
@@ -2619,7 +2619,7 @@ keyword:
 	| RAID_CHUNKSIZE	{}
 	| RAID_STRIPED_SYM      {}
 	| RAID_TYPE		{}
-	| RELAXED_UNIQUE_CHECKS {}
+	| UNIQUE_CHECKS		{}
 	| RELOAD		{}
 	| REPAIR		{}
 	| REPEATABLE_SYM	{}
@@ -2777,16 +2777,16 @@ option_value:
 	      slave_skip_counter = $3;
 	    pthread_mutex_unlock(&LOCK_slave);
           }
-	 | NO_FOREIGN_KEY_CHECKS equal NUM
+	 | FOREIGN_KEY_CHECKS equal NUM
 	  {
-	    if (atoi($3.str) != 0)
+	    if (atoi($3.str) == 0)
 	      Lex->options|= OPTION_NO_FOREIGN_KEY_CHECKS;
 	    else
 	      Lex->options&= ~(OPTION_NO_FOREIGN_KEY_CHECKS);
 	  }
-	 | RELAXED_UNIQUE_CHECKS equal NUM
+	 | UNIQUE_CHECKS equal NUM
 	  {
-	    if (atoi($3.str) != 0)
+	    if (atoi($3.str) == 0)
 	      Lex->options|= OPTION_RELAXED_UNIQUE_CHECKS;
 	    else
 	      Lex->options&= ~(OPTION_RELAXED_UNIQUE_CHECKS);
