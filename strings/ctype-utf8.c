@@ -1969,6 +1969,7 @@ static MY_CHARSET_HANDLER my_charset_handler=
     my_mbcharlen_utf8,
     my_numchars_mb,
     my_charpos_mb,
+    my_wellformedlen_mb,
     my_lengthsp_8bit,
     my_utf8_uni,
     my_uni_utf8,
