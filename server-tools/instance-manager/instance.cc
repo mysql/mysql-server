@@ -21,6 +21,7 @@
 #include "instance.h"
 #include "mysql_manager_error.h"
 #include "log.h"
+#include "instance_map.h"
 #include <my_sys.h>
 #include <signal.h>
 #include <m_string.h>
@@ -41,24 +42,18 @@
 
 int Instance::start()
 {
-  pid_t pid;
-
+  /* echk for the pidfile and remove it */
   if (!is_running())
   {
-    log_info("trying to start instance %s", options.instance_name);
+    stop();
+    log_info("starting instance %s", options.instance_name);
     switch (pid= fork()) {
     case 0:
-       if (fork()) /* zombie protection */
-         exit(0); /* parent goes bye-bye */
-       else
-       {
-         execv(options.mysqld_path, options.argv);
-         exit(1);
-       }
+      execv(options.mysqld_path, options.argv);
+      exit(1);
     case -1:
       return ER_CANNOT_START_INSTANCE;
     default:
-      waitpid(pid, NULL, 0);
       return 0;
     }
   }
@@ -67,15 +62,9 @@ int Instance::start()
   return ER_INSTANCE_ALREADY_STARTED;
 }
 
+
 int Instance::cleanup()
 {
-  /*
-    We cannot close connection in destructor, as mysql_close needs alarm
-    services which are definitely unavailaible at the time of destructor
-    call.
-  */
-  if (is_connected)
-    mysql_close(&mysql);
   return 0;
 }
 
@@ -88,8 +77,13 @@ Instance::~Instance()
 
 bool Instance::is_running()
 {
+  MYSQL mysql;
   uint port= 0;
   const char *socket= NULL;
+  const char *password= "321rarepassword213";
+  const char *username= "645rareusername945";
+  const char *access_denied_message= "Access denied for user";
+  bool return_val;
 
   if (options.mysqld_port)
     port= atoi(strchr(options.mysqld_port, '=') + 1);
@@ -98,30 +92,40 @@ bool Instance::is_running()
     socket= strchr(options.mysqld_socket, '=') + 1;
 
   pthread_mutex_lock(&LOCK_instance);
-  if (!is_connected)
+
+  mysql_init(&mysql);
+  /* try to connect to a server with the fake username/password pair */
+  if (mysql_real_connect(&mysql, LOCAL_HOST, username,
+                         password,
+                         NullS, port,
+                         socket, 0))
   {
-    mysql_init(&mysql);
-    if (mysql_real_connect(&mysql, LOCAL_HOST, options.mysqld_user,
-                           options.mysqld_password,
-                           NullS, port,
-                           socket, 0))
-    {
-      mysql.reconnect= 1;
-      is_connected= TRUE;
-      pthread_mutex_unlock(&LOCK_instance);
-      return TRUE;
-    }
+    /*
+      Very strange. We have successfully connected to the server using
+      bullshit as username/password. Write a warning to the logfile.
+    */
+    log_info("The Instance Manager was able to log into you server \
+             with faked compiled-in password while checking server status. \
+             Looks like something is wrong.");
     mysql_close(&mysql);
     pthread_mutex_unlock(&LOCK_instance);
-    return FALSE;
+    return_val= TRUE;                           /* server is alive */
   }
-  else if (!mysql_ping(&mysql))
+  else
   {
-    pthread_mutex_unlock(&LOCK_instance);
-    return TRUE;
+    if (!strncmp(access_denied_message, mysql_error(&mysql),
+                 sizeof(access_denied_message)-1))
+    {
+      return_val= TRUE;
+    }
+    else
+      return_val= FALSE;
   }
+
+  mysql_close(&mysql);
   pthread_mutex_unlock(&LOCK_instance);
-  return FALSE;
+
+  return return_val;
 }
 
 
@@ -139,13 +143,58 @@ bool Instance::is_running()
 
 int Instance::stop()
 {
-  if (is_running())
-  {
-    if (mysql_shutdown(&mysql, SHUTDOWN_DEFAULT))
-      goto err;
+  pid_t pid;
+  struct timespec timeout;
+  time_t waitchild= 35;                         /*  */
 
-    mysql_close(&mysql);
-    is_connected= FALSE;
+  if ((pid= options.get_pid()) != 0)            /* get pid from pidfile */
+  {
+    /*
+      If we cannot kill mysqld, then it has propably crashed.
+      Let us try to remove staled pidfile and return succes as mysqld
+      is stopped
+    */
+    if (kill(pid, SIGTERM))
+    {
+      if (options.unlink_pidfile())
+        log_error("cannot remove pidfile for instance %i, this might be \
+                  since IM lacks permmissions or hasn't found the pidifle",
+                  options.instance_name);
+
+      log_error("The instance %s has probably crashed or IM lacks permissions \
+                to kill it. in either case something seems to be wrong. \
+                Check your setup", options.instance_name);
+      return 0;
+    }
+
+    /* sleep on condition to wait for SIGCHLD */
+
+    timeout.tv_sec= time(NULL) + waitchild;
+    timeout.tv_nsec= 0;
+    if (pthread_mutex_lock(&instance_map->pid_cond.LOCK_pid))
+      goto err; /* perhaps this should be procecced differently */
+
+    while (options.get_pid() != 0)
+    {
+      int status;
+
+      status= pthread_cond_timedwait(&instance_map->pid_cond.COND_pid,
+                                     &instance_map->pid_cond.LOCK_pid,
+                                     &timeout);
+      if (status == ETIMEDOUT)
+        break;
+    }
+
+    pthread_mutex_unlock(&instance_map->pid_cond.LOCK_pid);
+
+    if (!kill(pid, SIGKILL))
+    {
+      log_error("The instance %s has been stopped forsibly. Normally \
+                it should not happed. Probably the instance has been \
+                hanging. You should also check your IM setup",
+                options.instance_name);
+    }
+
     return 0;
   }
 
@@ -165,4 +214,11 @@ int Instance::init(const char *name_arg)
   pthread_mutex_init(&LOCK_instance, 0);
 
   return options.init(name_arg);
+}
+
+
+int Instance::complete_initialization(Instance_map *instance_map_arg)
+{
+  instance_map= instance_map_arg;
+  return 0;
 }
