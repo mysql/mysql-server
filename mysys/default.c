@@ -246,10 +246,14 @@ static my_bool search_default_file(DYNAMIC_ARRAY *args, MEM_ROOT *alloc,
 #if !defined(__WIN__) && !defined(OS2)
   {
     MY_STAT stat_info;
-    if (!my_stat(name,&stat_info,MYF(MY_WME)))
+    if (!my_stat(name,&stat_info,MYF(0)))
       return 0;
     if (stat_info.st_mode & S_IWOTH) /* ignore world-writeable files */
+    {
+      fprintf(stderr, "warning: World-writeable config file %s is ignored\n",
+              name);
       return 0;
+    }
   }
 #endif
   if (!(fp = my_fopen(fn_format(name,name,"","",4),O_RDONLY,MYF(0))))
