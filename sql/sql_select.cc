@@ -117,10 +117,8 @@ static Item* part_of_refkey(TABLE *form,Field *field);
 static uint find_shortest_key(TABLE *table, key_map usable_keys);
 static bool test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,
 				    ha_rows select_limit, bool no_changes);
-static int create_sort_index(THD *thd, JOIN_TAB *tab,ORDER *order,
+static int create_sort_index(THD *thd, JOIN *join, ORDER *order,
 			     ha_rows filesort_limit, ha_rows select_limit);
-static int create_sort_index(THD *thd, JOIN_TAB *tab,ORDER *order,
-			     ha_rows select_limit);
 static int remove_duplicates(JOIN *join,TABLE *entry,List<Item> &fields,
 			     Item *having);
 static int remove_dup_with_compare(THD *thd, TABLE *entry, Field **field,
@@ -916,7 +914,7 @@ JOIN::optimize()
     {
       DBUG_PRINT("info",("Sorting for group"));
       thd->proc_info="Sorting for group";
-      if (create_sort_index(thd, &join_tab[const_tables], group_list,
+      if (create_sort_index(thd, this, group_list,
 			    HA_POS_ERROR, HA_POS_ERROR) ||
 	  alloc_group_fields(this, group_list) ||
 	  make_sum_func_list(all_fields, fields_list, 1))
@@ -931,7 +929,7 @@ JOIN::optimize()
       {
 	DBUG_PRINT("info",("Sorting for order"));
 	thd->proc_info="Sorting for order";
-	if (create_sort_index(thd, &join_tab[const_tables], order,
+	if (create_sort_index(thd, this, order,
                               HA_POS_ERROR, HA_POS_ERROR))
 	  DBUG_RETURN(1);
 	order=0;
@@ -1235,7 +1233,7 @@ JOIN::exec()
       if (curr_join->group_list)
       {
 	thd->proc_info= "Creating sort index";
-	if (create_sort_index(thd, curr_join->join_tab, curr_join->group_list,
+	if (create_sort_index(thd, curr_join, curr_join->group_list,
 			      HA_POS_ERROR, HA_POS_ERROR) ||
 	    make_group_fields(this, curr_join))
 	{
@@ -1416,7 +1414,7 @@ JOIN::exec()
 	  }
 	}
       }
-      if (create_sort_index(thd, &curr_join->join_tab[curr_join->const_tables],
+      if (create_sort_index(thd, curr_join,
 			    curr_join->group_list ? 
 			    curr_join->group_list : curr_join->order,
 			    curr_join->select_limit, unit->select_limit_cnt))
@@ -6770,15 +6768,22 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 */
 
 static int
-create_sort_index(THD *thd, JOIN_TAB *tab, ORDER *order,
+create_sort_index(THD *thd, JOIN *join, ORDER *order,
 		  ha_rows filesort_limit, ha_rows select_limit)
 {
   SORT_FIELD *sortorder;
   uint length;
   ha_rows examined_rows;
-  TABLE *table=tab->table;
-  SQL_SELECT *select=tab->select;
+  TABLE *table;
+  SQL_SELECT *select;
+  JOIN_TAB *tab;
   DBUG_ENTER("create_sort_index");
+
+  if (join->tables == join->const_tables)
+    DBUG_RETURN(0);				// One row, no need to sort
+  tab=    join->join_tab + join->const_tables;
+  table=  tab->table;
+  select= tab->select;
 
   if (test_if_skip_sort_order(tab,order,select_limit,0))
     DBUG_RETURN(0);

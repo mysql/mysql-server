@@ -1207,17 +1207,14 @@ bool get_field(MEM_ROOT *mem, Field *field, String *res)
 
 char *get_field(MEM_ROOT *mem, Field *field)
 {
-  char buff[MAX_FIELD_WIDTH], *to;
+  char buff[MAX_FIELD_WIDTH];
   String str(buff,sizeof(buff),&my_charset_bin);
   uint length;
 
   field->val_str(&str,&str);
   if (!(length= str.length()))
     return NullS;
-  to= (char*) alloc_root(mem,length+1);
-  memcpy(to, str.ptr(), (uint) length);
-  to[length]=0;
-  return to;
+  return strmake_root(mem, str.ptr(), length);
 }
 
 
