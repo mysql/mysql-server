@@ -35,6 +35,8 @@
 #include "sql_acl.h"
 #include "lex_symbol.h"
 #include "item_create.h"
+#include "sp_head.h"
+#include "sp_pcontext.h"
 #include <myisam.h>
 #include <myisammrg.h>
 
@@ -120,6 +122,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	AVG_SYM
 %token	BEGIN_SYM
 %token	BINLOG_SYM
+%token  CALL_SYM
 %token	CHANGE
 %token	CLIENT_SYM
 %token	COMMENT_SYM
@@ -198,6 +201,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	CONVERT_SYM
 %token	DATABASES
 %token	DATA_SYM
+%token  DECLARE_SYM
 %token	DEFAULT
 %token	DELAYED_SYM
 %token	DELAY_KEY_WRITE_SYM
@@ -242,6 +246,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	INFILE
 %token	INNER_SYM
 %token	INNOBASE_SYM
+%token  INOUT_SYM
 %token	INTO
 %token	IN_SYM
 %token	ISOLATION
@@ -256,6 +261,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	LIKE
 %token	LINES
 %token	LOCAL_SYM
+%token  LOCATOR_SYM
 %token	LOG_SYM
 %token	LOGS_SYM
 %token	LONG_NUM
@@ -296,6 +302,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	OR
 %token	OR_OR_CONCAT
 %token	ORDER_SYM
+%token  OUT_SYM
 %token	OUTER
 %token	OUTFILE
 %token	DUMPFILE
@@ -334,6 +341,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	SIMPLE_SYM
 %token	SHUTDOWN
 %token	SPATIAL_SYM
+%token  SPECIFIC_SYM
 %token  SSL_SYM
 %token	STARTING
 %token	STATUS_SYM
@@ -518,6 +526,9 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	SQL_SMALL_RESULT
 %token  SQL_BUFFER_RESULT
 
+/* QQ This is a dummy, until we have solved the SET syntax problem. */
+%token  SPSET_SYM
+
 %token  ISSUER_SYM
 %token  SUBJECT_SYM
 %token  CIPHER_SYM
@@ -666,7 +677,11 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	union_clause union_list union_option
 	precision subselect_start opt_and
 	subselect_end select_var_list select_var_list_init help opt_len
+	statement
 END_OF_INPUT
+
+%type <NONE> call sp_proc_body sp_proc_stmts sp_proc_stmt
+%type <num>  sp_decls sp_decl sp_decl_idents sp_opt_inout
 
 %type <NONE>
 	'-' '+' '*' '/' '%' '(' ')'
@@ -693,10 +708,16 @@ query:
 	| verb_clause END_OF_INPUT {};
 
 verb_clause:
+	  statement
+	| begin
+	;
+
+/* Verb clauses, except begin */
+statement:
 	  alter
 	| analyze
 	| backup
-	| begin
+	| call
 	| change
 	| check
 	| commit
@@ -874,7 +895,177 @@ create:
 	    lex->udf.returns=(Item_result) $7;
 	    lex->udf.dl=$9.str;
 	  }
-          ;
+	| CREATE PROCEDURE ident
+	  {
+	    LEX *lex= Lex;
+
+	    lex->spcont = new sp_pcontext();
+	    lex->sphead = new sp_head(&$3, lex);
+	  }
+          '(' sp_dparam_list ')'
+	  {
+	    Lex->spcont->set_params();
+	  }
+	  sp_proc_body
+	  {
+	    Lex->sql_command= SQLCOM_CREATE_PROCEDURE;
+	  } 
+	;
+
+call:
+	  CALL_SYM ident
+	  {
+	    LEX *lex = Lex;
+
+	    lex->sql_command= SQLCOM_CALL;
+	    lex->value_list.empty();
+	    lex->value_list.push_back(
+	     (Item*)new Item_string($2.str, $2.length, default_charset_info));
+	  }
+          '(' sp_cparam_list ')' {}
+	;
+
+/* CALL parameters */
+sp_cparam_list:
+	  /* Empty */
+	| sp_cparams
+	;
+
+sp_cparams:
+	  sp_cparams ',' expr
+	  {
+	    Lex->value_list.push_back($3);
+	  }
+	| expr
+	  {
+	    Lex->value_list.push_back($1);
+	  }
+	;
+
+/* SP parameter declaration list */
+sp_dparam_list:
+	  /* Empty */
+	| sp_dparams
+	;
+
+sp_dparams:
+	  sp_dparams ',' sp_dparam
+	| sp_dparam
+	;
+
+sp_dparam:
+	  sp_opt_inout ident type sp_opt_locator
+	  {
+	    Lex->spcont->push(&$2,
+	                      (enum enum_field_types)$3,
+			      (sp_param_mode_t)$1);
+	  }
+	;
+
+sp_opt_inout:
+	  /* Empty */ { $$= sp_param_in; }
+	| IN_SYM      { $$= sp_param_in; }
+	| OUT_SYM     { $$= sp_param_out; }
+	| INOUT_SYM   { $$= sp_param_inout; }
+	;
+
+sp_opt_locator:
+	  /* Empty */
+	| AS LOCATOR_SYM
+	;
+
+sp_proc_body:
+	  {
+	    Lex->sphead->reset_lex(YYTHD);
+	  }
+	  sp_proc_stmt
+	  {
+	    Lex->sphead->restore_lex(YYTHD);
+	  }
+	| begin
+	    sp_decls
+	    sp_proc_stmts
+	  END
+	  {
+	    Lex->spcont->pop($2);
+	  }
+	;
+
+sp_proc_stmts:
+	  sp_proc_body ';'
+	| sp_proc_stmts sp_proc_body ';'
+	;
+
+sp_decls:
+	  /* Empty */
+	  {
+	    $$= 0;
+	  }
+	| sp_decls sp_decl ';'
+	  {
+	    $$= $1 + $2;
+	  }
+	;
+
+sp_decl:
+	  DECLARE_SYM sp_decl_idents type
+	  {
+	    LEX *lex= Lex;
+	    uint max= lex->spcont->current_framesize();
+
+	    for (uint i = max-$2 ; i < max ; i++)
+	    {
+	      lex->spcont->set_type(i, (enum enum_field_types)$3);
+	      lex->spcont->set_isset(i, FALSE);
+	    }
+	    $$= $2;
+	  }
+	;
+
+sp_decl_idents:
+	  ident
+	  {
+	    Lex->spcont->push(&$1, (enum_field_types)0, sp_param_in);
+	    $$= 1;
+	  }
+	| sp_decl_idents ',' ident
+	  {
+	    Lex->spcont->push(&$3, (enum_field_types)0, sp_param_in);
+	    $$= $1 + 1;
+	  }
+	;
+
+/* Dummy for the spset thing. Will go away when the SET problem is fixed. */
+sp_proc_stmt:
+	  statement
+	  {
+	    LEX *lex= Lex;
+	    sp_instr_stmt *i= new sp_instr_stmt();
+
+	    i->set_lex(lex);
+	    lex->sphead->add_instr(i);
+          }
+	|
+	  /* QQ Dummy. We need to fix the old SET syntax to make it work for
+	     local SP variables as well. */
+	  SPSET_SYM ident EQ expr
+	  {
+	    LEX *lex= Lex;
+            sp_pcontext *spc= lex->spcont;
+	    sp_pvar_t *spv;
+
+	    if (!spc || !(spv = spc->find_pvar(&$2)))
+	      YYABORT;	/* Unknow variable */
+	    else
+	    {
+	      /* QQ Check type match! */
+	      sp_instr_set *i = new sp_instr_set(spv->offset, $4, spv->type);
+
+	      lex->sphead->add_instr(i);
+	      spv->isset= TRUE;
+	    }
+	  }
+	;
 
 create2:
 	'(' field_list ')' opt_create_table_options create3 {}
@@ -1393,8 +1584,27 @@ alter:
 	    lex->sql_command=SQLCOM_ALTER_DB;
 	    lex->name=$3.str;
 	    lex->create_info.table_charset=$4;
-	  };
+	  }
+	| ALTER PROCEDURE opt_specific ident
+	  /* QQ Characteristics missing for now */
+	  opt_restrict
+	  {
+	    LEX *lex=Lex;
 
+	    /* This is essensially an no-op right now, since we haven't
+	       put the characteristics in yet. */
+	    lex->sql_command= SQLCOM_ALTER_PROCEDURE;
+	    lex->value_list.empty();
+	    lex->value_list.push_back(
+	      (Item*)new Item_string($4.str, $4.length, default_charset_info));
+	  }
+	;
+
+opt_specific:
+	/* Empty */
+	|
+	SPECIFIC_SYM
+	;
 
 alter_list:
         | alter_list_item
@@ -2905,7 +3115,16 @@ drop:
 	    LEX *lex=Lex;
 	    lex->sql_command = SQLCOM_DROP_FUNCTION;
 	    lex->udf.name=$3.str;
-	  };
+	  }
+	| DROP PROCEDURE ident opt_restrict
+	  {
+	    LEX *lex=Lex;
+	    lex->sql_command = SQLCOM_DROP_PROCEDURE;
+	    lex->value_list.empty();
+	    lex->value_list.push_back(
+	     (Item*)new Item_string($3.str, $3.length, default_charset_info));
+	  }
+	;
 
 
 table_list:
@@ -2957,7 +3176,6 @@ replace:
 	  Select->set_lock_for_tables($3);
 	}
 	insert_field_spec
-	{}
 	{}
 	;
 
@@ -3642,8 +3860,25 @@ order_ident:
 simple_ident:
 	ident
 	{
-	  SELECT_LEX_NODE *sel=Select;
-	  $$ = !sel->create_refs || sel->get_in_sum_expr() > 0 ? (Item*) new Item_field(NullS,NullS,$1.str) : (Item*) new Item_ref(NullS,NullS,$1.str);
+	  sp_pvar_t *spv;
+	  LEX *lex = Lex;
+          sp_pcontext *spc = lex->spcont;
+
+	  if (spc && (spv = spc->find_pvar(&$1)))
+	  { /* We're compiling a stored procedure and found a variable */
+	    if (lex->sql_command != SQLCOM_CALL && ! spv->isset)
+	    {
+	      printf("QQ Referring to an unitialized variable\n");
+	      YYABORT; /* QQ Referring to an unitialized variable */
+	    }
+	    else
+	      $$ = (Item*) new Item_splocal(spv->offset);
+	  }
+	  else
+	  {
+	    SELECT_LEX_NODE *sel=Select;
+	    $$ = !sel->create_refs || sel->get_in_sum_expr() > 0 ? (Item*) new Item_field(NullS,NullS,$1.str) : (Item*) new Item_ref(NullS,NullS,$1.str);
+	  }
 	}
 	| ident '.' ident
 	{
