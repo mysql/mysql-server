@@ -90,9 +90,9 @@ my_bool init_compiled_charsets(myf flags __attribute__((unused)))
   add_compiled_collation(&my_charset_latin2_czech_ci);
 #endif
 
-#ifdef HAVE_CHARSET_eucjp_ms
-  add_compiled_collation(&my_charset_eucjp_ms_japanese_ci);
-  add_compiled_collation(&my_charset_eucjp_ms_bin);
+#ifdef HAVE_CHARSET_eucjpms
+  add_compiled_collation(&my_charset_eucjpms_japanese_ci);
+  add_compiled_collation(&my_charset_eucjpms_bin);
 #endif
 
 #ifdef HAVE_CHARSET_euckr
