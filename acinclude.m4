@@ -14,7 +14,8 @@ AC_DEFUN(MYSQL_CHECK_READLINE_DECLARES_HIST_ENTRY,[
 	    ],
 	    [
 		mysql_cv_hist_entry_declared=yes
-		AC_DEFINE_UNQUOTED(HAVE_HIST_ENTRY)
+		AC_DEFINE_UNQUOTED(HAVE_HIST_ENTRY, [1],
+                                   [HIST_ENTRY is defined in the outer libeditreadline])
 	    ],
 	    [mysql_cv_libedit_interface=no]
         )
