@@ -76,6 +76,10 @@ TYPELIB delay_key_write_typelib=
 static bool sys_check_charset(THD *thd, set_var *var);
 static bool sys_update_charset(THD *thd, set_var *var);
 static void sys_set_default_charset(THD *thd, enum_var_type type);
+static bool sys_update_init_connect(THD*, set_var*);
+static void sys_default_init_connect(THD*, enum_var_type type);
+static bool sys_update_init_slave(THD*, set_var*);
+static void sys_default_init_slave(THD*, enum_var_type type);
 static bool set_option_bit(THD *thd, set_var *var);
 static bool set_option_autocommit(THD *thd, set_var *var);
 static bool set_log_update(THD *thd, set_var *var);
@@ -113,6 +117,12 @@ sys_var_str			sys_charset_system("character_set_system",
 				    sys_check_charset,
 				    sys_update_charset,
 				    sys_set_default_charset);
+sys_var_str                     sys_init_connect("init_connect", 0,
+                                                 sys_update_init_connect,
+                                                 sys_default_init_connect);
+sys_var_str                     sys_init_slave("init_slave", 0,
+                                               sys_update_init_slave,
+                                               sys_default_init_slave);
 sys_var_character_set_database	sys_character_set_database("character_set_database");
 sys_var_character_set_client  sys_character_set_client("character_set_client");
 sys_var_character_set_connection  sys_character_set_connection("character_set_connection");
@@ -435,6 +445,8 @@ sys_var *sys_variables[]=
   &sys_foreign_key_checks,
   &sys_group_concat_max_len,
   &sys_identity,
+  &sys_init_connect,
+  &sys_init_slave,
   &sys_insert_id,
   &sys_interactive_timeout,
   &sys_join_buffer_size,
@@ -587,6 +599,8 @@ struct show_var_st init_vars[]= {
   {"have_openssl",	      (char*) &have_openssl,		    SHOW_HAVE},
   {"have_query_cache",        (char*) &have_query_cache,            SHOW_HAVE},
   {"init_file",               (char*) &opt_init_file,               SHOW_CHAR_PTR},
+  {"init_connect",            (char*) &sys_init_connect,            SHOW_SYS},
+  {"init_slave",              (char*) &sys_init_slave,              SHOW_SYS},
 #ifdef HAVE_INNOBASE_DB
   {"innodb_additional_mem_pool_size", (char*) &innobase_additional_mem_pool_size, SHOW_LONG },
   {"innodb_buffer_pool_size", (char*) &innobase_buffer_pool_size, SHOW_LONG },
@@ -755,6 +769,66 @@ bool sys_var::check(THD *thd, set_var *var)
 /*
   Functions to check and update variables
 */
+
+
+/*
+  Update variables 'init_connect, init_slave'.
+
+  In case of 'DEFAULT' value
+  (for example: 'set GLOBAL init_connect=DEFAULT')
+  'var' parameter is NULL pointer.
+*/
+
+bool update_sys_var_str(sys_var_str *var_str, rw_lock_t *var_mutex,
+			set_var *var)
+{
+  char *res= 0, *old_value;
+  uint new_length= 0;
+  /* If the string is "", delete old init command */
+  if (var && (new_length= var->value->str_value.length()))
+  {
+    if (!(res= my_strdup_with_length(var->value->str_value.ptr(),
+		     new_length,
+		     MYF(0))))
+      return 1;
+  }
+  /*
+    Replace the old value in such a way that the any thread using
+    the value will work.
+  */
+  rw_wrlock(var_mutex);
+  old_value= var_str->value;
+  var_str->value= res;
+  var_str->value_length= new_length;
+  rw_unlock(var_mutex);
+  my_free(old_value, MYF(MY_ALLOW_ZERO_PTR));
+  return 0;
+}
+
+
+static bool sys_update_init_connect(THD *thd, set_var *var)
+{
+  return update_sys_var_str(&sys_init_connect, &LOCK_sys_init_connect, var);
+}
+
+
+static void sys_default_init_connect(THD* thd, enum_var_type type)
+{
+  update_sys_var_str(&sys_init_connect, &LOCK_sys_init_connect, 0);
+}
+
+
+static bool sys_update_init_slave(THD *thd, set_var *var)
+{
+  return update_sys_var_str(&sys_init_slave, &LOCK_sys_init_slave, var);
+}
+
+
+static void sys_default_init_slave(THD* thd, enum_var_type type)
+{
+  update_sys_var_str(&sys_init_slave, &LOCK_sys_init_slave, 0);
+}
+
 
 /*
   The following 3 functions need to be changed in 4.1 when we allow

@@ -554,6 +554,8 @@ bool wait_for_tables(THD *thd);
 bool table_is_used(TABLE *table, bool wait_for_name_lock);
 bool drop_locked_tables(THD *thd,const char *db, const char *table_name);
 void abort_locked_tables(THD *thd,const char *db, const char *table_name);
+void execute_init_command(THD *thd, sys_var_str *init_command_var,
+			  rw_lock_t *var_mutex);
 extern const Field *not_found_field;
 Field *find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
 			    TABLE_LIST **where, bool report_error);
@@ -846,7 +848,7 @@ extern pthread_mutex_t LOCK_mysql_create_db,LOCK_Acl,LOCK_open,
        LOCK_delayed_status, LOCK_delayed_create, LOCK_crypt, LOCK_timezone,
        LOCK_slave_list, LOCK_active_mi, LOCK_manager,
        LOCK_global_system_variables, LOCK_user_conn;
-extern rw_lock_t      LOCK_grant;
+extern rw_lock_t LOCK_grant, LOCK_sys_init_connect, LOCK_sys_init_slave;
 extern pthread_cond_t COND_refresh, COND_thread_count, COND_manager;
 extern pthread_attr_t connection_attrib;
 extern I_List<THD> threads;

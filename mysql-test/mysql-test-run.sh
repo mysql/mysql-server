@@ -805,7 +805,7 @@ manager_launch()
   ident=$1
   shift
   if [ $USE_MANAGER = 0 ] ; then
-    $@  >> $CUR_MYERR 2>&1 &
+    echo $@ | /bin/sh  >> $CUR_MYERR 2>&1  &
     sleep 2 #hack
     return
   fi

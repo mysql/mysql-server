@@ -860,6 +860,37 @@ static int check_connection(THD *thd)
   return check_user(thd, COM_CONNECT, passwd, passwd_len, db, true);
 }
 
+
+void execute_init_command(THD *thd, sys_var_str *init_command_var,
+			  rw_lock_t *var_mutex)
+{
+  Vio* save_vio;
+  ulong save_client_capabilities;
+
+  thd->proc_info= "Execution of init_command";
+  /*
+    We need to lock init_command_var because
+    during execution of init_command_var query
+    values of init_command_var can't be changed
+  */
+  rw_rdlock(var_mutex);
+  thd->query= init_command_var->value;
+  thd->query_length= init_command_var->value_length;
+  save_client_capabilities= thd->client_capabilities;
+  thd->client_capabilities|= CLIENT_MULTI_QUERIES;
+  /*
+    We don't need return result of execution to client side.
+    To forbid this we should set thd->net.vio to 0.
+  */
+  save_vio= thd->net.vio;
+  thd->net.vio= 0;
+  dispatch_command(COM_QUERY, thd, thd->query, thd->query_length+1);
+  rw_unlock(var_mutex);
+  thd->client_capabilities= save_client_capabilities;
+  thd->net.vio= save_vio;
+}
+
+
 pthread_handler_decl(handle_one_connection,arg)
 {
   THD *thd=(THD*) arg;
@@ -932,9 +963,15 @@ pthread_handler_decl(handle_one_connection,arg)
     if (thd->client_capabilities & CLIENT_COMPRESS)
       net->compress=1;				// Use compression
 
-    thd->proc_info=0;				// Remove 'login'
-    thd->command=COM_SLEEP;
-    thd->version=refresh_version;
+    thd->version= refresh_version;
+    if (sys_init_connect.value && !(thd->master_access & SUPER_ACL))
+    {
+      execute_init_command(thd, &sys_init_connect, &LOCK_sys_init_connect);
+      if (thd->query_error)
+	thd->killed= 1;
+    }
+
+    thd->proc_info=0;
     thd->set_time();
     thd->init_for_queries();
     while (!net->error && net->vio != 0 && !thd->killed)
