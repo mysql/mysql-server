@@ -253,10 +253,16 @@ int main(int argc,char *argv[])
   int error, ho_error;
   MYSQL mysql;
   char **commands;
+  char** save_argv;
   MY_INIT(argv[0]);
   mysql_init(&mysql);
   load_defaults("my",load_default_groups,&argc,&argv);
-
+  save_argv = argv;
+  /* Sasha: with the change to handle_options() we now need to do this fix
+     with save_argv in all client utilities. The problem is that
+     handle_options may modify argv, and that wreaks havoc with
+     free_defaults()
+  */
   if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
   {
     printf("%s: handle_options() failed with error %d\n", my_progname,
@@ -327,7 +333,7 @@ int main(int argc,char *argv[])
   }
   my_free(opt_password,MYF(MY_ALLOW_ZERO_PTR));
   my_free(user,MYF(MY_ALLOW_ZERO_PTR));
-  free_defaults(argv);
+  free_defaults(save_argv);
   my_end(0);
   exit(error ? 1 : 0);
   return 0;
