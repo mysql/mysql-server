@@ -85,6 +85,7 @@ enum enum_sql_command {
   SQLCOM_SHOW_STATUS_PROC, SQLCOM_SHOW_STATUS_FUNC,
   SQLCOM_PREPARE, SQLCOM_EXECUTE, SQLCOM_DEALLOCATE_PREPARE,
   SQLCOM_CREATE_VIEW, SQLCOM_DROP_VIEW,
+  SQLCOM_CREATE_TRIGGER, SQLCOM_DROP_TRIGGER,
   /* This should be the last !!! */
   SQLCOM_END
 };
@@ -602,6 +603,15 @@ struct st_sp_chistics
   bool detistic;
 };
 
+
+struct st_trg_chistics
+{
+  enum trg_action_time_type action_time;
+  enum trg_event_type event;
+};
+
+extern sys_var_long_ptr trg_new_row_fake_var;
+
 /* The state of the lex parsing. This is saved in the THD struct */
 
 typedef struct st_lex
@@ -713,6 +723,14 @@ typedef struct st_lex
     rexecuton
   */
   bool empty_field_list_on_rset;
+  /* Characterstics of trigger being created */
+  st_trg_chistics trg_chistics;
+  /*
+    Points to table being opened when we are parsing trigger definition
+    while opening table. 0 if we are parsing user provided CREATE TRIGGER
+    or any other statement. Used for NEW/OLD row field lookup in trigger.
+  */
+  TABLE *trg_table;
 
   st_lex() :result(0)
   {

@@ -19,6 +19,8 @@
 
 #include "mysql_priv.h"
 #include "sql_acl.h"
+#include "sp_head.h"
+#include "sql_trigger.h"
 
 static int check_null_fields(THD *thd,TABLE *entry);
 #ifndef EMBEDDED_LIBRARY
@@ -302,6 +304,12 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
 	break;
       }
     }
+
+    // FIXME: Actually we should do this before check_null_fields.
+    //        Or even go into write_record ?
+    if (table->triggers)
+      table->triggers->process_triggers(thd, TRG_EVENT_INSERT, TRG_ACTION_BEFORE);
+
 #ifndef EMBEDDED_LIBRARY
     if (lock_type == TL_WRITE_DELAYED)
     {
@@ -324,6 +332,9 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
       id= thd->last_insert_id;
     }
     thd->row_count++;
+
+    if (table->triggers)
+      table->triggers->process_triggers(thd, TRG_EVENT_INSERT, TRG_ACTION_AFTER);
   }
 
   /*

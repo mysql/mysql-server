@@ -73,6 +73,7 @@ typedef struct st_filesort_info
 
 class Field_timestamp;
 class Field_blob;
+class Table_triggers_list;
 
 struct st_table {
   handler *file;
@@ -154,6 +155,8 @@ struct st_table {
   REGINFO reginfo;			/* field connections */
   MEM_ROOT mem_root;
   GRANT_INFO grant;
+  /* Table's triggers, 0 if there are no of them */
+  Table_triggers_list *triggers;
 
   char		*table_cache_key;
   char		*table_name,*real_name,*path;
