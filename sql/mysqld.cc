@@ -2910,6 +2910,18 @@ You should consider changing lower_case_table_names to 1 or 2",
       lower_case_table_names= 2;
     }
   }
+  else if (lower_case_table_names == 2 &&
+           !(lower_case_file_system=
+             (test_if_case_insensitive(mysql_real_data_home) == 1)))
+  {
+    if (global_system_variables.log_warnings)
+      sql_print_warning("\
+You have forced lower_case_table_names to 2 through a command-line \
+option, even though your file system '%s' is case sensitive.  This means \
+that you can create a table that you can then no longer access. \
+You should consider changing lower_case_table_names to 0.",
+			mysql_real_data_home);
+  }
 
   select_thread=pthread_self();
   select_thread_in_use=1;

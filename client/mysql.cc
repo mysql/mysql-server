@@ -1430,12 +1430,6 @@ static void build_completion_hash(bool rehash, bool write_info)
   if (status.batch || quick || !current_db)
     DBUG_VOID_RETURN;			// We don't need completion in batches
 
-  if (tables)
-  {
-    mysql_free_result(tables);
-    tables=0;
-  }
-
   /* hash SQL commands */
   while (cmd->name) {
     add_word(&ht,(char*) cmd->name);
@@ -1681,8 +1675,8 @@ static int com_server_help(String *buffer __attribute__((unused)),
     else if (num_fields >= 2 && num_rows)
     {
       init_pager();
-      char last_char;
-      
+      char last_char= 0;
+
       int num_name= 0, num_cat= 0;
       LINT_INIT(num_name);
       LINT_INIT(num_cat);
@@ -1693,7 +1687,6 @@ static int com_server_help(String *buffer __attribute__((unused)),
 	put_info("To make a more specific request, please type 'help <item>',\nwhere <item> is one of the following", INFO_INFO);
 	num_name= 0;
 	num_cat= 1;
-	last_char= '_';
       }
       else if ((cur= mysql_fetch_row(result)))
       {
@@ -1703,7 +1696,7 @@ static int com_server_help(String *buffer __attribute__((unused)),
 	num_cat= 2;
 	print_help_item(&cur,1,2,&last_char);
       }
-      
+
       while ((cur= mysql_fetch_row(result)))
 	print_help_item(&cur,num_name,num_cat,&last_char);
       tee_fprintf(PAGER, "\n");

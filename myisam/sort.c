@@ -162,7 +162,10 @@ int _create_index_by_sort(MI_SORT_PARAM *info,my_bool no_messages,
     {
       if (my_init_dynamic_array(&buffpek, sizeof(BUFFPEK), maxbuffer,
 			     maxbuffer/2))
+      {
 	my_free((gptr) sort_keys,MYF(0));
+        sort_keys= 0;
+      }
       else
 	break;
     }
