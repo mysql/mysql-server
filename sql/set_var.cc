@@ -351,13 +351,13 @@ sys_var_long_ptr        sys_innodb_max_dirty_pages_pct("innodb_max_dirty_pages_p
 
 sys_var_thd_date_time_format sys_time_format("time_format",
 					     &SV::time_format,
-					     TIMESTAMP_TIME);
+					     MYSQL_TIMESTAMP_TIME);
 sys_var_thd_date_time_format sys_date_format("date_format",
 					     &SV::date_format,
-					     TIMESTAMP_DATE);
+					     MYSQL_TIMESTAMP_DATE);
 sys_var_thd_date_time_format sys_datetime_format("datetime_format",
 						 &SV::datetime_format,
-						 TIMESTAMP_DATETIME);
+						 MYSQL_TIMESTAMP_DATETIME);
 
 /* Variables that are bits in THD */
 

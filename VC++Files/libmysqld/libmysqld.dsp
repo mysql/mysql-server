@@ -368,6 +368,10 @@ SOURCE="..\sql-common\pack.c"
 # End Source File
 # Begin Source File
 
+SOURCE=..\sql-common\my_time.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\libmysql\password.c
 # End Source File
 # Begin Source File
