@@ -1338,6 +1338,7 @@ insert into t1 values (1);
 insert into t2 values (1);
 select * from t1 where exists (select s1 from t2 having max(t2.s1)=t1.s1);
 s1
+1
 drop table t1,t2;
 create table t1 (s1 int);
 create table t2 (s1 int);
