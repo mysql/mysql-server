@@ -578,7 +578,7 @@ sub command_line_setup () {
   $slave->[0]->{'path_mypid'}=    "$glob_mysql_test_dir/var/run/slave.pid";
   $slave->[0]->{'path_mysock'}=   "$opt_tmpdir/slave.sock";
   $slave->[0]->{'path_myport'}=    $opt_slave_myport;
-  $slave->[0]->{'start_timeout'}= 400;
+  $slave->[0]->{'start_timeout'}=  400;
 
   $slave->[1]->{'path_myddir'}=   "$glob_mysql_test_dir/var/slave1-data";
   $slave->[1]->{'path_myerr'}=    "$glob_mysql_test_dir/var/log/slave1.err";
@@ -586,7 +586,7 @@ sub command_line_setup () {
   $slave->[1]->{'path_mypid'}=    "$glob_mysql_test_dir/var/run/slave1.pid";
   $slave->[1]->{'path_mysock'}=   "$opt_tmpdir/slave1.sock";
   $slave->[1]->{'path_myport'}=    $opt_slave_myport + 1;
-  $slave->[1]->{'start_timeout'}=  30;
+  $slave->[1]->{'start_timeout'}=  300;
 
   $slave->[2]->{'path_myddir'}=   "$glob_mysql_test_dir/var/slave2-data";
   $slave->[2]->{'path_myerr'}=    "$glob_mysql_test_dir/var/log/slave2.err";
@@ -594,7 +594,7 @@ sub command_line_setup () {
   $slave->[2]->{'path_mypid'}=    "$glob_mysql_test_dir/var/run/slave2.pid";
   $slave->[2]->{'path_mysock'}=   "$opt_tmpdir/slave2.sock";
   $slave->[2]->{'path_myport'}=    $opt_slave_myport + 2;
-  $slave->[2]->{'start_timeout'}=  30;
+  $slave->[2]->{'start_timeout'}=  300;
 
   # Do sanity checks of command line arguments
 
