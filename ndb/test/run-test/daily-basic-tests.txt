@@ -354,6 +354,10 @@ max-time: 500
 cmd: testScan
 args: -n ScanReadWhileNodeIsDown T1
 
+max-time: 500
+cmd: testScan
+args: -n ScanRestart T1
+
 # OLD FLEX
 max-time: 500
 cmd: flexBench
