@@ -140,7 +140,10 @@ NdbReceiver::calculate_batch_size(Uint32 key_size,
 }
 
 void
-NdbReceiver::do_get_value(NdbReceiver * org, Uint32 rows, Uint32 key_size){
+NdbReceiver::do_get_value(NdbReceiver * org, 
+			  Uint32 rows, 
+			  Uint32 key_size,
+			  Uint32 range_no){
   if(rows > m_defined_rows){
     delete[] m_rows;
     m_defined_rows = rows;
@@ -155,7 +158,7 @@ NdbReceiver::do_get_value(NdbReceiver * org, Uint32 rows, Uint32 key_size){
     key.m_attrSize = 4;
     key.m_nullable = true; // So that receive works w.r.t KEYINFO20
   }
-  m_key_info = key_size;
+  m_hidden_count = (key_size ? 1 : 0) + range_no ;
   
   for(Uint32 i = 0; i<rows; i++){
     NdbRecAttr * prev = theCurrentRecAttr;
@@ -167,6 +170,12 @@ NdbReceiver::do_get_value(NdbReceiver * org, Uint32 rows, Uint32 key_size){
       return ; // -1
     }
     
+    if(range_no && 
+       !getValue(&NdbColumnImpl::getImpl(* NdbDictionary::Column::RANGE_NO),0))
+    {
+      abort();
+    }
+
     NdbRecAttr* tRecAttr = org->theFirstRecAttr;
     while(tRecAttr != 0){
       if(getValue(&NdbColumnImpl::getImpl(*tRecAttr->m_column), (char*)0) != 0)
@@ -196,10 +205,9 @@ void
 NdbReceiver::copyout(NdbReceiver & dstRec){
   NdbRecAttr* src = m_rows[m_current_row++];
   NdbRecAttr* dst = dstRec.theFirstRecAttr;
-  Uint32 tmp = m_key_info;
-  if(tmp > 0){
+  Uint32 tmp = m_hidden_count;
+  while(tmp--)
     src = src->next();
-  }
   
   while(dst){
     Uint32 len = ((src->theAttrSize * src->theArraySize)+3)/4;

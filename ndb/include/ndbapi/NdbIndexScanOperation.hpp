@@ -45,7 +45,8 @@ public:
   NdbResultSet* readTuples(LockMode = LM_Read,
 			   Uint32 batch = 0, 
 			   Uint32 parallel = 0,
-			   bool order_by = false);
+			   bool order_by = false,
+			   bool read_range_no = false);
   
   inline NdbResultSet* readTuples(int parallell){
     return readTuples(LM_Read, 0, parallell, false);
@@ -119,7 +120,12 @@ public:
    * Marks end of a bound, 
    *  used when batching index reads (multiple ranges)
    */
-  int end_of_bound();
+  int end_of_bound(Uint32 range_no);
+  
+  /**
+   * Return range no for current row
+   */
+  Uint32 get_range_no();
   
   bool getSorted() const { return m_ordered; }
 private:

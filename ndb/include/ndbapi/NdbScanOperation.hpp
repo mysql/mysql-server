@@ -156,6 +156,7 @@ protected:
   NdbOperation*	takeOverScanOp(OperationType opType, NdbConnection*);
   
   Uint32 m_ordered;
+  Uint32 m_read_range_no;
 
   int restart(bool forceSend = false);
 };

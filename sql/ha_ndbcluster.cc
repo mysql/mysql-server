@@ -33,7 +33,7 @@
 #include <ndbapi/NdbScanFilter.hpp>
 
 // Default value for parallelism
-static const int parallelism= 240;
+static const int parallelism= 0;
 
 // Default value for max number of transactions
 // createable against NDB from this handler
@@ -1316,7 +1316,8 @@ inline int ha_ndbcluster::next_result(byte *buf)
 */
 
 int ha_ndbcluster::set_bounds(NdbIndexScanOperation *op,
-			      const key_range *keys[2])
+			      const key_range *keys[2],
+			      uint range_no)
 {
   const KEY *const key_info= table->key_info + active_index;
   const uint key_parts= key_info->key_parts;
@@ -1418,7 +1419,7 @@ int ha_ndbcluster::set_bounds(NdbIndexScanOperation *op,
           DBUG_PRINT("error", ("key %d unknown flag %d", j, p.key->flag));
           DBUG_ASSERT(false);
           // Stop setting bounds but continue with what we have
-	  op->end_of_bound();
+	  op->end_of_bound(range_no);
           DBUG_RETURN(0);
         }
       }
@@ -1466,7 +1467,7 @@ int ha_ndbcluster::set_bounds(NdbIndexScanOperation *op,
 
     tot_len+= part_store_len;
   }
-  op->end_of_bound();
+  op->end_of_bound(range_no);
   DBUG_RETURN(0);
 }
 
@@ -4862,20 +4863,12 @@ ha_ndbcluster::read_multi_range_first(key_multi_range **found_range_p,
     case ORDERED_INDEX:
   range:
       ranges[i].range_flag &= ~(uint)UNIQUE_RANGE;
-      if (sorted && scanOp != 0)
-      {
-	/**
-	 * We currently don't support batching of ordered range scans
-	 */
-	i--;
-	curr= (byte*)buffer->buffer_end;
-	break;
-      }
       if (scanOp == 0)
       {
 	if ((scanOp= m_active_trans->getNdbIndexScanOperation(idx, tab)) &&
-	   (m_active_cursor= scanOp->readTuples(lm, 0, parallelism, sorted)) &&
-	   !define_read_attrs(curr, scanOp))
+	    (m_active_cursor= scanOp->readTuples(lm, 0, 
+						 parallelism, sorted, true))&&
+	    !define_read_attrs(curr, scanOp))
 	  curr += reclength;
 	else
 	  ERR_RETURN(scanOp ? 
@@ -4883,7 +4876,7 @@ ha_ndbcluster::read_multi_range_first(key_multi_range **found_range_p,
 		     m_active_trans->getNdbError());
       }
       const key_range *keys[2]= { &ranges[i].start_key, &ranges[i].end_key };
-      if ((res= set_bounds(scanOp, keys)))
+      if ((res= set_bounds(scanOp, keys, i)))
 	DBUG_RETURN(res);
       break;
     }
@@ -5012,7 +5005,9 @@ found:
   /**
    * Found a record belonging to a scan
    */
-  * multi_range_found_p= multi_ranges + multi_range_curr;
+  Uint32 range_no = ((NdbIndexScanOperation*)m_active_cursor->getOperation())
+    ->get_range_no();
+  * multi_range_found_p= multi_ranges + range_no;
   memcpy(table->record[0], m_multi_range_result_ptr, reclength);
   setup_recattr(m_active_cursor->getOperation()->getFirstRecAttr());
   unpack_record(table->record[0]);
