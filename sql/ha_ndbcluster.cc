@@ -305,9 +305,11 @@ int ha_ndbcluster::set_ndb_value(NdbOperation *ndb_op, Field *field,
       char* blob_ptr= NULL;
       field_blob->get_ptr(&blob_ptr);
 
-      // Looks like NULL blob can also be signaled in this way
-      if (blob_ptr == NULL)
-        DBUG_RETURN(ndb_blob->setNull() != 0);
+      // Looks like NULL ptr signals length 0 blob
+      if (blob_ptr == NULL) {
+        DBUG_ASSERT(blob_len == 0);
+        blob_ptr= "";
+      }
 
       DBUG_PRINT("value", ("set blob ptr=%x len=%u",
                            (unsigned)blob_ptr, blob_len));
