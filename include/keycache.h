@@ -45,6 +45,8 @@ typedef struct st_keycache_wqueue
 typedef struct st_key_cache
 {
   my_bool key_cache_inited;
+  my_bool resize_in_flush;       /* true during flush of resize operation    */
+  my_bool can_be_used;           /* usage of cache for read/write is allowed */
   uint key_cache_shift;
   ulong key_cache_mem_size;      /* specified size of the cache memory       */
   uint key_cache_block_size;     /* size of the page buffer of a cache block */
@@ -58,6 +60,7 @@ typedef struct st_key_cache
   ulong blocks_used;             /* number of currently used blocks          */
   ulong blocks_changed;          /* number of currently dirty blocks         */
   ulong warm_blocks;             /* number of blocks in warm sub-chain       */
+  ulong cnt_for_resize_op;       /* counter to block resize operation        */
   long blocks_available;      /* number of blocks available in the LRU chain */
   HASH_LINK **hash_root;         /* arr. of entries into hash table buckets  */
   HASH_LINK *hash_link_root;     /* memory for hash table links              */
@@ -67,6 +70,7 @@ typedef struct st_key_cache
   BLOCK_LINK *used_last;         /* ptr to the last block of the LRU chain   */
   BLOCK_LINK *used_ins;          /* ptr to the insertion block in LRU chain  */
   pthread_mutex_t cache_lock;    /* to lock access to the cache structure    */
+  KEYCACHE_WQUEUE resize_queue;  /* threads waiting during resize operation  */
   KEYCACHE_WQUEUE waiting_for_hash_link; /* waiting for a free hash link     */
   KEYCACHE_WQUEUE waiting_for_block;    /* requests waiting for a free block */
   BLOCK_LINK *changed_blocks[CHANGED_BLOCKS_HASH]; /* hash for dirty file bl.*/
