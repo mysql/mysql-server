@@ -2369,3 +2369,41 @@ EXPLAIN SELECT i FROM t1 WHERE i=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	const	PRIMARY	PRIMARY	4	const	1	Using index
 DROP TABLE t1;
+create table t1 (a integer,  b integer, index(a), index(b));
+create table t2 (c integer,  d integer, index(c), index(d));
+insert into t1 values (1,2), (2,2), (3,2), (4,2);
+insert into t2 values (1,3), (2,3), (3,4), (4,4);
+explain select * from t1 left join t2 on a=c where d in (4);
+table	type	possible_keys	key	key_len	ref	rows	Extra
+t2	ref	c,d	d	5	const	2	Using where
+t1	ALL	a	NULL	NULL	NULL	3	Using where
+select * from t1 left join t2 on a=c where d in (4);
+a	b	c	d
+3	2	3	4
+4	2	4	4
+explain select * from t1 left join t2 on a=c where d = 4;
+table	type	possible_keys	key	key_len	ref	rows	Extra
+t2	ref	c,d	d	5	const	2	Using where
+t1	ALL	a	NULL	NULL	NULL	3	Using where
+select * from t1 left join t2 on a=c where d = 4;
+a	b	c	d
+3	2	3	4
+4	2	4	4
+drop table t1, t2;
+CREATE TABLE t1 (
+i int(11) NOT NULL default '0',
+c char(10) NOT NULL default '',
+PRIMARY KEY  (i),
+UNIQUE KEY c (c)
+) TYPE=MyISAM;
+INSERT INTO t1 VALUES (1,'a');
+INSERT INTO t1 VALUES (2,'b');
+INSERT INTO t1 VALUES (3,'c');
+EXPLAIN SELECT i FROM t1 WHERE i=1;
+table	type	possible_keys	key	key_len	ref	rows	Extra
+t1	const	PRIMARY	PRIMARY	4	const	1	Using index
+EXPLAIN SELECT i FROM t1 WHERE i=1;
+table	type	possible_keys	key	key_len	ref	rows	Extra
+t1	const	PRIMARY	PRIMARY	4	const	1	Using index
+>>>>>>>
+DROP TABLE t1;
