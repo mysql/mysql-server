@@ -285,6 +285,10 @@ protected:
   void invalidate_table(TABLE *table);
   void invalidate_table(byte *key, uint32  key_length);
   void invalidate_table(Query_cache_block *table_block);
+  TABLE_COUNTER_TYPE
+    register_tables_from_list(TABLE_LIST *tables_used,
+                              TABLE_COUNTER_TYPE counter,
+                              Query_cache_block_table *block_table);
   my_bool register_all_tables(Query_cache_block *block,
 			      TABLE_LIST *tables_used,
 			      TABLE_COUNTER_TYPE tables);
