@@ -593,6 +593,10 @@ public:
     :Field_str(ptr_arg, 10, null_ptr_arg, null_bit_arg,
 	       unireg_check_arg, field_name_arg, table_arg)
     {}
+  Field_date(bool maybe_null_arg, const char *field_name_arg,
+		 struct st_table *table_arg)
+    :Field_str((char*) 0,10, maybe_null_arg ? (uchar*) "": 0,0,
+	       NONE, field_name_arg, table_arg) {}
   enum_field_types type() const { return FIELD_TYPE_DATE;}
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_ULONG_INT; }
   enum Item_result cmp_type () const { return INT_RESULT; }
@@ -650,6 +654,10 @@ public:
     :Field_str(ptr_arg, 8, null_ptr_arg, null_bit_arg,
 	       unireg_check_arg, field_name_arg, table_arg)
     {}
+  Field_time(bool maybe_null_arg, const char *field_name_arg,
+		 struct st_table *table_arg)
+    :Field_str((char*) 0,8, maybe_null_arg ? (uchar*) "": 0,0,
+	       NONE, field_name_arg, table_arg) {}
   enum_field_types type() const { return FIELD_TYPE_TIME;}
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_INT24; }
   enum Item_result cmp_type () const { return INT_RESULT; }
@@ -678,6 +686,10 @@ public:
     :Field_str(ptr_arg, 19, null_ptr_arg, null_bit_arg,
 	       unireg_check_arg, field_name_arg, table_arg)
     {}
+  Field_datetime(bool maybe_null_arg, const char *field_name_arg,
+		 struct st_table *table_arg)
+    :Field_str((char*) 0,19, maybe_null_arg ? (uchar*) "": 0,0,
+	       NONE, field_name_arg, table_arg) {}
   enum_field_types type() const { return FIELD_TYPE_DATETIME;}
 #ifdef HAVE_LONG_LONG
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_ULONGLONG; }
