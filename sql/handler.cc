@@ -222,11 +222,9 @@ bool ha_caching_allowed(THD* thd, char* table_key,
 {
 #ifdef HAVE_INNOBASE_DB
   if (cache_type == HA_CACHE_TBL_ASKTRANSACT)
-    return innobase_query_caching_of_table_permitted(thd, table_key,
-                                                     key_length);
-  else
+    return innobase_query_caching_of_table_permitted(thd, table_key, key_length);
 #endif
-    return 1;
+  return 1;
 }
 
 int ha_init()
@@ -627,13 +625,12 @@ int ha_rollback_trans(THD *thd, THD_TRANS *trans)
       reinit_io_cache(&thd->transaction.trans_log,
                       WRITE_CACHE, (my_off_t) 0, 0, 1);
       thd->transaction.trans_log.end_of_file= max_binlog_cache_size;
+      if (operation_done)
+        thd->transaction.cleanup();
     }
     thd->variables.tx_isolation=thd->session_tx_isolation;
     if (operation_done)
-    {
       statistic_increment(ha_rollback_count,&LOCK_status);
-      thd->transaction.cleanup();
-    }
   }
 #endif /* USING_TRANSACTIONS */
   DBUG_RETURN(error);

@@ -65,7 +65,7 @@ class ha_myisammrg: public handler
   int index_first(byte * buf);
   int index_last(byte * buf);
   int index_next_same(byte *buf, const byte *key, uint keylen);
-  int rnd_init(bool scan=1);
+  int rnd_init(bool scan);
   int rnd_next(byte *buf);
   int rnd_pos(byte * buf, byte *pos);
   void position(const byte *record);
