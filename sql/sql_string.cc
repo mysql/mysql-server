@@ -142,7 +142,8 @@ bool String::set(double num,uint decimals, CHARSET_INFO *cs)
       buff[0]='-';
       pos=buff;
     }
-    return copy(pos,(uint32) strlen(pos), &my_charset_latin1, cs);
+    uint dummy_errors;
+    return copy(pos,(uint32) strlen(pos), &my_charset_latin1, cs, &dummy_errors);
   }
   if (alloc((uint32) ((uint32) decpt+3+decimals)))
     return TRUE;

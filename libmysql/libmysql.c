@@ -1886,22 +1886,6 @@ my_bool cli_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt)
   DBUG_RETURN(0);
 }
 
-#ifdef HAVE_DEPRECATED_411_API
-MYSQL_STMT * STDCALL mysql_prepare(MYSQL *mysql, const char *query,
-                                   unsigned long query_length)
-{
-  MYSQL_STMT *stmt;
-  DBUG_ENTER("mysql_prepare");
-
-  stmt= mysql_stmt_init(mysql);
-  if (stmt && mysql_stmt_prepare(stmt, query, query_length))
-  {
-    mysql_stmt_close(stmt);
-    DBUG_RETURN(0);
-  }
-  DBUG_RETURN(stmt);
-}
-#endif
 
 /*
   Allocate memory and init prepared statement structure.
