@@ -147,12 +147,15 @@ db_find_routine(THD *thd, int type, char *name, uint namelen, sp_head **sphp)
     lex_start(thd, (uchar*)defstr, strlen(defstr));
     if (yyparse(thd) || thd->is_fatal_error || thd->lex->sphead == NULL)
     {
-      if (thd->lex->sphead)
+      LEX *newlex= thd->lex;
+      sp_head *sp= newlex->sphead;
+
+      if (sp)
       {
-	if (oldlex != thd->lex)
-	  thd->lex->sphead->restore_lex(thd);
-	delete thd->lex->sphead;
-	thd->lex= NULL;
+	if (oldlex != newlex)
+	  sp->restore_lex(thd);
+	delete sp;
+	newlex->sphead= NULL;
       }
       ret= SP_PARSE_ERROR;
     }

@@ -931,24 +931,27 @@ create:
 	| CREATE PROCEDURE ident
 	  {
 	    LEX *lex= Lex;
+	    sp_head *sp;
 
 	    if (lex->sphead)
 	    {
 	      net_printf(YYTHD, ER_SP_NO_RECURSIVE_CREATE, "PROCEDURE");
 	      YYABORT;
 	    }
-	    lex->spcont= new sp_pcontext();
-	    lex->sphead= new sp_head(&$3, lex, 0, 0);
-	    lex->sphead->m_type= TYPE_ENUM_PROCEDURE;
+	    /* Order is important here: new - reset - init */
+	    sp= new sp_head();
+	    sp->reset_thd_mem_root(YYTHD);
+	    sp->init(&$3, lex, 0, 0);
+
+	    sp->m_type= TYPE_ENUM_PROCEDURE;
+	    lex->sphead= sp;
 	    /*
 	     * We have to turn of CLIENT_MULTI_QUERIES while parsing a
 	     * stored procedure, otherwise yylex will chop it into pieces
 	     * at each ';'.
 	     */
-	    lex->sphead->m_old_cmq=
-	      YYTHD->client_capabilities & CLIENT_MULTI_QUERIES;
+	    sp->m_old_cmq= YYTHD->client_capabilities & CLIENT_MULTI_QUERIES;
 	    YYTHD->client_capabilities &= (~CLIENT_MULTI_QUERIES);
-	    lex->sphead->reset_thd_mem_root(YYTHD);
 	  }
           '(' sp_pdparam_list ')'
 	  {
@@ -982,24 +985,27 @@ create_function_tail:
 	| '('
 	  {
 	    LEX *lex= Lex;
+	    sp_head *sp;
 
 	    if (lex->sphead)
 	    {
 	      net_printf(YYTHD, ER_SP_NO_RECURSIVE_CREATE, "FUNCTION");
 	      YYABORT;
 	    }
-	    lex->spcont= new sp_pcontext();
-	    lex->sphead= new sp_head(&lex->udf.name, lex, 0, 0);
-	    lex->sphead->m_type= TYPE_ENUM_FUNCTION;
+	    /* Order is important here: new - reset - init */
+	    sp= new sp_head();
+	    sp->reset_thd_mem_root(YYTHD);
+	    sp->init(&lex->udf.name, lex, 0, 0);
+
+	    sp->m_type= TYPE_ENUM_FUNCTION;
+	    lex->sphead= sp;
 	    /*
 	     * We have to turn of CLIENT_MULTI_QUERIES while parsing a
 	     * stored procedure, otherwise yylex will chop it into pieces
 	     * at each ';'.
 	     */
-	    lex->sphead->m_old_cmq=
-	      YYTHD->client_capabilities & CLIENT_MULTI_QUERIES;
+	    sp->m_old_cmq= YYTHD->client_capabilities & CLIENT_MULTI_QUERIES;
 	    YYTHD->client_capabilities &= ~CLIENT_MULTI_QUERIES;
-	    lex->sphead->reset_thd_mem_root(YYTHD);
 	  }
           sp_fdparam_list ')'
 	  {

@@ -119,18 +119,27 @@ sp_head::operator delete(void *ptr, size_t size)
   DBUG_VOID_RETURN;
 }
 
-sp_head::sp_head(LEX_STRING *name, LEX *lex, LEX_STRING *comment, char suid)
-  : Sql_alloc(), m_simple_case(FALSE), m_multi_query(FALSE)
+sp_head::sp_head()
+  : Sql_alloc(), m_simple_case(FALSE), m_multi_query(FALSE), m_free_list(NULL)
 {
   DBUG_ENTER("sp_head::sp_head");
+
+  m_backpatch.empty();
+  m_lex.empty();
+  DBUG_VOID_RETURN;
+}
+
+void
+sp_head::init(LEX_STRING *name, LEX *lex, LEX_STRING *comment, char suid)
+{
+  DBUG_ENTER("sp_head::init");
   const char *dstr = (const char*)lex->buf;
 
-  DBUG_PRINT("info", ("name: %s", name->str));
+  DBUG_PRINT("info", ("name: %*s", name->length, name->str));
   m_name.length= name->length;
-  m_name.str= name->str;
+  m_name.str= lex->thd->strmake(name->str, name->length);
   m_defstr.length= lex->end_of_query - lex->buf;
   m_defstr.str= lex->thd->strmake(dstr, m_defstr.length);
-  m_free_list= NULL;
 
   m_comment.length= 0;
   m_comment.str= 0;
@@ -141,10 +150,8 @@ sp_head::sp_head(LEX_STRING *name, LEX *lex, LEX_STRING *comment, char suid)
   }
 
   m_suid= suid;
-  m_pcont= lex->spcont;
+  lex->spcont= m_pcont= new sp_pcontext();
   my_init_dynamic_array(&m_instr, sizeof(sp_instr *), 16, 8);
-  m_backpatch.empty();
-  m_lex.empty();
   DBUG_VOID_RETURN;
 }
 

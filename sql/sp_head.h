@@ -60,7 +60,11 @@ public:
   static void 
   operator delete(void *ptr, size_t size);
 
-  sp_head(LEX_STRING *name, LEX *lex, LEX_STRING *comment, char suid);
+  sp_head();
+
+  // Initialize after we have reset mem_root
+  void
+  init(LEX_STRING *name, LEX *lex, LEX_STRING *comment, char suid);
 
   int
   create(THD *thd);
