@@ -398,18 +398,14 @@ IPCConfig::configureTransporters(Uint32 nodeId,
     }
     case CONNECTION_TYPE_SCI:{
       SCI_TransporterConfiguration conf;
-      const char * host1, * host2;
       conf.localNodeId  = nodeId;
       conf.remoteNodeId = remoteNodeId;
       conf.checksum     = checksum;
       conf.signalId     = sendSignalId;
       conf.port= server_port;
       
-      if(iter.get(CFG_SCI_HOSTNAME_1, &host1)) break;
-      if(iter.get(CFG_SCI_HOSTNAME_2, &host2)) break;
-
-      conf.localHostName  = (nodeId == nodeId1 ? host1 : host2);
-      conf.remoteHostName = (nodeId == nodeId1 ? host2 : host1);
+      conf.localHostName  = localHostName;
+      conf.remoteHostName = remoteHostName;
 
       if(iter.get(CFG_SCI_SEND_LIMIT, &conf.sendLimit)) break;
       if(iter.get(CFG_SCI_BUFFER_MEM, &conf.bufferSize)) break;
