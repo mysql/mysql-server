@@ -27,11 +27,11 @@ ut_get_high32(
 			/* out: a >> 32 */
 	ulint	a)	/* in: ulint */
 {
-	if (sizeof(ulint) == 4) {
-		return(0);
-	}
-
+#if SIZEOF_LONG == 4
+	return 0;
+#else
 	return(a >> 32);
+#endif
 }
 
 /************************************************************

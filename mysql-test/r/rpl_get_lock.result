@@ -17,7 +17,13 @@ get_lock("lock",3)
 select * from t1;
 n
 1
-select check_lock("lock");
-check_lock("lock")
+select is_free_lock("lock");
+is_free_lock("lock")
+0
+select is_free_lock("lock2");
+is_free_lock("lock2")
 1
+select is_free_lock(NULL);
+is_free_lock(NULL)
+NULL
 drop table t1;
