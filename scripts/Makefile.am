@@ -27,7 +27,8 @@ bin_SCRIPTS =		@server_scripts@ \
 			mysql_convert_table_format \
 			mysql_find_rows \
 			mysqlhotcopy \
-			mysqldumpslow
+			mysqldumpslow \
+			mysqld_multi
 
 EXTRA_SCRIPTS =		make_binary_distribution.sh \
 			msql2mysql.sh \
@@ -42,6 +43,7 @@ EXTRA_SCRIPTS =		make_binary_distribution.sh \
 			mysql_find_rows.sh \
 			mysqlhotcopy.sh \
 		        mysqldumpslow.sh \
+			mysqld_multi \
 			safe_mysqld.sh
 
 EXTRA_DIST =		$(EXTRA_SCRIPTS) \
@@ -63,7 +65,8 @@ CLEANFILES =		@server_scripts@ \
 			mysql_convert_table_format \
 			mysql_find_rows \
 			mysqlhotcopy \
-			mysqldumpslow
+			mysqldumpslow \
+			mysqld_multi
 
 SUPERCLEANFILES =	mysqlbug
 

@@ -604,7 +604,7 @@ MySQL Utilites
 
 * Programs::                    What do the executables do?
 * safe_mysqld::                 
-* mysql_multi_mysqld::          Program for managing multiple @strong{MySQL} servers
+* mysqld_multi::                Program for managing multiple @strong{MySQL} servers
 * mysql::                       The command line tool
 * mysqladmin::                  Administering a @strong{MySQL} server
 * mysqldump::                   Dumping the structure and data from @strong{MySQL} databases and tables
@@ -28096,7 +28096,7 @@ How big a @code{VARCHAR} column can be
 @menu
 * Programs::                    What do the executables do?
 * safe_mysqld::                 
-* mysql_multi_mysqld::          Program for managing multiple @strong{MySQL} servers
+* mysqld_multi::                Program for managing multiple @strong{MySQL} servers
 * mysql::                       The command line tool
 * mysqladmin::                  Administering a @strong{MySQL} server
 * mysqldump::                   Dumping the structure and data from @strong{MySQL} databases and tables
@@ -28234,7 +28234,7 @@ shell> replace a b b a -- file1 file2 ...
 @cindex tools, safe_mysqld
 @cindex scripts
 @cindex @code{safe_mysqld}
-@node safe_mysqld, mysql_multi_mysqld, Programs, Tools
+@node safe_mysqld, mysqld_multi, Programs, Tools
 @section safe_mysqld, the wrapper around mysqld
 
 @code{safe_mysqld} is the recommended way to start a @code{mysqld}
@@ -28324,13 +28324,13 @@ upgrade @strong{MySQL} in the future, your modified version of
 @code{safe_mysqld} will be overwritten, so you should make a copy of your
 edited version that you can reinstall.
 
-@cindex tools, mysql_multi_mysqld
+@cindex tools, mysqld_multi
 @cindex scripts
-@cindex @code{mysql_multi_mysqld}
-@node  mysql_multi_mysqld, mysql, safe_mysqld, Tools
-@section mysql_multi_mysqld, program for managing multiple @code{MySQL} servers
+@cindex @code{mysqld_multi}
+@node  mysqld_multi, mysql, safe_mysqld, Tools
+@section mysqld_multi, program for managing multiple @code{MySQL} servers
 
-@code{mysql_multi_mysqld} is meant for managing several @code{mysqld}
+@code{mysqld_multi} is meant for managing several @code{mysqld}
 processes running in different UNIX sockets and TCP/IP ports.
 
 The program will search for group(s) named [mysqld#] from my.cnf (or the
@@ -28344,8 +28344,8 @@ stopping, or reporting some specific @code{mysqld} servers with this
 program. See the usage and options below for more information.
 
 @example
-Usage: mysql_multi_mysqld [OPTIONS] @{start|stop|report@} [GNR,GNR,GNR...]
-or     mysql_multi_mysqld [OPTIONS] @{start|stop|report@} [GNR-GNR,GNR,GNR-GNR,...]
+Usage: mysqld_multi [OPTIONS] @{start|stop|report@} [GNR,GNR,GNR...]
+or     mysqld_multi [OPTIONS] @{start|stop|report@} [GNR-GNR,GNR,GNR-GNR,...]
 @end example
 
 The GNR above means the group number. You can start, stop or report
@@ -28356,13 +28356,13 @@ GNR argument all the found groups will be either started, stopped, or
 reported. Note that you must not have any white spaces in the GNR
 list. Anything after a white space are ignored.
 
-@code{mysql_multi_mysqld} supports the following options:
+@code{mysqld_multi} supports the following options:
 
 @table @code
 @cindex config-file option
 @item --config-file=...  
 Alternative config file. NOTE: This will not affect this program's own
-options (group @code{[mysql_multi_mysqld]}), but only groups
+options (group @code{[mysqld_multi]}), but only groups
 [mysqld#]. Without this option everything will be searched from the
 ordinary my.cnf file.
 @cindex example option
@@ -28405,7 +28405,7 @@ via the TCP/IP port.  By default connecting is done via the UNIX socket.
 Print the version number and exit.
 @end table
 
-Some notes about @code{mysql_multi_mysqld}:
+Some notes about @code{mysqld_multi}:
 
 @itemize @bullet
 @item
@@ -28433,7 +28433,7 @@ it, if a @code{mysqld} process fails due to signal kill -9, or
 similar. (Like segmentation fault, which @strong{MySQL} should never do,
 of course ;) Please note that @code{safe_mysqld} script may require that
 you start it from a certain place. This means that you may have to CD to
-a certain directory, before you start the @code{mysql_multi_mysqld}. If
+a certain directory, before you start the @code{mysqld_multi}. If
 you have problems starting, please see the @code{safe_mysqld}
 script. Check especially the lines:
 @example
@@ -28460,7 +28460,7 @@ When you want to refer to a certain group using GNR with this program,
 just use the number in the end of the group name ( [mysqld# <== ).
 @item
 You may want to use option '--user' for @code{mysqld}, but in order to
-do this you need to be root when you start the @code{mysql_multi_mysqld}
+do this you need to be root when you start the @code{mysqld_multi}
 script. Having the option in the config file doesn't matter; you will
 just get a warning, if you are not the superuser and the @code{mysqlds}
 are started under @strong{YOUR} UNIX account. @strong{IMPORTANT}: Make
@@ -28477,13 +28477,13 @@ YOU WANT} to have separate @code{mysqld} processes. Starting multiple
 performance in a threaded system!
 @end itemize
 
-This is an example of the config file on behalf of @code{mysql_multi_mysqld}. 
+This is an example of the config file on behalf of @code{mysqld_multi}. 
 
 @example
 # This file should probably be in your home dir (~/.my.cnf) or /etc/my.cnf
 # Version 2.1 by Jani Tolonen
 
-[mysql_multi_mysqld]
+[mysqld_multi]
 mysqld     = /usr/local/bin/safe_mysqld
 mysqladmin = /usr/local/bin/mysqladmin
 user       = multi_admin
@@ -28526,7 +28526,7 @@ user       = jani
 @cindex tools, command line
 @cindex scripts
 @cindex @code{mysql}
-@node mysql, mysqladmin, mysql_multi_mysqld, Tools
+@node mysql, mysqladmin, mysqld_multi, Tools
 @section The Command-line Tool
 
 @code{mysql} is a simple SQL shell (with GNU @code{readline} capabilities).
@@ -39592,7 +39592,7 @@ the link and the original database is deleted.
 @item
 Fixed that @code{DROP DATABASE} works on OS/2.
 @item
-New client @code{mysql_multi_mysqld}. @xref{mysql_multi_mysqld}.
+New client @code{mysqld_multi}. @xref{mysqld_multi}.
 @item
 Fixed bug when doing a @code{SELECT DISTINCT ... table1 LEFT JOIN
 table2..} when table2 was empty.

@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!@PERL@
 
 use Getopt::Long;
 use POSIX qw(strftime);
@@ -9,7 +9,7 @@ $VER="2.1";
 $opt_config_file   = undef();
 $opt_example       = 0;
 $opt_help          = 0;
-$opt_log           = "/tmp/mysql_multi_mysqld.log";
+$opt_log           = "/tmp/mysqld_multi.log";
 $opt_mysqladmin    = "mysqladmin";
 $opt_mysqld        = "mysqld";
 $opt_no_log        = 0;
@@ -43,7 +43,7 @@ sub main
     print "in your path. The command is available from the latest\n";
     print "MySQL distribution.\n";
   }
-  my @defops = `my_print_defaults mysql_multi_mysqld`;
+  my @defops = `my_print_defaults mysqld_multi`;
   chop @defops;
   splice @ARGV, 0, 0, @defops;
   GetOptions("help","example","version","mysqld=s","mysqladmin=s",
@@ -493,7 +493,7 @@ sub example
 #   give you extra performance in a threaded system! It takes too much space
 #   to describe everything here, please consult the MySQL manual.
 #
-[mysql_multi_mysqld]
+[mysqld_multi]
 mysqld     = /usr/local/bin/safe_mysqld
 mysqladmin = /usr/local/bin/mysqladmin
 user       = multi_admin
@@ -550,7 +550,7 @@ Description:
 $my_progname can be used to start, or stop any number of separate
 mysqld processes running in different TCP/IP ports and UNIX sockets.
 
-This program can read group [mysql_multi_mysqld] from my.cnf file.
+This program can read group [mysqld_multi] from my.cnf file.
 You may want to put options mysqld=... and mysqladmin=... there.
 
 The program will search for group(s) named [mysqld#] from my.cnf (or
@@ -576,7 +576,7 @@ list. Anything after a white space are ignored.
 
 Options:
 --config-file=...  Alternative config file. NOTE: This will not affect
-                   this program's own options (group [mysql_multi_mysqld]),
+                   this program's own options (group [mysqld_multi]),
                    but only groups [mysqld#]. Without this option everything
                    will be searched from the ordinary my.cnf file.
                    Using: $opt_config_file
