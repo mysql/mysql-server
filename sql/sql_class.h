@@ -236,7 +236,11 @@ class MYSQL_LOG: public TC_LOG
 
 public:
   MYSQL_LOG();
-  ~MYSQL_LOG();
+  /*
+    note that there's no destructor ~MYSQL_LOG() !
+    The reason is that we don't want it to be automatically called
+    on exit() - but only during the correct shutdown process
+  */
 
   int open(const char *opt_name);
   void close();
