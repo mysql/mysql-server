@@ -59,10 +59,11 @@ Dbtup::setUpQueryRoutines(Tablerec* const regTabPtr)
           } else {
             ndbrequire(false);
           }//if
-          // replace read function of char attribute
+          // replace functions for char attribute
           if (AttributeOffset::getCharsetFlag(attrOffset)) {
             ljam();
-            regTabPtr->readFunctionArray[i] = &Dbtup::readCharNotNULL;
+            regTabPtr->readFunctionArray[i] = &Dbtup::readFixedSizeTHManyWordNotNULL;
+            regTabPtr->updateFunctionArray[i] = &Dbtup::updateFixedSizeTHManyWordNotNULL;
           }
         } else {
 	  if (AttributeDescriptor::getSize(attrDescriptor) == 0){
@@ -86,10 +87,11 @@ Dbtup::setUpQueryRoutines(Tablerec* const regTabPtr)
             regTabPtr->readFunctionArray[i] = &Dbtup::readFixedSizeTHZeroWordNULLable;
             regTabPtr->updateFunctionArray[i] = &Dbtup::updateFixedSizeTHManyWordNULLable;
           }//if
-          // replace read function of char attribute
+          // replace functions for char attribute
           if (AttributeOffset::getCharsetFlag(attrOffset)) {
             ljam();
-            regTabPtr->readFunctionArray[i] = &Dbtup::readCharNULLable;
+            regTabPtr->readFunctionArray[i] = &Dbtup::readFixedSizeTHManyWordNULLable;
+            regTabPtr->updateFunctionArray[i] = &Dbtup::updateFixedSizeTHManyWordNULLable;
           }
         }//if
       } else if (AttributeDescriptor::getArrayType(attrDescriptor) == ZVAR_ARRAY) {
@@ -337,25 +339,68 @@ Dbtup::readFixedSizeTHManyWordNotNULL(Uint32* outBuffer,
                                       Uint32  attrDes2)
 {
   Uint32 indexBuf = tOutBufIndex;
+  Uint32 charsetFlag = AttributeOffset::getCharsetFlag(attrDes2);
   Uint32 readOffset = AttributeOffset::getOffset(attrDes2);
   Uint32 attrNoOfWords = AttributeDescriptor::getSizeInWords(attrDescriptor);
-  Uint32 newIndexBuf = indexBuf + attrNoOfWords;
   Uint32 maxRead = tMaxRead;
 
   ndbrequire((readOffset + attrNoOfWords - 1) < tCheckOffset);
-  if (newIndexBuf <= maxRead) {
-    ljam();
-    ahOut->setDataSize(attrNoOfWords);
-    MEMCOPY_NO_WORDS(&outBuffer[indexBuf],
-                     &tTupleHeader[readOffset],
-                     attrNoOfWords);
-    tOutBufIndex = newIndexBuf;
-    return true;
+  if (! charsetFlag || ! tXfrmFlag) {
+    Uint32 newIndexBuf = indexBuf + attrNoOfWords;
+    if (newIndexBuf <= maxRead) {
+      ljam();
+      ahOut->setDataSize(attrNoOfWords);
+      MEMCOPY_NO_WORDS(&outBuffer[indexBuf],
+                       &tTupleHeader[readOffset],
+                       attrNoOfWords);
+      tOutBufIndex = newIndexBuf;
+      return true;
+    } else {
+      ljam();
+      terrorCode = ZTRY_TO_READ_TOO_MUCH_ERROR;
+    }//if
   } else {
     ljam();
-    terrorCode = ZTRY_TO_READ_TOO_MUCH_ERROR;
-    return false;
-  }//if
+    Tablerec* regTabPtr = tabptr.p;
+    Uint32 srcBytes = AttributeDescriptor::getSizeInBytes(attrDescriptor);
+    Uint32 i = AttributeOffset::getCharsetPos(attrDes2);
+    ndbrequire(i < regTabPtr->noOfCharsets);
+    CHARSET_INFO* cs = regTabPtr->charsetArray[i];
+    Uint32 xmul = cs->strxfrm_multiply;
+    if (xmul == 0)
+      xmul = 1;
+    Uint32 dstLen = xmul * srcBytes;
+    Uint32 maxIndexBuf = indexBuf + (dstLen >> 2);
+    if (maxIndexBuf <= maxRead) {
+      ljam();
+      uchar* dstPtr = (uchar*)&outBuffer[indexBuf];
+      const uchar* srcPtr = (uchar*)&tTupleHeader[readOffset];
+      const char* ssrcPtr = (const char*)srcPtr;
+      // could verify data format optionally
+      if (true ||
+          (*cs->cset->well_formed_len)(cs, ssrcPtr, ssrcPtr + srcBytes, ZNIL) == srcBytes) {
+        ljam();
+        // normalize
+        Uint32 n = (*cs->coll->strnxfrm)(cs, dstPtr, dstLen, srcPtr, srcBytes);
+        while ((n & 3) != 0) {
+          dstPtr[n++] = 0;
+        }
+        Uint32 dstWords = (n >> 2);
+        ahOut->setDataSize(dstWords);
+        Uint32 newIndexBuf = indexBuf + dstWords;
+        ndbrequire(newIndexBuf <= maxRead);
+        tOutBufIndex = newIndexBuf;
+        return true;
+      } else {
+        ljam();
+        terrorCode = ZTUPLE_CORRUPTED_ERROR;
+      }
+    } else {
+      ljam();
+      terrorCode = ZTRY_TO_READ_TOO_MUCH_ERROR;
+    }
+  }
+  return false;
 }//Dbtup::readFixedSizeTHManyWordNotNULL()
 
 bool
@@ -402,7 +447,6 @@ Dbtup::readFixedSizeTHManyWordNULLable(Uint32* outBuffer,
                                        Uint32  attrDescriptor,
                                        Uint32  attrDes2)
 {
-ljam();
   if (!nullFlagCheck(attrDes2)) {
     ljam();
     return readFixedSizeTHManyWordNotNULL(outBuffer,
@@ -562,74 +606,6 @@ Dbtup::readDynSmallVarSize(Uint32* outBuffer,
   terrorCode = ZVAR_SIZED_NOT_SUPPORTED;
   return false;
 }//Dbtup::readDynSmallVarSize()
-
-
-bool
-Dbtup::readCharNotNULL(Uint32* outBuffer,
-                       AttributeHeader* ahOut,
-                       Uint32  attrDescriptor,
-                       Uint32  attrDes2)
-{
-  Uint32 indexBuf = tOutBufIndex;
-  Uint32 readOffset = AttributeOffset::getOffset(attrDes2);
-  Uint32 attrNoOfWords = AttributeDescriptor::getSizeInWords(attrDescriptor);
-  Uint32 newIndexBuf = indexBuf + attrNoOfWords;
-  Uint32 maxRead = tMaxRead;
-
-  ndbrequire((readOffset + attrNoOfWords - 1) < tCheckOffset);
-  if (newIndexBuf <= maxRead) {
-    ljam();
-    ahOut->setDataSize(attrNoOfWords);
-    if (! tXfrmFlag) {
-      MEMCOPY_NO_WORDS(&outBuffer[indexBuf],
-                       &tTupleHeader[readOffset],
-                       attrNoOfWords);
-    } else {
-      ljam();
-      Tablerec* regTabPtr = tabptr.p;
-      Uint32 i = AttributeOffset::getCharsetPos(attrDes2);
-      ndbrequire(i < tabptr.p->noOfCharsets);
-      // not const in MySQL
-      CHARSET_INFO* cs = tabptr.p->charsetArray[i];
-      // XXX should strip Uint32 null padding
-      const unsigned nBytes = attrNoOfWords << 2;
-      unsigned n =
-      (*cs->coll->strnxfrm)(cs,
-                            (uchar*)&outBuffer[indexBuf],
-                            nBytes,
-                            (const uchar*)&tTupleHeader[readOffset],
-                            nBytes);
-      // pad with ascii spaces
-      while (n < nBytes)
-        ((uchar*)&outBuffer[indexBuf])[n++] = 0x20;
-    }
-    tOutBufIndex = newIndexBuf;
-    return true;
-  } else {
-    ljam();
-    terrorCode = ZTRY_TO_READ_TOO_MUCH_ERROR;
-    return false;
-  }
-}
-
-bool
-Dbtup::readCharNULLable(Uint32* outBuffer,
-                       AttributeHeader* ahOut,
-                       Uint32  attrDescriptor,
-                       Uint32  attrDes2)
-{
-  if (!nullFlagCheck(attrDes2)) {
-    ljam();
-    return readCharNotNULL(outBuffer,
-                           ahOut,
-                           attrDescriptor,
-                           attrDes2);
-  } else {
-    ljam();
-    ahOut->setNULL();
-    return true;
-  }
-}
 
 /* ---------------------------------------------------------------------- */
 /*       THIS ROUTINE IS USED TO UPDATE A NUMBER OF ATTRIBUTES. IT IS     */
@@ -818,6 +794,7 @@ Dbtup::updateFixedSizeTHManyWordNotNULL(Uint32* inBuffer,
   Uint32 indexBuf = tInBufIndex;
   Uint32 inBufLen = tInBufLen;
   Uint32 updateOffset = AttributeOffset::getOffset(attrDes2);
+  Uint32 charsetFlag = AttributeOffset::getCharsetFlag(attrDes2);
   AttributeHeader ahIn(inBuffer[indexBuf]);
   Uint32 nullIndicator = ahIn.isNULL();
   Uint32 noOfWords = AttributeDescriptor::getSizeInWords(attrDescriptor);
@@ -827,6 +804,21 @@ Dbtup::updateFixedSizeTHManyWordNotNULL(Uint32* inBuffer,
   if (newIndex <= inBufLen) {
     if (!nullIndicator) {
       ljam();
+      if (charsetFlag) {
+        ljam();
+        Tablerec* regTabPtr = tabptr.p;
+        Uint32 bytes = AttributeDescriptor::getSizeInBytes(attrDescriptor);
+        Uint32 i = AttributeOffset::getCharsetPos(attrDes2);
+        ndbrequire(i < regTabPtr->noOfCharsets);
+        // not const in MySQL
+        CHARSET_INFO* cs = regTabPtr->charsetArray[i];
+        const char* ssrc = (const char*)&inBuffer[tInBufIndex + 1];
+        if ((*cs->cset->well_formed_len)(cs, ssrc, ssrc + bytes, ZNIL) != bytes) {
+          ljam();
+          terrorCode = ZINVALID_CHAR_FORMAT;
+          return false;
+        }
+      }
       tInBufIndex = newIndex;
       MEMCOPY_NO_WORDS(&tTupleHeader[updateOffset],
                        &inBuffer[indexBuf + 1],
@@ -1000,11 +992,14 @@ Dbtup::read_psuedo(Uint32 attrId, Uint32* outBuffer){
   case AttributeHeader::FRAGMENT:
     * outBuffer = operPtr.p->fragId >> 1; // remove "hash" bit
     return 1;
+  case AttributeHeader::ROW_SIZE:
+    * outBuffer = tabptr.p->tupheadsize << 2;
+    return 1;
   case AttributeHeader::ROW_COUNT:
   case AttributeHeader::COMMIT_COUNT:
     signal->theData[0] = operPtr.p->userpointer;
     signal->theData[1] = attrId;
-
+    
     EXECUTE_DIRECT(DBLQH, GSN_READ_PSUEDO_REQ, signal, 2);
     outBuffer[0] = signal->theData[0];
     outBuffer[1] = signal->theData[1];
@@ -1028,14 +1023,8 @@ Dbtup::readBitsNotNULL(Uint32* outBuffer,
 		       Uint32  attrDes2)
 {
   Tablerec* const regTabPtr = tabptr.p;
+  Uint32 pos = AttributeOffset::getNullFlagPos(attrDes2);
   Uint32 bitCount = AttributeDescriptor::getArraySize(attrDescriptor);
-  Uint32 offsetInTuple = AttributeOffset::getNullFlagOffset(attrDes2);
-  Uint32 offsetInWord = AttributeOffset::getNullFlagBitOffset(attrDes2);
-  ndbrequire(offsetInTuple < regTabPtr->tupNullWords);
-  offsetInTuple += regTabPtr->tupNullIndex;
-  ndbrequire(offsetInTuple < tCheckOffset);
-
-  Uint32 pos = offsetInTuple << 5 + offsetInWord;
   Uint32 indexBuf = tOutBufIndex;
   Uint32 newIndexBuf = indexBuf + ((bitCount + 31) >> 5);
   Uint32 maxRead = tMaxRead;
@@ -1066,17 +1055,12 @@ Dbtup::readBitsNULLable(Uint32* outBuffer,
 			Uint32  attrDes2)
 {
   Tablerec* const regTabPtr = tabptr.p;
+  Uint32 pos = AttributeOffset::getNullFlagPos(attrDes2);
   Uint32 bitCount = AttributeDescriptor::getArraySize(attrDescriptor);
-  Uint32 offsetInTuple = AttributeOffset::getNullFlagOffset(attrDes2);
-  Uint32 offsetInWord = AttributeOffset::getNullFlagBitOffset(attrDes2);
-  ndbrequire(offsetInTuple < regTabPtr->tupNullWords);
-  offsetInTuple += regTabPtr->tupNullIndex;
-  ndbrequire(offsetInTuple < tCheckOffset);
-
+  
   Uint32 indexBuf = tOutBufIndex;
-  Uint32 newIndexBuf = indexBuf + (bitCount + 31) >> 5;
+  Uint32 newIndexBuf = indexBuf + ((bitCount + 31) >> 5);
   Uint32 maxRead = tMaxRead;
-  Uint32 pos = offsetInWord << 5 + offsetInTuple;
   
   if(BitmaskImpl::get(regTabPtr->tupNullWords,
 		      tTupleHeader+regTabPtr->tupNullIndex,
@@ -1115,15 +1099,9 @@ Dbtup::updateBitsNotNULL(Uint32* inBuffer,
   Uint32 inBufLen = tInBufLen;
   AttributeHeader ahIn(inBuffer[indexBuf]);
   Uint32 nullIndicator = ahIn.isNULL();
+  Uint32 pos = AttributeOffset::getNullFlagPos(attrDes2);
   Uint32 bitCount = AttributeDescriptor::getArraySize(attrDescriptor);
   Uint32 newIndex = indexBuf + 1 + ((bitCount + 31) >> 5);
-  Uint32 nullFlagOffset = AttributeOffset::getNullFlagOffset(attrDes2);
-  Uint32 nullFlagBitOffset = AttributeOffset::getNullFlagBitOffset(attrDes2);
-  Uint32 nullWordOffset = nullFlagOffset + regTabPtr->tupNullIndex;
-  ndbrequire((nullFlagOffset < regTabPtr->tupNullWords) &&
-             (nullWordOffset < tCheckOffset));
-  Uint32 nullBits = tTupleHeader[nullWordOffset];
-  Uint32 pos = (nullFlagOffset << 5) + nullFlagBitOffset;
   
   if (newIndex <= inBufLen) {
     if (!nullIndicator) {
@@ -1156,15 +1134,9 @@ Dbtup::updateBitsNULLable(Uint32* inBuffer,
   AttributeHeader ahIn(inBuffer[tInBufIndex]);
   Uint32 indexBuf = tInBufIndex;
   Uint32 nullIndicator = ahIn.isNULL();
-  Uint32 nullFlagOffset = AttributeOffset::getNullFlagOffset(attrDes2);
-  Uint32 nullFlagBitOffset = AttributeOffset::getNullFlagBitOffset(attrDes2);
-  Uint32 nullWordOffset = nullFlagOffset + regTabPtr->tupNullIndex;
-  ndbrequire((nullFlagOffset < regTabPtr->tupNullWords) &&
-             (nullWordOffset < tCheckOffset));
-  Uint32 nullBits = tTupleHeader[nullWordOffset];
-  Uint32 bitCount = AttributeDescriptor::getArraySize(attrDescriptor);  
-  Uint32 pos = (nullFlagOffset << 5) + nullFlagBitOffset;
-
+  Uint32 pos = AttributeOffset::getNullFlagPos(attrDes2);
+  Uint32 bitCount = AttributeDescriptor::getArraySize(attrDescriptor);
+  
   if (!nullIndicator) {
     BitmaskImpl::clear(regTabPtr->tupNullWords,
 		       tTupleHeader+regTabPtr->tupNullIndex,
@@ -1174,9 +1146,9 @@ Dbtup::updateBitsNULLable(Uint32* inBuffer,
 			  pos+1,
 			  bitCount,
 			  inBuffer+indexBuf+1);
-
+    
     Uint32 newIndex = indexBuf + 1 + ((bitCount + 31) >> 5);
-    tInBufLen = newIndex;
+    tInBufIndex = newIndex;
     return true;
   } else {
     Uint32 newIndex = tInBufIndex + 1;

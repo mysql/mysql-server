@@ -43,10 +43,6 @@ extern "C" {
   void atexit_stop_instance();
 }
 
-/**
- * Max number of Ndb objects in different threads.  
- * (Ndb objects should not be shared by different threads.)
- */
 class TransporterFacade
 {
 public:
@@ -171,6 +167,10 @@ private:
    * Block number handling
    */
 public:
+  /**
+   * Max number of Ndb objects.  
+   * (Ndb objects should not be shared by different threads.)
+   */
   STATIC_CONST( MAX_NO_THREADS = 4711 );
 private:
 

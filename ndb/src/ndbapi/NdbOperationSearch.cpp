@@ -62,7 +62,6 @@ NdbOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
   Uint32 tData;
   Uint32 tKeyInfoPosition;
   const char* aValue = aValuePassed;
-  Uint64 xfrmData[512];
   Uint64 tempData[512];
 
   if ((theStatus == OperationDefined) &&
@@ -140,21 +139,6 @@ NdbOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
 	aValue = (char*)&tempData[0];
       }//if
     }
-    const char* aValueToWrite = aValue;
-    
-    CHARSET_INFO* cs = tAttrInfo->m_cs;
-    if (cs != 0) {
-      // current limitation: strxfrm does not increase length
-      assert(cs->strxfrm_multiply <= 1);
-      ((Uint32*)xfrmData)[sizeInBytes >> 2] = 0;
-      unsigned n =
-      (*cs->coll->strnxfrm)(cs,
-                            (uchar*)xfrmData, sizeof(xfrmData),
-                            (const uchar*)aValue, sizeInBytes);
-      while (n < sizeInBytes)
-        ((uchar*)xfrmData)[n++] = 0x20;
-      aValue = (char*)xfrmData;
-    }
 
     Uint32 totalSizeInWords = (sizeInBytes + 3)/4; // Inc. bits in last word
     
@@ -200,13 +184,6 @@ NdbOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
      *************************************************************************/
     if ((tOpType == InsertRequest) ||
 	(tOpType == WriteRequest)) {
-      // invalid data can crash kernel
-      if (cs != NULL &&
-	  (*cs->cset->well_formed_len)(cs,
-				       aValueToWrite,
-				       aValueToWrite + sizeInBytes,
-				       sizeInBytes) != sizeInBytes)
-	goto equal_error4;
       Uint32 ahValue;
       const Uint32 sz = totalSizeInWords;
 
@@ -224,7 +201,7 @@ NdbOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
       }
       
       insertATTRINFO( ahValue );
-      insertATTRINFOloop((Uint32*)aValueToWrite, sz);
+      insertATTRINFOloop((Uint32*)aValue, sz);
     }//if
     
     /**************************************************************************
@@ -320,10 +297,6 @@ NdbOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
 
  equal_error3:
   setErrorCodeAbort(4209);
-  return -1;
-
- equal_error4:
-  setErrorCodeAbort(744);
   return -1;
 }
 

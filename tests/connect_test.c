@@ -46,6 +46,7 @@ int main(int argc, char **argv)
     perror("");
     exit(1);
   }
+  sock->reconnect= 1;
 
   if (mysql_select_db(sock,"test"))
   {

@@ -25,7 +25,8 @@
 
 class HugoTransactions : public HugoOperations {
 public:
-  HugoTransactions(const NdbDictionary::Table&);
+  HugoTransactions(const NdbDictionary::Table&,
+		   const NdbDictionary::Index* idx = 0);
   ~HugoTransactions();
   int createEvent(Ndb*);
   int eventOperation(Ndb*, void* stats,

@@ -24,7 +24,9 @@
 
 class HugoOperations : public UtilTransactions {
 public:  
-  HugoOperations(const NdbDictionary::Table&);
+  HugoOperations(const NdbDictionary::Table&,
+		 const NdbDictionary::Index* idx = 0);
+
   ~HugoOperations();
   int startTransaction(Ndb*);
   int closeTransaction(Ndb*);
@@ -98,8 +100,6 @@ protected:
   struct RsPair { NdbScanOperation* m_result_set; int records; };
   Vector<RsPair> m_result_sets;
   Vector<RsPair> m_executed_result_sets;
-private:
-  NdbConnection* pTrans;
 };
 
 #endif

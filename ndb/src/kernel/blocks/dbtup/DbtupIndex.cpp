@@ -173,7 +173,7 @@ Dbtup::tuxReadAttrs(Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32 tu
 }
 
 int
-Dbtup::tuxReadPk(Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32* dataOut)
+Dbtup::tuxReadPk(Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32* dataOut, bool xfrmFlag)
 {
   ljamEntry();
   // use own variables instead of globals
@@ -200,7 +200,7 @@ Dbtup::tuxReadPk(Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32* data
   operPtr.i = RNIL;
   operPtr.p = NULL;
   // do it
-  int ret = readAttributes(pagePtr.p, pageOffset, attrIds, numAttrs, dataOut, ZNIL, true);
+  int ret = readAttributes(pagePtr.p, pageOffset, attrIds, numAttrs, dataOut, ZNIL, xfrmFlag);
   // restore globals
   tabptr = tabptr_old;
   fragptr = fragptr_old;
@@ -229,7 +229,7 @@ Dbtup::tuxReadPk(Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32* data
 }
 
 int
-Dbtup::accReadPk(Uint32 tableId, Uint32 fragId, Uint32 fragPageId, Uint32 pageIndex, Uint32* dataOut)
+Dbtup::accReadPk(Uint32 tableId, Uint32 fragId, Uint32 fragPageId, Uint32 pageIndex, Uint32* dataOut, bool xfrmFlag)
 {
   ljamEntry();
   // get table
@@ -245,7 +245,7 @@ Dbtup::accReadPk(Uint32 tableId, Uint32 fragId, Uint32 fragPageId, Uint32 pageIn
   ndbrequire((pageIndex & 0x1) == 0);
   Uint32 pageOffset = ZPAGE_HEADER_SIZE + (pageIndex >> 1) * tablePtr.p->tupheadsize;
   // use TUX routine - optimize later
-  int ret = tuxReadPk(fragPtr.i, pageId, pageOffset, dataOut);
+  int ret = tuxReadPk(fragPtr.i, pageId, pageOffset, dataOut, xfrmFlag);
   return ret;
 }
 

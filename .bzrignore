@@ -538,6 +538,7 @@ myisam/test2.MYD
 myisam/test2.MYI
 mysql-4.0.2-alpha-pc-linux-gnu-i686.tar.gz
 mysql-4.0.2-alpha.tar.gz
+mysql-5.0.2-alpha.tar.gz
 mysql-max-4.0.2-alpha-pc-linux-gnu-i686.tar.gz
 mysql-test/gmon.out
 mysql-test/install_test_db
@@ -816,7 +817,11 @@ scripts/mysqldumpslow
 scripts/mysqlhotcopy
 scripts/safe_mysqld
 select_test
+server-tools/instance-manager/client.c
+server-tools/instance-manager/client_settings.h
+server-tools/instance-manager/errmsg.c
 server-tools/instance-manager/mysqlmanager
+server-tools/instance-manager/thr_alarm.c
 sql-bench/Results-linux/ATIS-mysql_bdb-Linux_2.2.14_my_SMP_i686
 sql-bench/bench-count-distinct
 sql-bench/bench-init.pl

@@ -3215,18 +3215,19 @@ row_scan_and_check_index(
 	ulint*		n_rows)		/* out: number of entries seen in the
 					current consistent read */
 {
-	mem_heap_t*	heap;
-	dtuple_t*	prev_entry = NULL;
+	dtuple_t*	prev_entry	= NULL;
 	ulint		matched_fields;
 	ulint		matched_bytes;
 	byte*		buf;
 	ulint		ret;
 	rec_t*		rec;
-	ibool		is_ok	= TRUE;
+	ibool		is_ok		= TRUE;
 	int		cmp;
 	ibool		contains_null;
 	ulint		i;
-	ulint*		offsets	= NULL;
+	mem_heap_t*	heap		= NULL;
+	ulint		offsets_[100]	= { 100, };
+	ulint*		offsets		= offsets_;
 
 	*n_rows = 0;
 	
@@ -3268,8 +3269,8 @@ loop:
 		matched_fields = 0;
 		matched_bytes = 0;
 
-		offsets = rec_reget_offsets(rec, index,
-					offsets, ULINT_UNDEFINED, heap);
+		offsets = rec_get_offsets(rec, index, offsets,
+						ULINT_UNDEFINED, &heap);
 		cmp = cmp_dtuple_rec_with_match(prev_entry, rec, offsets,
 						&matched_fields,
 						&matched_bytes);
@@ -3299,7 +3300,7 @@ loop:
 			dtuple_print(stderr, prev_entry);
 			fputs("\n"
 				"InnoDB: record ", stderr);
-			rec_print(stderr, rec, offsets);
+			rec_print_new(stderr, rec, offsets);
 			putc('\n', stderr);
 			is_ok = FALSE;
 		} else if ((index->type & DICT_UNIQUE)
@@ -3313,7 +3314,7 @@ loop:
 	}
 
 	mem_heap_empty(heap);
-	offsets = NULL;
+	offsets = offsets_;
 	
 	prev_entry = row_rec_to_index_entry(ROW_COPY_DATA, index, rec, heap);
 
@@ -3398,7 +3399,7 @@ row_check_table_for_mysql(
 	/* We validate also the whole adaptive hash index for all tables
 	at every CHECK TABLE */
 
-	if (!btr_search_validate(index)) {
+	if (!btr_search_validate()) {
 
 		ret = DB_ERROR;
 	}

@@ -50,6 +50,7 @@ show table status from test like "this_doesn't_exists%";
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 show databases;
 Database
+information_schema
 mysql
 test
 show databases like "test%";
@@ -118,9 +119,9 @@ t1	CREATE TABLE t1 (
 set sql_quote_show_create=1;
 show full columns from t1;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
-test_set	set('val1','val2','val3')	latin1_swedish_ci					select,insert,update,references	
+test_set	set('val1','val2','val3')	latin1_swedish_ci	NO				select,insert,update,references	
 name	char(20)	latin1_swedish_ci	YES		O'Brien		select,insert,update,references	O'Brien as default
-c	int(11)	NULL					select,insert,update,references	int column
+c	int(11)	NULL	NO				select,insert,update,references	int column
 c-b	int(11)	NULL	YES		NULL		select,insert,update,references	name with a minus
 space 2	int(11)	NULL	YES		NULL		select,insert,update,references	name with a space
 drop table t1;

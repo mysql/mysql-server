@@ -1,6 +1,6 @@
 #ifndef INCLUDES_MYSQL_INSTANCE_MANAGER_OPTIONS_H
 #define INCLUDES_MYSQL_INSTANCE_MANAGER_OPTIONS_H
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+/* Copyright (C) 2003 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,13 +24,21 @@
   Options - all possible options for the instance manager grouped in one
   struct.
 */
+#include <my_global.h>
 
-struct Options 
+struct Options
 {
   static char run_as_service;        /* handle_options doesn't support bool */
   static const char *log_file_name;
   static const char *pid_file_name;
   static const char *socket_file_name;
+  static const char *password_file_name;
+  static const char *default_mysqld_path;
+  static const char *default_admin_user;
+  static const char *default_admin_password;
+  static uint monitoring_interval;
+  static uint port_number;
+  static const char *bind_address;
 
   static void load(int argc, char **argv);
 };

@@ -207,6 +207,8 @@
 #define ZTUPLE_DELETED_ERROR 626
 #define ZINSERT_ERROR 630
 
+#define ZINVALID_CHAR_FORMAT 744
+
 
           /* SOME WORD POSITIONS OF FIELDS IN SOME HEADERS */
 #define ZPAGE_STATE_POS 0                 /* POSITION OF PAGE STATE            */
@@ -1020,14 +1022,14 @@ public:
    * for md5 summing and when returning keyinfo.  Returns number of
    * words or negative (-terrorCode) on error.
    */
-  int tuxReadPk(Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32* dataOut);
+  int tuxReadPk(Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32* dataOut, bool xfrmFlag);
 
   /*
    * ACC reads primary key without headers into an array of words.  At
    * this point in ACC deconstruction, ACC still uses logical references
    * to fragment and tuple.
    */
-  int accReadPk(Uint32 tableId, Uint32 fragId, Uint32 fragPageId, Uint32 pageIndex, Uint32* dataOut);
+  int accReadPk(Uint32 tableId, Uint32 fragId, Uint32 fragPageId, Uint32 pageIndex, Uint32* dataOut, bool xfrmFlag);
 
   /*
    * TUX checks if tuple is visible to scan.
@@ -1636,20 +1638,6 @@ private:
   bool updateBitsNULLable(Uint32* inBuffer, Uint32, Uint32);
   bool readBitsNotNULL(Uint32* outBuffer, AttributeHeader*, Uint32, Uint32);
   bool updateBitsNotNULL(Uint32* inBuffer, Uint32, Uint32);
-
-// *****************************************************************
-// Read char routines optionally (tXfrmFlag) apply strxfrm
-// *****************************************************************
-
-  bool readCharNotNULL(Uint32* outBuffer,
-                       AttributeHeader* ahOut,
-                       Uint32  attrDescriptor,
-                       Uint32  attrDes2);
-
-  bool readCharNULLable(Uint32* outBuffer,
-                        AttributeHeader* ahOut,
-                        Uint32  attrDescriptor,
-                        Uint32  attrDes2);
 
 //------------------------------------------------------------------
 //------------------------------------------------------------------

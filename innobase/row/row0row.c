@@ -202,17 +202,16 @@ row_build(
 	ulint		row_len;
 	byte*		buf; 
 	ulint		i;
-	mem_heap_t*	tmp_heap;
+	mem_heap_t*	tmp_heap	= NULL;
+	ulint		offsets_[100]	= { 100, };
 
 	ut_ad(index && rec && heap);
 	ut_ad(index->type & DICT_CLUSTERED);
 
 	if (!offsets) {
-		tmp_heap = mem_heap_create(100);
-		offsets = rec_get_offsets(rec, index,
-					ULINT_UNDEFINED, tmp_heap);
+		offsets = rec_get_offsets(rec, index, offsets_,
+					ULINT_UNDEFINED, &tmp_heap);
 	} else {
-		tmp_heap = NULL;
 		ut_ad(rec_offs_validate(rec, index, offsets));
 	}
 
@@ -296,13 +295,14 @@ row_rec_to_index_entry(
 	ulint		len;
 	ulint		rec_len;
 	byte*		buf;
-	mem_heap_t*	tmp_heap;
-	ulint*		offsets;
+	mem_heap_t*	tmp_heap	= NULL;
+	ulint		offsets_[100]	= { 100, };
+	ulint*		offsets		= offsets_;
 
 	ut_ad(rec && heap && index);
 	
-	tmp_heap = mem_heap_create(100);
-	offsets = rec_get_offsets(rec, index, ULINT_UNDEFINED, tmp_heap);
+	offsets = rec_get_offsets(rec, index, offsets,
+					ULINT_UNDEFINED, &tmp_heap);
 
 	if (type == ROW_COPY_DATA) {
 		/* Take a copy of rec to heap */
@@ -334,7 +334,9 @@ row_rec_to_index_entry(
 	}
 
 	ut_ad(dtuple_check_typed(entry));
-	mem_heap_free(tmp_heap);
+	if (tmp_heap) {
+		mem_heap_free(tmp_heap);
+	}
 
 	return(entry);
 }
@@ -374,13 +376,14 @@ row_build_row_ref(
 	byte*		buf;
 	ulint		clust_col_prefix_len;
 	ulint		i;
-	mem_heap_t*	tmp_heap;
-	ulint*		offsets;
-	
+	mem_heap_t*	tmp_heap	= NULL;
+	ulint		offsets_[100]	= { 100, };
+	ulint*		offsets		= offsets_;
+
 	ut_ad(index && rec && heap);
 
-	tmp_heap = mem_heap_create(100);
-	offsets = rec_get_offsets(rec, index, ULINT_UNDEFINED, tmp_heap);
+	offsets = rec_get_offsets(rec, index, offsets,
+					ULINT_UNDEFINED, &tmp_heap);
 
 	if (type == ROW_COPY_DATA) {
 		/* Take a copy of rec to heap */
@@ -433,7 +436,9 @@ row_build_row_ref(
 	}
 
 	ut_ad(dtuple_check_typed(ref));
-	mem_heap_free(tmp_heap);
+	if (tmp_heap) {
+		mem_heap_free(tmp_heap);
+	}
 
 	return(ref);
 }
@@ -464,8 +469,9 @@ row_build_row_ref_in_tuple(
 	ulint		pos;
 	ulint		clust_col_prefix_len;
 	ulint		i;
-	mem_heap_t*	heap;
-	ulint*		offsets;
+	mem_heap_t*	heap		= NULL;
+	ulint		offsets_[100]	= { 100, };
+	ulint*		offsets		= offsets_;
 
 	ut_a(ref && index && rec);
 	
@@ -486,8 +492,7 @@ row_build_row_ref_in_tuple(
 		goto notfound;
 	}
 
-	heap = mem_heap_create(100);
-	offsets = rec_get_offsets(rec, index, ULINT_UNDEFINED, heap);
+	offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
 
 	ref_len = dict_index_get_n_unique(clust_index);
 
@@ -526,7 +531,9 @@ row_build_row_ref_in_tuple(
 	}
 
 	ut_ad(dtuple_check_typed(ref));
-	mem_heap_free(heap);
+	if (heap) {
+		mem_heap_free(heap);
+	}
 }
 
 /***********************************************************************

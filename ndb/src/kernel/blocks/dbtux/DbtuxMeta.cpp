@@ -16,6 +16,7 @@
 
 #define DBTUX_META_CPP
 #include "Dbtux.hpp"
+#include <my_sys.h>
 
 /*
  * Create index.
@@ -215,17 +216,15 @@ Dbtux::execTUX_ADD_ATTRREQ(Signal* signal)
       errorCode = TuxAddAttrRef::InvalidAttributeType;
       break;
     }
-#ifdef dbtux_uses_charset
     if (descAttr.m_charset != 0) {
-      CHARSET_INFO *cs = get_charset(descAttr.m_charset, MYF(0));
-      // here use the non-binary type
+      CHARSET_INFO *cs = all_charsets[descAttr.m_charset];
+      ndbrequire(cs != 0);
       if (! NdbSqlUtil::usable_in_ordered_index(descAttr.m_typeId, cs)) {
         jam();
         errorCode = TuxAddAttrRef::InvalidCharset;
         break;
       }
     }
-#endif
     const bool lastAttr = (indexPtr.p->m_numAttrs == fragOpPtr.p->m_numAttrsRecvd);
     if (ERROR_INSERTED(12003) && fragOpPtr.p->m_fragNo == 0 && attrId == 0 ||
         ERROR_INSERTED(12004) && fragOpPtr.p->m_fragNo == 0 && lastAttr ||

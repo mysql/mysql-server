@@ -628,6 +628,7 @@ static int dbConnect(char *host, char *user, char *passwd)
     DBerror(&mysql_connection, "when trying to connect");
     return 1;
   }
+  mysql_connection.reconnect= 1;
   return 0;
 } /* dbConnect */
 

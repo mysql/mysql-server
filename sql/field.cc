@@ -4778,11 +4778,18 @@ void Field_varstring::sort_string(char *to,uint length)
 
 void Field_varstring::sql_type(String &res) const
 {
+  THD *thd= table->in_use;
   CHARSET_INFO *cs=res.charset();
-  ulong length= cs->cset->snprintf(cs,(char*) res.ptr(),
-			     res.alloced_length(),"varchar(%u)",
-			     field_length / charset()->mbmaxlen);
+  ulong length;
+
+  length= cs->cset->snprintf(cs,(char*) res.ptr(),
+                             res.alloced_length(), "%s(%d)",
+                              (has_charset() ? "varchar" : "varbinary"),
+                             (int) field_length / charset()->mbmaxlen);
   res.length(length);
+  if ((thd->variables.sql_mode & (MODE_MYSQL323 | MODE_MYSQL40)) &&
+      has_charset() && (charset()->state & MY_CS_BINSORT))
+    res.append(" binary");
 }
 
 

@@ -59,7 +59,6 @@ Dbtux::execTUX_MAINT_REQ(Signal* signal)
   // get base fragment id and extra bits
   const Uint32 fragId = req->fragId & ~1;
   const Uint32 fragBit = req->fragId & 1;
-  
   // get the fragment
   FragPtr fragPtr;
   fragPtr.i = RNIL;
@@ -71,7 +70,6 @@ Dbtux::execTUX_MAINT_REQ(Signal* signal)
       break;
     }
   }
-
   ndbrequire(fragPtr.i != RNIL);
   Frag& frag = *fragPtr.p;
   // set up index keys for this operation

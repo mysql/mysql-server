@@ -3,10 +3,11 @@
 #include <ndb_opts.h>
 #include <NDBT.hpp>
 #include <NdbApi.hpp>
+#include <HugoTransactions.hpp>
 
 static const char* opt_connect_str= 0;
 static const char* _dbname = "TEST_DB";
-static int g_loops = 5;
+static int g_loops = 7;
 static struct my_option my_long_options[] =
 {
   NDB_STD_OPTS("ndb_desc"),
@@ -129,13 +130,65 @@ static
 const NdbDictionary::Table* 
 create_random_table(Ndb* pNdb)
 {
+  do {
+    NdbDictionary::Table tab;
+    Uint32 cols = 1 + (rand() % (NDB_MAX_ATTRIBUTES_IN_TABLE - 1));
+    Uint32 keys = NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY;
+    Uint32 length = 4090;
+    Uint32 key_size = NDB_MAX_KEYSIZE_IN_WORDS;
+    
+    BaseString name; 
+    name.assfmt("TAB_%d", rand() & 65535);
+    tab.setName(name.c_str());
+    for(int i = 0; i<cols && length > 2; i++)
+    {
+      NdbDictionary::Column col;
+      name.assfmt("COL_%d", i);
+      col.setName(name.c_str());
+      if(i == 0 || i == 1)
+      {
+	col.setType(NdbDictionary::Column::Unsigned);
+	col.setLength(1); 
+	col.setNullable(false);
+	col.setPrimaryKey(i == 0);
+	tab.addColumn(col);
+	continue;
+      }
+      
+      col.setType(NdbDictionary::Column::Bit);
+      
+      Uint32 len = 1 + (rand() % (length - 1));
+      col.setLength(len); length -= len;
+      int nullable = (rand() >> 16) & 1;
+      col.setNullable(nullable); length -= nullable;
+      col.setPrimaryKey(false);
+      tab.addColumn(col);
+    }
+    
+    pNdb->getDictionary()->dropTable(tab.getName());
+    if(pNdb->getDictionary()->createTable(tab) == 0)
+    {
+      ndbout << (NDBT_Table&)tab << endl;
+      return pNdb->getDictionary()->getTable(tab.getName());
+    }
+  } while(0);
   return 0;
 }
+
 static 
 int
 transactions(Ndb* pNdb, const NdbDictionary::Table* tab)
 {
-  return 0;
+  int i = 0;
+  HugoTransactions trans(* tab);
+  i |= trans.loadTable(pNdb, 1000);
+  i |= trans.pkReadRecords(pNdb, 1000, 13); 
+  i |= trans.scanReadRecords(pNdb, 1000, 25);
+  i |= trans.pkUpdateRecords(pNdb, 1000, 37);
+  i |= trans.scanUpdateRecords(pNdb, 1000, 25);
+  i |= trans.pkDelRecords(pNdb, 500, 23);
+  i |= trans.clearTable(pNdb);
+  return i;
 }
 
 static 

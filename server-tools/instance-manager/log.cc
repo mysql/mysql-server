@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+/* Copyright (C) 2003 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -139,12 +139,12 @@ void print_error(const char *format, ...)
 }
 
 /*
-    init_logs()
+    log_init()
   RETURN VALUE
     0 ok
    !0 error
 */
-    
+
 void log_init()
 {
   /*

@@ -1759,7 +1759,7 @@ t5	CREATE TABLE `t5` (
   `param03` double default NULL,
   `const04` varchar(3) NOT NULL default '',
   `param04` longtext,
-  `const05` binary(3) NOT NULL default '',
+  `const05` varbinary(3) NOT NULL default '',
   `param05` longblob,
   `const06` varchar(10) NOT NULL default '',
   `param06` longtext,

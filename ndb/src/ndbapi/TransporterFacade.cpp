@@ -515,43 +515,32 @@ TransporterFacade::init(Uint32 nodeId, const ndb_mgm_configuration* props)
   iter.first();
   theClusterMgr->init(iter);
   
-  /**
-   * Unless there is a "Name", the initiated transporter is within 
-   * an NDB Cluster.  (If "Name" is defined, then the transporter
-   * is used to connect to a different system, i.e. NDB Cluster.)
-   */
-#if 0  
-  if (!props->contains("Name")) {
-#endif
-    iter.first();
-    if(iter.find(CFG_NODE_ID, nodeId)){
-      TRP_DEBUG( "Node info missing from config." );
-      return false;
-    }
-    
-    Uint32 rank = 0;
-    if(!iter.get(CFG_NODE_ARBIT_RANK, &rank) && rank>0){
-      theArbitMgr = new ArbitMgr(* this);
-      theArbitMgr->setRank(rank);
-      Uint32 delay = 0;
-      iter.get(CFG_NODE_ARBIT_DELAY, &delay);
-      theArbitMgr->setDelay(delay);
-    }
-    Uint32 scan_batch_size= 0;
-    if (!iter.get(CFG_MAX_SCAN_BATCH_SIZE, &scan_batch_size)) {
-      m_scan_batch_size= scan_batch_size;
-    }
-    Uint32 batch_byte_size= 0;
-    if (!iter.get(CFG_BATCH_BYTE_SIZE, &batch_byte_size)) {
-      m_batch_byte_size= batch_byte_size;
-    }
-    Uint32 batch_size= 0;
-    if (!iter.get(CFG_BATCH_SIZE, &batch_size)) {
-      m_batch_size= batch_size;
-    }
-#if 0
+  iter.first();
+  if(iter.find(CFG_NODE_ID, nodeId)){
+    TRP_DEBUG( "Node info missing from config." );
+    return false;
   }
-#endif
+  
+  Uint32 rank = 0;
+  if(!iter.get(CFG_NODE_ARBIT_RANK, &rank) && rank>0){
+    theArbitMgr = new ArbitMgr(* this);
+    theArbitMgr->setRank(rank);
+    Uint32 delay = 0;
+    iter.get(CFG_NODE_ARBIT_DELAY, &delay);
+    theArbitMgr->setDelay(delay);
+  }
+  Uint32 scan_batch_size= 0;
+  if (!iter.get(CFG_MAX_SCAN_BATCH_SIZE, &scan_batch_size)) {
+    m_scan_batch_size= scan_batch_size;
+  }
+  Uint32 batch_byte_size= 0;
+  if (!iter.get(CFG_BATCH_BYTE_SIZE, &batch_byte_size)) {
+    m_batch_byte_size= batch_byte_size;
+  }
+  Uint32 batch_size= 0;
+  if (!iter.get(CFG_BATCH_SIZE, &batch_size)) {
+    m_batch_size= batch_size;
+  }
   
   if (!theTransporterRegistry->start_service(m_socket_server)){
     ndbout_c("Unable to start theTransporterRegistry->start_service");

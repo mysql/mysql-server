@@ -30,7 +30,7 @@ static int
 select_count(Ndb* pNdb, const NdbDictionary::Table* pTab,
 	     int parallelism,
 	     int* count_rows,
-	     UtilTransactions::ScanLock lock);
+	     NdbOperation::LockMode lock);
 
 static const char* opt_connect_str= 0;
 static const char* _dbname = "TEST_DB";
@@ -116,7 +116,7 @@ int main(int argc, char** argv){
 
     int rows = 0;
     if (select_count(&MyNdb, pTab, _parallelism, &rows, 
-		     (UtilTransactions::ScanLock)_lock) != 0){
+		     (NdbOperation::LockMode)_lock) != 0){
       return NDBT_ProgramExit(NDBT_FAILED);
     }
     
@@ -129,7 +129,7 @@ int
 select_count(Ndb* pNdb, const NdbDictionary::Table* pTab,
 	     int parallelism,
 	     int* count_rows,
-	     UtilTransactions::ScanLock lock){
+	     NdbOperation::LockMode lock){
   
   int                  retryAttempt = 0;
   const int            retryMax = 100;
@@ -179,8 +179,9 @@ select_count(Ndb* pNdb, const NdbDictionary::Table* pTab,
     }
   
     Uint64 tmp;
+    Uint32 row_size;
     pOp->getValue(NdbDictionary::Column::ROW_COUNT, (char*)&tmp);
-    
+    pOp->getValue(NdbDictionary::Column::ROW_SIZE, (char*)&row_size);
     check = pTrans->execute(NoCommit);
     if( check == -1 ) {
       ERR(pTrans->getNdbError());

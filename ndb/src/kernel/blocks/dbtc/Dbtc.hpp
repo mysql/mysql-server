@@ -972,6 +972,7 @@ public:
   typedef Ptr<HostRecord> HostRecordPtr;
   
   /* *********** TABLE RECORD ********************************************* */
+
   /********************************************************/
   /* THIS RECORD CONTAINS THE CURRENT SCHEMA VERSION OF   */
   /* ALL TABLES IN THE SYSTEM.                            */
@@ -982,13 +983,21 @@ public:
     Uint8 dropping;
     Uint8 tableType;
     Uint8 storedTable;
-    
+
+    Uint8 noOfKeyAttr;
+    Uint8 hasCharAttr;
+
+    struct KeyAttr {
+      Uint32 attributeDescriptor;
+      CHARSET_INFO* charsetInfo;
+    } keyAttr[MAX_ATTRIBUTES_IN_INDEX];
+
     bool checkTable(Uint32 schemaVersion) const {
       return enabled && !dropping && (schemaVersion == currentSchemaVersion);
     }
-    
+
     Uint32 getErrorCode(Uint32 schemaVersion) const;
-    
+
     struct DropTable {
       Uint32 senderRef;
       Uint32 senderData;
@@ -1436,6 +1445,7 @@ private:
   void gcpTcfinished(Signal* signal);
   void handleGcp(Signal* signal);
   void hash(Signal* signal);
+  Uint32 xfrmKeyData(Signal* signal, Uint32* dst, Uint32 dstSize, const Uint32* src);
   void initApiConnect(Signal* signal);
   void initApiConnectRec(Signal* signal, 
 			 ApiConnectRecord * const regApiPtr,

@@ -130,10 +130,9 @@ btr_search_update_hash_on_delete(
 Validates the search system. */
 
 ibool
-btr_search_validate(
-/*================*/
+btr_search_validate(void);
+/*======================*/
 				/* out: TRUE if ok */
-	dict_index_t*	index);	/* in: record descriptor */
 
 /* Search info directions */
 #define BTR_SEA_NO_DIRECTION	1

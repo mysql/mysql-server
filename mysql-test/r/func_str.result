@@ -611,7 +611,7 @@ t1	CREATE TABLE `t1` (
   `substring(_latin2'ab',1)` varchar(2) character set latin2 NOT NULL default '',
   `insert(_latin2'abcd',2,3,_latin2'ef')` varchar(6) character set latin2 NOT NULL default '',
   `replace(_latin2'abcd',_latin2'b',_latin2'B')` varchar(4) character set latin2 NOT NULL default '',
-  `encode('abcd','ab')` binary(4) NOT NULL default ''
+  `encode('abcd','ab')` varbinary(4) NOT NULL default ''
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 select SUBSTR('abcdefg',3,2);
