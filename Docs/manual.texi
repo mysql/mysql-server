@@ -38139,7 +38139,13 @@ in the @code{[mysqld]} section of
 the configuration file @file{my.cnf}, or on Windows optionally in
 @file{my.ini}.
 
-At the minimum, in 3.23 you must specify @code{innodb_data_file_path}.
+At the minimum, in 3.23 you must specify @code{innodb_data_file_path}
+where you specify the names and the sizes of datafiles. If you do
+not mention @code{innodb_data_home_dir} in @file{my.cnf} the default
+is to create these files to the @code{datadir} of MySQL.
+If you specify @code{innodb_data_home_dir} as an empty string,
+then you can give absolute paths to your data files in
+@code{innodb_data_file_path}.
 In MySQL-4.0 you do not need to specify even
 @code{innodb_data_file_path}: the default for it is to create
 an auto-extending 16 MB file @file{ibdata1} to the @code{datadir}
@@ -38161,6 +38167,7 @@ If you specify the last datafile with the autoextend option, InnoDB
 will extend the last datafile if it runs out of free space in the
 tablespace. The increment is 8 MB at a time. An example:
 @example
+innodb_data_home_dir =
 innodb_data_file_path = /ibdata/ibdata1:100M:autoextend
 @end example
 instructs InnoDB to create just a single datafile whose initial size is
@@ -38173,12 +38180,14 @@ the rounded size of @file{ibdata1} explicitly in
 @code{innodb_data_file_path}.
 After that you can add another datafile:
 @example
+innodb_data_home_dir =
 innodb_data_file_path = /ibdata/ibdata1:988M;/disk2/ibdata2:50M:autoextend
 @end example
 Be cautious on filesystems where the maximum file-size is 2 GB!
 InnoDB is not aware of the OS maximum file-size. On those filesystems
 you might want to specify the max size for the datafile:
 @example
+innodb_data_home_dir =
 innodb_data_file_path = /ibdata/ibdata1:100M:autoextend:max:2000M
 @end example
 
@@ -38230,10 +38239,14 @@ some filesystems! The combined size of datafiles
 must be >= 10 MB.
 The combined size of the log files must be < 4G.
 
-If you do not specify @code{innodb_data_home_dir}, then
-the default is that InnoDB creates its datafiles to the
-@code{datadir} of MySQL. Then you cannot use absolute
-file paths in @code{innodb_data_file_path}.
+InnoDB forms the directory path to a datafile by textually
+catenating @code{innodb_data_home_dir} to a datafile name or
+path in @code{innodb_data_file_path},
+adding a possible slash or backslash in between if needed.
+If the keyword @code{innodb_data_home_dir} is not mentioned
+in @file{my.cnf} at all, the default for it is the 'dot'
+directory @file{./}
+which means the @code{datadir} of MySQL.
 
 When you the first time create an InnoDB database, it
 is best that you start the MySQL server from the command
@@ -38292,10 +38305,10 @@ InnoDB:
 # You can write your other MySQL server options here
 # ...
 #
-innodb_data_home_dir = /
+innodb_data_home_dir =
 #                                  Datafiles must be able to
 #                                  hold your data and indexes
-innodb_data_file_path = ibdata/ibdata1:2000M;dr2/ibdata/ibdata2:2000M
+innodb_data_file_path = /ibdata/ibdata1:2000M;/dr2/ibdata/ibdata2:2000M
 #                                  Set buffer pool size to 50 - 80%
 #                                  of your computer's memory, but
 #                                  make sure on Linux x86 total
@@ -38324,11 +38337,7 @@ set-variable = innodb_lock_wait_timeout=50
 @end example
 
 Note that we have placed the two datafiles on different disks.
-The reason for the name @code{innodb_data_file_path} is that
-you can also specify paths to your datafiles, and
-@code{innodb_data_home_dir} is just textually catenated
-before your datafile paths, adding a possible slash or
-backslash in between. InnoDB will fill the tablespace
+InnoDB will fill the tablespace
 formed by the datafiles from bottom up. In some cases it will
 improve the performance of the database if all data is not placed
 on the same physical disk. Putting log files on a different disk from
@@ -38377,7 +38386,10 @@ The meanings of the configuration parameters are the following:
 @item @strong{Option} @tab @strong{Description}
 @item @code{innodb_data_home_dir} @tab
 The common part of the directory path for all InnoDB datafiles.
-The default for this parameter is the @code{datadir} of MySQL.
+If you do not mentioned this option in @file{my.cnf}
+the default is the @code{datadir} of MySQL.
+You can specify this also as an empty string, in which case you
+can use absolute file paths in @code{innodb_data_file_path}.
 @item @code{innodb_data_file_path} @tab
 Paths to individual datafiles and their sizes. The full directory path
 to each datafile is acquired by concatenating innodb_data_home_dir to
@@ -38408,8 +38420,8 @@ slower in case of a crash. The combined size of log files must
 be < 4 GB on 32-bit computers.
 @item @code{innodb_log_buffer_size} @tab
 The size of the buffer which InnoDB uses to write log to the log files
-on disk.  Sensible values range from 1M to half the combined size of log
-files. A big log buffer allows large transactions to run without a need
+on disk.  Sensible values range from 1M to 8M.
+A big log buffer allows large transactions to run without a need
 to write the log to disk until the transaction commit. Thus, if you have
 big transactions, making the log buffer big will save disk I/O.
 @item @code{innodb_flush_log_at_trx_commit} @tab
