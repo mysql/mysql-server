@@ -123,6 +123,7 @@ byte ft_simple_get_word(byte **, byte *, FT_WORD *);
 int ft_parse(TREE *, byte *, int);
 FT_WORD * ft_linearize(/*MI_INFO *, uint, byte *, */TREE *);
 FT_WORD * _mi_ft_parserecord(MI_INFO *, uint, byte *, const byte *);
+uint _mi_ft_parse(TREE *parsed, MI_INFO *info, uint keynr, const byte *record);
 
 const struct _ft_vft _ft_vft_nlq;
 FT_INFO *ft_init_nlq_search(MI_INFO *, uint, byte *, uint, my_bool);
@@ -141,4 +142,3 @@ void ft_boolean_close_search(FT_INFO *);
 float ft_boolean_get_relevance(FT_INFO *);
 my_off_t ft_boolean_get_docid(FT_INFO *);
 void ft_boolean_reinit_search(FT_INFO *);
-

@@ -8528,6 +8528,14 @@ libc internal error: _rmutex_unlock: rmutex not held
 
 Add @code{-mt} to @code{CFLAGS} and @code{CXXFLAGS} and try again.
 
+If you are using the SFW version of gcc (which comes with Solaris 8),
+you must add @file{/opt/sfw/lib} to the environment variable
+@code{LD_LIBRARY_PATH} before running configure.
+ 
+If you are using the gcc available from @code{sunfreeware.com}, you may
+have many problems.  You should recompile gcc and GNU binutils on the
+machine you will be running them from to avoid any problems.
+
 If you get the following error when compiling MySQL with @code{gcc},
 it means that your @code{gcc} is not configured for your version of Solaris:
 

@@ -15,7 +15,7 @@
 #define CCLASS_LAST	12
 
 extern struct cclass {
-	char *name;
-	char *chars;
-	char *multis;
+	const char *name;
+	const char *chars;
+	const char *multis;
 } cclasses[];

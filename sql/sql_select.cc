@@ -3159,6 +3159,7 @@ remove_eq_conds(COND *cond,Item::cond_result *cond_value)
 	  (thd->options & OPTION_AUTO_IS_NULL) &&
 	  thd->insert_id())
       {
+	query_cache_abort(&thd->net);
 	COND *new_cond;
 	if ((new_cond= new Item_func_eq(args[0],
 					new Item_int("last_insert_id()",

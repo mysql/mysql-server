@@ -126,14 +126,16 @@ class CONVERT
   void convert_array(const uchar *mapping,uchar *buff,uint length);
 public:
   const char *name;
-  CONVERT(const char *name_par,uchar *from_par,uchar *to_par)
-    :from_map(from_par),to_map(to_par),name(name_par) {}
+  uint numb;
+  CONVERT(const char *name_par,uchar *from_par,uchar *to_par, uint number)
+    :from_map(from_par),to_map(to_par),name(name_par),numb(number) {}
   friend CONVERT *get_convert_set(const char *name_ptr);
   inline void convert(char *a,uint length)
   {
     convert_array(from_map, (uchar*) a,length);
   }
   bool store(String *, const char *,uint);
+  inline uint number() { return numb; }
 };
 
 typedef struct st_copy_info {
@@ -292,7 +294,10 @@ public:
   bool	     query_start_used,last_insert_id_used,insert_id_used;
   bool	     system_thread,in_lock_tables,global_read_lock;
   bool       query_error, bootstrap, cleanup_done;
+  bool	     safe_to_cache_query;
   bool	     volatile killed;
+  //type of query cache processing
+  byte query_cache_type;
   LOG_INFO*  current_linfo;
   // if we do a purge of binary logs, log index info of the threads
   // that are currently reading it needs to be adjusted. To do that
@@ -324,10 +329,10 @@ public:
   {
     pthread_mutex_lock(&active_vio_lock);
     if(active_vio)
-      {
-	vio_close(active_vio);
-        active_vio = 0;
-      }
+    {
+      vio_close(active_vio);
+      active_vio = 0;
+    }
     pthread_mutex_unlock(&active_vio_lock);
   }
 #endif  

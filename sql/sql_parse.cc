@@ -1164,7 +1164,10 @@ mysql_execute_command(void)
     }
 
     if (!(res=open_and_lock_tables(thd,tables)))
+    {
+      query_cache.store_query(thd, tables);
       res=handle_select(thd, lex, result);
+    }
     else
       delete result;
     break;
@@ -1420,6 +1423,7 @@ mysql_execute_command(void)
       if (end_active_trans(thd))
 	res= -1;
       else
+      {
 	res= mysql_alter_table(thd, select_lex->db, lex->name,
 			       &lex->create_info,
 			       tables, lex->create_list,
@@ -1427,6 +1431,8 @@ mysql_execute_command(void)
                                (ORDER *) select_lex->order_list.first,
 			       lex->drop_primary, lex->duplicates,
 			       lex->alter_keys_onoff, lex->simple_alter);
+	query_cache.invalidate(tables);
+      }
       break;
     }
 #endif
@@ -1455,6 +1461,7 @@ mysql_execute_command(void)
 	  goto error;
       }
     }
+    query_cache.invalidate(tables);
     if (end_active_trans(thd))
       res= -1;
     else if (mysql_rename_tables(thd,tables))
@@ -1493,6 +1500,7 @@ mysql_execute_command(void)
 	check_table_access(thd,SELECT_ACL | INSERT_ACL, tables))
       goto error; /* purecov: inspected */
     res = mysql_repair_table(thd, tables, &lex->check_opt);
+    query_cache.invalidate(tables);
     break;
   }
   case SQLCOM_CHECK:
@@ -1501,6 +1509,7 @@ mysql_execute_command(void)
 	check_table_access(thd, SELECT_ACL | EXTRA_ACL , tables))
       goto error; /* purecov: inspected */
     res = mysql_check_table(thd, tables, &lex->check_opt);
+    query_cache.invalidate(tables);
     break;
   }
   case SQLCOM_ANALYZE:
@@ -2152,13 +2161,17 @@ mysql_execute_command(void)
       even if there is a problem with the OPTION_AUTO_COMMIT flag
       (Which of course should never happen...)
     */
+  {
     thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE);
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
     if (!ha_commit(thd))
+    {
       send_ok(&thd->net);
+    }
     else
       res= -1;
     break;
+  }
   case SQLCOM_ROLLBACK:
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
     if (!ha_rollback(thd))
@@ -2451,12 +2464,21 @@ mysql_parse(THD *thd,char *inBuf,uint length)
 
   mysql_init_query(thd);
   thd->query_length = length;
-  LEX *lex=lex_start(thd, (uchar*) inBuf, length);
-  if (!yyparse() && ! thd->fatal_error)
-    mysql_execute_command();
-  thd->proc_info="freeing items";
-  free_items(thd);  /* Free strings used by items */
-  lex_end(lex);
+  if (query_cache.send_result_to_client(thd, inBuf, length))
+  {
+    thd->safe_to_cache_query=1;
+    LEX *lex=lex_start(thd, (uchar*) inBuf, length);
+    if (!yyparse() && ! thd->fatal_error)
+    {
+      mysql_execute_command();
+      query_cache_end_of_result(&thd->net);
+    }
+    else
+      query_cache_abort(&thd->net);
+    thd->proc_info="freeing items";
+    free_items(thd);  /* Free strings used by items */
+    lex_end(lex);
+  }
   DBUG_VOID_RETURN;
 }
 
@@ -2981,6 +3003,15 @@ bool reload_acl_and_cache(THD *thd, uint options, TABLE_LIST *tables)
     mysql_slow_log.new_file();
     if (ha_flush_logs())
       result=1;
+  }
+  if (options & REFRESH_QUERY_CACHE_FREE)
+  {
+    query_cache.pack();
+    options &= ~REFRESH_QUERY_CACHE; //don't flush all cache, just free memory
+  }
+  if (options & (REFRESH_TABLES | REFRESH_QUERY_CACHE))
+  {
+    query_cache.flush();
   }
   if (options & (REFRESH_TABLES | REFRESH_READ_LOCK))
   {

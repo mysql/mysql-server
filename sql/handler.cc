@@ -258,6 +258,8 @@ int ha_commit_trans(THD *thd, THD_TRANS* trans)
 	error=1;
       }
       trans->innodb_active_trans=0;
+      if (trans == &thd->transaction.all)
+	query_cache.invalidate(Query_cache_table::INNODB);
     }
 #endif
     if (error && trans == &thd->transaction.all && mysql_bin_log.is_open())

@@ -158,13 +158,17 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
       wrong_tables.append(String(table->real_name));
     }
   }
-  if (some_tables_deleted && !dont_log_query)
+  if (some_tables_deleted)
   {
-    mysql_update_log.write(thd, thd->query,thd->query_length);
-    if (mysql_bin_log.is_open())
+    query_cache.invalidate(tables);
+    if (!dont_log_query)
     {
-      Query_log_event qinfo(thd, thd->query);
-      mysql_bin_log.write(&qinfo);
+      mysql_update_log.write(thd, thd->query,thd->query_length);
+      if (mysql_bin_log.is_open())
+      {
+	Query_log_event qinfo(thd, thd->query);
+	mysql_bin_log.write(&qinfo);
+      }
     }
   }
   
@@ -1708,6 +1712,8 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   }
   VOID(pthread_cond_broadcast(&COND_refresh));
   VOID(pthread_mutex_unlock(&LOCK_open));
+  table_list->table=0;				// Table is closed
+  query_cache.invalidate(table_list);
 
 end_temporary:
   sprintf(tmp_name,ER(ER_INSERT_INFO),(ulong) (copied+deleted),

@@ -136,6 +136,12 @@ int mi_update(register MI_INFO *info, const byte *oldrec, byte *newrec)
   myisam_log_record(MI_LOG_UPDATE,info,newrec,info->lastpos,0);
   VOID(_mi_writeinfo(info,key_changed ?  WRITEINFO_UPDATE_KEYFILE : 0));
   allow_break();				/* Allow SIGHUP & SIGINT */
+  if (info->invalidator != 0)
+  {
+    DBUG_PRINT("info", ("invalidator... '%s' (update)", info->filename));
+    (*info->invalidator)(info->filename);
+    info->invalidator=0;
+  }
   DBUG_RETURN(0);
 
 err:

@@ -862,18 +862,18 @@ class Item_func_match :public Item_real_func
 {
 public:
   List<Item> fields;
-  Item *concat;
   String value;
   TABLE *table;
-  uint key, mode;
-  bool join_key;
   Item_func_match *master;
   FT_INFO * ft_handler;
+  Item *concat;
   byte *record;
+  uint key, mode;
+  bool join_key;
 
   Item_func_match(List<Item> &a, Item *b): Item_real_func(b),
-       fields(a), table(0), join_key(0), master(0), ft_handler(0),
-       key(0), concat(0) {}
+       fields(a), table(0), master(0), ft_handler(0),
+       concat(0), key(0), join_key(0) {}
   ~Item_func_match()
   {
     if (!master && ft_handler)

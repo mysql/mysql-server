@@ -179,6 +179,8 @@ char* query_table_status(THD *thd,const char *db,const char *table_name);
 
 #define SELECT_NO_UNLOCK	(QUERY_NO_GOOD_INDEX_USED*2)
 #define TMP_TABLE_ALL_COLUMNS	(SELECT_NO_UNLOCK*2)
+#define OPTION_TO_QUERY_CACHE   (TMP_TABLE_ALL_COLUMNS*2)
+
 
 #define MODE_REAL_AS_FLOAT      1
 #define MODE_PIPES_AS_CONCAT    2
@@ -248,7 +250,7 @@ inline THD *_current_thd(void)
 #include "item.h"
 #include "sql_class.h"
 #include "opt_range.h"
-
+#include "sql_cache.h"
 
 int mysql_create_db(THD *thd, char *db, uint create_info, bool silent);
 int mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent);
@@ -539,6 +541,7 @@ extern ulong select_full_range_join_count,select_full_join_count,
 			 slave_open_temp_tables;
 extern uint test_flags,select_errors,ha_open_options;
 extern ulong thd_startup_options, slow_launch_threads, slow_launch_time;
+extern ulong query_cache_startup_type;
 extern time_t start_time;
 extern const char *command_name[];
 extern I_List<THD> threads;

@@ -95,6 +95,7 @@ extern int myrg_lock_database(MYRG_INFO *file,int lock_type);
 extern int myrg_create(const char *name, const char **table_names,
                        uint insert_method, my_bool fix_names);
 extern int myrg_extra(MYRG_INFO *file,enum ha_extra_function function);
+extern void myrg_extrafunc(MYRG_INFO *info,invalidator_by_filename inv);
 extern ha_rows myrg_records_in_range(MYRG_INFO *info,int inx,
 				    const byte *start_key,uint start_key_len,
 				    enum ha_rkey_function start_search_flag,
