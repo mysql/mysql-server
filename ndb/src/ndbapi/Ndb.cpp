@@ -65,37 +65,25 @@ NdbConnection* Ndb::doConnect(Uint32 tConNode)
 // We will connect to any node. Make sure that we have connections to all
 // nodes.
 //****************************************************************************
-  Uint32 tNoOfDbNodes = theNoOfDBnodes;
-  i = theCurrentConnectIndex;
+  Uint32 tNoOfDbNodes= theImpl->theNoOfDBnodes;
+  Uint32 &theCurrentConnectIndex= theImpl->theCurrentConnectIndex;
   UintR Tcount = 0;
   do {
-    if (i >= tNoOfDbNodes) {
-      i = 0;
+    theCurrentConnectIndex++;
+    if (theCurrentConnectIndex >= tNoOfDbNodes) {
+      theCurrentConnectIndex = 0;
     }//if
     Tcount++;
-    tNode = theDBnodes[i];
+    tNode = theImpl->theDBnodes[theCurrentConnectIndex];
     TretCode = NDB_connect(tNode);
     if ((TretCode == 1) || (TretCode == 2)) {
 //****************************************************************************
 // We have connections now to the desired node. Return
 //****************************************************************************
-      if (theCurrentConnectIndex == i) {
-        theCurrentConnectCounter++;
-        if (theCurrentConnectCounter == 8) {
-	  theCurrentConnectCounter = 1;
-	  theCurrentConnectIndex++;
-	}//if
-      } else {
-	// Set to 2 because we have already connected to a node 
-	// when we get here.
-        theCurrentConnectCounter = 2;
-        theCurrentConnectIndex = i;
-      }//if
       return getConnectedNdbConnection(tNode);
     } else if (TretCode != 0) {
       tAnyAlive = 1;
     }//if
-    i++;
   } while (Tcount < tNoOfDbNodes);
 //****************************************************************************
 // We were unable to find a free connection. If no node alive we will report
@@ -211,8 +199,9 @@ Ndb::doDisconnect()
   NdbConnection* tNdbCon;
   CHECK_STATUS_MACRO_VOID;
 
-  DBUG_PRINT("info", ("theNoOfDBnodes=%d", theNoOfDBnodes));
-  Uint32 tNoOfDbNodes = theNoOfDBnodes;
+  Uint32 tNoOfDbNodes = theImpl->theNoOfDBnodes;
+  Uint8 *theDBnodes= theImpl->theDBnodes;
+  DBUG_PRINT("info", ("theNoOfDBnodes=%d", tNoOfDbNodes));
   UintR i;
   for (i = 0; i < tNoOfDbNodes; i++) {
     Uint32 tNode = theDBnodes[i];
@@ -259,8 +248,8 @@ Ndb::waitUntilReady(int timeout)
       unsigned int foundAliveNode = 0;
       TransporterFacade *tp = TransporterFacade::instance();
       tp->lock_mutex();
-      for (unsigned int i = 0; i < theNoOfDBnodes; i++) {
-	const NodeId nodeId = theDBnodes[i];
+      for (unsigned int i = 0; i < theImpl->theNoOfDBnodes; i++) {
+	const NodeId nodeId = theImpl->theDBnodes[i];
 	//************************************************
 	// If any node is answering, ndb is answering
 	//************************************************
@@ -270,7 +259,7 @@ Ndb::waitUntilReady(int timeout)
       }//for
       
       tp->unlock_mutex();
-      if (foundAliveNode == theNoOfDBnodes) {
+      if (foundAliveNode == theImpl->theNoOfDBnodes) {
 	DBUG_RETURN(0);
       }//if
       if (foundAliveNode > 0) {
@@ -1077,7 +1066,7 @@ Ndb::guessPrimaryNode(Uint32 fragmentId){
 
 void
 Ndb::StartTransactionNodeSelectionData::init(Uint32 noOfNodes,
-                                             Uint32 nodeIds[]) {
+                                             Uint8 nodeIds[]) {
   kValue           = 6;
   noOfFragments    = 2 * noOfNodes;
 
