@@ -2305,7 +2305,8 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 	  !(s->quick && best_key && s->quick->index == best_key->key &&
 	    best_max_key_part >= s->table->quick_key_parts[best_key->key]) &&
 	  !((s->table->file->table_flags() & HA_TABLE_SCAN_ON_INDEX) &&
-	    s->table->used_keys && best_key))
+	    s->table->used_keys && best_key) &&
+	  !(s->table->force_index && best_key))
       {						// Check full join
 	if (s->on_expr)
 	{

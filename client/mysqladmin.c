@@ -25,7 +25,7 @@
 #include <sys/stat.h>
 #include <mysql.h>
 
-#define ADMIN_VERSION "8.38"
+#define ADMIN_VERSION "8.39"
 #define MAX_MYSQL_VAR 128
 #define SHUTDOWN_DEF_TIMEOUT 3600		/* Wait for shutdown */
 #define MAX_TRUNC_LENGTH 3
@@ -76,8 +76,8 @@ static void print_relative_header();
 static void print_relative_line();
 static void truncate_names();
 static my_bool get_pidfile(MYSQL *mysql, char *pidfile);
-static void wait_pidfile(char *pidfile, time_t last_modified,
-			 struct stat *pidfile_status);
+static my_bool wait_pidfile(char *pidfile, time_t last_modified,
+			    struct stat *pidfile_status);
 static void store_values(MYSQL_RES *result);
 
 /*
@@ -513,7 +513,8 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
 	  printf("Shutdown signal sent to server;  Waiting for pid file to disappear\n");
 
 	/* Wait until pid file is gone */
-	wait_pidfile(pidfile, last_modified, &pidfile_status);
+	if (wait_pidfile(pidfile, last_modified, &pidfile_status))
+	  return -1;
       }
       break;
     }
@@ -1150,34 +1151,51 @@ static my_bool get_pidfile(MYSQL *mysql, char *pidfile)
   return 1;					/* Error */
 }
 
+/*
+  Return 1 if pid file didn't disappear or change
+*/
 
-static void wait_pidfile(char *pidfile, time_t last_modified,
-			 struct stat *pidfile_status)
+static my_bool wait_pidfile(char *pidfile, time_t last_modified,
+			    struct stat *pidfile_status)
 {
   char buff[FN_REFLEN];
-  int fd = -1;
-  uint count=0;
+  int error= 1;
+  uint count= 0;
+  DBUG_ENTER("wait_pidfile");
 
   system_filename(buff, pidfile);
-  while (count++ <= opt_shutdown_timeout && !interrupted &&
-	 (!last_modified || (last_modified == pidfile_status->st_mtime)) &&
-	 (fd= my_open(buff, O_RDONLY, MYF(0))) >= 0)
+  do
   {
-    if (!my_close(fd,MYF(0)))
-      fd= -1;
+    int fd;
+    if ((fd= my_open(buff, O_RDONLY, MYF(0))) < 0)
+    {
+      error= 0;
+      break;
+    }
+    (void) my_close(fd,MYF(0));
+    if (last_modified && !stat(pidfile, pidfile_status))
+    {
+      if (last_modified != pidfile_status->st_mtime)
+      {
+	/* File changed;  Let's assume that mysqld did restart */
+	if (opt_verbose)
+	  printf("pid file '%s' changed while waiting for it to disappear!\nmysqld did probably restart\n",
+		 buff);
+	error= 0;
+	break;
+      }
+    }
+    if (count++ == opt_shutdown_timeout)
+      break;
     sleep(1);
-    if (last_modified && stat(pidfile, pidfile_status))
-      last_modified= 0;
-  }
-  if (opt_verbose && last_modified &&
-      last_modified != pidfile_status->st_mtime)
-    printf("Warning;  pid file '%s' changed while waiting for it to disappear!\n",
-	   buff);
-  if (fd >= 0)
+  } while (!interrupted);
+
+  if (error)
   {
-    my_close(fd,MYF(0));
+    DBUG_PRINT("warning",("Pid file didn't disappear"));
     fprintf(stderr,
 	    "Warning;  Aborted waiting on pid file: '%s' after %d seconds\n",
 	    buff, count-1);
   }
+  DBUG_RETURN(error);
 }

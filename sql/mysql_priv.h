@@ -235,6 +235,10 @@ void debug_sync_point(const char* lock_name, uint lock_timeout);
 #define SHOW_LOG_STATUS_FREE "FREE"
 #define SHOW_LOG_STATUS_INUSE "IN USE"
 
+/* Options to add_table_to_list() */
+#define TL_OPTION_UPDATING	1
+#define TL_OPTION_FORCE_INDEX	2
+
 /* Some portable defines */
 
 #define portable_sizeof_char_ptr 8
@@ -820,7 +824,6 @@ uint calc_week(TIME *ltime, bool with_year, bool sunday_first_day_of_week,
 void find_date(char *pos,uint *vek,uint flag);
 TYPELIB *convert_strings_to_array_type(my_string *typelibs, my_string *end);
 TYPELIB *typelib(List<String> &strings);
-void clean_up(bool print_message=1);
 ulong get_form_pos(File file, uchar *head, TYPELIB *save_names);
 ulong make_new_entry(File file,uchar *fileinfo,TYPELIB *formnames,
 		     const char *newname);
