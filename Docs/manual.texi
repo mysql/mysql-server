@@ -28556,7 +28556,7 @@ needed for the sign and the decimal point.
 @item DEC[(M[,D])] [ZEROFILL]
 @itemx NUMERIC[(M[,D])] [ZEROFILL]
 
-These are synonym for @code{DECIMAL}.
+These are synonyms for @code{DECIMAL}.
 
 @tindex DATE
 @item DATE
