@@ -8,6 +8,8 @@
 
 --disable_warnings
 drop table if exists t1,t2,t3,t4;
+# The following may be left from older tests
+drop table if exists t1_1,t1_2,t9_1,t9_2;
 --enable_warnings
 
 CREATE TABLE t1 (

@@ -197,7 +197,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
   for (table=tables ; table ; table=table->next)
   {
     char *db=table->db;
-    mysql_ha_close(thd, table, /*dont_send_ok*/ 1, /*dont_lock*/ 1);
+    mysql_ha_flush(thd, table, MYSQL_HA_CLOSE_FINAL);
     if (!close_temporary_table(thd, db, table->real_name))
     {
       tmp_table_deleted=1;
@@ -1762,7 +1762,7 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
   if (protocol->send_fields(&field_list, 1))
     DBUG_RETURN(-1);
 
-  mysql_ha_close(thd, tables, /*dont_send_ok*/ 1, /*dont_lock*/ 1);
+  mysql_ha_flush(thd, tables, MYSQL_HA_CLOSE_FINAL);
   for (table = tables; table; table = table->next)
   {
     char table_name[NAME_LEN*2+2];
@@ -2265,31 +2265,32 @@ int mysql_check_table(THD* thd, TABLE_LIST* tables,HA_CHECK_OPT* check_opt)
 				&handler::check));
 }
 
+
 /* table_list should contain just one table */
-int mysql_discard_or_import_tablespace(THD *thd,
-		      TABLE_LIST *table_list,
-		      enum tablespace_op_type tablespace_op)
+static int
+mysql_discard_or_import_tablespace(THD *thd,
+                                   TABLE_LIST *table_list,
+                                   enum tablespace_op_type tablespace_op)
 {
   TABLE *table;
   my_bool discard;
   int error;
   DBUG_ENTER("mysql_discard_or_import_tablespace");
 
-  /* Note that DISCARD/IMPORT TABLESPACE always is the only operation in an
-  ALTER TABLE */
+  /*
+    Note that DISCARD/IMPORT TABLESPACE always is the only operation in an
+    ALTER TABLE
+  */
 
   thd->proc_info="discard_or_import_tablespace";
 
-  if (tablespace_op == DISCARD_TABLESPACE)
-    discard = TRUE;
-  else
-    discard = FALSE;
+  discard= test(tablespace_op == DISCARD_TABLESPACE);
 
-  thd->tablespace_op=TRUE; /* we set this flag so that ha_innobase::open
-			   and ::external_lock() do not complain when we
-			   lock the table */
-  mysql_ha_close(thd, table_list, /*dont_send_ok*/ 1, /*dont_lock*/ 1);
-
+ /*
+   We set this flag so that ha_innobase::open and ::external_lock() do
+   not complain when we lock the table
+ */
+  thd->tablespace_op= TRUE;
   if (!(table=open_ltable(thd,table_list,TL_WRITE)))
   {
     thd->tablespace_op=FALSE;
@@ -2303,8 +2304,10 @@ int mysql_discard_or_import_tablespace(THD *thd,
   if (error)
     goto err;
 
-  /* The 0 in the call below means 'not in a transaction', which means
-  immediate invalidation; that is probably what we wish here */
+  /*
+    The 0 in the call below means 'not in a transaction', which means
+    immediate invalidation; that is probably what we wish here
+  */
   query_cache_invalidate3(thd, table_list, 0);
 
   /* The ALTER TABLE is always in its own transaction */
@@ -2567,8 +2570,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     new_db= db;
   used_fields=create_info->used_fields;
 
-  mysql_ha_close(thd, table_list, /*dont_send_ok*/ 1, /*dont_lock*/ 1);
-
+  mysql_ha_flush(thd, table_list, MYSQL_HA_CLOSE_FINAL);
   /* DISCARD/IMPORT TABLESPACE is always alone in an ALTER TABLE */
   if (alter_info->tablespace_op != NO_TABLESPACE_OP)
     DBUG_RETURN(mysql_discard_or_import_tablespace(thd,table_list,
@@ -3307,7 +3309,8 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   if (!(copy= new Copy_field[to->fields]))
     DBUG_RETURN(-1);				/* purecov: inspected */
 
-  to->file->external_lock(thd,F_WRLCK);
+  if (to->file->external_lock(thd, F_WRLCK))
+    DBUG_RETURN(-1);
   from->file->info(HA_STATUS_VARIABLE);
   to->file->start_bulk_insert(from->file->records);
 
@@ -3434,12 +3437,13 @@ copy_data_between_tables(TABLE *from,TABLE *to,
     error=1;
   if (ha_commit(thd))
     error=1;
-  if (to->file->external_lock(thd,F_UNLCK))
-    error=1;
+
  err:
   free_io_cache(from);
   *copied= found_count;
   *deleted=delete_count;
+  if (to->file->external_lock(thd,F_UNLCK))
+    error=1;
   DBUG_RETURN(error > 0 ? -1 : 0);
 }
 

@@ -2044,7 +2044,11 @@ static int save_state(MI_INFO *isam_file,PACK_MRG_INFO *mrg,my_off_t new_length,
   share->state.split=(ha_rows) mrg->records;
   share->state.version=(ulong) time((time_t*) 0);
   share->state.key_map=0;
-  share->state.state.key_file_length=share->base.keystart;
+  /*
+    Don't save key_file_length here, keep key_file_length of original file
+    so "myisamchk -rq" can use this value (this is necessary because index 
+    size cannot be easily calculated for fulltext keys)
+  */
   for (key=0 ; key < share->base.keys ; key++)
     share->state.key_root[key]= HA_OFFSET_ERROR;
   for (key=0 ; key < share->state.header.max_block_size ; key++)

@@ -559,9 +559,11 @@ struct row_prebuilt_struct {
 	dtuple_t*	clust_ref;	/* prebuilt dtuple used in
 					sel/upd/del */
 	ulint		select_lock_type;/* LOCK_NONE, LOCK_S, or LOCK_X */
-	ulint		stored_select_lock_type;/* inside LOCK TABLES, either
-					LOCK_S or LOCK_X depending on the lock
-					type */
+	ulint		stored_select_lock_type;/* this field is used to
+					remember the original select_lock_type
+					that was decided in ha_innodb.cc,
+					::store_lock(), ::external_lock(),
+					etc. */
 	ulint		mysql_row_len;	/* length in bytes of a row in the
 					MySQL format */
 	ulint		n_rows_fetched;	/* number of rows fetched after
