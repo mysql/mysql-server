@@ -223,7 +223,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
       (void) unpack_filename(path,path);
     }
     if (drop_temporary || 
-	(access(path,F_OK) && ha_create_table_from_engine(thd,db,alias,true)))
+	(access(path,F_OK) && ha_create_table_from_engine(thd,db,alias,TRUE)))
     {
       if (if_exists)
 	push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
