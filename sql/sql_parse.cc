@@ -678,7 +678,7 @@ pthread_handler_decl(handle_one_connection,arg)
       goto end_thread;
     }
 
-    if ((ulong) thd->variables.max_join_size == (ulong) HA_POS_ERROR)
+    if (thd->variables.max_join_size == HA_POS_ERROR)
       thd->options |= OPTION_BIG_SELECTS;
     if (thd->client_capabilities & CLIENT_COMPRESS)
       net->compress=1;				// Use compression
@@ -754,7 +754,7 @@ extern "C" pthread_handler_decl(handle_bootstrap,arg)
 
 #endif
 
-  if ((ulong) thd->variables.max_join_size == (ulong) HA_POS_ERROR)
+  if (thd->variables.max_join_size == HA_POS_ERROR)
     thd->options |= OPTION_BIG_SELECTS;
 
   thd->proc_info=0;
@@ -1096,6 +1096,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       }
       if (lower_case_table_names)
 	casedn_str(db);
+      if (check_access(thd,DROP_ACL,db,0,1))
+	break;
       if (thd->locked_tables || thd->active_transaction())
       {
 	send_error(&thd->net,ER_LOCK_OR_ACTIVE_TRANSACTION);

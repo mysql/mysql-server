@@ -1211,7 +1211,9 @@ changequote(, )dnl
 	   hpux10.[2-9][0-9]* | hpux1[1-9]* | hpux[2-9][0-9]*)
 changequote([, ])dnl
 	     if test "$GCC" = yes; then
-	       ac_cv_sys_largefile_CFLAGS=-D__STDC_EXT__
+	        case `$CC --version 2>/dev/null` in
+	          2.95.*) ac_cv_sys_largefile_CFLAGS=-D__STDC_EXT__ ;;
+		esac
 	     fi
 	     ;;
 	   # IRIX 6.2 and later require cc -n32.
@@ -1326,7 +1328,7 @@ AC_DEFUN(MYSQL_SYS_LARGEFILE,
 
 
 # Local version of _AC_PROG_CXX_EXIT_DECLARATION that does not
-# include #stdlib.h as this breaks things on Solaris
+# include #stdlib.h as default as this breaks things on Solaris
 # (Conflicts with pthreads and big file handling)
 
 m4_define([_AC_PROG_CXX_EXIT_DECLARATION],
@@ -1336,7 +1338,8 @@ m4_define([_AC_PROG_CXX_EXIT_DECLARATION],
    'extern "C" void std::exit (int); using std::exit;' \
    'extern "C" void exit (int) throw ();' \
    'extern "C" void exit (int);' \
-   'void exit (int);'
+   'void exit (int);' \
+   '#include <stdlib.h>'
 do
   _AC_COMPILE_IFELSE([AC_LANG_PROGRAM([@%:@include <stdlib.h>
 $ac_declaration],
