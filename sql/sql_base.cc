@@ -564,7 +564,7 @@ TABLE_LIST * find_table_in_list(TABLE_LIST *table,
   Find real table in given list.
 
   SYNOPSIS
-    find_table_in_list()
+    find_real_table_in_list()
     table - pointer to table list
     db_name - data base name
     table_name - table name
