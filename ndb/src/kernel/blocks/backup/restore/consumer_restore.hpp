@@ -42,6 +42,7 @@ public:
     m_tuples = 0;
     m_free_callback = 0;
     m_transactions = 0;
+    m_cache.m_old_table = 0;
   }
   
   virtual ~BackupRestore();
@@ -70,6 +71,18 @@ public:
   TupleS *m_tuples;
   restore_callback_t *m_callback;
   restore_callback_t *m_free_callback;
+
+  /**
+   * m_new_table_ids[X] = Y;
+   *   X - old table id
+   *   Y != 0  - new table
+   */
+  Vector<const NdbDictionary::Table*> m_new_tables;
+  struct {
+    const NdbDictionary::Table* m_old_table;
+    const NdbDictionary::Table* m_new_table;
+  } m_cache;
+  const NdbDictionary::Table* get_table(const NdbDictionary::Table* );
 };
 
 #endif

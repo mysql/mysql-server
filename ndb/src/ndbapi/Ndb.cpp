@@ -761,7 +761,7 @@ Ndb::getAutoIncrementValue(const char* aTableName, Uint32 cacheSize)
 }
 
 Uint64
-Ndb::getAutoIncrementValue(NdbDictionary::Table * aTable, Uint32 cacheSize)
+Ndb::getAutoIncrementValue(const NdbDictionary::Table * aTable, Uint32 cacheSize)
 {
   DEBUG_TRACE("getAutoIncrementValue");
   if (aTable == 0)
@@ -808,7 +808,7 @@ Ndb::readAutoIncrementValue(const char* aTableName)
 }
 
 Uint64
-Ndb::readAutoIncrementValue(NdbDictionary::Table * aTable)
+Ndb::readAutoIncrementValue(const NdbDictionary::Table * aTable)
 {
   DEBUG_TRACE("readtAutoIncrementValue");
   if (aTable == 0)
@@ -841,7 +841,7 @@ Ndb::setAutoIncrementValue(const char* aTableName, Uint64 val, bool increase)
 }
 
 bool
-Ndb::setAutoIncrementValue(NdbDictionary::Table * aTable, Uint64 val, bool increase)
+Ndb::setAutoIncrementValue(const NdbDictionary::Table * aTable, Uint64 val, bool increase)
 {
   DEBUG_TRACE("setAutoIncrementValue " << val);
   if (aTable == 0)
@@ -1137,7 +1137,7 @@ void Ndb::setCatalogName(const char * a_catalog_name)
   if (a_catalog_name) {
     snprintf(theDataBase, sizeof(theDataBase), "%s",
              a_catalog_name ? a_catalog_name : "");
-
+    
     int len = snprintf(prefixName, sizeof(prefixName), "%s%c%s%c",
                        theDataBase, table_name_separator,
                        theDataBaseSchema, table_name_separator);
@@ -1186,11 +1186,6 @@ const char * Ndb::getDatabaseSchemaName() const
 void Ndb::setDatabaseSchemaName(const char * a_schema_name)
 {
   setSchemaName(a_schema_name);
-}
- 
-void Ndb::useFullyQualifiedNames(bool turnNamingOn)
-{
-  fullyQualifiedNames = turnNamingOn;
 }
  
 bool Ndb::usingFullyQualifiedNames()

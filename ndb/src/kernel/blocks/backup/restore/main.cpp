@@ -322,7 +322,7 @@ main(int argc, const char** argv)
 	
 	dataIter.validateFooter(); //not implemented
 
-	for (Uint32 i= 0; i < g_consumers.size(); i++)
+	for (i= 0; i < g_consumers.size(); i++)
 	  g_consumers[i]->endOfTuples();
 	
 	RestoreLogIterator logIter(metaData);

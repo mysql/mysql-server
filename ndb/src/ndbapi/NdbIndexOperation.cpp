@@ -54,8 +54,8 @@ NdbIndexOperation::~NdbIndexOperation()
  * Remark:        Initiates operation record after allocation.
  *****************************************************************************/
 int
-NdbIndexOperation::indxInit(NdbIndexImpl * anIndex,
-			    NdbTableImpl * aTable, 
+NdbIndexOperation::indxInit(const NdbIndexImpl * anIndex,
+			    const NdbTableImpl * aTable, 
 			    NdbConnection* myConnection)
 {
   NdbOperation::init(aTable, myConnection);
