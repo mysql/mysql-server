@@ -43,7 +43,7 @@ mkdirprog="${MKDIRPROG-mkdir}"
 
 transformbasename=""
 transform_arg=""
-instcmd="$mvprog"
+instcmd="$cpprog"
 chmodcmd="$chmodprog 0755"
 chowncmd=""
 chgrpcmd=""
