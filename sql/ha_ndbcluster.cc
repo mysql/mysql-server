@@ -156,8 +156,8 @@ static int ndb_to_mysql_error(const NdbError *err)
 inline
 int execute_no_commit(ha_ndbcluster *h, NdbTransaction *trans)
 {
-  int m_batch_execute= 0;
 #ifdef NOT_USED
+  int m_batch_execute= 0;
   if (m_batch_execute)
     return 0;
 #endif
@@ -169,8 +169,8 @@ int execute_no_commit(ha_ndbcluster *h, NdbTransaction *trans)
 inline
 int execute_commit(ha_ndbcluster *h, NdbTransaction *trans)
 {
-  int m_batch_execute= 0;
 #ifdef NOT_USED
+  int m_batch_execute= 0;
   if (m_batch_execute)
     return 0;
 #endif
@@ -182,8 +182,8 @@ int execute_commit(ha_ndbcluster *h, NdbTransaction *trans)
 inline
 int execute_commit(THD *thd, NdbTransaction *trans)
 {
-  int m_batch_execute= 0;
 #ifdef NOT_USED
+  int m_batch_execute= 0;
   if (m_batch_execute)
     return 0;
 #endif
@@ -195,8 +195,8 @@ int execute_commit(THD *thd, NdbTransaction *trans)
 inline
 int execute_no_commit_ie(ha_ndbcluster *h, NdbTransaction *trans)
 {
-  int m_batch_execute= 0;
 #ifdef NOT_USED
+  int m_batch_execute= 0;
   if (m_batch_execute)
     return 0;
 #endif
@@ -810,7 +810,7 @@ int ha_ndbcluster::build_index_list(TABLE *tab, enum ILBP phase)
 {
   uint i;
   int error= 0;
-  const char *name, *index_name;
+  const char *index_name;
   char unique_index_name[FN_LEN];
   static const char* unique_suffix= "$unique";
   KEY* key_info= tab->key_info;
@@ -1118,10 +1118,10 @@ ha_ndbcluster::set_index_key(NdbOperation *op,
 
 int ha_ndbcluster::pk_read(const byte *key, uint key_len, byte *buf) 
 {
-  uint no_fields= table->s->fields, i;
+  uint no_fields= table->s->fields;
   NdbConnection *trans= m_active_trans;
   NdbOperation *op;
-  THD *thd= current_thd;
+
   int res;
   DBUG_ENTER("pk_read");
   DBUG_PRINT("enter", ("key_len: %u", key_len));
@@ -1238,7 +1238,6 @@ int ha_ndbcluster::peek_row()
 {
   NdbTransaction *trans= m_active_trans;
   NdbOperation *op;
-  THD *thd= current_thd;
   DBUG_ENTER("peek_row");
 
   NdbOperation::LockMode lm=
@@ -1345,8 +1344,11 @@ inline int ha_ndbcluster::fetch_next(NdbScanOperation* cursor)
 	{
 	  if  (execute_commit(this,trans) != 0)
 	    DBUG_RETURN(-1);
-	  int res= trans->restart();
-	  DBUG_ASSERT(res == 0);
+	  if(trans->restart() != 0)
+	  {
+	    DBUG_ASSERT(0);
+	    DBUG_RETURN(-1);
+	  }
 	}
 	m_ops_pending= 0;
       }
@@ -1441,7 +1443,9 @@ int ha_ndbcluster::set_bounds(NdbIndexScanOperation *op,
   {
     KEY_PART_INFO *key_part= &key_info->key_part[i];
     Field *field= key_part->field;
+#ifndef DBUG_OFF
     uint part_len= key_part->length;
+#endif
     uint part_store_len= key_part->store_length;
     // Info about each key part
     struct part_st {
@@ -1586,7 +1590,6 @@ int ha_ndbcluster::define_read_attrs(byte* buf, NdbOperation* op)
 {
   uint i;
   THD *thd= current_thd;
-  NdbTransaction *trans= m_active_trans;
 
   DBUG_ENTER("define_read_attrs");  
 
@@ -1780,7 +1783,6 @@ int ha_ndbcluster::filtered_scan(const byte *key, uint key_len,
 
 int ha_ndbcluster::full_table_scan(byte *buf)
 {
-  uint i;
   int res;
   NdbScanOperation *op;
   NdbTransaction *trans= m_active_trans;
@@ -1893,14 +1895,12 @@ int ha_ndbcluster::write_row(byte *record)
       ((m_rows_inserted % m_bulk_insert_rows) == 0) ||
       set_blob_value)
   {
-    THD *thd= current_thd;
     // Send rows to NDB
     DBUG_PRINT("info", ("Sending inserts to NDB, "\
 			"rows_inserted:%d, bulk_insert_rows: %d", 
 			(int)m_rows_inserted, (int)m_bulk_insert_rows));
 
     m_bulk_insert_not_flushed= FALSE;
-    //    if (thd->transaction.on)
     if (m_transaction_on)
     {
       if (execute_no_commit(this,trans) != 0)
@@ -1918,8 +1918,11 @@ int ha_ndbcluster::write_row(byte *record)
 	no_uncommitted_rows_execute_failure();
 	DBUG_RETURN(ndb_err(trans));
       }
-      int res= trans->restart();
-      DBUG_ASSERT(res == 0);
+      if(trans->restart() != 0)
+      {
+	DBUG_ASSERT(0);
+	DBUG_RETURN(-1);
+      }
     }
   }
   if ((has_auto_increment) && (m_skip_auto_increment))
@@ -2220,10 +2223,13 @@ void ha_ndbcluster::unpack_record(byte* buf)
       {
         NdbBlob* ndb_blob= (*value).blob;
         bool isNull= TRUE;
-        int ret= ndb_blob->getNull(isNull);
+#ifndef DBUG_OFF
+        int ret= 
+#endif
+	  ndb_blob->getNull(isNull);
         DBUG_ASSERT(ret == 0);
         if (isNull)
-         (*field)->set_null(row_offset);
+	  (*field)->set_null(row_offset);
       }
     }
   }
@@ -2252,32 +2258,35 @@ void ha_ndbcluster::unpack_record(byte* buf)
 
 void ha_ndbcluster::print_results()
 {
-  const NDBTAB *tab= (const NDBTAB*) m_table;
   DBUG_ENTER("print_results");
 
 #ifndef DBUG_OFF
+  const NDBTAB *tab= (const NDBTAB*) m_table;
 
   if (!_db_on_)
     DBUG_VOID_RETURN;
-  
+   
+  char buf_type[MAX_FIELD_WIDTH], buf_val[MAX_FIELD_WIDTH];
+  String type(buf_type, sizeof(buf_type), &my_charset_bin); 
+  String val(buf_val, sizeof(buf_val), &my_charset_bin);
   for (uint f=0; f<table->s->fields;f++)
   {
     // Use DBUG_PRINT since DBUG_FILE cannot be filtered out
     char buf[2000];
     Field *field;
     void* ptr;
-    const NDBCOL *col;
+    const NDBCOL *col= NULL;
     NdbValue value;
     NdbBlob *ndb_blob;
 
-    buf[0] = 0;
-
+    buf[0]= 0;
+    field= table->field[f];    
     if (!(value= m_value[f]).ptr)
     {
       my_snprintf(buf, sizeof(buf), "not read");
       goto print_value;
     }
-    field= table->field[f];
+
     ptr= field->ptr;
     DBUG_DUMP("field->ptr", (char*)ptr, field->pack_length());
     col= tab->getColumn(f);
@@ -2290,6 +2299,11 @@ void ha_ndbcluster::print_results()
         my_snprintf(buf, sizeof(buf), "NULL");
         goto print_value;
       }
+      type.length(0);
+      val.length(0);
+      field->sql_type(type);
+      field->val_str(&val);
+      my_snprintf(buf, sizeof(buf), "%s %s", type.c_ptr(), val.c_ptr());
     }
     else
     {
@@ -2300,142 +2314,6 @@ void ha_ndbcluster::print_results()
         my_snprintf(buf, sizeof(buf), "NULL");
         goto print_value;
       }
-    }
-
-    switch (col->getType()) {
-    case NdbDictionary::Column::Tinyint: {
-      Int8 value= *(Int8*)ptr;
-      my_snprintf(buf, sizeof(buf), "Tinyint %d", value);
-      break;
-    }
-    case NdbDictionary::Column::Tinyunsigned: {
-      Uint8 value= *(Uint8*)ptr;
-      my_snprintf(buf, sizeof(buf), "Tinyunsigned %u", value);
-      break;
-    }
-    case NdbDictionary::Column::Smallint: {
-      Int16 value= *(Int16*)ptr;
-      my_snprintf(buf, sizeof(buf), "Smallint %d", value);
-      break;
-    }
-    case NdbDictionary::Column::Smallunsigned: {
-      Uint16 value= *(Uint16*)ptr;
-      my_snprintf(buf, sizeof(buf), "Smallunsigned %u", value);
-      break;
-    }
-    case NdbDictionary::Column::Mediumint: {
-      byte value[3];
-      memcpy(value, ptr, 3);
-      my_snprintf(buf, sizeof(buf), "Mediumint %d,%d,%d", value[0], value[1], value[2]);
-      break;
-    }
-    case NdbDictionary::Column::Mediumunsigned: {
-      byte value[3];
-      memcpy(value, ptr, 3);
-      my_snprintf(buf, sizeof(buf), "Mediumunsigned %u,%u,%u", value[0], value[1], value[2]);
-      break;
-    }
-    case NdbDictionary::Column::Int: {
-      Int32 value= *(Int32*)ptr;
-      my_snprintf(buf, sizeof(buf), "Int %d", value);
-      break;
-    }
-    case NdbDictionary::Column::Unsigned: {
-      Uint32 value= *(Uint32*)ptr;
-      my_snprintf(buf, sizeof(buf), "Unsigned %u", value);
-      break;
-    }
-    case NdbDictionary::Column::Bigint: {
-      Int64 value= *(Int64*)ptr;
-      my_snprintf(buf, sizeof(buf), "Bigint %d", (int)value);
-      break;
-    }
-    case NdbDictionary::Column::Bigunsigned: {
-      Uint64 value= *(Uint64*)ptr;
-      my_snprintf(buf, sizeof(buf), "Bigunsigned %u", (unsigned)value);
-      break;
-    }
-    case NdbDictionary::Column::Float: {
-      float value= *(float*)ptr;
-      my_snprintf(buf, sizeof(buf), "Float %f", (double)value);
-      break;
-    }
-    case NdbDictionary::Column::Double: {
-      double value= *(double*)ptr;
-      my_snprintf(buf, sizeof(buf), "Double %f", value);
-      break;
-    }
-    case NdbDictionary::Column::Decimal: {
-      const char *value= (char*)ptr;
-      my_snprintf(buf, sizeof(buf), "Decimal '%-*s'", field->pack_length(), value);
-      break;
-    }
-    case NdbDictionary::Column::Char: {
-      const char *value= (char*)ptr;
-      my_snprintf(buf, sizeof(buf), "Char '%.*s'", field->pack_length(), value);
-      break;
-    }
-    case NdbDictionary::Column::Varchar: {
-      uint len= *(uchar*)ptr;
-      const char *value= (char*)ptr + 1;
-      my_snprintf(buf, sizeof(buf), "Varchar (%u)'%.*s'", len, len, value);
-      break;
-    }
-    case NdbDictionary::Column::Binary: {
-      const char *value= (char*)ptr;
-      my_snprintf(buf, sizeof(buf), "Binary '%.*s'", field->pack_length(), value);
-      break;
-    }
-    case NdbDictionary::Column::Varbinary: {
-      uint len= *(uchar*)ptr;
-      const char *value= (char*)ptr + 1;
-      my_snprintf(buf, sizeof(buf), "Varbinary (%u)'%.*s'", len, len, value);
-      break;
-    }
-    case NdbDictionary::Column::Datetime: {
-      my_snprintf(buf, sizeof(buf), "Datetime ?");      // fix-me
-      break;
-    }
-    case NdbDictionary::Column::Date: {
-      my_snprintf(buf, sizeof(buf), "Date ?");  // fix-me
-      break;
-    }
-    case NdbDictionary::Column::Time: {
-      my_snprintf(buf, sizeof(buf), "Time ?");  // fix-me
-      break;
-    }
-    case NdbDictionary::Column::Blob: {
-      Uint64 len= 0;
-      ndb_blob->getLength(len);
-      my_snprintf(buf, sizeof(buf), "Blob [len=%u]", (unsigned)len);
-      break;
-    }
-    case NdbDictionary::Column::Text: {
-      Uint64 len= 0;
-      ndb_blob->getLength(len);
-      my_snprintf(buf, sizeof(buf), "Text [len=%u]", (unsigned)len);
-      break;
-    }
-    case NdbDictionary::Column::Bit: {
-      const char *value= (char*)ptr;
-      my_snprintf(buf, sizeof(buf), "Bit '%.*s'", field->pack_length(), value);
-      break;
-    }
-    case NdbDictionary::Column::Longvarchar: {
-      uint len= uint2korr(ptr);
-      const char *value= (char*)ptr + 2;
-      my_snprintf(buf, sizeof(buf), "Longvarchar (%u)'%.*s'", len, len, value);
-      break;
-    }
-    case NdbDictionary::Column::Longvarbinary: {
-      uint len= uint2korr(ptr);
-      const char *value= (char*)ptr + 2;
-      my_snprintf(buf, sizeof(buf), "Longvarbinary (%u)'%.*s'", len, len, value);
-      break;
-    }
-    case NdbDictionary::Column::Undefined:
-      my_snprintf(buf, sizeof(buf), "Unknown type: %d", col->getType());
-      break;
     }
     
 print_value:
@@ -2685,8 +2563,11 @@ int ha_ndbcluster::rnd_init(bool scan)
   {
     if (!scan)
       DBUG_RETURN(1);
-    int res= cursor->restart(m_force_send);
-    DBUG_ASSERT(res == 0);
+    if(cursor->restart(m_force_send) != 0)
+    {
+      DBUG_ASSERT(0);
+      DBUG_RETURN(-1);
+    }
   }
   index_init(table->s->primary_key);
   DBUG_RETURN(0);
@@ -2801,13 +2682,15 @@ void ha_ndbcluster::position(const byte *record)
     DBUG_PRINT("info", ("Getting hidden key"));
     int hidden_no= table->s->fields;
     const NdbRecAttr* rec= m_value[hidden_no].rec;
+    memcpy(ref, (const void*)rec->aRef(), ref_length);
+#ifndef DBUG_OFF
     const NDBTAB *tab= (const NDBTAB *) m_table;  
     const NDBCOL *hidden_col= tab->getColumn(hidden_no);
     DBUG_ASSERT(hidden_col->getPrimaryKey() && 
                 hidden_col->getAutoIncrement() &&
                 rec != NULL && 
                 ref_length == NDB_HIDDEN_PRIMARY_KEY_LENGTH);
-    memcpy(ref, (const void*)rec->aRef(), ref_length);
+#endif
   }
   
   DBUG_DUMP("ref", (char*)ref, ref_length);
@@ -3335,12 +3218,14 @@ int ha_ndbcluster::start_stmt(THD *thd)
   if (!trans){
     Ndb *ndb= ((Thd_ndb*)thd->transaction.thd_ndb)->ndb;
     DBUG_PRINT("trans",("Starting transaction stmt"));  
-    
+
+#if 0    
     NdbTransaction *tablock_trans= 
       (NdbTransaction*)thd->transaction.all.ndb_tid;
     DBUG_PRINT("info", ("tablock_trans: %x", (uint)tablock_trans));
     DBUG_ASSERT(tablock_trans);
 //    trans= ndb->hupp(tablock_trans);
+#endif
     trans= ndb->startTransaction();
     if (trans == NULL)
       ERR_RETURN(ndb->getNdbError());
@@ -3675,7 +3560,6 @@ int ha_ndbcluster::create(const char *name,
   NDBCOL col;
   uint pack_length, length, i, pk_length= 0;
   const void *data, *pack_data;
-  const char **key_names= form->s->keynames.type_names;
   char name2[FN_HEADLEN];
   bool create_from_engine= (info->table_options & HA_CREATE_FROM_ENGINE);
    
@@ -3908,7 +3792,6 @@ int ha_ndbcluster::alter_table_name(const char *to)
   Ndb *ndb= get_ndb();
   NDBDICT *dict= ndb->getDictionary();
   const NDBTAB *orig_tab= (const NDBTAB *) m_table;
-  int ret;
   DBUG_ENTER("alter_table_name_table");
 
   NdbDictionary::Table new_tab= *orig_tab;
@@ -4008,7 +3891,6 @@ ha_ndbcluster::ha_ndbcluster(TABLE *table_arg):
   handler(table_arg),
   m_active_trans(NULL),
   m_active_cursor(NULL),
-  m_multi_cursor(NULL),
   m_table(NULL),
   m_table_info(NULL),
   m_table_flags(HA_REC_NOT_IN_SEQ |
@@ -4037,7 +3919,8 @@ ha_ndbcluster::ha_ndbcluster(TABLE *table_arg):
   m_force_send(TRUE),
   m_autoincrement_prefetch(32),
   m_transaction_on(TRUE),
-  m_use_local_query_cache(FALSE)
+  m_use_local_query_cache(FALSE),
+  m_multi_cursor(NULL)
 { 
   int i;
   
@@ -4512,15 +4395,21 @@ bool ndbcluster_init()
   } 
   else if(res == 1)
   {
-    if (g_ndb_cluster_connection->start_connect_thread()) {
+    if (g_ndb_cluster_connection->start_connect_thread()) 
+    {
       DBUG_PRINT("error", ("g_ndb_cluster_connection->start_connect_thread()"));
       goto ndbcluster_init_error;
     }
+#ifndef DBUG_OFF
     {
       char buf[1024];
-      DBUG_PRINT("info",("NDBCLUSTER storage engine not started, will connect using %s",
-			 g_ndb_cluster_connection->get_connectstring(buf,sizeof(buf))));
+      DBUG_PRINT("info",
+		 ("NDBCLUSTER storage engine not started, "
+		  "will connect using %s",
+		  g_ndb_cluster_connection->
+		  get_connectstring(buf,sizeof(buf))));
     }
+#endif
   }
   else
   {
@@ -5059,8 +4948,9 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
    * pk-op 4  pk-op 4
    * range 5
    * pk-op 6  pk-ok 6
-   
-   /**
+   */   
+
+  /**
    * Variables for loop
    */
   byte *curr= (byte*)buffer->buffer;
@@ -5117,7 +5007,7 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
 			     multi_range_curr->start_key.length))
 	goto sk;
       goto range;
-    case ORDERED_INDEX:
+    case ORDERED_INDEX: {
   range:
       multi_range_curr->range_flag &= ~(uint)UNIQUE_RANGE;
       if (scanOp == 0)
@@ -5150,6 +5040,11 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
 				  &multi_range_curr->end_key };
       if ((res= set_bounds(scanOp, keys, multi_range_curr-ranges)))
 	DBUG_RETURN(res);
+      break;
+    }
+    case(UNDEFINED_INDEX):
+      DBUG_ASSERT(FALSE);
+      DBUG_RETURN(1);
       break;
     }
   }
@@ -5238,7 +5133,7 @@ ha_ndbcluster::read_multi_range_next(KEY_MULTI_RANGE ** multi_range_found_p)
       
       range_no= m_multi_cursor->get_range_no();
       uint current_range_no= multi_range_curr - m_multi_ranges;
-      if (range_no == current_range_no)
+      if ((uint) range_no == current_range_no)
       {
 	DBUG_MULTI_RANGE(4);
         // return current row
