@@ -1138,20 +1138,19 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
   
   /* variable-part: the status vars; only in MySQL 5.0  */
   
-  const char* start= buf+post_header_len;
-  const char* end= start+status_vars_len;
+  const uchar *start= (uchar*) (buf+post_header_len);
+  const uchar *end= (uchar*) (start+status_vars_len);
   /*
     The place from which we will start string duplication.
   */
-  const char* start_dup= end;
+  const uchar *start_dup= end;
   
-  for (const char* pos=start;pos<end;)
+  for (const uchar* pos=start;pos<end;)
   {
-    switch (*pos)
-    {
+    switch (*pos++) {
     case Q_FLAGS2_CODE:
       flags2_inited= 1;
-      flags2= uint4korr(++pos);
+      flags2= uint4korr(pos);
       DBUG_PRINT("info",("In Query_log_event, read flags2: %lu", flags2));
       pos+= 4;
       break;
@@ -1161,14 +1160,14 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
       char buff[22];
 #endif
       sql_mode_inited= 1;
-      sql_mode= (ulong) uint8korr(++pos); // QQ: Fix when sql_mode is ulonglong
+      sql_mode= (ulong) uint8korr(pos); // QQ: Fix when sql_mode is ulonglong
       DBUG_PRINT("info",("In Query_log_event, read sql_mode: %s",
 			 llstr(sql_mode, buff)));
       pos+= 8;
       break;
     }
     case Q_CATALOG_CODE:
-      catalog_len= *(++pos);
+      catalog_len= *pos;
       /*
         Now 'pos' points to beginning of catalog - 1.
         The catalog must be included in the string which we will duplicate
@@ -1184,14 +1183,14 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
     default:
       /* That's why you must write status vars in growing order of code */
       DBUG_PRINT("info",("Query_log_event has unknown status vars (first has\
- code=%d), skipping the rest of them", *pos));
+ code: %u), skipping the rest of them", (uint) *(pos-1)));
       pos= end;
     }
   }
   
   /* A 2nd variable part; this is common to all versions */ 
   
-  data_len-= start_dup-start; /* cut not-to-be-duplicated head */
+  data_len-= (uint) (start_dup-start); /* cut not-to-be-duplicated head */
   if (!(data_buf = (char*) my_strdup_with_length((byte*) start_dup,
                                                  data_len,
                                                  MYF(MY_WME))))
@@ -1202,16 +1201,17 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
   if (catalog_len)
   {
     catalog= tmp_buf;
-    tmp_buf+= end-start_dup; /* "seek" to db */
+    tmp_buf+= (uint) (end-start_dup); /* "seek" to db */
   }
   db= tmp_buf;
   query= tmp_buf + db_len + 1;
   q_len = data_buf + data_len - query;
   /* This is used to detect wrong parsing. Could be removed in the future. */
-  DBUG_PRINT("info", ("catalog_len=%d catalog='%s' db='%s' q_len=%d",
+  DBUG_PRINT("info", ("catalog_len:%d  catalog: '%s' db: '%s'  q_len: %d",
                       catalog_len, catalog, db, q_len));
   DBUG_VOID_RETURN;
 }
+
 
 /*
   Query_log_event::print()
