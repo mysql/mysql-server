@@ -8715,10 +8715,10 @@ the DCE libraries while you compile @code{gcc} 2.95!
 @node HP-UX 11.x, Mac OS X, HP-UX 10.20, Source install system issues
 @subsection HP-UX Version 11.x Notes
 
-For HPUX Version 11.x we recommend @strong{MySQL} Version 3.23.15 or later.
+For HP-UX Version 11.x we recommend @strong{MySQL} Version 3.23.15 or later.
 
-Because of some critical bugs in the standard HPUX libraries, one should
-install the following patches before trying to run @strong{MySQL} on HPUX 11.0:
+Because of some critical bugs in the standard HP-UX libraries, you should
+install the following patches before trying to run @strong{MySQL} on HP-UX 11.0:
 
 @example
 PHKL_22840 Streams cumulative
@@ -8728,7 +8728,7 @@ PHNE_22397 ARPA cumulative
 This will solve a problem that one gets @code{EWOULDBLOCK} from @code{recv()} 
 and @code{EBADF} from @code{accept()} in threaded applications.
 
-If you are using @code{gcc} 2.95.1 on an unpatched HPUX 11.x system,
+If you are using @code{gcc} 2.95.1 on an unpatched HP-UX 11.x system,
 you will get the error:
 
 @example
@@ -8767,8 +8767,8 @@ After this, the following configure line should work:
 CFLAGS="-fomit-frame-pointer -O3 -fpic" CXX=gcc CXXFLAGS="-felide-constructors -fno-exceptions -fno-rtti -O3" ./configure --prefix=/usr/local/mysql --disable-shared
 @end example
 
-Here is some information that a HPUX Version 11.x user sent us about compiling
-@strong{MySQL} with HPUX:x compiler:
+Here is some information that a HP-UX Version 11.x user sent us about compiling
+@strong{MySQL} with HP-UX:x compiler:
 
 @example
  Environment:
@@ -33216,7 +33216,7 @@ binaries includes:
 @multitable @columnfractions .4 .3 .3
 @item @strong{System} @tab @strong{BDB} @tab @strong{InnoDB}
 @item AIX 4.3 @tab N @tab Y
-@item HPUX 11.0 @tab N @tab Y
+@item HP-UX 11.0 @tab N @tab Y
 @item Linux-Alpha @tab N	@tab Y
 @item Linux-Intel @tab Y @tab Y
 @item Linux-Ia64 @tab N @tab Y
@@ -45869,8 +45869,8 @@ that only had the open count wrong.
 @item
 Added functions to handle symbolic links to make life easier in 4.0.
 @item
-We are now using the @code{-lcma} thread library on HPUX 10.20 to
-get @strong{MySQL} more stable on HPUX.
+We are now using the @code{-lcma} thread library on HP-UX 10.20 to
+get @strong{MySQL} more stable on HP-UX.
 @item
 Fixed problem with @code{IF()} and number of decimals in the result.
 @item
