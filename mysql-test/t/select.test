@@ -1713,7 +1713,22 @@ show full columns from t2 from test like 's%';
 show keys from t2;
 
 #
+# random in WHERE clause
+#
+
+drop table t1;
+CREATE TABLE t1 (
+  id mediumint(8) unsigned NOT NULL auto_increment,
+  pseudo varchar(35) NOT NULL default '',
+  PRIMARY KEY  (id),
+  UNIQUE KEY pseudo (pseudo)
+);
+INSERT INTO t1 (pseudo) VALUES ('test');
+INSERT INTO t1 (pseudo) VALUES ('test1');
+SELECT 1 from t1 where rand() > 2;
+
+#
 # Drop the test tables
 #
 
-drop table t4, t3,t2, t1;
+drop table t4, t3, t2, t1;
