@@ -153,12 +153,15 @@ sp_cursor::pre_open(THD *thd)
 }
 
 void
-sp_cursor::post_open(THD *thd, my_bool isopen)
+sp_cursor::post_open(THD *thd, my_bool was_opened)
 {
   thd->net.no_send_eof= m_nseof; // Restore the originals
   thd->protocol= m_oprot;
-  m_isopen= isopen;
-  m_current_row= m_prot->data;
+  if (was_opened)
+  {
+    m_isopen= was_opened;
+    m_current_row= m_prot->data;
+  }
 }
 
 int
