@@ -30,7 +30,6 @@
  *
  *  Ndb
  *       init()
- *       getDictionary()
  *       startTransaction()
  *       closeTransaction()
  *       sendPollNdb()
@@ -97,10 +96,10 @@ typedef struct  {
 } async_callback_t;
 
 /**
- * Structure used in "free list" to a NdbConnection
+ * Structure used in "free list" to a NdbTransaction
  */
 typedef struct  {
-  NdbConnection*  conn;   
+  NdbTransaction*  conn;   
   int used; 
 } transaction_t;
 
@@ -123,7 +122,7 @@ int  populate(Ndb * myNdb, int data, async_callback_t * cbData);
 /**
  * Error handler.
  */
-bool asynchErrorHandler(NdbConnection * trans, Ndb* ndb);
+bool asynchErrorHandler(NdbTransaction * trans, Ndb* ndb);
 
 /**
  * Exit function
@@ -162,7 +161,7 @@ closeTransaction(Ndb * ndb , async_callback_t * cb)
  * Callback executed when transaction has return from NDB
  */
 static void
-callback(int result, NdbConnection* trans, void* aObject)
+callback(int result, NdbTransaction* trans, void* aObject)
 {
   async_callback_t * cbData = (async_callback_t *)aObject;
   if (result<0)
@@ -232,7 +231,7 @@ void asynchExitHandler(Ndb * m_ndb)
 /* returns true if is recoverable (temporary),
  *  false if it is an  error that is permanent.
  */
-bool asynchErrorHandler(NdbConnection * trans, Ndb* ndb) 
+bool asynchErrorHandler(NdbTransaction * trans, Ndb* ndb) 
 {  
   NdbError error = trans->getNdbError();
   switch(error.status)
