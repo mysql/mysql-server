@@ -35950,8 +35950,8 @@ mysql> INSERT INTO articles VALUES
     -> (0,'1001 MySQL Trick','1. Never run mysqld as root. 2. ...'),
     -> (0,'MySQL vs. YourSQL', 'In the following database comparison ...'),
     -> (0,'MySQL Security', 'When configured properly, MySQL ...');
-Query OK, 5 rows affected (0.00 sec)
-Records: 5  Duplicates: 0  Warnings: 0
+Query OK, 6 rows affected (0.00 sec)
+Records: 6  Duplicates: 0  Warnings: 0
 
 mysql> SELECT * FROM articles
     ->          WHERE MATCH (title,body) AGAINST ('database');
@@ -35992,7 +35992,7 @@ mysql> SELECT id,MATCH title,body AGAINST ('Tutorial') FROM articles;
 |  5 |                                       0 |
 |  6 |                                       0 |
 +----+-----------------------------------------+
-5 rows in set (0.00 sec)
+6 rows in set (0.00 sec)
 @end example
 
 This example shows how to retrieve the relevances. As neither @code{WHERE}
