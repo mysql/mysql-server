@@ -1,4 +1,4 @@
-# Copyright (C) 2004 MySQL AB
+# Copyright (C) 2004 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,15 +13,17 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
 # Process this file with automake to create Makefile.in
 
-INCLUDES=@MT_INCLUDES@ -I$(top_srcdir)/include $(openssl_includes)
-LDADD=  @CLIENT_EXTRA_LDFLAGS@ @openssl_libs@ @ZLIB_LIBS@ \
-	$(top_builddir)/libmysql_r/libmysqlclient_r.la
-bin_PROGRAMS=		mysqlmanager
-mysqlmanager_SOURCES=	mysqlmanager.c
-mysqlmanager_DEPENDENCIES=	$(LIBRARIES) $(pkglib_LTLIBRARIES)
-DEF=			-DUNDEF_THREADS_HACK
+noinst_LTLIBRARIES=libz.la
 
-# Don't update the files from bitkeeper
-%::SCCS/s.%
+noinst_HEADERS= crc32.h deflate.h inffast.h inffixed.h inflate.h \
+		inftrees.h trees.h zconf.h zlib.h zutil.h
+
+libz_la_SOURCES= adler32.c compress.c crc32.c deflate.c gzio.c \
+		 infback.c inffast.c inflate.c inftrees.c trees.c \
+		 uncompr.c zutil.c
+
+EXTRA_DIST= README FAQ INDEX ChangeLog algorithm.txt zlib.3 
+
