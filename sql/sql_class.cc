@@ -194,6 +194,7 @@ THD::THD()
   file_id = 0;
   warn_id= 0;
   db_charset= global_system_variables.collation_database;
+  bzero(ha_data, sizeof(ha_data));
   mysys_var=0;
 #ifndef DBUG_OFF
   dbug_sentry=THD_SENTRY_MAGIC;
@@ -205,7 +206,6 @@ THD::THD()
   ull=0;
   system_thread= cleanup_done= abort_on_warning= 0;
   peer_port= 0;					// For SHOW PROCESSLIST
-  transaction.changed_tables = 0;
 #ifdef	__WIN__
   real_id = 0;
 #endif
@@ -240,9 +240,7 @@ THD::THD()
   /* For user vars replication*/
   if (opt_bin_log)
     my_init_dynamic_array(&user_var_events,
-			  sizeof(BINLOG_USER_VAR_EVENT *),
-			  16,
-			  16);
+			  sizeof(BINLOG_USER_VAR_EVENT *), 16, 16);
   else
     bzero((char*) &user_var_events, sizeof(user_var_events));
 
@@ -252,26 +250,8 @@ THD::THD()
   protocol_prep.init(this);
 
   tablespace_op=FALSE;
-#ifdef USING_TRANSACTIONS
-  bzero((char*) &transaction,sizeof(transaction));
-  /*
-    Binlog is always open (if needed) before a THD is created (including
-    bootstrap).
-  */
-  if (opt_using_transactions && mysql_bin_log.is_open())
-  {
-    if (open_cached_file(&transaction.trans_log,
-			 mysql_tmpdir, LOG_PREFIX, binlog_cache_size,
-			 MYF(MY_WME)))
-      killed= KILL_CONNECTION;
-    transaction.trans_log.end_of_file= max_binlog_cache_size;
-  }
-#endif
-  init_sql_alloc(&transaction.mem_root, ALLOC_ROOT_MIN_BLOCK_SIZE, 0);
-  {
     ulong tmp=sql_rnd_with_mutex();
     randominit(&rand, tmp + (ulong) &rand, tmp + (ulong) ::query_id);
-  }
 }
 
 
@@ -320,9 +300,12 @@ void THD::init_for_queries()
 
   reset_root_defaults(mem_root, variables.query_alloc_block_size,
                       variables.query_prealloc_size);
+#ifdef USING_TRANSACTIONS
   reset_root_defaults(&transaction.mem_root,
                       variables.trans_alloc_block_size,
                       variables.trans_prealloc_size);
+#endif
+  transaction.xid.null();
 }
 
 
@@ -407,13 +390,8 @@ THD::~THD()
 #endif
   if (!cleanup_done)
     cleanup();
-#ifdef USING_TRANSACTIONS
-  if (opt_using_transactions)
-  {
-    close_cached_file(&transaction.trans_log);
+
     ha_close_connection(this);
-  }
-#endif
 
   sp_cache_clear(&sp_proc_cache);
   sp_cache_clear(&sp_func_cache);
@@ -426,7 +404,9 @@ THD::~THD()
   safeFree(ip);
   safeFree(db);
   free_root(&warn_root,MYF(0));
+#ifdef USING_TRANSACTIONS
   free_root(&transaction.mem_root,MYF(0));
+#endif
   mysys_var=0;					// Safety (shouldn't be needed)
   pthread_mutex_destroy(&LOCK_delete);
 #ifndef DBUG_OFF
@@ -868,7 +848,6 @@ bool select_send::send_data(List<Item> &items)
     InnoDB adaptive hash S-latch to avoid thread deadlocks if it was reserved
     by thd
   */
-  if (thd->transaction.all.innobase_tid)
     ha_release_temporary_latches(thd);
 #endif
 
@@ -903,7 +882,6 @@ bool select_send::send_eof()
   /* We may be passing the control from mysqld to the client: release the
      InnoDB adaptive hash S-latch to avoid thread deadlocks if it was reserved
      by thd */
-  if (thd->transaction.all.innobase_tid)
     ha_release_temporary_latches(thd);
 #endif
 
