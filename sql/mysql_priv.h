@@ -422,7 +422,6 @@ bool mysql_rename_table(enum db_type base,
 			const char * old_name,
 			const char *new_db,
 			const char * new_name);
-bool close_cached_table(THD *thd,TABLE *table);
 int mysql_create_index(THD *thd, TABLE_LIST *table_list, List<Key> &keys);
 int mysql_drop_index(THD *thd, TABLE_LIST *table_list,
 		     List<Alter_drop> &drop_list);
@@ -458,6 +457,7 @@ Field *find_field_in_tables(THD *thd,Item_field *item,TABLE_LIST *tables);
 Field *find_field_in_table(THD *thd,TABLE *table,const char *name,uint length,
 			   bool check_grant,bool allow_rowid);
 #ifdef HAVE_OPENSSL
+#include <openssl/des.h>
 struct st_des_keyblock 
 { 
   des_cblock key1, key2, key3; 

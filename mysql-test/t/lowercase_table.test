@@ -12,3 +12,14 @@ ALTER TABLE T2 RENAME T3;
 show tables like 't_';
 drop table t3;
 
+#
+# Test alias
+#
+create table t1 (a int);
+select count(*) from T1;
+select count(*) from t1;
+--error 1109
+select count(T1.a) from t1;
+--error 1109
+select count(bags.a) from t1 as Bags;
+drop table t1;

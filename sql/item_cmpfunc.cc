@@ -1454,7 +1454,11 @@ bool Item_func_like::fix_fields(THD *thd,struct st_table_list *tlist)
     {
       const char* tmp = first + 1;
       for (; *tmp != wild_many && *tmp != wild_one && *tmp != escape; tmp++) ;
+#ifdef USE_MB
+      canDoTurboBM = (tmp == last) && !use_mb(default_charset_info);
+#else
       canDoTurboBM = tmp == last;
+#endif
     }
 
     if (canDoTurboBM)

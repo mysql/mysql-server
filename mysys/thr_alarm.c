@@ -38,20 +38,21 @@
 #endif
 
 static int alarm_aborted=1;			/* No alarm thread */
-my_bool thr_alarm_inited=0;
+my_bool thr_alarm_inited= 0;
+volatile my_bool alarm_thread_running= 0;
 
 static sig_handler process_alarm_part2(int sig);
 
 #if !defined(__WIN__) && !defined(__EMX__) && !defined(OS2)
 
 static pthread_mutex_t LOCK_alarm;
+static pthread_cond_t COND_alarm;
 static sigset_t full_signal_set;
 static QUEUE alarm_queue;
 static uint max_used_alarms=0;
 pthread_t alarm_thread;
 
 #ifdef USE_ALARM_THREAD
-static pthread_cond_t COND_alarm;
 static void *alarm_handler(void *arg);
 #define reschedule_alarms() pthread_cond_signal(&COND_alarm)
 #else
@@ -78,6 +79,7 @@ void init_thr_alarm(uint max_alarms)
 	     compare_ulong,NullS);
   sigfillset(&full_signal_set);			/* Neaded to block signals */
   pthread_mutex_init(&LOCK_alarm,MY_MUTEX_INIT_FAST);
+  pthread_cond_init(&COND_alarm,NULL);
 #if THR_CLIENT_ALARM != SIGALRM || defined(USE_ALARM_THREAD)
 #if defined(HAVE_mit_thread)
   sigset(THR_CLIENT_ALARM,thread_alarm);	/* int. thread system calls */
@@ -97,7 +99,6 @@ void init_thr_alarm(uint max_alarms)
   {
     pthread_attr_t thr_attr;
     pthread_attr_init(&thr_attr);
-    pthread_cond_init(&COND_alarm,NULL);
     pthread_attr_setscope(&thr_attr,PTHREAD_SCOPE_PROCESS);
     pthread_attr_setdetachstate(&thr_attr,PTHREAD_CREATE_DETACHED);
     pthread_attr_setstacksize(&thr_attr,8196);
@@ -383,28 +384,45 @@ static sig_handler process_alarm_part2(int sig __attribute__((unused)))
 void end_thr_alarm(my_bool free_structures)
 {
   DBUG_ENTER("end_thr_alarm");
-  if (alarm_aborted != 1)
+  if (alarm_aborted != 1)			/* If memory not freed */
   {    
     pthread_mutex_lock(&LOCK_alarm);
     DBUG_PRINT("info",("Resheduling %d waiting alarms",alarm_queue.elements));
     alarm_aborted= -1;				/* mark aborted */
-    if (pthread_equal(pthread_self(),alarm_thread))
-      alarm(1);					/* Shut down everything soon */
-    else
-      reschedule_alarms();
+    if (alarm_queue.elements || (alarm_thread_running && free_structures))
+    {
+      if (pthread_equal(pthread_self(),alarm_thread))
+	alarm(1);				/* Shut down everything soon */
+      else
+	reschedule_alarms();
+    }
     if (free_structures)
     {
+      struct timespec abstime;
       /*
 	The following test is just for safety, the caller should not
 	depend on this
       */
       DBUG_ASSERT(!alarm_queue.elements);
+      /* Wait until alarm thread dies */
+
+      set_timespec(abstime, 10);		/* Wait up to 10 seconds */
+      while (alarm_thread_running)
+      {
+	int error= pthread_cond_timedwait(&COND_alarm, &LOCK_alarm, &abstime);
+	if (error == ETIME || error == ETIMEDOUT)
+	  break;				/* Don't wait forever */
+      }
       if (!alarm_queue.elements)
       {
 	delete_queue(&alarm_queue);
 	alarm_aborted= 1;
 	pthread_mutex_unlock(&LOCK_alarm);
-	pthread_mutex_destroy(&LOCK_alarm);
+	if (!alarm_thread_running)		/* Safety */
+	{
+	  pthread_mutex_destroy(&LOCK_alarm);
+	  pthread_cond_destroy(&COND_alarm);
+	}
       }
     }
     else
@@ -490,6 +508,7 @@ static void *alarm_handler(void *arg __attribute__((unused)))
   puts("Starting alarm thread");
 #endif
   my_thread_init();
+  alarm_thread_running= 1;
   pthread_mutex_lock(&LOCK_alarm);
   for (;;)
   {
@@ -514,7 +533,7 @@ static void *alarm_handler(void *arg __attribute__((unused)))
 	}
       }
     }
-    else if (alarm_aborted)
+    else if (alarm_aborted == -1)
       break;
     else if ((error=pthread_cond_wait(&COND_alarm,&LOCK_alarm)))
     {
@@ -526,6 +545,8 @@ static void *alarm_handler(void *arg __attribute__((unused)))
     process_alarm(0);
   }
   bzero((char*) &alarm_thread,sizeof(alarm_thread)); /* For easy debugging */
+  alarm_thread_running= 0;
+  pthread_cond_signal(&COND_alarm);
   pthread_mutex_unlock(&LOCK_alarm);
   pthread_exit(0);
   return 0;					/* Impossible */
