@@ -57,6 +57,8 @@ extern CHARSET_INFO *default_charset_info;
 extern CHARSET_INFO *find_compiled_charset(uint cs_number);
 extern CHARSET_INFO *find_compiled_charset_by_name(const char *name);
 extern CHARSET_INFO  compiled_charsets[];
+extern uint compiled_charset_number(const char *name);
+extern const char *compiled_charset_name(uint charset_number);
 
 #define MY_CHARSET_UNDEFINED 0
 #define MY_CHARSET_CURRENT (default_charset_info->number)

@@ -72,8 +72,7 @@ static void read_texts(const char *file_name,const char ***point,
 Check that the above file is the right version for this program!\n\n",
 	    my_progname,name,ant,error_messages);
     VOID(my_close(file,MYF(MY_WME)));
-    clean_up(0);			/* Clean_up frees everything */
-    exit(1);				/* We can't continue */
+    unireg_abort(1);
   }
 
   x_free((gptr) *point);		/* Free old language */
@@ -115,8 +114,7 @@ err:
   if (file != FERR)
     VOID(my_close(file,MYF(MY_WME)));
   fprintf(stderr,buff,my_progname,name);
-  clean_up(0);				/* Clean_up frees everything */
-  exit(1);				/* We can't continue */
+  unireg_abort(1);
 } /* read_texts */
 
 

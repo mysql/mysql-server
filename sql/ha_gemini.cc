@@ -68,7 +68,7 @@ ulong gemini_recovery_options = GEMINI_RECOVERY_FULL;
 /* bits in gemini_recovery_options */
 const char *gemini_recovery_names[] =
 { "FULL", "NONE", "FORCE" };
-TYPELIB gemini_recovery_typelib= {array_elements(gemini_recovery_names),"",
+TYPELIB gemini_recovery_typelib= {array_elements(gemini_recovery_names)-1,"",
 				 gemini_recovery_names};
 
 const int start_of_name = 2;  /* Name passed as ./<db>/<table-name>

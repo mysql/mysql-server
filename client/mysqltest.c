@@ -306,17 +306,18 @@ static void close_cons()
 
 static void close_files()
 {
-  do
+  DBUG_ENTER("close_files");
+  for (; cur_file != file_stack ; cur_file--)
   {
     if (*cur_file != stdin && *cur_file)
       my_fclose(*cur_file,MYF(0));
-  } while (cur_file-- != file_stack);
+  }
+  DBUG_VOID_RETURN;
 }
 
 static void free_used_memory()
 {
   uint i;
-  DBUG_ENTER("free_used_memory");
   close_cons();
   close_files();
   hash_free(&var_hash);
@@ -336,8 +337,8 @@ static void free_used_memory()
   dynstr_free(&ds_res);
   my_free(pass,MYF(MY_ALLOW_ZERO_PTR));
   free_defaults(default_argv);
+  mysql_server_end();
   my_end(MY_CHECK_ERROR);
-  DBUG_VOID_RETURN;
 }
 
 static void die(const char* fmt, ...)
@@ -1303,15 +1304,11 @@ int read_line(char* buf, int size)
     {
       if ((*cur_file) != stdin)
 	my_fclose(*cur_file,MYF(0));
-
+      cur_file--;
+      lineno--;
       if (cur_file == file_stack)
 	return 1;
-      else
-      {
-	cur_file--;
-	lineno--;
-	continue;
-      }
+      continue;
     }
 
     switch(state) {
@@ -1592,7 +1589,7 @@ int parse_args(int argc, char **argv)
 	result_file = optarg;
 	break;
       case 'x':
-      if (!(*cur_file = my_fopen(optarg, O_RDONLY, MYF(MY_WME))))
+      if (!(*++cur_file = my_fopen(optarg, O_RDONLY, MYF(MY_WME))))
 	  die("Could not open %s: errno = %d", optarg, errno);
 	break;
       case 'p':
@@ -1949,9 +1946,10 @@ int main(int argc, char** argv)
   struct st_query* q;
   my_bool require_file=0, q_send_flag=0;
   char save_file[FN_REFLEN];
-  mysql_server_init(sizeof(embedded_server_args) / sizeof(char *) - 1,
-		    embedded_server_args, embedded_server_groups);
   MY_INIT(argv[0]);
+  {
+  DBUG_ENTER("main");
+  DBUG_PROCESS(argv[0]);
 
   save_file[0]=0;
   TMPDIR[0]=0;
@@ -1976,9 +1974,12 @@ int main(int argc, char** argv)
   *block_ok = 1;
   init_dynamic_string(&ds_res, "", 0, 65536);
   parse_args(argc, argv);
+  if (mysql_server_init(sizeof(embedded_server_args) / sizeof(char *) - 1,
+			embedded_server_args, embedded_server_groups))
+    die("Can't initialize MySQL server");
   init_var_hash();
-  if (!*cur_file)
-    *cur_file = stdin;
+  if (cur_file == file_stack)
+    *++cur_file = stdin;
   *lineno=1;
 
   if (!( mysql_init(&cur_con->mysql)))
@@ -2114,10 +2115,10 @@ int main(int argc, char** argv)
       printf("ok\n");
   }
 
-  mysql_server_end();
   free_used_memory();
   exit(error ? 1 : 0);
-  return error ? 1 : 0;				/* Keep compiler happy */
+  DBUG_RETURN(error ? 1 : 0);			/* Keep compiler happy */
+  }
 }
 
 

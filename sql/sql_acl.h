@@ -59,7 +59,7 @@ void acl_reload(void);
 void acl_free(bool end=0);
 uint acl_get(const char *host, const char *ip, const char *bin_ip,
 	     const char *user, const char *db);
-uint acl_getroot(const char *host, const char *ip, const char *user,
+uint acl_getroot(THD *thd, const char *host, const char *ip, const char *user,
 		 const char *password,const char *scramble,char **priv_user,
 		 bool old_ver);
 bool acl_check_host(const char *host, const char *ip);

@@ -15,15 +15,7 @@
    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
    MA 02111-1307, USA */
 
-#include <my_global.h>
-#if defined(__WIN__) || defined(_WIN32) || defined(_WIN64)
-#include <winsock.h>
-#include <odbcinst.h>
-#endif
-#include "mysql_embed.h"
-#include "mysql.h"
-#include "mysql_version.h"
-#include "mysqld_error.h"
+#include "embedded_priv.h"
 #include <my_sys.h>
 #include <mysys_err.h>
 #include <m_string.h>
@@ -51,9 +43,6 @@
 #ifdef HAVE_SYS_UN_H
 #  include <sys/un.h>
 #endif
-#if defined(THREAD) && !defined(__WIN__)
-#include <my_pthread.h>				/* because of signal()	*/
-#endif
 #ifndef INADDR_NONE
 #define INADDR_NONE	-1
 #endif
@@ -74,12 +63,6 @@ my_string	mysql_unix_port=0;
 #define closesocket(A) close(A)
 #endif
 
-/* XXX: this is real ugly... */
-extern void start_embedded_connection(NET * net);
-extern void lib_connection_phase(NET *net, int phase);
-extern bool lib_dispatch_command(enum enum_server_command command, NET *net,
-				 const char *arg, ulong length);
-
 static void mysql_once_init(void);
 static MYSQL_DATA *read_rows (MYSQL *mysql,MYSQL_FIELD *fields,
 			      uint field_count);
@@ -89,7 +72,6 @@ static void end_server(MYSQL *mysql);
 static void read_user_name(char *name);
 static void append_wild(char *to,char *end,const char *wild);
 static int send_file_to_server(MYSQL *mysql,const char *filename);
-static sig_handler pipe_sig_handler(int sig);
 static ulong mysql_sub_escape_string(CHARSET_INFO *charset_info, char *to,
 				     const char *from, ulong length);
 
@@ -402,22 +384,6 @@ mysql_debug(const char *debug)
 #endif
 }
 
-
-/**************************************************************************
-** Close the server connection if we get a SIGPIPE
-   ARGSUSED
-**************************************************************************/
-
-static sig_handler
-pipe_sig_handler(int sig __attribute__((unused)))
-{
-  DBUG_PRINT("info",("Hit by signal %d",sig));
-#ifdef DONT_REMEMBER_SIGNAL
-  (void) signal(SIGPIPE,pipe_sig_handler);
-#endif
-}
-
-
 /**************************************************************************
 ** Shut down connection
 **************************************************************************/
@@ -428,11 +394,7 @@ end_server(MYSQL *mysql)
   DBUG_ENTER("end_server");
   if (mysql->net.vio != 0)
   {
-    init_sigpipe_variables
-    DBUG_PRINT("info",("Net: %s", vio_description(mysql->net.vio)));
-    set_sigpipe(mysql);
-    vio_delete(mysql->net.vio);
-    reset_sigpipe(mysql);
+    end_embedded_connection(&mysql->net);
     mysql->net.vio= 0;          /* Marker */
   }
   net_end(&mysql->net);

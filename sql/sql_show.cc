@@ -390,7 +390,7 @@ int mysqld_extend_show_tables(THD *thd,const char *db,const char *wild)
         if (table->db_create_options & HA_OPTION_DELAY_KEY_WRITE)
           ptr=strmov(ptr," delay_key_write=1");
         if (table->row_type != ROW_TYPE_DEFAULT)
-          ptr=strxmov(ptr, " format=", ha_row_type[(uint) table->row_type],
+          ptr=strxmov(ptr, " row_format=", ha_row_type[(uint) table->row_type],
                       NullS);
         if (file->raid_type)
         {
@@ -919,6 +919,12 @@ store_create_info(THD *thd, TABLE *table, String *packet)
     p = longlong10_to_str(table->max_rows, buff, 10);
     packet->append(buff, (uint) (p - buff));
   }
+  if (table->avg_row_length)
+  {
+    packet->append(" AVG_ROW_LENGTH=");
+    p=longlong10_to_str(table->avg_row_length, buff,10);
+    packet->append(buff, (uint) (p - buff));
+  }
 
   if (table->db_create_options & HA_OPTION_PACK_KEYS)
     packet->append(" PACK_KEYS=1", 12);
@@ -928,6 +934,11 @@ store_create_info(THD *thd, TABLE *table, String *packet)
     packet->append(" CHECKSUM=1", 11);
   if (table->db_create_options & HA_OPTION_DELAY_KEY_WRITE)
     packet->append(" DELAY_KEY_WRITE=1",18);
+  if (table->row_type != ROW_TYPE_DEFAULT)
+  {
+    packet->append(" ROW_FORMAT=",12);
+    packet->append(ha_row_type[(uint) table->row_type]);
+  }
   table->file->append_create_info(packet);
   if (table->comment && table->comment[0])
   {
@@ -1173,17 +1184,45 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables)
 	net_store_data(&packet2,(uint32) 
 			SSL_CTX_sess_accept_good(ssl_acceptor_fd->ssl_context_));
         break;
+      case SHOW_SSL_CTX_SESS_CONNECT_GOOD:
+	net_store_data(&packet2,(uint32) 
+			SSL_CTX_sess_connect_good(ssl_acceptor_fd->ssl_context_));
+        break;
       case SHOW_SSL_CTX_SESS_ACCEPT_RENEGOTIATE:
 	net_store_data(&packet2,(uint32) 
 			SSL_CTX_sess_accept_renegotiate(ssl_acceptor_fd->ssl_context_));
+        break;
+      case SHOW_SSL_CTX_SESS_CONNECT_RENEGOTIATE:
+	net_store_data(&packet2,(uint32) 
+			SSL_CTX_sess_connect_renegotiate(ssl_acceptor_fd->ssl_context_));
         break;
       case SHOW_SSL_CTX_SESS_CB_HITS:
 	net_store_data(&packet2,(uint32) 
 			SSL_CTX_sess_cb_hits(ssl_acceptor_fd->ssl_context_));
         break;
+      case SHOW_SSL_CTX_SESS_HITS:
+	net_store_data(&packet2,(uint32) 
+			SSL_CTX_sess_hits(ssl_acceptor_fd->ssl_context_));
+        break;
+      case SHOW_SSL_CTX_SESS_CACHE_FULL:
+	net_store_data(&packet2,(uint32) 
+			SSL_CTX_sess_cache_full(ssl_acceptor_fd->ssl_context_));
+        break;
+      case SHOW_SSL_CTX_SESS_MISSES:
+	net_store_data(&packet2,(uint32) 
+			SSL_CTX_sess_misses(ssl_acceptor_fd->ssl_context_));
+        break;
+      case SHOW_SSL_CTX_SESS_TIMEOUTS:
+	net_store_data(&packet2,(uint32) 
+			SSL_CTX_sess_timeouts(ssl_acceptor_fd->ssl_context_));
+        break;
       case SHOW_SSL_CTX_SESS_NUMBER:
 	net_store_data(&packet2,(uint32) 
 			SSL_CTX_sess_number(ssl_acceptor_fd->ssl_context_));
+        break;
+      case SHOW_SSL_CTX_SESS_CONNECT:
+	net_store_data(&packet2,(uint32) 
+			SSL_CTX_sess_connect(ssl_acceptor_fd->ssl_context_));
         break;
       case SHOW_SSL_CTX_SESS_GET_CACHE_SIZE:
 	net_store_data(&packet2,(uint32) 
@@ -1246,6 +1285,23 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables)
         break;
       case SHOW_SSL_GET_CIPHER:
 	net_store_data(&packet2, thd->net.vio->ssl_ ? SSL_get_cipher(thd->net.vio->ssl_) : "");
+      case SHOW_SSL_GET_CIPHER_LIST:
+	if(thd->net.vio->ssl_)
+	{
+	  char buf[1024]="";
+	  for (int i=0; ; i++)
+	  {
+	    const char *p=SSL_get_cipher_list(thd->net.vio->ssl_,i);
+	    if (p == NULL) 
+	      break;
+	    if (i != 0) 
+	      strcat(buf,":");
+	    strcat(buf,p);
+	    DBUG_PRINT("info",("cipher to add: %s,%s",p,buf));
+	  }
+ 	  net_store_data(&packet2, buf);
+        } else
+ 	  net_store_data(&packet2, "");
         break;
 
 #endif /* HAVE_OPENSSL */

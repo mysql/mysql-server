@@ -15,19 +15,18 @@
    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
    MA 02111-1307, USA */
 
-#ifdef HAVE_OPENSSL
+/* Some useful bit functions */
 
-#define OPT_SSL_SSL	200
-#define OPT_SSL_KEY	201
-#define OPT_SSL_CERT	202
-#define OPT_SSL_CA	203
-#define OPT_SSL_CAPATH  204
-#define OPT_SSL_CIPHER  205
-  {"ssl",           no_argument,           0, OPT_SSL_SSL},
-  {"ssl-key",       required_argument,     0, OPT_SSL_KEY},
-  {"ssl-cert",      required_argument,     0, OPT_SSL_CERT},
-  {"ssl-ca",        required_argument,     0, OPT_SSL_CA},
-  {"ssl-capath",    required_argument,     0, OPT_SSL_CAPATH},
-  {"ssl-cipher",    required_argument,     0, OPT_SSL_CIPHER},
+#include "mysys_priv.h"
 
-#endif /* HAVE_OPENSSL */
+/*
+  Find smallest X in 2^X >= value
+  This can be used to divide a number with value by doing a shift instead
+*/
+
+uint my_bit_log2(ulong value)
+{
+  uint bit;
+  for (bit=0 ; value > 1 ; value>>=1, bit++) ;
+  return bit;
+}

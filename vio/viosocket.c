@@ -137,7 +137,7 @@ int vio_write(Vio * vio, const gptr buf, int size)
 }
 
 
-int vio_blocking(Vio * vio, my_bool set_blocking_mode)
+int vio_blocking(Vio * vio __attribute__((unused)), my_bool set_blocking_mode)
 {
   int r=0;
   DBUG_ENTER("vio_blocking");

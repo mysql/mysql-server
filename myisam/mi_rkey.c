@@ -27,7 +27,7 @@ int mi_rkey(MI_INFO *info, byte *buf, int inx, const byte *key, uint key_len,
 {
   uchar *key_buff;
   MYISAM_SHARE *share=info->s;
-  uint pack_key_length;
+  uint pack_key_length, use_key_length, nextflag;
   DBUG_ENTER("mi_rkey");
   DBUG_PRINT("enter",("base: %lx  inx: %d  search_flag: %d",
 		      info,inx,search_flag));
@@ -55,11 +55,17 @@ int mi_rkey(MI_INFO *info, byte *buf, int inx, const byte *key, uint key_len,
     bmove(key_buff,key,key_len);
   }
 
-  if (_mi_readinfo(info,F_RDLCK,1))
+  if (fast_mi_readinfo(info))
     goto err;
   if (share->concurrent_insert)
     rw_rdlock(&share->key_root_lock[inx]);
-  if (!_mi_search(info,info->s->keyinfo+inx,key_buff,pack_key_length,
+
+  nextflag=myisam_read_vec[search_flag];
+  use_key_length=pack_key_length;
+  if (!(nextflag & (SEARCH_FIND | SEARCH_NO_FIND | SEARCH_LAST)))
+    use_key_length=USE_WHOLE_KEY;
+
+  if (!_mi_search(info,info->s->keyinfo+inx,key_buff,use_key_length,
 		  myisam_read_vec[search_flag],info->s->state.key_root[inx]))
   {
     while (info->lastpos >= info->state->data_file_length)

@@ -93,3 +93,21 @@ t1	CREATE TABLE `t1` (
 Database	Table	In_use	Name_locked
 Database	Table	In_use	Name_locked
 test	t1	0	0
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL default '0',
+  `b` char(10) default NULL,
+  KEY `b` (`b`)
+) TYPE=MyISAM MIN_ROWS=10 MAX_ROWS=100 AVG_ROW_LENGTH=10 PACK_KEYS=1 CHECKSUM=1 DELAY_KEY_WRITE=1 ROW_FORMAT=FIXED COMMENT='test'
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL default '0',
+  `b` varchar(10) default NULL,
+  KEY `b` (`b`)
+) TYPE=MyISAM MIN_ROWS=10 MAX_ROWS=200 AVG_ROW_LENGTH=10 PACK_KEYS=0 CHECKSUM=1 DELAY_KEY_WRITE=1 ROW_FORMAT=DYNAMIC COMMENT='test'
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL default '0',
+  `b` varchar(10) default NULL,
+  KEY `b` (`b`)
+) TYPE=MyISAM
