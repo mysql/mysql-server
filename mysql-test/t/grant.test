@@ -125,3 +125,7 @@ drop_user3@localhost, drop_user4@localhost;
 drop user drop_user1@localhost, drop_user2@localhost, drop_user3@localhost,
 drop_user4@localhost;
 drop table t1;
+grant usage on *.* to mysqltest_1@localhost identified by "password";
+grant select, update, insert on test.* to mysqltest@localhost;
+show grants for mysqltest_1@localhost;
+drop user mysqltest_1@localhost;
