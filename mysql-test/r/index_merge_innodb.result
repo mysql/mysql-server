@@ -53,3 +53,71 @@ key1	key2	str1	zeroval	str2	str3
 1	199	aaa	0	bbb	199-0_A
 0	200	aaa	0	bbb	200-0_a
 drop table t1;
+create table t1 (
+pk    integer not null auto_increment primary key,
+key1  integer,
+key2  integer not null,
+filler char  (200),
+index (key1),
+index (key2)
+) engine=innodb;
+show warnings;
+Level	Code	Message
+explain select pk from t1 where key1 = 1 and key2 = 1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	key1,key2	key1,key2	5,4	NULL	1	Using intersect(key1,key2); Using where; Using index
+select pk from t1 where key2 = 1 and key1 = 1;
+pk
+26
+select pk from t1 ignore index(key1,key2) where key2 = 1 and key1 = 1;
+pk
+26
+drop table t1;
+create table t1 (
+pk int primary key auto_increment,
+key1a  int,
+key2a  int,
+key1b  int,
+key2b  int,
+dummy1 int,
+dummy2 int,
+dummy3 int,
+dummy4 int,
+key3a  int,
+key3b  int,
+filler1 char (200),
+index i1(key1a, key1b),
+index i2(key2a, key2b),
+index i3(key3a, key3b)
+) engine=innodb;
+create table t2 (a int);
+insert into t2 values (0),(1),(2),(3),(4),(NULL);
+insert into t1 (key1a, key1b, key2a, key2b, key3a, key3b) 
+select A.a, B.a, C.a, D.a, C.a, D.a from t2 A,t2 B,t2 C, t2 D;
+insert into t1 (key1a, key1b, key2a, key2b, key3a, key3b) 
+select key1a, key1b, key2a, key2b, key3a, key3b from t1;
+insert into t1 (key1a, key1b, key2a, key2b, key3a, key3b) 
+select key1a, key1b, key2a, key2b, key3a, key3b from t1;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+select count(*) from t1;
+count(*)
+5184
+explain select count(*) from t1 where 
+key1a = 2 and key1b is null and  key2a = 2 and key2b is null;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	i1,i2	i1,i2	10,10	NULL	3	Using intersect(i1,i2); Using where; Using index
+select count(*) from t1 where 
+key1a = 2 and key1b is null and key2a = 2 and key2b is null;
+count(*)
+4
+explain select count(*) from t1 where 
+key1a = 2 and key1b is null and key3a = 2 and key3b is null;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	i1,i3	i1,i3	10,10	NULL	3	Using intersect(i1,i3); Using where; Using index
+select count(*) from t1 where 
+key1a = 2 and key1b is null and key3a = 2 and key3b is null;
+count(*)
+4
+drop table t1,t2;

@@ -2331,11 +2331,6 @@ row_sel_store_mysql_rec(
 		prebuilt->blob_heap = NULL;
 	}
 
-	/* MySQL assumes that all columns have the SQL NULL bit set unless it
-	is a nullable column with a non-NULL value */
-
-	memset(mysql_rec, 0xFF, prebuilt->null_bitmap_len);
-
 	for (i = 0; i < prebuilt->n_template; i++) {
 
 		templ = prebuilt->mysql_template + i;
@@ -2431,6 +2426,8 @@ row_sel_store_mysql_rec(
 		        bug number 154 in the MySQL bug database: GROUP BY
 		        and DISTINCT could treat NULL values inequal. */
 
+			mysql_rec[templ->mysql_null_byte_offset] |=
+					(byte) (templ->mysql_null_bit_mask);
 			if (templ->type == DATA_VARCHAR
 			    || templ->type == DATA_CHAR
 			    || templ->type == DATA_BINARY
@@ -2749,10 +2746,15 @@ row_sel_pop_cached_row_for_mysql(
 				buf + templ->mysql_col_offset, 
 				cached_rec + templ->mysql_col_offset,
 				templ->mysql_col_len);
-
+			/* Copy NULL bit of the current field from cached_rec 
+			to buf */
 			if (templ->mysql_null_bit_mask)
-				buf[templ->mysql_null_byte_offset] &= 
-					cached_rec[templ->mysql_null_byte_offset];
+			{
+				buf[templ->mysql_null_byte_offset] ^=
+				  (buf[templ->mysql_null_byte_offset] ^
+				   cached_rec[templ->mysql_null_byte_offset]) &
+				  (byte)templ->mysql_null_bit_mask;
+			}
 		}
 	}
 	else
