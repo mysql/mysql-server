@@ -2013,10 +2013,12 @@ int ha_ndbcluster::rnd_init(bool scan)
   DBUG_ENTER("rnd_init");
   DBUG_PRINT("enter", ("scan: %d", scan));
   // Check if scan is to be restarted
-  if (cursor && scan)
+  if (cursor)
+  {
+    if (!scan)
+      DBUG_RETURN(1);
     cursor->restart();    
-  else
-    DBUG_RETURN(1);
+  }
   index_init(table->primary_key);
   DBUG_RETURN(0);
 }
