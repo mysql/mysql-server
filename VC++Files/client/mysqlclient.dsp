@@ -104,6 +104,10 @@ SOURCE=..\mysys\charset.c
 # End Source File
 # Begin Source File
 
+SOURCE=..\libmysql\client.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\completion_hash.cpp
 # End Source File
 # Begin Source File

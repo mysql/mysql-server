@@ -288,6 +288,210 @@ HANDLE create_named_pipe(NET *net, uint connect_timeout, char **arg_host,
 }
 #endif
 
+/*
+  Create new shared memory connection, return handler of connection
+
+  SYNOPSIS
+    create_shared_memory()
+    mysql		Pointer of mysql structure
+    net			Pointer of net structure
+    connect_timeout	Timeout of connection
+*/
+
+#ifdef HAVE_SMEM
+HANDLE create_shared_memory(MYSQL *mysql,NET *net, uint connect_timeout)
+{
+  ulong smem_buffer_length = shared_memory_buffer_length + 4;
+  /*
+    event_connect_request is event object for start connection actions
+    event_connect_answer is event object for confirm, that server put data
+    handle_connect_file_map is file-mapping object, use for create shared memory
+    handle_connect_map is pointer on shared memory
+    handle_map is pointer on shared memory for client
+    event_server_wrote,
+    event_server_read,
+    event_client_wrote,
+    event_client_read are events for transfer data between server and client
+    handle_file_map is file-mapping object, use for create shared memory
+  */
+  HANDLE event_connect_request = NULL;
+  HANDLE event_connect_answer = NULL;
+  HANDLE handle_connect_file_map = NULL;
+  char *handle_connect_map = NULL;
+
+  char *handle_map = NULL;
+  HANDLE event_server_wrote = NULL;
+  HANDLE event_server_read = NULL;
+  HANDLE event_client_wrote = NULL;
+  HANDLE event_client_read = NULL;
+  HANDLE handle_file_map = NULL;
+  ulong connect_number;
+  char connect_number_char[22], *p;
+  char tmp[64];
+  char *suffix_pos;
+  DWORD error_allow = 0;
+  DWORD error_code = 0;
+  char *shared_memory_base_name = mysql->options.shared_memory_base_name;
+
+  /*
+    The name of event and file-mapping events create agree next rule:
+              shared_memory_base_name+unique_part
+    Where:
+      shared_memory_base_name is unique value for each server
+      unique_part is uniquel value for each object (events and file-mapping)
+  */
+  suffix_pos = strxmov(tmp,shared_memory_base_name,"_",NullS);
+  strmov(suffix_pos, "CONNECT_REQUEST");
+  if (!(event_connect_request= OpenEvent(EVENT_ALL_ACCESS,FALSE,tmp)))
+  {
+    error_allow = CR_SHARED_MEMORY_CONNECT_REQUEST_ERROR;
+    goto err;
+  }
+  strmov(suffix_pos, "CONNECT_ANSWER");
+  if (!(event_connect_answer= OpenEvent(EVENT_ALL_ACCESS,FALSE,tmp)))
+  {
+    error_allow = CR_SHARED_MEMORY_CONNECT_ANSWER_ERROR;
+    goto err;
+  }
+  strmov(suffix_pos, "CONNECT_DATA");
+  if (!(handle_connect_file_map= OpenFileMapping(FILE_MAP_WRITE,FALSE,tmp)))
+  {
+    error_allow = CR_SHARED_MEMORY_CONNECT_FILE_MAP_ERROR;
+    goto err;
+  }
+  if (!(handle_connect_map= MapViewOfFile(handle_connect_file_map,
+					  FILE_MAP_WRITE,0,0,sizeof(DWORD))))
+  {
+    error_allow = CR_SHARED_MEMORY_CONNECT_MAP_ERROR;
+    goto err;
+  }
+  /*
+    Send to server request of connection
+  */
+  if (!SetEvent(event_connect_request))
+  {
+    error_allow = CR_SHARED_MEMORY_CONNECT_SET_ERROR;
+    goto err;
+  }
+  /*
+    Wait of answer from server
+  */
+  if (WaitForSingleObject(event_connect_answer,connect_timeout*1000) !=
+      WAIT_OBJECT_0)
+  {
+    error_allow = CR_SHARED_MEMORY_CONNECT_ABANDODED_ERROR;
+    goto err;
+  }
+  /*
+    Get number of connection
+  */
+  connect_number = uint4korr(handle_connect_map);/*WAX2*/
+  p= int2str(connect_number, connect_number_char, 10);
+
+  /*
+    The name of event and file-mapping events create agree next rule:
+    shared_memory_base_name+unique_part+number_of_connection
+    Where:
+      shared_memory_base_name is uniquel value for each server
+      unique_part is uniquel value for each object (events and file-mapping)
+      number_of_connection is number of connection between server and client
+  */
+  suffix_pos = strxmov(tmp,shared_memory_base_name,"_",connect_number_char,
+		       "_",NullS);
+  strmov(suffix_pos, "DATA");
+  if ((handle_file_map = OpenFileMapping(FILE_MAP_WRITE,FALSE,tmp)) == NULL)
+  {
+    error_allow = CR_SHARED_MEMORY_FILE_MAP_ERROR;
+    goto err2;
+  }
+  if ((handle_map = MapViewOfFile(handle_file_map,FILE_MAP_WRITE,0,0,
+				  smem_buffer_length)) == NULL)
+  {
+    error_allow = CR_SHARED_MEMORY_MAP_ERROR;
+    goto err2;
+  }
+
+  strmov(suffix_pos, "SERVER_WROTE");
+  if ((event_server_wrote = OpenEvent(EVENT_ALL_ACCESS,FALSE,tmp)) == NULL)
+  {
+    error_allow = CR_SHARED_MEMORY_EVENT_ERROR;
+    goto err2;
+  }
+
+  strmov(suffix_pos, "SERVER_READ");
+  if ((event_server_read = OpenEvent(EVENT_ALL_ACCESS,FALSE,tmp)) == NULL)
+  {
+    error_allow = CR_SHARED_MEMORY_EVENT_ERROR;
+    goto err2;
+  }
+
+  strmov(suffix_pos, "CLIENT_WROTE");
+  if ((event_client_wrote = OpenEvent(EVENT_ALL_ACCESS,FALSE,tmp)) == NULL)
+  {
+    error_allow = CR_SHARED_MEMORY_EVENT_ERROR;
+    goto err2;
+  }
+
+  strmov(suffix_pos, "CLIENT_READ");
+  if ((event_client_read = OpenEvent(EVENT_ALL_ACCESS,FALSE,tmp)) == NULL)
+  {
+    error_allow = CR_SHARED_MEMORY_EVENT_ERROR;
+    goto err2;
+  }
+  /*
+    Set event that server should send data
+  */
+  SetEvent(event_server_read);
+
+err2:
+  if (error_allow == 0)
+  {
+    net->vio= vio_new_win32shared_memory(net,handle_file_map,handle_map,
+					 event_server_wrote,
+                                         event_server_read,event_client_wrote,
+					 event_client_read);
+  }
+  else
+  {
+    error_code = GetLastError();
+    if (event_server_read)
+      CloseHandle(event_server_read);
+    if (event_server_wrote)
+      CloseHandle(event_server_wrote);
+    if (event_client_read)
+      CloseHandle(event_client_read);
+    if (event_client_wrote)
+      CloseHandle(event_client_wrote);
+    if (handle_map)
+      UnmapViewOfFile(handle_map);
+    if (handle_file_map)
+      CloseHandle(handle_file_map);
+  }
+err:
+  if (error_allow)
+    error_code = GetLastError();
+  if (event_connect_request)
+    CloseHandle(event_connect_request);
+  if (event_connect_answer)
+    CloseHandle(event_connect_answer);
+  if (handle_connect_map)
+    UnmapViewOfFile(handle_connect_map);
+  if (handle_connect_file_map)
+    CloseHandle(handle_connect_file_map);
+  if (error_allow)
+  {
+    net->last_errno=error_allow;
+    strmov(net->sqlstate, unknown_sqlstate);
+    if (error_allow == CR_SHARED_MEMORY_EVENT_ERROR)
+      sprintf(net->last_error,ER(net->last_errno),suffix_pos,error_code);
+    else
+      sprintf(net->last_error,ER(net->last_errno),error_code);
+    return(INVALID_HANDLE_VALUE);
+  }
+  return(handle_map);
+}
+#endif
+
 /*****************************************************************************
   Read a packet from server. Give error message if socket was down
   or packet is an error message
@@ -865,7 +1069,7 @@ unpack_fields(MYSQL_DATA *data,MEM_ROOT *alloc,uint fields,
 #ifndef DELETE_SUPPORT_OF_4_0_PROTOCOL
   else
     unpack_fields_40(data->data, field, alloc, lengths, default_value ? 6 : 5,
-		     default_value, server_capabilities & CLIENT_LONG_FLAG);
+		     default_value, (my_bool)(server_capabilities & CLIENT_LONG_FLAG));
 #endif /* DELETE_SUPPORT_OF_4_0_PROTOCOL */
 #endif /*MYSQL_SERVER*/
   free_rows(data);				/* Free old data */
