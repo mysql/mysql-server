@@ -3376,7 +3376,7 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
     db_access= thd->db_access;
     if (!(thd->master_access & SELECT_ACL) &&
 	(db && (!thd->db || strcmp(db,thd->db))))
-      db_access=acl_get(thd->host, thd->ip, (char*) &thd->remote.sin_addr,
+      db_access=acl_get(thd->host, thd->ip,
 			thd->priv_user, db, test(want_access & GRANT_ACL));
     *save_priv=thd->master_access | db_access;
     DBUG_RETURN(FALSE);
@@ -3396,7 +3396,7 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
     DBUG_RETURN(FALSE);				// Allow select on anything
 
   if (db && (!thd->db || strcmp(db,thd->db)))
-    db_access=acl_get(thd->host, thd->ip, (char*) &thd->remote.sin_addr,
+    db_access=acl_get(thd->host, thd->ip,
 		      thd->priv_user, db, test(want_access & GRANT_ACL));
   else
     db_access=thd->db_access;

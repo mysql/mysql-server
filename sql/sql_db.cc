@@ -618,8 +618,7 @@ bool mysql_change_db(THD *thd, const char *name)
   if (test_all_bits(thd->master_access,DB_ACLS))
     db_access=DB_ACLS;
   else
-    db_access= (acl_get(thd->host,thd->ip,(char*) &thd->remote.sin_addr,
-			thd->priv_user,dbname,0) |
+    db_access= (acl_get(thd->host,thd->ip, thd->priv_user,dbname,0) |
 		thd->master_access);
   if (!(db_access & DB_ACLS) && (!grant_option || check_grant_db(thd,dbname)))
   {
@@ -684,8 +683,7 @@ int mysqld_show_create_db(THD *thd, char *dbname,
   if (test_all_bits(thd->master_access,DB_ACLS))
     db_access=DB_ACLS;
   else
-    db_access= (acl_get(thd->host,thd->ip,(char*) &thd->remote.sin_addr,
-			thd->priv_user,dbname,0) |
+    db_access= (acl_get(thd->host,thd->ip, thd->priv_user,dbname,0) |
 		thd->master_access);
   if (!(db_access & DB_ACLS) && (!grant_option || check_grant_db(thd,dbname)))
   {
