@@ -27,7 +27,10 @@ public:
   Item_func_period_add(Item *a,Item *b) :Item_int_func(a,b) {}
   longlong val_int();
   const char *func_name() const { return "period_add"; }
-  void fix_length_and_dec() { max_length=6; }
+  void fix_length_and_dec() 
+  { 
+    max_length=6*thd_charset()->mbmaxlen;
+  }
 };
 
 
@@ -37,7 +40,11 @@ public:
   Item_func_period_diff(Item *a,Item *b) :Item_int_func(a,b) {}
   longlong val_int();
   const char *func_name() const { return "period_diff"; }
-  void fix_length_and_dec() { decimals=0; max_length=6; }
+  void fix_length_and_dec()
+  { 
+    decimals=0;
+    max_length=6*thd_charset()->mbmaxlen;
+  }
 };
 
 
@@ -47,7 +54,12 @@ public:
   Item_func_to_days(Item *a) :Item_int_func(a) {}
   longlong val_int();
   const char *func_name() const { return "to_days"; }
-  void fix_length_and_dec() { decimals=0; max_length=6; maybe_null=1; }
+  void fix_length_and_dec() 
+  { 
+    decimals=0; 
+    max_length=6*thd_charset()->mbmaxlen;
+    maybe_null=1; 
+  }
 };
 
 
@@ -57,7 +69,12 @@ public:
   Item_func_dayofmonth(Item *a) :Item_int_func(a) {}
   longlong val_int();
   const char *func_name() const { return "dayofmonth"; }
-  void fix_length_and_dec() { decimals=0; max_length=2; maybe_null=1; }
+  void fix_length_and_dec() 
+  { 
+    decimals=0; 
+    max_length=2*thd_charset()->mbmaxlen;
+    maybe_null=1; 
+  }
 };
 
 
@@ -74,7 +91,13 @@ public:
   }
   const char *func_name() const { return "month"; }
   enum Item_result result_type () const { return INT_RESULT; }
-  void fix_length_and_dec() { decimals=0; max_length=2; maybe_null=1; }
+  void fix_length_and_dec() 
+  { 
+    set_charset(thd_charset());
+    decimals=0;
+    max_length=2*thd_charset()->mbmaxlen;
+    maybe_null=1; 
+  }
 };
 
 
@@ -86,8 +109,9 @@ public:
   String *val_str(String *str);
   enum Item_result result_type () const { return STRING_RESULT; }
   void fix_length_and_dec() 
-  { 
-    decimals=0; 
+  {
+    set_charset(thd_charset());
+    decimals=0;
     max_length=10*thd_charset()->mbmaxlen;
     maybe_null=1; 
   }
@@ -100,7 +124,12 @@ public:
   Item_func_dayofyear(Item *a) :Item_int_func(a) {}
   longlong val_int();
   const char *func_name() const { return "dayofyear"; }
-  void fix_length_and_dec() { decimals=0; max_length=3; maybe_null=1; }
+  void fix_length_and_dec() 
+  { 
+    decimals=0;
+    max_length=3*thd_charset()->mbmaxlen;
+    maybe_null=1; 
+  }
 };
 
 
@@ -110,7 +139,12 @@ public:
   Item_func_hour(Item *a) :Item_int_func(a) {}
   longlong val_int();
   const char *func_name() const { return "hour"; }
-  void fix_length_and_dec() { decimals=0; max_length=2; maybe_null=1; }
+  void fix_length_and_dec()
+  {
+    decimals=0;
+    max_length=2*thd_charset()->mbmaxlen;
+    maybe_null=1;
+  }
 };
 
 
@@ -120,7 +154,12 @@ public:
   Item_func_minute(Item *a) :Item_int_func(a) {}
   longlong val_int();
   const char *func_name() const { return "minute"; }
-  void fix_length_and_dec() { decimals=0; max_length=2; maybe_null=1; }
+  void fix_length_and_dec()
+  {
+    decimals=0;
+    max_length=2*thd_charset()->mbmaxlen;
+    maybe_null=1;
+  }
 };
 
 
@@ -130,7 +169,12 @@ public:
   Item_func_quarter(Item *a) :Item_int_func(a) {}
   longlong val_int();
   const char *func_name() const { return "quarter"; }
-  void fix_length_and_dec() { decimals=0; max_length=1; maybe_null=1; }
+  void fix_length_and_dec()
+  { 
+     decimals=0;
+     max_length=1*thd_charset()->mbmaxlen;
+     maybe_null=1;
+  }
 };
 
 
@@ -140,7 +184,12 @@ public:
   Item_func_second(Item *a) :Item_int_func(a) {}
   longlong val_int();
   const char *func_name() const { return "second"; }
-  void fix_length_and_dec() { decimals=0; max_length=2; maybe_null=1; }
+  void fix_length_and_dec() 
+  { 
+    decimals=0;
+    max_length=2*thd_charset()->mbmaxlen;
+    maybe_null=1;
+  }
 };
 
 
@@ -150,7 +199,12 @@ public:
   Item_func_week(Item *a,Item *b) :Item_int_func(a,b) {}
   longlong val_int();
   const char *func_name() const { return "week"; }
-  void fix_length_and_dec() { decimals=0; max_length=2; maybe_null=1; }
+  void fix_length_and_dec()
+  { 
+    decimals=0;
+    max_length=2*thd_charset()->mbmaxlen;
+    maybe_null=1;
+  }
 };
 
 class Item_func_yearweek :public Item_int_func
@@ -159,7 +213,12 @@ public:
   Item_func_yearweek(Item *a,Item *b) :Item_int_func(a,b) {}
   longlong val_int();
   const char *func_name() const { return "yearweek"; }
-  void fix_length_and_dec() { decimals=0; max_length=6; maybe_null=1; }
+  void fix_length_and_dec()
+  { 
+    decimals=0;
+    max_length=6*thd_charset()->mbmaxlen;
+    maybe_null=1;
+  }
 };
 
 
@@ -169,7 +228,12 @@ public:
   Item_func_year(Item *a) :Item_int_func(a) {}
   longlong val_int();
   const char *func_name() const { return "year"; }
-  void fix_length_and_dec() { decimals=0; max_length=4; maybe_null=1; }
+  void fix_length_and_dec()
+  { 
+    decimals=0;
+    max_length=4*thd_charset()->mbmaxlen;
+    maybe_null=1;
+  }
 };
 
 
@@ -181,13 +245,20 @@ public:
     :Item_func(a), odbc_type(type_arg) {}
   longlong val_int();
   double val() { return (double) val_int(); }
-  String *val_str(String *str) { 
+  String *val_str(String *str)
+  { 
     str->set(val_int(), thd_charset());
     return null_value ? 0 : str;
   }
   const char *func_name() const { return "weekday"; }
   enum Item_result result_type () const { return INT_RESULT; }
-  void fix_length_and_dec() { decimals=0; max_length=1; maybe_null=1; }
+  void fix_length_and_dec()
+  {
+    set_charset(thd_charset());
+    decimals=0;
+    max_length=1*thd_charset()->mbmaxlen;
+    maybe_null=1;
+  }
 };
 
 class Item_func_dayname :public Item_func_weekday
@@ -199,6 +270,7 @@ class Item_func_dayname :public Item_func_weekday
   enum Item_result result_type () const { return STRING_RESULT; }
   void fix_length_and_dec() 
   { 
+    set_charset(thd_charset());
     decimals=0; 
     max_length=9*thd_charset()->mbmaxlen;
     maybe_null=1; 
@@ -216,7 +288,8 @@ public:
   const char *func_name() const { return "timestamp"; }
   void fix_length_and_dec()
   {
-    decimals=0; max_length=10;
+    decimals=0;
+    max_length=10*thd_charset()->mbmaxlen;
   }
 };
 
@@ -229,7 +302,8 @@ public:
   const char *func_name() const { return "time_to_sec"; }
   void fix_length_and_dec()
   {
-    decimals=0; max_length=10;
+    decimals=0;
+    max_length=10*thd_charset()->mbmaxlen;
   }
 };
 
@@ -245,7 +319,12 @@ public:
   String *val_str(String *str);
   double val() { return (double) val_int(); }
   const char *func_name() const { return "date"; }
-  void fix_length_and_dec() { decimals=0; max_length=10; }
+  void fix_length_and_dec()
+  { 
+    set_charset(thd_charset());
+    decimals=0;
+    max_length=10*thd_charset()->mbmaxlen;
+  }
   int  save_in_field(Field *to);
   void make_field(Send_field *tmp_field)
   {
@@ -279,7 +358,7 @@ public:
 class Item_func_curtime :public Item_func
 {
   longlong value;
-  char buff[9];
+  char buff[9*2+32];
   uint buff_length;
 public:
   Item_func_curtime() :Item_func() {}
@@ -287,8 +366,7 @@ public:
   enum Item_result result_type () const { return STRING_RESULT; }
   double val() { return (double) value; }
   longlong val_int() { return value; }
-  String *val_str(String *str)
-  { str_value.set(buff,buff_length,default_charset_info); return &str_value; }
+  String *val_str(String *str);
   const char *func_name() const { return "curtime"; }
   void fix_length_and_dec();
   void make_field(Send_field *tmp_field)
@@ -319,7 +397,7 @@ public:
 class Item_func_now :public Item_date_func
 {
   longlong value;
-  char buff[20];
+  char buff[20*2+32];	// +32 to make my_snprintf_{8bit|ucs2} happy
   uint buff_length;
   TIME ltime;
 public:
@@ -329,8 +407,7 @@ public:
   double val()	     { return (double) value; }
   longlong val_int() { return value; }
   int  save_in_field(Field *to);
-  String *val_str(String *str)
-  { str_value.set(buff,buff_length,default_charset_info); return &str_value; }
+  String *val_str(String *str);
   const char *func_name() const { return "now"; }
   void fix_length_and_dec();
   bool get_date(TIME *res,bool fuzzy_date);
@@ -369,7 +446,12 @@ class Item_func_from_unixtime :public Item_date_func
   longlong val_int();
   String *val_str(String *str);
   const char *func_name() const { return "from_unixtime"; }
-  void fix_length_and_dec() { decimals=0; max_length=19; }
+  void fix_length_and_dec()
+  { 
+    set_charset(thd_charset());
+    decimals=0;
+    max_length=19*thd_charset()->mbmaxlen;
+  }
 //  enum Item_result result_type () const { return STRING_RESULT; }
   bool get_date(TIME *res,bool fuzzy_date);
 };
@@ -382,7 +464,12 @@ public:
   double val() { return (double) Item_func_sec_to_time::val_int(); }
   longlong val_int();
   String *val_str(String *);
-  void fix_length_and_dec() { maybe_null=1; max_length=13; }
+  void fix_length_and_dec()
+  { 
+    set_charset(thd_charset());
+    maybe_null=1;
+    max_length=13*thd_charset()->mbmaxlen;
+  }
   const char *func_name() const { return "sec_to_time"; }
   void make_field(Send_field *tmp_field)
   {
@@ -414,7 +501,13 @@ public:
     :Item_date_func(a,b),int_type(type_arg), date_sub_interval(neg_arg) {}
   String *val_str(String *);
   const char *func_name() const { return "date_add_interval"; }
-  void fix_length_and_dec() { maybe_null=1; max_length=19; value.alloc(32);}
+  void fix_length_and_dec()
+  {
+    set_charset(thd_charset());
+    maybe_null=1;
+    max_length=19*thd_charset()->mbmaxlen;
+    value.alloc(32);
+  }
   double val() { return (double) val_int(); }
   longlong val_int();
   bool get_date(TIME *res,bool fuzzy_date);
