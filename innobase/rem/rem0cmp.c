@@ -100,7 +100,15 @@ cmp_types_are_equal(
 	dtype_t*	type1,	/* in: type 1 */
 	dtype_t*	type2)	/* in: type 2 */
 {
-	if (type1->mtype != type2->mtype) {
+        if ((type1->mtype == DATA_VARCHAR && type2->mtype == DATA_CHAR)
+          || (type1->mtype == DATA_CHAR && type2->mtype == DATA_VARCHAR)
+          || (type1->mtype == DATA_FIXBINARY && type2->mtype == DATA_BINARY)
+          || (type1->mtype == DATA_BINARY && type2->mtype == DATA_FIXBINARY)) {
+
+                return(TRUE);
+        }
+
+        if (type1->mtype != type2->mtype) {
 
 		return(FALSE);
 	}
