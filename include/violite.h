@@ -137,8 +137,6 @@ void	vio_ssl_delete(Vio* vio);
 
 int	vio_ssl_read(Vio* vio,gptr buf,	int size);
 int	vio_ssl_write(Vio* vio,const gptr buf,int size);
-int	vio_ssl_blocking(Vio* vio,my_bool onoff);
-my_bool	vio_ssl_is_blocking(Vio* vio);
 
 /* setsockopt TCP_NODELAY at IPPROTO_TCP level, when possible. */
   int vio_ssl_fastsend(Vio* vio);
@@ -152,6 +150,7 @@ int vio_ssl_close(Vio* vio);
 int vio_ssl_errno(Vio *vio);
 my_bool vio_ssl_peer_addr(Vio* vio, char *buf);
 void vio_ssl_in_addr(Vio *vio, struct in_addr *in);
+int vio_ssl_blocking(Vio * vio, my_bool set_blocking_mode, my_bool *old_mode);
 
 /* Single copy for server */
 enum vio_ssl_acceptorfd_state

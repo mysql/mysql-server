@@ -551,9 +551,14 @@ int STDCALL mysql_server_init(int argc, char **argv, char **groups)
       sql_print_error("Warning: Can't create thread to manage maintenance");
   }
 
-  /* Update mysqld variables from client variables */
-  global_system_variables.max_allowed_packet=max_allowed_packet;
-  global_system_variables.net_buffer_length=net_buffer_length;
+  /*
+    Update mysqld variables from client variables if set
+    The client variables are set also by get_one_option() in mysqld.cc
+  */
+  if (max_allowed_packet)
+    global_system_variables.max_allowed_packet= max_allowed_packet;
+  if (net_buffer_length)
+    global_system_variables.net_buffer_length= net_buffer_length;
   return 0;
 }
 

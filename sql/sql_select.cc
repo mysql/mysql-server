@@ -641,6 +641,8 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
     DBUG_PRINT("info",("Creating tmp table"));
     thd->proc_info="Creating tmp table";
 
+    join.tmp_table_param.hidden_field_count=(all_fields.elements-
+					     fields.elements);
     if (!(tmp_table =
 	  create_tmp_table(thd,&join.tmp_table_param,all_fields,
 			   ((!simple_group && !procedure &&
@@ -3862,6 +3864,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       'param->hidden_field_count' extra columns, whose null bits are stored
       in the first 'hidden_null_pack_length' bytes of the row.
     */
+    DBUG_PRINT("info",("hidden_field_count: %d", param->hidden_field_count));
+
     null_pack_length-=hidden_null_pack_length;
     keyinfo->key_parts= ((field_count-param->hidden_field_count)+
 			 test(null_pack_length));
@@ -3884,7 +3888,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       goto err;
     table->key_info=keyinfo;
     keyinfo->key_part=key_part_info;
-    keyinfo->flags=HA_NOSAME|HA_NULL_ARE_EQUAL;
+    keyinfo->flags=HA_NOSAME | HA_NULL_ARE_EQUAL;
     keyinfo->key_length=(uint16) reclength;
     keyinfo->name=(char*) "tmp";
     if (null_pack_length)
