@@ -546,14 +546,14 @@ client_collation	koi8r_general_ci
 SELECT charset('a'),collation('a'),coercibility('a'),'a'='A';
 charset('a')	collation('a')	coercibility('a')	'a'='A'
 latin1	latin1_swedish_ci	3	1
-SET COLLATION koi8r_bin;
+SET NAMES koi8r COLLATE koi8r_bin;
 SHOW VARIABLES LIKE 'client_collation';
 Variable_name	Value
 client_collation	koi8r_bin
 SELECT charset('a'),collation('a'),coercibility('a'),'a'='A';
 charset('a')	collation('a')	coercibility('a')	'a'='A'
 latin1	latin1_swedish_ci	3	1
-SET COLLATION DEFAULT;
+SET NAMES koi8r COLLATE DEFAULT;
 SHOW VARIABLES LIKE 'client_collation';
 Variable_name	Value
 client_collation	koi8r_general_ci

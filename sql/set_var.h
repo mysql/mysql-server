@@ -530,11 +530,14 @@ public:
 
 class set_var_client_collation: public set_var_base
 {
+  CHARSET_INFO *client_charset;
   CHARSET_INFO *client_collation;
   my_bool convert_result_charset;
 public:
-  set_var_client_collation(CHARSET_INFO *coll_arg ,my_bool conv_arg)
-    :client_collation(coll_arg), convert_result_charset(conv_arg)
+  set_var_client_collation(CHARSET_INFO *cset_arg,
+  			   CHARSET_INFO *coll_arg ,my_bool conv_arg)
+    :client_charset(cset_arg), client_collation(coll_arg),
+     convert_result_charset(conv_arg)
   {}
   int check(THD *thd);
   int update(THD *thd);
@@ -552,3 +555,4 @@ int sql_set_variables(THD *thd, List<set_var_base> *var_list);
 void fix_delay_key_write(THD *thd, enum_var_type type);
 
 extern sys_var_str sys_charset;
+CHARSET_INFO *get_old_charset_by_name(const char *old_name);

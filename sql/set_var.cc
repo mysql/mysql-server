@@ -1175,7 +1175,7 @@ static my_old_conv old_conv[]=
 	{	NULL			,	NULL		}
 };
 
-static CHARSET_INFO *get_old_charset_by_name(const char *name)
+CHARSET_INFO *get_old_charset_by_name(const char *name)
 {
   my_old_conv *c;
  
@@ -1662,22 +1662,23 @@ int set_var_password::update(THD *thd)
 
 int set_var_client_collation::check(THD *thd)
 {
+  client_charset= client_charset ? client_charset : thd->db_charset;
+  client_collation= client_collation ? client_collation : client_charset;
+  if (!my_charset_same(client_charset, client_collation))
+  {
+    my_error(ER_COLLATION_CHARSET_MISMATCH, MYF(0),
+	     client_collation->name, client_charset->csname);
+    return -1;
+  }
   return 0;
 }
 
 int set_var_client_collation::update(THD *thd)
 {
-#if 0
-  if (var->type == OPT_GLOBAL)
-    global_system_variables.thd_charset= var->save_result.charset;
-  else
-#endif
-  {
-    thd->variables.thd_charset= client_collation;
-    thd->variables.convert_result_charset= convert_result_charset;
-    thd->protocol_simple.init(thd);
-    thd->protocol_prep.init(thd);
-  }
+  thd->variables.thd_charset= client_collation;
+  thd->variables.convert_result_charset= convert_result_charset;
+  thd->protocol_simple.init(thd);
+  thd->protocol_prep.init(thd);
   return 0;
 }
 
