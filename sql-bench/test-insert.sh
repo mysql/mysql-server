@@ -223,8 +223,8 @@ if ($limits->{'unique_index'})
   {
     $tmpvar^= ((($tmpvar + 63) + $i)*3 % $opt_loop_count);
     $tmp=$tmpvar % ($total_rows);
-    $tmpquery = "$query ($tmp,1,2,'D')";
-    if (!$dbh->do($tmpquery))
+    $tmpquery = "$query ($tmp,$tmp,2,'D')";
+    if ($dbh->do($tmpquery))
     {
       die "Didn't get an error when inserting duplicate record $tmp\n";
     }

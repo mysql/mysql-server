@@ -64,7 +64,7 @@ void send_error(NET *net, uint sql_errno, const char *err)
   }
   else
   {
-    length=strlen(err);
+    length=(uint) strlen(err);
     set_if_smaller(length,MYSQL_ERRMSG_SIZE);
   }
   VOID(net_write_command(net,(uchar) 255,(char*) err,length));
@@ -98,7 +98,7 @@ net_printf(NET *net, uint errcode, ...)
   offset= net->return_errno ? 2 : 0;
   text_pos=(char*) net->buff+head_length+offset+1;
   (void) vsprintf(my_const_cast(char*) (text_pos),format,args);
-  length=strlen((char*) text_pos);
+  length=(uint) strlen((char*) text_pos);
   if (length >= sizeof(net->last_error))
     length=sizeof(net->last_error)-1;		/* purecov: inspected */
   va_end(args);
@@ -215,7 +215,7 @@ net_store_length(char *pkg, uint length)
 char *
 net_store_data(char *to,const char *from)
 {
-  uint length=strlen(from);
+  uint length=(uint) strlen(from);
   to=net_store_length(to,length);
   memcpy(to,from,length);
   return to+length;
@@ -267,7 +267,7 @@ net_store_data(String *packet,const char *from,uint length)
 bool
 net_store_data(String *packet,const char *from)
 {
-  uint length=strlen(from);
+  uint length=(uint) strlen(from);
   uint packet_length=packet->length();
   if (packet_length+5+length > packet->alloced_length() &&
       packet->realloc(packet_length+5+length))

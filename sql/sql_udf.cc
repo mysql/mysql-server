@@ -263,7 +263,7 @@ udf_func *find_udf(const char *name,uint length,bool mark_used)
   /* TODO: This should be changed to reader locks someday! */
   pthread_mutex_lock(&THR_LOCK_udf);
   udf=(udf_func*) hash_search(&udf_hash,name,
-			      length ? length : strlen(name));
+			      length ? length : (uint) strlen(name));
   if (mark_used)
     udf->usage_count++;
   pthread_mutex_unlock(&THR_LOCK_udf);
@@ -299,7 +299,7 @@ static udf_func *add_udf(char *name, Item_result ret, char *dl,
     return 0;
   bzero((char*) tmp,sizeof(*tmp));
   tmp->name = name;
-  tmp->name_length=strlen(tmp->name);
+  tmp->name_length=(uint) strlen(tmp->name);
   tmp->dl = dl;
   tmp->returns = ret;
   tmp->type = type;
@@ -395,7 +395,7 @@ int mysql_create_function(THD *thd,udf_func *udf)
   restore_record(table,2);		// Get default values for fields
   table->field[0]->store(u_d->name, u_d->name_length);
   table->field[1]->store((longlong) u_d->returns);
-  table->field[2]->store(u_d->dl,strlen(u_d->dl));
+  table->field[2]->store(u_d->dl,(uint) strlen(u_d->dl));
   if (table->fields >= 4)			// If not old func format
     table->field[3]->store((longlong) u_d->type);
   error = table->file->write_row(table->record[0]);
@@ -430,7 +430,7 @@ int mysql_drop_function(THD *thd,const char *udf_name)
     DBUG_RETURN(1);
   }
   pthread_mutex_lock(&THR_LOCK_udf);
-  if (!(udf=(udf_func*) hash_search(&udf_hash,udf_name, strlen(udf_name))))
+  if (!(udf=(udf_func*) hash_search(&udf_hash,udf_name, (uint) strlen(udf_name))))
   {
     net_printf(&thd->net, ER_FUNCTION_NOT_DEFINED, udf_name);
     goto err;
@@ -445,7 +445,7 @@ int mysql_drop_function(THD *thd,const char *udf_name)
   if (!(table = open_ltable(thd,&tables,TL_WRITE)))
     goto err;
   if (!table->file->index_read_idx(table->record[0],0,(byte*) udf_name,
-				   strlen(udf_name),
+				   (uint) strlen(udf_name),
 				   HA_READ_KEY_EXACT))
   {
     int error;

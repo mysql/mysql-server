@@ -77,7 +77,7 @@ static void add_hostname(struct in_addr *in,const char *name)
     host_entry *entry;
     if (!(entry=(host_entry*) hostname_cache->search((gptr) &in->s_addr,0)))
     {
-      uint length=name ? strlen(name) : 0;
+      uint length=name ? (uint) strlen(name) : 0;
 
       if ((entry=(host_entry*) malloc(sizeof(host_entry)+length+1)))
       {

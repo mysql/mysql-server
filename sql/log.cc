@@ -221,7 +221,7 @@ int MYSQL_LOG::find_first_log(LOG_INFO* linfo, const char* log_name)
   if(!index_file) return LOG_INFO_INVALID;
   int error = 0;
   char* fname = linfo->log_file_name;
-  int log_name_len = strlen(log_name);
+  int log_name_len = (uint) strlen(log_name);
 
   pthread_mutex_lock(&LOCK_index);
   if(my_fseek(index_file, 0L, MY_SEEK_SET, MYF(MY_WME) ) == MY_FILEPOS_ERROR)
@@ -296,7 +296,7 @@ void MYSQL_LOG::make_log_name(char* buf, const char* log_ident)
   if(inited)
     {
       int dir_len = dirname_length(log_file_name); 
-      int ident_len = strlen(log_ident);
+      int ident_len = (uint) strlen(log_ident);
       if(dir_len + ident_len + 1 > FN_REFLEN)
 	{
 	  buf[0] = 0;

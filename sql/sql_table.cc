@@ -653,25 +653,25 @@ mysql_rename_table(enum db_type base,
 {
   char from[FN_REFLEN],to[FN_REFLEN];
   handler *file=get_new_handler((TABLE*) 0, base);
-  bool error=0;
+  int error=0;
   DBUG_ENTER("mysql_rename_table");
   (void) sprintf(from,"%s/%s/%s",mysql_data_home,old_db,old_name);
   (void) sprintf(to,"%s/%s/%s",mysql_data_home,new_db,new_name);
   fn_format(from,from,"","",4);
   fn_format(to,to,    "","",4);
-  if (file->rename_table((const char*) from,(const char *) to))
-    error=1;
-  else
+  if (!(error=file->rename_table((const char*) from,(const char *) to)))
   {
     if (rename_file_ext(from,to,reg_ext))
     {
-      error=1;
+      error=my_errno;
       /* Restore old file name */
       file->rename_table((const char*) to,(const char *) from);
     }
   }
   delete file;
-  DBUG_RETURN(error);
+  if (error)
+    my_error(ER_ERROR_ON_RENAME, MYF(0), from, to, error);
+  DBUG_RETURN(error != 0);
 }
 
 /*
