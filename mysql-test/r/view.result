@@ -1176,13 +1176,121 @@ create table t1 (col1 int);
 create table t2 (col1 int);
 create view v1 as select * from t1;
 create view v2 as select * from v1;
+create view v3 as select v2.col1 from v2,t2 where v2.col1 = t2.col1;
 update v2 set col1 = (select max(col1) from v1);
 ERROR HY000: You can't specify target table 'v2' for update in FROM clause
+update v2 set col1 = (select max(col1) from t1);
+ERROR HY000: You can't specify target table 'v2' for update in FROM clause
+update v2 set col1 = (select max(col1) from v2);
+ERROR HY000: You can't specify target table 'v2' for update in FROM clause
+update v2,t2 set v2.col1 = (select max(col1) from v1) where v2.col1 = t2.col1;
+ERROR HY000: You can't specify target table 'v2' for update in FROM clause
+update t1,t2 set t1.col1 = (select max(col1) from v1) where t1.col1 = t2.col1;
+ERROR HY000: You can't specify target table 't1' for update in FROM clause
+update v1,t2 set v1.col1 = (select max(col1) from v1) where v1.col1 = t2.col1;
+ERROR HY000: You can't specify target table 'v1' for update in FROM clause
+update t2,v2 set v2.col1 = (select max(col1) from v1) where v2.col1 = t2.col1;
+ERROR HY000: You can't specify target table 't2' for update in FROM clause
+update t2,t1 set t1.col1 = (select max(col1) from v1) where t1.col1 = t2.col1;
+ERROR HY000: You can't specify target table 't2' for update in FROM clause
+update t2,v1 set v1.col1 = (select max(col1) from v1) where v1.col1 = t2.col1;
+ERROR HY000: You can't specify target table 't2' for update in FROM clause
+update v2,t2 set v2.col1 = (select max(col1) from t1) where v2.col1 = t2.col1;
+ERROR HY000: You can't specify target table 'v2' for update in FROM clause
+update t1,t2 set t1.col1 = (select max(col1) from t1) where t1.col1 = t2.col1;
+ERROR HY000: You can't specify target table 't1' for update in FROM clause
+update v1,t2 set v1.col1 = (select max(col1) from t1) where v1.col1 = t2.col1;
+ERROR HY000: You can't specify target table 'v1' for update in FROM clause
+update t2,v2 set v2.col1 = (select max(col1) from t1) where v2.col1 = t2.col1;
+ERROR HY000: You can't specify target table 't2' for update in FROM clause
+update t2,t1 set t1.col1 = (select max(col1) from t1) where t1.col1 = t2.col1;
+ERROR HY000: You can't specify target table 't2' for update in FROM clause
+update t2,v1 set v1.col1 = (select max(col1) from t1) where v1.col1 = t2.col1;
+ERROR HY000: You can't specify target table 't2' for update in FROM clause
+update v2,t2 set v2.col1 = (select max(col1) from v2) where v2.col1 = t2.col1;
+ERROR HY000: You can't specify target table 'v2' for update in FROM clause
+update t1,t2 set t1.col1 = (select max(col1) from v2) where t1.col1 = t2.col1;
+ERROR HY000: You can't specify target table 't1' for update in FROM clause
+update v1,t2 set v1.col1 = (select max(col1) from v2) where v1.col1 = t2.col1;
+ERROR HY000: You can't specify target table 'v1' for update in FROM clause
+update t2,v2 set v2.col1 = (select max(col1) from v2) where v2.col1 = t2.col1;
+ERROR HY000: You can't specify target table 't2' for update in FROM clause
+update t2,t1 set t1.col1 = (select max(col1) from v2) where t1.col1 = t2.col1;
+ERROR HY000: You can't specify target table 't2' for update in FROM clause
+update t2,v1 set v1.col1 = (select max(col1) from v2) where v1.col1 = t2.col1;
+ERROR HY000: You can't specify target table 't2' for update in FROM clause
+update v3 set v3.col1 = (select max(col1) from v1);
+ERROR HY000: You can't specify target table 'v3' for update in FROM clause
+update v3 set v3.col1 = (select max(col1) from t1);
+ERROR HY000: You can't specify target table 'v3' for update in FROM clause
+update v3 set v3.col1 = (select max(col1) from v2);
+ERROR HY000: You can't specify target table 'v3' for update in FROM clause
+update v3 set v3.col1 = (select max(col1) from v3);
+ERROR HY000: You can't specify target table 'v3' for update in FROM clause
 delete from v2 where col1 = (select max(col1) from v1);
 ERROR HY000: You can't specify target table 'v2' for update in FROM clause
+delete from v2 where col1 = (select max(col1) from t1);
+ERROR HY000: You can't specify target table 'v2' for update in FROM clause
+delete from v2 where col1 = (select max(col1) from v2);
+ERROR HY000: You can't specify target table 'v2' for update in FROM clause
+delete v2 from v2,t2 where (select max(col1) from v1) > 0 and v2.col1 = t2.col1;
+ERROR HY000: You can't specify target table 'v2' for update in FROM clause
+delete t1 from t1,t2 where (select max(col1) from v1) > 0 and t1.col1 = t2.col1;
+ERROR HY000: You can't specify target table 't1' for update in FROM clause
+delete v1 from v1,t2 where (select max(col1) from v1) > 0 and v1.col1 = t2.col1;
+ERROR HY000: You can't specify target table 'v1' for update in FROM clause
+delete v2 from v2,t2 where (select max(col1) from t1) > 0 and v2.col1 = t2.col1;
+ERROR HY000: You can't specify target table 'v2' for update in FROM clause
+delete t1 from t1,t2 where (select max(col1) from t1) > 0 and t1.col1 = t2.col1;
+ERROR HY000: You can't specify target table 't1' for update in FROM clause
+delete v1 from v1,t2 where (select max(col1) from t1) > 0 and v1.col1 = t2.col1;
+ERROR HY000: You can't specify target table 'v1' for update in FROM clause
+delete v2 from v2,t2 where (select max(col1) from v2) > 0 and v2.col1 = t2.col1;
+ERROR HY000: You can't specify target table 'v2' for update in FROM clause
+delete t1 from t1,t2 where (select max(col1) from v2) > 0 and t1.col1 = t2.col1;
+ERROR HY000: You can't specify target table 't1' for update in FROM clause
+delete v1 from v1,t2 where (select max(col1) from v2) > 0 and v1.col1 = t2.col1;
+ERROR HY000: You can't specify target table 'v1' for update in FROM clause
 insert into v2 values ((select max(col1) from v1));
 ERROR HY000: You can't specify target table 'v2' for update in FROM clause
-drop view v2,v1;
+insert into t1 values ((select max(col1) from v1));
+ERROR HY000: You can't specify target table 't1' for update in FROM clause
+insert into v2 values ((select max(col1) from v1));
+ERROR HY000: You can't specify target table 'v2' for update in FROM clause
+insert into v2 values ((select max(col1) from t1));
+ERROR HY000: You can't specify target table 'v2' for update in FROM clause
+insert into t1 values ((select max(col1) from t1));
+ERROR HY000: You can't specify target table 't1' for update in FROM clause
+insert into v2 values ((select max(col1) from t1));
+ERROR HY000: You can't specify target table 'v2' for update in FROM clause
+insert into v2 values ((select max(col1) from v2));
+ERROR HY000: You can't specify target table 'v2' for update in FROM clause
+insert into t1 values ((select max(col1) from v2));
+ERROR HY000: You can't specify target table 't1' for update in FROM clause
+insert into v2 values ((select max(col1) from v2));
+ERROR HY000: You can't specify target table 'v2' for update in FROM clause
+insert into v3 (col1) values ((select max(col1) from v1));
+ERROR HY000: You can't specify target table 'v3' for update in FROM clause
+insert into v3 (col1) values ((select max(col1) from t1));
+ERROR HY000: You can't specify target table 'v3' for update in FROM clause
+insert into v3 (col1) values ((select max(col1) from v2));
+ERROR HY000: You can't specify target table 'v3' for update in FROM clause
+insert into v3 (col1) values ((select CONVERT_TZ('20050101000000','UTC','MET') from v2));
+ERROR HY000: You can't specify target table 'v3' for update in FROM clause
+insert into v3 (col1) values ((select CONVERT_TZ('20050101000000','UTC','MET') from t2));
+insert into mysql.time_zone values ('', (select CONVERT_TZ('20050101000000','UTC','MET') from t2));
+ERROR 23000: Column 'Use_leap_seconds' cannot be null
+create algorithm=temptable view v4 as select * from t1;
+insert into t1 values (1),(2),(3);
+insert into t1 (col1) values ((select max(col1) from v4));
+select * from t1;
+col1
+NULL
+1
+2
+3
+3
+drop view v4,v3,v2,v1;
 drop table t1,t2;
 create table t1 (s1 int);
 create view v1 as select * from t1;
@@ -1687,6 +1795,8 @@ delete from v3;
 ERROR HY000: Can not delete from join view 'test.v3'
 delete v3,t1 from v3,t1;
 ERROR HY000: Can not delete from join view 'test.v3'
+delete t1,v3 from t1,v3;
+ERROR HY000: Can not delete from join view 'test.v3'
 delete from t1;
 prepare stmt1 from "insert into v3(a) values (?);";
 set @a= 100;
@@ -1778,3 +1888,27 @@ select s2 from v1 vq1 where 2 = (select count(*) aa from v1 vq2 having vq1.s2 = 
 s2
 drop view v1;
 drop table t1;
+CREATE TABLE t1 (a1 int);
+CREATE TABLE t2 (a2 int);
+INSERT INTO t1 VALUES (1), (2), (3), (4);
+INSERT INTO t2 VALUES (1), (2), (3);
+CREATE VIEW v1(a,b) AS SELECT a1,a2 FROM t1 JOIN t2 ON a1=a2 WHERE a1>1;
+SELECT * FROM v1;
+a	b
+2	2
+3	3
+CREATE TABLE t3 SELECT * FROM v1;
+SELECT * FROM t3;
+a	b
+2	2
+3	3
+DROP VIEW v1;
+DROP TABLE t1,t2,t3;
+create table t1 (a int);
+create table t2 like t1;
+create table t3 like t1;
+create view v1 as select t1.a x, t2.a y from t1 join t2 where t1.a=t2.a;
+insert into t3 select x from v1;
+insert into t2 select x from v1;
+drop view v1;
+drop table t1,t2,t3;

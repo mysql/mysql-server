@@ -316,6 +316,13 @@ JOIN::prepare(Item ***rref_pointer_array,
   join_list= &select_lex->top_join_list;
   union_part= (unit_arg->first_select()->next_select() != 0);
 
+  /*
+    If we have already executed SELECT, then it have not sense to prevent
+    its table from update (see unique_table())
+  */
+  if (thd->derived_tables_processing)
+    select_lex->exclude_from_table_unique_test= TRUE;
+
   /* Check that all tables, fields, conds and order are ok */
 
   if ((!(select_options & OPTION_SETUP_TABLES_DONE) &&
@@ -1157,7 +1164,7 @@ JOIN::exec()
 {
   int      tmp_error;
   DBUG_ENTER("JOIN::exec");
-  
+
   error= 0;
   if (procedure)
   {
