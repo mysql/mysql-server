@@ -2733,8 +2733,8 @@ entity relationship diagram (ERD).
 @subheading Web Servers with @strong{MySQL} Tools
 
 @table @asis
-@item @uref{http://bourbon.netvision.net.il/mysql/mod_auth_mysql/}
-An Apache authentication module.
+@item @uref{ftp://ftp.kcilink.com/pub/}
+mod_auth_mysql, An Apache authentication module.
 
 @item @uref{http://www.roxen.com/}
 The Roxen Challenger Web server.
