@@ -508,14 +508,18 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
     }
   }
   noOfNodes = nodeNo;
-  
+
+  noOfTables+= 2; // Add System tables
+  noOfAttributes += 5;  // Add System table attributes
+
+  ConfigValues::Iterator it2(*ownConfig, db.m_config);
+  it2.set(CFG_DB_NO_TABLES, noOfTables);
+  it2.set(CFG_DB_NO_ATTRIBUTES, noOfAttributes);
+
   /**
    * Do size calculations
    */
   ConfigValuesFactory cfg(ownConfig);
-
-  noOfTables+= 2; // Add System tables
-  noOfAttributes += 5;  // Add System table attributes
 
   if (noOfLocalScanRecords == 0) {
     noOfLocalScanRecords = (noOfDBNodes * noOfScanRecords) + 1;
