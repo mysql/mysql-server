@@ -26,7 +26,7 @@
 
 #include <signal.h>
 
-const char *progname = "mgmtclient";
+const char *progname = "ndb_mgm";
 
 
 static CommandInterpreter* com;
@@ -47,7 +47,10 @@ handler(int sig){
 
 int main(int argc, const char** argv){
   int optind = 0;
-  const char *_default_connectstring = "host=localhost:2200;nodeid=0";
+  char _default_connectstring_buf[256];
+  snprintf(_default_connectstring_buf, sizeof(_default_connectstring_buf),
+	   "host=localhost:%u", NDB_BASE_PORT);
+  const char *_default_connectstring= _default_connectstring_buf;
   const char *_host = 0;
   int _port = 0;
   int _help = 0;

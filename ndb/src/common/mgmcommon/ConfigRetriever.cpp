@@ -45,13 +45,15 @@
 
 ConfigRetriever::ConfigRetriever() {
   
-  _localConfigFileName = NULL;
-  m_defaultConnectString = NULL;
+  _localConfigFileName = 0;
+  m_defaultConnectString = 0;
 
 
   errorString = 0;
   _localConfig = new LocalConfig();  
-  m_connectString = NULL;
+  m_connectString = 0;
+
+  m_handle= 0;
 }
 
 ConfigRetriever::~ConfigRetriever(){
@@ -68,6 +70,11 @@ ConfigRetriever::~ConfigRetriever(){
     free(errorString);
   
   delete _localConfig;
+
+  if (m_handle) {
+    ndb_mgm_disconnect(m_handle);
+    ndb_mgm_destroy_handle(&m_handle);
+  }
 }
 
 
@@ -158,44 +165,50 @@ ConfigRetriever::getConfig(const char * mgmhost,
 			   short port,
 			   int versionId,
 			   int nodetype){
-  
-  NdbMgmHandle h;
-  h = ndb_mgm_create_handle();
-  if (h == NULL) {
+  if (m_handle) {
+    ndb_mgm_disconnect(m_handle);
+    ndb_mgm_destroy_handle(&m_handle);
+  }
+
+  m_handle = ndb_mgm_create_handle();
+
+  if (m_handle == 0) {
     setError(CR_ERROR, "Unable to allocate mgm handle");
     return 0;
   }
 
   BaseString tmp;
   tmp.assfmt("%s:%d", mgmhost, port);
-  if (ndb_mgm_connect(h, tmp.c_str()) != 0) {
-    setError(CR_RETRY, ndb_mgm_get_latest_error_desc(h));
-    ndb_mgm_destroy_handle(&h);
+  if (ndb_mgm_connect(m_handle, tmp.c_str()) != 0) {
+    setError(CR_RETRY, ndb_mgm_get_latest_error_desc(m_handle));
+    ndb_mgm_destroy_handle(&m_handle);
+    m_handle= 0;
     return 0;
   }
 
-  ndb_mgm_configuration * conf = ndb_mgm_get_configuration(h, versionId);
+  ndb_mgm_configuration * conf = ndb_mgm_get_configuration(m_handle, versionId);
   if(conf == 0){
-    setError(CR_ERROR, ndb_mgm_get_latest_error_desc(h));
-    ndb_mgm_destroy_handle(&h);
+    setError(CR_ERROR, ndb_mgm_get_latest_error_desc(m_handle));
+    ndb_mgm_disconnect(m_handle);
+    ndb_mgm_destroy_handle(&m_handle);
+    m_handle= 0;
     return 0;
   }
 
   {
     unsigned nodeid= getOwnNodeId();
 
-    int res= ndb_mgm_alloc_nodeid(h, versionId, &nodeid, nodetype);
+    int res= ndb_mgm_alloc_nodeid(m_handle, versionId, &nodeid, nodetype);
     if(res != 0) {
-      setError(CR_ERROR, ndb_mgm_get_latest_error_desc(h));
-      ndb_mgm_destroy_handle(&h);
+      setError(CR_ERROR, ndb_mgm_get_latest_error_desc(m_handle));
+      ndb_mgm_disconnect(m_handle);
+      ndb_mgm_destroy_handle(&m_handle);
+      m_handle= 0;
       return 0;
     }
 
     _ownNodeId= nodeid;
   }
-
-  ndb_mgm_disconnect(h);
-  ndb_mgm_destroy_handle(&h);
 
   return conf;
 #if 0  

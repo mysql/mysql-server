@@ -27,6 +27,8 @@
 #include <NdbConfig.h>
 #include <Configuration.hpp>
 
+#include <NdbAutoPtr.hpp>
+
 #define MESSAGE_LENGTH 400
 
 const char* errorType[] = { 
@@ -66,23 +68,23 @@ ErrorReporter::formatTimeStampString(){
   return (const char *)&theDateTimeString;
 }
 
-void
-ErrorReporter::formatTraceFileName(char* theName, int maxLen){
+int
+ErrorReporter::get_trace_no(){
   
   FILE *stream;
   unsigned int traceFileNo;
-  char fileNameBuf[255];
-  char buf[255];
+  
+  char *file_name= NdbConfig_NextTraceFileName(globalData.ownId);
+  NdbAutoPtr<char> tmp_aptr(file_name);
 
-  NdbConfig_HomePath(fileNameBuf, 255);
-  strncat(fileNameBuf, "NextTraceFileNo.log", 255);
   /* 
    * Read last number from tracefile
    */  
-  stream = fopen(fileNameBuf, "r+");
+  stream = fopen(file_name, "r+");
   if (stream == NULL){
     traceFileNo = 1;
   } else {
+    char buf[255];
     fgets(buf, 255, stream);
     const int scan = sscanf(buf, "%u", &traceFileNo);
     if(scan != 1){
@@ -103,16 +105,13 @@ ErrorReporter::formatTraceFileName(char* theName, int maxLen){
   /**
    *  Save new number to the file
    */
-  stream = fopen(fileNameBuf, "w");
+  stream = fopen(file_name, "w");
   if(stream != NULL){
     fprintf(stream, "%u", traceFileNo);
     fclose(stream);
   }
-  /**
-   * Format trace file name
-   */
-  snprintf(theName, maxLen, "%sNDB_TraceFile_%u.trace", 
-	   NdbConfig_HomePath(fileNameBuf, 255), traceFileNo);
+
+  return traceFileNo;
 }
 
 
@@ -214,16 +213,22 @@ WriteMessage(ErrorCategory thrdType, int thrdMessageID,
   unsigned offset;
   unsigned long maxOffset;  // Maximum size of file.
   char theMessage[MESSAGE_LENGTH];
-  char theTraceFileName[255]; 
-  char theErrorFileName[255]; 
-  ErrorReporter::formatTraceFileName(theTraceFileName, 255);
+
+  /**
+   * Format trace file name
+   */
+  int file_no= ErrorReporter::get_trace_no();
+  char *theTraceFileName= NdbConfig_TraceFileName(globalData.ownId, file_no);
+  NdbAutoPtr<char> tmp_aptr1(theTraceFileName);
   
   // The first 69 bytes is info about the current offset
   Uint32 noMsg = globalEmulatorData.theConfiguration->maxNoOfErrorLogs();
 
   maxOffset = (69 + (noMsg * MESSAGE_LENGTH));
   
-  NdbConfig_ErrorFileName(theErrorFileName, 255);
+  char *theErrorFileName= (char *)NdbConfig_ErrorFileName(globalData.ownId);
+  NdbAutoPtr<char> tmp_aptr2(theErrorFileName);
+
   stream = fopen(theErrorFileName, "r+");
   if (stream == NULL) { /* If the file could not be opened. */
     
