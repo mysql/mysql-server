@@ -269,35 +269,37 @@ the prototype for this function! */
 void
 innobase_mysql_print_thd(
 /*=====================*/
+	char* buf,	/* in/out: buffer where to print, must be at least
+			300 bytes */
         void* input_thd)/* in: pointer to a MySQL THD object */
 {
   	THD*  thd;
 
   	thd = (THD*) input_thd;
 
-  	printf("MySQL thread id %lu, query id %lu",
+  	buf += sprintf(buf, "MySQL thread id %lu, query id %lu",
 	 			thd->thread_id, thd->query_id);
     	if (thd->host) {
-    		printf(" %s", thd->host);
+    		buf += sprintf(buf, " %.30s", thd->host);
   	}
 
   	if (thd->ip) {
-    		printf(" %s", thd->ip);
+    		buf += sprintf(buf, " %.20s", thd->ip);
   	}
 
   	if (thd->user) {
-    		printf(" %s", thd->user);
+    		buf += sprintf(buf, " %.20s", thd->user);
   	}
 
   	if (thd->proc_info) {
-    		printf(" %s", thd->proc_info);
+    		buf += sprintf(buf, " %.50s", thd->proc_info);
   	}
 
   	if (thd->query) {
-    		printf("\n%.100s", thd->query);
+    		buf += sprintf(buf, "\n%.150s", thd->query);
   	}  
 
-  	printf("\n");
+  	buf += sprintf(buf, "\n");
 }
 }
 
@@ -314,10 +316,12 @@ check_trx_exists(
 {
 	trx_t*	trx;
 
+	ut_a(thd == current_thd);
+
 	trx = (trx_t*) thd->transaction.all.innobase_tid;
 
 	if (trx == NULL) {
-	        dbug_assert(thd != NULL);
+	        ut_a(thd != NULL);
 		trx = trx_allocate_for_mysql();
 
 		trx->mysql_thd = thd;
@@ -368,7 +372,7 @@ ha_innobase::update_thd(
 {
 	row_prebuilt_t*	prebuilt = (row_prebuilt_t*) innobase_prebuilt;
 	trx_t*		trx;
-
+	
 	trx = check_trx_exists(thd);
 
 	if (prebuilt->trx != trx) {
@@ -1378,6 +1382,9 @@ ha_innobase::write_row(
 	
   	DBUG_ENTER("ha_innobase::write_row");
 
+	ut_a(prebuilt->trx ==
+		(trx_t*) current_thd->transaction.all.innobase_tid);
+
   	statistic_increment(ha_write_count, &LOCK_status);
 
   	if (table->time_stamp) {
@@ -1718,6 +1725,9 @@ ha_innobase::update_row(
 
 	DBUG_ENTER("ha_innobase::update_row");
 
+	ut_a(prebuilt->trx ==
+		(trx_t*) current_thd->transaction.all.innobase_tid);
+
         if (table->time_stamp) {
                 update_timestamp(new_row + table->time_stamp - 1);
 	}
@@ -1774,6 +1784,9 @@ ha_innobase::delete_row(
 	int		error = 0;
 
 	DBUG_ENTER("ha_innobase::delete_row");
+
+	ut_a(prebuilt->trx ==
+		(trx_t*) current_thd->transaction.all.innobase_tid);
 
 	if (last_query_id != user_thd->query_id) {
 	        prebuilt->sql_stat_start = TRUE;
@@ -1888,6 +1901,10 @@ ha_innobase::index_read(
 	ulint		ret;
 
   	DBUG_ENTER("index_read");
+
+	ut_a(prebuilt->trx ==
+		(trx_t*) current_thd->transaction.all.innobase_tid);
+
   	statistic_increment(ha_read_key_count, &LOCK_status);
 
 	if (last_query_id != user_thd->query_id) {
@@ -2061,6 +2078,9 @@ ha_innobase::general_fetch(
 	int		error	= 0;
 
 	DBUG_ENTER("general_fetch");
+
+	ut_a(prebuilt->trx ==
+		(trx_t*) current_thd->transaction.all.innobase_tid);
 
 	srv_conc_enter_innodb(prebuilt->trx);
 	
@@ -2272,6 +2292,9 @@ ha_innobase::rnd_pos(
 	DBUG_ENTER("rnd_pos");
 	statistic_increment(ha_read_rnd_count, &LOCK_status);
 
+	ut_a(prebuilt->trx ==
+		(trx_t*) current_thd->transaction.all.innobase_tid);
+
 	if (prebuilt->clust_index_was_generated) {
 		/* No primary key was defined for the table and we
 		generated the clustered index from the row id: the
@@ -2309,6 +2332,9 @@ ha_innobase::position(
 {
 	row_prebuilt_t*	prebuilt = (row_prebuilt_t*) innobase_prebuilt;
 	uint		len;
+
+	ut_a(prebuilt->trx ==
+		(trx_t*) current_thd->transaction.all.innobase_tid);
 
 	if (prebuilt->clust_index_was_generated) {
 		/* No primary key was defined for the table and we
@@ -3067,6 +3093,8 @@ ha_innobase::check(
 	ulint		ret;
 	   	
 	ut_a(prebuilt->trx && prebuilt->trx->magic_n == TRX_MAGIC_N);
+	ut_a(prebuilt->trx ==
+		(trx_t*) current_thd->transaction.all.innobase_tid);
 
 	if (prebuilt->mysql_template == NULL) {
 		/* Build the template; we will use a dummy template
@@ -3302,6 +3330,51 @@ ha_innobase::external_lock(
 }
 
 /****************************************************************************
+Implements the SHOW INNODB STATUS command. Send the output of the InnoDB
+Monitor to the client. */
+
+int
+innodb_show_status(
+/*===============*/
+	THD*	thd)	/* in: the MySQL query thread of the caller */
+{
+	String* 	packet 	= &thd->packet;
+	char*		buf;
+
+  	DBUG_ENTER("innodb_show_status");
+
+	/* We let the InnoDB Monitor to output at most 100 kB of text */
+	buf = (char*)ut_malloc(100 * 1024);
+	
+	srv_sprintf_innodb_monitor(buf, 100 * 1024);
+	
+	List<Item> field_list;
+
+	field_list.push_back(new Item_empty_string("Status", strlen(buf)));
+
+	if(send_fields(thd, field_list, 1)) {
+	  	DBUG_RETURN(-1);
+	}
+
+  	packet->length(0);
+  
+  	net_store_data(packet, buf);
+  
+  	if (my_net_write(&thd->net, (char*)thd->packet.ptr(),
+						packet->length())) {
+		ut_free(buf);
+	
+    		DBUG_RETURN(-1);
+    	}
+
+	ut_free(buf);
+
+  	send_eof(&thd->net);
+
+  	DBUG_RETURN(0);
+}
+
+/****************************************************************************
  Handling the shared INNOBASE_SHARE structure that is needed to provide table
  locking.
 ****************************************************************************/
@@ -3423,6 +3496,9 @@ ha_innobase::get_auto_increment()
   	row_prebuilt_t* prebuilt	= (row_prebuilt_t*) innobase_prebuilt;
   	longlong        nr;
   	int     	error;
+
+	ut_a(prebuilt->trx ==
+		(trx_t*) current_thd->transaction.all.innobase_tid);
 
 	/* Also SHOW TABLE STATUS calls this function. Previously, when we did
 	always read the max autoinc key value, setting x-locks, users were

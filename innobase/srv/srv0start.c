@@ -896,7 +896,7 @@ test_measure_cont(
 	"Mutex res. l %lu, p %lu, k %lu s x %lu s s %lu s mut %lu of %lu\n",
 		lcount, pcount, kcount, s_xcount, s_scount, s_mcount, j);
 
-		sync_print_wait_info();
+/*		sync_print_wait_info(); */
 
 		fprintf(stderr, 
     "log i/o %lu n non sea %lu n succ %lu n h fail %lu\n",

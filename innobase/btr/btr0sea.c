@@ -451,7 +451,9 @@ btr_search_info_update_slow(
 		rw_lock_x_unlock(&btr_search_latch);
 	}
 
-	if (build_index) {		
+	if (build_index) {
+		ut_a(block->n_fields + block->n_bytes > 0);	
+
 		btr_search_build_page_hash_index(block->frame,
 						block->n_fields,
 						block->n_bytes,
@@ -675,6 +677,9 @@ btr_search_guess_on_hash(
 	if (!has_search_latch) {
 		rw_lock_s_lock(&btr_search_latch);
 	}
+
+	ut_a(btr_search_latch.writer != RW_LOCK_EX);
+	ut_a(btr_search_latch.reader_count > 0);
 
 	rec = ha_search_and_get_data(btr_search_sys->hash_index, fold);
 
@@ -902,7 +907,7 @@ btr_search_drop_page_hash_index(
 		
 		fold = rec_fold(rec, n_fields, n_bytes, tree_id);
 
-		if ((fold == prev_fold) && (prev_fold != 0)) {
+		if (fold == prev_fold && prev_fold != 0) {
 
 			goto next_rec;
 		}
@@ -914,6 +919,7 @@ btr_search_drop_page_hash_index(
 		n_cached++;
 next_rec:
 		rec = page_rec_get_next(rec);
+		prev_fold = fold;
 	}
 
 	rw_lock_x_lock(&btr_search_latch);
@@ -954,7 +960,7 @@ btr_search_drop_page_hash_when_freed(
 	mtr_start(&mtr);
 
 	/* We assume that if the caller has a latch on the page,
-	then the caller has already drooped the hash index for the page,
+	then the caller has already dropped the hash index for the page,
 	and we never get here. Therefore we can acquire the s-latch to
 	the page without fearing a deadlock. */
 	
@@ -1177,6 +1183,8 @@ btr_search_move_or_delete_hash_entries(
 
 		rw_lock_s_unlock(&btr_search_latch);
 
+		ut_a(n_fields + n_bytes > 0);
+		
 		btr_search_build_page_hash_index(new_page, n_fields, n_bytes,
 									side);
 		ut_a(n_fields == block->curr_n_fields);
@@ -1217,9 +1225,11 @@ btr_search_update_hash_on_delete(
 		return;
 	}
 
+	ut_a(block->curr_n_fields + block->curr_n_bytes > 0);
+
 	table = btr_search_sys->hash_index;
 
-	tree_id = ((cursor->index)->tree)->id;		
+	tree_id = cursor->index->tree->id;
 
 	fold = rec_fold(rec, block->curr_n_fields, block->curr_n_bytes,
 								tree_id);
@@ -1336,7 +1346,6 @@ btr_search_update_hash_on_insert(
 
 	if (rec != page_get_infimum_rec(page)) {
 		fold = rec_fold(rec, n_fields, n_bytes, tree_id);
-
 	} else {
 		if (side == BTR_SEARCH_LEFT_SIDE) {
 
@@ -1421,7 +1430,7 @@ btr_search_print_info(void)
 
 	rw_lock_x_lock(&btr_search_latch);
 
-	ha_print_info(btr_search_sys->hash_index);
+/*	ha_print_info(btr_search_sys->hash_index); */
 
 	rw_lock_x_unlock(&btr_search_latch);
 }
@@ -1487,11 +1496,71 @@ btr_search_validate(void)
 /*=====================*/
 				/* out: TRUE if ok */
 {
-	rw_lock_x_lock(&btr_search_latch);
+	buf_block_t*	block;
+	page_t*		page;
+	ha_node_t*	node;
+	ulint		n_page_dumps	= 0;
+	ibool		ok		= TRUE;
+	ulint		i;
+	char		rec_str[500];
 	
-	ut_a(ha_validate(btr_search_sys->hash_index));
+	rw_lock_x_lock(&btr_search_latch);
+
+	for (i = 0; i < hash_get_n_cells(btr_search_sys->hash_index); i++) {
+		node = hash_get_nth_cell(btr_search_sys->hash_index, i)->node;
+
+		while (node != NULL) {
+			block = buf_block_align(node->data);
+			page = buf_frame_align(node->data);
+
+			if (!block->is_hashed
+			    || node->fold != rec_fold((rec_t*)(node->data),
+						block->curr_n_fields,
+						block->curr_n_bytes,
+						btr_page_get_index_id(page))) {
+				ok = FALSE;
+				ut_print_timestamp(stderr);
+
+				fprintf(stderr,
+"  InnoDB: Error in an adaptive hash index pointer to page %lu\n"
+"ptr mem address %lu index id %lu %lu, node fold %lu, rec fold %lu\n",
+				buf_frame_get_page_no(page),
+				(ulint)(node->data),
+			ut_dulint_get_high(btr_page_get_index_id(page)),
+			ut_dulint_get_low(btr_page_get_index_id(page)),
+			node->fold, rec_fold((rec_t*)(node->data),
+					block->curr_n_fields,
+					block->curr_n_bytes,
+					btr_page_get_index_id(page)));
+
+				rec_sprintf(rec_str, 450, (rec_t*)(node->data));
+
+	  			fprintf(stderr,
+					"InnoDB: Record %s\n"
+					"InnoDB: on that page.", rec_str);
+
+				fprintf(stderr,
+"Page mem address %lu, is hashed %lu, n fields %lu, n bytes %lu\n"
+"side %lu\n",
+			(ulint)page, block->is_hashed, block->curr_n_fields,
+			block->curr_n_bytes, block->curr_side);
+
+				if (n_page_dumps < 20) {	
+					buf_page_print(page);
+					n_page_dumps++;
+				}
+			}
+
+			node = node->next;
+		}
+	}
+	
+	if (!ha_validate(btr_search_sys->hash_index)) {
+
+		ok = FALSE;
+	}
 
 	rw_lock_x_unlock(&btr_search_latch);
 
-	return(TRUE);
+	return(ok);
 }

@@ -437,11 +437,12 @@ row_undo_mod_del_unmark_sec(
 	  	rec_sprintf(err_buf, 900, btr_pcur_get_rec(&pcur));
 	  	fprintf(stderr, "InnoDB: record %s\n", err_buf);
 
+		trx_print(err_buf, thr_get_trx(thr));
 	  	fprintf(stderr,
-			"InnoDB: Make a detailed bug report and send it\n");
+			"%s\nInnoDB: Make a detailed bug report and send it\n",
+			err_buf);
 	  	fprintf(stderr, "InnoDB: to mysql@lists.mysql.com\n");
 
-		trx_print(thr_get_trx(thr));
 	} else {
          	btr_cur = btr_pcur_get_btr_cur(&pcur);
 

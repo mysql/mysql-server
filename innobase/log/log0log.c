@@ -3081,15 +3081,22 @@ log_check_log_recs(
 Prints info of the log. */
 
 void
-log_print(void)
-/*===========*/
+log_print(
+/*======*/
+	char*	buf,	/* in/out: buffer where to print */
+	char*	buf_end)/* in: buffer end */
 {
 	double	time_elapsed;
 	time_t	current_time;
 
+	if (buf_end - buf < 300) {
+
+		return;
+	}
+
 	mutex_enter(&(log_sys->mutex));
 
-	printf("Log sequence number %lu %lu\n"
+	buf += sprintf(buf, "Log sequence number %lu %lu\n"
 	       "Log flushed up to   %lu %lu\n"
 	       "Last checkpoint at  %lu %lu\n",
 			ut_dulint_get_high(log_sys->lsn),
@@ -3103,7 +3110,7 @@ log_print(void)
 			
 	time_elapsed = difftime(current_time, log_sys->last_printout_time);
 
-	printf(
+	buf += sprintf(buf,
 	"%lu pending log writes, %lu pending chkp writes\n"
 	"%lu log i/o's done, %.2f log i/o's/second\n",
 	log_sys->n_pending_writes,

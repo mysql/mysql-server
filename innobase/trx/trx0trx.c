@@ -26,9 +26,11 @@ Created 3/26/1996 Heikki Tuuri
 
 
 /* Copy of the prototype for innobase_mysql_print_thd: this
-copy must be equal to the one in mysql/sql/ha_innobase.cc ! */
+copy MUST be equal to the one in mysql/sql/ha_innobase.cc ! */
 
-void innobase_mysql_print_thd(void* thd);
+void innobase_mysql_print_thd(
+	char* buf,
+	void* thd);
 
 /* Dummy session used currently in MySQL interface */
 sess_t*		trx_dummy_sess = NULL;
@@ -1459,54 +1461,63 @@ own the kernel mutex. */
 void
 trx_print(
 /*======*/
+	char*	buf,	/* in/out: buffer where to print, must be at least
+			500 bytes */
 	trx_t*	trx)	/* in: transaction */
 {
-  	printf("TRANSACTION %lu %lu, OS thread id %lu",
+  	buf += sprintf(buf, "TRANSACTION %lu %lu, OS thread id %lu",
 		ut_dulint_get_high(trx->id),
 	 	ut_dulint_get_low(trx->id),
 	 	(ulint)trx->mysql_thread_id);
 
 	if (ut_strlen(trx->op_info) > 0) {
-		printf(" %s", trx->op_info);
+		buf += sprintf(buf, " %s", trx->op_info);
 	}
 	
   	if (trx->type != TRX_USER) {
-    		printf(" purge trx");
+    		buf += sprintf(buf, " purge trx");
   	}
   	
   	switch (trx->conc_state) {
-  		case TRX_NOT_STARTED:         printf(", not started"); break;
-  		case TRX_ACTIVE:              printf(", active"); break;
-  		case TRX_COMMITTED_IN_MEMORY: printf(", committed in memory");
+  		case TRX_NOT_STARTED:         buf += sprintf(buf,
+						", not started"); break;
+  		case TRX_ACTIVE:              buf += sprintf(buf,
+						", active"); break;
+  		case TRX_COMMITTED_IN_MEMORY: buf += sprintf(buf,
+						", committed in memory");
 									break;
-  		default: printf(" state %lu", trx->conc_state);
+  		default: buf += sprintf(buf, " state %lu", trx->conc_state);
   	}
 
   	switch (trx->que_state) {
-  		case TRX_QUE_RUNNING:         printf(", runs or sleeps"); break;
-  		case TRX_QUE_LOCK_WAIT:       printf(", lock wait"); break;
-  		case TRX_QUE_ROLLING_BACK:    printf(", rolling back"); break;
-  		case TRX_QUE_COMMITTING:      printf(", committing"); break;
-  		default: printf(" que state %lu", trx->que_state);
+  		case TRX_QUE_RUNNING:         buf += sprintf(buf,
+						", runs or sleeps"); break;
+  		case TRX_QUE_LOCK_WAIT:       buf += sprintf(buf,
+						", lock wait"); break;
+  		case TRX_QUE_ROLLING_BACK:    buf += sprintf(buf,
+						", rolling back"); break;
+  		case TRX_QUE_COMMITTING:      buf += sprintf(buf,
+						", committing"); break;
+  		default: buf += sprintf(buf, " que state %lu", trx->que_state);
   	}
 
   	if (0 < UT_LIST_GET_LEN(trx->trx_locks)) {
-  		printf(", has %lu lock struct(s)",
+  		buf += sprintf(buf, ", has %lu lock struct(s)",
 				UT_LIST_GET_LEN(trx->trx_locks));
 	}
 
   	if (trx->has_search_latch) {
-  		printf(", holds adaptive hash latch");
+  		buf += sprintf(buf, ", holds adaptive hash latch");
   	}
 
 	if (ut_dulint_cmp(trx->undo_no, ut_dulint_zero) != 0) {
-		printf(", undo log entries %lu",
+		buf += sprintf(buf, ", undo log entries %lu",
 			ut_dulint_get_low(trx->undo_no));
 	}
 	
-  	printf("\n");
+  	buf += sprintf(buf, "\n");
 
   	if (trx->mysql_thd != NULL) {
-    		innobase_mysql_print_thd(trx->mysql_thd);
+    		innobase_mysql_print_thd(buf, trx->mysql_thd);
   	}  
 }

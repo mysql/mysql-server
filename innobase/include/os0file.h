@@ -403,8 +403,10 @@ os_aio_validate(void);
 Prints info of the aio arrays. */
 
 void
-os_aio_print(void);
-/*==============*/
+os_aio_print(
+/*=========*/
+	char*	buf,	/* in/out: buffer where to print */
+	char*	buf_end);/* in: buffer end */
 /**************************************************************************
 Checks that all slots in the system have been freed, that is, there are
 no pending io operations. */

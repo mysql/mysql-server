@@ -272,6 +272,8 @@ i/o handler thread */
 
 char* srv_io_thread_op_info[SRV_MAX_N_IO_THREADS];
 
+time_t	srv_last_monitor_time;
+
 /*
 	IMPLEMENTATION OF THE SERVER MAIN PROGRAM
 	=========================================
@@ -2131,6 +2133,126 @@ srv_release_mysql_thread_if_suspended(
 	/* not found */
 }
 
+/**********************************************************************
+Sprintfs to a buffer the output of the InnoDB Monitor. */
+
+void
+srv_sprintf_innodb_monitor(
+/*=======================*/
+	char*	buf,	/* in/out: buffer which must be at least 4 kB */
+	ulint	len)	/* in: length of the buffer */
+{
+	char*	buf_end	= buf + len - 2000;
+	double	time_elapsed;
+	time_t	current_time;
+
+	current_time = time(NULL);
+
+	time_elapsed = difftime(current_time, srv_last_monitor_time);
+
+	srv_last_monitor_time = time(NULL);
+
+	ut_a(len >= 4096);	
+
+	buf += sprintf(buf, "\n=====================================\n");
+
+	ut_sprintf_timestamp(buf);
+	buf = buf + strlen(buf);
+	
+	buf += sprintf(buf, " INNODB MONITOR OUTPUT\n"
+	       	       "=====================================\n");
+
+	buf += sprintf(buf,
+"Per second values calculated from the last %lu seconds\n",
+					(ulint)time_elapsed);
+	       	       
+	buf += sprintf(buf, "----------\n"
+		       "SEMAPHORES\n"
+		       "----------\n");
+	sync_print(buf, buf_end);
+
+	buf = buf + strlen(buf);
+
+	buf += sprintf(buf, "------------\n"
+		       "TRANSACTIONS\n"
+		       "------------\n");
+	lock_print_info(buf, buf_end);
+	buf = buf + strlen(buf);
+
+	buf += sprintf(buf, "--------\n"
+		       "FILE I/O\n"
+		       "--------\n");
+	os_aio_print(buf, buf_end);
+	buf = buf + strlen(buf);
+
+	buf += sprintf(buf, "-------------------------------------\n"
+		       "INSERT BUFFER AND ADAPTIVE HASH INDEX\n"
+		       "-------------------------------------\n");
+	ibuf_print(buf, buf_end);
+	buf = buf + strlen(buf);
+
+	ha_print_info(buf, buf_end, btr_search_sys->hash_index);
+	buf = buf + strlen(buf);
+
+	buf += sprintf(buf,
+		"%.2f hash searches/s, %.2f non-hash searches/s\n",
+			(btr_cur_n_sea - btr_cur_n_sea_old)
+						/ time_elapsed,
+			(btr_cur_n_non_sea - btr_cur_n_non_sea_old)
+						/ time_elapsed);
+			btr_cur_n_sea_old = btr_cur_n_sea;
+			btr_cur_n_non_sea_old = btr_cur_n_non_sea;
+
+	buf += sprintf(buf,"---\n"
+		       "LOG\n"
+		       "---\n");
+	log_print(buf, buf_end);
+	buf = buf + strlen(buf);
+	
+	buf += sprintf(buf, "----------------------\n"
+		       "BUFFER POOL AND MEMORY\n"
+		       "----------------------\n");
+	buf += sprintf(buf,
+	"Total memory allocated %lu; in additional pool allocated %lu\n",
+				ut_total_allocated_memory,
+				mem_pool_get_reserved(mem_comm_pool));
+	buf_print_io(buf, buf_end);
+	buf = buf + strlen(buf);
+
+	buf += sprintf(buf, "--------------\n"
+		       "ROW OPERATIONS\n"
+		       "--------------\n");
+	buf += sprintf(buf,
+	"%ld queries inside InnoDB, %ld queries in queue; main thread: %s\n",
+			srv_conc_n_threads, srv_conc_n_waiting_threads,
+			srv_main_thread_op_info);
+	buf += sprintf(buf,
+	"Number of rows inserted %lu, updated %lu, deleted %lu, read %lu\n",
+			srv_n_rows_inserted, 
+			srv_n_rows_updated, 
+			srv_n_rows_deleted, 
+			srv_n_rows_read);
+	buf += sprintf(buf,
+	"%.2f inserts/s, %.2f updates/s, %.2f deletes/s, %.2f reads/s\n",
+			(srv_n_rows_inserted - srv_n_rows_inserted_old)
+						/ time_elapsed,
+			(srv_n_rows_updated - srv_n_rows_updated_old)
+						/ time_elapsed,
+			(srv_n_rows_deleted - srv_n_rows_deleted_old)
+						/ time_elapsed,
+			(srv_n_rows_read - srv_n_rows_read_old)
+						/ time_elapsed);
+
+		srv_n_rows_inserted_old = srv_n_rows_inserted;
+		srv_n_rows_updated_old = srv_n_rows_updated;
+		srv_n_rows_deleted_old = srv_n_rows_deleted;
+		srv_n_rows_read_old = srv_n_rows_read;
+
+	buf += sprintf(buf, "----------------------------\n"
+		       "END OF INNODB MONITOR OUTPUT\n"
+		       "============================\n");
+}
+
 /*************************************************************************
 A thread which wakes up threads whose lock wait may have lasted too long.
 This also prints the info output by various InnoDB monitors. */
@@ -2149,15 +2271,17 @@ srv_lock_timeout_and_monitor_thread(
 	srv_slot_t*	slot;
 	double		time_elapsed;
 	time_t          current_time;
-	time_t          last_monitor_time;
-	time_t          last_table_monitor_time;
+	time_t		last_table_monitor_time;
+	time_t		last_monitor_time;
 	ibool		some_waits;
 	double		wait_time;
+	char*		buf;
 	ulint		i;
 
 	UT_NOT_USED(arg);
-	last_monitor_time = time(NULL);
+	srv_last_monitor_time = time(NULL);
 	last_table_monitor_time = time(NULL);
+	last_monitor_time = time(NULL);
 loop:
 	srv_lock_timeout_and_monitor_active = TRUE;
 
@@ -2177,78 +2301,17 @@ loop:
 	time_elapsed = difftime(current_time, last_monitor_time);
 	
 	if (time_elapsed > 15) {
+	    last_monitor_time = time(NULL);
 
 	    if (srv_print_innodb_monitor) {
 
-	    	last_monitor_time = time(NULL);
-	
-	        printf("=====================================\n");
-		ut_print_timestamp(stdout);
-	
-		printf(" INNODB MONITOR OUTPUT\n"
-	       	       "=====================================\n");
-		printf("----------\n"
-		       "SEMAPHORES\n"
-		       "----------\n");
-		sync_print();
-		printf("------------\n"
-		       "TRANSACTIONS\n"
-		       "------------\n");
-		lock_print_info();
-		printf("--------\n"
-		       "FILE I/O\n"
-		       "--------\n");
-		os_aio_print();
-		printf("-------------------------------------\n"
-		       "INSERT BUFFER AND ADAPTIVE HASH INDEX\n"
-		       "-------------------------------------\n");
-		ibuf_print();
-		printf("Successful hash searches %lu, non-hash searches %lu\n",
-			btr_cur_n_sea, btr_cur_n_non_sea);
-		printf("---\n"
-		       "LOG\n"
-		       "---\n");
-		log_print();
-		printf("----------------------\n"
-		       "BUFFER POOL AND MEMORY\n"
-		       "----------------------\n");
-		printf(
-	"Total memory allocated %lu; in additional pool allocated %lu\n",
-				ut_total_allocated_memory,
-				mem_pool_get_reserved(mem_comm_pool));
-		buf_print_io();
-		printf("--------------\n"
-		       "ROW OPERATIONS\n"
-		       "--------------\n");
-		printf(
-	"%ld queries inside InnoDB, %ld queries in queue; main thread: %s\n",
-			srv_conc_n_threads, srv_conc_n_waiting_threads,
-			srv_main_thread_op_info);
-		printf(
-	"Number of rows inserted %lu, updated %lu, deleted %lu, read %lu\n",
-			srv_n_rows_inserted, 
-			srv_n_rows_updated, 
-			srv_n_rows_deleted, 
-			srv_n_rows_read);
-		printf(
-	"%.2f inserts/s, %.2f updates/s, %.2f deletes/s, %.2f reads/s\n",
-			(srv_n_rows_inserted - srv_n_rows_inserted_old)
-						/ time_elapsed,
-			(srv_n_rows_updated - srv_n_rows_updated_old)
-						/ time_elapsed,
-			(srv_n_rows_deleted - srv_n_rows_deleted_old)
-						/ time_elapsed,
-			(srv_n_rows_read - srv_n_rows_read_old)
-						/ time_elapsed);
+	    	buf = mem_alloc(100000);
 
-		srv_n_rows_inserted_old = srv_n_rows_inserted;
-		srv_n_rows_updated_old = srv_n_rows_updated;
-		srv_n_rows_deleted_old = srv_n_rows_deleted;
-		srv_n_rows_read_old = srv_n_rows_read;
+	    	srv_sprintf_innodb_monitor(buf, 100000);
 
-		printf("----------------------------\n"
-		       "END OF INNODB MONITOR OUTPUT\n"
-		       "============================\n");
+	    	printf("%s", buf);
+
+	    	mem_free(buf);
             }
 
             if (srv_print_innodb_tablespace_monitor
@@ -2380,7 +2443,13 @@ loop:
 	srv_error_monitor_active = TRUE;
 
 	os_thread_sleep(10000000);
+	/*
+	printf("Validating has index\n");
 
+	btr_search_validate();
+
+	printf("Hash index validated\n");
+	*/
 	sync_array_print_long_waits();
 
 	/* Flush stdout and stderr so that a database user gets their output

@@ -1095,11 +1095,12 @@ row_upd_sec_index_entry(
 	  	rec_sprintf(err_buf, 900, rec);
 	  	fprintf(stderr, "InnoDB: record %s\n", err_buf);
 
-	  	fprintf(stderr,
-			"InnoDB: Make a detailed bug report and send it\n");
-	  	fprintf(stderr, "InnoDB: to mysql@lists.mysql.com\n");
+		trx_print(err_buf, thr_get_trx(thr));
 
-		trx_print(thr_get_trx(thr));
+	  	fprintf(stderr,
+		"%s\nInnoDB: Make a detailed bug report and send it\n",
+							err_buf);
+	  	fprintf(stderr, "InnoDB: to mysql@lists.mysql.com\n");
 	} else {
  	  	/* Delete mark the old index record; it can already be
           	delete marked if we return after a lock wait in

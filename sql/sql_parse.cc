@@ -24,6 +24,10 @@
 #include <my_dir.h>
 #include <assert.h>
 
+#ifdef HAVE_INNOBASE_DB
+#include "ha_innobase.h"
+#endif
+
 #define SCRAMBLE_LENGTH 8
 
 
@@ -1232,6 +1236,15 @@ mysql_execute_command(void)
       res = show_binlog_info(thd);
       break;
     }
+#ifdef HAVE_INNOBASE_DB
+  case SQLCOM_SHOW_INNODB_STATUS:
+    {
+      if (check_process_priv(thd))
+	goto error;
+      res = innodb_show_status(thd);
+      break;
+    }
+#endif
   case SQLCOM_LOAD_MASTER_TABLE:
 
     if (!tables->db)

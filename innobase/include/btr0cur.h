@@ -710,6 +710,8 @@ allowed to free an inherited external field. */
 
 extern ulint	btr_cur_n_non_sea;
 extern ulint	btr_cur_n_sea;
+extern ulint	btr_cur_n_non_sea_old;
+extern ulint	btr_cur_n_sea_old;
 
 #ifndef UNIV_NONINL
 #include "btr0cur.ic"

@@ -1094,7 +1094,9 @@ os_file_write(
 
 		fprintf(stderr,
 "  InnoDB: Error: File pointer positioning to file %s failed at\n"
-"InnoDB: offset %lu %lu. Operating system error number %lu.\n",
+"InnoDB: offset %lu %lu. Operating system error number %lu.\n"
+"InnoDB: Look from section 13.2 at http://www.innodb.com/ibman.html\n"
+"InnoDB: what the error number means.\n",
 			name, offset_high, offset,
 			(ulint)GetLastError());
 
@@ -1125,8 +1127,10 @@ os_file_write(
 "  InnoDB: Error: Write to file %s failed at offset %lu %lu.\n"
 "InnoDB: %lu bytes should have been written, only %lu were written.\n"
 "InnoDB: Operating system error number %lu.\n"
+"InnoDB: Look from section 13.2 at http://www.innodb.com/ibman.html\n"
+"InnoDB: what the error number means.\n"
 "InnoDB: Check that your OS and file system support files of this size.\n"
-"InnoDB: Check also the disk is not full or a disk quota exceeded.\n",
+"InnoDB: Check also that the disk is not full or a disk quota exceeded.\n",
 			name, offset_high, offset, n, len,
 			(ulint)GetLastError());
 
@@ -1152,8 +1156,10 @@ os_file_write(
 "  InnoDB: Error: Write to file %s failed at offset %lu %lu.\n"
 "InnoDB: %lu bytes should have been written, only %lu were written.\n"
 "InnoDB: Operating system error number %lu.\n"
+"InnoDB: Look from section 13.2 at http://www.innodb.com/ibman.html\n"
+"InnoDB: what the error number means or use the perror program of MySQL.\n"
 "InnoDB: Check that your OS and file system support files of this size.\n"
-"InnoDB: Check also the disk is not full or a disk quota exceeded.\n",
+"InnoDB: Check also that the disk is not full or a disk quota exceeded.\n",
 			name, offset_high, offset, n, (ulint)ret,
 							(ulint)errno);
 		os_has_said_disk_full = TRUE;
@@ -1744,7 +1750,6 @@ os_aio(
 	ut_ad(buf);
 	ut_ad(n > 0);
 	ut_ad(n % OS_FILE_LOG_BLOCK_SIZE == 0);
-	ut_ad((ulint)buf % OS_FILE_LOG_BLOCK_SIZE == 0)
 	ut_ad(offset % OS_FILE_LOG_BLOCK_SIZE == 0);
 	ut_ad(os_aio_validate());
 
@@ -2388,8 +2393,10 @@ os_aio_validate(void)
 Prints info of the aio arrays. */
 
 void
-os_aio_print(void)
-/*==============*/
+os_aio_print(
+/*=========*/
+	char*	buf,	/* in/out: buffer where to print */
+	char*	buf_end)/* in: buffer end */
 {
 	os_aio_array_t*	array;
 	os_aio_slot_t*	slot;
@@ -2399,12 +2406,17 @@ os_aio_print(void)
 	double		avg_bytes_read;
 	ulint		i;
 
+	if (buf_end - buf < 1000) {
+
+		return;
+	}
+
 	for (i = 0; i < srv_n_file_io_threads; i++) {
-		printf("I/O thread %lu state: %s\n", i,
+		buf += sprintf(buf, "I/O thread %lu state: %s\n", i,
 					srv_io_thread_op_info[i]);
 	}
 
-	printf("Pending normal aio reads:");
+	buf += sprintf(buf, "Pending normal aio reads:");
 
 	array = os_aio_read_array;
 loop:
@@ -2431,12 +2443,12 @@ loop:
 
 	ut_a(array->n_reserved == n_reserved);
 
-	printf(" %lu", n_reserved);
+	buf += sprintf(buf, " %lu", n_reserved);
 	
 	os_mutex_exit(array->mutex);
 
 	if (array == os_aio_read_array) {
-		printf(", aio writes:");
+		buf += sprintf(buf, ", aio writes:");
 	
 		array = os_aio_write_array;
 
@@ -2444,34 +2456,36 @@ loop:
 	}
 
 	if (array == os_aio_write_array) {
-		printf(",\n ibuf aio reads:");
+		buf += sprintf(buf, ",\n ibuf aio reads:");
 		array = os_aio_ibuf_array;
 
 		goto loop;
 	}
 
 	if (array == os_aio_ibuf_array) {
-		printf(", log i/o's:");
+		buf += sprintf(buf, ", log i/o's:");
 		array = os_aio_log_array;
 
 		goto loop;
 	}
 
 	if (array == os_aio_log_array) {
-		printf(", sync i/o's:");		
+		buf += sprintf(buf, ", sync i/o's:");		
 		array = os_aio_sync_array;
 
 		goto loop;
 	}
 
-	printf("\n");
+	buf += sprintf(buf, "\n");
 	
 	current_time = time(NULL);
 	time_elapsed = difftime(current_time, os_last_printout);
 
-	printf("Pending flushes (fsync) log: %lu; buffer pool: %lu\n",
+	buf += sprintf(buf,
+		"Pending flushes (fsync) log: %lu; buffer pool: %lu\n",
 	       fil_n_pending_log_flushes, fil_n_pending_tablespace_flushes);
-	printf("%lu OS file reads, %lu OS file writes, %lu OS fsyncs\n",
+	buf += sprintf(buf,
+		"%lu OS file reads, %lu OS file writes, %lu OS fsyncs\n",
 		os_n_file_reads, os_n_file_writes, os_n_fsyncs);
 
 	if (os_n_file_reads == os_n_file_reads_old) {
@@ -2481,7 +2495,7 @@ loop:
 				(os_n_file_reads - os_n_file_reads_old);
 	}
 
-	printf(
+	buf += sprintf(buf,
 "%.2f reads/s, %lu avg bytes/read, %.2f writes/s, %.2f fsyncs/s\n",
 		(os_n_file_reads - os_n_file_reads_old)
 		/ time_elapsed,
