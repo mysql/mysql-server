@@ -190,6 +190,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
       wrong_tables.append(String(table->real_name,default_charset_info));
     }
   }
+  thd->lex.tmp_table_used= tmp_table_deleted;
   if (some_tables_deleted || tmp_table_deleted)
   {
     query_cache_invalidate3(thd, tables, 0);
@@ -814,6 +815,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
       (void) rm_temporary_table(create_info->db_type, path);
       goto end;
     }
+    thd->lex.tmp_table_used= 1;
   }
   if (!tmp_table && !no_log)
   {
