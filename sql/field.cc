@@ -42,7 +42,7 @@
 #endif
 
 /*****************************************************************************
-** Instansiate templates and static variables
+  Instansiate templates and static variables
 *****************************************************************************/
 
 #ifdef __GNUC__
@@ -50,68 +50,12 @@ template class List<create_field>;
 template class List_iterator<create_field>;
 #endif
 
-struct st_decstr {
-  uint nr_length,nr_dec,sign,extra;
-  char sign_char;
-};
-
 uchar Field_null::null[1]={1};
 const char field_separator=',';
 
 /*****************************************************************************
-** Static help functions
+  Static help functions
 *****************************************************************************/
-
-	/*
-	  Calculate length of number and its parts
-	  Increment cuted_fields if wrong number
-	*/
-
-static bool
-number_dec(struct st_decstr *sdec, const char *str, const char *end)
-{
-  sdec->sign=sdec->extra=0;
-  if (str == end)
-  {
-    current_thd->cuted_fields++;
-    sdec->nr_length=sdec->nr_dec=sdec->sign=0;
-    sdec->extra=1;				// We must put one 0 before .
-    return 1;
-  }
-
-  if (*str == '-' || *str == '+')		/* sign */
-  {
-    sdec->sign_char= *str;
-    sdec->sign=1;
-    str++;
-  }
-  const char *start=str;
-  while (str != end && isdigit(*str))
-    str++;
-  if (!(sdec->nr_length=(uint) (str-start)))
-    sdec->extra=1;				// We must put one 0 before .
-  start=str;
-  if (str != end && *str == '.')
-  {
-    str++;
-    start=str;
-    while (str != end && isdigit(*str))
-      str++;
-  }
-  sdec->nr_dec=(uint) (str-start);
-  if (current_thd->count_cuted_fields)
-  {
-    while (str != end && isspace(*str))
-      str++; /* purecov: inspected */
-    if (str != end)
-    {
-      current_thd->cuted_fields++;
-      return 1;
-    }
-  }
-  return 0;
-}
-
 
 void Field_num::prepend_zeros(String *value)
 {
@@ -127,8 +71,8 @@ void Field_num::prepend_zeros(String *value)
 }
 
 /*
-** Test if given number is a int (or a fixed format float with .000)
-** This is only used to give warnings in ALTER TABLE or LOAD DATA...
+  Test if given number is a int (or a fixed format float with .000)
+  This is only used to give warnings in ALTER TABLE or LOAD DATA...
 */
 
 bool test_if_int(const char *str,int length)
@@ -417,99 +361,332 @@ void Field_decimal::overflow(bool negative)
 
 void Field_decimal::store(const char *from,uint len)
 {
-  reg3 int i;
-  uint tmp_dec;
-  char fyllchar;
-  const char *end=from+len;
-  struct st_decstr decstr;
-  bool error;
+  const char *end= from+len;
+  /* The pointer where the field value starts (i.e., "where to write") */
+  char *to=ptr;
+  uint tmp_dec, tmp_uint;
+  /*
+    The sign of the number : will be 0 (means positive but sign not
+    specified), '+' or '-'
+  */
+  char sign_char=0;
+ /* The pointers where prezeros start and stop */
+  const char *pre_zeros_from, *pre_zeros_end;
+ /* The pointers where digits at the left of '.' start and stop */
+  const char *int_digits_from, *int_digits_end;
+ /* The pointers where digits at the right of '.' start and stop */
+  const char *frac_digits_from, *frac_digits_end;
+ /* The sign of the exponent : will be 0 (means no exponent), '+' or '-' */
+  char expo_sign_char=0;
+  uint exponent=0;				// value of the exponent
+  /*
+    Pointers used when digits move from the left of the '.' to the
+    right of the '.' (explained below)
+  */
+  const char *int_digits_tail_from;
+  /* Number of 0 that need to be added at the left of the '.' (1E3: 3 zeros) */
+  uint int_digits_added_zeros;
+ /*
+   Pointer used when digits move from the right of the '.' to the left
+   of the '.'
+ */
+  const char *frac_digits_head_end;
+ /* Number of 0 that need to be added at the right of the '.' (for 1E-3) */
+  uint frac_digits_added_zeros;
+  char *pos,*tmp_left_pos,*tmp_right_pos;
+  /* Pointers that are used as limits (begin and end of the field buffer) */
+  char *left_wall,*right_wall;
+  char tmp_char;
+ /*
+   To remember if current_thd->cuted_fields has already been incremented,
+   to do that only once
+ */
+  bool is_cuted_fields_incr=0;
 
-  if ((tmp_dec= dec))
-    tmp_dec++;					// Calculate pos of '.'
-  while (from != end && isspace(*from))
-    from++;
-  if (zerofill)
+  LINT_INIT(int_digits_tail_from);
+  LINT_INIT(int_digits_added_zeros);
+  LINT_INIT(frac_digits_head_end);
+  LINT_INIT(frac_digits_added_zeros);
+
+  /*
+    There are three steps in this function :
+      - parse the input string
+      - modify the position of digits around the decimal dot '.' 
+        according to the exponent value (if specified)
+	- write the formatted number
+  */
+
+  if ((tmp_dec=dec))
+    tmp_dec++;
+
+  for (; from!=end && isspace(*from); from++) ;	// Read spaces
+  if (from == end)
   {
-    fyllchar = '0';
-    if (from != end)
-      while (*from == '0' && from != end-1)	// Skip prezero
-	from++;
+    current_thd->cuted_fields++;
+    is_cuted_fields_incr=1;
   }
-  else
-    fyllchar=' ';
-  error=number_dec(&decstr,from,end);
-  if (decstr.sign)
+  else if (*from == '+' || *from == '-')	// Found some sign ?
   {
-    from++;
-    if (unsigned_flag)				// No sign with zerofill
-    {
-      if (decstr.sign_char == '+')		// just remove "+"
-        decstr.sign= 0;
-      else
+    sign_char= *from++;
+    /* 
+     Unsigned can't have any flag. So we'll just drop "+"  
+     and will overflow on "-"
+    */ 
+    if (unsigned_flag)  
+    { 
+      if (sign_char=='-')
       {
-	if (!error)
-	  current_thd->cuted_fields++;
-	Field_decimal::overflow(1);
-	return;
+        current_thd->cuted_fields++;
+        Field_decimal::overflow(1);
+        return;
+      }
+      else 
+        sign_char=0;
+    }
+      
+  }
+  pre_zeros_from= from;
+  for (; from!=end && *from == '0'; from++) ;	// Read prezeros
+  pre_zeros_end=int_digits_from=from;      
+  /* Read non zero digits at the left of '.'*/
+  for (; from!=end && isdigit(*from);from++) ;
+  int_digits_end=from;
+  if (from!=end && *from == '.')		// Some '.' ?
+    from++;
+  frac_digits_from= from;
+  /* Read digits at the right of '.' */
+  for (;from!=end && isdigit(*from); from++) ;
+  frac_digits_end=from;
+  // Some exponentiation symbol ?
+  if (from != end && (*from == 'e' || *from == 'E'))
+  {   
+    from++;
+    if (from != end && (*from == '+' || *from == '-'))  // Some exponent sign ?
+      expo_sign_char= *from++;
+    else
+      expo_sign_char= '+';
+    /*
+      Read digits of the exponent and compute its value
+      'exponent' overflow (e.g. if 1E10000000000000000) is not a problem
+      (the value of the field will be overflow anyway, or 0 anyway, 
+      it does not change anything if the exponent is 2^32 or more
+    */
+    for (;from!=end && isdigit(*from); from++) 
+      exponent=10*exponent+(*from-'0');
+  }
+  
+  /*
+    We only have to generate warnings if count_cuted_fields is set.
+    This is to avoid extra checks of the number when they are not needed.
+    Even if this flag is not set, it's ok to increment warnings, if
+    it makes the code easer to read.
+  */
+
+  if (current_thd->count_cuted_fields)
+  {
+    for (;from!=end && isspace(*from); from++) ;   // Read end spaces
+    if (from != end)                     // If still something left, warn
+    {
+      current_thd->cuted_fields++; 
+      is_cuted_fields_incr=1;
+    }
+  }
+  
+  /*
+    Now "move" digits around the decimal dot according to the exponent value,
+    and add necessary zeros.
+    Examples :
+      - 1E+3 : needs 3 more zeros at the left of '.' (int_digits_added_zeros=3)
+      - 1E-3 : '1' moves at the right of '.', and 2 more zeros are needed
+        between '.' and '1'
+    - 1234.5E-3 : '234' moves at the right of '.'
+      These moves are implemented with pointers which point at the begin
+      and end of each moved segment. Examples :
+    - 1234.5E-3 : before the code below is executed, the int_digits part is
+      from '1' to '4' and the frac_digits part from '5' to '5'. After the code
+      below, the int_digits part is from '1' to '1', the frac_digits_head
+      part is from '2' to '4', and the frac_digits part from '5' to '5'.
+    - 1234.5E3 : before the code below is executed, the int_digits part is
+      from '1' to '4' and the frac_digits part from '5' to '5'. After the code
+      below, the int_digits part is from '1' to '4', the int_digits_tail
+      part is from '5' to '5', the frac_digits part is empty, and
+      int_digits_added_zeros=2 (to make 1234500).
+  */
+  
+  if (!expo_sign_char)
+    tmp_uint=tmp_dec+(uint)(int_digits_end-int_digits_from);
+  else if (expo_sign_char == '-') 
+  {
+    tmp_uint=min(exponent,(uint)(int_digits_end-int_digits_from));
+    frac_digits_added_zeros=exponent-tmp_uint;
+    int_digits_end -= tmp_uint;
+    frac_digits_head_end=int_digits_end+tmp_uint;
+    tmp_uint=tmp_dec+(uint)(int_digits_end-int_digits_from);	
+  }
+  else // (expo_sign_char=='+') 
+  {
+    tmp_uint=min(exponent,(uint)(frac_digits_end-frac_digits_from));
+    int_digits_added_zeros=exponent-tmp_uint;
+    int_digits_tail_from=frac_digits_from;
+    frac_digits_from=frac_digits_from+tmp_uint;
+    /*
+      We "eat" the heading zeros of the 
+      int_digits.int_digits_tail.int_digits_added_zeros concatenation
+      (for example 0.003e3 must become 3 and not 0003)
+    */
+    if (int_digits_from == int_digits_end) 
+    {
+      /*
+	There was nothing in the int_digits part, so continue
+	eating int_digits_tail zeros
+      */
+      for (; int_digits_tail_from != frac_digits_from &&
+	     *int_digits_tail_from == '0'; int_digits_tail_from++) ;
+      if (int_digits_tail_from == frac_digits_from) 
+      {
+	// there were only zeros in int_digits_tail too
+	int_digits_added_zeros=0;
       }
     }
+    tmp_uint=(tmp_dec+(uint)(int_digits_end-int_digits_from)
+	      +(uint)(frac_digits_from-int_digits_tail_from)+
+	      int_digits_added_zeros);
   }
+  
   /*
-  ** Remove pre-zeros if too big number
+    Now write the formated number
+    
+    First the digits of the int_% parts.
+    Do we have enough room to write these digits ?
+    If the sign is defined and '-', we need one position for it
   */
-  for (i= (int) (decstr.nr_length+decstr.extra -(field_length-tmp_dec)+
-		 decstr.sign) ;
-       i > 0 ;
-       i--)
+
+  if (field_length < tmp_uint + (int) (sign_char == '-'))
   {
-    if (*from == '0')
-    {
-      from++;
-      decstr.nr_length--;
-      continue;
-    }
-    if (decstr.sign && decstr.sign_char == '+' && i == 1)
-    {						// Remove pre '+'
-      decstr.sign=0;
-      break;
-    }
     current_thd->cuted_fields++;
     // too big number, change to max or min number
-    Field_decimal::overflow(decstr.sign && decstr.sign_char == '-');
+    Field_decimal::overflow(sign_char == '-');
     return;
   }
-  char *to=ptr;
-  for (i=(int) (field_length-tmp_dec-decstr.nr_length-decstr.extra - decstr.sign) ;
-       i-- > 0 ;)
-    *to++ = fyllchar;
-  if (decstr.sign)
-    *to++= decstr.sign_char;
-  if (decstr.extra)
-    *to++ = '0';
-  for (i=(int) decstr.nr_length ; i-- > 0 ; )
-    *to++ = *from++;
-  if (tmp_dec--)
-  {
-    *to++ ='.';
-    if (decstr.nr_dec) from++;			// Skip '.'
-    for (i=(int) min(decstr.nr_dec,tmp_dec) ; i-- > 0 ; ) *to++ = *from++;
-    for (i=(int) (tmp_dec-min(decstr.nr_dec,tmp_dec)) ; i-- > 0 ; ) *to++ = '0';
+ 
+  /*
+    Tmp_left_pos is the position where the leftmost digit of
+    the int_% parts will be written
+  */
+  tmp_left_pos=pos=to+(uint)(field_length-tmp_uint);
+  
+  // Write all digits of the int_% parts
+  while (int_digits_from != int_digits_end)
+    *pos++ = *int_digits_from++ ;
+
+  if (expo_sign_char == '+')
+  {    
+    while (int_digits_tail_from != frac_digits_from)
+      *pos++= *int_digits_tail_from++;
+    while (int_digits_added_zeros-- >0)
+      *pos++= '0';  
   }
+  /*
+    Note the position where the rightmost digit of the int_% parts has been
+    written (this is to later check if the int_% parts contained nothing,
+    meaning an extra 0 is needed).
+  */
+  tmp_right_pos=pos;
 
   /*
-  ** Check for incorrect string if in batch mode (ALTER TABLE/LOAD DATA...)
+    Step back to the position of the leftmost digit of the int_% parts,
+    to write sign and fill with zeros or blanks or prezeros.
   */
-  if (!error && current_thd->count_cuted_fields && from != end)
-  {						// Check if number was cuted
-    for (; from != end ; from++)
+  pos=tmp_left_pos-1;
+  if (zerofill)
+  {
+    left_wall=to-1;
+    while (pos != left_wall)			// Fill with zeros
+      *pos--='0';
+  }
+  else
+  {
+    left_wall=to+(sign_char!=0)-1;
+    if (!expo_sign_char)	// If exponent was specified, ignore prezeros
     {
-      if (*from != '0')
+      for (;pos != left_wall && pre_zeros_from !=pre_zeros_end;
+	   pre_zeros_from++)
+	*pos--= '0';
+    }
+    if (pos == tmp_right_pos-1)
+      *pos--= '0';		// no 0 has ever been written, so write one
+    left_wall= to-1;
+    if (sign_char && pos != left_wall)
+    {
+      /* Write sign if possible (it is if sign is '-') */
+      *pos--= sign_char;
+    }
+    while (pos != left_wall)
+      *pos--=' ';  //fill with blanks
+  }
+  
+  if (tmp_dec)					// This field has decimals
+  { 
+    /*
+      Write digits of the frac_% parts ;
+      Depending on current_thd->count_cutted_fields, we may also want
+      to know if some non-zero tail of these parts will
+      be truncated (for example, 0.002->0.00 will generate a warning,
+      while 0.000->0.00 will not)
+      (and 0E1000000000 will not, while 1E-1000000000 will)
+    */
+      
+    pos=to+(uint)(field_length-tmp_dec);	// Calculate post to '.'
+    *pos++='.';
+    right_wall=to+field_length;
+
+    if (expo_sign_char == '-')
+    {
+      while (frac_digits_added_zeros-- > 0)
       {
-	if (!isspace(*from))			// Space is ok
-	  current_thd->cuted_fields++;
-	break;
+	if (pos == right_wall) 
+	{
+	  if (current_thd->count_cuted_fields && !is_cuted_fields_incr) 
+	    break; // Go on below to see if we lose non zero digits
+	  return;
+	}
+	*pos++='0';
+      }
+      while (int_digits_end != frac_digits_head_end)
+      {
+	tmp_char= *int_digits_end++;
+	if (pos == right_wall)
+	{
+	  if (tmp_char != '0')			// Losing a non zero digit ?
+	  {
+	    if (current_thd->count_cuted_fields && !is_cuted_fields_incr)
+	      current_thd->cuted_fields++;
+	    return;
+	  }
+	  continue;
+	}
+	*pos++= tmp_char;
       }
     }
+
+    for (;frac_digits_from!=frac_digits_end;) 
+    {
+      tmp_char= *frac_digits_from++;
+      if (pos == right_wall)
+      {
+	if (tmp_char != '0')			// Losing a non zero digit ?
+	{
+	  if (!is_cuted_fields_incr)
+	    current_thd->cuted_fields++;
+	  return;
+	}
+	continue;
+      }
+      *pos++= tmp_char;
+    }
+      
+    while (pos != right_wall)
+      *pos++='0';			// Fill with zeros at right of '.'
   }
 }
 
@@ -522,6 +699,14 @@ void Field_decimal::store(double nr)
     current_thd->cuted_fields++;
     return;
   }
+  
+  if (isinf(nr)) // Handle infinity as special case
+  {
+    overflow(nr < 0.0);
+    current_thd->cuted_fields++;
+    return;      
+  }
+  
   reg4 uint i,length;
   char fyllchar,*to;
   char buff[320];
