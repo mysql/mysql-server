@@ -2609,7 +2609,7 @@ The manufacturer and model of the machine you are working on.
 
 @item
 The operating system name and version. For most operating systems, you can
-get this information by executing the Unix command @code{uname -a}.
+get this information by executing the UNIX command @code{uname -a}.
 
 @item
 Sometimes the amount of memory (real and virtual) is relevant.
