@@ -119,6 +119,8 @@ struct st_table {
   key_part_map  const_key_parts[MAX_KEY];
   ulong		query_id;
 
+  uint          temp_pool_slot;
+
   THD		*in_use;			/* Which thread uses this */
   struct st_table *next,*prev;
 };
