@@ -54,6 +54,8 @@
 ulong max_allowed_packet=65536;
 extern ulong net_read_timeout,net_write_timeout;
 extern uint test_flags;
+#define USE_QUERY_CACHE
+extern void query_cache_insert(NET *net, const char *packet, ulong length);
 #else
 ulong max_allowed_packet=16*1024*1024L;
 ulong net_read_timeout=  NET_READ_TIMEOUT;
@@ -72,8 +74,6 @@ void sql_print_error(const char *format,...);
 extern ulong mysqld_net_retry_count;
 extern ulong bytes_sent, bytes_received;
 extern pthread_mutex_t LOCK_bytes_sent , LOCK_bytes_received;
-
-extern void query_cache_insert(NET *net, const char *packet, ulong length);
 #else
 #undef statistic_add
 #define statistic_add(A,B,C)
@@ -329,7 +329,7 @@ net_real_write(NET *net,const char *packet,ulong len)
   my_bool net_blocking = vio_is_blocking(net->vio);
   DBUG_ENTER("net_real_write");
 
-#ifdef MYSQL_SERVER
+#ifdef USE_QUERY_CACHE
   if (net->query_cache_query != 0)
     query_cache_insert(net, packet, len);
 #endif
