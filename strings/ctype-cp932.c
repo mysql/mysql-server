@@ -243,8 +243,10 @@ static int my_strnncoll_cp932(CHARSET_INFO *cs __attribute__((unused)),
 
 
 static int my_strnncollsp_cp932(CHARSET_INFO *cs __attribute__((unused)),
-			       const uchar *a, uint a_length, 
-			       const uchar *b, uint b_length)
+                                const uchar *a, uint a_length, 
+                                const uchar *b, uint b_length,
+                                my_bool diff_if_only_endspace_difference
+                                __attribute__((unused)))
 {
   const uchar *a_end= a + a_length;
   const uchar *b_end= b + b_length;
