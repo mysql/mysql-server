@@ -2415,6 +2415,7 @@ pthread_handler_decl(handle_connections_sockets,arg __attribute__((unused)))
 	struct request_info req;
 	signal(SIGCHLD, SIG_DFL);
 	request_init(&req, RQ_DAEMON, libwrapName, RQ_FILE, new_sock, NULL);
+#ifndef __linux__
 	fromhost(&req);
 	if (!hosts_access(&req))
 	{
@@ -2422,6 +2423,12 @@ pthread_handler_decl(handle_connections_sockets,arg __attribute__((unused)))
 	  // which we surely don't want...
 	  // clean_exit() - same stupid thing ...
 	  syslog(deny_severity, "refused connect from %s", eval_client(&req));
+#else
+	fromhost();
+	if (!hosts_access())
+	{
+	  syslog(deny_severity, "refused connect from %s", eval_client());
+#endif
 	  if (req.sink)
 	    ((void (*)(int))req.sink)(req.fd);
 
