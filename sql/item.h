@@ -765,7 +765,7 @@ class Item_empty_string :public Item_string
 public:
   Item_empty_string(const char *header,uint length, CHARSET_INFO *cs= NULL) :
     Item_string("",0, cs ? cs : &my_charset_bin)
-    { name=(char*) header; max_length=length;}
+    { name=(char*) header; max_length= cs ? length * cs->mbmaxlen : length; }
   void make_field(Send_field *field);
 };
 
@@ -983,9 +983,9 @@ class Item_null_helper :public Item_ref_null_helper
 public:
   Item_null_helper(Item_in_subselect* master, Item *item,
 		   const char *table_name_par, const char *field_name_par)
-    :Item_ref_null_helper(master, &store, table_name_par, field_name_par),
+    :Item_ref_null_helper(master, &item, table_name_par, field_name_par),
      store(item)
-    {}
+    { ref= &store; }
   void print(String *str);
 };
 

@@ -2139,12 +2139,12 @@ static void update_stmt_fields(MYSQL_STMT *stmt)
   DESCRIPTION
     This function should be used after mysql_stmt_execute().
     You can safely check that prepared statement has a result set by calling
-    mysql_stmt_num_fields(): if number of fields is not zero, you can call
+    mysql_stmt_field_count(): if number of fields is not zero, you can call
     this function to get fields metadata.
     Next steps you may want to make:
     - find out number of columns in result set by calling
       mysql_num_fields(res) (the same value is returned by
-      mysql_stmt_num_fields)
+      mysql_stmt_field_count())
     - fetch metadata for any column with mysql_fetch_field,
       mysql_fetch_field_direct, mysql_fetch_fields, mysql_field_seek.
     - free returned MYSQL_RES structure with mysql_free_result.
@@ -3882,11 +3882,10 @@ my_bool STDCALL mysql_stmt_bind_result(MYSQL_STMT *stmt, MYSQL_BIND *bind)
 
   if (!bind_count)
   {
-    if ((int) stmt->state < (int) MYSQL_STMT_PREPARE_DONE)
-    {
-      set_stmt_error(stmt, CR_NO_PREPARE_STMT, unknown_sqlstate);
-    }
-    DBUG_RETURN(0);
+    int errorcode= (int) stmt->state < (int) MYSQL_STMT_PREPARE_DONE ?
+                   CR_NO_PREPARE_STMT : CR_NO_STMT_METADATA;
+    set_stmt_error(stmt, errorcode, unknown_sqlstate);
+    DBUG_RETURN(1);
   }
 
   /*
@@ -4278,7 +4277,7 @@ static void stmt_update_metadata(MYSQL_STMT *stmt, MYSQL_ROWS *data)
   row+= (stmt->field_count+9)/8;		/* skip null bits */
   bit= 4;					/* first 2 bits are reserved */
 
-  /* Go throw all fields and calculate metadata */
+  /* Go through all fields and calculate metadata */
   for (bind= stmt->bind, end= bind + stmt->field_count, field= stmt->fields ;
        bind < end ;
        bind++, field++)
