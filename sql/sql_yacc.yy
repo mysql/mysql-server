@@ -1918,7 +1918,8 @@ select:
 	  LEX *lex= Lex;
 	  lex->sql_command= SQLCOM_SELECT;
 	  lex->select_lex.resolve_mode= SELECT_LEX::SELECT_MODE;
-	};
+	}
+	;
 
 /* Need select_init2 for subselects. */
 select_init:
