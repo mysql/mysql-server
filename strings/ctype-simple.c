@@ -1000,7 +1000,7 @@ ulong my_scan_8bit(CHARSET_INFO *cs, const char *str, const char *end, int sq)
     return 0;
 
   case MY_SEQ_SPACES:
-    for (str++ ; str != end ; str++)
+    for (; str != end ; str++)
     {
       if (!my_isspace(cs,*str))
         break;
