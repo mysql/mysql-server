@@ -16,8 +16,8 @@
 # Process this file with automake to create Makefile.in
 
 INCLUDES=@MT_INCLUDES@ -I$(top_srcdir)/include $(openssl_includes)
-LDADD=  @CLIENT_EXTRA_LDFLAGS@ @openssl_libs@ @ZLIB_LIBS@ \
-	$(top_builddir)/libmysql_r/libmysqlclient_r.la
+LDADD=  @CLIENT_EXTRA_LDFLAGS@ @openssl_libs@ \
+	$(top_builddir)/libmysql_r/libmysqlclient_r.la @ZLIB_LIBS@ 
 bin_PROGRAMS=		mysqlmanager
 mysqlmanager_SOURCES=	mysqlmanager.c
 mysqlmanager_DEPENDENCIES=	$(LIBRARIES) $(pkglib_LTLIBRARIES)
