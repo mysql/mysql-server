@@ -256,7 +256,6 @@ Dbdict::packTableIntoPagesImpl(SimpleProperties::Writer & w,
   w.add(DictTabInfo::MaxLoadFactor, tablePtr.p->maxLoadFactor);
   w.add(DictTabInfo::TableKValue, tablePtr.p->kValue);
   w.add(DictTabInfo::FragmentTypeVal, tablePtr.p->fragmentType);
-  w.add(DictTabInfo::FragmentKeyTypeVal, tablePtr.p->fragmentKeyType);
   w.add(DictTabInfo::TableTypeVal, tablePtr.p->tableType);
   w.add(DictTabInfo::FragmentCount, tablePtr.p->fragmentCount);
   
@@ -289,17 +288,13 @@ Dbdict::packTableIntoPagesImpl(SimpleProperties::Writer & w,
     const Uint32 attrSize = AttributeDescriptor::getSize(desc);
     const Uint32 arraySize = AttributeDescriptor::getArraySize(desc);
     const Uint32 nullable = AttributeDescriptor::getNullable(desc);
-    const Uint32 DGroup = AttributeDescriptor::getDGroup(desc);
     const Uint32 DKey = AttributeDescriptor::getDKey(desc);
-    const Uint32 attrStoredInd = AttributeDescriptor::getStoredInTup(desc);
 
     w.add(DictTabInfo::AttributeType, attrType);
     w.add(DictTabInfo::AttributeSize, attrSize);
     w.add(DictTabInfo::AttributeArraySize, arraySize);
     w.add(DictTabInfo::AttributeNullableFlag, nullable);
-    w.add(DictTabInfo::AttributeDGroup, DGroup);
     w.add(DictTabInfo::AttributeDKey, DKey);
-    w.add(DictTabInfo::AttributeStoredInd, attrStoredInd);
     w.add(DictTabInfo::AttributeExtType, attrPtr.p->extType);
     w.add(DictTabInfo::AttributeExtPrecision, attrPtr.p->extPrecision);
     w.add(DictTabInfo::AttributeExtScale, attrPtr.p->extScale);
@@ -1340,10 +1335,8 @@ void Dbdict::initialiseTableRecord(TableRecordPtr tablePtr)
   tablePtr.p->tableVersion = (Uint32)-1;
   tablePtr.p->tabState = TableRecord::NOT_DEFINED;
   tablePtr.p->tabReturnState = TableRecord::TRS_IDLE;
-  tablePtr.p->storageType = DictTabInfo::MainMemory;
   tablePtr.p->myConnect = RNIL;
   tablePtr.p->fragmentType = DictTabInfo::AllNodesSmallTable;
-  tablePtr.p->fragmentKeyType = DictTabInfo::PrimaryKey;
   memset(tablePtr.p->tableName, 0, sizeof(tablePtr.p->tableName));
   tablePtr.p->gciTableCreated = 0;
   tablePtr.p->noOfAttributes = ZNIL;
@@ -4698,7 +4691,6 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
   tablePtr.p->minLoadFactor = tableDesc.MinLoadFactor;
   tablePtr.p->maxLoadFactor = tableDesc.MaxLoadFactor;
   tablePtr.p->fragmentType = (DictTabInfo::FragmentType)tableDesc.FragmentType;
-  tablePtr.p->fragmentKeyType = (DictTabInfo::FragmentKeyType)tableDesc.FragmentKeyType;
   tablePtr.p->tableType = (DictTabInfo::TableType)tableDesc.TableType;
   tablePtr.p->kValue = tableDesc.TableKValue;
   tablePtr.p->fragmentCount = tableDesc.FragmentCount;
@@ -4854,11 +4846,8 @@ void Dbdict::handleTabInfo(SimpleProperties::Reader & it,
     AttributeDescriptor::setSize(desc, attrDesc.AttributeSize);
     AttributeDescriptor::setArray(desc, attrDesc.AttributeArraySize);
     AttributeDescriptor::setNullable(desc, attrDesc.AttributeNullableFlag);
-    AttributeDescriptor::setDGroup(desc, attrDesc.AttributeDGroup);
     AttributeDescriptor::setDKey(desc, attrDesc.AttributeDKey);
     AttributeDescriptor::setPrimaryKey(desc, attrDesc.AttributeKeyFlag);
-
-    AttributeDescriptor::setStoredInTup(desc, attrDesc.AttributeStoredInd); 
     attrPtr.p->attributeDescriptor = desc;
     attrPtr.p->autoIncrement = attrDesc.AttributeAutoIncrement;
     strcpy(attrPtr.p->defaultValue, attrDesc.AttributeDefaultValue);
@@ -6416,7 +6405,6 @@ Dbdict::createIndex_toCreateTable(Signal* signal, OpCreateIndexPtr opPtr)
         w.add(DictTabInfo::AttributeKeyFlag, (Uint32)false);
         w.add(DictTabInfo::AttributeNullableFlag, (Uint32)isNullable);
       }
-      w.add(DictTabInfo::AttributeStoredInd, (Uint32)DictTabInfo::Stored);
       // ext type overrides
       w.add(DictTabInfo::AttributeExtType, aRec->extType);
       w.add(DictTabInfo::AttributeExtPrecision, aRec->extPrecision);
@@ -6431,7 +6419,6 @@ Dbdict::createIndex_toCreateTable(Signal* signal, OpCreateIndexPtr opPtr)
     w.add(DictTabInfo::AttributeName, "NDB$PK");
     w.add(DictTabInfo::AttributeId, opPtr.p->m_attrList.sz);
     w.add(DictTabInfo::AttributeKeyFlag, (Uint32)false);
-    w.add(DictTabInfo::AttributeStoredInd, (Uint32)DictTabInfo::Stored);
     w.add(DictTabInfo::AttributeNullableFlag, (Uint32)false);
     // ext type overrides
     w.add(DictTabInfo::AttributeExtType, (Uint32)DictTabInfo::ExtUnsigned);
@@ -6444,7 +6431,6 @@ Dbdict::createIndex_toCreateTable(Signal* signal, OpCreateIndexPtr opPtr)
     w.add(DictTabInfo::AttributeName, "NDB$TNODE");
     w.add(DictTabInfo::AttributeId, opPtr.p->m_attrList.sz);
     w.add(DictTabInfo::AttributeKeyFlag, (Uint32)true);
-    w.add(DictTabInfo::AttributeStoredInd, (Uint32)DictTabInfo::Stored);
     w.add(DictTabInfo::AttributeNullableFlag, (Uint32)false);
     // ext type overrides
     w.add(DictTabInfo::AttributeExtType, (Uint32)DictTabInfo::ExtUnsigned);
