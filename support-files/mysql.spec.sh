@@ -211,6 +211,9 @@ mv Docs/manual.ps Docs/manual.ps.save
 make distclean
 mv Docs/manual.ps.save Docs/manual.ps
 
+# RPM:s destroys Makefile.in files, so we generate them here
+automake
+
 BuildMySQL "--disable-shared" \
 	   "--with-mysqld-ldflags='-all-static'" \
 	   "--with-client-ldflags='-all-static'" \
