@@ -1180,65 +1180,85 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables)
 	/* First group - functions relying on CTX */
       case SHOW_SSL_CTX_SESS_ACCEPT:
 	net_store_data(&packet2,(uint32) 
-			SSL_CTX_sess_accept(ssl_acceptor_fd->ssl_context_));
+		       (!ssl_acceptor_fd ? 0 :
+			SSL_CTX_sess_accept(ssl_acceptor_fd->ssl_context_)));
         break;
       case SHOW_SSL_CTX_SESS_ACCEPT_GOOD:
 	net_store_data(&packet2,(uint32) 
-			SSL_CTX_sess_accept_good(ssl_acceptor_fd->ssl_context_));
+		       (!ssl_acceptor_fd ? 0 :
+			SSL_CTX_sess_accept_good(ssl_acceptor_fd->ssl_context_)));
         break;
       case SHOW_SSL_CTX_SESS_CONNECT_GOOD:
 	net_store_data(&packet2,(uint32) 
-			SSL_CTX_sess_connect_good(ssl_acceptor_fd->ssl_context_));
+		       (!ssl_acceptor_fd ? 0 :
+			SSL_CTX_sess_connect_good(ssl_acceptor_fd->ssl_context_)));
         break;
       case SHOW_SSL_CTX_SESS_ACCEPT_RENEGOTIATE:
 	net_store_data(&packet2,(uint32) 
-			SSL_CTX_sess_accept_renegotiate(ssl_acceptor_fd->ssl_context_));
+		       (!ssl_acceptor_fd ? 0 :
+			SSL_CTX_sess_accept_renegotiate(ssl_acceptor_fd->ssl_context_)));
         break;
       case SHOW_SSL_CTX_SESS_CONNECT_RENEGOTIATE:
 	net_store_data(&packet2,(uint32) 
-			SSL_CTX_sess_connect_renegotiate(ssl_acceptor_fd->ssl_context_));
+		       (!ssl_acceptor_fd ? 0 :
+			SSL_CTX_sess_connect_renegotiate(ssl_acceptor_fd->ssl_context_)));
         break;
       case SHOW_SSL_CTX_SESS_CB_HITS:
 	net_store_data(&packet2,(uint32) 
-			SSL_CTX_sess_cb_hits(ssl_acceptor_fd->ssl_context_));
+		       (!ssl_acceptor_fd ? 0 :
+			SSL_CTX_sess_cb_hits(ssl_acceptor_fd->ssl_context_)));
         break;
       case SHOW_SSL_CTX_SESS_HITS:
 	net_store_data(&packet2,(uint32) 
-			SSL_CTX_sess_hits(ssl_acceptor_fd->ssl_context_));
+		       (!ssl_acceptor_fd ? 0 :
+			SSL_CTX_sess_hits(ssl_acceptor_fd->ssl_context_)));
         break;
       case SHOW_SSL_CTX_SESS_CACHE_FULL:
 	net_store_data(&packet2,(uint32) 
-			SSL_CTX_sess_cache_full(ssl_acceptor_fd->ssl_context_));
+		       (!ssl_acceptor_fd ? 0 :
+			SSL_CTX_sess_cache_full(ssl_acceptor_fd->ssl_context_)));
         break;
       case SHOW_SSL_CTX_SESS_MISSES:
 	net_store_data(&packet2,(uint32) 
-			SSL_CTX_sess_misses(ssl_acceptor_fd->ssl_context_));
+		       (!ssl_acceptor_fd ? 0 :
+			SSL_CTX_sess_misses(ssl_acceptor_fd->ssl_context_)));
         break;
       case SHOW_SSL_CTX_SESS_TIMEOUTS:
 	net_store_data(&packet2,(uint32) 
-			SSL_CTX_sess_timeouts(ssl_acceptor_fd->ssl_context_));
+		       (!ssl_acceptor_fd ? 0 :
+			SSL_CTX_sess_timeouts(ssl_acceptor_fd->ssl_context_)));
         break;
       case SHOW_SSL_CTX_SESS_NUMBER:
 	net_store_data(&packet2,(uint32) 
-			SSL_CTX_sess_number(ssl_acceptor_fd->ssl_context_));
+		       (!ssl_acceptor_fd ? 0 :
+			SSL_CTX_sess_number(ssl_acceptor_fd->ssl_context_)));
         break;
       case SHOW_SSL_CTX_SESS_CONNECT:
 	net_store_data(&packet2,(uint32) 
-			SSL_CTX_sess_connect(ssl_acceptor_fd->ssl_context_));
+		       (!ssl_acceptor_fd ? 0 :
+			SSL_CTX_sess_connect(ssl_acceptor_fd->ssl_context_)));
         break;
       case SHOW_SSL_CTX_SESS_GET_CACHE_SIZE:
 	net_store_data(&packet2,(uint32) 
-			SSL_CTX_sess_get_cache_size(ssl_acceptor_fd->ssl_context_));
+		       (!ssl_acceptor_fd ? 0 :
+			SSL_CTX_sess_get_cache_size(ssl_acceptor_fd->ssl_context_)));
         break;
       case SHOW_SSL_CTX_GET_VERIFY_MODE:
 	net_store_data(&packet2,(uint32) 
-			SSL_CTX_get_verify_mode(ssl_acceptor_fd->ssl_context_));
+		       (!ssl_acceptor_fd ? 0 :
+			SSL_CTX_get_verify_mode(ssl_acceptor_fd->ssl_context_)));
         break;
       case SHOW_SSL_CTX_GET_VERIFY_DEPTH:
 	net_store_data(&packet2,(uint32) 
-			SSL_CTX_get_verify_depth(ssl_acceptor_fd->ssl_context_));
+		       (!ssl_acceptor_fd ? 0 :
+			SSL_CTX_get_verify_depth(ssl_acceptor_fd->ssl_context_)));
         break;
       case SHOW_SSL_CTX_GET_SESSION_CACHE_MODE:
+	if (!ssl_acceptor_fd)
+	{
+	  net_store_data(&packet2,"NONE" );
+	  break;
+	}
 	switch(SSL_CTX_get_session_cache_mode(ssl_acceptor_fd->ssl_context_))
 	{
           case SSL_SESS_CACHE_OFF:
@@ -1286,23 +1306,28 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables)
 			SSL_get_verify_depth(thd->net.vio->ssl_):0));
         break;
       case SHOW_SSL_GET_CIPHER:
-	net_store_data(&packet2, thd->net.vio->ssl_ ? SSL_get_cipher(thd->net.vio->ssl_) : "");
+	net_store_data(&packet2, thd->net.vio->ssl_ ?
+		       SSL_get_cipher(thd->net.vio->ssl_) : "");
+	break;
       case SHOW_SSL_GET_CIPHER_LIST:
-	if(thd->net.vio->ssl_)
+	if (thd->net.vio->ssl_)
 	{
-	  char buf[1024]="";
-	  for (int i=0; ; i++)
+	  char buf[1024], *pos;
+	  pos=buf;
+	  for (int i=0 ; i++ ;)
 	  {
 	    const char *p=SSL_get_cipher_list(thd->net.vio->ssl_,i);
 	    if (p == NULL) 
 	      break;
-	    if (i != 0) 
-	      strcat(buf,":");
-	    strcat(buf,p);
-	    DBUG_PRINT("info",("cipher to add: %s,%s",p,buf));
+	    pos=strmov(pos, p);
+	    *pos++= ':';
 	  }
+	  if (pos != buf)
+	    pos--;				// Remove last ':'
+	  *pos=0;
  	  net_store_data(&packet2, buf);
-        } else
+        }
+	else
  	  net_store_data(&packet2, "");
         break;
 
