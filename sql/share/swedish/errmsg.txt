@@ -213,3 +213,4 @@
 "CREATE DATABASE är inte tillåtet när man har ett globalt läs-lås",
 "Felaktiga argument till %s",
 "%-.32s@%-.64s har inte rättigheter att skapa nya användare",
+"Felaktig tabell definition: Alla tabeller i en MERGE tabell måste vara i samma databas",
