@@ -50,6 +50,7 @@ public:
   my_bool m_simple_case;	// TRUE if parsing simple case, FALSE otherwise
   my_bool m_multi_results;	// TRUE if a procedure with SELECT(s)
   uint m_old_cmq;		// Old CLIENT_MULTI_QUERIES value
+  st_sp_chistics *m_chistics;
 #if NOT_USED_NOW
   // QQ We're not using this at the moment.
   List<char *> m_calls;		// Called procedures.
@@ -67,20 +68,6 @@ public:
   // Initialize after we have reset mem_root
   void
   init(LEX_STRING *name, LEX *lex);
-
-  void
-  init_options(LEX_STRING *comment, enum suid_behaviour suid)
-  {
-    m_comment.length= 0;
-    m_comment.str= 0;
-    if (comment)
-    {
-      m_comment.length= comment->length;
-      m_comment.str= comment->str;
-    }
-    m_suid= suid ? suid - 1 : 1;
-  }
-
 
   int
   create(THD *thd);
@@ -154,17 +141,17 @@ public:
     return sp_map_result_type(m_returns);
   }
 
-  void sp_set_info(char *creator, uint creatorlen,
-		   longlong created, longlong modified,
-		   bool suid, char *comment, uint commentlen)
+  void set_info(char *creator, uint creatorlen,
+		longlong created, longlong modified,
+		bool suid, char *comment, uint commentlen)
   {
     m_creator= creator;
     m_creatorlen= creatorlen;
     m_created= created;
     m_modified= modified;
-    m_comment.length= commentlen;
-    m_comment.str= comment;
-    m_suid= suid;
+    m_chistics->comment.length= commentlen;
+    m_chistics->comment.str= comment;
+    m_chistics->suid= (suid ? IS_SUID : IS_NOT_SUID);
   }
 
   inline void reset_thd_mem_root(THD *thd)
@@ -195,12 +182,10 @@ private:
 
   LEX_STRING m_name;
   LEX_STRING m_defstr;
-  LEX_STRING m_comment;
   char *m_creator;
   uint m_creatorlen;
   longlong m_created;
   longlong m_modified;
-  bool m_suid;
 
   sp_pcontext *m_pcont;		// Parse context
   List<LEX> m_lex;		// Temp. store for the other lex

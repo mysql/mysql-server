@@ -3558,12 +3558,10 @@ mysql_execute_command(THD *thd)
       }
       if (lex->sql_command == SQLCOM_ALTER_PROCEDURE)
 	res= sp_update_procedure(thd, lex->udf.name.str, lex->udf.name.length,
-				lex->name, newname_len, lex->comment->str,
-				lex->comment->length, lex->suid);
+				 lex->name, newname_len, &lex->sp_chistics);
       else
 	res= sp_update_function(thd, lex->udf.name.str, lex->udf.name.length,
-			       lex->name, newname_len, lex->comment->str,
-			       lex->comment->length, lex->suid);
+				lex->name, newname_len,	&lex->sp_chistics);
       switch (res)
       {
       case SP_OK:

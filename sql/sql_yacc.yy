@@ -139,6 +139,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token  CUBE_SYM
 %token  DEFINER_SYM
 %token	DELETE_SYM
+%token  DETERMINISTIC_SYM
 %token	DUAL_SYM
 %token	DO_SYM
 %token	DROP
@@ -283,6 +284,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	LEAVES
 %token	LEVEL_SYM
 %token	LEX_HOSTNAME
+%token  LANGUAGE_SYM
 %token	LIKE
 %token	LINES
 %token	LOCAL_SYM
@@ -630,7 +632,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	LEX_HOSTNAME ULONGLONG_NUM field_ident select_alias ident ident_or_text
         UNDERSCORE_CHARSET IDENT_sys TEXT_STRING_sys TEXT_STRING_literal
 	NCHAR_STRING opt_component key_cache_name
-        SP_FUNC ident_or_spfunc sp_opt_label sp_comment sp_newname
+        SP_FUNC ident_or_spfunc sp_opt_label
 
 %type <lex_str_ptr>
 	opt_table_alias
@@ -761,6 +763,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	subselect_end select_var_list select_var_list_init help opt_len
 	opt_extended_describe
 	statement sp_suid
+	sp_c_chistics sp_a_chistics sp_chistic sp_c_chistic sp_a_chistic
 END_OF_INPUT
 
 %type <NONE> call sp_proc_stmts sp_proc_stmt
@@ -1051,11 +1054,16 @@ create:
 	  }
           '(' sp_pdparam_list ')'
 	  {
-	    Lex->spcont->set_params();
+	    LEX *lex= Lex;
+
+	    lex->spcont->set_params();
+	    bzero((char *)&lex->sp_chistics, sizeof(st_sp_chistics));
 	  }
-	  sp_comment sp_suid
+	  sp_c_chistics
 	  {
-	    Lex->sphead->init_options(&$9, Lex->suid);
+	    LEX *lex= Lex;
+
+	    lex->sphead->m_chistics= &lex->sp_chistics;
 	  }
 	  sp_proc_stmt
 	  {
@@ -1113,17 +1121,22 @@ create_function_tail:
 	  }
 	  RETURNS_SYM type
 	  {
-	    Lex->sphead->m_returns= (enum enum_field_types)$7;
+	    LEX *lex= Lex;
+
+	    lex->sphead->m_returns= (enum enum_field_types)$7;
+	    bzero((char *)&lex->sp_chistics, sizeof(st_sp_chistics));
 	  }
-	  sp_comment sp_suid
+	  sp_c_chistics
 	  {
-	    Lex->sphead->init_options(&$9, Lex->suid);
-          }
+	    LEX *lex= Lex;
+
+	    lex->sphead->m_chistics= &lex->sp_chistics;
+	  }
 	  sp_proc_stmt
 	  {
 	    LEX *lex= Lex;
 
-	    lex->sql_command = SQLCOM_CREATE_SPFUNCTION;
+	    lex->sql_command= SQLCOM_CREATE_SPFUNCTION;
 	    /* Restore flag if it was cleared above */
 	    if (lex->sphead->m_old_cmq)
 	      YYTHD->client_capabilities |= CLIENT_MULTI_QUERIES;
@@ -1131,21 +1144,45 @@ create_function_tail:
 	  }
 	;
 
-sp_comment:
-	  /* Empty */			{ $$.str= 0; $$.length= 0; }
-	| COMMENT_SYM TEXT_STRING_sys	{ $$= $2; }
+sp_a_chistics:
+	  /* Empty */ {}
+	| sp_a_chistics sp_a_chistic {}
 	;
 
-sp_newname:
-	  /* Empty */			{ $$.str= 0; $$.length= 0; }
-	| NAME_SYM ident		{ $$= $2; }
+sp_c_chistics:
+	  /* Empty */ {}
+	| sp_c_chistics sp_c_chistic {}
 	;
 
+/* Characteristics for both create and alter */
+sp_chistic:
+	  COMMENT_SYM TEXT_STRING_sys { Lex->sp_chistics.comment= $2; }
+	| sp_suid { }
+	;
+
+/* Alter characteristics */
+sp_a_chistic:
+	  sp_chistic     { }
+	| NAME_SYM ident { Lex->name= $2.str; }
+	;
+
+/* Create characteristics */
+sp_c_chistic:
+	  sp_chistic            { }
+	| LANGUAGE_SYM SQL_SYM  { }
+	| DETERMINISTIC_SYM     { Lex->sp_chistics.detistic= TRUE; }
+	| NOT DETERMINISTIC_SYM { Lex->sp_chistics.detistic= FALSE; }
+	;
 
 sp_suid:
-	  /* Empty */			    { Lex->suid= IS_DEFAULT_SUID; }
-	| SQL_SYM SECURITY_SYM DEFINER_SYM  { Lex->suid= IS_SUID; }
-	| SQL_SYM SECURITY_SYM INVOKER_SYM  { Lex->suid= IS_NOT_SUID; }
+	  SQL_SYM SECURITY_SYM DEFINER_SYM
+	  {
+	    Lex->sp_chistics.suid= IS_SUID;
+	  }
+	| SQL_SYM SECURITY_SYM INVOKER_SYM
+	  {
+	    Lex->sp_chistics.suid= IS_NOT_SUID;
+	  }
 	;
 
 call:
@@ -2648,36 +2685,35 @@ alter:
 	    lex->sql_command=SQLCOM_ALTER_DB;
 	    lex->name=$3.str;
 	  }
-	| ALTER PROCEDURE ident sp_newname sp_comment sp_suid
-	  opt_restrict
+	| ALTER PROCEDURE ident
+	  {
+	    LEX *lex= Lex;
+
+	    bzero((char *)&lex->sp_chistics, sizeof(st_sp_chistics));
+	    Lex->name= 0;
+          }
+	  sp_a_chistics
 	  {
 	    THD *thd= YYTHD;
 	    LEX *lex=Lex;
 
 	    lex->sql_command= SQLCOM_ALTER_PROCEDURE;
 	    lex->udf.name= $3;
-	    lex->name= $4.str;
-	    /* $5 is a yacc/bison internal struct, so we can't keep
-	       the pointer to it for use outside the parser. */
-	    lex->comment= (LEX_STRING *)thd->alloc(sizeof(LEX_STRING));
-	    lex->comment->str= $5.str;
-	    lex->comment->length= $5.length;
 	  }
-	| ALTER FUNCTION_SYM ident sp_newname sp_comment sp_suid
-	  opt_restrict
+	| ALTER FUNCTION_SYM ident
+	  {
+	    LEX *lex= Lex;
+
+	    bzero((char *)&lex->sp_chistics, sizeof(st_sp_chistics));
+	    lex->name= 0;
+          }
+	  sp_a_chistics
 	  {
 	    THD *thd= YYTHD;
 	    LEX *lex=Lex;
 
 	    lex->sql_command= SQLCOM_ALTER_FUNCTION;
 	    lex->udf.name= $3;
-	    lex->name= $4.str;
-	    /* $5 is a yacc/bison internal struct, so we can't keep
-	       the pointer to it for use outside the parser. */
-	    lex->comment= (LEX_STRING *)thd->alloc(sizeof(LEX_STRING));
-	    lex->comment= (LEX_STRING *)thd->alloc(sizeof(LEX_STRING));
-	    lex->comment->str= $5.str;
-	    lex->comment->length= $5.length;
 	  }
 	;
 
@@ -5775,6 +5811,7 @@ keyword:
 	| INNOBASE_SYM		{}
 	| INSERT_METHOD		{}
 	| RELAY_THREAD		{}
+	| LANGUAGE_SYM          {}
 	| LAST_SYM		{}
 	| LEAVES                {}
 	| LEVEL_SYM		{}
