@@ -61,3 +61,19 @@ drop table t2;
 save_master_pos;
 connection slave;
 sync_with_master;
+
+#
+# Bug#8412: Error codes reported in binary log for CHARACTER SET,
+#           FOREIGN_KEY_CHECKS
+#
+connection master;
+SET TIMESTAMP=1000000000;
+CREATE TABLE t1 ( a INT UNIQUE );
+SET FOREIGN_KEY_CHECKS=0;
+--error 1062
+INSERT INTO t1 VALUES (1),(1);
+sync_slave_with_master;
+
+
+
+
