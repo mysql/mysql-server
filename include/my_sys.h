@@ -270,6 +270,7 @@ enum loglevel {
 enum cache_type
 {
   READ_CACHE,WRITE_CACHE,
+  APPEND_CACHE,                 /* Like WRITE_CACHE, but only append */
   SEQ_READ_APPEND		/* sequential read or append */,
   READ_FIFO, READ_NET,WRITE_NET};
 
