@@ -284,21 +284,25 @@ pthread_handler_decl(thr_find_all_keys,arg)
   uint memavl,old_memavl,keys,sort_length;
   uint idx, maxbuffer;
   uchar **sort_keys;
+  
+  error=1;
+
+  if (my_thread_init())
+    goto err;
+  if (info->sort_info->got_error)
+    goto err;
 
   my_b_clear(&info->tempfile);
   my_b_clear(&info->tempfile_for_exceptions);
   bzero((char*) &info->buffpek,sizeof(info->buffpek));
   bzero((char*) &info->unique, sizeof(info->unique));
   sort_keys= (uchar **) NULL;
-  error= 1;
-  if (info->sort_info->got_error)
-    goto err;
 
   memavl=max(info->sortbuff_size, MIN_SORT_MEMORY);
   idx=      info->sort_info->max_records;
   sort_length=  info->key_length;
+  maxbuffer= 1;
 
-  maxbuffer=1;
   while (memavl >= MIN_SORT_MEMORY)
   {
     if ((my_off_t) (idx+1)*(sort_length+sizeof(char*)) <=
@@ -340,6 +344,7 @@ pthread_handler_decl(thr_find_all_keys,arg)
     mi_check_print_error(info->sort_info->param,"Sort buffer to small"); /* purecov: tested */
     goto err; /* purecov: tested */
   }
+//  (*info->lock_in_memory)(info->sort_info->param);/* Everything is allocated */
 
   if (info->sort_info->param->testflag & T_VERBOSE)
     printf("Key %d - Allocating buffer for %d keys\n",info->key+1,keys);
@@ -348,8 +353,8 @@ pthread_handler_decl(thr_find_all_keys,arg)
   idx=error=0;
   sort_keys[0]=(uchar*) (sort_keys+keys);
 
-  while (!(error=info->sort_info->got_error) ||
-	 !(error=(*info->key_read)(info,sort_keys[idx])))
+  while (!(error=info->sort_info->got_error) &&
+         !(error=(*info->key_read)(info,sort_keys[idx])))
   {
     if (info->real_key_length > info->key_length)
     {
@@ -364,7 +369,6 @@ pthread_handler_decl(thr_find_all_keys,arg)
 		     (BUFFPEK *)alloc_dynamic(&info->buffpek),
 		     &info->tempfile))
         goto err;
-
       sort_keys[0]=(uchar*) (sort_keys+keys);
       memcpy(sort_keys[0],sort_keys[idx-1],(size_t) info->key_length);
       idx=1;
@@ -401,6 +405,7 @@ ok:
   info->sort_info->threads_running--;
   pthread_cond_signal(&info->sort_info->cond);
   pthread_mutex_unlock(&info->sort_info->mutex);
+  my_thread_end();
   return NULL;
 }
 
@@ -414,14 +419,14 @@ int thr_write_keys(MI_SORT_PARAM *sort_param)
   int got_error=sort_info->got_error;
   uint i;
   MI_INFO *info=sort_info->info;
-  MYISAM_SHARE *share=info->s;  
+  MYISAM_SHARE *share=info->s;
   MI_SORT_PARAM *sinfo;
   byte *mergebuf=0;
   LINT_INIT(length);
 
-  for (i=0, sinfo=sort_param ;
-       i < sort_info->total_keys ;
-       i++, sinfo++, rec_per_key_part+=sinfo->keyinfo->keysegs)
+  for (i=0, sinfo=sort_param ; i<sort_info->total_keys ; i++,
+                               rec_per_key_part+=sinfo->keyinfo->keysegs,
+                                                                 sinfo++)
   {
     if (!sinfo->sort_keys)
     {
@@ -447,11 +452,11 @@ int thr_write_keys(MI_SORT_PARAM *sort_param)
     sinfo->sort_keys=0;
   }
 
-  for (i=0, sinfo=sort_param ;
-       i < sort_info->total_keys ;
-       i++, sinfo++, delete_dynamic(&sinfo->buffpek),
-	 close_cached_file(&sinfo->tempfile),
-	 close_cached_file(&sinfo->tempfile_for_exceptions))
+  for (i=0, sinfo=sort_param ; i<sort_info->total_keys ; i++,
+                                      delete_dynamic(&sinfo->buffpek),
+                                  close_cached_file(&sinfo->tempfile),
+                   close_cached_file(&sinfo->tempfile_for_exceptions),
+                                                              sinfo++)
   {
     if (got_error)
       continue;
@@ -552,8 +557,10 @@ static int NEAR_F write_keys(MI_SORT_PARAM *info, register uchar **sort_keys,
   buffpek->count=count;
 
   for (end=sort_keys+count ; sort_keys != end ; sort_keys++)
+  {
     if (my_b_write(tempfile,(byte*) *sort_keys,(uint) sort_length))
       DBUG_RETURN(1); /* purecov: inspected */
+  }
   DBUG_RETURN(0);
 } /* write_keys */
 
@@ -576,7 +583,7 @@ static int NEAR_F write_key(MI_SORT_PARAM *info, uchar *key,
 } /* write_key */
 
 
-        /* Write index */
+/* Write index */
 
 static int NEAR_F write_index(MI_SORT_PARAM *info, register uchar **sort_keys,
                               register uint count)
