@@ -7,6 +7,7 @@ DIRS := \
         ndbapi  \
 	mgmsrv  \
         mgmapi  \
+	newtonapi \
 	rep \
         mgmclient \
         cw \
