@@ -34,7 +34,7 @@ GetOptions(
 	"help|h",
 	"log|l:s",
 	"mail|m=s",
-	"skip-dmg",
+	"skip-dmg|skip-disk-image|s",
 	"suffix=s",
 	"verbose|v",
 	"version=s",
@@ -74,7 +74,7 @@ $TAR= <$BUILDDIR/$NAME-apple-darwin*-powerpc.tar.gz>;
 $INFO= <$SUPFILEDIR/Info.plist>;
 $DESC= <$SUPFILEDIR/Description.plist>;
 @RESOURCES= qw/ ReadMe.txt postinstall preinstall /;
-@LICENSES= qw{ $SRCBASEDIR/COPYING $SRCBASEDIR/MySQLEULA.txt };
+@LICENSES= ("$SRCBASEDIR/COPYING","$SRCBASEDIR/MySQLEULA.txt");
 
 &print_help("") if ($opt_help || !$opt_suffix || !$opt_version);
 
@@ -125,12 +125,14 @@ foreach $resfile (@RESOURCES)
 # Search for license file
 foreach $license (@LICENSES)
 {
-	last if (-f "$license")
+	if (-f "$license")
+	{
+		$command= "cp $license $RESOURCE_DIR/License.txt";
+		&run_command($command, "Error while copying $license to $RESOURCE_DIR");
+	}
 }
 
-&abort("Could not find a license file!") unless (-f "$license");
-$command= "cp $license $RESOURCE_DIR/License.txt";
-&run_command($command, "Error while copying $license to $RESOURCE_DIR");
+&abort("Could not find a license file!") unless (-f "$RESOURCE_DIR/License.txt");
 
 # Extract the binary tarball and create the "mysql" symlink
 &logger("Extracting $TAR to $PKGROOT");
@@ -228,7 +230,7 @@ Options:
                               is enabled)
                               Note that the \@-Sign needs to be quoted!
                               Example: --mail=user\\\@domain.com
-    --skip-dmg                Just build the PKG, don't put it into a
+-s, --skip-disk-image         Just build the PKG, don't put it into a
                               disk image afterwards
     --suffix=<suffix>         The package suffix (e.g. "-standard" or "-pro)
     --version=<version>       The MySQL version number (e.g. 4.0.11-gamma)
