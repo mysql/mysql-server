@@ -44,6 +44,13 @@ typedef ulonglong table_map;          /* Used for table bits in join */
 typedef Bitmap<64> key_map;           /* Used for finding keys */
 typedef ulong key_part_map;           /* Used for finding key parts */
 
+/* query_id */
+typedef ulonglong query_id_t;
+extern query_id_t query_id;
+
+/* increment query_id and return it.  */
+inline query_id_t next_query_id() { return query_id++; }
+
 /* useful constants */
 extern const key_map key_map_empty;
 extern const key_map key_map_full;
@@ -1299,14 +1306,6 @@ SQL_CRYPT *get_crypt_for_frm(void);
 #endif
 
 #include "sql_view.h"
-
-/* query_id */
-
-typedef ulonglong query_id_t;
-extern query_id_t query_id;
-
-/* increment query_id and return it.  */
-inline query_id_t next_query_id() { return query_id++; }
 
 /* Some inline functions for more speed */
 

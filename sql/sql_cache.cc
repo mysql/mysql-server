@@ -2225,7 +2225,6 @@ my_bool Query_cache::register_all_tables(Query_cache_block *block,
 
   n= register_tables_from_list(tables_used, 0, block_table);
 
-err:
   if (n)
   {
     DBUG_PRINT("qcache", ("failed at table %d", (int) n));

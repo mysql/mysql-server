@@ -178,7 +178,7 @@ bool Item::val_bool()
 {
   switch(result_type()) {
   case INT_RESULT:
-    return val_int();
+    return val_int() != 0;
   case DECIMAL_RESULT:
   {
     my_decimal decimal_value;
@@ -1217,7 +1217,7 @@ bool Item_field::val_bool_result()
     return FALSE;
   switch (result_field->result_type()) {
   case INT_RESULT:
-    return result_field->val_int();
+    return result_field->val_int() != 0;
   case DECIMAL_RESULT:
   {
     my_decimal decimal_value;
@@ -3946,7 +3946,7 @@ bool Item_ref::val_bool_result()
       return 0;
     switch (result_field->result_type()) {
     case INT_RESULT:
-      return result_field->val_int();
+      return result_field->val_int() != 0;
     case DECIMAL_RESULT:
     {
       my_decimal decimal_value;
