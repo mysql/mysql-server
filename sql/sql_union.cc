@@ -116,7 +116,7 @@ int st_select_lex_unit::prepare(THD *thd, select_result *sel_result,
 				bool tables_and_fields_initied)
 {
   SELECT_LEX *lex_select_save= thd->lex.current_select;
-  SELECT_LEX *select_cursor;
+  SELECT_LEX *select_cursor,*sl;
   DBUG_ENTER("st_select_lex_unit::prepare");
 
   if (prepared)
@@ -130,7 +130,7 @@ int st_select_lex_unit::prepare(THD *thd, select_result *sel_result,
   t_and_f= tables_and_fields_initied;
   
   bzero((char *)&tmp_table_param,sizeof(TMP_TABLE_PARAM));
-  thd->lex.current_select= select_cursor= first_select_in_union();
+  thd->lex.current_select= sl= select_cursor= first_select_in_union();
   /* Global option */
   if (t_and_f)
   {
@@ -185,7 +185,7 @@ int st_select_lex_unit::prepare(THD *thd, select_result *sel_result,
   union_result->not_describe=1;
   union_result->tmp_table_param=tmp_table_param;
 
-  for (SELECT_LEX *sl= select_cursor; sl; sl= sl->next_select())
+  for (;sl; sl= sl->next_select())
   {
     JOIN *join= new JOIN(thd, sl->item_list, 
 			 sl->options | thd->options | SELECT_NO_UNLOCK,
