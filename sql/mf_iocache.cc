@@ -81,7 +81,7 @@ int init_io_cache(IO_CACHE *info, File file, uint cachesize,
       if ((my_off_t) cachesize > end_of_file-seek_offset+IO_SIZE*2-1)
       {
 	cachesize=(uint) (end_of_file-seek_offset)+IO_SIZE*2-1;
-	use_async_io=0;				/* No nead to use async */
+	use_async_io=0;				/* No need to use async */
       }
     }
   }

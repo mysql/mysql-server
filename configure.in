@@ -1758,11 +1758,15 @@ AC_ARG_WITH(extra-tools,
     [with_tools=yes]
 )
 
+tools_dirs=""
 if test "$with_tools" = "yes"
 then
-  tools_dirs="tools"
-else
-  tools_dirs=""
+  if test "$THREAD_SAFE_CLIENT" = "no"
+  then
+    echo "Warning: extra-tools disabled because --enable-thread-safe-client wasn't used"
+  else
+    tools_dirs="tools"
+  fi
 fi
 AC_SUBST(tools_dirs)
 

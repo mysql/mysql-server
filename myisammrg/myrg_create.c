@@ -54,7 +54,7 @@ int myrg_create(const char *name, const char **table_names,
   if (insert_method != MERGE_INSERT_DISABLED)
   {
     end=strxmov(buff,"#INSERT_METHOD=",
-		get_type(&merge_insert_method,insert_method),"\n",NullS);
+		get_type(&merge_insert_method,insert_method-1),"\n",NullS);
     if (my_write(file,buff,(uint) (end-buff),MYF(MY_WME | MY_NABP)))
         goto err;
   }
