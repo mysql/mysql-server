@@ -90,9 +90,12 @@ connection master;
 sync_slave_with_master;
 connection master;
 purge master logs to 'master-bin.000002';
+show master logs;
+# we just tests if synonyms are accepted
+purge binary logs to 'master-bin.000002';
 show binary logs;
 --sleep 1;
-purge logs before now();
+purge master logs before now();
 show binary logs;
 insert into t2 values (65);
 sync_slave_with_master;
