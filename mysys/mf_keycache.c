@@ -571,7 +571,7 @@ void change_key_cache_param(KEY_CACHE_HANDLE keycache)
 
 void end_key_cache(KEY_CACHE_HANDLE keycache, my_bool cleanup)
 {
-  KEY_CACHE_VAR *env;;
+  KEY_CACHE_VAR *env;
   DBUG_ENTER("end_key_cache");
   DBUG_PRINT("enter", ("key_cache: %lx", keycache));
 
