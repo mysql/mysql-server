@@ -725,6 +725,12 @@ byte *my_compress_alloc(const byte *packet, ulong *len, ulong *complen);
 ulong checksum(const byte *mem, uint count);
 uint my_bit_log2(ulong value);
 
+#if defined(SAFE_MUTEX) && !defined(DBUG_OFF)
+#define DBUG_ASSERT_LOCK(lock) DBUG_ASSERT((lock)->count == 1 && \
+				   (lock)->thread == pthread_self())
+#else
+#define DBUG_ASSERT_LOCK(lock)
+#endif
 
 #if defined(_MSC_VER) && !defined(__WIN__)
 extern void sleep(int sec);
