@@ -113,7 +113,7 @@ struct query
   enum {Q_CONNECTION, Q_QUERY, Q_CONNECT,
 	Q_SLEEP, Q_INC, Q_DEC,Q_SOURCE,
 	Q_DISCONNECT,Q_LET, Q_ECHO, Q_WHILE, Q_END_BLOCK,
-	Q_UNKNOWN} type;
+	Q_SYSTEM, Q_UNKNOWN} type;
 };
 
 #define DS_CHUNK   16384
@@ -330,11 +330,21 @@ int do_source(struct query* q)
 int eval_expr(VAR* v, char* p, char* p_end)
 {
   VAR* vp;
-  if((vp = var_get(p,p_end,0)))
+  if(*p == '$')
     {
-      memcpy(v, vp, sizeof(VAR));
+      if((vp = var_get(p,p_end,0)))
+	{
+	  memcpy(v, vp, sizeof(VAR));
+	  return 0;
+	}
+    }
+  else
+    {
+      v->str_val = p;
+      v->str_val_len = p_end ? p_end - p : strlen(p);
       return 0;
     }
+  
   if(p_end)
     *p_end = 0;
   die("Invalid expr: %s", p);
@@ -365,6 +375,25 @@ int do_dec(struct query* q)
   return 0;
 }
 
+int do_system(struct query* q)
+{
+  char* p;
+  VAR v;
+  p = (char*)q->q + q->first_word_len;
+  while(*p && isspace(*p)) p++;
+  eval_expr(&v, p, 0); /* NULL terminated */
+  if(v.str_val_len > 1)
+    {
+      char expr_buf[512];
+      if((uint)v.str_val_len > sizeof(expr_buf) - 1)
+	v.str_val_len = sizeof(expr_buf) - 1;
+      memcpy(expr_buf, v.str_val, v.str_val_len);
+      expr_buf[v.str_val_len] = 0;
+      if(system(expr_buf) && q->abort_on_error)
+	die("system command '%s' failed", expr_buf);
+    }
+  return 0;
+}
 
 int do_echo(struct query* q)
 {
@@ -1006,7 +1035,6 @@ void reject_dump(const char* record_file, char* buf, int size)
 {
   char reject_file[MAX_RECORD_FILE+16];
   char* p;
-  FILE* freject;
   
   p = reject_file;
   p = safe_str_append(p, record_file, sizeof(reject_file));
@@ -1021,7 +1049,6 @@ int run_query(MYSQL* mysql, struct query* q)
   MYSQL_FIELD* fields;
   MYSQL_ROW row;
   int num_fields,i, error = 0;
-  struct stat info;
   unsigned long* lengths;
   char* val;
   int len;
@@ -1181,6 +1208,8 @@ void get_query_type(struct query* q)
     case 6:
       if(check_first_word(q, "source", 6))
 	q->type = Q_SOURCE;
+      else if(check_first_word(q, "system", 6))
+	q->type = Q_SYSTEM;
       break;
     case 7:
       if(check_first_word(q, "connect", 7))
@@ -1254,6 +1283,7 @@ int main(int argc, char** argv)
 	    case Q_INC: do_inc(q); break;
 	    case Q_DEC: do_dec(q); break;
 	    case Q_ECHO: do_echo(q); break;
+	    case Q_SYSTEM: do_system(q); break;
 	    case Q_LET: do_let(q); break;
 	    case Q_QUERY: error |= run_query(&cur_con->mysql, q); break;
 	    default: processed = 0; break;
@@ -1277,10 +1307,12 @@ int main(int argc, char** argv)
   close_cons();
 
   if(result_file)
-    if(!record && ds_res.len)
-      error |= check_result(&ds_res, result_file);
-    else
-      str_to_file(result_file, ds_res.str, ds_res.len);
+    {
+      if(!record && ds_res.len)
+	error |= check_result(&ds_res, result_file);
+      else
+	str_to_file(result_file, ds_res.str, ds_res.len);
+    }
   dyn_string_end(&ds_res);
   
   if (!silent) {
