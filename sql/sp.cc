@@ -48,12 +48,12 @@ sp_find_procedure(THD *thd, Item_string *iname)
 				  HA_READ_KEY_EXACT))
     goto done;
 
-  if ((defstr= get_field(&thd->mem_root, table, 1)) == NULL)
+  if ((defstr= get_field(&thd->mem_root, table->field[1])) == NULL)
     goto done;
 
   // QQ Set up our own mem_root here???
   tmplex= lex_start(thd, (uchar*)defstr, strlen(defstr));
-  if (yyparse(thd) || thd->fatal_error || tmplex->sphead == NULL)
+  if (yyparse(thd) || thd->is_fatal_error || tmplex->sphead == NULL)
     goto done;			// Error
   else
     sp = tmplex->sphead;

@@ -1224,9 +1224,9 @@ sp_case:
 	;
 
 sp_whens:
-	  /* Empty */
-	| WHEN_SYM sp_case
-	| ELSE sp_proc_stmts
+	  /* Empty */ {}
+	| WHEN_SYM sp_case {}
+	| ELSE sp_proc_stmts {}
 	;
 
 sp_labeled_control:
