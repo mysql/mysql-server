@@ -316,6 +316,12 @@ ConfigRetriever::verifyConfig(const struct ndb_mgm_configuration * conf, Uint32 
   return true;
 }
 
+int
+ConfigRetriever::setNodeId(Uint32 nodeid)
+{
+  return ndb_mgm_set_configuration_nodeid(m_handle, nodeid);
+}
+
 Uint32
 ConfigRetriever::allocNodeId(int no_retries, int retry_delay_in_seconds)
 {
