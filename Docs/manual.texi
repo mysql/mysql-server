@@ -37591,26 +37591,26 @@ Below is an example of possible configuration parameters in
 # ...
 #
 innodb_data_home_dir = c:\ibdata
-#                                            Data files must be able to
-#                                            hold your data and indexes
+#                                  Data files must be able to
+#                                  hold your data and indexes
 innodb_data_file_path = ibdata1:2000M;ibdata2:2000M
-#                                            Set buffer pool size to 50 - 80 %
-#                                            of your computer's memory
+#                                  Set buffer pool size to 50 - 80 %
+#                                  of your computer's memory
 set-variable = innodb_buffer_pool_size=70M
 set-variable = innodb_additional_mem_pool_size=10M
 innodb_log_group_home_dir = c:\iblogs
-#                                            .._log_arch_dir must be the same
-#                                            as .._log_group_home_dir
+#                                  .._log_arch_dir must be the same
+#                                  as .._log_group_home_dir
 innodb_log_arch_dir = c:\iblogs
 innodb_log_archive=0
 set-variable = innodb_log_files_in_group=3
-#                                            Set the log file size to about
-#                                            15 % of the buffer pool size
+#                                  Set the log file size to about
+#                                  15 % of the buffer pool size
 set-variable = innodb_log_file_size=10M
 set-variable = innodb_log_buffer_size=8M
-#                                            Set ..flush_log_at_trx_commit to
-#                                            0 if you can afford losing
-#                                            a few last transactions 
+#                                  Set ..flush_log_at_trx_commit to
+#                                  0 if you can afford losing
+#                                  a few last transactions 
 innodb_flush_log_at_trx_commit=1
 set-variable = innodb_file_io_threads=4
 set-variable = innodb_lock_wait_timeout=50
@@ -37691,28 +37691,28 @@ InnoDB:
 # ...
 #
 innodb_data_home_dir = /
-#                                            Data files must be able to
-#                                            hold your data and indexes
+#                                  Data files must be able to
+#                                  hold your data and indexes
 innodb_data_file_path = ibdata/ibdata1:2000M;dr2/ibdata/ibdata2:2000M
-#                                            Set buffer pool size to 50 - 80 %
-#                                            of your computer's memory, but
-#                                            make sure on Linux x86 total
-#                                            memory usage is < 2 GB
+#                                  Set buffer pool size to 50 - 80 %
+#                                  of your computer's memory, but
+#                                  make sure on Linux x86 total
+#                                  memory usage is < 2 GB
 set-variable = innodb_buffer_pool_size=350M
 set-variable = innodb_additional_mem_pool_size=20M
 innodb_log_group_home_dir = /dr3/iblogs
-#                                            .._log_arch_dir must be the same
-#                                            as .._log_group_home_dir
+#                                  .._log_arch_dir must be the same
+#                                  as .._log_group_home_dir
 innodb_log_arch_dir = /dr3/iblogs
 innodb_log_archive=0
 set-variable = innodb_log_files_in_group=3
-#                                            Set the log file size to about
-#                                            15 % of the buffer pool size
+#                                  Set the log file size to about
+#                                  15 % of the buffer pool size
 set-variable = innodb_log_file_size=50M
 set-variable = innodb_log_buffer_size=8M
-#                                            Set ..flush_log_at_trx_commit to
-#                                            0 if you can afford losing
-#                                            a few last transactions 
+#                                  Set ..flush_log_at_trx_commit to
+#                                  0 if you can afford losing
+#                                  a few last transactions 
 innodb_flush_log_at_trx_commit=1
 set-variable = innodb_file_io_threads=4
 set-variable = innodb_lock_wait_timeout=50
@@ -37754,12 +37754,12 @@ Typical values which suit most users are:
 set-variable = max_connections=200
 set-variable = record_buffer=1M
 set-variable = sort_buffer=1M
-#                                            Set key_buffer to 5 - 50 %
-#                                            of your RAM depending on how
-#                                            much you use MyISAM tables, but
-#                                            keep key_buffer + InnoDB
-#                                            buffer pool size < 80 % of
-#                                            your RAM
+#                                  Set key_buffer to 5 - 50 %
+#                                  of your RAM depending on how
+#                                  much you use MyISAM tables, but
+#                                  keep key_buffer + InnoDB
+#                                  buffer pool size < 80 % of
+#                                  your RAM
 set-variable = key_buffer=...
 @end example
 
@@ -38000,8 +38000,8 @@ To get better control over the insertion process, it may be good to insert
 big tables in pieces:
 
 @example
-INSERT INTO newtable SELECT * FROM oldtable WHERE yourkey > something
-                                             AND yourkey <= somethingelse;
+INSERT INTO newtable SELECT * FROM oldtable
+   WHERE yourkey > something AND yourkey <= somethingelse;
 @end example
 
 After all data has been inserted you can rename the tables.
@@ -38034,17 +38034,18 @@ constraints to guard the integrity of your data.
 
 The syntax of a foreign key constraint definition in InnoDB:
 @example
-FOREIGN KEY (index_col_name, ...) REFERENCES table_name (index_col_name, ...)
+FOREIGN KEY (index_col_name, ...)
+  REFERENCES table_name (index_col_name, ...)
 @end example
 Starting from version 3.23.50 the InnoDB parser allows you to
-use also backquotes around table and column names in the above
+use backquotes (`) around table and column names in the above
 definition.
 
 An example:
 @example
 CREATE TABLE parent(id INT NOT NULL, PRIMARY KEY (id)) TYPE=INNODB;
 CREATE TABLE child(id INT, parent_id INT, INDEX par_ind (parent_id),
-                  FOREIGN KEY (parent_id) REFERENCES parent(id)) TYPE=INNODB;
+             FOREIGN KEY (parent_id) REFERENCES parent(id)) TYPE=INNODB;
 @end example
 Both tables have to be InnoDB type and @strong{there must be an index
 where the foreign key and the referenced key are listed as the first
@@ -38062,7 +38063,8 @@ formed for the altered table.
 Starting from version 3.23.50 InnoDB allows you to add a new
 foreign key constraint to a table through
 @example
-ALTER TABLE yourtablename ADD CONSTRAINT FOREIGN KEY (...) REFERENCES anothertablename(...)
+ALTER TABLE yourtablename
+  ADD CONSTRAINT FOREIGN KEY (...) REFERENCES anothertablename(...)
 @end example
 Remember to create the required indexes first, though.
                            
