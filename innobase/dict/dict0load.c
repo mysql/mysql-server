@@ -767,7 +767,7 @@ dict_load_table(
 
 	/* Check if the table name in record is the searched one */
 	if (len != ut_strlen(name) || ut_memcmp(name, field, len) != 0) {
-
+	err_exit:
 		btr_pcur_close(&pcur);
 		mtr_commit(&mtr);
 		mem_heap_free(heap);
@@ -817,6 +817,13 @@ dict_load_table(
 
 	field = rec_get_nth_field(rec, 4, &len);
 	n_cols = mach_read_from_4(field);
+	if (n_cols & 0x80000000UL) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			"  InnoDB: table %s is in the new compact format\n"
+			"InnoDB: of MySQL 5.0.3 or later\n", name);
+		goto err_exit;
+	}
 
 	table = dict_mem_table_create(name, space, n_cols);
 
