@@ -81,7 +81,7 @@ int main(int argc,char *argv[])
 
   {
     char *end;
-    inx= strtoll(argv[1], &end, 10);
+    inx= (uint) strtoll(argv[1], &end, 10);
     if (*end)
       usage();
   }
