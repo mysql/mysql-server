@@ -1107,13 +1107,6 @@ public:
      */
     int alterTable(const Table &);
 
-    /**
-     * Get table with given name, NULL if undefined
-     * @param name   Name of table to get
-     * @return table if successful otherwise NULL.
-     */
-    const Table * getTable(const char * name);
-
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     /**
      * Invalidate cached table object

@@ -89,9 +89,9 @@ Ndb::void2rec(void* val){
 }
 
 inline
-NdbConnection *
+NdbTransaction *
 Ndb::void2con(void* val){
-  return (NdbConnection*)val;
+  return (NdbTransaction*)val;
 }
 
 inline
@@ -107,7 +107,7 @@ Ndb::void2rec_iop(void* val){
 }
 
 inline 
-NdbConnection * 
+NdbTransaction * 
 NdbReceiver::getTransaction(){ 
   return ((NdbOperation*)m_owner)->theNdbCon;
 }
