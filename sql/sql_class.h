@@ -57,7 +57,7 @@ typedef struct st_master_info
   pthread_mutex_t lock;
   bool inited;
 
-  st_master_info():inited(0),pending(0)
+  st_master_info() :pending(0), inited(0)
   { host[0] = 0; user[0] = 0; password[0] = 0;}
   
   inline void inc_pending(ulonglong val)
