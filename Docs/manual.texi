@@ -51692,6 +51692,8 @@ not yet 100% confident in this code.
 @appendixsubsec Changes in release 3.23.53
 @itemize @bullet
 @item
+Small fix in @code{mysqld_safe} for some shells.
+@item
 Fixed that @code{SHOW STATUS} doesn't reset @code{Delayed_insert_threads}.
 @item
 Fixed core dump bug when using the @code{BINARY} cast on a @code{NULL} value.
