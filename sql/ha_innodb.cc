@@ -3396,6 +3396,13 @@ ha_innobase::create(
 
 	DBUG_ASSERT(thd != NULL);
 
+	if (form->fields > 1000) {
+		/* The limit probably should be REC_MAX_N_FIELDS - 3 = 1020,
+		but we play safe here */
+
+	        return(HA_ERR_TO_BIG_ROW);
+	} 
+
 	/* Get the transaction associated with the current thd, or create one
 	if not yet created */
 	
