@@ -1435,7 +1435,6 @@ loop:
 	mutex_exit(&(recv_sys->mutex));
 }
 
-#ifdef UNIV_HOTBACKUP
 /* This page is allocated from the buffer pool and used in the function
 below */
 static page_t* recv_backup_application_page	= NULL;
@@ -1560,7 +1559,6 @@ skip_this_recv_addr:
 
 	recv_sys_empty_hash();
 }
-#endif /* UNIV_HOTBACKUP */
 
 #ifdef notdefined
 /***********************************************************************

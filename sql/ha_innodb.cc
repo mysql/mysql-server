@@ -4250,6 +4250,8 @@ ha_innobase::delete_all_rows(void)
 
 	/* Truncate the table in InnoDB */
 
+	trx->active_trans = 1;
+
 	error = row_truncate_table_for_mysql(prebuilt->table, trx);
 	if (error == DB_ERROR) {
 		/* Cannot truncate; resort to ha_innobase::delete_row() */
