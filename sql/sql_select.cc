@@ -6005,10 +6005,7 @@ join_read_system(JOIN_TAB *tab)
     {
       if (error != HA_ERR_END_OF_FILE)
 	return report_error(table, error);
-      if (tab->on_expr)
-        mark_as_null_row(tab->table);
-      else
-        table->null_row=1;			// Why do this for inner join?
+      mark_as_null_row(tab->table);
       empty_record(table);			// Make empty record
       return -1;
     }
@@ -6038,10 +6035,7 @@ join_read_const(JOIN_TAB *tab)
     }
     if (error)
     {
-      if (tab->on_expr)
-        mark_as_null_row(tab->table);
-      else
-        table->null_row=1;
+      mark_as_null_row(tab->table);
       empty_record(table);
       if (error != HA_ERR_KEY_NOT_FOUND)
 	return report_error(table, error);
