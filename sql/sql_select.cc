@@ -3047,6 +3047,7 @@ join_free(JOIN *join, bool full)
     if (join->tables > join->const_tables) // Test for not-const tables
       free_io_cache(join->table[join->const_tables]);
     if (join->select_lex->dependent && !full)
+    {
       for (tab=join->join_tab,end=tab+join->tables ; tab != end ; tab++)
       {
 	if (tab->table)
@@ -3061,6 +3062,7 @@ join_free(JOIN *join, bool full)
 	    tab->table->file->index_end();
 	}
       }
+    }
     else
     {
       for (tab=join->join_tab,end=tab+join->tables ; tab != end ; tab++)
@@ -3078,6 +3080,11 @@ join_free(JOIN *join, bool full)
 	  /* Don't free index if we are using read_record */
 	  if (!tab->read_record.table)
 	    tab->table->file->index_end();
+	  /*
+	    We need to reset this for next select
+	    (Tested in part_of_refkey)
+	  */
+	  tab->table->reginfo.join_tab= 0;
 	}
 	end_read_record(&tab->read_record);
       }
@@ -7487,9 +7494,8 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
     item_list.push_back(new Item_string(join->select_lex->type,
 					strlen(join->select_lex->type),
 					default_charset_info));
-    Item *empty= new Item_empty_string("",0);
     for (uint i=0 ; i < 7; i++)
-      item_list.push_back(empty);
+      item_list.push_back(item_null);
     item_list.push_back(new Item_string(message,strlen(message),
 					default_charset_info));
     if (result->send_data(item_list))

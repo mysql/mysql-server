@@ -520,6 +520,7 @@ bool select_send::send_data(List<Item> &items)
   if (unit->offset_limit_cnt)
   {						// using limit offset,count
     unit->offset_limit_cnt--;
+    return 0;
   }
 
   List_iterator_fast<Item> li(items);

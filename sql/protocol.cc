@@ -577,18 +577,19 @@ bool Protocol::store(I_List<i_string>* str_list)
 {
   char buf[256];
   String tmp(buf, sizeof(buf), default_charset_info);
-  tmp.length(0);
+  uint32 len;
   I_List_iterator<i_string> it(*str_list);
   i_string* s;
 
+  tmp.length(0);
   while ((s=it++))
   {
-    if (tmp.length())
-      tmp.append(',');
     tmp.append(s->ptr);
+    tmp.append(',');
   }
-
-  return store((char*) tmp.ptr(), tmp.length());
+  if ((len= tmp.length()))
+    len--;					// Remove last ','
+  return store((char*) tmp.ptr(), len);
 }
 
 
@@ -623,8 +624,9 @@ bool Protocol_simple::store(const char *from, uint length)
 {
 #ifndef DEBUG_OFF
   DBUG_ASSERT(field_types == 0 ||
-	      field_types[field_pos] == MYSQL_TYPE_STRING ||
-	      field_types[field_pos] == MYSQL_TYPE_VAR_STRING);
+	      field_types[field_pos] == MYSQL_TYPE_DECIMAL ||
+	      (field_types[field_pos] >= MYSQL_TYPE_ENUM &&
+	       field_types[field_pos] <= MYSQL_TYPE_GEOMETRY));
   field_pos++;
 #endif
   if (convert)
@@ -702,11 +704,11 @@ bool Protocol_simple::store(double from, uint32 decimals, String *buffer)
 
 bool Protocol_simple::store(Field *field)
 {
+  if (field->is_null())
+    return store_null();
 #ifndef DEBUG_OFF
   field_pos++;
 #endif
-  if (field->is_null())
-    return store_null();
   char buff[MAX_FIELD_WIDTH];
   String tmp(buff,sizeof(buff),default_charset_info);
   field->val_str(&tmp,&tmp);
@@ -720,7 +722,9 @@ bool Protocol_simple::store(TIME *tm)
 {
 #ifndef DEBUG_OFF
   DBUG_ASSERT(field_types == 0 ||
-	      field_types[field_pos++] == MYSQL_TYPE_DATETIME);
+	      field_types[field_pos] == MYSQL_TYPE_DATETIME ||
+	      field_types[field_pos] == MYSQL_TYPE_TIMESTAMP);
+  field_pos++;
 #endif
   char buff[40];
   uint length;
@@ -759,7 +763,7 @@ bool Protocol_simple::store_time(TIME *tm)
 #endif
   char buff[40];
   uint length;
-  length= my_sprintf(buff,(buff, "%s%ld:%02d:%02d",
+  length= my_sprintf(buff,(buff, "%s%02ld:%02d:%02d",
 			   tm->neg ? "-" : "",
 			   (long) tm->day*3600L+(long) tm->hour,
 			   (int) tm->minute,
@@ -796,8 +800,9 @@ bool Protocol_prep::store(const char *from,uint length)
 {
 #ifndef DEBUG_OFF
   DBUG_ASSERT(field_types == 0 ||
-	      field_types[field_pos] == MYSQL_TYPE_STRING ||
-	      field_types[field_pos] == MYSQL_TYPE_VAR_STRING);
+	      field_types[field_pos] == MYSQL_TYPE_DECIMAL ||
+	      (field_types[field_pos] >= MYSQL_TYPE_ENUM &&
+	       field_types[field_pos] <= MYSQL_TYPE_GEOMETRY));
 #endif
   field_pos++;
   if (convert)
@@ -922,7 +927,8 @@ bool Protocol_prep::store(TIME *tm)
 #ifndef DEBUG_OFF
   DBUG_ASSERT(field_types == 0 ||
 	      field_types[field_pos] == MYSQL_TYPE_DATETIME ||
-	      field_types[field_pos] == MYSQL_TYPE_DATE);
+	      field_types[field_pos] == MYSQL_TYPE_DATE ||
+	      field_types[field_pos] == MYSQL_TYPE_TIMESTAMP);
 #endif
   char buff[12],*pos;
   uint length;

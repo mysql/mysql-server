@@ -1043,7 +1043,6 @@ int show_binlog_info(THD* thd)
     DBUG_RETURN(-1);
   protocol->prepare_for_resend();
 
-
   if (mysql_bin_log.is_open())
   {
     LOG_INFO li;
@@ -1103,8 +1102,8 @@ int show_binlogs(THD* thd)
   /* The file ends with EOF or empty line */
   while ((length=my_b_gets(index_file, fname, sizeof(fname))) > 1)
   {
+    protocol->prepare_for_resend();
     int dir_len = dirname_length(fname);
-    packet->length(0);
     /* The -1 is for removing newline from fname */
     protocol->store(fname + dir_len, length-1-dir_len);
     if (protocol->write())

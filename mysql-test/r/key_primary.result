@@ -16,5 +16,5 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	const	PRIMARY	PRIMARY	3	const	1	
 describe select * from t1 where t1="ABCD";
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE								Impossible WHERE noticed after reading const tables
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 drop table t1;

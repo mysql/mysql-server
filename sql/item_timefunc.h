@@ -443,7 +443,6 @@ class Item_func_from_unixtime :public Item_date_func
     decimals=0;
     max_length=19*thd_charset()->mbmaxlen;
   }
-//  enum Item_result result_type () const { return STRING_RESULT; }
   bool get_date(TIME *res,bool fuzzy_date);
 };
 
@@ -470,32 +469,34 @@ public:
   }
 };
 
+/*
+  The following must be sorted so that simple intervals comes first.
+  (get_interval_value() depends on this)
+*/
 
-enum interval_type { INTERVAL_YEAR, INTERVAL_MONTH, INTERVAL_DAY,
-		     INTERVAL_HOUR, INTERVAL_MINUTE, INTERVAL_SECOND,
-		     INTERVAL_YEAR_MONTH, INTERVAL_DAY_HOUR,
-		     INTERVAL_DAY_MINUTE, INTERVAL_DAY_SECOND,
-		     INTERVAL_HOUR_MINUTE, INTERVAL_HOUR_SECOND,
-		     INTERVAL_MINUTE_SECOND};
+enum interval_type
+{
+  INTERVAL_YEAR, INTERVAL_MONTH, INTERVAL_DAY, INTERVAL_HOUR, INTERVAL_MINUTE,
+  INTERVAL_SECOND, INTERVAL_YEAR_MONTH, INTERVAL_DAY_HOUR, INTERVAL_DAY_MINUTE,
+  INTERVAL_DAY_SECOND, INTERVAL_HOUR_MINUTE, INTERVAL_HOUR_SECOND,
+  INTERVAL_MINUTE_SECOND
+};
+
 
 class Item_date_add_interval :public Item_date_func
 {
   const interval_type int_type;
   String value;
   const bool date_sub_interval;
+  enum_field_types cached_field_type;
 
 public:
   Item_date_add_interval(Item *a,Item *b,interval_type type_arg,bool neg_arg)
     :Item_date_func(a,b),int_type(type_arg), date_sub_interval(neg_arg) {}
   String *val_str(String *);
   const char *func_name() const { return "date_add_interval"; }
-  void fix_length_and_dec()
-  {
-    set_charset(thd_charset());
-    maybe_null=1;
-    max_length=19*thd_charset()->mbmaxlen;
-    value.alloc(32);
-  }
+  void fix_length_and_dec();
+  enum_field_types field_type() const { return cached_field_type; }
   double val() { return (double) val_int(); }
   longlong val_int();
   bool get_date(TIME *res,bool fuzzy_date);
