@@ -4,6 +4,10 @@
 #                                             #
 ###############################################
 
+#    
+# NOTE: PLEASE SEE ps_1general.test (bottom) 
+#       BEFORE ADDING NEW TEST CASES HERE !!!
+
 use test;
 
 let $type= 'HEAP' ;
@@ -19,7 +23,8 @@ eval create table t1
 --disable_warnings
 drop table if exists t_many_col_types;
 --enable_warnings
-# The used table type doesn't support BLOB/TEXT columns (error 1163)
+# The used table type doesn't support BLOB/TEXT columns.
+# (The server would send error 1163  .)
 # So we use char(100) instead.
 eval create table t_many_col_types 
 (
