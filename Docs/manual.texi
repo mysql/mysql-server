@@ -32415,7 +32415,7 @@ mysql> SELECT BIT_COUNT(29);
 Returns the current database name:
 
 @example
-mysql> select DATABASE();
+mysql> SELECT DATABASE();
         -> 'test'
 @end example
 
@@ -32430,7 +32430,7 @@ If there is no current database, @code{DATABASE()} returns the empty string.
 Returns the current MySQL user name:
 
 @example
-mysql> select USER();
+mysql> SELECT USER();
         -> 'davida@@localhost'
 @end example
 
@@ -32439,7 +32439,7 @@ as well  as the user name.  You can extract just the user name part like this
 (which works whether or not the value includes a hostname part):
 
 @example
-mysql> select substring_index(USER(),"@@",1);
+mysql> SELECT SUBSTRING_INDEX(USER(),"@@",1);
         -> 'davida'
 @end example
 
@@ -32450,7 +32450,7 @@ the function that is used for encrypting MySQL passwords for storage
 in the @code{Password} column of the @code{user} grant table:
 
 @example
-mysql> select PASSWORD('badpwd');
+mysql> SELECT PASSWORD('badpwd');
         -> '7f84554057dd964b'
 @end example
 
@@ -32470,7 +32470,7 @@ Encrypt @code{str} using the Unix @code{crypt()} system call. The
 (As of MySQL Version 3.22.16, @code{salt} may be longer than two characters.):
 
 @example
-mysql> select ENCRYPT("hello");
+mysql> SELECT ENCRYPT("hello");
         -> 'VxuFAJXVARROc'
 @end example
 
@@ -32501,7 +32501,7 @@ Calculates a MD5 checksum for the string. Value is returned as a 32 long
 hex number that may, for example, be used as a hash key:
 
 @example
-mysql> select MD5("testing");
+mysql> SELECT MD5("testing");
         -> 'ae2b1fca515949e5d54fb22b8ed95575'
 @end example
 
@@ -32594,7 +32594,7 @@ Returns the last automatically generated value that was inserted into an
 @xref{mysql_insert_id,, @code{mysql_insert_id()}}.
 
 @example
-mysql> select LAST_INSERT_ID();
+mysql> SELECT LAST_INSERT_ID();
         -> 195
 @end example
 
@@ -32617,14 +32617,14 @@ auto_increment value.  This can be used to simulate sequences:
 First create the table:
 
 @example
-mysql> create table sequence (id int not null);
-mysql> insert into sequence values (0);
+mysql> CREATE TABLE sequence (id INT NOT NULL);
+mysql> INSERT INTO sequence VALUES (0);
 @end example
 
 Then the table can be used to generate sequence numbers like this:
 
 @example
-mysql> update sequence set id=LAST_INSERT_ID(id+1);
+mysql> UPDATE sequence SET id=LAST_INSERT_ID(id+1);
 @end example
 
 You can generate sequences without calling @code{LAST_INSERT_ID()}, but the
@@ -32648,11 +32648,11 @@ to @code{D} decimals.  If @code{D} is @code{0}, the result will have no
 decimal point or fractional part:
 
 @example
-mysql> select FORMAT(12332.123456, 4);
+mysql> SELECT FORMAT(12332.123456, 4);
         -> '12,332.1235'
-mysql> select FORMAT(12332.1,4);
+mysql> SELECT FORMAT(12332.1,4);
         -> '12,332.1000'
-mysql> select FORMAT(12332.2,0);
+mysql> SELECT FORMAT(12332.2,0);
         -> '12,332'
 @end example
 
@@ -32661,7 +32661,7 @@ mysql> select FORMAT(12332.2,0);
 Returns a string indicating the MySQL server version:
 
 @example
-mysql> select VERSION();
+mysql> SELECT VERSION();
         -> '3.23.13-log'
 @end example
 
@@ -32674,7 +32674,7 @@ Returns the connection id (@code{thread_id}) for the connection.
 Every connection has its own unique id:
 
 @example
-mysql> select CONNECTION_ID();
+mysql> SELECT CONNECTION_ID();
         -> 1
 @end example
 
@@ -32693,13 +32693,13 @@ the same name; clients that agree on a given lock string name can use the
 string to perform cooperative advisory locking:
 
 @example
-mysql> select GET_LOCK("lock1",10);
+mysql> SELECT GET_LOCK("lock1",10);
         -> 1
-mysql> select GET_LOCK("lock2",10);
+mysql> SELECT GET_LOCK("lock2",10);
         -> 1
-mysql> select RELEASE_LOCK("lock2");
+mysql> SELECT RELEASE_LOCK("lock2");
         -> 1
-mysql> select RELEASE_LOCK("lock1");
+mysql> SELECT RELEASE_LOCK("lock1");
         -> NULL
 @end example
 
@@ -32727,7 +32727,7 @@ processes the expression.  The result value is always @code{0}.  The intended
 use is in the @code{mysql} client, which reports query execution times:
 
 @example
-mysql> select BENCHMARK(1000000,encode("hello","goodbye"));
+mysql> SELECT BENCHMARK(1000000,ENCODE("hello","goodbye"));
 +----------------------------------------------+
 | BENCHMARK(1000000,encode("hello","goodbye")) |
 +----------------------------------------------+
@@ -32747,7 +32747,7 @@ Given a numeric network address (4 or 8 byte), returns the dotted-quad
 representation of the address as a string:
 
 @example
-mysql> select INET_NTOA(3520061480);
+mysql> SELECT INET_NTOA(3520061480);
        ->  "209.207.224.40"
 @end example
 
@@ -32758,7 +32758,7 @@ returns an integer that represents the numeric value of the address.
 Addresses may be 4 or 8 byte addresses:
 
 @example
-mysql> select INET_ATON("209.207.224.40");
+mysql> SELECT INET_ATON("209.207.224.40");
        ->  3520061480
 @end example
 
@@ -32784,7 +32784,7 @@ Returns the number of rows that the last @code{SELECT SQL_CALC_FOUND_ROWS ...}
 command would have returned, if wasn't restricted with @code{LIMIT}.
 
 @example
-mysql> SELECT SQL_CALC_FOUND_ROWS * FROM table_name
+mysql> SELECT SQL_CALC_FOUND_ROWS * FROM tbl_name
        WHERE id > 100 LIMIT 10;
 mysql> SELECT FOUND_ROWS();
 @end example
@@ -32833,7 +32833,7 @@ other columns are retrieved, and there is no @code{WHERE} clause.
 For example:
 
 @example
-mysql> select COUNT(*) from student;
+mysql> SELECT COUNT(*) FROM student;
 @end example
 
 @findex COUNT(DISTINCT)
@@ -32842,7 +32842,7 @@ mysql> select COUNT(*) from student;
 Returns a count of the number of different non-@code{NULL} values:
 
 @example
-mysql> select COUNT(DISTINCT results) from student;
+mysql> SELECT COUNT(DISTINCT results) FROM student;
 @end example
 
 In MySQL you can get the number of distinct expression
@@ -32855,8 +32855,8 @@ inside @code{CODE(DISTINCT ...)}.
 Returns the average value of @code{expr}:
 
 @example
-mysql> select student_name, AVG(test_score)
-    ->        from student
+mysql> SELECT student_name, AVG(test_score)
+    ->        FROM student
     ->        GROUP BY student_name;
 @end example
 
@@ -32869,8 +32869,8 @@ Returns the minimum or maximum value of @code{expr}.  @code{MIN()} and
 minimum or maximum string value. @xref{MySQL indexes}.
 
 @example
-mysql> select student_name, MIN(test_score), MAX(test_score)
-    ->        from student
+mysql> SELECT student_name, MIN(test_score), MAX(test_score)
+    ->        FROM student
     ->        GROUP BY student_name;
 @end example
 
@@ -32909,9 +32909,9 @@ grouping on unnecessary items.  For example, you don't need to group on
 @code{customer.name} in the following query:
 
 @example
-mysql> select order.custid,customer.name,max(payments)
-    ->        from order,customer
-    ->        where order.custid = customer.custid
+mysql> SELECT order.custid,customer.name,max(payments)
+    ->        FROM order,customer
+    ->        WHERE order.custid = customer.custid
     ->        GROUP BY order.custid;
 @end example
 
@@ -33023,8 +33023,8 @@ is used as the expression's column name and can be used with
 @code{ORDER BY} or @code{HAVING} clauses.  For example:
 
 @example
-mysql> select concat(last_name,', ',first_name) AS full_name
-    from mytable ORDER BY full_name;
+mysql> SELECT CONCAT(last_name,', ',first_name) AS full_name
+    FROM mytable ORDER BY full_name;
 @end example
 
 @item
@@ -33070,10 +33070,10 @@ forms.
 A table reference may be aliased using @code{tbl_name [AS] alias_name}:
 
 @example
-mysql> select t1.name, t2.salary from employee AS t1, info AS t2
-    ->        where t1.name = t2.name;
-mysql> select t1.name, t2.salary from employee t1, info t2
-    ->        where t1.name = t2.name;
+mysql> SELECT t1.name, t2.salary FROM employee AS t1, info AS t2
+    ->        WHERE t1.name = t2.name;
+mysql> SELECT t1.name, t2.salary FROM employee t1, info t2
+    ->        WHERE t1.name = t2.name;
 @end example
 
 @item
@@ -33082,11 +33082,11 @@ Columns selected for output may be referred to in @code{ORDER BY} and
 positions.  Column positions begin with 1:
 
 @example
-mysql> select college, region, seed from tournament
+mysql> SELECT college, region, seed FROM tournament
     ->        ORDER BY region, seed;
-mysql> select college, region AS r, seed AS s from tournament
+mysql> SELECT college, region AS r, seed AS s FROM tournament
     ->        ORDER BY r, s;
-mysql> select college, region, seed from tournament
+mysql> SELECT college, region, seed FROM tournament
     ->        ORDER BY 2, 3;
 @end example
 
@@ -33106,26 +33106,26 @@ the client, with no optimisation. Don't use @code{HAVING} for items that
 should be in the @code{WHERE} clause.  For example, do not write this:
 
 @example
-mysql> select col_name from tbl_name HAVING col_name > 0;
+mysql> SELECT col_name FROM tbl_name HAVING col_name > 0;
 @end example
 
 Write this instead:
 
 @example
-mysql> select col_name from tbl_name WHERE col_name > 0;
+mysql> SELECT col_name FROM tbl_name WHERE col_name > 0;
 @end example
 
 In MySQL Version 3.22.5 or later, you can also write queries like this:
 
 @example
-mysql> select user,max(salary) from users
+mysql> SELECT user,MAX(salary) FROM users
     ->        group by user HAVING max(salary)>10;
 @end example
 
 In older MySQL versions, you can write this instead:
 
 @example
-mysql> select user,max(salary) AS sum from users
+mysql> SELECT user,MAX(salary) AS sum FROM users
     ->        group by user HAVING sum>10;
 @end example
 
@@ -33230,13 +33230,13 @@ return, the second specifies the maximum number of rows to return.
 The offset of the initial row is 0 (not 1):
 
 @example
-mysql> select * from table LIMIT 5,10;  # Retrieve rows 6-15
+mysql> SELECT * FROM table LIMIT 5,10;  # Retrieve rows 6-15
 @end example
 
 If one argument is given, it indicates the maximum number of rows to return:
 
 @example
-mysql> select * from table LIMIT 5;     # Retrieve first 5 rows
+mysql> SELECT * FROM table LIMIT 5;     # Retrieve first 5 rows
 @end example
 
 In other words, @code{LIMIT n} is equivalent to @code{LIMIT 0,n}.
@@ -33382,8 +33382,8 @@ A table reference may be aliased using @code{tbl_name AS alias_name} or
 @code{tbl_name alias_name}:
 
 @example
-mysql> select t1.name, t2.salary from employee AS t1, info AS t2
-    ->        where t1.name = t2.name;
+mysql> SELECT t1.name, t2.salary FROM employee AS t1, info AS t2
+    ->        WHERE t1.name = t2.name;
 @end example
 
 @item
@@ -33397,9 +33397,9 @@ If there is no matching record for the right table in the @code{ON} or
 records in a table that have no counterpart in another table:
 
 @example
-mysql> select table1.* from table1
+mysql> SELECT table1.* FROM table1
     ->        LEFT JOIN table2 ON table1.id=table2.id
-    ->        where table2.id is NULL;
+    ->        WHERE table2.id IS NULL;
 @end example
 
 This example finds all rows in @code{table1} with an @code{id} value that is
@@ -34293,7 +34293,7 @@ The @code{IGNORE number LINES} option can be used to ignore a header of
 column names at the start of the file:
 
 @example
-mysql> LOAD DATA INFILE "/tmp/file_name" into table test IGNORE 1 LINES;
+mysql> LOAD DATA INFILE "/tmp/file_name" INTO TABLE test IGNORE 1 LINES;
 @end example
 
 When you use @code{SELECT ... INTO OUTFILE} in tandem with @code{LOAD
@@ -35089,9 +35089,9 @@ MySQL will create new fields for all elements in the
 @code{SELECT}.  For example:
 
 @example
-mysql> CREATE TABLE test (a int not null auto_increment,
-    ->        primary key (a), key(b))
-    ->        TYPE=MyISAM SELECT b,c from test2;
+mysql> CREATE TABLE test (a INT NOT NULL AUTO_INCREMENT,
+    ->        PRIMARY KEY (a), KEY(b))
+    ->        TYPE=MyISAM SELECT b,c FROM test2;
 @end example
 
 This will create a @code{MyISAM} table with three columns, a, b, and c.
@@ -35100,18 +35100,18 @@ the right side of the table, not overlapped onto it.  Take the following
 example:
 
 @example
-mysql> select * from foo;
+mysql> SELECT * FROM foo;
 +---+
 | n |
 +---+
 | 1 |
 +---+
 
-mysql> create table bar (m int) select n from foo;
+mysql> CREATE TABLE bar (m INT) SELECT n FROM foo;
 Query OK, 1 row affected (0.02 sec)
 Records: 1  Duplicates: 0  Warnings: 0
 
-mysql> select * from bar;
+mysql> SELECT * FROM bar;
 +------+---+
 | m    | n |
 +------+---+
@@ -35129,7 +35129,7 @@ possible.  If you want to have indexes in the created table, you should
 specify these before the @code{SELECT} statement:
 
 @example
-mysql> create table bar (unique (n)) select n from foo;
+mysql> CREATE TABLE bar (UNIQUE (n)) SELECT n FROM foo;
 @end example
 
 If any errors occur while copying the data to the table, it will
@@ -35915,9 +35915,9 @@ example shown below requires @code{LOCK TABLES} in order to execute safely:
 
 @example
 mysql> LOCK TABLES trans READ, customer WRITE;
-mysql> select sum(value) from trans where customer_id= some_id;
-mysql> update customer set total_value=sum_from_previous_statement
-    ->        where customer_id=some_id;
+mysql> SELECT SUM(value) FROM trans WHERE customer_id=some_id;
+mysql> UPDATE customer SET total_value=sum_from_previous_statement
+    ->        WHERE customer_id=some_id;
 mysql> UNLOCK TABLES;
 @end example
 
@@ -37233,6 +37233,7 @@ INSERT INTO t2 (message) VALUES ("Testing"),("table"),("t2");
 CREATE TABLE total (a INT NOT NULL, message CHAR(20), KEY(a))
              TYPE=MERGE UNION=(t1,t2) INSERT_METHOD=LAST;
 @end example
+@c CAPPING DONE TO HERE
 
 Note that we didn't create a @code{UNIQUE} or @code{PRIMARY KEY} in the
 @code{total} table as the key isn't going to be unique in the @code{total}
