@@ -8025,8 +8025,16 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
   }
   else if (select && select->quick)		// Range found by opt_range
   {
-    /* assume results are not ordered when index merge is used */
-    if (select->quick->get_type() == QUICK_SELECT_I::QS_TYPE_INDEX_MERGE)
+    int quick_type= select->quick->get_type();
+    /* 
+      assume results are not ordered when index merge is used 
+      TODO: sergeyp: Results of all index merge selects actually are ordered 
+      by clustered PK values.
+    */
+  
+    if (quick_type == QUICK_SELECT_I::QS_TYPE_INDEX_MERGE || 
+        quick_type == QUICK_SELECT_I::QS_TYPE_ROR_UNION || 
+        quick_type == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT)
       DBUG_RETURN(0);
     ref_key=	   select->quick->index;
     ref_key_parts= select->quick->used_key_parts;
@@ -8087,9 +8095,11 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 	  */
 	  if (!select->quick->reverse_sorted())
 	  {
+            int quick_type= select->quick->get_type();
             if (table->file->index_flags(ref_key) & HA_NOT_READ_PREFIX_LAST ||
-                (select->quick->get_type() == 
-                QUICK_SELECT_I::QS_TYPE_INDEX_MERGE))
+                quick_type == QUICK_SELECT_I::QS_TYPE_INDEX_MERGE ||
+                quick_type == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT ||
+                quick_type == QUICK_SELECT_I::QS_TYPE_ROR_UNION)
               DBUG_RETURN(0);			// Use filesort
             
             // ORDER BY range_key DESC
@@ -10067,6 +10077,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
   select_result *result=join->result;
   Item *item_null= new Item_null();
   CHARSET_INFO *cs= &my_charset_latin1;
+  int quick_type= -1;
   DBUG_ENTER("select_describe");
   DBUG_PRINT("info", ("Select 0x%lx, type %s, message %s",
 		      (ulong)join->select_lex, join->select_lex->type,
@@ -10112,8 +10123,10 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 					  cs));
       if (tab->type == JT_ALL && tab->select && tab->select->quick)
       {
-        if (tab->select->quick->get_type() == 
-            QUICK_SELECT_I::QS_TYPE_INDEX_MERGE)
+        quick_type= tab->select->quick->get_type();
+        if ((quick_type == QUICK_SELECT_I::QS_TYPE_INDEX_MERGE) ||
+            (quick_type == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT) ||
+            (quick_type == QUICK_SELECT_I::QS_TYPE_ROR_UNION))
           tab->type = JT_INDEX_MERGE;
         else
 	  tab->type = JT_RANGE;
@@ -10134,6 +10147,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 					  strlen(join_type_str[tab->type]),
 					  cs));
       uint j;
+      /* Build "possible_keys" value and add it to item_list */
       if (!tab->keys.is_clear_all())
       {
         for (j=0 ; j < table->keys ; j++)
@@ -10150,6 +10164,8 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 	item_list.push_back(new Item_string(tmp1.ptr(),tmp1.length(),cs));
       else
 	item_list.push_back(item_null);
+
+      /* Build key,key_len, and ref values and add them to item_list */
       if (tab->ref.key_parts)
       {
 	KEY *key_info=table->key_info+ tab->ref.key;
@@ -10184,48 +10200,9 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       }
       else if (tab->select && tab->select->quick)
       {
-        if (tab->select->quick->get_type() == 
-            QUICK_SELECT_I::QS_TYPE_INDEX_MERGE)
-        {
-          QUICK_INDEX_MERGE_SELECT *quick_imerge=
-            (QUICK_INDEX_MERGE_SELECT*)tab->select->quick;
-          QUICK_RANGE_SELECT *quick;
-
-          List_iterator_fast<QUICK_RANGE_SELECT> it(quick_imerge->
-                                                    quick_selects);
-          while ((quick= it++))
-          {
-	    KEY *key_info= table->key_info + quick->index;
-            register uint length;
-            if (tmp3.length())
-	      tmp3.append(',');
-	    
-            tmp3.append(key_info->name);
-
-	    if (tmp2.length())
-	      tmp2.append(',');
-
-            length= longlong2str(quick->max_used_key_length, keylen_str_buf,
-                                 10) - 
-                    keylen_str_buf;
-
-            tmp2.append(keylen_str_buf, length);
-          }
-        }
-        else
-        {
-	  KEY *key_info= table->key_info + tab->select->quick->index;
-          register uint length;
-          tmp3.append(key_info->name);
-          
-          length= longlong2str(tab->select->quick->max_used_key_length, 
-                               keylen_str_buf, 10) -
-                  keylen_str_buf;
-          tmp2.append(keylen_str_buf, length);
-        }
-
-	item_list.push_back(new Item_string(tmp3.ptr(),tmp3.length(),cs));
+        tab->select->quick->fill_keys_and_lengths(&tmp2, &tmp3);
 	item_list.push_back(new Item_string(tmp2.ptr(),tmp2.length(),cs));
+	item_list.push_back(new Item_string(tmp3.ptr(),tmp3.length(),cs));
 	item_list.push_back(item_null);
       }
       else
@@ -10240,7 +10217,10 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       my_bool key_read=table->key_read;
       if (tab->type == JT_NEXT && table->used_keys.is_set(tab->index))
 	key_read=1;
-
+      if (quick_type == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT &&
+          !((QUICK_ROR_INTERSECT_SELECT*)tab->select->quick)->need_to_fetch_row)
+        key_read=1;
+        
       if (tab->info)
 	item_list.push_back(new Item_string(tab->info,strlen(tab->info),cs));
       else
