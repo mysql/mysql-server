@@ -100,7 +100,6 @@ extern int NEAR my_errno;		/* Last error in mysys */
 #define MY_RETURN_REAL_PATH	32	/* return full path for file */
 #define MY_SAFE_PATH		64	/* Return NULL if too long path */
 #define MY_RELATIVE_PATH	128	/* name is relative to 'dir' */
-#define MY_QUOTE_SPACES        256     /* quote when the path has spaces */
 
 	/* My seek flags */
 #define MY_SEEK_SET	0

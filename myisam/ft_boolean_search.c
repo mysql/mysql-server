@@ -299,7 +299,7 @@ FT_INFO * ft_init_boolean_search(MI_INFO *info, uint keynr, byte *query,
     default_charset_info              :
     info->s->keyinfo[keynr].seg->charset);
   ftb->with_scan=0;
-  ftb->lastpos=0;
+  ftb->lastpos=HA_POS_ERROR;
   bzero(& ftb->no_dupes, sizeof(TREE));
 
   init_alloc_root(&ftb->mem_root, 1024, 1024);
@@ -543,7 +543,7 @@ float ft_boolean_find_relevance(FT_INFO *ftb, byte *record, uint length)
   if (!ftb->queue.elements)
     return 0;
 
-  if (ftb->state != INDEX_SEARCH && docid < ftb->lastpos)
+  if (ftb->state != INDEX_SEARCH && docid <= ftb->lastpos)
   {
     FTB_EXPR *x;
     uint i;

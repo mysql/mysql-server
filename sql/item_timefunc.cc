@@ -1058,14 +1058,12 @@ String *Item_date_add_interval::val_str(String *str)
 longlong Item_date_add_interval::val_int()
 {
   TIME ltime;
+  longlong date;
   if (Item_date_add_interval::get_date(&ltime,0))
     return (longlong) 0;
-  return ((longlong) (((ulong) ltime.year)*10000L+
-		      (((uint) ltime.month)*100+
-		       (uint) ltime.day))*(longlong) 1000000L+
-	  (longlong) ((ulong) ((uint) ltime.hour)*10000L+
-		      (ulong) (((uint)ltime.minute)*100L+
-			       (uint) ltime.second)));
+  date = (ltime.year*100L + ltime.month)*100L + ltime.day;
+  return ltime.time_type == TIMESTAMP_DATE ? date :
+    ((date*100L + ltime.hour)*100L+ ltime.minute)*100L + ltime.second;
 }
 
 void Item_extract::fix_length_and_dec()
