@@ -17384,7 +17384,7 @@ CHECK TABLE tbl_name[,tbl_name...] [option [option...]]
 option = QUICK | FAST | MEDIUM | EXTENDED | CHANGED
 @end example
 
-@code{CHECK TABLE} only works on @code{MyISAM} tables. On
+@code{CHECK TABLE} only works on @code{MyISAM} and @code{InnoDB} tables. On
 @code{MyISAM} tables it's the same thing as running @code{myisamchk -m
 table_name} on the table.
 
@@ -25842,9 +25842,16 @@ from the data, you should not lose anything by using @code{DELAY_KEY_WRITE}.
 You can find a discussion about different locking methods in the appendix.
 @xref{Locking methods}.
 
-All locking in MySQL is deadlock-free.  This is managed by always
+All locking in MySQL is deadlock-free, except for @code{InnoDB} and
+@code{BDB} type tables.
+This is managed by always
 requesting all needed locks at once at the beginning of a query and always
 locking the tables in the same order.
+
+@code{InnoDB} type tables automatically acquire their row locks and
+@code{BDB} type tables
+their page locks during the processing of SQL statements, not at the start
+of the transaction.
 
 The locking method MySQL uses for @code{WRITE} locks works as follows:
 
@@ -25905,16 +25912,18 @@ priority, which might help some applications.
 The table locking code in MySQL is deadlock free.
 
 MySQL uses table locking (instead of row locking or column
-locking) on all table types, except @code{BDB} tables, to achieve a very
+locking) on all table types, except @code{InnoDB} and @code{BDB} tables,
+to achieve a very
 high lock speed.  For large tables, table locking is much better than
 row locking for most applications, but there are, of course, some
 pitfalls.
 
 For @code{InnoDB} and @code{BDB} tables, MySQL only uses table
-locking if you explicitely lock the table with @code{LOCK TABLES} or
-execute a command that will modify every row in the table, like
-@code{ALTER TABLE}.  For these table types we recommend you to not use
-@code{LOCK TABLES} at all.
+locking if you explicitly lock the table with @code{LOCK TABLES}.
+For these table types we recommend you to not use
+@code{LOCK TABLES} at all, because @code{InnoDB} uses automatic
+row level locking and @code{BDB} uses page level locking to
+ensure transaction isolation.
 
 In MySQL Version 3.23.7 and above, you can insert rows into
 @code{MyISAM} tables at the same time other threads are reading from the
@@ -35217,8 +35226,8 @@ exist.
 @code{RESTRICT} and @code{CASCADE} are allowed to make porting easier.
 For the moment they don't do anything.
 
-@strong{Note}: @code{DROP TABLE} is not transaction-safe and will
-automatically commit any active transactions.
+@strong{Note}: @code{DROP TABLE} will
+automatically commit current active transaction.
 
 
 @node CREATE INDEX, DROP INDEX, DROP TABLE, Data Definition
@@ -54935,8 +54944,10 @@ In MySQL, common tags to print (with the @code{d} option) are:
 @cindex methods, locking
 
 Currently MySQL only supports table locking for
-@code{ISAM}/@code{MyISAM} and @code{HEAP} tables and page level locking
-for @code{BDB} tables. @xref{Internal locking}.  With @code{MyISAM}
+@code{ISAM}/@code{MyISAM} and @code{HEAP} tables.
+@code{InnoDB} tables use row level locking,
+and @code{BDB} tables page level locking. @xref{Internal locking}. 
+With @code{MyISAM}
 tables one can freely mix @code{INSERT} and @code{SELECT} without locks
 (@code{Versioning}).
 
@@ -55036,8 +55047,9 @@ a single lock is much faster than updates without locks).  Splitting
 thing to different tables will also helps.
 
 If you get speed problems with the table locks in MySQL, you
-may be able to solve these to convert some of your tables to @code{BDB} tables.
-@xref{BDB}.
+may be able to solve these by converting some of your tables to @code{InnoDB}
+or @code{BDB} tables.
+@xref{InnoDB}. @xref{BDB}.
 
 The optimisation section in the manual covers a lot of different aspects of
 how to tune ones application. @xref{Tips}.
