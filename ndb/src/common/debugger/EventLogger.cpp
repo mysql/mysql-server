@@ -793,8 +793,6 @@ EventLogger::getText(char * m_text, size_t m_text_len,
 	       );
     break;
   }
-
-
   case EventReport::GrepSubscriptionInfo : 
   {   
     GrepEvent::Subscription event  = (GrepEvent::Subscription)theData[1];
@@ -1308,16 +1306,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
 EventLogger::EventLogger() : m_filterLevel(15)
 {
   setCategory("EventLogger");
-  m_logLevel.setLogLevel(LogLevel::llStartUp, m_filterLevel);
-  m_logLevel.setLogLevel(LogLevel::llShutdown, m_filterLevel);
-  m_logLevel.setLogLevel(LogLevel::llStatistic, m_filterLevel);
-  m_logLevel.setLogLevel(LogLevel::llCheckpoint, m_filterLevel); 
-  m_logLevel.setLogLevel(LogLevel::llNodeRestart, m_filterLevel); 
-  m_logLevel.setLogLevel(LogLevel::llConnection, m_filterLevel);
-  m_logLevel.setLogLevel(LogLevel::llError, m_filterLevel);
-  m_logLevel.setLogLevel(LogLevel::llInfo, m_filterLevel);
-  enable(Logger::Logger::LL_INFO, Logger::Logger::LL_ALERT); // Log INFO to ALERT
-  
+  enable(Logger::Logger::LL_INFO, Logger::Logger::LL_ALERT); 
 }
 
 EventLogger::~EventLogger()
@@ -1338,23 +1327,35 @@ EventLogger::close()
   removeAllHandlers();
 }
 
+static NdbOut&
+operator<<(NdbOut& out, const LogLevel & ll)
+{
+  out << "[LogLevel: ";
+  for(size_t i = 0; i<LogLevel::LOGLEVEL_CATEGORIES; i++)
+    out << ll.getLogLevel((LogLevel::EventCategory)i) << " ";
+  out << "]";
+  return out;
+}
+
 void 
-EventLogger::log(int eventType, const Uint32* theData, NodeId nodeId)
+EventLogger::log(int eventType, const Uint32* theData, NodeId nodeId,
+		 const LogLevel* ll)
 {
   Uint32 threshold = 0;
   Logger::LoggerLevel severity = Logger::LL_WARNING;
   LogLevel::EventCategory cat;
 
-  for(unsigned i = 0; i<EventLogger::matrixSize; i++){
-    if(EventLogger::matrix[i].eventType == eventType){
-      cat = EventLogger::matrix[i].eventCategory;
-      threshold = EventLogger::matrix[i].threshold;
-      severity = EventLogger::matrix[i].severity;
+  for(unsigned i = 0; i<EventLoggerBase::matrixSize; i++){
+    if(EventLoggerBase::matrix[i].eventType == eventType){
+      cat = EventLoggerBase::matrix[i].eventCategory;
+      threshold = EventLoggerBase::matrix[i].threshold;
+      severity = EventLoggerBase::matrix[i].severity;
       break;
     }
   }
-
-  if (threshold <= m_logLevel.getLogLevel(cat)){
+  
+  Uint32 set = ll?ll->getLogLevel(cat) : m_logLevel.getLogLevel(cat);
+  if (threshold <= set){
     switch (severity){
     case Logger::LL_ALERT:
       alert(EventLogger::getText(m_text, sizeof(m_text), 

@@ -780,8 +780,7 @@ MgmApiSession::setClusterLogLevel(Parser<MgmApiSession>::Context &,
   EventSubscribeReq req;
   req.blockRef = 0;
   req.noOfEntries = 1;
-  req.theCategories[0] = category;
-  req.theLevels[0] = level;
+  req.theData[0] = (category << 16) | level;
   m_mgmsrv.m_log_level_requests.push_back(req);
   
   m_output->println("set cluster loglevel reply");
@@ -815,8 +814,7 @@ MgmApiSession::setLogLevel(Parser<MgmApiSession>::Context &,
   EventSubscribeReq req;
   req.blockRef = node;
   req.noOfEntries = 1;
-  req.theCategories[0] = category;
-  req.theLevels[0] = level;
+  req.theData[0] = (category << 16) | level;
   m_mgmsrv.m_log_level_requests.push_back(req);
   
   m_output->println("set loglevel reply");
@@ -1239,7 +1237,7 @@ MgmApiSession::configChange(Parser_t::Context &,
   m_output->println("");
 }
 
-NdbOut&
+static NdbOut&
 operator<<(NdbOut& out, const LogLevel & ll)
 {
   out << "[LogLevel: ";

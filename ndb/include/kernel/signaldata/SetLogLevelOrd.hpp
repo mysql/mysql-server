@@ -40,11 +40,10 @@ class SetLogLevelOrd {
   friend class NodeLogLevel;
   
 private:
-  STATIC_CONST( SignalLength = 25 );
-
+  STATIC_CONST( SignalLength = 1 + LogLevel::LOGLEVEL_CATEGORIES  );
+  
   Uint32 noOfEntries;
-  Uint32 theCategories[12];
-  Uint32 theLevels[12];
+  Uint32 theData[LogLevel::LOGLEVEL_CATEGORIES];
   
   void clear();
   
@@ -52,12 +51,11 @@ private:
    * Note level is valid as 0-15
    */
   void setLogLevel(LogLevel::EventCategory ec, int level = 7);
-
+  
   SetLogLevelOrd& operator= (const LogLevel& ll){
-    noOfEntries = _LOGLEVEL_CATEGORIES;
+    noOfEntries = LogLevel::LOGLEVEL_CATEGORIES;
     for(size_t i = 0; i<noOfEntries; i++){
-      theCategories[i] = i;
-      theLevels[i] = ll.getLogLevel((LogLevel::EventCategory)i);
+      theData[i] = (i << 16) | ll.getLogLevel((LogLevel::EventCategory)i);
     }
     return * this;
   }
@@ -65,8 +63,7 @@ private:
   SetLogLevelOrd& operator= (const EventSubscribeReq& ll){
     noOfEntries = ll.noOfEntries;
     for(size_t i = 0; i<noOfEntries; i++){
-      theCategories[i] = ll.theCategories[i];
-      theLevels[i] = ll.theLevels[i];
+      theData[i] = ll.theData[i];
     }
     return * this;
   }
@@ -81,9 +78,7 @@ SetLogLevelOrd::clear(){
 inline
 void
 SetLogLevelOrd::setLogLevel(LogLevel::EventCategory ec, int level){
-  assert(noOfEntries < 12);
-  theCategories[noOfEntries] = ec;
-  theLevels[noOfEntries] = level;
+  theData[noOfEntries] = (ec << 16) | level;
   noOfEntries++;
 }
 

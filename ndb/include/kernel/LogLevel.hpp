@@ -87,6 +87,8 @@ public:
   bool operator==(const LogLevel& l) const { 
     return memcmp(this, &l, sizeof(* this)) == 0;
   }
+
+  LogLevel& operator=(const class EventSubscribeReq & req);
   
 private:
   /**
@@ -103,9 +105,7 @@ LogLevel::LogLevel(){
 inline
 LogLevel & 
 LogLevel::operator= (const LogLevel & org){
-  for(Uint32 i = 0; i<LOGLEVEL_CATEGORIES; i++){
-    logLevelData[i] = org.logLevelData[i];
-  }
+  memcpy(logLevelData, org.logLevelData, sizeof(logLevelData));
   return * this;
 }
 
@@ -121,7 +121,7 @@ inline
 void
 LogLevel::setLogLevel(EventCategory ec, Uint32 level){
   assert(ec >= 0 && (Uint32) ec < LOGLEVEL_CATEGORIES);
-  logLevelData[ec] = level;
+  logLevelData[ec] = (Uint8)level;
 }
 
 inline
@@ -129,7 +129,7 @@ Uint32
 LogLevel::getLogLevel(EventCategory ec) const{
   assert(ec >= 0 && (Uint32) ec < LOGLEVEL_CATEGORIES);
 
-  return logLevelData[ec];
+  return (Uint32)logLevelData[ec];
 }
 
 inline
@@ -138,6 +138,19 @@ LogLevel::set_max(const LogLevel & org){
   for(Uint32 i = 0; i<LOGLEVEL_CATEGORIES; i++){
     if(logLevelData[i] < org.logLevelData[i])
       logLevelData[i] = org.logLevelData[i];
+  }
+  return * this;
+}
+
+#include <signaldata/EventSubscribeReq.hpp>
+
+inline
+LogLevel&
+LogLevel::operator=(const EventSubscribeReq& req)
+{
+  clear();
+  for(size_t i = 0; i<req.noOfEntries; i++){
+    logLevelData[(req.theData[i] >> 16)] = req.theData[i] & 0xFFFF;
   }
   return * this;
 }
