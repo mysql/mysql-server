@@ -772,3 +772,4 @@ ndb/lib/libNEWTON_BASICTEST_COMMON.so
 ndb/lib/libREP_API.so
 ndb/lib/libndbclient.so
 ndb/lib/libndbclient_extra.so
+libmysqld/discover.cc

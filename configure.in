@@ -2228,7 +2228,6 @@ if expr "$SYSTEM_TYPE" : ".*netware.*" > /dev/null; then
     # For NetWare, do not need readline
     echo "Skipping readline"
 else
-mkdir include/readline
 
 if [test "$with_libedit" = "yes"] || [test "$with_libedit" = "undefined"] && [test "$with_readline" = "undefined"]
 then
@@ -2236,7 +2235,7 @@ then
     readline_basedir="libedit"
     readline_dir="$readline_topdir/$readline_basedir"
     readline_link="\$(top_builddir)/cmd-line-utils/libedit/liblibedit.a"
-    readline_h_ln_cmd="\$(LN) \$(top_builddir)/cmd-line-utils/libedit/readline/*.h readline/"
+    readline_h_ln_cmd="\$(LN) -s \$(top_builddir)/cmd-line-utils/libedit/readline/*.h readline/"
     compile_libedit=yes
     AC_DEFINE_UNQUOTED(USE_LIBEDIT_INTERFACE)
 elif test "$with_readline" = "yes"
@@ -2245,7 +2244,7 @@ then
     readline_basedir="readline"
     readline_dir="$readline_topdir/$readline_basedir"
     readline_link="\$(top_builddir)/cmd-line-utils/readline/libreadline.a"
-    readline_h_ln_cmd="\$(LN) \$(top_builddir)/cmd-line-utils/readline/*.h readline/"
+    readline_h_ln_cmd="\$(LN) -s \$(top_builddir)/cmd-line-utils/readline/*.h readline/"
     compile_readline=yes
     AC_DEFINE_UNQUOTED(USE_NEW_READLINE_INTERFACE)
 else
