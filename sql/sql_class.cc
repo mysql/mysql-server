@@ -400,7 +400,7 @@ bool THD::store_globals()
     By default 'slave_proxy_id' is 'thread_id'. They may later become different
     if this is the slave SQL thread.
   */
-  slave_proxy_id= thread_id;
+  variables.pseudo_thread_id= thread_id;
   return 0;
 }
 

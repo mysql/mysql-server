@@ -496,7 +496,7 @@ bool Protocol::send_fields(List<Item> *list, uint flag)
 
     if (thd->client_capabilities & CLIENT_PROTOCOL_41)
     {
-      if (prot.store("std", 3, cs, thd_charset) ||
+      if (prot.store("def", 3, cs, thd_charset) ||
 	  prot.store(field.db_name, (uint) strlen(field.db_name),
 		     cs, thd_charset) ||
 	  prot.store(field.table_name, (uint) strlen(field.table_name),

@@ -586,7 +586,7 @@ select * from t1;
 a
 set GLOBAL query_cache_size=1024;
 Warnings:
-Warning	1280	Query cache failed to set size 1024, new query cache size is 0
+Warning	1285	Query cache failed to set size 1024, new query cache size is 0
 show global variables like "query_cache_size";
 Variable_name	Value
 query_cache_size	0
@@ -594,7 +594,7 @@ select * from t1;
 a
 set GLOBAL query_cache_size=10240;
 Warnings:
-Warning	1280	Query cache failed to set size 10240, new query cache size is 0
+Warning	1285	Query cache failed to set size 10240, new query cache size is 0
 show global variables like "query_cache_size";
 Variable_name	Value
 query_cache_size	0
@@ -602,7 +602,7 @@ select * from t1;
 a
 set GLOBAL query_cache_size=20480;
 Warnings:
-Warning	1280	Query cache failed to set size 20480, new query cache size is 0
+Warning	1285	Query cache failed to set size 20480, new query cache size is 0
 show global variables like "query_cache_size";
 Variable_name	Value
 query_cache_size	0
@@ -610,7 +610,7 @@ select * from t1;
 a
 set GLOBAL query_cache_size=40960;
 Warnings:
-Warning	1280	Query cache failed to set size 40960, new query cache size is 0
+Warning	1285	Query cache failed to set size 40960, new query cache size is 0
 show global variables like "query_cache_size";
 Variable_name	Value
 query_cache_size	0
@@ -762,7 +762,6 @@ select * from t3;
 delete from t4 where a=1;
 flush query cache;
 drop table t1,t2,t3,t4;
-set GLOBAL query_cache_size=0;
 SET NAMES koi8r;
 CREATE TABLE t1 (a char(1) character set koi8r);
 INSERT INTO t1 VALUES (_koi8r'á'),(_koi8r'Á');
@@ -772,7 +771,7 @@ a	Â	'â'='Â'
 Á	Â	1
 show status like "Qcache_hits";
 Variable_name	Value
-Qcache_hits	12
+Qcache_hits	6
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	1
@@ -783,7 +782,7 @@ a	Â	'â'='Â'
 Á	Â	0
 show status like "Qcache_hits";
 Variable_name	Value
-Qcache_hits	12
+Qcache_hits	6
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	2
@@ -794,7 +793,7 @@ a	÷	'×'='÷'
 Á	÷	0
 show status like "Qcache_hits";
 Variable_name	Value
-Qcache_hits	12
+Qcache_hits	6
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	3
@@ -805,8 +804,9 @@ a	Â	'â'='Â'
 à	Â	0
 show status like "Qcache_hits";
 Variable_name	Value
-Qcache_hits	12
+Qcache_hits	6
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	4
 DROP TABLE t1;
+SET GLOBAL query_cache_size=0;
