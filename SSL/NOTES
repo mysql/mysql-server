@@ -1,8 +1,24 @@
 Quick notes:
-
+--------------------------------------------
+[tonu@x153 mysql-4.0]$ cat /etc/my.cnf
+[mysqld]
+ssl-ca=SSL/cacert.pem
+ssl-cert=SSL/server-cert.pem
+ssl-key=SSL/server-key.pem
+   
+[mysql]
+ssl-ca=SSL/cacert.pem
+ssl-cert=SSL/client-cert.pem
+ssl-key=SSL/client-key.pem
+     
+[mysqldump]
+ssl-ca=SSL/cacert.pem
+ssl-cert=SSL/client-cert.pem
+ssl-key=SSL/client-key.pem
+      
+[tonu@x153 mysql-4.0]$
+--------------------------------------------
 To remove passwords from keyfiles:
-
-
 [tonu@x153 SSL]$ openssl rsa -inform pem  < server-req.pem > server-key.pem
 read RSA key
 Enter PEM pass phrase:
@@ -12,12 +28,10 @@ writing RSA key
 To run server:
 
 sql/mysqld --ssl-ca=SSL/cacert.pem --ssl-cert=SSL/server-cert.pem --ssl-key=SSL/server-key.pem --skip-grant --debug='d:t:O,-' > /tmp/mysqld.trace
-
 --------------------------------------------
 To run client:
 
 client/mysql --ssl-ca=SSL/cacert.pem --ssl-cert=SSL/server-cert.pem --ssl-key=SSL/server-key.pem --debug='d:t:O,/tmp/client.trace' -h 127.0.0.1
-
 --------------------------------------------
 openssl s_client -host 127.0.0.1 -port 1111 -debug -verify 1 -cert ../SSL/client-cert.pem -key ../SSL/client-key.pem -CAfile ../SSL/cacert.pem -pause  -showcerts -state
 
@@ -27,8 +41,9 @@ openssl s_server -port 1111 -cert ../SSL/server-cert.pem -key ../SSL/server-key.
 
 
 
+--------------------------------------------
 
-
+CA stuff:
 
 [tonu@x153 bin]$ pwd
 /usr/local/ssl/bin
