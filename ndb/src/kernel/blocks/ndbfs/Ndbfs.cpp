@@ -559,7 +559,7 @@ Ndbfs::createAsyncFile(){
   }
 
   AsyncFile* file = new AsyncFile;
-  file->doStart(theFileSystemPath);
+  file->doStart(getOwnNodeId(), theFileSystemPath);
 
   // Put the file in list of all files
   theFiles.push_back(file);
