@@ -1079,8 +1079,10 @@ in_string::in_string(uint elements,qsort_cmp cmp_func)
 in_string::~in_string()
 {
   if (base)
+  {
     for (uint i=0 ; i < count ; i++)
       ((String*) base)[i].free();
+  }
 }
 
 void in_string::set(uint pos,Item *item)

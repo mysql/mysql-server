@@ -48,24 +48,43 @@ bool Item_row::fix_fields(THD *thd, TABLE_LIST *tabl, Item **ref)
 {
   null_value= 0;
   maybe_null= 0;
-  for (uint i= 0; i < arg_count; i++)
+  Item **arg, **arg_end;
+  for (arg= items, arg_end= items+arg_count; arg != arg_end ; arg++)
   {
-    if (items[i]->fix_fields(thd, tabl, items+i))
+    if ((*arg)->fix_fields(thd, tabl, arg))
       return 1;
-    used_tables_cache |= items[i]->used_tables();
-    if (const_item_cache&= items[i]->const_item() && !with_null)
+    used_tables_cache |= (*arg)->used_tables();
+    if (const_item_cache&= (*arg)->const_item() && !with_null)
     {
-      if (items[i]->cols() > 1)
-	with_null|= items[i]->null_inside();
+      if ((*arg)->cols() > 1)
+	with_null|= (*arg)->null_inside();
       else
       {
-	items[i]->val_int();
-	with_null|= items[i]->null_value;
+	(*arg)->val_int();
+	with_null|= (*arg)->null_value;
       }
     }
-    maybe_null|= items[i]->maybe_null;
+    maybe_null|= (*arg)->maybe_null;
+    with_sum_func= with_sum_func || (*arg)->with_sum_func;
   }
   return 0;
+}
+
+void Item_row::split_sum_func(Item **ref_pointer_array, List<Item> &fields)
+{
+  Item **arg, **arg_end;
+  for (arg= items, arg_end= items+arg_count; arg != arg_end ; arg++)
+  {
+    if ((*arg)->with_sum_func && (*arg)->type() != SUM_FUNC_ITEM)
+      (*arg)->split_sum_func(ref_pointer_array, fields);
+    else if ((*arg)->used_tables() || (*arg)->type() == SUM_FUNC_ITEM)
+    {
+      uint el= fields.elements;
+      fields.push_front(*arg);
+      ref_pointer_array[el]= *arg;
+      *arg= new Item_ref(ref_pointer_array + el, 0, (*arg)->name);
+    }
+  }
 }
 
 void Item_row::update_used_tables()

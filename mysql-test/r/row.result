@@ -144,3 +144,18 @@ Cardinality error (more/less than 1 columns)
 select count(*) from t1 having (1,1) order by i;
 Cardinality error (more/less than 1 columns)
 drop table t1;
+create table t1 (a int, b int);
+insert into t1 values (1, 4);
+insert into t1 values (10, 40);
+insert into t1 values (1, 4);
+insert into t1 values (10, 43);
+insert into t1 values (1, 4);
+insert into t1 values (10, 41);
+insert into t1 values (1, 4);
+insert into t1 values (10, 43);
+insert into t1 values (1, 4);
+select a, MAX(b), (1, MAX(b)) = (1, 4) from t1 group by a;
+a	MAX(b)	(1, MAX(b)) = (1, 4)
+1	4	1
+10	43	0
+drop table t1;
