@@ -137,6 +137,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	CREATE
 %token	CROSS
 %token  CUBE_SYM
+%token  DEFINER
 %token	DELETE_SYM
 %token	DUAL_SYM
 %token	DO_SYM
@@ -269,6 +270,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token  INOUT_SYM
 %token	INTO
 %token	IN_SYM
+%token  INVOKER
 %token	ISOLATION
 %token	JOIN_SYM
 %token	KEYS
@@ -311,6 +313,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	MEDIUM_SYM
 %token	MIN_ROWS
 %token	NAMES_SYM
+%token	NAME_SYM
 %token	NATIONAL_SYM
 %token	NATURAL
 %token	NEW_SYM
@@ -361,6 +364,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	ROW_FORMAT_SYM
 %token	ROW_SYM
 %token	RTREE_SYM
+%token  SECURITY
 %token	SET
 %token  SEPARATOR_SYM
 %token	SERIAL_SYM
@@ -619,7 +623,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	ULONGLONG_NUM field_ident select_alias ident ident_or_text
         UNDERSCORE_CHARSET IDENT_sys TEXT_STRING_sys TEXT_STRING_literal
 	NCHAR_STRING opt_component
-        SP_FUNC ident_or_spfunc sp_opt_label
+        SP_FUNC ident_or_spfunc sp_opt_label sp_comment sp_newname
 
 %type <lex_str_ptr>
 	opt_table_alias
@@ -745,7 +749,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	union_clause union_list union_option
 	precision subselect_start opt_and charset
 	subselect_end select_var_list select_var_list_init help opt_len
-	statement
+	statement sp_suid
 END_OF_INPUT
 
 %type <NONE> call sp_proc_stmts sp_proc_stmt
@@ -1021,7 +1025,7 @@ create:
 	    /* Order is important here: new - reset - init */
 	    sp= new sp_head();
 	    sp->reset_thd_mem_root(YYTHD);
-	    sp->init(&$3, lex, 0, 0);
+	    sp->init(&$3, lex);
 
 	    sp->m_type= TYPE_ENUM_PROCEDURE;
 	    lex->sphead= sp;
@@ -1036,6 +1040,10 @@ create:
           '(' sp_pdparam_list ')'
 	  {
 	    Lex->spcont->set_params();
+	  }
+	  sp_comment sp_suid
+	  {
+	    Lex->sphead->init_options(&$9, Lex->suid);
 	  }
 	  sp_proc_stmt
 	  {
@@ -1075,7 +1083,7 @@ create_function_tail:
 	    /* Order is important here: new - reset - init */
 	    sp= new sp_head();
 	    sp->reset_thd_mem_root(YYTHD);
-	    sp->init(&lex->udf.name, lex, 0, 0);
+	    sp->init(&lex->udf.name, lex);
 
 	    sp->m_type= TYPE_ENUM_FUNCTION;
 	    lex->sphead= sp;
@@ -1095,6 +1103,10 @@ create_function_tail:
 	  {
 	    Lex->sphead->m_returns= (enum enum_field_types)$7;
 	  }
+	  sp_comment sp_suid
+	  {
+	    Lex->sphead->init_options(&$9, Lex->suid);
+          }
 	  sp_proc_stmt
 	  {
 	    LEX *lex= Lex;
@@ -1105,6 +1117,23 @@ create_function_tail:
 	      YYTHD->client_capabilities |= CLIENT_MULTI_QUERIES;
 	    lex->sphead->restore_thd_mem_root(YYTHD);
 	  }
+	;
+
+sp_comment:
+	  /* Empty */			{ $$.str=0; }
+	| COMMENT_SYM TEXT_STRING_sys	{ $$= $2; }
+	;
+
+sp_newname:
+	  /* Empty */			{ $$.str=0; }
+	| NAME_SYM ident		{ $$= $2; }
+	;
+
+
+sp_suid:
+	  /* Empty */			{ Lex->suid= IS_DEFAULT_SUID; }
+	| SECURITY DEFINER		{ Lex->suid= IS_SUID; }
+	| SECURITY INVOKER		{ Lex->suid= IS_NOT_SUID; }
 	;
 
 call:
@@ -2573,7 +2602,7 @@ alter:
 	    lex->sql_command=SQLCOM_ALTER_DB;
 	    lex->name=$3.str;
 	  }
-	| ALTER PROCEDURE ident
+	| ALTER PROCEDURE ident sp_newname sp_comment sp_suid
 	  /* QQ Characteristics missing for now */
 	  opt_restrict
 	  {
@@ -2583,8 +2612,10 @@ alter:
 	       put the characteristics in yet. */
 	    lex->sql_command= SQLCOM_ALTER_PROCEDURE;
 	    lex->udf.name= $3;
+	    lex->name= $4.str;
+	    lex->comment= &$5;
 	  }
-	| ALTER FUNCTION_SYM ident
+	| ALTER FUNCTION_SYM ident sp_newname sp_comment sp_suid
 	  /* QQ Characteristics missing for now */
 	  opt_restrict
 	  {
@@ -2594,6 +2625,8 @@ alter:
 	       put the characteristics in yet. */
 	    lex->sql_command= SQLCOM_ALTER_FUNCTION;
 	    lex->udf.name= $3;
+	    lex->name= $4.str;
+	    lex->comment= &$5;
 	  }
 	;
 
@@ -5012,7 +5045,26 @@ show_param:
         | SLAVE STATUS_SYM
           {
 	    Lex->sql_command = SQLCOM_SHOW_SLAVE_STAT;
-          };
+          }
+	| CREATE PROCEDURE ident
+	  {
+	    Lex->sql_command = SQLCOM_SHOW_CREATE_PROC;
+	    Lex->udf.name= $3;
+	  }
+	| CREATE FUNCTION_SYM ident
+	  {
+	    Lex->sql_command = SQLCOM_SHOW_CREATE_FUNC;
+	    Lex->udf.name= $3;
+	  }
+	| PROCEDURE STATUS_SYM wild
+	  {
+	    Lex->sql_command = SQLCOM_SHOW_STATUS_PROC;
+	  }
+	| FUNCTION_SYM STATUS_SYM wild
+	  {
+	    Lex->sql_command = SQLCOM_SHOW_STATUS_FUNC;
+	  };
+
 
 master_or_binary:
 	MASTER_SYM
@@ -5560,6 +5612,7 @@ keyword:
 	| DATETIME		{}
 	| DATE_SYM		{}
 	| DAY_SYM		{}
+	| DEFINER		{}
 	| DELAY_KEY_WRITE_SYM	{}
 	| DES_KEY_FILE		{}
 	| DIRECTORY_SYM		{}
@@ -5595,6 +5648,7 @@ keyword:
 	| HOSTS_SYM		{}
 	| HOUR_SYM		{}
 	| IDENTIFIED_SYM	{}
+	| INVOKER		{}
 	| IMPORT		{}
 	| INDEXES		{}
 	| ISOLATION		{}
@@ -5637,6 +5691,7 @@ keyword:
 	| MULTILINESTRING	{}
 	| MULTIPOINT		{}
 	| MULTIPOLYGON		{}
+	| NAME_SYM              {}
 	| NAMES_SYM		{}
 	| NATIONAL_SYM		{}
 	| NCHAR_SYM		{}
@@ -5680,6 +5735,7 @@ keyword:
 	| RTREE_SYM		{}
 	| SAVEPOINT_SYM		{}
 	| SECOND_SYM		{}
+	| SECURITY		{}
 	| SERIAL_SYM		{}
 	| SERIALIZABLE_SYM	{}
 	| SESSION_SYM		{}

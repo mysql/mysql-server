@@ -79,9 +79,16 @@ enum enum_sql_command {
   SQLCOM_HELP, SQLCOM_DROP_USER, SQLCOM_REVOKE_ALL, SQLCOM_CHECKSUM,
   SQLCOM_CREATE_PROCEDURE, SQLCOM_CREATE_SPFUNCTION, SQLCOM_CALL,
   SQLCOM_DROP_PROCEDURE, SQLCOM_ALTER_PROCEDURE,SQLCOM_ALTER_FUNCTION,
+  SQLCOM_SHOW_CREATE_PROC, SQLCOM_SHOW_CREATE_FUNC,
+  SQLCOM_SHOW_STATUS_PROC, SQLCOM_SHOW_STATUS_FUNC,
 
   /* This should be the last !!! */
   SQLCOM_END
+};
+
+enum suid_behaviour
+{
+  IS_DEFAULT_SUID= 0, IS_NOT_SUID, IS_SUID
 };
 
 typedef List<Item> List_item;
@@ -544,6 +551,7 @@ typedef struct st_lex
   enum enum_enable_or_disable alter_keys_onoff;
   enum enum_var_type option_type;
   enum tablespace_op_type tablespace_op;
+  enum suid_behaviour suid;
   uint uint_geom_type;
   uint grant, grant_tot_col, which_columns;
   uint fk_delete_opt, fk_update_opt, fk_match_option;
