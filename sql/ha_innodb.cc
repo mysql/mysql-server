@@ -336,6 +336,11 @@ innobase_release_temporary_latches(
 /*===============================*/
         THD *thd)
 {
+	if (!innodb_inited) {
+		
+		return;
+	}
+
   trx_t *trx= (trx_t*) thd->ha_data[innobase_hton.slot];
   if (trx)
         innobase_release_stat_resources(trx);
