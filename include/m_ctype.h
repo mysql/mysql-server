@@ -287,6 +287,40 @@ void my_hash_sort_utf8(struct charset_info_st *cs, const uchar *key, uint len, u
    
 #endif
 
+
+#ifdef HAVE_CHARSET_ucs2
+
+extern uchar ctype_ucs2[];
+extern uchar to_lower_ucs2[];
+extern uchar to_upper_ucs2[];
+
+int my_strnncoll_ucs2(CHARSET_INFO *cs,
+                      const uchar *s, uint s_len, const uchar *t, uint t_len);
+
+int my_strnxfrm_ucs2(CHARSET_INFO *cs,
+        uchar *dest, uint destlen, const uchar *src, uint srclen);
+
+int my_ismbchar_ucs2(CHARSET_INFO *cs, const char *b, const char *e);
+my_bool my_ismbhead_ucs2(CHARSET_INFO * cs, uint ch);
+int my_mbcharlen_ucs2(CHARSET_INFO *cs, uint c);
+
+void my_caseup_str_ucs2(CHARSET_INFO * cs, char * s);
+void my_casedn_str_ucs2(CHARSET_INFO *cs, char * s);
+void my_caseup_ucs2(CHARSET_INFO *cs, char *s, uint len);
+void my_casedn_ucs2(CHARSET_INFO *cs, char *s, uint len);
+
+int my_strcasecmp_ucs2(CHARSET_INFO *cs, const char *s, const char *t);
+int my_strncasecmp_ucs2(CHARSET_INFO *cs, const char *s,const char *t,uint l);
+
+int my_ucs2_uni (CHARSET_INFO *cs, my_wc_t *p, const uchar *s, const uchar *e);
+int my_uni_ucs2 (CHARSET_INFO *cs, my_wc_t wc, uchar *b, uchar *e);
+
+uint my_hash_caseup_ucs2(struct charset_info_st *cs, const byte *key, uint len);
+void my_hash_sort_ucs2(struct charset_info_st *cs, const uchar *key, uint len, ulong *nr1, ulong *nr2); 
+   
+#endif
+
+
 #define	_U	01	/* Upper case */
 #define	_L	02	/* Lower case */
 #define	_NMR	04	/* Numeral (digit) */

@@ -94,6 +94,7 @@
 #undef HAVE_CHARSET_sjis
 #undef HAVE_CHARSET_swe7
 #undef HAVE_CHARSET_tis620
+#undef HAVE_CHARSET_ucs2
 #undef HAVE_CHARSET_ujis
 #undef HAVE_CHARSET_usa7
 #undef HAVE_CHARSET_utf8
