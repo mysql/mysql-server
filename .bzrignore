@@ -986,3 +986,4 @@ vio/viotest-ssl
 extra/mysqld_error.h
 extra/sql_state.h
 extra/created_include_files
+extra/mysqld_ername.h

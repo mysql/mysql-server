@@ -243,6 +243,7 @@ static int create_header_files(struct errors *error_head)
   fprintf(er_definef, "#define ER_ERROR_MESSAGES %d\n", er_count);
   my_fclose(er_definef, MYF(0));
   my_fclose(sql_statef, MYF(0));
+  my_fclose(er_namef, MYF(0));
   DBUG_RETURN(0);
 }
 
