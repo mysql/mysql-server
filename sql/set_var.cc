@@ -283,6 +283,8 @@ static sys_var_last_insert_id	sys_identity("identity");
 static sys_var_insert_id	sys_insert_id("insert_id");
 /* alias for last_insert_id() to be compatible with Sybase */
 static sys_var_slave_skip_counter sys_slave_skip_counter("sql_slave_skip_counter");
+static sys_var_rand_seed1	sys_rand_seed1("rand_seed1");
+static sys_var_rand_seed2	sys_rand_seed2("rand_seed2");
 
 
 /*
@@ -351,6 +353,8 @@ sys_var *sys_variables[]=
   &sys_query_cache_type,
 #endif /* HAVE_QUERY_CACHE */
   &sys_quote_show_create,
+  &sys_rand_seed1,
+  &sys_rand_seed2,
   &sys_read_buff_size,
   &sys_read_rnd_buff_size,
   &sys_rpl_recovery_rank,
@@ -1039,6 +1043,19 @@ bool sys_var_slave_skip_counter::update(THD *thd, set_var *var)
   }
   pthread_mutex_unlock(&active_mi->rli.run_lock);
   UNLOCK_ACTIVE_MI;
+  return 0;
+}
+
+
+bool sys_var_rand_seed1::update(THD *thd, set_var *var)
+{
+  thd->rand.seed1=var->value->val_int();
+  return 0;
+}
+
+bool sys_var_rand_seed2::update(THD *thd, set_var *var)
+{
+  thd->rand.seed2=var->value->val_int();
   return 0;
 }
 

@@ -419,6 +419,7 @@ public:
   table_map  used_tables;
   USER_CONN *user_connect;
   ulong	     query_id,version, options,thread_id, col_access;
+  ulong	     rand_saved_seed1, rand_saved_seed2;
   long	     dbug_thread_id;
   pthread_t  real_id;
   uint	     current_tablenr,tmp_table,cond_count;
@@ -433,7 +434,6 @@ public:
   bool	     set_query_id,locked,count_cuted_fields,some_tables_deleted;
   bool	     no_errors, allow_sum_func, password, fatal_error;
   bool	     query_start_used,last_insert_id_used,insert_id_used,rand_used;
-  ulonglong  rand_saved_seed1, rand_saved_seed2;
   bool	     system_thread,in_lock_tables,global_read_lock;
   bool       query_error, bootstrap, cleanup_done;
   bool	     safe_to_cache_query;
@@ -805,7 +805,7 @@ public:
    uint num_of_tables;
    int error;
    thr_lock_type lock_option;
-   bool do_delete, not_trans_safe;
+   bool do_delete, transactional_tables, log_delayed, normal_tables;
  public:
    multi_delete(THD *thd, TABLE_LIST *dt, thr_lock_type lock_option_arg,
 		uint num_of_tables);

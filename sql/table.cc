@@ -47,19 +47,19 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
   int	 j,error;
   uint	 rec_buff_length,n_length,int_length,records,key_parts,keys,
          interval_count,interval_parts,read_length,db_create_options;
-  uint	 key_info_length;
+  uint	 key_info_length, com_length;
   ulong  pos;
-  char	 index_file[FN_REFLEN], *names,*keynames;
+  char	 index_file[FN_REFLEN], *names, *keynames;
   uchar  head[288],*disk_buff,new_field_pack_flag;
   my_string record;
   const char **int_array;
-  bool	 new_frm_ver,use_hash, null_field_first;
+  bool	 use_hash, null_field_first;
   File	 file;
   Field  **field_ptr,*reg_field;
   KEY	 *keyinfo;
   KEY_PART_INFO *key_part;
   uchar *null_pos;
-  uint null_bit;
+  uint null_bit, new_frm_ver, field_pack_length;
   SQL_CRYPT *crypted=0;
   DBUG_ENTER("openfrm");
   DBUG_PRINT("enter",("name: '%s'  form: %lx",name,outparam));
@@ -95,14 +95,15 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 
   if (my_read(file,(byte*) head,64,MYF(MY_NABP))) goto err_not_open;
   if (head[0] != (uchar) 254 || head[1] != 1 ||
-      (head[2] != FRM_VER && head[2] != FRM_VER+1))
-    goto err_not_open; /* purecov: inspected */
+      (head[2] != FRM_VER && head[2] > FRM_VER+2))
+    goto err_not_open;				/* purecov: inspected */
   new_field_pack_flag=head[27];
-  new_frm_ver= (head[2] == FRM_VER+1);
+  new_frm_ver= (head[2] - FRM_VER);
+  field_pack_length= new_frm_ver < 2 ? 11 : 15;
 
   error=3;
   if (!(pos=get_form_pos(file,head,(TYPELIB*) 0)))
-    goto err_not_open; /* purecov: inspected */
+    goto err_not_open;				/* purecov: inspected */
   *fn_ext(index_file)='\0';			// Remove .frm extension
 
   outparam->db_type=ha_checktype((enum db_type) (uint) *(head+3));
@@ -153,9 +154,23 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 
   for (i=0 ; i < keys ; i++, keyinfo++)
   {
-    keyinfo->flags=	 ((uint) strpos[0]) ^ HA_NOSAME;
-    keyinfo->key_length= (uint) uint2korr(strpos+1);
-    keyinfo->key_parts=  (uint) strpos[3];  strpos+=4;
+    if (new_frm_ver == 2)
+    {
+      keyinfo->flags=	   (uint) uint2korr(strpos) ^ HA_NOSAME;
+      keyinfo->key_length= (uint) uint2korr(strpos+2);
+      keyinfo->key_parts=  (uint) strpos[4];
+      keyinfo->algorithm=  (enum ha_key_alg) strpos[5];
+      strpos+=8;
+    }
+    else
+    {
+      keyinfo->flags=	 ((uint) strpos[0]) ^ HA_NOSAME;
+      keyinfo->key_length= (uint) uint2korr(strpos+1);
+      keyinfo->key_parts=  (uint) strpos[3];
+      keyinfo->algorithm= HA_KEY_ALG_UNDEF;
+      strpos+=4;
+    }
+
     keyinfo->key_part=	 key_part;
     keyinfo->rec_per_key= rec_per_key;
     for (j=keyinfo->key_parts ; j-- ; key_part++)
@@ -165,7 +180,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
       key_part->offset= (uint) uint2korr(strpos+2)-1;
       key_part->key_type=	(uint) uint2korr(strpos+5);
       // key_part->field=	(Field*) 0;	// Will be fixed later
-      if (new_frm_ver)
+      if (new_frm_ver >= 1)
       {
 	key_part->key_part_flag= *(strpos+4);
 	key_part->length=	(uint) uint2korr(strpos+7);
@@ -191,14 +206,6 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
   }
   keynames=(char*) key_part;
   strpos+= (strmov(keynames, (char *) strpos) - keynames)+1;
-  /* Test if new 4.0 format */
-  if ((uint) (strpos - disk_buff) < key_info_length)
-  {
-    /* Read key types */
-    keyinfo=outparam->key_info;
-    for (i=0 ; i < keys ; i++, keyinfo++)
-      keyinfo->algorithm= (enum ha_key_alg) *(strpos++);
-  }
 
   outparam->reclength = uint2korr((head+16));
   if (*(head+26) == 1)
@@ -267,6 +274,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
   interval_parts=uint2korr(head+272);
   int_length=uint2korr(head+274);
   outparam->null_fields=uint2korr(head+282);
+  com_length=uint2korr(head+284);
   outparam->comment=strdup_root(&outparam->mem_root,
 				(char*) head+47);
 
@@ -278,12 +286,12 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 			   interval_count*sizeof(TYPELIB)+
 			   (outparam->fields+interval_parts+
 			    keys+3)*sizeof(my_string)+
-			   (n_length+int_length)))))
+			   (n_length+int_length+com_length)))))
     goto err_not_open; /* purecov: inspected */
 
   outparam->field=field_ptr;
-  read_length=((uint) (outparam->fields*11)+pos+
-	       (uint) (n_length+int_length));
+  read_length=(uint) (outparam->fields * field_pack_length +
+		      pos+ (uint) (n_length+int_length+com_length));
   if (read_string(file,(gptr*) &disk_buff,read_length))
     goto err_not_open; /* purecov: inspected */
   if (crypted)
@@ -299,7 +307,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
   names= (char*) (int_array+outparam->fields+interval_parts+keys+3);
   if (!interval_count)
     outparam->intervals=0;			// For better debugging
-  memcpy((char*) names, strpos+(outparam->fields*11),
+  memcpy((char*) names, strpos+(outparam->fields*field_pack_length),
 	 (uint) (n_length+int_length));
 
   fix_type_pointers(&int_array,&outparam->fieldnames,1,&names);
@@ -332,22 +340,40 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 			 (hash_get_key) get_field_name,0,
 			 HASH_CASE_INSENSITIVE);
 
-  for (i=0 ; i < outparam->fields; i++, strpos+= 11, field_ptr++)
+  for (i=0 ; i < outparam->fields; i++, strpos+=field_pack_length, field_ptr++)
   {
     uint pack_flag= uint2korr(strpos+6);
     uint interval_nr= (uint) strpos[10];
+    enum_field_types field_type;
+
+    if (new_frm_ver == 2)
+    {
+      /* new frm file in 4.1 */
+      field_type=(enum_field_types) (uint) strpos[11];
+    }
+    else
+    {
+      /* old frm file */
+      field_type= (enum_field_types) f_packtype(pack_flag);
+    }
 
     *field_ptr=reg_field=
       make_field(record+uint2korr(strpos+4),
 		 (uint32) strpos[3],		// field_length
 		 null_pos,null_bit,
 		 pack_flag,
+		 field_type,
 		 (Field::utype) MTYP_TYPENR((uint) strpos[8]),
 		 (interval_nr ?
 		  outparam->intervals+interval_nr-1 :
 		  (TYPELIB*) 0),
 		 outparam->fieldnames.type_names[i],
 		 outparam);
+    if (!*field_ptr)				// Field in 4.1
+    {
+      error= 4;
+      goto err_not_open;			/* purecov: inspected */
+    }
     if (!(reg_field->flags & NOT_NULL_FLAG))
     {
       if ((null_bit<<=1) == 256)

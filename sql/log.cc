@@ -1017,9 +1017,13 @@ bool MYSQL_LOG::write(THD *thd,enum enum_server_command command,
 bool MYSQL_LOG::write(Log_event* event_info)
 {
   bool error=0;
+  DBUG_ENTER("MYSQL_LOG::write(event)");
   
   if (!inited)					// Can't use mutex if not init
-    return 0;
+  {
+    DBUG_PRINT("error",("not initied"));
+    DBUG_RETURN(0);
+  }
   pthread_mutex_lock(&LOCK_log);
 
   /* In most cases this is only called if 'is_open()' is true */
@@ -1040,7 +1044,8 @@ bool MYSQL_LOG::write(Log_event* event_info)
 	(db && !db_ok(db, binlog_do_db, binlog_ignore_db)))
     {
       VOID(pthread_mutex_unlock(&LOCK_log));
-      return 0;
+      DBUG_PRINT("error",("!db_ok"));
+      DBUG_RETURN(0);
     }
 
     error=1;
@@ -1078,7 +1083,7 @@ bool MYSQL_LOG::write(Log_event* event_info)
       char buf[1024] = "SET CHARACTER SET ";
       char* p = strend(buf);
       p = strmov(p, thd->variables.convert_set->name);
-      Query_log_event e(thd, buf, (ulong)(p - buf));
+      Query_log_event e(thd, buf, (ulong)(p - buf), 0);
       e.set_log_pos(this);
       if (e.write(file))
 	goto err;
@@ -1126,7 +1131,7 @@ err:
   }
 
   pthread_mutex_unlock(&LOCK_log);
-  return error;
+  DBUG_RETURN(error);
 }
 
 
@@ -1156,6 +1161,7 @@ uint MYSQL_LOG::next_file_id()
 bool MYSQL_LOG::write(THD *thd, IO_CACHE *cache)
 {
   VOID(pthread_mutex_lock(&LOCK_log));
+  DBUG_ENTER("MYSQL_LOG::write(cache");
   
   if (is_open())				// Should always be true
   {
@@ -1214,7 +1220,7 @@ bool MYSQL_LOG::write(THD *thd, IO_CACHE *cache)
     signal_update();
   }
   VOID(pthread_mutex_unlock(&LOCK_log));
-  return 0;
+  DBUG_RETURN(0);
 
 err:
   if (!write_error)
@@ -1223,7 +1229,7 @@ err:
     sql_print_error(ER(ER_ERROR_ON_WRITE), name, errno);
   }
   VOID(pthread_mutex_unlock(&LOCK_log));
-  return 1;
+  DBUG_RETURN(1);
 }
 
 
