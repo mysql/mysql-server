@@ -1137,7 +1137,7 @@ static void dumpTable(uint numFields, char *table)
 	  safe_exit(EX_CONSCHECK);
 	  return;
 	}
-	if (extended_insert)
+	if (extended_insert && !opt_xml)
 	{
 	  ulong length = lengths[i];
 	  if (i == 0)
@@ -1222,7 +1222,7 @@ static void dumpTable(uint numFields, char *table)
       if (opt_xml)
         fprintf(md_result_file, "\t</row>\n");
 
-      if (extended_insert)
+      if (extended_insert && !opt_xml)
       {
 	ulong row_length;
 	dynstr_append(&extended_row,")");
@@ -1404,7 +1404,7 @@ static int init_dumping(char *database)
 	                                        (opt_quoted ? "`" : ""));
     }
   }
-  if (extended_insert)
+  if (extended_insert && !opt_xml)
     if (init_dynamic_string(&extended_row, "", 1024, 1024))
       exit(EX_EOM);
   return 0;
@@ -1676,7 +1676,7 @@ int main(int argc, char **argv)
   if (md_result_file != stdout)
     my_fclose(md_result_file, MYF(0));
   my_free(opt_password, MYF(MY_ALLOW_ZERO_PTR));
-  if (extended_insert)
+  if (extended_insert & !opt_xml)
     dynstr_free(&extended_row);
   my_end(0);
   return(first_error);
