@@ -1863,9 +1863,9 @@ int Field_long::store(double nr)
       res=0;
       error= 1;
     }
-    else if (nr > (double) (ulong) ~0L)
+    else if (nr > (double) UINT_MAX32)
     {
-      res=(int32) (uint32) ~0L;
+      res= UINT_MAX32;
       error= 1;
     }
     else
