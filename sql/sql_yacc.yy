@@ -5267,9 +5267,12 @@ optional_order_or_limit:
 	    SELECT_LEX *sel= lex->current_select;
 	    SELECT_LEX_UNIT *unit= sel->master_unit();
 	    SELECT_LEX *fake= unit->fake_select_lex;
-	    unit->global_parameters= fake;
-	    fake->no_table_names_allowed= 1;
-	    lex->current_select= fake;
+	    if (fake)
+	    {
+	      unit->global_parameters= fake;
+	      fake->no_table_names_allowed= 1;
+	      lex->current_select= fake;
+	    }
 	    thd->where= "global ORDER clause";
 	  }
 	order_or_limit
