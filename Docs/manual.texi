@@ -42622,6 +42622,9 @@ can gracefully recover if the index file gets full.
 If you perform an @code{ALTER TABLE} on a table that is symlinked to another
 disk, create temporary tables on this disk.
 @item
+Implement a date/datetime type that handles time zone information properly,
+so that dealing with dates in different time zones is easier.
+@item
 FreeBSD and MIT-pthreads;  Do sleeping threads take CPU?
 @item
 Check if locked threads take any CPU.
