@@ -23,7 +23,7 @@
 #include <my_pthread.h>				/* because of signal()	*/
 #endif
 
-#define ADMIN_VERSION "8.36"
+#define ADMIN_VERSION "8.37"
 #define MAX_MYSQL_VAR 128
 #define SHUTDOWN_DEF_TIMEOUT 3600		/* Wait for shutdown */
 #define MAX_TRUNC_LENGTH 3
@@ -36,7 +36,8 @@ static int interval=0;
 static my_bool option_force=0,interrupted=0,new_line=0,
                opt_compress=0, opt_relative=0, opt_verbose=0, opt_vertical=0,
                tty_password=0;
-static uint tcp_port = 0, option_wait = 0, option_silent=0;
+static uint tcp_port = 0, option_wait = 0, option_silent=0, nr_iterations,
+            opt_count_iterations= 0;
 static ulong opt_connect_timeout, opt_shutdown_timeout;
 static my_string unix_port=0;
 
@@ -103,6 +104,10 @@ static TYPELIB command_typelib=
 
 static struct my_option my_long_options[] =
 {
+  {"count", 'c',
+   "Number of iterations to make. This works with -i (--sleep) only",
+   (gptr*) &nr_iterations, (gptr*) &nr_iterations, 0, GET_UINT,
+   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"force", 'f',
@@ -177,6 +182,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   int error = 0;
 
   switch(optid) {
+  case 'c':
+    opt_count_iterations= 1;
+    break;
   case 'p':
     if (argument)
     {
@@ -276,7 +284,7 @@ int main(int argc,char *argv[])
   else
   {
     error = 0;
-    while (!interrupted)
+    while (!interrupted && (!opt_count_iterations || nr_iterations))
     {
       new_line = 0;
       if ((error=execute_commands(&mysql,argc,commands)))
@@ -303,6 +311,8 @@ int main(int argc,char *argv[])
 	sleep(interval);
 	if (new_line)
 	  puts("");
+	if (opt_count_iterations)
+	  nr_iterations--;
       }
       else
 	break;
