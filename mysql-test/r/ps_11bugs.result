@@ -1,13 +1,10 @@
-use test;
-drop table if exists test_select;
-Warnings:
-Note	1051	Unknown table 'test_select'
-CREATE TABLE test_select(session_id  char(9) NOT NULL);
-INSERT INTO test_select VALUES ("abc");
-SELECT * FROM test_select;
+drop table if exists t1, t2;
+CREATE TABLE t1(session_id  char(9) NOT NULL);
+INSERT INTO t1 VALUES ("abc");
+SELECT * FROM t1;
 session_id
 abc
-prepare st_1180 from 'SELECT * FROM test_select WHERE ?="1111" and session_id = "abc"';
+prepare st_1180 from 'SELECT * FROM t1 WHERE ?="1111" and session_id = "abc"';
 set @arg1= 'abc';
 execute st_1180 using @arg1;
 session_id
@@ -18,16 +15,13 @@ abc
 set @arg1= 'abc';
 execute st_1180 using @arg1;
 session_id
-drop table test_select;
-drop table if exists tab_many_null;
-Warnings:
-Note	1051	Unknown table 'tab_many_null'
-create table tab_many_null (
+drop table t1;
+create table t1 (
 c_01 char(6), c_02 integer, c_03 real, c_04 int(3), c_05 varchar(20),
 c_06 date,    c_07 char(1), c_08 real, c_09 int(11), c_10 time,
 c_11 char(6), c_12 integer, c_13 real, c_14 int(3), c_15 varchar(20),
 c_16 date,    c_17 char(1), c_18 real, c_19 int(11), c_20 text);
-prepare st_1644 from 'insert into tab_many_null values ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
+prepare st_1644 from 'insert into t1 values ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
 set @arg01= 'row_1';
 set @arg02= 1;
 set @arg03= 1.1;
@@ -94,35 +88,31 @@ set @arg19= '300300300';
 set @arg20= '12:34:56';
 execute st_1644 using @arg01, @arg02, @arg03, @arg04, @arg05, @arg06, @arg07, @arg08, @arg09, @arg10,
 @arg11, @arg12, @arg13, @arg14, @arg15, @arg16, @arg17, @arg18, @arg19, @arg20;
-select * from tab_many_null;
+select * from t1;
 c_01	c_02	c_03	c_04	c_05	c_06	c_07	c_08	c_09	c_10	c_11	c_12	c_13	c_14	c_15	c_16	c_17	c_18	c_19	c_20
 row_1	1	1.1	111	row_one	2004-10-12	1	1.1	100100100	12:34:56	row_1	1	1.1	111	row_one	2004-10-12	1	1.1	100100100	12:34:56
 NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 row_3	3	3.3	333	row_three	2004-10-12	3	3.3	300300300	12:34:56	row_3	3	3.3	333	row_three	2004-10-12	3	3.3	300300300	12:34:56
-drop table tab_many_null;
-drop table if exists table1, table2;
-Warnings:
-Note	1051	Unknown table 'table1'
-Note	1051	Unknown table 'table2'
-create table table1(
+drop table t1;
+create table t1(
 cola varchar(50) not null,
 colb varchar(8) not null,
 colc varchar(12) not null,
 cold varchar(2) not null,
 primary key (cola, colb, cold));
-create table table2(
+create table t2(
 cola varchar(50) not null,
 colb varchar(8) not null,
 colc varchar(2) not null,
 cold float,
 primary key (cold));
-insert into table1 values ('aaaa', 'yyyy', 'yyyy-dd-mm', 'R');
-insert into table2 values ('aaaa', 'yyyy', 'R', 203), ('bbbb', 'zzzz', 'C', 201);
-prepare st_1676 from 'select a.cola, a.colb, a.cold from table1 a, table2 b where a.cola = ? and a.colb = ? and a.cold = ? and b.cola = a.cola and b.colb = a.colb and b.colc = a.cold';
+insert into t1 values ('aaaa', 'yyyy', 'yyyy-dd-mm', 'R');
+insert into t2 values ('aaaa', 'yyyy', 'R', 203), ('bbbb', 'zzzz', 'C', 201);
+prepare st_1676 from 'select a.cola, a.colb, a.cold from t1 a, t2 b where a.cola = ? and a.colb = ? and a.cold = ? and b.cola = a.cola and b.colb = a.colb and b.colc = a.cold';
 set @arg0= "aaaa";
 set @arg1= "yyyy";
 set @arg2= "R";
 execute st_1676 using @arg0, @arg1, @arg2;
 cola	colb	cold
 aaaa	yyyy	R
-drop table table1, table2;
+drop table t1, t2;
