@@ -50222,6 +50222,9 @@ each individual 4.0.x release.
 
 @itemize @bullet
 @item
+Fixed small security bug when old user table is used with 4.0.3 or higher
+and user had no global access
+@item
 Fixed security bug in database hash
 @item
 Fixed create table from any ITEM_FUNC and reverted a patch for month()
