@@ -473,7 +473,10 @@ public:
   }
 };
 
-
+/*
+  Used to hold information about file and file structure in exchainge 
+  via non-DB file (...INTO OUTFILE..., ...LOAD DATA...)
+*/
 class sql_exchange :public Sql_alloc
 {
 public:

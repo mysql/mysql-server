@@ -111,7 +111,7 @@ struct st_table {
   char		*table_name,*real_name,*path;
   uint		key_length;		/* Length of key */
   uint		tablenr,used_fields,null_bytes;
-  table_map	map;
+  table_map	map;                    /* ID bit of table (1,2,4,8,16...) */
   ulong		version,flush_version;
   uchar		*null_flags;
   IO_CACHE	*io_cache;			/* If sorted trough file*/
@@ -139,13 +139,14 @@ typedef struct st_table_list {
   char		*db,*name,*real_name;
   Item		*on_expr;			/* Used with outer join */
   struct st_table_list *natural_join;		/* natural join on this table*/
-  List<String>	*use_index,*ignore_index;
+  /* ... join ... USE INDEX ... IGNORE INDEX */
+  List<String>	*use_index,*ignore_index; 
   TABLE		*table;
   GRANT_INFO	grant;
   thr_lock_type lock_type;
   uint		outer_join;			/* Which join type */
   bool		straight;			/* optimize with prev table */
-  bool          updating;     /* for replicate-do/ignore table */
+  bool          updating;                   /* for replicate-do/ignore table */
   bool		shared;				/* Used twice in union */
 } TABLE_LIST;
 
