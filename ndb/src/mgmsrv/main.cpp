@@ -246,6 +246,7 @@ int main(int argc, char** argv)
     goto error_end;
   }
 
+  /* Construct a fake connectstring to connect back to ourselves */
   char connect_str[20];
   if(!opt_connect_str) {
     snprintf(connect_str,20,"localhost:%u",glob.mgmObject->getPort());
@@ -263,7 +264,15 @@ int main(int argc, char** argv)
    * Connect back to ourselves so we can use mgmapi to fetch
    * config info
    */
-  DBUG_PRINT("info",("CONNECT RESULT: %d",glob.mgmObject->get_config_retriever()->do_connect(0,0,0)));
+  int mgm_connect_result;
+  mgm_connect_result = glob.mgmObject->get_config_retriever()->
+    do_connect(0,0,0);
+
+  if(mgm_connect_result<0) {
+    ndbout_c("Unable to connect to our own ndb_mgmd (Error %d)",
+	     mgm_connect_result);
+    ndbout_c("This is probably a bug.");
+  }
   
 
   if (glob.daemon) {
