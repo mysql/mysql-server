@@ -201,3 +201,6 @@ set SQL_SELECT_LIMIT=DEFAULT;
 drop table t1,t2;
 select * union select 1;
 No tables used
+select 1 as a,(select a union select a);
+a	(select a union select a)
+1	1

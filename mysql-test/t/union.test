@@ -103,3 +103,4 @@ drop table t1,t2;
 
 --error 1096
 select * union select 1;
+select 1 as a,(select a union select a);
