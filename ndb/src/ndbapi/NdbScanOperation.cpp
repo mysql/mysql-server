@@ -1630,7 +1630,7 @@ NdbIndexScanOperation::set_new_bound()
   Uint32 bound_head = * m_first_bound_word;
   bound_head |= (theTupKeyLen - m_this_bound_start) << 16;
   * m_first_bound_word = bound_head;
-
-  m_first_bound_word = theKEYINFOptr;
+  
+  m_first_bound_word = theKEYINFOptr + theTotalNrOfKeyWordInSignal;;
   m_this_bound_start = theTupKeyLen;
 }
