@@ -243,16 +243,16 @@ SELECT @hadCreateViewPriv:=1 FROM user WHERE Create_view_priv LIKE '%';
 #
 # Create VIEWs privileges (v5.0)
 #
-ALTER TABLE db ADD Create_view_priv enum('N','Y') DEFAULT 'N' NOT NULL AFTER Lock_tables_priv;
-ALTER TABLE host ADD Create_view_priv enum('N','Y') DEFAULT 'N' NOT NULL AFTER Lock_tables_priv;
-ALTER TABLE user ADD Create_view_priv enum('N','Y') DEFAULT 'N' NOT NULL AFTER Repl_client_priv;
+ALTER TABLE db ADD Create_view_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL AFTER Lock_tables_priv;
+ALTER TABLE host ADD Create_view_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL AFTER Lock_tables_priv;
+ALTER TABLE user ADD Create_view_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL AFTER Repl_client_priv;
 
 #
 # Show VIEWs privileges (v5.0)
 #
-ALTER TABLE db ADD Show_view_priv enum('N','Y') DEFAULT 'N' NOT NULL AFTER Create_view_priv;
-ALTER TABLE host ADD Show_view_priv enum('N','Y') DEFAULT 'N' NOT NULL AFTER Create_view_priv;
-ALTER TABLE user ADD Show_view_priv enum('N','Y') DEFAULT 'N' NOT NULL AFTER Create_view_priv;
+ALTER TABLE db ADD Show_view_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL AFTER Create_view_priv;
+ALTER TABLE host ADD Show_view_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL AFTER Create_view_priv;
+ALTER TABLE user ADD Show_view_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL AFTER Create_view_priv;
 
 #
 # Assign create/show view privileges to people who have create provileges
@@ -268,16 +268,16 @@ SELECT @hadCreateRoutinePriv:=1 FROM user WHERE Create_routine_priv LIKE '%';
 #
 # Create PROCEDUREs privileges (v5.0)
 #
-ALTER TABLE db ADD Create_routine_priv enum('N','Y') DEFAULT 'N' NOT NULL AFTER Show_view_priv;
-ALTER TABLE user ADD Create_routine_priv enum('N','Y') DEFAULT 'N' NOT NULL AFTER Show_view_priv;
+ALTER TABLE db ADD Create_routine_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL AFTER Show_view_priv;
+ALTER TABLE user ADD Create_routine_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL AFTER Show_view_priv;
 
 #
 # Alter PROCEDUREs privileges (v5.0)
 #
-ALTER TABLE db ADD Alter_routine_priv enum('N','Y') DEFAULT 'N' NOT NULL AFTER Create_routine_priv;
-ALTER TABLE user ADD Alter_routine_priv enum('N','Y') DEFAULT 'N' NOT NULL AFTER Create_routine_priv;
+ALTER TABLE db ADD Alter_routine_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL AFTER Create_routine_priv;
+ALTER TABLE user ADD Alter_routine_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL AFTER Create_routine_priv;
 
-ALTER TABLE db ADD Execute_priv enum('N','Y') DEFAULT 'N' NOT NULL AFTER Alter_routine_priv;
+ALTER TABLE db ADD Execute_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL AFTER Alter_routine_priv;
 
 #
 # Assign create/alter routine privileges to people who have create privileges
