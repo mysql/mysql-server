@@ -35,7 +35,7 @@
 ** and adapted to mysqldump 05/11/01 by Jani Tolonen
 */
 
-#define DUMP_VERSION "8.22"
+#define DUMP_VERSION "8.23"
 
 #include <my_global.h>
 #include <my_sys.h>
@@ -897,8 +897,6 @@ static uint getTableStructure(char *table, char* db)
       fputs(";\n", sql_file);
     }
   }
-  if (opt_disable_keys)
-    fprintf(sql_file,"\n/*!40000 ALTER TABLE %s DISABLE KEYS */;\n",table_name);
   if (cFlag)
   {
     strpos=strmov(strpos,") VALUES ");
@@ -1023,7 +1021,7 @@ static void dumpTable(uint numFields, char *table)
       strxmov(strend(query), " WHERE ",where,NullS);
     }
     if (!opt_xml)
-      fputs("\n\n", md_result_file);
+      fputs("\n", md_result_file);
     if (mysql_query(sock, query))
     {
       DBerror(sock, "when retrieving data from server");
@@ -1048,6 +1046,9 @@ static void dumpTable(uint numFields, char *table)
       return;
     }
 
+    if (opt_disable_keys)
+      fprintf(md_result_file,"/*!40000 ALTER TABLE %s DISABLE KEYS */;\n",
+	      quote_name(table, table_buff));
     if (opt_lock)
       fprintf(md_result_file,"LOCK TABLES %s WRITE;\n",
 	      quote_name(table,table_buff));
@@ -1207,11 +1208,11 @@ static void dumpTable(uint numFields, char *table)
       safe_exit(EX_CONSCHECK);
       return;
     }
-    if (opt_disable_keys)
-      fprintf(md_result_file,"\n/*!40000 ALTER TABLE %s ENABLE KEYS */;\n",
-                                            quote_name(table,table_buff));
     if (opt_lock)
       fputs("UNLOCK TABLES;\n", md_result_file);
+    if (opt_disable_keys)
+      fprintf(md_result_file,"/*!40000 ALTER TABLE %s ENABLE KEYS */;\n",
+	      quote_name(table,table_buff));
     if (opt_autocommit)
       fprintf(md_result_file, "commit;\n");
     mysql_free_result(res);

@@ -44,3 +44,22 @@ AND start <= 999660;
 id	start	end	chr_strand
 133197	813898	813898	-1.0000
 drop table t1,t2;
+CREATE TABLE t1 (Fld1 int(11) default NULL,Fld2 int(11) default NULL);
+INSERT INTO t1 VALUES (1,10),(1,20),(2,NULL),(2,NULL),(3,50);
+select Fld1, max(Fld2) as q from t1 group by Fld1 having q is not null;
+Fld1	q
+1	20
+3	50
+select Fld1, max(Fld2) from t1 group by Fld1 having max(Fld2) is not null;
+Fld1	max(Fld2)
+1	20
+3	50
+select Fld1, max(Fld2) from t1 group by Fld1 having avg(Fld2) is not null;
+Fld1	max(Fld2)
+1	20
+3	50
+select Fld1, max(Fld2) from t1 group by Fld1 having std(Fld2) is not null;
+Fld1	max(Fld2)
+1	20
+3	50
+drop table t1;

@@ -37,7 +37,7 @@ WARNING: THIS PROGRAM IS STILL IN BETA. Comments/patches welcome.
 
 # Documentation continued at end of file
 
-my $VERSION = "1.14";
+my $VERSION = "1.15";
 
 my $opt_tmpdir = $ENV{TMPDIR} || "/tmp";
 
@@ -562,7 +562,7 @@ sub copy_files {
 	# add recursive option for scp
 	push @cp, "-r" if $^O =~ /m^(solaris|linux|freebsd)$/ && $method =~ /^scp\b/;
 
-	my @non_raid = grep { $_ !~ m:\d\d/: } @$files;
+	my @non_raid = grep { ! m:/\d{2}/[^/]+$: } @$files;
 
 	# add files to copy and the destination directory
 	safe_system( @cp, @non_raid, $target );

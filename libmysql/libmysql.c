@@ -737,7 +737,7 @@ static void mysql_read_default_options(struct st_mysql_options *options,
 	  *end=0;				/* Remove '=' */
 	}
 	/* Change all '_' in variable name to '-' */
-	for (end= *option ; (end= strcend(end,'_')) && *end ; )
+	for (end= *option ; *(end= strcend(end,'_')) ; )
 	  *end= '-';
 	switch (find_type(*option+2,&option_types,2)) {
 	case 1:				/* port */
@@ -1338,7 +1338,7 @@ mysql_init(MYSQL *mysql)
 
 /*
   Only enable LOAD DATA INFILE by default if configured with
-  --with-enabled-local-inflile
+  --enable-local-infile
 */
 #ifdef ENABLED_LOCAL_INFILE
   mysql->options.client_flag|= CLIENT_LOCAL_FILES;

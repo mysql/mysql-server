@@ -221,6 +221,8 @@ int acl_init(bool dont_read_acl_tables)
       user.x509_issuer=get_field(&mem, table, 19);
       user.x509_subject=get_field(&mem, table, 20);
     }
+    else
+      user.ssl_type=SSL_TYPE_NONE;
 #endif /* HAVE_OPENSSL */
     if (user.password && (length=(uint) strlen(user.password)) == 8 &&
 	protocol_version == PROTOCOL_VERSION)
@@ -1201,7 +1203,7 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
   /* We write down SSL related ACL stuff */
   DBUG_PRINT("info",("table->fields=%d",table->fields));
   if (table->fields >= 21)		/* From 4.0.0 we have more fields */
-  { 
+  {
     table->field[18]->store("",0);
     table->field[19]->store("",0);
     table->field[20]->store("",0);

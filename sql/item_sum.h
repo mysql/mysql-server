@@ -64,6 +64,7 @@ public:
   { return new Item_field(field);}
   table_map used_tables() const { return ~(table_map) 0; } /* Not used */
   bool const_item() const { return 0; }
+  bool is_null() { return null_value; }
   void update_used_tables() { }
   void make_field(Send_field *field);
   void print(String *str);
@@ -202,6 +203,7 @@ public:
   enum Type type() const { return FIELD_AVG_ITEM; }
   double val();
   longlong val_int() { return (longlong) val(); }
+  bool is_null() { (void) val_int(); return null_value; }
   String *val_str(String*);
   void make_field(Send_field *field);
   void fix_length_and_dec() {}
@@ -239,6 +241,7 @@ public:
   double val();
   longlong val_int() { return (longlong) val(); }
   String *val_str(String*);
+  bool is_null() { (void) val_int(); return null_value; }
   void make_field(Send_field *field);
   void fix_length_and_dec() {}
 };
