@@ -23,7 +23,14 @@ ndb_select_count_SOURCES = select_count.cpp $(tools_common_sources)
 include $(top_srcdir)/ndb/config/common.mk.am
 include $(top_srcdir)/ndb/config/type_ndbapitools.mk.am
 
-AM_LDFLAGS = @ndb_bin_am_ldflags@
+ndb_waiter_LDFLAGS = @ndb_bin_am_ldflags@
+ndb_drop_table_LDFLAGS = @ndb_bin_am_ldflags@
+ndb_delete_all_LDFLAGS = @ndb_bin_am_ldflags@
+ndb_desc_LDFLAGS = @ndb_bin_am_ldflags@
+ndb_drop_index_LDFLAGS = @ndb_bin_am_ldflags@
+ndb_show_tables_LDFLAGS = @ndb_bin_am_ldflags@
+ndb_select_all_LDFLAGS = @ndb_bin_am_ldflags@
+ndb_select_count_LDFLAGS = @ndb_bin_am_ldflags@
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
