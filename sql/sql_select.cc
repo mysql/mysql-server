@@ -196,6 +196,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
   List<Item>	all_fields(fields);
   bool		select_distinct;
   SELECT_LEX *select_lex = &(thd->lex.select_lex);
+  SELECT_LEX *cur_sel = thd->lex.select;
   DBUG_ENTER("mysql_select");
 
   /* Check that all tables, fields, conds and order are ok */
@@ -553,7 +554,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
   make_join_readinfo(&join,
 		     (select_options & (SELECT_DESCRIBE |
 					SELECT_NO_JOIN_CACHE)) |
-     (select_lex->ftfunc_list.elements ? SELECT_NO_JOIN_CACHE : 0));
+     (cur_sel->ftfunc_list.elements ? SELECT_NO_JOIN_CACHE : 0));
 
   /* Need to tell Innobase that to play it safe, it should fetch all
      columns of the tables: this is because MySQL
@@ -1615,7 +1616,7 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
       add_key_part(keyuse,field);
   }
 
-  if (thd->lex.select_lex.ftfunc_list.elements)
+  if (thd->lex.select->ftfunc_list.elements)
   {
     add_ft_keys(keyuse,join_tab,cond,normal_tables);
   }
