@@ -426,6 +426,10 @@ NdbScanFilter::cmp(BinaryCondition cond, int ColId,
     return m_impl.cond_col_const(Interpreter::EQ, ColId, val, len);
   case COND_NE:
     return m_impl.cond_col_const(Interpreter::NE, ColId, val, len);
+  case COND_LIKE:
+    return m_impl.cond_col_const(Interpreter::LIKE, ColId, val, len);
+  case COND_NOT_LIKE:
+    return m_impl.cond_col_const(Interpreter::NOT_LIKE, ColId, val, len);
   }
   return -1;
 } 

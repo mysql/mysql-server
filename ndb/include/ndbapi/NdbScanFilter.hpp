@@ -53,7 +53,9 @@ public:
     COND_GE = 2,        ///< upper bound
     COND_GT = 3,        ///< upper bound, strict
     COND_EQ = 4,        ///< equality
-    COND_NE = 5         ///< not equal
+    COND_NE = 5,        ///< not equal
+    COND_LIKE = 6,      ///< like
+    COND_NOT_LIKE = 7   ///< not like
   };
 
   /** 
