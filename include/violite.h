@@ -210,9 +210,6 @@ struct st_VioSSLConnectorFd *new_VioSSLConnectorFd(
 struct st_VioSSLAcceptorFd *new_VioSSLAcceptorFd(
 		const char* key_file,const char* cert_file,const char* ca_file,const char* ca_path);
 Vio* new_VioSSL(struct st_VioSSLAcceptorFd* fd, Vio* sd,int state);
-//static int
-//init_bio_(struct st_VioSSLAcceptorFd* fd, Vio* sd, int state,  int bio_flags);
-//void report_errors();
 	
 #ifdef	__cplusplus
 }

@@ -95,16 +95,15 @@ int deny_severity = LOG_WARNING;
 #include <sys/mman.h>
 #endif
 
+#ifdef _AIX41
+int initgroups(const char *,unsigned int);
+#endif
+
 #if defined(__FreeBSD__) && defined(HAVE_IEEEFP_H)
 #include <ieeefp.h>
 #ifdef HAVE_FP_EXCEPT				// Fix type conflict
 typedef fp_except fp_except_t;
 #endif
-
-#ifdef _AIX41
-extern "C" int initgroups(const char *,int);
-#endif
-
 
   /* We can't handle floating point expections with threads, so disable
      this on freebsd

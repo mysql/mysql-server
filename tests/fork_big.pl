@@ -88,6 +88,7 @@ for ($i=0 ; $i < $opt_threads ; $i ++)
 {
   test_select() if (($pid=fork()) == 0); $work{$pid}="select_key";
 }
+test_select_count() if (($pid=fork()) == 0); $work{$pid}="select_count";
 test_delete() if (($pid=fork()) == 0); $work{$pid}="delete";
 test_update() if (($pid=fork()) == 0); $work{$pid}="update";
 test_flush() if (($pid=fork()) == 0); $work{$pid}= "flush";
@@ -210,6 +211,35 @@ sub test_select
   }
   $dbh->disconnect; $dbh=0;
   print "Test_select: Executed $count selects\n";
+  exit(0);
+}
+
+#
+# Do big select count(distinct..) over the table
+# 
+
+sub test_select_count
+{
+  my ($dbh, $i, $j, $count, $loop);
+
+  $dbh = DBI->connect("DBI:mysql:$opt_db:$opt_host",
+		      $opt_user, $opt_password,
+		    { PrintError => 0}) || die $DBI::errstr;
+
+  $count=0;
+  $i=0;
+  while (!test_if_abort($dbh))
+  {
+    for ($j=0 ; $j < $numtables ; $j++)
+    {
+      my ($table)= $testtables[$j]->[0];
+      simple_query($dbh, "select count(distinct marker),count(distinct id),count(distinct info) from $table");
+      $count++;
+    }
+    sleep(20);		# This query is quite slow
+  }
+  $dbh->disconnect; $dbh=0;
+  print "Test_select: Executed $count select count(distinct) queries\n";
   exit(0);
 }
 
