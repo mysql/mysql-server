@@ -1449,25 +1449,36 @@ mysql_execute_command(THD *thd)
 	}
       }
     }
-    else if (!(result=new select_send()))
+    else if (lex->select_into_var_list.elements)
     {
-      res= -1;
-#ifdef DELETE_ITEMS
-      delete select_lex->having;
-      delete select_lex->where;
-#endif
-      break;
+      if (!(result=new select_dumpvar()))
+      {
+	res= -1;
+	break;
+      }
     }
-    else
+    else 
     {
-      /*
-	Normal select:
-	Change lock if we are using SELECT HIGH PRIORITY,
-	FOR UPDATE or IN SHARE MODE
-      */
-      TABLE_LIST *table;
-      for (table = tables ; table ; table=table->next)
-	table->lock_type= lex->lock_option;
+      if (!(result=new select_send()))
+      {
+	res= -1;
+#ifdef DELETE_ITEMS
+	delete select_lex->having;
+	delete select_lex->where;
+#endif
+	break;
+      }
+      else
+      {
+	/*
+	  Normal select:
+	  Change lock if we are using SELECT HIGH PRIORITY,
+	  FOR UPDATE or IN SHARE MODE
+	*/
+	TABLE_LIST *table;
+	for (table = tables ; table ; table=table->next)
+	  table->lock_type= lex->lock_option;
+      }
     }
 
     if (!(res=open_and_lock_tables(thd,tables)))
@@ -2966,6 +2977,7 @@ mysql_init_select(LEX *lex)
   select_lex->olap=   UNSPECIFIED_OLAP_TYPE;
   lex->exchange= 0;
   lex->proc_list.first= 0;
+  lex->select_into_var_list.empty();
 }
 
 
