@@ -647,3 +647,4 @@ vio/test-ssl
 vio/test-sslclient
 vio/test-sslserver
 vio/viotest-ssl
+mysql_priv.h

@@ -66,7 +66,6 @@ db_find_routine_aux(THD *thd, int type, char *name, uint namelen,
   TABLE *table;
   byte key[64+64+1];		// db, name, type
   uint keylen;
-  int ret;
 
   // Put the key together
   memset(key, (int)' ', 64);	// QQ Empty db for now
@@ -191,7 +190,7 @@ db_find_routine(THD *thd, int type, char *name, uint namelen, sp_head **sphp)
   modified= table->field[MYSQL_PROC_FIELD_MODIFIED]->val_int();
   created= table->field[MYSQL_PROC_FIELD_CREATED]->val_int();
 
-  sql_mode= table->field[MYSQL_PROC_FIELD_SQL_MODE]->val_int();
+  sql_mode= (ulong) table->field[MYSQL_PROC_FIELD_SQL_MODE]->val_int();
 
   table->field[MYSQL_PROC_FIELD_COMMENT]->val_str(&str, &str);
 
@@ -820,7 +819,7 @@ create_string(THD *thd, ulong *lenp,
 	      st_sp_chistics *chistics)
 {
   char *buf, *ptr;
-  ulong buflen, pos;
+  ulong buflen;
 
   buflen= 100 + namelen + paramslen + returnslen + bodylen +
     chistics->comment.length;
@@ -840,14 +839,15 @@ create_string(THD *thd, ulong *lenp,
 		      name, params));
   }
   if (chistics->detistic)
-    ptr+= my_sprintf(ptr, (ptr, (char *)"    DETERMINISTIC\n"));
+    ptr= strmov(ptr, "    DETERMINISTIC\n");
   if (chistics->suid == IS_NOT_SUID)
-    ptr+= my_sprintf(ptr, (ptr, (char *)"    SQL SECURITY INVOKER\n"));
+    ptr= strmov(ptr, "    SQL SECURITY INVOKER\n");
   if (chistics->comment.length)
-    ptr+= my_sprintf(ptr, (ptr, (char *)"    COMMENT '%*s'\n",
-			   chistics->comment.length,
-			   chistics->comment.str));
-  strcpy(ptr, body);
-  *lenp= (ptr-buf)+bodylen;
+  {
+    ptr= strmov(strnmov(strmov(ptr, "    COMMENT '"),chistics->comment.str,
+			chistics->comment.length),"'\n");
+  }
+  ptr= strmov(ptr, body);
+  *lenp= (ptr-buf);
   return buf;
 }

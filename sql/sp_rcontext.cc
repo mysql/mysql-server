@@ -133,8 +133,6 @@ sp_rcontext::pop_cursors(uint count)
 LEX *
 sp_cursor::pre_open(THD *thd)
 {
-  int res;
-
   if (m_isopen)
   {
     send_error(thd, ER_SP_CURSOR_ALREADY_OPEN);
