@@ -31,6 +31,18 @@ delete from t1;
 drop procedure foo42;
 
 
+# USE test: Make sure we remain in the same DB.
+create procedure u()
+  use sptmp;
+
+create database sptmp;
+use test;
+call u();
+select database();
+drop database sptmp;
+drop procedure u;
+
+
 # Single statement, two IN params.
 create procedure bar(x char(16), y int)
   insert into test.t1 values (x, y);

@@ -18,6 +18,16 @@ id	data
 foo	42
 delete from t1;
 drop procedure foo42;
+create procedure u()
+use sptmp;
+create database sptmp;
+use test;
+call u();
+select database();
+database()
+test
+drop database sptmp;
+drop procedure u;
 create procedure bar(x char(16), y int)
 insert into test.t1 values (x, y);
 call bar("bar", 666);
