@@ -45,3 +45,20 @@ select found_rows();
 FOUND_ROWS()
 8
 drop table t1;
+create table t1 (a int not null primary key);
+insert into t1 values (1),(2),(3),(4),(5);
+select sql_calc_found_rows a from t1 where a in (1,2,3) order by a desc limit 0,2;
+a
+3
+2
+select FOUND_ROWS();
+FOUND_ROWS()
+3
+select sql_calc_found_rows a from t1 where a in (1,2,3) order by a+2 desc limit 0,2;
+a
+3
+2
+select FOUND_ROWS();
+FOUND_ROWS()
+3
+drop table t1;

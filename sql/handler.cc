@@ -45,6 +45,7 @@ static int NEAR_F delete_file(const char *name,const char *ext,int extflag);
 ulong ha_read_count, ha_write_count, ha_delete_count, ha_update_count,
       ha_read_key_count, ha_read_next_count, ha_read_prev_count,
       ha_read_first_count, ha_read_last_count,
+      ha_commit_count, ha_rollback_count,
       ha_read_rnd_count, ha_read_rnd_next_count;
 
 const char *ha_table_type[] = {
@@ -267,6 +268,7 @@ int ha_commit_trans(THD *thd, THD_TRANS* trans)
 #ifdef USING_TRANSACTIONS
   if (opt_using_transactions)
   {
+    bool operation_done=0;
     /* Update the binary log if we have cached some queries */
     if (trans == &thd->transaction.all && mysql_bin_log.is_open() &&
 	my_b_tell(&thd->transaction.trans_log))
@@ -297,12 +299,17 @@ int ha_commit_trans(THD *thd, THD_TRANS* trans)
       }
       trans->innodb_active_trans=0;
       if (trans == &thd->transaction.all)
+      {
 	query_cache.invalidate(Query_cache_table::INNODB);
+	operation_done=1;
+      }
     }
 #endif
     if (error && trans == &thd->transaction.all && mysql_bin_log.is_open())
       sql_print_error("Error: Got error during commit;  Binlog is not up to date!");
     thd->tx_isolation=thd->session_tx_isolation;
+    if (operation_done)
+      statistic_increment(ha_commit_count,&LOCK_status);
   }
 #endif // using transactions
   DBUG_RETURN(error);
@@ -316,6 +323,7 @@ int ha_rollback_trans(THD *thd, THD_TRANS *trans)
 #ifdef USING_TRANSACTIONS
   if (opt_using_transactions)
   {
+    bool operation_done=0;
 #ifdef HAVE_BERKELEY_DB
     if (trans->bdb_tid)
     {
@@ -325,6 +333,7 @@ int ha_rollback_trans(THD *thd, THD_TRANS *trans)
 	error=1;
       }
       trans->bdb_tid=0;
+      operation_done=1;
     }
 #endif
 #ifdef HAVE_INNOBASE_DB
@@ -336,6 +345,7 @@ int ha_rollback_trans(THD *thd, THD_TRANS *trans)
 	error=1;
       }
       trans->innodb_active_trans=0;
+      operation_done=1;
     }
 #endif
     if (trans == &thd->transaction.all)
@@ -343,6 +353,8 @@ int ha_rollback_trans(THD *thd, THD_TRANS *trans)
 		      WRITE_CACHE, (my_off_t) 0, 0, 1);
     thd->transaction.trans_log.end_of_file= max_binlog_cache_size;
     thd->tx_isolation=thd->session_tx_isolation;
+    if (operation_done)
+      statistic_increment(ha_rollback_count,&LOCK_status);
   }
 #endif /* USING_TRANSACTIONS */
   DBUG_RETURN(error);

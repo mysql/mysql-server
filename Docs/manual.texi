@@ -48385,6 +48385,11 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
+Fixed a bug where @code{SQL_CALC_ROWS} returned a wrong value when used
+with one table and @code{ORDER BY} and with InnoDB tables.
+@item
+Fixed that @code{SELECT 0 LIMIT 0} doesn't hang thread.
+@item
 Fixed some problems with @code{USE KEYS} / @code{IGNORE KEYS} when using
 many keys with the same start column.
 @item

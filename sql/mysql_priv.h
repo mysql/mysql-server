@@ -586,7 +586,8 @@ extern char f_fyllchar;
 extern ulong ha_read_count, ha_write_count, ha_delete_count, ha_update_count,
 	     ha_read_key_count, ha_read_next_count, ha_read_prev_count,
 	     ha_read_first_count, ha_read_last_count,
-  	     ha_read_rnd_count, ha_read_rnd_next_count;
+	     ha_read_rnd_count, ha_read_rnd_next_count,
+	     ha_commit_count, ha_rollback_count;
 extern MY_BITMAP temp_pool;
 extern uchar *days_in_month;
 extern DATE_FORMAT dayord;

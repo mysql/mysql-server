@@ -188,7 +188,7 @@ AC_DEFINE(SPRINTF_RETURNS_INT) AC_MSG_RESULT("int"),
    	
 
 # option, cache_name, variable,
-# code to execute if yes, code to exectute if fal
+# code to execute if yes, code to exectute if fail
 AC_DEFUN(AC_SYS_COMPILER_FLAG,
 [
   AC_MSG_CHECKING($1)
