@@ -1667,6 +1667,18 @@ bool select_create::send_data(List<Item> &values)
 }
 
 
+void select_create::send_error(uint errcode,const char *err)
+{
+  /*
+   Disable binlog, because we "roll back" partial inserts in ::abort
+   by removing the table, even for non-transactional tables.
+  */
+  tmp_disable_binlog(thd);
+  select_insert::send_error(errcode, err);
+  reenable_binlog(thd);
+}
+
+
 bool select_create::send_eof()
 {
   bool tmp=select_insert::send_eof();
