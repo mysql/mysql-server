@@ -56,11 +56,11 @@ MYERR="$CWD/var/log/mysqld.err"
 #++
 # Program Definitions
 #--
-BASENAME=/bin/basename
+BASENAME=`which basename`
 CAT=/bin/cat
 CUT=/usr/bin/cut
 ECHO=/bin/echo
-EXPR=/usr/bin/expr
+EXPR=`which expr`
 PRINTF=/usr/bin/printf
 RM=/bin/rm
 TIME=/usr/bin/time
@@ -70,8 +70,7 @@ MYSQL_TEST="$BASEDIR/client/mysqltest"
 MYSQLADMIN="$BASEDIR/client/mysqladmin"
 MYSQL_TEST="$MYSQL_TEST --socket=$MYSOCK --database=$DB --user=$DBUSER --password=$DBPASSWD --silent"
 INSTALL_DB="$MYBIN/mysql-test_install_db"
-[ $1 = "-gcov" ] && DO_GCOV=1
-
+[ "$1" = "-gcov" ] && DO_GCOV=1
 #++
 # Terminal Modifications
 #--
@@ -80,8 +79,6 @@ SETCOLOR_SUCCESS="$ECHO -n [1;32m"
 SETCOLOR_FAILURE="$ECHO -n [1;31m"
 SETCOLOR_WARNING="$ECHO -n [1;33m"
 SETCOLOR_NORMAL="$ECHO -n [0;39m"
-
-
 
 #++
 # Function Definitions
@@ -233,7 +230,9 @@ mysql_loadstd () {
     return 1
 }
 
-[ $DO_GCOV = 1 ] && gcov_clean # clean up stale gcov files if running with gcov
+[ "$DO_GCOV" -a ! -x "$GCOV" ] && error "No gcov found"
+
+[ "$DO_GCOV" ] && gcov_clean # clean up stale gcov files if running with gcov
 
 mysql_install_db
 
@@ -315,6 +314,6 @@ $ECHO
 report_stats
 $ECHO
 
-[ $DO_GCOV = 1 ] && gcov_collect # collect coverage information
+[ "$DO_GCOV" ] && gcov_collect # collect coverage information
 
 exit 0
