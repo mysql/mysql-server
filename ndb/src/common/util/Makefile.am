@@ -7,8 +7,8 @@ libgeneral_la_SOURCES = \
             SocketServer.cpp SocketClient.cpp SocketAuthenticator.cpp\
 	    OutputStream.cpp NdbOut.cpp BaseString.cpp Base64.cpp \
 	    NdbSqlUtil.cpp new.cpp \
-            uucode.c random.c getarg.c version.c \
-            strdup.c strlcat.c strlcpy.c \
+            uucode.c random.c version.c \
+            strdup.c \
             ConfigValues.cpp ndb_init.c basestring_vsnprintf.c
 
 include $(top_srcdir)/ndb/config/common.mk.am

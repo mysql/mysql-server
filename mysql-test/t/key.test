@@ -150,7 +150,8 @@ create table t1
 );
 INSERT INTO t1 VALUES (1, 1, 1, 1, 'a'); 
 INSERT INTO t1 VALUES (1, 1, 1, 1, 'b'); 
-!$1062 INSERT INTO t1 VALUES (1, 1, 1, 1, 'a');
+--error 1062
+INSERT INTO t1 VALUES (1, 1, 1, 1, 'a');
 drop table t1;
 
 #

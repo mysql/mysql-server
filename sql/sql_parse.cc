@@ -899,18 +899,20 @@ static int check_connection(THD *thd)
   /* Since 4.1 all database names are stored in utf8 */
   if (db)
   {
+    uint dummy_errors;
     db_buff[copy_and_convert(db_buff, sizeof(db_buff)-1,
                              system_charset_info,
                              db, strlen(db),
-                             thd->charset())]= 0;
+                             thd->charset(), &dummy_errors)]= 0;
     db= db_buff;
   }
 
   if (user)
   {
+    uint dummy_errors;
     user_buff[copy_and_convert(user_buff, sizeof(user_buff)-1,
 			       system_charset_info, user, strlen(user),
-			       thd->charset())]= '\0';
+			       thd->charset(), &dummy_errors)]= '\0';
     user= user_buff;
   }
 
@@ -1144,14 +1146,14 @@ extern "C" pthread_handler_decl(handle_bootstrap,arg)
     {
       thd->net.error = 0;
       close_thread_tables(thd);			// Free tables
-      free_root(&thd->mem_root,MYF(MY_KEEP_PREALLOC));
+      free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
       break;
     }
     mysql_parse(thd,thd->query,length);
     close_thread_tables(thd);			// Free tables
     if (thd->is_fatal_error)
       break;
-    free_root(&thd->mem_root,MYF(MY_KEEP_PREALLOC));
+    free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
     free_root(&thd->transaction.mem_root,MYF(MY_KEEP_PREALLOC));
   }
 
@@ -1412,9 +1414,10 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     }
 #endif
     /* Convert database name to utf8 */
+    uint dummy_errors;
     db_buff[copy_and_convert(db_buff, sizeof(db_buff)-1,
                              system_charset_info, db, strlen(db),
-                             thd->charset())]= 0;
+                             thd->charset(), &dummy_errors)]= 0;
     db= db_buff;
 
     /* Save user and privileges */
@@ -1856,7 +1859,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
   thd->packet.shrink(thd->variables.net_buffer_length);	// Reclaim some memory
 
-  free_root(&thd->mem_root,MYF(MY_KEEP_PREALLOC));
+  free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
   DBUG_RETURN(error);
 }
 
@@ -2141,15 +2144,19 @@ mysql_execute_command(THD *thd)
 
       query_len= need_conversion? (pstr->length() * to_cs->mbmaxlen) :
                                   pstr->length();
-      if (!(query_str= alloc_root(&thd->mem_root, query_len+1)))
+      if (!(query_str= alloc_root(thd->mem_root, query_len+1)))
       {
         res= -1;
         break;        // EOM (error should be reported by allocator)
       }
 
       if (need_conversion)
-        query_len= copy_and_convert(query_str, query_len, to_cs, pstr->ptr(),
-                                    pstr->length(), pstr->charset());
+      {
+        uint dummy_errors;
+        query_len= copy_and_convert(query_str, query_len, to_cs,
+                                    pstr->ptr(), pstr->length(),
+                                    pstr->charset(), &dummy_errors);
+      }
       else
         memcpy(query_str, pstr->ptr(), pstr->length());
       query_str[query_len]= 0;
@@ -2716,6 +2723,7 @@ unsent_create_error:
     {
       if (mysql_bin_log.is_open())
       {
+	thd->clear_error(); // No binlog error generated
         Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
         mysql_bin_log.write(&qinfo);
       }
@@ -2745,6 +2753,7 @@ unsent_create_error:
     {
       if (mysql_bin_log.is_open())
       {
+	thd->clear_error(); // No binlog error generated
         Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
         mysql_bin_log.write(&qinfo);
       }
@@ -2767,6 +2776,7 @@ unsent_create_error:
     {
       if (mysql_bin_log.is_open())
       {
+	thd->clear_error(); // No binlog error generated
         Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
         mysql_bin_log.write(&qinfo);
       }
@@ -4479,8 +4489,8 @@ mysql_init_select(LEX *lex)
 bool
 mysql_new_select(LEX *lex, bool move_down)
 {
-  SELECT_LEX *select_lex = new(&lex->thd->mem_root) SELECT_LEX();
-  if (!select_lex)
+  SELECT_LEX *select_lex;
+  if (!(select_lex= new(lex->thd->mem_root) SELECT_LEX()))
     return 1;
   select_lex->select_number= ++lex->thd->select_number;
   select_lex->init_query();
@@ -4489,9 +4499,10 @@ mysql_new_select(LEX *lex, bool move_down)
   if (move_down)
   {
     /* first select_lex of subselect or derived table */
-    SELECT_LEX_UNIT *unit= new(&lex->thd->mem_root) SELECT_LEX_UNIT();
-    if (!unit)
+    SELECT_LEX_UNIT *unit;
+    if (!(unit= new(lex->thd->mem_root) SELECT_LEX_UNIT()))
       return 1;
+
     unit->init_query();
     unit->init_select();
     unit->thd= lex->thd;
@@ -4518,7 +4529,8 @@ mysql_new_select(LEX *lex, bool move_down)
 	as far as we included SELECT_LEX for UNION unit should have
 	fake SELECT_LEX for UNION processing
       */
-      fake= unit->fake_select_lex= new(&lex->thd->mem_root) SELECT_LEX();
+      if (!(fake= unit->fake_select_lex= new(lex->thd->mem_root) SELECT_LEX()))
+        return 1;
       fake->include_standalone(unit,
 			       (SELECT_LEX_NODE**)&unit->fake_select_lex);
       fake->select_number= INT_MAX;

@@ -526,7 +526,7 @@ private:
   int 	sendCOMMIT();                   // Send a TC_COMMITREQ signal;
   void	setGCI(int GCI);		// Set the global checkpoint identity
  
-  int	OpCompleteFailure(Uint8 abortoption);
+  int	OpCompleteFailure(Uint8 abortoption, bool setFailure = true);
   int	OpCompleteSuccess();
   void	CompletedOperations();	        // Move active ops to list of completed
  
@@ -552,7 +552,7 @@ private:
   void		setOperationErrorCode(int anErrorCode);	
 
   // Indicate something went wrong in the definition phase
-  void		setOperationErrorCodeAbort(int anErrorCode);
+  void		setOperationErrorCodeAbort(int anErrorCode, int abortOption = -1);
 
   int		checkMagicNumber();		       // Verify correct object
   NdbOperation* getNdbOperation(const class NdbTableImpl* aTable,

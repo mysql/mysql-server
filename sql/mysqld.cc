@@ -375,7 +375,7 @@ SHOW_COMP_OPTION have_crypt, have_compress;
 
 /* Thread specific variables */
 
-pthread_key(MEM_ROOT*,THR_MALLOC);
+pthread_key(MEM_ROOT**,THR_MALLOC);
 pthread_key(THD*, THR_THD);
 pthread_mutex_t LOCK_mysql_create_db, LOCK_Acl, LOCK_open, LOCK_thread_count,
 		LOCK_mapped_file, LOCK_status,
@@ -2972,11 +2972,10 @@ we force server id to 2, but this MySQL server will not act as a slave.");
     exit(1);
 
 #ifdef __WIN__
-#define MYSQL_ERR_FILE "mysql.err"
   if (!opt_console)
   {
-    freopen(MYSQL_ERR_FILE,"a+",stdout);
-    freopen(MYSQL_ERR_FILE,"a+",stderr);
+    freopen(log_error_file,"a+",stdout);
+    freopen(log_error_file,"a+",stderr);
     FreeConsole();				// Remove window
   }
 #endif
@@ -5132,12 +5131,12 @@ The minimum value for this variable is 4096.",
    "Persistent buffer for query parsing and execution",
    (gptr*) &global_system_variables.query_prealloc_size,
    (gptr*) &max_system_variables.query_prealloc_size, 0, GET_ULONG,
-   REQUIRED_ARG, QUERY_ALLOC_PREALLOC_SIZE, 1024, ~0L, 0, 1024, 0},
+   REQUIRED_ARG, QUERY_ALLOC_PREALLOC_SIZE, 16384, ~0L, 0, 1024, 0},
   {"range_alloc_block_size", OPT_RANGE_ALLOC_BLOCK_SIZE,
    "Allocation block size for storing ranges during optimization",
    (gptr*) &global_system_variables.range_alloc_block_size,
    (gptr*) &max_system_variables.range_alloc_block_size, 0, GET_ULONG,
-   REQUIRED_ARG, RANGE_ALLOC_BLOCK_SIZE, 1024, ~0L, 0, 1024, 0},
+   REQUIRED_ARG, RANGE_ALLOC_BLOCK_SIZE, 4096, ~0L, 0, 1024, 0},
   {"read_buffer_size", OPT_RECORD_BUFFER,
    "Each thread that does a sequential scan allocates a buffer of this size for each table it scans. If you do many sequential scans, you may want to increase this value.",
    (gptr*) &global_system_variables.read_buff_size,

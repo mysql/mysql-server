@@ -185,55 +185,14 @@ void Item_bool_func2::fix_length_and_dec()
     to the collation of A.
   */
 
-  if (args[0] && args[1])
-  {
-    uint strong= 0;
-    uint weak= 0;
-    uint32 dummy_offset;
-    DTCollation coll;
-
-    if (args[0]->result_type() == STRING_RESULT &&
-        args[1]->result_type() == STRING_RESULT &&
-        String::needs_conversion(0, args[0]->collation.collation,
-                                    args[1]->collation.collation,
-                                    &dummy_offset) &&
-        !coll.set(args[0]->collation, args[1]->collation, TRUE))
-    {
-      Item* conv= 0;
-      Item_arena *arena= thd->current_arena, backup;
-      strong= coll.strong;
-      weak= strong ? 0 : 1;
-      /*
-        In case we're in statement prepare, create conversion item
-        in its memory: it will be reused on each execute.
-      */
-      if (arena->is_stmt_prepare())
-          thd->set_n_backup_item_arena(arena, &backup);
-      if (args[weak]->type() == STRING_ITEM)
-      {
-        String tmp, cstr;
-        String *ostr= args[weak]->val_str(&tmp);
-        cstr.copy(ostr->ptr(), ostr->length(), ostr->charset(), 
-		  args[strong]->collation.collation);
-        conv= new Item_string(cstr.ptr(),cstr.length(),cstr.charset(),
-			      args[weak]->collation.derivation);
-	((Item_string*)conv)->str_value.copy();
-      }
-      else
-      {
-	conv= new Item_func_conv_charset(args[weak],
-                                         args[strong]->collation.collation);
-        conv->collation.set(args[weak]->collation.derivation);
-        conv->fix_fields(thd, 0, &conv);
-      }
-      if (arena->is_stmt_prepare())
-        thd->restore_backup_item_arena(arena, &backup);
-      if (args[weak]->type() == FIELD_ITEM)
-        ((Item_field *)args[weak])->no_const_subst= 1;
-      args[weak]= conv ? conv : args[weak];
-    }
-  }
   
+  DTCollation coll;
+  if (args[0]->result_type() == STRING_RESULT &&
+      args[1]->result_type() == STRING_RESULT &&
+      agg_arg_charsets(coll, args, 2, MY_COLL_CMP_CONV))
+    return;
+    
+ 
   // Make a special case of compare with fields to get nicer DATE comparisons
 
   if (functype() == LIKE_FUNC)  // Disable conversion in case of LIKE function.
@@ -859,7 +818,7 @@ void Item_func_between::fix_length_and_dec()
     return;
   agg_cmp_type(&cmp_type, args, 3);
   if (cmp_type == STRING_RESULT &&
-      agg_arg_collations_for_comparison(cmp_collation, args, 3))
+      agg_arg_charsets(cmp_collation, args, 3, MY_COLL_CMP_CONV))
     return;
 
   /*
@@ -975,7 +934,7 @@ Item_func_ifnull::fix_length_and_dec()
   decimals=max(args[0]->decimals,args[1]->decimals);
   agg_result_type(&cached_result_type, args, 2);
   if (cached_result_type == STRING_RESULT)
-    agg_arg_collations(collation, args, arg_count);
+    agg_arg_charsets(collation, args, arg_count, MY_COLL_CMP_CONV);
   else if (cached_result_type != REAL_RESULT)
     decimals= 0;
   
@@ -1071,8 +1030,8 @@ Item_func_if::fix_length_and_dec()
     agg_result_type(&cached_result_type, args+1, 2);
     if (cached_result_type == STRING_RESULT)
     {
-      if (agg_arg_collations(collation, args+1, 2))
-      return;
+      if (agg_arg_charsets(collation, args+1, 2, MY_COLL_ALLOW_CONV))
+        return;
     }
     else
     {
@@ -1331,8 +1290,10 @@ void Item_func_case::fix_length_and_dec()
   if (!(agg= (Item**) sql_alloc(sizeof(Item*)*(ncases+1))))
     return;
   
-  // Aggregate all THEN and ELSE expression types
-  // and collations when string result
+  /*
+    Aggregate all THEN and ELSE expression types
+    and collations when string result
+  */
   
   for (nagg= 0 ; nagg < ncases/2 ; nagg++)
     agg[nagg]= args[nagg*2+1];
@@ -1342,7 +1303,7 @@ void Item_func_case::fix_length_and_dec()
   
   agg_result_type(&cached_result_type, agg, nagg);
   if ((cached_result_type == STRING_RESULT) &&
-      agg_arg_collations(collation, agg, nagg))
+      agg_arg_charsets(collation, agg, nagg, MY_COLL_ALLOW_CONV))
     return;
   
   
@@ -1358,7 +1319,7 @@ void Item_func_case::fix_length_and_dec()
     nagg++;
     agg_cmp_type(&cmp_type, agg, nagg);
     if ((cmp_type == STRING_RESULT) &&
-        agg_arg_collations_for_comparison(cmp_collation, agg, nagg))
+        agg_arg_charsets(cmp_collation, agg, nagg, MY_COLL_CMP_CONV))
     return;
   }
   
@@ -1465,7 +1426,7 @@ void Item_func_coalesce::fix_length_and_dec()
     set_if_bigger(decimals,args[i]->decimals);
   }
   if (cached_result_type == STRING_RESULT)
-    agg_arg_collations(collation, args, arg_count);
+    agg_arg_charsets(collation, args, arg_count, MY_COLL_ALLOW_CONV);
   else if (cached_result_type != REAL_RESULT)
     decimals= 0;
 }
@@ -1795,14 +1756,13 @@ void Item_func_in::fix_length_and_dec()
       via creating Item_func_conv_charset().
     */
 
-    if (agg_arg_collations_for_comparison(cmp_collation,
-                                          args, arg_count, TRUE))
+    if (agg_arg_collations_for_comparison(cmp_collation, args, arg_count,
+                                          MY_COLL_ALLOW_SUPERSET_CONV))
       return;
     if ((!my_charset_same(args[0]->collation.collation, 
                           cmp_collation.collation) || !const_itm))
     {
-      if (agg_arg_collations_for_comparison(cmp_collation,
-                                            args, arg_count, FALSE))
+      if (agg_arg_collations_for_comparison(cmp_collation, args, arg_count))
         return;
     }
     else
@@ -1811,25 +1771,27 @@ void Item_func_in::fix_length_and_dec()
          Conversion is possible:
          All IN arguments are constants.
       */
-      Item_arena *arena= thd->current_arena, backup;
-      if (arena->is_stmt_prepare())
-        thd->set_n_backup_item_arena(arena, &backup);
+      Item_arena *arena, backup;
+      arena= thd->change_arena_if_needed(&backup);
+
       for (arg= args+1, arg_end= args+arg_count; arg < arg_end; arg++)
       {
-        if (!my_charset_same(cmp_collation.collation,
+        if (!arg[0]->null_value &&
+            !my_charset_same(cmp_collation.collation,
                              arg[0]->collation.collation))
         {
           Item_string *conv;
           String tmp, cstr, *ostr= arg[0]->val_str(&tmp);
+          uint dummy_errors;
           cstr.copy(ostr->ptr(), ostr->length(), ostr->charset(),
-                    cmp_collation.collation);
+                    cmp_collation.collation, &dummy_errors);
           conv= new Item_string(cstr.ptr(),cstr.length(), cstr.charset(),
                                 arg[0]->collation.derivation);
           conv->str_value.copy();
           arg[0]= conv;
         }
       }
-      if (arena->is_stmt_prepare())
+      if (arena)
         thd->restore_backup_item_arena(arena, &backup);
     }
   }
@@ -2449,7 +2411,7 @@ Item_func_regex::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   max_length= 1;
   decimals= 0;
 
-  if (agg_arg_collations(cmp_collation, args, 2))
+  if (agg_arg_charsets(cmp_collation, args, 2, MY_COLL_CMP_CONV))
     return 1;
 
   used_tables_cache=args[0]->used_tables() | args[1]->used_tables();

@@ -918,6 +918,13 @@ protected:
   // Blobs in this operation
   NdbBlob* theBlobList;
 
+  /*
+   * Abort option per operation, used by blobs.  Default -1.  If set,
+   * overrides abort option on connection level.  If set to IgnoreError,
+   * does not cause execute() to return failure.  This is different from
+   * IgnoreError on connection level.
+   */
+  Int8 m_abortOption;
 };
 
 #ifdef NDB_NO_DROPPED_SIGNAL
@@ -1160,5 +1167,3 @@ NdbOperation::setValue(Uint32 anAttrId, double aPar)
 }
 
 #endif
-
-

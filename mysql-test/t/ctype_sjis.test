@@ -51,3 +51,14 @@ insert into t1 values (0x9353);
 insert into t1 values (0x9373);
 select hex(c) from t1;
 drop table t1;
+
+#
+# Bug #6223 Japanese half-width kana characters get truncated
+#
+SET NAMES sjis;
+CREATE TABLE t1 (
+ c char(16) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=sjis;
+insert into t1 values(0xb1),(0xb2),(0xb3);
+select hex(c) from t1;
+drop table t1;
