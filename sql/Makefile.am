@@ -37,7 +37,7 @@ LDADD =			@isam_libs@ \
 			../mysys/libmysys.a \
 			../dbug/libdbug.a \
 			../regex/libregex.a \
-			../strings/libmystrings.a
+			../strings/libmystrings.a 
 
 mysqld_LDADD =		@MYSQLD_EXTRA_LDFLAGS@ \
 			@bdb_libs@ @innodb_libs@ @pstack_libs@ \
@@ -57,7 +57,8 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			lex.h lex_symbol.h sql_acl.h sql_crypt.h  \
 			log_event.h sql_repl.h slave.h \
 			stacktrace.h sql_sort.h sql_cache.h set_var.h \
-			spatial.h gstream.h client_settings.h
+			spatial.h gstream.h client_settings.h \
+			examples/ha_example.h
 mysqld_SOURCES =	sql_lex.cc sql_handler.cc \
 			item.cc item_sum.cc item_buff.cc item_func.cc \
 			item_cmpfunc.cc item_strfunc.cc item_timefunc.cc \
@@ -86,7 +87,8 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc \
 			slave.cc sql_repl.cc sql_union.cc sql_derived.cc \
 			client.c sql_client.cc mini_client_errors.c pack.c\
 			stacktrace.c repl_failsafe.h repl_failsafe.cc sql_olap.cc\
-			gstream.cc spatial.cc sql_help.cc protocol_cursor.cc
+			gstream.cc spatial.cc sql_help.cc protocol_cursor.cc \
+			examples/ha_example.cc
 gen_lex_hash_SOURCES =	gen_lex_hash.cc
 gen_lex_hash_LDADD =	$(LDADD) $(CXXLDFLAGS)
 
