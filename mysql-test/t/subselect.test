@@ -999,4 +999,3 @@ select * from t1 where (select count(*) from t2 group by t1.s2) = 1;
 -- error 1109
 select count(*) from t2 group by t1.s2;
 drop table t1, t2;
-
