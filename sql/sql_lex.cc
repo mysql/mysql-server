@@ -193,6 +193,13 @@ static LEX_STRING get_token(LEX *lex,uint length)
   return tmp;
 }
 
+/* 
+ todo: 
+   There are no dangerous charsets in mysql for function 
+   get_quoted_token yet. But it should be fixed in the 
+   future to operate multichar strings (like ucs2)
+*/
+
 static LEX_STRING get_quoted_token(LEX *lex,uint length, char quote)
 {
   LEX_STRING tmp;
@@ -670,37 +677,14 @@ int yylex(void *arg, void *yythd)
       uint double_quotes= 0;
       char quote_char= c;                       // Used char
       lex->tok_start=lex->ptr;			// Skip first `
+      while ((c=yyGet()))
+      {  
 #ifdef USE_MB
-      if (use_mb(cs))
-      {
-	while ((c= yyGet()))
-	{
-	  if (c == quote_char)
-	  {
-	    if (yyPeek() != quote_char)
-	      break;
-	    c= yyGet();
-	    double_quotes++;
-	    continue;
-	  }
-	  if (c == (uchar) NAMES_SEP_CHAR)
-	    break;
-          if (my_mbcharlen(cs, c) > 1)
-          {
-            int l;
-            if ((l = my_ismbchar(cs,
-                                 (const char *)lex->ptr-1,
-                                 (const char *)lex->end_of_query)) == 0)
-              break;
-            lex->ptr += l-1;
-          }
-        }
-      }
-      else
+	if (my_mbcharlen(cs, c) == 1)
 #endif
-      {
-	while ((c=yyGet()))
 	{
+	  if (c == (uchar) NAMES_SEP_CHAR)
+	    break; /* Old .frm format can't handle this char */
 	  if (c == quote_char)
 	  {
 	    if (yyPeek() != quote_char)
@@ -709,9 +693,18 @@ int yylex(void *arg, void *yythd)
 	    double_quotes++;
 	    continue;
 	  }
-	  if (c == (uchar) NAMES_SEP_CHAR)
-	    break;
 	}
+#ifdef USE_MB
+	else
+	{
+	  int l;
+	  if ((l = my_ismbchar(cs,
+			       (const char *)lex->ptr-1,
+			       (const char *)lex->end_of_query)) == 0)
+	    break;
+	  lex->ptr += l-1;
+	}
+#endif
       }
       if (double_quotes)
 	yylval->lex_str=get_quoted_token(lex,yyLength() - double_quotes,
