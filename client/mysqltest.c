@@ -1766,6 +1766,7 @@ static void init_var_hash()
     die("Variable hash initialization failed");
   var_from_env("MASTER_MYPORT", "9306");
   var_from_env("SLAVE_MYPORT", "9307");
+  var_from_env("MYSQL_TEST_DIR", "");
 }
 
 int main(int argc, char** argv)

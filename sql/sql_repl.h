@@ -9,6 +9,9 @@ extern uint32 server_id;
 extern bool server_id_supplied;
 extern I_List<i_string> binlog_do_db, binlog_ignore_db;
 
+File open_binlog(IO_CACHE *log, const char *log_file_name,
+	      const char **errmsg);
+
 int start_slave(THD* thd = 0, bool net_report = 1);
 int stop_slave(THD* thd = 0, bool net_report = 1);
 int change_master(THD* thd);
