@@ -2616,17 +2616,14 @@ String *Field_timestamp::val_str(String *val_buffer,
 				 String *val_ptr __attribute__((unused)))
 {
   uint pos;
-  int extra;
   int part_time;
   uint32 temp;
   time_t time_arg;
   struct tm *l_time;
   struct tm tm_tmp;
   my_bool new_format= (current_thd->variables.new_mode),
-          full_year=(field_length == 8 || field_length == 14);
-  static const uint extras[]={0,1,2,2,4,5,5};
-
-  extra= new_format ? extras[field_length/2-1] : 0;
+          full_year=(field_length == 8 || field_length == 14 || new_format);
+  int real_field_length= new_format ? 19 : field_length;
 
 #ifdef WORDS_BIGENDIAN
   if (table->db_low_byte_first)
@@ -2638,18 +2635,17 @@ String *Field_timestamp::val_str(String *val_buffer,
   if (temp == 0L)
   {				      /* Zero time is "000000" */
     if (new_format)
-      val_buffer->copy("0000-00-00 00:00:00"+2*(1-full_year),
-                       field_length+extra);
+      val_buffer->copy("0000-00-00 00:00:00", real_field_length);
     else
-      val_buffer->copy("00000000000000", field_length);
+      val_buffer->copy("00000000000000", real_field_length);
     return val_buffer;
   }
   time_arg=(time_t) temp;
   localtime_r(&time_arg,&tm_tmp);
   l_time=&tm_tmp;
 
-  val_buffer->alloc(field_length+extra+1);
-  char *to=(char*) val_buffer->ptr(),*end=to+field_length+extra;
+  val_buffer->alloc(real_field_length+1);
+  char *to=(char*) val_buffer->ptr(),*end=to+real_field_length;
 
   for (pos=0; to < end ; pos++)
   {
