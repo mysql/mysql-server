@@ -49,6 +49,7 @@ extern int g_ndb_shm_signum;
 #include <OutputStream.hpp>
 
 #include <mgmapi/mgmapi.h>
+#include <mgmapi_internal.h>
 #include <mgmapi/mgmapi_debug.h>
 
 #include <EventLogger.hpp>
