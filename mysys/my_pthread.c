@@ -434,17 +434,42 @@ int my_pthread_cond_timedwait(pthread_cond_t *cond,
   In HP-UX-10.20 and other old Posix 1003.4a Draft 4 implementations
   pthread_mutex_trylock returns 1 on success, not 0 like
   pthread_mutex_lock
+
+  From the HP-UX-10.20 man page:
+  RETURN VALUES
+      If the function fails, errno may be set to one of the following
+      values:
+           Return | Error    | Description
+           _______|__________|_________________________________________
+              1   |          | Successful completion.
+              0   |          | The mutex is  locked; therefore, it was
+                  |          | not acquired.
+             -1   | [EINVAL] | The value specified by mutex is invalid.
+
 */
+/* We defined pthread_mutex_trylock as a macro in my_pthread.h, we have
+   to undef it here to prevent infinite recursion! Note that this comment
+   documents the pushed bugfix, not just the the code itself here. That is why
+   this comment is good here.
+*/
+
 #undef pthread_mutex_trylock
 
+/*
+This function returns 0 if we are able successfully lock the mutex. If
+the mutex cannot be locked or there is an error, then returns != 0
+*/
 int my_pthread_mutex_trylock(pthread_mutex_t *mutex)
 {
-  int error=pthread_mutex_trylock(mutex);
-  if (error == 1)			/* Safety if the lib is fixed */
-    return 0;				/* Mutex was locked */
-  if (error == -1)			/* Safety if the lib is fixed */
-    error=errno;
-   return error;
+  int error = pthread_mutex_trylock(mutex);
+
+  if (error == 1)
+    return 0;           /* success */
+
+  if (error == -1)
+    error=errno;        /* parameter invalid */
+
+  return 1;             /* we were not able to lock the mutex */
 }
 #endif
 
