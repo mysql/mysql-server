@@ -508,7 +508,7 @@ int add_table_rule(HASH* h, const char* table_spec);
 int add_wild_table_rule(DYNAMIC_ARRAY* a, const char* table_spec);
 void init_table_rule_hash(HASH* h, bool* h_inited);
 void init_table_rule_array(DYNAMIC_ARRAY* a, bool* a_inited);
-const char *rewrite_db(const char* db, uint *new_db_len);
+const char *rewrite_db(const char* db, uint32 *new_db_len);
 const char *print_slave_db_safe(const char *db);
 int check_expected_error(THD* thd, RELAY_LOG_INFO* rli, int error_code);
 void skip_load_data_infile(NET* net);

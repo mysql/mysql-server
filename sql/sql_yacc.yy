@@ -51,10 +51,13 @@ int yylex(void *yylval, void *yythd);
 		      ER_WARN_DEPRECATED_SYNTAX, \
 		      ER(ER_WARN_DEPRECATED_SYNTAX), (A), (B)); 
 
-inline Item *or_or_concat(THD *thd, Item* A, Item* B)
+/* Helper for parsing "IS [NOT] truth_value" */
+inline Item *is_truth_value(Item *A, bool v1, bool v2)
 {
-  return (thd->variables.sql_mode & MODE_PIPES_AS_CONCAT ?
-          (Item*) new Item_func_concat(A,B) : (Item*) new Item_cond_or(A,B));
+  return new Item_func_if(create_func_ifnull(A,
+	new Item_int((char *) (v2 ? "TRUE" : "FALSE"), v2, 1)),
+  	new Item_int((char *) (v1 ? "TRUE" : "FALSE"), v1, 1),
+	new Item_int((char *) (v1 ? "FALSE" : "TRUE"),!v1, 1));
 }
 
 %}
@@ -197,6 +200,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token	ALGORITHM_SYM
 %token	ALL
 %token	AND_SYM
+%token	AND_AND_SYM
 %token	AS
 %token	ASC
 %token	AUTO_INC
@@ -341,7 +345,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token	NCHAR_SYM
 %token	NCHAR_STRING
 %token  NVARCHAR_SYM
-%token	NOT
+%token	NOT_SYM
+%token	NOT2_SYM
 %token	NO_SYM
 %token	NULL_SYM
 %token	NUM
@@ -352,7 +357,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token	OPTION
 %token	OPTIONALLY
 %token	OR_SYM
-%token	OR_OR_CONCAT
+%token	OR2_SYM
+%token	OR_OR_SYM
 %token	ORDER_SYM
 %token  OUT_SYM
 %token	OUTER
@@ -436,6 +442,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token	UNICODE_SYM
 %token	UNION_SYM
 %token	UNIQUE_SYM
+%token	UNKNOWN_SYM
 %token	USAGE
 %token	USE_FRM
 %token	USE_SYM
@@ -638,8 +645,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 
 %token  BEFORE_SYM
 %left   SET_VAR
-%left	OR_OR_CONCAT OR_SYM XOR
-%left	AND_SYM
+%left	OR_OR_SYM OR_SYM OR2_SYM XOR
+%left	AND_SYM AND_AND_SYM
 %left	BETWEEN_SYM CASE_SYM WHEN_SYM THEN_SYM ELSE
 %left	EQ EQUAL_SYM GE GT_SYM LE LT NE IS LIKE REGEXP IN_SYM
 %left	'|'
@@ -649,7 +656,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %left	'*' '/' '%' DIV_SYM MOD_SYM
 %left   '^'
 %left	NEG '~'
-%right	NOT
+%right	NOT_SYM NOT2_SYM
 %right	BINARY COLLATE_SYM
 
 %type <lex_str>
@@ -692,7 +699,9 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %type <item>
 	literal text_literal insert_ident order_ident
 	simple_ident select_item2 expr opt_expr opt_else sum_expr in_sum_expr
-	table_wild no_in_expr expr_expr simple_expr no_and_expr udf_expr
+	bool_term bool_factor bool_test bool_pri 
+	predicate bit_expr bit_term bit_factor value_expr term factor
+	table_wild simple_expr udf_expr
 	using_list expr_or_default set_expr_or_default interval_expr
 	param_marker singlerow_subselect singlerow_subselect_init
 	exists_subselect exists_subselect_init geometry_function
@@ -805,7 +814,7 @@ END_OF_INPUT
 
 %type <NONE>
 	'-' '+' '*' '/' '%' '(' ')'
-	',' '!' '{' '}' '&' '|' AND_SYM OR_SYM OR_OR_CONCAT BETWEEN_SYM CASE_SYM
+	',' '!' '{' '}' '&' '|' AND_SYM OR_SYM OR_OR_SYM BETWEEN_SYM CASE_SYM
 	THEN_SYM WHEN_SYM DIV_SYM MOD_SYM
 %%
 
@@ -1405,7 +1414,7 @@ sp_chistic:
 sp_c_chistic:
 	  sp_chistic            { }
 	| DETERMINISTIC_SYM     { Lex->sp_chistics.detistic= TRUE; }
-	| NOT DETERMINISTIC_SYM { Lex->sp_chistics.detistic= FALSE; }
+	| not DETERMINISTIC_SYM { Lex->sp_chistics.detistic= FALSE; }
 	;
 
 sp_suid:
@@ -1756,7 +1765,7 @@ sp_hcond:
 	    $$= (sp_cond_type_t *)YYTHD->alloc(sizeof(sp_cond_type_t));
 	    $$->type= sp_cond_type_t::warning;
 	  }
-	| NOT FOUND_SYM		/* SQLSTATEs 02??? */
+	| not FOUND_SYM		/* SQLSTATEs 02??? */
 	  {
 	    $$= (sp_cond_type_t *)YYTHD->alloc(sizeof(sp_cond_type_t));
 	    $$->type= sp_cond_type_t::notfound;
@@ -2495,7 +2504,7 @@ table_option:
 
 opt_if_not_exists:
 	/* empty */	 { $$= 0; }
-	| IF NOT EXISTS	 { $$=HA_LEX_CREATE_IF_NOT_EXISTS; };
+	| IF not EXISTS	 { $$=HA_LEX_CREATE_IF_NOT_EXISTS; };
 
 opt_create_table_options:
 	/* empty */
@@ -2741,6 +2750,9 @@ type:
 	| BINARY '(' NUM ')'		{ Lex->length=$3.str;
 					  Lex->charset=&my_charset_bin;
 					  $$=FIELD_TYPE_STRING; }
+	| BINARY			{ Lex->length= (char*) "1";
+					  Lex->charset=&my_charset_bin;
+					  $$=FIELD_TYPE_STRING; }
 	| varchar '(' NUM ')' opt_binary { Lex->length=$3.str;
 					  $$=FIELD_TYPE_VAR_STRING; }
 	| nvarchar '(' NUM ')'		{ Lex->length=$3.str;
@@ -2917,7 +2929,7 @@ opt_attribute_list:
 
 attribute:
 	NULL_SYM	  { Lex->type&= ~ NOT_NULL_FLAG; }
-	| NOT NULL_SYM	  { Lex->type|= NOT_NULL_FLAG; }
+	| not NULL_SYM	  { Lex->type|= NOT_NULL_FLAG; }
 	| DEFAULT now_or_signed_literal { Lex->default_value=$2; }
 	| ON UPDATE_SYM NOW_SYM optional_braces 
           { Lex->on_update_value= new Item_func_now_local(); }
@@ -3956,9 +3968,102 @@ optional_braces:
 
 /* all possible expressions */
 expr:	
-	expr_expr	{ $$= $1; }
-	| simple_expr	{ $$= $1; }
-	;
+	expr or bool_term	{ $$= new Item_cond_or($1,$3); }
+	| expr XOR bool_term	{ $$= new Item_cond_xor($1,$3); }
+	| bool_term ;
+
+bool_term:
+	bool_term and bool_factor { $$= new Item_cond_and($1,$3); }
+	| bool_factor ;
+
+bool_factor:
+	NOT_SYM bool_factor	{ $$= negate_expression(YYTHD, $2); }
+	| bool_test ;
+
+bool_test:
+	bool_pri IS TRUE_SYM	{ $$= is_truth_value($1,1,0); }
+	| bool_pri IS not TRUE_SYM { $$= is_truth_value($1,0,0); }
+	| bool_pri IS FALSE_SYM	{ $$= is_truth_value($1,0,1); }
+	| bool_pri IS not FALSE_SYM { $$= is_truth_value($1,1,1); }
+	| bool_pri IS UNKNOWN_SYM { $$= new Item_func_isnull($1); }
+	| bool_pri IS not UNKNOWN_SYM { $$= new Item_func_isnotnull($1); }
+	| bool_pri ;
+
+bool_pri:
+	bool_pri IS NULL_SYM	{ $$= new Item_func_isnull($1); }
+	| bool_pri IS not NULL_SYM { $$= new Item_func_isnotnull($1); }
+	| predicate BETWEEN_SYM bit_expr AND_SYM bool_pri
+	  { $$= new Item_func_between($1,$3,$5); }
+	| predicate not BETWEEN_SYM bit_expr AND_SYM bool_pri
+	  { $$= negate_expression(YYTHD, new Item_func_between($1,$4,$6)); }
+	| predicate ;
+
+predicate:
+	 bit_expr IN_SYM '(' expr_list ')'
+	  { $4->push_front($1); $$= new Item_func_in(*$4); }
+	| bit_expr not IN_SYM '(' expr_list ')'
+	  { $5->push_front($1); $$= negate_expression(YYTHD, new Item_func_in(*$5)); }
+        | bit_expr IN_SYM in_subselect
+	  { $$= new Item_in_subselect($1, $3); }
+	| bit_expr not IN_SYM in_subselect
+          { $$= negate_expression(YYTHD, new Item_in_subselect($1, $4)); }
+	| bit_expr SOUNDS_SYM LIKE bit_expr
+	  { $$= new Item_func_eq(new Item_func_soundex($1),
+				 new Item_func_soundex($4)); }
+	| bit_expr LIKE simple_expr opt_escape
+          { $$= new Item_func_like($1,$3,$4); }
+	| bit_expr not LIKE simple_expr opt_escape
+          { $$= new Item_func_not(new Item_func_like($1,$4,$5)); }
+	| bit_expr REGEXP bit_expr	{ $$= new Item_func_regex($1,$3); }
+	| bit_expr not REGEXP bit_expr
+          { $$= negate_expression(YYTHD, new Item_func_regex($1,$4)); }
+	| bit_expr EQUAL_SYM bit_expr	{ $$= new Item_func_equal($1,$3); }
+	| bit_expr comp_op bit_expr %prec EQ
+	  { $$= (*$2)(0)->create($1,$3); }
+	| bit_expr comp_op all_or_any in_subselect %prec EQ
+	  { $$= all_any_subquery_creator($1, $2, $3, $4); }
+	| bit_expr ;
+
+bit_expr:
+	bit_expr '|' bit_term	{ $$= new Item_func_bit_or($1,$3); }
+	| bit_term ;
+
+bit_term:
+	bit_term '&' bit_factor	{ $$= new Item_func_bit_and($1,$3); }
+	| bit_factor ;
+
+bit_factor:
+	bit_factor SHIFT_LEFT value_expr
+	  { $$= new Item_func_shift_left($1,$3); }
+	| bit_factor SHIFT_RIGHT value_expr 
+	  { $$= new Item_func_shift_right($1,$3); }
+	| value_expr ;
+
+value_expr:
+	value_expr '+' term	{ $$= new Item_func_plus($1,$3); }
+	| value_expr '-' term	{ $$= new Item_func_minus($1,$3); }
+	| value_expr '+' interval_expr interval
+	  { $$= new Item_date_add_interval($1,$3,$4,0); }
+	| value_expr '-' interval_expr interval
+	  { $$= new Item_date_add_interval($1,$3,$4,1); }
+	| term ;
+
+term:
+	term '*' factor		{ $$= new Item_func_mul($1,$3); }
+	| term '/' factor	{ $$= new Item_func_div($1,$3); }
+	| term '%' factor	{ $$= new Item_func_mod($1,$3); }
+	| term DIV_SYM factor	{ $$= new Item_func_int_div($1,$3); }
+	| term MOD_SYM factor	{ $$= new Item_func_mod($1,$3); }
+	| factor ;
+
+factor:
+        factor '^' simple_expr	{ $$= new Item_func_bit_xor($1,$3); }
+	| simple_expr ;
+
+or:	OR_SYM | OR2_SYM;
+and:	AND_SYM | AND_AND_SYM;
+not:	NOT_SYM | NOT2_SYM;
+not2:	'!' | NOT2_SYM;
 
 comp_op:  EQ		{ $$ = &comp_eq_creator; }
 	| GE		{ $$ = &comp_ge_creator; }
@@ -3971,169 +4076,6 @@ comp_op:  EQ		{ $$ = &comp_eq_creator; }
 all_or_any: ALL     { $$ = 1; }
         |   ANY_SYM { $$ = 0; }
         ;
-
-/* expressions that begin with 'expr' */
-expr_expr:
-	 expr IN_SYM '(' expr_list ')'
-	  { $4->push_front($1); $$= new Item_func_in(*$4); }
-	| expr NOT IN_SYM '(' expr_list ')'
-	  { $5->push_front($1); $$= new Item_func_not(new Item_func_in(*$5)); }
-        | expr IN_SYM in_subselect
-          { $$= new Item_in_subselect($1, $3); }
-	| expr NOT IN_SYM in_subselect
-          {
-            $$= new Item_func_not(new Item_in_subselect($1, $4));
-          }
-	| expr BETWEEN_SYM no_and_expr AND_SYM expr
-	  { $$= new Item_func_between($1,$3,$5); }
-	| expr NOT BETWEEN_SYM no_and_expr AND_SYM expr
-	  { $$= new Item_func_not(new Item_func_between($1,$4,$6)); }
-	| expr OR_OR_CONCAT expr { $$= or_or_concat(YYTHD, $1,$3); }
-	| expr OR_SYM expr	{ $$= new Item_cond_or($1,$3); }
-        | expr XOR expr		{ $$= new Item_cond_xor($1,$3); }
-	| expr AND_SYM expr	{ $$= new Item_cond_and($1,$3); }
-	| expr SOUNDS_SYM LIKE expr
-	  {
-	    $$= new Item_func_eq(new Item_func_soundex($1),
-				 new Item_func_soundex($4));
-	  }
-	| expr LIKE simple_expr opt_escape
-          { $$= new Item_func_like($1,$3,$4); }
-	| expr NOT LIKE simple_expr opt_escape
-          { $$= new Item_func_not(new Item_func_like($1,$4,$5));}
-	| expr REGEXP expr { $$= new Item_func_regex($1,$3); }
-	| expr NOT REGEXP expr
-          { $$= new Item_func_not(new Item_func_regex($1,$4)); }
-	| expr IS NULL_SYM	{ $$= new Item_func_isnull($1); }
-	| expr IS NOT NULL_SYM { $$= new Item_func_isnotnull($1); }
-	| expr EQUAL_SYM expr	{ $$= new Item_func_equal($1,$3); }
-	| expr comp_op expr %prec EQ	{ $$= (*$2)(0)->create($1,$3); }
-	| expr comp_op all_or_any in_subselect %prec EQ
-	{
-	  $$= all_any_subquery_creator($1, $2, $3, $4);
-	}
-	| expr SHIFT_LEFT expr	{ $$= new Item_func_shift_left($1,$3); }
-	| expr SHIFT_RIGHT expr { $$= new Item_func_shift_right($1,$3); }
-	| expr '+' expr		{ $$= new Item_func_plus($1,$3); }
-	| expr '-' expr		{ $$= new Item_func_minus($1,$3); }
-	| expr '*' expr		{ $$= new Item_func_mul($1,$3); }
-	| expr '/' expr		{ $$= new Item_func_div($1,$3); }
-	| expr DIV_SYM expr	{ $$= new Item_func_int_div($1,$3); }
-	| expr MOD_SYM expr	{ $$= new Item_func_mod($1,$3); }
-	| expr '|' expr		{ $$= new Item_func_bit_or($1,$3); }
-        | expr '^' expr		{ $$= new Item_func_bit_xor($1,$3); }
-	| expr '&' expr		{ $$= new Item_func_bit_and($1,$3); }
-	| expr '%' expr		{ $$= new Item_func_mod($1,$3); }
-	| expr '+' interval_expr interval
-	  { $$= new Item_date_add_interval($1,$3,$4,0); }
-	| expr '-' interval_expr interval
-	  { $$= new Item_date_add_interval($1,$3,$4,1); }
-	;
-
-/* expressions that begin with 'expr' that do NOT follow IN_SYM */
-no_in_expr:
-	no_in_expr BETWEEN_SYM no_and_expr AND_SYM expr
-	  { $$= new Item_func_between($1,$3,$5); }
-	| no_in_expr NOT BETWEEN_SYM no_and_expr AND_SYM expr
-	  { $$= new Item_func_not(new Item_func_between($1,$4,$6)); }
-	| no_in_expr OR_OR_CONCAT expr	{ $$= or_or_concat(YYTHD, $1,$3); }
-	| no_in_expr OR_SYM expr	{ $$= new Item_cond_or($1,$3); }
-        | no_in_expr XOR expr		{ $$= new Item_cond_xor($1,$3); }
-	| no_in_expr AND_SYM expr	{ $$= new Item_cond_and($1,$3); }
-	| no_in_expr SOUNDS_SYM LIKE expr
-	  {
-	    $$= new Item_func_eq(new Item_func_soundex($1),
-				 new Item_func_soundex($4));
-	  }
-	| no_in_expr LIKE simple_expr opt_escape
-	  { $$= new Item_func_like($1,$3,$4); }
-	| no_in_expr NOT LIKE simple_expr opt_escape
-	  { $$= new Item_func_not(new Item_func_like($1,$4,$5)); }
-	| no_in_expr REGEXP expr { $$= new Item_func_regex($1,$3); }
-	| no_in_expr NOT REGEXP expr
-	  { $$= new Item_func_not(new Item_func_regex($1,$4)); }
-	| no_in_expr IS NULL_SYM	{ $$= new Item_func_isnull($1); }
-	| no_in_expr IS NOT NULL_SYM { $$= new Item_func_isnotnull($1); }
-	| no_in_expr EQUAL_SYM expr	{ $$= new Item_func_equal($1,$3); }
-	| no_in_expr comp_op expr %prec EQ { $$= (*$2)(0)->create($1,$3); }
-	| no_in_expr comp_op all_or_any in_subselect %prec EQ
-	{
-	  all_any_subquery_creator($1, $2, $3, $4);
-	}
-	| no_in_expr SHIFT_LEFT expr  { $$= new Item_func_shift_left($1,$3); }
-	| no_in_expr SHIFT_RIGHT expr { $$= new Item_func_shift_right($1,$3); }
-	| no_in_expr '+' expr		{ $$= new Item_func_plus($1,$3); }
-	| no_in_expr '-' expr		{ $$= new Item_func_minus($1,$3); }
-	| no_in_expr '*' expr		{ $$= new Item_func_mul($1,$3); }
-	| no_in_expr '/' expr		{ $$= new Item_func_div($1,$3); }
-	| no_in_expr DIV_SYM expr	{ $$= new Item_func_int_div($1,$3); }
-	| no_in_expr '|' expr		{ $$= new Item_func_bit_or($1,$3); }
-        | no_in_expr '^' expr		{ $$= new Item_func_bit_xor($1,$3); }
-	| no_in_expr '&' expr		{ $$= new Item_func_bit_and($1,$3); }
-	| no_in_expr '%' expr		{ $$= new Item_func_mod($1,$3); }
-	| no_in_expr MOD_SYM expr	{ $$= new Item_func_mod($1,$3); }
-	| no_in_expr '+' interval_expr interval
-	  { $$= new Item_date_add_interval($1,$3,$4,0); }
-	| no_in_expr '-' interval_expr interval
-	  { $$= new Item_date_add_interval($1,$3,$4,1); }
-	| simple_expr;
-
-/* expressions that begin with 'expr' that does NOT follow AND */
-no_and_expr:
-	  no_and_expr IN_SYM '(' expr_list ')'
-	  { $4->push_front($1); $$= new Item_func_in(*$4); }
-	| no_and_expr NOT IN_SYM '(' expr_list ')'
-	  { $5->push_front($1); $$= new Item_func_not(new Item_func_in(*$5)); }
-        | no_and_expr IN_SYM in_subselect
-          { $$= new Item_in_subselect($1, $3); }
-	| no_and_expr NOT IN_SYM in_subselect
-          {
-            $$= new Item_func_not(new Item_in_subselect($1, $4));
-          }
-	| no_and_expr BETWEEN_SYM no_and_expr AND_SYM expr
-	  { $$= new Item_func_between($1,$3,$5); }
-	| no_and_expr NOT BETWEEN_SYM no_and_expr AND_SYM expr
-	  { $$= new Item_func_not(new Item_func_between($1,$4,$6)); }
-	| no_and_expr OR_OR_CONCAT expr	{ $$= or_or_concat(YYTHD, $1,$3); }
-	| no_and_expr OR_SYM expr	{ $$= new Item_cond_or($1,$3); }
-        | no_and_expr XOR expr		{ $$= new Item_cond_xor($1,$3); }
-	| no_and_expr SOUNDS_SYM LIKE expr
-	  {
-	    $$= new Item_func_eq(new Item_func_soundex($1),
-				 new Item_func_soundex($4));
-	  }
-	| no_and_expr LIKE simple_expr opt_escape
-	  { $$= new Item_func_like($1,$3,$4); }
-	| no_and_expr NOT LIKE simple_expr opt_escape
-	  { $$= new Item_func_not(new Item_func_like($1,$4,$5)); }
-	| no_and_expr REGEXP expr { $$= new Item_func_regex($1,$3); }
-	| no_and_expr NOT REGEXP expr
-	  { $$= new Item_func_not(new Item_func_regex($1,$4)); }
-	| no_and_expr IS NULL_SYM	{ $$= new Item_func_isnull($1); }
-	| no_and_expr IS NOT NULL_SYM { $$= new Item_func_isnotnull($1); }
-	| no_and_expr EQUAL_SYM expr	{ $$= new Item_func_equal($1,$3); }
-	| no_and_expr comp_op expr %prec EQ { $$= (*$2)(0)->create($1,$3); }
-	| no_and_expr comp_op all_or_any in_subselect %prec EQ
-	{
-	  all_any_subquery_creator($1, $2, $3, $4);
-	}
-	| no_and_expr SHIFT_LEFT expr  { $$= new Item_func_shift_left($1,$3); }
-	| no_and_expr SHIFT_RIGHT expr { $$= new Item_func_shift_right($1,$3); }
-	| no_and_expr '+' expr		{ $$= new Item_func_plus($1,$3); }
-	| no_and_expr '-' expr		{ $$= new Item_func_minus($1,$3); }
-	| no_and_expr '*' expr		{ $$= new Item_func_mul($1,$3); }
-	| no_and_expr '/' expr		{ $$= new Item_func_div($1,$3); }
-	| no_and_expr DIV_SYM expr	{ $$= new Item_func_int_div($1,$3); }
-	| no_and_expr '|' expr		{ $$= new Item_func_bit_or($1,$3); }
-        | no_and_expr '^' expr		{ $$= new Item_func_bit_xor($1,$3); }
-	| no_and_expr '&' expr		{ $$= new Item_func_bit_and($1,$3); }
-	| no_and_expr '%' expr		{ $$= new Item_func_mod($1,$3); }
-	| no_and_expr MOD_SYM expr	{ $$= new Item_func_mod($1,$3); }
-	| no_and_expr '+' interval_expr interval
-	  { $$= new Item_date_add_interval($1,$3,$4,0); }
-	| no_and_expr '-' interval_expr interval
-	  { $$= new Item_date_add_interval($1,$3,$4,1); }
-	| simple_expr;
 
 interval_expr:
          INTERVAL_SYM expr { $$=$2; }
@@ -4177,17 +4119,12 @@ simple_expr:
 	    Lex->variables_used= 1;
 	  }
 	| sum_expr
-	| '+' expr %prec NEG	{ $$= $2; }
-	| '-' expr %prec NEG    { $$= new Item_func_neg($2); }
-	| '~' expr %prec NEG	{ $$= new Item_func_bit_neg($2); }
-	| NOT expr %prec NEG
-          {
-            $$= negate_expression(YYTHD, $2);
-          }
-	| '!' expr %prec NEG
-          {
-            $$= negate_expression(YYTHD, $2);
-          }
+	| simple_expr OR_OR_SYM simple_expr
+	  { $$= new Item_func_concat($1, $3); }
+	| '+' simple_expr %prec NEG	{ $$= $2; }
+	| '-' simple_expr %prec NEG	{ $$= new Item_func_neg($2); }
+	| '~' simple_expr %prec NEG	{ $$= new Item_func_bit_neg($2); }
+	| not2 simple_expr %prec NEG	{ $$= negate_expression(YYTHD, $2); }
 	| '(' expr ')'		{ $$= $2; }
 	| '(' expr ',' expr_list ')'
 	  {
@@ -4202,12 +4139,12 @@ simple_expr:
 	| EXISTS exists_subselect { $$= $2; }
 	| singlerow_subselect   { $$= $1; }
 	| '{' ident expr '}'	{ $$= $3; }
-        | MATCH ident_list_arg AGAINST '(' expr fulltext_options ')'
+        | MATCH ident_list_arg AGAINST '(' bit_expr fulltext_options ')'
           { $2->push_front($5);
             Select->add_ftfunc_to_list((Item_func_match*)
                                         ($$=new Item_func_match(*$2,$6))); }
 	| ASCII_SYM '(' expr ')' { $$= new Item_func_ascii($3); }
-	| BINARY expr %prec NEG
+	| BINARY simple_expr %prec NEG
 	  {
 	    $$= create_func_cast($2, ITEM_CAST_CHAR, -1, &my_charset_bin);
 	  }
@@ -4452,7 +4389,7 @@ simple_expr:
 	  }
 	| OLD_PASSWORD '(' expr ')'
 	  { $$=  new Item_func_old_password($3); }
-	| POSITION_SYM '(' no_in_expr IN_SYM expr ')'
+	| POSITION_SYM '(' bit_expr IN_SYM expr ')'
 	  { $$ = new Item_func_locate($5,$3); }
 	| QUARTER_SYM '(' expr ')'
 	  { $$ = new Item_func_quarter($3); }
@@ -5479,11 +5416,12 @@ do:	DO_SYM
 	{
 	  LEX *lex=Lex;
 	  lex->sql_command = SQLCOM_DO;
-	  if (!(lex->insert_list = new List_item))
-	    YYABORT;
+	  mysql_init_select(lex);
 	}
-	values
-	{}
+	expr_list
+	{
+	  Lex->insert_list= $3;
+	}
 	;
 
 /*
@@ -7107,6 +7045,7 @@ keyword:
 	| UNCOMMITTED_SYM	{}
 	| UNDEFINED_SYM		{}
 	| UNICODE_SYM		{}
+	| UNKNOWN_SYM		{}
 	| UNTIL_SYM		{}
 	| USER			{}
 	| USE_FRM		{}

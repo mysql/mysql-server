@@ -7833,6 +7833,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   table->temp_pool_slot = temp_pool_slot;
   table->copy_blobs= 1;
   table->in_use= thd;
+  table->table_charset= param->table_charset;
   table->keys_for_keyread.init();
   table->keys_in_use.init();
   table->read_only_keys.init();

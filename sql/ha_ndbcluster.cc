@@ -144,7 +144,7 @@ static int ndb_to_mysql_error(const NdbError *err)
       // Push the NDB error message as warning
       push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
 			  ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
-			  err->code, err->message, "NDB");      
+			  err->code, err->message, "NDB");
       return err->code;
     }
   }

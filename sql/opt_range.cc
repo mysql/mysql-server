@@ -5533,7 +5533,6 @@ QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
       goto err;
   }
 
-ok:
   thd->mem_root= old_root;
   return quick;
 
@@ -8067,7 +8066,8 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_min_in_range()
       boundary of cur_range, there is no need to check this range.
     */
     if (range_idx != 0 && !(cur_range->flag & NO_MAX_RANGE) &&
-        (key_cmp(min_max_arg_part, cur_range->max_key, min_max_arg_len) == 1))
+        (key_cmp(min_max_arg_part, (const byte*) cur_range->max_key,
+                 min_max_arg_len) == 1))
       continue;
 
     if (cur_range->flag & NO_MIN_RANGE)
@@ -8193,7 +8193,8 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_max_in_range()
     */
     if (range_idx != min_max_ranges.elements &&
         !(cur_range->flag & NO_MIN_RANGE) &&
-        (key_cmp(min_max_arg_part, cur_range->min_key, min_max_arg_len) == -1))
+        (key_cmp(min_max_arg_part, (const byte*) cur_range->min_key,
+                 min_max_arg_len) == -1))
       continue;
 
     if (cur_range->flag & NO_MAX_RANGE)

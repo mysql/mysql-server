@@ -1425,6 +1425,7 @@ public:
   bool  using_indirect_summary_function;
   /* If >0 convert all blob fields to varchar(convert_blob_length) */
   uint  convert_blob_length; 
+  CHARSET_INFO *table_charset; 
 
   TMP_TABLE_PARAM()
     :copy_funcs_it(copy_funcs), copy_field(0), group_parts(0),

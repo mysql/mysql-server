@@ -20,6 +20,10 @@ Created 11/5/1995 Heikki Tuuri
 #include "os0file.h"
 #include "srv0start.h"
 
+extern ulint srv_read_ahead_rnd;
+extern ulint srv_read_ahead_seq;
+extern ulint srv_buf_pool_reads;
+
 /* The size in blocks of the area where the random read-ahead algorithm counts
 the accessed pages when deciding whether to read-ahead */
 #define	BUF_READ_AHEAD_RANDOM_AREA	BUF_READ_AHEAD_AREA
@@ -291,6 +295,7 @@ buf_read_ahead_random(
 		       				(ulong) count);
 	}
 
+        ++srv_read_ahead_rnd;
 	return(count);
 }
 
@@ -323,6 +328,7 @@ buf_read_page(
 
 	count2 = buf_read_page_low(&err, TRUE, BUF_READ_ANY_PAGE, space,
 					tablespace_version, offset);
+        srv_buf_pool_reads+= count2;
 	if (err == DB_TABLESPACE_DELETED) {
 	        ut_print_timestamp(stderr);
 		fprintf(stderr,
@@ -575,6 +581,7 @@ buf_read_ahead_linear(
 		(ulong) space, (ulong) offset, (ulong) count);
 	}
 
+        ++srv_read_ahead_seq;
 	return(count);
 }
 
