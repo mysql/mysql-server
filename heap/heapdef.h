@@ -22,6 +22,17 @@
 #endif
 #include "heap.h"			/* Structs & some defines */
 
+/*
+  When allocating keys /rows in the internal block structure, do it
+  within the following boundaries.
+
+  The challenge is to find the balance between allocate as few blocks
+  as possible and keep memory consumption down.
+*/
+
+#define HP_MIN_RECORDS_IN_BLOCK 16
+#define HP_MAX_RECORDS_IN_BLOCK 8192
+
 	/* Some extern variables */
 
 extern LIST *heap_open_list,*heap_share_list;
