@@ -45,6 +45,7 @@ int decimal_result_size(decimal *from1, decimal *from2, char op, int param);
 
 int decimal_add(decimal *from1, decimal *from2, decimal *to);
 int decimal_sub(decimal *from1, decimal *from2, decimal *to);
+int decimal_cmp(decimal *from1, decimal *from2);
 int decimal_mul(decimal *from1, decimal *from2, decimal *to);
 int decimal_div(decimal *from1, decimal *from2, decimal *to, int scale_incr);
 int decimal_mod(decimal *from1, decimal *from2, decimal *to);
