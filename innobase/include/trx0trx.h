@@ -280,8 +280,7 @@ own the kernel mutex. */
 void
 trx_print(
 /*======*/
-	char*	buf,	/* in/out: buffer where to print, must be at least
-			800 bytes */
+	FILE*	f,	/* in: output stream */
 	trx_t* trx); 	/* in: transaction */
 
 

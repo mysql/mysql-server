@@ -123,6 +123,8 @@ class ha_innobase: public handler
 				whose size is > MAX_KEY_LENGTH */
   	uint max_key_length() const { return((MAX_KEY_LENGTH <= 3500) ?
 					  MAX_KEY_LENGTH : 3500);}
+  	uint max_key_part_length() { return((MAX_KEY_LENGTH <= 3500) ?
+					  MAX_KEY_LENGTH : 3500);}
 	const key_map *keys_to_use_for_scanning() { return &key_map_full; }
   	bool has_transactions()  { return 1;}
 

@@ -1,0 +1,161 @@
+/* Copyright (C) 2003 MySQL AB
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+
+#include <signaldata/LqhKey.hpp>
+
+bool
+printLQHKEYREQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo){
+
+  const LqhKeyReq * const sig = (LqhKeyReq *) theData;
+  
+  fprintf(output,
+    " ClientPtr = H\'%.8x hashValue = H\'%.8x tcBlockRef = H\'%.8x\n"
+    " transId1 = H\'%.8x transId2 = H\'%.8x savePointId = H\'%.8x\n",
+          sig->clientConnectPtr,        // DATA 0
+          sig->hashValue,               // DATA 2
+          sig->tcBlockref,              // DATA 4
+          sig->transId1,                // DATA 7
+          sig->transId2,                // DATA 8
+          sig->savePointId              // DATA 9
+          );
+
+  const Uint32 reqInfo  = sig->requestInfo;
+  const Uint32 attrLen = sig->attrLen;
+
+  fprintf(output,
+          " Op: %d Lock: %d Flags: ",
+          LqhKeyReq::getOperation(reqInfo),
+          LqhKeyReq::getLockType(reqInfo));
+  if(LqhKeyReq::getSimpleFlag(reqInfo))
+    fprintf(output, "Simple ");
+  if(LqhKeyReq::getDirtyFlag(reqInfo))
+    fprintf(output, "Dirty ");
+  if(LqhKeyReq::getInterpretedFlag(reqInfo))
+    fprintf(output, "Interpreted ");
+  if(LqhKeyReq::getScanTakeOverFlag(attrLen))
+    fprintf(output, "ScanTakeOver ");
+  if(LqhKeyReq::getMarkerFlag(reqInfo))
+    fprintf(output, "CommitAckMarker ");
+
+  fprintf(output, "ScanInfo/noFiredTriggers: H\'%x\n", sig->scanInfo);
+  
+  fprintf(output,
+          " AttrLen: %d (%d in this) KeyLen: %d TableId: %d SchemaVer: %d\n",
+          LqhKeyReq::getAttrLen(attrLen),
+          LqhKeyReq::getAIInLqhKeyReq(reqInfo),
+          LqhKeyReq::getKeyLen(reqInfo),
+          LqhKeyReq::getTableId(sig->tableSchemaVersion),
+          LqhKeyReq::getSchemaVersion(sig->tableSchemaVersion));
+
+  fprintf(output,
+          " FragId: %d ReplicaNo: %d LastReplica: %d NextNodeId: %d\n",
+          LqhKeyReq::getFragmentId(sig->fragmentData),
+          LqhKeyReq::getSeqNoReplica(reqInfo),
+          LqhKeyReq::getLastReplicaNo(reqInfo),
+          LqhKeyReq::getNextReplicaNodeId(sig->fragmentData));
+
+  bool printed = false;
+  Uint32 nextPos = LqhKeyReq::getApplicationAddressFlag(reqInfo) << 1;
+  if(nextPos != 0){
+    fprintf(output,
+            " ApiRef: H\'%.8x ApiOpRef: H\'%.8x",
+            sig->variableData[0],
+            sig->variableData[1]);
+    printed = true;
+  }
+  
+  if(LqhKeyReq::getSameClientAndTcFlag(reqInfo)){
+    fprintf(output, " TcOpRec: H\'%.8x", sig->variableData[nextPos]);
+    nextPos++;
+    printed = true;
+  }
+
+  Uint32 tmp = LqhKeyReq::getLastReplicaNo(reqInfo) - 
+    LqhKeyReq::getSeqNoReplica(reqInfo);
+  if(tmp > 1){
+    NodeId node2 = sig->variableData[nextPos] & 0xffff;
+    NodeId node3 = sig->variableData[nextPos] >> 16;
+    fprintf(output, " NextNodeId2: %d NextNodeId3: %d",
+            node2, node3);
+    nextPos ++;
+    printed = true;
+  }
+  if(printed)
+    fprintf(output, "\n");
+  
+  printed = false;
+  if(LqhKeyReq::getStoredProcFlag(attrLen)){
+    fprintf(output, " StoredProcId: %d", sig->variableData[nextPos]);
+    nextPos++;
+    printed = true;
+  }
+
+  if(LqhKeyReq::getReturnedReadLenAIFlag(reqInfo)){
+    fprintf(output, " ReturnedReadLenAI: %d",
+            sig->variableData[nextPos]);
+    nextPos++;
+    printed = true;
+  }
+
+  const UintR keyLen = LqhKeyReq::getKeyLen(reqInfo);
+  if(keyLen > 0){
+    fprintf(output, " KeyInfo: ");
+    for(UintR i = 0; i<keyLen && i<4; i++, nextPos++)
+      fprintf(output, "H\'%.8x ", sig->variableData[nextPos]);
+    fprintf(output, "\n");
+  }
+  
+  if(!LqhKeyReq::getInterpretedFlag(reqInfo)){
+    fprintf(output, " AttrInfo: ");
+    for(int i = 0; i<LqhKeyReq::getAIInLqhKeyReq(reqInfo); i++, nextPos++)
+      fprintf(output, "H\'%.8x ", sig->variableData[nextPos]);
+    fprintf(output, "\n");
+  } else {
+    fprintf(output, " InitialReadSize: %d InterpretedSize: %d "
+            "FinalUpdateSize: %d FinalReadSize: %d SubroutineSize: %d\n",
+            sig->variableData[nextPos+0], sig->variableData[nextPos+1], 
+            sig->variableData[nextPos+2], sig->variableData[nextPos+3],
+            sig->variableData[nextPos+4]);
+    nextPos += 5;
+  }
+  return true;
+}
+
+bool
+printLQHKEYCONF(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo){
+//  const LqhKeyConf * const sig = (LqhKeyConf *) theData;
+
+  fprintf(output, "Signal data: ");
+  Uint32 i = 0;
+  while (i < len)
+    fprintf(output, "H\'%.8x ", theData[i++]);
+  fprintf(output,"\n");
+  
+  return true;
+}
+
+bool
+printLQHKEYREF(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo){
+//  const LqhKeyRef * const sig = (LqhKeyRef *) theData;
+
+  fprintf(output, "Signal data: ");
+  Uint32 i = 0;
+  while (i < len)
+    fprintf(output, "H\'%.8x ", theData[i++]);
+  fprintf(output,"\n");
+  
+  return true;
+}

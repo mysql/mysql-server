@@ -1148,6 +1148,35 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
     }
   }
 
+  /*
+    Check that table with given name does not already
+    exist in any storage engine. In such a case it should
+    be discovered and the error ER_TABLE_EXISTS_ERROR be returned
+    unless user specified CREATE TABLE IF EXISTS
+    The LOCK_open mutex has been locked to make sure no
+    one else is attempting to discover the table. Since
+    it's not on disk as a frm file, no one could be using it!
+  */
+  if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE))
+  {
+    bool create_if_not_exists =
+      create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS;
+    if (!create_table_from_handler(db, table_name,
+                                 create_if_not_exists))
+    {
+      DBUG_PRINT("info", ("Table already existed in handler"));
+
+      if (create_if_not_exists)
+      {
+       create_info->table_existed= 1;   // Mark that table existed
+       error= 0;
+      }
+      else
+       my_error(ER_TABLE_EXISTS_ERROR,MYF(0),table_name);
+      goto end;
+    }
+  }
+
   thd->proc_info="creating table";
   create_info->table_existed= 0;		// Mark that table is created
 

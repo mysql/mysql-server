@@ -171,7 +171,8 @@ mlog_write_initial_log_record_fast(
 	mtr->n_log_recs++;
 
 #ifdef UNIV_LOG_DEBUG
-/*	printf("Adding to mtr log record type %lu space %lu page no %lu\n",
+/*	fprintf(stderr,
+		"Adding to mtr log record type %lu space %lu page no %lu\n",
 						type, space, offset); */
 #endif
 

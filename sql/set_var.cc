@@ -59,6 +59,9 @@
 #ifdef HAVE_INNOBASE_DB
 #include "ha_innodb.h"
 #endif
+#ifdef HAVE_NDBCLUSTER_DB
+#include "ha_ndbcluster.h"
+#endif
 
 static HASH system_variable_hash;
 const char *bool_type_names[]= { "OFF", "ON", NullS };
@@ -638,6 +641,7 @@ struct show_var_st init_vars[]= {
   {"have_crypt",	      (char*) &have_crypt,		    SHOW_HAVE},
   {"have_innodb",	      (char*) &have_innodb,		    SHOW_HAVE},
   {"have_isam",		      (char*) &have_isam,		    SHOW_HAVE},
+  {"have_ndbcluster",         (char*) &have_ndbcluster,             SHOW_HAVE},
   {"have_openssl",	      (char*) &have_openssl,		    SHOW_HAVE},
   {"have_query_cache",        (char*) &have_query_cache,            SHOW_HAVE},
   {"have_raid",		      (char*) &have_raid,		    SHOW_HAVE},
@@ -1090,9 +1094,9 @@ static void fix_max_relay_log_size(THD *thd, enum_var_type type)
 
 static int check_max_delayed_threads(THD *thd, set_var *var)
 {
-  int val= var->value->val_int();
+  longlong val= var->value->val_int();
   if (var->type != OPT_GLOBAL && val != 0 &&
-      val != global_system_variables.max_insert_delayed_threads)
+      val != (longlong) global_system_variables.max_insert_delayed_threads)
   {
     char buf[64];
     my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), var->var->name, llstr(val, buf));
@@ -1100,6 +1104,7 @@ static int check_max_delayed_threads(THD *thd, set_var *var)
   }
   return 0;
 }
+
 
 static void fix_max_connections(THD *thd, enum_var_type type)
 {

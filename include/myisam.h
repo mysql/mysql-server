@@ -36,7 +36,7 @@ extern "C" {
 	/* defines used by myisam-funktions */
 
 /* The following defines can be increased if necessary */
-#define MI_MAX_KEY	32		/* Max allowed keys */
+#define MI_MAX_KEY	64		/* Max allowed keys */
 #define MI_MAX_KEY_SEG	16		/* Max segments for key */
 #define MI_MAX_KEY_LENGTH 1000
 

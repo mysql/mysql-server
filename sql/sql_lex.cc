@@ -879,13 +879,15 @@ int yylex(void *arg, void *yythd)
       }
       yySkip();
       return (SET_VAR);
-    case MY_LEX_COLON:			// optional line terminator
+    case MY_LEX_SEMICOLON:			// optional line terminator
       if (yyPeek())
       {
-        if (((THD *)yythd)->client_capabilities & CLIENT_MULTI_STATEMENTS)
+        THD* thd= (THD*)yythd;
+        if ((thd->client_capabilities & CLIENT_MULTI_STATEMENTS) && 
+            (thd->command != COM_PREPARE))
         {
           lex->found_colon=(char*)lex->ptr;
-          ((THD *)yythd)->server_status |= SERVER_MORE_RESULTS_EXISTS;
+          thd->server_status |= SERVER_MORE_RESULTS_EXISTS;
           lex->next_state=MY_LEX_END;
           return(END_OF_INPUT);
         }
@@ -1529,7 +1531,7 @@ bool st_select_lex::setup_ref_array(THD *thd, uint order_group_num)
 */
 bool st_select_lex_unit::check_updateable(char *db, char *table)
 {
-  for(SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
+  for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
     if (sl->check_updateable(db, table))
       return 1;
   return 0;

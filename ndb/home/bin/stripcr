@@ -1,0 +1,90 @@
+#!/bin/sh
+
+
+# NAME
+#   stripcr - a program for removing carriage return chars from dos-files.
+# 
+# SYNOPSIS
+#   stripcr  [file...]
+#
+# DESCRIPTION
+#   stripcr deletes all CR characters from the given files.
+#   The files are edited in place.
+#   If no files are given, stdin and stdout are used instead.  
+#   
+# OPTIONS
+#   -s extension	Make a copy of the original of each file, and 
+#			give it the given extension (.bak, .orig, -bak, ...).
+#
+# EXAMPLES
+#   stripcr   file.txt  innerloop.cc
+#   stripcr   -i.bak  *.cc
+#
+# ENVIRONMENT
+#   NDB_PROJ_HOME       Home dir for ndb
+#   
+# FILES
+#   $NDB_PROJ_HOME/lib/funcs.sh   Some userful functions for safe execution 
+#                                 of commands, printing, and tracing.
+#
+# VERSION
+#   1.0
+#
+# AUTHOR
+#   Jonas Mölsä
+#
+
+
+progname=`basename $0`
+synopsis="stripcr  [-s extension]  [file...]"
+
+
+: ${NDB_PROJ_HOME:?}		# If undefined, exit with error message
+
+: ${STRIPCR_OPTIONS:=--}   # If undefined, set to --, to keep getopts happy.
+			   # You may have to experiment, to get quoting right.
+
+. $NDB_PROJ_HOME/lib/funcs.sh
+
+
+# defaults for options related variables 
+#
+extension=
+options="$STRIPCR_OPTIONS"
+
+# used if error when parsing the options environment variable
+#
+env_opterr="options environment variable: <<$options>>" 
+
+
+
+# We want to be able to set options in an environment variable,
+# as well as on the command line. In order not to have to repeat
+# the same getopts information twice, we loop two times over the
+# getopts while loop. The first time, we process options from
+# the options environment variable, the second time we process 
+# options from the command line.
+#
+# The things to change are the actual options and what they do.
+#
+#
+for optstring in "$options"  ""		# 1. options variable  2. cmd line
+do
+    while getopts s:  i  $optstring   # optstring empty => no arg => cmd line
+    do
+	case $i in
+
+	s)	extension="$OPTARG";; 	
+	\?)	syndie $env_opterr;;    	# print synopsis and exit
+
+	esac
+    done
+
+    [ -n "$optstring" ]  &&  OPTIND=1 	# Reset for round 2, cmd line options
+
+    env_opterr= 			# Round 2 should not use the value
+done
+shift `expr $OPTIND - 1`
+
+
+safe perl -i$extension -lpe 'tr/\r//d' $*
