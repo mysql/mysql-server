@@ -1693,7 +1693,7 @@ void Item_cache_str::store(Item *item)
     value_buff.copy(*value);
     value= &value_buff;
   }
-  set_charset(&item->collation);
+  collation.set(item->collation);
 }
 double Item_cache_str::val()
 { 
