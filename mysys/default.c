@@ -249,7 +249,7 @@ static my_bool search_default_file(DYNAMIC_ARRAY *args, MEM_ROOT *alloc,
   {
     line++;
     /* Ignore comment and empty lines */
-    for (ptr=buff ; my_isspace(system_charset_info,*ptr) ; ptr++ ) ;
+    for (ptr=buff ; my_isspace(&my_charset_latin1,*ptr) ; ptr++ ) ;
     if (*ptr == '#' || *ptr == ';' || !*ptr)
       continue;
     if (*ptr == '[')				/* Group name */
@@ -262,7 +262,7 @@ static my_bool search_default_file(DYNAMIC_ARRAY *args, MEM_ROOT *alloc,
 		name,line);
 	goto err;
       }
-      for ( ; my_isspace(system_charset_info,end[-1]) ; end--) ;/* Remove end space */
+      for ( ; my_isspace(&my_charset_latin1,end[-1]) ; end--) ;/* Remove end space */
       end[0]=0;
       read_values=find_type(ptr,group,3) > 0;
       continue;
@@ -278,7 +278,7 @@ static my_bool search_default_file(DYNAMIC_ARRAY *args, MEM_ROOT *alloc,
       continue;
     if (!(end=value=strchr(ptr,'=')))
       end=strend(ptr);				/* Option without argument */
-    for ( ; my_isspace(system_charset_info,end[-1]) ; end--) ;
+    for ( ; my_isspace(&my_charset_latin1,end[-1]) ; end--) ;
     if (!value)
     {
       if (!(tmp=alloc_root(alloc,(uint) (end-ptr)+3)))
@@ -291,9 +291,9 @@ static my_bool search_default_file(DYNAMIC_ARRAY *args, MEM_ROOT *alloc,
     {
       /* Remove pre- and end space */
       char *value_end;
-      for (value++ ; my_isspace(system_charset_info,*value); value++) ;
+      for (value++ ; my_isspace(&my_charset_latin1,*value); value++) ;
       value_end=strend(value);
-      for ( ; my_isspace(system_charset_info,value_end[-1]) ; value_end--) ;
+      for ( ; my_isspace(&my_charset_latin1,value_end[-1]) ; value_end--) ;
       if (value_end < value)			/* Empty string */
 	value_end=value;
       if (!(tmp=alloc_root(alloc,(uint) (end-ptr)+3 +

@@ -89,6 +89,8 @@
 #define MAX_LAUNCHER_MSG 256
 #endif
 
+static CHARSET_INFO *cs= &my_charset_latin1;
+
 #define MAX_RETRY_COUNT 100
 
 /*
@@ -428,8 +430,8 @@ static int exec_line(struct manager_thd* thd,char* buf,char* buf_end)
 {
   char* p=buf;
   struct manager_cmd* cmd;
-  for (;p<buf_end && !my_isspace(system_charset_info,*p);p++)
-    *p=my_tolower(system_charset_info,*p);
+  for (;p<buf_end && !my_isspace(cs,*p);p++)
+    *p=my_tolower(cs,*p);
   log_info("Command '%s'", buf);
   if (!(cmd=lookup_cmd(buf,(int)(p-buf))))
   {
@@ -439,7 +441,7 @@ static int exec_line(struct manager_thd* thd,char* buf,char* buf_end)
       thd->fatal=1;
     return 1;
   }
-  for (;p<buf_end && my_isspace(system_charset_info,*p);p++);
+  for (;p<buf_end && my_isspace(cs,*p);p++);
   return cmd->handler_func(thd,p,buf_end);
 }
 
@@ -716,7 +718,7 @@ HANDLE_DECL(handle_query)
   int num_fields,i,ident_len;
   char* ident,*query;
   query=ident=args_start;
-  while (!my_isspace(system_charset_info,*query))
+  while (!my_isspace(cs,*query))
     query++;
   if (query == ident)
   {
@@ -724,7 +726,7 @@ HANDLE_DECL(handle_query)
     goto err;
   }
   ident_len=(int)(query-ident);
-  while (query<args_end && my_isspace(system_charset_info,*query))
+  while (query<args_end && my_isspace(cs,*query))
     query++;
   if (query == args_end)
   {
@@ -1000,7 +1002,7 @@ static int authenticate(struct manager_thd* thd)
   for (buf=thd->cmd_buf,p=thd->user,p_end=p+MAX_USER_NAME;
        buf<buf_end && (c=*buf) && p<p_end; buf++,p++)
   {
-    if (my_isspace(system_charset_info,c))
+    if (my_isspace(cs,c))
     {
       *p=0;
       break;
@@ -1013,7 +1015,7 @@ static int authenticate(struct manager_thd* thd)
   if (!(u=(struct manager_user*)hash_search(&user_hash,thd->user,
 					    (uint)(p-thd->user))))
     return 1;
-  for (;my_isspace(system_charset_info,*buf) && buf<buf_end;buf++) /* empty */;
+  for (;my_isspace(cs,*buf) && buf<buf_end;buf++) /* empty */;
 
   my_MD5Init(&context);
   my_MD5Update(&context,(uchar*) buf,(uint)(buf_end-buf));
@@ -1582,9 +1584,9 @@ static void manager_exec_free(void* e)
 
 static int hex_val(char c)
 {
-  if (my_isdigit(system_charset_info,c))
+  if (my_isdigit(cs,c))
     return c-'0';
-  c=my_tolower(system_charset_info,c);
+  c=my_tolower(cs,c);
   return c-'a'+10;
 }
 
@@ -1641,7 +1643,7 @@ static void init_user_hash()
   FILE* f;
   char buf[80];
   int line_num=1;
-  if (hash_init(&user_hash,system_charset_info,1024,0,0,
+  if (hash_init(&user_hash,cs,1024,0,0,
                 get_user_key,manager_user_free,MYF(0)))
     die("Could not initialize user hash");
   if (!(f=my_fopen(manager_pw_file, O_RDONLY | O_BINARY, MYF(MY_WME))))
@@ -1688,7 +1690,7 @@ static void init_pid_file()
 static void init_globals()
 {
   pthread_attr_t thr_attr;
-  if (hash_init(&exec_hash,system_charset_info,1024,0,0,
+  if (hash_init(&exec_hash,cs,1024,0,0,
                 get_exec_key,manager_exec_free,MYF(0)))
     die("Exec hash initialization failed");
   if (!one_thread)
