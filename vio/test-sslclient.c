@@ -32,7 +32,7 @@ main(	int	argc __attribute__((unused)),
 	char**	argv)
 {
 	char	client_key[] = "../SSL/client-key.pem",	client_cert[] = "../SSL/client-cert.pem";
-	char	ca_file[] = "../SSL/cacert.pem",	*ca_path = 0;
+	char	ca_file[] = "../SSL/cacert.pem",	*ca_path = 0, *cipher=0;
 	struct st_VioSSLConnectorFd* ssl_connector=0; 
 	struct sockaddr_in sa;
 	Vio* client_vio=0;
@@ -48,7 +48,7 @@ main(	int	argc __attribute__((unused)),
 	if (ca_path!=0)
 		printf("CApath          : %s\n", ca_path);
 
-	ssl_connector = new_VioSSLConnectorFd(client_key, client_cert, ca_file, ca_path);
+	ssl_connector = new_VioSSLConnectorFd(client_key, client_cert, ca_file, ca_path, cipher);
 	if(!ssl_connector) {
                  fatal_error("client:new_VioSSLConnectorFd failed");
 	}
@@ -69,7 +69,7 @@ main(	int	argc __attribute__((unused)),
 	/* ----------------------------------------------- */
 	/* Now we have TCP conncetion. Start SSL negotiation. */
 	read(client_vio->sd,xbuf, sizeof(xbuf));
-        sslconnect(ssl_connector,client_vio);
+        sslconnect(ssl_connector,client_vio,60L);
 	err = client_vio->read(client_vio,xbuf, sizeof(xbuf));
 	if (err<=0) {
 		my_free((gptr)ssl_connector,MYF(0));

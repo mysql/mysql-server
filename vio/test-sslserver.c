@@ -46,7 +46,7 @@ do_ssl_stuff(	TH_ARGS*	args)
 	/* TCP connection is ready. Do server side SSL. */
 
 	err = write(server_vio->sd,(gptr)s, strlen(s));
-	sslaccept(args->ssl_acceptor,server_vio);
+	sslaccept(args->ssl_acceptor,server_vio,60L);
 	err = server_vio->write(server_vio,(gptr)s, strlen(s));
 	DBUG_VOID_RETURN;
 }
@@ -65,7 +65,8 @@ main(	int	argc __attribute__((unused)),
 	char	server_key[] = "../SSL/server-key.pem",
 		server_cert[] = "../SSL/server-cert.pem";
 	char	ca_file[] = "../SSL/cacert.pem",
-		*ca_path = 0;
+		*ca_path = 0,
+		*cipher = 0;
 	struct	st_VioSSLAcceptorFd*	ssl_acceptor;
 	pthread_t	th;
 	TH_ARGS		th_args;
@@ -89,7 +90,7 @@ main(	int	argc __attribute__((unused)),
 	if (ca_path!=0)
 		printf("CApath          : %s\n", ca_path);
 
-        th_args.ssl_acceptor = ssl_acceptor = new_VioSSLAcceptorFd(server_key, server_cert, ca_file, ca_path);
+        th_args.ssl_acceptor = ssl_acceptor = new_VioSSLAcceptorFd(server_key, server_cert, ca_file, ca_path,cipher);
 
 	/* ----------------------------------------------- */
 	/* Prepare TCP socket for receiving connections */
