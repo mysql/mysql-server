@@ -14353,6 +14353,14 @@ Option can be any combination of: @code{REAL_AS_FLOAT},
 By specifying all of the above options is same as using --ansi.
 With this option one can turn on only needed SQL modes. @xref{ANSI mode}.
 
+@item --temp-pool
+Using this option will cause most temporary files created to use a small
+set of names, rather than a unique name for each new file. This is to
+work around a problem in the Linux kernel dealing with creating a bunch
+of new files with different names. With the old behavior, Linux seems to
+'leak' memory, as it's being allocated to the directory entry cache
+instead of the disk cache.
+
 @item --transaction-isolation= @{ READ-UNCOMMITTED | READ-COMMITTED | REPEATABLE-READ | SERIALIZABLE @}
 Sets the default transaction isolation level.  @xref{SET TRANSACTION}.
 
@@ -23942,7 +23950,8 @@ Updates to a database with a different name than the original.
 
 Example: @code{replicate-rewrite-db=master_db_name->slave_db_name}
 
-@item @code{slave-skip-errors=err_code1,err_code2,...} @tab
+@item @code{slave-skip-errors= [err_code1,err_code2,... | all]} @tab
+
 Available only in 3.23.47 and later. Tells the slave thread to continue
 replication when a query returns an error from the provided
 list. Normally, replication will discontinue when an error is

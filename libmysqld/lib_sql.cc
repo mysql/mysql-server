@@ -568,6 +568,9 @@ void STDCALL mysql_server_end()
   if (!org_my_init_done)
     my_thread_end();
 #endif
+  /* If library called my_init(), free memory allocated by it */
+  if (!org_my_init_done)
+    my_end(0);
 }
 
 my_bool STDCALL mysql_thread_init()
