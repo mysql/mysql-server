@@ -26,7 +26,8 @@ class NdbEventOperationImpl;
  *
  * Brief description on how to work with events:
  *
- * - An event i created in the Database through
+ * - An event, represented by an NdbDictionary::Event, i created in the 
+ *   Database through
  *   NdbDictionary::Dictionary::createEvent() (note that this can be done 
  *   by any application or thread and not necessarily by the "listener")
  * - To listen to events, an NdbEventOperation object is instantiated by 
