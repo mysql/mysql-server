@@ -89,6 +89,7 @@ proc_analyse_init(THD *thd, ORDER *param, select_result *result,
     if ((*param->item)->type() != Item::INT_ITEM ||
 	(*param->item)->val() < 0)
     {
+      delete pc;
       my_error(ER_WRONG_PARAMETERS_TO_PROCEDURE, MYF(0), proc_name);
       DBUG_RETURN(0);
     }
@@ -103,6 +104,7 @@ proc_analyse_init(THD *thd, ORDER *param, select_result *result,
     if ((*param->item)->type() != Item::INT_ITEM ||
 	(*param->item)->val() < 0)
     {
+      delete pc;
       my_error(ER_WRONG_PARAMETERS_TO_PROCEDURE, MYF(0), proc_name);
       DBUG_RETURN(0);
     }
@@ -111,6 +113,7 @@ proc_analyse_init(THD *thd, ORDER *param, select_result *result,
   else if ((*param->item)->type() != Item::INT_ITEM ||
 	   (*param->item)->val() < 0)
   {
+    delete pc;
     my_error(ER_WRONG_PARAMETERS_TO_PROCEDURE, MYF(0), proc_name);
     DBUG_RETURN(0);
   }

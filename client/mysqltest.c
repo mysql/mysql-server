@@ -991,7 +991,8 @@ int do_sync_with_master2(const char* p)
 	mysql_errno(mysql), mysql_error(mysql));
 
   if (!(last_result = res = mysql_store_result(mysql)))
-    die("line %u: mysql_store_result() returned NULL", start_lineno);
+    die("line %u: mysql_store_result() returned NULL for '%s'", start_lineno,
+	query_buf);
   if (!(row = mysql_fetch_row(res)))
     die("line %u: empty result in %s", start_lineno, query_buf);
   if (!row[0])
@@ -1021,17 +1022,19 @@ int do_save_master_pos()
   MYSQL_RES* res;
   MYSQL_ROW row;
   MYSQL* mysql = &cur_con->mysql;
+  const char *query;
   int rpl_parse;
 
   rpl_parse = mysql_rpl_parse_enabled(mysql);
   mysql_disable_rpl_parse(mysql);
 
-  if (mysql_query(mysql, "show master status"))
+  if (mysql_query(mysql, query= "show master status"))
     die("At line %u: failed in show master status: %d: %s", start_lineno,
 	mysql_errno(mysql), mysql_error(mysql));
 
   if (!(last_result =res = mysql_store_result(mysql)))
-    die("line %u: mysql_store_result() retuned NULL", start_lineno);
+    die("line %u: mysql_store_result() retuned NULL for '%s'", start_lineno,
+	query);
   if (!(row = mysql_fetch_row(res)))
     die("line %u: empty result in show master status", start_lineno);
   strnmov(master_pos.file, row[0], sizeof(master_pos.file)-1);

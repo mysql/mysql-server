@@ -225,7 +225,7 @@ public:
     return (void*) sql_calloc((uint) size);
   }
   static void operator delete(void *ptr,size_t size) {}
-  st_select_lex_node() {}
+  st_select_lex_node(): linkage(UNSPECIFIED_TYPE) {}
   virtual ~st_select_lex_node() {}
   inline st_select_lex_node* get_master() { return master; }
   virtual void init_query();

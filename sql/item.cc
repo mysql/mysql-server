@@ -1203,17 +1203,21 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
   max_length= (*ref)->max_length;
   maybe_null= (*ref)->maybe_null;
   decimals=   (*ref)->decimals;
+  set_charset((*ref)->charset());
   fixed= 1;
+
   if (ref && (*ref)->check_cols(1))
     return 1;
   return 0;
 }
+
 
 bool Item_default_value::eq(const Item *item, bool binary_cmp) const
 {
   return item->type() == DEFAULT_VALUE_ITEM && 
     ((Item_default_value *)item)->arg->eq(arg, binary_cmp);
 }
+
 
 bool Item_default_value::fix_fields(THD *thd, struct st_table_list *table_list, Item **items)
 {
