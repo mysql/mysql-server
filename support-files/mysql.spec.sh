@@ -446,7 +446,7 @@ fi
 %files server
 %defattr(-,root,root,0755)
 
-%doc COPYING EXCEPTIONS-CLIENT README 
+%doc COPYING README 
 %doc Docs/manual.{html,ps,texi,txt}
 %doc Docs/manual_toc.html
 %doc support-files/my-*.cnf
@@ -531,6 +531,7 @@ fi
 
 %files devel
 %defattr(-, root, root, 0755)
+%doc EXCEPTIONS-CLIENT
 %attr(755, root, root) %{_bindir}/comp_err
 %attr(755, root, root) %{_bindir}/mysql_config
 %dir %attr(755, root, root) %{_includedir}/mysql
@@ -575,6 +576,10 @@ fi
 # The spec file changelog only includes changes made to the spec file
 # itself
 %changelog 
+* Mon Aug 09 2004 Lenz Grimmer <lenz@mysql.com>
+
+- Added EXCEPTIONS-CLIENT to the "devel" package
+
 * Mon Apr 05 2004 Lenz Grimmer <lenz@mysql.com>
 
 - added ncurses-devel to the build prerequisites (BUG 3377)
