@@ -378,25 +378,7 @@ row_drop_table_for_mysql(
 /*************************************************************************
 Discards the tablespace of a table which stored in an .ibd file. Discarding
 means that this function deletes the .ibd file and assigns a new table id for
-the table. Also the flag table->ibd_file_missing is set TRUE.
-
-How do we prevent crashes caused by ongoing operations on the table? Old
-operations could try to access non-existent pages.
-
-1) SQL queries, INSERT, SELECT, ...: we must get an exclusive MySQL table lock
-on the table before we can do DISCARD TABLESPACE. Then there are no running
-queries on the table.
-2) Purge and rollback: we assign a new table id for the table. Since purge and
-rollback look for the table based on the table id, they see the table as
-'dropped' and discard their operations.
-3) Insert buffer: we remove all entries for the tablespace in the insert
-buffer tree; as long as the tablespace mem object does not exist, ongoing
-insert buffer page merges are discarded in buf0rea.c. If we recreate the
-tablespace mem object with IMPORT TABLESPACE later, then the tablespace will
-have the same id, but the tablespace_version field in the mem object is
-different, and ongoing old insert buffer page merges get discarded.
-4) Linear readahead and random readahead: we use the same method as in 3) to
-discard ongoing operations. */
+the table. Also the flag table->ibd_file_missing is set TRUE. */
 
 int
 row_discard_tablespace_for_mysql(

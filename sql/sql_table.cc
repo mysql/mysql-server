@@ -2585,7 +2585,11 @@ err:
     send_ok(thd);
     DBUG_RETURN(0);
   }
-  DBUG_RETURN(error);
+
+  if (error == HA_ERR_ROW_IS_REFERENCED)
+    my_error(ER_ROW_IS_REFERENCED, MYF(0));
+  
+  DBUG_RETURN(-1);
 }
 
 

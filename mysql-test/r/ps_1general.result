@@ -834,7 +834,7 @@ execute s_t9 ;
 my_col
 1
 select a as my_col from t1;
-ERROR 42000: select command denied to user 'second_user'@'localhost' for table 't1'
+ERROR 42000: SELECT command denied to user 'second_user'@'localhost' for table 't1'
 grant select on mysqltest.t1 to second_user@localhost
 identified by 'looser' ;
 show grants for second_user@localhost ;
@@ -873,7 +873,7 @@ Grants for second_user@localhost
 GRANT USAGE ON *.* TO 'second_user'@'localhost' IDENTIFIED BY PASSWORD '*13843FE600B19A81E32AF50D4A6FED25875FF1F3'
 GRANT SELECT ON `mysqltest`.`t9` TO 'second_user'@'localhost'
 execute s_t1 ;
-ERROR 42000: select command denied to user 'second_user'@'localhost' for table 't1'
+ERROR 42000: SELECT command denied to user 'second_user'@'localhost' for table 't1'
 revoke all privileges, grant option from second_user@localhost ;
 show grants for second_user@localhost ;
 Grants for second_user@localhost
