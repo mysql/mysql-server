@@ -4900,7 +4900,7 @@ ER_WARN_DATA_OUT_OF_RANGE 22003
 	ger "Daten abgeschnitten, außerhalb des Wertebereichs für Spalte '%s' in Zeile %ld"
 	por "Dado truncado, fora de alcance para coluna '%s' na linha %ld"
 	spa "Datos truncados, fuera de gama para columna '%s' en la línea %ld"
-ER_WARN_DATA_TRUNCATED 01000 
+WARN_DATA_TRUNCATED 01000 
 	eng "Data truncated for column '%s' at row %ld"
 	ger "Daten abgeschnitten für Spalte '%s' in Zeile %ld"
 	por "Dado truncado para coluna '%s' na linha %ld"
@@ -5312,3 +5312,5 @@ ER_PROC_AUTO_GRANT_FAIL
 	eng "Failed to grant EXECUTE and ALTER ROUTINE privileges"
 ER_PROC_AUTO_REVOKE_FAIL
 	eng "Failed to revoke all privileges to dropped routine"
+ER_DATA_TOO_LONG 22001
+	eng "Data too long for column '%s' at row %ld"
