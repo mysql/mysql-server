@@ -2768,18 +2768,23 @@ unsent_create_error:
       select_lex->options |= OPTION_BUFFER_RESULT;
     }
 
-    if (!(res= open_and_lock_tables(thd, tables)) &&
-        !(res= mysql_prepare_insert(thd, tables, first_local_table, 
-				    tables->table, lex->field_list, 0,
+    if ((res= open_and_lock_tables(thd, tables)))
+      break;
+      
+    TABLE *table= tables->table;
+    /* Skip first table, which is the table we are inserting in */
+    tables= (TABLE_LIST *)
+      lex->select_lex.table_list.first= (byte*) first_local_table->next;
+    first_local_table->next= 0;
+    
+    if (!(res= mysql_prepare_insert(thd, tables, first_local_table, 
+				    table, lex->field_list, 0,
 				    lex->update_list, lex->value_list,
 				    lex->duplicates)) &&
-        (result= new select_insert(tables->table, &lex->field_list,
+        (result= new select_insert(table, &lex->field_list,
 				   &lex->update_list, &lex->value_list,
                                    lex->duplicates, lex->ignore)))
     {
-      TABLE *table= tables->table;
-      /* Skip first table, which is the table we are inserting in */
-      lex->select_lex.table_list.first= (byte*) first_local_table->next;
       /*
         insert/replace from SELECT give its SELECT_LEX for SELECT,
         and item_list belong to SELECT
@@ -2787,7 +2792,6 @@ unsent_create_error:
       lex->select_lex.resolve_mode= SELECT_LEX::SELECT_MODE;
       res= handle_select(thd, lex, result);
       /* revert changes for SP */
-      lex->select_lex.table_list.first= (byte*) first_local_table;
       lex->select_lex.resolve_mode= SELECT_LEX::INSERT_MODE;
       delete result;
       table->insert_values= 0;
@@ -2796,6 +2800,8 @@ unsent_create_error:
     }
     else
       res= -1;
+    first_local_table->next= tables;
+    lex->select_lex.table_list.first= (byte*) first_local_table;
     break;
   }
   case SQLCOM_TRUNCATE:
