@@ -1115,15 +1115,8 @@ NdbConnection::getNdbScanOperation(const NdbTableImpl * tab)
   if (tOp == NULL)
     goto getNdbOp_error1;
   
-  // Link scan operation into list of cursor operations
-  if (m_theLastScanOperation == NULL)
-    m_theFirstScanOperation = m_theLastScanOperation = tOp;
-  else {
-    m_theLastScanOperation->next(tOp);
-    m_theLastScanOperation = tOp;
-  }
-  tOp->next(NULL);
   if (tOp->init(tab, this) != -1) {
+    define_scan_op(tOp);
     return tOp;
   } else {
     theNdb->releaseScanOperation(tOp);
@@ -1134,6 +1127,18 @@ getNdbOp_error1:
   setOperationErrorCodeAbort(4000);
   return NULL;
 }//NdbConnection::getNdbScanOperation()
+
+void
+NdbConnection::define_scan_op(NdbIndexScanOperation * tOp){
+  // Link scan operation into list of cursor operations
+  if (m_theLastScanOperation == NULL)
+    m_theFirstScanOperation = m_theLastScanOperation = tOp;
+  else {
+    m_theLastScanOperation->next(tOp);
+    m_theLastScanOperation = tOp;
+  }
+  tOp->next(NULL);
+}
 
 NdbScanOperation* 
 NdbConnection::getNdbScanOperation(const NdbDictionary::Table * table)

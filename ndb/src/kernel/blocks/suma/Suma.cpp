@@ -1891,7 +1891,7 @@ SumaParticipant::SyncRecord::nextScan(Signal* signal){
   ScanFragReq::setHoldLockFlag(req->requestInfo, 0);
   ScanFragReq::setKeyinfoFlag(req->requestInfo, 0);
   ScanFragReq::setAttrLen(req->requestInfo, attrLen);
-  req->fragmentNo = fd.m_fragDesc.m_fragmentNo;
+  req->fragmentNoKeyLen = fd.m_fragDesc.m_fragmentNo;
   req->schemaVersion = tabPtr.p->m_schemaVersion;
   req->transId1 = 0;
   req->transId2 = (SUMA << 20) + (suma.getOwnNodeId() << 8);
