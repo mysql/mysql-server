@@ -1,0 +1,70 @@
+-- source include/have_innodb.inc
+
+--disable_warnings
+drop table if exists t1,t2,t3;
+--enable_warnings
+
+#
+# key field overflow test
+#
+CREATE TABLE t1
+(
+FOLDERID VARCHAR(32)BINARY NOT NULL
+, FOLDERNAME VARCHAR(255)BINARY NOT NULL
+, CREATOR VARCHAR(255)BINARY
+, CREATED TIMESTAMP NOT NULL
+, DESCRIPTION VARCHAR(255)BINARY
+, FOLDERTYPE INTEGER NOT NULL
+, MODIFIED TIMESTAMP
+, MODIFIER VARCHAR(255)BINARY
+, FOLDERSIZE INTEGER NOT NULL
+, PARENTID VARCHAR(32)BINARY
+, REPID VARCHAR(32)BINARY
+, ORIGINATOR INTEGER
+
+, PRIMARY KEY ( FOLDERID )
+) TYPE=InnoDB;
+CREATE INDEX FFOLDERID_IDX ON t1 (FOLDERID);
+CREATE INDEX CMFLDRPARNT_IDX ON t1 (PARENTID);
+INSERT INTO t1 VALUES("0c9aab05b15048c59bc35c8461507deb", "System", "System", "2003-06-05 16:30:00", "The system content repository folder.", "3", "2003-06-05 16:30:00", "System", "0", NULL, "9c9aab05b15048c59bc35c8461507deb", "1");
+INSERT INTO t1 VALUES("2f6161e879db43c1a5b82c21ddc49089", "Default", "System", "2003-06-09 10:52:02", "The default content repository folder.", "3", "2003-06-05 16:30:00", "System", "0", NULL, "03eea05112b845949f3fd03278b5fe43", "1");
+INSERT INTO t1 VALUES("c373e9f5ad0791724315444553544200", "AddDocumentTest", "admin", "2003-06-09 10:51:25", "Movie Reviews", "0", "2003-06-09 10:51:25", "admin", "0", "2f6161e879db43c1a5b82c21ddc49089", "03eea05112b845949f3fd03278b5fe43", NULL);
+SELECT 'c373e9f5ad0791a0dab5444553544200' IN(SELECT t1.FOLDERID FROM t1 WHERE t1.PARENTID='2f6161e879db43c1a5b82c21ddc49089' AND t1.FOLDERNAME = 'Level1');
+drop table t1;
+
+#
+# UNION unlocking test
+#
+create table t1 (a int) type=innodb;
+create table t2 (a int) type=innodb;
+create table t3 (a int) type=innodb;
+insert into t1 values (1),(2),(3),(4);
+insert into t2 values (10),(20),(30),(40);
+insert into t3 values (1),(2),(10),(50);
+select a from t3 where t3.a in (select a from t1 where a <= 3 union select * from t2 where a <= 30);
+drop table t1,t2,t3;
+
+
+CREATE TABLE t1 (
+   processor_id INTEGER NOT NULL,
+   PRIMARY KEY (processor_id)
+) TYPE=InnoDB;
+CREATE TABLE t3 (
+   yod_id BIGINT UNSIGNED AUTO_INCREMENT NOT NULL,
+   login_processor INTEGER UNSIGNED ,
+   PRIMARY KEY (yod_id)
+) TYPE=InnoDB;
+CREATE TABLE t2 (
+   processor_id INTEGER NOT NULL,
+   yod_id BIGINT UNSIGNED NOT NULL,
+   PRIMARY KEY (processor_id, yod_id),
+   INDEX (processor_id),
+   INDEX (yod_id),
+   FOREIGN KEY (processor_id) REFERENCES t1(processor_id),
+   FOREIGN KEY (yod_id) REFERENCES t3(yod_id) 
+) TYPE=InnoDB;
+INSERT INTO t1 VALUES (1),(2),(3);
+INSERT INTO t3 VALUES (1,1),(2,2),(3,3);
+INSERT INTO t2 VALUES (1,1),(2,2),(3,3);
+SELECT distinct p1.processor_id, (SELECT y.yod_id FROM t1 p2, t2 y WHERE p2.processor_id = p1.processor_id and p2.processor_id = y.processor_id) FROM t1 p1;
+drop table t1,t2,t3;

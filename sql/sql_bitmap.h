@@ -1,14 +1,26 @@
-#include <my_global.h>
-//#include <mysql_version.h>
-//#include <mysql_embed.h>
-//#include <my_sys.h>
-//#include <m_string.h>
-//#include <hash.h>
-//#include <signal.h>
-//#include <thr_lock.h>
-//#include <my_base.h>
+/* Copyright (C) 2003 MySQL AB
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+
+/*
+  Implementation of a bitmap type.
+  The idea with this is to be able to handle any constant number of bits but
+  also be able to use 32 or 64 bits bitmaps very efficiently
+*/
+
 #include <my_bitmap.h>
-#include <assert.h>
 
 template <uint default_width> class Bitmap
 {
