@@ -200,7 +200,7 @@ String *Item_exists_subselect::val_str(String *str)
     assign_null();
     return 0;
   }
-  str->set(value,my_thd_charset);
+  str->set(value,thd_charset());
   return str;
 }
 
