@@ -42,7 +42,7 @@
 
 **********************************************************************/
 
-#define MTEST_VERSION "1.25"
+#define MTEST_VERSION "1.26"
 
 #include <my_global.h>
 #include <mysql_embed.h>
@@ -1797,10 +1797,8 @@ int read_query(struct st_query** q_ptr)
 
 static struct my_option my_long_options[] =
 {
-#ifndef DBUG_OFF
   {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
-#endif
   {"database", 'D', "Database to use.", (gptr*) &db, (gptr*) &db, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"basedir", 'b', "Basedir for tests", (gptr*) &opt_basedir,
@@ -1893,7 +1891,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 {
   switch(optid) {
   case '#':
+#ifndef DBUG_OFF
     DBUG_PUSH(argument ? argument : "d:t:S:i:O,/tmp/mysqltest.trace");
+#endif
     break;
   case 'r':
     record = 1;
@@ -1971,7 +1971,7 @@ int parse_args(int argc, char **argv)
   default_argv= argv;
 
   if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
-    exit(ho_error);
+    exit(1);
 
   if (argc > 1)
   {
