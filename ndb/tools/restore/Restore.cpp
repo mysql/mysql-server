@@ -192,14 +192,15 @@ RestoreMetaData::readGCPEntry() {
   return true;
 }
 
-TableS::TableS(NdbTableImpl* tableImpl)
+TableS::TableS(Uint32 version, NdbTableImpl* tableImpl)
   : m_dictTable(tableImpl)
 {
   m_dictTable = tableImpl;
   m_noOfNullable = m_nullBitmaskSize = 0;
   m_auto_val_id= ~(Uint32)0;
   m_max_auto_val= 0;
-
+  backupVersion = version;
+  
   for (int i = 0; i < tableImpl->getNoOfColumns(); i++)
     createAttr(tableImpl->getColumn(i));
 }
@@ -226,11 +227,10 @@ RestoreMetaData::parseTableDescriptor(const Uint32 * data, Uint32 len)
 
   debug << "parseTableInfo " << tableImpl->getName() << " done" << endl;
 
-  TableS * table = new TableS(tableImpl);
+  TableS * table = new TableS(m_fileHeader.NdbVersion, tableImpl);
   if(table == NULL) {
     return false;
   }
-  table->setBackupVersion(m_fileHeader.NdbVersion);
 
   debug << "Parsed table id " << table->getTableId() << endl;
   debug << "Parsed table #attr " << table->getNoOfAttributes() << endl;
@@ -334,6 +334,27 @@ RestoreDataIterator::getNextTuple(int  & res)
   Uint32 *buf_ptr = (Uint32*)_buf_ptr, *ptr = buf_ptr;
   ptr += m_currentTable->m_nullBitmaskSize;
   Uint32 i;
+  for(i= 0; i < m_currentTable->m_fixedKeys.size(); i++){
+    assert(ptr < buf_ptr + dataLength);
+ 
+    const Uint32 attrId = m_currentTable->m_fixedKeys[i]->attrId;
+
+    AttributeData * attr_data = m_tuple.getData(attrId);
+    const AttributeDesc * attr_desc = m_tuple.getDesc(attrId);
+
+    const Uint32 sz = attr_desc->getSizeInWords();
+
+    attr_data->null = false;
+    attr_data->void_value = ptr;
+
+    if(!Twiddle(attr_desc, attr_data))
+      {
+	res = -1;
+	return NULL;
+      }
+    ptr += sz;
+  }
+
   for(i = 0; i < m_currentTable->m_fixedAttribs.size(); i++){
     assert(ptr < buf_ptr + dataLength);
 
@@ -678,6 +699,12 @@ void TableS::createAttr(NdbDictionary::Column *column)
   if (d->m_column->getAutoIncrement())
     m_auto_val_id= d->attrId;
 
+  if(d->m_column->getPrimaryKey() && backupVersion <= MAKE_VERSION(4,1,7))
+  {
+    m_fixedKeys.push_back(d);
+    return;
+  }
+  
   if(!d->m_column->getNullable())
   {
     m_fixedAttribs.push_back(d);

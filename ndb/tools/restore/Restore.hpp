@@ -123,6 +123,8 @@ class TableS {
   Uint32 schemaVersion;
   Uint32 backupVersion;
   Vector<AttributeDesc *> allAttributesDesc;
+  Vector<AttributeDesc *> m_fixedKeys;
+  //Vector<AttributeDesc *> m_variableKey; 
   Vector<AttributeDesc *> m_fixedAttribs;
   Vector<AttributeDesc *> m_variableAttribs;
   
@@ -138,7 +140,7 @@ class TableS {
 
 public:
   class NdbDictionary::Table* m_dictTable;
-  TableS (class NdbTableImpl* dictTable);
+  TableS (Uint32 version, class NdbTableImpl* dictTable);
   ~TableS();
 
   Uint32 getTableId() const { 
