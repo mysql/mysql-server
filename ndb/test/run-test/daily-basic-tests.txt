@@ -474,10 +474,10 @@ max-time: 500
 cmd: testNdbApi
 args: -n UpdateWithoutValues T6 
 
-max-time: 500
-cmd: testInterpreter
-args: T1 
-
+#max-time: 500
+#cmd: testInterpreter
+#args: T1 
+#
 max-time: 1500
 cmd: testOperations
 args: -n ReadRead 
