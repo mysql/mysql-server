@@ -311,8 +311,8 @@ Field *Item_sum_hybrid::create_tmp_field(bool group, TABLE *table,
   {
     Field *field= ((Item_field*) args[0])->field;
     
-    if ((field= create_tmp_field_from_field(current_thd, field, this, table,
-					    0, convert_blob_length)))
+    if ((field= create_tmp_field_from_field(current_thd, field, name, table,
+					    NULL, convert_blob_length)))
       field->flags&= ~NOT_NULL_FLAG;
     return field;
   }
