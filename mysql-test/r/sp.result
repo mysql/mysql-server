@@ -2069,6 +2069,97 @@ call bug8540()|
 y	z
 1	1
 drop procedure bug8540|
+drop table if exists t3|
+create table t3 (s1 int)|
+drop procedure if exists bug6642|
+create procedure bug6642()
+select abs(count(s1)) from t3|
+call bug6642()|
+abs(count(s1))
+0
+call bug6642()|
+abs(count(s1))
+0
+drop procedure bug6642|
+insert into t3 values (0),(1)|
+drop procedure if exists bug7013|
+create procedure bug7013()
+select s1,count(s1) from t3 group by s1 with rollup|
+call bug7013()|
+s1	count(s1)
+0	1
+1	1
+NULL	2
+call bug7013()|
+s1	count(s1)
+0	1
+1	1
+NULL	2
+drop procedure bug7013|
+drop table if exists t4;
+--enable_warnings|
+create table t4 (
+a mediumint(8) unsigned not null auto_increment,
+b smallint(5) unsigned not null,
+c char(32) not null,
+primary key  (a)
+) engine=myisam default charset=latin1|
+insert into t4 values (1, 2, 'oneword')|
+insert into t4 values (2, 2, 'anotherword')|
+drop procedure if exists bug7743|
+create procedure bug7743 ( searchstring char(28) )
+begin
+declare var mediumint(8) unsigned;
+select a into var from t4 where b = 2 and c = binary searchstring limit 1;
+select var;
+end|
+call bug7743("oneword")|
+var
+1
+call bug7743("OneWord")|
+var
+NULL
+call bug7743("anotherword")|
+var
+2
+call bug7743("AnotherWord")|
+var
+NULL
+drop procedure bug7743|
+drop table t4|
+delete from t3|
+insert into t3 values(1)|
+drop procedure if exists bug7992_1|
+Warnings:
+Note	1305	PROCEDURE bug7992_1 does not exist
+drop procedure if exists bug7992_2|
+Warnings:
+Note	1305	PROCEDURE bug7992_2 does not exist
+create procedure bug7992_1()
+begin
+declare i int;
+select max(s1)+1 into i from t3;
+end|
+create procedure bug7992_2()
+insert into t3 (s1) select max(t4.s1)+1 from t3 as t4|
+call bug7992_1()|
+call bug7992_1()|
+call bug7992_2()|
+call bug7992_2()|
+drop procedure bug7992_1|
+drop procedure bug7992_2|
+drop table t3|
+drop table if exists t3|
+create table t3 (  userid bigint(20) not null default 0 )|
+drop procedure if exists bug8116|
+create procedure bug8116(in _userid int)
+select * from t3 where userid = _userid|
+call bug8116(42)|
+userid
+call bug8116(42)|
+userid
+drop procedure bug8116|
+drop table t3|
 drop table if exists fac|
 create table fac (n int unsigned not null primary key, f bigint unsigned)|
 drop procedure if exists ifac|

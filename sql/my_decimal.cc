@@ -13,6 +13,7 @@
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+
 #include "mysql_priv.h"
 
 #ifndef MYSQL_CLIENT
@@ -154,10 +155,11 @@ int my_decimal2binary(uint mask, const my_decimal *d, char *bin, int prec,
     E_DEC_BAD_NUM
     E_DEC_OOM
 */
+
 int str2my_decimal(uint mask, const char *from, uint length,
                    CHARSET_INFO *charset, my_decimal *decimal_value)
 {
-  char *end;
+  char *end, *from_end;
   int err;
   char buff[STRING_BUFFER_USUAL_SIZE];
   String tmp(buff, sizeof(buff), &my_charset_bin);
@@ -169,10 +171,20 @@ int str2my_decimal(uint mask, const char *from, uint length,
     length=  tmp.length();
     charset= &my_charset_bin;
   }
-  my_decimal_set_zero(decimal_value);
+  from_end= end= (char*) from+length;
   err= string2decimal((char *)from, (decimal *)decimal_value, &end);
-  if ((uint) (end-from) != length && !err)
-    err= E_DEC_TRUNCATED;
+  if (end != from_end && !err)
+  {
+    /* Give warining if there is something other than end space */
+    for ( ; end < from_end; end++)
+    {
+      if (!my_isspace(&my_charset_latin1, *end))
+      {
+        err= E_DEC_TRUNCATED;
+        break;
+      }
+    }
+  }
   check_result(mask, err);
   return err;
 }
@@ -200,12 +212,25 @@ print_decimal_buff(const my_decimal *dec, const byte* ptr, int length)
 {
   print_decimal(dec);
   fprintf(DBUG_FILE, "Record: ");
-  for(int i= 0; i < length; i++)
+  for (int i= 0; i < length; i++)
   {
     fprintf(DBUG_FILE, "%02X ", (uint)((uchar *)ptr)[i]);
   }
   fprintf(DBUG_FILE, "\n");
 }
+
+
+void dbug_print_decimal(const char *tag, const char *format, my_decimal *val)
+{
+  char buff[DECIMAL_MAX_STR_LENGTH];
+  String str(buff, sizeof(buff), &my_charset_bin);
+  if (!val)
+    str.set("NULL", 4, &my_charset_bin);
+  else
+    my_decimal2string(0, val, 0, 0, 0, &str);
+  DBUG_PRINT(tag, (format, (char*) str.ptr()));
+}
+
 #endif
 
 
