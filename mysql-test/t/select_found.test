@@ -85,3 +85,17 @@ INSERT INTO t1 (titre,maxnumrep) VALUES
 SELECT SQL_CALC_FOUND_ROWS titre,numeropost,maxnumrep FROM t1 WHERE numeropost IN (1,2) ORDER BY maxnumrep DESC LIMIT 0, 1;
 SELECT FOUND_ROWS();
 drop table t1;
+
+#
+# Test problem with impossible WHERE (Bug #1468)
+#
+
+create table t1 (id int, primary key (id));
+insert into t1 values (1), (2), (3), (4), (5);
+select SQL_CALC_FOUND_ROWS * from t1 where id > 3 limit 0, 1;
+select FOUND_ROWS();
+select SQL_CALC_FOUND_ROWS * from t1 where id > 3 AND 1=2 limit 0, 1;
+select FOUND_ROWS();
+select SQL_CALC_FOUND_ROWS * from t1 where id > 6 limit 0, 1;
+select FOUND_ROWS();
+drop table t1;

@@ -602,9 +602,11 @@ MY_STAT *my_stat(const char *path, MY_STAT *stat_area, myf my_flags)
   if ((m_used= (stat_area == NULL)))
     if (!(stat_area = (MY_STAT *) my_malloc(sizeof(MY_STAT), my_flags)))
       goto error;
-  if ( ! stat((my_string) path, (struct stat *) stat_area) )
+  if (! stat((my_string) path, (struct stat *) stat_area) )
     DBUG_RETURN(stat_area);
-  my_errno=errno;
+
+  DBUG_PRINT("error",("Got errno: %d from stat", errno));
+  my_errno= errno;
   if (m_used)					/* Free if new area */
     my_free((gptr) stat_area,MYF(0));
 
