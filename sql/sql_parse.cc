@@ -4745,6 +4745,38 @@ check_procedure_access(THD *thd, ulong want_access,char *db, char *name,
   return FALSE;
 }
 
+
+/*
+  Check if the routine has any of the routine privileges
+
+  SYNOPSIS
+    check_some_routine_access()
+    thd		 Thread handler
+    db           Database name
+    name         Routine name
+
+  RETURN
+    0            ok
+    1            error
+*/
+
+bool check_some_routine_access(THD *thd, char *db, char *name)
+{
+  ulong save_priv;
+  if (thd->master_access & SHOW_PROC_ACLS)
+    return FALSE;
+  if (!check_access(thd, SHOW_PROC_ACLS, db, &save_priv, 0, 1) ||
+      (save_priv & SHOW_PROC_ACLS))
+    return FALSE;
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  if (grant_option)
+    return check_routine_level_acl(thd, db, name);
+#endif
+
+  return FALSE;
+}
+
+
 /*
   Check if the given table has any of the asked privileges
 

@@ -453,6 +453,7 @@ bool check_procedure_access(THD *thd,ulong want_access,char *db,char *name,
 bool check_some_access(THD *thd, ulong want_access, TABLE_LIST *table);
 bool check_merge_table_access(THD *thd, char *db,
 			      TABLE_LIST *table_list);
+bool check_some_routine_access(THD *thd, char *db, char *name);
 bool multi_update_precheck(THD *thd, TABLE_LIST *tables);
 bool multi_delete_precheck(THD *thd, TABLE_LIST *tables, uint *table_count);
 bool mysql_multi_update_prepare(THD *thd);
