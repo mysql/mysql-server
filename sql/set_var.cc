@@ -103,14 +103,12 @@ sys_var_long_ptr	sys_binlog_cache_size("binlog_cache_size",
 					      &binlog_cache_size);
 sys_var_thd_ulong	sys_bulk_insert_buff_size("bulk_insert_buffer_size",
 						  &SV::bulk_insert_buff_size);
-sys_var_str		sys_charset("character_set_server",
+sys_var_character_set_server	sys_character_set_server("character_set_server");
+sys_var_str			sys_charset_system("character_set_system",
 				    sys_check_charset,
 				    sys_update_charset,
 				    sys_set_default_charset);
-sys_var_str		sys_charset_system("character_set_system",
-				    sys_check_charset,
-				    sys_update_charset,
-				    sys_set_default_charset);
+sys_var_character_set_database	sys_character_set_database("character_set_database");
 sys_var_character_set_client  sys_character_set_client("character_set_client");
 sys_var_character_set_results sys_character_set_results("character_set_results");
 sys_var_collation_connection sys_collation_connection("collation_connection");
@@ -362,6 +360,8 @@ sys_var *sys_variables[]=
   &sys_binlog_cache_size,
   &sys_buffer_results,
   &sys_bulk_insert_buff_size,
+  &sys_character_set_server,
+  &sys_character_set_database,
   &sys_character_set_client,
   &sys_character_set_results,
   &sys_collation_connection,
@@ -481,8 +481,9 @@ struct show_var_st init_vars[]= {
 #endif
   {sys_binlog_cache_size.name,(char*) &sys_binlog_cache_size,	    SHOW_SYS},
   {sys_bulk_insert_buff_size.name,(char*) &sys_bulk_insert_buff_size,SHOW_SYS},
-  {sys_charset.name, 	      (char*) &sys_charset,		    SHOW_SYS},
+  {sys_character_set_server.name, (char*) &sys_character_set_server,SHOW_SYS},
   {sys_charset_system.name,   (char*) &sys_charset_system,          SHOW_SYS},
+  {sys_character_set_database.name, (char*) &sys_character_set_database,SHOW_SYS},
   {sys_character_set_client.name,(char*) &sys_character_set_client,SHOW_SYS},
   {sys_character_set_results.name,(char*) &sys_character_set_results, SHOW_SYS},
   {sys_collation_connection.name,(char*) &sys_collation_connection, SHOW_SYS},
@@ -1288,21 +1289,26 @@ bool sys_var_character_set::check(THD *thd, set_var *var)
   return 0;
 }
 
-bool sys_var_character_set_client::update(THD *thd, set_var *var)
+bool sys_var_character_set::update(THD *thd, set_var *var)
 {
-  if (var->type == OPT_GLOBAL)
-    global_system_variables.character_set_client= var->save_result.charset;
-  else
-    thd->variables.character_set_client= var->save_result.charset;
+  ci_ptr(thd,var->type)[0]= var->save_result.charset;
   return 0;
 }
 
-byte *sys_var_character_set_client::value_ptr(THD *thd, enum_var_type type)
+byte *sys_var_character_set::value_ptr(THD *thd, enum_var_type type)
 {
-  CHARSET_INFO *cs= ((type == OPT_GLOBAL) ?
-		  global_system_variables.character_set_client :
-		  thd->variables.character_set_client);
+  CHARSET_INFO *cs= ci_ptr(thd,type)[0];
   return cs ? (byte*) cs->csname : (byte*) "NULL";
+}
+
+
+
+CHARSET_INFO ** sys_var_character_set_client::ci_ptr(THD *thd, enum_var_type type)
+{
+  if (type == OPT_GLOBAL)
+    return &global_system_variables.character_set_client;
+  else
+    return &thd->variables.character_set_client;
 }
 
 void sys_var_character_set_client::set_default(THD *thd, enum_var_type type)
@@ -1313,6 +1319,53 @@ void sys_var_character_set_client::set_default(THD *thd, enum_var_type type)
    thd->variables.character_set_client= global_system_variables.character_set_client;
 }
 
+CHARSET_INFO ** sys_var_character_set_results::ci_ptr(THD *thd, enum_var_type type)
+{
+  if (type == OPT_GLOBAL)
+    return &global_system_variables.character_set_results;
+  else
+    return &thd->variables.character_set_results;
+}
+
+void sys_var_character_set_results::set_default(THD *thd, enum_var_type type)
+{
+ if (type == OPT_GLOBAL)
+   global_system_variables.character_set_results= NULL;
+ else
+   thd->variables.character_set_results= global_system_variables.character_set_results;
+}
+
+CHARSET_INFO ** sys_var_character_set_server::ci_ptr(THD *thd, enum_var_type type)
+{
+  if (type == OPT_GLOBAL)
+    return &global_system_variables.character_set_server;
+  else
+    return &thd->variables.character_set_server;
+}
+
+void sys_var_character_set_server::set_default(THD *thd, enum_var_type type)
+{
+ if (type == OPT_GLOBAL)
+   global_system_variables.character_set_server= default_charset_info;
+ else
+   thd->variables.character_set_server= global_system_variables.character_set_server;
+}
+
+CHARSET_INFO ** sys_var_character_set_database::ci_ptr(THD *thd, enum_var_type type)
+{
+  if (type == OPT_GLOBAL)
+    return &global_system_variables.character_set_database;
+  else
+    return &thd->variables.character_set_database;
+}
+
+void sys_var_character_set_database::set_default(THD *thd, enum_var_type type)
+{
+ if (type == OPT_GLOBAL)
+    global_system_variables.character_set_database= default_charset_info;
+  else
+    thd->variables.character_set_database= thd->db_charset;
+}
 
 bool sys_var_collation_connection::update(THD *thd, set_var *var)
 {
@@ -1339,30 +1392,6 @@ void sys_var_collation_connection::set_default(THD *thd, enum_var_type type)
    thd->variables.collation_connection= global_system_variables.collation_connection;
 }
 
-bool sys_var_character_set_results::update(THD *thd, set_var *var)
-{
-  if (var->type == OPT_GLOBAL)
-    global_system_variables.character_set_results= var->save_result.charset;
-  else
-    thd->variables.character_set_results= var->save_result.charset;
-  return 0;
-}
-
-byte *sys_var_character_set_results::value_ptr(THD *thd, enum_var_type type)
-{
-  CHARSET_INFO *cs= ((type == OPT_GLOBAL) ?
-		  global_system_variables.character_set_results :
-		  thd->variables.character_set_results);
-  return cs ? (byte*) cs->csname : (byte*) "NULL";
-}
-
-void sys_var_character_set_results::set_default(THD *thd, enum_var_type type)
-{
- if (type == OPT_GLOBAL)
-   global_system_variables.character_set_results= NULL;
- else
-   thd->variables.character_set_results= global_system_variables.character_set_results;
-}
 
 
 /*****************************************************************************

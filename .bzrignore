@@ -617,3 +617,4 @@ vio/test-sslclient
 vio/test-sslserver
 vio/viotest-ssl
 include/readline/*.h
+scripts/mysql_create_system_tables
