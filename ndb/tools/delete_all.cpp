@@ -15,41 +15,65 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include <ndb_global.h>
+#include <ndb_opts.h>
 
 #include <NdbOut.hpp>
 #include <NdbApi.hpp>
 #include <NdbSleep.h>
 #include <NDBT.hpp>
 
-#include <getarg.h>
-
 static int clear_table(Ndb* pNdb, const NdbDictionary::Table* pTab, int parallelism=240);
 
-int main(int argc, const char** argv){
-  ndb_init();
-
-  const char* _tabname = NULL;
-  const char* _dbname = "TEST_DB";
-  int _help = 0;
-  
-  struct getargs args[] = {
-    { "usage", '?', arg_flag, &_help, "Print help", "" },
-    { "database", 'd', arg_string, &_dbname, "dbname", 
-      "Name of database table is in"}
-  };
-  int num_args = sizeof(args) / sizeof(args[0]);
-  int optind = 0;
+static const char* opt_connect_str= 0;
+static const char* _dbname = "TEST_DB";
+static struct my_option my_long_options[] =
+{
+  NDB_STD_OPTS("ndb_desc"),
+  { "database", 'd', "Name of database table is in",
+    (gptr*) &_dbname, (gptr*) &_dbname, 0,
+    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
+};
+static void print_version()
+{
+  printf("MySQL distrib %s, for %s (%s)\n",MYSQL_SERVER_VERSION,SYSTEM_TYPE,MACHINE_TYPE);
+}
+static void usage()
+{
   char desc[] = 
     "tabname\n"\
     "This program will delete all records in the specified table using scan delete.\n";
-  
-  if(getarg(args, num_args, argc, argv, &optind) || 
-     argv[optind] == NULL || _help) {
-    arg_printusage(args, num_args, argv[0], desc);
-    return NDBT_ProgramExit(NDBT_WRONGARGS);
+  print_version();
+  my_print_help(my_long_options);
+  my_print_variables(my_long_options);
+}
+static my_bool
+get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
+	       char *argument)
+{
+  switch (optid) {
+  case '#':
+    DBUG_PUSH(argument ? argument : "d:t:O,/tmp/ndb_delete_all.trace");
+    break;
+  case 'V':
+    print_version();
+    exit(0);
+  case '?':
+    usage();
+    exit(0);
   }
-  _tabname = argv[optind];
+  return 0;
+}
 
+int main(int argc, char** argv){
+  NDB_INIT(argv[0]);
+  const char *load_default_groups[]= { "ndb_tools",0 };
+  load_defaults("my",load_default_groups,&argc,&argv);
+  int ho_error;
+  if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
+    return NDBT_ProgramExit(NDBT_WRONGARGS);
+
+  Ndb::setConnectString(opt_connect_str);
   // Connect to Ndb
   Ndb MyNdb(_dbname);
 
@@ -64,13 +88,12 @@ int main(int argc, const char** argv){
    
   // Check if table exists in db
   int res = NDBT_OK;
-  for(int i = optind; i<argc; i++){
+  for(int i = 0; i<argc; i++){
     const NdbDictionary::Table * pTab = NDBT_Table::discoverTableFromDb(&MyNdb, argv[i]);
     if(pTab == NULL){
-      ndbout << " Table " << _tabname << " does not exist!" << endl;
+      ndbout << " Table " << argv[i] << " does not exist!" << endl;
       return NDBT_ProgramExit(NDBT_WRONGARGS);
     }
-    
     ndbout << "Deleting all from " << argv[i] << "...";
     if(clear_table(&MyNdb, pTab) == NDBT_FAILED){
       res = NDBT_FAILED;

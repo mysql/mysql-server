@@ -53,19 +53,9 @@
 #include <errno.h>
 
 #ifdef EMBEDDED_LIBRARY
-
 #undef MYSQL_SERVER
-
-#ifndef MYSQL_CLIENT
+#undef MYSQL_CLIENT
 #define MYSQL_CLIENT
-#endif
-
-#undef net_flush
-
-extern "C" {
-my_bool	net_flush(NET *net);
-}
-
 #endif /*EMBEDDED_LIBRARY */
 
 

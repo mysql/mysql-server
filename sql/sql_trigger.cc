@@ -134,7 +134,6 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables)
   TABLE *table= tables->table;
   char dir_buff[FN_REFLEN], file_buff[FN_REFLEN];
   LEX_STRING dir, file;
-  MEM_ROOT *old_global_root;
   LEX_STRING *trg_def, *name;
   List_iterator_fast<LEX_STRING> it(names_list);
 
@@ -168,9 +167,6 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables)
                          triggers_file_ext, NullS) - file_buff;
   file.str= file_buff;
 
-  old_global_root= my_pthread_getspecific_ptr(MEM_ROOT*, THR_MALLOC);
-  my_pthread_setspecific_ptr(THR_MALLOC, &table->mem_root);
-
   /*
     Soon we will invalidate table object and thus Table_triggers_list object
     so don't care about place to which trg_def->ptr points and other
@@ -181,16 +177,11 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables)
   */
   if (!(trg_def= (LEX_STRING *)alloc_root(&table->mem_root,
                                           sizeof(LEX_STRING))) ||
-      definitions_list.push_back(trg_def))
-  {
-    my_pthread_setspecific_ptr(THR_MALLOC, old_global_root);
+      definitions_list.push_back(trg_def, &table->mem_root))
     return 1;
-  }
 
   trg_def->str= thd->query;
   trg_def->length= thd->query_length;
-
-  my_pthread_setspecific_ptr(THR_MALLOC, old_global_root);
 
   return sql_create_definition_file(&dir, &file, &triggers_file_type,
                                     (gptr)this, triggers_file_parameters, 3);
@@ -302,7 +293,6 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
   char path_buff[FN_REFLEN];
   LEX_STRING path;
   File_parser *parser;
-  MEM_ROOT *old_global_mem_root;
 
   DBUG_ENTER("Table_triggers_list::check_n_load");
 
@@ -406,13 +396,8 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
         trg_name_str->str= trg_name_buff;
         trg_name_str->length= lex.name_and_length.length;
 
-	old_global_mem_root= my_pthread_getspecific_ptr(MEM_ROOT*, THR_MALLOC);
-	my_pthread_setspecific_ptr(THR_MALLOC, &table->mem_root);
-
-        if (triggers->names_list.push_back(trg_name_str))
+        if (triggers->names_list.push_back(trg_name_str, &table->mem_root))
           goto err_with_lex_cleanup;
-
-        my_pthread_setspecific_ptr(THR_MALLOC, old_global_mem_root);
 
         lex_end(&lex);
       }
@@ -431,7 +416,8 @@ err_with_lex_cleanup:
       We don't care about this error message much because .TRG files will
       be merged into .FRM anyway.
     */
-    my_error(ER_WRONG_OBJECT, MYF(0), table_name, triggers_file_ext, "TRIGGER");
+    my_error(ER_WRONG_OBJECT, MYF(0), table_name, triggers_file_ext,
+             "TRIGGER");
     DBUG_RETURN(1);
   }
 

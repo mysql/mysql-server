@@ -25,6 +25,7 @@
 //
 //===========================================================================
 #include <kernel_types.h>
+#include <TransporterRegistry.hpp>
 
 extern class  JobTable            globalJobTable;
 extern class  TimeQueue           globalTimeQueue;

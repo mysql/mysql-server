@@ -758,7 +758,8 @@ typedef struct st_lex
 
   st_lex() :result(0)
   {
-    bzero((char *)&spfuns, sizeof(spfuns));
+    extern byte *sp_lex_spfuns_key(const byte *ptr, uint *plen, my_bool first);
+    hash_init(&spfuns, system_charset_info, 0, 0, 0, sp_lex_spfuns_key, 0, 0);
   }
   
   ~st_lex()

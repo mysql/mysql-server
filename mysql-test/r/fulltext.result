@@ -330,6 +330,9 @@ t1_id	name	t2_id	t1_id	name
 select * from t2 where match name against ('a* b* c* d* e* f*' in boolean mode);
 t2_id	t1_id	name
 drop table t1,t2;
+create table t1 (a text, fulltext key (a));
+insert into t1 select "xxxx yyyy zzzz";
+drop table t1;
 SET NAMES latin1;
 CREATE TABLE t1 (t text character set utf8 not null, fulltext(t));
 INSERT t1 VALUES ('Mit freundlichem Grüß'), ('aus Osnabrück');
@@ -352,9 +355,9 @@ t	collation(t)
 aus Osnabrück	utf8_general_ci
 SELECT t, collation(t) FROM t1 WHERE MATCH t AGAINST ('Osnabrueck');
 t	collation(t)
-SELECT t, collation(t),MATCH t AGAINST ('Osnabruck') FROM t1 WHERE MATCH t AGAINST ('Osnabruck');
-t	collation(t)	MATCH t AGAINST ('Osnabruck')
-aus Osnabrück	utf8_general_ci	1.591139793396
+SELECT t, collation(t),FORMAT(MATCH t AGAINST ('Osnabruck'),6) FROM t1 WHERE MATCH t AGAINST ('Osnabruck');
+t	collation(t)	FORMAT(MATCH t AGAINST ('Osnabruck'),6)
+aus Osnabrück	utf8_general_ci	1.591140
 alter table t1 modify t varchar(200) collate latin1_german2_ci not null;
 Warnings:
 Warning	1265	Data truncated for column 't' at row 3
