@@ -138,3 +138,10 @@ Write thread-safe, transaction-safe, replication-safe, not thread safe,
 transaction safe, replication safe.
 
 Write wildcard, not wild card or wild-card.
+
+Use "indexes", not "indices": Adding indexes to a table will improve the
+performance of SELECT statements.
+Exception: when returning to array elements, use "indices": The elements
+of the array may be accessed using numeric indices, where the index
+values ranges from 0 to n.
+
