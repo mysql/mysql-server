@@ -75,6 +75,7 @@ static void simple_cs_init_functions(CHARSET_INFO *cs)
   cs->snprintf	  = my_snprintf_8bit;
   cs->long10_to_str= my_long10_to_str_8bit;
   cs->longlong10_to_str= my_longlong10_to_str_8bit;
+  cs->fill	  = my_fill_8bit;
   cs->strntol     = my_strntol_8bit;
   cs->strntoul    = my_strntoul_8bit;
   cs->strntoll    = my_strntoll_8bit;
