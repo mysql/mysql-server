@@ -3340,7 +3340,7 @@ struct my_option my_long_options[] =
   {"log-long-format", OPT_LONG_FORMAT,
    "Log some extra information to update log", 0, 0, 0, GET_NO_ARG, NO_ARG,
    0, 0, 0, 0, 0, 0},
-  {"log-slave-updates", OPT_LOG_SLAVE_UPDATES, 
+  {"log-slave-updates", OPT_LOG_SLAVE_UPDATES,
    "Tells the slave to log the updates from the slave thread to the binary log. You will need to turn it on if you plan to daisy-chain the slaves.",
    (gptr*) &opt_log_slave_updates, (gptr*) &opt_log_slave_updates, 0, GET_BOOL,
    NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -3349,7 +3349,7 @@ struct my_option my_long_options[] =
    (gptr*) &global_system_variables.low_priority_updates,
    (gptr*) &max_system_variables.low_priority_updates,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"master-host", OPT_MASTER_HOST, 
+  {"master-host", OPT_MASTER_HOST,
    "Master hostname or IP address for replication. If not set, the slave thread will not be started. Note that the setting of master-host will be ignored if there exists a valid master.info file.",
    (gptr*) &master_host, (gptr*) &master_host, 0, GET_STR, REQUIRED_ARG, 0, 0,
    0, 0, 0, 0},
@@ -3423,8 +3423,10 @@ struct my_option my_long_options[] =
   {"safemalloc-mem-limit", OPT_SAFEMALLOC_MEM_LIMIT,
    "Simulate memory shortage when compiled with the --with-debug=full option",
    0, 0, 0, GET_ULL, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"new", 'n', "Use very new possible 'unsafe' functions", 0, 0, 0, GET_NO_ARG,
-   NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"new", 'n', "Use very new possible 'unsafe' functions",
+   (gptr*) &global_system_variables.new_mode,
+   (gptr*) &max_system_variables.new_mode,
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef NOT_YET
   {"no-mix-table-types", OPT_NO_MIX_TYPE, "Don't allow commands with uses two different table types",
    (gptr*) &opt_no_mix_types, (gptr*) &opt_no_mix_types, 0, GET_BOOL, NO_ARG,
@@ -4222,9 +4224,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case 'L':
     strmake(language, argument, sizeof(language)-1);
     break;
-  case 'n':
-    opt_specialflag|= SPECIAL_NEW_FUNC;
-    break;
   case 'o':
     protocol_version=PROTOCOL_VERSION-1;
     break;
@@ -4232,9 +4231,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     init_slave_skip_errors(argument);
     break;
   case OPT_SAFEMALLOC_MEM_LIMIT:
-#if !defined(DBUG_OFF) && defined(SAFEMALLOC)      
+#if !defined(DBUG_OFF) && defined(SAFEMALLOC)
     safemalloc_mem_limit = atoi(argument);
-#endif      
+#endif
     break;
 #ifdef EMBEDDED_LIBRARY
   case OPT_MAX_ALLOWED_PACKET:

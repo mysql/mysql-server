@@ -310,7 +310,8 @@ struct system_variables
   ulong table_type;
 
   my_bool log_warnings;
-  my_bool low_priority_updates; 
+  my_bool low_priority_updates;
+  my_bool new_mode;
 
   CONVERT *convert_set;
 };
