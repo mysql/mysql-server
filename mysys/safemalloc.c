@@ -73,7 +73,7 @@
 #include "mysys_err.h"
 
 ulonglong safemalloc_mem_limit = ~(ulonglong)0;
-pthread_t shutdown_th=0,main_th=0,signal_th=0;
+pthread_t shutdown_th,main_th,signal_th;
 
 #define pNext		tInt._pNext
 #define pPrev		tInt._pPrev

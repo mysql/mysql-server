@@ -61,10 +61,10 @@ extern uint	 my_once_extra;
 
 #ifdef THREAD
 /*
-  These threads are except from safemalloc leak scrutiny unless
+  These threads are exempt from safemalloc leak scrutiny unless
   PEDANTIC_SAFEMALLOC is defined
 */
-extern pthread_t signal_thread, kill_thread;
+extern pthread_t signal_th, kill_th, main_th;
 #endif
 
 #ifndef HAVE_TEMPNAM
