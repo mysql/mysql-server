@@ -52,7 +52,7 @@ static uint ex_val_max_len[MAX_MYSQL_VAR];
 static my_bool ex_status_printed = 0; /* First output is not relative. */
 static uint ex_var_count, max_var_length, max_val_length;
 
-#include "sslopt-vars.h"
+#include <sslopt-vars.h>
 
 static void print_version(void);
 static void usage(void);
@@ -150,7 +150,7 @@ static struct my_option my_long_options[] =
   {"sleep", 'i', "Execute commands again and again with a sleep between.",
    (gptr*) &interval, (gptr*) &interval, 0, GET_INT, REQUIRED_ARG, 0, 0, 0, 0,
    0, 0},
-#include "sslopt-longopts.h"
+#include <sslopt-longopts.h>
 #ifndef DONT_ALLOW_USER_CHANGE
   {"user", 'u', "User for login if not current user.", (gptr*) &user,
    (gptr*) &user, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -211,6 +211,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case '#':
     DBUG_PUSH(argument ? argument : "d:t:o,/tmp/mysqladmin.trace");
     break;
+#include <sslopt-case.h>
   case 'V':
     print_version();
     exit(0);
@@ -279,9 +280,6 @@ int main(int argc,char *argv[])
     mysql_options(&mysql,MYSQL_OPT_CONNECT_TIMEOUT, (char*) &tmp);
   }
 #ifdef HAVE_OPENSSL
-  if (opt_ssl_key || opt_ssl_cert || opt_ssl_ca || opt_ssl_capath ||
-      opt_ssl_cipher)
-    opt_use_ssl= 1;
   if (opt_use_ssl)
     mysql_ssl_set(&mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
 		  opt_ssl_capath, opt_ssl_cipher);

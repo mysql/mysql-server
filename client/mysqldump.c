@@ -88,7 +88,7 @@ static my_string opt_mysql_unix_port=0;
 static int   first_error=0;
 extern ulong net_buffer_length;
 static DYNAMIC_STRING extended_row;
-#include "sslopt-vars.h"
+#include <sslopt-vars.h>
 FILE  *md_result_file;
 
 static struct my_option my_long_options[] =
@@ -211,7 +211,7 @@ static struct my_option my_long_options[] =
   {"socket", 'S', "Socket file to use for connection.",
    (gptr*) &opt_mysql_unix_port, (gptr*) &opt_mysql_unix_port, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-#include "sslopt-longopts.h"
+#include <sslopt-longopts.h>
   {"tab",'T',
    "Creates tab separated textfile for each table to given path. (creates .sql and .txt files). NOTE: This only works if mysqldump is run on the same machine as the mysqld daemon.",
    (gptr*) &path, (gptr*) &path, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -335,6 +335,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case '#':
     DBUG_PUSH(argument ? argument : "d:t:o");
     break;
+#include <sslopt-case.h>
   case 'V': print_version(); exit(0);
   case 'X':
     opt_xml = 1;
@@ -457,9 +458,6 @@ static int dbConnect(char *host, char *user,char *passwd)
   if (opt_compress)
     mysql_options(&mysql_connection,MYSQL_OPT_COMPRESS,NullS);
 #ifdef HAVE_OPENSSL
-  if (opt_ssl_key || opt_ssl_cert || opt_ssl_ca || opt_ssl_capath ||
-      opt_ssl_cipher)
-    opt_use_ssl= 1;
   if (opt_use_ssl)
     mysql_ssl_set(&mysql_connection, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
 		  opt_ssl_capath, opt_ssl_cipher);

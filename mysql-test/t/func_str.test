@@ -114,3 +114,12 @@ SELECT CONCAT('"',CONCAT_WS('";"',title,prio,category,program,bugdesc,created,mo
 SELECT CONCAT('"',CONCAT_WS('";"',title,prio,category,program,bugstatus,submitter), '"') FROM t1;
 SELECT CONCAT_WS('";"',title,prio,category,program,bugdesc,created,modified,bugstatus,submitter) FROM t1;
 drop table t1;
+
+#
+# Test bug in AES_DECRYPT() when called with wrong argument
+#
+
+CREATE TABLE t1 (id int(11) NOT NULL auto_increment, tmp text NOT NULL, KEY id (id)) TYPE=MyISAM;
+INSERT INTO t1 VALUES (1, 'a545f661efdd1fb66fdee3aab79945bf');
+SELECT 1 FROM t1 WHERE tmp=AES_DECRYPT(tmp,"password");
+DROP TABLE t1;

@@ -2209,9 +2209,6 @@ sql_real_connect(char *host,char *database,char *user,char *password,
   if (using_opt_local_infile)
     mysql_options(&mysql,MYSQL_OPT_LOCAL_INFILE, (char*) &opt_local_infile);
 #ifdef HAVE_OPENSSL
-  if (opt_ssl_key || opt_ssl_cert || opt_ssl_ca || opt_ssl_capath ||
-      opt_ssl_cipher)
-    opt_use_ssl= 1;
   if (opt_use_ssl)
     mysql_ssl_set(&mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
 		  opt_ssl_capath, opt_ssl_cipher);
