@@ -3966,18 +3966,18 @@ static my_bool mi_too_big_key_for_sort(MI_KEYDEF *key, ha_rows rows)
 void mi_disable_non_unique_index(MI_INFO *info, ha_rows rows)
 {
   MYISAM_SHARE *share=info->s;
-  uint i;
-  if (!info->state->records)			/* Don't do this if old rows */
+  MI_KEYDEF    *key=share->keyinfo;
+  uint          i;
+
+  DBUG_ASSERT(info->state->records == 0 &&
+              (!rows || rows >= MI_MIN_ROWS_TO_DISABLE_INDEXES));
+  for (i=0 ; i < share->base.keys ; i++,key++)
   {
-    MI_KEYDEF *key=share->keyinfo;
-    for (i=0 ; i < share->base.keys ; i++,key++)
+    if (!(key->flag & (HA_NOSAME | HA_SPATIAL | HA_AUTO_KEY)) &&
+        ! mi_too_big_key_for_sort(key,rows) && info->s->base.auto_key != i+1)
     {
-      if (!(key->flag & (HA_NOSAME | HA_SPATIAL | HA_AUTO_KEY)) &&
-	  ! mi_too_big_key_for_sort(key,rows) && info->s->base.auto_key != i+1)
-      {
-	share->state.key_map&= ~ ((ulonglong) 1 << i);
-	info->update|= HA_STATE_CHANGED;
-      }
+      share->state.key_map&= ~ ((ulonglong) 1 << i);
+      info->update|= HA_STATE_CHANGED;
     }
   }
 }

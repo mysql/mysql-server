@@ -280,7 +280,6 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     table->next_number_field=table->found_next_number_field;
     VOID(table->file->extra_opt(HA_EXTRA_WRITE_CACHE,
 			    thd->variables.read_buff_size));
-    table->bulk_insert= 1;
     if (handle_duplicates == DUP_IGNORE ||
 	handle_duplicates == DUP_REPLACE)
       table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
