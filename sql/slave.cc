@@ -26,7 +26,7 @@
 #define RPL_LOG_NAME (glob_mi.log_file_name[0] ? glob_mi.log_file_name :\
  "FIRST")
 
-bool slave_running = 0;
+volatile bool slave_running = 0;
 pthread_t slave_real_id;
 MASTER_INFO glob_mi;
 HASH replicate_do_table, replicate_ignore_table;
