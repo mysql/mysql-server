@@ -169,7 +169,6 @@ LocalConfig::parseHostName(const char * buf){
       mgmtSrvrId.type = MgmId_TCP;
       mgmtSrvrId.name.assign(tempString);
       mgmtSrvrId.port = port;
-      printf("LocalConfig::parseHostName %d %s\n", port, tempString);
       ids.push_back(mgmtSrvrId);
       return true;
     }
