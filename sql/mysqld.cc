@@ -977,10 +977,13 @@ static void server_init(void)
     }
   }
 
+  /*
+    We have to first call set_user(), then set_root(), to get things to work
+    with glibc
+  */
+  set_user(mysqld_user);		// Works also with mysqld_user==NULL
   if (mysqld_chroot)
     set_root(mysqld_chroot);
-
-  set_user(mysqld_user); // set_user now takes care of mysqld_user==NULL
 
 #ifdef __NT__
   /* create named pipe */
