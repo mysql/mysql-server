@@ -3670,7 +3670,7 @@ int ha_ndbcluster::alter_table_name(const char *to)
   int ret;
   DBUG_ENTER("alter_table_name_table");
 
-  NdbDictionary::Table new_tab= dict->getTableForAlteration(*orig_tab);
+  NdbDictionary::Table new_tab= *orig_tab;
   new_tab.setName(to);
   if (dict->alterTable(new_tab) != 0)
     ERR_RETURN(dict->getNdbError());
