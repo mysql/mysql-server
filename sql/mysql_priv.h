@@ -456,6 +456,14 @@ bool delete_precheck(THD *thd, TABLE_LIST *tables);
 bool insert_precheck(THD *thd, TABLE_LIST *tables);
 bool create_table_precheck(THD *thd, TABLE_LIST *tables,
                            TABLE_LIST *create_table);
+
+enum enum_mysql_completiontype {
+  ROLLBACK_RELEASE=-2, ROLLBACK=1,  ROLLBACK_AND_CHAIN=7,
+  COMMIT_RELEASE=-1,   COMMIT=0,    COMMIT_AND_CHAIN=6
+};
+
+int end_trans(THD *thd, enum enum_mysql_completiontype completion);
+
 Item *negate_expression(THD *thd, Item *expr);
 #include "sql_class.h"
 #include "sql_acl.h"

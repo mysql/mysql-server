@@ -1286,33 +1286,22 @@ err:
 
 /*
   Ends the current transaction and (maybe) begin the next
-  First uint4 in packet is completion type
 
   SYNOPSIS
-    end_trans_and_send_ok()
+    end_trans()
       thd            Current thread
       completion     Completion type
-      release        (OUT) indicator for release operation
 
   RETURN
     0 - OK
 */
 
-enum enum_mysql_completiontype {
-  ROLLBACK_RELEASE=-2,
-  COMMIT_RELEASE=-1,
-  COMMIT=0,
-  ROLLBACK=1,
-  COMMIT_AND_CHAIN=6,
-  ROLLBACK_AND_CHAIN=7
-};
-
-int end_trans_and_send_ok(THD *thd, enum enum_mysql_completiontype completion)
+int end_trans(THD *thd, enum enum_mysql_completiontype completion)
 {
   bool do_release= 0;
   int res= 0;
   LEX *lex= thd->lex;
-  DBUG_ENTER("end_trans_and_send_ok");
+  DBUG_ENTER("end_trans");
 
   switch (completion) {
   case COMMIT:
@@ -1323,8 +1312,7 @@ int end_trans_and_send_ok(THD *thd, enum enum_mysql_completiontype completion)
     */
     thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE);
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
-    if (!(res= ha_commit(thd)))
-      send_ok(thd);
+    res= ha_commit(thd);
     break;
   case COMMIT_RELEASE:
     do_release= 1; /* fall through */
@@ -1332,8 +1320,6 @@ int end_trans_and_send_ok(THD *thd, enum enum_mysql_completiontype completion)
     res= end_active_trans(thd);
     if (!res && completion == COMMIT_AND_CHAIN)
       res= begin_trans(thd);
-    if (!res)
-      send_ok(thd);
     break;
   case ROLLBACK_RELEASE:
     do_release= 1; /* fall through */
@@ -1346,9 +1332,6 @@ int end_trans_and_send_ok(THD *thd, enum enum_mysql_completiontype completion)
     thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE);
     if (!res && (completion == ROLLBACK_AND_CHAIN))
       res= begin_trans(thd);
-
-    if (!res)
-      send_ok(thd);
     break;
   }
   default:
@@ -3853,14 +3836,16 @@ unsent_create_error:
     send_ok(thd);
     break;
   case SQLCOM_COMMIT:
-    if (end_trans_and_send_ok(thd, lex->tx_release ? COMMIT_RELEASE :
+    if (end_trans(thd, lex->tx_release ? COMMIT_RELEASE :
                               lex->tx_chain ? COMMIT_AND_CHAIN : COMMIT))
       goto error;
+    send_ok(thd);
     break;
   case SQLCOM_ROLLBACK:
-    if (end_trans_and_send_ok(thd, lex->tx_release ? ROLLBACK_RELEASE :
+    if (end_trans(thd, lex->tx_release ? ROLLBACK_RELEASE :
                               lex->tx_chain ? ROLLBACK_AND_CHAIN : ROLLBACK))
       goto error;
+    send_ok(thd);
     break;
   case SQLCOM_RELEASE_SAVEPOINT:
   {

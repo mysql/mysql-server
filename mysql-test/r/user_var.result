@@ -181,8 +181,8 @@ master-bin.000001	137	Query	1	230	use `test`; INSERT INTO t1 VALUES(@`a b`)
 master-bin.000001	230	User var	1	272	@`var1`=_latin1 0x273B616161 COLLATE latin1_swedish_ci
 master-bin.000001	272	User var	1	310	@`var2`=_latin1 0x61 COLLATE latin1_swedish_ci
 master-bin.000001	310	Query	1	411	use `test`; insert into t1 values (@var1),(@var2)
-flush logs;
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
+ROLLBACK;
 SET @`a b`:=_latin1 0x68656C6C6F COLLATE `latin1_swedish_ci`;
 use test;
 SET TIMESTAMP=10000;
