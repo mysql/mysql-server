@@ -2565,8 +2565,10 @@ recv_recovery_from_checkpoint_start(
 		a note to the user about it */
 
 		fprintf(stderr,
-	"InnoDB: The log file was created by ibbackup --restore at\n"
+	"InnoDB: The log file was created by ibbackup --apply-log at\n"
 	"InnoDB: %s\n", log_hdr_buf + LOG_FILE_WAS_CREATED_BY_HOT_BACKUP);
+		fprintf(stderr,
+"InnoDB: NOTE: the following crash recovery is part of a normal restore.\n");
 		
 		/* Wipe over the label now */
 
