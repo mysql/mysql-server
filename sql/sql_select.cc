@@ -3911,7 +3911,11 @@ JOIN::join_free(bool full)
   if (full)
   {
     group_fields.delete_elements();
-    tmp_table_param.copy_funcs.delete_elements();
+    /*
+      We can't call delete_elements() on copy_funcs as this will cause
+      problems in free_elements() as some of the elements are then deleted.
+    */
+    tmp_table_param.copy_funcs.empty();
     tmp_table_param.cleanup();
   }
   DBUG_VOID_RETURN;
