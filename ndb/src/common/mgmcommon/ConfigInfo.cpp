@@ -921,7 +921,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
 
   {
     CFG_DB_DISCLESS,
-    "Discless",
+    "Diskless",
     "DB",
     "Run wo/ disk",
     ConfigInfo::USED,
