@@ -233,6 +233,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	LIKE
 %token	LINES
 %token	LOCAL_SYM
+%token	LOG_SYM
 %token	LOGS_SYM
 %token	LONG_NUM
 %token	LONG_SYM
@@ -1781,6 +1782,10 @@ simple_expr:
 	  { $5->push_front($3); $$= new Item_func_max(*$5); }
 	| LEAST_SYM '(' expr ',' expr_list ')'
 	  { $5->push_front($3); $$= new Item_func_min(*$5); }
+	| LOG_SYM '(' expr ')'
+		{ $$= new Item_func_log($3); }
+	| LOG_SYM '(' expr ',' expr ')'
+		{ $$= new Item_func_log($3, $5); }
 	| MINUTE_SYM '(' expr ')'
 	  { $$= new Item_func_minute($3); }
 	| MONTH_SYM '(' expr ')'
