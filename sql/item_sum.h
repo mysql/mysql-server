@@ -28,7 +28,7 @@ class Item_sum :public Item_result_field
 public:
   enum Sumfunctype {COUNT_FUNC,COUNT_DISTINCT_FUNC,SUM_FUNC,AVG_FUNC,MIN_FUNC,
 		    MAX_FUNC, UNIQUE_USERS_FUNC,STD_FUNC,VARIANCE_FUNC,SUM_BIT_FUNC,
-		    UDF_SUM_FUNC };
+		    UDF_SUM_FUNC, GROUP_CONCAT_FUNC };
 
   Item **args,*tmp_args[2];
   uint arg_count;
@@ -630,3 +630,87 @@ public:
 };
 
 #endif /* HAVE_DLOPEN */
+
+class Item_func_group_concat : public Item_sum
+{
+  THD *item_thd;
+  TMP_TABLE_PARAM *tmp_table_param;
+  uint max_elements_in_tree;
+  void *warning;
+  bool warning_available;
+ public:
+  String result;
+  String *separator;
+  uint show_elements;
+  TREE tree_base;
+  TREE *tree;
+  TABLE *table;
+  int arg_count_order;
+  int arg_count_field;
+  int arg_show_fields;
+  int distinct;
+  Item **expr;
+  ORDER **order;
+  bool tree_mode;
+  int count_cut_values;
+  ulong group_concat_max_len;
+  bool warning_for_row;
+  TABLE_LIST *tables_list;
+  bool always_null;
+  /*
+    Following is 0 normal object and pointer to original one for copy 
+    (to correctly free resources)
+  */
+  Item_func_group_concat *original;
+  
+  Item_func_group_concat(int is_distinct,List<Item> *is_select,
+                         SQL_LIST *is_order,String *is_separator);
+			 
+  Item_func_group_concat(THD *thd, Item_func_group_concat &item)
+    :Item_sum(thd, item),item_thd(thd),
+     tmp_table_param(item.tmp_table_param),
+     max_elements_in_tree(item.max_elements_in_tree),
+     warning(item.warning),
+     warning_available(item.warning_available),
+     separator(item.separator),
+     show_elements(item.show_elements),
+     tree(item.tree),      
+     table(item.table),
+     arg_count_order(item.arg_count_order),
+     arg_count_field(item.arg_count_field),
+     arg_show_fields(item.arg_show_fields),
+     distinct(item.distinct),
+     expr(item.expr),
+     order(item.order),
+     tree_mode(0),
+     count_cut_values(item.count_cut_values),
+     group_concat_max_len(item.group_concat_max_len),
+     warning_for_row(item.warning_for_row),
+     tables_list(item.tables_list),
+     original(&item)
+    {
+     quick_group = 0;
+    };
+  ~Item_func_group_concat();
+  enum Sumfunctype sum_func () const {return GROUP_CONCAT_FUNC;}
+  const char *func_name() const { return "group_concat"; }
+  enum Type type() const { return SUM_FUNC_ITEM; }  
+  virtual Item_result result_type () const { return STRING_RESULT; }
+  void reset();
+  bool add();
+  void reset_field();
+  bool fix_fields(THD *, TABLE_LIST *, Item **);
+  bool setup(THD *thd);
+  virtual void update_field(int offset) {};
+  double val()
+  {
+    String *res;  res=val_str(&str_value);
+    return res ? atof(res->c_ptr()) : 0.0;
+  }
+  longlong val_int()
+  {
+    String *res;  res=val_str(&str_value);
+    return res ? strtoll(res->c_ptr(),(char**) 0,10) : (longlong) 0;
+  }
+  String* val_str(String* str);
+};
