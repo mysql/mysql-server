@@ -8146,6 +8146,9 @@ version 4.0;
 
 @itemize @bullet
 @item
+Use @code{ORDER BY column DESC} now always sorts @code{NULL} values
+first; In 3.23 this was not always consistent.
+@item
 @code{SHOW INDEX} has 2 columns more (@code{Null} and @code{Index_type})
 than it had in 3.23.
 @item
@@ -12661,8 +12664,14 @@ mysql> SELECT 1 IS NULL, 1 IS NOT NULL;
 +-----------+---------------+
 @end example
 
+Note that two @code{NULL} are compared as equal is when you do an
+@code{GROUP BY}.
+
 In MySQL, 0 or @code{NULL} means false and anything else means true.
 The default truth value from a boolean operation is 1.
+
+When doing an @code{ORDER BY}, @code{NULL} values are always sorted first,
+even if you are using @code{DESC}.
 
 This special treatment of @code{NULL} is why, in the previous section, it
 was necessary to determine which animals are no longer alive using
@@ -13191,7 +13200,7 @@ mysql> DESCRIBE pet;
 @end example
 
 @code{Field} indicates the column name, @code{Type} is the data type for
-the column, @code{Null} indicates whether or not the column can contain
+the column, @code{NULL} indicates whether or not the column can contain
 @code{NULL} values, @code{Key} indicates whether or not the column is
 indexed, and @code{Default} specifies the column's default value.
 
@@ -16481,8 +16490,10 @@ password will be set to the password specified by the @code{IDENTIFIED BY}
 clause, if one is given.  If the user already had a password, it is replaced
 by the new one.
 
-Optional @code{PASSWORD} changes behaviour of @code{IDENTIFIED BY} from
-accepting plain password to accept encrypted password as argument.
+If you don't want to send the password in clear text you can use the
+@code{PASSWORD} option followed by a scrambled password from SQL
+function @code{PASSWORD()} or the C API function
+@code{make_scrambled_password(char *to, const char *password)}.
 
 @strong{Warning:} If you create a new user but do not specify an
 @code{IDENTIFIED BY} clause, the user has no password.  This is insecure.
@@ -25531,7 +25542,13 @@ You have different @code{ORDER BY} and @code{GROUP BY} expressions.
 
 @item
 The used table index is an index type that doesn't store rows in order.
-(Like index in @code{HEAP} tables).
+(Like the @code{HASH} index in @code{HEAP} tables).
+
+@item
+The index colum may contain @code{NULL} values and one is using
+@code{ORDER BY ... DESC}.  This is because in SQL @code{NULL} values is
+always sorted before normal values, independent of you are using
+@code{DESC} or not.
 @end itemize
 
 
@@ -26466,6 +26483,9 @@ probably much faster, as this will require us to do much fewer seeks.)
 Note that if such a query uses @code{LIMIT} to only retrieve
 part of the rows, MySQL will use an index anyway, as it can
 much more quickly find the few rows to return in the result.
+@item
+If the index range may contain @code{NULL} values and you are using
+@code{ORDER BY ... DESC}
 @end itemize
 
 @node Indexes, Multiple-column indexes, MySQL indexes, Optimising Database Structure
@@ -29975,7 +29995,7 @@ mysql> select 2 > 2;
 @cindex @code{NULL}, testing for null
 @findex <=> (Equal to)
 @item <=>
-Null safe equal:
+NULL safe equal:
 @example
 mysql> select 1 <=> 1, NULL <=> NULL, 1 <=> NULL;
         -> 1 1 0
@@ -48617,6 +48637,12 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 @appendixsubsec Changes in release 4.0.2
 
 @itemize @bullet
+@item
+Use @code{ORDER BY column DESC} now sorts @code{NULL} values first.
+@item
+Fixed bug in @code{SELECT DISTINCT ... ORDER BY DESC} optimization.
+@item
+Fixed bug in @code{... HAVING 'GROUP_FUNCTION'(xxx) IS [NOT] NULL}.
 @item
 Allow numeric user id to @code{mysqld --user=#}.
 @item
