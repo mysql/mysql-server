@@ -1774,9 +1774,6 @@ print_table_data(MYSQL_RES *result)
   MYSQL_ROW	cur;
   MYSQL_FIELD	*field;
   bool		*num_flag;
-#ifdef __NETWARE__
-  uint		lines= 0;
-#endif
 
   num_flag=(bool*) my_alloca(sizeof(bool)*mysql_num_fields(result));
   if (info_flag)
@@ -1832,10 +1829,6 @@ print_table_data(MYSQL_RES *result)
 		  length, str);
     }
     (void) tee_fputs("\n", PAGER);
-#ifdef __NETWARE__
-    // on a long result the screen could hog the cpu
-    if ((lines++ & 1023) == 0) pthread_yield();
-#endif
   }
   tee_puts(separator.c_ptr(), PAGER);
   my_afree((gptr) num_flag);
@@ -1847,9 +1840,6 @@ print_table_data_html(MYSQL_RES *result)
 {
   MYSQL_ROW	cur;
   MYSQL_FIELD	*field;
-#ifdef __NETWARE__
-  uint		lines= 0;
-#endif
 
   mysql_field_seek(result,0);
   (void) tee_fputs("<TABLE BORDER=1><TR>", PAGER);
@@ -1874,10 +1864,6 @@ print_table_data_html(MYSQL_RES *result)
       (void) tee_fputs("</TD>", PAGER);
     }
     (void) tee_fputs("</TR>", PAGER);
-#ifdef __NETWARE__
-    // on a long result the screen could hog the cpu
-    if ((lines++ & 1023) == 0) pthread_yield();
-#endif
   }
   (void) tee_fputs("</TABLE>", PAGER);
 }
@@ -1888,9 +1874,6 @@ print_table_data_xml(MYSQL_RES *result)
 {
   MYSQL_ROW   cur;
   MYSQL_FIELD *fields;
-#ifdef __NETWARE__
-  uint		lines= 0;
-#endif
 
   mysql_field_seek(result,0);
 
@@ -1914,10 +1897,6 @@ print_table_data_xml(MYSQL_RES *result)
 				      " &nbsp; ") : "NULL"));
     }
     (void) tee_fputs("  </row>\n", PAGER);
-#ifdef __NETWARE__
-      // on a long result the screen could hog the cpu
-    if ((lines++ & 1023) == 0) pthread_yield();
-#endif
   }
   (void) tee_fputs("</resultset>\n", PAGER);
 }
@@ -1950,10 +1929,6 @@ print_table_data_vertically(MYSQL_RES *result)
       tee_fprintf(PAGER, "%*s: ",(int) max_length,field->name);
       tee_fprintf(PAGER, "%s\n",cur[off] ? (char*) cur[off] : "NULL");
     }
-#ifdef __NETWARE__
-      // on a long result the screen could hog the cpu
-    if ((row_count & 1023) == 0) pthread_yield();
-#endif
   }
 }
 

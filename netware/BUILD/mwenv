@@ -6,9 +6,9 @@
 # the default is "F:/mydev"
 export MYDEV="WINE_BUILD_DIR"
 
-export MWCNWx86Includes="$MYDEV/libc/include"
-export MWNWx86Libraries="$MYDEV/libc/imports;$MYDEV/mw/lib"
-export MWNWx86LibraryFiles="libcpre.o;libc.imp;netware.imp;mwcrtl.lib;mwcpp.lib"
+export MWCNWx86Includes="$MYDEV/libc/include;$MYDEV/zlib-1.1.4"
+export MWNWx86Libraries="$MYDEV/libc/imports;$MYDEV/mw/lib;$MYDEV/zlib-1.1.4"
+export MWNWx86LibraryFiles="libcpre.o;libc.imp;netware.imp;mwcrtl.lib;mwcpp.lib;libz.a"
 
 export WINEPATH="$MYDEV/mw/bin"
 

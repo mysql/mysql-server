@@ -48,7 +48,7 @@ if [ -d $BASE ] ; then
 fi
 
 BS=""
-EXTRA_BIN_FILES=""
+BIN_FILES=""
 BASE_SYSTEM="any"
 MYSQL_SHARE=$BASE/share/mysql
 
@@ -57,9 +57,6 @@ case $system in
     BASE_SYSTEM="netware"
     BS=".nlm"
     MYSQL_SHARE=$BASE/share
-    EXTRA_BIN_FILES="netware/mysqld_safe.nlm netware/mysql_install_db.nlm \
-      netware/init_db.sql netware/test_db.sql netware/mysql_explain_log.nlm \
-      netware/mysqlhotcopy.nlm netware/libmysql.nlm netware/init_secure_db.sql"
     ;;
 esac
 
@@ -86,23 +83,40 @@ do
   fi
 done
 
-for i in extra/comp_err$BS extra/replace$BS extra/perror$BS \
-         extra/resolveip$BS extra/my_print_defaults$BS \
-         extra/resolve_stack_dump$BS extra/mysql_waitpid$BS \
-        isam/isamchk$BS isam/pack_isam$BS \
-        myisam/myisamchk$BS myisam/myisampack$BS myisam/myisamlog$BS \
-        sql/mysqld$BS \
-        client/mysql$BS client/mysqlshow$BS client/mysqladmin$BS \
-	client/mysqldump$BS client/mysqlimport$BS \
-        client/mysqltest$BS client/mysqlcheck$BS \
-        client/mysqlbinlog$BS client/mysqlmanagerc$BS \
-        client/mysqlmanager-pwgen$BS tools/mysqlmanager$BS \
-        client/.libs/mysql client/.libs/mysqlshow client/.libs/mysqladmin \
-        client/.libs/mysqldump client/.libs/mysqlimport \
-        client/.libs/mysqltest client/.libs/mysqlcheck \
-        client/.libs/mysqlbinlog client/.libs/mysqlmanagerc \
-        client/.libs/mysqlmanager-pwgen tools/.libs/mysqlmanager \
-        $EXTRA_BIN_FILES
+# Non platform-specific bin dir files:
+BIN_FILES="extra/comp_err$BS extra/replace$BS extra/perror$BS \
+  extra/resolveip$BS extra/my_print_defaults$BS \
+  extra/resolve_stack_dump$BS extra/mysql_waitpid$BS \
+  isam/isamchk$BS isam/pack_isam$BS \
+  myisam/myisamchk$BS myisam/myisampack$BS myisam/myisamlog$BS \
+  sql/mysqld$BS \
+  client/mysql$BS client/mysqlshow$BS client/mysqladmin$BS \
+  client/mysqldump$BS client/mysqlimport$BS \
+  client/mysqltest$BS client/mysqlcheck$BS \
+  client/mysqlbinlog$BS 
+";
+
+# Platform-specific bin dir files:
+if [ $BASE_SYSTEM = "netware" ] ; then
+  BIN_FILES="$BIN_FILES \
+    netware/mysqld_safe$BS netware/mysql_install_db$BS \
+    netware/init_db.sql netware/test_db.sql netware/mysql_explain_log$BS \
+    netware/mysqlhotcopy$BS netware/libmysql$BS netware/init_secure_db.sql
+    ";
+else
+  # For all other platforms:
+  BIN_FILES="$BIN_FILES \
+    client/mysqlmanagerc \
+    client/mysqlmanager-pwgen tools/mysqlmanager \
+    client/.libs/mysql client/.libs/mysqlshow client/.libs/mysqladmin \
+    client/.libs/mysqldump client/.libs/mysqlimport \
+    client/.libs/mysqltest client/.libs/mysqlcheck \
+    client/.libs/mysqlbinlog client/.libs/mysqlmanagerc \
+    client/.libs/mysqlmanager-pwgen tools/.libs/mysqlmanager \
+  ";
+fi
+
+for i in $BIN_FILES
 do
   if [ -f $i ]
   then

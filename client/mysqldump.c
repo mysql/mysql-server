@@ -30,7 +30,7 @@
 ** master/autocommit code by Brian Aker <brian@tangent.org>
 ** SSL by
 ** Andrei Errapart <andreie@no.spam.ee>
-** Tõnu Samuel  <tonu@please.do.not.remove.this.spam.ee>
+** TÃµnu Samuel  <tonu@please.do.not.remove.this.spam.ee>
 ** XML by Gary Huntress <ghuntress@mediaone.net> 10/10/01, cleaned up
 ** and adapted to mysqldump 05/11/01 by Jani Tolonen
 ** Added --single-transaction option 06/06/2002 by Peter Zaitsev
@@ -986,9 +986,6 @@ static void dumpTable(uint numFields, char *table)
   MYSQL_FIELD	*field;
   MYSQL_ROW	row;
   ulong		rownr, row_break, total_length, init_length;
-#if defined(__NETWARE__) && defined(THREAD)
-  uint		lines= 0;
-#endif
 
   if (verbose)
     fprintf(stderr, "-- Sending SELECT query...\n");
@@ -1218,11 +1215,6 @@ static void dumpTable(uint numFields, char *table)
       }
       else if (!opt_xml)
 	fputs(");\n", md_result_file);
-#if defined(__NETWARE__) && defined(THREAD)
-      /* on a long result the screen could hog the cpu */
-      if ((lines++ & 1023) == 0)
-	pthread_yield();
-#endif
     }
 
     /* XML - close table tag and supress regular output */
