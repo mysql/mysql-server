@@ -68,7 +68,6 @@ Long data handling:
 ***********************************************************************/
 
 #include "mysql_priv.h"
-#include "sql_acl.h"
 #include "sql_select.h" // for JOIN
 #include <m_ctype.h>  // for isspace()
 #ifdef EMBEDDED_LIBRARY
