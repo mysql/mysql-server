@@ -16,8 +16,6 @@
 
 #include <ndb_global.h>
 
-#include <signal.h>
-
 #include "MgmtSrvr.hpp"
 #include "EventLogger.hpp"
 #include <Config.hpp>
@@ -229,6 +227,7 @@ NDB_MAIN(mgmsrv){
     }
   }
 
+  signal(SIGPIPE, SIG_IGN);
   if(!glob.mgmObject->start()){
     ndbout_c("Unable to start management server.");
     ndbout_c("Probably caused by illegal initial configuration file.");
@@ -312,14 +311,13 @@ MgmGlobals::~MgmGlobals(){
 static bool
 readLocalConfig(){
   // Read local config file
-  ConfigRetriever cr;
-  cr.setLocalConfigFileName(glob.local_config_filename);
-  int nodeid = cr.init(true);
+  LocalConfig lc;
+  int nodeid = lc.init(glob.local_config_filename);
   if(nodeid == -1){
     return false;
   }
   
-  glob.localNodeId = (NodeId)nodeid;
+  glob.localNodeId = nodeid;
   return true;
 }
 
@@ -342,18 +340,7 @@ readGlobalConfig() {
   InitConfigFileParser parser;
   glob.cluster_config = parser.parseConfig(glob.config_filename);
   if(glob.cluster_config == 0){
-    /**
-     * Try to get configuration from other MGM server 
-     * Note: Only new format
-     */
-    glob.cluster_config = new Config();
-    
-    ConfigRetriever cr;
-    cr.setLocalConfigFileName(glob.local_config_filename);
-    glob.cluster_config->m_configValues = cr.getConfig(NDB_VERSION,
-						       NODE_TYPE_MGM);
-    if (glob.cluster_config->m_configValues == NULL)
-      return false;
+    return false;
   }
   return true;
 }

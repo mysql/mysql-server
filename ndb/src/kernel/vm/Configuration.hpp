@@ -32,6 +32,7 @@ public:
    */
   bool init(int argc, const char** argv);
 
+  void fetch_configuration();
   void setupConfiguration();
   void closeConfiguration();
   
