@@ -27,10 +27,11 @@ typedef struct st_bitmap
   uchar *bitmap;
   uint bitmap_size;
   my_bool thread_safe; /* set if several threads access the bitmap */
-  /* mutex will be acquired for the duration of each bitmap operation if
+  /*
+     mutex will be acquired for the duration of each bitmap operation if
      thread_safe flag is set. Otherwise, we optimize by not acquiring the
      mutex
-  */
+   */
 #ifdef THREAD
   pthread_mutex_t mutex;
 #endif

@@ -78,8 +78,7 @@ static byte* get_table_key(TABLE_RULE_ENT* e, uint* len,
 /* called from get_options() in mysqld.cc on start-up */
 void init_slave_skip_errors(char* arg)
 {
-  char* p,*end;
-  int err_code = 0;
+  char* p;
   my_bool last_was_digit = 0;
   if (bitmap_init(&slave_error_mask,MAX_SLAVE_ERROR,0))
   {
@@ -89,34 +88,20 @@ void init_slave_skip_errors(char* arg)
   use_slave_mask = 1;
   for (;isspace(*arg);++arg)
     /* empty */;
-  /* force first three chars to lower case */
-  for (p = arg, end = arg + 3; *p && p < end; ++p)
-    *p = tolower(*p);
-  if (!memcmp(arg,"all",3))
+  if (!my_casecmp(arg,"all",3))
   {
     bitmap_set_all(&slave_error_mask);
     return;
   }
-  for (p = arg, end = strend(arg); p < end; ++p)
+  for (p= arg ; *p; )
   {
-    int digit = *p - '0';
-    if (digit >= 0 && digit < 10) /* found real digit */
-    {
-      err_code = err_code * 10 + digit;
-      last_was_digit = 1;
-    }
-    else /* delimiter */
-    {
-      if (last_was_digit)
-      {
-	if (err_code < MAX_SLAVE_ERROR)
-	{
-	  bitmap_set_bit(&slave_error_mask,err_code);
-	}
-	err_code = 0;
-	last_was_digit = 0;
-      }
-    }
+    long err_code;
+    if (!(p= str2int(p, 10, 0, LONG_MAX, &err_code)))
+      break;
+    if (err_code < MAX_SLAVE_ERROR)
+       bitmap_set_bit(&slave_error_mask,(uint)err_code);
+    while (!isdigit(*p) && *p)
+      p++;
   }
 }
 

@@ -51,8 +51,8 @@ my_bool bitmap_init(MY_BITMAP *map, uint bitmap_size, my_bool thread_safe)
     return 1;
   dbug_assert(bitmap_size != ~(uint) 0);
 #ifdef THREAD
-  map->thread_safe = thread_safe;
-  pthread_mutex_init(&map->mutex, MY_MUTEX_INIT_FAST);
+  if ((map->thread_safe = thread_safe))
+    pthread_mutex_init(&map->mutex, MY_MUTEX_INIT_FAST);
 #endif
   map->bitmap_size=bitmap_size;
   return 0;
@@ -65,7 +65,8 @@ void bitmap_free(MY_BITMAP *map)
     my_free((char*) map->bitmap, MYF(0));
     map->bitmap=0;
 #ifdef THREAD
-    pthread_mutex_destroy(&map->mutex);
+    if (map->thread_safe)
+      pthread_mutex_destroy(&map->mutex);
 #endif
   }
 }

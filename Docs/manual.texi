@@ -46872,6 +46872,8 @@ Added @code{slave-skip-errors} option
 Added statistics variables for all MySQL commands. (@code{SHOW STATUS} is
 now much longer).
 @item
+Fixed default values for InnoDB tables.
+@item
 Fixed that @code{GROUP BY expr DESC} works.
 @item
 Fixed bug when using @code{t1 LEFT JOIN t2 ON t2.key=constant}.
