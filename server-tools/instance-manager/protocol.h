@@ -1,5 +1,5 @@
-#ifndef INCLUDES_MYSQL_INSTANCE_MANAGER_MANAGER_H
-#define INCLUDES_MYSQL_INSTANCE_MANAGER_MANAGER_H
+#ifndef INCLUDES_MYSQL_INSTANCE_MANAGER_PROTOCOL_H
+#define INCLUDES_MYSQL_INSTANCE_MANAGER_PROTOCOL_H
 /* Copyright (C) 2003 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
 
    This program is free software; you can redistribute it and/or modify
@@ -16,8 +16,28 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-class Options;
+#include "buffer.h"
+#include <my_list.h>
 
-void manager(const Options &options);
+typedef struct field {
+  char *name;
+  uint length;
+} NAME_WITH_LENGTH;
 
-#endif // INCLUDES_MYSQL_INSTANCE_MANAGER_MANAGER_H
+struct st_net;
+
+int net_send_ok(struct st_net *net, unsigned long connection_id);
+
+int net_send_error(struct st_net *net, unsigned sql_errno);
+
+int net_send_error_323(struct st_net *net, unsigned sql_errno);
+
+int send_fields(struct st_net *net, LIST *fields);
+
+char *net_store_length(char *pkg, uint length);
+
+void store_to_string(Buffer *buf, const char *string, uint *position);
+
+int send_eof(struct st_net *net);
+
+#endif /* INCLUDES_MYSQL_INSTANCE_MANAGER_PROTOCOL_H */
