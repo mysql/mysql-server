@@ -104,7 +104,7 @@ Item *create_func_is_used_lock(Item* a);
 Item *create_func_quote(Item* a);
 
 Item *create_func_geometry_from_text(Item *a);
-Item *create_func_as_text(Item *a);
+Item *create_func_as_wkt(Item *a);
 Item *create_func_as_wkb(Item *a);
 Item *create_func_srid(Item *a);
 Item *create_func_startpoint(Item *a);
