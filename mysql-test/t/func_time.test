@@ -225,3 +225,10 @@ drop table t1,t2,t3;
 select @a:=FROM_UNIXTIME(1);
 select unix_timestamp(@a);
 select unix_timestamp('1969-12-01 19:00:01');
+
+#
+# Test for bug #6439 "unix_timestamp() function returns wrong datetime 
+# values for too big argument". It should return error instead.
+#
+select from_unixtime(0);
+select from_unixtime(2145916800);
