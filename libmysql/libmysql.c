@@ -2084,7 +2084,7 @@ Try also with PIPE or TCP/IP
     }
     sock_addr.sin_port = (ushort) htons((ushort) port);
     if (my_connect(sock,(struct sockaddr *) &sock_addr, sizeof(sock_addr),
-		 mysql->options.connect_timeout) <0)
+		 mysql->options.connect_timeout))
     {
       DBUG_PRINT("error",("Got error %d on connect to '%s'",socket_errno,host));
       net->last_errno= CR_CONN_HOST_ERROR;
@@ -4043,6 +4043,7 @@ unsigned int alloc_stmt_fields(MYSQL_STMT *stmt)
     field->org_table= strdup_root(alloc,fields->org_table);
     field->name     = strdup_root(alloc,fields->name);
     field->org_name = strdup_root(alloc,fields->org_name);
+    field->charsetnr= fields->charsetnr;
     field->length   = fields->length;
     field->type     = fields->type;
     field->flags    = fields->flags;
@@ -4767,13 +4768,13 @@ static void send_data_long(MYSQL_BIND *param, longlong value)
     *param->buffer= (uchar) value;
     break;
   case MYSQL_TYPE_SHORT:
-    int2store(buffer, (short)value);
+    int2store(buffer, value);
     break;
   case MYSQL_TYPE_LONG:
-    int4store(buffer, (int32)value);
+    int4store(buffer, value);
     break;
   case MYSQL_TYPE_LONGLONG:
-    int8store(buffer, (longlong)value);
+    int8store(buffer, value);
     break;
   case MYSQL_TYPE_FLOAT:
     {
@@ -4810,7 +4811,7 @@ static void send_data_double(MYSQL_BIND *param, double value)
     int2store(buffer, (short)value);
     break;
   case MYSQL_TYPE_LONG:
-    int4store(buffer, (int32)value);
+    int4store(buffer, (long)value);
     break;
   case MYSQL_TYPE_LONGLONG:
     int8store(buffer, (longlong)value);
@@ -4947,30 +4948,37 @@ static void send_data_time(MYSQL_BIND *param, MYSQL_TIME ltime,
 
 
 /* Fetch data to buffers */
-static void fetch_results(MYSQL_BIND *param, uint field_type, uchar **row)
+static void fetch_results(MYSQL_BIND *param, uint field_type, uchar **row, 
+                          my_bool field_is_unsigned)
 {
   ulong length;
   
   switch (field_type) {
   case MYSQL_TYPE_TINY:
   {
-    uchar value= (uchar) **row;
-    send_data_long(param,(longlong)value);
+    char value= (char) **row;
+    longlong data= (field_is_unsigned) ? (longlong) (unsigned char) value:
+                                         (longlong) value;
+    send_data_long(param,data);
     length= 1;
     break;
   }
   case MYSQL_TYPE_SHORT:
   case MYSQL_TYPE_YEAR:
   {
-    short value= (short)sint2korr(*row);
-    send_data_long(param,(longlong)value);
-    length= 2;
+    short value= sint2korr(*row);
+    longlong data= (field_is_unsigned) ? (longlong) (unsigned short) value:
+                                         (longlong) value;
+    send_data_long(param,data);
+    length= 2;    
     break;
   }
   case MYSQL_TYPE_LONG:
   {
-    int32 value= (int32)sint4korr(*row);
-    send_data_long(param,(int32)value);
+    long value= sint4korr(*row);
+    longlong data= (field_is_unsigned) ? (longlong) (unsigned long) value:
+                                         (longlong) value;
+    send_data_long(param,data);
     length= 4;
     break;
   }
@@ -4985,7 +4993,7 @@ static void fetch_results(MYSQL_BIND *param, uint field_type, uchar **row)
   {
     float value;
     float4get(value,*row);
-    send_data_double(param,(double)value);
+    send_data_double(param,value);
     length= 4;
     break;
   }
@@ -4993,7 +5001,7 @@ static void fetch_results(MYSQL_BIND *param, uint field_type, uchar **row)
   {
     double value;
     float8get(value,*row);
-    send_data_double(param,(double)value);
+    send_data_double(param,value);
     length= 8;
     break;
   }
@@ -5241,7 +5249,10 @@ static int stmt_fetch_row(MYSQL_STMT *stmt, uchar *row)
       if (field->type == bind->buffer_type)
         (*bind->fetch_result)(bind, &row);
       else 
-        fetch_results(bind, field->type, &row);
+      {
+        my_bool field_is_unsigned= (field->flags & UNSIGNED_FLAG) ? 1: 0;
+        fetch_results(bind, field->type, &row, field_is_unsigned);
+      }
     }
     if (! ((bit<<=1) & 255))
     {

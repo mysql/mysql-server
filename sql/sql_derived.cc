@@ -72,7 +72,7 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit,
   TABLE_LIST *tables= (TABLE_LIST *)sl->table_list.first;
   TMP_TABLE_PARAM tmp_table_param;
   bool is_union= sl->next_select() && sl->next_select()->linkage == UNION_TYPE;
-  bool is_subsel= sl->first_inner_unit();
+  bool is_subsel= sl->first_inner_unit() ? 1: 0;
   SELECT_LEX_NODE *save_current_select= lex->current_select;
   DBUG_ENTER("mysql_derived");
   

@@ -486,6 +486,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	NOW_SYM
 %token	PASSWORD
 %token	POINTFROMTEXT
+%token	POINT
 %token	POLYFROMTEXT
 %token  POLYGON
 %token	POSITION_SYM
@@ -1144,6 +1145,18 @@ type:
 	| BLOB_SYM opt_len		{ Lex->charset=&my_charset_bin;
 					  $$=FIELD_TYPE_BLOB; }
 	| GEOMETRY_SYM			{ Lex->charset=&my_charset_bin;
+					  $$=FIELD_TYPE_GEOMETRY; }
+	| POINT				{ Lex->charset=&my_charset_bin;
+					  $$=FIELD_TYPE_GEOMETRY; }
+	| MULTIPOINT			{ Lex->charset=&my_charset_bin;
+					  $$=FIELD_TYPE_GEOMETRY; }
+	| LINESTRING			{ Lex->charset=&my_charset_bin;
+					  $$=FIELD_TYPE_GEOMETRY; }
+	| MULTILINESTRING		{ Lex->charset=&my_charset_bin;
+					  $$=FIELD_TYPE_GEOMETRY; }
+	| POLYGON			{ Lex->charset=&my_charset_bin;
+					  $$=FIELD_TYPE_GEOMETRY; }
+	| MULTIPOLYGON			{ Lex->charset=&my_charset_bin;
 					  $$=FIELD_TYPE_GEOMETRY; }
 	| MEDIUMBLOB			{ Lex->charset=&my_charset_bin;
 					  $$=FIELD_TYPE_MEDIUM_BLOB; }
@@ -2299,6 +2312,8 @@ simple_expr:
 	  { $$= new Item_func_password($3); }
         | PASSWORD '(' expr ',' expr ')'
           { $$= new Item_func_password($3,$5); }
+	| POINT '(' expr ',' expr ')'
+	  { $$= new Item_func_point($3,$5); }
  	| POINTFROMTEXT '(' expr ')'
 	  { $$= new Item_func_geometry_from_text($3); }
 	| POINTFROMTEXT '(' expr ',' expr ')'
@@ -3966,6 +3981,7 @@ keyword:
 	| FIRST_SYM		{}
 	| FIXED_SYM		{}
 	| FLUSH_SYM		{}
+	| GEOMETRY_SYM		{}
 	| GRANTS		{}
 	| GLOBAL_SYM		{}
 	| HANDLER_SYM		{}
@@ -3983,6 +3999,7 @@ keyword:
 	| IO_THREAD		{}
 	| LAST_SYM		{}
 	| LEVEL_SYM		{}
+	| LINESTRING		{}
 	| LOCAL_SYM		{}
 	| LOCKS_SYM		{}
 	| LOGS_SYM		{}
@@ -4005,6 +4022,9 @@ keyword:
 	| MODIFY_SYM		{}
 	| MODE_SYM		{}
 	| MONTH_SYM		{}
+	| MULTILINESTRING	{}
+	| MULTIPOINT		{}
+	| MULTIPOLYGON		{}
 	| MYISAM_SYM		{}
 	| NATIONAL_SYM		{}
 	| NCHAR_SYM		{}
@@ -4017,6 +4037,8 @@ keyword:
 	| PACK_KEYS_SYM		{}
 	| PARTIAL		{}
 	| PASSWORD		{}
+	| POINT			{}
+	| POLYGON		{}
 	| PREV_SYM		{}
 	| PROCESS		{}
 	| PROCESSLIST_SYM	{}
