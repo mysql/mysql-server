@@ -813,7 +813,7 @@ MySQL change history
 
 Changes in release 3.23.x  (Recommended; beta)
 
-* News-3.23.27::                
+* News-3.23.27::                Changes in release 3.23.27
 * News-3.23.26::                Changes in release 3.23.26
 * News-3.23.25::                Changes in release 3.23.25
 * News-3.23.24::                Changes in release 3.23.24
@@ -21494,6 +21494,22 @@ If the repair fails, retry once more with the old repair option method
 type of error with little disk requirements..
 @end itemize
 
+If the recover wouldn't be able to recover all rows from a previous
+completed statement and you didn't specify @code{FORCE} as an option to
+@code{myisam-recover}, then the automatic repair will abort with an error
+message in the error file:
+
+@example
+Error: Couldn't repair table: test.g00pages
+@end example
+
+If you in this case had used the @code{FORCE} option you would instead have got
+a warning in the error file:
+
+@example
+Warning: Found 344 of 354 rows when repairing ./test/g00pages
+@end example
+
 Note that if you run automatic recover with the @code{BACKUP} option,
 you should have a cron script that automaticly moves file with names
 like @file{tablename-datetime.BAK} from the database directories to a
@@ -38138,7 +38154,10 @@ though, so 3.23 is not released as a stable version yet.
 @appendixsubsec Changes in release 3.23.27
 @itemize @bullet
 @item
-You can now have sockets even with @code{mit-pthreads}
+Fixed bug where the automatic repair of MyISAM tables failed sometimes
+when the data file was corrupt.
+@item
+You can now use Unix sockets with @code{mit-pthreads}
 @item
 Small portability fixes
 @end itemize
