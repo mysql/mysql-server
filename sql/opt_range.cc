@@ -1891,7 +1891,7 @@ double get_sweep_read_cost(const PARAM *param, ha_rows records)
   else
   {
     double n_blocks=
-      ceil((double)param->table->file->data_file_length / IO_SIZE);
+      ceil(ulonglong2double(param->table->file->data_file_length) / IO_SIZE);
     double busy_blocks=
       n_blocks * (1.0 - pow(1.0 - 1.0/n_blocks, rows2double(records)));
     if (busy_blocks < 1.0)
