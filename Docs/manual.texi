@@ -1081,6 +1081,9 @@ The following list describes some useful sections of the manual:
 
 @itemize @bullet
 @item
+To get information about the company behind MySQL, see @xref{What is MYSQL AB}.
+
+@item
 For a discussion of @strong{MySQL}'s capabilities, see @ref{Features}.
 
 @item
@@ -1149,7 +1152,7 @@ see @ref{General-SQL}. For books that focus more specifically on
 
 @strong{MySQL}, the most popular Open Source SQL database, is provided
 by @strong{MySQL AB}.  @strong{MySQL AB} is a commercial company that
-builds is business providing services around the @code{MySQL} database.
+builds is business providing services around the @strong{MySQL} database.
 @xref{What is MySQL AB}.
 
 @table @asis
@@ -1935,7 +1938,7 @@ In-memory hash tables which are used as temporary tables.
 @item
 Handles large databases.  We are using @strong{MySQL} with some
 databases that contain 50,000,000 records and we know of users that
-uses @code{MySQL} with 60,000 tables and about 5,000,000,000 rows
+uses @strong{MySQL} with 60,000 tables and about 5,000,000,000 rows
 
 @item
 All columns have default values.  You can use @code{INSERT} to insert a
@@ -6014,7 +6017,7 @@ CFLAGS="-O6 -mpentiumpro" CXX=gcc CXXFLAGS="-O6 -mpentiumpro -felide-constructor
 CFLAGS="-O6 -mpentiumpro -mstack-align-double" CXX=gcc CXXFLAGS="-O6 -mpentiumpro -mstack-align-double -felide-constructors -fno-exceptions -fno-rtti"
 @end multitable
 
-In most cases you can get a resonable optimal @code{MySQL} binary
+In most cases you can get a resonable optimal @strong{MySQL} binary
 picking the options from the above and add the following options to the
 configure line: 
 
@@ -7097,7 +7100,7 @@ we have not yet done any testing.
 
 We have also tested @strong{MySQL} on Linux Version 2.4 on a 2 CPU machine and
 @strong{MySQL} scales MUCH better on this!  If your plan to set up a
-dedicated Linux SMP machine to run @code{MySQL} under heavy load, we
+dedicated Linux SMP machine to run @strong{MySQL} under heavy load, we
 recommend that you give Version 2.4 a try!
 
 The current implementation of mutex in Linuxthreads is also very bad for
@@ -9979,7 +9982,7 @@ The above output contains all options for the groups 'client' and 'mysql'.
 
 In some cases you may want to have many different @code{mysqld} deamons
 (servers) running on the same machine.  You may for example want to run
-a new version of @code{MySQL} for testing together with an old version
+a new version of @strong{MySQL} for testing together with an old version
 that is in production.  Another case is when you want to give different
 users access to different mysqld servers that they manage themself.
 
@@ -13793,7 +13796,7 @@ In @strong{MySQL} Version 3.23, this is a true floating-point value.  In
 earlier @strong{MySQL} versions, @code{FLOAT(precision)} always has 2 decimals.
 
 Note that using @code{FLOAT} may give you some unexpected problems as
-all calculation in @code{MySQL} is done with double precision.
+all calculation in @strong{MySQL} is done with double precision.
 @xref{No matching rows}.
 
 @cindex ODBC compatibility
@@ -19205,7 +19208,7 @@ temporary table with a key on the @code{GROUP BY} elements.
 @item
 If you use @code{GROUP BY}, the output rows will be sorted according to the
 @code{GROUP BY} as if you would have had an @code{ORDER BY} over all the fields
-in the @code{GROUP BY}. @code{MySQL} has extended the @code{GROUP BY} so that
+in the @code{GROUP BY}. @strong{MySQL} has extended the @code{GROUP BY} so that
 you can also specify @code{ASC} and @code{DESC} to @code{GROUP BY}:
 
 @example
@@ -21093,7 +21096,7 @@ The value of the @code{--pid-file} option.
 The value of the @code{--port} option.
 
 @item @code{protocol_version}
-The protocol version used by the @code{MySQL} server.
+The protocol version used by the @strong{MySQL} server.
 
 @item @code{record_buffer}
 Each thread that does a sequential scan allocates a buffer of this
@@ -22157,7 +22160,7 @@ an user, all privileges the user has granted are revoked. In
 you have to revoke these yourself if needed.
 
 @item
-If you in @code{MySQL} have the @code{INSERT} grant on only part of the
+If you in @strong{MySQL} have the @code{INSERT} grant on only part of the
 columns in a table, you can execute @code{INSERT} statements on the
 table; The columns for which you don't have the @code{INSERT} privilege
 will set to their default values. ANSI SQL requires you to have the
@@ -22980,7 +22983,7 @@ Note that we didn't create a @code{UNIQUE} or @code{PRIMARY KEY} in the
 table.
 
 Note that you can also manipulate the @code{.MRG} file directly from
-the outside of the @code{MySQL} server:
+the outside of the @strong{MySQL} server:
 
 @example
 shell> cd /mysql-data-directory/current-database
@@ -23146,8 +23149,8 @@ SUM_OVER_ALL_KEYS(max_length_of_key + sizeof(char*) * 2)
 @node BDB overview, BDB install, BDB, BDB
 @subsection Overview over BDB tables
 
-Innobase is included in the @code{MySQL} source distribution starting
-from 3.23.34 and will be activated in the @code{MySQL}-max binary.
+Innobase is included in the @strong{MySQL} source distribution starting
+from 3.23.34 and will be activated in the @strong{MySQL}-max binary.
 
 Berkeley DB (@uref{http://www.sleepycat.com}) has provided
 @strong{MySQL} with a transaction-safe table handler. This will survive
@@ -23181,7 +23184,7 @@ gzip -cd /tmp/db-3.2.3h.tar.gz | tar xf -
 If you would like to install Berkeley DB separately, to use with
 other applications and MySQL, this is possible.  Follow the directions
 for installing Berkeley DB in the Berkeley DB README file.  Then, pass
-the @code{--with-berkeley-db=DIR} option to @code{MySQL}'s @code{configure},
+the @code{--with-berkeley-db=DIR} option to @strong{MySQL}'s @code{configure},
 where @code{DIR} refers to the installation prefix used when installing
 Berkeley DB (by default it is
 /usr/local/BerkeleyDB.3.2). You can give additional options to
@@ -23364,8 +23367,8 @@ not trivial).
 @node INNOBASE,  , BDB, Table types
 @section INNOBASE Tables
 
-Innobase is included in the @code{MySQL} source distribution starting
-from 3.23.34 and will be activated in the @code{MySQL}-max binary.
+Innobase is included in the @strong{MySQL} source distribution starting
+from 3.23.34 and will be activated in the @strong{MySQL}-max binary.
 
 Innobase provides MySQL with a transaction safe table handler with
 commit, rollback, and crash recovery capabilities.  Innobase does
@@ -26846,7 +26849,7 @@ can connect.
 
 After 3.23.26, we have locked the replication protocol for modifications, so
 you can upgrade masters and slave on the fly to a newer 3.23 version and you
-can have different versions of @code{MySQL} running on the slave and the
+can have different versions of @strong{MySQL} running on the slave and the
 master, as long as they are both newer than 3.23.26. 
 
 @cindex replication, two-way
@@ -26938,7 +26941,7 @@ functions. What is important is having unified interface for connecting
 for reads, connecting for writes, doing a read, and doing a write.
 
 
-@strong{Q}: When and how much can @code{MySQL} replication improve the performance
+@strong{Q}: When and how much can @strong{MySQL} replication improve the performance
 of my system?
 
 @strong{A}: @strong{MySQL} replication is most beneficial for a system
@@ -29490,7 +29493,7 @@ edited version that you can reinstall.
 @cindex multi mysqld
 @cindex @code{mysqld_multi}
 @node  mysqld_multi, mysql, safe_mysqld, Tools
-@section mysqld_multi, program for managing multiple @code{MySQL} servers
+@section mysqld_multi, program for managing multiple @strong{MySQL} servers
 
 @code{mysqld_multi} is meant for managing several @code{mysqld}
 processes running in different UNIX sockets and TCP/IP ports.
@@ -33560,7 +33563,7 @@ Try to make a test case that we can use to reproduce the problem.
 @xref{Reproducable test case}.
 
 @item
-Try running the included mysql-test test and the @code{MySQL}
+Try running the included mysql-test test and the @strong{MySQL}
 benchmarks.  @xref{MySQL test suite}.  They should test @strong{MySQL}
 rather well.  You can also add code that to the benchmarks to simulates
 your application!  The benchmarks can be found in the @file{bench}
@@ -40271,8 +40274,8 @@ give you an idea of how other @strong{MySQL} users are using
 
 This manual section is very new and we plan to add more stories here
 shortly.  If you are interested in contributing of how you use
-@code{MySQL} in a unique environment or have success store about how you
-use @code{MySQL}, you can write to @code{docs@@lists.mysql.com} with
+@strong{MySQL} in a unique environment or have success store about how you
+use @strong{MySQL}, you can write to @code{docs@@lists.mysql.com} with
 subject @code{Success:}.  Note that as we are very busy it may take some
 time before you get some feedback for your story.
 
@@ -40381,7 +40384,7 @@ variables.
 @item OLEDB
 @itemize @bullet
 @item @uref{http://www.mysql.com/Downloads/Win32/MyOLEDB.exe, MyOLEDB.exe}
-OLEDB handler for @code{MySQL}. By SWsoft.
+OLEDB handler for @strong{MySQL}. By SWsoft.
 @item @uref{http://www.mysql.com/Downloads/Win32/MySamples.zip, MySamples.zip}
 Examples and documentation for MyOLEDB. By SWsoft.
 @item @uref{http://www.mysql.com/Downloads/Win32/Myoledb.zip, Myoledb.zip}
@@ -40521,7 +40524,7 @@ VB, VC++ skipping the slower ODBC methods. Fully updateble, multithreaded with f
 for all MySQL fieldtypes (version 2001.1.1). By SciBit @uref{http://www.scibit.com/}.
 
 @item @uref{http://www.fastflow.it/mylua/, MyLUA home page}
-How to use the LUA language to write @code{MySQL} @code{PROCEDURE} that can
+How to use the LUA language to write @strong{MySQL} @code{PROCEDURE} that can
 be loaded runtime.
 @itemize @bullet
 @item @uref{http://www.mysql.com/Downloads/Contrib/lua-4.0.tar.gz, Lua 4.0}
