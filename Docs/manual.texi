@@ -6922,7 +6922,7 @@ system-specific section of this manual.
 
 @cindex development source tree
 @cindex BitKeeper tree
-@cindex cvs tree
+@cindex CVS tree
 
 @strong{Caution}: You should read this section only if you are interested
 in helping us test our new code. If you just want to get MySQL up
@@ -7013,7 +7013,7 @@ should run @code{bk pull} periodically to get the updates.
 You can examine the change history for the tree with all the diffs by using
 @code{bk sccstool}.  If you see some funny diffs or code that you have a
 question about, do not hesitate to send e-mail to
-@email{internals@@lists.mysql.com}.  Also, if you think you have a better idea
+@email{internals@@lists.mysql.com}. Also, if you think you have a better idea
 on how to do something, send an e-mail to the same address with a patch.
 @code{bk diffs} will produce a patch for you after you have made changes
 to the source. If you do not have the time to code your idea, just send
@@ -7022,6 +7022,15 @@ a description.
 @item
 @code{BitKeeper} has a nice help utility that you can access via
 @code{bk helptool}.
+
+@item
+Please note that any commits (@code{bk ci} or @code{bk citool}) will
+trigger the posting of a message with the changeset to our internals
+mailing list, as well as the usual openlogging.org submission with
+just the changeset comments.
+Generally, you wouldn't need to use commit (since the public tree will
+not allow @code{bk push}), but rather use the @code{bk diffs} method
+described previously.
 
 @end enumerate
 
@@ -50149,8 +50158,9 @@ each individual 4.0.x release.
 @item
 Fixed bug in query cache after temporary table creation.
 @item
-Added --count=N (-c) to mysqladmin, to be used with -i (--sleep). When used,
-the program will only make N iterations. Useful in scripts.
+Added @code{--count=N} (@code{-c}) to @code{mysqladmin}, to make the
+program do only N iterations. To be used with @code{--sleep} (@code{-i}).
+Useful in scripts.
 @item
 Fixed bug in multi-table @code{UPDATE}: when updating a table,
 @code{do_select()} became confused about reading records from a cache.
