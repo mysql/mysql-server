@@ -1717,6 +1717,24 @@ call bug4902()|
 
 drop procedure bug4902|
 
+#
+# BUG#4904
+#
+--disable_warnings
+drop table if exists t3|
+--enable_warnings
+
+create procedure bug4904()
+begin
+  declare continue handler for sqlstate 'HY000' begin end;
+
+  create table t2 as select * from t;
+end|
+
+call bug4904()|
+
+drop procedure bug4904|
+
 
 #
 # Some "real" examples
