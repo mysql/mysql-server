@@ -134,3 +134,5 @@ t1	CREATE TABLE `t1` (
   KEY `b_31` (`b`)
 ) TYPE=MyISAM
 drop table t1;
+create table t1 select if(1,'1','0'), month("2002-08-02");
+drop table t1;

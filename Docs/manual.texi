@@ -50132,6 +50132,10 @@ each individual 4.0.x release.
 
 @itemize @bullet
 @item
+Fixed security bug in database hash
+@item
+Fixed create table from any ITEM_FUNC and reverted a patch for month()
+@item
 Fixed bug in multi-table update when updating a table confused do_select
 in reading records from a cache
 @item
