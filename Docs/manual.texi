@@ -13163,6 +13163,28 @@ server with the @code{--skip-grant-tables} option and edit your
 host.
 
 @item
+If you get an error like the following:
+
+@example
+shell> mysqladmin -u root -pxxxx ver
+Access denied for user: 'root@@localhost' (Using password: YES)
+@end example
+
+It means that you are using a wrong password. @xref{Passwords}.
+
+If you have forgot the root password, you can restart @code{mysqld} with
+@code{--skip-grant-tables} to change the password. You can find more
+about this option later on in this manual section.
+
+If you get the above error even if you haven't specified a password,
+this means that you a wrong password in some @code{my.ini}
+file. @xref{Option files}.  You can avoid using option files with the @code{--no-defaults} option, as follows:
+
+@example
+shell> mysqladmin --no-defaults -u root ver
+@end example
+
+@item
 @cindex @code{mysql_fix_privilege_tables}
 If you updated an existing @strong{MySQL} installation from a version earlier
 than Version 3.22.11 to Version 3.22.11 or later, did you run the
@@ -13816,11 +13838,12 @@ adopt a consistent convention, such as always creating databases and
 tables using lowercase names.
 
 One way to avoid this problem is to start @code{mysqld} with @code{-O
-lower_case_table_names=1}.
+lower_case_table_names=1}. 
 
-In this case @strong{MySQL} will convert all table names to lower case on
-storage and lookup.  Note that you need to first convert your old table
-names to lower case before starting @code{mysqld} with this option.
+In this case @strong{MySQL} will on Windows/NT convert all table names
+to lower case on storage and lookup.  Note that you need to first
+convert your old table names to lower case before starting @code{mysqld}
+with this option.
 
 @cindex variables, user
 @cindex user variables
