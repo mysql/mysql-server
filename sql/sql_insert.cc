@@ -599,8 +599,7 @@ int mysql_prepare_insert(THD *thd, TABLE_LIST *table_list, TABLE *table,
         setup_fields(thd, 0, table_list, update_values, 0, 0, 0))))
     DBUG_RETURN(-1);
 
-  if (find_table_in_global_list(table_list->next_global,
-			      table_list->db, table_list->real_name))
+  if (unique_table(table_list, table_list->next_independent()))
   {
     my_error(ER_UPDATE_TABLE_USED, MYF(0), table_list->real_name);
     DBUG_RETURN(-1);

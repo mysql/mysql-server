@@ -1270,3 +1270,15 @@ s1
 7
 drop view v1;
 drop table t1;
+create table t1 (col1 int);
+create table t2 (col1 int);
+create view v1 as select * from t1;
+create view v2 as select * from v1;
+update v2 set col1 = (select max(col1) from v1);
+ERROR HY000: You can't specify target table 'v2' for update in FROM clause
+delete from v2 where col1 = (select max(col1) from v1);
+ERROR HY000: You can't specify target table 'v2' for update in FROM clause
+insert into v2 values ((select max(col1) from v1));
+ERROR HY000: You can't specify target table 'v2' for update in FROM clause
+drop view v2,v1;
+drop table t1,t2;

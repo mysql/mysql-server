@@ -574,13 +574,77 @@ TABLE_LIST *find_table_in_list(TABLE_LIST *table,
                                const char *db_name,
                                const char *table_name)
 {
-  for (; table; table= *(TABLE_LIST **) ((char*) table + offset))
+  if (lower_case_table_names)
   {
-    if (!strcmp(table->db, db_name) &&
-	!strcmp(table->real_name, table_name))
-      break;
+    for (; table; table= *(TABLE_LIST **) ((char*) table + offset))
+    {
+      if ((!strcmp(table->db, db_name) &&
+           !strcmp(table->real_name, table_name)) ||
+          (table->view &&
+           !my_strcasecmp(table_alias_charset,
+                          table->table->table_cache_key, db_name) &&
+           !my_strcasecmp(table_alias_charset,
+                          table->table->table_name, table_name)))
+        break;
+    }
+  }
+  else
+  {
+    for (; table; table= *(TABLE_LIST **) ((char*) table + offset))
+    {
+      if ((!strcmp(table->db, db_name) &&
+           !strcmp(table->real_name, table_name)) ||
+          (table->view &&
+           !strcmp(table->table->table_cache_key, db_name) &&
+           !strcmp(table->table->table_name, table_name)))
+        break;
+    }
   }
   return table;
+}
+
+
+/*
+  Test that table is unique
+
+  SYNOPSIS
+    unique_table()
+    table       table which should be chaked
+    table_list  list of tables
+
+  RETURN
+    TRUE    test failed
+    FALSE   table is unique
+*/
+
+bool unique_table(TABLE_LIST *table, TABLE_LIST *table_list)
+{
+  char d_name_buff[MAX_ALIAS_NAME], t_name_buff[MAX_ALIAS_NAME];
+  const char *d_name= table->db, *t_name= table->real_name;
+  if (table->view)
+  {
+    /* it is view and table opened */
+    if (lower_case_table_names)
+    {
+      strmov(t_name_buff, table->table->table_name);
+      my_casedn_str(files_charset_info, t_name_buff);
+      t_name= t_name_buff;
+      strmov(d_name_buff, table->table->table_cache_key);
+      my_casedn_str(files_charset_info, d_name_buff);
+      d_name= d_name_buff;
+    }
+    else
+    {
+      d_name= table->table->table_cache_key;
+      t_name= table->table->table_name;
+    }
+    if (d_name == 0)
+    {
+      /* it's temporary table */
+      return FALSE;
+    }
+  }
+  return find_table_in_global_list(table_list, d_name, t_name);
 }
 
 
