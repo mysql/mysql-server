@@ -1671,7 +1671,7 @@ int ha_ndbcluster::filtered_scan(const byte *key, uint key_len,
 	
       // Define scan filter
       if (field->real_type() == MYSQL_TYPE_STRING)
-	sf.eq(ndb_fieldnr, key_ptr, field_len);
+	sf.cmp(NdbScanFilter::COND_EQ, ndb_fieldnr, key_ptr, field_len);
       else 
       {
 	if (field_len == 8)
