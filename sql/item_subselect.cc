@@ -63,6 +63,11 @@ void Item_subselect::init(st_select_lex *select_lex,
   DBUG_VOID_RETURN;
 }
 
+void Item_subselect::cleanup()
+{
+  Item_result_field::cleanup();
+  engine->cleanup(); 
+}
 
 Item_subselect::~Item_subselect()
 {
@@ -639,7 +644,8 @@ Item_in_subselect::single_value_transformer(JOIN *join,
       As far as  Item_ref_in_optimizer do not substitude itself on fix_fields
       we can use same item for all selects.
     */
-    expr= new Item_ref((Item**)optimizer->get_cache(), 
+    expr= new Item_ref((Item**)optimizer->get_cache(),
+		       NULL,
 		       (char *)"<no matter>",
 		       (char *)in_left_expr_name);
 
@@ -789,7 +795,8 @@ Item_in_subselect::row_value_transformer(JOIN *join)
 					 (char *) "<list ref>");
     func=
       eq_creator.create(new Item_ref((*optimizer->get_cache())->
-				     addr(i), 
+				     addr(i),
+				     NULL,
 				     (char *)"<no matter>",
 				     (char *)in_left_expr_name),
 			func);
@@ -887,6 +894,12 @@ subselect_single_select_engine(st_select_lex *select,
   this->select_lex= select_lex;
 }
 
+void subselect_single_select_engine::cleanup()
+{
+  prepared= 0;
+  optimized= 0;
+  executed= 0;
+}
 
 subselect_union_engine::subselect_union_engine(st_select_lex_unit *u,
 					       select_subselect *result_arg,

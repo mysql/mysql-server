@@ -91,7 +91,7 @@ void Item_row::split_sum_func(Item **ref_pointer_array, List<Item> &fields)
       uint el= fields.elements;
       fields.push_front(*arg);
       ref_pointer_array[el]= *arg;
-      *arg= new Item_ref(ref_pointer_array + el, 0, (*arg)->name);
+      *arg= new Item_ref(ref_pointer_array + el, arg, 0, (*arg)->name);
     }
   }
 }

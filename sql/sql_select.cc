@@ -8283,7 +8283,7 @@ setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
     if (pos->type() == Item::FIELD_ITEM)
     {
       Item_field *item;
-      if (!(item= new Item_field(thd, *((Item_field*) pos))))
+      if (!(item= new Item_field(thd, ((Item_field*) pos))))
 	goto err;
       pos= item;
       if (item->field->flags & BLOB_FLAG)

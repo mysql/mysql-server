@@ -2903,8 +2903,6 @@ row_search_for_mysql(
 
 	mtr_start(&mtr);
 
-	mtr_start(&mtr);
-
 	/*-------------------------------------------------------------*/
 	/* PHASE 2: Try fast adaptive hash index search if possible */
 
