@@ -1121,7 +1121,8 @@ static void wait_pidfile(char *pidfile, time_t last_modified,
 	 (!last_modified || (last_modified == pidfile_status->st_mtime)) &&
 	 (fd= my_open(buff, O_RDONLY, MYF(0))) >= 0)
   {
-    my_close(fd,MYF(0));
+    if (!my_close(fd,MYF(0)))
+      fd= -1;
     sleep(1);
     if (last_modified && stat(pidfile, pidfile_status))
       last_modified= 0;
