@@ -1791,7 +1791,8 @@ String *Field_float::val_str(String *val_buffer,
 #endif
     memcpy_fixed((byte*) &nr,ptr,sizeof(nr));
 
-  val_buffer->alloc(max(field_length,70));
+  uint to_length=max(field_length,70);
+  val_buffer->alloc(to_length);
   char *to=(char*) val_buffer->ptr();
 
   if (dec >= NOT_FIXED_DEC)
@@ -1841,8 +1842,9 @@ String *Field_float::val_str(String *val_buffer,
     while (tmp_dec--)
       *to++= *pos++;
 #else
-#ifdef HAVE_SNPRINTF_
-    sprintf(to,val_buffer->length(),"%.*f",dec,nr);
+#ifdef HAVE_SNPRINTF
+    to[to_length-1]=0;			// Safety
+    snprintf(to,to_length-1,"%.*f",dec,nr);
 #else
     sprintf(to,"%.*f",dec,nr);
 #endif
