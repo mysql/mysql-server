@@ -46,7 +46,7 @@ From: $FROM
 To: $INTERNALS
 Subject: bk commit into 4.0 tree
 
-Below is the list of changes that have just been committed into a
+Below is the list of changes that have just been committed into a local
 4.0 repository of $USER. When $USER does a push these changes will
 be propagated to the main repository and, within 24 hours after the
 push, to the public repository.
@@ -80,5 +80,5 @@ EOF
  fi
 
 else
- echo "commit failed because '$BK_STATUS', sorry life is hard..." 
+ echo "commit failed because '$BK_STATUS', you may need to re-clone..."
 fi
