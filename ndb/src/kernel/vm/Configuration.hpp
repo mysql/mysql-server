@@ -68,6 +68,7 @@ public:
 
   Uint32 get_mgmd_port() const {return m_mgmd_port;};
   const char *get_mgmd_host() const {return m_mgmd_host;};
+  ConfigRetriever* get_config_retriever() { return m_config_retriever; };
 
   class LogLevel * m_logLevel;
 private:

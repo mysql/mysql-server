@@ -26,6 +26,7 @@
 #include <ndb_limits.h>
 #include <ConfigRetriever.hpp>
 #include <ndb_version.h>
+#include <mgmapi_debug.h>
 
 static int g_run_connect_thread= 0;
 
@@ -146,6 +147,8 @@ int Ndb_cluster_connection::start_connect_thread(int (*connect_callback)(void))
 
 int Ndb_cluster_connection::connect(int no_retries, int retry_delay_in_seconds, int verbose)
 {
+  struct ndb_mgm_reply mgm_reply;
+
   DBUG_ENTER("Ndb_cluster_connection::connect");
   const char* error = 0;
   do {
@@ -160,7 +163,19 @@ int Ndb_cluster_connection::connect(int no_retries, int retry_delay_in_seconds, 
     ndb_mgm_configuration * props = m_config_retriever->getConfig();
     if(props == 0)
       break;
+    DBUG_PRINT("Before start_instance",("Before start_instance2"));
     m_facade->start_instance(nodeId, props);
+    DBUG_PRINT("After start_instance",("before start_instance2"));
+    // report port here.
+    DBUG_PRINT("set_conn",("%d",m_facade->get_registry()->m_transporter_interface.size()));
+    for(int i=0;i<m_facade->get_registry()->m_transporter_interface.size();i++)
+      ndb_mgm_set_connection_int_parameter(m_config_retriever->get_mgmHandle(),
+					   nodeId,
+					   m_facade->get_registry()->m_transporter_interface[i].m_remote_nodeId,
+					 CFG_CONNECTION_SERVER_PORT,
+					   m_facade->get_registry()->m_transporter_interface[i].m_service_port,
+					 &mgm_reply);
+
     ndb_mgm_destroy_configuration(props);
     m_facade->connected();
     DBUG_RETURN(0);
