@@ -301,7 +301,7 @@ public:
   bool write(THD *thd, const char *query, uint query_length,
 	     time_t query_start=0);
   bool write(Log_event* event_info); // binary log write
-  bool write(THD *thd, IO_CACHE *cache, bool commit_or_rollback);
+  bool write(THD *thd, IO_CACHE *cache);
 
   /*
     v stands for vector
@@ -314,11 +314,11 @@ public:
   void make_log_name(char* buf, const char* log_ident);
   bool is_active(const char* log_file_name);
   int update_log_index(LOG_INFO* linfo, bool need_update_threads);
-  int purge_logs(const char *to_log, bool included, 
+  int purge_logs(const char *to_log, bool included,
                  bool need_mutex, bool need_update_threads,
                  ulonglong *decrease_log_space);
   int purge_logs_before_date(time_t purge_time);
-  int purge_first_log(struct st_relay_log_info* rli, bool included); 
+  int purge_first_log(struct st_relay_log_info* rli, bool included);
   bool reset_logs(THD* thd);
   void close(uint exiting);
 
