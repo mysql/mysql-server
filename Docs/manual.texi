@@ -818,14 +818,14 @@ size is pushed up to 8 million terabytes (2 ^ 63 bytes).
 Note, however, that operating systems have their own file size
 limits. Here are some examples:
 
-@multitable @columnfractions .5 .5
+@multitable @columnfractions .6 .4
 @item @strong{Operating System} @tab @strong{File Size Limit}
 @item Linux-Intel 32 bit        @tab 2G, 4G or more, depends on Linux version
 @item Linux-Alpha               @tab 8T (?)
 @item Solaris 2.5.1             @tab 2G (possible 4G with patch)
 @item Solaris 2.6               @tab 4G
 @item Solaris 2.7 Intel         @tab 4G
-@item Solaris 2.7 ULTRA-SPARC   @tab 8T (?)
+@item Solaris 2.7 ULTRA-SPARC @tab 512G
 @end multitable
 
 On Linux 2.2 you can get bigger tables than 2G by using the LFS patch for
@@ -5507,7 +5507,6 @@ pipes.
 All of the above binaries are optimised for the Pentium Pro
 processor but should work on any Intel processor >= i386.
 
-
 In the following circumstances you will need to use the MySQL
 configuration file:
 @itemize @bullet
@@ -5525,17 +5524,23 @@ If you want to use one of the these servers:
 If you need to tune the server settings.
 @end itemize
 
-There are two configuration files with the same function:
-@file{my.cnf} and @file{my.ini} file, however please note that
-only of one these should can used. Both files are plain text.
-The @file{my.cnf} file should be created in the root directory
-of drive C and the @file{my.ini} file on the WinDir directory
-e.g: @file{C:\WINDOWS} or @file{C:\WINNT}.
-If your PC uses a boot loader where the C drive isn't the boot
-drive, then your only option is to use the @file{my.ini} file.
-Also note that if you use the @code{WinMySQLAdmin} tool, only
-the @file{my.ini} file is used. The @file{\mysql\bin} directory
-contains a help file with instructions for using this tool.
+Normally you can use the @code{WinMySQLAdmin} tool to edit the
+configuration file @code{my.ini}. In this case you don't have to worry
+about the following section.
+
+There are two configuration files with the same function: @file{my.cnf}
+and @file{my.ini} file, however please note that only of one these
+should be used to avoid confusion. Both files are plain text.  The
+@file{my.cnf} file , if used, should be created in the root directory of
+drive C and the @file{my.ini} file on the WinDir directory e.g:
+@file{C:\WINDOWS} or @file{C:\WINNT}.  MySQL will first read the
+@code{my.ini} file, followed by the @code{my.cnf} file.
+
+If your PC uses a boot loader where the C drive isn't the boot drive,
+then your only option is to use the @file{my.ini} file.  Also note that
+if you use the @code{WinMySQLAdmin} tool, only the @file{my.ini} file is
+used by this tool. The @file{\mysql\bin} directory contains a help file
+with instructions for using this tool.
 
 Using @code{notepad.exe}, create the configuration file and
 edit the base section and keys:
@@ -5808,11 +5813,12 @@ release or the last stable release:
 
 @itemize @bullet
 @item
-Normally, if you are beginning to use MySQL for the first time
-or trying to port it to some system for which there is no binary
-distribution, we recommend going with the stable release (currently
-Version 3.23.  Note that all MySQL releases are checked with the
-MySQL benchmarks and an extensive test suite before each release.
+Normally, if you are beginning to use MySQL for the first time or trying
+to port it to some system for which there is no binary distribution, we
+recommend going with the stable release (currently Version 3.23.  Note
+that all MySQL releases are checked with the MySQL benchmarks and an
+extensive test suite before each release (even the development
+releases).
 
 @item
 Otherwise, if you are running an old system and want to upgrade, but
@@ -6073,7 +6079,8 @@ Stable tested releases are meant to appear about 1-2 times a year, but
 if small bugs are found, a release with only bug fixes will be released.
 
 @item
-Working releases are meant to appear about every 1-8 weeks.
+Working releases/bug fixes to old releases are meant to appear about
+every 1-8 weeks.
 
 @item
 Binary distributions for some platforms will be made by us for major releases.
@@ -6082,12 +6089,12 @@ less frequently.
 
 @item
 We usually make patches available as soon as we have located and fixed
-small bugs.
+small bugs. They are posted to @email{bugs@@lists.mysql.com} and will
+be added to the next release.
 
 @item
-For non-critical but annoying bugs, we will make patches available if they
-are sent to us.  Otherwise we will combine many of them into a larger
-patch.
+For non-critical but annoying bugs, we will add them the MySQL source
+repository and they will be fixed in the next release.
 
 @item
 If there is, by any chance, a fatal bug in a release we will make a new
@@ -6102,6 +6109,10 @@ and things that ``must be done.''  ``Somewhat frozen'' means that we may
 add small things that ``almost surely will not affect anything that's
 already working.''
 
+MySQL uses a little different naming scheme that most other products.
+In general it's relatively safe to use any version that has been out for
+a couple of weeks without being replaced with a new version.
+@xref{Which version}.
 
 @node MySQL binaries, Installing binary, Many versions, General Installation Issues
 @subsection MySQL Binaries Compiled by MySQL AB
@@ -19514,7 +19525,7 @@ bytes when needed.  This value by default is small, to catch big (possibly
 wrong) packets.  You must increase this value if you are using big
 @code{BLOB} columns. It should be as big as the biggest @code{BLOB} you want
 to use.  The protocol limits for @code{max_allowed_packet} is 16M in MySQL
-3.23 and 4G in MySQL 4.0.
+3.23 and 2G in MySQL 4.0.
   
 @item @code{max_binlog_cache_size}
 If a multi-statement transaction requires more than this amount of memory,
@@ -36773,6 +36784,11 @@ The following are the known problems with @code{MERGE} tables:
 
 @itemize @bullet
 @item
+@code{MERGE} table cannot maintain UNIQUE constraints over the whole
+table.  When you do INSERT, the data goes into the first or last table
+(according to @code{INSERT_METHOD=xxx}) and this MyISAM table ensures
+that the data are unique, but it knows nothing about the first MyISAM table.
+@item
 @code{DELETE FROM merge_table} used without a @code{WHERE}
 will only clear the mapping for the table, not delete everything in the
 mapped tables.
@@ -38738,6 +38754,7 @@ Finland
 * BDB characteristics::         Characteristics of @code{BDB} tables:
 * BDB TODO::                    Things we need to fix for BDB in the near future:
 * BDB portability::             Operating systems supported by @strong{BDB}
+* BDB restrictions::            
 * BDB errors::                  Errors That May Occur When Using BDB Tables
 @end menu
 
@@ -38946,7 +38963,7 @@ Change to not use page locks at all when we are scanning tables.
 @end itemize
 
 
-@node BDB portability, BDB errors, BDB TODO, BDB
+@node BDB portability, BDB restrictions, BDB TODO, BDB
 @subsection Operating systems supported by @strong{BDB}
 
 If you after having built MySQL with support for BDB tables get
@@ -38986,8 +39003,28 @@ Linux 2.x Alpha
 Max OS X
 @end itemize
 
+@node BDB restrictions, BDB errors, BDB portability, BDB
+@subsection Restrictions on BDB Tables
 
-@node BDB errors,  , BDB portability, BDB
+Here follows the restrictions you have when using BDB tables:
+
+@itemize @bullet
+@item
+BDB tables store in the .db file the path to the file as it was created
+(My guess is that this is to be able to detect locks in a multi-user
+environment that supports symlinks).
+
+The effect of this is that BDB tables are not movable between directories!  
+@item
+When taking backups of BDB tables, you have to either use
+@code{mysqldump} or take a backup of all @code{table_name.db} files and
+the BDB log files.  The BDB log files are the files in the base data
+directory named @code{log.XXXXXX} (6 digits);
+The BDB table handler stores unfinished transactions in the log files
+and requires these to be present when @code{mysqld} starts.
+@end itemize
+
+@node BDB errors,  , BDB restrictions, BDB
 @subsection Errors That May Occur When Using BDB Tables
 
 @itemize @bullet
@@ -45376,6 +45413,11 @@ When a MySQL client or the @code{mysqld} server gets a packet bigger
 than @code{max_allowed_packet} bytes, it issues a @code{Packet too large}
 error and closes the connection.
 
+In MySQL 3.23 the biggest possible packet is 16M (due to limits in the
+client/server protocol). In MySQL 4.0.1 and up, this is only limited by
+the amount on memory you have on your server (up to a theoretical
+maximum of 2G).
+
 A communication packet is a single SQL statement sent to the MySQL server
 or a single row that is sent to the client.
 
@@ -47185,11 +47227,6 @@ New version of netadmin. See above for details.
 Atronic's MySQL client for Windows 2.0.3.0.
 The home page for this can be found at @uref{http://www.artronic.hr/}.
 
-@item @uref{http://www.mysql.com/Downloads/Win32/mysqlfront.zip}
-MySQL Front, home page: @uref{http://www.mysqlfront.de/}.
-Win32-Client for accessing and managing dbs, tables, table-data, indexes,
-import-/export-files. (Freeware).  By Ansgar Becker.
-
 @item @uref{http://www.mysql.com/Downloads/Win32/W9xstop.zip}
 Utility from Artronic to stop MySQL on win9x.
 
@@ -48230,7 +48267,15 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
-Made same changes in multi table updates as in multi table delete
+Fixed optimization problem where a MySQL was a long time in a
+"preparing" state when selecting from an empty table which had contained
+a lot of rows.
+@item
+Fixed bug in complicated join with @code{const} tables. This fix also
+improves performance a bit when referring to another table from a
+@code{const} table.
+@item
+First pre-version of multi table updates.
 @item
 Fixed bug in multi table delete.
 @item
