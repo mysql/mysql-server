@@ -5612,6 +5612,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     }
     global_system_variables.sql_mode= fix_sql_mode(global_system_variables.
 						   sql_mode);
+    break;
   }
   case OPT_FT_BOOLEAN_SYNTAX:
     if (ft_boolean_check_syntax_string(argument))
