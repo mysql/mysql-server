@@ -2405,31 +2405,32 @@ select_limit, max_join_size);
 static int
 put_info(const char *str,INFO_TYPE info_type,uint error)
 {
+  FILE *file= (info_type == INFO_ERROR ? stderr : stdout);
   static int inited=0;
 
   if (status.batch)
   {
     if (info_type == INFO_ERROR)
     {
-      (void) fflush(stdout);
-      fprintf(stderr,"ERROR");
+      (void) fflush(file);
+      fprintf(file,"ERROR");
       if (error)
-	(void) fprintf(stderr," %d",error);
+	(void) fprintf(file," %d",error);
       if (status.query_start_line && line_numbers)
       {
-	(void) fprintf(stderr," at line %lu",status.query_start_line);
+	(void) fprintf(file," at line %lu",status.query_start_line);
 	if (status.file_name)
-	  (void) fprintf(stderr," in file: '%s'", status.file_name);
+	  (void) fprintf(file," in file: '%s'", status.file_name);
       }
-      (void) fprintf(stderr,": %s\n",str);
-      (void) fflush(stderr);
+      (void) fprintf(file,": %s\n",str);
+      (void) fflush(file);
       if (!ignore_errors)
 	return 1;
     }
     else if (info_type == INFO_RESULT && verbose > 1)
-      tee_puts(str, stdout);
+      tee_puts(str, file);
     if (unbuffered)
-      fflush(stdout);
+      fflush(file);
     return info_type == INFO_ERROR ? -1 : 0;
   }
   if (!opt_silent || info_type == INFO_ERROR)
@@ -2447,17 +2448,17 @@ put_info(const char *str,INFO_TYPE info_type,uint error)
 	putchar('\007');		      	/* This should make a bell */
       vidattr(A_STANDOUT);
       if (error)
-        (void) tee_fprintf(stderr, "ERROR %d: ", error);
+        (void) tee_fprintf(file, "ERROR %d: ", error);
       else
-        tee_puts("ERROR: ", stdout);
+        tee_puts("ERROR: ", file);
     }
     else
       vidattr(A_BOLD);
-    (void) tee_puts(str, stdout);
+    (void) tee_puts(str, file);
     vidattr(A_NORMAL);
   }
   if (unbuffered)
-    fflush(stdout);
+    fflush(file);
   return info_type == INFO_ERROR ? -1 : 0;
 }
 

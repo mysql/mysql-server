@@ -282,9 +282,9 @@ void Load_log_event::pack_info(String* packet)
   tmp.append("LOAD DATA INFILE '");
   tmp.append(fname, fname_len);
   tmp.append("' ", 2);
-  if (sql_ex.opt_flags && REPLACE_FLAG )
+  if (sql_ex.opt_flags & REPLACE_FLAG)
     tmp.append(" REPLACE ");
-  else if (sql_ex.opt_flags && IGNORE_FLAG )
+  else if (sql_ex.opt_flags & IGNORE_FLAG)
     tmp.append(" IGNORE ");
   
   tmp.append("INTO TABLE ");
@@ -297,7 +297,7 @@ void Load_log_event::pack_info(String* packet)
 
   if (sql_ex.enclosed_len)
   {
-    if (sql_ex.opt_flags && OPT_ENCLOSED_FLAG )
+    if (sql_ex.opt_flags & OPT_ENCLOSED_FLAG )
       tmp.append(" OPTIONALLY ");
     tmp.append( " ENCLOSED BY ");
     pretty_print_str(&tmp, sql_ex.enclosed, sql_ex.enclosed_len);
@@ -1146,28 +1146,28 @@ Load_log_event::Load_log_event(THD* thd_arg, sql_exchange* ex,
   sql_ex.cached_new_format = -1;
     
   if (ex->dumpfile)
-    sql_ex.opt_flags |= DUMPFILE_FLAG;
+    sql_ex.opt_flags|= DUMPFILE_FLAG;
   if (ex->opt_enclosed)
-    sql_ex.opt_flags |= OPT_ENCLOSED_FLAG;
+    sql_ex.opt_flags|= OPT_ENCLOSED_FLAG;
 
   sql_ex.empty_flags = 0;
 
   switch (handle_dup) {
-  case DUP_IGNORE: sql_ex.opt_flags |= IGNORE_FLAG; break;
-  case DUP_REPLACE: sql_ex.opt_flags |= REPLACE_FLAG; break;
+  case DUP_IGNORE: sql_ex.opt_flags|= IGNORE_FLAG; break;
+  case DUP_REPLACE: sql_ex.opt_flags|= REPLACE_FLAG; break;
   case DUP_ERROR: break;	
   }
 
   if (!ex->field_term->length())
-    sql_ex.empty_flags |= FIELD_TERM_EMPTY;
+    sql_ex.empty_flags|= FIELD_TERM_EMPTY;
   if (!ex->enclosed->length())
-    sql_ex.empty_flags |= ENCLOSED_EMPTY;
+    sql_ex.empty_flags|= ENCLOSED_EMPTY;
   if (!ex->line_term->length())
-    sql_ex.empty_flags |= LINE_TERM_EMPTY;
+    sql_ex.empty_flags|= LINE_TERM_EMPTY;
   if (!ex->line_start->length())
-    sql_ex.empty_flags |= LINE_START_EMPTY;
+    sql_ex.empty_flags|= LINE_START_EMPTY;
   if (!ex->escaped->length())
-    sql_ex.empty_flags |= ESCAPED_EMPTY;
+    sql_ex.empty_flags|= ESCAPED_EMPTY;
     
   skip_lines = ex->skip_lines;
 
@@ -1273,9 +1273,9 @@ void Load_log_event::print(FILE* file, bool short_form, char* last_db)
 
   fprintf(file, "LOAD DATA INFILE '%-*s' ", fname_len, fname);
 
-  if (sql_ex.opt_flags && REPLACE_FLAG )
+  if (sql_ex.opt_flags & REPLACE_FLAG )
     fprintf(file," REPLACE ");
-  else if (sql_ex.opt_flags && IGNORE_FLAG )
+  else if (sql_ex.opt_flags & IGNORE_FLAG )
     fprintf(file," IGNORE ");
   
   fprintf(file, "INTO TABLE %s ", table_name);
@@ -1287,7 +1287,7 @@ void Load_log_event::print(FILE* file, bool short_form, char* last_db)
 
   if (sql_ex.enclosed)
   {
-    if (sql_ex.opt_flags && OPT_ENCLOSED_FLAG )
+    if (sql_ex.opt_flags & OPT_ENCLOSED_FLAG )
       fprintf(file," OPTIONALLY ");
     fprintf(file, " ENCLOSED BY ");
     pretty_print_str(file, sql_ex.enclosed, sql_ex.enclosed_len);
@@ -1859,15 +1859,19 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
     {
       char llbuff[22];
       enum enum_duplicates handle_dup = DUP_IGNORE;
-      if (sql_ex.opt_flags && REPLACE_FLAG)
-	handle_dup = DUP_REPLACE;
-      sql_exchange ex((char*)fname, sql_ex.opt_flags &&
-		      DUMPFILE_FLAG );
+      if (sql_ex.opt_flags & REPLACE_FLAG)
+	handle_dup= DUP_REPLACE;
+      sql_exchange ex((char*)fname, sql_ex.opt_flags & DUMPFILE_FLAG);
       String field_term(sql_ex.field_term,sql_ex.field_term_len);
       String enclosed(sql_ex.enclosed,sql_ex.enclosed_len);
       String line_term(sql_ex.line_term,sql_ex.line_term_len);
       String line_start(sql_ex.line_start,sql_ex.line_start_len);
       String escaped(sql_ex.escaped,sql_ex.escaped_len);
+      ex.field_term= &field_term;
+      ex.enclosed= &enclosed;
+      ex.line_term= &line_term;
+      ex.line_start= &line_start;
+      ex.escaped= &escaped;
 	    
       ex.opt_enclosed = (sql_ex.opt_flags & OPT_ENCLOSED_FLAG);
       if (sql_ex.empty_flags & FIELD_TERM_EMPTY)
@@ -1876,7 +1880,7 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
       ex.skip_lines = skip_lines;
       List<Item> field_list;
       set_fields(field_list);
-      thd->slave_proxy_id = thd->thread_id;
+      thd->slave_proxy_id = thread_id;
       if (net)
       {
 	// mysql_load will use thd->net to read the file

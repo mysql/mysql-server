@@ -310,7 +310,10 @@ bool MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
   DBUG_RETURN(0);
 
 err:
-  sql_print_error("Could not use %s for logging (error %d)", log_name, errno);
+  sql_print_error("Could not use %s for logging (error %d). \
+Turning logging off for the whole duration of the MySQL server process. \
+To turn it on again: fix the cause, \
+shutdown the MySQL server and restart it.", log_name, errno);
   if (file >= 0)
     my_close(file,MYF(0));
   if (index_file_nr >= 0)
@@ -1120,9 +1123,17 @@ bool MYSQL_LOG::write(Log_event* event_info)
       the table handler commit here, protected by the LOCK_log mutex,
       because otherwise the transactions may end up in a different order
       in the table handler log!
+
+      Note that we will NOT call ha_report_binlog_offset_and_commit() if
+      there are binlog events cached in the transaction cache. That is
+      because then the log event which we write to the binlog here is
+      not a transactional event. In versions < 4.0.13 before this fix this
+      caused an InnoDB transaction to be committed if in the middle there
+      was a MyISAM event!
     */
 
-    if (file == &log_file)
+    if (file == &log_file && opt_using_transactions
+			  && !my_b_tell(&thd->transaction.trans_log))
     {
       /*
 	LOAD DATA INFILE in AUTOCOMMIT=1 mode writes to the binlog
@@ -1560,6 +1571,8 @@ void sql_print_error(const char *format,...)
     char buff[1024];
     my_vsnprintf(buff,sizeof(buff)-1,format,args);
     DBUG_PRINT("error",("%s",buff));
+    va_end(args);
+    va_start(args,format);
   }
 #endif
   skr=time(NULL);
