@@ -484,11 +484,25 @@ static void close_connections(void)
 #ifdef __NT__
   if ( hPipe != INVALID_HANDLE_VALUE )
   {
-    HANDLE hTempPipe = &hPipe;
+    HANDLE temp;
     DBUG_PRINT( "quit", ("Closing named pipes") );
-    hPipe = INVALID_HANDLE_VALUE;
-    DisconnectNamedPipe( hTempPipe );
-    CloseHandle( hTempPipe );
+     
+    /* Create connection to the handle named pipe handler to break the loop */
+    if ((temp = CreateFile(szPipeName,
+			   GENERIC_READ | GENERIC_WRITE,
+			   0,
+			   NULL,
+			   OPEN_EXISTING,
+			   0,
+			   NULL )) != INVALID_HANDLE_VALUE)
+    {
+      WaitNamedPipe(szPipeName, 1000);
+      DWORD dwMode = PIPE_READMODE_BYTE | PIPE_WAIT;
+      SetNamedPipeHandleState(temp, &dwMode, NULL, NULL);
+      CancelIo(temp);
+      DisconnectNamedPipe(temp);
+      CloseHandle(temp);
+    }
   }
 #endif
 #ifdef HAVE_SYS_UN_H
@@ -771,8 +785,10 @@ void clean_up(bool print_message)
   my_free(opt_ssl_ca,MYF(MY_ALLOW_ZERO_PTR));
   my_free(opt_ssl_capath,MYF(MY_ALLOW_ZERO_PTR));
   my_free(opt_ssl_cipher,MYF(MY_ALLOW_ZERO_PTR));
+  my_free((gptr) ssl_acceptor_fd, MYF(MY_ALLOW_ZERO_PTR));
   opt_ssl_key=opt_ssl_cert=opt_ssl_ca=opt_ssl_capath=0;
 #endif /* HAVE_OPENSSL */
+
   free_defaults(defaults_argv);
   my_free(charsets_list, MYF(MY_ALLOW_ZERO_PTR));
   my_free(allocated_mysql_tmpdir,MYF(MY_ALLOW_ZERO_PTR));
@@ -1775,7 +1791,8 @@ int main(int argc, char **argv)
   if (opt_use_ssl)
   {
     ssl_acceptor_fd = new_VioSSLAcceptorFd(opt_ssl_key, opt_ssl_cert,
-			   opt_ssl_ca, opt_ssl_capath, opt_ssl_cipher);
+					   opt_ssl_ca, opt_ssl_capath,
+					   opt_ssl_cipher);
     DBUG_PRINT("info",("ssl_acceptor_fd: %p",ssl_acceptor_fd));
     if (!ssl_acceptor_fd)
       opt_use_ssl = 0;
@@ -1906,6 +1923,14 @@ The server will not act as a slave.");
   if (opt_slow_log)
     open_log(&mysql_slow_log, glob_hostname, opt_slow_logname, "-slow.log",
 	     LOG_NORMAL);
+#ifdef __WIN__
+#define MYSQL_ERR_FILE "mysql.err"
+  if (!opt_console)
+  {
+    freopen(MYSQL_ERR_FILE,"a+",stdout);
+    freopen(MYSQL_ERR_FILE,"a+",stderr);
+  }
+#endif
   if (ha_init())
   {
     sql_print_error("Can't init databases");
@@ -1931,13 +1956,8 @@ The server will not act as a slave.");
   ft_init_stopwords(ft_precompiled_stopwords);
 
 #ifdef __WIN__
-#define MYSQL_ERR_FILE "mysql.err"
   if (!opt_console)
-  {
-    freopen(MYSQL_ERR_FILE,"a+",stdout);
-    freopen(MYSQL_ERR_FILE,"a+",stderr);
     FreeConsole();				// Remove window
-  }
 #endif
 
   /*
@@ -2023,7 +2043,7 @@ The server will not act as a slave.");
 #ifdef __NT__
   if (hPipe == INVALID_HANDLE_VALUE && !have_tcpip)
   {
-    sql_print_error("TCP/IP must be installed on Win98 platforms");
+    sql_print_error("TCP/IP or Named Pipes should be installed on NT OS");
   }
   else
   {
@@ -2082,42 +2102,26 @@ The server will not act as a slave.");
 #ifdef EXTRA_DEBUG2
   sql_print_error("After lock_thread_count");
 #endif
-#else
-#if !defined(EMBEDDED_LIBRARY)
-  if (Service.IsNT())
+#endif /* __WIN__ */
+
+  /* Wait until cleanup is done */
+  (void) pthread_mutex_lock(&LOCK_thread_count);
+  while (!ready_to_exit)
   {
-    if(start_mode)
-    {
-      if (WaitForSingleObject(hEventShutdown,1000)==WAIT_TIMEOUT)
-        Service.Stop();
-    }
-    else
-    {
-      Service.SetShutdownEvent(0);
-      if(hEventShutdown) CloseHandle(hEventShutdown);
-    }
+    pthread_cond_wait(&COND_thread_count,&LOCK_thread_count);
   }
+  (void) pthread_mutex_unlock(&LOCK_thread_count);
+
+#if defined(__WIN__) && !defined(EMBEDDED_LIBRARY)
+  if (Service.IsNT() && start_mode)
+    Service.Stop();
   else
   {
     Service.SetShutdownEvent(0);
-    if(hEventShutdown) CloseHandle(hEventShutdown);
+    if (hEventShutdown)
+      CloseHandle(hEventShutdown);
   }
 #endif
-#endif
-#ifdef HAVE_OPENSSL
-  my_free((gptr)ssl_acceptor_fd,MYF(MY_ALLOW_ZERO_PTR));
-#endif /* HAVE_OPENSSL */
-  /* Wait until cleanup is done */
-  (void) pthread_mutex_lock(&LOCK_thread_count);
-  DBUG_PRINT("quit", ("Got thread_count mutex for clean up wait"));
-
-  while (!ready_to_exit)
-  {
-    DBUG_PRINT("quit", ("not yet ready to exit"));
-    pthread_cond_wait(&COND_thread_count,&LOCK_thread_count);
-  }
-  DBUG_PRINT("quit", ("ready to exit"));
-  (void) pthread_mutex_unlock(&LOCK_thread_count);
   my_end(opt_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
   exit(0);
   return(0);					/* purecov: deadcode */
