@@ -704,13 +704,12 @@ longlong Item_in_optimizer::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   cache->store(args[0]);
-  longlong tmp= args[1]->val_int_result();
   if (cache->null_value)
   {
-    if (tmp)
-      null_value= 1;
+    null_value= 1;
     return 0;
   }
+  longlong tmp= args[1]->val_int_result();
   null_value= args[1]->null_value;
   return tmp;
 }
@@ -2349,10 +2348,10 @@ Item *Item_cond::transform(Item_transformer transformer, byte *arg)
   Move SUM items out from item tree and replace with reference
 
   SYNOPSIS
-  split_sum_func()
-  thd			Thread handler
-  ref_pointer_array	Pointer to array of reference fields
-  fields		All fields in select
+    split_sum_func()
+    thd			Thread handler
+    ref_pointer_array	Pointer to array of reference fields
+    fields		All fields in select
 
   NOTES
    This function is run on all expression (SELECT list, WHERE, HAVING etc)
@@ -2362,16 +2361,6 @@ Item *Item_cond::transform(Item_transformer transformer, byte *arg)
    so that we can easily find and calculate them.
    (Calculation done by update_sum_func() and copy_sum_funcs() in
    sql_select.cc)
-
-   All found SUM items are added FIRST in the fields list and
-   we replace the item with a reference.
-
-   We also replace all functions without side effects (like RAND() or UDF's)
-   that uses columns as arguments.
-   For functions with side effects, we just remember any fields referred
-   by the function to ensure that we get a copy of the field value for the
-   first accepted row. This ensures that we can do things like
-   SELECT a*SUM(b) FROM t1 WHERE a=1
 */
 
 void Item_cond::split_sum_func(THD *thd, Item **ref_pointer_array,
@@ -2379,37 +2368,8 @@ void Item_cond::split_sum_func(THD *thd, Item **ref_pointer_array,
 {
   List_iterator<Item> li(list);
   Item *item;
-  used_tables_cache=0;
-  const_item_cache=1;
-  while ((item=li++))
-  {
-    /* with_sum_func is set for items that contains a SUM expression */
-    if (item->type() != SUM_FUNC_ITEM &&
-        (item->with_sum_func ||
-         (item->used_tables() & PSEUDO_TABLE_BITS)))
-      item->split_sum_func(thd, ref_pointer_array, fields);
-    else if (item->type() == SUM_FUNC_ITEM ||
-             (item->used_tables() && item->type() != REF_ITEM))
-    {
-      /*
-        Replace item with a reference so that we can easily calculate
-        it (in case of sum functions) or copy it (in case of fields)
-
-        The test above is to ensure we don't do a reference for things
-        that are constants or are not yet calculated as in:
-        SELECT RAND() as r1, SUM(a) as r2 FROM t1 HAVING r1 > 1 AND r2 > 0
-      */
-      Item **ref= li.ref();
-      uint el= fields.elements;
-      ref_pointer_array[el]= item;
-      Item *new_item= new Item_ref(ref_pointer_array + el, 0, item->name);
-      fields.push_front(item);
-      thd->change_item_tree(ref, new_item);
-    }
-    item->update_used_tables();
-    used_tables_cache|=item->used_tables();
-    const_item_cache&=item->const_item();
-  }
+  while ((item= li++))
+    item->split_sum_func2(thd, ref_pointer_array, fields, li.ref());
 }
 
 
