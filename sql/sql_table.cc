@@ -29,7 +29,7 @@
 #include <io.h>
 #endif
 
-static const char *primary_key_name="PRIMARY";
+const char *primary_key_name= "PRIMARY";
 
 static bool check_if_keyname_exists(const char *name,KEY *start, KEY *end);
 static char *make_unique_key_name(const char *field_name,KEY *start,KEY *end);
@@ -506,6 +506,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
       blob_columns++;
       break;
     case FIELD_TYPE_GEOMETRY:
+#ifdef HAVE_SPATIAL
       if (!(file->table_flags() & HA_HAS_GEOMETRY))
       {
 	my_printf_error(ER_CHECK_NOT_IMPLEMENTED, ER(ER_CHECK_NOT_IMPLEMENTED),
@@ -521,6 +522,11 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
       sql_field->unireg_check=Field::BLOB_FIELD;
       blob_columns++;
       break;
+#else
+      my_printf_error(ER_FEATURE_DISABLED,ER(ER_FEATURE_DISABLED), MYF(0),
+		      sym_group_geom.name, sym_group_geom.needed_define);
+      DBUG_RETURN(-1);
+#endif /*HAVE_SPATIAL*/
     case FIELD_TYPE_VAR_STRING:
     case FIELD_TYPE_STRING:
       sql_field->pack_flag=0;
@@ -654,8 +660,14 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
         key_info->flags = HA_FULLTEXT;
         break;
     case Key::SPATIAL:
+#ifdef HAVE_SPATIAL
         key_info->flags = HA_SPATIAL;
         break;
+#else
+	my_printf_error(ER_FEATURE_DISABLED,ER(ER_FEATURE_DISABLED),MYF(0),
+			sym_group_geom.name, sym_group_geom.needed_define);
+	DBUG_RETURN(-1);
+#endif
     case Key::FOREIGN_KEY:
       key_number--;				// Skip this key
       continue;
@@ -694,8 +706,10 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
         DBUG_RETURN(-1);
       }
     }
-    else if (key_info->algorithm == HA_KEY_ALG_RTREE)
+    else
+    if (key_info->algorithm == HA_KEY_ALG_RTREE)
     {
+#ifdef HAVE_RTREE_KEYS
       if ((key_info->key_parts & 1) == 1)
       {
 	my_printf_error(ER_WRONG_ARGUMENTS,
@@ -706,6 +720,11 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
       my_printf_error(ER_NOT_SUPPORTED_YET, ER(ER_NOT_SUPPORTED_YET),
 		      MYF(0), "RTREE INDEX");
       DBUG_RETURN(-1);
+#else
+      my_printf_error(ER_FEATURE_DISABLED,ER(ER_FEATURE_DISABLED),MYF(0),
+		      sym_group_rtree.name, sym_group_rtree.needed_define);
+      DBUG_RETURN(-1);
+#endif
     }
 
     List_iterator<key_part_spec> cols(key->columns);
@@ -775,6 +794,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
             DBUG_RETURN(-1);
           }
         }
+#ifdef HAVE_SPATIAL
         if (key->type  == Key::SPATIAL)
         {
           if (!column->length )
@@ -786,6 +806,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
             column->length=4*sizeof(double);
           }
         }
+#endif
         if (!(sql_field->flags & NOT_NULL_FLAG))
         {
           if (key->type == Key::PRIMARY)
@@ -830,6 +851,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
 	    DBUG_RETURN(-1);
 	  }
 	}
+        /* TODO HF What's this for??? */
 	else if (f_is_geom(sql_field->pack_flag))
 	{
 	}
@@ -1930,7 +1952,6 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
 		      List<Key> &keys,List<Alter_drop> &drop_list,
 		      List<Alter_column> &alter_list,
                       uint order_num, ORDER *order,
-		      bool drop_primary,
 		      enum enum_duplicates handle_duplicates,
 	              enum enum_enable_or_disable keys_onoff,
 		      enum tablespace_op_type tablespace_op,
@@ -2138,7 +2159,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     def_it.rewind();
     while ((def=def_it++))
     {
-      if (def->change && 
+      if (def->change &&
           !my_strcasecmp(system_charset_info,field->field_name, def->change))
 	break;
     }
@@ -2231,13 +2252,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   KEY *key_info=table->key_info;
   for (uint i=0 ; i < table->keys ; i++,key_info++)
   {
-    if (drop_primary && (key_info->flags & HA_NOSAME))
-    {
-      drop_primary=0;
-      continue;
-    }
-
-    char *key_name=key_info->name;
+    char *key_name= key_info->name;
     Alter_drop *drop;
     drop_it.rewind();
     while ((drop=drop_it++))
@@ -2280,7 +2295,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
       {						// Check if sub key
 	if (cfield->field->type() != FIELD_TYPE_BLOB &&
 	    (cfield->field->pack_length() == key_part_length ||
-	     cfield->length <= key_part_length / 
+	     cfield->length <= key_part_length /
 			       key_part->field->charset()->mbmaxlen))
 	  key_part_length=0;			// Use whole field
       }
@@ -2292,7 +2307,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
       key_list.push_back(new Key(key_info->flags & HA_SPATIAL ? Key::SPATIAL :
                                  (key_info->flags & HA_NOSAME ?
 				 (!my_strcasecmp(system_charset_info,
-                                                 key_name, "PRIMARY") ?
+                                                 key_name, primary_key_name) ?
 				  Key::PRIMARY  : Key::UNIQUE) :
 				  (key_info->flags & HA_FULLTEXT ?
 				   Key::FULLTEXT : Key::MULTIPLE)),

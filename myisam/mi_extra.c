@@ -18,9 +18,6 @@
 #ifdef HAVE_MMAP
 #include <sys/mman.h>
 #endif
-#ifdef	__WIN__
-#include <errno.h>
-#endif
 
 /*
   Set options and buffers to optimize table handling

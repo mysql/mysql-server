@@ -43,7 +43,6 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, SQL_LIST *order,
 
   if ((open_and_lock_tables(thd, table_list)))
     DBUG_RETURN(-1);
-  fix_tables_pointers(thd->lex->all_selects_list);
   table= table_list->table;
   table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
   thd->proc_info="init";
@@ -159,7 +158,7 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, SQL_LIST *order,
 	 !thd->net.report_error)
   {
     // thd->net.report_error is tested to disallow delete row on error
-    if (!(select && select->skipp_record())&& !thd->net.report_error )
+    if (!(select && select->skip_record())&& !thd->net.report_error )
     {
       if (!(error=table->file->delete_row(table->record[0])))
       {

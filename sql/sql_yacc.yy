@@ -660,7 +660,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	udf_type if_exists opt_local opt_table_options table_options
         table_option opt_if_not_exists opt_no_write_to_binlog opt_var_type
         opt_var_ident_type delete_option opt_temporary all_or_any opt_distinct
-        opt_ignore_leaves fulltext_options
+        opt_ignore_leaves fulltext_options spatial_type
 
 %type <ulong_num>
 	ULONG_NUM raid_types merge_insert_types
@@ -677,8 +677,9 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	table_wild no_in_expr expr_expr simple_expr no_and_expr udf_expr
 	using_list expr_or_default set_expr_or_default interval_expr
 	param_marker singlerow_subselect singlerow_subselect_init
+	exists_subselect exists_subselect_init geometry_function
 	signed_literal NUM_literal
-	exists_subselect exists_subselect_init sp_opt_default
+	sp_opt_default
 	simple_ident_nospvar simple_ident_q
 
 %type <item_list>
@@ -717,7 +718,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 
 %type <ha_rkey_mode> handler_rkey_mode
 
-%type <cast_type> cast_type cast_type_finalize
+%type <cast_type> cast_type
 
 %type <udf_type> udf_func_type
 
@@ -985,7 +986,7 @@ create:
 						  &tmp_table_alias :
 						  (LEX_STRING*) 0),
 						 TL_OPTION_UPDATING,
-						 ((using_update_log)?
+						 (using_update_log ?
 						  TL_READ_NO_INSERT:
 						  TL_READ)))
 	    YYABORT;
@@ -2108,7 +2109,7 @@ create_table_options:
 
 create_table_option:
 	ENGINE_SYM opt_equal storage_engines    { Lex->create_info.db_type= $3; }
-	| TYPE_SYM opt_equal storage_engines    { Lex->create_info.db_type= $3; WARN_DEPRECATED("TYPE=database_engine","ENGINE=database_engine"); }
+	| TYPE_SYM opt_equal storage_engines    { Lex->create_info.db_type= $3; WARN_DEPRECATED("TYPE=storage_engine","ENGINE=storage_engine"); }
 	| MAX_ROWS opt_equal ulonglong_num	{ Lex->create_info.max_rows= $3; Lex->create_info.used_fields|= HA_CREATE_USED_MAX_ROWS;}
 	| MIN_ROWS opt_equal ulonglong_num	{ Lex->create_info.min_rows= $3; Lex->create_info.used_fields|= HA_CREATE_USED_MIN_ROWS;}
 	| AVG_ROW_LENGTH opt_equal ULONG_NUM	{ Lex->create_info.avg_row_length=$3; Lex->create_info.used_fields|= HA_CREATE_USED_AVG_ROW_LENGTH;}
@@ -2328,30 +2329,19 @@ type:
 					  $$=FIELD_TYPE_TINY_BLOB; }
 	| BLOB_SYM opt_len		{ Lex->charset=&my_charset_bin;
 					  $$=FIELD_TYPE_BLOB; }
-	| GEOMETRY_SYM			{ Lex->charset=&my_charset_bin;
-					  Lex->uint_geom_type= (uint) Field::GEOM_GEOMETRY;
-					  $$=FIELD_TYPE_GEOMETRY; }
-	| GEOMETRYCOLLECTION		{ Lex->charset=&my_charset_bin;
-					  Lex->uint_geom_type= (uint) Field::GEOM_GEOMETRYCOLLECTION;
-					  $$=FIELD_TYPE_GEOMETRY; }
-	| POINT_SYM			{ Lex->charset=&my_charset_bin;
-					  Lex->uint_geom_type= (uint) Field::GEOM_POINT;
-					  $$=FIELD_TYPE_GEOMETRY; }
-	| MULTIPOINT			{ Lex->charset=&my_charset_bin;
-					  Lex->uint_geom_type= (uint) Field::GEOM_MULTIPOINT;
-					  $$=FIELD_TYPE_GEOMETRY; }
-	| LINESTRING			{ Lex->charset=&my_charset_bin;
-					  Lex->uint_geom_type= (uint) Field::GEOM_LINESTRING;
-					  $$=FIELD_TYPE_GEOMETRY; }
-	| MULTILINESTRING		{ Lex->charset=&my_charset_bin;
-					  Lex->uint_geom_type= (uint) Field::GEOM_MULTILINESTRING;
-					  $$=FIELD_TYPE_GEOMETRY; }
-	| POLYGON			{ Lex->charset=&my_charset_bin;
-					  Lex->uint_geom_type= (uint) Field::GEOM_POLYGON;
-					  $$=FIELD_TYPE_GEOMETRY; }
-	| MULTIPOLYGON			{ Lex->charset=&my_charset_bin;
-					  Lex->uint_geom_type= (uint) Field::GEOM_MULTIPOLYGON;
-					  $$=FIELD_TYPE_GEOMETRY; }
+	| spatial_type			{ 
+#ifdef HAVE_SPATIAL
+					  Lex->charset=&my_charset_bin;
+					  Lex->uint_geom_type= (uint)$1;
+					  $$=FIELD_TYPE_GEOMETRY;
+#else
+	                                  net_printf(Lex->thd, ER_FEATURE_DISABLED,
+			                             ER(ER_FEATURE_DISABLED),
+			                             sym_group_geom.name,
+	                                             sym_group_geom.needed_define);
+					  YYABORT;
+#endif
+					}
 	| MEDIUMBLOB			{ Lex->charset=&my_charset_bin;
 					  $$=FIELD_TYPE_MEDIUM_BLOB; }
 	| LONGBLOB			{ Lex->charset=&my_charset_bin;
@@ -2388,6 +2378,17 @@ type:
 	    Lex->type|= (AUTO_INCREMENT_FLAG | NOT_NULL_FLAG | UNSIGNED_FLAG |
 		         UNIQUE_FLAG);
 	  }
+	;
+
+spatial_type:
+	GEOMETRY_SYM	      { $$= Field::GEOM_GEOMETRY; }
+	| GEOMETRYCOLLECTION  { $$= Field::GEOM_GEOMETRYCOLLECTION; }
+	| POINT_SYM           { $$= Field::GEOM_POINT; }
+	| MULTIPOINT          { $$= Field::GEOM_MULTIPOINT; }
+	| LINESTRING          { $$= Field::GEOM_LINESTRING; }
+	| MULTILINESTRING     { $$= Field::GEOM_MULTILINESTRING; }
+	| POLYGON             { $$= Field::GEOM_POLYGON; }
+	| MULTIPOLYGON        { $$= Field::GEOM_MULTIPOLYGON; }
 	;
 
 char:
@@ -2620,23 +2621,30 @@ delete_option:
 
 key_type:
 	key_or_index			    { $$= Key::MULTIPLE; }
-	| FULLTEXT_SYM			    { $$= Key::FULLTEXT; }
-	| FULLTEXT_SYM key_or_index	    { $$= Key::FULLTEXT; }
-	| SPATIAL_SYM			    { $$= Key::SPATIAL; }
-	| SPATIAL_SYM key_or_index	    { $$= Key::SPATIAL; };
+	| FULLTEXT_SYM opt_key_or_index	    { $$= Key::FULLTEXT; }
+	| SPATIAL_SYM opt_key_or_index
+	  {
+#ifdef HAVE_SPATIAL
+	    $$= Key::SPATIAL;
+#else
+	    net_printf(Lex->thd, ER_FEATURE_DISABLED,
+	               ER(ER_FEATURE_DISABLED),
+		       sym_group_geom.name, sym_group_geom.needed_define);
+	    YYABORT;
+#endif
+	  };
 
 constraint_key_type:
 	PRIMARY_SYM KEY_SYM  { $$= Key::PRIMARY; }
-	| UNIQUE_SYM	    { $$= Key::UNIQUE; }
-	| UNIQUE_SYM key_or_index { $$= Key::UNIQUE; };
+	| UNIQUE_SYM opt_key_or_index { $$= Key::UNIQUE; };
 
 key_or_index:
 	KEY_SYM {}
 	| INDEX {};
 
-opt_keys_or_index:
+opt_key_or_index:
 	/* empty */ {}
-	| keys_or_index
+	| key_or_index
 	;
 
 keys_or_index:
@@ -2648,7 +2656,17 @@ opt_unique_or_fulltext:
 	/* empty */	{ $$= Key::MULTIPLE; }
 	| UNIQUE_SYM	{ $$= Key::UNIQUE; }
 	| FULLTEXT_SYM	{ $$= Key::FULLTEXT;}
-	| SPATIAL_SYM	{ $$= Key::SPATIAL; }
+	| SPATIAL_SYM
+	  {
+#ifdef HAVE_SPATIAL
+	    $$= Key::SPATIAL;
+#else
+	    net_printf(Lex->thd, ER_FEATURE_DISABLED,
+	               ER(ER_FEATURE_DISABLED),
+	               sym_group_geom.name, sym_group_geom.needed_define);
+	    YYABORT;
+#endif
+	  }
         ;
 
 key_alg:
@@ -2658,7 +2676,10 @@ key_alg:
 
 opt_btree_or_rtree:
 	BTREE_SYM	{ $$= HA_KEY_ALG_BTREE; }
-	| RTREE_SYM	{ $$= HA_KEY_ALG_RTREE; }
+	| RTREE_SYM
+	  {
+	    $$= HA_KEY_ALG_RTREE;
+	  }
 	| HASH_SYM	{ $$= HA_KEY_ALG_HASH; };
 
 key_list:
@@ -2695,7 +2716,6 @@ alter:
 	  if (!lex->select_lex.add_table_to_list(thd, $4, NULL,
 						 TL_OPTION_UPDATING))
 	    YYABORT;
-	  lex->drop_primary=0;
 	  lex->create_list.empty();
 	  lex->key_list.empty();
 	  lex->col_list.empty();
@@ -2797,12 +2817,14 @@ alter_list_item:
 	    lex->drop_list.push_back(new Alter_drop(Alter_drop::COLUMN,
 					    $3.str)); lex->simple_alter=0;
 	  }
+	| DROP FOREIGN KEY_SYM opt_ident { Lex->simple_alter=0; }
 	| DROP PRIMARY_SYM KEY_SYM
 	  {
 	    LEX *lex=Lex;
-	    lex->drop_primary=1; lex->simple_alter=0;
+	    lex->drop_list.push_back(new Alter_drop(Alter_drop::KEY,
+						    primary_key_name));
+	    lex->simple_alter=0;
 	  }
-	| DROP FOREIGN KEY_SYM opt_ident { Lex->simple_alter=0; }
 	| DROP key_or_index field_ident
 	  {
 	    LEX *lex=Lex;
@@ -2859,7 +2881,6 @@ opt_to:
 
 /*
   SLAVE START and SLAVE STOP are deprecated. We keep them for compatibility.
-  To use UNTIL, one must use START SLAVE, not SLAVE START.
 */
 
 slave:
@@ -2870,6 +2891,7 @@ slave:
 	    lex->type = 0;
 	    /* We'll use mi structure for UNTIL options */
 	    bzero((char*) &lex->mi, sizeof(lex->mi));
+            /* If you change this code don't forget to update SLAVE START too */
           }
           slave_until
           {}
@@ -2878,13 +2900,18 @@ slave:
 	    LEX *lex=Lex;
             lex->sql_command = SQLCOM_SLAVE_STOP;
 	    lex->type = 0;
+            /* If you change this code don't forget to update SLAVE STOP too */
           }
 	| SLAVE START_SYM slave_thread_opts
          {
 	   LEX *lex=Lex;
            lex->sql_command = SQLCOM_SLAVE_START;
 	   lex->type = 0;
-         }
+	    /* We'll use mi structure for UNTIL options */
+	    bzero((char*) &lex->mi, sizeof(lex->mi));
+          }
+          slave_until
+          {}
 	| SLAVE STOP_SYM slave_thread_opts
          {
 	   LEX *lex=Lex;
@@ -3150,7 +3177,7 @@ cache_keys_spec:
 
 cache_key_list_or_empty:
 	/* empty */	{ Lex->select_lex.use_index_ptr= 0; }
-	| opt_keys_or_index '(' key_usage_list2 ')'
+	| opt_key_or_index '(' key_usage_list2 ')'
 	  {
             SELECT_LEX *sel= &Lex->select_lex;
 	    sel->use_index_ptr= &sel->use_index;
@@ -3224,10 +3251,9 @@ select_init2:
 
 select_part2:
 	{
-	  LEX *lex=Lex;
-	  SELECT_LEX * sel= lex->current_select;
-	  if (lex->current_select == &lex->select_lex)
-	    lex->lock_option= TL_READ; /* Only for global SELECT */
+	  LEX *lex= Lex;
+	  SELECT_LEX *sel= lex->current_select;
+	  lex->lock_option= TL_READ;
 	  if (sel->linkage != UNION_TYPE)
 	    mysql_init_select(lex);
 	  lex->current_select->parsing_place= SELECT_LEX_NODE::SELECT_LIST;
@@ -3617,13 +3643,53 @@ simple_expr:
 	| VALUES '(' simple_ident ')'
 	  { $$= new Item_insert_value($3); }
 	| FUNC_ARG0 '(' ')'
-	  { $$= ((Item*(*)(void))($1.symbol->create_func))();}
+	  {
+	    if (!$1.symbol->create_func)
+	    {
+	      net_printf(Lex->thd, ER_FEATURE_DISABLED,
+			 ER(ER_FEATURE_DISABLED),
+			 $1.symbol->group->name,
+	                 $1.symbol->group->needed_define);
+	      YYABORT;
+	    }
+	    $$= ((Item*(*)(void))($1.symbol->create_func))();
+	  }
 	| FUNC_ARG1 '(' expr ')'
-	  { $$= ((Item*(*)(Item*))($1.symbol->create_func))($3);}
+	  {
+	    if (!$1.symbol->create_func)
+	    {
+	      net_printf(Lex->thd, ER_FEATURE_DISABLED,
+			 ER(ER_FEATURE_DISABLED),
+			 $1.symbol->group->name,
+	                 $1.symbol->group->needed_define);
+	      YYABORT;
+	    }
+	    $$= ((Item*(*)(Item*))($1.symbol->create_func))($3);
+	  }
 	| FUNC_ARG2 '(' expr ',' expr ')'
-	  { $$= ((Item*(*)(Item*,Item*))($1.symbol->create_func))($3,$5);}
+	  {
+	    if (!$1.symbol->create_func)
+	    {
+	      net_printf(Lex->thd, ER_FEATURE_DISABLED,
+			 ER(ER_FEATURE_DISABLED),
+			 $1.symbol->group->name,
+	                 $1.symbol->group->needed_define);
+	      YYABORT;
+	    }
+	    $$= ((Item*(*)(Item*,Item*))($1.symbol->create_func))($3,$5);
+	  }
 	| FUNC_ARG3 '(' expr ',' expr ',' expr ')'
-	  { $$= ((Item*(*)(Item*,Item*,Item*))($1.symbol->create_func))($3,$5,$7);}
+	  {
+	    if (!$1.symbol->create_func)
+	    {
+	      net_printf(Lex->thd, ER_FEATURE_DISABLED,
+			 ER(ER_FEATURE_DISABLED),
+			 $1.symbol->group->name,
+	                 $1.symbol->group->needed_define);
+	      YYABORT;
+	    }
+	    $$= ((Item*(*)(Item*,Item*,Item*))($1.symbol->create_func))($3,$5,$7);
+	  }
 	| ADDDATE_SYM '(' expr ',' expr ')'
 	  { $$= new Item_date_add_interval($3, $5, INTERVAL_DAY, 0);}
 	| ADDDATE_SYM '(' expr ',' INTERVAL_SYM expr interval ')'
@@ -3708,18 +3774,17 @@ simple_expr:
 	  }
 	| FIELD_FUNC '(' expr ',' expr_list ')'
 	  { $5->push_front($3); $$= new Item_func_field(*$5); }
-	| GEOMFROMTEXT '(' expr ')'
-	  { $$= new Item_func_geometry_from_text($3); }
-	| GEOMFROMTEXT '(' expr ',' expr ')'
-	  { $$= new Item_func_geometry_from_text($3, $5); }
-	| GEOMFROMWKB '(' expr ')'
-	  { $$= new Item_func_geometry_from_wkb($3); }
-	| GEOMFROMWKB '(' expr ',' expr ')'
-	  { $$= new Item_func_geometry_from_wkb($3, $5); }
-	| GEOMETRYCOLLECTION '(' expr_list ')'
-	  { $$= new Item_func_spatial_collection(* $3,
-                       Geometry::wkbGeometryCollection,
-                       Geometry::wkbPoint); }
+	| geometry_function
+	  {
+#ifdef HAVE_SPATIAL
+	    $$= $1;
+#else
+	    net_printf(Lex->thd, ER_FEATURE_DISABLED,
+	               ER(ER_FEATURE_DISABLED),
+	               sym_group_geom.name, sym_group_geom.needed_define);
+	    YYABORT;
+#endif
+	  }
 	| GET_FORMAT '(' date_time_type  ',' expr ')'
 	  { $$= new Item_func_get_format($3, $5); }
 	| HOUR_SYM '(' expr ')'
@@ -3753,17 +3818,10 @@ simple_expr:
 	  }
 	| LEFT '(' expr ',' expr ')'
 	  { $$= new Item_func_left($3,$5); }
-	| LINESTRING '(' expr_list ')'
-	  { $$= new Item_func_spatial_collection(* $3,
-               Geometry::wkbLineString, Geometry::wkbPoint); }
 	| LOCATE '(' expr ',' expr ')'
 	  { $$= new Item_func_locate($5,$3); }
 	| LOCATE '(' expr ',' expr ',' expr ')'
 	  { $$= new Item_func_locate($5,$3,$7); }
- 	| GEOMCOLLFROMTEXT '(' expr ')'
-	  { $$= new Item_func_geometry_from_text($3); }
-	| GEOMCOLLFROMTEXT '(' expr ',' expr ')'
-	  { $$= new Item_func_geometry_from_text($3, $5); }
 	| GREATEST_SYM '(' expr ',' expr_list ')'
 	  { $5->push_front($3); $$= new Item_func_max(*$5); }
 	| LEAST_SYM '(' expr ',' expr_list ')'
@@ -3772,10 +3830,6 @@ simple_expr:
 	  { $$= new Item_func_log($3); }
 	| LOG_SYM '(' expr ',' expr ')'
 	  { $$= new Item_func_log($3, $5); }
- 	| LINEFROMTEXT '(' expr ')'
-	  { $$= new Item_func_geometry_from_text($3); }
-	| LINEFROMTEXT '(' expr ',' expr ')'
-	  { $$= new Item_func_geometry_from_text($3, $5); }
 	| MASTER_POS_WAIT '(' expr ',' expr ')'
 	  {
 	    $$= new Item_master_pos_wait($3, $5);
@@ -3794,27 +3848,6 @@ simple_expr:
 	  { $$ = new Item_func_mod( $3, $5); }
 	| MONTH_SYM '(' expr ')'
 	  { $$= new Item_func_month($3); }
- 	| MULTILINESTRING '(' expr_list ')'
- 	  { $$= new Item_func_spatial_collection(* $3,
-                    Geometry::wkbMultiLineString, Geometry::wkbLineString); }
- 	| MLINEFROMTEXT '(' expr ')'
-	  { $$= new Item_func_geometry_from_text($3); }
-	| MLINEFROMTEXT '(' expr ',' expr ')'
-	  { $$= new Item_func_geometry_from_text($3, $5); }
-	| MPOINTFROMTEXT '(' expr ')'
-	  { $$= new Item_func_geometry_from_text($3); }
-	| MPOINTFROMTEXT '(' expr ',' expr ')'
-	  { $$= new Item_func_geometry_from_text($3, $5); }
-	| MPOLYFROMTEXT '(' expr ')'
-	  { $$= new Item_func_geometry_from_text($3); }
-	| MPOLYFROMTEXT '(' expr ',' expr ')'
-	  { $$= new Item_func_geometry_from_text($3, $5); }
-	| MULTIPOINT '(' expr_list ')'
-	  { $$= new Item_func_spatial_collection(* $3,
-                    Geometry::wkbMultiPoint, Geometry::wkbPoint); }
- 	| MULTIPOLYGON '(' expr_list ')'
-	  { $$= new Item_func_spatial_collection(* $3,
-                       Geometry::wkbMultiPolygon, Geometry::wkbPolygon ); }
 	| NOW_SYM optional_braces
 	  { $$= new Item_func_now_local(); Lex->safe_to_cache_query=0;}
 	| NOW_SYM '(' expr ')'
@@ -3827,19 +3860,6 @@ simple_expr:
 	  }
 	| OLD_PASSWORD '(' expr ')'
 	  { $$=  new Item_func_old_password($3); }
-	| POINT_SYM '(' expr ',' expr ')'
-	  { $$= new Item_func_point($3,$5); }
- 	| POINTFROMTEXT '(' expr ')'
-	  { $$= new Item_func_geometry_from_text($3); }
-	| POINTFROMTEXT '(' expr ',' expr ')'
-	  { $$= new Item_func_geometry_from_text($3, $5); }
-	| POLYFROMTEXT '(' expr ')'
-	  { $$= new Item_func_geometry_from_text($3); }
-	| POLYFROMTEXT '(' expr ',' expr ')'
-	  { $$= new Item_func_geometry_from_text($3, $5); }
-	| POLYGON '(' expr_list ')'
-	  { $$= new Item_func_spatial_collection(* $3,
-			Geometry::wkbPolygon, Geometry::wkbLineString); }
 	| POSITION_SYM '(' no_in_expr IN_SYM expr ')'
 	  { $$ = new Item_func_locate($5,$3); }
 	| QUARTER_SYM '(' expr ')'
@@ -3991,6 +4011,66 @@ simple_expr:
 	| EXTRACT_SYM '(' interval FROM expr ')'
 	{ $$=new Item_extract( $3, $5); };
 
+geometry_function:
+	GEOMFROMTEXT '(' expr ')'
+	  { $$= GEOM_NEW(Item_func_geometry_from_text($3)); }
+	| GEOMFROMTEXT '(' expr ',' expr ')'
+	  { $$= GEOM_NEW(Item_func_geometry_from_text($3, $5)); }
+	| GEOMFROMWKB '(' expr ')'
+	  { $$= GEOM_NEW(Item_func_geometry_from_wkb($3)); }
+	| GEOMFROMWKB '(' expr ',' expr ')'
+	  { $$= GEOM_NEW(Item_func_geometry_from_wkb($3, $5)); }
+	| GEOMETRYCOLLECTION '(' expr_list ')'
+	  { $$= GEOM_NEW(Item_func_spatial_collection(* $3,
+                           Geometry::wkbGeometryCollection,
+                           Geometry::wkbPoint)); }
+	| LINESTRING '(' expr_list ')'
+	  { $$= GEOM_NEW(Item_func_spatial_collection(* $3,
+                  Geometry::wkbLineString, Geometry::wkbPoint)); }
+ 	| MULTILINESTRING '(' expr_list ')'
+	  { $$= GEOM_NEW( Item_func_spatial_collection(* $3,
+                   Geometry::wkbMultiLineString, Geometry::wkbLineString)); }
+ 	| MLINEFROMTEXT '(' expr ')'
+	  { $$= GEOM_NEW(Item_func_geometry_from_text($3)); }
+	| MLINEFROMTEXT '(' expr ',' expr ')'
+	  { $$= GEOM_NEW(Item_func_geometry_from_text($3, $5)); }
+	| MPOINTFROMTEXT '(' expr ')'
+	  { $$= GEOM_NEW(Item_func_geometry_from_text($3)); }
+	| MPOINTFROMTEXT '(' expr ',' expr ')'
+	  { $$= GEOM_NEW(Item_func_geometry_from_text($3, $5)); }
+	| MPOLYFROMTEXT '(' expr ')'
+	  { $$= GEOM_NEW(Item_func_geometry_from_text($3)); }
+	| MPOLYFROMTEXT '(' expr ',' expr ')'
+	  { $$= GEOM_NEW(Item_func_geometry_from_text($3, $5)); }
+	| MULTIPOINT '(' expr_list ')'
+	  { $$= GEOM_NEW(Item_func_spatial_collection(* $3,
+                  Geometry::wkbMultiPoint, Geometry::wkbPoint)); }
+ 	| MULTIPOLYGON '(' expr_list ')'
+	  { $$= GEOM_NEW(Item_func_spatial_collection(* $3,
+                  Geometry::wkbMultiPolygon, Geometry::wkbPolygon)); }
+	| POINT_SYM '(' expr ',' expr ')'
+	  { $$= GEOM_NEW(Item_func_point($3,$5)); }
+ 	| POINTFROMTEXT '(' expr ')'
+	  { $$= GEOM_NEW(Item_func_geometry_from_text($3)); }
+	| POINTFROMTEXT '(' expr ',' expr ')'
+	  { $$= GEOM_NEW(Item_func_geometry_from_text($3, $5)); }
+	| POLYFROMTEXT '(' expr ')'
+	  { $$= GEOM_NEW(Item_func_geometry_from_text($3)); }
+	| POLYFROMTEXT '(' expr ',' expr ')'
+	  { $$= GEOM_NEW(Item_func_geometry_from_text($3, $5)); }
+	| POLYGON '(' expr_list ')'
+	  { $$= GEOM_NEW(Item_func_spatial_collection(* $3,
+	          Geometry::wkbPolygon, Geometry::wkbLineString)); }
+ 	| GEOMCOLLFROMTEXT '(' expr ')'
+	  { $$= GEOM_NEW(Item_func_geometry_from_text($3)); }
+	| GEOMCOLLFROMTEXT '(' expr ',' expr ')'
+	  { $$= GEOM_NEW(Item_func_geometry_from_text($3, $5)); }
+ 	| LINEFROMTEXT '(' expr ')'
+	  { $$= GEOM_NEW(Item_func_geometry_from_text($3)); }
+	| LINEFROMTEXT '(' expr ',' expr ')'
+	  { $$= GEOM_NEW(Item_func_geometry_from_text($3, $5)); }
+	;
+
 fulltext_options:
         /* nothing */                   { $$= FT_NL;  }
         | WITH QUERY_SYM EXPANSION_SYM  { $$= FT_NL | FT_EXPAND; }
@@ -4101,7 +4181,7 @@ opt_gorder_clause:
 	| order_clause
           {
             LEX *lex=Lex;
-            lex->gorder_list= 
+            lex->gorder_list=
 	      (SQL_LIST*) sql_memdup((char*) &lex->current_select->order_list,
 				     sizeof(st_sql_list));
 	    lex->current_select->order_list.empty();
@@ -4124,25 +4204,17 @@ in_sum_expr:
 	  $$= $3;
 	};
 
-cast_type_init:
-	{ Lex->charset= NULL; Lex->length= (char*)0; }
-	;
-
-cast_type_finalize:
-	BINARY			{ $$=ITEM_CAST_BINARY; }
+cast_type:
+	BINARY			{ $$=ITEM_CAST_BINARY; Lex->charset= NULL; Lex->length= (char*)0; }
 	| CHAR_SYM opt_len opt_binary	{ $$=ITEM_CAST_CHAR; }
 	| NCHAR_SYM opt_len	{ $$=ITEM_CAST_CHAR; Lex->charset= national_charset_info; }
-	| SIGNED_SYM		{ $$=ITEM_CAST_SIGNED_INT; }
-	| SIGNED_SYM INT_SYM	{ $$=ITEM_CAST_SIGNED_INT; }
-	| UNSIGNED		{ $$=ITEM_CAST_UNSIGNED_INT; }
-	| UNSIGNED INT_SYM	{ $$=ITEM_CAST_UNSIGNED_INT; }
-	| DATE_SYM		{ $$=ITEM_CAST_DATE; }
-	| TIME_SYM		{ $$=ITEM_CAST_TIME; }
-	| DATETIME		{ $$=ITEM_CAST_DATETIME; }
-	;
-
-cast_type:
-	cast_type_init cast_type_finalize { $$= $2; }
+	| SIGNED_SYM		{ $$=ITEM_CAST_SIGNED_INT; Lex->charset= NULL; Lex->length= (char*)0; }
+	| SIGNED_SYM INT_SYM	{ $$=ITEM_CAST_SIGNED_INT; Lex->charset= NULL; Lex->length= (char*)0; }
+	| UNSIGNED		{ $$=ITEM_CAST_UNSIGNED_INT; Lex->charset= NULL; Lex->length= (char*)0; }
+	| UNSIGNED INT_SYM	{ $$=ITEM_CAST_UNSIGNED_INT; Lex->charset= NULL; Lex->length= (char*)0; }
+	| DATE_SYM		{ $$=ITEM_CAST_DATE; Lex->charset= NULL; Lex->length= (char*)0; }
+	| TIME_SYM		{ $$=ITEM_CAST_TIME; Lex->charset= NULL; Lex->length= (char*)0; }
+	| DATETIME		{ $$=ITEM_CAST_DATETIME; Lex->charset= NULL; Lex->length= (char*)0; }
 	;
 
 expr_list:
@@ -4276,13 +4348,6 @@ join_table:
         | '(' SELECT_SYM select_derived ')' opt_table_alias
 	{
 	  LEX *lex=Lex;
-	  if (lex->sql_command == SQLCOM_UPDATE &&
-	      &lex->select_lex == lex->current_select->outer_select())
-	  {
-	    send_error(lex->thd, ER_SYNTAX_ERROR);
-	    YYABORT;
-	  }
-
 	  SELECT_LEX_UNIT *unit= lex->current_select->master_unit();
 	  lex->current_select= unit->outer_select();
 	  if (!($$= lex->current_select->
@@ -4984,6 +5049,7 @@ update:
 	  LEX *lex= Lex;
 	  mysql_init_select(lex);
           lex->sql_command= SQLCOM_UPDATE;
+	  lex->lock_option= TL_UNLOCK; 	/* Will be set later */
         }
         opt_low_priority opt_ignore join_table_list
 	SET update_list where_clause opt_order_clause delete_limit_clause
@@ -4992,6 +5058,13 @@ update:
 	  Select->set_lock_for_tables($3);
           if (lex->select_lex.table_list.elements > 1)
             lex->sql_command= SQLCOM_UPDATE_MULTI;
+	  else if (lex->select_lex.get_table_list()->derived)
+	  {
+	    /* it is single table update and it is update of derived table */
+	    net_printf(lex->thd, ER_NON_UPDATABLE_TABLE,
+		       lex->select_lex.get_table_list()->alias, "UPDATE");
+	    YYABORT;
+	  }
 	}
 	;
 
@@ -5679,9 +5752,9 @@ simple_ident:
 	    $$= (sel->parsing_place != SELECT_LEX_NODE::IN_HAVING ||
 	         sel->get_in_sum_expr() > 0) ?
                  (Item*) new Item_field(NullS,NullS,$1.str) :
-	         (Item*) new Item_ref(NullS,NullS,$1.str);
+	         (Item*) new Item_ref(0,0, NullS,NullS,$1.str);
 	  }
-	}
+        }
         | simple_ident_q { $$= $1; }
 	;
 
@@ -5692,7 +5765,7 @@ simple_ident_nospvar:
 	  $$= (sel->parsing_place != SELECT_LEX_NODE::IN_HAVING ||
 	       sel->get_in_sum_expr() > 0) ?
               (Item*) new Item_field(NullS,NullS,$1.str) :
-	      (Item*) new Item_ref(NullS,NullS,$1.str);
+	      (Item*) new Item_ref(0,0,NullS,NullS,$1.str);
 	}
 	| simple_ident_q { $$= $1; }
 	;	
@@ -5712,7 +5785,7 @@ simple_ident_q:
 	  $$= (sel->parsing_place != SELECT_LEX_NODE::IN_HAVING ||
 	       sel->get_in_sum_expr() > 0) ?
 	      (Item*) new Item_field(NullS,$1.str,$3.str) :
-	      (Item*) new Item_ref(NullS,$1.str,$3.str);
+	      (Item*) new Item_ref(0,0,NullS,$1.str,$3.str);
 	}
 	| '.' ident '.' ident
 	{
@@ -5728,7 +5801,7 @@ simple_ident_q:
 	  $$= (sel->parsing_place != SELECT_LEX_NODE::IN_HAVING ||
 	       sel->get_in_sum_expr() > 0) ?
 	      (Item*) new Item_field(NullS,$2.str,$4.str) :
-              (Item*) new Item_ref(NullS,$2.str,$4.str);
+              (Item*) new Item_ref(0,0,NullS,$2.str,$4.str);
 	}
 	| ident '.' ident '.' ident
 	{
@@ -5746,8 +5819,8 @@ simple_ident_q:
 	      (Item*) new Item_field((YYTHD->client_capabilities &
 				      CLIENT_NO_SCHEMA ? NullS : $1.str),
 				     $3.str, $5.str) :
-	      (Item*) new Item_ref((YYTHD->client_capabilities &
-				    CLIENT_NO_SCHEMA ? NullS : $1.str),
+	      (Item*) new Item_ref(0,0,(YYTHD->client_capabilities &
+				        CLIENT_NO_SCHEMA ? NullS : $1.str),
                                    $3.str, $5.str);
 	};
 

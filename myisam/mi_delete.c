@@ -20,10 +20,6 @@
 #include "rt_index.h"
 #include <assert.h>
 
-#ifdef	__WIN__
-#include <errno.h>
-#endif
-
 static int d_search(MI_INFO *info,MI_KEYDEF *keyinfo,uint comp_flag,
                     uchar *key,uint key_length,my_off_t page,uchar *anc_buff);
 static int del(MI_INFO *info,MI_KEYDEF *keyinfo,uchar *key,uchar *anc_buff,

@@ -631,6 +631,7 @@ CHARSET_INFO my_charset_latin2_czech_ci =
     idx_uni_8859_2,	/* tab_from_uni */
     "","",
     4,			/* strxfrm_multiply */
+    1,			/* mbminlen   */
     1,			/* mbmaxlen  */
     0,
     &my_charset_8bit_handler,

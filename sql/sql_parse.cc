@@ -846,6 +846,7 @@ static int check_connection(THD *thd)
   char *passwd= strend(user)+1;
   char *db= passwd;
   char db_buff[NAME_LEN+1];                     // buffer to store db in utf8 
+  char user_buff[USERNAME_LENGTH+1];		// buffer to store user in utf8
   /* 
     Old clients send null-terminated string as password; new clients send
     the size (1 byte) + string (not null-terminated). Hence in case of empty
@@ -864,6 +865,14 @@ static int check_connection(THD *thd)
                              db, strlen(db),
                              thd->charset())]= 0;
     db= db_buff;
+  }
+
+  if (user)
+  {
+    user_buff[copy_and_convert(user_buff, sizeof(user_buff)-1,
+			       system_charset_info, user, strlen(user),
+			       thd->charset())]= '\0';
+    user= user_buff;
   }
 
   if (thd->user)
@@ -986,6 +995,7 @@ pthread_handler_decl(handle_one_connection,arg)
 
     thd->proc_info=0;
     thd->set_time();
+    thd->init_for_queries();
     while (!net->error && net->vio != 0 && !(thd->killed == THD::KILL_CONNECTION))
     {
       if (do_command(thd))
@@ -1065,6 +1075,7 @@ extern "C" pthread_handler_decl(handle_bootstrap,arg)
   thd->priv_user=thd->user=(char*) my_strdup("boot", MYF(MY_WME));
 
   buff= (char*) thd->net.buff;
+  thd->init_for_queries();
   while (fgets(buff, thd->net.max_packet, file))
   {
     uint length=(uint) strlen(buff);
@@ -1109,7 +1120,7 @@ end:
 void free_items(Item *item)
 {
   for (; item ; item=item->next)
-    delete item;
+    item->delete_self();
 }
 
     /* This works because items are allocated with sql_alloc() */
@@ -1625,9 +1636,11 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     switch (command) {
     case MYSQL_OPTION_MULTI_STATEMENTS_ON:
       thd->client_capabilities|= CLIENT_MULTI_STATEMENTS;
+      send_eof(thd);
       break;
     case MYSQL_OPTION_MULTI_STATEMENTS_OFF:
       thd->client_capabilities&= ~CLIENT_MULTI_STATEMENTS;
+      send_eof(thd);
       break;
     default:
       send_error(thd, ER_UNKNOWN_COM_ERROR);
@@ -1796,34 +1809,9 @@ mysql_execute_command(THD *thd)
 #endif
   }
 #endif /* !HAVE_REPLICATION */
-  /*
-    TODO: make derived tables processing 'inside' SELECT processing.
-    TODO: solve problem with depended derived tables in subselects
-  */
-  if (lex->derived_tables)
-  {
-    for (SELECT_LEX *sl= lex->all_selects_list;
-	 sl;
-	 sl= sl->next_select_in_list())
-    {
-      for (TABLE_LIST *cursor= sl->get_table_list();
-	   cursor;
-	   cursor= cursor->next)
-      {
-	if (cursor->derived && (res=mysql_derived(thd, lex,
-						  cursor->derived,
-						  cursor)))
-	{
-	  if (res < 0 || thd->net.report_error)
-	    send_error(thd,thd->killed ? ER_SERVER_SHUTDOWN : 0);
-	  DBUG_RETURN(res);
-	}
-      }
-    }
-  }
   if (&lex->select_lex != lex->all_selects_list &&
       lex->sql_command != SQLCOM_CREATE_TABLE &&
-      lex->unit.create_total_list(thd, lex, &tables, 0))
+      lex->unit.create_total_list(thd, lex, &tables))
     DBUG_RETURN(0);
   
   /*
@@ -1882,7 +1870,6 @@ mysql_execute_command(THD *thd)
 	}
 	else
 	  thd->send_explain_fields(result);
-	fix_tables_pointers(lex->all_selects_list);
 	res= mysql_explain_union(thd, &thd->lex->unit, result);
 	MYSQL_LOCK *save_lock= thd->lock;
 	thd->lock= (MYSQL_LOCK *)0;
@@ -1906,10 +1893,6 @@ mysql_execute_command(THD *thd)
 	  if (!(result=new select_send()))
 	  {
 	    res= -1;
-#ifdef DELETE_ITEMS
-	    delete select_lex->having;
-	    delete select_lex->where;
-#endif
 	    break;
 	  }
 	}
@@ -1925,7 +1908,6 @@ mysql_execute_command(THD *thd)
 		   (res= open_and_lock_tables(thd,tables))))
 	break;
 
-    fix_tables_pointers(lex->all_selects_list);
     res= mysql_do(thd, *lex->insert_list);
     if (thd->net.report_error)
       res= -1;
@@ -2134,7 +2116,7 @@ mysql_execute_command(THD *thd)
     lex->select_lex.table_list.first= (byte*) (tables);
     create_table->next= 0;
     if (&lex->select_lex != lex->all_selects_list &&
-	lex->unit.create_total_list(thd, lex, &tables, 0))
+	lex->unit.create_total_list(thd, lex, &tables))
       DBUG_RETURN(-1);
 
     ulong want_priv= ((lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) ?
@@ -2326,7 +2308,7 @@ mysql_execute_command(THD *thd)
 			       lex->key_list, lex->drop_list, lex->alter_list,
 			       select_lex->order_list.elements,
                                (ORDER *) select_lex->order_list.first,
-			       lex->drop_primary, lex->duplicates,
+			       lex->duplicates,
 			       lex->alter_keys_onoff,
                                lex->tablespace_op,
 			       lex->simple_alter);
@@ -2349,6 +2331,8 @@ mysql_execute_command(THD *thd)
       if (grant_option)
       {
 	TABLE_LIST old_list,new_list;
+	bzero((char*) &old_list, sizeof(old_list));
+	bzero((char*) &new_list, sizeof(new_list)); // Safety
 	old_list=table[0];
 	new_list=table->next[0];
 	old_list.next=new_list.next=0;
@@ -2471,7 +2455,7 @@ mysql_execute_command(THD *thd)
 			     tables, lex->create_list,
 			     lex->key_list, lex->drop_list, lex->alter_list,
                              0, (ORDER *) 0,
-			     0, DUP_ERROR);
+			     DUP_ERROR);
     }
     else
       res = mysql_optimize_table(thd, tables, &lex->check_opt);
@@ -2669,15 +2653,21 @@ mysql_execute_command(THD *thd)
       table_count++;
       /* All tables in aux_tables must be found in FROM PART */
       TABLE_LIST *walk;
-      for (walk=(TABLE_LIST*) tables ; walk ; walk=walk->next)
+      for (walk= (TABLE_LIST*) tables; walk; walk= walk->next)
       {
-	if (!strcmp(auxi->real_name,walk->real_name) &&
-	    !strcmp(walk->db,auxi->db))
+	if (!strcmp(auxi->real_name, walk->alias) &&
+	    !strcmp(walk->db, auxi->db))
 	  break;
       }
       if (!walk)
       {
-	net_printf(thd,ER_NONUNIQ_TABLE,auxi->real_name);
+	net_printf(thd, ER_NONUNIQ_TABLE, auxi->real_name);
+	goto error;
+      }
+      if (walk->derived)
+      {
+	net_printf(thd, ER_NON_UPDATABLE_TABLE,
+		   auxi->real_name, "DELETE");
 	goto error;
       }
       walk->lock_type= auxi->lock_type;
@@ -2693,21 +2683,27 @@ mysql_execute_command(THD *thd)
       break;
     /* Fix tables-to-be-deleted-from list to point at opened tables */
     for (auxi=(TABLE_LIST*) aux_tables ; auxi ; auxi=auxi->next)
-      auxi->table= auxi->table_list->table;
-    if (&lex->select_lex != lex->all_selects_list)
     {
-      for (TABLE_LIST *t= select_lex->get_table_list();
-	   t; t= t->next)
+      auxi->table= auxi->table_list->table;
+      /* 
+	 Multi-delete can't be constructed over-union => we always have
+	 single SELECT on top and have to check underlaying SELECTs of it
+      */
+      for (SELECT_LEX_UNIT *un= lex->select_lex.first_inner_unit();
+	   un;
+	   un= un->next_unit())
       {
-	if (find_real_table_in_list(t->table_list->next, t->db, t->real_name))
+	if (un->first_select()->linkage != DERIVED_TABLE_TYPE &&
+	    un->check_updateable(auxi->table_list->db,
+				 auxi->table_list->real_name))
 	{
-	  my_error(ER_UPDATE_TABLE_USED, MYF(0), t->real_name);
+	  my_error(ER_UPDATE_TABLE_USED, MYF(0), auxi->table_list->real_name);
 	  res= -1;
 	  break;
 	}
       }
     }
-    fix_tables_pointers(lex->all_selects_list);
+
     if (!thd->is_fatal_error && (result= new multi_delete(thd,aux_tables,
 							  table_count)))
     {
@@ -2952,7 +2948,6 @@ mysql_execute_command(THD *thd)
     if (tables && ((res= check_table_access(thd, SELECT_ACL, tables,0)) ||
 		   (res= open_and_lock_tables(thd,tables))))
       break;
-    fix_tables_pointers(lex->all_selects_list);
     if (!(res= sql_set_variables(thd, &lex->var_list)))
       send_ok(thd);
     if (thd->net.report_error)
@@ -4147,7 +4142,7 @@ mysql_parse(THD *thd, char *inBuf, uint length)
 	else
 	{
 	  mysql_execute_command(thd);
-	  query_cache_end_of_result(&thd->net);
+	  query_cache_end_of_result(thd);
 	}
       }
     }
