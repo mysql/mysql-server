@@ -212,9 +212,9 @@
 "DROP DATABASE är inte tillåtet när man har ett globalt läs-lås",
 "CREATE DATABASE är inte tillåtet när man har ett globalt läs-lås",
 "Felaktiga argument till %s",
+"%-.32s@%-.64s har inte rättigheter att skapa nya användare",
 "Fick fel vid anslutning till master: %-.128s",
 "Fick fel vid utförande av command på mastern: %-.128s",
 "Fick fel vid utförande av %s: %-.128s",
 "Felaktig använding av %s and %s",
 "SELECT kommandona har olika antal kolumner"
-"%-.32s@%-.64s is not allowed to create new users",
