@@ -2433,7 +2433,7 @@ bool ror_intersect_add(const PARAM *param, ROR_INTERSECT_INFO *info,
   KEY_PART_INFO *key_part= 
     info->param->table->key_info[ror_scan->keynr].key_part;
   double selectivity_mult= 1.0;
-  char key_val[MAX_KEY_LENGTH+MAX_FIELD_WIDTH]; /* key values tuple */
+  byte key_val[MAX_KEY_LENGTH+MAX_FIELD_WIDTH]; /* key values tuple */
 
   DBUG_ENTER("ror_intersect_add");  
   DBUG_PRINT("info", ("Current selectivity= %g", info->records_fract)); 
@@ -2445,6 +2445,12 @@ bool ror_intersect_add(const PARAM *param, ROR_INTERSECT_INFO *info,
      bitmap_is_set(&info->covered_fields, key_part->fieldnr);
 
   ha_rows prev_records= param->table->file->records;
+  key_range min_range;
+  key_range max_range;
+  min_range.key= (byte*) key_val;
+  min_range.flag= HA_READ_KEY_EXACT;
+  max_range.key= (byte*) key_val;
+  max_range.flag= HA_READ_AFTER_KEY;
 
   for(i= 0, sel_arg= ror_scan->sel_arg; sel_arg; 
       i++, sel_arg= sel_arg->next_key_part)
@@ -2466,12 +2472,11 @@ bool ror_intersect_add(const PARAM *param, ROR_INTERSECT_INFO *info,
         }
       } 
       ha_rows records;
+      min_range.length= max_range.length= key_ptr - key_val;
       records= param->table->file->
                  records_in_range(ror_scan->keynr,
-                                  (byte*)key_val, key_ptr - key_val, 
-                                  HA_READ_KEY_EXACT,
-                                  (byte*)key_val, key_ptr - key_val,
-                                  HA_READ_AFTER_KEY);
+                                  &min_range,
+                                  &max_range);
       if (cur_covered)
       {
         /* uncovered -> covered */
