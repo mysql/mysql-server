@@ -8434,6 +8434,7 @@ static MY_COLLATION_HANDLER my_collation_ci_handler =
     my_like_range_simple,/* like_range   */
     my_wildcmp_mb,	/* wildcmp      */
     my_strcasecmp_mb,
+    my_instr_mb,
     my_hash_sort_simple,
 };
 
@@ -8504,7 +8505,7 @@ CHARSET_INFO my_charset_ujis_bin=
     3,			/* mbmaxlen     */
     0,
     &my_charset_handler,
-    &my_collation_bin_handler
+    &my_collation_mb_bin_handler
 };
 
 
