@@ -4969,6 +4969,10 @@ Standard usage in PostgreSQL is closer to ANSI SQL in some cases.
 One can speed up PostgreSQL by coding things as stored procedures.
 
 @item
+For geographical data, R-trees make PostgreSQL better than MySQL Server.
+(note: MySQL version 4.1 will have R-trees for MyISAM tables).
+
+@item
 The PostgreSQL optimiser can do some optimisation that the current MySQL
 optimiser can't do.  Most notable is doing joins when you don't have the
 proper keys in place and doing a join where you are using different keys
