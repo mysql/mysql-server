@@ -198,6 +198,7 @@ String *Item_field::val_str(String *str)
 {
   if ((null_value=field->is_null()))
     return 0;
+  str->set_charset(str_value.charset());
   return field->val_str(str,&str_value);
 }
 
