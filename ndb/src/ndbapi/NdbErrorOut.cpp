@@ -15,7 +15,6 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
-#include <NdbError.hpp>
 #include <NdbStdio.h> 
 #include <stdarg.h>
 
@@ -23,10 +22,7 @@
 
 #include <NdbOut.hpp>
 
-const char *ndberror_status_message(const NdbError::Status & status);
-const char *ndberror_classification_message(const NdbError::Classification & classification);
-int ndb_error_string(int err_no, char *str, size_t size);
-void ndberror_update(const NdbError & _err);
+#include <NdbError.hpp>
 
 /**
  * operators
@@ -42,66 +38,11 @@ operator<<(NdbOut & out, const NdbError & error){
 
 NdbOut &
 operator<<(NdbOut & out, const NdbError::Status & status){
-  return out << ndberror_status_message(status);
+  return out << ndberror_status_message((ndberror_status)status);
 }
 
 NdbOut &
 operator<<(NdbOut & out, const NdbError::Classification & classification){
-  return out << ndberror_classification_message(classification);
+  return out << ndberror_classification_message((ndberror_classification)classification);
 }
-
-/******************************************************
- *
- */
-#include "NdbImpl.hpp"
-#include "NdbDictionaryImpl.hpp"
-#include <NdbSchemaCon.hpp>
-#include <NdbOperation.hpp>
-#include <NdbConnection.hpp>
-
-
-const 
-NdbError & 
-Ndb::getNdbError(int code){
-  theError.code = code;
-  ndberror_update(theError);
-  return theError;
-}
-
-const 
-NdbError & 
-Ndb::getNdbError() const {
-  ndberror_update(theError);
-  return theError;
-}
-
-const 
-NdbError & 
-NdbDictionaryImpl::getNdbError() const {
-  ndberror_update(m_error);
-  return m_error;
-}
-
-const 
-NdbError & 
-NdbConnection::getNdbError() const {
-  ndberror_update(theError);
-  return theError;
-}
-
-const 
-NdbError & 
-NdbOperation::getNdbError() const {
-  ndberror_update(theError);
-  return theError;
-}
-
-const 
-NdbError & 
-NdbSchemaCon::getNdbError() const {
-  ndberror_update(theError);
-  return theError;
-}
-
-
 
