@@ -980,7 +980,7 @@ pthread_handler_decl(handle_one_connection,arg)
     {
       execute_init_command(thd, &sys_init_connect, &LOCK_sys_init_connect);
       if (thd->query_error)
-	thd->killed= 1;
+	thd->killed= THD::KILL_CONNECTION;
     }
 
     thd->proc_info=0;
