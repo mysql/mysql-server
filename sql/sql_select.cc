@@ -1249,7 +1249,7 @@ JOIN::exec()
 
     /* Copy data to the temporary table */
     thd->proc_info= "Copying to tmp table";
-    
+    DBUG_PRINT("info", ("%s", thd->proc_info));
     if ((tmp_error= do_select(curr_join, (List<Item> *) 0, curr_tmp_table, 0)))
     {
       error= tmp_error;
@@ -1377,6 +1377,7 @@ JOIN::exec()
       }
       
       thd->proc_info="Copying to group table";
+      DBUG_PRINT("info", ("%s", thd->proc_info));
       tmp_error= -1;
       if (curr_join != this)
       {
@@ -1615,6 +1616,7 @@ JOIN::exec()
   else
   {
     thd->proc_info="Sending data";
+    DBUG_PRINT("info", ("%s", thd->proc_info));
     error= do_select(curr_join, curr_fields_list, NULL, procedure);
     thd->limit_found_rows= curr_join->send_records;
     thd->examined_row_count= curr_join->examined_rows;
@@ -1910,6 +1912,8 @@ void
 Cursor::close()
 {
   THD *thd= join->thd;
+  DBUG_ENTER("Cursor::close");
+
   join->join_free(0);
   if (unit)
   {
@@ -1940,6 +1944,7 @@ Cursor::close()
   }
   join= 0;
   unit= 0;
+  DBUG_VOID_RETURN;
 }
 
 
@@ -4718,11 +4723,12 @@ get_best_combination(JOIN *join)
   KEYUSE *keyuse;
   uint table_count;
   THD *thd=join->thd;
+  DBUG_ENTER("get_best_combination");
 
   table_count=join->tables;
   if (!(join->join_tab=join_tab=
 	(JOIN_TAB*) thd->alloc(sizeof(JOIN_TAB)*table_count)))
-    return TRUE;
+    DBUG_RETURN(TRUE);
 
   join->full_join=0;
 
@@ -4736,6 +4742,7 @@ get_best_combination(JOIN *join)
     form->reginfo.join_tab=j;
     if (!*j->on_expr_ref)
       form->reginfo.not_exists_optimize=0;	// Only with LEFT JOIN
+    DBUG_PRINT("info",("type: %d", j->type));
     if (j->type == JT_CONST)
       continue;					// Handled in make_join_stat..
 
@@ -4751,13 +4758,13 @@ get_best_combination(JOIN *join)
 	join->full_join=1;
     }
     else if (create_ref_for_key(join, j, keyuse, used_tables))
-      return TRUE;				// Something went wrong
+      DBUG_RETURN(TRUE);                        // Something went wrong
   }
 
   for (i=0 ; i < table_count ; i++)
     join->map2table[join->join_tab[i].table->tablenr]=join->join_tab+i;
   update_depend_map(join);
-  return 0;
+  DBUG_RETURN(0);
 }
 
 
@@ -4770,6 +4777,7 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
   uint keyparts,length,key;
   TABLE *table;
   KEY *keyinfo;
+  DBUG_ENTER("create_ref_for_key");
 
   /*  Use best key from find_best */
   table=j->table;
@@ -4819,7 +4827,7 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
 						   (keyparts+1)))) ||
       !(j->ref.items=    (Item**) thd->alloc(sizeof(Item*)*keyparts)))
   {
-    return TRUE;
+    DBUG_RETURN(TRUE);
   }
   j->ref.key_buff2=j->ref.key_buff+ALIGN_SIZE(length);
   j->ref.key_err=1;
@@ -4832,7 +4840,7 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
   {
     j->ref.items[0]=((Item_func*)(keyuse->val))->key_item();
     if (keyuse->used_tables)
-      return TRUE; // not supported yet. SerG
+      DBUG_RETURN(TRUE);                        // not supported yet. SerG
 
     j->type=JT_FT;
   }
@@ -4856,7 +4864,7 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
                            maybe_null ?  (char*) key_buff : 0,
                            keyinfo->key_part[i].length, keyuse->val);
 	if (thd->is_fatal_error)
-	  return TRUE;
+	  DBUG_RETURN(TRUE);
 	tmp.copy();
       }
       else
@@ -4876,7 +4884,7 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
   } /* not ftkey */
   *ref_key=0;				// end_marker
   if (j->type == JT_FT)
-    return 0;
+    DBUG_RETURN(0);
   if (j->type == JT_CONST)
     j->table->const_table= 1;
   else if (((keyinfo->flags & (HA_NOSAME | HA_NULL_PART_KEY |
@@ -4900,7 +4908,7 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
   }
   else
     j->type=JT_EQ_REF;
-  return 0;
+  DBUG_RETURN(0);
 }
 
 
@@ -4963,10 +4971,11 @@ make_simple_join(JOIN *join,TABLE *tmp_table)
 {
   TABLE **tableptr;
   JOIN_TAB *join_tab;
+  DBUG_ENTER("make_simple_join");
 
   if (!(tableptr=(TABLE**) join->thd->alloc(sizeof(TABLE*))) ||
       !(join_tab=(JOIN_TAB*) join->thd->alloc(sizeof(JOIN_TAB))))
-    return TRUE;
+    DBUG_RETURN(TRUE);
   join->join_tab=join_tab;
   join->table=tableptr; tableptr[0]=tmp_table;
   join->tables=1;
@@ -4996,10 +5005,11 @@ make_simple_join(JOIN *join,TABLE *tmp_table)
   join_tab->not_used_in_distinct=0;
   join_tab->read_first_record= join_init_read_record;
   join_tab->join=join;
+  join_tab->ref.key_parts= 0;
   bzero((char*) &join_tab->read_record,sizeof(join_tab->read_record));
   tmp_table->status=0;
   tmp_table->null_row=0;
-  return FALSE;
+  DBUG_RETURN(FALSE);
 }
 
 
@@ -8122,6 +8132,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     keyinfo->key_length=0;
     keyinfo->rec_per_key=0;
     keyinfo->algorithm= HA_KEY_ALG_UNDEF;
+    keyinfo->name= (char*) "group_key";
     for (; group ; group=group->next,key_part_info++)
     {
       Field *field=(*group->item)->get_tmp_table_field();
@@ -8192,7 +8203,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     keyinfo->key_part=key_part_info;
     keyinfo->flags=HA_NOSAME | HA_NULL_ARE_EQUAL;
     keyinfo->key_length=(uint16) reclength;
-    keyinfo->name=(char*) "tmp";
+    keyinfo->name= (char*) "distinct_key";
     keyinfo->algorithm= HA_KEY_ALG_UNDEF;
     if (null_pack_length)
     {
@@ -11973,6 +11984,8 @@ change_to_use_tmp_fields(THD *thd, Item **ref_pointer_array,
 {
   List_iterator_fast<Item> it(all_fields);
   Item *item_field,*item;
+  DBUG_ENTER("change_to_use_tmp_fields");
+
   res_selected_fields.empty();
   res_all_fields.empty();
 
@@ -11996,8 +12009,8 @@ change_to_use_tmp_fields(THD *thd, Item **ref_pointer_array,
 	else
 	  item_field= (Item*) new Item_field(field);
 	if (!item_field)
-	  return TRUE;				// Fatal error
-	item_field->name= item->name;		/*lint -e613 */
+	  DBUG_RETURN(TRUE);                    // Fatal error
+	item_field->name= item->name;
 #ifndef DBUG_OFF
 	if (_db_on_ && !item_field->name)
 	{
@@ -12021,7 +12034,7 @@ change_to_use_tmp_fields(THD *thd, Item **ref_pointer_array,
   for (i= 0; i < border; i++)
     itr++;
   itr.sublist(res_selected_fields, elements);
-  return FALSE;
+  DBUG_RETURN(FALSE);
 }
 
 
@@ -12092,10 +12105,11 @@ change_refs_to_tmp_fields(THD *thd, Item **ref_pointer_array,
 static bool setup_sum_funcs(THD *thd, Item_sum **func_ptr)
 {
   Item_sum *func;
+  DBUG_ENTER("setup_sum_funcs");
   while ((func= *(func_ptr++)))
     if (func->setup(thd))
-      return TRUE;
-  return FALSE;
+      DBUG_RETURN(TRUE);
+  DBUG_RETURN(FALSE);
 }
 
 
@@ -12617,10 +12631,10 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       item_list.push_back(new Item_string(join_type_str[tab->type],
 					  strlen(join_type_str[tab->type]),
 					  cs));
-      uint j;
       /* Build "possible_keys" value and add it to item_list */
       if (!tab->keys.is_clear_all())
       {
+        uint j;
         for (j=0 ; j < table->keys ; j++)
         {
           if (tab->keys.is_set(j))

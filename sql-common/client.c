@@ -1512,6 +1512,7 @@ static MYSQL_METHODS client_methods=
 #endif
 };
 
+
 MYSQL *
 CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
 		       const char *passwd, const char *db,
@@ -1534,7 +1535,6 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
 #ifdef HAVE_SYS_UN_H
   struct	sockaddr_un UNIXaddr;
 #endif
-
   init_sigpipe_variables
   DBUG_ENTER("mysql_real_connect");
   LINT_INIT(host_info);

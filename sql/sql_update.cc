@@ -776,12 +776,10 @@ bool mysql_multi_update_prepare(THD *thd)
     */
     List_iterator_fast<Item> it(*fields);
     Item *item;
-    while (item= it++)
-    {
+    while ((item= it++))
       item->cleanup();
-    }
 
-    /* We have to cleunup translation tables of views. */
+    /* We have to cleanup translation tables of views. */
     for (TABLE_LIST *tbl= table_list; tbl; tbl= tbl->next_global)
       tbl->cleanup_items();
 

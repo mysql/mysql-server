@@ -1670,6 +1670,7 @@ void close_cached_table(THD *thd, TABLE *table)
 
   /* When lock on LOCK_open is freed other threads can continue */
   pthread_cond_broadcast(&COND_refresh);
+  DBUG_VOID_RETURN;
 }
 
 static int send_check_errmsg(THD *thd, TABLE_LIST* table,
