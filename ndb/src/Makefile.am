@@ -16,3 +16,17 @@ libndbclient_la_LIBADD =  \
               common/logger/liblogger.la       \
               common/portlib/libportlib.la      \
               common/util/libgeneral.la 
+
+windoze-dsp: libndbclient.dsp
+
+libndbclient.dsp: Makefile \
+               $(top_srcdir)/ndb/config/win-lib.am \
+               $(top_srcdir)/ndb/config/win-name \
+               $(top_srcdir)/ndb/config/win-includes \
+               $(top_srcdir)/ndb/config/win-sources \
+               $(top_srcdir)/ndb/config/win-libraries
+	cat $(top_srcdir)/ndb/config/win-lib.am > $@
+	@$(top_srcdir)/ndb/config/win-name $@ $(ndblib_LTLIBRARIES)
+	@$(top_srcdir)/ndb/config/win-includes $@ $(INCLUDES)
+	@$(top_srcdir)/ndb/config/win-sources $@ $(libndbclient_la_SOURCES)
+	@$(top_srcdir)/ndb/config/win-libraries $@ $(libndbclient_la_LIBADD)

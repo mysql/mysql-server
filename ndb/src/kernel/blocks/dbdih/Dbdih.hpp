@@ -1469,7 +1469,7 @@ private:
   Uint32 c_blockCommitNo;
 
   bool getBlockCommit() const {
-    return c_blockCommit == true || cgckptflag == true;
+    return c_blockCommit || cgckptflag;
   }
 
   /**

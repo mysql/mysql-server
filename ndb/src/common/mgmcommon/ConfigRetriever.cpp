@@ -178,9 +178,10 @@ ConfigRetriever::getConfig(NdbMgmHandle m_handle){
   
   return conf;
 }
-	
+
 ndb_mgm_configuration *
 ConfigRetriever::getConfig(const char * filename){
+#ifndef NDB_WIN32	
 
   struct stat sbuf;
   const int res = stat(filename, &sbuf);
@@ -217,8 +218,10 @@ ConfigRetriever::getConfig(const char * filename){
     return 0;
   }
   delete [] buf2;
-
   return (ndb_mgm_configuration*)cvf.m_cfg;
+#else
+  return 0;
+#endif
 }			   
 
 void

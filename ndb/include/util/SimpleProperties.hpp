@@ -38,20 +38,20 @@ public:
   /**
    * Value types
    */
-  enum ValueType {
+   enum ValueType {
     Uint32Value  = 0,
     StringValue  = 1,
     BinaryValue  = 2,
     InvalidValue = 3
-  };
-  
+   };
+
   /**
    * Struct for defining mapping to be used with unpack
    */
   struct SP2StructMapping {
     Uint16 Key;
     Uint32 Offset;
-    SimpleProperties::ValueType Type;
+    ValueType Type;
     Uint32 minValue;
     Uint32 maxValue;
     Uint32 Length_Offset; // Offset used for looking up length of 
@@ -233,7 +233,7 @@ private:
  */
 class SimplePropertiesSectionReader : public SimpleProperties::Reader {
 public:
-  SimplePropertiesSectionReader(class SegmentedSectionPtr &,
+  SimplePropertiesSectionReader(struct SegmentedSectionPtr &,
 				class SectionSegmentPool &);
   
   virtual void reset();
@@ -248,8 +248,8 @@ private:
   Uint32 m_pos;
   Uint32 m_len;
   class SectionSegmentPool & m_pool;
-  class SectionSegment * m_head;
-  class SectionSegment * m_currentSegment;
+  struct SectionSegment * m_head;
+  struct SectionSegment * m_currentSegment;
 };
 
 inline
@@ -275,15 +275,15 @@ public:
   /**
    * This "unlinks" the writer from the memory
    */
-  void getPtr(class SegmentedSectionPtr & dst);
+  void getPtr(struct SegmentedSectionPtr & dst);
   
 private:
   Int32 m_pos;
   Uint32 m_sz;
   class SectionSegmentPool & m_pool;
-  class SectionSegment * m_head;
+  struct SectionSegment * m_head;
   Uint32 m_prevPtrI; // Prev to m_currentSegment
-  class SectionSegment * m_currentSegment;
+  struct SectionSegment * m_currentSegment;
 };
 
 #endif

@@ -179,12 +179,14 @@ NdbShutdown(NdbShutdownType type,
       exit(-1);
 #endif
     }
-    
+
+#ifndef NDB_WIN32
     if (simulate_error_during_shutdown) {
       kill(getpid(), simulate_error_during_shutdown);
       while(true)
 	NdbSleep_MilliSleep(10);
     }
+#endif
 
     globalEmulatorData.theWatchDog->doStop();
     
