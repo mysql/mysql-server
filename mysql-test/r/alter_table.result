@@ -92,6 +92,25 @@ key (n2, n3, n4, n1),
 key (n3, n4, n1, n2),
 key (n4, n1, n2, n3) );
 alter table t1 disable keys;
+show keys from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	0	n1	1	n1	A	0	NULL	NULL		BTREE	
+t1	1	n1_2	1	n1	A	NULL	NULL	NULL		BTREE	disabled
+t1	1	n1_2	2	n2	A	NULL	NULL	NULL	YES	BTREE	disabled
+t1	1	n1_2	3	n3	A	NULL	NULL	NULL	YES	BTREE	disabled
+t1	1	n1_2	4	n4	A	NULL	NULL	NULL	YES	BTREE	disabled
+t1	1	n2	1	n2	A	NULL	NULL	NULL	YES	BTREE	disabled
+t1	1	n2	2	n3	A	NULL	NULL	NULL	YES	BTREE	disabled
+t1	1	n2	3	n4	A	NULL	NULL	NULL	YES	BTREE	disabled
+t1	1	n2	4	n1	A	NULL	NULL	NULL		BTREE	disabled
+t1	1	n3	1	n3	A	NULL	NULL	NULL	YES	BTREE	disabled
+t1	1	n3	2	n4	A	NULL	NULL	NULL	YES	BTREE	disabled
+t1	1	n3	3	n1	A	NULL	NULL	NULL		BTREE	disabled
+t1	1	n3	4	n2	A	NULL	NULL	NULL	YES	BTREE	disabled
+t1	1	n4	1	n4	A	NULL	NULL	NULL	YES	BTREE	disabled
+t1	1	n4	2	n1	A	NULL	NULL	NULL		BTREE	disabled
+t1	1	n4	3	n2	A	NULL	NULL	NULL	YES	BTREE	disabled
+t1	1	n4	4	n3	A	NULL	NULL	NULL	YES	BTREE	disabled
 insert into t1 values(10,RAND()*1000,RAND()*1000,RAND());
 insert into t1 values(9,RAND()*1000,RAND()*1000,RAND());
 insert into t1 values(8,RAND()*1000,RAND()*1000,RAND());
@@ -103,6 +122,25 @@ insert into t1 values(3,RAND()*1000,RAND()*1000,RAND());
 insert into t1 values(2,RAND()*1000,RAND()*1000,RAND());
 insert into t1 values(1,RAND()*1000,RAND()*1000,RAND());
 alter table t1 enable keys;
+show keys from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	0	n1	1	n1	A	10	NULL	NULL		BTREE	
+t1	1	n1_2	1	n1	A	10	NULL	NULL		BTREE	
+t1	1	n1_2	2	n2	A	10	NULL	NULL	YES	BTREE	
+t1	1	n1_2	3	n3	A	10	NULL	NULL	YES	BTREE	
+t1	1	n1_2	4	n4	A	10	NULL	NULL	YES	BTREE	
+t1	1	n2	1	n2	A	10	NULL	NULL	YES	BTREE	
+t1	1	n2	2	n3	A	10	NULL	NULL	YES	BTREE	
+t1	1	n2	3	n4	A	10	NULL	NULL	YES	BTREE	
+t1	1	n2	4	n1	A	10	NULL	NULL		BTREE	
+t1	1	n3	1	n3	A	10	NULL	NULL	YES	BTREE	
+t1	1	n3	2	n4	A	10	NULL	NULL	YES	BTREE	
+t1	1	n3	3	n1	A	10	NULL	NULL		BTREE	
+t1	1	n3	4	n2	A	10	NULL	NULL	YES	BTREE	
+t1	1	n4	1	n4	A	10	NULL	NULL	YES	BTREE	
+t1	1	n4	2	n1	A	10	NULL	NULL		BTREE	
+t1	1	n4	3	n2	A	10	NULL	NULL	YES	BTREE	
+t1	1	n4	4	n3	A	10	NULL	NULL	YES	BTREE	
 drop table t1;
 create table t1 (i int unsigned not null auto_increment primary key);
 insert into t1 values (null),(null),(null),(null);
