@@ -24,68 +24,109 @@
 #include "mysql_priv.h"
 #include "sql_select.h"
 
-
-int mysql_union(THD *thd, LEX *lex,select_result *result)
+int mysql_union(THD *thd, LEX *lex, select_result *result)
 {
-  SELECT_LEX *sl, *last_sl, *lex_sl;
-  ORDER *order;
-  List<Item> item_list;
-  TABLE *table;
-  int describe=(lex->select_lex.options & SELECT_DESCRIBE) ? 1 : 0;
-  int res;
-  bool found_rows_for_union=false;
-  TABLE_LIST result_table_list;
-  TABLE_LIST *first_table=(TABLE_LIST *)lex->select_lex.table_list.first;
-  TMP_TABLE_PARAM tmp_table_param;
-  select_union *union_result;
   DBUG_ENTER("mysql_union");
+  SELECT_LEX_UNIT *unit= &lex->unit;
+  int res= 0;
+  if (!(res= unit->prepare(thd, result)))
+    res= unit->exec();
+  res|= unit->cleanup();
+  DBUG_RETURN(res);
+}
 
-  /* Fix tables 'to-be-unioned-from' list to point at opened tables */
-  last_sl= &lex->select_lex;
-  for (sl= last_sl;
-       sl && sl->linkage != NOT_A_SELECT;
-       last_sl=sl, sl=sl->next)
+
+/***************************************************************************
+** store records in temporary table for UNION
+***************************************************************************/
+
+select_union::select_union(TABLE *table_par)
+    :table(table_par)
+{
+  bzero((char*) &info,sizeof(info));
+  /*
+    We can always use DUP_IGNORE because the temporary table will only
+    contain a unique key if we are using not using UNION ALL
+  */
+  info.handle_duplicates= DUP_IGNORE;
+}
+
+select_union::~select_union()
+{
+}
+
+
+int select_union::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
+{
+  unit= u;
+  if (save_time_stamp && list.elements != table->fields)
   {
-    for (TABLE_LIST *cursor= (TABLE_LIST *)sl->table_list.first;
-	 cursor;
-	 cursor=cursor->next)
-    {
-      if (cursor->do_redirect)			// False if CUBE/ROLLUP
-      {
-	cursor->table= ((TABLE_LIST*) cursor->table)->table;
-	cursor->do_redirect=false;
-      }
-    }
+    my_message(ER_WRONG_NUMBER_OF_COLUMNS_IN_SELECT,
+	       ER(ER_WRONG_NUMBER_OF_COLUMNS_IN_SELECT),MYF(0));
+    return -1;
   }
+  return 0;
+}
 
-  /* last_sel now points at the last select where the ORDER BY is stored */
-  if (sl)
+bool select_union::send_data(List<Item> &values)
+{
+  if (unit->offset_limit_cnt)
+  {						// using limit offset,count
+    unit->offset_limit_cnt--;
+    return 0;
+  }
+  fill_record(table->field,values);
+  if ((write_record(table,&info)))
   {
-    /*
-      The found SL is an extra SELECT_LEX argument that contains
-      the ORDER BY and LIMIT parameter for the whole UNION
-    */
-    lex_sl= sl;
-    order=  (ORDER *) lex_sl->order_list.first;
-    found_rows_for_union = (lex->select_lex.options & OPTION_FOUND_ROWS &&
-			    !describe && sl->select_limit);
+    if (create_myisam_from_heap(table, tmp_table_param, info.last_errno, 0))
+      return 1;
+  }
+  return 0;
+}
+
+bool select_union::send_eof()
+{
+  return 0;
+}
+
+bool select_union::flush()
+{
+  int error;
+  if ((error=table->file->extra(HA_EXTRA_NO_CACHE)))
+  {
+    table->file->print_error(error,MYF(0));
+    ::send_error(thd);
+    return 1;
+  }
+  return 0;
+}
+
+typedef JOIN * JOIN_P;
+int st_select_lex_unit::prepare(THD *thd, select_result *result)
+{
+  DBUG_ENTER("st_select_lex_unit::prepare");
+
+  if (prepared)
+    DBUG_RETURN(0);
+  prepared= 1;
+    
+  describe=(first_select()->options & SELECT_DESCRIBE) ? 1 : 0;
+  res= 0;
+  found_rows_for_union= false;
+  TMP_TABLE_PARAM tmp_table_param;
+  this->thd= thd;
+  this->result= result;
+  SELECT_LEX *lex_select_save= thd->lex.select, *sl;
+
+  /* Global option */
+  if (((void*)(global_parameters)) == ((void*)this))
+  {
+    found_rows_for_union= first_select()->options & OPTION_FOUND_ROWS && 
+      !describe && global_parameters->select_limit;
     if (found_rows_for_union)
-      lex->select_lex.options ^=  OPTION_FOUND_ROWS;
-    // This is done to eliminate unnecessary slowing down of the first query 
-    if (!order || !describe) 
-      last_sl->next=0;				// Remove this extra element
+      first_select()->options ^=  OPTION_FOUND_ROWS;
   }
-  else if (!last_sl->braces)
-  {
-    lex_sl= last_sl;				// ORDER BY is here
-    order=  (ORDER *) lex_sl->order_list.first;
-  }
-  else
-  {
-    lex_sl=0;
-    order=0;
-  }
-  
+  item_list.empty();
   if (describe)
   {
     Item *item;
@@ -107,25 +148,27 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
   else
   {
     Item *item;
-    List_iterator<Item> it(lex->select_lex.item_list);
-    TABLE_LIST *first_table= (TABLE_LIST*) lex->select_lex.table_list.first;
+    List_iterator<Item> it(first_select()->item_list);
+    TABLE_LIST *first_table= (TABLE_LIST*) first_select()->table_list.first;
 
     /* Create a list of items that will be in the result set */
     while ((item= it++))
       if (item_list.push_back(item))
-	DBUG_RETURN(-1);
+	goto err;
     if (setup_fields(thd,first_table,item_list,0,0,1))
-      DBUG_RETURN(-1);
+      goto err;
   }
 
   bzero((char*) &tmp_table_param,sizeof(tmp_table_param));
   tmp_table_param.field_count=item_list.elements;
-  if (!(table=create_tmp_table(thd, &tmp_table_param, item_list,
-			       (ORDER*) 0, !describe & !lex->union_option,
-			       1, 0,
-			       (lex->select_lex.options | thd->options |
-				TMP_TABLE_ALL_COLUMNS))))
-    DBUG_RETURN(-1);
+  if (!(table= create_tmp_table(thd, &tmp_table_param, item_list,
+				(ORDER*) 0, !describe & 
+				!thd->lex.union_option,
+				1, 0,
+				(first_select()->options | thd->options |
+				 TMP_TABLE_ALL_COLUMNS),
+				this)))
+    goto err;
   table->file->extra(HA_EXTRA_WRITE_CACHE);
   table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
   bzero((char*) &result_table_list,sizeof(result_table_list));
@@ -134,43 +177,90 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
   result_table_list.table=table;
 
   if (!(union_result=new select_union(table)))
-  {
-    res= -1;
-    goto exit;
-  }
+    goto err;
+
   union_result->save_time_stamp=!describe;
   union_result->tmp_table_param=&tmp_table_param;
-  for (sl= &lex->select_lex; sl; sl=sl->next)
+
+  // prepare selects
+  joins.empty();
+  for (sl= first_select(); sl; sl= sl->next_select())
   {
-    lex->select=sl;
-    thd->offset_limit=sl->offset_limit;
-    thd->select_limit=sl->select_limit+sl->offset_limit;
-    if (thd->select_limit < sl->select_limit)
-      thd->select_limit= HA_POS_ERROR;		// no limit
-    if (thd->select_limit == HA_POS_ERROR)
+    JOIN *join= new JOIN(thd, sl->item_list, 
+			 sl->options | thd->options | SELECT_NO_UNLOCK | 
+			 ((describe) ? SELECT_DESCRIBE : 0),
+			 union_result);
+    joins.push_back(new JOIN_P(join));
+    thd->lex.select=sl;
+    offset_limit_cnt= sl->offset_limit;
+    select_limit_cnt= sl->select_limit+sl->offset_limit;
+    if (select_limit_cnt < sl->select_limit)
+      select_limit_cnt= HA_POS_ERROR;		// no limit
+    if (select_limit_cnt == HA_POS_ERROR)
       sl->options&= ~OPTION_FOUND_ROWS;
 
-    res=mysql_select(thd, (describe && sl->linkage==NOT_A_SELECT) ? first_table :  (TABLE_LIST*) sl->table_list.first,
-		     sl->item_list,
-		     sl->where,
-		     (sl->braces) ? (ORDER *)sl->order_list.first : (ORDER *) 0,
-		     (ORDER*) sl->group_list.first,
-		     sl->having,
-		     (ORDER*) NULL,
-		     sl->options | thd->options | SELECT_NO_UNLOCK | ((describe) ? SELECT_DESCRIBE : 0),
-		     union_result);
-    if (res)
-      goto exit;
+    res= join->prepare((TABLE_LIST*) sl->table_list.first,
+		       sl->where,
+		       (sl->braces) ? 
+		       (ORDER *)sl->order_list.first : (ORDER *) 0,
+		       (ORDER*) sl->group_list.first,
+		       sl->having,
+		       (ORDER*) NULL,
+		       sl, this, 0);
+    if (res | thd->fatal_error)
+      goto err;
   }
+  thd->lex.select= lex_select_save;
+  DBUG_RETURN(res | thd->fatal_error);
+err:
+  thd->lex.select= lex_select_save;
+  DBUG_RETURN(-1);
+}
+
+int st_select_lex_unit::exec()
+{
+  DBUG_ENTER("st_select_lex_unit::exec");
+  if(depended || !item || !item->assigned())
+  {
+    if (optimized && item && item->assigned())
+      item->assigned(0); // We will reinit & rexecute unit
+    SELECT_LEX *lex_select_save= thd->lex.select;
+    for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
+    {
+      thd->lex.select=sl;
+      offset_limit_cnt= sl->offset_limit;
+      select_limit_cnt= sl->select_limit+sl->offset_limit;
+      if (select_limit_cnt < sl->select_limit)
+	select_limit_cnt= HA_POS_ERROR;		// no limit
+      if (select_limit_cnt == HA_POS_ERROR)
+	sl->options&= ~OPTION_FOUND_ROWS;
+
+      if (!optimized)
+	sl->join->optimize();
+      else
+	sl->join->reinit();
+
+      sl->join->exec();
+      res= sl->join->error;
+
+      if (res)
+      {
+	thd->lex.select= lex_select_save;
+	DBUG_RETURN(res);
+      }
+    }
+    thd->lex.select= lex_select_save;
+    optimized= 1;
+  }
+
   if (union_result->flush())
   {
     res= 1;					// Error is already sent
-    goto exit;
+    DBUG_RETURN(res);
   }
-  delete union_result;
 
   /* Send result to 'result' */
-  lex->select = &lex->select_lex;
+  thd->lex.select = first_select();
   res =-1;
   {
     /* Create a list of fields in the temporary table */
@@ -180,7 +270,9 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
     List<Item_func_match> ftfunc_list;
     ftfunc_list.empty();
 #else
-    thd->lex.select_lex.ftfunc_list.empty();
+    List<Item_func_match> empty_list;
+    empty_list.empty();
+    thd->lex.select_lex.ftfunc_list= &empty_list;
 #endif
 
     for (field=table->field ; *field ; field++)
@@ -190,98 +282,45 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
     }
     if (!thd->fatal_error)			// Check if EOM
     {
-      if (lex_sl)
-      {
-	thd->offset_limit=lex_sl->offset_limit;
-	thd->select_limit=lex_sl->select_limit+lex_sl->offset_limit;
-	if (thd->select_limit < lex_sl->select_limit)
-	  thd->select_limit= HA_POS_ERROR;		// no limit
-	if (thd->select_limit == HA_POS_ERROR)
-	  thd->options&= ~OPTION_FOUND_ROWS;
-      }
-      else 
-      {
-	thd->offset_limit= 0;
-	thd->select_limit= thd->variables.select_limit;
-      }
+      offset_limit_cnt= global_parameters->offset_limit;
+      select_limit_cnt= global_parameters->select_limit+
+	global_parameters->offset_limit;
+      if (select_limit_cnt < global_parameters->select_limit)
+	select_limit_cnt= HA_POS_ERROR;		// no limit
+      if (select_limit_cnt == HA_POS_ERROR)
+	thd->options&= ~OPTION_FOUND_ROWS;
       if (describe)
-	thd->select_limit= HA_POS_ERROR;		// no limit
-      res=mysql_select(thd,&result_table_list,
-		       item_list, NULL, (describe) ? 0 : order,
-		       (ORDER*) NULL, NULL, (ORDER*) NULL,
-		       thd->options, result);
+	select_limit_cnt= HA_POS_ERROR;		// no limit
+      res= mysql_select(thd,&result_table_list,
+			item_list, NULL,
+			(describe) ? 
+			0: 
+			(ORDER*)global_parameters->order_list.first,
+			(ORDER*) NULL, NULL, (ORDER*) NULL,
+			thd->options, result, this, first_select(), 1);
       if (found_rows_for_union && !res)
 	thd->limit_found_rows = (ulonglong)table->file->records;
     }
   }
-
-exit:
-  free_tmp_table(thd,table);
+  thd->lex.select_lex.ftfunc_list= &thd->lex.select_lex.ftfunc_list_alloc;
   DBUG_RETURN(res);
 }
 
-
-/***************************************************************************
-** store records in temporary table for UNION
-***************************************************************************/
-
-select_union::select_union(TABLE *table_par)
-    :table(table_par)
+int st_select_lex_unit::cleanup()
 {
-  bzero((char*) &info,sizeof(info));
-  /*
-    We can always use DUP_IGNORE because the temporary table will only
-    contain a unique key if we are using not using UNION ALL
-  */
-  info.handle_duplicates=DUP_IGNORE;
-}
-
-select_union::~select_union()
-{
-}
-
-
-int select_union::prepare(List<Item> &list)
-{
-  if (save_time_stamp && list.elements != table->fields)
+  DBUG_ENTER("st_select_lex_unit::cleanup");
+  delete union_result;
+  free_tmp_table(thd,table);
+  table= 0; // Safety
+  
+  List_iterator<JOIN*> j(joins);
+  JOIN** join;
+  while ((join= j++))
   {
-    my_message(ER_WRONG_NUMBER_OF_COLUMNS_IN_SELECT,
-	       ER(ER_WRONG_NUMBER_OF_COLUMNS_IN_SELECT),MYF(0));
-    return -1;
+    (*join)->cleanup(thd);
+    delete *join;
+    delete join;
   }
-  return 0;
-}
-
-bool select_union::send_data(List<Item> &values)
-{
-  if (thd->offset_limit)
-  {						// using limit offset,count
-    thd->offset_limit--;
-    return 0;
-  }
-
-  fill_record(table->field,values);
-  if ((write_record(table,&info)))
-  {
-    if (create_myisam_from_heap(table, tmp_table_param, info.last_errno, 0))
-      return 1;
-  }
-  return 0;
-}
-
-bool select_union::send_eof()
-{
-  return 0;
-}
-
-bool select_union::flush()
-{
-  int error;
-  if ((error=table->file->extra(HA_EXTRA_NO_CACHE)))
-  {
-    table->file->print_error(error,MYF(0));
-    ::send_error(&thd->net);
-    return 1;
-  }
-  return 0;
+  joins.empty();
+  DBUG_RETURN(0);
 }

@@ -47,7 +47,9 @@ int find_type(my_string x, TYPELIB *typelib, uint full_name)
   find=0;
   for (pos=0 ; (j=typelib->type_names[pos]) ; pos++)
   {
-    for (i=x ; *i && toupper(*i) == toupper(*j) ; i++, j++) ;
+    for (i=x ; 
+    	*i && my_toupper(system_charset_info,*i) == 
+    		my_toupper(system_charset_info,*j) ; i++, j++) ;
     if (! *j)
     {
       while (*i == ' ')

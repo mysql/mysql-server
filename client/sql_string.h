@@ -24,31 +24,57 @@
 #define NOT_FIXED_DEC			31
 #endif
 
+class String;
+int sortcmp(const String *a,const String *b);
+int stringcmp(const String *a,const String *b);
+String *copy_if_not_alloced(String *a,String *b,uint32 arg_length);
+int wild_case_compare(String &match,String &wild,char escape);
+int wild_compare(String &match,String &wild,char escape);
+
 class String
 {
   char *Ptr;
   uint32 str_length,Alloced_length;
   bool alloced;
+  CHARSET_INFO *str_charset;
 public:
   String()
-  { Ptr=0; str_length=Alloced_length=0; alloced=0; }
+  { 
+    Ptr=0; str_length=Alloced_length=0; alloced=0; 
+    str_charset=default_charset_info; 
+  }
   String(uint32 length_arg)
-  { alloced=0; Alloced_length=0; (void) real_alloc(length_arg); }
+  { 
+    alloced=0; Alloced_length=0; (void) real_alloc(length_arg); 
+    str_charset=default_charset_info;  
+  }
   String(const char *str)
-  { Ptr=(char*) str; str_length=(uint) strlen(str); Alloced_length=0; alloced=0;}
+  { 
+    Ptr=(char*) str; str_length=(uint) strlen(str); Alloced_length=0; alloced=0;
+    str_charset=default_charset_info;
+  }
   String(const char *str,uint32 len)
-  { Ptr=(char*) str; str_length=len; Alloced_length=0; alloced=0;}
+  { 
+    Ptr=(char*) str; str_length=len; Alloced_length=0; alloced=0;
+    str_charset=default_charset_info;  
+  }
   String(char *str,uint32 len)
-  { Ptr=(char*) str; Alloced_length=str_length=len; alloced=0;}
+  { 
+    Ptr=(char*) str; Alloced_length=str_length=len; alloced=0;
+    str_charset=default_charset_info;
+  }
   String(const String &str)
-  { Ptr=str.Ptr ; str_length=str.str_length ;
-    Alloced_length=str.Alloced_length; alloced=0; }
-
+  { 
+    Ptr=str.Ptr ; str_length=str.str_length ;
+    Alloced_length=str.Alloced_length; alloced=0; 
+    str_charset=str.str_charset;
+  }
   static void *operator new(size_t size) { return (void*) sql_alloc((uint) size); }
   static void operator delete(void *ptr_arg,size_t size) /*lint -e715 */
     { sql_element_free(ptr_arg); }
   ~String() { free(); }
 
+  inline CHARSET_INFO *charset() const { return str_charset; }
   inline uint32 length() const { return str_length;}
   inline uint32 alloced_length() const { return Alloced_length;}
   inline char& operator [] (uint32 i) const { return Ptr[i]; }
@@ -124,7 +150,7 @@ public:
       char *new_ptr;
       if (!(new_ptr=(char*) my_realloc(Ptr,arg_length,MYF(0))))
       {
-	(void) my_free(Ptr,MYF(0));
+	Alloced_length = 0;
 	real_alloc(arg_length);
       }
       else
@@ -153,6 +179,7 @@ public:
   bool append(const char *s,uint32 arg_length=0);
   bool append(IO_CACHE* file, uint32 arg_length);
   int strstr(const String &search,uint32 offset=0); // Returns offset to substring or -1
+  int strstr_case(const String &s,uint32 offset=0);
   int strrstr(const String &search,uint32 offset=0); // Returns offset to substring or -1
   bool replace(uint32 offset,uint32 arg_length,const String &to);
   inline bool append(char chr)
@@ -171,8 +198,8 @@ public:
   }
   bool fill(uint32 max_length,char fill);
   void strip_sp();
-  inline void caseup() { ::caseup(Ptr,str_length); }
-  inline void casedn() { ::casedn(Ptr,str_length); }
+  inline void caseup() { my_caseup(str_charset,Ptr,str_length); }
+  inline void casedn() { my_casedn(str_charset,Ptr,str_length); }
   friend int sortcmp(const String *a,const String *b);
   friend int stringcmp(const String *a,const String *b);
   friend String *copy_if_not_alloced(String *a,String *b,uint32 arg_length);
@@ -180,4 +207,49 @@ public:
   friend int wild_compare(String &match,String &wild,char escape);
   uint32 numchars();
   int charpos(int i,uint32 offset=0);
+
+// added by Holyfoot for "geometry" needs
+  int reserve(uint32 space_needed)
+  {
+    return realloc(str_length + space_needed);
+  }
+  int reserve(uint32 space_needed, uint32 grow_by);
+
+// these append operations do NOT check alloced memory
+// q_*** methods writes values of parameters itself
+// qs_*** methods writes string representation of value
+  void q_append(const char &c)
+  {
+    Ptr[str_length++] = c;
+  }
+  void q_append(const uint32 &n)
+  {
+    int4store(Ptr + str_length, n);
+    str_length += 4;
+  }
+  void q_append(double d)
+  {
+    float8store(Ptr + str_length, d);
+    str_length += 8;
+  }
+  void q_append(double *d)
+  {
+    float8store(Ptr + str_length, *d);
+    str_length += 8;
+  }
+  void q_append(const char *data, uint32 data_len)
+  {
+    memcpy(Ptr + str_length, data, data_len);
+    str_length += data_len;
+  }
+
+  void WriteAtPosition(int position, uint32 value)
+  {
+    int4store(Ptr + position,value);
+  }
+
+  void qs_append(const char *str);
+  void qs_append(double d);
+  void qs_append(double *d);
+  void qs_append(const char &c);
 };

@@ -140,6 +140,6 @@ struct re_guts {
 /* misc utilities */
 #undef OUT			/* May be defined in windows */
 #define	OUT	(CHAR_MAX+1)	/* a non-character value */
-#define	ISWORD(c)	(isalnum(c) || (c) == '_')
+#define	ISWORD(s,c)	(my_isalnum(s,c) || (c) == '_')
 
 #endif /* __regex2_h__ */

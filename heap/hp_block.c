@@ -20,7 +20,7 @@
 
 	/* Find record according to record-position */
 
-byte *_hp_find_block(HP_BLOCK *block, ulong pos)
+byte *hp_find_block(HP_BLOCK *block, ulong pos)
 {
   reg1 int i;
   reg3 HP_PTRS *ptr;
@@ -37,7 +37,7 @@ byte *_hp_find_block(HP_BLOCK *block, ulong pos)
 	/* get one new block-of-records. Alloc ptr to block if neaded */
 	/* Interrupts are stopped to allow ha_panic in interrupts */
 
-int _hp_get_new_block(HP_BLOCK *block, ulong *alloc_length)
+int hp_get_new_block(HP_BLOCK *block, ulong *alloc_length)
 {
   reg1 uint i,j;
   HP_PTRS *root;
@@ -84,7 +84,7 @@ int _hp_get_new_block(HP_BLOCK *block, ulong *alloc_length)
 
 	/* free all blocks under level */
 
-byte *_hp_free_level(HP_BLOCK *block, uint level, HP_PTRS *pos, byte *last_pos)
+byte *hp_free_level(HP_BLOCK *block, uint level, HP_PTRS *pos, byte *last_pos)
 {
   int i,max_pos;
   byte *next_ptr;
@@ -99,7 +99,7 @@ byte *_hp_free_level(HP_BLOCK *block, uint level, HP_PTRS *pos, byte *last_pos)
 
     next_ptr=(byte*) (pos+1);
     for (i=0 ; i < max_pos ; i++)
-      next_ptr=_hp_free_level(block,level-1,
+      next_ptr=hp_free_level(block,level-1,
 			      (HP_PTRS*) pos->blocks[i],next_ptr);
   }
   if ((byte*) pos != last_pos)

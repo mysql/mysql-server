@@ -7,6 +7,8 @@ ft_test1
 mi_test1
 mi_test2
 mi_test3
+rt_test
+sp_test
 myisamchk
 myisamlog
 myisampack

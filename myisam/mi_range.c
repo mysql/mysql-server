@@ -20,6 +20,7 @@
  */
 
 #include "myisamdef.h"
+#include "rt_index.h"
 
 static ha_rows _mi_record_pos(MI_INFO *info,const byte *key,uint key_len,
 			      enum ha_rkey_function search_flag);
@@ -39,7 +40,7 @@ ha_rows mi_records_in_range(MI_INFO *info, int inx, const byte *start_key,
 			    const byte *end_key, uint end_key_len,
 			    enum ha_rkey_function end_search_flag)
 {
-  ha_rows start_pos,end_pos;
+  ha_rows start_pos,end_pos,res;
   DBUG_ENTER("mi_records_in_range");
 
   if ((inx = _mi_check_index(info,inx)) < 0)
@@ -50,20 +51,39 @@ ha_rows mi_records_in_range(MI_INFO *info, int inx, const byte *start_key,
   info->update&= (HA_STATE_CHANGED+HA_STATE_ROW_CHANGED);
   if (info->s->concurrent_insert)
     rw_rdlock(&info->s->key_root_lock[inx]);
-  start_pos= (start_key ?
+
+  switch(info->s->keyinfo[inx].key_alg){
+  case HA_KEY_ALG_RTREE:
+    {
+      uchar * key_buff;
+      if (start_key_len == 0)
+        start_key_len=USE_WHOLE_KEY;
+      key_buff=info->lastkey+info->s->base.max_key_length;
+      start_key_len=_mi_pack_key(info,inx,key_buff,(uchar*) start_key,start_key_len);
+      res=rtree_estimate(info, inx, key_buff, start_key_len, myisam_read_vec[start_search_flag]);
+      res=res?res:1;
+      break;
+    }
+  case HA_KEY_ALG_BTREE:
+  default:
+    start_pos= (start_key ?
 	      _mi_record_pos(info,start_key,start_key_len,start_search_flag) :
 	      (ha_rows) 0);
-  end_pos=   (end_key ?
+    end_pos=   (end_key ?
 	      _mi_record_pos(info,end_key,end_key_len,end_search_flag) :
 	      info->state->records+ (ha_rows) 1);
+    res=end_pos < start_pos ? (ha_rows) 0 :
+	      (end_pos == start_pos ? (ha_rows) 1 : end_pos-start_pos);
+    if (start_pos == HA_POS_ERROR || end_pos == HA_POS_ERROR)
+      res=HA_POS_ERROR;
+  }
+  
   if (info->s->concurrent_insert)
     rw_unlock(&info->s->key_root_lock[inx]);
   fast_mi_writeinfo(info);
-  if (start_pos == HA_POS_ERROR || end_pos == HA_POS_ERROR)
-    DBUG_RETURN(HA_POS_ERROR);
-  DBUG_PRINT("info",("records: %ld",(ulong) (end_pos-start_pos)));
-  DBUG_RETURN(end_pos < start_pos ? (ha_rows) 0 :
-	      (end_pos == start_pos ? (ha_rows) 1 : end_pos-start_pos));
+  
+  DBUG_PRINT("info",("records: %ld",(ulong) (res)));
+  DBUG_RETURN(res);
 }
 
 

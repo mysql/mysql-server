@@ -213,15 +213,18 @@ bool MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
     time_t skr=time(NULL);
     struct tm tm_tmp;
     localtime_r(&skr,&tm_tmp);
-    sprintf(buff,"# %s, Version: %s at %02d%02d%02d %2d:%02d:%02d\n",
-	    my_progname,server_version,
-	    tm_tmp.tm_year % 100,
-	    tm_tmp.tm_mon+1,
-	    tm_tmp.tm_mday,
-	    tm_tmp.tm_hour,
-	    tm_tmp.tm_min,
-	    tm_tmp.tm_sec);
-    if (my_b_write(&log_file, (byte*) buff,(uint) strlen(buff)) ||
+    ulong length;
+    length= my_sprintf(buff,
+		       (buff,
+			"# %s, Version: %s at %02d%02d%02d %2d:%02d:%02d\n",
+			my_progname,server_version,
+			tm_tmp.tm_year % 100,
+			tm_tmp.tm_mon+1,
+			tm_tmp.tm_mday,
+			tm_tmp.tm_hour,
+			tm_tmp.tm_min,
+			tm_tmp.tm_sec));
+    if (my_b_write(&log_file, (byte*) buff, length) ||
 	flush_io_cache(&log_file))
       goto err;
     break;
@@ -935,7 +938,8 @@ bool MYSQL_LOG::write(THD *thd,enum enum_server_command command,
 {
   if (is_open() && (what_to_log & (1L << (uint) command)))
   {
-    int error=0;
+    uint length;
+    int error= 0;
     VOID(pthread_mutex_lock(&LOCK_log));
 
     /* Test if someone closed between the is_open test and lock */
@@ -984,8 +988,10 @@ bool MYSQL_LOG::write(THD *thd,enum enum_server_command command,
       }
       else if (my_b_write(&log_file, (byte*) "\t\t",2) < 0)
 	error=errno;
-      sprintf(buff,"%7ld %-11.11s", id,command_name[(uint) command]);
-      if (my_b_write(&log_file, (byte*) buff,strlen(buff)))
+      length=my_sprintf(buff,
+			(buff, "%7ld %-11.11s", id,
+			 command_name[(uint) command]));
+      if (my_b_write(&log_file, (byte*) buff,length))
 	error=errno;
       if (format)
       {
@@ -1222,11 +1228,7 @@ err:
 
 /*
   Write update log in a format suitable for incremental backup
-
-  NOTE
-   - This code should be deleted in MySQL 5,0 as the binary log
-     is a full replacement for the update log.
-
+  This is also used by the slow query log.
 */
 
 bool MYSQL_LOG::write(THD *thd,const char *query, uint query_length,
@@ -1461,7 +1463,7 @@ static bool test_if_number(register const char *str,
   while (*str++ == ' ') ;
   if (*--str == '-' || *str == '+')
     str++;
-  while (isdigit(*str) || (allow_wildcards &&
+  while (my_isdigit(system_charset_info,*str) || (allow_wildcards &&
 			   (*str == wild_many || *str == wild_one)))
   {
     flag=1;
@@ -1470,7 +1472,7 @@ static bool test_if_number(register const char *str,
   if (*str == '.')
   {
     for (str++ ;
-	 isdigit(*str) ||
+	 my_isdigit(system_charset_info,*str) ||
 	   (allow_wildcards && (*str == wild_many || *str == wild_one)) ;
 	 str++, flag=1) ;
   }

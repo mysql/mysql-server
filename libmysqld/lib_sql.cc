@@ -154,20 +154,20 @@ check_connections1(THD *thd)
     end+=SCRAMBLE_LENGTH +1;
     int2store(end,client_flags);
     end[2]=MY_CHARSET_CURRENT;
-
-#define MIN_HANDSHAKE_SIZE	6
-
     int2store(end+3,thd->server_status);
     bzero(end+5,13);
     end+=18;
-    if (net_write_command(net,protocol_version, buff,
-			  (uint) (end-buff))) 
+    if (net_write_command(net,protocol_version,
+			  NullS, 0, 
+			  buff, (uint) (end-buff))) 
     {
       inc_host_errors(&thd->remote.sin_addr);
       return(ER_HANDSHAKE_ERROR);
     }
    return 0; 
 }
+
+#define MIN_HANDSHAKE_SIZE	6
 
 static int
 check_connections2(THD * thd)
@@ -214,13 +214,12 @@ check_connections2(THD * thd)
 static bool check_user(THD *thd,enum_server_command command, const char *user,
 		       const char *passwd, const char *db, bool check_count)
 {
-  NET *net= &thd->net;
   USER_RESOURCES ur;
   thd->db=0;
 
   if (!(thd->user = my_strdup(user, MYF(0))))
   {
-    send_error(net,ER_OUT_OF_RESOURCES);
+    send_error(thd,ER_OUT_OF_RESOURCES);
     return 1;
   }
   thd->master_access=acl_getroot(thd, thd->host, thd->ip, thd->user,
@@ -236,7 +235,7 @@ static bool check_user(THD *thd,enum_server_command command, const char *user,
 	      thd->master_access, thd->db ? thd->db : "*none*"));
   if (thd->master_access & NO_ACCESS)
   {
-    net_printf(net, ER_ACCESS_DENIED_ERROR,
+    net_printf(thd, ER_ACCESS_DENIED_ERROR,
 	       thd->user,
 	       thd->host_or_ip,
 	       passwd[0] ? ER(ER_YES) : ER(ER_NO));
@@ -254,7 +253,7 @@ static bool check_user(THD *thd,enum_server_command command, const char *user,
     VOID(pthread_mutex_unlock(&LOCK_thread_count));
     if (tmp)
     {						// Too many connections
-      send_error(net, ER_CON_COUNT_ERROR);
+      send_error(thd, ER_CON_COUNT_ERROR);
       return(1);
     }
   }
@@ -269,7 +268,7 @@ static bool check_user(THD *thd,enum_server_command command, const char *user,
   if (db && db[0])
     return test(mysql_change_db(thd,db));
   else
-    send_ok(net);				// Ready to handle questions
+    send_ok(thd);				// Ready to handle questions
   return 0;					// ok
 }
 
@@ -370,7 +369,6 @@ int STDCALL mysql_server_init(int argc, char **argv, char **groups)
 
   (void) pthread_mutex_init(&LOCK_mysql_create_db,MY_MUTEX_INIT_SLOW);
   (void) pthread_mutex_init(&LOCK_Acl,MY_MUTEX_INIT_SLOW);
-  (void) pthread_mutex_init(&LOCK_grant,MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_open,MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_thread_count,MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_mapped_file,MY_MUTEX_INIT_SLOW);
@@ -388,6 +386,7 @@ int STDCALL mysql_server_init(int argc, char **argv, char **groups)
   (void) pthread_mutex_init(&LOCK_rpl_status, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_active_mi, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_global_system_variables, MY_MUTEX_INIT_FAST);
+  (void) my_rwlock_init(&LOCK_grant, NULL);
   (void) pthread_cond_init(&COND_thread_count,NULL);
   (void) pthread_cond_init(&COND_refresh,NULL);
   (void) pthread_cond_init(&COND_thread_cache,NULL);
@@ -400,7 +399,7 @@ int STDCALL mysql_server_init(int argc, char **argv, char **groups)
     mysql_server_end();
     return 1;
   }
-  charsets_list = list_charsets(MYF(MY_COMPILED_SETS|MY_CONFIG_SETS));
+  charsets_list = list_charsets(MYF(MY_CS_COMPILED|MY_CS_CONFIG));
 
   /* Parameter for threads created for connections */
   (void) pthread_attr_init(&connection_attrib);
@@ -499,7 +498,7 @@ int STDCALL mysql_server_init(int argc, char **argv, char **groups)
     After this we can't quit by a simple unireg_abort
   */
   error_handler_hook = my_message_sql;
-  if (pthread_key_create(&THR_THD,NULL) || pthread_key_create(&THR_NET,NULL) ||
+  if (pthread_key_create(&THR_THD,NULL) ||
       pthread_key_create(&THR_MALLOC,NULL))
   {
     sql_print_error("Can't create thread-keys");

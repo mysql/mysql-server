@@ -31,7 +31,7 @@ libmysys_a_SOURCES =	my_init.c my_getwd.c mf_getdate.c\
 			my_pread.c my_write.c \
 			mf_keycache.c \
 			mf_iocache.c mf_iocache2.c mf_cache.c mf_tempfile.c \
-			my_lock.c mf_brkhant.c my_alarm.c \
+			mf_tempdir.c my_lock.c mf_brkhant.c my_alarm.c \
 			my_malloc.c my_realloc.c my_once.c mulalloc.c \
 			my_alloc.c safemalloc.c my_new.cc \
 			my_fopen.c my_fstream.c \
@@ -39,7 +39,7 @@ libmysys_a_SOURCES =	my_init.c my_getwd.c mf_getdate.c\
 			mf_format.c mf_same.c mf_dirname.c mf_fn_ext.c \
 			my_symlink.c my_symlink2.c \
 			mf_pack.c mf_unixpath.c mf_strip.c \
-			mf_casecnv.c mf_soundex.c mf_wcomp.c mf_wfile.c \
+			mf_soundex.c mf_wcomp.c mf_wfile.c \
 			mf_qsort.c mf_qsort2.c mf_sort.c \
 			ptr_cmp.c mf_radix.c queues.c \
 			tree.c list.c hash.c array.c string.c typelib.c \
@@ -51,15 +51,17 @@ libmysys_a_SOURCES =	my_init.c my_getwd.c mf_getdate.c\
 			default.c my_compress.c checksum.c raid.cc \
 			my_net.c my_semaphore.c my_port.c \
 			my_vsnprintf.c charset.c my_bitmap.c my_bit.c md5.c \
-			my_gethostbyname.c rijndael.c my_aes.c sha1.c
+			my_gethostbyname.c rijndael.c my_aes.c sha1.c \
+			my_handler.c
 EXTRA_DIST =		thr_alarm.c thr_lock.c my_pthread.c my_thr_init.c \
 			thr_mutex.c thr_rwlock.c
 libmysys_a_LIBADD =	@THREAD_LOBJECTS@
 # test_fn removed 980815 since it not upp to date test_dir
-noinst_PROGRAMS =	test_charset @THREAD_LPROGRAMS@
+noinst_PROGRAMS =	test_charset charset2html @THREAD_LPROGRAMS@
 # test_dir_DEPENDENCIES=	$(LIBRARIES)
 # testhash_DEPENDENCIES=	$(LIBRARIES)
 test_charset_DEPENDENCIES=	$(LIBRARIES)
+charset2html_DEPENDENCIES=	$(LIBRARIES)
 EXTRA_PROGRAMS =	
 DEFS =			-DDEFAULT_BASEDIR=\"$(prefix)\" \
 			-DDATADIR="\"$(MYSQLDATAdir)\"" \
@@ -102,6 +104,9 @@ test_dir: test_dir.c $(LIBRARIES)
 
 test_charset$(EXEEXT): test_charset.c $(LIBRARIES)
 	$(LINK) $(FLAGS) -DMAIN $(srcdir)/test_charset.c $(LDADD) $(LIBS)
+
+charset2html$(EXEEXT): charset2html.c $(LIBRARIES)
+	$(LINK) $(FLAGS) -DMAIN $(srcdir)/charset2html.c $(LDADD) $(LIBS)
 
 testhash: testhash.c $(LIBRARIES)
 	$(LINK) $(FLAGS) -DMAIN $(srcdir)/testhash.c $(LDADD) $(LIBS)

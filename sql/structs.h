@@ -148,13 +148,18 @@ enum SHOW_TYPE
 };
 
 enum SHOW_COMP_OPTION { SHOW_OPTION_YES, SHOW_OPTION_NO, SHOW_OPTION_DISABLED};
+
+extern const char *show_comp_option_name[];
+
 typedef int *(*update_var)(THD *, struct show_var_st *);
+
 
 typedef struct show_var_st {
   const char *name;
   char *value;
   SHOW_TYPE type;
 } SHOW_VAR;
+
 
 typedef struct lex_string {
   char *str;
