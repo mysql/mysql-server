@@ -370,7 +370,6 @@ operator<<(NdbOut& out, const Dbtux::Index& index)
 {
   out << "[Index " << hex << &index;
   out << " [tableId " << dec << index.m_tableId << "]";
-  out << " [fragOff " << dec << index.m_fragOff << "]";
   out << " [numFrags " << dec << index.m_numFrags << "]";
   for (unsigned i = 0; i < index.m_numFrags; i++) {
     out << " [frag " << dec << i << " ";
@@ -393,7 +392,6 @@ operator<<(NdbOut& out, const Dbtux::Frag& frag)
   out << "[Frag " << hex << &frag;
   out << " [tableId " << dec << frag.m_tableId << "]";
   out << " [indexId " << dec << frag.m_indexId << "]";
-  out << " [fragOff " << dec << frag.m_fragOff << "]";
   out << " [fragId " << dec << frag.m_fragId << "]";
   out << " [descPage " << hex << frag.m_descPage << "]";
   out << " [descOff " << dec << frag.m_descOff << "]";
