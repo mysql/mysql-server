@@ -28,6 +28,15 @@ C_MODE_START
 
 extern ulonglong log_10_int[20];
 
+/*
+  Portable time_t replacement.
+  Should be signed and hold seconds for 1902-2038 range.
+*/
+typedef long my_time_t;
+
+#define MY_TIME_T_MAX LONG_MAX
+#define MY_TIME_T_MIN LONG_MIN
+
 #define YY_PART_YEAR	   70
 
 /* Flags to str_to_datetime */
