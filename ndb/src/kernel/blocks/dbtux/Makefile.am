@@ -10,6 +10,8 @@ libdbtux_a_SOURCES = \
 			DbtuxCmp.cpp \
 			DbtuxDebug.cpp
 
+INCLUDES_LOC = -I$(top_srcdir)/ndb/src/kernel/blocks/dbtup
+
 include $(top_srcdir)/ndb/config/common.mk.am
 include $(top_srcdir)/ndb/config/type_kernel.mk.am
 

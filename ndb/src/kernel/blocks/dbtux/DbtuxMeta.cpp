@@ -85,6 +85,11 @@ Dbtux::execTUXFRAGREQ(Signal* signal)
     fragPtr.p->m_fragOff = req->fragOff;
     fragPtr.p->m_fragId = req->fragId;
     fragPtr.p->m_numAttrs = req->noOfAttr;
+    fragPtr.p->m_tupIndexFragPtrI = req->tupIndexFragPtrI;
+    fragPtr.p->m_tupTableFragPtrI[0] = req->tupTableFragPtrI[0];
+    fragPtr.p->m_tupTableFragPtrI[1] = req->tupTableFragPtrI[1];
+    fragPtr.p->m_accTableFragPtrI[0] = req->accTableFragPtrI[0];
+    fragPtr.p->m_accTableFragPtrI[1] = req->accTableFragPtrI[1];
     // add the fragment to the index
     indexPtr.p->m_fragId[indexPtr.p->m_numFrags] = req->fragId;
     indexPtr.p->m_fragPtrI[indexPtr.p->m_numFrags] = fragPtr.i;
@@ -197,6 +202,7 @@ Dbtux::execTUX_ADD_ATTRREQ(Signal* signal)
       jam();
       // initialize tree header
       TreeHead& tree = fragPtr.p->m_tree;
+      new (&tree) TreeHead();
       // make these configurable later
       tree.m_nodeSize = MAX_TTREE_NODE_SIZE;
       tree.m_prefSize = MAX_TTREE_PREF_SIZE;
@@ -222,8 +228,8 @@ Dbtux::execTUX_ADD_ATTRREQ(Signal* signal)
         break;
       }
       tree.m_minOccup = tree.m_maxOccup - maxSlack;
-      // root node does not exist
-      tree.m_root = NullTupAddr;
+      // root node does not exist (also set by ctor)
+      tree.m_root = NullTupLoc;
       // fragment is defined
       c_fragOpPool.release(fragOpPtr);
     }
@@ -310,12 +316,6 @@ Dbtux::dropIndex(Signal* signal, IndexPtr indexPtr, Uint32 senderRef, Uint32 sen
     unsigned i = --indexPtr.p->m_numFrags;
     FragPtr fragPtr;
     c_fragPool.getPtr(fragPtr, indexPtr.p->m_fragPtrI[i]);
-    Frag& frag = *fragPtr.p;
-    ndbrequire(frag.m_nodeList == RNIL);
-    if (frag.m_nodeFree != RNIL) {
-      c_nodeHandlePool.release(frag.m_nodeFree);
-      frag.m_nodeFree = RNIL;
-    }
     c_fragPool.release(fragPtr);
     // the real time break is not used for anything currently
     signal->theData[0] = TuxContinueB::DropIndex;

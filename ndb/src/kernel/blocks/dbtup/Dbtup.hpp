@@ -996,6 +996,14 @@ public:
   Dbtup(const class Configuration &);
   virtual ~Dbtup();
 
+  /*
+   * TUX index in TUP has single Uint32 array attribute which stores an
+   * index node.  TUX uses following methods.
+   */
+  int tuxAllocNode(Signal* signal, Uint32 fragPtrI, Uint32& pageId, Uint32& pageOffset, Uint32*& node);
+  void tuxFreeNode(Signal* signal, Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32* node);
+  void tuxGetNode(Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32*& node);
+
 private:
   BLOCK_DEFINES(Dbtup);
 
