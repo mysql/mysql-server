@@ -1899,3 +1899,24 @@ select t000.a, count(*) `C` FROM t1 t000 GROUP BY t000.a HAVING count(*) > ALL (
 a	C
 1	1
 drop table t1,t2;
+CREATE TABLE `t1` ( `aid` int(11) NOT NULL default '0', `bid` int(11) NOT NULL default '0', PRIMARY KEY  (`aid`,`bid`));
+CREATE TABLE `t2` ( `aid` int(11) NOT NULL default '0', `bid` int(11) NOT NULL default '0', PRIMARY KEY  (`aid`,`bid`));
+insert into t1 values (1,1),(1,2),(2,1),(2,2);
+insert into t2 values (1,2),(2,2);
+select * from t1 where t1.aid not in (select aid from t2 where bid=t1.bid);
+aid	bid
+1	1
+2	1
+alter table t2 drop primary key;
+alter table t2 add key KEY1 (aid, bid);
+select * from t1 where t1.aid not in (select aid from t2 where bid=t1.bid);
+aid	bid
+1	1
+2	1
+alter table t2 drop key KEY1;
+alter table t2 add primary key (bid, aid);
+select * from t1 where t1.aid not in (select aid from t2 where bid=t1.bid);
+aid	bid
+1	1
+2	1
+drop table t1,t2;
