@@ -16,12 +16,12 @@ TEXINFO_TEX =		Support/texinfo.tex
 
 noinst_SCRIPTS =	Support/texi2html Support/generate-text-files.pl \
 			Support/generate-mirror-listing.pl
-info_TEXINFOS =		manual.texi reservedwords.texi
+info_TEXINFOS =		manual.texi
 
 targets =		manual.txt mysql.info manual.html
 
 BUILT_SOURCES =		$(targets) manual_toc.html include.texi
-EXTRA_DIST =		$(noinst_SCRIPTS) $(BUILT_SOURCES) mysqld_error.txt INSTALL-BINARY
+EXTRA_DIST =		$(noinst_SCRIPTS) $(BUILT_SOURCES) mysqld_error.txt INSTALL-BINARY reservedwords.texi
 
 all:			$(targets) txt_files
 
