@@ -1071,10 +1071,23 @@ mysql_execute_command(void)
   TABLE_LIST *tables=(TABLE_LIST*) lex->table_list.first;
   DBUG_ENTER("mysql_execute_command");
 
-  if(table_rules_on && thd->slave_thread && tables && !tables_ok(thd,tables))
-    DBUG_VOID_RETURN; // skip if we are in the slave thread, some table
-  // rules have been given and the table list says the query should not be
-  // replicated
+  if (thd->slave_thread)
+  {
+    // skip if we are in the slave thread, some table
+    // rules have been given and the table list says the query should not be
+    // replicated
+    if(table_rules_on && tables && !tables_ok(thd,tables))
+      DBUG_VOID_RETURN;
+    // this is a workaround to deal with the shortcoming
+    // in 3.23.44-3.23.46 masters
+    // in RELEASE_LOCK() logging. We re-write SELECT RELEASE_LOCK() as
+    // DO RELEASE_LOCK()
+    if (lex->sql_command == SQLCOM_SELECT)
+    {
+      lex->sql_command = SQLCOM_DO;
+      lex->insert_list = &lex->item_list;
+    }
+  }
   
   thread_safe_increment(com_stat[lex->sql_command],&LOCK_thread_count);
   switch (lex->sql_command) {

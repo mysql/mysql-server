@@ -1,17 +1,16 @@
 source include/master-slave.inc;
 connection master;
 create table t1(n int);
-create table t2(n int);
 insert into t1 values(get_lock("lock",2));
 dirty_close master;
 connection master1;
 select get_lock("lock",2);
 select release_lock("lock");
-let $1=20000;
+let $1=2000;
 while ($1)
 {
-  select get_lock("lock",2);
-  select release_lock("lock");
+  do get_lock("lock",2);
+  do release_lock("lock");
   dec $1;
 }
 save_master_pos;
