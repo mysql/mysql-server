@@ -5418,7 +5418,7 @@ The minimum value for this variable is 4096.",
    "it failed with a deadlock or elapsed lock wait timeout, "
    "before giving up and stopping.",
    (gptr*) &slave_trans_retries, (gptr*) &slave_trans_retries, 0,
-   GET_ULONG, REQUIRED_ARG, 0L, 0L, (longlong) ULONG_MAX, 0, 1, 0},
+   GET_ULONG, REQUIRED_ARG, 10L, 0L, (longlong) ULONG_MAX, 0, 1, 0},
 #endif /* HAVE_REPLICATION */
   {"slow_launch_time", OPT_SLOW_LAUNCH_TIME,
    "If creating the thread takes longer than this value (in seconds), the Slow_launch_threads counter will be incremented.",
