@@ -20,7 +20,7 @@
 #include <time.h>
 #include "log_event.h"
 
-#define PROBE_HEADER_LEN (4+EVENT_LEN_OFFSET)
+#define PROBE_HEADER_LEN (4+EVENT_LEN_OFFSET+4)
 
 #define CLIENT_CAPABILITIES	(CLIENT_LONG_PASSWORD | CLIENT_LONG_FLAG | CLIENT_LOCAL_FILES)
 
@@ -102,7 +102,7 @@ static void die(const char* fmt, ...)
 
 static void print_version()
 {
-  printf("%s  Ver 1.6 for %s at %s\n",my_progname,SYSTEM_TYPE, MACHINE_TYPE);
+  printf("%s  Ver 1.7 for %s at %s\n",my_progname,SYSTEM_TYPE, MACHINE_TYPE);
 }
 
 
