@@ -27,11 +27,11 @@ bmove_upp:
 	nop
 .loop:
 	sub	%o1, 1, %o1
-	ldub	[%o1], %g2
+	ldub	[%o1], %o3
 	sub	%o0, 1, %o0
 	subcc	%o2, 1, %o2
 	bcc	.loop
-	stb	%g2, [%o0]
+	stb	%o3, [%o0]
 .end:
 	retl
 	nop

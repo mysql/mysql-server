@@ -209,9 +209,6 @@ trx_purge_sys_create(void)
 	purge_sys->purge_undo_no = ut_dulint_zero;
 	purge_sys->next_stored = FALSE;
 	
-	rw_lock_create(&(purge_sys->purge_is_running));
-	rw_lock_set_level(&(purge_sys->purge_is_running),
-						SYNC_PURGE_IS_RUNNING);
 	rw_lock_create(&(purge_sys->latch));
 	rw_lock_set_level(&(purge_sys->latch), SYNC_PURGE_LATCH);
 

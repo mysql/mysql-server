@@ -28,6 +28,9 @@ extern os_event_t	srv_lock_timeout_thread_event;
 at a time */
 #define SRV_AUTO_EXTEND_INCREMENT   (8 * ((1024 * 1024) / UNIV_PAGE_SIZE))
 
+/* This is set to TRUE if the MySQL user has set it in MySQL */
+extern ibool	srv_lower_case_table_names;
+
 /* Server parameters which are read from the initfile */
 
 extern char*	srv_data_home;
@@ -57,8 +60,6 @@ extern ulint	srv_flush_log_at_trx_commit;
 
 extern byte	srv_latin1_ordering[256];/* The sort order table of the latin1
 					character set */
-extern ibool	srv_use_native_aio;		
-
 extern ulint	srv_pool_size;
 extern ulint	srv_mem_pool_size;
 extern ulint	srv_lock_table_size;
@@ -70,8 +71,9 @@ extern dulint	srv_archive_recovery_limit_lsn;
 
 extern ulint	srv_lock_wait_timeout;
 
-extern char*    srv_unix_file_flush_method_str;
+extern char*    srv_file_flush_method_str;
 extern ulint    srv_unix_file_flush_method;
+extern ulint   	srv_win_file_flush_method;
 extern ulint	srv_force_recovery;
 extern ulint	srv_thread_concurrency;
 
@@ -154,12 +156,18 @@ typedef struct srv_sys_struct	srv_sys_t;
 /* The server system */
 extern srv_sys_t*	srv_sys;
 
-/* Alternatives for the field flush option in Unix; see the InnoDB manual about
+/* Alternatives for the file flush option in Unix; see the InnoDB manual about
 what these mean */
-#define SRV_UNIX_FDATASYNC   1
+#define SRV_UNIX_FDATASYNC   1	/* This is the default; it is currently mapped
+				to a call of fsync() because fdatasync()
+				seemed to corrupt files in Linux and Solaris */
 #define SRV_UNIX_O_DSYNC     2
 #define SRV_UNIX_LITTLESYNC  3
 #define SRV_UNIX_NOSYNC      4
+
+/* Alternatives for file i/o in Windows */
+#define SRV_WIN_IO_NORMAL		1
+#define SRV_WIN_IO_UNBUFFERED		2	/* This is the default */
 
 /* Alternatives for srv_force_recovery. Non-zero values are intended
 to help the user get a damaged database up so that he can dump intact
@@ -311,15 +319,17 @@ srv_conc_exit_innodb(
 	trx_t*	trx);	/* in: transaction object associated with the
 			thread */
 /*******************************************************************
-Puts a MySQL OS thread to wait for a lock to be released. */
+Puts a MySQL OS thread to wait for a lock to be released. If an error
+occurs during the wait trx->error_state associated with thr is
+!= DB_SUCCESS when we return. DB_LOCK_WAIT_TIMEOUT and DB_DEADLOCK
+are possible errors. DB_DEADLOCK is returned if selective deadlock
+resolution chose this transaction as a victim. */
 
-ibool
+void
 srv_suspend_mysql_thread(
 /*=====================*/
-				/* out: TRUE if the lock wait timeout was
-				exceeded */
-	que_thr_t*	thr);	/* in: query thread associated with
-				the MySQL OS thread */
+	que_thr_t*	thr);	/* in: query thread associated with the MySQL
+				OS thread */
 /************************************************************************
 Releases a MySQL OS thread waiting for a lock to be released, if the
 thread is already suspended. */
@@ -407,3 +417,4 @@ struct srv_sys_struct{
 extern ulint	srv_n_threads_active[];
 
 #endif
+

@@ -150,4 +150,29 @@ n	n
 delete  t1,t2 from t2 left outer join t1  using (n);
 select * from t2 left outer join t1  using (n);
 n	n
-drop table if exists t1,t2 ;
+drop table t1,t2 ;
+create table t1 (n int(10) not null primary key, d int(10));
+create table t2 (n int(10) not null primary key, d int(10));
+insert into t1 values(1,1);
+insert into t2 values(1,10),(2,20);
+LOCK TABLES t1 write, t2 read;
+DELETE t1.*, t2.* FROM t1,t2 where t1.n=t2.n;
+Table 't2' was locked with a READ lock and can't be updated
+UPDATE t1,t2 SET t1.d=t2.d,t2.d=30 WHERE t1.n=t2.n;
+Table 't2' was locked with a READ lock and can't be updated
+UPDATE t1,t2 SET t1.d=t2.d WHERE t1.n=t2.n;
+Table 't2' was locked with a READ lock and can't be updated
+unlock tables;
+LOCK TABLES t1 write, t2 write;
+UPDATE t1,t2 SET t1.d=t2.d WHERE t1.n=t2.n;
+select * from t1;
+n	d
+1	10
+DELETE t1.*, t2.* FROM t1,t2 where t1.n=t2.n;
+select * from t1;
+n	d
+select * from t2;
+n	d
+2	20
+unlock tables;
+drop table t1,t2;

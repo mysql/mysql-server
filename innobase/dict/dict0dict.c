@@ -29,7 +29,17 @@ Created 1/8/1996 Heikki Tuuri
 
 dict_sys_t*	dict_sys	= NULL;	/* the dictionary system */
 
-rw_lock_t	dict_foreign_key_check_lock;
+rw_lock_t	dict_operation_lock;	/* table create, drop, etc. reserve
+					this in X-mode; implicit or backround
+					operations purge, rollback, foreign
+					key checks reserve this in S-mode; we
+					cannot trust that MySQL protects
+					implicit or background operations
+					a table drop since MySQL does not
+					know of them; therefore we need this;
+					NOTE: a transaction which reserves
+					this must keep book on the mode in
+					trx->dict_operation_lock_mode */
 
 #define	DICT_HEAP_SIZE		100	/* initial memory heap size when
 					creating a table or index object */
@@ -175,6 +185,58 @@ dict_foreign_free(
 /*==============*/
 	dict_foreign_t*	foreign);	/* in, own: foreign key struct */
 
+/************************************************************************
+Checks if the database name in two table names is the same. */
+static
+ibool
+dict_tables_have_same_db(
+/*=====================*/
+			/* out: TRUE if same db name */
+	char*	name1,	/* in: table name in the form dbname '/' tablename */
+	char*	name2)	/* in: table name in the form dbname '/' tablename */
+{
+	ulint	i;
+
+	for (i = 0; i < 100000; i++) {
+		if (name1[i] == '/' && name2[i] == '/') {
+
+			return(TRUE);
+		}
+
+		if (name1[i] != name2[i]) {
+
+			return(FALSE);
+		}
+	}
+
+	ut_a(0);
+
+	return(FALSE);
+}
+
+/************************************************************************
+Return the end of table name where we have removed dbname and '/'. */
+static
+char*
+dict_remove_db_name(
+/*================*/
+			/* out: table name */
+	char*	name)	/* in: table name in the form dbname '/' tablename */
+{
+	ulint	i;
+
+	for (i = 0; i < 100000 ; i++) {
+		if (name[i] == '/') {
+
+			return(name + i + 1);
+		}
+	}
+
+	ut_a(0);
+
+	return(NULL);
+}
+	
 /************************************************************************
 Reserves the dictionary system mutex for MySQL. */
 
@@ -509,9 +571,8 @@ dict_init(void)
 
 	UT_LIST_INIT(dict_sys->table_LRU);
 
-	rw_lock_create(&dict_foreign_key_check_lock);
-	rw_lock_set_level(&dict_foreign_key_check_lock,
-						SYNC_FOREIGN_KEY_CHECK);
+	rw_lock_create(&dict_operation_lock);
+	rw_lock_set_level(&dict_operation_lock, SYNC_DICT_OPERATION);
 }
 
 /**************************************************************************
@@ -1851,14 +1912,14 @@ loop:
 
 /*************************************************************************
 Accepts a specified string. Comparisons are case-insensitive. */
-static
+
 char*
 dict_accept(
 /*========*/
 			/* out: if string was accepted, the pointer
 			is moved after that, else ptr is returned */
 	char*	ptr,	/* in: scan from this */
-	const char* string,	/* in: accept only this string as the next
+	const char* string,/* in: accept only this string as the next
 			non-whitespace string */
 	ibool*	success)/* out: TRUE if accepted */
 {
@@ -1920,7 +1981,8 @@ dict_scan_col(
 
 	old_ptr = ptr;
 	
-	while (!isspace(*ptr) && *ptr != ',' && *ptr != ')' && 	*ptr != '`') {
+	while (!isspace(*ptr) && *ptr != ',' && *ptr != ')' && 	*ptr != '`'
+	       && *ptr != '\0') {
 
 		ptr++;
 	}
@@ -1994,7 +2056,7 @@ dict_scan_table_name(
 
 	old_ptr = ptr;
 	
-	while (!isspace(*ptr) && *ptr != '(' && *ptr != '`') {
+	while (!isspace(*ptr) && *ptr != '(' && *ptr != '`' && *ptr != '\0') {
 		if (*ptr == '.') {
 			dot_ptr = ptr;
 		}
@@ -2017,17 +2079,28 @@ dict_scan_table_name(
 		}
 #ifdef __WIN__
 		ut_cpy_in_lower_case(second_table_name + i, old_ptr,
-				     ptr - old_ptr);
+				     				ptr - old_ptr);
 #else
-		ut_memcpy(second_table_name + i, old_ptr, ptr - old_ptr);
+		if (srv_lower_case_table_names) {
+			ut_cpy_in_lower_case(second_table_name + i, old_ptr,
+				     				ptr - old_ptr);
+		} else {
+			ut_memcpy(second_table_name + i, old_ptr,
+								ptr - old_ptr);
+		}
 #endif
 		second_table_name[i + (ptr - old_ptr)] = '\0';
 	} else {
 #ifdef __WIN__
 		ut_cpy_in_lower_case(second_table_name, old_ptr,
-				     ptr - old_ptr);
+								ptr - old_ptr);
 #else
-		ut_memcpy(second_table_name, old_ptr, ptr - old_ptr);
+		if (srv_lower_case_table_names) {
+			ut_cpy_in_lower_case(second_table_name, old_ptr,
+				   			ptr - old_ptr);
+		} else {
+			ut_memcpy(second_table_name, old_ptr, ptr - old_ptr);
+		}
 #endif
 		second_table_name[dot_ptr - old_ptr] = '/';
 		second_table_name[ptr - old_ptr] = '\0';
@@ -2040,6 +2113,44 @@ dict_scan_table_name(
 	if (*ptr == '`') {
 		ptr++;
 	}
+
+	return(ptr);
+}
+
+/*************************************************************************
+Skips one 'word', like an id. For the lexical definition of 'word', see the
+code below. */
+static
+char*
+dict_skip_word(
+/*===========*/
+			/* out: scanned to */
+	char*	ptr,	/* in: scanned to */
+	ibool*	success)/* out: TRUE if success, FALSE if just spaces left in
+			string */
+{
+	*success = FALSE;
+
+	while (isspace(*ptr)) {
+		ptr++;
+	}
+
+	if (*ptr == '\0') {
+
+		return(ptr);
+	}
+
+	if (*ptr == '`') {
+		ptr++;
+	}
+	
+	while (!isspace(*ptr) && *ptr != ',' && *ptr != '(' && 	*ptr != '`'
+	       && *ptr != '\0') {
+
+		ptr++;
+	}
+
+	*success = TRUE;
 
 	return(ptr);
 }
@@ -2113,7 +2224,6 @@ dict_create_foreign_constraints(
 	if (table == NULL) {
 		return(DB_ERROR);
 	}
-
 loop:
 	ptr = dict_scan_to(ptr, (char *) "FOREIGN");
 
@@ -2142,7 +2252,19 @@ loop:
 	ptr = dict_accept(ptr, (char *) "(", &success);
 
 	if (!success) {
-		goto loop;
+		/* MySQL allows also an index id before the '('; we
+		skip it */
+		ptr = dict_skip_word(ptr, &success);
+
+		if (!success) {
+			return(DB_CANNOT_ADD_CONSTRAINT);
+		}
+
+		ptr = dict_accept(ptr, (char *) "(", &success);
+
+		if (!success) {
+			return(DB_CANNOT_ADD_CONSTRAINT);
+		}
 	}
 
 	i = 0;
@@ -2217,6 +2339,7 @@ col_loop1:
 
 	if (!success) {
 		dict_foreign_free(foreign);
+
 		return(DB_CANNOT_ADD_CONSTRAINT);
 	}
 
@@ -2230,6 +2353,7 @@ col_loop2:
 	
 	if (!success) {
 		dict_foreign_free(foreign);
+
 		return(DB_CANNOT_ADD_CONSTRAINT);
 	}
 
@@ -2257,14 +2381,20 @@ col_loop2:
 	ptr = dict_accept(ptr, "DELETE", &success);
 
 	if (!success) {
+		dict_foreign_free(foreign);
+		
+		return(DB_CANNOT_ADD_CONSTRAINT);
+	}
 
+	ptr = dict_accept(ptr, "RESTRICT", &success);
+
+	if (success) {
 		goto try_find_index;
 	}
 
 	ptr = dict_accept(ptr, "CASCADE", &success);
 
 	if (success) {
-
 		foreign->type = DICT_FOREIGN_ON_DELETE_CASCADE;
 
 		goto try_find_index;
@@ -2273,32 +2403,47 @@ col_loop2:
 	ptr = dict_accept(ptr, "SET", &success);
 
 	if (!success) {
-
-		goto try_find_index;
+		dict_foreign_free(foreign);
+		
+		return(DB_CANNOT_ADD_CONSTRAINT);
 	}
 
 	ptr = dict_accept(ptr, "NULL", &success);
 
-	if (success) {
-		for (j = 0; j < foreign->n_fields; j++) {
-			if ((dict_index_get_nth_type(
+	if (!success) {
+		dict_foreign_free(foreign);
+		
+		return(DB_CANNOT_ADD_CONSTRAINT);
+	}
+
+	for (j = 0; j < foreign->n_fields; j++) {
+		if ((dict_index_get_nth_type(
 				foreign->foreign_index, j)->prtype)
 				& DATA_NOT_NULL) {
 
-				/* It is not sensible to define SET NULL
-				if the column is not allowed to be NULL! */
+			/* It is not sensible to define SET NULL
+			if the column is not allowed to be NULL! */
 
-				dict_foreign_free(foreign);
-				return(DB_CANNOT_ADD_CONSTRAINT);
-			}
+			dict_foreign_free(foreign);
+
+			return(DB_CANNOT_ADD_CONSTRAINT);
 		}
-
-		foreign->type = DICT_FOREIGN_ON_DELETE_SET_NULL;
-
-		goto try_find_index;
 	}
+
+	foreign->type = DICT_FOREIGN_ON_DELETE_SET_NULL;
 	
 try_find_index:
+	/* We check that there are no superfluous words like 'ON UPDATE ...'
+	which we do not support yet. */
+
+	ptr = dict_accept(ptr, (char *) "ON", &success);
+
+	if (success) {
+		dict_foreign_free(foreign);
+
+		return(DB_CANNOT_ADD_CONSTRAINT);
+	}
+	
 	/* Try to find an index which contains the columns as the first fields
 	and in the right order, and the types are the same as in
 	foreign->foreign_index */
@@ -2345,6 +2490,7 @@ try_find_index:
 					referenced_table->referenced_list,
 								foreign);
 	}
+
 	goto loop;
 }
 
@@ -2843,6 +2989,14 @@ dict_update_statistics_low(
 	ulint		size;
 	ulint		sum_of_index_sizes	= 0;
 
+	/* If we have set a high innodb_force_recovery level, do not calculate
+	statistics, as a badly corrupted index can cause a crash in it. */
+
+	if (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE) {
+
+		return;
+	}
+
 	/* Find out the sizes of the indexes and how many different values
 	for the key they approximately have */
 
@@ -3146,16 +3300,25 @@ dict_print_info_on_foreign_keys_in_create_format(
 			}
 		}
 
-		buf2 += sprintf(buf2, ") REFERENCES `%s` (",
+		if (dict_tables_have_same_db(table->name,
+					foreign->referenced_table_name)) {
+			/* Do not print the database name of the referenced
+			table */
+			buf2 += sprintf(buf2, ") REFERENCES `%s` (",
+					dict_remove_db_name(
+					foreign->referenced_table_name));
+		} else {
+			buf2 += sprintf(buf2, ") REFERENCES `%s` (",
 					foreign->referenced_table_name);
-		/* Change the '/' in the table name to '.' */
+			/* Change the '/' in the table name to '.' */
 
-		for (i = ut_strlen(buf); i > 0; i--) {
-			if (buf[i] == '/') {
+			for (i = ut_strlen(buf); i > 0; i--) {
+				if (buf[i] == '/') {
 
-				buf[i] = '.';
+					buf[i] = '.';
 
-				break;
+					break;
+				}
 			}
 		}
 	

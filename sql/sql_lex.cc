@@ -855,9 +855,8 @@ int yylex(void *arg)
     case STATE_END:
       lex->next_state=STATE_END;
       return(0);			// We found end of input last time
-
-      // Actually real shouldn't start
-      // with . but allow them anyhow
+      
+      /* Actually real shouldn't start with . but allow them anyhow */
     case STATE_REAL_OR_POINT:
       if (my_isdigit(system_charset_info,yyPeek()))
 	state = STATE_REAL;		// Real
@@ -1181,7 +1180,6 @@ bool st_select_lex_unit::create_total_list_n_last_return(THD *thd, st_lex *lex,
 	if (!cursor)
 	{
 	  /* Add not used table to the total table list */
-	  aux->lock_type= lex->lock_option;
 	  if (!(cursor= (TABLE_LIST *) thd->memdup((char*) aux,
 						   sizeof(*aux))))
 	  {

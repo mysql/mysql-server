@@ -230,18 +230,35 @@ row_update_cascade_for_mysql(
 				or set null operation */
 	dict_table_t*	table);	/* in: table where we do the operation */
 /*************************************************************************
-Locks the data dictionary exclusively for performing a table create
-operation. */
+Locks the data dictionary exclusively for performing a table create or other
+data dictionary modification operation. */
 
 void
-row_mysql_lock_data_dictionary(void);
-/*================================*/
+row_mysql_lock_data_dictionary(
+/*===========================*/
+	trx_t*	trx);	/* in: transaction */
 /*************************************************************************
-Unlocks the data dictionary exclusively lock. */
+Unlocks the data dictionary exclusive lock. */
 
 void
-row_mysql_unlock_data_dictionary(void);
-/*==================================*/
+row_mysql_unlock_data_dictionary(
+/*=============================*/
+	trx_t*	trx);	/* in: transaction */
+/*************************************************************************
+Locks the data dictionary in shared mode from modifications, for performing
+foreign key check, rollback, or other operation invisible to MySQL. */
+
+void
+row_mysql_freeze_data_dictionary(
+/*=============================*/
+	trx_t*	trx);	/* in: transaction */
+/*************************************************************************
+Unlocks the data dictionary shared lock. */
+
+void
+row_mysql_unfreeze_data_dictionary(
+/*===============================*/
+	trx_t*	trx);	/* in: transaction */
 /*************************************************************************
 Does a table creation operation for MySQL. If the name of the created
 table ends to characters INNODB_MONITOR, then this also starts
@@ -310,11 +327,9 @@ output by the master thread. */
 int
 row_drop_table_for_mysql(
 /*=====================*/
-				/* out: error code or DB_SUCCESS */
-	char*	name,		/* in: table name */
-	trx_t*	trx,		/* in: transaction handle */
-	ibool	has_dict_mutex);/* in: TRUE if the caller already owns the
-				dictionary system mutex */
+			/* out: error code or DB_SUCCESS */
+	char*	name,	/* in: table name */
+	trx_t*	trx);	/* in: transaction handle */
 /*************************************************************************
 Drops a database for MySQL. */
 
@@ -393,6 +408,10 @@ struct row_prebuilt_struct {
 					an SQL statement: we may have to set
 					an intention lock on the table,
 					create a consistent read view etc. */
+        ibool           mysql_has_locked; /* this is set TRUE when MySQL
+			                calls external_lock on this handle
+			                with a lock flag, and set FALSE when
+			                with the F_UNLOCK flag */
 	ibool		clust_index_was_generated;
 					/* if the user did not define a
 					primary key in MySQL, then Innobase

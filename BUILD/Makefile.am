@@ -37,7 +37,7 @@ EXTRA_DIST =		FINISH.sh \
 			compile-pentium-pgcc \
 			compile-solaris-sparc \
 			compile-solaris-sparc-debug \
-			compile-solaris-sparc-fortre \
+			compile-solaris-sparc-forte \
 			compile-solaris-sparc-purify
 
 # Don't update the files from bitkeeper

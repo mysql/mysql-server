@@ -69,6 +69,8 @@ ulint	recv_previous_parsed_rec_type	= 999999;
 ulint	recv_previous_parsed_rec_offset	= 0;
 ulint	recv_previous_parsed_rec_is_multi = 0;
 
+ulint	recv_max_parsed_page_no		= 0;
+
 /************************************************************
 Creates the recovery system. */
 
@@ -141,7 +143,13 @@ recv_sys_empty_hash(void)
 /*=====================*/
 {
 	ut_ad(mutex_own(&(recv_sys->mutex)));
-	ut_a(recv_sys->n_addrs == 0);
+	if (recv_sys->n_addrs != 0) {
+		fprintf(stderr,
+"InnoDB: Error: %lu pages with log records were left unprocessed!\n"
+"InnoDB: Maximum page number with log records on it %lu\n",
+			recv_sys->n_addrs, recv_max_parsed_page_no);
+		ut_a(0);
+	}
 	
 	hash_table_free(recv_sys->addr_hash);
 	mem_heap_empty(recv_sys->heap);
@@ -1361,6 +1369,14 @@ recv_apply_log_recs_for_backup(
 		n_pages_total += file_sizes[i];
 	}
 
+	if (recv_max_parsed_page_no >= n_pages_total) {
+		printf(
+"InnoDB: Error: tablespace size %lu pages, but a log record on page %lu!\n"
+"InnoDB: Are you sure you have specified all the ibdata files right in\n"
+"InnoDB: the my.cnf file you gave as the argument to ibbackup --restore?\n",
+			n_pages_total, recv_max_parsed_page_no);
+	}
+
 	printf( 
 "InnoDB: Starting an apply batch of log records to the database...\n"
 "InnoDB: Progress in percents: ");
@@ -1381,7 +1397,7 @@ recv_apply_log_recs_for_backup(
 							&success);
 			if (!success) {
 				printf(
-"InnoDB: Error: cannot open %lu'th data file %s\n", nth_file);
+"InnoDB: Error: cannot open %lu'th data file\n", nth_file);
 
 				exit(1);
 			}
@@ -1397,7 +1413,7 @@ recv_apply_log_recs_for_backup(
 				UNIV_PAGE_SIZE);
 			if (!success) {
 				printf(
-"InnoDB: Error: cannot read page no %lu from %lu'th data file %s\n",
+"InnoDB: Error: cannot read page no %lu from %lu'th data file\n",
 				nth_page_in_file, nth_file);
 
 				exit(1);
@@ -1425,7 +1441,7 @@ recv_apply_log_recs_for_backup(
 				UNIV_PAGE_SIZE);
 			if (!success) {
 				printf(
-"InnoDB: Error: cannot write page no %lu to %lu'th data file %s\n",
+"InnoDB: Error: cannot write page no %lu to %lu'th data file\n",
 				nth_page_in_file, nth_file);
 
 				exit(1);
@@ -1701,6 +1717,10 @@ recv_parse_log_rec(
 		return(0);
 	}
 
+	if (*page_no > recv_max_parsed_page_no) {
+		recv_max_parsed_page_no = *page_no;
+	}
+	
 	return(new_ptr - ptr);
 }
 
@@ -1779,7 +1799,7 @@ recv_report_corrupt_log(
 "InnoDB: Recv offset %lu, prev %lu\n",
 		recv_previous_parsed_rec_type,
 		recv_previous_parsed_rec_is_multi,
-		ptr - recv_sys->buf,
+		(ulint)(ptr - recv_sys->buf),
 		recv_previous_parsed_rec_offset);
 
 	if ((ulint)(ptr - recv_sys->buf + 100)

@@ -1046,14 +1046,16 @@ que_thr_stop(
 }
 
 /**************************************************************************
-A patch for MySQL used to 'stop' a dummy query thread used in MySQL. */
+A patch for MySQL used to 'stop' a dummy query thread used in MySQL. The
+query thread is stopped and made inactive, except in the case where
+it was put to the lock wait state in lock0lock.c, but the lock has already
+been granted or the transaction chosen as a victim in deadlock resolution. */
 
 void
 que_thr_stop_for_mysql(
 /*===================*/
 	que_thr_t*	thr)	/* in: query thread */
 {
-	ibool	stopped 	= FALSE;
 	trx_t*	trx;
 
 	trx = thr_get_trx(thr);
@@ -1067,13 +1069,10 @@ que_thr_stop_for_mysql(
 
 			/* Error handling built for the MySQL interface */
 			thr->state = QUE_THR_COMPLETED;
-
-			stopped = TRUE;
-		}
-		
-		if (!stopped) {
-			/* It must have been a lock wait but the
-			lock was already released */
+		} else {
+			/* It must have been a lock wait but the lock was
+			already released, or this transaction was chosen
+			as a victim in selective deadlock resolution */
 
 			mutex_exit(&kernel_mutex);
 
@@ -1081,6 +1080,10 @@ que_thr_stop_for_mysql(
 		}
 	}
 		
+	ut_ad(thr->is_active == TRUE);
+	ut_ad(trx->n_active_thrs == 1);
+	ut_ad(thr->graph->n_active_thrs == 1);
+
 	thr->is_active = FALSE;
 	(thr->graph)->n_active_thrs--;
 
@@ -1132,6 +1135,9 @@ que_thr_stop_for_mysql_no_error(
 	trx_t*		trx)	/* in: transaction */
 {
 	ut_ad(thr->state == QUE_THR_RUNNING);
+	ut_ad(thr->is_active == TRUE);
+	ut_ad(trx->n_active_thrs == 1);
+	ut_ad(thr->graph->n_active_thrs == 1);
 		
 	if (thr->magic_n != QUE_THR_MAGIC_N) {
 		fprintf(stderr,
