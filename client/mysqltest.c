@@ -1,15 +1,15 @@
 /* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
-   
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2 of the License, or
    (at your option) any later version.
-   
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
@@ -84,7 +84,7 @@ int false_block_depth = 0;
 const char* result_file = 0; /* if set, all results are concated and
 				compared against this file*/
 
-typedef struct 
+typedef struct
 {
   char* name;
   char* str_val;
@@ -208,7 +208,7 @@ int dyn_string_cmp(DYN_STRING* ds, const char* fname)
     die("Could not open %s: errno = %d", fname, errno);
   if(my_read(fd, (byte*)tmp, stat_info.st_size, MYF(MY_WME|MY_NABP)))
     die("read failed");
-  res = (memcmp(tmp, ds->str, stat_info.st_size)) ?  1 : 0;  
+  res = (memcmp(tmp, ds->str, stat_info.st_size)) ?  1 : 0;
   my_free((gptr)tmp, MYF(0));
   my_close(fd, MYF(0));
   return res;
@@ -263,7 +263,7 @@ VAR* var_get(char* var_name, char* var_name_end, int raw)
   if(var_name_end)
     *var_name_end = 0;
   die("Unsupported variable name: %s", var_name);
-  return 0;  
+  return 0;
 }
 
 int var_set(char* var_name, char* var_name_end, char* var_val,
@@ -306,7 +306,7 @@ int open_file(const char* name)
     die("Source directives are nesting too deep");
   if(!(*cur_file = fopen(name, "r")))
     die("Could not read '%s': errno %d\n", name, errno);
-  
+
   return 0;
 }
 
@@ -321,7 +321,7 @@ int do_source(struct query* q)
   while(*p && !isspace(*p))
     p++;
   *p = 0;
-  
+
   return open_file(name);
 }
 
@@ -343,7 +343,7 @@ int eval_expr(VAR* v, char* p, char* p_end)
       v->str_val_len = p_end ? p_end - p : strlen(p);
       return 0;
     }
-  
+
   if(p_end)
     *p_end = 0;
   die("Invalid expr: %s", p);
@@ -450,7 +450,7 @@ int do_sleep(struct query* q)
       char *p_end;
       p++;
       p_end = p + 6;
-      
+
       for(;p <= p_end; ++p)
 	{
 	  c = *p - '0';
@@ -481,7 +481,7 @@ int select_connection(struct query* q)
   while(*p && !isspace(*p))
     p++;
   *p = 0;
-  
+
   for(con = cons; con < next_con; con++)
     if(!strcmp(con->name, name))
       {
@@ -505,7 +505,7 @@ int close_connection(struct query* q)
   while(*p && !isspace(*p))
     p++;
   *p = 0;
-  
+
   for(con = cons; con < next_con; con++)
     if(!strcmp(con->name, name))
       {
@@ -522,7 +522,7 @@ int close_connection(struct query* q)
    future to handle quotes. For now we assume that anything that is not
    a comma, a space or ) belongs to the argument. space is a chopper, comma or
    ) are delimiters/terminators
-*/  
+*/
 char* safe_get_param(char* str, char** arg, const char* msg)
 {
   while(*str && isspace(*str)) str++;
@@ -534,7 +534,7 @@ char* safe_get_param(char* str, char** arg, const char* msg)
     }
   if(!*str)
     die(msg);
-  
+
   *str++ = 0;
   return str;
 }
@@ -602,7 +602,7 @@ int do_while(struct query* q)
     {
       ++false_block_depth;
       return 0;
-    }  
+    }
   expr_start = strchr(p, '(');
   if(!expr_start)
     die("missing '(' in while");
@@ -610,13 +610,13 @@ int do_while(struct query* q)
   if(!expr_end)
     die("missing ')' in while");
   eval_expr(&v, ++expr_start, --expr_end);
-  *cur_block++ = parser.current_line++; 
+  *cur_block++ = parser.current_line++;
   if(!v.int_val)
     {
       block_ok = 0;
       false_block_depth = 1;
     }
-  return 0;	
+  return 0;
 }
 
 void close_cons()
@@ -635,7 +635,7 @@ int safe_copy_unescape(char* dest, char* src, int size)
   enum { ST_NORMAL, ST_ESCAPED, ST_HEX2} state = ST_NORMAL ;
 
   size--; /* just to make life easier */
-  
+
   for(; p_dest - size < dest && p_src - size < src
 	&& (c = *p_src) != '\n' && c; ++p_src )
     {
@@ -672,7 +672,7 @@ int safe_copy_unescape(char* dest, char* src, int size)
 
 	  state = ST_NORMAL;
 	  break;
-	  
+
 	}
     }
 
@@ -688,7 +688,7 @@ int read_line(char* buf, int size)
   enum {R_NORMAL, R_Q1, R_ESC_Q_Q1, R_ESC_Q_Q2,
 	R_ESC_SLASH_Q1, R_ESC_SLASH_Q2,
 	R_Q2, R_COMMENT, R_LINE_START} state = R_LINE_START;
-  
+
   for(; p < buf_end ;)
     {
       no_save = 0;
@@ -696,7 +696,7 @@ int read_line(char* buf, int size)
       if(feof(*cur_file))
 	{
           fclose(*cur_file);
-	  
+
 	  if(cur_file == file_stack)
 	   return 1;
 	  else
@@ -705,7 +705,7 @@ int read_line(char* buf, int size)
 	      continue;
 	    }
 	}
-      
+
       switch(state)
 	{
 	case R_NORMAL:
@@ -722,14 +722,14 @@ int read_line(char* buf, int size)
              state = R_Q2;
 	   else if(c == '\n')
 	     state = R_LINE_START;
-	     
+
 	   break;
 	case R_COMMENT:
 	  no_save = 1;
 	  if(c == '\n')
 	    state = R_LINE_START;
 	  break;
-	  
+
 	case R_LINE_START:
 	  if(c == '#')
 	    {
@@ -752,7 +752,7 @@ int read_line(char* buf, int size)
 	  else
 	    state = R_NORMAL;
 	  break;
-	  
+
 	case R_Q1:
 	  if(c == '\'')
 	    state = R_ESC_Q_Q1;
@@ -771,7 +771,7 @@ int read_line(char* buf, int size)
 	case R_ESC_SLASH_Q1:
 	  state = R_Q1;
 	  break;
-	  
+
 	case R_Q2:
 	  if(c == '"')
 	    state = R_ESC_Q_Q2;
@@ -795,7 +795,7 @@ int read_line(char* buf, int size)
       if(!no_save)
 	*p++ = c;
     }
-  return feof(*cur_file); 
+  return feof(*cur_file);
 }
 
 int read_query(struct query** q_ptr)
@@ -813,7 +813,7 @@ int read_query(struct query** q_ptr)
      || insert_dynamic(&q_lines, (gptr)&q)
      )
     die("Out of memory");
-  
+
   q->record_file[0] = 0;
   q->abort_on_error = 1;
   q->has_result_set = 0;
@@ -845,15 +845,15 @@ int read_query(struct query** q_ptr)
       while(!isspace(c = *p) &&
 	    p1 < q->record_file + sizeof(q->record_file) - 1)
 	*p1++ = *p++;
-      *p1 = 0;      	
-	
+      *p1 = 0;
+
     }
 
   while(*p && isspace(*p)) p++;
   p1 = q->q;
   while(*p && !isspace(*p))
     *p1++ = *p++;
-  
+
   q->first_word_len = p1 - q->q;
   strcpy(p1, p);
   parser.read_lines++;
@@ -895,9 +895,9 @@ void verbose_msg(const char* fmt, ...)
   va_list args;
 
   if(!verbose) return;
-  
+
   va_start(args, fmt);
-  
+
   fprintf(stderr, "%s: ", my_progname);
   vfprintf(stderr, fmt, args);
   fprintf(stderr, "\n");
@@ -1054,14 +1054,14 @@ int run_query(MYSQL* mysql, struct query* q)
   DYN_STRING *ds = &ds_res;
   DYN_STRING ds_tmp;
   dyn_string_init(&ds_tmp);
-  
+
   if( q->record_file[0])
     {
       ds = &ds_tmp;
-    } 	
+    }
 
 
-  
+
   if(mysql_query(mysql, q->q))
     {
       if(q->abort_on_error)
@@ -1076,11 +1076,11 @@ int run_query(MYSQL* mysql, struct query* q)
  %d instead of %d", q->q, mysql_errno(mysql), q->expected_errno);
 	      goto end;
 	    }
-	  
+
  	  verbose_msg("query '%s' failed: %s", q->q, mysql_error(mysql));
 	  /* if we do not abort on error, failure to run the query does
 	     not fail the whole test case
-	  */  
+	  */
 	  goto end;
 	}
     }
@@ -1092,7 +1092,7 @@ int run_query(MYSQL* mysql, struct query* q)
 		  q->q, q->expected_errno);
       goto end;
     }
-  
+
 
   if(!(res = mysql_store_result(mysql)) && mysql_field_count(mysql))
     {
@@ -1107,7 +1107,7 @@ int run_query(MYSQL* mysql, struct query* q)
     }
 
   if(!res) goto end;
-  
+
   fields =  mysql_fetch_fields(res);
   num_fields =  mysql_num_fields(res);
   for( i = 0; i < num_fields; i++)
@@ -1126,17 +1126,17 @@ int run_query(MYSQL* mysql, struct query* q)
       {
 	 val = (char*)row[i];
 	 len = lengths[i];
-	 
+
 	if(!val)
 	  {
 	    val = (char*)"NULL";
 	    len = 4;
 	  }
-	
+
 	dyn_string_append(ds, val, len);
 	dyn_string_append(ds, "\t", 1);
       }
-    
+
     dyn_string_append(ds, "\n", 1);
   }
 
@@ -1147,11 +1147,11 @@ int run_query(MYSQL* mysql, struct query* q)
       if(!result_file)
 	str_to_file(q->record_file, ds->str, ds->len);
     }
-  else if(!result_file && q->record_file[0])
+  else if(q->record_file[0])
     {
       error = check_result(ds, q->record_file);
     }
-  
+
  end:
   if(res) mysql_free_result(res);
   return error;
@@ -1164,7 +1164,7 @@ int check_first_word(struct query* q, const char* word, int len)
   if(len != q->first_word_len)
     return 0;
 
-  
+
   p = word;
   end = p + len;
   p1 = q->q;
@@ -1220,7 +1220,7 @@ void get_query_type(struct query* q)
       else if(check_first_word(q, "disconnect", 10))
 	q->type = Q_DISCONNECT;
       break;
-      
+
     }
 }
 
@@ -1234,7 +1234,7 @@ int main(int argc, char** argv)
   cons_end = cons + MAX_CONS;
   next_con = cons + 1;
   cur_con = cons;
-  
+
   memset(file_stack, 0, sizeof(file_stack));
   file_stack_end = file_stack + MAX_INCLUDE_DEPTH;
   cur_file = file_stack;
@@ -1248,17 +1248,17 @@ int main(int argc, char** argv)
   if(!*cur_file)
     *cur_file = stdin;
 
-  
-  
+
+
   if(!( mysql_init(&cur_con->mysql)))
     die("Failed in mysql_init()");
 
   mysql_options(&cur_con->mysql, MYSQL_READ_DEFAULT_GROUP, "mysql");
-  
+
   cur_con->name = my_strdup("default", MYF(MY_WME));
   if(!cur_con->name)
     die("Out of memory");
-  
+
   if(!mysql_real_connect(&cur_con->mysql, host,
 			 user, pass, db, port, unix_sock,
      0))
@@ -1288,7 +1288,7 @@ int main(int argc, char** argv)
 	    default: processed = 0; break;
 	    }
 	}
-      
+
       if(!processed)
 	{
 	  current_line_inc = 0;
@@ -1309,18 +1309,18 @@ int main(int argc, char** argv)
     {
       if(!record)
 	error |= check_result(&ds_res, result_file);
-      else 
+      else
 	str_to_file(result_file, ds_res.str, ds_res.len);
     }
   dyn_string_end(&ds_res);
-  
+
   if (!silent) {
     if(error)
       printf("not ok\n");
     else
       printf("ok\n");
   }
-  
+
   exit(error);
   return error;
 }
