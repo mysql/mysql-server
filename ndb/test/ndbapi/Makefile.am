@@ -28,6 +28,7 @@ testScanInterpreter \
 testSystemRestart \
 testTimeout \
 testTransactions \
+testDeadlock \
 test_event
 
 #flexTimedAsynch
@@ -61,6 +62,7 @@ testScanInterpreter_SOURCES = testScanInterpreter.cpp
 testSystemRestart_SOURCES = testSystemRestart.cpp
 testTimeout_SOURCES = testTimeout.cpp
 testTransactions_SOURCES = testTransactions.cpp
+testDeadlock_SOURCES = testDeadlock.cpp
 test_event_SOURCES = test_event.cpp
 
 INCLUDES_LOC = -I$(top_srcdir)/ndb/include/kernel
@@ -76,4 +78,5 @@ testBackup_LDADD = $(LDADD) bank/libbank.a
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
+
 
