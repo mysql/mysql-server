@@ -167,8 +167,25 @@ show status like 'handler_discover%';
 Variable_name	Value
 Handler_discover	0
 drop table t4;
+ERROR 42S02: Unknown table 't4'
+create table t4(
+id int not null primary key,
+name char(27)
+) engine=ndb;
+insert into t4 values (1, "Automatic");
+select * from t4;
+id	name
+1	Automatic
+select * from t4;
+ERROR 42S02: Table 'test.t4' doesn't exist
+drop table if exists t4;
 Warnings:
-Error	1296	Got error 709 'No such table existed' from NDB
+Note	1051	Unknown table 't4'
+drop table t5;
+ERROR 42S02: Unknown table 't5'
+drop table if exists t5;
+Warnings:
+Note	1051	Unknown table 't5'
 flush status;
 create table t4(
 id int not null primary key,

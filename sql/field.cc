@@ -1557,7 +1557,7 @@ bool Field_new_decimal::store_value(const my_decimal *decimal_value)
   my_decimal *dec= (my_decimal*)decimal_value;
   int error= 0;
   DBUG_ENTER("Field_new_decimal::store_value");
-  DBUG_EXECUTE("enter", print_decimal(dec););
+  dbug_print_decimal("enter", "value: %s", dec);
 
   /* check that we do not try to write negative value in unsigned field */
   if (unsigned_flag && decimal_value->sign())
@@ -1569,7 +1569,7 @@ bool Field_new_decimal::store_value(const my_decimal *decimal_value)
   }
   DBUG_PRINT("info", ("saving with precision %d, scale: %d",
                       (int)field_length, (int)decimals()));
-  DBUG_EXECUTE("info", print_decimal(dec););
+  dbug_print_decimal("info", "value: %s", dec);
 
   if (warn_if_overflow(my_decimal2binary(E_DEC_FATAL_ERROR &
                                          ~E_DEC_OVERFLOW,
@@ -1581,10 +1581,9 @@ bool Field_new_decimal::store_value(const my_decimal *decimal_value)
     DBUG_PRINT("info", ("overflow"));
     set_value_on_overflow(&buff, dec->sign());
     my_decimal2binary(E_DEC_FATAL_ERROR, &buff, ptr, field_length, decimals());
-    DBUG_EXECUTE("info", print_decimal_buff(&buff, ptr, bin_size););
-    DBUG_RETURN(1);
+    error= 1;
   }
-  DBUG_EXECUTE("info", print_decimal_buff(dec, ptr, bin_size););
+  DBUG_EXECUTE("info", print_decimal_buff(dec, (byte *) ptr, bin_size););
   DBUG_RETURN(error);
 }
 
@@ -1616,7 +1615,7 @@ int Field_new_decimal::store(const char *from, uint length,
     break;
   }
 
-  DBUG_EXECUTE("info", print_decimal(&decimal_value););
+  dbug_print_decimal("enter", "value: %s", &decimal_value);
   store_value(&decimal_value);
   DBUG_RETURN(err);
 }
@@ -1708,7 +1707,8 @@ my_decimal* Field_new_decimal::val_decimal(my_decimal *decimal_value)
   binary2my_decimal(E_DEC_FATAL_ERROR, ptr, decimal_value,
                     field_length,
                     decimals());
-  DBUG_EXECUTE("info", print_decimal_buff(decimal_value, ptr, bin_size););
+  DBUG_EXECUTE("info", print_decimal_buff(decimal_value, (byte *) ptr,
+                                          bin_size););
   DBUG_RETURN(decimal_value);
 }
 
