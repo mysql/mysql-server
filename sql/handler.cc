@@ -325,7 +325,7 @@ static int ha_finish_errors(void)
   my_free((gptr) errmsgs, MYF(0));
   return 0;
 }
-  
+
 
 static inline void ha_was_inited_ok(handlerton **ht)
 {
@@ -485,6 +485,16 @@ void ha_close_connection(THD* thd)
 /* ========================================================================
  ======================= TRANSACTIONS ===================================*/
 
+/*
+  Register a storage engine for a transaction
+
+  DESCRIPTION
+    Every storage engine MUST call this function when it starts
+    a transaction or a statement (that is it must be called both for the
+    "beginning of transaction" and "beginning of statement").
+    Only storage engines registered for the transaction/statement
+    will know when to commit/rollback it.
+*/
 void trans_register_ha(THD *thd, bool all, handlerton *ht_arg)
 {
   THD_TRANS *trans;
@@ -742,6 +752,45 @@ int ha_commit_or_rollback_by_xid(LEX_STRING *ident, bool commit)
   return res;
 }
 
+#ifndef DBUG_OFF
+/* this does not need to be multi-byte safe or anything */
+static char* xid_to_str(char *buf, XID *xid)
+{
+  int i;
+  char *s=buf;
+  *s++='\'';
+  for (i=0; i < xid->gtrid_length+xid->bqual_length; i++)
+  {
+    uchar c=(uchar)xid->data[i];
+    if (i == xid->gtrid_length)
+    {
+      *s++='\'';
+      if (xid->bqual_length)
+      {
+        *s++='.';
+        *s++='\'';
+      }
+    }
+    if (c < 32 || c > 126)
+    {
+      *s++='\\';
+      *s++='x';
+      *s++=_dig_vec_lower[c >> 4];
+      *s++=_dig_vec_lower[c & 15];
+    }
+    else
+    {
+      if (c == '\'' || c == '\\')
+        *s++='\\';
+      *s++=c;
+    }
+  }
+  *s++='\'';
+  *s=0;
+  return buf;
+}
+#endif
+
 /*
   recover() step of xa
 
@@ -772,10 +821,13 @@ int ha_recover(HASH *commit_list)
   /* commit_list and tc_heuristic_recover cannot be set both */
   DBUG_ASSERT(commit_list==0 || tc_heuristic_recover==0);
   /* if either is set, total_ha_2pc must be set too */
-  DBUG_ASSERT((commit_list==0 && tc_heuristic_recover==0) || total_ha_2pc>0);
+  DBUG_ASSERT(dry_run || total_ha_2pc>opt_bin_log);
 
-  if (total_ha_2pc == 0)
+  if (total_ha_2pc <= opt_bin_log)
     DBUG_RETURN(0);
+
+  if (commit_list)
+    sql_print_information("Starting crash recovery...");
 
 #ifndef WILL_BE_DELETED_LATER
   /*
@@ -803,6 +855,8 @@ int ha_recover(HASH *commit_list)
       continue;
     while ((got=(*(*ht)->recover)(list, len)) > 0 )
     {
+      sql_print_information("Found %d prepared transaction(s) in %s",
+                            got, (*ht)->name);
       for (int i=0; i < got; i ++)
       {
         my_xid x=list[i].get_my_xid();
@@ -820,9 +874,21 @@ int ha_recover(HASH *commit_list)
         if (commit_list ?
             hash_search(commit_list, (byte *)&x, sizeof(x)) != 0 :
             tc_heuristic_recover == TC_HEURISTIC_RECOVER_COMMIT)
+        {
+#ifndef DBUG_OFF
+          char buf[XIDDATASIZE*4+6]; // see xid_to_str
+          sql_print_information("commit xid %s", xid_to_str(buf, list+i));
+#endif
           (*(*ht)->commit_by_xid)(list+i);
+        }
         else
+        {
+#ifndef DBUG_OFF
+          char buf[XIDDATASIZE*4+6]; // see xid_to_str
+          sql_print_information("rollback xid %s", xid_to_str(buf, list+i));
+#endif
           (*(*ht)->rollback_by_xid)(list+i);
+        }
       }
       if (got < len)
         break;
@@ -842,6 +908,8 @@ int ha_recover(HASH *commit_list)
                     found_my_xids, opt_tc_log_file);
     DBUG_RETURN(1);
   }
+  if (commit_list)
+    sql_print_information("Crash recovery finished.");
   DBUG_RETURN(0);
 }
 
@@ -1600,7 +1668,7 @@ void handler::print_error(int error, myf errflag)
    SYNOPSIS
    error        error code previously returned by handler
    buf          Pointer to String where to add error message
-   
+
    Returns true if this is a temporary error
  */
 
@@ -1636,7 +1704,7 @@ uint handler::get_dup_key(int error)
 
   RETURN
     0   If we successfully deleted at least one file from base_ext and
-	didn't get any other errors than ENOENT    
+	didn't get any other errors than ENOENT
     #   Error
 */
 
