@@ -996,3 +996,79 @@ void st_select_lex_node::exclude()
        master->slave= next;
   */
 }
+
+/*
+  This is used for UNION & subselect to create a new table list of all used 
+  tables.
+  The table_list->table entry in all used tables are set to point
+  to the entries in this list.
+*/
+
+// interface
+bool st_select_lex_unit::create_total_list(THD *thd, st_lex *lex,
+					   TABLE_LIST **result)
+{
+  *result= 0;
+  return create_total_list_n_last_return(thd, lex, &result);
+}
+
+// list creator
+bool st_select_lex_unit::create_total_list_n_last_return(THD *thd, st_lex *lex,
+							 TABLE_LIST ***result)
+{
+  TABLE_LIST *slave_list_first=0, **slave_list_last= &slave_list_first;
+  TABLE_LIST **new_table_list= *result, *aux;
+  SELECT_LEX *sl= (SELECT_LEX*)slave;
+  for (; sl; sl= (SELECT_LEX*)sl->next)
+  {
+    // check usage of ORDER BY in union
+    if (sl->order_list.first && sl->next && !sl->braces)
+    {
+      net_printf(&thd->net,ER_WRONG_USAGE,"UNION","ORDER BY");
+      return 1;
+    }
+    if (sl->slave)
+      if (((SELECT_LEX_UNIT *)
+	   sl->slave)->create_total_list_n_last_return(thd, lex,
+						       &slave_list_last))
+	return 1;
+    if ((aux= (TABLE_LIST*) sl->table_list.first))
+    {
+      TABLE_LIST *next;
+      for (; aux; aux= next)
+      {
+	TABLE_LIST *cursor;
+	next= aux->next;
+	for (cursor= **result; cursor; cursor= cursor->next)
+	  if (!strcmp(cursor->db, aux->db) &&
+	      !strcmp(cursor->real_name, aux->real_name) &&
+	      !strcmp(cursor->name, aux->name))
+	    break;
+	if (!cursor)
+	{
+	  /* Add not used table to the total table list */
+	  aux->lock_type= lex->lock_option;
+	  if (!(cursor= (TABLE_LIST *) thd->memdup((char*) aux,
+						   sizeof(*aux))))
+	  {
+	    send_error(&thd->net,0);
+	    return 1;
+	  }
+	  *new_table_list= cursor;
+	  new_table_list= &cursor->next;
+	  *new_table_list= 0;			// end result list
+	}
+	else
+	  aux->shared= 1;			// Mark that it's used twice
+	aux->table_list= cursor;
+      }
+    }
+  }
+  if (slave_list_first)
+  {
+    *new_table_list= slave_list_first;
+    new_table_list= slave_list_last;
+  }
+  *result= new_table_list;
+  return 0;
+}

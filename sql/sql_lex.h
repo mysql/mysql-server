@@ -207,6 +207,7 @@ private:
    SELECT_LEX_UNIT - unit of selects (UNION, INTERSECT, ...) group 
    SELECT_LEXs
 */
+struct st_lex;
 struct st_select_lex_unit: public st_select_lex_node {
   /*
     Pointer to 'last' select or pointer to unit where stored
@@ -216,6 +217,10 @@ struct st_select_lex_unit: public st_select_lex_node {
   /* LIMIT clause runtime counters */
   ha_rows select_limit_cnt, offset_limit_cnt;
   void init_query();
+  bool create_total_list(THD *thd, st_lex *lex, TABLE_LIST **result);
+private:
+  bool create_total_list_n_last_return(THD *thd, st_lex *lex,
+				       TABLE_LIST ***result);
 };
 typedef struct st_select_lex_unit SELECT_LEX_UNIT;
 
