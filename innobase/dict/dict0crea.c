@@ -25,6 +25,11 @@ Created 1/8/1996 Heikki Tuuri
 #include "trx0roll.h"
 #include "usr0sess.h"
 
+/* Maximum lengths of identifiers in MySQL, in bytes */
+#define MAX_TABLE_NAME_LEN	64
+#define MAX_COLUMN_NAME_LEN	64
+#define MAX_IDENTIFIER_LEN	255
+
 /*********************************************************************
 Based on a table object, this function builds the entry to be inserted
 in the SYS_TABLES system table. */
@@ -315,34 +320,6 @@ dict_build_col_def_step(
 	
 	return(DB_SUCCESS);
 }
-
-#ifdef notdefined
-
-/*************************************************************************
-Creates the single index for a cluster: it contains all the columns of
-the cluster definition in the order they were defined. */
-static
-void
-dict_create_index_for_cluster_step(
-/*===============================*/
-	tab_node_t*	node)	/* in: table create node */
-{
-	dict_index_t*	index;
-	ulint		i;
-	dict_col_t*	col;
-	
-	index = dict_mem_index_create(table->name, "IND_DEFAULT_CLUSTERED",
-				table->space, DICT_CLUSTERED,
-				table->n_cols);
-
-	for (i = 0; i < table->n_cols; i++) {
-		col = dict_table_get_nth_col(table, i);
-		dict_mem_index_add_field(index, col->name, 0, 0);
-	}
-				
-	(node->cluster)->index = index;
-}
-#endif
 
 /*********************************************************************
 Based on an index object, this function builds the entry to be inserted
@@ -727,27 +704,6 @@ dict_drop_index_tree(
 	page_rec_write_index_page_no(rec, DICT_SYS_INDEXES_PAGE_NO_FIELD,
 							FIL_NULL, mtr);
 }
-	
-#ifdef notdefined
-/*************************************************************************
-Creates the default clustered index for a table: the records are ordered
-by row id. */
-
-void
-dict_create_default_index(
-/*======================*/
-	dict_table_t*	table,	/* in: table */
-	trx_t*		trx)	/* in: transaction handle */
-{
-	dict_index_t*	index;
-	
-	index = dict_mem_index_create(table->name, "IND_DEFAULT_CLUSTERED",
-				table->space, DICT_CLUSTERED, 0);
-
-	dict_create_index(index, trx); 
-}
-
-#endif
 
 /*************************************************************************
 Creates a table create graph. */
@@ -1198,6 +1154,7 @@ dict_create_add_foreigns_to_dictionary(
 	que_t*		graph;
 	ulint		number	= start_id + 1;
 	ulint		len;
+	ulint		namelen;
 	ulint		error;
 	char*		ebuf	= dict_foreign_err_buf;
 	ulint		i;
@@ -1228,14 +1185,20 @@ loop:
 	"PROCEDURE ADD_FOREIGN_DEFS_PROC () IS\n"
 	"BEGIN\n");
 
+	namelen = strlen(table->name);
+	ut_a(namelen < MAX_TABLE_NAME_LEN);
+
 	if (foreign->id == NULL) {
 		/* Generate a new constraint id */
-		foreign->id = mem_heap_alloc(foreign->heap,
-						ut_strlen(table->name)
-						+ 20);
+		foreign->id = mem_heap_alloc(foreign->heap, namelen + 20);
+		/* no overflow if number < 1e13 */
 		sprintf(foreign->id, "%s_ibfk_%lu", table->name, number);
 		number++;
 	}
+
+	ut_a(strlen(foreign->id) < MAX_IDENTIFIER_LEN);
+	ut_a(len < (sizeof buf)
+		- 46 - 2 * MAX_TABLE_NAME_LEN - MAX_IDENTIFIER_LEN - 20);
 
 	len += sprintf(buf + len,
 	"INSERT INTO SYS_FOREIGN VALUES('%s', '%s', '%s', %lu);\n",
@@ -1246,6 +1209,9 @@ loop:
 					+ (foreign->type << 24));
 
 	for (i = 0; i < foreign->n_fields; i++) {
+		ut_a(len < (sizeof buf)
+			- 51 - 2 * MAX_COLUMN_NAME_LEN
+			- MAX_IDENTIFIER_LEN - 20);
 
 		len += sprintf(buf + len,
 	"INSERT INTO SYS_FOREIGN_COLS VALUES('%s', %lu, '%s', '%s');\n",
@@ -1255,6 +1221,7 @@ loop:
 					foreign->referenced_col_names[i]);
 	}
 
+	ut_a(len < (sizeof buf) - 19)
 	len += sprintf(buf + len,"COMMIT WORK;\nEND;\n");
 
 	graph = pars_sql(buf);
@@ -1276,14 +1243,14 @@ loop:
 
 	if (error == DB_DUPLICATE_KEY) {
 		mutex_enter(&dict_foreign_err_mutex);
-		ut_sprintf_timestamp(dict_foreign_err_buf);
+		ut_sprintf_timestamp(ebuf);
+		ut_a(strlen(ebuf) < DICT_FOREIGN_ERR_BUF_LEN
+			- MAX_TABLE_NAME_LEN - MAX_IDENTIFIER_LEN - 201);
 		sprintf(ebuf + strlen(ebuf),
-" Error in foreign key constraint creation for table %.500s.\n"
-"A foreign key constraint of name %.500s\n"
+" Error in foreign key constraint creation for table %s.\n"
+"A foreign key constraint of name %s\n"
 "already exists (note that internally InnoDB adds 'databasename/'\n"
 "in front of the user-defined constraint name).\n", table->name, foreign->id);
-
-		ut_a(strlen(ebuf) < DICT_FOREIGN_ERR_BUF_LEN);
 
 		mutex_exit(&dict_foreign_err_mutex);
 
@@ -1297,8 +1264,10 @@ loop:
 
 		mutex_enter(&dict_foreign_err_mutex);
 		ut_sprintf_timestamp(ebuf);
+		ut_a(strlen(ebuf) < DICT_FOREIGN_ERR_BUF_LEN
+			- MAX_TABLE_NAME_LEN - 124);
 		sprintf(ebuf + strlen(ebuf),
-" Internal error in foreign key constraint creation for table %.500s.\n"
+" Internal error in foreign key constraint creation for table %s.\n"
 "See the MySQL .err log in the datadir for more information.\n", table->name);
 		mutex_exit(&dict_foreign_err_mutex);
 

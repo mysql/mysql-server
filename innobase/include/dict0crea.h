@@ -17,15 +17,6 @@ Created 1/8/1996 Heikki Tuuri
 #include "mtr0mtr.h"
 					
 /*************************************************************************
-Creates the default clustered index for a table: the records are ordered
-by row id. */
-
-void
-dict_create_default_index(
-/*======================*/
-	dict_table_t*	table,	/* in: table */
-	trx_t*		trx);	/* in: transaction handle */
-/*************************************************************************
 Creates a table create graph. */
 
 tab_node_t*
