@@ -1210,7 +1210,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     DBUG_PRINT("query",("%-.4096s",thd->query));
     mysql_parse(thd,thd->query, thd->query_length);
 
-    while (!thd->killed && !thd->fatal_error && thd->lex.found_colon)
+    while (!thd->killed && !thd->is_fatal_error && thd->lex.found_colon)
     {
       char *packet= thd->lex.found_colon;
       /* 
