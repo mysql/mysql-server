@@ -2331,31 +2331,22 @@ os_file_dirname(
 				pathname */
 	const char*	path)	/* in: pathname */
 {
-	char*	dir;
-	int 	i, length, last_slash;
-
 	/* find the offset of the last slash */
-	length = ut_strlen(path);
-	for (i = length - 1; i >= 0 && path[i] != OS_FILE_PATH_SEPARATOR; i++);
-	last_slash = i;
-
-	if (last_slash < 0) {
+	const char* last_slash = strrchr(path, OS_FILE_PATH_SEPARATOR);
+	if (!last_slash) {
 		/* no slash in the path, return "." */
 		return(mem_strdup("."));
 	}
 
 	/* ok, there is a slash */
 
-	if (last_slash == 0) {
+	if (last_slash == path) {
 		/* last slash is the first char of the path */
 		return(mem_strdup("/"));
 	}
 
 	/* non-trivial directory component */
-	dir = mem_strdup(path);
-	dir[last_slash] = 0;
-
-	return(dir);
+	return(mem_strdupl(path, last_slash - path));
 }
 	
 /********************************************************************
@@ -2369,12 +2360,12 @@ os_file_create_subdirs_if_needed(
 	const char*	path)	/* in: path name */
 {
 	char*		subdir;
-	static char 	rootdir[2] = { OS_FILE_PATH_SEPARATOR, 0 };
 	ibool 		success, subdir_exists;
 	os_file_type_t	type;
 
 	subdir = os_file_dirname(path);
-	if (0 == strcmp(subdir, rootdir) || 0 == strcmp(subdir, ".")) {
+	if (strlen(subdir) == 1
+	    && (*subdir == OS_FILE_PATH_SEPARATOR || *subdir == '.')) {
 		/* subdir is root or cwd, nothing to do */
 		ut_free(subdir);
 		return(TRUE);
