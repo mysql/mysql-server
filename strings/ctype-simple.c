@@ -1001,17 +1001,20 @@ ulong my_scan_8bit(CHARSET_INFO *cs, const char *str, const char *end, int sq)
   }
 }
 
+
 void my_fill_8bit(CHARSET_INFO *cs __attribute__((unused)),
 		   char *s, uint l, int fill)
 {
   bfill(s,l,fill);
 }
 
+
 uint my_numchars_8bit(CHARSET_INFO *cs __attribute__((unused)),
 		      const char *b, const char *e)
 {
   return e-b;
 }
+
 
 uint my_charpos_8bit(CHARSET_INFO *cs __attribute__((unused)),
 		     const char *b  __attribute__((unused)),
@@ -1021,14 +1024,16 @@ uint my_charpos_8bit(CHARSET_INFO *cs __attribute__((unused)),
   return pos;
 }
 
-uint my_wellformedlen_8bit(CHARSET_INFO *cs __attribute__((unused)),
-			const char *start,
-			const char *end,
-			uint nchars)
+
+uint my_well_formed_len_8bit(CHARSET_INFO *cs __attribute__((unused)),
+			     const char *start,
+			     const char *end,
+			     uint nchars)
 {
   uint nbytes= (uint) (end-start);
-  return nbytes < nchars ? nbytes : nchars;
+  return min(nbytes, nchars);
 }
+
 
 uint my_lengthsp_8bit(CHARSET_INFO *cs __attribute__((unused)),
 		      const char *ptr, uint length)
@@ -1106,7 +1111,7 @@ MY_CHARSET_HANDLER my_charset_8bit_handler=
     my_mbcharlen_8bit,		/* mbcharlen     */
     my_numchars_8bit,
     my_charpos_8bit,
-    my_wellformedlen_8bit,
+    my_well_formed_len_8bit,
     my_lengthsp_8bit,
     my_mb_wc_8bit,
     my_wc_mb_8bit,

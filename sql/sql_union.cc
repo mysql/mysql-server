@@ -331,6 +331,14 @@ int st_select_lex_unit::exec()
 	    */
 	    setup_table_map(table_list->table, table_list, tablenr);
 	  }
+	  /*
+	    Mark that we are using all fields in the table. This is needed
+	    for InnoDB when using the same table but different fields in
+	    an UNION
+	    QQ:  Replace query_id with a bit map of used fields and
+		 change this for each union part. After this change,
+		 this code can be removed.
+	  */
 	  for (unsigned int i=0; i < table_list->table->fields; i++)
 	    table_list->table->field[i]->query_id= query_id;
 	}

@@ -688,15 +688,15 @@ int yylex(void *arg, void *yythd)
       yylval->lex_str= get_token(lex,yyLength());
       return(result_state);
 
-    case MY_LEX_USER_VARIABLE_DELIMITER:
+    case MY_LEX_USER_VARIABLE_DELIMITER:	// Found quote char
     {
       uint double_quotes= 0;
       char quote_char= c;                       // Used char
       lex->tok_start=lex->ptr;			// Skip first `
       while ((c=yyGet()))
       {
-	int l;
-	if ((l= my_mbcharlen(cs, c)) == 1)
+	int length;
+	if ((length= my_mbcharlen(cs, c)) == 1)
 	{
 	  if (c == (uchar) NAMES_SEP_CHAR)
 	    break; /* Old .frm format can't handle this char */
@@ -710,12 +710,9 @@ int yylex(void *arg, void *yythd)
 	  }
 	}
 #ifdef USE_MB
-	else if (l > 1)
-	{
-	  lex->ptr += l-1;
-	}
-	else
-	  break;
+	else if (length < 1)
+	  break;				// Error
+	lex->ptr+= length-1;
 #endif
       }
       if (double_quotes)
