@@ -264,6 +264,9 @@ bool opt_large_files= sizeof(my_off_t) > 4;
 #define GET_HA_ROWS GET_ULONG
 #endif
 
+#ifdef HAVE_LIBWRAP
+char *libwrapName= NULL;
+#endif
 
 /*
   Variables to store startup options
@@ -1855,14 +1858,13 @@ struct utsname
   char nodename[FN_REFLEN];
 };
 
+
 int uname(struct utsname *a)
 {
   return -1;
 }
-#endif
 
 
-#ifdef __WIN__
 extern "C" pthread_handler_decl(handle_shutdown,arg)
 {
   MSG msg;
@@ -1878,7 +1880,7 @@ extern "C" pthread_handler_decl(handle_shutdown,arg)
   return 0;
 }
 
-int __stdcall handle_kill(ulong ctrl_type)
+int STDCALL handle_kill(ulong ctrl_type)
 {
   if (ctrl_type == CTRL_CLOSE_EVENT ||
       ctrl_type == CTRL_SHUTDOWN_EVENT)
@@ -1918,10 +1920,6 @@ extern "C" pthread_handler_decl(handle_shutdown,arg)
 
 
 const char *load_default_groups[]= { "mysqld","server",0 };
-
-#ifdef HAVE_LIBWRAP
-char *libwrapName=NULL;
-#endif
 
 bool open_log(MYSQL_LOG *log, const char *hostname,
 	      const char *opt_name, const char *extension,
