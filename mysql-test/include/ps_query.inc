@@ -297,7 +297,7 @@ execute stmt1 using @arg00;
 
 ##### parameter used in limit clause
 set @arg00=1;
-prepare stmt1 from ' select a,b from t1
+prepare stmt1 from ' select a,b from t1 order by a
 limit 1 ';
 execute stmt1 ;
 # currently (May 2004, Version 4.1) it is impossible
