@@ -2844,6 +2844,8 @@ String *Item_func_uuid::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   char *s;
+  THD *thd= current_thd;
+
   pthread_mutex_lock(&LOCK_uuid_generator);
   if (! uuid_time) /* first UUID() call. initializing data */
   {
@@ -2858,7 +2860,7 @@ String *Item_func_uuid::val_str(String *str)
         with a clock_seq value (initialized random below), we use a separate
         randominit() here
       */
-      randominit(&uuid_rand, tmp + (ulong)current_thd, tmp + query_id);
+      randominit(&uuid_rand, tmp + (ulong) thd, tmp + query_id);
       for (i=0; i < (int)sizeof(mac); i++)
         mac[i]=(uchar)(my_rnd(&uuid_rand)*255);
     }
@@ -2868,7 +2870,8 @@ String *Item_func_uuid::val_str(String *str)
       *--s=_dig_vec_lower[mac[i] & 15];
       *--s=_dig_vec_lower[mac[i] >> 4];
     }
-    randominit(&uuid_rand, tmp + (ulong)start_time, tmp + bytes_sent);
+    randominit(&uuid_rand, tmp + (ulong)start_time,
+	       tmp + thd->status_var.bytes_sent);
     set_clock_seq_str();
   }
 

@@ -468,16 +468,20 @@ read_first: %10lu\n\
 write:      %10lu\n\
 delete      %10lu\n\
 update:     %10lu\n",
-	 ha_read_key_count, ha_read_next_count,
-	 ha_read_rnd_count, ha_read_first_count,
-	 ha_write_count, ha_delete_count, ha_update_count);
+	 thd->status_var.ha_read_key_count,
+	 thd->status_var.ha_read_next_count,
+	 thd->status_var.ha_read_rnd_count,
+	 thd->status_var.ha_read_first_count,
+	 thd->status_var.ha_write_count,
+	 thd->status_var.ha_delete_count,
+	 thd->status_var.ha_update_count);
   pthread_mutex_unlock(&LOCK_status);
   printf("\nTable status:\n\
 Opened tables: %10lu\n\
 Open tables:   %10lu\n\
 Open files:    %10lu\n\
 Open streams:  %10lu\n",
-	 opened_tables,
+	 thd->status_var.opened_tables,
 	 (ulong) cached_tables(),
 	 (ulong) my_file_opened,
 	 (ulong) my_stream_opened);

@@ -1342,7 +1342,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   case COM_INIT_DB:
   {
     LEX_STRING tmp;
-    statistic_increment(com_stat[SQLCOM_CHANGE_DB],&LOCK_status);
+    statistic_increment(thd->status_var.com_stat[SQLCOM_CHANGE_DB],
+			&LOCK_status);
     thd->convert_string(&tmp, system_charset_info,
 			packet, strlen(packet), thd->charset());
     if (!mysql_change_db(thd, tmp.str))
@@ -1363,7 +1364,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     uint db_len= *(uchar*) packet;
     uint tbl_len= *(uchar*) (packet + db_len + 1);
 
-    statistic_increment(com_other, &LOCK_status);
+    statistic_increment(thd->status_var.com_other, &LOCK_status);
     thd->slow_command= TRUE;
     db= thd->alloc(db_len + tbl_len + 2);
     tbl_name= strmake(db, packet + 1, db_len)+1;
@@ -1377,7 +1378,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     thd->change_user();
     thd->clear_error();                         // if errors from rollback
 
-    statistic_increment(com_other, &LOCK_status);
+    statistic_increment(thd->status_var.com_other, &LOCK_status);
     char *user= (char*) packet;
     char *passwd= strend(user)+1;
     /* 
@@ -1544,7 +1545,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     TABLE_LIST table_list;
     LEX_STRING conv_name;
 
-    statistic_increment(com_stat[SQLCOM_SHOW_FIELDS],&LOCK_status);
+    statistic_increment(thd->status_var.com_stat[SQLCOM_SHOW_FIELDS],
+			&LOCK_status);
     bzero((char*) &table_list,sizeof(table_list));
     if (!(table_list.db=thd->db))
     {
@@ -1587,7 +1589,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     {
       char *db=thd->strdup(packet), *alias;
 
-      statistic_increment(com_stat[SQLCOM_CREATE_DB],&LOCK_status);
+      statistic_increment(thd->status_var.com_stat[SQLCOM_CREATE_DB],
+			  &LOCK_status);
       // null test to handle EOM
       if (!db || !(alias= thd->strdup(db)) || check_db_name(db))
       {
@@ -1602,7 +1605,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     }
   case COM_DROP_DB:				// QQ: To be removed
     {
-      statistic_increment(com_stat[SQLCOM_DROP_DB],&LOCK_status);
+      statistic_increment(thd->status_var.com_stat[SQLCOM_DROP_DB],
+			  &LOCK_status);
       char *db=thd->strdup(packet), *alias;
       /*  null test to handle EOM */
       if (!db || !(alias= thd->strdup(db)) || check_db_name(db))
@@ -1624,7 +1628,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 #ifndef EMBEDDED_LIBRARY
   case COM_BINLOG_DUMP:
     {
-      statistic_increment(com_other,&LOCK_status);
+      statistic_increment(thd->status_var.com_other,&LOCK_status);
       thd->slow_command = TRUE;
       if (check_global_access(thd, REPL_SLAVE_ACL))
 	break;
@@ -1650,7 +1654,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 #endif
   case COM_REFRESH:
     {
-      statistic_increment(com_stat[SQLCOM_FLUSH],&LOCK_status);
+      statistic_increment(thd->status_var.com_stat[SQLCOM_FLUSH],
+			  &LOCK_status);
       ulong options= (ulong) (uchar) packet[0];
       if (check_global_access(thd,RELOAD_ACL))
 	break;
@@ -1664,7 +1669,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 #ifndef EMBEDDED_LIBRARY
   case COM_SHUTDOWN:
   {
-    statistic_increment(com_other,&LOCK_status);
+    statistic_increment(thd->status_var.com_other, &LOCK_status);
     if (check_global_access(thd,SHUTDOWN_ACL))
       break; /* purecov: inspected */
     /*
@@ -1703,7 +1708,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   case COM_STATISTICS:
   {
     mysql_log.write(thd,command,NullS);
-    statistic_increment(com_stat[SQLCOM_SHOW_STATUS],&LOCK_status);
+    statistic_increment(thd->status_var.com_stat[SQLCOM_SHOW_STATUS],
+			&LOCK_status);
 #ifndef EMBEDDED_LIBRARY
     char buff[200];
 #else
@@ -1713,8 +1719,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     sprintf((char*) buff,
 	    "Uptime: %ld  Threads: %d  Questions: %lu  Slow queries: %ld  Opens: %ld  Flush tables: %ld  Open tables: %u  Queries per second avg: %.3f",
 	    uptime,
-	    (int) thread_count,thd->query_id,long_query_count,
-	    opened_tables,refresh_version, cached_tables(),
+	    (int) thread_count,thd->query_id,thd->status_var.long_query_count,
+	    thd->status_var.opened_tables,refresh_version, cached_tables(),
 	    uptime ? (float)thd->query_id/(float)uptime : 0);
 #ifdef SAFEMALLOC
     if (sf_malloc_cur_memory)				// Using SAFEMALLOC
@@ -1729,11 +1735,12 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     break;
   }
   case COM_PING:
-    statistic_increment(com_other,&LOCK_status);
+    statistic_increment(thd->status_var.com_other, &LOCK_status);
     send_ok(thd);				// Tell client we are alive
     break;
   case COM_PROCESS_INFO:
-    statistic_increment(com_stat[SQLCOM_SHOW_PROCESSLIST],&LOCK_status);
+    statistic_increment(thd->status_var.com_stat[SQLCOM_SHOW_PROCESSLIST],
+			&LOCK_status);
     if (!thd->priv_user[0] && check_global_access(thd,PROCESS_ACL))
       break;
     mysql_log.write(thd,command,NullS);
@@ -1743,14 +1750,15 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     break;
   case COM_PROCESS_KILL:
   {
-    statistic_increment(com_stat[SQLCOM_KILL],&LOCK_status);
+    statistic_increment(thd->status_var.com_stat[SQLCOM_KILL], &LOCK_status);
     ulong id=(ulong) uint4korr(packet);
     kill_one_thread(thd,id,false);
     break;
   }
   case COM_SET_OPTION:
   {
-    statistic_increment(com_stat[SQLCOM_SET_OPTION], &LOCK_status);
+    statistic_increment(thd->status_var.com_stat[SQLCOM_SET_OPTION],
+			&LOCK_status);
     enum_mysql_set_option command= (enum_mysql_set_option) uint2korr(packet);
     switch (command) {
     case MYSQL_OPTION_MULTI_STATEMENTS_ON:
@@ -1768,7 +1776,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     break;
   }
   case COM_DEBUG:
-    statistic_increment(com_other,&LOCK_status);
+    statistic_increment(thd->status_var.com_other, &LOCK_status);
     if (check_global_access(thd, SUPER_ACL))
       break;					/* purecov: inspected */
     mysql_print_status(thd);
@@ -1807,7 +1815,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 	  (SERVER_QUERY_NO_INDEX_USED | SERVER_QUERY_NO_GOOD_INDEX_USED)) &&
 	 (specialflag & SPECIAL_LOG_QUERIES_NOT_USING_INDEXES)))
     {
-      long_query_count++;
+      thd->status_var.long_query_count++;
       mysql_slow_log.write(thd, thd->query, thd->query_length, start_of_query);
     }
   }
@@ -1970,7 +1978,8 @@ mysql_execute_command(THD *thd)
     DBUG_RETURN(-1);
   }
 
-  statistic_increment(com_stat[lex->sql_command],&LOCK_status);
+  statistic_increment(thd->status_var.com_stat[lex->sql_command],
+		      &LOCK_status);
   switch (lex->sql_command) {
   case SQLCOM_SELECT:
   {
@@ -2936,13 +2945,23 @@ unsent_create_error:
     res= mysqld_show_column_types(thd);
     break;
   case SQLCOM_SHOW_STATUS:
-    res= mysqld_show(thd,(lex->wild ? lex->wild->ptr() : NullS),status_vars,
-		     OPT_GLOBAL, &LOCK_status);
+    STATUS_VAR tmp;
+    if (lex->option_type == OPT_GLOBAL)
+    {
+      pthread_mutex_lock(&LOCK_status);
+      calc_sum_of_all_status(&tmp);
+    }
+    res= mysqld_show(thd, (lex->wild ? lex->wild->ptr() : NullS),
+		     status_vars, OPT_GLOBAL, &LOCK_status,
+		     (lex->option_type == OPT_GLOBAL ? 
+		      &tmp: &thd->status_var));
+    if (lex->option_type == OPT_GLOBAL)
+      pthread_mutex_unlock(&LOCK_status);
     break;
   case SQLCOM_SHOW_VARIABLES:
     res= mysqld_show(thd, (lex->wild ? lex->wild->ptr() : NullS),
 		     init_vars, lex->option_type,
-		     &LOCK_global_system_variables);
+		     &LOCK_global_system_variables, 0);
     break;
   case SQLCOM_SHOW_LOGS:
 #ifdef DONT_ALLOW_SHOW_COMMANDS
@@ -5600,6 +5619,13 @@ static void refresh_status(void)
 		    (uint) ((char*) (ptr->value) -
 			    (char*) &dflt_key_cache_var));
       *(ulong*) value= 0;
+    }
+    else if (ptr->type == SHOW_LONG_STATUS)
+    {
+      THD *thd= current_thd;
+      /* We must update the global status before cleaning up the thread */
+      add_to_status(&global_status_var, &thd->status_var);
+      bzero((char*) &thd->status_var, sizeof(thd->status_var));
     }
   }
   pthread_mutex_unlock(&LOCK_status);
