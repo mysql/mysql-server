@@ -53,3 +53,11 @@ CREATE TABLE t1 (a  VARCHAR(255)) DEFAULT CHARSET koi8r;
 INSERT INTO t1  VALUES (_koi8r x'C1C2C3C4C5');
 --exec $MYSQL_DUMP  --skip-comments test t1
 DROP TABLE t1;
+
+#
+# Bug #2592
+#
+
+create table ```a` (i int);
+--exec $MYSQL_DUMP  --skip-comments test
+drop table ```a`;
