@@ -251,7 +251,7 @@ Field *Item_func::tmp_table_field(TABLE *t_arg)
     else
       res= new Field_string(max_length, maybe_null, name, t_arg, charset());
     break;
-  case ROW_RESULT:
+  default:
     // This case should never be choosen
     DBUG_ASSERT(0);
     break;
@@ -910,7 +910,7 @@ String *Item_func_min_max::val_str(String *str)
     }
     return res;
   }
-  case ROW_RESULT:
+  default:
     // This case should never be choosen
     DBUG_ASSERT(0);
     return 0;
@@ -1466,7 +1466,7 @@ bool udf_handler::get_arguments()
 	to+= ALIGN_SIZE(sizeof(double));
       }
       break;
-    case ROW_RESULT:
+    default:
       // This case should never be choosen
       DBUG_ASSERT(0);
       ;
@@ -1926,7 +1926,7 @@ longlong Item_func_benchmark::val_int()
     case STRING_RESULT:
       (void) args[0]->val_str(&tmp);
       break;
-    case ROW_RESULT:
+    default:
       // This case should never be choosen
       DBUG_ASSERT(0);
       return 0;
@@ -2062,7 +2062,7 @@ Item_func_set_user_var::update()
     (void) val_str(&tmp);
     break;
   }
-  case ROW_RESULT:
+  default:
     // This case should never be choosen
     DBUG_ASSERT(0);
     break;
@@ -2143,7 +2143,7 @@ Item_func_get_user_var::val_str(String *str)
       return NULL;
     }
     break;
-  case ROW_RESULT:
+  default:
     // This case should never be choosen
     DBUG_ASSERT(0);
     break;
@@ -2164,7 +2164,7 @@ double Item_func_get_user_var::val()
     return (double) *(longlong*) entry->value;
   case STRING_RESULT:
     return atof(entry->value);			// This is null terminated
-  case ROW_RESULT:
+  default:
     // This case should never be choosen
     DBUG_ASSERT(0);
     return 0; 
@@ -2185,7 +2185,7 @@ longlong Item_func_get_user_var::val_int()
     return *(longlong*) entry->value;
   case STRING_RESULT:
     return strtoull(entry->value,NULL,10);	// String is null terminated
-  case ROW_RESULT:
+  default:
     // This case should never be choosen
     DBUG_ASSERT(0);
     return 0;
