@@ -5,7 +5,7 @@
 # Mysql daemon start/stop script.
 
 # Usually this is put in /etc/init.d (at least on machines SYSV R4 based
-# systems) and linked to /etc/rc3.d/S99mysql and /etc/rc0.d/S01mysql.
+# systems) and linked to /etc/rc3.d/S99mysql and /etc/rc0.d/K01mysql.
 # When this is done the mysql server will be started when the machine is
 # started and shut down when the systems goes down.
 
