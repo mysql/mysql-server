@@ -2328,6 +2328,23 @@ mysql_execute_command(void)
     res=mysql_rm_db(thd,lex->name,lex->drop_if_exists,0);
     break;
   }
+  case SQLCOM_ALTER_DB:
+  {
+    if (!strip_sp(lex->name) || check_db_name(lex->name))
+    {
+      net_printf(&thd->net,ER_WRONG_DB_NAME, lex->name);
+      break;
+    }
+    if (check_access(thd,DROP_ACL,lex->name,0,1))
+      break;
+    if (thd->locked_tables || thd->active_transaction())
+    {
+      send_error(&thd->net,ER_LOCK_OR_ACTIVE_TRANSACTION);
+      goto error;
+    }
+    res=mysql_alter_db(thd,lex->name,&lex->create_info,0);
+    break;
+  }
   case SQLCOM_CREATE_FUNCTION:
     if (check_access(thd,INSERT_ACL,"mysql",0,1))
       break;
