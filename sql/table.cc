@@ -261,8 +261,6 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
       outparam->record[1]=outparam->record[0]; /* purecov: inspected */
   }
   
-  outparam->default_values= outparam->record[2];
-
   VOID(my_seek(file,pos,MY_SEEK_SET,MYF(0)));
   if (my_read(file,(byte*) head,288,MYF(MY_NABP))) goto err_not_open;
   if (crypted)
