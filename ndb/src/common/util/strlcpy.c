@@ -31,10 +31,7 @@
  * SUCH DAMAGE.
  */
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
-
+#include <ndb_global.h>
 #include <ndb_types.h>
 
 /* RCSID("$KTH: strlcpy.c,v 1.1 2000/08/16 01:23:48 lha Exp $"); */

@@ -17,6 +17,7 @@
 #ifndef __NDBSTRING_H_INCLUDED__
 #define __NDBSTRING_H_INCLUDED__
 
+#include <ndb_global.h>
 #include <sys/types.h>
 #include <string.h>
 
