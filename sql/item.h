@@ -230,11 +230,12 @@ class Item_splocal : public Item
 private:
   
   uint m_offset;
+  LEX_STRING m_name;
 
 public:
 
-  Item_splocal(uint offset)
-    : m_offset(offset)
+  Item_splocal(LEX_STRING name, uint offset)
+    : m_offset(offset), m_name(name)
   {
     Item::maybe_null= TRUE;
   }
@@ -304,6 +305,11 @@ public:
   inline int save_in_field(Field *field, bool no_conversions)
   {
     return this_item()->save_in_field(field, no_conversions);
+  }
+
+  inline void print(String *str)
+  {
+    str->append(m_name.str, m_name.length);
   }
 };
 
