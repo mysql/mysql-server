@@ -45,7 +45,7 @@ DROP TABLE t1;
 #
 # Testing of IFNULL
 #
-create table t1 (a int, b int) type=myisam;
+create table t1 (a int, b int) engine=myisam;
 insert into t1 values(20,null);
 select t2.b, ifnull(t2.b,"this is null") from t1 as t2 left join t1 as t3 on
 t2.b=t3.a;

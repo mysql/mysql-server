@@ -688,14 +688,14 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
       {
         byte *pos;
         uint flags=field->flags;
-        String type(tmp,sizeof(tmp), system_charset_info);
+        String type(tmp,sizeof(tmp), field->charset());
         uint col_access;
         bool null_default_value=0;
 
 	protocol->prepare_for_resend();
         protocol->store(field->field_name, system_charset_info);
         field->sql_type(type);
-        protocol->store(type.ptr(), type.length(), system_charset_info);
+        protocol->store(type.ptr(), type.length(), type.charset());
 	if (verbose)
 	  protocol->store(field->has_charset() ? field->charset()->name : "NULL",
 			system_charset_info);
@@ -713,7 +713,7 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
           null_default_value=1;
         if (!null_default_value && !field->is_null())
         {                                               // Not null by default
-          type.set(tmp,sizeof(tmp),system_charset_info);
+          type.set(tmp, sizeof(tmp), field->charset());
           field->val_str(&type,&type);
           protocol->store(type.ptr(),type.length(),type.charset());
         }
@@ -1114,7 +1114,7 @@ store_create_info(THD *thd, TABLE *table, String *packet)
       packet->append(" default ", 9);
       if (!field->is_null())
       {                                             // Not null by default
-        type.set(tmp,sizeof(tmp),&my_charset_bin);
+        type.set(tmp, sizeof(tmp), field->charset());
         field->val_str(&type,&type);
 	if (type.length())
           append_unescaped(packet, type.ptr(), type.length());
@@ -1217,7 +1217,7 @@ store_create_info(THD *thd, TABLE *table, String *packet)
   packet->append("\n)", 2);
   if (!(thd->variables.sql_mode & MODE_NO_TABLE_OPTIONS) && !foreign_db_mode)
   {
-    packet->append(" TYPE=", 6);
+    packet->append(" ENGINE=", 8);
     packet->append(file->table_type());
     
     if (table->table_charset &&

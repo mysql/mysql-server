@@ -1,7 +1,7 @@
 drop table if exists t1,t2,t3;
 flush status;
 set autocommit=0;
-create table t1 (a int not null) type=innodb;
+create table t1 (a int not null) engine=innodb;
 insert into t1 values (1),(2),(3);
 select * from t1;
 a
@@ -15,7 +15,7 @@ drop table t1;
 commit;
 set autocommit=1;
 begin;
-create table t1 (a int not null) type=innodb;
+create table t1 (a int not null) engine=innodb;
 insert into t1 values (1),(2),(3);
 select * from t1;
 a
@@ -27,9 +27,9 @@ Variable_name	Value
 Qcache_queries_in_cache	0
 drop table t1;
 commit;
-create table t1 (a int not null) type=innodb;
-create table t2 (a int not null) type=innodb;
-create table t3 (a int not null) type=innodb;
+create table t1 (a int not null) engine=innodb;
+create table t2 (a int not null) engine=innodb;
+create table t3 (a int not null) engine=innodb;
 insert into t1 values (1),(2);
 insert into t2 values (1),(2);
 insert into t3 values (1),(2);
@@ -99,7 +99,7 @@ show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	1
 drop table if exists t1;
-CREATE TABLE t1 (id int(11) NOT NULL auto_increment, PRIMARY KEY  (id)) TYPE=InnoDB;
+CREATE TABLE t1 (id int(11) NOT NULL auto_increment, PRIMARY KEY  (id)) ENGINE=InnoDB;
 select count(*) from t1;
 count(*)
 0

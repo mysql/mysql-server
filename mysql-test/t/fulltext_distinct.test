@@ -15,14 +15,14 @@ CREATE TABLE t1 (
  KEY kt(tag),
  KEY kv(value(15)),
  FULLTEXT KEY kvf(value)
-) TYPE=MyISAM;
+) ENGINE=MyISAM;
 CREATE TABLE t2 (
  id_t2 mediumint unsigned NOT NULL default '0',
  id_t1 mediumint unsigned NOT NULL default '0',
  field_number tinyint unsigned NOT NULL default '0',
  PRIMARY KEY (id_t2,id_t1,field_number),
  KEY id_t1(id_t1)
-) TYPE=MyISAM;
+) ENGINE=MyISAM;
 
 INSERT INTO t1 (tag,value) VALUES ('foo123','bar111');
 INSERT INTO t1 (tag,value) VALUES ('foo123','bar222');

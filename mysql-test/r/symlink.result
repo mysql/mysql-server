@@ -40,7 +40,7 @@ t9	CREATE TABLE `t9` (
   `b` char(16) NOT NULL default '',
   `c` int(11) NOT NULL default '0',
   PRIMARY KEY  (`a`)
-) TYPE=MyISAM DEFAULT CHARSET=latin1 DATA DIRECTORY='TEST_DIR/var/tmp/' INDEX DIRECTORY='TEST_DIR/var/run/'
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 DATA DIRECTORY='TEST_DIR/var/tmp/' INDEX DIRECTORY='TEST_DIR/var/run/'
 alter table t9 rename t8, add column d int not null;
 alter table t8 rename t7;
 rename table t7 to t9;
@@ -62,5 +62,5 @@ t9	CREATE TABLE `t9` (
   `c` int(11) NOT NULL default '0',
   `d` int(11) NOT NULL default '0',
   PRIMARY KEY  (`a`)
-) TYPE=MyISAM DEFAULT CHARSET=latin1 DATA DIRECTORY='TEST_DIR/var/tmp/' INDEX DIRECTORY='TEST_DIR/var/run/'
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 DATA DIRECTORY='TEST_DIR/var/tmp/' INDEX DIRECTORY='TEST_DIR/var/run/'
 drop database mysqltest;

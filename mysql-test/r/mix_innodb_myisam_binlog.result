@@ -1,6 +1,6 @@
 drop table if exists t1, t2;
-create table t1 (a int) type=innodb;
-create table t2 (a int) type=myisam;
+create table t1 (a int) engine=innodb;
+create table t2 (a int) engine=myisam;
 reset master;
 begin;
 insert into t1 values(1);
@@ -121,7 +121,7 @@ master-bin.000001	139	Query	1	139	use `test`; insert into t2 select * from t1
 master-bin.000001	205	Query	1	205	use `test`; BEGIN
 master-bin.000001	245	Query	1	205	use `test`; insert into t1 values(11)
 master-bin.000001	305	Query	1	305	use `test`; COMMIT
-alter table t2 type=INNODB;
+alter table t2 engine=INNODB;
 delete from t1;
 delete from t2;
 reset master;
