@@ -560,10 +560,10 @@ static int parse_url(FEDERATED_SHARE *share, TABLE *table,
 
       if (!share->port)
       {
-        if (strcmp(share->hostname, "localhost") == 0)
-          share->socket= my_strdup("/tmp/mysql.sock", MYF(0));
+        if (strcmp(share->hostname, my_localhost) == 0)
+          share->socket= my_strdup(MYSQL_UNIX_ADDR, MYF(0));
         else
-          share->port= 3306;
+          share->port= MYSQL_PORT;
       }
 
       DBUG_PRINT("ha_federated::parse_url",
@@ -616,8 +616,7 @@ uint ha_federated::convert_row_to_internal_format(byte *record, MYSQL_ROW row)
   DBUG_ENTER("ha_federated::convert_row_to_internal_format");
 
   num_fields= mysql_num_fields(result);
-  lengths= (ulong*) my_malloc(num_fields * sizeof(ulong), MYF(0));
-  cli_fetch_lengths((ulong*) lengths, row, num_fields);
+  lengths= mysql_fetch_lengths(result);
 
   memset(record, 0, table->s->null_bytes);
 
@@ -628,8 +627,6 @@ uint ha_federated::convert_row_to_internal_format(byte *record, MYSQL_ROW row)
     else
       (*field)->store(row[x], lengths[x], &my_charset_bin);
   }
-  my_free((gptr) lengths, MYF(0));
-  lengths= 0;
 
   DBUG_RETURN(0);
 }

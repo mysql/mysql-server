@@ -499,8 +499,6 @@ MYSQL_FIELD_OFFSET STDCALL mysql_field_seek(MYSQL_RES *result,
 					   MYSQL_FIELD_OFFSET offset);
 MYSQL_ROW	STDCALL mysql_fetch_row(MYSQL_RES *result);
 unsigned long * STDCALL mysql_fetch_lengths(MYSQL_RES *result);
-void            STDCALL cli_fetch_lengths(unsigned long *to, MYSQL_ROW column,
-                                          unsigned int field_count);
 MYSQL_FIELD *	STDCALL mysql_fetch_field(MYSQL_RES *result);
 MYSQL_RES *     STDCALL mysql_list_fields(MYSQL *mysql, const char *table,
 					  const char *wild);
