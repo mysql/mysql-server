@@ -1,5 +1,6 @@
 --disable_warnings
 DROP TABLE IF EXISTS t1, `"t"1`;
+drop database if exists mysqldump_test_db;
 --enable_warnings
 
 # XML output

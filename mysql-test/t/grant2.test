@@ -76,6 +76,28 @@ drop table t1;
 delete from mysql.user where user like 'mysqltest\_%';
 delete from mysql.db where user like 'mysqltest\_%';
 flush privileges;
+#
+#
+create table t1 (a int, b int);
+grant select (a) on t1 to mysqltest_1@localhost with grant option;
+connect (mrugly, localhost, mysqltest_1,,mysqltest);
+connection mrugly;
+--error 1143
+grant select (a,b) on t1 to mysqltest_2@localhost;
+--error 1142
+grant select on t1 to mysqltest_3@localhost;
+disconnect mrugly;
+
+connection default;
+drop table t1;
+delete from mysql.user where user like 'mysqltest\_%';
+delete from mysql.db where user like 'mysqltest\_%';
+delete from mysql.tables_priv where user like 'mysqltest\_%';
+delete from mysql.columns_priv where user like 'mysqltest\_%';
+flush privileges;
+
+drop database mysqltest;
+use test;
 
 #
 # Create and drop user
@@ -224,26 +246,3 @@ connection default;
 drop user mysqltest_B@'%';
 drop user mysqltest_3@localhost;
 #
-#
-#
-create table t1 (a int, b int);
-grant select (a) on t1 to mysqltest_1@localhost with grant option;
-connect (mrugly, localhost, mysqltest_1,,mysqltest);
-connection mrugly;
---error 1143
-grant select (a,b) on t1 to mysqltest_2@localhost;
---error 1142
-grant select on t1 to mysqltest_3@localhost;
-disconnect mrugly;
-
-connection default;
-drop table t1;
-delete from mysql.user where user like 'mysqltest\_%';
-delete from mysql.db where user like 'mysqltest\_%';
-delete from mysql.tables_priv where user like 'mysqltest\_%';
-delete from mysql.columns_priv where user like 'mysqltest\_%';
-flush privileges;
-
-drop database mysqltest;
-use test;
-

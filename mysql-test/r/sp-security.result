@@ -32,7 +32,7 @@ select db1_secret.db();
 db1_secret.db()
 db1_secret
 select * from db1_secret.t1;
-ERROR 42000: select command denied to user 'user1'@'localhost' for table 't1'
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for table 't1'
 create procedure db1_secret.dummy() begin end;
 ERROR 42000: Access denied for user 'user1'@'localhost' to database 'db1_secret'
 drop procedure db1_secret.dummy;
@@ -42,7 +42,7 @@ select db1_secret.db();
 db1_secret.db()
 db1_secret
 select * from db1_secret.t1;
-ERROR 42000: select command denied to user ''@'localhost' for table 't1'
+ERROR 42000: SELECT command denied to user ''@'localhost' for table 't1'
 create procedure db1_secret.dummy() begin end;
 ERROR 42000: Access denied for user ''@'localhost' to database 'db1_secret'
 drop procedure db1_secret.dummy;
@@ -92,7 +92,7 @@ flush privileges;
 use db2;
 create procedure p () insert into t2 values (1);
 call p();
-ERROR 42000: insert command denied to user 'user1'@'localhost' for table 't2'
+ERROR 42000: INSERT command denied to user 'user1'@'localhost' for table 't2'
 use db2;
 call p();
 ERROR 42000: execute command denied to user 'user2'@'localhost' for routine 'db2.p'

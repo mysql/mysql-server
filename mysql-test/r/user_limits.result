@@ -42,7 +42,7 @@ connect(localhost,mysqltest_1,,test,MYSQL_PORT,MYSQL_SOCK);
 ERROR 42000: User 'mysqltest_1' has exceeded the 'max_connections' resource (current value: 2)
 select * from t1;
 i
-connect(localhost,mysqltest_1,,test,9306,/home/dlenev/src/mysql-5.0-1339/mysql-test/var/tmp/master.sock);
+connect(localhost,mysqltest_1,,test,MYSQL_PORT,MYSQL_SOCK);
 ERROR 42000: User 'mysqltest_1' has exceeded the 'max_connections' resource (current value: 2)
 drop user mysqltest_1@localhost;
 flush privileges;
