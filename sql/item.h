@@ -82,6 +82,8 @@ public:
   virtual void split_sum_func(List<Item> &fields) {}
   virtual bool get_date(TIME *ltime,bool fuzzydate);
   virtual bool get_time(TIME *ltime);
+  virtual bool get_date_result(TIME *ltime,bool fuzzydate)
+  { return get_date(ltime,fuzzydate); }
 };
 
 
@@ -129,8 +131,9 @@ public:
     return field->result_type();
   }
   Field *tmp_table_field() { return result_field; }
-  bool get_date(TIME *ltime,bool fuzzydate);  
-  bool get_time(TIME *ltime);  
+  bool get_date(TIME *ltime,bool fuzzydate);
+  bool get_date_result(TIME *ltime,bool fuzzydate);
+  bool get_time(TIME *ltime);
 };
 
 
@@ -332,8 +335,8 @@ public:
     return tmp;
   }
   bool get_date(TIME *ltime,bool fuzzydate)
-  {  
-    return (null_value=(*ref)->get_date(ltime,fuzzydate));
+  {
+    return (null_value=(*ref)->get_date_result(ltime,fuzzydate));
   }
   bool send(String *tmp)		{ return (*ref)->send(tmp); }
   void make_field(Send_field *field)	{ (*ref)->make_field(field); }

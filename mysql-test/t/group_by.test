@@ -346,3 +346,11 @@ select a, MAX(b), CONCAT_WS(MAX(b), '43', '4', '5') from t1 group by a;
 select a, MAX(b), ELT(MAX(b), 'a', 'b', 'c', 'd', 'e', 'f') from t1 group by a;
 select a, MAX(b), MAKE_SET(MAX(b), 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h') from t1 group by a;
 drop table t1;
+
+# not purely group_by bug, but group_by is involved...
+
+create table t1 (a date default null, b date default null);
+insert t1 values ('1999-10-01','2000-01-10'), ('1997-01-01','1998-10-01');
+select a,min(b) c,count(distinct rand()) from t1 group by a having c<a + interval 1 day;
+drop table t1;
+
