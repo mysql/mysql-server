@@ -36,19 +36,21 @@
 */
 #if defined(TZINFO2SQL) || defined(TESTTIME)
 #define ABBR_ARE_USED
-#endif
-
-/* For debug purposes only */
+#else
+#if !defined(DBUG_OFF)
+/* Let use abbreviations for debug purposes */
 #undef ABBR_ARE_USED
 #define ABBR_ARE_USED
+#endif /* !defined(DBUG_OFF) */
+#endif /* defined(TZINFO2SQL) || defined(TESTTIME) */
 
 /* Structure describing local time type (e.g. Moscow summer time (MSD)) */
 typedef struct ttinfo
 {
   long tt_gmtoff; // Offset from UTC in seconds
-  int tt_isdst;   // Is daylight saving time or not. Used to set tm_isdst
+  uint tt_isdst;   // Is daylight saving time or not. Used to set tm_isdst
 #ifdef ABBR_ARE_USED
-  int tt_abbrind; // Index of start of abbreviation for this time type.
+  uint tt_abbrind; // Index of start of abbreviation for this time type.
 #endif
   /* 
     We don't use tt_ttisstd and tt_ttisgmt members of original elsie-code struct
@@ -71,7 +73,7 @@ typedef struct lsinfo
 typedef struct revtinfo  
 {
   long rt_offset; // Offset of local time from UTC in seconds
-  int rt_type;    // Type of period 0 - Normal period. 1 - Spring time-gap
+  uint rt_type;    // Type of period 0 - Normal period. 1 - Spring time-gap
 } REVT_INFO;
 
 #ifdef TZNAME_MAX
@@ -87,11 +89,11 @@ typedef struct revtinfo
 */
 typedef struct st_time_zone_info 
 {
-  int leapcnt;  // Number of leap-second corrections
-  int timecnt;  // Number of transitions between time types
-  int typecnt;  // Number of local time types
-  int charcnt;  // Number of characters used for abbreviations
-  int revcnt;   // Number of transition descr. for TIME->my_time_t conversion
+  uint leapcnt;  // Number of leap-second corrections
+  uint timecnt;  // Number of transitions between time types
+  uint typecnt;  // Number of local time types
+  uint charcnt;  // Number of characters used for abbreviations
+  uint revcnt;   // Number of transition descr. for TIME->my_time_t conversion
   /* The following are dynamical arrays are allocated in MEM_ROOT */
   my_time_t *ats;       // Times of transitions between time types
   unsigned char	*types; // Local time types for transitions
@@ -142,13 +144,13 @@ static my_bool
 tz_load(const char *name, TIME_ZONE_INFO *sp, MEM_ROOT *storage)
 {
   char *p;
-  int i;
+  int read_from_file;
+  uint i;
   FILE *file;
     
   if (!(file= my_fopen(name, O_RDONLY|O_BINARY, MYF(MY_WME))))
     return 1;
   {
-    struct tzhead *tzhp;
     union
     {
       struct tzhead tzhead;
@@ -159,16 +161,16 @@ tz_load(const char *name, TIME_ZONE_INFO *sp, MEM_ROOT *storage)
 #endif
                sizeof(LS_INFO) * TZ_MAX_LEAPS];
     } u;
-    int ttisstdcnt;
-    int ttisgmtcnt;
+    uint ttisstdcnt;
+    uint ttisgmtcnt;
     char *tzinfo_buf;
     
-    i= my_fread(file, u.buf, sizeof(u.buf), MYF(MY_WME));
+    read_from_file= my_fread(file, u.buf, sizeof(u.buf), MYF(MY_WME));
 
     if (my_fclose(file, MYF(MY_WME)) != 0)
       return 1;
 
-    if (i < (int)sizeof(struct tzhead))
+    if (read_from_file < (int)sizeof(struct tzhead))
       return 1;
     
     ttisstdcnt= int4net(u.tzhead.tzh_ttisgmtcnt);
@@ -178,14 +180,15 @@ tz_load(const char *name, TIME_ZONE_INFO *sp, MEM_ROOT *storage)
     sp->typecnt= int4net(u.tzhead.tzh_typecnt);
     sp->charcnt= int4net(u.tzhead.tzh_charcnt);
     p= u.tzhead.tzh_charcnt + sizeof u.tzhead.tzh_charcnt;
-    if (sp->leapcnt < 0 || sp->leapcnt > TZ_MAX_LEAPS ||
-        sp->typecnt <= 0 || sp->typecnt > TZ_MAX_TYPES ||
-        sp->timecnt < 0 || sp->timecnt > TZ_MAX_TIMES ||
-        sp->charcnt < 0 || sp->charcnt > TZ_MAX_CHARS ||
+    if (sp->leapcnt > TZ_MAX_LEAPS ||
+        sp->typecnt == 0 || sp->typecnt > TZ_MAX_TYPES ||
+        sp->timecnt > TZ_MAX_TIMES ||
+        sp->charcnt > TZ_MAX_CHARS ||
         (ttisstdcnt != sp->typecnt && ttisstdcnt != 0) ||
         (ttisgmtcnt != sp->typecnt && ttisgmtcnt != 0))
       return 1;
-    if (i - (p - u.buf) < sp->timecnt * 4 +     /* ats */
+    if ((uint)(read_from_file - (p - u.buf)) < 
+        sp->timecnt * 4 +                       /* ats */
         sp->timecnt +                           /* types */
         sp->typecnt * (4 + 2) +                 /* ttinfos */
         sp->charcnt +                           /* chars */
@@ -238,8 +241,7 @@ tz_load(const char *name, TIME_ZONE_INFO *sp, MEM_ROOT *storage)
       if (ttisp->tt_isdst != 0 && ttisp->tt_isdst != 1)
         return 1;
       ttisp->tt_abbrind= (unsigned char) *p++;
-      if (ttisp->tt_abbrind < 0 ||
-          ttisp->tt_abbrind > sp->charcnt)
+      if (ttisp->tt_abbrind > sp->charcnt)
         return 1;
     }
     for (i= 0; i < sp->charcnt; i++)
@@ -305,8 +307,8 @@ prepare_tz_info(TIME_ZONE_INFO *sp, MEM_ROOT *storage)
   my_time_t cur_l, end_t, end_l;
   my_time_t cur_max_seen_l= MY_TIME_T_MIN;
   long cur_offset, cur_corr, cur_off_and_corr;
-  int next_trans_idx, next_leap_idx;
-  int i;
+  uint next_trans_idx, next_leap_idx;
+  uint i;
   /* 
     Temporary arrays where we will store tables. Needed because
     we don't know table sizes ahead. (Well we can estimate their
@@ -1250,8 +1252,8 @@ private:
 Time_zone_offset::Time_zone_offset(long tz_offset_arg):
   offset(tz_offset_arg)
 {
-  uint hours= abs(offset / SECS_PER_HOUR);
-  uint minutes= abs(offset % SECS_PER_HOUR / SECS_PER_MIN);
+  uint hours= abs((int)(offset / SECS_PER_HOUR));
+  uint minutes= abs((int)(offset % SECS_PER_HOUR / SECS_PER_MIN));
   ulong length= my_snprintf(name_buff, sizeof(name_buff), "%s%02d:%02d", 
                             (offset>=0) ? "+" : "-", hours, minutes);
   name.set(name_buff, length, &my_charset_latin1);
@@ -1630,7 +1632,6 @@ tz_load_from_db(THD *thd, const String *tz_name)
   Time_zone *return_val= 0;
   int res;
   uint tzid, ttid;
-  bool uses_leap_seconds;
   my_time_t ttime;
   char buff[MAX_FIELD_WIDTH];
   String abbr(buff, sizeof(buff), &my_charset_latin1);
@@ -2114,7 +2115,7 @@ my_tz_find(THD *thd, const String * name)
                                                    name->length())))
       result_tz= tmp_tzname->tz;
     else
-      result_tz= tz_load_from_db(current_thd, name);
+      result_tz= tz_load_from_db(thd, name);
   }
   
   VOID(pthread_mutex_unlock(&tz_LOCK));
@@ -2396,7 +2397,7 @@ main(int argc, char **argv)
   TIME_ZONE_INFO tz_info;
   struct tm tmp;
   TIME time_tmp;
-  my_time_t t, t1, t2;
+  time_t t, t1, t2;
   char fullname[FN_REFLEN+1];
   char *str_end;
   long not_used;
@@ -2451,11 +2452,11 @@ main(int argc, char **argv)
   tmp.tm_hour= 0; tmp.tm_min= 30; tmp.tm_sec= 0; tmp.tm_isdst= 1;
   mktime(&tmp);
   tmp.tm_hour= 2; tmp.tm_isdst= -1;
-  t=mktime(&tmp);
+  t= mktime(&tmp);
   tmp.tm_hour= 4; tmp.tm_isdst= 0;
   mktime(&tmp);
   tmp.tm_hour= 2; tmp.tm_isdst= -1;
-  t1=mktime(&tmp);
+  t1= mktime(&tmp);
   printf("mktime is %s (%d %d)\n",
          (t == t1 ? "determenistic" : "is non-determenistic"), 
          (int)t, (int)t1);
@@ -2477,8 +2478,8 @@ main(int argc, char **argv)
   {
     for (t= -40000; t < 20000; t++)
     {
-      localtime_r(&t,&tmp);
-      gmt_sec_to_TIME(&time_tmp, t, &tz_info);
+      localtime_r(&t, &tmp);
+      gmt_sec_to_TIME(&time_tmp, (my_time_t)t, &tz_info);
       if (!is_equal_TIME_tm(&time_tmp, &tmp))
       {
         printf("Problem with negative time_t = %d\n", (int)t);
@@ -2492,7 +2493,7 @@ main(int argc, char **argv)
   for (t= 1000000000; t < 1100000000; t+= 13)
   {
     localtime_r(&t,&tmp);
-    gmt_sec_to_TIME(&time_tmp, t, &tz_info);
+    gmt_sec_to_TIME(&time_tmp, (my_time_t)t, &tz_info);
     
     if (!is_equal_TIME_tm(&time_tmp, &tmp))
     {
@@ -2518,8 +2519,8 @@ main(int argc, char **argv)
           for (time_tmp.minute= 0; time_tmp.minute < 60; time_tmp.minute+= 5)
             for (time_tmp.second=0; time_tmp.second<60; time_tmp.second+=25)
             {
-              t= my_system_gmt_sec(&time_tmp, &not_used, &not_used_2);
-              t1= TIME_to_gmt_sec(&time_tmp, &tz_info, &not_used_2);
+              t= (time_t)my_system_gmt_sec(&time_tmp, &not_used, &not_used_2);
+              t1= (time_t)TIME_to_gmt_sec(&time_tmp, &tz_info, &not_used_2);
               if (t != t1)
               {
                 /* 

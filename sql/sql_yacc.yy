@@ -606,7 +606,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 
 %type <simple_string>
 	remember_name remember_end opt_ident opt_db text_or_password
-	opt_escape opt_constraint constraint
+	opt_constraint constraint
 
 %type <string>
 	text_string opt_gconcat_separator
@@ -634,7 +634,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	using_list expr_or_default set_expr_or_default interval_expr
 	param_marker singlerow_subselect singlerow_subselect_init
 	exists_subselect exists_subselect_init geometry_function
-	signed_literal now_or_signed_literal
+	signed_literal now_or_signed_literal opt_escape
 
 %type <item_num>
 	NUM_literal
@@ -803,7 +803,7 @@ verb_clause:
         ;
 
 deallocate:
-        DEALLOCATE_SYM PREPARE_SYM ident
+        deallocate_or_drop PREPARE_SYM ident
         {
           THD *thd=YYTHD;
           LEX *lex= thd->lex;
@@ -815,6 +815,12 @@ deallocate:
           lex->sql_command= SQLCOM_DEALLOCATE_PREPARE;
           lex->prepared_stmt_name= $3;
         };
+
+deallocate_or_drop:
+	DEALLOCATE_SYM |
+	DROP
+	;
+
 
 prepare:
         PREPARE_SYM ident FROM prepare_src
@@ -3570,8 +3576,12 @@ having_clause:
 	;
 
 opt_escape:
-	ESCAPE_SYM TEXT_STRING_literal	{ $$= $2.str; }
-	| /* empty */			{ $$= (char*) "\\"; };
+	ESCAPE_SYM simple_expr { $$= $2; }
+	| /* empty */
+          { 
+            $$= new Item_string("\\", 1, &my_charset_latin1);
+          }
+        ;
 
 
 /*

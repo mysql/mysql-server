@@ -3196,7 +3196,6 @@ longlong Item_func_is_free_lock::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   String *res=args[0]->val_str(&value);
-  THD *thd=current_thd;
   User_level_lock *ull;
 
   null_value=0;
@@ -3219,7 +3218,6 @@ longlong Item_func_is_used_lock::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   String *res=args[0]->val_str(&value);
-  THD *thd=current_thd;
   User_level_lock *ull;
 
   null_value=1;

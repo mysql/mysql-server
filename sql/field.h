@@ -825,6 +825,7 @@ public:
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*,String *);
+  bool get_date(TIME *ltime, uint fuzzydate);
   bool send_binary(Protocol *protocol);
   bool get_time(TIME *ltime);
   int cmp(const char *,const char*);
@@ -1088,7 +1089,6 @@ public:
 
   void get_key_image(char *buff,uint length, CHARSET_INFO *cs,imagetype type);
   void set_key_image(char *buff,uint length, CHARSET_INFO *cs);
-  uint32 max_length() { return field_length; }
   field_cast_enum field_cast_type() { return FIELD_CAST_GEOM; }
 };
 #endif /*HAVE_SPATIAL*/

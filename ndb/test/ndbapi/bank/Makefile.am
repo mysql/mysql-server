@@ -3,7 +3,7 @@ ndbtest_PROGRAMS = testBank bankSumAccounts bankValidateAllGLs bankMakeGL bankTr
 
 noinst_LIBRARIES = libbank.a
 
-libbank_a_SOURCES = Bank.cpp BankLoad.cpp
+libbank_a_SOURCES = Bank.cpp BankLoad.cpp Bank.hpp
 
 testBank_SOURCES = testBank.cpp
 bankSumAccounts_SOURCES = bankSumAccounts.cpp

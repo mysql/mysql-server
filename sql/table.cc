@@ -1134,7 +1134,7 @@ File create_frm(register my_string name, uint reclength, uchar *fileinfo,
   char fill[IO_SIZE];
 
 #if SIZEOF_OFF_T > 4
-  /* Fix this in MySQL 4.0;  The current limit is 4G rows (QQ) */
+  /* Fix this when we have new .frm files;  Current limit is 4G rows (QQ) */
   if (create_info->max_rows > ~(ulong) 0)
     create_info->max_rows= ~(ulong) 0;
   if (create_info->min_rows > ~(ulong) 0)
