@@ -856,20 +856,33 @@ static void set_user(const char *user)
   if (!strcmp(user,"root"))
     return;				// Avoid problem with dynamic libraries
 
+  uid_t uid;
   if (!(ent = getpwnam(user)))
   {
-    fprintf(stderr,"Fatal error: Can't change to run as user '%s' ;  Please check that the user exists!\n",user);
-    unireg_abort(1);
+    // allow a numeric uid to be used
+    const char *pos;
+    for (pos=user; isdigit(*pos); pos++) ;
+    if (*pos)					// Not numeric id
+    {
+      fprintf(stderr,"Fatal error: Can't change to run as user '%s' ;  Please check that the user exists!\n",user);
+      unireg_abort(1);
+    }
+    uid=atoi(user);				// Use numberic uid
   }
-#ifdef HAVE_INITGROUPS
-  initgroups((char*) user,ent->pw_gid);
-#endif
-  if (setgid(ent->pw_gid) == -1)
+  else
   {
-    sql_perror("setgid");
-    unireg_abort(1);
+#ifdef HAVE_INITGROUPS
+    initgroups((char*) user,ent->pw_gid);
+#endif
+    if (setgid(ent->pw_gid) == -1)
+    {
+      sql_perror("setgid");
+      unireg_abort(1);
+    }
+    uid=ent->pw_uid;
   }
-  if (setuid(ent->pw_uid) == -1)
+
+  if (setuid(uid) == -1)
   {
     sql_perror("setuid");
     unireg_abort(1);
