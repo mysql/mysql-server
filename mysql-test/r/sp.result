@@ -2381,3 +2381,16 @@ ERROR 42000: Can't find any matching row in the user table
 drop function bug5278|
 drop table t1;
 drop table t2;
+drop procedure if exists p1;
+create table t1(id int);
+insert into t1 values(1);
+create procedure p1()
+begin
+declare i int;
+select max(id)+1 into i from t1;
+end
+//
+call p1()//
+call p1()//
+drop procedure p1;
+drop table t1;
