@@ -98,9 +98,9 @@ else
 if test -x "$basedir/libexec/mysqld"
 then
   execdir="$basedir/libexec"
-elif test -x "@libexecdir@/mysqld"
+elif test -x "$basedir/sbin/mysqld"
 then
-  execdir="@libexecdir@"
+  execdir="$basedir/sbin"
 else
   execdir="$basedir/bin"
 fi
