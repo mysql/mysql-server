@@ -88,6 +88,8 @@
 #define MAX_LAUNCHER_MSG 256
 #endif
 
+#define MAX_RETRY_COUNT 100
+
 /* Variable naming convention - if starts with manager_, either is set
    directly by the user, or used closely in ocnjunction with a variable
    set by the user
@@ -1161,10 +1163,15 @@ static char* read_line(struct manager_thd* thd)
   {
     int len,read_len;
     char *block_end,*p_back;
+    uint retry_count=0;
+
     read_len = min(NET_BLOCK,(uint)(buf_end-p));
-    if ((len=vio_read(thd->vio,p,read_len))<=0)
+    while ((len=vio_read(thd->vio,p,read_len))<=0)
     {
-      log_err("Error reading command from client");
+      if (vio_should_retry(thd->vio) && retry_count++ < MAX_RETRY_COUNT)
+	continue;
+      log_err("Error reading command from client (Error: %d)",
+	      vio_errno(thd->vio));
       thd->fatal=1;
       return 0;
     }

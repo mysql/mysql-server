@@ -77,9 +77,7 @@ extern "C" {					// Because of SCO 3.2V4.2
 #include <sys/select.h>
 #endif
 #include <sys/utsname.h>
-#else
-#include <windows.h>
-#endif // __WIN__
+#endif /* __WIN__ */
 
 #ifdef HAVE_LIBWRAP
 #include <tcpd.h>
