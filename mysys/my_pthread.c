@@ -102,16 +102,20 @@ void my_pthread_exit(void *status)
   NXContext_t ctx;
   char name[PATH_MAX] = "";
 
-  NXThreadGetContext(tid, &ctx);
-  NXContextGetName(ctx, name, PATH_MAX);
-
-  /*
-    "MYSQLD.NLM's LibC Reaper" or "MYSQLD.NLM's main thread"
-    with a debug build of LibC the reaper can have different names
-  */
-  if (!strindex(name, "\'s"))
+  /* Do not call pthread_exit if it is not a LibC thread */
+  if (tid != 0)
   {
-    pthread_exit(status);
+    NXThreadGetContext(tid, &ctx);
+    NXContextGetName(ctx, name, PATH_MAX);
+
+    /*
+      "MYSQLD.NLM's LibC Reaper" or "MYSQLD.NLM's main thread"
+      with a debug build of LibC the reaper can have different names
+    */
+    if (!strindex(name, "\'s"))
+    {
+      pthread_exit(status);
+    }
   }
 }
 #endif

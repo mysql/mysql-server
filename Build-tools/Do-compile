@@ -237,14 +237,14 @@ if ($opt_stage <= 1)
 
   # Only enable InnoDB when requested (required to be able to
   # build the "Classic" packages that do not include InnoDB)
-	if ($opt_innodb)
-	{
-		$opt_config_options.= " --with-innodb";
-	}
-	else
-	{
-		$opt_config_options.= " --without-innodb";
-	}
+  if ($opt_innodb)
+  {
+    $opt_config_options.= " --with-innodb";
+  }
+  else
+  {
+    $opt_config_options.= " --without-innodb";
+  }
 
   if ($opt_with_other_libc)
   {

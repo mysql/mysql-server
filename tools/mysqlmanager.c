@@ -21,6 +21,8 @@
     Sasha Pachev <sasha@mysql.com>
 */
 
+#ifndef __NETWARE__
+
 #include <my_global.h>
 #include <my_pthread.h>
 #include <mysql.h>
@@ -1846,3 +1848,16 @@ int main(int argc, char** argv)
   else
     return daemonize();
 }
+
+#else
+
+#include <stdio.h>
+
+int main(void)
+{
+  fprintf(stderr,"This tool has not been ported to NetWare\n");
+  return 0;
+}
+
+#endif /* __NETWARE__ */
+

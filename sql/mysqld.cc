@@ -126,10 +126,27 @@ int deny_severity = LOG_WARNING;
 #include <nks/vm.h>
 #include <library.h>
 #include <monitor.h>
+#include <zOmni.h>                              //For NEB
+#include <neb.h>                                //For NEB
+#include <nebpub.h>                             //For NEB
+#include <zEvent.h>                             //For NSS event structures
+#include <zPublics.h>
 
+void *neb_consumer_id=NULL;                     //For storing NEB consumer id
+char datavolname[256]={0};
+VolumeID_t datavolid;
 event_handle_t eh;
 Report_t ref;
+void *refneb=NULL;
+int volumeid=-1;
+
+  /* NEB event callback */
+unsigned long neb_event_callback(struct EventBlock *eblock);
+void registerwithneb();
+void getvolumename();
+void getvolumeID(BYTE *volumeName);
 #endif /* __NETWARE__ */
+
 
 #ifdef _AIX41
 int initgroups(const char *,unsigned int);
@@ -1410,6 +1427,7 @@ static void start_signal_handler(void)
 static void check_data_home(const char *path)
 {}
 
+
 #elif defined(__NETWARE__)
 
 // down server event callback
@@ -1418,26 +1436,195 @@ void mysql_down_server_cb(void *, void *)
   kill_server(0);
 }
 
+
 // destroy callback resources
 void mysql_cb_destroy(void *)
 {
   UnRegisterEventNotification(eh);  // cleanup down event notification
   NX_UNWRAP_INTERFACE(ref);
+
+  /* Deregister NSS volume deactivation event */
+  NX_UNWRAP_INTERFACE(refneb);
+  if (neb_consumer_id)
+    UnRegisterConsumer(neb_consumer_id, NULL);	
 }
+
 
 // initialize callbacks
 void mysql_cb_init()
 {
   // register for down server event
   void *handle = getnlmhandle();
-  rtag_t rt = AllocateResourceTag(handle, "MySQL Down Server Callback",
-                                  EventSignature);
+  rtag_t rt= AllocateResourceTag(handle, "MySQL Down Server Callback",
+                                 EventSignature);
   NX_WRAP_INTERFACE((void *)mysql_down_server_cb, 2, (void **)&ref);
-  eh = RegisterForEventNotification(rt, EVENT_DOWN_SERVER,
-                                    EVENT_PRIORITY_APPLICATION,
-                                    NULL, ref, NULL);
+  eh= RegisterForEventNotification(rt, EVENT_PRE_DOWN_SERVER,
+                                   EVENT_PRIORITY_APPLICATION,
+                                   NULL, ref, NULL);
+
+  /*
+    Register for volume deactivation event
+    Wrap the callback function, as it is called by non-LibC thread
+  */
+  (void)NX_WRAP_INTERFACE(neb_event_callback, 1, &refneb);
+  registerwithneb();
+
   NXVmRegisterExitHandler(mysql_cb_destroy, NULL);  // clean-up
 }
+
+
+/ *To get the name of the NetWare volume having MySQL data folder */
+
+void getvolumename()
+{
+  char *p;
+  /*
+    We assume that data path is already set.
+    If not it won't come here. Terminate after volume name
+  */
+  if ((p= strchr(mysql_real_data_home, ':')))
+    strmake(datavolname, mysql_real_data_home,
+            (uint) (p - mysql_real_data_home));
+}
+
+
+/*
+  Registering with NEB for NSS Volume Deactivation event
+*/
+
+void registerwithneb()
+{
+
+  ConsumerRegistrationInfo reg_info;
+    
+  /* Clear NEB registration structure */
+  bzero((char*) &reg_info, sizeof(struct ConsumerRegistrationInfo));
+
+  /* Fill the NEB consumer information structure */
+  reg_info.CRIVersion= 1;  	            // NEB version
+  /* NEB Consumer name */
+  reg_info.CRIConsumerName= (BYTE *) "MySQL Database Server";
+  /* Event of interest */
+  reg_info.CRIEventName= (BYTE *) "NSS.ChangeVolState.Enter";
+  reg_info.CRIUserParameter= NULL;	    // Consumer Info
+  reg_info.CRIEventFlags= 0;	            // Event flags
+  /* Consumer NLM handle */
+  reg_info.CRIOwnerID= (LoadDefinitionStructure *)getnlmhandle();
+  reg_info.CRIConsumerESR= NULL;	    // No consumer ESR required
+  reg_info.CRISecurityToken= 0;	            // No security token for the event
+  reg_info.CRIConsumerFlags= 0;             // SMP_ENABLED_BIT;	
+  reg_info.CRIFilterName= 0;	            // No event filtering
+  reg_info.CRIFilterDataLength= 0;          // No filtering data
+  reg_info.CRIFilterData= 0;	            // No filtering data
+  /* Callback function for the event */
+  (void *)reg_info.CRIConsumerCallback= (void *) refneb;
+  reg_info.CRIOrder= 0;	                    // Event callback order
+  reg_info.CRIConsumerType= CHECK_CONSUMER; // Consumer type
+
+  /* Register for the event with NEB */
+  if (RegisterConsumer(&reg_info))
+  {
+    consoleprintf("Failed to register for NSS Volume Deactivation event \n");
+    return;
+  }
+  /* This ID is required for deregistration */
+  neb_consumer_id= reg_info.CRIConsumerID;
+
+  /* Get MySQL data volume name, stored in global variable datavolname */
+  getvolumename();
+
+  /*
+    Get the NSS volume ID of the MySQL Data volume.
+    Volume ID is stored in a global variable
+  */
+  getvolumeID((BYTE*) datavolname);	
+}
+
+
+/*
+  Callback for NSS Volume Deactivation event
+*/
+ulong neb_event_callback(struct EventBlock *eblock)
+{
+  EventChangeVolStateEnter_s *voldata;
+  voldata= (EventChangeVolStateEnter_s *)eblock->EBEventData;
+
+  /* Deactivation of a volume */
+  if ((voldata->oldState == 6 && voldata->newState == 2))
+  {
+    /*
+      Ensure that we bring down MySQL server only for MySQL data
+      volume deactivation
+    */
+    if (!memcmp(&voldata->volID, &datavolid, sizeof(VolumeID_t)))
+    {
+      consoleprintf("MySQL data volume is deactivated, shutting down MySQL Server \n");
+      kill_server(0);
+    }
+  }
+  return 0;
+}
+
+
+/*
+  Function to get NSS volume ID of the MySQL data
+*/
+
+#define ADMIN_VOL_PATH					"_ADMIN:/Volumes/"
+
+void getvolumeID(BYTE *volumeName)
+{
+  char path[zMAX_FULL_NAME];
+  Key_t rootKey= 0, fileKey= 0;
+  QUAD getInfoMask;
+  zInfo_s info;
+  STATUS status;
+
+  /* Get the  root key */
+  if ((status= zRootKey(0, &rootKey)) != zOK)
+  {
+    consoleprintf("\nGetNSSVolumeProperties - Failed to get root key, status: %d\n.", (int) status);
+    goto exit;
+  }
+
+  /*
+    Get the file key. This is the key to the volume object in the
+    NSS admin volumes directory.
+  */
+
+  strxmov(path, (const char *) ADMIN_VOL_PATH, (const char *) volumeName,
+          NullS);
+  if ((status= zOpen(rootKey, zNSS_TASK, zNSPACE_LONG|zMODE_UTF8, 
+                     (BYTE *) path, zRR_READ_ACCESS, &fileKey)) != zOK)
+  {
+    consoleprintf("\nGetNSSVolumeProperties - Failed to get file, status: %d\n.", (int) status);
+    goto exit;
+  }
+
+  getInfoMask= zGET_IDS | zGET_VOLUME_INFO ;
+  if ((status= zGetInfo(fileKey, getInfoMask, sizeof(info), 
+                        zINFO_VERSION_A, &info)) != zOK)
+  {
+    consoleprintf("\nGetNSSVolumeProperties - Failed in zGetInfo, status: %d\n.", (int) status);
+    goto exit;
+  }
+
+  /* Copy the data to global variable */
+  datavolid.timeLow= info.vol.volumeID.timeLow;
+  datavolid.timeMid= info.vol.volumeID.timeMid;
+  datavolid.timeHighAndVersion= info.vol.volumeID.timeHighAndVersion;
+  datavolid.clockSeqHighAndReserved= info.vol.volumeID.clockSeqHighAndReserved;
+  datavolid.clockSeqLow= info.vol.volumeID.clockSeqLow;
+  /* This is guranteed to be 6-byte length (but sizeof() would be better) */
+  memcpy(datavolid.node, info.vol.volumeID.node, (unsigned int) 6);
+		
+exit:
+  if (rootKey)
+    zClose(rootKey);
+  if (fileKey)
+    zClose(fileKey);
+}
+
 
 static void init_signals(void)
 {
@@ -1448,6 +1635,7 @@ static void init_signals(void)
   mysql_cb_init();  // initialize callbacks
 }
 
+
 static void start_signal_handler(void)
 {
   // Save vm id of this process
@@ -1457,7 +1645,12 @@ static void start_signal_handler(void)
 }
 
 
-/*  Warn if the data is on a Traditional volume */
+/*
+  Warn if the data is on a Traditional volume
+
+  NOTE
+    Already done by mysqld_safe
+*/
 
 static void check_data_home(const char *path)
 {
@@ -1805,7 +1998,7 @@ extern "C" void *signal_hand(void *arg __attribute__((unused)))
 			     (REFRESH_LOG | REFRESH_TABLES | REFRESH_FAST |
 			      REFRESH_STATUS | REFRESH_GRANT |
 			      REFRESH_THREADS | REFRESH_HOSTS),
-			     (TABLE_LIST*) 0); // Flush logs
+			     (TABLE_LIST*) 0);  // Flush logs
 	mysql_print_status((THD*) 0);		// Send debug some info
       }
       break;
@@ -1896,6 +2089,7 @@ extern "C" pthread_handler_decl(handle_shutdown,arg)
   return 0;
 }
 
+
 int STDCALL handle_kill(ulong ctrl_type)
 {
   if (ctrl_type == CTRL_CLOSE_EVENT ||
@@ -1907,6 +2101,7 @@ int STDCALL handle_kill(ulong ctrl_type)
   return FALSE;
 }
 #endif
+
 
 #ifdef OS2
 extern "C" pthread_handler_decl(handle_shutdown,arg)
@@ -4645,6 +4840,10 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     opt_specialflag|=SPECIAL_LONG_LOG_FORMAT;
     break;
   case (int) OPT_SKIP_NETWORKING:
+#if defined(__NETWARE__)
+    sql_perror("Can't start server: skip-networking option is currently not supported on NetWare");
+    exit(1);
+#endif 
     opt_disable_networking=1;
     mysql_port=0;
     break;
