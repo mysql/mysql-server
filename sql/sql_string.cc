@@ -240,17 +240,12 @@ bool String::needs_conversion(const char *str, uint32 arg_length,
 				     CHARSET_INFO *from_cs,
 				     CHARSET_INFO *to_cs)
 {
-  if (to_cs == &my_charset_bin)
+  if ((to_cs == &my_charset_bin) || 
+      (to_cs == from_cs) ||
+      my_charset_same(from_cs, to_cs) ||
+      ((from_cs == &my_charset_bin) && (!(arg_length % to_cs->mbminlen))))
     return FALSE;
-  if (to_cs == from_cs)
-    return FALSE;
-  if (my_charset_same(from_cs, to_cs))
-    return FALSE;
-  if ((from_cs == &my_charset_bin))
-  {
-    if (!(arg_length % to_cs->mbminlen))
-      return FALSE;
-  }
+  
   return TRUE;
 }
 
