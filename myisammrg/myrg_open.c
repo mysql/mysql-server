@@ -1,15 +1,15 @@
 /* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
-   
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2 of the License, or
    (at your option) any later version.
-   
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
@@ -87,7 +87,7 @@ int handle_locking;
   m_info->open_tables=(MYRG_TABLE *) (m_info+1);
   m_info->tables=files;
   errpos=2;
- 
+
   for (i=files ; i-- > 0 ; )
   {
     m_info->open_tables[i].table=isam;
@@ -110,16 +110,8 @@ int handle_locking;
     my_errno=HA_ERR_RECORD_FILE_FULL;
     goto err;
   }
-  /* Allocate memory for queue */
-  m_info->keys=0;
-  if (files)
-  {
-    if ((m_info->keys=m_info->open_tables->table->s->base.keys) &&
-	_myrg_init_queue(m_info,0,HA_READ_KEY_EXACT))
-      goto err;
-  }
-  else
-    bzero((char*) &m_info->by_key,sizeof(m_info->by_key));
+  m_info->keys=m_info->open_tables->table->s->base.keys;
+  bzero((char*) &m_info->by_key,sizeof(m_info->by_key));
 
   m_info->end_table=m_info->open_tables+files;
   m_info->last_used_table=m_info->open_tables;
