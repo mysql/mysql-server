@@ -2947,7 +2947,12 @@ put_info(const char *str,INFO_TYPE info_type, uint error, const char *sqlstate)
       (void) fflush(file);
       fprintf(file,"ERROR");
       if (error)
-	(void) fprintf(file," %d",error);
+      {
+	if (sqlstate)
+	  (void) fprintf(file," %d (%s)",error, sqlstate);
+        else
+	  (void) fprintf(file," %d",error);
+      }
       if (status.query_start_line && line_numbers)
       {
 	(void) fprintf(file," at line %lu",status.query_start_line);
