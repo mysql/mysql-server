@@ -9,7 +9,7 @@
 # If you know how to fix any of this more elegantly please mail
 # docs@mysql.com
 
-TEXI2HTML_FLAGS =	-iso -number
+TEXI2HTML_FLAGS =	-iso -number -acc
 DVIPS =			dvips
 MAKEINFO =		@MAKEINFO@
 TEXINFO_TEX =		Support/texinfo.tex
@@ -23,6 +23,8 @@ targets =		manual.txt mysql.info manual.html
 BUILT_SOURCES =		$(targets) manual_toc.html include.texi
 EXTRA_DIST =		$(noinst_SCRIPTS) $(BUILT_SOURCES) mysqld_error.txt \
 			INSTALL-BINARY reservedwords.texi internals.texi
+
+SUBDIRS =		Images
 
 all:			$(targets) txt_files
 
