@@ -1,7 +1,7 @@
 %define mysql_version		@VERSION@
-%define shared_lib_version	@SHARED_LIB_VERSION@
 %define release			0
 %define mysqld_user		mysql
+%define server_suffix -standard
 
 %define see_base For a description of MySQL see the base MySQL RPM or http://www.mysql.com
 
@@ -14,7 +14,6 @@ Version:	@MYSQL_NO_DASH_VERSION@
 Release:	%{release}
 Copyright:	GPL
 Source:		http://www.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/mysql-%{mysql_version}.tar.gz
-Icon:		mysql.gif
 URL:		http://www.mysql.com/
 Packager:	Lenz Grimmer <build@mysql.com>
 Vendor:		MySQL AB
@@ -194,6 +193,8 @@ BuildMySQL() {
 # The --enable-assembler simply does nothing on systems that does not
 # support assembler speedups.
 sh -c  "PATH=\"${MYSQL_BUILD_PATH:-$PATH}\" \
+	CC=\"${CC:-$MYSQL_BUILD_CC}\" \
+	CXX=\"${CXX:-$MYSQL_BUILD_CXX}\" \
 	CFLAGS=\"${MYSQL_BUILD_CFLAGS:-$RPM_OPT_FLAGS}\" \
 	CXXFLAGS=\"${MYSQL_BUILD_CXXFLAGS:-$RPM_OPT_FLAGS \
 	          -felide-constructors -fno-exceptions -fno-rtti \
@@ -206,13 +207,14 @@ sh -c  "PATH=\"${MYSQL_BUILD_PATH:-$PATH}\" \
             --with-unix-socket-path=/var/lib/mysql/mysql.sock \
             --prefix=/ \
 	    --with-extra-charsets=complex \
-            --exec-prefix=/usr \
-            --libexecdir=/usr/sbin \
-            --sysconfdir=/etc \
-            --datadir=/usr/share \
+            --exec-prefix=%{_exec_prefix} \
+            --libexecdir=%{_sbindir} \
+            --libdir=%{_libdir} \
+            --sysconfdir=%{_sysconfdir} \
+            --datadir=%{_datadir} \
             --localstatedir=/var/lib/mysql \
             --infodir=%{_infodir} \
-            --includedir=/usr/include \
+            --includedir=%{_includedir} \
             --mandir=%{_mandir} \
 	    --with-embedded-server \
 	    --enable-thread-safe-client \
@@ -284,13 +286,15 @@ make distclean
 mv Docs/manual.ps.save Docs/manual.ps
 
 # RPM:s destroys Makefile.in files, so we generate them here
-automake
+# aclocal; autoheader; aclocal; automake; autoconf
+# (cd innobase && aclocal && autoheader && aclocal && automake && autoconf)
 
 # Now build the statically linked 4.0 binary (which includes InnoDB)
 BuildMySQL "--disable-shared \
 		--with-mysqld-ldflags='-all-static' \
 		--with-client-ldflags='-all-static' \
 		$USE_OTHER_LIBC_DIR \
+		--with-server-suffix='%{server_suffix}' \
 		--without-berkeley-db \
 		--with-innodb \
 		--without-vio \
@@ -302,51 +306,54 @@ RBR=$RPM_BUILD_ROOT
 MBD=$RPM_BUILD_DIR/mysql-%{mysql_version}
 
 # Ensure that needed directories exists
-install -d $RBR/etc/{logrotate.d,init.d}
+install -d $RBR%{_sysconfdir}/{logrotate.d,init.d}
 install -d $RBR/var/lib/mysql/mysql
-install -d $RBR/usr/share/{sql-bench,mysql-test}
+install -d $RBR%{_datadir}/{sql-bench,mysql-test}
+install -d $RBR%{_includedir}
+install -d $RBR%{_libdir}
 install -d $RBR%{_mandir}
-install -d $RBR/usr/{sbin,lib,include}
+install -d $RBR%{_sbindir}
+
 
 # Install all binaries stripped 
-make install-strip DESTDIR=$RBR benchdir_root=/usr/share/
+make install-strip DESTDIR=$RBR benchdir_root=%{_datadir}
 
 # Install shared libraries (Disable for architectures that don't support it)
-(cd $RBR/usr/lib; tar xf $RBR/shared-libs.tar)
+(cd $RBR%{_libdir}; tar xf $RBR/shared-libs.tar)
 
 # install saved mysqld-max
-install -s -m755 $MBD/sql/mysqld-max $RBR/usr/sbin/mysqld-max
+install -s -m755 $MBD/sql/mysqld-max $RBR%{_sbindir}/mysqld-max
 
 # install symbol files ( for stack trace resolution)
-install -m644 $MBD/sql/mysqld-max.sym $RBR/usr/lib/mysql/mysqld-max.sym
-install -m644 $MBD/sql/mysqld.sym $RBR/usr/lib/mysql/mysqld.sym
+install -m644 $MBD/sql/mysqld-max.sym $RBR%{_libdir}/mysql/mysqld-max.sym
+install -m644 $MBD/sql/mysqld.sym $RBR%{_libdir}/mysql/mysqld.sym
 
 # Install logrotate and autostart
-install -m644 $MBD/support-files/mysql-log-rotate $RBR/etc/logrotate.d/mysql
-install -m755 $MBD/support-files/mysql.server $RBR/etc/init.d/mysql
+install -m644 $MBD/support-files/mysql-log-rotate $RBR%{_sysconfdir}/logrotate.d/mysql
+install -m755 $MBD/support-files/mysql.server $RBR%{_sysconfdir}/init.d/mysql
 
 # Create a symlink "rcmysql", pointing to the init.script. SuSE users
 # will appreciate that, as all services usually offer this.
-ln -s ../../etc/init.d/mysql $RPM_BUILD_ROOT/usr/sbin/rcmysql
+ln -s %{_sysconfdir}/init.d/mysql $RPM_BUILD_ROOT%{_sbindir}/rcmysql
 
 # Create symbolic compatibility link safe_mysqld -> mysqld_safe
 # (safe_mysqld will be gone in MySQL 4.1)
-ln -sf ./mysqld_safe $RBR/usr/bin/safe_mysqld
+ln -sf ./mysqld_safe $RBR%{_bindir}/safe_mysqld
 
 # Touch the place where the my.cnf config file might be located
 # Just to make sure it's in the file list and marked as a config file
-touch $RBR/etc/my.cnf
+touch $RBR%{_sysconfdir}/my.cnf
 
 %pre server
 # Shut down a previously installed server first
-if test -x /etc/init.d/mysql
+if test -x %{_sysconfdir}/init.d/mysql
 then
-  /etc/init.d/mysql stop > /dev/null 2>&1
+  %{_sysconfdir}/init.d/mysql stop > /dev/null 2>&1
   echo "Giving mysqld a couple of seconds to exit nicely"
   sleep 5
-elif test -x /etc/rc.d/init.d/mysql
+elif test -x %{_sysconfdir}/rc.d/init.d/mysql
 then
-  /etc/rc.d/init.d/mysql stop > /dev/null 2>&1
+  %{_sysconfdir}/rc.d/init.d/mysql stop > /dev/null 2>&1
   echo "Giving mysqld a couple of seconds to exit nicely"
   sleep 5
 fi
@@ -363,7 +370,7 @@ if test ! -d $mysql_datadir/test; then mkdir $mysql_datadir/test; fi
 # use insserv for older SuSE Linux versions
 if test -x /sbin/insserv
 then
-	/sbin/insserv /etc/init.d/mysql
+	/sbin/insserv %{_sysconfdir}/init.d/mysql
 # use chkconfig on Red Hat and newer SuSE releases
 elif test -x /sbin/chkconfig
 then
@@ -389,7 +396,7 @@ chown -R mysql $mysql_datadir
 chmod -R og-rw $mysql_datadir/mysql
 
 # Restart in the same way that mysqld will be started normally.
-/etc/init.d/mysql start
+%{_sysconfdir}/init.d/mysql start
 
 # Allow safe_mysqld to start mysqld and print a message before we exit
 sleep 2
@@ -397,22 +404,22 @@ sleep 2
 %post Max
 # Restart mysqld, to use the new binary.
 echo "Restarting mysqld."
-/etc/init.d/mysql restart > /dev/null 2>&1
+%{_sysconfdir}/init.d/mysql restart > /dev/null 2>&1
 
 %preun server
 if test $1 = 0
 then
 	# Stop MySQL before uninstalling it
-  if test -x /etc/init.d/mysql
+  if test -x %{_sysconfdir}/init.d/mysql
   then
-    /etc/init.d/mysql stop > /dev/null
+    %{_sysconfdir}/init.d/mysql stop > /dev/null
   fi
 
   # Remove autostart of mysql
 	# for older SuSE Linux versions
 	if test -x /sbin/insserv
 	then
-		/sbin/insserv -r /etc/init.d/mysql
+		/sbin/insserv -r %{_sysconfdir}/init.d/mysql
 	# use chkconfig on Red Hat and newer SuSE releases
 	elif test -x /sbin/chkconfig
 	then
@@ -445,54 +452,54 @@ fi
 %doc %attr(644, root, man) %{_mandir}/man1/perror.1*
 %doc %attr(644, root, man) %{_mandir}/man1/replace.1*
 
-%ghost %config(noreplace,missingok) /etc/my.cnf
+%ghost %config(noreplace,missingok) %{_sysconfdir}/my.cnf
 
-%attr(755, root, root) /usr/bin/isamchk
-%attr(755, root, root) /usr/bin/isamlog
-%attr(755, root, root) /usr/bin/my_print_defaults
-%attr(755, root, root) /usr/bin/myisamchk
-%attr(755, root, root) /usr/bin/myisamlog
-%attr(755, root, root) /usr/bin/myisampack
-%attr(755, root, root) /usr/bin/mysql_convert_table_format
-%attr(755, root, root) /usr/bin/mysql_explain_log
-%attr(755, root, root) /usr/bin/mysql_fix_privilege_tables
-%attr(755, root, root) /usr/bin/mysql_install_db
-%attr(755, root, root) /usr/bin/mysql_secure_installation
-%attr(755, root, root) /usr/bin/mysql_setpermission
-%attr(755, root, root) /usr/bin/mysql_zap
-%attr(755, root, root) /usr/bin/mysqlbug
-%attr(755, root, root) /usr/bin/mysqld_multi
-%attr(755, root, root) /usr/bin/mysqld_safe
-%attr(755, root, root) /usr/bin/mysqlhotcopy
-%attr(755, root, root) /usr/bin/mysqltest
-%attr(755, root, root) /usr/bin/pack_isam
-%attr(755, root, root) /usr/bin/perror
-%attr(755, root, root) /usr/bin/replace
-%attr(755, root, root) /usr/bin/resolve_stack_dump
-%attr(755, root, root) /usr/bin/resolveip
-%attr(755, root, root) /usr/bin/safe_mysqld
+%attr(755, root, root) %{_bindir}/isamchk
+%attr(755, root, root) %{_bindir}/isamlog
+%attr(755, root, root) %{_bindir}/my_print_defaults
+%attr(755, root, root) %{_bindir}/myisamchk
+%attr(755, root, root) %{_bindir}/myisamlog
+%attr(755, root, root) %{_bindir}/myisampack
+%attr(755, root, root) %{_bindir}/mysql_convert_table_format
+%attr(755, root, root) %{_bindir}/mysql_explain_log
+%attr(755, root, root) %{_bindir}/mysql_fix_privilege_tables
+%attr(755, root, root) %{_bindir}/mysql_install_db
+%attr(755, root, root) %{_bindir}/mysql_secure_installation
+%attr(755, root, root) %{_bindir}/mysql_setpermission
+%attr(755, root, root) %{_bindir}/mysql_zap
+%attr(755, root, root) %{_bindir}/mysqlbug
+%attr(755, root, root) %{_bindir}/mysqld_multi
+%attr(755, root, root) %{_bindir}/mysqld_safe
+%attr(755, root, root) %{_bindir}/mysqlhotcopy
+%attr(755, root, root) %{_bindir}/mysqltest
+%attr(755, root, root) %{_bindir}/pack_isam
+%attr(755, root, root) %{_bindir}/perror
+%attr(755, root, root) %{_bindir}/replace
+%attr(755, root, root) %{_bindir}/resolve_stack_dump
+%attr(755, root, root) %{_bindir}/resolveip
+%attr(755, root, root) %{_bindir}/safe_mysqld
 
-%attr(755, root, root) /usr/sbin/mysqld
-%attr(755, root, root) /usr/sbin/rcmysql
-%attr(644, root, root) /usr/lib/mysql/mysqld.sym
+%attr(755, root, root) %{_sbindir}/mysqld
+%attr(755, root, root) %{_sbindir}/rcmysql
+%attr(644, root, root) %{_libdir}/mysql/mysqld.sym
 
-%attr(644, root, root) /etc/logrotate.d/mysql
-%attr(755, root, root) /etc/init.d/mysql
+%attr(644, root, root) %{_sysconfdir}/logrotate.d/mysql
+%attr(755, root, root) %{_sysconfdir}/init.d/mysql
 
-%attr(755, root, root) /usr/share/mysql/
+%attr(755, root, root) %{_datadir}/mysql/
 
 %files client
-%attr(755, root, root) /usr/bin/msql2mysql
-%attr(755, root, root) /usr/bin/mysql
-%attr(755, root, root) /usr/bin/mysql_find_rows
-%attr(755, root, root) /usr/bin/mysql_waitpid
-%attr(755, root, root) /usr/bin/mysqlaccess
-%attr(755, root, root) /usr/bin/mysqladmin
-%attr(755, root, root) /usr/bin/mysqlbinlog
-%attr(755, root, root) /usr/bin/mysqlcheck
-%attr(755, root, root) /usr/bin/mysqldump
-%attr(755, root, root) /usr/bin/mysqlimport
-%attr(755, root, root) /usr/bin/mysqlshow
+%attr(755, root, root) %{_bindir}/msql2mysql
+%attr(755, root, root) %{_bindir}/mysql
+%attr(755, root, root) %{_bindir}/mysql_find_rows
+%attr(755, root, root) %{_bindir}/mysql_waitpid
+%attr(755, root, root) %{_bindir}/mysqlaccess
+%attr(755, root, root) %{_bindir}/mysqladmin
+%attr(755, root, root) %{_bindir}/mysqlbinlog
+%attr(755, root, root) %{_bindir}/mysqlcheck
+%attr(755, root, root) %{_bindir}/mysqldump
+%attr(755, root, root) %{_bindir}/mysqlimport
+%attr(755, root, root) %{_bindir}/mysqlshow
 
 %doc %attr(644, root, man) %{_mandir}/man1/mysql.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlaccess.1*
@@ -508,45 +515,57 @@ fi
 
 %files devel
 %defattr(644 root, root)
-%attr(755, root, root) /usr/bin/comp_err
-%attr(755, root, root) /usr/bin/mysql_config
-%dir %attr(755, root, root) /usr/include/mysql
-%dir %attr(755, root, root) /usr/lib/mysql
-/usr/include/mysql/*
-/usr/lib/mysql/libdbug.a
-/usr/lib/mysql/libheap.a
-/usr/lib/mysql/libmerge.a
-/usr/lib/mysql/libmyisam.a
-/usr/lib/mysql/libmyisammrg.a
-/usr/lib/mysql/libmysqlclient.a
-/usr/lib/mysql/libmysqlclient.la
-/usr/lib/mysql/libmysqlclient_r.a
-/usr/lib/mysql/libmysqlclient_r.la
-/usr/lib/mysql/libmystrings.a
-/usr/lib/mysql/libmysys.a
-/usr/lib/mysql/libnisam.a
-/usr/lib/mysql/libvio.a
+%attr(755, root, root) %{_bindir}/comp_err
+%attr(755, root, root) %{_bindir}/mysql_config
+%dir %attr(755, root, root) %{_includedir}/mysql
+%dir %attr(755, root, root) %{_libdir}/mysql
+%{_includedir}/mysql/*
+%{_libdir}/mysql/libdbug.a
+%{_libdir}/mysql/libheap.a
+%{_libdir}/mysql/libmerge.a
+%{_libdir}/mysql/libmyisam.a
+%{_libdir}/mysql/libmyisammrg.a
+%{_libdir}/mysql/libmysqlclient.a
+%{_libdir}/mysql/libmysqlclient.la
+%{_libdir}/mysql/libmysqlclient_r.a
+%{_libdir}/mysql/libmysqlclient_r.la
+%{_libdir}/mysql/libmystrings.a
+%{_libdir}/mysql/libmysys.a
+%{_libdir}/mysql/libnisam.a
+%{_libdir}/mysql/libvio.a
 
 %files shared
 %defattr(755 root, root)
 # Shared libraries (omit for architectures that don't support them)
-/usr/lib/*.so*
+%{_libdir}/*.so*
 
 %files bench
-%attr(-, root, root) /usr/share/sql-bench
-%attr(-, root, root) /usr/share/mysql-test
-%attr(755, root, root) /usr/bin/mysqlmanager
-%attr(755, root, root) /usr/bin/mysqlmanager-pwgen
-%attr(755, root, root) /usr/bin/mysqlmanagerc
+%attr(-, root, root) %{_datadir}/sql-bench
+%attr(-, root, root) %{_datadir}/mysql-test
+%attr(755, root, root) %{_bindir}/mysqlmanager
+%attr(755, root, root) %{_bindir}/mysqlmanager-pwgen
+%attr(755, root, root) %{_bindir}/mysqlmanagerc
 
 %files Max
-%attr(755, root, root) /usr/sbin/mysqld-max
-%attr(644, root, root) /usr/lib/mysql/mysqld-max.sym
+%attr(755, root, root) %{_sbindir}/mysqld-max
+%attr(644, root, root) %{_libdir}/mysql/mysqld-max.sym
 
 %files embedded
-%attr(644, root, root) /usr/lib/mysql/libmysqld.a
+%attr(644, root, root) %{_libdir}/mysql/libmysqld.a
 
 %changelog 
+* Wed Jul 09 2003 Lenz Grimmer <lenz@mysql.com>
+
+- removed the GIF Icon (file was not included in the sources anyway)
+- removed unused variable %shared_lib_version
+- do not run automake before building the standard binary
+  (should not be necessary)
+- add server suffix '-standard' to standard binary (to be in line
+  with the binary tarball distributions)
+- Use more RPM macros (_exec_prefix, _sbindir, _libdir, _sysconfdir,
+  _datadir, _includedir) throughout the spec file.
+- allow overriding CC and CXX (required when building with other compilers)
+
 * Fri May 16 2003 Lenz Grimmer <lenz@mysql.com>
 
 - re-enabled RAID again
