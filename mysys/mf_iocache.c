@@ -442,10 +442,9 @@ void init_io_cache_share(IO_CACHE *info, IO_CACHE_SHARE *s, uint num_threads)
   pthread_mutex_init(&s->mutex, MY_MUTEX_INIT_FAST);
   pthread_cond_init (&s->cond, 0);
   s->total=s->count=num_threads-1;
-  s->active=0; /* to catch errors */
+  s->active=0;
   info->share=s;
   info->read_function=_my_b_read_r;
-  /* Ensure that the code doesn't use pointer to the IO_CACHE object */
   info->current_pos= info->current_end= 0;
 }
 
@@ -465,7 +464,7 @@ void remove_io_thread(IO_CACHE *info)
   pthread_mutex_unlock(&s->mutex);
 }
 
-static int lock_io_cache(IO_CACHE *info)
+static int lock_io_cache(IO_CACHE *info, my_off_t pos)
 {
   int total;
   IO_CACHE_SHARE *s=info->share;
@@ -479,7 +478,8 @@ static int lock_io_cache(IO_CACHE *info)
 
   total=s->total;
   s->count--;
-  pthread_cond_wait(&s->cond, &s->mutex);
+  while (!s->active || s->active->pos_in_file < pos)
+    pthread_cond_wait(&s->cond, &s->mutex);
 
   if (s->total < total)
     return 1;
@@ -536,7 +536,7 @@ int _my_b_read_r(register IO_CACHE *info, byte *Buffer, uint Count)
       info->error=(int) read_len;
       DBUG_RETURN(1);
     }
-    if (lock_io_cache(info))
+    if (lock_io_cache(info, pos_in_file))
     {
       info->share->active=info;
       if (info->seek_not_done)             /* File touched, do seek */
