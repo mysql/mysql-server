@@ -26,20 +26,6 @@ typedef struct charset_info_st CHARSET_INFO;
 class NdbSqlUtil {
 public:
   /**
-   * Compare strings, optionally with padded semantics.  Returns
-   * negative (less), zero (equal), or positive (greater).
-   */
-  static int char_compare(const char* s1, unsigned n1,
-                          const char* s2, unsigned n2, bool padded);
-
-  /**
-   * Like operator, optionally with padded semantics.  Returns true or
-   * false.
-   */
-  static bool char_like(const char* s1, unsigned n1,
-                        const char* s2, unsigned n2, bool padded);
-
-  /**
    * Compare attribute values.  Returns -1, 0, +1 for less, equal,
    * greater, respectively.  Parameters are pointers to values and their
    * lengths in bytes.  The lengths can differ.
@@ -48,7 +34,7 @@ public:
    * the partial value is not enough to determine the result, CmpUnknown
    * will be returned.  A shorter second value is not necessarily
    * partial.  Partial values are allowed only for types where prefix
-   * comparison is possible (basically, binary types).
+   * comparison is possible (basically, binary strings).
    *
    * First parameter is a pointer to type specific extra info.  Char
    * types receive CHARSET_INFO in it.
@@ -57,6 +43,18 @@ public:
    * any valid value.
    */
   typedef int Cmp(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full);
+
+  /**
+   * Prototype for "like" comparison.  Defined for the 3 char string
+   * types.  Second argument must have same type-specific format.
+   * Returns >0 on match, 0 on no match, <0 on bad data.
+   *
+   * Uses default special chars ( \ % _ ).
+   *
+   * TODO convert special chars to the cs so that ucs2 etc works
+   * TODO allow user-defined escape ( \ )
+   */
+  typedef int Like(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2);
 
   enum CmpResult {
     CmpLess = -1,
@@ -101,6 +99,7 @@ public:
     };
     Enum m_typeId;      // redundant
     Cmp* m_cmp;         // comparison method
+    Like* m_like;       // "like" comparison method
   };
 
   /**
@@ -110,7 +109,8 @@ public:
 
   /**
    * Get the normalized type used in hashing and key comparisons.
-   * Maps all string types to Binary.
+   * Maps all string types to Binary.  This includes Var* strings
+   * because strxfrm result is padded to fixed (maximum) length.
    */
   static const Type& getTypeBinary(Uint32 typeId);
 
@@ -176,6 +176,10 @@ private:
   static Cmp cmpOlddecimalunsigned;
   static Cmp cmpDecimal;
   static Cmp cmpDecimalunsigned;
+  //
+  static Like likeChar;
+  static Like likeVarchar;
+  static Like likeLongvarchar;
 };
 
 #endif
