@@ -52,6 +52,7 @@ typedef struct charset_info_st CHARSET_INFO;
  * -# Dropping secondary indexes (Dictionary::dropIndex)
  *
  * NdbDictionary has several help (inner) classes to support this:
+ * -# NdbDictionary::Dictionary the dictionary handling dictionary objects
  * -# NdbDictionary::Table for creating tables
  * -# NdbDictionary::Column for creating table columns
  * -# NdbDictionary::Index for creating secondary indexes
@@ -909,6 +910,9 @@ public:
    */
   class Event : public Object  {
   public:
+    /**
+     * Specifies the type of database operations an Event listens to
+     */
     enum TableEvent { 
       TE_INSERT=1, ///< Insert event on table
       TE_DELETE=2, ///< Delete event on table
@@ -916,6 +920,10 @@ public:
       TE_ALL=7     ///< Any/all event on table (not relevant when 
                    ///< events are received)
     };
+    /**
+     *  Specifies the durability of an event
+     * (future version may supply other types)
+     */
     enum EventDurability { 
       ED_UNDEFINED
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
@@ -930,8 +938,8 @@ public:
       // All API's can use it,
       // But's its removed when ndb is restarted
 #endif
-      ,ED_PERMANENT    ///< All API's can use it,
-                       ///< It's still defined after a restart
+      ,ED_PERMANENT    ///< All API's can use it.
+                       ///< It's still defined after a cluster system restart
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
       = 3
 #endif
@@ -950,9 +958,12 @@ public:
     Event(const char *name, const NdbDictionary::Table& table);
     virtual ~Event();
     /**
-     * Set/get unique identifier for the event
+     * Set unique identifier for the event
      */
     void setName(const char *name);
+    /**
+     * Get unique identifier for the event
+     */
     const char *getName() const;
     /**
      * Define table on which events should be detected
@@ -967,7 +978,7 @@ public:
     /**
      * Set table for which events should be detected
      *
-     * @note preferred way is using setTable(const NdbDictionary::Table)
+     * @note preferred way is using setTable(const NdbDictionary::Table&)
      *       or constructor with table object parameter
      */
     void setTable(const char *tableName);
@@ -1224,9 +1235,12 @@ public:
 #endif
 
     /**
-     * Remove table/index from local cache
+     * Remove table from local cache
      */
     void removeCachedTable(const char * table);
+    /**
+     * Remove index from local cache
+     */
     void removeCachedIndex(const char * index, const char * table);
 
     
