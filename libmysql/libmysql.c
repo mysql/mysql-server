@@ -2929,10 +2929,12 @@ static uint read_binary_date(MYSQL_TIME *tm, uchar **pos)
 }
 
 /* Convert Numeric to buffer types */
-static void send_data_long(MYSQL_BIND *param, longlong value)
+static void send_data_long(MYSQL_BIND *param, MYSQL_FIELD *field,
+			   longlong value)
 {  
   char *buffer= param->buffer;
-  
+  uint field_is_unsigned= (field->flags & UNSIGNED_FLAG);
+
   switch (param->buffer_type) {
   case MYSQL_TYPE_NULL: /* do nothing */
     break;
@@ -2950,20 +2952,24 @@ static void send_data_long(MYSQL_BIND *param, longlong value)
     break;
   case MYSQL_TYPE_FLOAT:
   {
-    float data= (float)value;
+    float data= (field_is_unsigned ? (float) ulonglong2double(value) :
+		 (float) value);
     float4store(buffer, data);
     break;
   }
   case MYSQL_TYPE_DOUBLE:
   {
-    double data= (double)value;
+    double data= (field_is_unsigned ? ulonglong2double(value) :
+		 (double) value);
     float8store(buffer, data);
     break;
   }
   default:
   {
     char tmp[22];				/* Enough for longlong */
-    uint length= (uint)(longlong10_to_str(value,(char *)tmp,10)-tmp);
+    uint length= (uint)(longlong10_to_str(value,(char *)tmp,
+					  field_is_unsigned ? 10: -10) -
+			tmp);
     ulong copy_length= min((ulong)length-param->offset, param->buffer_length);
     if ((long) copy_length < 0)
       copy_length=0;
@@ -3170,7 +3176,7 @@ static void fetch_results(MYSQL_BIND *param, MYSQL_FIELD *field, uchar **row)
     uint field_is_unsigned= (field->flags & UNSIGNED_FLAG);
     longlong data= ((field_is_unsigned) ? (longlong) (unsigned char) value:
 		    (longlong) value);
-    send_data_long(param,data);
+    send_data_long(param, field, data);
     length= 1;
     break;
   }
@@ -3181,7 +3187,7 @@ static void fetch_results(MYSQL_BIND *param, MYSQL_FIELD *field, uchar **row)
     uint field_is_unsigned= (field->flags & UNSIGNED_FLAG);
     longlong data= ((field_is_unsigned) ? (longlong) (unsigned short) value:
 		    (longlong) value);
-    send_data_long(param,data);
+    send_data_long(param, field, data);
     length= 2;    
     break;
   }
@@ -3191,14 +3197,14 @@ static void fetch_results(MYSQL_BIND *param, MYSQL_FIELD *field, uchar **row)
     uint field_is_unsigned= (field->flags & UNSIGNED_FLAG);
     longlong data= ((field_is_unsigned) ? (longlong) (unsigned long) value:
 		    (longlong) value);
-    send_data_long(param,data);
+    send_data_long(param, field, data);
     length= 4;
     break;
   }
   case MYSQL_TYPE_LONGLONG:
   {
     longlong value= (longlong)sint8korr(*row);
-    send_data_long(param,value);
+    send_data_long(param, field, value);
     length= 8;
     break;
   }

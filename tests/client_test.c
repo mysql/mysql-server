@@ -9239,8 +9239,7 @@ static void test_bug3035()
 {
   MYSQL_STMT *stmt;
   int rc;
-
-  MYSQL_BIND bind_array[8];
+  MYSQL_BIND bind_array[12];
   int8 int8_val;
   uint8 uint8_val;
   int16 int16_val;
@@ -9249,6 +9248,8 @@ static void test_bug3035()
   uint32 uint32_val;
   longlong int64_val;
   ulonglong uint64_val;
+  double double_val, udouble_val;
+  char longlong_as_string[22],ulonglong_as_string[22];
 
   /* mins and maxes */
   const int8 int8_min= -128;
@@ -9267,11 +9268,11 @@ static void test_bug3035()
   const uint32 uint32_max= 4294967295U;
 
   /* it might not work okay everyplace */
-  const longlong int64_max= 9223372036854775807LL;
+  const longlong int64_max= LL(9223372036854775807);
   const longlong int64_min= -int64_max - 1;
 
   const ulonglong uint64_min= 0U;
-  const ulonglong uint64_max= 18446744073709551615ULL;
+  const ulonglong uint64_max= ULL(18446744073709551615);
   
   const char *stmt_text;
   
@@ -9353,7 +9354,7 @@ static void test_bug3035()
   mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
 
-  stmt_text= "SELECT i8, ui8, i16, ui16, i32, ui32, i64, ui64 "
+  stmt_text= "SELECT i8, ui8, i16, ui16, i32, ui32, i64, ui64, ui64, cast(ui64 as signed),ui64, cast(ui64 as signed)"
              "FROM t1 ORDER BY id ASC";
 
   mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
@@ -9362,6 +9363,20 @@ static void test_bug3035()
   mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
 
+  bind_array[8].buffer_type= MYSQL_TYPE_DOUBLE;
+  bind_array[8].buffer= (char*) &udouble_val;
+
+  bind_array[9].buffer_type= MYSQL_TYPE_DOUBLE;
+  bind_array[9].buffer= (char*) &double_val;
+
+  bind_array[10].buffer_type= MYSQL_TYPE_STRING;
+  bind_array[10].buffer= (char*) &ulonglong_as_string;
+  bind_array[10].buffer_length= sizeof(ulonglong_as_string);
+
+  bind_array[11].buffer_type= MYSQL_TYPE_STRING;
+  bind_array[11].buffer= (char*) &longlong_as_string;
+  bind_array[11].buffer_length= sizeof(longlong_as_string);
+  
   mysql_stmt_bind_result(stmt, bind_array);
 
   rc= mysql_stmt_fetch(stmt);
@@ -9375,6 +9390,10 @@ static void test_bug3035()
   assert(uint32_val == uint32_min);
   assert(int64_val == int64_min);
   assert(uint64_val == uint64_min);
+  assert(double_val == (longlong) uint64_min);
+  assert(udouble_val == ulonglong2double(uint64_val));
+  assert(!strcmp(longlong_as_string, "0"));
+  assert(!strcmp(ulonglong_as_string, "0"));
 
   rc= mysql_stmt_fetch(stmt);
   check_execute(stmt, rc);
@@ -9387,6 +9406,10 @@ static void test_bug3035()
   assert(uint32_val == uint32_max);
   assert(int64_val == int64_max);
   assert(uint64_val == uint64_max);
+  assert(double_val == (longlong) uint64_val);
+  assert(udouble_val == ulonglong2double(uint64_val));
+  assert(!strcmp(longlong_as_string, "-1"));
+  assert(!strcmp(ulonglong_as_string, "18446744073709551615"));
 
   rc= mysql_stmt_fetch(stmt);
   assert(rc == MYSQL_NO_DATA); 
