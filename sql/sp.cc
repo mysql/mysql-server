@@ -219,7 +219,7 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
     ulong deflen;
     LEX *oldlex= thd->lex;
     char olddb[128];
-    char *olddbptr;
+    bool dbchanged;
     enum enum_sql_command oldcmd= thd->lex->sql_command;
     ulong old_sql_mode= thd->variables.sql_mode;
     ha_rows select_limit= thd->variables.select_limit;
@@ -239,8 +239,9 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
       goto done;
     }
 
-    olddbptr= thd->db;
-    if ((ret= sp_use_new_db(thd, name->m_db.str, olddb, sizeof(olddb), 1)))
+    dbchanged= FALSE;
+    if ((ret= sp_use_new_db(thd, name->m_db.str, olddb, sizeof(olddb),
+			    1, &dbchanged)))
       goto done;
 
     {
@@ -262,8 +263,7 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
       LEX *newlex= thd->lex;
       sp_head *sp= newlex->sphead;
 
-      if (olddbptr != thd->db &&
-	  (ret= sp_change_db(thd, olddb, 1)))
+      if (dbchanged && (ret= sp_change_db(thd, olddb, 1)))
 	goto done;
       if (sp)
       {
@@ -276,8 +276,7 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
     }
     else
     {
-      if (olddbptr != thd->db &&
-	  (ret= sp_change_db(thd, olddb, 1)))
+      if (dbchanged && (ret= sp_change_db(thd, olddb, 1)))
 	goto done;
       *sphp= thd->lex->sphead;
       (*sphp)->set_info((char *)definer, (uint)strlen(definer),
@@ -990,7 +989,7 @@ create_string(THD *thd, ulong *lenp,
 
 int
 sp_use_new_db(THD *thd, char *newdb, char *olddb, uint olddblen,
-	      bool no_access_check)
+	      bool no_access_check, bool *dbchangedp)
 {
   bool changeit;
   DBUG_ENTER("sp_use_new_db");
@@ -1016,12 +1015,15 @@ sp_use_new_db(THD *thd, char *newdb, char *olddb, uint olddblen,
   }
   if (!changeit)
   {
+    *dbchangedp= FALSE;
     DBUG_RETURN(0);
   }
   else
   {
     int ret= sp_change_db(thd, newdb, no_access_check);
 
+    if (! ret)
+      *dbchangedp= TRUE;
     DBUG_RETURN(ret);
   }
 }
