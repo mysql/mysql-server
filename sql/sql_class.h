@@ -222,6 +222,7 @@ public:
   const char *Name;
 
   Key(enum Keytype type_par,const char *name_arg,List<key_part_spec> &cols)
+    :type(type_par), columns(cols),Name(name_arg) {}
     
   Key(enum Keytype type_par, enum ha_key_alg alg_par, const char *name_arg, List<key_part_spec> &cols)
     :type(type_par), algorithm(alg_par), columns(cols), Name(name_arg)

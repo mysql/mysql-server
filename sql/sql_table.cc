@@ -454,7 +454,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
         key_info->flags = HA_NOSAME;
     }
 
-    key_info->key_alg = key->alg;
+    key_info->key_alg = key->algorithm;
     key_info->key_parts=(uint8) key->columns.elements;
     key_info->key_part=key_part_info;
     key_info->usable_key_parts= key_number;

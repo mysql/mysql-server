@@ -941,7 +941,7 @@ bool change_password(THD *thd, const char *host, const char *user,
 
   if (!thd->slave_thread &&
       (strcmp(thd->user,user) ||
-       my_strcasecmp(system_charset_info, host,thd->host_or_ip))
+       my_strcasecmp(system_charset_info, host,thd->host_or_ip)))
   {
     if (check_access(thd, UPDATE_ACL, "mysql",0,1))
       DBUG_RETURN(1);

@@ -1154,7 +1154,7 @@ opt_unique_or_fulltext:
 
 key_alg:
 	/* empty */		   { $$= HA_KEY_ALG_BTREE; }
-	| USING opt_btree_or_rtree { $$= $2 }
+	| USING opt_btree_or_rtree { $$= $2; }
 
 opt_btree_or_rtree:
 	BTREE_SYM	{ $$= HA_KEY_ALG_BTREE; }
@@ -1784,9 +1784,9 @@ simple_expr:
 	| FIELD_FUNC '(' expr ',' expr_list ')'
 	  { $$= new Item_func_field($3, *$5); }
 	| GEOMFROMTEXT '(' expr ')'
-	  { $$= new Item_func_geometry_from_text($3) }
+	  { $$= new Item_func_geometry_from_text($3); }
 	| GEOMFROMTEXT '(' expr ',' expr ')'
-	  { $$= new Item_func_geometry_from_text($3) }
+	  { $$= new Item_func_geometry_from_text($3); }
 	| GEOMETRYCOLLECTION '(' expr_list ')'
 	  { $$= new Item_func_spatial_collection(* $3, 
                        Geometry::wkbGeometryCollection, 
@@ -1823,17 +1823,17 @@ simple_expr:
 	| LOCATE '(' expr ',' expr ',' expr ')'
 	  { $$= new Item_func_locate($5,$3,$7); }
  	| GEOMCOLLFROMTEXT '(' expr ')'
-	  { $$= new Item_func_geometry_from_text($3) }
+	  { $$= new Item_func_geometry_from_text($3); }
 	| GEOMCOLLFROMTEXT '(' expr ',' expr ')'
-	  { $$= new Item_func_geometry_from_text($3) }
+	  { $$= new Item_func_geometry_from_text($3); }
 	| GREATEST_SYM '(' expr ',' expr_list ')'
 	  { $5->push_front($3); $$= new Item_func_max(*$5); }
 	| LEAST_SYM '(' expr ',' expr_list ')'
 	  { $5->push_front($3); $$= new Item_func_min(*$5); }
  	| LINEFROMTEXT '(' expr ')'
-	  { $$= new Item_func_geometry_from_text($3) }
+	  { $$= new Item_func_geometry_from_text($3); }
 	| LINEFROMTEXT '(' expr ',' expr ')'
-	  { $$= new Item_func_geometry_from_text($3) }
+	  { $$= new Item_func_geometry_from_text($3); }
 	| MINUTE_SYM '(' expr ')'
 	  { $$= new Item_func_minute($3); }
 	| MONTH_SYM '(' expr ')'
@@ -1842,17 +1842,17 @@ simple_expr:
  	  { $$= new Item_func_spatial_collection(* $3, 
                     Geometry::wkbMultiLineString, Geometry::wkbLineString); }
  	| MLINEFROMTEXT '(' expr ')'
-	  { $$= new Item_func_geometry_from_text($3) }
+	  { $$= new Item_func_geometry_from_text($3); }
 	| MLINEFROMTEXT '(' expr ',' expr ')'
-	  { $$= new Item_func_geometry_from_text($3) }
+	  { $$= new Item_func_geometry_from_text($3); }
 	| MPOINTFROMTEXT '(' expr ')'
-	  { $$= new Item_func_geometry_from_text($3) }
+	  { $$= new Item_func_geometry_from_text($3); }
 	| MPOINTFROMTEXT '(' expr ',' expr ')'
-	  { $$= new Item_func_geometry_from_text($3) }
+	  { $$= new Item_func_geometry_from_text($3); }
 	| MPOLYFROMTEXT '(' expr ')'
-	  { $$= new Item_func_geometry_from_text($3) }
+	  { $$= new Item_func_geometry_from_text($3); }
 	| MPOLYFROMTEXT '(' expr ',' expr ')'
-	  { $$= new Item_func_geometry_from_text($3) }
+	  { $$= new Item_func_geometry_from_text($3); }
 	| MULTIPOINT '(' expr_list ')'
  	  { $$= new Item_func_spatial_collection(* $3, 
                     Geometry::wkbMultiPoint, Geometry::wkbPoint); }
@@ -1868,13 +1868,13 @@ simple_expr:
 	    $$= new Item_func_password($3);
 	   }
  	| POINTFROMTEXT '(' expr ')'
-	  { $$= new Item_func_geometry_from_text($3) }
+	  { $$= new Item_func_geometry_from_text($3); }
 	| POINTFROMTEXT '(' expr ',' expr ')'
-	  { $$= new Item_func_geometry_from_text($3) }
+	  { $$= new Item_func_geometry_from_text($3); }
 	| POLYFROMTEXT '(' expr ')'
-	  { $$= new Item_func_geometry_from_text($3) }
+	  { $$= new Item_func_geometry_from_text($3); }
 	| POLYFROMTEXT '(' expr ',' expr ')'
-	  { $$= new Item_func_geometry_from_text($3) }
+	  { $$= new Item_func_geometry_from_text($3); }
 	| POLYGON '(' expr_list ')'
  	  { $$= new Item_func_spatial_collection(* $3, 
 			Geometry::wkbPolygon, Geometry::wkbLineString); }
