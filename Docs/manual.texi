@@ -27666,7 +27666,7 @@ This should contain a technical description of the @strong{MySQL}
 benchmark suite (and @code{crash-me}), but that description is not
 written yet. Currently, you should look at the code and results in the
 @file{sql-bench} directory in the distribution (and of course on the Web page
-at @uref{http://www.mysql.com/crashme/choose.php} and (normally found in
+at @uref{http://www.mysql.com/information/crash-me.php} and (normally found in
 the @file{sql-bench} directory in the @strong{MySQL} distribution)).
 
 It is meant to be a benchmark that will tell any user what things a
