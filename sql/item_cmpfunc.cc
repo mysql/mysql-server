@@ -2044,12 +2044,21 @@ void Item_cond::traverse_cond(Item_cond_traverser traverser,
   List_iterator<Item> li(list);
   Item *item;
 
-  if (order == PREFIX) (*traverser)(this, arg);
-  while ((item= li++))
-  {
-    item->traverse_cond(traverser, arg, order);
+  switch(order) {
+  case(PREFIX):
+    (*traverser)(this, arg);
+    while ((item= li++))
+    {
+      item->traverse_cond(traverser, arg, order);
+    }
+    break;
+  case(POSTFIX):
+    while ((item= li++))
+    {
+      item->traverse_cond(traverser, arg, order);
+    }
+    (*traverser)(this, arg);
   }
-  if (order == POSTFIX) (*traverser)(this, arg);
 }
 
 void Item_cond::split_sum_func(THD *thd, Item **ref_pointer_array,
