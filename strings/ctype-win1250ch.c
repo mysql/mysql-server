@@ -45,6 +45,9 @@
 #include "m_string.h"
 #include "m_ctype.h"
 
+#ifdef HAVE_CHARSET_cp1250
+
+
 static uint16 tab_cp1250_uni[256]={
      0,0x0001,0x0002,0x0003,0x0004,0x0005,0x0006,0x0007,
 0x0008,0x0009,0x000A,0x000B,0x000C,0x000D,0x000E,0x000F,
@@ -672,5 +675,7 @@ CHARSET_INFO my_charset_cp1250_czech_ci =
     &my_collation_czech_ci_handler
 };
 
+
+#endif
 
 #endif

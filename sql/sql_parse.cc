@@ -601,8 +601,8 @@ check_connections(THD *thd)
   {
     /* buff[] needs to big enough to hold the server_version variable */
     char buff[SERVER_VERSION_LENGTH + SCRAMBLE_LENGTH+64];
-    int client_flags = (CLIENT_LONG_FLAG | CLIENT_CONNECT_WITH_DB |
-			CLIENT_PROTOCOL_41 | CLIENT_SECURE_CONNECTION);
+    ulong client_flags = (CLIENT_LONG_FLAG | CLIENT_CONNECT_WITH_DB |
+			  CLIENT_PROTOCOL_41 | CLIENT_SECURE_CONNECTION);
 
     if (opt_using_transactions)
       client_flags|=CLIENT_TRANSACTIONS;
@@ -644,11 +644,26 @@ check_connections(THD *thd)
     return(ER_OUT_OF_RESOURCES);
 
   thd->client_capabilities=uint2korr(net->read_pos);
+#ifdef TO_BE_REMOVED_IN_4_1_RELEASE
+  /*
+    This is just a safety check against any client that would use the old
+    CLIENT_CHANGE_USER flag
+  */
+  if ((thd->client_capabilities & CLIENT_PROTOCOL_41) &&
+      !(thd->client_capabilities & (CLIENT_RESERVED |
+				    CLIENT_SECURE_CONNECTION |
+				    CLIENT_MULTI_RESULTS)))
+    thd->client_capabilities&= ~CLIENT_PROTOCOL_41;
+#endif
   if (thd->client_capabilities & CLIENT_PROTOCOL_41)
   {
     thd->client_capabilities|= ((ulong) uint2korr(net->read_pos+2)) << 16;
     thd->max_client_packet_length= uint4korr(net->read_pos+4);
-    end= (char*) net->read_pos+8;
+    if (!(thd->variables.character_set_client=
+	  get_charset((uint) net->read_pos[8], MYF(0))))
+      thd->variables.character_set_client=
+	global_system_variables.character_set_client;
+    end= (char*) net->read_pos+32;
   }
   else
   {
@@ -778,7 +793,7 @@ pthread_handler_decl(handle_one_connection,arg)
   // The following calls needs to be done before we call DBUG_ macros
   if (!(test_flags & TEST_NO_THREADS) & my_thread_init())
   {
-    close_connection(&thd->net,ER_OUT_OF_RESOURCES);
+    close_connection(thd, ER_OUT_OF_RESOURCES, 1);
     statistic_increment(aborted_connects,&LOCK_status);
     end_thread(thd,0);
     return 0;
@@ -805,7 +820,7 @@ pthread_handler_decl(handle_one_connection,arg)
 #endif
   if (thd->store_globals())
   {
-    close_connection(&thd->net,ER_OUT_OF_RESOURCES);
+    close_connection(thd, ER_OUT_OF_RESOURCES, 1);
     statistic_increment(aborted_connects,&LOCK_status);
     end_thread(thd,0);
     return 0;
@@ -863,7 +878,7 @@ pthread_handler_decl(handle_one_connection,arg)
     }
 
 end_thread:
-    close_connection(net);
+    close_connection(thd, 0, 1);
     end_thread(thd,1);
     /*
       If end_thread returns, we are either running with --one-thread
@@ -889,7 +904,7 @@ extern "C" pthread_handler_decl(handle_bootstrap,arg)
   /* The following must be called before DBUG_ENTER */
   if (my_thread_init() || thd->store_globals())
   {
-    close_connection(&thd->net,ER_OUT_OF_RESOURCES);
+    close_connection(thd, ER_OUT_OF_RESOURCES, 1);
     thd->fatal_error();
     goto end;
   }
@@ -1419,7 +1434,7 @@ restore_user:
 #ifndef OS2
     send_eof(thd);				// This is for 'quit request'
 #endif
-    close_connection(net);
+    close_connection(thd, 0, 1);
     close_thread_tables(thd);			// Free before kill
     free_root(&thd->mem_root,MYF(0));
     free_root(&thd->transaction.mem_root,MYF(0));

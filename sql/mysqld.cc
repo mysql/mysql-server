@@ -597,7 +597,6 @@ static void close_connections(void)
 
   /* Force remaining threads to die by closing the connection to the client */
 
-  (void) my_net_init(&net, (st_vio*) 0);
   for (;;)
   {
     DBUG_PRINT("quit",("Locking LOCK_thread_count"));
@@ -609,17 +608,16 @@ static void close_connections(void)
       break;
     }
 #ifndef __bsdi__				// Bug in BSDI kernel
-    if ((net.vio=tmp->net.vio) != 0)
+    if (tmp->net.vio)
     {
       sql_print_error(ER(ER_FORCING_CLOSE),my_progname,
 		      tmp->thread_id,tmp->user ? tmp->user : "");
-      close_connection(&net,0,0);
+      close_connection(tmp,0,0);
     }
 #endif
     DBUG_PRINT("quit",("Unlocking LOCK_thread_count"));
     (void) pthread_mutex_unlock(&LOCK_thread_count);
   }
-  net_end(&net);
   /* All threads has now been aborted */
   DBUG_PRINT("quit",("Waiting for threads to die (count=%u)",thread_count));
   (void) pthread_mutex_lock(&LOCK_thread_count);
@@ -1215,19 +1213,20 @@ void yyerror(const char *s)
 
 
 #ifndef EMBEDDED_LIBRARY
-void close_connection(NET *net,uint errcode,bool lock)
+void close_connection(THD *thd, uint errcode, bool lock)
 {
-  st_vio* vio;
+  st_vio *vio;
   DBUG_ENTER("close_connection");
   DBUG_PRINT("enter",("fd: %s  error: '%s'",
-                    net->vio? vio_description(net->vio):"(not connected)",
-                    errcode ? ER(errcode) : ""));
+		      thd->net.vio ? vio_description(thd->net.vio) :
+		      "(not connected)",
+		      errcode ? ER(errcode) : ""));
   if (lock)
     (void) pthread_mutex_lock(&LOCK_thread_count);
-  if ((vio=net->vio) != 0)
+  if ((vio=thd->net.vio) != 0)
   {
     if (errcode)
-      net_send_error(net,errcode,ER(errcode));	/* purecov: inspected */
+      send_error(thd, errcode, ER(errcode));	/* purecov: inspected */
     vio_close(vio);			/* vio is freed in delete thd */
   }
   if (lock)
@@ -2717,7 +2716,7 @@ static void create_new_thread(THD *thd)
   if (thread_count - delayed_insert_threads >= max_connections+1 || abort_loop)
   {
     DBUG_PRINT("error",("Too many connections"));
-    close_connection(net,ER_CON_COUNT_ERROR);
+    close_connection(thd, ER_CON_COUNT_ERROR, 1);
     delete thd;
     DBUG_VOID_RETURN;
   }
@@ -2772,7 +2771,7 @@ static void create_new_thread(THD *thd)
 	(void) pthread_mutex_unlock(&LOCK_thread_count);
 	net_printf(thd,ER_CANT_CREATE_THREAD,error);
 	(void) pthread_mutex_lock(&LOCK_thread_count);
-	close_connection(net,0,0);
+	close_connection(thd,0,0);
 	delete thd;
 	(void) pthread_mutex_unlock(&LOCK_thread_count);
 	DBUG_VOID_RETURN;
@@ -3093,7 +3092,7 @@ extern "C" pthread_handler_decl(handle_connections_namedpipes,arg)
     if (!(thd->net.vio = vio_new_win32pipe(hConnectedPipe)) ||
 	my_net_init(&thd->net, thd->net.vio))
     {
-      close_connection(&thd->net,ER_OUT_OF_RESOURCES);
+      close_connection(thd, ER_OUT_OF_RESOURCES, 1);
       delete thd;
       continue;
     }
@@ -3294,7 +3293,7 @@ Send number of connection to client
                          event_client_read,event_server_wrote,event_server_read)) ||
                           my_net_init(&thd->net, thd->net.vio))
     {
-      close_connection(&thd->net,ER_OUT_OF_RESOURCES);
+      close_connection(thd, ER_OUT_OF_RESOURCES, 1);
       delete thd;
       error_allow = TRUE;
     }
@@ -5290,6 +5289,11 @@ static void get_options(int argc,char **argv)
 
   if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
     exit(ho_error);
+  if (argc > 0)
+  {
+    fprintf(stderr, "%s: Too many arguments.\nUse --help to get a list of available options\n", my_progname);
+    exit(ho_error);
+  }
 
 #if defined(HAVE_BROKEN_REALPATH)
   my_use_symdir=0;
