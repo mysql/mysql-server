@@ -974,7 +974,6 @@ pthread_handler_decl(handle_one_connection,arg)
 
     thd->proc_info=0;
     thd->set_time();
-    thd->init_for_queries();
     while (!net->error && net->vio != 0 && !thd->killed)
     {
       if (do_command(thd))
@@ -1055,7 +1054,6 @@ extern "C" pthread_handler_decl(handle_bootstrap,arg)
   thd->priv_user=thd->user=(char*) my_strdup("boot", MYF(MY_WME));
 
   buff= (char*) thd->net.buff;
-  thd->init_for_queries();
   while (fgets(buff, thd->net.max_packet, file))
   {
     uint length=(uint) strlen(buff);
@@ -1221,13 +1219,13 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 {
   NET *net= &thd->net;
   bool error= 0;
+  DBUG_ENTER("dispatch_command");
+
+  thd->command=command;
   /*
     Commands which will always take a long time should be marked with
     this so that they will not get logged to the slow query log
   */
-  DBUG_ENTER("dispatch_command");
-
-  thd->command=command;
   thd->slow_command=FALSE;
   thd->set_time();
   VOID(pthread_mutex_lock(&LOCK_thread_count));

@@ -7350,7 +7350,7 @@ static void test_fetch_column()
   rc = mysql_query(mysql, "insert into test_column(c2) values('venu'),('mysql')");
   myquery(rc);
 
-  stmt = mysql_prepare(mysql,"select * from test_column",50);
+  stmt = mysql_prepare(mysql,"select * from test_column order by c2 desc", 50);
   mystmt_init(stmt);
 
   bind[0].buffer_type= MYSQL_TYPE_LONG;
