@@ -2815,7 +2815,7 @@ bool setup_tables(THD *thd, TABLE_LIST *tables, Item **conds,
   DBUG_ENTER("setup_tables");
   /*
     this is used for INSERT ... SELECT.
-    For select we setup tables except first (and its underlaying tables)
+    For select we setup tables except first (and its underlying tables)
   */
   TABLE_LIST *first_select_table= (select_insert ?
                                    tables->next_local:
@@ -3148,7 +3148,7 @@ insert_fields(THD *thd, TABLE_LIST *tables, const char *db_name,
       }
       /*
 	All fields are used in case if usual tables (in case of view used
-	fields merked in setu_tables during fix_fields of view columns
+	fields marked in setup_tables during fix_fields of view columns
       */
       if (table)
 	table->used_fields=table->fields;

@@ -2883,11 +2883,13 @@ create_error:
                                (ORDER *) select_lex->order_list.first,
                                select_lex->select_limit,
                                lex->duplicates));
+    /* mysql_update return 2 if we need to switch to multi-update */
     if (result != 2)
       break;
   case SQLCOM_UPDATE_MULTI:
     {
       DBUG_ASSERT(first_table == all_tables && first_table != 0);
+      /* if we switched from normal update, rights are checked */
       if (result != 2)
       {
         if ((res= multi_update_precheck(thd, all_tables)))
