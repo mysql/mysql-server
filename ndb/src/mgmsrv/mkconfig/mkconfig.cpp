@@ -16,6 +16,7 @@
 
 #include <ndb_global.h>
 #include <ndb_version.h>
+#include <mgmapi_configuration.hpp>
 
 #include <NdbMain.h>
 #include <Properties.hpp>
@@ -36,25 +37,20 @@ NDB_COMMAND(mkconfig,
     return 0;
   }
   
-  InitConfigFileParser parser(argv[1]);
-  Config* cp;
+  InitConfigFileParser parser;
+  Config* _cp;
 
-  if (!parser.readConfigFile())
+  if ((_cp = parser.parseConfig(argv[1])) == 0)
     return false;
 
-  cp = (Config *) parser.getConfig();
-  if (cp == NULL)
-    return false;
-
-  cp->put("VersionId", (Uint32)NDB_VERSION);
-  
+  ConfigValues* cp = &_cp->m_configValues->m_config;
   Uint32 sz = cp->getPackedSize();
-  Uint32 * buf = new Uint32[sz];
+  UtilBuffer buf;
   if(!cp->pack(buf))
     return -1;
-
+  
   FILE * f = fopen(argv[2], "w");
-  if(fwrite(buf, 1, sz, f) != sz){
+  if(fwrite(buf.get_data(), 1, buf.length(), f) != sz){
     fclose(f);
     unlink(argv[2]);
     return -1;

@@ -38,12 +38,12 @@ public:
   int scanReadRecords(Ndb*, 
 		      int records,
 		      int abort = 0,
-		      int parallelism = 1,
+		      int parallelism = 0,
 		      bool committed = false);
   int scanReadCommittedRecords(Ndb*, 
 			      int records,
 			      int abort = 0,
-			      int parallelism = 1);
+			      int parallelism = 0);
   int pkReadRecords(Ndb*, 
 		    int records,
 		    int batchsize = 1,
@@ -52,20 +52,20 @@ public:
   int scanUpdateRecords(Ndb*, 
 			int records,
 			int abort = 0,
-			int parallelism = 1);
+			int parallelism = 0);
 
   int scanUpdateRecords1(Ndb*, 
 			 int records,
 			 int abort = 0,
-			 int parallelism = 1);
+			 int parallelism = 0);
   int scanUpdateRecords2(Ndb*, 
 			 int records,
 			 int abort = 0,
-			 int parallelism = 1);
+			 int parallelism = 0);
   int scanUpdateRecords3(Ndb*, 
 			 int records,
 			 int abort = 0,
-			 int parallelism = 1);
+			 int parallelism = 0);
 
   int pkUpdateRecords(Ndb*, 
 		      int records,
@@ -100,24 +100,6 @@ public:
 			 int batchsize = 1);
   
 protected:  
-  int takeOverAndUpdateRecord(Ndb*, 
-			      NdbOperation*);
-#if 0
-  int setValueForAttr(NdbOperation*,
-		      int attrId, 
-		      int rowId,
-		      int updateId);
-public:
-  int equalForAttr(NdbOperation*,
-		   int attrId, 
-		   int rowId);
-#endif
-  
-  int addRowToUpdate(Ndb* pNdb, 
-		     NdbConnection* pUpdTrans,
-		     NdbOperation* pOrgOp);
-  
-
   NDBT_ResultRow row;
   int m_defaultScanUpdateMethod;
 };

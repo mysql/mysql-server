@@ -958,7 +958,7 @@ private:
   void execDROP_TAB_REQ(Signal* signal);
   void execFSREMOVECONF(Signal* signal);
   void execFSREMOVEREF(Signal* signal);
-  void execSIZEALT_REP(Signal* signal);
+  void execREAD_CONFIG_REQ(Signal* signal);
   void execSET_VAR_REQ(Signal* signal);
   void execDUMP_STATE_ORD(Signal* signal);
 
@@ -1000,7 +1000,6 @@ private:
   void initScanFragmentPart(Signal* signal);
   Uint32 checkScanExpand(Signal* signal);
   Uint32 checkScanShrink(Signal* signal);
-  void sendInitialiseRecords(Signal* signal);
   void initialiseDirRec(Signal* signal);
   void initialiseDirRangeRec(Signal* signal);
   void initialiseFragRec(Signal* signal);
@@ -1174,7 +1173,7 @@ private:
   void srReadPagesLab(Signal* signal);
   void srDoUndoLab(Signal* signal);
   void ndbrestart1Lab(Signal* signal);
-  void initialiseRecordsLab(Signal* signal);
+  void initialiseRecordsLab(Signal* signal, Uint32 returnRef, Uint32 retData);
   void srReadPagesAllocLab(Signal* signal);
   void checkNextBucketLab(Signal* signal);
   void endsavepageLab(Signal* signal);

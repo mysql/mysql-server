@@ -17,7 +17,6 @@
 #ifndef Config_H
 #define Config_H
 
-#include <signaldata/ConfigParamId.hpp>
 #include <LogLevel.hpp>
 
 #include <kernel_types.h>
@@ -25,6 +24,9 @@
 #include <NdbOut.hpp>
 #include <ndb_limits.h>
 #include <Properties.hpp>
+#include "ConfigInfo.hpp"
+
+class ConfigInfo;
 
 /**
  * @class Config
@@ -38,14 +40,14 @@
  *
  * The following categories (sections) of configuration parameters exists:
  * - COMPUTER, DB, MGM, API, TCP, SCI, SHM, OSE
+ *
  */
-class Config : public Properties {
+
+class Config {
 public:
   /**
    *   Constructor which loads the object with an Properties object
    */
-  Config(const Config & org);
-  Config(const Properties & org);
   Config();
   virtual ~Config();
 
@@ -58,8 +60,6 @@ public:
     printConfigFile(ndb);
   }
 
-  const class ConfigInfo* getConfigInfo() const;
-
   Uint32 getGenerationNumber() const;
   int setGenerationNumber(Uint32);
 
@@ -69,7 +69,13 @@ public:
 	      const BaseString &param,
 	      const BaseString &value);
 
+
+  /**
+   * Info
+   */
+  const ConfigInfo * getConfigInfo() const { return &m_info;}
 private:
+  ConfigInfo m_info;
 
   void printAllNameValuePairs(NdbOut &out,
 			      const Properties *prop,
@@ -78,7 +84,9 @@ private:
   /**
    *   Information about parameters (min, max values etc)
    */
-  const class ConfigInfo* m_info;
+public:
+  Properties * m_oldConfig;
+  struct ndb_mgm_configuration * m_configValues;
 };
 
 #endif // Config_H

@@ -57,8 +57,8 @@ int runTimeoutTrans(NDBT_Context* ctx, NDBT_Step* step){
   int stepNo = step->getStepNo();
   Uint32 timeoutVal;
   if (!conf.getProperty(nodeId,
-			"DB", 
-			"TransactionInactiveTimeout", 
+			NODE_TYPE_DB, 
+			CFG_DB_TRANSACTION_INACTIVE_TIMEOUT,
 			&timeoutVal)){
     return NDBT_FAILED;
   }
@@ -103,8 +103,8 @@ int runDontTimeoutTrans(NDBT_Context* ctx, NDBT_Step* step){
   int stepNo = step->getStepNo();
   Uint32 timeoutVal;
   if (!conf.getProperty(nodeId,
-			"DB", 
-			"TransactionInactiveTimeout", 
+			NODE_TYPE_DB, 
+			CFG_DB_TRANSACTION_INACTIVE_TIMEOUT,
 			&timeoutVal)){
     return NDBT_FAILED;
   }
@@ -151,8 +151,8 @@ int runBuddyTransNoTimeout(NDBT_Context* ctx, NDBT_Step* step){
   int stepNo = step->getStepNo();
   Uint32 timeoutVal;
   if (!conf.getProperty(nodeId,
-			"DB", 
-			"TransactionInactiveTimeout", 
+			NODE_TYPE_DB, 
+			CFG_DB_TRANSACTION_INACTIVE_TIMEOUT,
 			&timeoutVal)){
     return NDBT_FAILED;
   }

@@ -230,7 +230,7 @@ public:
     Uint32 frmLen;
     char frmData[MAX_FRM_DATA_SIZE];
 
-
+    Uint32 fragmentCount;
   };
 
   typedef Ptr<TableRecord> TableRecordPtr;
@@ -467,7 +467,7 @@ private:
   void execFSWRITECONF(Signal* signal);
   void execFSWRITEREF(Signal* signal);
   void execNDB_STTOR(Signal* signal);
-  void execSIZEALT_REP(Signal* signal);
+  void execREAD_CONFIG_REQ(Signal* signal);
   void execSTTOR(Signal* signal);
   void execTC_SCHVERCONF(Signal* signal);
   void execNODE_FAILREP(Signal* signal);

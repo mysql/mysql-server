@@ -90,6 +90,7 @@ CCFLAGS_LOC += \
 	-I$(call fixpath,$(NDB_TOP)/include/transporter) \
 	-I$(call fixpath,$(NDB_TOP)/include/debugger) \
 	-I$(call fixpath,$(NDB_TOP)/include/mgmcommon) \
+	-I$(call fixpath,$(NDB_TOP)/include/mgmapi) \
         -I$(call fixpath,$(NDB_TOP)/include/ndbapi) \
         -I$(call fixpath,$(NDB_TOP)/include/util) \
 	-I$(call fixpath,$(NDB_TOP)/include/portlib) \
@@ -105,6 +106,7 @@ CCFLAGS_LOC += \
 	-I$(call fixpath,$(NDB_TOP)/include/transporter) \
 	-I$(call fixpath,$(NDB_TOP)/include/debugger) \
 	-I$(call fixpath,$(NDB_TOP)/include/mgmcommon) \
+	-I$(call fixpath,$(NDB_TOP)/include/mgmapi) \
         -I$(call fixpath,$(NDB_TOP)/include/ndbapi) \
         -I$(call fixpath,$(NDB_TOP)/include/util) \
 	-I$(call fixpath,$(NDB_TOP)/include/portlib) \

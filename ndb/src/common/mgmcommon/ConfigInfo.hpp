@@ -27,8 +27,8 @@
  * A MANDATORY parameters must be specified in the config file
  * An UNDEFINED parameter may or may not be specified in the config file
  */
-static const Uint32 MANDATORY = ~0;     // Default value for mandatory params.
-static const Uint32 UNDEFINED = (~0)-1; // Default value for undefined params.
+static const Uint64 MANDATORY = ~0;     // Default value for mandatory params.
+static const Uint64 UNDEFINED = (~0)-1; // Default value for undefined params.
 
 /**
  * @class  ConfigInfo
@@ -38,27 +38,27 @@ static const Uint32 UNDEFINED = (~0)-1; // Default value for undefined params.
  */
 class ConfigInfo {
 public:
-  enum Type        {BOOL, INT, STRING};
-  enum Status      {USED,            ///< Active
-		    DEPRICATED,      ///< Can be, but should not be used anymore
-		    NOTIMPLEMENTED,  ///< Can not be used currently. Is ignored.
-                    INTERNAL         ///< Not configurable by the user
+  enum Type        { BOOL, INT, INT64, STRING, SECTION };
+  enum Status      { USED,            ///< Active
+		     DEPRICATED,      ///< Can be, but shouldn't
+		     NOTIMPLEMENTED,  ///< Is ignored.
+		     INTERNAL         ///< Not configurable by the user
   };
 
   /**
    *   Entry for one configuration parameter
    */
   struct ParamInfo {
+    Uint32         _paramId;
     const char*    _fname;   
-    const char*    _pname;
     const char*    _section;
     const char*    _description;
     Status         _status;
     bool           _updateable;    
     Type           _type;          
-    Uint32         _default;
-    Uint32         _min;
-    Uint32         _max;
+    Uint64         _default;
+    Uint64         _min;
+    Uint64         _max;
   };
 
   /**
@@ -84,16 +84,15 @@ public:
    * 
    *   @note Result is not defined if section/name are wrong!
    */
-  bool verify(const Properties* section, const char* fname, Uint32 value) const;
+  bool verify(const Properties* secti, const char* fname, Uint64 value) const;
   bool isSection(const char*) const;
 
-  const char*  getPName(const Properties * section, const char* fname) const;
-  const char*  getDescription(const Properties * section, const char* fname) const;
+  const char*  getDescription(const Properties * sec, const char* fname) const;
   Type         getType(const Properties * section, const char* fname) const;
   Status       getStatus(const Properties* section, const char* fname) const;
-  Uint32       getMin(const Properties * section, const char* fname) const;
-  Uint32       getMax(const Properties * section, const char* fname) const;
-  Uint32       getDefault(const Properties * section, const char* fname) const;
+  Uint64       getMin(const Properties * section, const char* fname) const;
+  Uint64       getMax(const Properties * section, const char* fname) const;
+  Uint64       getDefault(const Properties * section, const char* fname) const;
   
   const Properties * getInfo(const char * section) const;
   const Properties * getDefaults(const char * section) const;

@@ -48,10 +48,7 @@ private:
   void execNDB_TAMPER(Signal* signal);
   void execSET_LOGLEVELORD(Signal* signal);
   void execEVENT_REP(Signal* signal);
-  void execSTTOR_Local(Signal* signal);
-  void execCM_RUN(Signal* signal); 
-  void execCM_INFOREQ(Signal* signal);
-  void execCMVMI_CFGREQ(Signal* signal);
+  void execSTTOR(Signal* signal);
   void execCLOSE_COMREQ(Signal* signal);
   void execENABLE_COMORD(Signal* signal);
   void execOPEN_COMREQ(Signal* signal);
@@ -75,17 +72,13 @@ private:
 
   void execTESTSIG(Signal* signal);
 
-  int    signalCount;
-  int    theSignalKey;
-  int    theStartPhase;
-  int    theNumberOfNodes;
-  
   char theErrorMessage[256];
   void sendSTTORRY(Signal* signal);
 
   LogLevel clogLevel;
+  NdbNodeBitmask c_dbNodes;
+
   class Configuration & theConfig;
-  const class ClusterConfiguration & theCConfig;
 
   /**
    * This struct defines the data needed for a EVENT_REP subscriber

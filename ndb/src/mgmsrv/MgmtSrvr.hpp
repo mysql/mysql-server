@@ -27,6 +27,7 @@
 #include <NodeBitmask.hpp>
 #include <signaldata/ManagementServer.hpp>
 #include "SignalQueue.hpp"
+#include <ndb_version.h>
 
 #include "NodeLogLevelList.hpp"
 
@@ -151,7 +152,8 @@ public:
   /* Constructor */
   MgmtSrvr(NodeId nodeId,                    /* Local nodeid */
 	   const BaseString &config_filename,      /* Where to save config */
-	   const BaseString &ndb_config_filename); /* Ndb.cfg filename */
+	   const BaseString &ndb_config_filename,  /* Ndb.cfg filename */
+	   Config * config); 
 
   /**
    *   Read (initial) config file, create TransporterFacade, 
@@ -169,7 +171,8 @@ public:
 	     Uint32 * phase,
 	     bool * systemShutdown,
 	     Uint32 * dynamicId,
-	     Uint32 * nodeGroup);
+	     Uint32 * nodeGroup,
+	     Uint32 * connectCount);
   
   // All the functions below may return any of this error codes:
   // NO_CONTACT_WITH_PROCESS, PROCESS_NOT_CONFIGURED, WRONG_PROCESS_TYPE,
@@ -307,10 +310,10 @@ public:
       BackupAborted = 4
     } Event;
     
+    NdbNodeBitmask Nodes;
     union {
       struct {
 	Uint32 BackupId;
-	NdbNodeBitmask Nodes;
       } Started ;
       struct {
 	Uint32 ErrorCode;
@@ -321,7 +324,6 @@ public:
 	Uint32 NoOfRecords;
 	Uint32 NoOfLogBytes;
 	Uint32 NoOfLogRecords;
-	NdbNodeBitmask Nodes;
 	Uint32 startGCP;
 	Uint32 stopGCP;
       } Completed ;
@@ -522,7 +524,7 @@ private:
   int _blockNumber;
   NodeId _ownNodeId;
   BlockReference _ownReference; 
-   NdbMutex *m_configMutex;
+  NdbMutex *m_configMutex;
   const Config * _config;
   Config * m_newConfig;
   BaseString m_configFilename;

@@ -47,6 +47,8 @@ TransPS::~TransPS()
 void
 TransPS::init(TransporterFacade * tf, const char * connectString) 
 {
+  abort();
+#ifdef NOT_FUNCTIONAL
   m_signalExecThread = NdbThread_Create(signalExecThread_C,
 					(void **)this,
 					32768,
@@ -128,6 +130,7 @@ TransPS::init(TransporterFacade * tf, const char * connectString)
   m_repSender->setNodeId(extRepNodeId);
   m_repSender->setOwnRef(m_ownRef);
   m_repSender->setTransporterFacade(tf);
+#endif
 }
 
 /*****************************************************************************

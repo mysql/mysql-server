@@ -71,7 +71,7 @@ SimpleSignal::print(FILE * out){
 
 SignalSender::SignalSender(const char * connectString){
   m_cond = NdbCondition_Create();
-  theFacade = TransporterFacade::start_instance(0,connectString);
+  theFacade = TransporterFacade::start_instance(connectString);
   m_blockNo = theFacade->open(this, execSignal, execNodeStatus);
   assert(m_blockNo > 0);
 }

@@ -950,9 +950,6 @@ typedef Ptr<TableDescriptor> TableDescriptorPtr;
 
 struct HostBuffer {
   bool  inPackedList;
-  Uint32 packetLenRC;
-  Uint32 noOfPacketsRC;
-  Uint32 packetBufferRC[29];
   Uint32 packetLenTA;
   Uint32 noOfPacketsTA;
   Uint32 packetBufferTA[30];
@@ -1029,7 +1026,7 @@ private:
   void execFSREADCONF(Signal* signal);
   void execFSREADREF(Signal* signal);
   void execNDB_STTOR(Signal* signal);
-  void execSIZEALT_REP(Signal* signal);
+  void execREAD_CONFIG_REQ(Signal* signal);
   void execSET_VAR_REQ(Signal* signal);
   void execDROP_TAB_REQ(Signal* signal);
   void execALTER_TAB_REQ(Signal* signal);
@@ -1637,11 +1634,7 @@ private:
 
 //------------------------------------------------------------------
 //------------------------------------------------------------------
-  void bufferREADCONF(Signal* signal, BlockReference aRef, Uint32* buffer, Uint32 Tlen);
-
-//------------------------------------------------------------------
-//------------------------------------------------------------------
-  void bufferTRANSID_AI(Signal* signal, BlockReference aRef, Uint32* buffer, Uint32 Tlen);
+  void bufferTRANSID_AI(Signal* signal, BlockReference aRef, Uint32 Tlen);
 
 //------------------------------------------------------------------
 // Trigger handling routines
@@ -1900,7 +1893,7 @@ private:
   void releaseTabDescr(Tablerec* const regTabPtr);
   void getFragmentrec(FragrecordPtr& regFragPtr, Uint32 fragId, Tablerec* const regTabPtr);
 
-  void initialiseRecordsLab(Signal* signal, Uint32 switchData);
+  void initialiseRecordsLab(Signal* signal, Uint32 switchData, Uint32, Uint32);
   void initializeAttrbufrec();
   void initializeCheckpointInfoRec();
   void initializeDiskBufferSegmentRecord();

@@ -29,6 +29,7 @@ static int testConnect(NdbMgmHandle h, struct ndb_mgm_reply* reply);
 static int testDisconnect(NdbMgmHandle h, struct ndb_mgm_reply* reply);
 
 static int testStatus(NdbMgmHandle h, struct ndb_mgm_reply* reply);
+static int testGetConfig(NdbMgmHandle h, struct ndb_mgm_reply* reply);
 #ifdef VM_TRACE
 static int testLogSignals(NdbMgmHandle h, struct ndb_mgm_reply* reply);
 static int testStartSignalLog(NdbMgmHandle h, struct ndb_mgm_reply* reply);
@@ -148,6 +149,19 @@ static
 int testDisconnect(NdbMgmHandle h, struct ndb_mgm_reply* reply) {
   ndb_mgm_disconnect(h); 
   
+  return 0;
+}
+
+static 
+int testGetConfig(NdbMgmHandle h, struct ndb_mgm_reply* reply) {
+  int i = 0;
+  struct ndb_mgm_configuration * config =  ndb_mgm_get_configuration(h, 0);
+  if (config != NULL) {
+    free(config);
+  } else {
+    ndbout_c("Unable to get config");
+    return -1;
+  }
   return 0;
 }
 
