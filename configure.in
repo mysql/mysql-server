@@ -2661,6 +2661,9 @@ AC_SUBST(netware_dir)
 AC_SUBST(linked_netware_sources)
 AM_CONDITIONAL(HAVE_NETWARE, test "$netware_dir" = "netware")
 
+# Ensure that table handlers gets all modifications to CFLAGS/CXXFLAGS
+export CC CXX CFLAGS CXXFLAGS LD LDFLAGS AR
+
 if test "$with_server" = "yes" -o "$THREAD_SAFE_CLIENT" != "no"
 then
   AC_DEFINE(THREAD)
