@@ -575,6 +575,7 @@ static table_map get_table_map(List<Item> *items)
 int mysql_multi_update_prepare(THD *thd)
 {
   LEX *lex= thd->lex;
+  ulong opened_tables;
   TABLE_LIST *table_list= lex->query_tables;
   List<Item> *fields= &lex->select_lex.item_list;
   TABLE_LIST *tl;
@@ -682,10 +683,45 @@ int mysql_multi_update_prepare(THD *thd)
     if (!using_lock_tables)
       tl->table->reginfo.lock_type= tl->lock_type;
   }
+
+  opened_tables= thd->status_var.opened_tables;
   /* now lock and fill tables */
-  if (lock_tables(thd, table_list, table_count) ||
-      (thd->fill_derived_tables() &&
-       mysql_handle_derived(lex, &mysql_derived_filling)))
+  if (lock_tables(thd, table_list, table_count))
+    DBUG_RETURN(thd->net.report_error ? -1 : 1);
+
+  /*
+    we have to re-call fixfields for fixed items, because lock maybe
+    reopened tables
+  */
+  if (opened_tables != thd->status_var.opened_tables)
+  {
+    /*
+      Fields items cleanup(). There are only Item_fields in the list, so we
+      do not do Item tree walking
+    */
+    List_iterator_fast<Item> it(*fields);
+    Item *item;
+    while (item= it++)
+    {
+      item->cleanup();
+    }
+
+    /* We have to cleunup translation tables of views. */
+    for (TABLE_LIST *tbl= table_list; tbl; tbl= tbl->next_global)
+      tbl->cleanup_items();
+
+    /* undone setup_tables() */
+    table_list->setup_is_done= 0;
+
+    if (setup_tables(thd, table_list, &lex->select_lex.where) ||
+        (lex->select_lex.no_wrap_view_item= 1,
+         res= setup_fields(thd, 0, table_list, *fields, 1, 0, 0),
+         lex->select_lex.no_wrap_view_item= 0,
+         res))
+      DBUG_RETURN(-1);
+  }
+  if (thd->fill_derived_tables() &&
+      mysql_handle_derived(lex, &mysql_derived_filling))
     DBUG_RETURN(thd->net.report_error ? -1 : 1);
   DBUG_RETURN (0);
 }
