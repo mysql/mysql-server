@@ -4493,8 +4493,14 @@ China [linuxforum.net] @
 @item
 @c EMAIL: Vincent_Fong@innovator.com.hk (Vincent Fong)
 @c @image{Flags/china}
-China [Hong Kong] @
+China [ISL/Hong Kong] @
 @uref{http://mysql.islnet.net, WWW}
+
+@item
+@c EMAIL: marquischan@hotmail.com (Marquis Chan)
+@c @image{Flags/china}
+China [TraLand.com/Hong Kong] @
+@uref{http://www.traland.com/mysql/, WWW}
 
 @c @item
 @c Not ok 20000919; Non-existent (Matt)
