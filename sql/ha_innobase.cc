@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB & InnoDB Oy
+/* Copyright (C) 2000 MySQL AB & Innobase Oy
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -300,7 +300,7 @@ innobase_mysql_print_thd(
   	if (thd->proc_info)
 	{
 	  *buf++=' ';
-	  buf=strnmov(buf, thd->procinfo, 50);
+	  buf=strnmov(buf, thd->proc_info, 50);
   	}
 
   	if (thd->query)
@@ -832,7 +832,7 @@ normalize_table_name(
 }
 
 /*********************************************************************
-Creates and opens a handle to a table which already exists in an Innobase
+Creates and opens a handle to a table which already exists in an InnoDB
 database. */
 
 int
@@ -903,13 +903,13 @@ ha_innobase::open(
 
   	primary_key = MAX_KEY;
 
-  	if (!row_table_got_default_clust_index(ib_table)) {
+	/* Allocate a buffer for a 'row reference'. A row reference is
+	a string of bytes of length ref_length which uniquely specifies
+        a row in our table. Note that MySQL may also compare two row
+        references for equality by doing a simple memcmp on the strings
+        of length ref_length! */
 
-		/* If we automatically created the clustered index,
-		then MySQL does not know about it and it must not be aware
-		of the index used on scan, to avoid checking if we update
-		the column of the index. The column is the row id in
-		the automatical case, and it will not be updated. */
+  	if (!row_table_got_default_clust_index(ib_table)) {
 
 		((row_prebuilt_t*)innobase_prebuilt)
 				->clust_index_was_generated = FALSE;
@@ -917,13 +917,11 @@ ha_innobase::open(
 		primary_key = 0;
 		key_used_on_scan = 0;
 
- 		/*
-		  MySQL allocates the buffer for ref.
-		  This includes all keys + one byte for each column
-		  that may be NULL.
-		  The ref_length must be exact as possible as
-		  all reference buffers are allocated based on this.
-		*/
+ 		/* MySQL allocates the buffer for ref. key_info->key_length
+                includes space for all key columns + one byte for each column
+		that may be NULL. ref_length must be as exact as possible to
+		save space, because all row reference buffers are allocated
+		based on ref_length. */
 
   		ref_length = table->key_info->key_length;
 	} else {
@@ -932,6 +930,14 @@ ha_innobase::open(
 
   		ref_length = DATA_ROW_ID_LEN;
 				
+		/* If we automatically created the clustered index, then
+		MySQL does not know about it, and MySQL must NOT be aware
+		of the index used on scan, to make it avoid checking if we
+		update the column of the index. That is why we assert below
+                that key_used_on_scan is the undefined value MAX_KEY.
+                The column is the row id in the automatical generation case,
+		and it will never be updated anyway. */
+
 		DBUG_ASSERT(key_used_on_scan == MAX_KEY);
 	}
 
@@ -1178,7 +1184,8 @@ get_innobase_type_from_mysql_type(
 }
 
 /***********************************************************************
-Stores a key value for a row to a buffer. */
+Stores a key value for a row to a buffer. This must currently only be used
+to store a row reference to the 'ref' buffer of this table handle! */
 
 uint
 ha_innobase::store_key_val_for_row(
@@ -1186,7 +1193,8 @@ ha_innobase::store_key_val_for_row(
 				/* out: key value length as stored in buff */
 	uint 		keynr,	/* in: key number */
 	char*		buff,	/* in/out: buffer for the key value (in MySQL
-				format) */
+				format); currently this MUST be the 'ref'
+				buffer! */
 	const mysql_byte* record)/* in: row in MySQL format */
 {
 	KEY*		key_info 	= table->key_info + keynr;
@@ -1214,11 +1222,12 @@ ha_innobase::store_key_val_for_row(
 		buff += key_part->length;
   	}
 
-	/*
-	  We have to zero-fill the buffer to be able to compare two
-	  keys to see if they are equal
-	*/
-	bzero(buff, (ref_length- (uint) (buff - buff_start)));
+	/* We have to zero-fill the 'ref' buffer so that MySQL is able to
+        use a simple memcmp to compare two key values to determine if they are
+	equal */
+
+	bzero(buff, (ref_length - (uint) (buff - buff_start)));
+
 	DBUG_RETURN(ref_length);
 }
 
@@ -1904,7 +1913,10 @@ ha_innobase::index_read(
 					row */
 	const mysql_byte* 	key_ptr,/* in: key value; if this is NULL
 					we position the cursor at the
-					start or end of index */
+					start or end of index; this can
+					also contain an InnoDB row id, in
+					which case key_len is the InnoDB
+					row id length */
 	uint			key_len,/* in: key value length */
 	enum ha_rkey_function find_flag)/* in: search flags from my_base.h */
 {
@@ -1931,10 +1943,8 @@ ha_innobase::index_read(
 
 	index = prebuilt->index;
 
-	/* Note that if the select is used for an update, we always
-	fetch the clustered index record: therefore the index for which the
-	template is built is not necessarily prebuilt->index, but can also
-	be the clustered index */
+	/* Note that if the index for which the search template is built is not
+        necessarily prebuilt->index, but can also be the clustered index */
 
 	if (prebuilt->sql_stat_start) {
 		build_template(prebuilt, user_thd, table,
@@ -1942,6 +1952,9 @@ ha_innobase::index_read(
 	}
 
 	if (key_ptr) {
+	        /* Convert the search key value to InnoDB format into
+		prebuilt->search_tuple */
+
 		row_sel_convert_mysql_key_to_innobase(prebuilt->search_tuple,
 							(byte*) key_val_buff,
 							index,
@@ -2289,8 +2302,7 @@ ha_innobase::rnd_next(
 }
 
 /**************************************************************************
-Fetches a row from the table based on a reference. TODO: currently we use
-'ref_stored_len' of the handle as the key length. This may change. */
+Fetches a row from the table based on a row reference. */
 
 int
 ha_innobase::rnd_pos(
@@ -2298,7 +2310,11 @@ ha_innobase::rnd_pos(
 				/* out: 0, HA_ERR_KEY_NOT_FOUND,
 				or error code */
 	mysql_byte* 	buf,	/* in/out: buffer for the row */
-	mysql_byte*	pos)	/* in: primary key value in MySQL format */
+	mysql_byte*	pos)	/* in: primary key value of the row in the
+				MySQL format, or the row id if the clustered
+				index was internally generated by InnoDB;
+				the length of data in pos has to be
+				ref_length */
 {
 	row_prebuilt_t*	prebuilt = (row_prebuilt_t*) innobase_prebuilt;
 	int		error;
@@ -2314,7 +2330,7 @@ ha_innobase::rnd_pos(
 		/* No primary key was defined for the table and we
 		generated the clustered index from the row id: the
 		row reference is the row id, not any key value
-		that MySQL knows */
+		that MySQL knows of */
 
 		error = change_active_index(MAX_KEY);
 	} else {
@@ -2325,7 +2341,10 @@ ha_innobase::rnd_pos(
 		DBUG_RETURN(error);
 	}
 	
-	error = index_read(buf, pos, ref_stored_len, HA_READ_KEY_EXACT);
+	/* Note that we assume the length of the row reference is fixed
+        for the table, and it is == ref_length */
+
+	error = index_read(buf, pos, ref_length, HA_READ_KEY_EXACT);
 
 	change_active_index(keynr);
 
@@ -2334,7 +2353,8 @@ ha_innobase::rnd_pos(
 
 /*************************************************************************
 Stores a reference to the current row to 'ref' field of the handle. Note
-that the function parameter is illogical: we must assume that 'record'
+that in the case where we have generated the clustered index for the
+table, the function parameter is illogical: we MUST ASSUME that 'record'
 is the current 'position' of the handle, because if row ref is actually
 the row id internally generated in InnoDB, then 'record' does not contain
 it. We just guess that the row id must be for the record where the handle
@@ -2355,7 +2375,7 @@ ha_innobase::position(
 		/* No primary key was defined for the table and we
 		generated the clustered index from row id: the
 		row reference will be the row id, not any key value
-		that MySQL knows */
+		that MySQL knows of */
 
 		len = DATA_ROW_ID_LEN;
 
@@ -2364,9 +2384,11 @@ ha_innobase::position(
 		len = store_key_val_for_row(primary_key, (char*) ref, record);
 	}
 
-	DBUG_ASSERT(len == ref_length);
+	/* Since we do not store len to the buffer 'ref', we must assume
+	that len is always fixed for this table. The following assertion
+	checks this. */
 
-	ref_stored_len = len;
+	DBUG_ASSERT(len == ref_length);
 }
 
 /*********************************************************************
