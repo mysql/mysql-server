@@ -21,12 +21,14 @@
 #include "sql_acl.h"
 
 static int check_null_fields(THD *thd,TABLE *entry);
+#ifndef EMBEDDED_LIBRARY
 static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list);
 static int write_delayed(THD *thd,TABLE *table, enum_duplicates dup,
 			 char *query, uint query_length, int log_on);
 static void end_delayed_insert(THD *thd);
 extern "C" pthread_handler_decl(handle_delayed_insert,arg);
 static void unlink_blobs(register TABLE *table);
+#endif
 
 /* Define to force use of my_malloc() if the allocated memory block is big */
 
@@ -127,7 +129,9 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
   TABLE *table;
   List_iterator_fast<List_item> its(values_list);
   List_item *values;
-  char *query=thd->query;
+#ifndef EMBEDDED_LIBRARY
+  char *query= thd->query;
+#endif
   thr_lock_type lock_type = table_list->lock_type;
   TABLE_LIST *insert_table_list= (TABLE_LIST*)
     thd->lex->select_lex.table_list.first;

@@ -115,7 +115,6 @@ static int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit,
   TABLE *table;
   int res;
   select_union *derived_result;
-  TABLE_LIST *tables= (TABLE_LIST *)first_select->table_list.first;
   bool is_union= first_select->next_select() && 
     first_select->next_select()->linkage == UNION_TYPE;
   bool is_subsel= first_select->first_inner_unit() ? 1: 0;

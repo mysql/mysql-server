@@ -507,7 +507,6 @@ int MYSQL_LOG::find_log_pos(LOG_INFO *linfo, const char *log_name,
   RETURN VALUES
     0			ok
     LOG_INFO_EOF	End of log-index-file found
-    LOG_INFO_SEEK	Could not allocate IO cache
     LOG_INFO_IO		Got IO error while reading file
 */
 
