@@ -17,7 +17,7 @@ mach_write_to_1(
 	ulint   n)      /* in: ulint integer to be stored, >= 0, < 256 */ 
 {
 	ut_ad(b);
-	ut_ad((n >= 0) && (n <= 0xFF));
+	ut_ad(n <= 0xFF);
 
 	b[0] = (byte)n;
 }

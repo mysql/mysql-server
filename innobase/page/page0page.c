@@ -1055,9 +1055,9 @@ page_dir_print(
 	
 	printf("--------------------------------\n");
 	printf("PAGE DIRECTORY\n");
-	printf("Page address %lx\n", page);
+	printf("Page address %lx\n", (ulint)page);
 	printf("Directory stack top at offs: %lu; number of slots: %lu\n", 
-		page_dir_get_nth_slot(page, n - 1) - page, n);
+		(ulint)(page_dir_get_nth_slot(page, n - 1) - page), n);
 	for (i = 0; i < n; i++) {
 		slot = page_dir_get_nth_slot(page, i);
 		if ((i == pr_n) && (i < n - pr_n)) {
@@ -1067,7 +1067,7 @@ page_dir_print(
 	   		printf(
 	   	   "Contents of slot: %lu: n_owned: %lu, rec offs: %lu\n",
 			i, page_dir_slot_get_n_owned(slot),
-			page_dir_slot_get_rec(slot) - page);
+			(ulint)(page_dir_slot_get_rec(slot) - page));
 	    	}
 	}
 	printf("Total of %lu records\n", 2 + page_get_n_recs(page));	
@@ -1091,7 +1091,7 @@ page_print_list(
 
 	printf("--------------------------------\n");
 	printf("PAGE RECORD LIST\n");
-	printf("Page address %lu\n", page);
+	printf("Page address %lu\n", (ulint)page);
 
 	n_recs = page_get_n_recs(page);
 
@@ -1142,7 +1142,7 @@ page_header_print(
 {
 	printf("--------------------------------\n");
 	printf("PAGE HEADER INFO\n");
-	printf("Page address %lx, n records %lu\n", page,
+	printf("Page address %lx, n records %lu\n", (ulint)page,
 		page_header_get_field(page, PAGE_N_RECS));
 
 	printf("n dir slots %lu, heap top %lu\n",

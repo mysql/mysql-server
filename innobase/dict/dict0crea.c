@@ -80,16 +80,6 @@ dict_create_search_tuple(
 				table */
 	mem_heap_t*	heap);	/* in: memory heap from which the memory for
 				the built tuple is allocated */
-/*************************************************************************
-Creates the single index for a cluster: it contains all the columns of
-the cluster definition in the order they were defined. */
-static
-void
-dict_create_cluster_index(
-/*======================*/
-	dict_table_t*	table,	/* in: cluster */
-	trx_t*		trx);	/* in: transaction handle */
-
 
 /*********************************************************************
 Based on a table object, this function builds the entry to be inserted
@@ -814,7 +804,7 @@ dict_create_table_step(
 	que_thr_t*	thr)	/* in: query thread */
 {
 	tab_node_t*	node;
-	ulint		err;
+	ulint		err	= DB_ERROR;
 	trx_t*		trx;
 
 	ut_ad(thr);
@@ -922,7 +912,7 @@ dict_create_index_step(
 {
 	ind_node_t*	node;
 	ibool		success;
-	ulint		err;
+	ulint		err	= DB_ERROR;
 	trx_t*		trx;
 
 	ut_ad(thr);

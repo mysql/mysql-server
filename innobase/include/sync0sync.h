@@ -36,7 +36,7 @@ in the reset state. Explicit freeing of the mutex with mutex_free is
 necessary only if the memory block containing it is freed. */
 
 
-#define mutex_create(M)	mutex_create_func((M), __FILE__, __LINE__)
+#define mutex_create(M)	mutex_create_func((M), IB__FILE__, __LINE__)
 /*===================*/
 /**********************************************************************
 Creates, or rather, initializes a mutex object in a specified memory
@@ -64,7 +64,7 @@ NOTE! The following macro should be used in mutex locking, not the
 corresponding function. */
 
 #ifdef UNIV_SYNC_DEBUG
-#define mutex_enter(M)    mutex_enter_func((M), __FILE__, __LINE__)
+#define mutex_enter(M)    mutex_enter_func((M), IB__FILE__, __LINE__)
 #else
 #define mutex_enter(M)    mutex_enter_func(M)
 #endif
@@ -75,7 +75,7 @@ corresponding function. */
 /* NOTE! currently same as mutex_enter! */
 
 #ifdef UNIV_SYNC_DEBUG
-#define mutex_enter_fast(M)    mutex_enter_func((M), __FILE__, __LINE__)
+#define mutex_enter_fast(M)    mutex_enter_func((M), IB__FILE__, __LINE__)
 #else
 #define mutex_enter_fast(M)    mutex_enter_func(M)
 #endif

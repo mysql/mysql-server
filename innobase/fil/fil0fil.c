@@ -544,6 +544,8 @@ fil_write_flushed_lsn_to_data_files(
 	}
 
 	mutex_exit(&(fil_system->mutex));
+
+	return(DB_SUCCESS);
 }
 
 /***********************************************************************

@@ -431,7 +431,8 @@ innobase_init(void)
 
 	if (!innobase_data_file_path)
 	{
-	  fprintf(stderr,"Can't initialize Innobase as 'innobase_data_file_path' is not set\n");
+	  fprintf(stderr,
+       "Can't initialize Innobase as 'innobase_data_file_path' is not set\n");
 	  innobase_skip=1;
 	  DBUG_RETURN(FALSE);			// Continue without innobase
 	}
@@ -1278,6 +1279,12 @@ innobase_convert_and_store_changed_col(
 
 	if (len == UNIV_SQL_NULL) {
 		data = NULL;
+	} else if (col_type == DATA_VARCHAR) {
+	        /* Remove trailing spaces */
+        	while (len > 0 && data[len - 1] == ' ') {
+	                len--;
+	        }
+
 	} else if (col_type == DATA_INT) {
 		/* Store integer data in Innobase in a big-endian
 		format, sign bit negated, if signed */
@@ -2581,13 +2588,14 @@ ha_innobase::update_table_comment(
 {
   uint length=strlen(comment);
 
-  char *str=my_malloc(length + 50,MYF(0));
+  char *str=my_malloc(length + 100,MYF(0));
 
   if (!str)
     return (char*)comment;
 
-  sprintf(str,"%s Innobase free: %lu kB", comment,
-	  (ulong) innobase_get_free_space());
+  sprintf(str,
+    "%s; (See manual about Innobase stats); Innobase free: %lu kB",
+	  comment, (ulong) innobase_get_free_space());
 
   return((char*) str);
 }

@@ -30,14 +30,6 @@ sess_t*		trx_dummy_sess = NULL;
 the kernel mutex */
 ulint	trx_n_mysql_transactions = 0;
 
-/********************************************************************
-Takes care of the error handling when an SQL error or other error has
-occurred. */
-static
-void
-trx_error_handle(
-/*=============*/
-	trx_t*		trx);	/* in: trx handle */
 
 /********************************************************************
 Creates and initializes a transaction object. */

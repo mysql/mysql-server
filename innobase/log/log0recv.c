@@ -407,12 +407,17 @@ recv_find_max_checkpoint(
 			/* Check the consistency of the checkpoint info */
 			fold = ut_fold_binary(buf, LOG_CHECKPOINT_CHECKSUM_1);
 
-			if (fold != mach_read_from_4(buf
+			if ((fold & 0xFFFFFFFF)
+                                  != mach_read_from_4(buf
 						+ LOG_CHECKPOINT_CHECKSUM_1)) {
 				if (log_debug_writes) {
 					fprintf(stderr, 
-			"Innobase: Checkpoint in group %lu at %lu invalid\n",
-						group->id, field);
+	    "Innobase: Checkpoint in group %lu at %lu invalid, %lu, %lu\n",
+						group->id, field,
+                                                fold & 0xFFFFFFFF,
+                                 mach_read_from_4(buf
+					      + LOG_CHECKPOINT_CHECKSUM_1));
+
 				}
 
 				goto not_consistent;
@@ -421,12 +426,16 @@ recv_find_max_checkpoint(
 			fold = ut_fold_binary(buf + LOG_CHECKPOINT_LSN,
 						LOG_CHECKPOINT_CHECKSUM_2
 							- LOG_CHECKPOINT_LSN);
-			if (fold != mach_read_from_4(buf
+			if ((fold & 0xFFFFFFFF)
+                                  != mach_read_from_4(buf
 						+ LOG_CHECKPOINT_CHECKSUM_2)) {
 				if (log_debug_writes) {
 					fprintf(stderr, 
-		"Innobase: Checkpoint in group %lu at %lu invalid\n",
-						group->id, field);
+		"Innobase: Checkpoint in group %lu at %lu invalid, %lu, %lu\n",
+						group->id, field,
+                                                fold & 0xFFFFFFFF,
+                                 mach_read_from_4(buf
+						  + LOG_CHECKPOINT_CHECKSUM_2));
 				}
 				goto not_consistent;
 			}
@@ -461,10 +470,7 @@ recv_find_max_checkpoint(
 
 	if (*max_group == NULL) {
 
-		if (log_debug_writes) {
-			fprintf(stderr,
-			"Innobase: No valid checkpoint found\n");
-		}
+		fprintf(stderr, "Innobase: No valid checkpoint found\n");
 
 		return(DB_ERROR);
 	}
@@ -796,7 +802,7 @@ recv_recover_page(
 
 	success = buf_page_get_known_nowait(RW_X_LATCH, page, BUF_KEEP_OLD,
 #ifdef UNIV_SYNC_DEBUG
-					__FILE__, __LINE__,
+					IB__FILE__, __LINE__,
 #endif
 					&mtr);
 	ut_a(success);
@@ -860,8 +866,8 @@ recv_recover_page(
 
 			if (log_debug_writes) {
 				fprintf(stderr, 
-	"Innobase: Applying log rec type %lu len %lu to space %lu page no %lu\n",
-				recv->type, recv->len, recv_addr->space,
+     "Innobase: Applying log rec type %lu len %lu to space %lu page no %lu\n",
+			(ulint)recv->type, recv->len, recv_addr->space,
 				recv_addr->page_no);
 			}
 					
@@ -1213,7 +1219,7 @@ recv_compare_spaces(
 		frame = buf_page_get_gen(space1, page_no, RW_S_LATCH, NULL,
 						BUF_GET_IF_IN_POOL,
 #ifdef UNIV_SYNC_DEBUG
-						__FILE__, __LINE__,
+						IB__FILE__, __LINE__,
 #endif
 						&mtr);
 		if (frame) {
@@ -1228,7 +1234,7 @@ recv_compare_spaces(
 		frame = buf_page_get_gen(space2, page_no, RW_S_LATCH, NULL,
 						BUF_GET_IF_IN_POOL,
 #ifdef UNIV_SYNC_DEBUG
-						__FILE__, __LINE__,
+						IB__FILE__, __LINE__,
 #endif
 						&mtr);
 		if (frame) {
@@ -1449,7 +1455,7 @@ loop:
 		if (log_debug_writes) {
 			fprintf(stderr, 
 "Innobase: Parsed a single log rec type %lu len %lu space %lu page no %lu\n",
-				type, len, space, page_no);
+			(ulint)type, len, space, page_no);
 		}
 
 		if (type == MLOG_DUMMY_RECORD) {
@@ -1498,7 +1504,7 @@ loop:
 			if (log_debug_writes) {
 				fprintf(stderr, 
 "Innobase: Parsed a multi log rec type %lu len %lu space %lu page no %lu\n",
-					type, len, space, page_no);
+				(ulint)type, len, space, page_no);
 			}
 		
 			total_len += len;

@@ -89,5 +89,3 @@ dtype_print(
 
 	printf("; len %lu prec %lu\n", type->len, type->prec);
 }
-
-

@@ -25,6 +25,7 @@ Created 10/16/1994 Heikki Tuuri
 
 #include "page0page.h"
 #include "rem0rec.h"
+#include "rem0cmp.h"
 #include "btr0btr.h"
 #include "btr0sea.h"
 #include "row0upd.h"
@@ -314,7 +315,7 @@ retry_page_get:
 		page = buf_page_get_gen(space, page_no, rw_latch, guess,
 					buf_mode,
 #ifdef UNIV_SYNC_DEBUG
-					__FILE__, __LINE__,
+					IB__FILE__, __LINE__,
 #endif
 					mtr);
 
@@ -485,7 +486,7 @@ btr_cur_open_at_index_side(
 		page = buf_page_get_gen(space, page_no, RW_NO_LATCH, NULL,
 					BUF_GET,
 #ifdef UNIV_SYNC_DEBUG
-					__FILE__, __LINE__,
+					IB__FILE__, __LINE__,
 #endif
 					mtr);
 		ut_ad(0 == ut_dulint_cmp(tree->id,
@@ -574,7 +575,7 @@ btr_cur_open_at_rnd_pos(
 		page = buf_page_get_gen(space, page_no, RW_NO_LATCH, NULL,
 					BUF_GET,
 #ifdef UNIV_SYNC_DEBUG
-					__FILE__, __LINE__,
+					IB__FILE__, __LINE__,
 #endif
 					mtr);
 		ut_ad(0 == ut_dulint_cmp(tree->id,

@@ -1243,7 +1243,7 @@ que_thr_step(
 /***********************************************************************
 Checks if there is a need for a query thread switch or stopping the current
 thread. */
-static
+
 que_thr_t*
 que_thr_check_if_switch(
 /*====================*/

@@ -73,16 +73,6 @@ the previous */
 #define	LOG_ARCHIVE_WRITE	2
 
 /**********************************************************
-Calculates the file count of an lsn within a log group. */
-static
-ulint
-log_group_calc_lsn_file_count(
-/*==========================*/
-				/* out: file count within the log group */
-	dulint		lsn,	/* in: lsn, must be within 4 GB of
-				group->next_block_lsn */
-	log_group_t*	group);	/* in: log group */
-/**********************************************************
 Completes a checkpoint write i/o to a log file. */
 static
 void
@@ -520,6 +510,8 @@ log_calc_max_ages(void)
 						+ LOG_CHECKPOINT_EXTRA_FREE;
 	if (free >= smallest_capacity / 2) {
 		success = FALSE;
+
+		goto failure;
 	} else {
 		margin = smallest_capacity - free;
 	}
@@ -540,10 +532,11 @@ log_calc_max_ages(void)
 	log_sys->max_archived_lsn_age_async = smallest_archive_margin
 						- smallest_archive_margin /
 						  LOG_ARCHIVE_RATIO_ASYNC;
+failure:
 	mutex_exit(&(log_sys->mutex));
 
 	if (!success) {
-		printf(
+		fprintf(stderr,
 	  "Error: log file group too small for the number of threads\n");
 	}
 

@@ -132,7 +132,11 @@ srv_release_threads(
 /*************************************************************************
 The master thread controlling the server. */
 
+#ifndef __WIN__
+void*
+#else
 ulint
+#endif
 srv_master_thread(
 /*==============*/
 			/* out: a dummy parameter */
@@ -187,7 +191,11 @@ srv_release_mysql_thread_if_suspended(
 /*************************************************************************
 A thread which wakes up threads whose lock wait may have lasted too long. */
 
+#ifndef __WIN__
+void*
+#else
 ulint
+#endif
 srv_lock_timeout_monitor_thread(
 /*============================*/
 			/* out: a dummy parameter */

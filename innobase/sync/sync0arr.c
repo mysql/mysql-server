@@ -119,7 +119,6 @@ sync_array_get_nth_cell(
 	ulint		n)	/* in: index */
 {
 	ut_a(arr);
-	ut_a(n >= 0);
 	ut_a(n < arr->n_cells);
 
 	return(arr->array + n);
@@ -455,8 +454,9 @@ sync_array_cell_print(
 	}
 
 	printf("%lx waited for by thread %lu op. %s file %s line %lu ",
-				cell->wait_object, cell->thread,
-				str, cell->file,cell->line);
+				(ulint)cell->wait_object,
+				(ulint)cell->thread,
+				str, cell->file, cell->line);
         if (!cell->waiting) {
           	printf("WAIT ENDED ");
 	}
@@ -633,7 +633,7 @@ sync_array_detect_deadlock(
 							debug->pass,
 							depth);
 			if (ret) {
-				printf("rw-lock %lx ", lock);
+				printf("rw-lock %lx ", (ulint) lock);
 				rw_lock_debug_print(debug);
 				sync_array_cell_print(cell);
 
@@ -666,7 +666,7 @@ sync_array_detect_deadlock(
 							debug->pass,
 							depth);
 			if (ret) {
-				printf("rw-lock %lx ", lock);
+				printf("rw-lock %lx ", (ulint) lock);
 				rw_lock_debug_print(debug);
 				sync_array_cell_print(cell);
 

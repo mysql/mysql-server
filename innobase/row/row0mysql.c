@@ -93,9 +93,6 @@ row_mysql_convert_row_to_innobase(
 					field type information is already
 					copied there, or will be copied
 					later */
-	byte*		buf,		/* in/out: buffer to use in converting
-					data in columns; this must be at least
-					the size of mysql_rec! */
 	row_prebuilt_t*	prebuilt,	/* in: prebuilt struct where template
 					must be of type ROW_MYSQL_WHOLE_ROW */
 	byte*		mysql_rec)	/* in: row in the MySQL format;
@@ -474,9 +471,8 @@ row_insert_for_mysql(
 		node = prebuilt->ins_node;
 	}
 
-	row_mysql_convert_row_to_innobase(node->row,
-						prebuilt->ins_upd_rec_buff,
-						prebuilt, mysql_rec);
+	row_mysql_convert_row_to_innobase(node->row, prebuilt, mysql_rec);
+	
 	savept = trx_savept_take(trx);
 	
 	thr = que_fork_get_first_thr(prebuilt->ins_graph);
@@ -666,9 +662,7 @@ row_update_for_mysql(
 						prebuilt->mysql_row_len);
 	}
 		
-	row_mysql_convert_row_to_innobase(row_tuple,
-						prebuilt->ins_upd_rec_buff,
-						prebuilt, mysql_rec);
+	row_mysql_convert_row_to_innobase(row_tuple, prebuilt, mysql_rec);
 
 	search_tuple = dtuple_create(heap, ref_len);
 

@@ -807,7 +807,7 @@ srv_console(
 /*************************************************************************
 Creates the first communication endpoint for the server. This
 first call also initializes the com0com.* module. */
-static
+
 void
 srv_communication_init(
 /*===================*/
@@ -1037,7 +1037,7 @@ srv_worker_thread(
 
 /*************************************************************************
 Creates the worker threads. */
-static
+
 void
 srv_create_worker_threads(void)
 /*===========================*/
@@ -1717,7 +1717,11 @@ srv_release_mysql_thread_if_suspended(
 /*************************************************************************
 A thread which wakes up threads whose lock wait may have lasted too long. */
 
+#ifndef __WIN__
+void*
+#else
 ulint
+#endif
 srv_lock_timeout_monitor_thread(
 /*============================*/
 			/* out: a dummy parameter */
@@ -1782,7 +1786,11 @@ loop:
 
 	goto loop;
 
+#ifndef __WIN__
+        return(NULL);
+#else
 	return(0);
+#endif
 }
 
 /***********************************************************************
@@ -1811,7 +1819,11 @@ srv_active_wake_master_thread(void)
 /*************************************************************************
 The master thread controlling the server. */
 
+#ifndef __WIN__
+void*
+#else
 ulint
+#endif
 srv_master_thread(
 /*==============*/
 			/* out: a dummy parameter */
@@ -1951,5 +1963,9 @@ background_loop:
 
 	goto loop;
 
+#ifndef __WIN__
+        return(NULL);
+#else
 	return(0);
+#endif
 }

@@ -1117,7 +1117,7 @@ buf_page_create(
 	buf_LRU_add_block(block, FALSE);
 		
 #ifdef UNIV_SYNC_DEBUG
-	buf_block_buf_fix_inc_debug(block, __FILE__, __LINE__);
+	buf_block_buf_fix_inc_debug(block, IB__FILE__, __LINE__);
 #else
 	buf_block_buf_fix_inc(block);
 #endif
