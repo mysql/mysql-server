@@ -38,7 +38,7 @@ $data =~ s/FIXUPmdashFIXUP/\&mdash\;/g;
 
 $data =~ s/FIXUPdoubledashFIXUP/--/g;
 
-$data =~ s/FIXUPstrongFIXUP/<emphasis\ role\=bold>/g;
+$data =~ s/FIXUPstrongFIXUP/<emphasis\ role\=\"bold\">/g;
 $data =~ s/FIXUPendstrongFIXUP/<\/emphasis>/g;
 
 $data =~ s/FIXUPemphFIXUP/<emphasis>/g;
