@@ -307,6 +307,7 @@ extra/my_print_defaults
 extra/mysql_install
 extra/mysql_tzinfo_to_sql
 extra/mysql_waitpid
+extra/mysqld_ername.h
 extra/mysqld_error.h
 extra/perror
 extra/replace
