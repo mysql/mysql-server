@@ -474,6 +474,7 @@ struct show_var_st init_vars[]= {
   {"ft_stopword_file",        (char*) &ft_stopword_file,            SHOW_CHAR_PTR},
   {"have_bdb",		      (char*) &have_berkeley_db,	    SHOW_HAVE},
   {"have_crypt",	      (char*) &have_crypt,		    SHOW_HAVE},
+  {"have_compress",	      (char*) &have_compress,		    SHOW_HAVE},
   {"have_innodb",	      (char*) &have_innodb,		    SHOW_HAVE},
   {"have_isam",	      	      (char*) &have_isam,		    SHOW_HAVE},
   {"have_raid",		      (char*) &have_raid,		    SHOW_HAVE},
