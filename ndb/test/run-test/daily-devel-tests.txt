@@ -210,26 +210,26 @@ args:
 
 max-time: 180
 cmd: DbAsyncGenerator
-args: -t 60 -p 1
+args: -time 60 -p 1
 type: bench
 
 max-time: 180
 cmd: DbAsyncGenerator
-args: -t 60 -p 25
+args: -time 60 -p 25
 type: bench
 
 max-time: 180
 cmd: DbAsyncGenerator
-args: -t 60 -p 100
+args: -time 60 -p 100
 type: bench
 
 max-time: 180
 cmd: DbAsyncGenerator
-args: -t 60 -p 200
+args: -time 60 -p 200
 type: bench
 
 max-time: 180
 cmd: DbAsyncGenerator
-args: -t 60 -p 1 -proc 25
+args: -time 60 -p 1 -proc 25
 type: bench
 
