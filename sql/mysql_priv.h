@@ -618,8 +618,8 @@ bool fn_format_relative_to_data_home(my_string to, const char *name,
 bool open_log(MYSQL_LOG *log, const char *hostname,
 	      const char *opt_name, const char *extension,
 	      const char *index_file_name,
-	      enum_log_type type, bool read_append = 0,
-	      bool no_auto_events = 0);
+	      enum_log_type type, bool read_append,
+	      bool no_auto_events, ulong max_size);
 /* mysqld.cc */
 void clear_error_message(THD *thd);
 
@@ -666,7 +666,8 @@ extern ulong max_insert_delayed_threads, max_user_connections;
 extern ulong long_query_count, what_to_log,flush_time,opt_sql_mode;
 extern ulong query_buff_size, thread_stack,thread_stack_min;
 extern ulong binlog_cache_size, max_binlog_cache_size, open_files_limit;
-extern ulong max_binlog_size, rpl_recovery_rank, thread_cache_size;
+extern ulong max_binlog_size, max_relay_log_size;
+extern ulong rpl_recovery_rank, thread_cache_size;
 extern ulong com_stat[(uint) SQLCOM_END], com_other, back_log;
 extern ulong specialflag, current_pid;
 

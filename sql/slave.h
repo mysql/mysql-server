@@ -402,6 +402,7 @@ int init_relay_log_pos(RELAY_LOG_INFO* rli,const char* log,ulonglong pos,
 
 int purge_relay_logs(RELAY_LOG_INFO* rli, THD *thd, bool just_reset,
 		     const char** errmsg);
+void rotate_relay_log(MASTER_INFO* mi);
 
 extern "C" pthread_handler_decl(handle_slave_io,arg);
 extern "C" pthread_handler_decl(handle_slave_sql,arg);
