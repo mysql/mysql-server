@@ -111,7 +111,8 @@ LEX *lex_start(THD *thd, uchar *buf,uint length)
   lex->next_state=MY_LEX_START;
   lex->end_of_query=(lex->ptr=buf)+length;
   lex->yylineno = 1;
-  lex->select_lex.create_refs=lex->in_comment=0;
+  lex->select_lex.parsing_place= SELECT_LEX_NODE::NO_MATTER;
+  lex->in_comment=0;
   lex->length=0;
   lex->select_lex.in_sum_expr=0;
   lex->select_lex.expr_list.empty();
@@ -973,8 +974,9 @@ void st_select_lex_node::init_select()
   order_list.next= (byte**) &order_list.first;
   select_limit= HA_POS_ERROR;
   offset_limit= 0;
+  select_items= 0;
   with_sum_func= 0;
-  create_refs= 0;
+  parsing_place= SELECT_LEX_NODE::NO_MATTER;
 }
 
 void st_select_lex_unit::init_query()

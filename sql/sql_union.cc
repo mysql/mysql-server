@@ -159,7 +159,7 @@ int st_select_lex_unit::prepare(THD *thd, select_result *sel_result,
     item_list= select_cursor->item_list;
     select_cursor->with_wild= 0;
     if (setup_ref_array(thd, &select_cursor->ref_pointer_array, 
-			(item_list.elements + select_cursor->with_sum_func +
+			(item_list.elements + select_cursor->select_items +
 			 select_cursor->order_list.elements + 
 			 select_cursor->group_list.elements)) ||
 	setup_fields(thd, select_cursor->ref_pointer_array, first_table,
