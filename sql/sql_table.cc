@@ -30,6 +30,16 @@
 #include <io.h>
 #endif
 
+#include "sql_acl.h" // for SUPER_ACL
+# define tmp_disable_binlog(A)                                          \
+  ulong save_options= (A)->options, save_master_access= (A)->master_access; \
+  (A)->options&= ~OPTION_BIN_LOG;                                       \
+  (A)->master_access|= SUPER_ACL; /* unneeded in 4.1 */                 
+
+#define reenable_binlog(A)                      \
+  (A)->options= save_options;                   \
+  (A)->master_access= save_master_access;       
+
 extern HASH open_cache;
 static const char *primary_key_name="PRIMARY";
 
@@ -840,9 +850,8 @@ TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
 			       MYSQL_LOCK **lock)
 {
   TABLE tmp_table;		// Used during 'create_field()'
-  TABLE *table;
+  TABLE *table= 0;
   tmp_table.table_name=0;
-  Disable_binlog disable_binlog(thd);
   DBUG_ENTER("create_table_from_items");
 
   /* Add selected items to field list */
@@ -872,23 +881,25 @@ TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
     extra_fields->push_back(cr_field);
   }
   /* create and lock table */
-  /* QQ: This should be done atomic ! */
-  /* We don't log the statement, it will be logged later */
-  if (mysql_create_table(thd,db,name,create_info,*extra_fields,
-			 *keys,0))
-    DBUG_RETURN(0);
+  /* QQ: create and open should be done atomic ! */
   /*
+    We don't log the statement, it will be logged later.
     If this is a HEAP table, the automatic DELETE FROM which is written to the
     binlog when a HEAP table is opened for the first time since startup, must
     not be written: 1) it would be wrong (imagine we're in CREATE SELECT: we
     don't want to delete from it) 2) it would be written before the CREATE
-    TABLE, which is a wrong order. So we keep binary logging disabled.
+    TABLE, which is a wrong order. So we keep binary logging disabled when we
+    open_table().
   */
-  if (!(table=open_table(thd,db,name,name,(bool*) 0)))
+  tmp_disable_binlog(thd);
+  if (!mysql_create_table(thd,db,name,create_info,*extra_fields,*keys,0))
   {
-    quick_rm_table(create_info->db_type,db,table_case_name(create_info,name));
-    DBUG_RETURN(0);
+    if (!(table=open_table(thd,db,name,name,(bool*) 0)))
+      quick_rm_table(create_info->db_type,db,table_case_name(create_info,name));
   }
+  reenable_binlog(thd);
+  if (!table)
+    DBUG_RETURN(0);
   table->reginfo.lock_type=TL_WRITE;
   if (!((*lock)=mysql_lock_tables(thd,&table,1)))
   {
@@ -1925,14 +1936,12 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   else
     create_info->data_file_name=create_info->index_file_name=0;
   {
-    /*
-      We don't log the statement, it will be logged later. Using a block so
-      that disable_binlog is deleted when we leave it in either way.
-    */
-    Disable_binlog disable_binlog(thd);
-    if ((error=mysql_create_table(thd, new_db, tmp_name,
-                                  create_info,
-                                  create_list,key_list,1)))
+    /* We don't log the statement, it will be logged later. */
+    tmp_disable_binlog(thd);
+    error= mysql_create_table(thd, new_db, tmp_name,
+                              create_info,create_list,key_list,1);
+    reenable_binlog(thd);
+    if (error)
       DBUG_RETURN(error);
   }
   if (table->tmp_table)

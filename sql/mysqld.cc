@@ -414,6 +414,7 @@ char mysql_real_data_home[FN_REFLEN],
      max_sort_char,*mysqld_user,*mysqld_chroot, *opt_init_file;
 char *language_ptr= language;
 char mysql_data_home_buff[2], *mysql_data_home=mysql_real_data_home;
+struct passwd *user_info;
 #ifndef EMBEDDED_LIBRARY
 bool mysql_embedded=0;
 #else
@@ -1028,27 +1029,26 @@ static void set_ports()
   }
 }
 
-/* Change to run as another user if started with --user */
 
-static void set_user(const char *user)
+static struct passwd *check_user(const char *user)
 {
-#if !defined(__WIN__) && !defined(OS2) && !defined(__NETWARE__)
-  struct passwd *ent;
+#if !defined(__WIN__) && !defined(OS2) && !defined(__NETWARE__) 
+  struct passwd *user_info;
   uid_t user_id= geteuid();
-
-  // don't bother if we aren't superuser
+  
+  // Don't bother if we aren't superuser
   if (user_id)
   {
     if (user)
     {
-      /* Don't give a warning, if real user is same as given with --user */
-      struct passwd *user_info= getpwnam(user);
+      // Don't give a warning, if real user is same as given with --user
+      user_info= getpwnam(user);
       if ((!user_info || user_id != user_info->pw_uid) &&
-	  global_system_variables.log_warnings)
-	fprintf(stderr,
-		"Warning: One can only use the --user switch if running as root\n");
+          global_system_variables.log_warnings)
+        fprintf(stderr,
+	        "Warning: One can only use the --user switch if running as root\n");
     }
-    return;
+    return NULL;
   }
   if (!user)
   {
@@ -1057,44 +1057,76 @@ static void set_user(const char *user)
       fprintf(stderr,"Fatal error: Please read \"Security\" section of the manual to find out how to run mysqld as root!\n");
       unireg_abort(1);
     }
-    return;
+    return NULL;
   }
   if (!strcmp(user,"root"))
-    return;				// Avoid problem with dynamic libraries
-
-  uid_t uid;
-  if (!(ent = getpwnam(user)))
+    return NULL;             // Avoid problem with dynamic libraries
+  if (!(user_info= getpwnam(user)))
   {
-    // allow a numeric uid to be used
+    // Allow a numeric uid to be used
     const char *pos;
-    for (pos=user; isdigit(*pos); pos++) ;
-    if (*pos)					// Not numeric id
-    {
-      fprintf(stderr,"Fatal error: Can't change to run as user '%s' ;  Please check that the user exists!\n",user);
-      unireg_abort(1);
-    }
-    uid=atoi(user);				// Use numberic uid
+    for (pos= user; isdigit(*pos); pos++);
+    if (*pos)                // Not numeric id
+      goto err;
+    if (!(user_info= getpwuid(atoi(user))))
+      goto err;
+    else
+      return user_info;
   }
   else
   {
-#ifdef HAVE_INITGROUPS
-    initgroups((char*) user,ent->pw_gid);
-#endif
-    if (setgid(ent->pw_gid) == -1)
-    {
-      sql_perror("setgid");
-      unireg_abort(1);
-    }
-    uid=ent->pw_uid;
+    return user_info;
   }
 
-  if (setuid(uid) == -1)
+err:
+  fprintf(stderr,
+          "Fatal error: Can't change to run as user '%s'.  Please check that the user exists!\n",
+	  user);
+  unireg_abort(1);
+  return NULL;	  
+#else
+  return NULL;  
+#endif  
+}
+
+
+static void set_user(const char *user, struct passwd *user_info)
+{
+#if !defined(__WIN__) && !defined(OS2) && !defined(__NETWARE__)
+  DBUG_ASSERT(user_info);
+#ifdef HAVE_INITGROUPS
+  initgroups((char*) user, user_info->pw_gid);
+#endif
+  if (setgid(user_info->pw_gid) == -1)
+  {
+    sql_perror("setgid");
+    unireg_abort(1);
+  }
+  if (setuid(user_info->pw_uid) == -1)
   {
     sql_perror("setuid");
     unireg_abort(1);
   }
 #endif
 }
+
+static void set_effective_user(struct passwd *user_info)
+{
+#if !defined(__WIN__) && !defined(OS2) && !defined(__NETWARE__)
+  DBUG_ASSERT(user_info);
+  if (setegid(user_info->pw_gid) == -1)
+  {
+    sql_perror("setegid");
+    unireg_abort(1);
+  }  
+  if (seteuid(user_info->pw_uid) == -1)
+  {
+    sql_perror("seteuid");
+    unireg_abort(1);
+  }
+#endif
+}
+
 
 /* Change root user if started with  --chroot */
 
@@ -1171,7 +1203,18 @@ static void server_init(void)
       unireg_abort(1);
     }
   }
-  set_user(mysqld_user);		// Works also with mysqld_user==NULL
+
+  if ((user_info= check_user(mysqld_user)))
+  {
+#if defined(HAVE_MLOCKALL) && defined(MCL_CURRENT)
+    if (locked_in_memory && !getuid())
+      set_effective_user(user_info);
+    else
+      set_user(mysqld_user, user_info);
+#else
+    set_user(mysqld_user, user_info);
+#endif
+  }
 
 #ifdef __NT__
   /* create named pipe */
@@ -2466,8 +2509,13 @@ You should consider changing lower_case_table_names to 1 or 2",
   }
   ha_key_cache();
 #if defined(HAVE_MLOCKALL) && defined(MCL_CURRENT)
-  if (locked_in_memory && !geteuid())
+  if (locked_in_memory && !getuid())
   {
+    if (seteuid(0) == -1)
+    {                        // this should never happen
+      sql_perror("seteuid");
+      unireg_abort(1);
+    }
     if (mlockall(MCL_CURRENT))
     {
       if (global_system_variables.log_warnings)
@@ -2475,6 +2523,8 @@ You should consider changing lower_case_table_names to 1 or 2",
     }
     else
       locked_in_memory=1;
+    if (user_info)
+      set_user(mysqld_user, user_info);
   }
 #else
   locked_in_memory=0;
