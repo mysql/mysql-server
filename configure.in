@@ -15,8 +15,8 @@ SHARED_LIB_VERSION=14:0:0
 # ndb version
 NDB_VERSION_MAJOR=3
 NDB_VERSION_MINOR=5
-NDB_VERSION_BUILD=1
-NDB_VERSION_STATUS=beta
+NDB_VERSION_BUILD=2
+NDB_VERSION_STATUS=0
 
 # Set all version vars based on $VERSION. How do we do this more elegant ?
 # Remember that regexps needs to quote [ and ] since this is run through m4
