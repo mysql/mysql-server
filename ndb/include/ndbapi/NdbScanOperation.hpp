@@ -146,7 +146,7 @@ protected:
   int send_next_scan(Uint32 cnt, bool close);
   void receiver_delivered(NdbReceiver*);
   void receiver_completed(NdbReceiver*);
-  void execCLOSE_SCAN_REP(Uint32 errCode);
+  void execCLOSE_SCAN_REP();
 
   NdbOperation*	takeOverScanOp(OperationType opType, NdbConnection*);
 

@@ -124,7 +124,7 @@ NdbScanOperation::init(NdbTableImpl* tab, NdbConnection* myConnection)
   
   theTotalBoundAI_Len = 0;
   theBoundATTRINFO = NULL;
-
+  
   return 0;
 }
 
@@ -135,6 +135,8 @@ NdbResultSet* NdbScanOperation::readTuples(NdbScanOperation::LockMode lm,
   m_ordered = 0;
 
   Uint32 fragCount = m_currentTable->m_fragmentCount;
+  ndbout_c("batch: %d parallell: %d fragCount: %d",
+	   batch, parallell, fragCount);
 
   if(batch + parallell == 0){ // Max speed
     batch = 16;
@@ -153,6 +155,9 @@ NdbResultSet* NdbScanOperation::readTuples(NdbScanOperation::LockMode lm,
     parallell = fragCount;
   else if(parallell == 0)
     parallell = fragCount;
+
+  ndbout_c("batch: %d parallell: %d fragCount: %d",
+	   batch, parallell, fragCount);
   
   assert(parallell > 0);
 
@@ -486,6 +491,11 @@ int NdbScanOperation::nextResult(bool fetchAllowed)
     last = m_api_receivers_count;
       
     do {
+      if(theError.code){
+	setErrorCode(theError.code);
+	return -1;
+      }
+      
       Uint32 cnt = m_conf_receivers_count;
       Uint32 sent = m_sent_receivers_count;
 	
@@ -502,12 +512,17 @@ int NdbScanOperation::nextResult(bool fetchAllowed)
 	 */
 	theNdb->theWaiter.m_node = nodeId;
 	theNdb->theWaiter.m_state = WAIT_SCAN;
+	ndbout_c("%d : api: %d conf: %d sent: %d", 
+		 __LINE__, 
+		 m_api_receivers_count,
+		 m_conf_receivers_count,
+		 m_sent_receivers_count);	
 	int return_code = theNdb->receiveResponse(WAITFOR_SCAN_TIMEOUT);
 	if (return_code == 0 && seq == tp->getNodeSequence(nodeId)) {
 	  continue;
 	} else {
 	  idx = last;
-	  retVal = -1; //return_code;
+	  retVal = -2; //return_code;
 	}
       } else if(retVal == 2){
 	/**
@@ -516,6 +531,11 @@ int NdbScanOperation::nextResult(bool fetchAllowed)
 	if(send_next_scan(0, true) == 0){ // Close scan
 	  theNdb->theWaiter.m_node = nodeId;
 	  theNdb->theWaiter.m_state = WAIT_SCAN;
+	  ndbout_c("%d : api: %d conf: %d sent: %d", 
+		   __LINE__, 
+		   m_api_receivers_count,
+		   m_conf_receivers_count,
+		   m_sent_receivers_count);	 
 	  int return_code = theNdb->receiveResponse(WAITFOR_SCAN_TIMEOUT);
 	  if (return_code == 0 && seq == tp->getNodeSequence(nodeId)) {
 	    return 1;
@@ -633,6 +653,12 @@ NdbScanOperation::doSend(int ProcessorId)
 
 void NdbScanOperation::closeScan()
 {
+  ndbout_c("closeScan %d : api: %d conf: %d sent: %d", 
+	   __LINE__, 
+	   m_api_receivers_count,
+	   m_conf_receivers_count,
+	   m_sent_receivers_count);
+
   do {
     TransporterFacade* tp = TransporterFacade::instance();
     Guard guard(tp->theMutexPtr);
@@ -651,6 +677,11 @@ void NdbScanOperation::closeScan()
     while(m_sent_receivers_count){
       theNdb->theWaiter.m_node = nodeId;
       theNdb->theWaiter.m_state = WAIT_SCAN;
+      ndbout_c("%d : api: %d conf: %d sent: %d", 
+	       __LINE__, 
+	       m_api_receivers_count,
+	       m_conf_receivers_count,
+	       m_sent_receivers_count);
       int return_code = theNdb->receiveResponse(WAITFOR_SCAN_TIMEOUT);
       switch(return_code){
       case 0:
@@ -679,6 +710,11 @@ void NdbScanOperation::closeScan()
       do {
 	theNdb->theWaiter.m_node = nodeId;
 	theNdb->theWaiter.m_state = WAIT_SCAN;
+	ndbout_c("%d : api: %d conf: %d sent: %d", 
+		 __LINE__, 
+		 m_api_receivers_count,
+		 m_conf_receivers_count,
+		 m_sent_receivers_count);
 	int return_code = theNdb->receiveResponse(WAITFOR_SCAN_TIMEOUT);
 	switch(return_code){
 	case 0:
@@ -701,22 +737,7 @@ void NdbScanOperation::closeScan()
 }
 
 void
-NdbScanOperation::execCLOSE_SCAN_REP(Uint32 errCode){
-  /**
-   * We will receive no further signals from this scan
-   */
-  if(!errCode){
-    /**
-     * Normal termination
-     */
-    theNdbCon->theCommitStatus = NdbConnection::Committed;
-    theNdbCon->theCompletionStatus = NdbConnection::CompletedSuccess;
-  } else {
-    /**
-     * Something is fishy
-     */
-    abort();
-  }
+NdbScanOperation::execCLOSE_SCAN_REP(){
   m_api_receivers_count = 0;
   m_conf_receivers_count = 0;
   m_sent_receivers_count = 0;
@@ -1206,7 +1227,7 @@ NdbIndexScanOperation::next_result_ordered(bool fetchAllowed){
       Uint32 nodeId = theNdbCon->theDBnode;
       if(seq == tp->getNodeSequence(nodeId) && !send_next_scan_ordered(u_idx)){
 	Uint32 tmp = m_sent_receivers_count;
-	while(m_sent_receivers_count > 0){
+	while(m_sent_receivers_count > 0 && !theError.code){
 	  theNdb->theWaiter.m_node = nodeId;
 	  theNdb->theWaiter.m_state = WAIT_SCAN;
 	  int return_code = theNdb->receiveResponse(WAITFOR_SCAN_TIMEOUT);
@@ -1223,12 +1244,16 @@ NdbIndexScanOperation::next_result_ordered(bool fetchAllowed){
 	memcpy(arr, m_conf_receivers, u_last * sizeof(char*));
 	
 	if(DEBUG_NEXT_RESULT) ndbout_c("sent: %d recv: %d", tmp, u_last);
+	if(theError.code){
+	  setErrorCode(theError.code);
+	  return -1;
+	}
       }
     } else {
       return 2;
     }
   }
-
+  
   if(DEBUG_NEXT_RESULT) ndbout_c("u=[%d %d] s=[%d %d]", 
 				 u_idx, u_last,
 				 s_idx, s_last);
@@ -1279,9 +1304,12 @@ NdbIndexScanOperation::next_result_ordered(bool fetchAllowed){
   Guard guard(tp->theMutexPtr);
   Uint32 seq = theNdbCon->theNodeSequence;
   Uint32 nodeId = theNdbCon->theDBnode;
-  if(seq == tp->getNodeSequence(nodeId) && send_next_scan(0, true) == 0){
+  if(seq == tp->getNodeSequence(nodeId) && 
+     send_next_scan(0, true) == 0 &&
+     theError.code == 0){
     return 1;
   }
+  setErrorCode(theError.code);
   return -1;
 }
 

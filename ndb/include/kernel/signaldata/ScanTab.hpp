@@ -367,7 +367,7 @@ public:
   /**
    * Length of signal
    */
-  STATIC_CONST( SignalLength = 4 );
+  STATIC_CONST( SignalLength = 5 );
 
 private:
 
@@ -380,7 +380,7 @@ private:
   UintR transId1;             // DATA 1
   UintR transId2;             // DATA 2
   UintR errorCode;            // DATA 3
-  //  UintR sendScanNextReqWithClose; // DATA 4
+  UintR closeNeeded;          // DATA 4
  
 };
 

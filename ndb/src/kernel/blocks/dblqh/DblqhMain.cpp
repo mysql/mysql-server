@@ -6785,7 +6785,8 @@ void Dblqh::execSCAN_NEXTREQ(Signal* signal)
 
   if (findTransaction(transid1, transid2, senderData) != ZOK){
     jam();
-    DEBUG("Received SCAN_NEXTREQ in LQH with close flag when closed");
+    DEBUG(senderData << 
+	  " Received SCAN_NEXTREQ in LQH with close flag when closed");
     ndbrequire(nextReq->closeFlag == ZTRUE);
     return;
   }
@@ -6825,6 +6826,10 @@ void Dblqh::execSCAN_NEXTREQ(Signal* signal)
     return;
   }//if
 
+  if(ERROR_INSERTED(5036)){
+    return;
+  }
+
   scanptr.i = tcConnectptr.p->tcScanRec;
   ndbrequire(scanptr.i != RNIL);
   c_scanRecordPool.getPtr(scanptr);
@@ -6840,6 +6845,10 @@ void Dblqh::execSCAN_NEXTREQ(Signal* signal)
     jam();
     if(ERROR_INSERTED(5034)){
       CLEAR_ERROR_INSERT_VALUE;
+    }
+    if(ERROR_INSERTED(5036)){
+      CLEAR_ERROR_INSERT_VALUE;
+      return;
     }
     closeScanRequestLab(signal);
     return;
@@ -8517,6 +8526,11 @@ void Dblqh::sendKeyinfo20(Signal* signal,
  * ------------------------------------------------------------------------ */
 void Dblqh::sendScanFragConf(Signal* signal, Uint32 scanCompleted) 
 {
+  if(ERROR_INSERTED(5037)){
+    CLEAR_ERROR_INSERT_VALUE;
+    return;
+  }
+
   scanptr.p->scanTcWaiting = ZFALSE;
   ScanFragConf * conf = (ScanFragConf*)&signal->theData[0];
 

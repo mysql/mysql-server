@@ -705,23 +705,25 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
   {
     tFirstDataPtr = int2void(tFirstData);
     if (tFirstDataPtr == 0) goto InvalidSignal;
+
+    tCon = void2con(tFirstDataPtr);
+
+    assert(tFirstDataPtr != 0 && 
+	   void2con(tFirstDataPtr)->checkMagicNumber() == 0);
     
-    if (tWaitState == WAIT_SCAN){
-      tCon = void2con(tFirstDataPtr);
-      if (tCon->checkMagicNumber() == 0){
-	tReturnCode = tCon->receiveSCAN_TABREF(aSignal);
-	if (tReturnCode != -1){
-	  theWaiter.m_state = NO_WAIT;
-	}
-	break;
+    if (tCon->checkMagicNumber() == 0){
+      tReturnCode = tCon->receiveSCAN_TABREF(aSignal);
+      if (tReturnCode != -1){
+	theWaiter.m_state = NO_WAIT;
       }
+      break;
     }
     goto InvalidSignal;
-    }
+  }
   case GSN_SCAN_TABINFO: 
-    {
-      goto InvalidSignal;
-    }
+  {
+    goto InvalidSignal;
+  }
   case GSN_KEYINFO20: {
     tFirstDataPtr = int2void(tFirstData);
     if (tFirstDataPtr == 0) goto InvalidSignal;
