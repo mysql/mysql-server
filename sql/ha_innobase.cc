@@ -265,7 +265,40 @@ innobase_mysql_print_thd(
 {
   	THD*  thd;
 
-  	thd = (THD*) input_thd;
+        thd = (THD*) input_thd;
+
+        buf += sprintf(buf, "MySQL thread id %lu, query id %lu",
+                       thd->thread_id, thd->query_id);
+        if (thd->host) {
+                buf += sprintf(buf, " %.30s", thd->host);
+        }
+
+        if (thd->ip) {
+                buf += sprintf(buf, " %.20s", thd->ip);
+        }
+
+        if (thd->user) {
+                buf += sprintf(buf, " %.20s", thd->user);
+        }
+
+        if (thd->proc_info) {
+                buf += sprintf(buf, " %.50s", thd->proc_info);
+        }
+
+        if (thd->query) {
+                buf += sprintf(buf, "\n%.150s", thd->query);
+        }
+
+        buf += sprintf(buf, "\n");
+
+#ifdef notdefined
+        /* August 8, 2002
+        Revert these changes because they seem to make control
+        characters sometimes appear in the output and scramble it;
+        on platforms (what are those?) where sprintf does not work
+        we should define sprintf as 'my_emulated_sprintf'; InnoDB code
+        contains lots of sprintfs, it does not help to remove them from
+	just a single file */
 
 	/*  We can't use value of sprintf() as this is not portable */
   	buf+= my_sprintf(buf,
@@ -301,6 +334,7 @@ innobase_mysql_print_thd(
 	  buf=strnmov(buf, thd->query, 150);
   	}  
 	*buf='\n';
+#endif
 }
 }
 
@@ -894,7 +928,7 @@ ha_innobase::open(
 				      		     norm_name, NULL);
  	if (NULL == ib_table) {
 
-	  sql_print_error("InnoDB error:\n\
+	        sql_print_error("InnoDB error:\n\
 Cannot find table %s from the internal data dictionary\n\
 of InnoDB though the .frm file for the table exists. Maybe you\n\
 have deleted and recreated InnoDB data files but have forgotten\n\
