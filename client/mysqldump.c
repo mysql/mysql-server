@@ -1813,7 +1813,7 @@ static void dumpTable(uint numFields, char *table)
                 char *ptr= row[i], *end= ptr+ lengths[i];
                 fputs("0x", md_result_file);
                 for (; ptr < end ; ptr++)
-                  fprintf(md_result_file, "%02X", *ptr);
+		  fprintf(md_result_file, "%02X", *((uchar *)ptr));
               }
               else
                 unescape(md_result_file, row[i], lengths[i]);

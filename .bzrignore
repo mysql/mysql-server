@@ -103,6 +103,7 @@ Makefile.in'
 PENDING/*
 TAGS
 ac_available_languages_fragment
+acinclude.m4
 aclocal.m4
 analyse.test
 autom4te-2.53.cache/*
@@ -1105,4 +1106,3 @@ vio/test-ssl
 vio/test-sslclient
 vio/test-sslserver
 vio/viotest-ssl
-acinclude.m4
