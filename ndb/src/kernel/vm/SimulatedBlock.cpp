@@ -60,7 +60,8 @@ SimulatedBlock::SimulatedBlock(BlockNumber blockNumber,
   c_fragmentIdCounter = 1;
   c_fragSenderRunning = false;
   
-  const Properties * p = conf.getOwnProperties();
+  Properties tmp;
+  const Properties * p = &tmp;
   ndbrequire(p != 0);
 
   Uint32 count = 10;
@@ -98,7 +99,9 @@ SimulatedBlock::SimulatedBlock(BlockNumber blockNumber,
 
   for(GlobalSignalNumber i = 0; i<=MAX_GSN; i++)
     theExecArray[i] = 0;
+
   installSimulatedBlockFunctions();
+  UpgradeStartup::installEXEC(this);
 
   CLEAR_ERROR_INSERT_VALUE;
 }
@@ -127,6 +130,7 @@ SimulatedBlock::installSimulatedBlockFunctions(){
   a[GSN_UTIL_LOCK_CONF]   = &SimulatedBlock::execUTIL_LOCK_CONF;
   a[GSN_UTIL_UNLOCK_REF]  = &SimulatedBlock::execUTIL_UNLOCK_REF;
   a[GSN_UTIL_UNLOCK_CONF] = &SimulatedBlock::execUTIL_UNLOCK_CONF;
+  a[GSN_READ_CONFIG_REQ] = &SimulatedBlock::execREAD_CONFIG_REQ;
 }
 
 void
@@ -182,7 +186,7 @@ SimulatedBlock::sendSignal(BlockReference ref,
   
   Uint32 tSignalId = signal->header.theSignalId;
   
-  if ((length == 0) || (length > 25) || (recBlock == 0)) {
+  if ((length == 0) || (length + noOfSections > 25) || (recBlock == 0)) {
     signal_error(gsn, length, recBlock, __FILE__, __LINE__);
     return;
   }//if
@@ -263,7 +267,7 @@ SimulatedBlock::sendSignal(NodeReceiverGroup rg,
   signal->header.theSendersSignalId = tSignalId;
   signal->header.theSendersBlockRef = reference();
   
-  if ((length == 0) || (length > 25) || (recBlock == 0)) {
+  if ((length == 0) || (length + noOfSections > 25) || (recBlock == 0)) {
     signal_error(gsn, length, recBlock, __FILE__, __LINE__);
     return;
   }//if
@@ -371,7 +375,7 @@ SimulatedBlock::sendSignal(BlockReference ref,
   Uint32 tSignalId = signal->header.theSignalId;
   Uint32 tFragInfo = signal->header.m_fragmentInfo;
   
-  if ((length == 0) || (length > 25) || (recBlock == 0)) {
+  if ((length == 0) || (length + noOfSections > 25) || (recBlock == 0)) {
     signal_error(gsn, length, recBlock, __FILE__, __LINE__);
     return;
   }//if
@@ -464,7 +468,7 @@ SimulatedBlock::sendSignal(NodeReceiverGroup rg,
   signal->header.theSendersBlockRef = reference();
   signal->header.m_noOfSections = noOfSections;
   
-  if ((length == 0) || (length > 25) || (recBlock == 0)) {
+  if ((length == 0) || (length + noOfSections > 25) || (recBlock == 0)) {
     signal_error(gsn, length, recBlock, __FILE__, __LINE__);
     return;
   }//if
@@ -1338,7 +1342,7 @@ SimulatedBlock::sendFirstFragment(FragmentSendInfo & info,
      */
     return true;
   }
-    
+
   /**
    * Setup info object
    */
@@ -1724,9 +1728,52 @@ void SimulatedBlock::execUTIL_UNLOCK_CONF(Signal* signal){
   c_mutexMgr.execUTIL_UNLOCK_CONF(signal);
 }
 
+void 
+SimulatedBlock::execREAD_CONFIG_REQ(Signal* signal){
+  const ReadConfigReq * req = (ReadConfigReq*)signal->getDataPtr();
+
+  Uint32 ref = req->senderRef;
+  Uint32 senderData = req->senderData;
+
+  ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
+  conf->senderRef = reference();
+  conf->senderData = senderData;
+  sendSignal(ref, GSN_READ_CONFIG_CONF, signal, 
+	     ReadConfigConf::SignalLength, JBB);
+}
+
 void
 SimulatedBlock::ignoreMutexUnlockCallback(Signal* signal, 
 					  Uint32 ptrI, Uint32 retVal){
   c_mutexMgr.release(ptrI);
 }
 
+void 
+UpgradeStartup::installEXEC(SimulatedBlock* block){
+  SimulatedBlock::ExecFunction * a = block->theExecArray;
+  switch(block->number()){
+  case QMGR:
+    a[UpgradeStartup::GSN_CM_APPCHG] = &SimulatedBlock::execUPGRADE;
+    break;
+  case CNTR:
+    a[UpgradeStartup::GSN_CNTR_MASTERREF] = &SimulatedBlock::execUPGRADE;
+    a[UpgradeStartup::GSN_CNTR_MASTERCONF] = &SimulatedBlock::execUPGRADE;
+    break;
+  }
+}
+
+void
+SimulatedBlock::execUPGRADE(Signal* signal){
+  Uint32 gsn = signal->header.theVerId_signalNumber;
+  switch(gsn){
+  case UpgradeStartup::GSN_CM_APPCHG:
+    UpgradeStartup::execCM_APPCHG(* this, signal);
+    break;
+  case UpgradeStartup::GSN_CNTR_MASTERREF:
+    UpgradeStartup::execCNTR_MASTER_REPLY(* this, signal);
+    break;
+  case UpgradeStartup::GSN_CNTR_MASTERCONF:
+    UpgradeStartup::execCNTR_MASTER_REPLY(* this, signal);
+    break;
+  }
+}

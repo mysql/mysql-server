@@ -45,6 +45,12 @@ a\b
 select * from t1 where a like 'a\\%' escape '#' and a like 'a\\\\b';
 a
 a\b
+prepare stmt1 from 'select * from t1 where a like \'a\\%\' escape ?';
+set @esc='#';
+execute stmt1 using @esc;
+a
+a\b
+deallocate prepare stmt1;
 drop table t1;
 create table t1 (a datetime);
 insert into t1 values ('2004-03-11 12:00:21');

@@ -130,23 +130,14 @@ typedef struct st_read_record {			/* Parameter to read_record */
 } READ_RECORD;
 
 
-enum timestamp_type
-{
-  TIMESTAMP_NONE= -2, TIMESTAMP_DATETIME_ERROR= -1,
-  TIMESTAMP_DATE= 0,  TIMESTAMP_DATETIME= 1, TIMESTAMP_TIME= 2
-};
+/*
+  Originally MySQL used TIME structure inside server only, but since
+  4.1 it's exported to user in the new client API. Define aliases for
+  new names to keep existing code simple.
+*/
 
-/* Parameters to str_to_TIME */
-#define TIME_FUZZY_DATE		1
-#define TIME_DATETIME_ONLY	2
-
-
-typedef struct st_time {
-  uint year,month,day,hour,minute,second;
-  ulong second_part;
-  bool neg;
-  timestamp_type time_type;
-} TIME;
+typedef struct st_mysql_time TIME;
+typedef enum enum_mysql_timestamp_type timestamp_type;
 
 
 typedef struct {

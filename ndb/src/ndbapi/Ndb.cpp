@@ -26,8 +26,6 @@ Name:          Ndb.cpp
 
 #include "NdbApiSignal.hpp"
 #include "NdbImpl.hpp"
-#include "NdbSchemaOp.hpp"
-#include "NdbSchemaCon.hpp" 
 #include <NdbOperation.hpp>
 #include <NdbConnection.hpp>
 #include <NdbEventOperation.hpp>
@@ -39,8 +37,6 @@ Name:          Ndb.cpp
 #include "API.hpp"
 #include <NdbEnv.h>
 #include <BaseString.hpp>
-
-static bool fullyQualifiedNames = true;
 
 /****************************************************************************
 void connect();
@@ -155,7 +151,7 @@ Ndb::NDB_connect(Uint32 tNode)
 // Set connection pointer as NdbConnection object
 //************************************************
   tSignal->setData(theMyRef, 2);	// Set my block reference
-  tNdbCon->Status(Connecting);		// Set status to connecting
+  tNdbCon->Status(NdbConnection::Connecting); // Set status to connecting
   Uint32 nodeSequence;
   { // send and receive signal
     tp->lock_mutex();
@@ -178,7 +174,7 @@ Ndb::NDB_connect(Uint32 tNode)
     }//if
   }
   
-  if ((tReturnCode == 0) && (tNdbCon->Status() == Connected)) {
+  if ((tReturnCode == 0) && (tNdbCon->Status() == NdbConnection::Connected)) {
     //************************************************
     // Send and receive was successful
     //************************************************
@@ -434,7 +430,7 @@ Ndb::startTransactionLocal(Uint32 aPriority, Uint32 nodeId)
     theFirstTransId = tFirstTransId + 1;
   }//if
 #ifdef VM_TRACE
-  if (tConnection->theListState != NotInList) {
+  if (tConnection->theListState != NdbConnection::NotInList) {
     printState("startTransactionLocal %x", tConnection);
     abort();
   }
@@ -476,6 +472,19 @@ Ndb::closeTransaction(NdbConnection* aConnection)
 //-----------------------------------------------------
 // closeTransaction called on non-existing transaction
 //-----------------------------------------------------
+
+  if(aConnection->theError.code == 4008){
+    /**
+     * When a SCAN timed-out, returning the NdbConnection leads
+     * to reuse. And TC crashes when the API tries to reuse it to
+     * something else...
+     */
+#ifdef VM_TRACE
+    printf("Scan timeout:ed NdbConnection-> not returning it-> memory leak\n");
+#endif
+    return;
+  }
+
 #ifdef VM_TRACE
         printf("Non-existing transaction into closeTransaction\n");
 	abort();
@@ -589,7 +598,7 @@ Ndb::NdbTamper(TamperType aAction, int aNode)
   tSignal.setData (tAction, 1);
   tSignal.setData(tNdbConn->ptr2int(),2);
   tSignal.setData(theMyRef,3);		// Set return block reference
-  tNdbConn->Status(Connecting);		// Set status to connecting	
+  tNdbConn->Status(NdbConnection::Connecting); // Set status to connecting
   TransporterFacade *tp = TransporterFacade::instance();
   if (tAction == 3) {
     tp->lock_mutex();
@@ -622,7 +631,7 @@ Ndb::NdbTamper(TamperType aAction, int aNode)
       }//if
       ret_code = sendRecSignal(tNode, WAIT_NDB_TAMPER, &tSignal, 0);
       if (ret_code == 0) {  
-        if (tNdbConn->Status() != Connected) {
+        if (tNdbConn->Status() != NdbConnection::Connected) {
           theRestartGCI = 0;
         }//if
         releaseNdbCon(tNdbConn);
@@ -637,6 +646,7 @@ Ndb::NdbTamper(TamperType aAction, int aNode)
   return 0;
 #endif
 }
+#if 0
 /****************************************************************************
 NdbSchemaCon* startSchemaTransaction();
 
@@ -678,7 +688,7 @@ Ndb::closeSchemaTransaction(NdbSchemaCon* aSchemaCon)
   theSchemaConToNdbList = NULL;
   return;
 }//Ndb::closeSchemaTransaction()
-
+#endif
 
 /*****************************************************************************
 void RestartGCI(int aRestartGCI);
@@ -826,7 +836,7 @@ Ndb::opTupleIdOnNdb(Uint32 aTableId, Uint64 opValue, Uint32 op)
       tOperation->interpretedUpdateTuple();
       tOperation->equal("SYSKEY_0", aTableId );
       {
-#ifdef NDB_SOLARIS
+#ifdef WORDS_BIGENDIAN
         Uint64 cacheSize64 = opValue;           // XXX interpreter bug on Uint32
         tOperation->incValue("NEXTID", cacheSize64);
 #else
@@ -992,7 +1002,7 @@ Ndb::StartTransactionNodeSelectionData::release(){
 Uint32
 convertEndian(Uint32 Data)
 {
-#ifdef _BIG_ENDIAN
+#ifdef WORDS_BIGENDIAN
   Uint32 t1, t2, t3, t4;
   t4 = (Data >> 24) & 255;
   t3 = (Data >> 16) & 255;
@@ -1014,18 +1024,14 @@ const char * Ndb::getCatalogName() const
 void Ndb::setCatalogName(const char * a_catalog_name)
 {
   if (a_catalog_name) {
-    strncpy(theDataBase, a_catalog_name, NDB_MAX_DATABASE_NAME_SIZE);
-    // Prepare prefix for faster operations
-    uint db_len = MIN(strlen(theDataBase), NDB_MAX_DATABASE_NAME_SIZE - 1);
-    uint schema_len =
-      MIN(strlen(theDataBaseSchema), NDB_MAX_SCHEMA_NAME_SIZE - 1);
-    strncpy(prefixName, theDataBase, NDB_MAX_DATABASE_NAME_SIZE - 1);
-    prefixName[db_len] = '/';
-    strncpy(prefixName+db_len+1, theDataBaseSchema,
-            NDB_MAX_SCHEMA_NAME_SIZE - 1);
-    prefixName[db_len+schema_len+1] = '/';
-    prefixName[db_len+schema_len+2] = '\0';
-    prefixEnd = prefixName + db_len+schema_len + 2;
+    snprintf(theDataBase, sizeof(theDataBase), "%s",
+             a_catalog_name ? a_catalog_name : "");
+
+    int len = snprintf(prefixName, sizeof(prefixName), "%s%c%s%c",
+                       theDataBase, table_name_separator,
+                       theDataBaseSchema, table_name_separator);
+    prefixEnd = prefixName + (len < sizeof(prefixName) ? len : 
+                              sizeof(prefixName) - 1);
   }
 }
  
@@ -1037,18 +1043,14 @@ const char * Ndb::getSchemaName() const
 void Ndb::setSchemaName(const char * a_schema_name)
 {
   if (a_schema_name) {
-    strncpy(theDataBaseSchema, a_schema_name, NDB_MAX_SCHEMA_NAME_SIZE);
-    // Prepare prefix for faster operations
-    uint db_len = MIN(strlen(theDataBase), NDB_MAX_DATABASE_NAME_SIZE - 1);
-    uint schema_len =
-      MIN(strlen(theDataBaseSchema), NDB_MAX_SCHEMA_NAME_SIZE - 1);
-    strncpy(prefixName, theDataBase, NDB_MAX_DATABASE_NAME_SIZE - 1);
-    prefixName[db_len] = '/';
-    strncpy(prefixName+db_len+1, theDataBaseSchema,
-            NDB_MAX_SCHEMA_NAME_SIZE - 1);
-    prefixName[db_len+schema_len+1] = '/';
-    prefixName[db_len+schema_len+2] = '\0';
-    prefixEnd = prefixName + db_len+schema_len + 2;
+    snprintf(theDataBaseSchema, sizeof(theDataBase), "%s",
+             a_schema_name ? a_schema_name : "");
+
+    int len = snprintf(prefixName, sizeof(prefixName), "%s%c%s%c",
+                       theDataBase, table_name_separator,
+                       theDataBaseSchema, table_name_separator);
+    prefixEnd = prefixName + (len < sizeof(prefixName) ? len : 
+                              sizeof(prefixName) - 1);
   }
 }
  
@@ -1086,22 +1088,49 @@ bool Ndb::usingFullyQualifiedNames()
 }
  
 const char *
-Ndb::externalizeTableName(const char * internalTableName)
+Ndb::externalizeTableName(const char * internalTableName, bool fullyQualifiedNames)
 {
   if (fullyQualifiedNames) {
     register const char *ptr = internalTableName;
    
     // Skip database name
-    while (*ptr && *ptr++ != '/');
+    while (*ptr && *ptr++ != table_name_separator);
     // Skip schema name
-    while (*ptr && *ptr++ != '/');
-     
+    while (*ptr && *ptr++ != table_name_separator);
     return ptr;
   }
   else
     return internalTableName;
 }
- 
+
+const char *
+Ndb::externalizeTableName(const char * internalTableName)
+{
+  return externalizeTableName(internalTableName, usingFullyQualifiedNames());
+}
+
+const char *
+Ndb::externalizeIndexName(const char * internalIndexName, bool fullyQualifiedNames)
+{
+  if (fullyQualifiedNames) {
+    register const char *ptr = internalIndexName;
+   
+    // Scan name from the end
+    while (*ptr++); ptr--; // strend
+    while (ptr >= internalIndexName && *ptr != table_name_separator)
+      ptr--;
+     
+    return ptr + 1;
+  }
+  else
+    return internalIndexName;
+}
+
+const char *
+Ndb::externalizeIndexName(const char * internalIndexName)
+{
+  return externalizeIndexName(internalIndexName, usingFullyQualifiedNames());
+}
 
 const char *
 Ndb::internalizeTableName(const char * externalTableName)
@@ -1115,23 +1144,6 @@ Ndb::internalizeTableName(const char * externalTableName)
 }
  
 const char *
-Ndb::externalizeIndexName(const char * internalIndexName)
-{
-  if (fullyQualifiedNames) {
-    register const char *ptr = internalIndexName;
-   
-    // Scan name from the end
-    while (*ptr++); ptr--; // strend
-    while (ptr >= internalIndexName && *ptr != '/')
-      ptr--;
-     
-    return ptr + 1;
-  }
-  else
-    return internalIndexName;
-}
- 
-const char *
 Ndb::internalizeIndexName(const NdbTableImpl * table,
                           const char * externalIndexName)
 {
@@ -1140,7 +1152,7 @@ Ndb::internalizeIndexName(const NdbTableImpl * table,
     sprintf(tableId, "%d", table->m_tableId);
     Uint32 tabIdLen = strlen(tableId);
     strncpy(prefixEnd, tableId, tabIdLen);
-    prefixEnd[tabIdLen] = '/';
+    prefixEnd[tabIdLen] = table_name_separator;
     strncpy(prefixEnd + tabIdLen + 1, 
 	    externalIndexName, NDB_MAX_TAB_NAME_SIZE);
     return prefixName;
@@ -1156,8 +1168,8 @@ Ndb::getDatabaseFromInternalName(const char * internalName)
   strcpy(databaseName, internalName);
   register char *ptr = databaseName;
    
-  /* Scan name for the first '/' */
-  while (*ptr && *ptr != '/')
+  /* Scan name for the first table_name_separator */
+  while (*ptr && *ptr != table_name_separator)
     ptr++;
   *ptr = '\0';
   BaseString ret = BaseString(databaseName);
@@ -1171,12 +1183,12 @@ Ndb::getSchemaFromInternalName(const char * internalName)
   char * schemaName = new char[strlen(internalName)];
   register const char *ptr1 = internalName;
    
-  /* Scan name for the second '/' */
-  while (*ptr1 && *ptr1 != '/')
+  /* Scan name for the second table_name_separator */
+  while (*ptr1 && *ptr1 != table_name_separator)
     ptr1++;
   strcpy(schemaName, ptr1 + 1);
   register char *ptr = schemaName;
-  while (*ptr && *ptr != '/')
+  while (*ptr && *ptr != table_name_separator)
     ptr++;
   *ptr = '\0';
   BaseString ret = BaseString(schemaName);

@@ -70,6 +70,8 @@
 #include <signaldata/NdbSttor.hpp>
 #include <signaldata/CreateFragmentation.hpp>
 #include <signaldata/UtilLock.hpp>
+#include <signaldata/CntrStart.hpp>
+#include <signaldata/ReadNodesConf.hpp>
 #include <signaldata/TuxMaint.hpp>
 #include <signaldata/TupAccess.hpp>
 #include <signaldata/AccLock.hpp>
@@ -240,6 +242,12 @@ SignalDataPrintFunctions[] = {
   ,{ GSN_UTIL_UNLOCK_REQ,        printUTIL_UNLOCK_REQ }
   ,{ GSN_UTIL_UNLOCK_REF,        printUTIL_UNLOCK_REF }
   ,{ GSN_UTIL_UNLOCK_CONF,       printUTIL_UNLOCK_CONF }
+  ,{ GSN_CNTR_START_REQ,         printCNTR_START_REQ }
+  ,{ GSN_CNTR_START_REF,         printCNTR_START_REF }
+  ,{ GSN_CNTR_START_CONF,        printCNTR_START_CONF }
+
+  ,{ GSN_READ_NODESCONF,         printREAD_NODES_CONF }
+
   ,{ GSN_TUX_MAINT_REQ, printTUX_MAINT_REQ }
   ,{ GSN_TUP_READ_ATTRS, printTUP_READ_ATTRS }
   ,{ GSN_TUP_QUERY_TH, printTUP_QUERY_TH }

@@ -285,7 +285,9 @@ my_net_write(NET *net,const char *packet,ulong len)
   buff[3]= (uchar) net->pkt_nr++;
   if (net_write_buff(net,(char*) buff,NET_HEADER_SIZE))
     return 1;
+#ifndef DEBUG_DATA_PACKETS
   DBUG_DUMP("packet_header",(char*) buff,NET_HEADER_SIZE);
+#endif
   return test(net_write_buff(net,packet,len));
 }
 
@@ -395,6 +397,9 @@ net_write_buff(NET *net,const char *packet,ulong len)
   else
     left_length= (ulong) (net->buff_end - net->write_pos);
 
+#ifdef DEBUG_DATA_PACKETS
+  DBUG_DUMP("data", packet, len);
+#endif
   if (len > left_length)
   {
     if (net->write_pos != net->buff)
@@ -777,6 +782,8 @@ my_real_read(NET *net, ulong *complen)
       if (i == 0)
       {					/* First parts is packet length */
 	ulong helping;
+        DBUG_DUMP("packet_header",(char*) net->buff+net->where_b,
+                  NET_HEADER_SIZE);
 	if (net->buff[net->where_b + 3] != (uchar) net->pkt_nr)
 	{
 	  if (net->buff[net->where_b] != (uchar) 255)
@@ -785,7 +792,6 @@ my_real_read(NET *net, ulong *complen)
 		       ("Packets out of order (Found: %d, expected %u)",
 			(int) net->buff[net->where_b + 3],
 			net->pkt_nr));
-	    DBUG_DUMP("packet_header",(char*) net->buff+net->where_b, 4);
 #ifdef EXTRA_DEBUG
 	    fprintf(stderr,"Packets out of order (Found: %d, expected %d)\n",
 		    (int) net->buff[net->where_b + 3],
@@ -842,6 +848,10 @@ end:
     vio_blocking(net->vio, net_blocking, &old_mode);
   }
   net->reading_or_writing=0;
+#ifdef DEBUG_DATA_PACKETS
+  if (len != packet_error)
+    DBUG_DUMP("data",(char*) net->buff+net->where_b, len);
+#endif
   return(len);
 }
 

@@ -31,7 +31,6 @@
 #define NdbApiSignal_H
 
 #include <kernel_types.h>
-#include "AttrType.hpp" 
 #include "TransporterFacade.hpp"
 #include <TransporterDefinitions.hpp>
 #include "Ndb.hpp"

@@ -32,14 +32,12 @@
 #include <signaldata/GCPSave.hpp>
 #include <signaldata/TcKeyRef.hpp>
 #include <signaldata/LqhKey.hpp>
-#include <signaldata/LqhSizeAltReq.hpp>
 #include <signaldata/NextScan.hpp>
 #include <signaldata/NFCompleteRep.hpp>
 #include <signaldata/NodeFailRep.hpp>
 #include <signaldata/ReadNodesConf.hpp>
 #include <signaldata/RelTabMem.hpp>
 #include <signaldata/ScanFrag.hpp>
-#include <signaldata/SetVarReq.hpp>
 #include <signaldata/SrFragidConf.hpp>
 #include <signaldata/StartFragReq.hpp>
 #include <signaldata/StartRec.hpp>
@@ -333,7 +331,7 @@ void Dblqh::execCONTINUEB(Signal* signal)
     break;
   case ZINITIALISE_RECORDS:
     jam();
-    initialiseRecordsLab(signal, data0);
+    initialiseRecordsLab(signal, data0, data2, signal->theData[4]);
     return;
     break;
   case ZINIT_GCP_REC:
@@ -467,7 +465,6 @@ void Dblqh::execNDB_STTOR(Signal* signal)
   Uint32 ownNodeId = signal->theData[1];   /* START PHASE*/
   cstartPhase = signal->theData[2];  /* MY NODE ID */
   cstartType = signal->theData[3];   /* START TYPE */
-  Uint32 config1 = signal->theData[10];    /* CONFIG INFO LQH */
 
   switch (cstartPhase) {
   case ZSTART_PHASE1:
@@ -488,7 +485,7 @@ void Dblqh::execNDB_STTOR(Signal* signal)
     // Dont setAPIVersion
     LqhKeyReq::setMarkerFlag(preComputedRequestInfoMask, 1);
     //preComputedRequestInfoMask = 0x003d7fff;
-    startphase1Lab(signal, config1, ownNodeId);
+    startphase1Lab(signal, /* dummy */ ~0, ownNodeId);
 
     signal->theData[0] = ZOPERATION_EVENT_REP;
     signal->theData[1] = 1;
@@ -497,7 +494,7 @@ void Dblqh::execNDB_STTOR(Signal* signal)
     break;
   case ZSTART_PHASE2:
     jam();
-    startphase2Lab(signal, config1);
+    startphase2Lab(signal, /* dummy */ ~0);
     return;
     break;
   case ZSTART_PHASE3:
@@ -539,17 +536,12 @@ void Dblqh::sttorStartphase1Lab(Signal* signal)
 /*                                                                            */
 /*               INITIATE ALL RECORDS WITHIN THE BLOCK                        */
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-void Dblqh::startphase1Lab(Signal* signal, Uint32 config, Uint32 ownNodeId) 
+void Dblqh::startphase1Lab(Signal* signal, Uint32 _dummy, Uint32 ownNodeId) 
 {
   UintR Ti;
   HostRecordPtr ThostPtr;
 
 /* ------- INITIATE ALL RECORDS ------- */
-  if (config == 0) {
-    jam();
-    config = 1;
-  }//if
-  cnoLogFiles = config;
   cownNodeid    = ownNodeId;
   caccBlockref  = calcAccBlockRef (cownNodeid);
   ctupBlockref  = calcTupBlockRef (cownNodeid);
@@ -576,15 +568,8 @@ void Dblqh::startphase1Lab(Signal* signal, Uint32 config, Uint32 ownNodeId)
 /* EVERY CONNECTION RECORD IN LQH IS ASSIGNED TO ONE ACC CONNECTION RECORD    */
 /*       AND ONE TUP CONNECTION RECORD.                                       */
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-void Dblqh::startphase2Lab(Signal* signal, Uint32 config) 
+void Dblqh::startphase2Lab(Signal* signal, Uint32 _dummy) 
 {
-  if (config == 0) {
-    jam();
-    config = 1;
-  } else if (config > 4) {
-    jam();
-    config = 4;
-  }//if
   cmaxWordsAtNodeRec = MAX_NO_WORDS_OUTSTANDING_COPY_FRAGMENT;
 /* -- ACC AND TUP CONNECTION PROCESS -- */
   tcConnectptr.i = 0;
@@ -836,29 +821,37 @@ void Dblqh::execREAD_NODESREF(Signal* signal)
 /* *************** */
 /*  SIZEALT_REP  > */
 /* *************** */
-void Dblqh::execSIZEALT_REP(Signal* signal) 
+void Dblqh::execREAD_CONFIG_REQ(Signal* signal) 
 {
+  const ReadConfigReq * req = (ReadConfigReq*)signal->getDataPtr();
+  Uint32 ref = req->senderRef;
+  Uint32 senderData = req->senderData;
+  ndbrequire(req->noOfParameters == 0);
+
   jamEntry();
-  cfragrecFileSize       = signal->theData[LqhSizeAltReq::IND_FRAG];
-  ctabrecFileSize        = signal->theData[LqhSizeAltReq::IND_TABLE];
-  ctcConnectrecFileSize  = signal->theData[LqhSizeAltReq::IND_TC_CONNECT];
-  clogFileFileSize       = signal->theData[LqhSizeAltReq::IND_LOG_FILES];
-  cscanrecFileSize       = signal->theData[LqhSizeAltReq::IND_SCAN];
+
+  const ndb_mgm_configuration_iterator * p = 
+    theConfiguration.getOwnConfigIterator();
+  ndbrequire(p != 0);
+  
+  cnoLogFiles = 8;
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DB_NO_REDOLOG_FILES, 
+					&cnoLogFiles));
+  ndbrequire(cnoLogFiles > 0);
+
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_LQH_FRAG, &cfragrecFileSize));
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_LQH_TABLE, &ctabrecFileSize));
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_LQH_TC_CONNECT, 
+					&ctcConnectrecFileSize));
+  clogFileFileSize       = 4 * cnoLogFiles;
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_LQH_SCAN, &cscanrecFileSize));
   cmaxAccOps = cscanrecFileSize * MAX_PARALLEL_SCANS_PER_FRAG;
+
   initRecords();
-  initialiseRecordsLab(signal, 0);
+  initialiseRecordsLab(signal, 0, ref, senderData);
   
   return;
 }//Dblqh::execSIZEALT_REP()
-
-void Dblqh::returnInitialiseRecordsLab(Signal* signal) 
-{
-  signal->theData[0] = DBLQH_REF;
-  sendSignal(CMVMI_REF, GSN_SIZEALT_ACK, signal, 2, JBB);
-
-
-  return;
-}//Dblqh::returnInitialiseRecordsLab()
 
 /* ########################################################################## */
 /* #######                          ADD/DELETE FRAGMENT MODULE        ####### */
@@ -1232,6 +1225,18 @@ Dblqh::sendAddFragReq(Signal* signal)
       tuxreq->fragOff = addfragptr.p->lh3DistrBits;
       tuxreq->tableType = addfragptr.p->tableType;
       tuxreq->primaryTableId = addfragptr.p->primaryTableId;
+      // pointer to index fragment in TUP
+      tuxreq->tupIndexFragPtrI =
+        addfragptr.p->addfragStatus == AddFragRecord::WAIT_TWO_TUX ?
+        fragptr.p->tupFragptr[0] : fragptr.p->tupFragptr[1];
+      // pointers to table fragments in TUP and ACC
+      FragrecordPtr tFragPtr;
+      tFragPtr.i = fragptr.p->tableFragptr;
+      ptrCheckGuard(tFragPtr, cfragrecFileSize, fragrecord);
+      tuxreq->tupTableFragPtrI[0] = tFragPtr.p->tupFragptr[0];
+      tuxreq->tupTableFragPtrI[1] = tFragPtr.p->tupFragptr[1];
+      tuxreq->accTableFragPtrI[0] = tFragPtr.p->accFragptr[0];
+      tuxreq->accTableFragPtrI[1] = tFragPtr.p->accFragptr[1];
       sendSignal(fragptr.p->tuxBlockref, GSN_TUXFRAGREQ,
           signal, TuxFragReq::SignalLength, JBB);
       return;
@@ -2064,8 +2069,6 @@ void Dblqh::execTIME_SIGNAL(Signal* signal)
 		 << " scanLocalFragid="<<TscanPtr.p->scanLocalFragid
 		 << endl;
 	  ndbout << " scanSchemaVersion="<<TscanPtr.p->scanSchemaVersion
-		 << "  scanSearchCondFalseCount="<<
-	    TscanPtr.p->scanSearchCondFalseCount
 		 << "  scanStoredProcId="<<TscanPtr.p->scanStoredProcId
 		 << "  scanTcrec="<<TscanPtr.p->scanTcrec
 		 << endl;
@@ -7099,14 +7102,26 @@ void Dblqh::scanLockReleasedLab(Signal* signal)
       sendScanFragConf(signal, ZFALSE);
     } else {
       jam();
+      /*
+      We came here after releasing locks after receiving SCAN_NEXTREQ from TC. We only
+      come here when scanHoldLock == ZTRUE
+      */
       continueScanNextReqLab(signal);
     }//if
-  } else {
-    ndbrequire(scanptr.p->scanReleaseCounter <=
-               scanptr.p->scanCompletedOperations);
+  } else if (scanptr.p->scanReleaseCounter < scanptr.p->scanCompletedOperations) {
     jam();
     scanptr.p->scanReleaseCounter++;     
     scanReleaseLocksLab(signal);
+  } else {
+    jam();
+    /*
+    We come here when we have been scanning for a long time and not been able
+    to find scanConcurrentOperations records to return. We needed to release
+    the record we didn't want, but now we are returning all found records to
+    the API.
+    */
+    scanptr.p->scanState = ScanRecord::WAIT_SCAN_NEXTREQ;
+    sendScanFragConf(signal, ZFALSE);
   }//if
 }//Dblqh::scanLockReleasedLab()
 
@@ -8000,28 +8015,28 @@ void Dblqh::scanTupkeyRefLab(Signal* signal)
     scanReleaseLocksLab(signal);
     return;
   }//if
+  Uint32 time_passed= tcConnectptr.p->tcTimer - cLqhTimeOutCount;
+  if (scanptr.p->scanCompletedOperations > 0) {
+    if (time_passed > 1) {
   /* -----------------------------------------------------------------------
    *  WE NEED TO ENSURE THAT WE DO NOT SEARCH FOR THE NEXT TUPLE FOR A 
    *  LONG TIME WHILE WE KEEP A LOCK ON A FOUND TUPLE. WE RATHER REPORT 
-   *  THE FOUND TUPLE IF FOUND TUPLES ARE RARE. WE SELECT 20 TUPLES 
-   *  WHICH SHOULD BE ROUGHLY 10 MS OF LOCK HOLD TIME.
+   *  THE FOUND TUPLE IF FOUND TUPLES ARE RARE. If more than 10 ms passed we
+   *  send the found tuples to the API.
    * ----------------------------------------------------------------------- */
-  scanptr.p->scanSearchCondFalseCount++;
-#if 0
-  // MASV Uncomment this feature since it forgets 
-  // to release on operation record in DBACC
-  // This is the quick fix and should be changed in 
-  // the future
-  if (scanptr.p->scanSearchCondFalseCount > 20) {
-    if (scanptr.p->scanCompletedOperations > 0) {
-      jam();
-      scanptr.p->scanState = ScanRecord::WAIT_SCAN_NEXTREQ;
-      sendScanFragConf(signal, ZFALSE);
+      scanptr.p->scanReleaseCounter = scanptr.p->scanCompletedOperations + 1;
+      scanReleaseLocksLab(signal);
       return;
-    }//if
-  }//if
-#endif
-
+    }
+  } else {
+    if (time_passed > 10) {
+      jam();
+      signal->theData[0]= scanptr.i;
+      signal->theData[1]= tcConnectptr.p->transid[0];
+      signal->theData[2]= tcConnectptr.p->transid[1];
+      execSCAN_HBREP(signal);
+    }
+  }
   scanptr.p->scanFlag = NextScanReq::ZSCAN_NEXT_ABORT;
   scanNextLoopLab(signal);
 }//Dblqh::scanTupkeyRefLab()
@@ -8179,7 +8194,6 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq)
   scanptr.p->scanLockMode = scanLockMode;
   scanptr.p->readCommitted = readCommitted;
   scanptr.p->rangeScan = idx;
-  scanptr.p->scanSearchCondFalseCount = 0;
   scanptr.p->scanState = ScanRecord::SCAN_FREE;
   scanptr.p->scanFlag = ZFALSE;
   scanptr.p->scanLocalref[0] = 0;
@@ -8480,7 +8494,6 @@ void Dblqh::sendKeyinfo20(Signal* signal,
  * ------------------------------------------------------------------------ */
 void Dblqh::sendScanFragConf(Signal* signal, Uint32 scanCompleted) 
 {
-  scanptr.p->scanSearchCondFalseCount = 0;
   scanptr.p->scanTcWaiting = ZFALSE;
   ScanFragConf * conf = (ScanFragConf*)&signal->theData[0];
 
@@ -16024,7 +16037,8 @@ void Dblqh::initialisePageRef(Signal* signal)
  * 
  *       TAKES CARE OF INITIATION OF ALL RECORDS IN THIS BLOCK.
  * ========================================================================= */
-void Dblqh::initialiseRecordsLab(Signal* signal, Uint32 data) 
+void Dblqh::initialiseRecordsLab(Signal* signal, Uint32 data,
+				 Uint32 retRef, Uint32 retData) 
 {
   switch (data) {
   case 0:
@@ -16062,90 +16076,81 @@ void Dblqh::initialiseRecordsLab(Signal* signal, Uint32 data)
     csrExecUndoLogState = EULS_IDLE;
     c_lcpId = 0;
     cnoOfFragsCheckpointed = 0;
-    sendInitialiseRecords(signal, data);
     break;
   case 1:
     jam();
     initialiseAddfragrec(signal);
-    sendInitialiseRecords(signal, data);
     break;
   case 2:
     jam();
     initialiseAttrbuf(signal);
-    sendInitialiseRecords(signal, data);
     break;
   case 3:
     jam();
     initialiseDatabuf(signal);
-    sendInitialiseRecords(signal, data);
     break;
   case 4:
     jam();
     initialiseFragrec(signal);
-    sendInitialiseRecords(signal,data);
     break;
   case 5:
     jam();
     initialiseGcprec(signal);
     initialiseLcpRec(signal);
     initialiseLcpLocrec(signal);
-    sendInitialiseRecords(signal, data);
     break;
   case 6:
     jam();
     initialiseLogPage(signal);
-    sendInitialiseRecords(signal, data);
     break;
   case 7:
     jam();
     initialiseLfo(signal);
-    sendInitialiseRecords(signal, data);
     break;
   case 8:
     jam();
     initialiseLogFile(signal);
     initialiseLogPart(signal);
-    sendInitialiseRecords(signal, data);
     break;
   case 9:
     jam();
     initialisePageRef(signal);
-    sendInitialiseRecords(signal, data);
     break;
   case 10:
     jam();
     initialiseScanrec(signal);
-    sendInitialiseRecords(signal, data);
     break;
   case 11:
     jam();
     initialiseTabrec(signal);
-    sendInitialiseRecords(signal, data);
     break;
   case 12:
     jam();
     initialiseTcNodeFailRec(signal);
     initialiseTcrec(signal);
-    returnInitialiseRecordsLab(signal);
+    {
+      ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
+      conf->senderRef = reference();
+      conf->senderData = retData;
+      sendSignal(retRef, GSN_READ_CONFIG_CONF, signal, 
+		 ReadConfigConf::SignalLength, JBB);
+    }
     return;
     break;
   default:
     ndbrequire(false);
     break;
   }//switch
-  return;
-}//Dblqh::initialiseRecordsLab()
 
-/* -------------------------------------------------------------------------- 
- *       SEND REAL-TIME BREAK SIGNAL DURING INITIALISATION IN SYSTEM RESTART.
- * ------------------------------------------------------------------------- */
-void Dblqh::sendInitialiseRecords(Signal* signal, Uint32 data) 
-{
   signal->theData[0] = ZINITIALISE_RECORDS;
   signal->theData[1] = data + 1;
   signal->theData[2] = 0;
-  sendSignal(DBLQH_REF, GSN_CONTINUEB, signal, 3, JBB);
-}//Dblqh::sendInitialiseRecords()
+  signal->theData[3] = retRef;
+  signal->theData[4] = retData;
+  sendSignal(DBLQH_REF, GSN_CONTINUEB, signal, 5, JBB);
+
+  return;
+}//Dblqh::initialiseRecordsLab()
 
 /* ========================================================================== 
  * =======                      INITIATE TC CONNECTION RECORD         ======= 
@@ -17956,11 +17961,10 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
 	      sp.p->scanAiLength,
 	      sp.p->scanCompletedOperations,
 	      sp.p->scanConcurrentOperations);
-    infoEvent(" errCnt=%d, localFid=%d, schV=%d, searcCondFalseC=%d",
+    infoEvent(" errCnt=%d, localFid=%d, schV=%d",
 	      sp.p->scanErrorCounter,
 	      sp.p->scanLocalFragid,
-	      sp.p->scanSchemaVersion,
-	      sp.p->scanSearchCondFalseCount);
+	      sp.p->scanSchemaVersion);
     infoEvent(" stpid=%d, flag=%d, lhold=%d, lmode=%d, num=%d",
 	      sp.p->scanStoredProcId,
 	      sp.p->scanFlag,
@@ -18013,7 +18017,7 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
 
 void Dblqh::execSET_VAR_REQ(Signal* signal) 
 {
-
+#if 0
   SetVarReq* const setVarReq = (SetVarReq*)&signal->theData[0];
   ConfigParamId var = setVarReq->variable();
 
@@ -18031,7 +18035,7 @@ void Dblqh::execSET_VAR_REQ(Signal* signal)
   default:
     sendSignal(CMVMI_REF, GSN_SET_VAR_REF, signal, 1, JBB);
   } // switch
-
+#endif
 }//execSET_VAR_REQ()
 
 

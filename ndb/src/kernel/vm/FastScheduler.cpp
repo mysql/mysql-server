@@ -316,14 +316,14 @@ APZJobBuffer::signal2buffer(Signal* signal,
 void
 APZJobBuffer::insert(const SignalHeader * const sh,
 		     const Uint32 * const theData, const Uint32 secPtrI[3]){
-  Uint32 tOccupancy = theOccupancy;
+  Uint32 tOccupancy = theOccupancy + 1;
   Uint32 myWPtr = wPtr;
   register BufferEntry& buf = buffer[myWPtr];
   
   if (tOccupancy < bufSize) {
     Uint32 cond =  (++myWPtr == bufSize) - 1;
     wPtr = myWPtr & cond;
-    theOccupancy = tOccupancy + 1;
+    theOccupancy = tOccupancy;
     
     buf.header = * sh;
     const Uint32 len = buf.header.theLength;
@@ -342,8 +342,9 @@ APZJobBuffer::insert(const SignalHeader * const sh,
   }//if
 }
 APZJobBuffer::APZJobBuffer()
-  : rPtr(0), wPtr(0), theOccupancy(0), bufSize(0), buffer(NULL), memRef(NULL)
+  : bufSize(0), buffer(NULL), memRef(NULL)
 {
+  clear();
 }
 
 APZJobBuffer::~APZJobBuffer()
@@ -354,9 +355,11 @@ APZJobBuffer::~APZJobBuffer()
 void
 APZJobBuffer::newBuffer(int size)
 {
-  buffer = new BufferEntry[size];
+  buffer = new BufferEntry[size + 1]; // +1 to support "overrrun"
   if(buffer){
+#ifndef NDB_PURIFY
     ::memset(buffer, 0, (size * sizeof(BufferEntry)));
+#endif
     bufSize = size;
   } else
     bufSize = 0;
@@ -474,10 +477,11 @@ FastScheduler::reportDoJobStatistics(Uint32 tMeanLoopCount) {
   signal.theData[0] = EventReport::JobStatistic;
   signal.theData[1] = tMeanLoopCount;
   
+  memset(&signal.header, 0, sizeof(SignalHeader));
   signal.header.theLength = 2;
   signal.header.theSendersSignalId = 0;
   signal.header.theSendersBlockRef = numberToRef(0, 0);
-
+  
   execute(&signal, JBA, CMVMI, GSN_EVENT_REP);
 }
 

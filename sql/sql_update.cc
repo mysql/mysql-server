@@ -328,6 +328,7 @@ int mysql_update(THD *thd,
     error= 1;					// Aborted
   end_read_record(&info);
   free_io_cache(table);				// If ORDER BY
+  delete select;
   thd->proc_info="end";
   VOID(table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY));
 
@@ -342,7 +343,7 @@ int mysql_update(THD *thd,
 
   transactional_table= table->file->has_transactions();
   log_delayed= (transactional_table || table->tmp_table);
-  if (updated && (error <= 0 || !transactional_table))
+  if ((updated || (error < 0)) && (error <= 0 || !transactional_table))
   {
     if (mysql_bin_log.is_open())
     {
@@ -368,7 +369,6 @@ int mysql_update(THD *thd,
     thd->lock=0;
   }
 
-  delete select;
   free_underlaid_joins(thd, &thd->lex->select_lex);
   if (error >= 0)
     send_error(thd,thd->killed_errno()); /* purecov: inspected */
@@ -980,25 +980,24 @@ int multi_update::do_updates(bool from_send_error)
   TABLE_LIST *cur_table;
   int local_error;
   ha_rows org_updated;
-  TABLE *table;
+  TABLE *table, *tmp_table;
   DBUG_ENTER("do_updates");
-  
 
-  do_update= 0;					// Don't retry this function  
+
+  do_update= 0;					// Don't retry this function
   if (!found)
     DBUG_RETURN(0);
   for (cur_table= update_tables; cur_table ; cur_table= cur_table->next)
   {
     byte *ref_pos;
-    TABLE *tmp_table;
- 
+
     table = cur_table->table;
     if (table == table_to_update)
       continue;					// Already updated
     org_updated= updated;
     tmp_table= tmp_tables[cur_table->shared];
     tmp_table->file->extra(HA_EXTRA_CACHE);	// Change to read cache
-    (void) table->file->rnd_init(0);
+    (void) table->file->ha_rnd_init(0);
     table->file->extra(HA_EXTRA_NO_CACHE);
 
     /*
@@ -1014,7 +1013,7 @@ int multi_update::do_updates(bool from_send_error)
     }
     copy_field_end=copy_field_ptr;
 
-    if ((local_error = tmp_table->file->rnd_init(1)))
+    if ((local_error = tmp_table->file->ha_rnd_init(1)))
       goto err;
 
     ref_pos= (byte*) tmp_table->field[0]->ptr;
@@ -1065,13 +1064,17 @@ int multi_update::do_updates(bool from_send_error)
       else
 	trans_safe= 0;				// Can't do safe rollback
     }
-    (void) table->file->rnd_end();
+    (void) table->file->ha_rnd_end();
+    (void) tmp_table->file->ha_rnd_end();
   }
   DBUG_RETURN(0);
 
 err:
   if (!from_send_error)
     table->file->print_error(local_error,MYF(0));
+
+  (void) table->file->ha_rnd_end();
+  (void) tmp_table->file->ha_rnd_end();
 
   if (updated != org_updated)
   {
@@ -1108,7 +1111,9 @@ bool multi_update::send_eof()
   /*
     Write the SQL statement to the binlog if we updated
     rows and we succeeded or if we updated some non
-    transacational tables
+    transacational tables.
+    Note that if we updated nothing we don't write to the binlog (TODO:
+    fix this).
   */
 
   if (updated && (local_error <= 0 || !trans_safe))

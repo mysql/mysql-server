@@ -54,9 +54,8 @@ void
 mem_hash_insert(
 /*============*/
 	mem_heap_t*	heap,	   /* in: the created heap */
-	char*		file_name, /* in: file name of creation */
+	const char*	file_name, /* in: file name of creation */
 	ulint		line);	   /* in: line where created */
-#ifdef UNIV_MEM_DEBUG
 /*******************************************************************
 Removes a memory heap (which is going to be freed by the caller)
 from the list of live memory heaps. Returns the size of the heap
@@ -70,9 +69,9 @@ void
 mem_hash_remove(
 /*============*/
 	mem_heap_t*	heap,	   /* in: the heap to be freed */
-	char*		file_name, /* in: file name of freeing */
+	const char*	file_name, /* in: file name of freeing */
 	ulint		line);	   /* in: line where freed */
-#endif /* UNIV_MEM_DEBUG */
+
 
 void
 mem_field_header_set_len(byte* field, ulint len);

@@ -341,7 +341,7 @@ static BUFFPEK *read_buffpek_from_file(IO_CACHE *buffpek_pointers, uint count)
     {
       my_free((char*) tmp, MYF(0));
       tmp=0;
-    }      
+    }
   }
   DBUG_RETURN(tmp);
 }
@@ -384,7 +384,7 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
     if (sort_form->key_read)		// QQ Can be removed after the reset
       file->extra(HA_EXTRA_KEYREAD);	// QQ is removed
     next_pos=(byte*) 0;			/* Find records in sequence */
-    file->rnd_init();
+    file->ha_rnd_init(1);
     file->extra_opt(HA_EXTRA_CACHE,
 		    current_thd->variables.read_buff_size);
   }
@@ -439,7 +439,7 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
     {
       DBUG_PRINT("info",("Sort killed by user"));
       (void) file->extra(HA_EXTRA_NO_CACHE);
-      file->rnd_end();
+      file->ha_rnd_end();
       DBUG_RETURN(HA_POS_ERROR);		/* purecov: inspected */
     }
     if (error == 0)
@@ -469,7 +469,8 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
   else
   {
     (void) file->extra(HA_EXTRA_NO_CACHE);	/* End cacheing of records */
-    file->rnd_end();
+    if (!next_pos)
+      file->ha_rnd_end();
   }
 
   DBUG_PRINT("test",("error: %d  indexpos: %d",error,indexpos));
@@ -877,7 +878,7 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
   if (param->not_killable)
   {
     killed= &not_killable;
-    not_killable=THD::NOT_KILLED;
+    not_killable= THD::NOT_KILLED;
   }
 
   error=0;

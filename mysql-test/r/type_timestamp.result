@@ -43,13 +43,7 @@ date_format(a,"%Y %y")	year(a)	year(now())
 1970 70	1970	1970
 drop table t1;
 create table t1 (ix timestamp);
-insert into t1 values (19991101000000),(19990102030405),(19990630232922),(19990601000000),(19990930232922),(19990531232922),(19990501000000),(19991101000000),(19990501000000),(20030101010160),(20030101016001),(20030101240101),(20030132010101),(20031301010101);
-Warnings:
-Warning	1265	Data truncated for column 'ix' at row 10
-Warning	1265	Data truncated for column 'ix' at row 11
-Warning	1265	Data truncated for column 'ix' at row 12
-Warning	1265	Data truncated for column 'ix' at row 13
-Warning	1265	Data truncated for column 'ix' at row 14
+insert into t1 values (19991101000000),(19990102030405),(19990630232922),(19990601000000),(19990930232922),(19990531232922),(19990501000000),(19991101000000),(19990501000000);
 select ix+0 from t1;
 ix+0
 19991101000000
@@ -61,24 +55,14 @@ ix+0
 19990501000000
 19991101000000
 19990501000000
-0
-0
-0
-0
-0
 delete from t1;
-insert into t1 values ("19991101000000"),("19990102030405"),("19990630232922"),("19990601000000"),("20030101010160"),("20030101016001"),("20030101240101"),("20030132010101"),("20031301010101");
+insert into t1 values ("19991101000000"),("19990102030405"),("19990630232922"),("19990601000000");
 select ix+0 from t1;
 ix+0
 19991101000000
 19990102030405
 19990630232922
 19990601000000
-0
-0
-0
-0
-0
 drop table t1;
 CREATE TABLE t1 (date date, date_time datetime, time_stamp timestamp);
 INSERT INTO t1 VALUES ("1998-12-31","1998-12-31 23:59:59",19981231235959);
@@ -128,16 +112,66 @@ t2	t4	t6	t8	t10	t12	t14
 0000-00-00 00:00:00	0000-00-00 00:00:00	0000-00-00 00:00:00	0000-00-00 00:00:00	0000-00-00 00:00:00	0000-00-00 00:00:00	0000-00-00 00:00:00
 1997-12-31 23:47:59	1997-12-31 23:47:59	1997-12-31 23:47:59	1997-12-31 23:47:59	1997-12-31 23:47:59	1997-12-31 23:47:59	1997-12-31 23:47:59
 drop table t1;
+create table t1 (ix timestamp);
+insert into t1 values (0),(20030101010160),(20030101016001),(20030101240101),(20030132010101),(20031301010101),(20031200000000),(20030000000000);
+Warnings:
+Warning	1265	Data truncated for column 'ix' at row 2
+Warning	1265	Data truncated for column 'ix' at row 3
+Warning	1265	Data truncated for column 'ix' at row 4
+Warning	1265	Data truncated for column 'ix' at row 5
+Warning	1265	Data truncated for column 'ix' at row 6
+Warning	1265	Data truncated for column 'ix' at row 7
+Warning	1265	Data truncated for column 'ix' at row 8
+select ix+0 from t1;
+ix+0
+0
+0
+0
+0
+0
+0
+0
+0
+delete from t1;
+insert into t1 values ("00000000000000"),("20030101010160"),("20030101016001"),("20030101240101"),("20030132010101"),("20031301010101"),("20031200000000"),("20030000000000");
+Warnings:
+Warning	1265	Data truncated for column 'ix' at row 2
+Warning	1265	Data truncated for column 'ix' at row 3
+Warning	1265	Data truncated for column 'ix' at row 4
+Warning	1265	Data truncated for column 'ix' at row 5
+Warning	1265	Data truncated for column 'ix' at row 6
+Warning	1265	Data truncated for column 'ix' at row 7
+Warning	1265	Data truncated for column 'ix' at row 8
+select ix+0 from t1;
+ix+0
+0
+0
+0
+0
+0
+0
+0
+0
+delete from t1;
+insert into t1 values ("0000-00-00 00:00:00 some trailer"),("2003-01-01 00:00:00 some trailer");
+Warnings:
+Warning	1265	Data truncated for column 'ix' at row 1
+Warning	1265	Data truncated for column 'ix' at row 2
+select ix+0 from t1;
+ix+0
+0
+20030101000000
+drop table t1;
 create table t1 (t1 timestamp, t2 timestamp default now());
-ERROR HY000: Incorrect table definition; There can only be one TIMESTAMP column with CURRENT_TIMESTAMP in DEFAULT or ON UPDATE clause
+ERROR HY000: Incorrect table definition; there can be only one TIMESTAMP column with CURRENT_TIMESTAMP in DEFAULT or ON UPDATE clause
 create table t1 (t1 timestamp, t2 timestamp on update now());
-ERROR HY000: Incorrect table definition; There can only be one TIMESTAMP column with CURRENT_TIMESTAMP in DEFAULT or ON UPDATE clause
+ERROR HY000: Incorrect table definition; there can be only one TIMESTAMP column with CURRENT_TIMESTAMP in DEFAULT or ON UPDATE clause
 create table t1 (t1 timestamp, t2 timestamp default now() on update now());
-ERROR HY000: Incorrect table definition; There can only be one TIMESTAMP column with CURRENT_TIMESTAMP in DEFAULT or ON UPDATE clause
+ERROR HY000: Incorrect table definition; there can be only one TIMESTAMP column with CURRENT_TIMESTAMP in DEFAULT or ON UPDATE clause
 create table t1 (t1 timestamp default now(), t2 timestamp on update now());
-ERROR HY000: Incorrect table definition; There can only be one TIMESTAMP column with CURRENT_TIMESTAMP in DEFAULT or ON UPDATE clause
+ERROR HY000: Incorrect table definition; there can be only one TIMESTAMP column with CURRENT_TIMESTAMP in DEFAULT or ON UPDATE clause
 create table t1 (t1 timestamp on update now(), t2 timestamp default now() on update now());
-ERROR HY000: Incorrect table definition; There can only be one TIMESTAMP column with CURRENT_TIMESTAMP in DEFAULT or ON UPDATE clause
+ERROR HY000: Incorrect table definition; there can be only one TIMESTAMP column with CURRENT_TIMESTAMP in DEFAULT or ON UPDATE clause
 create table t1 (t1 timestamp default '2003-01-01 00:00:00', t2 datetime, t3 timestamp);
 SET TIMESTAMP=1000000000;
 insert into t1 values ();

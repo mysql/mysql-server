@@ -16,6 +16,7 @@ USE_MANAGER=0
 MY_TZ=GMT-3
 TZ=$MY_TZ; export TZ # for UNIX_TIMESTAMP tests to work
 LOCAL_SOCKET=@MYSQL_UNIX_ADDR@
+MYSQL_TCP_PORT=@MYSQL_TCP_PORT@
 
 # For query_cache test
 case `uname` in
@@ -201,6 +202,7 @@ MASTER_MYPORT=9306
 SLAVE_RUNNING=0
 SLAVE_MYPORT=9307
 MYSQL_MANAGER_PORT=9305 # needs to be out of the way of slaves
+NDBCLUSTER_PORT=9350
 MYSQL_MANAGER_PW_FILE=$MYSQL_TEST_DIR/var/tmp/manager.pwd
 MYSQL_MANAGER_LOG=$MYSQL_TEST_DIR/var/log/manager.log
 MYSQL_MANAGER_USER=root
@@ -257,6 +259,7 @@ while test $# -gt 0; do
     --master_port=*) MASTER_MYPORT=`$ECHO "$1" | $SED -e "s;--master_port=;;"` ;;
     --slave_port=*) SLAVE_MYPORT=`$ECHO "$1" | $SED -e "s;--slave_port=;;"` ;;
     --manager-port=*) MYSQL_MANAGER_PORT=`$ECHO "$1" | $SED -e "s;--manager_port=;;"` ;;
+    --ndbcluster_port=*) NDBCLUSTER_PORT=`$ECHO "$1" | $SED -e "s;--ndbcluster_port=;;"` ;;
     --with-openssl)
      EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT \
      --ssl-ca=$BASEDIR/SSL/cacert.pem \
@@ -433,7 +436,7 @@ SLAVE_MYERR="$MYSQL_TEST_DIR/var/log/slave.err"
 CURRENT_TEST="$MYSQL_TEST_DIR/var/log/current_test"
 SMALL_SERVER="--key_buffer_size=1M --sort_buffer=256K --max_heap_table_size=1M"
 
-export MASTER_MYPORT SLAVE_MYPORT
+export MASTER_MYPORT SLAVE_MYPORT MYSQL_TCP_PORT
 
 if [ x$SOURCE_DIST = x1 ] ; then
  MY_BASEDIR=$MYSQL_TEST_DIR
@@ -688,7 +691,7 @@ report_stats () {
     #
     $RM -f $MY_LOG_DIR/warnings $MY_LOG_DIR/warnings.tmp
     # Remove some non fatal warnings from the log files
-    $SED -e 's!Warning:  Table:.* on delete!!g' \
+    $SED -e 's!Warning:  Table:.* on delete!!g' -e 's!Warning: Setting lower_case_table_names=2!!g' -e 's!Warning: One can only use the --user.*root!!g' \
         $MY_LOG_DIR/*.err \
         | $SED -e 's!Warning:  Table:.* on rename!!g' \
         > $MY_LOG_DIR/warnings.tmp
@@ -881,8 +884,12 @@ start_master()
   if [ x$MASTER_RUNNING = x1 ] || [ x$LOCAL_MASTER = x1 ] ; then
     return
   fi
-  # Remove stale binary logs
-  $RM -f $MYSQL_TEST_DIR/var/log/master-bin.*
+  # Remove stale binary logs except for 2 tests which need them
+  if [ "$tname" != "rpl_crash_binlog_ib_1b" ] && [ "$tname" != "rpl_crash_binlog_ib_2b" ] && [ "$tname" != "rpl_crash_binlog_ib_3b" ] 
+  then
+    $RM -f $MYSQL_TEST_DIR/var/log/master-bin.*
+  fi
+
   # Remove old master.info and relay-log.info files
   $RM -f $MYSQL_TEST_DIR/var/master-data/master.info $MYSQL_TEST_DIR/var/master-data/relay-log.info
 
@@ -1004,8 +1011,12 @@ start_slave()
    slave_sock="$SLAVE_MYSOCK"
  fi
   # Remove stale binary logs and old master.info files
-  $RM -f $MYSQL_TEST_DIR/var/log/$slave_ident-*bin.*
-  $RM -f $slave_datadir/master.info $slave_datadir/relay-log.info
+  # except for too tests which need them
+  if [ "$tname" != "rpl_crash_binlog_ib_1b" ] && [ "$tname" != "rpl_crash_binlog_ib_2b" ] && [ "$tname" != "rpl_crash_binlog_ib_3b" ]
+  then
+    $RM -f $MYSQL_TEST_DIR/var/log/$slave_ident-*bin.*
+    $RM -f $slave_datadir/master.info $slave_datadir/relay-log.info
+  fi
 
   #run slave initialization shell script if one exists
   if [ -f "$slave_init_script" ] ;
@@ -1417,7 +1428,7 @@ then
   if [ -z "$USE_RUNNING_NDBCLUSTER" ]
   then
     # Kill any running ndbcluster stuff
-    ./ndb/stop_ndbcluster
+    ./ndb/ndbcluster --port-base=$NDBCLUSTER_PORT --stop
   fi
   fi
 
@@ -1438,7 +1449,7 @@ then
   if [ -z "$USE_RUNNING_NDBCLUSTER" ]
   then
     echo "Starting ndbcluster"
-    ./ndb/install_ndbcluster --initial --data-dir=$MYSQL_TEST_DIR/var || exit 1
+    ./ndb/ndbcluster --port-base=$NDBCLUSTER_PORT --small --discless --initial --data-dir=$MYSQL_TEST_DIR/var || exit 1
     export NDB_CONNECTSTRING=`cat Ndb.cfg`
   else
     export NDB_CONNECTSTRING="$USE_RUNNING_NDBCLUSTER"
@@ -1470,16 +1481,23 @@ $ECHO  "Starting Tests"
 #
 if [ "$DO_BENCH" = 1 ]
 then
+  start_master
+
+  if [ ! -z "$USE_NDBCLUSTER" ]
+  then
+    EXTRA_BENCH_ARGS="--create-options=TYPE=ndb"
+  fi 
+
   BENCHDIR=$BASEDIR/sql-bench/
   savedir=`pwd`
   cd $BENCHDIR
   if [ -z "$1" ]
   then
-    ./run-all-tests --socket=$MASTER_MYSOCK --user=root
+    ./run-all-tests --socket=$MASTER_MYSOCK --user=root $EXTRA_BENCH_ARGS
   else
     if [ -x "./$1" ]
     then
-       ./$1 --socket=$MASTER_MYSOCK --user=root
+       ./$1 --socket=$MASTER_MYSOCK --user=root $EXTRA_BENCH_ARGS
     else
       echo "benchmark $1 not found"
     fi
@@ -1531,7 +1549,7 @@ then
 if [ -z "$USE_RUNNING_NDBCLUSTER" ]
 then
   # Kill any running ndbcluster stuff
-  ./ndb/stop_ndbcluster
+  ./ndb/ndbcluster --port-base=$NDBCLUSTER_PORT --stop
 fi
 fi
 

@@ -16,7 +16,6 @@
 
 #include "Cmvmi.hpp"
 
-#include <ClusterConfiguration.hpp>
 #include <Configuration.hpp>
 #include <kernel_types.h>
 #include <TransporterRegistry.hpp>
@@ -31,15 +30,11 @@
 #include <signaldata/TestOrd.hpp>
 #include <signaldata/EventReport.hpp>
 #include <signaldata/TamperOrd.hpp>
-#include <signaldata/SetVarReq.hpp>
 #include <signaldata/StartOrd.hpp>
-#include <signaldata/CmvmiCfgConf.hpp>
-#include <signaldata/CmInit.hpp>
 #include <signaldata/CloseComReqConf.hpp>
 #include <signaldata/SetLogLevelOrd.hpp>
 #include <signaldata/EventSubscribeReq.hpp>
 #include <signaldata/DumpStateOrd.hpp>
-#include <signaldata/ArbitSignalData.hpp>
 #include <signaldata/DisconnectRep.hpp>
 
 #include <EventLogger.hpp>
@@ -55,8 +50,7 @@ EventLogger g_eventLogger;
 Cmvmi::Cmvmi(const Configuration & conf) :
   SimulatedBlock(CMVMI, conf)
   ,theConfig((Configuration&)conf)
-  ,theCConfig(conf.clusterConfiguration()),
-  subscribers(subscriberPool)
+  ,subscribers(subscriberPool)
 {
   BLOCK_CONSTRUCTOR(Cmvmi);
 
@@ -67,14 +61,10 @@ Cmvmi::Cmvmi(const Configuration & conf) :
   addRecSignal(GSN_NDB_TAMPER,  &Cmvmi::execNDB_TAMPER, true);
   addRecSignal(GSN_SET_LOGLEVELORD,  &Cmvmi::execSET_LOGLEVELORD);
   addRecSignal(GSN_EVENT_REP,  &Cmvmi::execEVENT_REP);
-  addRecSignal(GSN_STTOR,  &Cmvmi::execSTTOR_Local);
-  addRecSignal(GSN_CM_RUN,  &Cmvmi::execCM_RUN);
-  addRecSignal(GSN_CM_INFOREQ,  &Cmvmi::execCM_INFOREQ);
-  addRecSignal(GSN_CMVMI_CFGREQ,  &Cmvmi::execCMVMI_CFGREQ);
+  addRecSignal(GSN_STTOR,  &Cmvmi::execSTTOR);
   addRecSignal(GSN_CLOSE_COMREQ,  &Cmvmi::execCLOSE_COMREQ);
   addRecSignal(GSN_ENABLE_COMORD,  &Cmvmi::execENABLE_COMORD);
   addRecSignal(GSN_OPEN_COMREQ,  &Cmvmi::execOPEN_COMREQ);
-  addRecSignal(GSN_SIZEALT_ACK,  &Cmvmi::execSIZEALT_ACK);
   addRecSignal(GSN_TEST_ORD,  &Cmvmi::execTEST_ORD);
 
   addRecSignal(GSN_STATISTICS_REQ,  &Cmvmi::execSTATISTICS_REQ);
@@ -93,16 +83,28 @@ Cmvmi::Cmvmi(const Configuration & conf) :
   
   subscriberPool.setSize(5);
 
-  const ClusterConfiguration::ClusterData & clData = 
-    theConfig.clusterConfigurationData() ;
+  const ndb_mgm_configuration_iterator * db = theConfig.getOwnConfigIterator();
+  for(unsigned j = 0; j<LogLevel::LOGLEVEL_CATEGORIES; j++){
+    Uint32 logLevel;
+    if(!ndb_mgm_get_int_parameter(db, LogLevel::MIN_LOGLEVEL_ID+j, &logLevel)){
+      clogLevel.setLogLevel((LogLevel::EventCategory)j, 
+			    logLevel);
+    }
+  }
   
-  clogLevel = clData.SizeAltData.logLevel;
-
-  for(Uint32 i= 0; i< clData.SizeAltData.noOfNodes; i++ ){
+  ndb_mgm_configuration_iterator * iter = theConfig.getClusterConfigIterator();
+  for(ndb_mgm_first(iter); ndb_mgm_valid(iter); ndb_mgm_next(iter)){
     jam();
-    const Uint32 nodeId = clData.nodeData[i].nodeId;
-    switch(clData.nodeData[i].nodeType){
+    Uint32 nodeId;
+    Uint32 nodeType;
+
+    ndbrequire(!ndb_mgm_get_int_parameter(iter,CFG_NODE_ID, &nodeId));
+    ndbrequire(!ndb_mgm_get_int_parameter(iter,CFG_TYPE_OF_SECTION,&nodeType));
+
+    switch(nodeType){
     case NodeInfo::DB:
+      c_dbNodes.set(nodeId);
+      break;
     case NodeInfo::API:
     case NodeInfo::MGM:
     case NodeInfo::REP:
@@ -110,7 +112,7 @@ Cmvmi::Cmvmi(const Configuration & conf) :
     default:
       ndbrequire(false);
     }
-    setNodeInfo(nodeId).m_type = clData.nodeData[i].nodeType;
+    setNodeInfo(nodeId).m_type = nodeType;
   }
 }
 
@@ -129,6 +131,10 @@ void Cmvmi::execNDB_TAMPER(Signal* signal)
 
   if(ERROR_INSERTED(9998)){
     while(true) NdbSleep_SecSleep(1);
+  }
+
+  if(ERROR_INSERTED(9997)){
+    ndbrequire(false);
   }
 }//execNDB_TAMPER()
 
@@ -278,121 +284,42 @@ Cmvmi::cancelSubscription(NodeId nodeId){
 
 void Cmvmi::sendSTTORRY(Signal* signal)
 {
-  if( theStartPhase == 1 ) {
-    const ClusterConfiguration::ClusterData & clusterConf = 
-      theConfig.clusterConfigurationData() ;
-    const int myNodeId = globalData.ownId;
-    int MyNodeFound = 0;
-    
-    jam();
-
-    CmInit * const cmInit = (CmInit *)&signal->theData[0];
-    
-    cmInit->heartbeatDbDb            = clusterConf.ispValues[0][2]; 
-    cmInit->heartbeatDbApi           = clusterConf.ispValues[0][3];
-    cmInit->arbitTimeout             = clusterConf.ispValues[0][5];
-    
-    NodeBitmask::clear(cmInit->allNdbNodes);
-    for(unsigned int i = 0; i < clusterConf.SizeAltData.noOfNodes; i++ ) {
-      jam();
-      if (clusterConf.nodeData[i].nodeType == NodeInfo::DB){
-        jam();
-        const NodeId nodeId = clusterConf.nodeData[i].nodeId;
-        if (nodeId == myNodeId) {
-          jam();
-          MyNodeFound = 1;
-        }//if
-        NodeBitmask::set(cmInit->allNdbNodes, nodeId);
-      }//if
-    }//for
-    
-    if (MyNodeFound == 0) {
-      ERROR_SET(fatal, ERR_NODE_NOT_IN_CONFIG, "", "");
-    }//if
-    
-    sendSignal(QMGR_REF, GSN_CM_INIT, signal, CmInit::SignalLength, JBB);
-
-    // these do not fit into CM_INIT
-    ArbitSignalData* const sd = (ArbitSignalData*)&signal->theData[0];
-    for (unsigned rank = 1; rank <= 2; rank++) {
-      sd->sender = myNodeId;
-      sd->code = rank;
-      sd->node = 0;
-      sd->ticket.clear();
-      sd->mask.clear();
-      for (int i = 0; i < MAX_NODES; i++) {
-        if (clusterConf.nodeData[i].arbitRank == rank)
-          sd->mask.set(clusterConf.nodeData[i].nodeId);
-      }
-      sendSignal(QMGR_REF, GSN_ARBIT_CFG, signal,
-        ArbitSignalData::SignalLength, JBB);
-    }
-  } else {
-    jam();
-    signal->theData[0] = theSignalKey;
-    signal->theData[3] = 1;
-    signal->theData[4] = 3;
-    signal->theData[5] = 255;
-    sendSignal(NDBCNTR_REF, GSN_STTORRY, signal,6, JBB);
-  }
+  jam();
+  signal->theData[3] = 1;
+  signal->theData[4] = 3;
+  signal->theData[5] = 8;
+  signal->theData[6] = 255;
+  sendSignal(NDBCNTR_REF, GSN_STTORRY, signal, 7, JBB);
 }//Cmvmi::sendSTTORRY
 
 
-// Received a restart signal.
-// Answer it like any other block
-// PR0  : StartCase
-// DR0  : StartPhase
-// DR1  : ?
-// DR2  : ?
-// DR3  : ?
-// DR4  : ?
-// DR5  : SignalKey
-
-void Cmvmi::execSTTOR_Local(Signal* signal)
+void Cmvmi::execSTTOR(Signal* signal)
 {
-  theStartPhase  = signal->theData[1];
-  theSignalKey   = signal->theData[6];
+  Uint32 theStartPhase  = signal->theData[1];
 
-  const ClusterConfiguration::ClusterData & clusterConf = 
-    theConfig.clusterConfigurationData();
   jamEntry();
-  if (theStartPhase == 1 && clusterConf.SizeAltData.exist == true){
+  if (theStartPhase == 1){
     jam();
-    signalCount = 0;
-    execSIZEALT_ACK(signal);
+    sendSTTORRY(signal);
     return;
   } else if (theStartPhase == 3) {
     jam();
     globalData.activateSendPacked = 1;
     sendSTTORRY(signal);
-  } else {
-    jam();
+  } else if (theStartPhase == 8){
+    /*---------------------------------------------------*/
+    /* Open com to API + REP nodes                       */
+    /*---------------------------------------------------*/
+    signal->theData[0] = 0; // no answer
+    signal->theData[1] = 0; // no id
+    signal->theData[2] = NodeInfo::API;
+    execOPEN_COMREQ(signal);
+    signal->theData[0] = 0; // no answer
+    signal->theData[1] = 0; // no id
+    signal->theData[2] = NodeInfo::REP;
+    execOPEN_COMREQ(signal);    
+    globalData.theStartLevel = NodeState::SL_STARTED;
     sendSTTORRY(signal);
-  }
-}
-
-void Cmvmi::execSIZEALT_ACK(Signal* signal)
-{  
-  const ClusterConfiguration::ClusterData & clusterConf = 
-    theConfig.clusterConfigurationData();
-  jamEntry();
-  
-  if (signalCount < NDB_SIZEALT_OFF){
-    jam();
-    BlockNumber blockNo = clusterConf.SizeAltData.blockNo[signalCount];
-    signal->theData[0] = CMVMI_REF;
-    
-    /**
-     * This send SizeAlt(s) to blocks
-     * Definition of data content can be found in SignalData/XXXSizeAltReq.H
-     */
-    const unsigned int noOfWords = 20;
-    for(unsigned int i = 1; i<noOfWords; i++){
-      signal->theData[i] = clusterConf.SizeAltData.varSize[signalCount][i].nrr;
-    }
-    
-    signalCount++;
-    sendSignal(numberToRef(blockNo, 0), GSN_SIZEALT_REP, signal,21, JBB);
   } else {
     jam();
 
@@ -406,90 +333,6 @@ void Cmvmi::execSIZEALT_ACK(Signal* signal)
     
     sendSTTORRY(signal);
   }
-}
-
-void Cmvmi::execCM_INFOREQ(Signal* signal)
-{
-  int id = signal->theData[1];
-  const BlockReference userRef = signal->theData[0];
-  const ClusterConfiguration::ClusterData & clusterConf = 
-    theConfig.clusterConfigurationData();
-  const int myNodeId = globalData.ownId;
-  
-  jamEntry();
-  signal->theData[0] =  id;
-  
-  for(unsigned int i= 0; i< clusterConf.SizeAltData.noOfNodes; i++ ) {
-    jam();
-    if (clusterConf.nodeData[i].nodeType == NodeInfo::DB){
-      NodeId nodeId = clusterConf.nodeData[i].nodeId;
-      if (nodeId != myNodeId) {
-        jam();
-        globalTransporterRegistry.setPerformState(nodeId, PerformConnect);
-      }
-    }
-  }
-  
-  sendSignal(userRef, GSN_CM_INFOCONF, signal, 1, JBB);
-}
-
-void Cmvmi::execCM_RUN(Signal* signal)
-{
-  jamEntry();
-  if (signal->theData[0] == 0) {
-    jam();
-    signal->theData[0] = theSignalKey;
-    signal->theData[3] = 1;
-    signal->theData[4] = 3;
-    signal->theData[5] = 255;
-    sendSignal(NDBCNTR_REF, GSN_STTORRY, signal, 6, JBB);
-  } else {
-    globalData.theStartLevel = NodeState::SL_STARTED;
-    
-    // Connect to all application nodes. 
-    // Enable communication with all NDB blocks.
-    
-    const ClusterConfiguration::ClusterData & clusterConf = 
-      theConfig.clusterConfigurationData();
-    jam();
-    for(unsigned int i= 0; i< clusterConf.SizeAltData.noOfNodes; i++ ) {
-      NodeId nodeId = clusterConf.nodeData[i].nodeId;
-      jam();
-      if (clusterConf.nodeData[i].nodeType != NodeInfo::DB &&
-          clusterConf.nodeData[i].nodeType != NodeInfo::MGM){
-        
-        jam();
-        globalTransporterRegistry.setPerformState(nodeId, PerformConnect);
-        globalTransporterRegistry.setIOState(nodeId, HaltIO);
-        //-----------------------------------------------------
-        // Report that the connection to the node is opened
-        //-----------------------------------------------------
-        signal->theData[0] = EventReport::CommunicationOpened;
-        signal->theData[1] = clusterConf.nodeData[i].nodeId;
-        sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
-        //-----------------------------------------------------
-      }
-    }
-  }
-}
-
-void Cmvmi::execCMVMI_CFGREQ(Signal* signal)
-{
-  const BlockReference userRef = signal->theData[0];
-  const ClusterConfiguration::ClusterData & clusterConf = 
-    theConfig.clusterConfigurationData();
-  
-  int theStart_phase = signal->theData[1];
-  
-  jamEntry();
-
-  CmvmiCfgConf * const cfgConf = (CmvmiCfgConf *)&signal->theData[0];
-  
-  cfgConf->startPhase = theStart_phase;
-  for(unsigned int i = 0; i<CmvmiCfgConf::NO_OF_WORDS; i++)
-    cfgConf->theData[i] = clusterConf.ispValues[theStart_phase][i];
-  
-  sendSignal(userRef, GSN_CMVMI_CFGCONF, signal, CmvmiCfgConf::LENGTH,JBB );
 }
 
 void Cmvmi::execCLOSE_COMREQ(Signal* signal)
@@ -540,21 +383,42 @@ void Cmvmi::execOPEN_COMREQ(Signal* signal)
 
   const BlockReference userRef = signal->theData[0];
   Uint32 tStartingNode = signal->theData[1];
-
+  Uint32 tData2 = signal->theData[2];
   jamEntry();
+
+  const Uint32 len = signal->getLength();
+  if(len == 2){
+    globalTransporterRegistry.setPerformState(tStartingNode, PerformConnect);
+    globalTransporterRegistry.setIOState(tStartingNode, HaltIO);
+
+    //-----------------------------------------------------
+    // Report that the connection to the node is opened
+    //-----------------------------------------------------
+    signal->theData[0] = EventReport::CommunicationOpened;
+    signal->theData[1] = tStartingNode;
+    sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
+    //-----------------------------------------------------
+  } else {
+    for(unsigned int i = 1; i < MAX_NODES; i++ ) {
+      jam();
+      if (i != getOwnNodeId() && getNodeInfo(i).m_type == tData2){
+	jam();
+	globalTransporterRegistry.setPerformState(i, PerformConnect);
+	globalTransporterRegistry.setIOState(i, HaltIO);
+	
+	signal->theData[0] = EventReport::CommunicationOpened;
+	signal->theData[1] = i;
+	sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
+      }
+    }
+  }
+  
   if (userRef != 0) {
     jam(); 
-    signal->theData[0] = signal->theData[1];
-    sendSignal(userRef, GSN_OPEN_COMCONF, signal, 2,JBA);
+    signal->theData[0] = tStartingNode;
+    signal->theData[1] = tData2;
+    sendSignal(userRef, GSN_OPEN_COMCONF, signal, len - 1,JBA);
   }
-  globalTransporterRegistry.setPerformState(tStartingNode, PerformConnect);
-  //-----------------------------------------------------
-  // Report that the connection to the node is opened
-  //-----------------------------------------------------
-  signal->theData[0] = EventReport::CommunicationOpened;
-  signal->theData[1] = tStartingNode;
-  sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
-  //-----------------------------------------------------
 }
 
 void Cmvmi::execENABLE_COMORD(Signal* signal)
@@ -888,18 +752,11 @@ Cmvmi::execSTART_ORD(Signal* signal) {
     /**
      * Open connections to management servers
      */
-    
-    const ClusterConfiguration::ClusterData & clusterConf = 
-      theConfig.clusterConfigurationData() ;
-    
-    for(unsigned int i= 0; i < clusterConf.SizeAltData.noOfNodes; i++ ){
-      NodeId nodeId = clusterConf.nodeData[i].nodeId;
-      
-      if (clusterConf.nodeData[i].nodeType == NodeInfo::MGM){ 
-        
-        if(globalTransporterRegistry.performState(nodeId) != PerformIO){
-          globalTransporterRegistry.setPerformState(nodeId, PerformConnect);
-          globalTransporterRegistry.setIOState(nodeId, NoHalt);
+    for(unsigned int i = 1; i < MAX_NODES; i++ ){
+      if (getNodeInfo(i).m_type == NodeInfo::MGM){ 
+        if(globalTransporterRegistry.performState(i) != PerformIO){
+          globalTransporterRegistry.setPerformState(i, PerformConnect);
+          globalTransporterRegistry.setIOState(i, NoHalt);
         }
       }
     }
@@ -922,17 +779,10 @@ Cmvmi::execSTART_ORD(Signal* signal) {
     // Disconnect all nodes as part of the system restart. 
     // We need to ensure that we are starting up
     // without any connected nodes.   
-    const ClusterConfiguration::ClusterData & clusterConf = 
-      theConfig.clusterConfigurationData() ;
-    const int myNodeId = globalData.ownId;
-    
-    for(unsigned int i= 0; i < clusterConf.SizeAltData.noOfNodes; i++ ){
-      NodeId nodeId = clusterConf.nodeData[i].nodeId;
-      if (myNodeId != nodeId && 
-          clusterConf.nodeData[i].nodeType != NodeInfo::MGM){
-        
-        globalTransporterRegistry.setPerformState(nodeId, PerformDisconnect);
-        globalTransporterRegistry.setIOState(nodeId, HaltIO);
+    for(unsigned int i = 1; i < MAX_NODES; i++ ){
+      if (i != getOwnNodeId() && getNodeInfo(i).m_type != NodeInfo::MGM){
+        globalTransporterRegistry.setPerformState(i, PerformDisconnect);
+        globalTransporterRegistry.setIOState(i, HaltIO);
       }
     }
     
@@ -963,6 +813,7 @@ void Cmvmi::execTAMPER_ORD(Signal* signal)
 
 void Cmvmi::execSET_VAR_REQ(Signal* signal) 
 {
+#if 0
 
   SetVarReq* const setVarReq = (SetVarReq*)&signal->theData[0];
   ConfigParamId var = setVarReq->variable();
@@ -1047,7 +898,7 @@ void Cmvmi::execSET_VAR_REQ(Signal* signal)
     sendSignal(mgmtSrvr, GSN_SET_VAR_REF, signal, 0, JBB);
   } // switch
 
-
+#endif
 }//execSET_VAR_REQ()
 
 
@@ -1068,7 +919,7 @@ void Cmvmi::execSET_VAR_REF(Signal* signal)
 
 
 void Cmvmi::handleSET_VAR_REQ(Signal* signal) {
-
+#if 0
   SetVarReq* const setVarReq = (SetVarReq*)&signal->theData[0];
   ConfigParamId var = setVarReq->variable();
   int val = setVarReq->value();
@@ -1109,7 +960,7 @@ void Cmvmi::handleSET_VAR_REQ(Signal* signal) {
     sendSignal(CMVMI_REF, GSN_SET_VAR_REF, signal, 1, JBB);
     return;
   } // switch
-
+#endif
 }
 
 #ifdef VM_TRACE
@@ -1184,14 +1035,9 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
 
   DumpStateOrd * const & dumpState = (DumpStateOrd *)&signal->theData[0];
   if (dumpState->args[0] == DumpStateOrd::CmvmiDumpConnections){
-    const ClusterConfiguration::ClusterData & clusterConf = 
-      theConfig.clusterConfigurationData() ;
-    
-    for(unsigned int i= 0; i < clusterConf.SizeAltData.noOfNodes; i++ ){
-      NodeId nodeId = clusterConf.nodeData[i].nodeId;
-
+    for(unsigned int i = 1; i < MAX_NODES; i++ ){
       const char* nodeTypeStr = "";
-      switch(clusterConf.nodeData[i].nodeType){
+      switch(getNodeInfo(i).m_type){
       case NodeInfo::DB:
 	nodeTypeStr = "DB";
 	break;
@@ -1204,12 +1050,18 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
       case NodeInfo::REP:
 	nodeTypeStr = "REP";
 	break;
+      case NodeInfo::INVALID:
+	nodeTypeStr = 0;
+	break;
       default:
 	nodeTypeStr = "<UNKNOWN>";
       }
 
+      if(nodeTypeStr == 0)
+	continue;
+
       const char* actionStr = "";
-      switch (globalTransporterRegistry.performState(nodeId)){
+      switch (globalTransporterRegistry.performState(i)){
       case PerformNothing:
         actionStr = "does nothing";
         break;
@@ -1228,18 +1080,18 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
       }
 
       infoEvent("Connection to %d (%s) %s", 
-                nodeId, 
+                i, 
                 nodeTypeStr,
                 actionStr);
     }
   }
-
+  
   if (dumpState->args[0] == DumpStateOrd::CmvmiDumpLongSignalMemory){
     infoEvent("Cmvmi: g_sectionSegmentPool size: %d free: %d",
 	      g_sectionSegmentPool.getSize(),
 	      g_sectionSegmentPool.getNoOfFree());
   }
-
+  
   if (dumpState->args[0] == DumpStateOrd::CmvmiSetRestartOnErrorInsert){
     if(signal->getLength() == 1)
       theConfig.setRestartOnErrorInsert((int)NRT_NoStart_Restart);
@@ -1372,15 +1224,7 @@ Cmvmi::execTESTSIG(Signal* signal){
     return;
   }
   
-  NodeReceiverGroup rg; rg.m_block = CMVMI;
-  const ClusterConfiguration::ClusterData & clusterConf = 
-    theConfig.clusterConfigurationData() ;
-  for(unsigned int i = 0; i < clusterConf.SizeAltData.noOfNodes; i++ ){
-    NodeId nodeId = clusterConf.nodeData[i].nodeId;
-    if (clusterConf.nodeData[i].nodeType == NodeInfo::DB){ 
-      rg.m_nodes.set(nodeId);
-    }
-  }
+  NodeReceiverGroup rg(CMVMI, c_dbNodes);
 
   if(signal->getSendersBlockRef() == ref){
     /**
@@ -1550,6 +1394,26 @@ Cmvmi::execTESTSIG(Signal* signal){
     }
     break;
   }
+  case 13:{
+    ndbrequire(signal->getNoOfSections() == 0);
+    Uint32 loop = signal->theData[9];
+    if(loop > 0){
+      signal->theData[9] --;
+      sendSignal(CMVMI_REF, GSN_TESTSIG, signal, signal->length(), JBB);
+      return;
+    }
+    sendSignal(ref, GSN_TESTSIG, signal, signal->length(), JBB);
+    return;
+  }
+  case 14:{
+    Uint32 count = signal->theData[8];
+    signal->theData[10] = count * rg.m_nodes.count();
+    for(Uint32 i = 0; i<count; i++){
+      sendSignal(rg, GSN_TESTSIG, signal, signal->length(), JBB); 
+    }
+    return;
+  }
+
   default:
     ndbrequire(false);
   }

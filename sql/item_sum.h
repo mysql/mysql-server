@@ -207,6 +207,7 @@ class Item_sum_count :public Item_sum_int
   void make_const(longlong count_arg) { count=count_arg; used_table_cache=0; }
   longlong val_int();
   void reset_field();
+  void cleanup();
   void update_field();
   const char *func_name() const { return "count"; }
   Item *copy_or_same(THD* thd);
@@ -463,6 +464,7 @@ class Item_sum_hybrid :public Item_sum
   void min_max_update_str_field();
   void min_max_update_real_field();
   void min_max_update_int_field();
+  void cleanup();
 };
 
 
@@ -729,7 +731,6 @@ class Item_func_group_concat : public Item_sum
   ORDER **order;
   TABLE_LIST *tables_list;
   ulong group_concat_max_len;
-  uint show_elements;
   uint arg_count_order;
   uint arg_count_field;
   uint field_list_offset;

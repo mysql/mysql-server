@@ -19,6 +19,7 @@
 #include <NdbTCP.h>
 #include "mgmapi.h"
 #include "mgmapi_debug.h"
+#include "mgmapi_configuration.hpp"
 #include <socket_io.h>
 
 #include <NdbOut.hpp>
@@ -26,6 +27,7 @@
 #include <Parser.hpp>
 #include <OutputStream.hpp>
 #include <InputStream.hpp>
+#include <Base64.hpp>
 
 
 #define MGM_CMD(name, fun, desc) \
@@ -93,15 +95,20 @@ struct ndb_mgm_handle {
 #endif
 };
 
-#define SET_ERROR(h, e, s) \
-  { \
-  char tmp[NDB_MGM_MAX_ERR_DESC_SIZE]; \
-  snprintf(tmp, NDB_MGM_MAX_ERR_DESC_SIZE, " (mgmapi.cpp:%d)", __LINE__); \
-  strncpy(h->last_error_desc, s, NDB_MGM_MAX_ERR_DESC_SIZE); \
-  strncat(h->last_error_desc, tmp, NDB_MGM_MAX_ERR_DESC_SIZE); \
-  h->last_error = e;  \
-  h->last_error_line = __LINE__; \
-  }
+#define SET_ERROR(h, e, s) setError(h, e, __LINE__, s)
+
+static
+void
+setError(NdbMgmHandle h, int error, int error_line, const char * msg, ...){
+
+  h->last_error = error;  \
+  h->last_error_line = error_line;
+
+  va_list ap;
+  va_start(ap, msg);
+  vsnprintf(h->last_error_desc, sizeof(h->last_error_desc), msg, ap);
+  va_end(ap);
+}
 
 #define CHECK_HANDLE(handle, ret) \
   if(handle == 0) { \
@@ -185,9 +192,12 @@ ndb_mgm_get_latest_error(const NdbMgmHandle h)
   return h->last_error;
 }
 
-/**
- * Get latest error line associated with a handle
- */
+extern "C"
+const char *
+ndb_mgm_get_latest_error_desc(const NdbMgmHandle h){
+  return h->last_error_desc;
+}
+
 extern "C"
 int
 ndb_mgm_get_latest_error_line(const NdbMgmHandle h)
@@ -205,13 +215,6 @@ ndb_mgm_get_latest_error_msg(const NdbMgmHandle h)
   }
 
   return "Error"; // Unknown Error message
-}
-
-extern "C"
-const char *
-ndb_mgm_get_latest_error_desc(const NdbMgmHandle h)
-{
-  return h->last_error_desc;
 }
 
 static
@@ -372,7 +375,8 @@ ndb_mgm_connect(NdbMgmHandle handle, const char * mgmsrv)
   // Convert ip address presentation format to numeric format
   const int res1 = Ndb_getInAddr(&servaddr.sin_addr, handle->hostname);
   if (res1 != 0) {
-    SET_ERROR(handle, NDB_MGM_ILLEGAL_IP_ADDRESS, "");
+    DEBUG("Ndb_getInAddr(...) == -1");
+    setError(handle, EINVAL, __LINE__, "Invalid hostname/address");
     return -1;
   }
   
@@ -380,7 +384,8 @@ ndb_mgm_connect(NdbMgmHandle handle, const char * mgmsrv)
 			   sizeof(servaddr));
   if (res2 == -1) {
     NDB_CLOSE_SOCKET(sockfd);
-    SET_ERROR(handle, NDB_MGM_COULD_NOT_CONNECT_TO_SOCKET, "");
+    setError(handle, NDB_MGM_COULD_NOT_CONNECT_TO_SOCKET, __LINE__, "Unable to connect to %s", 
+	     mgmsrv);
     return -1;
   }
   
@@ -389,7 +394,7 @@ ndb_mgm_connect(NdbMgmHandle handle, const char * mgmsrv)
 
   return 0;
 }
-  
+
 /**
  * Disconnect from a mgm server
  */
@@ -425,7 +430,7 @@ const int no_of_type_values = (sizeof(type_values) /
 			       sizeof(ndb_mgm_type_atoi));
 
 extern "C"
-enum ndb_mgm_node_type
+ndb_mgm_node_type
 ndb_mgm_match_node_type(const char * type)
 {
   if(type == 0)
@@ -469,7 +474,7 @@ const int no_of_status_values = (sizeof(status_values) /
 				 sizeof(ndb_mgm_status_atoi));
 
 extern "C"
-enum ndb_mgm_node_status
+ndb_mgm_node_status
 ndb_mgm_match_node_status(const char * status)
 {
   if(status == 0)
@@ -514,6 +519,8 @@ status_ackumulate(struct ndb_mgm_node_state * state,
     state->node_group = atoi(value);
   } else if(strcmp("version", field) == 0){
     state->version = atoi(value);
+  } else if(strcmp("connect_count", field) == 0){
+    state->connect_count = atoi(value);    
   } else {
     ndbout_c("Unknown field: %s", field);
   }
@@ -1422,10 +1429,103 @@ ndb_mgm_abort_backup(NdbMgmHandle handle, unsigned int backupId,
   return 0;
 }
 
+extern "C"
+struct ndb_mgm_configuration *
+ndb_mgm_get_configuration(NdbMgmHandle handle, unsigned int version) {
+
+  CHECK_HANDLE(handle, 0);
+  CHECK_CONNECTED(handle, 0);
+
+  Properties args;
+  args.put("version", version);
+
+  const ParserRow<ParserDummy> reply[] = {
+    MGM_CMD("get config reply", NULL, ""),
+    MGM_ARG("result", String, Mandatory, "Error message"),    
+    MGM_ARG("Content-Length", Int, Optional, "Content length in bytes"),
+    MGM_ARG("Content-Type", String, Optional, "Type (octet-stream)"),
+    MGM_ARG("Content-Transfer-Encoding", String, Optional, "Encoding(base64)"),
+    MGM_END()
+  };
+  
+  const Properties *prop;
+  prop = ndb_mgm_call(handle, reply, "get config", &args);
+  
+  if(prop == NULL) {
+    SET_ERROR(handle, EIO, "Unable to fetch config");
+    return 0;
+  }
+  
+  do {
+    const char * buf;
+    if(!prop->get("result", &buf) || strcmp(buf, "Ok") != 0){
+      ndbout_c("ERROR Message: %s\n", buf);
+      break;
+    }
+
+    buf = "<Unspecified>";
+    if(!prop->get("Content-Type", &buf) || 
+       strcmp(buf, "ndbconfig/octet-stream") != 0){
+      ndbout_c("Unhandled response type: %s", buf);
+      break;
+    }
+
+    buf = "<Unspecified>";
+    if(!prop->get("Content-Transfer-Encoding", &buf) 
+       || strcmp(buf, "base64") != 0){
+      ndbout_c("Unhandled encoding: %s", buf);
+      break;
+    }
+
+    buf = "<Content-Length Unspecified>";
+    Uint32 len = 0;
+    if(!prop->get("Content-Length", &len)){
+      ndbout_c("Invalid response: %s\n", buf);
+      break;
+    }
+
+    len += 1; // Trailing \n
+        
+    char* buf64 = new char[len];
+    int read = 0;
+    size_t start = 0;
+    do {
+      if((read = read_socket(handle->socket, handle->read_timeout, 
+			     &buf64[start], len-start)) == -1){
+	delete[] buf64; 
+	buf64 = 0;
+	break;
+      }
+      start += read;
+    } while(start < len);
+    if(buf64 == 0)
+      break;
+    
+    UtilBuffer tmp;
+    const int res = base64_decode(buf64, len-1, tmp);
+    delete[] buf64; 
+    if(res != 0){
+      ndbout_c("Failed to decode buffer");
+      break;
+    }
+
+    ConfigValuesFactory cvf;
+    const int res2 = cvf.unpack(tmp);
+    if(!res2){
+      ndbout_c("Failed to unpack buffer");
+      break;
+    }
+    
+    return (ndb_mgm_configuration*)cvf.m_cfg;
+  } while(0);
+
+  delete prop;
+  return 0;
+}
+
 /*****************************************************************************
  * Global Replication
- *****************************************************************************/
-
+ ******************************************************************************/
 extern "C"
 int 
 ndb_mgm_rep_command(NdbMgmHandle handle, unsigned int request,

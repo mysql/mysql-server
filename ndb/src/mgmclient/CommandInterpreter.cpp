@@ -30,10 +30,6 @@
 #include "MgmtErrorReporter.hpp"
 #include "CpcClient.hpp"
 
-#ifdef NDB_SOLARIS      // XXX fix me
-static char* strsep(char** x, const char* y) { return 0; }
-#endif
-
 
 /*****************************************************************************
  * HELP
@@ -1865,17 +1861,36 @@ CommandInterpreter::executeRep(char* parameters)
  * CPC
  *****************************************************************************/
 
+#if 0
+
+#if 0
+//#ifdef NDB_SOLARIS      // XXX fix me
+static char* strsep(char** x, const char* y) { return 0; }
+#endif
+
+// Note this code has not been verified
+#if 0
+static char * my_strsep(char **stringp, const char *delim)
+{
+  char *tmp= *stringp;
+  if (tmp == 0)
+    return 0;
+  *stringp = strtok(tmp, delim);
+  return tmp;
+}
+#endif
+
 void
 CommandInterpreter::executeCpc(char *parameters) 
 {
   char *host_str = NULL, *port_str = NULL, *end;
   long port = 1234; /* XXX */
 
-  while((host_str = strsep(&parameters, " \t:")) != NULL &&
+  while((host_str = my_strsep(&parameters, " \t:")) != NULL &&
 	host_str[0] == '\0');
 
   if(parameters && parameters[0] != '\0') {
-    while((port_str = strsep(&parameters, " \t:")) != NULL &&
+    while((port_str = my_strsep(&parameters, " \t:")) != NULL &&
 	  port_str[0] == '\0');
     
     errno = 0;
@@ -1944,6 +1959,7 @@ CommandInterpreter::executeCpc(char *parameters)
 	 << endl;
   return;
 }
+#endif
 
 #if 0
 static

@@ -37,8 +37,10 @@ class NdbResultSet;    // Forward declaration
 typedef enum ndb_index_type {
   UNDEFINED_INDEX = 0,
   PRIMARY_KEY_INDEX = 1,
-  UNIQUE_INDEX = 2,
-  ORDERED_INDEX = 3
+  PRIMARY_KEY_ORDERED_INDEX = 2,
+  UNIQUE_INDEX = 3,
+  UNIQUE_ORDERED_INDEX = 4,
+  ORDERED_INDEX = 5
 } NDB_INDEX_TYPE;
 
 
@@ -71,12 +73,17 @@ class ha_ndbcluster: public handler
   int index_prev(byte *buf);
   int index_first(byte *buf);
   int index_last(byte *buf);
-  int rnd_init(bool scan=1);
+  int rnd_init(bool scan);
   int rnd_end();
   int rnd_next(byte *buf);
   int rnd_pos(byte *buf, byte *pos);
   void position(const byte *record);
+  int read_range_first(const key_range *start_key,
+		       const key_range *end_key,
+		       bool eq_range, bool sorted);
+  int read_range_next();
 
+  bool get_error_message(int error, String *buf);
   void info(uint);
   int extra(enum ha_extra_function operation);
   int extra_opt(enum ha_extra_function operation, ulong cache_size);
@@ -86,11 +93,12 @@ class ha_ndbcluster: public handler
   const char * table_type() const { return("ndbcluster");}
   const char ** bas_ext() const;
   ulong table_flags(void) const { return m_table_flags; }
-  ulong index_flags(uint idx) const;
-  uint max_record_length() const { return NDB_MAX_TUPLE_SIZE; };
-  uint max_keys()          const { return MAX_KEY;  }
-  uint max_key_parts()     const { return NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY; };
-  uint max_key_length()    const { return NDB_MAX_KEY_SIZE;};
+  ulong index_flags(uint idx, uint part) const;
+  uint max_supported_record_length() const { return NDB_MAX_TUPLE_SIZE; };
+  uint max_supported_keys() const { return MAX_KEY;  }
+  uint max_supported_key_parts() const 
+    { return NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY; };
+  uint max_supported_key_length() const { return NDB_MAX_KEY_SIZE;};
 
   int rename_table(const char *from, const char *to);
   int delete_table(const char *name);
@@ -112,6 +120,8 @@ class ha_ndbcluster: public handler
   const char* index_type(uint key_number) {
     switch (get_index_type(key_number)) {
     case ORDERED_INDEX:
+    case UNIQUE_ORDERED_INDEX:
+    case PRIMARY_KEY_ORDERED_INDEX:
       return "BTREE";
     case UNIQUE_INDEX:
     case PRIMARY_KEY_INDEX:
@@ -122,6 +132,8 @@ class ha_ndbcluster: public handler
 
   double scan_time();
   ha_rows records_in_range(uint inx, key_range *min_key, key_range *max_key);
+  void start_bulk_insert(ha_rows rows);
+  int end_bulk_insert();
 
   static Ndb* seize_ndb();
   static void release_ndb(Ndb* ndb);
@@ -130,11 +142,15 @@ class ha_ndbcluster: public handler
  private:
   int alter_table_name(const char *from, const char *to);
   int drop_table();
-  int create_index(const char *name, KEY *key_info);
+  int create_index(const char *name, KEY *key_info, bool unique);
+  int create_ordered_index(const char *name, KEY *key_info);
+  int create_unique_index(const char *name, KEY *key_info);
   int initialize_autoincrement(const void* table);
+  int build_index_list();
   int get_metadata(const char* path);
   void release_metadata();
   const char* get_index_name(uint idx_no) const;
+  const char* get_unique_index_name(uint idx_no) const;
   NDB_INDEX_TYPE get_index_type(uint idx_no) const;
   NDB_INDEX_TYPE get_index_type_from_table(uint index_no) const;
   
@@ -142,17 +158,16 @@ class ha_ndbcluster: public handler
 	      byte *buf);
   int unique_index_read(const byte *key, uint key_len, 
 			byte *buf);
-  int ordered_index_scan(const byte *key, uint key_len, 
-			 byte *buf,
-			 enum ha_rkey_function find_flag);
+  int ordered_index_scan(const key_range *start_key,
+			 const key_range *end_key,
+			 bool sorted, byte* buf);
   int full_table_scan(byte * buf);
   int next_result(byte *buf); 
-#if 0
+  int define_read_attrs(byte* buf, NdbOperation* op);
   int filtered_scan(const byte *key, uint key_len, 
 		    byte *buf,
 		    enum ha_rkey_function find_flag);
-#endif
-
+  int close_scan();
   void unpack_record(byte *buf);
 
   void set_dbname(const char *pathname);
@@ -167,6 +182,9 @@ class ha_ndbcluster: public handler
   int get_ndb_value(NdbOperation*, uint fieldnr, byte *field_ptr);
   int set_primary_key(NdbOperation *op, const byte *key);
   int set_primary_key(NdbOperation *op);
+  int set_primary_key_from_old_data(NdbOperation *op, const byte *old_data);
+  int set_bounds(NdbOperation *ndb_op, const key_range *key,
+		 int bound);
   int key_cmp(uint keynr, const byte * old_row, const byte * new_row);
   void print_results();
 
@@ -188,8 +206,14 @@ class ha_ndbcluster: public handler
   THR_LOCK_DATA m_lock;
   NDB_SHARE *m_share;
   NDB_INDEX_TYPE  m_indextype[MAX_KEY];
+  const char*  m_unique_index_name[MAX_KEY];
   NdbRecAttr *m_value[NDB_MAX_ATTRIBUTES_IN_TABLE];
   bool m_use_write;
+  bool retrieve_all_fields;
+  ha_rows rows_to_insert;
+  ha_rows rows_inserted;
+  ha_rows bulk_insert_rows;
+  ha_rows ops_pending;
 };
 
 bool ndbcluster_init(void);
@@ -204,6 +228,7 @@ int ndbcluster_discover(const char* dbname, const char* name,
 			const void** frmblob, uint* frmlen);
 int ndbcluster_drop_database(const char* path);
 
+void ndbcluster_print_error(int error);
 
 
 

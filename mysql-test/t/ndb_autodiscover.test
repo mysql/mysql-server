@@ -1,0 +1,267 @@
+-- source include/have_ndb.inc
+
+--disable_warnings
+drop table if exists t1,t2,t3,t4,t5,t6,t9;
+--enable_warnings
+
+################################################
+# Test that a table that does not exist as a 
+# frm file on disk can be "discovered" from a 
+# connected NDB Cluster
+#
+
+flush status;
+
+#
+# Test discover + SELECT
+#
+
+create table t1(
+  id int not null primary key,
+  name char(20)
+) engine=ndb;
+
+insert into t1 values(1, "Autodiscover");
+flush tables;
+system rm var/master-data/test/t1.frm ;
+select * from t1;
+show status like 'handler_discover%';
+
+#
+# Test discover + INSERT
+#
+
+flush tables;
+system rm var/master-data/test/t1.frm ;
+insert into t1 values (2, "Auto 2");
+show status like 'handler_discover%';
+insert into t1 values (3, "Discover 3");
+show status like 'handler_discover%';
+flush tables;
+system rm var/master-data/test/t1.frm ;
+select * from t1 order by id;
+show status like 'handler_discover%';
+
+#
+# Test discover + UPDATE
+#
+
+flush tables;
+system rm var/master-data/test/t1.frm ;
+update t1 set name="Autodiscover" where id = 2;
+show status like 'handler_discover%';
+select * from t1 order by name;
+show status like 'handler_discover%';
+
+#
+# Test discover + DELETE
+#
+
+flush tables;
+system rm var/master-data/test/t1.frm ;
+delete from  t1 where id = 3;
+select * from t1 order by id;
+show status like 'handler_discover%';
+
+drop table t1;
+
+
+
+######################################################
+# Test that a table that is outdated on disk
+# can be "discovered" from a connected NDB Cluster
+#
+
+flush status;
+
+create table t2(
+  id int not null primary key,
+  name char(22)
+) engine=ndb;
+insert into t2 values (1, "Discoverer");
+select * from t2;
+show status like 'handler_discover%';
+flush tables;
+
+# Modify the frm file on disk
+system echo "blaj" >> var/master-data/test/t2.frm ;
+select * from t2;
+
+show status like 'handler_discover%';
+
+drop table t2;
+
+
+##################################################
+# Test that a table that already exists in NDB 
+# is only discovered if CREATE TABLE IF NOT EXISTS 
+# is used
+#
+
+flush status;
+
+create table t3(
+  id int not null primary key,
+  name char(255)
+) engine=ndb;
+insert into t3 values (1, "Explorer");
+select * from t3;
+show status like 'handler_discover%';
+flush tables;
+
+# Remove the frm file from disk
+system rm var/master-data/test/t3.frm ;
+
+--error 1050
+create table t3(
+  id int not null primary key,
+  name char(20), a int, b float, c char(24)
+) engine=ndb;
+
+# The table shall not have been discovered since
+# IF NOT EXISTS wasn't specified
+
+show status like 'handler_discover%';
+SHOW TABLES FROM test;
+
+# now it should be discovered
+create table IF NOT EXISTS t3(
+  id int not null primary key,
+  id2 int not null,
+  name char(20)
+) engine=ndb;
+
+# NOTE! the table called t3 have now been updated to 
+# use the same frm as in NDB, thus it's not certain that 
+# the table schema is the same as was stated in the 
+# CREATE TABLE statement above
+
+show status like 'handler_discover%';
+
+SHOW CREATE TABLE t3;
+
+select * from t3;
+show status like 'handler_discover%';
+
+drop table t3;
+
+#######################################################
+# Test that a table that already exists as frm file
+# but not in NDB can be deleted from disk.
+#
+
+# Manual test
+#flush status;
+#
+#create table t4(
+#  id int not null primary key,
+#  name char(27)
+#) engine=ndb;
+#insert into t4 values (1, "Automatic");
+#select * from t4;
+#
+# Remove the table from NDB
+#system drop_tab -c "$NDB_CONNECTSTRING2" -d test t4 > /dev/null ;
+#system drop_tab -c "host=localhost:2200;nodeid=5" -d test t4 > /dev/null ;
+#
+#--error 1296
+#select * from t4;
+#
+#flush table t4;
+#--error 1016
+#select * from t4;
+#
+#show status like 'handler_discover%';
+#drop table t4;
+#flush tables;
+#show tables;
+#--error 1146
+#select * from t4;
+
+
+#########################################################
+# Test that a table that has been changed in NDB 
+# since it's been opened will be refreshed and discovered
+# again
+#
+
+flush status;
+
+show status like 'handler_discover%';
+
+create table t5(
+  id int not null primary key,
+  name char(200)
+) engine=ndb;
+insert into t5 values (1, "Magnus");
+select * from t5;
+
+ALTER TABLE t5 ADD COLUMN adress char(255) FIRST;
+
+select * from t5;
+
+insert into t5 values 
+ ("Adress for record 2", 2, "Carl-Gustav"), 
+ ("Adress for record 3", 3, "Karl-Emil");
+update t5 set name="Bertil" where id = 2;
+select * from t5 order by id;
+
+show status like 'handler_discover%';
+
+drop table t5;
+
+
+################################################################
+# Test that a table that has been changed with ALTER TABLE
+# can be used from the same thread
+#
+
+flush status;
+
+show status like 'handler_discover%';
+
+create table t6(
+  id int not null primary key,
+  name char(20)
+) engine=ndb;
+insert into t6 values (1, "Magnus");
+select * from t6;
+
+ALTER TABLE t6 ADD COLUMN adress char(255) FIRST;
+
+select * from t6;
+insert into t6 values 
+ ("Adress for record 2", 2, "Carl-Gustav"), 
+ ("Adress for record 3", 3, "Karl-Emil");
+update t6 set name="Bertil" where id = 2;
+select * from t6 order by id;
+
+show status like 'handler_discover%';
+
+drop table t6;
+
+######################################################
+# Simple test to show use of discover on startup
+# Note! This should always be the last step in this 
+# file, the table t9 will be used and dropped 
+# by ndb_autodiscover2
+#
+
+CREATE TABLE t9 (
+  a int NOT NULL PRIMARY KEY,
+  b int
+) engine=ndb;
+
+insert t9 values(1, 2), (2,3), (3, 4), (4, 5);
+
+#Don't drop the table, instead remove the frm file
+system rm var/master-data/test/t9.frm ;
+
+# Now leave test case, when ndb_autodiscover2 will  run, this 
+# MySQL Server will have been restarted because it has a 
+# ndb_autodiscover2-master.opt file. And thus the table should 
+# have been discovered by the "discover on startup" function.
+
+#TODO
+#SLECT * FROM t1, t2, t4;
+#handler discover 3;
