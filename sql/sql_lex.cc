@@ -157,6 +157,7 @@ LEX *lex_start(THD *thd, uchar *buf,uint length)
 {
   LEX *lex= &thd->lex;
   lex->next_state=STATE_START;
+  lex->buf= buf;
   lex->end_of_query=(lex->ptr=buf)+length;
   lex->yylineno = 1;
   lex->select_lex.create_refs=lex->in_comment=0;
@@ -171,6 +172,8 @@ LEX *lex_start(THD *thd, uchar *buf,uint length)
   lex->yacc_yyss=lex->yacc_yyvs=0;
   lex->ignore_space=test(thd->variables.sql_mode & MODE_IGNORE_SPACE);
   lex->sql_command=SQLCOM_END;
+  lex->sphead= NULL;
+  lex->spcont= NULL;
   return lex;
 }
 

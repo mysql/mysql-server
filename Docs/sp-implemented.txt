@@ -1,0 +1,80 @@
+Stored Procedures implemented 2003-02-02:
+
+
+Summary of Not Yet Implemented:
+
+  - FUNCTIONs
+  - Routine characteristics
+  - External languages
+  - Access control
+  - Prepared SP caching; SPs are fetched and reparsed at each call
+  - SQL-99 COMMIT (related to BEGIN/END)
+  - DECLARE CURSOR ...
+  - FOR-loops (as it requires cursors)
+
+
+Summary of what's implemented:
+
+  - SQL PROCEDURES (CREATE/DROP)
+  - CALL
+  - DECLARE of local variables
+  - BEGIN/END, SET, CASE, IF, LOOP, WHILE, REPEAT, ITERATE, LEAVE
+  - SELECT INTO local variables
+
+
+List of what's implemented:
+
+  - CREATE PROCEDURE name ( args ) body
+    No routine characteristics yet.
+
+  - ALTER PROCEDURE name ...
+    Is parsed, but a no-op (as there are no characteristics implemented yet).
+    CASCADE/RESTRICT is not implemented (and CASCADE probably will not be).
+
+  - DROP PROCEDURE name
+    CASCADE/RESTRICT is not implemented (and CASCADE probably will not be).
+
+  - CALL name (args)
+    OUT and INOUT parameters are only supported for local variables, and
+    therefore only useful when calling such procedures from within another
+    procedure.
+    Note: For the time being, when a procedure with OUT/INOUT parameter is
+          called, the out values are silently discarded. In the future, this
+	  will either generate an error message, or it might even work to
+	  call all procedures from the top-level.
+
+  - Procedure body:
+    - BEGIN/END
+      Is parsed, but not the real thing with (optional) transaction
+      control, it only serves as block syntax for multiple statements (and
+      local variable binding).
+      Note: Multiple statements requires a client that can send bodies
+            containing ";". This is handled in the CLI clients mysql and
+	    mysqltest with the "delimiter" command. Changing the end-of-query
+	    delimiter ";" to for instance "|" allows 
+    - SET of local variables
+      Implemented as part of the pre-existing SET syntax. This allows an
+      extended syntax of "SET a=x, b=y, ..." where different variable types
+      (SP local and global) can be mixed. This also allows combinations
+      of local variables and some options that only make sense for
+      global/system variables; in that case the options are accepted but
+      ignored.
+    - The flow control constructs: CASE, IF, LOOP, WHILE, ITERATE and LEAVE
+      are fully implemented.
+    - SELECT ... INTO local variables (as well as global session variables)
+      is implemented. (Note: This is not SQL-99 feature, but common in other
+      databases.)
+
+
+Open questions:
+
+  - What is the expected result when creating a procedure with a name that
+    already exists? An error or overwrite?
+  - Do PROCEDUREs and FUNCTIONs share namespace or not? I think not, but the
+    we need to flag the type in the mysql.proc table and the name alone is
+    not a unique key any more, or, we have separate tables.
+    (Unfortunately, mysql.func is already taken. Use "sfunc" and maybe even
+     rename "proc" into "sproc" while we still can, for consistency?)
+  - SQL-99 variables and parameters are typed. For the present we don't do
+    any type checking, since this is the way MySQL works. I still don't know
+    if we should keep it this way, or implement type checking.

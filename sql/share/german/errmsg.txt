@@ -261,3 +261,13 @@
 "Select %u wurde während der Optimierung reduziert.",
 "Tabelle '%-.64s', die in einem der SELECT-Befehle verwendet wurde kann nicht in %-.32s verwendet werden."
 "Client does not support authentication protocol requested by server. Consider upgrading MySQL client"
+"Can't create a PROCEDURE from within a PROCEDURE"
+"PROCEDURE already exists"
+"PROCEDURE does not exist"
+"Failed to DROP PROCEDURE"
+"Failed to CREATE PROCEDURE"
+"%s with no matching label"
+"Redefining label"
+"End-label without match"
+"Referring to uninitialized variable"
+"SELECT in a stored procedure must have INTO"
