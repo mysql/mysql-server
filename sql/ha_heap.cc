@@ -1,15 +1,15 @@
 /* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
-   
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2 of the License, or
    (at your option) any later version.
-   
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
@@ -49,11 +49,11 @@ int ha_heap::open(const char *name, int mode, uint test_if_locked)
   {
     KEY *pos=table->key_info+key;
     mem_per_row += (pos->key_length + (sizeof(char*) * 2));
-    
+
     keydef[key].keysegs=(uint) pos->key_parts;
     keydef[key].flag = (pos->flags & HA_NOSAME);
     keydef[key].seg=seg;
-    
+
     for (part=0 ; part < pos->key_parts ; part++)
     {
       uint flag=pos->key_part[part].key_type;
@@ -147,7 +147,7 @@ int ha_heap::index_prev(byte * buf)
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
 }
-  
+
 int ha_heap::index_first(byte * buf)
 {
   statistic_increment(ha_read_first_count,&LOCK_status);
@@ -227,7 +227,7 @@ int ha_heap::delete_all_rows()
 int ha_heap::external_lock(THD *thd, int lock_type)
 {
   return 0;					// No external locking
-}  
+}
 
 THR_LOCK_DATA **ha_heap::store_lock(THD *thd,
 				    THR_LOCK_DATA **to,

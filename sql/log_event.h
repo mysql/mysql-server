@@ -1,15 +1,15 @@
 /* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
-   
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2 of the License, or
    (at your option) any later version.
-   
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
@@ -77,7 +77,7 @@ struct sql_ex_info
     char opt_flags; 
     char empty_flags;
     int cached_new_format;
-    
+
     // store in new format even if old is possible
     void force_new_format() { cached_new_format = 1;} 
     int data_size() { return new_format() ?
@@ -231,7 +231,7 @@ public:
   {
     my_free((gptr) ptr, MYF(MY_WME|MY_ALLOW_ZERO_PTR));
   }
-  
+
   int write(IO_CACHE* file);
   int write_header(IO_CACHE* file);
   virtual int write_data(IO_CACHE* file)
@@ -288,7 +288,7 @@ public:
   void print_timestamp(FILE* file, time_t *ts = 0);
   void print_header(FILE* file);
 #endif
-  
+
 };
 
 
@@ -391,11 +391,11 @@ public:
   uint32 field_block_len;
   uint32 skip_lines;
   sql_ex_info sql_ex;
-  
+
 #ifndef MYSQL_CLIENT  
   String field_lens_buf;
   String fields_buf;
-  
+
   Load_log_event(THD* thd, sql_exchange* ex, const char* db_arg,
 			       const char* table_name_arg,
 		 List<Item>& fields_arg, enum enum_duplicates handle_dup);
@@ -605,7 +605,7 @@ public:
   char* block;
   uint block_len;
   uint file_id;
-  
+
   Append_block_log_event(const char* buf, int event_len);
   ~Append_block_log_event()
   {
@@ -630,7 +630,7 @@ class Delete_file_log_event: public Log_event
 {
 public:
   uint file_id;
-  
+
   Delete_file_log_event(const char* buf, int event_len);
   ~Delete_file_log_event()
   {
@@ -653,7 +653,7 @@ class Execute_load_log_event: public Log_event
 {
 public:
   uint file_id;
-  
+
   Execute_load_log_event(const char* buf, int event_len);
   ~Execute_load_log_event()
   {

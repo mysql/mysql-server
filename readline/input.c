@@ -311,7 +311,7 @@ _rl_input_available ()
 void
 _rl_insert_typein (c)
      int c;     
-{    	
+{
   int key, t, i;
   char *string;
 

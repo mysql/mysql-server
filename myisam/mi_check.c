@@ -105,7 +105,7 @@ void myisamchk_init(MI_CHECK *param)
 int chk_status(MI_CHECK *param, register MI_INFO *info)
 {
   MYISAM_SHARE *share=info->s;
-  
+
   if (mi_is_crashed_on_repair(info))
     mi_check_print_warning(param,
 			   "Table is marked as crashed and last repair failed");

@@ -1,3 +1,19 @@
+/* Copyright (C) 2000 MySQL AB
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+
 #include <my_global.h>
 #ifdef HAVE_OPENSSL
 #include <my_sys.h>
@@ -78,7 +94,7 @@ main(	int	argc __attribute__((unused)),
 	int err;
 	size_t client_len;
 	int	reuseaddr = 1; /* better testing, uh? */
-	
+
 	MY_INIT(argv[0]);
         DBUG_PROCESS(argv[0]);
         DBUG_PUSH(default_dbug_option);
@@ -97,17 +113,17 @@ main(	int	argc __attribute__((unused)),
 
 	listen_sd = socket (AF_INET, SOCK_STREAM, 0);
 	setsockopt(listen_sd, SOL_SOCKET, SO_REUSEADDR, &reuseaddr, sizeof(&reuseaddr));
-  
+
 	memset (&sa_serv, '\0', sizeof(sa_serv));
 	sa_serv.sin_family      = AF_INET;
 	sa_serv.sin_addr.s_addr = INADDR_ANY;
 	sa_serv.sin_port        = htons (1111);          /* Server Port number */
-  
+
 	err = bind(listen_sd, (struct sockaddr*) &sa_serv,
 	     sizeof (sa_serv));                  
-	     
+
 	/* Receive a TCP connection. */
-	     
+
 	err = listen (listen_sd, 5); 
 	client_len = sizeof(sa_cli);
 	th_args.sd = accept (listen_sd, (struct sockaddr*) &sa_cli, &client_len);
@@ -115,7 +131,7 @@ main(	int	argc __attribute__((unused)),
 
 	printf ("Connection from %lx, port %x\n",
 		  (long)sa_cli.sin_addr.s_addr, sa_cli.sin_port);
-  
+
 	/* ----------------------------------------------- */
 	/* TCP connection is ready. Do server side SSL. */
 
@@ -139,4 +155,3 @@ int main() {
 return 0;
 }
 #endif /* HAVE_OPENSSL */
-

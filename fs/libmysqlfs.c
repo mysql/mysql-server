@@ -141,7 +141,7 @@ int parse(const char * path, char *server, char * database, char *table,
       if(*funce) *server='\0';
    } else
       *funce=NULL;
-   
+
    DBUG_PRINT("info",("path: '%s', server: '%s', db: '%s', table: '%s', field: '%s', value: '%s', function: '%x'",
                    buffer, server, database, table, field, value, funce )); 
    if(p && *p) /* Something is in buffer - too deep in levels */
@@ -149,5 +149,3 @@ int parse(const char * path, char *server, char * database, char *table,
    else
      DBUG_RETURN(0)
 }
-
-

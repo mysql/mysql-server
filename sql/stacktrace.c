@@ -122,7 +122,7 @@ terribly wrong...\n");
     return;
   }
 #endif /* __alpha__ */
-  
+
   if (!stack_bottom)
   {
     ulong tmp= min(0x10000,thread_stack);
@@ -150,7 +150,7 @@ terribly wrong...\n");
 		      :"=r"(pc)
 		      :"r"(pc));
 #endif  /* __alpha__ */
-  
+
   while (fp < (uchar**) stack_bottom)
   {
 #ifdef __i386__    
@@ -165,7 +165,7 @@ terribly wrong...\n");
     {
       new_fp += 90;
     }
-    
+
     if (fp && pc)
     {
       pc = find_prev_pc(pc, fp);
@@ -195,7 +195,7 @@ terribly wrong...\n");
   }
 
   fprintf(stderr, "Stack trace seems successful - bottom reached\n");
-    
+
 end:
   fprintf(stderr, "Please read http://www.mysql.com/doc/U/s/Using_stack_trace.html and follow instructions on how to resolve the stack trace. Resolved\n\
 stack trace is much more helpful in diagnosing the problem, so please do \n\

@@ -1,15 +1,15 @@
 /* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
-   
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2 of the License, or
    (at your option) any later version.
-   
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
@@ -126,7 +126,7 @@ static void permute_aux(int *order, int num_queries, int* fixed)
     }
 
   /*printf("num_free = %d\n", num_free); */
-  
+
   if(num_free <= 1)
     {
       count++;
@@ -156,7 +156,7 @@ static void run_query_batch(int* order, int num_queries)
        dump_result(q->mysql, q->query);
     }
   printf("\n");
-    
+
 }
 
 static void safe_net_read(NET* net, char* query)
@@ -167,8 +167,8 @@ static void safe_net_read(NET* net, char* query)
     die("Error running query '%s'", query);
   if(net->read_pos[0] == 255)
     die("Error running query '%s'", query);
-}    
-		  
+}
+
 
 static void safe_query(MYSQL* mysql, char* query, int read_ok)
 {
@@ -230,7 +230,7 @@ int main()
 
   permute(order, num_queries);
   printf("count = %d\n", count);
-  
+
   mysql_close(&lock);
   mysql_close(&sel);
   mysql_close(&del_ins);

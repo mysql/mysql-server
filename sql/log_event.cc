@@ -1,15 +1,15 @@
 /* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
-   
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2 of the License, or
    (at your option) any later version.
-   
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
@@ -238,7 +238,7 @@ void Load_log_event::pack_info(String* packet)
     tmp.append(" REPLACE ");
   else if (sql_ex.opt_flags && IGNORE_FLAG )
     tmp.append(" IGNORE ");
-  
+
   tmp.append("INTO TABLE ");
   tmp.append(table_name);
   if (sql_ex.field_term_len)
@@ -254,13 +254,13 @@ void Load_log_event::pack_info(String* packet)
     tmp.append( " ENCLOSED BY ");
     pretty_print_str(&tmp, sql_ex.enclosed, sql_ex.enclosed_len);
   }
-     
+
   if (sql_ex.escaped_len)
   {
     tmp.append( " ESCAPED BY ");
     pretty_print_str(&tmp, sql_ex.escaped, sql_ex.escaped_len);
   }
-     
+
   if (sql_ex.line_term_len)
   {
     tmp.append(" LINES TERMINATED BY ");
@@ -272,7 +272,7 @@ void Load_log_event::pack_info(String* packet)
     tmp.append(" LINES STARTING BY ");
     pretty_print_str(&tmp, sql_ex.line_start, sql_ex.line_start_len);
   }
-     
+
   if ((int)skip_lines > 0)
     tmp.append( " IGNORE %ld LINES ", (long) skip_lines);
 
@@ -285,7 +285,7 @@ void Load_log_event::pack_info(String* packet)
       if (i)
 	tmp.append(" ,");
       tmp.append( field);
-	  
+
       field += field_lens[i]  + 1;
     }
     tmp.append(')');
@@ -355,7 +355,7 @@ int Log_event::net_send(THD* thd, const char* log_name, my_off_t pos)
   const char* event_type;
   if (p)
     log_name = p + 1;
-  
+
   packet->length(0);
   net_store_data(packet, log_name, strlen(log_name));
   net_store_data(packet, (longlong) pos);
@@ -524,9 +524,9 @@ Log_event* Log_event::read_log_event(const char* buf, int event_len,
   if (event_len < EVENT_LEN_OFFSET ||
       (uint)event_len != uint4korr(buf+EVENT_LEN_OFFSET))
     return NULL; // general sanity check - will fail on a partial read
-  
+
   Log_event* ev = NULL;
-  
+
   switch(buf[EVENT_TYPE_OFFSET])
   {
   case QUERY_EVENT:
@@ -779,7 +779,7 @@ void Query_log_event::print(FILE* file, bool short_form, char* last_db)
       if (!(same_db = !memcmp(last_db, db, db_len + 1)))
         memcpy(last_db, db, db_len + 1);
     }
-  
+
   if (db && db[0] && !same_db)
     fprintf(file, "use %s;\n", db);
   end=int10_to_str((long) when, strmov(buff,"SET TIMESTAMP="),10);
@@ -795,7 +795,7 @@ void Query_log_event::print(FILE* file, bool short_form, char* last_db)
 int Query_log_event::write_data(IO_CACHE* file)
 {
   if (!query) return -1;
-  
+
   char buf[QUERY_HEADER_LEN]; 
   int4store(buf + Q_THREAD_ID_OFFSET, thread_id);
   int4store(buf + Q_EXEC_TIME_OFFSET, exec_time);
@@ -855,7 +855,7 @@ void Intvar_log_event::print(FILE* file, bool short_form, char* last_db)
   }
   fprintf(file, "%s;\n", llstr(val,llbuff));
   fflush(file);
-  
+
 }
 #endif
 
@@ -994,7 +994,7 @@ Load_log_event::Load_log_event(THD* thd, sql_exchange* ex,
   sql_ex.escaped_len = (uint8) ex->escaped->length();
   sql_ex.opt_flags = 0;
   sql_ex.cached_new_format = -1;
-    
+
   if (ex->dumpfile)
     sql_ex.opt_flags |= DUMPFILE_FLAG;
   if (ex->opt_enclosed)
@@ -1019,7 +1019,7 @@ Load_log_event::Load_log_event(THD* thd, sql_exchange* ex,
     sql_ex.empty_flags |= LINE_START_EMPTY;
   if (!ex->escaped->length())
     sql_ex.empty_flags |= ESCAPED_EMPTY;
-    
+
   skip_lines = ex->skip_lines;
 
   List_iterator<Item> li(fields_arg);
@@ -1066,7 +1066,7 @@ int Load_log_event::copy_log_event(const char *buf, ulong event_len,
   table_name_len = (uint)data_head[L_TBL_LEN_OFFSET];
   db_len = (uint)data_head[L_DB_LEN_OFFSET];
   num_fields = uint4korr(data_head + L_NUM_FIELDS_OFFSET);
-	  
+
   int body_offset = get_data_body_offset();
   if ((int) event_len < body_offset)
     return 1;
@@ -1076,7 +1076,7 @@ int Load_log_event::copy_log_event(const char *buf, ulong event_len,
 		  buf_end,
 		  buf[EVENT_TYPE_OFFSET] != LOAD_EVENT)))
     return 1;
-  
+
   data_len = event_len - body_offset;
   if (num_fields > data_len) // simple sanity check against corruption
     return 1;
@@ -1113,7 +1113,7 @@ void Load_log_event::print(FILE* file, bool short_form, char* last_db)
       if (!(same_db = !memcmp(last_db, db, db_len + 1)))
         memcpy(last_db, db, db_len + 1);
     }
-  
+
   if (db && db[0] && !same_db)
     fprintf(file, "use %s;\n", db);
 
@@ -1123,7 +1123,7 @@ void Load_log_event::print(FILE* file, bool short_form, char* last_db)
     fprintf(file," REPLACE ");
   else if (sql_ex.opt_flags && IGNORE_FLAG )
     fprintf(file," IGNORE ");
-  
+
   fprintf(file, "INTO TABLE %s ", table_name);
   if (sql_ex.field_term)
   {
@@ -1138,13 +1138,13 @@ void Load_log_event::print(FILE* file, bool short_form, char* last_db)
     fprintf(file, " ENCLOSED BY ");
     pretty_print_str(file, sql_ex.enclosed, sql_ex.enclosed_len);
   }
-     
+
   if (sql_ex.escaped)
   {
     fprintf(file, " ESCAPED BY ");
     pretty_print_str(file, sql_ex.escaped, sql_ex.escaped_len);
   }
-     
+
   if (sql_ex.line_term)
   {
     fprintf(file," LINES TERMINATED BY ");
@@ -1156,7 +1156,7 @@ void Load_log_event::print(FILE* file, bool short_form, char* last_db)
     fprintf(file," LINES STARTING BY ");
     pretty_print_str(file, sql_ex.line_start, sql_ex.line_start_len);
   }
-     
+
   if ((int)skip_lines > 0)
     fprintf(file, " IGNORE %ld LINES ", (long) skip_lines);
 
@@ -1170,7 +1170,7 @@ void Load_log_event::print(FILE* file, bool short_form, char* last_db)
       if (i)
 	fputc(',', file);
       fprintf(file, field);
-	  
+
       field += field_lens[i]  + 1;
     }
     fputc(')', file);
@@ -1198,7 +1198,7 @@ void Load_log_event::set_fields(List<Item> &fields)
     fields.push_back(new Item_field(db, table_name, field));	  
     field += field_lens[i]  + 1;
   }
-  
+
 }
 
 Slave_log_event::Slave_log_event(THD* thd_arg,struct st_master_info* mi):
@@ -1388,7 +1388,7 @@ Append_block_log_event::Append_block_log_event(THD* thd_arg, char* block_arg,
 {
 }
 #endif  
-  
+
 Append_block_log_event::Append_block_log_event(const char* buf, int len):
   Log_event(buf, 0),block(0)
 {
@@ -1487,7 +1487,7 @@ Execute_load_log_event::Execute_load_log_event(THD* thd_arg):
 {
 }
 #endif  
-  
+
 Execute_load_log_event::Execute_load_log_event(const char* buf,int len):
   Log_event(buf, 0),file_id(0)
 {
@@ -1546,7 +1546,7 @@ int Query_log_event::exec_event(struct st_master_info* mi)
     thd->net.last_errno = 0;
     thd->net.last_error[0] = 0;
     thd->slave_proxy_id = thread_id;	// for temp tables
-	
+
     /*
       sanity check to make sure the master did not get a really bad
       error on the query
@@ -1587,7 +1587,7 @@ int Query_log_event::exec_event(struct st_master_info* mi)
   // assume no convert for next query unless set explictly
   thd->convert_set = 0;
   close_thread_tables(thd);
-      
+
   if (thd->query_error || thd->fatal_error)
   {
     slave_print_error(actual_error, "error '%s' on query '%s'",
@@ -1606,7 +1606,7 @@ int Load_log_event::exec_event(NET* net, struct st_master_info* mi)
   thd->db = rewrite_db((char*)db);
   thd->query = 0;
   thd->query_error = 0;
-	    
+
   if (db_ok(thd->db, replicate_do_db, replicate_ignore_db))
   {
     thd->set_time((time_t)when);
@@ -1639,7 +1639,7 @@ int Load_log_event::exec_event(NET* net, struct st_master_info* mi)
       String line_term(sql_ex.line_term,sql_ex.line_term_len);
       String line_start(sql_ex.line_start,sql_ex.line_start_len);
       String escaped(sql_ex.escaped,sql_ex.escaped_len);
-	    
+
       ex.opt_enclosed = (sql_ex.opt_flags & OPT_ENCLOSED_FLAG);
       if (sql_ex.empty_flags & FIELD_TERM_EMPTY)
 	ex.field_term->length(0);
@@ -1674,7 +1674,7 @@ int Load_log_event::exec_event(NET* net, struct st_master_info* mi)
     if (net)
       skip_load_data_infile(net);
   }
-	    
+
   thd->net.vio = 0; 
   thd->db = 0;// prevent db from being freed
   close_thread_tables(thd);
@@ -1683,14 +1683,14 @@ int Load_log_event::exec_event(NET* net, struct st_master_info* mi)
     int sql_error = thd->net.last_errno;
     if (!sql_error)
       sql_error = ER_UNKNOWN_ERROR;
-		
+
     slave_print_error(sql_error, "Slave: Error '%s' running load data infile ",
 		    ER_SAFE(sql_error));
     free_root(&thd->mem_root,0);
     return 1;
   }
   free_root(&thd->mem_root,0);
-	    
+
   if (thd->fatal_error)
   {
     sql_print_error("Slave: Fatal error running LOAD DATA INFILE ");
@@ -1728,7 +1728,7 @@ int Rotate_log_event::exec_event(struct st_master_info* mi)
   bool rotate_binlog = 0, write_slave_event = 0;
   char* log_name = mi->log_file_name;
   pthread_mutex_lock(&mi->lock);
-      
+
   // rotate local binlog only if the name of remote has changed
   if (!*log_name || !(log_name[ident_len] == 0 &&
 		      !memcmp(log_name, new_log_ident, ident_len)))
@@ -1753,7 +1753,7 @@ int Rotate_log_event::exec_event(struct st_master_info* mi)
   pthread_cond_broadcast(&mi->cond);
   pthread_mutex_unlock(&mi->lock);
   flush_master_info(mi);
-      
+
   if (write_slave_event)
   {
     Slave_log_event s(thd, mi);
@@ -1810,7 +1810,7 @@ int Create_file_log_event::exec_event(struct st_master_info* mi)
     slave_print_error(my_errno, "Could not open file '%s'", fname_buf);
     goto err;
   }
-  
+
   // a trick to avoid allocating another buffer
   strmov(p, ".data");
   fname = fname_buf;
@@ -1823,7 +1823,7 @@ int Create_file_log_event::exec_event(struct st_master_info* mi)
   }
   end_io_cache(&file);
   my_close(fd, MYF(0));
-  
+
   // fname_buf now already has .data, not .info, because we did our trick
   if ((fd = my_open(fname_buf, O_WRONLY|O_CREAT|O_BINARY|O_TRUNC,
 		    MYF(MY_WME))) < 0)

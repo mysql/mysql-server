@@ -510,7 +510,7 @@ void close_temporary_tables(THD *thd)
   const uint init_query_buf_size = 11;		// "drop table "
   uint query_buf_size; 
   bool found_user_tables = 0;
-  
+
   LINT_INIT(end);
   query_buf_size = init_query_buf_size;
 
@@ -1166,7 +1166,7 @@ bool wait_for_tables(THD *thd)
     /* Now we can open all tables without any interference */
     thd->proc_info="Reopen tables";
     result=reopen_tables(thd,0,0);
-     
+
   }
   pthread_mutex_unlock(&LOCK_open);
   thd->proc_info=0;
@@ -2209,4 +2209,3 @@ int init_ftfuncs(THD *thd, bool no_order)
   }
   return 0;
 }
-
