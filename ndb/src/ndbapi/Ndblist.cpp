@@ -30,7 +30,7 @@ void
 Ndb::checkFailedNode()
 {
   DBUG_ENTER("Ndb::checkFailedNode");
-  DBUG_PRINT("enter", ("theNoOfDBnodes: %d"));
+  DBUG_PRINT("enter", ("theNoOfDBnodes: %d", theNoOfDBnodes));
 
   DBUG_ASSERT(theNoOfDBnodes < MAX_NDB_NODES);
   for (int i = 0; i < theNoOfDBnodes; i++){
