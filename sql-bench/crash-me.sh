@@ -1,3 +1,4 @@
+#!@PERL@
 # Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
 #
 # This library is free software; you can redistribute it and/or
@@ -279,13 +280,14 @@ report("Order by function","order_by_function",
        "select a from crash_me order by a+1");
 report("Order by on unused column",'order_on_unused',
        "select b from crash_me order by a");
-check_and_report("Order by DESC is remembered",'order_by_remember_desc',
-		 ["create table crash_q (s int,s1 int)",
-		  "insert into crash_q values(1,1)",
-		  "insert into crash_q values(3,1)",
-		  "insert into crash_q values(2,1)"],
-		 "select s,s1 from crash_q order by s1 DESC,s",
-		 ["drop table crash_q $drop_attr"],[3,2,1],7,undef(),3);
+# little bit deprecated
+#check_and_report("Order by DESC is remembered",'order_by_remember_desc',
+#		 ["create table crash_q (s int,s1 int)",
+#		  "insert into crash_q values(1,1)",
+#		  "insert into crash_q values(3,1)",
+#		  "insert into crash_q values(2,1)"],
+#		 "select s,s1 from crash_q order by s1 DESC,s",
+#		 ["drop table crash_q $drop_attr"],[3,2,1],7,undef(),3);
 report("Compute",'compute',
        "select a from crash_me order by a compute sum(a) by a");
 report("INSERT with Value lists",'insert_multi_value',
@@ -843,7 +845,6 @@ try_and_report("Automatic row id", "automatic_rowid",
    ["DAYOFWEEK","dayofweek","dayofweek(DATE '1997-02-01')",7,0],
    ["DAYOFYEAR","dayofyear","dayofyear(DATE '1997-02-01')",32,0],
    ["QUARTER","quarter","quarter(DATE '1997-02-01')",1,0],
-   ["WEEK","week","week(DATE '1997-02-01')",5,0],
    ["YEAR","year","year(DATE '1997-02-01')",1997,0],
    ["CURTIME","curtime","curtime()",0,2],
    ["HOUR","hour","hour('12:13:14')",12,0],
@@ -979,7 +980,6 @@ try_and_report("Automatic row id", "automatic_rowid",
    ["ASCII in string cast",'ascii_string',"ascii('a')",'a',1],
    ["EBCDIC in string cast",'ebcdic_string',"ebcdic('a')",'a',1],
    ["TRUNC (1 arg)",'trunc1arg',"trunc(222.6)",222,0],
-   ["NOROUND",'noround',"noround(222.6)",222.6,0],
    ["FIXED",'fixed',"fixed(222.6666,10,2)",'222.67',0],
    ["FLOAT",'float',"float(6666.66,4)",6667,0],
    ["LENGTH",'length',"length(1)",2,0],
@@ -1186,12 +1186,31 @@ else
 }
 
 
-if ($limits{'func_extra_noround'} eq 'yes')
+#  Test: NOROUND 
 {
-  report("Ignoring NOROUND","ignoring_noround",
-  "create table crash_q (a int)",
-  "insert into crash_q values(noround(10.22))",
-  "drop table crash_q $drop_attr"); 
+ my $resultat = 'undefined';
+ my $error;
+ print "NOROUND: ";
+ save_incomplete('func_extra_noround','Function NOROUND');
+
+# 1) check if noround() function is supported
+ $error = safe_query("select noround(22.6) $end_query");
+ if ($error ne 1)         # syntax error -- noround is not supported 
+ {
+   $resultat = 'no'
+ } else                   # Ok, now check if it really works
+ {   
+   $error=safe_query(  "create table crash_me_nr (a int)",
+    "insert into crash_me_nr values(noround(10.2))",
+    "drop table crash_me_nr $drop_attr");
+  if ($error eq 1) {
+       $resultat = "syntax only";
+    } else {
+       $resultat = 'yes';
+    }
+ } 
+ print "$resultat\n";
+ save_config_data('func_extra_noround',$resultat,"Function NOROUND");
 }
 
 check_parenthesis("func_sql_","CURRENT_USER");
@@ -1199,6 +1218,32 @@ check_parenthesis("func_sql_","SESSION_USER");
 check_parenthesis("func_sql_","SYSTEM_USER");
 check_parenthesis("func_sql_","USER");
 
+# Test: WEEK()
+{
+ my $explain="";
+ my $resultat="no";
+ my $error;
+ print "WEEK:";
+ save_incomplete('func_odbc_week','WEEK');
+ $error = safe_query_result("select week(DATE '1997-02-01') $end_query",5,0);
+ # actually this query must return 4 or 5 in the $last_result,
+ # $error can be 1 (not supported at all) , -1 ( probably USA weeks)
+ # and 0 - EURO weeks
+ if ($error == -1) { 
+     if ($last_result == 4) {
+       $resultat = 'USA';
+       $explain = ' started from Sunday';
+     } else {
+       $resultat='error';
+       $explain = " must return 4 or 5, but $last_error";
+     }
+ } elsif ($error == 0) {
+       $resultat = 'EURO';
+       $explain = ' started from Monday'; 
+ }
+ print " $resultat\n";
+ save_config_data('func_odbc_week',$resultat,"WEEK $explain");
+}
 
 report("LIKE on numbers","like_with_number",
        "create table crash_q (a int,b int)",
@@ -1681,28 +1726,36 @@ report("views","views",
        "create view crash_q as select a from crash_me",
        "drop view crash_q $drop_attr");
 
-report("foreign key syntax","foreign_key_syntax",
-       create_table("crash_q",["a integer not null"],["primary key (a)"]),
-       create_table("crash_q2",["a integer not null",
-				"foreign key (a) references crash_q (a)"],
-		    []),
-       "insert into crash_q values (1)",
-       "insert into crash_q2 values (1)",
-       "drop table crash_q2 $drop_attr",
-       "drop table crash_q $drop_attr");
-
-if ($limits{'foreign_key_syntax'} eq 'yes')
+#  Test: foreign key
 {
-  report_fail("foreign keys","foreign_key",
-	      create_table("crash_q",["a integer not null"],
-			   ["primary key (a)"]),
-	      create_table("crash_q2",["a integer not null",
-				       "foreign key (a) references crash_q (a)"],
-			   []),
-	      "insert into crash_q values (1)",
-	      "insert into crash_q2 values (2)",
-	      "drop table crash_q2 $drop_attr",
-	      "drop table crash_q $drop_attr");
+ my $resultat = 'undefined';
+ my $error;
+ print "foreign keys: ";
+ save_incomplete('foreign_key','foreign keys');
+
+# 1) check if foreign keys are supported
+ safe_query(create_table("crash_me_qf",["a integer not null"],
+         ["primary key (a)"]));
+ $error = safe_query( create_table("crash_me_qf2",["a integer not null",
+	 "foreign key (a) references crash_me_qf (a)"], []));
+ 			   
+ if ($error eq 1)         # OK  -- syntax is supported 
+ {
+   $resultat = 'error';
+   # now check if foreign key really works
+   safe_query( "insert into crash_me_qf values (1)");
+   if (safe_query( "insert into crash_me_qf2 values (2)") eq 1) {
+     $resultat = 'syntax only';
+   } else {
+     $resultat = 'yes';
+   }       
+   
+ } else  { 
+   $resultat = "no";
+ } 
+ safe_query( "drop table crash_me_qf2 $drop_attr","drop table crash_me_qf $drop_attr");
+ print "$resultat\n";
+ save_config_data('foreign_key',$resultat,"foreign keys");
 }
 
 report("Create SCHEMA","create_schema",
@@ -2329,7 +2382,7 @@ $0 takes the following options:
 --user='user_name'
   User name to log into the SQL server.
 
---start-cmd='command to restart server'
+--db-start-cmd='command to restart server'
   Automaticly restarts server with this command if the database server dies.
 
 --sleep='time in seconds' (Default $opt_sleep)

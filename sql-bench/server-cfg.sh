@@ -3386,7 +3386,7 @@ sub fix_for_insert
 #	     Configuration for SAPDB 
 #############################################################################
 
-package db_Sapdb;
+package db_sapdb;
 
 sub new
 {
