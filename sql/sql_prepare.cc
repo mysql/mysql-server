@@ -1475,8 +1475,16 @@ error:
 static bool init_param_array(Prepared_statement *stmt)
 {
   LEX *lex= stmt->lex;
+  THD *thd= stmt->thd;
   if ((stmt->param_count= lex->param_list.elements))
   {
+    if (stmt->param_count > (uint) UINT_MAX16)
+    {
+      /* Error code to be defined in 5.0 */
+      send_error(thd, ER_UNKNOWN_ERROR,
+                 "Prepared statement contains too many placeholders.");
+      return 1;
+    }
     Item_param **to;
     List_iterator<Item_param> param_iterator(lex->param_list);
     /* Use thd->mem_root as it points at statement mem_root */
@@ -1485,7 +1493,7 @@ static bool init_param_array(Prepared_statement *stmt)
                                   sizeof(Item_param*) * stmt->param_count);
     if (!stmt->param_array)
     {
-      send_error(stmt->thd, ER_OUT_OF_RESOURCES);
+      send_error(thd, ER_OUT_OF_RESOURCES);
       return 1;
     }
     for (to= stmt->param_array;
