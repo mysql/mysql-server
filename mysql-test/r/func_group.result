@@ -769,3 +769,38 @@ show columns from t2;
 Field	Type	Null	Key	Default	Extra
 f2	datetime	NO		0000-00-00 00:00:00	
 drop table t2, t1;
+create table t2 (ff double);
+insert into t2 values (2.2);
+select cast(sum(distinct ff) as decimal(5,2)) from t2;
+cast(sum(distinct ff) as decimal(5,2))
+2.20
+select cast(sum(distinct ff) as signed) from t2;
+cast(sum(distinct ff) as signed)
+2
+select cast(variance(ff) as decimal(10,3)) from t2;
+cast(variance(ff) as decimal(10,3))
+0.000
+select cast(min(ff) as decimal(5,2)) from t2;
+cast(min(ff) as decimal(5,2))
+2.20
+create table t1 (df decimal(5,1));
+insert into t1 values(1.1);
+insert into t1 values(2.2);
+select cast(sum(distinct df) as signed) from t1;
+cast(sum(distinct df) as signed)
+3
+select cast(min(df) as signed) from t1;
+cast(min(df) as signed)
+0
+select 1e8 * sum(distinct df) from t1;
+1e8 * sum(distinct df)
+330000000
+select 1e8 * min(df) from t1;
+1e8 * min(df)
+110000000
+create table t3 (ifl int);
+insert into t3 values(1), (2);
+select cast(min(ifl) as decimal(5,2)) from t3;
+cast(min(ifl) as decimal(5,2))
+1.00
+drop table t1, t2, t3;

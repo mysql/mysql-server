@@ -2276,3 +2276,39 @@ pass	userid	parentid	parentgroup	childid	groupname	grouptypeid	crse	categoryid	c
 1	5141	12	group2	12	group2	5	1	2	88	Oct04
 1	5141	12	group2	12	group2	5	1	2	89	Oct04
 drop table if exists t1, t2, t3, t4, t5;
+create table t1 (df decimal(5,1));
+insert into t1 values(1.1);
+insert into t1 values(2.2);
+select * from t1 where df <= all (select avg(df) from t1 group by df);
+df
+1.1
+select * from t1 where df >= all (select avg(df) from t1 group by df);
+df
+2.2
+drop table t1;
+create table t1 (df decimal(5,1));
+insert into t1 values(1.1);
+select 1.1 * exists(select * from t1);
+1.1 * exists(select * from t1)
+1.1
+drop table t1;
+CREATE TABLE t1 (
+grp int(11) default NULL,
+a decimal(10,2) default NULL);
+insert into t1 values (1, 1), (2, 2), (2, 3), (3, 4), (3, 5), (3, 6), (NULL, NULL);
+select * from t1;
+grp	a
+1	1.00
+2	2.00
+2	3.00
+3	4.00
+3	5.00
+3	6.00
+NULL	NULL
+select min(a) from t1 group by grp;
+min(a)
+NULL
+1.00
+2.00
+4.00
+drop table t1;
