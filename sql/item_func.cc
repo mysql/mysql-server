@@ -29,6 +29,16 @@
 #include <ft_global.h>
 
 
+bool check_reserved_words(LEX_STRING *name)
+{
+  if (!my_strcasecmp(system_charset_info, name->str, "GLOBAL") ||
+      !my_strcasecmp(system_charset_info, name->str, "LOCAL") ||
+      !my_strcasecmp(system_charset_info, name->str, "SESSION"))
+    return TRUE;
+  return FALSE;
+}
+
+
 static void my_coll_agg_error(DTCollation &c1, DTCollation &c2,
 			      const char *fname)
 {
@@ -2956,6 +2966,12 @@ Item *get_system_var(THD *thd, enum_var_type var_type, LEX_STRING name,
     return new Item_string("@@VERSION", server_version,
 			   (uint) strlen(server_version),
 			   system_charset_info);
+
+  if (name.str && component.str && check_reserved_words(&name))
+  {
+    net_printf(thd, ER_SYNTAX_ERROR);
+    return 0;
+  }
 
   Item *item;
   sys_var *var;
