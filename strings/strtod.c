@@ -26,8 +26,12 @@
 
  */
 
-#include "my_base.h"
+#include "my_base.h"				/* Includes errno.h */
 #include "m_ctype.h"
+
+#ifndef EOVERFLOW
+#define EOVERFLOW 84
+#endif
 
 static double scaler10[] = {
   1.0, 1e10, 1e20, 1e30, 1e40, 1e50, 1e60, 1e70, 1e80, 1e90
@@ -36,10 +40,6 @@ static double scaler1[] = {
   1.0, 10.0, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9
 };
 
-
-#ifndef HUGE_VAL				/* Should be +Infinitive */
-#define HUGE_VAL DBL_MAX
-#endif
 
 double my_strtod(const char *str, char **end)
 {

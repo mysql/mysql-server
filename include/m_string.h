@@ -218,9 +218,6 @@ extern int is_prefix(const char *, const char *);
 /* Conversion routines */
 double my_strtod(const char *str, char **end);
 double my_atof(const char *nptr);
-#ifndef EOVERFLOW
-#define EOVERFLOW 84
-#endif
 
 #ifdef USE_MY_ITOA
 extern char *my_itoa(int val,char *dst,int radix);
