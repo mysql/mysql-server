@@ -77,10 +77,13 @@ int main(int argc, char** argv){
   if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
     return NDBT_ProgramExit(NDBT_WRONGARGS);
 
-  Ndb::setConnectString(opt_connect_str);
+  Ndb_cluster_connection con(opt_connect_str);
+  if(con.connect(12, 5, 1) != 0)
+  {
+    return NDBT_ProgramExit(NDBT_FAILED);
+  }
 
-  Ndb* pMyNdb;
-  pMyNdb = new Ndb(_dbname);  
+  Ndb* pMyNdb = new Ndb(&con, _dbname);  
   pMyNdb->init();
   
   ndbout << "Waiting...";
