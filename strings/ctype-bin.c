@@ -200,7 +200,7 @@ static int my_wildcmp_bin(CHARSET_INFO *cs,
 			   const char *wildstr,const char *wildend,
 			   int escape, int w_one, int w_many)
 {
-  int result= -1;				// Not found, using wildcards
+  int result= -1;				/* Not found, using wildcards */
   
   while (wildstr != wildend)
   {
@@ -214,15 +214,15 @@ static int my_wildcmp_bin(CHARSET_INFO *cs,
       }
       if (wildstr == wildend)
       {
-	return(str != str_end);			// Match if both are at end
+	return(str != str_end);			/* Match if both are at end */
       }
-      result=1;					// Found an anchor char
+      result=1;					/* Found an anchor char */
     }
     if (*wildstr == w_one)
     {
       do
       {
-	if (str == str_end)			// Skip one char if possible
+	if (str == str_end)			/* Skip one char if possible */
 	  return(result);
 	str++;
       } while (*++wildstr == w_one && wildstr != wildend);
@@ -230,7 +230,7 @@ static int my_wildcmp_bin(CHARSET_INFO *cs,
 	break;
     }
     if (*wildstr == w_many)
-    {						// Found w_many
+    {						/* Found w_many */
       char cmp;
       
       wildstr++;
@@ -248,11 +248,11 @@ static int my_wildcmp_bin(CHARSET_INFO *cs,
 	  str++;
 	  continue;
 	}
-	break;					// Not a wild character
+	break;					/* Not a wild character */
       }
       if (wildstr == wildend)
       {
-	return(0);				// Ok if w_many is last
+	return(0);				/* Ok if w_many is last */
       }
       if (str == str_end)
       {
@@ -261,7 +261,7 @@ static int my_wildcmp_bin(CHARSET_INFO *cs,
       
       if ((cmp= *wildstr) == escape && wildstr+1 != wildend)
 	cmp= *++wildstr;
-      wildstr++;				// This is compared trough cmp
+      wildstr++;				/* This is compared trough cmp */
       do
       {
 	while (str != str_end && *str != cmp)

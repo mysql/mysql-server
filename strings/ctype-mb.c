@@ -161,7 +161,7 @@ int my_wildcmp_mb(CHARSET_INFO *cs,
 		  const char *wildstr,const char *wildend,
 		  int escape, int w_one, int w_many)
 {
-  int result= -1;				// Not found, using wildcards
+  int result= -1;				/* Not found, using wildcards */
 
   bool use_mb_flag=use_mb(cs);
 
@@ -182,16 +182,16 @@ int my_wildcmp_mb(CHARSET_INFO *cs,
       }
       else
       if (str == str_end || likeconv(cs,*wildstr++) != likeconv(cs,*str++))
-	return(1);				// No match
+	return(1);				/* No match */
       if (wildstr == wildend)
-	return (str != str_end);		// Match if both are at end
-      result=1;					// Found an anchor char
+	return (str != str_end);		/* Match if both are at end */
+      result=1;					/* Found an anchor char */
     }
     if (*wildstr == w_one)
     {
       do
       {
-	if (str == str_end)			// Skip one char if possible
+	if (str == str_end)			/* Skip one char if possible */
 	  return (result);
 	INC_PTR(cs,str,str_end);
       } while (++wildstr < wildend && *wildstr == w_one);
@@ -199,7 +199,7 @@ int my_wildcmp_mb(CHARSET_INFO *cs,
 	break;
     }
     if (*wildstr == w_many)
-    {						// Found w_many
+    {						/* Found w_many */
       uchar cmp;
       const char* mb = wildstr;
       int mblen=0;
@@ -217,10 +217,10 @@ int my_wildcmp_mb(CHARSET_INFO *cs,
 	  INC_PTR(cs,str,str_end);
 	  continue;
 	}
-	break;					// Not a wild character
+	break;					/* Not a wild character */
       }
       if (wildstr == wildend)
-	return(0);				// Ok if w_many is last
+	return(0);				/* Ok if w_many is last */
       if (str == str_end)
 	return -1;
       
@@ -231,7 +231,7 @@ int my_wildcmp_mb(CHARSET_INFO *cs,
       LINT_INIT(mblen);
       if (use_mb_flag)
         mblen = my_ismbchar(cs, wildstr, wildend);
-      INC_PTR(cs,wildstr,wildend);		// This is compared trough cmp
+      INC_PTR(cs,wildstr,wildend);		/* This is compared trough cmp */
       cmp=likeconv(cs,cmp);   
       do
       {

@@ -40,7 +40,7 @@ typedef unsigned char tchar;
 #define IGNORE 0
 
 
-// level 1 symbols & order
+/* level 1 symbols & order */
 enum l1_symbols {
     L1_08 = TOT_LEVELS,
     L1_18,
@@ -142,7 +142,7 @@ enum l1_symbols {
     L1_SARA_AI_MAIMALAI
 };
 
-// level 2 symbols & order
+/* level 2 symbols & order */
 enum l2_symbols {
     L2_BLANK = TOT_LEVELS,
     L2_THAII,
@@ -156,7 +156,7 @@ enum l2_symbols {
     L2_TONE4
 };
 
-// level 3 symbols & order
+/* level 3 symbols & order */
 enum l3_symbols {
 	L3_BLANK = TOT_LEVELS,
     L3_SPACE,
@@ -201,7 +201,7 @@ enum l3_symbols {
     L3_V_LINE
 };
 
-// level 4 symbols & order
+/* level 4 symbols & order */
 enum l4_symbols {
     L4_BLANK = TOT_LEVELS,
     L4_MIN,
