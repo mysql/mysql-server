@@ -61,7 +61,7 @@ aclocal; autoheader; aclocal; automake; autoconf
  --enable-thread-safe-client \
  --without-berkeley-db
 
-gmake -j 2 .
+gmake -j 2 
 
 time gmake -j 2 distcheck \
  EXTRA_CONF_ARGS="--with-unix-socket-path=/var/tmp/mysql.sock --with-low-memory $EXTRA_CONFIG"
