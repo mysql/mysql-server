@@ -1190,7 +1190,7 @@ Item_cond::fix_fields(THD *thd,TABLE_LIST *tables)
   and_tables_cache= ~(table_map) 0;
 
   if (thd && check_stack_overrun(thd,buff))
-    return 0;					// Fatal error flag is set!
+    return 1;					// Fatal error flag is set!
   while ((item=li++))
   {
     table_map tmp_table_map;
