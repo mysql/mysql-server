@@ -1726,7 +1726,6 @@ bool mysql_insert_select_prepare(THD *thd)
 {
   LEX *lex= thd->lex;
   TABLE_LIST *first_select_leaf_table;
-  int res;
   DBUG_ENTER("mysql_insert_select_prepare");
   /*
     SELECT_LEX do not belong to INSERT statement, so we can't add WHERE
@@ -1744,7 +1743,7 @@ bool mysql_insert_select_prepare(THD *thd)
     exclude first table from leaf tables list, because it belong to
     INSERT
   */
-  DBUG_ASSERT(lex->select_lex.leaf_tables);
+  DBUG_ASSERT(lex->select_lex.leaf_tables != 0);
   lex->leaf_tables_insert= lex->select_lex.leaf_tables;
   /* skip all leaf tables belonged to view where we are insert */
   for (first_select_leaf_table= lex->select_lex.leaf_tables->next_leaf;

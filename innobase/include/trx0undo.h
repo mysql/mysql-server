@@ -307,23 +307,6 @@ trx_undo_parse_discard_latest(
 	byte*	end_ptr,/* in: buffer end */
 	page_t*	page,	/* in: page or NULL */
 	mtr_t*	mtr);	/* in: mtr or NULL */
-/************************************************************************
-Write X/Open XA Transaction Identification (XID) to undo log header */
-
-void
-trx_undo_write_xid(
-/*===============*/
-	trx_ulogf_t*	log_hdr,/* in: undo log header */
-	XID*		xid);	/* in: X/Open XA Transaction Identification */
-
-/************************************************************************
-Read X/Open XA Transaction Identification (XID) from undo log header */
-
-void
-trx_undo_read_xid(
-/*==============*/
-	trx_ulogf_t*	log_hdr,/* in: undo log header */
-	XID*		xid);	/* out: X/Open XA Transaction Identification */
 
 /* Types of an undo log segment */
 #define	TRX_UNDO_INSERT		1	/* contains undo entries for inserts */
@@ -419,7 +402,8 @@ struct trx_undo_struct{
 #define TRX_UNDO_PAGE_HDR_SIZE	(6 + FLST_NODE_SIZE)
 
 /* An update undo segment with just one page can be reused if it has
-< this number bytes used */
+< this number bytes used; we must leave space at least for one new undo
+log header on the page */
 
 #define TRX_UNDO_PAGE_REUSE_LIMIT	(3 * UNIV_PAGE_SIZE / 4)
 
@@ -488,17 +472,25 @@ page of an update undo log segment. */
 #define TRX_UNDO_HISTORY_NODE	34	/* If the log is put to the history
 					list, the file list node is here */
 /*-------------------------------------------------------------*/
+#define TRX_UNDO_LOG_OLD_HDR_SIZE (34 + FLST_NODE_SIZE)
+
+/* Note: the writing of the undo log old header is coded by a log record
+MLOG_UNDO_HDR_CREATE or MLOG_UNDO_HDR_REUSE. The appending of an XID to the
+header is logged separately. In this sense, the XID is not really a member
+of the undo log header. TODO: do not append the XID to the log header if XA
+is not needed by the user. The XID wastes about 150 bytes of space in every
+undo log. In the history list we may have millions of undo logs, which means
+quite a large overhead. */
+
 /* X/Open XA Transaction Identification (XID)                  */
 
-#define	TRX_UNDO_XA_FORMAT	(34 + FLST_NODE_SIZE)
+#define	TRX_UNDO_XA_FORMAT	(TRX_UNDO_LOG_OLD_HDR_SIZE)
 #define	TRX_UNDO_XA_TRID_LEN	(TRX_UNDO_XA_FORMAT + 4)
 #define	TRX_UNDO_XA_BQUAL_LEN	(TRX_UNDO_XA_TRID_LEN + 4)
 #define	TRX_UNDO_XA_XID		(TRX_UNDO_XA_BQUAL_LEN + 4)
-#define	TRX_UNDO_XA_LEN		(TRX_UNDO_XA_XID + XIDDATASIZE)
-
-/*-------------------------------------------------------------*/
-#define	TRX_UNDO_LOG_HDR_SIZE	(TRX_UNDO_XA_LEN)
-/*-------------------------------------------------------------*/
+/*--------------------------------------------------------------*/
+#define TRX_UNDO_LOG_XA_HDR_SIZE (TRX_UNDO_XA_XID + XIDDATASIZE)
+				/* Total size of the header with the XA XID */
 
 #ifndef UNIV_NONINL
 #include "trx0undo.ic"

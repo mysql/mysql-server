@@ -1598,6 +1598,8 @@ insert into t1 values (2);
 set sort_buffer_size = (select s1 from t1);
 ERROR 21000: Subquery returns more than 1 row
 do (select * from t1);
+Warnings:
+Error	1242	Subquery returns more than 1 row
 drop table t1;
 create table t1 (s1 char);
 insert into t1 values ('e');
