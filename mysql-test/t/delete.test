@@ -1,0 +1,8 @@
+drop table if exists t1;
+
+# test delete using hidden_primary_key
+create table t1 (a int) type=bdb;
+insert into t1 values (1), (2);
+delete from t1 where a = 1;
+
+drop table t1;
