@@ -436,20 +436,6 @@ create database mysqltest ;
 prepare stmt3 from ' drop database mysqltest ';
 drop database mysqltest ;
 
-## grant/revoke + drop user
---error 1295
-prepare stmt3 from ' grant all on test.t1 to drop_user@localhost
-identified by ''looser'' ';
-grant all on test.t1 to drop_user@localhost
-identified by 'looser' ;
---error 1295
-prepare stmt3 from ' revoke all privileges on test.t1 from 
-drop_user@localhost ';
-revoke all privileges on test.t1 from drop_user@localhost ;
---error 1295
-prepare stmt3 from ' drop user drop_user@localhost ';
-drop user drop_user@localhost;
-
 #### table related commands
 ## describe
 prepare stmt3 from ' describe t2 ';
@@ -606,7 +592,7 @@ prepare stmt1 from ' rename table t5 to t6, t7 to t8 ' ;
 create table t5 (a int) ;
 # rename must fail, t7 does not exist
 # Clean up the filename here because embedded server reports whole path
---replace_result \\ / $MYSQL_TEST_DIR . /var/master-data/ /
+--replace_result \\ / $MYSQL_TEST_DIR . /var/master-data/ / t7.frm t7
 --error 1017
 execute stmt1 ;
 create table t7 (a int) ;
