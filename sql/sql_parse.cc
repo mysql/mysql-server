@@ -2231,6 +2231,10 @@ mysql_execute_command(THD *thd)
   TABLE_LIST *all_tables;
   /* most outer SELECT_LEX_UNIT of query */
   SELECT_LEX_UNIT *unit= &lex->unit;
+  /* Locked closure of all tables */
+  TABLE_LIST *locked_tables= NULL;
+  /* Saved variable value */
+  my_bool old_innodb_table_locks= thd->variables.innodb_table_locks;
   DBUG_ENTER("mysql_execute_command");
 
   /*
@@ -2252,11 +2256,89 @@ mysql_execute_command(THD *thd)
   /* should be assigned after making first tables same */
   all_tables= lex->query_tables;
 
+  thd->shortcut_make_view= 0;
   if (lex->sql_command != SQLCOM_CREATE_PROCEDURE &&
-      lex->sql_command != SQLCOM_CREATE_SPFUNCTION)
+      lex->sql_command != SQLCOM_CREATE_SPFUNCTION &&
+      lex->sql_command != SQLCOM_LOCK_TABLES &&
+      lex->sql_command != SQLCOM_UNLOCK_TABLES)
   {
-    if (sp_cache_functions(thd, lex))
-      DBUG_RETURN(-1);
+    while (1)
+    {
+      if (sp_cache_routines(thd, lex, TYPE_ENUM_FUNCTION))
+	DBUG_RETURN(-1);
+      if (sp_cache_routines(thd, lex, TYPE_ENUM_PROCEDURE))
+	DBUG_RETURN(-1);
+      if (!thd->locked_tables &&
+	  lex->sql_command != SQLCOM_CREATE_TABLE &&
+	  lex->sql_command != SQLCOM_CREATE_VIEW)
+      {
+	MEM_ROOT *thdmemroot= NULL;
+
+	sp_merge_routine_tables(thd, lex);
+	// QQ Preopen tables to find views and triggers.
+	// This means we open, close and open again, which sucks, but
+	// right now it's the easiest way to get it to work. A better
+	// solution will hopefully be found soon...
+	if (lex->sptabs.records || lex->query_tables)
+	{
+	  uint procs, funs, tabs;
+
+	  if (thd->mem_root != thd->current_arena->mem_root)
+	  {
+	    thdmemroot= thd->mem_root;
+	    thd->mem_root= thd->current_arena->mem_root;
+	  }
+	  if (!sp_merge_table_list(thd, &lex->sptabs, lex->query_tables))
+	    DBUG_RETURN(-1);
+	  procs= lex->spprocs.records;
+	  funs= lex->spfuns.records;
+	  tabs= lex->sptabs.records;
+
+	  if ((locked_tables= sp_hash_to_table_list(thd, &lex->sptabs)))
+	  {
+	    // We don't want these updated now
+	    uint ctmpdtabs= thd->status_var.created_tmp_disk_tables;
+	    uint ctmptabs= thd->status_var.created_tmp_tables;
+	    uint count;
+
+	    thd->shortcut_make_view= TRUE;
+	    open_tables(thd, locked_tables, &count);
+	    thd->shortcut_make_view= FALSE;
+	    close_thread_tables(thd);
+	    thd->status_var.created_tmp_disk_tables= ctmpdtabs;
+	    thd->status_var.created_tmp_tables= ctmptabs;
+	    thd->clear_error();
+	    mysql_reset_errors(thd);
+	    locked_tables= NULL;
+	  }
+	  // A kludge: Decrease all temp. table's query ids to allow a
+	  // second opening.
+	  for (TABLE *table= thd->temporary_tables; table ; table=table->next)
+	    table->query_id-= 1;
+	  if (procs < lex->spprocs.records ||
+	      funs < lex->spfuns.records ||
+	      tabs < lex->sptabs.records)
+	  {
+	    if (thdmemroot)
+	      thd->mem_root= thdmemroot;
+	    continue;		// Found more SPs or tabs, try again
+	  }
+	}
+	if (lex->sptabs.records &&
+	    (lex->spfuns.records || lex->spprocs.records) &&
+	    sp_merge_table_list(thd, &lex->sptabs, lex->query_tables))
+	{
+	  if ((locked_tables= sp_hash_to_table_list(thd, &lex->sptabs)))
+	  {
+	    thd->variables.innodb_table_locks= FALSE;
+	    sp_open_and_lock_tables(thd, locked_tables);
+	  }
+	}
+	if (thdmemroot)
+	  thd->mem_root= thdmemroot;
+      }
+      break;
+    } // while (1)
   }
 
   /*
@@ -4261,6 +4343,12 @@ cleanup:
       thd->lock= 0;
   }
 
+  if (locked_tables)
+  {
+    thd->variables.innodb_table_locks= old_innodb_table_locks;
+    if (thd->locked_tables)
+      sp_unlock_tables(thd);
+  }
   DBUG_RETURN(res || thd->net.report_error);
 }
 

@@ -176,6 +176,10 @@ void lex_start(THD *thd, uchar *buf,uint length)
 
   if (lex->spfuns.records)
     my_hash_reset(&lex->spfuns);
+  if (lex->spprocs.records)
+    my_hash_reset(&lex->spprocs);
+  if (lex->sptabs.records)
+    my_hash_reset(&lex->sptabs);
   DBUG_VOID_RETURN;
 }
 

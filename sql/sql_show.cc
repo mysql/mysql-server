@@ -311,7 +311,9 @@ mysql_find_files(THD *thd,List<char> *files, const char *db,const char *path,
     if (db && !(col_access & TABLE_ACLS))
     {
       table_list.db= (char*) db;
+      table_list.db_length= strlen(db);
       table_list.table_name= file->name;
+      table_list.table_name_length= strlen(file->name);
       table_list.grant.privilege=col_access;
       if (check_grant(thd, TABLE_ACLS, &table_list, 1, UINT_MAX, 1))
         continue;
@@ -2519,7 +2521,9 @@ int fill_schema_proc(THD *thd, TABLE_LIST *tables, COND *cond)
 
   bzero((char*) &proc_tables,sizeof(proc_tables));
   proc_tables.db= (char*) "mysql";
+  proc_tables.db_length= 5;
   proc_tables.table_name= proc_tables.alias= (char*) "proc";
+  proc_tables.table_name_length= 4;
   proc_tables.lock_type= TL_READ;
   if (!(proc_table= open_ltable(thd, &proc_tables, TL_READ)))
   {
@@ -3197,6 +3201,7 @@ int mysql_schema_table(THD *thd, LEX *lex, TABLE_LIST *table_list)
                                           table_list->schema_table_name,
                                           table_list->alias);
   table_list->table_name= (char*) table->s->table_name;
+  table_list->table_name_length= strlen(table->s->table_name);
   table_list->table= table;
   table->next= thd->derived_tables;
   thd->derived_tables= table;

@@ -1031,6 +1031,8 @@ public:
   sp_rcontext *spcont;		// SP runtime context
   sp_cache   *sp_proc_cache;
   sp_cache   *sp_func_cache;
+  bool       shortcut_make_view; /* Don't do full mysql_make_view()
+				    during pre-opening of tables. */
 
   /*
     If we do a purge of binary logs, log index info of the threads

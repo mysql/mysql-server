@@ -1464,6 +1464,7 @@ call:
 	    lex->sql_command= SQLCOM_CALL;
 	    lex->spname= $2;
 	    lex->value_list.empty();
+	    sp_add_to_hash(&lex->spprocs, $2);
 	  }
           '(' sp_cparam_list ')' {}
 	;
@@ -1869,36 +1870,21 @@ sp_proc_stmt:
 	    if (lex->sql_command != SQLCOM_SET_OPTION ||
 		! lex->var_list.is_empty())
 	    {
-              /*
-                Currently we can't handle queries inside a FUNCTION or
-                TRIGGER, because of the way table locking works. This is 
-                unfortunate, and limits the usefulness of functions and
-                especially triggers a tremendously, but it's nothing we 
-                can do about this at the moment.
-              */
-	      if (sp->m_type != TYPE_ENUM_PROCEDURE)
-	      {
-		my_message(ER_SP_BADSTATEMENT, ER(ER_SP_BADSTATEMENT), MYF(0));
-		YYABORT;
-	      }
-	      else
-	      {
-		sp_instr_stmt *i=new sp_instr_stmt(sp->instructions(),
-						   lex->spcont);
+	      sp_instr_stmt *i=new sp_instr_stmt(sp->instructions(),
+						 lex->spcont);
 
-		/* Extract the query statement from the tokenizer:
-                   The end is either lex->tok_end or tok->ptr. */
-		if (lex->ptr - lex->tok_end > 1)
-		  i->m_query.length= lex->ptr - sp->m_tmp_query;
-		else
-		  i->m_query.length= lex->tok_end - sp->m_tmp_query;
-		i->m_query.str= strmake_root(YYTHD->mem_root,
-					     (char *)sp->m_tmp_query,
-					     i->m_query.length);
-		i->set_lex(lex);
-		sp->add_instr(i);
-		lex->sp_lex_in_use= TRUE;
-	      }
+	      /* Extract the query statement from the tokenizer:
+                 The end is either lex->tok_end or tok->ptr. */
+	      if (lex->ptr - lex->tok_end > 1)
+		i->m_query.length= lex->ptr - sp->m_tmp_query;
+	      else
+		i->m_query.length= lex->tok_end - sp->m_tmp_query;
+	      i->m_query.str= strmake_root(YYTHD->mem_root,
+					   (char *)sp->m_tmp_query,
+					   i->m_query.length);
+	      i->set_lex(lex);
+	      sp->add_instr(i);
+	      lex->sp_lex_in_use= TRUE;
             }
 	    sp->restore_lex(YYTHD);
           }
@@ -1915,11 +1901,6 @@ sp_proc_stmt:
 	    {
 	      sp_instr_freturn *i;
 
-	      if ($2->type() == Item::SUBSELECT_ITEM)
-	      {  /* QQ For now, just disallow subselects as values */
-	        my_message(ER_SP_BADSTATEMENT, ER(ER_SP_BADSTATEMENT), MYF(0));
-	        YYABORT;
-	      }
 	      i= new sp_instr_freturn(lex->sphead->instructions(),
 				      lex->spcont,
 		                      $2, lex->sphead->m_returns);
@@ -4503,7 +4484,7 @@ simple_expr:
 	    sp_name *name= new sp_name($1, $3);
 
 	    name->init_qname(YYTHD);
-	    sp_add_fun_to_lex(Lex, name);
+	    sp_add_to_hash(&Lex->spfuns, name);
 	    if ($5)
 	      $$= new Item_func_sp(name, *$5);
 	    else
@@ -4574,7 +4555,7 @@ simple_expr:
             {
               sp_name *name= sp_name_current_db_new(YYTHD, $1);
 
-              sp_add_fun_to_lex(Lex, name);
+              sp_add_to_hash(&Lex->spfuns, name);
               if ($3)
                 $$= new Item_func_sp(name, *$3);
               else
@@ -6123,6 +6104,8 @@ show_param:
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_SELECT;
             lex->orig_sql_command= SQLCOM_SHOW_STATUS_PROC;
+	    if (!sp_add_to_query_tables(YYTHD, lex, "mysql", "proc", TL_READ))
+	      YYABORT;
             if (prepare_schema_table(YYTHD, lex, 0, SCH_PROCEDURES))
               YYABORT;
 	  }
@@ -6131,6 +6114,8 @@ show_param:
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_SELECT;
             lex->orig_sql_command= SQLCOM_SHOW_STATUS_FUNC;
+	    if (!sp_add_to_query_tables(YYTHD, lex, "mysql", "proc", TL_READ))
+	      YYABORT;
             if (prepare_schema_table(YYTHD, lex, 0, SCH_PROCEDURES))
               YYABORT;
 	  };
@@ -7434,7 +7419,14 @@ set_expr_or_default:
 lock:
 	LOCK_SYM table_or_tables
 	{
-	  Lex->sql_command=SQLCOM_LOCK_TABLES;
+	  LEX *lex= Lex;
+
+	  if (lex->sphead)
+	  {
+	    my_message(ER_SP_BADSTATEMENT, ER(ER_SP_BADSTATEMENT), MYF(0));
+	    YYABORT;
+	  }
+	  lex->sql_command= SQLCOM_LOCK_TABLES;
 	}
 	table_lock_list
 	{}
@@ -7464,7 +7456,19 @@ lock_option:
         ;
 
 unlock:
-	UNLOCK_SYM table_or_tables { Lex->sql_command=SQLCOM_UNLOCK_TABLES; }
+	UNLOCK_SYM
+	{
+	  LEX *lex= Lex;
+
+	  if (lex->sphead)
+	  {
+	    my_message(ER_SP_BADSTATEMENT, ER(ER_SP_BADSTATEMENT), MYF(0));
+	    YYABORT;
+	  }
+	  lex->sql_command= SQLCOM_UNLOCK_TABLES;
+	}
+	table_or_tables
+	{}
         ;
 
 
