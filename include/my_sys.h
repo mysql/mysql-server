@@ -316,7 +316,7 @@ typedef struct st_io_cache_share
   int             count;
   /* actual IO_CACHE that filled the buffer */
   struct st_io_cache *active;
-  /* the following will go implemented whenever the need arises */
+  /* the following will be implemented whenever the need arises */
 #ifdef NOT_IMPLEMENTED
   /* whether the structure should be free'd */
   my_bool alloced;
@@ -387,14 +387,18 @@ typedef struct st_io_cache		/* Used when cacheing files */
   */
   byte  **current_pos, **current_end;
 #ifdef THREAD
-  /* The lock is for append buffer used in SEQ_READ_APPEND cache
-     need mutex copying from append buffer to read buffer. */
+  /*
+    The lock is for append buffer used in SEQ_READ_APPEND cache
+    need mutex copying from append buffer to read buffer.
+  */
   pthread_mutex_t append_buffer_lock;
-  /* The following is used when several threads are reading the
-     same file in parallel. They are synchronized on disk
-     accesses reading the cached part of the file asynchronously.
-     It should be set to NULL to disable the feature.  Only
-     READ_CACHE mode is supported. */
+  /*
+    The following is used when several threads are reading the
+    same file in parallel. They are synchronized on disk
+    accesses reading the cached part of the file asynchronously.
+    It should be set to NULL to disable the feature.  Only
+    READ_CACHE mode is supported.
+  */
   IO_CACHE_SHARE *share;
 #endif
   /*
@@ -411,10 +415,10 @@ typedef struct st_io_cache		/* Used when cacheing files */
     be replaced with my_b_append() for a SEQ_READ_APPEND cache
   */
   int (*write_function)(struct st_io_cache *,const byte *,uint);
-  /* 
-     Specifies the type of the cache. Depending on the type of the cache
-     certain operations might not be available and yield unpredicatable
-     results. Details to be documented later
+  /*
+    Specifies the type of the cache. Depending on the type of the cache
+    certain operations might not be available and yield unpredicatable
+    results. Details to be documented later
   */
   enum cache_type type;
   /*
@@ -445,11 +449,11 @@ typedef struct st_io_cache		/* Used when cacheing files */
   uint  read_length;
   myf	myflags;			/* Flags used to my_read/my_write */
   /*
-   alloced_buffer is 1 if the buffer was allocated by init_io_cache() and
-   0 if it was supplied by the user.
-   Currently READ_NET is the only one that will use a buffer allocated
-   somewhere else
- */
+    alloced_buffer is 1 if the buffer was allocated by init_io_cache() and
+    0 if it was supplied by the user.
+    Currently READ_NET is the only one that will use a buffer allocated
+    somewhere else
+  */
   my_bool alloced_buffer;
 #ifdef HAVE_AIOWAIT
   /*
