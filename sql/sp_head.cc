@@ -84,6 +84,7 @@ eval_func_item(THD *thd, Item *it, enum enum_field_types type)
 }
 
 sp_head::sp_head(LEX_STRING *name, LEX *lex)
+  : m_simple_case(FALSE)
 {
   const char *dstr = (const char*)lex->buf;
 

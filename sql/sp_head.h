@@ -35,6 +35,8 @@ class sp_head : public Sql_alloc
 
 public:
 
+  my_bool m_simple_case;	// TRUE if parsing simple case, FALSE otherwise
+
   static void *operator new(size_t size)
   {
     return (void*) sql_alloc((uint) size);
