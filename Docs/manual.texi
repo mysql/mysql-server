@@ -3187,9 +3187,10 @@ This can be handled much more efficiently by using an
 
 @cindex rows, locking
 @cindex locking, row-level
-Generally, you can code around row-level locking. Some cases really
-need it, but they are very few. For instance, you can use a flag
-column in the table and do something like this:
+You can generally code around row-level locking. Some situations really
+need it, but they are very few. @code{InnoDB} tables support row-level
+locking. With MyISAM, you can use a flag column in the table and do
+something like the following:
 
 @example
 UPDATE tbl_name SET row_flag=1 WHERE id=ID;
@@ -6263,9 +6264,8 @@ shell> ln -s full-path-to-mysql-VERSION-OS mysql
 shell> cd mysql
 shell> scripts/mysql_install_db
 shell> chown -R root  .
-shell> chown -R mysql ./data
+shell> chown -R mysql data
 shell> chgrp -R mysql .
-shell> chown -R root ./bin
 shell> bin/safe_mysqld --user=mysql &
 or
 shell> bin/mysqld_safe --user=mysql &
@@ -6398,9 +6398,9 @@ Change ownership of binaries to @code{root} and ownership of the data
 directory to the user that you will run @code{mysqld} as:
 
 @example
-shell> chown -R root  /usr/local/mysql
+shell> chown -R root  /usr/local/mysql/.
 shell> chown -R mysql /usr/local/mysql/data
-shell> chgrp -R mysql /usr/local/mysql
+shell> chgrp -R mysql /usr/local/mysql/.
 @end example
 
 The first command changes the @code{owner} attribute of the files to the
@@ -33105,6 +33105,13 @@ mysql> select user,max(salary) AS sum from users
 @end example
 
 @item
+The options @code{DISTINCT}, @code{DISTINCTROW} and @code{ALL} specify
+whether duplicate rows should be returned. The default is (@code{ALL}),
+all matching rows are returned. @code{DISTINCT} and @code{DISTINCTROW}
+are synonyms and specify that duplicate rows in the result set should
+be removed.
+
+@item
 All options beginning with @code{SQL_}, @code{STRAIGHT_JOIN}, and
 @code{HIGH_PRIORITY} are MySQL extensions to ANSI SQL.
 
@@ -55415,22 +55422,20 @@ In MySQL, common tags to print (with the @code{d} option) are:
 @cindex methods, locking
 
 Currently MySQL only supports table locking for
-@code{ISAM}/@code{MyISAM} and @code{HEAP} tables.
-@code{InnoDB} tables use row level locking,
-and @code{BDB} tables page level locking. @xref{Internal locking}.
-With @code{MyISAM}
-tables one can freely mix @code{INSERT} and @code{SELECT} without locks
-(@code{Versioning}).
+@code{ISAM}/@code{MyISAM} and @code{HEAP} tables,
+page-level locking for @code{BDB} tables and
+row-level locking for @code{InnoDB} tables.
+@xref{Internal locking}.
+With @code{MyISAM} tables one can freely mix @code{INSERT} and
+@code{SELECT} without locks (@code{Versioning}).
 
 Starting in version 3.23.33, you can analyse the table lock contention
 on your system by checking @code{Table_locks_waited} and
 @code{Table_locks_immediate} environment variables.
 
-Some database users claim that MySQL cannot support near the
-number of concurrent users because it lacks row-level locking.  This
-may be true for some specific applications, but is not generally
-true. As always this depends totally on what the application does and what
-is the access/update pattern of the data.
+To decide if you want to use a table type with row-level locking,
+you will want to look at what the application does and what the
+select/update pattern of the data is.
 
 Pros for row locking:
 
