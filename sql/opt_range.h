@@ -80,13 +80,18 @@ public:
   MEM_ROOT alloc;
 
   KEY_PART *key_parts;
+  KEY_PART_INFO *key_part_info;
   ha_rows records;
   double read_time;
 
   QUICK_SELECT(THD *thd, TABLE *table,uint index_arg,bool no_alloc=0);
   virtual ~QUICK_SELECT();
   void reset(void) { next=0; it.rewind(); }
-  int init() { return error=file->index_init(index); }
+  int init()
+  {
+    key_part_info= head->key_info[index].key_part;
+    return error=file->index_init(index);
+  }
   virtual int get_next();
   virtual bool reverse_sorted() { return 0; }
   bool unique_key_range();

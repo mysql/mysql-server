@@ -14,6 +14,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#include <ndb_global.h>
 #include "NdbDaemon.h"
 
 #define NdbDaemon_ErrorSize 500
@@ -24,8 +25,10 @@ char NdbDaemon_ErrorText[NdbDaemon_ErrorSize];
 int
 NdbDaemon_Make(const char* lockfile, const char* logfile, unsigned flags)
 {
-  // XXX do something
-  return 0;
+  /* Fail */
+  snprintf(NdbDaemon_ErrorText, NdbDaemon_ErrorSize,
+	   "Daemon mode not implemented");
+  return -1;
 }
 
 #ifdef NDB_DAEMON_TEST

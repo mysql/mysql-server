@@ -166,11 +166,7 @@ class ha_innobase: public handler
 	int start_stmt(THD *thd);
 
   	void position(byte *record);
-  	ha_rows records_in_range(int inx,
-			   const byte *start_key,uint start_key_len,
-			   enum ha_rkey_function start_search_flag,
-			   const byte *end_key,uint end_key_len,
-			   enum ha_rkey_function end_search_flag);
+  	ha_rows records_in_range(uint inx, key_range *min_key, key_range *max_key);
 	ha_rows estimate_number_of_rows();
 
   	int create(const char *name, register TABLE *form,

@@ -15,7 +15,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include <ndb_global.h>
-#include <my_pthread.h>
+#include <pthread.h>
 
 #include "MgmtSrvr.hpp"
 #include "MgmtErrorReporter.hpp"
