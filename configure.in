@@ -962,6 +962,7 @@ esac
 MAX_C_OPTIMIZE="-O3"
 MAX_CXX_OPTIMIZE="-O3"
 
+ndb_cxxflags_fix=
 case $SYSTEM_TYPE-$MACHINE_TYPE-$ac_cv_prog_gcc in
 # workaround for Sun Forte/x86 see BUG#4681
   *solaris*-i?86-no)

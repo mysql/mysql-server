@@ -64,8 +64,8 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
   AC_ARG_WITH([ndb-ccflags],
               [
   --with-ndb-ccflags    Extra CC options for ndb compile],
-              [ndb_cxxflags_fix=$withval],
-              [ndb_cxxflags_fix=])
+              [ndb_cxxflags_fix="$ndb_cxxflags_fix $withval"],
+              [ndb_cxxflags_fix=$ndb_cxxflags_fix])
 
   AC_MSG_CHECKING([for NDB Cluster options])
   AC_MSG_RESULT([])
