@@ -1,0 +1,39 @@
+--- mysql-3.23.23.orig/configure
++++ mysql-3.23.23/configure
+@@ -202,7 +202,7 @@
+   --with-charset=CHARSET  use CHARSET by default (one of: big5 cp1251 cp1257
+                           croat czech danish dec8 dos estonia euc_kr gb2312 gbk
+                           german1 greek hebrew hp8 hungarian koi8_ru koi8_ukr
+-                          latin1 latin2 swe7 usa7 win1250 win1251 win1251ukr
++                          latin1 latin2 swe7 usa7 win1250 win1251ukr
+                           ujis sjis tis620; default is latin1)"
+ ac_help="$ac_help
+   --with-extra-charsets=cs1,cs2
+@@ -8843,7 +8843,7 @@
+ 
+ # Choose a character set
+ 
+-CHARSETS_AVAILABLE="big5 cp1251 cp1257 croat czech danish dec8 dos estonia euc_kr gb2312 gbk german1 greek hebrew hp8 hungarian koi8_ru koi8_ukr latin1 latin2 swe7 usa7 win1250 win1251 win1251ukr ujis sjis tis620"
++CHARSETS_AVAILABLE="big5 cp1251 cp1257 croat czech danish dec8 dos estonia euc_kr gb2312 gbk german1 greek hebrew hp8 hungarian koi8_ru koi8_ukr latin1 latin2 swe7 usa7 win1250 win1251ukr ujis sjis tis620"
+ DEFAULT_CHARSET=latin1
+ 
+ # Check whether --with-charset or --without-charset was given.
+--- mysql-3.23.23.orig/configure.in
++++ mysql-3.23.23/configure.in
+@@ -1517,14 +1517,14 @@
+ dnl or other special handling, you must also create
+ dnl strings/ctype-$charset_name.c
+ 
+-CHARSETS_AVAILABLE="big5 cp1251 cp1257 croat czech danish dec8 dos estonia euc_kr gb2312 gbk german1 greek hebrew hp8 hungarian koi8_ru koi8_ukr latin1 latin2 swe7 usa7 win1250 win1251 win1251ukr ujis sjis tis620"
++CHARSETS_AVAILABLE="big5 cp1251 cp1257 croat czech danish dec8 dos estonia euc_kr gb2312 gbk german1 greek hebrew hp8 hungarian koi8_ru koi8_ukr latin1 latin2 swe7 usa7 win1250 win1251ukr ujis sjis tis620"
+ DEFAULT_CHARSET=latin1
+ 
+ AC_ARG_WITH(charset,
+   [  --with-charset=CHARSET  use CHARSET by default (one of: big5 cp1251 cp1257
+                           croat czech danish dec8 dos estonia euc_kr gb2312 gbk
+                           german1 greek hebrew hp8 hungarian koi8_ru koi8_ukr
+-                          latin1 latin2 swe7 usa7 win1250 win1251 win1251ukr
++                          latin1 latin2 swe7 usa7 win1250 win1251ukr
+                           ujis sjis tis620; default is latin1)],
+   [default_charset="$withval"],
+   [default_charset="$DEFAULT_CHARSET"])

@@ -228,6 +228,7 @@ System-specific issues
 * HP-UX 10.20::                 HP-UX 10.20 notes
 * HP-UX 11.x::                  HP-UX 11.x notes
 * MacOSX::                      MacOSX notes
+* BEOS::                        
 
 Linux notes (all Linux versions)
 
@@ -238,7 +239,7 @@ Linux notes (all Linux versions)
 * Linux-Alpha::                 Linux-Alpha notes
 * MKLinux::                     MkLinux notes
 * Qube2::                       Qube2 Linux notes
-* Linux-Ia64::                  IA64 Linux notes
+* Linux-Ia64::                  
 
 BSD/OS notes
 
@@ -649,7 +650,7 @@ Some common errors when using MySQL
 
 Solving some common problems with MySQL
 
-* Log Replication::             Database replication with update log
+* Log Replication::             Database replication with  update log
 * Backup::                      Database backups
 * Update log::                  The update log
 * Slow query log::              Log of slow queries
@@ -765,6 +766,7 @@ MySQL change history
 
 Changes in release 3.23.x  (Released as beta)
 
+* News-3.23.24::                Changes in release 3.23.24
 * News-3.23.23::                Changes in release 3.23.23
 * News-3.23.22::                Changes in release 3.23.22
 * News-3.23.21::                Changes in release 3.23.21
@@ -5609,6 +5611,7 @@ distribution.
 * HP-UX 10.20::                 HP-UX 10.20 notes
 * HP-UX 11.x::                  HP-UX 11.x notes
 * MacOSX::                      MacOSX notes
+* BEOS::                        
 @end menu
 
 @node Solaris, Solaris 2.7, Source install system issues, Source install system issues
@@ -6872,10 +6875,24 @@ Automatic detection of @code{xlC} is missing from Autoconf, so a
 @strong{MySQL}: (The example uses the IBM compiler)
 
 @example
-shell> CC="xlc_r" CFLAGS="-ma -O3 -qstrict" \
-       CXX="xlC_r" CXXFLAGS="-ma -O3 -qstrict" \
-       ./configure
+export CC="xlc_r -ma -O3 -qstrict -qoptimize=3 -qmaxmem=8192 " 
+export CXX="xlC_r -ma -O3 -qstrict -qoptimize=3 -qmaxmem=8192"
+export CFLAGS="-I /usr/local/include"
+export LDLFAGS="-L /usr/local/lib"
+export CPPFLAGS=$CFLAGS
+export CXXFLAGS=$CFLAGS
+
+./configure --prefix=/usr/local \
+		--localstatedir=/var/mysql \
+		--sysconfdir=/etc/mysql \
+		--sbindir='/usr/local/bin' \
+		--libexecdir='/usr/local/bin' \
+		--enable-thread-safe-client \
+		--enable-large-files
 @end example
+
+The above is the options used to compile the @strong{MySQL} distribution that
+can be found at @uref{http://www-frec.bull.com/, www-frec.bull.com}.
 
 If you change the @code{-O3} to @code{-O2} in the above configure line,
 you must also remove the @code{-qstrict} option (this is a limitation in
@@ -6884,15 +6901,25 @@ the IBM C compiler).
 If you are using @code{gcc} or @code{egcs} to compile @strong{MySQL}, you
 @strong{MUST} use the @code{-fno-exceptions} flag, as the exception
 handling in @code{gcc}/@code{egcs} is not thread-safe!  (This is tested with
-@code{egcs} 1.1.)  We recommend the following @code{configure} line with
-@code{egcs} and @code{gcc} on AIX:
+@code{egcs} 1.1.).  There is also some known problems with IBM's assembler
+which may cause it to generate bad code when used with gcc.
+
+We recommend the following @code{configure} line with @code{egcs} and
+@code{gcc 2.95} on AIX:
 
 @example
-shell> CC=gcc \
-       CXX=gcc \
-       CXXFLAGS="-felide-constructors -fno-exceptions -fno-rtti" \" \
+shell> CC="gcc -pipe -mcpu=power2 -Wa,-many" \
+       CXX="gcc -pipe -mcpu=power2 -Wa,-many" \
+       CXXFLAGS="-felide-constructors -fno-exceptions -fno-rtti" \
        ./configure --prefix=/usr/local/mysql --with-debug --with-low-memory
 @end example
+
+The @code{-Wa,-many} is necessary for the compile to be successful. IBM is
+aware of this problem but is in to hurry to fix because of the
+workaround available.  We don't know if the @code{-fno-exceptions} is required
+with @code{gcc 2.95}, but as @strong{MySQL} doesn't use exceptions and the
+above option generates faster code we recommend that one should always use
+this option with @code{egcs / gcc}.
 
 If you have problems with signals (@strong{MySQL} dies unexpectedly
 under high load) you may have found an OS bug with threads and
@@ -7036,7 +7063,7 @@ The optimization flags used by @strong{MySQL} (-O3) are not recognized
 by HP's compilers. I did not change the flags.
 @end itemize
 
-@node MacOSX,  , HP-UX 11.x, Source install system issues
+@node MacOSX, BEOS, HP-UX 11.x, Source install system issues
 @subsection MacOS X notes
 
 You can get @strong{MySQL} to work on MacOS X by following the links to
@@ -7054,6 +7081,20 @@ access @code{mysql} and @code{mysqladmin} from the command line.
 alias mysql '/usr/local/mysql/bin/mysql'
 alias mysqladmin '/usr/local/mysql/libexec/mysqladmin'
 @end example
+
+@node BEOS,  , MacOSX, Source install system issues
+@subsection BeOS notes
+
+We are really interested in getting @strong{MySQL} to work on BeOS, but
+unfortunately we don't have any person that knows BeOS or have
+time to do a port.
+
+We are interested to find someone to do a port and we will help them
+with any techincal questions they may have while doing the port.
+
+We have previously talked with some BeOS developers that have said that
+@strong{MySQL} is '80% ported to BeOS', but we haven't heard from these
+in a while.
 
 @node Windows, OS/2, Source install system issues, Installing
 @section Windows notes
@@ -9894,8 +9935,9 @@ unchecked values to @strong{MySQL} is very dangerous!
 Check data sizes before passing them to @strong{MySQL}.
 @item
 Consider having your application connect to the database using a
-different user name than the one you use for administrative purposes. Do not give
-your applications any more access privileges than what they need.
+different user name than the one you use for administrative purposes. Do
+not give your applications any more access privileges than what they
+need.
 @end itemize
 @item
 Users of PHP:
@@ -12300,6 +12342,11 @@ operation because it is automatically set to the date and time of the most
 recent operation if you don't give it a value yourself.  You can also set it
 to the current date and time by assigning it a @code{NULL} value.  @xref{Date
 and time types}.
+
+Note that @code{TIMESTAMP(X)} columns where X is 8 or 14 are reported to
+be numbers while other @code{TIMESTAMP(X)} columns are reported to be
+strings.  This is just to ensure that one can reliable dump and restore
+the table with these types!
 
 @tindex TIME
 @item TIME
@@ -25914,6 +25961,18 @@ whole databases. @xref{Backup}.
 mysqldump --opt database > backup-file.sql
 @end example
 
+You can read this back into @strong{MySQL} with:
+
+@example
+mysql database < backup-file.sql
+@end example
+
+or
+
+@example
+mysql -e "source /patch-to-backup/backup-file.sql" database
+@end example
+
 However, it's also very useful to populate another @strong{MySQL} server with
 information from a database:
 
@@ -28107,9 +28166,10 @@ program.
 @node Which ODBC OS, ODBC administrator, ODBC, ODBC
 @section Operating systems supported by MyODBC
 
-@strong{MyODBC} is a 32-bit ODBC (2.50) level 0 driver for connecting
-an ODBC-aware application to @strong{MySQL}.  @strong{MyODBC} works on
-Windows95, Windows98, NT and on most Unix platforms.
+@strong{MyODBC} is a 32-bit ODBC (2.50) level 0 (with level 1 and level
+2 features) driver for connecting an ODBC-aware application to
+@strong{MySQL}.  @strong{MyODBC} works on Windows95, Windows98, NT and
+on most Unix platforms.
 
 Normally you only need to install @strong{MyODBC} on Windows machines.
 You only need @strong{MyODBC} for Unix if you have a program like
@@ -28280,17 +28340,32 @@ If you are using Access 2000, you should get and install the newest
 Microsoft MDAC (@code{Microsoft Data Access Components}) from
 @uref{http://www.microsoft.com/data}.  This will fix the bug in Access
 that when you export data to @strong{MySQL}, the table and column names
-aren't specified.
+aren't specified.  Another way to around this bug is to upgrade to
+MyODBC 2.50.33 and @strong{MySQL} 3.23.x, which together provides a
+workaround for this bug!
 @item
-You should have a primary key in the table.
+Set the `Return matching rows' MyODBC option field when connecting to
+@strong{MySQL}.
+@item
+You should have a primary key in the table;  If not, new or updated rows
+may chow up as @code{#Deleted#}.
 @item
 You should have a timestamp in all tables you want to be able to update.
 For maximum portability @code{TIMESTAMP(14)} or simple @code{TIMESTAMP}
 is recommended instead of other @code{TIMESTAMP(X)} variations.
 @item
 Only use double float fields. Access fails when comparing with single floats.
+The symptom usually is that new or updated rows may chow up as @code{#Deleted#}
+or that you can't find or update rows.
 @item
-Set the `Return matching rows' option field when connecting to @strong{MySQL}.
+If you still get the error @code{Another user has changed your data} after
+adding a @code{TIMESTAMP} column the following trick may help you:
+
+Don't use @code{table} data sheet view. Create instead a form with the
+fields you want, and use that @code{form} data sheet view.  You should
+set the @code{DefaultValue} property for the @code{TIMESTAMP} column to
+@code{NOW()}.  It may be a good idea to hide the @code{TIMESTAMP} column
+from the view to not confuse your users.
 @item
 Access on NT will report @code{BLOB} columns as @code{OLE OBJECTS}. If
 you want to have @code{MEMO} columns instead, you should change the
@@ -28302,8 +28377,18 @@ with these, change the columns to @code{DATETIME}.
 In some cases, Access may generate illegal SQL queries that
 @strong{MySQL} can't understand. You can fix this by selecting
 @code{"Query|SQLSpecific|Pass-Through"} from the Access menu.
-
 @end itemize
+
+@item ADO
+When you access @strong{MyODBC} through ADO, @strong{MyODBC} doesn't
+return a result for @code{SQLRowCount} for a query.  We have tried to
+track this down and according to ODBC logs, @strong{MyODBC} returns the
+correct answer but the ADO client only gets -1 back from the ODBC
+manager.  Because of this we can only assume this is a bug in ADO.
+
+The only known workaround is to use a @code{SELECT COUNT(*)} statement
+for a similar query to get the correct row count.
+
 @item Borland Builder 4
 When you start a query you can use the property @code{Active} or use the
 method @code{Open}.  Note that @code{Active} will start by automatically issue
@@ -34401,8 +34486,7 @@ more than one way to compute}
 
 @item @uref{http://www.yaboo.dk/, Yaboo - Yet Another BOOkmarker}
 
-@c Didn't answer 2000-07-11
-@c @item @uref{http://www.yahoosuck.com, Yahoosuck}
+item @uref{http://www.yahoosuck.com, Yahoosuck}
 
 @item @uref{http://www.ozsearch.com.au, OzSearch Internet Guide}
 
@@ -34414,6 +34498,8 @@ more than one way to compute}
 @appendixsec Some Information search engines concentrated on some area
 
 @itemize @bullet
+
+@item @uref{http:www.spylog.ru/, SpyLOG ;  A very popular web counter site}
 
 @item @uref{http://www.tucows.com/, TuCows Network; Free Software archive}
 
@@ -34944,11 +35030,18 @@ only on Linux.
 You can always find the latest version
 @uref{http://www.trash.net/~ffischer/admin/index.html, here}.
 
+@item @uref{http://www.mysql.com/Downloads/Win32/MySQL-Maker091.zip,MySQL-Maker 091}.
+Shareware @strong{MySQL} client for windows. It's WYSIWYG tool which allows
+you to create, change and delete databases and tables.
+You can change field - structure and add, change and delete data in
+these tables directly without ODBC-driver.
+@uref{http://www.presult.de, MySQL Maker homepage (look under support/downloads)}
+
 @item @uref{http://www.mysql.com/Downloads/Contrib/mysqlwinadmn.zip, mysqlwinadmn.zip}
 Windows GUI (binary only) to administrate a database, by David B. Mansel,
 @email{david@@zhadum.org}.
 
-@item @uref{http://www.mysql.com/Downloads/Contrib/netadmin.zip, netadmin.zip}
+@item @uref{http://www.mysql.com/Downloads/Win32/netadmin.zip, netadmin.zip}
 An administrator tool for @strong{MySQL} on Windows 95/98 and Windows NT
 4.0. Only tested with @strong{MySQL} 3.23.5 - 3.23.7. Written using the
 Tmysql components.
@@ -34958,6 +35051,9 @@ administrate user,host and database and so on. The is still beta and
 have still some bugs. you can test the program with all features. Please
 send bugs and hints to Marco Suess @email{ms@@it-netservice.de}. Original
 URL @url{http://www.it-netservice.de/pages/software/index.html}.
+
+@item @uref{http://www.mysql.com/Downloads/Win32/netadmin2.zip, netadmin2.zip}
+New version of netadmin; See above for details.
 
 @item @uref{http://www.mysql.com/Downloads/Win32/ARTADMIN203.EXE,Atronic's @strong{MySQL} client for Windows 2.0.3.0}.
 Home page for this can be found at: @uref{http://www.artronic.hr}.
@@ -35161,11 +35257,17 @@ This module authenticates users via @code{pam}, using @strong{MySQL}.
 Netscape Web Server API (NSAPI) functions to authenticate (BASIC) users
 against @strong{MySQL} tables. By Yuan John Jiang.
 
-@item @uref{http://www.mysql.com/Downloads/Contrib/qmail-1.03-mysql-0.6.5.patch.gz,
-qmail-1.03-mysql-0.6.5.patch.gz}
+@item @uref{http://www.mysql.com/Downloads/Contrib/qmail-1.03-mysql-0.6.6.patch.gz,qmail-1.03-mysql-0.6.6.patch.gz}
 Patch for qmail to authenticate users from a @strong{MySQL} table.
+By @email{takeshi@@SoftAgency.co.jp}
+
+@item @uref{http://www.mysql.com/Downloads/Contrib/proftpd-1.2.0rc2-fix-mysql.patch, proftpd-1.2.0rc2-fix-mysql.patch}
+Patch for proftpd1.2.0rc2. By @email{takeshi@@SoftAgency.co.jp}
+
 @item @uref{http://www.mysql.com/Downloads/Contrib/pwcheck_mysql-0.1.tar.gz,pwcheck_mysql-0.1.tar.gz}
 An authentication module for the Cyrus IMAP server. By Aaron Newsome.
+
+
 @end itemize
 
 @appendixsec Converters
@@ -35237,16 +35339,19 @@ Raw port of a SQL mode for XEmacs. Supports completion. Original by
 Peter D. Pezaris @email{pez@@atlantic2.sbi.com} and partial
 @strong{MySQL} port by David Axmark.
 
-@item @uref{http://www.mysql.com/Downloads/Win32/MyAccess97_Ver_1_01.zip, MyAccess97 1.01}
-MyAccess is an AddIn for Access 97 and handles a lot of maintanance work
-for @strong{MySQL} databases.
+@item @uref{http://www.mysql.com/Downloads/Win32/myaccess97_1_1.zip, MyAccess97 1.1}
+@item @uref{http://www.mysql.com/Downloads/Win32/myaccess2000_1_1.zip, MyAccess2000 1.1}
 
-@item @uref{http://www.mysql.com/Downloads/Win32/MyAccess2000_Ver_1_01.zip, MyAccess2000 1.01}
-MyAccess is an AddIn for Access 2000 and handles a lot of maintanance work
-for @strong{MySQL} databases.
+MyAccess is an AddIn for MS Access 97/2000 which allows you to manage MySQL databases from within Access. Main functions are:
+@itemize @bullet
+@item Create/Modify Tables
+@item Execute Queries against MySQL
+@item Extract "Create Table-Scripts' from MySQL
+@item Import/Export tables from Access to MySQL and vice versa
+@item Log Changes
+@end itemize
 
-@uref{http://www.mysql.com/Downloads/Win32/MyAccess-1.01.readme,
-MyAccess-readme}.  By Hubertus Hiden.
+Written by Hubertus Hiden. @uref{http://myaccess.fsn.net, MyAccess homepage}.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/radius-0.3.tar.gz, radius-0.3.tar.gz}
 Patches for @code{radiusd} to make it support @strong{MySQL}. By Wim Bonis,
@@ -35672,6 +35777,7 @@ version.  The replication and BerkeleyDB code is still under development,
 though, so 3.23 is not released as a stable version yet.
 
 @menu
+* News-3.23.24::                Changes in release 3.23.24
 * News-3.23.23::                Changes in release 3.23.23
 * News-3.23.22::                Changes in release 3.23.22
 * News-3.23.21::                Changes in release 3.23.21
@@ -35698,9 +35804,30 @@ though, so 3.23 is not released as a stable version yet.
 * News-3.23.0::                 Changes in release 3.23.0
 @end menu
 
-@node News-3.23.23, News-3.23.22, News-3.23.x, News-3.23.x
+@node News-3.23.24, News-3.23.23, News-3.23.x, News-3.23.x
+@appendixsubsec Changes in release 3.23.24
+@itemize @bullet
+@item
+To make it possibly to reliable dump and restore tables with
+@code{TIMESTAMP(X)} columns, @code{MySQL} now reports columns with X
+other than 14 or 8 to be strings.
+@item
+Changed sort order for latin1 as it was before 3.23.22.  Any table with
+@code{CHAR} columns that may have characters > ASCII 128 created or
+modified with 3.23.22 must be repaired!
+@item
+Fixed small memory leak introduced from 3.23.22 when creating a
+temporary table.
+@item
+Fixed problem with BDB tables and reading on unique (not primary) key.
+@end itemize
+
+@node News-3.23.23, News-3.23.22, News-3.23.24, News-3.23.x
 @appendixsubsec Changes in release 3.23.23
 @itemize @bullet
+@item
+Changed sort order for 'German';  All tables created with 'German' sortorder
+must be repaired with @code{REPAIR TABLE} or myisamchk before use!
 @item
 Added option @code{--core-file} to @code{mysqld} to get a core file on
 Linux if mysqld dies on the SIGSEGV signal.
@@ -35795,6 +35922,9 @@ Fixed fatal bug in @code{LOAD TABLE FROM MASTER} that did not lock the table dur
 More variables in @code{SHOW SLAVE STATUS} and @code{SHOW MASTER STATUS}
 @item
 @code{SLAVE STOP} now will not return until the slave thread actually exits
+@item
+Full text search via the @code{MATCH} function and @code{FULLTEXT} index type.
+(For MyISAM files).  This made @code{FULLTEXT} is reserved word.
 @end itemize
 
 @node News-3.23.22, News-3.23.21, News-3.23.23, News-3.23.x

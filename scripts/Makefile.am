@@ -71,6 +71,7 @@ SUFFIXES = .sh
 	@RM@ -f $@ $@-t
 	@SED@ \
 	  -e 's!@''bindir''@!$(bindir)!g' \
+	  -e 's!@''sbindir''@!$(sbindir)!g' \
 	  -e 's!@''scriptdir''@!$(bindir)!g' \
 	  -e 's!@''prefix''@!$(prefix)!g' \
 	  -e 's!@''datadir''@!$(datadir)!g' \

@@ -1,0 +1,3 @@
+#!/bin/sh
+
+update-alternatives --install /usr/sbin/mysqld mysqld /usr/sbin/mysqld-shared 15

@@ -1,0 +1,96 @@
+--- scripts/safe_mysqld.sh.orig	Sat Sep  2 17:28:26 2000
++++ scripts/safe_mysqld.sh	Sat Sep  2 17:31:19 2000
+@@ -89,10 +89,10 @@
+ 
+ 
+ NOHUP_NICENESS=`nohup nice`
+-if test $? -ne 0 || test x"$NOHUP_NICENESS" = x0 || test ! nice --1 echo foo > /dev/null 2>&1; then
++if test $? -ne 0 || test x"$NOHUP_NICENESS" = x0 || test ! nice -1 echo foo > /dev/null 2>&1; then
+   NOHUP_NICENESS="nohup"
+ else
+-  NOHUP_NICENESS="nice --$NOHUP_NICENESS nohup"
++  NOHUP_NICENESS="nice -$NOHUP_NICENESS nohup"
+ fi
+ 
+ export MYSQL_UNIX_PORT
+@@ -163,7 +163,8 @@
+     # The only thing is ps x => redhat 5 gives warnings when using ps -x.
+     # kill -9 is used or the process won't react on the kill.
+     numofproces=`ps xa | grep -v "grep" | grep -c $ledir/mysqld`
+-    echo -e "\nNumber of processes running now: $numofproces" | tee -a $err_log
++    echo | tee -a $err_log
++    echo "Number of processes running now: $numofproces" | tee -a $err_log
+     I=1
+     while test "$I" -le "$numofproces"
+     do 
+@@ -185,4 +186,6 @@
+   echo "`date +'%y%m%d %H:%M:%S  mysqld restarted'`" | tee -a $err_log
+ done
+ 
+-echo -e "`date +'%y%m%d %H:%M:%S  mysqld ended\n'`" | tee -a $err_log
++echo | tee -a $err_log
++echo "`date +'%y%m%d %H:%M:%S  mysqld ended'`" | tee -a $err_log
++echo | tee -a $err_log
+--- support-files/mysql.server.sh.orig	Sat Sep  2 17:35:56 2000
++++ support-files/mysql.server.sh	Sat Sep  2 17:36:35 2000
+@@ -23,6 +23,9 @@
+ mysql_daemon_user=@MYSQLD_USER@
+ export PATH
+ 
++## your options...
++OPT=""
++
+ mode=$1
+ 
+ if test -w /             # determine if we should look at the root config file
+@@ -82,8 +85,9 @@
+     then
+       # Give extra arguments to mysqld with the my.cnf file. This script may
+       # be overwritten at next upgrade.
+-      $bindir/safe_mysqld \
+-	--user=$mysql_daemon_user --datadir=$datadir --pid-file=$pid_file --log=$log_file  &
++      $bindir/safe_mysqld $OPT \
++	--user=$mysql_daemon_user --datadir=$datadir --pid-file=$pid_file &
++# --log=$log_file  &
+     else
+       echo "Can't execute $bindir/safe_mysqld"
+     fi
+--- configure.orig	Sat Sep  2 17:54:03 2000
++++ configure	Sat Sep  2 17:54:18 2000
+@@ -202,7 +202,7 @@
+   --with-charset=CHARSET  use CHARSET by default (one of: big5 cp1251 cp1257
+                           croat czech danish dec8 dos estonia euc_kr gb2312 gbk
+                           german1 greek hebrew hp8 hungarian koi8_ru koi8_ukr
+-                          latin1 latin2 swe7 usa7 win1250 win1251 win1251ukr
++                          latin1 latin2 swe7 usa7 win1250 win1251ukr
+                           ujis sjis tis620; default is latin1)"
+ ac_help="$ac_help
+   --with-extra-charsets=cs1,cs2
+@@ -8843,7 +8843,7 @@
+ 
+ # Choose a character set
+ 
+-CHARSETS_AVAILABLE="big5 cp1251 cp1257 croat czech danish dec8 dos estonia euc_kr gb2312 gbk german1 greek hebrew hp8 hungarian koi8_ru koi8_ukr latin1 latin2 swe7 usa7 win1250 win1251 win1251ukr ujis sjis tis620"
++CHARSETS_AVAILABLE="big5 cp1251 cp1257 croat czech danish dec8 dos estonia euc_kr gb2312 gbk german1 greek hebrew hp8 hungarian koi8_ru koi8_ukr latin1 latin2 swe7 usa7 win1250 win1251ukr ujis sjis tis620"
+ DEFAULT_CHARSET=latin1
+ 
+ # Check whether --with-charset or --without-charset was given.
+--- configure.in.orig	Sat Sep  2 17:53:57 2000
++++ configure.in	Sat Sep  2 17:54:36 2000
+@@ -1517,14 +1517,14 @@
+ dnl or other special handling, you must also create
+ dnl strings/ctype-$charset_name.c
+ 
+-CHARSETS_AVAILABLE="big5 cp1251 cp1257 croat czech danish dec8 dos estonia euc_kr gb2312 gbk german1 greek hebrew hp8 hungarian koi8_ru koi8_ukr latin1 latin2 swe7 usa7 win1250 win1251 win1251ukr ujis sjis tis620"
++CHARSETS_AVAILABLE="big5 cp1251 cp1257 croat czech danish dec8 dos estonia euc_kr gb2312 gbk german1 greek hebrew hp8 hungarian koi8_ru koi8_ukr latin1 latin2 swe7 usa7 win1250 win1251ukr ujis sjis tis620"
+ DEFAULT_CHARSET=latin1
+ 
+ AC_ARG_WITH(charset,
+   [  --with-charset=CHARSET  use CHARSET by default (one of: big5 cp1251 cp1257
+                           croat czech danish dec8 dos estonia euc_kr gb2312 gbk
+                           german1 greek hebrew hp8 hungarian koi8_ru koi8_ukr
+-                          latin1 latin2 swe7 usa7 win1250 win1251 win1251ukr
++                          latin1 latin2 swe7 usa7 win1250 win1251ukr
+                           ujis sjis tis620; default is latin1)],
+   [default_charset="$withval"],
+   [default_charset="$DEFAULT_CHARSET"])

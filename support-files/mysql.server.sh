@@ -13,63 +13,61 @@
 # chkconfig: 2345 90 90
 # description: A very fast and reliable SQL database engine.
 
+# The following variables are only set for letting mysql.server find things
+# if you want to affect other MySQL variables, you should make your changes
+# in the /etc/my.cnf or other configuration files
+
 PATH=/sbin:/usr/sbin:/bin:/usr/bin
 basedir=@prefix@
 bindir=@bindir@
+sbindir=@sbindir@
 datadir=@localstatedir@
 pid_file=@localstatedir@/mysqld.pid
-log_file=@localstatedir@/mysqld.log
-# Run mysqld as this user.
-mysql_daemon_user=@MYSQLD_USER@
+
 export PATH
 
 mode=$1
 
-if test -w /             # determine if we should look at the root config file
-then                     # or user config file
-  conf=/etc/my.cnf
-else
-  conf=$HOME/.my.cnf	# Using the users config file
-fi
+GetCNF () {
 
-# The following code tries to get the variables safe_mysqld needs from the
-# config file.  This isn't perfect as this ignores groups, but it should
-# work as the options doesn't conflict with anything else.
+VARIABLES="basedir bindir sbindir datadir pid-file"
+CONFIG_FILES="/etc/my.cnf $basedir/my.cnf $HOME/.my.cnf"
 
-if test -f "$conf"       # Extract those fields we need from config file.
-then
-  if grep "^datadir" $conf >/dev/null
-  then
-    datadir=`grep "^datadir" $conf | cut -f 2 -d= | tr -d ' '`
-  fi
-  if grep "^user" $conf >/dev/null
-  then
-    mysql_daemon_user=`grep "^user" $conf | cut -f 2 -d= | tr -d ' ' | head -1`
-  fi
-  if grep "^pid-file" $conf >/dev/null
-  then
-    pid_file=`grep "^pid-file" $conf | cut -f 2 -d= | tr -d ' '`
-  else
-    if test -d "$datadir"
-    then
-      pid_file=$datadir/`hostname`.pid
-    fi
-  fi
-  if grep "^basedir" $conf >/dev/null
-  then
-    basedir=`grep "^basedir" $conf | cut -f 2 -d= | tr -d ' '`
-    bindir=$basedir/bin
-  fi
-  if grep "^bindir" $conf >/dev/null
-  then
-    bindir=`grep "^bindir" $conf | cut -f 2 -d= | tr -d ' '`
-  fi
-  if grep "^log[ \t]*=" $conf >/dev/null
-  then
-    log_file=`grep "log[ \t]*=" $conf | cut -f 2 -d= | tr -d ' '`
-  fi
-fi
+for c in $CONFIG_FILES
+do
+   if [ -f $c ]
+   then
+      #echo "Processing $c..."
+      for v in $VARIABLES
+      do
+         # This method assumes last of duplicate $variable entries will be the
+         # value set ([mysqld])
+         # This could easily be rewritten to gather [xxxxx]-specific entries,
+         # but for now it looks like only the mysqld ones are needed for
+         # server startup scripts
+         eval `sed -n -e '/^$/d' -e '/^#/d' -e 's,[ 	],,g' -e '/=/p' $c |\
+         awk -F= -v v=$v '{if ($1 == v) printf ("thevar=\"%s\"\n", $2)}'`
 
+         # it would be easier if the my.cnf and variable values were
+         # all matched, but since they aren't we need to map them here.
+         case $v in
+         pid-file) v=pid_file ;;
+              log) v=log_file ;;
+         esac
+
+         # As long as $thevar isn't blank, use it to set or override current
+         # value
+         [ "$thevar" != "" ] && eval $v=$thevar
+            
+      done
+   #else
+   #   echo "No $c config file."
+   fi
+done
+}
+
+# run function to get config values
+GetCNF
 
 # Safeguard (relative paths, core dumps..)
 cd $basedir
@@ -83,7 +81,7 @@ case "$mode" in
       # Give extra arguments to mysqld with the my.cnf file. This script may
       # be overwritten at next upgrade.
       $bindir/safe_mysqld \
-	--user=$mysql_daemon_user --datadir=$datadir --pid-file=$pid_file --log=$log_file  &
+	--datadir=$datadir --pid-file=$pid_file &
     else
       echo "Can't execute $bindir/safe_mysqld"
     fi

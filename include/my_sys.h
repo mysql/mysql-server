@@ -313,9 +313,13 @@ typedef int (*qsort2_cmp)(const void *, const void *, const void *);
 			 ((info)->rc_pos - (info)->rc_request_pos))
 
 typedef struct st_changeable_var {
-  const char *name;
-  long *varptr;
-  long def_value,min_value,max_value,sub_size,block_size;
+  const char *name;			/* Name of variable */
+  long *varptr;				/* Pointer to variable */
+  long def_value,			/* Default value */
+       min_value,			/* Min allowed value */
+       max_value,			/* Max allowed value */
+       sub_size,			/* Subtract this from given value */
+       block_size;			/* Value should be a mult. of this */
 } CHANGEABLE_VAR;
 
 
@@ -527,6 +531,7 @@ extern void my_free_lock(byte *ptr,myf flags);
 #define my_malloc_lock(A,B) my_malloc((A),(B))
 #define my_free_lock(A,B) my_free((A),(B))
 #endif
+#define alloc_root_inited(A) ((A)->min_malloc != 0)
 void init_alloc_root(MEM_ROOT *mem_root,uint block_size);
 gptr alloc_root(MEM_ROOT *mem_root,unsigned int Size);
 void free_root(MEM_ROOT *root);

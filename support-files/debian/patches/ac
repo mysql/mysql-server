@@ -1,0 +1,8 @@
+--- mysql-3.23.23.orig/scripts/msql2mysql.sh
++++ mysql-3.23.23/scripts/msql2mysql.sh
+@@ -13,4 +13,4 @@
+ # described in the License.  Among other things, the License requires that
+ # the copyright notice and this notice be preserved on all copies.
+ 
+-@bindir@/replace msqlConnect mysql_connect msqlListDBs  mysql_list_dbs msqlNumRows mysql_num_rows msqlFetchRow mysql_fetch_row msqlFetchField mysql_fetch_field msqlFreeResult mysql_free_result msqlListFields mysql_list_fields msqlListTables mysql_list_tables msqlErrMsg 'mysql_error(mysql)' msqlStoreResult mysql_store_result msqlQuery mysql_query msqlField mysql_field msqlSelect mysql_select msqlSelectDB mysql_select_db msqlNumFields mysql_num_fields msqlClose mysql_close msqlDataSeek mysql_data_seek m_field MYSQL_FIELD m_result MYSQL_RES m_row MYSQL_ROW msql mysql mSQL mySQL MSQL MYSQL msqlCreateDB mysql_create_db msqlDropDB mysql_drop_db msqlFieldSeek mysql_field_seek -- $*
++@bindir@/mysql_replace msqlConnect mysql_connect msqlListDBs  mysql_list_dbs msqlNumRows mysql_num_rows msqlFetchRow mysql_fetch_row msqlFetchField mysql_fetch_field msqlFreeResult mysql_free_result msqlListFields mysql_list_fields msqlListTables mysql_list_tables msqlErrMsg 'mysql_error(mysql)' msqlStoreResult mysql_store_result msqlQuery mysql_query msqlField mysql_field msqlSelect mysql_select msqlSelectDB mysql_select_db msqlNumFields mysql_num_fields msqlClose mysql_close msqlDataSeek mysql_data_seek m_field MYSQL_FIELD m_result MYSQL_RES m_row MYSQL_ROW msql mysql mSQL mySQL MSQL MYSQL msqlCreateDB mysql_create_db msqlDropDB mysql_drop_db msqlFieldSeek mysql_field_seek -- $*

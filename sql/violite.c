@@ -97,7 +97,9 @@ Vio *vio_new(my_socket sd, enum enum_vio_type type, my_bool localhost)
   if ((vio = (Vio*) my_malloc(sizeof(*vio),MYF(MY_WME))))
   {
     vio_reset(vio, type, sd, 0, localhost);
-    sprintf(vio->desc, "socket (%d)", vio->sd);
+    sprintf(vio->desc,
+	    (vio->type == VIO_TYPE_SOCKET ? "socket (%d)" : "TCP/IP (%d)"),
+	    vio->sd);
 #if !defined(___WIN__) && !defined(__EMX__)
 #if !defined(NO_FCNTL_NONBLOCK)
     vio->fcntl_mode = fcntl(sd, F_GETFL);

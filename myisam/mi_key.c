@@ -283,7 +283,7 @@ static int _mi_put_key_in_record(register MI_INFO *info, uint keynr,
       uint length;
       get_key_length(length,key);
 #ifdef CHECK_KEYS
-      if (length >= keyseg->length || key+length > key_end)
+      if (length > keyseg->length || key+length > key_end)
 	goto err;
 #endif
       memcpy(record+keyseg->start,(byte*) key, length);
@@ -294,7 +294,7 @@ static int _mi_put_key_in_record(register MI_INFO *info, uint keynr,
       uint length;
       get_key_length(length,key);
 #ifdef CHECK_KEYS
-      if (length >= keyseg->length || key+length > key_end)
+      if (length > keyseg->length || key+length > key_end)
 	goto err;
 #endif
       memcpy(record+keyseg->start+keyseg->bit_start,

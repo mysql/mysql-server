@@ -1,0 +1,25 @@
+#!/bin/sh
+
+PATH=/usr/local/sbin:/usr/local/bin:/bin:/usr/bin:/sbin:/usr/sbin:/usr/ucb:/usr/ccs/bin
+LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:/usr/local/lib
+export PATH
+export LD_LIBRARY_PATH
+
+pid=`/usr/bin/ps -e | /usr/bin/grep mysqld |  /usr/bin/sed -e 's/^  *//' -e 's/ .*//'`
+[ "$pid" != "" ] && /usr/local/bin/mysqladmin shutdown
+
+#---
+#/usr/ucb/echo -n "Remove DATA Directory (All data expire) [Y/N]? "
+#read I
+I=No
+
+case "$I" in
+Y*|y*)
+	/usr/ucb/echo -n "Removing MySQL DATA ALL..."
+	rm -rf /usr/local/mysql-data
+	echo "done."
+	;;
+*)
+	echo "not purge DATA directory"
+	;;
+esac;

@@ -604,50 +604,9 @@ static uint getTableStructure(char *table, char* db)
     DBUG_RETURN(0);
   }
 
-  if (cFlag)
-    sprintf(insert_pat, "INSERT %sINTO %s (", delayed, table_name);
-  else
-  {
-    sprintf(insert_pat, "INSERT %sINTO %s VALUES ", delayed, table_name);
-    if (!extended_insert)
-      strcat(insert_pat,"(");
-  }
-
-  strpos=strend(insert_pat);
-  while ((row=mysql_fetch_row(tableRes)))
-  {
-    ulong *lengths=mysql_fetch_lengths(tableRes);
-    if (init)
-    {
-      if (cFlag)
-	strpos=strmov(strpos,", ");
-    }
-    init=1;
-    if (cFlag)
-      strpos=strmov(strpos,quote_name(row[SHOW_FIELDNAME],name_buff));
-  }
-  if (cFlag)
-  {
-    strpos=strmov(strpos,") VALUES ");
-    if (!extended_insert)
-      strpos=strmov(strpos,"(");
-  }
-  numFields = (uint) mysql_num_rows(tableRes);
-  mysql_free_result(tableRes);
+  /* Make an sql-file, if path was given iow. option -T was given */
   if (!tFlag)
   {
-    /* Make an sql-file, if path was given iow. option -T was given */
-    char buff[20+FN_REFLEN];
-
-    sprintf(buff,"show create table %s",table_name);
-    if (mysql_query(sock, buff))
-    {
-      fprintf(stderr, "%s: Can't get CREATE TABLE for table '%s' (%s)\n",
-	      my_progname, table, mysql_error(sock));
-      safe_exit(EX_MYSQLERR);
-      DBUG_RETURN(0);
-    }
-
     if (path)
     {
       char filename[FN_REFLEN], tmp_path[FN_REFLEN];
@@ -665,10 +624,152 @@ static uint getTableStructure(char *table, char* db)
     fprintf(sql_file, "\n#\n# Table structure for table '%s'\n#\n\n", table);
     if (opt_drop)
       fprintf(sql_file, "DROP TABLE IF EXISTS %s;\n",table_name);
+    fprintf(sql_file, "CREATE TABLE %s (\n", table_name);
+  }
+  if (cFlag)
+    sprintf(insert_pat, "INSERT %sINTO %s (", delayed, table_name);
+  else
+  {
+    sprintf(insert_pat, "INSERT %sINTO %s VALUES ", delayed, table_name);
+    if (!extended_insert)
+      strcat(insert_pat,"(");
+  }
+
+  strpos=strend(insert_pat);
+  while ((row=mysql_fetch_row(tableRes)))
+  {
+    ulong *lengths=mysql_fetch_lengths(tableRes);
+    if (init)
+    {
+      if (!tFlag)
+	fputs(",\n",sql_file);
+      if (cFlag)
+	strpos=strmov(strpos,", ");
+    }
+    init=1;
+    if (cFlag)
+      strpos=strmov(strpos,quote_name(row[SHOW_FIELDNAME],name_buff));
+    if (!tFlag)
+    {
+      if (opt_keywords)
+	fprintf(sql_file, "  %s.%s %s", table_name,
+		quote_name(row[SHOW_FIELDNAME],name_buff), row[SHOW_TYPE]);
+      else
+	fprintf(sql_file, "  %s %s", quote_name(row[SHOW_FIELDNAME],name_buff),
+		row[SHOW_TYPE]);
+      if (row[SHOW_DEFAULT])
+      {
+	fputs(" DEFAULT ", sql_file);
+	unescape(sql_file,row[SHOW_DEFAULT],lengths[SHOW_DEFAULT]);
+      }
+      if (!row[SHOW_NULL][0])
+	fputs(" NOT NULL", sql_file);
+      if (row[SHOW_EXTRA][0])
+	fprintf(sql_file, " %s",row[SHOW_EXTRA]);
+    }
+  }
+  numFields = (uint) mysql_num_rows(tableRes);
+  mysql_free_result(tableRes);
+  if (!tFlag)
+  {
+    /* Make an sql-file, if path was given iow. option -T was given */
+    char buff[20+FN_REFLEN];
+    uint keynr,primary_key;
+    sprintf(buff,"show keys from %s",table_name);
+    if (mysql_query(sock, buff))
+    {
+      fprintf(stderr, "%s: Can't get keys for table '%s' (%s)\n",
+	      my_progname, table, mysql_error(sock));
+      if (sql_file != stdout)
+	my_fclose(sql_file, MYF(MY_WME));
+      safe_exit(EX_MYSQLERR);
+      DBUG_RETURN(0);
+    }
 
     tableRes=mysql_store_result(sock);
-    row=mysql_fetch_row(tableRes);
-    fprintf(sql_file, "%s;\n", row[1]);
+    /* Find first which key is primary key */
+    keynr=0;
+    primary_key=INT_MAX;
+    while ((row=mysql_fetch_row(tableRes)))
+    {
+      if (atoi(row[3]) == 1)
+      {
+	keynr++;
+#ifdef FORCE_PRIMARY_KEY
+	if (atoi(row[1]) == 0 && primary_key == INT_MAX)
+	  primary_key=keynr;
+#endif
+	if (!strcmp(row[2],"PRIMARY"))
+	{
+	  primary_key=keynr;
+	  break;
+	}
+      }
+    }
+    mysql_data_seek(tableRes,0);
+    keynr=0;
+    while ((row=mysql_fetch_row(tableRes)))
+    {
+      if (atoi(row[3]) == 1)
+      {
+	if (keynr++)
+	  putc(')', sql_file);
+	if (atoi(row[1]))       /* Test if duplicate key */
+	  /* Duplicate allowed */
+	  fprintf(sql_file, ",\n  KEY %s (",quote_name(row[2],name_buff));
+	else if (keynr == primary_key)
+	  fputs(",\n  PRIMARY KEY (",sql_file); /* First UNIQUE is primary */
+	else
+	  fprintf(sql_file, ",\n  UNIQUE %s (",quote_name(row[2],name_buff));
+      }
+      else
+	putc(',', sql_file);
+      fputs(quote_name(row[4],name_buff), sql_file);
+      if (row[7])
+	fprintf(sql_file, "(%s)",row[7]);      /* Sub key */
+    }
+    if (keynr)
+      putc(')', sql_file);
+    fputs("\n)",sql_file);
+
+    /* Get MySQL specific create options */
+    if (create_options)
+    {
+      sprintf(buff,"show table status like '%s'",table);
+      if (mysql_query(sock, buff))
+      {
+	if (mysql_errno(sock) != ER_PARSE_ERROR)
+	{					/* If old MySQL version */
+	  if (verbose)
+	    fprintf(stderr,
+		    "# Warning: Couldn't get status information for table '%s' (%s)\n",
+		    table,mysql_error(sock));
+	}
+      }
+      else if (!(tableRes=mysql_store_result(sock)) ||
+	       !(row=mysql_fetch_row(tableRes)))
+      {
+	fprintf(stderr,
+		"Error: Couldn't read status information for table '%s' (%s)\n",
+		table,mysql_error(sock));
+      }
+      else
+      {
+	fputs("/*!",sql_file);
+	print_value(sql_file,tableRes,row,"type=","Type",0);
+	print_value(sql_file,tableRes,row,"","Create_options",0);
+	print_value(sql_file,tableRes,row,"comment=","Comment",1);
+	fputs(" */",sql_file);
+      }
+      mysql_free_result(tableRes);		/* Is always safe to free */
+    }
+    fputs(";\n", sql_file);
+  }
+  if (cFlag)
+  {
+    strpos=strmov(strpos,") VALUES ");
+    if (!extended_insert)
+      strpos=strmov(strpos,"(");
   }
   DBUG_RETURN(numFields);
 } /* getTableStructure */
@@ -841,7 +942,7 @@ static void dumpTable(uint numFields, char *table)
 	  {
 	    if (length)
 	    {
-	      if (!IS_NUM(field->type))
+	      if (!IS_NUM_FIELD(field))
 	      {
 		if (dynstr_realloc(&extended_row,length * 2+2))
 		{
@@ -873,7 +974,7 @@ static void dumpTable(uint numFields, char *table)
 	    putchar(',');
 	  if (row[i])
 	  {
-	    if (!IS_NUM(field->type))
+	    if (!IS_NUM_FIELD(field))
 	      unescape(stdout, row[i], lengths[i]);
 	    else
 	      fputs(row[i],stdout);

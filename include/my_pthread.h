@@ -490,6 +490,11 @@ extern int pthread_dummy(int);
 /* All thread specific variables are in the following struct */
 
 #define THREAD_NAME_SIZE 10
+#if defined(__ia64__)
+#define DEFAULT_THREAD_STACK	(128*1024)
+#else
+#define DEFAULT_THREAD_STACK	(64*1024)
+#endif
 
 struct st_my_thread_var
 {

@@ -1,0 +1,30 @@
+#!/bin/sh
+
+PATH=/usr/local/sbin:/usr/local/bin:/bin:/usr/bin:/sbin:/usr/sbin:/usr/ucb:/usr/ccs/bin
+LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:/usr/local/lib
+export PATH
+export LD_LIBRARY_PATH
+
+D0="/usr/local/mysql-data"
+D="${D0}/mysql"
+
+DOFIX=0
+
+if /usr/bin/test ! -f ${D}/tables_priv.frm -a -d ${D} ; then
+  DOFIX=1
+fi
+
+if [ ! -d ${D} ]; then
+  DOFIX=2
+  /usr/local/bin/mysql_install_db
+fi
+
+  chown -R mysql $D0
+  chgrp -R mysql $D0
+
+if /usr/bin/test $DOFIX -eq 1 ; then
+  /etc/init.d/mysql start
+  /usr/local/bin/mysql_fix_privilege_tables
+else
+  /etc/init.d/mysql start || true
+fi

@@ -852,6 +852,8 @@ unpack_fields(MYSQL_DATA *data,MEM_ROOT *alloc,uint fields,
       field->flags=   (uint) (uchar) row->data[4][0];
       field->decimals=(uint) (uchar) row->data[4][1];
     }
+    if (INTERNAL_NUM_FIELD(field))
+      field->flags|= NUM_FLAG;
     if (default_value && row->data[5])
       field->def=strdup_root(alloc,(char*) row->data[5]);
     else

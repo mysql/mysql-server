@@ -300,7 +300,7 @@ int main(int argc,char *argv[])
     }
   }
 #endif
-  sprintf(buff, "Type 'help;' or '\\h' for help.\n");
+  sprintf(buff, "Type 'help;' or '\\h' for help. Type '\\c' to clear the buffer\n");
   put_info(buff,INFO_INFO);
   status.exit_status=read_lines(1);		// read lines and execute them
   mysql_end(0);
@@ -1680,8 +1680,9 @@ static int com_source(String *buffer, char *line)
   while (end > source_name && (isspace(end[-1]) || iscntrl(end[-1])))
     end--;
   end[0]=0;
+  unpack_filename(source_name,source_name);
   /* open file name */
-  if (!(sql_file = my_fopen(source_name, O_RDONLY,MYF(0))))
+  if (!(sql_file = my_fopen(source_name, O_RDONLY | O_BINARY,MYF(0))))
   {
     char buff[FN_REFLEN+60];
     sprintf(buff,"Failed to open file '%s', error: %d", source_name,errno);

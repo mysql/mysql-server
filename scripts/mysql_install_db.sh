@@ -11,56 +11,82 @@
 ldata=@localstatedir@
 execdir=@libexecdir@
 bindir=@bindir@
+sbindir=@sbindir@
 force=0
 IN_RPM=0
 defaults=
 
-# Are we doing an rpm install?
-if test "$1" = "-IN-RPM"; then IN_RPM=1; shift; fi
-if test "$1" = "--force"; then force=1; shift; fi
-
-# Get mysqld/safe_mysqld options from /etc/my.cnf or ~/.my.cnf
-case "$1" in
-    --no-defaults) defaults="$1"; conf=/nonexistent; shift ;;
-    --defaults-file=*) defaults="$1"; conf=`echo "$1"|sed 's;^--defaults-file=;;'`; shift ;;
-    *)
-    if test -w /
-    then
-      conf=/etc/my.cnf
-    else
-      conf=$HOME/.my.cnf
-    fi
-    ;;
-esac
-
-if test -f "$conf"
-then
-  if grep "^datadir" $conf >/dev/null
-  then
-    ldata=`grep "^datadir" $conf | sed 's;^[^=]*=[ \t]*;;' | sed 's;[ \t]$;;'`
-  fi
-  if grep "^execdir" $conf >/dev/null
-  then
-    execdir=`grep "^execdir" $conf | sed 's;^[^=]*=[ \t]*;;' | sed 's;[ \t]$;;'`
-  fi
-  if grep "^bindir" $conf >/dev/null
-  then
-    bindir=`grep "^bindir" $conf | sed 's;^[^=]*=[ \t]*;;' | sed 's;[ \t]$;;'`
-  fi
-  if grep "^user" $conf >/dev/null
-  then
-    user=`grep "^user" $conf | sed 's;^[^=]*=[ \t]*;;' | sed 's;[ \t]$;;'`
-  fi
-fi
-
-for arg
+while [ "x$1" != x ]
 do
-  case "$arg" in
-  --basedir=*) basedir=`echo "$arg"|sed 's;^--basedir=;;'`; bindir="$basedir/bin"; execdir="$basedir/libexec" ;;
-  --datadir=*) ldata=`echo "$arg"|sed 's;^--datadir=;;'` ;;
-  --user=*) user=`echo "$arg"|sed 's;^--user=;;'` ;;
-  esac
+   case "$1" in
+   -*) eqvalue="`echo $1 |sed 's/[-_a-zA-Z0-9]*=//'`"
+       case "$1" in
+       -IN-RPM) IN_RPM=1
+                ;;
+       --force) force=1
+                ;;
+       --no-defaults=*) CONFIG_FILES=/nonexistent
+                ;;
+       --defaults-file=*) CONFIG_FILES="$eqvalue"
+                ;;
+       --basedir=*) SETVARS="$SETVARS basedir=\"$eqvalue\"; bindir=\"$eqvalue/bon\"; execdir=\"$eqvalue/libexec\"; sbindir=\"$eqvalue/sbin\"; "
+                ;;
+       --ldata=*|--datadir=*) SETVARS="$SETVARS ldata=\"$eqvalue\";"
+                ;;
+       --user=*) SETVARS="$SETVARS user=\"$eqvalue\";"
+                ;;
+       esac
+       ;;
+   esac
+   shift
 done
+             
+GetCNF () {
+
+VARIABLES="basedir bindir datadir sbindir user pid-file log port socket"
+# set it not already set
+CONFIG_FILES=${CONFIG_FILES:-"/etc/my.cnf ./my.cnf $HOME/.my.cnf"}
+
+for c in $CONFIG_FILES
+do
+   if [ -f $c ]
+   then
+      #echo "Processing $c..."
+      for v in $VARIABLES
+      do
+         # This method assumes last of duplicate $variable entries will be the
+         # value set ([mysqld])
+         # This could easily be rewritten to gather [xxxxx]-specific entries,
+         # but for now it looks like only the mysqld ones are needed for
+         # server startup scripts
+         eval `sed -n -e '/^$/d' -e '/^#/d' -e 's,[ 	],,g' -e '/=/p' $c |\
+         awk -F= -v v=$v '{if ($1 == v) printf ("thevar=\"%s\"\n", $2)}'`
+
+         # it would be easier if the my.cnf and variable values were
+         # all matched, but since they aren't we need to map them here.
+         case $v in
+         pid-file) v=pid_file ;;
+              log) v=log_file ;;
+          datadir) v=ldata ;;
+         esac
+
+         # As long as $thevar isn't blank, use it to set or override current
+         # value
+         [ "$thevar" != "" ] && eval $v=$thevar
+            
+      done
+   #else
+   #   echo "No $c config file."
+   fi
+done
+}
+
+# run function to get config values
+GetCNF
+
+# Override/set with command-line values
+eval $SETVARS
+
 
 mdata=$ldata/mysql
 
@@ -310,7 +336,7 @@ then
   echo
   echo "The latest information about MySQL is available on the web at"
   echo "http://www.mysql.com"
-  echo "Support MySQL by buying support/licenses at http://www.mysql.com/license.htmy."
+  echo "Support MySQL by buying support/licenses at https://order.mysql.com"
   echo 
   exit 0
 else

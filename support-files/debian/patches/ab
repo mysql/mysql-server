@@ -1,0 +1,20 @@
+--- mysql-3.23.23.orig/scripts/Makefile.in
++++ mysql-3.23.23/scripts/Makefile.in
+@@ -337,6 +337,7 @@
+ 	@RM@ -f $@ $@-t
+ 	@SED@ \
+ 	  -e 's!@''bindir''@!$(bindir)!g' \
++	  -e 's!@''sbindir''@!$(sbindir)!g' \
+ 	  -e 's!@''scriptdir''@!$(bindir)!g' \
+ 	  -e 's!@''prefix''@!$(prefix)!g' \
+ 	  -e 's!@''datadir''@!$(datadir)!g' \
+--- mysql-3.23.23.orig/support-files/Makefile.in
++++ mysql-3.23.23/support-files/Makefile.in
+@@ -308,6 +308,7 @@
+ 	@RM@ -f $@ $@-t
+ 	@SED@ \
+ 	  -e 's!@''bindir''@!$(bindir)!g' \
++	  -e 's!@''sbindir''@!$(sbindir)!g' \
+ 	  -e 's!@''scriptdir''@!$(bindir)!g' \
+ 	  -e 's!@''prefix''@!$(prefix)!g' \
+ 	  -e 's!@''datadir''@!$(datadir)!g' \
