@@ -24,7 +24,18 @@
 #pragma implementation				// gcc: Class implementation
 #endif
 
+/*
+  We should not include mysql_priv.h in mysql_tzinfo_to_sql utility since
+  it creates unsolved link dependencies on some platforms.
+*/
+#if !defined(TZINFO2SQL) && !defined(TESTTIME)
 #include "mysql_priv.h"
+#else
+#include <my_global.h>
+#include "tztime.h"
+#include <my_sys.h>
+#endif
+
 #include "tzfile.h"
 #include <m_string.h>
 #include <my_dir.h>
@@ -486,6 +497,8 @@ prepare_tz_info(TIME_ZONE_INFO *sp, MEM_ROOT *storage)
 }
 
 
+#if !defined(TZINFO2SQL)
+
 static const uint mon_lengths[2][MONS_PER_YEAR]=
 {
   { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 },
@@ -922,6 +935,7 @@ TIME_to_gmt_sec(const TIME *t, const TIME_ZONE_INFO *sp, bool *in_dst_time_gap)
 /*
   End of elsie derived code.
 */
+#endif /* !defined(TZINFO2SQL) */
 
 
 #if !defined(TESTTIME) && !defined(TZINFO2SQL)
