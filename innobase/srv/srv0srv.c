@@ -77,6 +77,10 @@ ibool	srv_file_per_table = FALSE;	/* store to its own file each table
 					created by an user; data dictionary
 					tables are in the system tablespace
 					0 */
+ibool   srv_locks_unsafe_for_binlog = FALSE; /* Place locks to records only 
+                                                i.e. do not use next-key locking
+                                                except on duplicate key checking and
+                                                foreign key checking */
 ulint	srv_n_data_files = 0;
 char**	srv_data_file_names = NULL;
 ulint*	srv_data_file_sizes = NULL;	/* size in database pages */ 
