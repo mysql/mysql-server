@@ -25,7 +25,6 @@ Version:       1.2
 Description:   
 Documentation:
 ***************************************************************************/
-#include <assert.h>
 
 #include <NdbOperation.hpp>
 #include <NdbConnection.hpp>

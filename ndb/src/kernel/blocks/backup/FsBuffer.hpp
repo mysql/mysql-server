@@ -18,7 +18,6 @@
 #define FS_BUFFER_HPP
 
 #include <ndb_global.h>
-#include <assert.h>
 
 #define DEBUG(x)
 

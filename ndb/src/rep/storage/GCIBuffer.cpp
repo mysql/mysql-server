@@ -16,7 +16,6 @@
 
 #include <ndb_global.h>
 #include "GCIBuffer.hpp"
-#include <assert.h>
 
 /*****************************************************************************
  * Constructor / Destructor

@@ -18,7 +18,6 @@
 #define NDB_BITMASK_H
 
 #include <ndb_global.h>
-#include <NdbConstant.hpp>
 
 #ifndef NDB_ASSERT
 #define NDB_ASSERT(x, s) \

@@ -18,7 +18,6 @@
 #include <SimpleProperties.hpp>
 #include <NdbOut.hpp>
 #include <NdbTCP.h>
-#include <assert.h>
 #include <UtilBuffer.hpp>
 
 bool

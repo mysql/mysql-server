@@ -24,7 +24,6 @@
 #define SignalLoggerManager_H
 
 
-#include <NdbStdio.h>
 #include <kernel_types.h>
 #include <BlockNumbers.h>
 #include <TransporterDefinitions.hpp>

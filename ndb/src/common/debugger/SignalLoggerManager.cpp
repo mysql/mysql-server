@@ -19,9 +19,6 @@
 #include "SignalLoggerManager.hpp"
 #include <LongSignal.hpp>
 
-#include <assert.h>
-#include <time.h>
-
 #include <DebuggerNames.hpp>
 
 SignalLoggerManager::SignalLoggerManager()

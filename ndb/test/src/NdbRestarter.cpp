@@ -24,7 +24,6 @@
 #include <random.h>
 #include <kernel/ndb_limits.h>
 #include <ndb_version.h>
-#include <assert.h>
 
 #define MGMERR(h) \
   ndbout << "latest_error="<<ndb_mgm_get_latest_error(h) \

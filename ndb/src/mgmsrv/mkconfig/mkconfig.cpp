@@ -22,7 +22,6 @@
 
 #include "InitConfigFileParser.hpp"
 #include <Config.hpp>
-#include <assert.h>
 
 void usage(const char * prg){
   ndbout << "Usage " << prg << ": <Init config> <Binary file>" << endl;

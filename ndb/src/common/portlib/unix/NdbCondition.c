@@ -15,16 +15,10 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
-#include <NdbCondition.h>
-#include <pthread.h>
-#include <assert.h>
-#include <sys/types.h>
-#if defined NDB_MACOSX
-#include <stdlib.h>
-#else
-#include <malloc.h>
-#endif
+#include <ndb_global.h>
 
+#include <NdbCondition.h>
+#include <NdbThread.h>
 #include <NdbMutex.h>
 
 struct NdbCondition

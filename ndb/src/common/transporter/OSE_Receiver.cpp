@@ -20,7 +20,6 @@
 #include "TransporterCallback.hpp"
 #include <TransporterRegistry.hpp>
 #include "TransporterInternalDefinitions.hpp"
-#include <NdbStdio.h>
 
 OSE_Receiver::OSE_Receiver(TransporterRegistry * tr,
 			   int _recBufSize,

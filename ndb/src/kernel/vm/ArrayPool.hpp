@@ -17,12 +17,12 @@
 #ifndef ARRAY_POOL_HPP
 #define ARRAY_POOL_HPP
 
+#include <ndb_global.h>
+
 #include <pc.hpp>
 #include <ErrorReporter.hpp>
 #include <NdbMem.h>
 #include <Bitmask.hpp>
-#include <assert.h>
-#include <stddef.h>
 
 template <class T> class Array;
 template <class T> class SLList;

@@ -28,7 +28,6 @@
 #include <NdbOut.hpp>
 #include <NdbTick.h>
 
-#include <assert.h>
 
 #include <signaldata/NodeFailRep.hpp>
 #include <signaldata/NFCompleteRep.hpp>

@@ -17,7 +17,6 @@
 #include <ndb_global.h>
 #include <signal.h>
 
-#include <assert.h>
 
 #include <BaseString.hpp>
 #include <InputStream.hpp>

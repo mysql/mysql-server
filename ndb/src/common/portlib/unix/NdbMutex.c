@@ -15,11 +15,10 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
-#include "NdbMutex.h"
+#include <ndb_global.h>
 
-#include <pthread.h>
-#include <stdlib.h>
-#include <assert.h>
+#include <NdbThread.h>
+#include <NdbMutex.h>
 
 NdbMutex* NdbMutex_Create(void)
 {

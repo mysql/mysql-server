@@ -15,8 +15,6 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include "NdbPoolImpl.hpp"
-#include <assert.h>
-#include <string.h>
 
 NdbMutex *NdbPool::pool_mutex = NULL;
 NdbPool *the_pool = NULL;

@@ -18,7 +18,6 @@
 #define SHM_BUFFER_HPP
 
 #include <ndb_global.h>
-#include <assert.h>
 
 #include <NdbSleep.h>
 

@@ -20,7 +20,6 @@
 #include <ndb_global.h>
 #include <ndb_limits.h>
 #include <kernel_types.h>
-#include <NdbConstant.hpp>
 
 #ifndef NDB_ASSERT
 #ifdef VM_TRACE

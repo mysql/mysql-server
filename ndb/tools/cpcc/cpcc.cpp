@@ -15,7 +15,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
-#include <stdarg.h>
+#include <ndb_global.h>
 #include <getarg.h>
 #include "CpcClient.hpp"
 #include <NdbEnv.h>

@@ -17,6 +17,8 @@
 #ifndef NDB_TCP_H
 #define NDB_TCP_H
 
+#include <ndb_global.h>
+
 #if defined NDB_OSE || defined NDB_SOFTOSE
 /**
  * Include files needed
@@ -24,7 +26,6 @@
 #include "inet.h"
 
 #include <netdb.h>
-#include <errno.h>
 
 #define NDB_NONBLOCK FNDELAY
 #define NDB_SOCKET_TYPE int
@@ -40,20 +41,15 @@ typedef int socklen_t;
 
 #endif
 
-#if defined NDB_SOLARIS || defined NDB_HPUX || defined NDB_IBMAIX || defined NDB_TRU64X
+#if defined NDB_SOLARIS || defined NDB_HPUX || defined NDB_IBMAIX || defined NDB_TRU64X || NDB_LINUX || defined NDB_MACOSX
 /**
  * Include files needed
  */
-#include <sys/types.h>
-#include <sys/socket.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
-#include <unistd.h>
 
 #include <netdb.h>
-#include <errno.h>
-#include <fcntl.h>
 
 #define NDB_NONBLOCK O_NONBLOCK
 #define NDB_SOCKET_TYPE int
@@ -63,32 +59,6 @@ typedef int socklen_t;
 #define InetErrno errno
 
 #endif
-
-#if defined NDB_LINUX || defined NDB_MACOSX
-/**
- * Include files needed
- */
-#include <sys/time.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <netinet/tcp.h>
-#include <arpa/inet.h>
-#include <unistd.h>
-
-#include <netdb.h>
-#include <errno.h>
-#include <fcntl.h>
-
-#define NDB_NONBLOCK O_NONBLOCK
-#define NDB_SOCKET_TYPE int
-#define NDB_INVALID_SOCKET -1
-#define NDB_CLOSE_SOCKET(x) close(x)
-
-#define InetErrno errno
-
-#endif
-
 
 #ifdef NDB_WIN32
 /**
@@ -96,7 +66,6 @@ typedef int socklen_t;
  */
 #include <winsock2.h>
 #include <ws2tcpip.h>
-#include <errno.h>
 
 #define InetErrno WSAGetLastError()
 #define EWOULDBLOCK WSAEWOULDBLOCK

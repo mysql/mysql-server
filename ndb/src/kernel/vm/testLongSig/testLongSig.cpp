@@ -16,7 +16,6 @@
 
 
 #include <ndb_global.h>
-#include <assert.h>
 #include <editline/editline.h>
 #include <SignalSender.hpp>
 

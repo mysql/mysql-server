@@ -17,7 +17,6 @@
 
 #include "Transporter.hpp"
 #include "TransporterInternalDefinitions.hpp"
-#include <NdbStdio.h>
 #include <NdbSleep.h>
 
 Transporter::Transporter(NodeId lNodeId, NodeId rNodeId, 

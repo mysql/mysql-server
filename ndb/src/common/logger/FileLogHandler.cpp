@@ -18,12 +18,6 @@
 
 #include <File.hpp>
 
-#include <NdbStdio.h>
-#include <sys/param.h>
-
-#include <errno.h>
-#include <string.h>
-
 //
 // PUBLIC
 //

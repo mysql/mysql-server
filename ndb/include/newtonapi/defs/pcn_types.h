@@ -17,8 +17,7 @@
 #ifndef PCN_TYPES_H
 #define PCN_TYPES_H
 
-#include <stddef.h>
-#include <NdbUnistd.h>
+#include <ndb_global.h>
 
 #ifdef NDB_MACOSX
 typedef unsigned int Size_t;
