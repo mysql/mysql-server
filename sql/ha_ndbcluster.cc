@@ -593,7 +593,7 @@ int ha_ndbcluster::set_primary_key(NdbOperation *op)
   Read one record from NDB using primary key
 */
 
-int ha_ndbcluster::pk_read(const byte *key, uint key_len, byte *buf)
+int ha_ndbcluster::pk_read(const byte *key, uint key_len, byte *buf) 
 {
   uint no_fields= table->fields, i;
   NdbConnection *trans= m_active_trans;
@@ -624,11 +624,11 @@ int ha_ndbcluster::pk_read(const byte *key, uint key_len, byte *buf)
       return res;
   }
   
-  // Read non-key field(s) unless HA_EXTRA_RETRIEVE_ALL_COLS
+  // Read all wanted non-key field(s) unless HA_EXTRA_RETRIEVE_ALL_COLS
   for (i= 0; i < no_fields; i++) 
   {
     Field *field= table->field[i];
-    if ((thd->query_id == field->query_id) || 
+    if ((thd->query_id == field->query_id) ||
 	retrieve_all_fields)
     {
       if (get_ndb_value(op, i, field->ptr))
@@ -649,6 +649,62 @@ int ha_ndbcluster::pk_read(const byte *key, uint key_len, byte *buf)
 
   // The value have now been fetched from NDB  
   unpack_record(buf);
+  table->status= 0;     
+  DBUG_RETURN(0);
+
+ err:
+  ERR_RETURN(trans->getNdbError());
+}
+
+
+/*
+  Read one complementing record from NDB using primary key from old_data
+*/
+
+int ha_ndbcluster::complemented_pk_read(const byte *old_data, byte *new_data)
+{
+  uint no_fields= table->fields, i;
+  NdbConnection *trans= m_active_trans;
+  NdbOperation *op;
+  THD *thd= current_thd;
+  DBUG_ENTER("complemented_pk_read");
+
+  if (retrieve_all_fields)
+    // We have allready retrieved all fields, nothing to complement
+    DBUG_RETURN(0);
+
+  if (!(op= trans->getNdbOperation(m_tabname)) || op->readTuple() != 0)
+    goto err;
+
+    int res;
+    if (res= set_primary_key_from_old_data(op, old_data))
+      return res;
+    
+  // Read all unreferenced non-key field(s)
+  for (i= 0; i < no_fields; i++) 
+  {
+    Field *field= table->field[i];
+    if (!(field->flags & PRI_KEY_FLAG) &&
+	(thd->query_id != field->query_id))
+    {
+      if (get_ndb_value(op, i, field->ptr))
+        goto err;
+    }
+    else
+    {
+      // Attribute was not to be read
+      m_value[i]= NULL;
+    }
+  }
+  
+  if (trans->execute(NoCommit, IgnoreError) != 0) 
+  {
+    table->status= STATUS_NOT_FOUND;
+    DBUG_RETURN(ndb_err(trans));
+  }
+
+  // The value have now been fetched from NDB  
+  unpack_record(new_data);
   table->status= 0;     
   DBUG_RETURN(0);
 
@@ -1173,10 +1229,43 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
   if (table->timestamp_on_update_now)
     update_timestamp(new_data+table->timestamp_on_update_now-1);
   
-  /* Check for update of primary key and return error */  
+  /* Check for update of primary key for special handling */  
   if ((table->primary_key != MAX_KEY) &&
       (key_cmp(table->primary_key, old_data, new_data)))
-    DBUG_RETURN(HA_ERR_UNSUPPORTED);
+  {
+    DBUG_PRINT("info", ("primary key update, doing pk read+insert+delete"));
+
+    // Get all old fields, since we optimize away fields not in query
+    int read_res = complemented_pk_read(old_data, new_data);
+    if (read_res)
+    {
+      DBUG_PRINT("info", ("pk read failed"));
+      DBUG_RETURN(read_res);
+    }
+    // Insert new row
+    int insert_res = write_row(new_data);
+    if (!insert_res)
+    {
+      // Delete old row
+      DBUG_PRINT("info", ("insert succeded"));
+      int delete_res = delete_row(old_data);
+      if (!delete_res)
+      {
+	DBUG_PRINT("info", ("insert+delete succeeded"));
+	DBUG_RETURN(0);
+      }
+      else
+      {
+	DBUG_PRINT("info", ("delete failed"));
+	DBUG_RETURN(delete_row(new_data));
+      }
+    } 
+    else
+    {
+      DBUG_PRINT("info", ("insert failed"));
+      DBUG_RETURN(insert_res);
+    }
+  }
 
   if (cursor)
   {
@@ -1350,7 +1439,6 @@ void ha_ndbcluster::unpack_record(byte* buf)
   DBUG_VOID_RETURN;
 }
 
- 
 /*
   Utility function to print/dump the fetched field
  */
