@@ -143,7 +143,7 @@ private:
    */
   static Uint8  getTakeOverScanFlag(const UintR & scanInfo);
   static Uint16 getTakeOverScanNode(const UintR & scanInfo);
-  static Uint16 getTakeOverScanInfo(const UintR & scanInfo);
+  static Uint32 getTakeOverScanInfo(const UintR & scanInfo);
 
 
   /**
@@ -172,7 +172,7 @@ private:
    */
   static void setTakeOverScanFlag(UintR & scanInfo, Uint8 flag);
   static void setTakeOverScanNode(UintR & scanInfo, Uint16 node);
-  static void setTakeOverScanInfo(UintR & scanInfo, Uint16 aScanInfo);
+  static void setTakeOverScanInfo(UintR & scanInfo, Uint32 aScanInfo);
 };
 
 /**
@@ -490,9 +490,9 @@ TcKeyReq::getTakeOverScanNode(const UintR & scanInfo){
 }
 
 inline
-Uint16 
+Uint32 
 TcKeyReq::getTakeOverScanInfo(const UintR & scanInfo){
-  return (Uint16)((scanInfo >> SCAN_INFO_SHIFT) & SCAN_INFO_MASK);
+  return (Uint32)((scanInfo >> SCAN_INFO_SHIFT) & SCAN_INFO_MASK);
 }
 
 
@@ -512,7 +512,7 @@ TcKeyReq::setTakeOverScanNode(UintR & scanInfo, Uint16 node){
 
 inline
 void
-TcKeyReq::setTakeOverScanInfo(UintR & scanInfo, Uint16 aScanInfo){
+TcKeyReq::setTakeOverScanInfo(UintR & scanInfo, Uint32 aScanInfo){
 //  ASSERT_MAX(aScanInfo, SCAN_INFO_MASK, "TcKeyReq::setTakeOverScanInfo");
   scanInfo |= (aScanInfo << SCAN_INFO_SHIFT);
 }
