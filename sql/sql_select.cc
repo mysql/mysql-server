@@ -4985,7 +4985,7 @@ bool
 store_val_in_field(Field *field,Item *item)
 {
   bool error;
-  THD *thd=current_thd;
+  THD *thd= field->table->in_use;
   ha_rows cuted_fields=thd->cuted_fields;
   /*
     we should restore old value of count_cuted_fields because
@@ -5180,6 +5180,7 @@ make_outerjoin_info(JOIN *join)
 static bool
 make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 {
+  THD *thd= join->thd;
   DBUG_ENTER("make_join_select");
   if (select)
   {
@@ -5189,8 +5190,8 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
       if (join->tables > 1)
         cond->update_used_tables();		// Tablenr may have changed
       if (join->const_tables == join->tables &&
-	  join->thd->lex->current_select->master_unit() ==
-	  &join->thd->lex->unit)		// not upper level SELECT
+	  thd->lex->current_select->master_unit() ==
+	  &thd->lex->unit)		// not upper level SELECT
         join->const_table_map|=RAND_TABLE_BIT;
       {						// Check const tables
         COND *const_cond=
@@ -5286,7 +5287,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
       {
 	DBUG_EXECUTE("where",print_where(tmp,tab->table->alias););
 	SQL_SELECT *sel=tab->select=(SQL_SELECT*)
-	  join->thd->memdup((gptr) select, sizeof(SQL_SELECT));
+	  thd->memdup((gptr) select, sizeof(SQL_SELECT));
 	if (!sel)
 	  DBUG_RETURN(1);			// End of memory
         /*
@@ -5296,14 +5297,15 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
           the first match for outer tables is encountered.
 	*/        
         if (cond)
-        {/*
+        {
+          /*
             Because of QUICK_GROUP_MIN_MAX_SELECT there may be a select without
             a cond, so neutralize the hack above.
           */
           if (!(tmp= add_found_match_trig_cond(first_inner_tab, tmp, 0)))
             DBUG_RETURN(1);
           tab->select_cond=sel->cond=tmp;
-	  if (current_thd->variables.engine_condition_pushdown)
+	  if (thd->variables.engine_condition_pushdown)
           {
             tab->table->file->pushed_cond= NULL;
 	    /* Push condition to handler */
@@ -5373,7 +5375,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 	    if (sel->cond && !sel->cond->fixed)
 	      sel->cond->quick_fix_field();
 
-	    if (sel->test_quick_select(join->thd, tab->keys,
+	    if (sel->test_quick_select(thd, tab->keys,
 				       used_tables & ~ current_map,
 				       (join->select_options &
 					OPTION_FOUND_ROWS ?
@@ -5386,7 +5388,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 	      */
               sel->cond=orig_cond;
               if (!*tab->on_expr_ref ||
-                  sel->test_quick_select(join->thd, tab->keys,
+                  sel->test_quick_select(thd, tab->keys,
                                          used_tables & ~ current_map,
                                          (join->select_options &
                                           OPTION_FOUND_ROWS ?
@@ -5428,10 +5430,10 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 	    {
 	      DBUG_EXECUTE("where",print_where(tmp,"cache"););
 	      tab->cache.select=(SQL_SELECT*)
-		join->thd->memdup((gptr) sel, sizeof(SQL_SELECT));
+		thd->memdup((gptr) sel, sizeof(SQL_SELECT));
 	      tab->cache.select->cond=tmp;
 	      tab->cache.select->read_tables=join->const_table_map;
-	      if (current_thd->variables.engine_condition_pushdown &&
+	      if (thd->variables.engine_condition_pushdown &&
 		  (!tab->table->file->pushed_cond))
               {
 		/* Push condition to handler */
@@ -5441,7 +5443,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 	    }
 	  }
 	}
-      } 
+      }
       
       /* 
         Push down all predicates from on expressions.
@@ -11783,7 +11785,7 @@ calc_group_buffer(JOIN *join,ORDER *group)
     {
       /* This case should never be choosen */
       DBUG_ASSERT(0);
-      current_thd->fatal_error();
+      join->thd->fatal_error();
     }
     parts++;
     if ((*group->item)->maybe_null)
@@ -13097,6 +13099,7 @@ void st_table_list::print(THD *thd, String *str)
 
 void st_select_lex::print(THD *thd, String *str)
 {
+  /* QQ: thd may not be set for sub queries, but this should be fixed */
   if (!thd)
     thd= current_thd;
 
