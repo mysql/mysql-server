@@ -21,7 +21,6 @@ insert into t1 values (1, 2, 'a&b a<b a>b');
 		<field Field="a&amp;b" Type="int(11)" Null="YES" Key="" Extra="" />
 		<field Field="a&lt;b" Type="int(11)" Null="YES" Key="" Extra="" />
 		<field Field="a&gt;b" Type="text" Null="YES" Key="" Extra="" />
-		<options Name="t1" Engine="MyISAM" Version="9" Row_format="Dynamic" Rows="1" Avg_row_length="28" Data_length="28" Max_data_length="4294967295" Index_length="1024" Data_free="0" Create_time="2005-01-26 01:21:39" Update_time="2005-01-26 01:21:39" Collation="latin1_swedish_ci" Create_options="" Comment="" />
 	</table_structure>
 	<table_data name="t1">
 	<row>
