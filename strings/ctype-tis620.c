@@ -988,7 +988,7 @@ CHARSET_INFO my_charset_tis620_bin=
     ctype_tis620,
     to_lower_tis620,
     to_upper_tis620,
-    sort_order_tis620,
+    NULL,		/* sort_order   */
     NULL,		/* contractions */
     NULL,		/* sort_order_big*/
     NULL,		/* tab_to_uni   */

@@ -859,15 +859,7 @@ Ndb::opTupleIdOnNdb(Uint32 aTableId, Uint64 opValue, Uint32 op)
     case 0:
       tOperation->interpretedUpdateTuple();
       tOperation->equal("SYSKEY_0", aTableId );
-      {
-#ifdef WORDS_BIGENDIAN
-        Uint64 cacheSize64 = opValue;           // XXX interpreter bug on Uint32
-        tOperation->incValue("NEXTID", cacheSize64);
-#else
-        Uint32 cacheSize32 = opValue;           // XXX for little-endian
-        tOperation->incValue("NEXTID", cacheSize32);
-#endif
-      }
+      tOperation->incValue("NEXTID", opValue);
       tRecAttrResult = tOperation->getValue("NEXTID");
 
       if (tConnection->execute( Commit ) == -1 )
