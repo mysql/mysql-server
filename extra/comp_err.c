@@ -869,8 +869,7 @@ static int get_options(int *argc, char ***argv)
 static char *parse_text_line(char *pos)
 {
   int i, nr;
-  char *row;
-  row= pos;
+  char *row= pos;
   DBUG_ENTER("parse_text_line");
 
   while (*pos)
