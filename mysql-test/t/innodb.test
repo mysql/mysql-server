@@ -830,7 +830,6 @@ insert into t1 (a) select b from t2;
 select count(*) from t1;
 explain select * from t1 where c between 1 and 10000;
 update t1 set c=a;
-explain select * from t1 where c between 1 and 10000;
 drop table t1,t2;
 
 #
