@@ -459,7 +459,7 @@ bool load_des_key_file(const char *file_name);
 /* sql_do.cc */
 int mysql_do(THD *thd, List<Item> &values);
 
-/* sql_show.c */
+/* sql_show.cc */
 int mysqld_show_dbs(THD *thd,const char *wild);
 int mysqld_show_open_tables(THD *thd,const char *wild);
 int mysqld_show_tables(THD *thd,const char *db,const char *wild);
@@ -477,6 +477,7 @@ int mysqld_show_status(THD *thd);
 int mysqld_show_variables(THD *thd,const char *wild);
 int mysqld_show(THD *thd, const char *wild, show_var_st *variables);
 int mysqld_show_charsets(THD *thd,const char *wild);
+int mysqld_show_table_types(THD *thd);
 int mysqld_show_privileges(THD *thd);
 int mysqld_show_column_types(THD *thd);
 
