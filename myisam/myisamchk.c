@@ -72,7 +72,7 @@ static void descript(MI_CHECK *param, register MI_INFO *info, my_string name);
 static int mi_sort_records(MI_CHECK *param, register MI_INFO *info,
                            my_string name, uint sort_key,
 			   my_bool write_info, my_bool update_index);
-static int sort_record_index(MI_SORT_PARAM *sort_param,MI_INFO *info,
+static int sort_record_index(MI_SORT_PARAM *sort_param, MI_INFO *info,
                              MI_KEYDEF *keyinfo,
 			     my_off_t page,uchar *buff,uint sortkey,
 			     File new_file, my_bool update_index);
@@ -1470,6 +1470,7 @@ static int mi_sort_records(MI_CHECK *param,
   sort_info.info=info;
   sort_info.new_data_file_type=share->data_file_type;
   sort_param.fix_datafile=1;
+  sort_param.master=1;
   sort_param.filepos=share->pack.header_length;
   old_record_count=info->state->records;
   info->state->records=0;

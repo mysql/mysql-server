@@ -122,6 +122,7 @@ Summary: MySQL - server with Berkeley DB, RAID and UDF support
 Group: Applications/Databases
 Provides: mysql-Max
 Obsoletes: mysql-Max
+Requires: MySQL >= 4.0
 
 %description Max 
 Optional MySQL server binary that supports additional features like
@@ -481,6 +482,11 @@ fi
 
 %changelog 
 
+* Wed Sep 25 2002 Lenz Grimmer <lenz@mysql.com>
+
+- MySQL-Max now requires MySQL >= 4.0 to avoid version mismatches
+  (mixing 3.23 and 4.0 packages)
+
 * Fri Aug 09 2002 Lenz Grimmer <lenz@mysql.com>
  
 - Turn off OpenSSL in MySQL-Max for now until it works properly again
@@ -513,7 +519,7 @@ fi
   take care of this
 - reorganized the file list: actually install man pages along
   with the binaries of the respective subpackage
-- don't include libmysqld.a in the devel subpackage as well, if we
+- don´t include libmysqld.a in the devel subpackage as well, if we
   have a special "embedded" subpackage
 - reworked the package descriptions
 
