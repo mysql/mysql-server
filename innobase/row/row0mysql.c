@@ -1393,7 +1393,7 @@ int
 row_create_index_for_mysql(
 /*=======================*/
 					/* out: error number or DB_SUCCESS */
-	dict_index_t*	index,		/* in: index defintion */
+	dict_index_t*	index,		/* in: index definition */
 	trx_t*		trx)		/* in: transaction handle */
 {
 	ind_node_t*	node;
@@ -1402,11 +1402,14 @@ row_create_index_for_mysql(
 	ulint		namelen;
 	ulint		keywordlen;
 	ulint		err;
+	ulint		i;
+	ulint		j;
 	
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 	
-	trx->op_info = "creating index";
+	trx->op_info = (char *) "creating index";
 
 	trx_start_if_not_started(trx);
 
@@ -1422,6 +1425,29 @@ row_create_index_for_mysql(
 		return(DB_SUCCESS);
 	}
 
+	/* Check that the same column does not appear twice in the index.
+	InnoDB assumes this in its algorithms, e.g., update of an index
+	entry */
+
+	for (i = 0; i < dict_index_get_n_fields(index); i++) {
+		for (j = 0; j < i; j++) {
+			if (0 == ut_strcmp(
+				dict_index_get_nth_field(index, j)->name,
+				dict_index_get_nth_field(index, i)->name)) {
+
+				fprintf(stderr,
+"InnoDB: Error: column %s appears twice in index %s\n"
+"InnoDB: This is not allowed in InnoDB.\n",
+				dict_index_get_nth_field(index, i)->name,
+				index->name);
+
+				err = DB_COL_APPEARS_TWICE_IN_INDEX;
+
+				goto error_handling;
+			}
+		}
+	}
+
 	heap = mem_heap_create(512);
 
 	trx->dict_operation = TRUE;
@@ -1434,11 +1460,13 @@ row_create_index_for_mysql(
 						SESS_COMM_EXECUTE, 0));
 	que_run_threads(thr);
 
-	err = trx->error_state;
+ 	err = trx->error_state;
 
+	que_graph_free((que_t*) que_node_get_parent(thr));
+
+error_handling:
 	if (err != DB_SUCCESS) {
 		/* We have special error handling here */
-		ut_a(err == DB_OUT_OF_FILE_SPACE);
 		
 		trx->error_state = DB_SUCCESS;
 
@@ -1448,10 +1476,8 @@ row_create_index_for_mysql(
 
 		trx->error_state = DB_SUCCESS;
 	}
-
-	que_graph_free((que_t*) que_node_get_parent(thr));
 	
-	trx->op_info = "";
+	trx->op_info = (char *) "";
 
 	return((int) err);
 }

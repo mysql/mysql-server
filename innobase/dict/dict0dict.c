@@ -1033,6 +1033,7 @@ dict_index_add_to_cache(
 	ulint		n_ord;
 	ibool		success;
 	ulint		i;
+	ulint		j;
 	
 	ut_ad(index);
 	ut_ad(mutex_own(&(dict_sys->mutex)));
@@ -1063,6 +1064,26 @@ dict_index_add_to_cache(
 		return(FALSE);
 	}
 
+	/* Check that the same column does not appear twice in the index.
+	   InnoDB assumes this in its algorithms, e.g., update of an index
+	   entry */
+
+	for (i = 0; i < dict_index_get_n_fields(index); i++) {
+
+	  for (j = 0; j < i; j++) {
+	    if (dict_index_get_nth_field(index, j)->col
+		== dict_index_get_nth_field(index, i)->col) {
+
+	      fprintf(stderr,
+"InnoDB: Error: column %s appears twice in index %s of table %s\n"
+"InnoDB: This is not allowed in InnoDB.\n"
+"InnoDB: UPDATE can cause such an index to become corrupt in InnoDB.\n",
+		      dict_index_get_nth_field(index, i)->col->name,
+		      index->name, table->name);
+	    }
+	  }
+	}
+	
 	/* Build the cache internal representation of the index,
 	containing also the added system fields */
 
