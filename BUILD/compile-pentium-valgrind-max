@@ -9,7 +9,7 @@ cxx_warnings="$cxx_warnings $debug_extra_warnings"
 extra_configs="$pentium_configs $debug_configs"
 
 # We want to test isam when building with valgrind
-extra_configs="$extra_configs --with-berkeley-db --with-innodb --with-isam --with-embedded-server --with-openssl"
+extra_configs="$extra_configs --with-berkeley-db --with-innodb --with-isam --with-embedded-server --with-openssl --with-vio --with-raid --with-ndbcluster"
 
 . "$path/FINISH.sh"
 
