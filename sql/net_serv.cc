@@ -523,7 +523,7 @@ static my_bool net_safe_read(NET *net, char *buff, uint32 length,
     if ((tmp=vio_read(net->vio,(char*) net->buff, length)) <= 0)
     {
       my_bool interrupted = vio_should_retry(net->vio);
-      if (!thr_got_alarm(&alarmed) && interrupted)
+      if (!thr_got_alarm(alarmed) && interrupted)
       {					/* Probably in MIT threads */
 	if (retry_count++ < net->retry_count)
 	  continue;
@@ -557,7 +557,7 @@ static my_bool my_net_skip_rest(NET *net, uint32 remain, thr_alarm_t *alarmed,
   DBUG_ENTER("my_net_skip_rest");
   DBUG_PRINT("enter",("bytes_to_skip: %u", (uint) remain));
 
-  if (!thr_alarm_in_use(&alarmed))
+  if (!thr_alarm_in_use(alarmed))
   {
     my_bool old_mode;
     if (!thr_alarm(alarmed,net->read_timeout, alarm_buff) ||
