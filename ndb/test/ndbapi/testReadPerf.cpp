@@ -115,7 +115,8 @@ main(int argc, const char** argv){
   }
   
   myRandom48Init(NdbTick_CurrentMillisecond());
-  
+  memset(g_times, 0, sizeof(g_times));
+
   g_ndb = new Ndb("TEST_DB");
   if(g_ndb->init() != 0){
     g_err << "init() failed" << endl;
