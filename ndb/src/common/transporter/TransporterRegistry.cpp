@@ -1486,10 +1486,13 @@ TransporterRegistry::get_transporter(NodeId nodeId) {
 
 NDB_SOCKET_TYPE TransporterRegistry::connect_ndb_mgmd(SocketClient *sc)
 {
-  NdbMgmHandle h;
+  NdbMgmHandle h= ndb_mgm_create_handle();
   struct ndb_mgm_reply mgm_reply;
 
-  h= ndb_mgm_create_handle();
+  if ( h == NULL )
+  {
+    return NDB_INVALID_SOCKET;
+  }
 
   /**
    * Set connectstring
@@ -1505,7 +1508,10 @@ NDB_SOCKET_TYPE TransporterRegistry::connect_ndb_mgmd(SocketClient *sc)
        */
       cs= (char*)malloc(len*sizeof(char));
       if(!cs)
+      {
+	ndb_mgm_destroy_handle(&h);
 	return NDB_INVALID_SOCKET;
+      }
     }
     snprintf(cs,len,"%s:%u",sc->get_server_name(),sc->get_port());
     ndb_mgm_set_connectstring(h, cs);
@@ -1514,16 +1520,22 @@ NDB_SOCKET_TYPE TransporterRegistry::connect_ndb_mgmd(SocketClient *sc)
   }
 
   if(ndb_mgm_connect(h, 0, 0, 0)<0)
+  {
+    ndb_mgm_destroy_handle(&h);
     return NDB_INVALID_SOCKET;
-  
+  }
+
   for(unsigned int i=0;i < m_transporter_interface.size();i++)
-    ndb_mgm_set_connection_int_parameter(h,
+    if (ndb_mgm_set_connection_int_parameter(h,
 				   get_localNodeId(),
 				   m_transporter_interface[i].m_remote_nodeId,
 				   CFG_CONNECTION_SERVER_PORT,
 				   m_transporter_interface[i].m_s_service_port,
-				   &mgm_reply);  
-
+				   &mgm_reply) < 0)
+    {
+      ndb_mgm_destroy_handle(&h);
+      return NDB_INVALID_SOCKET;
+    }
   return ndb_mgm_convert_to_transporter(h);
 }
 
