@@ -2128,7 +2128,7 @@ my_decimal *Item_variance_field::val_decimal(my_decimal *dec_buf)
 int simple_str_key_cmp(void* arg, byte* key1, byte* key2)
 {
   Field *f= (Field*) arg;
-  return f->cmp(key1, key2);
+  return f->cmp((const char*)key1, (const char*)key2);
 }
 
 /*
@@ -2158,15 +2158,11 @@ int composite_key_cmp(void* arg, byte* key1, byte* key2)
 }
 
 
-C_MODE_START
-
 static int count_distinct_walk(void *elem, unsigned int count, void *arg)
 {
   (*((ulonglong*)arg))++;
   return 0;
 }
-
-C_MODE_END
 
 
 void Item_sum_count_distinct::cleanup()
