@@ -111,7 +111,8 @@ static Item* part_of_refkey(TABLE *form,Field *field);
 static uint find_shortest_key(TABLE *table, key_map usable_keys);
 static bool test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,
 				    ha_rows select_limit, bool no_changes);
-static int create_sort_index(JOIN_TAB *tab,ORDER *order,ha_rows select_limit);
+static int create_sort_index(JOIN_TAB *tab,ORDER *order,ha_rows filesort_limit,
+			     ha_rows select_limit);
 static int remove_duplicates(JOIN *join,TABLE *entry,List<Item> &fields,
 			     Item *having);
 static int remove_dup_with_compare(THD *thd, TABLE *entry, Field **field,
@@ -207,6 +208,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
   int		error, tmp_error;
   bool		need_tmp,hidden_group_fields;
   bool		simple_order,simple_group,no_order, skip_sort_order;
+  ha_rows	select_limit;
   Item::cond_result cond_value;
   SQL_SELECT	*select;
   DYNAMIC_ARRAY keyuse;
@@ -662,7 +664,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
       DBUG_PRINT("info",("Sorting for group"));
       thd->proc_info="Sorting for group";
       if (create_sort_index(&join.join_tab[join.const_tables],group,
-			    HA_POS_ERROR) ||
+			    HA_POS_ERROR, HA_POS_ERROR) ||
 	  make_sum_func_list(&join,all_fields) ||
 	  alloc_group_fields(&join,group))
 	goto err;
@@ -677,7 +679,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
 	DBUG_PRINT("info",("Sorting for order"));
 	thd->proc_info="Sorting for order";
 	if (create_sort_index(&join.join_tab[join.const_tables],order,
-			      HA_POS_ERROR))
+			      HA_POS_ERROR, HA_POS_ERROR))
 	  goto err;				/* purecov: inspected */
 	order=0;
       }
@@ -778,7 +780,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
       if (group)
       {
 	thd->proc_info="Creating sort index";
-	if (create_sort_index(join.join_tab,group,HA_POS_ERROR) ||
+	if (create_sort_index(join.join_tab,group,HA_POS_ERROR, HA_POS_ERROR) ||
 	    alloc_group_fields(&join,group))
 	{
 	  free_tmp_table(thd,tmp_table2);	/* purecov: inspected */
@@ -872,11 +874,31 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
 	DBUG_EXECUTE("where",print_where(conds,"having after sort"););
       }
     }
+    select_limit= thd->select_limit;
+    if (having || group || (join.select_options & OPTION_FOUND_ROWS))
+      select_limit= HA_POS_ERROR;
+    else
+    {
+      /*
+	We can abort sorting after thd->select_limit rows if we there is no
+	WHERE clause for any tables after the sorted one.
+      */
+      JOIN_TAB *table= &join.join_tab[join.const_tables+1];
+      JOIN_TAB *end_table= &join.join_tab[join.tables];
+      for (; table < end_table ; table++)
+      {
+	if (table->select_cond)
+	{
+	  /* We have to sort all rows */
+	  select_limit= HA_POS_ERROR;
+	  break;
+	}
+      }
+    }
     if (create_sort_index(&join.join_tab[join.const_tables],
 			  group ? group : order,
-			  (having || group ||
-			   (join.select_options & OPTION_FOUND_ROWS)) ?
-			  HA_POS_ERROR : thd->select_limit))
+			  select_limit, 
+			  thd->select_limit))
       goto err; /* purecov: inspected */
   }
   join.having=having;				// Actually a parameter
@@ -3505,7 +3527,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   char	*tmpname,path[FN_REFLEN];
   byte	*pos,*group_buff;
   uchar *null_flags;
-  Field **reg_field,**from_field;
+  Field **reg_field, **from_field, **blob_field;
   Copy_field *copy=0;
   KEY *keyinfo;
   KEY_PART_INFO *key_part_info;
@@ -3550,8 +3572,9 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   hidden_field_count=param->hidden_field_count;
   if (!my_multi_malloc(MYF(MY_WME),
 		       &table,sizeof(*table),
-		       &reg_field,sizeof(Field*)*(field_count+1),
-		       &from_field,sizeof(Field*)*field_count,
+		       &reg_field,  sizeof(Field*)*(field_count+1),
+		       &blob_field, sizeof(Field*)*(field_count+1),
+		       &from_field, sizeof(Field*)*field_count,
 		       &copy_func,sizeof(*copy_func)*(param->func_count+1),
 		       &param->keyinfo,sizeof(*param->keyinfo),
 		       &key_part_info,
@@ -3580,8 +3603,12 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   bzero((char*) reg_field,sizeof(Field*)*(field_count+1));
   bzero((char*) from_field,sizeof(Field*)*field_count);
   table->field=reg_field;
+  table->blob_field= (Field_blob**) blob_field;
   table->real_name=table->path=tmpname;
-  table->table_name=base_name(tmpname);
+  /*
+    This must be "" as field may refer to it after tempory table is dropped
+  */
+  table->table_name= (char*) "";
   table->reginfo.lock_type=TL_WRITE;	/* Will be updated */
   table->db_stat=HA_OPEN_KEYFILE+HA_OPEN_RNDFILE;
   table->blob_ptr_size=mi_portable_sizeof_char_ptr;
@@ -3589,7 +3616,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   table->tmp_table= TMP_TABLE;
   table->db_low_byte_first=1;			// True for HEAP and MyISAM
   table->temp_pool_slot = temp_pool_slot;
-
+  table->copy_blobs= 1;
 
   /* Calculate which type of fields we will store in the temporary table */
 
@@ -3636,7 +3663,10 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 	  if (!(new_field->flags & NOT_NULL_FLAG))
 	    null_count++;
 	  if (new_field->flags & BLOB_FLAG)
+	  {
+	    *blob_field++= new_field;
 	    blob_count++;
+	  }
 	  ((Item_sum*) item)->args[i]= new Item_field(new_field);
 	}
       }
@@ -3659,7 +3689,10 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       if (!(new_field->flags & NOT_NULL_FLAG))
 	null_count++;
       if (new_field->flags & BLOB_FLAG)
+      {
+	*blob_field++= new_field;
 	blob_count++;
+      }
       if (item->marker == 4 && item->maybe_null)
       {
 	group_null_items++;
@@ -3672,6 +3705,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   }
   DBUG_ASSERT(field_count >= (uint) (reg_field - table->field));
   field_count= (uint) (reg_field - table->field);
+  *blob_field= 0;				// End marker
 
   /* If result table is small; use a heap */
   if (blob_count || using_unique_constraint || group_null_items ||
@@ -3929,10 +3963,17 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     if (create_myisam_tmp_table(table,param,select_options))
       goto err;
   }
+  /* Set table_name for easier debugging */
+  table->table_name= base_name(tmpname);
   if (!open_tmp_table(table))
     DBUG_RETURN(table);
 
  err:
+  /*
+    Hack to ensure that free_blobs() doesn't fail if blob_field is not yet
+    complete
+  */
+  *table->blob_field= 0;
   free_tmp_table(thd,table);                    /* purecov: inspected */
   bitmap_clear_bit(&temp_pool, temp_pool_slot);
   DBUG_RETURN(NULL);				/* purecov: inspected */
@@ -4074,6 +4115,7 @@ free_tmp_table(THD *thd, TABLE *entry)
 
   save_proc_info=thd->proc_info;
   thd->proc_info="removing tmp table";
+  free_blobs(entry);
   if (entry->db_stat && entry->file)
   {
     (void) entry->file->close();
@@ -5639,7 +5681,8 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 *****************************************************************************/
 
 static int
-create_sort_index(JOIN_TAB *tab,ORDER *order,ha_rows select_limit)
+create_sort_index(JOIN_TAB *tab, ORDER *order, ha_rows filesort_limit,
+		  ha_rows select_limit)
 {
   SORT_FIELD *sortorder;
   uint length;
@@ -5684,7 +5727,7 @@ create_sort_index(JOIN_TAB *tab,ORDER *order,ha_rows select_limit)
   if (table->tmp_table)
     table->file->info(HA_STATUS_VARIABLE);	// Get record count
   table->found_records=filesort(table,sortorder,length,
-				select, 0L, select_limit, &examined_rows);
+				select, 0L, filesort_limit, &examined_rows);
   tab->records=table->found_records;		// For SQL_CALC_ROWS
   delete select;				// filesort did select
   tab->select=0;

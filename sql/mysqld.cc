@@ -4159,7 +4159,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case (int) OPT_SKIP_SHOW_DB:
     opt_skip_show_db=1;
     opt_specialflag|=SPECIAL_SKIP_SHOW_DB;
-    mysql_port=0;
     break;
 #ifdef ONE_THREAD
   case (int) OPT_ONE_THREAD:
