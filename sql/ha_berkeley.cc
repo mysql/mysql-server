@@ -1583,18 +1583,12 @@ int ha_berkeley::index_last(byte * buf)
 int ha_berkeley::rnd_init(bool scan)
 {
   DBUG_ENTER("rnd_init");
-#ifdef NOT_YET
-  DBUG_ASSERT(active_index == MAX_KEY);
-#endif
   current_row.flags=DB_DBT_REALLOC;
   DBUG_RETURN(index_init(primary_key));
 }
 
 int ha_berkeley::rnd_end()
 {
-#ifdef NOT_YET
-  DBUG_ASSERT(active_index == MAX_KEY);
-#endif
   return index_end();
 }
 
