@@ -351,8 +351,10 @@ class sp_instr_set : public sp_instr
 
 public:
 
+  TABLE_LIST *tables;
+
   sp_instr_set(uint ip, uint offset, Item *val, enum enum_field_types type)
-    : sp_instr(ip), m_offset(offset), m_value(val), m_type(type)
+    : sp_instr(ip), tables(NULL), m_offset(offset), m_value(val), m_type(type)
   {}
 
   virtual ~sp_instr_set()
@@ -421,12 +423,14 @@ class sp_instr_jump_if : public sp_instr_jump
 
 public:
 
+  TABLE_LIST *tables;
+
   sp_instr_jump_if(uint ip, Item *i)
-    : sp_instr_jump(ip), m_expr(i)
+    : sp_instr_jump(ip), tables(NULL), m_expr(i)
   {}
 
   sp_instr_jump_if(uint ip, Item *i, uint dest)
-    : sp_instr_jump(ip, dest), m_expr(i)
+    : sp_instr_jump(ip, dest), tables(NULL), m_expr(i)
   {}
 
   virtual ~sp_instr_jump_if()
@@ -457,12 +461,14 @@ class sp_instr_jump_if_not : public sp_instr_jump
 
 public:
 
+  TABLE_LIST *tables;
+
   sp_instr_jump_if_not(uint ip, Item *i)
-    : sp_instr_jump(ip), m_expr(i)
+    : sp_instr_jump(ip), tables(NULL), m_expr(i)
   {}
 
   sp_instr_jump_if_not(uint ip, Item *i, uint dest)
-    : sp_instr_jump(ip, dest), m_expr(i)
+    : sp_instr_jump(ip, dest), tables(NULL), m_expr(i)
   {}
 
   virtual ~sp_instr_jump_if_not()
@@ -493,8 +499,10 @@ class sp_instr_freturn : public sp_instr
 
 public:
 
+  TABLE_LIST *tables;
+
   sp_instr_freturn(uint ip, Item *val, enum enum_field_types type)
-    : sp_instr(ip), m_value(val), m_type(type)
+    : sp_instr(ip), tables(NULL), m_value(val), m_type(type)
   {}
 
   virtual ~sp_instr_freturn()
