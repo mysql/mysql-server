@@ -74,7 +74,8 @@ int main(int argc, char *argv[])
   Options options;
   struct passwd *user_info;
 
-  options.load(argc, argv);
+  if (options.load(argc, argv))
+    goto err;
 
   if ((user_info= check_user(options.user)))
   {
@@ -96,6 +97,9 @@ int main(int argc, char *argv[])
   options.cleanup();
   my_end(0);
   return 0;
+err:
+  my_end(0);
+  return 1;
 }
 
 /******************* Auxilary functions implementation **********************/

@@ -91,8 +91,8 @@ int parse_output_and_get_value(const char *command, const char *word,
   }
 
 pclose:
-  if (pclose(output))
-    return 1;
+  /* we are not interested in the termination status */
+  pclose(output);
 
   return 0;
 

@@ -74,7 +74,7 @@ static void delete_instance(void *u)
     1 - error occured
 */
 
-static int process_option(void * ctx, const char *group, const char *option)
+static int process_option(void *ctx, const char *group, const char *option)
 {
   Instance_map *map= NULL;
   Instance *instance= NULL;
@@ -178,18 +178,41 @@ Instance_map::find(const char *name, uint name_len)
 }
 
 
-void Instance_map::complete_initialization()
+int Instance_map::complete_initialization()
 {
   Instance *instance;
   uint i= 0;
 
-  while (i < hash.records)
+  if (hash.records == 0)                        /* no instances found */
   {
-    instance= (Instance *) hash_element(&hash, i);
-    instance->complete_initialization(this);
-    instance->options.complete_initialization(mysqld_path);
-    i++;
+    if ((instance= new Instance) == 0)
+      goto err;
+
+    if (instance->init("mysqld") || add_instance(instance))
+      goto err_instance;
+
+    /*
+      After an instance have been added to the instance_map,
+      hash_free should handle it's deletion.
+    */
+    if (instance->complete_initialization(this, mysqld_path))
+      goto err;
   }
+  else
+    while (i < hash.records)
+    {
+      instance= (Instance *) hash_element(&hash, i);
+      if (instance->complete_initialization(this, mysqld_path))
+        goto err;
+      i++;
+    }
+
+  return 0;
+err:
+  return 1;
+err_instance:
+  delete instance;
+  return 1;
 }
 
 
@@ -197,13 +220,11 @@ void Instance_map::complete_initialization()
 
 int Instance_map::load()
 {
-  int error;
+  if (process_default_option_files("my", process_option, (void *) this) ||
+      complete_initialization())
+    return 1;
 
-  error= process_default_option_files("my", process_option, (void *) this);
-
-  complete_initialization();
-
-  return error;
+  return 0;
 }
 
 
