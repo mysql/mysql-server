@@ -273,6 +273,10 @@ class delayed_insert;
 #define THD_SENTRY_MAGIC 0xfeedd1ff
 #define THD_SENTRY_GONE  0xdeadbeef
 
+#ifdef EMBEDDED_LIBRARY
+typedef struct st_mysql;
+#endif
+
 #define THD_CHECK_SENTRY(thd) DBUG_ASSERT(thd->dbug_sentry == THD_SENTRY_MAGIC)
 
 /* For each client connection we create a separate thread with THD serving as
@@ -287,6 +291,9 @@ public:
   String  packet; // dynamic string buffer used for network I/O		
   struct  sockaddr_in remote; // client socket address
   struct  rand_struct rand; // used for authentication
+#ifdef EMBEDDED_LIBRARY
+  struct st_mysql  *mysql;
+#endif
   
   /* query points to the current query,
      thread_stack is a pointer to the stack frame of handle_one_connection(),

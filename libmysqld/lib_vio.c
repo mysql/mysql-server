@@ -42,20 +42,14 @@
 
 struct st_vio
 {
-  my_socket		sd;		/* my_socket - real or imaginary */
-  HANDLE hPipe;
-  my_bool		localhost;	/* Are we from localhost? */
-  int			fcntl_mode;	/* Buffered fcntl(sd,F_GETFL) */
-  struct sockaddr_in	local;		/* Local internet address */
-  struct sockaddr_in	remote;		/* Remote internet address */
   enum enum_vio_type	type;		/* Type of connection */
-  char			desc[30];	/* String description */
   void *dest_thd;
   char *packets, **last_packet;
   char *where_in_packet, *end_of_packet;
   my_bool reading;
   MEM_ROOT root;
 };
+
 
 /* Initialize the communication buffer */
 
@@ -68,6 +62,7 @@ Vio *vio_new(my_socket sd, enum enum_vio_type type, my_bool localhost)
     init_alloc_root(&vio->root, 8192, 8192);
     vio->root.min_malloc = sizeof(char *) + 4;
     vio->last_packet = &vio->packets;
+    vio->type = type;
   }
   return (vio);
 }
@@ -212,4 +207,22 @@ my_bool vio_poll_read(Vio *vio,uint timeout)
   return 0;
 }
 
+int create_vio(NET *net, int separate_thread)
+{
+  Vio * v  = net->vio;
+  if (!v)
+  {
+    v = vio_new(0, separate_thread ? VIO_SHARED_MEMORY : VIO_BUFFER, 0);
+    net->vio = v;
+  }
+  return !v;
+}
+
+void set_thd(Vio *v, void *thd)
+{
+  if (v)
+  {
+    v -> dest_thd = thd;
+  } 
+}
 #endif /* HAVE_VIO */
