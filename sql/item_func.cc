@@ -1455,10 +1455,11 @@ longlong Item_func_find_in_set::val_int()
       {
         const char *substr_end= str_end + symbol_len;
         bool is_last_item= (substr_end == real_end);
-        if (wc == (my_wc_t) separator || is_last_item)
+        bool is_separator= (wc == (my_wc_t) separator);
+        if (is_separator || is_last_item)
         {
           position++;
-          if (is_last_item)
+          if (is_last_item && !is_separator)
             str_end= substr_end;
           if (!my_strnncoll(cs, (const uchar *) str_begin,
                             str_end - str_begin,
