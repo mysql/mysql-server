@@ -20,7 +20,7 @@
 EXTRA_SCRIPTS = mysql-test-run.sh install_test_db.sh
 EXTRA_DIST = $EXTRA_SCRIPTS 
 testdir = $(prefix)/mysql-test
-test_SCRIPTS = mysql-test-run insta_test_db
+test_SCRIPTS = mysql-test-run install_test_db
 CLEANFILES = $(test_SCRIPTS)
 
 dist-hook:
