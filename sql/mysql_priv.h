@@ -519,6 +519,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
 		       HA_CREATE_INFO *create_info,
 		       List<create_field> &fields, List<Key> &keys,
 		       bool tmp_table, uint select_field_count);
+
 TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
 			       const char *db, const char *name,
 			       List<create_field> *extra_fields,
