@@ -34,7 +34,6 @@ static char inited, org_my_init_done;
 #include "../sql/mysqld.cc"
 #endif
 
-#define SCRAMBLE_LENGTH 8
 C_MODE_START
 #include <mysql.h>
 #include "errmsg.h"
