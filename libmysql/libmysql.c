@@ -3515,18 +3515,6 @@ uint STDCALL mysql_thread_safe(void)
 #endif
 }
 
-MYSQL_RES *STDCALL mysql_warnings(MYSQL *mysql)
-{
-  uint warning_count;
-  DBUG_ENTER("mysql_warnings");
-  /* Save warning count as mysql_real_query may change this */
-  warning_count= mysql->warning_count;
-  if (mysql_real_query(mysql, "SHOW WARNINGS", 13))
-    DBUG_RETURN(0);
-  mysql->warning_count= warning_count;
-  DBUG_RETURN(mysql_store_result(mysql));
-}
-
 /****************************************************************************
   Some support functions
 ****************************************************************************/

@@ -757,7 +757,7 @@ int reset_slave(THD *thd, MASTER_INFO* mi)
 err:
   unlock_slave_threads(mi);
   if (thd && error) 
-    send_error(&thd->net, sql_errno, errmsg);
+    send_error(thd, sql_errno, errmsg);
   DBUG_RETURN(error);
 }
 
@@ -802,7 +802,7 @@ int change_master(THD* thd, MASTER_INFO* mi)
   init_thread_mask(&thread_mask,mi,0 /*not inverse*/);
   if (thread_mask) // We refuse if any slave thread is running
   {
-    net_printf(&thd,ER_SLAVE_MUST_STOP);
+    net_printf(thd,ER_SLAVE_MUST_STOP);
     unlock_slave_threads(mi);
     DBUG_RETURN(1);
   }
@@ -874,7 +874,7 @@ int change_master(THD* thd, MASTER_INFO* mi)
 			 0 /* not only reset, but also reinit */,
 			 &errmsg))
     {
-      net_printf(&thd, 0, "Failed purging old relay logs: %s",errmsg);
+      net_printf(thd, 0, "Failed purging old relay logs: %s",errmsg);
       unlock_slave_threads(mi);
       DBUG_RETURN(1);
     }
@@ -908,7 +908,7 @@ int change_master(THD* thd, MASTER_INFO* mi)
 
   unlock_slave_threads(mi);
   thd->proc_info = 0;
-  send_ok(&thd);
+  send_ok(thd);
   DBUG_RETURN(0);
 }
 

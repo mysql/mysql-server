@@ -963,7 +963,7 @@ bool do_command(THD *thd)
   }
   else if (!packet_length)
   {
-    send_error(net,net->last_errno,NullS);
+    send_error(thd,net->last_errno,NullS);
     net->error=0;
     DBUG_RETURN(FALSE);
   }
@@ -1629,7 +1629,9 @@ mysql_execute_command(THD *thd)
   {
     res= mysqld_show_warnings(thd, (ulong)
 			      ((1L << (uint) MYSQL_ERROR::WARN_LEVEL_NOTE) |
-			       (1L << (uint) MYSQL_ERROR::WARN_LEVEL_WARN)));
+			       (1L << (uint) MYSQL_ERROR::WARN_LEVEL_WARN) |
+			       (1L << (uint) MYSQL_ERROR::WARN_LEVEL_ERROR)
+			       ));
     break;
   }
   case SQLCOM_SHOW_ERRORS:
@@ -1883,7 +1885,7 @@ mysql_execute_command(THD *thd)
   */
   if (thd->locked_tables || thd->active_transaction())
   {
-    send_error(&thd->net,ER_LOCK_OR_ACTIVE_TRANSACTION);
+    send_error(thd,ER_LOCK_OR_ACTIVE_TRANSACTION);
     break;
   }
   {
@@ -2293,12 +2295,17 @@ mysql_execute_command(THD *thd)
   }
   case SQLCOM_DROP_TABLE:
   {
-    if (check_table_access(thd,DROP_ACL,tables))
-      goto error;				/* purecov: inspected */
-    if (end_active_trans(thd))
-      res= -1;
-    else
-      res = mysql_rm_table(thd,tables,lex->drop_if_exists);
+    if (!lex->drop_temporary)
+    {
+      if (check_table_access(thd,DROP_ACL,tables))
+	goto error;				/* purecov: inspected */
+      if (end_active_trans(thd))
+      {
+	res= -1;
+	break;
+      }
+    }
+    res= mysql_rm_table(thd,tables,lex->drop_if_exists, lex->drop_temporary);
   }
   break;
   case SQLCOM_DROP_INDEX:
@@ -3777,9 +3784,9 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables)
  if (thd && !error_already_sent)
  {
    if (result)
-     send_error(&thd->net,0);
+     send_error(thd,0);
    else
-     send_ok(&thd->net);
+     send_ok(thd);
  }
 
  return result;
