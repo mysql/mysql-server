@@ -1,4 +1,4 @@
-input texinfo  @c -*-texinfo-*-
+\input texinfo  @c -*-texinfo-*-
 @c Copyright 1997-2001 TcX AB, Detron HB and MySQL Finland AB
 @c
 @c *********************************************************
@@ -3384,6 +3384,7 @@ around some differences.
 @node Extensions to ANSI, Differences from ANSI, Compatibility, Compatibility
 @subsection MySQL Extensions to ANSI SQL92
 
+@cindex hints
 MySQL includes some extensions that you probably will not find in
 other SQL databases.  Be warned that if you use them, your code will not be
 portable to other SQL servers.  In some cases, you can write code that
@@ -13997,8 +13998,8 @@ MySQL.
 
 Some of the examples use the table @code{shop} to hold the price of each
 article (item number) for certain traders (dealers).  Supposing that each
-trader has a single fixed price per article, then (@code{item},
-@code{trader}) is a primary key for the records.
+trader has a single fixed price per article, then (@code{article},
+@code{dealer}) is a primary key for the records.
 
 Start the command line tool @code{mysql} and select a database:
 
@@ -14207,7 +14208,7 @@ splitting of the concatenated column in the client.
 @subsection Using user variables
 
 You can use MySQL user variables to remember results without
-having to store them in a temporary variables in the client.
+having to store them in temporary variables in the client.
 @xref{Variables}.
 
 For example, to find the articles with the highest and lowest price you
@@ -32392,11 +32393,13 @@ read the @code{GROUP BY} description.
 @xref{Group by functions}.
 
 @item
+@cindex hints
 @code{SQL_BUFFER_RESULT} will force the result to be put into a temporary
 table. This will help MySQL free the table locks early and will help
 in cases where it takes a long time to send the result set to the client.
 
 @item
+@cindex hints
 @code{SQL_SMALL_RESULT}, a MySQL-specific option, can be used
 with @code{GROUP BY} or @code{DISTINCT} to tell the optimizer that the
 result set will be small.  In this case, MySQL will use fast
@@ -32404,6 +32407,7 @@ temporary tables to store the resulting table instead of using sorting. In
 MySQL Version 3.23 this shouldn't normally be needed.
 
 @item
+@cindex hints
 @code{STRAIGHT_JOIN} forces the optimizer to join the tables in the order in
 which they are listed in the @code{FROM} clause. You can use this to speed up
 a query if the optimizer joins the tables in non-optimal order.
@@ -32621,11 +32625,13 @@ portable across databases, it's recommended to use @code{LEFT JOIN}
 instead of @code{RIGHT JOIN}.
 
 @item
+@cindex hints
 @code{STRAIGHT_JOIN} is identical to @code{JOIN}, except that the left table
 is always read before the right table. This can be used for those (few)
 cases where the join optimizer puts the tables in the wrong order.
 
 @item
+@cindex hints
 As of MySQL Version 3.23.12, you can give hints about which
 index MySQL should use when retrieving information from a
 table. This is useful if @code{EXPLAIN} shows that MySQL is
@@ -34129,7 +34135,7 @@ The options work for all table types, if not otherwise indicated:
 @item @code{PACK_KEYS} @tab Set this to 1 if you want to have a smaller index. This usually makes updates slower and reads faster (MyISAM, ISAM).
 @item @code{PASSWORD} @tab Encrypt the @code{.frm} file with a password.  This option doesn't do anything in the standard MySQL version.
 @item @code{DELAY_KEY_WRITE} @tab Set this to 1 if want to delay key table updates until the table is closed (MyISAM).
-@item @code{ROW_FORMAT} @tab Defines how the rows should be stored. Currently you can only use the DYNAMIC and STATIC options for MyISAM tables.
+@item @code{ROW_FORMAT} @tab Defines how the rows should be stored. Currently this option only works with MyISAM tables, which supports the @code{DYNAMIC} and @code{FIXED} row formats. @xref{MyISAM table formats}.
 @end multitable
 
 When you use a @code{MyISAM} table, MySQL uses the product of
@@ -35648,6 +35654,13 @@ high-byte first.
 @strong{MyISAM} supports 3 different table types. Two of them are chosen
 automatically depending on the type of columns you are using. The third,
 compressed tables, can only be created with the @code{myisampack} tool.
+
+When you @code{CREATE} or @code{ALTER} a table you can for tables that
+doesn't have @code{BLOB}'s force the table format to @code{DYNAMIC} or
+@code{FIXED} with the @code{ROW_FORMAT=#} table option.  In the future
+you will be able to compress/decompress tables by specifying
+@code{ROW_FORMAT=compressed | default} to @code{ALTER TABLE}.
+@xref{CREATE TABLE}.
 
 @menu
 * Static format::               Static (Fixed-length) table characteristics
