@@ -533,14 +533,15 @@ static CHARSET_INFO *get_internal_charset(uint cs_number, myf flags)
   */
   pthread_mutex_lock(&THR_LOCK_charset);
 
-  cs= all_charsets[cs_number];
-
-  if (cs && !(cs->state & MY_CS_COMPILED) && !(cs->state & MY_CS_LOADED))
+  if ((cs= all_charsets[cs_number]))
   {
-     strxmov(get_charsets_dir(buf), cs->csname, ".xml", NullS);
-     my_read_charset_file(buf,flags);
+    if (!(cs->state & MY_CS_COMPILED) && !(cs->state & MY_CS_LOADED))
+    {
+      strxmov(get_charsets_dir(buf), cs->csname, ".xml", NullS);
+      my_read_charset_file(buf,flags);
+    }
+    cs= (cs->state & MY_CS_AVAILABLE) ? cs : NULL;
   }
-  cs= (cs->state & MY_CS_AVAILABLE) ? cs : NULL;
   pthread_mutex_unlock(&THR_LOCK_charset);
   return cs;
 }
