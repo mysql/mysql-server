@@ -2836,7 +2836,7 @@ loop:
 		at transaction commit */
 
 		srv_main_thread_op_info = (char*)"flushing log";
-		log_write_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP, TRUE);
+		log_buffer_flush_to_disk();
 
 		/* If there were less than 5 i/os during the
 		one second sleep, we assume that there is free
@@ -2852,10 +2852,9 @@ loop:
 					(char*)"doing insert buffer merge";
 			ibuf_contract_for_n_pages(TRUE, 5);
 
-			srv_main_thread_op_info =
-						(char*)"flushing log";
-			log_write_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP,
-									TRUE);
+			srv_main_thread_op_info = (char*)"flushing log";
+
+			log_buffer_flush_to_disk();
 		}
 
 		if (buf_get_modified_ratio_pct() >
@@ -2905,7 +2904,7 @@ loop:
 		buf_flush_batch(BUF_FLUSH_LIST, 100, ut_dulint_max);
 
 		srv_main_thread_op_info = (char*) "flushing log";
-		log_write_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP, TRUE);
+		log_buffer_flush_to_disk();
 	}
 
 	/* We run a batch of insert buffer merge every 10 seconds,
@@ -2915,7 +2914,7 @@ loop:
 	ibuf_contract_for_n_pages(TRUE, 5);
 
 	srv_main_thread_op_info = (char*)"flushing log";
-	log_write_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP, TRUE);
+	log_buffer_flush_to_disk();
 
 	/* We run a full purge every 10 seconds, even if the server
 	were active */
@@ -2939,8 +2938,7 @@ loop:
 		if (difftime(current_time, last_flush_time) > 1) {
 			srv_main_thread_op_info = (char*) "flushing log";
 
-		        log_write_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP,
-									TRUE);
+		        log_buffer_flush_to_disk();
 			last_flush_time = current_time;
 		}
 	}
@@ -3059,6 +3057,10 @@ flush_loop:
 	srv_main_thread_op_info =
 			(char*) "waiting for buffer pool flush to end";
 	buf_flush_wait_batch_end(BUF_FLUSH_LIST);
+
+	srv_main_thread_op_info = (char*) "flushing log";
+
+	log_buffer_flush_to_disk();
 
 	srv_main_thread_op_info = (char*)"making checkpoint";
 

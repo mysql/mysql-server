@@ -173,6 +173,12 @@ log_write_up_to(
 			/* in: TRUE if we want the written log also to be
 			flushed to disk */
 /********************************************************************
+Does a syncronous flush of the log buffer to disk. */
+
+void
+log_buffer_flush_to_disk(void);
+/*==========================*/
+/********************************************************************
 Advances the smallest lsn for which there are unflushed dirty blocks in the
 buffer pool and also may make a new checkpoint. NOTE: this function may only
 be called if the calling thread owns no synchronization objects! */

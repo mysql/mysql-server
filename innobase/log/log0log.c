@@ -178,7 +178,8 @@ loop:
 
 		/* Not enough free space, do a syncronous flush of the log
 		buffer */
-		log_write_up_to(ut_dulint_max, LOG_WAIT_ALL_GROUPS, TRUE);
+
+		log_buffer_flush_to_disk();
 
 		count++;
 
@@ -1365,6 +1366,24 @@ do_waits:
 }
 
 /********************************************************************
+Does a syncronous flush of the log buffer to disk. */
+
+void
+log_buffer_flush_to_disk(void)
+/*==========================*/
+{
+	dulint	lsn;
+
+	mutex_enter(&(log_sys->mutex));
+
+	lsn = log_sys->lsn;
+
+	mutex_exit(&(log_sys->mutex));
+
+	log_write_up_to(lsn, LOG_WAIT_ALL_GROUPS, TRUE);
+}
+
+/********************************************************************
 Tries to establish a big enough margin of free space in the log buffer, such
 that a new log entry can be catenated without an immediate need for a flush. */
 static
@@ -1374,6 +1393,7 @@ log_flush_margin(void)
 {
 	ibool	do_flush	= FALSE;
 	log_t*	log		= log_sys;
+	dulint	lsn;
 
 	mutex_enter(&(log->mutex));
 
@@ -1384,13 +1404,14 @@ log_flush_margin(void)
 			free space */
 		} else {
 			do_flush = TRUE;
+			lsn = log->lsn;
 		}
 	}
 
 	mutex_exit(&(log->mutex));
 
 	if (do_flush) {
-		log_write_up_to(ut_dulint_max, LOG_NO_WAIT, FALSE);
+		log_write_up_to(lsn, LOG_NO_WAIT, FALSE);
 	}
 }
 

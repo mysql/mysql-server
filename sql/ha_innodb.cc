@@ -915,7 +915,7 @@ innobase_flush_logs(void)
 
   	DBUG_ENTER("innobase_flush_logs");
 
-	log_write_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP, TRUE);
+	log_buffer_flush_to_disk();
 
   	DBUG_RETURN(result);
 }
@@ -3538,7 +3538,7 @@ ha_innobase::create(
 	the InnoDB data dictionary get out-of-sync if the user runs
 	with innodb_flush_log_at_trx_commit = 0 */
 
-	log_write_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP, TRUE);
+	log_buffer_flush_to_disk();
 
 	innobase_table = dict_table_get(norm_name, NULL);
 
@@ -3613,7 +3613,7 @@ ha_innobase::delete_table(
 	the InnoDB data dictionary get out-of-sync if the user runs
 	with innodb_flush_log_at_trx_commit = 0 */
 
-	log_write_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP, TRUE);
+	log_buffer_flush_to_disk();
 
 	/* Tell the InnoDB server that there might be work for
 	utility threads: */
@@ -3683,7 +3683,7 @@ innobase_drop_database(
 	the InnoDB data dictionary get out-of-sync if the user runs
 	with innodb_flush_log_at_trx_commit = 0 */
 
-	log_write_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP, TRUE);
+	log_buffer_flush_to_disk();
 
 	/* Tell the InnoDB server that there might be work for
 	utility threads: */
@@ -3755,7 +3755,7 @@ ha_innobase::rename_table(
 	the InnoDB data dictionary get out-of-sync if the user runs
 	with innodb_flush_log_at_trx_commit = 0 */
 
-	log_write_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP, TRUE);
+	log_buffer_flush_to_disk();
 
 	/* Tell the InnoDB server that there might be work for
 	utility threads: */
