@@ -795,21 +795,17 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
 	}
 	else
 	{
-	  sprintf(buff,"UPDATE mysql.user SET password='%s' WHERE user='%s' and"
-		  " host=substring_index(user(),_utf8\"@\",-1)",
-		  crypted_pw, user);
-	  if (mysql_query(mysql,buff))
-	  {
-	    my_printf_error(0,"unable to update user table; error: '%s'",
-			    MYF(ME_BELL),mysql_error(mysql));
-	    return -1;
-	  }
-	  if (mysql_query(mysql,"set sql_log_off=0"))
-	  {
-	    my_printf_error(0, "Can't turn on logging; error: '%s'",
-			    MYF(ME_BELL),mysql_error(mysql));
-	    return -1;
-	  }
+	  /*
+	    We don't try to execute 'update mysql.user set..'
+	    because we can't perfectly find out the host
+	   */
+	  my_printf_error(0,"\n"
+			  "You cannot use 'password' command as mysqld runs\n"
+			  " with grant tables disabled (was started with"
+			  " --skip-grant-tables).\n"
+			  "Use: \"mysqladmin flush-privileges password '*'\""
+			  " instead", MYF(ME_BELL));
+	  return -1;
 	}
       }
       argc--; argv++;
