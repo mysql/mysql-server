@@ -28,8 +28,8 @@
  */
 static struct rerr {
 	int code;
-	char *name;
-	char *explain;
+	const char *name;
+        const char *explain;
 } rerrs[] = {
 	{REG_NOMATCH,	"REG_NOMATCH",	"regexec() failed to match"},
 	{REG_BADPAT,	"REG_BADPAT",	"invalid regular expression"},
@@ -83,7 +83,7 @@ size_t errbuf_size;
 			assert(strlen(convbuf) < sizeof(convbuf));
 			s = convbuf;
 		} else
-			s = r->explain;
+			s = (char*) r->explain;
 	}
 
 	len = strlen(s) + 1;
@@ -113,7 +113,7 @@ char *localbuf;
 		if (strcmp(r->name, preg->re_endp) == 0)
 			break;
 	if (r->code == 0)
-		return("0");
+		return((char*) "0");
 
 	sprintf(localbuf, "%d", r->code);
 	return(localbuf);

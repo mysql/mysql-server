@@ -23,7 +23,7 @@
 
 use DBI;
 use Benchmark;
-use warnings;
+#use warnings;
 
 $opt_groups=27;		    # Characters are 'A' -> Z
 
@@ -34,7 +34,8 @@ chomp($pwd = `pwd`); $pwd = "." if ($pwd eq '');
 require "$pwd/bench-init.pl" || die "Can't read Configuration file: $!\n";
 
 # Avoid warnings for variables in bench-init.pl
-our ($opt_small_test, $opt_small_tables, $opt_debug, $opt_force);
+# (Only works with perl 5.6)
+#our ($opt_small_test, $opt_small_tables, $opt_debug, $opt_force);
 
 if ($opt_small_test || $opt_small_tables)
 {

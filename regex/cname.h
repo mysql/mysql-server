@@ -1,7 +1,7 @@
 /* character-name table */
 static struct cname {
-	char *name;
-	char code;
+  const char *name;
+  const char code;
 } cnames[] = {
 	{"NUL",	        '\0'},
 	{"SOH",	        '\001'},

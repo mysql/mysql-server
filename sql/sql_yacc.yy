@@ -153,6 +153,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	BOOLEAN_SYM
 %token	BOTH
 %token	BY
+%token	CACHE_SYM
 %token	CASCADE
 %token	CHECKSUM_SYM
 %token	CHECK_SYM
@@ -167,6 +168,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	DEFAULT
 %token	DELAYED_SYM
 %token	DELAY_KEY_WRITE_SYM
+%token	DEMAND_SYM
 %token	DESC
 %token	DESCRIBE
 %token  DIRECTORY_SYM
@@ -246,6 +248,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	NO_SYM
 %token	NULL_SYM
 %token	NUM
+%token  OFF
 %token	ON
 %token	OPEN_SYM
 %token	OPTION
@@ -262,6 +265,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	PRIVILEGES
 %token	PROCESS
 %token	PROCESSLIST_SYM
+%token	QUERY_SYM
 %token	RAID_0_SYM
 %token	RAID_STRIPED_SYM
 %token	RAID_TYPE
@@ -285,6 +289,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	SERIALIZABLE_SYM
 %token	SESSION_SYM
 %token	SHUTDOWN
+%token	SQL_CACHE_SYM
+%token	SQL_NO_CACHE_SYM
 %token  SSL_SYM
 %token	STARTING
 %token	STATUS_SYM
@@ -452,6 +458,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	SQL_WARNINGS
 %token	SQL_AUTO_IS_NULL
 %token	SQL_SAFE_UPDATES
+%token	SQL_QUERY_CACHE_TYPE_SYM
 %token  SQL_QUOTE_SHOW_CREATE
 %token  SQL_SLAVE_SKIP_COUNTER
 
@@ -1341,7 +1348,7 @@ table_to_table:
 
 
 select:
-	SELECT_SYM select_part2  {Select->braces=false;} union
+	SELECT_SYM select_part2 { Select->braces=false; } union
 	|
 	'(' SELECT_SYM 	select_part2 ')' {Select->braces=true;} union_opt
 
@@ -1379,14 +1386,16 @@ select_option:
 	| SQL_BIG_RESULT { Select->options|= SELECT_BIG_RESULT; }
 	| SQL_BUFFER_RESULT { Select->options|= OPTION_BUFFER_RESULT; }
 	| SQL_CALC_FOUND_ROWS { Select->options|= OPTION_FOUND_ROWS; }
+	| SQL_NO_CACHE_SYM { current_thd->safe_to_cache_query=0; }
+	| SQL_CACHE_SYM { Select->options |= OPTION_TO_QUERY_CACHE; }
 	| ALL		{}
 
 select_lock_type:
 	/* empty */
 	| FOR_SYM UPDATE_SYM
-	  { Lex->lock_option= TL_WRITE; }
+	  { Lex->lock_option= TL_WRITE; current_thd->safe_to_cache_query=0; }
 	| IN_SYM SHARE_SYM MODE_SYM
-	  { Lex->lock_option= TL_READ_WITH_SHARED_LOCKS; }
+	  { Lex->lock_option= TL_READ_WITH_SHARED_LOCKS; current_thd->safe_to_cache_query=0; }
 
 select_item_list:
 	  select_item_list ',' select_item
@@ -1554,9 +1563,18 @@ no_and_expr:
 simple_expr:
 	simple_ident
 	| literal
-	| '@' ident_or_text SET_VAR expr { $$= new Item_func_set_user_var($2,$4); }
-	| '@' ident_or_text	 { $$= new Item_func_get_user_var($2); }
-	| '@' '@' ident_or_text	 { if (!($$= get_system_var($3))) YYABORT; }
+	| '@' ident_or_text SET_VAR expr
+	  { $$= new Item_func_set_user_var($2,$4);
+	    current_thd->safe_to_cache_query=0;
+	  }
+	| '@' ident_or_text	 
+	  { $$= new Item_func_get_user_var($2);
+	    current_thd->safe_to_cache_query=0;
+	  }
+	| '@' '@' ident_or_text
+	  { if (!($$= get_system_var($3))) YYABORT;
+	      current_thd->safe_to_cache_query=0;
+	  }
 	| sum_expr
 	| '-' expr %prec NEG	{ $$= new Item_func_neg($2); }
 	| '~' expr %prec NEG	{ $$= new Item_func_bit_neg($2); }
@@ -1594,22 +1612,32 @@ simple_expr:
 	| CONCAT_WS '(' expr ',' expr_list ')'
 	  { $$= new Item_func_concat_ws($3, *$5); }
 	| CURDATE optional_braces
-	  { $$= new Item_func_curdate(); }
+	  { $$= new Item_func_curdate(); current_thd->safe_to_cache_query=0; }
 	| CURTIME optional_braces
-	  { $$= new Item_func_curtime(); }
+	  { $$= new Item_func_curtime(); current_thd->safe_to_cache_query=0; }
 	| CURTIME '(' expr ')'
-	  { $$= new Item_func_curtime($3); }
+	  { 
+	    $$= new Item_func_curtime($3); 
+	    current_thd->safe_to_cache_query=0;
+	  }
 	| DATE_ADD_INTERVAL '(' expr ',' INTERVAL_SYM expr interval ')'
 	  { $$= new Item_date_add_interval($3,$6,$7,0); }
 	| DATE_SUB_INTERVAL '(' expr ',' INTERVAL_SYM expr interval ')'
 	  { $$= new Item_date_add_interval($3,$6,$7,1); }
 	| DATABASE '(' ')'
-	  { $$= new Item_func_database(); }
+	  { 
+	    $$= new Item_func_database();
+            current_thd->safe_to_cache_query=0; 
+	  }
 	| ELT_FUNC '(' expr ',' expr_list ')'
 	  { $$= new Item_func_elt($3, *$5); }
 	| MAKE_SET_SYM '(' expr ',' expr_list ')'
 	  { $$= new Item_func_make_set($3, *$5); }
-	| ENCRYPT '(' expr ')' 		  { $$= new Item_func_encrypt($3); }
+	| ENCRYPT '(' expr ')'
+	  {
+	    $$= new Item_func_encrypt($3);
+	    current_thd->safe_to_cache_query=0; 
+	  }
 	| ENCRYPT '(' expr ',' expr ')'   { $$= new Item_func_encrypt($3,$5); }
 	| DECODE_SYM '(' expr ',' TEXT_STRING ')'
 	  { $$= new Item_func_decode($3,$5.str); }
@@ -1633,7 +1661,7 @@ simple_expr:
 	  { $$= new Item_func_from_unixtime($3); }
 	| FROM_UNIXTIME '(' expr ',' expr ')'
 	  {
-	    $$= new Item_func_date_format(new Item_func_from_unixtime($3),$5,0);
+	    $$= new Item_func_date_format (new Item_func_from_unixtime($3),$5,0);
 	  }
 	| FIELD_FUNC '(' expr ',' expr_list ')'
 	  { $$= new Item_func_field($3, *$5); }
@@ -1652,10 +1680,12 @@ simple_expr:
 	  {
 	    $$= new Item_int((char*) "last_insert_id()",
 			     current_thd->insert_id(),21);
+	    current_thd->safe_to_cache_query=0;
 	  }
 	| LAST_INSERT_ID '(' expr ')'
 	  {
 	    $$= new Item_func_set_last_insert_id($3);
+	    current_thd->safe_to_cache_query=0;
 	  }
 	| LEFT '(' expr ',' expr ')'
 	  { $$= new Item_func_left($3,$5); }
@@ -1672,14 +1702,19 @@ simple_expr:
 	| MONTH_SYM '(' expr ')'
 	  { $$= new Item_func_month($3); }
 	| NOW_SYM optional_braces
-	  { $$= new Item_func_now(); }
+	  { $$= new Item_func_now(); current_thd->safe_to_cache_query=0;}
 	| NOW_SYM '(' expr ')'
-	  { $$= new Item_func_now($3); }
-	| PASSWORD '(' expr ')' 	  { $$= new Item_func_password($3); }
+	  { $$= new Item_func_now($3); current_thd->safe_to_cache_query=0;}
+	| PASSWORD '(' expr ')'
+	  {
+	    $$= new Item_func_password($3);
+	   }
 	| POSITION_SYM '(' no_in_expr IN_SYM expr ')'
 	  { $$ = new Item_func_locate($5,$3); }
-	| RAND '(' expr ')'	{ $$= new Item_func_rand($3); }
-	| RAND '(' ')'		{ $$= new Item_func_rand(); }
+	| RAND '(' expr ')'
+	  { $$= new Item_func_rand($3); current_thd->safe_to_cache_query=0;}
+	| RAND '(' ')'
+	  { $$= new Item_func_rand(); current_thd->safe_to_cache_query=0;}
 	| REPLACE '(' expr ',' expr ',' expr ')'
 	  { $$= new Item_func_replace($3,$5,$7); }
 	| RIGHT '(' expr ',' expr ')'
@@ -1717,6 +1752,7 @@ simple_expr:
 	      $$ = new Item_sum_udf_str($1, *$3);
 	    else
 	      $$ = new Item_sum_udf_str($1);
+	    current_thd->safe_to_cache_query=0;
 	  }
 	| UDA_FLOAT_SUM '(' udf_expr_list ')'
 	  {
@@ -1724,6 +1760,7 @@ simple_expr:
 	      $$ = new Item_sum_udf_float($1, *$3);
 	    else
 	      $$ = new Item_sum_udf_float($1);
+	    current_thd->safe_to_cache_query=0;
 	  }
 	| UDA_INT_SUM '(' udf_expr_list ')'
 	  {
@@ -1738,6 +1775,7 @@ simple_expr:
 	      $$ = new Item_func_udf_str($1, *$3);
 	    else
 	      $$ = new Item_func_udf_str($1);
+            current_thd->safe_to_cache_query=0;
 	  }
 	| UDF_FLOAT_FUNC '(' udf_expr_list ')'
 	  {
@@ -1745,6 +1783,7 @@ simple_expr:
 	      $$ = new Item_func_udf_float($1, *$3);
 	    else
 	      $$ = new Item_func_udf_float($1);
+	    current_thd->safe_to_cache_query=0;
 	  }
 	| UDF_INT_FUNC '(' udf_expr_list ')'
 	  {
@@ -1752,15 +1791,21 @@ simple_expr:
 	      $$ = new Item_func_udf_int($1, *$3);
 	    else
 	      $$ = new Item_func_udf_int($1);
+	    current_thd->safe_to_cache_query=0;
 	  }
 	| UNIQUE_USERS '(' text_literal ',' NUM ',' NUM ',' expr_list ')'
-	  { $$= new Item_func_unique_users($3,atoi($5.str),atoi($7.str), * $9); }
+	  { 
+            $$= new Item_func_unique_users($3,atoi($5.str),atoi($7.str), * $9);
+	  }
 	| UNIX_TIMESTAMP '(' ')'
-	  { $$= new Item_func_unix_timestamp(); }
+	  {
+	    $$= new Item_func_unix_timestamp();
+	    current_thd->safe_to_cache_query=0;
+	  }
 	| UNIX_TIMESTAMP '(' expr ')'
 	  { $$= new Item_func_unix_timestamp($3); }
 	| USER '(' ')'
-	  { $$= new Item_func_user(); }
+	  { $$= new Item_func_user(); current_thd->safe_to_cache_query=0; }
 	| WEEK_SYM '(' expr ')'
 	  { $$= new Item_func_week($3,new Item_int((char*) "0",0,1)); }
 	| WEEK_SYM '(' expr ',' expr ')'
@@ -1772,7 +1817,10 @@ simple_expr:
 	| YEARWEEK '(' expr ',' expr ')'
 	  { $$= new Item_func_yearweek($3, $5); }
 	| BENCHMARK_SYM '(' ULONG_NUM ',' expr ')'
-	  { $$=new Item_func_benchmark($3,$5); }
+	  { 
+	    $$=new Item_func_benchmark($3,$5);
+	    current_thd->safe_to_cache_query=0;
+	  }
 	| EXTRACT_SYM '(' interval FROM expr ')'
 	{ $$=new Item_extract( $3, $5); }
 
@@ -2101,6 +2149,7 @@ procedure_clause:
 	    lex->proc_list.next= (byte**) &lex->proc_list.first;
 	    if (add_proc_to_list(new Item_field(NULL,NULL,$2.str)))
 	      YYABORT;
+	    current_thd->safe_to_cache_query=0;
 	  }
 	  '(' procedure_list ')'
 
@@ -2580,6 +2629,7 @@ flush_options:
 flush_option:
 	table_or_tables	{ Lex->type|= REFRESH_TABLES; } opt_table_list
 	| TABLES WITH READ_SYM LOCK_SYM { Lex->type|= REFRESH_TABLES | REFRESH_READ_LOCK; }
+	| QUERY_SYM CACHE_SYM { Lex->type|= REFRESH_QUERY_CACHE_FREE; }
 	| HOSTS_SYM	{ Lex->type|= REFRESH_HOSTS; }
 	| PRIVILEGES	{ Lex->type|= REFRESH_GRANT; }
 	| LOGS_SYM	{ Lex->type|= REFRESH_LOG; }
@@ -2602,8 +2652,9 @@ reset_options:
 	| reset_option
 
 reset_option:
-        SLAVE           { Lex->type|= REFRESH_SLAVE; }
-        | MASTER_SYM    { Lex->type|= REFRESH_MASTER; }
+        SLAVE                 { Lex->type|= REFRESH_SLAVE; }
+        | MASTER_SYM          { Lex->type|= REFRESH_MASTER; }
+	| QUERY_SYM CACHE_SYM { Lex->type|= REFRESH_QUERY_CACHE;}
 
 purge:
 	PURGE
@@ -2851,6 +2902,7 @@ keyword:
 	| BIT_SYM		{}
 	| BOOL_SYM		{}
 	| BOOLEAN_SYM		{}
+	| CACHE_SYM		{}
 	| CHANGED		{}
 	| CHECKSUM_SYM		{}
 	| CHECK_SYM		{}
@@ -2867,6 +2919,7 @@ keyword:
 	| DAY_SYM		{}
 	| DIRECTORY_SYM		{}
 	| DELAY_KEY_WRITE_SYM	{}
+	| DEMAND_SYM		{}
         | DISABLE_SYM           {}
 	| DUMPFILE		{}
 	| DYNAMIC_SYM		{}
@@ -2922,12 +2975,14 @@ keyword:
 	| NEXT_SYM		{}
 	| NEW_SYM		{}
 	| NO_SYM		{}
+	| OFF			{}
 	| OPEN_SYM		{}
 	| PACK_KEYS_SYM		{}
 	| PASSWORD		{}
 	| PREV_SYM		{}
 	| PROCESS		{}
 	| PROCESSLIST_SYM	{}
+	| QUERY_SYM		{}
 	| QUICK			{}
 	| RAID_0_SYM            {}
 	| RAID_CHUNKS		{}
@@ -2949,6 +3004,9 @@ keyword:
 	| SHARE_SYM		{}
 	| SHUTDOWN		{}
         | SLAVE		        {}
+	| SQL_CACHE_SYM		{}
+	| SQL_NO_CACHE_SYM	{}
+	| SQL_QUERY_CACHE_TYPE_SYM {}
 	| START_SYM		{}
 	| STATUS_SYM		{}
 	| STOP_SYM		{}
@@ -3072,6 +3130,7 @@ option_value:
 			       $3->user.str,$5))
 	     YYABORT;
 	 }
+	| SQL_QUERY_CACHE_TYPE_SYM equal query_cache_type
 	| '@' ident_or_text equal expr
 	  {
 	     Item_func_set_user_var *item = new Item_func_set_user_var($2,$4);
@@ -3112,6 +3171,13 @@ option_value:
 					item));
 	   }
 
+query_cache_type:
+	  '0'        { current_thd->query_cache_type = 0; }
+	| OFF        { current_thd->query_cache_type = 0; }
+	| '1'        { current_thd->query_cache_type = 1; }
+	| ON         { current_thd->query_cache_type = 1; }
+	| '2'        { current_thd->query_cache_type = 2; }
+	| DEMAND_SYM { current_thd->query_cache_type = 2; }
 
 text_or_password:
 	TEXT_STRING { $$=$1.str;}

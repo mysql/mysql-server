@@ -94,6 +94,7 @@ inline int local_thr_alarm(my_bool *A,int B __attribute__((unused)),ALARM *C __a
 #ifdef MYSQL_SERVER
 extern ulong bytes_sent, bytes_received;
 extern pthread_mutex_t LOCK_bytes_sent , LOCK_bytes_received;
+extern void query_cache_insert(NET *net, const char *packet, ulong length);
 #else
 #undef statistic_add
 #define statistic_add(A,B,C)
@@ -125,6 +126,7 @@ int my_net_init(NET *net, Vio* vio)
   net->compress=0; net->reading_or_writing=0;
   net->where_b = net->remain_in_buf=0;
   net->last_errno=0;
+  net->query_cache_query=0;
 
   if (vio != 0)					/* If real connection */
   {
@@ -340,6 +342,10 @@ net_real_write(NET *net,const char *packet,ulong len)
   uint retry_count=0;
   my_bool net_blocking = vio_is_blocking(net->vio);
   DBUG_ENTER("net_real_write");
+
+#ifdef MYSQL_SERVER
+  query_cache_insert(net, packet, len);
+#endif
 
   if (net->error == 2)
     DBUG_RETURN(-1);				/* socket can't be used */

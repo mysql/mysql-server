@@ -38,10 +38,15 @@ const char **ha_myisammrg::bas_ext() const
 int ha_myisammrg::open(const char *name, int mode, uint test_if_locked)
 {
   char name_buff[FN_REFLEN];
+  DBUG_PRINT("info", ("ha_myisammrg::open"));
   if (!(file=myrg_open(fn_format(name_buff,name,"","",2 | 4), mode,
 		       test_if_locked)))
+  {
+    DBUG_PRINT("info", ("ha_myisammrg::open exit %d", my_errno));
     return (my_errno ? my_errno : -1);
-
+  }
+  DBUG_PRINT("info", ("ha_myisammrg::open myrg_extrafunc..."))
+  myrg_extrafunc(file, &query_cache_invalidate_by_MyISAM_filename);
   if (!(test_if_locked == HA_OPEN_WAIT_IF_LOCKED ||
 	test_if_locked == HA_OPEN_ABORT_IF_LOCKED))
     myrg_extra(file,HA_EXTRA_NO_WAIT_LOCK);

@@ -63,7 +63,7 @@ void regex_end()
   {
     int i;
     for (i=0; i < CCLASS_LAST ; i++)
-      free(cclasses[i].chars);
+      free((char*) cclasses[i].chars);
     regex_inited=0;
   }
 }
