@@ -159,45 +159,45 @@ typedef struct {
 } COMMANDS;
 
 static COMMANDS commands[] = {
-  { "help", 'h',com_help, 0,"Display this text" },
-  { "?",    'h',com_help, 0,"Synonym for `help'" },
-  { "clear",'c',com_clear,0,"Clear command"},
-  { "connect",'r',com_connect,1,
+  { "help",   'h', com_help,   0, "Display this text" },
+  { "?",      'h', com_help,   0, "Synonym for `help'" },
+  { "clear",  'c', com_clear,  0, "Clear command"},
+  { "connect",'r', com_connect,1,
     "Reconnect to the server. Optional arguments are db and host" },
-  { "edit", 'e',com_edit, 0,"Edit command with $EDITOR"},
-  { "exit", 'q', com_quit, 0,"Exit mysql. Same as quit"},
-  { "go",   'g',com_go,   0,"Send command to mysql server" },
-  { "ego",  'G',com_ego,  0,
+  { "edit",   'e', com_edit,   0, "Edit command with $EDITOR"},
+  { "exit",   'q', com_quit,   0, "Exit mysql. Same as quit"},
+  { "go",     'g', com_go,     0, "Send command to mysql server" },
+  { "ego",    'G', com_ego,    0,
     "Send command to mysql server; Display result vertically"},
-  { "print",'p',com_print,0,"Print current command" },
-  { "quit", 'q',com_quit, 0,"Quit mysql" },
+  { "print",  'p', com_print,  0, "Print current command" },
+  { "quit",   'q', com_quit,   0, "Quit mysql" },
   { "rehash", '#', com_rehash, 0, "Rebuild completion hash" },
   { "source", '.', com_source, 1,
     "Execute a SQL script file. Takes a file name as an argument"},
-
-  { "status",'s',com_status,0,"Get status information from the server"},
-  { "use",'u',com_use,1,
+  { "status", 's', com_status, 0, "Get status information from the server"},
+  { "use",    'u', com_use,    1,
     "Use another database. Takes database name as argument" },
 
-  { "create table",0,0,0,""},	/* Get bash expansion for some commmands */
-  { "create database",0,0,0,""},
-  { "drop",0,0,0,""},
-  { "select",0,0,0,""},
-  { "insert",0,0,0,""},
-  { "replace",0,0,0,""},
-  { "update",0,0,0,""},
-  { "delete",0,0,0,""},
-  { "explain",0,0,0,""},
-  { "show databases",0,0,0,""},
-  { "show fields from",0,0,0,""},
-  { "show keys from",0,0,0,""},
-  { "show tables",0,0,0,""},
-  { "load data from",0,0,0,""},
-  { "alter table",0,0,0,""},
-  { "set option",0,0,0,""},
-  { "lock tables",0,0,0,""},
-  { "unlock tables",0,0,0,""},
-  { (char *)NULL, 0,0,0,""},
+  /* Get bash-like expansion for some commmands */
+  { "create table",     0, 0, 0, ""},
+  { "create database",  0, 0, 0, ""},
+  { "drop",             0, 0, 0, ""},
+  { "select",           0, 0, 0, ""},
+  { "insert",           0, 0, 0, ""},
+  { "replace",          0, 0, 0, ""},
+  { "update",           0, 0, 0, ""},
+  { "delete",           0, 0, 0, ""},
+  { "explain",          0, 0, 0, ""},
+  { "show databases",   0, 0, 0, ""},
+  { "show fields from", 0, 0, 0, ""},
+  { "show keys from",   0, 0, 0, ""},
+  { "show tables",      0, 0, 0, ""},
+  { "load data from",   0, 0, 0, ""},
+  { "alter table",      0, 0, 0, ""},
+  { "set option",       0, 0, 0, ""},
+  { "lock tables",      0, 0, 0, ""},
+  { "unlock tables",    0, 0, 0, ""},
+  { (char *)NULL,       0, 0, 0, ""}
 };
 
 static const char *load_default_groups[]= { "mysql","client",0 };
@@ -409,36 +409,36 @@ static void usage(int version)
   puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,\nand you are welcome to modify and redistribute it under the GPL license\n");
   printf("Usage: %s [OPTIONS] [database]\n", my_progname);
   printf("\n\
-  -?, --help		Display this help and exit\n\
+  -?, --help		Display this help and exit.\n\
   -A, --no-auto-rehash  No automatic rehashing. One has to use 'rehash' to\n\
 			get table and field completion. This gives a quicker\n\
 			start of mysql and disables rehashing on reconnect.\n\
   -B, --batch		Print results with a tab as separator, each row on\n\
-			a new line. Doesn't use history file\n\
+			a new line. Doesn't use history file.\n\
   --character-sets-dir=...\n\
-                        Directory where character sets are\n\
-  -C, --compress	Use compression in server/client protocol\n");
+                        Directory where character sets are located.\n\
+  -C, --compress	Use compression in server/client protocol.\n");
 #ifndef DBUG_OFF
   printf("\
-  -#, --debug[=...]     Debug log. Default is '%s'\n",default_dbug_option);
+  -#, --debug[=...]     Debug log. Default is '%s'.\n",default_dbug_option);
 #endif
   printf("\
-  -D, --database=..	Database to use\n\
+  -D, --database=..	Database to use.\n\
   --default-character-set=...\n\
-                        Set the default character set\n\
-  -e, --execute=...	Execute command and quit.(Output like with --batch)\n\
-  -E, --vertical        Print the output of a query (rows) vertically\n\
-  -f, --force		Continue even if we get an sql error.\n\
+                        Set the default character set.\n\
+  -e, --execute=...     Execute command and quit. (Output like with --batch)\n\
+  -E, --vertical        Print the output of a query (rows) vertically.\n\
+  -f, --force           Continue even if we get an sql error.\n\
   -g, --no-named-commands\n\
-			 Named commands are disabled. Use \\* form only\n\
-  -i, --ignore-space	Ignore space after function names\n\
-  -h, --host=...	Connect to host\n\
-  -H, --html		Produce HTML output\n\
-  -L, --skip-line-numbers  Don't write line number for errors\n\
-  -n, --unbuffered	Flush buffer after each query\n\
-  -N, --skip-column-names  Don't write column names in results\n\
+			Named commands are disabled. Use \\* form only.\n\
+  -i, --ignore-space	Ignore space after function names.\n\
+  -h, --host=...	Connect to host.\n\
+  -H, --html		Produce HTML output.\n\
+  -L, --skip-line-numbers  Don't write line number for errors.\n\
+  -n, --unbuffered	Flush buffer after each query.\n\
+  -N, --skip-column-names  Don't write column names in results.\n\
   -O, --set-variable var=option\n\
-			Give a variable an value. --help lists variables\n\
+			Give a variable an value. --help lists variables.\n\
   -o, --one-database	Only update the default database. This is useful\n\
 			for skipping updates to other database in the update\n\
 			log.\n\
@@ -449,27 +449,27 @@ static void usage(int version)
   puts("  -W, --pipe		Use named pipes to connect to server");
 #endif
   printf("\n\
-  -P  --port=...	Port number to use for connection\n\
+  -P  --port=...	Port number to use for connection.\n\
   -q, --quick		Don't cache result, print it row by row. This may\n\
 			slow down the server if the output is suspended.\n\
-			Doesn't use history file\n\
+			Doesn't use history file.\n\
   -r, --raw		Write fields without conversion. Used with --batch\n\
   -s, --silent		Be more silent.\n\
-  -S  --socket=...	Socket file to use for connection\n");
+  -S  --socket=...	Socket file to use for connection.\n");
 #include "sslopt-usage.h"
   printf("\
-  -t  --table		Output in table format\n\
-  -T, --debug-info	Print some debug info at exit\n");
+  -t  --table		Output in table format.\n\
+  -T, --debug-info	Print some debug info at exit.\n");
 #ifndef DONT_ALLOW_USER_CHANGE
   printf("\
-  -u, --user=#		User for login if not current user\n");
+  -u, --user=#		User for login if not current user.\n");
 #endif
   printf("\
   -U, --safe-updates[=#], --i-am-a-dummy[=#]\n\
-		       Only allow UPDATE and DELETE that uses keys\n\
-  -v, --verbose		Write more (-v -v -v gives the table output format)\n\
-  -V, --version		Output version information and exit\n\
-  -w, --wait		Wait and retry if connection is down\n");
+		        Only allow UPDATE and DELETE that uses keys.\n\
+  -v, --verbose		Write more. (-v -v -v gives the table output format)\n\
+  -V, --version		Output version information and exit.\n\
+  -w, --wait		Wait and retry if connection is down.\n");
   print_defaults("my",load_default_groups);
 
   printf("\nPossible variables for option --set-variable (-O) are:\n");
@@ -1618,7 +1618,7 @@ com_connect(String *buffer, char *line)
     strnmov(buff,line,sizeof(buff)-1);		// Don't destroy history
     if (buff[0] == '\\')			// Short command
       buff[1]=' ';
-    tmp=(char *) strtok(buff," \t");		// Skipp connect command
+    tmp=(char *) strtok(buff," \t");		// Skip connect command
     if (tmp && (tmp=(char *) strtok(NullS," \t;")))
     {
       my_free(current_db,MYF(MY_ALLOW_ZERO_PTR));
@@ -1643,7 +1643,7 @@ com_connect(String *buffer, char *line)
     sprintf(buff,"Connection id:    %ld",mysql_thread_id(&mysql));
     put_info(buff,INFO_INFO);
     sprintf(buff,"Current database: %s\n",
-	    current_db ? current_db : "*** NO ONE ***");
+	    current_db ? current_db : "*** NONE ***");
     put_info(buff,INFO_INFO);
   }
   return error;

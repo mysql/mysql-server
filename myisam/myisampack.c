@@ -1,20 +1,23 @@
-/* Copyright (C) 1999 Monty Program KB
+/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+   
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
+   
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+   
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-   This software is distributed with NO WARRANTY OF ANY KIND.  No author or
-   distributor accepts any responsibility for the consequences of using it, or
-   for whether it serves any particular purpose or works at all, unless he or
-   she says so in writing.  Refer to the Free Public License (the "License")
-   for full details.
-   Every copy of this file must include a copy of the License, normally in a
-   plain ASCII text file named PUBLIC.	The License grants you the right to
-   copy, modify and redistribute this file, but only under certain conditions
-   described in the License.  Among other things, the License requires that
-   the copyright notice and this notice be preserved on all copies. */
-
-/* Pack isam file*/
+/* Pack MyISAM file */
 
 #ifndef USE_MY_FUNC
-#define USE_MY_FUNC			/* We nead at least my_malloc */
+#define USE_MY_FUNC			/* We need at least my_malloc */
 #endif
 
 #include "myisamdef.h"
@@ -25,7 +28,7 @@
 #include <io.h>
 #endif
 #ifndef __GNU_LIBRARY__
-#define __GNU_LIBRARY__			/* Skipp warnings in getopt.h */
+#define __GNU_LIBRARY__			/* Skip warnings in getopt.h */
 #endif
 #include <getopt.h>
 
@@ -252,29 +255,31 @@ static void print_version(void)
 static void usage(void)
 {
   print_version();
-  puts("Copyright (C) 1999-2000 Monty Program KB.");
-  puts("This is not free software. You must have a licence to use this program");
-  puts("This software comes with ABSOLUTELY NO WARRANTY\n");
-  puts("Pack a MyISAM-table to take much smaller space");
-  puts("Keys are not updated, one must run myisamchk -rq on datafile afterwards");
-  puts("You should give the .MSI file as the filename argument");
+  puts("Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB");
+  puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,");
+  puts("and you are welcome to modify and redistribute it under the GPL license\n");
+
+  puts("Pack a MyISAM-table to take much less space.");
+  puts("Keys are not updated, you must run myisamchk -rq on the datafile");
+  puts("afterwards to update the keys.");
+  puts("You should give the .MSI file as the filename argument.");
 
   printf("\nUsage: %s [OPTIONS] filename...\n", my_progname);
   puts("\n\
   -b, --backup		Make a backup of the table as table_name.OLD\n\
-  -f, --force		Force packing of table even if it's gets bigger or\n\
+  -f, --force		Force packing of table even if it gets bigger or if\n\
 			tempfile exists.\n\
   -j, --join='new_table_name'\n\
 			Join all given tables into 'new_table_name'.\n\
-			All tables MUST have the identical layout.\n\
+			All tables MUST have identical layouts.\n\
   -s, --silent		Be more silent.\n\
-  -t, --test		Don't pack table, only test packing it\n\
-  -v, --verbose		Write info about progress and packing result\n\
-  -w, --wait		Wait and retry if table is in use\n\
-  -T, --tmpdir=#	Use temporary directory to store temporary table\n\
-  -#, --debug=...       output debug log. Often this is 'd:t:o,filename`\n\
-  -?, --help		display this help and exit\n\
-  -V, --version		output version information and exit");
+  -t, --test		Don't pack table, only test packing it.\n\
+  -v, --verbose		Write info about progress and packing result.\n\
+  -w, --wait		Wait and retry if table is in use.\n\
+  -T, --tmpdir=...	Use temporary directory to store temporary table.\n\
+  -#, --debug=...       Output debug log. Often this is 'd:t:o,filename`\n\
+  -?, --help		Display this help and exit.\n\
+  -V, --version		Output version information and exit.");
   print_defaults("my",load_default_groups);
 };
 
