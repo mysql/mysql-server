@@ -172,13 +172,15 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
       }
     }
     if ((table= delayed_get_table(thd,table_list)) && !thd->is_fatal_error)
-      if (table_list->next && table)
+    {
+      res= 0;
+      if (table_list->next)			/* if sub select */
 	res= open_and_lock_tables(thd, table_list->next);
-      else
-	res= (table == 0);
+    }
     else
     {
-      lock_type=TL_WRITE;
+      /* Too many delayed insert threads;  Use a normal insert */
+      table_list->lock_type= lock_type= TL_WRITE;
       res= open_and_lock_tables(thd, table_list);
     }
   }
