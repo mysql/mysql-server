@@ -1014,7 +1014,7 @@ NdbConnection::getNdbScanOperation(const char* aTableName)
     if (tab != 0){
       return getNdbScanOperation(tab);
     } else {
-      setOperationErrorCodeAbort(theNdb->theError.code);
+      setOperationErrorCodeAbort(theNdb->theDictionary->m_error.code);
       return NULL;
     }//if
   } 
