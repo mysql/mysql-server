@@ -946,10 +946,12 @@ Backup::sendBackupRef(BlockReference senderRef, Signal *signal,
   ref->masterRef = numberToRef(BACKUP, getMasterNodeId());
   sendSignal(senderRef, GSN_BACKUP_REF, signal, BackupRef::SignalLength, JBB);
 
-  signal->theData[0] = EventReport::BackupFailedToStart;
-  signal->theData[1] = senderRef;
-  signal->theData[2] = errorCode;
-  sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 3, JBB);
+  if(errorCode != BackupRef::IAmNotMaster){
+    signal->theData[0] = EventReport::BackupFailedToStart;
+    signal->theData[1] = senderRef;
+    signal->theData[2] = errorCode;
+    sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 3, JBB);
+  }
 }
 
 void
