@@ -939,7 +939,7 @@ static MYSQL_DATA *read_rows(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
       else
       {
 	cur->data[field] = to;
-        if (len > end_to - to)
+        if (len > (ulong) (end_to - to))
         {
           free_rows(result);
           net->last_errno=CR_UNKNOWN_ERROR;
@@ -998,7 +998,7 @@ read_one_row(MYSQL *mysql,uint fields,MYSQL_ROW row, ulong *lengths)
     }
     else
     {
-      if (len > end_pos - pos)
+      if (len > (ulong) (end_pos - pos))
       {
         mysql->net.last_errno=CR_UNKNOWN_ERROR;
         strmov(mysql->net.last_error,ER(mysql->net.last_errno));
