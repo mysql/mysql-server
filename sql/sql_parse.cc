@@ -2665,7 +2665,6 @@ mysql_execute_command(THD *thd)
     lex->link_first_table_back(create_table, link_to_local);
     break;
 
-create_error:
     /* put tables back for PS rexecuting */
     lex->link_first_table_back(create_table, link_to_local);
     goto error;
