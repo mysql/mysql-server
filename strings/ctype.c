@@ -20,6 +20,10 @@
 #include <m_string.h>
 #endif
 
+#ifndef HAVE_CHARSET_latin1
+#define HAVE_CHARSET_latin1
+#endif
+
 #if defined(HAVE_CHARSET_latin1)||defined(HAVE_CHARSET_latin1_de)||\
 defined(HAVE_CHARSET_danish)||defined(HAVE_CHARSET_german1)
 
@@ -3651,6 +3655,7 @@ static CHARSET_INFO compiled_charsets[] = {
 };
 
 
+CHARSET_INFO *my_charset_latin1 = &compiled_charsets[0];
 CHARSET_INFO *all_charsets[256];
 CHARSET_INFO *default_charset_info = &compiled_charsets[0];
 CHARSET_INFO *system_charset_info = &compiled_charsets[0];
