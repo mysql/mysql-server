@@ -28,9 +28,7 @@
 
 NdbIndexOperation::NdbIndexOperation(Ndb* aNdb) :
   NdbOperation(aNdb),
-  m_theIndex(NULL),
-  m_theIndexLen(0),
-  m_theNoOfIndexDefined(0)
+  m_theIndex(NULL)
 {
   m_tcReqGSN = GSN_TCINDXREQ;
   m_attrInfoGSN = GSN_INDXATTRINFO;
@@ -72,14 +70,7 @@ NdbIndexOperation::indxInit(const NdbIndexImpl * anIndex,
   }
   m_theIndex = anIndex;
   m_accessTable = anIndex->m_table;
-  m_theIndexLen = 0;
-  m_theNoOfIndexDefined = 0;
-  for (Uint32 i=0; i<NDB_MAX_ATTRIBUTES_IN_INDEX; i++)
-    for (int j=0; j<3; j++)
-      m_theIndexDefined[i][j] = false;  
-  
   TcKeyReq * tcKeyReq = CAST_PTR(TcKeyReq, theTCREQ->getDataPtrSend());
-  tcKeyReq->scanInfo = 0;
   theKEYINFOptr = &tcKeyReq->keyInfo[0];
   theATTRINFOptr = &tcKeyReq->attrInfo[0];
   return 0;
@@ -170,284 +161,6 @@ int NdbIndexOperation::interpretedDeleteTuple()
   // First check that index is unique
 
   return NdbOperation::interpretedDeleteTuple();
-}
-
-int NdbIndexOperation::equal_impl(const NdbColumnImpl* tAttrInfo, 
-                                  const char* aValuePassed, 
-                                  Uint32 aVariableKeyLen)
-{
-  register Uint32 tAttrId;
-  
-  Uint32 tData;
-  Uint32 tKeyInfoPosition;
-  const char* aValue = aValuePassed;
-  Uint32 xfrmData[1024];
-  Uint32 tempData[1024];
-  
-  if ((theStatus == OperationDefined) &&
-      (aValue != NULL) &&
-      (tAttrInfo != NULL )) {
-    /************************************************************************
-     *	Start by checking that the attribute is an index key. 
-     *      This value is also the word order in the tuple key of this 
-     *      tuple key attribute. 
-     *      Then check that this tuple key has not already been defined. 
-     *      Finally check if all tuple key attributes have been defined. If
-     *	this is true then set Operation state to tuple key defined.
-     ************************************************************************/
-    tAttrId = tAttrInfo->m_attrId;
-    tKeyInfoPosition = tAttrInfo->m_keyInfoPos;
-    Uint32 i = 0;
-    
-    // Check that the attribute is part if the index attributes
-    // by checking if it is a primary key attribute of index table
-    if (tAttrInfo->m_pk) {
-      Uint32 tKeyDefined = theTupleKeyDefined[0][2];
-      Uint32 tKeyAttrId = theTupleKeyDefined[0][0];
-      do {
-	if (tKeyDefined == false) {
-	  goto keyEntryFound;
-	} else {
-	  if (tKeyAttrId != tAttrId) {
-	    /******************************************************************
-	     * We read the key defined variable in advance. 
-	     * It could potentially read outside its area when 
-	     * i = MAXNROFTUPLEKEY - 1, 
-	     * it is not a problem as long as the variable 
-	     * theTupleKeyDefined is defined
-	     * in the middle of the object. 
-	     * Reading wrong data and not using it causes no problems.
-	     *****************************************************************/
-	    i++;
-	    tKeyAttrId = theTupleKeyDefined[i][0];
-	    tKeyDefined = theTupleKeyDefined[i][2];
-	    continue;
-	  } else {
-	    goto equal_error2;
-	  }//if
-	}//if
-      } while (i < NDB_MAX_ATTRIBUTES_IN_INDEX);
-      goto equal_error2;
-    } else {
-      goto equal_error1;
-    }
-    /**************************************************************************
-     *	Now it is time to retrieve the tuple key data from the pointer supplied
-     *      by the application. 
-     *      We have to retrieve the size of the attribute in words and bits.
-     *************************************************************************/
-  keyEntryFound:
-    m_theIndexDefined[i][0] = tAttrId;
-    m_theIndexDefined[i][1] = tKeyInfoPosition; 
-    m_theIndexDefined[i][2] = true;
-
-    Uint32 sizeInBytes = tAttrInfo->m_attrSize * tAttrInfo->m_arraySize;
-    {
-      /*************************************************************************
-       *	Check if the pointer of the value passed is aligned on a 4 byte 
-       *      boundary. If so only assign the pointer to the internal variable 
-       *      aValue. If it is not aligned then we start by copying the value to 
-       *      tempData and use this as aValue instead.
-       *************************************************************************/
-      const int attributeSize = sizeInBytes;
-      const int slack = sizeInBytes & 3;
-      if ((((UintPtr)aValue & 3) != 0) || (slack != 0)){
-	memcpy(&tempData[0], aValue, attributeSize);
-	aValue = (char*)&tempData[0];
-	if(slack != 0) {
-	  char * tmp = (char*)&tempData[0];
-	  memset(&tmp[attributeSize], 0, (4 - slack));
-	}//if
-      }//if
-    }
-    const char* aValueToWrite = aValue;
-
-    CHARSET_INFO* cs = tAttrInfo->m_cs;
-    if (cs != 0) {
-      // current limitation: strxfrm does not increase length
-      assert(cs->strxfrm_multiply == 1);
-      unsigned n = 
-      (*cs->coll->strnxfrm)(cs,
-                            (uchar*)xfrmData, sizeof(xfrmData),
-                            (const uchar*)aValue, sizeInBytes);
-      while (n < sizeInBytes)
-        ((uchar*)xfrmData)[n++] = 0x20;
-      aValue = (char*)xfrmData;
-    }
-
-    Uint32 bitsInLastWord = 8 * (sizeInBytes & 3) ;
-    Uint32 totalSizeInWords = (sizeInBytes + 3)/4;// Inc. bits in last word
-    Uint32 sizeInWords = sizeInBytes / 4;         // Exc. bits in last word
-
-    if (true){ //tArraySize != 0) {
-      Uint32 tIndexLen = m_theIndexLen;
-
-      m_theIndexLen = tIndexLen + totalSizeInWords;
-      if ((aVariableKeyLen == sizeInBytes) ||
-	  (aVariableKeyLen == 0)) {
-	;
-      } else {
-	goto equal_error3;
-      }
-    }
-#if 0
-    else {
-      /************************************************************************
-       * The attribute is a variable array. We need to use the length parameter
-       * to know the size of this attribute in the key information and 
-       * variable area. A key is however not allowed to be larger than 4 
-       * kBytes and this is checked for variable array attributes
-       * used as keys.
-       ***********************************************************************/
-      Uint32 tMaxVariableKeyLenInWord = (MAXTUPLEKEYLENOFATTERIBUTEINWORD -
-					 tKeyInfoPosition);
-      tAttrSizeInBits = aVariableKeyLen << 3;
-      tAttrSizeInWords = tAttrSizeInBits >> 5;
-      tAttrBitsInLastWord = tAttrSizeInBits - (tAttrSizeInWords << 5);
-      tAttrLenInWords = ((tAttrSizeInBits + 31) >> 5);
-      if (tAttrLenInWords > tMaxVariableKeyLenInWord) {
-	setErrorCodeAbort(4207);
-	return -1;
-      }//if
-      m_theIndexLen = m_theIndexLen + tAttrLenInWords;
-    }//if
-#endif
-    int tDistrKey = tAttrInfo->m_distributionKey;
-    OperationType tOpType = theOperationType;
-    if ((tDistrKey != 1)) {
-      ;
-    } else {
-      /** TODO DISTKEY */
-      theDistrKeyIndicator = 1;
-    }
-    /**************************************************************************
-     *	If the operation is an insert request and the attribute is stored then
-     *      we also set the value in the stored part through putting the 
-     *      information in the INDXATTRINFO signals.
-     *************************************************************************/
-    if ((tOpType == InsertRequest) ||
-	(tOpType == WriteRequest)) {
-      // invalid data can crash kernel
-      if (cs != NULL &&
-	  (*cs->cset->well_formed_len)(cs,
-				       aValueToWrite,
-				       aValueToWrite + sizeInBytes,
-				       sizeInBytes) != sizeInBytes)
-	goto equal_error4;
-      Uint32 ahValue;
-      Uint32 sz = totalSizeInWords;
-      AttributeHeader::init(&ahValue, tAttrId, sz);
-      insertATTRINFO( ahValue );
-      insertATTRINFOloop((Uint32*)aValueToWrite, sizeInWords);
-      if (bitsInLastWord != 0) {
-	tData = *(Uint32*)(aValueToWrite + (sizeInWords << 2));
-	tData = convertEndian(tData);
-	tData = tData & ((1 << bitsInLastWord) - 1);
-	tData = convertEndian(tData);
-	insertATTRINFO( tData );
-      }//if
-    }//if
-    
-    /**************************************************************************
-     *	Store the Key information in the TCINDXREQ and INDXKEYINFO signals. 
-     *************************************************************************/
-    if (insertKEYINFO(aValue, tKeyInfoPosition, 
-		      totalSizeInWords, bitsInLastWord) != -1) {
-      /************************************************************************
-       * Add one to number of tuple key attributes defined. 
-       * If all have been defined then set the operation state to indicate 
-       * that tuple key is defined. 
-       * Thereby no more search conditions are allowed in this version.
-       ***********************************************************************/
-      Uint32 tNoIndexDef = m_theNoOfIndexDefined;
-      Uint32 tErrorLine = theErrorLine;
-      int tNoIndexAttrs = m_theIndex->m_columns.size();
-      unsigned char tInterpretInd = theInterpretIndicator;
-      tNoIndexDef++;
-      m_theNoOfIndexDefined = tNoIndexDef;
-      tErrorLine++;
-      theErrorLine = tErrorLine;
-      if (int(tNoIndexDef) == tNoIndexAttrs) {
-	if (tOpType == UpdateRequest) {
-	  if (tInterpretInd == 1) {
-	    theStatus = GetValue;
-	  } else {
-	    theStatus = SetValue;
-	  }//if
-	  return 0;
-	} else if ((tOpType == ReadRequest) || (tOpType == DeleteRequest) ||
-		   (tOpType == ReadExclusive)) {
-	  theStatus = GetValue;
-          // create blob handles automatically
-          if (tOpType == DeleteRequest && m_currentTable->m_noOfBlobs != 0) {
-            for (unsigned i = 0; i < m_currentTable->m_columns.size(); i++) {
-              NdbColumnImpl* c = m_currentTable->m_columns[i];
-              assert(c != 0);
-              if (c->getBlobType()) {
-                if (getBlobHandle(theNdbCon, c) == NULL)
-                  return -1;
-              }
-            }
-          }
-	  return 0;
-	} else if ((tOpType == InsertRequest) || (tOpType == WriteRequest)) {
-	  theStatus = SetValue;
-	  return 0;
-	} else {
-	  setErrorCodeAbort(4005);
-	  return -1;
-	}//if
-      }//if
-      return 0;
-    } else {
-     
-      return -1;
-    }//if
-  } else {
-    if (theStatus != OperationDefined) {
-      return -1;
-    }//if
-
-    if (aValue == NULL) {
-      setErrorCodeAbort(4505);
-      return -1;
-    }//if
-    
-    if ( tAttrInfo == NULL ) {      
-      setErrorCodeAbort(4004);
-      return -1;
-    }//if
-  }//if
-  return -1;
-
- equal_error1:
-  setErrorCodeAbort(4205);
-  return -1;
-
- equal_error2:
-  setErrorCodeAbort(4206);
-  return -1;
-
- equal_error3:
-  setErrorCodeAbort(4209);
-  return -1;
- 
- equal_error4:
-  setErrorCodeAbort(744);
-  return -1;
-}
-
-int NdbIndexOperation::executeCursor(int aProcessorId)
-{
-  printf("NdbIndexOperation::executeCursor NYI\n");
-  // NYI
-  return -1;
-}
-void
-NdbIndexOperation::setLastFlag(NdbApiSignal* signal, Uint32 lastFlag)
-{
-  TcKeyReq * const req = CAST_PTR(TcKeyReq, signal->getDataPtrSend());
-  TcKeyReq::setExecuteFlag(req->requestInfo, lastFlag);
 }
 
 int 
@@ -548,7 +261,7 @@ NdbIndexOperation::prepareSend(Uint32 aTC_ConnectPtr, Uint64  aTransactionId)
 
   Uint8 tDirtyIndicator = theDirtyIndicator;
   OperationType tOperationType = theOperationType;
-  Uint32 tIndexLen = m_theIndexLen;
+  Uint32 tIndexLen = theTupKeyLen;
   Uint8 abortOption = theNdbCon->m_abortOption;
 
   tcKeyReq->setDirtyFlag(tReqInfo, tDirtyIndicator);
@@ -681,11 +394,6 @@ NdbIndexOperation::prepareSend(Uint32 aTC_ConnectPtr, Uint64  aTransactionId)
   theStatus = WaitResponse;
   theReceiver.prepareSend();
   return 0;
-}
-
-void NdbIndexOperation::closeScan()
-{
-  printf("NdbIndexOperation::closeScan NYI\n");
 }
 
 /***************************************************************************
