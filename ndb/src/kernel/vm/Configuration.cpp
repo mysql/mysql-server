@@ -56,7 +56,8 @@ Configuration::init(int argc, const char** argv){
   int _no_start = 0;
   int _initial = 0;
   const char* _connect_str = NULL;
-  int _deamon = 0;
+  int _daemon = 1;
+  int _no_daemon = 0;
   int _help = 0;
   int _print_version = 0;
 #ifndef DBUG_OFF
@@ -71,12 +72,13 @@ Configuration::init(int argc, const char** argv){
     { "version", 'v', arg_flag, &_print_version, "Print ndbd version", "" },
     { "nostart", 'n', arg_flag, &_no_start,
       "Don't start ndbd immediately. Ndbd will await command from ndb_mgmd", "" },
-    { "daemon", 'd', arg_flag, &_deamon, "Start ndbd as daemon", "" },
+    { "daemon", 'd', arg_flag, &_daemon, "Start ndbd as daemon (default)", "" },
+    { "nodaemon", 0, arg_flag, &_no_daemon, "Do not start ndbd as daemon, provided for testing purposes", "" },
 #ifndef DBUG_OFF
     { "debug", 0, arg_string, &debug_option,
       "Specify debug options e.g. d:t:i:o,out.trace", "options" },
 #endif
-    { "initial", 'i', arg_flag, &_initial,
+    { "initial", 0, arg_flag, &_initial,
       "Perform initial start of ndbd, including cleaning the file system. Consult documentation before using this", "" },
 
     { "connect-string", 'c', arg_string, &_connect_str,
@@ -91,18 +93,27 @@ Configuration::init(int argc, const char** argv){
   
   if(getarg(args, num_args, argc, argv, &optind) || _help) {
     arg_printusage(args, num_args, argv[0], desc);
+    for (int i = 0; i < argc; i++) {
+      if (strcmp("-i",argv[i]) == 0) {
+	printf("flag depricated %s, use %s\n", "-i", "--initial");
+      }
+    }
     return false;
   }
+  if (_no_daemon) {
+    _daemon= 0;
+  }
+  // check for depricated flag '-i'
 
-#ifndef DBUG_OFF
   my_init();
+#ifndef DBUG_OFF
   if (debug_option)
     DBUG_PUSH(debug_option);
 #endif
 
   DBUG_PRINT("info", ("no_start=%d", _no_start));
   DBUG_PRINT("info", ("initial=%d", _initial));
-  DBUG_PRINT("info", ("deamon=%d", _deamon));
+  DBUG_PRINT("info", ("daemon=%d", _daemon));
   DBUG_PRINT("info", ("connect_str=%s", _connect_str));
 
   ndbSetOwnVersion();
@@ -126,8 +137,8 @@ Configuration::init(int argc, const char** argv){
   if (_connect_str)
     _connectString = strdup(_connect_str);
   
-  // Check deamon flag
-  if (_deamon)
+  // Check daemon flag
+  if (_daemon)
     _daemonMode = true;
 
   // Save programname
@@ -202,7 +213,7 @@ Configuration::fetch_configuration(){
   if((globalData.ownId = cr.allocNodeId()) == 0){
     for(Uint32 i = 0; i<3; i++){
       NdbSleep_SecSleep(3);
-      if(globalData.ownId = cr.allocNodeId())
+      if((globalData.ownId = cr.allocNodeId()) != 0)
 	break;
     }
   }

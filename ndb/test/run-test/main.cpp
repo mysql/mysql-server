@@ -465,7 +465,7 @@ setup_config(atrt_config& config){
 	proc.m_type = atrt_process::NDB_DB;
 	proc.m_proc.m_name.assfmt("%d-%s", index, "ndbd");
 	proc.m_proc.m_path.assign(dir).append("/libexec/ndbd");
-	proc.m_proc.m_args = "-i -n";
+	proc.m_proc.m_args = "--initial --nodaemon -n";
 	proc.m_proc.m_cwd.appfmt("%d.ndbd", index);
       } else if(split1[0] == "mysqld"){
 	proc.m_type = atrt_process::MYSQL_SERVER;
