@@ -5152,8 +5152,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   /* Link table in local list (list for current select) */
   table_list.link_in_list((byte*) ptr, (byte**) &ptr->next_local);
   /* Link table in global list (all used tables) */
-  *(ptr->prev_global= lex->query_tables_last)= ptr;
-  lex->query_tables_last= &ptr->next_global;
+  lex->add_to_query_tables(ptr);
   DBUG_RETURN(ptr);
 }
 
@@ -5162,9 +5161,9 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   Initialize a new table list for a nested join
 
   SYNOPSIS
-    init_table_list() 
+    init_table_list()
     thd         current thread
-  
+
   DESCRIPTION
     The function initializes a structure of the TABLE_LIST type
     for a nested join. It sets up its nested join list as empty.
@@ -5184,7 +5183,7 @@ bool st_select_lex::init_nested_join(THD *thd)
   TABLE_LIST *ptr;
   NESTED_JOIN *nested_join;
   DBUG_ENTER("init_nested_join");
-  
+
   if (!(ptr = (TABLE_LIST *) thd->calloc(sizeof(TABLE_LIST))) ||
       !(nested_join= ptr->nested_join=
                     (NESTED_JOIN *) thd->calloc(sizeof(NESTED_JOIN))))
@@ -5209,7 +5208,7 @@ bool st_select_lex::init_nested_join(THD *thd)
   DESCRIPTION
     The function returns to the previous join nest level.
     If the current level contains only one member, the function
-    moves it one level up, eliminating the nest. 
+    moves it one level up, eliminating the nest.
 
   RETURN VALUE
     Pointer to TABLE_LIST element added to the total table list, if success
@@ -5241,7 +5240,7 @@ TABLE_LIST *st_select_lex::end_nested_join(THD *thd)
   Nest last join operation
 
   SYNOPSIS
-    nest_last_join() 
+    nest_last_join()
     thd         current thread
 
   DESCRIPTION
@@ -5257,7 +5256,7 @@ TABLE_LIST *st_select_lex::nest_last_join(THD *thd)
   TABLE_LIST *ptr;
   NESTED_JOIN *nested_join;
   DBUG_ENTER("nest_last_join");
-  
+
   if (!(ptr = (TABLE_LIST *) thd->calloc(sizeof(TABLE_LIST))) ||
       !(nested_join= ptr->nested_join=
                     (NESTED_JOIN *) thd->calloc(sizeof(NESTED_JOIN))))
@@ -5281,7 +5280,7 @@ TABLE_LIST *st_select_lex::nest_last_join(THD *thd)
 
 /*
   Save names for a join with using clase
-   
+
   SYNOPSIS
     save_names_for_using_list
     tab1      left table in join
@@ -5289,11 +5288,11 @@ TABLE_LIST *st_select_lex::nest_last_join(THD *thd)
 
   DESCRIPTION
     The function saves the full names of the tables in st_select_lex
-    to be able to build later an on expression to replace the using clause.   
-  
+    to be able to build later an on expression to replace the using clause.
+
   RETURN VALUE
-    None  
-*/    
+    None
+*/
 
 void st_select_lex::save_names_for_using_list(TABLE_LIST *tab1,
                                               TABLE_LIST *tab2)
@@ -5315,7 +5314,7 @@ void st_select_lex::save_names_for_using_list(TABLE_LIST *tab1,
   db2= tab2->db;
   table2= tab2->alias;
 }
-  
+
 
 /*
   Add a table to the current join list
@@ -5350,9 +5349,9 @@ void st_select_lex::add_joined_table(TABLE_LIST *table)
   SYNOPSIS
     convert_right_join()
     thd         current thread
-  
-  DESCRIPTION 
-    The function takes the current join list t[0],t[1] ... and 
+
+  DESCRIPTION
+    The function takes the current join list t[0],t[1] ... and
     effectively converts it into the list t[1],t[0] ...
     Although the outer_join flag for the new nested table contains
     JOIN_TYPE_RIGHT, it will be handled as the inner table of a left join
@@ -5376,10 +5375,10 @@ void st_select_lex::add_joined_table(TABLE_LIST *table)
     0, otherwise
 */
 
-TABLE_LIST *st_select_lex::convert_right_join() 
+TABLE_LIST *st_select_lex::convert_right_join()
 {
   TABLE_LIST *tab2= join_list->pop();
-  TABLE_LIST *tab1= join_list->pop(); 
+  TABLE_LIST *tab1= join_list->pop();
   DBUG_ENTER("convert_right_join");
 
   join_list->push_front(tab2);
@@ -5443,7 +5442,7 @@ void add_join_on(TABLE_LIST *b,Item *expr)
     add_join_natural()
     a			Table to do normal join with
     b			Do normal join with this table
-  
+
   IMPLEMENTATION
     This function just marks that table b should be joined with a.
     The function setup_cond() will create in b->on_expr a list
