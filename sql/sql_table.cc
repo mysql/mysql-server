@@ -1418,7 +1418,6 @@ TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
   }
   table->file->extra(HA_EXTRA_WRITE_CACHE);
   DBUG_RETURN(table);
-  /* Note that leaving the function resets binlogging properties */
 }
 
 

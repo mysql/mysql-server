@@ -75,6 +75,8 @@ my_bool my_init(void)
     return 0;
   my_init_done=1;
   mysys_usage_id++;
+  my_umask= 0660;                       /* Default umask for new files */
+  my_umask_dir= 0700;                   /* Default umask for new directories */
 #if defined(THREAD) && defined(SAFE_MUTEX)
   safe_mutex_global_init();		/* Must be called early */
 #endif

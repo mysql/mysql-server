@@ -2305,8 +2305,6 @@ bool init_global_datetime_format(timestamp_type format_type,
 static int init_common_variables(const char *conf_file_name, int argc,
 				 char **argv, const char **groups)
 {
-  my_umask=0660;		// Default umask for new files
-  my_umask_dir=0700;		// Default umask for new directories
   umask(((~my_umask) & 0666));
   tzset();			// Set tzname
 
@@ -4242,7 +4240,7 @@ Disable with --skip-innodb (will save memory).",
    "Percentage of dirty pages allowed in bufferpool.", (gptr*) &srv_max_buf_pool_modified_pct,
    (gptr*) &srv_max_buf_pool_modified_pct, 0, GET_ULONG, REQUIRED_ARG, 90, 0, 100, 0, 0, 0},
   {"innodb_max_purge_lag", OPT_INNODB_MAX_PURGE_LAG,
-   "",
+   "Desired maximum length of the purge queue (0 = no limit)",
    (gptr*) &srv_max_purge_lag,
    (gptr*) &srv_max_purge_lag, 0, GET_LONG, REQUIRED_ARG, 0, 0, ~0L,
    0, 1L, 0},
@@ -4251,7 +4249,7 @@ Disable with --skip-innodb (will save memory).",
    (gptr*) &innobase_create_status_file, (gptr*) &innobase_create_status_file,
    0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"innodb_table_locks", OPT_INNODB_TABLE_LOCKS,
-   "If Innodb should enforce LOCK TABLE",
+   "Enable InnoDB locking in LOCK TABLES",
    (gptr*) &global_system_variables.innodb_table_locks,
    (gptr*) &global_system_variables.innodb_table_locks,
    0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
