@@ -4734,6 +4734,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
     return 0;					// Error
   }
   case Item::FIELD_ITEM:
+  case Item::DEFAULT_VALUE_ITEM:
     return create_tmp_field_from_field(thd, (*from_field=
 					     ((Item_field*) item)->field),
 				       item, table, modify_item);
