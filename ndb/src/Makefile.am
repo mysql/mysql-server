@@ -28,5 +28,6 @@ libndbclient.dsp: Makefile \
 	cat $(top_srcdir)/ndb/config/win-lib.am > $@
 	@$(top_srcdir)/ndb/config/win-name $@ $(ndblib_LTLIBRARIES)
 	@$(top_srcdir)/ndb/config/win-includes $@ $(INCLUDES)
-	@$(top_srcdir)/ndb/config/win-sources $@ $(libndbclient_la_SOURCES)
-	@$(top_srcdir)/ndb/config/win-libraries $@ $(libndbclient_la_LIBADD)
+	@$(top_srcdir)/ndb/config/win-sources $@ dummy.cpp
+	@$(top_srcdir)/ndb/config/win-libraries $@ LIB $(libndbclient_la_LIBADD)
+	@touch dummy.cpp

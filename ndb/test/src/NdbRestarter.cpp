@@ -57,7 +57,7 @@ NdbRestarter::NdbRestarter(const char* _addr):
       switch(m->type){
       case MgmId_TCP:
 	char buf[255];
-	snprintf(buf, 255, "%s:%d", m->name.c_str(), m->port);
+	BaseString::snprintf(buf, 255, "%s:%d", m->name.c_str(), m->port);
 	addr.assign(buf);
 	host.assign(m->name.c_str());
 	port = m->port;

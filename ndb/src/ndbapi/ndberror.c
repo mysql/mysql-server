@@ -17,6 +17,7 @@
 
 #include <ndb_global.h>
 #include <ndberror.h>
+#include <m_string.h>
 
 typedef struct ErrorBundle {
   int code;
