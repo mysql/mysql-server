@@ -69,9 +69,11 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 select pk from t1 where key2 = 1 and key1 = 1;
 pk
 26
+27
 select pk from t1 ignore index(key1,key2) where key2 = 1 and key1 = 1;
 pk
 26
+27
 drop table t1;
 create table t1 (
 pk int primary key auto_increment,

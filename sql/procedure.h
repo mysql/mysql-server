@@ -71,6 +71,7 @@ public:
     s->set(value,decimals,default_charset());
     return s;
   }
+  my_decimal *val_decimal(my_decimal *);
   unsigned int size_of() { return sizeof(*this);}  
 };
 
@@ -89,6 +90,7 @@ public:
   double val_real() { return (double) value; }
   longlong val_int() { return value; }
   String *val_str(String *s) { s->set(value, default_charset()); return s; }
+  my_decimal *val_decimal(my_decimal *);
   unsigned int size_of() { return sizeof(*this);}  
 };
 
@@ -122,6 +124,7 @@ public:
   {
     return null_value ? (String*) 0 : (String*) &str_value;
   }
+  my_decimal *val_decimal(my_decimal *);
   unsigned int size_of() { return sizeof(*this);}  
 };
 
