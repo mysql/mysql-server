@@ -1218,7 +1218,7 @@ void Load_log_event::pack_info(Protocol *protocol)
     18 + fname_len + 2 +                    // "LOAD DATA INFILE 'file''"
     7 +					    // LOCAL
     9 +                                     // " REPLACE or IGNORE "
-    11 + table_name_len +                   // "INTO TABLE table"
+    13 + table_name_len*2 +                 // "INTO TABLE `table`"
     21 + sql_ex.field_term_len*4 + 2 +      // " FIELDS TERMINATED BY 'str'"
     23 + sql_ex.enclosed_len*4 + 2 +        // " OPTIONALLY ENCLOSED BY 'str'"
     12 + sql_ex.escaped_len*4 + 2 +         // " ESCAPED BY 'str'"
@@ -1249,12 +1249,12 @@ void Load_log_event::pack_info(Protocol *protocol)
   else if (sql_ex.opt_flags & IGNORE_FLAG)
     pos= strmov(pos, " IGNORE ");
 
-  pos= strmov(pos ,"INTO TABLE ");
+  pos= strmov(pos ,"INTO TABLE `");
   memcpy(pos, table_name, table_name_len);
   pos+= table_name_len;
 
   /* We have to create all optinal fields as the default is not empty */
-  pos= strmov(pos, " FIELDS TERMINATED BY ");
+  pos= strmov(pos, "` FIELDS TERMINATED BY ");
   pos= pretty_print_str(pos, sql_ex.field_term, sql_ex.field_term_len);
   if (sql_ex.opt_flags & OPT_ENCLOSED_FLAG)
     pos= strmov(pos, " OPTIONALLY ");
@@ -1545,7 +1545,7 @@ void Load_log_event::print(FILE* file, bool short_form, char* last_db,
   else if (sql_ex.opt_flags & IGNORE_FLAG)
     fprintf(file," IGNORE ");
   
-  fprintf(file, "INTO TABLE %s ", table_name);
+  fprintf(file, "INTO TABLE `%s`", table_name);
   fprintf(file, " FIELDS TERMINATED BY ");
   pretty_print_str(file, sql_ex.field_term, sql_ex.field_term_len);
 
@@ -2570,7 +2570,7 @@ Create_file_log_event(THD* thd_arg, sql_exchange* ex,
 		      char* block_arg, uint block_len_arg, bool using_trans)
   :Load_log_event(thd_arg,ex,db_arg,table_name_arg,fields_arg,handle_dup,
 		  using_trans),
-   fake_base(0),block(block_arg),block_len(block_len_arg),
+   fake_base(0), block(block_arg), event_buf(0), block_len(block_len_arg),
    file_id(thd_arg->file_id = mysql_bin_log.next_file_id())
 {
   DBUG_ENTER("Create_file_log_event");
@@ -2634,8 +2634,14 @@ Create_file_log_event::Create_file_log_event(const char* buf, int len,
   int block_offset;
   DBUG_ENTER("Create_file_log_event");
 
-  if (copy_log_event(buf,len,old_format))
+  /*
+    We must make copy of 'buf' as this event may have to live over a
+    rotate log entry when used in mysqlbinlog
+  */
+  if (!(event_buf= my_memdup(buf, len, MYF(MY_WME))) ||
+      (copy_log_event(event_buf, len, old_format)))
     DBUG_VOID_RETURN;
+
   if (!old_format)
   {
     file_id = uint4korr(buf + LOG_EVENT_HEADER_LEN +
