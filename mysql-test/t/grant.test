@@ -369,3 +369,23 @@ delete from mysql.columns_priv where user="mysqltest_3";
 flush privileges;
 drop database mysqltest_1;
 drop database mysqltest_2;
+
+#
+# Rights for renaming test (Bug #3270)
+#
+connect (root,localhost,root,,test,$MASTER_MYPORT,$MASTER_MYSOCK);
+connection root;
+--disable_warnings
+create database mysqltest;
+--enable_warnings
+create table mysqltest.t1 (a int,b int,c int);
+grant all on mysqltest.t1 to mysqltest_1@localhost;
+connect (user1,localhost,mysqltest_1,,mysqltest,$MASTER_MYPORT,$MASTER_MYSOCK);
+connection user1;
+-- error 1142
+alter table t1 rename t2;
+connection root;
+revoke all privileges on mysqltest.t1 from mysqltest_1@localhost;
+delete from mysql.user where user=_binary'mysqltest_1';
+drop database mysqltest;
+

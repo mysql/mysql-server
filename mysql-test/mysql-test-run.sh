@@ -1506,7 +1506,6 @@ run_testcase ()
  # script soon anyway so it is not worth it spending the time
  if [ "x$USE_EMBEDDED_SERVER" = "x1" -a -z "$DO_TEST" ] ; then
    for t in \
-        "alter_table" \
 	"bdb-deadlock" \
 	"connect" \
         "ctype_latin1_de" \
