@@ -172,7 +172,10 @@ set_field_to_null_with_conversions(Field *field, bool no_conversions)
   }
   field->reset();
   if (field == field->table->next_number_field)
+  {
+    field->table->auto_increment_field_is_null= true;
     return 0;					// field is set in handler.cc
+  }
   if (current_thd->count_cuted_fields)
   {
     field->set_warning(MYSQL_ERROR::WARN_LEVEL_WARN,ER_WARN_NULL_TO_NOTNULL);
