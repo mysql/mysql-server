@@ -6280,19 +6280,10 @@ purge_option:
         }
 	| BEFORE_SYM expr
 	{
-	  if ($2->check_cols(1) || $2->fix_fields(Lex->thd, 0, &$2))
-	  {
-	    my_error(ER_WRONG_ARGUMENTS, MYF(0), "PURGE LOGS BEFORE");
-	    YYABORT;
-	  }
-	  Item *tmp= new Item_func_unix_timestamp($2);
-	  /*
-	    it is OK only emulate fix_fieds, because we need only
-            value of constant
-	  */
-	  tmp->quick_fix_field();
-	  Lex->sql_command = SQLCOM_PURGE_BEFORE;
-	  Lex->purge_time= (ulong) tmp->val_int();
+	  LEX *lex= Lex;
+	  lex->value_list.empty();
+	  lex->value_list.push_front($2);
+	  lex->sql_command= SQLCOM_PURGE_BEFORE;
 	}
 	;
 
@@ -6302,14 +6293,9 @@ kill:
 	KILL_SYM kill_option expr
 	{
 	  LEX *lex=Lex;
-	  if ($3->fix_fields(lex->thd, 0, &$3) || $3->check_cols(1))
-	  {
-	    my_message(ER_SET_CONSTANTS_ONLY, ER(ER_SET_CONSTANTS_ONLY),
-                       MYF(0));
-	    YYABORT;
-	  }
-          lex->sql_command=SQLCOM_KILL;
-	  lex->thread_id= (ulong) $3->val_int();
+	  lex->value_list.empty();
+	  lex->value_list.push_front($3);
+          lex->sql_command= SQLCOM_KILL;
 	};
 
 kill_option:
