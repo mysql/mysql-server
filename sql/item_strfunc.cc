@@ -289,7 +289,8 @@ String *Item_func_concat::val_str(String *str)
 	  str->copy(*res);
 	  str->append(*res2);
 	}
-	res=str;
+        res= str;
+        use_as_buff= &tmp_value;
       }
       else if (res == &tmp_value)
       {

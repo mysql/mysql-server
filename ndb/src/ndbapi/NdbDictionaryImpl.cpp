@@ -579,6 +579,7 @@ NdbDictionaryImpl::NdbDictionaryImpl(Ndb &ndb)
     m_ndb(ndb)
 {
   m_globalHash = 0;
+  m_local_table_data_size= 0;
 }
 
 NdbDictionaryImpl::NdbDictionaryImpl(Ndb &ndb,

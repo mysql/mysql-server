@@ -10122,9 +10122,9 @@ static void test_bug4231()
   bzero(bind, sizeof(bind));
   bzero(tm, sizeof(tm));
 
-  bind[0].buffer_type= MYSQL_TYPE_TIME;
+  bind[0].buffer_type= MYSQL_TYPE_DATE;
   bind[0].buffer= &tm[0];
-  bind[1].buffer_type= MYSQL_TYPE_TIME;
+  bind[1].buffer_type= MYSQL_TYPE_DATE;
   bind[1].buffer= &tm[1];
 
   mysql_stmt_bind_param(stmt, bind);
@@ -10152,7 +10152,7 @@ static void test_bug4231()
 
   /* Set one of the dates to zero */
   tm[0].year= tm[0].month= tm[0].day= 0;
-  tm[1]= tm[1];
+  tm[1]= tm[0];
   mysql_stmt_execute(stmt);
   rc= mysql_stmt_fetch(stmt);
   DBUG_ASSERT(rc == 0);
