@@ -108,4 +108,6 @@ INSERT INTO searchconthardwarefr3 (topic,date,pseudo) VALUES
 ('43506','2002-10-02','joce'),('40143','2002-08-03','joce');
 EXPLAIN SELECT DISTINCT date FROM searchconthardwarefr3 WHERE date='2002-08-03';
 EXPLAIN SELECT (SELECT DISTINCT date FROM searchconthardwarefr3 WHERE date='2002-08-03');
+SELECT DISTINCT date FROM searchconthardwarefr3 WHERE date='2002-08-03';
+SELECT (SELECT DISTINCT date FROM searchconthardwarefr3 WHERE date='2002-08-03');
 drop table searchconthardwarefr3;

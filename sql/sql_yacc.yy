@@ -867,27 +867,36 @@ opt_create_table_options:
 	/* empty */
 	| create_table_options;
 
+create_table_options_space_separated:
+	create_table_option
+	| create_table_option create_table_options_space_separated;
+
 create_table_options:
 	create_table_option
-	| create_table_option create_table_options;
+	| create_table_option     create_table_options;
+	| create_table_option ',' create_table_options;
+
+o_eq:
+	/* empty */
+	| EQ		{};
 
 create_table_option:
-	TYPE_SYM EQ table_types		{ Lex->create_info.db_type= $3; }
-	| MAX_ROWS EQ ulonglong_num	{ Lex->create_info.max_rows= $3; Lex->create_info.used_fields|= HA_CREATE_USED_MAX_ROWS;}
-	| MIN_ROWS EQ ulonglong_num	{ Lex->create_info.min_rows= $3; Lex->create_info.used_fields|= HA_CREATE_USED_MIN_ROWS;}
-	| AVG_ROW_LENGTH EQ ULONG_NUM	{ Lex->create_info.avg_row_length=$3; Lex->create_info.used_fields|= HA_CREATE_USED_AVG_ROW_LENGTH;}
-	| PASSWORD EQ TEXT_STRING	{ Lex->create_info.password=$3.str; }
-	| COMMENT_SYM EQ TEXT_STRING	{ Lex->create_info.comment=$3.str; }
-	| AUTO_INC EQ ulonglong_num	{ Lex->create_info.auto_increment_value=$3; Lex->create_info.used_fields|= HA_CREATE_USED_AUTO;}
-	| PACK_KEYS_SYM EQ ULONG_NUM	{ Lex->create_info.table_options|= $3 ? HA_OPTION_PACK_KEYS : HA_OPTION_NO_PACK_KEYS; Lex->create_info.used_fields|= HA_CREATE_USED_PACK_KEYS;}
-	| PACK_KEYS_SYM EQ DEFAULT	{ Lex->create_info.table_options&= ~(HA_OPTION_PACK_KEYS | HA_OPTION_NO_PACK_KEYS); Lex->create_info.used_fields|= HA_CREATE_USED_PACK_KEYS;}
-	| CHECKSUM_SYM EQ ULONG_NUM	{ Lex->create_info.table_options|= $3 ? HA_OPTION_CHECKSUM : HA_OPTION_NO_CHECKSUM; }
-	| DELAY_KEY_WRITE_SYM EQ ULONG_NUM { Lex->create_info.table_options|= $3 ? HA_OPTION_DELAY_KEY_WRITE : HA_OPTION_NO_DELAY_KEY_WRITE; }
-	| ROW_FORMAT_SYM EQ row_types	{ Lex->create_info.row_type= $3; }
-	| RAID_TYPE EQ raid_types	{ Lex->create_info.raid_type= $3; Lex->create_info.used_fields|= HA_CREATE_USED_RAID;}
-	| RAID_CHUNKS EQ ULONG_NUM	{ Lex->create_info.raid_chunks= $3; Lex->create_info.used_fields|= HA_CREATE_USED_RAID;}
-	| RAID_CHUNKSIZE EQ ULONG_NUM	{ Lex->create_info.raid_chunksize= $3*RAID_BLOCK_SIZE; Lex->create_info.used_fields|= HA_CREATE_USED_RAID;}
-	| UNION_SYM EQ '(' table_list ')'
+	TYPE_SYM o_eq table_types	{ Lex->create_info.db_type= $3; }
+	| MAX_ROWS o_eq ulonglong_num	{ Lex->create_info.max_rows= $3; Lex->create_info.used_fields|= HA_CREATE_USED_MAX_ROWS;}
+	| MIN_ROWS o_eq ulonglong_num	{ Lex->create_info.min_rows= $3; Lex->create_info.used_fields|= HA_CREATE_USED_MIN_ROWS;}
+	| AVG_ROW_LENGTH o_eq ULONG_NUM	{ Lex->create_info.avg_row_length=$3; Lex->create_info.used_fields|= HA_CREATE_USED_AVG_ROW_LENGTH;}
+	| PASSWORD o_eq TEXT_STRING	{ Lex->create_info.password=$3.str; }
+	| COMMENT_SYM o_eq TEXT_STRING	{ Lex->create_info.comment=$3.str; }
+	| AUTO_INC o_eq ulonglong_num	{ Lex->create_info.auto_increment_value=$3; Lex->create_info.used_fields|= HA_CREATE_USED_AUTO;}
+	| PACK_KEYS_SYM o_eq ULONG_NUM	{ Lex->create_info.table_options|= $3 ? HA_OPTION_PACK_KEYS : HA_OPTION_NO_PACK_KEYS; Lex->create_info.used_fields|= HA_CREATE_USED_PACK_KEYS;}
+	| PACK_KEYS_SYM o_eq DEFAULT	{ Lex->create_info.table_options&= ~(HA_OPTION_PACK_KEYS | HA_OPTION_NO_PACK_KEYS); Lex->create_info.used_fields|= HA_CREATE_USED_PACK_KEYS;}
+	| CHECKSUM_SYM o_eq ULONG_NUM	{ Lex->create_info.table_options|= $3 ? HA_OPTION_CHECKSUM : HA_OPTION_NO_CHECKSUM; }
+	| DELAY_KEY_WRITE_SYM o_eq ULONG_NUM { Lex->create_info.table_options|= $3 ? HA_OPTION_DELAY_KEY_WRITE : HA_OPTION_NO_DELAY_KEY_WRITE; }
+	| ROW_FORMAT_SYM o_eq row_types	{ Lex->create_info.row_type= $3; }
+	| RAID_TYPE o_eq raid_types	{ Lex->create_info.raid_type= $3; Lex->create_info.used_fields|= HA_CREATE_USED_RAID;}
+	| RAID_CHUNKS o_eq ULONG_NUM	{ Lex->create_info.raid_chunks= $3; Lex->create_info.used_fields|= HA_CREATE_USED_RAID;}
+	| RAID_CHUNKSIZE o_eq ULONG_NUM	{ Lex->create_info.raid_chunksize= $3*RAID_BLOCK_SIZE; Lex->create_info.used_fields|= HA_CREATE_USED_RAID;}
+	| UNION_SYM o_eq '(' table_list ')'
 	  {
 	    /* Move the union list to the merge_list */
 	    LEX *lex=Lex;
@@ -900,14 +909,19 @@ create_table_option:
 	    table_list->next=0;
 	    lex->create_info.used_fields|= HA_CREATE_USED_UNION;
 	  }
-	| CHARSET EQ charset_name_or_default
+	| opt_default CHARSET o_eq charset_name_or_default
 	  { 
-	    Lex->create_info.table_charset= $3;
+	    Lex->create_info.table_charset= $4;
 	    Lex->create_info.used_fields|= HA_CREATE_USED_CHARSET;
 	  }
-	| INSERT_METHOD EQ merge_insert_types   { Lex->create_info.merge_insert_method= $3; Lex->create_info.used_fields|= HA_CREATE_USED_INSERT_METHOD;}
-	| DATA_SYM DIRECTORY_SYM EQ TEXT_STRING	{ Lex->create_info.data_file_name= $4.str; }
-	| INDEX DIRECTORY_SYM EQ TEXT_STRING	{ Lex->create_info.index_file_name= $4.str; };
+	| opt_default CHAR_SYM SET o_eq charset_name_or_default
+	  { 
+	    Lex->create_info.table_charset= $5;
+	    Lex->create_info.used_fields|= HA_CREATE_USED_CHARSET;
+	  }
+	| INSERT_METHOD o_eq merge_insert_types   { Lex->create_info.merge_insert_method= $3; Lex->create_info.used_fields|= HA_CREATE_USED_INSERT_METHOD;}
+	| DATA_SYM DIRECTORY_SYM o_eq TEXT_STRING { Lex->create_info.data_file_name= $4.str; }
+	| INDEX DIRECTORY_SYM o_eq TEXT_STRING	  { Lex->create_info.index_file_name= $4.str; };
 
 table_types:
 	ISAM_SYM	{ $$= DB_TYPE_ISAM; }
@@ -1015,12 +1029,12 @@ type:
 	| char opt_binary		{ Lex->length=(char*) "1";
 					  $$=FIELD_TYPE_STRING; }
 	| BINARY '(' NUM ')' 		{ Lex->length=$3.str;
-					  Lex->type|=BINARY_FLAG;
+					  Lex->charset=my_charset_bin;
 					  $$=FIELD_TYPE_STRING; }
 	| varchar '(' NUM ')' opt_binary { Lex->length=$3.str;
 					  $$=FIELD_TYPE_VAR_STRING; }
 	| VARBINARY '(' NUM ')' 	{ Lex->length=$3.str;
-					  Lex->type|=BINARY_FLAG;
+					  Lex->charset=my_charset_bin;
 					  $$=FIELD_TYPE_VAR_STRING; }
 	| YEAR_SYM opt_len field_options { $$=FIELD_TYPE_YEAR; Lex->length=$2; }
 	| DATE_SYM			{ $$=FIELD_TYPE_DATE; }
@@ -1029,17 +1043,17 @@ type:
 	| TIMESTAMP '(' NUM ')'		{ Lex->length=$3.str;
 					  $$=FIELD_TYPE_TIMESTAMP; }
 	| DATETIME			{ $$=FIELD_TYPE_DATETIME; }
-	| TINYBLOB			{ Lex->type|=BINARY_FLAG;
+	| TINYBLOB			{ Lex->charset=my_charset_bin;
 					  $$=FIELD_TYPE_TINY_BLOB; }
-	| BLOB_SYM			{ Lex->type|=BINARY_FLAG;
+	| BLOB_SYM			{ Lex->charset=my_charset_bin;
 					  $$=FIELD_TYPE_BLOB; }
-	| GEOMETRY_SYM			{ Lex->type|=BINARY_FLAG;
+	| GEOMETRY_SYM			{ Lex->charset=my_charset_bin;
 					  $$=FIELD_TYPE_GEOMETRY; }
-	| MEDIUMBLOB			{ Lex->type|=BINARY_FLAG;
+	| MEDIUMBLOB			{ Lex->charset=my_charset_bin;
 					  $$=FIELD_TYPE_MEDIUM_BLOB; }
-	| LONGBLOB			{ Lex->type|=BINARY_FLAG;
+	| LONGBLOB			{ Lex->charset=my_charset_bin;
 					  $$=FIELD_TYPE_LONG_BLOB; }
-	| LONG_SYM VARBINARY		{ Lex->type|=BINARY_FLAG;
+	| LONG_SYM VARBINARY		{ Lex->charset=my_charset_bin;
 					  $$=FIELD_TYPE_MEDIUM_BLOB; }
 	| LONG_SYM varchar opt_binary	{ $$=FIELD_TYPE_MEDIUM_BLOB; }
 	| TINYTEXT opt_binary		{ $$=FIELD_TYPE_TINY_BLOB; }
@@ -1050,13 +1064,13 @@ type:
 					{ $$=FIELD_TYPE_DECIMAL;}
 	| NUMERIC_SYM float_options field_options
 					{ $$=FIELD_TYPE_DECIMAL;}
-	| ENUM {Lex->interval_list.empty();} '(' string_list ')'
+	| ENUM {Lex->interval_list.empty();} '(' string_list ')' opt_binary
 	  {
 	    LEX *lex=Lex;
 	    lex->interval=typelib(lex->interval_list);
 	    $$=FIELD_TYPE_ENUM;
 	  }
-	| SET { Lex->interval_list.empty();} '(' string_list ')'
+	| SET { Lex->interval_list.empty();} '(' string_list ')' opt_binary
 	  {
 	    LEX *lex=Lex;
 	    lex->interval=typelib(lex->interval_list);
@@ -1140,7 +1154,15 @@ attribute:
 	| COMMENT_SYM text_literal { Lex->comment= $2; };
 
 charset_name:
-	ident	
+	BINARY
+	{ 
+	  if (!($$=get_charset_by_name("binary",MYF(0))))
+	  {
+	    net_printf(current_thd,ER_UNKNOWN_CHARACTER_SET,"binary");
+	    YYABORT;
+	  }
+	}
+	| ident	
 	{ 
 	  if (!($$=get_charset_by_name($1.str,MYF(0))))
 	  {
@@ -1153,13 +1175,18 @@ charset_name_or_default:
 	charset_name { $$=$1;   }
 	| DEFAULT    { $$=NULL; } ;
 
+opt_default:
+	/* empty */	{}
+	| DEFAULT	{};
+
 opt_db_default_character_set:
-	/* empty */		{ $$=default_charset_info; }
-	| DEFAULT CHAR_SYM SET charset_name_or_default  { $$=$4; };
+	/* empty */	{ $$=default_charset_info; }
+	| opt_default CHAR_SYM SET charset_name_or_default	{ $$=$4; }
+	| opt_default CHARSET charset_name_or_default		{ $$=$3; };
 
 opt_binary:
 	/* empty */			{ Lex->charset=NULL; }
-	| BINARY			{ Lex->type|=BINARY_FLAG; Lex->charset=NULL; }
+	| BINARY			{ Lex->charset=my_charset_bin; }
 	| CHAR_SYM SET charset_name	{ Lex->charset=$3; } ;
 
 references:
@@ -1368,7 +1395,7 @@ alter_list_item:
 	    lex->select->db=$3->db.str;
 	    lex->name= $3->table.str;
 	  }
-        | create_table_options { Lex->simple_alter=0; }
+        | create_table_options_space_separated { Lex->simple_alter=0; }
 	| order_clause         { Lex->simple_alter=0; };
 
 opt_column:
@@ -1396,6 +1423,20 @@ opt_to:
 	| AS		{};
 
 slave:
+	START_SYM SLAVE slave_thread_opts
+         {
+	   LEX *lex=Lex;
+           lex->sql_command = SQLCOM_SLAVE_START;
+	   lex->type = 0;
+         }
+         |
+	STOP_SYM SLAVE slave_thread_opts
+         {
+	   LEX *lex=Lex;
+           lex->sql_command = SQLCOM_SLAVE_STOP;
+	   lex->type = 0;
+         };
+         |
 	SLAVE START_SYM slave_thread_opts
          {
 	   LEX *lex=Lex;
@@ -1822,7 +1863,7 @@ simple_expr:
         | MATCH ident_list_arg AGAINST '(' expr IN_SYM BOOLEAN_SYM MODE_SYM ')'
           { Select->ftfunc_list->push_back((Item_func_match *)
                    ($$=new Item_func_match_bool(*$2,$5))); }
-	| BINARY expr %prec NEG	{ $$= new Item_func_binary($2); }
+	| BINARY expr %prec NEG { $$= new Item_func_set_collation($2,my_charset_bin); }
 	| CAST_SYM '(' expr AS cast_type ')'  { $$= create_func_cast($3, $5); }
 	| CASE_SYM opt_expr WHEN_SYM when_list opt_else END
 	  { $$= new Item_func_case(* $4, $2, $5 ); }
@@ -2944,7 +2985,7 @@ show_param:
 	    Lex->mi.pos = $12;
 	    Lex->mi.server_id = $16;
           }
-        | MASTER_SYM LOGS_SYM
+        | BINARY LOGS_SYM
           {
 	    Lex->sql_command = SQLCOM_SHOW_BINLOGS;
           }
@@ -3264,7 +3305,7 @@ text_string:
 	TEXT_STRING	{ $$=  new String($1.str,$1.length,default_charset_info); }
 	| HEX_NUM
 	  {
-	    Item *tmp = new Item_varbinary($1.str,$1.length,default_charset_info);
+	    Item *tmp = new Item_varbinary($1.str,$1.length);
 	    $$= tmp ? tmp->val_str((String*) 0) : (String*) 0;
 	  };
 param_marker:
@@ -3291,7 +3332,7 @@ literal:
 	| FLOAT_NUM	{ $$ =	new Item_float($1.str, $1.length); }
 	| NULL_SYM	{ $$ =	new Item_null();
 			  Lex->next_state=STATE_OPERATOR_OR_IDENT;}
-	| HEX_NUM	{ $$ =	new Item_varbinary($1.str,$1.length,default_charset_info);}
+	| HEX_NUM	{ $$ =	new Item_varbinary($1.str,$1.length);}
 	| DATE_SYM text_literal { $$ = $2; }
 	| TIME_SYM text_literal { $$ = $2; }
 	| TIMESTAMP text_literal { $$ = $2; };

@@ -1,7 +1,7 @@
 reset master;
 grant replication slave on *.* to replicate@localhost identified by 'aaaaaaaaaaaaaaab';
 grant replication slave on *.* to replicate@127.0.0.1 identified by 'aaaaaaaaaaaaaaab';
-slave start;
+start slave;
 drop table if exists t1;
 create table t1(n int);
 insert into t1 values(24);
