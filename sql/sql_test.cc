@@ -97,7 +97,7 @@ void print_cached_tables(void)
 }
 
 
-void TEST_filesort(SORT_FIELD *sortorder,uint s_length, ha_rows special)
+void TEST_filesort(SORT_FIELD *sortorder,uint s_length)
 {
   char buff[256],buff2[256];
   String str(buff,sizeof(buff),default_charset_info);
@@ -131,8 +131,6 @@ void TEST_filesort(SORT_FIELD *sortorder,uint s_length, ha_rows special)
   out.append('\0');				// Purify doesn't like c_ptr()
   DBUG_LOCK_FILE;
   VOID(fputs("\nInfo about FILESORT\n",DBUG_FILE));
-  if (special)
-    fprintf(DBUG_FILE,"Records to sort: %ld\n",special);
   fprintf(DBUG_FILE,"Sortorder: %s\n",out.ptr());
   DBUG_UNLOCK_FILE;
   DBUG_VOID_RETURN;

@@ -112,7 +112,8 @@ static Item* part_of_refkey(TABLE *form,Field *field);
 static uint find_shortest_key(TABLE *table, key_map usable_keys);
 static bool test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,
 				    ha_rows select_limit, bool no_changes);
-static int create_sort_index(JOIN_TAB *tab,ORDER *order,ha_rows select_limit);
+static int create_sort_index(THD *thd, JOIN_TAB *tab,ORDER *order,
+			     ha_rows select_limit);
 static int remove_duplicates(JOIN *join,TABLE *entry,List<Item> &fields,
 			     Item *having);
 static int remove_dup_with_compare(THD *thd, TABLE *entry, Field **field,
@@ -748,7 +749,7 @@ JOIN::exec()
     {
       DBUG_PRINT("info",("Sorting for group"));
       thd->proc_info="Sorting for group";
-      if (create_sort_index(&join_tab[const_tables], group_list,
+      if (create_sort_index(thd, &join_tab[const_tables], group_list,
 			    HA_POS_ERROR) ||
 	  make_sum_func_list(this, all_fields) ||
 	  alloc_group_fields(this, group_list))
@@ -763,7 +764,7 @@ JOIN::exec()
       {
 	DBUG_PRINT("info",("Sorting for order"));
 	thd->proc_info="Sorting for order";
-	if (create_sort_index(&join_tab[const_tables], order,
+	if (create_sort_index(thd, &join_tab[const_tables], order,
                               HA_POS_ERROR))
 	  DBUG_VOID_RETURN;
 	order=0;
@@ -866,7 +867,7 @@ JOIN::exec()
       if (group_list)
       {
 	thd->proc_info="Creating sort index";
-	if (create_sort_index(join_tab, group_list, HA_POS_ERROR) ||
+	if (create_sort_index(thd, join_tab, group_list, HA_POS_ERROR) ||
 	    alloc_group_fields(this, group_list))
 	{
 	  free_tmp_table(thd,tmp_table2);	/* purecov: inspected */
@@ -962,7 +963,7 @@ JOIN::exec()
 	DBUG_EXECUTE("where",print_where(conds,"having after sort"););
       }
     }
-    if (create_sort_index(&join_tab[const_tables],
+    if (create_sort_index(thd, &join_tab[const_tables],
                         group_list ? group_list : order,
                         (having_list || group_list ||
                          (select_options & OPTION_FOUND_ROWS)) ?
@@ -5795,7 +5796,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 *****************************************************************************/
 
 static int
-create_sort_index(JOIN_TAB *tab,ORDER *order,ha_rows select_limit)
+create_sort_index(THD *thd, JOIN_TAB *tab,ORDER *order,ha_rows select_limit)
 {
   SORT_FIELD *sortorder;
   uint length;
@@ -5839,8 +5840,8 @@ create_sort_index(JOIN_TAB *tab,ORDER *order,ha_rows select_limit)
   }
   if (table->tmp_table)
     table->file->info(HA_STATUS_VARIABLE);	// Get record count
-  table->found_records=filesort(table,sortorder,length,
-				select, 0L, select_limit, &examined_rows);
+  table->found_records=filesort(thd, table,sortorder, length,
+				select, select_limit, &examined_rows);
   tab->records=table->found_records;		// For SQL_CALC_ROWS
   delete select;				// filesort did select
   tab->select=0;
@@ -5938,7 +5939,7 @@ remove_duplicates(JOIN *join, TABLE *entry,List<Item> &fields, Item *having)
   int error;
   ulong reclength,offset;
   uint field_count;
-  THD *thd= current_thd;
+  THD *thd= join->thd;
   DBUG_ENTER("remove_duplicates");
 
   entry->reginfo.lock_type=TL_WRITE;

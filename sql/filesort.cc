@@ -63,24 +63,21 @@ static uint sortlength(SORT_FIELD *sortorder,uint length);
 	  table->record_pointers
 	*/
 
-ha_rows filesort(TABLE *table, SORT_FIELD *sortorder, uint s_length,
-		 SQL_SELECT *select, ha_rows special, ha_rows max_rows,
-		 ha_rows *examined_rows)
+ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
+		 SQL_SELECT *select, ha_rows max_rows, ha_rows *examined_rows)
 {
   int error;
   ulong memavl;
   uint maxbuffer;
+  uint i;
   BUFFPEK *buffpek;
   ha_rows records;
   uchar **sort_keys;
   IO_CACHE tempfile, buffpek_pointers, *selected_records_file, *outfile; 
   SORTPARAM param;
-  THD *thd= current_thd;
-
-  DBUG_ENTER("filesort");
-  DBUG_EXECUTE("info",TEST_filesort(sortorder,s_length,special););
   CHARSET_INFO *charset=table->table_charset;
-  uint i;
+  DBUG_ENTER("filesort");
+  DBUG_EXECUTE("info",TEST_filesort(sortorder,s_length););
 #ifdef SKIP_DBUG_IN_FILESORT
   DBUG_PUSH("");		/* No DBUG here */
 #endif
@@ -111,27 +108,15 @@ ha_rows filesort(TABLE *table, SORT_FIELD *sortorder, uint s_length,
   {
     statistic_increment(filesort_scan_count, &LOCK_status);
   }
-  if (select && my_b_inited(&select->file))
-  {
-    records=special=select->records;		/* purecov: deadcode */
-    selected_records_file= &select->file;	/* purecov: deadcode */
-    reinit_io_cache(selected_records_file,READ_CACHE,0L,0,0); /* purecov: deadcode */
-  }
-  else if (special)
-  {
-    records=special;				/* purecov: deadcode */
-    selected_records_file= outfile;		/* purecov: deadcode */
-    reinit_io_cache(selected_records_file,READ_CACHE,0L,0,0); /* purecov: deadcode */
-  }
 #ifdef CAN_TRUST_RANGE
-  else if (select && select->quick && select->quick->records > 0L)
+  if (select && select->quick && select->quick->records > 0L)
   {
     records=min((ha_rows) (select->quick->records*2+EXTRA_RECORDS*2),
 		table->file->records)+EXTRA_RECORDS;
     selected_records_file=0;
   }
-#endif
   else
+#endif
   {
     records=table->file->estimate_number_of_rows();
     selected_records_file= 0;

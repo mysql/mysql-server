@@ -117,8 +117,8 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, ORDER *order,
                                              MYF(MY_FAE | MY_ZEROFILL));
     if (setup_order(thd, &tables, fields, all_fields, order) ||
         !(sortorder=make_unireg_sortorder(order, &length)) ||
-        (table->found_records = filesort(table, sortorder, length,
-                                        (SQL_SELECT *) 0, 0L, HA_POS_ERROR,
+        (table->found_records = filesort(thd, table, sortorder, length,
+                                        (SQL_SELECT *) 0, HA_POS_ERROR,
 					 &examined_rows))
         == HA_POS_ERROR)
     {
