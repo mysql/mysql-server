@@ -240,6 +240,7 @@ Open streams:  %10lu\n",
   fflush(stdout);
   if (thd)
     thd->proc_info="malloc";
+  my_checkmalloc();
   TERMINATE(stdout);				// Write malloc information
   if (thd)
     thd->proc_info=0;

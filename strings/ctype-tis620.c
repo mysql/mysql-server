@@ -1,4 +1,6 @@
-/* 
+/*
+   Copyright (C) 2001  by Korakot Chaovavanich <korakot@iname.com> and
+			  Apisilp Trunganont <apisilp@pantip.inet.co.th>
    Copyright (C) 1998, 1999 by Pruet Boonma <pruet@eng.cmu.ac.th>
    Copyright (C) 1998  by Theppitak Karoonboonyanan <thep@links.nectec.or.th>
    Copyright (C) 1989, 1991 by Samphan Raruenrom <samphan@thai.com>
@@ -6,9 +8,10 @@
    Permission to use, copy, modify, distribute and sell this software
    and its documentation for any purpose is hereby granted without fee,
    provided that the above copyright notice appear in all copies.
-   Smaphan Raruenrom , Theppitak Karoonboonyanan and Pruet Boonma makes
-   no representations about the suitability of this software for any 
-   purpose.  It is provided  "as is" without express or implied warranty.
+   Samphan Raruenrom , Theppitak Karoonboonyanan , Pruet Boonma ,
+   Korakot Chaovavanich and Apisilp Trunganont makes no representations
+   about the suitability of this software for any purpose.  It is provided
+   "as is" without express or implied warranty.
 */
 
 
@@ -32,7 +35,7 @@
 
 static uchar* thai2sortable(const uchar *tstr,uint len);
 
-#define BUFFER_MULTIPLY	4
+#define BUFFER_MULTIPLY 4
 #define buffsize(s)	(BUFFER_MULTIPLY * (strlen(s) + 1))
 #define M  L_MIDDLE
 #define U  L_UPPER
@@ -42,71 +45,71 @@ static uchar* thai2sortable(const uchar *tstr,uint len);
 
 
 int t_ctype[][TOT_LEVELS] = {
-    /*0x00*/ { IGNORE, IGNORE, IGNORE, IGNORE, X }, 
+    /*0x00*/ { IGNORE, IGNORE, IGNORE, IGNORE, X },
     /*0x01*/ { IGNORE, IGNORE, IGNORE, IGNORE, X },
-    /*0x02*/ { IGNORE, IGNORE, IGNORE, IGNORE, X }, 
-    /*0x03*/ { IGNORE, IGNORE, IGNORE, IGNORE, X }, 
-    /*0x04*/ { IGNORE, IGNORE, IGNORE, IGNORE, X }, 
-    /*0x05*/ { IGNORE, IGNORE, IGNORE, IGNORE, X }, 
-    /*0x06*/ { IGNORE, IGNORE, IGNORE, IGNORE, X }, 
-    /*0x07*/ { IGNORE, IGNORE, IGNORE, IGNORE, X }, 
-    /*0x08*/ { IGNORE, IGNORE, IGNORE, IGNORE, X }, 
-    /*0x09*/ { IGNORE, IGNORE, IGNORE, IGNORE, X }, 
-    /*0x0A*/ { IGNORE, IGNORE, IGNORE, IGNORE, X }, 
-    /*0x0B*/ { IGNORE, IGNORE, IGNORE, IGNORE, X }, 
-    /*0x0C*/ { IGNORE, IGNORE, IGNORE, IGNORE, X }, 
-    /*0x0D*/ { IGNORE, IGNORE, IGNORE, IGNORE, X }, 
-    /*0x0E*/ { IGNORE, IGNORE, IGNORE, IGNORE, X }, 
-    /*0x0F*/ { IGNORE, IGNORE, IGNORE, IGNORE, X }, 
-    /*0x10*/ { IGNORE, IGNORE, IGNORE, IGNORE, X }, 
-    /*0x11*/ { IGNORE, IGNORE, IGNORE, IGNORE, X }, 
-    /*0x12*/ { IGNORE, IGNORE, IGNORE, IGNORE, X }, 
-    /*0x13*/ { IGNORE, IGNORE, IGNORE, IGNORE, X }, 
-    /*0x14*/ { IGNORE, IGNORE, IGNORE, IGNORE, X }, 
-    /*0x15*/ { IGNORE, IGNORE, IGNORE, IGNORE, X }, 
-    /*0x16*/ { IGNORE, IGNORE, IGNORE, IGNORE, X }, 
-    /*0x17*/ { IGNORE, IGNORE, IGNORE, IGNORE, X }, 
-    /*0x18*/ { IGNORE, IGNORE, IGNORE, IGNORE, X }, 
-    /*0x19*/ { IGNORE, IGNORE, IGNORE, IGNORE, X }, 
-    /*0x1A*/ { IGNORE, IGNORE, IGNORE, IGNORE, X }, 
-    /*0x1B*/ { IGNORE, IGNORE, IGNORE, IGNORE, X }, 
-    /*0x1C*/ { IGNORE, IGNORE, IGNORE, IGNORE, X }, 
-    /*0x1D*/ { IGNORE, IGNORE, IGNORE, IGNORE, X }, 
-    /*0x1E*/ { IGNORE, IGNORE, IGNORE, IGNORE, X }, 
-    /*0x1F*/ { IGNORE, IGNORE, IGNORE, IGNORE, X }, 
-    /*0x20*/ { IGNORE, IGNORE, L3_SPACE, IGNORE, M},  
-    /*0x21*/ { IGNORE, IGNORE, L3_EXCLAMATION, IGNORE, M    }, 
-    /*0x22*/ { IGNORE, IGNORE, L3_QUOTATION, IGNORE, M      }, 
-    /*0x23*/ { IGNORE, IGNORE, L3_NUMBER, IGNORE, M         }, 
-    /*0x24*/ { IGNORE, IGNORE, L3_DOLLAR, IGNORE, M         }, 
-    /*0x25*/ { IGNORE, IGNORE, L3_PERCENT, IGNORE, M        },
-    /*0x26*/ { IGNORE, IGNORE, L3_AMPERSAND, IGNORE, M      },
+    /*0x02*/ { IGNORE, IGNORE, IGNORE, IGNORE, X },
+    /*0x03*/ { IGNORE, IGNORE, IGNORE, IGNORE, X },
+    /*0x04*/ { IGNORE, IGNORE, IGNORE, IGNORE, X },
+    /*0x05*/ { IGNORE, IGNORE, IGNORE, IGNORE, X },
+    /*0x06*/ { IGNORE, IGNORE, IGNORE, IGNORE, X },
+    /*0x07*/ { IGNORE, IGNORE, IGNORE, IGNORE, X },
+    /*0x08*/ { IGNORE, IGNORE, IGNORE, IGNORE, X },
+    /*0x09*/ { IGNORE, IGNORE, IGNORE, IGNORE, X },
+    /*0x0A*/ { IGNORE, IGNORE, IGNORE, IGNORE, X },
+    /*0x0B*/ { IGNORE, IGNORE, IGNORE, IGNORE, X },
+    /*0x0C*/ { IGNORE, IGNORE, IGNORE, IGNORE, X },
+    /*0x0D*/ { IGNORE, IGNORE, IGNORE, IGNORE, X },
+    /*0x0E*/ { IGNORE, IGNORE, IGNORE, IGNORE, X },
+    /*0x0F*/ { IGNORE, IGNORE, IGNORE, IGNORE, X },
+    /*0x10*/ { IGNORE, IGNORE, IGNORE, IGNORE, X },
+    /*0x11*/ { IGNORE, IGNORE, IGNORE, IGNORE, X },
+    /*0x12*/ { IGNORE, IGNORE, IGNORE, IGNORE, X },
+    /*0x13*/ { IGNORE, IGNORE, IGNORE, IGNORE, X },
+    /*0x14*/ { IGNORE, IGNORE, IGNORE, IGNORE, X },
+    /*0x15*/ { IGNORE, IGNORE, IGNORE, IGNORE, X },
+    /*0x16*/ { IGNORE, IGNORE, IGNORE, IGNORE, X },
+    /*0x17*/ { IGNORE, IGNORE, IGNORE, IGNORE, X },
+    /*0x18*/ { IGNORE, IGNORE, IGNORE, IGNORE, X },
+    /*0x19*/ { IGNORE, IGNORE, IGNORE, IGNORE, X },
+    /*0x1A*/ { IGNORE, IGNORE, IGNORE, IGNORE, X },
+    /*0x1B*/ { IGNORE, IGNORE, IGNORE, IGNORE, X },
+    /*0x1C*/ { IGNORE, IGNORE, IGNORE, IGNORE, X },
+    /*0x1D*/ { IGNORE, IGNORE, IGNORE, IGNORE, X },
+    /*0x1E*/ { IGNORE, IGNORE, IGNORE, IGNORE, X },
+    /*0x1F*/ { IGNORE, IGNORE, IGNORE, IGNORE, X },
+    /*0x20*/ { IGNORE, IGNORE, L3_SPACE, IGNORE, M},
+    /*0x21*/ { IGNORE, IGNORE, L3_EXCLAMATION, IGNORE, M    },
+    /*0x22*/ { IGNORE, IGNORE, L3_QUOTATION, IGNORE, M	    },
+    /*0x23*/ { IGNORE, IGNORE, L3_NUMBER, IGNORE, M	    },
+    /*0x24*/ { IGNORE, IGNORE, L3_DOLLAR, IGNORE, M	    },
+    /*0x25*/ { IGNORE, IGNORE, L3_PERCENT, IGNORE, M	    },
+    /*0x26*/ { IGNORE, IGNORE, L3_AMPERSAND, IGNORE, M	    },
     /*0x27*/ { IGNORE, IGNORE, L3_APOSTROPHE, IGNORE, M     },
     /*0x28*/ { IGNORE, IGNORE, L3_L_PARANTHESIS, IGNORE, M  },
     /*0x29*/ { IGNORE, IGNORE, L3_R_PARENTHESIS, IGNORE, M  },
-    /*0x2A*/ { IGNORE, IGNORE, L3_ASTERISK, IGNORE, M       },
-    /*0x2B*/ { IGNORE, IGNORE, L3_PLUS, IGNORE, M           },
-    /*0x2C*/ { IGNORE, IGNORE, L3_COMMA, IGNORE, M          },
-    /*0x2D*/ { IGNORE, IGNORE, L3_HYPHEN, IGNORE, M         },
-    /*0x2E*/ { IGNORE, IGNORE, L3_FULL_STOP, IGNORE, M      },
-    /*0x2F*/ { IGNORE, IGNORE, L3_SOLIDUS, IGNORE, M        },
+    /*0x2A*/ { IGNORE, IGNORE, L3_ASTERISK, IGNORE, M	    },
+    /*0x2B*/ { IGNORE, IGNORE, L3_PLUS, IGNORE, M	    },
+    /*0x2C*/ { IGNORE, IGNORE, L3_COMMA, IGNORE, M	    },
+    /*0x2D*/ { IGNORE, IGNORE, L3_HYPHEN, IGNORE, M	    },
+    /*0x2E*/ { IGNORE, IGNORE, L3_FULL_STOP, IGNORE, M	    },
+    /*0x2F*/ { IGNORE, IGNORE, L3_SOLIDUS, IGNORE, M	    },
     /*0x30*/ { L1_08, L2_BLANK, L3_BLANK, L4_BLANK, M  },
     /*0x31*/ { L1_18, L2_BLANK, L3_BLANK, L4_BLANK, M  },
     /*0x32*/ { L1_28, L2_BLANK, L3_BLANK, L4_BLANK, M  },
-    /*0x33*/ { L1_38, L2_BLANK, L3_BLANK, L4_BLANK, M  }, 
+    /*0x33*/ { L1_38, L2_BLANK, L3_BLANK, L4_BLANK, M  },
     /*0x34*/ { L1_48, L2_BLANK, L3_BLANK, L4_BLANK, M  },
-    /*0x35*/ { L1_58, L2_BLANK, L3_BLANK, L4_BLANK, M  }, 
-    /*0x36*/ { L1_68, L2_BLANK, L3_BLANK, L4_BLANK, M  }, 
+    /*0x35*/ { L1_58, L2_BLANK, L3_BLANK, L4_BLANK, M  },
+    /*0x36*/ { L1_68, L2_BLANK, L3_BLANK, L4_BLANK, M  },
     /*0x37*/ { L1_78, L2_BLANK, L3_BLANK, L4_BLANK, M  },
     /*0x38*/ { L1_88, L2_BLANK, L3_BLANK, L4_BLANK, M  },
     /*0x39*/ { L1_98, L2_BLANK, L3_BLANK, L4_BLANK, M  },
-    /*0x3A*/ { IGNORE, IGNORE, L3_COLON, IGNORE, M          }, 
-    /*0x3B*/ { IGNORE, IGNORE, L3_SEMICOLON, IGNORE, M      },
-    /*0x3C*/ { IGNORE, IGNORE, L3_LESS_THAN, IGNORE, M      },
-    /*0x3D*/ { IGNORE, IGNORE, L3_EQUAL, IGNORE, M          },
+    /*0x3A*/ { IGNORE, IGNORE, L3_COLON, IGNORE, M	    },
+    /*0x3B*/ { IGNORE, IGNORE, L3_SEMICOLON, IGNORE, M	    },
+    /*0x3C*/ { IGNORE, IGNORE, L3_LESS_THAN, IGNORE, M	    },
+    /*0x3D*/ { IGNORE, IGNORE, L3_EQUAL, IGNORE, M	    },
     /*0x3E*/ { IGNORE, IGNORE, L3_GREATER_THAN, IGNORE, M   },
-    /*0x3F*/ { IGNORE, IGNORE, L3_QUESTION, IGNORE, M       },
-    /*0x40*/ { IGNORE, IGNORE, L3_AT, IGNORE, M             },
+    /*0x3F*/ { IGNORE, IGNORE, L3_QUESTION, IGNORE, M	    },
+    /*0x40*/ { IGNORE, IGNORE, L3_AT, IGNORE, M		    },
     /*0x41*/ { L1_A8, L2_BLANK, L3_BLANK, L4_CAP, M  },
     /*0x42*/ { L1_B8, L2_BLANK, L3_BLANK, L4_CAP, M  },
     /*0x43*/ { L1_C8, L2_BLANK, L3_BLANK, L4_CAP, M  },
@@ -119,11 +122,11 @@ int t_ctype[][TOT_LEVELS] = {
     /*0x4A*/ { L1_J8, L2_BLANK, L3_BLANK, L4_CAP, M  },
     /*0x4B*/ { L1_K8, L2_BLANK, L3_BLANK, L4_CAP, M  },
     /*0x4C*/ { L1_L8, L2_BLANK, L3_BLANK, L4_CAP, M  },
-    /*0x4D*/ { L1_M8, L2_BLANK, L3_BLANK, L4_CAP, M  }, 
-    /*0x4E*/ { L1_N8, L2_BLANK, L3_BLANK, L4_CAP, M  }, 
-    /*0x4F*/ { L1_O8, L2_BLANK, L3_BLANK, L4_CAP, M  }, 
-    /*0x50*/ { L1_P8, L2_BLANK, L3_BLANK, L4_CAP, M  }, 
-    /*0x51*/ { L1_Q8, L2_BLANK, L3_BLANK, L4_CAP, M  }, 
+    /*0x4D*/ { L1_M8, L2_BLANK, L3_BLANK, L4_CAP, M  },
+    /*0x4E*/ { L1_N8, L2_BLANK, L3_BLANK, L4_CAP, M  },
+    /*0x4F*/ { L1_O8, L2_BLANK, L3_BLANK, L4_CAP, M  },
+    /*0x50*/ { L1_P8, L2_BLANK, L3_BLANK, L4_CAP, M  },
+    /*0x51*/ { L1_Q8, L2_BLANK, L3_BLANK, L4_CAP, M  },
     /*0x52*/ { L1_R8, L2_BLANK, L3_BLANK, L4_CAP, M  },
     /*0x53*/ { L1_S8, L2_BLANK, L3_BLANK, L4_CAP, M  },
     /*0x54*/ { L1_T8, L2_BLANK, L3_BLANK, L4_CAP, M  },
@@ -133,12 +136,12 @@ int t_ctype[][TOT_LEVELS] = {
     /*0x58*/ { L1_X8, L2_BLANK, L3_BLANK, L4_CAP, M  },
     /*0x59*/ { L1_Y8, L2_BLANK, L3_BLANK, L4_CAP, M  },
     /*0x5A*/ { L1_Z8, L2_BLANK, L3_BLANK, L4_CAP, M  },
-    /*0x5B*/ { IGNORE, IGNORE, L3_L_BRACKET, IGNORE, M      },
+    /*0x5B*/ { IGNORE, IGNORE, L3_L_BRACKET, IGNORE, M	    },
     /*0x5C*/ { IGNORE, IGNORE, L3_BK_SOLIDUS, IGNORE, M     },
-    /*0x5D*/ { IGNORE, IGNORE, L3_R_BRACKET, IGNORE, M      },
+    /*0x5D*/ { IGNORE, IGNORE, L3_R_BRACKET, IGNORE, M	    },
     /*0x5E*/ { IGNORE, IGNORE, L3_CIRCUMFLEX, IGNORE, M     },
-    /*0x5F*/ { IGNORE, IGNORE, L3_LOW_LINE, IGNORE, M       },
-    /*0x60*/ { IGNORE, IGNORE, L3_GRAVE, IGNORE, M          },
+    /*0x5F*/ { IGNORE, IGNORE, L3_LOW_LINE, IGNORE, M	    },
+    /*0x60*/ { IGNORE, IGNORE, L3_GRAVE, IGNORE, M	    },
     /*0x61*/ { L1_A8, L2_BLANK, L3_BLANK, L4_MIN, M  },
     /*0x62*/ { L1_B8, L2_BLANK, L3_BLANK, L4_MIN, M  },
     /*0x63*/ { L1_C8, L2_BLANK, L3_BLANK, L4_MIN, M  },
@@ -165,10 +168,10 @@ int t_ctype[][TOT_LEVELS] = {
     /*0x78*/ { L1_X8, L2_BLANK, L3_BLANK, L4_MIN, M  },
     /*0x79*/ { L1_Y8, L2_BLANK, L3_BLANK, L4_MIN, M  },
     /*0x7A*/ { L1_Z8, L2_BLANK, L3_BLANK, L4_MIN, M  },
-    /*0x7B*/ { IGNORE, IGNORE, L3_L_BRACE, IGNORE, M        },
-    /*0x7C*/ { IGNORE, IGNORE, L3_V_LINE, IGNORE, M         },
-    /*0x7D*/ { IGNORE, IGNORE, L3_R_BRACE, IGNORE, M        },
-    /*0x7E*/ { IGNORE, IGNORE, L3_TILDE, IGNORE, M          },
+    /*0x7B*/ { IGNORE, IGNORE, L3_L_BRACE, IGNORE, M	    },
+    /*0x7C*/ { IGNORE, IGNORE, L3_V_LINE, IGNORE, M	    },
+    /*0x7D*/ { IGNORE, IGNORE, L3_R_BRACE, IGNORE, M	    },
+    /*0x7E*/ { IGNORE, IGNORE, L3_TILDE, IGNORE, M	    },
     /*0x7F*/ { IGNORE, IGNORE, IGNORE, IGNORE, X },
     /*0x80*/ { IGNORE, IGNORE, IGNORE, IGNORE, X },
     /*0x81*/ { IGNORE, IGNORE, IGNORE, IGNORE, X },
@@ -202,31 +205,31 @@ int t_ctype[][TOT_LEVELS] = {
     /*0x9D*/ { IGNORE, IGNORE, IGNORE, IGNORE, X },
     /*0x9E*/ { IGNORE, IGNORE, IGNORE, IGNORE, X },
     /*0x9F*/ { IGNORE, IGNORE, IGNORE, IGNORE, X },
-    /*0xA0*/ { IGNORE, IGNORE, L3_NB_SACE, IGNORE, X        },
+    /*0xA0*/ { IGNORE, IGNORE, L3_NB_SACE, IGNORE, X	    },
     /*0xA1*/ { L1_KO_KAI, L2_BLANK, L3_BLANK, L4_BLANK, M | _consnt},
-    /*0xA2*/ { L1_KHO_KHAI, L2_BLANK, L3_BLANK, L4_BLANK, M | _consnt}, 
+    /*0xA2*/ { L1_KHO_KHAI, L2_BLANK, L3_BLANK, L4_BLANK, M | _consnt},
     /*0xA3*/ { L1_KHO_KHUAT, L2_BLANK, L3_BLANK, L4_BLANK, M | _consnt},
     /*0xA4*/ { L1_KHO_KHWAI, L2_BLANK, L3_BLANK, L4_BLANK, M | _consnt},
     /*0xA5*/ { L1_KHO_KHON, L2_BLANK, L3_BLANK, L4_BLANK, M | _consnt},
     /*0xA6*/ { L1_KHO_RAKHANG, L2_BLANK, L3_BLANK, L4_BLANK, M | _consnt},
-    /*0xA7*/ { L1_NGO_NGU, L2_BLANK, L3_BLANK, L4_BLANK, M | _consnt}, 
+    /*0xA7*/ { L1_NGO_NGU, L2_BLANK, L3_BLANK, L4_BLANK, M | _consnt},
     /*0xA8*/ { L1_CHO_CHAN, L2_BLANK, L3_BLANK, L4_BLANK, M | _consnt},
     /*0xA9*/ { L1_CHO_CHING, L2_BLANK, L3_BLANK, L4_BLANK, M | _consnt},
     /*0xAA*/ { L1_CHO_CHANG, L2_BLANK, L3_BLANK, L4_BLANK, M | _consnt},
-    /*0xAB*/ { L1_SO_SO, L2_BLANK, L3_BLANK, L4_BLANK, M | _consnt}, 
+    /*0xAB*/ { L1_SO_SO, L2_BLANK, L3_BLANK, L4_BLANK, M | _consnt},
     /*0xAC*/ { L1_CHO_CHOE,	L2_BLANK, L3_BLANK, L4_BLANK, M | _consnt},
-    /*0xAD*/ { L1_YO_YING, L2_BLANK, L3_BLANK, L4_BLANK, M | _consnt}, 
+    /*0xAD*/ { L1_YO_YING, L2_BLANK, L3_BLANK, L4_BLANK, M | _consnt},
     /*0xAE*/ { L1_DO_CHADA,	L2_BLANK, L3_BLANK, L4_BLANK, M | _consnt},
     /*0xAF*/ { L1_TO_PATAK,	L2_BLANK, L3_BLANK, L4_BLANK, M | _consnt},
-    /*0xB0*/ { L1_THO_THAN,	L2_BLANK,L3_BLANK, L4_BLANK, M | _consnt}, 
-    /*0xB1*/ { L1_THO_NANGMONTHO, L2_BLANK, L3_BLANK, L4_BLANK, M | _consnt}, 
+    /*0xB0*/ { L1_THO_THAN,	L2_BLANK,L3_BLANK, L4_BLANK, M | _consnt},
+    /*0xB1*/ { L1_THO_NANGMONTHO, L2_BLANK, L3_BLANK, L4_BLANK, M | _consnt},
     /*0xB2*/ { L1_THO_PHUTHAO, L2_BLANK, L3_BLANK, L4_BLANK, M | _consnt},
     /*0xB3*/ { L1_NO_NEN, L2_BLANK, L3_BLANK, L4_BLANK, M | _consnt},
     /*0xB4*/ { L1_DO_DEK, L2_BLANK, L3_BLANK, L4_BLANK, M | _consnt},
-    /*0xB5*/ { L1_TO_TAO, L2_BLANK, L3_BLANK, L4_BLANK, M | _consnt}, 
+    /*0xB5*/ { L1_TO_TAO, L2_BLANK, L3_BLANK, L4_BLANK, M | _consnt},
     /*0xB6*/ { L1_THO_THUNG, L2_BLANK, L3_BLANK, L4_BLANK, M | _consnt},
     /*0xB7*/ { L1_THO_THAHAN, L2_BLANK, L3_BLANK, L4_BLANK, M | _consnt},
-    /*0xB8*/ { L1_THO_THONG, L2_BLANK, L3_BLANK, L4_BLANK, M | _consnt}, 
+    /*0xB8*/ { L1_THO_THONG, L2_BLANK, L3_BLANK, L4_BLANK, M | _consnt},
     /*0xB9*/ { L1_NO_NU, L2_BLANK, L3_BLANK, L4_BLANK, M | _consnt},
     /*0xBA*/ { L1_BO_BAIMAI, L2_BLANK, L3_BLANK, L4_BLANK, M | _consnt},
     /*0xBB*/ { L1_PO_PLA, L2_BLANK, L3_BLANK, L4_BLANK, M | _consnt},
@@ -238,40 +241,40 @@ int t_ctype[][TOT_LEVELS] = {
     /*0xC1*/ { L1_MO_MA, L2_BLANK, L3_BLANK, L4_BLANK, M | _consnt},
     /*0xC2*/ { L1_YO_YAK, L2_BLANK, L3_BLANK, L4_BLANK, M | _consnt},
     /*0xC3*/ { L1_RO_RUA, L2_BLANK, L3_BLANK, L4_BLANK, M | _consnt},
-    /*0xC4*/ { L1_RU, L2_BLANK, L3_BLANK, L4_BLANK, M | _consnt}, 
+    /*0xC4*/ { L1_RU, L2_BLANK, L3_BLANK, L4_BLANK, M | _consnt},
     /*0xC5*/ { L1_LO_LING, L2_BLANK, L3_BLANK, L4_BLANK, M | _consnt},
-    /*0xC6*/ { L1_LU, L2_BLANK, L3_BLANK, L4_BLANK, M | _consnt}, 
-    /*0xC7*/ { L1_WO_WAEN, L2_BLANK, L3_BLANK, L4_BLANK, M | _consnt}, 
-    /*0xC8*/ { L1_SO_SALA, L2_BLANK, L3_BLANK, L4_BLANK, M | _consnt}, 
-    /*0xC9*/ { L1_SO_RUSI, L2_BLANK, L3_BLANK, L4_BLANK, M | _consnt}, 
-    /*0xCA*/ { L1_SO_SUA, L2_BLANK, L3_BLANK, L4_BLANK, M | _consnt}, 
-    /*0xCB*/ { L1_HO_HIP, L2_BLANK, L3_BLANK, L4_BLANK, M | _consnt}, 
+    /*0xC6*/ { L1_LU, L2_BLANK, L3_BLANK, L4_BLANK, M | _consnt},
+    /*0xC7*/ { L1_WO_WAEN, L2_BLANK, L3_BLANK, L4_BLANK, M | _consnt},
+    /*0xC8*/ { L1_SO_SALA, L2_BLANK, L3_BLANK, L4_BLANK, M | _consnt},
+    /*0xC9*/ { L1_SO_RUSI, L2_BLANK, L3_BLANK, L4_BLANK, M | _consnt},
+    /*0xCA*/ { L1_SO_SUA, L2_BLANK, L3_BLANK, L4_BLANK, M | _consnt},
+    /*0xCB*/ { L1_HO_HIP, L2_BLANK, L3_BLANK, L4_BLANK, M | _consnt},
     /*0xCC*/ { L1_LO_CHULA,	L2_BLANK, L3_BLANK, L4_BLANK, M | _consnt},
     /*0xCD*/ { L1_O_ANG, L2_BLANK, L3_BLANK, L4_BLANK, M | _consnt},
-    /*0xCE*/ { L1_HO_NOKHUK, L2_BLANK, L3_BLANK, L4_BLANK, M | _consnt}, 
-    /*0xCF*/ { IGNORE, IGNORE, L3_PAIYAN_NOI, IGNORE, M}, 
-    /*0xD0*/ { L1_SARA_A, L2_BLANK, L3_BLANK, L4_BLANK, M | _fllwvowel}, 
-    /*0xD1*/ { L1_MAI_HAN_AKAT, L2_BLANK, L3_BLANK, L4_BLANK, U | _uprvowel}, 
-    /*0xD2*/ { L1_SARA_AA, L2_BLANK, L3_BLANK, L4_BLANK, M | _fllwvowel}, 
+    /*0xCE*/ { L1_HO_NOKHUK, L2_BLANK, L3_BLANK, L4_BLANK, M | _consnt},
+    /*0xCF*/ { IGNORE, IGNORE, L3_PAIYAN_NOI, IGNORE, M},
+    /*0xD0*/ { L1_SARA_A, L2_BLANK, L3_BLANK, L4_BLANK, M | _fllwvowel},
+    /*0xD1*/ { L1_MAI_HAN_AKAT, L2_BLANK, L3_BLANK, L4_BLANK, U | _uprvowel},
+    /*0xD2*/ { L1_SARA_AA, L2_BLANK, L3_BLANK, L4_BLANK, M | _fllwvowel},
     /*0xD3*/ { L1_SARA_AM, L2_BLANK, L3_BLANK, L4_BLANK, M | _fllwvowel},
     /*0xD4*/ { L1_SARA_I, L2_BLANK, L3_BLANK, L4_BLANK, U | _uprvowel},
-    /*0xD5*/ { L1_SARA_II, L2_BLANK, L3_BLANK, L4_BLANK, U | _uprvowel}, 
-    /*0xD6*/ { L1_SARA_UE, L2_BLANK, L3_BLANK, L4_BLANK, U | _uprvowel}, 
+    /*0xD5*/ { L1_SARA_II, L2_BLANK, L3_BLANK, L4_BLANK, U | _uprvowel},
+    /*0xD6*/ { L1_SARA_UE, L2_BLANK, L3_BLANK, L4_BLANK, U | _uprvowel},
     /*0xD7*/ { L1_SARA_UEE, L2_BLANK, L3_BLANK, L4_BLANK, U | _uprvowel},
-    /*0xD8*/ { L1_SARA_U, L2_BLANK, L3_BLANK, L4_BLANK, L | _lwrvowel}, 
+    /*0xD8*/ { L1_SARA_U, L2_BLANK, L3_BLANK, L4_BLANK, L | _lwrvowel},
     /*0xD9*/ { L1_SARA_UU, L2_BLANK, L3_BLANK, L4_BLANK, L | _lwrvowel},
     /*0xDA*/ { IGNORE, L2_PINTHU, L3_BLANK, L4_BLANK, L  },
-    /*0xDB*/ { IGNORE, IGNORE, IGNORE, IGNORE, X }, 
-    /*0xDC*/ { IGNORE, IGNORE, IGNORE, IGNORE, X }, 
-    /*0xDD*/ { IGNORE, IGNORE, IGNORE, IGNORE, X }, 
-    /*0xDE*/ { IGNORE, IGNORE, IGNORE, IGNORE, X }, 
+    /*0xDB*/ { IGNORE, IGNORE, IGNORE, IGNORE, X },
+    /*0xDC*/ { IGNORE, IGNORE, IGNORE, IGNORE, X },
+    /*0xDD*/ { IGNORE, IGNORE, IGNORE, IGNORE, X },
+    /*0xDE*/ { IGNORE, IGNORE, IGNORE, IGNORE, X },
     /*0xDF*/ { IGNORE, IGNORE, L3_BAHT, IGNORE, M},
     /*0xE0*/ { L1_SARA_E, L2_BLANK, L3_BLANK, L4_BLANK, M | _ldvowel },
     /*0xE1*/ { L1_SARA_AE, L2_BLANK, L3_BLANK, L4_BLANK, M | _ldvowel },
     /*0xE2*/ { L1_SARA_O, L2_BLANK, L3_BLANK, L4_BLANK, M | _ldvowel  },
-    /*0xE3*/ { L1_SARA_AI_MAIMUAN, 	L2_BLANK, L3_BLANK, L4_BLANK, M | _ldvowel }, 
+    /*0xE3*/ { L1_SARA_AI_MAIMUAN,	L2_BLANK, L3_BLANK, L4_BLANK, M | _ldvowel },
     /*0xE4*/ { L1_SARA_AI_MAIMALAI, L2_BLANK, L3_BLANK, L4_BLANK, M | _ldvowel },
-    /*0xE5*/ { L1_SARA_AA, L2_BLANK, L3_BLANK, L4_EXT, M  | _fllwvowel }, 
+    /*0xE5*/ { L1_SARA_AA, L2_BLANK, L3_BLANK, L4_EXT, M  | _fllwvowel },
     /*0xE6*/ { IGNORE, IGNORE, L3_MAI_YAMOK, IGNORE, M | _stone },
     /*0xE7*/ { IGNORE, L2_TYKHU, L3_BLANK, L4_BLANK, U | _diacrt1 | _stone  },
     /*0xE8*/ { IGNORE, L2_TONE1, L3_BLANK, L4_BLANK, UU | _tone | _combine | _stone  },
@@ -281,8 +284,8 @@ int t_ctype[][TOT_LEVELS] = {
     /*0xEC*/ { IGNORE, L2_GARAN, L3_BLANK, L4_BLANK, UU | _diacrt2 | _combine | _stone },
     /*0xED*/ { L1_NKHIT, L2_BLANK, L3_BLANK, L4_BLANK, U | _diacrt1  },
     /*0xEE*/ { IGNORE, L2_YAMAK, L3_BLANK, L4_BLANK, U | _diacrt1 },
-    /*0xEF*/ { IGNORE, IGNORE, L3_FONGMAN, IGNORE, M  }, 
-    /*0xF0*/ { L1_08, L2_THAII, L3_BLANK, L4_BLANK, M | _tdig }, 
+    /*0xEF*/ { IGNORE, IGNORE, L3_FONGMAN, IGNORE, M  },
+    /*0xF0*/ { L1_08, L2_THAII, L3_BLANK, L4_BLANK, M | _tdig },
     /*0xF1*/ { L1_18, L2_THAII, L3_BLANK, L4_BLANK, M | _tdig },
     /*0xF2*/ { L1_28, L2_THAII, L3_BLANK, L4_BLANK, M | _tdig },
     /*0xF3*/ { L1_38, L2_THAII, L3_BLANK, L4_BLANK, M | _tdig },
@@ -297,7 +300,8 @@ int t_ctype[][TOT_LEVELS] = {
     /*0xFC*/ { IGNORE, IGNORE, IGNORE, IGNORE, X },
     /*0xFD*/ { IGNORE, IGNORE, IGNORE, IGNORE, X },
     /*0xFE*/ { IGNORE, IGNORE, IGNORE, IGNORE, X },
-    /*0xFF*/ { IGNORE, IGNORE, IGNORE, IGNORE, X },
+/* Utilize 0xFF for max_sort_chr in my_like_range_tis620 */
+    /*0xFF*/ { 255 /*IGNORE*/, IGNORE, IGNORE, IGNORE, X },
 };
 
 uchar NEAR ctype_tis620[257] =
@@ -429,17 +433,21 @@ uchar NEAR sort_order_tis620[]=
   (uchar) '\370',(uchar) '\371',(uchar) '\372',(uchar) '\373',(uchar) '\374',(uchar) '\375',(uchar) '\376',(uchar) '\377',
 };
 
-/* Convert thai string to "Standard C String Function" sortable string 
+/* Convert thai string to "Standard C String Function" sortable string
    Arg: const source string and length of converted string
    Ret: Sortable string
 */
 
-static uchar* thai2sortable(const uchar * tstr,uint len) 
+static uchar* thai2sortable(const uchar * tstr,uint len)
 {
+/* We use only 3 levels (neglect capitalization). */
+
   const uchar* p = tstr;
-  uchar 	*outBuf;
-  uchar 	*pRight1, *pRight2, *pRight3, *pRight4;
-  uchar 	*pLeft1, *pLeft2, *pLeft3, *pLeft4;
+  uchar		*outBuf;
+//  uchar	*pRight1, *pRight2, *pRight3, *pRight4;
+//  uchar	*pLeft1, *pLeft2, *pLeft3, *pLeft4;
+  uchar		*pRight1, *pRight2, *pRight3;
+  uchar		*pLeft1, *pLeft2, *pLeft3;
   uint	bufSize;
 
   len = (uint) strnlen((char*) tstr,len);
@@ -460,49 +468,50 @@ static uchar* thai2sortable(const uchar * tstr,uint len)
     return((uchar*) tstr);
   }
   pLeft3 = pRight3;
-  if(!(pRight4 = (uchar *)malloc(sizeof(uchar) * (len + 1)))) {
+/*  if(!(pRight4 = (uchar *)malloc(sizeof(uchar) * (len + 1)))) {
     free(pRight1);
     free(pRight2);
     free(pRight3);
     return((uchar*) tstr);
   }
-  pLeft4 = pRight4;
+  pLeft4 = pRight4;*/
   while(len--) {
     if(isldvowel(*p) && isconsnt(p[1])) {
       *pRight1++ = t_ctype[p[1]][0];
       *pRight2++ = t_ctype[p[1]][1];
       *pRight3++ = t_ctype[p[1]][2];
-      *pRight4++ = t_ctype[p[1]][3];
+//	*pRight4++ = t_ctype[p[1]][3];
       *pRight1++ = t_ctype[*p][0];
       *pRight2++ = t_ctype[*p][1];
       *pRight3++ = t_ctype[*p][2];
-      *pRight4++ = t_ctype[*p][3];
+//	*pRight4++ = t_ctype[*p][3];
       len--;
       p += 2;
     } else {
-      *pRight1 = t_ctype[*p][0];	
+      *pRight1 = t_ctype[*p][0];
       if(*pRight1 != IGNORE) pRight1++;
       *pRight2 = t_ctype[*p][1];
       if(*pRight2 != IGNORE) pRight2++;
       *pRight3 = t_ctype[*p][2];
       if(*pRight3 != IGNORE) pRight3++;
-      *pRight4 = t_ctype[*p][3];
-      if(*pRight4 != IGNORE) pRight4++;
+/*	*pRight4 = t_ctype[*p][3];
+      if(*pRight4 != IGNORE) pRight4++;*/
       p++;
     }
   }
   *pRight1++ = L2_BLANK;
   *pRight2++ = L3_BLANK;
-  *pRight3++ = L4_BLANK;
-  *pRight4++ = '\0';
+//  *pRight3++ = L4_BLANK;
+  *pRight3++ = '\0';
+//  *pRight4++ = '\0';
   memcpy(pRight1, pLeft2, pRight2 - pLeft2);
   pRight1 += pRight2 - pLeft2;
   memcpy(pRight1, pLeft3, pRight3 - pLeft3);
-  pRight1 += pRight3 - pLeft3;
-  memcpy(pRight1, pLeft4, pRight4 - pLeft4);
+//  pRight1 += pRight3 - pLeft3;
+//  memcpy(pRight1, pLeft4, pRight4 - pLeft4);
   free(pLeft2);
   free(pLeft3);
-  free(pLeft4);
+//  free(pLeft4);
   return(outBuf);
 }
 
@@ -510,7 +519,7 @@ static uchar* thai2sortable(const uchar * tstr,uint len)
    Arg: 2 Strings and it compare length
    Ret: strcmp result
 */
-int my_strnncoll_tis620(const uchar * s1, int len1, const uchar * s2, int len2) 
+int my_strnncoll_tis620(const uchar * s1, int len1, const uchar * s2, int len2)
 {
   uchar *tc1, *tc2;
   int i;
@@ -526,7 +535,7 @@ int my_strnncoll_tis620(const uchar * s1, int len1, const uchar * s2, int len2)
    Arg: Destination buffer, source string, dest length and source length
    Ret: Conveted string size
 */
-int my_strnxfrm_tis620(uchar * dest, uchar * src, int len, int srclen) 
+int my_strnxfrm_tis620(uchar * dest, uchar * src, int len, int srclen)
 {
   uint bufSize;
   uchar *tmp;
@@ -542,7 +551,7 @@ int my_strnxfrm_tis620(uchar * dest, uchar * src, int len, int srclen)
    Arg: 2 strings
    Ret: strcmp result
 */
-int my_strcoll_tis620(const uchar * s1, const uchar * s2) 
+int my_strcoll_tis620(const uchar * s1, const uchar * s2)
 {
   uchar *tc1, *tc2;
   int i;
@@ -555,7 +564,7 @@ int my_strcoll_tis620(const uchar * s1, const uchar * s2)
 }
 
 /* strxfrm replacment, convert Thai string to sortable string
-   Arg: Destination buffer, String and  dest buffer size
+   Arg: Destination buffer, String and	dest buffer size
    Ret: Converting string size
 */
 int my_strxfrm_tis620(uchar * dest, uchar * src, int len)
@@ -574,55 +583,58 @@ int my_strxfrm_tis620(uchar * dest, uchar * src, int len)
    Arg: String, its length, escape character, resource length, minimal string and maximum string
    Ret: Alway 0
 */
-my_bool my_like_range_tis620(const char *ptr, uint ptr_length, pchar escape,
-		             uint res_length, char *min_str, char *max_str,
-		             uint *min_length,uint *max_length)
-{
-  char *end;
-  char *min_org= min_str;
-  char *min_end = min_str + res_length;
-  char *tbuff;
-  uchar *tc;
-  uint tbuff_length;
 
-  tbuff = (char*) (tc=thai2sortable((uchar*) ptr, ptr_length));
-  tbuff_length = (uint) buffsize(ptr);
-  end = tbuff + tbuff_length;
-  for(;tbuff != end && min_str != min_end; tbuff++)
+/* We just copy this function from opt_range.cc. No need to convert to
+   thai2sortable string. min_str and max_str will be use for comparison and
+   converted there. */
+#define max_sort_chr ((char) 255)
+#define wild_one '_'
+#define wild_many '%'
+
+my_bool my_like_range_tis620(const char *ptr, uint ptr_length, pchar escape,
+		       uint res_length, char *min_str, char *max_str,
+		       uint *min_length, uint *max_length)
+{
+  const char *end=ptr+ptr_length;
+  char *min_org=min_str;
+  char *min_end=min_str+res_length;
+  char *tmp;
+
+  for (; ptr != end && min_str != min_end ; ptr++)
   {
-    if(*tbuff == escape && tbuff + 1 != end)
+    if (*ptr == escape && ptr+1 != end)
     {
-      tbuff++;
-      *min_str++ = *max_str++ = *tbuff;
+      ptr++;					// Skipp escape
+      *min_str++= *max_str++ = *ptr;
       continue;
     }
-    if(*tbuff == '_')
+    if (*ptr == wild_one)			// '_' in SQL
     {
-      *min_str++ = '\0';
-      *max_str++ = '\255';
+      *min_str++='\0';				// This should be min char
+      *max_str++=max_sort_chr;
       continue;
     }
-    if(*tbuff == '%')
+    if (*ptr == wild_many)			// '%' in SQL
     {
       *min_length= (uint) (min_str - min_org);
-      *max_length= res_length;
-      do
-      {
-	*min_str++ = ' ';
-	*max_str++ = '\255';
-      } while(min_str != min_end);
-      free(tc);
-      return(0);
+      *max_length=res_length;
+      do {
+	*min_str++ = ' ';			// Because if key compression
+	*max_str++ = max_sort_chr;
+      } while (min_str != min_end);
+      return 0;
     }
-    *min_str++ = *max_str++ = *tbuff;
+    *min_str++= *max_str++ = *ptr;
   }
   *min_length= *max_length = (uint) (min_str - min_org);
-  while(min_str != min_end)
-  {
-    *min_str++ = *max_str++ = ' ';
-  }
-  free(tc);
-  return(0);
+
+  /* Temporary fix for handling wild_one at end of string (key compression) */
+//  for (tmp= min_str ; tmp > min_org && tmp[-1] == '\0';)
+//    *--tmp=' ';
+
+  while (min_str != min_end)
+    *min_str++ = *max_str++ = ' ';		// Because if key compression
+  return 0;
 }
 
 /* Thai normalization for input sub system
@@ -635,7 +647,7 @@ void ThNormalize(uchar* ptr, uint field_length, const uchar* from, uint length)
   uchar* p = ptr;
 
   if(length > field_length) {
-    length = field_length;	
+    length = field_length;
   }
   while (length--)
   {

@@ -22,8 +22,8 @@
 	/* Read a record using key */
 	/* Ordinary search_flag is 0 ; Give error if no record with key */
 
-int _mi_rkey(MI_INFO *info, byte *buf, int inx, const byte *key, uint key_len,
-	     enum ha_rkey_function search_flag, bool raw_key)
+int mi_rkey(MI_INFO *info, byte *buf, int inx, const byte *key, uint key_len,
+	     enum ha_rkey_function search_flag)
 {
   uchar *key_buff;
   MYISAM_SHARE *share=info->s;
@@ -37,7 +37,7 @@ int _mi_rkey(MI_INFO *info, byte *buf, int inx, const byte *key, uint key_len,
 
   info->update&= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
 
-  if (raw_key)
+  if (!info->use_packed_key)
   {
     if (key_len == 0)
       key_len=USE_WHOLE_KEY;
@@ -101,11 +101,3 @@ int _mi_rkey(MI_INFO *info, byte *buf, int inx, const byte *key, uint key_len,
 err:
   DBUG_RETURN(my_errno);
 } /* _mi_rkey */
-
-/* shouldn't forget to do it inline sometime */
-int mi_rkey(MI_INFO *info, byte *buf, int inx, const byte *key, uint key_len,
-            enum ha_rkey_function search_flag)
-{
-  return _mi_rkey(info,buf,inx,key,key_len,search_flag,TRUE);
-}
-

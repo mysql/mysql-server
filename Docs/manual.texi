@@ -528,10 +528,10 @@ GEMINI Tables
 
 INNOBASE Tables
 
-* INNOBASE overview::           
+* INNOBASE overview::           INNOBASE overview
 * INNOBASE start::              INNOBASE startup options
 * Using INNOBASE tables::       Using INNOBASE tables
-* INNOBASE restrictions::       Some restrictions on @code{INNOBASE} tables:
+* INNOBASE restrictions::       Some restrictions on @code{INNOBASE} tables
 
 MySQL Tutorial
 
@@ -899,7 +899,7 @@ Changes in release 4.0.x (Development; Alpha)
 
 Changes in release 3.23.x  (Stable)
 
-* News-3.23.37::                
+* News-3.23.37::                Changes in release 3.23.37
 * News-3.23.36::                Changes in release 3.23.36
 * News-3.23.35::                Changes in release 3.23.35
 * News-3.23.34a::               Changes in release 3.23.34a
@@ -3873,6 +3873,29 @@ please send e-mail to @email{webmaster@@mysql.com}.
 * Table handler support::       Support for other table handlers
 @end menu
 
+The following holds for all support options.
+
+@itemize @bullet
+@item
+The support is per year.
+@item
+Fixing or provide reasonable workarounds for any repeatable bug.
+@item
+A reasonable effort to find and fix any other MySQL related bug.
+@item
+The following doesn't hold for Basic email support (As this only includes
+basic installation support):
+
+For not bug related things, like helping you optimize your queries or
+your system, extending MySQL with new functionality... we charge 200
+EURO/hour, which is deducted from your support contract.  In other words,
+if you have login support (2000 EURO), you can expect us to work up to
+10 hours to help you with things like this.
+@item
+The higher level of support contract the more effort we will put into finding
+a solution to your problems..
+@end itemize
+
 @cindex email, technical support
 @cindex technical support, by email
 @node Basic email support, Extended email support, Support, Support
@@ -4634,12 +4657,6 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 @c EMAIL: savages@savages.com (Shaun Savage)
 @c @image{Flags/usa} USA [Savages/Oregon] @
 @c @uref{http://mysql.savages.com, WWW}
-
-@c @item
-@c No mirror! 010323 Matt
-@c EMAIL: tcobb@staff.circle.net (Troy Cobb)
-@c @image{Flags/usa} USA [Circle Net/North Carolina] @
-@c @uref{http://www.mysql.net, WWW}
 
 @c @item
 @c Not ok 20000919; Non-existent (Matt)
@@ -7172,13 +7189,10 @@ Linux version that doesn't have @code{glibc2}, you must install
 LinuxThreads before trying to compile
 @strong{MySQL}. @uref{http://www.mysql.com/Downloads/Linux}
 
-Note that @code{glibc} versions before and including Version 2.1.1 have a fatal
-bug in @code{pthread_mutex_timedwait} handling, which is used when you
-do @code{INSERT DELAYED}. If you are using @code{INSERT DELAYED}, you
-@strong{MUST} add the following patch to your glibc library:
-@uref{http://www.mysql.com/Downloads/Patches/glibc-pthread_cond_timedwait.patch}.
-@strong{MySQL} Versions 3.23.7 and 3.22.32 contain a temporary
-workaround for this bug.
+Note that @code{glibc} versions before and including Version 2.1.1 have
+a fatal bug in @code{pthread_mutex_timedwait} handling, which is used
+when you do @code{INSERT DELAYED}. We recommend you to not use
+@code{INSERT DELAYED} before upgrading glibc.
 
 If you plan to have 1000+ concurrent connections, you will need to make
 some changes to LinuxThreads, recompile it, and relink MySQL against
@@ -7216,8 +7230,7 @@ tables with lots of data. The more you reduce @code{STACK_SIZE} in
 LinuxThreads the more threads you can safely create. We recommend the values
 between 128K and 256 K.
 
-
-If you use a lot of concurrent connections, you may suffer from a  2.2
+If you use a lot of concurrent connections, you may suffer from a 2.2
 kernel "feature" in 2.2 kernel that penalizes a process for
 forking or cloning a child
 in an attempt to prevent a fork bomb attack. This will cause MySQL not
@@ -7239,7 +7252,7 @@ on several systems of one of our biggest customers. The patch has signficantly
 improved @code{MySQL} performance without causing any problems. So it should
 be pretty safe. This issue has been fixed in the 2.4 kernel.
 
-We have also tested @strong{MySQL} on  2.4 kernel on a 2 CPU machine and
+We have also tested @strong{MySQL} on 2.4 kernel on a 2 CPU machine and
 found @strong{MySQL} scales MUCH better - there was virtually no slowdown
 on query throughput all the way up
 to 1000 clients.  If your plan to set up a
@@ -7250,31 +7263,33 @@ systems. If you have access such a system and have done some benchmarks,
 please send a mail to @email{docs@@mysql.com} with the results - we will
 include them in the manual.
 
+The following paragraph is only relevant if you are using a glibc
+version older than 2.2.2 (Note that if you are going to use MANY
+connections to MySQL, you still need to change the STACK_SIZE and
+PTHREAD_THREADS_MAX variables in glibc 2.2.2).
+
 There is another issue that greatly hurts @strong{MySQL} performance,
-especially on SMP systems.  The current implementation of mutex in Linuxthreads is also very bad for
-programs with many threads that only hold the mutex for a short time. On an
-SMP system, ironic as it is, if you link @strong{MySQL} against unmodified
-@strong{LinuxThreads}, removing processors from the machine improves
-@strong{MySQL} performance in many cases.
-We have made a patch available for glibc 2.1,
+especially on SMP systems.  The old implementation of mutex in
+LinuxThreads was also very bad for programs with many threads that only
+hold the mutex for a short time. On an SMP system, ironic as it is, if
+you link @strong{MySQL} against unmodified @strong{LinuxThreads},
+removing processors from the machine improves @strong{MySQL} performance
+in many cases.  We have made a patch available for glibc 2.1,
 @uref{http://www.mysql.com/Downloads/Linux/linuxthreads-2.1-patch,linuxthreads-2.1-patch}
 and for glibc 2.2,
-@uref{http://www.mysql.com/Downloads/Linux/linuxthreads-2.2-patch,linuxthreads-2.2-patch} to correct this behaviour. Please note that since there are so
-many versions of glibc floating around, the patch may not apply cleanly to
+@uref{http://www.mysql.com/Downloads/Linux/linuxthreads-2.2-patch,linuxthreads-2.2-patch}
+to correct this behaveour. Please note that since there are so many
+versions of glibc floating around, the patch may not apply cleanly to
 yours, so some manual work may be required.
 
-We recommend that you use the above patched to build a special static version
-of @code{libpthread.a} and use it only for statically linking
-against @code{MySQL}. We
-know that the patch is safe for @code{MySQL} and significantly improves its
-performance, but we cannot say anything about other applications. If you
-link other applications against the patched version of the library, or
-build a patched shared version and install it on your system, you are doing
-it at your own risk with regard to other applicatioins that depend on
-@code{LinuxThreads}.
-
-@c Monty, is the stuff below any longer relevant? I know it needs to be
-@c at least corrected as RPM and binary are now the same
+We recommend that you use the above patches to build a special static
+version of @code{libpthread.a} and use it only for statically linking
+against @code{MySQL}. We know that the patch is safe for @code{MySQL}
+and significantly improves its performance, but we cannot say anything
+about other applications. If you link other applications against the
+patched version of the library, or build a patched shared version and
+install it on your system, you are doing it at your own risk with regard
+to other applications that depend on @code{LinuxThreads}.
 
 If you can't start @code{mysqld} or if @code{mysql_install_db} doesn't work,
 please continue reading!  This only happens on Linux system with problems in
@@ -9792,6 +9807,11 @@ Set the default character set. @xref{Character sets}.
 @item --default-table-type=type
 Set the default table type for tables. @xref{Table types}.
 
+@item --debug[...]=
+If @strong{MySQL} is configured with @code{--with-debug}, you can use
+this option to get a trace file of what @code{mysqld} is
+doing. @xref{The DBUG package}.
+
 @item --delay-key-write-for-all-tables
 Don't flush key buffers between writes for any @code{MyISAM} table.
 @xref{Server parameters}.
@@ -9946,14 +9966,23 @@ All interaction with @code{mysqld} must be made via Unix sockets.
 This option is highly recommended for systems where only local requests
 are allowed. @xref{DNS}.
 
+@item --skip-host-cache
+Never use host name cache for faster name-ip resolution, but query
+DNS server on every connect instead. @xref{DNS}.
+
 @item --skip-new
 Don't use new, possible wrong routines.
 Implies @code{--skip-delay-key-write}.
 This will also set default table type to @code{ISAM}. @xref{ISAM}.
 
-@item --skip-host-cache
-Never use host name cache for faster name-ip resolution, but query
-DNS server on every connect instead. @xref{DNS}.
+@item --skip-safemalloc
+If @strong{MySQL} is configured with @code{--with-debug=full}, all
+programs will check the memory for overruns for every memory allocation /
+memory freeing.  As this checking is very slow, you can avoid this,
+when you don't need memory checking, by using this option.
+
+this option to get a trace file of what @code{mysqld} is
+doing. @xref{The DBUG package}.
 
 @item --skip-show-database
 Don't allow 'SHOW DATABASE' commands, unless the user has
@@ -10290,6 +10319,9 @@ The following lists tell what you have to watch out for when upgrading to
 Version 3.23:
 
 @itemize @bullet
+@item
+All tables that uses the @code{tis620} character set must be fixed
+with @code{myisamchk -r} or @code{REPAIR TABLE}.
 @item
 If you do a @code{DROP DATABASE} on a symbolic linked database, both the
 link and the original database is deleted.  (This didn't happen in 3.22
@@ -12377,9 +12409,12 @@ You can use the wild-card characters @samp{%} and @samp{_} in the @code{Host}
 field.
 
 @item
-A @code{Host} value of @code{'%'} matches any hostname.  A blank @code{Host}
-value is equivalent to @code{'%'}.  Note that these values match @emph{any
-host that can create a connection to your server!}
+A @code{Host} value of @code{'%'} matches any hostname.
+
+@item
+A blank @code{Host} value means that the privilege should be anded
+with the entry in the @code{host} table that matches the given host name.
+You can find more information about this in the next chapter.
 
 @cindex netmask notation, in @code{mysql.user} table
 @item
@@ -18304,7 +18339,7 @@ or	MIN_ROWS = #
 or	PACK_KEYS = @{0 | 1@}
 or	PASSWORD = "string"
 or	DELAY_KEY_WRITE = @{0 | 1@}
-or      ROW_FORMAT= @{ default | dynamic | static | compressed @}
+or      ROW_FORMAT= @{ default | dynamic | fixed | compressed @}
 or	RAID_TYPE= @{1 | STRIPED | RAID0 @} RAID_CHUNKS=#  RAID_CHUNKSIZE=#
 or	UNION = (table_name,[table_name...])
 
@@ -21489,6 +21524,20 @@ The buffer that is allocated when sorting the index when doing a
 @code{REPAIR} or when creating indexes with @code{CREATE INDEX} or
 @code{ALTER TABLE}.
 
+@item @code{myisam_max_extra_sort_file_size}.
+If the creating of the temporary file for fast index creation would be
+this much bigger than using the key cache, then prefer the key cache
+method.  This is mainly used to force long character keys in large
+tables to use the slower key cache method to create the index.
+@strong{NOTE} that this parameter is given in megabytes!
+
+@item @code{myisam_max_sort_file_size}
+The maximum size of the temporary file @strong{MySQL} is allowed to create
+to while recreating the index (during @code{REPAIR}, @code{ALTER TABLE}
+or @code{LOAD DATA INFILE}.  If the file size would be bigger than this,
+the index will be created through the key cache (which is slower).
+@strong{NOTE} that this parameter is given in megabytes!
+
 @item @code{net_buffer_length}
 The communication buffer is reset to this size between queries. This
 should not normally be changed, but if you have very little memory, you
@@ -23083,13 +23132,16 @@ system resources than @code{ISAM}, but will need more CPU when inserting
 data into a compressed index.
 
 The following options to @code{mysqld} can be used to change the behavior of
-@code{MyISAM} tables:
+@code{MyISAM} tables. @xref{SHOW VARIABLES}.
 
 @multitable @columnfractions .40 .60
 @item @strong{Option} @tab @strong{Meaning}
 @item @code{--myisam-recover=#} @tab Automatic recover of crashed tables.
 @item @code{-O myisam_sort_buffer_size=#} @tab Buffer used when recovering tables.
 @item @code{--delay-key-write-for-all-tables} @tab Don't flush key buffers between writes for any MyISAM table
+@item @code{-O myisam_max_extra_sort_file_size=#} @tab Used to help @strong{MySQL} to decide when to use the slow but safe key cache index create method. @strong{NOTE} that this parameter is given in megabytes!
+@item @code{-O myisam_max_sort_file_size=#} @tab Don't use the fast sort index method to created index if the temporary file would get bigger than this.
+@strong{NOTE} that this paramter is given in megabytes!
 @end multitable
 
 The automatic recovery is activated if you start mysqld with
@@ -34084,7 +34136,7 @@ this problem.
 @itemize @bullet
 @item
 You can use the static @strong{MySQL} libraries for Borland C++ that you
-can find on @uref{http://www.mysql.net/downloads/os-win32.html}.
+can find on @uref{http://www.mysql.com/downloads/os-win32.html}.
 @item
 Only call @code{mysql_init()} with @code{NULL} as an argument, not a
 pre-allocated MYSQL struct.
@@ -42427,7 +42479,19 @@ not yet 100 % confident in this code.
 Fixed bug in @code{ALTER TABLE} and @code{LOAD DATA INFILE} that disabled
 key-sorting. These command should now be faster in most cases.
 @item
+Fixed problem with @code{ALTER TABLE} to Innobase tables on Freebsd.
+@item
+Added @code{mysqld} variables @code{myisam_max_sort_file_size} and
+@code{myisam_max_extra_sort_file_size}.
+@item
 Initialize signals early to avoid problem with signals in Innobase..
+@item
+Applied patch for the @code{tis620} character set to make comparisons
+case-independent and to fix a bug in @code{LIKE} for this character set.
+@strong{NOTE}: All tables that uses the @code{tis620} character set must be
+fixed with  @code{myisamchk -r} or @code{REPAIR TABLE} !
+@item
+Added @code{--skip-safemalloc} option to @code{mysqld}.
 @end itemize
 
 @node News-3.23.36, News-3.23.35, News-3.23.37, News-3.23.x
@@ -48416,6 +48480,11 @@ file of what the program is debugging.
 
 One uses the debug package by invoking the program with the
 @code{--debug="..."} or the @code{-#...} option.
+
+Most @strong{MySQL} programs has a default debug string that will be
+used if you don't specify an option to @code{--debug}.  The default
+trace file is usually @code{/tmp/programname.trace} on Unix and
+@code{\programname.trace} on windows.
 
 The debug control string is a sequence of colon separated fields
 as follows:

@@ -611,7 +611,7 @@ uint calc_week(TIME *ltime, bool with_year, bool sunday_first_day_of_week,
 void find_date(char *pos,uint *vek,uint flag);
 TYPELIB *convert_strings_to_array_type(my_string *typelibs, my_string *end);
 TYPELIB *typelib(List<String> &strings);
-void clean_up(void);
+void clean_up(bool print_message=1);
 ulong get_form_pos(File file, uchar *head, TYPELIB *save_names);
 ulong make_new_entry(File file,uchar *fileinfo,TYPELIB *formnames,
 		     const char *newname);
