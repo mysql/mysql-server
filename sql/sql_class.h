@@ -383,7 +383,7 @@ struct system_variables
   my_bool new_mode;
   
   CHARSET_INFO 	*client_collation;
-  CHARSET_INFO  *literal_collation;
+  CHARSET_INFO  *connection_collation;
   CHARSET_INFO  *result_collation;
 };
 
