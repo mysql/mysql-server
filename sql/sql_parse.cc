@@ -165,7 +165,7 @@ static int get_or_create_user_conn(THD *thd, const char *user,
 	       my_malloc(sizeof(struct user_conn) + temp_len+1,
 			 MYF(MY_WME)))))
     {
-      send_error(thd, 0, NullS);		// Out of memory
+      net_send_error(thd, 0, NullS);		// Out of memory
       return_val=1;
       goto end;
     }
@@ -183,7 +183,7 @@ static int get_or_create_user_conn(THD *thd, const char *user,
     if (my_hash_insert(&hash_user_connections, (byte*) uc))
     {
       my_free((char*) uc,0);
-      send_error(thd, 0, NullS);		// Out of memory
+      net_send_error(thd, 0, NullS);		// Out of memory
       return_val=1;
       goto end;
     }
@@ -258,7 +258,7 @@ int check_user(THD *thd, enum enum_server_command command,
   */
   if (opt_secure_auth_local && passwd_len == SCRAMBLE_LENGTH_323)
   {
-    net_printf(thd, ER_NOT_SUPPORTED_AUTH_MODE);
+    net_printf_error(thd, ER_NOT_SUPPORTED_AUTH_MODE);
     mysql_log.write(thd, COM_CONNECT, ER(ER_NOT_SUPPORTED_AUTH_MODE));
     DBUG_RETURN(-1);
   }
@@ -290,8 +290,8 @@ int check_user(THD *thd, enum enum_server_command command,
     NET *net= &thd->net;
     if (opt_secure_auth_local)
     {
-      net_printf(thd, ER_SERVER_IS_IN_SECURE_AUTH_MODE,
-                 thd->user, thd->host_or_ip);
+      net_printf_error(thd, ER_SERVER_IS_IN_SECURE_AUTH_MODE,
+                       thd->user, thd->host_or_ip);
       mysql_log.write(thd, COM_CONNECT, ER(ER_SERVER_IS_IN_SECURE_AUTH_MODE),
                       thd->user, thd->host_or_ip);
       DBUG_RETURN(-1);
@@ -330,7 +330,7 @@ int check_user(THD *thd, enum enum_server_command command,
         VOID(pthread_mutex_unlock(&LOCK_thread_count));
         if (!count_ok)
         {                                         // too many connections 
-          send_error(thd, ER_CON_COUNT_ERROR);
+          net_send_error(thd, ER_CON_COUNT_ERROR);
           DBUG_RETURN(-1);
         }
       }
@@ -380,14 +380,14 @@ int check_user(THD *thd, enum enum_server_command command,
   }
   else if (res == 2) // client gave short hash, server has long hash
   {
-    net_printf(thd, ER_NOT_SUPPORTED_AUTH_MODE);
+    net_printf_error(thd, ER_NOT_SUPPORTED_AUTH_MODE);
     mysql_log.write(thd,COM_CONNECT,ER(ER_NOT_SUPPORTED_AUTH_MODE));
     DBUG_RETURN(-1);
   }
-  net_printf(thd, ER_ACCESS_DENIED_ERROR,
-             thd->user,
-             thd->host_or_ip,
-             passwd_len ? ER(ER_YES) : ER(ER_NO));
+  net_printf_error(thd, ER_ACCESS_DENIED_ERROR,
+                   thd->user,
+                   thd->host_or_ip,
+                   passwd_len ? ER(ER_YES) : ER(ER_NO));
   mysql_log.write(thd, COM_CONNECT, ER(ER_ACCESS_DENIED_ERROR),
                   thd->user,
                   thd->host_or_ip,
@@ -450,16 +450,16 @@ static int check_for_max_user_connections(THD *thd, USER_CONN *uc)
   if (max_user_connections &&
       max_user_connections < (uint) uc->connections)
   {
-    net_printf(thd,ER_TOO_MANY_USER_CONNECTIONS, uc->user);
+    net_printf_error(thd, ER_TOO_MANY_USER_CONNECTIONS, uc->user);
     error=1;
     goto end;
   }
   if (uc->user_resources.connections &&
       uc->user_resources.connections <= uc->conn_per_hour)
   {
-    net_printf(thd, ER_USER_LIMIT_REACHED, uc->user,
-	       "max_connections",
-	       (long) uc->user_resources.connections);
+    net_printf_error(thd, ER_USER_LIMIT_REACHED, uc->user,
+                     "max_connections",
+                     (long) uc->user_resources.connections);
     error=1;
     goto end;
   }
@@ -585,8 +585,8 @@ static bool check_mqh(THD *thd, uint check_command)
   if (uc->user_resources.questions &&
       uc->questions++ >= uc->user_resources.questions)
   {
-    net_printf(thd, ER_USER_LIMIT_REACHED, uc->user, "max_questions",
-	       (long) uc->user_resources.questions);
+    net_printf_error(thd, ER_USER_LIMIT_REACHED, uc->user, "max_questions",
+                     (long) uc->user_resources.questions);
     error=1;
     goto end;
   }
@@ -596,8 +596,8 @@ static bool check_mqh(THD *thd, uint check_command)
     if (uc->user_resources.updates && uc_update_queries[check_command] &&
 	uc->updates++ >= uc->user_resources.updates)
     {
-      net_printf(thd, ER_USER_LIMIT_REACHED, uc->user, "max_updates",
-		 (long) uc->user_resources.updates);
+      net_printf_error(thd, ER_USER_LIMIT_REACHED, uc->user, "max_updates",
+                       (long) uc->user_resources.updates);
       error=1;
       goto end;
     }
@@ -1001,7 +1001,7 @@ pthread_handler_decl(handle_one_connection,arg)
     if ((error=check_connection(thd)))
     {						// Wrong permissions
       if (error > 0)
-	net_printf(thd,error,thd->host_or_ip);
+	net_printf_error(thd, error, thd->host_or_ip);
 #ifdef __NT__
       if (vio_type(net->vio) == VIO_TYPE_NAMEDPIPE)
 	my_sleep(1000);				/* must wait after eof() */
@@ -1044,7 +1044,7 @@ pthread_handler_decl(handle_one_connection,arg)
 			thd->host_or_ip,
 			(net->last_errno ? ER(net->last_errno) :
 			 ER(ER_UNKNOWN_ERROR)));
-      send_error(thd,net->last_errno,NullS);
+      net_send_error(thd, net->last_errno, NullS);
       statistic_increment(aborted_threads,&LOCK_status);
     }
     else if (thd->killed)
@@ -1113,7 +1113,7 @@ extern "C" pthread_handler_decl(handle_bootstrap,arg)
     uint length=(uint) strlen(buff);
     if (buff[length-1]!='\n' && !feof(file))
     {
-      send_error(thd,ER_NET_PACKET_TOO_LARGE, NullS);
+      net_send_error(thd, ER_NET_PACKET_TOO_LARGE, NullS);
       thd->is_fatal_error= 1;
       break;
     }
@@ -1267,7 +1267,7 @@ bool do_command(THD *thd)
       statistic_increment(aborted_threads,&LOCK_status);
       DBUG_RETURN(TRUE);			// We have to close it.
     }
-    send_error(thd,net->last_errno,NullS);
+    net_send_error(thd, net->last_errno, NullS);
     net->error= 0;
     DBUG_RETURN(FALSE);
   }
@@ -1808,7 +1808,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   if (thd->killed_errno() && !thd->net.report_error)
     thd->send_kill_message();
   if (thd->is_fatal_error || thd->net.report_error)
-    send_error(thd);
+    net_send_error(thd);
 
   time_t start_of_query=thd->start_time;
   thd->end_time();				// Set start time
@@ -3671,10 +3671,6 @@ create_error:
           goto error;
 
 #ifndef EMBEDDED_LIBRARY
-	/*
-          When executing substatements, they're assumed to send_error when
-          it happens, but not to send_ok.
-        */
 	my_bool nsok= thd->net.no_send_ok;
 	thd->net.no_send_ok= TRUE;
 #endif
@@ -3932,7 +3928,6 @@ create_error:
   DBUG_RETURN(res || thd->net.report_error);
 
 error:
-  /* We end up here if send_error() has already been done. */
   DBUG_RETURN(TRUE);
 }
 

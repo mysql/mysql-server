@@ -53,14 +53,14 @@ bool Protocol_prep::net_store_data(const char *from, uint length)
 
 	/* Send a error string to client */
 
-void send_error(THD *thd, uint sql_errno, const char *err)
+void net_send_error(THD *thd, uint sql_errno, const char *err)
 {
 #ifndef EMBEDDED_LIBRARY 
   uint length;
   char buff[MYSQL_ERRMSG_SIZE+2], *pos;
 #endif
   NET *net= &thd->net;
-  DBUG_ENTER("send_error");
+  DBUG_ENTER("net_send_error");
   DBUG_PRINT("enter",("sql_errno: %d  err: %s", sql_errno,
 		      err ? err : net->last_error[0] ?
 		      net->last_error : "NULL"));
@@ -169,7 +169,7 @@ void send_warning(THD *thd, uint sql_errno, const char *err)
 */
 
 void
-net_printf(THD *thd, uint errcode, ...)
+net_printf_error(THD *thd, uint errcode, ...)
 {
   va_list args;
   uint length,offset;
@@ -182,7 +182,7 @@ net_printf(THD *thd, uint errcode, ...)
 #endif
   NET *net= &thd->net;
 
-  DBUG_ENTER("net_printf");
+  DBUG_ENTER("net_printf_error");
   DBUG_PRINT("enter",("message: %u",errcode));
 
   if (thd->spcont && thd->spcont->find_handler(errcode,
@@ -196,8 +196,8 @@ net_printf(THD *thd, uint errcode, ...)
 #endif
   va_start(args,errcode);
   /*
-    The following is needed to make net_printf() work with 0 argument for
-    errorcode and use the argument after that as the format string. This
+    The following is needed to make net_printf_error() work with 0 argument
+    for errorcode and use the argument after that as the format string. This
     is useful for rare errors that are not worth the hassle to put in
     errmsg.sys, but at the same time, the message is not fixed text
   */

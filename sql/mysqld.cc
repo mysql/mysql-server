@@ -1331,7 +1331,7 @@ void close_connection(THD *thd, uint errcode, bool lock)
   if ((vio=thd->net.vio) != 0)
   {
     if (errcode)
-      send_error(thd, errcode, ER(errcode));	/* purecov: inspected */
+      net_send_error(thd, errcode, ER(errcode)); /* purecov: inspected */
     vio_close(vio);			/* vio is freed in delete thd */
   }
   if (lock)
@@ -3396,7 +3396,7 @@ static void create_new_thread(THD *thd)
 	thd->killed= THD::KILL_CONNECTION;			// Safety
 	(void) pthread_mutex_unlock(&LOCK_thread_count);
 	statistic_increment(aborted_connects,&LOCK_status);
-	net_printf(thd,ER_CANT_CREATE_THREAD,error);
+	net_printf_error(thd, ER_CANT_CREATE_THREAD, error);
 	(void) pthread_mutex_lock(&LOCK_thread_count);
 	close_connection(thd,0,0);
 	delete thd;
