@@ -641,7 +641,7 @@ VAR* var_get(const char* var_name, const char** var_name_end, my_bool raw,
   if (*var_name != '$')
     goto err;
   digit = *++var_name - '0';
-  if (!(digit < 10 && digit >= 0))
+  if (digit < 0 || digit >= 10)
   {
     const char* save_var_name = var_name, *end;
     uint length;
@@ -660,7 +660,7 @@ VAR* var_get(const char* var_name, const char** var_name_end, my_bool raw,
         length < MAX_VAR_NAME)
     {
       char buff[MAX_VAR_NAME+1];
-      strmake(buff, save_var_name, length); 
+      strmake(buff, save_var_name, length);
       v= var_from_env(buff, "");
     }
     var_name--;					/* Point at last character */

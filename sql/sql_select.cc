@@ -868,7 +868,7 @@ JOIN::optimize()
       ((group_list && const_tables != tables &&
 	(!simple_group ||
 	 !test_if_skip_sort_order(&join_tab[const_tables], group_list,
-				  HA_POS_ERROR, 0))) || select_distinct) &&
+				  unit->select_limit_cnt, 0))) || select_distinct) &&
       tmp_table_param.quick_group && !procedure)
   {
     need_tmp=1; simple_order=simple_group=0;	// Force tmp table without sort
