@@ -201,6 +201,18 @@ sys_var_long_ptr	sys_rpl_recovery_rank("rpl_recovery_rank",
 sys_var_long_ptr	sys_query_cache_size("query_cache_size",
 					     &query_cache_size,
 					     fix_query_cache_size);
+
+sys_var_thd_ulong	sys_range_alloc_block_size("range_alloc_block_size",
+						   &SV::range_alloc_block_size);
+sys_var_thd_ulong	sys_query_alloc_block_size("query_alloc_block_size",
+						   &SV::query_alloc_block_size);
+sys_var_thd_ulong	sys_query_prealloc_size("query_prealloc_size",
+						&SV::query_prealloc_size);
+sys_var_thd_ulong	sys_trans_alloc_block_size("transaction_alloc_block_size",
+						   &SV::trans_alloc_block_size);
+sys_var_thd_ulong	sys_trans_prealloc_size("transaction_prealloc_size",
+						&SV::trans_prealloc_size);
+
 #ifdef HAVE_QUERY_CACHE
 sys_var_long_ptr	sys_query_cache_limit("query_cache_limit",
 					      &query_cache.query_cache_limit);
@@ -372,7 +384,9 @@ sys_var *sys_variables[]=
   &sys_net_wait_timeout,
   &sys_net_write_timeout,
   &sys_new_mode,
+  &sys_query_alloc_block_size,
   &sys_query_cache_size,
+  &sys_query_prealloc_size,
 #ifdef HAVE_QUERY_CACHE
   &sys_query_cache_limit,
   &sys_query_cache_type,
@@ -382,6 +396,7 @@ sys_var *sys_variables[]=
   &sys_rand_seed2,
   &sys_read_buff_size,
   &sys_read_rnd_buff_size,
+  &sys_range_alloc_block_size,
   &sys_rpl_recovery_rank,
   &sys_safe_updates,
   &sys_select_limit,
@@ -401,6 +416,8 @@ sys_var *sys_variables[]=
   &sys_thread_cache_size,
   &sys_timestamp,
   &sys_tmp_table_size,
+  &sys_trans_alloc_block_size,
+  &sys_trans_prealloc_size,
   &sys_tx_isolation,
 #ifdef HAVE_INNOBASE_DB
   &sys_innodb_max_dirty_pages_pct,
@@ -530,14 +547,19 @@ struct show_var_st init_vars[]= {
   {"log_error",               (char*) log_error_file,               SHOW_CHAR},
   {"port",                    (char*) &mysql_port,                  SHOW_INT},
   {"protocol_version",        (char*) &protocol_version,            SHOW_INT},
+  {sys_query_alloc_block_size.name, (char*) &sys_query_alloc_block_size,
+   SHOW_SYS},
 #ifdef HAVE_QUERY_CACHE
   {sys_query_cache_limit.name,(char*) &sys_query_cache_limit,	    SHOW_SYS},
   {sys_query_cache_size.name, (char*) &sys_query_cache_size,	    SHOW_SYS},
   {sys_query_cache_type.name, (char*) &sys_query_cache_type,        SHOW_SYS},
 #endif /* HAVE_QUERY_CACHE */
+  {sys_query_prealloc_size.name, (char*) &sys_query_prealloc_size,  SHOW_SYS},
   {sys_read_buff_size.name,   (char*) &sys_read_buff_size,	    SHOW_SYS},
   {sys_readonly.name,         (char*) &sys_readonly,                SHOW_SYS},
   {sys_read_rnd_buff_size.name,(char*) &sys_read_rnd_buff_size,	    SHOW_SYS},
+  {sys_range_alloc_block_size.name, (char*) &sys_range_alloc_block_size,
+   SHOW_SYS},
   {sys_rpl_recovery_rank.name,(char*) &sys_rpl_recovery_rank,       SHOW_SYS},
   {sys_server_id.name,	      (char*) &sys_server_id,		    SHOW_SYS},
   {sys_slave_net_timeout.name,(char*) &sys_slave_net_timeout,	    SHOW_SYS},
@@ -563,6 +585,9 @@ struct show_var_st init_vars[]= {
 #endif
   {sys_tmp_table_size.name,   (char*) &sys_tmp_table_size,	    SHOW_SYS},
   {"tmpdir",                  (char*) &mysql_tmpdir,                SHOW_CHAR_PTR},
+  {sys_trans_alloc_block_size.name, (char*) &sys_trans_alloc_block_size,
+   SHOW_SYS},
+  {sys_trans_prealloc_size.name, (char*) &sys_trans_prealloc_size,  SHOW_SYS},
   {"version",                 server_version,                       SHOW_CHAR},
   {sys_net_wait_timeout.name, (char*) &sys_net_wait_timeout,	    SHOW_SYS},
   {NullS, NullS, SHOW_LONG}

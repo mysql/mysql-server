@@ -183,7 +183,7 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
 		    thd->net.last_error);
     goto end;
   }
-  init_sql_alloc(&mem,1024,0);
+  init_sql_alloc(&mem, ACL_ALLOC_BLOCK_SIZE, 0);
   init_read_record(&read_record_info,thd,table= tables[0].table,NULL,1,0);
   VOID(my_init_dynamic_array(&acl_hosts,sizeof(ACL_HOST),20,50));
   while (!(read_record_info.read_record(&read_record_info)))
@@ -2417,7 +2417,7 @@ my_bool grant_init(THD *org_thd)
   grant_option = FALSE;
   (void) hash_init(&hash_tables,0,0,0, (hash_get_key) get_grant_table,
 		   (hash_free_key) free_grant_table,0);
-  init_sql_alloc(&memex,1024,0);
+  init_sql_alloc(&memex, ACL_ALLOC_BLOCK_SIZE, 0);
 
   /* Don't do anything if running with --skip-grant */
   if (!initialized)

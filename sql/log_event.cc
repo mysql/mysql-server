@@ -1771,7 +1771,7 @@ void Unknown_log_event::print(FILE* file, bool short_form, char* last_db)
 int Query_log_event::exec_event(struct st_relay_log_info* rli)
 {
   int expected_error, actual_error= 0;
-  init_sql_alloc(&thd->mem_root, 8192,0);
+  init_sql_alloc(&thd->mem_root, thd->variables.query_alloc_block_size,0);
   thd->db= (char*) rewrite_db(db);
 
   /*
@@ -1912,7 +1912,7 @@ Default database: '%s'",
 int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli, 
 			       bool use_rli_only_for_errors)
 {
-  init_sql_alloc(&thd->mem_root, 8192,0);
+  init_sql_alloc(&thd->mem_root, thd->variables.query_alloc_block_size, 0);
   thd->db= (char*) rewrite_db(db);
   DBUG_ASSERT(thd->query == 0);
   thd->query = 0;				// Should not be needed

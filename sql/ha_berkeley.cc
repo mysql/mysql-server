@@ -240,7 +240,7 @@ int berkeley_show_logs(THD *thd)
   MEM_ROOT *old_root=my_pthread_getspecific_ptr(MEM_ROOT*,THR_MALLOC);
   DBUG_ENTER("berkeley_show_logs");
 
-  init_alloc_root(&show_logs_root, 1024, 1024);
+  init_sql_alloc(&show_logs_root, 1024, 1024);
   my_pthread_setspecific_ptr(THR_MALLOC,&show_logs_root);
 
   if ((error= log_archive(db_env, &all_logs, DB_ARCH_ABS | DB_ARCH_LOG,

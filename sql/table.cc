@@ -70,7 +70,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
   outparam->db_stat = db_stat;
   error=1;
 
-  init_sql_alloc(&outparam->mem_root,1024,0);
+  init_sql_alloc(&outparam->mem_root, TABLE_ALLOC_BLOCK_SIZE, 0);
   MEM_ROOT *old_root=my_pthread_getspecific_ptr(MEM_ROOT*,THR_MALLOC);
   my_pthread_setspecific_ptr(THR_MALLOC,&outparam->mem_root);
 

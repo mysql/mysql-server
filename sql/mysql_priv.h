@@ -75,6 +75,16 @@ char* query_table_status(THD *thd,const char *db,const char *table_name);
 #define MYSQLD_NET_RETRY_COUNT  10	// Abort read after this many int.
 #endif
 #define TEMP_POOL_SIZE          128
+
+#define QUERY_ALLOC_BLOCK_SIZE		8192
+#define QUERY_ALLOC_PREALLOC_SIZE   	8192
+#define TRANS_ALLOC_BLOCK_SIZE		4096
+#define TRANS_ALLOC_PREALLOC_SIZE	4096
+#define RANGE_ALLOC_BLOCK_SIZE		2048
+#define ACL_ALLOC_BLOCK_SIZE		1024
+#define UDF_ALLOC_BLOCK_SIZE		1024
+#define TABLE_ALLOC_BLOCK_SIZE		1024
+
 /*
   The following parameters is to decide when to use an extra cache to
   optimise seeks when reading a big table in sorted order

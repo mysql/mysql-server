@@ -22,6 +22,7 @@
 #include "sql_select.h"
 #include <hash.h>
 #include <thr_alarm.h>
+#include <malloc.h>
 
 /* Intern key cache variables */
 extern "C" pthread_mutex_t THR_LOCK_keycache;
@@ -257,6 +258,32 @@ Next alarm time: %lu\n",
     thd->proc_info="malloc";
   my_checkmalloc();
   TERMINATE(stdout);				// Write malloc information
+
+#ifdef HAVE_MALLINFO
+  struct mallinfo info= mallinfo();
+  printf("\nMemory status:\n\
+Non-mmapped space allocated from system: %d\n\
+Number of free chunks:			 %d\n\
+Number of fastbin blocks:		 %d\n\
+Number of mmapped regions:		 %d\n\
+Space in mmapped regions:		 %d\n\
+Maximum total allocated space:		 %d\n\
+Space available in freed fastbin blocks: %d\n\
+Total allocated space:			 %d\n\
+Total free space:			 %d\n\
+Top-most, releasable space:		 %d\n",
+	 (int) info.arena,
+	 (int) info.ordblks,
+	 (int) info.smblks,
+	 (int) info.hblks,
+	 (int) info.hblkhd,
+	 (int) info.usmblks,
+	 (int) info.fsmblks,
+	 (int) info.uordblks,
+	 (int) info.fordblks,
+	 (int) info.keepcost);
+#endif
+  puts("");
   if (thd)
     thd->proc_info=0;
 }

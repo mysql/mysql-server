@@ -80,7 +80,7 @@ public:
   ha_rows records;
   double read_time;
 
-  QUICK_SELECT(TABLE *table,uint index_arg,bool no_alloc=0);
+  QUICK_SELECT(THD *thd, TABLE *table,uint index_arg,bool no_alloc=0);
   virtual ~QUICK_SELECT();
   void reset(void) { next=0; it.rewind(); }
   int init() { return error=file->index_init(index); }
@@ -124,13 +124,15 @@ class SQL_SELECT :public Sql_alloc {
 
   SQL_SELECT();
   ~SQL_SELECT();
-  bool check_quick(bool force_quick_range=0, ha_rows limit = HA_POS_ERROR)
-  { return test_quick_select(~0L,0,limit, force_quick_range) < 0; }
+  bool check_quick(THD *thd, bool force_quick_range= 0,
+		   ha_rows limit= HA_POS_ERROR)
+  { return test_quick_select(thd, ~0L,0,limit, force_quick_range) < 0; }
   inline bool skipp_record() { return cond ? cond->val_int() == 0 : 0; }
-  int test_quick_select(key_map keys,table_map prev_tables,ha_rows limit,
-			bool force_quick_range=0);
+  int test_quick_select(THD *thd, key_map keys, table_map prev_tables,
+			ha_rows limit, bool force_quick_range=0);
 };
 
-QUICK_SELECT *get_quick_select_for_ref(TABLE *table, struct st_table_ref *ref);
+QUICK_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
+				       struct st_table_ref *ref);
 
 #endif
