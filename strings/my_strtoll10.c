@@ -46,7 +46,7 @@ static unsigned long lfactor[9]=
     from string nptr and converts it to an signed or unsigned
     long long integer value.
     Space characters and tab are ignored.
-    A sign character might precede the the digit characters. The number
+    A sign character might precede the digit characters. The number
     may have any number of pre-zero digits.
 
     The function stops reading the string nptr at the first character
