@@ -978,12 +978,14 @@ drop procedure cur2|
 
 # The few characteristics we parse
 create procedure chistics()
-  language sql
-  not deterministic
-  sql security definer
-  comment 'Characteristics procedure test'
- insert into t1 values ("chistics", 1)|
+    language sql
+    modifies sql data
+    not deterministic
+    sql security definer
+    comment 'Characteristics procedure test'
+  insert into t1 values ("chistics", 1)|
 
+show create procedure chistics|
 # Call it, just to make sure.
 call chistics()|
 select * from t1|
@@ -993,15 +995,18 @@ show create procedure chistics2|
 drop procedure chistics2|
 
 create function chistics() returns int
-  language sql
-  deterministic
-  sql security invoker
-  comment 'Characteristics procedure test'
- return 42|
+    language sql
+    deterministic
+    sql security invoker
+    comment 'Characteristics procedure test'
+  return 42|
 
+show create function chistics|
 # Call it, just to make sure.
 select chistics()|
-alter function chistics name chistics2 comment 'Characteristics function test'|
+alter function chistics name chistics2
+   no sql
+   comment 'Characteristics function test'|
 show create function chistics2|
 drop function chistics2|
 

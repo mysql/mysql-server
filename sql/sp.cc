@@ -165,13 +165,36 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
     goto done;
   }
 
+  bzero((char *)&chistics, sizeof(chistics));
+  if ((ptr= get_field(&thd->mem_root,
+		      table->field[MYSQL_PROC_FIELD_ACCESS])) == NULL)
+  {
+    ret= SP_GET_FIELD_FAILED;
+    goto done;
+  }
+  switch (ptr[0]) {
+  case 'N':
+    chistics.daccess= SP_NO_SQL;
+    break;
+  case 'C':
+    chistics.daccess= SP_CONTAINS_SQL;
+    break;
+  case 'R':
+    chistics.daccess= SP_READS_SQL_DATA;
+    break;
+  case 'M':
+    chistics.daccess= SP_MODIFIES_SQL_DATA;
+    break;
+  default:
+    chistics.daccess= SP_CONTAINS_SQL;
+  }
+
   if ((ptr= get_field(&thd->mem_root,
 		      table->field[MYSQL_PROC_FIELD_DETERMINISTIC])) == NULL)
   {
     ret= SP_GET_FIELD_FAILED;
     goto done;
   }
-  bzero((char *)&chistics, sizeof(chistics));
   chistics.detistic= (ptr[0] == 'N' ? FALSE : TRUE);    
 
   if ((ptr= get_field(&thd->mem_root,
@@ -180,7 +203,7 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
     ret= SP_GET_FIELD_FAILED;
     goto done;
   }
-  chistics.suid= (ptr[0] == 'I' ? IS_NOT_SUID : IS_SUID);    
+  chistics.suid= (ptr[0] == 'I' ? SP_IS_NOT_SUID : SP_IS_SUID);
 
   if ((params= get_field(&thd->mem_root,
 			 table->field[MYSQL_PROC_FIELD_PARAM_LIST])) == NULL)
@@ -356,9 +379,12 @@ db_create_routine(THD *thd, int type, sp_head *sp)
       store((longlong)type);
     table->field[MYSQL_PROC_FIELD_SPECIFIC_NAME]->
       store(sp->m_name.str, sp->m_name.length, system_charset_info);
+    if (sp->m_chistics->daccess != SP_DEFAULT_ACCESS)
+      table->field[MYSQL_PROC_FIELD_ACCESS]->
+	store((longlong)sp->m_chistics->daccess);
     table->field[MYSQL_PROC_FIELD_DETERMINISTIC]->
       store((longlong)(sp->m_chistics->detistic ? 1 : 2));
-    if (sp->m_chistics->suid != IS_DEFAULT_SUID)
+    if (sp->m_chistics->suid != SP_IS_DEFAULT_SUID)
       table->field[MYSQL_PROC_FIELD_SECURITY_TYPE]->
 	store((longlong)sp->m_chistics->suid);
     table->field[MYSQL_PROC_FIELD_PARAM_LIST]->
@@ -433,12 +459,16 @@ db_update_routine(THD *thd, int type, sp_name *name,
     store_record(table,record[1]);
     table->timestamp_on_update_now = 0;	// Don't update create time now.
     ((Field_timestamp *)table->field[MYSQL_PROC_FIELD_MODIFIED])->set_time();
-    if (chistics->suid != IS_DEFAULT_SUID)
-      table->field[MYSQL_PROC_FIELD_SECURITY_TYPE]->store((longlong)chistics->suid);
+    if (chistics->suid != SP_IS_DEFAULT_SUID)
+      table->field[MYSQL_PROC_FIELD_SECURITY_TYPE]->
+	store((longlong)chistics->suid);
     if (newname)
       table->field[MYSQL_PROC_FIELD_NAME]->store(newname,
 						 newnamelen,
 						 system_charset_info);
+    if (chistics->daccess != SP_DEFAULT_ACCESS)
+      table->field[MYSQL_PROC_FIELD_ACCESS]->
+	store((longlong)chistics->daccess);
     if (chistics->comment.str)
       table->field[MYSQL_PROC_FIELD_COMMENT]->store(chistics->comment.str,
 						    chistics->comment.length,
@@ -1027,9 +1057,20 @@ create_string(THD *thd, String *buf,
     buf->append(returns, returnslen);
   }
   buf->append('\n');
+  switch (chistics->daccess) {
+  case SP_NO_SQL:
+    buf->append("    NO SQL\n");
+    break;
+  case SP_READS_SQL_DATA:
+    buf->append("    READS SQL DATA\n");
+    break;
+  case SP_MODIFIES_SQL_DATA:
+    buf->append("    MODIFIES SQL DATA\n");
+    break;
+  }
   if (chistics->detistic)
-    buf->append( "    DETERMINISTIC\n", 18);
-  if (chistics->suid == IS_NOT_SUID)
+    buf->append("    DETERMINISTIC\n", 18);
+  if (chistics->suid == SP_IS_NOT_SUID)
     buf->append("    SQL SECURITY INVOKER\n", 25);
   if (chistics->comment.length)
   {

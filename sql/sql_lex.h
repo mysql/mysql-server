@@ -94,10 +94,22 @@ enum enum_sql_command {
 #define DESCRIBE_NORMAL		1
 #define DESCRIBE_EXTENDED	2
 
-enum suid_behaviour
+enum enum_sp_suid_behaviour
 {
-  IS_DEFAULT_SUID= 0, IS_NOT_SUID, IS_SUID
+  SP_IS_DEFAULT_SUID= 0,
+  SP_IS_NOT_SUID,
+  SP_IS_SUID
 };
+
+enum enum_sp_data_access
+{
+  SP_DEFAULT_ACCESS= 0,
+  SP_CONTAINS_SQL,
+  SP_NO_SQL,
+  SP_READS_SQL_DATA,
+  SP_MODIFIES_SQL_DATA
+};
+
 
 #define DERIVED_SUBQUERY	1
 #define DERIVED_VIEW		2
@@ -599,8 +611,9 @@ typedef struct st_alter_info
 struct st_sp_chistics
 {
   LEX_STRING comment;
-  enum suid_behaviour suid;
+  enum enum_sp_suid_behaviour suid;
   bool detistic;
+  enum enum_sp_data_access daccess;
 };
 
 

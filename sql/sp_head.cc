@@ -1815,7 +1815,7 @@ sp_instr_error::print(String *str)
 void
 sp_change_security_context(THD *thd, sp_head *sp, st_sp_security_context *ctxp)
 {
-  ctxp->changed= (sp->m_chistics->suid != IS_NOT_SUID &&
+  ctxp->changed= (sp->m_chistics->suid != SP_IS_NOT_SUID &&
 		   (strcmp(sp->m_definer_user.str, thd->priv_user) ||
 		    strcmp(sp->m_definer_host.str, thd->priv_host)));
 
