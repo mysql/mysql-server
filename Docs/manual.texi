@@ -26810,7 +26810,7 @@ Contact information of Innobase Oy, producer of the InnoDB engine:
 
 @example
 Website: www.innodb.com
-Heikki.Tuuri@@innobase.inet.fi
+Heikki.Tuuri@@innodb.com
 phone: 358-9-6969 3250 (office) 358-40-5617367 (mobile)
 InnoDB Oy Inc.
 World Trade Center Helsinki
