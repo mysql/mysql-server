@@ -1,0 +1,31 @@
+DROP TABLE IF EXISTS t2;
+CREATE TABLE t2 (
+a bigint unsigned NOT NULL PRIMARY KEY,
+b int unsigned not null,
+c int unsigned
+) engine=ndbcluster;
+select count(*) from t2;
+count(*)
+10000
+delete from t2 limit 1;
+select count(*) from t2;
+count(*)
+9999
+delete from t2 limit 100;
+select count(*) from t2;
+count(*)
+9899
+delete from t2 limit 1000;
+select count(*) from t2;
+count(*)
+8899
+update t2 set c=12345678 limit 100;
+select count(*) from t2 where c=12345678;
+count(*)
+100
+select count(*) from t2 where c=12345678 limit 1000;
+count(*)
+100
+select * from t2 limit 0;
+a	b	c
+drop table t2;
