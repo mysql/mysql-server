@@ -74,7 +74,6 @@ static int request_table_dump(MYSQL* mysql, const char* db, const char* table);
 static int create_table_from_dump(THD* thd, NET* net, const char* db,
 				  const char* table_name);
 static int check_master_version(MYSQL* mysql, MASTER_INFO* mi);
-char* rewrite_db(char* db);
 
 
 /*
@@ -290,8 +289,6 @@ err:
   if (need_data_lock)
     pthread_mutex_unlock(&rli->data_lock);
 
-  /* Isn't this strange: if !need_data_lock, we broadcast with no lock ?? */
-
   pthread_mutex_unlock(log_lock);
   DBUG_RETURN ((*errmsg) ? 1 : 0);
 }
@@ -362,7 +359,10 @@ int purge_relay_logs(RELAY_LOG_INFO* rli, THD *thd, bool just_reset,
   rli->pending= 0;
 
   if (!rli->inited)
+  {
+    DBUG_PRINT("info", ("rli->inited == 0"));
     DBUG_RETURN(0);
+  }
 
   DBUG_ASSERT(rli->slave_running == 0);
   DBUG_ASSERT(rli->mi->slave_running == 0);
@@ -828,6 +828,21 @@ static bool sql_slave_killed(THD* thd, RELAY_LOG_INFO* rli)
   return rli->abort_slave || abort_loop || thd->killed;
 }
 
+/*
+  Writes an error message to rli->last_slave_error and rli->last_slave_errno
+  (which will be displayed by SHOW SLAVE STATUS), and prints it to stderr.
+
+  SYNOPSIS
+    slave_print_error()
+    rli		
+    err_code    The error code
+    msg         The error message (usually related to the error code, but can
+                contain more information).
+    ...         (this is printf-like format, with % symbols in msg)
+
+  RETURN VALUES
+    void
+ */
 
 void slave_print_error(RELAY_LOG_INFO* rli, int err_code, const char* msg, ...)
 {
@@ -835,9 +850,16 @@ void slave_print_error(RELAY_LOG_INFO* rli, int err_code, const char* msg, ...)
   va_start(args,msg);
   my_vsnprintf(rli->last_slave_error,
 	       sizeof(rli->last_slave_error), msg, args);
-  sql_print_error("Slave: %s, error_code=%d", rli->last_slave_error,
-		  err_code);
   rli->last_slave_errno = err_code;
+  /* If the error string ends with '.', do not add a ',' it would be ugly */
+  if (rli->last_slave_error[0] && 
+      (rli->last_slave_error[strlen(rli->last_slave_error)-1] == '.'))
+    sql_print_error("Slave: %s Error_code=%d", rli->last_slave_error,
+                    err_code);
+  else
+    sql_print_error("Slave: %s, error_code=%d", rli->last_slave_error,
+                    err_code);
+
 }
 
 
@@ -865,6 +887,16 @@ char* rewrite_db(char* db)
   return db;
 }
 
+/*
+  From other comments and tests in code, it looks like
+  sometimes Query_log_event and Load_log_event can have db==0
+  (see rewrite_db() above for example)
+  (cases where this happens are unclear; it may be when the master is 3.23).
+*/
+char* print_slave_db_safe(char* db)
+{
+  return (db ? rewrite_db(db) : (char*) "");
+}
 
 /*
   Checks whether a db matches some do_db and ignore_db rules
@@ -1282,7 +1314,7 @@ file '%s')", fname);
 			   &msg))
     {
       sql_print_error("Failed to open the relay log (relay_log_name='FIRST', \
-relay_log_pos=4");
+relay_log_pos=4)");
       goto err;
     }
     rli->master_log_name[0]= 0;
@@ -1346,7 +1378,7 @@ file '%s')", fname);
     {
       char llbuf[22];
       sql_print_error("Failed to open the relay log (relay_log_name='%s', \
-relay_log_pos=%s", rli->relay_log_name, llstr(rli->relay_log_pos, llbuf));
+relay_log_pos=%s)", rli->relay_log_name, llstr(rli->relay_log_pos, llbuf));
       goto err;
     }
   }
@@ -2142,14 +2174,13 @@ int check_expected_error(THD* thd, RELAY_LOG_INFO* rli, int expected_error)
   case ER_NET_ERROR_ON_WRITE:  
   case ER_SERVER_SHUTDOWN:  
   case ER_NEW_ABORTING_CONNECTION:
-    my_snprintf(rli->last_slave_error, sizeof(rli->last_slave_error), 
-		"Slave: query '%s' partially completed on the master \
+    slave_print_error(rli,expected_error, 
+                      "query '%s' partially completed on the master \
 and was aborted. There is a chance that your master is inconsistent at this \
 point. If you are sure that your master is ok, run this query manually on the\
  slave and then restart the slave with SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;\
- SLAVE START;", thd->query);
-    rli->last_slave_errno = expected_error;
-    sql_print_error("%s",rli->last_slave_error);
+ SLAVE START; .", thd->query);
+    thd->query_error= 1;
     return 1;
   default:
     return 0;
