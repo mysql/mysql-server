@@ -854,12 +854,21 @@ static File create_file(THD *thd, char *path, sql_exchange *exchange,
 {
   File file;
   uint option= MY_UNPACK_FILENAME;
+  char buff[FN_REFLEN];
 
 #ifdef DONT_ALLOW_FULL_LOAD_DATA_PATHS
   option|= MY_REPLACE_DIR;			// Force use of db directory
 #endif
-  (void) fn_format(path, exchange->file_name, thd->db ? thd->db : "", "",
-		   option);
+
+  char *cnt= strmake(buff, mysql_real_data_home, FN_REFLEN);
+  *cnt= FN_LIBCHAR;
+  cnt++;
+  cnt= strmake(cnt, thd->db ? thd->db : "", FN_REFLEN - (cnt-buff));
+  *cnt= FN_LIBCHAR;
+  cnt++;
+  *cnt= 0;
+
+  (void) fn_format(path, exchange->file_name, buff, "", option);
   if (!access(path, F_OK))
   {
     my_error(ER_FILE_EXISTS_ERROR, MYF(0), exchange->file_name);
