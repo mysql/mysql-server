@@ -506,7 +506,7 @@ Item *create_func_quote(Item* a)
   return new Item_func_quote(a);
 }
 
-Item *create_func_as_text(Item *a)
+Item *create_func_as_wkt(Item *a)
 {
   return new Item_func_as_text(a);
 }
