@@ -1165,7 +1165,8 @@ m4_define([_AC_PROG_CXX_EXIT_DECLARATION],
    'extern "C" void std::exit (int); using std::exit;' \
    'extern "C" void exit (int) throw ();' \
    'extern "C" void exit (int);' \
-   'void exit (int);'
+   'void exit (int);' \
+   '#include <stdlib.h>'
 do
   _AC_COMPILE_IFELSE([AC_LANG_PROGRAM([@%:@include <stdlib.h>
 $ac_declaration],
