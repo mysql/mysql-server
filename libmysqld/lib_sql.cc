@@ -32,6 +32,7 @@
 #define SCRAMBLE_LENGTH 8
 C_MODE_START
 #include "lib_vio.c"
+#include "errmsg.h"
 
 static int check_connections1(THD * thd);
 static int check_connections2(THD * thd);
@@ -41,16 +42,41 @@ static bool check_user(THD *thd, enum_server_command command,
 char * get_mysql_home(){ return mysql_home;};
 char * get_mysql_real_data_home(){ return mysql_real_data_home;};
 
-bool lib_dispatch_command(enum enum_server_command command, NET *net,
-			  const char *arg, ulong length)
+my_bool simple_command(MYSQL *mysql,enum enum_server_command command, const char *arg,
+	       ulong length, my_bool skipp_check)
 {
+  NET *net= &mysql->net;
+  my_bool result= 1;
   THD *thd=(THD *) net->vio->dest_thd;
-  thd->store_globals();				// Fix if more than one connect
-  thd->net.last_error[0]=0;			// Clear error message
-  thd->net.last_errno=0;
 
-  net_new_transaction(&thd->net);
-  return dispatch_command(command, thd, (char *) arg, length + 1);
+  /* Check that we are calling the client functions in right order */
+  if (mysql->status != MYSQL_STATUS_READY)
+  {
+    strmov(net->last_error,ER(mysql->net.last_errno=CR_COMMANDS_OUT_OF_SYNC));
+    return 1;
+  }
+
+  /* Clear result variables */
+  mysql->net.last_error[0]=0;
+  mysql->net.last_errno=0;
+  mysql->info=0;
+  mysql->affected_rows= ~(my_ulonglong) 0;
+
+  /* Clear receive buffer and vio packet list */
+  net_clear(net);
+  vio_reset(net->vio);
+
+  thd->store_globals();				// Fix if more than one connect
+//  thd->net.last_error[0]=0;			// Clear error message
+//  thd->net.last_errno=0;
+
+  net_new_transaction(net);
+  result= dispatch_command(command, thd, (char *) arg, length + 1);
+
+  if (!skipp_check)
+    result= net->last_errno ? -1 : 0;
+
+  return result;
 }
 
 #ifdef _DUMMY
@@ -604,6 +630,7 @@ void end_embedded_connection(NET * net)
 
 } /* extern "C" */
 
+C_MODE_START
 NET *get_mysql_net(MYSQL *mysql)
 {
   return &((THD *)mysql->net.vio->dest_thd)->net;
@@ -626,6 +653,7 @@ void init_embedded_mysql(MYSQL *mysql, int client_flag, char *db)
   mysql->db= db;
   thd->mysql= mysql;
 }
+C_MODE_END
 
 static int embedded_thd_net_init(NET *net, unsigned char *buff)
 {
@@ -636,7 +664,7 @@ static int embedded_thd_net_init(NET *net, unsigned char *buff)
   net->vio= NULL;
   net->no_send_ok= 0;
   net->error=0; net->return_errno=0; net->return_status=0;
-  net->timeout=(uint) net_read_timeout;		/* Timeout for read */
+//  net->timeout=(uint) net_read_timeout;		/* Timeout for read */
   net->pkt_nr= net->compress_pkt_nr=0;
   net->write_pos= net->read_pos = net->buff;
   net->last_error[0]= 0;
@@ -647,6 +675,8 @@ static int embedded_thd_net_init(NET *net, unsigned char *buff)
   net->query_cache_query= 0;
   return 0;
 }
+
+C_MODE_START
 
 void *create_embedded_thd(Vio *vio, unsigned char *buff, int client_flag, char *db)
 {
@@ -667,8 +697,8 @@ void *create_embedded_thd(Vio *vio, unsigned char *buff, int client_flag, char *
   thd->dbug_thread_id= my_thread_id();
   thd->thread_stack= (char*) &thd;
 
-  if (thd->max_join_size == HA_POS_ERROR)
-    thd->options |= OPTION_BIG_SELECTS;
+//  if (thd->max_join_size == HA_POS_ERROR)
+//    thd->options |= OPTION_BIG_SELECTS;
 
   thd->proc_info=0;				// Remove 'login'
   thd->command=COM_SLEEP;
@@ -676,11 +706,11 @@ void *create_embedded_thd(Vio *vio, unsigned char *buff, int client_flag, char *
   thd->set_time();
   init_sql_alloc(&thd->mem_root,8192,8192);
   thd->client_capabilities= client_flag;
-  thd->max_packet_length= max_allowed_packet;
+//  thd->max_packet_length= max_allowed_packet;
   thd->net.vio = vio;
 
-  if (thd->client_capabilities & CLIENT_INTERACTIVE)
-    thd->inactive_timeout= net_interactive_timeout;
+//  if (thd->client_capabilities & CLIENT_INTERACTIVE)
+//    thd->inactive_timeout= net_interactive_timeout;
   if (thd->client_capabilities & CLIENT_TRANSACTIONS)
     thd->net.return_status= &thd->server_status;
 
@@ -691,6 +721,7 @@ void *create_embedded_thd(Vio *vio, unsigned char *buff, int client_flag, char *
 
   return thd;
 }
+C_MODE_END
 
 bool send_fields(THD *thd, List<Item> &list, uint flag)
 {
@@ -762,7 +793,7 @@ bool send_fields(THD *thd, List<Item> &list, uint flag)
 
   return 0;
  err:
-  send_error(&thd->net,ER_OUT_OF_RESOURCES);	/* purecov: inspected */
+  send_error(thd, ER_OUT_OF_RESOURCES);	/* purecov: inspected */
   return 1;					/* purecov: inspected */
 }
 
@@ -886,8 +917,8 @@ bool do_command(THD *thd)
   thd->current_tablenr=0;
 
   packet=0;
-  old_timeout=net->timeout;
-  net->timeout=(uint) thd->inactive_timeout;	// Wait max for 8 hours
+//  old_timeout=net->timeout;
+//  net->timeout=(uint) thd->inactive_timeout;	// Wait max for 8 hours
   net->last_error[0]=0;				// Clear error message
   net->last_errno=0;
 
@@ -901,18 +932,20 @@ bool do_command(THD *thd)
   else
   {
     packet=(char*) net->read_pos;
-    command = (enum enum_server_command) (uchar) packet[0];
+  
+  command = (enum enum_server_command) (uchar) packet[0];
     DBUG_PRINT("info",("Command on %s = %d (%s)",
 		       vio_description(net->vio), command,
 		       command_name[command]));
   }
-  net->timeout=old_timeout;			// Timeout for writing
+//  net->timeout=old_timeout;			// Timeout for writing
   DBUG_RETURN(dispatch_command(command,thd, packet+1, (uint) packet_length));
 }
 
 void
-send_ok(NET *net,ha_rows affected_rows,ulonglong id,const char *message)
+send_ok(THD *thd,ha_rows affected_rows,ulonglong id,const char *message)
 {
+  NET *net= &thd->net;
   if (net->no_send_ok)				// hack for re-parsing queries
     return;
 
@@ -929,6 +962,36 @@ send_ok(NET *net,ha_rows affected_rows,ulonglong id,const char *message)
   }
   DBUG_VOID_RETURN;
 }
+
+void
+send_eof(THD *thd, bool no_flush)
+{
+/*  static char eof_buff[1]= { (char) 254 };
+  NET *net= &thd->net;
+  DBUG_ENTER("send_eof");
+  if (net->vio != 0)
+  {
+    if (!no_flush && (thd->client_capabilities & CLIENT_PROTOCOL_41))
+    {
+      char buff[5];
+      uint tmp= min(thd->total_warn_count, 65535);
+      buff[0]=254;
+      int2store(buff+1, tmp);
+      int2store(buff+3, 0);			// No flags yet
+      VOID(my_net_write(net,buff,5));
+      VOID(net_flush(net));
+    }
+    else
+    {
+      VOID(my_net_write(net,eof_buff,1));
+      if (!no_flush)
+	VOID(net_flush(net));
+    }
+  }
+  DBUG_VOID_RETURN;
+*/
+}
+
 
 int embedded_send_row(THD *thd, int n_fields, char *data, int data_len)
 {

@@ -253,7 +253,6 @@ send_ok(THD *thd, ha_rows affected_rows, ulonglong id, const char *message)
   DBUG_VOID_RETURN;
 }
 
-#endif /* EMBEDDED_LIBRARY */
 
 /*
   Send eof (= end of result set) to the client
@@ -304,6 +303,7 @@ send_eof(THD *thd, bool no_flush)
   }
   DBUG_VOID_RETURN;
 }
+#endif /* EMBEDDED_LIBRARY */
 
 
 /****************************************************************************

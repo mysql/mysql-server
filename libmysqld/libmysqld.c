@@ -212,39 +212,6 @@ static void free_rows(MYSQL_DATA *cur)
   }
 }
 
-
-my_bool
-simple_command(MYSQL *mysql,enum enum_server_command command, const char *arg,
-	       ulong length, my_bool skipp_check)
-{
-  NET *net= &mysql->net;
-  my_bool result= 1;
-
-  /* Check that we are calling the client functions in right order */
-  if (mysql->status != MYSQL_STATUS_READY)
-  {
-    strmov(net->last_error,ER(mysql->net.last_errno=CR_COMMANDS_OUT_OF_SYNC));
-    goto end;
-  }
-
-  /* Clear result variables */
-  mysql->net.last_error[0]=0;
-  mysql->net.last_errno=0;
-  mysql->info=0;
-  mysql->affected_rows= ~(my_ulonglong) 0;
-
-  /* Clear receive buffer and vio packet list */
-  net_clear(net);
-  vio_reset(net->vio);
-
-  result = lib_dispatch_command(command, net, arg,length);
-  if (!skipp_check)
-    result= mysql->net.last_errno ? -1 : 0;
- end:
-  return result;
-}
-
-
 static void free_old_query(MYSQL *mysql)
 {
   DBUG_ENTER("free_old_query");
@@ -1046,22 +1013,6 @@ mysql_query(MYSQL *mysql, const char *query)
   return mysql_real_query(mysql,query, (ulong) strlen(query));
 }
 
-int STDCALL
-mysql_send_query(MYSQL* mysql, const char* query, ulong length)
-{
-  if (mysql->options.separate_thread)
-  {
-    return -1;
-  }
-
-  mysql->result= NULL;
-
-  free_old_query(mysql);			/* Free old result */
-
-  return simple_command(mysql, COM_QUERY, query, length, 1);
-}
-
-
 my_bool STDCALL
 mysql_read_query_result(MYSQL *mysql)
 {
@@ -1180,6 +1131,23 @@ my_bool my_connect(my_socket s, const struct sockaddr *name, uint namelen,
 #endif
 }
 
+/*
+int STDCALL
+mysql_send_query(MYSQL* mysql, const char* query, ulong length)
+{
+  if (mysql->options.separate_thread)
+  {
+    return -1;
+  }
+
+  mysql->result= NULL;
+
+  free_old_query(mysql);
+
+  return simple_command(mysql, COM_QUERY, query, length, 1);
+}
+*/
+
 
 int STDCALL
 mysql_real_query(MYSQL *mysql, const char *query, ulong length)
@@ -1187,16 +1155,17 @@ mysql_real_query(MYSQL *mysql, const char *query, ulong length)
   DBUG_ENTER("mysql_real_query");
   DBUG_PRINT("enter",("handle: %lx",mysql));
   DBUG_PRINT("query",("Query = \"%s\"",query));
-/*  if (mysql->options.separate_thread)
+
+  if (mysql->options.separate_thread)
   {
-    DBUG_RETURN(0);
+    return -1;
   }
 
   mysql->result= NULL;
 
-  free_old_query(mysql);
-*/
-  if (mysql_send_query(mysql, query, length))
+  free_old_query(mysql);			/* Free old result */
+
+  if (simple_command(mysql, COM_QUERY, query, length, 1))
     DBUG_RETURN(-1);
 
   DBUG_RETURN(mysql_read_query_result(mysql));

@@ -26,9 +26,9 @@ C_MODE_START
 extern void start_embedded_connection(NET * net);
 extern void end_embedded_connection(NET * net);
 extern void lib_connection_phase(NET *net, int phase);
-extern bool lib_dispatch_command(enum enum_server_command command, NET *net,
-				 const char *arg, ulong length);
 extern void init_embedded_mysql(MYSQL *mysql, int client_flag, char *db);
 extern void *create_embedded_thd(Vio *vio, unsigned char *buff, int client_flag, char *db);
 extern NET *get_mysql_net(MYSQL *mysql);
+extern my_bool simple_command(MYSQL *mysql,enum enum_server_command command, const char *arg,
+		       ulong length, my_bool skipp_check);
 C_MODE_END
