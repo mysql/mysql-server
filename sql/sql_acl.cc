@@ -850,11 +850,11 @@ static void acl_insert_user(const char *user, const char *host,
 {
   ACL_USER acl_user;
   acl_user.user=*user ? strdup_root(&mem,user) : 0;
-  update_hostname(&acl_user.host,strdup_root(&mem,host));
+  update_hostname(&acl_user.host, *host ? strdup_root(&mem, host): 0);
   acl_user.access=privileges;
   acl_user.user_resource = *mqh;
   acl_user.sort=get_sort(2,acl_user.host.hostname,acl_user.user);
-  acl_user.hostname_length=(uint) strlen(acl_user.host.hostname);
+  acl_user.hostname_length=(uint) strlen(host);
   acl_user.ssl_type= (ssl_type != SSL_TYPE_NOT_SPECIFIED ?
 		      ssl_type : SSL_TYPE_NONE);
   acl_user.ssl_cipher=	ssl_cipher   ? strdup_root(&mem,ssl_cipher) : 0;
@@ -1705,107 +1705,124 @@ static byte* get_key_column(GRANT_COLUMN *buff,uint *length,
 class GRANT_TABLE :public Sql_alloc
 {
 public:
-  char *host,*db,*user,*tname, *hash_key;
+  char *host,*db, *user, *tname, *hash_key, *orig_host;
   ulong privs, cols;
   ulong sort;
   uint key_length;
   HASH hash_columns;
-  GRANT_TABLE (const char *h, const char *d,const char *u, const char *t,
-	       ulong p, ulong c)
-    : privs(p), cols(c)
-  {
-    host = strdup_root(&memex,h);
-    db =   strdup_root(&memex,d);
-    user = strdup_root(&memex,u);
-    sort=  get_sort(3,host,db,user);
-    tname= strdup_root(&memex,t);
-    if (lower_case_table_names)
-    {
-      my_casedn_str(&my_charset_latin1, db);
-      my_casedn_str(&my_charset_latin1, tname);
-    }
-    key_length =(uint) strlen(d)+(uint) strlen(u)+(uint) strlen(t)+3;
-    hash_key = (char*) alloc_root(&memex,key_length);
-    strmov(strmov(strmov(hash_key,user)+1,db)+1,tname);
-    (void) hash_init(&hash_columns,&my_charset_latin1,
-		     0,0,0, (hash_get_key) get_key_column,0,0);
-  }
 
-  GRANT_TABLE (TABLE *form, TABLE *col_privs)
-  {
-    byte key[MAX_KEY_LENGTH];
-
-    host =  get_field(&memex,form->field[0]);
-    db =    get_field(&memex,form->field[1]);
-    user =  get_field(&memex,form->field[2]);
-    if (!user)
-      user=(char*) "";
-    sort=  get_sort(3,host,db,user);
-    tname= get_field(&memex,form->field[3]);
-    if (!host || !db || !tname)
-    {
-      /* Wrong table row; Ignore it */
-      privs = cols = 0;				/* purecov: inspected */
-      return;					/* purecov: inspected */
-    }
-    if (lower_case_table_names)
-    {
-      my_casedn_str(&my_charset_latin1, db);
-      my_casedn_str(&my_charset_latin1, tname);
-    }
-    key_length = ((uint) strlen(db) + (uint) strlen(user) +
-		  (uint) strlen(tname) + 3);
-    hash_key = (char*) alloc_root(&memex,key_length);
-    strmov(strmov(strmov(hash_key,user)+1,db)+1,tname);
-    privs = (ulong) form->field[6]->val_int();
-    cols  = (ulong) form->field[7]->val_int();
-    privs = fix_rights_for_table(privs);
-    cols =  fix_rights_for_column(cols);
-
-    (void) hash_init(&hash_columns,&my_charset_latin1,
-		     0,0,0, (hash_get_key) get_key_column,0,0);
-    if (cols)
-    {
-      int key_len;
-      col_privs->field[0]->store(host,(uint) strlen(host), &my_charset_latin1);
-      col_privs->field[1]->store(db,(uint) strlen(db), &my_charset_latin1);
-      col_privs->field[2]->store(user,(uint) strlen(user), &my_charset_latin1);
-      col_privs->field[3]->store(tname,(uint) strlen(tname), &my_charset_latin1);
-      key_len=(col_privs->field[0]->pack_length()+
-	       col_privs->field[1]->pack_length()+
-	       col_privs->field[2]->pack_length()+
-	       col_privs->field[3]->pack_length());
-      key_copy(key,col_privs,0,key_len);
-      col_privs->field[4]->store("",0, &my_charset_latin1);
-      col_privs->file->index_init(0);
-      if (col_privs->file->index_read(col_privs->record[0],
-				      (byte*) col_privs->field[0]->ptr,
-				      key_len, HA_READ_KEY_EXACT))
-      {
-	cols = 0; /* purecov: deadcode */
-	return;
-      }
-      do
-      {
-	String *res,column_name;
-	GRANT_COLUMN *mem_check;
-	/* As column name is a string, we don't have to supply a buffer */
-	res=col_privs->field[4]->val_str(&column_name);
-	ulong priv= (ulong) col_privs->field[6]->val_int();
-	if (!(mem_check = new GRANT_COLUMN(*res,
-					   fix_rights_for_column(priv))))
-	{
-	  /* Don't use this entry */
-	  privs = cols = 0;			/* purecov: deadcode */
-	  return;				/* purecov: deadcode */
-	}
-	my_hash_insert(&hash_columns, (byte *) mem_check);
-      } while (!col_privs->file->index_next(col_privs->record[0]) &&
-	       !key_cmp(col_privs,key,0,key_len));
-    }
-  }
+  GRANT_TABLE(const char *h, const char *d,const char *u,
+              const char *t, ulong p, ulong c);
+  GRANT_TABLE (TABLE *form, TABLE *col_privs);
   bool ok() { return privs != 0 || cols != 0; }
 };
+
+
+
+GRANT_TABLE::GRANT_TABLE(const char *h, const char *d,const char *u,
+                         const char *t, ulong p, ulong c)
+  :privs(p), cols(c)
+{
+  /* Host given by user */
+  orig_host=  strdup_root(&memex,h);
+  /* Convert empty hostname to '%' for easy comparision */
+  host=  orig_host[0] ? orig_host : (char*) "%";
+  db =   strdup_root(&memex,d);
+  user = strdup_root(&memex,u);
+  sort=  get_sort(3,host,db,user);
+  tname= strdup_root(&memex,t);
+  if (lower_case_table_names)
+  {
+    my_casedn_str(&my_charset_latin1, db);
+    my_casedn_str(&my_charset_latin1, tname);
+  }
+  key_length =(uint) strlen(d)+(uint) strlen(u)+(uint) strlen(t)+3;
+  hash_key = (char*) alloc_root(&memex,key_length);
+  strmov(strmov(strmov(hash_key,user)+1,db)+1,tname);
+  (void) hash_init(&hash_columns,&my_charset_latin1,
+                   0,0,0, (hash_get_key) get_key_column,0,0);
+}
+
+
+GRANT_TABLE::GRANT_TABLE(TABLE *form, TABLE *col_privs)
+{
+  byte key[MAX_KEY_LENGTH];
+
+  orig_host= host= get_field(&memex, form->field[0]);
+  db=    get_field(&memex,form->field[1]);
+  user=  get_field(&memex,form->field[2]);
+  if (!user)
+    user= (char*) "";
+  if (!orig_host)
+  {
+    orig_host= (char*) "";
+    host= (char*) "%";
+  }
+  sort=  get_sort(3, orig_host, db, user);
+  tname= get_field(&memex,form->field[3]);
+  if (!db || !tname)
+  {
+    /* Wrong table row; Ignore it */
+    privs = cols = 0;				/* purecov: inspected */
+    return;					/* purecov: inspected */
+  }
+  if (lower_case_table_names)
+  {
+    my_casedn_str(&my_charset_latin1, db);
+    my_casedn_str(&my_charset_latin1, tname);
+  }
+  key_length = ((uint) strlen(db) + (uint) strlen(user) +
+                (uint) strlen(tname) + 3);
+  hash_key = (char*) alloc_root(&memex,key_length);
+  strmov(strmov(strmov(hash_key,user)+1,db)+1,tname);
+  privs = (ulong) form->field[6]->val_int();
+  cols  = (ulong) form->field[7]->val_int();
+  privs = fix_rights_for_table(privs);
+  cols =  fix_rights_for_column(cols);
+
+  (void) hash_init(&hash_columns,&my_charset_latin1,
+                   0,0,0, (hash_get_key) get_key_column,0,0);
+  if (cols)
+  {
+    int key_len;
+    col_privs->field[0]->store(orig_host,(uint) strlen(orig_host),
+                               &my_charset_latin1);
+    col_privs->field[1]->store(db,(uint) strlen(db), &my_charset_latin1);
+    col_privs->field[2]->store(user,(uint) strlen(user), &my_charset_latin1);
+    col_privs->field[3]->store(tname,(uint) strlen(tname), &my_charset_latin1);
+    key_len=(col_privs->field[0]->pack_length()+
+             col_privs->field[1]->pack_length()+
+             col_privs->field[2]->pack_length()+
+             col_privs->field[3]->pack_length());
+    key_copy(key,col_privs,0,key_len);
+    col_privs->field[4]->store("",0, &my_charset_latin1);
+    col_privs->file->index_init(0);
+    if (col_privs->file->index_read(col_privs->record[0],
+                                    (byte*) col_privs->field[0]->ptr,
+                                    key_len, HA_READ_KEY_EXACT))
+    {
+      cols = 0; /* purecov: deadcode */
+      return;
+    }
+    do
+    {
+      String *res,column_name;
+      GRANT_COLUMN *mem_check;
+      /* As column name is a string, we don't have to supply a buffer */
+      res=col_privs->field[4]->val_str(&column_name);
+      ulong priv= (ulong) col_privs->field[6]->val_int();
+      if (!(mem_check = new GRANT_COLUMN(*res,
+                                         fix_rights_for_column(priv))))
+      {
+        /* Don't use this entry */
+        privs = cols = 0;			/* purecov: deadcode */
+        return;				/* purecov: deadcode */
+      }
+      my_hash_insert(&hash_columns, (byte *) mem_check);
+    } while (!col_privs->file->index_next(col_privs->record[0]) &&
+             !key_cmp(col_privs,key,0,key_len));
+  }
+}
 
 
 static byte* get_grant_table(GRANT_TABLE *buff,uint *length,
@@ -2646,7 +2663,7 @@ void grant_reload(THD *thd)
 
 
 /****************************************************************************
-  Check grants
+  Check table level grants
   All errors are written directly to the client if no_errors is given !
 ****************************************************************************/
 
@@ -2998,6 +3015,12 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
     my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--skip-grant-tables");
     DBUG_RETURN(-1);
   }
+
+  if (!lex_user->host.str)
+  {
+    lex_user->host.str= (char*) "%";
+    lex_user->host.length=1;
+  }
   if (lex_user->host.length > HOSTNAME_LENGTH ||
       lex_user->user.length > USERNAME_LENGTH)
   {
@@ -3010,9 +3033,9 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
     const char *user,*host;
     acl_user=dynamic_element(&acl_users,counter,ACL_USER*);
     if (!(user=acl_user->user))
-      user="";
+      user= "";
     if (!(host=acl_user->host.hostname))
-      host="%";
+      host= "";
     if (!strcmp(lex_user->user.str,user) &&
 	!my_strcasecmp(&my_charset_latin1, lex_user->host.str, host))
       break;
@@ -3142,9 +3165,9 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
 
     acl_db=dynamic_element(&acl_dbs,counter,ACL_DB*);
     if (!(user=acl_db->user))
-      user="";
+      user= "";
     if (!(host=acl_db->host.hostname))
-      host="";
+      host= "";
 
     if (!strcmp(lex_user->user.str,user) &&
 	!my_strcasecmp(&my_charset_latin1, lex_user->host.str, host))
@@ -3195,20 +3218,19 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
     }
   }
 
-  /* Add column access */
+  /* Add table & column access */
   for (index=0 ; index < column_priv_hash.records ; index++)
   {
-    const char *user,*host;
+    const char *user;
     GRANT_TABLE *grant_table= (GRANT_TABLE*) hash_element(&column_priv_hash,
 							  index);
 
     if (!(user=grant_table->user))
-      user="";
-    if (!(host=grant_table->host))
-      host="";
+      user= "";
 
     if (!strcmp(lex_user->user.str,user) &&
-	!my_strcasecmp(&my_charset_latin1, lex_user->host.str, host))
+	!my_strcasecmp(&my_charset_latin1, lex_user->host.str,
+                       grant_table->orig_host))
     {
       ulong table_access= grant_table->privs;
       if ((table_access | grant_table->cols) != 0)
@@ -3225,6 +3247,7 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
  	  global.append("USAGE",5);
 	else
 	{
+          /* Add specific column access */
 	  int found= 0;
 	  ulong j;
 
@@ -3405,9 +3428,9 @@ ACL_USER *check_acl_user(LEX_USER *user_name,
     const char *user,*host;
     acl_user= dynamic_element(&acl_users, counter, ACL_USER*);
     if (!(user=acl_user->user))
-      user="";
+      user= "";
     if (!(host=acl_user->host.hostname))
-      host="%";
+      host= "%";
     if (!strcmp(user_name->user.str,user) &&
 	!my_strcasecmp(system_charset_info, user_name->host.str, host))
       break;
@@ -3463,9 +3486,9 @@ int mysql_drop_user(THD *thd, List <LEX_USER> &list)
       const char *user,*host;
       acl_db=dynamic_element(&acl_dbs,counter,ACL_DB*);
       if (!(user= acl_db->user))
-	user="";
+	user= "";
       if (!(host= acl_db->host.hostname))
-	host="";
+	host= "";
 
       if (!strcmp(user_name->user.str,user) &&
 	  !my_strcasecmp(system_charset_info, user_name->host.str, host))
@@ -3486,9 +3509,9 @@ int mysql_drop_user(THD *thd, List <LEX_USER> &list)
       GRANT_TABLE *grant_table= (GRANT_TABLE*) hash_element(&column_priv_hash,
 							    counter);
       if (!(user=grant_table->user))
-	user="";
+	user= "";
       if (!(host=grant_table->host))
-	host="";
+	host= "";
 
       if (!strcmp(user_name->user.str,user) &&
 	  !my_strcasecmp(system_charset_info, user_name->host.str, host))
@@ -3576,9 +3599,9 @@ int mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
 
       acl_db=dynamic_element(&acl_dbs,counter,ACL_DB*);
       if (!(user=acl_db->user))
-	user="";
+	user= "";
       if (!(host=acl_db->host.hostname))
-	host="";
+	host= "";
 
       if (!strcmp(lex_user->user.str,user) &&
 	  !my_strcasecmp(system_charset_info, lex_user->host.str, host))
@@ -3595,9 +3618,9 @@ int mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
       GRANT_TABLE *grant_table= (GRANT_TABLE*) hash_element(&column_priv_hash,
 							    counter);
       if (!(user=grant_table->user))
-	user="";
+	user= "";
       if (!(host=grant_table->host))
-	host="";
+	host= "";
 
       if (!strcmp(lex_user->user.str,user) &&
 	  !my_strcasecmp(system_charset_info, lex_user->host.str, host))

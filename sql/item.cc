@@ -1354,7 +1354,10 @@ int Item::save_in_field(Field *field, bool no_conversions)
     str_value.set_quick(buff, sizeof(buff), cs);
     result=val_str(&str_value);
     if (null_value)
+    {
+      str_value.set_quick(0, 0, cs);
       return set_field_to_null_with_conversions(field, no_conversions);
+    }
     field->set_notnull();
     error=field->store(result->ptr(),result->length(),cs);
     str_value.set_quick(0, 0, cs);

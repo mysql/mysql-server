@@ -74,8 +74,7 @@ CREATE TABLE t1 (
   AUFNR varchar(12) NOT NULL default '',
   PLNFL varchar(6) NOT NULL default '',
   VORNR varchar(4) NOT NULL default '',
-  xstatus_vor smallint(5) unsigned NOT NULL default '0',
-
+  xstatus_vor smallint(5) unsigned NOT NULL default '0'
 );
 
 INSERT INTO t1 VALUES ('40004712','000001','0010',9);
