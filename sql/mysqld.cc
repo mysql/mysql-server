@@ -4551,6 +4551,7 @@ static void set_options(void)
 		 sizeof(mysql_real_data_home)-1);
 
   /* Set default values for some variables */
+  global_system_variables.convert_result_charset= TRUE;
   global_system_variables.table_type=   DB_TYPE_MYISAM;
   global_system_variables.tx_isolation= ISO_REPEATABLE_READ;
   global_system_variables.select_limit= (ulonglong) HA_POS_ERROR;
