@@ -5371,7 +5371,8 @@ static int remove_dup_with_compare(THD *thd, TABLE *table, Field **first_field,
 				   ulong offset, Item *having)
 {
   handler *file=table->file;
-  char *org_record,*new_record, *record;
+  char *org_record,*new_record;
+  byte *record;
   int error;
   ulong reclength=table->reclength-offset;
   DBUG_ENTER("remove_dup_with_compare");
