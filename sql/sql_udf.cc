@@ -33,6 +33,7 @@
 #endif
 
 #include "mysql_priv.h"
+#include <my_pthread.h>
 
 #ifdef HAVE_DLOPEN
 extern "C"
@@ -70,7 +71,7 @@ extern "C"
 static bool initialized = 0;
 static MEM_ROOT mem;
 static HASH udf_hash;
-static pthread_mutex_t THR_LOCK_udf;
+static rw_lock_t THR_LOCK_udf;
 
 
 static udf_func *add_udf(char *name, Item_result ret, char *dl,
@@ -122,8 +123,8 @@ void udf_init()
   if (initialized)
     DBUG_VOID_RETURN;
 
-  pthread_mutex_init(&THR_LOCK_udf,MY_MUTEX_INIT_SLOW);
-
+  my_rwlock_init(&THR_LOCK_udf,NULL);
+  
   init_sql_alloc(&mem, 1024,0);
   THD *new_thd = new THD;
   if (!new_thd ||
@@ -262,7 +263,7 @@ static void del_udf(udf_func *udf)
 void free_udf(udf_func *udf)
 {
   DBUG_ENTER("free_udf");
-  pthread_mutex_lock(&THR_LOCK_udf);
+  rw_wrlock(&THR_LOCK_udf);
   if (!--udf->usage_count)
   {
     /*
@@ -274,7 +275,7 @@ void free_udf(udf_func *udf)
     if (!find_udf_dl(udf->dl))
       dlclose(udf->dlhandle);
   }
-  pthread_mutex_unlock(&THR_LOCK_udf);
+  rw_unlock(&THR_LOCK_udf);
   DBUG_VOID_RETURN;
 }
 
@@ -287,7 +288,7 @@ udf_func *find_udf(const char *name,uint length,bool mark_used)
   DBUG_ENTER("find_udf");
 
   /* TODO: This should be changed to reader locks someday! */
-  pthread_mutex_lock(&THR_LOCK_udf);
+  rw_rdlock(&THR_LOCK_udf);  
   if ((udf=(udf_func*) hash_search(&udf_hash,(byte*) name,
 				   length ? length : (uint) strlen(name))))
   {
@@ -296,7 +297,7 @@ udf_func *find_udf(const char *name,uint length,bool mark_used)
     else if (mark_used)
       udf->usage_count++;
   }
-  pthread_mutex_unlock(&THR_LOCK_udf);
+  rw_unlock(&THR_LOCK_udf);
   DBUG_RETURN(udf);
 }
 
@@ -375,7 +376,7 @@ int mysql_create_function(THD *thd,udf_func *udf)
     DBUG_RETURN(1);
   }
 
-  pthread_mutex_lock(&THR_LOCK_udf);
+  rw_wrlock(&THR_LOCK_udf);
   if ((hash_search(&udf_hash,(byte*) udf->name, udf->name_length)))
   {
     net_printf(thd, ER_UDF_EXISTS, udf->name);
@@ -438,13 +439,13 @@ int mysql_create_function(THD *thd,udf_func *udf)
     del_udf(u_d);
     goto err;
   }
-  pthread_mutex_unlock(&THR_LOCK_udf);
+  rw_unlock(&THR_LOCK_udf);
   DBUG_RETURN(0);
 
  err:
   if (new_dl)
     dlclose(dl);
-  pthread_mutex_unlock(&THR_LOCK_udf);
+  rw_unlock(&THR_LOCK_udf);
   DBUG_RETURN(1);
 }
 
@@ -460,7 +461,7 @@ int mysql_drop_function(THD *thd,const char *udf_name)
     send_error(thd, ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES));
     DBUG_RETURN(1);
   }
-  pthread_mutex_lock(&THR_LOCK_udf);
+  rw_wrlock(&THR_LOCK_udf);  
   if (!(udf=(udf_func*) hash_search(&udf_hash,(byte*) udf_name,
 				    (uint) strlen(udf_name))))
   {
@@ -490,10 +491,10 @@ int mysql_drop_function(THD *thd,const char *udf_name)
   }
   close_thread_tables(thd);
 
-  pthread_mutex_unlock(&THR_LOCK_udf);
+  rw_unlock(&THR_LOCK_udf);  
   DBUG_RETURN(0);
  err:
-  pthread_mutex_unlock(&THR_LOCK_udf);
+  rw_unlock(&THR_LOCK_udf);
   DBUG_RETURN(1);
 }
 

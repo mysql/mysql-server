@@ -182,7 +182,6 @@ static char szPipeName [ 257 ];
 static SECURITY_ATTRIBUTES saPipeSecurity;
 static SECURITY_DESCRIPTOR sdPipeDescriptor;
 static HANDLE hPipe = INVALID_HANDLE_VALUE;
-static uint handler_count;
 static bool opt_enable_named_pipe = 0;
 #endif
 #ifdef __WIN__
