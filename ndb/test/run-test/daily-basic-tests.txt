@@ -1,3 +1,11 @@
+max-time: 25000
+cmd: atrt-mysql-test-run
+args: --force
+
+max-time: 600
+cmd: atrt-testBackup
+args: -n BackupOne T1 T6 T3 I3
+
 # BASIC FUNCTIONALITY
 max-time: 500
 cmd: testBasic
