@@ -1208,8 +1208,7 @@ bool MYSQL_LOG::write(Log_event* event_info)
        "do the involved tables match (to be implemented)
         binlog_[wild_]{do|ignore}_table?" (WL#1049)"
     */
-    if ((thd && !(thd->options & OPTION_BIN_LOG) &&
-	 (thd->master_access & SUPER_ACL)) ||
+    if ((thd && !(thd->options & OPTION_BIN_LOG)) ||
 	(local_db && !db_ok(local_db, binlog_do_db, binlog_ignore_db)))
     {
       VOID(pthread_mutex_unlock(&LOCK_log));
@@ -1556,11 +1555,7 @@ bool MYSQL_LOG::write(THD *thd,const char *query, uint query_length,
     int tmp_errno=0;
     char buff[80],*end;
     end=buff;
-    if (!(thd->options & OPTION_UPDATE_LOG)
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-	&& (thd->master_access & SUPER_ACL)
-#endif
-	)
+    if (!(thd->options & OPTION_UPDATE_LOG))
     {
       VOID(pthread_mutex_unlock(&LOCK_log));
       return 0;
