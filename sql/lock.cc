@@ -490,10 +490,13 @@ int lock_table_name(THD *thd, TABLE_LIST *table_list)
   char *db= table_list->db ? table_list->db : (thd->db ? thd->db : (char*) "");
   uint  key_length;
   DBUG_ENTER("lock_table_name");
+  DBUG_PRINT("enter",("db: %s  name: %s", db, table_list->real_name));
+
   safe_mutex_assert_owner(&LOCK_open);
 
   key_length=(uint) (strmov(strmov(key,db)+1,table_list->real_name)
 		     -key)+ 1;
+
 
   /* Only insert the table if we haven't insert it already */
   for (table=(TABLE*) hash_search(&open_cache,(byte*) key,key_length) ;
@@ -526,6 +529,7 @@ int lock_table_name(THD *thd, TABLE_LIST *table_list)
   DBUG_RETURN(0);
 }
 
+
 void unlock_table_name(THD *thd, TABLE_LIST *table_list)
 {
   if (table_list->table)
@@ -534,6 +538,7 @@ void unlock_table_name(THD *thd, TABLE_LIST *table_list)
     (void) pthread_cond_broadcast(&COND_refresh);
   }
 }
+
 
 static bool locked_named_table(THD *thd, TABLE_LIST *table_list)
 {

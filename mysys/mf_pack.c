@@ -347,11 +347,25 @@ static my_string NEAR_F expand_tilde(my_string *path)
   return (my_string) 0;
 }
 
-	/* fix filename so it can be used by open, create .. */
-	/* to may be == from */
-	/* Returns to */
 
-my_string unpack_filename(my_string to, const char *from)
+/*
+  Fix filename so it can be used by open, create
+
+  SYNOPSIS
+    unpack_filename()
+    to		Store result here. Must be at least of size FN_REFLEN.
+    from	Filename in unix format (with ~)
+
+  RETURN
+    # length of to
+
+  NOTES
+    to may be == from
+    ~ will only be expanded if total length < FN_REFLEN
+*/
+
+
+uint unpack_filename(my_string to, const char *from)
 {
   uint length,n_length;
   char buff[FN_REFLEN];
@@ -362,17 +376,17 @@ my_string unpack_filename(my_string to, const char *from)
   if (n_length+strlen(from+length) < FN_REFLEN)
   {
     (void) strmov(buff+n_length,from+length);
-    (void) system_filename(to,buff);		/* Fix to usably filename */
+    length= system_filename(to,buff);		/* Fix to usably filename */
   }
   else
-    (void) system_filename(to,from);		/* Fix to usably filename */
-  DBUG_RETURN(to);
+    length= system_filename(to,from);		/* Fix to usably filename */
+  DBUG_RETURN(length);
 } /* unpack_filename */
 
 
 	/* Convert filename (unix standard) to system standard */
 	/* Used before system command's like open(), create() .. */
-	/* Returns to */
+	/* Returns length of to */
 
 uint system_filename(my_string to, const char *from)
 {
