@@ -876,7 +876,7 @@ static int myisamchk(MI_CHECK *param, my_string filename)
   }
   else
   {
-    if (share->state.header.fulltext_keys && !stopwords_inited++)
+    if (!stopwords_inited++)
       ft_init_stopwords();
 
     if (!(param->testflag & T_READONLY))
