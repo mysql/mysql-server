@@ -19751,92 +19751,130 @@ The output resembles that shown here, though the format and numbers may
 differ somewhat:
 
 @example
-+------------------------------+---------------------------+
-| Variable_name                | Value                     |
-+------------------------------+---------------------------+
-| ansi_mode                    | OFF                       |
-| back_log                     | 50                        |
-| basedir                      | /my/monty/                |
-| bdb_cache_size               | 16777216                  |
-| bdb_log_buffer_size          | 32768                     |
-| bdb_home                     | /my/monty/data/           |
-| bdb_max_lock                 | 10000                     |
-| bdb_logdir                   |                           |
-| bdb_shared_data              | OFF                       |
-| bdb_tmpdir                   | /tmp/                     |
-| binlog_cache_size            | 32768                     |
-| bulk_insert_buffer_size      | 8388608                   |
-| concurrent_insert            | ON                        |
-| connect_timeout              | 5                         |
-| datadir                      | /my/monty/data/           |
-| delay_key_write              | ON                        |
-| delayed_insert_limit         | 100                       |
-| delayed_insert_timeout       | 300                       |
-| delayed_queue_size           | 1000                      |
-| flush                        | OFF                       |
-| flush_time                   | 0                         |
-| ft_min_word_len              | 4                         |
-| ft_max_word_len              | 254                       |
-| ft_max_word_len_for_sort     | 20                        |
-| ft_boolean_syntax            | + -><()~*                 |
-| have_bdb                     | YES                       |
-| have_innodb                  | YES                       |
-| have_raid                    | YES                       |
-| have_openssl                 | NO                        |
-| init_file                    |                           |
-| interactive_timeout          | 28800                     |
-| join_buffer_size             | 131072                    |
-| key_buffer_size              | 16776192                  |
-| language                     | /my/monty/share/english/  |
-| large_files_support          | ON                        |
-| log                          | OFF                       |
-| log_update                   | OFF                       |
-| log_bin                      | OFF                       |
-| log_slave_updates            | OFF                       |
-| long_query_time              | 10                        |
-| low_priority_updates         | OFF                       |
-| lower_case_table_names       | 0                         |
-| max_allowed_packet           | 1048576                   |
-| max_binlog_cache_size        | 4294967295                |
-| max_connections              | 100                       |
-| max_connect_errors           | 10                        |
-| max_delayed_threads          | 20                        |
-| max_heap_table_size          | 16777216                  |
-| max_join_size                | 4294967295                |
-| max_sort_length              | 1024                      |
-| max_tmp_tables               | 32                        |
-| max_write_lock_count         | 4294967295                |
-| myisam_recover_options       | DEFAULT                   |
-| myisam_sort_buffer_size      | 8388608                   |
-| net_buffer_length            | 16384                     |
-| net_read_timeout             | 30                        |
-| net_retry_count              | 10                        |
-| net_write_timeout            | 60                        |
-| open_files_limit             | 0                         |
-| pid_file                     | /my/monty/data/donna.pid  |
-| port                         | 3306                      |
-| protocol_version             | 10                        |
-| read_buffer_size             | 131072                    |
-| query_cache_limit            | 1048576                   |
-| query_cache_size             | 16768060                  |
-| query_cache_type	       | 1                         |
-| safe_show_database           | OFF                       |
-| server_id                    | 0                         |
-| skip_locking                 | ON                        |
-| skip_networking              | OFF                       |
-| skip_show_database           | OFF                       |
-| slow_launch_time             | 2                         |
-| socket                       | /tmp/mysql.sock           |
-| sort_buffer                  | 2097116                   |
-| table_cache                  | 64                        |
-| table_type                   | MYISAM                    |
-| thread_cache_size            | 4                         |
-| thread_stack                 | 65536                     |
-| tmp_table_size               | 1048576                   |
-| tmpdir                       | /tmp/                     |
-| version                      | 3.23.29a-gamma-debug      |
-| wait_timeout                 | 28800                     |
-+------------------------------+---------------------------+
++---------------------------------+------------------------------+
+| Variable_name                   | Value                        |
++---------------------------------+------------------------------|
+| back_log                        | 50                           |
+| basedir                         | /usr/local/mysql             |
+| bdb_cache_size                  | 8388572                      |
+| bdb_log_buffer_size             | 32768                        |
+| bdb_home                        | /usr/local/mysql             |
+| bdb_max_lock                    | 10000                        |
+| bdb_logdir                      |                              |
+| bdb_shared_data                 | OFF                          |
+| bdb_tmpdir                      | /tmp/                        |
+| bdb_version                     | Sleepycat Software: ...	 |
+| binlog_cache_size               | 32768                        |
+| bulk_insert_buffer_size         | 8388608                      |
+| character_set                   | latin1                       |
+| character_sets                  | latin1 big5 czech euc_kr	 |
+| concurrent_insert               | ON                           |
+| connect_timeout                 | 5                            |
+| convert_character_set           |                              |
+| datadir                         | /usr/local/mysql/data/       |
+| delay_key_write                 | ON                           |
+| delayed_insert_limit            | 100                          |
+| delayed_insert_timeout          | 300                          |
+| delayed_queue_size              | 1000                         |
+| flush                           | OFF                          |
+| flush_time                      | 0                            |
+| ft_min_word_len                 | 4                            |
+| ft_max_word_len                 | 254                          |
+| ft_max_word_len_for_sort        | 20                           |
+| ft_boolean_syntax               | + -><()~*:""&|               |
+| have_bdb                        | YES                          |
+| have_innodb                     | YES                          |
+| have_isam                       | YES                          |
+| have_raid                       | NO                           |
+| have_symlink                    | DISABLED                     |
+| have_openssl                    | YES                          |
+| have_query_cache                | YES                          |
+| init_file                       |                              |
+| innodb_additional_mem_pool_size | 1048576                      |
+| innodb_buffer_pool_size         | 8388608                      |
+| innodb_data_file_path           | ibdata1:10M:autoextend       |
+| innodb_data_home_dir            |                              |
+| innodb_file_io_threads          | 4                            |
+| innodb_force_recovery           | 0                            |
+| innodb_thread_concurrency       | 8                            |
+| innodb_flush_log_at_trx_commit  | 0                            |
+| innodb_fast_shutdown            | ON                           |
+| innodb_flush_method             |                              |
+| innodb_lock_wait_timeout        | 50                           |
+| innodb_log_arch_dir             |                              |
+| innodb_log_archive              | OFF                          |
+| innodb_log_buffer_size          | 1048576                      |
+| innodb_log_file_size            | 5242880                      |
+| innodb_log_files_in_group       | 2                            |
+| innodb_log_group_home_dir       | ./                           |
+| innodb_mirrored_log_groups      | 1                            |
+| interactive_timeout             | 28800                        |
+| join_buffer_size                | 131072                       |
+| key_buffer_size                 | 16773120                     |
+| language                        | /usr/local/mysql/share/...   |
+| large_files_support             | ON                           |
+| local_infile                    | ON                           |
+| locked_in_memory                | OFF                          |
+| log                             | OFF                          |
+| log_update                      | OFF                          |
+| log_bin                         | OFF                          |
+| log_slave_updates               | OFF                          |
+| log_slow_queries                | OFF                          |
+| log_warnings                    | OFF                          |
+| long_query_time                 | 10                           |
+| low_priority_updates            | OFF                          |
+| lower_case_table_names          | OFF                          |
+| max_allowed_packet              | 1047552                      |
+| max_binlog_cache_size           | 4294967295                   |
+| max_binlog_size                 | 1073741824                   |
+| max_connections                 | 100                          |
+| max_connect_errors              | 10                           |
+| max_delayed_threads             | 20                           |
+| max_heap_table_size             | 16777216                     |
+| max_join_size                   | 4294967295                   |
+| max_sort_length                 | 1024                         |
+| max_user_connections            | 0                            |
+| max_tmp_tables                  | 32                           |
+| max_write_lock_count            | 4294967295                   |
+| myisam_max_extra_sort_file_size | 268435456                    |
+| myisam_max_sort_file_size       | 2147483647                   |
+| myisam_recover_options          | force                        |
+| myisam_sort_buffer_size         | 8388608                      |
+| net_buffer_length               | 16384                        |
+| net_read_timeout                | 30                           |
+| net_retry_count                 | 10                           |
+| net_write_timeout               | 60                           |
+| open_files_limit                | 0                            |
+| pid_file                        | /usr/local/mysql/name.pid    |
+| port                            | 3306                         |
+| protocol_version                | 10                           |
+| read_buffer_size                | 131072                       |
+| read_rnd_buffer_size            | 262144                       |
+| rpl_recovery_rank               | 0                            |
+| query_cache_limit               | 1048576                      |
+| query_cache_size                | 0                            |
+| query_cache_type                | ON                           |
+| safe_show_database              | OFF                          |
+| server_id                       | 0                            |
+| slave_net_timeout               | 3600                         |
+| skip_external_locking           | ON                           |
+| skip_networking                 | OFF                          |
+| skip_show_database              | OFF                          |
+| slow_launch_time                | 2                            |
+| socket                          | /tmp/mysql.sock              |
+| sort_buffer_size                | 2097116                      |
+| sql_mode                        | 0                            |
+| table_cache                     | 64                           |
+| table_type                      | MYISAM                       |
+| thread_cache_size               | 3                            |
+| thread_stack                    | 131072                       |
+| tx_isolation                    | READ-COMMITTED               |
+| timezone                        | EEST                         |
+| tmp_table_size                  | 33554432                     |
+| tmpdir                          | /tmp/                        |
+| version                         | 4.0.4-beta                   |
+| wait_timeout                    | 28800                        |
++---------------------------------+------------------------------+
 @end example
 
 Each option is described here. Values for buffer sizes, lengths, and stack
@@ -20339,8 +20377,13 @@ The directory used for temporary files and temporary tables.
 The version number for the server.
 
 @item @code{wait_timeout}
-The number of seconds the server waits for activity on a connection before
-closing it. See also @code{interactive_timeout}.
+The number of seconds the server waits for activity on a not interactive
+connection before closing it.
+
+On thread startup @code{SESSION.WAIT_TIMEOUT} is initialised from
+@code{GLOBAL.WAIT_TIMEOUT} or @code{GLOBAL.INTERACTIVE_TIMEOUT} depending
+on the type of client (as defined by the @code{CLIENT_INTERACTIVE} connect
+option). See also @code{interactive_timeout}.
 @end itemize
 
 The manual section that describes tuning MySQL contains some
@@ -39502,6 +39545,9 @@ transaction.
 * InnoDB Locks set::            Locks Set by Different SQL Statements in InnoDB
 * InnoDB Deadlock detection::   Deadlock Detection and Rollback
 * InnoDB Consistent read example::  An Example of How the Consistent Read Works in InnoDB
+* Innodb deadlocks::            
+* Innodb tuning::               
+* Innodb Monitor::              
 @end menu
 
 
@@ -39722,7 +39768,7 @@ set by the SQL statement may be preserved. This is because InnoDB
 stores row locks in a format where it cannot afterwards know which was
 set by which SQL statement.
 
-@node InnoDB Consistent read example,  , InnoDB Deadlock detection, InnoDB transaction model
+@node InnoDB Consistent read example, Innodb deadlocks, InnoDB Deadlock detection, InnoDB transaction model
 @subsubsection An Example of How the Consistent Read Works in InnoDB
 
 When you issue a consistent read, that is, an ordinary @code{SELECT}
@@ -39771,6 +39817,7 @@ use a locking read:
 SELECT * FROM t LOCK IN SHARE MODE;
 @end example
 
+@node Innodb deadlocks, Innodb tuning, InnoDB Consistent read example, InnoDB transaction model
 @subsubsection How to cope with deadlocks?
 
 Deadlocks are a classic problem in transactional databases,
@@ -39815,7 +39862,8 @@ and @code{UNLOCK TABLES} implicitly ends the transaction in a
 @code{COMMIT}. 
 @end itemize
 
-@subsection Performance Tuning Tips
+@node Innodb tuning, Innodb Monitor, Innodb deadlocks, InnoDB transaction model
+@subsubsection Performance Tuning Tips
 
 @strong{1.}
 If the Unix @file{top} or the Windows @file{Task Manager} shows that
@@ -39902,11 +39950,12 @@ INSERT INTO yourtable VALUES (1, 2), (5, 5);
 
 This tip is of course valid for inserts into any table type, not just InnoDB.
 
+@node Innodb Monitor,  , Innodb tuning, InnoDB transaction model
 @subsubsection The InnoDB Monitor
 
 Starting from version 3.23.41 InnoDB includes the InnoDB
 Monitor which prints information on the InnoDB internal state.
-When swithed on, InnoDB Monitor
+When switched on, InnoDB Monitor
 will make the MySQL server @file{mysqld} to print data
 (note: the MySQL client will not print anything)
 to the standard
@@ -40153,12 +40202,11 @@ index. Note that if the primary key is long, the secondary indexes
 will use more space.
 
 @menu
-* InnoDB physical structure::   Physical Structure of an Index
-* InnoDB Insert buffering::     Insert Buffering
-* InnoDB Adaptive hash::        Adaptive Hash Indexes
-* InnoDB Physical record::      Physical Record Structure
+* InnoDB physical structure::   
+* InnoDB Insert buffering::     
+* InnoDB Adaptive hash::        
+* InnoDB Physical record::      
 @end menu
-
 
 @node InnoDB physical structure, InnoDB Insert buffering, Table and index, Table and index
 @subsubsection Physical Structure of an Index
@@ -46135,7 +46183,7 @@ is not the case, you should run the script
 
 @menu
 * UDF calling::                 UDF Calling Sequences
-* UDF aggr. calling ::          UDF Calling Sequences for aggregate functions
+* UDF aggr. calling::           
 * UDF arguments::               Argument Processing
 * UDF return values::           Return Values and Error Handling
 * UDF compiling::               Compiling and Installing User-definable Functions
@@ -46252,7 +46300,7 @@ change!  If you need memory, you should allocate it in @code{xxx_init()}
 and free it in @code{xxx_deinit()}.
 
 
-@node UDF calling, UDF aggr. calling , Adding UDF, Adding UDF
+@node UDF calling, UDF aggr. calling, Adding UDF, Adding UDF
 @subsubsection UDF Calling Sequences for simple functions
 
 @cindex calling sequences for simple functions, UDF
@@ -46395,7 +46443,7 @@ into @code{*error}!  This is just a 1 byte flag!
 If @code{isnull} or @code{error} are set after @code{xxx()} then MySQL
 will return @code{NULL} as the result for the group function.
 
-@node UDF arguments, UDF return values, UDF aggr. calling , Adding UDF
+@node UDF arguments, UDF return values, UDF aggr. calling, Adding UDF
 @subsubsection Argument Processing
 
 @cindex argument processing
@@ -47665,7 +47713,7 @@ limits!  In this case you should start @code{safe_mysqld} with @code{sh}!
 @menu
 * Link errors::                 Problems When Linking with the MySQL Client Library
 * Changing MySQL user::         How to Run MySQL As a Normal User
-* File permissions ::           Problems with File Permissions
+* File permissions::            
 @end menu
 
 @node Link errors, Changing MySQL user, Installation Issues, Installation Issues
@@ -47738,7 +47786,7 @@ before linking your code. In the second case you should be
 sure that no other programs are using the dynamic libraries!
 
 
-@node Changing MySQL user, File permissions , Link errors, Installation Issues
+@node Changing MySQL user, File permissions, Link errors, Installation Issues
 @appendixsubsec How to Run MySQL As a Normal User
 
 @cindex starting, @code{mysqld}
@@ -47932,12 +47980,6 @@ check whether things that work for others crash for you.  Please try
 the following things:
 
 @itemize @bullet
-@item
-Cleaned up @code{NULL} handling for default values in @code{DESCRIBE
-table_name}.
-@item
-Fixed @code{truncate()} to round up negative values to the nearest integer.
-@item
 Take down the @code{mysqld} daemon with @code{mysqladmin shutdown}, run
 @code{myisamchk --silent --force */*.MYI} on all tables, and restart the
 @code{mysqld} daemon.  This will ensure that you are running from a clean
@@ -50398,6 +50440,13 @@ each individual 4.0.x release.
 
 @itemize @bullet
 @item
+Added @code{LOCK TABLES} and @code{CREATE TEMPORARY TABLES} privilege on
+the database level.  One must run the @code{ mysql_fix_privilege_tables}
+script on old installations to activate these.
+@item
+In @code{SHOW TABLE ... STATUS} compressed tables showed sometimes up as
+@code{dynamic}.
+@item
 @code{SELECT @@@@[global|session].var_name} didn't report
 @code{global | session} in the result column name.
 @item
@@ -50612,6 +50661,11 @@ other databases. It is synonymous with @code{LOG(X)}.
 @appendixsubsec Changes in release 4.0.2 (01 Jul 2002)
 
 @itemize @bullet
+@item
+Cleaned up @code{NULL} handling for default values in @code{DESCRIBE
+table_name}.
+@item
+Fixed @code{truncate()} to round up negative values to the nearest integer.
 @item
 Changed @code{--chroot=path} option to execute @code{chroot()} immediately
 after all options have been parsed.
@@ -51192,6 +51246,9 @@ Multithreaded stress tests for InnoDB.
 @appendixsubsec Changes in release 3.23.52 (14 Aug 2002)
 @itemize @bullet
 @item
+Wrap @code{BEGIN}/@code{COMMIT} around transaction in the binary log.
+This makes replication honour transactions.
+@item
 Fixed security bug when having an empty database name in the @code{user.db}
 table.
 @item
@@ -51292,6 +51349,9 @@ Linux-x86 binaries.
 @appendixsubsec Changes in release 3.23.50 (21 Apr 2002)
 
 @itemize @bullet
+@item
+Fixed buffer overflow problem if someone specified a too long datadir
+parameter to mysqld
 @item
 Add missing @code{<row>} tags for @code{mysqldump} XML output.
 @item

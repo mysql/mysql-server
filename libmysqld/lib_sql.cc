@@ -514,6 +514,7 @@ int STDCALL mysql_server_init(int argc, char **argv, char **groups)
   if (!opt_noacl)
     (void) grant_init();
   init_max_user_conn();
+  init_update_queries();
 
 #ifdef HAVE_DLOPEN
   if (!opt_noacl)

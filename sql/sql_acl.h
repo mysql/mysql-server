@@ -40,7 +40,7 @@
 
 #define DB_ACLS \
 (UPDATE_ACL | SELECT_ACL | INSERT_ACL | DELETE_ACL | CREATE_ACL | DROP_ACL | \
- GRANT_ACL | REFERENCES_ACL | INDEX_ACL | ALTER_ACL)
+ GRANT_ACL | REFERENCES_ACL | INDEX_ACL | ALTER_ACL | CREATE_TMP_ACL | LOCK_TABLES_ACL)
 
 #define TABLE_ACLS \
 (SELECT_ACL | INSERT_ACL | UPDATE_ACL | DELETE_ACL | CREATE_ACL | DROP_ACL | \
@@ -59,10 +59,21 @@
 #define EXTRA_ACL	(1L << 29)
 #define NO_ACCESS	(1L << 30)
 
-/* defines to change the above bits to how things are stored in tables */
+/*
+  Defines to change the above bits to how things are stored in tables
+  This is needed as the 'host' and 'db' table is missing a few privileges
+*/
 
-#define fix_rights_for_db(A) (((A) & 63) | (((A) & ~63) << 4))
-#define get_rights_for_db(A) (((A) & 63) | (((A) & ~63) >> 4))
+/* Continius bit-segments that needs to be shifted */
+#define DB_REL1 (RELOAD_ACL | SHUTDOWN_ACL | PROCESS_ACL | FILE_ACL)
+#define DB_REL2 (GRANT_ACL | REFERENCES_ACL)
+
+/* Privileges that needs to be reallocated (in continous chunks) */
+#define DB_CHUNK1 (GRANT_ACL | REFERENCES_ACL | INDEX_ACL | ALTER_ACL)
+#define DB_CHUNK2 (CREATE_TMP_ACL | LOCK_TABLES_ACL)
+
+#define fix_rights_for_db(A) (((A) & 63) | (((A) & DB_REL1) << 4) | (((A) & DB_REL2) << 6))
+#define get_rights_for_db(A) (((A) & 63) | (((A) & DB_CHUNK1) >> 4) | (((A) & DB_CHUNK2) >> 6))
 #define fix_rights_for_table(A) (((A) & 63) | (((A) & ~63) << 4))
 #define get_rights_for_table(A) (((A) & 63) | (((A) & ~63) >> 4))
 #define fix_rights_for_column(A) (((A) & COL_ACLS) | ((A & ~COL_ACLS) << 7))

@@ -309,6 +309,7 @@ void mysql_init_select(LEX *lex);
 bool mysql_new_select(LEX *lex);
 void mysql_init_multi_delete(LEX *lex);
 void init_max_user_conn(void);
+void init_update_queries(void);
 void free_max_user_conn(void);
 pthread_handler_decl(handle_one_connection,arg);
 pthread_handler_decl(handle_bootstrap,arg);
@@ -676,10 +677,13 @@ extern SHOW_COMP_OPTION have_isam, have_innodb, have_berkeley_db;
 extern SHOW_COMP_OPTION have_raid, have_openssl, have_symlink;
 extern SHOW_COMP_OPTION have_query_cache, have_berkeley_db, have_innodb;
 
-
 #ifndef __WIN__
 extern pthread_t signal_thread;
 #endif
+
+#ifdef HAVE_OPENSSL
+extern struct st_VioSSLAcceptorFd * ssl_acceptor_fd;
+#endif /* HAVE_OPENSSL */
 
 MYSQL_LOCK *mysql_lock_tables(THD *thd,TABLE **table,uint count);
 void mysql_unlock_tables(THD *thd, MYSQL_LOCK *sql_lock);

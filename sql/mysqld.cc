@@ -2049,6 +2049,7 @@ int main(int argc, char **argv)
   if (!opt_noacl)
     (void) grant_init();
   init_max_user_conn();
+  init_update_queries();
 
 #ifdef HAVE_DLOPEN
   if (!opt_noacl)
@@ -3036,10 +3037,10 @@ struct my_option my_long_options[] =
    "Set to 1 if you want to have logs archived", 0, 0, 0, GET_LONG, OPT_ARG,
    0, 0, 0, 0, 0, 0},
   {"innodb_flush_log_at_trx_commit", OPT_INNODB_FLUSH_LOG_AT_TRX_COMMIT,
-   "Set to 0 if you don't want to flush logs",
+   "Set to 0 (write and flush once per second), 1 (write and flush at each commit) or 2 (write at commit, flush once per second)",
    (gptr*) &innobase_flush_log_at_trx_commit,
    (gptr*) &innobase_flush_log_at_trx_commit,
-   0, GET_INT, OPT_ARG,  0, 0, 2, 0, 0, 0},
+   0, GET_UINT, OPT_ARG,  0, 0, 2, 0, 0, 0},
   {"innodb_flush_method", OPT_INNODB_FLUSH_METHOD,
    "With which method to flush data", (gptr*) &innobase_unix_file_flush_method,
    (gptr*) &innobase_unix_file_flush_method, 0, GET_STR, REQUIRED_ARG, 0, 0, 0,

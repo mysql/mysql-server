@@ -401,6 +401,10 @@ trx_undo_seg_create(
 	slot_no = trx_rsegf_undo_find_free(rseg_hdr, mtr);
 
 	if (slot_no == ULINT_UNDEFINED) {
+	        ut_print_timestamp(stderr);
+	        fprintf(stderr,
+"InnoDB: Warning: cannot find a free slot for an undo log. Do you have too\n"
+"InnoDB: many active transactions running concurrently?");
 
 		return(NULL);
 	}
@@ -1531,9 +1535,6 @@ trx_undo_assign_undo(
 
 			mutex_exit(&(rseg->mutex));
 			mtr_commit(&mtr);
-
-			fprintf(stderr,	"InnoDB: no undo log slots free\n");
-			ut_a(0);
 
 			return(NULL);
 		}

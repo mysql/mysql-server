@@ -175,7 +175,7 @@ struct st_VioSSLConnectorFd
 };
 
 void sslaccept(struct st_VioSSLAcceptorFd*, Vio*, long timeout);
-void sslconnect(struct st_VioSSLConnectorFd*, Vio*, long timeout);
+int sslconnect(struct st_VioSSLConnectorFd*, Vio*, long timeout);
 
 struct st_VioSSLConnectorFd
 *new_VioSSLConnectorFd(const char* key_file, const char* cert_file,

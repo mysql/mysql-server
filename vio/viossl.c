@@ -44,28 +44,30 @@ report_errors()
   unsigned long	l;
   const char*	file;
   const char*	data;
-  int		line,flags, any_ssl_error = 0;
+  int		line,flags;
   DBUG_ENTER("report_errors");
 
-  while ((l=ERR_get_error_line_data(&file,&line,&data,&flags)) != 0)
+  while ((l=ERR_get_error_line_data(&file,&line,&data,&flags)))
   {
-    char buf[200];
-    any_ssl_error = 1;
+    char buf[512];
     DBUG_PRINT("error", ("OpenSSL: %s:%s:%d:%s\n", ERR_error_string(l,buf),
 			 file,line,(flags&ERR_TXT_STRING)?data:"")) ;
   }
-  if (!any_ssl_error) {
-    DBUG_PRINT("info", ("No OpenSSL errors."));
-  }
-  DBUG_PRINT("info", ("BTW, errno=%d", socket_errno));
+  DBUG_PRINT("info", ("errno: %d", socket_errno));
   DBUG_VOID_RETURN;
 }
+
+/*
+  Delete a vio object
+
+  SYNPOSIS
+    vio_ssl_delete()
+    vio			Vio object.  May be 0.
+*/
 
 
 void vio_ssl_delete(Vio * vio)
 {
-  /* It must be safe to delete null pointers. */
-  /* This matches the semantics of C++'s delete operator. */
   if (vio)
   {
     if (vio->type != VIO_CLOSED)
@@ -73,6 +75,7 @@ void vio_ssl_delete(Vio * vio)
     my_free((gptr) vio,MYF(0));
   }
 }
+
 
 int vio_ssl_errno(Vio *vio __attribute__((unused)))
 {
@@ -87,17 +90,12 @@ int vio_ssl_read(Vio * vio, gptr buf, int size)
   DBUG_PRINT("enter", ("sd=%d, buf=%p, size=%d, ssl_=%p",
 		       vio->sd, buf, size, vio->ssl_));
 
-#ifndef DBUG_OFF
-  errno = 0;
-#endif /* DBUG_OFF */
-  r = SSL_read(vio->ssl_, buf, size);
-#ifndef DBUG_OFF
-  if ( r<= 0) {
-    r=SSL_get_error(vio->ssl_, r);
-    DBUG_PRINT("info",("SSL_get_error returned %d",r));
+  if ((r= SSL_read(vio->ssl_, buf, size)) < 0)
+  {
+    int err= SSL_get_error(vio->ssl_, r);
+    DBUG_PRINT("error",("SSL_read(): %d  SSL_get_error(): %d", r, err));
     report_errors();
   }
-#endif /* DBUG_OFF */
   DBUG_PRINT("exit", ("%d", r));
   DBUG_RETURN(r);
 }
@@ -109,14 +107,8 @@ int vio_ssl_write(Vio * vio, const gptr buf, int size)
   DBUG_ENTER("vio_ssl_write");
   DBUG_PRINT("enter", ("sd=%d, buf=%p, size=%d", vio->sd, buf, size));
 
-#ifndef DBUG_OFF
-  errno = 0;
-#endif /* DBUG_OFF */
-  r = SSL_write(vio->ssl_, buf, size);
-#ifndef DBUG_OFF
-  if (r<0)
+  if ((r= SSL_write(vio->ssl_, buf, size)) < 0)
     report_errors();
-#endif /* DBUG_OFF */
   DBUG_PRINT("exit", ("%d", r));
   DBUG_RETURN(r);
 }
@@ -124,7 +116,7 @@ int vio_ssl_write(Vio * vio, const gptr buf, int size)
 
 int vio_ssl_fastsend(Vio * vio __attribute__((unused)))
 {
-  int r=0;
+  int r= 0;
   DBUG_ENTER("vio_ssl_fastsend");
 
 #ifdef IPTOS_THROUGHPUT
@@ -148,19 +140,18 @@ int vio_ssl_fastsend(Vio * vio __attribute__((unused)))
   DBUG_RETURN(r);
 }
 
+
 int vio_ssl_keepalive(Vio* vio, my_bool set_keep_alive)
 {
   int r=0;
-  uint opt = 0;
   DBUG_ENTER("vio_ssl_keepalive");
   DBUG_PRINT("enter", ("sd=%d, set_keep_alive=%d", vio->sd, (int)
 		       set_keep_alive));
   if (vio->type != VIO_TYPE_NAMEDPIPE)
   {
-    if (set_keep_alive)
-      opt = 1;
-    r = setsockopt(vio->sd, SOL_SOCKET, SO_KEEPALIVE, (char *) &opt,
-		   sizeof(opt));
+    uint opt = (set_keep_alive) ? 1 : 0;
+    r= setsockopt(vio->sd, SOL_SOCKET, SO_KEEPALIVE, (char *) &opt,
+		  sizeof(opt));
   }
   DBUG_RETURN(r);
 }
@@ -186,10 +177,13 @@ int vio_ssl_close(Vio * vio)
     SSL_free(vio->ssl_);
     vio->ssl_= 0;
   }
-  if (shutdown(vio->sd,2))
-    r= -1;
-  if (closesocket(vio->sd))
-    r= -1;
+  if (vio->sd >= 0)
+  {
+    if (shutdown(vio->sd, 2))
+      r= -1;
+    if (closesocket(vio->sd))
+      r= -1;
+  }
   if (r)
   {
     DBUG_PRINT("error", ("close() failed, error: %d",socket_errno));
@@ -254,6 +248,10 @@ void vio_ssl_in_addr(Vio *vio, struct in_addr *in)
 }
 
 
+/*
+  TODO: Add documentation and error handling
+*/
+
 void sslaccept(struct st_VioSSLAcceptorFd* ptr, Vio* vio, long timeout)
 {
   char *str;
@@ -263,6 +261,7 @@ void sslaccept(struct st_VioSSLAcceptorFd* ptr, Vio* vio, long timeout)
   DBUG_ENTER("sslaccept");
   DBUG_PRINT("enter", ("sd=%d ptr=%p", vio->sd,ptr));
 
+  vio_blocking(vio, 1, &unused);	/* Must be called before reset */
   vio_reset(vio,VIO_TYPE_SSL,vio->sd,0,FALSE);
   vio->ssl_=0;
   vio->open_=FALSE; 
@@ -274,7 +273,6 @@ void sslaccept(struct st_VioSSLAcceptorFd* ptr, Vio* vio, long timeout)
   }
   DBUG_PRINT("info", ("ssl_=%p  timeout=%ld",vio->ssl_, timeout));
   SSL_clear(vio->ssl_);
-  vio_blocking(vio, FALSE, &unused);
   SSL_SESSION_set_timeout(SSL_get_session(vio->ssl_), timeout);
   SSL_set_fd(vio->ssl_,vio->sd);
   SSL_set_accept_state(vio->ssl_);
@@ -284,7 +282,8 @@ void sslaccept(struct st_VioSSLAcceptorFd* ptr, Vio* vio, long timeout)
   DBUG_PRINT("info",("SSL_get_cipher_name() = '%s'"
 		     ,SSL_get_cipher_name(vio->ssl_)));
   client_cert = SSL_get_peer_certificate (vio->ssl_);
-  if (client_cert != NULL) {
+  if (client_cert != NULL)
+  {
     DBUG_PRINT("info",("Client certificate:"));
     str = X509_NAME_oneline (X509_get_subject_name (client_cert), 0, 0);
     DBUG_PRINT("info",("\t subject: %s", str));
@@ -295,11 +294,12 @@ void sslaccept(struct st_VioSSLAcceptorFd* ptr, Vio* vio, long timeout)
     free (str);
 
     X509_free (client_cert);
-  } else
+  }
+  else
     DBUG_PRINT("info",("Client does not have certificate."));
 
   str=SSL_get_shared_ciphers(vio->ssl_, buf, sizeof(buf));
-  if(str)
+  if (str)
   {
     DBUG_PRINT("info",("SSL_get_shared_ciphers() returned '%s'",str));
   }
@@ -313,7 +313,7 @@ void sslaccept(struct st_VioSSLAcceptorFd* ptr, Vio* vio, long timeout)
 }
 
 
-void sslconnect(struct st_VioSSLConnectorFd* ptr, Vio* vio, long timeout)
+int sslconnect(struct st_VioSSLConnectorFd* ptr, Vio* vio, long timeout)
 {
   char *str;
   X509*    server_cert;
@@ -321,6 +321,7 @@ void sslconnect(struct st_VioSSLConnectorFd* ptr, Vio* vio, long timeout)
   DBUG_ENTER("sslconnect");
   DBUG_PRINT("enter", ("sd=%d ptr=%p ctx: %p", vio->sd,ptr,ptr->ssl_context_));
 
+  vio_blocking(vio, 1, &unused);	/* Must be called before reset */
   vio_reset(vio,VIO_TYPE_SSL,vio->sd,0,FALSE);
   vio->ssl_=0;
   vio->open_=FALSE; 
@@ -328,11 +329,10 @@ void sslconnect(struct st_VioSSLConnectorFd* ptr, Vio* vio, long timeout)
   {
     DBUG_PRINT("error", ("SSL_new failure"));
     report_errors();
-    DBUG_VOID_RETURN;
+    DBUG_RETURN(1);
   }
   DBUG_PRINT("info", ("ssl_=%p  timeout=%ld",vio->ssl_, timeout));
   SSL_clear(vio->ssl_);
-  vio_blocking(vio, FALSE, &unused);
   SSL_SESSION_set_timeout(SSL_get_session(vio->ssl_), timeout);
   SSL_set_fd (vio->ssl_, vio->sd);
   SSL_set_connect_state(vio->ssl_);
@@ -342,24 +342,27 @@ void sslconnect(struct st_VioSSLConnectorFd* ptr, Vio* vio, long timeout)
   DBUG_PRINT("info",("SSL_get_cipher_name() = '%s'"
 		     ,SSL_get_cipher_name(vio->ssl_)));
   server_cert = SSL_get_peer_certificate (vio->ssl_);
-  if (server_cert != NULL) {
+  if (server_cert != NULL)
+  {
     DBUG_PRINT("info",("Server certificate:"));
     str = X509_NAME_oneline (X509_get_subject_name (server_cert), 0, 0);
     DBUG_PRINT("info",("\t subject: %s", str));
-    free (str);
+    free(str);
 
     str = X509_NAME_oneline (X509_get_issuer_name  (server_cert), 0, 0);
     DBUG_PRINT("info",("\t issuer: %s", str));
-    free (str);
+    free(str);
 
-    /* We could do all sorts of certificate verification stuff here before
-     *        deallocating the certificate. */
-
+    /*
+      We could do all sorts of certificate verification stuff here before
+      deallocating the certificate.
+    */
     X509_free (server_cert);
-  } else
+  }
+  else
     DBUG_PRINT("info",("Server does not have certificate."));
 #endif
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(0);
 }
 
 
