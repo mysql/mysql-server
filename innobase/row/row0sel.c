@@ -2501,7 +2501,7 @@ row_sel_store_mysql_rec(
 			}
 
 			/* Handle UCS2 strings differently. */
-			if (templ->mbminlen == 2) {
+			if (pad_char != '\0' && templ->mbminlen == 2) {
 				/* There are two bytes per char, so the length
 				has to be an even number. */
 				ut_a(!(templ->mysql_col_len & 1));
