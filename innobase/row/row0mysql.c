@@ -693,10 +693,94 @@ run_again:
 
 	/* It may be that the current session has not yet started
 	its transaction, or it has been committed: */
-		
+
 	trx_start_if_not_started(trx);
 
-	err = lock_table(0, prebuilt->table, LOCK_AUTO_INC, thr);
+	err = lock_table(0, prebuilt->table, prebuilt->select_lock_type, thr);
+
+	trx->error_state = err;
+
+	if (err != DB_SUCCESS) {
+		que_thr_stop_for_mysql(thr);
+
+		was_lock_wait = row_mysql_handle_errors(&err, trx, thr, NULL);
+
+		if (was_lock_wait) {
+			goto run_again;
+		}
+
+		trx->op_info = (char *) "";
+
+		return(err);
+	}
+
+	que_thr_stop_for_mysql_no_error(thr, trx);
+
+	trx->op_info = (char *) "";
+
+	return((int) err);
+}
+
+/*************************************************************************
+Unlocks a table lock possibly reserved by trx. */
+
+void		  	
+row_unlock_table_for_mysql(
+/*=======================*/
+	trx_t*	trx)	/* in: transaction */
+{
+	if (!trx->n_tables_locked) {
+
+		return;
+	}
+
+	mutex_enter(&kernel_mutex);
+	lock_release_tables_off_kernel(trx);
+	mutex_exit(&kernel_mutex);
+}
+/*************************************************************************
+Sets a table lock on the table mentioned in prebuilt. */
+
+int
+row_lock_table_for_mysql(
+/*=====================*/
+					/* out: error code or DB_SUCCESS */
+	row_prebuilt_t*	prebuilt)	/* in: prebuilt struct in the MySQL
+					table handle */
+{
+	trx_t*		trx 		= prebuilt->trx;
+	que_thr_t*	thr;
+	ulint		err;
+	ibool		was_lock_wait;
+	
+	ut_ad(trx);
+	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
+
+	trx->op_info = (char *) "setting table lock";
+
+	if (prebuilt->sel_graph == NULL) {
+		/* Build a dummy select query graph */
+		row_prebuild_sel_graph(prebuilt);
+	}
+
+	/* We use the select query graph as the dummy graph needed
+	in the lock module call */
+
+	thr = que_fork_get_first_thr(prebuilt->sel_graph);
+
+	que_thr_move_to_run_state_for_mysql(thr, trx);
+
+run_again:
+	thr->run_node = thr;
+	thr->prev_node = thr->common.parent;
+
+	/* It may be that the current session has not yet started
+	its transaction, or it has been committed: */
+
+	trx_start_if_not_started(trx);
+
+	err = lock_table(LOCK_TABLE_EXP, prebuilt->table,
+		prebuilt->select_lock_type, thr);
 
 	trx->error_state = err;
 
