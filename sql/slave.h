@@ -292,7 +292,7 @@ typedef struct st_master_info
   /* the variables below are needed because we can change masters on the fly */
   char host[HOSTNAME_LENGTH+1];
   char user[USERNAME_LENGTH+1];
-  char password[HASH_PASSWORD_LENGTH+1];
+  char password[SCRAMBLED_PASSWORD_CHAR_LENGTH+1];
   pthread_mutex_t data_lock,run_lock;
   pthread_cond_t data_cond,start_cond,stop_cond;
   THD *io_thd;
