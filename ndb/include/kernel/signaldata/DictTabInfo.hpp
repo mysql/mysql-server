@@ -311,7 +311,9 @@ public:
     ExtDate = NdbSqlUtil::Type::Date,
     ExtBlob = NdbSqlUtil::Type::Blob,
     ExtText = NdbSqlUtil::Type::Text,
-    ExtTime = NdbSqlUtil::Type::Time
+    ExtTime = NdbSqlUtil::Type::Time,
+    ExtYear = NdbSqlUtil::Type::Year,
+    ExtTimestamp = NdbSqlUtil::Type::Timestamp
   };
 
   // Attribute data interpretation
@@ -445,6 +447,16 @@ public:
         AttributeType = DictTabInfo::StringType;
         AttributeSize = DictTabInfo::an8Bit;
         AttributeArraySize = 3 * AttributeExtLength;
+        return true;
+      case DictTabInfo::ExtYear:
+        AttributeType = DictTabInfo::StringType;
+        AttributeSize = DictTabInfo::an8Bit;
+        AttributeArraySize = 1 * AttributeExtLength;
+        return true;
+      case DictTabInfo::ExtTimestamp:
+        AttributeType = DictTabInfo::StringType;
+        AttributeSize = DictTabInfo::an8Bit;
+        AttributeArraySize = 4 * AttributeExtLength;
         return true;
       };
       return false;

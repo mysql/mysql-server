@@ -188,7 +188,9 @@ public:
       Date,        ///< Precision down to 1 day(sizeof(Date) == 4 bytes )
       Blob,        ///< Binary large object (see NdbBlob)
       Text,        ///< Text blob
-      Time = 25    ///< Time without date
+      Time = 25,   ///< Time without date
+      Year = 26,   ///< Year 1901-2155 (1 byte)
+      Timestamp = 27  ///< Unix time
     };
 
     /** 
