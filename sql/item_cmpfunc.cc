@@ -636,13 +636,12 @@ longlong Item_in_optimizer::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   cache->store(args[0]);
-  longlong tmp= args[1]->val_int_result();
   if (cache->null_value)
   {
-    if (tmp)
-      null_value= 1;
+    null_value= 1;
     return 0;
   }
+  longlong tmp= args[1]->val_int_result();
   null_value= args[1]->null_value;
   return tmp;
 }
