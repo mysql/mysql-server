@@ -1518,6 +1518,161 @@ MY_UNICASE_INFO *uni_plane[256]={
 
 };
 
+
+/*
+** Compare string against string with wildcard
+** This function is used in UTF8 and UCS2
+**
+**	0 if matched
+**	-1 if not matched with wildcard
+**	 1 if matched with wildcard
+*/
+
+int my_wildcmp_unicode(CHARSET_INFO *cs,
+		       const char *str,const char *str_end,
+		       const char *wildstr,const char *wildend,
+		       int escape, int w_one, int w_many,
+		       MY_UNICASE_INFO **weights)
+{
+  int result= -1;			/* Not found, using wildcards */
+  my_wc_t s_wc, w_wc;
+  int scan, plane;
+  int (*mb_wc)(struct charset_info_st *cs, my_wc_t *wc,
+               const unsigned char *s,const unsigned char *e);
+  mb_wc= cs->cset->mb_wc;
+  
+  while (wildstr != wildend)
+  {
+    while (1)
+    {
+      if ((scan= mb_wc(cs, &w_wc, (const uchar*)wildstr,
+                       (const uchar*)wildend)) <= 0)
+        return 1;
+      
+      if (w_wc ==  (my_wc_t)escape)
+      {
+        wildstr+= scan;
+        if ((scan= mb_wc(cs,&w_wc, (const uchar*)wildstr,
+                         (const uchar*)wildend)) <= 0)
+          return 1;
+      }
+      
+      if (w_wc == (my_wc_t)w_many)
+      {
+        result= 1;				/* Found an anchor char */
+        break;
+      }
+      
+      wildstr+= scan;
+      if ((scan= mb_wc(cs, &s_wc, (const uchar*)str,
+                       (const uchar*)str_end)) <=0)
+        return 1;
+      str+= scan;
+      
+      if (w_wc == (my_wc_t)w_one)
+      {
+        result= 1;				/* Found an anchor char */
+      }
+      else
+      {
+        if (weights)
+        {
+          plane=(s_wc>>8) & 0xFF;
+          s_wc = weights[plane] ? weights[plane][s_wc & 0xFF].sort : s_wc;
+          plane=(w_wc>>8) & 0xFF;
+          w_wc = weights[plane] ? weights[plane][w_wc & 0xFF].sort : w_wc;
+        }
+        if (s_wc != w_wc)
+          return 1;				/* No match */
+      }
+      if (wildstr == wildend)
+	return (str != str_end);		/* Match if both are at end */
+    }
+    
+    
+    if (w_wc == (my_wc_t)w_many)
+    {						/* Found w_many */
+    
+      /* Remove any '%' and '_' from the wild search string */
+      for ( ; wildstr != wildend ; )
+      {
+        if ((scan= mb_wc(cs, &w_wc, (const uchar*)wildstr,
+                         (const uchar*)wildend)) <= 0)
+          return 1;
+        
+	if (w_wc == (my_wc_t)w_many)
+	{
+	  wildstr+= scan;
+	  continue;
+	} 
+	
+	if (w_wc == (my_wc_t)w_one)
+	{
+	  wildstr+= scan;
+          if ((scan= mb_wc(cs, &s_wc, (const uchar*)str,
+                           (const uchar*)str_end)) <=0)
+            return 1;
+          str+= scan;
+	  continue;
+	}
+	break;					/* Not a wild character */
+      }
+      
+      if (wildstr == wildend)
+	return 0;				/* Ok if w_many is last */
+      
+      if (str == str_end)
+	return -1;
+      
+      if ((scan= mb_wc(cs, &w_wc, (const uchar*)wildstr,
+                       (const uchar*)wildend)) <=0)
+        return 1;
+      
+      if (w_wc ==  (my_wc_t)escape)
+      {
+        wildstr+= scan;
+        if ((scan= mb_wc(cs, &w_wc, (const uchar*)wildstr,
+                         (const uchar*)wildend)) <=0)
+          return 1;
+      }
+      
+      while (1)
+      {
+        /* Skip until the first character from wildstr is found */
+        while (str != str_end)
+        {
+          if ((scan= mb_wc(cs, &s_wc, (const uchar*)str,
+                           (const uchar*)str_end)) <=0)
+            return 1;
+          if (weights)
+          {
+            plane=(s_wc>>8) & 0xFF;
+            s_wc = weights[plane] ? weights[plane][s_wc & 0xFF].sort : s_wc;
+            plane=(w_wc>>8) & 0xFF;
+            w_wc = weights[plane] ? weights[plane][w_wc & 0xFF].sort : w_wc;
+          }
+          
+          if (s_wc == w_wc)
+            break;
+          str+= scan;
+        }
+        if (str == str_end)
+          return -1;
+        
+        result= my_wildcmp_unicode(cs, str, str_end, wildstr, wildend,
+                                   escape, w_one, w_many,
+                                   weights);
+        
+        if (result <= 0)
+          return result;
+        
+        str+= scan;
+      } 
+    }
+  }
+  return (str != str_end ? 1 : 0);
+}
+
 #endif
 
 
@@ -1948,49 +2103,119 @@ static int my_strnncollsp_utf8(CHARSET_INFO *cs,
 }
 
 
-static int my_strncasecmp_utf8(CHARSET_INFO *cs,
-                const char *s, const char *t,  uint len)
+/*
+  Compare 0-terminated UTF8 strings.
+
+  SYNOPSIS
+    my_strcasecmp_utf8()
+    cs                  character set handler
+    s                   First 0-terminated string to compare
+    t                   Second 0-terminated string to compare
+
+  IMPLEMENTATION
+
+  RETURN
+    - negative number if s < t
+    - positive number if s > t
+    - 0 is the strings are equal
+*/
+
+static
+int my_strcasecmp_utf8(CHARSET_INFO *cs, const char *s, const char *t)
 {
-  int s_res,t_res;
-  my_wc_t s_wc,t_wc;
-  const char *se=s+len;
-  const char *te=t+len;
-
-  while ( s < se && t < te )
+  while (s[0] && t[0])
   {
-    int plane;
-
-    s_res=my_utf8_uni(cs,&s_wc, (const uchar*)s, (const uchar*)se);
-    t_res=my_utf8_uni(cs,&t_wc, (const uchar*)t, (const uchar*)te);
-
-    if ( s_res <= 0 || t_res <= 0 )
+    my_wc_t s_wc,t_wc;
+    
+    /*
+      Cast to int8 for extra safety.
+      char can be unsigned by default
+      on some platforms.
+    */
+    if (((int8)s[0]) >= 0)
     {
-      /* Incorrect string, compare byte by byte value */
-      return bincmp(s, se, t, te);
+      /* 
+        s[0] is between 0 and 127.
+        It represents a single byte character.
+        Convert it into weight according to collation.
+      */
+      s_wc= plane00[(uchar) s[0]].tolower;
+      s++;
     }
+    else
+    {
+      int plane, res;
+      
+      /*
+        Scan a multibyte character.
 
-    plane=(s_wc>>8) & 0xFF;
-    s_wc = uni_plane[plane] ? uni_plane[plane][s_wc & 0xFF].tolower : s_wc;
+        In the future it is worth to write a special version of my_utf8_uni()
+        for 0-terminated strings which will not take in account length. Now
+        we call the regular version of my_utf8_uni() with s+3 in the
+        last argument. s+3 is enough to scan any multibyte sequence.
 
-    plane=(t_wc>>8) & 0xFF;
-    t_wc = uni_plane[plane] ? uni_plane[plane][t_wc & 0xFF].tolower : t_wc;
-
+        Calling the regular version of my_utf8_uni is safe for 0-terminated
+        strings: we will never lose the end of the string:
+        If we have 0 character in the middle of a multibyte sequence,
+        then my_utf8_uni will always return a negative number, so the
+        loop with finish.
+      */
+      
+      res= my_utf8_uni(cs,&s_wc, (const uchar*)s, (const uchar*) s + 3);
+      
+      /* 
+         In the case of wrong multibyte sequence we will
+         call strcmp() for byte-to-byte comparison.
+      */
+      if (res <= 0)
+        return strcmp(s, t);
+      s+= res;
+      
+      /* Convert Unicode code into weight according to collation */
+      plane=(s_wc>>8) & 0xFF;
+      s_wc = uni_plane[plane] ? uni_plane[plane][s_wc & 0xFF].tolower : s_wc;
+    }
+    
+    
+    /* Do the same for the second string */
+    
+    if (t[0] >= 0)
+    {
+      /* Convert single byte character into weight */
+      t_wc= plane00[(uchar) t[0]].tolower;
+      t++;
+    }
+    else
+    {
+      int plane;
+      int res=my_utf8_uni(cs,&t_wc, (const uchar*)t, (const uchar*) t + 3);
+      if (res <= 0)
+        return strcmp(s, t);
+      t+= res;
+      
+      /* Convert code into weight */
+      plane=(t_wc>>8) & 0xFF;
+      t_wc = uni_plane[plane] ? uni_plane[plane][t_wc & 0xFF].tolower : t_wc;
+    }
+    
+    /* Now we have two weights, let's compare them */
     if ( s_wc != t_wc )
       return  ((int) s_wc) - ((int) t_wc);
-
-    s+=s_res;
-    t+=t_res;
   }
-  return ( (se-s) - (te-t) );
+  return ((int)(uchar)s[0]) - ((int) (uchar) t[0]);
 }
 
-static int my_strcasecmp_utf8(CHARSET_INFO *cs, const char *s, const char *t)
+
+static
+int my_wildcmp_utf8(CHARSET_INFO *cs,
+		    const char *str,const char *str_end,
+		    const char *wildstr,const char *wildend,
+		    int escape, int w_one, int w_many)
 {
-  uint s_len=strlen(s);
-  uint t_len=strlen(t);
-  uint len = (s_len > t_len) ? s_len : t_len;
-  return  my_strncasecmp_utf8(cs, s, t, len);
+  return my_wildcmp_unicode(cs,str,str_end,wildstr,wildend,
+                            escape,w_one,w_many,uni_plane); 
 }
+
 
 static int my_strnxfrm_utf8(CHARSET_INFO *cs,
                             uchar *dst, uint dstlen,
@@ -2060,7 +2285,7 @@ static MY_COLLATION_HANDLER my_collation_ci_handler =
     my_strnncollsp_utf8,
     my_strnxfrm_utf8,
     my_like_range_mb,
-    my_wildcmp_mb,
+    my_wildcmp_utf8,
     my_strcasecmp_utf8,
     my_instr_mb,
     my_hash_sort_utf8

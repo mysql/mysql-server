@@ -16,7 +16,7 @@
 
 
 #include <ndb_global.h>
-#include "NdbSleep.h"
+#include <NdbSleep.h>
 
 int
 NdbSleep_MilliSleep(int milliseconds){

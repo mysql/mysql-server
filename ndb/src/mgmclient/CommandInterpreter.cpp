@@ -828,6 +828,8 @@ CommandInterpreter::executeShow(char* parameters)
       case NDB_MGM_NODE_TYPE_UNKNOWN:
         ndbout << "Error: Unknown Node Type" << endl;
         return;
+      case NDB_MGM_NODE_TYPE_REP:
+	abort();
       }
     }
 
@@ -1363,36 +1365,29 @@ CommandInterpreter::executeLog(int processId,
   if (! parseBlockSpecification(parameters, blocks)) {
     return;
   }
-  int len=0;  
+  int len=1;
   Uint32 i;
   for(i=0; i<blocks.size(); i++) {
-    ndbout_c("blocks %s %d",blocks[i], strlen(blocks[i]));
-    len +=  strlen(blocks[i]);
+    len += strlen(blocks[i]) + 1;
   }
-  len += blocks.size()*2;
   char * blockNames = (char*)my_malloc(len,MYF(MY_WME));
   My_auto_ptr<char> ap1(blockNames);
   
+  blockNames[0] = 0;
   for(i=0; i<blocks.size(); i++) {
     strcat(blockNames, blocks[i]);
     strcat(blockNames, "|");
   }
-  strcat(blockNames, "\0");
-  ndbout_c("blocknames %s", blockNames);
   
-  /*int res =*/ndb_mgm_log_signals(m_mgmsrv,
+  int result = ndb_mgm_log_signals(m_mgmsrv,
 				   processId, 
 				   NDB_MGM_SIGNAL_LOG_MODE_INOUT, 
 				   blockNames,
 				   &reply);
-
-#if 0  
-  int result = 
-    _mgmtSrvr.setSignalLoggingMode(processId, MgmtSrvr::InOut, blocks);
   if (result != 0) {
-    ndbout << _mgmtSrvr.getErrorText(result) << endl;
+    ndbout_c("Execute LOG on node %d failed.", processId);
+    printError();
   }
-#endif
 }
 
 //*****************************************************************************
@@ -1401,17 +1396,7 @@ void
 CommandInterpreter::executeLogIn(int /* processId */,
 				 const char* parameters, bool /* all */) 
 {
-  Vector<const char*> blocks;
-  if (! parseBlockSpecification(parameters, blocks)) {
-    return;
-  }
-  
-#if 0
-  int result = _mgmtSrvr.setSignalLoggingMode(processId, MgmtSrvr::In, blocks);
-  if (result != 0) {
-    ndbout << _mgmtSrvr.getErrorText(result) << endl;
-  }
-#endif
+  ndbout << "Command LOGIN not implemented." << endl;
 }
 
 //*****************************************************************************
@@ -1420,19 +1405,7 @@ void
 CommandInterpreter::executeLogOut(int /*processId*/, 
 				  const char* parameters, bool /*all*/) 
 {
-  Vector<const char*> blocks;
-  if (! parseBlockSpecification(parameters, blocks)) {
-    return;
-  }
-
-
-#if 0
-  int result = _mgmtSrvr.setSignalLoggingMode(processId, MgmtSrvr::Out, 
-					      blocks);
-  if (result != 0) {
-    ndbout << _mgmtSrvr.getErrorText(result) << endl;
-  }
-#endif
+  ndbout << "Command LOGOUT not implemented." << endl;
 }
 
 //*****************************************************************************
@@ -1441,57 +1414,45 @@ void
 CommandInterpreter::executeLogOff(int /*processId*/,
 				  const char* parameters, bool /*all*/) 
 {
-  Vector<const char*> blocks;
-  if (! parseBlockSpecification(parameters, blocks)) {
-    return;
-  }
-
-  
-#if 0
-  int result = _mgmtSrvr.setSignalLoggingMode(processId, MgmtSrvr::Off, 
-					      blocks);
-  if (result != 0) {
-    ndbout << _mgmtSrvr.getErrorText(result) << endl;
-  }
-#endif
+  ndbout << "Command LOGOFF not implemented." << endl;
 }
 
 //*****************************************************************************
 //*****************************************************************************
 void 
-CommandInterpreter::executeTestOn(int /*processId*/, 
+CommandInterpreter::executeTestOn(int processId,
 				  const char* parameters, bool /*all*/) 
 {
   if (! emptyString(parameters)) {
     ndbout << "No parameters expected to this command." << endl;
     return;
   }
-
-#if 0
-  int result = _mgmtSrvr.startSignalTracing(processId);
+  connect();
+  struct ndb_mgm_reply reply;
+  int result = ndb_mgm_start_signallog(m_mgmsrv, processId, &reply);
   if (result != 0) {
-    ndbout << _mgmtSrvr.getErrorText(result) << endl;
+    ndbout_c("Execute TESTON failed.");
+    printError();
   }
-#endif
 }
 
 //*****************************************************************************
 //*****************************************************************************
 void 
-CommandInterpreter::executeTestOff(int /*processId*/, 
+CommandInterpreter::executeTestOff(int processId,
 				   const char* parameters, bool /*all*/) 
 {
   if (! emptyString(parameters)) {
     ndbout << "No parameters expected to this command." << endl;
     return;
   }
-
-#if 0
-  int result = _mgmtSrvr.stopSignalTracing(processId);
+  connect();
+  struct ndb_mgm_reply reply;
+  int result = ndb_mgm_stop_signallog(m_mgmsrv, processId, &reply);
   if (result != 0) {
-    ndbout << _mgmtSrvr.getErrorText(result) << endl;
+    ndbout_c("Execute TESTOFF failed.");
+    printError();
   }
-#endif
 }
 
 
@@ -1679,7 +1640,7 @@ CommandInterpreter::executeStartBackup(char* /*parameters*/)
       if(tmp)
       {
 	ndbout << tmp;
-	int id;
+	unsigned int id;
 	if(sscanf(tmp, "%*[^:]: Backup %d ", &id) == 1 && id == backupId){
 	  count++;
 	}
@@ -2059,46 +2020,46 @@ CmdBackupCallback(const MgmtSrvr::BackupEvent & event){
   switch(event.Event){
   case MgmtSrvr::BackupEvent::BackupStarted:
     ok = true;
-    snprintf(str, sizeof(str), 
+    BaseString::snprintf(str, sizeof(str), 
 	     "Backup %d started", event.Started.BackupId);
     break;
   case MgmtSrvr::BackupEvent::BackupFailedToStart:
     ok = true;
-    snprintf(str, sizeof(str), 
+    BaseString::snprintf(str, sizeof(str), 
 	     "Backup failed to start (Error %d)",
 	     event.FailedToStart.ErrorCode);
     break;
   case MgmtSrvr::BackupEvent::BackupCompleted:
     ok = true;
-    snprintf(str, sizeof(str), 
+    BaseString::snprintf(str, sizeof(str), 
 	     "Backup %d completed", 
 	     event.Completed.BackupId);
     ndbout << str << endl;
 
-    snprintf(str, sizeof(str), 
+    BaseString::snprintf(str, sizeof(str), 
 	     " StartGCP: %d StopGCP: %d", 
 	     event.Completed.startGCP, event.Completed.stopGCP);
     ndbout << str << endl;
 
-    snprintf(str, sizeof(str), 
+    BaseString::snprintf(str, sizeof(str), 
 	     " #Records: %d #LogRecords: %d", 
 	     event.Completed.NoOfRecords, event.Completed.NoOfLogRecords);
     ndbout << str << endl;
 
-    snprintf(str, sizeof(str), 
+    BaseString::snprintf(str, sizeof(str), 
 	     " Data: %d bytes Log: %d bytes", 
 	     event.Completed.NoOfBytes, event.Completed.NoOfLogBytes);
     break;
   case MgmtSrvr::BackupEvent::BackupAborted:
     ok = true;
-    snprintf(str, sizeof(str), 
+    BaseString::snprintf(str, sizeof(str), 
 	     "Backup %d has been aborted reason %d",
 	     event.Aborted.BackupId,
 	     event.Aborted.Reason);
     break;
   }
   if(!ok){
-    snprintf(str, sizeof(str), 
+    BaseString::snprintf(str, sizeof(str), 
 	     "Unknown backup event: %d",
 	     event.Event);
     

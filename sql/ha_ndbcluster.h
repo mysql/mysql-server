@@ -139,12 +139,12 @@ class ha_ndbcluster: public handler
   bool low_byte_first() const
     { 
 #ifdef WORDS_BIGENDIAN
-      return false;
+      return FALSE;
 #else
-      return true;
+      return TRUE;
 #endif
     }
-  bool has_transactions()  { return true; }
+  bool has_transactions()  { return TRUE; }
 
   const char* index_type(uint key_number) {
     switch (get_index_type(key_number)) {
@@ -214,8 +214,7 @@ class ha_ndbcluster: public handler
   int set_primary_key(NdbOperation *op, const byte *key);
   int set_primary_key(NdbOperation *op);
   int set_primary_key_from_old_data(NdbOperation *op, const byte *old_data);
-  int set_bounds(NdbIndexScanOperation *ndb_op, const key_range *key,
-		 int bound);
+  int set_bounds(NdbIndexScanOperation *ndb_op, const key_range *keys[2]);
   int key_cmp(uint keynr, const byte * old_row, const byte * new_row);
   void print_results();
 

@@ -14,6 +14,7 @@ Created 10/21/1995 Heikki Tuuri
 #ifndef __WIN__
 #include <dirent.h>
 #include <sys/stat.h>
+#include <time.h>
 #endif
 
 extern ibool	os_do_not_call_flush_at_each_write;
@@ -142,12 +143,15 @@ bigger than 4000 bytes */
 #define OS_FILE_MAX_PATH	4000
 
 /* Struct used in fetching information of a file in a directory */
-typedef struct os_file_stat_struct	os_file_stat_t;
 struct os_file_stat_struct{
-       char		name[OS_FILE_MAX_PATH];	/* path to a file */
-       os_file_type_t	type;			/* file type */       
-       ib_longlong	size;			/* file size */
+	char		name[OS_FILE_MAX_PATH];	/* path to a file */
+	os_file_type_t	type;			/* file type */
+	ib_longlong	size;			/* file size */
+	time_t          ctime;			/* creation time */
+	time_t		mtime;			/* modification time */
+	time_t		atime;			/* access time */
 };
+typedef struct os_file_stat_struct	os_file_stat_t;
 
 #ifdef __WIN__
 typedef HANDLE  os_file_dir_t;	/* directory stream */
@@ -686,5 +690,14 @@ no pending io operations. */
 ibool
 os_aio_all_slots_free(void);
 /*=======================*/
-				/* out: TRUE if all free */
+
+/***********************************************************************
+This function returns information about the specified file */
+ibool
+os_file_get_status(
+/*===============*/
+					/* out: TRUE if stat information found */
+	const char*     path,		/* in:  pathname of the file */
+	os_file_stat_t* stat_info);	/* information of a file in a directory */
+
 #endif 

@@ -22,6 +22,7 @@
 #include <AttributeHeader.hpp>
 #include <NdbConnection.hpp>
 #include <TransporterFacade.hpp>
+#include <signaldata/TcKeyConf.hpp>
 
 NdbReceiver::NdbReceiver(Ndb *aNdb) :
   theMagicNumber(0),
@@ -91,7 +92,7 @@ NdbReceiver::getValue(const NdbColumnImpl* tAttrInfo, char * user_dst_ptr){
   return 0;
 }
 
-#define KEY_ATTR_ID (~0)
+#define KEY_ATTR_ID (~(Uint32)0)
 
 void
 NdbReceiver::calculate_batch_size(Uint32 key_size,
@@ -249,10 +250,11 @@ NdbReceiver::execTRANSID_AI(const Uint32* aDataPtr, Uint32 aLength)
   /**
    * Update m_received_result_length
    */
+  Uint32 exp = m_expected_result_length; 
   Uint32 tmp = m_received_result_length + aLength;
   m_received_result_length = tmp;
 
-  return (tmp == m_expected_result_length ? 1 : 0);
+  return (tmp == exp || (exp > TcKeyConf::SimpleReadBit) ? 1 : 0);
 }
 
 int
@@ -271,4 +273,12 @@ NdbReceiver::execKEYINFO20(Uint32 info, const Uint32* aDataPtr, Uint32 aLength)
   m_received_result_length = tmp;
   
   return (tmp == m_expected_result_length ? 1 : 0);
+}
+
+void
+NdbReceiver::setErrorCode(int code)
+{
+  theMagicNumber = 0;
+  NdbOperation* op = (NdbOperation*)getOwner();
+  op->setErrorCode(code);
 }

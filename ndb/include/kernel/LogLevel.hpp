@@ -47,6 +47,7 @@ public:
   LogLevel & operator= (const LogLevel &);
 
   enum EventCategory {
+    llInvalid = -1,
     llStartUp = CFG_LOGLEVEL_STARTUP - CFG_MIN_LOGLEVEL,
     llShutdown = CFG_LOGLEVEL_SHUTDOWN - CFG_MIN_LOGLEVEL,
     llStatistic = CFG_LOGLEVEL_STATISTICS - CFG_MIN_LOGLEVEL,

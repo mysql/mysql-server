@@ -32,6 +32,7 @@
 #include <NdbOperation.hpp>
 
 class NdbBlob;
+class NdbResultSet;
 
 /**
  * @class NdbScanOperation
@@ -87,12 +88,13 @@ protected:
   CursorType m_cursor_type;
 
   NdbScanOperation(Ndb* aNdb);
-  ~NdbScanOperation();
+  virtual ~NdbScanOperation();
 
   int nextResult(bool fetchAllowed = true);
   virtual void release();
   
   void closeScan();
+  int close_impl(class TransporterFacade*);
 
   // Overloaded methods from NdbCursorOperation
   int executeCursor(int ProcessorId);
@@ -119,6 +121,7 @@ protected:
   int prepareSendScan(Uint32 TC_ConnectPtr, Uint64 TransactionId);
   
   int fix_receivers(Uint32 parallel);
+  void reset_receivers(Uint32 parallel, Uint32 ordered);
   Uint32* m_array; // containing all arrays below
   Uint32 m_allocated_receivers;
   NdbReceiver** m_receivers;      // All receivers

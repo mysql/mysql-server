@@ -15,8 +15,8 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
+#include <ndb_global.h>
 #include <mgmapi.h>
-#include <string.h>
 #include <NdbMain.h>
 #include <NdbOut.hpp>
 #include <NdbSleep.h>
@@ -68,7 +68,7 @@ int main(int argc, const char** argv){
       return NDBT_ProgramExit(NDBT_FAILED);
     }
 
-    for (int i = 0; i<lcfg.ids.size();i++)
+    for (unsigned i = 0; i<lcfg.ids.size();i++)
     {
       MgmtSrvrId * m = &lcfg.ids[i];
       
@@ -292,8 +292,8 @@ waitClusterStatus(const char* _addr,
 	  if (ndbNode->node_status < _status)
 	    allInState = false;
 	  else 
-	    g_info << "node_status(" << ndbNode->node_status
-		   <<") != _status("<<_status<<")"<<endl;
+	    g_info << "node_status(" << (unsigned)ndbNode->node_status
+		   << ") != _status("<< (unsigned)_status << ")" <<endl;
 	} else if (ndbNode->start_phase < _startphase)
 	  allInState = false;
       } else {

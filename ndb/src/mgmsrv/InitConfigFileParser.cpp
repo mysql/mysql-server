@@ -42,7 +42,7 @@ InitConfigFileParser::~InitConfigFileParser() {
 //  Read Config File
 //****************************************************************************
 InitConfigFileParser::Context::Context(const ConfigInfo * info)
-  : m_configValues(1000, 20), m_userProperties(true) {
+  :  m_userProperties(true), m_configValues(1000, 20) {
 
   m_config = new Properties(true);
   m_defaults = new Properties(true);
@@ -110,7 +110,7 @@ InitConfigFileParser::parseConfig(FILE * file) {
 			"of configuration file.");
 	return 0;
       }
-      snprintf(ctx.fname, sizeof(ctx.fname), section); free(section);
+      BaseString::snprintf(ctx.fname, sizeof(ctx.fname), section); free(section);
       ctx.type             = InitConfigFileParser::DefaultSection;
       ctx.m_sectionLineno  = ctx.m_lineno;
       ctx.m_currentSection = new Properties(true);
@@ -130,7 +130,7 @@ InitConfigFileParser::parseConfig(FILE * file) {
 			"of configuration file.");
 	return 0;
       }
-      snprintf(ctx.fname, sizeof(ctx.fname), section);
+      BaseString::snprintf(ctx.fname, sizeof(ctx.fname), section);
       free(section);
       ctx.type             = InitConfigFileParser::Section;
       ctx.m_sectionLineno  = ctx.m_lineno;      
@@ -172,7 +172,7 @@ InitConfigFileParser::parseConfig(FILE * file) {
       return 0;
 
     for(size_t j = 0; j<tmp.size(); j++){
-      snprintf(ctx.fname, sizeof(ctx.fname), tmp[j].m_sectionType.c_str());
+      BaseString::snprintf(ctx.fname, sizeof(ctx.fname), tmp[j].m_sectionType.c_str());
       ctx.type             = InitConfigFileParser::Section;
       ctx.m_currentSection = tmp[j].m_sectionData;
       ctx.m_userDefaults   = getSection(ctx.fname, ctx.m_defaults);
@@ -198,7 +198,7 @@ InitConfigFileParser::parseConfig(FILE * file) {
   ctx.m_config->put("NoOfNodes", nNodes);
 
   char tmpLine[MAX_LINE_LENGTH];
-  snprintf(tmpLine, MAX_LINE_LENGTH, "EXTERNAL SYSTEM_");
+  BaseString::snprintf(tmpLine, MAX_LINE_LENGTH, "EXTERNAL SYSTEM_");
   strncat(tmpLine, system, MAX_LINE_LENGTH);
   strncat(tmpLine, ":NoOfConnections", MAX_LINE_LENGTH);
   ctx.m_config->put(tmpLine, nExtConnections);
@@ -349,6 +349,8 @@ InitConfigFileParser::storeNameValuePair(Context& ctx,
   case ConfigInfo::STRING:
     MGM_REQUIRE(ctx.m_currentSection->put(pname, value));
     break;
+  case ConfigInfo::SECTION:
+    abort();
   }
   return true;
 }
@@ -547,13 +549,13 @@ InitConfigFileParser::storeSection(Context& ctx){
   for(int i = strlen(ctx.fname) - 1; i>=0; i--){
     ctx.fname[i] = toupper(ctx.fname[i]);
   }
-  snprintf(ctx.pname, sizeof(ctx.pname), ctx.fname);
+  BaseString::snprintf(ctx.pname, sizeof(ctx.pname), ctx.fname);
   char buf[255];
   if(ctx.type == InitConfigFileParser::Section)
-    snprintf(buf, sizeof(buf), "%s", ctx.fname);
+    BaseString::snprintf(buf, sizeof(buf), "%s", ctx.fname);
   if(ctx.type == InitConfigFileParser::DefaultSection)
-    snprintf(buf, sizeof(buf), "%s DEFAULT", ctx.fname);
-  snprintf(ctx.fname, sizeof(ctx.fname), buf);
+    BaseString::snprintf(buf, sizeof(buf), "%s DEFAULT", ctx.fname);
+  BaseString::snprintf(ctx.fname, sizeof(ctx.fname), buf);
   if(ctx.type == InitConfigFileParser::Section){
     for(int i = 0; i<m_info->m_NoOfRules; i++){
       const ConfigInfo::SectionRule & rule = m_info->m_SectionRules[i];
@@ -579,7 +581,7 @@ InitConfigFileParser::Context::reportError(const char * fmt, ...){
   
   va_start(ap, fmt);
   if (fmt != 0)
-    vsnprintf(buf, sizeof(buf)-1, fmt, ap);
+    BaseString::vsnprintf(buf, sizeof(buf)-1, fmt, ap);
   ndbout << "Error line " << m_lineno << ": " << buf << endl;
   va_end(ap);
 
@@ -593,7 +595,7 @@ InitConfigFileParser::Context::reportWarning(const char * fmt, ...){
   
   va_start(ap, fmt);
   if (fmt != 0)
-    vsnprintf(buf, sizeof(buf)-1, fmt, ap);
+    BaseString::vsnprintf(buf, sizeof(buf)-1, fmt, ap);
   ndbout << "Warning line " << m_lineno << ": " << buf << endl;
   va_end(ap);
 }

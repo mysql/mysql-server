@@ -96,7 +96,7 @@ HugoCalculator::calcValue(int record,
     // of the string, then fill with other chars
     // The string length is set to the same size as the attribute
     len = attr->getLength();
-    snprintf(buf, len, "%d", val);
+    BaseString::snprintf(buf, len, "%d", val);
     for(int i=strlen(buf); i < len; i++)
       buf[i] = a[((val^i)%25)]; 
   } else{

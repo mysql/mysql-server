@@ -647,6 +647,7 @@ versionCallback(int nodeId, int version, void * anyData, int errCode){
       }
       break;
     case NDB_MGM_NODE_TYPE_UNKNOWN:
+    case NDB_MGM_NODE_TYPE_REP:
       abort();
     };
     

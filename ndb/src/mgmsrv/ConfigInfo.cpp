@@ -2189,7 +2189,7 @@ ConfigInfo::ConfigInfo()
 	break;
       }
       case SECTION:
-	pinfo.put("SectionType", (Uint32)param._default);
+	pinfo.put("SectionType", (Uint32)UintPtr(param._default));
 	break;
       case STRING:
 	break;
@@ -2504,7 +2504,7 @@ transformNode(InitConfigFileParser::Context & ctx, const char * data){
   }
 
   ctx.m_userProperties.put("AllocatedNodeId_", id, id);
-  snprintf(ctx.pname, sizeof(ctx.pname), "Node_%d", id);
+  BaseString::snprintf(ctx.pname, sizeof(ctx.pname), "Node_%d", id);
   
   ctx.m_currentSection->put("Type", ctx.fname);
 
@@ -2569,7 +2569,7 @@ fixNodeHostname(InitConfigFileParser::Context & ctx, const char * data){
   
   const Properties * computer;
   char tmp[255];
-  snprintf(tmp, sizeof(tmp), "Computer_%s", compId);
+  BaseString::snprintf(tmp, sizeof(tmp), "Computer_%s", compId);
   if(!ctx.m_config->get(tmp, &computer)){
     ctx.reportError("Computer \"%s\" not declared"
 		    "- [%s] starting at line: %d",
@@ -2647,7 +2647,7 @@ transformExtNode(InitConfigFileParser::Context & ctx, const char * data){
   ctx.m_userProperties.get("ExtNoOfNodes", &nodes);
   require(ctx.m_userProperties.put("ExtNoOfNodes",++nodes, true));
 
-  snprintf(ctx.pname, sizeof(ctx.pname), "EXTERNAL SYSTEM_%s:Node_%d", 
+  BaseString::snprintf(ctx.pname, sizeof(ctx.pname), "EXTERNAL SYSTEM_%s:Node_%d", 
 	   systemName, id);
 
   return true;
@@ -2661,7 +2661,7 @@ transformConnection(InitConfigFileParser::Context & ctx, const char * data){
 
   Uint32 connections = 0;
   ctx.m_userProperties.get("NoOfConnections", &connections);
-  snprintf(ctx.pname, sizeof(ctx.pname), "Connection_%d", connections);
+  BaseString::snprintf(ctx.pname, sizeof(ctx.pname), "Connection_%d", connections);
   ctx.m_userProperties.put("NoOfConnections", ++connections, true);
   
   ctx.m_currentSection->put("Type", ctx.fname);
@@ -2684,7 +2684,7 @@ transformSystem(InitConfigFileParser::Context & ctx, const char * data){
 
   ndbout << "transformSystem " << name << endl;
 
-  snprintf(ctx.pname, sizeof(ctx.pname), "SYSTEM_%s", name);
+  BaseString::snprintf(ctx.pname, sizeof(ctx.pname), "SYSTEM_%s", name);
   
   return true;
 }
@@ -2701,7 +2701,7 @@ transformExternalSystem(InitConfigFileParser::Context & ctx, const char * data){
 		    ctx.fname, ctx.m_sectionLineno);
     return false;
   }
-  snprintf(ctx.pname, sizeof(ctx.pname), "EXTERNAL SYSTEM_%s", name);
+  BaseString::snprintf(ctx.pname, sizeof(ctx.pname), "EXTERNAL SYSTEM_%s", name);
   
   return true;
 }
@@ -2718,7 +2718,7 @@ transformComputer(InitConfigFileParser::Context & ctx, const char * data){
 		    ctx.fname, ctx.m_sectionLineno);
     return false;
   }
-  snprintf(ctx.pname, sizeof(ctx.pname), "Computer_%s", id);
+  BaseString::snprintf(ctx.pname, sizeof(ctx.pname), "Computer_%s", id);
   
   Uint32 computers = 0;
   ctx.m_userProperties.get("NoOfComputers", &computers);
@@ -2894,7 +2894,7 @@ fixExtConnection(InitConfigFileParser::Context & ctx, const char * data){
     require(ctx.m_userProperties.put("ExtNoOfConnections",++connections, true));
 
     char tmpLine1[MAX_LINE_LENGTH];
-    snprintf(tmpLine1, MAX_LINE_LENGTH, "Connection_%d", connections-1);
+    BaseString::snprintf(tmpLine1, MAX_LINE_LENGTH, "Connection_%d", connections-1);
 
     /**
      *  Section:   EXTERNAL SYSTEM_<Ext System Name>
@@ -3405,9 +3405,9 @@ add_node_connections(Vector<ConfigInfo::ConfigRuleSection>&sections,
 	s.m_sectionType= BaseString("TCP");
 	s.m_sectionData= new Properties(true);
 	char buf[16];
-	snprintf(buf, sizeof(buf), "%u", nodeId1);
+	BaseString::snprintf(buf, sizeof(buf), "%u", nodeId1);
 	s.m_sectionData->put("NodeId1", buf);
-	snprintf(buf, sizeof(buf), "%u", nodeId2);
+	BaseString::snprintf(buf, sizeof(buf), "%u", nodeId2);
 	s.m_sectionData->put("NodeId2", buf);
 	sections.push_back(s);
       }
@@ -3422,9 +3422,9 @@ add_node_connections(Vector<ConfigInfo::ConfigRuleSection>&sections,
 	s.m_sectionType= BaseString("TCP");
 	s.m_sectionData= new Properties(true);
 	char buf[16];
-	snprintf(buf, sizeof(buf), "%u", nodeId1);
+	BaseString::snprintf(buf, sizeof(buf), "%u", nodeId1);
 	s.m_sectionData->put("NodeId1", buf);
-	snprintf(buf, sizeof(buf), "%u", nodeId2);
+	BaseString::snprintf(buf, sizeof(buf), "%u", nodeId2);
 	s.m_sectionData->put("NodeId2", buf);
 	sections.push_back(s);
       }
@@ -3559,7 +3559,7 @@ check_node_vs_replicas(Vector<ConfigInfo::ConfigRuleSection>&sections,
 	  {
 	    unsigned c= 0;
 	    p_db_hosts.get(str.c_str(),&c);
-	    if (c+1 == (1 << (replicas-1))) // all nodes on same machine
+	    if (c+1 == (1u << (replicas-1))) // all nodes on same machine
 	      node_group_warning.append(".\n    Host failure will "
 					"cause complete cluster shutdown.");
 	    else if (c > 0)

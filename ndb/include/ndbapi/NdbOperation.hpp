@@ -717,6 +717,8 @@ public:
     NotDefined                    ///< Internal for debugging
   };
 
+  LockMode getLockMode() const { return theLockMode; }
+
 protected:
 /******************************************************************************
  * These are the methods used to create and delete the NdbOperation objects.
@@ -749,7 +751,6 @@ protected:
     FinalGetValue,
     SubroutineExec,
     SubroutineEnd,
-    SetBound,
     WaitResponse,
     WaitCommitResponse,
     Finished,
@@ -786,11 +787,6 @@ protected:
    
   int	 receiveTCKEYREF(NdbApiSignal*); 
 
-
-  int    receiveTRANSID_AI(const Uint32* aDataPtr, Uint32 aDataLength); 
-  int    receiveREAD_CONF(const Uint32* aDataPtr, Uint32 aDataLength); 
-
-
   int	 checkMagicNumber(bool b = true); // Verify correct object
 
   int    checkState_TransId(NdbApiSignal* aSignal);
@@ -814,8 +810,6 @@ protected:
   int branch_col_null(Uint32 type, Uint32 col, Uint32 Label);
   
   // Handle ATTRINFO signals   
-  int         receiveREAD_AI(Uint32* aDataPtr, Uint32 aLength); 
-				
   int 	      insertATTRINFO(Uint32 aData);
   int         insertATTRINFOloop(const Uint32* aDataPtr, Uint32 aLength);
 
@@ -894,7 +888,7 @@ protected:
 		       			   // currently defined   
   OperationType	  theOperationType;        // Read Request, Update Req......   
 
-  Uint8        theLockMode;	   // Can be set to WRITE if read operation 
+  LockMode        theLockMode;	   // Can be set to WRITE if read operation 
   OperationStatus theStatus;	   // The status of the operation.	
   Uint32         theMagicNumber;  // Magic number to verify that object 
                                    // is correct
@@ -921,9 +915,6 @@ protected:
   Uint16 m_keyInfoGSN;
   Uint16 m_attrInfoGSN;
 
-  // saveBoundATTRINFO() moves ATTRINFO here when setBound() is ready
-  NdbApiSignal*     theBoundATTRINFO;
-  Uint32            theTotalBoundAI_Len;
   // Blobs in this operation
   NdbBlob* theBlobList;
 

@@ -41,7 +41,7 @@ OSE_Receiver::OSE_Receiver(TransporterRegistry * tr,
 
   phantomCreated = false;
   localNodeId    = _localNodeId;
-  snprintf(localHostName, sizeof(localHostName), 
+  BaseString::snprintf(localHostName, sizeof(localHostName), 
 	   "ndb_node%d", localNodeId);
 
   DEBUG("localNodeId = " << localNodeId << " -> localHostName = " 

@@ -58,13 +58,6 @@
 #include <stdarg.h>
 #include <sys/stat.h>
 #include <violite.h>
-#ifdef HAVE_SYS_PARAM_H
-#include <sys/param.h>
-#endif
-
-#ifndef MAXPATHLEN
-#define MAXPATHLEN 256
-#endif
 
 #define MAX_QUERY     131072
 #define MAX_VAR_NAME	256
@@ -102,6 +95,38 @@ enum {OPT_MANAGER_USER=256,OPT_MANAGER_HOST,OPT_MANAGER_PASSWD,
       OPT_SSL_SSL, OPT_SSL_KEY, OPT_SSL_CERT, OPT_SSL_CA, OPT_SSL_CAPATH,
       OPT_SSL_CIPHER};
 
+/* ************************************************************************ */
+/*
+  A line that starts with !$ or $S, and the list of error codes to
+  --error are stored in an internal array of structs. This struct can
+  hold numeric SQL error codes or SQLSTATE codes as strings. The
+  element next to the last active element in the list is set to type
+  ERR_EMPTY. When an SQL statement return an error we use this list to
+  check if this  is an expected error.
+*/
+ 
+enum match_err_type
+{
+  ERR_EMPTY= 0,
+  ERR_ERRNO,
+  ERR_SQLSTATE
+};
+
+typedef struct
+{
+  enum match_err_type type;
+  union
+  {
+    uint errnum;
+    char sqlstate[SQLSTATE_LENGTH+1];  /* \0 terminated string */
+  } code;
+} match_err;
+
+static match_err global_expected_errno[MAX_EXPECTED_ERRORS];
+static uint global_expected_errors;
+
+/* ************************************************************************ */
+
 static int record = 0, opt_sleep=0;
 static char *db = 0, *pass=0;
 const char* user = 0, *host = 0, *unix_sock = 0, *opt_basedir="./";
@@ -131,8 +156,8 @@ static int *cur_block, *block_stack_end;
 static int block_stack[BLOCK_STACK_DEPTH];
 
 static int block_ok_stack[BLOCK_STACK_DEPTH];
-static uint global_expected_errno[MAX_EXPECTED_ERRORS], global_expected_errors;
-static CHARSET_INFO *charset_info= &my_charset_latin1;
+static CHARSET_INFO *charset_info= &my_charset_latin1; /* Default charset */
+static char *charset_name = "latin1"; /* Default character set name */
 
 static int embedded_server_arg_count=0;
 static char *embedded_server_args[MAX_SERVER_ARGS];
@@ -245,6 +270,7 @@ Q_EXEC, Q_DELIMITER,
 Q_DISPLAY_VERTICAL_RESULTS, Q_DISPLAY_HORIZONTAL_RESULTS,
 Q_QUERY_VERTICAL, Q_QUERY_HORIZONTAL,
 Q_START_TIMER, Q_END_TIMER,
+Q_CHARACTER_SET,
 
 Q_UNKNOWN,			       /* Unknown command.   */
 Q_COMMENT,			       /* Comments, ignored. */
@@ -257,7 +283,7 @@ struct st_query
   char *query, *query_buf,*first_argument,*end;
   int first_word_len;
   my_bool abort_on_error, require_file;
-  uint expected_errno[MAX_EXPECTED_ERRORS];
+  match_err expected_errno[MAX_EXPECTED_ERRORS];
   uint expected_errors;
   char record_file[FN_REFLEN];
   enum enum_commands type;
@@ -325,6 +351,7 @@ const char *command_names[]=
   "query_horizontal",
   "start_timer",
   "end_timer",
+  "character_set",
   0
 };
 
@@ -346,6 +373,7 @@ int dyn_string_cmp(DYNAMIC_STRING* ds, const char *fname);
 void reject_dump(const char *record_file, char *buf, int size);
 
 int close_connection(struct st_query* q);
+static void set_charset(struct st_query*);
 VAR* var_get(const char *var_name, const char** var_name_end, my_bool raw,
 	     my_bool ignore_not_existing);
 int eval_expr(VAR* v, const char *p, const char** p_end);
@@ -1246,25 +1274,58 @@ static void get_file_name(char *filename, struct st_query* q)
   p[0]=0;
 }
 
-
-static uint get_ints(uint *to,struct st_query* q)
+static void set_charset(struct st_query* q)
 {
-  char* p=q->first_argument;
-  long val;
-  uint count=0;
-  DBUG_ENTER("get_ints");
+  char* charset_name= q->first_argument;
+  char* tmp;
+
+  if (!charset_name || !*charset_name)
+    die("Missing charset name in 'character_set'\n");
+  /* Remove end space */
+  tmp= charset_name;
+  while (*tmp && !my_isspace(charset_info,*tmp))
+    tmp++;
+  *tmp= 0;
+
+  charset_info= get_charset_by_csname(charset_name,MY_CS_PRIMARY,MYF(MY_WME));
+  if (!charset_info)
+    abort_not_supported_test();
+}
+
+static uint get_errcodes(match_err *to,struct st_query* q)
+{
+  char* p= q->first_argument;
+  uint count= 0;
+  DBUG_ENTER("get_errcodes");
 
   if (!*p)
     die("Missing argument in %s\n", q->query);
 
-  for (; (p=str2int(p,10,(long) INT_MIN, (long) INT_MAX, &val)) ; p++)
+  do
   {
+    if (*p == 'S')
+    {
+      /* SQLSTATE string */
+      int i;
+      p++;
+      for (i = 0; my_isalnum(charset_info, *p) && i < SQLSTATE_LENGTH; p++, i++)
+        to[count].code.sqlstate[i]= *p;
+      to[count].code.sqlstate[i]= '\0';
+      to[count].type= ERR_SQLSTATE;
+    }
+    else
+    {
+      long val;
+      p=str2int(p,10,(long) INT_MIN, (long) INT_MAX, &val);
+      if (p == NULL)
+        die("Invalid argument in %s\n", q->query);
+      to[count].code.errnum= (uint) val;
+      to[count].type= ERR_ERRNO;
+    }
     count++;
-    *to++= (uint) val;
-    if (*p != ',')
-      break;
-  }
-  *to++=0;					/* End of data */
+  } while (*(p++) == ',');
+
+  to[count].type= ERR_EMPTY;                        /* End of data */
   DBUG_RETURN(count);
 }
 
@@ -1590,7 +1651,7 @@ int do_connect(struct st_query* q)
   if (opt_compress)
     mysql_options(&next_con->mysql,MYSQL_OPT_COMPRESS,NullS);
   mysql_options(&next_con->mysql, MYSQL_OPT_LOCAL_INFILE, 0);
-  mysql_options(&next_con->mysql, MYSQL_SET_CHARSET_NAME, "latin1");
+  mysql_options(&next_con->mysql, MYSQL_SET_CHARSET_NAME, charset_name);
 
 #ifdef HAVE_OPENSSL
   if (opt_use_ssl)
@@ -1736,6 +1797,7 @@ int read_line(char* buf, int size)
     c= my_getc(*cur_file);
     if (feof(*cur_file))
     {
+  found_eof:
       if ((*cur_file) != stdin)
 	my_fclose(*cur_file, MYF(0));
       cur_file--;
@@ -1845,7 +1907,39 @@ int read_line(char* buf, int size)
     }
 
     if (!no_save)
-      *p++= c;
+    {
+      /* Could be a multibyte character */
+      /* This code is based on the code in "sql_load.cc" */
+#ifdef USE_MB
+      int charlen = my_mbcharlen(charset_info, c);
+      /* We give up if multibyte character is started but not */
+      /* completed before we pass buf_end */
+      if ((charlen > 1) && (p + charlen) <= buf_end)
+      {
+	int i;
+	char* mb_start = p;
+
+	*p++ = c;
+
+	for (i= 1; i < charlen; i++)
+	{
+	  if (feof(*cur_file))
+	    goto found_eof;	/* FIXME: could we just break here?! */
+	  c= my_getc(*cur_file);
+	  *p++ = c;
+	}
+	if (! my_ismbchar(charset_info, mb_start, p))
+	{
+	  /* It was not a multiline char, push back the characters */
+	  /* We leave first 'c', i.e. pretend it was a normal char */
+	  while (p > mb_start)
+	    my_ungetc(*--p);
+	}
+      }
+      else
+#endif
+	*p++= c;
+    }
   }
   *p= 0;					/* Always end with \0 */
   DBUG_RETURN(feof(*cur_file));
@@ -1857,7 +1951,6 @@ static char read_query_buf[MAX_QUERY];
 int read_query(struct st_query** q_ptr)
 {
   char *p = read_query_buf, * p1 ;
-  int expected_errno;
   struct st_query* q;
   DBUG_ENTER("read_query");
 
@@ -1907,13 +2000,25 @@ int read_query(struct st_query** q_ptr)
       p++;
       if (*p == '$')
       {
-	expected_errno= 0;
-	p++;
-	for (; my_isdigit(charset_info, *p); p++)
-	  expected_errno = expected_errno * 10 + *p - '0';
-	q->expected_errno[0] = expected_errno;
-	q->expected_errno[1] = 0;
-	q->expected_errors=1;
+        int expected_errno= 0;
+        p++;
+        for (; my_isdigit(charset_info, *p); p++)
+          expected_errno = expected_errno * 10 + *p - '0';
+        q->expected_errno[0].code.errnum = expected_errno;
+        q->expected_errno[0].type= ERR_ERRNO;
+        q->expected_errno[1].type= ERR_EMPTY;
+        q->expected_errors=1;
+      }
+      else if (*p == 'S')                            /* SQLSTATE */
+      {
+        int i;
+        p++;
+        for (i = 0; my_isalnum(charset_info, *p) && i < SQLSTATE_LENGTH; p++, i++)
+          q->expected_errno[0].code.sqlstate[i]= *p;
+        q->expected_errno[0].code.sqlstate[i]= '\0';
+        q->expected_errno[0].type= ERR_SQLSTATE;
+        q->expected_errno[1].type= ERR_EMPTY;
+        q->expected_errors=1;
       }
     }
 
@@ -2105,10 +2210,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       embedded_server_arg_count=1;
       embedded_server_args[0]= (char*) "";
     }
-    embedded_server_args[embedded_server_arg_count++]=
-      my_strdup(argument, MYF(MY_FAE));
-    if (embedded_server_arg_count == MAX_SERVER_ARGS ||
-	!embedded_server_args[embedded_server_arg_count-1])
+    if (embedded_server_arg_count == MAX_SERVER_ARGS-1 ||
+        !(embedded_server_args[embedded_server_arg_count++]=
+          my_strdup(argument, MYF(MY_FAE))))
     {
       die("Can't use server argument");
     }
@@ -2166,7 +2270,7 @@ char* safe_str_append(char* buf, const char* str, int size)
 void str_to_file(const char* fname, char* str, int size)
 {
   int fd;
-  char buff[MAXPATHLEN];
+  char buff[FN_REFLEN];
   if (!test_if_hard_path(fname))
   {
     strxmov(buff, opt_basedir, fname, NullS);
@@ -2300,7 +2404,7 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
   if (flags & QUERY_SEND)
   {
     got_error_on_send= mysql_send_query(mysql, query, query_len);
-    if (got_error_on_send && !q->expected_errno[0])
+    if (got_error_on_send && q->expected_errno[0].type == ERR_EMPTY)
       die("At line %u: unable to send query '%s' (mysql_errno=%d , errno=%d)",
 	  start_lineno, query, mysql_errno(mysql), errno);
   }
@@ -2332,7 +2436,10 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
       {
 	for (i=0 ; (uint) i < q->expected_errors ; i++)
 	{
-	  if ((q->expected_errno[i] == mysql_errno(mysql)))
+          if (((q->expected_errno[i].type == ERR_ERRNO) &&
+               (q->expected_errno[i].code.errnum == mysql_errno(mysql))) ||
+              ((q->expected_errno[i].type == ERR_SQLSTATE) &&
+               (strcmp(q->expected_errno[i].code.sqlstate,mysql_sqlstate(mysql)) == 0)))
 	  {
 	    if (i == 0 && q->expected_errors == 1)
 	    {
@@ -2346,7 +2453,9 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
 	      dynstr_append_mem(ds,"\n",1);
 	    }
 	    /* Don't log error if we may not get an error */
-	    else if (q->expected_errno[0] != 0)
+            else if (q->expected_errno[0].type == ERR_SQLSTATE ||
+                     (q->expected_errno[0].type == ERR_ERRNO &&
+                      q->expected_errno[0].code.errnum != 0))
 	      dynstr_append(ds,"Got one of the listed errors\n");
 	    goto end;				/* Ok */
 	  }
@@ -2362,8 +2471,12 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
 	dynstr_append_mem(ds,"\n",1);
 	if (i)
 	{
-	  verbose_msg("query '%s' failed with wrong errno %d instead of %d...",
-		      q->query, mysql_errno(mysql), q->expected_errno[0]);
+          if (q->expected_errno[0].type == ERR_ERRNO)
+            verbose_msg("query '%s' failed with wrong errno %d instead of %d...",
+                        q->query, mysql_errno(mysql), q->expected_errno[0].code.errnum);
+          else
+            verbose_msg("query '%s' failed with wrong sqlstate %s instead of %s...",
+                        q->query, mysql_sqlstate(mysql), q->expected_errno[0].code.sqlstate);
 	  error= 1;
 	  goto end;
 	}
@@ -2383,11 +2496,22 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
 	}*/
     }
 
-    if (q->expected_errno[0])
+    if (q->expected_errno[0].type == ERR_ERRNO &&
+        q->expected_errno[0].code.errnum != 0)
     {
-      error = 1;
+      /* Error code we wanted was != 0, i.e. not an expected success */
       verbose_msg("query '%s' succeeded - should have failed with errno %d...",
-		  q->query, q->expected_errno[0]);
+                  q->query, q->expected_errno[0].code.errnum);
+      error = 1;
+      goto end;
+    }
+    else if (q->expected_errno[0].type == ERR_SQLSTATE &&
+             strcmp(q->expected_errno[0].code.sqlstate,"00000") != 0)
+    {
+      /* SQLSTATE we wanted was != "00000", i.e. not an expected success */
+      verbose_msg("query '%s' succeeded - should have failed with sqlstate %s...",
+                  q->query, q->expected_errno[0].code.sqlstate);
+      error = 1;
       goto end;
     }
 
@@ -2678,7 +2802,7 @@ int main(int argc, char **argv)
   if (opt_compress)
     mysql_options(&cur_con->mysql,MYSQL_OPT_COMPRESS,NullS);
   mysql_options(&cur_con->mysql, MYSQL_OPT_LOCAL_INFILE, 0);
-  mysql_options(&cur_con->mysql, MYSQL_SET_CHARSET_NAME, "latin1");
+  mysql_options(&cur_con->mysql, MYSQL_SET_CHARSET_NAME, charset_name);
 
 #ifdef HAVE_OPENSSL
   if (opt_use_ssl)
@@ -2818,7 +2942,7 @@ int main(int argc, char **argv)
 	require_file=0;
 	break;
       case Q_ERROR:
-	global_expected_errors=get_ints(global_expected_errno,q);
+        global_expected_errors=get_errcodes(global_expected_errno,q);
 	break;
       case Q_REQUIRE:
 	get_file_name(save_file,q);
@@ -2862,6 +2986,9 @@ int main(int argc, char **argv)
 	/* End timer before ending mysqltest */
 	timer_output();
 	got_end_timer= TRUE;
+	break;
+      case Q_CHARACTER_SET: 
+	set_charset(q);
 	break;
       default: processed = 0; break;
       }
@@ -2979,10 +3106,10 @@ static void timer_output(void)
 {
   if (timer_file)
   {
-    char buf[1024];
+    char buf[32], *end;
     ulonglong timer= timer_now() - timer_start;
-    sprintf(buf,"%llu",timer);
-    str_to_file(timer_file,buf,strlen(buf));
+    end= longlong2str(timer, buf, 10);
+    str_to_file(timer_file,buf, (int) (end-buf));
   }
 }
 

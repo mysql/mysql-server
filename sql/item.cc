@@ -348,17 +348,45 @@ Item_field::Item_field(Field *f)
   :Item_ident(NullS, f->table_name, f->field_name)
 {
   set_field(f);
-  collation.set(DERIVATION_IMPLICIT);
-  fixed= 1;
+  /*
+    field_name and talbe_name should not point to garbage
+    if this item is to be reused
+  */
+  orig_table_name= orig_field_name= "";
 }
 
 Item_field::Item_field(THD *thd, Field *f)
-  :Item_ident(NullS, thd->strdup(f->table_name), 
-              thd->strdup(f->field_name))
+  :Item_ident(f->table->table_cache_key, f->table_name, f->field_name)
 {
+  /*
+    We always need to provide Item_field with a fully qualified field
+    name to avoid ambiguity when executing prepared statements like
+    SELECT * from d1.t1, d2.t1; (assuming d1.t1 and d2.t1 have columns
+    with same names).
+    This is because prepared statements never deal with wildcards in
+    select list ('*') and always fix fields using fully specified path
+    (i.e. db.table.column).
+    No check for OOM: if db_name is NULL, we'll just get
+    "Field not found" error.
+    We need to copy db_name, table_name and field_name because they must
+    be allocated in the statement memory, not in table memory (the table
+    structure can go away and pop up again between subsequent executions
+    of a prepared statement).
+  */
+  if (thd->current_arena->is_stmt_prepare())
+  {
+    if (db_name)
+      orig_db_name= thd->strdup(db_name);
+    orig_table_name= thd->strdup(table_name);
+    orig_field_name= thd->strdup(field_name);
+    /*
+      We don't restore 'name' in cleanup because it's not changed
+      during execution. Still we need it to point to persistent
+      memory if this item is to be reused.
+    */
+    name= (char*) orig_field_name;
+  }
   set_field(f);
-  collation.set(DERIVATION_IMPLICIT);
-  fixed= 1;
 }
 
 // Constructor need to process subselect with temporary tables (see Item)
@@ -381,6 +409,21 @@ void Item_field::set_field(Field *field_par)
   db_name=field_par->table->table_cache_key;
   unsigned_flag=test(field_par->flags & UNSIGNED_FLAG);
   collation.set(field_par->charset(), DERIVATION_IMPLICIT);
+  fixed= 1;
+}
+
+
+/*
+  Reset this item to point to a field from the new temporary table.
+  This is used when we create a new temporary table for each execution
+  of prepared statement.
+*/
+
+void Item_field::reset_field(Field *f)
+{
+  set_field(f);
+  /* 'name' is pointing at field->field_name of old field */
+  name= (char*) f->field_name;
 }
 
 const char *Item_ident::full_name() const
@@ -988,9 +1031,10 @@ String *Item_param::val_str(String* str)
     return str;
   case TIME_VALUE:
   {
-    if (str->reserve(MAX_DATE_REP_LENGTH))
+    if (str->reserve(MAX_DATE_STRING_REP_LENGTH))
       break;
-    TIME_to_string(&value.time, str);
+    str->length((uint) my_TIME_to_str(&value.time, (char*) str->ptr()));
+    str->set_charset(&my_charset_bin);
     return str;
   }
   case NULL_VALUE:
@@ -1020,24 +1064,19 @@ const String *Item_param::query_val_str(String* str) const
   case TIME_VALUE:
     {
       char *buf, *ptr;
-      String tmp;
       str->length(0);
       /*
         TODO: in case of error we need to notify replication
         that binary log contains wrong statement 
       */
-      if (str->reserve(MAX_DATE_REP_LENGTH+3))
+      if (str->reserve(MAX_DATE_STRING_REP_LENGTH+3))
         break; 
 
       /* Create date string inplace */
       buf= str->c_ptr_quick();
       ptr= buf;
       *ptr++= '\'';
-      tmp.set(ptr, MAX_DATE_REP_LENGTH, &my_charset_bin);
-      tmp.length(0);
-      TIME_to_string(&value.time, &tmp);
-
-      ptr+= tmp.length();
+      ptr+= (uint) my_TIME_to_str(&value.time, ptr);
       *ptr++= '\'';
       str->length((uint32) (ptr - buf));
       break;
@@ -1196,7 +1235,7 @@ bool Item_ref_null_helper::get_date(TIME *ltime, uint fuzzydate)
 static void mark_as_dependent(THD *thd, SELECT_LEX *last, SELECT_LEX *current,
 			      Item_ident *item)
 {
-  // store pointer on SELECT_LEX from wich item is dependent
+  // store pointer on SELECT_LEX from which item is dependent
   item->depended_from= last;
   current->mark_as_dependent(last);
   if (thd->lex->describe & DESCRIBE_EXTENDED)
@@ -1378,8 +1417,8 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     field->query_id=thd->query_id;
     table->used_fields++;
     table->used_keys.intersect(field->part_of_key);
+    fixed= 1;
   }
-  fixed= 1;
   return 0;
 }
 
@@ -1872,10 +1911,11 @@ bool Item_field::send(Protocol *protocol, String *buffer)
   return protocol->store(result_field);
 }
 
+
 /*
   This is used for HAVING clause
   Find field in select list having the same name
- */
+*/
 
 bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 {
@@ -1904,8 +1944,9 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 				  REPORT_ALL_ERRORS ), &not_used)) ==
 	(Item **)not_found_item)
     {
-      upward_lookup= 1;
       Field *tmp= (Field*) not_found_field;
+      SELECT_LEX *last= 0;
+      upward_lookup= 1;
       /*
 	We can't find table field in select list of current select,
 	consequently we have to find it in outer subselect(s).
@@ -1915,7 +1956,6 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 	mention of table name, but if we join tables in one list it will
 	cause error ER_NON_UNIQ_ERROR in find_item_in_list.
       */
-      SELECT_LEX *last=0;
       for ( ; sl ; sl= (prev_unit= sl->master_unit())->outer_select())
       {
 	last= sl;
@@ -1967,9 +2007,9 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 
       if (!ref)
 	return 1;
-      else if (!tmp)
+      if (!tmp)
 	return -1;
-      else if (ref == (Item **)not_found_item && tmp == not_found_field)
+      if (ref == (Item **)not_found_item && tmp == not_found_field)
       {
 	if (upward_lookup)
 	{
@@ -1984,31 +2024,33 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 			    *(thd->lex->current_select->get_item_list()),
 			    &counter, REPORT_ALL_ERRORS, &not_used);
 	}
-        ref= 0;
+        ref= 0;                                 // Safety
 	return 1;
       }
-      else if (tmp != not_found_field)
+      if (tmp != not_found_field)
       {
-	ref= 0; // To prevent "delete *ref;" on ~Item_ref() of this item
-	Item_field* fld= new Item_field(tmp);
-	if (!fld)
+        Item_field* fld;
+        /*
+          Set ref to 0 as we are replacing this item with the found item
+          and this will ensure we get an error if this item would be
+          used elsewhere
+        */
+	ref= 0;                                 // Safety
+	if (!(fld= new Item_field(tmp)))
 	  return 1;
 	thd->change_item_tree(reference, fld);
 	mark_as_dependent(thd, last, thd->lex->current_select, fld);
 	return 0;
       }
-      else
+      if (!(*ref)->fixed)
       {
-	if (!(*ref)->fixed)
-	{
-	  my_error(ER_ILLEGAL_REFERENCE, MYF(0), name,
-		   "forward reference in item list");
-	  return -1;
-	}
-	mark_as_dependent(thd, last, thd->lex->current_select,
-			  this);
-	ref= last->ref_pointer_array + counter;
+        my_error(ER_ILLEGAL_REFERENCE, MYF(0), name,
+                 "forward reference in item list");
+        return -1;
       }
+      mark_as_dependent(thd, last, thd->lex->current_select,
+                        this);
+      ref= last->ref_pointer_array + counter;
     }
     else if (!ref)
       return 1;
@@ -2121,7 +2163,6 @@ bool Item_default_value::fix_fields(THD *thd,
   def_field->move_field(def_field->table->default_values -
                         def_field->table->record[0]);
   set_field(def_field);
-  fixed= 1;
   return 0;
 }
 
@@ -2179,7 +2220,6 @@ bool Item_insert_value::fix_fields(THD *thd,
     set_field(new Field_null(0, 0, Field::NONE, tmp_field->field_name,
 			     tmp_field->table, &my_charset_bin));
   }
-  fixed= 1;
   return 0;
 }
 
@@ -2523,12 +2563,13 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
   uint32 new_length= real_length(item);
   bool use_new_field= 0, use_expression_type= 0;
   Item_result new_result_type= type_convertor[item_type][item->result_type()];
+  bool item_is_a_field= item->type() == Item::FIELD_ITEM;
 
   /*
     Check if both items point to fields: in this case we
     can adjust column types of result table in the union smartly.
   */
-  if (field_example && item->type() == Item::FIELD_ITEM)
+  if (field_example && item_is_a_field)
   {
     Field *field= ((Item_field *)item)->field;
     /* Can 'field_example' field store data of the column? */
@@ -2545,23 +2586,25 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
          !is_attr_compatible(this, item));
     }
   }
-  else if (field_example || item->type() == Item::FIELD_ITEM)
+  else if (field_example || item_is_a_field)
   {
     /*
       Expression types can't be mixed with field types, we have to use
       expression types.
     */
+    use_new_field= 1;                           // make next if test easier
     use_expression_type= 1;
   }
 
   /* Check whether size/type of the result item should be changed */
-  if (use_new_field || use_expression_type ||
+  if (use_new_field ||
       (new_result_type != item_type) || (new_length > max_length) ||
       (!maybe_null && item->maybe_null) ||
-      (item_type == STRING_RESULT &&
-       !my_charset_same(collation.collation, item->collation.collation)))
+      (item_type == STRING_RESULT && 
+       collation.collation != item->collation.collation))
   {
-    if (use_expression_type || item->type() != Item::FIELD_ITEM)
+    const char *old_cs,*old_derivation;
+    if (use_expression_type || !item_is_a_field)
       field_example= 0;
     else
     {
@@ -2572,8 +2615,8 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
       field_example= ((Item_field*) item)->field;
     }
 
-    const char *old_cs= collation.collation->name,
-      *old_derivation= collation.derivation_name();
+    old_cs= collation.collation->name;
+    old_derivation= collation.derivation_name();
     if (item_type == STRING_RESULT && collation.aggregate(item->collation))
     {
       my_error(ER_CANT_AGGREGATE_2COLLATIONS, MYF(0),
@@ -2593,12 +2636,12 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
   return 0;
 }
 
+
 uint32 Item_type_holder::real_length(Item *item)
 {
   if (item->type() == Item::FIELD_ITEM)
-  {
     return ((Item_field *)item)->max_disp_length();
-  }
+
   switch (item->result_type())
   {
   case STRING_RESULT:

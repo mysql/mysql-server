@@ -425,6 +425,7 @@ static void create_record1(char *record,uint rownr)
    }
 }
 
+#ifdef NOT_USED
 
 static void create_record0(char *record,uint rownr)
 {
@@ -446,6 +447,8 @@ static void create_record0(char *record,uint rownr)
       pos+=sizeof(c);
    }
 }
+
+#endif
 
 static void create_record(char *record,uint rownr)
 {

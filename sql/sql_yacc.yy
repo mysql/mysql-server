@@ -843,14 +843,14 @@ prepare_src:
           THD *thd=YYTHD;
           LEX *lex= thd->lex;
           lex->prepared_stmt_code= $1;
-          lex->prepared_stmt_code_is_varref= false;
+          lex->prepared_stmt_code_is_varref= FALSE;
         }
         | '@' ident_or_text
         {
           THD *thd=YYTHD;
           LEX *lex= thd->lex;
           lex->prepared_stmt_code= $2;
-          lex->prepared_stmt_code_is_varref= true;
+          lex->prepared_stmt_code_is_varref= TRUE;
         };
 
 execute:
@@ -4136,14 +4136,18 @@ expr_or_default:
 opt_insert_update:
         /* empty */
         | ON DUPLICATE_SYM
-          { /* for simplisity, let's forget about
-               INSERT ... SELECT ... UPDATE
-               for a moment */
-	    if (Lex->sql_command != SQLCOM_INSERT)
+          { 
+            LEX *lex= Lex;
+            /*
+              For simplicity, let's forget about INSERT ... SELECT ... UPDATE
+              for a moment.
+            */
+	    if (lex->sql_command != SQLCOM_INSERT)
             {
 	      yyerror(ER(ER_SYNTAX_ERROR));
               YYABORT;
             }
+            lex->duplicates= DUP_UPDATE;
           }
           KEY_SYM UPDATE_SYM update_list
         ;

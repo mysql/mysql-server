@@ -1,5 +1,35 @@
 DROP TABLE IF EXISTS t1;
 set names utf8;
+set collation_connection=utf8_unicode_ci;
+select 'a' = 'a', 'a' = 'a ', 'a ' = 'a';
+'a' = 'a'	'a' = 'a '	'a ' = 'a'
+1	1	1
+select 'a\t' = 'a' , 'a\t' < 'a' , 'a\t' > 'a';
+'a\t' = 'a'	'a\t' < 'a'	'a\t' > 'a'
+0	1	0
+select 'a\t' = 'a ', 'a\t' < 'a ', 'a\t' > 'a ';
+'a\t' = 'a '	'a\t' < 'a '	'a\t' > 'a '
+0	1	0
+select 'a' = 'a\t', 'a' < 'a\t', 'a' > 'a\t';
+'a' = 'a\t'	'a' < 'a\t'	'a' > 'a\t'
+0	0	1
+select 'a ' = 'a\t', 'a ' < 'a\t', 'a ' > 'a\t';
+'a ' = 'a\t'	'a ' < 'a\t'	'a ' > 'a\t'
+0	0	1
+select 'a  a' > 'a', 'a  \t' < 'a';
+'a  a' > 'a'	'a  \t' < 'a'
+1	1
+CREATE TABLE t (
+c char(20) NOT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+INSERT INTO t VALUES ('a'),('ab'),('aba');
+ALTER TABLE t ADD INDEX (c);
+SELECT c FROM t WHERE c LIKE 'a%';
+c
+a
+ab
+aba
+DROP TABLE t;
 create table t1 (c1 char(10) character set utf8 collate utf8_bin);
 insert into t1 values ('A'),('a');
 insert into t1 values ('B'),('b');

@@ -2010,6 +2010,11 @@ try_again:
 
 		return(TRUE);
 	}
+
+	fprintf(stderr,
+"InnoDB: Error: tried to read %lu bytes at offset %lu %lu.\n"
+"InnoDB: Was only able to read %ld.\n", (ulong)n, (ulong)offset_high,
+					(ulong)offset, (long)ret);
 #endif	
 #ifdef __WIN__
 error_handling:
@@ -2349,6 +2354,83 @@ os_file_status(
 	}
 
 	*exists = TRUE;
+	
+	return(TRUE);
+#endif
+}
+
+/***********************************************************************
+This function returns information about the specified file */
+
+ibool
+os_file_get_status(
+/*===========*/
+				/* out: TRUE if stat information found */
+	const char*	path,	/* in:  pathname of the file */
+	os_file_stat_t* stat_info) /* information of a file in a directory */
+{
+#ifdef __WIN__
+	int		ret;
+	struct _stat	statinfo;
+	
+	ret = _stat(path, &statinfo);
+	if (ret && (errno == ENOENT || errno == ENOTDIR)) {
+		/* file does not exist */
+
+		return(FALSE);
+	} else if (ret) {
+		/* file exists, but stat call failed */
+		
+		os_file_handle_error_no_exit(0, path, "stat");
+		
+		return(FALSE);
+	}
+	if (_S_IFDIR & statinfo.st_mode) {
+		stat_info->type = OS_FILE_TYPE_DIR;
+	} else if (_S_IFREG & statinfo.st_mode) {
+	        stat_info->type = OS_FILE_TYPE_FILE;
+	} else {
+	        stat_info_>type = OS_FILE_TYPE_UNKNOWN;
+	}
+
+	stat_info->ctime = statinfo.st_ctime;
+	stat_info->atime = statinfo.st_atime;
+	stat_info->mtime = statinfo.st_mtime;
+	stat_info->size  = statinfo.st_size;
+	
+	return(TRUE);
+#else
+	int		ret;
+	struct stat	statinfo;
+	
+	ret = stat(path, &statinfo);
+
+	if (ret && (errno == ENOENT || errno == ENOTDIR)) {
+		/* file does not exist */
+
+		return(FALSE);
+	} else if (ret) {
+		/* file exists, but stat call failed */
+		
+		os_file_handle_error_no_exit(0, path, "stat");
+		
+		return(FALSE);
+	}
+	    
+	if (S_ISDIR(statinfo.st_mode)) {
+		stat_info->type = OS_FILE_TYPE_DIR;
+	} else if (S_ISLNK(statinfo.st_mode)) {
+	        stat_info->type = OS_FILE_TYPE_LINK;
+	} else if (S_ISREG(statinfo.st_mode)) {
+	        stat_info->type = OS_FILE_TYPE_FILE;
+	} else {
+	        stat_info->type = OS_FILE_TYPE_UNKNOWN;
+	}
+
+	stat_info->ctime = statinfo.st_ctime;
+	stat_info->atime = statinfo.st_atime;
+	stat_info->mtime = statinfo.st_mtime;
+	stat_info->size  = statinfo.st_size;
 	
 	return(TRUE);
 #endif

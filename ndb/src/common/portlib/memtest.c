@@ -90,7 +90,7 @@ void malloctest(int loopcount, int memsize, int touch) {
   long long start=0;
   int total=0;
   int i=0, j=0;
-  int size=memsize*1024*1024; //bytes;
+  int size=memsize*1024*1024; /*bytes*/;
   float mean;
   char * ptr =0;
   
@@ -126,7 +126,7 @@ void mmaptest(int loopcount, int memsize, int touch) {
   int total=0;
   int i=0, j=0;
   char * ptr;
-  int size=memsize*1024*1024; //bytes;
+  int size=memsize*1024*1024; /*bytes*/;
   float mean;
 
   printf("Staring mmaptest ");
@@ -165,7 +165,7 @@ void unmaptest(loopcount, memsize)
   int total=0;
   int i=0, j=0;
   char * ptr;
-  int size=memsize*1024*1024; //bytes;
+  int size=memsize*1024*1024; /*bytes*/;
   float mean;
 
   printf("Staring munmap test (loopcount = 1 no matter what you prev. set)\n");
@@ -215,7 +215,7 @@ void freetest(int loopcount, int memsize) {
   long long start=0;
   int total=0;
   int i=0, j=0;
-  int size=memsize*1024*1024; //bytes;
+  int size=memsize*1024*1024; /*bytes*/;
   float mean;
   char * ptr =0;
 
