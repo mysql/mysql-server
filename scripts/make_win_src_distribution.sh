@@ -294,14 +294,19 @@ done
 # support files
 #
 mkdir $BASE/support-files
-cp support-files/*.cnf $BASE/support-files
+
+# Rename the cnf files to <file>.ini
+for i in support-files/*.cnf
+do
+  i=`echo $i | sed 's/.cnf$//g'`
+  cp $i.cnf $BASE/$i.ini
+done
 
 #
 # Raw dirs from source tree
 #
 
-for i in Docs/Flags scripts sql-bench SSL \
-         tests
+for i in scripts sql-bench SSL tests
 do
   print_debug "Copying directory '$i'"
   if [ -d $i ]

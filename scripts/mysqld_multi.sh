@@ -4,7 +4,7 @@ use Getopt::Long;
 use POSIX qw(strftime);
 
 $|=1;
-$VER="2.7";
+$VER="2.8";
 
 $opt_config_file   = undef();
 $opt_example       = 0;
@@ -78,7 +78,7 @@ sub main
              "config-file=s","user=s","password=s","log=s","no-log","tcp-ip")
   || die "Wrong option! See $my_progname --help for detailed information!\n";
 
-  init_log();
+  init_log() if (!defined($opt_log));
   $groupids = $ARGV[1];
   if ($opt_version)
   {
@@ -137,45 +137,6 @@ sub main
   else
   {
     stop_mysqlds();
-  }
-}
-
-####
-#### Init log file. Check for appropriate place for log file, in the following
-#### order my_print_defaults mysqld datadir, @datadir@, /var/log, /tmp
-####
-
-sub init_log
-{
-  if ($my_print_defaults_exists)
-  {
-    @mysqld_opts= `my_print_defaults mysqld`;
-    chomp @mysqld_opts;
-    foreach my $opt (@mysqld_opts)
-    {
-      if ($opt =~ m/^\-\-datadir[=](.*)/)
-      {
-        if (-d "$1" && -w "$1")
-        {
-	  $logdir= $1;
-        }
-      }
-    }
-  }
-  if (!defined($logdir))
-  {
-    $logdir= "@datadir@" if (-d "@datadir@" && -w "@datadir@");
-  }
-  if (!defined($logdir))
-  {
-    # Log file was not specified and we could not log to a standard place,
-    # so log file be disabled for now.
-    print "WARNING: Log file disabled. Maybe directory/file isn't writable?\n";
-    $opt_no_log= 1;
-  }
-  else
-  {
-    $opt_log= "$logdir/mysqld_multi.log";
   }
 }
 

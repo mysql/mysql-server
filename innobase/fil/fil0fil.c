@@ -959,7 +959,7 @@ fil_assign_new_space_id(void)
 "InnoDB: Current counter is %lu and it must not exceed %lu!\n"
 "InnoDB: To reset the counter to zero you have to dump all your tables and\n"
 "InnoDB: recreate the whole InnoDB installation.\n", (ulong) id,
-						     (ulong) SRV_LOG_SPACE_FIRST_ID);
+					(ulong) SRV_LOG_SPACE_FIRST_ID);
 	}
 
 	if (id >= SRV_LOG_SPACE_FIRST_ID) {
@@ -1740,7 +1740,7 @@ fil_op_log_parse_or_replay(
 
 			ut_a(DB_SUCCESS == 
 				fil_create_new_single_table_tablespace(
-							&space_id, name,
+						&space_id, name, FALSE,
 						FIL_IBD_FILE_INITIAL_SIZE));
 		}
 	}
@@ -1977,25 +1977,34 @@ fil_rename_tablespace_in_mem(
 }
 
 /***********************************************************************
-Allocates a file name for a single-table tablespace.
-The string must be freed by caller with mem_free(). */
+Allocates a file name for a single-table tablespace. The string must be freed
+by caller with mem_free(). */
 static
 char*
 fil_make_ibd_name(
 /*==============*/
 					/* out, own: file name */
-	const char*	name)		/* in: table name */
+	const char*	name,		/* in: table name or a dir path of a
+					TEMPORARY table */
+	ibool		is_temp)	/* in: TRUE if it is a dir path */
 {
 	ulint	namelen		= strlen(name);
 	ulint	dirlen		= strlen(fil_path_to_mysql_datadir);
 	char*	filename	= mem_alloc(namelen + dirlen + sizeof "/.ibd");
 
-	memcpy(filename, fil_path_to_mysql_datadir, dirlen);
-	filename[dirlen] = '/';
-	memcpy(filename + dirlen + 1, name, namelen);
-	memcpy(filename + dirlen + namelen + 1, ".ibd", sizeof ".ibd");
+	if (is_temp) {
+		memcpy(filename, name, namelen);
+		memcpy(filename + namelen, ".ibd", sizeof ".ibd");
+	} else {
+		memcpy(filename, fil_path_to_mysql_datadir, dirlen);
+		filename[dirlen] = '/';
+
+		memcpy(filename + dirlen + 1, name, namelen);
+		memcpy(filename + dirlen + namelen + 1, ".ibd", sizeof ".ibd");
+	}
 
 	srv_normalize_path_for_win(filename);
+
 	return(filename);
 }
 
@@ -2104,7 +2113,7 @@ retry:
 	/* Check that the old name in the space is right */
 
 	if (old_name_was_specified) {
-		old_path = fil_make_ibd_name(old_name);
+		old_path = fil_make_ibd_name(old_name, FALSE);
 
 		ut_a(strcmp(space->name, old_path) == 0);
 		ut_a(strcmp(node->name, old_path) == 0);
@@ -2113,7 +2122,7 @@ retry:
 	}
 
 	/* Rename the tablespace and the node in the memory cache */
-	path = fil_make_ibd_name(new_name);
+	path = fil_make_ibd_name(new_name, FALSE);
 	success = fil_rename_tablespace_in_mem(space, node, path);
 
 	if (success) {
@@ -2153,7 +2162,8 @@ retry:
 Creates a new single-table tablespace to a database directory of MySQL.
 Database directories are under the 'datadir' of MySQL. The datadir is the
 directory of a running mysqld program. We can refer to it by simply the
-path '.'. */
+path '.'. Tables created with CREATE TEMPORARY TABLE we place in the temp
+dir of the mysqld server. */
 
 ulint
 fil_create_new_single_table_tablespace(
@@ -2164,7 +2174,10 @@ fil_create_new_single_table_tablespace(
 					otherwise output */
 	const char*	tablename,	/* in: the table name in the usual
 					databasename/tablename format
-					of InnoDB */
+					of InnoDB, or a dir path to a temp
+					table */
+	ibool		is_temp,	/* in: TRUE if a table created with
+					CREATE TEMPORARY TABLE */
 	ulint		size)		/* in: the initial size of the
 					tablespace file in pages,
 					must be >= FIL_IBD_FILE_INITIAL_SIZE */
@@ -2179,7 +2192,7 @@ fil_create_new_single_table_tablespace(
 
 	ut_a(size >= FIL_IBD_FILE_INITIAL_SIZE);
 
-	path = fil_make_ibd_name(tablename);
+	path = fil_make_ibd_name(tablename, is_temp);
 	
 	file = os_file_create(path, OS_FILE_CREATE, OS_FILE_NORMAL,
 						    OS_DATA_FILE, &ret);
@@ -2348,7 +2361,7 @@ fil_reset_too_high_lsns(
 	ulint		page_no;
 	ibool		success;
 
-	filepath = fil_make_ibd_name(name);
+	filepath = fil_make_ibd_name(name, FALSE);
 
 	file = os_file_create_simple_no_error_handling(filepath, OS_FILE_OPEN,
 						OS_FILE_READ_WRITE, &success);
@@ -2482,7 +2495,7 @@ fil_open_single_table_tablespace(
 	ulint		space_id;
 	ibool		ret		= TRUE;
 
-	filepath = fil_make_ibd_name(name);
+	filepath = fil_make_ibd_name(name, FALSE);
 
 	file = os_file_create_simple_no_error_handling(filepath, OS_FILE_OPEN,
 						OS_FILE_READ_ONLY, &success);
@@ -2499,6 +2512,8 @@ fil_open_single_table_tablespace(
 		fputs("!\n"
 "InnoDB: Have you moved InnoDB .ibd files around without using the\n"
 "InnoDB: commands DISCARD TABLESPACE and IMPORT TABLESPACE?\n"
+"InnoDB: It is also possible that this is a table created with\n"
+"InnoDB: CREATE TEMPORARY TABLE, and MySQL removed the .ibd file for this.\n"
 "InnoDB: Please refer to\n"
 "InnoDB:"
 " http://dev.mysql.com/doc/mysql/en/InnoDB_troubleshooting_datadict.html\n"
@@ -3051,7 +3066,10 @@ fil_space_for_table_exists_in_mem(
 					exists in the memory cache */
 	ulint		id,		/* in: space id */
 	const char*	name,		/* in: table name in the standard
-					'databasename/tablename' format */
+					'databasename/tablename' format or
+					the dir path to a temp table */
+	ibool		is_temp,	/* in: TRUE if created with CREATE
+					TEMPORARY TABLE */
 	ibool		mark_space,	/* in: in crash recovery, at database
 					startup we mark all spaces which have
 					an associated table in the InnoDB
@@ -3073,7 +3091,7 @@ fil_space_for_table_exists_in_mem(
 
 	mutex_enter(&(system->mutex));
 
-	path = fil_make_ibd_name(name);
+	path = fil_make_ibd_name(name, is_temp);
 
 	/* Look if there is a space with the same id */
 
@@ -3114,7 +3132,10 @@ fil_space_for_table_exists_in_mem(
 			fprintf(stderr, "\n"
 "InnoDB: in InnoDB data dictionary has tablespace id %lu,\n"
 "InnoDB: but tablespace with that id or name does not exist. Have\n"
-"InnoDB: you deleted or moved .ibd files?\n",
+"InnoDB: you deleted or moved .ibd files?\n"
+"InnoDB: This may also be a table created with CREATE TEMPORARY TABLE\n"
+"InnoDB: whose .ibd and .frm files MySQL automatically removed, but the\n"
+"InnoDB: table still exists in the InnoDB internal data dictionary.\n",
 				(ulong) id);
 		} else {
 		        ut_print_timestamp(stderr);
@@ -3189,7 +3210,7 @@ fil_get_space_id_for_table(
 
 	mutex_enter(&(system->mutex));
 
-	path = fil_make_ibd_name(name);
+	path = fil_make_ibd_name(name, FALSE);
 
 	/* Look if there is a space with the same name; the name is the
 	directory path to the file */

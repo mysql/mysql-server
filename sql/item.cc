@@ -106,7 +106,7 @@ void Item::print_item_w_name(String *str)
 Item_ident::Item_ident(const char *db_name_par,const char *table_name_par,
 		       const char *field_name_par)
   :orig_db_name(db_name_par), orig_table_name(table_name_par), 
-   orig_field_name(field_name_par), changed_during_fix_field(0), 
+   orig_field_name(field_name_par),
    db_name(db_name_par), table_name(table_name_par), 
    field_name(field_name_par), cached_field_index(NO_CACHED_FIELD_INDEX), 
    cached_table(0), depended_from(0)
@@ -120,7 +120,6 @@ Item_ident::Item_ident(THD *thd, Item_ident *item)
    orig_db_name(item->orig_db_name),
    orig_table_name(item->orig_table_name), 
    orig_field_name(item->orig_field_name),
-   changed_during_fix_field(0),
    db_name(item->db_name),
    table_name(item->table_name),
    field_name(item->field_name),
@@ -137,11 +136,6 @@ void Item_ident::cleanup()
 		       table_name, orig_table_name,
 		       field_name, orig_field_name));
   Item::cleanup();
-  if (changed_during_fix_field)
-  {
-    *changed_during_fix_field= this;
-    changed_during_fix_field= 0;
-  }
   db_name= orig_db_name; 
   table_name= orig_table_name;
   field_name= orig_field_name;
@@ -1340,10 +1334,10 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 
 	Item_ref *rf;
 	*ref= rf= new Item_ref(last->ref_pointer_array + counter,
-			       ref,
+			       0,
 			       (char *)table_name,
 			       (char *)field_name);
-	register_item_tree_changing(ref);
+        thd->register_item_tree_change(ref, this, &thd->mem_root);
 	if (!rf)
 	  return 1;
 	/*
@@ -1362,7 +1356,8 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 	if (last->having_fix_field)
 	{
 	  Item_ref *rf;
-	  *ref= rf= new Item_ref(ref, *ref,
+          thd->register_item_tree_change(ref, *ref, &thd->mem_root);
+	  *ref= rf= new Item_ref(ref, 0,
 				 (where->db[0]?where->db:0), 
 				 (char *)where->alias,
 				 (char *)field_name);
@@ -2003,7 +1998,7 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 	Item_field* fld;
 	if (!((*reference)= fld= new Item_field(tmp)))
 	  return 1;
-	register_item_tree_changing(reference);
+	thd->register_item_tree_change(reference, this, &thd->mem_root);
 	mark_as_dependent(thd, last, thd->lex->current_select, fld);
 	return 0;
       }

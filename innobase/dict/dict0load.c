@@ -262,7 +262,7 @@ loop:
 			exists; print a warning to the .err log if not */
 			
 			fil_space_for_table_exists_in_mem(space_id, name,
-								TRUE, TRUE);
+							FALSE, TRUE, TRUE);
 		}
 
 		mem_free(name);
@@ -761,7 +761,7 @@ dict_load_table(
 	/* Check if the tablespace exists and has the right name */
 	if (space != 0) {
 		if (fil_space_for_table_exists_in_mem(space, name, FALSE,
-								   FALSE)) {
+							FALSE, FALSE)) {
 			/* Ok; (if we did a crash recovery then the tablespace
 			can already be in the memory cache) */
 		} else {
