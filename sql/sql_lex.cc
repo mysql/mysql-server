@@ -906,7 +906,15 @@ int yylex(void *arg, void *yythd)
     case STATE_COLON:			// optional line terminator
       if (yyPeek())
       {
-	state=STATE_CHAR;		// Return ';'
+        if (((THD *)yythd)->client_capabilities & CLIENT_MULTI_QUERIES)
+        {
+          lex->found_colon=(char*)lex->ptr;
+          ((THD *)yythd)->server_status |= SERVER_MORE_RESULTS_EXISTS;
+          lex->next_state=STATE_END;
+          return(END_OF_INPUT);
+        }
+        else
+ 	  state=STATE_CHAR;		// Return ';'
 	break;
       }
       /* fall true */

@@ -3858,8 +3858,8 @@ static my_bool read_prepare_result(MYSQL_STMT *stmt)
   }
   if (!(stmt->params= (MYSQL_BIND *) alloc_root(&stmt->mem_root,
 						sizeof(MYSQL_BIND)*
-						(stmt->param_count +
-						 field_count))))
+                                                (param_count + 
+                                                 field_count))))
   {
     set_stmt_error(stmt, CR_OUT_OF_MEMORY);
     DBUG_RETURN(0);
@@ -5163,4 +5163,37 @@ my_bool STDCALL mysql_autocommit(MYSQL * mysql, my_bool auto_mode)
   if (auto_mode) /* set to true */
     DBUG_RETURN((my_bool) mysql_real_query(mysql, "set autocommit=1", 16));
   DBUG_RETURN((my_bool) mysql_real_query(mysql, "set autocommit=0", 16));
+}
+
+
+/********************************************************************
+ Multi query execution related implementations
+*********************************************************************/
+
+/*
+  Returns if there are any more query results exists to be read using 
+  mysql_next_result()
+*/
+
+my_bool STDCALL mysql_more_results(MYSQL *mysql)
+{
+  if (mysql->last_used_con->server_status & SERVER_MORE_RESULTS_EXISTS)
+    return 1;
+  return 0;
+}
+
+/*
+  Reads and returns the next query results
+*/
+
+my_bool STDCALL mysql_next_result(MYSQL *mysql)
+{
+  
+  mysql->net.last_error[0]=0;
+  mysql->net.last_errno=0;
+  mysql->affected_rows= ~(my_ulonglong) 0;
+
+  if (mysql->last_used_con->server_status & SERVER_MORE_RESULTS_EXISTS)
+    return mysql_read_query_result(mysql);
+  return 0;
 }
