@@ -1,6 +1,6 @@
 .TH mysqldump 1 "19 December 2000" "MySQL @MYSQL_BASE_VERSION@" "MySQL database"
 .SH NAME
-mysqldump \- text-based client for dumping or backing up mysql databases , tables and or data.
+mysqldump \- text\-based client for dumping or backing up mysql databases, tables and or data.
 
 .SH  USAGE
 .BR "mysqldump [\fP\fIOPTIONS\fP] database [\fP\fItables\fP]"

@@ -265,6 +265,7 @@ static int d_search(register MI_INFO *info, register MI_KEYDEF *keyinfo,
       {
         keyinfo=&info->s->ft2_keyinfo;
         kpos-=keyinfo->keylength+nod_flag; /* we'll modify key entry 'in vivo' */
+        get_key_full_length_rdonly(off, key);
         key+=off;
         ret_value=_mi_ck_real_delete(info, &info->s->ft2_keyinfo,
             key, HA_FT_WLEN, &root);
