@@ -40610,14 +40610,14 @@ testing we found and fixed a lot of errors in the interface code.
 Using @code{HAVING} on an empty table could produce one result row when
 it shouldn't.
 @item
-Fixed that the @strong{MySQL} RPM is not depending on perl5 anymore.
+Fixed that the @strong{MySQL} RPM is not dependant on perl5 anymore.
 @item
-Fixed some problems with @code{HEAP} tables on windows.
+Fixed some problems with @code{HEAP} tables on Windows.
 @item
 @code{SHOW TABLE STATUS} didn't show correct average row length for tables
 bigger than 4G.
 @item
-@code{CHECK TABLE .. EXTENED} didn't check row links for fixed size tables.
+@code{CHECK TABLE ... EXTENDED} didn't check row links for fixed size tables.
 @item
 Added option @code{MEDIUM} to @code{CHECK TABLE}.
 @item
@@ -40634,10 +40634,10 @@ Fixed buffer overflow bug when writing a certain error message.
 Added usage of @code{getrlimit()} on Linux to get @code{-O
 --open-files-limit=#} to work on Linux.
 @item
-Added new mysqld variable: bdb_version.
+Added new @code{mysqld} variable: @code{bdb_version}.
 @item
 Fixed bug when using expression of type
-@code{SELECT ... FROM t1 left join t2 on (t1.a=t2.a) WHERE t1.a=t2.a}. In this
+@code{SELECT ... FROM t1 LEFT JOIN t2 ON (t1.a=t2.a) WHERE t1.a=t2.a}. In this
 case the test in the @code{WHERE} clause was wrongly optimized away.
 @item
 Fixed bug in @code{MyISAM} when deleting keys with possible @code{NULL}
@@ -40663,7 +40663,7 @@ Fixed that @code{myisamchk -k#} works again.
 Fixed a problem with replication when the binary log file went over 2G
 on 32 bit systems.
 @item
-@code{LOCK TABLES} will now automaticly start a new transaction.
+@code{LOCK TABLES} will now automatically starts a new transaction.
 @item
 Changed BDB tables to not use internal subtransactions and reuse open files to
 get more speed.
@@ -40677,7 +40677,7 @@ Allow hex constants in the @code{--fields-*-by} and
 Added option @code{--safe-show-databases}.
 @item
 Added @code{have_bdb}, @code{have_gemini}, @code{have_innobase},
-@code{have_raid} and @code{have_ssl} to @code{SHOW VARIABLES} to make it
+@code{have_raid}, and @code{have_ssl} to @code{SHOW VARIABLES} to make it
 easy to test for supported extensions.
 @item
 Added option @code{open-files-limit} to @code{mysqld}.
@@ -40706,7 +40706,7 @@ Added fixing of include files for Solaris 2.8.
 Fixed bug with @code{--skip-networking} on Debian Linux.
 @item
 Fixed problem that some temporary files where reported as having the
-name @code{UNOPENED} in error messages.
+name @file{UNOPENED} in error messages.
 @item
 Fixed bug when running two simultaneous @code{SHOW LOGS} queries.
 @end itemize
@@ -40722,8 +40722,8 @@ Fixed bug in @code{<=>} operator.
 @item
 Fixed bug in @code{REPLACE} with BDB tables.
 @item
-@code{LPAD()} and @code{RPAD()} will shorten the result string if it's longer
-than the length argument.
+@code{LPAD()} and @code{RPAD()} will truncate the result string if it's longer
+than the @code{length} argument.
 @item
 Added @code{SHOW LOGS} command.
 @item
@@ -40737,7 +40737,7 @@ specified all key parts both in the update and the @code{WHERE} part. In
 this case @strong{MySQL} could try to update a record that didn't match
 the whole @code{WHERE} part.
 @item
-Changed drop table to first drop the tables and then the @code{.frm} file.
+Changed drop table to first drop the tables and then the @file{.frm} file.
 @item
 Fixed a bug in the hostname cache which caused @code{mysqld} to report the
 hostname as @code{''} in some error messages.
@@ -40752,11 +40752,11 @@ to make it easier to use the binary log.
 @item
 Renamed variable @code{bdb_lock_max} to @code{bdb_max_lock}.
 @item
-Added support for @code{auto_increment} on sub fields for BDB tables.
+Added support for @code{auto_increment} on sub-fields for BDB tables.
 @item
 Added @code{ANALYZE} of BDB tables.
 @item
-Store in BDB tables the number of rows; This helps to optimize queries
+In BDB tables, we now store the number of rows; This helps to optimize queries
 when we need an approximation of the number of rows.
 @item
 If we get an error in a multi-row statement, we now only rollback the
@@ -40792,7 +40792,7 @@ slave server restart.
 @item
 @code{SHOW KEYS} now shows whether or not key is @code{FULLTEXT}.
 @item
-New script @code{mysqld_multi}. @xref{mysqld_multi}.
+New script @file{mysqld_multi}. @xref{mysqld_multi}.
 @item
 Added new script, @file{mysql-multi.server.sh}.  Thanks to
 Tim Bunce @email{Tim.Bunce@@ig.co.uk} for modifying @file{mysql.server} to
@@ -40814,12 +40814,12 @@ Added a warning if number of rows changes on @code{REPAIR}/@code{OPTIMIZE}.
 Applied patches for OS/2 by @code{Yuri Dario}.
 @item
 @code{FLUSH TABLES table_name} didn't always flush the index tree
-properly to disk.
+to disk properly.
 @item
-@code{--bootstrap} is now run in a separate thread. This fixes the problem
-that @code{mysql_install_db} core dumped on some Linux machines.
+@code{--bootstrap} is now run in a separate thread. This fixes a problem
+that caused @code{mysql_install_db} to core dump on some Linux machines.
 @item
-Changed @code{mi_create()} to use less stack.
+Changed @code{mi_create()} to use less stack space.
 @item
 Fixed bug with optimizer trying to over-optimize @code{MATCH} when used
 with @code{UNIQUE} key.
@@ -40853,10 +40853,10 @@ Fixed crash when automatic repair of @code{MyISAM} table failed.
 Fixed a major performance bug in the table locking code when one
 constantly had a LOT of @code{SELECT}, @code{UPDATE} and @code{INSERT}
 statements running. The symptom was that the @code{UPDATE} and
-@code{INSERT} queries was locked a long time while new @code{SELECT}
-statements where executed before the updates.
+@code{INSERT} queries were locked for a long time while new @code{SELECT}
+statements were executed before the updates.
 @item
-When reading options_files with @code{mysql_options()} the
+When reading @code{options_files} with @code{mysql_options()} the
 @code{return-found-rows} option was ignored.
 @item
 One can now specify @code{interactive-timeout} in the option file that
@@ -40866,7 +40866,7 @@ programs that run for a long time (like @code{mysqlhotcopy}) to use
 @item
 Added to the slow query log the time and the user name for each logged
 query. If you are using @code{--log-long-format} then also queries that
-are not using indexes are logged, even the query takes less than
+do not use an index are logged, even if the query takes less than
 @code{long_query_time} seconds.
 @item
 Fixed a problem in @code{LEFT JOIN} which caused all columns in a reference
@@ -40887,16 +40887,16 @@ the compiler submitted with RedHat 7.0. (Reported by Trond Eivind Glomsrød)
 @item
 The option @code{--skip-networking} now works properly on NT.
 @item
-Fixed long outstanding bug in the @code{ISAM} tables when a row with a length
+Fixed a long outstanding bug in the @code{ISAM} tables when a row with a length
 of more than 65K was shortened by a single byte.
 @item
-Fixed bug in @code{MyISAM} when running multiple updating processes on
+Fixed a bug in @code{MyISAM} when running multiple updating processes on
 the same table.
 @item
 Allow one to use @code{FLUSH TABLE tablename}.
 @item
 Added @code{--replicate-ignore-table}, @code{--replicate-do-table},
- @code{--replicate-wild-ignore-table}, @code{--replicate-wild-do-table}
+ @code{--replicate-wild-ignore-table}, @code{--replicate-wild-do-table}.
 @item
 Changed all log files to use our own @code{IO_CACHE} mechanism instead of
 @code{FILE} to avoid OS problems when there are many files open.
@@ -40931,8 +40931,7 @@ Fixed an overflow bug in the client code when using overly long database names.
 @code{timeout} seconds.
 @item
 @code{SLAVE START} did not work if you started with
-@code{--skip-slave-start} and had not explicitly run @code{CHANGE
-MASTER TO}.
+@code{--skip-slave-start} and had not explicitly run @code{CHANGE MASTER TO}.
 @item
 Fixed the output of @code{SHOW MASTER STATUS} to be consistent with
 @code{SHOW SLAVE STATUS}. (It now has no directory in the log name.)
@@ -40946,7 +40945,7 @@ shortage when compiled @code{--with-debug=full}.
 @item
 Fixed several coredumps in out-of-memory conditions.
 @item
-@code{SHOW SLAVE STATUS} was using an unititialized mutex if the slave had
+@code{SHOW SLAVE STATUS} was using an uninitialized mutex if the slave had
 not been started yet.
 @item
 Fixed bug in @code{ELT()} and @code{MAKE_SET()} when the query used
@@ -41055,7 +41054,7 @@ on a patch from John Jones.
 @appendixsubsec Changes in release 3.23.25
 @itemize @bullet
 @item
-Fixed that databasename works as second argument to @code{mysqlhotcopy}.
+Fixed that @code{databasename} works as second argument to @code{mysqlhotcopy}.
 @item
 @code{UMASK} and @code{UMASK_DIR} can now be specified in octal.
 @item
@@ -41811,8 +41810,6 @@ Fixed optimization bug in @code{SELECT ... LEFT JOIN ... key_column IS NULL},
 when @code{key_column} could contain @code{NULL} values.
 @item
 Fixed problem with 8-bit characters as separators in @code{LOAD DATA INFILE}.
-@item
-
 @end itemize
 
 @node News-3.23.8, News-3.23.7, News-3.23.9, News-3.23.x
@@ -42062,6 +42059,7 @@ Some configure issues to fix problems with big file system detection.
 @appendixsubsec Changes in release 3.23.3
 
 @itemize @bullet
+@item
 Added patches for MIT-pthreads on NetBSD.
 @item
 Fixed range bug in MyISAM.
@@ -42176,6 +42174,7 @@ Fixed some compilation problems.
 @appendixsubsec Changes in release 3.23.0
 
 @itemize @bullet
+@item
 A new table handler library (@code{MyISAM}) with a lot of new features.
 @xref{MyISAM}.
 @item
