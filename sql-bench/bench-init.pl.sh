@@ -38,7 +38,7 @@ require "$pwd/server-cfg" || die "Can't read Configuration file: $!\n";
 
 $|=1;				# Output data immediately
 
-$opt_skip_test=$opt_skip_create=$opt_skip_delete=$opt_verbose=$opt_fast_insert=$opt_lock_tables=$opt_debug=$opt_skip_delete=$opt_fast=$opt_force=$opt_log=$opt_use_old_results=$opt_help=$opt_odbc=$opt_small_test=$opt_small_tables=$opt_samll_key_tables=$opt_stage=$opt_old_headers=$opt_die_on_errors=0;
+$opt_skip_test=$opt_skip_create=$opt_skip_delete=$opt_verbose=$opt_fast_insert=$opt_lock_tables=$opt_debug=$opt_skip_delete=$opt_fast=$opt_force=$opt_log=$opt_use_old_results=$opt_help=$opt_odbc=$opt_small_test=$opt_small_tables=$opt_samll_key_tables=$opt_stage=$opt_old_headers=$opt_die_on_errors=$opt_tcpip=0;
 $opt_cmp=$opt_user=$opt_password="";
 $opt_server="mysql"; $opt_dir="output";
 $opt_host="localhost";$opt_database="test";
@@ -51,7 +51,7 @@ $log_prog_args=join(" ", skip_arguments(\@ARGV,"comments","cmp","server",
 					"user", "host", "database", "password",
 					"use-old-results","skip-test",
 					"machine", "dir", "suffix", "log"));
-GetOptions("skip-test=s","comments=s","cmp=s","server=s","user=s","host=s","database=s","password=s","loop-count=i","row-count=i","skip-create","skip-delete","verbose","fast-insert","lock-tables","debug","fast","force","field-count=i","regions=i","groups=i","time-limit=i","log","use-old-results","machine=s","dir=s","suffix=s","help","odbc","small-test","small-tables","small-key-tables","stage=i","old-headers","die-on-errors","create-options=s","hires") || usage();
+GetOptions("skip-test=s","comments=s","cmp=s","server=s","user=s","host=s","database=s","password=s","loop-count=i","row-count=i","skip-create","skip-delete","verbose","fast-insert","lock-tables","debug","fast","force","field-count=i","regions=i","groups=i","time-limit=i","log","use-old-results","machine=s","dir=s","suffix=s","help","odbc","small-test","small-tables","small-key-tables","stage=i","old-headers","die-on-errors","create-options=s","hires","tcpip") || usage();
 
 usage() if ($opt_help);
 $server=get_server($opt_server,$opt_host,$opt_database,$opt_odbc,
@@ -256,6 +256,17 @@ sub fetch_all_rows
   if (!$sth->execute)
   {
     print "\n" if ($opt_debug);
+    if (defined($server->{'error_on_execute_means_zero_rows'}) &&
+       !$server->abort_if_fatal_error())
+    {
+      if (defined($must_get_result) && $must_get_result)
+      {
+	die "Error: Query $query didn't return any rows\n";
+      }
+      $sth->finish;
+      print "0\n" if ($opt_debug);
+      return 0;
+    }
     die "Error occured with execute($query)\n -> $DBI::errstr\n";
     $sth->finish;
     return undef;
@@ -506,6 +517,11 @@ All benchmarks takes the following options:
   filename.  This can be used to run the benchmark multiple times with
   different server options without overwritten old files.
   When using --fast the suffix is automaticly set to '_fast'.
+
+--tcpip
+  Inform test suite that we are using TCP/IP to connect to the server. In
+  this case we can\t do many new connections in a row as we in this case may
+  fill the TCP/IP stack
 
 --time-limit (Default $opt_time_limit)
   How long a test loop is allowed to take, in seconds, before the end result

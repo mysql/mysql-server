@@ -73,13 +73,12 @@ static void init_signals(void)
 
 static inline bool end_active_trans(THD *thd)
 {
-  if (!(thd->options & OPTION_AUTO_COMMIT) ||
-      (thd->options & OPTION_BEGIN))
+  if (thd->options & (OPTION_NOT_AUTO_COMMIT | OPTION_BEGIN))
   {
+    thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE);
+    thd->server_status&= ~SERVER_STATUS_IN_TRANS;
     if (ha_commit(thd))
       return 1;
-    thd->options&= ~(ulong) (OPTION_BEGIN);
-    thd->server_status&= ~SERVER_STATUS_IN_TRANS;
   }
   return 0;
 }
@@ -576,6 +575,7 @@ bool do_command(THD *thd)
   thread_running++;
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
   thd->set_time();
+  thd->lex.options=0;				// We store status here
   switch(command) {
   case COM_INIT_DB:
     if (!mysql_change_db(thd,packet+1))
@@ -827,7 +827,7 @@ bool do_command(THD *thd)
   {
     if ((ulong) (thd->start_time - thd->time_after_lock) > long_query_time ||
 	((thd->lex.options &
-	  (OPTION_NO_INDEX_USED | OPTION_NO_GOOD_INDEX_USED)) &&
+	  (QUERY_NO_INDEX_USED | QUERY_NO_GOOD_INDEX_USED)) &&
 	 (specialflag & SPECIAL_LONG_LOG_FORMAT)))
     {
       long_query_count++;
@@ -1560,12 +1560,12 @@ mysql_execute_command(void)
 		       thd->options,(long) thd->default_select_limit));
 
     /* Check if auto_commit mode changed */
-    if ((org_options ^ lex->options) & OPTION_AUTO_COMMIT)
+    if ((org_options ^ lex->options) & OPTION_NOT_AUTO_COMMIT)
     {
-      if (!(org_options & OPTION_AUTO_COMMIT))
+      if ((org_options & OPTION_NOT_AUTO_COMMIT))
       {
 	/* We changed to auto_commit mode */
-	thd->options&= ~(ulong) (OPTION_BEGIN);
+	thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE);
 	thd->server_status|= SERVER_STATUS_AUTOCOMMIT;
 	if (ha_commit(thd))
 	{
@@ -1750,7 +1750,7 @@ mysql_execute_command(void)
       even if there is a problem with the OPTION_AUTO_COMMIT flag
       (Which of course should never happen...)
     */
-    thd->options&= ~(ulong) (OPTION_BEGIN);
+    thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE);
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
     if (!ha_commit(thd))
       send_ok(&thd->net);
@@ -1758,12 +1758,17 @@ mysql_execute_command(void)
       res= -1;
     break;
   case SQLCOM_ROLLBACK:
-    thd->options&= ~(ulong) (OPTION_BEGIN);
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
     if (!ha_rollback(thd))
-      send_ok(&thd->net);
+    {
+      if (thd->options & OPTION_STATUS_NO_TRANS_UPDATE)
+	send_warning(&thd->net,ER_WARNING_NOT_COMPLETE_ROLLBACK,0);
+      else
+	send_ok(&thd->net);
+    }
     else
       res= -1;
+    thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE);
     break;
   default:					/* Impossible */
     send_ok(&thd->net);

@@ -38,8 +38,7 @@
 # as such, and clarify ones such as "mediumint" with comments such as
 # "3-byte int" or "same as xxx".
 
-
-$version="1.51";
+$version="1.53";
 
 use DBI;
 use Getopt::Long;
@@ -51,6 +50,7 @@ $opt_dir="limits";
 $opt_debug=$opt_help=$opt_Information=$opt_restart=$opt_force=$opt_quick=0;
 $opt_log_all_queries=$opt_fix_limit_file=$opt_batch_mode=0;
 $opt_db_start_cmd="";           # the db server start command
+$opt_check_server=0;		# Check if server is alive before each query
 $opt_sleep=10;                  # time to sleep while starting the db server
 $limit_changed=0;               # For configure file
 $reconnect_count=0;
@@ -61,7 +61,7 @@ $limits{'operating_system'}= machine();
 $prompts{'operating_system'}='crash-me tested on';
 $retry_limit=3;
 
-GetOptions("Information","help","server=s","debug","user=s","password=s","database=s","restart","force","quick","log-all-queries","comment=s","host=s","fix-limit-file","dir=s","db-start-cmd=s","sleep=s","batch-mode","config-file=s","log-queries-to-file=s") || usage();
+GetOptions("Information","help","server=s","debug","user=s","password=s","database=s","restart","force","quick","log-all-queries","comment=s","host=s","fix-limit-file","dir=s","db-start-cmd=s","sleep=s","batch-mode","config-file=s","log-queries-to-file=s","check-server") || usage();
 usage() if ($opt_help || $opt_Information);
 
 $opt_config_file="$pwd/$opt_dir/$opt_server.cfg" if (length($opt_config_file) == 0);
@@ -136,6 +136,7 @@ $max_stacked_expressions="+2000";
 $query_size=$max_buffer_size;
 $longreadlen=16000000;		# For retrieval buffer
 
+
 #
 # First do some checks that needed for the rest of the benchmark
 #
@@ -143,11 +144,43 @@ use sigtrap;		       # Must be removed with perl5.005_2 on Win98
 $SIG{PIPE} = 'IGNORE';
 $SIG{SEGV} = sub {warn('SEGFAULT')};
 $dbh=safe_connect();
-$dbh->do("drop table crash_me");        # Remove old run
-$dbh->do("drop table crash_me2");        # Remove old run
-$dbh->do("drop table crash_me3");        # Remove old run
-$dbh->do("drop table crash_q");         # Remove old run
-$dbh->do("drop table crash_q1");         # Remove old run
+
+#
+# Test if the database require RESTRICT/CASCADE after DROP TABLE
+#
+
+# Really remove the crash_me table
+$prompt="drop table require cascade/restrict";
+$drop_attr="";
+$dbh->do("drop table crash_me");
+$dbh->do("drop table crash_me cascade");
+if (!safe_query(["create table crash_me (a integer not null)",
+		 "drop table crash_me"]))
+{
+  $dbh->do("drop table crash_me cascade");  
+  if (safe_query(["create table crash_me (a integer not null)",
+		  "drop table crash_me cascade"]))
+  {
+    save_config_data('drop_requires_cascade',"yes","$prompt");
+    $drop_attr="cascade";
+  }
+  else
+  {
+    die "Can't create and drop table 'crash_me'\n";
+  }
+}
+else
+{
+  save_config_data('drop_requires_cascade',"no","$prompt");
+  $drop_attr="";
+}
+
+# Remove tables from old runs
+$dbh->do("drop table crash_me $drop_attr");
+$dbh->do("drop table crash_me2 $drop_attr");
+$dbh->do("drop table crash_me3 $drop_attr");
+$dbh->do("drop table crash_q $drop_attr");
+$dbh->do("drop table crash_q1 $drop_attr");
 
 $prompt="Tables without primary key";
 if (!safe_query(["create table crash_me (a integer not null,b char(10) not null)",
@@ -164,6 +197,7 @@ else
 {
   save_config_data('no_primary_key',"yes",$prompt);
 }
+
 #
 #  Define strings for character NULL and numeric NULL used in expressions
 #
@@ -222,28 +256,33 @@ report("Group by position",'group_by_position',
        "select a from crash_me group by 1");
 report("Group by alias",'group_by_alias',
        "select a as ab from crash_me group by ab");
+report("Group on unused column",'group_on_unused',
+       "select count(*) from crash_me group by a");
+
 report("Order by",'order_by',"select a from crash_me order by a");
 report("Order by position",'order_by_position',
        "select a from crash_me order by 1");
 report("Order by function","order_by_function",
        "select a from crash_me order by a+1");
+report("Order by on unused column",'order_on_unused',
+       "select b from crash_me order by a");
 check_and_report("Order by DESC is remembered",'order_by_remember_desc',
 		 ["create table crash_q (s int,s1 int)",
 		  "insert into crash_q values(1,1)",
 		  "insert into crash_q values(3,1)",
 		  "insert into crash_q values(2,1)"],
 		 "select s,s1 from crash_q order by s1 DESC,s",
-		 ["drop table crash_q"],[3,2,1],7,undef(),3);
+		 ["drop table crash_q $drop_attr"],[3,2,1],7,undef(),3);
 report("Compute",'compute',
        "select a from crash_me order by a compute sum(a) by a");
 report("Value lists in INSERT",'multi_value_insert',
        "create table crash_q (s char(10))",
        "insert into crash_q values ('a'),('b')",
-       "drop table crash_q");
+       "drop table crash_q $drop_attr");
 report("INSERT with set syntax",'insert_with_set',
        "create table crash_q (a integer)",
        "insert into crash_q SET a=1",
-       "drop table crash_q");
+       "drop table crash_q $drop_attr");
 report("allows end ';'","end_colon", "select * from crash_me;");
 try_and_report("LIMIT number of rows","select_limit",
 	       ["with LIMIT",
@@ -253,7 +292,7 @@ try_and_report("LIMIT number of rows","select_limit",
 report("SELECT with LIMIT #,#","select_limit2", "select * from crash_me limit 1,1");
 
 # The following alter table commands MUST be kept together!
-if ($dbh->do("create table crash_q (a integer, b integer,c CHAR(10))"))
+if ($dbh->do("create table crash_q (a integer, b integer,c1 CHAR(10))"))
 {
   report("Alter table add column",'alter_add_col',
 	 "alter table crash_q add d integer");
@@ -266,11 +305,10 @@ if ($dbh->do("create table crash_q (a integer, b integer,c CHAR(10))"))
 
   # informix can only change data type with modify
   report_one("Alter table modify column",'alter_modify_col',
-	     [["alter table crash_q modify c CHAR(20)","yes"],
-	      ["alter table crash_q alter c CHAR(20)","with alter"]]);
+	     [["alter table crash_q modify c1 CHAR(20)","yes"],
+	      ["alter table crash_q alter c1 CHAR(20)","with alter"]]);
   report("Alter table alter column default",'alter_alter_col',
-	 "alter table crash_q alter b set default 10",
-	 "alter table crash_q alter b set default NULL");
+	 "alter table crash_q alter b set default 10");
   report_one("Alter table drop column",'alter_drop_col',
 	     [["alter table crash_q drop column b","yes"],
 	      ["alter table crash_q drop column b restrict","with restrict/cascade"]]);
@@ -278,46 +316,51 @@ if ($dbh->do("create table crash_q (a integer, b integer,c CHAR(10))"))
 	 "alter table crash_q rename to crash_q1");
 }
 # Make sure both tables will be dropped, even if rename fails.
-$dbh->do("drop table crash_q1");
-$dbh->do("drop table crash_q");
+$dbh->do("drop table crash_q1 $drop_attr");
+$dbh->do("drop table crash_q $drop_attr");
 
 report("rename table","rename_table",
-       "create table crash_q (a integer, b integer,c CHAR(10))",
+       "create table crash_q (a integer, b integer,c1 CHAR(10))",
        "rename table crash_q to crash_q1",
-       "drop table crash_q1");
+       "drop table crash_q1 $drop_attr");
 # Make sure both tables will be dropped, even if rename fails.
-$dbh->do("drop table crash_q1");
-$dbh->do("drop table crash_q");
+$dbh->do("drop table crash_q1 $drop_attr");
+$dbh->do("drop table crash_q $drop_attr");
 
 report("truncate","truncate_table",
-       "create table crash_q (a integer, b integer,c CHAR(10))",
+       "create table crash_q (a integer, b integer,c1 CHAR(10))",
        "truncate crash_q",
-       "drop table crash_q");
+       "drop table crash_q $drop_attr");
 
-if ($dbh->do("create table crash_q (a integer, b integer,c CHAR(10))") &&
-    $dbh->do("create table crash_q1 (a integer, b integer,c CHAR(10) not null)"))
+if ($dbh->do("create table crash_q (a integer, b integer,c1 CHAR(10))") &&
+    $dbh->do("create table crash_q1 (a integer, b integer,c1 CHAR(10) not null)"))
 {
   report("Alter table add constraint",'alter_add_constraint',
-	 "alter table crash_q add constraint c1 check(a > b)");
-  report("Alter table drop constraint",'alter_drop_constraint',
-	 "alter table crash_q drop constraint c1");
+	 "alter table crash_q add constraint c2 check(a > b)");
+  report_one("Alter table drop constraint",'alter_drop_constraint',
+	     [["alter table crash_q drop constraint c2","yes"],
+	      ["alter table crash_q drop constraint c2 restrict","with restrict/cascade"]]);
   report("Alter table add unique",'alter_add_unique',
-	 "alter table crash_q add constraint u1 unique(c)");
+	 "alter table crash_q add constraint u1 unique(c1)");
   try_and_report("Alter table drop unique",'alter_drop_unique',
 		 ["with constraint",
 		  "alter table crash_q drop constraint u1"],
+		 ["with constraint and restrict/cascade",
+		  "alter table crash_q drop constraint u1 restrict"],
 		 ["with drop key",
-		  "alter table crash_q drop key c"]);
+		  "alter table crash_q drop key c1"]);
   try_and_report("Alter table add primary key",'alter_add_primary_key',
 		 ["with constraint",
-		  "alter table crash_q1 add constraint p1 primary key(c)"],
+		  "alter table crash_q1 add constraint p1 primary key(c1)"],
 		 ["with add primary key",
-		  "alter table crash_q1 add primary key(c)"]);
+		  "alter table crash_q1 add primary key(c1)"]);
   report("Alter table add foreign key",'alter_add_foreign_key',
-	 "alter table crash_q add constraint f1 foreign key(c) references crash_q1(c)");
+	 "alter table crash_q add constraint f1 foreign key(c1) references crash_q1(c1)");
   try_and_report("Alter table drop foreign key",'alter_drop_foreign_key',
 		 ["with drop constraint",
 		  "alter table crash_q drop constraint f1"],
+		 ["with drop constraint and restrict/cascade",
+		  "alter table crash_q drop constraint f1 restrict"],
 		 ["with drop foreign key",
 		  "alter table crash_q drop foreign key f1"]);
   try_and_report("Alter table drop primary key",'alter_drop_primary_key',
@@ -326,8 +369,8 @@ if ($dbh->do("create table crash_q (a integer, b integer,c CHAR(10))") &&
 		 ["drop primary key",
 		  "alter table crash_q1 drop primary key"]);
 }
-$dbh->do("drop table crash_q");
-$dbh->do("drop table crash_q1");
+$dbh->do("drop table crash_q $drop_attr");
+$dbh->do("drop table crash_q1 $drop_attr");
 
 check_and_report("case insensitive compare","case_insensitive_strings",
 		 [],"select b from crash_me where b = 'A'",[],'a',1);
@@ -337,8 +380,8 @@ check_and_report("group on column with null values",'group_by_null',
 		 ["create table crash_q (s char(10))",
 		  "insert into crash_q values(null)",
 		  "insert into crash_q values(null)"],
-		 "select count(*) from crash_q group by s",
-		 ["drop table crash_q"],2,0);
+		 "select count(*),s from crash_q group by s",
+		 ["drop table crash_q $drop_attr"],2,0);
 
 $prompt="Having";
 if (!defined($limits{'having'}))
@@ -563,7 +606,7 @@ foreach $types (@types)
     $tmp2 =~ s/_not_null//g;
     report("Type $type","type_$types->[0]_$tmp2",
 	   "create table crash_q (q $use_type)",
-	   "drop table crash_q");
+	   "drop table crash_q $drop_attr");
   }
 }
 
@@ -575,7 +618,7 @@ check_and_report("Remembers end space in char()","remember_end_space",
 		 ["create table crash_q (a char(10))",
 		  "insert into crash_q values('hello ')"],
 		 "select a from crash_q where a = 'hello '",
-		 ["drop table crash_q"],
+		 ["drop table crash_q $drop_attr"],
 		 'hello ',6);
 
 check_and_report("Remembers end space in varchar()",
@@ -583,35 +626,35 @@ check_and_report("Remembers end space in varchar()",
 		 ["create table crash_q (a varchar(10))",
 		  "insert into crash_q values('hello ')"],
 		 "select a from crash_q where a = 'hello '",
-		 ["drop table crash_q"],
+		 ["drop table crash_q $drop_attr"],
 		 'hello ',6);
 
 check_and_report("Supports 0000-00-00 dates","date_zero",
 		 ["create table crash_me2 (a date not null)",
 		  "insert into crash_me2 values ('0000-00-00')"],
 		 "select a from crash_me2",
-		 ["drop table crash_me2"],
+		 ["drop table crash_me2 $drop_attr"],
 		 "0000-00-00",1);
 
 check_and_report("Supports 0001-01-01 dates","date_one",
 		 ["create table crash_me2 (a date not null)",
 		  "insert into crash_me2 values (DATE '0001-01-01')"],
 		 "select a from crash_me2",
-		 ["drop table crash_me2"],
+		 ["drop table crash_me2 $drop_attr"],
 		 "0001-01-01",1);
 
 check_and_report("Supports 9999-12-31 dates","date_last",
 		 ["create table crash_me2 (a date not null)",
 		  "insert into crash_me2 values (DATE '9999-12-31')"],
 		 "select a from crash_me2",
-		 ["drop table crash_me2"],
+		 ["drop table crash_me2 $drop_attr"],
 		 "9999-12-31",1);
 
 check_and_report("Supports 'infinity dates","date_infinity",
 		 ["create table crash_me2 (a date not null)",
 		  "insert into crash_me2 values ('infinity')"],
 		 "select a from crash_me2",
-		 ["drop table crash_me2"],
+		 ["drop table crash_me2 $drop_attr"],
 		 "infinity",1);
 
 if (!defined($limits{'date_with_YY'}))
@@ -620,7 +663,7 @@ if (!defined($limits{'date_with_YY'}))
 		     ["create table crash_me2 (a date not null)",
 		      "insert into crash_me2 values ('98-03-03')"],
 		     "select a from crash_me2",
-		     ["drop table crash_me2"],
+		     ["drop table crash_me2 $drop_attr"],
 		     "1998-03-03",5);
     if ($limits{'date_with_YY'} eq "yes")
     {
@@ -630,7 +673,7 @@ if (!defined($limits{'date_with_YY'}))
 			 ["create table crash_me2 (a date not null)",
 			  "insert into crash_me2 values ('10-03-03')"],
 			 "select a from crash_me2",
-			 ["drop table crash_me2"],
+			 ["drop table crash_me2 $drop_attr"],
 			 "2010-03-03",5);
     }
 }
@@ -645,33 +688,33 @@ if (($limits{'type_extra_float(2_arg)'} eq "yes" ||
   if (execute_and_check(["create table crash_q (q1 $type)",
 			 "insert into crash_q values(1.14)"],
 			"select q1 from crash_q",
-			["drop table crash_q"],1.1,0) &&
+			["drop table crash_q $drop_attr"],1.1,0) &&
       execute_and_check(["create table crash_q (q1 $type)",
 			 "insert into crash_q values(1.16)"],
 			"select q1 from crash_q",
-			["drop table crash_q"],1.1,0))
+			["drop table crash_q $drop_attr"],1.1,0))
   {
     $result="truncate";
   }
   elsif (execute_and_check(["create table crash_q (q1 $type)",
 			    "insert into crash_q values(1.14)"],
 			   "select q1 from crash_q",
-			   ["drop table crash_q"],1.1,0) &&
+			   ["drop table crash_q $drop_attr"],1.1,0) &&
 	 execute_and_check(["create table crash_q (q1 $type)",
 			    "insert into crash_q values(1.16)"],
 			   "select q1 from crash_q",
-			   ["drop table crash_q"],1.2,0))
+			   ["drop table crash_q $drop_attr"],1.2,0))
   {
     $result="round";
   }
   elsif (execute_and_check(["create table crash_q (q1 $type)",
 			    "insert into crash_q values(1.14)"],
 			   "select q1 from crash_q",
-			   ["drop table crash_q"],1.14,0) &&
+			   ["drop table crash_q $drop_attr"],1.14,0) &&
 	 execute_and_check(["create table crash_q (q1 $type)",
 			    "insert into crash_q values(1.16)"],
 			   "select q1 from crash_q",
-			   ["drop table crash_q"],1.16,0))
+			   ["drop table crash_q $drop_attr"],1.16,0))
   {
     $result="exact";
   }
@@ -682,20 +725,20 @@ if (($limits{'type_extra_float(2_arg)'} eq "yes" ||
 
 try_and_report("Type for row id", "rowid",
 	       ["rowid",
-		"create table crash_q (a rowid)","drop table crash_q"],
+		"create table crash_q (a rowid)","drop table crash_q $drop_attr"],
 	       ["auto_increment",
-		"create table crash_q (a int not null auto_increment, primary key(a))","drop table crash_q"],
+		"create table crash_q (a int not null auto_increment, primary key(a))","drop table crash_q $drop_attr"],
 	       ["oid",
-		"create table crash_q (a oid, primary key(a))","drop table crash_q"],
+		"create table crash_q (a oid, primary key(a))","drop table crash_q $drop_attr"],
 	       ["serial",
-		"create table crash_q (a serial, primary key(a))","drop table crash_q"]);
+		"create table crash_q (a serial, primary key(a))","drop table crash_q $drop_attr"]);
 
 try_and_report("Automatic rowid", "automatic_rowid",
 	       ["_rowid",
 		"create table crash_q (a int not null, primary key(a))",
 		"insert into crash_q values (1)",
 		"select _rowid from crash_q",
-		"drop table crash_q"]);
+		"drop table crash_q $drop_attr"]);
 
 #
 # Test functions
@@ -1081,19 +1124,19 @@ report("LIKE on numbers","like_with_number",
        "create table crash_q (a int,b int)",
        "insert into crash_q values(10,10)",
        "select * from crash_q where a like '10'",
-       "drop table crash_q");
+       "drop table crash_q $drop_attr");
 
 report("column LIKE column","like_with_column",
        "create table crash_q (a char(10),b char(10))",
        "insert into crash_q values('abc','abc')",
        "select * from crash_q where a like b",
-       "drop table crash_q");
+       "drop table crash_q $drop_attr");
 
 report("update of column= -column","NEG",
        "create table crash_q (a integer)",
        "insert into crash_q values(10)",
        "update crash_q set a=-a",
-       "drop table crash_q");
+       "drop table crash_q $drop_attr");
 
 if ($limits{'func_odbc_left'} eq 'yes' ||
     $limits{'func_odbc_substring'} eq 'yes')
@@ -1105,7 +1148,7 @@ if ($limits{'func_odbc_left'} eq 'yes' ||
 		     ["create table crash_me2 (a date not null)",
 		      "insert into crash_me2 values ('1998-03-03')"],
 		     "select $type from crash_me2",
-		     ["drop table crash_me2"],
+		     ["drop table crash_me2 $drop_attr"],
 		     "1998",1);
 }
 
@@ -1125,7 +1168,7 @@ if (!defined($limits{'multi_table_update'}))
 		    "insert into crash_q values(1,'c')",
 		    "update crash_q left join crash_me on crash_q.a=crash_me.a set crash_q.b=crash_me.b"],
 		   "select b from crash_q",
-		   ["drop table crash_q"],
+		   ["drop table crash_q $drop_attr"],
 		   "a",1,undef(),2))
   {
     check_and_report("Update with many tables","multi_table_update",
@@ -1133,7 +1176,7 @@ if (!defined($limits{'multi_table_update'}))
 		      "insert into crash_q values(1,'c')",
 		      "update crash_q,crash_me set crash_q.b=crash_me.b where crash_q.a=crash_me.a"],
 		     "select b from crash_q",
-		     ["drop table crash_q"],
+		     ["drop table crash_q $drop_attr"],
 		     "a",1,
 		    1);
   }
@@ -1143,14 +1186,14 @@ report("DELETE FROM table1,table2...","multi_table_delete",
        "create table crash_q (a integer,b char(10))",
        "insert into crash_q values(1,'c')",
        "delete crash_q.* from crash_q,crash_me where crash_q.a=crash_me.a",
-       "drop table crash_q");
+       "drop table crash_q $drop_attr");
 
 check_and_report("Update with sub select","select_table_update",
 		 ["create table crash_q (a integer,b char(10))",
 		  "insert into crash_q values(1,'c')",
 		  "update crash_q set b= (select b from crash_me where crash_q.a = crash_me.a)"],
 		 "select b from crash_q",
-		 ["drop table crash_q"],
+		 ["drop table crash_q $drop_attr"],
 		 "a",1);
 
 check_and_report("Calculate 1--1","minus_neg",[],
@@ -1178,7 +1221,7 @@ if (defined($found))
 	     new query_many(["create table crash_q (q $found)",
 			     "insert into crash_q values ('%s')"],
 			    "select * from crash_q","%s",
-			    ["drop table crash_q"],
+			    ["drop table crash_q $drop_attr"],
 			    min($max_string_size,$limits{'query_size'}-30)));
 
 }
@@ -1187,8 +1230,8 @@ if (defined($found))
 # what can be stored...
 
 find_limit(($prompt="constant string size in where"),"where_string_size",
-	   new query_repeat([],"select a from crash_me where b <'",
-			    "","","a","","'"));
+	   new query_repeat([],"select a from crash_me where b >='",
+			    "","","1","","'"));
 if ($limits{'where_string_size'} == 10)
 {
   save_config_data('where_string_size','nonstandard',$prompt);
@@ -1251,11 +1294,11 @@ find_limit("tables in join", "join_tables",
 
 report("primary key in create table",'primary_key_in_create',
        "create table crash_q (q integer not null,primary key (q))",
-       "drop table crash_q");
+       "drop table crash_q $drop_attr");
 
 report("unique in create table",'unique_in_create',
        "create table crash_q (q integer not null,unique (q))",
-       "drop table crash_q");
+       "drop table crash_q $drop_attr");
 
 if ($limits{'unique_in_create'} eq 'yes')
 {
@@ -1264,29 +1307,29 @@ if ($limits{'unique_in_create'} eq 'yes')
 	 "insert into crash_q (q) values (NULL)",
 	 "insert into crash_q (q) values (NULL)",
 	 "insert into crash_q (q) values (1)",
-	 "drop table crash_q");
+	 "drop table crash_q $drop_attr");
 }
 
 report("default value for column",'create_default',
        "create table crash_q (q integer default 10 not null)",
-       "drop table crash_q");
+       "drop table crash_q $drop_attr");
 
 report("default value function for column",'create_default_func',
        "create table crash_q (q integer not null,q1 integer default (1+1)",
-       "drop table crash_q");
+       "drop table crash_q $drop_attr");
 
 report("temporary tables",'tempoary_table',
        "create temporary table crash_q (q integer not null)",
-       "drop table crash_q");
+       "drop table crash_q $drop_attr");
 
 report_one("create table from select",'create_table_select',
 	   [["create table crash_q SELECT * from crash_me","yes"],
 	    ["create table crash_q AS SELECT * from crash_me","with AS"]]);
-$dbh->do("drop table crash_q");
+$dbh->do("drop table crash_q $drop_attr");
 
 report("index in create table",'index_in_create',
        "create table crash_q (q integer not null,index (q))",
-       "drop table crash_q");
+       "drop table crash_q $drop_attr");
 
 # The following must be executed as we need the value of end_drop_keyword
 # later
@@ -1345,7 +1388,7 @@ check_and_report("null in index","null_in_index",
 		 [create_table("crash_q",["a char(10)"],["(a)"]),
 		  "insert into crash_q values (NULL)"],
 		 "select * from crash_q",
-		 ["drop table crash_q"],
+		 ["drop table crash_q $drop_attr"],
 		 undef(),4);
 
 if ($limits{'unique_in_create'} eq 'yes')
@@ -1354,7 +1397,12 @@ if ($limits{'unique_in_create'} eq 'yes')
           create_table("crash_q",["q integer"],["unique(q)"]),
 	 "insert into crash_q (q) values(NULL)",
 	 "insert into crash_q (q) values(NULL)",
-	 "drop table crash_q");
+	 "drop table crash_q $drop_attr");
+  report("null combination in unique index",'nulls_in_unique',
+          create_table("crash_q",["q integer,q1 integer"],["unique(q)"]),
+	 "insert into crash_q (q,q1) values(1,NULL)",
+	 "insert into crash_q (q,q1) values(1,NULL)",
+	 "drop table crash_q $drop_attr");
 }
 
 if ($limits{'null_in_unique'} eq 'yes')
@@ -1363,7 +1411,7 @@ if ($limits{'null_in_unique'} eq 'yes')
           create_table("crash_q",["q integer, x integer"],["unique(q)"]),
 	 "insert into crash_q(x) values(1)",
 	 "insert into crash_q(x) values(2)",
-	 "drop table crash_q");
+	 "drop table crash_q $drop_attr");
 }
 
 if ($limits{'create_index'} ne 'no')
@@ -1385,29 +1433,29 @@ if ($limits{'create_index'} ne 'no')
 
 if (!report("case independent table names","table_name_case",
 	    "create table crash_q (q integer)",
-	    "drop table CRASH_Q"))
+	    "drop table CRASH_Q $drop_attr"))
 {
-  safe_query("drop table crash_q");
+  safe_query("drop table crash_q $drop_attr");
 }
 
 if (!report("drop table if exists","drop_if_exists",
 	    "create table crash_q (q integer)",
-	    "drop table if exists crash_q"))
+	    "drop table if exists crash_q $drop_attr"))
 {
-  safe_query("drop table crash_q");
+  safe_query("drop table crash_q $drop_attr");
 }
 
 report("create table if not exists","create_if_not_exists",
        "create table crash_q (q integer)",
        "create table if not exists crash_q (q integer)");
-safe_query("drop table crash_q");
+safe_query("drop table crash_q $drop_attr");
 
 #
 # test of different join types
 #
 
-assert("create table crash_me2 (a integer not null,b char(10) not null, c integer)");
-assert("insert into crash_me2 (a,b,c) values (1,'b',1)");
+assert("create table crash_me2 (a integer not null,b char(10) not null, c1 integer)");
+assert("insert into crash_me2 (a,b,c1) values (1,'b',1)");
 assert("create table crash_me3 (a integer not null,b char(10) not null)");
 assert("insert into crash_me3 (a,b) values (1,'b')");
 
@@ -1416,9 +1464,9 @@ report("inner join","inner_join",
 report("left outer join","left_outer_join",
        "select crash_me.a from crash_me left join crash_me2 ON crash_me.a=crash_me2.a");
 report("natural left outer join","natural_left_outer_join",
-       "select c from crash_me natural left join crash_me2");
+       "select c1 from crash_me natural left join crash_me2");
 report("left outer join using","left_outer_join_using",
-       "select c from crash_me left join crash_me2 using (a)");
+       "select c1 from crash_me left join crash_me2 using (a)");
 report("left outer join odbc style","odbc_left_outer_join",
        "select crash_me.a from { oj crash_me left outer join crash_me2 ON crash_me.a=crash_me2.a }");
 report("right outer join","right_outer_join",
@@ -1449,7 +1497,7 @@ report("minus","minus",
        "select * from crash_me minus select * from crash_me3"); # oracle ...
 
 report("natural join (incompatible lists)","natural_join_incompat",
-       "select c from crash_me natural join crash_me2");
+       "select c1 from crash_me natural join crash_me2");
 report("union (incompatible lists)","union_incompat",
        "select * from crash_me union select a,b from crash_me2");
 report("union all (incompatible lists)","union_all_incompat",
@@ -1469,8 +1517,8 @@ report("except all (incompatible lists)","except_all_incompat",
 report("minus (incompatible lists)","minus_incompat",
        "select * from crash_me minus select * from crash_me2"); # oracle ...
 
-assert("drop table crash_me2");
-assert("drop table crash_me3");
+assert("drop table crash_me2 $drop_attr");
+assert("drop table crash_me3 $drop_attr");
 
 # somethings to be added here ....
 # FOR UNION - INTERSECT - EXCEPT -> CORRESPONDING [ BY ]
@@ -1489,13 +1537,13 @@ if (report("subqueries","subqueries",
 report("insert INTO ... SELECT ...","insert_select",
        "create table crash_q (a int)",
        "insert into crash_q (a) SELECT crash_me.a from crash_me",
-       "drop table crash_q");
+       "drop table crash_q $drop_attr");
 
 report_trans("transactions","transactions",
 	     [create_table("crash_q",["a integer not null"],[]),
 	      "insert into crash_q values (1)"],
 	     "select * from crash_q",
-	     "drop table crash_q"
+	     "drop table crash_q $drop_attr"
 	    );
 
 report("atomic updates","atomic_updates",
@@ -1504,7 +1552,7 @@ report("atomic updates","atomic_updates",
        "insert into crash_q values (3)",
        "insert into crash_q values (1)",
        "update crash_q set a=a+1",
-       "drop table crash_q");
+       "drop table crash_q $drop_attr");
 
 if ($limits{'atomic_updates'} eq 'yes')
 {
@@ -1515,14 +1563,14 @@ if ($limits{'atomic_updates'} eq 'yes')
 	      "insert into crash_q values (3)",
 	      "insert into crash_q values (1)",
 	      "update crash_q set a=a+1 where a < 3",
-	      "drop table crash_q");
+	      "drop table crash_q $drop_attr");
 }
 
 # To add with the views:
 # DROP VIEW - CREAT VIEW *** [ WITH [ CASCADE | LOCAL ] CHECK OPTION ]
 report("views","views",
        "create view crash_q as select a from crash_me",
-       "drop view crash_q");
+       "drop view crash_q $drop_attr");
 
 report("foreign key syntax","foreign_key_syntax",
        create_table("crash_q",["a integer not null"],["primary key (a)"]),
@@ -1531,8 +1579,8 @@ report("foreign key syntax","foreign_key_syntax",
 		    []),
        "insert into crash_q values (1)",
        "insert into crash_q2 values (1)",
-       "drop table crash_q2",
-       "drop table crash_q");
+       "drop table crash_q2 $drop_attr",
+       "drop table crash_q $drop_attr");
 
 if ($limits{'foreign_key_syntax'} eq 'yes')
 {
@@ -1544,8 +1592,8 @@ if ($limits{'foreign_key_syntax'} eq 'yes')
 			   []),
 	      "insert into crash_q values (1)",
 	      "insert into crash_q2 values (2)",
-	      "drop table crash_q2",
-	      "drop table crash_q");
+	      "drop table crash_q2 $drop_attr",
+	      "drop table crash_q $drop_attr");
 }
 
 report("Create SCHEMA","create_schema",
@@ -1564,40 +1612,40 @@ if ($limits{'foreign_key'} eq 'yes')
 
 report("Column constraints","constraint_check",
        "create table crash_q (a int check (a>0))",
-       "drop table crash_q");
+       "drop table crash_q $drop_attr");
 
 report("Table constraints","constraint_check_table",
        "create table crash_q (a int ,b int, check (a>b))",
-       "drop table crash_q");
+       "drop table crash_q $drop_attr");
 
 report("Named constraints","constraint_check",
        "create table crash_q (a int ,b int, constraint abc check (a>b))",
-       "drop table crash_q");
+       "drop table crash_q $drop_attr");
 
 report("NULL constraint (SyBase style)","constraint_null",
        "create table crash_q (a int null)",
-       "drop table crash_q");
+       "drop table crash_q $drop_attr");
 
 report("Triggers (ANSI SQL)","psm_trigger",
        "create table crash_q (a int ,b int)",
        "create trigger crash_trigger after insert on crash_q referencing new table as new_a when (localtime > time '18:00:00') begin atomic end",
        "insert into crash_q values(1,2)",
        "drop trigger crash_trigger",
-       "drop table crash_q");
+       "drop table crash_q $drop_attr");
 
 report("PSM procedures (ANSI SQL)","psm_procedures",
        "create table crash_q (a int,b int)",
        "create procedure crash_proc(in a1 int, in b1 int) language sql modifies sql data begin declare c1 int; set c1 = a1 + b1; insert into crash_q(a,b) values (a1,c1); end",
        "call crash_proc(1,10)",
        "drop procedure crash_proc",
-       "drop table crash_q");
+       "drop table crash_q $drop_attr");
 
 report("PSM modules (ANSI SQL)","psm_modules",
        "create table crash_q (a int,b int)",
        "create module crash_m declare procedure crash_proc(in a1 int, in b1 int) language sql modifies sql data begin declare c1 int; set c1 = a1 + b1; insert into crash_q(a,b) values (a1,c1); end; declare procedure crash_proc2(INOUT a int, in b int) contains sql set a = b + 10; end module",
        "call crash_proc(1,10)",
        "drop module crash_m cascade",
-       "drop table crash_q cascade");
+       "drop table crash_q cascade $drop_attr");
 
 report("PSM functions (ANSI SQL)","psm_functions",
        "create table crash_q (a int)",
@@ -1605,14 +1653,14 @@ report("PSM functions (ANSI SQL)","psm_functions",
        "insert into crash_q values(crash_func(2,4))",
        "select a,crash_func(a,2) from crash_q",
        "drop function crash_func cascade",
-       "drop table crash_q");
+       "drop table crash_q $drop_attr");
 
 report("Domains (ANSI SQL)","domains",
        "create domain crash_d as varchar(10) default 'Empty' check (value <> 'abcd')",
        "create table crash_q(a crash_d, b int)",
        "insert into crash_q(a,b) values('xyz',10)",
        "insert into crash_q(b) values(10)",
-       "drop table crash_q",
+       "drop table crash_q $drop_attr",
        "drop domain crash_d");
 
 
@@ -1632,10 +1680,17 @@ if (!defined($limits{'lock_tables'}))
 if (!report("many tables to drop table","multi_drop",
 	   "create table crash_q (a int)",
 	   "create table crash_q2 (a int)",
-	   "drop table crash_q,crash_q2"))
+	   "drop table crash_q,crash_q2 $drop_attr"))
 {
-  $dbh->do("drop table crash_q");
-  $dbh->do("drop table crash_q2");
+  $dbh->do("drop table crash_q $drop_attr");
+  $dbh->do("drop table crash_q2 $drop_attr");
+}
+
+if (!report("drop table with cascade/restrict","drop_restrict",
+	   "create table crash_q (a int)",
+	   "drop table crash_q restrict"))
+{
+  $dbh->do("drop table crash_q $drop_attr");
 }
 
 
@@ -1656,13 +1711,13 @@ report("/* */ as comment","comment_/**/",
 report("insert empty string","insert_empty_string",
        create_table("crash_q",["a char(10) not null,b char(10)"],[]),
        "insert into crash_q values ('','')",
-       "drop table crash_q");
+       "drop table crash_q $drop_attr");
 
 report("Having with alias","having_with_alias",
        create_table("crash_q",["a integer"],[]),
        "insert into crash_q values (10)",
        "select sum(a) as b from crash_q group by a having b > 0",
-       "drop table crash_q");
+       "drop table crash_q $drop_attr");
 
 #
 # test name limits
@@ -1672,14 +1727,14 @@ find_limit("table name length","max_table_name",
 	   new query_many(["create table crash_q%s (q integer)",
 			   "insert into crash_q%s values(1)"],
 			   "select * from crash_q%s",1,
-			   ["drop table crash_q%s"],
+			   ["drop table crash_q%s $drop_attr"],
 			   $max_name_length,7,1));
 
 find_limit("column name length","max_column_name",
 	   new query_many(["create table crash_q (q%s integer)",
 			  "insert into crash_q (q%s) values(1)"],
 			  "select q%s from crash_q",1,
-			  ["drop table crash_q"],
+			  ["drop table crash_q $drop_attr"],
 			   $max_name_length,1));
 
 if ($limits{'column_alias'} eq 'yes')
@@ -1714,7 +1769,7 @@ find_limit("max char() size","max_char_size",
 	   new query_many(["create table crash_q (q char(%d))",
 			   "insert into crash_q values ('%s')"],
 			  "select * from crash_q","%s",
-			  ["drop table crash_q"],
+			  ["drop table crash_q $drop_attr"],
 			  min($max_string_size,$limits{'query_size'})));
 
 if ($limits{'type_sql_varchar(1_arg)'} eq 'yes')
@@ -1723,7 +1778,7 @@ if ($limits{'type_sql_varchar(1_arg)'} eq 'yes')
 	     new query_many(["create table crash_q (q varchar(%d))",
 			     "insert into crash_q values ('%s')"],
 			    "select * from crash_q","%s",
-			    ["drop table crash_q"],
+			    ["drop table crash_q $drop_attr"],
 			    min($max_string_size,$limits{'query_size'})));
 }
 
@@ -1743,13 +1798,13 @@ if (defined($found))
 	     new query_many(["create table crash_q (q $found)",
 			     "insert into crash_q values ('%s')"],
 			    "select * from crash_q","%s",
-			    ["drop table crash_q"],
+			    ["drop table crash_q $drop_attr"],
 			    min($max_string_size,$limits{'query_size'}-30)));
 
 }
 
 $tmp=new query_repeat([],"create table crash_q (a integer","","",
-		      ",a%d integer","",")",["drop table crash_q"],
+		      ",a%d integer","",")",["drop table crash_q $drop_attr"],
 		      $max_columns);
 $tmp->{'offset'}=1;
 find_limit("Columns in table","max_columns",$tmp);
@@ -1773,7 +1828,7 @@ if ($limits{'unique_in_create'} eq 'yes')
 			     ",q%d integer not null,unique (q%d)",")",
 			     ["insert into crash_q (q,%f) values (1,%v)"],
 			     "select q from crash_q",1,
-			     "drop table crash_q",
+			     "drop table crash_q $drop_attr",
 			     $max_keys,0));
 
   find_limit("index parts","max_index_parts",
@@ -1781,14 +1836,14 @@ if ($limits{'unique_in_create'} eq 'yes')
 			     ",q%d","))",
 			     ["insert into crash_q ($key_fields) values ($key_values)"],
 			     "select q0 from crash_q",1,
-			     "drop table crash_q",
+			     "drop table crash_q $drop_attr",
 			     $max_keys,1));
 
   find_limit("max index part length","max_index_part_length",
 	     new query_many(["create table crash_q (q char(%d) not null,unique(q))",
 			     "insert into crash_q (q) values ('%s')"],
 			    "select q from crash_q","%s",
-			    ["drop table crash_q"],
+			    ["drop table crash_q $drop_attr"],
 			    $limits{'max_char_size'},0));
 
   if ($limits{'type_sql_varchar(1_arg)'} eq 'yes')
@@ -1797,7 +1852,7 @@ if ($limits{'unique_in_create'} eq 'yes')
 	     new query_many(["create table crash_q (q varchar(%d) not null,unique(q))",
 			     "insert into crash_q (q) values ('%s')"],
 			    "select q from crash_q","%s",
-			    ["drop table crash_q"],
+			    ["drop table crash_q $drop_attr"],
 			    $limits{'max_varchar_size'},0));
   }
 }
@@ -1829,7 +1884,7 @@ if ($limits{'create_index'} ne 'no')
 	$end_drop =~ s/%t/crash_q/;
 	assert($end_drop);
       }
-      assert("drop table crash_q");
+      assert("drop table crash_q $drop_attr");
     }
     print "indexs: $limits{'max_index'}\n";
     if (!defined($limits{'max_unique_index'}))
@@ -1848,7 +1903,7 @@ if ($limits{'create_index'} ne 'no')
 	$end_drop =~ s/%t/crash_q/;
 	assert($end_drop);
       }
-      assert("drop table crash_q");
+      assert("drop table crash_q $drop_attr");
     }
     print "unique indexes: $limits{'max_unique_index'}\n";
     if (!defined($limits{'max_index_parts'}))
@@ -1864,7 +1919,7 @@ if ($limits{'create_index'} ne 'no')
 				 undef,undef,
 				 $end_drop,
 				 $max_keys,1));
-      assert("drop table crash_q");
+      assert("drop table crash_q $drop_attr");
     }
     else
     {
@@ -1881,20 +1936,20 @@ if ($limits{'create_index'} ne 'no')
 			      "select q from crash_q",
 			      "%s",
 			      [ $end_drop,
-			       "drop table crash_q"],
+			       "drop table crash_q $drop_attr"],
 			      min($limits{'max_char_size'},"+8192")));
   }
 }
 
 find_limit("index length","max_index_length",
 	   new query_index_length("create table crash_q ",
-				  "drop table crash_q",
+				  "drop table crash_q $drop_attr",
 				  $max_key_length));
 
 find_limit("max table row length (without blobs)","max_row_length",
 	   new query_row_length("crash_q ",
 				"not null",
-				"drop table crash_q",
+				"drop table crash_q $drop_attr",
 				min($max_row_length,
 				    $limits{'max_columns'}*
 				    min($limits{'max_char_size'},255))));
@@ -1903,7 +1958,7 @@ find_limit("table row length with nulls (without blobs)",
 	   "max_row_length_with_null",
 	   new query_row_length("crash_q ",
 				"",
-				"drop table crash_q",
+				"drop table crash_q $drop_attr",
 				$limits{'max_row_length'}*2));
 
 find_limit("number of columns in order by","columns_in_order_by",
@@ -1912,7 +1967,7 @@ find_limit("number of columns in order by","columns_in_order_by",
 			   "insert into crash_q values(%v)"],
 			  "select * from crash_q order by %f",
 			  undef(),
-			  ["drop table crash_q"],
+			  ["drop table crash_q $drop_attr"],
 			  $max_order_by));
 
 find_limit("number of columns in group by","columns_in_group_by",
@@ -1921,14 +1976,14 @@ find_limit("number of columns in group by","columns_in_group_by",
 			   "insert into crash_q values(%v)"],
 			  "select %f from crash_q group by %f",
 			  undef(),
-			  ["drop table crash_q"],
+			  ["drop table crash_q $drop_attr"],
 			  $max_order_by));
 
 #
 # End of test
 #
 
-$dbh->do("drop table crash_me");        # Remove temporary table
+$dbh->do("drop table crash_me $drop_attr");        # Remove temporary table
 
 print "crash-me safe: $limits{'crash_me_safe'}\n";
 print "reconnected $reconnect_count times\n";
@@ -1970,6 +2025,11 @@ $0 takes the following options:
 
 --comment='some comment'
   Add this comment to the crash-me limit file
+
+--check-server
+  Do a new connection to the server every time crash-me checks if the server
+  is alive.  This can help in cases where the server starts returning wrong
+  data because of an earlier select.
 
 --database='database' (Default $opt_database)
   Create test tables in this database.
@@ -2014,7 +2074,7 @@ $0 takes the following options:
   User name to log into the SQL server.
 
 --start-cmd='command to restart server'
-  Automaticly restarts server with this command if the server dies.
+  Automaticly restarts server with this command if the database server dies.
 
 --sleep='time in seconds' (Default $opt_sleep)
   Wait this long before restarting server.
@@ -2213,6 +2273,13 @@ sub check_connect
   my ($sth);
   print "Checking connection\n" if ($opt_log_all_queries);
   # The following line will not work properly with interbase
+  if ($opt_check_server && defined($check_connect) && $dbh->{AutoCommit} != 0)
+  {
+    
+    $dbh->disconnect;
+    $dbh=safe_connect($object);
+    return;
+  }
   return if (defined($check_connect) && defined($dbh->do($check_connect)));
   $dbh->disconnect || warn $dbh->errstr;
   print "\nreconnecting\n" if ($opt_debug);

@@ -1543,7 +1543,11 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
       goto err;
     }
   }
-  if ((error = ha_commit(thd)))
+  /* The ALTER TABLE is always in it's own transaction */
+  error = ha_commit_stmt(thd);
+  if (ha_commit(thd))
+    error=1;
+  if (error)
   {
     VOID(pthread_cond_broadcast(&COND_refresh));
     VOID(pthread_mutex_unlock(&LOCK_open));
@@ -1666,7 +1670,16 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   }
   if (to->file->activate_all_index(thd))
     error=1;
-  if (ha_commit(thd) || to->file->external_lock(thd,F_UNLCK))
+
+  /*
+    Ensure that the new table is saved properly to disk so that we
+    can do a rename
+  */
+  if (ha_commit_stmt(thd))
+    error=1;
+  if (ha_commit(thd))
+    error=1;
+  if (to->file->external_lock(thd,F_UNLCK))
     error=1;
  err:
   free_io_cache(from);

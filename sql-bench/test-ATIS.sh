@@ -62,7 +62,7 @@ if (!$opt_skip_create)
     my $array_ref = $tables[$ti];
 
     # This may fail if we have no table so do not check answer
-    $sth = $dbh->do("drop table $table_name");
+    $sth = $dbh->do("drop table $table_name" . $server->{'drop_attr'});
 
     print "Creating table $table_name\n" if ($opt_verbose);
     do_many($dbh,@$array_ref);
@@ -280,7 +280,7 @@ if (!$opt_skip_delete)				# Only used when testing
   for ($ti = 0; $ti <= $#table_names; $ti++)
   {
     my $table_name = $table_names[$ti];
-    $sth = $dbh->do("drop table $table_name");
+    $sth = $dbh->do("drop table $table_name" . $server->{'drop_attr'});
   }
 
   $end_time=new Benchmark;
@@ -381,7 +381,7 @@ sub init_data
 		     "flight_code integer(8) NOT NULL"],
 		    ["PRIMARY KEY (connect_code, leg_number, flight_code)"]);
   @connection=
-    $server->create("connection",
+    $server->create("fconnection",
 		    ["connect_code integer(8) NOT NULL",
 		     "from_airport char(3) NOT NULL",
 		     "to_airport char(3) NOT NULL",
@@ -405,7 +405,7 @@ sub init_data
 		     "dual_airline char(2) NOT NULL",
 		     "low_flight smallint(4) NOT NULL",
 		     "high_flight smallint(4) NOT NULL",
-		     "connection_name char(64) NOT NULL"],
+		     "fconnection_name char(64) NOT NULL"],
 		    ["PRIMARY KEY (main_airline, dual_airline, low_flight)",
 		     "INDEX main_airline1 (main_airline)"]);
 
@@ -540,7 +540,7 @@ sub init_data
   @table_names =
     ("aircraft", "airline", "airport", "airport_service",
      "city", "class_of_service", "code_description",
-     "compound_class", "connect_leg", "connection", "day_name",
+     "compound_class", "connect_leg", "fconnection", "day_name",
      "dual_carrier", "fare", "flight", "flight_class", "flight_day",
      "flight_fare", "food_service", "ground_service", "time_interval",
      "month_name",

@@ -34,6 +34,7 @@ $opt_loop_count=100000;		# number of rows/3
 $small_loop_count=10;		# Loop for full table retrieval
 $range_loop_count=$small_loop_count*50;
 $many_keys_loop_count=$opt_loop_count;
+$opt_read_key_loop_count=$opt_loop_count;
 
 chomp($pwd = `pwd`); $pwd = "." if ($pwd eq '');
 require "$pwd/bench-init.pl" || die "Can't read Configuration file: $!\n";
@@ -46,13 +47,15 @@ if ($opt_loop_count < 256)
 if ($opt_small_test)
 {
   $opt_loop_count/=100;
-  $range_loop_count/=10;
   $many_keys_loop_count=$opt_loop_count/10;
+  $range_loop_count=10;
+  $opt_read_key_loop_count=10;
 }
 elsif ($opt_small_tables)
 {
   $opt_loop_count=10000;		# number of rows/3
   $many_keys_loop_count=$opt_loop_count;
+  $opt_read_key_loop_count=10;
 }
 elsif ($opt_small_key_tables)
 {
@@ -96,9 +99,9 @@ goto keys_test if ($opt_stage == 2);
 goto select_test if ($opt_skip_create);
 
 print "Creating tables\n";
-$dbh->do("drop table bench1");
-$dbh->do("drop table bench2");
-$dbh->do("drop table bench3");
+$dbh->do("drop table bench1" . $server->{'drop_attr'});
+$dbh->do("drop table bench2" . $server->{'drop_attr'});
+$dbh->do("drop table bench3" . $server->{'drop_attr'});
 do_many($dbh,$server->create("bench1",
 			     ["id int NOT NULL",
 			      "id2 int NOT NULL",
@@ -239,11 +242,11 @@ if ($limits->{'unique_index'})
       die "Didn't get an error when inserting duplicate record $tmp\n";
     }
   }
-}
 
-$end_time=new Benchmark;
-print "Time for insert_duplicates (" . ($opt_loop_count) . "): " .
+  $end_time=new Benchmark;
+  print "Time for insert_duplicates (" . ($opt_loop_count) . "): " .
   timestr(timediff($end_time, $loop_time),"all") . "\n\n";
+}
 
 #if ($opt_fast && defined($server->{vacuum}))
 #{
@@ -332,11 +335,13 @@ else
 print " for order_by_big_key2 ($small_loop_count:$rows): " .
   timestr(timediff($end_time, $loop_time),"all") . "\n";
 
+
+$sel=$limits->{'order_by_unused'} ? "id2" : "*";
 $loop_time=new Benchmark;
 $estimated=$rows=0;
 for ($i=1 ; $i <= $small_loop_count ; $i++)
 {
-  $rows+=fetch_all_rows($dbh,"select id2 from bench1 order by id3",1);
+  $rows+=fetch_all_rows($dbh,"select $sel from bench1 order by id3",1);
   $end_time=new Benchmark;
   last if ($estimated=predict_query_time($loop_time,$end_time,\$i,$i,
 					 $small_loop_count));
@@ -349,11 +354,12 @@ print " for order_by_big_key_diff ($small_loop_count:$rows): " .
   timestr(timediff($end_time, $loop_time),"all") . "\n";
 
 
+$sel=$limits->{'order_by_unused'} ? "id" : "*";
 $loop_time=new Benchmark;
 $estimated=$rows=0;
 for ($i=1 ; $i <= $small_loop_count ; $i++)
 {
-  $rows+=fetch_all_rows($dbh,"select id from bench1 order by id2,id3",1);
+  $rows+=fetch_all_rows($dbh,"select $sel from bench1 order by id2,id3",1);
   $end_time=new Benchmark;
   last if ($estimated=predict_query_time($loop_time,$end_time,\$i,$i,
 					 $small_loop_count));
@@ -365,13 +371,15 @@ else
 print " for order_by_big ($small_loop_count:$rows): " .
   timestr(timediff($end_time, $loop_time),"all") . "\n";
 
+
+$sel=$limits->{'order_by_unused'} ? "dummy1" : "dummy1,id3";
 $loop_time=new Benchmark;
 $estimated=$rows=0;
 for ($i=1 ; $i <= $range_loop_count ; $i++)
 {
   $start=$opt_loop_count/$range_loop_count*$i;
   $end=$start+$i;
-  $rows+=fetch_all_rows($dbh,"select dummy1 from bench1 where id>=$start and id <= $end order by id3",1);
+  $rows+=fetch_all_rows($dbh,"select $sel from bench1 where id>=$start and id <= $end order by id3",1);
   $end_time=new Benchmark;
   last if ($estimated=predict_query_time($loop_time,$end_time,\$i,$i,
 					 $range_loop_count));
@@ -383,14 +391,14 @@ else
 print " for order_by_range ($range_loop_count:$rows): " .
   timestr(timediff($end_time, $loop_time),"all") . "\n";
 
-
+$sel=$limits->{'order_by_unused'} ? "dummy1" : "dummy1,id";
 $loop_time=new Benchmark;
 $estimated=$rows=0;
 for ($i=1 ; $i <= $range_loop_count ; $i++)
 {
   $start=$opt_loop_count/$range_loop_count*$i;
   $end=$start+$i;
-  $rows+=fetch_all_rows($dbh,"select dummy1 from bench1 where id>=$start and id <= $end order by id",1);
+  $rows+=fetch_all_rows($dbh,"select $sel from bench1 where id>=$start and id <= $end order by id",1);
   $end_time=new Benchmark;
   last if ($estimated=predict_query_time($loop_time,$end_time,\$i,$i,
 					 $range_loop_count));
@@ -402,13 +410,14 @@ else
 print " for order_by_key ($range_loop_count:$rows): " .
   timestr(timediff($end_time, $loop_time),"all") . "\n";
 
+$sel=$limits->{'order_by_unused'} ? "id2" : "id2,id3";
 $loop_time=new Benchmark;
 $estimated=$rows=0;
 for ($i=1 ; $i <= $range_loop_count ; $i++)
 {
   $start=$opt_loop_count/$range_loop_count*$i;
   $end=$start+$range_loop_count;
-  $rows+=fetch_all_rows($dbh,"select id2 from bench1 where id3>=$start and id3 <= $end order by id3",1);
+  $rows+=fetch_all_rows($dbh,"select $sel from bench1 where id3>=$start and id3 <= $end order by id3",1);
   $end_time=new Benchmark;
   last if ($estimated=predict_query_time($loop_time,$end_time,\$i,$i,
 					 $range_loop_count));
@@ -674,23 +683,26 @@ if ($limits->{'group_functions'})
   print "Time for count ($count): " .
       timestr(timediff($end_time, $loop_time),"all") . "\n";
 
-  $loop_time=new Benchmark;
-  $count=$estimated=0;
-  for ($tests=1 ; $tests <= $small_loop_count ; $tests++)
+  if ($limits->{'group_distinct_functions'})
   {
-    $count+=2;
-    fetch_all_rows($dbh,"select count(distinct dummy1) from bench1");
-    fetch_all_rows($dbh,"select dummy1,count(distinct id) from bench1 group by dummy1");
-    $end_time=new Benchmark;
-    last if ($estimated=predict_query_time($loop_time,$end_time,\$count,$tests,
-					   $small_loop_count));
+    $loop_time=new Benchmark;
+    $count=$estimated=0;
+    for ($tests=1 ; $tests <= $small_loop_count ; $tests++)
+    {
+      $count+=2;
+      fetch_all_rows($dbh,"select count(distinct dummy1) from bench1");
+      fetch_all_rows($dbh,"select dummy1,count(distinct id) from bench1 group by dummy1");
+      $end_time=new Benchmark;
+      last if ($estimated=predict_query_time($loop_time,$end_time,\$count,$tests,
+					     $small_loop_count));
+    }
+    if ($estimated)
+    { print "Estimated time"; }
+    else
+    { print "Time"; }
+    print " for count_distinct_big ($count): " .
+    timestr(timediff($end_time, $loop_time),"all") . "\n";
   }
-  if ($estimated)
-  { print "Estimated time"; }
-  else
-  { print "Time"; }
-  print " for count_distinct_big ($count): " .
-      timestr(timediff($end_time, $loop_time),"all") . "\n";
 }
 
 
@@ -1002,9 +1014,9 @@ if ($limits->{'insert_select'})
   print "Time for insert_select_2_keys (1):  " .
     timestr(timediff($end_time, $loop_time),"all") . "\n";
   $loop_time=new Benchmark;
-  $sth = $dbh->do("DROP TABLE bench2") ||
+  $sth = $dbh->do("DROP TABLE bench2" . $server->{'drop_attr'}) ||
     die $DBI::errstr;
-  $sth = $dbh->do("DROP TABLE bench3") ||
+  $sth = $dbh->do("DROP TABLE bench3" . $server->{'drop_attr'}) ||
     die $DBI::errstr;
   $end_time=new Benchmark;
   print "Time for drop table(2): " .
@@ -1096,7 +1108,7 @@ if (!$opt_skip_delete)
   {
     $sth = $dbh->do("UNLOCK TABLES") || die $DBI::errstr;
   }
-  $sth = $dbh->do("drop table bench1") or die $DBI::errstr;
+  $sth = $dbh->do("drop table bench1" . $server->{'drop_attr'}) or die $DBI::errstr;
 }
 
 if ($server->small_rollback_segment())
@@ -1309,7 +1321,7 @@ $end_time=new Benchmark;
 print "Time for delete_all_many_keys ($count): " .
   timestr(timediff($end_time, $loop_time),"all") . "\n\n";
 
-$sth = $dbh->do("drop table bench1") or die $DBI::errstr;
+$sth = $dbh->do("drop table bench1" . $server->{'drop_attr'}) or die $DBI::errstr;
 if ($opt_fast && defined($server->{vacuum}))
 {
   $server->vacuum(1,\$dbh);
@@ -1323,7 +1335,7 @@ if ($limits->{'multi_value_insert'})
 {
   $query_size=$limits->{'query_size'}; # Same limit for all databases
 
-  $sth = $dbh->do("drop table bench1");
+  $sth = $dbh->do("drop table bench1" . $server->{'drop_attr'});
   do_many($dbh,$server->create("bench1",
 			       ["id int NOT NULL",
 				"id2 int NOT NULL",
@@ -1375,7 +1387,7 @@ if ($limits->{'multi_value_insert'})
 
   # A big table may take a while to drop
   $loop_time=new Benchmark;
-  $sth = $dbh->do("drop table bench1") or die $DBI::errstr;
+  $sth = $dbh->do("drop table bench1" . $server->{'drop_attr'}) or die $DBI::errstr;
   $end_time=new Benchmark;
   print "Time for drop table(1): " .
     timestr(timediff($end_time, $loop_time),"all") . "\n\n";
@@ -1405,7 +1417,7 @@ sub check_select_key
   $estimated=0;
   $loop_time=new Benchmark;
   $count=0;
-  for ($i=1 ; $i <= $opt_loop_count; $i++)
+  for ($i=1 ; $i <= $opt_read_key_loop_count; $i++)
   {
     $count+=2;
     $tmpvar^= ((($tmpvar + 63) + $i)*3 % $opt_loop_count);
@@ -1437,7 +1449,7 @@ sub check_select_key2
   $estimated=0;
   $loop_time=new Benchmark;
   $count=0;
-  for ($i=1 ; $i <= $opt_loop_count; $i++)
+  for ($i=1 ; $i <= $opt_read_key_loop_count; $i++)
   {
     $count+=2;
     $tmpvar^= ((($tmpvar + 63) + $i)*3 % $opt_loop_count);

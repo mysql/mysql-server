@@ -222,7 +222,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
 	break;
       }
     }
-    if (lock_type == TL_WRITE_DELAYED)
+    if (lock_type == TL_WRITE_DELAYED && ! table->file->has_transactions())
     {
       error=write_delayed(thd,table,duplic,query, thd->query_length, log_on);
       query=0;
@@ -262,6 +262,8 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
 	Query_log_event qinfo(thd, thd->query);
 	mysql_bin_log.write(&qinfo);
       }
+      if (!table->file->has_transactions())
+	thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;
     }
     error=ha_autocommit_or_rollback(thd,error);
     if (thd->lock)
@@ -282,7 +284,8 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
   if (values_list.elements == 1 && (!(thd->options & OPTION_WARNINGS) ||
 				    !thd->cuted_fields))
     send_ok(&thd->net,info.copied+info.deleted,id);
-  else {
+  else
+  {
     char buff[160];
     if (duplic == DUP_IGNORE)
       sprintf(buff,ER(ER_INSERT_INFO),info.records,info.records-info.copied,

@@ -168,25 +168,23 @@ bool berkeley_flush_logs()
 }
 
 
-int berkeley_commit(THD *thd)
+int berkeley_commit(THD *thd, void *trans)
 {
   DBUG_ENTER("berkeley_commit");
   DBUG_PRINT("trans",("ending transaction"));
-  int error=txn_commit((DB_TXN*) thd->transaction.bdb_tid,0);
+  int error=txn_commit((DB_TXN*) trans,0);
 #ifndef DBUG_OFF
   if (error)
     DBUG_PRINT("error",("error: %d",error));
 #endif
-  thd->transaction.bdb_tid=0;
   DBUG_RETURN(error);
 }
 
-int berkeley_rollback(THD *thd)
+int berkeley_rollback(THD *thd, void *trans)
 {
   DBUG_ENTER("berkeley_rollback");
   DBUG_PRINT("trans",("aborting transaction"));
-  int error=txn_abort((DB_TXN*) thd->transaction.bdb_tid);
-  thd->transaction.bdb_tid=0;
+  int error=txn_abort((DB_TXN*) trans);
   DBUG_RETURN(error);
 }
 
@@ -1337,6 +1335,10 @@ int ha_berkeley::reset(void)
 /*
   As MySQL will execute an external lock for every new table it uses
   we can use this to start the transactions.
+  If we are in auto_commit mode we just need to start a transaction
+  for the statement to be able to rollback the statement.
+  If not, we have to start a master transaction if there doesn't exist
+  one from before.
 */
 
 int ha_berkeley::external_lock(THD *thd, int lock_type)
@@ -1345,16 +1347,34 @@ int ha_berkeley::external_lock(THD *thd, int lock_type)
   DBUG_ENTER("ha_berkeley::external_lock");
   if (lock_type != F_UNLCK)
   {
-    if (!thd->transaction.bdb_lock_count++ && !thd->transaction.bdb_tid)
+    if (!thd->transaction.bdb_lock_count++)
     {
-      /* Found first lock, start transaction */
-      DBUG_PRINT("trans",("starting transaction"));
-      if ((error=txn_begin(db_env, 0,
-			   (DB_TXN**) &thd->transaction.bdb_tid,
+      /* First table lock, start transaction */
+      if (!(thd->options & (OPTION_NOT_AUTO_COMMIT | OPTION_BEGIN)) &&
+	  !thd->transaction.all.bdb_tid)
+      {
+	/* We have to start a master transaction */
+	DBUG_PRINT("trans",("starting transaction"));
+	if ((error=txn_begin(db_env, 0,
+			     (DB_TXN**) &thd->transaction.all.bdb_tid,
+			     0)))
+	{
+	  thd->transaction.bdb_lock_count--;	// We didn't get the lock
+	  DBUG_RETURN(error);
+	}
+      }
+      DBUG_PRINT("trans",("starting transaction for statement"));
+      if ((error=txn_begin(db_env,
+			   (DB_TXN*) thd->transaction.all.bdb_tid,
+			   (DB_TXN**) &thd->transaction.stmt.bdb_tid,
 			   0)))
-	thd->transaction.bdb_lock_count--;
+      {
+	/* We leave the possible master transaction open */
+	thd->transaction.bdb_lock_count--;	// We didn't get the lock
+	DBUG_RETURN(error);
+      }
     }
-    transaction= (DB_TXN*) thd->transaction.bdb_tid;
+    transaction= (DB_TXN*) thd->transaction.stmt.bdb_tid;
   }
   else
   {
@@ -1371,23 +1391,21 @@ int ha_berkeley::external_lock(THD *thd, int lock_type)
     current_row.data=0;
     if (!--thd->transaction.bdb_lock_count)
     {
-      if (thd->transaction.bdb_tid && (thd->options & OPTION_AUTO_COMMIT)
-          && !(thd->options & OPTION_BEGIN))
+      if (thd->transaction.stmt.bdb_tid)
       {
 	/* 
 	   F_UNLOCK is done without a transaction commit / rollback.
-	   This happens if the thread didn't update any rows or if
-	   something went wrong during an update.
-	   We can in this case silenty abort the transaction.
+	   This happens if the thread didn't update any rows
+	   We must in this case commit the work to keep the row locks
 	*/
-	DBUG_PRINT("trans",("aborting transaction"));
-	error=txn_abort((DB_TXN*) thd->transaction.bdb_tid);
-	thd->transaction.bdb_tid=0;
+	DBUG_PRINT("trans",("commiting non-updating transaction"));
+	error=txn_commit((DB_TXN*) thd->transaction.stmt.bdb_tid,0);
+	thd->transaction.stmt.bdb_tid=0;
       }
     }
   }
   DBUG_RETURN(error);
-}  
+} 
 
 
 THR_LOCK_DATA **ha_berkeley::store_lock(THD *thd, THR_LOCK_DATA **to,

@@ -25,6 +25,10 @@
 #define NO_HASH				/* Not yet implemented */
 #endif
 
+#if defined(HAVE_BERKELEY_DB) || defined(HAVE_INNOBASE_DB) || defined(HAVE_GEMENI_DB)
+#define USING_TRANSACTIONS
+#endif
+
 // the following is for checking tables
 
 #define HA_ADMIN_ALREADY_DONE	  1
@@ -113,6 +117,12 @@ enum row_type { ROW_TYPE_DEFAULT, ROW_TYPE_FIXED, ROW_TYPE_DYNAMIC,
 /* Bits in used_fields */
 #define HA_CREATE_USED_AUTO 1
 #define HA_CREATE_USED_RAID 2
+
+typedef struct st_thd_trans {
+  void *bdb_tid;
+  void *innobase_tid;
+  void *gemeni_tid;
+} THD_TRANS;
 
 typedef struct st_ha_create_information
 {
@@ -294,6 +304,12 @@ public:
 extern const char *ha_row_type[];
 extern TYPELIB ha_table_typelib;
 
+	/* Wrapper functions */
+#define ha_commit_stmt(thd) (ha_commit_trans((thd), &((thd)->transaction.stmt)))
+#define ha_rollback_stmt(thd) (ha_rollback_trans((thd), &((thd)->transaction.stmt)))
+#define ha_commit(thd) (ha_commit_trans((thd), &((thd)->transaction.all)))
+#define ha_rollback(thd) (ha_rollback_trans((thd), &((thd)->transaction.all)))
+
 handler *get_new_handler(TABLE *table, enum db_type db_type);
 my_off_t ha_get_ptr(byte *ptr, uint pack_length);
 void ha_store_ptr(byte *buff, uint pack_length, my_off_t pos);
@@ -304,8 +320,8 @@ int ha_create_table(const char *name, HA_CREATE_INFO *create_info,
 		    bool update_create_info);
 int ha_delete_table(enum db_type db_type, const char *path);
 void ha_key_cache(void);
-int ha_commit(THD *thd);
-int ha_rollback(THD *thd);
+int ha_commit_trans(THD *thd, THD_TRANS *trans);
+int ha_rollback_trans(THD *thd, THD_TRANS *trans);
 int ha_autocommit_or_rollback(THD *thd, int error);
 bool ha_flush_logs(void);
 

@@ -45,6 +45,8 @@ sub get_server
   { $server= new db_Solid($host,$database); }
   elsif ($name =~ /Empress/i)
   { $server= new db_Empress($host,$database); }
+  elsif ($name =~ /FrontBase/i)
+  { $server= new db_FrontBase($host,$database); }
   elsif ($name =~ /Oracle/i)
   { $server= new db_Oracle($host,$database); }
   elsif ($name =~ /Access/i)
@@ -71,7 +73,7 @@ sub get_server
   { $server= new db_interbase($host,$database); }
   else
   {
-      die "Unknown sql server name used: $name\nUse one of: Access, Adabas, AdabasD, Empress, Oracle, Informix, DB2, mSQL, Mimer, MS-SQL, MySQL, Pg, Solid or Sybase.\nIf the connection is done trough ODBC the name must end with _ODBC\n";
+      die "Unknown sql server name used: $name\nUse one of: Access, Adabas, AdabasD, Empress, FrontBase, Oracle, Informix, DB2, mSQL, Mimer, MS-SQL, MySQL, Pg, Solid or Sybase.\nIf the connection is done trough ODBC the name must end with _ODBC\n";
   }
   if ($name =~ /_ODBC$/i || defined($odbc) && $odbc)
   {
@@ -91,9 +93,9 @@ sub get_server
 
 sub all_servers
 {
-  return ["Access", "Adabas", "DB2", "Empress", "Oracle", "Informix",
-	  "InterBase", "Mimer", "mSQL", "MS-SQL", "MySQL", "Pg", "Solid",
-	  "Sybase"];
+  return ["Access", "Adabas", "DB2", "Empress", "FrontBase", "Oracle",
+	  "Informix", "InterBase", "Mimer", "mSQL", "MS-SQL", "MySQL", "Pg",
+	  "Solid", "Sybase"];
 }
 
 #############################################################################
@@ -117,6 +119,7 @@ sub new
   $self->{'text'}		= "text";
   $self->{'double_quotes'}	= 1; # Can handle:  'Walker''s'
   $self->{'vacuum'}		= 1; # When using with --fast
+  $self->{'drop_attr'}		= "";
 
   $limits{'max_conditions'}	= 9999; # (Actually not a limit)
   $limits{'max_columns'}	= 2000;	# Max number of columns in table
@@ -162,6 +165,9 @@ sub new
   $limits{'limit'}		= 1;		# supports the limit attribute
   $limits{'unique_index'}	= 1; # Unique index works or not
   $limits{'insert_select'}	= 1;
+  $limits{'working_blobs'}	= 1; # If big varchar/blobs works
+  $limits{'order_by_unused'}	= 1;
+  $limits{'working_all_fields'} = 1;
 
   $smds{'time'}			= 1;
   $smds{'q1'} 	= 'b';		# with time not supp by mysql ('')
@@ -344,9 +350,12 @@ sub new
   bless $self;
 
   $self->{'cmp_name'}		= "msql";
-  $self->{'data_source'}	= "DBI:mSQL:$database:$main::$opt_host";
+  $self->{'data_source'}	= "DBI:mSQL:$database:$host";
   $self->{'limits'}		= \%limits;
   $self->{'double_quotes'}	= 0;
+  $self->{'drop_attr'}		= "";
+  $self->{'blob'}		= "text(" . $limits{'max_text_size'} .")";
+  $self->{'text'}		= "text(" . $limits{'max_text_size'} .")";
 
   $limits{'max_conditions'}	= 74;
   $limits{'max_columns'}	= 75;
@@ -388,9 +397,9 @@ sub new
   $limits{'column_alias'}	= 0;
   $limits{'NEG'}		= 0;
   $limits{'func_extra_in_num'}	= 0;
-
-  $self->{'blob'}		= "text(" . $limits{'max_text_size'} .")";
-  $self->{'text'}		= "text(" . $limits{'max_text_size'} .")";
+  $limits{'working_blobs'}	= 1; # If big varchar/blobs works
+  $limits{'order_by_unused'}	= 1;
+  $limits{'working_all_fields'} = 1;
   return $self;
 }
 
@@ -539,6 +548,7 @@ sub new
   $self->{'blob'}		= "text";
   $self->{'text'}		= "text";
   $self->{'double_quotes'}	= 1;
+  $self->{'drop_attr'}		= "";
   $self->{"vacuum"}		= 1;
   $limits{'join_optimizer'}	= 1;		# Can optimize FROM tables
   $limits{'load_data_infile'}	= 0;		# Is this true ?
@@ -579,6 +589,9 @@ sub new
   $limits{'query_size'}		= 16777216;
   $limits{'unique_index'}	= 1; # Unique index works or not
   $limits{'insert_select'}	= 1;
+  $limits{'working_blobs'}	= 1; # If big varchar/blobs works
+  $limits{'order_by_unused'}	= 1;
+  $limits{'working_all_fields'} = 1;
 
   # the different cases per query ...
   $smds{'q1'} 	= 'b'; # with time
@@ -812,6 +825,7 @@ sub new
   $self->{'blob'}		= "long varchar";
   $self->{'text'}		= "long varchar";
   $self->{'double_quotes'}	= 1;
+  $self->{'drop_attr'}		= "";
 
   $limits{'max_conditions'}	= 9999;		# Probably big enough
   $limits{'max_columns'}	= 2000;		# From crash-me
@@ -853,6 +867,9 @@ sub new
   $limits{'func_extra_in_num'}	= 1;
   $limits{'unique_index'}	= 1; # Unique index works or not
   $limits{'insert_select'}	= 1;
+  $limits{'working_blobs'}	= 1; # If big varchar/blobs works
+  $limits{'order_by_unused'}	= 1;
+  $limits{'working_all_fields'} = 1;
 
   # for the smds small benchmark test ....
   # the different cases per query ...
@@ -1043,12 +1060,13 @@ sub new
   bless $self;
 
   $self->{'cmp_name'}		= "empress";
-  $self->{'data_source'}        = "DBI:EmpressNet:SERVER=$main::$opt_host;Database=/usr/local/empress/rdbms/bin/$database";
+  $self->{'data_source'}        = "DBI:EmpressNet:SERVER=$host;Database=/usr/local/empress/rdbms/bin/$database";
   $self->{'limits'}		= \%limits;
   $self->{'smds'}		= \%smds;
   $self->{'blob'}		= "text";
   $self->{'text'}		= "text";
   $self->{'double_quotes'}	= 1; # Can handle:  'Walker''s'
+  $self->{'drop_attr'}		= "";
 
   $limits{'max_conditions'}	= 1258;
   $limits{'max_columns'}	= 226;		# server is disconnecting????
@@ -1092,6 +1110,9 @@ sub new
   $limits{'func_extra_in_num'}	= 0;
   $limits{'unique_index'}	= 1; # Unique index works or not
   $limits{'insert_select'}	= 1;
+  $limits{'working_blobs'}	= 1; # If big varchar/blobs works
+  $limits{'order_by_unused'}	= 1;
+  $limits{'working_all_fields'} = 1;
 
   # for the smds small benchmark test ....
   # the different cases per query ... EMPRESS
@@ -1327,6 +1348,7 @@ sub new
   $self->{'blob'}		= "long";
   $self->{'text'}		= "long";
   $self->{'double_quotes'}	= 1; # Can handle:  'Walker''s'
+  $self->{'drop_attr'}		= "";
   $self->{"vacuum"}		= 1;
 
   $limits{'max_conditions'}	= 9999; # (Actually not a limit)
@@ -1370,6 +1392,9 @@ sub new
   $limits{'func_extra_in_num'}	= 1; # Has function in
   $limits{'unique_index'}	= 1; # Unique index works or not
   $limits{'insert_select'}	= 1;
+  $limits{'working_blobs'}	= 1; # If big varchar/blobs works
+  $limits{'order_by_unused'}	= 1;
+  $limits{'working_all_fields'} = 1;
 
   $smds{'time'}			= 1;
   $smds{'q1'} 	= 'b';		# with time not supp by mysql ('')
@@ -1578,7 +1603,8 @@ sub new
   $self->{'blob'}		= "byte in table";
   $self->{'text'}		= "byte in table";
   $self->{'double_quotes'}	= 0; # Can handle:  'Walker''s'
-  $self->{'host'}		= $main::opt_host;
+  $self->{'drop_attr'}		= "";
+  $self->{'host'}		= $host;
 
   $limits{'NEG'}		= 1; # Supports -id
   $limits{'alter_table'}	= 1;
@@ -1619,6 +1645,9 @@ sub new
   $limits{'table_wildcard'}	= 1; # Has SELECT table_name.*
   $limits{'unique_index'}	= 1; # Unique index works or not
   $limits{'insert_select'}	= 1;
+  $limits{'working_blobs'}	= 1; # If big varchar/blobs works
+  $limits{'order_by_unused'}	= 1;
+  $limits{'working_all_fields'} = 1;
 
   return $self;
 }
@@ -1766,7 +1795,7 @@ sub new
 
   $self->{'cmp_name'}		= "access";
   $self->{'data_source'}	= "DBI:ODBC:$database";
-  if (defined($opt_host) && $opt_host ne "")
+  if (defined($host) && $host ne "")
   {
     $self->{'data_source'}	.= ":$host";
   }
@@ -1775,6 +1804,7 @@ sub new
   $self->{'blob'}		= "blob";
   $self->{'text'}		= "blob"; # text ? 
   $self->{'double_quotes'}	= 1; # Can handle:  'Walker''s'
+  $self->{'drop_attr'}		= "";
 
   $limits{'max_conditions'}	= 97; # We get 'Query is too complex'
   $limits{'max_columns'}	= 255;	# Max number of columns in table
@@ -1817,6 +1847,9 @@ sub new
   $limits{'func_extra_in_num'}	= 1; # Has function in
   $limits{'unique_index'}	= 1; # Unique index works or not
   $limits{'insert_select'}	= 1;
+  $limits{'working_blobs'}	= 1; # If big varchar/blobs works
+  $limits{'order_by_unused'}	= 1;
+  $limits{'working_all_fields'} = 1;
   return $self;
 }
 
@@ -1938,7 +1971,7 @@ sub new
 
   $self->{'cmp_name'}		= "ms-sql";
   $self->{'data_source'}	= "DBI:ODBC:$database";
-  if (defined($opt_host) && $opt_host ne "")
+  if (defined($host) && $host ne "")
   {
     $self->{'data_source'}	.= ":$host";
   }
@@ -1947,6 +1980,7 @@ sub new
   $self->{'blob'}		= "text";
   $self->{'text'}		= "text";
   $self->{'double_quotes'}	= 1; # Can handle:  'Walker''s'
+  $self->{'drop_attr'}		= "";
 
   $limits{'max_conditions'}	= 1030; # We get 'Query is too complex'
   $limits{'max_columns'}	= 250;	# Max number of columns in table
@@ -1989,6 +2023,9 @@ sub new
   $limits{'func_extra_in_num'}	= 0; # Has function in
   $limits{'unique_index'}	= 1; # Unique index works or not
   $limits{'insert_select'}	= 1;
+  $limits{'working_blobs'}	= 1; # If big varchar/blobs works
+  $limits{'order_by_unused'}	= 1;
+  $limits{'working_all_fields'} = 1;
   return $self;
 }
 
@@ -2121,7 +2158,7 @@ sub new
 
   $self->{'cmp_name'}		= "sybase";
   $self->{'data_source'}	= "DBI:ODBC:$database";
-  if (defined($opt_host) && $opt_host ne "")
+  if (defined($host) && $host ne "")
   {
     $self->{'data_source'}	.= ":$host";
   }
@@ -2130,6 +2167,7 @@ sub new
   $self->{'blob'}		= "text";
   $self->{'text'}		= "text";
   $self->{'double_quotes'}	= 1; # Can handle:  'Walker''s'
+  $self->{'drop_attr'}		= "";
   $self->{"vacuum"}		= 1;
 
   $limits{'max_conditions'}	= 1030; # We get 'Query is too complex'
@@ -2173,6 +2211,9 @@ sub new
   $limits{'func_extra_in_num'}	= 0; # Has function in
   $limits{'unique_index'}	= 1; # Unique index works or not
   $limits{'insert_select'}	= 1;
+  $limits{'working_blobs'}	= 1; # If big varchar/blobs works
+  $limits{'order_by_unused'}	= 1;
+  $limits{'working_all_fields'} = 1;
   return $self;
 }
 
@@ -2318,6 +2359,7 @@ sub new
   $self->{'blob'}		= "long";
   $self->{'text'}		= "long";
   $self->{'double_quotes'}	= 1; # Can handle:  'Walker''s'
+  $self->{'drop_attr'}		= "";
 
   $limits{'max_conditions'}	= 50; # (Actually not a limit)
   $limits{'max_columns'}	= 254;	# Max number of columns in table
@@ -2360,6 +2402,9 @@ sub new
   $limits{'func_extra_in_num'}	= 1; # Has function in
   $limits{'unique_index'}	= 1; # Unique index works or not
   $limits{'insert_select'}	= 1;
+  $limits{'working_blobs'}	= 1; # If big varchar/blobs works
+  $limits{'order_by_unused'}	= 1;
+  $limits{'working_all_fields'} = 1;
 
   $smds{'time'}			= 1;
   $smds{'q1'} 	= 'b';		# with time not supp by mysql ('')
@@ -2519,7 +2564,7 @@ sub new
 
   $self->{'cmp_name'}		= "DB2";
   $self->{'data_source'}	= "DBI:ODBC:$database";
-  if (defined($opt_host) && $opt_host ne "")
+  if (defined($host) && $host ne "")
   {
     $self->{'data_source'}	.= ":$host";
   }
@@ -2528,6 +2573,7 @@ sub new
   $self->{'blob'}		= "varchar(255)";
   $self->{'text'}		= "varchar(255)";
   $self->{'double_quotes'}	= 1; # Can handle:  'Walker''s'
+  $self->{'drop_attr'}		= "";
 
   $limits{'max_conditions'}	= 418; # We get 'Query is too complex'
   $limits{'max_columns'}	= 500;	# Max number of columns in table
@@ -2570,6 +2616,9 @@ sub new
   $limits{'func_extra_in_num'}	= 0; # Has function in
   $limits{'unique_index'}	= 1; # Unique index works or not
   $limits{'insert_select'}	= 1;
+  $limits{'working_blobs'}	= 1; # If big varchar/blobs works
+  $limits{'order_by_unused'}	= 1;
+  $limits{'working_all_fields'} = 1;
   return $self;
 }
 
@@ -2693,6 +2742,7 @@ sub new
   $self->{'blob'}		= "binary varying(15000)";
   $self->{'text'}		= "character varying(15000)";
   $self->{'double_quotes'}	= 1; # Can handle:  'Walker''s'
+  $self->{'drop_attr'}		= "";
   $self->{'char_null'}          = "cast(NULL as char(1))";
   $self->{'numeric_null'}       = "cast(NULL as int)";
 
@@ -2739,6 +2789,9 @@ sub new
   $limits{'limit'}		= 0; # Does not support the limit attribute
   $limits{'unique_index'}	= 1; # Unique index works or not
   $limits{'insert_select'}	= 1;
+  $limits{'working_blobs'}	= 1; # If big varchar/blobs works
+  $limits{'order_by_unused'}	= 1;
+  $limits{'working_all_fields'} = 1;
 
   $smds{'time'}			= 1;
   $smds{'q1'} 	= 'b';		# with time not supp by mysql ('')
@@ -2889,6 +2942,7 @@ sub new
   $self->{'blob'}		= "blob";
   $self->{'text'}		= "";
   $self->{'double_quotes'}	= 1; # Can handle:  'Walker''s'
+  $self->{'drop_attr'}		= "";
   $self->{'char_null'}          = "";
   $self->{'numeric_null'}       = "";
 
@@ -2933,6 +2987,9 @@ sub new
   $limits{'NEG'}		= 0; # Supports -id
   $limits{'func_extra_in_num'}	= 0; # Has function in
   $limits{'limit'}		= 0; # Does not support the limit attribute
+  $limits{'working_blobs'}	= 1; # If big varchar/blobs works
+  $limits{'order_by_unused'}	= 1;
+  $limits{'working_all_fields'} = 1;
 
   $smds{'time'}			= 1;
   $smds{'q1'} 	= 'b';		# with time not supp by mysql ('')
@@ -3070,6 +3127,210 @@ sub abort_if_fatal_error
 sub small_rollback_segment
 {
   return 1;
+}
+
+sub reconnect_on_errors
+{
+  return 1;
+}
+
+#############################################################################
+#	     Configuration for FrontBase 
+#############################################################################
+
+package db_FrontBase;
+
+sub new
+{
+  my ($type,$host,$database)= @_;
+  my $self= {};
+  my %limits;
+  bless $self;
+
+  $self->{'cmp_name'}		= "FrontBase";
+  $self->{'data_source'}	= "DBI:FB:dbname=$database;host=$host";
+  $self->{'limits'}		= \%limits;
+  $self->{'smds'}		= \%smds;
+  $self->{'blob'}		= "varchar(8000000)";
+  $self->{'text'}		= "varchar(8000000)";
+  $self->{'double_quotes'}	= 1; # Can handle:  'Walker''s'
+  $self->{'drop_attr'}		= ' restrict';
+  $self->{'error_on_execute_means_zero_rows'}=1;
+
+  $limits{'max_conditions'}	= 5427; # (Actually not a limit)
+  # The following should be 8192, but is smaller because Frontbase crashes..
+  $limits{'max_columns'}	= 150;	# Max number of columns in table
+  $limits{'max_tables'}		= 5000;	# 10000 crashed FrontBase
+  $limits{'max_text_size'}	= 65000; # Max size with default buffers.
+  $limits{'query_size'}		= 8000000; # Max size with default buffers.
+  $limits{'max_index'}		= 38; # Max number of keys
+  $limits{'max_index_parts'}	= 20; # Max segments/key
+  $limits{'max_column_name'}	= 128; # max table and column name
+
+  $limits{'join_optimizer'}	= 1; # Can optimize FROM tables
+  $limits{'load_data_infile'}	= 1; # Has load data infile
+  $limits{'lock_tables'}	= 0; # Has lock tables
+  $limits{'functions'}		= 1; # Has simple functions (+/-)
+  $limits{'group_functions'}	= 1; # Have group functions
+  $limits{'group_distinct_functions'}= 0; # Have count(distinct)
+  $limits{'select_without_from'}= 0;
+  $limits{'multi_drop'}		= 0; # Drop table cannot take many tables
+  $limits{'subqueries'}		= 1; # Supports sub-queries.
+  $limits{'left_outer_join'}	= 1; # Supports left outer joins
+  $limits{'table_wildcard'}	= 1; # Has SELECT table_name.*
+  $limits{'having_with_alias'}  = 0; # Can use aliases in HAVING
+  $limits{'having_with_group'}	= 0; # Can use group functions in HAVING
+  $limits{'like_with_column'}	= 1; # Can use column1 LIKE column2
+  $limits{'order_by_position'}  = 1; # Can use 'ORDER BY 1'
+  $limits{'group_by_position'}  = 0; # Use of 'GROUP BY 1'
+  $limits{'alter_table'}	= 1; # Have ALTER TABLE
+  $limits{'alter_add_multi_col'}= 0; # Have ALTER TABLE t add a int,add b int;
+  $limits{'alter_table_dropcol'}= 0; # Have ALTER TABLE DROP column
+  $limits{'multi_value_insert'} = 1;
+
+  $limits{'group_func_extra_std'} = 0; # Does not have group function std().
+
+  $limits{'func_odbc_mod'}	= 0; # Have function mod.
+  $limits{'func_extra_%'}	= 0; # Does not have % as alias for mod()
+  $limits{'func_odbc_floor'}	= 0; # Has func_odbc_floor function
+  $limits{'func_extra_if'}	= 0; # Does not have function if.
+  $limits{'column_alias'}	= 1; # Alias for fields in select statement.
+  $limits{'NEG'}		= 1; # Supports -id
+  $limits{'func_extra_in_num'}	= 0; # Has function in
+  $limits{'limit'}		= 0; # Does not support the limit attribute
+  $limits{'insert_select'}	= 0;
+  $limits{'order_by_unused'}	= 0;
+
+  # We don't get an error for duplicate row in 'test-insert'
+  $limits{'unique_index'}	= 0; # Unique index works or not
+  # We can't use a blob as a normal string (we got a wierd error)
+  $limits{'working_blobs'}	= 0;
+  # 'select min(region),max(region) from bench1' kills the server after a while
+  $limits{'group_func_sql_min_str'} = 0;
+  # If you do select f1,f2,f3...f200 from table, Frontbase dies.
+  $limits{'working_all_fields'} = 0;
+
+  return $self;
+}
+
+#
+# Get the version number of the database
+#
+
+sub version
+{
+  my ($self)=@_;
+  my ($dbh,$sth,$version,@row);
+
+  $dbh=$self->connect();
+#
+#  Pick up SQLGetInfo option SQL_DBMS_VER (18)
+#
+  #$version = $dbh->func(18, GetInfo);
+  $version="2.1";
+  $dbh->disconnect;
+  return $version;
+}
+
+#
+# Connection with optional disabling of logging
+#
+
+sub connect
+{
+  my ($self)=@_;
+  my ($dbh);
+  $dbh=DBI->connect($self->{'data_source'}, 
+		    $main::opt_user,
+		    $main::opt_password,
+		    { PrintError => 0 , 
+		      'fb_host'=>$main::opt_host
+		    }) ||
+		      die "Got error: '$DBI::errstr' when connecting to " . $self->{'data_source'} ." with user: '$main::opt_user' password: '$main::opt_password'\n";
+  $db->{AutoCommit}=1;
+  # $dbh->do("SET OPTION LOG_OFF=1,UPDATE_LOG=0");
+  return $dbh;
+}
+
+#
+# Returns a list of statements to create a table
+# The field types are in ANSI SQL format.
+#
+# If one uses $main::opt_fast then one is allowed to use
+# non standard types to get better speed.
+#
+
+sub create
+{
+  my($self,$table_name,$fields,$index,$options) = @_;
+  my($query,@queries);
+
+  $query="create table $table_name (";
+  foreach $field (@$fields)
+  {
+    $field =~ s/ blob/ varchar(32000)/i;
+    $field =~ s/ big_decimal/ float/i;
+    $field =~ s/ double/ float/i;
+    $field =~ s/ tinyint/ smallint/i;
+    $field =~ s/ mediumint/ int/i;
+    $field =~ s/ integer/ int/i;
+    $field =~ s/ float\(\d,\d\)/ float/i;
+    $field =~ s/ smallint\(\d\)/ smallint/i;
+    $field =~ s/ int\(\d\)/ int/i;
+    $query.= $field . ',';
+  }
+  foreach $ind (@$index)
+  {
+    my @index;
+    if ( $ind =~ /\bKEY\b/i ){
+      push(@keys,"ALTER TABLE $table_name ADD $ind");
+    }else{
+      my @fields = split(' ',$index);
+      my $query="CREATE INDEX $fields[1] ON $table_name $fields[2]";
+      push(@index,$query);
+    }
+  }
+  substr($query,-1)=")";		# Remove last ',';
+  $query.=" $options" if (defined($options));
+  push(@queries,$query);
+  return @queries;
+}
+
+sub insert_file {
+  my($self,$dbname, $file) = @_;
+  print "insert of an ascii file isn't supported by InterBase\n";
+  return 0;
+}
+
+#
+# Do any conversions to the ANSI SQL query so that the database can handle it
+#
+
+sub query {
+  my($self,$sql) = @_;
+  return $sql;
+}
+
+sub drop_index {
+  my ($self,$table,$index) = @_;
+  return "DROP INDEX $index";
+}
+
+#
+# Abort if the server has crashed
+# return: 0 if ok
+#	  1 question should be retried
+#
+
+sub abort_if_fatal_error
+{
+  return 0 if ($DBI::errstr =~ /No raw data handle/);
+  return 1;
+}
+
+sub small_rollback_segment
+{
+  return 0;
 }
 
 sub reconnect_on_errors

@@ -192,8 +192,7 @@ uint test_flags, select_errors=0, dropping_tables=0,ha_open_options=0;
 uint volatile thread_count=0, thread_running=0, kill_cached_threads=0,
 	      wake_thread=0, global_read_lock=0;
 ulong thd_startup_options=(OPTION_UPDATE_LOG | OPTION_AUTO_IS_NULL |
-			   OPTION_BIN_LOG | OPTION_AUTO_COMMIT |
-			   OPTION_QUOTE_SHOW_CREATE );
+			   OPTION_BIN_LOG | OPTION_QUOTE_SHOW_CREATE );
 uint protocol_version=PROTOCOL_VERSION;
 ulong keybuff_size,sortbuff_size,max_item_sort_length,table_cache_size,
       max_join_size,join_buff_size,tmp_table_size,thread_stack,
