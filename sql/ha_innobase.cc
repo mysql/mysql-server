@@ -1242,7 +1242,8 @@ ha_innobase::write_row(
 {
 	row_prebuilt_t* prebuilt = (row_prebuilt_t*)innobase_prebuilt;
   	int 		error;
-
+	longlong	auto_inc;
+	
   	DBUG_ENTER("ha_innobase::write_row");
 
   	statistic_increment(ha_write_count, &LOCK_status);
@@ -1261,10 +1262,43 @@ ha_innobase::write_row(
 	        make sure all columns are fetched in the select done by
 	        update_auto_increment */
 
-	        prebuilt->in_update_remember_pos = FALSE;
+	        /* Fetch the value the user possibly has set in the
+	        autoincrement field */
+	        
+	        auto_inc = table->next_number_field->val_int();
 
+		if (auto_inc != 0) {
+			/* This call will calculate the max of the
+			current value and the value supplied by the user, if
+			the auto_inc counter is already initialized
+			for the table */
+			dict_table_autoinc_update(prebuilt->table, auto_inc);
+		} else {
+			auto_inc = dict_table_autoinc_get(prebuilt->table);
+
+			/* If auto_inc is now != 0 the autoinc counter
+			was already initialized for the table: we can give
+			the new value for MySQL to place in the field */
+
+			if (auto_inc != 0) {
+				user_thd->next_insert_id = auto_inc;
+			}
+		}
+	        
+	        prebuilt->in_update_remember_pos = FALSE;
+	        
     		update_auto_increment();
 
+		if (auto_inc == 0) {
+			/* The autoinc counter for our table was not yet
+			initialized, initialize it now */
+
+	        	auto_inc = table->next_number_field->val_int();
+
+			dict_table_autoinc_initialize(prebuilt->table,
+								auto_inc);
+		}
+    		
 		/* We have to set sql_stat_start to TRUE because
 		update_auto_increment has called a select, and
 		has reset that flag; row_insert_for_mysql has to
