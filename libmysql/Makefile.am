@@ -28,6 +28,7 @@ include $(srcdir)/Makefile.shared
 libmysqlclient_la_SOURCES = $(target_sources)
 libmysqlclient_la_LIBADD = $(target_libadd)
 libmysqlclient_la_LDFLAGS = $(target_ldflags)
+EXTRA_DIST = Makefile.shared
 
 # This is called from the toplevel makefile
 link_sources:
