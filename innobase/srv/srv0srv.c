@@ -1524,13 +1524,6 @@ srv_printf_innodb_monitor(
 				ut_total_allocated_memory,
 				mem_pool_get_reserved(mem_comm_pool));
 
-	if (mem_out_of_mem_err_msg_count > 0) {
-	        fprintf(file,
-	"Mem allocation has spilled out of additional mem pool" ULINTPF
-						"times\n",
-					mem_out_of_mem_err_msg_count);
-	}
-
 	if (srv_use_awe) {
 		fprintf(file,
 	"In addition to that %lu MB of AWE memory allocated\n",
