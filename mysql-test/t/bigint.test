@@ -30,6 +30,6 @@ select min(big),max(big),max(big)-1 from t1;
 select min(big),max(big),max(big)-1 from t1 group by a;
 drop table t1;
 
-select UNSIGNED 1-2;
-select SIGNED (UNSIGNED 1-2);
-select UNSIGNED '-1';
+select CAST(1-2 AS UNSIGNED);
+select CAST(CAST(1-2 AS UNSIGNED) AS SIGNED INTEGER);
+select CONVERT('-1',UNSIGNED);

@@ -952,3 +952,12 @@ public:
   const char *func_name() const { return "match_bool"; }
 };
 
+/* For type casts */
+
+enum Item_cast
+{
+  ITEM_CAST_BINARY, ITEM_CAST_SIGNED_INT, ITEM_CAST_UNSIGNED_INT,
+  ITEM_CAST_DATE, ITEM_CAST_TIME, ITEM_CAST_DATETIME
+};
+
+Item *create_func_cast(Item *a, Item_cast cast_type);

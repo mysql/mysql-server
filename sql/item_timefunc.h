@@ -414,14 +414,21 @@ class Item_extract :public Item_int_func
   void fix_length_and_dec();
 };
 
-class Item_date_typecast :public Item_str_func
+class Item_typecast :public Item_str_func
 {
 public:
-  Item_date_typecast(Item *a) :Item_str_func(a) {}
-  const char *func_name() const { return "date_typecast"; }
+  Item_typecast(Item *a) :Item_str_func(a) {}
   String *val_str(String *a) { return (args[0]->val_str(a)); }
   void fix_length_and_dec() { max_length=args[0]->max_length; }
-  void print(String *str) { print_op(str); }
+  void print(String *str);
+};
+
+
+class Item_date_typecast :public Item_typecast
+{
+public:
+  Item_date_typecast(Item *a) :Item_typecast(a) {}
+  const char *func_name() const { return "date"; }
   void make_field(Send_field *tmp_field)
   {
     init_make_field(tmp_field,FIELD_TYPE_DATE);
@@ -433,14 +440,11 @@ public:
   }  
 };
 
-class Item_time_typecast :public Item_str_func
+class Item_time_typecast :public Item_typecast
 {
 public:
-  Item_time_typecast(Item *a) :Item_str_func(a) {}
-  const char *func_name() const { return "time_typecast"; }
-  String *val_str(String *a) { return (args[0]->val_str(a)); }
-  void fix_length_and_dec() { max_length=args[0]->max_length; }
-  void print(String *str) { print_op(str); }
+  Item_time_typecast(Item *a) :Item_typecast(a) {}
+  const char *func_name() const { return "time"; }
   void make_field(Send_field *tmp_field)
   {
     init_make_field(tmp_field,FIELD_TYPE_TIME);
@@ -452,14 +456,11 @@ public:
   }  
 };
 
-class Item_datetime_typecast :public Item_str_func
+class Item_datetime_typecast :public Item_typecast
 {
 public:
-  Item_datetime_typecast(Item *a) :Item_str_func(a) {}
-  const char *func_name() const { return "datetime_typecast"; }
-  String *val_str(String *a) { return (args[0]->val_str(a)); }
-  void fix_length_and_dec() { max_length=args[0]->max_length; }
-  void print(String *str) { print_op(str); }
+  Item_datetime_typecast(Item *a) :Item_typecast(a) {}
+  const char *func_name() const { return "datetime"; }
   void make_field(Send_field *tmp_field)
   {
     init_make_field(tmp_field,FIELD_TYPE_DATETIME);

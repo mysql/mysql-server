@@ -2665,6 +2665,16 @@ mysql_new_select(LEX *lex)
   return 0;
 }
 
+void mysql_init_multi_delete(LEX *lex)
+{
+  lex->sql_command =  SQLCOM_DELETE_MULTI;
+  mysql_init_select(lex);
+  lex->select->select_limit=HA_POS_ERROR;
+  lex->auxilliary_table_list=lex->select_lex.table_list;
+  lex->select->table_list.elements=0; 
+  lex->select->table_list.first=0;
+  lex->select->table_list.next= (byte**) &(lex->select->table_list.first);
+}
 
 void
 mysql_parse(THD *thd,char *inBuf,uint length)

@@ -264,6 +264,7 @@ bool mysql_change_db(THD *thd,const char *name);
 void mysql_parse(THD *thd,char *inBuf,uint length);
 void mysql_init_select(LEX *lex);
 bool mysql_new_select(LEX *lex);
+void mysql_init_multi_delete(LEX *lex);
 void init_max_user_conn(void);
 void free_max_user_conn(void);
 pthread_handler_decl(handle_one_connection,arg);

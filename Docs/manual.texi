@@ -22119,10 +22119,10 @@ is @code{localhost}.
 Lock all tables before starting the dump.  The tables are locked with
 @code{READ LOCAL} to allow concurrent inserts in the case of @code{MyISAM}
 tables.
-@item -K, --no-disable-keys.
+@item -K, --disable-keys
 @code{/*!40000 ALTER TABLE tb_name DISABLE KEYS */;} and
 @code{/*!40000 ALTER TABLE tb_name ENABLE KEYS */;}
-will not be put in the output.
+will be put in the output.
 @item -n, --no-create-db
 @code{CREATE DATABASE /*!32312 IF NOT EXISTS*/ db_name;} will not be put in the
 output. The above line will be added otherwise, if --databases or
@@ -29434,6 +29434,7 @@ mysql> select MOD(29,9);
 * String functions::            String functions
 * Numeric Functions::           Numeric Functions
 * Date and time functions::     Date and time functions
+* Cast Functions::              
 * Other Functions::             Other Functions
 * Group by functions::          Functions for Use with @code{GROUP BY} Clauses
 @end menu
@@ -30662,6 +30663,8 @@ mysql> select BINARY "a" = "A";
         -> 0
 @end example
 
+@code{BINARY string} is a shorthand for @code{CAST(string AS BINARY)}.
+@xref{Cast Functions}.
 @code{BINARY} was introduced in MySQL Version 3.23.0.
 
 Note that in some context MySQL will not be able to use the
@@ -30685,7 +30688,6 @@ make string comparison even more flexible.
 @menu
 * Arithmetic functions::        Arithmetic Operations
 * Mathematical functions::      Mathematical Functions
-* Numerical casts::             
 @end menu
 
 
@@ -30754,7 +30756,7 @@ in a context where its result is converted to an integer!
 @end table
 
 
-@node Mathematical functions, Numerical casts, Arithmetic functions, Numeric Functions
+@node Mathematical functions,  , Arithmetic functions, Numeric Functions
 @subsubsection Mathematical Functions
 All mathematical functions return @code{NULL} in case of an error.
 
@@ -31151,37 +31153,7 @@ The above happens because 10.28 is actually stored as something like
 10.2799999999999999.
 @end table
 
-@node Numerical casts,  , Mathematical functions, Numeric Functions
-@subsubsection Casting numbers to signed / unsigned
-
-@cindex casts, SIGNED
-@cindex casts, UNSIGNED
-
-To cast a string to a numeric value, you don't have to do anything; Just
-use the string value as it would be a number:
-
-@example
-mysql> select 1+'1';
-        -> 2
-@end example
-
-MySQL support arithmetic with both signed and unsigned 64 bit values.
-If you are using an numerical operations (like @code{+}) and one of the
-operands are @code{unsigned}, then the result will be unsigned.  You can
-override this by using the @code{SIGNED} and @code{UNSIGNED} cast
-operators, which will cast the operation to signed respective unsigned
-64 bit integer.
-
-@example
-mysql> select UNSIGNED 1-2;
-        -> 18446744073709551615
-mysql  select SIGNED (UNSIGNED 1-2);
-        -> -1
-@end example
-
-@code{SIGNED} and @code{UNSIGNED} where added in MySQL 4.0.2.
-
-@node Date and time functions, Other Functions, Numeric Functions, Functions
+@node Date and time functions, Cast Functions, Numeric Functions, Functions
 @subsection Date and Time Functions
 
 @findex date and time functions
@@ -31678,8 +31650,8 @@ will return the internal timestamp value directly, with no implicit
 If you give @code{UNIX_TIMESTAMP()} a wrong or out-of-range date, it will
 return 0.
 
-If you want to subtract @code{UNIX_TIMESTAMP()} columns,
-@xref{Numerical casts}.
+If you want to subtract @code{UNIX_TIMESTAMP()} columns, you may want to
+cast the result to signed integers. @xref{Cast Functions}.
 
 @findex FROM_UNIXTIME()
 @item FROM_UNIXTIME(unix_timestamp)
@@ -31731,8 +31703,74 @@ mysql> select TIME_TO_SEC('00:39:38');
 @end example
 @end table
 
+@node Cast Functions, Other Functions, Date and time functions, Functions
+@subsection Cast Functions
 
-@node Other Functions, Group by functions, Date and time functions, Functions
+The syntax of the @code{CAST} function is:
+
+@findex CAST
+@findex CONVERT
+
+@example
+CAST(expression AS type)
+
+or
+
+CONVERT(expression,type)
+@end example
+
+Where type is one of:
+@itemize @bullet
+@item
+@code{BINARY}
+@item
+@code{DATE}
+@item
+@code{DATETIME}
+@item
+@code{SIGNED @{INTEGER@}}
+@item
+@code{TIME}
+@item
+@code{UNSIGNED @{INTEGER@}}
+@end itemize
+
+@code{CAST()} is ANSI SQL99 syntax and @code{CONVERT()} is ODBC syntax.
+
+The cast function is mainly useful when you want to create a column with
+a specific type in a @code{CREATE ... SELECT}:
+
+@example
+CREATE TABLE new_table SELECT CAST('2000-01-01' AS DATE);
+@end example
+
+@code{CAST(string AS BINARY} is the same thing as @code{BINARY string}.
+
+To cast a string to a numeric value, you don't normally have to do
+anything; Just use the string value as it would be a number:
+
+@example
+mysql> select 1+'1';
+        -> 2
+@end example
+
+MySQL supports arithmetic with both signed and unsigned 64 bit values.
+If you are using an numerical operations (like @code{+}) and one of the
+operands are @code{unsigned}, then the result will be unsigned.  You can
+override this by using the @code{SIGNED} and @code{UNSIGNED} cast
+operators, which will cast the operation to signed respective unsigned
+64 bit integer.
+
+@example
+mysql> select CAST(1-2 AS UNSIGNED)
+        -> 18446744073709551615
+mysql  select CAST(CAST(1-2 AS UNSIGNED) AS SIGNED);
+        -> -1
+@end example
+
+The @code{CAST()} and @code{CONVERT()} function was added in MySQL 4.0.2.
+
+@node Other Functions, Group by functions, Cast Functions, Functions
 @subsection Other Functions
 
 @menu
@@ -47951,7 +47989,7 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
-Added cast functions @code{SIGNED} and @code{UNSIGNED}.
+Added @code{CAST()} and @code{CONVERT()} functions.
 @item
 Changed order of how keys are created in tables.
 @item
