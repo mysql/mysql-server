@@ -341,7 +341,7 @@ bool mysql_ha_read(THD *thd, TABLE_LIST *tables,
       break;
     }
     default:
-      my_error(ER_ILLEGAL_HA, MYF(0));
+      my_message(ER_ILLEGAL_HA, ER(ER_ILLEGAL_HA), MYF(0));
       goto err;
     }
 
@@ -370,7 +370,7 @@ bool mysql_ha_read(THD *thd, TABLE_LIST *tables,
 	if (item->send(thd->protocol, &buffer))
 	{
 	  protocol->free();                             // Free used
-	  my_error(ER_OUT_OF_RESOURCES,MYF(0));
+	  my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
 	  goto err;
 	}
       }

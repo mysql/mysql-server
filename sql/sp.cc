@@ -1001,7 +1001,8 @@ sp_cache_functions(THD *thd, LEX *lex)
       {
 	delete newlex;
 	thd->lex= oldlex;
-	my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "FUNCTION", ls->str);
+	my_printf_error(ER_SP_DOES_NOT_EXIST, ER(ER_SP_DOES_NOT_EXIST), MYF(0),
+                        "FUNCTION", ls->str);
 	ret= 1;
 	break;
       }

@@ -220,7 +220,8 @@ Item_sum_num::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   
   if (!thd->allow_sum_func)
   {
-    my_error(ER_INVALID_GROUP_FUNC_USE,MYF(0));
+    my_message(ER_INVALID_GROUP_FUNC_USE, ER(ER_INVALID_GROUP_FUNC_USE),
+               MYF(0));
     return TRUE;
   }
   thd->allow_sum_func=0;			// No included group funcs
@@ -255,7 +256,8 @@ Item_sum_hybrid::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   Item *item= args[0];
   if (!thd->allow_sum_func)
   {
-    my_error(ER_INVALID_GROUP_FUNC_USE,MYF(0));
+    my_message(ER_INVALID_GROUP_FUNC_USE, ER(ER_INVALID_GROUP_FUNC_USE),
+               MYF(0));
     return TRUE;
   }
   thd->allow_sum_func=0;			// No included group funcs
@@ -2065,7 +2067,8 @@ Item_func_group_concat::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 
   if (!thd->allow_sum_func)
   {
-    my_error(ER_INVALID_GROUP_FUNC_USE,MYF(0));
+    my_message(ER_INVALID_GROUP_FUNC_USE, ER(ER_INVALID_GROUP_FUNC_USE),
+               MYF(0));
     return TRUE;
   }
   

@@ -1489,7 +1489,7 @@ static int create_table_from_dump(THD* thd, MYSQL *mysql, const char* db,
   packet_len= my_net_read(net); // read create table statement
   if (packet_len == packet_error)
   {
-    my_error(ER_MASTER_NET_READ, MYF(0));
+    my_message(ER_MASTER_NET_READ, ER(ER_MASTER_NET_READ), MYF(0));
     DBUG_RETURN(1);
   }
   if (net->read_pos[0] == 255) // error from master
@@ -1498,7 +1498,7 @@ static int create_table_from_dump(THD* thd, MYSQL *mysql, const char* db,
     err_msg= (char*) net->read_pos + ((mysql->server_capabilities &
 				       CLIENT_PROTOCOL_41) ?
 				      3+SQLSTATE_LENGTH+1 : 3);
-    my_error(ER_MASTER, MYF(0), err_msg);
+    my_printf_error(ER_MASTER, ER(ER_MASTER), MYF(0), err_msg);
     DBUG_RETURN(1);
   }
   thd->command = COM_TABLE_DUMP;
@@ -1507,7 +1507,7 @@ static int create_table_from_dump(THD* thd, MYSQL *mysql, const char* db,
   if (!(query = thd->strmake((char*) net->read_pos, packet_len)))
   {
     sql_print_error("create_table_from_dump: out of memory");
-    my_error(ER_GET_ERRNO, MYF(0), "Out of memory");
+    my_message(ER_GET_ERRNO, "Out of memory", MYF(0));
     DBUG_RETURN(1);
   }
   thd->query= query;
@@ -1552,7 +1552,7 @@ static int create_table_from_dump(THD* thd, MYSQL *mysql, const char* db,
   /* Copy the data file */
   if (file->net_read_dump(net))
   {
-    my_error(ER_MASTER_NET_READ, MYF(0));
+    my_message(ER_MASTER_NET_READ, ER(ER_MASTER_NET_READ), MYF(0));
     sql_print_error("create_table_from_dump: failed in\
  handler::net_read_dump()");
     goto err;
@@ -1572,7 +1572,8 @@ static int create_table_from_dump(THD* thd, MYSQL *mysql, const char* db,
   error=file->repair(thd,&check_opt) != 0;
   thd->net.vio = save_vio;
   if (error)
-    my_error(ER_INDEX_REBUILD, MYF(0), tables.table->real_name);
+    my_printf_error(ER_INDEX_REBUILD, ER(ER_INDEX_REBUILD), MYF(0),
+                    tables.table->real_name);
 
 err:
   close_thread_tables(thd);
@@ -1599,7 +1600,8 @@ int fetch_master_table(THD *thd, const char *db_name, const char *table_name,
     }
     if (connect_to_master(thd, mysql, mi))
     {
-      my_error(ER_CONNECT_TO_MASTER, MYF(0), mysql_error(mysql));
+      my_printf_error(ER_CONNECT_TO_MASTER, ER(ER_CONNECT_TO_MASTER), MYF(0),
+                      mysql_error(mysql));
       mysql_close(mysql);
       DBUG_RETURN(1);
     }

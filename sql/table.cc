@@ -957,11 +957,12 @@ static void frm_error(int error, TABLE *form, const char *name, myf errortype)
       uint length=dirname_part(buff,name);
       buff[length-1]=0;
       db=buff+dirname_length(buff);
-      my_error(ER_NO_SUCH_TABLE,MYF(0),db,form->real_name);
+      my_printf_error(ER_NO_SUCH_TABLE, ER(ER_NO_SUCH_TABLE), MYF(0),
+                      db, form->real_name);
     }
     else
-      my_error(ER_FILE_NOT_FOUND,errortype,
-	       fn_format(buff,name,form_dev,reg_ext,0),my_errno);
+      my_printf_error(ER_FILE_NOT_FOUND, ER(ER_FILE_NOT_FOUND), errortype,
+                      fn_format(buff, name, form_dev, reg_ext, 0), my_errno);
     break;
   case 2:
   {
@@ -969,14 +970,15 @@ static void frm_error(int error, TABLE *form, const char *name, myf errortype)
     datext= datext==NullS ? "" : datext;
     err_no= (my_errno == ENOENT) ? ER_FILE_NOT_FOUND : (my_errno == EAGAIN) ?
       ER_FILE_USED : ER_CANT_OPEN_FILE;
-    my_error(err_no,errortype,
-	     fn_format(buff,form->real_name,form_dev,datext,2),my_errno);
+    my_printf_error(err_no, ER(err_no), errortype,
+                    fn_format(buff, form->real_name, form_dev, datext, 2),
+                    my_errno);
     break;
   }
   default:				/* Better wrong error than none */
   case 4:
-    my_error(ER_NOT_FORM_FILE,errortype,
-	     fn_format(buff,name,form_dev,reg_ext,0));
+    my_printf_error(ER_NOT_FORM_FILE, ER(ER_NOT_FORM_FILE), errortype,
+                    fn_format(buff, name, form_dev, reg_ext, 0));
     break;
   }
   DBUG_VOID_RETURN;
@@ -1694,7 +1696,8 @@ err:
   if (thd->net.last_errno == ER_BAD_FIELD_ERROR)
   {
     thd->clear_error();
-    my_error(ER_VIEW_INVALID, MYF(0), view_db.str, view_name.str);
+    my_printf_error(ER_VIEW_INVALID, ER(ER_VIEW_INVALID), MYF(0),
+                    view_db.str, view_name.str);
   }
   thd->lex->select_lex.no_wrap_view_item= save_wrapper;
   thd->lex->current_select= current_select_save;
@@ -1730,7 +1733,8 @@ int st_table_list::view_check_option(THD *thd, bool ignore_failure)
     }
     else
     {
-      my_error(ER_VIEW_CHECK_FAILED, MYF(0), view_db.str, view_name.str);
+      my_printf_error(ER_VIEW_CHECK_FAILED, ER(ER_VIEW_CHECK_FAILED), MYF(0),
+                      view_db.str, view_name.str);
       return(VIEW_CHECK_ERROR);
     }
   }

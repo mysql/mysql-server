@@ -47,12 +47,13 @@ mapped_files::mapped_files(const my_string filename,byte *magic,uint magic_lengt
 			     0L)))
       {
 	error=errno;
-	my_error(ER_NO_FILE_MAPPING,MYF(0), (my_string) name, error);
+	my_printf_error(ER_NO_FILE_MAPPING, ER(ER_NO_FILE_MAPPING), MYF(0),
+                        (my_string) name, error);
       }
     }
     if (map && memcmp(map,magic,magic_length))
     {
-      my_error(ER_WRONG_MAGIC, MYF(0), name);
+      my_printf_error(ER_WRONG_MAGIC, ER(ER_WRONG_MAGIC), MYF(0), name);
       VOID(munmap(map,size));
       map=0;
     }
@@ -111,7 +112,8 @@ mapped_files *map_file(const my_string name,byte *magic,uint magic_length)
   {
     map->use_count++;
     if (!map->map)
-      my_error(ER_NO_FILE_MAPPING, MYF(0), path, map->error);
+      my_printf_error(ER_NO_FILE_MAPPING, ER(ER_NO_FILE_MAPPING), MYF(0),
+                      path, map->error);
   }
   VOID(pthread_mutex_unlock(&LOCK_mapped_file));
   return map;

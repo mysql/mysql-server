@@ -22,6 +22,18 @@
 
 /* Define some external variables for error handling */
 
+/*
+  WARNING!
+  my_error family functions have to be used according following rules:
+  - if message have not parameters use my_message(ER_CODE, ER(ER_CODE), MYF(N))
+  - if message have only integer parameters, string constants (created
+  inside program) or string put (and cut if it is need) in some limited
+  length buffer before passing it as parameter then you can use
+  my_error(ER_CODE, MYF(N), ...). Never pass string get from user to
+  my_error.
+  - in all other cases use my_printf_error(ER_CODE, ER(ER_CODE), MYF(N), ...)
+*/
+
 const char ** NEAR my_errmsg[MAXMAPS]={0,0,0,0};
 char NEAR errbuff[NRERRBUFFS][ERRMSGSIZE];
 
