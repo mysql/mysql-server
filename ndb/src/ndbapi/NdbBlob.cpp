@@ -1144,7 +1144,7 @@ NdbBlob::preExecute(ExecType anExecType, bool& batch)
       // add operation before this one to read head+inline
       NdbOperation* tOp = theNdbCon->getNdbOperation(theTable, theNdbOp);
       if (tOp == NULL ||
-          tOp->committedRead() == -1 ||
+          tOp->readTuple() == -1 ||
           setTableKeyValue(tOp) == -1 ||
           getHeadInlineValue(tOp) == -1) {
         setErrorCode(tOp);
@@ -1163,7 +1163,7 @@ NdbBlob::preExecute(ExecType anExecType, bool& batch)
         Uint32 pkAttrId = theAccessTable->getNoOfColumns() - 1;
         NdbOperation* tOp = theNdbCon->getNdbOperation(theAccessTable, theNdbOp);
         if (tOp == NULL ||
-            tOp->committedRead() == -1 ||
+            tOp->readTuple() == -1 ||
             setAccessKeyValue(tOp) == -1 ||
             tOp->getValue(pkAttrId, theKeyBuf.data) == NULL) {
           setErrorCode(tOp);
@@ -1172,7 +1172,7 @@ NdbBlob::preExecute(ExecType anExecType, bool& batch)
       } else {
         NdbOperation* tOp = theNdbCon->getNdbIndexOperation(theAccessTable->m_index, theTable, theNdbOp);
         if (tOp == NULL ||
-            tOp->committedRead() == -1 ||
+            tOp->readTuple() == -1 ||
             setAccessKeyValue(tOp) == -1 ||
             getTableKeyValue(tOp) == -1) {
           setErrorCode(tOp);
@@ -1184,7 +1184,7 @@ NdbBlob::preExecute(ExecType anExecType, bool& batch)
       // add op before this one to read head+inline via index
       NdbIndexOperation* tOp = theNdbCon->getNdbIndexOperation(theAccessTable->m_index, theTable, theNdbOp);
       if (tOp == NULL ||
-          tOp->committedRead() == -1 ||
+          tOp->readTuple() == -1 ||
           setAccessKeyValue(tOp) == -1 ||
           getHeadInlineValue(tOp) == -1) {
         setErrorCode(tOp);
