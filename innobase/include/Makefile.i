@@ -2,7 +2,7 @@
 
 libsdir = ../libs
 
-INCLUDES =		-I../../include -I../include
+INCLUDES =		-I$(srcdir)/../include -I$(srcdir)/../../include -I../../include
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

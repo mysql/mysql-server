@@ -745,7 +745,7 @@ Item_sum_hybrid::min_max_update_int_field(int offset)
 		(ulonglong) old_nr > (ulonglong) nr :
 		old_nr > nr);
       /* (cmp_sign > 0 && res) || (!(cmp_sign > 0) && !res) */
-      if (cmp_sign > 0 ^ !res)
+      if ((cmp_sign > 0) ^ (!res))
 	old_nr=nr;
     }
     result_field->set_notnull();

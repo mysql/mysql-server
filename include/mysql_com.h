@@ -108,11 +108,12 @@ typedef struct st_vio Vio;
 
 typedef struct st_net {
   Vio* vio;
-  my_socket fd;					/* For Perl DBI/dbd */
-  int fcntl;
   unsigned char *buff,*buff_end,*write_pos,*read_pos;
+  my_socket fd;					/* For Perl DBI/dbd */
+  unsigned long max_packet;
+  int fcntl;
+  unsigned int last_errno,timeout,pkt_nr,compress_pkt_nr;
   char last_error[MYSQL_ERRMSG_SIZE];
-  unsigned int last_errno,max_packet,timeout,pkt_nr;
   unsigned char error;
   my_bool return_errno,compress;
   /*
@@ -120,14 +121,14 @@ typedef struct st_net {
     command ( as in LOAD TABLE ... FROM MASTER ),
     and do not want to confuse the client with OK at the wrong time
   */
-  my_bool no_send_ok;
   unsigned long remain_in_buf,length, buf_length, where_b;
   unsigned int *return_status;
   unsigned char reading_or_writing;
   char save_char;
+  my_bool no_send_ok;
 } NET;
 
-#define packet_error ((unsigned int) -1)
+#define packet_error (~(unsigned long) 0)
 
 enum enum_field_types { FIELD_TYPE_DECIMAL, FIELD_TYPE_TINY,
 			FIELD_TYPE_SHORT,  FIELD_TYPE_LONG,

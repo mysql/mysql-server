@@ -173,7 +173,7 @@ typedef struct st_mi_isam_share {	/* Shared between opens */
   File	data_file;			/* Shared data file */
   int	mode;				/* mode of file on open */
   uint	reopen;				/* How many times reopened */
-  uint	w_locks,r_locks;		/* Number of read/write locks */
+  uint	w_locks,r_locks,tot_locks;	/* Number of read/write locks */
   uint	blocksize;			/* blocksize of keyfile */
   ulong min_pack_length;		/* Theese are used by packed data */
   ulong max_pack_length;
@@ -365,10 +365,8 @@ struct st_myisam_info {
 #define PACK_TYPE_ZERO_FILL	4
 #define MI_FOUND_WRONG_KEY 32738	/* Impossible value from _mi_key_cmp */
 
-#define MI_KEY_BLOCK_LENGTH	1024	/* Min key block length */
-#define MI_MAX_KEY_BLOCK_LENGTH	8192
-#define MI_MAX_KEY_BLOCK_SIZE	(MI_MAX_KEY_BLOCK_LENGTH/MI_KEY_BLOCK_LENGTH)
-#define MI_BLOCK_SIZE(key_length,data_pointer,key_pointer) ((((key_length+data_pointer+key_pointer)*4+key_pointer+2)/MI_KEY_BLOCK_LENGTH+1)*MI_KEY_BLOCK_LENGTH)
+#define MI_MAX_KEY_BLOCK_SIZE	(MI_MAX_KEY_BLOCK_LENGTH/MI_MIN_KEY_BLOCK_LENGTH)
+#define MI_BLOCK_SIZE(key_length,data_pointer,key_pointer) ((((key_length+data_pointer+key_pointer)*4+key_pointer+2)/myisam_block_size+1)*myisam_block_size)
 #define MI_MAX_KEYPTR_SIZE	5	/* For calculating block lengths */
 #define MI_MIN_KEYBLOCK_LENGTH	50	/* When to split delete blocks */
 
@@ -588,6 +586,9 @@ enum myisam_log_commands {
 #define myisam_log(a,b,c,d) if (myisam_log_file >= 0) _myisam_log(a,b,c,d)
 #define myisam_log_command(a,b,c,d,e) if (myisam_log_file >= 0) _myisam_log_command(a,b,c,d,e)
 #define myisam_log_record(a,b,c,d,e) if (myisam_log_file >= 0) _myisam_log_record(a,b,c,d,e)
+
+#define fast_mi_writeinfo(INFO) if (!(INFO)->s->tot_locks) (void) _mi_writeinfo((INFO),0)
+#define fast_mi_readinfo(INFO) (!(INFO)->lock_type == F_UNLCK) && _mi_readinfo((INFO),F_RDLCK,1)
 
 #ifdef	__cplusplus
 extern "C" {

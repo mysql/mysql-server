@@ -118,7 +118,7 @@ case "$mode" in
   'stop')
     # Stop daemon. We use a signal here to avoid having to know the
     # root password.
-    if test -f "$pid_file"
+    if test -s "$pid_file"
     then
       mysqld_pid=`cat $pid_file`
       echo "Killing mysqld with pid $mysqld_pid"

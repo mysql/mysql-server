@@ -23,15 +23,6 @@
 
 #define CLIENT_CAPABILITIES	(CLIENT_LONG_PASSWORD | CLIENT_LONG_FLAG | CLIENT_LOCAL_FILES)
 
-#ifndef OS2
-extern "C"
-{
- int simple_command(MYSQL *mysql,enum enum_server_command command,
-		    const char *arg, uint length, my_bool skipp_check);
-  uint net_safe_read(MYSQL* mysql);
-}
-#endif
-
 char server_version[SERVER_VERSION_LENGTH];
 uint32 server_id = 0;
 

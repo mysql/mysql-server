@@ -50,6 +50,7 @@ int mi_lock_database(MI_INFO *info, int lock_type)
 	count= --share->r_locks;
       else
 	count= --share->w_locks;
+      --share->tot_locks;
       if (info->lock_type == F_WRLCK && !share->w_locks &&
 	  !share->delay_key_write && flush_key_blocks(share->kfile,FLUSH_KEEP))
       {
@@ -153,6 +154,7 @@ int mi_lock_database(MI_INFO *info, int lock_type)
       }
       VOID(_mi_test_if_changed(info));
       share->r_locks++;
+      share->tot_locks++;
       info->lock_type=lock_type;
       break;
     case F_WRLCK:
@@ -200,6 +202,7 @@ int mi_lock_database(MI_INFO *info, int lock_type)
       VOID(_mi_test_if_changed(info));
       info->lock_type=lock_type;
       share->w_locks++;
+      share->tot_locks++;
       break;
     default:
       break;				/* Impossible */
@@ -295,13 +298,12 @@ my_bool mi_check_status(void* param)
 
 int _mi_readinfo(register MI_INFO *info, int lock_type, int check_keybuffer)
 {
-  MYISAM_SHARE *share;
   DBUG_ENTER("_mi_readinfo");
 
-  share=info->s;
   if (info->lock_type == F_UNLCK)
   {
-    if (!share->r_locks && !share->w_locks)
+    MYISAM_SHARE *share=info->s;
+    if (!share->tot_locks)
     {
       if ((info->tmp_lock_type=lock_type) != F_RDLCK)
 	if (my_lock(share->kfile,lock_type,0L,F_TO_EOF,
@@ -339,7 +341,7 @@ int _mi_writeinfo(register MI_INFO *info, uint operation)
   DBUG_ENTER("_mi_writeinfo");
 
   error=0;
-  if (share->r_locks == 0 && share->w_locks == 0)
+  if (share->tot_locks == 0)
   {
     olderror=my_errno;			/* Remember last error */
     if (operation)
