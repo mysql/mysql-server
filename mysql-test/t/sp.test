@@ -1138,6 +1138,16 @@ call bug2614()|
 drop table t3|
 drop procedure bug2614|
 
+#
+# BUG#2674
+#
+
+create function bug2674 () returns int
+  return @@sort_buffer_size|
+
+select bug2674()|
+drop function bug2674|
+
 
 #
 # Some "real" examples
