@@ -1,19 +1,3 @@
-/* Copyright (C) 2003 MySQL AB
-
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2 of the License, or
-   (at your option) any later version.
-
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
-
 /*  $Revision: 1.4 $
 **
 **  Unix system-dependant routines for editline library.
@@ -138,6 +122,11 @@ rl_add_slash(char *path, char *p, size_t p_len)
 {
     struct stat	Sb;
 
-    if (stat(path, &Sb) >= 0)
-	(void)strlcat(p, S_ISDIR(Sb.st_mode) ? "/" : " ", p_len);
+    if (stat(path, &Sb) >= 0) {
+      size_t len= strlen(p);
+      if (len+1 < p_len) {
+	p[len]= S_ISDIR(Sb.st_mode) ? '/' : ' ';
+	p[len+1]= 0;
+      }
+    }
 }

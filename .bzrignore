@@ -296,6 +296,7 @@ extra/resolveip
 extra/tztime.cc
 fcns.c
 fcns.h
+gdbinit
 gmon.out
 hardcopy.0
 heap/hp_test1
@@ -519,6 +520,7 @@ mysql-max-4.0.2-alpha-pc-linux-gnu-i686.tar.gz
 mysql-test/gmon.out
 mysql-test/install_test_db
 mysql-test/mysql-test-run
+mysql-test/mysql_test_run_new
 mysql-test/ndb/ndbcluster
 mysql-test/r/*.reject
 mysql-test/r/index_merge_load.result
@@ -939,4 +941,3 @@ vio/test-ssl
 vio/test-sslclient
 vio/test-sslserver
 vio/viotest-ssl
-gdbinit

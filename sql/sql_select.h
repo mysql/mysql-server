@@ -426,7 +426,7 @@ class store_key :public Sql_alloc
 				   field_arg->table, field_arg->charset());
     else
     {
-      to_field=field_arg->new_field(&thd->mem_root,field_arg->table);
+      to_field=field_arg->new_field(thd->mem_root,field_arg->table);
       if (to_field)
 	to_field->move_field(ptr, (uchar*) null, 1);
     }

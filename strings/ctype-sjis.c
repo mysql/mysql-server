@@ -4581,13 +4581,18 @@ uint my_well_formed_len_sjis(CHARSET_INFO *cs __attribute__((unused)),
     */
     if (((int8)b[0]) >= 0)
     {
-      /* Single byte character */
-      b+= 1;
+      /* Single byte ascii character */
+      b++;
     }
     else  if (issjishead((uchar)*b) && (e-b)>1 && issjistail((uchar)b[1]))
     {
       /* Double byte character */
       b+= 2;
+    }
+    else if (((uchar)*b) >= 0xA1 && ((uchar)*b) <= 0xDF)
+    {
+      /* Half width kana */
+      b++;
     }
     else
     {
