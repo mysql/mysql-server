@@ -2262,9 +2262,11 @@ elif test "$extra_charsets" = complex; then
   CHARSETS=`/bin/ls -1 $srcdir/strings/ctype-*.c | \
                   sed -e 's;^.*/ctype-;;' -e 's;.c$;;'`
   CHARSETS=`echo $CHARSETS`     # get rid of line breaks
+  AC_DEFINE([DEFINE_ALL_CHARACTER_SETS])
 else
   if test "$extra_charsets" = all; then
     CHARSETS="$CHARSETS_AVAILABLE $CHARSETS_DEPRECATED"
+    AC_DEFINE([DEFINE_ALL_CHARACTER_SETS])
   else
     CHARSETS=`echo $extra_charsets | sed -e 's/,/ /g'`
   fi

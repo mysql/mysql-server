@@ -22,7 +22,7 @@ EXTRA_DIST =		mysql.spec.sh \
 			my-medium.cnf.sh \
 			my-large.cnf.sh \
 			my-huge.cnf.sh \
-			my-innodb-heavy-4G \
+			my-innodb-heavy-4G.cnf.sh \
 			mysql-log-rotate.sh \
 			mysql.server.sh \
 			binary-configure.sh \

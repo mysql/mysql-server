@@ -2247,6 +2247,10 @@ int main(int argc, char **argv)
   if (!opt_mysql_tmpdir || !opt_mysql_tmpdir[0])
     opt_mysql_tmpdir=(char*) P_tmpdir;		/* purecov: inspected */
 
+  /* needed by get_options */
+
+  (void) pthread_mutex_init(&LOCK_error_log,MY_MUTEX_INIT_FAST);
+
   set_options();
   get_options(argc,argv);
   set_server_version();
@@ -2263,7 +2267,6 @@ int main(int argc, char **argv)
   (void) pthread_mutex_init(&LOCK_thread_count,MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_mapped_file,MY_MUTEX_INIT_SLOW);
   (void) pthread_mutex_init(&LOCK_status,MY_MUTEX_INIT_FAST);
-  (void) pthread_mutex_init(&LOCK_error_log,MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_delayed_insert,MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_delayed_status,MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_delayed_create,MY_MUTEX_INIT_SLOW);
@@ -5100,21 +5103,24 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   }
   return 0;
 }
-	/* Initiates DEBUG - but no debugging here ! */
 
-void option_error_reporter( enum loglevel level, const char *format, ... )
+
+void option_error_reporter(enum loglevel level, const char *format, ...)
 {
   va_list args;
-  va_start( args, format );
-  vprint_msg_to_log( level, format, args );
-  va_end( args );
+  va_start(args, format);
+  vprint_msg_to_log(level, format, args);
+  va_end(args);
 }
+
+	/* Initiates DEBUG - but no debugging here ! */
 
 static void get_options(int argc,char **argv)
 {
   int ho_error;
 
-  if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option, option_error_reporter )))
+  if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option,
+                               option_error_reporter)))
     exit(ho_error);
 
 #if defined(HAVE_BROKEN_REALPATH)
