@@ -588,6 +588,7 @@ public:
   struct st_mysql_bind *client_params;
   char *extra_data;
   ulong extra_length;
+  String query_rest;
 #endif
   NET	  net;				// client connection descriptor
   MEM_ROOT warn_root;			// For warnings and errors

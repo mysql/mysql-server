@@ -64,12 +64,6 @@ test
 select cast(_koi8r'тест' as char character set cp1251);
 cast(_koi8r'тест' as char character set cp1251)
 РЕЯР
-select convert(_latin1'test', "latin1_german1_ci", "latin1_swedish_ci");
-convert(_latin1'test', "latin1_german1_ci", "latin1_swedish_ci")
-test
-select convert(_koi8r'тест', "koi8r_general_ci", "cp1251_general_ci");
-convert(_koi8r'тест', "koi8r_general_ci", "cp1251_general_ci")
-РЕЯР
 create table t1 select cast(_koi8r'тест' as char character set cp1251) as t;
 show create table t1;
 Table	Create Table

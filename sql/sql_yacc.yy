@@ -3636,8 +3636,6 @@ simple_expr:
 	  }
 	| CONVERT_SYM '(' expr USING charset_name ')'
 	  { $$= new Item_func_conv_charset($3,$5); }
-	| CONVERT_SYM '(' expr ',' expr ',' expr ')'
-	  { $$= new Item_func_conv_charset3($3,$7,$5); }
 	| DEFAULT '(' simple_ident ')'
 	  { $$= new Item_default_value($3); }
 	| VALUES '(' simple_ident ')'

@@ -1411,11 +1411,13 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       char *packet= thd->lex->found_colon;
       /*
         Multiple queries exits, execute them individually
+	in embedded server - just store them to be executed later 
       */
+#ifndef EMBEDDED_LIBRARY
       if (thd->lock || thd->open_tables || thd->derived_tables)
         close_thread_tables(thd);
-
-      ulong length= thd->query_length-(ulong)(thd->lex->found_colon-thd->query);
+#endif
+      ulong length= thd->query_length-(ulong)(packet-thd->query);
 
       /* Remove garbage at start of query */
       while (my_isspace(thd->charset(), *packet) && length > 0)
@@ -1428,7 +1430,22 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       VOID(pthread_mutex_lock(&LOCK_thread_count));
       thd->query_id= query_id++;
       VOID(pthread_mutex_unlock(&LOCK_thread_count));
+#ifndef EMBEDDED_LIBRARY
       mysql_parse(thd, packet, length);
+#else
+      /*
+	'packet' can point inside the query_rest's buffer
+	so we have to do memmove here
+       */
+      if (thd->query_rest.length() > length)
+      {
+	memmove(thd->query_rest.c_ptr(), packet, length);
+	thd->query_rest.length(length);
+      }
+      else
+	thd->query_rest.copy(length);
+      break;
+#endif /*EMBEDDED_LIBRARY*/
     }
 
     if (!(specialflag & SPECIAL_NO_PRIOR))
