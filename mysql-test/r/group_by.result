@@ -1,0 +1,32 @@
+userid	MIN(t1.score)
+1	1
+2	2
+3	3
+userid	MIN(t1.score)
+1	1
+2	2
+userid	MIN(t1.score+0.0)
+1	1.0
+2	2.0
+cid	CONCAT(firstname, ' ', surname)	COUNT(call_id)
+cid	CONCAT(firstname, ' ', surname)	COUNT(call_id)
+value	description	bug_id
+BBBBBBBBBBBBB - conversion		9
+BBBBBBBBBBBBB - conversion		10
+BBBBBBBBBBBBB - generic		7
+BBBBBBBBBBBBB - generic		14
+BBBBBBBBBBBBB - eeeeeeeee		NULL
+kkkkkkkkkkk lllllllllll		6
+kkkkkkkkkkk lllllllllll		8
+kkkkkkkkkkk lllllllllll		12
+Test Procedures		NULL
+Documentation		NULL
+Host communication		NULL
+value	description	COUNT(bug_id)
+BBBBBBBBBBBBB - conversion		2
+BBBBBBBBBBBBB - eeeeeeeee		0
+BBBBBBBBBBBBB - generic		2
+Documentation		0
+Host communication		0
+kkkkkkkkkkk lllllllllll		3
+Test Procedures		0

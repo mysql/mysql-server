@@ -1,0 +1,47 @@
+#
+# Test of lock tables
+#
+
+create table t1 ( n int auto_increment primary key);
+lock tables t1 write;
+insert into t1 values(NULL);
+unlock tables;
+check table t1;
+lock tables t1 write, t1 as t0 read;
+insert into t1 values(NULL);
+unlock tables;
+check table t1;
+lock tables t1 write, t1 as t0 read, t1 as t2 read;
+insert into t1 values(NULL);
+unlock tables;
+check table t1;
+lock tables t1 write, t1 as t0 write, t1 as t2 read;
+insert into t1 values(NULL);
+unlock tables;
+check table t1;
+lock tables t1 write, t1 as t0 write, t1 as t2 read, t1 as t3 read;
+insert into t1 values(NULL);
+unlock tables;
+check table t1;
+lock tables t1 write, t1 as t0 write, t1 as t2 write;
+insert into t1 values(NULL);
+unlock tables;
+check table t1;
+drop table t1;
+
+#
+# Test of locking and delete of files
+#
+
+CREATE TABLE t1 (a int);
+CREATE TABLE t2 (a int);
+lock tables t1 write,t1 as b write, t2 write, t2 as c read;
+drop table t1;
+drop table t2;
+
+CREATE TABLE t1 (a int);
+CREATE TABLE t2 (a int);
+lock tables t1 write,t1 as b write, t2 write, t2 as c read;
+drop table t2;
+drop table t1;
+unlock tables;

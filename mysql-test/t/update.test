@@ -1,0 +1,29 @@
+#
+# test of updating of keys
+#
+
+drop table if exists t1;
+create table t1 (a int auto_increment , primary key (a));
+insert into t1 values (NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL); 
+update t1 set a=a+10 where a > 34;
+update t1 set a=a+100 where a > 0;
+drop table t1;
+
+CREATE TABLE t1
+ (
+ place_id int (10) unsigned NOT NULL,
+ shows int(10) unsigned DEFAULT '0' NOT NULL,
+ ishows int(10) unsigned DEFAULT '0' NOT NULL,
+ ushows int(10) unsigned DEFAULT '0' NOT NULL,
+ clicks int(10) unsigned DEFAULT '0' NOT NULL,
+ iclicks int(10) unsigned DEFAULT '0' NOT NULL,
+ uclicks int(10) unsigned DEFAULT '0' NOT NULL,
+ ts timestamp(14),
+ PRIMARY KEY (place_id,ts)
+ );
+
+INSERT INTO t1 (place_id,shows,ishows,ushows,clicks,iclicks,uclicks,ts)
+VALUES (1,0,0,0,0,0,0,20000928174434);
+UPDATE t1 SET shows=shows+1,ishows=ishows+1,ushows=ushows+1,clicks=clicks+1,iclicks=iclicks+1,uclicks=uclicks+1 WHERE place_id=1 AND ts>="2000-09-28 00:00:00";
+select place_id,shows from t1;
+drop table t1;

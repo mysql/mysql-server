@@ -1,2 +1,0 @@
-IF(0,"ERROR","this")	IF(1,"is","ERROR")	IF(NULL,"ERROR","a")	IF(1,2,3)|0	IF(1,2.0,3.0)+0
-this	is	a	2	2.0

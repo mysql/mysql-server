@@ -1,0 +1,9 @@
+t1
+ABC
+t1
+t1
+AB%
+table	type	possible_keys	key	key_len	ref	rows	Extra
+t1	const	PRIMARY	PRIMARY	3	const	1	
+Comment
+Impossible WHERE noticed after reading const tables
