@@ -16051,7 +16051,9 @@ Values in the scope fields may be specified as follows:
 @itemize @bullet
 @item
 The wildcard characters @samp{%} and @samp{_} can be used in the @code{Host}
-and @code{Db} fields of either table.
+and @code{Db} fields of either table. If you wish to use for instance a
+@samp{_} character as part of a database name, specify it as @samp{\_} in
+the @code{GRANT} command.
 
 @item
 A @code{'%'} @code{Host} value in the @code{db} table means ``any host.'' A
@@ -16676,6 +16678,13 @@ database privileges by using @code{ON db_name.*} syntax. If you specify
 that database.  (@strong{Warning}: if you specify @code{ON *} and you
 @strong{don't} have a current database, you will affect the global privileges!)
 
+@strong{Please note}: the @samp{_} and @samp{%} wildcards are allowed when
+specifying database names in @code{GRANT} commands. This means that if you
+wish to use for instance a @samp{_} character as part of a database name,
+you should specify it as @samp{\_} in the @code{GRANT} command, to prevent
+the user from being able to access additional databases matching the
+wildcard pattern, e.g., @code{GRANT ... ON `foo\_bar`.* TO ...}.
+
 In order to accommodate granting rights to users from arbitrary hosts,
 MySQL supports specifying the @code{user_name} value in the form
 @code{user@@host}.  If you want to specify a @code{user} string
@@ -16684,8 +16693,8 @@ containing special characters or wildcard characters (such as @samp{%}), you
 can quote the user or host name (for example, @code{'test-user'@@'test-hostname'}).
 
 You can specify wildcards in the hostname.  For example,
-@code{user@@"%.loc.gov"} applies to @code{user} for any host in the
-@code{loc.gov} domain, and @code{user@@"144.155.166.%"} applies to @code{user}
+@code{user@@'%.loc.gov'} applies to @code{user} for any host in the
+@code{loc.gov} domain, and @code{user@@'144.155.166.%'} applies to @code{user}
 for any host in the @code{144.155.166} class C subnet.
 
 The simple form @code{user} is a synonym for @code{user@@"%"}.
