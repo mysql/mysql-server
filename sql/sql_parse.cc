@@ -1772,7 +1772,7 @@ mysql_execute_command(void)
 	  tmp_table.real_name=lex->name;
 	  tmp_table.db=select_lex->db;
 	  tmp_table.grant.privilege=priv;
-	  if (check_grant(thd,INSERT_ACL | CREATE_ACL,tables))
+	  if (check_grant(thd,INSERT_ACL | CREATE_ACL, &tmp_table))
 	    goto error;
 	}
       }
