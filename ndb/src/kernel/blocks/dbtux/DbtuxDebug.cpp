@@ -137,16 +137,17 @@ Dbtux::printNode(Signal* signal, Frag& frag, NdbOut& out, TupLoc loc, PrintPar& 
       par.m_ok = false;
     }
   }
+  static const char* const sep = " *** ";
   // check child-parent links
   if (node.getLink(2) != par.m_parent) {
     par.m_ok = false;
-    out << par.m_path << " *** ";
+    out << par.m_path << sep;
     out << "parent loc " << hex << node.getLink(2);
     out << " should be " << hex << par.m_parent << endl;
   }
   if (node.getSide() != par.m_side) {
     par.m_ok = false;
-    out << par.m_path << " *** ";
+    out << par.m_path << sep;
     out << "side " << dec << node.getSide();
     out << " should be " << dec << par.m_side << endl;
   }
@@ -154,26 +155,26 @@ Dbtux::printNode(Signal* signal, Frag& frag, NdbOut& out, TupLoc loc, PrintPar& 
   const int balance = -cpar[0].m_depth + cpar[1].m_depth;
   if (node.getBalance() != balance) {
     par.m_ok = false;
-    out << par.m_path << " *** ";
+    out << par.m_path << sep;
     out << "balance " << node.getBalance();
     out << " should be " << balance << endl;
   }
   if (abs(node.getBalance()) > 1) {
     par.m_ok = false;
-    out << par.m_path << " *** ";
+    out << par.m_path << sep;
     out << "balance " << node.getBalance() << " is invalid" << endl;
   }
   // check occupancy
-  if (node.getOccup() > tree.m_maxOccup) {
+  if (node.getOccup() == 0 || node.getOccup() > tree.m_maxOccup) {
     par.m_ok = false;
-    out << par.m_path << " *** ";
+    out << par.m_path << sep;
     out << "occupancy " << node.getOccup();
-    out << " greater than max " << tree.m_maxOccup << endl;
+    out << " zero or greater than max " << tree.m_maxOccup << endl;
   }
   // check for occupancy of interior node
   if (node.getChilds() == 2 && node.getOccup() < tree.m_minOccup) {
     par.m_ok = false;
-    out << par.m_path << " *** ";
+    out << par.m_path << sep;
     out << "occupancy " << node.getOccup() << " of interior node";
     out << " less than min " << tree.m_minOccup << endl;
   }
@@ -183,13 +184,74 @@ Dbtux::printNode(Signal* signal, Frag& frag, NdbOut& out, TupLoc loc, PrintPar& 
         node.getLink(1 - i) == NullTupLoc &&
         node.getOccup() + cpar[i].m_occup <= tree.m_maxOccup) {
       par.m_ok = false;
-      out << par.m_path << " *** ";
+      out << par.m_path << sep;
       out << "missed merge with child " << i << endl;
+    }
+  }
+  // check inline prefix
+  { ConstData data1 = node.getPref();
+    Uint32 data2[MaxPrefSize];
+    memset(data2, DataFillByte, MaxPrefSize << 2);
+    readKeyAttrs(frag, node.getMinMax(0), 0, c_searchKey);
+    copyAttrs(frag, c_searchKey, data2, tree.m_prefSize);
+    for (unsigned n = 0; n < tree.m_prefSize; n++) {
+      if (data1[n] != data2[n]) {
+        par.m_ok = false;
+        out << par.m_path << sep;
+        out << "inline prefix mismatch word " << n;
+        out << " value " << hex << data1[n];
+        out << " should be " << hex << data2[n] << endl;
+        break;
+      }
+    }
+  }
+  // check ordering within node
+  for (unsigned j = 1; j < node.getOccup(); j++) {
+    unsigned start = 0;
+    const TreeEnt ent1 = node.getEnt(j - 1);
+    const TreeEnt ent2 = node.getEnt(j);
+    if (j == 1) {
+      readKeyAttrs(frag, ent1, start, c_searchKey);
+    } else {
+      memcpy(c_searchKey, c_entryKey, frag.m_numAttrs << 2);
+    }
+    readKeyAttrs(frag, ent2, start, c_entryKey);
+    int ret = cmpSearchKey(frag, start, c_searchKey, c_entryKey);
+    if (ret == 0)
+      ret = ent1.cmp(ent2);
+    if (ret != -1) {
+      par.m_ok = false;
+      out << par.m_path << sep;
+      out << " disorder within node at pos " << j << endl;
+    }
+  }
+  // check ordering wrt subtrees
+  for (unsigned i = 0; i <= 1; i++) {
+    if (node.getLink(i) == NullTupLoc)
+      continue;
+    const TreeEnt ent1 = cpar[i].m_minmax[1 - i];
+    const TreeEnt ent2 = node.getMinMax(i);
+    unsigned start = 0;
+    readKeyAttrs(frag, ent1, start, c_searchKey);
+    readKeyAttrs(frag, ent2, start, c_entryKey);
+    int ret = cmpSearchKey(frag, start, c_searchKey, c_entryKey);
+    if (ret == 0)
+      ret = ent1.cmp(ent2);
+    if (ret != (i == 0 ? -1 : +1)) {
+      par.m_ok = false;
+      out << par.m_path << sep;
+      out << " disorder wrt subtree " << i << endl;
     }
   }
   // return values
   par.m_depth = 1 + max(cpar[0].m_depth, cpar[1].m_depth);
   par.m_occup = node.getOccup();
+  for (unsigned i = 0; i <= 1; i++) {
+    if (node.getLink(i) == NullTupLoc)
+      par.m_minmax[i] = node.getMinMax(i);
+    else
+      par.m_minmax[i] = cpar[i].m_minmax[i];
+  }
 }
 
 NdbOut&
@@ -355,20 +417,19 @@ operator<<(NdbOut& out, const Dbtux::NodeHandle& node)
   out << " [acc " << dec << node.m_acc << "]";
   out << " [node " << *node.m_node << "]";
   if (node.m_acc >= Dbtux::AccPref) {
-    for (unsigned i = 0; i <= 1; i++) {
-      out << " [pref " << dec << i;
-      const Uint32* data = (const Uint32*)node.m_node + Dbtux::NodeHeadSize + i * tree.m_prefSize;
-      for (unsigned j = 0; j < node.m_frag.m_tree.m_prefSize; j++)
-        out << " " << hex << data[j];
-      out << "]";
-    }
+    const Uint32* data;
+    out << " [pref";
+    data = (const Uint32*)node.m_node + Dbtux::NodeHeadSize;
+    for (unsigned j = 0; j < tree.m_prefSize; j++)
+      out << " " << hex << data[j];
+    out << "]";
     out << " [entList";
     unsigned numpos = node.m_node->m_occup;
     if (node.m_acc < Dbtux::AccFull && numpos > 2) {
       numpos = 2;
       out << "(" << dec << numpos << ")";
     }
-    const Uint32* data = (const Uint32*)node.m_node + Dbtux::NodeHeadSize + 2 * tree.m_prefSize;
+    data = (const Uint32*)node.m_node + Dbtux::NodeHeadSize + tree.m_prefSize;
     const Dbtux::TreeEnt* entList = (const Dbtux::TreeEnt*)data;
     for (unsigned pos = 0; pos < numpos; pos++)
       out << " " << entList[pos];

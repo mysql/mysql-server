@@ -29,8 +29,9 @@
 #include <Ndb.hpp>
 #include <NdbConnection.hpp>
 #include <NdbResultSet.hpp>
+#include <NdbBlob.hpp>
 
-NdbResultSet::NdbResultSet(NdbCursorOperation *owner)
+NdbResultSet::NdbResultSet(NdbScanOperation *owner)
 : m_operation(owner)
 {
 }
@@ -45,7 +46,25 @@ void  NdbResultSet::init()
 
 int NdbResultSet::nextResult(bool fetchAllowed)
 {
-  return m_operation->nextResult(fetchAllowed);
+  int res;
+  if ((res = m_operation->nextResult(fetchAllowed)) == 0) {
+    // handle blobs
+    NdbBlob* tBlob = m_operation->theBlobList;
+    while (tBlob != 0) {
+      if (tBlob->atNextResult() == -1)
+        return -1;
+      tBlob = tBlob->theNext;
+    }
+    /*
+     * Flush blob part ops on behalf of user because
+     * - nextResult is analogous to execute(NoCommit)
+     * - user is likely to want blob value before next execute
+     */
+    if (m_operation->m_transConnection->executePendingBlobOps() == -1)
+      return -1;
+    return 0;
+  }
+  return res;
 }
 
 void NdbResultSet::close()
@@ -55,52 +74,30 @@ void NdbResultSet::close()
 
 NdbOperation* 
 NdbResultSet::updateTuple(){
-  if(m_operation->cursorType() != NdbCursorOperation::ScanCursor){
-    m_operation->setErrorCode(4003);
-    return 0;
-  }
-  
-  NdbScanOperation * op = (NdbScanOperation*)(m_operation);
-  return op->takeOverScanOp(NdbOperation::UpdateRequest, 
-			    op->m_transConnection);
+  return updateTuple(m_operation->m_transConnection);
 }
 
 NdbOperation* 
 NdbResultSet::updateTuple(NdbConnection* takeOverTrans){
-  if(m_operation->cursorType() != NdbCursorOperation::ScanCursor){
-    m_operation->setErrorCode(4003);
-    return 0;
-  }
-  
   return m_operation->takeOverScanOp(NdbOperation::UpdateRequest, 
 				     takeOverTrans);
 }
 
 int
 NdbResultSet::deleteTuple(){
-  if(m_operation->cursorType() != NdbCursorOperation::ScanCursor){
-    m_operation->setErrorCode(4003);
-    return 0;
-  }
-  
-  NdbScanOperation * op = (NdbScanOperation*)(m_operation);
-  void * res = op->takeOverScanOp(NdbOperation::DeleteRequest, 
-				  op->m_transConnection);
+  return deleteTuple(m_operation->m_transConnection);
+}
+
+int
+NdbResultSet::deleteTuple(NdbConnection * takeOverTrans){
+  void * res = m_operation->takeOverScanOp(NdbOperation::DeleteRequest, 
+					   takeOverTrans);
   if(res == 0)
     return -1;
   return 0;
 }
 
 int
-NdbResultSet::deleteTuple(NdbConnection * takeOverTrans){
-  if(m_operation->cursorType() != NdbCursorOperation::ScanCursor){
-    m_operation->setErrorCode(4003);
-    return 0;
-  }
-  
-  void * res = m_operation->takeOverScanOp(NdbOperation::DeleteRequest, 
-					   takeOverTrans);
-  if(res == 0)
-    return -1;
-  return 0;
+NdbResultSet::restart(){
+  return m_operation->restart();
 }

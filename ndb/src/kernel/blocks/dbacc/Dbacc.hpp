@@ -218,6 +218,7 @@ ndbout << "Ptr: " << ptr.p->word32 << " \tIndex: " << tmp_string << " \tValue: "
 #define ZREL_FRAG 6
 #define ZREL_DIR 7
 #define ZREPORT_MEMORY_USAGE 8
+#define ZLCP_OP_WRITE_RT_BREAK 9
 
 /* ------------------------------------------------------------------------- */
 /* ERROR CODES                                                               */
@@ -1190,6 +1191,8 @@ private:
   void zpagesize_error(const char* where);
 
   void reportMemoryUsage(Signal* signal, int gth);
+  void lcp_write_op_to_undolog(Signal* signal);
+  void reenable_expand_after_redo_log_exection_complete(Signal*);
 
 
   // Initialisation
@@ -1559,7 +1562,7 @@ private:
   Uint32 cexcPrevforward;
   Uint32 clocalkey[32];
   Uint32 ckeys[2048];
-
+  
   Uint32 c_errorInsert3000_TableId;
   Uint32 cSrUndoRecords[5];
 };

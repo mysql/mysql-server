@@ -41,16 +41,22 @@ class DTCollation {
 public:
   CHARSET_INFO     *collation;
   enum Derivation derivation;
+  uint nagg;    // Total number of aggregated collations.
+  uint strong;  // Number of the strongest collation.
   
   DTCollation()
   {
     collation= &my_charset_bin;
     derivation= DERIVATION_NONE;
+    nagg= 0;
+    strong= 0;
   }
   DTCollation(CHARSET_INFO *collation_arg, Derivation derivation_arg)
   {
     collation= collation_arg;
     derivation= derivation_arg;
+    nagg= 0;
+    strong= 0;
   }
   void set(DTCollation &dt)
   { 
@@ -66,9 +72,9 @@ public:
   { collation= collation_arg; }
   void set(Derivation derivation_arg)
   { derivation= derivation_arg; }
-  bool aggregate(DTCollation &dt);
-  bool set(DTCollation &dt1, DTCollation &dt2)
-  { set(dt1); return aggregate(dt2); }
+  bool aggregate(DTCollation &dt, bool superset_conversion= FALSE);
+  bool set(DTCollation &dt1, DTCollation &dt2, bool superset_conversion= FALSE)
+  { set(dt1); return aggregate(dt2, superset_conversion); }
   const char *derivation_name() const
   {
     switch(derivation)
@@ -137,13 +143,7 @@ public:
   }		/*lint -e1509 */
   void set_name(const char *str,uint length, CHARSET_INFO *cs);
   void init_make_field(Send_field *tmp_field,enum enum_field_types type);
-  virtual void cleanup()
-  {
-    DBUG_ENTER("Item::cleanup");
-    DBUG_PRINT("info", ("Type: %d", (int)type()));
-    fixed=0;
-    DBUG_VOID_RETURN;
-  }
+  virtual void cleanup();
   virtual void make_field(Send_field *field);
   virtual bool fix_fields(THD *, struct st_table_list *, Item **);
   /*
@@ -243,6 +243,7 @@ public:
   virtual void top_level_item() {}
   virtual void set_result_field(Field *field) {}
   virtual bool is_result_field() { return 0; }
+  virtual bool is_bool_func() { return 0; }
   virtual void save_in_result_field(bool no_conversions) {}
   virtual void no_rows_in_result() {}
   virtual Item *copy_or_same(THD *thd) { return this; }
@@ -275,8 +276,7 @@ public:
   virtual void bring_value() {}
 
   Field *tmp_table_field_from_field_type(TABLE *table);
-  
-  /* Used in sql_select.cc:eliminate_not_funcs() */
+
   virtual Item *neg_transformer(THD *thd) { return NULL; }
   void delete_self()
   {
@@ -1023,7 +1023,7 @@ public:
 };
 
 /*
-  The following class is used to optimize comparing of date columns
+  The following class is used to optimize comparing of date and bigint columns
   We need to save the original item, to be able to set the field to the
   original value in 'opt_range'.
 */
@@ -1033,7 +1033,9 @@ class Item_int_with_ref :public Item_int
   Item *ref;
 public:
   Item_int_with_ref(longlong i, Item *ref_arg) :Item_int(i), ref(ref_arg)
-  {}
+  {
+    unsigned_flag= ref_arg->unsigned_flag;
+  }
   int save_in_field(Field *field, bool no_conversions)
   {
     return ref->save_in_field(field, no_conversions);

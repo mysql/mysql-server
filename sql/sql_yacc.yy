@@ -505,6 +505,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token	CASE_SYM
 %token	CONCAT
 %token	CONCAT_WS
+%token  CONVERT_TZ_SYM
 %token	CURDATE
 %token	CURTIME
 %token	DATABASE
@@ -1118,7 +1119,10 @@ create:
 	    lex->col_list.empty();
 	  }
 	| CREATE DATABASE opt_if_not_exists ident
-	  { Lex->create_info.default_table_charset=NULL; }
+	  {
+             Lex->create_info.default_table_charset= NULL;
+             Lex->create_info.used_fields= 0;
+          }
 	  opt_create_database_options
 	  {
 	    LEX *lex=Lex;
@@ -1268,7 +1272,12 @@ create:
 	;
 
 sp_name:
-	  IDENT_sys '.' IDENT_sys
+	  '.' IDENT_sys
+	  {
+	    $$= new sp_name($2);
+	    $$->init_qname(YYTHD);
+	  }
+	| IDENT_sys '.' IDENT_sys
 	  {
 	    $$= new sp_name($1, $3);
 	    $$->init_qname(YYTHD);
@@ -2088,7 +2097,8 @@ sp_fetch_list:
 	      YYABORT;
 	    }
 	    else
-	    { /* An SP local variable */
+	    {
+	      /* An SP local variable */
 	      sp_instr_cfetch *i= (sp_instr_cfetch *)sp->last_instruction();
 
 	      i->add_to_varlist(spv);
@@ -2109,7 +2119,8 @@ sp_fetch_list:
 	      YYABORT;
 	    }
 	    else
-	    { /* An SP local variable */
+	    {
+	      /* An SP local variable */
 	      sp_instr_cfetch *i= (sp_instr_cfetch *)sp->last_instruction();
 
 	      i->add_to_varlist(spv);
@@ -2400,11 +2411,11 @@ create_select:
 	    */
 	    lex->current_select->table_list.save_and_clear(&lex->save_list);
 	    mysql_init_select(lex);
-	    lex->current_select->parsing_place= SELECT_LEX_NODE::SELECT_LIST;
+	    lex->current_select->parsing_place= SELECT_LIST;
           }
           select_options select_item_list
 	  {
-	    Select->parsing_place= SELECT_LEX_NODE::NO_MATTER;
+	    Select->parsing_place= NO_MATTER;
 	  }
 	  opt_select_from
 	  {
@@ -2429,11 +2440,8 @@ create_database_options:
 	| create_database_options create_database_option	{};
 
 create_database_option:
-	  opt_default COLLATE_SYM collation_name_or_default	
-	  { Lex->create_info.default_table_charset=$3; }
-	| opt_default charset charset_name_or_default
-	  { Lex->create_info.default_table_charset=$3; }
-	;
+	default_collation   {}
+	| default_charset   {};
 
 opt_table_options:
 	/* empty */	 { $$= 0; }
@@ -2495,20 +2503,45 @@ create_table_option:
 	    table_list->next_local= 0;
 	    lex->create_info.used_fields|= HA_CREATE_USED_UNION;
 	  }
-	| opt_default charset opt_equal charset_name_or_default
-	  {
-	    Lex->create_info.default_table_charset= $4;
-	    Lex->create_info.used_fields|= HA_CREATE_USED_DEFAULT_CHARSET;
-	  }
-	| opt_default COLLATE_SYM opt_equal collation_name_or_default
-	  {
-	    Lex->create_info.default_table_charset= $4;
-	    Lex->create_info.used_fields|= HA_CREATE_USED_DEFAULT_CHARSET;
-	  }
+	| default_charset
+	| default_collation
 	| INSERT_METHOD opt_equal merge_insert_types   { Lex->create_info.merge_insert_method= $3; Lex->create_info.used_fields|= HA_CREATE_USED_INSERT_METHOD;}
 	| DATA_SYM DIRECTORY_SYM opt_equal TEXT_STRING_sys
 	  { Lex->create_info.data_file_name= $4.str; }
 	| INDEX_SYM DIRECTORY_SYM opt_equal TEXT_STRING_sys { Lex->create_info.index_file_name= $4.str; };
+
+default_charset:
+        opt_default charset opt_equal charset_name_or_default
+        {
+          HA_CREATE_INFO *cinfo= &Lex->create_info;
+          if ((cinfo->used_fields & HA_CREATE_USED_DEFAULT_CHARSET) &&
+               cinfo->default_table_charset && $4 &&
+               !my_charset_same(cinfo->default_table_charset,$4))
+          {
+            net_printf(YYTHD, ER_CONFLICTING_DECLARATIONS,
+                       "CHARACTER SET ", cinfo->default_table_charset->csname,
+                       "CHARACTER SET ", $4->csname);
+            YYABORT;
+          }
+	  Lex->create_info.default_table_charset= $4;
+          Lex->create_info.used_fields|= HA_CREATE_USED_DEFAULT_CHARSET;
+        };
+
+default_collation:
+        opt_default COLLATE_SYM opt_equal collation_name_or_default
+        {
+          HA_CREATE_INFO *cinfo= &Lex->create_info;
+          if ((cinfo->used_fields & HA_CREATE_USED_DEFAULT_CHARSET) &&
+               cinfo->default_table_charset && $4 &&
+               !my_charset_same(cinfo->default_table_charset,$4))
+            {
+              net_printf(YYTHD,ER_COLLATION_CHARSET_MISMATCH,
+                         $4->name, cinfo->default_table_charset->csname);
+              YYABORT;
+            }
+            Lex->create_info.default_table_charset= $4;
+            Lex->create_info.used_fields|= HA_CREATE_USED_DEFAULT_CHARSET;
+        };
 
 storage_engines:
 	ident_or_text
@@ -3119,7 +3152,12 @@ alter:
 	}
 	alter_list
 	{}
-	| ALTER DATABASE ident opt_create_database_options
+	| ALTER DATABASE ident
+          {
+            Lex->create_info.default_table_charset= NULL;
+            Lex->create_info.used_fields= 0;
+          }
+          opt_create_database_options
 	  {
 	    LEX *lex=Lex;
 	    lex->sql_command=SQLCOM_ALTER_DB;
@@ -3270,6 +3308,12 @@ alter_list_item:
 	    LEX *lex=Lex;
 	    lex->select_lex.db=$3->db.str;
 	    lex->name= $3->table.str;
+            if (check_table_name($3->table.str,$3->table.length) ||
+                $3->db.str && check_db_name($3->db.str))
+            {
+              net_printf(lex->thd,ER_WRONG_TABLE_NAME,$3->table.str);
+              YYABORT;
+            }
 	    lex->alter_info.flags|= ALTER_RENAME;
 	  }
 	| CONVERT_SYM TO_SYM charset charset_name_or_default opt_collate
@@ -3708,11 +3752,11 @@ select_part2:
 	  lex->lock_option= TL_READ;
 	  if (sel->linkage != UNION_TYPE)
 	    mysql_init_select(lex);
-	  lex->current_select->parsing_place= SELECT_LEX_NODE::SELECT_LIST;
+	  lex->current_select->parsing_place= SELECT_LIST;
 	}
 	select_options select_item_list
 	{
-	  Select->parsing_place= SELECT_LEX_NODE::NO_MATTER;
+	  Select->parsing_place= NO_MATTER;
 	}
 	select_into select_lock_type;
 
@@ -4063,8 +4107,14 @@ simple_expr:
 	| '+' expr %prec NEG	{ $$= $2; }
 	| '-' expr %prec NEG    { $$= new Item_func_neg($2); }
 	| '~' expr %prec NEG	{ $$= new Item_func_bit_neg($2); }
-	| NOT expr %prec NEG	{ $$= new Item_func_not($2); }
-	| '!' expr %prec NEG	{ $$= new Item_func_not($2); }
+	| NOT expr %prec NEG
+          {
+            $$= negate_expression(YYTHD, $2);
+          }
+	| '!' expr %prec NEG
+          {
+            $$= negate_expression(YYTHD, $2);
+          }
 	| '(' expr ')'		{ $$= $2; }
 	| '(' expr ',' expr_list ')'
 	  {
@@ -4086,8 +4136,7 @@ simple_expr:
 	| ASCII_SYM '(' expr ')' { $$= new Item_func_ascii($3); }
 	| BINARY expr %prec NEG
 	  {
-	    $$= new Item_func_set_collation($2,new Item_string(binary_keyword,
-					    6, &my_charset_latin1));
+	    $$= create_func_cast($2, ITEM_CAST_CHAR, -1, &my_charset_bin);
 	  }
 	| CAST_SYM '(' expr AS cast_type ')'
 	  {
@@ -4175,6 +4224,11 @@ simple_expr:
 	  { $$= new Item_func_concat(* $3); }
 	| CONCAT_WS '(' expr ',' expr_list ')'
 	  { $$= new Item_func_concat_ws($3, *$5); }
+	| CONVERT_TZ_SYM '(' expr ',' expr ',' expr ')'
+	  {
+	    Lex->time_zone_tables_used= &fake_time_zone_tables_list;
+	    $$= new Item_func_convert_tz($3, $5, $7);
+	  }
 	| CURDATE optional_braces
 	  { $$= new Item_func_curdate_local(); Lex->safe_to_cache_query=0; }
 	| CURTIME optional_braces
@@ -4389,6 +4443,18 @@ simple_expr:
 	  { $$= new Item_func_round($3,$5,1); }
 	| TRUE_SYM
 	  { $$= new Item_int((char*) "TRUE",1,1); }
+	| '.' ident '(' udf_expr_list ')'
+	  {
+	    LEX *lex= Lex;
+	    sp_name *name= new sp_name($2);
+
+	    name->init_qname(YYTHD);
+	    sp_add_fun_to_lex(Lex, name);
+	    if ($4)
+	      $$= new Item_func_sp(name, *$4);
+	    else
+	      $$= new Item_func_sp(name);
+	  }
 	| ident '.' ident '(' udf_expr_list ')'
 	  {
 	    LEX *lex= Lex;
@@ -4910,11 +4976,11 @@ select_derived:
 	    YYABORT;
 	  mysql_init_select(lex);
 	  lex->current_select->linkage= DERIVED_TABLE_TYPE;
-	  lex->current_select->parsing_place= SELECT_LEX_NODE::SELECT_LIST;
+	  lex->current_select->parsing_place= SELECT_LIST;
 	}
         select_options select_item_list
 	{
-	  Select->parsing_place= SELECT_LEX_NODE::NO_MATTER;
+	  Select->parsing_place= NO_MATTER;
 	}
 	opt_select_from union_opt
         ;
@@ -5011,12 +5077,15 @@ interval_time_st:
 	| MONTH_SYM		{ $$=INTERVAL_MONTH; }
 	| QUARTER_SYM		{ $$=INTERVAL_QUARTER; }
 	| SECOND_SYM		{ $$=INTERVAL_SECOND; }
-	| YEAR_SYM		{ $$=INTERVAL_YEAR; };
+	| YEAR_SYM		{ $$=INTERVAL_YEAR; }
+        ;
 
 date_time_type:
-	DATE_SYM		{$$=MYSQL_TIMESTAMP_DATE;}
-	| TIME_SYM		{$$=MYSQL_TIMESTAMP_TIME;}
-	| DATETIME		{$$=MYSQL_TIMESTAMP_DATETIME;};
+          DATE_SYM              {$$=MYSQL_TIMESTAMP_DATE;}
+        | TIME_SYM              {$$=MYSQL_TIMESTAMP_TIME;}
+        | DATETIME              {$$=MYSQL_TIMESTAMP_DATETIME;}
+        | TIMESTAMP             {$$=MYSQL_TIMESTAMP_DATETIME;}
+        ;
 
 table_alias:
 	/* empty */
@@ -5035,11 +5104,17 @@ opt_all:
 
 where_clause:
 	/* empty */  { Select->where= 0; }
-	| WHERE expr
+	| WHERE
+          {
+            Select->parsing_place= IN_WHERE;
+          }
+          expr
 	  {
-	    Select->where= $2;
-	    if ($2)
-	      $2->top_level_item();
+            SELECT_LEX *select= Select;
+	    select->where= $3;
+            select->parsing_place= NO_MATTER;
+	    if ($3)
+	      $3->top_level_item();
 	  }
  	;
 
@@ -5047,13 +5122,13 @@ having_clause:
 	/* empty */
 	| HAVING
 	  {
-	    Select->parsing_place= SELECT_LEX_NODE::IN_HAVING;
+	    Select->parsing_place= IN_HAVING;
           }
 	  expr
 	  {
 	    SELECT_LEX *sel= Select;
 	    sel->having= $3;
-	    sel->parsing_place= SELECT_LEX_NODE::NO_MATTER;
+	    sel->parsing_place= NO_MATTER;
 	    if ($3)
 	      $3->top_level_item();
 	  }
@@ -5821,7 +5896,7 @@ show_param:
 	    LEX *lex= Lex;
 	    lex->sql_command= SQLCOM_SHOW_BINLOG_EVENTS;
           } opt_limit_clause_init
-	| keys_or_index FROM table_ident opt_db
+	| keys_or_index from_or_in table_ident opt_db
 	  {
 	    Lex->sql_command= SQLCOM_SHOW_KEYS;
 	    if ($4)
@@ -6403,7 +6478,7 @@ simple_ident:
 	  else
 	  {
 	    SELECT_LEX *sel=Select;
-	    $$= (sel->parsing_place != SELECT_LEX_NODE::IN_HAVING ||
+	    $$= (sel->parsing_place != IN_HAVING ||
 	         sel->get_in_sum_expr() > 0) ?
                  (Item*) new Item_field(NullS,NullS,$1.str) :
 	         (Item*) new Item_ref(0,0, NullS,NullS,$1.str);
@@ -6416,7 +6491,7 @@ simple_ident_nospvar:
 	ident
 	{
 	  SELECT_LEX *sel=Select;
-	  $$= (sel->parsing_place != SELECT_LEX_NODE::IN_HAVING ||
+	  $$= (sel->parsing_place != IN_HAVING ||
 	       sel->get_in_sum_expr() > 0) ?
               (Item*) new Item_field(NullS,NullS,$1.str) :
 	      (Item*) new Item_ref(0,0,NullS,NullS,$1.str);
@@ -6479,18 +6554,17 @@ simple_ident_q:
           }
           else
           {
-            SELECT_LEX *sel= lex->current_select;
-            
-            if (sel->no_table_names_allowed)
-            {
-              my_printf_error(ER_TABLENAME_NOT_ALLOWED_HERE,
-                              ER(ER_TABLENAME_NOT_ALLOWED_HERE),
-                              MYF(0), $1.str, thd->where);
-            }
-            $$= (sel->parsing_place != SELECT_LEX_NODE::IN_HAVING ||
-                 sel->get_in_sum_expr() > 0) ?
-                (Item*) new Item_field(NullS,$1.str,$3.str) :
-                (Item*) new Item_ref(0,0,NullS,$1.str,$3.str);
+	    SELECT_LEX *sel= lex->current_select;
+	    if (sel->no_table_names_allowed)
+	    {
+	      my_printf_error(ER_TABLENAME_NOT_ALLOWED_HERE,
+	  		      ER(ER_TABLENAME_NOT_ALLOWED_HERE),
+			      MYF(0), $1.str, thd->where);
+	    }
+	    $$= (sel->parsing_place != IN_HAVING ||
+	         sel->get_in_sum_expr() > 0) ?
+	        (Item*) new Item_field(NullS,$1.str,$3.str) :
+	        (Item*) new Item_ref(0,0,NullS,$1.str,$3.str);
           }
         }
 	| '.' ident '.' ident
@@ -6504,7 +6578,7 @@ simple_ident_q:
 			    ER(ER_TABLENAME_NOT_ALLOWED_HERE),
 			    MYF(0), $2.str, thd->where);
 	  }
-	  $$= (sel->parsing_place != SELECT_LEX_NODE::IN_HAVING ||
+	  $$= (sel->parsing_place != IN_HAVING ||
 	       sel->get_in_sum_expr() > 0) ?
 	      (Item*) new Item_field(NullS,$2.str,$4.str) :
               (Item*) new Item_ref(0,0,NullS,$2.str,$4.str);
@@ -6520,7 +6594,7 @@ simple_ident_q:
 			    ER(ER_TABLENAME_NOT_ALLOWED_HERE),
 			    MYF(0), $3.str, thd->where);
 	  }
-	  $$= (sel->parsing_place != SELECT_LEX_NODE::IN_HAVING ||
+	  $$= (sel->parsing_place != IN_HAVING ||
 	       sel->get_in_sum_expr() > 0) ?
 	      (Item*) new Item_field((YYTHD->client_capabilities &
 				      CLIENT_NO_SCHEMA ? NullS : $1.str),
@@ -6999,7 +7073,8 @@ option_value:
 						  &$1.base_name, $3));
 	    }
             else
-	    { /* An SP local variable */
+	    {
+	      /* An SP local variable */
 	      sp_pcontext *ctx= lex->spcont;
 	      sp_pvar_t *spv;
               sp_instr_set *i;
@@ -7083,16 +7158,24 @@ internal_variable_name:
 
 	  /* We have to lookup here since local vars can shadow sysvars */
 	  if (!spc || !(spv = spc->find_pvar(&$1)))
-	  { /* Not an SP local variable */
+	  {
+            /* Not an SP local variable */
 	    sys_var *tmp=find_sys_var($1.str, $1.length);
 	    if (!tmp)
 	      YYABORT;
 	    $$.var= tmp;
 	    $$.base_name.str=0;
 	    $$.base_name.length=0;
+            /*
+              If this is time_zone variable we should open time zone
+              describing tables 
+            */
+            if (tmp == &sys_time_zone)
+	      Lex->time_zone_tables_used= &fake_time_zone_tables_list;
 	  }
 	  else
-	  { /* An SP local variable */
+	  {
+            /* An SP local variable */
 	    $$.var= NULL;
 	    $$.base_name= $1;
 	  }

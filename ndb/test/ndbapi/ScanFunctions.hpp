@@ -79,8 +79,9 @@ ScanFunctions::scanReadFunctions(Ndb* pNdb,
   const int            retryMax = 100;
   int sleepTime = 10;
   int                  check;
-  NdbConnection	       *pTrans;
-  NdbOperation	       *pOp;
+  NdbConnection	       *pTrans = 0;
+  NdbScanOperation     *pOp = 0;
+  NdbResultSet         *rs = 0;
 
   while (true){
     if (retryAttempt >= retryMax){
@@ -103,117 +104,81 @@ ScanFunctions::scanReadFunctions(Ndb* pNdb,
     }
     
     // Execute the scan without defining a scan operation
-    if(action != ExecuteScanWithOutOpenScan){
-
-      if (action == OnlyOneOpBeforeOpenScan){
-	// There can only be one operation defined when calling openScan
-	NdbOperation* pOp3;
-	pOp3 = pTrans->getNdbOperation(tab.getName());	
-	if (pOp3 == NULL) {
-	  ERR(pTrans->getNdbError());
-	  pNdb->closeTransaction(pTrans);
-	  return NDBT_FAILED;
-	}
-      }
-      
-      pOp = pTrans->getNdbOperation(tab.getName());	
-      if (pOp == NULL) {
-	ERR(pTrans->getNdbError());
-	pNdb->closeTransaction(pTrans);
-	return NDBT_FAILED;
-      }
-      
-      if (exclusive == true)
-	check = pOp->openScanExclusive(parallelism);
-      else
-	check = pOp->openScanRead(parallelism);
-      if( check == -1 ) {
-	ERR(pTrans->getNdbError());
-	pNdb->closeTransaction(pTrans);
-	return NDBT_FAILED;
-      }
-
-
-      if (action == OnlyOneScanPerTrans){
-	// There can only be one operation in a scan transaction
-	NdbOperation* pOp4;
-	pOp4 = pTrans->getNdbOperation(tab.getName());	
-	if (pOp4 == NULL) {
-	  ERR(pTrans->getNdbError());
-	  pNdb->closeTransaction(pTrans);
-	  return NDBT_FAILED;
-	}
-      }
-
-      if (action == OnlyOpenScanOnce){
-	// Call openScan one more time when it's already defined
-	check = pOp->openScanRead(parallelism);
-	if( check == -1 ) {
-	  ERR(pTrans->getNdbError());
-	  pNdb->closeTransaction(pTrans);
-	  return NDBT_FAILED;
-	}
-      }
-
-      if (action == OnlyOneOpInScanTrans){
-	// Try to add another op to this scanTransaction
-	NdbOperation* pOp2;
-	pOp2 = pTrans->getNdbOperation(tab.getName());	
-	if (pOp2 == NULL) {
-	  ERR(pTrans->getNdbError());
-	  pNdb->closeTransaction(pTrans);
-	  return NDBT_FAILED;
-	}	
-      }
-
-
-      if (action==EqualAfterOpenScan){
-	check = pOp->equal(tab.getColumn(0)->getName(), 10);
-	if( check == -1 ) {
-	  ERR(pTrans->getNdbError());
-	  pNdb->closeTransaction(pTrans);
-	  return NDBT_FAILED;
-	}	
-      }
-      
-      check = pOp->interpret_exit_ok();
-      if( check == -1 ) {
-	ERR(pTrans->getNdbError());
-	pNdb->closeTransaction(pTrans);
-	return NDBT_FAILED;
-      }
-      
-      for(int a = 0; a<tab.getNoOfColumns(); a++){
-	if(pOp->getValue(tab.getColumn(a)->getName()) == NULL) {
-	  ERR(pTrans->getNdbError());
-	  pNdb->closeTransaction(pTrans);
-	  return NDBT_FAILED;
-	}
-      }      
+    pOp = pTrans->getNdbScanOperation(tab.getName());	
+    if (pOp == NULL) {
+      ERR(pTrans->getNdbError());
+      pNdb->closeTransaction(pTrans);
+      return NDBT_FAILED;
     }
-    check = pTrans->executeScan();   
+    
+    
+    rs = pOp->readTuples(exclusive ? 
+			 NdbScanOperation::LM_Exclusive : 
+			 NdbScanOperation::LM_Read);
+    
+    if( rs == 0 ) {
+      ERR(pTrans->getNdbError());
+      pNdb->closeTransaction(pTrans);
+      return NDBT_FAILED;
+    }
+    
+    
+    if (action == OnlyOpenScanOnce){
+      // Call openScan one more time when it's already defined
+      NdbResultSet* rs2 = pOp->readTuples(NdbScanOperation::LM_Read);
+      if( rs2 == 0 ) {
+	ERR(pTrans->getNdbError());
+	pNdb->closeTransaction(pTrans);
+	return NDBT_FAILED;
+      }
+    }
+    
+    if (action==EqualAfterOpenScan){
+      check = pOp->equal(tab.getColumn(0)->getName(), 10);
+      if( check == -1 ) {
+	ERR(pTrans->getNdbError());
+	pNdb->closeTransaction(pTrans);
+	return NDBT_FAILED;
+      }	
+    }
+    
+    check = pOp->interpret_exit_ok();
     if( check == -1 ) {
       ERR(pTrans->getNdbError());
       pNdb->closeTransaction(pTrans);
       return NDBT_FAILED;
     }
-
-
+    
+    for(int a = 0; a<tab.getNoOfColumns(); a++){
+      if(pOp->getValue(tab.getColumn(a)->getName()) == NULL) {
+	ERR(pTrans->getNdbError());
+	pNdb->closeTransaction(pTrans);
+	return NDBT_FAILED;
+      }
+    }      
+    
+    check = pTrans->execute(NoCommit);
+    if( check == -1 ) {
+      ERR(pTrans->getNdbError());
+      pNdb->closeTransaction(pTrans);
+      return NDBT_FAILED;
+    }
+    
     int abortCount = records / 10;
     bool abortTrans = (action==CloseWithoutStop);
     int eof;
     int rows = 0;
-    eof = pTrans->nextScanResult();
-
+    eof = rs->nextResult();
+    
     while(eof == 0){
       rows++;
-
+      
       if (abortCount == rows && abortTrans == true){
 	g_info << "Scan is aborted after "<<abortCount<<" rows" << endl;
 	
 	if (action != CloseWithoutStop){
 	  // Test that we can closeTrans without stopScan
-	  check = pTrans->stopScan();
+	  rs->close();
 	  if( check == -1 ) {
 	    ERR(pTrans->getNdbError());
 	    pNdb->closeTransaction(pTrans);
@@ -236,7 +201,7 @@ ScanFunctions::scanReadFunctions(Ndb* pNdb,
 	}
       }
 
-      eof = pTrans->nextScanResult();
+      eof = rs->nextResult();
     }
     if (eof == -1) {
       const NdbError err = pTrans->getNdbError();
@@ -246,7 +211,7 @@ ScanFunctions::scanReadFunctions(Ndb* pNdb,
 	
 	// Be cruel, call nextScanResult after error
 	for(int i=0; i<10; i++){
-	  eof =pTrans->nextScanResult();
+	  eof = rs->nextResult();
 	  if(eof == 0){
 	    g_err << "nextScanResult returned eof = " << eof << endl
 		   << " That is an error when there are no more records" << endl;
@@ -276,7 +241,7 @@ ScanFunctions::scanReadFunctions(Ndb* pNdb,
     if (action == NextScanWhenNoMore){
       g_info << "Calling nextScanresult when there are no more records" << endl;
       for(int i=0; i<10; i++){
-	eof =pTrans->nextScanResult();
+	eof = rs->nextResult();
 	if(eof == 0){
 	  g_err << "nextScanResult returned eof = " << eof << endl
 		 << " That is an error when there are no more records" << endl;
@@ -285,7 +250,7 @@ ScanFunctions::scanReadFunctions(Ndb* pNdb,
       }
 
     }
-    if(action ==CheckInactivityBeforeClose){
+    if(action == CheckInactivityBeforeClose){
       // Sleep for a long time before calling close
       g_info << "NdbSleep_SecSleep(5) before close transaction" << endl;
       NdbSleep_SecSleep(5); 
