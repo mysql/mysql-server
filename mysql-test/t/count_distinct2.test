@@ -45,7 +45,7 @@ select count(distinct n2), n1 from t1 group by n1;
 drop table t1;
 
 # test the converstion from tree to MyISAM
-create table t1 (n int);
+create table t1 (n int default NULL);
 let $1=5000;
 while ($1)
 {

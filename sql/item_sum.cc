@@ -839,7 +839,8 @@ int dump_leaf(byte* key, uint32 count __attribute__((unused)),
 {
   char* buf = item->table->record[0];
   int error;
-  memset(buf, 0xff, item->rec_offset); // make up for cheating in the tree
+  // the first item->rec_offset bytes are taken care of with
+  // restore_record(table,2) in setup()
   memcpy(buf + item->rec_offset, key, item->tree.size_of_element);
   if ((error = item->table->file->write_row(buf)))
   {
@@ -888,12 +889,17 @@ bool Item_sum_count_distinct::setup(THD *thd)
   table->file->extra(HA_EXTRA_NO_ROWS);		// Don't update rows
   table->no_rows=1;
 
+  
   if(table->db_type == DB_TYPE_HEAP) // no blobs, otherwise it would be
     // MyISAM
     {
       qsort_cmp2 compare_key;
       void* cmp_arg;
       int key_len;
+
+      // to make things easier for dump_leaf if we ever have to dump to
+      // MyISAM
+      restore_record(table,2);
       
       if(table->fields == 1) // if we have only one field, which is
 	// the most common use of count(distinct), it is much faster
@@ -941,7 +947,7 @@ bool Item_sum_count_distinct::setup(THD *thd)
       // but this has to be handled - otherwise someone can crash
       // the server with a DoS attack
       max_elements_in_tree = (key_len) ? max_heap_table_size/key_len :
-	max_heap_table_size;
+	1;
     }
   
   return 0;

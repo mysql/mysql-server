@@ -148,19 +148,20 @@ class Item_sum_count_distinct :public Item_sum_int
   bool fix_fields(THD *thd,TABLE_LIST *tables);
   TMP_TABLE_PARAM *tmp_table_param;
   TREE tree;
-  uint max_elements_in_tree;
+  
   // calculated based on max_heap_table_size. If reached,
   // walk the tree and dump it into MyISAM table
+  uint max_elements_in_tree;
   
-  bool use_tree;
   // If there are no blobs, we can use a tree, which
   // is faster than heap table. In that case, we still use the table
   // to help get things set up, but we insert nothing in it
+  bool use_tree;
   
-  int rec_offset;
   // the first few bytes of record ( at least one)
   // are just markers for deleted and NULLs. We want to skip them since
   // they will just bloat the tree without providing any valuable info
+  int rec_offset;
 
   int tree_to_myisam();
   
