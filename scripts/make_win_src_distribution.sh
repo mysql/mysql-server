@@ -294,7 +294,13 @@ done
 # support files
 #
 mkdir $BASE/support-files
-cp support-files/*.cnf $BASE/support-files
+
+# Rename the cnf files to <file>.ini
+for i in support-files/*.cnf
+do
+  i=`echo $i | sed 's/.cnf$//g'`
+  cp $i.cnf $BASE/$i.ini
+done
 
 #
 # Raw dirs from source tree
