@@ -1229,7 +1229,7 @@ drop table if exists t3|
 create table t3 (s1 smallint)|
 insert into t3 values (123456789012)|
 Warnings:
-Warning	1264	Data truncated; out of range for column 's1' at row 1
+Warning	1264	Out of range value adjusted for column 's1' at row 1
 create procedure bug()
 begin
 declare exit handler for sqlwarning set @x = 1; 

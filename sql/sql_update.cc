@@ -348,6 +348,12 @@ int mysql_update(THD *thd,
   thd->proc_info="Updating";
   query_id=thd->query_id;
 
+  transactional_table= table->file->has_transactions();
+  thd->no_trans_update= 0;
+  thd->abort_on_warning= test(thd->variables.sql_mode &
+                              (MODE_STRICT_TRANS_TABLES |
+                               MODE_STRICT_ALL_TABLES));
+
   while (!(error=info.read_record(&info)) && !thd->killed)
   {
     if (!(select && select->skip_record()))
@@ -366,6 +372,7 @@ int mysql_update(THD *thd,
 					    (byte*) table->record[0])))
 	{
 	  updated++;
+          thd->no_trans_update= !transactional_table;
 	}
 	else if (handle_duplicates != DUP_IGNORE ||
 		 error != HA_ERR_FOUND_DUPP_KEY)
@@ -406,7 +413,6 @@ int mysql_update(THD *thd,
     query_cache_invalidate3(thd, table_list, 1);
   }
 
-  transactional_table= table->file->has_transactions();
   log_delayed= (transactional_table || table->tmp_table);
   if ((updated || (error < 0)) && (error <= 0 || !transactional_table))
   {
@@ -460,6 +466,7 @@ err:
     table->key_read=0;
     table->file->extra(HA_EXTRA_NO_KEYREAD);
   }
+  thd->abort_on_warning= 0;
   DBUG_RETURN(-1);
 }
 
@@ -657,6 +664,11 @@ int mysql_multi_update(THD *thd,
 				 handle_duplicates)))
     DBUG_RETURN(-1);
 
+  thd->no_trans_update= 0;
+  thd->abort_on_warning= test(thd->variables.sql_mode &
+                              (MODE_STRICT_TRANS_TABLES |
+                               MODE_STRICT_ALL_TABLES));
+
   List<Item> total_list;
   res= mysql_select(thd, &select_lex->ref_pointer_array,
 		    table_list, select_lex->with_wild,
@@ -666,6 +678,7 @@ int mysql_multi_update(THD *thd,
 		    options | SELECT_NO_JOIN_CACHE | SELECT_NO_UNLOCK,
 		    result, unit, select_lex);
   delete result;
+  thd->abort_on_warning= 0;
   DBUG_RETURN(res);
 }
 
@@ -1013,6 +1026,8 @@ bool multi_update::send_data(List<Item> &not_used_values)
 	  updated--;
 	  DBUG_RETURN(1);
 	}
+        if (!table->file->has_transactions())
+          thd->no_trans_update= 1;
       }
     }
     else

@@ -658,16 +658,16 @@ drop table t1, t2;
 create table t1 (c1 INT, c2 INT UNSIGNED);
 insert into t1 values ('21474836461','21474836461');
 Warnings:
-Warning	1265	Data truncated for column 'c1' at row 1
-Warning	1265	Data truncated for column 'c2' at row 1
+Warning	1264	Out of range value adjusted for column 'c1' at row 1
+Warning	1264	Out of range value adjusted for column 'c2' at row 1
 insert into t1 values ('-21474836461','-21474836461');
 Warnings:
-Warning	1265	Data truncated for column 'c1' at row 1
-Warning	1265	Data truncated for column 'c2' at row 1
+Warning	1264	Out of range value adjusted for column 'c1' at row 1
+Warning	1264	Out of range value adjusted for column 'c2' at row 1
 show warnings;
 Level	Code	Message
-Warning	1265	Data truncated for column 'c1' at row 1
-Warning	1265	Data truncated for column 'c2' at row 1
+Warning	1264	Out of range value adjusted for column 'c1' at row 1
+Warning	1264	Out of range value adjusted for column 'c2' at row 1
 select * from t1;
 c1	c2
 2147483647	4294967295
