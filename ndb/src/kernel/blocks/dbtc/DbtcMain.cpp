@@ -2250,29 +2250,17 @@ void Dbtc::hash(Signal* signal)
       ti += 4;
     }//while
   }//if
-  UintR ThashValue;
-  UintR TdistrHashValue;
-  ThashValue = md5_hash((Uint64*)&Tdata32[0], (UintR)regCachePtr->keylen);
+  Uint32 tmp[4];
+  md5_hash(tmp, (Uint64*)&Tdata32[0], (UintR)regCachePtr->keylen);
 
-  if (regCachePtr->distributionGroupIndicator == 1) {
-    if (regCachePtr->distributionGroupType == 1) {
-      jam();
-      TdistrHashValue = (regCachePtr->distributionGroup << 6);
-    } else {
-      jam();
-      Tdata32[0] = regCachePtr->distributionGroup;
-      TdistrHashValue = md5_hash((Uint64*)&Tdata32[0], (UintR)1);
-    }//if
-  } else if (regCachePtr->distributionKeyIndicator == 1) {
+  thashValue = tmp[0];
+  if (regCachePtr->distributionKeyIndicator == 1) {
     jam();
-    TdistrHashValue = md5_hash((Uint64*)&Tdata32[0], 
-                               (UintR)regCachePtr->distributionKeySize);
+    tdistrHashValue = regCachePtr->distributionKey;
   } else {
     jam();
-    TdistrHashValue = ThashValue;
+    tdistrHashValue = tmp[1];
   }//if
-  thashValue = ThashValue;
-  tdistrHashValue = TdistrHashValue;
 }//Dbtc::hash()
 
 /*
@@ -2666,18 +2654,13 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   Uint8 TSimpleFlag         = tcKeyReq->getSimpleFlag(Treqinfo);
   Uint8 TDirtyFlag          = tcKeyReq->getDirtyFlag(Treqinfo);
   Uint8 TInterpretedFlag    = tcKeyReq->getInterpretedFlag(Treqinfo);
-  Uint8 TDistrGroupFlag     = tcKeyReq->getDistributionGroupFlag(Treqinfo);
-  Uint8 TDistrGroupTypeFlag = tcKeyReq->getDistributionGroupTypeFlag(Treqinfo);
   Uint8 TDistrKeyFlag       = tcKeyReq->getDistributionKeyFlag(Treqinfo);
   Uint8 TexecuteFlag        = TexecFlag;
   
   regCachePtr->opSimple = TSimpleFlag;
   regCachePtr->opExec   = TInterpretedFlag;
   regTcPtr->dirtyOp  = TDirtyFlag;
-
-  regCachePtr->distributionGroupIndicator = TDistrGroupFlag;
-  regCachePtr->distributionGroupType      = TDistrGroupTypeFlag;
-  regCachePtr->distributionKeyIndicator   = TDistrKeyFlag;
+  regCachePtr->distributionKeyIndicator = TDistrKeyFlag;
 
   //-------------------------------------------------------------
   // The next step is to read the upto three conditional words.
@@ -2686,7 +2669,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   Uint32* TOptionalDataPtr = (Uint32*)&tcKeyReq->scanInfo;
   {
     Uint32  TDistrGHIndex    = tcKeyReq->getScanIndFlag(Treqinfo);
-    Uint32  TDistrKeyIndex   = TDistrGHIndex + TDistrGroupFlag;
+    Uint32  TDistrKeyIndex   = TDistrGHIndex;
 
     Uint32 TscanNode = tcKeyReq->getTakeOverScanNode(TOptionalDataPtr[0]);
     Uint32 TscanInfo = tcKeyReq->getTakeOverScanInfo(TOptionalDataPtr[0]);
@@ -2695,8 +2678,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
     regCachePtr->scanNode = TscanNode;
     regCachePtr->scanInfo = TscanInfo;
 
-    regCachePtr->distributionGroup   = TOptionalDataPtr[TDistrGHIndex];
-    regCachePtr->distributionKeySize = TOptionalDataPtr[TDistrKeyIndex];
+    regCachePtr->distributionKey = TOptionalDataPtr[TDistrKeyIndex];
 
     TkeyIndex = TDistrKeyIndex + TDistrKeyFlag;
   }
@@ -2957,7 +2939,7 @@ void Dbtc::tckeyreq050Lab(Signal* signal)
   tnoOfBackup = tnodeinfo & 3;
   tnoOfStandby = (tnodeinfo >> 8) & 3;
  
-  regCachePtr->distributionKey = (tnodeinfo >> 16) & 255;
+  regCachePtr->fragmentDistributionKey = (tnodeinfo >> 16) & 255;
   if (Toperation == ZREAD) {
     if (Tdirty == 1) {
       jam();
@@ -3127,7 +3109,7 @@ void Dbtc::sendlqhkeyreq(Signal* signal,
   /* ---------------------------------------------------------------------- */
   // Bit16 == 0 since StoredProcedures are not yet supported.
   /* ---------------------------------------------------------------------- */
-  LqhKeyReq::setDistributionKey(tslrAttrLen, regCachePtr->distributionKey);
+  LqhKeyReq::setDistributionKey(tslrAttrLen, regCachePtr->fragmentDistributionKey);
   LqhKeyReq::setScanTakeOverFlag(tslrAttrLen, regCachePtr->scanTakeOverInd);
 
   Tdata10 = 0;
@@ -8477,7 +8459,7 @@ void Dbtc::systemErrorLab(Signal* signal)
 void Dbtc::execSCAN_TABREQ(Signal* signal) 
 {
   const ScanTabReq * const scanTabReq = (ScanTabReq *)&signal->theData[0];
-  const Uint32 reqinfo = scanTabReq->requestInfo;
+  const Uint32 ri = scanTabReq->requestInfo;
   const Uint32 aiLength = (scanTabReq->attrLenKeyLen & 0xFFFF);
   const Uint32 keyLen = scanTabReq->attrLenKeyLen >> 16;
   const Uint32 schemaVersion = scanTabReq->tableSchemaVersion;
@@ -8487,8 +8469,8 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
   const Uint32 buddyPtr = (tmpXX == 0xFFFFFFFF ? RNIL : tmpXX);
   Uint32 currSavePointId = 0;
   
-  Uint32 scanConcurrency = scanTabReq->getParallelism(reqinfo);
-  Uint32 noOprecPerFrag = ScanTabReq::getScanBatch(reqinfo);
+  Uint32 scanConcurrency = scanTabReq->getParallelism(ri);
+  Uint32 noOprecPerFrag = ScanTabReq::getScanBatch(ri);
   Uint32 scanParallel = scanConcurrency;
   Uint32 errCode;
   ScanRecordPtr scanptr;
@@ -8563,6 +8545,8 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
   seizeCacheRecord(signal);
   cachePtr.p->keylen = keyLen;
   cachePtr.p->save1 = 0;
+  cachePtr.p->distributionKey = scanTabReq->distributionKey;
+  cachePtr.p->distributionKeyIndicator= ScanTabReq::getDistributionKeyFlag(ri);
   scanptr = seizeScanrec(signal);
 
   ndbrequire(transP->apiScanRec == RNIL);
@@ -8639,6 +8623,7 @@ void Dbtc::initScanrec(ScanRecordPtr scanptr,
 		       UintR scanParallel,
 		       UintR noOprecPerFrag) 
 {
+  const UintR ri = scanTabReq->requestInfo;
   scanptr.p->scanTcrec = tcConnectptr.i;
   scanptr.p->scanApiRec = apiConnectptr.i;
   scanptr.p->scanAiLength = scanTabReq->attrLenKeyLen & 0xFFFF;
@@ -8651,7 +8636,6 @@ void Dbtc::initScanrec(ScanRecordPtr scanptr,
   scanptr.p->batch_byte_size= scanTabReq->batch_byte_size;
 
   Uint32 tmp = 0;
-  const UintR ri = scanTabReq->requestInfo;
   ScanFragReq::setLockMode(tmp, ScanTabReq::getLockMode(ri));
   ScanFragReq::setHoldLockFlag(tmp, ScanTabReq::getHoldLockFlag(ri));
   ScanFragReq::setKeyinfoFlag(tmp, ScanTabReq::getKeyinfoFlag(ri));
@@ -8767,14 +8751,42 @@ void Dbtc::diFcountReqLab(Signal* signal, ScanRecordPtr scanptr)
     return;
   }
 
+  scanptr.p->scanNextFragId = 0;
   scanptr.p->scanState = ScanRecord::WAIT_FRAGMENT_COUNT;
-  /*************************************************
-   * THE FIRST STEP TO RECEIVE IS SUCCESSFULLY COMPLETED. 
-   * WE MUST FIRST GET THE NUMBER OF  FRAGMENTS IN THE TABLE.
-   ***************************************************/
-  signal->theData[0] = tcConnectptr.p->dihConnectptr;
-  signal->theData[1] = scanptr.p->scanTableref;
-  sendSignal(cdihblockref, GSN_DI_FCOUNTREQ, signal, 2, JBB);
+  
+  if(!cachePtr.p->distributionKeyIndicator)
+  {
+    jam();
+    /*************************************************
+     * THE FIRST STEP TO RECEIVE IS SUCCESSFULLY COMPLETED. 
+     * WE MUST FIRST GET THE NUMBER OF  FRAGMENTS IN THE TABLE.
+     ***************************************************/
+    signal->theData[0] = tcConnectptr.p->dihConnectptr;
+    signal->theData[1] = scanptr.p->scanTableref;
+    sendSignal(cdihblockref, GSN_DI_FCOUNTREQ, signal, 2, JBB);
+  }
+  else 
+  {
+    signal->theData[0] = tcConnectptr.p->dihConnectptr;
+    signal->theData[1] = tabPtr.i;
+    signal->theData[2] = cachePtr.p->distributionKey;
+    EXECUTE_DIRECT(DBDIH, GSN_DIGETNODESREQ, signal, 3);
+    UintR TerrorIndicator = signal->theData[0];
+    jamEntry();
+    if (TerrorIndicator != 0) {
+      signal->theData[0] = tcConnectptr.i;
+      //signal->theData[1] Contains error
+      execDI_FCOUNTREF(signal);
+      return;
+    }
+    
+    UintR Tdata1 = signal->theData[1];
+    scanptr.p->scanNextFragId = Tdata1;
+
+    signal->theData[0] = tcConnectptr.i;
+    signal->theData[1] = 1; // Frag count
+    execDI_FCOUNTCONF(signal);
+  }
   return;
 }//Dbtc::diFcountReqLab()
 
@@ -8791,7 +8803,7 @@ void Dbtc::execDI_FCOUNTCONF(Signal* signal)
 {
   jamEntry();
   tcConnectptr.i = signal->theData[0];
-  const UintR tfragCount = signal->theData[1];
+  Uint32 tfragCount = signal->theData[1];
   ptrCheckGuard(tcConnectptr, ctcConnectFilesize, tcConnectRecord);
   apiConnectptr.i = tcConnectptr.p->apiConnect;
   ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
@@ -8825,24 +8837,17 @@ void Dbtc::execDI_FCOUNTCONF(Signal* signal)
     return;
   }
 
-  if(scanptr.p->scanParallel > tfragCount){
-    jam();
-    abortScanLab(signal, scanptr, ZTOO_HIGH_CONCURRENCY_ERROR);
-    return;
-  }
-  
   scanptr.p->scanParallel = tfragCount;
   scanptr.p->scanNoFrag = tfragCount;
-  scanptr.p->scanNextFragId = 0;
   scanptr.p->scanState = ScanRecord::RUNNING;
 
   setApiConTimer(apiConnectptr.i, 0, __LINE__);
   updateBuddyTimer(apiConnectptr);
   
   ScanFragRecPtr ptr;
-  ScanFragList list(c_scan_frag_pool, 
-		    scanptr.p->m_running_scan_frags);
-  for (list.first(ptr); !ptr.isNull(); list.next(ptr)){
+  ScanFragList list(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
+  for (list.first(ptr); !ptr.isNull() && tfragCount; 
+       list.next(ptr), tfragCount--){
     jam();
 
     ptr.p->lqhBlockref = 0;
@@ -8857,6 +8862,20 @@ void Dbtc::execDI_FCOUNTCONF(Signal* signal)
     signal->theData[3] = ptr.p->scanFragId;
     sendSignal(cdihblockref, GSN_DIGETPRIMREQ, signal, 4, JBB);
   }//for
+
+  ScanFragList queued(c_scan_frag_pool, scanptr.p->m_queued_scan_frags);
+  for (; !ptr.isNull();)
+  {
+    ptr.p->m_ops = 0;
+    ptr.p->m_totalLen = 0;
+    ptr.p->scanFragState = ScanFragRec::QUEUED_FOR_DELIVERY;
+    ptr.p->stopFragTimer();
+
+    ScanFragRecPtr tmp = ptr;
+    list.next(ptr);
+    list.remove(tmp);
+    queued.add(tmp);
+  }
 }//Dbtc::execDI_FCOUNTCONF()
 
 /******************************************************
@@ -11060,7 +11079,7 @@ void Dbtc::execTCINDXREQ(Signal* signal)
 {
   jamEntry();
 
-  TcIndxReq * const tcIndxReq =  (TcIndxReq *)signal->getDataPtr();
+  TcKeyReq * const tcIndxReq =  (TcKeyReq *)signal->getDataPtr();
   const UintR TapiIndex = tcIndxReq->apiConnectPtr;
   Uint32 tcIndxRequestInfo = tcIndxReq->requestInfo;
   Uint32 startFlag = tcIndxReq->getStartFlag(tcIndxRequestInfo);
@@ -11111,7 +11130,7 @@ void Dbtc::execTCINDXREQ(Signal* signal)
 
   // If operation is readTupleExclusive or updateTuple then read index 
   // table with exclusive lock
-  Uint32 indexLength = TcIndxReq::getIndexLength(tcIndxRequestInfo);
+  Uint32 indexLength = TcKeyReq::getKeyLength(tcIndxRequestInfo);
   Uint32 attrLength = tcIndxReq->attrLen;
   indexOp->expectedKeyInfo = indexLength;
   Uint32 includedIndexLength = MIN(indexLength, indexBufSize);
@@ -11524,7 +11543,7 @@ void Dbtc::execTCKEYREF(Signal* signal)
     // Send TCINDXREF 
     
     jam();
-    TcIndxReq * const tcIndxReq = &indexOp->tcIndxReq;
+    TcKeyReq * const tcIndxReq = &indexOp->tcIndxReq;
     TcIndxRef * const tcIndxRef = (TcIndxRef *)signal->getDataPtrSend();
     
     ndbassert(regApiPtr->noIndexOp);
@@ -11719,7 +11738,7 @@ void Dbtc::readIndexTable(Signal* signal,
     (Operation_t)TcKeyReq::getOperationType(tcKeyRequestInfo);
 
   // Find index table
-  if ((indexData = c_theIndexes.getPtr(indexOp->tcIndxReq.indexId)) == NULL) {
+  if ((indexData = c_theIndexes.getPtr(indexOp->tcIndxReq.tableId)) == NULL) {
     jam();
     // Failed to find index record
     TcIndxRef * const tcIndxRef = (TcIndxRef *)signal->getDataPtrSend();
@@ -11736,7 +11755,7 @@ void Dbtc::readIndexTable(Signal* signal,
   tcKeyReq->transId2 = transId2;
   tcKeyReq->tableId = indexData->indexId;
   tcKeyLength += MIN(keyLength, keyBufSize);
-  tcKeyReq->tableSchemaVersion = indexOp->tcIndxReq.indexSchemaVersion;
+  tcKeyReq->tableSchemaVersion = indexOp->tcIndxReq.tableSchemaVersion;
   TcKeyReq::setOperationType(tcKeyRequestInfo, 
 			     opType == ZREAD ? ZREAD : ZREAD_EX);
   TcKeyReq::setAIInTcKeyReq(tcKeyRequestInfo, 1); // Allways send one AttrInfo
@@ -11828,7 +11847,7 @@ void Dbtc::executeIndexOperation(Signal* signal,
   Uint32 keyBufSize = 8; // Maximum for key in TCKEYREQ
   Uint32 attrBufSize = 5;
   Uint32 dataPos = 0;
-  TcIndxReq * const tcIndxReq = &indexOp->tcIndxReq;
+  TcKeyReq * const tcIndxReq = &indexOp->tcIndxReq;
   TcKeyReq * const tcKeyReq = (TcKeyReq *)signal->getDataPtrSend();
   Uint32 * dataPtr = &tcKeyReq->scanInfo;
   Uint32 tcKeyLength = TcKeyReq::StaticLength;
@@ -11839,7 +11858,7 @@ void Dbtc::executeIndexOperation(Signal* signal,
   bool moreKeyData = indexOp->transIdAI.first(aiIter);
       
   // Find index table
-  if ((indexData = c_theIndexes.getPtr(tcIndxReq->indexId)) == NULL) {
+  if ((indexData = c_theIndexes.getPtr(tcIndxReq->tableId)) == NULL) {
     jam();
     // Failed to find index record 
     TcIndxRef * const tcIndxRef = (TcIndxRef *)signal->getDataPtrSend();
