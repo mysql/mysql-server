@@ -3904,7 +3904,8 @@ opt_delete_options:
 
 opt_delete_option:
 	QUICK		{ Select->options|= OPTION_QUICK; }
-	| LOW_PRIORITY	{ Lex->lock_option= TL_WRITE_LOW_PRIORITY; };
+	| LOW_PRIORITY	{ Lex->lock_option= TL_WRITE_LOW_PRIORITY; }
+	| IGNORE_SYM	{ Lex->duplicates= DUP_IGNORE; };
 
 truncate:
 	TRUNCATE_SYM opt_table_sym table_name
