@@ -4,7 +4,7 @@
 
 select floor(5.5),floor(-5.5);
 select ceiling(5.5),ceiling(-5.5);
-select truncate(52.64,1),truncate(52.64,2),truncate(52.64,-1),truncate(52.64,-2);
+select truncate(52.64,1),truncate(52.64,2),truncate(52.64,-1),truncate(52.64,-2), truncate(-52.64,1),truncate(-52.64,-1);
 select round(5.5),round(-5.5);
 select round(5.64,1),round(5.64,2),round(5.64,-1),round(5.64,-2);
 select abs(-10), sign(-5), sign(5), sign(0);

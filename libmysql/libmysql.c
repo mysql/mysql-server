@@ -180,8 +180,13 @@ static int connect2(my_socket s, const struct sockaddr *name, uint namelen,
   {
     tv.tv_sec = (long) timeout;
     tv.tv_usec = 0;
+#if defined(HPUX) && defined(THREAD)
+    if ((res = select(s+1, NULL, (int*) &sfds, NULL, &tv)) >= 0)
+      break;
+#else
     if ((res = select(s+1, NULL, &sfds, NULL, &tv)) >= 0)
       break;
+#endif
     now_time=time(NULL);
     timeout-= (uint) (now_time - start_time);
     if (errno != EINTR || (int) timeout <= 0)
