@@ -937,7 +937,7 @@ static TYPELIB option_types={array_elements(default_options)-1,
 
 static int add_init_command(struct st_mysql_options *options, const char *cmd)
 {
-  char **ptr, *tmp;
+  char *tmp;
 
   if (!options->init_commands)
   {
@@ -947,7 +947,7 @@ static int add_init_command(struct st_mysql_options *options, const char *cmd)
   }
 
   if (!(tmp= my_strdup(cmd,MYF(MY_WME))) ||
-      insert_dynamic(options->init_commands, &tmp))
+      insert_dynamic(options->init_commands, (byte*)&tmp))
   {
     my_free(tmp, MYF(MY_ALLOW_ZERO_PTR));
     return 1;
