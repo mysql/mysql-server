@@ -1216,7 +1216,6 @@ mysql_execute_command(void)
 #endif
   }
   
-  thread_safe_increment(com_stat[lex->sql_command],&LOCK_thread_count);
   /*
     Skip if we are in the slave thread, some table rules have been given
     and the table list says the query should not be replicated
@@ -1863,8 +1862,8 @@ mysql_execute_command(void)
     /* Fix tables-to-be-deleted-from list to point at opened tables */
     for (auxi=(TABLE_LIST*) aux_tables ; auxi ; auxi=auxi->next)
       auxi->table= ((TABLE_LIST*) auxi->table)->table;
-    if ((result=new multi_delete(thd,aux_tables,lex->lock_option,
-				 table_count)) && ! thd->fatal_error)
+    if (!thd->fatal_error && (result=new multi_delete(thd,aux_tables,
+						      lex->lock_option,table_count)))
     {
       res=mysql_select(thd,tables,select_lex->item_list,
 		       select_lex->where,
@@ -1873,10 +1872,10 @@ mysql_execute_command(void)
 		       select_lex->options | thd->options |
 		       SELECT_NO_JOIN_CACHE,
 		       result);
+      delete result;
     }
     else
       res= -1;					// Error is not sent
-    delete result;
     close_thread_tables(thd);
     break;
   }

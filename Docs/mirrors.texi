@@ -171,6 +171,11 @@ FTP (@uref{ftp://ftp.dn.ru/pub/MySQL/})
 FTP (@uref{ftp://ftp.chg.ru/pub/databases/mysql/})
 
 @item
+@image{Flags/slovenia} Slovenia [ARNES] @@
+WWW (@uref{http://ftp.arnes.si/mysql/})
+FTP (@uref{ftp://ftp.arnes.si/packages/mysql/})
+
+@item
 @image{Flags/spain} Spain [GMC Control Systems] @@
 WWW (@uref{http://mysql.neptuno2000.com/})
 FTP (@uref{ftp://ftp.neptuno2000.com/pub/mysql/})
@@ -317,6 +322,7 @@ FTP (@uref{ftp://ftp.shellhung.org/pub/Mirror/mysql/})
 @item
 @image{Flags/indonesia} Indonesia [incaf.net] @@
 WWW (@uref{http://mysql.incaf.net/})
+FTP (@uref{ftp://mysql.incaf.net/})
 
 @item
 @image{Flags/indonesia} Indonesia [web.id] @@
@@ -341,7 +347,7 @@ WWW (@uref{http://mysql.hjc.edu.sg/})
 FTP (@uref{ftp://ftp.hjc.edu.sg/mysql/})
 
 @item
-@image{Flags/south-korea} South Korea [PanworldNet] @@
+@image{Flags/south-korea} South Korea [HolyNet] @@
 WWW (@uref{http://mysql.holywar.net/})
 
 @item

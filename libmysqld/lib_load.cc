@@ -36,4 +36,9 @@ mysql_load(THD * thd, sql_exchange * ex, TABLE_LIST * table_list,
 
 #define mysql_load mysql_load_internal
 
+
+#if defined (__WIN__)
+#include "../sql/sql_load.cpp"
+#else
 #include "../sql/sql_load.cc"
+#endif

@@ -33,7 +33,7 @@ static uint lengths[256];
 int main(int argc,char *argv[])
 {
   int error=0;
-  uint keylen, keylen2, inx, doc_cnt=0;
+  uint keylen, keylen2=0, inx, doc_cnt=0;
   float weight;
   double gws, min_gws=0, avg_gws=0;
   MI_INFO *info;
@@ -151,7 +151,7 @@ int main(int argc,char *argv[])
       for (inx=0;inx<256;inx++)
       {
         count+=lengths[inx];
-        if (count >= total/2)
+        if ((ulong) count >= total/2)
           break;
       }
       printf("Total rows: %qu\nTotal words: %lu\n"
@@ -170,7 +170,8 @@ int main(int argc,char *argv[])
         count+=lengths[inx];
         if (count && lengths[inx])
           printf("%3u: %10lu %5.2f%% %20lu %4.1f%%\n", inx,
-              lengths[inx],100.0*lengths[inx]/total,count, 100.0*count/total);
+		 (ulong) lengths[inx],100.0*lengths[inx]/total,(ulong) count,
+		 100.0*count/total);
       }
     }
   }
