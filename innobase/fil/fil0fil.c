@@ -2572,7 +2572,7 @@ fil_load_single_table_tablespace(
 
 	        fprintf(stderr,
 "InnoDB: Error: could not open single-table tablespace file\n"
-"InnoDB: %s!", filepath);
+"InnoDB: %s!\n", filepath);
 
 		ut_free(filepath);
 
@@ -2587,7 +2587,7 @@ fil_load_single_table_tablespace(
 
 	        fprintf(stderr,
 "InnoDB: Error: could not measure the size of single-table tablespace file\n"
-"InnoDB: %s!", filepath);
+"InnoDB: %s!\n", filepath);
 
 		os_file_close(file);
 		ut_free(filepath);
