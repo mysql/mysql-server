@@ -714,6 +714,7 @@ innobase_init(void)
 
 	if (mysql_embedded) {
 		default_path = mysql_real_data_home;
+		fil_path_to_mysql_datadir = mysql_real_data_home;
 	} else {
 	  	/* It's better to use current lib, to keep paths short */
 	  	current_dir[0] = FN_CURLIB;
