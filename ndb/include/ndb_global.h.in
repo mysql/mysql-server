@@ -10,17 +10,20 @@
 #if defined(_WIN32) || defined(_WIN64) || defined(__WIN32__) || defined(WIN32)
 #define NDB_WIN32
 #include <winsock2.h>
-#include <my_global.h>
-#include <m_ctype.h>
-
 #define PATH_MAX 256
 #define DIR_SEPARATOR "\\"
 #define MYSQLCLUSTERDIR "c:\\mysql\\mysql-cluster"
-
+#define snprintf _snprintf
+#define vsnprintf _vsnprintf
+#define HAVE_STRCASECMP
+#define strcasecmp(a,b) _strcmpi(a,b)
+#define strncasecmp(a,b) _strncmpi(a,b)
 #pragma warning(disable: 4503 4786)
-
 #else
 #undef NDB_WIN32
+#define DIR_SEPARATOR "/"
+#endif
+
 #include <my_global.h>
 #include <my_alarm.h>
 
@@ -29,18 +32,24 @@
 #endif
 #include <m_string.h>
 #include <m_ctype.h>
-#include <ndb_types.h>
 #include <ctype.h>
+
 #ifdef HAVE_STDARG_H
 #include <stdarg.h>
 #endif
+
 #ifdef TIME_WITH_SYS_TIME
 #include <time.h>
 #endif
+
 #ifdef HAVE_FCNTL_H
 #include <fcntl.h>
 #endif
+
+#ifdef HAVE_SYS_PARAM_H
 #include <sys/param.h>
+#endif
+
 #ifdef HAVE_SYS_STAT_H
   #if defined(__cplusplus) && defined(_APP32_64BIT_OFF_T) && defined(_INCLUDE_AES_SOURCE)
     #undef _INCLUDE_AES_SOURCE
@@ -50,16 +59,17 @@
     #include <sys/stat.h>
   #endif
 #endif
+
+#ifdef HAVE_SYS_RESOURCE_H
 #include <sys/resource.h>
+#endif
+
 #ifdef HAVE_SYS_WAIT_H
 #include <sys/wait.h>
 #endif
+
 #ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h>
-#endif
-
-#define DIR_SEPARATOR "/"
-
 #endif
 
 #ifndef HAVE_STRDUP
@@ -94,6 +104,10 @@ extern int ndb_init(void);
 extern void ndb_end(int);
 #define NDB_INIT(prog_name) {my_progname=(prog_name); ndb_init();}
 
+#ifdef  __cplusplus
+}
+#endif
+
 #ifdef SCO
 
 #ifndef PATH_MAX
@@ -101,9 +115,5 @@ extern void ndb_end(int);
 #endif
 
 #endif /* SCO */
-
-#ifdef  __cplusplus
-}
-#endif
 
 #endif

@@ -771,7 +771,7 @@ AC_CHECK_HEADERS(fcntl.h float.h floatingpoint.h ieeefp.h limits.h \
  strings.h string.h synch.h sys/mman.h sys/socket.h netinet/in.h arpa/inet.h \
  sys/timeb.h sys/types.h sys/un.h sys/vadvise.h sys/wait.h term.h \
  unistd.h utime.h sys/utime.h termio.h termios.h sched.h crypt.h alloca.h \
- sys/ioctl.h malloc.h sys/malloc.h linux/config.h)
+ sys/ioctl.h malloc.h sys/malloc.h linux/config.h sys/resource.h sys/param.h)
 
 #--------------------------------------------------------------------
 # Check for system libraries. Adds the library to $LIBS
