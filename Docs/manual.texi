@@ -3554,10 +3554,13 @@ string) in it instead. (This behaviour can, however, be changed with the
 -DDONT_USE_DEFAULT_FIELDS compile option.)
 
 @item
-MySQL allows you to store some wrong date values into
-@code{DATE} and @code{DATETIME} columns (like 2000-02-31 or 2000-02-00).
-If the date is totally wrong, MySQL Server will store the special
-0000-00-00 date value in the column.
+MySQL allows you to store some wrong date values into @code{DATE} and
+@code{DATETIME} columns (like 2000-02-31 or 2000-02-00).  The idea is
+that it's not the SQL server job to vaildate date.  If MySQL can store a
+date and retrieve exactly the same date, then MySQL will store the
+date. If the date is totally wrong (outside of MySQL abilty to store
+it), MySQL Server will store the special 0000-00-00 date value in the
+column.
 
 @item
 If you set an @code{ENUM} column to an unsupported value, it will be set to
@@ -32558,6 +32561,31 @@ mysql> SELECT WEEK('1998-12-31',1);
 Note: in Version 4.0, @code{WEEK(#,0)} was changed to match the
 calendar in the USA.
 
+Note that if a week is the last week of the previous year, MySQL will
+return 0:
+
+@example
+mysql> SELECT YEAR('2000-01-01'), WEEK('2000-01-01',0);
+        -> 2000, 0
+@end example
+
+One could argue that MySQL should return @code{52} for the @code{WEEK()}
+function as the given date is actually the 52 second week of 1999.  We
+decided to return 0 instead as we want the function to return 'the week
+number in the given year'.  This makes the usage of the @code{WEEK()}
+function reliable when combined with other functions that extracts a
+date part from a date.
+
+If you would prefer to know the correct year-week, then you should use
+the @code{YEARWEEK()} function instead:
+
+@example
+mysql> SELECT YEARWEEK('2000-01-01');
+        -> 199952
+mysql> SELECT MID(YEARWEEK('2000-01-01'),5,2);
+        -> 52
+@end example
+
 @findex YEAR()
 @item YEAR(date)
 Returns the year for @code{date}, in the range @code{1000} to @code{9999}:
@@ -32578,6 +32606,10 @@ week of the year:
 mysql> SELECT YEARWEEK('1987-01-01');
         -> 198653
 @end example
+
+Note that the week number is different from what the @code{WEEK()} function
+would return (@code{0}) as the week function returns the week in the
+context of the given year.
 
 @findex HOUR()
 @item HOUR(time)
@@ -48183,13 +48215,33 @@ mysql> SELECT idate FROM tbl_name WHERE STRCMP(idate,'19970505')=0;
 a string and performs a string comparison.  It does not convert
 @code{'19970505'} to a date and perform a date comparison.
 
-Note that MySQL does no checking whether the date is
+Note that MySQL does very limited checking whether the date is
 correct.  If you store an incorrect date, such as @code{'1998-2-31'}, the
-wrong date will be stored. If the date cannot be converted to any reasonable
-value, a @code{0} is stored in the @code{DATE} field.  This is mainly a speed
-issue and we think it is up to the application to check the dates, and not
-the server.
+wrong date will be stored.
 
+Because MySQL packs dates for storage, it can't store any given date as
+it would not fit onto the result buffer. The rules for accepting a date
+are:
+@itemize @bullet
+@item
+If MySQL can store it and retrieve a date, the wrong date is accepted
+for @code{DATE} and @code{DATETIME} columns.
+@item
+All days values between 0-31 are accepted for any date.  This makes it
+very convenient for web applications where you ask year, month and day
+in 3 different fields.
+@item
+The day or month field may be zero.  This is convenient if you want
+to store a birthdate in a @code{DATE} column and you only know part
+of the date.
+@end itemize
+
+If the date cannot be converted to any reasonable value, a @code{0} is
+stored in the @code{DATE} field, which will be retrieved as
+@code{0000-00-00}.  This is both a speed and convinient issue as we
+belive that the databases responsiblity etrive the same date you stored
+(even if the data was not logicall correct in all cases). We think it is
+up to the application to check the dates, and not the server.
 
 @node Problems with NULL, Problems with alias, Using DATE, Query Issues
 @appendixsubsec Problems with @code{NULL} Values

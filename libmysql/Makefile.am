@@ -52,6 +52,7 @@ link_sources:
 	  for f in $(mystringsgen); do \
 	    rm -f $(srcdir)/$$f; \
 	    @LN_CP_F@ ../strings/$$f $(srcdir)/$$f; \
+	  done; \
 	  for f in $$qs; do \
 	    rm -f $(srcdir)/$$f; \
 	    @LN_CP_F@ $(srcdir)/../sql/$$f $(srcdir)/$$f; \

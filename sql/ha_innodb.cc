@@ -2402,7 +2402,7 @@ ha_innobase::rnd_pos(
 	int		error;
 	uint		keynr	= active_index;
 	DBUG_ENTER("rnd_pos");
-	DBUG_DUMP("key", (char*) pos, ref_stored_len);
+	DBUG_DUMP("key", (char*) pos, ref_length);
 
 	statistic_increment(ha_read_rnd_count, &LOCK_status);
 
