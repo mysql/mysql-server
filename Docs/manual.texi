@@ -40776,12 +40776,13 @@ not yet 100 % confident in this code.
 @itemize @bullet
 @item
 Changed code to get around compiler bug in Compaq C++ on OSF1, that broke
-@code{BACKUP, RESTORE, CHECK, REPAIR, and ANALYZE TABLE}.
+@code{BACKUP}, @code{RESTORE}, @code{CHECK}, @code{REPAIR}, and
+@code{ANALYZE TABLE}.
 @item
 Added option @code{FULL} to @code{SHOW COLUMNS}. Now we only show the
 privilege list for the columns if this option is given.
 @item
-Fixed bug in @code{SHOW LOGS} when there wheren't any BDB logs.
+Fixed bug in @code{SHOW LOGS} when there weren't any BDB logs.
 @item
 Fixed a timing problem in replication that could delay sending an update
 to the client until a new update was done.
@@ -40791,13 +40792,13 @@ to keep this code compatible with @code{SHOW FIELDS}.
 @item
 @code{MERGE} tables didn't work on windows.
 @item
-Fixed problem with @code{SET PASSWORD=...} on windows.
+Fixed problem with @code{SET PASSWORD=...} on Windows.
 @item
 Added missing @file{my_config.h} to RPM distribution.
 @item
 @code{TRIM("foo" from "foo")} didn't return an empty string.
 @item
-Added @code{--with-version-suffix} to configure.
+Added @code{--with-version-suffix} to @code{configure}.
 @item
 Fixed coredump when client aborted connection without @code{mysql_close()}.
 @item

@@ -72,6 +72,7 @@ cd ..
 BASEDIR=`pwd`
 cd $CWD
 MYSQL_TEST_DIR=$BASEDIR/mysql-test
+export MYSQL_TEST_DIR
 STD_DATA=$MYSQL_TEST_DIR/std_data
 hostname=`hostname`		# Installed in the mysql privilege table
   
@@ -336,6 +337,11 @@ gcov_collect () {
 start_master()
 {
     [ x$MASTER_RUNNING = 1 ] && return
+    #run master initialization shell script if one exists
+    if [ -f "$master_init_script" ] ;
+    then
+        /bin/sh $master_init_script
+    fi
     cd $BASEDIR # for gcov
     # Remove old berkeley db log files that can confuse the server
     $RM -f $MASTER_MYDDIR/log.*	
@@ -375,6 +381,13 @@ start_slave()
 {
     [ x$SKIP_SLAVE = x1 ] && return
     [ x$SLAVE_RUNNING = 1 ] && return
+    
+    #run slave initialization shell script if one exists
+    if [ -f "$slave_init_script" ] ;
+    then
+	  /bin/sh $slave_init_script
+    fi
+    
     if [ -z "$SLAVE_MASTER_INFO" ] ; then
       master_info="--master-user=root \
 	    --master-connect-retry=1 \
@@ -502,6 +515,8 @@ run_testcase ()
  tname=`$BASENAME $tf .test`
  master_opt_file=$TESTDIR/$tname-master.opt
  slave_opt_file=$TESTDIR/$tname-slave.opt
+ master_init_script=$TESTDIR/$tname-master.sh
+ slave_init_script=$TESTDIR/$tname-slave.sh
  slave_master_info_file=$TESTDIR/$tname-slave-master-info.opt
  SKIP_SLAVE=`$EXPR \( $tname : rpl \) = 0`
 

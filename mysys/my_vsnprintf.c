@@ -21,6 +21,13 @@
 #include <stdarg.h>
 #include <m_ctype.h>
 
+int my_snprintf(char* to, size_t n, const char* fmt, ...)
+{
+  va_list args;
+  va_start(args,fmt);
+  return my_vsnprintf(to, n, fmt, args);
+}
+
 int my_vsnprintf(char *to, size_t n, const char* fmt, va_list ap)
 {
   char *start=to, *end=to+n-1;

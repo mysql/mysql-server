@@ -199,3 +199,8 @@
 "Tabell '%-.64s' är crashad och senast (automatiska?) reparation misslyckades",
 "Warning:  Några icke transaktionella tabeller kunde inte återställas vid ROLLBACK",
 "Transaktionen krävde mera än 'max_binlog_cache_size' minne. Utöka denna mysqld variabel och försök på nytt",
+"This operation cannot be performed with a running slave, run SLAVE STOP first",
+"This operation requires a running slave, configure slave and do SLAVE START",
+"The server is not configured as slave, fix in config file or with CHANGE MASTER TO",
+"Could not initialize master info structure, check permisions on master.info",
+"Could not create slave thread, check system resources",
