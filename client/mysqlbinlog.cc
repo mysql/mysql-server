@@ -744,7 +744,7 @@ static int parse_args(int *argc, char*** argv)
 
 static MYSQL* safe_connect()
 {
-  MYSQL *local_mysql = mysql_init(NULL);
+  MYSQL *local_mysql= mysql_init(NULL);
 
   if (!local_mysql)
     die("Failed on mysql_init");
@@ -752,9 +752,13 @@ static MYSQL* safe_connect()
   if (opt_protocol)
     mysql_options(local_mysql, MYSQL_OPT_PROTOCOL, (char*) &opt_protocol);
   if (!mysql_real_connect(local_mysql, host, user, pass, 0, port, sock, 0))
-    die("failed on connect: %s", mysql_error(local_mysql));
+  {
+    char errmsg[256];
+    strmake(errmsg, mysql_error(local_mysql), sizeof(errmsg)-1);
+    mysql_close(local_mysql);
+    die("failed on connect: %s", errmsg);
+  }
   local_mysql->reconnect= 1;
-
   return local_mysql;
 }
 
@@ -780,7 +784,12 @@ static int check_master_version(MYSQL* mysql,
 
   if (mysql_query(mysql, "SELECT VERSION()") ||
       !(res = mysql_store_result(mysql)))
-    die("Error checking master version: %s", mysql_error(mysql));
+  {
+    char errmsg[256];
+    strmake(errmsg, mysql_error(mysql), sizeof(errmsg)-1);
+    mysql_close(mysql);
+    die("Error checking master version: %s", errmsg);
+  }
   if (!(row = mysql_fetch_row(res)))
   {
     mysql_free_result(res);
