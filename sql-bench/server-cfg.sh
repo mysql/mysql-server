@@ -69,11 +69,13 @@ sub get_server
   { $server= new db_db2($host,$database); }
   elsif ($name =~ /Mimer/i)
   { $server= new db_Mimer($host,$database); }
+  elsif ($name =~ /Sapdb/i)
+  { $server= new db_sapdb($host,$database); }
   elsif ($name =~ /interBase/i)
   { $server= new db_interbase($host,$database); }
   else
   {
-      die "Unknown sql server name used: $name\nUse one of: Access, Adabas, AdabasD, Empress, FrontBase, Oracle, Informix, InterBase, DB2, mSQL, Mimer, MS-SQL, MySQL, Pg, Solid or Sybase.\nIf the connection is done trough ODBC the name must end with _ODBC\n";
+      die "Unknown sql server name used: $name\nUse one of: Access, Adabas, AdabasD, Empress, FrontBase, Oracle, Informix, InterBase, DB2, mSQL, Mimer, MS-SQL, MySQL, Pg, Solid, SAPDB or Sybase.\nIf the connection is done trough ODBC the name must end with _ODBC\n";
   }
   if ($name =~ /_ODBC$/i || defined($odbc) && $odbc)
   {
@@ -94,7 +96,7 @@ sub get_server
 sub all_servers
 {
   return ["Access", "Adabas", "DB2", "Empress", "FrontBase", "Oracle",
-	  "Informix", "InterBase", "Mimer", "mSQL", "MS-SQL", "MySQL", "Pg",
+	  "Informix", "InterBase", "Mimer", "mSQL", "MS-SQL", "MySQL", "Pg","SAPDB",
 	  "Solid", "Sybase"];
 }
 
@@ -3350,6 +3352,213 @@ sub small_rollback_segment
 sub reconnect_on_errors
 {
   return 1;
+}
+
+sub fix_for_insert
+{
+  my ($self,$cmd) = @_;
+  return $cmd;
+}
+
+#############################################################################
+#	     Configuration for SAPDB 
+#############################################################################
+
+package db_Sapdb;
+
+sub new
+{
+  my ($type,$host,$database)= @_;
+  my $self= {};
+  my %limits;
+  bless $self;
+
+  $self->{'cmp_name'}		= "sapdb";
+  $self->{'data_source'}	= "DBI:SAP_DB:$database";
+  $self->{'limits'}		= \%limits;
+  $self->{'blob'}		= "LONG"; # *
+  $self->{'text'}		= "LONG"; # *
+  $self->{'double_quotes'}	= 1; # Can handle:  'Walker''s'
+  $self->{'drop_attr'}		= "";
+  $self->{'transactions'}	= 1; # Transactions enabled *
+  $self->{'char_null'}          = "";
+  $self->{'numeric_null'}       = "";
+
+  $limits{'max_conditions'}	= 9999; # (Actually not a limit) *
+  $limits{'max_columns'}	= 1023;	# Max number of columns in table *
+  $limits{'max_tables'}		= 65000;	# Should be big enough * unlimited actually
+  $limits{'max_text_size'}	= 15000; # Max size with default buffers. 
+  $limits{'query_size'}		= 64*1024; # Max size with default buffers. *64 kb by default. May be set by system variable 
+  $limits{'max_index'}		= 510; # Max number of keys *
+  $limits{'max_index_parts'}	= 16; # Max segments/key *
+  $limits{'max_column_name'}	= 32; # max table and column name * 
+
+  $limits{'join_optimizer'}	= 1; # Can optimize FROM tables *
+  $limits{'load_data_infile'}	= 0; # Has load data infile *
+  $limits{'lock_tables'}	= 1; # Has lock tables 
+  $limits{'functions'}		= 1; # Has simple functions (+/-) *
+  $limits{'group_functions'}	= 1; # Have group functions *
+  $limits{'group_func_sql_min_str'} = 1; # Can execute MIN() and MAX() on strings *
+  $limits{'group_distinct_functions'}= 1; # Have count(distinct)  *
+  $limits{'select_without_from'}= 0; # Cannot do 'select 1';  *
+  $limits{'multi_drop'}		= 0; # Drop table cannot take many tables *
+  $limits{'subqueries'}		= 1; # Supports sub-queries. *
+  $limits{'left_outer_join'}	= 1; # Supports left outer joins *
+  $limits{'table_wildcard'}	= 1; # Has SELECT table_name.*
+  $limits{'having_with_alias'}  = 0; # Can use aliases in HAVING *
+  $limits{'having_with_group'}	= 1; # Can use group functions in HAVING *
+  $limits{'like_with_column'}	= 1; # Can use column1 LIKE column2 *
+  $limits{'order_by_position'}  = 1; # Can use 'ORDER BY 1' *
+  $limits{'group_by_position'}  = 0; # Cannot use 'GROUP BY 1' *
+  $limits{'alter_table'}	= 1; # Have ALTER TABLE *
+  $limits{'alter_add_multi_col'}= 1; # Have ALTER TABLE t add a int,add b int; *
+  $limits{'alter_table_dropcol'}= 1; # Have ALTER TABLE DROP column  *
+  $limits{'insert_multi_value'} = 0; # INSERT ... values (1,2),(3,4) *
+
+  $limits{'group_func_extra_std'} = 0; # Does not have group function std().
+
+  $limits{'func_odbc_mod'}	= 0; # Have function mod. *
+  $limits{'func_extra_%'}	= 0; # Does not have % as alias for mod() *
+  $limits{'func_odbc_floor'}	= 1; # Has func_odbc_floor function *
+  $limits{'func_extra_if'}	= 0; # Does not have function if. *
+  $limits{'column_alias'}	= 1; # Alias for fields in select statement. *
+  $limits{'NEG'}		= 1; # Supports -id *
+  $limits{'func_extra_in_num'}	= 0; # Has function in *
+  $limits{'limit'}		= 0; # Does not support the limit attribute *
+  $limits{'working_blobs'}	= 1; # If big varchar/blobs works *
+  $limits{'order_by_unused'}	= 1; # 
+  $limits{'working_all_fields'} = 1; #
+
+
+  return $self;
+}
+
+#
+# Get the version number of the database
+#
+
+sub version
+{
+  my ($self)=@_;
+  my ($dbh,$sth,$version,@row);
+
+  $dbh=$self->connect();
+  $sth = $dbh->prepare("SELECT KERNEL FROM VERSIONS") or die $DBI::errstr;
+  $version="SAP DB (unknown)";
+  if ($sth->execute && (@row = $sth->fetchrow_array)
+      && $row[0] =~ /([\d\.]+)/)
+  {
+    $version="sap-db $1";
+  }
+  $sth->finish;
+  $dbh->disconnect;
+  return $version;
+}
+
+#
+# Connection with optional disabling of logging
+#
+
+sub connect
+{
+  my ($self)=@_;
+  my ($dbh);
+  $dbh=DBI->connect($self->{'data_source'}, $main::opt_user,
+		    $main::opt_password,{ PrintError => 0, AutoCommit => 1}) ||
+		      die "Got error: '$DBI::errstr' when connecting to " . $self->{'data_source'} ." with user: '$main::opt_user' password: '$main::opt_password'\n";
+
+  return $dbh;
+}
+
+#
+# Returns a list of statements to create a table
+# The field types are in ANSI SQL format.
+#
+
+sub create
+{
+  my($self,$table_name,$fields,$index,$options) = @_;
+  my($query,@queries,$nr);
+  my @index;
+  my @keys;
+
+  $query="create table $table_name (";
+  foreach $field (@$fields)
+  {
+    $field =~ s/\bmediumint\b/int/i;
+    $field =~ s/\btinyint\b/int/i;
+    $field =~ s/ int\(\d\)/ int/i;
+    $field =~ s/BLOB/LONG/i;
+    $field =~ s/INTEGER\s*\(\d+\)/INTEGER/i;
+    $field =~ s/SMALLINT\s*\(\d+\)/SMALLINT/i;
+    $field =~ s/FLOAT\s*\((\d+),\d+\)/FLOAT\($1\)/i;
+    $field =~ s/DOUBLE/FLOAT\(38\)/i;
+    $field =~ s/DOUBLE\s+PRECISION/FLOAT\(38\)/i;
+    $query.= $field . ',';
+  }
+  $nr=0;
+  foreach $ind (@$index)
+  {
+    if ( $ind =~ /\bKEY\b/i ){
+      push(@keys,"ALTER TABLE $table_name ADD $ind");
+    } elsif ($ind =~ /^unique.*\(([^\(]*)\)$/i)  {
+      $nr++;
+      my $query="create unique index ${table_name}_$nr on $table_name ($1)";
+      push(@index,$query);
+    }else{
+      my @fields = split(' ',$ind);
+      my $query="CREATE INDEX $fields[1] ON $table_name $fields[2]";
+      print "$query \n";
+      push(@index,$query);
+    }
+  }
+  substr($query,-1)=")";		# Remove last ',';
+  $query.=" $options" if (defined($options));
+  push(@queries,$query);
+  push(@queries,@keys);
+  push(@queries,@index);
+  return @queries;
+}
+
+sub insert_file {
+  my($self,$dbname, $file) = @_;
+  print "insert of an ascii file isn't supported by SAPDB\n";
+  return 0;
+}
+
+#
+# Do any conversions to the ANSI SQL query so that the database can handle it
+#
+
+sub query {
+  my($self,$sql) = @_;
+  return $sql;
+}
+
+sub drop_index {
+  my ($self,$table,$index) = @_;
+  return "DROP INDEX $index";
+}
+
+#
+# Abort if the server has crashed
+# return: 0 if ok
+#	  1 question should be retried
+#
+
+sub abort_if_fatal_error
+{
+  return 0;
+}
+
+sub small_rollback_segment
+{
+  return 0;
+}
+
+sub reconnect_on_errors
+{
+  return 0;
 }
 
 sub fix_for_insert
