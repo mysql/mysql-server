@@ -2910,6 +2910,117 @@ double      my_strntod_ucs2(CHARSET_INFO *cs __attribute__((unused)),
 }
 
 
+/*
+  This is a fast version optimized for the case of radix 10 / -10
+*/
+
+int my_l10tostr_ucs2(CHARSET_INFO *cs,
+		     char *dst, uint len, int radix, long int val)
+{
+  char buffer[66];
+  register char *p, *db, *de;
+  long int new_val;
+  int  sl=0;
+  
+  p = &buffer[sizeof(buffer)-1];
+  *p='\0';
+  
+  if (radix < 0)
+  {
+    if (val < 0)
+    {
+      sl   = 1;
+      val  = -val;
+    }
+  }
+  
+  new_val = (long) ((unsigned long int) val / 10);
+  *--p    = '0'+ (char) ((unsigned long int) val - (unsigned long) new_val * 10);
+  val     = new_val;
+  
+  while (val != 0)
+  {
+    new_val=val/10;
+    *--p = '0' + (char) (val-new_val*10);
+    val= new_val;
+  }
+  
+  if (sl)
+  {
+    *--p='-';
+  }
+  
+  for ( db=dst, de=dst+len ; (dst<de) && *p ; p++)
+  {
+    int cnvres=cs->wc_mb(cs,(my_wc_t)p[0],dst,de);
+    if (cnvres>0)
+      dst+=cnvres;
+    else
+      break;
+  }
+  return (int) (dst-db);
+}
+
+int my_ll10tostr_ucs2(CHARSET_INFO *cs __attribute__((unused)),
+		      char *dst, uint len, int radix, longlong val)
+{
+  char buffer[65];
+  register char *p, *db, *de;
+  long long_val;
+  int  sl=0;
+  
+  if (radix < 0)
+  {
+    if (val < 0)
+    {
+      sl=1;
+      val = -val;
+    }
+  }
+  
+  p = &buffer[sizeof(buffer)-1];
+  *p='\0';
+  
+  if (val == 0)
+  {
+    *--p='0';
+    goto cnv;
+  }
+  
+  while ((ulonglong) val > (ulonglong) LONG_MAX)
+  {
+    ulonglong quo=(ulonglong) val/(uint) 10;
+    uint rem= (uint) (val- quo* (uint) 10);
+    *--p = '0' + rem;
+    val= quo;
+  }
+  
+  long_val= (long) val;
+  while (long_val != 0)
+  {
+    long quo= long_val/10;
+    *--p = '0' + (long_val - quo*10);
+    long_val= quo;
+  }
+  
+cnv:
+  if (sl)
+  {
+    *--p='-';
+  }
+  
+  for ( db=dst, de=dst+len ; (dst<de) && *p ; p++)
+  {
+    int cnvres=cs->wc_mb(cs,(my_wc_t)p[0],dst,de);
+    if (cnvres>0)
+      dst+=cnvres;
+    else
+      break;
+  }
+  return (int) (dst-db);
+}
+
+
 CHARSET_INFO my_charset_ucs2 =
 {
     35,			/* number       */
