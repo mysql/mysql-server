@@ -13,9 +13,9 @@ user
 show create table db;
 Table	Create Table
 db	CREATE TABLE `db` (
-  `Host` char(60) binary NOT NULL default '',
-  `Db` char(64) binary NOT NULL default '',
-  `User` char(16) binary NOT NULL default '',
+  `Host` char(60) character set latin1 collate latin1_bin NOT NULL default '',
+  `Db` char(64) character set latin1 collate latin1_bin NOT NULL default '',
+  `User` char(16) character set latin1 collate latin1_bin NOT NULL default '',
   `Select_priv` enum('N','Y') NOT NULL default 'N',
   `Insert_priv` enum('N','Y') NOT NULL default 'N',
   `Update_priv` enum('N','Y') NOT NULL default 'N',
@@ -34,8 +34,8 @@ db	CREATE TABLE `db` (
 show create table host;
 Table	Create Table
 host	CREATE TABLE `host` (
-  `Host` char(60) binary NOT NULL default '',
-  `Db` char(64) binary NOT NULL default '',
+  `Host` char(60) character set latin1 collate latin1_bin NOT NULL default '',
+  `Db` char(64) character set latin1 collate latin1_bin NOT NULL default '',
   `Select_priv` enum('N','Y') NOT NULL default 'N',
   `Insert_priv` enum('N','Y') NOT NULL default 'N',
   `Update_priv` enum('N','Y') NOT NULL default 'N',
@@ -53,9 +53,9 @@ host	CREATE TABLE `host` (
 show create table user;
 Table	Create Table
 user	CREATE TABLE `user` (
-  `Host` varchar(60) binary NOT NULL default '',
-  `User` varchar(16) binary NOT NULL default '',
-  `Password` varchar(41) binary NOT NULL default '',
+  `Host` varchar(60) character set latin1 collate latin1_bin NOT NULL default '',
+  `User` varchar(16) character set latin1 collate latin1_bin NOT NULL default '',
+  `Password` varchar(41) character set latin1 collate latin1_bin NOT NULL default '',
   `Select_priv` enum('N','Y') NOT NULL default 'N',
   `Insert_priv` enum('N','Y') NOT NULL default 'N',
   `Update_priv` enum('N','Y') NOT NULL default 'N',
@@ -89,7 +89,7 @@ user	CREATE TABLE `user` (
 show create table func;
 Table	Create Table
 func	CREATE TABLE `func` (
-  `name` char(64) binary NOT NULL default '',
+  `name` char(64) character set latin1 collate latin1_bin NOT NULL default '',
   `ret` tinyint(1) NOT NULL default '0',
   `dl` char(128) NOT NULL default '',
   `type` enum('function','aggregate') NOT NULL default 'function',
@@ -98,10 +98,10 @@ func	CREATE TABLE `func` (
 show create table tables_priv;
 Table	Create Table
 tables_priv	CREATE TABLE `tables_priv` (
-  `Host` char(60) binary NOT NULL default '',
-  `Db` char(64) binary NOT NULL default '',
-  `User` char(16) binary NOT NULL default '',
-  `Table_name` char(64) binary NOT NULL default '',
+  `Host` char(60) character set latin1 collate latin1_bin NOT NULL default '',
+  `Db` char(64) character set latin1 collate latin1_bin NOT NULL default '',
+  `User` char(16) character set latin1 collate latin1_bin NOT NULL default '',
+  `Table_name` char(64) character set latin1 collate latin1_bin NOT NULL default '',
   `Grantor` char(77) NOT NULL default '',
   `Timestamp` timestamp NOT NULL,
   `Table_priv` set('Select','Insert','Update','Delete','Create','Drop','Grant','References','Index','Alter') NOT NULL default '',
@@ -112,11 +112,11 @@ tables_priv	CREATE TABLE `tables_priv` (
 show create table columns_priv;
 Table	Create Table
 columns_priv	CREATE TABLE `columns_priv` (
-  `Host` char(60) binary NOT NULL default '',
-  `Db` char(64) binary NOT NULL default '',
-  `User` char(16) binary NOT NULL default '',
-  `Table_name` char(64) binary NOT NULL default '',
-  `Column_name` char(64) binary NOT NULL default '',
+  `Host` char(60) character set latin1 collate latin1_bin NOT NULL default '',
+  `Db` char(64) character set latin1 collate latin1_bin NOT NULL default '',
+  `User` char(16) character set latin1 collate latin1_bin NOT NULL default '',
+  `Table_name` char(64) character set latin1 collate latin1_bin NOT NULL default '',
+  `Column_name` char(64) character set latin1 collate latin1_bin NOT NULL default '',
   `Timestamp` timestamp NOT NULL,
   `Column_priv` set('Select','Insert','Update','References') NOT NULL default '',
   PRIMARY KEY  (`Host`,`Db`,`User`,`Table_name`,`Column_name`)

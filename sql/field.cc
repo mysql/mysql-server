@@ -4224,7 +4224,8 @@ void Field_string::sql_type(String &res) const
 			    (field_length > 3 &&
 			     (table->db_options_in_use &
 			      HA_OPTION_PACK_RECORD) ?
-			     "varchar" : "char"),
+			      (has_charset() ? "varchar" : "varbinary") : 
+			      (has_charset() ? "char" : "binary")),
 			    (int) field_length / charset()->mbmaxlen);
   res.length(length);
 }

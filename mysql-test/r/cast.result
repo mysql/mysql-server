@@ -51,11 +51,11 @@ CONVERT(DATE "2004-01-22 21:45:33",CHAR)
 select CONVERT(DATE "2004-01-22 21:45:33",CHAR(4));
 CONVERT(DATE "2004-01-22 21:45:33",CHAR(4))
 2004
-select CONVERT(DATE "2004-01-22 21:45:33",CHAR(4) BINARY);
-CONVERT(DATE "2004-01-22 21:45:33",CHAR(4) BINARY)
+select CONVERT(DATE "2004-01-22 21:45:33",BINARY(4));
+CONVERT(DATE "2004-01-22 21:45:33",BINARY(4))
 2004
-select CAST(DATE "2004-01-22 21:45:33" AS CHAR(4) BINARY);
-CAST(DATE "2004-01-22 21:45:33" AS CHAR(4) BINARY)
+select CAST(DATE "2004-01-22 21:45:33" AS BINARY(4));
+CAST(DATE "2004-01-22 21:45:33" AS BINARY(4))
 2004
 set names binary;
 select cast(_latin1'test' as char character set latin2);
@@ -91,11 +91,11 @@ ab	a	ab	a	a
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` char(2) binary NOT NULL default '',
-  `c2` char(2) binary NOT NULL default '',
-  `c3` char(2) binary NOT NULL default '',
-  `c4` char(2) binary NOT NULL default '',
-  `c5` char(2) binary NOT NULL default ''
+  `c1` binary(2) NOT NULL default '',
+  `c2` binary(2) NOT NULL default '',
+  `c3` binary(2) NOT NULL default '',
+  `c4` binary(2) NOT NULL default '',
+  `c5` binary(2) NOT NULL default ''
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 select

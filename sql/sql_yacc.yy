@@ -1450,6 +1450,7 @@ attribute:
 	| UNIQUE_SYM	  { Lex->type|= UNIQUE_FLAG; }
 	| UNIQUE_SYM KEY_SYM { Lex->type|= UNIQUE_KEY_FLAG; }
 	| COMMENT_SYM TEXT_STRING_sys { Lex->comment= &$2; }
+	| BINARY { Lex->type|= BINCMP_FLAG; }
 	| COLLATE_SYM collation_name
 	  {
 	    if (Lex->charset && !my_charset_same(Lex->charset,$2))
@@ -1531,7 +1532,6 @@ opt_binary:
 	/* empty */			{ Lex->charset=NULL; }
 	| ASCII_SYM			{ Lex->charset=&my_charset_latin1; }
 	| BYTE_SYM			{ Lex->charset=&my_charset_bin; }
-	| BINARY			{ Lex->charset=&my_charset_bin; }
 	| UNICODE_SYM
 	{
 	  if (!(Lex->charset=get_charset_by_csname("ucs2",MY_CS_PRIMARY,MYF(0))))
@@ -3089,7 +3089,7 @@ in_sum_expr:
 	};
 
 cast_type:
-	BINARY			{ $$=ITEM_CAST_BINARY; Lex->charset= NULL; Lex->length= (char*)0; }
+	BINARY opt_len		{ $$=ITEM_CAST_CHAR; Lex->charset= &my_charset_bin; }
 	| CHAR_SYM opt_len opt_binary	{ $$=ITEM_CAST_CHAR; }
 	| NCHAR_SYM opt_len	{ $$=ITEM_CAST_CHAR; Lex->charset= national_charset_info; }
 	| SIGNED_SYM		{ $$=ITEM_CAST_SIGNED_INT; Lex->charset= NULL; Lex->length= (char*)0; }

@@ -7,7 +7,7 @@ b	text	YES		NULL
 c	blob	YES		NULL	
 d	mediumtext	YES		NULL	
 e	longtext	YES		NULL	
-CREATE TABLE t2 (a char(257), b varchar(70000) binary, c varchar(70000000));
+CREATE TABLE t2 (a char(257), b varbinary(70000), c varchar(70000000));
 Warnings:
 Warning	1246	Converting column 'a' from CHAR to TEXT
 Warning	1246	Converting column 'b' from CHAR to BLOB
@@ -57,7 +57,7 @@ select * from t1;
 a
 Where
 drop table t1;
-create table t1 (t text,c char(10),b blob, d char(10) binary);
+create table t1 (t text,c char(10),b blob, d binary(10));
 insert into t1 values (NULL,NULL,NULL,NULL);
 insert into t1 values ("","","","");
 insert into t1 values ("hello","hello","hello","hello");
@@ -73,14 +73,14 @@ Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
 t	text	latin1_swedish_ci	YES		NULL		select,insert,update,references	
 c	varchar(10)	latin1_swedish_ci	YES		NULL		select,insert,update,references	
 b	blob	NULL	YES		NULL		select,insert,update,references	
-d	varchar(10)	binary	YES		NULL		select,insert,update,references	
+d	varbinary(10)	NULL	YES		NULL		select,insert,update,references	
 lock tables t1 WRITE;
 show full fields from t1;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
 t	text	latin1_swedish_ci	YES		NULL		select,insert,update,references	
 c	varchar(10)	latin1_swedish_ci	YES		NULL		select,insert,update,references	
 b	blob	NULL	YES		NULL		select,insert,update,references	
-d	varchar(10)	binary	YES		NULL		select,insert,update,references	
+d	varbinary(10)	NULL	YES		NULL		select,insert,update,references	
 unlock tables;
 select t from t1 where t like "hello";
 t

@@ -118,7 +118,7 @@ drop table t1;
 
 CREATE TABLE t1 (
   t1ID int(10) unsigned NOT NULL auto_increment,
-  art char(1) binary NOT NULL default '',
+  art binary(1) NOT NULL default '',
   KNR char(5) NOT NULL default '',
   RECHNR char(6) NOT NULL default '',
   POSNR char(2) NOT NULL default '',
