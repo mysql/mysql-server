@@ -1601,7 +1601,7 @@ view_store_create_info(THD *thd, TABLE_LIST *table, String *buff)
   {
     buff->append("ALGORITHM=", 10);
     if (table->algorithm == VIEW_ALGORITHM_TMPTABLE)
-      buff->append("TMPTABLE ", 9);
+      buff->append("TEMPTABLE ", 10);
     else
       buff->append("MERGE ", 6);
   }
