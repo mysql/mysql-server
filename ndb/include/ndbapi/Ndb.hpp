@@ -507,7 +507,8 @@
       are more frequent than each 10 ms, 
       additional support from the operating system is required.
    -# For methods that are affected by the adaptive send alorithm
-      (such as NdbTransaction::execute()), there is a <var>force</var> parameter 
+      (such as NdbTransaction::execute()), there is a <var>force</var> 
+      parameter 
       that overrides its default behaviour in this regard and forces 
       immediate transmission to all nodes. See the inidvidual NDB API class 
       listings for more information.
@@ -1345,10 +1346,9 @@ public:
   int  sendPollNdb(int aMillisecondNumber = WAITFOR_RESPONSE_TIMEOUT,
 		   int minNoOfEventsToWakeup = 1,
 		   int forceSend = 0);
+  /** @} *********************************************************************/
 #endif
   
-  /** @} *********************************************************************/
-
   /** 
    * @name Error Handling
    * @{

@@ -204,6 +204,7 @@ struct NdbError {
    */
   char * details;
 
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   NdbError(){
     status = UnknownResult;
     classification = NoError;
@@ -227,6 +228,7 @@ struct NdbError {
     ndberror.details = details;
     return ndberror;
   }
+#endif
 };
 
 class NdbOut& operator <<(class NdbOut&, const NdbError &);

@@ -34,10 +34,10 @@ public:
   /**
    * Create a connection to a cluster of storage nodes
    *
-   * @param specify the connectstring for where to find the
-   *        management server
+   * @param connectstring The connectstring for where to find the
+   *                      management server
    */
-  Ndb_cluster_connection(const char * connect_string = 0);
+  Ndb_cluster_connection(const char * connectstring = 0);
   ~Ndb_cluster_connection();
 
   /**
@@ -66,10 +66,10 @@ public:
   /**
    * Wait until the requested connection with one or more storage nodes is successful
    *
-   * @param time_out_for_first_alive number of seconds to wait until
-   *        first live node is detected
-   * @param timeout_after_first_alive number of seconds to wait after
-   *        first live node is detected
+   * @param timeout_for_first_alive   Number of seconds to wait until
+   *                                  first live node is detected
+   * @param timeout_after_first_alive Number of seconds to wait after
+   *                                  first live node is detected
    *
    * @return = 0 all nodes live,
    *         > 0 at least one node live,

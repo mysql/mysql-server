@@ -55,8 +55,9 @@
  *   struct ndb_mgm_cluster_state *state= ndb_mgm_get_status(handle);
  *   for(int i=0; i < state->no_of_nodes; i++) 
  *   {
- *     printf("node with ID=%d ", state->node_states[i].node_id);
- *     if(state->node_states[i].version != 0)
+ *     struct ndb_mgm_node_state *node_state= &state->node_states[i];
+ *     printf("node with ID=%d ", node_state->node_id);
+ *     if(node_state->version != 0)
  *       printf("connected\n");
  *     else
  *       printf("not connected\n");
@@ -108,15 +109,15 @@ extern "C" {
    */
   enum ndb_mgm_node_type {
     NDB_MGM_NODE_TYPE_UNKNOWN = -1  /** Node type not known*/
-    ,NDB_MGM_NODE_TYPE_API    /** An application node (API) */
+    ,NDB_MGM_NODE_TYPE_API    /** An application (NdbApi) node */
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     = NODE_TYPE_API
 #endif
-    ,NDB_MGM_NODE_TYPE_NDB    /** A database node (DB) */
+    ,NDB_MGM_NODE_TYPE_NDB    /** A database node */
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     = NODE_TYPE_DB
 #endif
-    ,NDB_MGM_NODE_TYPE_MGM    /** A mgmt server node (MGM)*/
+    ,NDB_MGM_NODE_TYPE_MGM    /** A management server node */
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     = NODE_TYPE_MGM
 #endif
@@ -249,13 +250,15 @@ extern "C" {
 #endif
 
   /**
-   *   Status of a node in the cluster
+   *   Status of a node in the cluster.
    *
    *   Sub-structure in enum ndb_mgm_cluster_state
-   *   returned by ndb_mgm_get_status()
+   *   returned by ndb_mgm_get_status().
    *
-   *   @note @ref node_status, @ref start_phase, @ref dynamic_id 
-   *         and @ref node_group are relevant only for database nodes
+   *   @note <var>node_status</var>, <var>start_phase</var>,
+   *         <var>dynamic_id</var> 
+   *         and <var>node_group</var> are relevant only for database nodes,
+   *         i.e. <var>node_type</var> == @ref NDB_MGM_NODE_TYPE_NDB.
    */
   struct ndb_mgm_node_state {
     /** NDB Cluster node ID*/
@@ -532,11 +535,14 @@ extern "C" {
    * Gets the connectstring used for a connection
    *
    * @note This function returns the default connectstring if no call to 
-   *       ndb_mgm_set_connectstring() has been performed
+   *       ndb_mgm_set_connectstring() has been performed. Also, the
+   *       returned connectstring may be formatted differently.
    *
    * @param   handle         Management handle
+   * @param   buf            Buffer to hold result
+   * @param   buf_sz         Size of buffer.
    *
-   * @return                 connectstring
+   * @return                 connectstring (same as <var>buf</var>)
    */
   const char *ndb_mgm_get_connectstring(NdbMgmHandle handle, char *buf, int buf_sz);
 
@@ -545,6 +551,12 @@ extern "C" {
    * ndb_mgm_set_connectstring().
    *
    * @param   handle        Management handle.
+   * @param   no_retries    Number of retries to connect
+   *                        (0 means connect once).
+   * @param   retry_delay_in_seconds
+   *                        How long to wait until retry is performed.
+   * @param   verbose       Make printout regarding connect retries.
+   *
    * @return                -1 on error.
    */
   int ndb_mgm_connect(NdbMgmHandle handle, int no_retries,
@@ -913,7 +925,6 @@ extern "C" {
    * Exit Single user mode
    *
    * @param   handle        NDB management handle.
-   * @param   nodeId        Node ID of the single user node
    * @param   reply         Reply message.
    *
    * @return                -1 on error.

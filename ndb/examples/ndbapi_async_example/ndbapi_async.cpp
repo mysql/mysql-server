@@ -145,9 +145,6 @@ int create_table(Ndb * myNdb);
 int tempErrors = 0;
 int permErrors = 0;
 
-/**
- * Helper function for callback(...)
- */
 void
 closeTransaction(Ndb * ndb , async_callback_t * cb)
 {

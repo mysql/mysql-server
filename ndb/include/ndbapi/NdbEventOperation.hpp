@@ -132,7 +132,7 @@ public:
    *       next() has returned a value greater than
    *       zero. If a specific attribute has not changed the corresponding 
    *       NdbRecAttr will be in state UNDEFINED.  This is checked by 
-   *       NdbRecAttr::isNull() which then returns -1.
+   *       NdbRecAttr::isNULL() which then returns -1.
    *
    * @param anAttrName  Attribute name 
    * @param aValue      If this is non-NULL, then the attribute value 
@@ -144,6 +144,9 @@ public:
    *                    (indicating error).
    */
   NdbRecAttr *getValue(const char *anAttrName, char *aValue = 0);
+  /**
+   * See getValue().
+   */
   NdbRecAttr *getPreValue(const char *anAttrName, char *aValue = 0);
 
   /**
