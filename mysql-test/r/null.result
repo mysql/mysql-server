@@ -23,3 +23,10 @@ NULL	0
 inet_ntoa(null)	inet_aton(null)	inet_aton("122.256")	inet_aton("122.226.")	inet_aton("")
 NULL	NULL	NULL	NULL	NULL
 x
+indexed_field
+indexed_field
+NULL
+NULL
+indexed_field
+NULL
+NULL

@@ -1002,7 +1002,7 @@ mysql_init(MYSQL *mysql)
   else
     bzero((char*) (mysql),sizeof(*(mysql)));
   mysql->options.connect_timeout=CONNECT_TIMEOUT;
-#if defined(SIGPIPE) && defined(THREAD)
+#if defined(SIGPIPE) && defined(THREAD) && !defined(__WIN__)
   if (!((mysql)->client_flag & CLIENT_IGNORE_SIGPIPE))
     (void) signal(SIGPIPE,pipe_sig_handler);
 #endif
@@ -1043,7 +1043,7 @@ static void mysql_once_init()
 	mysql_unix_port = env;
     }
     mysql_debug(NullS);
-#if defined(SIGPIPE) && !defined(THREAD)
+#if defined(SIGPIPE) && !defined(THREAD) && !defined(__WIN__)
     (void) signal(SIGPIPE,SIG_IGN);
 #endif
   }
