@@ -106,20 +106,6 @@ row_mysql_delay_if_needed(void)
 }
 
 /***********************************************************************
-Reads a MySQL format variable-length field (like VARCHAR) length and
-returns pointer to the field data. */
-
-byte*
-row_mysql_read_var_ref_noninline(
-/*=============================*/
-			/* out: field + 2 */
-	ulint*	len,	/* out: variable-length field length */
-	byte*	field)	/* in: field */
-{
-	return(row_mysql_read_var_ref(len, field));
-}
-
-/***********************************************************************
 Frees the blob heap in prebuilt when no longer needed. */
 
 void
@@ -130,6 +116,61 @@ row_mysql_prebuilt_free_blob_heap(
 {
 	mem_heap_free(prebuilt->blob_heap);
 	prebuilt->blob_heap = NULL;
+}
+
+/***********************************************************************
+Stores a >= 5.0.3 format true VARCHAR length to dest, in the MySQL row
+format. */
+
+byte*
+row_mysql_store_true_var_len(
+/*=========================*/
+			/* out: pointer to the data, we skip the 1 or 2 bytes
+			at the start that are used to store the len */
+	byte*	dest,	/* in: where to store */
+	ulint	len,	/* in: length, must fit in two bytes */
+	ulint	lenlen)	/* in: storage length of len: either 1 or 2 bytes */
+{
+	if (lenlen == 2) {
+		ut_a(len < 256 * 256);
+
+		mach_write_to_2_little_endian(dest, len);
+
+		return(dest + 2);
+	}
+
+	ut_a(lenlen == 1);
+	ut_a(len < 256);
+
+	mach_write_to_1(dest, len);
+
+	return(dest + 1);
+}
+
+/***********************************************************************
+Reads a >= 5.0.3 format true VARCHAR length, in the MySQL row format, and
+returns a pointer to the data. */
+
+byte*
+row_mysql_read_true_varchar(
+/*========================*/
+			/* out: pointer to the data, we skip the 1 or 2 bytes
+			at the start that are used to store the len */
+	ulint*	len,	/* out: variable-length field length */
+	byte*	field,	/* in: field in the MySQL format */
+	ulint	lenlen)	/* in: storage length of len: either 1 or 2 bytes */
+{
+	if (lenlen == 2) {
+		*len = mach_read_from_2_little_endian(field);
+
+		return(field + 2);
+	}
+
+	ut_a(lenlen == 1);
+
+	*len = mach_read_from_1(field);
+
+	return(field + 1);
 }
 
 /***********************************************************************
@@ -191,15 +232,177 @@ row_mysql_read_blob_ref(
 }
 
 /******************************************************************
-Convert a row in the MySQL format to a row in the Innobase format. */
+Stores a non-SQL-NULL field given in the MySQL format in the InnoDB format.
+The counterpart of this function is row_sel_field_store_in_mysql_format() in
+row0sel.c. */
+
+byte*
+row_mysql_store_col_in_innobase_format(
+/*===================================*/
+					/* out: up to which byte we used
+					buf in the conversion */
+	dfield_t*	dfield,		/* in/out: dfield where dtype
+					information must be already set when
+					this function is called! */
+	byte*		buf,		/* in/out: buffer for a converted
+					integer value; this must be at least
+					col_len long then! */
+	ibool		row_format_col,	/* TRUE if the mysql_data is from
+					a MySQL row, FALSE if from a MySQL
+					key value;
+					in MySQL, a true VARCHAR storage
+					format differs in a row and in a
+					key value: in a key value the length
+					is always stored in 2 bytes! */
+	byte*		mysql_data,	/* in: MySQL column value, not
+					SQL NULL; NOTE that dfield may also
+					get a pointer to mysql_data,
+					therefore do not discard this as long
+					as dfield is used! */
+	ulint		col_len,	/* in: MySQL column length; NOTE that
+					this is the storage length of the
+					column in the MySQL format row, not
+					necessarily the length of the actual
+					payload data; if the column is a true
+					VARCHAR then this is irrelevant */
+	ibool		comp)		/* in: TRUE = compact format */
+{
+	byte*		ptr 	= mysql_data;
+	dtype_t*	dtype;
+	ulint		type;
+	ulint		lenlen;
+
+	dtype = dfield_get_type(dfield);
+
+	type = dtype->mtype;
+
+	if (type == DATA_INT) {
+		/* Store integer data in Innobase in a big-endian format,
+		sign bit negated if the data is a signed integer. In MySQL,
+		integers are stored in a little-endian format. */
+
+		ptr = buf + col_len;
+
+		for (;;) {
+			ptr--;
+			*ptr = *mysql_data;
+			if (ptr == buf) {
+				break;
+			}
+			mysql_data++;
+		}
+
+		if (!(dtype->prtype & DATA_UNSIGNED)) {
+
+			*ptr = (byte) (*ptr ^ 128);
+		}
+
+		buf += col_len;
+	} else if ((type == DATA_VARCHAR
+		    || type == DATA_VARMYSQL
+		    || type == DATA_BINARY)) {
+
+		if (dtype_get_mysql_type(dtype) == DATA_MYSQL_TRUE_VARCHAR) {
+			/* The length of the actual data is stored to 1 or 2
+			bytes at the start of the field */
+			
+			if (row_format_col) {
+				if (dtype->prtype & DATA_LONG_TRUE_VARCHAR) {
+					lenlen = 2;
+				} else {
+					lenlen = 1;
+				}
+			} else {
+				/* In a MySQL key value, lenlen is always 2 */
+				lenlen = 2;
+			}
+
+			ptr = row_mysql_read_true_varchar(&col_len, mysql_data,
+								      lenlen);
+		} else {
+			/* Remove trailing spaces from old style VARCHAR
+			columns. */
+
+			/* Handle UCS2 strings differently. */
+			ulint	mbminlen	= dtype_get_mbminlen(dtype);
+
+			ptr = mysql_data;
+
+			if (mbminlen == 2) {
+				/* space=0x0020 */
+				/* Trim "half-chars", just in case. */
+				col_len &= ~1;
+
+				while (col_len >= 2 && ptr[col_len - 2] == 0x00
+						&& ptr[col_len - 1] == 0x20) {
+					col_len -= 2;
+				}
+			} else {
+				ut_a(mbminlen == 1);
+				/* space=0x20 */
+				while (col_len > 0
+						&& ptr[col_len - 1] == 0x20) {
+					col_len--;
+				}
+			}
+		}
+	} else if (comp && type == DATA_MYSQL
+			&& dtype_get_mbminlen(dtype) == 1
+			&& dtype_get_mbmaxlen(dtype) > 1) {
+		/* In some cases we strip trailing spaces from UTF-8 and other
+		multibyte charsets, from FIXED-length CHAR columns, to save
+		space. UTF-8 would otherwise normally use 3 * the string length
+		bytes to store a latin1 string! */
+
+		/* We assume that this CHAR field is encoded in a
+		variable-length character set where spaces have
+		1:1 correspondence to 0x20 bytes, such as UTF-8.
+
+		Consider a CHAR(n) field, a field of n characters.
+		It will contain between n * mbminlen and n * mbmaxlen bytes.
+		We will try to truncate it to n bytes by stripping
+		space padding.  If the field contains single-byte
+		characters only, it will be truncated to n characters.
+		Consider a CHAR(5) field containing the string ".a   "
+		where "." denotes a 3-byte character represented by
+		the bytes "$%&".  After our stripping, the string will
+		be stored as "$%&a " (5 bytes).  The string ".abc "
+		will be stored as "$%&abc" (6 bytes).
+
+		The space padding will be restored in row0sel.c, function
+		row_sel_field_store_in_mysql_format(). */
+
+		ulint		n_chars;
+
+		ut_a(!(dtype_get_len(dtype) % dtype_get_mbmaxlen(dtype)));
+
+		n_chars = dtype_get_len(dtype) / dtype_get_mbmaxlen(dtype);
+
+		/* Strip space padding. */
+		while (col_len > n_chars && ptr[col_len - 1] == 0x20) {
+			col_len--;
+		}
+	} else if (type == DATA_BLOB && row_format_col) {
+
+		ptr = row_mysql_read_blob_ref(&col_len, mysql_data, col_len);
+	}
+
+	dfield_set_data(dfield, ptr, col_len);
+
+	return(buf);
+}
+
+/******************************************************************
+Convert a row in the MySQL format to a row in the Innobase format. Note that
+the function to convert a MySQL format key value to an InnoDB dtuple is
+row_sel_convert_mysql_key_to_innobase() in row0sel.c. */
 static
 void
 row_mysql_convert_row_to_innobase(
 /*==============================*/
 	dtuple_t*	row,		/* in/out: Innobase row where the
 					field type information is already
-					copied there, or will be copied
-					later */
+					copied there! */
 	row_prebuilt_t*	prebuilt,	/* in: prebuilt struct where template
 					must be of type ROW_MYSQL_WHOLE_ROW */
 	byte*		mysql_rec)	/* in: row in the MySQL format;
@@ -236,10 +439,10 @@ row_mysql_convert_row_to_innobase(
 		row_mysql_store_col_in_innobase_format(dfield,
 					prebuilt->ins_upd_rec_buff
 						+ templ->mysql_col_offset,
+					TRUE, /* MySQL row format data */
 					mysql_rec + templ->mysql_col_offset,
 					templ->mysql_col_len,
-					templ->type, prebuilt->table->comp,
-					templ->is_unsigned);
+					prebuilt->table->comp);
 next_column:
 		;
 	} 
@@ -594,7 +797,8 @@ static
 dtuple_t*
 row_get_prebuilt_insert_row(
 /*========================*/
-					/* out: prebuilt dtuple */
+					/* out: prebuilt dtuple; the column
+					type information is also set in it */ 
 	row_prebuilt_t*	prebuilt)	/* in: prebuilt struct in MySQL
 					handle */
 {
@@ -784,6 +988,7 @@ row_unlock_tables_for_mysql(
 	lock_release_tables_off_kernel(trx);
 	mutex_exit(&kernel_mutex);
 }
+
 /*************************************************************************
 Sets a table lock on the table mentioned in prebuilt. */
 
@@ -962,10 +1167,13 @@ run_again:
 
 	if (err != DB_SUCCESS) {
 		que_thr_stop_for_mysql(thr);
-    thr->lock_state= QUE_THR_LOCK_ROW;
+
+/* TODO: what is this? */ thr->lock_state= QUE_THR_LOCK_ROW;
+
 		was_lock_wait = row_mysql_handle_errors(&err, trx, thr,
 								&savept);
-    thr->lock_state= QUE_THR_LOCK_NOLOCK;
+		thr->lock_state= QUE_THR_LOCK_NOLOCK;
+
 		if (was_lock_wait) {
 			goto run_again;
 		}

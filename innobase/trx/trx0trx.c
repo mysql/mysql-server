@@ -1958,7 +1958,7 @@ trx_recover_for_mysql(
 
 	ut_print_timestamp(stderr);
 	fprintf(stderr,
-"  InnoDB: %d transactions in prepare state after recovery\n",
+"  InnoDB: %d transactions in prepared state after recovery\n",
 		count);
 
 	return (count);			

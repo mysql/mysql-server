@@ -475,8 +475,11 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
     if (*killed)
     {
       DBUG_PRINT("info",("Sort killed by user"));
-      (void) file->extra(HA_EXTRA_NO_CACHE);
-      file->ha_rnd_end();
+      if (!indexfile && !quick_select)
+      {
+        (void) file->extra(HA_EXTRA_NO_CACHE);
+        file->ha_rnd_end();
+      }
       DBUG_RETURN(HA_POS_ERROR);		/* purecov: inspected */
     }
     if (error == 0)
