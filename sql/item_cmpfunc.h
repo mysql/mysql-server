@@ -908,13 +908,76 @@ public:
   void top_level_item() { abort_on_null=1; }
   void copy_andor_arguments(THD *thd, Item_cond *item);
   bool walk(Item_processor processor, byte *arg);
+  Item *traverse(Item_calculator calculator, byte *arg);
   void neg_arguments();
 };
 
 
+class Item_equal: public Item_bool_func
+{
+  List<Item_field> fields; /* list of equal field items                    */
+  Item *const_item;        /* optional constant item equal to fields items */
+  cmp_item *eval_item;
+  bool cond_false;
+  DTCollation cmp_collation;
+public:
+  inline Item_equal()
+    : Item_bool_func(), const_item(0), eval_item(0), cond_false(0)
+  { const_item_cache=0 ;}
+  Item_equal(Item_field *f1, Item_field *f2);
+  Item_equal(Item *c, Item_field *f);
+  Item_equal(Item_equal *item_equal);
+  inline Item* get_const() { return const_item; }
+  void add(Item *c);
+  void add(Item_field *f);
+  bool is_false() { return cond_false; }
+  bool contains(Field *field);
+  Item_field* get_first() { return fields.head(); }
+  void merge(Item_equal *item);
+  enum Functype functype() const { return MULT_EQUAL_FUNC; }
+  longlong val_int(); 
+  const char *func_name() const { return "multiple equal"; }
+  optimize_type select_optimize() const { return OPTIMIZE_EQUAL; }
+  void sort(void *table_join_idx);
+  friend class Item_equal_iterator;
+  void fix_length_and_dec();
+  bool fix_fields(THD *thd, TABLE_LIST *tables, Item **ref);
+  void update_used_tables();
+  bool walk(Item_processor processor, byte *arg);
+  Item *traverse(Item_calculator calculator, byte *arg);
+  void print(String *str);
+}; 
+
+class COND_EQUAL
+{
+public:
+  COND_EQUAL *parent_level;
+  List<Item_equal> current_level;
+  COND_EQUAL() { parent_level= 0; }
+};
+
+
+class Item_equal_iterator :List_iterator_fast<Item_field>
+{
+public:
+  inline Item_equal_iterator(Item_equal &item_equal) 
+    :List_iterator_fast<Item_field> (item_equal.fields)
+  {}
+  inline Item_field* operator++(int)
+  { 
+    Item_field *item= (*(List_iterator_fast<Item_field> *) this)++;
+    return  item;
+  }
+  inline void rewind(void) 
+  { 
+    List_iterator_fast<Item_field>::rewind();
+  }
+};
+
 class Item_cond_and :public Item_cond
 {
 public:
+  COND_EQUAL cond_equal;  
   Item_cond_and() :Item_cond() {}
   Item_cond_and(Item *i1,Item *i2) :Item_cond(i1,i2) {}
   Item_cond_and(THD *thd, Item_cond_and &item) :Item_cond(thd, item) {}
