@@ -156,6 +156,7 @@ struct st_table {
   uint		quick_key_parts[MAX_KEY];
   key_part_map  const_key_parts[MAX_KEY];
   ulong		query_id;
+  uchar		frm_version;
 
   union					/* Temporary variables */
   {

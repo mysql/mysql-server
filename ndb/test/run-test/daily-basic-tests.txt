@@ -148,24 +148,33 @@ cmd: testBasic
 args: -n MassiveRollback2 T1 T6 T13 
 
 #-m 500 1: testBasic -n ReadConsistency T6
+max-time: 500
 cmd: testTimeout
 args: -n DontTimeoutTransaction T1 
 
+max-time: 500
 cmd: testTimeout 
 args: -n DontTimeoutTransaction5 T1 
 
+max-time: 500
 cmd: testTimeout
 args: -n TimeoutTransaction T1 
 
+max-time: 500
 cmd: testTimeout 
 args: -n TimeoutTransaction5 T1 
 
+max-time: 500
 cmd: testTimeout
 args: -n BuddyTransNoTimeout T1 
 
+max-time: 500
 cmd: testTimeout
 args: -n BuddyTransNoTimeout5 T1 
 
+max-time: 500
+cmd: testTimeout
+args: -n TimeoutRandTransaction T1
 #
 # SCAN TESTS
 #
@@ -332,6 +341,18 @@ args: -n ScanReadError5025 T1
 max-time: 500
 cmd: testScan
 args: -n ScanReadError5030 T1 
+
+max-time: 500
+cmd: testScan
+args: -n InsertDelete T1 T6
+
+max-time: 500
+cmd: testScan
+args: -n CheckAfterTerror T1
+
+max-time: 500
+cmd: testScan
+args: -n ScanReadWhileNodeIsDown T1
 
 # OLD FLEX
 max-time: 500

@@ -22,7 +22,7 @@
 
 /*
   Please read ha_archive.cc first. If you are looking for more general
-  answers on how storage engines work, look at ha_example.cc and 
+  answers on how storage engines work, look at ha_example.cc and
   ha_example.h.
 */
 
@@ -36,7 +36,7 @@ typedef struct st_archive_share {
   bool dirty;                       /* Flag for if a flush should occur */
 } ARCHIVE_SHARE;
 
-/* 
+/*
   Version for file format.
   1 - Initial Version
 */
@@ -61,7 +61,7 @@ public:
     /* The size of the offset value we will use for position() */
     ref_length = sizeof(z_off_t);
   }
-  ~ha_archive() 
+  ~ha_archive()
   {
   }
   const char *table_type() const { return "ARCHIVE"; }
@@ -69,21 +69,18 @@ public:
   const char **bas_ext() const;
   ulong table_flags() const
   {
-    return (HA_REC_NOT_IN_SEQ | HA_NOT_EXACT_COUNT | HA_NO_WRITE_DELAYED |
-            HA_NO_AUTO_INCREMENT);
+    return (HA_REC_NOT_IN_SEQ | HA_NOT_EXACT_COUNT | HA_NO_AUTO_INCREMENT |
+            HA_FILE_BASED);
   }
-  ulong index_flags(uint inx) const
+  ulong index_flags(uint idx, uint part) const
   {
     return 0;
   }
-  /* 
-    This is just a default, there is no real limit as far as
+  /*
+    Have to put something here, there is no real limit as far as
     archive is concerned.
   */
-  uint max_record_length() const { return HA_MAX_REC_LENGTH; }
-  uint max_keys()          const { return 0; }
-  uint max_key_parts()     const { return 0; }
-  uint max_key_length()    const { return 0; }
+  uint max_supported_record_length() const { return UINT_MAX; }
   /*
     Called in test_quick_select to determine if indexes should be used.
   */

@@ -56,7 +56,7 @@ Ndb(const char* aDataBase);
 Parameters:    aDataBase : Name of the database.
 Remark:        Connect to the database.
 ***************************************************************************/
-Ndb::Ndb( const char* aDataBase , const char* aDataBaseSchema) :
+Ndb::Ndb( const char* aDataBase , const char* aSchema) :
   theNdbObjectIdMap(0),
   thePreparedTransactionsArray(NULL),
   theSentTransactionsArray(NULL),
@@ -121,22 +121,16 @@ Ndb::Ndb( const char* aDataBase , const char* aDataBaseSchema) :
     theLastTupleId[i] = 0;
   }//for
   
-  if (aDataBase)
-    strncpy(theDataBase, aDataBase, NDB_MAX_DATABASE_NAME_SIZE);
-  else
-    memset(theDataBase, 0, sizeof(theDataBase));
-  strncpy(theDataBaseSchema, aDataBaseSchema, NDB_MAX_SCHEMA_NAME_SIZE);
-  // Prepare prefix for faster operations
-  uint db_len = MIN(strlen(theDataBase), NDB_MAX_DATABASE_NAME_SIZE - 1);
-  uint schema_len = 
-    MIN(strlen(theDataBaseSchema), NDB_MAX_SCHEMA_NAME_SIZE - 1);
-  strncpy(prefixName, theDataBase, NDB_MAX_DATABASE_NAME_SIZE - 1);
-  prefixName[db_len] = table_name_separator;
-  strncpy(prefixName+db_len+1, theDataBaseSchema, 
-	  NDB_MAX_SCHEMA_NAME_SIZE - 1);
-  prefixName[db_len+schema_len+1] = table_name_separator;
-  prefixName[db_len+schema_len+2] = '\0';
-  prefixEnd = prefixName + db_len+schema_len + 2;
+  snprintf(theDataBase, sizeof(theDataBase), "%s",
+           aDataBase ? aDataBase : "");
+  snprintf(theDataBaseSchema, sizeof(theDataBaseSchema), "%s",
+	   aSchema ? aSchema : "");
+
+  int len = snprintf(prefixName, sizeof(prefixName), "%s%c%s%c",
+                     theDataBase, table_name_separator,
+                     theDataBaseSchema, table_name_separator);
+  prefixEnd = prefixName + (len < sizeof(prefixName) ? len : 
+                            sizeof(prefixName) - 1);
 
   NdbMutex_Lock(&createNdbMutex);
   
