@@ -29,7 +29,7 @@
 File my_dup(File file, myf MyFlags)
 {
   File fd;
-  char *filename;
+  const char *filename;
   DBUG_ENTER("my_dup");
   DBUG_PRINT("my",("file: %d  MyFlags: %d", MyFlags));
   fd = dup(file);
