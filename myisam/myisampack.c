@@ -235,12 +235,12 @@ enum options_mp {OPT_CHARSETS_DIR_MP=256};
 
 static struct my_option my_long_options[] =
 {
-  {"backup", 'b', "Make a backup of the table as table_name.OLD",
+  {"backup", 'b', "Make a backup of the table as table_name.OLD.",
    (gptr*) &backup, (gptr*) &backup, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"character-sets-dir", OPT_CHARSETS_DIR_MP,
    "Directory where character sets are.", (gptr*) &charsets_dir,
    (gptr*) &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'",
+  {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"force", 'f',
    "Force packing of table even if it gets bigger or if	tempfile exists.",
