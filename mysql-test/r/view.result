@@ -1253,3 +1253,11 @@ create view v4 as select * from v3;
 select * from v4;
 ERROR 21000: Subquery returns more than 1 row
 drop view v4, v3, v2, v1;
+create view v1 as select 5 into @w;
+ERROR HY000: View's SELECT contains a 'INTO' clause
+create view v1 as select 5 into outfile 'ttt';
+ERROR HY000: View's SELECT contains a 'INTO' clause
+create table t1 (a int);
+create view v1 as select a from t1 procedure analyse();
+ERROR HY000: View's SELECT contains a 'PROCEDURE' clause
+drop table t1;
