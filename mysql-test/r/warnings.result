@@ -1,7 +1,4 @@
 drop table if exists t1, t2;
-Warnings:
-Note	1051	Unknown table 't1'
-Note	1051	Unknown table 't2'
 SET SQL_WARNINGS=1;
 create table t1 (a int);
 insert into t1 values (1);
@@ -128,10 +125,10 @@ Warning	1265	Using storage engine MyISAM for table 't1'
 drop table t1;
 create table t1 (id int) type=heap;
 Warnings:
-Warning	1286	'TYPE=database_engine' is deprecated. Use 'ENGINE=database_engine' instead.
+Warning	1286	'TYPE=storage_engine' is deprecated. Use 'ENGINE=storage_engine' instead.
 alter table t1 type=myisam;
 Warnings:
-Warning	1286	'TYPE=database_engine' is deprecated. Use 'ENGINE=database_engine' instead.
+Warning	1286	'TYPE=storage_engine' is deprecated. Use 'ENGINE=storage_engine' instead.
 drop table t1;
 set table_type=MYISAM;
 Warnings:

@@ -21,6 +21,12 @@
 
 /* mysql standard class memoryallocator */
 
+#ifdef PEDANTIC_SAFEMALLOC
+#define TRASH(XX,YY) bfill((XX), (YY), 0x8F)
+#else
+#define TRASH(XX,YY) /* no-op */
+#endif
+
 class Sql_alloc
 {
 public:
@@ -34,8 +40,8 @@ public:
   }
   static void *operator new(size_t size, MEM_ROOT *mem_root)
   { return (void*) alloc_root(mem_root, (uint) size); }
-  static void operator delete(void *ptr, size_t size) {} /*lint -e715 */
-  static void operator delete[](void *ptr, size_t size) {}
+  static void operator delete(void *ptr, size_t size) { TRASH(ptr, size); }
+  static void operator delete[](void *ptr, size_t size) { TRASH(ptr, size); }
 #ifdef HAVE_purify
   bool dummy;
   inline Sql_alloc() :dummy(0) {}

@@ -34,6 +34,7 @@ CHARSET_INFO compiled_charsets[] = {
     0,
     0,
     0,
+    0,
     NULL,
     NULL
   }

@@ -9900,6 +9900,7 @@ static MY_CHARSET_HANDLER my_charset_handler=
   mbcharlen_gbk,
   my_numchars_mb,
   my_charpos_mb,
+  my_wellformedlen_mb,
   my_lengthsp_8bit,
   my_mb_wc_gbk,
   my_wc_mb_gbk,
@@ -9936,6 +9937,7 @@ CHARSET_INFO my_charset_gbk_chinese_ci=
     "",
     "",
     1,			/* strxfrm_multiply */
+    1,			/* mbminlen   */
     2,			/* mbmaxlen */
     0,
     &my_charset_handler,
@@ -9958,6 +9960,7 @@ CHARSET_INFO my_charset_gbk_bin=
     "",
     "",
     1,			/* strxfrm_multiply */
+    1,			/* mbminlen   */
     2,			/* mbmaxlen */
     0,
     &my_charset_handler,

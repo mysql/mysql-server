@@ -294,7 +294,7 @@ uint my_instr_bin(CHARSET_INFO *cs __attribute__((unused)),
     end= (const uchar*) b+b_length-s_length+1;
     search_end= (const uchar*) s + s_length;
 
-skipp:
+skip:
     while (str != end)
     {
       if ( (*str++) == (*search))
@@ -306,7 +306,7 @@ skipp:
 
 	while (j != search_end)
 	  if ((*i++) != (*j++))
-            goto skipp;
+            goto skip;
 
         if (nmatch > 0)
 	{
@@ -347,6 +347,7 @@ static MY_CHARSET_HANDLER my_charset_handler=
     my_mbcharlen_8bit,		/* mbcharlen     */
     my_numchars_8bit,
     my_charpos_8bit,
+    my_wellformedlen_8bit,
     my_lengthsp_8bit,
     my_mb_wc_bin,
     my_wc_mb_bin,
@@ -381,6 +382,7 @@ CHARSET_INFO my_charset_bin =
     NULL,			/* tab_from_uni  */
     "","",
     1,				/* strxfrm_multiply */
+    1,				/* mbminlen      */
     1,				/* mbmaxlen      */
     (char) 255,			/* max_sort_char */
     &my_charset_handler,

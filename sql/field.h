@@ -913,7 +913,6 @@ public:
 
 
 class Field_blob :public Field_str {
-  bool geom_flag;
 protected:
   uint packlength;
   String value;				// For temporaries
@@ -926,7 +925,7 @@ public:
 	     struct st_table *table_arg, CHARSET_INFO *cs)
     :Field_str((char*) 0,len_arg, maybe_null_arg ? (uchar*) "": 0,0,
 	       NONE, field_name_arg, table_arg, cs),
-    geom_flag(true), packlength(4)
+    packlength(4)
   {
     flags|= BLOB_FLAG;
   }
@@ -950,6 +949,15 @@ public:
   void sort_string(char *buff,uint length);
   uint32 pack_length() const
   { return (uint32) (packlength+table->blob_ptr_size); }
+  uint32 max_data_length() const
+  {
+    switch (packlength) {
+    case 1: return 255;
+    case 2: return (uint32) 0xFFFFL;
+    case 3: return (uint32) 0xFFFFFF;
+    default: return (uint32) 0xFFFFFFFF;
+    }
+  }
   void reset(void) { bzero(ptr, packlength+sizeof(char*)); }
   void reset_fields() { bzero((char*) &value,sizeof(value)); }
   void store_length(uint32 number);
@@ -1001,7 +1009,7 @@ public:
   field_cast_enum field_cast_type() { return FIELD_CAST_BLOB; }
 };
 
-
+#ifdef HAVE_SPATIAL
 class Field_geom :public Field_blob {
 public:
   enum geometry_type geom_type;
@@ -1029,7 +1037,7 @@ public:
   void set_key_image(char *buff,uint length, CHARSET_INFO *cs);
   field_cast_enum field_cast_type() { return FIELD_CAST_GEOM; }
 };
-
+#endif /*HAVE_SPATIAL*/
 
 class Field_enum :public Field_str {
 protected:

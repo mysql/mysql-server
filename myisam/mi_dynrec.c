@@ -1248,7 +1248,7 @@ err:
 
 int _mi_read_rnd_dynamic_record(MI_INFO *info, byte *buf,
 				register my_off_t filepos,
-				my_bool skipp_deleted_blocks)
+				my_bool skip_deleted_blocks)
 {
   int flag,info_read,save_errno;
   uint left_len,b_type;
@@ -1299,7 +1299,7 @@ int _mi_read_rnd_dynamic_record(MI_INFO *info, byte *buf,
     {
       if (_mi_read_cache(&info->rec_cache,(byte*) block_info.header,filepos,
 			 sizeof(block_info.header),
-			 (!flag && skipp_deleted_blocks ? READING_NEXT : 0) |
+			 (!flag && skip_deleted_blocks ? READING_NEXT : 0) |
 			 READING_HEADER))
 	goto panic;
       b_type=_mi_get_block_info(&block_info,-1,filepos);
@@ -1318,7 +1318,7 @@ int _mi_read_rnd_dynamic_record(MI_INFO *info, byte *buf,
 		  BLOCK_FATAL_ERROR))
     {
       if ((b_type & (BLOCK_DELETED | BLOCK_SYNC_ERROR))
-	  && skipp_deleted_blocks)
+	  && skip_deleted_blocks)
       {
 	filepos=block_info.filepos+block_info.block_len;
 	block_info.second_read=0;
@@ -1374,7 +1374,7 @@ int _mi_read_rnd_dynamic_record(MI_INFO *info, byte *buf,
       {
 	if (_mi_read_cache(&info->rec_cache,(byte*) to,filepos,
 			   block_info.data_len,
-			   (!flag && skipp_deleted_blocks) ? READING_NEXT :0))
+			   (!flag && skip_deleted_blocks) ? READING_NEXT :0))
 	  goto panic;
       }
       else
@@ -1391,7 +1391,7 @@ int _mi_read_rnd_dynamic_record(MI_INFO *info, byte *buf,
     if (flag++ == 0)
     {
       info->nextpos=block_info.filepos+block_info.block_len;
-      skipp_deleted_blocks=0;
+      skip_deleted_blocks=0;
     }
     left_len-=block_info.data_len;
     to+=block_info.data_len;

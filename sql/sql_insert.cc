@@ -81,7 +81,7 @@ check_insert_fields(THD *thd,TABLE *table,List<Item> &fields,
     table_list.grant=table->grant;
 
     thd->dupp_field=0;
-    if (setup_tables(&table_list) ||
+    if (setup_tables(&table_list, 0) ||
 	setup_fields(thd, 0, &table_list,fields,1,0,0))
       return -1;
     if (thd->dupp_field)
@@ -175,7 +175,6 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
     res= open_and_lock_tables(thd, table_list);
   if (res)
     DBUG_RETURN(-1);
-  fix_tables_pointers(thd->lex->all_selects_list);
 
   table= table_list->table;
   thd->proc_info="init";
@@ -185,13 +184,14 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
   if (duplic == DUP_UPDATE && !table->insert_values)
   {
     /* it should be allocated before Item::fix_fields() */
-    table->insert_values=(byte *)alloc_root(&table->mem_root, table->rec_buff_length);
+    table->insert_values= 
+      (byte *)alloc_root(&thd->mem_root, table->rec_buff_length);
     if (!table->insert_values)
       goto abort;
   }
 
   if (check_insert_fields(thd,table,fields,*values,1) ||
-      setup_tables(insert_table_list) ||
+      setup_tables(insert_table_list, 0) ||
       setup_fields(thd, 0, insert_table_list, *values, 0, 0, 0) ||
       (duplic == DUP_UPDATE &&
        (setup_fields(thd, 0, insert_table_list, update_fields, 0, 0, 0) ||
@@ -633,7 +633,8 @@ public:
     thd.command=COM_DELAYED_INSERT;
     thd.lex->current_select= 0; /* for my_message_sql */
 
-    bzero((char*) &thd.net,sizeof(thd.net));	// Safety
+    bzero((char*) &thd.net, sizeof(thd.net));		// Safety
+    bzero((char*) &table_list, sizeof(table_list));	// Safety
     thd.system_thread= SYSTEM_THREAD_DELAYED_INSERT;
     thd.host_or_ip= "";
     bzero((char*) &info,sizeof(info));

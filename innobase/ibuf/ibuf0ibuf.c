@@ -48,9 +48,12 @@ insert buffer tree, and that is in the system tablespace of InnoDB.
 1. The first field is the space id.
 2. The second field is a one-byte marker which differentiates records from
    the < 4.1.x storage format.
-3. The third field contains the type info, where we have also added 2 bytes to
-   store the charset.
-4. The rest of the fields contain the fields of the actual index record.
+3. The third field is the page number.
+4. The fourth field contains the type info, where we have also added 2 bytes to
+   store the charset. In the compressed table format of 5.0.x we must add more
+   information here so that we can build a dummy 'index' struct which 5.0.x
+   can use in the binary search on the index page in the ibuf merge phase.
+5. The rest of the fields contain the fields of the actual index record.
 
 */
 

@@ -1,6 +1,6 @@
 <?xml version='1.0' encoding="utf-8"?>
 
-<charsets max-id="93">
+<charsets max-id="94">
 
 <description>
 This file lists all of the available character sets.
@@ -100,6 +100,7 @@ To make maintaining easier please:
   <collation name="latin1_swedish_ci"	id="8"	order="Finnish, Swedish"	flag="primary"/>
   <collation name="latin1_danish_ci"	id="15"	order="Danish"/>
   <collation name="latin1_german2_ci"	id="31"	order="German Phonebook"	flag="compiled"/>
+  <collation name="latin1_spanish_ci"	id="94"	order="Spanish"/>
   <collation name="latin1_bin"		id="47"	order="Binary">
     <flag>binary</flag>
     <flag>compiled</flag>

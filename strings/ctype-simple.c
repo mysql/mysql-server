@@ -1020,6 +1020,15 @@ uint my_charpos_8bit(CHARSET_INFO *cs __attribute__((unused)),
   return pos;
 }
 
+uint my_wellformedlen_8bit(CHARSET_INFO *cs __attribute__((unused)),
+			const char *start,
+			const char *end,
+			uint nchars)
+{
+  uint nbytes= (uint) (end-start);
+  return nbytes < nchars ? nbytes : nchars;
+}
+
 uint my_lengthsp_8bit(CHARSET_INFO *cs __attribute__((unused)),
 		      const char *ptr, uint length)
 {
@@ -1055,7 +1064,7 @@ uint my_instr_simple(CHARSET_INFO *cs,
     end= (const uchar*) b+b_length-s_length+1;
     search_end= (const uchar*) s + s_length;
     
-skipp:
+skip:
     while (str != end)
     {
       if (cs->sort_order[*str++] == cs->sort_order[*search])
@@ -1067,7 +1076,7 @@ skipp:
 	
 	while (j != search_end)
 	  if (cs->sort_order[*i++] != cs->sort_order[*j++]) 
-            goto skipp;
+            goto skip;
         
 	if (nmatch > 0)
 	{
@@ -1096,6 +1105,7 @@ MY_CHARSET_HANDLER my_charset_8bit_handler=
     my_mbcharlen_8bit,		/* mbcharlen     */
     my_numchars_8bit,
     my_charpos_8bit,
+    my_wellformedlen_8bit,
     my_lengthsp_8bit,
     my_mb_wc_8bit,
     my_wc_mb_8bit,

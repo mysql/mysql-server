@@ -10,8 +10,8 @@
 # ~/.my.cnf to set user-specific options.
 #
 # One can in this file use all long options that the program supports.
-# If you want to know which options a program support, run the program
-# with --help option.
+# If you want to know which options a program supports, run the program
+# with the --help option.
 
 # The following options will be passed to all MySQL clients
 [client]

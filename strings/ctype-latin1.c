@@ -180,6 +180,7 @@ static MY_CHARSET_HANDLER my_charset_handler=
     my_mbcharlen_8bit,
     my_numchars_8bit,
     my_charpos_8bit,
+    my_wellformedlen_8bit,
     my_lengthsp_8bit,
     my_mb_wc_latin1,
     my_wc_mb_latin1,
@@ -215,6 +216,7 @@ CHARSET_INFO my_charset_latin1=
     NULL,		/* tab_from_uni */
     "","",
     1,			/* strxfrm_multiply */
+    1,			/* mbminlen   */
     1,			/* mbmaxlen  */
     0,
     &my_charset_handler,
@@ -410,6 +412,7 @@ CHARSET_INFO my_charset_latin1_german2_ci=
   NULL,					/* tab_from_uni */
   "","",
   2,					/* strxfrm_multiply */
+  1,					/* mbminlen   */
   1,					/* mbmaxlen  */
   0,
   &my_charset_handler,
@@ -433,6 +436,7 @@ CHARSET_INFO my_charset_latin1_bin=
   "",
   "",
   1,					/* strxfrm_multiply */
+  1,					/* mbminlen   */
   1,					/* mbmaxlen  */
   0,
   &my_charset_handler,
