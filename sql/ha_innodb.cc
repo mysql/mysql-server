@@ -1182,6 +1182,9 @@ ha_innobase::open(
 
 	last_query_id = (ulong)-1;
 
+	active_index = 0;
+	active_index_before_scan = (uint)-1; /* undefined value */
+
 	if (!(share=get_share(name)))
 	  DBUG_RETURN(1);
 
@@ -2751,9 +2754,16 @@ ha_innobase::rnd_end(void)
 				/* out: 0 or error number */
 {
 	/* Restore the old active_index back; MySQL may assume that a table
-	scan does not change active_index */
+	scan does not change active_index. We only restore the value if
+	MySQL has called rnd_init before: sometimes MySQL seems to call
+	rnd_end WITHOUT calling rnd_init. */
 
-	change_active_index(active_index_before_scan);
+	if (active_index_before_scan != (uint)-1) {
+
+		change_active_index(active_index_before_scan);
+
+		active_index_before_scan = (uint)-1;
+	}
 
   	return(index_end());
 }
