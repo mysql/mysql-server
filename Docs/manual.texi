@@ -7011,7 +7011,8 @@ table. @xref{Crashing}.
 To get a core dump on Linux if mysqld dies with a SIGSEGV
 signal, you can start mysqld with the @code{--core-file} option.  Note
 that you also probably need to raise the @code{core file size} by adding
-@code{ulimit -c 1000000} to @code{safe_mysqld}. @xref{safe_mysqld}.
+@code{ulimit -c 1000000} to @code{safe_mysqld} or starting @code{safe_mysqld}
+with @code{--core-file-sizes=1000000}. @xref{safe_mysqld}.
 
 If you are using LinuxThreads and @code{mysqladmin shutdown} doesn't work,
 you must upgrade to LinuxThreads Version 0.7.1 or newer.
@@ -13465,7 +13466,7 @@ One way to avoid this problem is to start @code{mysqld} with @code{-O
 lower_case_table_names=1}.
 
 In this case @strong{MySQL} will convert all table names to lower case on
-storage and lookup.  Not that you need to first convert your old table
+storage and lookup.  Note that you need to first convert your old table
 names to lower case before starting @code{mysqld} with this option.
 
 @cindex variables, user
@@ -20227,6 +20228,9 @@ or SHOW LOGS
 or SHOW [FULL] PROCESSLIST
 or SHOW GRANTS FOR user
 or SHOW CREATE TABLE table_name
+or SHOW MASTER STATUS
+or SHOW MASTER LOGS
+or SHOW SLAVE STATUS
 @end example
 
 @code{SHOW} provides information about databases, tables, columns, or
@@ -26423,14 +26427,10 @@ If this is not desirable, you should delete the @file{master.info} file before
 restarting, and the slave will read its master from @code{my.cnf} or the
 command line. (Slave)
 
-@item @code{SHOW MASTER STATUS}
- @tab Provides status information on the binlog of the master. (Master)
+@item @code{SHOW MASTER STATUS} @tab Provides status information on the binlog of the master. (Master)
 
-@item @code{SHOW SLAVE STATUS}
- @tab Provides status information on essential parameters of the slave thread. (Slave)
-@item @code{SHOW MASTER LOGS}
- @tab Only available starting in Version 3.23.28. Lists the binary logs on the master. You should use this command
-prior to @code{PURGE MASTER LOGS TO} to find out how far you should go.
+@item @code{SHOW SLAVE STATUS} @tab Provides status information on essential parameters of the slave thread. (Slave)
+@item @code{SHOW MASTER LOGS} @tab Only available starting in Version 3.23.28. Lists the binary logs on the master. You should use this command prior to @code{PURGE MASTER LOGS TO} to find out how far you should go.
 
 @item @code{PURGE MASTER LOGS TO 'logname'}
  @tab  Available starting in Version 3.23.28. Deletes all the
@@ -26442,13 +26442,12 @@ log index, so that the given log now becomes first. Example:
 PURGE MASTER LOGS TO 'mysql-bin.010'
 @end example
 
-This command will do nothing and  fail with an error
-if you have an active slave that
-is currently reading one of the logs you are trying to delete. However,
-if you have a dormant slave, and happen to purge one of the logs it
-wants to read, the slave will be unable to replicate once it comes up.
-The command is safe to run while slaves are replicating - you do not
-need to stop them.
+This command will do nothing and fail with an error if you have an
+active slave that is currently reading one of the logs you are trying to
+delete. However, if you have a dormant slave, and happen to purge one of
+the logs it wants to read, the slave will be unable to replicate once it
+comes up.  The command is safe to run while slaves are replicating - you
+do not need to stop them.
 
 You must first check all the slaves with @code{SHOW SLAVE STATUS} to
 see which log they are on, then do a listing of the logs on the
@@ -26490,21 +26489,20 @@ it up from @code{pthread_cond_wait()}.  In the meantime, the slave
 could have opened another connection, which resulted in another
 @code{Binlog_Dump} thread.
 
-The above problem should not be present in Version 3.23.26 and later versions.
-In Version 3.23.26 we added @code{server-id} to each replication server, and
-now all the old zombie threads are killed on the master when a new replication thread
-connects from the same slave
+The above problem should not be present in Version 3.23.26 and later
+versions.  In Version 3.23.26 we added @code{server-id} to each
+replication server, and now all the old zombie threads are killed on the
+master when a new replication thread connects from the same slave
 
 @strong{Q}: How do I rotate replication logs?
 
-@strong{A}: In Version 3.23.28 you should use @code{PURGE MASTER LOGS TO}
-command after determining which logs can be deleted, and optionally
+@strong{A}: In Version 3.23.28 you should use @code{PURGE MASTER LOGS
+TO} command after determining which logs can be deleted, and optionally
 backing them up first. In earlier versions the process is much more
 painful, and cannot be safely done without stopping all the slaves in
-the case that you plan to re-use log names  .
-You will need  to stop the slave threads,  edit the binary log index
- file, delete all the old logs, restart the master, start slave threads,
-and then remove the old log files.
+the case that you plan to re-use log names. You will need to stop the
+slave threads, edit the binary log index file, delete all the old logs,
+restart the master, start slave threads,and then remove the old log files.
 
 
 @strong{Q}: How do I upgrade on a hot replication setup?
@@ -26811,14 +26809,14 @@ sketchy information, it would take us a while to track down the problem. The
 evidence you should collect is:
 @itemize @bullet
 @item
-all binary logs on the master
+All binary logs on the master
 @item
-all binary log on the slave
+All binary log on the slave
 @item
-the output of @code{SHOW MASTER STATUS} on the master at the time
+The output of @code{SHOW MASTER STATUS} on the master at the time
 you have discovered the problem
 @item
-the output of @code{SHOW SLAVE STATUS} on the master at the time
+The output of @code{SHOW SLAVE STATUS} on the master at the time
 you have discovered the problem
 @item
 Error logs on the master and on the slave
@@ -29107,7 +29105,7 @@ Path to @code{mysqld}
 Name of the mysqld version in the @code{ledir} directory you want to start.
 @item --no-defaults
 @item --open-files-limit=#
-Number of files @code{mysqld} should be able to open. Passed to @code{ulimit -n}. Not that you need to start @code{safe_mysqld} as root for this to work properly!
+Number of files @code{mysqld} should be able to open. Passed to @code{ulimit -n}. Note that you need to start @code{safe_mysqld} as root for this to work properly!
 @item --pid-file=path
 @item --port=#
 @item --socket=path
@@ -35670,19 +35668,7 @@ None.
 
 @subsubheading Errors
 
-@table @code
-@item CR_COMMANDS_OUT_OF_SYNC
-Commands were executed in an improper order.
-
-@item CR_SERVER_GONE_ERROR
-The @strong{MySQL} server has gone away.
-
-@item CR_SERVER_LOST
-The connection to the server was lost during the query.
-
-@item CR_UNKNOWN_ERROR
-An unknown error occurred.
-@end table
+None.
 
 @findex @code{mysql_connect()}
 @node mysql_connect, mysql_change_user, mysql_close, C API functions
