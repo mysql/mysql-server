@@ -209,11 +209,9 @@ extern CHARSET_INFO compiled_charsets[];
 extern uint get_charset_number(const char *cs_name);
 extern const char *get_charset_name(uint cs_number);
 extern CHARSET_INFO *get_charset(uint cs_number, myf flags);
-extern my_bool set_default_charset(uint cs, myf flags);
 extern CHARSET_INFO *get_charset_by_name(const char *cs_name, myf flags);
 extern CHARSET_INFO *get_charset_by_csname(const char *cs_name, 
 					   uint cs_flags, myf my_flags);
-extern my_bool set_default_charset_by_name(const char *cs_name, myf flags);
 extern void free_charsets(void);
 extern char *list_charsets(myf want_flags); /* my_free() this string... */
 extern char *get_charsets_dir(char *buf);

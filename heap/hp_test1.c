@@ -51,7 +51,7 @@ int main(int argc, char **argv)
   keyinfo[0].seg[0].type=HA_KEYTYPE_BINARY;
   keyinfo[0].seg[0].start=1;
   keyinfo[0].seg[0].length=6;
-  keyinfo[0].seg[0].charset=default_charset_info;
+  keyinfo[0].seg[0].charset= &my_charset_latin1;
   keyinfo[0].flag = HA_NOSAME;
   
   deleted=0;

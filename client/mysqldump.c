@@ -483,7 +483,7 @@ static int get_options(int *argc, char ***argv)
   }
   if (default_charset)
   {
-    if (set_default_charset_by_name(default_charset, MYF(MY_WME)))
+    if (!(system_charset_info= get_charset_by_name(default_charset, MYF(MY_WME))))
       exit(1);
   }
   if ((*argc < 1 && !opt_alldbs) || (*argc > 0 && opt_alldbs))

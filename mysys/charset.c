@@ -606,24 +606,6 @@ CHARSET_INFO *get_charset(uint cs_number, myf flags)
   return cs;
 }
 
-my_bool set_default_charset(uint cs, myf flags)
-{
-  CHARSET_INFO *new_charset;
-  DBUG_ENTER("set_default_charset");
-  DBUG_PRINT("enter",("character set: %d",(int) cs));
-
-  new_charset= get_charset(cs, flags);
-  if (!new_charset)
-  {
-    DBUG_PRINT("error",("Couldn't set default character set"));
-    DBUG_RETURN(TRUE);   /* error */
-  }
-  default_charset_info= new_charset;
-  system_charset_info= new_charset;
-
-  DBUG_RETURN(FALSE);
-}
-
 CHARSET_INFO *get_charset_by_name(const char *cs_name, myf flags)
 {
   uint cs_number;
@@ -670,25 +652,6 @@ CHARSET_INFO *get_charset_by_csname(const char *cs_name,
   }
 
   return cs;
-}
-
-
-my_bool set_default_charset_by_name(const char *cs_name, myf flags)
-{
-  CHARSET_INFO *new_charset;
-  DBUG_ENTER("set_default_charset_by_name");
-  DBUG_PRINT("enter",("character set: %s", cs_name));
-
-  new_charset= get_charset_by_name(cs_name, flags);
-  if (!new_charset)
-  {
-    DBUG_PRINT("error",("Couldn't set default character set"));
-    DBUG_RETURN(TRUE);   /* error */
-  }
-
-  default_charset_info= new_charset;
-  system_charset_info= new_charset;
-  DBUG_RETURN(FALSE);
 }
 
 
