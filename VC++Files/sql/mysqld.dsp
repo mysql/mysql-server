@@ -218,6 +218,10 @@ SOURCE=.\derror.cpp
 # End Source File
 # Begin Source File
 
+SOURCE=.\discover.cpp
+# End Source File
+# Begin Source File
+
 SOURCE=..\libmysql\errmsg.c
 # End Source File
 # Begin Source File
