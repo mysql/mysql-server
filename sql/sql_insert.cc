@@ -671,6 +671,7 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list, TABLE *table,
   bool insert_into_view= (table_list->view != 0);
   /* TODO: use this condition for 'WITH CHECK OPTION' */
   bool res;
+  TABLE_LIST *next_local;
   DBUG_ENTER("mysql_prepare_insert");
   DBUG_PRINT("enter", ("table_list 0x%lx, table 0x%lx, view %d",
 		       (ulong)table_list, (ulong)table,
@@ -687,6 +688,8 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list, TABLE *table,
                                        select_insert))
     DBUG_RETURN(TRUE);
 
+  next_local= table_list->next_local;
+  table_list->next_local= 0;
   if ((values && check_insert_fields(thd, table_list, fields, *values, 1,
                                      !insert_into_view)) ||
       (values && setup_fields(thd, 0, table_list, *values, 0, 0, 0)) ||
@@ -697,6 +700,7 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list, TABLE *table,
          res) ||
         setup_fields(thd, 0, table_list, update_values, 1, 0, 0))))
     DBUG_RETURN(TRUE);
+  table_list->next_local= next_local;
 
   if (!table)
     table= table_list->table;
