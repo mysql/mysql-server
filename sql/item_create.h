@@ -140,3 +140,10 @@ Item *create_func_numinteriorring(Item *a);
 Item *create_func_numgeometries(Item *a);
 
 Item *create_func_point(Item *a, Item *b);
+
+#ifdef HAVE_COMPRESS
+Item *create_func_compress(Item *a);
+Item *create_func_uncompress(Item *a);
+Item *create_func_uncompressed_length(Item *a);
+#endif
+
