@@ -45994,7 +45994,7 @@ ANSI-92 compliance)}
 @item @uref{http://www.myEastside.com,Community-owned site serving Lake
 Washington's Eastside residents and businesses}
 
-@item @uref{http://bowling-france.net/,French bowling site}
+@item @uref{http://www.bowlfr.org/,French bowling site}
 @end itemize
 
 Send any additions to this list to @email{webmaster@@mysql.com}.
