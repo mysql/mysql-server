@@ -1,0 +1,26 @@
+Testing server 'MySQL 3.23.29a gamma' at 2000-12-17  3:21:10
+
+Testing the speed of selecting on keys that consist of many parts
+The test-table has 10000 rows and the test is done with 500 ranges.
+
+Creating table
+Inserting 10000 rows
+Time to insert (10000):  6 wallclock secs ( 1.03 usr  0.81 sys +  0.00 cusr  0.00 csys =  1.84 CPU)
+
+Testing big selects on the table
+Time for select_big (70:17207):  2 wallclock secs ( 0.26 usr  0.27 sys +  0.00 cusr  0.00 csys =  0.53 CPU)
+Time for select_range (410:1057904): 326 wallclock secs (17.61 usr 17.05 sys +  0.00 cusr  0.00 csys = 34.66 CPU)
+Time for min_max_on_key (70000): 292 wallclock secs (28.50 usr 13.56 sys +  0.00 cusr  0.00 csys = 42.06 CPU)
+Note: Query took longer then time-limit: 600
+Estimating end time based on:
+45085 queries in 9017 loops of 10000 loops took 601 seconds
+Estimated time for count_on_key (50000): 666 wallclock secs (20.47 usr  9.08 sys +  0.00 cusr  0.00 csys = 29.56 CPU)
+
+Time for count_group_on_key_parts (1000:100000): 85 wallclock secs ( 1.82 usr  1.89 sys +  0.00 cusr  0.00 csys =  3.71 CPU)
+Testing count(distinct) on the table
+Time for count_distinct (2000:2000): 217 wallclock secs ( 0.98 usr  0.30 sys +  0.00 cusr  0.00 csys =  1.28 CPU)
+Time for count_distinct_group_on_key (1000:6000): 101 wallclock secs ( 0.58 usr  0.35 sys +  0.00 cusr  0.00 csys =  0.93 CPU)
+Time for count_distinct_group_on_key_parts (1000:100000): 228 wallclock secs ( 2.00 usr  1.90 sys +  0.00 cusr  0.00 csys =  3.90 CPU)
+Time for count_distinct_group (1000:100000): 229 wallclock secs ( 1.96 usr  1.95 sys +  0.00 cusr  0.00 csys =  3.91 CPU)
+Time for count_distinct_big (100:1000000): 48 wallclock secs (16.66 usr 15.02 sys +  0.00 cusr  0.00 csys = 31.68 CPU)
+Estimated total time: 2200 wallclock secs (91.87 usr 62.18 sys +  0.00 cusr  0.00 csys = 154.06 CPU)

@@ -80,11 +80,11 @@ public:
   virtual int write_data(IO_CACHE* file __attribute__((unused))) { return 0; }
   virtual Log_event_type get_type_code() = 0;
   Log_event(time_t when_arg, ulong exec_time_arg = 0,
-	    int valid_exec_time_arg = 0, uint32 server_id = 0): when(when_arg),
-    exec_time(exec_time_arg), valid_exec_time(valid_exec_time_arg)
+	    int valid_exec_time_arg = 0, uint32 server_id_arg = 0):
+    when(when_arg), exec_time(exec_time_arg),
+    valid_exec_time(valid_exec_time_arg)
   {
-    if(!server_id) this->server_id = ::server_id;
-    else this->server_id = server_id;
+    server_id = server_id_arg ? server_id_arg : server_id = ::server_id;
   }
 
   Log_event(const char* buf): valid_exec_time(0)
@@ -144,7 +144,7 @@ public:
   }
 #endif
 
-  Query_log_event(IO_CACHE* file, time_t when, uint32 server_id);
+  Query_log_event(IO_CACHE* file, time_t when, uint32 server_id_arg);
   Query_log_event(const char* buf, int event_len);
   ~Query_log_event()
   {
@@ -218,11 +218,11 @@ public:
   THD* thd;
   String field_lens_buf;
   String fields_buf;
-  Load_log_event(THD* thd, sql_exchange* ex, const char* table_name,
-		 List<Item>& fields, enum enum_duplicates handle_dup ):
+  Load_log_event(THD* thd, sql_exchange* ex, const char* table_name_arg,
+		 List<Item>& fields_arg, enum enum_duplicates handle_dup ):
     Log_event(thd->start_time),data_buf(0),thread_id(thd->thread_id),
     num_fields(0),fields(0),field_lens(0),field_block_len(0),
-    table_name(table_name),
+    table_name(table_name_arg),
     db(thd->db),
     fname(ex->file_name),
     thd(thd)
@@ -267,7 +267,7 @@ public:
     
     skip_lines = ex->skip_lines;
 
-    List_iterator<Item> li(fields);
+    List_iterator<Item> li(fields_arg);
     field_lens_buf.length(0);
     fields_buf.length(0);
     Item* item;
@@ -281,12 +281,12 @@ public:
       }
 
     field_lens = (const uchar*)field_lens_buf.ptr();
-    this->fields = fields_buf.ptr();
+    fields = fields_buf.ptr();
   }
-  void set_fields(List<Item> &fields);
+  void set_fields(List<Item> &fields_arg);
 #endif
 
-  Load_log_event(IO_CACHE * file, time_t when, uint32 server_id);
+  Load_log_event(IO_CACHE * file, time_t when, uint32 server_id_arg);
   Load_log_event(const char* buf, int event_len);
   ~Load_log_event()
   {
@@ -325,8 +325,8 @@ public:
     created = (uint32) when;
     memcpy(server_version, ::server_version, sizeof(server_version));
   }
-  Start_log_event(IO_CACHE* file, time_t when_arg, uint32 server_id) :
-    Log_event(when_arg, 0, 0, server_id)
+  Start_log_event(IO_CACHE* file, time_t when_arg, uint32 server_id_arg) :
+    Log_event(when_arg, 0, 0, server_id_arg)
   {
     char buf[sizeof(server_version) + 2 + 4 + 4];
     if (my_b_read(file, (byte*) buf, sizeof(buf)))
@@ -356,7 +356,7 @@ public:
   Intvar_log_event(uchar type_arg, ulonglong val_arg)
     :Log_event(time(NULL)),val(val_arg),type(type_arg)
   {}
-  Intvar_log_event(IO_CACHE* file, time_t when, uint32 server_id);
+  Intvar_log_event(IO_CACHE* file, time_t when, uint32 server_id_arg);
   Intvar_log_event(const char* buf);
   ~Intvar_log_event() {}
   Log_event_type get_type_code() { return INTVAR_EVENT;}
@@ -372,8 +372,8 @@ class Stop_log_event: public Log_event
 public:
   Stop_log_event() :Log_event(time(NULL))
   {}
-  Stop_log_event(IO_CACHE* file, time_t when_arg, uint32 server_id):
-    Log_event(when_arg,0,0,server_id)
+  Stop_log_event(IO_CACHE* file, time_t when_arg, uint32 server_id_arg):
+    Log_event(when_arg,0,0,server_id_arg)
   {
     byte skip[4];
     my_b_read(file, skip, sizeof(skip));	// skip the event length
@@ -400,7 +400,7 @@ public:
     alloced(0)
   {}
   
-  Rotate_log_event(IO_CACHE* file, time_t when, uint32 server_id) ;
+  Rotate_log_event(IO_CACHE* file, time_t when, uint32 server_id_arg) ;
   Rotate_log_event(const char* buf, int event_len);
   ~Rotate_log_event()
   {

@@ -1,27 +1,30 @@
-Testing server 'MySQL 3.22.20' at 1999-03-19 13:28:05
+Testing server 'MySQL 3.23.29 gamma' at 2000-12-17  1:05:44
 
 Testing the speed of connecting to the server and sending of data
 All tests are done 10000 times
 
 Testing connection/disconnect
-Time to connect (10000): 292 secs (88.91 usr 68.44 sys +  0.00 cusr  0.00 csys = 157.35 cpu)
+Time to connect (10000): 175 wallclock secs (69.09 usr 50.36 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
 
 Test connect/simple select/disconnect
-Time for select_simple (10000): 314 secs (88.59 usr 81.30 sys +  0.00 cusr  0.00 csys = 169.89 cpu)
+Time for connect+select_simple (10000): 193 wallclock secs (72.11 usr 59.87 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
 
 Test simple select
-Time for select_simple (10000): 48 secs ( 7.03 usr 11.44 sys +  0.00 cusr  0.00 csys = 18.47 cpu)
+Time for select_simple (10000): 19 wallclock secs ( 4.00 usr  6.52 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
 
 Testing connect/select 1 row from table/disconnect
-Time to connect+select (10000): 363 secs (104.08 usr 83.81 sys +  0.00 cusr  0.00 csys = 187.89 cpu)
+Time to connect+select_1_row (10000): 203 wallclock secs (72.78 usr 60.73 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
 
 Testing select 1 row from table
-Time to select (10000): 57 secs ( 8.47 usr 14.74 sys +  0.00 cusr  0.00 csys = 23.21 cpu)
+Time to select_1_row (10000): 25 wallclock secs ( 4.18 usr  7.73 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
 
 Testing select 2 rows from table
-Time to select (10000): 54 secs ( 7.46 usr 13.80 sys +  0.00 cusr  0.00 csys = 21.26 cpu)
+Time to select_2_rows (10000): 30 wallclock secs ( 3.36 usr  8.73 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Test select with aritmetic (+)
+Time for select_column+column (10000): 30 wallclock secs ( 4.21 usr  7.61 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
 
 Testing retrieval of big records (65000 bytes)
-Time to select_big (10000): 385 secs (122.16 usr 58.29 sys +  0.00 cusr  0.00 csys = 180.45 cpu)
+Time to select_big (10000): 296 wallclock secs (84.19 usr 54.78 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
 
-Total time: 1514 secs (426.83 usr 331.83 sys +  0.00 cusr  0.00 csys = 758.66 cpu)
+Total time: 971 wallclock secs (313.99 usr 256.38 sys +  0.00 cusr  0.00 csys =  0.00 CPU)

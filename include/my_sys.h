@@ -378,9 +378,9 @@ extern gptr my_once_alloc(uint Size,myf MyFlags);
 extern void my_once_free(void);
 extern my_string my_tempnam(const char *dir,const char *pfx,myf MyFlags);
 extern File my_open(const char *FileName,int Flags,myf MyFlags);
-extern File my_register_filename(File fd, const char *FileName, 
-				 uint type_of_open, uint error_message_number,
-				 myf MyFlags);
+extern File my_register_filename(File fd, const char *FileName,
+				 enum file_type type_of_file,
+				 uint error_message_number, myf MyFlags);
 extern File my_create(const char *FileName,int CreateFlags,
 		      int AccsesFlags, myf MyFlags);
 extern int my_close(File Filedes,myf MyFlags);
