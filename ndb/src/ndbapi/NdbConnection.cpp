@@ -1121,8 +1121,11 @@ NdbConnection::getNdbIndexScanOperation(const NdbIndexImpl* index,
     const NdbTableImpl * indexTable = index->getIndexTable();
     if (indexTable != 0){
       NdbIndexScanOperation* tOp = getNdbScanOperation(indexTable);
-      tOp->m_currentTable = table;
-      if(tOp) tOp->m_cursor_type = NdbScanOperation::IndexCursor;
+      if(tOp)
+      {
+	tOp->m_currentTable = table;
+	tOp->m_cursor_type = NdbScanOperation::IndexCursor;
+      }
       return tOp;
     } else {
       setOperationErrorCodeAbort(theNdb->theError.code);
