@@ -599,7 +599,7 @@ static uint getTableStructure(char *table, char* db)
 
   sprintf(insert_pat,"SET OPTION SQL_QUOTE_SHOW_CREATE=%d", opt_quoted);
   table_name=quote_name(table,table_buff);
-  if (mysql_query(sock,insert_pat))
+  if (!mysql_query(sock,insert_pat))
   {
     /* using SHOW CREATE statement */
     if (!tFlag)
