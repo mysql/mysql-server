@@ -50,7 +50,7 @@ __os_rename(dbenv, oldname, newname, flags)
 			LPTSTR FilePath;
 			if (!GetFullPathName(oldname, sizeof(oldbuf), oldbuf,
 					     &FilePath) ||
-			    !GetFullPathName(newname, sizeof(newbuf),newdbuf,
+			    !GetFullPathName(newname, sizeof(newbuf), newbuf,
 					     &FilePath)) {
 				ret = __os_win32_errno();
 				goto done;
