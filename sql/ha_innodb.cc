@@ -987,10 +987,19 @@ innobase_commit_low(
 
                 trx->mysql_master_log_file_name
                                         = active_mi->rli.group_master_log_name;
+                /*
+                  Guilhem to Heikki: in 5.0 we don't need to do a computation
+                  (old_pos+len) to get the end_pos, because we already have the
+                  end_pos under hand in the replication code
+                  (Query_log_event::exec_event()).
+                  I tested the code change below (simulated a crash with kill
+                  -9) and got the good (binlog, position) displayed by InnoDB at
+                  crash recovery, so this code change is ok.
+                */
                 trx->mysql_master_log_pos = ((ib_longlong)
-                                         (active_mi->rli.group_master_log_pos +
-                                          active_mi->rli.event_len
-                                          ));
+                                             (active_mi->rli.future_group_master_log_pos 
+                                              ));
+                
         }
 #endif /* HAVE_REPLICATION */
 

@@ -84,7 +84,8 @@ static int find_uniq_filename(char *name)
 MYSQL_LOG::MYSQL_LOG()
   :bytes_written(0), last_time(0), query_start(0), name(0),
    file_id(1), open_count(1), log_type(LOG_CLOSED), write_error(0), inited(0),
-   need_start_event(1)
+   need_start_event(1), description_event_for_exec(0),
+   description_event_for_queue(0)
 {
   /*
     We don't want to initialize LOCK_Log here as such initialization depends on
@@ -111,6 +112,8 @@ void MYSQL_LOG::cleanup()
   {
     inited= 0;
     close(LOG_CLOSE_INDEX);
+    delete description_event_for_queue;
+    delete description_event_for_exec;
     (void) pthread_mutex_destroy(&LOCK_log);
     (void) pthread_mutex_destroy(&LOCK_index);
     (void) pthread_cond_destroy(&update_cond);
@@ -179,7 +182,8 @@ bool MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
 		     const char *new_name, const char *index_file_name_arg,
 		     enum cache_type io_cache_type_arg,
 		     bool no_auto_events_arg,
-                     ulong max_size_arg)
+                     ulong max_size_arg,
+                     bool null_created_arg)
 {
   char buff[512];
   File file= -1, index_file_nr= -1;
@@ -272,8 +276,8 @@ bool MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
       if (my_b_safe_write(&log_file, (byte*) BINLOG_MAGIC,
 			  BIN_LOG_HEADER_SIZE))
         goto err;
-      bytes_written += BIN_LOG_HEADER_SIZE;
-      write_file_name_to_index_file=1;
+      bytes_written+= BIN_LOG_HEADER_SIZE;
+      write_file_name_to_index_file= 1;
     }
 
     if (!my_b_inited(&index_file))
@@ -302,10 +306,42 @@ bool MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
     }
     if (need_start_event && !no_auto_events)
     {
-      need_start_event=0;
-      Start_log_event s;
+      /*
+        In 4.x we set need_start_event=0 here, but in 5.0 we want a Start event
+        even if this is not the very first binlog.
+      */
+      Format_description_log_event s(BINLOG_VERSION);
+      if (!s.is_valid())
+        goto err;
       s.set_log_pos(this);
-      s.write(&log_file);
+      if (null_created_arg)
+        s.created= 0;
+      if (s.write(&log_file))
+        goto err;
+      bytes_written+= s.get_event_len();
+    }
+    if (description_event_for_queue &&
+        description_event_for_queue->binlog_version>=4)
+    {
+      /*
+        This is a relay log written to by the I/O slave thread.
+        Write the event so that others can later know the format of this relay
+        log.
+        Note that this event is very close to the original event from the
+        master (it has binlog version of the master, event types of the
+        master), so this is suitable to parse the next relay log's event. It
+        has been produced by
+        Format_description_log_event::Format_description_log_event(char*
+        buf,).
+        Why don't we want to write the description_event_for_queue if this event
+        is for format<4 (3.23 or 4.x): this is because in that case, the
+        description_event_for_queue describes the data received from the master,
+        but not the data written to the relay log (*conversion*), which is in
+        format 4 (slave's).
+      */
+      if (description_event_for_queue->write(&log_file))
+        goto err;
+      bytes_written+= description_event_for_queue->get_event_len();
     }
     if (flush_io_cache(&log_file))
       goto err;
@@ -596,7 +632,7 @@ bool MYSQL_LOG::reset_logs(THD* thd)
   if (!thd->slave_thread)
     need_start_event=1;
   open(save_name, save_log_type, 0, index_file_name,
-       io_cache_type, no_auto_events, max_size);
+       io_cache_type, no_auto_events, max_size, 0);
   my_free((gptr) save_name, MYF(0));
 
 err:  
@@ -986,8 +1022,17 @@ void MYSQL_LOG::new_file(bool need_lock)
      Note that at this point, log_type != LOG_CLOSED (important for is_open()).
   */
 
+  /* 
+     new_file() is only used for rotation (in FLUSH LOGS or because size >
+     max_binlog_size or max_relay_log_size). 
+     If this is a binary log, the Format_description_log_event at the beginning of
+     the new file should have created=0 (to distinguish with the
+     Format_description_log_event written at server startup, which should
+     trigger temp tables deletion on slaves.
+  */ 
+
   open(old_name, save_log_type, new_name_ptr, index_file_name, io_cache_type,
-       no_auto_events, max_size);
+       no_auto_events, max_size, 1);
   my_free(old_name,MYF(0));
 
 end:
@@ -1282,6 +1327,12 @@ bool MYSQL_LOG::write(Log_event* event_info)
       }
 #endif
 
+#if MYSQL_VERSION_ID < 50000
+      /*
+        In 5.0 this is not needed anymore as we store the value of
+        FOREIGN_KEY_CHECKS in a binary way in the Query event's header.
+        The code below was enabled in 4.0 and 4.1.
+      */
       /*
 	If the user has set FOREIGN_KEY_CHECKS=0 we wrap every SQL
 	command in the binlog inside:
@@ -1297,6 +1348,7 @@ bool MYSQL_LOG::write(Log_event* event_info)
 	if (e.write(file))
 	  goto err;
       }
+#endif
     }
 
     /* Write the SQL command */
@@ -1307,6 +1359,7 @@ bool MYSQL_LOG::write(Log_event* event_info)
 
     /* Write log events to reset the 'run environment' of the SQL command */
 
+#if MYSQL_VERSION_ID < 50000
     if (thd && thd->options & OPTION_NO_FOREIGN_KEY_CHECKS)
     {
       Query_log_event e(thd, "SET FOREIGN_KEY_CHECKS=1", 24, 0);
@@ -1314,6 +1367,7 @@ bool MYSQL_LOG::write(Log_event* event_info)
       if (e.write(file))
 	goto err;
     }
+#endif
 
     /*
       Tell for transactional table handlers up to which position in the
@@ -1720,6 +1774,7 @@ void MYSQL_LOG::close(uint exiting)
       Stop_log_event s;
       s.set_log_pos(this);
       s.write(&log_file);
+      bytes_written+= s.get_event_len();
       signal_update();
     }
 #endif /* HAVE_REPLICATION */

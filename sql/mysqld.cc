@@ -2023,7 +2023,7 @@ bool open_log(MYSQL_LOG *log, const char *hostname,
   }
   return log->open(opt_name, type, 0, index_file_name,
 		   (read_append) ? SEQ_READ_APPEND : WRITE_CACHE,
-		   no_auto_events, max_size);
+		   no_auto_events, max_size, 0);
 }
 
 
