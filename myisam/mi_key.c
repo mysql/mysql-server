@@ -221,7 +221,7 @@ uint _mi_pack_key(register MI_INFO *info, uint keynr, uchar *key, uchar *old,
       k_length-= 2+length;
       set_if_smaller(length,tmp_length);	/* Safety */
       store_key_length_inc(key,length);
-      old+=2;					/* Skipp length */
+      old+=2;					/* Skip length */
       memcpy((byte*) key, pos+2,(size_t) length);
       key+= length;
       continue;

@@ -858,7 +858,7 @@ static int chk_size(register N_INFO *info)
 #endif
   if (skr != size)
   {
-    info->s->state.data_file_length=(ulong) size; /* Skipp other errors */
+    info->s->state.data_file_length=(ulong) size; /* Skip other errors */
     if (skr > size && skr != size + MEMMAP_EXTRA_MARGIN)
     {
       error=1;
@@ -2672,7 +2672,7 @@ static int sort_get_next_record()
 	    goto try_next;
 	  block_info.second_read=0;
 	  searching=1;
-	  for (i=1 ; i < 11 ; i++) /* Skipp from read string */
+	  for (i=1 ; i < 11 ; i++) /* Skip from read string */
 	    if (block_info.header[i] >= 1 && block_info.header[i] <= 16)
 	      break;
 	  pos+=(ulong) i;

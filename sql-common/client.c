@@ -1835,40 +1835,39 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
   }
 
   /* Set character set */
-  if (mysql->options.charset_name)
+  if (!mysql->options.charset_name &&
+      !(mysql->options.charset_name= 
+       my_strdup(MYSQL_DEFAULT_CHARSET_NAME,MYF(MY_WME))))
+    goto error;
+  
   {
     const char *save= charsets_dir;
     if (mysql->options.charset_dir)
       charsets_dir=mysql->options.charset_dir;
     mysql->charset=get_charset_by_csname(mysql->options.charset_name,
-					 MY_CS_PRIMARY,
-					 MYF(MY_WME));
+                                         MY_CS_PRIMARY, MYF(MY_WME));
     charsets_dir= save;
-
-    if (!mysql->charset)
-    {
-      net->last_errno=CR_CANT_READ_CHARSET;
-      strmov(net->sqlstate, unknown_sqlstate);
-      if (mysql->options.charset_dir)
-        my_snprintf(net->last_error, sizeof(net->last_error)-1,
-		    ER(net->last_errno),
-		    mysql->options.charset_name,
-		    mysql->options.charset_dir);
-      else
-      {
-        char cs_dir_name[FN_REFLEN];
-        get_charsets_dir(cs_dir_name);
-        my_snprintf(net->last_error, sizeof(net->last_error)-1,
-		  ER(net->last_errno),
-		  mysql->options.charset_name,
-		  cs_dir_name);
-      }
-      goto error;
-    }
   }
-  else
+  
+  if (!mysql->charset)
   {
-    mysql->charset= default_charset_info;
+    net->last_errno=CR_CANT_READ_CHARSET;
+    strmov(net->sqlstate, unknown_sqlstate);
+    if (mysql->options.charset_dir)
+      my_snprintf(net->last_error, sizeof(net->last_error)-1,
+                  ER(net->last_errno),
+                  mysql->options.charset_name,
+                  mysql->options.charset_dir);
+    else
+    {
+      char cs_dir_name[FN_REFLEN];
+      get_charsets_dir(cs_dir_name);
+      my_snprintf(net->last_error, sizeof(net->last_error)-1,
+                  ER(net->last_errno),
+                  mysql->options.charset_name,
+                  cs_dir_name);
+    }
+    goto error;
   }
 
 
