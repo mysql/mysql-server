@@ -1736,17 +1736,6 @@ extern "C" int my_message_sql(uint error, const char *str,
   DBUG_RETURN(0);
 }
 
-
-/*
-  Forget last error message (if we got one)
-*/
-
-void clear_error_message(THD *thd)
-{
-  thd->clear_error();
-}
-
-
 #ifdef __WIN__
 
 struct utsname

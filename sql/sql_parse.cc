@@ -1069,7 +1069,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   case COM_CHANGE_USER:
   {
     thd->change_user();
-    clear_error_message(thd);			// If errors from rollback
+    thd->clear_error();			// If errors from rollback
 
     statistic_increment(com_other,&LOCK_status);
     char *user=   (char*) packet;
@@ -1210,7 +1210,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     DBUG_PRINT("query",("%-.4096s",thd->query));
     mysql_parse(thd,thd->query, thd->query_length);
 
-    while (!thd->is_fatal_error && thd->lex.found_colon)
+    while (!thd->killed && !thd->fatal_error && thd->lex.found_colon)
     {
       char *packet= thd->lex.found_colon;
       /* 
@@ -1229,7 +1229,6 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       }
       thd->query_length= length;
       thd->query= packet;
-      thd->net.last_error[0]= '\0';
       VOID(pthread_mutex_lock(&LOCK_thread_count));
       thd->query_id= query_id++;
       VOID(pthread_mutex_unlock(&LOCK_thread_count));
@@ -3263,8 +3262,7 @@ mysql_parse(THD *thd, char *inBuf, uint length)
   DBUG_ENTER("mysql_parse");
 
   mysql_init_query(thd);
-  thd->query_length = length;
-  thd->net.report_error= 0;
+  thd->clear_error();
 
   if (query_cache_send_result_to_client(thd, inBuf, length) <= 0)
   {

@@ -132,6 +132,7 @@ void net_send_error(NET *net, uint sql_errno, const char *err)
 }
 #endif
 
+
 /*
   Send a warning to the end user
 
@@ -284,8 +285,8 @@ void my_net_local_init(NET *net __attribute__(unused))
 
    If net->no_send_ok return without sending packet
 */    
-#ifndef EMBEDDED_LIBRARY
 
+#ifndef EMBEDDED_LIBRARY
 void
 send_ok(THD *thd, ha_rows affected_rows, ulonglong id, const char *message)
 {
@@ -375,7 +376,6 @@ send_eof(THD *thd, bool no_flush)
 
 /****************************************************************************
   Store a field length in logical packet
-
   This is used to code the string length for normal protocol
 ****************************************************************************/
 
@@ -457,9 +457,6 @@ char *net_store_data(char *to,longlong from)
   return to+length;
 }
 
-/*
-  Function called by my_net_init() to set some check variables
-*/
 
 /*****************************************************************************
   Default Protocol functions
@@ -474,6 +471,7 @@ void Protocol::init(THD *thd_arg)
   field_types= 0;
 #endif
 }
+
 
 /*
   Send name and type of result to client.
@@ -534,35 +532,55 @@ bool Protocol::send_fields(List<Item> *list, uint flag)
 	  prot.store(field.org_table_name,
 		     (uint) strlen(field.org_table_name)) ||
 	  prot.store(field.col_name, (uint) strlen(field.col_name)) ||
-	  prot.store(field.org_col_name, (uint) strlen(field.org_col_name)))
+	  prot.store(field.org_col_name, (uint) strlen(field.org_col_name)) ||
+	  packet->realloc(packet->length()+12))
 	goto err;
+      /* Store fixed length fields */
+      pos= (char*) packet->ptr()+packet->length();
+      *pos++= 11;				// Length of packed fields
+      int2store(pos, field.charsetnr);
+      int3store(pos+2, field.length);
+      pos[5]= field.type;
+      int2store(pos+6,field.flags);
+      pos[8]= (char) field.decimals;
+      pos[9]= 0;				// For the future
+      pos[10]= 0;				// For the future
+      pos+= 11;
     }
     else
     {
       if (prot.store(field.table_name, (uint) strlen(field.table_name)) ||
-	  prot.store(field.col_name, (uint) strlen(field.col_name)))
+	  prot.store(field.col_name, (uint) strlen(field.col_name)) ||
+	  packet->realloc(packet->length()+10))
 	goto err;
-    }
-    if (packet->realloc(packet->length()+10))
-      goto err;
-    pos= (char*) packet->ptr()+packet->length();
+      pos= (char*) packet->ptr()+packet->length();
 
 #ifdef TO_BE_DELETED_IN_6
-    if (!(thd->client_capabilities & CLIENT_LONG_FLAG))
-    {
-      packet->length(packet->length()+9);
-      pos[0]=3; int3store(pos+1,field.length);
-      pos[4]=1; pos[5]=field.type;
-      pos[6]=2; pos[7]=(char) field.flags; pos[8]= (char) field.decimals;
-    }
-    else
+      if (!(thd->client_capabilities & CLIENT_LONG_FLAG))
+      {
+	pos[0]=3;
+	int3store(pos+1,field.length);
+	pos[4]=1;
+	pos[5]=field.type;
+	pos[6]=2;
+	pos[7]= (char) field.flags;
+	pos[8]= (char) field.decimals;
+	pos+= 9;
+      }
+      else
 #endif
-    {
-      packet->length(packet->length()+10);
-      pos[0]=3; int3store(pos+1,field.length);
-      pos[4]=1; pos[5]=field.type;
-      pos[6]=3; int2store(pos+7,field.flags); pos[9]= (char) field.decimals;
+      {
+	pos[0]=3;
+	int3store(pos+1,field.length);
+	pos[4]=1;
+	pos[5]=field.type;
+	pos[6]=3;
+	int2store(pos+7,field.flags);
+	pos[9]= (char) field.decimals;
+	pos+= 10;
+      }
     }
+    packet->length((uint) (pos - packet->ptr()));
     if (flag & 2)
       item->send(&prot, &tmp);			// Send default value
     if (prot.write())
@@ -580,6 +598,7 @@ err:
   DBUG_RETURN(1);				/* purecov: inspected */
 }
 
+
 bool Protocol::send_records_num(List<Item> *list, ulonglong records)
 {
   char *pos;
@@ -589,13 +608,12 @@ bool Protocol::send_records_num(List<Item> *list, ulonglong records)
   return my_net_write(&thd->net, buff,(uint) (pos-buff));
 }
 
+
 bool Protocol::write()
 {
   DBUG_ENTER("Protocol::write");
   DBUG_RETURN(my_net_write(&thd->net, packet->ptr(), packet->length()));
 }
-
-
 #endif /* EMBEDDED_LIBRARY */
 
 
@@ -653,7 +671,6 @@ bool Protocol::store(I_List<i_string>* str_list)
   and client when you are not using prepared statements.
 
   All data are sent as 'packed-string-length' followed by 'string-data'
-
 ****************************************************************************/
 
 #ifndef EMBEDDED_LIBRARY
@@ -675,6 +692,7 @@ bool Protocol_simple::store_null()
   return packet->append(buff, sizeof(buff), PACKET_BUFFET_EXTRA_ALLOC);
 }
 #endif
+
 
 bool Protocol_simple::store(const char *from, uint length)
 {
@@ -701,6 +719,7 @@ bool Protocol_simple::store_tiny(longlong from)
 			(uint) (int10_to_str((int) from,buff, -10)-buff));
 }
 
+
 bool Protocol_simple::store_short(longlong from)
 {
 #ifndef DEBUG_OFF
@@ -711,6 +730,7 @@ bool Protocol_simple::store_short(longlong from)
   return net_store_data((char*) buff,
 			(uint) (int10_to_str((int) from,buff, -10)-buff));
 }
+
 
 bool Protocol_simple::store_long(longlong from)
 {
@@ -746,6 +766,7 @@ bool Protocol_simple::store(float from, uint32 decimals, String *buffer)
   buffer->set((double) from, decimals, thd->variables.thd_charset);
   return net_store_data((char*) buffer->ptr(), buffer->length());
 }
+
 
 bool Protocol_simple::store(double from, uint32 decimals, String *buffer)
 {
@@ -833,17 +854,18 @@ bool Protocol_simple::store_time(TIME *tm)
 
   Data format:
 
-   [ok:1]                            <-- reserved ok packet
-   [null_field:(field_count+7+2)/8]  <-- reserved to send null data. The size is
-                                         calculated using:
-                                         bit_fields= (field_count+7+2)/8; 
-                                         2 bits are reserved
-   [[length]data]                    <-- data field (the length applies only for 
-                                         string/binary/time/timestamp fields and 
-                                         rest of them are not sent as they have 
-                                         the default length that client understands
-                                         based on the field type
-   [..]..[[length]data]              <-- data
+   [ok:1]                            reserved ok packet
+   [null_field:(field_count+7+2)/8]  reserved to send null data. The size is
+                                     calculated using:
+                                     bit_fields= (field_count+7+2)/8; 
+                                     2 bits are reserved for identifying type
+				     of package.
+   [[length]data]                    data field (the length applies only for 
+                                     string/binary/time/timestamp fields and 
+                                     rest of them are not sent as they have 
+                                     the default length that client understands
+                                     based on the field type
+   [..]..[[length]data]              data
 ****************************************************************************/
 
 bool Protocol_prep::prepare_for_send(List<Item> *item_list)
@@ -983,7 +1005,7 @@ bool Protocol_prep::store(double from, uint32 decimals, String *buffer)
 bool Protocol_prep::store(Field *field)
 {
   /*
-    We should not count up field_pos here as send_binary() will call another
+    We should not increment field_pos here as send_binary() will call another
     protocol function to do this for us
   */
   if (field->is_null())
@@ -1057,10 +1079,3 @@ bool Protocol_prep::store_time(TIME *tm)
   buff[0]=(char) length;			// Length is stored first
   return packet->append(buff, length+1, PACKET_BUFFET_EXTRA_ALLOC);
 }
-
-#if 0
-bool Protocol_prep::send_fields(List<Item> *list, uint flag) 
-{
-  return prepare_for_send(list);
-};
-#endif

@@ -1719,9 +1719,16 @@ The field description result set contains the meta info for a result set.
 @item string @tab Table name alias (or table name if no alias)
 @item string @tab Real table name
 @item string @tab Alias for column name (or column name if not used)
+
+@item 11 byte @tab Fixed length fields in one field part:
+@itemize
+@item 2 byte int @tab Character set number
 @item 3 byte int @tab Length of column definition
 @item 1 byte int @tab Enum value for field type
 @item 3 byte int @tab 2 byte column flags (NOT_NULL_FLAG etc..) + 1 byte number of decimals.
+@item 2 byte int @tab zero (reserved for future use)
+@end itemize
+
 @item string int @tab Default value, only set when using mysql_list_fields().
 @end multitable
 
