@@ -19,7 +19,6 @@
  */
 
 #include <NdbApi.hpp>
-#include <NdbEventOperation.hpp>
 
 // Used for cout
 #include <stdio.h>
@@ -69,6 +68,22 @@ int main()
   Ndb_cluster_connection *cluster_connection=
     new Ndb_cluster_connection(); // Object representing the cluster
 
+  int r= cluster_connection->connect(5 /* retries               */,
+				     3 /* delay between retries */,
+				     1 /* verbose               */);
+  if (r > 0)
+  {
+    std::cout
+      << "Cluster connect failed, possibly resolved with more retries.\n";
+    exit(-1);
+  }
+  else if (r < 0)
+  {
+    std::cout
+      << "Cluster connect failed.\n";
+    exit(-1);
+  }
+					   
   if (cluster_connection->wait_until_ready(30,30))
   {
     std::cout << "Cluster was not ready within 30 secs." << std::endl;
