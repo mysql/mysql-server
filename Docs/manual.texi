@@ -25397,11 +25397,14 @@ To see what indexes a table has, use @code{SHOW INDEX FROM tbl_name}.
 
 @item key
 The @code{key} column indicates the key (index) that MySQL actually
-decided to use. The key is @code{NULL} if no index was chosen.  If
-MySQL chooses the wrong index, you can probably force
-MySQL to use another index by using @code{myisamchk --analyze},
-@xref{myisamchk syntax}, or by using @code{USE INDEX/IGNORE INDEX}.
+decided to use. The key is @code{NULL} if no index was chosen. To force
+MySQL to use an key listed in the @code{possible_keys} column, use
+@code{USE KEY/IGNORE KEY} in your query.
 @xref{SELECT}.
+
+Also, running @code{myisamchk --analyze} (@pxref{myisamchk syntax}) or
+@code{ANALYZE TABLE} (@pxref{ANALYZE TABLE}) on the table will help the
+optimiser choose better indexes.
 
 @item key_len
 The @code{key_len} column indicates the length of the key that
@@ -34120,11 +34123,12 @@ table_name [[AS] alias] [USE INDEX (key_list)] [IGNORE INDEX (key_list)]
 As of MySQL Version 3.23.12, you can give hints about which
 index MySQL should use when retrieving information from a
 table. This is useful if @code{EXPLAIN} shows that MySQL is
-using the wrong index.  By specifying @code{USE INDEX (key_list)}, you
-can tell MySQL to use only one of the specified indexes to
-find rows in the table.  The alternative syntax @code{IGNORE INDEX
-(key_list)} can be used to tell MySQL to not use some
+using the wrong index from the list of possible indexes.  By specifying
+@code{USE INDEX (key_list)}, you can tell MySQL to use only one of the
+possible indexes to find rows in the table.  The alternative syntax
+@code{IGNORE INDEX (key_list)} can be used to tell MySQL to not use some
 particular index.
+
 @code{USE/IGNORE KEY} are synonyms for @code{USE/IGNORE INDEX}.
 
 @item
@@ -34516,11 +34520,12 @@ cases where the join optimiser puts the tables in the wrong order.
 As of MySQL Version 3.23.12, you can give hints about which
 index MySQL should use when retrieving information from a
 table. This is useful if @code{EXPLAIN} shows that MySQL is
-using the wrong index.  By specifying @code{USE INDEX (key_list)}, you
-can tell MySQL to use only one of the specified indexes to
-find rows in the table.  The alternative syntax @code{IGNORE INDEX
-(key_list)} can be used to tell MySQL to not use some
+using the wrong index from the list of possible indexes.  By specifying
+@code{USE INDEX (key_list)}, you can tell MySQL to use only one of the
+possible indexes to find rows in the table.  The alternative syntax
+@code{IGNORE INDEX (key_list)} can be used to tell MySQL to not use some
 particular index.
+
 @findex USE KEY
 @findex IGNORE KEY
 @code{USE/IGNORE KEY} are synonyms for @code{USE/IGNORE INDEX}.
