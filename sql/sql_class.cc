@@ -152,7 +152,6 @@ THD::THD():user_time(0), is_fatal_error(0),
                  variables.query_alloc_block_size,
                  variables.query_prealloc_size);
   /* Initialize sub structures */
-  bzero((char*) &mem_root,sizeof(mem_root));
   init_alloc_root(&warn_root, WARN_ALLOC_BLOCK_SIZE, WARN_ALLOC_PREALLOC_SIZE);
   user_connect=(USER_CONN *)0;
   hash_init(&user_vars, system_charset_info, USER_VARS_HASH_SIZE, 0, 0,
