@@ -34,12 +34,6 @@
 #define MYSQL_SERVICENAME "MySQL"
 #endif /* __WIN__ */
 
-#if defined(__WIN__) && !defined(MYSQL_SERVER) && !defined(MYSQL_CLIENT) && !defined(EMBEDDED_LIBRARY)
-#define dll_import_spec __declspec( dllimport )
-#else
-#define dll_import_spec
-#endif
-
 enum enum_server_command {
   COM_SLEEP, COM_QUIT, COM_INIT_DB, COM_QUERY, COM_FIELD_LIST,
   COM_CREATE_DB, COM_DROP_DB, COM_REFRESH, COM_SHUTDOWN,  COM_STATISTICS,
@@ -228,9 +222,6 @@ typedef struct st_udf_init
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-dll_import_spec extern unsigned long max_allowed_packet;
-dll_import_spec extern unsigned long net_buffer_length;
 
 void randominit(struct rand_struct *,unsigned long seed1,
 		unsigned long seed2);

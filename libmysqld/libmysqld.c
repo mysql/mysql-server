@@ -46,6 +46,9 @@
 #define INADDR_NONE	-1
 #endif
 
+extern ulong net_buffer_length;
+extern ulong max_allowed_packet;
+
 static my_bool	mysql_client_init=0;
 uint		mysql_port=0;
 my_string	mysql_unix_port=0;
@@ -721,6 +724,15 @@ read_one_row(MYSQL *mysql,uint fields,MYSQL_ROW row, ulong *lengths)
   *prev_pos=0;					/* Terminate last field */
   return 0;
 }
+
+static MYSQL_PARAMETERS mysql_internal_parameters=
+{&max_allowed_packet, &net_buffer_length};
+
+MYSQL_PARAMETERS *STDCALL mysql_get_parameters()
+{
+  return &mysql_internal_parameters;
+}
+
 
 /****************************************************************************
 ** Init MySQL structure or allocate one
