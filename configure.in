@@ -172,6 +172,7 @@ test -z "$INSTALL_SCRIPT" && INSTALL_SCRIPT='${INSTALL_PROGRAM}'
 # Not critical since the generated file is distributed
 AC_PROG_YACC
 AC_CHECK_PROG(PDFMANUAL, pdftex, manual.pdf)
+AC_CHECK_PROG(DVIS,      tex,    manual.dvi)
 
 AC_MSG_CHECKING("return type of sprintf")
 

@@ -221,6 +221,7 @@ libmysql/*.c
 libmysql/conf_to_src
 libmysql/my_static.h
 libmysql/mysys_priv.h
+libmysql/net.c
 libmysql_r/*.c
 libmysql_r/acconfig.h
 libmysql_r/conf_to_src
@@ -302,6 +303,7 @@ libmysqld/sql_list.cc
 libmysqld/sql_load.cc
 libmysqld/sql_manager.cc
 libmysqld/sql_map.cc
+libmysqld/sql_olap.cc
 libmysqld/sql_parse.cc
 libmysqld/sql_rename.cc
 libmysqld/sql_repl.cc
@@ -332,6 +334,13 @@ linked_server_sources
 linked_tools_sources
 locked
 mit-pthreads/config.flags
+mit-pthreads/include/bits
+mit-pthreads/include/pthread/machdep.h
+mit-pthreads/include/pthread/posix.h
+mit-pthreads/include/sys
+mit-pthreads/machdep.c
+mit-pthreads/pg++
+mit-pthreads/pgcc
 mit-pthreads/syscall.S
 myisam/FT1.MYD
 myisam/FT1.MYI
@@ -342,6 +351,7 @@ myisam/mi_test1
 myisam/mi_test2
 myisam/mi_test3
 myisam/mi_test_all
+myisam/myisam.log
 myisam/myisamchk
 myisam/myisamlog
 myisam/myisampack
@@ -369,6 +379,9 @@ mysql.proj
 mysqld.S
 mysqld.sym
 mysys/#mf_iocache.c#
+mysys/getopt.c
+mysys/getopt1.c
+mysys/ste5KbMa
 mysys/test_charset
 mysys/test_dir
 mysys/test_io_cache
@@ -391,7 +404,9 @@ scripts/mysql_find_rows
 scripts/mysql_fix_extensions
 scripts/mysql_fix_privilege_tables
 scripts/mysql_install_db
+scripts/mysql_secure_installation
 scripts/mysql_setpermission
+scripts/mysql_tableinfo
 scripts/mysql_zap
 scripts/mysqlaccess
 scripts/mysqlbug
@@ -443,6 +458,7 @@ sql/sql_select.cc.orig
 sql/sql_yacc.cc
 sql/sql_yacc.h
 stamp-h
+stamp-h.in
 strings/conf_to_src
 strings/ctype_autoconf.c
 strings/ctype_extra_sources.c
@@ -469,18 +485,3 @@ vio/test-ssl
 vio/test-sslclient
 vio/test-sslserver
 vio/viotest-ssl
-mysys/getopt.c
-mysys/getopt1.c
-scripts/mysql_secure_installation
-mit-pthreads/include/bits
-mit-pthreads/include/pthread/machdep.h
-mit-pthreads/include/pthread/posix.h
-mit-pthreads/include/sys
-mit-pthreads/machdep.c
-mit-pthreads/pg++
-mit-pthreads/pgcc
-scripts/mysql_tableinfo
-libmysql/net.c
-libmysqld/sql_olap.cc
-myisam/myisam.log
-mysys/ste5KbMa
