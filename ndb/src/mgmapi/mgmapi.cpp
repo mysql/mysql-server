@@ -2189,23 +2189,54 @@ ndb_mgm_get_connection_int_parameter(NdbMgmHandle handle,
 
 extern "C"
 NDB_SOCKET_TYPE
-ndb_mgm_convert_to_transporter(NdbMgmHandle handle)
+ndb_mgm_convert_to_transporter(NdbMgmHandle *handle)
 {
   NDB_SOCKET_TYPE s;
 
-  CHECK_HANDLE(handle, NDB_INVALID_SOCKET);
-  CHECK_CONNECTED(handle, NDB_INVALID_SOCKET);
+  CHECK_HANDLE((*handle), NDB_INVALID_SOCKET);
+  CHECK_CONNECTED((*handle), NDB_INVALID_SOCKET);
 
-  handle->connected= 0;   // we pretend we're disconnected
-  s= handle->socket;
+  (*handle)->connected= 0;   // we pretend we're disconnected
+  s= (*handle)->socket;
 
   SocketOutputStream s_output(s);
   s_output.println("transporter connect");
   s_output.println("");
 
-  ndb_mgm_destroy_handle(&handle); // set connected=0, so won't disconnect
+  ndb_mgm_destroy_handle(handle); // set connected=0, so won't disconnect
 
   return s;
+}
+
+extern "C"
+Uint32
+ndb_mgm_get_mgmd_nodeid(NdbMgmHandle handle)
+{
+  Uint32 nodeid=0;
+
+  DBUG_ENTER("ndb_mgm_get_mgmd_nodeid");
+  CHECK_HANDLE(handle, 0);
+  CHECK_CONNECTED(handle, 0);
+  
+  Properties args;
+
+  const ParserRow<ParserDummy> reply[]= {
+    MGM_CMD("get mgmd nodeid reply", NULL, ""),
+    MGM_ARG("nodeid", Int, Mandatory, "Node ID"),
+    MGM_END()
+  };
+  
+  const Properties *prop;
+  prop = ndb_mgm_call(handle, reply, "get mgmd nodeid", &args);
+  CHECK_REPLY(prop, 0);
+
+  if(!prop->get("nodeid",&nodeid)){
+    ndbout_c("Unable to get value");
+    return 0;
+  }
+
+  delete prop;
+  DBUG_RETURN(nodeid);
 }
 
 template class Vector<const ParserRow<ParserDummy>*>;

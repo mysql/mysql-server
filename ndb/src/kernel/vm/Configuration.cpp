@@ -189,7 +189,6 @@ Configuration::fetch_configuration(){
   }
 
   m_mgmd_port= 0;
-  m_mgmd_host= 0;
   m_config_retriever= new ConfigRetriever(getConnectString(),
 					  NDB_VERSION, NODE_TYPE_DB);
 
@@ -211,7 +210,7 @@ Configuration::fetch_configuration(){
   }
   
   m_mgmd_port= m_config_retriever->get_mgmd_port();
-  m_mgmd_host= m_config_retriever->get_mgmd_host();
+  m_mgmd_host.assign(m_config_retriever->get_mgmd_host());
 
   ConfigRetriever &cr= *m_config_retriever;
   
