@@ -46928,6 +46928,8 @@ not yet 100% confident in this code.
 @appendixsubsec Changes in release 3.23.52
 @itemize @bullet
 @item
+Don't write slave-timeout reconnects to the error log.
+@item
 Fixed bug with slave net read timeouting
 @item
 Fixed bug in ALTERing  TABLE of BDB type.
