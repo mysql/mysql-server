@@ -222,8 +222,8 @@ bool InitConfigFileParser::parseNameValuePair(Context& ctx, const char* line) {
   char tmpLine[MAX_LINE_LENGTH];
   char fname[MAX_LINE_LENGTH], rest[MAX_LINE_LENGTH];
   char* t;
-  const char separator_list[]= {':', '='};
-  char separator= 0;
+  const char *separator_list[]= {":", "="};
+  const char *separator= 0;
 
   if (ctx.m_currentSection == NULL){
     ctx.reportError("Value specified outside section");
@@ -236,7 +236,7 @@ bool InitConfigFileParser::parseNameValuePair(Context& ctx, const char* line) {
   //  Check if a separator exists in line 
   // *************************************
   for(int i= 0; i < sizeof(separator_list); i++) {
-    if(strchr(tmpLine, separator_list[i])) {
+    if(strchr(tmpLine, separator_list[i][0])) {
       separator= separator_list[i];
       break;
     }
@@ -250,13 +250,13 @@ bool InitConfigFileParser::parseNameValuePair(Context& ctx, const char* line) {
   // *******************************************
   //  Get pointer to substring before separator
   // *******************************************
-  t = strtok(tmpLine, ":");
+  t = strtok(tmpLine, separator);
 
   // *****************************************
   //  Count number of tokens before separator
   // *****************************************
   if (sscanf(t, "%120s%120s", fname, rest) != 1) {
-    ctx.reportError("Multiple names before \'%c\'", separator);
+    ctx.reportError("Multiple names before \'%c\'", separator[0]);
     return false;
   }
   if (!ctx.m_currentInfo->contains(fname)) {
