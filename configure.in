@@ -1177,6 +1177,11 @@ AC_C_BIGENDIAN
 #---START: Used in for client configure
 # Check base type of last arg to accept
 MYSQL_TYPE_ACCEPT
+case "$SYSTEM_TYPE" in
+*bsdi* ) AC_DEFINE_UNQUOTED(SOCKOPT_OPTLEN_TYPE, size_t);;
+* ) AC_DEFINE_UNQUOTED(SOCKOPT_OPTLEN_TYPE, size_socket);;
+esac
+
 #---END:
 # Find where the stack goes
 MYSQL_STACK_DIRECTION
