@@ -494,7 +494,7 @@ arg_match_short (struct getargs *args, size_t num_args,
 		    optarg = &argv[j + 1];
 		else {
 		    ++*optind;
-		    optarg = rargv[*optind];
+		    optarg = (char *) rargv[*optind];
 		}
 		if(optarg == NULL) {
 		    --*optind;
@@ -545,10 +545,10 @@ getarg(struct getargs *args, size_t num_args,
 		i++;
 		break;
 	    }
-	    ret = arg_match_long (args, num_args, argv[i] + 2, 
+	    ret = arg_match_long (args, num_args, (char *) argv[i] + 2, 
 				  argc, argv, &i);
 	} else {
-	    ret = arg_match_short (args, num_args, argv[i],
+	    ret = arg_match_short (args, num_args, (char *) argv[i],
 				   argc, argv, &i);
 	}
 	if(ret)
