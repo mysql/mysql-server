@@ -2382,10 +2382,7 @@ Item *get_system_var(enum_var_type var_type, LEX_STRING name)
   char buff[MAX_SYS_VAR_LENGTH+3+8], *pos;
 
   if (!(var= find_sys_var(name.str)))
-  {
-    net_printf(&thd->net, ER_UNKNOWN_SYSTEM_VARIABLE, name.str);
     return 0;
-  }
   if (!(item=var->item(thd, var_type)))
     return 0;					// Impossible
   thd->safe_to_cache_query=0;
