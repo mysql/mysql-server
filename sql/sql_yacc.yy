@@ -1614,7 +1614,7 @@ simple_expr:
 	| BINARY expr %prec NEG	{ $$= new Item_func_binary($2); }
 	| CAST_SYM '(' expr AS cast_type ')'  { $$= create_func_cast($3, $5); }
 	| CASE_SYM opt_expr WHEN_SYM when_list opt_else END
-	  { $$= new Item_func_case(* $4, $2, $5 ) }
+	  { $$= new Item_func_case(* $4, $2, $5 ); }
 	| CONVERT_SYM '(' expr ',' cast_type ')'  { $$= create_func_cast($3, $5); }
 	| FUNC_ARG0 '(' ')'
 	  { $$= ((Item*(*)(void))($1.symbol->create_func))();}
@@ -1880,7 +1880,7 @@ sum_expr:
 	  { $$=new Item_sum_sum($3); }
 
 in_sum_expr:
-	{ Select->in_sum_expr++ }
+	{ Select->in_sum_expr++; }
 	expr
 	{
 	  Select->in_sum_expr--;
@@ -1953,7 +1953,7 @@ opt_pad:
 join_table_list:
 	'(' join_table_list ')'	{ $$=$2; }
 	| join_table		{ $$=$1; }
-	| join_table_list normal_join join_table { $$=$3 }
+	| join_table_list normal_join join_table { $$=$3; }
 	| join_table_list STRAIGHT_JOIN join_table { $$=$3 ; $$->straight=1; }
 	| join_table_list INNER_SYM JOIN_SYM join_table ON expr
 	  { add_join_on($4,$6); $$=$4; }
