@@ -23,10 +23,10 @@
 #include "mrg_static.c"
 #endif
 
-/*	
+/*
 	open a MyISAM MERGE table
-	if handle_locking is 0 then exit with error if some database is locked
-	if handle_locking is 1 then wait if database is locked
+	if handle_locking is 0 then exit with error if some table is locked
+	if handle_locking is 1 then wait if table is locked
 */
 
 
@@ -78,7 +78,7 @@ MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking)
                    sizeof(name_buff)-1-dir_length));
       VOID(cleanup_dirname(buff,name_buff));
     }
-    if (!(isam=mi_open(buff,mode,test(handle_locking))))
+    if (!(isam=mi_open(buff,mode,(handle_locking?HA_OPEN_WAIT_IF_LOCKED:0))))
 	goto err;
     files++;
     last_isam=isam;
