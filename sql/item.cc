@@ -46,6 +46,30 @@ Item::Item():
   loop_id= 0;
 }
 
+Item::Item(Item &item):
+  loop_id(0),
+  str_value(item.str_value),
+  name(item.name),
+  max_length(item.max_length),
+  marker(item.marker),
+  decimals(item.decimals),
+  maybe_null(item.maybe_null),
+  null_value(item.null_value),
+  unsigned_flag(item.unsigned_flag),
+  with_sum_func(item.with_sum_func),
+  fixed(item.fixed)
+{
+  next=current_thd->free_list;			// Put in free list
+  current_thd->free_list= this;
+}
+
+Item_ident::Item_ident(Item_ident &item):
+  Item(item),
+  db_name(item.db_name),
+  table_name(item.table_name),
+  field_name(item.field_name),
+  depended_from(item.depended_from)
+{}
 
 bool Item::check_loop(uint id)
 {
@@ -154,6 +178,11 @@ Item_field::Item_field(Field *f) :Item_ident(NullS,f->table_name,f->field_name)
   fixed= 1; // This item is not needed in fix_fields
 }
 
+Item_field::Item_field(Item_field &item):
+  Item_ident(item),
+  field(item.field),
+  result_field(item.result_field)
+{}
 
 void Item_field::set_field(Field *field_par)
 {
@@ -262,9 +291,16 @@ table_map Item_field::used_tables() const
 {
   if (field->table->const_table)
     return 0;					// const item
-  return field->table->map;
+  return (depended_from? RAND_TABLE_BIT : field->table->map);
 }
 
+Item * Item_field::get_tmp_table_item()
+{
+  Item_field *new_item= new Item_field(*this);
+  if (new_item)
+    new_item->field= new_item->result_field;
+  return new_item;
+}
 
 String *Item_int::val_str(String *str)
 {
@@ -537,20 +573,14 @@ bool Item_ref_on_list_position::fix_fields(THD *thd,
 					   struct st_table_list *tables,
 					   Item ** reference)
 {
-  List_iterator<Item> li(list);
-  Item *item;
-  for (uint i= 0; (item= li++) && i < pos; i++);
-  if (item)
-  {
-    ref= li.ref();
-    return Item_ref_null_helper::fix_fields(thd, tables, reference);
-  }
-  else
+  if (select_lex->item_list.elements <= pos)
   {
     ref= 0;
     my_error(ER_CARDINALITY_COL, MYF(0), pos);
     return 1;
   }
+  ref= select_lex->ref_pointer_array + pos;
+  return Item_ref_null_helper::fix_fields(thd, tables, reference);
 }
 
 double Item_ref_null_helper::val()
@@ -600,6 +630,7 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
       thd->net.last_errno= 0;
 #endif
       Item **refer= (Item **)not_found_item;
+      uint counter= 0;
       // Prevent using outer fields in subselects, that is not supported now
       SELECT_LEX *cursel=(SELECT_LEX *) thd->lex.current_select;
       if (cursel->master_unit()->first_select()->linkage != DERIVED_TABLE_TYPE)
@@ -611,7 +642,7 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 					 (last= sl)->get_table_list(), &where,
 					 0)) != not_found_field)
 	    break;
-	  if ((refer= find_item_in_list(this, sl->item_list,
+	  if ((refer= find_item_in_list(this, sl->item_list, &counter,
 				       REPORT_EXCEPT_NOT_FOUND)) !=
 	     (Item **)not_found_item)
 	    break;
@@ -631,8 +662,16 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
       }
       else if (refer != (Item **)not_found_item)
       {
+	if (!(*refer)->fixed)
+	{
+	  my_error(ER_ILLEGAL_REFERENCE, MYF(0), name,
+		   "forward reference in item list");
+	  return -1;
+	}
+
 	Item_ref *r;
-	*ref= r= new Item_ref(refer, (char *)table_name,
+	*ref= r= new Item_ref(last->ref_pointer_array + counter-1
+			      , (char *)table_name,
 			   (char *)field_name);
 	if (!r)
 	  return 1;
@@ -1045,6 +1084,7 @@ bool Item_field::send(Protocol *protocol, String *buffer)
 
 bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 {
+  uint counter= 0;
   if (!ref)
   {
     TABLE_LIST *where= 0;
@@ -1059,6 +1099,7 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
     if (outer_resolving ||
 	(ref= find_item_in_list(this, 
 				*(thd->lex.current_select->get_item_list()),
+				&counter,
 				((sl && 
 				  thd->lex.current_select->master_unit()->
 				  first_select()->linkage !=
@@ -1081,7 +1122,8 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
       for ( ; sl ; sl= sl->outer_select())
       {
 	if ((ref= find_item_in_list(this, (last= sl)->item_list,
-				   REPORT_EXCEPT_NOT_FOUND)) !=
+				    &counter,
+				    REPORT_EXCEPT_NOT_FOUND)) !=
 	   (Item **)not_found_item)
 	  break;
 	if ((tmp= find_field_in_tables(thd, this,
@@ -1102,6 +1144,7 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 	// Call to report error
 	find_item_in_list(this,
 			  *(thd->lex.current_select->get_item_list()),
+			  &counter,
 			  REPORT_ALL_ERRORS);
         ref= 0;
 	return 1;
@@ -1118,17 +1161,35 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
       }
       else
       {
-	depended_from= last;
+	if (!(*ref)->fixed)
+	{
+	  my_error(ER_ILLEGAL_REFERENCE, MYF(0), name,
+		   "forward reference in item list");
+	  return -1;
+	}
+	ref= (depended_from= last)->ref_pointer_array + counter-1;
 	thd->lex.current_select->mark_as_dependent(last);
 	thd->add_possible_loop(this);
       }
     }
     else if (!ref)
       return 1;
+    else
+    {
+      if (!(*ref)->fixed)
+      {
+	my_error(ER_ILLEGAL_REFERENCE, MYF(0), name,
+		 "forward reference in item list");
+	return -1;
+      }
+      ref= thd->lex.current_select->ref_pointer_array + counter-1;
+    }
+    
     max_length= (*ref)->max_length;
     maybe_null= (*ref)->maybe_null;
     decimals=	(*ref)->decimals;
   }
+
   if (((*ref)->with_sum_func && 
        (depended_from || 
 	!(thd->lex.current_select->linkage != GLOBAL_OPTIONS_TYPE &&

@@ -437,6 +437,7 @@ static bool setup_params_data(PREP_STMT *stmt)
 }
 
 /*
+
   Validate the following information for INSERT statement:                         
     - field existance           
     - fields count                          
@@ -504,8 +505,9 @@ static bool mysql_test_upd_fields(PREP_STMT *stmt, TABLE_LIST *table_list,
   if (open_and_lock_tables(thd, table_list))
     DBUG_RETURN(1);
 
-  if (setup_tables(table_list) || setup_fields(thd,table_list,fields,1,0,0) || 
-      setup_conds(thd,table_list,&conds) || thd->net.report_error)      
+  if (setup_tables(table_list) ||
+      setup_fields(thd, 0, table_list, fields, 1, 0, 0) || 
+      setup_conds(thd, table_list, &conds) || thd->net.report_error)      
     DBUG_RETURN(1);
 
   /* 
@@ -530,8 +532,9 @@ static bool mysql_test_upd_fields(PREP_STMT *stmt, TABLE_LIST *table_list,
   And send column list fields info back to client. 
 */
 static bool mysql_test_select_fields(PREP_STMT *stmt, TABLE_LIST *tables,
+				     uint wild_num,
                                      List<Item> &fields, COND *conds, 
-                                     ORDER *order, ORDER *group,
+                                     uint og_num, ORDER *order, ORDER *group,
                                      Item *having, ORDER *proc,
                                      ulong select_options, 
                                      SELECT_LEX_UNIT *unit,
@@ -543,7 +546,7 @@ static bool mysql_test_select_fields(PREP_STMT *stmt, TABLE_LIST *tables,
   DBUG_ENTER("mysql_test_select_fields");
 
   if ((&lex->select_lex != lex->all_selects_list &&
-       lex->unit.create_total_list(thd, lex, &tables)))
+       lex->unit.create_total_list(thd, lex, &tables, 0)))
    DBUG_RETURN(1);
     
   if (open_and_lock_tables(thd, tables))
@@ -562,7 +565,8 @@ static bool mysql_test_select_fields(PREP_STMT *stmt, TABLE_LIST *tables,
   JOIN *join= new JOIN(thd, fields, select_options, result);
   thd->used_tables= 0;	// Updated by setup_fields  
 
-  if (join->prepare(tables, conds, order, group, having, proc, 
+  if (join->prepare(&select_lex->ref_pointer_array, tables, 
+		    wild_num, conds, og_num, order, group, having, proc, 
                     select_lex, unit, 0))
     DBUG_RETURN(1);
 
@@ -621,9 +625,11 @@ static bool send_prepare_results(PREP_STMT *stmt)
     break;
 
   case SQLCOM_SELECT:
-    if (mysql_test_select_fields(stmt, tables, 
+    if (mysql_test_select_fields(stmt, tables, select_lex->with_wild,
                                  select_lex->item_list,
                                  select_lex->where,
+				 select_lex->order_list.elements +
+				 select_lex->group_list.elements,
                                  (ORDER*) select_lex->order_list.first,
                                  (ORDER*) select_lex->group_list.first, 
                                  select_lex->having,

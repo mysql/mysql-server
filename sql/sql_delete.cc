@@ -92,6 +92,7 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, ORDER *order,
   if ((select && select->check_quick(safe_update, limit)) || !limit)
   {
     delete select;
+    free_ulderlayed_joins(thd, &thd->lex.select_lex);
     send_ok(thd,0L);
     DBUG_RETURN(0);				// Nothing to delete
   }
@@ -103,6 +104,7 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, ORDER *order,
     if (safe_update && !using_limit)
     {
       delete select;
+      free_ulderlayed_joins(thd, &thd->lex.select_lex);
       send_error(thd,ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE);
       DBUG_RETURN(1);
     }
@@ -124,7 +126,7 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, ORDER *order,
 
     table->io_cache = (IO_CACHE *) my_malloc(sizeof(IO_CACHE),
                                              MYF(MY_FAE | MY_ZEROFILL));
-    if (setup_order(thd, &tables, fields, all_fields, order) ||
+    if (setup_order(thd, 0, &tables, fields, all_fields, order) ||
         !(sortorder=make_unireg_sortorder(order, &length)) ||
         (table->found_records = filesort(thd, table, sortorder, length,
                                         (SQL_SELECT *) 0, HA_POS_ERROR,
@@ -132,6 +134,7 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, ORDER *order,
         == HA_POS_ERROR)
     {
       delete select;
+      free_ulderlayed_joins(thd, &thd->lex.select_lex);
       DBUG_RETURN(-1);		// This will force out message
     }
   }
@@ -207,6 +210,7 @@ cleanup:
     thd->lock=0;
   }
   delete select;
+  free_ulderlayed_joins(thd, &thd->lex.select_lex);
   if (error >= 0 || thd->net.report_error)
     send_error(thd,thd->killed ? ER_SERVER_SHUTDOWN: 0);
   else

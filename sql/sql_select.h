@@ -119,8 +119,10 @@ class TMP_TABLE_PARAM :public Sql_alloc
 {
  public:
   List<Item> copy_funcs;
+  List<Item> save_copy_funcs;
   List_iterator_fast<Item> copy_funcs_it;
   Copy_field *copy_field, *copy_field_end;
+  Copy_field *save_copy_field, *save_copy_field_end;
   byte	    *group_buff;
   Item_result_field **funcs;
   MI_COLUMNDEF *recinfo,*start_recinfo;
@@ -166,10 +168,13 @@ class JOIN :public Sql_alloc
   List<Item> *fields;
   List<Item_buff> group_fields;
   TABLE    *tmp_table;
+  // used to store 2 possible tmp table of SELECT
+  TABLE    *exec_tmp_table1, *exec_tmp_table2;
   THD	   *thd;
   Item_sum  **sum_funcs;
   Procedure *procedure;
   Item	    *having;
+  Item      *tmp_having; // To store Having when processed tenporary table
   uint	    select_options;
   select_result *result;
   TMP_TABLE_PARAM tmp_table_param;
@@ -178,6 +183,8 @@ class JOIN :public Sql_alloc
   SELECT_LEX_UNIT *unit;
   // select that processed
   SELECT_LEX *select_lex;
+  
+  JOIN *tmp_join; // copy of this JOIN to be used with temporary tables
 
   bool select_distinct, //Is select distinct?
     no_order, simple_order, simple_group,
@@ -186,7 +193,11 @@ class JOIN :public Sql_alloc
     buffer_result;
   DYNAMIC_ARRAY keyuse;
   Item::cond_result cond_value;
-  List<Item> all_fields;
+  List<Item> all_fields; // to store all fields that used in query
+  //Above list changed to use temporary table
+  List<Item> tmp_all_fields1, tmp_all_fields2, tmp_all_fields3;
+  //Part, shared with list above, emulate following list
+  List<Item> tmp_fields_list1, tmp_fields_list2, tmp_fields_list3;
   List<Item> & fields_list; // hold field list passed to mysql_select
   int error;
 
@@ -194,11 +205,14 @@ class JOIN :public Sql_alloc
   COND *conds;                            // ---"---
   TABLE_LIST *tables_list;           //hold 'tables' parameter of mysql_selec
   SQL_SELECT *select;                //created in optimisation phase
-  TABLE      *exec_tmp_table;        //used in 'exec' to hold temporary
-
+  Item **ref_pointer_array; //used pointer reference for this select
+  // Copy of above to be used with different lists
+  Item **items0, **items1, **items2, **items3;
+  uint ref_pointer_array_size; // size of above in bytes
   const char *zero_result_cause; // not 0 if exec must return zero result
   
-  my_bool union_part; // this subselect is part of union 
+  bool union_part; // this subselect is part of union 
+  bool optimized; // flag to avoid double optimization in EXPLAIN
 
   JOIN(THD *thd, List<Item> &fields,
        ulong select_options, select_result *result):
@@ -208,14 +222,16 @@ class JOIN :public Sql_alloc
     sort_and_group(0), first_record(0),
     do_send_rows(1),
     send_records(0), found_records(0), examined_rows(0),
+    exec_tmp_table1(0), exec_tmp_table2(0),
     thd(thd),
     sum_funcs(0),
     procedure(0),
-    having(0),
+    having(0), tmp_having(0),
     select_options(select_options),
     result(result),
     lock(thd->lock),
     select_lex(0), //for safety
+    tmp_join(0),
     select_distinct(test(select_options & SELECT_DISTINCT)),
     no_order(0), simple_order(0), simple_group(0), skip_sort_order(0),
     need_tmp(0),
@@ -226,8 +242,10 @@ class JOIN :public Sql_alloc
     fields_list(fields),
     error(0),
     select(0),
-    exec_tmp_table(0),
-    zero_result_cause(0)
+    ref_pointer_array(0), items0(0), items1(0), items2(0), items3(0),
+    ref_pointer_array_size(0),
+    zero_result_cause(0),
+    optimized(0)
   {
     fields_list = fields;
     bzero((char*) &keyuse,sizeof(keyuse));
@@ -235,16 +253,23 @@ class JOIN :public Sql_alloc
     tmp_table_param.end_write_records= HA_POS_ERROR;
   }
   
-  int prepare(TABLE_LIST *tables,
-	      COND *conds, ORDER *order, ORDER *group, Item *having,
-	      ORDER *proc_param, SELECT_LEX *select, SELECT_LEX_UNIT *unit,
-	      bool fake_select_lex);
+  int prepare(Item ***rref_pointer_array, TABLE_LIST *tables, uint wind_num,
+	      COND *conds, uint og_num, ORDER *order, ORDER *group,
+	      Item *having, ORDER *proc_param, SELECT_LEX *select,
+	      SELECT_LEX_UNIT *unit, bool fake_select_lex);
   int optimize();
-  int global_optimize();
   int reinit();
   void exec();
   int cleanup(THD *thd);
   bool check_loop(uint id);
+  void restore_tmp();
+
+  inline void init_items_ref_array()
+  {
+    items0= ref_pointer_array + all_fields.elements;
+    ref_pointer_array_size= all_fields.elements*sizeof(Item*);
+    memcpy(items0, ref_pointer_array, ref_pointer_array_size);
+  }
 };
 
 
@@ -263,7 +288,10 @@ TABLE *create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 void free_tmp_table(THD *thd, TABLE *entry);
 void count_field_types(TMP_TABLE_PARAM *param, List<Item> &fields,
 		       bool reset_with_sum_func);
-bool setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,List<Item> &fields);
+bool setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
+		       Item **ref_pointer_array,
+		       List<Item> &new_list1, List<Item> &new_list2,
+		       uint elements, List<Item> &fields);
 void copy_fields(TMP_TABLE_PARAM *param);
 void copy_funcs(Item_result_field **func_ptr);
 bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,

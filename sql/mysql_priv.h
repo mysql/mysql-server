@@ -390,19 +390,23 @@ int mysql_optimize_table(THD* thd, TABLE_LIST* table_list,
 bool check_simple_select();
 
 SORT_FIELD * make_unireg_sortorder(ORDER *order, uint *length);
-int setup_order(THD *thd,TABLE_LIST *tables, List<Item> &fields,
-                List <Item> &all_fields, ORDER *order);
-int setup_group(THD *thd,TABLE_LIST *tables,List<Item> &fields,
-		List<Item> &all_fields, ORDER *order,
+int setup_ref_array(THD *thd, Item ***rref_pointer_array, uint elements);
+int setup_order(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
+		List<Item> &fields, List <Item> &all_fields, ORDER *order);
+int setup_group(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
+		List<Item> &fields, List<Item> &all_fields, ORDER *order,
 		bool *hidden_group_fields);
 
 int handle_select(THD *thd, LEX *lex, select_result *result);
-int mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &list,COND *conds,
-		 ORDER *order, ORDER *group,Item *having,ORDER *proc_param,
-		 ulong select_type,select_result *result,
-		 SELECT_LEX_UNIT *unit, SELECT_LEX *select_lex,
-		 bool fake_select_lex);
+int mysql_select(THD *thd, Item ***rref_pointer_array,
+		 TABLE_LIST *tables, uint wild_num,  List<Item> &list,
+		 COND *conds, uint og_num, ORDER *order, ORDER *group,
+		 Item *having, ORDER *proc_param, ulong select_type, 
+		 select_result *result, SELECT_LEX_UNIT *unit, 
+		 SELECT_LEX *select_lex, bool fake_select_lex);
+void free_ulderlayed_joins(THD *thd, SELECT_LEX *select);
 void fix_tables_pointers(SELECT_LEX *select_lex);
+void fix_tables_pointers(SELECT_LEX_UNIT *select_lex);
 int mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit,
 			select_result *result);
 int mysql_explain_select(THD *thd, SELECT_LEX *sl, char const *type,
@@ -428,7 +432,7 @@ int mysql_alter_table(THD *thd, char *new_db, char *new_name,
 		      List<create_field> &fields,
 		      List<Key> &keys,List<Alter_drop> &drop_list,
 		      List<Alter_column> &alter_list,
-                      ORDER *order,
+                      uint order_num, ORDER *order,
 		      bool drop_primary,
 		      enum enum_duplicates handle_duplicates,
 		      enum enum_enable_or_disable keys_onoff=LEAVE_AS_IS,
@@ -447,7 +451,7 @@ int mysql_drop_index(THD *thd, TABLE_LIST *table_list,
 		     List<Alter_drop> &drop_list);
 int mysql_update(THD *thd,TABLE_LIST *tables,List<Item> &fields,
 		 List<Item> &values,COND *conds,
-                 ORDER *order, ha_rows limit,
+                 uint order_num, ORDER *order, ha_rows limit,
 		 enum enum_duplicates handle_duplicates);
 int mysql_multi_update(THD *thd, TABLE_LIST *table_list,
 		       List<Item> *fields, List<Item> *values,
@@ -567,15 +571,17 @@ SQL_SELECT *make_select(TABLE *head, table_map const_tables,
 enum find_item_error_report_type {REPORT_ALL_ERRORS, REPORT_EXCEPT_NOT_FOUND,
 				  IGNORE_ERRORS};
 extern const Item **not_found_item;
-Item ** find_item_in_list(Item *item, List<Item> &items,
+Item ** find_item_in_list(Item *item, List<Item> &items, uint *counter,
 			  find_item_error_report_type report_error);
 bool insert_fields(THD *thd,TABLE_LIST *tables,
 		   const char *db_name, const char *table_name,
 		   List_iterator<Item> *it);
 bool setup_tables(TABLE_LIST *tables);
-int setup_fields(THD *thd,TABLE_LIST *tables,List<Item> &item,
-		 bool set_query_id,List<Item> *sum_func_list,
-		 bool allow_sum_func);
+int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
+	       List<Item> *sum_func_list, uint wild_num);
+int setup_fields(THD *thd, Item** ref_pointer_array, TABLE_LIST *tables,
+		 List<Item> &item, bool set_query_id, 
+		 List<Item> *sum_func_list, bool allow_sum_func);
 int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds);
 int setup_ftfuncs(SELECT_LEX* select);
 int init_ftfuncs(THD *thd, SELECT_LEX* select, bool no_order);

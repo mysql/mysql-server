@@ -17,8 +17,6 @@
 
 /* compare and test functions */
 
-#include "assert.h"
-
 #ifdef __GNUC__
 #pragma interface			/* gcc class implementation */
 #endif
@@ -637,7 +635,7 @@ class Item_func_in :public Item_int_func
   enum Functype functype() const { return IN_FUNC; }
   const char *func_name() const { return " IN "; }
   void update_used_tables();
-  void split_sum_func(List<Item> &fields);
+  void split_sum_func(Item **ref_pointer_array, List<Item> &fields);
   bool check_loop(uint id)
   {
     DBUG_ENTER("Item_func_in::check_loop");
@@ -788,7 +786,7 @@ public:
   table_map used_tables() const;
   void update_used_tables();
   void print(String *str);
-  void split_sum_func(List<Item> &fields);
+  void split_sum_func(Item **ref_pointer_array, List<Item> &fields);
   friend int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds);
   bool check_loop(uint id);
   void top_level_item() { abort_on_null=1; }
