@@ -84,8 +84,12 @@ Item *create_func_connection_id(void)
 {
   THD *thd=current_thd;
   thd->lex.safe_to_cache_query=0;
-  return new Item_int(NullS,(longlong) thd->thread_id,10);
-}
+  return new Item_int(NullS,(longlong)
+                      ((thd->slave_thread) ?
+                       thd->variables.pseudo_thread_id :
+                       thd->thread_id),
+                      10);
+} 
 
 Item *create_func_conv(Item* a, Item *b, Item *c)
 {
