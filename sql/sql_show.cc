@@ -1063,8 +1063,8 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
 	if (tmp->peer_port && (tmp->host || tmp->ip))
 	{
 	  if ((thd_info->host= thd->alloc(LIST_PROCESS_HOST_LEN+1)))
-	    snprintf((char *) thd_info->host, LIST_PROCESS_HOST_LEN, "%s:%u",
-		     thd->host_or_ip, tmp->peer_port);
+	    my_snprintf((char *) thd_info->host, LIST_PROCESS_HOST_LEN,
+			"%s:%u", thd->host_or_ip, tmp->peer_port);
 	}
 	else
 	  thd_info->host= thd->strdup(thd->host_or_ip);
