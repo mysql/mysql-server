@@ -764,17 +764,6 @@ static int get_options(int argc, char **argv)
   return(0);
 }
 
-#if  defined(OS2)
-static char* readline( char* prompt)
-{
-#if defined(OS2)
-   static char linebuffer[254];
-#endif
-   puts( prompt);
-   return gets( linebuffer);
-}
-#endif
-
 static int read_lines(bool execute_commands)
 {
 #if defined( __WIN__) || defined(OS2)
