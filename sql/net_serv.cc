@@ -479,6 +479,7 @@ static void my_net_skip_rest(NET *net, uint32 remain, thr_alarm_t *alarmed)
   ALARM alarm_buff;
   uint retry_count=0;
   my_bool old_mode;
+  uint32 old=remain;
 
   if (!thr_alarm_in_use(&alarmed))
   {
@@ -500,6 +501,12 @@ static void my_net_skip_rest(NET *net, uint32 remain, thr_alarm_t *alarmed)
       return;
     }
     remain -= (uint32) length;
+    if (!remain && old==MAX_THREE_BYTES && 
+	(length=vio_read(net->vio,(char*) net->buff,NET_HEADER_SIZE)))
+    {
+      old=remain= uint3korr(net->buff);
+      net->pkt_nr++;
+    }
     statistic_add(bytes_received,length,&LOCK_bytes_received);
   }
 }
@@ -660,11 +667,19 @@ my_real_read(NET *net, ulong *complen)
 	{
 	  if (net_realloc(net,helping))
 	  {
+#ifdef MYSQL_SERVER
 #ifndef NO_ALARM
-	    if (i == 1)
-	      my_net_skip_rest(net, (uint32) len, &alarmed);
+	    if (net->compress)
+	    {
+	      len= packet_error;
+	      goto end;
+	    }
+	    my_net_skip_rest(net, (uint32) len, &alarmed);
+	    len=0;
 #endif
-	    len= packet_error;		/* Return error */
+#else
+	    len= packet_error;          /* Return error */
+#endif
 	    goto end;
 	  }
 	}
