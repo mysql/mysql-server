@@ -1429,14 +1429,13 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
 		       const char *passwd, const char *db,
 		       uint port, const char *unix_socket,ulong client_flag)
 {
-  char		buff[NAME_LEN+USERNAME_LENGTH+100],charset_name_buff[16];
-  char		*end,*host_info,*charset_name;
+  char		buff[NAME_LEN+USERNAME_LENGTH+100];
+  char		*end,*host_info;
   my_socket	sock;
   in_addr_t	ip_addr;
   struct	sockaddr_in sock_addr;
   ulong		pkt_length;
   NET		*net= &mysql->net;
-  uint		charset_number;
 #ifdef MYSQL_SERVER
   thr_alarm_t   alarmed;
   ALARM		alarm_buff;
@@ -1762,10 +1761,8 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     goto error;
   }
 
-  charset_number= mysql->server_language;
-
   /* Set character set */
-  if ((charset_name=mysql->options.charset_name))
+  if (mysql->options.charset_name)
   {
     const char *save= charsets_dir;
     if (mysql->options.charset_dir)
@@ -1773,44 +1770,34 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     mysql->charset=get_charset_by_csname(mysql->options.charset_name,
 					 MY_CS_PRIMARY,
 					 MYF(MY_WME));
-    charset_number= mysql->charset ? mysql->charset->number : 0;
     charsets_dir= save;
-  }
-  else if (mysql->server_language)
-  {
-    charset_name=charset_name_buff;
-    /* Save name in case of errors */
-    int10_to_str(mysql->server_language, charset_name, 10);
-    if (!(mysql->charset =
-	  get_charset((uint8) mysql->server_language, MYF(0))))
-      mysql->charset = default_charset_info; /* shouldn't be fatal */
+
+    if (!mysql->charset)
+    {
+      net->last_errno=CR_CANT_READ_CHARSET;
+      strmov(net->sqlstate, unknown_sqlstate);
+      if (mysql->options.charset_dir)
+        my_snprintf(net->last_error, sizeof(net->last_error)-1,
+		    ER(net->last_errno),
+		    mysql->options.charset_name,
+		    mysql->options.charset_dir);
+      else
+      {
+        char cs_dir_name[FN_REFLEN];
+        get_charsets_dir(cs_dir_name);
+        my_snprintf(net->last_error, sizeof(net->last_error)-1,
+		  ER(net->last_errno),
+		  mysql->options.charset_name,
+		  cs_dir_name);
+      }
+      goto error;
+    }
   }
   else
   {
     mysql->charset= default_charset_info;
-    charset_number= mysql->charset->number;
   }
 
-  if (!mysql->charset)
-  {
-    net->last_errno=CR_CANT_READ_CHARSET;
-    strmov(net->sqlstate, unknown_sqlstate);
-    if (mysql->options.charset_dir)
-      my_snprintf(net->last_error, sizeof(net->last_error)-1,
-		  ER(net->last_errno),
-		  charset_name ? charset_name : "unknown",
-		  mysql->options.charset_dir);
-    else
-    {
-      char cs_dir_name[FN_REFLEN];
-      get_charsets_dir(cs_dir_name);
-      my_snprintf(net->last_error, sizeof(net->last_error)-1,
-		  ER(net->last_errno),
-		  charset_name ? charset_name : "unknown",
-		  cs_dir_name);
-    }
-    goto error;
-  }
 
   /* Save connection information */
   if (!my_multi_malloc(MYF(0),
@@ -1870,7 +1857,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     /* 4.1 server and 4.1 client has a 32 byte option flag */
     int4store(buff,client_flag);
     int4store(buff+4, net->max_packet_size);
-    buff[8]= (char) charset_number;
+    buff[8]= (char) mysql->charset->number;
     bzero(buff+9, 32-9);
     end= buff+32;
   }

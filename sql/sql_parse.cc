@@ -1899,10 +1899,6 @@ mysql_execute_command(THD *thd)
 	  if (!(result=new select_send()))
 	  {
 	    res= -1;
-#ifdef DELETE_ITEMS
-	    delete select_lex->having;
-	    delete select_lex->where;
-#endif
 	    break;
 	  }
 	}
