@@ -359,6 +359,7 @@ int		STDCALL mysql_send_query(MYSQL *mysql, const char *q,
 int		STDCALL mysql_real_query(MYSQL *mysql, const char *q,
 					unsigned long length);
 MYSQL_RES *     STDCALL mysql_store_result(MYSQL *mysql);
+MYSQL_RES *     STDCALL mysql_use_result(MYSQL *mysql);
 
 /* perform query on master */
 my_bool		STDCALL mysql_master_query(MYSQL *mysql, const char *q,
@@ -460,6 +461,7 @@ int             STDCALL mysql_manager_command(MYSQL_MANAGER* con,
 int             STDCALL mysql_manager_fetch_line(MYSQL_MANAGER* con,
 						  char* res_buf,
 						 int res_buf_size);
+my_bool         STDCALL mysql_read_query_result(MYSQL *mysql);
 
 
 /*
@@ -539,9 +541,6 @@ typedef struct st_mysql_stmt
   my_bool        result_buffered;      /* Results buffered */
 } MYSQL_STMT;
 
-
-#define mysql_read_query_result(mysql) (*(mysql)->methods->read_query_result)(mysql)
-#define mysql_use_result(mysql) (*(mysql)->methods->use_result)(mysql)
 
 typedef struct st_mysql_methods
 {
