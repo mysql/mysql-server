@@ -272,10 +272,7 @@ foreach my $rdb ( @db_desc ) {
     my $negated;
     if ($rdb->{t_regex}) {
         $t_regex = $rdb->{t_regex};        ## assign temporary regex
-        $negated = $t_regex =~ tr/~//d;    ## remove and count
-                                           ## negation operator: we
-                                           ## don't allow ~ in table
-                                           ## names
+        $negated = $t_regex =~ s/^~//;     ## note and remove negation operator
 
         $t_regex = qr/$t_regex/;           ## make regex string from
                                            ## user regex
@@ -820,6 +817,16 @@ sub get_list_of_tables {
     });
 
     my @dbh_tables = eval { $dbh->tables() };
+
+    ## Remove quotes around table names
+    my $quote = $dbh->get_info(29); # SQL_IDENTIFIER_QUOTE_CHAR
+    if ($quote) {
+      foreach (@dbh_tables) {
+        s/^$quote(.*)$quote$/$1/;
+        s/$quote$quote/$quote/g;
+      }
+    }
+
     $dbh->disconnect();
     return @dbh_tables;
 }

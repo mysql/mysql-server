@@ -1,0 +1,12 @@
+-- source include/have_cp1250_ch.inc
+
+SHOW COLLATION LIKE 'cp1250_czech_cs';
+
+#
+# Bugs: #8840: Empty string comparison and character set 'cp1250'
+#
+
+CREATE TABLE t1 (a char(16)) character set cp1250 collate cp1250_czech_cs;
+INSERT INTO t1 VALUES ('');
+SELECT a, length(a), a='', a=' ', a='  ' FROM t1;
+DROP TABLE t1;
