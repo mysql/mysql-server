@@ -27,7 +27,7 @@
 #include <assert.h>
 #include <m_string.h>
 
-inline void bitmap_lock(MY_BITMAP* map)
+static inline void bitmap_lock(MY_BITMAP* map)
 {
 #ifdef THREAD
   if (map->thread_safe)
@@ -35,7 +35,7 @@ inline void bitmap_lock(MY_BITMAP* map)
 #endif
 }
 
-inline void bitmap_unlock(MY_BITMAP* map)
+static inline void bitmap_unlock(MY_BITMAP* map)
 {
 #ifdef THREAD
   if (map->thread_safe)
