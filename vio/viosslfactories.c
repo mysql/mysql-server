@@ -30,6 +30,29 @@ static bool     ssl_error_strings_loaded= FALSE;
 static int      verify_depth = 0;
 static int      verify_error = X509_V_OK;
 
+static unsigned char dh512_p[]={
+  0xDA,0x58,0x3C,0x16,0xD9,0x85,0x22,0x89,0xD0,0xE4,0xAF,0x75,
+  0x6F,0x4C,0xCA,0x92,0xDD,0x4B,0xE5,0x33,0xB8,0x04,0xFB,0x0F,
+  0xED,0x94,0xEF,0x9C,0x8A,0x44,0x03,0xED,0x57,0x46,0x50,0xD3,
+  0x69,0x99,0xDB,0x29,0xD7,0x76,0x27,0x6B,0xA2,0xD3,0xD4,0x12,
+  0xE2,0x18,0xF4,0xDD,0x1E,0x08,0x4C,0xF6,0xD8,0x00,0x3E,0x7C,
+  0x47,0x74,0xE8,0x33,
+};
+static unsigned char dh512_g[]={
+  0x02,
+};
+
+static DH *get_dh512(void)
+{
+  DH *dh=NULL;
+
+  if ((dh=DH_new()) == NULL) return(NULL);
+  dh->p=BN_bin2bn(dh512_p,sizeof(dh512_p),NULL);
+  dh->g=BN_bin2bn(dh512_g,sizeof(dh512_g),NULL);
+  if ((dh->p == NULL) || (dh->g == NULL))
+    return(NULL);
+  return(dh);
+}
 
 static void
 report_errors()
@@ -149,6 +172,7 @@ struct st_VioSSLConnectorFd* new_VioSSLConnectorFd(const char* key_file,
 {
   int	verify = SSL_VERIFY_PEER;
   struct st_VioSSLConnectorFd* ptr;
+  DH *dh=NULL; 
   DBUG_ENTER("new_VioSSLConnectorFd");
   DBUG_PRINT("enter",
 	     ("key_file=%s, cert_file=%s, ca_path=%s, ca_file=%s",
@@ -201,6 +225,20 @@ struct st_VioSSLConnectorFd* new_VioSSLConnectorFd(const char* key_file,
       goto ctor_failure;
     }
   } 
+
+  /* DH stuff */
+  dh=get_dh512();
+  SSL_CTX_set_tmp_dh(ptr->ssl_context_,dh);
+  DH_free(dh);
+
+/*if (cipher != NULL)
+    if(!SSL_CTX_set_cipher_list(ctx,cipher)) {
+    BIO_printf(bio_err,"error setting cipher list\n");
+    ERR_print_errors(bio_err);
+    goto end;
+  }
+*/
+  
   DBUG_RETURN(ptr);
 ctor_failure:
   DBUG_PRINT("exit", ("there was an error"));
@@ -222,6 +260,7 @@ new_VioSSLAcceptorFd(const char*	key_file,
 		  SSL_VERIFY_CLIENT_ONCE);
 
   struct st_VioSSLAcceptorFd* ptr;
+  DH *dh=NULL; 
   DBUG_ENTER("new_VioSSLAcceptorFd");
   DBUG_PRINT("enter",
 	     ("key_file=%s, cert_file=%s, ca_path=%s, ca_file=%s",
@@ -284,6 +323,19 @@ new_VioSSLAcceptorFd(const char*	key_file,
       goto ctor_failure;
     }
   }
+  /* DH stuff */
+  dh=get_dh512();
+  SSL_CTX_set_tmp_dh(ptr->ssl_context_,dh);
+  DH_free(dh);
+
+/*if (cipher != NULL)
+    if(!SSL_CTX_set_cipher_list(ctx,cipher)) {
+    BIO_printf(bio_err,"error setting cipher list\n");
+    ERR_print_errors(bio_err);
+    goto end;
+  }
+*/
+ 
   DBUG_RETURN(ptr);
 ctor_failure:
   DBUG_PRINT("exit", ("there was an error"));
