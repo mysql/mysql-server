@@ -55,12 +55,12 @@ static void best_access_path(JOIN *join, JOIN_TAB *s, THD *thd,
                              double record_count, double read_time);
 static void optimize_straight_join(JOIN *join, table_map join_tables);
 static void greedy_search(JOIN *join, table_map remaining_tables,
-                             uint depth, uint heuristic);
+                             uint depth, uint prune_level);
 static void best_extension_by_limited_search(JOIN *join,
                                              table_map remaining_tables,
                                              uint idx, double record_count,
                                              double read_time, uint depth,
-                                             uint heuristic);
+                                             uint prune_level);
 static uint determine_search_depth(JOIN* join);
 static int join_tab_cmp(const void* ptr1, const void* ptr2);
 /*
@@ -3063,8 +3063,8 @@ best_access_path(JOIN      *join,
 static void
 choose_plan(JOIN *join, table_map join_tables)
 {
-  uint search_depth= join->thd->variables.plan_search_depth;
-  uint heuristic=    join->thd->variables.heuristic;
+  uint search_depth= join->thd->variables.optimizer_search_depth;
+  uint prune_level=  join->thd->variables.optimizer_prune_level;
 
   DBUG_ENTER("choose_plan");
 
@@ -3094,7 +3094,7 @@ choose_plan(JOIN *join, table_map join_tables)
       if (search_depth == 0)
         /* Automatically determine a reasonable value for 'search_depth' */
         search_depth= determine_search_depth(join);
-      greedy_search(join, join_tables, search_depth, heuristic);
+      greedy_search(join, join_tables, search_depth, prune_level);
     }
   }
 
@@ -3245,7 +3245,7 @@ optimize_straight_join(JOIN *join, table_map join_tables)
                      for the query
     remaining_tables set of tables not included into the partial plan yet
     search_depth     controlls the exhaustiveness of the search
-    heuristic        the pruning heuristics that should be applied during
+    prune_level      the pruning heuristics that should be applied during
                      search
 
   DESCRIPTION
@@ -3315,7 +3315,7 @@ static void
 greedy_search(JOIN      *join,
               table_map remaining_tables,
               uint      search_depth,
-              uint      heuristic)
+              uint      prune_level)
 {
   double    record_count= 1.0;
   double    read_time=    0.0;
@@ -3334,7 +3334,7 @@ greedy_search(JOIN      *join,
     /* Find the extension of the current QEP with the lowest cost */
     join->best_read= DBL_MAX;
     best_extension_by_limited_search(join, remaining_tables, idx, record_count,
-                                     read_time, search_depth, heuristic);
+                                     read_time, search_depth, prune_level);
 
     if (rem_size <= search_depth)
     {
@@ -3398,7 +3398,7 @@ greedy_search(JOIN      *join,
     read_time        the cost of the best partial plan
     search_depth     maximum depth of the recursion and thus size of the found
                      optimal plan (0 < search_depth <= join->tables+1).
-    heuristic        pruning heuristics that should be applied during optimization
+    prune_level      pruning heuristics that should be applied during optimization
                      (values: 0 = EXHAUSTIVE, 1 = PRUNE_BY_TIME_OR_ROWS)
 
   DESCRIPTION
@@ -3482,7 +3482,7 @@ greedy_search(JOIN      *join,
     When 'best_extension_by_limited_search' is called for the first time,
     'join->best_read' must be set to the largest possible value (e.g. DBL_MAX).
     The actual implementation provides a way to optionally use pruning
-    heuristics (controlled by the parameter 'heuristic') to reduce the search
+    heuristic (controlled by the parameter 'prune_level') to reduce the search
     space by skipping some partial plans.
     The parameter 'search_depth' provides control over the recursion
     depth, and thus the size of the resulting optimal plan.
@@ -3498,7 +3498,7 @@ best_extension_by_limited_search(JOIN      *join,
                                  double    record_count,
                                  double    read_time,
                                  uint      search_depth,
-                                 uint      heuristic)
+                                 uint      prune_level)
 {
   THD *thd= join->thd;
   if (thd->killed)  // Abort
@@ -3543,7 +3543,7 @@ best_extension_by_limited_search(JOIN      *join,
         Prune some less promising partial plans. This heuristic may miss
         the optimal QEPs, thus it results in a non-exhaustive search.
       */
-      if (heuristic == 1)
+      if (prune_level == 1)
       {
         if (best_record_count > current_record_count ||
             best_read_time > current_read_time ||
@@ -3563,7 +3563,7 @@ best_extension_by_limited_search(JOIN      *join,
         else
         {
           DBUG_EXECUTE("opt", print_plan(join, read_time, record_count, idx,
-                                         "prune_by_heuristic"););
+                                         "pruned_by_heuristic"););
           continue;
         }
       }
@@ -3577,7 +3577,7 @@ best_extension_by_limited_search(JOIN      *join,
                                          current_record_count,
                                          current_read_time,
                                          search_depth - 1,
-                                         heuristic);
+                                         prune_level);
         if (thd->killed)
           DBUG_VOID_RETURN;
         swap(JOIN_TAB*, join->best_ref[idx], *pos);

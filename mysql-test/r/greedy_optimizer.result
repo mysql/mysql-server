@@ -108,15 +108,15 @@ insert into t7 values (18,2,3,4,5,6);
 insert into t7 values (19,2,3,4,5,6);
 insert into t7 values (20,2,3,4,5,6);
 insert into t7 values (21,2,3,4,5,6);
-select @@plan_search_depth;
-@@plan_search_depth
+select @@optimizer_search_depth;
+@@optimizer_search_depth
 62
-select @@heuristic;
-@@heuristic
+select @@optimizer_prune_level;
+@@optimizer_prune_level
 1
-set plan_search_depth=63;
-select @@plan_search_depth;
-@@plan_search_depth
+set optimizer_search_depth=63;
+select @@optimizer_search_depth;
+@@optimizer_search_depth
 63
 explain select t1.c11 from t1, t2, t3, t4, t5, t6, t7 where t1.c12 = t2.c21 and t2.c22 = t3.c31 and t3.c32 = t4.c41 and t4.c42 = t5.c51 and t5.c52 = t6.c61 and t6.c62 = t7.c71;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -190,13 +190,13 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 show status like 'Last_query_cost';
 Variable_name	Value
 Last_query_cost	794.838037
-set heuristic=0;
-select @@heuristic;
-@@heuristic
+set optimizer_prune_level=0;
+select @@optimizer_prune_level;
+@@optimizer_prune_level
 0
-set plan_search_depth=0;
-select @@plan_search_depth;
-@@plan_search_depth
+set optimizer_search_depth=0;
+select @@optimizer_search_depth;
+@@optimizer_search_depth
 0
 explain select t1.c11 from t1, t2, t3, t4, t5, t6, t7 where t1.c12 = t2.c21 and t2.c22 = t3.c31 and t3.c32 = t4.c41 and t4.c42 = t5.c51 and t5.c52 = t6.c61 and t6.c62 = t7.c71;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -270,9 +270,9 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 show status like 'Last_query_cost';
 Variable_name	Value
 Last_query_cost	274.419727
-set plan_search_depth=1;
-select @@plan_search_depth;
-@@plan_search_depth
+set optimizer_search_depth=1;
+select @@optimizer_search_depth;
+@@optimizer_search_depth
 1
 explain select t1.c11 from t1, t2, t3, t4, t5, t6, t7 where t1.c12 = t2.c21 and t2.c22 = t3.c31 and t3.c32 = t4.c41 and t4.c42 = t5.c51 and t5.c52 = t6.c61 and t6.c62 = t7.c71;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -346,9 +346,9 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 show status like 'Last_query_cost';
 Variable_name	Value
 Last_query_cost	794.838037
-set plan_search_depth=62;
-select @@plan_search_depth;
-@@plan_search_depth
+set optimizer_search_depth=62;
+select @@optimizer_search_depth;
+@@optimizer_search_depth
 62
 explain select t1.c11 from t1, t2, t3, t4, t5, t6, t7 where t1.c12 = t2.c21 and t2.c22 = t3.c31 and t3.c32 = t4.c41 and t4.c42 = t5.c51 and t5.c52 = t6.c61 and t6.c62 = t7.c71;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -422,13 +422,13 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 show status like 'Last_query_cost';
 Variable_name	Value
 Last_query_cost	274.419727
-set heuristic=1;
-select @@heuristic;
-@@heuristic
+set optimizer_prune_level=1;
+select @@optimizer_prune_level;
+@@optimizer_prune_level
 1
-set plan_search_depth=0;
-select @@plan_search_depth;
-@@plan_search_depth
+set optimizer_search_depth=0;
+select @@optimizer_search_depth;
+@@optimizer_search_depth
 0
 explain select t1.c11 from t1, t2, t3, t4, t5, t6, t7 where t1.c12 = t2.c21 and t2.c22 = t3.c31 and t3.c32 = t4.c41 and t4.c42 = t5.c51 and t5.c52 = t6.c61 and t6.c62 = t7.c71;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -502,9 +502,9 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 show status like 'Last_query_cost';
 Variable_name	Value
 Last_query_cost	794.838037
-set plan_search_depth=1;
-select @@plan_search_depth;
-@@plan_search_depth
+set optimizer_search_depth=1;
+select @@optimizer_search_depth;
+@@optimizer_search_depth
 1
 explain select t1.c11 from t1, t2, t3, t4, t5, t6, t7 where t1.c12 = t2.c21 and t2.c22 = t3.c31 and t3.c32 = t4.c41 and t4.c42 = t5.c51 and t5.c52 = t6.c61 and t6.c62 = t7.c71;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -578,9 +578,9 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 show status like 'Last_query_cost';
 Variable_name	Value
 Last_query_cost	794.838037
-set plan_search_depth=62;
-select @@plan_search_depth;
-@@plan_search_depth
+set optimizer_search_depth=62;
+select @@optimizer_search_depth;
+@@optimizer_search_depth
 62
 explain select t1.c11 from t1, t2, t3, t4, t5, t6, t7 where t1.c12 = t2.c21 and t2.c22 = t3.c31 and t3.c32 = t4.c41 and t4.c42 = t5.c51 and t5.c52 = t6.c61 and t6.c62 = t7.c71;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
