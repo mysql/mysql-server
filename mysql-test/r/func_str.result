@@ -512,7 +512,7 @@ collation(make_set(255,_latin2'a',_latin2'b',_latin2'c'))	coercibility(make_set(
 latin2_general_ci	4
 select collation(export_set(255,_latin2'y',_latin2'n',_latin2' ')), coercibility(export_set(255,_latin2'y',_latin2'n',_latin2' '));
 collation(export_set(255,_latin2'y',_latin2'n',_latin2' '))	coercibility(export_set(255,_latin2'y',_latin2'n',_latin2' '))
-binary	4
+latin2_general_ci	4
 select collation(trim(_latin2' a ')), coercibility(trim(_latin2' a '));
 collation(trim(_latin2' a '))	coercibility(trim(_latin2' a '))
 latin2_general_ci	4
@@ -627,6 +627,15 @@ t1	CREATE TABLE `t1` (
   `encode('abcd','ab')` binary(4) NOT NULL default ''
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
+create table t1 (a char character set latin2);
+insert into t1 values (null);
+select charset(a), collation(a), coercibility(a) from t1;
+charset(a)	collation(a)	coercibility(a)
+latin2	latin2_general_ci	2
+drop table t1;
+select charset(null), collation(null), coercibility(null);
+charset(null)	collation(null)	coercibility(null)
+binary	binary	5
 select SUBSTR('abcdefg',3,2);
 SUBSTR('abcdefg',3,2)
 cd
