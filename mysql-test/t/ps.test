@@ -462,3 +462,14 @@ EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 DROP TABLE t1;
 
+#
+# Bug#6102 "Server crash with prepared statement and blank after
+# function name"
+# ensure that stored functions are cached when preparing a statement
+# before we open tables
+#
+create table t1 (a varchar(20)); 
+insert into t1 values ('foo'); 
+--error 1305
+prepare stmt FROM 'SELECT char_length (a) FROM t1'; 
+drop table t1;
