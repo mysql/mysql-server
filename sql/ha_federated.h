@@ -73,7 +73,8 @@ private:
       return errorcode otherwise
   */
   uint convert_row_to_internal_format(byte *buf, MYSQL_ROW row);
-  bool ha_federated::create_where_from_key(String *to, KEY *key_info, const byte *key, uint key_length); 
+  bool ha_federated::create_where_from_key(String *to, KEY *key_info, 
+                                           const byte *key, uint key_length); 
 
 public:
   ha_federated(TABLE *table): handler(table),
@@ -127,11 +128,16 @@ public:
   /*
     Called in test_quick_select to determine if indexes should be used.
   */
-  virtual double scan_time() { DBUG_PRINT("ha_federated::scan_time", ("rows %d", records)); return (double)(records*2); }
+  virtual double scan_time()
+  {
+    DBUG_PRINT("ha_federated::scan_time",
+               ("rows %d", records)); return (double)(records*2); 
+  }
   /*
     The next method will never be called if you do not implement indexes.
   */
-  virtual double read_time(uint index, uint ranges, ha_rows rows) { return (double) rows /  20.0+1; }
+  virtual double read_time(uint index, uint ranges, ha_rows rows) 
+  { return (double) rows /  20.0+1; }
 
   /*
     Everything below are methods that we implment in ha_federated.cc.
