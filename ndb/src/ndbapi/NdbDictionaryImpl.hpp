@@ -63,12 +63,8 @@ public:
   CHARSET_INFO * m_cs;          // not const in MySQL
   
   bool m_pk;
-  bool m_tupleKey;
   bool m_distributionKey;
-  bool m_distributionGroup;
-  int m_distributionGroupBits;
   bool m_nullable;
-  bool m_indexOnly;
   bool m_autoIncrement;
   Uint64 m_autoIncrementInitialValue;
   BaseString m_defaultValue;
@@ -128,8 +124,8 @@ public:
   int m_kvalue;
   int m_minLoadFactor;
   int m_maxLoadFactor;
-  int m_keyLenInWords;
-  int m_fragmentCount;
+  Uint16 m_keyLenInWords;
+  Uint16 m_fragmentCount;
 
   NdbDictionaryImpl * m_dictionary;
   NdbIndexImpl * m_index;
@@ -147,9 +143,9 @@ public:
   /**
    * Aggregates
    */
-  Uint32 m_noOfKeys;
-  unsigned short m_sizeOfKeysInWords;
-  unsigned short m_noOfBlobs;
+  Uint8 m_noOfKeys;
+  Uint8 m_noOfDistributionKeys;
+  Uint8 m_noOfBlobs;
 
   /**
    * Equality/assign

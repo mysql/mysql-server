@@ -987,7 +987,7 @@ Dbtup::read_psuedo(Uint32 attrId, Uint32* outBuffer){
   Signal * signal = (Signal*)&tmp;
   switch(attrId){
   case AttributeHeader::FRAGMENT:
-    * outBuffer = operPtr.p->fragId;
+    * outBuffer = operPtr.p->fragId >> 1; // remove "hash" bit
     return 1;
   case AttributeHeader::ROW_COUNT:
   case AttributeHeader::COMMIT_COUNT:

@@ -74,7 +74,6 @@ Dbtux::execTUXFRAGREQ(Signal* signal)
     new (fragPtr.p) Frag(c_scanOpPool);
     fragPtr.p->m_tableId = req->primaryTableId;
     fragPtr.p->m_indexId = req->tableId;
-    fragPtr.p->m_fragOff = req->fragOff;
     fragPtr.p->m_fragId = req->fragId;
     fragPtr.p->m_numAttrs = req->noOfAttr;
     fragPtr.p->m_storeNullKey = true;  // not yet configurable
@@ -102,7 +101,6 @@ Dbtux::execTUXFRAGREQ(Signal* signal)
       indexPtr.p->m_state = Index::Defining;
       indexPtr.p->m_tableType = (DictTabInfo::TableType)req->tableType;
       indexPtr.p->m_tableId = req->primaryTableId;
-      indexPtr.p->m_fragOff = req->fragOff;
       indexPtr.p->m_numAttrs = req->noOfAttr;
       indexPtr.p->m_storeNullKey = true;  // not yet configurable
       // allocate attribute descriptors
@@ -118,7 +116,6 @@ Dbtux::execTUXFRAGREQ(Signal* signal)
           indexPtr.p->m_state == Index::Defining &&
           indexPtr.p->m_tableType == (DictTabInfo::TableType)req->tableType &&
           indexPtr.p->m_tableId == req->primaryTableId &&
-          indexPtr.p->m_fragOff == req->fragOff &&
           indexPtr.p->m_numAttrs == req->noOfAttr);
     }
     // copy metadata address to each fragment

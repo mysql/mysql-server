@@ -1084,8 +1084,7 @@ NdbConnection::getNdbIndexScanOperation(const NdbIndexImpl* index,
   if (theCommitStatus == Started){
     const NdbTableImpl * indexTable = index->getIndexTable();
     if (indexTable != 0){
-      NdbIndexScanOperation* tOp = 
-	getNdbScanOperation((NdbTableImpl *) indexTable);
+      NdbIndexScanOperation* tOp = getNdbScanOperation(indexTable);
       tOp->m_currentTable = table;
       if(tOp) tOp->m_cursor_type = NdbScanOperation::IndexCursor;
       return tOp;
