@@ -2924,7 +2924,13 @@ AC_SUBST(mgmapiincludedir)
   #AC_SUBST(NDB_TYPE_KERNEL)
   #AC_SUBST(NDB_TYPE_UTIL)
 
-  define(NDB_MAKEFILES, [ dnl
+#  define(NDB_MAKEFILES, [ dnl
+#   ])
+
+AC_SUBST(MAKE_BINARY_DISTRIBUTION_OPTIONS)
+
+# Output results
+AC_OUTPUT(Makefile extra/Makefile mysys/Makefile isam/Makefile dnl
    ndb/Makefile ndb/include/Makefile ndb/src/Makefile ndb/src/common/Makefile dnl
    ndb/tools/Makefile dnl
    ndb/src/common/debugger/Makefile ndb/src/common/debugger/signaldata/Makefile dnl
@@ -2968,13 +2974,6 @@ AC_SUBST(mgmapiincludedir)
    ndb/test/ndbapi/bank/Makefile dnl
    ndb/test/tools/Makefile dnl
    ndb/test/run-test/Makefile dnl
-   ])
-
-AC_SUBST(MAKE_BINARY_DISTRIBUTION_OPTIONS)
-
-# Output results
-AC_OUTPUT(Makefile extra/Makefile mysys/Makefile isam/Makefile dnl
- NDB_MAKEFILES dnl
  strings/Makefile regex/Makefile heap/Makefile dnl
  bdb/Makefile dnl
  myisam/Makefile myisammrg/Makefile dnl
