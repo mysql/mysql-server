@@ -3058,12 +3058,12 @@ bool add_field_to_list(char *field_name, enum_field_types type,
 
   if (default_value)
   {
-    if (type == FIELD_TYPE_TIMESTAMP)
-    {
-      net_printf(&thd->net, ER_INVALID_DEFAULT, field_name);
-      DBUG_RETURN(1);
-    }
-    else if (default_value->type() == Item::NULL_ITEM)
+    /*
+      We allow specifying value for first TIMESTAMP column 
+      altough it is silently ignored. This should be fixed in 4.1
+      (by proper warning or real support for default values)
+    */
+    if (default_value->type() == Item::NULL_ITEM)
     {
       default_value=0;
       if ((type_modifier & (NOT_NULL_FLAG | AUTO_INCREMENT_FLAG)) ==

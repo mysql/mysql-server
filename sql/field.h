@@ -564,7 +564,10 @@ public:
   void set_time();
   virtual void set_default()
   {
-    set_time();
+    if (table->timestamp_field == this)
+      set_time();
+    else
+      Field::set_default();
   }
   inline long get_timestamp()
   {

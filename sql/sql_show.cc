@@ -508,6 +508,12 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
         field->sql_type(type);
         net_store_data(packet,convert,type.ptr(),type.length());
 
+        /*
+          Altough TIMESTAMP fields can't contain NULL as its value they
+          will accept NULL if you will try to insert such value and will
+          convert it to current TIMESTAMP. So YES here means that NULL 
+          is allowed for assignment but can't be returned.
+        */
         pos=(byte*) ((flags & NOT_NULL_FLAG) &&
                      field->type() != FIELD_TYPE_TIMESTAMP ?
                      "" : "YES");
@@ -517,7 +523,11 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
                      (field->flags & MULTIPLE_KEY_FLAG) ? "MUL":"");
         net_store_data(packet,convert,(char*) pos);
 
-        if (field->type() == FIELD_TYPE_TIMESTAMP ||
+        /*
+          We handle first TIMESTAMP column in special way because its
+          default value is ignored and current timestamp used instead.
+        */
+        if (table->timestamp_field == field ||
             field->unireg_check == Field::NEXT_NUMBER)
           null_default_value=1;
         if (!null_default_value && !field->is_null())
@@ -888,7 +898,7 @@ store_create_info(THD *thd, TABLE *table, String *packet)
     packet->append(type.ptr(),type.length());
 
     has_default= (field->type() != FIELD_TYPE_BLOB &&
-		  field->type() != FIELD_TYPE_TIMESTAMP &&
+		  table->timestamp_field != field &&
 		  field->unireg_check != Field::NEXT_NUMBER);
     if (flags & NOT_NULL_FLAG)
       packet->append(" NOT NULL", 9);
