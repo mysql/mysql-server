@@ -2449,11 +2449,13 @@ simple_expr:
 	| singlerow_subselect   { $$= $1; }
 	| '{' ident expr '}'	{ $$= $3; }
         | MATCH ident_list_arg AGAINST '(' expr ')'
-          { Select->add_ftfunc_to_list((Item_func_match *)
-                   ($$=new Item_func_match_nl(*$2,$5))); }
+          { $2->push_front($5);
+            Select->add_ftfunc_to_list((Item_func_match *)
+                   ($$=new Item_func_match_nl(*$2))); }
         | MATCH ident_list_arg AGAINST '(' expr IN_SYM BOOLEAN_SYM MODE_SYM ')'
-          { Select->add_ftfunc_to_list((Item_func_match *)
-                   ($$=new Item_func_match_bool(*$2,$5))); }
+          { $2->push_front($5);
+            Select->add_ftfunc_to_list((Item_func_match *)
+                   ($$=new Item_func_match_bool(*$2))); }
 	| ASCII_SYM '(' expr ')' { $$= new Item_func_ascii($3); }
 	| BINARY expr %prec NEG
 	  {
@@ -2461,10 +2463,10 @@ simple_expr:
 					    6, &my_charset_latin1));
 	  }
 	| CAST_SYM '(' expr AS cast_type ')'
-	  { 
-	    $$= create_func_cast($3, $5, 
+	  {
+	    $$= create_func_cast($3, $5,
 				 Lex->length ? atoi(Lex->length) : -1,
-				 Lex->charset); 
+				 Lex->charset);
 	  }
 	| CASE_SYM opt_expr WHEN_SYM when_list opt_else END
 	  { $$= new Item_func_case(* $4, $2, $5 ); }
@@ -2967,7 +2969,7 @@ ident_list2:
 
 opt_expr:
 	/* empty */      { $$= NULL; }
-	| expr         	 { $$= $1; };
+	| expr           { $$= $1; };
 
 opt_else:
 	/* empty */    { $$= NULL; }

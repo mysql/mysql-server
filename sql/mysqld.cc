@@ -2159,7 +2159,7 @@ static int init_common_variables(const char *conf_file_name, int argc,
       init_global_datetime_format(DATETIME_FORMAT_TYPE, 1))
     return 1;
 
-  if (use_temp_pool && bitmap_init(&temp_pool,1024,1))
+  if (use_temp_pool && bitmap_init(&temp_pool,0,1024,1))
     return 1;
   return 0;
 }

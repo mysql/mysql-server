@@ -118,6 +118,12 @@ static int my_strcasecmp_bin(CHARSET_INFO * cs __attribute__((unused)),
   return strcmp(s,t);
 }
 
+int my_mbcharlen_8bit(CHARSET_INFO *cs __attribute__((unused)),
+                             uint c __attribute__((unused)))
+{
+  return 1;
+}
+
 static int my_mb_wc_bin(CHARSET_INFO *cs __attribute__((unused)),
 		  my_wc_t *wc,
 		  const unsigned char *str,
@@ -264,12 +270,12 @@ static int my_strnxfrm_bin(CHARSET_INFO *cs __attribute__((unused)),
 
 static
 uint my_instr_bin(CHARSET_INFO *cs __attribute__((unused)),
-                 const char *b, uint b_length, 
-		 const char *s, uint s_length,
-		 my_match_t *match, uint nmatch)
+                 const char *b, uint b_length,
+                 const char *s, uint s_length,
+                 my_match_t *match, uint nmatch)
 {
   register const uchar *str, *search, *end, *search_end;
-  
+
   if (s_length <= b_length)
   {
     if (!s_length)
@@ -282,32 +288,32 @@ uint my_instr_bin(CHARSET_INFO *cs __attribute__((unused)),
       }
       return 1;		/* Empty string is always found */
     }
-    
+
     str= (const uchar*) b;
     search= (const uchar*) s;
     end= (const uchar*) b+b_length-s_length+1;
     search_end= (const uchar*) s + s_length;
-    
+
 skipp:
     while (str != end)
     {
       if ( (*str++) == (*search))
       {
 	register const uchar *i,*j;
-	
-	i= str; 
+
+	i= str;
 	j= search+1;
-	
+
 	while (j != search_end)
 	  if ((*i++) != (*j++))
             goto skipp;
-        
+
         if (nmatch > 0)
 	{
 	  match[0].beg= 0;
 	  match[0].end= str- (const uchar*)b-1;
 	  match[0].mblen= match[0].end;
-	  
+
 	  if (nmatch > 1)
 	  {
 	    match[1].beg= match[0].end;
@@ -338,7 +344,7 @@ MY_COLLATION_HANDLER my_collation_8bit_bin_handler =
 static MY_CHARSET_HANDLER my_charset_handler=
 {
     NULL,			/* ismbchar      */
-    NULL,			/* mbcharlen     */
+    my_mbcharlen_8bit,		/* mbcharlen     */
     my_numchars_8bit,
     my_charpos_8bit,
     my_lengthsp_8bit,

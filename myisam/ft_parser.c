@@ -73,25 +73,17 @@ FT_WORD * ft_linearize(TREE *wtree)
   DBUG_RETURN(wlist);
 }
 
-#define true_word_char(s,X)	(my_isalnum(s,X) || (X)=='_')
-#ifdef HYPHEN_IS_DELIM
-#define misc_word_char(X)	((X)=='\'')
-#else
-#define misc_word_char(X)	((X)=='\'' || (X)=='-')
-#endif
-#define word_char(s,X)		(true_word_char(s,X) || misc_word_char(X))
-
-
 /* returns:
  * 0 - eof
  * 1 - word found
  * 2 - left bracket
  * 3 - right bracket
  */
-byte ft_get_word(byte **start, byte *end, FT_WORD *word, FTB_PARAM *param)
+byte ft_get_word(CHARSET_INFO *cs, byte **start, byte *end,
+                 FT_WORD *word, FTB_PARAM *param)
 {
   byte *doc=*start;
-  int mwc;
+  uint mwc, length;
 
   param->yesno=(FTB_YES==' ') ? 1 : (param->quot != 0);
   param->plusminus=param->pmsign=0;
@@ -100,11 +92,7 @@ byte ft_get_word(byte **start, byte *end, FT_WORD *word, FTB_PARAM *param)
   {
     for (;doc<end;doc++)
     {
-      /*
-        BAR TODO: discuss with Serge how to remove
-        default_charset_info correctly
-      */
-      if (true_word_char(default_charset_info,*doc)) break;
+      if (true_word_char(cs,*doc)) break;
       if (*doc == FTB_RQUOT && param->quot) {
         param->quot=doc;
         *start=doc+1;
@@ -132,9 +120,9 @@ byte ft_get_word(byte **start, byte *end, FT_WORD *word, FTB_PARAM *param)
       param->plusminus=param->pmsign=0;
     }
 
-    mwc=0;
-    for (word->pos=doc; doc<end; doc++)
-      if (true_word_char(default_charset_info,*doc))
+    mwc=length=0;
+    for (word->pos=doc; doc<end; length++, doc+=my_mbcharlen(cs, *(uchar *)doc))
+      if (true_word_char(cs,*doc))
         mwc=0;
       else if (!misc_word_char(*doc) || mwc++)
         break;
@@ -144,8 +132,8 @@ byte ft_get_word(byte **start, byte *end, FT_WORD *word, FTB_PARAM *param)
     if ((param->trunc=(doc<end && *doc == FTB_TRUNC)))
       doc++;
 
-    if (((word->len >= ft_min_word_len && !is_stopword(word->pos, word->len))
-         || param->trunc) && word->len < ft_max_word_len)
+    if (((length >= ft_min_word_len && !is_stopword(word->pos, word->len))
+         || param->trunc) && length < ft_max_word_len)
     {
       *start=doc;
       return 1;
@@ -154,29 +142,30 @@ byte ft_get_word(byte **start, byte *end, FT_WORD *word, FTB_PARAM *param)
   return 0;
 }
 
-byte ft_simple_get_word(byte **start, byte *end, FT_WORD *word)
+byte ft_simple_get_word(CHARSET_INFO *cs, byte **start, byte *end,
+                        FT_WORD *word)
 {
   byte *doc=*start;
-  int mwc;
+  uint mwc, length;
   DBUG_ENTER("ft_simple_get_word");
 
   while (doc<end)
   {
     for (;doc<end;doc++)
     {
-      if (true_word_char(default_charset_info,*doc)) break;
+      if (true_word_char(cs,*doc)) break;
     }
 
-    mwc=0;
-    for(word->pos=doc; doc<end; doc++)
-      if (true_word_char(default_charset_info,*doc))
+    mwc=length=0;
+    for(word->pos=doc; doc<end; length++, doc+=my_mbcharlen(cs, *(uchar *)doc))
+      if (true_word_char(cs,*doc))
         mwc=0;
       else if (!misc_word_char(*doc) || mwc++)
         break;
 
     word->len= (uint)(doc-word->pos) - mwc;
 
-    if (word->len >= ft_min_word_len && word->len < ft_max_word_len &&
+    if (length >= ft_min_word_len && length < ft_max_word_len &&
         !is_stopword(word->pos, word->len))
     {
       *start=doc;
@@ -200,7 +189,7 @@ int ft_parse(TREE *wtree, byte *doc, int doclen)
   FT_WORD w;
   DBUG_ENTER("ft_parse");
 
-  while (ft_simple_get_word(&doc,end,&w))
+  while (ft_simple_get_word(wtree->custom_arg, &doc,end,&w))
   {
     if (!tree_insert(wtree, &w, 0, wtree->custom_arg))
       goto err;
