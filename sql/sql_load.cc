@@ -99,7 +99,6 @@ static int read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
                           replace row if we will meet duplicates.
       ignore -          - indicates whenever we should ignore duplicates
       read_file_from_client - is this LOAD DATA LOCAL ?
-      lock_type - what type of concurrency do we allow then we are inserting data
 
   RETURN VALUES
     TRUE - error / FALSE - success
@@ -109,7 +108,7 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 	        List<Item> &fields_vars, List<Item> &set_fields,
                 List<Item> &set_values,
                 enum enum_duplicates handle_duplicates, bool ignore,
-                bool read_file_from_client, thr_lock_type lock_type)
+                bool read_file_from_client)
 {
   char name[FN_REFLEN];
   File file;
@@ -143,7 +142,6 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 	       MYF(0));
     DBUG_RETURN(TRUE);
   }
-  table_list->lock_type= lock_type;
   if (open_and_lock_tables(thd, table_list))
     DBUG_RETURN(TRUE);
   if (setup_tables(thd, table_list, &unused_conds,
