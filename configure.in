@@ -16,7 +16,7 @@ SHARED_LIB_VERSION=10:0:0
 # Remember that regexps needs to quote [ and ] since this is run through m4
 MYSQL_NO_DASH_VERSION=`echo $VERSION | sed -e "s|-.*$||"`
 MYSQL_BASE_VERSION=`echo $MYSQL_NO_DASH_VERSION | sed -e "s|\.[[^.]]*$||"`
-F_PART=`echo $MYSQL_BASE_VERSION | sed -e "s|\.||g"| sed -e "s|[[a-zA-Z]]\+||"`
+F_PART=`echo $MYSQL_BASE_VERSION | sed -e "s|\.||g"| sed -e "s|[a-zA-Z]\+||"|sed -e "s|^\(..\)$|\\10|"`
 L_PART=`echo $MYSQL_NO_DASH_VERSION | sed -e "s|^[[0-9]]\.[[0-9]]*\.||" | sed -e "s|^\(.\)$|0\\1|" | sed -e "s|[[a-z]]||"`
 MYSQL_VERSION_ID=${F_PART}${L_PART}
 
