@@ -1507,7 +1507,14 @@ void Item_func_elt::fix_length_and_dec()
 {
   max_length=0;
   decimals=0;
-  for (uint i= 0; i < arg_count ; i++) // first number argument isn't in list!
+  /*
+    first numeric argument isn't in args (3.23 and 4.0)
+    but since 4.1 the cycle should start from 1
+    so this change 
+    
+    should NOT be merged into 4.1!!!
+  */
+  for (uint i= 0; i < arg_count ; i++)
   {
     set_if_bigger(max_length,args[i]->max_length);
     set_if_bigger(decimals,args[i]->decimals);
