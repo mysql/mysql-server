@@ -78,7 +78,7 @@ typedef struct st_mi_state_info
   time_t check_time;			/* Time for last check */
   uint	sortkey;			/* sorted by this key  (not used) */
   uint open_count;
-  bool changed;				/* Changed since isamchk */
+  uint8 changed;			/* Changed since myisamchk */
   my_off_t rec_per_key_rows;		/* Rows when calculating rec_per_key */
   ulong *rec_per_key_part;
 
@@ -279,14 +279,24 @@ struct st_myisam_info {
 #define WRITEINFO_UPDATE_KEYFILE	1
 #define WRITEINFO_NO_UNLOCK		2
 
+	/* bits in state.changed */
+
+#define STATE_CHANGED		1
+#define STATE_CRASHED		2
+#define STATE_CRASHED_ON_REPAIR 4 
+#define STATE_NOT_ANALYZED	8
+#define STATE_NOT_OPTIMIZED_KEYS 16
+#define STATE_NOT_SORTED_PAGES	32
+
+
 #define mi_getint(x)	((uint) mi_uint2korr(x) & 32767)
 #define mi_putint(x,y,nod) { uint16 boh=(nod ? (uint16) 32768 : 0) + (uint16) (y);\
 			  mi_int2store(x,boh); }
 #define mi_test_if_nod(x) (x[0] & 128 ? info->s->base.key_reflength : 0)
-#define mi_mark_crashed(x) (x)->s->state.changed|=2
-#define mi_mark_crashed_on_repair(x) (x)->s->state.changed|=4+2
-#define mi_is_crashed(x) ((x)->s->state.changed & 2)
-#define mi_is_crashed_on_repair(x) ((x)->s->state.changed & 4)
+#define mi_mark_crashed(x) (x)->s->state.changed|=STATE_CRASHED
+#define mi_mark_crashed_on_repair(x) (x)->s->state.changed|=STATE_CRASHED|STATE_CRASHED_ON_REPAIR
+#define mi_is_crashed(x) ((x)->s->state.changed & STATE_CRASHED)
+#define mi_is_crashed_on_repair(x) ((x)->s->state.changed & STATE_CRASHED_ON_REPAIR)
 
 /* Functions to store length of space packed keys, VARCHAR or BLOB keys */
 

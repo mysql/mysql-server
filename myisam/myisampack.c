@@ -2078,7 +2078,7 @@ static int save_state_mrg(File file,MRG_INFO *mrg,my_off_t new_length,
   state.checksum=crc;
   if (isam_file->s->base.keys)
     isamchk_neaded=1;
-  state.changed=1;				/* Force one check of table */
+  state.changed=STATE_CHANGED | STATE_NOT_ANALYZED; /* Force check of table */
   DBUG_RETURN (mi_state_info_write(file,&state,1+2));
 }
 
