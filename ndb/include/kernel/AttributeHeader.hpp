@@ -30,6 +30,14 @@ class AttributeHeader {
   friend class Suma;
 
 public:
+  /**
+   * Psuedo columns
+   */
+  STATIC_CONST( PSUEDO       = 0x8000 );
+  STATIC_CONST( FRAGMENT     = 0xFFFE );
+  STATIC_CONST( ROW_COUNT    = 0xFFFD );
+  STATIC_CONST( COMMIT_COUNT = 0xFFFC );
+  
   /** Initialize AttributeHeader at location aHeaderPtr */
   static AttributeHeader& init(void* aHeaderPtr, Uint32 anAttributeId, 
 			       Uint32 aDataSize);

@@ -46,7 +46,7 @@ Ndbcntr::g_sysTable_SYSTAB_0 = {
 static const Ndbcntr::SysColumn
 column_NDBEVENTS_0[] = {
   { 0, "NAME",
-    DictTabInfo::ExtChar, MAX_TAB_NAME_SIZE,
+    DictTabInfo::ExtBinary, MAX_TAB_NAME_SIZE,
     true, false
   },
   { 1, "EVENT_TYPE",
@@ -54,7 +54,7 @@ column_NDBEVENTS_0[] = {
     false, false
   },
   { 2, "TABLE_NAME",
-    DictTabInfo::ExtChar, MAX_TAB_NAME_SIZE,
+    DictTabInfo::ExtBinary, MAX_TAB_NAME_SIZE,
     false, false
   },
   { 3, "ATTRIBUTE_MASK",

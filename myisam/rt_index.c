@@ -494,9 +494,11 @@ static uchar *rtree_pick_key(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key,
 
   for (; k < last; k = rt_PAGE_NEXT_KEY(k, key_length, nod_flag))
   {
+    /* The following is safe as -1.0 is an exact number */
     if ((increase = rtree_area_increase(keyinfo->seg, k, key, key_length, 
-                                        &area)) == -1)
+                                        &area)) == -1.0)
       return NULL;
+    /* The following should be safe, even if we compare doubles */
     if (increase < best_incr)
     {
       best_key = k;
@@ -505,6 +507,7 @@ static uchar *rtree_pick_key(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key,
     }
     else
     {
+      /* The following should be safe, even if we compare doubles */
       if ((increase == best_incr) && (area < best_area))
       {
         best_key = k;
@@ -1021,6 +1024,7 @@ ha_rows rtree_estimate(MI_INFO *info, uint keynr, uchar *key,
     {
       double k_area = rtree_rect_volume(keyinfo->seg, k, key_length);
 
+      /* The following should be safe, even if we compare doubles */
       if (k_area == 0)
       {
         if (flag & (MBR_CONTAIN | MBR_INTERSECT))

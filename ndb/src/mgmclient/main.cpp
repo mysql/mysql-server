@@ -44,6 +44,7 @@ handler(int sig){
 }
 
 int main(int argc, const char** argv){
+  ndb_init();
   int optind = 0;
   const char *_host = 0;
   int _port = 0;
@@ -84,7 +85,7 @@ int main(int argc, const char** argv){
   }
   
   char buf[MAXHOSTNAMELEN+10];
-  snprintf(buf, sizeof(buf), "%s:%d", _host, _port);
+  BaseString::snprintf(buf, sizeof(buf), "%s:%d", _host, _port);
 
   ndbout << "-- NDB Cluster -- Management Client --" << endl;
   printf("Connecting to Management Server: %s\n", buf);

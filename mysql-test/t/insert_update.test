@@ -35,10 +35,10 @@ create table t1(a int primary key, b int);
 insert into t1 values(1,1),(2,2),(3,3),(4,4),(5,5);
 select * from t1;
 
-enable_info;
+--enable_info
 insert into t1 values(4,14),(5,15),(6,16),(7,17),(8,18)
  on duplicate key update b=b+10;
-disable_info;
+--disable_info
 
 select * from t1;
 

@@ -42,7 +42,7 @@ inline void prefetch(void* p)
 {
 #ifdef NDB_ALPHA
    __asm(" ldl r31,0(a0);", p);
-#endif // NDB_ALPHA
+#endif /* NDB_ALPHA */
 #ifdef NDB_FORTE6
   sparc_prefetch_read_once(p);
 #else 
@@ -54,7 +54,7 @@ inline void writehint(void* p)
 {
 #ifdef NDB_ALPHA
    __asm(" wh64 (a0);", p);
-#endif // NDB_ALPHA
+#endif /* NDB_ALPHA */
 #ifdef NDB_FORTE6
   sparc_prefetch_write_once(p);
 #else

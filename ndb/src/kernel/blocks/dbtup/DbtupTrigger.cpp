@@ -652,6 +652,7 @@ void Dbtup::executeTrigger(Signal* signal,
     return;
   default:
     ndbrequire(false);
+    executeDirect= false; // remove warning
   }//switch
 
   regOperPtr->noFiredTriggers++;
@@ -746,13 +747,15 @@ bool Dbtup::readTriggerInfo(TupTriggerData* const trigPtr,
 //--------------------------------------------------------------------
 // Read Primary Key Values
 //--------------------------------------------------------------------
-  noPrimKey = readAttributes(pagep.p,
-                             tupheadoffset,
-                             &tableDescriptor[regTabPtr->readKeyArray].tabDescr,
-                             regTabPtr->noOfKeyAttr,
-                             keyBuffer,
-                             ZATTR_BUFFER_SIZE);
-  ndbrequire(noPrimKey != (Uint32)-1);
+  int ret= readAttributes(pagep.p,
+			  tupheadoffset,
+			  &tableDescriptor[regTabPtr->readKeyArray].tabDescr,
+			  regTabPtr->noOfKeyAttr,
+			  keyBuffer,
+			  ZATTR_BUFFER_SIZE,
+			  true);
+  ndbrequire(ret != -1);
+  noPrimKey= ret;
 
   Uint32 numAttrsToRead;
   if ((regOperPtr->optype == ZUPDATE) &&
@@ -787,13 +790,15 @@ bool Dbtup::readTriggerInfo(TupTriggerData* const trigPtr,
   if ((regOperPtr->optype != ZDELETE) ||
       (trigPtr->sendBeforeValues)) {
     ljam();
-    noMainWords = readAttributes(pagep.p,
-                                 tupheadoffset,
-                                 &readBuffer[0],
-                                 numAttrsToRead,
-                                 mainBuffer,
-                                 ZATTR_BUFFER_SIZE);
-    ndbrequire(noMainWords != (Uint32)-1);
+    int ret= readAttributes(pagep.p,
+			    tupheadoffset,
+			    &readBuffer[0],
+			    numAttrsToRead,
+			    mainBuffer,
+			    ZATTR_BUFFER_SIZE,
+			    true);
+    ndbrequire(ret != -1);
+    noMainWords= ret;
   } else {
     ljam();
     noMainWords = 0;
@@ -811,14 +816,16 @@ bool Dbtup::readTriggerInfo(TupTriggerData* const trigPtr,
     pagep.i = regOperPtr->realPageIdC;
     ptrCheckGuard(pagep, cnoOfPage, page);
 
-    noCopyWords = readAttributes(pagep.p,
-                                 tupheadoffset,
-                                 &readBuffer[0],
-                                 numAttrsToRead,
-                                 copyBuffer,
-                                 ZATTR_BUFFER_SIZE);
+    int ret= readAttributes(pagep.p,
+			    tupheadoffset,
+			    &readBuffer[0],
+			    numAttrsToRead,
+			    copyBuffer,
+			    ZATTR_BUFFER_SIZE,
+			    true);
 
-    ndbrequire(noCopyWords != (Uint32)-1);
+    ndbrequire(ret != -1);
+    noCopyWords = ret;
     if ((noMainWords == noCopyWords) &&
         (memcmp(mainBuffer, copyBuffer, noMainWords << 2) == 0)) {
 //--------------------------------------------------------------------
@@ -1071,6 +1078,7 @@ Dbtup::executeTuxCommitTriggers(Signal* signal,
     ndbrequire(tupVersion == regOperPtr->tupVersion);
   } else {
     ndbrequire(false);
+    tupVersion= 0; // remove warning
   }
   // fill in constant part
   req->tableId = regOperPtr->tableRef;
@@ -1115,6 +1123,7 @@ Dbtup::executeTuxAbortTriggers(Signal* signal,
     return;
   } else {
     ndbrequire(false);
+    tupVersion= 0; // remove warning
   }
   // fill in constant part
   req->tableId = regOperPtr->tableRef;

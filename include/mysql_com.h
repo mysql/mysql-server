@@ -50,13 +50,16 @@ enum enum_server_command
   COM_TABLE_DUMP, COM_CONNECT_OUT, COM_REGISTER_SLAVE,
   COM_PREPARE, COM_EXECUTE, COM_LONG_DATA, COM_CLOSE_STMT,
   COM_RESET_STMT, COM_SET_OPTION, COM_FETCH,
-  COM_END				/* Must be last */
+  /* don't forget to update const char *command_name[] in sql_parse.cc */
+
+  /* Must be last */
+  COM_END
 };
 
 
 /*
   Length of random string sent by server on handshake; this is also length of
-  obfuscated password, recieved from client 
+  obfuscated password, recieved from client
 */
 #define SCRAMBLE_LENGTH 20
 #define SCRAMBLE_LENGTH_323 8
@@ -155,6 +158,11 @@ enum enum_server_command
 struct st_vio;					/* Only C */
 typedef struct st_vio Vio;
 
+#define MAX_TINYINT_WIDTH       3       /* Max width for a TINY w.o. sign */
+#define MAX_SMALLINT_WIDTH      5       /* Max width for a SHORT w.o. sign */
+#define MAX_MEDIUMINT_WIDTH     8       /* Max width for a INT24 w.o. sign */
+#define MAX_INT_WIDTH           10      /* Max width for a LONG w.o. sign */
+#define MAX_BIGINT_WIDTH        20      /* Max width for a LONGLONG */
 #define MAX_CHAR_WIDTH		255	/* Max length for a CHAR colum */
 #define MAX_BLOB_WIDTH		8192	/* Default width for blob */
 

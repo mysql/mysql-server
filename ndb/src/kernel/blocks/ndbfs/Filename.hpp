@@ -67,13 +67,16 @@ public:
   const char* directory(int level);
   int levels() const;
   const char* c_str() const;
-   
-  void init(Uint32 nodeid, const char * fileSystemPath);
+
+  void init(Uint32 nodeid, const char * fileSystemPath,
+	    const char * backupDirPath);
 
 private:
   int theLevelDepth;
   char theName[PATH_MAX];
-  char theBaseDirectory[PATH_MAX];
+  char theFileSystemDirectory[PATH_MAX];
+  char theBackupDirectory[PATH_MAX];
+  char *theBaseDirectory;
   char theDirectory[PATH_MAX];
 };
 

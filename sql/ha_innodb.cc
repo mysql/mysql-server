@@ -20,10 +20,9 @@ NOTE: You can only use noninlined InnoDB functions in this file, because we
 have disables the InnoDB inlining in this file. */
 
 /* TODO list for the InnoDB handler in 4.1:
-  - Check if the query_id is now right also in prepared and executed stats
-    in build_template()
-  - Add multi-language char set support to CREATE TABLE and the comparison
-    of strings
+  - Remove the flag innodb_active_trans from thd and replace it with a
+    function call innodb_active_trans(thd), which looks at the InnoDB
+    trx struct state field
   - Find out what kind of problems the OS X case-insensitivity causes to
     table and database names; should we 'normalize' the names like we do
     in Windows?
@@ -41,6 +40,7 @@ have disables the InnoDB inlining in this file. */
 #include <hash.h>
 #include <myisampack.h>
 #include <mysys_err.h>
+#include <my_sys.h>
 
 #define MAX_ULONG_BIT ((ulong) 1 << (sizeof(ulong)*8-1))
 
@@ -117,6 +117,9 @@ uint	innobase_flush_log_at_trx_commit	= 1;
 my_bool innobase_log_archive			= FALSE;/* unused */
 my_bool	innobase_use_native_aio			= FALSE;
 my_bool	innobase_fast_shutdown			= TRUE;
+my_bool innobase_very_fast_shutdown		= FALSE; /* this can be set to
+							 1 just prior calling
+							 innobase_end() */
 my_bool	innobase_file_per_table			= FALSE;
 my_bool innobase_locks_unsafe_for_binlog        = FALSE;
 my_bool innobase_create_status_file		= FALSE;
@@ -299,7 +302,7 @@ convert_error_code_to_mysql(
 
         } else if (error == (int) DB_CANNOT_DROP_CONSTRAINT) {
 
-    		return(HA_ERR_CANNOT_ADD_FOREIGN); /* TODO: This is a bit
+    		return(HA_ERR_ROW_IS_REFERENCED); /* TODO: This is a bit
 						misleading, a new MySQL error
 						code should be introduced */
         } else if (error == (int) DB_COL_APPEARS_TWICE_IN_INDEX) {
@@ -424,6 +427,36 @@ innobase_mysql_print_thd(
 	}
 
 	putc('\n', f);
+}
+
+/**********************************************************************
+Compares NUL-terminated UTF-8 strings case insensitively.
+
+NOTE that the exact prototype of this function has to be in
+/innobase/dict/dict0dict.c! */
+extern "C"
+int
+innobase_strcasecmp(
+/*================*/
+				/* out: 0 if a=b, <0 if a<b, >1 if a>b */
+	const char*	a,	/* in: first string to compare */
+	const char*	b)	/* in: second string to compare */
+{
+	return(my_strcasecmp(system_charset_info, a, b));
+}
+
+/**********************************************************************
+Makes all characters in a NUL-terminated UTF-8 string lower case.
+
+NOTE that the exact prototype of this function has to be in
+/innobase/dict/dict0dict.c! */
+extern "C"
+void
+innobase_casedn_str(
+/*================*/
+	char*	a)	/* in/out: string to put in lower case */
+{
+	my_casedn_str(system_charset_info, a);
 }
 
 /*************************************************************************
@@ -684,14 +717,7 @@ innobase_query_caching_of_table_permitted(
 					    separator between db and table */
 	norm_name[full_name_len] = '\0';
 #ifdef __WIN__
-	/* Put to lower case */
-
-	char*	ptr = norm_name;
-
-	while (*ptr != '\0') {
-	        *ptr = tolower(*ptr);
-	        ptr++;
-	}
+	innobase_casedn_str(norm_name);
 #endif
 	/* The call of row_search_.. will start a new transaction if it is
 	not yet started */
@@ -736,15 +762,35 @@ innobase_invalidate_query_cache(
 }
 
 /*********************************************************************
-Get the quote character to be used in SQL identifiers. */
+Get the quote character to be used in SQL identifiers.
+This definition must match the one in innobase/ut/ut0ut.c! */
 extern "C"
-char
-mysql_get_identifier_quote_char(void)
-/*=================================*/
+int
+mysql_get_identifier_quote_char(
+/*============================*/
 				/* out: quote character to be
-				used in SQL identifiers */
+				used in SQL identifiers; EOF if none */
+	trx_t*		trx,	/* in: transaction */
+	const char*	name,	/* in: name to print */
+	ulint		namelen)/* in: length of name */
 {
-	return '`';
+	if (!trx || !trx->mysql_thd) {
+		return(EOF);
+	}
+	return(get_quote_char_for_identifier((THD*) trx->mysql_thd,
+						name, namelen));
+}
+
+/**************************************************************************
+Obtain a pointer to the MySQL THD object, as in current_thd().  This
+definition must match the one in sql/ha_innodb.cc! */
+extern "C"
+void*
+innobase_current_thd(void)
+/*======================*/
+			/* out: MySQL THD object */
+{
+	return(current_thd);
 }
 
 /*********************************************************************
@@ -782,6 +828,10 @@ ha_innobase::init_table_handle_for_HANDLER(void)
 
         trx_assign_read_view(prebuilt->trx);
 
+	/* Set the MySQL flag to mark that there is an active transaction */
+
+	current_thd->transaction.all.innodb_active_trans = 1;
+
         /* We did the necessary inits in this function, no need to repeat them
         in row_search_for_mysql */
 
@@ -791,6 +841,7 @@ ha_innobase::init_table_handle_for_HANDLER(void)
         if the trx isolation level would have been specified as SERIALIZABLE */
 
         prebuilt->select_lock_type = LOCK_NONE;
+        prebuilt->stored_select_lock_type = LOCK_NONE;
 
         /* Always fetch all columns in the index record */
 
@@ -829,7 +880,7 @@ innobase_init(void)
 	Note that when using the embedded server, the datadirectory is not
 	necessarily the current directory of this program. */
 
-	if (mysql_embedded) {
+	if (mysqld_embedded) {
 		default_path = mysql_real_data_home;
 		fil_path_to_mysql_datadir = mysql_real_data_home;
 	} else {
@@ -967,7 +1018,7 @@ innobase_init(void)
 	srv_max_n_open_files = (ulint) innobase_open_files;
 	srv_innodb_status = (ibool) innobase_create_status_file;
 
-	srv_print_verbose_log = mysql_embedded ? 0 : 1;
+	srv_print_verbose_log = mysqld_embedded ? 0 : 1;
 
 		/* Store the default charset-collation number of this MySQL
 	installation */
@@ -1043,6 +1094,15 @@ innobase_end(void)
 #endif
 	if (innodb_inited)
 	{
+	  if (innobase_very_fast_shutdown) {
+	    srv_very_fast_shutdown = TRUE;
+	    fprintf(stderr,
+"InnoDB: MySQL has requested a very fast shutdown without flushing\n"
+"InnoDB: the InnoDB buffer pool to data files. At the next mysqld startup\n"
+"InnoDB: InnoDB will do a crash recovery!\n");
+
+	  }
+
 	  innodb_inited= 0;
 	  if (innobase_shutdown_for_mysql() != DB_SUCCESS)
 	    err= 1;
@@ -1100,6 +1160,48 @@ innobase_commit_low(
 }
 
 /*********************************************************************
+Creates an InnoDB transaction struct for the thd if it does not yet have one.
+Starts a new InnoDB transaction if a transaction is not yet started. And
+assigns a new snapshot for a consistent read if the transaction does not yet
+have one. */
+
+int
+innobase_start_trx_and_assign_read_view(
+/*====================================*/
+			/* out: 0 */
+	THD*	thd)	/* in: MySQL thread handle of the user for whom
+			the transaction should be committed */
+{
+	trx_t*	trx;
+
+  	DBUG_ENTER("innobase_start_trx_and_assign_read_view");
+
+	/* Create a new trx struct for thd, if it does not yet have one */
+
+	trx = check_trx_exists(thd);
+
+	/* This is just to play safe: release a possible FIFO ticket and
+	search latch. Since we will reserve the kernel mutex, we have to
+	release the search system latch first to obey the latching order. */
+
+	innobase_release_stat_resources(trx);
+
+	/* If the transaction is not started yet, start it */
+
+	trx_start_if_not_started_noninline(trx);
+
+	/* Assign a read view if the transaction does not have it yet */
+
+	trx_assign_read_view(trx);
+
+	/* Set the MySQL flag to mark that there is an active transaction */
+
+	current_thd->transaction.all.innodb_active_trans = 1;
+
+	DBUG_RETURN(0);
+}
+
+/*********************************************************************
 Commits a transaction in an InnoDB database or marks an SQL statement
 ended. */
 
@@ -1130,8 +1232,10 @@ innobase_commit(
 
 	1. ::external_lock(),
 	2. ::start_stmt(),
-	3. innobase_query_caching_of_table_permitted(), and
+	3. innobase_query_caching_of_table_permitted(),
 	4. innobase_savepoint(),
+	5. ::init_table_handle_for_HANDLER(),
+	6. innobase_start_trx_and_assign_read_view()
 
 	and it is only set to 0 in a commit or a rollback. If it is 0 we know
 	there cannot be resources to be freed and we could return immediately.
@@ -1460,14 +1564,7 @@ normalize_table_name(
 	norm_name[name_ptr - db_ptr - 1] = '/';
 
 #ifdef __WIN__
-	/* Put to lower case */
-
-	ptr = norm_name;
-
-	while (*ptr != '\0') {
-	        *ptr = tolower(*ptr);
-	        ptr++;
-	}
+	innobase_casedn_str(norm_name);
 #endif
 }
 
@@ -1485,12 +1582,14 @@ ha_innobase::open(
 {
 	dict_table_t*	ib_table;
   	char		norm_name[1000];
+	THD*		thd;
 
 	DBUG_ENTER("ha_innobase::open");
 
 	UT_NOT_USED(mode);
 	UT_NOT_USED(test_if_locked);
 
+	thd = current_thd;
 	normalize_table_name(norm_name, name);
 
 	user_thd = NULL;
@@ -1540,7 +1639,7 @@ ha_innobase::open(
     		DBUG_RETURN(1);
   	}
 
- 	if (ib_table->ibd_file_missing && !current_thd->tablespace_op) {
+ 	if (ib_table->ibd_file_missing && !thd->tablespace_op) {
 	        ut_print_timestamp(stderr);
 	        fprintf(stderr, "  InnoDB error:\n"
 "MySQL is trying to open a table handle but the .ibd file for\n"
@@ -2106,11 +2205,6 @@ build_template(
 		templ = prebuilt->mysql_template + n_requested_fields;
 		field = table->field[i];
 
-		/* TODO: Check if the query_id is now right also in prepared
-		and executed SQL statements. Previously, MySQL-4.1 failed to
-		update field->query_id so that the formula
-		thd->query_id == field->query_id did not work. */
-
                 ibool index_contains_field=
                   dict_index_contains_col_or_prefix(index, i);
 
@@ -2221,8 +2315,8 @@ ha_innobase::write_row(
   	statistic_increment(current_thd->status_var.ha_write_count,
 			    &LOCK_status);
 
-        if (table->timestamp_default_now)
-                update_timestamp(record + table->timestamp_default_now - 1);
+        if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
+                table->timestamp_field->set_time();
 
 	if (last_query_id != user_thd->query_id) {
 	        prebuilt->sql_stat_start = TRUE;
@@ -2504,8 +2598,8 @@ ha_innobase::update_row(
 	ut_ad(prebuilt->trx ==
 		(trx_t*) current_thd->transaction.all.innobase_tid);
 
-        if (table->timestamp_on_update_now)
-                update_timestamp(new_row + table->timestamp_on_update_now - 1);
+        if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
+                table->timestamp_field->set_time();
 
 	if (last_query_id != user_thd->query_id) {
 	        prebuilt->sql_stat_start = TRUE;
@@ -2778,7 +2872,7 @@ ha_innobase::index_read(
 					(ulint)upd_and_key_val_buff_len,
 					index,
 					(byte*) key_ptr,
-					(ulint) key_len);
+					(ulint) key_len, prebuilt->trx);
 	} else {
 		/* We position the cursor to the last or the first entry
 		in the index */
@@ -3068,7 +3162,7 @@ ha_innobase::index_last(
 {
 	int	error;
 
-  	DBUG_ENTER("index_first");
+  	DBUG_ENTER("index_last");
   	statistic_increment(current_thd->status_var.ha_read_last_count,
 			    &LOCK_status);
 
@@ -3261,7 +3355,15 @@ create_table_def(
 	trx_t*		trx,		/* in: InnoDB transaction handle */
 	TABLE*		form,		/* in: information on table
 					columns and indexes */
-	const char*	table_name)	/* in: table name */
+	const char*	table_name,	/* in: table name */
+	const char*	path_of_temp_table)/* in: if this is a table explicitly
+					created by the user with the
+					TEMPORARY keyword, then this
+					parameter is the dir path where the
+					table should be placed if we create
+					an .ibd file for it (no .ibd extension
+					in the path, though); otherwise this
+					is NULL */
 {
 	Field*		field;
 	dict_table_t*	table;
@@ -3283,6 +3385,11 @@ create_table_def(
 	id where to store the table */
 
 	table = dict_mem_table_create((char*) table_name, 0, n_cols);
+
+	if (path_of_temp_table) {
+		table->dir_path_of_temp_table =
+			mem_heap_strdup(table->heap, path_of_temp_table);
+	}
 
 	for (i = 0; i < n_cols; i++) {
 		field = form->field[i];
@@ -3364,8 +3471,7 @@ create_index(
 
     	ind_type = 0;
 
-    	if (key_num == form->primary_key)
-	{
+    	if (key_num == form->primary_key) {
 		ind_type = ind_type | DICT_CLUSTERED;
 	}
 
@@ -3392,9 +3498,9 @@ create_index(
 
 			field = form->field[j];
 
-			if (0 == ut_cmp_in_lower_case(
-					(char*)field->field_name,
-					(char*)key_part->field->field_name)) {
+			if (0 == innobase_strcasecmp(
+					field->field_name,
+					key_part->field->field_name)) {
 				/* Found the corresponding column */
 
 				break;
@@ -3423,10 +3529,6 @@ create_index(
 			}
 		} else {
 		        prefix_len = 0;
-		}
-
-		if (prefix_len >= DICT_MAX_COL_PREFIX_LEN) {
-			DBUG_RETURN(-1);
 		}
 
 		/* We assume all fields should be sorted in ascending
@@ -3534,7 +3636,7 @@ ha_innobase::create(
 		srv_lower_case_table_names = FALSE;
 	}
 
-	fn_format(name2, name, "", "",2);	// Remove the .frm extension
+	fn_format(name2, name, "", "", 2);	// Remove the .frm extension
 
 	normalize_table_name(norm_name, name2);
 
@@ -3546,8 +3648,13 @@ ha_innobase::create(
 
 	/* Create the table definition in InnoDB */
 
-  	error = create_table_def(trx, form, norm_name);
-  	
+	if (create_info->options & HA_LEX_CREATE_TMP_TABLE) {
+
+  		error = create_table_def(trx, form, norm_name, name2);
+	} else {
+		error = create_table_def(trx, form, norm_name, NULL);
+	}
+
   	if (error) {
 		innobase_commit_low(trx);
 
@@ -3622,8 +3729,8 @@ ha_innobase::create(
   	}
 
 	if (current_thd->query != NULL) {
-
 		LEX_STRING q;
+
 		if (thd->convert_string(&q, system_charset_info,
 					current_thd->query,
 					current_thd->query_length,
@@ -3835,7 +3942,7 @@ innobase_drop_database(
 	namebuf[len] = '/';
 	namebuf[len + 1] = '\0';
 #ifdef  __WIN__
-	my_casedn_str(system_charset_info, namebuf);
+	innobase_casedn_str(namebuf);
 #endif
 	trx = trx_allocate_for_mysql();
 	trx->mysql_thd = current_thd;
@@ -3997,14 +4104,16 @@ ha_innobase::records_in_range(
 				index,
 				(byte*) (min_key ? min_key->key :
                                          (const mysql_byte*) 0),
-				(ulint) (min_key ? min_key->length : 0));
+				(ulint) (min_key ? min_key->length : 0),
+				prebuilt->trx);
 
 	row_sel_convert_mysql_key_to_innobase(
 				range_end, (byte*) key_val_buff2,
 				buff2_len, index,
 				(byte*) (max_key ? max_key->key :
                                          (const mysql_byte*) 0),
-				(ulint) (max_key ? max_key->length : 0));
+				(ulint) (max_key ? max_key->length : 0),
+				prebuilt->trx);
 
 	mode1 = convert_search_mode_to_innobase(min_key ? min_key->flag :
                                                 HA_READ_KEY_EXACT);
@@ -4038,7 +4147,7 @@ Gives an UPPER BOUND to the number of rows in a table. This is used in
 filesort.cc. */
 
 ha_rows
-ha_innobase::estimate_number_of_rows(void)
+ha_innobase::estimate_rows_upper_bound(void)
 /*======================================*/
 			/* out: upper bound of rows */
 {
@@ -4047,7 +4156,7 @@ ha_innobase::estimate_number_of_rows(void)
 	ulonglong	estimate;
 	ulonglong	local_data_file_length;
 
- 	DBUG_ENTER("estimate_number_of_rows");
+ 	DBUG_ENTER("estimate_rows_upper_bound");
 
 	/* We do not know if MySQL can call this function before calling
 	external_lock(). To be safe, update the thd of the current table
@@ -4127,7 +4236,7 @@ ha_innobase::read_time(
 
 	time_for_scan = scan_time();
 
-	if ((total_rows = estimate_number_of_rows()) < rows)
+	if ((total_rows = estimate_rows_upper_bound()) < rows)
 	  return time_for_scan;
 
 	return (ranges + (double) rows / (double) total_rows * time_for_scan);
@@ -4148,6 +4257,8 @@ ha_innobase::info(
 	ha_rows		rec_per_key;
 	ulong		j;
 	ulong		i;
+	char		path[FN_REFLEN];
+	os_file_stat_t  stat_info;
 
  	DBUG_ENTER("info");
 
@@ -4157,7 +4268,7 @@ ha_innobase::info(
 
         if (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE) {
 
-                return;
+                DBUG_VOID_RETURN;
         }
 
 	/* We do not know if MySQL can call this function before calling
@@ -4185,6 +4296,26 @@ ha_innobase::info(
 
 		prebuilt->trx->op_info = (char*)
 		                          "returning various info to MySQL";
+
+		if (ib_table->space != 0) {
+			my_snprintf(path, sizeof(path), "%s/%s%s",
+				    mysql_data_home, ib_table->name,
+				    ".ibd");
+			unpack_filename(path,path);
+		} else {
+			my_snprintf(path, sizeof(path), "%s/%s%s", 
+				    mysql_data_home, ib_table->name,
+				    reg_ext);
+		
+			unpack_filename(path,path);
+		}
+
+		/* Note that we do not know the access time of the table, 
+		nor the CHECK TABLE time, nor the UPDATE or INSERT time. */
+
+		if (os_file_get_status(path,&stat_info)) {
+			create_time = stat_info.ctime;
+		}
  	}
 
 	if (flag & HA_STATUS_VARIABLE) {
@@ -4391,7 +4522,8 @@ ha_innobase::update_table_comment(
       		   (ulong) fsp_get_available_space_in_free_extents(
       					prebuilt->table->space));
 
-		dict_print_info_on_foreign_keys(FALSE, file, prebuilt->table);
+		dict_print_info_on_foreign_keys(FALSE, file,
+				prebuilt->trx, prebuilt->table);
 		flen = ftell(file);
 		if(length + flen + 3 > 64000) {
 			flen = 64000 - 3 - length;
@@ -4457,7 +4589,8 @@ ha_innobase::get_foreign_key_create_info(void)
 		trx_search_latch_release_if_reserved(prebuilt->trx);
 
 		/* output the data to a temporary file */
-		dict_print_info_on_foreign_keys(TRUE, file, prebuilt->table);
+		dict_print_info_on_foreign_keys(TRUE, file,
+				prebuilt->trx, prebuilt->table);
 		prebuilt->trx->op_info = (char*)"";
 
 		flen = ftell(file);
@@ -4632,23 +4765,41 @@ ha_innobase::start_stmt(
 	        prepared for an update of a row */
 	  
 	        prebuilt->select_lock_type = LOCK_X;
-        } else {
-                if (thd->lex->sql_command == SQLCOM_SELECT
-                                        && thd->lex->lock_option == TL_READ) {
- 
-                        /* For other than temporary tables, we obtain
-                        no lock for consistent read (plain SELECT) */
- 
-                        prebuilt->select_lock_type = LOCK_NONE;
-                } else {
-                        /* Not a consistent read: use LOCK_X as the
-                        select_lock_type value (TODO: how could we know
-                        whether it should be LOCK_S, LOCK_X, or LOCK_NONE?) */
-
-                        prebuilt->select_lock_type = LOCK_X;
-                }
-        }
+	} else {
+		if (trx->isolation_level != TRX_ISO_SERIALIZABLE
+		    && thd->lex->sql_command == SQLCOM_SELECT
+		    && thd->lex->lock_option == TL_READ) {
 	
+			/* For other than temporary tables, we obtain
+			no lock for consistent read (plain SELECT). */
+
+			prebuilt->select_lock_type = LOCK_NONE;
+		} else {
+			/* Not a consistent read: restore the
+			select_lock_type value. The value of
+			stored_select_lock_type was decided in:
+			1) ::store_lock(),
+			2) ::external_lock(), and
+			3) ::init_table_handle_for_HANDLER(). */
+
+			prebuilt->select_lock_type =
+				prebuilt->stored_select_lock_type;
+		}
+
+		if (prebuilt->stored_select_lock_type != LOCK_S
+		    && prebuilt->stored_select_lock_type != LOCK_X) {
+			fprintf(stderr,
+"InnoDB: Error: stored_select_lock_type is %lu inside ::start_stmt()!\n",
+			prebuilt->stored_select_lock_type);
+
+			/* Set the value to LOCK_X: this is just fault
+			tolerance, we do not know what the correct value
+			should be! */
+
+			prebuilt->select_lock_type = LOCK_X;
+		}
+	}
+
 	/* Set the MySQL flag to mark that there is an active transaction */
 	thd->transaction.all.innodb_active_trans = 1;
 
@@ -4723,6 +4874,7 @@ ha_innobase::external_lock(
 		/* If this is a SELECT, then it is in UPDATE TABLE ...
 		or SELECT ... FOR UPDATE */
 		prebuilt->select_lock_type = LOCK_X;
+		prebuilt->stored_select_lock_type = LOCK_X;
 	}
 
 	if (lock_type != F_UNLCK) {
@@ -4758,7 +4910,8 @@ ha_innobase::external_lock(
 		}
 
 		if (prebuilt->select_lock_type != LOCK_NONE) {
-			if (thd->in_lock_tables) {
+			if (thd->in_lock_tables &&
+			    thd->variables.innodb_table_locks) {
 				ulint	error;
 				error = row_lock_table_for_mysql(prebuilt);
 
@@ -4975,14 +5128,22 @@ ha_innobase::store_lock(
 {
 	row_prebuilt_t* prebuilt	= (row_prebuilt_t*) innobase_prebuilt;
 
-	if (lock_type == TL_READ_WITH_SHARED_LOCKS ||
+	if ((lock_type == TL_READ && thd->in_lock_tables) ||
+	    (lock_type == TL_READ_HIGH_PRIORITY && thd->in_lock_tables) ||
+	    lock_type == TL_READ_WITH_SHARED_LOCKS ||
 	    lock_type == TL_READ_NO_INSERT) {
-		/* This is a SELECT ... IN SHARE MODE, or
-		we are doing a complex SQL statement like
+		/* The OR cases above are in this order:
+		1) MySQL is doing LOCK TABLES ... READ LOCAL, or
+		2) (we do not know when TL_READ_HIGH_PRIORITY is used), or
+		3) this is a SELECT ... IN SHARE MODE, or
+		4) we are doing a complex SQL statement like
 		INSERT INTO ... SELECT ... and the logical logging (MySQL
-		binlog) requires the use of a locking read */
+		binlog) requires the use of a locking read, or
+		MySQL is doing LOCK TABLES ... READ. */
 
 		prebuilt->select_lock_type = LOCK_S;
+		prebuilt->stored_select_lock_type = LOCK_S;
+
 	} else if (lock_type != TL_IGNORE) {
 
 	        /* In ha_berkeley.cc there is a comment that MySQL
@@ -4993,6 +5154,7 @@ ha_innobase::store_lock(
 		here even if this would be SELECT ... FOR UPDATE */
 
 		prebuilt->select_lock_type = LOCK_NONE;
+		prebuilt->stored_select_lock_type = LOCK_NONE;
 	}
 
 	if (lock_type != TL_IGNORE && lock.type == TL_UNLOCK) {
@@ -5155,14 +5317,13 @@ ha_innobase::get_auto_increment()
 }
 
 /***********************************************************************
-This function stores binlog offset and flushes logs */
+This function stores the binlog offset and flushes logs. */
 
 void 
 innobase_store_binlog_offset_and_flush_log(
-/*=============================*/
+/*=======================================*/
     char *binlog_name,          /* in: binlog name */
-    longlong offset             /* in: binlog offset */
-)
+    longlong 	offset)		/* in: binlog offset */
 {
 	mtr_t mtr;
 	
@@ -5172,7 +5333,7 @@ innobase_store_binlog_offset_and_flush_log(
         mtr_start_noninline(&mtr); 
 
 	/* Update the latest MySQL binlog name and offset info
-           in trx sys header */
+        in trx sys header */
 
         trx_sys_update_mysql_binlog_offset(
             binlog_name,
@@ -5235,18 +5396,121 @@ ha_innobase::cmp_ref(
 	return 0;
 }
 
-char *ha_innobase::get_mysql_bin_log_name()
+char*
+ha_innobase::get_mysql_bin_log_name()
 {
-  return trx_sys_mysql_bin_log_name;
+	return(trx_sys_mysql_bin_log_name);
 }
 
-ulonglong ha_innobase::get_mysql_bin_log_pos()
+ulonglong
+ha_innobase::get_mysql_bin_log_pos()
 {
-  /*
-    trx... is ib_longlong, which is a typedef for a 64-bit integer (__int64 or
-    longlong) so it's ok to cast it to ulonglong.
-  */
-  return trx_sys_mysql_bin_log_pos;
+  	/* trx... is ib_longlong, which is a typedef for a 64-bit integer
+	(__int64 or longlong) so it's ok to cast it to ulonglong. */
+
+  	return(trx_sys_mysql_bin_log_pos);
+}
+
+extern "C" {
+/**********************************************************************
+This function is used to find the storage length in bytes of the first n
+characters for prefix indexes using a multibyte character set. The function
+finds charset information and returns length of prefix_len characters in the
+index field in bytes.
+
+NOTE: the prototype of this function is copied to data0type.c! If you change
+this function, you MUST change also data0type.c! */
+
+ulint
+innobase_get_at_most_n_mbchars(
+/*===========================*/
+				/* out: number of bytes occupied by the first
+				n characters */
+	ulint charset_id,	/* in: character set id */
+	ulint prefix_len,	/* in: prefix length in bytes of the index
+				(this has to be divided by mbmaxlen to get the
+				number of CHARACTERS n in the prefix) */
+	ulint data_len,         /* in: length of the string in bytes */
+	const char* str)	/* in: character string */
+{
+	ulint char_length;	/* character length in bytes */
+	ulint n_chars;		/* number of characters in prefix */
+	CHARSET_INFO* charset;	/* charset used in the field */
+
+	charset = get_charset(charset_id, MYF(MY_WME));
+
+	ut_ad(charset);
+	ut_ad(charset->mbmaxlen);
+
+	/* Calculate how many characters at most the prefix index contains */
+
+	n_chars = prefix_len / charset->mbmaxlen;
+
+	/* If the charset is multi-byte, then we must find the length of the
+	first at most n chars in the string. If the string contains less
+	characters than n, then we return the length to the end of the last
+	character. */
+
+	if (charset->mbmaxlen > 1) {
+		/* my_charpos() returns the byte length of the first n_chars
+		characters, or a value bigger than the length of str, if
+		there were not enough full characters in str.
+
+		Why does the code below work:
+		Suppose that we are looking for n UTF-8 characters.
+
+		1) If the string is long enough, then the prefix contains at
+		least n complete UTF-8 characters + maybe some extra
+		characters + an incomplete UTF-8 character. No problem in
+		this case. The function returns the pointer to the
+		end of the nth character.
+
+		2) If the string is not long enough, then the string contains
+		the complete value of a column, that is, only complete UTF-8
+		characters, and we can store in the column prefix index the
+		whole string. */
+
+		char_length = my_charpos(charset, str,
+						str + data_len, n_chars);
+		if (char_length > data_len) {
+			char_length = data_len;
+		}		
+	} else {
+		if (data_len < prefix_len) {
+			char_length = data_len;
+		} else {
+			char_length = prefix_len;
+		}
+	}
+
+	return(char_length);
+}
+}
+
+extern "C" {
+/**********************************************************************
+This function returns true if SQL-query in the current thread
+is either REPLACE or LOAD DATA INFILE REPLACE. 
+NOTE that /mysql/innobase/row/row0ins.c must contain the 
+prototype for this function ! */
+
+ibool
+innobase_query_is_replace(void)
+/*===========================*/
+{
+	THD*	thd;
+	
+	thd = (THD *)innobase_current_thd();
+	
+	if ( thd->lex->sql_command == SQLCOM_REPLACE ||
+	     thd->lex->sql_command == SQLCOM_REPLACE_SELECT ||
+	     ( thd->lex->sql_command == SQLCOM_LOAD &&
+	       thd->lex->duplicates == DUP_REPLACE )) {
+		return true;
+	} else {
+		return false;
+	}
+}
 }
 
 #endif /* HAVE_INNOBASE_DB */

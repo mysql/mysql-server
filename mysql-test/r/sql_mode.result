@@ -74,7 +74,7 @@ t1	CREATE TABLE `t1` (
 set sql_mode="postgresql,oracle,mssql,db2,maxdb";
 select @@sql_mode;
 @@sql_mode
-PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,POSTGRESQL,ORACLE,MSSQL,DB2,MAXDB,NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS
+PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,POSTGRESQL,ORACLE,MSSQL,DB2,MAXDB,NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS,NO_AUTO_CREATE_USER
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE "t1" (
@@ -85,6 +85,29 @@ t1	CREATE TABLE "t1" (
   UNIQUE KEY "email" ("email")
 )
 drop table t1;
+set session sql_mode = '';
+create table t1 ( min_num   dec(6,6)     default .000001);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `min_num` decimal(7,6) default '0.000001'
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1 ;
+set session sql_mode = 'IGNORE_SPACE';
+create table t1 ( min_num   dec(6,6)     default 0.000001);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `min_num` decimal(7,6) default '0.000001'
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1 ;
+create table t1 ( min_num   dec(6,6)     default .000001);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `min_num` decimal(7,6) default '0.000001'
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1 ;
 SET @OLD_SQL_MODE=@@SQL_MODE, @@SQL_MODE='';
 show local variables like 'SQL_MODE';
 Variable_name	Value

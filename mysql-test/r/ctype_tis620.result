@@ -116,7 +116,7 @@ CREATE TABLE t1 (
 recid int(11) NOT NULL auto_increment,
 dyninfo text,
 PRIMARY KEY  (recid)
-) ENGINE=MyISAM;
+) ENGINE=MyISAM CHARACTER SET tis620;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2890,7 +2890,7 @@ SELECT 'a\t' < 'a';
 SELECT 'a\t' < 'a ';
 'a\t' < 'a '
 1
-CREATE TABLE t1 (a char(10) not null);
+CREATE TABLE t1 (a char(10) not null) CHARACTER SET tis620;
 INSERT INTO t1 VALUES ('a'),('a\0'),('a\t'),('a ');
 SELECT hex(a),STRCMP(a,'a'), STRCMP(a,'a ') FROM t1;
 hex(a)	STRCMP(a,'a')	STRCMP(a,'a ')

@@ -149,6 +149,9 @@ int runRestartInitial(NDBT_Context* ctx, NDBT_Step* step){
   if (restarter.restartAll(true) != 0)
     return NDBT_FAILED;
 
+  if (restarter.waitClusterStarted() != 0)
+    return NDBT_FAILED;
+  
   return NDBT_OK;
 }
 
@@ -215,7 +218,7 @@ int runDropTable(NDBT_Context* ctx, NDBT_Step* step){
 int runCreateBank(NDBT_Context* ctx, NDBT_Step* step){
   Bank bank;
   int overWriteExisting = true;
-  if (bank.createAndLoadBank(overWriteExisting) != NDBT_OK)
+  if (bank.createAndLoadBank(overWriteExisting, 10) != NDBT_OK)
     return NDBT_FAILED;
   return NDBT_OK;
 }
@@ -413,7 +416,6 @@ TESTCASE("BackupOne",
   INITIALIZER(runRestoreOne);
   VERIFIER(runVerifyOne);
   FINALIZER(runClearTable);
-  FINALIZER(runDropTable);
 }
 TESTCASE("BackupBank", 
 	 "Test that backup and restore works during transaction load\n"
@@ -427,6 +429,15 @@ TESTCASE("BackupBank",
 	 "4.  Drop bank\n"){
   INITIALIZER(runCreateBank);
   STEP(runBankTimer);
+  STEP(runBankTransactions);
+  STEP(runBankTransactions);
+  STEP(runBankTransactions);
+  STEP(runBankTransactions);
+  STEP(runBankTransactions);
+  STEP(runBankTransactions);
+  STEP(runBankTransactions);
+  STEP(runBankTransactions);
+  STEP(runBankTransactions);
   STEP(runBankTransactions);
   STEP(runBankGL);
   // TODO  STEP(runBankSum);
@@ -473,6 +484,7 @@ TESTCASE("FailSlave",
 NDBT_TESTSUITE_END(testBackup);
 
 int main(int argc, const char** argv){
+  ndb_init();
   return testBackup.execute(argc, argv);
 }
 

@@ -215,20 +215,10 @@ public:
 
 class Item_bool_rowready_func2 :public Item_bool_func2
 {
-  Item *orig_a, *orig_b; /* propagate_const can change parameters */
 public:
-  Item_bool_rowready_func2(Item *a,Item *b) :Item_bool_func2(a,b),
-    orig_a(a), orig_b(b)
+  Item_bool_rowready_func2(Item *a, Item *b) :Item_bool_func2(a, b)
   {
     allowed_arg_cols= a->cols();
-  }
-  void cleanup()
-  {
-    DBUG_ENTER("Item_bool_rowready_func2::cleanup");
-    Item_bool_func2::cleanup();
-    tmp_arg[0]= orig_a;
-    tmp_arg[1]= orig_b;
-    DBUG_VOID_RETURN;
   }
   Item *neg_transformer(THD *thd);
   virtual Item *negated_item();
@@ -483,6 +473,7 @@ public:
   const char *func_name() const { return "nullif"; }
   void print(String *str) { Item_func::print(str); }
   table_map not_null_tables() const { return 0; }
+  bool is_null();
 };
 
 
@@ -893,7 +884,7 @@ public:
   char escape;
 
   Item_func_like(Item *a,Item *b, Item *escape_arg)
-    :Item_bool_func2(a,b), canDoTurboBM(false), pattern(0), pattern_len(0), 
+    :Item_bool_func2(a,b), canDoTurboBM(FALSE), pattern(0), pattern_len(0), 
      bmGs(0), bmBc(0), escape_item(escape_arg) {}
   longlong val_int();
   enum Functype functype() const { return LIKE_FUNC; }
@@ -970,7 +961,7 @@ public:
   table_map used_tables() const;
   void update_used_tables();
   void print(String *str);
-  void split_sum_func(Item **ref_pointer_array, List<Item> &fields);
+  void split_sum_func(THD *thd, Item **ref_pointer_array, List<Item> &fields);
   friend int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds);
   void top_level_item() { abort_on_null=1; }
   void copy_andor_arguments(THD *thd, Item_cond *item);
@@ -1081,7 +1072,7 @@ public:
   { return fields.head()->collation.collation; }
 }; 
 
-class COND_EQUAL
+class COND_EQUAL: public Sql_alloc
 {
 public:
   uint max_members;               /* max number of members the current level

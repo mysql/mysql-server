@@ -867,7 +867,7 @@ NdbBlob::readParts(char* buf, Uint32 part, Uint32 count)
   while (n < count) {
     NdbOperation* tOp = theNdbCon->getNdbOperation(theBlobTable);
     if (tOp == NULL ||
-        tOp->readTuple() == -1 ||
+        tOp->committedRead() == -1 ||
         setPartKeyValue(tOp, part + n) == -1 ||
         tOp->getValue((Uint32)3, buf) == NULL) {
       setErrorCode(tOp);
@@ -1440,11 +1440,11 @@ NdbOut&
 operator<<(NdbOut& out, const NdbBlob& blob)
 {
   ndbout << dec << "o=" << blob.getOperationType();
-  ndbout << dec << " s=" << blob.theState;
+  ndbout << dec << " s=" << (Uint32) blob.theState;
   ndbout << dec << " n=" << blob.theNullFlag;;
   ndbout << dec << " l=" << blob.theLength;
   ndbout << dec << " p=" << blob.thePos;
-  ndbout << dec << " u=" << blob.theHeadInlineUpdateFlag;
+  ndbout << dec << " u=" << (Uint32) blob.theHeadInlineUpdateFlag;
   return out;
 }
 #endif

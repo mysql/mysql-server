@@ -592,7 +592,7 @@ void Qmgr::execCM_REGCONF(Signal* signal)
   if (!ndbCompatible_ndb_ndb(NDB_VERSION, cmRegConf->presidentVersion)) {
     jam();
     char buf[128];
-    snprintf(buf,sizeof(buf),"incompatible version own=0x%x other=0x%x, shutting down", NDB_VERSION, cmRegConf->presidentVersion);
+    BaseString::snprintf(buf,sizeof(buf),"incompatible version own=0x%x other=0x%x, shutting down", NDB_VERSION, cmRegConf->presidentVersion);
     systemErrorLab(signal, buf);
     return;
   }
@@ -1666,7 +1666,7 @@ void Qmgr::checkStartInterface(Signal* signal)
       } else {
 	if(((nodePtr.p->alarmCount + 1) % 60) == 0){
 	  char buf[100];
-	  snprintf(buf, sizeof(buf), 
+	  BaseString::snprintf(buf, sizeof(buf), 
 		   "Failure handling of node %d has not completed in %d min."
 		   " - state = %d",
 		   nodePtr.i, 
@@ -1760,8 +1760,8 @@ void Qmgr::execAPI_FAILCONF(Signal* signal)
   } else {
     jam();
 #ifdef VM_TRACE
-    ndbout << "failedNodePtr.p->failState = " << failedNodePtr.p->failState
-	   << endl;
+    ndbout << "failedNodePtr.p->failState = "
+	   << (Uint32)(failedNodePtr.p->failState) << endl;
 #endif   
     systemErrorLab(signal);
   }//if
@@ -1932,10 +1932,6 @@ void Qmgr::execAPI_REGREQ(Signal* signal)
 
   bool compatability_check;
   switch(getNodeInfo(apiNodePtr.i).getType()){
-  case NodeInfo::DB:
-  case NodeInfo::INVALID:
-    sendApiRegRef(signal, ref, ApiRegRef::WrongType);
-    return;
   case NodeInfo::API:
     compatability_check = ndbCompatible_ndb_api(NDB_VERSION, version);
     break;
@@ -1945,6 +1941,11 @@ void Qmgr::execAPI_REGREQ(Signal* signal)
   case NodeInfo::REP:
     compatability_check = ndbCompatible_ndb_api(NDB_VERSION, version);
     break;
+  case NodeInfo::DB:
+  case NodeInfo::INVALID:
+  default:
+    sendApiRegRef(signal, ref, ApiRegRef::WrongType);
+    return;
   }
 
   if (!compatability_check) {
@@ -2672,7 +2673,7 @@ void Qmgr::systemErrorBecauseOtherNodeFailed(Signal* signal,
   failReport(signal, getOwnNodeId(), (UintR)ZTRUE, FailRep::ZOWN_FAILURE);
 
   char buf[100];
-  snprintf(buf, 100, 
+  BaseString::snprintf(buf, 100, 
 	   "Node was shutdown during startup because node %d failed",
 	   failedNodeId);
 

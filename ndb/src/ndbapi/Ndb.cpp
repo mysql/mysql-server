@@ -207,9 +207,11 @@ Remark:        Disconnect all connections to the database.
 void 
 Ndb::doDisconnect()
 {
+  DBUG_ENTER("Ndb::doDisconnect");
   NdbConnection* tNdbCon;
   CHECK_STATUS_MACRO_VOID;
 
+  DBUG_PRINT("info", ("theNoOfDBnodes=%d", theNoOfDBnodes));
   Uint32 tNoOfDbNodes = theNoOfDBnodes;
   UintR i;
   for (i = 0; i < tNoOfDbNodes; i++) {
@@ -227,6 +229,7 @@ Ndb::doDisconnect()
     tNdbCon = tNdbCon->theNext;
     releaseConnectToNdb(tmpNdbCon);
   }//while
+  DBUG_VOID_RETURN;
 }//Ndb::disconnect()
 
 /*****************************************************************************
@@ -239,51 +242,62 @@ Remark:         Waits until a node has status != 0
 int
 Ndb::waitUntilReady(int timeout)
 {
+  DBUG_ENTER("Ndb::waitUntilReady");
   int secondsCounter = 0;
   int milliCounter = 0;
   int noChecksSinceFirstAliveFound = 0;
+  int id;
 
   if (theInitState != Initialised) {
     // Ndb::init is not called
     theError.code = 4256;
-    return -1;
+    DBUG_RETURN(-1);
   }
 
   do {
-    unsigned int foundAliveNode = 0;
-    TransporterFacade *tp = TransporterFacade::instance();
-    tp->lock_mutex();
-    for (unsigned int i = 0; i < theNoOfDBnodes; i++) {
-      const NodeId nodeId = theDBnodes[i];
-      //************************************************
-      // If any node is answering, ndb is answering
-      //************************************************
-      if (tp->get_node_alive(nodeId) != 0) {
-	foundAliveNode++;
+    if ((id = theNode) != 0) {
+      unsigned int foundAliveNode = 0;
+      TransporterFacade *tp = TransporterFacade::instance();
+      tp->lock_mutex();
+      for (unsigned int i = 0; i < theNoOfDBnodes; i++) {
+	const NodeId nodeId = theDBnodes[i];
+	//************************************************
+	// If any node is answering, ndb is answering
+	//************************************************
+	if (tp->get_node_alive(nodeId) != 0) {
+	  foundAliveNode++;
+	}//if
+      }//for
+      
+      tp->unlock_mutex();
+      if (foundAliveNode == theNoOfDBnodes) {
+	DBUG_RETURN(0);
       }//if
-    }//for
-    
-    tp->unlock_mutex();
-    if (foundAliveNode == theNoOfDBnodes) {
-      return 0;
-    }//if
-    if (foundAliveNode > 0) {
-      noChecksSinceFirstAliveFound++;
-    }//if
-    if (noChecksSinceFirstAliveFound > 30) {
-      return 0;
-    }//if
+      if (foundAliveNode > 0) {
+	noChecksSinceFirstAliveFound++;
+      }//if
+      if (noChecksSinceFirstAliveFound > 30) {
+	DBUG_RETURN(0);
+      }//if
+    }//if theNode != 0
+    if (secondsCounter >= timeout)
+      break;
     NdbSleep_MilliSleep(100);
     milliCounter += 100;
     if (milliCounter >= 1000) {
       secondsCounter++;
       milliCounter = 0;
     }//if
-  } while ( secondsCounter < timeout );
+  } while (1);
+  if (id == 0) {
+    theError.code = 4269;
+    DBUG_RETURN(-1);
+  }
   if (noChecksSinceFirstAliveFound > 0) {
-    return 0;
+    DBUG_RETURN(0);
   }//if
-  return -1;
+  theError.code = 4009;
+  DBUG_RETURN(-1);
 }
 
 /*****************************************************************************
@@ -296,6 +310,7 @@ Remark:         Start transaction. Synchronous.
 NdbConnection* 
 Ndb::startTransaction(Uint32 aPriority, const char * keyData, Uint32 keyLen)
 {
+  DBUG_ENTER("Ndb::startTransaction");
 
   if (theInitState == Initialised) {
     theError.code = 0;
@@ -312,9 +327,14 @@ Ndb::startTransaction(Uint32 aPriority, const char * keyData, Uint32 keyLen)
     } else {
       nodeId = 0;
     }//if
-    return startTransactionLocal(aPriority, nodeId);
+    {
+      NdbConnection *trans= startTransactionLocal(aPriority, nodeId);
+      DBUG_PRINT("exit",("start trans: 0x%x transid: 0x%llx",
+			 trans, trans ? trans->getTransactionId() : 0));
+      DBUG_RETURN(trans);
+    }
   } else {
-    return NULL;
+    DBUG_RETURN(NULL);
   }//if
 }//Ndb::startTransaction()
 
@@ -329,9 +349,13 @@ Remark:         Start transaction. Synchronous.
 NdbConnection* 
 Ndb::hupp(NdbConnection* pBuddyTrans)
 {
+  DBUG_ENTER("Ndb::hupp");
+
+  DBUG_PRINT("enter", ("trans: 0x%x",pBuddyTrans));
+
   Uint32 aPriority = 0;
   if (pBuddyTrans == NULL){
-    return startTransaction();
+    DBUG_RETURN(startTransaction());
   }
 
   if (theInitState == Initialised) {
@@ -341,19 +365,22 @@ Ndb::hupp(NdbConnection* pBuddyTrans)
     Uint32 nodeId = pBuddyTrans->getConnectedNodeId();
     NdbConnection* pCon = startTransactionLocal(aPriority, nodeId);
     if(pCon == NULL)
-      return NULL;
+      DBUG_RETURN(NULL);
 
     if (pCon->getConnectedNodeId() != nodeId){
       // We could not get a connection to the desired node
       // release the connection and return NULL
       closeTransaction(pCon);
-      return NULL;
+      theError.code = 4006;
+      DBUG_RETURN(NULL);
     }
     pCon->setTransactionId(pBuddyTrans->getTransactionId());
     pCon->setBuddyConPtr((Uint32)pBuddyTrans->getTC_ConnectPtr());
-    return pCon;
+    DBUG_PRINT("exit", ("hupp trans: 0x%x transid: 0x%llx",
+			pCon, pCon ? pCon->getTransactionId() : 0));
+    DBUG_RETURN(pCon);
   } else {
-    return NULL;
+    DBUG_RETURN(NULL);
   }//if
 }//Ndb::hupp()
 
@@ -387,7 +414,10 @@ Ndb::startTransactionDGroup(Uint32 aPriority, const char * keyData, int type)
       fragmentId = getFragmentId(hashValue);    
     }//if
     Uint32 nodeId     = guessPrimaryNode(fragmentId);
-    return startTransactionLocal(aPriority, nodeId);
+    NdbConnection* trans= startTransactionLocal(aPriority, nodeId);
+    DBUG_PRINT("exit", ("start DGroup trans: 0x%x transid: 0x%llx",
+			trans, trans ? trans->getTransactionId() : 0));
+    return trans;
   } else {
     return NULL;
   }//if
@@ -404,11 +434,14 @@ Ndb::startTransactionLocal(Uint32 aPriority, Uint32 nodeId)
   }
 #endif
 
+  DBUG_ENTER("Ndb::startTransactionLocal");
+  DBUG_PRINT("enter", ("nodeid: %d", nodeId));
+
   NdbConnection* tConnection;
   Uint64 tFirstTransId = theFirstTransId;
   tConnection = doConnect(nodeId);
   if (tConnection == NULL) {
-    return NULL;
+    DBUG_RETURN(NULL);
   }//if
   NdbConnection* tConNext = theTransactionList;
   tConnection->init();
@@ -431,7 +464,7 @@ Ndb::startTransactionLocal(Uint32 aPriority, Uint32 nodeId)
     abort();
   }
 #endif
-  return tConnection;
+  DBUG_RETURN(tConnection);
 }//Ndb::startTransactionLocal()
 
 /*****************************************************************************
@@ -443,6 +476,7 @@ Remark:         Close transaction by releasing the connection and all operations
 void
 Ndb::closeTransaction(NdbConnection* aConnection)
 {
+  DBUG_ENTER("Ndb::closeTransaction");
   NdbConnection* tCon;
   NdbConnection* tPreviousCon;
 
@@ -454,12 +488,18 @@ Ndb::closeTransaction(NdbConnection* aConnection)
 #ifdef VM_TRACE
     printf("NULL into closeTransaction\n");
 #endif
-    return;
+    DBUG_VOID_RETURN;
   }//if
   CHECK_STATUS_MACRO_VOID;
   
   tCon = theTransactionList;
   
+  DBUG_PRINT("info",("close trans: 0x%x transid: 0x%llx",
+		     aConnection, aConnection->getTransactionId()));
+  DBUG_PRINT("info",("magic number: 0x%x TCConPtr: 0x%x theMyRef: 0x%x 0x%x",
+		     aConnection->theMagicNumber, aConnection->theTCConPtr,
+		     aConnection->theMyRef, getReference()));
+
   if (aConnection == tCon) {		// Remove the active connection object
     theTransactionList = tCon->next();	// from the transaction list.
   } else { 
@@ -479,14 +519,14 @@ Ndb::closeTransaction(NdbConnection* aConnection)
 	  printf("Scan timeout:ed NdbConnection-> "
 		 "not returning it-> memory leak\n");
 #endif
-	  return;
+	  DBUG_VOID_RETURN;
 	}
 
 #ifdef VM_TRACE
 	printf("Non-existing transaction into closeTransaction\n");
 	abort();
 #endif
-	return;
+	DBUG_VOID_RETURN;
       }//if
       tPreviousCon = tCon;
       tCon = tCon->next();
@@ -505,7 +545,7 @@ Ndb::closeTransaction(NdbConnection* aConnection)
 #ifdef VM_TRACE
     printf("Con timeout:ed NdbConnection-> not returning it-> memory leak\n");
 #endif
-    return;
+    DBUG_VOID_RETURN;
   }
   
   if (aConnection->theReleaseOnClose == false) {
@@ -515,11 +555,12 @@ Ndb::closeTransaction(NdbConnection* aConnection)
     Uint32 nodeId = aConnection->getConnectedNodeId();
     aConnection->theNext = theConnectionArray[nodeId];
     theConnectionArray[nodeId] = aConnection;
-    return;
+    DBUG_VOID_RETURN;
   } else {
     aConnection->theReleaseOnClose = false;
     releaseNdbCon(aConnection);
   }//if
+  DBUG_VOID_RETURN;
 }//Ndb::closeTransaction()
 
 /*****************************************************************************
@@ -729,15 +770,18 @@ Uint64
 Ndb::getAutoIncrementValue(const char* aTableName, Uint32 cacheSize)
 {
   DEBUG_TRACE("getAutoIncrementValue");
-  const NdbTableImpl* table = theDictionary->getTable(aTableName);
-  if (table == 0)
+  const char * internalTableName = internalizeTableName(aTableName);
+  Ndb_local_table_info *info=
+    theDictionary->get_local_table_info(internalTableName, false);
+  if (info == 0)
     return ~0;
+  const NdbTableImpl *table= info->m_table_impl;
   Uint64 tupleId = getTupleIdFromNdb(table->m_tableId, cacheSize);
   return tupleId;
 }
 
 Uint64
-Ndb::getAutoIncrementValue(NdbDictionary::Table * aTable, Uint32 cacheSize)
+Ndb::getAutoIncrementValue(const NdbDictionary::Table * aTable, Uint32 cacheSize)
 {
   DEBUG_TRACE("getAutoIncrementValue");
   if (aTable == 0)
@@ -775,14 +819,16 @@ Ndb::readAutoIncrementValue(const char* aTableName)
 {
   DEBUG_TRACE("readtAutoIncrementValue");
   const NdbTableImpl* table = theDictionary->getTable(aTableName);
-  if (table == 0)
+  if (table == 0) {
+    theError= theDictionary->getNdbError();
     return ~0;
+  }
   Uint64 tupleId = readTupleIdFromNdb(table->m_tableId);
   return tupleId;
 }
 
 Uint64
-Ndb::readAutoIncrementValue(NdbDictionary::Table * aTable)
+Ndb::readAutoIncrementValue(const NdbDictionary::Table * aTable)
 {
   DEBUG_TRACE("readtAutoIncrementValue");
   if (aTable == 0)
@@ -806,14 +852,19 @@ bool
 Ndb::setAutoIncrementValue(const char* aTableName, Uint64 val, bool increase)
 {
   DEBUG_TRACE("setAutoIncrementValue " << val);
-  const NdbTableImpl* table = theDictionary->getTable(aTableName);
-  if (table == 0)
+  const char * internalTableName= internalizeTableName(aTableName);
+  Ndb_local_table_info *info=
+    theDictionary->get_local_table_info(internalTableName, false);
+  if (info == 0) {
+    theError= theDictionary->getNdbError();
     return false;
+  }
+  const NdbTableImpl* table= info->m_table_impl;
   return setTupleIdInNdb(table->m_tableId, val, increase);
 }
 
 bool
-Ndb::setAutoIncrementValue(NdbDictionary::Table * aTable, Uint64 val, bool increase)
+Ndb::setAutoIncrementValue(const NdbDictionary::Table * aTable, Uint64 val, bool increase)
 {
   DEBUG_TRACE("setAutoIncrementValue " << val);
   if (aTable == 0)
@@ -827,8 +878,10 @@ Ndb::setTupleIdInNdb(const char* aTableName, Uint64 val, bool increase )
 {
   DEBUG_TRACE("setTupleIdInNdb");
   const NdbTableImpl* table = theDictionary->getTable(aTableName);
-  if (table == 0)
+  if (table == 0) {
+    theError= theDictionary->getNdbError();
     return false;
+  }
   return setTupleIdInNdb(table->m_tableId, val, increase);
 }
 
@@ -1050,6 +1103,9 @@ Ndb::StartTransactionNodeSelectionData::init(Uint32 noOfNodes,
    * This algorithm should be implemented in Dbdih
    */
   {
+    if (fragment2PrimaryNodeMap != 0)
+      abort();
+
     fragment2PrimaryNodeMap = new Uint32[noOfFragments];
     Uint32 i;  
     for(i = 0; i<noOfNodes; i++){
@@ -1102,13 +1158,13 @@ const char * Ndb::getCatalogName() const
 void Ndb::setCatalogName(const char * a_catalog_name)
 {
   if (a_catalog_name) {
-    snprintf(theDataBase, sizeof(theDataBase), "%s",
+    BaseString::snprintf(theDataBase, sizeof(theDataBase), "%s",
              a_catalog_name ? a_catalog_name : "");
-
-    int len = snprintf(prefixName, sizeof(prefixName), "%s%c%s%c",
+    
+    int len = BaseString::snprintf(prefixName, sizeof(prefixName), "%s%c%s%c",
                        theDataBase, table_name_separator,
                        theDataBaseSchema, table_name_separator);
-    prefixEnd = prefixName + (len < sizeof(prefixName) ? len : 
+    prefixEnd = prefixName + (len < (int) sizeof(prefixName) ? len : 
                               sizeof(prefixName) - 1);
   }
 }
@@ -1121,13 +1177,13 @@ const char * Ndb::getSchemaName() const
 void Ndb::setSchemaName(const char * a_schema_name)
 {
   if (a_schema_name) {
-    snprintf(theDataBaseSchema, sizeof(theDataBase), "%s",
+    BaseString::snprintf(theDataBaseSchema, sizeof(theDataBase), "%s",
              a_schema_name ? a_schema_name : "");
 
-    int len = snprintf(prefixName, sizeof(prefixName), "%s%c%s%c",
+    int len = BaseString::snprintf(prefixName, sizeof(prefixName), "%s%c%s%c",
                        theDataBase, table_name_separator,
                        theDataBaseSchema, table_name_separator);
-    prefixEnd = prefixName + (len < sizeof(prefixName) ? len : 
+    prefixEnd = prefixName + (len < (int) sizeof(prefixName) ? len : 
                               sizeof(prefixName) - 1);
   }
 }
@@ -1153,11 +1209,6 @@ const char * Ndb::getDatabaseSchemaName() const
 void Ndb::setDatabaseSchemaName(const char * a_schema_name)
 {
   setSchemaName(a_schema_name);
-}
- 
-void Ndb::useFullyQualifiedNames(bool turnNamingOn)
-{
-  fullyQualifiedNames = turnNamingOn;
 }
  
 bool Ndb::usingFullyQualifiedNames()
@@ -1314,7 +1365,8 @@ Ndb::pollEvents(int aMillisecondNumber)
 
 #ifdef VM_TRACE
 #include <NdbMutex.h>
-static NdbMutex print_state_mutex = NDB_MUTEX_INITIALIZER;
+extern NdbMutex *ndb_print_state_mutex;
+
 static bool
 checkdups(NdbConnection** list, unsigned no)
 {
@@ -1332,7 +1384,7 @@ Ndb::printState(const char* fmt, ...)
   va_start(ap, fmt);
   vsprintf(buf, fmt, ap);
   va_end(ap);
-  NdbMutex_Lock(&print_state_mutex);
+  NdbMutex_Lock(ndb_print_state_mutex);
   bool dups = false;
   ndbout << buf << " ndb=" << hex << this << dec;
 #ifndef NDB_WIN32
@@ -1370,7 +1422,7 @@ Ndb::printState(const char* fmt, ...)
   }
   for (unsigned i = 0; i < theNoOfCompletedTransactions; i++)
     theCompletedTransactionsArray[i]->printState();
-  NdbMutex_Unlock(&print_state_mutex);
+  NdbMutex_Unlock(ndb_print_state_mutex);
 }
 #endif
 

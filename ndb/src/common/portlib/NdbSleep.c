@@ -16,16 +16,21 @@
 
 
 #include <ndb_global.h>
-#include "NdbSleep.h"
+#include <my_sys.h>
+#include <NdbSleep.h>
 
 int
 NdbSleep_MilliSleep(int milliseconds){
+  my_sleep(milliseconds*1000);
+  return 0;
+#if 0
   int result = 0;
   struct timespec sleeptime;
   sleeptime.tv_sec = milliseconds / 1000;
   sleeptime.tv_nsec = (milliseconds - (sleeptime.tv_sec * 1000)) * 1000000;
   result = nanosleep(&sleeptime, NULL);
   return result;
+#endif
 }
 
 int

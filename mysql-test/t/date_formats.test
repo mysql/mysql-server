@@ -118,8 +118,11 @@ SET datetime_format=default;
 # Test of str_to_date
 #
 
+# PS doesn't support fraction of a seconds
+--disable_ps_protocol
 select str_to_date(concat('15-01-2001',' 2:59:58.999'),
 	           concat('%d-%m-%Y',' ','%H:%i:%s.%f'));
+--enable_ps_protocol
 
 create table t1 (date char(30), format char(30) not null);
 insert into t1 values
@@ -153,7 +156,8 @@ insert into t1 values
 ('15-01-20', '%d-%m-%y'),
 ('15-2001-1', '%d-%Y-%c');
 
-# Use through protocol functions
+# PS doesn't support fractional seconds
+--disable_ps_protocol
 select date,format,str_to_date(date, format) as str_to_date from t1;
 # Use as a string
 select date,format,concat('',str_to_date(date, format)) as con from t1;
@@ -198,6 +202,7 @@ select date,format,str_to_date(date, format) as str_to_date from t1;
 select date,format,concat(str_to_date(date, format),'') as con from t1;
 
 drop table t1;
+--enable_ps_protocol
 
 #
 # Test of get_format
@@ -221,6 +226,8 @@ insert into t1 values ('2004-07-14'),('2005-07-14');
 select date_format(d,"%d") from t1 order by 1;
 drop table t1;
 
+# PS doesn't support fractional seconds
+--disable_ps_protocol
 select str_to_date("2003-....01ABCD-02 10:11:12.0012", "%Y-%.%m%@-%d %H:%i:%S.%f") as a;
 
 
@@ -249,3 +256,4 @@ select str_to_date("2003-01-02 10:11:12.0012ABCD", "%Y-%m-%d %H:%i:%S.%f") as f1
 
 select str_to_date("2003-04-05  g", "%Y-%m-%d") as f1,
        str_to_date("2003-04-05 10:11:12.101010234567", "%Y-%m-%d %H:%i:%S.%f") as f2;
+--enable_ps_protocol

@@ -1,6 +1,20 @@
+/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB & Sasha
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+
 #ifdef HAVE_REPLICATION
-#ifndef REPL_FAILSAFE_H
-#define REPL_FAILSAFE_H
 
 #include "mysql.h"
 #include "my_sys.h"
@@ -35,5 +49,4 @@ void end_slave_list();
 int register_slave(THD* thd, uchar* packet, uint packet_length);
 void unregister_slave(THD* thd, bool only_mine, bool need_mutex);
 
-#endif
 #endif /* HAVE_REPLICATION */

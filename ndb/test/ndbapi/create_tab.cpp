@@ -25,6 +25,7 @@
 
 
 int main(int argc, const char** argv){
+  ndb_init();
 
   int _temp = false;
   int _help = 0;

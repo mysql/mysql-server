@@ -135,6 +135,7 @@ trx_rseg_mem_create(
 	trx_ulogf_t*	undo_log_hdr;
 	fil_addr_t	node_addr;
 	ulint		sum_of_undo_sizes;
+	ulint		len;
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
@@ -166,7 +167,9 @@ trx_rseg_mem_create(
 							MLOG_4BYTES, mtr)
 			  + 1 + sum_of_undo_sizes;
 
-	if (flst_get_len(rseg_header + TRX_RSEG_HISTORY, mtr) > 0) {
+	len = flst_get_len(rseg_header + TRX_RSEG_HISTORY, mtr);
+	if (len > 0) {
+		trx_sys->rseg_history_len += len;
 
 		node_addr = trx_purge_get_log_from_hist(
 			      flst_get_last(rseg_header + TRX_RSEG_HISTORY,
@@ -205,6 +208,8 @@ trx_rseg_list_and_array_init(
 	ulint	space;
 
 	UT_LIST_INIT(trx_sys->rseg_list);
+
+	trx_sys->rseg_history_len = 0;
 
 	for (i = 0; i < TRX_SYS_N_RSEGS; i++) {
 

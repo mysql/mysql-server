@@ -2,6 +2,9 @@
 # Test of replicating user variables
 #
 source include/master-slave.inc;
+# Disable PS as the log positions differs
+--disable_ps_protocol
+
 
 # Clean up old slave's binlogs.
 # The slave is started with --log-slave-updates

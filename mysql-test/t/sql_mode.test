@@ -30,6 +30,27 @@ show create table t1;
 drop table t1;
 
 #
+# BUG#5318 - failure: 'IGNORE_SPACE' affects numeric values after DEFAULT
+#
+# Force the usage of the default
+set session sql_mode = '';
+# statement for comparison, value starts with '.'
+create table t1 ( min_num   dec(6,6)     default .000001);
+show create table t1;
+drop table t1 ;
+#
+set session sql_mode = 'IGNORE_SPACE';
+# statement for comparison, value starts with '0'
+create table t1 ( min_num   dec(6,6)     default 0.000001);
+show create table t1;
+drop table t1 ;
+# This statement fails, value starts with '.'
+create table t1 ( min_num   dec(6,6)     default .000001);
+show create table t1;
+drop table t1 ;
+
+
+#
 # test for 
 #  WL 1941 "NO_C_ESCAPES sql_mode"
 #

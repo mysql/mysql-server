@@ -197,17 +197,16 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 #ifdef DONT_ALLOW_FULL_LOAD_DATA_PATHS
     ex->file_name+=dirname_length(ex->file_name);
 #endif
-    if (!dirname_length(ex->file_name) &&
-	strlen(ex->file_name)+strlen(mysql_real_data_home)+strlen(tdb)+3 <
-	FN_REFLEN)
+    if (!dirname_length(ex->file_name))
     {
-      (void) sprintf(name,"%s%s/%s",mysql_real_data_home,tdb,ex->file_name);
-      unpack_filename(name,name);		/* Convert to system format */
+      strxnmov(name, FN_REFLEN, mysql_real_data_home, tdb, NullS);
+      (void) fn_format(name, ex->file_name, name, "",
+		       MY_RELATIVE_PATH | MY_UNPACK_FILENAME);
     }
     else
     {
-      my_load_path(name, ex->file_name, mysql_real_data_home);
-      unpack_filename(name, name);
+      (void) fn_format(name, ex->file_name, mysql_real_data_home, "",
+		       MY_RELATIVE_PATH | MY_UNPACK_FILENAME);
 #if !defined(__WIN__) && !defined(OS2) && ! defined(__NETWARE__)
       MY_STAT stat_info;
       if (!my_stat(name,&stat_info,MYF(MY_WME)))
@@ -283,12 +282,13 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   if (!(error=test(read_info.error)))
   {
     if (use_timestamp)
-      table->timestamp_default_now= table->timestamp_on_update_now= 0;
+      table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
 
     table->next_number_field=table->found_next_number_field;
     if (handle_duplicates == DUP_IGNORE ||
 	handle_duplicates == DUP_REPLACE)
       table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
+    ha_enable_transaction(thd, FALSE); 
     table->file->start_bulk_insert((ha_rows) 0);
     table->copy_blobs=1;
 
@@ -307,6 +307,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 			    ignore_check_option_errors);
     if (table->file->end_bulk_insert())
       error=1;					/* purecov: inspected */
+    ha_enable_transaction(thd, TRUE);
     table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
     table->next_number_field=0;
   }

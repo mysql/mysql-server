@@ -115,11 +115,12 @@ uint my_pwrite(int Filedes, const byte *Buffer, uint Count, my_off_t offset,
     if (my_thread_var->abort)
       MyFlags&= ~ MY_WAIT_IF_FULL;		/* End if aborted by user */
 #endif
-    if (my_errno == ENOSPC && (MyFlags & MY_WAIT_IF_FULL))
+    if ((my_errno == ENOSPC || my_errno == EDQUOT) &&
+        (MyFlags & MY_WAIT_IF_FULL))
     {
       if (!(errors++ % MY_WAIT_GIVE_USER_A_MESSAGE))
 	my_error(EE_DISK_FULL,MYF(ME_BELL | ME_NOREFRESH),
-		 my_filename(Filedes));
+		 my_filename(Filedes),my_errno,MY_WAIT_FOR_USER_TO_FIX_PANIC);
       VOID(sleep(MY_WAIT_FOR_USER_TO_FIX_PANIC));
       continue;
     }
@@ -131,7 +132,7 @@ uint my_pwrite(int Filedes, const byte *Buffer, uint Count, my_off_t offset,
     {
       if (MyFlags & (MY_WME | MY_FAE | MY_FNABP))
       {
-	my_error(EE_WRITE, MYF(ME_BELL+ME_WAITTANG),
+	my_error(EE_WRITE, MYF(ME_BELL | ME_WAITTANG),
 		 my_filename(Filedes),my_errno);
       }
       DBUG_RETURN(MY_FILE_ERROR);		/* Error on read */
@@ -142,4 +143,4 @@ uint my_pwrite(int Filedes, const byte *Buffer, uint Count, my_off_t offset,
   if (MyFlags & (MY_NABP | MY_FNABP))
     DBUG_RETURN(0);			/* Want only errors */
   DBUG_RETURN(writenbytes+written); /* purecov: inspected */
-} /* my_write */
+} /* my_pwrite */

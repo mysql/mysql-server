@@ -283,6 +283,7 @@ public:
   static void *operator new(size_t size, MEM_ROOT *mem_root)
   { return (void*) alloc_root(mem_root, (uint) size); }
   static void operator delete(void *ptr,size_t size) {}
+  static void operator delete(void *ptr,size_t size, MEM_ROOT *mem_root) {}
   st_select_lex_node(): linkage(UNSPECIFIED_TYPE) {}
   virtual ~st_select_lex_node() {}
   inline st_select_lex_node* get_master() { return master; }
@@ -333,6 +334,7 @@ class THD;
 class select_result;
 class JOIN;
 class select_union;
+class Procedure;
 class st_select_lex_unit: public st_select_lex_node {
 protected:
   TABLE_LIST result_table_list;
@@ -379,6 +381,7 @@ public:
 
   st_select_lex *union_distinct; /* pointer to the last UNION DISTINCT */
   bool describe; /* union exec() called for EXPLAIN */
+  Procedure *last_procedure;	 /* Pointer to procedure, if such exists */
 
   void init_query();
   st_select_lex_unit* master_unit();
@@ -413,7 +416,7 @@ public:
   int change_result(select_subselect *result, select_subselect *old_result);
   void set_limit(st_select_lex *values, st_select_lex *sl);
 
-  friend void mysql_init_query(THD *thd, uchar *buf, uint length, bool lexonly);
+  friend void lex_start(THD *thd, uchar *buf, uint length);
   friend int subselect_union_engine::exec();
 };
 typedef class st_select_lex_unit SELECT_LEX_UNIT;
@@ -569,7 +572,7 @@ public:
   
   bool test_limit();
 
-  friend void mysql_init_query(THD *thd, uchar *buf, uint length, bool lexonly);
+  friend void lex_start(THD *thd, uchar *buf, uint length);
   st_select_lex() {}
   void make_empty_select()
   {
@@ -578,6 +581,7 @@ public:
   }
   bool setup_ref_array(THD *thd, uint order_group_num);
   bool check_updateable(char *db, char *table);
+  bool check_updateable_in_subqueries(char *db, char *table);
   void print(THD *thd, String *str);
   static void print_order(String *str, ORDER *order);
   void print_limit(THD *thd, String *str);
@@ -593,6 +597,9 @@ typedef class st_select_lex SELECT_LEX;
 #define ALTER_RENAME		32
 #define ALTER_ORDER		64
 #define ALTER_OPTIONS		128
+#define ALTER_CHANGE_COLUMN_DEFAULT 256
+#define ALTER_KEYS_ONOFF        512
+#define ALTER_CONVERT          1024
 
 typedef struct st_alter_info
 {
@@ -601,7 +608,6 @@ typedef struct st_alter_info
   uint                        flags;
   enum enum_enable_or_disable keys_onoff;
   enum tablespace_op_type     tablespace_op;
-  bool                        is_simple;
 
   st_alter_info(){clear();}
   void clear(){keys_onoff= LEAVE_AS_IS;tablespace_op= NO_TABLESPACE_OP;}
@@ -687,7 +693,7 @@ typedef struct st_lex
   USER_RESOURCES mqh;
   ulong thread_id,type;
   enum_sql_command sql_command;
-  thr_lock_type lock_option;
+  thr_lock_type lock_option, multi_lock_option;
   enum SSL_type ssl_type;			/* defined in violite.h */
   enum my_lex_states next_state;
   enum enum_duplicates duplicates;

@@ -860,6 +860,7 @@
 
 #include <ndb_types.h>
 #include <ndbapi_limits.h>
+#include <ndb_cluster_connection.hpp>
 #include <NdbError.hpp>
 #include <NdbDictionary.hpp>
 
@@ -880,6 +881,7 @@ class Table;
 class BaseString;
 class NdbEventOperation;
 class NdbBlob;
+class NdbReceiver;
 
 typedef void (* NdbEventCallback)(NdbEventOperation*, Ndb*, void*);
 
@@ -992,6 +994,8 @@ public:
    *       deprecated.
    */
   Ndb(const char* aCatalogName = "", const char* aSchemaName = "def");
+  Ndb(Ndb_cluster_connection *ndb_cluster_connection,
+      const char* aCatalogName = "", const char* aSchemaName = "def");
 
   ~Ndb();
 
@@ -1081,8 +1085,9 @@ public:
    * @return  0: Ndb is ready and timeout has not occurred.<br>
    *          -1: Timeout has expired
    */
+
   int waitUntilReady(int timeout = 60);
-  
+
   /** @} *********************************************************************/
 
   /** 
@@ -1357,15 +1362,6 @@ public:
    */
   static void setConnectString(const char * connectString);
 
-  /**
-   * useFullyQualifiedNames
-   * Enables unique name space for different databases and schemas
-   * by defining table names as DATABASENAME/SCHEMANAME/TABLENAME and
-   * index names as DATABASENAME/SCHEMANAME/TABLENAME/INDEXNAME
-   * @param turnNamingOn bool true - turn naming on, false - turn naming off
-   */
-  void useFullyQualifiedNames(bool turnNamingOn = true);
-
   bool usingFullyQualifiedNames();
 
   /** @} *********************************************************************/
@@ -1416,13 +1412,13 @@ public:
    */
   Uint64 getAutoIncrementValue(const char* aTableName, 
 			       Uint32 cacheSize = 1);
-  Uint64 getAutoIncrementValue(NdbDictionary::Table * aTable, 
+  Uint64 getAutoIncrementValue(const NdbDictionary::Table * aTable, 
 			       Uint32 cacheSize = 1);
   Uint64 readAutoIncrementValue(const char* aTableName);
-  Uint64 readAutoIncrementValue(NdbDictionary::Table * aTable);
+  Uint64 readAutoIncrementValue(const NdbDictionary::Table * aTable);
   bool setAutoIncrementValue(const char* aTableName, Uint64 val, 
 			     bool increase = false);
-  bool setAutoIncrementValue(NdbDictionary::Table * aTable, Uint64 val, 
+  bool setAutoIncrementValue(const NdbDictionary::Table * aTable, Uint64 val, 
 			     bool increase = false);
   Uint64 getTupleIdFromNdb(const char* aTableName, 
 			   Uint32 cacheSize = 1000);
@@ -1447,6 +1443,12 @@ public:
  ****************************************************************************/
 private:
   
+  void setup(Ndb_cluster_connection *ndb_cluster_connection,
+	     const char* aCatalogName, const char* aSchemaName);
+
+  void connected(Uint32 block_reference);
+ 
+
   NdbConnection*  startTransactionLocal(Uint32 aPrio, Uint32 aFragmentId); 
 
 // Connect the connection object to the Database.
@@ -1585,6 +1587,7 @@ private:
  *	These are the private variables in this class.	
  *****************************************************************************/
   NdbObjectIdMap*       theNdbObjectIdMap;
+  Ndb_cluster_connection   *m_ndb_cluster_connection;
 
   NdbConnection**       thePreparedTransactionsArray;
   NdbConnection**       theSentTransactionsArray;
@@ -1610,7 +1613,6 @@ private:
   char                  prefixName[NDB_MAX_INTERNAL_TABLE_LENGTH];
   char *                prefixEnd;		
 
-  //Table*       		theTable;	// The table object		
   class NdbImpl * theImpl;
   class NdbDictionaryImpl* theDictionary;
   class NdbGlobalEventBufferHandle* theGlobalEventBufferHandle;
@@ -1696,14 +1698,17 @@ private:
   
   NdbApiSignal* theCommitAckSignal;
 
+
+#ifdef POORMANSPURIFY
   int cfreeSignals;
   int cnewSignals;
   int cgetSignals;
   int creleaseSignals;
+#endif
 
   static void executeMessage(void*, NdbApiSignal *, 
 			     struct LinearSectionPtr ptr[3]);
-  static void statusMessage(void*, Uint16, bool, bool);
+  static void statusMessage(void*, Uint32, bool, bool);
 #ifdef VM_TRACE
   void printState(const char* fmt, ...);
 #endif

@@ -44,7 +44,8 @@ initial_ndb=
 status_ndb=
 ndb_diskless=0
 
-ndb_con_op=100000
+ndb_no_ord=512
+ndb_con_op=105000
 ndb_dmem=80M
 ndb_imem=24M
 
@@ -54,13 +55,18 @@ while test $# -gt 0; do
      stop_ndb=1
      ;;
     --initial)
-     flags_ndb="$flags_ndb -i"
+     flags_ndb="$flags_ndb --initial"
      initial_ndb=1
+     ;;
+    --debug*)
+     f=`echo "$1" | sed -e "s;--debug=;;"`
+     flags_ndb="$flags_ndb $f"
      ;;
     --status)
      status_ndb=1
      ;;
     --small)
+     ndb_no_ord=128
      ndb_con_op=10000
      ndb_dmem=40M
      ndb_imem=12M
@@ -124,6 +130,7 @@ port_transporter=`expr $ndb_mgmd_port + 2`
 
 if [ $initial_ndb ] ; then
 sed \
+    -e s,"CHOOSE_MaxNoOfOrderedIndexes","$ndb_no_ord",g \
     -e s,"CHOOSE_MaxNoOfConcurrentOperations","$ndb_con_op",g \
     -e s,"CHOOSE_DataMemory","$ndb_dmem",g \
     -e s,"CHOOSE_IndexMemory","$ndb_imem",g \
@@ -139,7 +146,7 @@ fi
 rm -f "$cfgfile" 2>&1 | cat > /dev/null
 rm -f "$fs_ndb/$cfgfile" 2>&1 | cat > /dev/null
 
-if ( cd "$fs_ndb" ; $exec_mgmtsrvr -d -c config.ini ) ; then :; else
+if ( cd "$fs_ndb" ; $exec_mgmtsrvr -c config.ini ) ; then :; else
   echo "Unable to start $exec_mgmtsrvr from `pwd`"
   exit 1
 fi
@@ -149,14 +156,14 @@ cat `find "$fs_ndb" -name 'ndb_*.pid'` > "$fs_ndb/$pidfile"
 # Start database node 
 
 echo "Starting ndbd"
-( cd "$fs_ndb" ; $exec_ndb -d $flags_ndb & )
+( cd "$fs_ndb" ; $exec_ndb $flags_ndb & )
 
 cat `find "$fs_ndb" -name 'ndb_*.pid'` > "$fs_ndb/$pidfile"
 
 # Start database node 
 
 echo "Starting ndbd"
-( cd "$fs_ndb" ; $exec_ndb -d $flags_ndb & )
+( cd "$fs_ndb" ; $exec_ndb $flags_ndb & )
 
 cat `find "$fs_ndb" -name 'ndb_*.pid'` > "$fs_ndb/$pidfile"
 
@@ -180,27 +187,36 @@ status_ndbcluster() {
 
 stop_default_ndbcluster() {
 
-#if [ ! -f $pidfile ] ; then
-#  exit 0
-#fi
-
-#if [ ! -f $cfgfile ] ; then
-#  echo "$cfgfile missing"
-#  exit 1
-#fi
-
 # Start management client
 
 exec_mgmtclient="$exec_mgmtclient --try-reconnect=1"
 
-echo "all stop" | $exec_mgmtclient 2>&1 | cat > /dev/null
-echo "3 stop" | $exec_mgmtclient 2>&1 | cat > /dev/null
+echo "shutdown" | $exec_mgmtclient 2>&1 | cat > /dev/null
 
 if [ -f "$fs_ndb/$pidfile" ] ; then
-  kill -9 `cat "$fs_ndb/$pidfile"` 2> /dev/null
+  kill_pids=`cat "$fs_ndb/$pidfile"`
+  attempt=0
+  while [ $attempt -lt 10 ] ; do
+    new_kill_pid=""
+    for p in $kill_pids ; do
+      kill -0 $p 2> /dev/null
+      if [ $? -eq 0 ] ; then
+        new_kill_pid="$p $new_kill_pid"
+      fi
+    done
+    kill_pids=$new_kill_pid
+    if [ -z "$kill_pids" ] ; then
+      break
+    fi
+    sleep 1
+    attempt=`expr $attempt + 1`
+  done
+  if [ "$kill_pids" != "" ] ; then
+    echo "Failed to shutdown ndbcluster, executing kill -9 "$kill_pids
+    kill -9 $kill_pids
+  fi
   rm "$fs_ndb/$pidfile"
 fi
-
 }
 
 if [ $status_ndb ] ; then
