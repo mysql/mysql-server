@@ -75,5 +75,16 @@ execute stmt5 using @nullvar;
 set @nullvar2=NULL;
 execute stmt5 using @nullvar2;
 
+# Check that multiple SQL statements are disabled inside PREPARE
+--error 1064
+prepare stmt6 from 'select 1; select2';
+
+--error 1064
+prepare stmt6 from 'insert into t1 values (5,"five"); select2';
+
+# This shouldn't parse
+--error 1064
+explain prepare stmt6 from 'insert into t1 values (5,"five"); select2';
+
 drop table t1;
 

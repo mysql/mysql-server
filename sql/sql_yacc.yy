@@ -805,13 +805,13 @@ deallocate:
         DEALLOCATE_SYM PREPARE_SYM ident 
         {
           THD *thd=YYTHD;
-	  LEX *lex= thd->lex;
+          LEX *lex= thd->lex;
           if (thd->command == COM_PREPARE)
           {
             yyerror(ER(ER_SYNTAX_ERROR));
             YYABORT;
           }
-	  lex->sql_command= SQLCOM_DEALLOCATE_PREPARE;
+          lex->sql_command= SQLCOM_DEALLOCATE_PREPARE;
           lex->prepared_stmt_name= $3;
         };
 
@@ -819,29 +819,28 @@ prepare:
         PREPARE_SYM ident FROM TEXT_STRING_sys
         {
           THD *thd=YYTHD;
-	  LEX *lex= thd->lex;
+          LEX *lex= thd->lex;
           if (thd->command == COM_PREPARE)
           {
             yyerror(ER(ER_SYNTAX_ERROR));
             YYABORT;
           }
-	  lex->sql_command= SQLCOM_PREPARE;
+          lex->sql_command= SQLCOM_PREPARE;
           lex->prepared_stmt_name= $2;
           lex->prepared_stmt_code= $4;
         };
-        
 
 execute:
         EXECUTE_SYM ident
         {
           THD *thd=YYTHD;
-	  LEX *lex= thd->lex;
+          LEX *lex= thd->lex;
           if (thd->command == COM_PREPARE)
           {
             yyerror(ER(ER_SYNTAX_ERROR));
             YYABORT;
           }
-	  lex->sql_command= SQLCOM_EXECUTE;
+          lex->sql_command= SQLCOM_EXECUTE;
           lex->prepared_stmt_name= $2;
         }
         execute_using
@@ -854,8 +853,8 @@ execute_using:
         ;
 
 execute_var_list:
-	execute_var_list ',' execute_var_ident
-	| execute_var_ident
+        execute_var_list ',' execute_var_ident
+        | execute_var_ident
         ;
 
 execute_var_ident: '@' ident_or_text
@@ -864,7 +863,7 @@ execute_var_ident: '@' ident_or_text
           LEX_STRING *lexstr= (LEX_STRING*)sql_memdup(&$2, sizeof(LEX_STRING));
           if (!lexstr || lex->prepared_stmt_params.push_back(lexstr))
               YYABORT;
-	}
+        }
         ;
 
 /* help */

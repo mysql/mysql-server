@@ -1282,8 +1282,8 @@ static void delete_statement_as_hash_key(void *key)
   delete (Statement *) key;
 }
 
-byte *get_stmt_name_hash_key(Statement *entry, uint *length,
-		             my_bool not_used __attribute__((unused)))
+static byte *get_stmt_name_hash_key(Statement *entry, uint *length,
+                                    my_bool not_used __attribute__((unused)))
 {
   *length=(uint) entry->name.length;
   return (byte*) entry->name.str;
@@ -1303,8 +1303,8 @@ Statement_map::Statement_map() :
             get_statement_id_as_hash_key,
             delete_statement_as_hash_key, MYF(0));
   hash_init(&names_hash, &my_charset_bin, START_NAME_HASH_SIZE, 0, 0,
-	    (hash_get_key) get_stmt_name_hash_key,
-	    NULL,MYF(0));
+            (hash_get_key) get_stmt_name_hash_key,
+            NULL,MYF(0));
 }
 
 int Statement_map::insert(Statement *statement)
