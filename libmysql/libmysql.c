@@ -1572,13 +1572,13 @@ static my_bool mysql_reconnect(MYSQL *mysql)
   }
   mysql_init(&tmp_mysql);
   tmp_mysql.options=mysql->options;
+  bzero((char*) &mysql->options,sizeof(mysql->options));
   if (!mysql_real_connect(&tmp_mysql,mysql->host,mysql->user,mysql->passwd,
 			  mysql->db, mysql->port, mysql->unix_socket,
 			  mysql->client_flag))
     DBUG_RETURN(1);
   tmp_mysql.free_me=mysql->free_me;
   mysql->free_me=0;
-  bzero((char*) &mysql->options,sizeof(mysql->options));
   mysql_close(mysql);
   *mysql=tmp_mysql;
   net_clear(&mysql->net);
