@@ -53,14 +53,13 @@ initSignalNames(const char * dst[], const GsnName src[], unsigned short len){
 static
 int
 initSignalPrinters(SignalDataPrintFunction dst[], 
-		   const NameFunctionPair src[], 
-		   unsigned short len){
+		   const NameFunctionPair src[]){
   unsigned i;
   for(i = 0; i<=MAX_GSN; i++)
     dst[i] = 0;
   
-  for(i = 0; i<len; i++){
-    unsigned short gsn = src[i].gsn;
+  unsigned short gsn;
+  for(i = 0; (gsn = src[i].gsn) > 0; i++){
     SignalDataPrintFunction fun = src[i].function;
     
     if(dst[gsn] != 0 && fun != 0){
@@ -107,8 +106,7 @@ xxx_DUMMY_SIGNAL_NAMES_xxx = initSignalNames(localSignalNames,
 					     NO_OF_SIGNAL_NAMES);
 static const int 
 xxx_DUMMY_PRINT_FUNCTIONS_xxx  = initSignalPrinters(localPrintFunctions, 
-						    SignalDataPrintFunctions, 
-						    NO_OF_PRINT_FUNCTIONS);
+						    SignalDataPrintFunctions);
 
 static const int
 xxx_DUMMY_BLOCK_NAMES_xxx = initBlockNames(localBlockNames,
