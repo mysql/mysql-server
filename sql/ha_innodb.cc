@@ -3642,11 +3642,19 @@ ha_innobase::create(
   	}
 
 	if (current_thd->query != NULL) {
-  	
-		error = row_table_add_foreign_constraints(trx,
-					current_thd->query, norm_name);
 
-		error = convert_error_code_to_mysql(error, NULL);
+		LEX_STRING q;
+		if (thd->convert_string(&q, system_charset_info,
+					current_thd->query,
+					current_thd->query_length,
+					current_thd->charset())) {
+			error = HA_ERR_OUT_OF_MEM;
+		} else {
+			error = row_table_add_foreign_constraints(trx,
+					q.str, norm_name);
+
+			error = convert_error_code_to_mysql(error, NULL);
+		}
 
 		if (error) {
 			innobase_commit_low(trx);
