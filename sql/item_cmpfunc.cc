@@ -144,7 +144,14 @@ int Arg_comparator::set_compare_func(Item_bool_func2 *item, Item_result type)
     }
     if ((comparators= (Arg_comparator *) sql_alloc(sizeof(Arg_comparator)*n)))
       for (uint i=0; i < n; i++)
+      {
+	if ((*a)->el(i)->cols() != (*b)->el(i)->cols())
+	{
+	  my_error(ER_CARDINALITY_COL, MYF(0), (*a)->el(i)->cols());
+	  return 1;
+	}
 	comparators[i].set_cmp_func(owner, (*a)->addr(i), (*b)->addr(i));
+      }
     else
     {
       my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
@@ -1047,6 +1054,11 @@ static int cmp_double(double *a,double *b)
   return *a < *b ? -1 : *a == *b ? 0 : 1;
 }
 
+static int cmp_row(cmp_item_row* a, cmp_item_row* b)
+{
+  return a->compare(b);
+}
+
 int in_vector::find(Item *item)
 {
   byte *result=get_value(item);
@@ -1068,7 +1080,6 @@ int in_vector::find(Item *item)
   }
   return (int) ((*compare)(base+start*size,result) == 0);
 }
-
 
 in_string::in_string(uint elements,qsort_cmp cmp_func)
   :in_vector(elements,sizeof(String),cmp_func),tmp(buff,sizeof(buff),default_charset_info)
@@ -1096,6 +1107,29 @@ byte *in_string::get_value(Item *item)
   return (byte*) item->val_str(&tmp);
 }
 
+in_row::in_row(uint elements, Item * item)
+{
+  DBUG_ENTER("in_row::in_row");
+  base= (char*) new cmp_item_row[elements];
+  size= sizeof(cmp_item_row);
+  compare= (qsort_cmp) cmp_row;
+  tmp.store_value(item);
+  DBUG_VOID_RETURN;
+}
+
+byte *in_row::get_value(Item *item)
+{
+  tmp.store_value(item);
+  return (byte *)&tmp;
+}
+
+void in_row::set(uint pos, Item *item)
+{
+  DBUG_ENTER("in_row::set");
+  DBUG_PRINT("enter", ("pos %u item 0x%lx", pos, (ulong) item));
+  ((cmp_item_row*) base)[pos].store_value_by_template(&tmp, item);
+  DBUG_VOID_RETURN;
+}
 
 in_longlong::in_longlong(uint elements)
   :in_vector(elements,sizeof(longlong),(qsort_cmp) cmp_longlong)
@@ -1108,12 +1142,11 @@ void in_longlong::set(uint pos,Item *item)
 
 byte *in_longlong::get_value(Item *item)
 {
-  tmp=item->val_int();
+  tmp= item->val_int();
   if (item->null_value)
-    return 0;					/* purecov: inspected */
+    return 0;
   return (byte*) &tmp;
 }
-
 
 in_double::in_double(uint elements)
   :in_vector(elements,sizeof(double),(qsort_cmp) cmp_double)
@@ -1126,12 +1159,146 @@ void in_double::set(uint pos,Item *item)
 
 byte *in_double::get_value(Item *item)
 {
-  tmp=item->val();
+  tmp= item->val();
   if (item->null_value)
     return 0;					/* purecov: inspected */
   return (byte*) &tmp;
 }
 
+cmp_item* cmp_item::get_comparator (Item *item)
+{
+  switch (item->result_type()) {
+  case STRING_RESULT:
+    if (item->binary())
+      return new cmp_item_binary_string;
+    else
+      return new cmp_item_sort_string;
+    break;
+  case INT_RESULT:
+    return new cmp_item_int;
+    break;
+  case REAL_RESULT:
+    return new cmp_item_real;
+    break;
+  case ROW_RESULT:
+    return new cmp_item_row;
+    break;
+  }
+  return 0; // to satisfy compiler :)
+}
+
+cmp_item* cmp_item_sort_string::make_same()
+{
+  return new cmp_item_sort_string_in_static();
+}
+
+cmp_item* cmp_item_binary_string::make_same()
+{
+  return new cmp_item_binary_string_in_static();
+}
+
+cmp_item* cmp_item_int::make_same()
+{
+  return new cmp_item_int();
+}
+
+cmp_item* cmp_item_real::make_same()
+{
+  return new cmp_item_real();
+}
+
+cmp_item* cmp_item_row::make_same()
+{
+  return new cmp_item_row();
+}
+
+void cmp_item_row::store_value(Item *item)
+{
+  n= item->cols();
+  if ((comparators= (cmp_item **) sql_alloc(sizeof(cmp_item *)*n)))
+  {
+    item->null_value= 0;
+    for (uint i=0; i < n; i++)
+      if ((comparators[i]= cmp_item::get_comparator(item->el(i))))
+      {
+	comparators[i]->store_value(item->el(i));
+	item->null_value|= item->el(i)->null_value;
+      }
+      else
+      {
+	my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
+	current_thd->fatal_error= 1;
+	return;
+      }	  
+  }
+  else
+  {
+    my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
+    current_thd->fatal_error= 1;
+    return;
+  }
+}
+
+void cmp_item_row::store_value_by_template(cmp_item *t, Item *item)
+{
+  cmp_item_row *tmpl= (cmp_item_row*) t;
+  if (tmpl->n != item->cols())
+  {
+    my_error(ER_CARDINALITY_COL, MYF(0), tmpl->n);
+    return;
+  }
+  n= tmpl->n;
+  if ((comparators= (cmp_item **) sql_alloc(sizeof(cmp_item *)*n)))
+  {
+    item->null_value= 0;
+    for (uint i=0; i < n; i++)
+      if ((comparators[i]= tmpl->comparators[i]->make_same()))
+      {
+	comparators[i]->store_value_by_template(tmpl->comparators[i],
+						item->el(i));
+	item->null_value|= item->el(i)->null_value;
+      }
+      else
+      {
+	my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
+	current_thd->fatal_error= 1;
+	return;
+      }	  
+  }
+  else
+  {
+    my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
+    current_thd->fatal_error= 1;
+    return;
+  }	  
+}
+
+int cmp_item_row::cmp(Item *arg)
+{
+  arg->null_value= 0;
+  if (arg->cols() != n)
+  {
+    my_error(ER_CARDINALITY_COL, MYF(0), n);
+    return 1;
+  }
+  for(uint i=0; i < n; i++)
+    if(comparators[i]->cmp(arg->el(i)))
+    {
+      arg->null_value|= arg->el(i)->null_value;
+      return 1;
+    }
+  return 0;
+}
+
+int cmp_item_row::compare(cmp_item *c)
+{
+  int res;
+  cmp_item_row *cmp= (cmp_item_row *) c;
+  for(uint i=0; i < n; i++)
+    if((res= comparators[i]->compare(cmp->comparators[i])))
+      return res;
+  return 0;
+}
 
 void Item_func_in::fix_length_and_dec()
 {
@@ -1151,8 +1318,7 @@ void Item_func_in::fix_length_and_dec()
       array= new in_double(arg_count);
       break;
     case ROW_RESULT:
-      // This case should never be choosen
-      DBUG_ASSERT(0);
+      array= new in_row(arg_count, item);
       break;
     }
     uint j=0;
@@ -1169,24 +1335,7 @@ void Item_func_in::fix_length_and_dec()
   }
   else
   {
-    switch (item->result_type()) {
-    case STRING_RESULT:
-      if (item->binary())
-	in_item= new cmp_item_binary_string;
-      else
-	in_item= new cmp_item_sort_string;
-      break;
-    case INT_RESULT:
-      in_item=	  new cmp_item_int;
-      break;
-    case REAL_RESULT:
-      in_item=	  new cmp_item_real;
-      break;
-    case ROW_RESULT:
-      // This case should never be choosen
-      DBUG_ASSERT(0);
-      break;
-    }
+    in_item= cmp_item:: get_comparator(item);
   }
   maybe_null= item->maybe_null;
   max_length=2;

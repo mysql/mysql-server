@@ -1,0 +1,59 @@
+select row(1,2,3) IN (row(3,2,3), row(1,2,3), row(1,3,3));
+select row(10,2,3) IN (row(3,2,3), row(1,2,3), row(1,3,3));
+select row(1,2,3) IN (row(3,NULL,3), row(1,2,3), row(1,3,3));
+select row(10,2,3) IN (row(3,NULL,3), row(1,2,3), row(1,3,3));
+select row('a',1.5,3) IN (row(1,2,3), row('a',1.5,3), row('a','a','a'));
+select row('a',0,3) IN (row(3,2,3), row('a','0','3'), row(1,3,3));
+select row('a',0,3) IN (row(3,2,3), row('a','a','3'), row(1,3,3));
+select row('a',1.5,3) IN (row(3,NULL,3), row('a',1.5,3), row(1,3,3));
+select row('b',1.5,3) IN (row(3,NULL,3), row('a',1.5,3), row(1,3,3));
+select row(1,2,row(3,4)) IN (row(3,2,row(3,4)), row(1,2,row(3,4)));
+-- error 1239
+select row(1,2,row(3,4)) IN (row(3,2,row(3,4)), row(1,2,4));
+select row(1,2,row(3,4)) IN (row(3,2,row(3,4)), row(1,2,row(3,NULL)));
+
+SELECT ROW(1,2,3)=ROW(1,2,3);
+SELECT ROW(2,2,3)=ROW(1+1,2,3);
+SELECT ROW(1,2,3)=ROW(1+1,2,3);
+SELECT ROW(1,2,3)<ROW(1+1,2,3);
+SELECT ROW(1,2,3)>ROW(1+1,2,3);
+SELECT ROW(1,2,3)<=ROW(1+1,2,3);
+SELECT ROW(1,2,3)>=ROW(1+1,2,3);
+SELECT ROW(1,2,3)<>ROW(1+1,2,3);
+SELECT ROW(NULL,2,3)=ROW(NULL,2,3);
+SELECT ROW(NULL,2,3)<=>ROW(NULL,2,3);
+SELECT ROW(1,2,ROW(3,4,5))=ROW(1,2,ROW(3,4,5));
+SELECT ROW('test',2,3.33)=ROW('test',2,3.33);
+-- error 1239
+SELECT ROW('test',2,3.33)=ROW('test',2,3.33,4);
+SELECT ROW('test',2,ROW(3,33))=ROW('test',2,ROW(3,33));
+SELECT ROW('test',2,ROW(3,33))=ROW('test',2,ROW(3,3));
+SELECT ROW('test',2,ROW(3,33))=ROW('test',2,ROW(3,NULL));
+-- error 1239
+SELECT ROW('test',2,ROW(3,33))=ROW('test',2,4);
+drop table if exists t1;
+create table t1 ( a int, b int, c int);
+insert into t1 values (1,2,3), (2,3,1), (3,2,1), (1,2,NULL);
+select * from t1 where ROW(1,2,3)=ROW(a,b,c);
+select * from t1 where ROW(0,2,3)=ROW(a,b,c);
+select * from t1 where ROW(1,2,3)<ROW(a,b,c);
+select ROW(a,2,3) IN(row(1,b,c), row(2,3,1)) from t1;
+select ROW(c,2,3) IN(row(1,b,a), row(2,3,1)) from t1;
+select ROW(a,b,c) IN(row(1,2,3), row(3,2,1)) from t1;
+select ROW(1,2,3) IN(row(a,b,c), row(1,2,3)) from t1;
+drop table t1;
+
+-- error 1239
+select ROW(1,1);
+drop table if exists t1;
+create table t1 (i int);
+-- error 1239
+select 1 from t1 where ROW(1,1);
+-- error 1239
+select count(*) from t1 order by ROW(1,1);
+#TODO remove comments after parser fixing
+#-- error 1239
+#select count(*) from t1 order by i having (1,1);
+#-- error 1239
+#select 1 from t1 limit (1,1), (1,1);
+drop table t1;

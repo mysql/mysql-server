@@ -17,6 +17,8 @@
 
 /* compare and test functions */
 
+#include "assert.h"
+
 #ifdef __GNUC__
 #pragma interface			/* gcc class implementation */
 #endif
@@ -38,16 +40,12 @@ public:
   Arg_comparator() {};
   Arg_comparator(Item **a1, Item **a2): a(a1), b(a2) {};
 
-  inline void seta(Item **item) { a= item; }
-  inline void setb(Item **item) { b= item; }
-
   int set_compare_func(Item_bool_func2 *owner, Item_result type);
   inline int set_compare_func(Item_bool_func2 *owner)
   {
     return set_compare_func(owner, item_cmp_type((*a)->result_type(),
 						 (*b)->result_type()));
   }
-
   inline int set_cmp_func(Item_bool_func2 *owner,
 			  Item **a1, Item **a2,
 			  Item_result type)
@@ -379,6 +377,7 @@ class in_vector :public Sql_alloc
   uint count;
 public:
   uint used_count;
+  in_vector() {}
   in_vector(uint elements,uint element_length,qsort_cmp cmp_func)
     :base((char*) sql_calloc(elements*element_length)),
      size(element_length), compare(cmp_func), count(elements),
@@ -393,7 +392,6 @@ public:
   int find(Item *item);
 };
 
-
 class in_string :public in_vector
 {
   char buff[80];
@@ -405,7 +403,6 @@ public:
   byte *get_value(Item *item);
 };
 
-
 class in_longlong :public in_vector
 {
   longlong tmp;
@@ -414,7 +411,6 @@ public:
   void set(uint pos,Item *item);
   byte *get_value(Item *item);
 };
-
 
 class in_double :public in_vector
 {
@@ -425,7 +421,6 @@ public:
   byte *get_value(Item *item);
 };
 
-
 /*
 ** Classes for easy comparing of non const items
 */
@@ -435,74 +430,191 @@ class cmp_item :public Sql_alloc
 public:
   cmp_item() {}
   virtual ~cmp_item() {}
-  virtual void store_value(Item *item)=0;
-  virtual int cmp(Item *item)=0;
+  virtual void store_value(Item *item)= 0;
+  virtual int cmp(Item *item)= 0;
+  // for optimized IN with row
+  virtual int compare(cmp_item *item)= 0;
+  static cmp_item* get_comparator(Item *);
+  virtual cmp_item *make_same()= 0;
+  virtual void store_value_by_template(cmp_item *tmpl, Item *item)
+  {
+    store_value(item);
+  }
 };
 
-
-class cmp_item_sort_string :public cmp_item {
- protected:
-  char value_buff[80];
-  String value,*value_res;
+class cmp_item_string :public cmp_item 
+{
+protected:
+  String *value_res;
 public:
-  cmp_item_sort_string() :value(value_buff,sizeof(value_buff),default_charset_info) {}
+  friend class cmp_item_sort_string;
+  friend class cmp_item_binary_string;
+  friend class cmp_item_sort_string_in_static;
+  friend class cmp_item_binary_string_in_static;
+};
+
+class cmp_item_sort_string :public cmp_item_string
+{
+protected:
+  char value_buff[80];
+  String value;
+public:
+  cmp_item_sort_string():
+    value(value_buff, sizeof(value_buff), default_charset_info) {}
   void store_value(Item *item)
-    {
-      value_res=item->val_str(&value);
-    }
+  {
+    value_res= item->val_str(&value);
+  }
   int cmp(Item *arg)
-    {
-      char buff[80];
-      String tmp(buff,sizeof(buff),default_charset_info),*res;
-      if (!(res=arg->val_str(&tmp)))
-	return 1;				/* Can't be right */
-      return sortcmp(value_res,res);
-    }
+  {
+    char buff[80];
+    String tmp(buff, sizeof(buff), default_charset_info), *res;
+    if (!(res= arg->val_str(&tmp)))
+      return 1;				/* Can't be right */
+    return sortcmp(value_res, res);
+  }
+  int compare(cmp_item *c)
+  {
+    cmp_item_string *cmp= (cmp_item_string *)c;
+    return sortcmp(value_res, cmp->value_res);
+  } 
+  cmp_item *make_same();
 };
 
 class cmp_item_binary_string :public cmp_item_sort_string {
 public:
   cmp_item_binary_string() {}
   int cmp(Item *arg)
-    {
-      char buff[80];
-      String tmp(buff,sizeof(buff),default_charset_info),*res;
-      if (!(res=arg->val_str(&tmp)))
-	return 1;				/* Can't be right */
-      return stringcmp(value_res,res);
-    }
+  {
+    char buff[80];
+    String tmp(buff,sizeof(buff),default_charset_info),*res;
+    if (!(res=arg->val_str(&tmp)))
+      return 1;				/* Can't be right */
+    return stringcmp(value_res,res);
+  }
+  int compare(cmp_item *c)
+  {
+    cmp_item_string *cmp= (cmp_item_string *)c;
+    return stringcmp(value_res, cmp->value_res);
+  }
+  cmp_item *make_same();
 };
-
 
 class cmp_item_int :public cmp_item
 {
   longlong value;
 public:
   void store_value(Item *item)
-    {
-      value=item->val_int();
-    }
+  {
+    value= item->val_int();
+  }
   int cmp(Item *arg)
-    {
-      return value != arg->val_int();
-    }
+  {
+    return value != arg->val_int();
+  }
+  int compare(cmp_item *c)
+  {
+    cmp_item_int *cmp= (cmp_item_int *)c;
+    return (value < cmp->value) ? -1 : ((value == cmp->value) ? 0 : 1);
+  }
+  cmp_item *make_same();
 };
-
 
 class cmp_item_real :public cmp_item
 {
   double value;
 public:
   void store_value(Item *item)
-    {
-      value= item->val();
-    }
+  {
+    value= item->val();
+  }
   int cmp(Item *arg)
-    {
-      return value != arg->val();
-    }
+  {
+    return value != arg->val();
+  }
+  int compare(cmp_item *c)
+  {
+    cmp_item_real *cmp= (cmp_item_real *)c;
+    return (value < cmp->value)? -1 : ((value == cmp->value) ? 0 : 1);
+  }
+  cmp_item *make_same();
 };
 
+class cmp_item_row :public cmp_item
+{
+  cmp_item **comparators;
+  uint n;
+public:
+  cmp_item_row(): comparators(0), n(0) {}
+  ~cmp_item_row()
+  {
+    if(comparators)
+      for(uint i= 0; i < n; i++)
+	if (comparators[i])
+	  delete comparators[i];
+  }
+  void store_value(Item *item);
+  int cmp(Item *arg);
+  int compare(cmp_item *arg);
+  cmp_item *make_same();
+  void store_value_by_template(cmp_item *tmpl, Item *);
+};
+
+
+class in_row :public in_vector
+{
+  cmp_item_row tmp;
+public:
+  in_row(uint elements, Item *);
+  void set(uint pos,Item *item);
+  byte *get_value(Item *item);
+};
+
+/* 
+   cmp_item for optimized IN with row (right part string, which never
+   be changed)
+*/
+
+class cmp_item_sort_string_in_static :public cmp_item_string
+{
+ protected:
+  String value;
+public:
+  cmp_item_sort_string_in_static() {}
+  void store_value(Item *item)
+  {
+    value_res= item->val_str(&value);
+  }
+  int cmp(Item *item)
+  {
+    // Should never be called
+    DBUG_ASSERT(0);
+    return 1;
+  }
+  int compare(cmp_item *c)
+  {
+    cmp_item_string *cmp= (cmp_item_string *)c;
+    return sortcmp(value_res, cmp->value_res);
+  }
+  cmp_item * make_same()
+  {
+    return new cmp_item_sort_string_in_static();
+  }
+};
+
+class cmp_item_binary_string_in_static :public cmp_item_sort_string_in_static {
+public:
+  cmp_item_binary_string_in_static() {}
+  int compare(cmp_item *c)
+  {
+    cmp_item_string *cmp= (cmp_item_string *)c;
+    return stringcmp(value_res, cmp->value_res);
+  }
+  cmp_item * make_same()
+  {
+    return new cmp_item_binary_string_in_static();
+  }
+};
 
 class Item_func_in :public Item_int_func
 {
@@ -512,12 +624,15 @@ class Item_func_in :public Item_int_func
   bool have_null;
  public:
   Item_func_in(Item *a,List<Item> &list)
-    :Item_int_func(list), item(a), array(0), in_item(0), have_null(0) {}
+    :Item_int_func(list), item(a), array(0), in_item(0), have_null(0)
+  {
+    allowed_arg_cols= item->cols();
+  }
   longlong val_int();
   bool fix_fields(THD *thd, struct st_table_list *tlist, Item **ref)
   {
-    bool res=(item->check_cols(1) ||
-	      item->fix_fields(thd, tlist, &item) ||
+    // We do not check item->cols(), because allowed_arg_cols assigned from it
+    bool res=(item->fix_fields(thd, tlist, &item) ||
 	      Item_func::fix_fields(thd, tlist, ref));
     with_sum_func= with_sum_func || item->with_sum_func;
     return res;
@@ -540,8 +655,6 @@ class Item_func_in :public Item_int_func
     DBUG_RETURN(item->check_loop(id));
   }
 };
-
-
 
 /* Functions used by where clause */
 
