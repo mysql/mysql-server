@@ -354,7 +354,7 @@ static uint get_access(TABLE *form,uint fieldnr)
 
 
 /*
- return a number with if sorted put string in this order:
+ return a number which, if sorted 'desc', puts strings in this order:
  no wildcards
  wildcards
  empty string

@@ -68,17 +68,20 @@ delete $ENV{'MY_BASEDIR_VERSION'};
 $ENV{'MYSQL_TCP_PORT'}= $mysql_tcp_port= 3334 + $opt_build_thread;
 $ENV{'MYSQL_UNIX_PORT'}=$mysql_unix_port="$opt_tmp/mysql$opt_suffix.build";
 $ENV{"PERL5LIB"}="$pwd/$host/perl5:$pwd/$host/perl5/site_perl";
+$slave_port=$mysql_tcp_port+16;
+
+if (-x "$host/bin/mysqladmin")
+{
+  log_system("$host/bin/mysqladmin --no-defaults -u root -S $mysql_unix_port -s shutdown");
+  log_system("$host/bin/mysqladmin --no-defaults -u root -P $mysql_tcp_port -h $host -s shutdown");
+  log_system("$host/bin/mysqladmin --no-defaults -u root -P $slave_port -h $host -s shutdown");
+  log_system("$host/bin/mysqladmin --no-defaults -u root -P 9306 -h $host -s shutdown");
+  log_system("$host/bin/mysqladmin --no-defaults -u root -P 9307 -h $host -s shutdown");
+}
 
 if ($opt_stage == 0)
 {
   print "$host: Removing old distribution\n" if ($opt_debug);
-  if (-x "$host/bin/mysqladmin")
-  {
-    log_system("$host/bin/mysqladmin --no-defaults -u root -S $mysql_unix_port -s shutdown");
-    log_system("$host/bin/mysqladmin --no-defaults -u root -P $mysql_tcp_port -h $host -s shutdown");
-    log_system("$host/bin/mysqladmin --no-defaults -u root -P 9306 -h $host -s shutdown");
-    log_system("$host/bin/mysqladmin --no-defaults -u root -P 9307 -h $host -s shutdown");
-  }
   if (!$opt_use_old_distribution)
   {
     system("mkdir $host") if (! -d $host);
@@ -86,7 +89,6 @@ if ($opt_stage == 0)
     rm_all(<$host/mysql-*>);
     system("mkdir $host/bin") if (! -d "$host/bin");
   }
-  system("mkdir $bench_tmpdir") if (! -d $bench_tmpdir);
   rm_all("$host/test");
   system("mkdir $host/test") if (! -d "$host/test");
   system("mkdir Logs") if (! -d "Logs");
@@ -184,13 +186,14 @@ $ENV{"LD_LIBRARY_PATH"}= "$testdir/lib:" . $ENV{"LD_LIBRARY_PATH"};
 
 if ($opt_stage <= 5 && !$opt_no_test && !$opt_no_mysqltest)
 {
-  my ($slave_port);
-  $slave_port=$mysql_tcp_port+16;
+  system("mkdir $bench_tmpdir") if (! -d $bench_tmpdir);
   safe_cd("${test_dir}/mysql-test");
   check_system("./mysql-test-run --tmpdir=$bench_tmpdir --master_port=$mysql_tcp_port --slave_port=$slave_port --sleep=10", "tests were successful");
 }
 
-if ($opt_stage <= 6 && !$opt_no_test)
+# Start the server if we are going to run any of the benchmarks
+
+if (!$opt_no_test)
 {
   my $extra;
   safe_cd($test_dir);
@@ -207,9 +210,10 @@ if ($opt_stage <= 6 && !$opt_no_test)
   {
     $extra.=" --innodb_data_file_path=ibdata1:100M";
   }
-  safe_system("./bin/mysqld --no-defaults --basedir . --datadir ./data --skip-locking $extra >> $log 2>&1 &");
+  safe_system("./bin/mysqld --no-defaults --basedir . --datadir ./data --skip-l\ocking $extra >> $log 2>&1 &");
   sleep(2);
 }
+
 
 if ($opt_stage <= 7 && $opt_perl_files && !$opt_no_perl && !$opt_no_test)
 {

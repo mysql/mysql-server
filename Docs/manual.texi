@@ -1523,7 +1523,7 @@ MySQL
 @subheading Tutorials and Manuals
 
 @table @asis
-@item @uref{http://netgraft.com/~mbac/research/mysqlmyths.html, MySQL Myths Debunked}
+@item @uref{http://michael.bacarella.com/research/mysqlmyths.html, MySQL Myths Debunked}
 MySQL used in the real world.
 
 @item @uref{http://www.4t2.com/mysql}
@@ -9620,7 +9620,7 @@ the @code{max_connections} variable.
 If you build MySQL yourself and do not what to mess with patching
 LinuxThreads, you should set @code{max_connections} to a value no higher 
 than 500.  It should be even less if you have a large key buffer,  large 
-heap tables, or some other things that make @strong{mysqld} allocate a lot 
+heap tables, or some other things that make @code{mysqld} allocate a lot 
 of memory or if you are running a 2.2 kernel with a 2GB patch. If you are 
 using our binary or RPM version 3.23.25 or later, you can safely set
 @code{max_connections} at 1500, assuming no large key buffer or heap tables 
@@ -10031,8 +10031,15 @@ make
 make_install
 @end example
 
-and @strong{mysqld} should be ready to run.
+and @code{mysqld} should be ready to run.
 
+On Ia64 the MySQL client binaries are using shared libraries. This means
+that if you install our binary distribution in some other place than
+@file{/usr/local/mysql} you need to either modify @file{/etc/ld.so.conf}
+or add the path to the directory where you have @file{libmysqlclient.so}
+to the @code{LD_LIBRARY_PATH} environment variable.
+
+@xref{Link errors}.
 
 @node Windows, Solaris, Linux, Operating System Specific Notes
 @subsection Windows Notes
@@ -10638,7 +10645,7 @@ CXX=gcc CXXFLAGS="-O3 -felide-constructors -fno-exceptions -fno-rtti" \
 If you have a ultra sparc, you can get 4 % more performance by adding
 "-mcpu=v8 -Wa,-xarch=v8plusa" to CFLAGS and CXXFLAGS.
 
-If you have the Sun Workshop (SunPro) 4.2 (or newer) compiler, you can
+If you have Sun Workshop (Fortre) 5.3 (or newer) compiler, you can
 run @code{configure} like this:
 
 @example
@@ -10646,6 +10653,15 @@ CC=cc CFLAGS="-Xa -fast -xO4 -native -xstrconst -mt" \
 CXX=CC CXXFLAGS="-noex -xO4 -mt" \
 ./configure --prefix=/usr/local/mysql --enable-assembler
 @end example
+
+In the MySQL benchmarks, we got a 6 % speedup on an Ultrasparc when
+using Sun Workshop 5.3 compared to using gcc with -mcpu flags.
+
+If you get a problem with @code{fdatasync} or @code{sched_yield},
+you can fix this by adding @code{LIBS=-lrt} to the configure line
+
+The following paragraph is only relevant for older compilers than
+WorkShop 5.3:
 
 You may also have to edit the @code{configure} script to change this line:
 
@@ -10851,7 +10867,7 @@ Configure MySQL with the @code{--with-named-z-libs=no} option.
 @node Solaris x86,  , Solaris 2.7, Solaris
 @subsubsection Solaris x86 Notes
 
-On Solaris 2.8 on x86, @strong{mysqld} will core dump if you run
+On Solaris 2.8 on x86, @code{mysqld} will core dump if you run
 'strip' in.
 
 If you are using @code{gcc} or @code{egcs} on Solaris x86 and you
@@ -10919,9 +10935,8 @@ It is recommended you use MIT-pthreads on FreeBSD 2.x and native threads on
 Versions 3 and up. It is possible to run with  native threads on some late
 2.2.x versions but you may encounter problems shutting down @code{mysqld}.
 
-The @strong{MYSQL} Makefiles require GNU make (@code{gmake}) to work.
-If you want to compile @strong{MYSQL} you need to install GNU make
-first.
+The MySQL @file{Makefile}s require GNU make (@code{gmake}) to work.  If
+you want to compile MySQL you need to install GNU @code{make} first.
 
 Be sure to have your name resolver setup correct.  Otherwise you may
 experience resolver delays or failures when connecting to @code{mysqld}.
@@ -15499,7 +15514,7 @@ With this option,
 @code{SHOW DATABASES} returns only those databases for which the user has
 some kind of privilege.
 
-@item @code{--safe-user-create}
+@item --safe-user-create
 If this is enabled, an user can't create new users with the @code{GRANT}
 command, if the user doesn't have @code{INSERT} privilege to the
 @code{mysql.user} table.  If you want to give a user access to just create
@@ -21371,7 +21386,7 @@ You can find the MySQL-max binaries at
 @uref{http://www.mysql.com/downloads/mysql-max-3.23.html}.
 
 The Windows MySQL 3.23 binary distribution includes both the
-standard @strong{mysqld.exe} binary and the @code{mysqld-max.exe} binary.
+standard @code{mysqld.exe} binary and the @code{mysqld-max.exe} binary.
 @uref{http://www.mysql.com/downloads/mysql-3.23.html}.
 @xref{Windows installation}.
 
@@ -21388,7 +21403,7 @@ mysql> show variables like "have_%";
 | have_bdb      | YES   |
 | have_innodb   | NO    |
 | have_isam     | YES   |
-| have_raid     | YES   |
+| have_raid     | NO    |
 | have_ssl      | NO    |
 +---------------+-------+
 @end example
@@ -35830,7 +35845,7 @@ stored as the key data + the @code{PRIMARY KEY}, it's important to keep the
 @code{PRIMARY KEY} as short as possible to save disk and get better speed.
 @item
 @code{LOCK TABLES} works on @code{BDB} tables as with other tables.  If
-you don't use @code{LOCK TABLE}, @strong{MYSQL} will issue an internal
+you don't use @code{LOCK TABLE}, MYSQL will issue an internal
 multiple-write lock on the table to ensure that the table will be
 properly locked if another thread issues a table lock.
 @item
@@ -46464,6 +46479,7 @@ users use this code as the rest of the code and because of this we are
 not yet 100% confident in this code.
 
 @menu
+* News-3.23.42::                Changes in release 3.23.42
 * News-3.23.41::                Changes in release 3.23.41
 * News-3.23.40::                Changes in release 3.23.40
 * News-3.23.39::                Changes in release 3.23.39
@@ -46509,8 +46525,19 @@ not yet 100% confident in this code.
 * News-3.23.0::                 Changes in release 3.23.0
 @end menu
 
+@node News-3.23.42, News-3.23.41, News-3.23.x, News-3.23.x
+@appendixsubsec Changes in release 3.23.42
+@itemize @bullet
+@item
+Use real arithmetic operations even in integer context if not
+all arguments are integers. (Fixes uncommon bug in some integer
+context).
+@item
+Don't force everything to lower cases on windows. (To fix problem
+with windows and @code{ALTER TABLE}).
+@end itemize
 
-@node News-3.23.41, News-3.23.40, News-3.23.x, News-3.23.x
+@node News-3.23.41, News-3.23.40, News-3.23.42, News-3.23.x
 @appendixsubsec Changes in release 3.23.41
 
 @itemize @bullet
@@ -46547,9 +46574,6 @@ Added prototypes for @code{my_thread_init()} and @code{my_thread_end()} to
 @file{mysql_com.h} 
 @item
 Added option @code{--safe-user-create} to @code{mysqld}.
-@item
-Added options to the @code{--ansi} startup options to let the user
-decide which @code{ansi} options one to enable.
 @item
 Fixed bug in @code{SELECT DISTINCT ... HAVING} that casued error message
 @code{Can't find record in '#...}
