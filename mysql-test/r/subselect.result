@@ -159,6 +159,12 @@ UNIQUE KEY `email` (`email`)
 INSERT INTO inscrit (pseudo,email) VALUES ('joce','test');
 INSERT INTO inscrit (pseudo,email) VALUES ('joce1','test1');
 INSERT INTO inscrit (pseudo,email) VALUES ('2joce1','2test1');
+SELECT pseudo FROM inscrit WHERE pseudo=(SELECT pseudo,email FROM
+inscrit WHERE pseudo='joce');
+Subselect returns more than 1 field
+SELECT pseudo FROM inscrit WHERE pseudo=(SELECT * FROM inscrit WHERE
+pseudo='joce');
+Subselect returns more than 1 field
 SELECT pseudo FROM inscrit WHERE pseudo=(SELECT pseudo FROM inscrit WHERE pseudo='joce');
 pseudo
 joce
