@@ -245,6 +245,7 @@ class ha_ndbcluster: public handler
   typedef union { NdbRecAttr *rec; NdbBlob *blob; void *ptr; } NdbValue;
   NdbValue m_value[NDB_MAX_ATTRIBUTES_IN_TABLE];
   bool m_use_write;
+  bool m_ignore_dup_key_not_supported;
   bool retrieve_all_fields;
   ha_rows rows_to_insert;
   ha_rows rows_inserted;

@@ -228,6 +228,7 @@ ErrorBundle ErrorCodes[] = {
   { 4347, IE, "Bad state at alter index" },
   { 4348, IE, "Inconsistency detected at alter index" },
   { 4349, IE, "Inconsistency detected at index usage" },
+  { 4350, IE, "Transaction already aborted" },
 
   /**
    * Application error

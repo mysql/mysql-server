@@ -437,26 +437,116 @@ INSERT INTO t1 VALUES
 (1,1,1),(2,2,2),(3,3,3),(4,4,4),(5,5,5),
 (6,6,6),(7,7,7),(8,8,8),(9,9,9),(10,10,10);
 
+select count(*) from t1;
 
-
-begin;
 
 #
 # Insert duplicate rows, inside transaction
-# since failing inserts rollbacks whole transaction
-# all select count (except second) return same value
+# try to commit 
 #
-SELECT COUNT(*) FROM t1;
-INSERT INTO t1 VALUES 
-(2001,2001,2001),(2002,2002,2002),(2003,2003,2003),(2004,2004,2004),(2005,2005,2005);
-SELECT COUNT(*) FROM t1;
+begin;
+
 --error 1062
 INSERT INTO t1 VALUES 
 (1,1,1),(2,2,2),(3,3,3),(4,4,4),(5,5,5),
 (6,6,6),(7,7,7),(8,8,8),(9,9,9),(10,10,10);
-SELECT COUNT(*) FROM t1;
+
+--error 1296
+commit;
+
+select * from t1 where pk1=1;
+select * from t1 where pk1=10;
+select count(*) from t1 where pk1 <= 10 order by pk1;
+select count(*) from t1;
+
+
+#
+# Insert duplicate rows, inside transaction
+# rollback 
+#
+begin;
+
+--error 1062
+INSERT INTO t1 VALUES 
+(1,1,1),(2,2,2),(3,3,3),(4,4,4),(5,5,5),
+(6,6,6),(7,7,7),(8,8,8),(9,9,9),(10,10,10);
+
+rollback;
+
+select * from t1 where pk1=1;
+select * from t1 where pk1=10;
+select count(*) from t1 where pk1 <= 10 order by pk1;
+select count(*) from t1;
+
+
+#
+# Insert duplicate rows, inside transaction
+# then try to select, finally rollback
+#
+begin;
+
+--error 1062
+INSERT INTO t1 VALUES 
+(1,1,1),(2,2,2),(3,3,3),(4,4,4),(5,5,5),
+(6,6,6),(7,7,7),(8,8,8),(9,9,9),(10,10,10);
+--error 1296
+SELECT * FROM t1 WHERE pk1=10;
+
+rollback;
+
+select * from t1 where pk1=1;
+select * from t1 where pk1=10;
+select count(*) from t1 where pk1 <= 10 order by pk1;
+select count(*) from t1;
+
+
+#
+# Insert duplicate rows, inside transaction
+# then try to select, finally commit
+#
+begin;
+
+--error 1062
+INSERT INTO t1 VALUES 
+(1,1,1),(2,2,2),(3,3,3),(4,4,4),(5,5,5),
+(6,6,6),(7,7,7),(8,8,8),(9,9,9),(10,10,10);
+
+--error 1296
+SELECT * FROM t1 WHERE pk1=10;
+
+--error 1296
+SELECT * FROM t1 WHERE pk1=10;
+
+--error 1296
 commit;
 SELECT COUNT(*) FROM t1;
+
+select * from t1 where pk1=1;
+select * from t1 where pk1=10;
+select count(*) from t1 where pk1 <= 10 order by pk1;
+select count(*) from t1;
+
+
+#
+# Insert duplicate rows, inside transaction
+# then try to do another insert
+#
+begin;
+
+--error 1062
+INSERT INTO t1 VALUES 
+(1,1,1),(2,2,2),(3,3,3),(4,4,4),(5,5,5),
+(6,6,6),(7,7,7),(8,8,8),(9,9,9),(10,10,10);
+
+--error 1296
+INSERT INTO t1 values (4000, 40, 44);
+
+rollback;
+
+select * from t1 where pk1=1;
+select * from t1 where pk1=10;
+select count(*) from t1 where pk1 <= 10 order by pk1;
+select count(*) from t1;
 
 #
 # Insert duplicate rows using "insert .. select" 
@@ -465,5 +555,22 @@ SELECT COUNT(*) FROM t1;
 --error 1062
 insert into t1 select * from t1 where b < 10 order by pk1;
 
+
+begin;
+--error 1031
+INSERT IGNORE INTO t1 VALUES(1,2,3);
+commit;
+select * from t1 where pk1=1;
+
+--error 1031
+INSERT IGNORE INTO t1 VALUES(1,2,3);
+select * from t1 where pk1=1;
+
+REPLACE INTO t1 values(1, 2, 3);
+select * from t1 where pk1=1;
+
+--error 1031
+INSERT INTO t1 VALUES(1,1,1) ON DUPLICATE KEY UPDATE b=79;
+select * from t1 where pk1=1;
 
 DROP TABLE t1;

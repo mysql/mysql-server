@@ -420,6 +420,9 @@ INSERT INTO t1 VALUES
 (1,1,1),(2,2,2),(3,3,3),(4,4,4),(5,5,5),
 (6,6,6),(7,7,7),(8,8,8),(9,9,9),(10,10,10);
 ERROR 23000: Duplicate entry '10' for key 1
+select count(*) from t1;
+count(*)
+2000
 begin;
 SELECT COUNT(*) FROM t1;
 COUNT(*)
@@ -437,9 +440,121 @@ SELECT COUNT(*) FROM t1;
 COUNT(*)
 2000
 commit;
-SELECT COUNT(*) FROM t1;
-COUNT(*)
+ERROR HY000: Got error 4350 'Transaction already aborted' from ndbcluster
+select * from t1 where pk1=1;
+pk1	b	c
+1	1	1
+select * from t1 where pk1=10;
+pk1	b	c
+10	10	10
+select count(*) from t1 where pk1 <= 10 order by pk1;
+count(*)
+11
+select count(*) from t1;
+count(*)
+2000
+begin;
+INSERT INTO t1 VALUES 
+(1,1,1),(2,2,2),(3,3,3),(4,4,4),(5,5,5),
+(6,6,6),(7,7,7),(8,8,8),(9,9,9),(10,10,10);
+ERROR 23000: Duplicate entry '10' for key 1
+rollback;
+select * from t1 where pk1=1;
+pk1	b	c
+1	1	1
+select * from t1 where pk1=10;
+pk1	b	c
+10	10	10
+select count(*) from t1 where pk1 <= 10 order by pk1;
+count(*)
+11
+select count(*) from t1;
+count(*)
+2000
+begin;
+INSERT INTO t1 VALUES 
+(1,1,1),(2,2,2),(3,3,3),(4,4,4),(5,5,5),
+(6,6,6),(7,7,7),(8,8,8),(9,9,9),(10,10,10);
+ERROR 23000: Duplicate entry '10' for key 1
+SELECT * FROM t1 WHERE pk1=10;
+ERROR HY000: Got error 4350 'Transaction already aborted' from ndbcluster
+rollback;
+select * from t1 where pk1=1;
+pk1	b	c
+1	1	1
+select * from t1 where pk1=10;
+pk1	b	c
+10	10	10
+select count(*) from t1 where pk1 <= 10 order by pk1;
+count(*)
+11
+select count(*) from t1;
+count(*)
+2000
+begin;
+INSERT INTO t1 VALUES 
+(1,1,1),(2,2,2),(3,3,3),(4,4,4),(5,5,5),
+(6,6,6),(7,7,7),(8,8,8),(9,9,9),(10,10,10);
+ERROR 23000: Duplicate entry '10' for key 1
+SELECT * FROM t1 WHERE pk1=10;
+ERROR HY000: Got error 4350 'Transaction already aborted' from ndbcluster
+SELECT * FROM t1 WHERE pk1=10;
+ERROR HY000: Got error 4350 'Transaction already aborted' from ndbcluster
+commit;
+ERROR HY000: Got error 4350 'Transaction already aborted' from ndbcluster
+select * from t1 where pk1=1;
+pk1	b	c
+1	1	1
+select * from t1 where pk1=10;
+pk1	b	c
+10	10	10
+select count(*) from t1 where pk1 <= 10 order by pk1;
+count(*)
+11
+select count(*) from t1;
+count(*)
+2000
+begin;
+INSERT INTO t1 VALUES 
+(1,1,1),(2,2,2),(3,3,3),(4,4,4),(5,5,5),
+(6,6,6),(7,7,7),(8,8,8),(9,9,9),(10,10,10);
+ERROR 23000: Duplicate entry '10' for key 1
+INSERT INTO t1 values (4000, 40, 44);
+ERROR HY000: Got error 4350 'Transaction already aborted' from ndbcluster
+rollback;
+select * from t1 where pk1=1;
+pk1	b	c
+1	1	1
+select * from t1 where pk1=10;
+pk1	b	c
+10	10	10
+select count(*) from t1 where pk1 <= 10 order by pk1;
+count(*)
+11
+select count(*) from t1;
+count(*)
 2000
 insert into t1 select * from t1 where b < 10 order by pk1;
 ERROR 23000: Duplicate entry '9' for key 1
+begin;
+INSERT IGNORE INTO t1 VALUES(1,2,3);
+ERROR HY000: Table storage engine for 't1' doesn't have this option
+commit;
+select * from t1 where pk1=1;
+pk1	b	c
+1	1	1
+INSERT IGNORE INTO t1 VALUES(1,2,3);
+ERROR HY000: Table storage engine for 't1' doesn't have this option
+select * from t1 where pk1=1;
+pk1	b	c
+1	1	1
+REPLACE INTO t1 values(1, 2, 3);
+select * from t1 where pk1=1;
+pk1	b	c
+1	2	3
+INSERT INTO t1 VALUES(1,1,1) ON DUPLICATE KEY UPDATE b=79;
+ERROR HY000: Table storage engine for 't1' doesn't have this option
+select * from t1 where pk1=1;
+pk1	b	c
+1	2	3
 DROP TABLE t1;
