@@ -2837,7 +2837,13 @@ opt_temporary:
 */
 
 insert:
-	INSERT { Lex->sql_command = SQLCOM_INSERT; } insert_lock_option
+	INSERT
+	{
+	  LEX *lex= Lex;
+	  lex->sql_command = SQLCOM_INSERT;
+	  /* for subselects */
+          lex->lock_option= (using_update_log) ? TL_READ_NO_INSERT : TL_READ;
+	} insert_lock_option
 	opt_ignore insert2 
 	{
 	  Select->set_lock_for_tables($3);

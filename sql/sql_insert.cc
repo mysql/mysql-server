@@ -114,6 +114,8 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
   List_item *values;
   char *query=thd->query;
   thr_lock_type lock_type = table_list->lock_type;
+  TABLE_LIST *insert_table_list= (TABLE_LIST*)
+    thd->lex.select_lex.table_list.first;
   DBUG_ENTER("mysql_insert");
 
   /*
@@ -126,7 +128,9 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
 	thd->slave_thread)) ||
       (lock_type == TL_WRITE_CONCURRENT_INSERT && duplic == DUP_REPLACE))
     lock_type=TL_WRITE;
+  table_list->lock_type= lock_type;
 
+  int res;
   if (lock_type == TL_WRITE_DELAYED)
   {
     if (thd->locked_tables)
@@ -141,25 +145,34 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
 	DBUG_RETURN(-1);
       }
     }
-    if (!(table = delayed_get_table(thd,table_list)) && !thd->fatal_error)
-      table = open_ltable(thd,table_list,lock_type=thd->update_lock_default);
+    if ((table= delayed_get_table(thd,table_list)) && !thd->fatal_error)
+      if (table_list->next && table)
+	res= open_and_lock_tables(thd, table_list->next);
+      else
+	res= (table == 0);
+    else
+      res= open_and_lock_tables(thd, table_list);
   }
   else
-    table = open_ltable(thd,table_list,lock_type);
-  if (!table)
+    res= open_and_lock_tables(thd, table_list);
+  if (res)
     DBUG_RETURN(-1);
+  fix_tables_pointers(&thd->lex.select_lex);
+
+  table= table_list->table;
   thd->proc_info="init";
   thd->used_tables=0;
   save_time_stamp=table->time_stamp;
   values= its++;
   if (check_insert_fields(thd,table,fields,*values,1) ||
-      setup_tables(table_list) || setup_fields(thd,table_list,*values,0,0,0))
+      setup_tables(insert_table_list) ||
+      setup_fields(thd, insert_table_list, *values, 0, 0, 0))
   {
-    table->time_stamp=save_time_stamp;
+    table->time_stamp= save_time_stamp;
     goto abort;
   }
   value_count= values->elements;
-  while ((values = its++))
+  while ((values= its++))
   {
     counter++;
     if (values->elements != value_count)
@@ -170,9 +183,9 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
       table->time_stamp=save_time_stamp;
       goto abort;
     }
-    if (setup_fields(thd,table_list,*values,0,0,0))
+    if (setup_fields(thd,insert_table_list,*values,0,0,0))
     {
-      table->time_stamp=save_time_stamp;
+      table->time_stamp= save_time_stamp;
       goto abort;
     }
   }
