@@ -72,7 +72,7 @@ static void init_state_maps(CHARSET_INFO *cs)
     else if (my_isdigit(cs,i))
       state_map[i]=(uchar) MY_LEX_NUMBER_IDENT;
 #if defined(USE_MB) && defined(USE_MB_IDENT)
-    else if (use_mb(cs) && my_ismbhead(cs, i))
+    else if (use_mb(cs) && (my_mbcharlen(cs, i)>1))
       state_map[i]=(uchar) MY_LEX_IDENT;
 #endif
     else if (!my_isgraph(cs,i))
@@ -126,10 +126,7 @@ static void simple_cs_init_functions(CHARSET_INFO *cs)
     cs->wildcmp     = b->wildcmp;
     cs->strnncoll   = b->strnncoll;
     cs->strnncollsp = b->strnncollsp;
-    cs->tosort      = b->tosort;
     cs->strcasecmp  = b->strcasecmp;
-    cs->strncasecmp = b->strncasecmp;
-    cs->hash_caseup = b->hash_caseup;
     cs->hash_sort   = b->hash_sort;
   }
   else
@@ -139,10 +136,7 @@ static void simple_cs_init_functions(CHARSET_INFO *cs)
     cs->wildcmp     = my_wildcmp_8bit;
     cs->strnncoll   = my_strnncoll_simple;
     cs->strnncollsp = my_strnncollsp_simple;
-    cs->tosort      = my_tosort_8bit;
     cs->strcasecmp  = my_strcasecmp_8bit;
-    cs->strncasecmp = my_strncasecmp_8bit;
-    cs->hash_caseup = my_hash_caseup_simple;
     cs->hash_sort   = my_hash_sort_simple;
   }
   

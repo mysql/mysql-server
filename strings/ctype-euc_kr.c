@@ -191,11 +191,6 @@ static int ismbchar_euc_kr(CHARSET_INFO *cs __attribute__((unused)),
           0);
 }
 
-static my_bool ismbhead_euc_kr(CHARSET_INFO *cs __attribute__((unused)),uint c)
-{
-  return (iseuc_kr(c));
-}
-
 static int mbcharlen_euc_kr(CHARSET_INFO *cs __attribute__((unused)),uint c)
 {
   return (iseuc_kr(c) ? 2 : 0);
@@ -8661,7 +8656,6 @@ CHARSET_INFO my_charset_euc_kr =
     my_wildcmp_mb,	/* wildcmp    */
     2,			/* mbmaxlen   */
     ismbchar_euc_kr,
-    ismbhead_euc_kr,
     mbcharlen_euc_kr,
     my_numchars_mb,
     my_charpos_mb,
@@ -8671,10 +8665,7 @@ CHARSET_INFO my_charset_euc_kr =
     my_casedn_str_mb,
     my_caseup_mb,
     my_casedn_mb,
-    my_tosort_8bit,
     my_strcasecmp_mb,
-    my_strncasecmp_mb,
-    my_hash_caseup_simple,
     my_hash_sort_simple,
     0,
     my_snprintf_8bit,

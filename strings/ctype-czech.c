@@ -627,7 +627,6 @@ CHARSET_INFO my_charset_czech =
     my_wildcmp_8bit,
     1,			/* mbmaxlen  */
     NULL,		/* ismbchar  */
-    NULL,		/* ismbhead  */
     NULL,		/* mbcharlen */
     my_numchars_8bit,
     my_charpos_8bit,
@@ -637,10 +636,7 @@ CHARSET_INFO my_charset_czech =
     my_casedn_str_8bit,
     my_caseup_8bit,
     my_casedn_8bit,
-    NULL,		/* tosort      */
     my_strcasecmp_8bit,
-    my_strncasecmp_8bit,
-    my_hash_caseup_simple,
     my_hash_sort_simple,
     0,
     my_snprintf_8bit,

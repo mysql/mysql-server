@@ -194,11 +194,6 @@ static int ismbchar_ujis(CHARSET_INFO *cs __attribute__((unused)),
     0);
 }
 
-static my_bool ismbhead_ujis(CHARSET_INFO *cs __attribute__((unused)),uint c)
-{
-  return (isujis(c) || isujis_ss2(c) || isujis_ss3(c));
-}
-
 static int mbcharlen_ujis(CHARSET_INFO *cs __attribute__((unused)),uint c)
 {
   return (isujis(c)? 2: isujis_ss2(c)? 2: isujis_ss3(c)? 3: 0);
@@ -8452,7 +8447,6 @@ CHARSET_INFO my_charset_ujis =
     my_wildcmp_mb,	/* wildcmp      */
     3,			/* mbmaxlen     */
     ismbchar_ujis,
-    ismbhead_ujis,
     mbcharlen_ujis,
     my_numchars_mb,
     my_charpos_mb,
@@ -8462,10 +8456,7 @@ CHARSET_INFO my_charset_ujis =
     my_casedn_str_mb,
     my_caseup_mb,
     my_casedn_mb,
-    my_tosort_8bit,
     my_strcasecmp_mb,
-    my_strncasecmp_mb,
-    my_hash_caseup_simple,
     my_hash_sort_simple,
     0,
     my_snprintf_8bit,

@@ -42,7 +42,6 @@ CHARSET_INFO compiled_charsets[] = {
     NULL,
     NULL,
     NULL,
-    NULL,
     NULL,		 /* mb_wc      */
     NULL,		 /* wc_mb      */
     
@@ -52,11 +51,8 @@ CHARSET_INFO compiled_charsets[] = {
     NULL,
     NULL,
     NULL,
-    NULL,
-    NULL,		/* hash_caseup */
     NULL,		/* hash_sort   */
     0,
-    NULL,
     NULL,
     NULL,
     NULL,

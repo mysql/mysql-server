@@ -505,10 +505,8 @@ static void make_sortkey(register SORTPARAM *param,
           }
           else
           {
-            if (res->ptr() != (char*) to)
-              memcpy(to,res->ptr(),length);
-            bzero((char *)to+length,diff);
-            my_tosort(cs, (char*) to,length);
+	    my_strnxfrm(cs,(uchar*)to,length,(const uchar*)res->ptr(),length);
+	    bzero((char *)to+length,diff);
           }
 	  break;
 	}

@@ -495,7 +495,7 @@ int yylex(void *arg, void *yythd)
 #if defined(USE_MB) && defined(USE_MB_IDENT)
       if (use_mb(cs))
       {
-        if (my_ismbhead(cs, yyGetLast()))
+        if (my_mbcharlen(cs, yyGetLast()) > 1)
         {
           int l = my_ismbchar(cs,
                               (const char *)lex->ptr-1,
@@ -508,7 +508,7 @@ int yylex(void *arg, void *yythd)
         }
         while (ident_map[c=yyGet()])
         {
-          if (my_ismbhead(cs, c))
+          if (my_mbcharlen(cs, c) > 1)
           {
             int l;
             if ((l = my_ismbchar(cs,
@@ -604,7 +604,7 @@ int yylex(void *arg, void *yythd)
 #if defined(USE_MB) && defined(USE_MB_IDENT)
       if (use_mb(cs))
       {
-        if (my_ismbhead(cs, yyGetLast()))
+        if (my_mbcharlen(cs, yyGetLast()) > 1)
         {
           int l = my_ismbchar(cs,
                               (const char *)lex->ptr-1,
@@ -618,7 +618,7 @@ int yylex(void *arg, void *yythd)
         }
         while (ident_map[c=yyGet()])
         {
-          if (my_ismbhead(cs, c))
+          if (my_mbcharlen(cs, c) > 1)
           {
             int l;
             if ((l = my_ismbchar(cs,
@@ -650,7 +650,7 @@ int yylex(void *arg, void *yythd)
       {
 	while ((c=yyGet()) && c != delim && c != (uchar) NAMES_SEP_CHAR)
 	{
-          if (my_ismbhead(cs, c))
+          if (my_mbcharlen(cs, c) > 1)
           {
             int l;
             if ((l = my_ismbchar(cs,

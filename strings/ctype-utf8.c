@@ -1751,29 +1751,6 @@ static void my_caseup_utf8(CHARSET_INFO *cs, char *s, uint slen)
   }
 }
 
-static uint my_hash_caseup_utf8(CHARSET_INFO *cs, const byte *s, uint slen)
-{
-  my_wc_t wc;
-  register uint nr=1, nr2=4;
-  int res;
-  const char *e=s+slen;
-
-  while ((s < e) && (res=my_utf8_uni(cs,&wc, (uchar *)s, (uchar*)e))>0 )
-  {
-    int plane = (wc>>8) & 0xFF;
-    wc = uni_plane[plane] ? uni_plane[plane][wc & 0xFF].toupper : wc;
-    nr^= (((nr & 63)+nr2)*(wc & 0xFF))+ (nr << 8);
-    nr2+=3;
-    nr^= (((nr & 63)+nr2)*(wc >> 8))+ (nr << 8);
-    nr2+=3;
-    
-    s+=res;
-  }
-
-  return nr;
-}
-
-
 static void my_hash_sort_utf8(CHARSET_INFO *cs, const uchar *s, uint slen, ulong *n1, ulong *n2)
 {
   my_wc_t wc;
@@ -1952,11 +1929,6 @@ static int my_ismbchar_utf8(CHARSET_INFO *cs,const char *b, const char *e)
   return (res>1) ? res : 0;
 }
 
-static my_bool my_ismbhead_utf8(CHARSET_INFO *cs __attribute__((unused)) , uint ch)
-{
-  return ( ch >= 0xc2 );
-}
-
 static int my_mbcharlen_utf8(CHARSET_INFO *cs  __attribute__((unused)) , uint c)
 {
   if (c < 0x80)
@@ -2000,7 +1972,6 @@ CHARSET_INFO my_charset_utf8 =
     my_wildcmp_mb,	/* wildcmp      */
     3,			/* mbmaxlen     */
     my_ismbchar_utf8,	/* ismbchar     */
-    my_ismbhead_utf8,	/* ismbhead     */
     my_mbcharlen_utf8,	/* mbcharlen    */
     my_numchars_mb,
     my_charpos_mb,
@@ -2010,10 +1981,7 @@ CHARSET_INFO my_charset_utf8 =
     my_casedn_str_utf8,
     my_caseup_utf8,
     my_casedn_utf8,
-    NULL,		/* tosort       */
     my_strcasecmp_utf8,
-    my_strncasecmp_utf8,
-    my_hash_caseup_utf8,/* hash_caseup  */
     my_hash_sort_utf8,	/* hash_sort    */
     0,
     my_snprintf_8bit,
@@ -2184,29 +2152,6 @@ static void my_caseup_ucs2(CHARSET_INFO *cs, char *s, uint slen)
   }
 }
 
-static uint my_hash_caseup_ucs2(CHARSET_INFO *cs, const byte *s, uint slen)
-{
-  my_wc_t wc;
-  register uint nr=1, nr2=4;
-  int res;
-  const char *e=s+slen;
-
-  while ((s < e) && (res=my_ucs2_uni(cs,&wc, (uchar *)s, (uchar*)e))>0 )
-  {
-    int plane = (wc>>8) & 0xFF;
-    wc = uni_plane[plane] ? uni_plane[plane][wc & 0xFF].toupper : wc;
-    nr^= (((nr & 63)+nr2)*(wc & 0xFF))+ (nr << 8);
-    nr2+=3;
-    nr^= (((nr & 63)+nr2)*(wc >> 8))+ (nr << 8);
-    nr2+=3;
-    
-    s+=res;
-  }
-
-  return nr;
-}
-
-
 static void my_hash_sort_ucs2(CHARSET_INFO *cs, const uchar *s, uint slen, ulong *n1, ulong *n2)
 {
   my_wc_t wc;
@@ -2372,12 +2317,6 @@ static int my_ismbchar_ucs2(CHARSET_INFO *cs __attribute__((unused)),
                      const char *e __attribute__((unused)))
 {
   return 2;
-}
-
-static my_bool my_ismbhead_ucs2(CHARSET_INFO *cs __attribute__((unused)) , 
-                         uint ch __attribute__((unused)))
-{
-  return 1;
 }
 
 static int my_mbcharlen_ucs2(CHARSET_INFO *cs  __attribute__((unused)) , 
@@ -3108,7 +3047,6 @@ CHARSET_INFO my_charset_ucs2 =
     my_wildcmp_mb,	/* wildcmp      */
     2,			/* mbmaxlen     */
     my_ismbchar_ucs2,	/* ismbchar     */
-    my_ismbhead_ucs2,	/* ismbhead     */
     my_mbcharlen_ucs2,	/* mbcharlen    */
     my_numchars_ucs2,
     my_charpos_ucs2,
@@ -3118,10 +3056,7 @@ CHARSET_INFO my_charset_ucs2 =
     my_casedn_str_ucs2,
     my_caseup_ucs2,
     my_casedn_ucs2,
-    NULL,		/* tosort       */
     my_strcasecmp_ucs2,
-    my_strncasecmp_ucs2,
-    my_hash_caseup_ucs2,/* hash_caseup  */
     my_hash_sort_ucs2,	/* hash_sort    */
     0,
     my_snprintf_ucs2,
