@@ -4604,14 +4604,14 @@ const_expression_in_where(COND *cond, Item *comp_item, Item **const_item)
     create_tmp_field_from_field()
     thd			Thread handler
     org_field           field from which new field will be created
+    name                New field name
     item		Item to create a field for
     table		Temporary table
-    modify_item	        1 if item->result_field should point to new item.
-			This is relevent for how fill_record() is going to
-			work:
-			If modify_item is 1 then fill_record() will update
+    item	        !=NULL if item->result_field should point to new field.
+			This is relevant for how fill_record() is going to work:
+			If item != NULL then fill_record() will update
 			the record in the original table.
-			If modify_item is 0 then fill_record() will update
+			If item == NULL then fill_record() will update
 			the temporary table
     convert_blob_length If >0 create a varstring(convert_blob_length) field 
                         instead of blob.
@@ -4622,8 +4622,8 @@ const_expression_in_where(COND *cond, Item *comp_item, Item **const_item)
 */
 
 static Field* create_tmp_field_from_field(THD *thd, Field* org_field,
-                                          Item *item, TABLE *table,
-                                          bool modify_item,
+                                          const char *name, TABLE *table,
+                                          Item_field *item,
                                           uint convert_blob_length)
 {
   Field *new_field;
@@ -4636,10 +4636,10 @@ static Field* create_tmp_field_from_field(THD *thd, Field* org_field,
     new_field= org_field->new_field(thd->mem_root, table);
   if (new_field)
   {
-    if (modify_item)
-      ((Item_field *)item)->result_field= new_field;
+    if (item)
+      item->result_field= new_field;
     else
-      new_field->field_name= item->name;
+      new_field->field_name= name;
     if (org_field->maybe_null())
       new_field->flags&= ~NOT_NULL_FLAG;	// Because of outer join
     if (org_field->type() == FIELD_TYPE_VAR_STRING)
@@ -4779,8 +4779,8 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
       if (item_sum->args[0]->type() == Item::FIELD_ITEM)
       {
         *from_field= ((Item_field*) item_sum->args[0])->field;
-        return create_tmp_field_from_field(thd, *from_field, item, table,
-                                           modify_item, convert_blob_length);
+        return create_tmp_field_from_field(thd, *from_field, item->name, table,
+                                           NULL, convert_blob_length);
       }
       /* fall through */
     default:
@@ -4818,8 +4818,10 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
   case Item::DEFAULT_VALUE_ITEM:
   {
     Item_field *field= (Item_field*) item;
-    return create_tmp_field_from_field(thd, (*from_field= field->field), item,
-                                       table, modify_item, convert_blob_length);
+    return create_tmp_field_from_field(thd, (*from_field= field->field),
+                                       item->name, table,
+                                       modify_item ? (Item_field*) item : NULL,
+                                       convert_blob_length);
   }
   case Item::FUNC_ITEM:
   case Item::COND_ITEM:
@@ -4840,7 +4842,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
   {
     Field *example= ((Item_type_holder *)item)->example();
     if (example)
-      return create_tmp_field_from_field(thd, example, item, table, 0,
+      return create_tmp_field_from_field(thd, example, item->name, table, NULL,
                                          convert_blob_length);
     return create_tmp_field_from_item(thd, item, table, copy_func, 0,
                                       convert_blob_length);
