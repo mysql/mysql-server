@@ -795,8 +795,11 @@ typedef union {
   double v;
   long m[2];
 } doubleget_union;
-#define doubleget(V,M)	{ ((doubleget_union *)&V)->m[0] = *((long*) M); \
-			  ((doubleget_union *)&V)->m[1] = *(((long*) M)+1); }
+#define doubleget(V,M)	\
+{ doubleget_union _tmp; \
+  _tmp.m[0] = *((long*)(M)); \
+  _tmp.m[1] = *(((long*) (M))+1); \
+  (V) = _tmp.v; }
 #define doublestore(T,V) { *((long *) T) = ((doubleget_union *)&V)->m[0]; \
 			   *(((long *) T)+1) = ((doubleget_union *)&V)->m[1]; }
 #define float4get(V,M) { *((long *) &(V)) = *((long*) (M)); }
