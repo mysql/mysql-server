@@ -3063,7 +3063,7 @@ sum_expr:
 	| GROUP_CONCAT_SYM '(' opt_distinct expr_list opt_gorder_clause
 	  opt_gconcat_separator ')'
 	  {
-	    $$=new Item_func_group_concat($3,$4,Lex->gorder_list,$6);
+	    $$=new Item_func_group_concat($3,$4,Select->gorder_list,$6);
 	    $4->empty();
 	  };
 
@@ -3079,16 +3079,15 @@ opt_gconcat_separator:
 opt_gorder_clause:
 	  /* empty */
 	  {
-            LEX *lex=Lex;
-            lex->gorder_list = NULL;
+            Select->gorder_list = NULL;
 	  }
 	| order_clause
           {
-            LEX *lex=Lex;
-            lex->gorder_list=
-	      (SQL_LIST*) sql_memdup((char*) &lex->current_select->order_list,
+            SELECT_LEX *select= Select;
+            select->gorder_list=
+	      (SQL_LIST*) sql_memdup((char*) &select->order_list,
 				     sizeof(st_sql_list));
-	    lex->current_select->order_list.empty();
+	    select->order_list.empty();
 	  };
 
 

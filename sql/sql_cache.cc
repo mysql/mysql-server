@@ -1860,11 +1860,11 @@ my_bool Query_cache::write_result_data(Query_cache_block **result_block,
   {
     // It is success (nobody can prevent us write data)
     STRUCT_UNLOCK(&structure_guard_mutex);
-    byte *rest = (byte*) data;
-    Query_cache_block *block = *result_block;
     uint headers_len = (ALIGN_SIZE(sizeof(Query_cache_block)) +
 			ALIGN_SIZE(sizeof(Query_cache_result)));
 #ifndef EMBEDDED_LIBRARY
+    Query_cache_block *block= *result_block;
+    byte *rest= (byte*) data;
     // Now fill list of blocks that created by allocate_data_chain
     do
     {

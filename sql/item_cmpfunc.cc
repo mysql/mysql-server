@@ -1472,16 +1472,12 @@ cmp_item* cmp_item::get_comparator(Item *item)
   switch (item->result_type()) {
   case STRING_RESULT:
     return new cmp_item_sort_string(item->collation.collation);
-    break;
   case INT_RESULT:
     return new cmp_item_int;
-    break;
   case REAL_RESULT:
     return new cmp_item_real;
-    break;
   case ROW_RESULT:
     return new cmp_item_row;
-    break;
   default:
     DBUG_ASSERT(0);
     break;
