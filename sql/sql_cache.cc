@@ -2783,7 +2783,7 @@ void bins_dump() {}
 void cache_dump() {}
 void queries_dump() {}
 void tables_dump() {}
-my_bool check_integrity() {}
+my_bool check_integrity() { return 0; }
 my_bool in_list(Query_cache_block * root, Query_cache_block * point,
 		const char *name) { return 0;}
 my_bool in_blocks(Query_cache_block * point) { return 0; }
