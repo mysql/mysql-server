@@ -199,6 +199,13 @@ public:
    */
   Uint32 getLatestGCI();
 
+  /**
+   * Get the latest error
+   *
+   * @return   Error object.
+   */			     
+  const struct NdbError & getNdbError() const;
+
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   /*
    *
