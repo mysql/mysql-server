@@ -717,7 +717,7 @@ AC_DEFUN(MYSQL_FIND_OPENSSL, [
 
  for d in /usr/ssl/lib /usr/local/ssl/lib /usr/lib/openssl \
 /usr/lib /opt/ssl/lib /opt/openssl/lib ; do
-  if test -f $d/libssl.a -o -f $d/libssl.so  ; then
+  if test -f $d/libssl.a ; then
     OPENSSL_LIB=$d
   fi
  done
