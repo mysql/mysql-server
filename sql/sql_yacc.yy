@@ -609,7 +609,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 
 %type <simple_string>
 	remember_name remember_end opt_ident opt_db text_or_password
-	opt_constraint constraint
+	opt_constraint constraint ident_or_empty
 
 %type <string>
 	text_string opt_gconcat_separator
@@ -1870,7 +1870,7 @@ alter:
 	}
 	alter_list
 	{}
-	| ALTER DATABASE ident
+	| ALTER DATABASE ident_or_empty
           {
             Lex->create_info.default_table_charset= NULL;
             Lex->create_info.used_fields= 0;
@@ -1879,8 +1879,13 @@ alter:
 	  {
 	    LEX *lex=Lex;
 	    lex->sql_command=SQLCOM_ALTER_DB;
-	    lex->name=$3.str;
+	    lex->name= $3;
 	  };
+
+
+ident_or_empty:
+	/* empty */  { $$= 0; }
+	| ident      { $$= $1.str; };
 
 
 alter_list:
