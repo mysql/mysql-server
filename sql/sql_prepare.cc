@@ -690,6 +690,7 @@ static bool init_param_items(PREP_STMT *stmt)
   List<Item> &params= stmt->thd->lex.param_list;
   Item_param **to;
  
+  stmt->lex=  stmt->thd->lex;
   if (!stmt->param_count)
     stmt->param= (Item_param **)0;
   else
@@ -711,7 +712,7 @@ static bool init_param_items(PREP_STMT *stmt)
 static void init_stmt_execute(PREP_STMT *stmt)
 {
   THD *thd= stmt->thd;
-  TABLE_LIST *tables=(TABLE_LIST*) thd->lex.select_lex.table_list.first;
+  TABLE_LIST *tables= (TABLE_LIST*) thd->lex.select_lex.table_list.first;
   
   /*
   TODO: When the new table structure is ready, then have a status bit 
@@ -719,7 +720,7 @@ static void init_stmt_execute(PREP_STMT *stmt)
         and open the tables back.
   */
   if (tables)
-    tables->table=0; //safety - nasty init
+    tables->table= 0; //safety - nasty init
 }
 
 /*
@@ -802,10 +803,8 @@ void mysql_stmt_execute(THD *thd, char *packet)
     DBUG_VOID_RETURN;
   }
 
-  if (my_pthread_setspecific_ptr(THR_THD, stmt->thd) ||
-      my_pthread_setspecific_ptr(THR_MALLOC, &stmt->thd->mem_root))
-    DBUG_VOID_RETURN;
-
+  LEX thd_lex= thd->lex;
+  thd->lex= stmt->lex;
   init_stmt_execute(stmt);
 
   if (stmt->param_count && setup_params_data(stmt))
@@ -820,17 +819,14 @@ void mysql_stmt_execute(THD *thd, char *packet)
     mysql_delete(), mysql_update() and mysql_select() to not to 
     have re-check on setup_* and other things ..
   */  
-  THD *cur_thd= stmt->thd;
-  cur_thd->protocol= &cur_thd->protocol_prep;		// Switch to binary protocol
-  mysql_execute_command(cur_thd);
-  cur_thd->protocol= &cur_thd->protocol_simple;	// Use normal protocol
+  thd->protocol= &thd->protocol_prep;		// Switch to binary protocol
+  mysql_execute_command(thd);
+  thd->protocol= &thd->protocol_simple;	// Use normal protocol
 
   if (!(specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(), WAIT_PRIOR);
 
-  my_pthread_setspecific_ptr(THR_THD, thd);
-  my_pthread_setspecific_ptr(THR_MALLOC, &thd->mem_root);
-
+  thd->lex= thd_lex;
   DBUG_VOID_RETURN;
 }
 

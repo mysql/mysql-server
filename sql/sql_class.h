@@ -327,6 +327,7 @@ public:
 typedef struct st_prep_stmt
 {
   THD *thd;
+  LEX  lex; 
   Item_param **param;
   Item *free_list;
   MEM_ROOT mem_root;
