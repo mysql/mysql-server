@@ -45,7 +45,7 @@ int my_getwd(my_string buf, uint size, myf MyFlags)
 {
   my_string pos;
   DBUG_ENTER("my_getwd");
-  DBUG_PRINT("my",("buf: %lx  size: %d  MyFlags %d", buf,size,MyFlags));
+  DBUG_PRINT("my",("buf: 0x%lx  size: %d  MyFlags %d", buf,size,MyFlags));
 
 #if ! defined(MSDOS)
   if (curr_dir[0])				/* Current pos is saved here */
