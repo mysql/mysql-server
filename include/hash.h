@@ -57,6 +57,7 @@ my_bool hash_update(HASH *hash,byte *record,byte *old_key,uint old_key_length);
 void hash_replace(HASH *hash, uint idx, byte *new_row);
 my_bool hash_check(HASH *hash);			/* Only in debug library */
 
+#define hash_clear(H) bzero((char*) (H),sizeof(*(H)))
 #define hash_inited(H) ((H)->array.buffer != 0)
 
 #ifdef	__cplusplus

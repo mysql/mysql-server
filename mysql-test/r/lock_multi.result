@@ -17,6 +17,18 @@ unlock tables;
 n
 1
 drop table t1;
+create table t1 (a int, b int);
+create table t2 (c int, d int);
+insert into t1 values(1,1);
+insert into t1 values(2,2);
+insert into t2 values(1,2);
+lock table t1 read;
+ update t1,t2 set c=a where b=d;
+select c from t2;
+c
+2
+drop table t1;
+drop table t2;
 create table t1 (a int);
 create table t2 (a int);
 lock table t1 write, t2 write;

@@ -53,6 +53,30 @@ reap;
 drop table t1;
 
 #
+# Test problem when using locks with multi-updates
+# It should not block when multi-update is reading on a read-locked table
+#
+
+connection locker;
+create table t1 (a int, b int);
+create table t2 (c int, d int);
+insert into t1 values(1,1);
+insert into t1 values(2,2);
+insert into t2 values(1,2);
+lock table t1 read;
+connection writer;
+--sleep 2
+send update t1,t2 set c=a where b=d;
+connection reader;
+--sleep 2
+select c from t2;
+connection writer;
+reap;
+connection locker;
+drop table t1;
+drop table t2;
+
+#
 # Test problem when using locks on many tables and droping a table that
 # is to-be-locked by another thread
 #

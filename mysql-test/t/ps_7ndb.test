@@ -55,7 +55,7 @@ select '------ delete tests ------' as test_sequence ;
 ## delete without parameter
 prepare stmt1 from 'delete from t1 where a=2' ;
 execute stmt1;
-select a,b from t1 where a=2;
+select a,b from t1 where a=2 order by b;
 # delete with row not found
 execute stmt1;
 
@@ -177,7 +177,7 @@ prepare stmt1 from 'update t1 set a=? where b=?
 --enable_info
 execute stmt1 using @arg04, @arg01, @arg02, @arg03, @arg00 ;
 --disable_info
-select a,b from t1 order by a;
+select a,b from t1 order by a ;
 drop table t2 ;
 
 ## update with parameters in limit
@@ -270,7 +270,7 @@ set @arg02=82 ;
 set @arg03='8-2' ;
 prepare stmt1 from 'insert into t1 values(?,?),(?,?)';
 execute stmt1 using @arg00, @arg01, @arg02, @arg03 ;
-select a,b from t1 where a in (@arg00,@arg02) ;
+select a,b from t1 where a in (@arg00,@arg02) order by a ;
 
 ## insert with two parameter in the set part
 set @arg00=9 ;

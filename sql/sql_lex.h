@@ -599,7 +599,7 @@ typedef struct st_lex
   USER_RESOURCES mqh;
   ulong thread_id,type;
   enum_sql_command sql_command;
-  thr_lock_type lock_option;
+  thr_lock_type lock_option, multi_lock_option;
   enum SSL_type ssl_type;			/* defined in violite.h */
   enum my_lex_states next_state;
   enum enum_duplicates duplicates;
