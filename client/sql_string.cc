@@ -415,7 +415,7 @@ int String::strstr(const String &s,uint32 offset)
     register const char *search=s.ptr();
     const char *end=Ptr+str_length-s.length()+1;
     const char *search_end=s.ptr()+s.length();
-skipp:
+skip:
     while (str != end)
     {
       if (*str++ == *search)
@@ -423,7 +423,7 @@ skipp:
 	register char *i,*j;
 	i=(char*) str; j=(char*) search+1;
 	while (j != search_end)
-	  if (*i++ != *j++) goto skipp;
+	  if (*i++ != *j++) goto skip;
 	return (int) (str-Ptr) -1;
       }
     }
@@ -447,7 +447,7 @@ int String::strstr_case(const String &s,uint32 offset)
     register const char *search=s.ptr();
     const char *end=Ptr+str_length-s.length()+1;
     const char *search_end=s.ptr()+s.length();
-skipp:
+skip:
     while (str != end)
     {
       if (str_charset->sort_order[*str++] == str_charset->sort_order[*search])
@@ -457,7 +457,7 @@ skipp:
 	while (j != search_end)
 	  if (str_charset->sort_order[*i++] != 
               str_charset->sort_order[*j++]) 
-            goto skipp;
+            goto skip;
 	return (int) (str-Ptr) -1;
       }
     }
@@ -480,7 +480,7 @@ int String::strrstr(const String &s,uint32 offset)
 
     const char *end=Ptr+s.length()-2;
     const char *search_end=s.ptr()-1;
-skipp:
+skip:
     while (str != end)
     {
       if (*str-- == *search)
@@ -488,7 +488,7 @@ skipp:
 	register char *i,*j;
 	i=(char*) str; j=(char*) search-1;
 	while (j != search_end)
-	  if (*i-- != *j--) goto skipp;
+	  if (*i-- != *j--) goto skip;
 	return (int) (i-Ptr) +1;
       }
     }

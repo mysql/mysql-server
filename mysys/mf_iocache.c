@@ -829,7 +829,7 @@ int _my_b_async_read(register IO_CACHE *info, byte *Buffer, uint Count)
     next_pos_in_file=(info->pos_in_file+ (uint)
 		      (info->read_end - info->request_pos));
 
-	/* If reading large blocks, or first read or read with skipp */
+	/* If reading large blocks, or first read or read with skip */
   if (Count)
   {
     if (next_pos_in_file == info->end_of_file)
@@ -1175,8 +1175,8 @@ int _flush_io_cache(IO_CACHE *info, int need_append_buffer_lock)
     info		IO_CACHE Handle to free
 
   NOTES
-    It's currently safe to call this if one has called io_cache_init()
-    on the 'info' object, even if io_cache_init() failed.
+    It's currently safe to call this if one has called init_io_cache()
+    on the 'info' object, even if init_io_cache() failed.
     This function is also safe to call twice with the same handle.
 
   RETURN

@@ -1512,12 +1512,13 @@ NetWare. */
 	srv_is_being_started = FALSE;
 
 #ifdef UNIV_DEBUG
-        /* Wait a while so that creates threads have time to suspend themselves
-	before we switch sync debugging on; otherwise a thread may execute
-	mutex_enter() before the checks are on, and mutex_exit() after the
-	checks are on. */
+        /* Wait a while so that the created threads have time to suspend
+	themselves before we switch sync debugging on; otherwise a thread may
+	execute mutex_enter() before the checks are on, and mutex_exit() after
+	the checks are on, which will cause an assertion failure in sync
+	debug. */
 
-        os_thread_sleep(2000000);
+        os_thread_sleep(3000000);
 #endif
 	sync_order_checks_on = TRUE;
 
@@ -1603,6 +1604,19 @@ NetWare. */
 	fflush(stderr);
 
 	if (trx_doublewrite_must_reset_space_ids) {
+		/* Actually, we did not change the undo log format between
+		4.0 and 4.1.1, and we would not need to run purge to
+		completion. Note also that the purge algorithm in 4.1.1
+		can process the the history list again even after a full
+		purge, because our algorithm does not cut the end of the
+		history list in all cases so that it would become empty
+		after a full purge. That mean that we may purge 4.0 type
+		undo log even after this phase.
+		
+		The insert buffer record format changed between 4.0 and
+		4.1.1. It is essential that the insert buffer is emptied
+		here! */
+
 		fprintf(stderr,
 "InnoDB: You are upgrading to an InnoDB version which allows multiple\n"
 "InnoDB: tablespaces. Wait that purge and insert buffer merge run to\n"
@@ -1625,8 +1639,9 @@ NetWare. */
 
 		fprintf(stderr,
 "InnoDB: You have now successfully upgraded to the multiple tablespaces\n"
-"InnoDB: format. You should not downgrade again to an earlier version of\n"
-"InnoDB: InnoDB!\n");
+"InnoDB: format. You should NOT DOWNGRADE again to an earlier version of\n"
+"InnoDB: InnoDB! But if you absolutely need to downgrade, see section 4.6 of\n"
+"InnoDB: http://www.innodb.com/ibman.php for instructions.\n");
 	}
 
 	if (srv_force_recovery == 0) {

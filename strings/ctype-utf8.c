@@ -1969,6 +1969,7 @@ static MY_CHARSET_HANDLER my_charset_handler=
     my_mbcharlen_utf8,
     my_numchars_mb,
     my_charpos_mb,
+    my_wellformedlen_mb,
     my_lengthsp_8bit,
     my_utf8_uni,
     my_uni_utf8,
@@ -2006,6 +2007,7 @@ CHARSET_INFO my_charset_utf8_general_ci=
     "",
     "",
     1,			/* strxfrm_multiply */
+    1,			/* mbminlen     */
     3,			/* mbmaxlen     */
     0,
     &my_charset_handler,
@@ -2029,6 +2031,7 @@ CHARSET_INFO my_charset_utf8_bin=
     "",
     "",
     1,			/* strxfrm_multiply */
+    1,			/* mbminlen     */
     3,			/* mbmaxlen     */
     0,
     &my_charset_handler,

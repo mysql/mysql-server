@@ -2,6 +2,9 @@
 # Test latin_de character set
 #
 
+set names latin1;
+set @@collation_connection=latin1_german2_ci;
+
 select @@collation_connection;
 
 --disable_warnings

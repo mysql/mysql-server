@@ -104,3 +104,33 @@ a
 ÆÙ×ÁÐÒÏÌÄö
 æù÷áðòïìäö
 DROP TABLE t1;
+SET NAMES cp1250;
+CREATE TABLE t1 (a varchar(250) NOT NULL) DEFAULT CHARACTER SET=cp1250;
+INSERT INTO t1 VALUES
+('Techni Tapes Sp. z o.o.'),
+('Pojazdy Szynowe PESA Bydgoszcz SA Holding'),
+('AKAPESTER 1 P.P.H.U.'),
+('Pojazdy Szynowe PESA Bydgoszcz S A Holding'),
+('PPUH PESKA-I Maria Struniarska');
+select * from t1 where a like '%PESA%';
+a
+Pojazdy Szynowe PESA Bydgoszcz SA Holding
+Pojazdy Szynowe PESA Bydgoszcz S A Holding
+select * from t1 where a like '%PESA %';
+a
+Pojazdy Szynowe PESA Bydgoszcz SA Holding
+Pojazdy Szynowe PESA Bydgoszcz S A Holding
+select * from t1 where a like '%PES%';
+a
+Techni Tapes Sp. z o.o.
+Pojazdy Szynowe PESA Bydgoszcz SA Holding
+AKAPESTER 1 P.P.H.U.
+Pojazdy Szynowe PESA Bydgoszcz S A Holding
+PPUH PESKA-I Maria Struniarska
+select * from t1 where a like '%PESKA%';
+a
+PPUH PESKA-I Maria Struniarska
+select * from t1 where a like '%ESKA%';
+a
+PPUH PESKA-I Maria Struniarska
+DROP TABLE t1;

@@ -616,7 +616,8 @@ void Item_func_concat_ws::split_sum_func(Item **ref_pointer_array,
     uint el= fields.elements;
     fields.push_front(separator);
     ref_pointer_array[el]= separator;
-    separator= new Item_ref(ref_pointer_array + el, 0, separator->name);
+    separator= new Item_ref(ref_pointer_array + el,
+			    &separator, 0, separator->name);
   }
   Item_str_func::split_sum_func(ref_pointer_array, fields);
 }
@@ -779,7 +780,7 @@ redo:
           register char *i,*j;
           i=(char*) ptr+1; j=(char*) search+1;
           while (j != search_end)
-            if (*i++ != *j++) goto skipp;
+            if (*i++ != *j++) goto skip;
           offset= (int) (ptr-res->ptr());
           if (res->length()-from_length + to_length >
 	      current_thd->variables.max_allowed_packet)
@@ -793,7 +794,7 @@ redo:
 	  offset+=(int) to_length;
           goto redo;
         }
-skipp:
+skip:
         if ((l=my_ismbchar(res->charset(), ptr,strend))) ptr+=l;
         else ++ptr;
     }
@@ -975,9 +976,10 @@ String *Item_func_right::val_str(String *str)
   if (res->length() <= (uint) length)
     return res; /* purecov: inspected */
 
-  uint start=res->numchars()-(uint) length;
-  if (start<=0) return res;
-  start=res->charpos(start);
+  uint start=res->numchars();
+  if (start <= (uint) length)
+    return res;
+  start=res->charpos(start - (uint) length);
   tmp_value.set(*res,start,res->length()-start);
   return &tmp_value;
 }
@@ -1087,13 +1089,13 @@ String *Item_func_substr_index::val_str(String *str)
 	  register char *i,*j;
 	  i=(char*) ptr+1; j=(char*) search+1;
 	  while (j != search_end)
-	    if (*i++ != *j++) goto skipp;
+	    if (*i++ != *j++) goto skip;
 	  if (pass==0) ++n;
 	  else if (!--c) break;
 	  ptr+=delimeter_length;
 	  continue;
 	}
-    skipp:
+    skip:
         if ((l=my_ismbchar(res->charset(), ptr,strend))) ptr+=l;
         else ++ptr;
       } /* either not found or got total number when count<0 */
@@ -1646,11 +1648,11 @@ void Item_func_elt::fix_length_and_dec()
 {
   max_length=0;
   decimals=0;
-  
+
   if (agg_arg_collations(collation, args+1, arg_count-1))
     return;
 
-  for (uint i=1 ; i < arg_count ; i++)
+  for (uint i= 1 ; i < arg_count ; i++)
   {
     set_if_bigger(max_length,args[i]->max_length);
     set_if_bigger(decimals,args[i]->decimals);
@@ -1709,7 +1711,7 @@ void Item_func_make_set::split_sum_func(Item **ref_pointer_array,
     uint el= fields.elements;
     fields.push_front(item);
     ref_pointer_array[el]= item;
-    item= new Item_ref(ref_pointer_array + el, 0, item->name);
+    item= new Item_ref(ref_pointer_array + el, &item, 0, item->name);
   }
   Item_str_func::split_sum_func(ref_pointer_array, fields);
 }
@@ -2022,9 +2024,8 @@ String *Item_func_lpad::val_str(String *str)
 {
   uint32 res_char_length,pad_char_length;
   ulong count= (long) args[1]->val_int(), byte_count;
-  String a1,a3;
-  String *res= args[0]->val_str(&a1);
-  String *pad= args[2]->val_str(&a3);
+  String *res= args[0]->val_str(&tmp_value);
+  String *pad= args[2]->val_str(&lpad_str);
 
   if (!res || args[1]->null_value || !pad)
     goto err;
@@ -2104,8 +2105,8 @@ String *Item_func_conv_charset::val_str(String *str)
     null_value=1;
     return 0;
   }
-  null_value= str->copy(arg->ptr(),arg->length(),arg->charset(),conv_charset);
-  return null_value ? 0 : str;
+  null_value= str_value.copy(arg->ptr(),arg->length(),arg->charset(),conv_charset);
+  return null_value ? 0 : &str_value;
 }
 
 void Item_func_conv_charset::fix_length_and_dec()
@@ -2121,78 +2122,6 @@ void Item_func_conv_charset::print(String *str)
   str->append(" using ", 7);
   str->append(conv_charset->csname);
   str->append(')');
-}
-
-String *Item_func_conv_charset3::val_str(String *str)
-{
-  my_wc_t wc;
-  int cnvres;
-  const uchar *s, *se;
-  uchar *d, *d0, *de;
-  uint32 dmaxlen;
-  String *arg= args[0]->val_str(str);
-  String *to_cs= args[1]->val_str(str);
-  String *from_cs= args[2]->val_str(str);
-  CHARSET_INFO *from_charset;
-  CHARSET_INFO *to_charset;
-
-  if (!arg     || args[0]->null_value ||
-      !to_cs   || args[1]->null_value ||
-      !from_cs || args[2]->null_value ||
-      !(from_charset=get_charset_by_name(from_cs->ptr(), MYF(MY_WME))) ||
-      !(to_charset=get_charset_by_name(to_cs->ptr(), MYF(MY_WME))))
-  {
-    null_value=1;
-    return 0;
-  }
-
-  s=(const uchar*)arg->ptr();
-  se=s+arg->length();
-
-  dmaxlen=arg->length()*to_charset->mbmaxlen+1;
-  str->alloc(dmaxlen);
-  d0=d=(unsigned char*)str->ptr();
-  de=d+dmaxlen;
-
-  while (1)
-  {
-    cnvres=from_charset->cset->mb_wc(from_charset,&wc,s,se);
-    if (cnvres>0)
-    {
-      s+=cnvres;
-    }
-    else if (cnvres==MY_CS_ILSEQ)
-    {
-      s++;
-      wc='?';
-    }
-    else
-      break;
-
-outp:
-    cnvres=to_charset->cset->wc_mb(to_charset,wc,d,de);
-    if (cnvres>0)
-    {
-      d+=cnvres;
-    }
-    else if (cnvres==MY_CS_ILUNI && wc!='?')
-    {
-        wc='?';
-        goto outp;
-    }
-    else
-      break;
-  };
-
-  str->length((uint32) (d-d0));
-  str->set_charset(to_charset);
-  return str;
-}
-
-
-void Item_func_conv_charset3::fix_length_and_dec()
-{
-  max_length = args[0]->max_length;
 }
 
 String *Item_func_set_collation::val_str(String *str)
@@ -2261,7 +2190,7 @@ String *Item_func_charset::val_str(String *str)
   if ((null_value=(args[0]->null_value || !res->charset())))
     return 0;
   str->copy(res->charset()->csname,strlen(res->charset()->csname),
-	    &my_charset_latin1, default_charset());
+	    &my_charset_latin1, collation.collation);
   return str;
 }
 
@@ -2272,7 +2201,7 @@ String *Item_func_collation::val_str(String *str)
   if ((null_value=(args[0]->null_value || !res->charset())))
     return 0;
   str->copy(res->charset()->name,strlen(res->charset()->name),
-	    &my_charset_latin1, default_charset());
+	    &my_charset_latin1, collation.collation);
   return str;
 }
 

@@ -19,9 +19,9 @@
   with gcc 3.0.x to avoid including libstdc++
 */
 
-#include "mysys_priv.h"
+#ifdef USE_MYSYS_NEW
 
-#ifdef USE_MYSYS_NEW  
+#include "mysys_priv.h"
 
 void *operator new (size_t sz)
 {

@@ -496,7 +496,6 @@ longlong Item_func_eq::val_int()
   return value == 0 ? 1 : 0;
 }
 
-
 /* Same as Item_func_eq, but NULL = NULL */
 
 void Item_func_equal::fix_length_and_dec()
@@ -1652,31 +1651,24 @@ longlong Item_func_bit_and::val_int()
   return (longlong) (arg1 & arg2);
 }
 
-Item_cond::Item_cond(THD *thd, Item_cond &item)
+Item_cond::Item_cond(THD *thd, Item_cond *item)
   :Item_bool_func(thd, item),
-   abort_on_null(item.abort_on_null),
-   and_tables_cache(item.and_tables_cache)
+   abort_on_null(item->abort_on_null),
+   and_tables_cache(item->and_tables_cache)
 {
   /*
-    here should be following text:
-
-  List_iterator_fast<Item*> li(item.list);
-  while(Item *it= li++)
-    list.push_back(it);
-
-    but it do not need,
-    because this constructor used only for AND/OR and
-    argument list will be copied by copy_andor_arguments call
+    item->list will be copied by copy_andor_arguments() call
   */
-
 }
+
 
 void Item_cond::copy_andor_arguments(THD *thd, Item_cond *item)
 {
   List_iterator_fast<Item> li(item->list);
-  while(Item *it= li++)
+  while (Item *it= li++)
     list.push_back(it->copy_andor_structure(thd));
 }
+
 
 bool
 Item_cond::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
@@ -1704,9 +1696,6 @@ Item_cond::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     {						// Identical function
       li.replace(((Item_cond*) item)->list);
       ((Item_cond*) item)->list.empty();
-#ifdef DELETE_ITEMS
-      delete (Item_cond*) item;
-#endif
       item= *li.ref();				// new current item
     }
     if (abort_on_null)
@@ -1792,7 +1781,7 @@ void Item_cond::split_sum_func(Item **ref_pointer_array, List<Item> &fields)
       uint el= fields.elements;
       fields.push_front(item);
       ref_pointer_array[el]= item;
-      li.replace(new Item_ref(ref_pointer_array + el, 0, item->name));
+      li.replace(new Item_ref(ref_pointer_array + el, li.ref(), 0, item->name));
     }
     item->update_used_tables();
     used_tables_cache|=item->used_tables();
@@ -2236,11 +2225,11 @@ void Item_func_like::turboBM_compute_suffixes(int *suff)
   int            f = 0;
   int            g = plm1;
   int *const splm1 = suff + plm1;
-  CHARSET_INFO	*cs=system_charset_info;	// QQ Needs to be fixed
+  CHARSET_INFO	*cs= cmp.cmp_collation.collation;
 
   *splm1 = pattern_len;
 
-  if (cmp.cmp_collation.collation == &my_charset_bin)
+  if (cs == &my_charset_bin)
   {
     int i;
     for (i = pattern_len - 2; i >= 0; i--)
@@ -2338,12 +2327,12 @@ void Item_func_like::turboBM_compute_bad_character_shifts()
   int *end = bmBc + alphabet_size;
   int j;
   const int plm1 = pattern_len - 1;
-  CHARSET_INFO	*cs=system_charset_info;	// QQ Needs to be fixed
+  CHARSET_INFO	*cs= cmp.cmp_collation.collation;
 
   for (i = bmBc; i < end; i++)
     *i = pattern_len;
 
-  if (cmp.cmp_collation.collation == &my_charset_bin)
+  if (cs == &my_charset_bin)
   {
     for (j = 0; j < plm1; j++)
       bmBc[(uint) (uchar) pattern[j]] = plm1 - j;
@@ -2368,13 +2357,13 @@ bool Item_func_like::turboBM_matches(const char* text, int text_len) const
   int shift = pattern_len;
   int j     = 0;
   int u     = 0;
-  CHARSET_INFO	*cs= cmp.cmp_collation.collation;	// QQ Needs to be fixed
+  CHARSET_INFO	*cs= cmp.cmp_collation.collation;
 
   const int plm1=  pattern_len - 1;
   const int tlmpl= text_len - pattern_len;
 
   /* Searching */
-  if (cmp.cmp_collation.collation == &my_charset_bin)
+  if (cs == &my_charset_bin)
   {
     while (j <= tlmpl)
     {

@@ -1,18 +1,4 @@
-Stored Procedures implemented 2003-12-10:
-
-
-Summary of Not Yet Implemented:
-
-  - SQL statements using table (like SELECT, INSERT, UPDATE etc)
-    in FUNCTIONs
-  - External languages
-  - Access control
-  - Routine characteristics (mostly used for external languages)
-  - SQL-99 COMMIT (related to BEGIN/END)
-  - FOR-loops
-  - CASCADE/RESTRICT for ALTER and DROP
-  - ALTER/DROP METHOD (as it implies User Defined Types)
-  - SIGNAL and RESIGNAL, and UNDO handlers
+Stored Procedures implemented 2004-01-29:
 
 
 Summary of what's implemented:
@@ -26,7 +12,19 @@ Summary of what's implemented:
   - Prepared SP caching
   - CONDITIONs and HANDLERs
   - Simple read-only CURSORs.
-  - SHOW DECLARE PROCEDURE/FUNCTION and SHOW PROCEDURE/FUNCTION STATUS
+  - SHOW CREATE PROCEDURE/FUNCTION and SHOW PROCEDURE/FUNCTION STATUS
+
+
+Summary of Not Yet Implemented:
+
+  - SQL statements using tables (like SELECT, INSERT, UPDATE etc) in FUNCTIONs
+  - External languages
+  - Access control
+  - SQL-99 COMMIT (related to BEGIN/END)
+  - FOR-loops
+  - CASCADE/RESTRICT for ALTER and DROP
+  - ALTER/DROP METHOD (as it implies User Defined Types)
+  - SIGNAL and RESIGNAL, and UNDO handlers
 
 
 List of what's implemented:
@@ -50,13 +48,12 @@ List of what's implemented:
     CASCADE/RESTRICT is not implemented.
 
   - CALL name (args)
-    OUT and INOUT parameters are only supported for local variables, and
-    therefore only useful when calling such procedures from within another
-    procedure.
-    Note: For the time being, when a procedure with OUT/INOUT parameter is
-          called, the out values are silently discarded. In the future, this
-	  will either generate an error message, or it might even work to
-	  call all procedures from the top-level.
+    OUT and INOUT parameters are also works for user variables ("global"
+    variables) - i.e., if a procedure is defined as:
+      CREATE PROCEDURE foo(OUT p INT) ...;
+    a call like:
+      CALL foo(@x);
+    will set @x to the output value.
 
   - Function/Procedure body:
     - BEGIN/END
@@ -81,17 +78,17 @@ List of what's implemented:
       is implemented. (Note: This is not SQL-99 feature, but common in other
       databases.)
     - A FUNCTION can have flow control contructs, but must not contain
-      an SQL query, like SELECT, INSERT, UPDATE, etc. The reason is that it's
-      hard to allow this is that a FUNCTION is executed as part of another
-      query (unlike a PROCEDURE, which is called as a statement). The table
-      locking scheme used makes it difficult to allow "subqueries" during
-      FUNCTION invokation.
+      an SQL query/statement, like SELECT, INSERT, UPDATE, etc. The reason
+      is that it's hard to allow this is that a FUNCTION is executed as part
+      of another query (unlike a PROCEDURE, which is called as a statement).
+      The table locking scheme used makes it difficult to allow "subqueries"
+      during FUNCTION invokation.
     - SPs are cached, but with a separate cache for each thread (THD).
       There are still quite a few non-reentrant constructs in the lexical
       context which makes sharing prepared SPs impossible. And, even when
       this is resolved, it's not necessarily the case that it will be faster
       than a cache per thread. A global cache requires locks, which might
-      become a buttleneck. (It would save memory though.)
+      become a bottleneck. (It would save memory though.)
     - CONDITIONs and HANDLERs are implemented, but not the SIGNAL and
       RESIGNAL statements. (It's unclear if these can be implemented.)
       The semantics of CONDITIONs is expanded to allow catching MySQL error
@@ -102,9 +99,13 @@ List of what's implemented:
       (NEXT, PRIOR, etc). Cursors are ASENSITIVE, READ-ONLY, non-SCROLLing.
       (The additional syntax will be added for completeness, but for the
        most part unsupported with the current underlying cursor mechanism.)
+      N.B. The current implementation is temporary and only works within a
+        stored procedure, and may not perform well for very large result sets.
+        A "real" cursor implementation is under development; this will replace
+        the current one when it's finished.
 
   - SHOW procedures and functions
-    SHOW DECLARE PROCEDURE|FUNCTION <name>
+    SHOW CREATE PROCEDURE|FUNCTION <name>
       returns the definition of a routine.
     SHOW PROCEDURE|FUNCTION STATUS [LIKE <pattern>]
       returns characteristics of routines, like the name, type, creator,

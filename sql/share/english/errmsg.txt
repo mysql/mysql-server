@@ -290,6 +290,9 @@ character-set=latin1
 "MySQL is started in --skip-name-resolve mode. You need to restart it without this switch for this grant to work",
 "Unknown table engine '%s'",
 "'%s' is deprecated. Use '%s' instead.",
+"The target table %-.100s of the %s is not updatable.",
+"The '%s' feature was disabled. You need MySQL built with '%s' define to have it working",
+"MySQL is started in --skip-grant-tables mode. You can't use this command"
 "Can't create a %s from within another stored routine"
 "%s %s already exists"
 "%s %s does not exist"

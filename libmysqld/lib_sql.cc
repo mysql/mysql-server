@@ -96,6 +96,7 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
     net->last_error[0]= 0;
     strmov(net->sqlstate, not_error_sqlstate);
   }
+  mysql->server_status= thd->server_status;
   mysql->warning_count= ((THD*)mysql->thd)->total_warn_count;
   return result;
 }
@@ -244,6 +245,18 @@ static MYSQL_RES * emb_mysql_store_result(MYSQL *mysql)
   return mysql_store_result(mysql);
 }
 
+int emb_next_result(MYSQL *mysql)
+{
+  THD *thd= (THD*)mysql->thd;
+  DBUG_ENTER("emb_next_result");
+
+  if (emb_advanced_command(mysql, COM_QUERY,0,0,
+			   thd->query_rest.ptr(),thd->query_rest.length(),1)
+      || emb_mysql_read_query_result(mysql))
+    DBUG_RETURN(1);
+
+  DBUG_RETURN(0);				/* No more results */
+}
 
 MYSQL_METHODS embedded_methods= 
 {
@@ -258,7 +271,8 @@ MYSQL_METHODS embedded_methods=
   emb_read_binary_rows,
   emb_unbuffered_fetch,
   emb_free_embedded_thd,
-  emb_read_statistic
+  emb_read_statistic,
+  emb_next_result
 };
 
 C_MODE_END
@@ -478,7 +492,17 @@ void *create_embedded_thd(int client_flag, char *db)
   return thd;
 }
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
+#ifdef NO_EMBEDDED_ACCESS_CHECKS
+int check_embedded_connection(MYSQL *mysql)
+{
+  THD *thd= (THD*)mysql->thd;
+  thd->host= (char*)my_localhost;
+  thd->host_or_ip= thd->host;
+  thd->user= my_strdup(mysql->user, MYF(0));
+  return 0;
+}
+
+#else
 int check_embedded_connection(MYSQL *mysql)
 {
   THD *thd= (THD*)mysql->thd;
@@ -486,9 +510,13 @@ int check_embedded_connection(MYSQL *mysql)
   char scramble_buff[SCRAMBLE_LENGTH];
   int passwd_len;
 
-  thd->host= mysql->options.client_ip ?
-    mysql->options.client_ip : (char*)my_localhost;
-  thd->ip= thd->host;
+  if (mysql->options.client_ip)
+  {
+    thd->host= my_strdup(mysql->options.client_ip, MYF(0));
+    thd->ip= my_strdup(thd->host, MYF(0));
+  }
+  else
+    thd->host= (char*)my_localhost;
   thd->host_or_ip= thd->host;
 
   if (acl_check_host(thd->host,thd->ip))
@@ -497,7 +525,7 @@ int check_embedded_connection(MYSQL *mysql)
     goto err;
   }
 
-  thd->user= mysql->user;
+  thd->user= my_strdup(mysql->user, MYF(0));
   if (mysql->passwd && mysql->passwd[0])
   {
     memset(thd->scramble, 55, SCRAMBLE_LENGTH); // dummy scramble
@@ -565,6 +593,9 @@ bool Protocol::send_fields(List<Item> *list, uint flag)
     client_field->org_name_length=	strlen(client_field->org_name);
     client_field->org_table_length=	strlen(client_field->org_table);
     client_field->charsetnr=		server_field.charsetnr;
+
+    client_field->catalog= strdup_root(field_alloc, "std");
+    client_field->catalog_length= 3;
     
     if (INTERNAL_NUM_FIELD(client_field))
       client_field->flags|= NUM_FLAG;
@@ -575,9 +606,15 @@ bool Protocol::send_fields(List<Item> *list, uint flag)
       String tmp(buff, sizeof(buff), default_charset_info), *res;
 
       if (!(res=item->val_str(&tmp)))
+      {
 	client_field->def= strdup_root(field_alloc, "");
+	client_field->def_length= 0;
+      }
       else
+      {
 	client_field->def= strdup_root(field_alloc, tmp.ptr());
+	client_field->def_length= tmp.length();
+      }
     }
     else
       client_field->def=0;
@@ -652,7 +689,10 @@ send_ok(THD *thd,ha_rows affected_rows,ulonglong id,const char *message)
   mysql->affected_rows= affected_rows;
   mysql->insert_id= id;
   if (message)
+  {
     strmake(thd->net.last_error, message, sizeof(thd->net.last_error)-1);
+    mysql->info= thd->net.last_error;
+  }
   DBUG_VOID_RETURN;
 }
 

@@ -32,7 +32,7 @@
 		     (BU)->current_byte & ((mi_bit_type) 1 << --(BU)->bits) :\
 		     (fill_buffer(BU), (BU)->bits= BITS_SAVED-1,\
 		      (BU)->current_byte & ((mi_bit_type) 1 << (BITS_SAVED-1))))
-#define skipp_to_next_byte(BU) ((BU)->bits&=~7)
+#define skip_to_next_byte(BU) ((BU)->bits&=~7)
 #define get_bits(BU,count) (((BU)->bits >= count) ? (((BU)->current_byte >> ((BU)->bits-=count)) & mask[count]) : fill_and_get_bits(BU,count))
 
 #define decode_bytes_test_bit(bit) \
@@ -58,9 +58,9 @@ static void (*get_unpack_function(MI_COLUMNDEF *rec))(MI_COLUMNDEF *field,
 						    MI_BIT_BUFF *buff,
 						    uchar *to,
 						    uchar *end);
-static void uf_zerofill_skipp_zero(MI_COLUMNDEF *rec,MI_BIT_BUFF *bit_buff,
+static void uf_zerofill_skip_zero(MI_COLUMNDEF *rec,MI_BIT_BUFF *bit_buff,
 				   uchar *to,uchar *end);
-static void uf_skipp_zero(MI_COLUMNDEF *rec,MI_BIT_BUFF *bit_buff,
+static void uf_skip_zero(MI_COLUMNDEF *rec,MI_BIT_BUFF *bit_buff,
 			  uchar *to,uchar *end);
 static void uf_space_normal(MI_COLUMNDEF *rec,MI_BIT_BUFF *bit_buff,
 			    uchar *to,uchar *end);
@@ -210,7 +210,7 @@ my_bool _mi_read_pack_info(MI_INFO *info, pbool fix_keys)
 								huff_tree_bits);
     share->rec[i].unpack=get_unpack_function(share->rec+i);
   }
-  skipp_to_next_byte(&bit_buff);
+  skip_to_next_byte(&bit_buff);
   decode_table=share->decode_tables;
   for (i=0 ; i < trees ; i++)
     read_huff_table(&bit_buff,share->decode_trees+i,&decode_table,
@@ -291,7 +291,7 @@ static void read_huff_table(MI_BIT_BUFF *bit_buff, MI_DECODE_TREE *decode_tree,
     else
       *ptr= (uint16) (IS_CHAR + (get_bits(bit_buff,char_bits) + min_chr));
   }
-  skipp_to_next_byte(bit_buff);
+  skip_to_next_byte(bit_buff);
 
   decode_tree->table= *decode_table;
   decode_tree->intervalls= *intervall_buff;
@@ -468,8 +468,8 @@ static void (*get_unpack_function(MI_COLUMNDEF *rec))
   switch (rec->base_type) {
   case FIELD_SKIP_ZERO:
     if (rec->pack_type & PACK_TYPE_ZERO_FILL)
-      return &uf_zerofill_skipp_zero;
-    return &uf_skipp_zero;
+      return &uf_zerofill_skip_zero;
+    return &uf_skip_zero;
   case FIELD_NORMAL:
     if (rec->pack_type & PACK_TYPE_SPACE_FIELDS)
       return &uf_space_normal;
@@ -515,7 +515,7 @@ static void (*get_unpack_function(MI_COLUMNDEF *rec))
 
 	/* De different functions to unpack a field */
 
-static void uf_zerofill_skipp_zero(MI_COLUMNDEF *rec, MI_BIT_BUFF *bit_buff,
+static void uf_zerofill_skip_zero(MI_COLUMNDEF *rec, MI_BIT_BUFF *bit_buff,
 				   uchar *to, uchar *end)
 {
   if (get_bit(bit_buff))
@@ -528,7 +528,7 @@ static void uf_zerofill_skipp_zero(MI_COLUMNDEF *rec, MI_BIT_BUFF *bit_buff,
   }
 }
 
-static void uf_skipp_zero(MI_COLUMNDEF *rec, MI_BIT_BUFF *bit_buff, uchar *to,
+static void uf_skip_zero(MI_COLUMNDEF *rec, MI_BIT_BUFF *bit_buff, uchar *to,
 			  uchar *end)
 {
   if (get_bit(bit_buff))

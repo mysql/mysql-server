@@ -968,6 +968,27 @@ drop procedure bug2267_1|
 drop procedure bug2267_2|
 drop procedure bug2267_3|
 drop procedure bug2267_4|
+create procedure bug2227(x int)
+begin
+declare y float default 2.6;
+declare z char(16) default "zzz";
+select 1.3, x, y, 42, z;
+end|
+call bug2227(9)|
+1.3	x	y	42	z
+1.3	9	2.6	42	zzz
+drop procedure bug2227|
+create procedure bug2614()
+begin
+drop table if exists t3;
+create table t3 (id int default '0' not null);
+insert into t3 select 12;
+insert into t3 select * from t3;
+end|
+call bug2614()|
+call bug2614()|
+drop table t3|
+drop procedure bug2614|
 drop table if exists fac|
 create table fac (n int unsigned not null primary key, f bigint unsigned)|
 create procedure ifac(n int unsigned)

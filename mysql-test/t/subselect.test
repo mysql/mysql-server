@@ -1014,3 +1014,43 @@ INSERT INTO t1 VALUES (1,1,'1A3240'), (1,2,'4W2365');
 INSERT INTO t2 VALUES (100, 200, 'C');
 SELECT DISTINCT COLC FROM t1 WHERE COLA = (SELECT COLA FROM t2 WHERE COLB = 200 AND COLC ='C' LIMIT 1);
 DROP TABLE t1, t2;
+
+#
+# Bug 2198
+#
+
+create table t1 (a int, b decimal(13, 3)); 
+insert into t1 values (1, 0.123);
+select a, (select max(b) from t1) into outfile "subselect.out.file.1" from t1;
+delete from t1;
+load data infile "subselect.out.file.1" into table t1;
+select * from t1;
+drop table t1;
+
+#
+# Bug 2479
+#
+
+CREATE TABLE `t1` (
+  `id` int(11) NOT NULL auto_increment,
+  `id_cns` tinyint(3) unsigned NOT NULL default '0',
+  `tipo` enum('','UNO','DUE') NOT NULL default '',
+  `anno_dep` smallint(4) unsigned zerofill NOT NULL default '0000',
+  `particolare` mediumint(8) unsigned NOT NULL default '0',
+  `generale` mediumint(8) unsigned NOT NULL default '0',
+  `bis` tinyint(3) unsigned NOT NULL default '0',
+  PRIMARY KEY  (`id`),
+  UNIQUE KEY `idx_cns_gen_anno` (`anno_dep`,`id_cns`,`generale`,`particolare`),
+  UNIQUE KEY `idx_cns_par_anno` (`id_cns`,`anno_dep`,`tipo`,`particolare`,`bis`)
+);
+INSERT INTO `t1` VALUES (1,16,'UNO',1987,2048,9681,0),(2,50,'UNO',1987,1536,13987,0),(3,16,'UNO',1987,2432,14594,0),(4,16,'UNO',1987,1792,13422,0),(5,16,'UNO',1987,1025,10240,0),(6,16,'UNO',1987,1026,7089,0);
+CREATE TABLE `t2` (
+  `id` tinyint(3) unsigned NOT NULL auto_increment,
+  `max_anno_dep` smallint(6) unsigned NOT NULL default '0',
+  PRIMARY KEY  (`id`)
+);
+INSERT INTO `t2` VALUES (16,1987),(50,1990),(51,1990);
+
+SELECT cns.id, cns.max_anno_dep, cns.max_anno_dep = (SELECT s.anno_dep FROM t1 AS s WHERE s.id_cns = cns.id ORDER BY s.anno_dep DESC LIMIT 1) AS PIPPO FROM t2 AS cns;
+
+DROP TABLE t1, t2;

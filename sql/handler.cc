@@ -1115,10 +1115,12 @@ int handler::delete_all_rows()
 bool handler::caching_allowed(THD* thd, char* table_key,
 			      uint key_length, uint8 cache_type)
 {
+#ifdef HAVE_INNOBASE_DB
   if (cache_type == HA_CACHE_TBL_ASKTRANSACT)
     return innobase_query_caching_of_table_permitted(thd, table_key,
 						     key_length);
   else
+#endif
     return 1;
 }
 

@@ -28,12 +28,12 @@ INSERT INTO t1 VALUES (-9e999999);
 # The following replaces is here because some systems replaces the above
 # double with '-inf' and others with MAX_DOUBLE
 --replace_result (-1.79769313486232e+308) (RES) (NULL) (RES)
---exec $MYSQL_DUMP --skip-comments test t1
+--exec $MYSQL_DUMP  --skip-comments test t1
 DROP TABLE t1;
 
 CREATE TABLE t1(a int, b text, c varchar(3));
 INSERT INTO t1 VALUES (1, "test", "tes"), (2, "TEST", "TES");
---exec $MYSQL_DUMP --skip-all --skip-comments -X test t1
+--exec $MYSQL_DUMP  --skip-all --skip-comments -X test t1
 DROP TABLE t1;
 
 #
@@ -42,7 +42,7 @@ DROP TABLE t1;
 
 CREATE TABLE t1 (`a"b"` char(2));
 INSERT INTO t1 VALUES ("1\""), ("\"2");
---exec $MYSQL_DUMP --skip-all --skip-comments -X test t1
+--exec $MYSQL_DUMP  --skip-all --skip-comments -X test t1
 DROP TABLE t1;
 
 #
@@ -51,5 +51,23 @@ DROP TABLE t1;
 
 CREATE TABLE t1 (a  VARCHAR(255)) DEFAULT CHARSET koi8r;
 INSERT INTO t1  VALUES (_koi8r x'C1C2C3C4C5');
---exec $MYSQL_DUMP --skip-comments test t1
+--exec $MYSQL_DUMP  --skip-comments test t1
 DROP TABLE t1;
+
+#
+# Bug #2634
+#
+
+CREATE TABLE t1 (a int) ENGINE=MYISAM;
+INSERT INTO t1 VALUES (1), (2);
+--exec $MYSQL_DUMP --skip-comments --compatible=mysql40 test t1
+--exec $MYSQL_DUMP --skip-comments --compatible=mysql323 test t1
+DROP TABLE t1;
+
+#
+# Bug #2592 'mysqldum doesn't quote "tricky" names correctly'
+#
+
+create table ```a` (i int);
+--exec $MYSQL_DUMP  --skip-comments test
+drop table ```a`;

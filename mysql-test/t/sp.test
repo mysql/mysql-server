@@ -502,7 +502,6 @@ drop procedure sel2|
 delete from t1|
 delete from t2|
 
-
 # SELECT INTO local variables
 create procedure into_test(x char(16), y int)
 begin
@@ -1107,6 +1106,38 @@ drop procedure bug2267_2|
 drop procedure bug2267_3|
 drop procedure bug2267_4|
 
+#
+# BUG#2227
+#
+create procedure bug2227(x int)
+begin
+  declare y float default 2.6;
+  declare z char(16) default "zzz";
+
+  select 1.3, x, y, 42, z;
+end|
+
+call bug2227(9)|
+drop procedure bug2227|
+
+#
+# BUG#2614
+#
+create procedure bug2614()
+begin
+  drop table if exists t3;
+  create table t3 (id int default '0' not null);
+  insert into t3 select 12;
+  insert into t3 select * from t3;
+end|
+
+--disable_warnings
+call bug2614()|
+--enable_warnings
+call bug2614()|
+drop table t3|
+drop procedure bug2614|
+
 
 #
 # Some "real" examples
@@ -1286,7 +1317,6 @@ show create procedure bar|
 --replace_column 4 '0000-00-00 00:00:00' 5 '0000-00-00 00:00:00'
 show procedure status like 'bar'|
 drop procedure bar|
-
 delimiter ;|
 drop table t1;
 drop table t2;

@@ -428,7 +428,6 @@ struct system_variables
 
 void free_tmp_table(THD *thd, TABLE *entry);
 
-class Prepared_statement;
 
 /*
   State of a single command executed against this connection.
@@ -589,6 +588,7 @@ public:
   struct st_mysql_bind *client_params;
   char *extra_data;
   ulong extra_length;
+  String query_rest;
 #endif
   NET	  net;				// client connection descriptor
   MEM_ROOT warn_root;			// For warnings and errors
@@ -606,8 +606,7 @@ public:
   Statement_map stmt_map; 
   /*
     keeps THD state while it is used for active statement
-    Note, that double free_root() is safe, so we don't need to do any
-    special cleanup for it in THD destructor.
+    Note: we perform special cleanup for it in THD destructor.
   */
   Statement stmt_backup;
   /*
@@ -657,6 +656,19 @@ public:
      and are still in use by this thread
   */
   TABLE   *open_tables,*temporary_tables, *handler_tables, *derived_tables;
+  /*
+    During a MySQL session, one can lock tables in two modes: automatic
+    or manual. In automatic mode all necessary tables are locked just before
+    statement execution, and all acquired locks are stored in 'lock'
+    member. Unlocking takes place automatically as well, when the
+    statement ends.
+    Manual mode comes into play when a user issues a 'LOCK TABLES'
+    statement. In this mode the user can only use the locked tables.
+    Trying to use any other tables will give an error. The locked tables are
+    stored in 'locked_tables' member.  Manual locking is described in
+    the 'LOCK_TABLES' chapter of the MySQL manual.
+    See also lock_tables() for details.
+  */
   MYSQL_LOCK	*lock;				/* Current locks */
   MYSQL_LOCK	*locked_tables;			/* Tables locked with LOCK */
   /*
@@ -806,6 +818,16 @@ public:
   ~THD();
 
   void init(void);
+  /*
+    Initialize memory roots necessary for query processing and (!)
+    pre-allocate memory for it. We can't do that in THD constructor because
+    there are use cases (acl_init, delayed inserts, watcher threads,
+    killing mysqld) where it's vital to not allocate excessive and not used
+    memory. Note, that we still don't return error from init_for_queries():
+    if preallocation fails, we should notice that at the first call to
+    alloc_root. 
+  */
+  void init_for_queries();
   void change_user(void);
   void cleanup(void);
   bool store_globals();
@@ -987,41 +1009,41 @@ public:
 };
 
 
-class select_export :public select_result {
-  sql_exchange *exchange;
-  File file;
-  IO_CACHE cache;
-  ha_rows row_count;
-  uint field_term_length;
-  int field_sep_char,escape_char,line_sep_char;
-  bool fixed_row_size;
-public:
-  select_export(sql_exchange *ex) :exchange(ex),file(-1),row_count(0L) {}
-  ~select_export();
-  int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
-  bool send_fields(List<Item> &list,
-		   uint flag) { return 0; }
-  bool send_data(List<Item> &items);
-  void send_error(uint errcode,const char *err);
-  bool send_eof();
-};
-
-
-class select_dump :public select_result {
+class select_to_file :public select_result {
+protected:
   sql_exchange *exchange;
   File file;
   IO_CACHE cache;
   ha_rows row_count;
   char path[FN_REFLEN];
+
 public:
-  select_dump(sql_exchange *ex) :exchange(ex),file(-1),row_count(0L)
+  select_to_file(sql_exchange *ex) :exchange(ex), file(-1),row_count(0L)
   { path[0]=0; }
-  ~select_dump();
-  int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
-  bool send_fields(List<Item> &list,
-		   uint flag) { return 0; }
-  bool send_data(List<Item> &items);
+  ~select_to_file();
+  bool send_fields(List<Item> &list, uint flag) { return 0; }
   void send_error(uint errcode,const char *err);
+};
+
+
+class select_export :public select_to_file {
+  uint field_term_length;
+  int field_sep_char,escape_char,line_sep_char;
+  bool fixed_row_size;
+public:
+  select_export(sql_exchange *ex) :select_to_file(ex) {}
+  ~select_export();
+  int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
+  bool send_data(List<Item> &items);
+  bool send_eof();
+};
+
+
+class select_dump :public select_to_file {
+public:
+  select_dump(sql_exchange *ex) :select_to_file(ex) {}
+  int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
+  bool send_data(List<Item> &items);
   bool send_eof();
 };
 

@@ -346,3 +346,9 @@ DROP TABLE t1;
 select substring_index("1abcd;2abcd;3abcd;4abcd", ';', 2),substring_index("1abcd;2abcd;3abcd;4abcd", ';', -2);
 
 explain extended select md5('hello'), sha('abc'), sha1('abc'), soundex(''), 'mood' sounds like 'mud', aes_decrypt(aes_encrypt('abc','1'),'1'),concat('*',space(5),'*'), reverse('abc'), rpad('a',4,'1'), lpad('a',4,'1'),  concat_ws(',','',NULL,'a'),make_set(255,_latin2'a',_latin2'b',_latin2'c'),elt(2,1),locate("a","b",2),format(130,10),char(0),conv(130,16,10),hex(130),binary 'HE', export_set(255,_latin2'y',_latin2'n',_latin2' '),FIELD('b' COLLATE latin1_bin,'A','B'),FIND_IN_SET(_latin1'B',_latin1'a,b,c,d'),collation(conv(130,16,10)), coercibility(conv(130,16,10)),length('\n\t\r\b\0\_\%\\'),bit_length('\n\t\r\b\0\_\%\\'),bit_length('\n\t\r\b\0\_\%\\'),concat('monty',' was here ','again'),length('hello'),char(ascii('h')),ord('h'),quote(1/0),crc32("123"),replace('aaaa','a','b'),insert('txs',2,1,'hi'),left(_latin2'a',1),right(_latin2'a',1),lcase(_latin2'a'),ucase(_latin2'a'),SUBSTR('abcdefg',3,2),substring_index("1abcd;2abcd;3abcd;4abcd", ';', 2),trim(_latin2' a '),ltrim(_latin2' a '),rtrim(_latin2' a '), decode(encode(repeat("a",100000),"monty"),"monty");
+
+#
+# Bug #2182
+#
+
+SELECT lpad(12345, 5, "#");
