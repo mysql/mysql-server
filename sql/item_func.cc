@@ -169,13 +169,15 @@ bool
 Item_func::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
   Item **arg,**arg_end;
+#ifndef EMBEDDED_LIBRARY			// Avoid compiler warning
   char buff[STACK_BUFF_ALLOC];			// Max argument in function
+#endif
 
   used_tables_cache= not_null_tables_cache= 0;
   const_item_cache=1;
 
   if (thd && check_stack_overrun(thd,buff))
-    return 0;					// Fatal error if flag is set!
+    return 1;					// Fatal error if flag is set!
   if (arg_count)
   {						// Print purify happy
     for (arg=args, arg_end=args+arg_count; arg != arg_end ; arg++)
@@ -1397,13 +1399,15 @@ bool
 udf_handler::fix_fields(THD *thd, TABLE_LIST *tables, Item_result_field *func,
 			uint arg_count, Item **arguments)
 {
+#ifndef EMBEDDED_LIBRARY			// Avoid compiler warning
   char buff[STACK_BUFF_ALLOC];			// Max argument in function
+#endif
   DBUG_ENTER("Item_udf_func::fix_fields");
 
   if (thd)
   {
     if (check_stack_overrun(thd,buff))
-      return 0;					// Fatal error flag is set!
+      DBUG_RETURN(1);				// Fatal error flag is set!
   }
   else
     thd=current_thd;				// In WHERE / const clause

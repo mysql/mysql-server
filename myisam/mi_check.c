@@ -36,7 +36,7 @@
 	/* Functions defined in this file */
 
 static int check_k_link(MI_CHECK *param, MI_INFO *info,uint nr);
-static int chk_index(MI_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
+static int chk_index(MI_CHECK *param, MI_INFO *info,MI_KEYDEF *keyinfo,
 		     my_off_t page, uchar *buff, ha_rows *keys,
 		     ha_checksum *key_checksum, uint level);
 static uint isam_key_length(MI_INFO *info,MI_KEYDEF *keyinfo);
@@ -1498,6 +1498,7 @@ int mi_sort_index(MI_CHECK *param, register MI_INFO *info, my_string name)
   File new_file;
   my_off_t index_pos[MI_MAX_POSSIBLE_KEY];
   uint r_locks,w_locks;
+  int old_lock;
   MYISAM_SHARE *share=info->s;
   MI_STATE_INFO old_state;
   DBUG_ENTER("sort_index");
@@ -1541,8 +1542,11 @@ int mi_sort_index(MI_CHECK *param, register MI_INFO *info, my_string name)
   flush_key_blocks(share->kfile, FLUSH_IGNORE_CHANGED);
 
   share->state.version=(ulong) time((time_t*) 0);
-  old_state=share->state;			/* save state if not stored */
-  r_locks=share->r_locks; w_locks=share->w_locks;
+  old_state= share->state;			/* save state if not stored */
+  r_locks=   share->r_locks;
+  w_locks=   share->w_locks;
+  old_lock=  info->lock_type;
+
 	/* Put same locks as old file */
   share->r_locks= share->w_locks= share->tot_locks= 0;
   (void) _mi_writeinfo(info,WRITEINFO_UPDATE_KEYFILE);
@@ -1553,12 +1557,13 @@ int mi_sort_index(MI_CHECK *param, register MI_INFO *info, my_string name)
 			MYF(0)) ||
       mi_open_keyfile(share))
     goto err2;
-  info->lock_type=F_UNLCK;			/* Force mi_readinfo to lock */
+  info->lock_type= F_UNLCK;			/* Force mi_readinfo to lock */
   _mi_readinfo(info,F_WRLCK,0);			/* Will lock the table */
-  info->lock_type=F_WRLCK;
-  share->r_locks=r_locks; share->w_locks=w_locks;
+  info->lock_type=  old_lock;
+  share->r_locks=   r_locks;
+  share->w_locks=   w_locks;
   share->tot_locks= r_locks+w_locks;
-  share->state=old_state;			/* Restore old state */
+  share->state=     old_state;			/* Restore old state */
 
   info->state->key_file_length=param->new_file_pos;
   info->update= (short) (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
@@ -3818,6 +3823,9 @@ void update_key_parts(MI_KEYDEF *keyinfo, ulong *rec_per_key_part,
       tmp=records;
     else
       tmp= (records + (count+1)/2) / (count+1);
+    /* for some weird keys (e.g. FULLTEXT) tmp can be <1 here.
+       let's ensure it is not */
+    set_if_bigger(tmp,1);
     if (tmp >= (ulonglong) ~(ulong) 0)
       tmp=(ulonglong) ~(ulong) 0;
     *rec_per_key_part=(ulong) tmp;

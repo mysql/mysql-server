@@ -1643,9 +1643,8 @@ int main(int argc, char **argv)
 	  fprintf(md_result_file,
 		  "\n--\n-- Position to start replication from\n--\n\n");
 	  fprintf(md_result_file,
-		  "CHANGE MASTER TO MASTER_LOG_FILE='%s' ;\n", row[0]);
-	  fprintf(md_result_file, "CHANGE MASTER TO MASTER_LOG_POS=%s ;\n",
-		  row[1]);
+		  "CHANGE MASTER TO MASTER_LOG_FILE='%s', \
+MASTER_LOG_POS=%s ;\n",row[0],row[1]); 
 	}
 	mysql_free_result(master);
       }

@@ -194,6 +194,60 @@ select * from t4;
 drop table t1,t2,t3,t4;
 
 #
+# Test of SQL_CALC_FOUND_ROW handling
+#
+create table t1 (a int);
+insert into t1 values (1),(2),(3);
+create table t2 (a int);
+insert into t2 values (3),(4),(5);
+
+# Test global limits
+(SELECT SQL_CALC_FOUND_ROWS * FROM t1) UNION all (SELECT * FROM t2) LIMIT 1;
+select found_rows();
+(SELECT SQL_CALC_FOUND_ROWS * FROM t1 LIMIT 1) UNION all (SELECT * FROM t2) LIMIT 2;
+select found_rows();
+
+# Test cases where found_rows() should return number of returned rows
+(SELECT SQL_CALC_FOUND_ROWS * FROM t1 LIMIT 1) UNION all (SELECT * FROM t2);
+select found_rows();
+(SELECT SQL_CALC_FOUND_ROWS * FROM t1) UNION all (SELECT * FROM t2 LIMIT 1);
+select found_rows();
+(SELECT SQL_CALC_FOUND_ROWS * FROM t1 LIMIT 1) UNION SELECT * FROM t2 LIMIT 1;
+select found_rows();
+
+# In these case found_rows() should work
+SELECT SQL_CALC_FOUND_ROWS * FROM t1 LIMIT 1 UNION all SELECT * FROM t2 LIMIT 2;
+select found_rows();
+SELECT SQL_CALC_FOUND_ROWS * FROM t1 UNION all SELECT * FROM t2 LIMIT 2;
+select found_rows();
+
+# The following examples will not be exact
+SELECT SQL_CALC_FOUND_ROWS * FROM t1 UNION SELECT * FROM t2 LIMIT 2;
+select found_rows();
+SELECT SQL_CALC_FOUND_ROWS * FROM t1 UNION SELECT * FROM t2 LIMIT 100;
+select found_rows();
+SELECT SQL_CALC_FOUND_ROWS * FROM t1 LIMIT 100 UNION SELECT * FROM t2;
+select found_rows();
+SELECT SQL_CALC_FOUND_ROWS * FROM t1 LIMIT 1 UNION SELECT * FROM t2;
+select found_rows();
+SELECT SQL_CALC_FOUND_ROWS * FROM t1 LIMIT 1 UNION SELECT * FROM t2 LIMIT 2;
+select found_rows();
+SELECT SQL_CALC_FOUND_ROWS * FROM t1 UNION SELECT * FROM t2 LIMIT 2,2;
+select found_rows();
+SELECT SQL_CALC_FOUND_ROWS * FROM t1 limit 2,2 UNION SELECT * FROM t2;
+select found_rows();
+
+# Test some limits with ORDER BY
+SELECT * FROM t1 UNION SELECT * FROM t2 ORDER BY a desc LIMIT 1;
+(SELECT * FROM t1 ORDER by a) UNION ALL (SELECT * FROM t2 ORDER BY a) ORDER BY A desc LIMIT 4;
+
+# Wrong usage
+--error 1234
+(SELECT * FROM t1) UNION all (SELECT SQL_CALC_FOUND_ROWS * FROM t2) LIMIT 1;
+
+drop table t1,t2;
+
+#
 # Test for another bug with UNION and LEFT JOIN
 #
 CREATE TABLE t1 (  id int(3) unsigned default '0') TYPE=MyISAM;

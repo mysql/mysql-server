@@ -309,11 +309,13 @@ libmysql/conf_to_src
 libmysql/my_static.h
 libmysql/mysys_priv.h
 libmysql/net.c
+libmysql/vio_priv.h
 libmysql_r/*.c
 libmysql_r/acconfig.h
 libmysql_r/conf_to_src
 libmysql_r/my_static.h
 libmysql_r/mysys_priv.h
+libmysql_r/vio_priv.h
 libmysqld/backup_dir
 libmysqld/client.c
 libmysqld/client_settings.h
