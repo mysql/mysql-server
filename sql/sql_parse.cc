@@ -196,7 +196,7 @@ static bool check_user(THD *thd,enum_server_command command, const char *user,
   thd->db=0;
   thd->db_length=0;
   USER_RESOURCES ur;
-  char tmp_passwd[SCRAMBLE_LENGTH];
+  char tmp_passwd[SCRAMBLE_LENGTH + 1];
 
   if (passwd[0] && strlen(passwd) != SCRAMBLE_LENGTH)
     return 1;
