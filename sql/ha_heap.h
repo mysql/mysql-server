@@ -78,10 +78,3 @@ class ha_heap: public handler
 			     enum thr_lock_type lock_type);
 
 };
-
-
-
-
-
-
-
