@@ -49,6 +49,7 @@ static void read_texts(const char *file_name,const char ***point,
   char name[FN_REFLEN];
   const char *buff;
   uchar head[32],*pos;
+  CHARSET_INFO *cset;
   DBUG_ENTER("read_texts");
 
   *point=0;					// If something goes wrong
@@ -65,6 +66,13 @@ static void read_texts(const char *file_name,const char ***point,
       head[2] != 2 || head[3] != 1)
     goto err; /* purecov: inspected */
   textcount=head[4];
+
+  if (!(cset= get_charset(head[30],MYF(MY_WME))))
+  {
+    funktpos= 3;
+    goto err;
+  }
+  
   length=uint2korr(head+6); count=uint2korr(head+8);
 
   if (count < error_messages)
@@ -104,6 +112,9 @@ Check that the above file is the right version for this program!",
 
 err:
   switch (funktpos) {
+  case 3:
+    buff="Character set is not supported for messagefile '%s'";
+    break;
   case 2:
     buff="Not enough memory for messagefile '%s'";
     break;
