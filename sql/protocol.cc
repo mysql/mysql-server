@@ -348,6 +348,25 @@ send_eof(THD *thd, bool no_flush)
   }
   DBUG_VOID_RETURN;
 }
+
+/*
+    Please client to send scrambled_password in old format.
+  SYNOPSYS
+    send_old_password_request()
+    thd thread handle
+     
+  RETURN VALUE
+    0  ok
+   !0  error
+*/
+
+bool send_old_password_request(THD *thd)
+{
+  static char buff[1]= { (char) 254 };
+  NET *net= &thd->net;
+  return my_net_write(net, buff, 1) || net_flush(net);
+}
+
 #endif /* EMBEDDED_LIBRARY */
 
 

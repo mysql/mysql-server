@@ -181,17 +181,20 @@ end:
     Check if user exist and password supplied is correct. 
   SYNOPSIS
     check_user()
-    thd          INOUT thread handle, thd->{host,user,ip} are used
-    command      IN    originator of the check: now check_user is called
-                       during connect and change user procedures; used for 
-                       logging.
-    passwd       IN    scrambled password recieved from client
-    passwd_len   IN    length of scrambled password
-    db           IN    database name to connect to, may be NULL
-    check_count  IN    dont know exactly
+    thd          thread handle, thd->{host,user,ip} are used
+    command      originator of the check: now check_user is called
+                 during connect and change user procedures; used for 
+                 logging.
+    passwd       scrambled password recieved from client
+    passwd_len   length of scrambled password
+    db           database name to connect to, may be NULL
+    check_count  dont know exactly
+
     Note, that host, user and passwd may point to communication buffer.
     Current implementation does not depened on that, but future changes
-    should be done with this in mind.
+    should be done with this in mind; 'thd' is INOUT, all other params
+    are 'IN'.
+
   RETURN VALUE
     0  OK; thd->user, thd->master_access, thd->priv_user, thd->db and
        thd->db_access are updated; OK is sent to client;
@@ -226,8 +229,10 @@ static int check_user(THD *thd, enum enum_server_command command,
     DBUG_RETURN(ER_HANDSHAKE_ERROR);
 
   /*
-    Why this is set here? - probably to reset current DB to 'no database
-    selected' in case of 'change user' failure.
+    Clear thd->db as it points to something, that will be freed when 
+    connection is closed. We don't want to accidently free a wrong pointer
+    if connect failed. Also in case of 'CHANGE USER' failure, current
+    database will be switched to 'no database selected'.
   */
   thd->db= 0;
   thd->db_length= 0;
@@ -244,6 +249,7 @@ static int check_user(THD *thd, enum enum_server_command command,
       scramble_323()). Here we please client to send scrambled_password
       in old format.
     */
+    NET *net= &thd->net;
     if (opt_secure_auth_local)
     {
       net_printf(thd, ER_SERVER_IS_IN_SECURE_AUTH_MODE,
@@ -258,9 +264,7 @@ static int check_user(THD *thd, enum enum_server_command command,
       strmake(buff, db, NAME_LEN);
       db= buff;
     }
-    NET *net= &thd->net;
-    if (my_net_write(net, thd->scramble_323, SCRAMBLE_LENGTH_323 + 1) ||
-        net_flush(net) ||
+    if (send_old_password_request(thd) ||
         my_net_read(net) != SCRAMBLE_LENGTH_323 + 1) // We have to read very
     {                                                // specific packet size
       inc_host_errors(&thd->remote.sin_addr);
@@ -288,7 +292,7 @@ static int check_user(THD *thd, enum enum_server_command command,
       {
         VOID(pthread_mutex_lock(&LOCK_thread_count));
         bool count_ok= thread_count < max_connections + delayed_insert_threads
-                       || thd->master_access & SUPER_ACL;
+                       || (thd->master_access & SUPER_ACL);
         VOID(pthread_mutex_unlock(&LOCK_thread_count));
         if (!count_ok)
         {                                         // too many connections 
@@ -305,7 +309,11 @@ static int check_user(THD *thd, enum enum_server_command command,
                       thd->user, thd->host_or_ip,
                       db ? db : (char*) "");
 
-      /* Why is it set here? */
+      /*
+        This is the default access rights for the current database.  It's
+        set to 0 here because we don't have an active database yet (and we
+        may not have an active database to set.
+      */
       thd->db_access=0;
 
       /* Don't allow user to connect if he has done too many queries */
@@ -554,9 +562,10 @@ static void reset_mqh(THD *thd, LEX_USER *lu, bool get_them= 0)
     Perform handshake, authorize client and update thd ACL variables.
   SYNOPSIS
     check_connection()
-    thd  INOUT thread handle
+    thd  thread handle
+
   RETURN
-     0  success, OK is sent to user
+     0  success, OK is sent to user, thd is updated.
     -1  error, which is sent to user
    > 0  error code (not sent to user)
 */
@@ -644,14 +653,12 @@ check_connection(THD *thd)
       each handshake.
     */
     create_random_string(thd->scramble, SCRAMBLE_LENGTH, &thd->rand);
-    strmake(thd->scramble_323, thd->scramble, SCRAMBLE_LENGTH_323);
-
     /*
       Old clients does not understand long scrambles, but can ignore packet
       tail: that's why first part of the scramble is placed here, and second
       part at the end of packet.
     */
-    end= strmake(end, thd->scramble_323, SCRAMBLE_LENGTH_323) + 1;
+    end= strmake(end, thd->scramble, SCRAMBLE_LENGTH_323) + 1;
    
     int2store(end, client_flags);
     /* write server characteristics: up to 16 bytes allowed */
@@ -754,8 +761,6 @@ check_connection(THD *thd)
     return(ER_HANDSHAKE_ERROR);
   }
 
-  /* why has it been put here? */
-
   if (thd->client_capabilities & CLIENT_INTERACTIVE)
     thd->variables.net_wait_timeout= thd->variables.net_interactive_timeout;
   if ((thd->client_capabilities & CLIENT_TRANSACTIONS) &&
@@ -778,9 +783,8 @@ check_connection(THD *thd)
 
   if (thd->user)
     x_free(thd->user);
-  thd->user= my_strdup(user, MYF(0));
-  if (!thd->user)
-    return(ER_OUT_OF_RESOURCES);
+  if (!(thd->user= my_strdup(user, MYF(0))))
+    return (ER_OUT_OF_RESOURCES);
   return check_user(thd, COM_CONNECT, passwd, passwd_len, db, true);
 }
 

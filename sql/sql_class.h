@@ -547,13 +547,7 @@ public:
   DYNAMIC_ARRAY user_var_events;
 
   /* scramble - random string sent to client on handshake */
-  char	     scramble[SCRAMBLE_LENGTH+1];
-  /*
-    The same as scramble but for old password checking routines. It always
-    contains first N bytes of scramble.
-    See check_connection() at sql_parse.cc for authentification details.
-  */
-  char       scramble_323[SCRAMBLE_LENGTH_323+1];
+  char	     scramble[max(SCRAMBLE_LENGTH, SCRAMBLE_LENGTH_323)+1];
 
   uint8	     query_cache_type;		// type of query cache processing
   bool       slave_thread;

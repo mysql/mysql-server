@@ -228,8 +228,8 @@ typedef struct st_mysql
   my_bool	free_me;		/* If free in mysql_close */
   my_bool	reconnect;		/* set to 1 if automatic reconnect */
 
-  char	        scramble[SCRAMBLE_LENGTH+1]; /* for new servers */
-  char          scramble_323[SCRAMBLE_LENGTH_323+1]; /* for old servers */
+  /* session-wide random string */
+  char	        scramble[max(SCRAMBLE_LENGTH,SCRAMBLE_LENGTH_323)+1];
 
  /*
    Set if this is the original connection, not a master or a slave we have

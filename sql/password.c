@@ -110,15 +110,17 @@ double my_rnd(struct rand_struct *rand_st)
     Used for Pre-4.1 password handling
   SYNOPSIS
     hash_password()
-    result    OUT store hash in this location
-    password  IN  plain text password to build hash
+    result       OUT store hash in this location
+    password     IN  plain text password to build hash
+    password_len IN  password length (password may be not null-terminated)
 */
 
-void hash_password(ulong *result, const char *password)
+void hash_password(ulong *result, const char *password, uint password_len)
 {
   register ulong nr=1345345333L, add=7, nr2=0x12345671L;
   ulong tmp;
-  for (; *password ; password++)
+  const char *password_end= password + password_len;
+  for (; password < password_end; password++)
   {
     if (*password == ' ' || *password == '\t')
       continue;                                 /* skip space in password */
@@ -129,7 +131,6 @@ void hash_password(ulong *result, const char *password)
   }
   result[0]=nr & (((ulong) 1L << 31) -1L); /* Don't use sign bit (str2int) */;
   result[1]=nr2 & (((ulong) 1L << 31) -1L);
-  return;
 }
 
 
@@ -145,7 +146,7 @@ void hash_password(ulong *result, const char *password)
 void make_scrambled_password_323(char *to, const char *password)
 {
   ulong hash_res[2];
-  hash_password(hash_res, password);
+  hash_password(hash_res, password, strlen(password));
   sprintf(to, "%08lx%08lx", hash_res[0], hash_res[1]);
 }
 
@@ -157,14 +158,12 @@ void make_scrambled_password_323(char *to, const char *password)
     scramble_323()
     to       OUT Store scrambled message here. Buffer must be at least
                  SCRAMBLE_LENGTH_323+1 bytes long
-    message  IN  Message to scramble. Message must be exactly 
-                 SRAMBLE_LENGTH_323 long and NULL terminated. 
+    message  IN  Message to scramble. Message must be at least
+                 SRAMBLE_LENGTH_323 bytes long.
     password IN  Password to use while scrambling
-  RETURN
-    End of scrambled string
 */
 
-char *scramble_323(char *to, const char *message, const char *password)
+void scramble_323(char *to, const char *message, const char *password)
 {
   struct rand_struct rand_st;
   ulong hash_pass[2], hash_message[2];
@@ -172,18 +171,18 @@ char *scramble_323(char *to, const char *message, const char *password)
   if (password && password[0])
   {
     char *to_start=to;
-    hash_password(hash_pass,password);
-    hash_password(hash_message, message);
+    hash_password(hash_pass,password, strlen(password));
+    hash_password(hash_message, message, SCRAMBLE_LENGTH_323);
     randominit(&rand_st,hash_pass[0] ^ hash_message[0],
                hash_pass[1] ^ hash_message[1]);
-    while (*message++)
+    const char *message_end= message + SCRAMBLE_LENGTH_323;
+    for (; message < message_end; message++)
       *to++= (char) (floor(my_rnd(&rand_st)*31)+64);
     char extra=(char) (floor(my_rnd(&rand_st)*31));
     while (to_start != to)
       *(to_start++)^=extra;
   }
   *to= 0;
-  return to;
 }
 
 
@@ -192,11 +191,13 @@ char *scramble_323(char *to, const char *message, const char *password)
     Used in pre 4.1 password handling
   SYNOPSIS
     check_scramble_323()
-    scrambled  IN scrambled message to check.
-    message    IN original random message which was used for scrambling; must
-                  be exactly SCRAMBLED_LENGTH_323 bytes long and
-                  NULL-terminated.
-    hash_pass  IN password which should be used for scrambling
+    scrambled  scrambled message to check.
+    message    original random message which was used for scrambling; must
+               be exactly SCRAMBLED_LENGTH_323 bytes long and
+               NULL-terminated.
+    hash_pass  password which should be used for scrambling
+    All params are IN.
+
   RETURN VALUE
     0 - password correct
    !0 - password invalid
@@ -211,11 +212,7 @@ check_scramble_323(const char *scrambled, const char *message,
   char buff[16],*to,extra;                      /* Big enough for check */
   const char *pos;
   
-  /* Check if this exactly N bytes. Overwise this is something fishy */
-  if (strlen(message) != SCRAMBLE_LENGTH_323)
-    return 1;                                   /* Wrong password */
-
-  hash_password(hash_message,message);
+  hash_password(hash_message, message, SCRAMBLE_LENGTH_323);
   randominit(&rand_st,hash_pass[0] ^ hash_message[0],
              hash_pass[1] ^ hash_message[1]);
   to=buff;
@@ -231,7 +228,7 @@ check_scramble_323(const char *scrambled, const char *message,
   return 0;
 }
 
-static uint8 char_val(uint8 X)
+static inline uint8 char_val(uint8 X)
 {
   return (uint) (X >= '0' && X <= '9' ? X-'0' :
       X >= 'A' && X <= 'Z' ? X-'A'+10 : X-'a'+10);
@@ -280,7 +277,10 @@ void make_password_from_salt_323(char *to, const ulong *salt)
 }
 
 
-/******************* MySQL 4.1.1 authentification routines ******************/
+/*
+     **************** MySQL 4.1.1 authentification routines *************
+*/
+
 /*
     Generate string of printable random characters of requested length
   SYNOPSIS
@@ -315,19 +315,16 @@ void create_random_string(char *to, uint length, struct rand_struct *rand_st)
     str, len  IN  the beginning and the length of the input string
 */
 
-static
-void
+static void
 octet2hex(char *to, const uint8 *str, uint len)
 {
-  static const char alphabet[] = { '0', '1', '2', '3', '4', '5', '6', '7',
-                                   '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
   const uint8 *str_end= str + len; 
   for (; str != str_end; ++str)
   {
-    *to++= alphabet[(*str & 0xF0) >> 4];
-    *to++= alphabet[*str & 0x0F];
+    *to++= _dig_vec[(*str & 0xF0) >> 4];
+    *to++= _dig_vec[*str & 0x0F];
   }
-  *to++= '\0';
+  *to= '\0';
 }
 
 
@@ -341,15 +338,14 @@ octet2hex(char *to, const uint8 *str, uint len)
                   overlap; len % 2 == 0
 */ 
 
-static
-void
+static void
 hex2octet(uint8 *to, const char *str, uint len)
 {
   const char *str_end= str + len;
   while (str < str_end)
   {
-    *to= char_val(*str++) << 4;
-    *to++|= char_val(*str++);
+    register char tmp= char_val(*str++);
+    *to++= (tmp << 4) | char_val(*str++);
   }
 }
 
@@ -366,9 +362,8 @@ hex2octet(uint8 *to, const char *str, uint len)
     len     IN  length of s1 and s2
 */
 
-static
-void
-my_crypt(char *to, const uint8 *s1, const uint8 *s2, uint len)
+static void
+my_crypt(char *to, const uchar *s1, const uchar *s2, uint len)
 {
   const uint8 *s1_end= s1 + len;
   while (s1 < s1_end)
@@ -447,7 +442,7 @@ scramble(char *to, const char *message, const char *password)
   sha1_input(&sha1_context, hash_stage2, SHA1_HASH_SIZE);
   /* xor allows 'from' and 'to' overlap: lets take advantage of it */
   sha1_result(&sha1_context, (uint8 *) to);
-  my_crypt(to, (const uint8 *) to, hash_stage1, SCRAMBLE_LENGTH);
+  my_crypt(to, (const uchar *) to, hash_stage1, SCRAMBLE_LENGTH);
 }
 
 
@@ -459,11 +454,13 @@ scramble(char *to, const char *message, const char *password)
     long (if not, something fishy is going on).
   SYNOPSIS
     check_scramble()
-    scramble     IN clients' reply, presumably produced by scramble()
-    message      IN original random string, previously sent to client
-                    (presumably second argument of scramble()), must be 
-                    exactly SCRAMBLE_LENGTH long and NULL-terminated.
-    hash_stage2  IN hex2octet-decoded database entry
+    scramble     clients' reply, presumably produced by scramble()
+    message      original random string, previously sent to client
+                 (presumably second argument of scramble()), must be 
+                 exactly SCRAMBLE_LENGTH long and NULL-terminated.
+    hash_stage2  hex2octet-decoded database entry
+    All params are IN.
+
   RETURN VALUE
     0  password is correct
     !0  password is invalid
@@ -483,7 +480,7 @@ check_scramble(const char *scramble, const char *message,
   sha1_input(&sha1_context, hash_stage2, SHA1_HASH_SIZE);
   sha1_result(&sha1_context, buf);
   /* encrypt scramble */
-  my_crypt((char *) buf, buf, (const uint8 *) scramble, SCRAMBLE_LENGTH);
+    my_crypt((char *) buf, buf, (const uchar *) scramble, SCRAMBLE_LENGTH);
   /* now buf supposedly contains hash_stage1: so we can get hash_stage2 */
   sha1_reset(&sha1_context);
   sha1_input(&sha1_context, buf, SHA1_HASH_SIZE);
