@@ -11,6 +11,7 @@ Created 10/21/1995 Heikki Tuuri
 #include "ut0mem.h"
 #include "srv0srv.h"
 #include "fil0fil.h"
+#include "buf0buf.h"
 
 #undef HAVE_FDATASYNC
 
@@ -2108,6 +2109,7 @@ os_aio_simulated_handle(
 	ibool		ret;
 	ulint		n;
 	ulint		i;
+	ulint		len2;
 	
 	segment = os_aio_get_array_and_local_segment(&array, global_segment);
 	
@@ -2263,6 +2265,29 @@ consecutive_loop:
 
 	/* Do the i/o with ordinary, synchronous i/o functions: */
 	if (slot->type == OS_FILE_WRITE) {
+		if (array == os_aio_write_array) {
+
+			/* Do a 'last millisecond' check that the page end
+			is sensible; reported page checksum errors from
+			Linux seem to wipe over the page end */
+
+			for (len2 = 0; len2 + UNIV_PAGE_SIZE <= total_len;
+						len2 += UNIV_PAGE_SIZE) {
+				if (mach_read_from_4(combined_buf + len2
+						+ FIL_PAGE_LSN + 4)
+				    != mach_read_from_4(combined_buf + len2
+				    		+ UNIV_PAGE_SIZE
+				    		- FIL_PAGE_END_LSN + 4)) {
+				    	ut_print_timestamp(stderr);
+				    	fprintf(stderr,
+"  InnoDB: ERROR: The page to be written seems corrupt!\n");
+					page_print(combined_buf + len2);
+				    	fprintf(stderr,
+"InnoDB: ERROR: The page to be written seems corrupt!\n");
+				}
+			}
+		}
+	
 		ret = os_file_write(slot->name, slot->file, combined_buf,
 				slot->offset, slot->offset_high, total_len);
 	} else {
