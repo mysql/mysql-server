@@ -1394,7 +1394,7 @@ static ha_rows get_quick_record_count(SQL_SELECT *select,TABLE *table,
   0	ok
   1	Fatal error
 */
-  
+
 static bool
 make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
 		     DYNAMIC_ARRAY *keyuse_array)
@@ -1703,7 +1703,7 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
 	   sizeof(POSITION)*join->const_tables);
     join->best_read=1.0;
   }
-  DBUG_RETURN(get_best_combination(join));
+  DBUG_RETURN(join->thd->killed || get_best_combination(join));
 }
 
 
@@ -2532,6 +2532,8 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 	swap(JOIN_TAB*,join->best_ref[idx],*pos);
 	find_best(join,rest_tables & ~real_table_bit,idx+1,
 		  current_record_count,current_read_time);
+        if (thd->killed)
+          return;
 	swap(JOIN_TAB*,join->best_ref[idx],*pos);
       }
       if (join->select_options & SELECT_STRAIGHT_JOIN)
