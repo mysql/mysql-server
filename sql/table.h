@@ -151,6 +151,7 @@ typedef struct st_table_list
   bool		straight;			/* optimize with prev table */
   bool          updating;                   /* for replicate-do/ignore table */
   bool		shared;				/* Used twice in union */
+  bool		do_redirect;            	/* To get the struct in UNION's */
 } TABLE_LIST;
 
 
