@@ -37,6 +37,35 @@ class sp_instr;
 struct sp_cond_type;
 struct sp_pvar;
 
+class sp_name : public Sql_alloc
+{
+public:
+
+  LEX_STRING m_db;
+  LEX_STRING m_name;
+  LEX_STRING m_qname;
+
+  sp_name(LEX_STRING name)
+    : m_name(name)
+  {
+    m_db.str= m_qname.str= 0;
+    m_db.length= m_qname.length= 0;
+  }
+
+  sp_name(LEX_STRING db, LEX_STRING name)
+    : m_db(db), m_name(name)
+  {
+    m_qname.str= 0;
+    m_qname.length= 0;
+  }
+
+  // Init. the qualified name from the db and name.
+  void init_qname(THD *thd);	// thd for memroot allocation
+
+  ~sp_name()
+  {}
+};
+
 class sp_head : public Sql_alloc
 {
   sp_head(const sp_head &);	/* Prevent use of these */
@@ -56,6 +85,8 @@ public:
   List<char *> m_calls;		// Called procedures.
   List<char *> m_tables;	// Used tables.
 #endif
+  LEX_STRING m_qname;		// db.name
+  LEX_STRING m_db;
   LEX_STRING m_name;
   LEX_STRING m_params;
   LEX_STRING m_retstr;		// For FUNCTIONs only
@@ -83,7 +114,7 @@ public:
 
   // Initialize strings after parsing header
   void
-  init_strings(THD *thd, LEX *lex, LEX_STRING *name);
+  init_strings(THD *thd, LEX *lex, sp_name *name);
 
   int
   create(THD *thd);

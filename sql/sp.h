@@ -29,47 +29,46 @@
 #define SP_INTERNAL_ERROR    -7
 
 sp_head *
-sp_find_procedure(THD *thd, LEX_STRING *name);
+sp_find_procedure(THD *thd, sp_name *name);
 
 int
 sp_create_procedure(THD *thd, sp_head *sp);
 
 int
-sp_drop_procedure(THD *thd, char *name, uint namelen);
+sp_drop_procedure(THD *thd, sp_name *name);
 
 
 int
-sp_update_procedure(THD *thd, char *name, uint namelen,
+sp_update_procedure(THD *thd, sp_name *name,
 		    char *newname, uint newnamelen,
 		    st_sp_chistics *chistics);
 
 int
-sp_show_create_procedure(THD *thd, LEX_STRING *name);
+sp_show_create_procedure(THD *thd, sp_name *name);
 
 int
 sp_show_status_procedure(THD *thd, const char *wild);
 
 sp_head *
-sp_find_function(THD *thd, LEX_STRING *name);
+sp_find_function(THD *thd, sp_name *name);
 
 int
 sp_create_function(THD *thd, sp_head *sp);
 
 int
-sp_drop_function(THD *thd, char *name, uint namelen);
+sp_drop_function(THD *thd, sp_name *name);
 
 int
-sp_update_function(THD *thd, char *name, uint namelen,
+sp_update_function(THD *thd, sp_name *name,
 		   char *newname, uint newnamelen,
 		   st_sp_chistics *chistics);
 
 int
-sp_show_create_function(THD *thd, LEX_STRING *name);
+sp_show_create_function(THD *thd, sp_name *name);
 
 int
 sp_show_status_function(THD *thd, const char *wild);
 
-// QQ Temporary until the function call detection in sql_lex has been reworked.
 bool
 sp_function_exists(THD *thd, LEX_STRING *name);
 
@@ -77,7 +76,7 @@ sp_function_exists(THD *thd, LEX_STRING *name);
 // This is needed since we have to read the functions before we
 // do anything else.
 void
-sp_add_fun_to_lex(LEX *lex, LEX_STRING fun);
+sp_add_fun_to_lex(LEX *lex, sp_name *fun);
 void
 sp_merge_funs(LEX *dst, LEX *src);
 int

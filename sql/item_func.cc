@@ -3088,6 +3088,25 @@ longlong Item_func_is_used_lock::val_int()
   return ull->thread_id;
 }
 
+
+Item_func_sp::Item_func_sp(sp_name *name)
+  :Item_func(), m_name(name), m_sp(NULL)
+{
+  m_name->init_qname(current_thd);
+}
+
+Item_func_sp::Item_func_sp(sp_name *name, List<Item> &list)
+  :Item_func(list), m_name(name), m_sp(NULL)
+{
+  m_name->init_qname(current_thd);
+}
+
+const char *
+Item_func_sp::func_name() const
+{
+  return m_name->m_name.str;
+}
+
 int
 Item_func_sp::execute(Item **itp)
 {
@@ -3099,7 +3118,7 @@ Item_func_sp::execute(Item **itp)
 #endif
 
   if (! m_sp)
-    m_sp= sp_find_function(thd, &m_name);
+    m_sp= sp_find_function(thd, m_name);
   if (! m_sp)
     DBUG_RETURN(-1);
 
@@ -3122,7 +3141,7 @@ Item_func_sp::field_type() const
   DBUG_ENTER("Item_func_sp::field_type");
 
   if (! m_sp)
-    m_sp= sp_find_function(current_thd, const_cast<LEX_STRING*>(&m_name));
+    m_sp= sp_find_function(current_thd, m_name);
   if (m_sp)
   {
     DBUG_PRINT("info", ("m_returns = %d", m_sp->m_returns));
@@ -3138,7 +3157,7 @@ Item_func_sp::result_type() const
   DBUG_PRINT("info", ("m_sp = %p", m_sp));
 
   if (! m_sp)
-    m_sp= sp_find_function(current_thd, const_cast<LEX_STRING*>(&m_name));
+    m_sp= sp_find_function(current_thd, m_name);
   if (m_sp)
   {
     DBUG_RETURN(m_sp->result());
@@ -3152,7 +3171,7 @@ Item_func_sp::fix_length_and_dec()
   DBUG_ENTER("Item_func_sp::fix_length_and_dec");
 
   if (! m_sp)
-    m_sp= sp_find_function(current_thd, &m_name);
+    m_sp= sp_find_function(current_thd, m_name);
   if (m_sp)
   {
     switch (m_sp->result()) {

@@ -1072,32 +1072,26 @@ enum Cast_target
  */
 
 class sp_head;
+class sp_name;
 
 class Item_func_sp :public Item_func
 {
 private:
-  LEX_STRING m_name;
+  sp_name *m_name;
   mutable sp_head *m_sp;
 
   int execute(Item **itp);
 
 public:
 
-  Item_func_sp(LEX_STRING name)
-    :Item_func(), m_name(name), m_sp(NULL)
-  {}
+  Item_func_sp(sp_name *name);
 
-  Item_func_sp(LEX_STRING name, List<Item> &list)
-    :Item_func(list), m_name(name), m_sp(NULL)
-  {}
+  Item_func_sp(sp_name *name, List<Item> &list);
 
   virtual ~Item_func_sp()
   {}
 
-  const char *func_name() const
-  {
-    return m_name.str;
-  }
+  const char *func_name() const;
 
   enum enum_field_types field_type() const;
 
