@@ -572,7 +572,8 @@ void field_conv(Field *to,Field *from)
     Field_blob *blob=(Field_blob*) to;
     from->val_str(&blob->value);
     if (!blob->value.is_alloced() &&
-	from->real_type() != FIELD_TYPE_STRING)
+	from->real_type() != MYSQL_TYPE_STRING &&
+        from->real_type() != MYSQL_TYPE_VARCHAR)
       blob->value.copy();
     blob->store(blob->value.ptr(),blob->value.length(),from->charset());
     return;

@@ -683,7 +683,14 @@ static void verify_prepare_field(MYSQL_RES *result,
     expect.
   */
   if (cs->mbmaxlen == 1)
-    DIE_UNLESS(field->type == type);
+  {
+    if (field->type != type)
+    {
+      fprintf(stderr, "Expected field type: %d,  got type: %d\n",
+              (int) type, (int) field->type);
+      DIE_UNLESS(field->type == type);
+    }
+  }
   if (table)
     DIE_UNLESS(strcmp(field->table, table) == 0);
   if (org_table)
@@ -6804,7 +6811,8 @@ static void test_field_misc()
 
   verify_prepare_field(result, 0,
                        "@@table_type", "",   /* field and its org name */
-                       MYSQL_TYPE_STRING,   /* field type */
+                       mysql_get_server_version(mysql) <= 50000 ?
+                       MYSQL_TYPE_STRING : MYSQL_TYPE_VAR_STRING,
                        "", "",              /* table and its org name */
                        "", type_length*3, 0);   /* db name, length */
 
@@ -7280,22 +7288,32 @@ static void test_explain_bug()
   DIE_UNLESS(6 == mysql_num_fields(result));
 
   verify_prepare_field(result, 0, "Field", "COLUMN_NAME",
-                       MYSQL_TYPE_STRING, 0, 0, "", 192, 0);
+                       mysql_get_server_version(mysql) <= 50000 ?
+                       MYSQL_TYPE_STRING : MYSQL_TYPE_VAR_STRING,
+                       0, 0, "", 192, 0);
 
   verify_prepare_field(result, 1, "Type", "COLUMN_TYPE",
                        MYSQL_TYPE_BLOB, 0, 0, "", 0, 0);
 
   verify_prepare_field(result, 2, "Null", "IS_NULLABLE",
-                       MYSQL_TYPE_STRING, 0, 0, "", 9, 0);
+                       mysql_get_server_version(mysql) <= 50000 ?
+                       MYSQL_TYPE_STRING : MYSQL_TYPE_VAR_STRING,
+                       0, 0, "", 9, 0);
 
   verify_prepare_field(result, 3, "Key", "COLUMN_KEY",
-                       MYSQL_TYPE_STRING, 0, 0, "", 9, 0);
+                       mysql_get_server_version(mysql) <= 50000 ?
+                       MYSQL_TYPE_STRING : MYSQL_TYPE_VAR_STRING,
+                       0, 0, "", 9, 0);
 
   verify_prepare_field(result, 4, "Default", "COLUMN_DEFAULT",
-                       MYSQL_TYPE_STRING, 0, 0, "", 192, 0);
+                       mysql_get_server_version(mysql) <= 50000 ?
+                       MYSQL_TYPE_STRING : MYSQL_TYPE_VAR_STRING,
+                       0, 0, "", 192, 0);
 
   verify_prepare_field(result, 5, "Extra", "EXTRA",
-                       MYSQL_TYPE_STRING, 0, 0, "", 60, 0);
+                       mysql_get_server_version(mysql) <= 50000 ?
+                       MYSQL_TYPE_STRING : MYSQL_TYPE_VAR_STRING,
+                       0, 0, "", 60, 0);
 
   mysql_free_result(result);
   mysql_stmt_close(stmt);

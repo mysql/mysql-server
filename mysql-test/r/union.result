@@ -543,7 +543,7 @@ aa
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` char(2) NOT NULL default ''
+  `a` varchar(2) NOT NULL default ''
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 SELECT 12 as a UNION select "aa" as a;
@@ -554,7 +554,7 @@ aa
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` char(20) NOT NULL default ''
+  `a` varchar(20) NOT NULL default ''
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 SELECT 12 as a UNION select 12.2 as a;
@@ -812,7 +812,7 @@ create table t1 select _latin2"test" union select _latin2"testt" ;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `test` char(5) character set latin2 NOT NULL default ''
+  `test` varchar(5) character set latin2 NOT NULL default ''
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 (s char(200));
@@ -1040,7 +1040,7 @@ create table t1 as
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `test` char(4) NOT NULL default ''
+  `test` varchar(4) NOT NULL default ''
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 select count(*) from t1;
 count(*)
@@ -1053,7 +1053,7 @@ create table t1 as
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `_latin1'test' collate latin1_bin` char(4) character set latin1 collate latin1_bin NOT NULL default ''
+  `_latin1'test' collate latin1_bin` varchar(4) character set latin1 collate latin1_bin NOT NULL default ''
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 select count(*) from t1;
 count(*)
@@ -1066,7 +1066,7 @@ create table t1 as
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `test` char(4) character set latin1 collate latin1_bin NOT NULL default ''
+  `test` varchar(4) character set latin1 collate latin1_bin NOT NULL default ''
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 select count(*) from t1;
 count(*)
@@ -1079,7 +1079,7 @@ create table t1 as
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `test` char(4) character set latin1 collate latin1_bin NOT NULL default ''
+  `test` varchar(4) character set latin1 collate latin1_bin NOT NULL default ''
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 select count(*) from t1;
 count(*)
@@ -1098,7 +1098,7 @@ create table t1 as
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a collate latin1_german1_ci` char(1) character set latin1 collate latin1_german1_ci default NULL
+  `a collate latin1_german1_ci` varchar(1) character set latin1 collate latin1_german1_ci default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 as
@@ -1107,7 +1107,7 @@ create table t1 as
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` char(1) character set latin1 collate latin1_german1_ci default NULL
+  `a` varchar(1) character set latin1 collate latin1_german1_ci default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 as
@@ -1117,7 +1117,7 @@ create table t1 as
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` char(1) character set latin1 collate latin1_german1_ci default NULL
+  `a` varchar(1) character set latin1 collate latin1_german1_ci default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 drop table t2;

@@ -173,6 +173,7 @@ public:
   void init_make_field(Send_field *tmp_field,enum enum_field_types type);
   virtual void cleanup();
   virtual void make_field(Send_field *field);
+  Field *make_string_field(TABLE *table);
   virtual bool fix_fields(THD *, struct st_table_list *, Item **);
   /*
     should be used in case where we are sure that we do not need
@@ -894,7 +895,7 @@ public:
   }
   int save_in_field(Field *field, bool no_conversions);
   enum Item_result result_type () const { return STRING_RESULT; }
-  enum_field_types field_type() const { return MYSQL_TYPE_STRING; }
+  enum_field_types field_type() const { return MYSQL_TYPE_VARCHAR; }
   bool basic_const_item() const { return 1; }
   bool eq(const Item *item, bool binary_cmp) const;
   Item *new_item() 
@@ -970,7 +971,7 @@ public:
   String *val_str(String*) { DBUG_ASSERT(fixed == 1); return &str_value; }
   int save_in_field(Field *field, bool no_conversions);
   enum Item_result result_type () const { return STRING_RESULT; }
-  enum_field_types field_type() const { return MYSQL_TYPE_STRING; }
+  enum_field_types field_type() const { return MYSQL_TYPE_VARCHAR; }
   // to prevent drop fixed flag (no need parent cleanup call)
   void cleanup() {}
 };

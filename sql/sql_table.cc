@@ -540,6 +540,7 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 
       if (sql_field->sql_type == FIELD_TYPE_SET)
       {
+        uint32 field_length;
         if (sql_field->def)
         {
           char *not_used;
@@ -555,11 +556,12 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
             DBUG_RETURN(-1);
           }
         }
-        calculate_interval_lengths(cs, interval, &dummy, &sql_field->length);
-        sql_field->length+= (interval->count - 1);
+        calculate_interval_lengths(cs, interval, &dummy, &field_length);
+        sql_field->length= field_length + (interval->count - 1);
       }
       else  /* FIELD_TYPE_ENUM */
       {
+        uint32 field_length;
         if (sql_field->def)
         {
           String str, *def= sql_field->def->val_str(&str);
@@ -570,7 +572,8 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
             DBUG_RETURN(-1);
           }
         }
-        calculate_interval_lengths(cs, interval, &sql_field->length, &dummy);
+        calculate_interval_lengths(cs, interval, &field_length, &dummy);
+        sql_field->length= field_length;
       }
       set_if_smaller(sql_field->length, MAX_FIELD_WIDTH-1);
     }
@@ -608,13 +611,6 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
       sql_field->length= 0;                     // Probably from an item
     }
 
-    /* Don't pack rows in old tables if the user has requested this */
-    if ((sql_field->flags & BLOB_FLAG) ||
-	sql_field->sql_type == MYSQL_TYPE_VARCHAR &&
-	create_info->row_type != ROW_TYPE_FIXED)
-    {
-      db_options|=HA_OPTION_PACK_RECORD;
-    }
     if (!(sql_field->flags & NOT_NULL_FLAG))
       null_fields++;
 
@@ -649,6 +645,7 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 					 create_info->default_table_charset);
 	  sql_field->length=		dup_field->length;
 	  sql_field->pack_length=	dup_field->pack_length;
+          sql_field->key_length=	dup_field->key_length;
 	  sql_field->create_length_to_internal_length();
 	  sql_field->decimals=		dup_field->decimals;
 	  sql_field->flags=		dup_field->flags;
@@ -659,6 +656,11 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 	}
       }
     }
+    /* Don't pack rows in old tables if the user has requested this */
+    if ((sql_field->flags & BLOB_FLAG) ||
+	sql_field->sql_type == MYSQL_TYPE_VARCHAR &&
+	create_info->row_type != ROW_TYPE_FIXED)
+      db_options|= HA_OPTION_PACK_RECORD;
     it2.rewind();
   }
   /* If fixed row records, we need one bit to check for deleted rows */

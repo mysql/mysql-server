@@ -7584,7 +7584,8 @@ static Field* create_tmp_field_from_field(THD *thd, Field* org_field,
     0			on error
     new_created field
 */
-static Field* create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
+
+static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
                                          Item ***copy_func, bool modify_item,
                                          uint convert_blob_length)
 {
@@ -7602,19 +7603,12 @@ static Field* create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
 				   item->name, table, item->unsigned_flag);
     break;
   case STRING_RESULT:
-    if (item->max_length > 255)
-    {
-      if (convert_blob_length)
-        new_field= new Field_varstring(convert_blob_length, maybe_null,
-                                       item->name, table,
-                                       item->collation.collation);
-      else
-        new_field= new Field_blob(item->max_length, maybe_null, item->name,
-                                  table, item->collation.collation);
-    }
+    if (item->max_length > 255 && convert_blob_length)
+      new_field= new Field_varstring(convert_blob_length, maybe_null,
+                                     item->name, table,
+                                     item->collation.collation);
     else
-      new_field= new Field_string(item->max_length, maybe_null, item->name, 
-                                  table, item->collation.collation);
+      new_field= item->make_string_field(table);
     break;
   case ROW_RESULT: 
   default: 
@@ -7695,18 +7689,11 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
 	return new Field_longlong(item_sum->max_length,maybe_null,
 				  item->name,table,item->unsigned_flag);
       case STRING_RESULT:
-	if (item_sum->max_length > 255)
-        {
-          if (convert_blob_length)
-            return new Field_varstring(convert_blob_length, maybe_null,
-                                       item->name, table,
-                                       item->collation.collation);
-          else
-            return new Field_blob(item_sum->max_length, maybe_null, item->name,
-                                  table, item->collation.collation);
-        }
-	return	new Field_string(item_sum->max_length,maybe_null,
-				 item->name,table,item->collation.collation);
+	if (item_sum->max_length > 255 && convert_blob_length)
+          return new Field_varstring(convert_blob_length, maybe_null,
+                                     item->name, table,
+                                     item->collation.collation);
+        return item_sum->make_string_field(table);
       case ROW_RESULT:
       default:
 	// This case should never be choosen

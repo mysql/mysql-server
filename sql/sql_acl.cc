@@ -3731,8 +3731,6 @@ static int modify_grant_table(TABLE *table, Field *host_field,
                               Field *user_field, LEX_USER *user_to)
 {
   int error;
-  TABLE *table;
-  byte user_key[MAX_KEY_LENGTH];
   DBUG_ENTER("modify_grant_table");
 
   if (user_to)
@@ -3800,6 +3798,7 @@ static int handle_grant_table(TABLE_LIST *tables, uint table_no, bool drop,
   char *user_str= user_from->user.str;
   const char *host;
   const char *user;
+  byte user_key[MAX_KEY_LENGTH];
   uint key_prefix_length;
   DBUG_ENTER("handle_grant_table");
 

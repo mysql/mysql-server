@@ -161,24 +161,27 @@ void Item::rename(char *new_name)
 Item_ident::Item_ident(const char *db_name_par,const char *table_name_par,
 		       const char *field_name_par)
   :orig_db_name(db_name_par), orig_table_name(table_name_par), 
-   orig_field_name(field_name_par), alias_name_used(FALSE),
-   db_name(db_name_par), table_name(table_name_par), 
-   field_name(field_name_par), cached_field_index(NO_CACHED_FIELD_INDEX), 
+   orig_field_name(field_name_par),
+   db_name(db_name_par), table_name(table_name_par),
+   field_name(field_name_par),
+   alias_name_used(FALSE), cached_field_index(NO_CACHED_FIELD_INDEX),
    cached_table(0), depended_from(0)
 {
   name = (char*) field_name_par;
 }
 
-// Constructor used by Item_field & Item_ref (see Item comment)
+
+/* Constructor used by Item_field & Item_ref (see Item comment) */
+
 Item_ident::Item_ident(THD *thd, Item_ident *item)
   :Item(thd, item),
    orig_db_name(item->orig_db_name),
    orig_table_name(item->orig_table_name), 
    orig_field_name(item->orig_field_name),
-   alias_name_used(item->alias_name_used),
    db_name(item->db_name),
    table_name(item->table_name),
    field_name(item->field_name),
+   alias_name_used(item->alias_name_used),
    cached_field_index(item->cached_field_index),
    cached_table(item->cached_table),
    depended_from(item->depended_from)
@@ -979,12 +982,13 @@ default_set_param_func(Item_param *param,
   param->set_null();
 }
 
+
 Item_param::Item_param(unsigned pos_in_query_arg) :
   state(NO_VALUE),
   item_result_type(STRING_RESULT),
   /* Don't pretend to be a literal unless value for this item is set. */
   item_type(PARAM_ITEM),
-  param_type(MYSQL_TYPE_STRING),
+  param_type(MYSQL_TYPE_VARCHAR),
   pos_in_query(pos_in_query_arg),
   set_param_func(default_set_param_func)
 {
@@ -996,6 +1000,7 @@ Item_param::Item_param(unsigned pos_in_query_arg) :
   */
   maybe_null= 1;
 }
+
 
 void Item_param::set_null()
 {
@@ -2249,6 +2254,33 @@ enum_field_types Item::field_type() const
 
 
 /*
+  Create a field to hold a string value from an item
+
+  SYNOPSIS
+    make_string_field()
+    table		Table for which the field is created
+
+  IMPLEMENTATION
+    If max_length > CONVERT_IF_BIGGER_TO_BLOB create a blob
+    If max_length > 0 create a varchar
+    If max_length == 0 create a CHAR(0) 
+*/
+
+
+Field *Item::make_string_field(TABLE *table)
+{
+  if (max_length > CONVERT_IF_BIGGER_TO_BLOB)
+    return new Field_blob(max_length, maybe_null, name, table,
+                          collation.collation);
+  if (max_length > 0)
+    return new Field_varstring(max_length, maybe_null, name, table,
+                               collation.collation);
+  return new Field_string(max_length, maybe_null, name, table,
+                          collation.collation);
+}
+
+
+/*
   Create a field based on field_type of argument
 
   For now, this is only used to create a field for
@@ -2308,37 +2340,24 @@ Field *Item::tmp_table_field_from_field_type(TABLE *table)
     return new Field_year((char*) 0, max_length, null_ptr, 0, Field::NONE,
 			  name, table);
   default:
-    /* This case should never be choosen */
+    /* This case should never be chosen */
     DBUG_ASSERT(0);
     /* If something goes awfully wrong, it's better to get a string than die */
   case MYSQL_TYPE_ENUM:
   case MYSQL_TYPE_SET:
-  case MYSQL_TYPE_VAR_STRING:
-    if (max_length > MAX_FIELD_CHARLENGTH)
-      break;					// convert to blob
-    return new Field_varstring(max_length, maybe_null, name, table,
-			       collation.collation);
-  case MYSQL_TYPE_VARCHAR:
-    if (max_length > CONVERT_IF_BIGGER_TO_BLOB)
-      break;					// convert to blob
-    return new Field_varstring(max_length, maybe_null, name, table,
-			       collation.collation);
   case MYSQL_TYPE_STRING:
-    if (max_length > MAX_FIELD_CHARLENGTH)	// If blob
-      break;
-    return new Field_string(max_length, maybe_null, name, table,
-			    collation.collation);
+  case MYSQL_TYPE_VAR_STRING:
+  case MYSQL_TYPE_VARCHAR:
+    return make_string_field(table);
   case MYSQL_TYPE_TINY_BLOB:
   case MYSQL_TYPE_MEDIUM_BLOB:
   case MYSQL_TYPE_LONG_BLOB:
   case MYSQL_TYPE_BLOB:
   case MYSQL_TYPE_GEOMETRY:
+    return new Field_blob(max_length, maybe_null, name, table,
+                          collation.collation);
     break;					// Blob handled outside of case
   }
-
-  /* blob is special as it's generated for both blobs and long strings */
-  return new Field_blob(max_length, maybe_null, name, table,
-			collation.collation);
 }
 
 
