@@ -394,7 +394,7 @@ innobase_init(void)
 	bool		ret;
 	
   	DBUG_ENTER("innobase_init");
-  
+
 	os_innodb_umask = (ulint)my_umask;
 
 	if (specialflag & SPECIAL_NO_PRIOR) {
@@ -418,8 +418,9 @@ innobase_init(void)
        "If you do not want to use transactional InnoDB tables, add a line\n"
        "skip-innodb\n"
        "to the [mysqld] section of init parameters in your my.cnf\n"
-       "or my.ini. If you want to use InnoDB tables, add for example,\n"
-       "innodb_data_file_path = ibdata1:30M:autoextend\n"
+       "or my.ini. If you want to use InnoDB tables, add to the [mysqld]\n"
+       "section, for example,\n"
+       "innodb_data_file_path = ibdata1:10M:autoextend\n"
        "But to get good performance you should adjust for your hardware\n"
        "the InnoDB startup options listed in section 2 at\n"
        "http://www.innodb.com/ibman.html\n");
@@ -478,6 +479,9 @@ innobase_init(void)
 	srv_use_native_aio = 0;
 
 	srv_pool_size = (ulint) innobase_buffer_pool_size;
+
+	printf("Buffer pool size set to %lu\n", srv_pool_size);
+
 	srv_mem_pool_size = (ulint) innobase_additional_mem_pool_size;
 
 	srv_n_file_io_threads = (ulint) innobase_file_io_threads;
