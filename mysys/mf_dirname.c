@@ -54,19 +54,29 @@ uint dirname_part(my_string to, const char *name)
 } /* dirname */
 
 
-	/*
-	  Convert directory name to use under this system
-	  If MSDOS converts '/' to '\'
-	  If VMS converts '<' to '[' and '>' to ']'
-	  Adds a FN_LIBCHAR to end if the result string if there isn't one
-	  and the last isn't dev_char.
-	  Copies data from 'from' until ASCII(0) for until from == from_end
-	  If you want to use the whole 'from' string, just send NullS as the
-	  last argument.
-	  If the result string is larger than FN_REFLEN -1, then it's cut.
+/*
+  Convert directory name to use under this system
 
-	  Returns pointer to end \0
-	*/
+  SYNPOSIS
+    convert_dirname()
+    to				Store result here
+    from			Original filename
+    from_end			Pointer at end of filename (normally end \0)
+
+  IMPLEMENTATION
+    If MSDOS converts '/' to '\'
+    If VMS converts '<' to '[' and '>' to ']'
+    Adds a FN_LIBCHAR to end if the result string if there isn't one
+    and the last isn't dev_char.
+    Copies data from 'from' until ASCII(0) for until from == from_end
+    If you want to use the whole 'from' string, just send NullS as the
+    last argument.
+
+    If the result string is larger than FN_REFLEN -1, then it's cut.
+
+  RETURN
+   Returns pointer to end \0 in to
+*/
 
 #ifndef FN_DEVCHAR
 #define FN_DEVCHAR '\0'				/* For easier code */
