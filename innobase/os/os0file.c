@@ -1034,6 +1034,8 @@ try_again:
 	ibool	retry;
 	ssize_t	ret;
 
+	os_bytes_read_since_printout += n;
+
 try_again:
 	ret = os_file_pread(file, buf, n, offset, offset_high);
 
