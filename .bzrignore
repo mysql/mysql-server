@@ -440,6 +440,7 @@ libmysqld/sql_state.c
 libmysqld/sql_string.cc
 libmysqld/sql_table.cc
 libmysqld/sql_test.cc
+libmysqld/sql_trigger.cc
 libmysqld/sql_udf.cc
 libmysqld/sql_union.cc
 libmysqld/sql_unions.cc
@@ -919,4 +920,3 @@ vio/test-ssl
 vio/test-sslclient
 vio/test-sslserver
 vio/viotest-ssl
-libmysqld/sql_trigger.cc
