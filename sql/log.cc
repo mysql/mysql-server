@@ -1586,8 +1586,8 @@ bool MYSQL_LOG::write(THD *thd,const char *query, uint query_length,
           tmp_errno=errno;
       }
       if (my_b_printf(&log_file, "# User@Host: %s[%s] @ %s [%s]\n",
-                      thd->priv_user,
-                      thd->user,
+                      thd->priv_user ? thd->priv_user : "",
+                      thd->user ? thd->user : "",
                       thd->host ? thd->host : "",
                       thd->ip ? thd->ip : "") == (uint) -1)
         tmp_errno=errno;
