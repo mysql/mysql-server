@@ -39,7 +39,7 @@ struct File_option
 
 class File_parser;
 File_parser *sql_parse_prepare(const LEX_STRING *file_name,
-			       MEM_ROOT *mem_root);
+			       MEM_ROOT *mem_root, bool bad_format_errors);
 
 my_bool
 sql_create_definition_file(const LEX_STRING *dir, const  LEX_STRING *file_name,
