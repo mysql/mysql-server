@@ -8475,9 +8475,10 @@ CHARSET_INFO my_charset_ujis_japanese_ci=
     to_lower_ujis,
     to_upper_ujis,
     sort_order_ujis,
+    NULL,		/* sort_order_big*/
+    NULL,		/* contractions */
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
-    NULL,		/* sort_order_big*/
     NULL,		/* state_map    */
     NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */
@@ -8502,9 +8503,10 @@ CHARSET_INFO my_charset_ujis_bin=
     to_lower_ujis,
     to_upper_ujis,
     sort_order_ujis,
+    NULL,		/* contractions */
+    NULL,		/* sort_order_big*/
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
-    NULL,		/* sort_order_big*/
     NULL,		/* state_map    */
     NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */
