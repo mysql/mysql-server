@@ -5754,6 +5754,7 @@ String *Field_set::val_str(String *val_buffer,
   uint bitnr=0;
 
   val_buffer->length(0);
+  val_buffer->set_charset(field_charset);
   while (tmp && bitnr < (uint) typelib->count)
   {
     if (tmp & 1)
