@@ -17,6 +17,8 @@
 /* Update an old row in a MyISAM table */
 
 #include "fulltext.h"
+#include "rt_index.h"
+
 #ifdef	__WIN__
 #include <errno.h>
 #endif
@@ -60,6 +62,7 @@ int mi_update(register MI_INFO *info, const byte *oldrec, byte *newrec)
     save_errno=my_errno;
     goto err_end;			/* Record has changed */
   }
+
 
   /* Calculate and check all unique constraints */
   key_changed=0;
@@ -113,8 +116,8 @@ int mi_update(register MI_INFO *info, const byte *oldrec, byte *newrec)
 	    key_changed|=HA_STATE_WRITTEN;	/* Mark that keyfile changed */
 	  changed|=((ulonglong) 1 << i);
 	  share->keyinfo[i].version++;
-	  if (_mi_ck_delete(info,i,old_key,old_length)) goto err;
-	  if (_mi_ck_write(info,i,new_key,new_length)) goto err;
+	  if (share->keyinfo[i].ck_delete(info,i,old_key,old_length)) goto err;
+	  if (share->keyinfo[i].ck_insert(info,i,new_key,new_length)) goto err;
 	  if (share->base.auto_key == i+1)
 	    auto_key_changed=1;
 	}
