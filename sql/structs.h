@@ -160,6 +160,14 @@ typedef struct	st_lex_user {
   LEX_STRING user, host, password;
 } LEX_USER;
 
+
+typedef struct  user_conn {
+  char *user;
+  uint len, connections, questions, max_questions;
+  time_t intime;
+} UC;
+
+
 	/* Bits in form->update */
 #define REG_MAKE_DUPP		1	/* Make a copy of record when read */
 #define REG_NEW_RECORD		2	/* Write a new record if not found */
