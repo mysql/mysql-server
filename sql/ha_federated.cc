@@ -1522,7 +1522,7 @@ void ha_federated::position(const byte *record)
 {
   DBUG_ENTER("ha_federated::position");
   //ha_store_ptr Add seek storage
-  *(MYSQL_ROW_OFFSET *)ref=current_position;
+  *(MYSQL_ROW_OFFSET *)ref=current_position; // ref is always aligned
   DBUG_VOID_RETURN;
 }
 
@@ -1541,7 +1541,7 @@ int ha_federated::rnd_pos(byte * buf, byte *pos)
 {
   DBUG_ENTER("ha_federated::rnd_pos");
   statistic_increment(table->in_use->status_var.ha_read_rnd_count,&LOCK_status);
-  current_position= *(MYSQL_ROW_OFFSET *)pos;
+  memcpy(current_position, pos, sizeof(MYSQL_ROW_OFFSET)); // pos is not aligned
   result->current_row= 0;
   result->data_cursor= current_position;
   DBUG_RETURN(rnd_next(buf));
