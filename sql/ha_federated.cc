@@ -43,13 +43,23 @@
   The create table will simply create the .frm file, and within the 
   "CREATE TABLE" SQL, there SHALL be any of the following : 
 
-  comment=username:password@hostname:port/database/tablename
-  comment=username@hostname/database/tablename
-  comment=username:password@hostname/database/tablename
-  comment=username:password@hostname/database/tablename
+  comment=scheme://username:password@hostname:port/database/tablename
+  comment=scheme://username@hostname/database/tablename
+  comment=scheme://username:password@hostname/database/tablename
+  comment=scheme://username:password@hostname/database/tablename
 
-  This string is necessary for the handler to be able to connect to the remote
-  server.
+  An example would be:
+
+  comment=mysql://username:password@hostname:port/database/tablename
+
+  ***IMPORTANT***
+
+  Only 'mysql://' is supported at this release.
+
+
+  This comment connection string is necessary for the handler to be 
+  able to connect to the remote server.
+
 
   The basic flow is this:
 
@@ -62,22 +72,27 @@
 
   What this handler does and doesn't support
   ------------------------------------------
-  * There will not be support for transactions
+  * Tables MUST be created on the remote server prior to any action on those
+    tables via the handler, first version. IMPORTANT: IF you MUST use the 
+    federated storage engine type on the REMOTE end, MAKE SURE [ :) ] That
+    the table you connect to IS NOT a table pointing BACK to your ORIGNAL 
+    table! You know  and have heard the screaching of audio feedback? You
+    know putting two mirror in front of each other how the reflection 
+    continues for eternity? Well, need I say more?!
+  * There will not be support for transactions.
   * There is no way for the handler to know if the database on the remote end
     has changed. The reason for this is that this database has to work like a
     data file that would never be written to by anything other than the 
     database. The integrity of the data in the local table could be breached 
     if there was any change to the remote database.
-  * Support for SELECT, INSERT, UPDATE , DELETE, indexes
+  * Support for SELECT, INSERT, UPDATE , DELETE, indexes.
   * No ALTER TABLE, DROP TABLE or any other Data Definition Language calls.
   * Prepared statements will not be used in the first implementation, it 
     remains to to be seen whether the limited subset of the client API for the
-    server supports this
+    server supports this.
   * This uses SELECT, INSERT, UPDATE, DELETE and not HANDLER for its 
-    implementation 
-  * Tables must be created on the remote server prior to any action on those
-    tables via the handler, first version.
-  * This will not work with the query cache
+    implementation. 
+  * This will not work with the query cache.
 
    Method calls
 
@@ -86,7 +101,6 @@
    (SELECT)
 
    "SELECT * FROM foo" 
-    ha_federated::external_lock
     ha_federated::info
     ha_federated::scan_time:
     ha_federated::rnd_init: share->select_query SELECT * FROM foo
@@ -100,14 +114,12 @@
 
     ha_federated::rnd_end
     ha_federated::extra
-    ha_federated::external_lock
     ha_federated::reset
 
     (INSERT)
 
     "INSERT INTO foo (id, ts) VALUES (2, now());"
 
-    ha_federated::external_lock
     ha_federated::write_row
 
     <for every field/column>
@@ -115,7 +127,6 @@
     ha_federated::quote_data
     </for every field/column>
 
-    ha_federated::external_lock
     ha_federated::reset
 
     (UPDATE)
@@ -374,10 +385,17 @@ static byte* federated_get_key(FEDERATED_SHARE *share,uint *length,
 
     This string MUST be in the format of any of these:
 
-    username:password@hostname:port/database/table
-    username@hostname/database/table
-    username@hostname:port/database/table
-    username:password@hostname/database/table
+scheme://username:password@hostname:port/database/table
+scheme://username@hostname/database/table
+scheme://username@hostname:port/database/table
+scheme://username:password@hostname/database/table
+
+  An Example:
+
+  mysql://joe:joespass@192.168.1.111:9308/federated/testtable
+
+  ***IMPORTANT***
+  Currently, only "mysql://" is supported.
 
     'password' and 'port' are both optional.
 
@@ -386,101 +404,141 @@ static byte* federated_get_key(FEDERATED_SHARE *share,uint *length,
     -1  failure, wrong string format    
 
 */
-int parse_url(FEDERATED_SHARE *share, TABLE *table)
+int parse_url(FEDERATED_SHARE *share, TABLE *table, uint table_create_flag)
 {
   DBUG_ENTER("ha_federated::parse_url");
 
-  share->username= my_strdup(table->comment, MYF(0));
-  if (share->hostname= strchr(share->username, '@')) 
-  {
-    share->username[share->hostname - share->username]= '\0';
-    share->hostname++;
+  // This either get set or will remain the same.
+  share->port= 0;
+  uint error_num= table_create_flag ? ER_CANT_CREATE_TABLE : ER_CONNECT_TO_MASTER ;
 
-    if (share->password= strchr(share->username, ':'))
+  share->scheme= my_strdup(table->comment, MYF(0));
+
+
+  if (share->username= strstr(share->scheme, "://"))
+  {
+    share->scheme[share->username - share->scheme] = '\0';
+    if (strcmp(share->scheme, "mysql") != 0)
     {
-      share->username[share->password - share->username]= '\0';
-      share->password++;
-      share->username= share->username;
+      DBUG_PRINT("ha_federated::parse_url",
+                 ("The federated handler currently only supports connecting\
+                  to a MySQL database!!!\n"));
+      my_error(error_num, MYF(0),
+        "ERROR: federated handler only supports remote 'mysql://' database");
+      DBUG_RETURN(-1);
+    }
+    share->username+= 3;
+
+    if (share->hostname= strchr(share->username, '@')) 
+    {
+      share->username[share->hostname - share->username]= '\0';
+      share->hostname++;
+
+      if (share->password= strchr(share->username, ':'))
+      {
+        share->username[share->password - share->username]= '\0';
+        share->password++;
+        share->username= share->username;
+        // make sure there isn't an extra / or @
+        if (strchr(share->password, '/') || strchr(share->hostname, '@'))
+        {
+          DBUG_PRINT("ha_federated::parse_url",
+                     ("this connection string is not in the correct format!!!\n"));
+          my_error(error_num, MYF(0),
+                     "this connection string is not in the correct format!!!\n");
+          DBUG_RETURN(-1);
+        }
+        /* 
+          Found that if the string is:
+user:@hostname:port/database/table 
+Then password is a null string, so set to NULL 
+      */
+        if (share->password[0] == '\0')
+          share->password= NULL;
+      }
+      else
+        share->username= share->username;
+
       // make sure there isn't an extra / or @
-      if (strchr(share->password, '/') || strchr(share->hostname, '@'))
+      if (strchr(share->username, '/') || strchr(share->hostname, '@'))
       {
         DBUG_PRINT("ha_federated::parse_url",
                    ("this connection string is not in the correct format!!!\n"));
+        my_error(error_num, MYF(0),
+          "this connection string is not in the correct format!!!\n");
         DBUG_RETURN(-1);
       }
-      /* 
-        Found that if the string is:
-        user:@hostname:port/database/table 
-        Then password is a null string, so set to NULL 
-      */
-      if (share->password[0] == '\0')
-        share->password= NULL;
-    }
-    else
-    {
-      share->username= share->username;
-      share->password= NULL;
-    }
-    // make sure there isn't an extra / or @
-    if (strchr(share->username, '/') || strchr(share->hostname, '@'))
-    {
-      DBUG_PRINT("ha_federated::parse_url",
-        ("this connection string is not in the correct format!!!\n"));
-      DBUG_RETURN(-1);
-    }
 
-    if (share->database= strchr(share->hostname, '/'))
-    {
-      share->hostname[share->database - share->hostname]= '\0';
-      share->database++;
-
-      if (share->sport= strchr(share->hostname, ':'))
+      if (share->database= strchr(share->hostname, '/'))
       {
-        share->hostname[share->sport - share->hostname]= '\0';
-        share->sport++;
-        share->port= atoi(share->sport);
+        share->hostname[share->database - share->hostname]= '\0';
+        share->database++;
 
-      }
-      else
-      {
-        share->sport= NULL;
-        share->port= NULL;
-      }
+        if (share->sport= strchr(share->hostname, ':'))
+        {
+          share->hostname[share->sport - share->hostname]= '\0';
+          share->sport++;
+          if (share->sport[0] == '\0')
+            share->sport= NULL;
+          else
+            share->port= atoi(share->sport);
+        }
 
-      if (share->table_base_name= strchr(share->database, '/'))
-      {
-        share->database[share->table_base_name - share->database]= '\0';
-        share->table_base_name++;
+        if (share->table_base_name= strchr(share->database, '/'))
+        {
+          share->database[share->table_base_name - share->database]= '\0';
+          share->table_base_name++;
+        }
+        else
+        {
+          DBUG_PRINT("ha_federated::parse_url",
+                     ("this connection string is not in the correct format!!!\n"));
+          my_error(error_num, MYF(0),
+            "this connection string is not in the correct format!!!\n");
+          DBUG_RETURN(-1);
+        }
       }
       else
       {
         DBUG_PRINT("ha_federated::parse_url",
-          ("this connection string is not in the correct format!!!\n"));
+                   ("this connection string is not in the correct format!!!\n"));
+        my_error(error_num, MYF(0),
+          "this connection string is not in the correct format!!!\n");
         DBUG_RETURN(-1);
       }
+      // make sure there's not an extra /
+      if (strchr(share->table_base_name, '/'))
+      {
+        DBUG_PRINT("ha_federated::parse_url",
+                   ("this connection string is not in the correct format!!!\n"));
+        my_error(error_num, MYF(0),
+          "this connection string is not in the correct format!!!\n");
+        DBUG_RETURN(-1);
+      }
+      if (share->hostname[0] == '\0')
+        share->hostname= NULL;
+
+      DBUG_PRINT("ha_federated::parse_url", 
+        ("scheme %s username %s password %s \
+         hostname %s port %d database %s tablename %s\n",
+         share->scheme, share->username, share->password, share->hostname,
+         share->port, share->database, share->table_base_name));
     }
     else
     {
       DBUG_PRINT("ha_federated::parse_url",
         ("this connection string is not in the correct format!!!\n"));
+      my_error(error_num, MYF(0),
+        "this connection string is not in the correct format!!!\n");
       DBUG_RETURN(-1);
     }
-    // make sure there's not an extra /
-    if (strchr(share->table_base_name, '/'))
-    {
-      DBUG_PRINT("ha_federated::parse_url",
-        ("this connection string is not in the correct format!!!\n"));
-      DBUG_RETURN(-1);
-    }
-    DBUG_PRINT("ha_federated::parse_url", 
-      ("username %s password %s hostname %s port %d database %s tablename %s\n",
-      share->username, share->password, share->hostname,
-      share->port, share->database, share->table_base_name));
   }
   else
   { 
     DBUG_PRINT("ha_federated::parse_url",
       ("this connection string is not in the correct format!!!\n"));
+    my_error(error_num, MYF(0),
+      "this connection string is not in the correct format!!!\n");
     DBUG_RETURN(-1);
   }
   DBUG_RETURN(0);
@@ -522,7 +580,7 @@ uint ha_federated::convert_row_to_internal_format(byte *record, MYSQL_ROW row)
         changed system_charset_info to default_charset_info because
         testing revealed that german text was not being retrieved properly
       */
-      (*field)->store(row[x], strlen(row[x]), default_charset_info);
+      (*field)->store(row[x], strlen(row[x]), &my_charset_bin);
   }
 
   DBUG_RETURN(0);
@@ -547,20 +605,26 @@ uint ha_federated::convert_row_to_internal_format(byte *record, MYSQL_ROW row)
 */
 void ha_federated::quote_data(String *unquoted_string, Field *field )
 {
-  char quoted_string_buffer[IO_SIZE];
-  String quoted_string(quoted_string_buffer, 
-                       sizeof(quoted_string_buffer), &my_charset_bin);
-  quoted_string.length(0);
+  char escaped_string[IO_SIZE];
+  char *unquoted_string_buffer;
+  
+  unquoted_string_buffer= unquoted_string->c_ptr_quick();
 
   int quote_flag;
   DBUG_ENTER("ha_federated::quote_data");
-  DBUG_PRINT("ha_federated::quote_data", ("unquoted string %s", unquoted_string->c_ptr_quick()));
+  // this is the same call that mysql_real_escape_string() calls
+  escape_string_for_mysql(&my_charset_bin, (char *)escaped_string, 
+    unquoted_string->c_ptr_quick(), unquoted_string->length());
+
+  DBUG_PRINT("ha_federated::quote_data",
+    ("escape_string_for_mysql unescaped %s escaped %s",
+     unquoted_string->c_ptr_quick(), escaped_string));
 
   if (field->is_null())
   {
     DBUG_PRINT("ha_federated::quote_data",
-               ("NULL, no quoted needed for unquoted_string %s, returning.",
-                unquoted_string->c_ptr_quick()));
+      ("NULL, no quoted needed for unquoted_string %s, returning.",
+      unquoted_string->c_ptr_quick()));
     DBUG_VOID_RETURN;
   }
 
@@ -569,20 +633,21 @@ void ha_federated::quote_data(String *unquoted_string, Field *field )
   if (quote_flag == 0)
   {
     DBUG_PRINT("ha_federated::quote_data",
-               ("quote flag 0 no quoted needed for unquoted_string %s, returning.",
-                unquoted_string->c_ptr_quick()));
+      ("quote flag 0 no quoted needed for unquoted_string %s, returning.",
+      unquoted_string->c_ptr_quick()));
     DBUG_VOID_RETURN;
   }
   else
   {
-    quoted_string.append("'");
-    quoted_string.append(*unquoted_string);
-    quoted_string.append("'");
-    unquoted_string->copy(quoted_string);
+    // reset string, then re-append with quotes and escaped values
+    unquoted_string->length(0);
+    unquoted_string->append("'");
+    unquoted_string->append((char *)escaped_string);
+    unquoted_string->append("'");
   }
   DBUG_PRINT("ha_federated::quote_data",
-             ("quote_flag %d unquoted_string %s quoted_string %s", 
-              quote_flag, unquoted_string->c_ptr_quick(), quoted_string.c_ptr_quick()));
+    ("FINAL quote_flag %d unquoted_string %s escaped_string %s", 
+    quote_flag, unquoted_string->c_ptr_quick(), escaped_string));
   DBUG_VOID_RETURN;
 }
 
@@ -648,7 +713,7 @@ int load_conn_info(FEDERATED_SHARE *share, TABLE *table)
   DBUG_ENTER("ha_federated::load_conn_info");
   int retcode;
  
-  retcode= parse_url(share, table);
+  retcode= parse_url(share, table, 0);
 
   if (retcode < 0)
   {
@@ -1221,7 +1286,6 @@ int ha_federated::update_row(
 int ha_federated::delete_row(const byte * buf)
 {
   int x= 0;
-  int quote_flag;
   char delete_buffer[IO_SIZE];
   char data_buffer[IO_SIZE];
 
@@ -1244,23 +1308,16 @@ int ha_federated::delete_row(const byte * buf)
     {
       delete_string.append(" IS ");
       data_string.append("NULL");
-      quote_flag= 0;
     }
     else
     {
       delete_string.append("=");
       (*field)->val_str(&data_string);
-      quote_flag= type_quote((*field)->type());
+      quote_data(&data_string, *field);
     }
   
-    if (quote_flag)
-      delete_string.append('\'');
-
     delete_string.append(data_string);
-    data_string.copy(NULL);
-
-    if (quote_flag)
-      delete_string.append('\'');
+    data_string.length(0);
 
     if (x+1 < table->fields)
       delete_string.append(" AND ");
@@ -1650,6 +1707,16 @@ int ha_federated::create(const char *name, TABLE *table_arg,
                        HA_CREATE_INFO *create_info)
 {
   DBUG_ENTER("ha_federated::create");
+  int retcode;
+  FEDERATED_SHARE *tmp;
+  retcode= parse_url(tmp, table_arg, 1);
+  if (retcode < 0)
+  {
+    DBUG_PRINT("ha_federated::create",
+      ("ERROR: on table creation for %s called parse_url, retcode %d",
+       create_info->data_file_name, retcode));
+    DBUG_RETURN(ER_CANT_CREATE_TABLE);
+  }
   DBUG_RETURN(0);
 }
 #endif /* HAVE_FEDERATED_DB */

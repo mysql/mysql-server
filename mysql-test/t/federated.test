@@ -23,7 +23,7 @@ drop database if exists federated;
 --enable_warnings
 create database federated;
 
-CREATE TABLE federated.t1 ( `id` int(20) NOT NULL auto_increment, `name` varchar(32) NOT NULL default '', `other` int(20) NOT NULL default '0', created datetime default '2004-04-04 04:04:04', PRIMARY KEY  (`id`), KEY `name` (`name`), KEY `other_key` (`other`)) ENGINE="FEDERATED" DEFAULT CHARSET=latin1 COMMENT='root@127.0.0.1:9308/federated/t1';
+CREATE TABLE federated.t1 ( `id` int(20) NOT NULL auto_increment, `name` varchar(32) NOT NULL default '', `other` int(20) NOT NULL default '0', created datetime default '2004-04-04 04:04:04', PRIMARY KEY  (`id`), KEY `name` (`name`), KEY `other_key` (`other`)) ENGINE="FEDERATED" DEFAULT CHARSET=latin1 COMMENT='mysql://root@127.0.0.1:9308/federated/t1';
 
 insert into federated.t1 (name, other) values ('First Name', 11111);
 insert into federated.t1 (name, other) values ('Second Name', 22222);
@@ -55,6 +55,10 @@ update federated.t1 set name = 'Third name' where name = '3rd name';
 select * from federated.t1 where name = 'Third name';
 # rnd_post, ::position
 select * from federated.t1 order by id DESC;
+select * from federated.t1 order by name;
+select * from federated.t1 order by name DESC;
+select * from federated.t1 order by name ASC;
+select * from federated.t1 group by other;
 
 # ::delete_row
 delete from federated.t1 where id = 5; 
@@ -65,7 +69,7 @@ delete from federated.t1;
 select * from federated.t1 where id = 5;
 
 drop table if exists federated.t1;
-CREATE TABLE federated.t1 ( `id` int(20) NOT NULL auto_increment, `name` varchar(32), `other` varchar(20), PRIMARY KEY  (`id`) ) ENGINE="FEDERATED" DEFAULT CHARSET=latin1 COMMENT='root@127.0.0.1:9308/federated/t1';
+CREATE TABLE federated.t1 ( `id` int(20) NOT NULL auto_increment, `name` varchar(32), `other` varchar(20), PRIMARY KEY  (`id`) ) ENGINE="FEDERATED" DEFAULT CHARSET=latin1 COMMENT='mysql://root@127.0.0.1:9308/federated/t1';
 
 connection slave;
 drop table if exists federated.t1;
@@ -100,7 +104,7 @@ CREATE TABLE federated.t1 (id int, name varchar(32), floatval float, other int) 
 connection master;
 # test NULLs
 drop table if exists federated.t1;
-CREATE TABLE federated.t1 (id int, name varchar(32), floatval float, other int) ENGINE="FEDERATED" DEFAULT CHARSET=latin1 COMMENT='root@127.0.0.1:9308/federated/t1';
+CREATE TABLE federated.t1 (id int, name varchar(32), floatval float, other int) ENGINE="FEDERATED" DEFAULT CHARSET=latin1 COMMENT='mysql://root@127.0.0.1:9308/federated/t1';
 # these both should be the same
 insert into federated.t1 values (NULL, NULL, NULL, NULL);
 insert into federated.t1 values ();
@@ -116,7 +120,7 @@ CREATE TABLE federated.t1 ( blurb_id int NOT NULL DEFAULT 0, blurb text default 
 
 connection master;
 drop table if exists federated.t1;
-CREATE TABLE federated.t1 ( blurb_id int NOT NULL DEFAULT 0, blurb text default '', primary key(blurb_id)) ENGINE="FEDERATED" DEFAULT CHARSET=latin1 COMMENT='root@127.0.0.1:9308/federated/t1'; 
+CREATE TABLE federated.t1 ( blurb_id int NOT NULL DEFAULT 0, blurb text default '', primary key(blurb_id)) ENGINE="FEDERATED" DEFAULT CHARSET=latin1 COMMENT='mysql://root@127.0.0.1:9308/federated/t1'; 
 
 INSERT INTO federated.t1 VALUES (1, " MySQL supports a number of column types in several categories: numeric types, date and time types, and string (character) types.  This chapter first gives an overview of these column types, and then provides a more detailed description of the properties of the types in each category, and a summary of the column type storage requirements.  The overview is intentionally brief.  The more detailed descriptions should be consulted for additional information about particular column types, such as the allowable formats in which you can specify values.");
 INSERT INTO federated.t1 VALUES (2, "All arithmetic is done using signed BIGINT or DOUBLE values, so you should not use unsigned big integers larger than 9223372036854775807 (63 bits) except with bit functions! If you do that, some of the last digits in the result may be wrong because of rounding errors when converting a BIGINT value to a DOUBLE.");
@@ -130,7 +134,7 @@ create table federated.t1 (a int not null, b int not null, c int not null, prima
 
 connection master;
 drop table if exists federated.t1;
-create table federated.t1 (a int not null, b int not null, c int not null, primary key (a),key(b)) ENGINE="FEDERATED" DEFAULT CHARSET=latin1 COMMENT='root@127.0.0.1:9308/federated/t1';
+create table federated.t1 (a int not null, b int not null, c int not null, primary key (a),key(b)) ENGINE="FEDERATED" DEFAULT CHARSET=latin1 COMMENT='mysql://root@127.0.0.1:9308/federated/t1';
 
 insert into federated.t1 values (3,3,3),(1,1,1),(2,2,2),(4,4,4);
 explain select * from federated.t1 order by a;
@@ -396,7 +400,7 @@ int, i967 int, i968 int, i969 int, i970 int, i971 int, i972 int, i973 int, i974
 int, i975 int, i976 int, i977 int, i978 int, i979 int, i980 int, i981 int, i982
 int, i983 int, i984 int, i985 int, i986 int, i987 int, i988 int, i989 int, i990
 int, i991 int, i992 int, i993 int, i994 int, i995 int, i996 int, i997 int, i998
-int, i999 int, i1000 int, b blob) row_format=dynamic ENGINE="FEDERATED" DEFAULT CHARSET=latin1 COMMENT='root@127.0.0.1:9308/federated/t1';
+int, i999 int, i1000 int, b blob) row_format=dynamic ENGINE="FEDERATED" DEFAULT CHARSET=latin1 COMMENT='mysql://root@127.0.0.1:9308/federated/t1';
 insert into federated.t1 values (1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
@@ -452,12 +456,44 @@ create table federated.t1 (id int NOT NULL auto_increment, code char(20) NOT NUL
 
 connection master;
 drop table if exists federated.t1;
-create table federated.t1 (id int NOT NULL auto_increment, code char(20) NOT NULL, fileguts blob, creation_date datetime, entered_time datetime default '2004-04-04 04:04:04', primary key(id), index(code)) ENGINE="FEDERATED" DEFAULT CHARSET=latin1 COMMENT='root@127.0.0.1:9308/federated/t1'; 
+create table federated.t1 (id int NOT NULL auto_increment, code char(20) NOT NULL, fileguts blob, creation_date datetime, entered_time datetime default '2004-04-04 04:04:04', primary key(id), index(code)) ENGINE="FEDERATED" DEFAULT CHARSET=latin1 COMMENT='mysql://root@127.0.0.1:9308/federated/t1'; 
 insert into federated.t1 (code, fileguts, creation_date) values ('ASDFWERQWETWETAWETA', '*()w*09*$()*#)(*09*^90*d)(*s()d8g)(s*ned)(*)(s*d)(*hn(d*)(*sbn)D((#$*(#*%%&#&^$#&#&#&#&^&#*&*#$*&^*(&#(&Q*&&(*!&!(*&*(#&*(%&#<S-F8>*<S-F8><S-F8><S-F8>#<S-F8>#<S-F8>#<S-F8>[[', '2003-03-03 03:03:03');
 insert into federated.t1 (code, fileguts, creation_date) values ('DEUEUEUEUEUEUEUEUEU', '*()w*09*$()*#)(*09*^90*d)(*s()d8g)(s*ned)(*)(s*d)(*hn(d*)(*sbn)D((#$*(#*%%&#&^$#&#&#&#&^&#*&*#$*&^*(&#(&Q*&&(*!&!(*&*(#&*(%&#<S-F8>*<S-F8><S-F8><S-F8>#<S-F8>#<S-F8>#<S-F8>[[', '2004-04-04 04:04:04');
 select * from federated.t1;
 drop table if exists federated.t1;
 
+# TODO
+# 
+# create table federated.t1 (a char(20)) charset=cp1251 ENGINE="FEDERATED" COMMENT="mysql://root@127.0.0.1:9308/federated/t1";
+# 
+# connection slave;
+# drop table if exists federated.t1;
+# create table federated.t1 (a char(20)) charset=cp1251;
+# 
+# connection master;
+# insert into federated.t1 values (_cp1251'À-ÁÂÃ-1');
+# insert into federated.t1 values (_cp1251'Á-ÂÃÄ-2');
+# set names cp1251;
+# insert into federated.t1 values ('Â-ÃÄÅ-3');
+# insert into federated.t1 values ('Ã-Å¨Æ-4');
+# select * from federated.t1;
+# select hex(a) from federated.t1;
+# select hex(a) from federated.t1 order by a desc;
+# update federated.t1 set a='À-ÁÂÃ-1íîâûé' where a='À-ÁÂÃ-1';
+# select * from federated.t1;
+# delete from federated.t1 where a='Ã-Å¨Æ-4';
+# select * from federated.t1;
+# delete from federated.t1 where a>'Â-';
+# select * from federated.t1;
+# set names default;
+# 
+# drop table if exists federated.t1;
+# 
+
+connection slave;
+drop table if exists federated.t1;
+
+connection master;
 --disable_warnings
 drop database if exists federated;
 --enable_warnings
