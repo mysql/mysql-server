@@ -555,3 +555,32 @@ void st_select_lex_unit::reinit_exec_mechanism()
   }
 #endif
 }
+
+
+/*
+  change select_result object of unit
+
+  SYNOPSIS
+    st_select_lex_unit::change_result()
+    result	new select_result object
+    old_result	old select_result object
+
+  RETURN
+    0 - OK
+    -1 - error
+*/
+
+int st_select_lex_unit::change_result(select_subselect *result,
+				      select_subselect *old_result)
+{
+  int res= 0;
+  for (SELECT_LEX *sl= first_select_in_union(); sl; sl= sl->next_select())
+  {
+    if (sl->join && sl->join->result == old_result)
+      if ((res= sl->join->change_result(result)))
+	return (res);
+  }
+  if (fake_select_lex && fake_select_lex->join)
+    res= fake_select_lex->join->change_result(result);
+  return (res);
+}

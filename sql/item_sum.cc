@@ -502,6 +502,14 @@ void Item_sum_variance::update_field()
 
 /* min & max */
 
+void Item_sum_hybrid::clear()
+{
+  sum= 0.0;
+  sum_int= 0;
+  value.length(0);
+  null_value= 1;
+}
+
 double Item_sum_hybrid::val()
 {
   DBUG_ASSERT(fixed == 1);
