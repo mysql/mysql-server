@@ -787,7 +787,7 @@ bool wait_if_global_read_lock(THD *thd, bool abort_on_refresh, bool is_not_commi
 
   LINT_INIT(old_message);
   (void) pthread_mutex_lock(&LOCK_open);
-  if (need_exit_cond= must_wait)
+  if ((need_exit_cond= must_wait))
   {
     if (thd->global_read_lock)		// This thread had the read locks
     {
@@ -805,7 +805,11 @@ bool wait_if_global_read_lock(THD *thd, bool abort_on_refresh, bool is_not_commi
   }
   if (!abort_on_refresh && !result)
     protect_against_global_read_lock++;
-  if (unlikely(need_exit_cond)) // global read locks are rare
+  /*
+    The following is only true in case of a global read locks (which is rare)
+    and if old_message is set
+  */
+  if (unlikely(need_exit_cond)) 
     thd->exit_cond(old_message);
   else
     pthread_mutex_unlock(&LOCK_open);

@@ -3281,7 +3281,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
 			 ha_rows *deleted)
 {
   int error;
-  Copy_field *copy,*copy_end, *next_field= 0;
+  Copy_field *copy,*copy_end;
   ulong found_count,delete_count;
   THD *thd= current_thd;
   uint length;
@@ -3291,6 +3291,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   List<Item>   fields;
   List<Item>   all_fields;
   ha_rows examined_rows;
+  bool auto_increment_field_copied= 0;
   DBUG_ENTER("copy_data_between_tables");
 
   if (!(copy= new Copy_field[to->fields]))
@@ -3309,7 +3310,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
     if (def->field)
     {
       if (*ptr == to->next_number_field)
-        next_field= copy_end;
+        auto_increment_field_copied= TRUE;
       (copy_end++)->set(*ptr,def->field,0);
     }
 
@@ -3368,11 +3369,14 @@ copy_data_between_tables(TABLE *from,TABLE *to,
     }
     thd->row_count++;
     if (to->next_number_field)
-      to->next_number_field->reset();
+    {
+      if (auto_increment_field_copied)
+        to->auto_increment_field_not_null= TRUE;
+      else
+        to->next_number_field->reset();
+    }
     for (Copy_field *copy_ptr=copy ; copy_ptr != copy_end ; copy_ptr++)
     {
-      if (copy_ptr == next_field)
-        to->auto_increment_field_not_null= TRUE;
       copy_ptr->do_copy(copy_ptr);
     }
     if ((error=to->file->write_row((byte*) to->record[0])))
