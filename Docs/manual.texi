@@ -50064,6 +50064,9 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
+Fixed bug in multi-table delete when tables are re-ordered in table 
+initialization method and ref_length's are of different sizes
+@item
 Fixed bug in query cache initialisation with very small query cache size.
 @item
 Allow @code{DEFAULT} with @code{INSERT} statement.
