@@ -200,6 +200,7 @@ extern "C" {
   int ndb_mgmclient_handle_destroy(Ndb_mgmclient_handle h)
   {
     delete (Ndb_mgmclient*)h;
+    return 0;
   }
 }
 /*
