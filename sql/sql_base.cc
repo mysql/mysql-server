@@ -2027,7 +2027,7 @@ int setup_fields(THD *thd, TABLE_LIST *tables, List<Item> &fields,
       thd->used_tables|=item->used_tables();
     }
   }
-  DBUG_RETURN(test(thd->fatal_error));
+  DBUG_RETURN(test(thd->fatal_error || thd->net.report_error));
 }
 
 
@@ -2239,7 +2239,7 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
 	table->on_expr=and_conds(table->on_expr,cond_and);
     }
   }
-  DBUG_RETURN(test(thd->fatal_error));
+  DBUG_RETURN(test(thd->fatal_error || thd->net.report_error));
 }
 
 
