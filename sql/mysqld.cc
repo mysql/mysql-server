@@ -286,7 +286,7 @@ uint master_port = MYSQL_PORT, master_connect_retry = 60;
 uint report_port = MYSQL_PORT;
 bool master_ssl = 0;
 
-ulong max_tmp_tables,max_heap_table_size;
+ulong max_tmp_tables,max_heap_table_size,master_retry_count=0;
 ulong bytes_sent = 0L, bytes_received = 0L;
 
 bool opt_endinfo,using_udf_functions,low_priority_updates, locked_in_memory;
@@ -2573,10 +2573,9 @@ enum options {
 	       OPT_MASTER_HOST,             OPT_MASTER_USER,
                OPT_MASTER_PASSWORD,         OPT_MASTER_PORT,
                OPT_MASTER_INFO_FILE,        OPT_MASTER_CONNECT_RETRY,
-#ifdef HAVE_OPENSSL
+	       OPT_MASTER_RETRY_COUNT,
 	       OPT_MASTER_SSL,             OPT_MASTER_SSL_KEY,
 	       OPT_MASTER_SSL_CERT,            
-#endif /* HAVE_OPESSSL*/ 
                OPT_SQL_BIN_UPDATE_SAME,     OPT_REPLICATE_DO_DB,      
                OPT_REPLICATE_IGNORE_DB,     OPT_LOG_SLAVE_UPDATES,
                OPT_BINLOG_DO_DB,            OPT_BINLOG_IGNORE_DB,
@@ -2683,12 +2682,11 @@ static struct option long_options[] = {
   {"master-password",       required_argument, 0, (int) OPT_MASTER_PASSWORD},
   {"master-port",           required_argument, 0, (int) OPT_MASTER_PORT},
   {"master-connect-retry",  required_argument, 0, (int) OPT_MASTER_CONNECT_RETRY},
+  {"master-retry-count",    required_argument, 0, (int) OPT_MASTER_RETRY_COUNT},
   {"master-info-file",      required_argument, 0, (int) OPT_MASTER_INFO_FILE},
-#ifdef HAVE_OPENSSL  
   {"master-ssl",      	    optional_argument, 0, (int) OPT_MASTER_SSL},
   {"master-ssl-key",        optional_argument, 0, (int) OPT_MASTER_SSL_KEY},
   {"master-ssl-cert",       optional_argument, 0, (int) OPT_MASTER_SSL_CERT},
-#endif  
   {"myisam-recover",	    optional_argument, 0, (int) OPT_MYISAM_RECOVER},
   {"memlock",		    no_argument,       0, (int) OPT_MEMLOCK},
     // needs to be available for the test case to pass in non-debugging mode
@@ -3972,7 +3970,6 @@ static void get_options(int argc,char **argv)
     case OPT_MASTER_PORT:
       master_port= atoi(optarg);
       break;
-#ifdef HAVE_OPENSSL
     case OPT_MASTER_SSL:
       master_ssl=atoi(optarg);
       break;
@@ -3982,7 +3979,6 @@ static void get_options(int argc,char **argv)
     case OPT_MASTER_SSL_CERT:
       master_ssl_cert=optarg;
       break;
-#endif /* HAVE_OPENSSL */
     case OPT_REPORT_HOST:
       report_host=optarg;
       break;
@@ -3997,6 +3993,9 @@ static void get_options(int argc,char **argv)
       break;
     case OPT_MASTER_CONNECT_RETRY:
       master_connect_retry= atoi(optarg);
+      break;
+    case OPT_MASTER_RETRY_COUNT:
+      master_retry_count= atoi(optarg);
       break;
     case OPT_SAFE_SHOW_DB:
       opt_safe_show_db=1;
