@@ -19,9 +19,10 @@ ibool	ut_dbg_stop_threads	= FALSE;
 
 ulint*	ut_dbg_null_ptr		= NULL;
 
-/* Dummy function to prevent gcc from ignoring this file */
-void
-ut_dummy(void)
-{
-  printf("Hello world\n");
-}
+const char*	ut_dbg_msg_assert_fail =
+"InnoDB: Assertion failure in thread %lu in file %s line %lu\n";
+const char*	ut_dbg_msg_trap =
+"InnoDB: We intentionally generate a memory trap.\n"
+"InnoDB: Send a detailed bug report to mysql@lists.mysql.com.\n";
+const char*	ut_dbg_msg_stop =
+"InnoDB: Thread %lu stopped in file %s line %lu\n";
