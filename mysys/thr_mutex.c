@@ -107,7 +107,7 @@ int safe_mutex_unlock(safe_mutex_t *mp,const char *file, uint line)
   error=pthread_mutex_unlock(&mp->mutex);
   if (error)
   {
-    fprintf(stderr,"safe_mutex: Got error: %d when trying to unlock mutex at %s, line %d\n", error, file, line);
+    fprintf(stderr,"safe_mutex: Got error: %d (%d) when trying to unlock mutex at %s, line %d\n", error, errno, file, line);
     fflush(stderr);
     abort();
   }
@@ -148,7 +148,7 @@ int safe_cond_wait(pthread_cond_t *cond, safe_mutex_t *mp, const char *file,
   pthread_mutex_lock(&mp->global);
   if (error)
   {
-    fprintf(stderr,"safe_mutex: Got error: %d when doing a safe_mutex_wait at %s, line %d\n", error, file, line);
+    fprintf(stderr,"safe_mutex: Got error: %d (%d) when doing a safe_mutex_wait at %s, line %d\n", error, errno, file, line);
     fflush(stderr);
     abort();
   }
@@ -186,15 +186,15 @@ int safe_cond_timedwait(pthread_cond_t *cond, safe_mutex_t *mp,
 #ifdef EXTRA_DEBUG
   if (error && (error != EINTR && error != ETIMEDOUT))
   {
-    fprintf(stderr,"safe_mutex: Got error: %d when doing a safe_mutex_timedwait at %s, line %d\n", error, file, line);
+    fprintf(stderr,"safe_mutex: Got error: %d (%d) when doing a safe_mutex_timedwait at %s, line %d\n", error, errno, file, line);
   }
 #endif
   pthread_mutex_lock(&mp->global);
   if (mp->count++)
   {
     fprintf(stderr,
-	    "safe_mutex:  Count was %d in thread %lx when locking mutex at %s, line %d (error: %d)\n",
-	    mp->count-1, my_thread_id(), file, line, error);
+	    "safe_mutex:  Count was %d in thread %lx when locking mutex at %s, line %d (error: %d (%d))\n",
+	    mp->count-1, my_thread_id(), file, line, error, error);
     fflush(stderr);
     abort();
   }

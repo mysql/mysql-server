@@ -35,8 +35,13 @@ slave start;
 sync_with_master;
 show master logs;
 --replace_result 3306 MASTER_PORT 9306 MASTER_PORT 3334 MASTER_PORT 3336 MASTER_PORT $VERSION VERSION
+# We can't compare binlog from slave as the result differ between
+# machines based on where the LOAD DATA file is stored.
+disable_result_log;
+
 show binlog events in 'slave-bin.001' from 4;
 --replace_result 3306 MASTER_PORT 9306 MASTER_PORT 3334 MASTER_PORT 3336 MASTER_PORT $VERSION VERSION
+enable_result_log;
 show binlog events in 'slave-bin.002' from 4;
 --replace_result 3306 MASTER_PORT 9306 MASTER_PORT 3334 MASTER_PORT 3336 MASTER_PORT
 show slave status;

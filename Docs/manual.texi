@@ -47795,6 +47795,8 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
+Fixed shutdown problem on HPUX.
+@item
 Added functions @code{des_encrypt()} and @code{des_decrypt()}.
 @item
 Added statement FLUSH DES_KEY_FILE.

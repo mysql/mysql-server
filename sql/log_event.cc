@@ -140,7 +140,7 @@ static void cleanup_load_tmpdir()
   for (i=0;i<(uint)dirp->number_off_files;i++)
   {
     file=dirp->dir_entry+i;
-    if (!memcmp(file->name,"SQL_LOAD-",9))
+    if (!bcmp(file->name,"SQL_LOAD-",9))
       my_delete(file->name,MYF(MY_WME));
   }
 

@@ -446,6 +446,10 @@ struct hostent *my_gethostbyname_r(const char *name,
 
 #endif /* defined(__WIN__) */
 
+#if defined(HPUX) && !defined(DONT_REMAP_PTHREAD_FUNCTIONS)
+#define pthread_cond_timedwait(a,b,c) my_pthread_cond_timedwait((a),(b),(c))
+#endif
+
 	/* safe_mutex adds checking to mutex for easier debugging */
 
 typedef struct st_safe_mutex_t
@@ -476,6 +480,7 @@ int safe_cond_timedwait(pthread_cond_t *cond, safe_mutex_t *mp,
 #undef pthread_mutex_t
 #undef pthread_cond_wait
 #undef pthread_cond_timedwait
+#undef pthread_mutex_trylock
 #define pthread_mutex_init(A,B) safe_mutex_init((A),(B))
 #define pthread_mutex_lock(A) safe_mutex_lock((A),__FILE__,__LINE__)
 #define pthread_mutex_unlock(A) safe_mutex_unlock((A),__FILE__,__LINE__)

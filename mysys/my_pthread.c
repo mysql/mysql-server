@@ -16,6 +16,7 @@
 
 /* Functions to get threads more portable */
 
+#define DONT_REMAP_PTHREAD_FUNCTIONS
 #include "mysys_priv.h"
 #ifdef THREAD
 #include <signal.h>
@@ -459,6 +460,27 @@ struct hostent *my_gethostbyname_r(const char *name,
 
 #endif /* GLIBC2_STYLE_GETHOSTBYNAME_R */
 #endif
+
+/*****************************************************************************
+  Patches for HPUX
+  We need these because the pthread_mutex.. code returns -1 on error,
+  instead of the error code.
+
+  Note that currently we only remap pthread_ functions used by MySQL.
+  If we are depending on the value for some other pthread_xxx functions,
+  this has to be added here.
+*****************************************************************************/
+
+int my_pthread_cond_timedwait(pthread_cond_t *cond, pthread_mutex_t *mutex,
+			      struct timespec *abstime)
+{
+  int error=pthread_cond_timedwait(cond, mutex, abstime);
+  if (error == -1)			/* Safety if the lib is fixed */
+    error=errno;
+  if (error == EAGAIN)			/* Correct errno to Posix */
+    error=ETIMEDOUT;
+  return error;
+}
 
 
 /* Some help functions */
