@@ -10542,6 +10542,33 @@ static void test_bug5315()
 
 
 /*
+  Altough mysql_create_db(), mysql_rm_db() are deprecated since 4.0 they
+  should not crash server and should not hang in case of errors.
+
+  Since those functions can't be seen in modern API (unless client library
+  was compiled with USE_OLD_FUNCTIONS define) we use simple_command() macro.
+*/
+static void test_bug6081()
+{
+  int rc;
+  myheader("test_bug6081");
+
+  rc= simple_command(mysql, COM_DROP_DB, current_db,
+                     (ulong)strlen(current_db), 0);
+  myquery(rc);
+  rc= simple_command(mysql, COM_DROP_DB, current_db,
+                     (ulong)strlen(current_db), 0);
+  myquery_r(rc);
+  rc= simple_command(mysql, COM_CREATE_DB, current_db,
+                     (ulong)strlen(current_db), 0);
+  myquery(rc);
+  rc= simple_command(mysql, COM_CREATE_DB, current_db,
+                     (ulong)strlen(current_db), 0);
+  myquery_r(rc);
+}
+
+
+/*
   Read and parse arguments and MySQL options from my.cnf
 */
 
@@ -10851,6 +10878,7 @@ int main(int argc, char **argv)
     test_bug5194();         /* bulk inserts in prepared mode */
     test_bug5315();         /* check that mysql_change_user closes all
                                prepared statements */
+    test_bug6081();         /* test of mysql_create_db()/mysql_rm_db() */
     /*
       XXX: PLEASE RUN THIS PROGRAM UNDER VALGRIND AND VERIFY THAT YOUR TEST
       DOESN'T CONTAIN WARNINGS/ERRORS BEFORE YOU PUSH.
