@@ -325,7 +325,12 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
     If the directory is a symbolic link, remove the link first, then
     remove the directory the symbolic link pointed at
   */
-  if (!found_other_files)
+  if (found_other_files)
+  {
+    my_error(ER_DB_DROP_RMDIR, MYF(0), org_path, EEXIST);
+    DBUG_RETURN(-1);
+  }
+  else
   {
     char tmp_path[FN_REFLEN], *pos;
     char *path= tmp_path;
