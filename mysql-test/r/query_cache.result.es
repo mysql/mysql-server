@@ -808,7 +808,7 @@ SET NAMES koi8r;
 CREATE TABLE t1 (a char(1) character set koi8r);
 INSERT INTO t1 VALUES (_koi8r'á'),(_koi8r'Á');
 SELECT a,'Â','â'='Â' FROM t1;
-a	Ð±	'Ð‘'='Ð±'
+a	Â	'â'='Â'
 á	Â	1
 Á	Â	1
 show status like "Qcache_hits";
@@ -819,7 +819,7 @@ Variable_name	Value
 Qcache_queries_in_cache	1
 set collation_connection=koi8r_bin;
 SELECT a,'Â','â'='Â' FROM t1;
-a	Ð±	'Ð‘'='Ð±'
+a	Â	'â'='Â'
 á	Â	0
 Á	Â	0
 show status like "Qcache_hits";
@@ -830,7 +830,7 @@ Variable_name	Value
 Qcache_queries_in_cache	2
 set character_set_client=cp1251;
 SELECT a,'Â','â'='Â' FROM t1;
-a	Ð’	'Ð²'='Ð’'
+a	÷	'×'='÷'
 á	÷	0
 Á	÷	0
 show status like "Qcache_hits";
@@ -841,7 +841,7 @@ Variable_name	Value
 Qcache_queries_in_cache	3
 set character_set_results=cp1251;
 SELECT a,'Â','â'='Â' FROM t1;
-a	Ð’	'Ð²'='Ð’'
+a	Â	'â'='Â'
 À	Â	0
 à	Â	0
 show status like "Qcache_hits";
