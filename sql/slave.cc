@@ -376,6 +376,7 @@ int terminate_slave_threads(MASTER_INFO* mi,int thread_mask,bool skip_lock)
   }
   if ((thread_mask & (SLAVE_IO|SLAVE_FORCE_ALL)) && mi->slave_running)
   {
+    DBUG_PRINT("info",("Terminating IO thread"));
     mi->abort_slave=1;
     if ((error=terminate_slave_thread(mi->io_thd,io_lock,
 				        io_cond_lock,
@@ -386,6 +387,7 @@ int terminate_slave_threads(MASTER_INFO* mi,int thread_mask,bool skip_lock)
   }
   if ((thread_mask & (SLAVE_SQL|SLAVE_FORCE_ALL)) && mi->rli.slave_running)
   {
+    DBUG_PRINT("info",("Terminating SQL thread"));
     DBUG_ASSERT(mi->rli.sql_thd != 0) ;
     mi->rli.abort_slave=1;
     if ((error=terminate_slave_thread(mi->rli.sql_thd,sql_lock,
