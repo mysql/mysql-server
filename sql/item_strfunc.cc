@@ -1473,15 +1473,17 @@ String *Item_func_format::val_str(String *str)
   str_length=str->length();
   if (nr < 0)
     str_length--;				// Don't count sign
-  length=str->length()+(diff=(str_length- dec-1)/3);
-  if (diff && diff < 330) // size of buff ...
+
+  /* We need this test to handle 'nan' values */
+  if (str_length >= dec+4)
   {
     char *tmp,*pos;
-    str=copy_if_not_alloced(&tmp_str,str,length);
+    length= str->length()+(diff=(str_length- dec-1)/3);
+    str= copy_if_not_alloced(&tmp_str,str,length);
     str->length(length);
-    tmp=(char*) str->ptr()+length - dec-1;
-    for (pos=(char*) str->ptr()+length ; pos != tmp; pos--)
-      pos[0]=pos[- (int) diff];
+    tmp= (char*) str->ptr()+length - dec-1;
+    for (pos= (char*) str->ptr()+length ; pos != tmp; pos--)
+      pos[0]= pos[-(int) diff];
     while (diff)
     {
       pos[0]=pos[-(int) diff]; pos--;
