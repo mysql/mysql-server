@@ -1391,6 +1391,7 @@ MgmApiSession::listen_event(Parser<MgmApiSession>::Context & ctx,
       result = -1;
       goto done;
     }
+    category -= CFG_MIN_LOGLEVEL;
     le.m_logLevel.setLogLevel((LogLevel::EventCategory)category, level);
   }
   

@@ -2419,6 +2419,8 @@ MgmtSrvr::abortBackup(Uint32 backupId)
 void
 MgmtSrvr::backupCallback(BackupEvent & event)
 {
+  m_lastBackupEvent = event;
+  theWaitState = NO_WAIT;
 }
 
 
