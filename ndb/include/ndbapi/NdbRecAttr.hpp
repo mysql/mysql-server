@@ -475,5 +475,7 @@ NdbRecAttr::isNULL() const
   return theNULLind;
 }
 
+class NdbOut& operator <<(class NdbOut&, const NdbRecAttr &);
+
 #endif
 
