@@ -1251,8 +1251,8 @@ int show_binlog_info(THD* thd)
   field_list.push_back(new Item_empty_string("File", FN_REFLEN));
   field_list.push_back(new Item_return_int("Position",20,
 					   MYSQL_TYPE_LONGLONG));
-  field_list.push_back(new Item_empty_string("Binlog_do_db",255));
-  field_list.push_back(new Item_empty_string("Binlog_ignore_db",255));
+  field_list.push_back(new Item_empty_string("Binlog_Do_DB",255));
+  field_list.push_back(new Item_empty_string("Binlog_Ignore_DB",255));
 
   if (protocol->send_fields(&field_list, 1))
     DBUG_RETURN(-1);
