@@ -151,7 +151,11 @@ class Item_str_conv :public Item_str_func
 {
 public:
   Item_str_conv(Item *item) :Item_str_func(item) {}
-  void fix_length_and_dec() { max_length = args[0]->max_length; }
+  void fix_length_and_dec()
+  { 
+    set_charset(args[0]->charset(), args[0]->coercibility);
+    max_length = args[0]->max_length;
+  }
 };
 
 

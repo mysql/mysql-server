@@ -172,6 +172,39 @@ CHARSET_INFO * Item::default_charset() const
   return current_thd->db_charset;
 }
 
+bool Item::set_charset(CHARSET_INFO *cs1, enum coercion co1,
+		       CHARSET_INFO *cs2, enum coercion co2)
+{
+  if (cs1 == &my_charset_bin || cs2 == &my_charset_bin)
+  {
+    set_charset(&my_charset_bin, COER_NOCOLL);
+    return 0;
+  }
+  
+  if (!my_charset_same(cs1,cs2))
+  {
+    set_charset(&my_charset_bin, COER_NOCOLL);
+    return 0;
+  }
+  
+  if (co1 < co2)
+  {
+    set_charset(cs1, co1);
+  }
+  else if (co2 < co1)
+  {
+    set_charset(cs2, co2);
+  }
+  else  // co2 == co1
+  {
+    if (cs1 != cs2)
+      set_charset(&my_charset_bin, COER_NOCOLL);
+    else
+      set_charset(cs2, co2);
+  }
+  return 0;
+}
+
 Item_field::Item_field(Field *f) :Item_ident(NullS,f->table_name,f->field_name)
 {
   set_field(f);
@@ -195,8 +228,7 @@ void Item_field::set_field(Field *field_par)
   table_name=field_par->table_name;
   field_name=field_par->field_name;
   unsigned_flag=test(field_par->flags & UNSIGNED_FLAG);
-  set_charset(field_par->charset());
-  coercibility= COER_IMPLICIT;
+  set_charset(field_par->charset(), COER_IMPLICIT);
 }
 
 const char *Item_ident::full_name() const

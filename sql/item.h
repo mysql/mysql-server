@@ -39,8 +39,8 @@ public:
              SUBSELECT_ITEM, ROW_ITEM, CACHE_ITEM};
 
   enum cond_result { COND_UNDEF,COND_OK,COND_TRUE,COND_FALSE };
-  enum coercion    { COER_NOCOLL=3,   COER_COERCIBLE=2, 
-  		     COER_IMPLICIT=1, COER_EXPLICIT=0  };
+  enum coercion    { COER_COERCIBLE=3, COER_IMPLICIT=2, 
+  		     COER_NOCOLL=1,    COER_EXPLICIT=0  };
 
   String str_value;			/* used to store value */
   my_string name;			/* Name from select */
@@ -113,6 +113,13 @@ public:
   CHARSET_INFO *default_charset() const;
   CHARSET_INFO *charset() const { return str_value.charset(); };
   void set_charset(CHARSET_INFO *cs) { str_value.set_charset(cs); }
+  void set_charset(CHARSET_INFO *cs, enum coercion coer)
+  {
+    str_value.set_charset(cs);
+    coercibility= coer;
+  }
+  bool set_charset(CHARSET_INFO *cs1, enum coercion co1, 
+  		   CHARSET_INFO *cs2, enum coercion co2);
   virtual void set_outer_resolving() {}
 
   // Row emulation
