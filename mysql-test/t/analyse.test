@@ -38,3 +38,12 @@ select * from t2;
 insert into t2 select * from t1 procedure analyse();
 select * from t2;
 drop table t1,t2;
+
+#
+# Bug#2813 - analyse does not quote string values in enums from string
+#
+
+create table t1 (v varchar(128));
+insert into t1 values ('abc'),('abc\'def\\hij\"klm\0opq'),('\''),('\"'),('\\'),('a\0'),('b\''),('c\"'),('d\\'),('\'b'),('\"c'),('\\d'),('a\0\0\0b'),('a\'\'\'\'b'),('a\"\"\"\"b'),('a\\\\\\\\b'),('\'\0\\\"'),('\'\''),('\"\"'),('\\\\'),('The\ZEnd');
+select * from t1 procedure analyse();
+drop table t1;

@@ -7475,6 +7475,22 @@ void Dbdih::execDIHNDBTAMPER(Signal* signal)
 #ifdef ERROR_INSERT
   case 5:
     jam();
+    if(tuserpointer == 0)
+    {
+      jam();
+      signal->theData[0] = 0;
+      sendSignal(QMGR_REF, GSN_NDB_TAMPER, signal, 1, JBB);
+      sendSignal(NDBCNTR_REF, GSN_NDB_TAMPER, signal, 1, JBB);
+      sendSignal(NDBFS_REF, GSN_NDB_TAMPER, signal, 1, JBB);
+      sendSignal(DBACC_REF, GSN_NDB_TAMPER, signal, 1, JBB);
+      sendSignal(DBTUP_REF, GSN_NDB_TAMPER, signal, 1, JBB);
+      sendSignal(DBLQH_REF, GSN_NDB_TAMPER, signal, 1, JBB);
+      sendSignal(DBDICT_REF, GSN_NDB_TAMPER, signal, 1, JBB);
+      sendSignal(DBDIH_REF, GSN_NDB_TAMPER, signal, 1, JBB);
+      sendSignal(DBTC_REF, GSN_NDB_TAMPER, signal, 1, JBB);
+      sendSignal(CMVMI_REF, GSN_NDB_TAMPER, signal, 1, JBB);
+      return;
+    }
     /*----------------------------------------------------------------------*/
     // Insert errors.
     /*----------------------------------------------------------------------*/

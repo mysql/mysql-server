@@ -31,13 +31,6 @@ class HugoCalculator {
 public:
   HugoCalculator(const NdbDictionary::Table& tab);
   Int32 calcValue(int record, int attrib, int updates) const;
-#if 0
-  U_Int32 calcValue(int record, int attrib, int updates) const;
-  U_Int64 calcValue(int record, int attrib, int updates) const;
-  Int64 calcValue(int record, int attrib, int updates) const;
-  float calcValue(int record, int attrib, int updates) const;
-  double calcValue(int record, int attrib, int updates) const;
-#endif
   const char* calcValue(int record, int attrib, int updates, char* buf, int len) const;
 
   int verifyRowValues(NDBT_ResultRow* const  pRow) const;

@@ -79,7 +79,7 @@ public:
   //static NdbGlobalEventBufferHandle *init(int MAX_NUMBER_ACTIVE_EVENTS);
 
   // returns bufferId 0-N if ok otherwise -1
-  int prepareAddSubscribeEvent(Uint32 eventId, int& hasSubscriber);
+  int prepareAddSubscribeEvent(NdbEventOperationImpl *, int& hasSubscriber);
   void unprepareAddSubscribeEvent(int bufferId);
   void addSubscribeEvent(int bufferId,
 			 NdbEventOperationImpl *ndbEventOperationImpl);
@@ -133,7 +133,8 @@ private:
 		 int MAX_NUMBER_ACTIVE_EVENTS);
 
   int real_prepareAddSubscribeEvent(NdbGlobalEventBufferHandle *h,
-				    Uint32 eventId, int& hasSubscriber);
+				    NdbEventOperationImpl *,
+				    int& hasSubscriber);
   void real_unprepareAddSubscribeEvent(int bufferId);
   void real_addSubscribeEvent(int bufferId, void *ndbEventOperation);
 
@@ -177,6 +178,7 @@ private:
     // local mutex for each event/buffer
     NdbMutex *p_buf_mutex;
     Uint32 gId;
+    Uint32 eventType;
     struct Data {
       SubTableData *sdata;
       LinearSectionPtr ptr[3];
