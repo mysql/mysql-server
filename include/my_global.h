@@ -850,7 +850,13 @@ typedef char		bool;	/* Ordinary boolean values 0 1 */
 				  ((uint32) (uchar) (A)[0])))
 #define sint4korr(A)	(*((long *) (A)))
 #define uint2korr(A)	(*((uint16 *) (A)))
+#ifdef HAVE_purify
+#define uint3korr(A)	(uint32) (((uint32) ((uchar) (A)[0])) +\
+				  (((uint32) ((uchar) (A)[1])) << 8) +\
+				  (((uint32) ((uchar) (A)[2])) << 16))
+#else
 #define uint3korr(A)	(long) (*((unsigned long *) (A)) & 0xFFFFFF)
+#endif
 #define uint4korr(A)	(*((unsigned long *) (A)))
 #define uint5korr(A)	((ulonglong)(((uint32) ((uchar) (A)[0])) +\
 				    (((uint32) ((uchar) (A)[1])) << 8) +\

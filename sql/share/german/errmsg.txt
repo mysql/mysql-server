@@ -108,7 +108,7 @@
 "BLOB-Feld '%-.64s' kann keinen Vorgabewert (Default-Value) besitzen.",
 "Unerlaubter Datenbankname '%-.64s'.",
 "Unerlaubter Tabellenname '%-.64s'.",
-"Die Ausführung des SELECT würde zu viele Datensätze untersuchen und wahrscheinlich sehr lange daueren. Bitte WHERE überprüfen und SET OPTION SQL_BIG_SELECTS=1 verwenden, sofern SELECT ok ist.",
+"Die Ausführung des SELECT würde zu viele Datensätze untersuchen und wahrscheinlich sehr lange daueren. Bitte WHERE überprüfen und SET SQL_BIG_SELECTS=1 verwenden, sofern SELECT ok ist.",
 "Unbekannter Fehler.",
 "Unbekannte Procedure %-.64s.",
 "Falsche Parameterzahl für Procedure %-.64s.",

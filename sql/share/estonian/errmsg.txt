@@ -110,7 +110,7 @@
 "BLOB-tüüpi tulp '%-.64s' ei saa omada vaikeväärtust",
 "Vigane andmebaasi nimi '%-.100s'",
 "Vigane tabeli nimi '%-.100s'",
-"SELECT lause peab läbi vaatama suure hulga kirjeid ja võtaks tõenäoliselt liiga kaua aega. Tasub kontrollida WHERE klauslit ja vajadusel kasutada käsku SET OPTION SQL_BIG_SELECTS=1",
+"SELECT lause peab läbi vaatama suure hulga kirjeid ja võtaks tõenäoliselt liiga kaua aega. Tasub kontrollida WHERE klauslit ja vajadusel kasutada käsku SET SQL_BIG_SELECTS=1",
 "Tundmatu viga",
 "Tundmatu protseduur '%-.64s'",
 "Vale parameetrite hulk protseduurile '%-.64s'",

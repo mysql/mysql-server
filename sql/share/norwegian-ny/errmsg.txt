@@ -107,7 +107,7 @@
 "Blob feltet '%-.64s' kan ikkje ha ein standard verdi",
 "Ugyldig database namn '%-.64s'",
 "Ugyldig tabell namn '%-.64s'",
-"SELECT ville undersøkje for mange postar og ville sannsynligvis ta veldig lang tid. Undersøk WHERE klausulen og bruk SET OPTION SQL_BIG_SELECTS=1 om SELECTen er korrekt",
+"SELECT ville undersøkje for mange postar og ville sannsynligvis ta veldig lang tid. Undersøk WHERE klausulen og bruk SET SQL_BIG_SELECTS=1 om SELECTen er korrekt",
 "Ukjend feil",
 "Ukjend prosedyre %s",
 "Feil parameter tal til prosedyra %s",
