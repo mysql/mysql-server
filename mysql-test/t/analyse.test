@@ -47,3 +47,11 @@ create table t1 (v varchar(128));
 insert into t1 values ('abc'),('abc\'def\\hij\"klm\0opq'),('\''),('\"'),('\\'),('a\0'),('b\''),('c\"'),('d\\'),('\'b'),('\"c'),('\\d'),('a\0\0\0b'),('a\'\'\'\'b'),('a\"\"\"\"b'),('a\\\\\\\\b'),('\'\0\\\"'),('\'\''),('\"\"'),('\\\\'),('The\ZEnd');
 select * from t1 procedure analyse();
 drop table t1;
+
+#decimal-related test
+
+create table t1 (df decimal(5,1));
+insert into t1 values(1.1);
+insert into t1 values(2.2);
+select * from t1 procedure analyse();
+drop table t1;
