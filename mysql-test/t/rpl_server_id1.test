@@ -8,6 +8,7 @@ create table t1 (n int);
 reset master;
 # replicate ourselves
 stop slave;
+--replace_result $SLAVE_MYPORT SLAVE_PORT
 eval change master to master_port=$SLAVE_MYPORT;
 --replace_result $SLAVE_MYPORT SLAVE_PORT
 --replace_column 18 #
