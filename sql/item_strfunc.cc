@@ -1380,7 +1380,7 @@ String *Item_func_user::val_str(String *str)
   uint32       res_length=(strlen(thd->user)+strlen(host)+10) * cs->mbmaxlen;
   
 #ifdef EMBEDDED_LIBRARY
-  if (str->copy("localuser@localhost", (uint)strlen("localuser@localhost")))
+  if (str->copy("localuser@localhost", (uint)strlen("localuser@localhost"), cs))
     return &empty_string;
 #else
   if (str->alloc(res_length))
@@ -1390,9 +1390,9 @@ String *Item_func_user::val_str(String *str)
   }
   res_length=cs->snprintf(cs, (char*)str->ptr(), res_length, "%s@%s",thd->user,host);
   str->length(res_length);
+#endif
   str->set_charset(cs);
   return str;
-#endif
 }
 
 void Item_func_soundex::fix_length_and_dec()

@@ -1857,6 +1857,9 @@ static int init_common_variables(const char *conf_file_name, int argc, char **ar
 
   if (gethostname(glob_hostname,sizeof(glob_hostname)-4) < 0)
     strmov(glob_hostname,"mysql");
+  strmake(pidfile_name, glob_hostname, sizeof(pidfile_name)-5);
+  strmov(fn_ext(pidfile_name),".pid");		// Add proper extension
+
 #ifndef DBUG_OFF
   strxmov(strend(server_version),MYSQL_SERVER_SUFFIX,"-debug",NullS);
 #else
@@ -2138,15 +2141,13 @@ int main(int argc, char **argv)
 #endif
 
   MY_INIT(argv[0]);		// init my_sys library & pthreads
+
   if ((init_error=init_common_variables(MYSQL_CONFIG_NAME, 
 					argc, argv, load_default_groups)))
     if (init_error == 2)
       unireg_abort(1);
     else
       exit(1);
-
-  strmake(pidfile_name, glob_hostname, sizeof(pidfile_name)-5);
-  strmov(fn_ext(pidfile_name),".pid");		// Add proper extension
 
   init_signals();
   if (init_thread_environement())
@@ -2221,7 +2222,7 @@ The server will not act as a slave.");
   */
   error_handler_hook = my_message_sql;
   start_signal_handler();				// Creates pidfile
-  if (acl_init(opt_noacl))
+  if (acl_init((THD *)0, opt_noacl))
   {
     abort_loop=1;
     select_thread_in_use=0;
@@ -2233,7 +2234,7 @@ The server will not act as a slave.");
     exit(1);
   }
   if (!opt_noacl)
-    (void) grant_init();
+    (void) grant_init((THD *)0);
 
 #ifdef HAVE_DLOPEN
   if (!opt_noacl)
