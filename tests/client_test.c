@@ -26,14 +26,6 @@
 #include <mysql.h>
 #include <my_getopt.h>
 #include <m_string.h>
-#ifdef HAVE_SYS_PARAM_H
-/* Include to get MAXPATHLEN */
-#include <sys/param.h>
-#endif
-
-#ifndef MAXPATHLEN
-#define MAXPATHLEN 256
-#endif
 
 #define MAX_TEST_QUERY_LENGTH 300 /* MAX QUERY BUFFER LENGTH */
 
@@ -6652,8 +6644,8 @@ static void test_frm_bug()
   MYSQL_RES  *result;
   MYSQL_ROW  row;
   FILE       *test_file;
-  char       data_dir[MAXPATHLEN];
-  char       test_frm[MAXPATHLEN];
+  char       data_dir[FN_REFLEN];
+  char       test_frm[FN_REFLEN];
   int        rc;
 
   myheader("test_frm_bug");
@@ -6674,7 +6666,7 @@ static void test_frm_bug()
 
   bind[0].buffer_type= MYSQL_TYPE_STRING;
   bind[0].buffer= data_dir;
-  bind[0].buffer_length= MAXPATHLEN;
+  bind[0].buffer_length= FN_REFLEN;
   bind[0].is_null= 0;
   bind[0].length= 0;
   bind[1]= bind[0];

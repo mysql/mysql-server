@@ -103,14 +103,15 @@
   rows - This is an unsigned long long which is the number of rows in the data
          file.
   check point - Reserved for future use
-  dirty - Status of the file, whether or not its values are the latest. This flag
-          is what causes a repair to occur
+  dirty - Status of the file, whether or not its values are the latest. This
+          flag is what causes a repair to occur
 
   The data file:
   check - Just an int of 254 to make sure that the the file we are opening was
           never corrupted.
   version - The current version of the file format.
   data - The data is stored in a "row +blobs" format.
+*/
 
 /* Variables for archive share methods */
 pthread_mutex_t archive_mutex;

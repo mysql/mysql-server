@@ -449,9 +449,9 @@ pthread_cond_t eventShutdown;
 #endif
 
 #ifndef EMBEDDED_LIBRARY
-bool mysql_embedded=0;
+bool mysqld_embedded=0;
 #else
-bool mysql_embedded=1;
+bool mysqld_embedded=1;
 #endif
 
 #ifndef DBUG_OFF
