@@ -28,8 +28,6 @@ my_ulonglong net_field_length_ll(uchar **packet);
 MYSQL_FIELD *unpack_fields(MYSQL_DATA *data,MEM_ROOT *alloc,uint fields,
 			   my_bool default_value, uint server_capabilities);
 void free_rows(MYSQL_DATA *cur);
-MYSQL_DATA *read_rows (MYSQL *mysql,MYSQL_FIELD *fields,
-		       uint field_count);
 my_bool mysql_autenticate(MYSQL *mysql, const char *passwd);
 void free_old_query(MYSQL *mysql);
 void end_server(MYSQL *mysql);
