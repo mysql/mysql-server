@@ -14522,15 +14522,10 @@ Skip some optimize stages.  Implies @code{--skip-delay-key-write}.
 @item --safe-show-database
 Don't show databases for which the user doesn't have any privileges.
 
-@item --secure
-IP numbers returned by the @code{gethostbyname()} system call are
-checked to make sure they resolve back to the original hostname.  This
-makes it harder for someone on the outside to get access by pretending
-to be another host.  This option also adds some sanity checks of
-hostnames.  The option is turned off by default in @strong{MySQL} Version 3.21
-because sometimes it takes a long time to perform backward resolutions.
-@strong{MySQL} Version 3.22 caches hostnames (unless @code{--skip-host-cache}
-is used) and has this option enabled by default.
+@item --safe-user-create
+If this is enabled, a user can't create new users with the GRANT
+command, if the user doesn't have @code{INSERT} privilege to the
+@code{mysql.user} table or any column in this table.
 
 @item --skip-concurrent-insert
 Turn off the ability to select and insert at the same time on @code{MyISAM}
@@ -15313,11 +15308,10 @@ by using @code{LOAD DATA} to load @file{/etc/passwd} into a table, which
 can then be read with @code{SELECT}.
 
 @item
-If you don't trust your DNS, you should use IP numbers instead of hostnames
-in the grant tables.  In principle, the @code{--secure} option to
-@code{mysqld} should make hostnames safe.  In any case, you should be very
-careful about creating grant table entries using hostname values that
-contain wild cards!
+If you don't trust your DNS, you should use IP numbers instead of
+hostnames in the grant tables. In any case, you should be very careful
+about creating grant table entries using hostname values that contain
+wild cards!
 
 @item
 If you want to restrict the number of connections for a single user, you
@@ -15325,21 +15319,31 @@ can do this by setting the @code{max_user_connections} variable in
 @code{mysqld}.
 @end itemize
 
+
 @node Privileges options, What Privileges, Security, Privilege system
 @subsection Startup Options for @code{mysqld} Concerning Security
 
-The following @code{mysqld} options affect networking security:
+The following @code{mysqld} options affect security:
 
 @table @code
-@item --secure
-IP numbers returned by the @code{gethostbyname()} system call are
-checked to make sure they resolve back to the original hostname. This
-makes it harder for someone on the outside to get access by pretending
-to be another host.  This option also adds some sanity checks of
-hostnames.  The option is turned off by default in @strong{MySQL} Version
-3.21 because sometimes it takes a long time to perform backward resolutions.
-@strong{MySQL} Version 3.22 caches hostnames and has this option enabled by
-default.
+@item --safe-show-database
+With this option,
+@code{SHOW DATABASES} returns only those databases for which the user has
+some kind of privilege.
+
+@item @code{--safe-user-create}
+If this is enabled, an user can't create new users with the @code{GRANT}
+command, if the user doesn't have @code{INSERT} privilege to the
+@code{mysql.user} table.  If you want to give a user access to just create
+new users with those privileges that the user has right to grant, you should
+give the user the following privilege:
+
+@example
+GRANT INSERT(user) on mysql.user to 'user'@'hostname';
+@end example
+
+This will ensure that the user can't change any privilege columns directly,
+but has to use the @code{GRANT} command to give privileges to other users.
 
 @item --skip-grant-tables
 This option causes the server not to use the privilege system at all. This
@@ -15360,11 +15364,6 @@ support Unix sockets.
 @item --skip-show-database
 With this option, the
 @code{SHOW DATABASES} statement doesn't return anything.
-
-@item --safe-show-database
-With this option,
-@code{SHOW DATABASES} returns only those databases for which the user has
-some kind of privilege.
 
 @end table
 
@@ -19811,6 +19810,11 @@ The protocol version used by the @strong{MySQL} server.
 Each thread that does a sequential scan allocates a buffer of this
 size for each table it scans. If you do many sequential scans, you may
 want to increase this value.
+
+@item @code{record_rnd_buffer}
+When reading rows in sorted order after a sort, the rows are read through this
+buffer to avoid a disk seeks.  If not set, then it's set to the value of
+@code{record_buffer}.
 
 @item @code{query_buffer_size}
 The initial allocation of the query buffer. If most of your queries are
@@ -25946,6 +25950,7 @@ net_read_timeout      current value: 30
 net_write_timeout     current value: 60
 query_buffer_size     current value: 0
 record_buffer         current value: 131072
+record_rnd_buffer     current value: 131072
 slow_launch_time      current value: 2
 sort_buffer           current value: 2097116
 table_cache           current value: 64
@@ -26005,6 +26010,11 @@ or even:
 shell> safe_mysqld -O key_buffer=512k -O sort_buffer=16k \
            -O table_cache=32 -O record_buffer=8k -O net_buffer=1K &
 @end example
+
+If you are doing a @code{GROUP BY} or @code{ORDER BY} on files that are
+much bigger than your available memory you should increase the value of
+@code{record_rnd_buffer} to speed up the reading of rows after the sorting
+is done.
 
 When you have installed @strong{MySQL}, the @file{support-files} directory will
 contain some different @code{my.cnf} example files, @file{my-huge.cnf},
@@ -26166,6 +26176,11 @@ common we may add general support for memory mapping.
 @item
 Each request doing a sequential scan over a table allocates a read buffer
 (variable @code{record_buffer}).
+
+@item
+When reading rows in 'random' order (for example after a sort) a
+random-read buffer is allocated to avoid disk seeks.
+(variable @code{record_rnd_buffer}).
 
 @item
 All joins are done in one pass, and most joins can be done without even
@@ -27642,7 +27657,7 @@ significant decimal digits that will be stored for values, and
 @code{2} (@code{scale}) represents the number of digits that will be
 stored following the decimal point.  In this case, therefore, the range
 of values that can be stored in the @code{salary} column is from
-@code{-9999999.99} to @code{9999999.99}.  In ANSI/ISO SQL92, the syntax
+@code{-999999.99} to @code{9999999.99}.  In ANSI/ISO SQL92, the syntax
 @code{DECIMAL(p)} is equivalent to @code{DECIMAL(p,0)}.  Similarly, the
 syntax @code{DECIMAL} is equivalent to @code{DECIMAL(p,0)}, where the
 implementation is allowed to decide the value of @code{p}.
@@ -29144,6 +29159,15 @@ mysql> select INTERVAL(22, 23, 30, 44, 200);
 @cindex string comparisons, case sensitivity
 Normally, if any expression in a string comparison is case sensitive, the
 comparison is performed in case-sensitive fashion.
+
+If you are comparing case sensitive string with any of the standard
+operators (@code{=}, @code{<>}..., but not @code{LIKE}) end space will
+be ignored.
+
+@example
+mysql> select "a" ="A ";
+        -> 1
+@end example
 
 @table @code
 @findex LIKE
@@ -37893,12 +37917,16 @@ To make Access work:
 @itemize @bullet
 @item
 If you are using Access 2000, you should get and install the newest
-Microsoft MDAC (@code{Microsoft Data Access Components}) from
-@uref{http://www.microsoft.com/data}.  This will fix the following bug
-in Access: when you export data to @strong{MySQL}, the table and column
-names aren't specified.  Another way to around this bug is to upgrade to
-MyODBC Version 2.50.33 and @strong{MySQL} Version 3.23.x, which together
-provide a workaround for this bug!
+(version 2.6 or above) Microsoft MDAC (@code{Microsoft Data Access
+Components}) from @uref{http://www.microsoft.com/data}.  This will fix
+the following bug in Access: when you export data to @strong{MySQL}, the
+table and column names aren't specified.  Another way to around this bug
+is to upgrade to MyODBC Version 2.50.33 and @strong{MySQL} Version
+3.23.x, which together provide a workaround for this bug!
+
+You should also get and apply the Microsoft Jet 4.0 Service Pack 5 (SP5)
+which can be found here
+@uref{http://support.microsoft.com/support/kb/articles/Q 239/1/14.ASP}.
 
 Note that if you are using @strong{MySQL} Version 3.22, you must to apply the
 MDAC patch and use MyODBC 2.50.32 or 2.50.34 and above to go around
@@ -40033,7 +40061,7 @@ other APIs.
 * C API function overview::     C API Function Overview
 * C API functions::             C API Function Descriptions
 * C API problems::              
-* Thread-safe clients::         
+* Thread-safe clients::         How to Make a Thread-safe Client
 @end menu
 
 The C API code is distributed with @strong{MySQL}. It is included in the
@@ -42834,6 +42862,34 @@ If you program with POSIX threads, you can use
 establish and release a mutex lock.
 @end itemize
 
+You need to know the following if you have a thread that is calling
+MySQL functions, but that thread has not created the connection to the
+MySQL database:
+
+When you call @code{mysql_init()} or @code{mysql_connect()}, MySQL will
+create a thread specific variable for the thread that is used by the
+debug library (among other things).
+
+If you have in a thread call a MySQL function, before a thread has
+called @code{mysql_init()} or @code{mysql_connect()}, the thread will
+not have the necessary thread specific variables in place and you are
+likely to end up with a core dump sooner or later.
+ 
+The get things to work smoothly you have to do the following:
+
+@enumerate
+@item
+Call @code{my_init()} at the start of your program if it calls
+any other MySQL function before calling @code{mysql_real_connect()}.
+@item
+Call @code{my_thread_init()} in the thread handler before calling
+any MySQL function.
+@item
+In the thread, call @code{my_thread_end()} before calling
+@code{pthread_exit()}.  This will free the memory used by MySQL thread
+specific variables.
+@end enumerate
+
 You may get some errors because of undefined symbols when linking your
 client with @code{mysqlclient_r}. In most cases this is because you haven't
 included the thread libraries on the link/compile line.
@@ -45434,6 +45490,8 @@ Romanian error messages.
 Hungarian error messages.
 @item Roberto M. Serqueira
 Portugise error messages.
+@item Carsten H. Pedersen
+Danish error messages
 @item David Sacerdote @email{davids@@secnet.com}
 Ideas for secure checking of DNS hostnames.
 @item Wei-Jou Chen @email{jou@@nematic.ieo.nctu.edu.tw}
@@ -45672,7 +45730,7 @@ users use this code as the rest of the code and because of this we are
 not yet 100% confident in this code.
 
 @menu
-* News-3.23.41::                
+* News-3.23.41::                Changes in release 3.23.41
 * News-3.23.40::                Changes in release 3.23.40
 * News-3.23.39::                Changes in release 3.23.39
 * News-3.23.38::                Changes in release 3.23.38
@@ -45721,8 +45779,35 @@ not yet 100% confident in this code.
 @appendixsubsec Changes in release 3.23.41
 @itemize @bullet
 @item
+InnoDB now supports < 4 GB rows. The former limit was 8000 bytes.
+@item
+The @code{doublewrite} file flush method is used in InnoDB.
+It reduces the need for Unix fsync calls to a fraction and
+improves performance on most Unix flavors.
+@item
+You can now use the InnoDB Monitor to print a lot of InnoDB state
+information, including locks, to the standard output; useful in
+performance tuning.
+@item
+Several bugs which could cause hangs in InnoDB have been fixed.
+@item
+Split @code{record_buffer} to @code{record_buffer} and
+@code{record_rnd_buffer}.  To make things compatible to previous MySQL
+versions, if @code{record_rnd_buffer} is not set, then it takes the
+value of @code{record_buffer}.
+@item
 Fixed optimizing bug in @code{ORDER BY} where some @code{ORDER BY} parts
 where wrongly removed.
+@item
+Fixed overflow bug with @code{ALTER TABLE} and @code{MERGE} tables.
+@item
+Added prototypes for @code{my_thread_init()} and @code{my_thread_end()} to
+@file{mysql_com.h} 
+@item
+Added option @code{--safe-user-create} to @code{mysqld}.
+@item
+Added options to the @code{--ansi} startup options to let the user
+decide which @code{ansi} options one to enable.
 @end itemize
 
 @node News-3.23.40, News-3.23.39, News-3.23.41, News-3.23.x

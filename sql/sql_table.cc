@@ -59,9 +59,9 @@ int mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists)
   VOID(pthread_mutex_lock(&LOCK_open));
   pthread_mutex_unlock(&thd->mysys_var->mutex);
 
-  if(global_read_lock)
+  if (global_read_lock)
   {
-    if(thd->global_read_lock)
+    if (thd->global_read_lock)
     {
       my_error(ER_TABLE_NOT_LOCKED_FOR_WRITE,MYF(0),
 	       tables->real_name);
@@ -1126,7 +1126,12 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     strmov(new_name_buff,new_name);
     fn_same(new_name_buff,table_name,3);
 #ifdef FN_LOWER_CASE
-    if (!my_strcasecmp(new_name_buff,table_name))// Check if name changed
+    if (lower_case_table_names)
+      casedn_str(new_name);
+    if ((lower_case_table_names &&
+	 !my_strcasecmp(new_name_buff,table_name)) ||
+	(!lower_case_table_names &&
+	 !strcmp(new_name_buff,table_name)))
 #else
     if (!strcmp(new_name_buff,table_name))	// Check if name changed
 #endif

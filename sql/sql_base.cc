@@ -133,7 +133,7 @@ int list_open_tables(THD *thd,List<char> *tables, const char *db,
       table_list.db= (char*) db;
       table_list.real_name= entry->real_name;/*real name*/
       table_list.grant.privilege=col_access;
-      if (check_grant(thd,TABLE_ACLS,&table_list,1))
+      if (check_grant(thd,TABLE_ACLS,&table_list,1,1))
         continue;
     }
     /* need to check if he have't already listed it */
