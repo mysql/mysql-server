@@ -24,9 +24,20 @@ noinst_HEADERS =	chared.h el.h histedit.h key.h \
 			hist.h map.h prompt.h search.h \
 			strlcpy.h libedit_term.h tty.h
 
-EXTRA_DIST = makelist
+EXTRA_DIST = makelist.sh
+
+CLEANFILES = makelist
 
 DEFS =			-DUNDEF_THREADS_HACK -DHAVE_CONFIG_H -DNO_KILL_INTR
+
+SUFFIXES = .sh
+
+.sh:
+	@RM@ -f $@ $@-t
+	@SED@ \
+	  -e 's!@''AWK''@!@AWK@!' \
+	$< > $@-t
+	@MV@ $@-t $@
 
 vi.h: vi.c makelist
 	sh ./makelist -h ./vi.c > $@.tmp && \
