@@ -397,6 +397,7 @@ NDB_COMMAND(flexBench, "flexBench", "flexBench", "flexbench", 65535)
         ndbout << "Connect failed" <<endl;
         returnValue = NDBT_FAILED;
       }
+      mysql.reconnect= 1;
     }
     if(returnValue == NDBT_OK){
       mysql_set_server_option(&mysql, MYSQL_OPTION_MULTI_STATEMENTS_ON);
@@ -712,6 +713,7 @@ static void* flexBenchThread(void* pArg)
       ndbout << "failed" << endl;
       NdbThread_Exit(0) ;
     }
+    mysql.reconnect= 1;
     ndbout << "ok" << endl;
 
     int r;
