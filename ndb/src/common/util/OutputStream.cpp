@@ -74,7 +74,7 @@ SoftOseOutputStream::print(const char * fmt, ...){
   
   va_start(ap, fmt);
   if (fmt != 0)
-    vsnprintf(buf, sizeof(buf)-1, fmt, ap);
+    BaseString::vsnprintf(buf, sizeof(buf)-1, fmt, ap);
   else
     buf[0] = 0;
   va_end(ap);
@@ -88,7 +88,7 @@ SoftOseOutputStream::println(const char * fmt, ...){
   
   va_start(ap, fmt);
   if (fmt != 0)
-    vsnprintf(buf, sizeof(buf)-1, fmt, ap);
+    BaseString::vsnprintf(buf, sizeof(buf)-1, fmt, ap);
   else
     buf[0] = 0;
   va_end(ap);

@@ -150,7 +150,7 @@ class ha_innobase: public handler
 
   	void position(byte *record);
   	ha_rows records_in_range(uint inx, key_range *min_key, key_range *max_key);
-	ha_rows estimate_number_of_rows();
+	ha_rows estimate_rows_upper_bound();
 
   	int create(const char *name, register TABLE *form,
 					HA_CREATE_INFO *create_info);
@@ -192,8 +192,16 @@ extern my_bool innobase_log_archive,
                innobase_use_native_aio, innobase_fast_shutdown,
 	       innobase_file_per_table, innobase_locks_unsafe_for_binlog,
                innobase_create_status_file;
+extern my_bool innobase_very_fast_shutdown; /* set this to 1 just before
+					    calling innobase_end() if you want
+					    InnoDB to shut down without
+					    flushing the buffer pool: this
+					    is equivalent to a 'crash' */
 extern "C" {
 extern ulong srv_max_buf_pool_modified_pct;
+extern ulong srv_max_purge_lag;
+extern ulong srv_auto_extend_increment;
+extern ulong srv_max_purge_lag;
 }
 
 extern TYPELIB innobase_lock_typelib;
@@ -229,3 +237,5 @@ my_bool innobase_query_caching_of_table_permitted(THD* thd, char* full_name,
 void innobase_release_temporary_latches(void* innobase_tid);
 
 void innobase_store_binlog_offset_and_flush_log(char *binlog_name,longlong offset);
+
+int innobase_start_trx_and_assign_read_view(THD* thd);

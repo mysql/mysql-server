@@ -46,6 +46,7 @@ static char attrName[MAXATTR][MAXSTRLEN];
 inline int InsertRecords(Ndb*, int) ;
 
 NDB_COMMAND(initronja, "initronja", "initronja", "initronja", 65535){
+  ndb_init();
 
   Ndb*			 pNdb = NULL ;
   NdbSchemaCon	*MySchemaTransaction = NULL ;

@@ -153,6 +153,7 @@ int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
   SELECT_LEX *lex_select_save= thd_arg->lex->current_select;
   SELECT_LEX *sl, *first_select;
   select_result *tmp_result;
+  bool is_union;
   DBUG_ENTER("st_select_lex_unit::prepare");
 
   describe= test(additional_options & SELECT_DESCRIBE);
@@ -189,10 +190,11 @@ int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
   
   thd_arg->lex->current_select= sl= first_select= first_select_in_union();
   found_rows_for_union= first_select->options & OPTION_FOUND_ROWS;
+  is_union= test(first_select->next_select());
 
   /* Global option */
 
-  if (first_select->next_select())
+  if (is_union)
   {
     if (!(tmp_result= union_result= new select_union(0)))
       goto err;
@@ -201,14 +203,11 @@ int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
       tmp_result= sel_result;
   }
   else
-  {
     tmp_result= sel_result;
-    // single select should be processed like select in p[arantses
-    first_select->braces= 1;
-  }
 
   for (;sl; sl= sl->next_select())
   {
+    bool can_skip_order_by;
     sl->options|=  SELECT_NO_UNLOCK;
     JOIN *join= new JOIN(thd_arg, sl->item_list, 
 			 sl->options | thd_arg->options | additional_options,
@@ -220,18 +219,26 @@ int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
     set_limit(sl, sl);
     if (sl->braces)
       sl->options&= ~OPTION_FOUND_ROWS;
+
+    can_skip_order_by= is_union &&
+                       (!sl->braces || select_limit_cnt == HA_POS_ERROR);
     
     res= join->prepare(&sl->ref_pointer_array,
 		       (TABLE_LIST*) sl->table_list.first, sl->with_wild,
 		       sl->where,
-		       ((sl->braces) ? sl->order_list.elements : 0) +
-		       sl->group_list.elements,
-		       (sl->braces) ? 
-		       (ORDER *)sl->order_list.first : (ORDER *) 0,
+                      (can_skip_order_by ? 0 : sl->order_list.elements) +
+                       sl->group_list.elements,
+                       can_skip_order_by ?
+                       (ORDER*) 0 : (ORDER *)sl->order_list.first,
 		       (ORDER*) sl->group_list.first,
 		       sl->having,
-		       (ORDER*) NULL,
+		       (is_union ? (ORDER*) 0 :
+                        (ORDER*) thd_arg->lex->proc_list.first),
 		       sl, this);
+    /* There are no * in the statement anymore (for PS) */
+    sl->with_wild= 0;
+    last_procedure= join->procedure;
+
     if (res || thd_arg->is_fatal_error)
       goto err;
     if (sl == first_select)
@@ -267,9 +274,26 @@ int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
     }
   }
 
-  // it is not single select
-  if (first_select->next_select())
+  if (is_union)
   {
+    /*
+      Check that it was possible to aggregate
+      all collations together for UNION.
+    */
+    List_iterator_fast<Item> tp(types);
+    Item_arena *arena= thd->current_arena;
+    Item *type;
+
+    while ((type= tp++))
+    {
+      if (type->result_type() == STRING_RESULT &&
+          type->collation.derivation == DERIVATION_NONE)
+      {
+        my_error(ER_CANT_AGGREGATE_NCOLLATIONS, MYF(0), "UNION");
+        goto err;
+      }
+    }
+
     union_result->tmp_table_param.field_count= types.elements;
     if (!(table= create_tmp_table(thd_arg,
 				  &union_result->tmp_table_param, types,
@@ -291,7 +315,6 @@ int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
     if (!item_list.elements)
     {
       Field **field;
-      Item_arena *arena= thd->current_arena;
       Item_arena backup;
       if (arena->is_conventional())
         arena= 0;
@@ -334,14 +357,27 @@ int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
 		  0, 0,
 		  fake_select_lex->order_list.elements,
 		  (ORDER*) fake_select_lex->order_list.first,
-		  (ORDER*) NULL, NULL, (ORDER*) NULL,
+		  (ORDER*) NULL, NULL,
+                  (ORDER*) NULL,
 		  fake_select_lex, this);
 	fake_select_lex->table_list.empty();
       }
     }
+    else if (!arena->is_conventional())
+    {
+      /*
+        We're in execution of a prepared statement or stored procedure:
+        reset field items to point at fields from the created temporary table.
+      */
+      List_iterator_fast<Item> it(item_list);
+      for (Field **field= table->field; *field; field++)
+      {
+        Item_field *item_field= (Item_field*) it++;
+        DBUG_ASSERT(item_field);
+        item_field->reset_field(*field);
+      }
+    }
   }
-  else
-    first_select->braces= 0; // remove our changes
 
   thd_arg->lex->current_select= lex_select_save;
 
@@ -358,6 +394,7 @@ int st_select_lex_unit::exec()
   SELECT_LEX *lex_select_save= thd->lex->current_select;
   SELECT_LEX *select_cursor=first_select_in_union();
   ulonglong add_rows=0;
+  ha_rows examined_rows= 0;
   DBUG_ENTER("st_select_lex_unit::exec");
 
   if (executed && !uncacheable && !describe)
@@ -438,6 +475,7 @@ int st_select_lex_unit::exec()
 	offset_limit_cnt= sl->offset_limit;
 	if (!res && union_result->flush())
 	{
+          examined_rows+= thd->examined_row_count;
 	  thd->lex->current_select= lex_select_save;
 	  DBUG_RETURN(1);
 	}
@@ -516,7 +554,10 @@ int st_select_lex_unit::exec()
 
       fake_select_lex->table_list.empty();
       if (!res)
+      {
 	thd->limit_found_rows = (ulonglong)table->file->records + add_rows;
+        thd->examined_row_count+= examined_rows;
+      }
       /*
 	Mark for slow query log if any of the union parts didn't use
 	indexes efficiently

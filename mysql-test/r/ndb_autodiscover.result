@@ -1,4 +1,4 @@
-drop table if exists t1,t2,t3,t4,t5,t6,t9;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 flush status;
 create table t1(
 id int not null primary key,
@@ -94,8 +94,6 @@ ERROR 42S01: Table 't3' already exists
 show status like 'handler_discover%';
 Variable_name	Value
 Handler_discover	1
-SHOW TABLES FROM test;
-Tables_in_test	table_type
 create table IF NOT EXISTS t3(
 id int not null primary key,
 id2 int not null,
@@ -107,7 +105,7 @@ Handler_discover	2
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `id` int(11) NOT NULL default '0',
+  `id` int(11) NOT NULL,
   `name` char(255) default NULL,
   PRIMARY KEY  (`id`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
@@ -118,6 +116,162 @@ show status like 'handler_discover%';
 Variable_name	Value
 Handler_discover	2
 drop table t3;
+flush status;
+create table t7(
+id int not null primary key,
+name char(255)
+) engine=ndb;
+create table t6(
+id int not null primary key,
+name char(255)
+) engine=MyISAM;
+insert into t7 values (1, "Explorer");
+insert into t6 values (2, "MyISAM table");
+select * from t7;
+id	name
+1	Explorer
+show status like 'handler_discover%';
+Variable_name	Value
+Handler_discover	0
+flush tables;
+show tables from test;
+Tables_in_test
+t6
+t7
+show status like 'handler_discover%';
+Variable_name	Value
+Handler_discover	1
+flush tables;
+show table status;
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t6	MyISAM	9	Fixed	1	260	#	#	#	0	NULL	#	#	NULL	#	NULL		
+t7	ndbcluster	9	Fixed	1	0	#	#	#	0	NULL	#	#	NULL	#	NULL		
+show status like 'handler_discover%';
+Variable_name	Value
+Handler_discover	2
+drop table t6, t7;
+flush status;
+create table t4(
+id int not null primary key,
+name char(27)
+) engine=ndb;
+insert into t4 values (1, "Automatic");
+select * from t4;
+id	name
+1	Automatic
+select * from t4;
+ERROR 42S02: Table 'test.t4' doesn't exist
+select * from t4;
+ERROR 42S02: Table 'test.t4' doesn't exist
+show status like 'handler_discover%';
+Variable_name	Value
+Handler_discover	0
+drop table t4;
+flush status;
+create table t4(
+id int not null primary key,
+id2 int,
+name char(27)
+) engine=ndb;
+insert into t4 values (1, 76, "Automatic2");
+select * from t4;
+id	id2	name
+1	76	Automatic2
+flush tables;
+SHOW TABLES;
+Tables_in_test
+select * from t4;
+ERROR 42S02: Table 'test.t4' doesn't exist
+flush status;
+create table t1(id int) engine=ndbcluster;
+create table t2(id int, b char(255)) engine=myisam;
+create table t3(id int, c char(255)) engine=ndbcluster;
+create table t4(id int) engine=myisam;
+create table t5(id int, d char(56)) engine=ndbcluster;
+create table t6(id int) engine=ndbcluster;
+create table t7(id int) engine=ndbcluster;
+create table t8(id int, e char(34)) engine=myisam;
+create table t9(id int) engine=myisam;
+insert into t2 values (2, "myisam table 2");
+insert into t3 values (3, "ndb table 3");
+insert into t5 values (5, "ndb table 5");
+insert into t6 values (6);
+insert into t8 values (8, "myisam table 8");
+insert into t9 values (9);
+SHOW TABLES;
+Tables_in_test
+t1
+t2
+t4
+t8
+t9
+t7
+t6
+select * from t6;
+id
+6
+select * from t7;
+id
+show status like 'handler_discover%';
+Variable_name	Value
+Handler_discover	2
+drop table t1, t2, t4, t6, t7, t8, t9;
+flush status;
+create table t1(id int) engine=ndbcluster;
+create table t2(id int, b char(255)) engine=myisam;
+create table t3(id int, c char(255)) engine=ndbcluster;
+create table t4(id int) engine=myisam;
+create table t5(id int, d char(56)) engine=ndbcluster;
+create table t6(id int) engine=ndbcluster;
+create table t7(id int) engine=ndbcluster;
+create table t8(id int, e char(34)) engine=myisam;
+create table t9(id int) engine=myisam;
+insert into t2 values (2, "myisam table 2");
+insert into t3 values (3, "ndb table 3");
+insert into t5 values (5, "ndb table 5");
+insert into t6 values (6);
+insert into t8 values (8, "myisam table 8");
+insert into t9 values (9);
+SHOW TABLES LIKE 't6';
+Tables_in_test (t6)
+t6
+show status like 'handler_discover%';
+Variable_name	Value
+Handler_discover	1
+create table t3(a int);
+ERROR 42S01: Table 't3' already exists
+create table t5(a int);
+ERROR 42S01: Table 't5' already exists
+SHOW TABLES LIKE 't%';
+Tables_in_test (t%)
+t1
+t2
+t4
+t6
+t8
+t9
+t7
+show status like 'handler_discover%';
+Variable_name	Value
+Handler_discover	2
+drop table t1, t2, t4, t6, t7, t8, t9;
+flush status;
+create table t1(id int) engine=ndbcluster;
+create table t2(id int, b char(255)) engine=ndbcluster;
+create table t3(id int, c char(255)) engine=ndbcluster;
+create table t4(id int) engine=myisam;
+insert into t1 values (1);
+insert into t2 values (2, "table 2");
+insert into t3 values (3, "ndb table 3");
+insert into t4 values (4);
+flush tables;
+select * from t1, t2, t3, t4;
+id	id	b	id	c	id
+1	2	table 2	3	ndb table 3	4
+show status like 'handler_discover%';
+Variable_name	Value
+Handler_discover	3
+drop table t1, t2, t3, t4;
 flush status;
 show status like 'handler_discover%';
 Variable_name	Value
@@ -176,6 +330,34 @@ show status like 'handler_discover%';
 Variable_name	Value
 Handler_discover	0
 drop table t6;
+show tables;
+Tables_in_test
+create table t1 (a int,b longblob) engine=ndb;
+show tables;
+Tables_in_test
+t1
+create database test2;
+use test2;
+show tables;
+Tables_in_test2
+select * from t1;
+ERROR 42S02: Table 'test2.t1' doesn't exist
+create table t2 (b int,c longblob) engine=ndb;
+use test;
+select * from t1;
+a	b
+show tables;
+Tables_in_test
+t1
+drop table t1;
+use test2;
+drop table t2;
+drop database test2;
+show databases;
+Database
+mysql
+test
+use test;
 CREATE TABLE t9 (
 a int NOT NULL PRIMARY KEY,
 b int

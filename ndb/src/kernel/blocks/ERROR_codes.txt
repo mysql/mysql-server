@@ -3,9 +3,9 @@ Next NDBCNTR 1000
 Next NDBFS 2000
 Next DBACC 3001
 Next DBTUP 4007
-Next DBLQH 5040
+Next DBLQH 5042
 Next DBDICT 6006
-Next DBDIH 7173
+Next DBDIH 7174
 Next DBTC 8035
 Next CMVMI 9000
 Next BACKUP 10022
@@ -193,6 +193,8 @@ Delay execution of ABORTREQ signal 2 seconds to generate time-out.
 5038: Drop LQHKEYREQ + set 5039
 5039: Drop ABORT + set 5003
 
+8048: Make TC not choose own node for simple/dirty read
+5041: Crash is receiving simple read from other TC on different node
 
 ERROR CODES FOR TESTING TIME-OUT HANDLING IN DBTC
 -------------------------------------------------
@@ -386,6 +388,11 @@ Backup Stuff:
 11001: Send UTIL_SEQUENCE_REF (in master)
 
 5028:  Crash when receiving LQHKEYREQ (in non-master)
+
+Failed Create Table:
+--------------------
+7173: Create table failed due to not sufficient number of fragment or
+      replica records.
 
 Drop Table/Index:
 -----------------

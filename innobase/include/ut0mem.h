@@ -117,7 +117,7 @@ int
 ut_strcmp(const void* str1, const void* str2);
 
 /**************************************************************************
-Determine the length of a string when it is quoted with ut_strcpyq(). */
+Compute strlen(ut_strcpyq(str, q)). */
 UNIV_INLINE
 ulint
 ut_strlenq(
@@ -127,7 +127,9 @@ ut_strlenq(
 	char		q);	/* in: the quote character */
 
 /**************************************************************************
-Make a quoted copy of a string. */
+Make a quoted copy of a NUL-terminated string.  Leading and trailing
+quotes will not be included; only embedded quotes will be escaped.
+See also ut_strlenq() and ut_memcpyq(). */
 
 char*
 ut_strcpyq(
@@ -138,7 +140,9 @@ ut_strcpyq(
 	const char*	src);	/* in: null-terminated string */
 
 /**************************************************************************
-Make a quoted copy of a fixed-length string. */
+Make a quoted copy of a fixed-length string.  Leading and trailing
+quotes will not be included; only embedded quotes will be escaped.
+See also ut_strlenq() and ut_strcpyq(). */
 
 char*
 ut_memcpyq(

@@ -47,7 +47,7 @@ private:
 		  int _node_id,
 		  unsigned _backup_id);
 
-  const char * getFileSystemPathForNode(int _node_id);
+  const char * getBackupDataDirForNode(int _node_id);
   
 };
 

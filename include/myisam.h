@@ -98,6 +98,7 @@ typedef struct st_mi_create_info
   ha_rows reloc_rows;
   ulonglong auto_increment;
   ulonglong data_file_length;
+  ulonglong key_file_length;
   uint raid_type,raid_chunks;
   ulong raid_chunksize;
   uint old_options;

@@ -434,6 +434,7 @@ extern "C" void* NdbThreadFuncRead(void* pArg)
 
 NDB_COMMAND(acid, "acid", "acid", "acid", 65535)
 {
+  ndb_init();
   long nSeconds = 60;
   int rc = NDBT_OK;
 

@@ -53,11 +53,7 @@ Dbtux::execTUXFRAGREQ(Signal* signal)
     }
     // get new operation record
     c_fragOpPool.seize(fragOpPtr);
-    if (fragOpPtr.i == RNIL) {
-      jam();
-      errorCode = TuxFragRef::NoFreeFragmentOper;
-      break;
-    }
+    ndbrequire(fragOpPtr.i != RNIL);
     new (fragOpPtr.p) FragOp();
     fragOpPtr.p->m_userPtr = req->userPtr;
     fragOpPtr.p->m_userRef = req->userRef;
@@ -66,11 +62,7 @@ Dbtux::execTUXFRAGREQ(Signal* signal)
     fragOpPtr.p->m_fragNo = indexPtr.p->m_numFrags;
     fragOpPtr.p->m_numAttrsRecvd = 0;
     // check if index has place for more fragments
-    if (indexPtr.p->m_numFrags == MaxIndexFragments) {
-      jam();
-      errorCode = TuxFragRef::NoFreeIndexFragment;
-      break;
-    }
+    ndbrequire(indexPtr.p->m_numFrags < MaxIndexFragments);
     // seize new fragment record
     FragPtr fragPtr;
     c_fragPool.seize(fragPtr);
@@ -186,19 +178,31 @@ Dbtux::execTUX_ADD_ATTRREQ(Signal* signal)
     descAttr.m_attrDesc = req->attrDescriptor;
     descAttr.m_primaryAttrId = req->primaryAttrId;
     descAttr.m_typeId = req->extTypeInfo & 0xFF;
+    descAttr.m_charset = (req->extTypeInfo >> 16);
 #ifdef VM_TRACE
     if (debugFlags & DebugMeta) {
       debugOut << "Add frag " << fragPtr.i << " attr " << attrId << " " << descAttr << endl;
     }
 #endif
-    // check if type is valid and has a comparison method
-    const NdbSqlUtil::Type& type = NdbSqlUtil::type(descAttr.m_typeId);
+    // check that type is valid and has a binary comparison method
+    const NdbSqlUtil::Type& type = NdbSqlUtil::getTypeBinary(descAttr.m_typeId);
     if (type.m_typeId == NdbSqlUtil::Type::Undefined ||
         type.m_cmp == 0) {
       jam();
       errorCode = TuxAddAttrRef::InvalidAttributeType;
       break;
     }
+#ifdef dbtux_uses_charset
+    if (descAttr.m_charset != 0) {
+      CHARSET_INFO *cs = get_charset(descAttr.m_charset, MYF(0));
+      // here use the non-binary type
+      if (! NdbSqlUtil::usable_in_ordered_index(descAttr.m_typeId, cs)) {
+        jam();
+        errorCode = TuxAddAttrRef::InvalidCharset;
+        break;
+      }
+    }
+#endif
     if (indexPtr.p->m_numAttrs == fragOpPtr.p->m_numAttrsRecvd) {
       jam();
       // initialize tree header
@@ -207,11 +211,7 @@ Dbtux::execTUX_ADD_ATTRREQ(Signal* signal)
       // make these configurable later
       tree.m_nodeSize = MAX_TTREE_NODE_SIZE;
       tree.m_prefSize = MAX_TTREE_PREF_SIZE;
-#ifdef dbtux_min_occup_less_max_occup
       const unsigned maxSlack = MAX_TTREE_NODE_SLACK;
-#else
-      const unsigned maxSlack = 0;
-#endif
       // size up to and including first 2 entries
       const unsigned pref = tree.getSize(AccPref);
       if (! (pref <= tree.m_nodeSize)) {
@@ -231,6 +231,20 @@ Dbtux::execTUX_ADD_ATTRREQ(Signal* signal)
       tree.m_minOccup = tree.m_maxOccup - maxSlack;
       // root node does not exist (also set by ctor)
       tree.m_root = NullTupLoc;
+#ifdef VM_TRACE
+      if (debugFlags & DebugMeta) {
+        if (fragOpPtr.p->m_fragNo == 0) {
+          debugOut << "Index id=" << indexPtr.i;
+          debugOut << " nodeSize=" << tree.m_nodeSize;
+          debugOut << " headSize=" << NodeHeadSize;
+          debugOut << " prefSize=" << tree.m_prefSize;
+          debugOut << " entrySize=" << TreeEntSize;
+          debugOut << " minOccup=" << tree.m_minOccup;
+          debugOut << " maxOccup=" << tree.m_maxOccup;
+          debugOut << endl;
+        }
+      }
+#endif
       // fragment is defined
       c_fragOpPool.release(fragOpPtr);
     }
@@ -295,6 +309,22 @@ Dbtux::execDROP_TAB_REQ(Signal* signal)
   const DropTabReq reqCopy = *(const DropTabReq*)signal->getDataPtr();
   const DropTabReq* const req = &reqCopy;
   IndexPtr indexPtr;
+
+  Uint32 tableId = req->tableId;
+  Uint32 senderRef = req->senderRef;
+  Uint32 senderData = req->senderData;
+  if (tableId >= c_indexPool.getSize()) {
+    jam();
+    // reply to sender
+    DropTabConf* const conf = (DropTabConf*)signal->getDataPtrSend();
+    conf->senderRef = reference();
+    conf->senderData = senderData;
+    conf->tableId = tableId;
+    sendSignal(senderRef, GSN_DROP_TAB_CONF,
+	       signal, DropTabConf::SignalLength, JBB);
+    return;
+  }
+  
   c_indexPool.getPtr(indexPtr, req->tableId);
   // drop works regardless of index state
 #ifdef VM_TRACE

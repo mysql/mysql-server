@@ -21,6 +21,7 @@
 #include <ndb_types.h>
 
 class ConfigRetriever;
+class LocalConfig;
 
 class Configuration {
 public:
@@ -32,7 +33,7 @@ public:
    */
   bool init(int argc, const char** argv);
 
-  void fetch_configuration();
+  void fetch_configuration(LocalConfig &local_config);
   void setupConfiguration();
   void closeConfiguration();
   
@@ -53,6 +54,8 @@ public:
   // Cluster configuration
   const char * programName() const;
   const char * fileSystemPath() const;
+  const char * backupFilePath() const;
+  const char * getConnectString() const;
   char * getConnectStringCopy() const;
 
   /**
@@ -63,6 +66,9 @@ public:
   bool getDaemonMode() const;
 
   const ndb_mgm_configuration_iterator * getOwnConfigIterator() const;
+
+  Uint32 get_mgmd_port() const {return m_mgmd_port;};
+  const char *get_mgmd_host() const {return m_mgmd_host;};
 
   class LogLevel * m_logLevel;
 private:
@@ -89,8 +95,11 @@ private:
    */
   char * _programName;
   char * _fsPath;
+  char * _backupPath;
   bool _initialStart;
   char * _connectString;
+  Uint32 m_mgmd_port;
+  const char *m_mgmd_host;
   bool _daemonMode;
 
   void calcSizeAlt(class ConfigValues * );
@@ -106,6 +115,12 @@ inline
 const char *
 Configuration::fileSystemPath() const {
   return _fsPath;
+}
+
+inline
+const char *
+Configuration::backupFilePath() const {
+  return _backupPath;
 }
 
 inline

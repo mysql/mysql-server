@@ -151,7 +151,7 @@ const char *
 SignalCounter::getText() const {
   static char buf[255];
   static char nodes[NodeBitmask::TextLength+1];
-  snprintf(buf, sizeof(buf), "[SignalCounter: m_count=%d %s]", m_count, m_nodes.getText(nodes));
+  BaseString::snprintf(buf, sizeof(buf), "[SignalCounter: m_count=%d %s]", m_count, m_nodes.getText(nodes));
   return buf;
 }
 

@@ -897,3 +897,35 @@ commit;
 truncate t1;
 select * from t1;
 drop table t1;
+
+#
+# Check that BDB works fine with a string which is
+# longer than 255 bytes for multibyte characters.
+#
+SET NAMES utf8;
+create table t1 (a varchar(255) character set utf8) engine=bdb;
+set @a:= convert(repeat(_latin1 0xFF, 255) using utf8);
+insert into t1 values (@a);
+select a, length(a), char_length(a) from t1;
+drop table t1;
+SET NAMES latin1;
+
+#
+# Bug #5832 SELECT doesn't return records in some cases
+#
+CREATE TABLE t1 (
+    id       int unsigned NOT NULL auto_increment,
+    list_id  smallint unsigned NOT NULL,
+    term     TEXT NOT NULL,
+    PRIMARY KEY(id),
+    INDEX(list_id, term(4))
+) ENGINE=BDB CHARSET=utf8;
+INSERT INTO t1 SET list_id = 1, term = "letterc";
+INSERT INTO t1 SET list_id = 1, term = "letterb";
+INSERT INTO t1 SET list_id = 1, term = "lettera";
+INSERT INTO t1 SET list_id = 1, term = "letterd";
+SELECT id FROM t1 WHERE (list_id = 1) AND (term = "letterc");
+SELECT id FROM t1 WHERE (list_id = 1) AND (term = "letterb");
+SELECT id FROM t1 WHERE (list_id = 1) AND (term = "lettera");
+SELECT id FROM t1 WHERE (list_id = 1) AND (term = "letterd");
+DROP TABLE t1;

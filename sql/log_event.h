@@ -755,7 +755,7 @@ public:
   {
     fname= afname;
     fname_len= alen;
-    local_fname= true;
+    local_fname= TRUE;
   }
   /* fname doesn't point to memory inside Log_event::temp_buf  */
   int  check_fname_outside_temp_buf()

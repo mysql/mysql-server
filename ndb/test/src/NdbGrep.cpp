@@ -60,10 +60,10 @@ NdbGrep::verify(NDBT_Context * ctx){
     return -1;
 
   char cheat_table[255];
-  snprintf(cheat_table, 255, "TEST_DB/def/%s",ctx->getTab()->getName());
+  BaseString::snprintf(cheat_table, 255, "TEST_DB/def/%s",ctx->getTab()->getName());
 
   char buf[255];
-  snprintf(buf, 255, "testGrepVerify -c \"nodeid=%d;host=%s\" -t %s -r %d", 
+  BaseString::snprintf(buf, 255, "testGrepVerify -c \"nodeid=%d;host=%s\" -t %s -r %d", 
 	   4,  //cheat. Hardcoded nodeid....
 	   ctx->getRemoteMgm(),
 	   cheat_table,

@@ -265,7 +265,8 @@ void Dbtup::lcpSaveCopyListLab(Signal* signal, CheckpointInfoPtr ciPtr)
 // We ensure that we have actually allocated the tuple header and
 // also found it. Otherwise we will fill the undo log with garbage.
 /* ---------------------------------------------------------------- */
-      if (regOpPtr.p->optype == ZUPDATE) {
+      if (regOpPtr.p->optype == ZUPDATE || 
+	  (regOpPtr.p->optype == ZINSERT && regOpPtr.p->deleteInsertFlag)) {
         ljam();
         if (regOpPtr.p->realPageIdC != RNIL) {
 /* ---------------------------------------------------------------- */

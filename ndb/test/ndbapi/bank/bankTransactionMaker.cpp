@@ -28,6 +28,7 @@
  
 
 int main(int argc, const char** argv){
+  ndb_init();
   int _help = 0;
   int _wait = 20;
   

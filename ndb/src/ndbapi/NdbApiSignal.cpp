@@ -168,7 +168,7 @@ NdbApiSignal::setSignal(int aNdbSignalType)
       theTrace                = TestOrd::TraceAPI;
       theReceiversBlockNumber = DBTC;
       theVerId_signalNumber   = GSN_TC_COMMITREQ;
-      theLength               = 5;
+      theLength               = 3;
     }
     break;
 
@@ -177,7 +177,7 @@ NdbApiSignal::setSignal(int aNdbSignalType)
       theTrace                = TestOrd::TraceAPI;
       theReceiversBlockNumber = DBTC;
       theVerId_signalNumber   = GSN_SCAN_TABREQ;
-      theLength               = 9; // ScanTabReq::SignalLength;      
+      theLength               = ScanTabReq::StaticLength;      
     }
     break;
 
@@ -186,7 +186,7 @@ NdbApiSignal::setSignal(int aNdbSignalType)
       theTrace                = TestOrd::TraceAPI;
       theReceiversBlockNumber = DBTC;
       theVerId_signalNumber   = GSN_SCAN_NEXTREQ;
-      theLength               = 4;
+      theLength               = ScanNextReq::SignalLength;
     }
     break;
 

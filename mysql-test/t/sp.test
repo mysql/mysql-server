@@ -953,8 +953,8 @@ begin
     declare a char(16);
     declare b,c int;
 
-    fetch c1 into a, b;
-    fetch c2 into c;
+    fetch from c1 into a, b;
+    fetch next from c2 into c;
     if not done then
       if b < c then
         insert into test.t3 values (a, b);

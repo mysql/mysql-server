@@ -6,7 +6,6 @@
 
 version=@VERSION@
 export version
-SOURCE=`pwd`
 CP="cp -p"
 
 DEBUG=0
@@ -24,6 +23,7 @@ if [ ! -f scripts/make_win_src_distribution ]; then
   echo "ERROR : You must run this script from the MySQL top-level directory"
   exit 1
 fi
+SOURCE=`pwd`
 
 #
 # Check for source compilation/configuration
@@ -119,7 +119,7 @@ unix_to_dos()
   for arg do
     print_debug "Replacing LF -> CRLF from '$arg'"
 
-    cat $arg | awk '{sub(/$/,"\r");print}' > $arg.tmp
+    awk '{sub(/$/,"\r");print}' < $arg   > $arg.tmp
     rm -f $arg
     mv $arg.tmp $arg
   done
@@ -138,14 +138,6 @@ if [ -d $BASE ] ; then
 fi
 
 $CP -r $SOURCE/VC++Files $BASE
-(
-find $BASE \( -name "*.dsp" -o -name "*.dsw" \) -and -not -path \*SCCS\* -print
-)|(
-  while read v
-  do
-    unix_to_dos $v
-  done
-)
 
 #
 # Process version tags in InstallShield files
@@ -281,7 +273,6 @@ for i in COPYING ChangeLog README EXCEPTIONS-CLIENT\
          Docs/manual_toc.html  Docs/manual.html \
          Docs/manual.txt Docs/mysqld_error.txt \
          Docs/INSTALL-BINARY Docs/internals.texi
-
 do
   print_debug "Copying file '$i'"
   if [ -f $i ]
@@ -294,14 +285,19 @@ done
 # support files
 #
 mkdir $BASE/support-files
-cp support-files/*.cnf $BASE/support-files
+
+# Rename the cnf files to <file>.ini
+for i in support-files/*.cnf
+do
+  i=`echo $i | sed 's/.cnf$//g'`
+  cp $i.cnf $BASE/$i.ini
+done
 
 #
 # Raw dirs from source tree
 #
 
-for i in Docs/Flags scripts sql-bench SSL \
-         tests
+for i in scripts sql-bench SSL tests
 do
   print_debug "Copying directory '$i'"
   if [ -d $i ]
@@ -317,7 +313,18 @@ done
 ./extra/replace std:: "" < $BASE/sql/sql_yacc.cpp | sed '/^ *switch (yytype)$/ { N; /\n *{$/ { N; /\n *default:$/ { N; /\n *break;$/ { N; /\n *}$/ d; };};};} ' > $BASE/sql/sql_yacc.cpp-new
 mv $BASE/sql/sql_yacc.cpp-new $BASE/sql/sql_yacc.cpp
 
-unix_to_dos $BASE/README
+#
+# Search the tree for plain text files and adapt the line end marker
+#
+find $BASE \( -name "*.dsp" -o -name "*.dsw" -o -name "*.cnf" -o -name "*.ini" \
+           -o -name COPYING -o -name ChangeLog -o -name EXCEPTIONS-CLIENT -o -name "INSTALL*" -o -name LICENSE -o -name "README*" \) -type f -print \
+| while read v
+  do
+    unix_to_dos $v
+  done
+# File extension '.txt' matches too many other files, error messages etc.
+unix_to_dos $BASE/Docs/*.txt 
+
 mv $BASE/README $BASE/README.txt
 
 #

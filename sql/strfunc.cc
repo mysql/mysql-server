@@ -39,16 +39,13 @@
 
 static const char field_separator=',';
 
-ulonglong find_set(TYPELIB *lib, const char *str, uint length, char **err_pos,
-                   uint *err_len, bool *set_warning)
+ulonglong find_set(TYPELIB *lib, const char *str, uint length, CHARSET_INFO *cs,
+                   char **err_pos, uint *err_len, bool *set_warning)
 {
-  const char *end= str + length;
-  *err_pos= 0;                  // No error yet
-  while (end > str && my_isspace(system_charset_info, end[-1]))
-    end--;
-
-  *err_len= 0;
+  CHARSET_INFO *strip= cs ? cs : &my_charset_latin1;
+  const char *end= str + strip->cset->lengthsp(strip, str, length);
   ulonglong found= 0;
+  *err_pos= 0;                  // No error yet
   if (str != end)
   {
     const char *start= str;    
@@ -59,7 +56,8 @@ ulonglong find_set(TYPELIB *lib, const char *str, uint length, char **err_pos,
 
       for (; pos != end && *pos != field_separator; pos++) ;
       var_len= (uint) (pos - start);
-      uint find= find_type(lib, start, var_len, 0);
+      uint find= cs ? find_type2(lib, start, var_len, cs) :
+                      find_type(lib, start, var_len, (bool) 0);
       if (!find)
       {
         *err_pos= (char*) start;
@@ -114,6 +112,47 @@ uint find_type(TYPELIB *lib, const char *find, uint length, bool part_match)
   }
   return(found_count == 1 && part_match ? found_pos : 0);
 }
+
+
+/*
+  Find a string in a list of strings according to collation
+
+  SYNOPSIS
+   find_type2()
+   lib			TYPELIB (struct of pointer to values + count)
+   x			String to find
+   length               String length
+   cs			Character set + collation to use for comparison
+
+  NOTES
+
+  RETURN
+    0	No matching value
+    >0  Offset+1 in typelib for matched string
+*/
+
+uint find_type2(TYPELIB *typelib, const char *x, uint length, CHARSET_INFO *cs)
+{
+  int find,pos,findpos;
+  const char *j;
+  DBUG_ENTER("find_type2");
+  DBUG_PRINT("enter",("x: '%s'  lib: 0x%lx",x,typelib));
+
+  if (!typelib->count)
+  {
+    DBUG_PRINT("exit",("no count"));
+    DBUG_RETURN(0);
+  }
+  LINT_INIT(findpos);
+  for (find=0, pos=0 ; (j=typelib->type_names[pos]) ; pos++)
+  {
+    if (!my_strnncoll(cs, (const uchar*) x, length,
+                          (const uchar*) j, typelib->type_lengths[pos]))
+      DBUG_RETURN(pos+1);
+  }
+  DBUG_PRINT("exit",("Couldn't find type"));
+  DBUG_RETURN(0);
+} /* find_type */
 
 
 /*

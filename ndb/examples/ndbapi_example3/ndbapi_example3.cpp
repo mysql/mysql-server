@@ -176,6 +176,7 @@ int executeInsertTransaction(int transactionId, Ndb* myNdb) {
 
 int main()
 {
+  ndb_init();
   Ndb* myNdb = new Ndb( "TEST_DB_1" );  // Object representing the database
   
   /*******************************************

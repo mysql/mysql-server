@@ -19,7 +19,7 @@ create procedure syntaxerror(t int)|
 
 # Check that we get the right error, i.e. UDF declaration parses correctly,
 # but foo.so doesn't exist.
-# QQ This generates an error message containing a misleading errno which
+#    This generates an error message containing a misleading errno which
 #    might vary between systems (it usually doesn't have anything to do with
 #    the actual failing dlopen()).
 #--error 1126

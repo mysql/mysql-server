@@ -113,7 +113,7 @@ SysLogHandler::setParam(const BaseString &param, const BaseString &value) {
 }
 
 static const struct syslog_facility {
-  char *name;
+  const char *name;
   int value;
 } facilitynames[] = {
   { "auth", LOG_AUTH },
