@@ -171,7 +171,6 @@ row_undo_search_clust_to_pcur(
 		
 		/* printf("--------------------undoing a previous version\n");
 		*/
-		trx_undo_rec_release(node->trx, node->undo_no);
 		   
 		ret = FALSE;
 	} else {
