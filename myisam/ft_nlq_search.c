@@ -73,7 +73,7 @@ static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
   uchar        *keybuff=aio->keybuff;
   MI_KEYDEF    *keyinfo=info->s->keyinfo+aio->keynr;
   my_off_t     key_root=info->s->state.key_root[aio->keynr];
-  uint         extra=HA_FT_WLEN+info->s->base.rec_reflength;
+  uint         extra=HA_FT_WLEN+info->s->base.rec_reflength+1;
 #if HA_FT_WTYPE == HA_KEYTYPE_FLOAT
   float tmp_weight;
 #else
@@ -96,7 +96,7 @@ static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
 
     if (keylen &&
         mi_compare_text(aio->charset,info->lastkey+1,
-                        info->lastkey_length-extra, keybuff+1,keylen,0))
+                        info->lastkey_length-extra, keybuff+1,keylen-1,0))
      break;
 
     subkeys=ft_sintXkorr(info->lastkey+keylen);
