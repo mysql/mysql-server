@@ -2796,24 +2796,19 @@ unsent_create_error:
 	 target_tbl;
 	 target_tbl= target_tbl->next)
     {
-      target_tbl->table= target_tbl->table_list->table;
-      /* 
+      TABLE_LIST *orig= target_tbl->table_list;
+      target_tbl->table= orig->table;
+      /*
 	 Multi-delete can't be constructed over-union => we always have
-	 single SELECT on top and have to check underlaying SELECTs of it
+	 single SELECT on top and have to check underlying SELECTs of it
       */
-      for (SELECT_LEX_UNIT *un= lex->select_lex.first_inner_unit();
-	   un;
-	   un= un->next_unit())
+      if (lex->select_lex.check_updateable_in_subqueries(orig->db,
+                                                         orig->real_name))
       {
-	if (un->first_select()->linkage != DERIVED_TABLE_TYPE &&
-	    un->check_updateable(target_tbl->table_list->db,
-				 target_tbl->table_list->real_name))
-	{
-	  my_error(ER_UPDATE_TABLE_USED, MYF(0),
-		   target_tbl->table_list->real_name);
-	  res= -1;
-	  break;
-	}
+        my_error(ER_UPDATE_TABLE_USED, MYF(0),
+                 orig->real_name);
+        res= -1;
+        break;
       }
     }
 
