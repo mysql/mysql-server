@@ -2733,7 +2733,9 @@ enum options {
                OPT_SLAVE_LOAD_TMPDIR, OPT_NO_MIX_TYPE,
 	       OPT_RPL_RECOVERY_RANK,OPT_INIT_RPL_ROLE,
 	       OPT_RELAY_LOG, OPT_RELAY_LOG_INDEX, OPT_RELAY_LOG_INFO_FILE,
-               OPT_SLAVE_SKIP_ERRORS, OPT_DES_KEY_FILE, OPT_LOCAL_INFILE
+               OPT_SLAVE_SKIP_ERRORS, OPT_DES_KEY_FILE, OPT_LOCAL_INFILE,
+	       OPT_SSL_SSL, OPT_SSL_KEY, OPT_SSL_CERT, OPT_SSL_CA,
+	       OPT_SSL_CAPATH, OPT_SSL_CIPHER
 };
 
 static struct option long_options[] = {
@@ -2894,8 +2896,13 @@ static struct option long_options[] = {
   {"socket",                required_argument, 0, (int) OPT_SOCKET},
   {"sql-bin-update-same",   no_argument,       0, (int) OPT_SQL_BIN_UPDATE_SAME},
   {"sql-mode",              required_argument, 0, (int) OPT_SQL_MODE},
-#ifdef TO_BE_DONE
-#include "sslopt-longopts.h"
+#ifdef HAVE_OPENSSL
+  {"ssl",           no_argument,           0, OPT_SSL_SSL},
+  {"ssl-key",       required_argument,     0, OPT_SSL_KEY},
+  {"ssl-cert",      required_argument,     0, OPT_SSL_CERT},
+  {"ssl-ca",        required_argument,     0, OPT_SSL_CA},
+  {"ssl-capath",    required_argument,     0, OPT_SSL_CAPATH},
+  {"ssl-cipher",    required_argument,     0, OPT_SSL_CIPHER},
 #endif
 #ifdef __WIN__
   {"standalone",            no_argument,       0, (int) OPT_STANDALONE},
@@ -3541,7 +3548,15 @@ Starts the MySQL server\n");
   print_defaults("my",load_default_groups);
   puts("");
 
-#include "sslopt-usage.h"
+#ifdef HAVE_OPENSSL
+   puts("\
+   --ssl                Use SSL for connection (automatically set with other flags\n\
+   --ssl-key            X509 key in PEM format (implies --ssl)\n\
+   --ssl-cert           X509 cert in PEM format (implies --ssl)\n\
+   --ssl-ca             CA file in PEM format (check OpenSSL docs, implies --ssl)\n\
+   --ssl-capath         CA directory (check OpenSSL docs, implies --ssl)\n\
+   --ssl-cipher         SSL cipher to use (implies --ssl)");
+#endif
 
   fix_paths();
   set_ports();
@@ -4085,10 +4100,37 @@ static void get_options(int argc,char **argv)
       strmake(mysql_charsets_dir, optarg, sizeof(mysql_charsets_dir)-1);
       charsets_dir = mysql_charsets_dir;
       break;
-#ifdef TO_BE_DONE
-#include "sslopt-case.h"
-    case OPT_DES_KEY_FILE:
+#ifdef HAVE_OPENSSL
+    case OPT_SSL_SSL:
+      opt_use_ssl = 1;				/* true */
+      break;
+    case OPT_SSL_KEY:
+      opt_use_ssl = 1;				/* true */
+      my_free(opt_ssl_key, MYF(MY_ALLOW_ZERO_PTR));
+      opt_ssl_key = my_strdup(optarg, MYF(0));
+      break;
+    case OPT_SSL_CERT:
+      opt_use_ssl = 1;				/* true */
+      my_free(opt_ssl_cert, MYF(MY_ALLOW_ZERO_PTR));
+      opt_ssl_cert = my_strdup(optarg, MYF(0));
+      break;
+    case OPT_SSL_CA:
+      opt_use_ssl = 1;				/* true */
+      my_free(opt_ssl_ca, MYF(MY_ALLOW_ZERO_PTR));
+      opt_ssl_ca = my_strdup(optarg, MYF(0));
+      break;
+    case OPT_SSL_CAPATH:
+      opt_use_ssl = 1;				/* true */
+      my_free(opt_ssl_capath, MYF(MY_ALLOW_ZERO_PTR));
+      opt_ssl_capath = my_strdup(optarg, MYF(0));
+      break;
+    case OPT_SSL_CIPHER:
+      opt_use_ssl = 1;				/* true */
+      my_free(opt_ssl_cipher, MYF(MY_ALLOW_ZERO_PTR));
+      opt_ssl_cipher = my_strdup(optarg, MYF(0));
+      break;
 #endif
+    case OPT_DES_KEY_FILE:
 #ifdef HAVE_OPENSSL
       des_key_file=optarg;
 #endif
