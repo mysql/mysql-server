@@ -715,8 +715,8 @@ bool rename_temporary_table(THD* thd, TABLE *table, const char *db,
 			       (uint) strlen(table_name)+6+4)))
     return 1;				/* purecov: inspected */
   share->key_length= (uint)
-    (strmov(((char*) share->table_name= strmov(share->table_cache_key= key,
-                                              db)+1),
+    (strmov((char*) (share->table_name= strmov(share->table_cache_key= key,
+                                               db)+1),
 	    table_name) - share->table_cache_key)+1;
   share->db= share->table_cache_key;
   int4store(key+share->key_length, thd->server_id);

@@ -1,0 +1,21 @@
+SET NAMES sjis;
+SET character_set_database = sjis;
+drop database if exists `ﾆﾎﾝｺﾞ`;
+drop database if exists `日本語`;
+drop database if exists `ソ十表`;
+CREATE DATABASE `ﾆﾎﾝｺﾞ`;
+CREATE DATABASE `日本語`;
+CREATE DATABASE `ソ十表`;
+SHOW DATABASES;
+Database
+mysql
+test
+ソ十表
+日本語
+ﾆﾎﾝｺﾞ
+USE `ﾆﾎﾝｺﾞ`;
+USE `日本語`;
+USE `ソ十表`;
+DROP DATABASE `ﾆﾎﾝｺﾞ`;
+DROP DATABASE `日本語`;
+DROP DATABASE `ソ十表`;
