@@ -211,6 +211,11 @@ where t1.col2 in
       (select t2.col2 from t2 
        group by t2.col1, t2.col2 having col_t1 <= 10);
 
+# Item_field must be resolved in the same way as Item_ref
+select sum(col1) from t1
+group by col_t1
+having (select col_t1 from t2 where col_t1 = col_t2 order by col_t2 limit 1);
+
 # nested queries with HAVING, inner having column resolved in outer FROM clause
 # the outer having column is not referenced in GROUP BY which results in an error
 --error 1054
@@ -255,7 +260,6 @@ select sum(col1) from t1
 group by col_t1
 having col_t1 in (select sum(t2.col1) from t2
                   group by t2.col2, t2.col1 having t2.col1 = col_t1);
-
 
 #
 # queries with joins and ambiguous column names
