@@ -2642,7 +2642,7 @@ Create_file_log_event::Create_file_log_event(const char* buf, int len,
     We must make copy of 'buf' as this event may have to live over a
     rotate log entry when used in mysqlbinlog
   */
-  if (!(event_buf= my_memdup(buf, len, MYF(MY_WME))) ||
+  if (!(event_buf= my_memdup((byte*)buf, len, MYF(MY_WME))) ||
       (copy_log_event(event_buf, len, old_format)))
     DBUG_VOID_RETURN;
 

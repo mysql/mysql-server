@@ -2560,8 +2560,8 @@ QUICK_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table, TABLE_REF *ref)
     QUICK_RANGE *null_range;
 
     *ref->null_ref_key= 1;		// Set null byte then create a range
-    if (!(null_range= new QUICK_RANGE(ref->key_buff, ref->key_length,
-				      ref->key_buff, ref->key_length,
+    if (!(null_range= new QUICK_RANGE((char*)ref->key_buff, ref->key_length,
+				      (char*)ref->key_buff, ref->key_length,
 				      EQ_RANGE)))
       goto err;
     *ref->null_ref_key= 0;		// Clear null byte
