@@ -88,7 +88,7 @@ int deny_severity = LOG_WARNING;
 #endif
 
 #ifdef _AIX41
-int initgroups(const char *,int);
+int initgroups(const char *,unsigned int);
 #endif
 
 #if defined(__FreeBSD__) && defined(HAVE_IEEEFP_H)
