@@ -595,7 +595,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	table_to_table_list table_to_table opt_table_list opt_as
 	handler_rkey_function handler_read_or_scan
 	single_multi table_wild_list table_wild_one opt_wild opt_union union_list
-	precision union_option opt_and
+	precision union_option
 END_OF_INPUT
 
 %type <NONE>
@@ -787,17 +787,31 @@ create:
 
 create2:
 	'(' field_list ')' opt_create_table_options create3 {}
-	| opt_create_table_options create3 {};
+	| opt_create_table_options create3 {}
+        | select_for_create {}
+        ;
 
 create3:
 	/* empty */ {}
-	| opt_duplicate opt_as SELECT_SYM
+	| opt_duplicate opt_as select_for_create {}
+        ;
+
+select_for_create:
+          SELECT_SYM
           {
 	    LEX *lex=Lex;
 	    lex->lock_option= (using_update_log) ? TL_READ_NO_INSERT : TL_READ;
 	    mysql_init_select(lex);
           }
-          select_options select_item_list opt_select_from opt_union {};
+          select_options select_item_list opt_select_from { Select->braces= 0;} opt_union 
+         |'(' SELECT_SYM
+          {
+	    LEX *lex=Lex;
+	    lex->lock_option= (using_update_log) ? TL_READ_NO_INSERT : TL_READ;
+	    mysql_init_select(lex);
+          }
+          select_options select_item_list opt_select_from ')' { Select->braces= 1;} union_opt 
+          ;
 
 opt_as:
 	/* empty */ {}
@@ -2600,7 +2614,9 @@ insert_field_spec:
 		lex->many_values.push_back(lex->insert_list))
 	      YYABORT;
 	   }
-	   ident_eq_list;
+	   ident_eq_list
+	| select_for_insert {}
+	 ;
 
 opt_field_spec:
 	/* empty */	  { }
@@ -2609,20 +2625,34 @@ opt_field_spec:
 
 fields:
 	fields ',' insert_ident { Lex->field_list.push_back($3); }
-	| insert_ident		{ Lex->field_list.push_back($1); };
+	| insert_ident		{ Lex->field_list.push_back($1); }
+        ;
 
 insert_values:
 	VALUES	values_list  {}
-	| SELECT_SYM
-	  {
+	| select_for_insert {}
+        ;
+
+select_for_insert:
+          SELECT_SYM
+          {
 	    LEX *lex=Lex;
 	    lex->sql_command = (lex->sql_command == SQLCOM_INSERT ?
 				SQLCOM_INSERT_SELECT : SQLCOM_REPLACE_SELECT);
 	    lex->lock_option= (using_update_log) ? TL_READ_NO_INSERT : TL_READ;
 	    mysql_init_select(lex);
-	  }
-	  select_options select_item_list select_from select_lock_type
-          opt_union {};
+          }
+          select_options select_item_list opt_select_from select_lock_type { Select->braces= 0;} opt_union 
+         |'(' SELECT_SYM
+          {
+	    LEX *lex=Lex;
+	    lex->sql_command = (lex->sql_command == SQLCOM_INSERT ?
+				SQLCOM_INSERT_SELECT : SQLCOM_REPLACE_SELECT);
+	    lex->lock_option= (using_update_log) ? TL_READ_NO_INSERT : TL_READ;
+	    mysql_init_select(lex);
+          }
+          select_options select_item_list opt_select_from select_lock_type ')' { Select->braces= 1;} union_opt 
+          ;
 
 values_list:
 	values_list ','  no_braces

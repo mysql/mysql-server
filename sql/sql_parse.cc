@@ -1959,11 +1959,6 @@ mysql_execute_command(void)
     if (thd->select_limit < select_lex->select_limit)
       thd->select_limit= HA_POS_ERROR;		// No limit
 
-    if (check_dup(tables->db, tables->real_name, tables->next))
-    {
-      net_printf(&thd->net,ER_INSERT_TABLE_USED,tables->real_name);
-      DBUG_VOID_RETURN;
-    }
     {
       /* TODO: Delete the following loop when locks is set by sql_yacc */
       TABLE_LIST *table;
@@ -3361,8 +3356,16 @@ TABLE_LIST *add_table_to_list(Table_ident *table, LEX_STRING *alias,
     {
       if (!strcmp(alias_str,tables->alias) && !strcmp(ptr->db, tables->db))
       {
-	net_printf(&thd->net,ER_NONUNIQ_TABLE,alias_str); /* purecov: tested */
-	DBUG_RETURN(0);				/* purecov: tested */
+	if ((thd->lex.sql_command & (SQLCOM_INSERT_SELECT | SQLCOM_REPLACE_SELECT))
+	    && (tables->lock_type & (TL_WRITE_CONCURRENT_INSERT |  
+				     TL_WRITE_LOW_PRIORITY |    TL_WRITE_DELAYED | 
+				     TL_WRITE)))
+	  thd->lex.select->options |= OPTION_BUFFER_RESULT;
+	else
+	{
+	  net_printf(&thd->net,ER_NONUNIQ_TABLE,alias_str); /* purecov: tested */
+	  DBUG_RETURN(0);				/* purecov: tested */
+	}
       }
     }
   }

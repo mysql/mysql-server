@@ -63,10 +63,7 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
     */
     lex_sl= sl;
     order=  (ORDER *) lex_sl->order_list.first;
-    found_rows_for_union = (lex->select_lex.options & OPTION_FOUND_ROWS &&
-			    !describe && sl->select_limit);
-    if (found_rows_for_union)
-      lex->select_lex.options ^=  OPTION_FOUND_ROWS;
+    found_rows_for_union = lex->select_lex.options & OPTION_FOUND_ROWS && sl->select_limit;
     // This is done to eliminate unnecessary slowing down of the first query 
     if (!order || !describe) 
       last_sl->next=0;				// Remove this extra element
@@ -144,7 +141,7 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
     thd->select_limit=sl->select_limit+sl->offset_limit;
     if (thd->select_limit < sl->select_limit)
       thd->select_limit= HA_POS_ERROR;		// no limit
-    if (thd->select_limit == HA_POS_ERROR)
+    if (thd->select_limit == HA_POS_ERROR || sl->braces)
       sl->options&= ~OPTION_FOUND_ROWS;
 
     res=mysql_select(thd, (describe && sl->linkage==NOT_A_SELECT) ?
@@ -203,9 +200,12 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
       {
 	thd->offset_limit= 0;
 	thd->select_limit= thd->variables.select_limit;
+	if (found_rows_for_union && !describe)
+	  thd->options|= OPTION_FOUND_ROWS;
       }
       if (describe)
 	thd->select_limit= HA_POS_ERROR;		// no limit
+      
       res=mysql_select(thd,&result_table_list,
 		       item_list, NULL, (describe) ? 0 : order,
 		       (ORDER*) NULL, NULL, (ORDER*) NULL,
@@ -264,7 +264,7 @@ bool select_union::send_data(List<Item> &values)
   if ((write_record(table,&info)))
   {
     if (create_myisam_from_heap(thd, table, tmp_table_param, info.last_errno,
-				0))
+				1))
       return 1;
   }
   return 0;
