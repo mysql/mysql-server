@@ -1667,7 +1667,9 @@ bool Item_insert_value::eq(const Item *item, bool binary_cmp) const
 }
 
 
-bool Item_insert_value::fix_fields(THD *thd, struct st_table_list *table_list, Item **items)
+bool Item_insert_value::fix_fields(THD *thd,
+				   struct st_table_list *table_list,
+				   Item **items)
 {
   bool res= arg->fix_fields(thd, table_list, items);
   if (res)
@@ -1698,10 +1700,10 @@ bool Item_insert_value::fix_fields(THD *thd, struct st_table_list *table_list, I
   }
   else
   {
-    Field *field=field_arg->field;
+    Field *tmp_field= field_arg->field;
     /* charset doesn't matter here, it's to avoid sigsegv only */
-    set_field(new Field_null(0,0,Field::NONE,field->field_name,field->table,
-          &my_charset_bin));
+    set_field(new Field_null(0, 0, Field::NONE, tmp_field->field_name,
+			     tmp_field->table, &my_charset_bin));
   }
   return 0;
 }

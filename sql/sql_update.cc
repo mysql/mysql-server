@@ -481,7 +481,8 @@ multi_update::multi_update(THD *thd_arg, TABLE_LIST *table_list,
   Connect fields with tables and create list of tables that are updated
 */
 
-int multi_update::prepare(List<Item> &not_used_values, SELECT_LEX_UNIT *unit)
+int multi_update::prepare(List<Item> &not_used_values,
+			  SELECT_LEX_UNIT *lex_unit)
 {
   TABLE_LIST *table_ref;
   SQL_LIST update;

@@ -671,7 +671,7 @@ longlong Item_func_month::val_int()
 
 String* Item_func_monthname::val_str(String* str)
 {
-  const char *name;
+  const char *month_name;
   uint   month=(uint) Item_func_month::val_int();
 
   if (!month)					// This is also true for NULL
@@ -680,8 +680,8 @@ String* Item_func_monthname::val_str(String* str)
     return (String*) 0;
   }
   null_value=0;
-  name= month_names[month-1];
-  str->set(name, strlen(name), system_charset_info);
+  month_name= month_names[month-1];
+  str->set(month_name, strlen(month_name), system_charset_info);
   return str;
 }
 

@@ -4320,8 +4320,8 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
 					     LEX_STRING *alias,
 					     ulong table_options,
 					     thr_lock_type lock_type,
-					     List<String> *use_index,
-					     List<String> *ignore_index,
+					     List<String> *use_index_arg,
+					     List<String> *ignore_index_arg,
                                              LEX_STRING *option)
 {
   register TABLE_LIST *ptr;
@@ -4377,12 +4377,12 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   ptr->force_index= test(table_options & TL_OPTION_FORCE_INDEX);
   ptr->ignore_leaves= test(table_options & TL_OPTION_IGNORE_LEAVES);
   ptr->derived=	    table->sel;
-  if (use_index)
-    ptr->use_index=(List<String> *) thd->memdup((gptr) use_index,
-					       sizeof(*use_index));
-  if (ignore_index)
-    ptr->ignore_index=(List<String> *) thd->memdup((gptr) ignore_index,
-						   sizeof(*ignore_index));
+  if (use_index_arg)
+    ptr->use_index=(List<String> *) thd->memdup((gptr) use_index_arg,
+						sizeof(*use_index_arg));
+  if (ignore_index_arg)
+    ptr->ignore_index=(List<String> *) thd->memdup((gptr) ignore_index_arg,
+						   sizeof(*ignore_index_arg));
   ptr->option= option ? option->str : 0;
   /* check that used name is unique */
   if (lock_type != TL_IGNORE)
