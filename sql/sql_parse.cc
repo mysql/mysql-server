@@ -455,7 +455,8 @@ check_connections(THD *thd)
     db=strend(passwd)+1;
   if (thd->client_capabilities & CLIENT_INTERACTIVE)
     thd->inactive_timeout=net_interactive_timeout;
-  if (thd->client_capabilities & CLIENT_TRANSACTIONS)
+  if ((thd->client_capabilities & CLIENT_TRANSACTIONS) &&
+      opt_using_transactions)
     thd->net.return_status= &thd->server_status;
   net->timeout=net_read_timeout;
   if (check_user(thd,COM_CONNECT, user, passwd, db, 1))

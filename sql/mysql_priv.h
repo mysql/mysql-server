@@ -402,6 +402,7 @@ TABLE *unlink_open_table(THD *thd,TABLE *list,TABLE *find);
 SQL_SELECT *make_select(TABLE *head, table_map const_tables,
 			table_map read_tables, COND *conds, int *error);
 Item ** find_item_in_list(Item *item,List<Item> &items);
+bool setup_tables(TABLE_LIST *tables);
 int setup_fields(THD *thd,TABLE_LIST *tables,List<Item> &item,
 		 bool set_query_id,List<Item> *sum_func_list);
 int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds);

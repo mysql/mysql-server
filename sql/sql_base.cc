@@ -39,7 +39,7 @@ static bool insert_fields(THD *thd,TABLE_LIST *tables, const char *table_name,
 			  List_iterator<Item> *it);
 static void free_cache_entry(TABLE *entry);
 static void mysql_rm_tmp_tables(void);
-static key_map get_key_map_from_key_list(THD *thd, TABLE *table,
+static key_map get_key_map_from_key_list(TABLE *table,
 					 List<String> *index_list);
 
 
@@ -1711,11 +1711,8 @@ find_item_in_list(Item *find,List<Item> &items)
   return found;
 }
 
-
 /****************************************************************************
 ** Check that all given fields exists and fill struct with current data
-** Check also that the 'used keys' and 'ignored keys' exists and set up the
-** table structure accordingly
 ****************************************************************************/
 
 int setup_fields(THD *thd, TABLE_LIST *tables, List<Item> &fields,
@@ -1729,36 +1726,6 @@ int setup_fields(THD *thd, TABLE_LIST *tables, List<Item> &fields,
   thd->allow_sum_func= test(sum_func_list);
   thd->where="field list";
 
-  /* Remap table numbers if INSERT ... SELECT */
-  uint tablenr=0;
-  for (TABLE_LIST *table=tables ; table ; table=table->next,tablenr++)
-  {
-    table->table->tablenr=tablenr;
-    table->table->map= (table_map) 1 << tablenr;
-    if ((table->table->outer_join=table->outer_join))
-      table->table->maybe_null=1;		// LEFT OUTER JOIN ...
-    if (table->use_index)
-    {
-      key_map map= get_key_map_from_key_list(thd,table->table,
-					     table->use_index);
-      if (map == ~(key_map) 0)
-	DBUG_RETURN(-1);
-      table->table->keys_in_use_for_query=map;
-    }
-    if (table->ignore_index)
-    {
-      key_map map= get_key_map_from_key_list(thd,table->table,
-					     table->ignore_index);
-      if (map == ~(key_map) 0)
-	DBUG_RETURN(-1);
-      table->table->keys_in_use_for_query &= ~map;
-    }
-  }
-  if (tablenr > MAX_TABLES)
-  {
-    my_error(ER_TOO_MANY_TABLES,MYF(0),MAX_TABLES);
-    DBUG_RETURN(-1);
-  }
   while ((item=it++))
   {
     if (item->type() == Item::FIELD_ITEM &&
@@ -1780,7 +1747,49 @@ int setup_fields(THD *thd, TABLE_LIST *tables, List<Item> &fields,
 }
 
 
-static key_map get_key_map_from_key_list(THD *thd, TABLE *table,
+/*
+  Remap table numbers if INSERT ... SELECT
+  Check also that the 'used keys' and 'ignored keys' exists and set up the
+  table structure accordingly
+*/
+
+bool setup_tables(TABLE_LIST *tables)
+{
+  DBUG_ENTER("setup_tables");
+  uint tablenr=0;
+  for (TABLE_LIST *table=tables ; table ; table=table->next,tablenr++)
+  {
+    table->table->tablenr=tablenr;
+    table->table->map= (table_map) 1 << tablenr;
+    if ((table->table->outer_join=table->outer_join))
+      table->table->maybe_null=1;		// LEFT OUTER JOIN ...
+    if (table->use_index)
+    {
+      key_map map= get_key_map_from_key_list(table->table,
+					     table->use_index);
+      if (map == ~(key_map) 0)
+	DBUG_RETURN(1);
+      table->table->keys_in_use_for_query=map;
+    }
+    if (table->ignore_index)
+    {
+      key_map map= get_key_map_from_key_list(table->table,
+					     table->ignore_index);
+      if (map == ~(key_map) 0)
+	DBUG_RETURN(1);
+      table->table->keys_in_use_for_query &= ~map;
+    }
+  }
+  if (tablenr > MAX_TABLES)
+  {
+    my_error(ER_TOO_MANY_TABLES,MYF(0),MAX_TABLES);
+    DBUG_RETURN(1);
+  }
+  DBUG_RETURN(0);
+}
+
+
+static key_map get_key_map_from_key_list(TABLE *table, 
 					 List<String> *index_list)
 {
   key_map map=0;

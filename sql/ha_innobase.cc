@@ -2231,7 +2231,7 @@ ha_innobase::create(
 
   	/* Create the table definition in Innobase */
 
-  	if (error = create_table_def(trx, form, norm_name)) {
+  	if ((error = create_table_def(trx, form, norm_name))) {
 
 		trx_commit_for_mysql(trx);
 

@@ -174,7 +174,8 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
   thd->proc_info="init";
   thd->used_tables=0;				// Updated by setup_fields
 
-  if (setup_fields(thd,tables,fields,1,&all_fields) ||
+  if (setup_tables(tables) ||
+      setup_fields(thd,tables,fields,1,&all_fields) ||
       setup_conds(thd,tables,&conds) ||
       setup_order(thd,tables,fields,all_fields,order) ||
       setup_group(thd,tables,fields,all_fields,group,&hidden_group_fields) ||

@@ -70,7 +70,7 @@ int mysql_update(THD *thd,TABLE_LIST *table_list,List<Item> &fields,
   table->quick_keys=0;
   want_privilege=table->grant.want_privilege;
   table->grant.want_privilege=(SELECT_ACL & ~table->grant.privilege);
-  if (setup_conds(thd,table_list,&conds))
+  if (setup_tables(table_list) || setup_conds(thd,table_list,&conds))
     DBUG_RETURN(-1);				/* purecov: inspected */
   old_used_keys=table->used_keys;		// Keys used in WHERE
 
