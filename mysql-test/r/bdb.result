@@ -1578,6 +1578,217 @@ f         	10
 g         	10
 h         	10
 i         	10
+alter table t1 modify v varchar(300), drop key v, drop key v_2, add key v (v);
+Warnings:
+Warning	1071	Specified key was too long; max key length is 255 bytes
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `v` varchar(300) default NULL,
+  `c` char(10) default NULL,
+  `t` text,
+  KEY `c` (`c`),
+  KEY `t` (`t`(10)),
+  KEY `v` (`v`(255))
+) ENGINE=BerkeleyDB DEFAULT CHARSET=latin1
+select count(*) from t1 where v='a';
+count(*)
+10
+select count(*) from t1 where v='a  ';
+count(*)
+10
+select count(*) from t1 where v between 'a' and 'a ';
+count(*)
+10
+select count(*) from t1 where v between 'a' and 'a ' and v between 'a  ' and 'b\n';
+count(*)
+10
+select count(*) from t1 where v like 'a%';
+count(*)
+11
+select count(*) from t1 where v like 'a %';
+count(*)
+9
+explain select count(*) from t1 where v='a  ';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	v	v	258	const	10	Using where
+explain select count(*) from t1 where v like 'a%';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	258	NULL	11	Using where
+explain select count(*) from t1 where v between 'a' and 'a ';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	258	NULL	10	Using where
+explain select count(*) from t1 where v between 'a' and 'a ' and v between 'a  ' and 'b\n';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	258	NULL	10	Using where
+explain select * from t1 where v='a';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	v	v	258	const	10	Using where
+select v,count(*) from t1 group by v limit 10;
+v	count(*)
+a	1
+a	10
+b	10
+c	10
+d	10
+e	10
+f	10
+g	10
+h	10
+i	10
+select v,count(t) from t1 group by v limit 10;
+v	count(t)
+a	1
+a	10
+b	10
+c	10
+d	10
+e	10
+f	10
+g	10
+h	10
+i	10
+select sql_big_result v,count(t) from t1 group by v limit 10;
+v	count(t)
+a	1
+a         	10
+b         	10
+c         	10
+d         	10
+e         	10
+f         	10
+g         	10
+h         	10
+i         	10
+alter table t1 drop key v, add key v (v(30));
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `v` varchar(300) default NULL,
+  `c` char(10) default NULL,
+  `t` text,
+  KEY `c` (`c`),
+  KEY `t` (`t`(10)),
+  KEY `v` (`v`(30))
+) ENGINE=BerkeleyDB DEFAULT CHARSET=latin1
+select count(*) from t1 where v='a';
+count(*)
+10
+select count(*) from t1 where v='a  ';
+count(*)
+10
+select count(*) from t1 where v between 'a' and 'a ';
+count(*)
+10
+select count(*) from t1 where v between 'a' and 'a ' and v between 'a  ' and 'b\n';
+count(*)
+10
+select count(*) from t1 where v like 'a%';
+count(*)
+11
+select count(*) from t1 where v like 'a %';
+count(*)
+9
+explain select count(*) from t1 where v='a  ';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	v	v	33	const	10	Using where
+explain select count(*) from t1 where v like 'a%';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	33	NULL	11	Using where
+explain select count(*) from t1 where v between 'a' and 'a ';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	33	NULL	10	Using where
+explain select count(*) from t1 where v between 'a' and 'a ' and v between 'a  ' and 'b\n';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	33	NULL	10	Using where
+explain select * from t1 where v='a';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	v	v	33	const	10	Using where
+select v,count(*) from t1 group by v limit 10;
+v	count(*)
+a	1
+a	10
+b	10
+c	10
+d	10
+e	10
+f	10
+g	10
+h	10
+i	10
+select v,count(t) from t1 group by v limit 10;
+v	count(t)
+a	1
+a	10
+b	10
+c	10
+d	10
+e	10
+f	10
+g	10
+h	10
+i	10
+select sql_big_result v,count(t) from t1 group by v limit 10;
+v	count(t)
+a	1
+a         	10
+b         	10
+c         	10
+d         	10
+e         	10
+f         	10
+g         	10
+h         	10
+i         	10
+alter table t1 modify v varchar(600), drop key v, add key v (v);
+Warnings:
+Warning	1071	Specified key was too long; max key length is 255 bytes
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `v` varchar(600) default NULL,
+  `c` char(10) default NULL,
+  `t` text,
+  KEY `c` (`c`),
+  KEY `t` (`t`(10)),
+  KEY `v` (`v`(255))
+) ENGINE=BerkeleyDB DEFAULT CHARSET=latin1
+select v,count(*) from t1 group by v limit 10;
+v	count(*)
+a	1
+a	10
+b	10
+c	10
+d	10
+e	10
+f	10
+g	10
+h	10
+i	10
+select v,count(t) from t1 group by v limit 10;
+v	count(t)
+a	1
+a	10
+b	10
+c	10
+d	10
+e	10
+f	10
+g	10
+h	10
+i	10
+select sql_big_result v,count(t) from t1 group by v limit 10;
+v	count(t)
+a	1
+a         	10
+b         	10
+c         	10
+d         	10
+e         	10
+f         	10
+g         	10
+h         	10
+i         	10
 drop table t1;
 create table t1 (a char(10), unique (a));
 insert into t1 values ('a   ');
