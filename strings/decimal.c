@@ -1275,7 +1275,7 @@ static int do_div_mod(decimal *from1, decimal *from2,
 {
   int frac1=ROUND_UP(from1->frac)*DIG_PER_DEC1, prec1=from1->intg+frac1,
       frac2=ROUND_UP(from2->frac)*DIG_PER_DEC1, prec2=from2->intg+frac2,
-      error, i, intg0, frac0, len1, len2, dlen1;
+      error, i, intg0, frac0, len1, len2, dlen1, dintg;
   dec1 *buf0, *buf1=from1->buf, *buf2=from2->buf, *tmp1,
        *start2, *stop2, *stop1, *stop0, norm2, carry, *start1;
   dec2 norm_factor, x, guess, y;
@@ -1318,10 +1318,14 @@ static int do_div_mod(decimal *from1, decimal *from2,
   if ((scale_incr-= frac1 - from1->frac + frac2 - from2->frac) < 0)
     scale_incr=0;
 
-  if ((i=(prec1-frac1)-(prec2-frac2)+(*buf1 >= *buf2)) < 0) /* see below */
+  dintg=(prec1-frac1)-(prec2-frac2)+(*buf1 >= *buf2);
+  if (dintg < 0)
+  {
+    dintg/=DIG_PER_DEC1;
     intg0=0;
+  }
   else
-    intg0=ROUND_UP(i);
+    intg0=ROUND_UP(dintg);
   if (mod)
   {
     /* we're calculating N1 % N2.
@@ -1353,6 +1357,8 @@ static int do_div_mod(decimal *from1, decimal *from2,
   }
   buf0=to->buf;
   stop0=buf0+intg0+frac0;
+  while (dintg++ < 0)
+    *buf0++=0;
 
   len1=(i=ROUND_UP(prec1))+ROUND_UP(2*frac2+scale_incr+1);
   if (!(tmp1=my_alloca(len1*sizeof(dec1))))
@@ -1943,6 +1949,7 @@ main()
   test_dv("1", "3");
   test_dv("1.000000000000", "3");
   test_dv("1", "1");
+  test_dv("0.0123456789012345678912345", "9999999999");
 
   printf("==== decimal_round ====\n");
   test_ro("15.1",0,HALF_UP);
