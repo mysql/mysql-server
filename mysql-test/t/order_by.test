@@ -365,3 +365,11 @@ SELECT * FROM t1 WHERE FieldKey > '2' ORDER BY LongVal;
 EXPLAIN SELECT * FROM t1 WHERE FieldKey > '2' ORDER BY FieldKey, LongVal;
 SELECT * FROM t1 WHERE FieldKey > '2' ORDER BY FieldKey, LongVal;
 DROP TABLE t1;
+#
+# Bug #1945 - Crashing bug with bad User Variables in UPDATE ... ORDER BY ...
+#
+CREATE TABLE t1 (a INT, b INT);
+SET @id=0;
+UPDATE t1 SET a=0 ORDER BY (a=@id), b;
+DROP TABLE t1;
+
