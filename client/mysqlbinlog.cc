@@ -21,6 +21,7 @@
 #include <assert.h>
 #include "log_event.h"
 #include "include/my_sys.h"
+#include "unistd.h"
 
 #define BIN_LOG_HEADER_SIZE	4
 #define PROBE_HEADER_LEN	(EVENT_LEN_OFFSET+4)
@@ -81,9 +82,9 @@ class Load_log_processor
 	bname--;
 
       uint blen= ce->fname_len - (bname-ce->fname);
-      uint full_len= target_dir_name_len + blen;
+      uint full_len= target_dir_name_len + blen + 9 + 9 + 1;
       char *tmp;
-      if (!(tmp= my_malloc(full_len + 9 + 1,MYF(MY_WME))) ||
+      if (!(tmp= my_malloc(full_len,MYF(MY_WME))) ||
 	  set_dynamic(&file_names,(gptr)&ce,ce->file_id))
       {
 	die("Could not construct local filename %s%s",target_dir_name,bname);
@@ -96,6 +97,21 @@ class Load_log_processor
       memcpy(ptr,bname,blen);
       ptr+= blen;
       sprintf(ptr,"-%08x",ce->file_id);
+      ptr+= 9;
+
+      uint version= 0;
+      for (;;)
+      {
+	sprintf(ptr,"-%08x",version);
+	if (access(tmp,F_OK))
+	  break;
+	version++;
+	if (version>UINT_MAX)
+	{
+	  die("Could not construct local filename %s%s",target_dir_name,bname);
+	  return 0;
+	}
+      }
 
       ce->set_fname_outside_temp_buf(tmp,full_len);
 
@@ -169,6 +185,8 @@ public:
     }
   Create_file_log_event *grab_event(uint file_id)
     {
+      if (file_id >= file_names.elements)
+        return 0;
       Create_file_log_event **ptr= 
 	(Create_file_log_event**)file_names.buffer + file_id;
       Create_file_log_event *res= *ptr;
@@ -182,8 +200,12 @@ public:
     }
   void process(Append_block_log_event *ae)
     {
-      if (ae->file_id >= file_names.elements)
-      {
+      Create_file_log_event* ce= (ae->file_id < file_names.elements) ?
+          *((Create_file_log_event**)file_names.buffer + ae->file_id) : 0;
+        
+      if (ce)
+        append_to_file(ce->fname,O_APPEND|O_BINARY|O_WRONLY,ae->block,ae->block_len);
+      else
         /*
           There is no Create_file event (a bad binlog or a big
           --position). Assuming it's a big --position, we just do nothing and
@@ -191,11 +213,6 @@ public:
         */
 	fprintf(stderr,"Warning: ignoring Append_block as there is no \
 Create_file event for file_id: %u\n",ae->file_id);
-        return;
-      }
-      Create_file_log_event* ce= 
-	*((Create_file_log_event**)file_names.buffer + ae->file_id);
-      append_to_file(ce->fname,O_APPEND|O_BINARY|O_WRONLY,ae->block,ae->block_len);
     }
 };
 

@@ -109,7 +109,7 @@ int main(int argc,char *argv[])
   if (to)
     fclose(to);
   if (error)
-    fprintf(stderr,"Can't uppdate messagefile %s, errno: %d\n",*argv,errno);
+    fprintf(stderr,"Can't update messagefile %s, errno: %d\n",*argv,errno);
 
   exit(error);
   return(0);

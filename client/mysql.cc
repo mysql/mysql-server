@@ -40,7 +40,7 @@
 #include <signal.h>
 #include <violite.h>
 
-const char *VER= "12.21";
+const char *VER= "12.22";
 
 /* Don't try to make a nice table if the data is too big */
 #define MAX_COLUMN_LENGTH	     1024
@@ -801,7 +801,9 @@ static int read_lines(bool execute_commands)
       char *prompt= (char*) (glob_buffer.is_empty() ? construct_prompt() :
 			     !in_string ? "    -> " :
 			     in_string == '\'' ?
-			     "    '> " : "    \"> ");
+			     "    '> " : (in_string == '`' ?
+			     "    `> " :
+			     "    \"> "));
       if (opt_outfile && glob_buffer.is_empty())
 	fflush(OUTFILE);
 
