@@ -275,11 +275,39 @@ static bool check_user(THD *thd,enum_server_command command, const char *user,
 }
 
 
+/*
+  Make a copy of array and the strings array points to
+*/
+
+char **copy_arguments(int argc, char **argv)
+{
+  uint length= 0;
+  char **from, **res, **end= argv+argc;
+
+  for (from=argv ; from != end ; from++)
+    length+= strlen(*from);
+
+  if ((res= (char**) my_malloc(sizeof(argv)*(argc+1)+length+argc,
+			       MYF(MY_WME))))
+  {
+    char **to= res, *to_str= (char*) (res+argc+1);
+    for (from=argv ; from != end ;)
+    {
+      *to++= to_str;
+      to_str= strmov(to_str, *from++)+1;
+    }
+    *to= 0;					// Last ptr should be null
+  }
+  return res;
+}
+
+
 extern "C"
 {
 
 static my_bool inited, org_my_init_done;
 ulong		max_allowed_packet, net_buffer_length;
+char **		copy_arguments_ptr= 0; 
 
 int STDCALL mysql_server_init(int argc, char **argv, char **groups)
 {
@@ -303,7 +331,7 @@ int STDCALL mysql_server_init(int argc, char **argv, char **groups)
     argvp = (char ***) &fake_argv;
   }
   if (!groups)
-      groups = (char**) fake_groups;
+    groups = (char**) fake_groups;
 
   my_umask=0660;		// Default umask for new files
   my_umask_dir=0700;		// Default umask for new directories
@@ -318,6 +346,14 @@ int STDCALL mysql_server_init(int argc, char **argv, char **groups)
   {
     MY_INIT((char *)"mysql_embedded");	// init my_sys library & pthreads
   }
+
+  /*
+    Make a copy of the arguments to guard against applications that
+    may change or move the initial arguments.
+  */
+  if (argvp == &argv)
+    if (!(copy_arguments_ptr= argv= copy_arguments(argc, argv)))
+      return 1;
 
   tzset();			// Set tzname
 
@@ -566,6 +602,8 @@ int STDCALL mysql_server_init(int argc, char **argv, char **groups)
 
 void STDCALL mysql_server_end()
 {
+  my_free((char*) copy_arguments_ptr, MYF(MY_ALLOW_ZERO_PTR));
+  copy_arguments_ptr=0;
   clean_up(0);
 #ifdef THREAD
   /* Don't call my_thread_end() if the application is using MY_INIT() */

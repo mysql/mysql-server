@@ -2848,9 +2848,7 @@ join_free(JOIN *join)
   }
   join->group_fields.delete_elements();
   join->tmp_table_param.copy_funcs.delete_elements();
-  if (join->tmp_table_param.copy_field)		// Because of bug in ecc
-    delete [] join->tmp_table_param.copy_field;
-  join->tmp_table_param.copy_field=0;
+  join->tmp_table_param.cleanup();
   DBUG_VOID_RETURN;
 }
 
@@ -3699,13 +3697,13 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 		       NullS))
   {
     bitmap_clear_bit(&temp_pool, temp_pool_slot);
-    DBUG_RETURN(NULL); /* purecov: inspected */
+    DBUG_RETURN(NULL);				/* purecov: inspected */
   }
   if (!(param->copy_field=copy=new Copy_field[field_count]))
   {
     bitmap_clear_bit(&temp_pool, temp_pool_slot);
-    my_free((gptr) table,MYF(0)); /* purecov: inspected */
-    DBUG_RETURN(NULL); /* purecov: inspected */
+    my_free((gptr) table,MYF(0));		/* purecov: inspected */
+    DBUG_RETURN(NULL);				/* purecov: inspected */
   }
   param->funcs=copy_func;
   strmov(tmpname,path);
