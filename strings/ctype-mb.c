@@ -123,8 +123,7 @@ int my_strcasecmp_mb(CHARSET_INFO * cs,const char *s, const char *t)
 **	 1 if matched with wildcard
 */
 
-#define INC_PTR(cs,A,B) A+=((use_mb_flag && \
-                          my_ismbchar(cs,A,B)) ? my_ismbchar(cs,A,B) : 1)
+#define INC_PTR(cs,A,B) A+=(my_ismbchar(cs,A,B) ? my_ismbchar(cs,A,B) : 1)
 
 #define likeconv(s,A) (uchar) (s)->sort_order[(uchar) (A)]
 
@@ -135,8 +134,6 @@ int my_wildcmp_mb(CHARSET_INFO *cs,
 {
   int result= -1;				/* Not found, using wildcards */
 
-  bool use_mb_flag=use_mb(cs);
-
   while (wildstr != wildend)
   {
     while (*wildstr != w_many && *wildstr != w_one)
@@ -144,8 +141,7 @@ int my_wildcmp_mb(CHARSET_INFO *cs,
       int l;
       if (*wildstr == escape && wildstr+1 != wildend)
 	wildstr++;
-      if (use_mb_flag &&
-          (l = my_ismbchar(cs, wildstr, wildend)))
+      if ((l = my_ismbchar(cs, wildstr, wildend)))
       {
 	  if (str+l > str_end || memcmp(str, wildstr, l) != 0)
 	      return 1;
@@ -200,41 +196,30 @@ int my_wildcmp_mb(CHARSET_INFO *cs,
 	cmp= *++wildstr;
 	
       mb=wildstr;
-      LINT_INIT(mblen);
-      if (use_mb_flag)
-        mblen = my_ismbchar(cs, wildstr, wildend);
+      mblen= my_ismbchar(cs, wildstr, wildend);
       INC_PTR(cs,wildstr,wildend);		/* This is compared trough cmp */
       cmp=likeconv(cs,cmp);   
       do
       {
-        if (use_mb_flag)
-	{
-          for (;;)
+        for (;;)
+        {
+          if (str >= str_end)
+            return -1;
+          if (mblen)
           {
-            if (str >= str_end)
-              return -1;
-            if (mblen)
+            if (str+mblen <= str_end && memcmp(str, mb, mblen) == 0)
             {
-              if (str+mblen <= str_end && memcmp(str, mb, mblen) == 0)
-              {
-                str += mblen;
-                break;
-              }
-            }
-            else if (!my_ismbchar(cs, str, str_end) &&
-                     likeconv(cs,*str) == cmp)
-            {
-              str++;
+              str += mblen;
               break;
             }
-            INC_PTR(cs,str, str_end);
           }
-	}
-        else
-        {
-          while (str != str_end && likeconv(cs,*str) != cmp)
+          else if (!my_ismbchar(cs, str, str_end) &&
+                   likeconv(cs,*str) == cmp)
+          {
             str++;
-          if (str++ == str_end) return (-1);
+            break;
+          }
+          INC_PTR(cs,str, str_end);
         }
 	{
 	  int tmp=my_wildcmp_mb(cs,str,str_end,wildstr,wildend,escape,w_one,
@@ -555,8 +540,6 @@ static int my_wildcmp_mb_bin(CHARSET_INFO *cs,
 {
   int result= -1;				/* Not found, using wildcards */
 
-  bool use_mb_flag=use_mb(cs);
-
   while (wildstr != wildend)
   {
     while (*wildstr != w_many && *wildstr != w_one)
@@ -564,8 +547,7 @@ static int my_wildcmp_mb_bin(CHARSET_INFO *cs,
       int l;
       if (*wildstr == escape && wildstr+1 != wildend)
 	wildstr++;
-      if (use_mb_flag &&
-          (l = my_ismbchar(cs, wildstr, wildend)))
+      if ((l = my_ismbchar(cs, wildstr, wildend)))
       {
 	  if (str+l > str_end || memcmp(str, wildstr, l) != 0)
 	      return 1;
@@ -620,39 +602,28 @@ static int my_wildcmp_mb_bin(CHARSET_INFO *cs,
 	cmp= *++wildstr;
 	
       mb=wildstr;
-      LINT_INIT(mblen);
-      if (use_mb_flag)
-        mblen = my_ismbchar(cs, wildstr, wildend);
+      mblen= my_ismbchar(cs, wildstr, wildend);
       INC_PTR(cs,wildstr,wildend);		/* This is compared trough cmp */
       do
       {
-        if (use_mb_flag)
-	{
-          for (;;)
+        for (;;)
+        {
+          if (str >= str_end)
+            return -1;
+          if (mblen)
           {
-            if (str >= str_end)
-              return -1;
-            if (mblen)
+            if (str+mblen <= str_end && memcmp(str, mb, mblen) == 0)
             {
-              if (str+mblen <= str_end && memcmp(str, mb, mblen) == 0)
-              {
-                str += mblen;
-                break;
-              }
-            }
-            else if (!my_ismbchar(cs, str, str_end) && *str == cmp)
-            {
-              str++;
+              str += mblen;
               break;
             }
-            INC_PTR(cs,str, str_end);
           }
-	}
-        else
-        {
-          while (str != str_end && *str != cmp)
+          else if (!my_ismbchar(cs, str, str_end) && *str == cmp)
+          {
             str++;
-          if (str++ == str_end) return (-1);
+            break;
+          }
+          INC_PTR(cs,str, str_end);
         }
 	{
 	  int tmp=my_wildcmp_mb_bin(cs,str,str_end,wildstr,wildend,escape,w_one,w_many);
