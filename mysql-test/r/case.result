@@ -63,3 +63,7 @@ nothing	2
 one	1
 two	1
 drop table t1;
+color
+orange
+yellow
+green
