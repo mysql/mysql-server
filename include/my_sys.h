@@ -189,11 +189,13 @@ void   __CDECL hfree(void *ptr);
 #endif
 #endif /* MSDOS */
 
+#ifndef errno				/* did we already get it? */
 #ifdef HAVE_ERRNO_AS_DEFINE
 #include <errno.h>			/* errno is a define */
 #else
 extern int errno;			/* declare errno */
 #endif
+#endif					/* #ifndef errno */
 extern const char ** NEAR my_errmsg[];
 extern char NEAR errbuff[NRERRBUFFS][ERRMSGSIZE];
 extern char *home_dir;			/* Home directory for user */
