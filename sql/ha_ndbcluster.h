@@ -139,12 +139,12 @@ class ha_ndbcluster: public handler
   bool low_byte_first() const
     { 
 #ifdef WORDS_BIGENDIAN
-      return false;
+      return FALSE;
 #else
-      return true;
+      return TRUE;
 #endif
     }
-  bool has_transactions()  { return true; }
+  bool has_transactions()  { return TRUE; }
 
   const char* index_type(uint key_number) {
     switch (get_index_type(key_number)) {
