@@ -77,7 +77,7 @@ const char *command_name[]={
   "Drop DB", "Refresh", "Shutdown", "Statistics", "Processlist",
   "Connect","Kill","Debug","Ping","Time","Delayed insert","Change user",
   "Binlog Dump","Table Dump",  "Connect Out", "Register Slave",
-  "Prepare", "Prepare Execute", "Long Data", "Close stmt",
+  "Prepare", "Execute", "Long Data", "Close stmt",
   "Reset stmt", "Set option", "Fetch",
   "Error"					// Last command number
 };
@@ -1613,7 +1613,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
         table_list.schema_table= schema_table;
     }
 
-    /*  command not cachable => no gap for data base name */
+    thd->query_length= strlen(packet);       // for simplicity: don't optimize
     if (!(thd->query=fields=thd->memdup(packet,thd->query_length+1)))
       break;
     mysql_log.write(thd,command,"%s %s",table_list.table_name, fields);
@@ -1911,7 +1911,7 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
 {
   DBUG_ENTER("prepare_schema_table");
   SELECT_LEX *sel= 0;
-  switch(schema_table_idx) {
+  switch (schema_table_idx) {
   case SCH_SCHEMATA:
 #if defined(DONT_ALLOW_SHOW_COMMANDS)
     my_message(ER_NOT_ALLOWED_COMMAND,
@@ -1953,7 +1953,11 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
                  thd->priv_user, thd->priv_host, db);
 	DBUG_RETURN(1);
       }
-      lex->select_lex.db= db;
+      /*
+        We need to do a copy to make this prepared statement safe if this
+        was thd->db
+      */
+      lex->select_lex.db= thd->strdup(db);
       break;
     }
 #endif

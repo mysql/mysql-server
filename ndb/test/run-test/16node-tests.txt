@@ -1,0 +1,733 @@
+# BASIC FUNCTIONALITY
+max-time: 500
+cmd: testBasic
+args: -n PkRead
+
+max-time: 500
+cmd: testBasic
+args: -n PkUpdate 
+
+max-time: 500
+cmd: testBasic
+args: -n PkDelete 
+
+max-time: 500
+cmd: testBasic
+args: -n PkInsert 
+
+max-time: 600
+cmd: testBasic
+args: -n UpdateAndRead 
+
+max-time: 500
+cmd: testBasic
+args: -n PkReadAndLocker T6 
+
+max-time: 500
+cmd: testBasic
+args: -n PkReadAndLocker2 T6 
+
+max-time: 500
+cmd: testBasic
+args: -n PkReadUpdateAndLocker T6 
+
+max-time: 500
+cmd: testBasic
+args: -n ReadWithLocksAndInserts T6 
+
+max-time: 500
+cmd: testBasic
+args: -n PkInsertTwice T1 T6 T10 
+
+max-time: 1500
+cmd: testBasic
+args: -n Fill T13 
+
+max-time: 1500
+cmd: testBasic
+args: -n Fill T6 
+
+max-time: 500
+cmd: testBasic
+args: -n NoCommitSleep T6 
+
+max-time: 500
+cmd: testBasic
+args: -n NoCommit626 T6 
+
+max-time: 500
+cmd: testBasic
+args: -n NoCommitAndClose T6 
+
+max-time: 500
+cmd: testBasic
+args: -n Commit626 T6 
+
+max-time: 500
+cmd: testBasic
+args: -n CommitTry626 T6 
+
+max-time: 500
+cmd: testBasic
+args: -n CommitAsMuch626 T6 
+
+max-time: 500
+cmd: testBasic
+args: -n NoCommit626 T6 
+
+max-time: 500
+cmd: testBasic
+args: -n NoCommitRollback626 T1 T6 
+
+max-time: 500
+cmd: testBasic
+args: -n Commit630 T1 T6 
+
+max-time: 500
+cmd: testBasic
+args: -n CommitTry630 T1 T6 
+
+max-time: 500
+cmd: testBasic
+args: -n CommitAsMuch630 T1 T6 
+
+max-time: 500
+cmd: testBasic
+args: -n NoCommit630 T1 T6 
+
+max-time: 500
+cmd: testBasic
+args: -n NoCommitRollback630 T1 T6 
+
+max-time: 500
+cmd: testBasic
+args: -n NoCommitAndClose T1 T6 
+
+max-time: 500
+cmd: testBasic
+args: -n RollbackUpdate T1 T6 
+
+max-time: 500
+cmd: testBasic
+args: -n RollbackDeleteMultiple T1 T6 
+
+max-time: 500
+cmd: testBasic
+args: -n ImplicitRollbackDelete T1 T6 
+
+max-time: 500
+cmd: testBasic
+args: -n CommitDelete T1 T6 
+
+max-time: 500
+cmd: testBasic
+args: -n RollbackNothing T1 T6 
+
+max-time: 500
+cmd: testBasicAsynch
+args: -n PkInsertAsynch 
+
+max-time: 500
+cmd: testBasicAsynch
+args: -n PkReadAsynch 
+
+max-time: 500
+cmd: testBasicAsynch
+args: -n PkUpdateAsynch 
+
+max-time: 500
+cmd: testBasicAsynch
+args: -n PkDeleteAsynch 
+
+max-time: 500
+cmd: testBasic
+args: -n MassiveRollback T1 T6 T13 
+
+max-time: 500
+cmd: testBasic
+args: -n MassiveRollback2 T1 T6 T13 
+
+max-time: 500
+cmd: testTimeout
+args: T1 
+
+# SCAN TESTS
+#
+max-time: 500
+cmd: testScan
+args: -n ScanRead16 
+
+max-time: 500
+cmd: testScan
+args: -n ScanRead240 
+
+max-time: 500
+cmd: testScan
+args: -n ScanReadCommitted240 
+
+max-time: 500
+cmd: testScan
+args: -n ScanUpdate 
+
+max-time: 500
+cmd: testScan
+args: -n ScanUpdate2 T6 
+
+max-time: 500
+cmd: testScan
+args: -n ScanDelete 
+
+max-time: 500
+cmd: testScan
+args: -n ScanDelete2 T10 
+
+max-time: 500
+cmd: testScan
+args: -n ScanUpdateAndScanRead T6 
+
+max-time: 500
+cmd: testScan
+args: -n ScanReadAndLocker T6 
+
+max-time: 500
+cmd: testScan
+args: -n ScanReadAndPkRead T6 
+
+max-time: 500
+cmd: testScan
+args: -n ScanRead488 -l 10 T6 
+
+max-time: 500
+cmd: testScan
+args: -n ScanRead488O -l 10 T6 
+
+max-time: 1000
+cmd: testScan
+args: -n ScanRead488_Mixed -l 10 T6 
+
+max-time: 500
+cmd: testScan
+args: -n ScanRead488Timeout -l 10 T6 
+
+max-time: 600
+cmd: testScan
+args: -n ScanRead40 -l 100 T2 
+
+max-time: 1800
+cmd: testScan
+args: -n ScanRead100 -l 100 T1 
+
+max-time: 600
+cmd: testScan
+args: -n ScanRead40 -l 100 T1 
+
+max-time: 1800
+cmd: testScan
+args: -n ScanRead40RandomTable -l 100 T1 
+
+max-time: 500
+cmd: testScan
+args: -n ScanWithLocksAndInserts T6 
+
+max-time: 500
+cmd: testScan
+args: -n ScanReadAbort T6 
+
+max-time: 500
+cmd: testScan
+args: -n ScanReadAbort15 T6 
+
+max-time: 500
+cmd: testScan
+args: -n ScanReadAbort240 T6 
+
+max-time: 500
+cmd: testScan
+args: -n ScanUpdateAbort16 T6 
+
+max-time: 3600
+cmd: testScan
+args: -n ScanReadRestart T1 T6 T13 
+
+max-time: 500
+cmd: testScan
+args: -n ScanUpdateRestart T6 
+
+max-time: 500
+cmd: testScan
+args: -n CheckGetValue T6 
+
+max-time: 500
+cmd: testScan
+args: -n CloseWithoutStop T6 
+
+max-time: 500
+cmd: testScan
+args: -n NextScanWhenNoMore T6 
+
+max-time: 500
+cmd: testScan
+args: -n ExecuteScanWithoutOpenScan T6 
+
+max-time: 500
+cmd: testScan
+args: -n OnlyOpenScanOnce T6 
+
+max-time: 500
+cmd: testScan
+args: -n OnlyOneOpInScanTrans T6 
+
+max-time: 500
+cmd: testScan
+args: -n OnlyOneOpBeforeOpenScan T6 
+
+max-time: 500
+cmd: testScan
+args: -n OnlyOneScanPerTrans T6 
+
+max-time: 500
+cmd: testScan
+args: -n NoCloseTransaction T6 
+
+max-time: 500
+cmd: testScan
+args: -n CheckInactivityTimeOut T6 
+
+max-time: 500
+cmd: testScan
+args: -n CheckInactivityBeforeClose T6 
+
+max-time: 500
+cmd: testScan
+args: -n CheckAfterTerror T6 
+
+max-time: 500
+cmd: testScan
+args: -n ScanReadError5021 T1 
+
+max-time: 500
+cmd: testScan
+args: -n ScanReaderror5022 T1 
+
+max-time: 500
+cmd: testScan
+args: -n ScanReadError5023 T1 
+
+max-time: 500
+cmd: testScan
+args: -n ScanReadError5024 T1 
+
+max-time: 500
+cmd: testScan
+args: -n ScanReadError5025 T1 
+
+max-time: 500
+cmd: testScan
+args: -n ScanReadError5030 T1 
+
+max-time: 500
+cmd: testScan
+args: -n InsertDelete T1 T6
+
+max-time: 500
+cmd: testScan
+args: -n CheckAfterTerror T1
+
+max-time: 500
+cmd: testScan
+args: -n ScanReadWhileNodeIsDown T1
+
+max-time: 500
+cmd: testScan
+args: -n ScanRestart T1
+
+max-time: 500
+cmd: testScan
+args: -n ScanParallelism
+
+#
+# DICT TESTS
+max-time: 1500
+cmd: testDict
+args: -n CreateAndDrop 
+
+max-time: 1500
+cmd: testDict
+args: -n CreateAndDropWithData 
+
+max-time: 1500
+cmd: testDict
+args: -n CreateAndDropDuring T6 T10 
+
+max-time: 1500
+cmd: testDict
+args: -n CreateInvalidTables 
+
+max-time: 1500
+cmd: testDict
+args: -n CreateTableWhenDbIsFull T6 
+
+max-time: 1500
+cmd: testDict
+args: -n CreateMaxTables T6 
+
+max-time: 500
+cmd: testDict
+args: -n FragmentTypeSingle T1 
+
+max-time: 1500
+cmd: testDict
+args: -n FragmentTypeAll T1 T6 T7 T8 
+
+max-time: 1500
+cmd: testDict
+args: -n FragmentTypeAllLarge T1 T6 T7 T8 
+
+max-time: 1500
+cmd: testDict
+args: -n TemporaryTables T1 T6 T7 T8 
+
+#
+# TEST NDBAPI
+#
+max-time: 500
+cmd: testDataBuffers
+args: 
+
+# Testsuite: testNdbApi
+# Number of tests: 5
+max-time: 500
+cmd: testNdbApi
+args: -n MaxNdb T6 
+
+max-time: 500
+cmd: testNdbApi
+args: -n MaxTransactions T1 T6 T7 T8 T13 
+
+max-time: 500
+cmd: testNdbApi
+args: -n MaxOperations T1 T6 T7 T8 T13 
+
+max-time: 500
+cmd: testNdbApi
+args: -n MaxGetValue T1 T6 T7 T8 T13 
+
+max-time: 500
+cmd: testNdbApi
+args: -n MaxEqual 
+
+max-time: 500
+cmd: testNdbApi
+args: -n DeleteNdb T1 T6 
+
+max-time: 500
+cmd: testNdbApi
+args: -n WaitUntilReady T1 T6 T7 T8 T13 
+
+max-time: 500
+cmd: testNdbApi
+args: -n GetOperationNoTab T6 
+
+max-time: 500
+cmd: testNdbApi
+args: -n NdbErrorOperation T6 
+
+max-time: 500
+cmd: testNdbApi
+args: -n MissingOperation T6 
+
+max-time: 500
+cmd: testNdbApi
+args: -n GetValueInUpdate T6 
+
+max-time: 500
+cmd: testNdbApi
+args: -n UpdateWithoutKeys T6 
+
+max-time: 500
+cmd: testNdbApi
+args: -n UpdateWithoutValues T6 
+
+#max-time: 500
+#cmd: testInterpreter
+#args: T1 
+#
+max-time: 150000
+cmd: testOperations
+args:
+
+max-time: 15000
+cmd: testTransactions
+args:
+
+max-time: 1500
+cmd: testRestartGci
+args: T6 
+
+max-time: 600
+cmd: testBlobs
+args:
+
+max-time: 5000
+cmd: testOIBasic
+args: 
+
+max-time: 2500
+cmd: testBitfield
+args:
+
+max-time: 2500
+cmd: testPartitioning
+args:
+
+max-time: 25000
+cmd: atrt-mysql-test-run
+args: --force
+
+#
+# INDEX
+#
+max-time: 1500
+cmd: testIndex
+args: -n CreateAll T1 T6 T13
+
+#-m 7200 1: testIndex -n InsertDeleteGentle T7
+max-time: 3600
+cmd: testIndex
+args: -n InsertDelete T1 T10 
+
+#-m 3600 1: testIndex -n CreateLoadDropGentle T7
+max-time: 3600
+cmd: testIndex
+args: -n CreateLoadDrop T1 T10 
+
+#
+# BACKUP
+#
+max-time: 600
+cmd: atrt-testBackup
+args: -n BackupOne T1 T6 T3 I3
+
+#
+#
+# SYSTEM RESTARTS
+#
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR3 T6 
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR4 T6 
+
+#
+# NODE RESTARTS
+#
+max-time: 2500
+cmd: testNodeRestart
+args: -n NoLoad T6
+
+max-time: 2500
+cmd: testNodeRestart
+args: -n MixedPkRead T6 T8 T13 
+
+max-time: 2500
+cmd: testNodeRestart
+args: -l 1 -n MixedPkReadPkUpdate 
+
+max-time: 2500
+cmd: testNodeRestart
+args: -l 1 -n MixedReadUpdateScan 
+
+max-time: 2500
+cmd: testNodeRestart
+args: -n CommittedRead T1
+
+max-time: 2500
+cmd: testNodeRestart
+args: -n FullDb T6 T13 
+
+max-time: 2500
+cmd: testNodeRestart
+args: -n RestartRandomNode T6 T13 
+
+max-time: 2500
+cmd: testNodeRestart
+args: -n RestartRandomNodeError T6 T13 
+
+max-time: 2500
+cmd: testNodeRestart
+args: -n RestartRandomNodeInitial T6 T13 
+
+max-time: 3600
+cmd: testNodeRestart
+args: -l 1 -n RestartNFDuringNR T6 T13 
+
+max-time: 2500
+cmd: testNodeRestart
+args: -n RestartMasterNodeError T6 T8 T13 
+
+max-time: 3600
+cmd: testNodeRestart
+args: -n RestartNodeDuringLCP T6 
+
+max-time: 2500
+cmd: testNodeRestart
+args: -n TwoNodeFailure T6 T8 T13 
+
+max-time: 2500
+cmd: testNodeRestart
+args: -n TwoMasterNodeFailure T6 T8 T13 
+
+max-time: 2500
+cmd: testNodeRestart
+args: -n FiftyPercentFail T6 T8 T13 
+
+max-time: 2500
+cmd: testNodeRestart
+args: -n RestartAllNodes T6 T8 T13 
+
+max-time: 2500
+cmd: testNodeRestart
+args: -n RestartAllNodesAbort T6 T8 T13 
+
+max-time: 2500
+cmd: testNodeRestart
+args: -n RestartAllNodesError9999 T6 T8 T13 
+
+max-time: 2500
+cmd: testNodeRestart
+args: -n FiftyPercentStopAndWait T6 T8 T13 
+
+#max-time: 500
+#cmd: testNodeRestart
+#args: -n StopOnError T1 
+#
+#
+max-time: 2500
+cmd: testIndex
+args: -n NFNR1 T6 T13 
+
+max-time: 2500
+cmd: testIndex
+args: -n NFNR2 T6 T13 
+
+max-time: 2500
+cmd: testIndex
+args: -n NFNR3 T6 T13 
+
+max-time: 2500
+cmd: testIndex
+args: -n BuildDuring T6 
+
+max-time: 2500
+cmd: testIndex
+args: -l 2 -n SR1 T6 T13 
+
+max-time: 2500
+cmd: testIndex
+args: -n NFNR1_O T6 T13 
+
+max-time: 2500
+cmd: testIndex
+args: -n NFNR2_O T6 T13 
+
+max-time: 2500
+cmd: testIndex
+args: -n NFNR3_O T6 T13 
+
+max-time: 2500
+cmd: testIndex
+args: -n BuildDuring_O T6 
+
+max-time: 2500
+cmd: testIndex
+args: -l 2 -n SR1_O T6 T13 
+
+max-time: 500
+cmd: testIndex
+args: -n MixedTransaction T1 
+
+max-time: 2500
+cmd: testDict
+args: -n NF1 T1 T6 T13 
+
+#
+max-time: 1500
+cmd: testSystemRestart
+args: -l 1 -n SR6 T1 
+
+max-time: 1500
+cmd: testSystemRestart
+args: -l 1 -n SR7 T1 
+
+max-time: 1500
+cmd: testSystemRestart
+args: -l 1 -n SR8 T1 
+
+max-time: 1500
+cmd: testSystemRestart
+args: -l 1 -n SR9 T1 
+
+#
+max-time: 2500
+cmd: test_event
+args: -n BasicEventOperation T1 T6 
+
+#
+#
+# SYSTEM RESTARTS
+#
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR1 T1 
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR1 T6 
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR1 T7 
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR1 T8 
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR2 T1 
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR2 T6 
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR2 T7 
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR_UNDO T1 
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR_UNDO T6 
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR_UNDO T7 
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR_UNDO T8 
+
+# OLD FLEX
+max-time: 500
+cmd: flexBench
+args: -c 25 -t 10 
+
+max-time: 500
+cmd: flexHammer
+args: -r 5 -t 32 
+

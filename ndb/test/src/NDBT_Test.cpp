@@ -617,8 +617,7 @@ int NDBT_TestCase::execute(NDBT_Context* ctx){
 	   << endl;
   }
   return res;
-};
-
+}
 
 void NDBT_TestCase::startTimer(NDBT_Context* ctx){
   timer.doStart();

@@ -438,10 +438,13 @@ public:
     const char* getDefaultValue() const;
 
     static const Column * FRAGMENT;
+    static const Column * FRAGMENT_MEMORY;
     static const Column * ROW_COUNT;
     static const Column * COMMIT_COUNT;
     static const Column * ROW_SIZE;
     static const Column * RANGE_NO;
+    
+    int getSizeInBytes() const;
 #endif
     
   private:
@@ -714,6 +717,8 @@ public:
 
     int getRowSizeInBytes() const ;
     int createTableInDb(Ndb*, bool existingEqualIsOk = true) const ;
+
+    int getReplicaCount() const ;
 #endif
 
   private:
@@ -914,6 +919,9 @@ public:
     /**
      * Specifies the type of database operations an Event listens to
      */
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+    /** TableEvent must match 1 << TriggerEvent */
+#endif
     enum TableEvent { 
       TE_INSERT=1, ///< Insert event on table
       TE_DELETE=2, ///< Delete event on table

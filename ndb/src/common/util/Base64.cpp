@@ -22,17 +22,22 @@ static char base64_table[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
                              "0123456789+/";
 
 int
-base64_encode(const UtilBuffer &src, BaseString &dst) {
-  const unsigned char *s = (const unsigned char *)src.get_data();
+base64_encode(const UtilBuffer &src, BaseString &dst) 
+{
+  return base64_encode(src.get_data(), src.length(), dst);
+}
+
+int
+base64_encode(const void * _s, size_t src_len, BaseString &dst) {
+  const unsigned char * s = (const unsigned char*)_s;
   size_t i = 0;
   size_t len = 0;
-  size_t src_len = src.length();
   while(i < src_len) {
     if(len == 76){
       len = 0;
       dst.append('\n');
     }
-
+    
     unsigned c;
     c = s[i++];
     c <<= 8;

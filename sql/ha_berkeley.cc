@@ -165,11 +165,13 @@ bool berkeley_init(void)
   {
     db_env->close(db_env,0); /* purecov: inspected */
     db_env=0; /* purecov: inspected */
+    goto err;
   }
 
   (void) hash_init(&bdb_open_tables,system_charset_info,32,0,0,
 		   (hash_get_key) bdb_get_key,0,0);
   pthread_mutex_init(&bdb_mutex,MY_MUTEX_INIT_FAST);
+err:
   DBUG_RETURN(db_env == 0);
 }
 

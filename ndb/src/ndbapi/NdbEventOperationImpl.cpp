@@ -120,24 +120,26 @@ NdbEventOperationImpl::getState()
 NdbRecAttr*
 NdbEventOperationImpl::getValue(const char *colName, char *aValue, int n)
 {
+  DBUG_ENTER("NdbEventOperationImpl::getValue");
   if (m_state != EO_CREATED) {
     ndbout_c("NdbEventOperationImpl::getValue may only be called between instantiation and execute()");
-    return NULL;
+    DBUG_RETURN(NULL);
   }
 
   NdbColumnImpl *tAttrInfo = m_eventImpl->m_tableImpl->getColumn(colName);
 
   if (tAttrInfo == NULL) {
     ndbout_c("NdbEventOperationImpl::getValue attribute %s not found",colName);
-    return NULL;
+    DBUG_RETURN(NULL);
   }
 
-  return NdbEventOperationImpl::getValue(tAttrInfo, aValue, n);
+  DBUG_RETURN(NdbEventOperationImpl::getValue(tAttrInfo, aValue, n));
 }
 
 NdbRecAttr*
 NdbEventOperationImpl::getValue(const NdbColumnImpl *tAttrInfo, char *aValue, int n)
 {
+  DBUG_ENTER("NdbEventOperationImpl::getValue");
   // Insert Attribute Id into ATTRINFO part. 
   NdbRecAttr *&theFirstRecAttr = theFirstRecAttrs[n];
   NdbRecAttr *&theCurrentRecAttr = theCurrentRecAttrs[n];
@@ -149,7 +151,7 @@ NdbEventOperationImpl::getValue(const NdbColumnImpl *tAttrInfo, char *aValue, in
   if (tRecAttr == NULL) { 
     exit(-1);
     //setErrorCodeAbort(4000);
-    return NULL;
+    DBUG_RETURN(NULL);
   }
 
   /**********************************************************************
@@ -161,7 +163,7 @@ NdbEventOperationImpl::getValue(const NdbColumnImpl *tAttrInfo, char *aValue, in
     //setErrorCodeAbort(4000);
     m_ndb->releaseRecAttr(tRecAttr);
     exit(-1);
-    return NULL;
+    DBUG_RETURN(NULL);
   }
   //theErrorLine++;
 
@@ -193,7 +195,7 @@ NdbEventOperationImpl::getValue(const NdbColumnImpl *tAttrInfo, char *aValue, in
 	tRecAttr->release(); // do I need to do this?
 	m_ndb->releaseRecAttr(tRecAttr);
 	exit(-1);
-	return NULL;
+	DBUG_RETURN(NULL);
       }
       // this is it, between p and p_next
       p->next(tRecAttr);
@@ -201,16 +203,17 @@ NdbEventOperationImpl::getValue(const NdbColumnImpl *tAttrInfo, char *aValue, in
     }
   }
 
-  return tRecAttr;
+  DBUG_RETURN(tRecAttr);
 }
 
 int
 NdbEventOperationImpl::execute()
 {
+  DBUG_ENTER("NdbEventOperationImpl::execute");
   NdbDictionary::Dictionary *myDict = m_ndb->getDictionary();
   if (!myDict) {
     m_error.code= m_ndb->getNdbError().code;
-    return -1;
+    DBUG_RETURN(-1);
   }
 
   if (theFirstRecAttrs[0] == NULL) { // defaults to get all
@@ -221,13 +224,14 @@ NdbEventOperationImpl::execute()
 
 
   int hasSubscriber;
-  int r=
-    m_bufferHandle->prepareAddSubscribeEvent(m_eventImpl->m_eventId,
-					     hasSubscriber /* return value */);
+  int r= m_bufferHandle->prepareAddSubscribeEvent(this,
+						  hasSubscriber /*return value*/);
   m_error.code= 4709;
 
   if (r < 0)
-    return -1;
+  {
+    DBUG_RETURN(-1);
+  }
 
   m_eventImpl->m_bufferId = m_bufferId = (Uint32)r;
 
@@ -252,7 +256,7 @@ NdbEventOperationImpl::execute()
     //Error
     m_state = EO_ERROR;
   }
-  return r;
+  DBUG_RETURN(r);
 }
 
 int
@@ -260,7 +264,9 @@ NdbEventOperationImpl::stop()
 {
   DBUG_ENTER("NdbEventOperationImpl::stop");
   if (m_state != EO_EXECUTING)
+  {
     DBUG_RETURN(-1);
+  }
 
   //  ndbout_c("NdbEventOperation::stopping()");
 
@@ -330,6 +336,7 @@ NdbEventOperationImpl::getLatestGCI()
 int
 NdbEventOperationImpl::next(int *pOverrun)
 {
+  DBUG_ENTER("NdbEventOperationImpl::next");
   int nr = 10000; // a high value
   int tmpOverrun = 0;
   int *ptmpOverrun;
@@ -346,7 +353,10 @@ NdbEventOperationImpl::next(int *pOverrun)
       *pOverrun = tmpOverrun;
     }
 
-    if (r <= 0) return r; // no data
+    if (r <= 0) 
+    {
+      DBUG_RETURN(r); // no data
+    }
 
     if (r < nr) r = nr; else nr--; // we don't want to be stuck here forever
   
@@ -356,7 +366,10 @@ NdbEventOperationImpl::next(int *pOverrun)
 
     // now move the data into the RecAttrs
     if ((theFirstRecAttrs[0] == NULL) && 
-	(theFirstRecAttrs[1] == NULL)) return r;
+	(theFirstRecAttrs[1] == NULL)) 
+    {
+      DBUG_RETURN(r);
+    }
     // no copying since no RecAttr's
 
 
@@ -464,9 +477,11 @@ NdbEventOperationImpl::next(int *pOverrun)
     }
     
     if (hasSomeData)
-      return r;
+    {
+      DBUG_RETURN(r);
+    }
   }
-  return 0;
+  DBUG_RETURN(0);
 }
 
 NdbDictionary::Event::TableEvent 
@@ -641,23 +656,28 @@ NdbGlobalEventBufferHandle::~NdbGlobalEventBufferHandle()
 void
 NdbGlobalEventBufferHandle::addBufferId(int bufferId)
 {
+  DBUG_ENTER("NdbGlobalEventBufferHandle::addBufferId");
+  DBUG_PRINT("enter",("bufferId=%d",bufferId));
   if (m_nids >= NDB_MAX_ACTIVE_EVENTS) {
     ndbout_c("NdbGlobalEventBufferHandle::addBufferId error in paramerer setting");
     exit(-1);
   }
   m_bufferIds[m_nids] = bufferId;
   m_nids++;
+  DBUG_VOID_RETURN;
 }
 
 void
 NdbGlobalEventBufferHandle::dropBufferId(int bufferId)
 {
+  DBUG_ENTER("NdbGlobalEventBufferHandle::dropBufferId");
+  DBUG_PRINT("enter",("bufferId=%d",bufferId));
   for (int i = 0; i < m_nids; i++)
     if (m_bufferIds[i] == bufferId) {
       m_nids--;
       for (; i < m_nids; i++)
 	m_bufferIds[i] = m_bufferIds[i+1];
-      return;
+      DBUG_VOID_RETURN;
     }
   ndbout_c("NdbGlobalEventBufferHandle::dropBufferId %d does not exist",
 	   bufferId);
@@ -676,10 +696,11 @@ NdbGlobalEventBufferHandle::drop(NdbGlobalEventBufferHandle *handle)
 }
 */
 int 
-NdbGlobalEventBufferHandle::prepareAddSubscribeEvent(Uint32 eventId,
-						     int& hasSubscriber)
+NdbGlobalEventBufferHandle::prepareAddSubscribeEvent
+(NdbEventOperationImpl *eventOp, int& hasSubscriber)
 {
-  ADD_DROP_LOCK_GUARDR(int,real_prepareAddSubscribeEvent(this, eventId, hasSubscriber));
+  ADD_DROP_LOCK_GUARDR(int,real_prepareAddSubscribeEvent(this, eventOp,
+							 hasSubscriber));
 }
 void
 NdbGlobalEventBufferHandle::addSubscribeEvent
@@ -841,7 +862,7 @@ NdbGlobalEventBuffer::real_init (NdbGlobalEventBufferHandle *h,
       // (BufItem *)NdbMem_Allocate(m_max*sizeof(BufItem));
 
     for (int i=0; i<m_max; i++) {
-      m_buf[i].gId = 0;
+      m_buf[i].gId= 0;
     }
   }
   // TODO make sure we don't hit roof
@@ -870,20 +891,22 @@ NdbGlobalEventBuffer::real_remove(NdbGlobalEventBufferHandle *h)
   exit(-1);
 }
 
-int 
+int
 NdbGlobalEventBuffer::real_prepareAddSubscribeEvent
-(NdbGlobalEventBufferHandle *aHandle, Uint32 eventId, int& hasSubscriber)
+(NdbGlobalEventBufferHandle *aHandle, NdbEventOperationImpl *eventOp,
+ int& hasSubscriber)
 {
   DBUG_ENTER("NdbGlobalEventBuffer::real_prepareAddSubscribeEvent");
   int i;
-  int bufferId = -1;
+  int bufferId= -1;
+  Uint32 eventId= eventOp->m_eventId;
 
   //  add_drop_lock(); // only one thread can do add or drop at a time
 
   // Find place where eventId already set
   for (i=0; i<m_no; i++) {
     if (m_buf[i].gId == eventId) {
-      bufferId = i;
+      bufferId= i;
       break;
     }
   }
@@ -891,56 +914,55 @@ NdbGlobalEventBuffer::real_prepareAddSubscribeEvent
     // find space for new bufferId
     for (i=0; i<m_no; i++) {
       if (m_buf[i].gId == 0) {
-	bufferId = i; // we found an empty spot
-	break;
+	bufferId= i; // we found an empty spot
+	goto found_bufferId;
       }
     }
     if (bufferId < 0 &&
 	m_no < m_max) {
       // room for more so get that
-      bufferId=m_no;
-      m_buf[m_no].gId = 0;
+      bufferId= m_no;
+      m_buf[m_no].gId= 0;
       m_no++;
     } else {
-      ndbout_c("prepareAddSubscribeEvent: Can't accept more subscribers");
-      //      add_drop_unlock();
+       //      add_drop_unlock();
       DBUG_PRINT("error",("Can't accept more subscribers:"
 			  " bufferId=%d, m_no=%d, m_max=%d",
 			  bufferId, m_no, m_max));
       DBUG_RETURN(-1);
     }
   }
+found_bufferId:
 
-  BufItem &b = m_buf[ID(bufferId)];
+  BufItem &b= m_buf[ID(bufferId)];
 
   if (b.gId == 0) { // first subscriber needs some initialization
 
-    bufferId = NO_ID(0, bufferId);
+    bufferId= NO_ID(0, bufferId);
 
-    b.gId = eventId;
+    b.gId= eventId;
+    b.eventType= (Uint32)eventOp->m_eventImpl->mi_type;
 
-    if ((b.p_buf_mutex = NdbMutex_Create()) == NULL) {
+    if ((b.p_buf_mutex= NdbMutex_Create()) == NULL) {
       ndbout_c("NdbGlobalEventBuffer: NdbMutex_Create() failed");
-      exit(-1);
+      abort();
     }
 
-    b.subs = 0;
-    b.f = 0;
-    b.sz = 0;
-    b.max_sz = aHandle->m_bufferL;
-    b.data = 
+    b.subs= 0;
+    b.f= 0;
+    b.sz= 0;
+    b.max_sz= aHandle->m_bufferL;
+    b.data= 
       (BufItem::Data *)NdbMem_Allocate(b.max_sz*sizeof(BufItem::Data));
     for (int i = 0; i < b.max_sz; i++) {
-      b.data[i].sdata = NULL;
-      b.data[i].ptr[0].p = NULL;
-      b.data[i].ptr[1].p = NULL;
-      b.data[i].ptr[2].p = NULL;
+      b.data[i].sdata= NULL;
+      b.data[i].ptr[0].p= NULL;
+      b.data[i].ptr[1].p= NULL;
+      b.data[i].ptr[2].p= NULL;
     }
   } else {
-#ifdef EVENT_DEBUG
-    ndbout_c("NdbGlobalEventBuffer::prepareAddSubscribeEvent: TRYING handle one subscriber per event b.subs = %u", b.subs);
-#endif
-
+    DBUG_PRINT("info",
+	       ("TRYING handle one subscriber per event b.subs=%u",b.subs));
     int ni = -1;
     for(int i=0; i < b.subs;i++) {
       if (b.ps[i].theHandle == NULL) {
@@ -952,7 +974,8 @@ NdbGlobalEventBuffer::real_prepareAddSubscribeEvent
       if (b.subs < MAX_SUBSCRIBERS_PER_EVENT) {
 	ni = b.subs;
       } else {
-	ndbout_c("prepareAddSubscribeEvent: Can't accept more subscribers");
+	DBUG_PRINT("error",
+		   ("Can't accept more subscribers: b.subs=%d",b.subs));
 	//	add_drop_unlock();
 	DBUG_RETURN(-1);
       }
@@ -975,10 +998,8 @@ NdbGlobalEventBuffer::real_prepareAddSubscribeEvent
   else
     hasSubscriber = 0;
 
-#ifdef EVENT_DEBUG
-  ndbout_c("prepareAddSubscribeEvent: handed out bufferId %d for eventId %d",
-	   bufferId, eventId);
-#endif
+  DBUG_PRINT("info",("handed out bufferId=%d for eventId=%d hasSubscriber=%d",
+		     bufferId, eventId, hasSubscriber));
 
   /* we now have a lock on the prepare so that no one can mess with this
    * unlock comes in unprepareAddSubscribeEvent or addSubscribeEvent
@@ -989,8 +1010,12 @@ NdbGlobalEventBuffer::real_prepareAddSubscribeEvent
 void
 NdbGlobalEventBuffer::real_unprepareAddSubscribeEvent(int bufferId)
 {
+  DBUG_ENTER("NdbGlobalEventBuffer::real_unprepareAddSubscribeEvent");
   BufItem &b = m_buf[ID(bufferId)];
   int n = NO(bufferId);
+
+  DBUG_PRINT("enter", ("bufferId=%d,ID(bufferId)=%d,NO(bufferId)=%d",
+		       bufferId, ID(bufferId), NO(bufferId)));
 
   b.ps[n].theHandle = NULL;
 
@@ -1004,10 +1029,8 @@ NdbGlobalEventBuffer::real_unprepareAddSubscribeEvent(int bufferId)
       break;
 
   if (b.subs == 0) {
-#ifdef EVENT_DEBUG
-    ndbout_c("unprepareAddSubscribeEvent: no more subscribers left on eventId %d", b.gId);
-#endif
-    b.gId = 0;  // We don't have any subscribers, reuse BufItem
+    DBUG_PRINT("info",("no more subscribers left on eventId %d", b.gId));
+    b.gId= 0;  // We don't have any subscribers, reuse BufItem
     if (b.data) {
       NdbMem_Free((void *)b.data);
       b.data = NULL;
@@ -1018,12 +1041,14 @@ NdbGlobalEventBuffer::real_unprepareAddSubscribeEvent(int bufferId)
     }
   }
   //  add_drop_unlock();
+  DBUG_VOID_RETURN;
 }
 
 void
 NdbGlobalEventBuffer::real_addSubscribeEvent(int bufferId, 
 					     void *ndbEventOperation)
 {
+  DBUG_ENTER("NdbGlobalEventBuffer::real_addSubscribeEvent");
   BufItem &b = m_buf[ID(bufferId)];
   int n = NO(bufferId);
 
@@ -1031,9 +1056,8 @@ NdbGlobalEventBuffer::real_addSubscribeEvent(int bufferId,
   b.ps[n].theHandle->addBufferId(bufferId);
 
   //  add_drop_unlock();
-#ifdef EVENT_DEBUG
-  ndbout_c("addSubscribeEvent:: added bufferId %d", bufferId);
-#endif
+  DBUG_PRINT("info",("added bufferId %d", bufferId));
+  DBUG_VOID_RETURN;
 }
 
 void
@@ -1062,7 +1086,9 @@ NdbGlobalEventBuffer::real_prepareDropSubscribeEvent(int bufferId,
   else if (n == 1)
     hasSubscriber = 0;
   else
+  {
     DBUG_RETURN(-1);
+  }
 
   DBUG_RETURN(0);
 }
@@ -1070,6 +1096,7 @@ NdbGlobalEventBuffer::real_prepareDropSubscribeEvent(int bufferId,
 void
 NdbGlobalEventBuffer::real_dropSubscribeEvent(int bufferId)
 {
+  DBUG_ENTER("NdbGlobalEventBuffer::real_dropSubscribeEvent");
   //  add_drop_lock(); // only one thread can do add-drop at a time
 
   BufItem &b = m_buf[ID(bufferId)];
@@ -1085,6 +1112,7 @@ NdbGlobalEventBuffer::real_dropSubscribeEvent(int bufferId)
 #ifdef EVENT_DEBUG
   ndbout_c("dropSubscribeEvent:: dropped bufferId %d", bufferId);
 #endif
+  DBUG_VOID_RETURN;
 }
 
 void
@@ -1107,10 +1135,13 @@ NdbGlobalEventBuffer::real_insertDataL(int bufferId,
 				       const SubTableData * const sdata, 
 				       LinearSectionPtr ptr[3])
 {
+  DBUG_ENTER("NdbGlobalEventBuffer::real_insertDataL");
   BufItem &b = m_buf[ID(bufferId)];
 #ifdef EVENT_DEBUG
   int n = NO(bufferId);
 #endif
+
+  if ( b.eventType & (1 << (Uint32)sdata->operation) )
   {
     if (b.subs) {
 #ifdef EVENT_DEBUG
@@ -1119,7 +1150,9 @@ NdbGlobalEventBuffer::real_insertDataL(int bufferId,
       // move front forward
       if (copy_data_alloc(sdata, ptr,
 			  b.data[b.f].sdata, b.data[b.f].ptr))
-	return -1;
+      {
+	DBUG_RETURN(-1);
+      }
       for (int i=0; i < b.subs; i++) {
 	NdbGlobalEventBuffer::BufItem::Ps &e = b.ps[i];
 	if (e.theHandle) { // active subscriber
@@ -1127,7 +1160,7 @@ NdbGlobalEventBuffer::real_insertDataL(int bufferId,
 	    if (e.bufferempty == 0) {
 	      e.overrun++; // another item has been overwritten
 	      e.b++; // move next-to-read next since old item was overwritten
-	      if (e.b == b.max_sz) e.b = 0; // start from beginning
+	      if (e.b == b.max_sz) e.b= 0; // start from beginning
 	    }
 	  }
 	  e.bufferempty = 0;
@@ -1147,21 +1180,35 @@ NdbGlobalEventBuffer::real_insertDataL(int bufferId,
 #endif
     }
   }
-  return 0;
+  else
+  {
+#ifdef EVENT_DEBUG
+    ndbout_c("skipped");
+#endif
+  }
+
+  DBUG_RETURN(0);
 }
 
 int NdbGlobalEventBuffer::hasData(int bufferId) {
+  DBUG_ENTER("NdbGlobalEventBuffer::hasData");
   BufItem &b = m_buf[ID(bufferId)];
   int n = NO(bufferId);
   NdbGlobalEventBuffer::BufItem::Ps &e = b.ps[n];
 
   if(e.bufferempty)
-    return 0;
+  {
+    DBUG_RETURN(0);
+  }
 
   if (b.f <= e.b)
-    return b.max_sz-e.b + b.f;
+  {
+    DBUG_RETURN(b.max_sz-e.b + b.f);
+  }
   else
-    return b.f-e.b;
+  {
+    DBUG_RETURN(b.f-e.b);
+  }
 }
 
 int NdbGlobalEventBuffer::real_getDataL(const int bufferId,
@@ -1169,6 +1216,7 @@ int NdbGlobalEventBuffer::real_getDataL(const int bufferId,
 					LinearSectionPtr ptr[3],
 					int *pOverrun)
 {
+  DBUG_ENTER("NdbGlobalEventBuffer::real_getDataL");
   BufItem &b = m_buf[ID(bufferId)];
   int n = NO(bufferId);
   NdbGlobalEventBuffer::BufItem::Ps &e = b.ps[n];
@@ -1179,13 +1227,17 @@ int NdbGlobalEventBuffer::real_getDataL(const int bufferId,
   }
 
   if (e.bufferempty)
-    return 0; // nothing to get
+  {
+    DBUG_RETURN(0); // nothing to get
+  }
 
   if (copy_data_alloc(b.data[e.b].sdata, b.data[e.b].ptr,
 		      sdata, ptr))
-    return -1;
+  {
+    DBUG_RETURN(-1);
+  }
 
-  e.b++; if (e.b == b.max_sz) e.b = 0; // move next-to-read forward
+  e.b++; if (e.b == b.max_sz) e.b= 0; // move next-to-read forward
 
   if (b.f == e.b) // back has cought up with front
     e.bufferempty = 1;
@@ -1194,7 +1246,7 @@ int NdbGlobalEventBuffer::real_getDataL(const int bufferId,
   ndbout_c("getting data from buffer %d with eventId %d", bufferId, b.gId);
 #endif
 
-  return hasData(bufferId)+1;
+  DBUG_RETURN(hasData(bufferId)+1);
 }
 int 
 NdbGlobalEventBuffer::copy_data_alloc(const SubTableData * const f_sdata,
@@ -1202,6 +1254,7 @@ NdbGlobalEventBuffer::copy_data_alloc(const SubTableData * const f_sdata,
 				      SubTableData * &t_sdata,
 				      LinearSectionPtr t_ptr[3])
 {
+  DBUG_ENTER("NdbGlobalEventBuffer::copy_data_alloc");
   if (t_sdata == NULL) {
     t_sdata = (SubTableData *)NdbMem_Allocate(sizeof(SubTableData));
   }
@@ -1223,28 +1276,34 @@ NdbGlobalEventBuffer::copy_data_alloc(const SubTableData * const f_sdata,
     }
     t_p.sz = f_p.sz;
   }
-  return 0;
+  DBUG_RETURN(0);
 }
 int
 NdbGlobalEventBuffer::real_wait(NdbGlobalEventBufferHandle *h,
 				int aMillisecondNumber)
 {
+  DBUG_ENTER("NdbGlobalEventBuffer::real_wait");
   // check if there are anything in any of the buffers
   int i;
   int n = 0;
   for (i = 0; i < h->m_nids; i++)
     n += hasData(h->m_bufferIds[i]);
-  if (n) return n;
+  if (n) 
+  {
+    DBUG_RETURN(n);
+  }
 
   int r = NdbCondition_WaitTimeout(h->p_cond, ndb_global_event_buffer_mutex,
 				   aMillisecondNumber);
   if (r > 0)
-    return -1;
+  {
+    DBUG_RETURN(-1);
+  }
 
   n = 0;
   for (i = 0; i < h->m_nids; i++)
     n += hasData(h->m_bufferIds[i]);
-  return n;
+  DBUG_RETURN(n);
 }
 
 template class Vector<NdbGlobalEventBufferHandle*>;
