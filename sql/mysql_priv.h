@@ -45,7 +45,7 @@ char *sql_strdup(const char *str);
 char *sql_strmake(const char *str,uint len);
 gptr sql_memdup(const void * ptr,unsigned size);
 void sql_element_free(void *ptr);
-void kill_one_thread(THD *thd, ulong id);
+void kill_one_thread(THD *thd, ulong id, bool only_kill_query);
 bool net_request_file(NET* net, const char* fname);
 char* query_table_status(THD *thd,const char *db,const char *table_name);
 
@@ -364,7 +364,7 @@ extern "C" pthread_handler_decl(handle_one_connection,arg);
 extern "C" pthread_handler_decl(handle_bootstrap,arg);
 void end_thread(THD *thd,bool put_in_cache);
 void flush_thread_cache();
-void mysql_execute_command(THD *thd);
+int mysql_execute_command(THD *thd);
 bool do_command(THD *thd);
 bool dispatch_command(enum enum_server_command command, THD *thd,
 		      char* packet, uint packet_length);

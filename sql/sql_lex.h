@@ -21,6 +21,9 @@
 class Table_ident;
 class sql_exchange;
 class LEX_COLUMN;
+class sp_head;
+class sp_instr;
+class sp_pcontext;
 
 /*
   The following hack is needed because mysql_yacc.cc does not define
@@ -72,6 +75,8 @@ enum enum_sql_command {
   SQLCOM_SHOW_WARNS, SQLCOM_EMPTY_QUERY, SQLCOM_SHOW_ERRORS,
   SQLCOM_SHOW_COLUMN_TYPES, SQLCOM_SHOW_TABLE_TYPES, SQLCOM_SHOW_PRIVILEGES,
   SQLCOM_HELP,
+  SQLCOM_CREATE_PROCEDURE, SQLCOM_CREATE_SPFUNCTION, SQLCOM_CALL,
+  SQLCOM_DROP_PROCEDURE, SQLCOM_ALTER_PROCEDURE,SQLCOM_ALTER_FUNCTION,
 
   /* This should be the last !!! */
   SQLCOM_END
@@ -429,6 +434,7 @@ typedef struct st_lex
   SELECT_LEX_NODE *current_select;
   /* list of all SELECT_LEX */
   SELECT_LEX *all_selects_list;
+  uchar *buf;			/* The beginning of string, used by SPs */
   uchar *ptr,*tok_start,*tok_end,*end_of_query;
   char *length,*dec,*change,*name;
   char *backup_dir;				/* For RESTORE/BACKUP */
@@ -488,6 +494,10 @@ typedef struct st_lex
   CHARSET_INFO *charset;
   char *help_arg;
   SQL_LIST *gorder_list;
+  sp_head *sphead;
+  sp_pcontext *spcont;
+  List<char> spfuns;		/* Called functions */
+
   st_lex() {}
   inline void uncacheable()
   {

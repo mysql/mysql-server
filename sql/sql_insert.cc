@@ -23,7 +23,7 @@
 static int check_null_fields(THD *thd,TABLE *entry);
 static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list);
 static int write_delayed(THD *thd,TABLE *table, enum_duplicates dup,
-			 char *query, uint query_length, int log_on);
+			 char *query, uint query_length, bool log_on);
 static void end_delayed_insert(THD *thd);
 extern "C" pthread_handler_decl(handle_delayed_insert,arg);
 static void unlink_blobs(register TABLE *table);
@@ -37,9 +37,6 @@ static void unlink_blobs(register TABLE *table);
 #define my_safe_alloca(size, min_length) ((size <= min_length) ? my_alloca(size) : my_malloc(size,MYF(0)))
 #define my_safe_afree(ptr, size, min_length) if (size > min_length) my_free(ptr,MYF(0))
 #endif
-
-#define DELAYED_LOG_UPDATE 1
-#define DELAYED_LOG_BIN    2
 
 /*
   Check if insert fields are correct
@@ -114,8 +111,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
     By default, both logs are enabled (this won't cause problems if the server
     runs without --log-update or --log-bin).
   */
-  int log_on= DELAYED_LOG_UPDATE | DELAYED_LOG_BIN ;
-
+  bool log_on= (thd->options & OPTION_BIN_LOG) || (!(thd->master_access & SUPER_ACL));
   bool transactional_table, log_delayed, bulk_insert;
   uint value_count;
   ulong counter = 1;
@@ -129,14 +125,6 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
   TABLE_LIST *insert_table_list= (TABLE_LIST*)
     thd->lex.select_lex.table_list.first;
   DBUG_ENTER("mysql_insert");
-
-  if (thd->master_access & SUPER_ACL)
-  {
-    if (!(thd->options & OPTION_UPDATE_LOG))
-      log_on&= ~(int) DELAYED_LOG_UPDATE;
-    if (!(thd->options & OPTION_BIN_LOG))
-      log_on&= ~(int) DELAYED_LOG_BIN;
-  }
 
   /*
     in safe mode or with skip-new change delayed insert to be regular
@@ -338,7 +326,6 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
     log_delayed= (transactional_table || table->tmp_table);
     if ((info.copied || info.deleted) && (error <= 0 || !transactional_table))
     {
-      mysql_update_log.write(thd, thd->query, thd->query_length);
       if (mysql_bin_log.is_open())
       {
 	Query_log_event qinfo(thd, thd->query, thd->query_length,
@@ -562,13 +549,12 @@ public:
   char *record,*query;
   enum_duplicates dup;
   time_t start_time;
-  bool query_start_used,last_insert_id_used,insert_id_used;
-  int log_query;
+  bool query_start_used,last_insert_id_used,insert_id_used, log_query;
   ulonglong last_insert_id;
   ulong time_stamp;
   uint query_length;
 
-  delayed_row(enum_duplicates dup_arg, int log_query_arg)
+  delayed_row(enum_duplicates dup_arg, bool log_query_arg)
     :record(0),query(0),dup(dup_arg),log_query(log_query_arg) {}
   ~delayed_row()
   {
@@ -871,7 +857,7 @@ TABLE *delayed_insert::get_local_table(THD* client_thd)
 /* Put a question in queue */
 
 static int write_delayed(THD *thd,TABLE *table,enum_duplicates duplic,
-			 char *query, uint query_length, int log_on)
+			 char *query, uint query_length, bool log_on)
 {
   delayed_row *row=0;
   delayed_insert *di=thd->di;
@@ -951,7 +937,7 @@ void kill_delayed_threads(void)
   {
     /* Ensure that the thread doesn't kill itself while we are looking at it */
     pthread_mutex_lock(&tmp->mutex);
-    tmp->thd.killed=1;
+    tmp->thd.killed= THD::KILL_CONNECTION;
     if (tmp->thd.mysys_var)
     {
       pthread_mutex_lock(&tmp->thd.mysys_var->mutex);
@@ -990,7 +976,7 @@ extern "C" pthread_handler_decl(handle_delayed_insert,arg)
   thd->thread_id=thread_id++;
   thd->end_time();
   threads.append(thd);
-  thd->killed=abort_loop;
+  thd->killed=abort_loop ? THD::KILL_CONNECTION : THD::NOT_KILLED;
   pthread_mutex_unlock(&LOCK_thread_count);
 
   pthread_mutex_lock(&di->mutex);
@@ -1043,7 +1029,7 @@ extern "C" pthread_handler_decl(handle_delayed_insert,arg)
 
   for (;;)
   {
-    if (thd->killed)
+    if (thd->killed == THD::KILL_CONNECTION)
     {
       uint lock_count;
       /*
@@ -1091,7 +1077,7 @@ extern "C" pthread_handler_decl(handle_delayed_insert,arg)
 	  break;
 	if (error == ETIME || error == ETIMEDOUT)
 	{
-	  thd->killed=1;
+	  thd->killed= THD::KILL_CONNECTION;
 	  break;
 	}
       }
@@ -1110,7 +1096,7 @@ extern "C" pthread_handler_decl(handle_delayed_insert,arg)
       /* request for new delayed insert */
       if (!(thd->lock=mysql_lock_tables(thd,&di->table,1)))
       {
-	di->dead=thd->killed=1;			// Fatal error
+	di->dead=thd->killed= THD::KILL_CONNECTION;			// Fatal error
       }
       pthread_cond_broadcast(&di->cond_client);
     }
@@ -1118,7 +1104,7 @@ extern "C" pthread_handler_decl(handle_delayed_insert,arg)
     {
       if (di->handle_inserts())
       {
-	di->dead=thd->killed=1;			// Some fatal error
+	di->dead=thd->killed=THD::KILL_CONNECTION;			// Some fatal error
       }
     }
     di->status=0;
@@ -1145,7 +1131,7 @@ end:
 
   close_thread_tables(thd);			// Free the table
   di->table=0;
-  di->dead=thd->killed=1;			// If error
+  di->dead=thd->killed= THD::KILL_CONNECTION;	// If error
   pthread_cond_broadcast(&di->cond_client);	// Safety
   pthread_mutex_unlock(&di->mutex);
 
@@ -1214,7 +1200,7 @@ bool delayed_insert::handle_inserts(void)
   max_rows=delayed_insert_limit;
   if (thd.killed || table->version != refresh_version)
   {
-    thd.killed=1;
+    thd.killed= THD::KILL_CONNECTION;
     max_rows= ~0;				// Do as much as possible
   }
 
@@ -1258,15 +1244,10 @@ bool delayed_insert::handle_inserts(void)
       using_ignore=0;
       table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
     }
-    if (row->query)
+    if (row->query && row->log_query && using_bin_log)
     {
-      if (row->log_query & DELAYED_LOG_UPDATE)
-        mysql_update_log.write(&thd,row->query, row->query_length);
-      if (row->log_query & DELAYED_LOG_BIN && using_bin_log)
-      {
-        Query_log_event qinfo(&thd, row->query, row->query_length,0);
-        mysql_bin_log.write(&qinfo);
-      }
+      Query_log_event qinfo(&thd, row->query, row->query_length,0);
+      mysql_bin_log.write(&qinfo);
     }
     if (table->blob_fields)
       free_delayed_insert_blobs(table);
@@ -1449,7 +1430,6 @@ bool select_insert::send_eof()
     if (last_insert_id)
       thd->insert_id(last_insert_id);		// For update log
     ::send_ok(thd,info.copied,last_insert_id,buff);
-    mysql_update_log.write(thd,thd->query,thd->query_length);
     return 0;
   }
 }

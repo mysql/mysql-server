@@ -79,7 +79,6 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list)
   /* Lets hope this doesn't fail as the result will be messy */ 
   if (!error)
   {
-    mysql_update_log.write(thd,thd->query,thd->query_length);
     if (mysql_bin_log.is_open())
     {
       Query_log_event qinfo(thd, thd->query, thd->query_length, 0);

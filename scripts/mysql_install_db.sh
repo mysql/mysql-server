@@ -353,6 +353,19 @@ then
   c_c="$c_c   comment='Column privileges';"
 fi
 
+if test ! -f $mdata/proc.frm
+then
+  echo "Preparing proc table"
+
+  c_p="$c_p CREATE TABLE proc ("
+  c_p="$c_p   name char(64) binary DEFAULT '' NOT NULL,"
+  c_p="$c_p   type enum('function','procedure') NOT NULL,"
+  c_p="$c_p   body blob DEFAULT '' NOT NULL,"
+  c_p="$c_p   PRIMARY KEY (name,type)"
+  c_p="$c_p )"
+  c_p="$c_p   comment='Stored Procedures';"
+fi
+
 echo "Installing privilege tables"
 if (
     cat << END_OF_DATA
@@ -371,6 +384,7 @@ $i_f
 
 $c_t
 $c_c
+$c_p
 END_OF_DATA
    if test -n "$fill_help_tables"
    then
