@@ -70,12 +70,14 @@ void Field_num::prepend_zeros(String *value)
   This is only used to give warnings in ALTER TABLE or LOAD DATA...
 */
 
-bool test_if_int(const char *str,int length)
+bool test_if_int(const char *str,int length, CHARSET_INFO *cs)
 {
   const char *end=str+length;
 
+  cs=system_charset_info; // QQ move test_if_int into CHARSET_INFO struct
+
   // Allow start space
-  while (str != end && my_isspace(system_charset_info,*str))
+  while (str != end && my_isspace(cs,*str))
     str++; /* purecov: inspected */
   if (str != end && (*str == '-' || *str == '+'))
     str++;
@@ -83,7 +85,7 @@ bool test_if_int(const char *str,int length)
     return 0;					// Error: Empty string
   for (; str != end ; str++)
   {
-    if (!my_isdigit(system_charset_info,*str))
+    if (!my_isdigit(cs,*str))
     {
       if (*str == '.')
       {						// Allow '.0000'
@@ -91,10 +93,10 @@ bool test_if_int(const char *str,int length)
 	if (str == end)
 	  return 1;
       }
-      if (!my_isspace(system_charset_info,*str))
+      if (!my_isspace(cs,*str))
 	return 0;
       for (str++ ; str != end ; str++)
-	if (!my_isspace(system_charset_info,*str))
+	if (!my_isspace(cs,*str))
 	  return 0;
       return 1;
     }
@@ -103,9 +105,11 @@ bool test_if_int(const char *str,int length)
 }
 
 
-static bool test_if_real(const char *str,int length)
+static bool test_if_real(const char *str,int length, CHARSET_INFO *cs)
 {
-  while (length && my_isspace(system_charset_info,*str))
+  cs=system_charset_info; // QQ move test_if_int into CHARSET_INFO struct
+
+  while (length && my_isspace(cs,*str))
   {						// Allow start space
     length--; str++;
   }
@@ -114,10 +118,10 @@ static bool test_if_real(const char *str,int length)
   if (*str == '+' || *str == '-')
   {
     length--; str++;
-    if (!length || !(my_isdigit(system_charset_info,*str) || *str == '.'))
+    if (!length || !(my_isdigit(cs,*str) || *str == '.'))
       return 0;
   }
-  while (length && my_isdigit(system_charset_info,*str))
+  while (length && my_isdigit(cs,*str))
   {
     length--; str++;
   }
@@ -126,7 +130,7 @@ static bool test_if_real(const char *str,int length)
   if (*str == '.')
   {
     length--; str++;
-    while (length && my_isdigit(system_charset_info,*str))
+    while (length && my_isdigit(cs,*str))
     {
       length--; str++;
     }
@@ -136,18 +140,18 @@ static bool test_if_real(const char *str,int length)
   if (*str == 'E' || *str == 'e')
   {
     if (length < 3 || (str[1] != '+' && str[1] != '-') || 
-        !my_isdigit(system_charset_info,str[2]))
+        !my_isdigit(cs,str[2]))
       return 0;
     length-=3;
     str+=3;
-    while (length && my_isdigit(system_charset_info,*str))
+    while (length && my_isdigit(cs,*str))
     {
       length--; str++;
     }
   }
   for (; length ; length--, str++)
   {						// Allow end space
-    if (!my_isspace(system_charset_info,*str))
+    if (!my_isspace(cs,*str))
       return 0;
   }
   return 1;
@@ -290,23 +294,23 @@ void Field::store_time(TIME *ltime,timestamp_type type)
   char buff[25];
   switch (type)  {
   case TIMESTAMP_NONE:
-    store("",0,default_charset_info);	// Probably an error
+    store("",0,my_charset_latin1);	// Probably an error
     break;
   case TIMESTAMP_DATE:
     sprintf(buff,"%04d-%02d-%02d", ltime->year,ltime->month,ltime->day);
-    store(buff,10,default_charset_info);
+    store(buff,10,my_charset_latin1);
     break;
   case TIMESTAMP_FULL:
     sprintf(buff,"%04d-%02d-%02d %02d:%02d:%02d",
 	    ltime->year,ltime->month,ltime->day,
 	    ltime->hour,ltime->minute,ltime->second);
-    store(buff,19,default_charset_info);
+    store(buff,19,my_charset_latin1);
     break;
   case TIMESTAMP_TIME:
   {
     ulong length= my_sprintf(buff, (buff, "%02d:%02d:%02d",
 				    ltime->hour,ltime->minute,ltime->second));
-    store(buff,(uint) length, default_charset_info);
+    store(buff,(uint) length, my_charset_latin1);
     break;
   }
   }
@@ -326,7 +330,7 @@ bool Field::optimize_range(uint idx)
 void
 Field_decimal::reset(void)
 {
-  Field_decimal::store("0",1,default_charset_info);
+  Field_decimal::store("0",1,my_charset_latin1);
 }
 
 void Field_decimal::overflow(bool negative)
@@ -923,7 +927,7 @@ int Field_tiny::store(const char *from,uint len,CHARSET_INFO *cs)
       current_thd->cuted_fields++;
       error= 1;
     }
-    else if (current_thd->count_cuted_fields && !test_if_int(from,len))
+    else if (current_thd->count_cuted_fields && !test_if_int(from,len,cs))
     {
       current_thd->cuted_fields++;
       error= 1;
@@ -943,7 +947,7 @@ int Field_tiny::store(const char *from,uint len,CHARSET_INFO *cs)
       current_thd->cuted_fields++;
       error= 1;
     }
-    else if (current_thd->count_cuted_fields && !test_if_int(from,len))
+    else if (current_thd->count_cuted_fields && !test_if_int(from,len,cs))
     {
       current_thd->cuted_fields++;
       error= 1;
@@ -1053,13 +1057,17 @@ longlong Field_tiny::val_int(void)
 String *Field_tiny::val_str(String *val_buffer,
 			    String *val_ptr __attribute__((unused)))
 {
+  CHARSET_INFO *cs=current_thd->thd_charset;
   uint length;
-  val_buffer->alloc(max(field_length+1,5));
+  uint mlength=max(field_length+1,5*cs->mbmaxlen);
+  val_buffer->alloc(mlength);
   char *to=(char*) val_buffer->ptr();
+
   if (unsigned_flag)
-    length= (uint) (int10_to_str((long) *((uchar*) ptr),to,10)-to);
+    length= (uint) cs->l10tostr(cs,to,mlength, 10,(long) *((uchar*) ptr));
   else
-    length= (uint) (int10_to_str((long) *((signed char*) ptr),to,-10)-to);
+    length= (uint) cs->l10tostr(cs,to,mlength,-10,(long) *((signed char*) ptr));
+  
   val_buffer->length(length);
   if (zerofill)
     prepend_zeros(val_buffer);
@@ -1115,7 +1123,7 @@ int Field_short::store(const char *from,uint len,CHARSET_INFO *cs)
       current_thd->cuted_fields++;
       error= 1;
     }
-    else if (current_thd->count_cuted_fields && !test_if_int(from,len))
+    else if (current_thd->count_cuted_fields && !test_if_int(from,len,cs))
     {
       current_thd->cuted_fields++;
       error= 1;
@@ -1135,7 +1143,7 @@ int Field_short::store(const char *from,uint len,CHARSET_INFO *cs)
       current_thd->cuted_fields++;
       error= 1;
     }
-    else if (current_thd->count_cuted_fields && !test_if_int(from,len))
+    else if (current_thd->count_cuted_fields && !test_if_int(from,len,cs))
     {
       current_thd->cuted_fields++;
       error= 1;
@@ -1280,8 +1288,10 @@ longlong Field_short::val_int(void)
 String *Field_short::val_str(String *val_buffer,
 			     String *val_ptr __attribute__((unused)))
 {
+  CHARSET_INFO *cs=current_thd->thd_charset;
   uint length;
-  val_buffer->alloc(max(field_length+1,7));
+  uint mlength=max(field_length+1,7*cs->mbmaxlen);
+  val_buffer->alloc(mlength);
   char *to=(char*) val_buffer->ptr();
   short j;
 #ifdef WORDS_BIGENDIAN
@@ -1292,9 +1302,9 @@ String *Field_short::val_str(String *val_buffer,
     shortget(j,ptr);
 
   if (unsigned_flag)
-    length=(uint) (int10_to_str((long) (uint16) j,to,10)-to);
+    length=(uint) cs->l10tostr(cs,to,mlength, 10, (long) (uint16) j);
   else
-    length=(uint) (int10_to_str((long) j,to,-10)-to);
+    length=(uint) cs->l10tostr(cs,to,mlength,-10, (long) j);
   val_buffer->length(length);
   if (zerofill)
     prepend_zeros(val_buffer);
@@ -1378,7 +1388,7 @@ int Field_medium::store(const char *from,uint len,CHARSET_INFO *cs)
       current_thd->cuted_fields++;
       error= 1;
     }
-    else if (current_thd->count_cuted_fields && !test_if_int(from,len))
+    else if (current_thd->count_cuted_fields && !test_if_int(from,len,cs))
     {
       current_thd->cuted_fields++;
       error= 1;
@@ -1398,7 +1408,7 @@ int Field_medium::store(const char *from,uint len,CHARSET_INFO *cs)
       current_thd->cuted_fields++;
       error= 1;
     }
-    else if (current_thd->count_cuted_fields && !test_if_int(from,len))
+    else if (current_thd->count_cuted_fields && !test_if_int(from,len,cs))
     {
       current_thd->cuted_fields++;
       error= 1;
@@ -1513,12 +1523,14 @@ longlong Field_medium::val_int(void)
 String *Field_medium::val_str(String *val_buffer,
 			      String *val_ptr __attribute__((unused)))
 {
+  CHARSET_INFO *cs=current_thd->thd_charset;
   uint length;
-  val_buffer->alloc(max(field_length+1,10));
+  uint mlength=max(field_length+1,10*cs->mbmaxlen);
+  val_buffer->alloc(mlength);
   char *to=(char*) val_buffer->ptr();
   long j= unsigned_flag ? (long) uint3korr(ptr) : sint3korr(ptr);
 
-  length=(uint) (int10_to_str(j,to,-10)-to);
+  length=(uint) cs->l10tostr(cs,to,mlength,-10,j);
   val_buffer->length(length);
   if (zerofill)
     prepend_zeros(val_buffer); /* purecov: inspected */
@@ -1593,7 +1605,7 @@ int Field_long::store(const char *from,uint len,CHARSET_INFO *cs)
     tmp=my_strntol(cs,from,len,&end,10);
   if (errno ||
       (from+len != end && current_thd->count_cuted_fields &&
-       !test_if_int(from,len)))
+       !test_if_int(from,len,cs)))
   {
     current_thd->cuted_fields++;
     error= 1;
@@ -1738,8 +1750,10 @@ longlong Field_long::val_int(void)
 String *Field_long::val_str(String *val_buffer,
 			    String *val_ptr __attribute__((unused)))
 {
+  CHARSET_INFO *cs=current_thd->thd_charset;
   uint length;
-  val_buffer->alloc(max(field_length+1,12));
+  uint mlength=max(field_length+1,12*cs->mbmaxlen);
+  val_buffer->alloc(mlength);
   char *to=(char*) val_buffer->ptr();
   int32 j;
 #ifdef WORDS_BIGENDIAN
@@ -1749,9 +1763,10 @@ String *Field_long::val_str(String *val_buffer,
 #endif
     longget(j,ptr);
 
-  length=(uint) (int10_to_str((unsigned_flag ? (long) (uint32) j : (long) j),
-			 to,
-			 unsigned_flag ? 10 : -10)-to);
+  if (unsigned_flag)
+    length=cs->l10tostr(cs,to,mlength, 10,(long) (uint32)j);
+  else
+    length=cs->l10tostr(cs,to,mlength,-10,(long) j);
   val_buffer->length(length);
   if (zerofill)
     prepend_zeros(val_buffer);
@@ -1843,7 +1858,7 @@ int Field_longlong::store(const char *from,uint len,CHARSET_INFO *cs)
     tmp=my_strntoll(cs,from,len,&end,10);
   if (errno ||
       (from+len != end && current_thd->count_cuted_fields &&
-       !test_if_int(from,len)))
+       !test_if_int(from,len,cs)))
       current_thd->cuted_fields++;
 #ifdef WORDS_BIGENDIAN
   if (table->db_low_byte_first)
@@ -1952,8 +1967,10 @@ longlong Field_longlong::val_int(void)
 String *Field_longlong::val_str(String *val_buffer,
 				String *val_ptr __attribute__((unused)))
 {
+  CHARSET_INFO *cs=current_thd->thd_charset;
   uint length;
-  val_buffer->alloc(max(field_length+1,22));
+  uint mlength=max(field_length+1,22*cs->mbmaxlen);
+  val_buffer->alloc(mlength);
   char *to=(char*) val_buffer->ptr();
   longlong j;
 #ifdef WORDS_BIGENDIAN
@@ -1963,7 +1980,7 @@ String *Field_longlong::val_str(String *val_buffer,
 #endif
     longlongget(j,ptr);
 
-  length=(uint) (longlong10_to_str(j,to,unsigned_flag ? 10 : -10)-to);
+  length=(uint) cs->ll10tostr(cs,to,mlength,unsigned_flag ? 10 : -10, j);
   val_buffer->length(length);
   if (zerofill)
     prepend_zeros(val_buffer);
@@ -2041,7 +2058,7 @@ int Field_float::store(const char *from,uint len,CHARSET_INFO *cs)
 {
   errno=0;
   Field_float::store(my_strntod(cs,from,len,(char**)NULL));
-  if (errno || current_thd->count_cuted_fields && !test_if_real(from,len))
+  if (errno || current_thd->count_cuted_fields && !test_if_real(from,len,cs))
   {
     current_thd->cuted_fields++;
     return 1;
@@ -2303,7 +2320,7 @@ int Field_double::store(const char *from,uint len,CHARSET_INFO *cs)
   errno=0;
   int error= 0;
   double j= my_strntod(cs,from,len,(char**)0);
-  if (errno || current_thd->count_cuted_fields && !test_if_real(from,len))
+  if (errno || current_thd->count_cuted_fields && !test_if_real(from,len,cs))
   {
     current_thd->cuted_fields++;
     error= 1;
@@ -3087,7 +3104,7 @@ int Field_year::store(const char *from, uint len,CHARSET_INFO *cs)
     current_thd->cuted_fields++;
     return 1;
   }
-  else if (current_thd->count_cuted_fields && !test_if_int(from,len))
+  else if (current_thd->count_cuted_fields && !test_if_int(from,len,cs))
     current_thd->cuted_fields++;
   if (nr != 0 || len != 4)
   {
@@ -3772,15 +3789,17 @@ int Field_string::store(double nr)
   int width=min(field_length,DBL_DIG+5);
   sprintf(buff,"%-*.*g",width,max(width-5,0),nr);
   end=strcend(buff,' ');
-  return Field_string::store(buff,(uint) (end - buff), default_charset_info);
+  return Field_string::store(buff,(uint) (end - buff), my_charset_latin1);
 }
 
 
 int Field_string::store(longlong nr)
 {
-  char buff[22];
-  char *end=longlong10_to_str(nr,buff,-10);
-  return Field_string::store(buff,(uint) (end-buff), default_charset_info);
+  char buff[64];
+  int  l;
+  CHARSET_INFO *cs=charset();
+  l=cs->ll10tostr(cs,buff,sizeof(buff),-10,nr);
+  return Field_string::store(buff,(uint)l,cs);
 }
 
 
@@ -3969,15 +3988,17 @@ int Field_varstring::store(double nr)
   int width=min(field_length,DBL_DIG+5);
   sprintf(buff,"%-*.*g",width,max(width-5,0),nr);
   end=strcend(buff,' ');
-  return Field_varstring::store(buff,(uint) (end - buff), default_charset_info);
+  return Field_varstring::store(buff,(uint) (end - buff), my_charset_latin1);
 }
 
 
 int Field_varstring::store(longlong nr)
 {
-  char buff[22];
-  char *end=longlong10_to_str(nr,buff,-10);
-  return Field_varstring::store(buff,(uint) (end-buff), default_charset_info);
+  char buff[64];
+  int  l;
+  CHARSET_INFO *cs=charset();
+  l=cs->ll10tostr(cs,buff,sizeof(buff),-10,nr);
+  return Field_varstring::store(buff,(uint)l,cs);
 }
 
 
@@ -4533,7 +4554,7 @@ void Field_blob::sql_type(String &res) const
   case 3:  str="medium"; break;
   case 4:  str="long"; break;
   }
-  res.set(str,(uint) strlen(str),default_charset_info);
+  res.set(str,(uint) strlen(str),my_charset_latin1);
   res.append(binary() ? "blob" : "text");
   if (!binary())
   {
@@ -5297,7 +5318,7 @@ create_field::create_field(Field *old_field,Field *orig_field)
       orig_field)
   {
     char buff[MAX_FIELD_WIDTH],*pos;
-    CHARSET_INFO *field_charset= charset ? charset : default_charset_info;
+    CHARSET_INFO *field_charset= charset;
     String tmp(buff,sizeof(buff),field_charset);
 
     /* Get the value from record[2] (the default value row) */
