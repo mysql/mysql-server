@@ -1013,7 +1013,12 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
 	
       mi->inc_pos(event_len, ev->log_seq);
       flush_master_info(mi);
-      if(slave_skip_counter)
+      if(slave_skip_counter && /* protect against common user error of
+				  setting the counter to 1 instead of 2
+			          while recovering from an failed
+			          auto-increment insert */
+	 	 !(type_code == INTVAR_EVENT &&
+				 slave_skip_counter == 1))
         --slave_skip_counter;
       delete ev;     
       return 0;					// avoid infinite update loops

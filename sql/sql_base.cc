@@ -533,10 +533,10 @@ void close_temporary_tables(THD *thd)
     if (query) // we might be out of memory, but this is not fatal
     {
       // skip temporary tables not created directly by the user
-      if (table->table_name[0] != '#')
+      if (table->real_name[0] != '#')
       {
 	end = strxmov(end,table->table_cache_key,".",
-		      table->table_name,",", NullS);
+		      table->real_name,",", NullS);
 	// here we assume table_cache_key always starts
 	// with \0 terminated db name
 	found_user_tables = 1;
