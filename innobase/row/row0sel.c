@@ -2810,21 +2810,6 @@ row_search_for_mysql(
 		mode = pcur->search_mode;
 	}
 
-	if ((direction == ROW_SEL_NEXT || direction == ROW_SEL_PREV)
-	    && pcur->old_stored != BTR_PCUR_OLD_STORED) {
-
-		/* MySQL sometimes seems to do fetch next or fetch prev even
-		if the search condition is unique; this can, for example,
-		happen with the HANDLER commands; we do not always store the
-		pcur position in this case, so we cannot restore cursor
-		position, and must return immediately */
-
-		/* printf("%s record not found 1\n", index->name); */
-	
-		trx->op_info = (char *) "";
-		return(DB_RECORD_NOT_FOUND);
-	}
-
 	mtr_start(&mtr);
 
 	/* In a search where at most one record in the index may match, we
@@ -2841,6 +2826,16 @@ row_search_for_mysql(
 	    && dtuple_get_n_fields(search_tuple)
 				== dict_index_get_n_unique(index)) {
 		unique_search = TRUE;
+
+		/* Even if the condition is unique, MySQL seems to try to
+		retrieve also a second row if a primary key contains more than
+		1 column. Return immediately if this is not a HANDLER
+		command. */
+		
+		if (direction != 0 && !prebuilt->used_in_HANDLER) {
+		        
+			return(DB_RECORD_NOT_FOUND);
+		}
 	}
 
 	/*-------------------------------------------------------------*/
@@ -2852,8 +2847,9 @@ row_search_for_mysql(
 	cannot use the adaptive hash index in a search in the case the row
 	may be long and there may be externally stored fields */
 
-	if (unique_search	
+	if (unique_search
 	    && index->type & DICT_CLUSTERED
+	    && direction == 0
 	    && !prebuilt->templ_contains_blob
 	    && !prebuilt->used_in_HANDLER
 	    && (prebuilt->mysql_row_len < UNIV_PAGE_SIZE / 8)) {
