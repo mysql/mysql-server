@@ -184,6 +184,7 @@ class JOIN :public Sql_alloc
   ORDER *order, *group_list, *proc_param; //hold parameters of mysql_select
   COND *conds;                            // ---"---
   Item *conds_history;                    // store WHERE for explain
+  COND_EQUAL *cond_equal;
   TABLE_LIST *tables_list;           //hold 'tables' parameter of mysql_selec
   SQL_SELECT *select;                //created in optimisation phase
   Item **ref_pointer_array; //used pointer reference for this select
@@ -243,6 +244,7 @@ class JOIN :public Sql_alloc
     ref_pointer_array_size= 0;
     zero_result_cause= 0;
     optimized= 0;
+    cond_equal= 0;
 
     fields_list= fields;
     bzero((char*) &keyuse,sizeof(keyuse));
