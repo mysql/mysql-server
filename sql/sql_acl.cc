@@ -205,17 +205,20 @@ int  acl_init(bool dont_read_acl_tables)
     user.password=get_field(&mem, table,2);
 #ifdef HAVE_OPENSSL
     DBUG_PRINT("info",("table->fields=%d",table->fields));
-    if (table->fields >= 21) { /* From 4.0.0 we have more fields */
-      if(!strcmp(get_field(&mem, table,17),"ANY"))
+    if (table->fields >= 21)      /* From 4.0.0 we have more fields */
+    { 
+      char *ssl_type=get_field(&mem, table,17);
+      if (!strcmp(ssl_type, "ANY"))
 	user.ssl_type=SSL_TYPE_ANY;
-      else if(!strcmp(get_field(&mem, table,17),"X509"))
+      else if (!strcmp(ssl_type, "X509"))
 	user.ssl_type=SSL_TYPE_X509;
-      else if(!strcmp(get_field(&mem, table,17),"SPECIFIED"))
+      else if (!strcmp(ssl_type, "SPECIFIED"))
 	user.ssl_type=SSL_TYPE_SPECIFIED;
-      else user.ssl_type=SSL_TYPE_NONE;
-      user.ssl_cipher=get_field(&mem, table,18);
-      user.x509_issuer=get_field(&mem, table,19);
-      user.x509_subject=get_field(&mem, table,20);
+      else
+	user.ssl_type=SSL_TYPE_NONE;
+      user.ssl_cipher=get_field(&mem, table, 18);
+      user.x509_issuer=get_field(&mem, table, 19);
+      user.x509_subject=get_field(&mem, table, 20);
     }
 #endif /* HAVE_OPENSSL */
     if (user.password && (length=(uint) strlen(user.password)) == 8 &&
@@ -447,82 +450,87 @@ uint acl_getroot(THD *thd, const char *host, const char *ip, const char *user,
 			     (my_bool) old_ver)))
 	{
 #ifdef HAVE_OPENSSL
-#define vio (thd->net.vio)
-          /* In this point we know that user is allowed to connect 
-	   * from given host by given username/password pair. Now 
-	   * we check if SSL is required, if user is using SSL and 
-	   * if X509 certificate attributes are OK 
-	   */
+	  Vio *vio=thd->net.vio;
+          /*
+	    In this point we know that user is allowed to connect 
+	    from given host by given username/password pair. Now 
+	    we check if SSL is required, if user is using SSL and 
+	    if X509 certificate attributes are OK 
+	  */
           switch(acl_user->ssl_type) {
           case SSL_TYPE_NONE: /* SSL is not required to connect */
-	       user_access=acl_user->access;
-	       break;
+	    user_access=acl_user->access;
+	    break;
 	  case SSL_TYPE_ANY: /* Any kind of SSL is good enough */
- 	       if(vio_type(vio) == VIO_TYPE_SSL)
-		 user_access=acl_user->access;
-	       break;
+	    if (vio_type(vio) == VIO_TYPE_SSL)
+	      user_access=acl_user->access;
+	    break;
 	  case SSL_TYPE_X509: /* Client should have any valid certificate. */
-	       /* Connections with non-valid certificates are dropped already 
-		* in sslaccept() anyway, so we do not check validity here. 
-		*/
-               if(SSL_get_peer_certificate(vio->ssl_))
-		 user_access=acl_user->access;
-               break;
-	  case SSL_TYPE_SPECIFIED: /* Client should have attributes as specified */
-	       /* We do not check for absence of SSL because without SSL it does not
-		* pass all checks here anyway. 
-		*/
-	       /* If cipher name is specified, we compare it to actual cipher in use */
-	       if(acl_user->ssl_cipher)
-		 DBUG_PRINT("info",("comparing ciphers: '%s' and '%s'",
-				acl_user->ssl_cipher,SSL_get_cipher(vio->ssl_)));
-	         if(!strcmp(acl_user->ssl_cipher,SSL_get_cipher(vio->ssl_)))
-		   user_access=acl_user->access;
-	         else
-		 {
-		   user_access=NO_ACCESS;
-                   break;
-		 }
-               /* Prepare certificate (if exists) */
-       	       DBUG_PRINT("info",("checkpoint 1"));
-               X509* cert=SSL_get_peer_certificate(vio->ssl_);
-       	       DBUG_PRINT("info",("checkpoint 2"));
-	       /* If X509 issuer is speified, we check it... */
- 	       if(acl_user->x509_issuer) 
-	       {
-       	         DBUG_PRINT("info",("checkpoint 3"));
-		 ptr = X509_NAME_oneline(X509_get_issuer_name(cert), 0, 0);
-		 DBUG_PRINT("info",("comparing issuers: '%s' and '%s'",
-				acl_user->x509_issuer, ptr));
-                 if(!strcmp(acl_user->x509_issuer,ptr))
-                   user_access=acl_user->access;
-	         else 
-		 {
-		   user_access=NO_ACCESS;
-		   free(ptr);
-		   break;
-		 }
-		 free(ptr);
-	       }
-       	       DBUG_PRINT("info",("checkpoint 4"));
-	       /* X509 subject is specified, we check it .. */
-	       if(acl_user->x509_subject)
-	       {
-		 ptr = X509_NAME_oneline(X509_get_subject_name(cert), 0, 0);
-		 DBUG_PRINT("info",("comparing subjects: '%s' and '%s'",
-				acl_user->x509_subject, ptr));
-	         if(!strcmp(acl_user->x509_subject,ptr))
-	           user_access=acl_user->access;
-	         else 
-		 {
-		   user_access=NO_ACCESS;
-		   free(ptr);
-	           break;
-	         }
-		 free(ptr);
-	       }
-       	       DBUG_PRINT("info",("checkpoint 5"));
-	       break;
+	    /*
+	      Connections with non-valid certificates are dropped already 
+	      in sslaccept() anyway, so we do not check validity here. 
+	    */
+	    if (SSL_get_peer_certificate(vio->ssl_))
+	      user_access=acl_user->access;
+	    break;
+	  case SSL_TYPE_SPECIFIED: /* Client should have specified attrib */
+	    /*
+	      We do not check for absence of SSL because without SSL it does
+	      not pass all checks here anyway.
+	      If cipher name is specified, we compare it to actual cipher in
+	      use.
+	    */
+	    if (acl_user->ssl_cipher)
+	      DBUG_PRINT("info",("comparing ciphers: '%s' and '%s'",
+				 acl_user->ssl_cipher,
+				 SSL_get_cipher(vio->ssl_)));
+	    if (!strcmp(acl_user->ssl_cipher,SSL_get_cipher(vio->ssl_)))
+	      user_access=acl_user->access;
+	    else
+	    {
+	      user_access=NO_ACCESS;
+	      break;
+	    }
+	    /* Prepare certificate (if exists) */
+	    DBUG_PRINT("info",("checkpoint 1"));
+	    X509* cert=SSL_get_peer_certificate(vio->ssl_);
+	    DBUG_PRINT("info",("checkpoint 2"));
+	    /* If X509 issuer is speified, we check it... */
+	    if (acl_user->x509_issuer) 
+	    {
+	      DBUG_PRINT("info",("checkpoint 3"));
+	      ptr = X509_NAME_oneline(X509_get_issuer_name(cert), 0, 0);
+	      DBUG_PRINT("info",("comparing issuers: '%s' and '%s'",
+				 acl_user->x509_issuer, ptr));
+	      if (!strcmp(acl_user->x509_issuer,ptr))
+		user_access=acl_user->access;
+	      else 
+	      {
+		user_access=NO_ACCESS;
+		free(ptr);
+		break;
+	      }
+	      free(ptr);
+	    }
+	    DBUG_PRINT("info",("checkpoint 4"));
+	    /* X509 subject is specified, we check it .. */
+	    if (acl_user->x509_subject)
+	    {
+	      ptr = X509_NAME_oneline(X509_get_subject_name(cert), 0, 0);
+	      DBUG_PRINT("info",("comparing subjects: '%s' and '%s'",
+				 acl_user->x509_subject, ptr));
+	      if (!strcmp(acl_user->x509_subject,ptr))
+		user_access=acl_user->access;
+	      else 
+	      {
+		user_access=NO_ACCESS;
+		free(ptr);
+		break;
+	      }
+	      free(ptr);
+	    }
+	    DBUG_PRINT("info",("checkpoint 5"));
+	    break;
 	  }
        	       DBUG_PRINT("info",("checkpoint 6"));
 #else  /* HAVE_OPENSSL */
@@ -557,12 +565,10 @@ static byte* check_get_key(ACL_USER *buff,uint *length,
 
 static void acl_update_user(const char *user, const char *host,
 			    const char *password, 
-#ifdef HAVE_OPENSSL
 			    enum SSL_type ssl_type,
 			    const char *ssl_cipher,
 			    const char *x509_issuer,
 			    const char *x509_subject,
-#endif /* HAVE_OPENSSL */
 			    uint privileges)
 {
   for (uint i=0 ; i < acl_users.elements ; i++)
@@ -601,12 +607,10 @@ static void acl_update_user(const char *user, const char *host,
 
 static void acl_insert_user(const char *user, const char *host,
 			    const char *password, 
-#ifdef HAVE_OPENSSL
 			    enum SSL_type ssl_type,
 			    const char *ssl_cipher,
 			    const char *x509_issuer,
 			    const char *x509_subject,
-#endif /* HAVE_OPENSSL */
 			    uint privileges)
 {
   ACL_USER acl_user;
@@ -1158,37 +1162,35 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
   rights=get_access(table,3);
 #ifdef HAVE_OPENSSL
   /* We write down SSL related ACL stuff */
-    DBUG_PRINT("info",("table->fields=%d",table->fields));
-    if (table->fields >= 21) { /* From 4.0.0 we have more fields */
-      switch (thd->lex.ssl_type) {
-      case SSL_TYPE_ANY:
-        table->field[17]->store("ANY",3);
-        table->field[18]->store("",0);
-        table->field[19]->store("",0);
-        table->field[20]->store("",0);
-        break;
-      case SSL_TYPE_X509:
-        table->field[17]->store("X509",4);
-        table->field[18]->store("",0);
-        table->field[19]->store("",0);
-        table->field[20]->store("",0);
-        break;
-      case SSL_TYPE_SPECIFIED:
-        table->field[17]->store("SPECIFIED",9);
-	if(thd->lex.ssl_cipher)
-          table->field[18]->store(thd->lex.ssl_cipher,strlen(thd->lex.ssl_cipher));
-	if(thd->lex.x509_issuer)
-          table->field[19]->store(thd->lex.x509_issuer,strlen(thd->lex.x509_issuer));
-	if(thd->lex.x509_subject)
-          table->field[20]->store(thd->lex.x509_subject,strlen(thd->lex.x509_subject));
-        break;
-      default:
-        table->field[17]->store("NONE",4);
-        table->field[18]->store("",0);
-        table->field[19]->store("",0);
-        table->field[20]->store("",0);
-      }
+  DBUG_PRINT("info",("table->fields=%d",table->fields));
+  if (table->fields >= 21)		/* From 4.0.0 we have more fields */
+  { 
+    table->field[18]->store("",0);
+    table->field[19]->store("",0);
+    table->field[20]->store("",0);
+    switch (thd->lex.ssl_type) {
+    case SSL_TYPE_ANY:
+      table->field[17]->store("ANY",3);
+      break;
+    case SSL_TYPE_X509:
+      table->field[17]->store("X509",4);
+      break;
+    case SSL_TYPE_SPECIFIED:
+      table->field[17]->store("SPECIFIED",9);
+      if (thd->lex.ssl_cipher)
+	table->field[18]->store(thd->lex.ssl_cipher,
+				strlen(thd->lex.ssl_cipher));
+      if (thd->lex.x509_issuer)
+	table->field[19]->store(thd->lex.x509_issuer,
+				strlen(thd->lex.x509_issuer));
+      if (thd->lex.x509_subject)
+	table->field[20]->store(thd->lex.x509_subject,
+				strlen(thd->lex.x509_subject));
+      break;
+    default:
+      table->field[17]->store("NONE",4);
     }
+  }
 #endif /* HAVE_OPENSSL */
   if (old_row_exists)
   {
@@ -1216,7 +1218,7 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
   }
   error=0;					// Privileges granted / revoked
 
- end:
+end:
   if (!error)
   {
     acl_cache->clear(1);			// Clear privilege cache
@@ -1224,22 +1226,18 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
       password=0;				// No password given on command
     if (old_row_exists)
       acl_update_user(combo.user.str,combo.host.str,password,
-#ifdef HAVE_OPENSSL
-	        thd->lex.ssl_type,
-                thd->lex.ssl_cipher,
-	        thd->lex.x509_issuer,
-	        thd->lex.x509_subject,
-#endif /* HAVE_OPENSSL */
-	        rights);
+		      thd->lex.ssl_type,
+		      thd->lex.ssl_cipher,
+		      thd->lex.x509_issuer,
+		      thd->lex.x509_subject,
+		      rights);
     else
       acl_insert_user(combo.user.str,combo.host.str,password,
-#ifdef HAVE_OPENSSL
-		thd->lex.ssl_type,
-		thd->lex.ssl_cipher,
-		thd->lex.x509_issuer,
-		thd->lex.x509_subject,
-#endif /* HAVE_OPENSSL */
-		rights);
+		      thd->lex.ssl_type,
+		      thd->lex.ssl_cipher,
+		      thd->lex.x509_issuer,
+		      thd->lex.x509_subject,
+		      rights);
   }
   table->file->index_end();
   DBUG_RETURN(error);
@@ -2591,30 +2589,33 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
       global.append('\'');
     }
 #ifdef HAVE_OPENSSL    
-/* "show grants" SSL related stuff */
-    if(acl_user->ssl_type==SSL_TYPE_ANY)
+    /* "show grants" SSL related stuff */
+    if (acl_user->ssl_type == SSL_TYPE_ANY)
       global.append(" REQUIRE SSL",12);
-    else if(acl_user->ssl_type==SSL_TYPE_X509)       
+    else if (acl_user->ssl_type==SSL_TYPE_X509)       
       global.append(" REQUIRE X509",13);
-    else if(acl_user->ssl_type==SSL_TYPE_SPECIFIED)       
+    else if (acl_user->ssl_type==SSL_TYPE_SPECIFIED)       
     {
       global.append(" REQUIRE ",9);
-      if(acl_user->x509_issuer) {
-        if(ssl_options++)
+      if (acl_user->x509_issuer)
+      {
+        if (ssl_options++)
           global.append(" AND ",5);
         global.append("ISSUER \"",8);
         global.append(acl_user->x509_issuer,strlen(acl_user->x509_issuer));
         global.append("\"",1);
       }
-      if(acl_user->x509_subject) {
-        if(ssl_options++)
+      if (acl_user->x509_subject)
+      {
+        if (ssl_options++)
           global.append(" AND ",5);
         global.append("SUBJECT \"",9);
         global.append(acl_user->x509_subject,strlen(acl_user->x509_subject));
         global.append("\"",1);
       }
-      if(acl_user->ssl_cipher) {
-        if(ssl_options++)
+      if (acl_user->ssl_cipher)
+      {
+        if (ssl_options++)
           global.append(" AND ",5);
         global.append("CIPHER \"",8);
         global.append(acl_user->ssl_cipher,strlen(acl_user->ssl_cipher));

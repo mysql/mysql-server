@@ -19,13 +19,16 @@
 #include "../regex/regex.h"
 #include "my_sys.h"
 
+/*
+  The following is needed to not cause conflicts when we include mysqld.cc
+*/
+
 #define main main1
 #define mysql_unix_port mysql_inix_port1
 #define mysql_port mysql_port1
 #define net_read_timeout net_read_timeout1
 #define net_write_timeout net_write_timeout1
 #define changeable_vars changeable_vars1
-//#define mysql_tmpdir mysql_tmpdir1
 
 extern "C"
 {
@@ -36,38 +39,23 @@ extern "C"
 
 class THD;
 
-static int 
-check_connections1(THD * thd);
-
-static bool 
-check_user(THD *thd, enum_server_command command,const char *user, const char *passwd, const char *db, bool check_count);
-
-static int
-check_connections2(THD * thd);
-
-extern void free_defaults(char ** argv);
-void free_defaults_internal(char ** argv){if (argv) free_defaults(argv);}
+static int check_connections1(THD * thd);
+static int check_connections2(THD * thd);
+static bool check_user(THD *thd, enum_server_command command,
+		       const char *user, const char *passwd, const char *db,
+		       bool check_count);
+void free_defaults_internal(char ** argv) {if (argv) free_defaults(argv);}
 #define free_defaults free_defaults_internal
 
 char mysql_data_home[FN_REFLEN];
-char * get_mysql_data_home(){return mysql_data_home;};
+char * get_mysql_data_home() { return mysql_data_home; }
 #define mysql_data_home mysql_data_home_internal
 #include "../sql/mysqld.cc"
 
 #define SCRAMBLE_LENGTH 8
 extern "C" {
-
-/*
-void
-free_defaults(char ** argv) {};
-void
-load_defaults(const char *, const char **, int *, char ***) {};
-*/
-
-char *
-get_mysql_home(){ return mysql_home;};
-char *
-get_mysql_real_data_home(){ return mysql_real_data_home;};
+char * get_mysql_home(){ return mysql_home;};
+char * get_mysql_real_data_home(){ return mysql_real_data_home;};
 
 
 bool lib_dispatch_command(enum enum_server_command command, NET *net,
@@ -83,9 +71,7 @@ bool lib_dispatch_command(enum enum_server_command command, NET *net,
 }
 
 
-
-void 
-lib_connection_phase(NET * net, int phase)
+void lib_connection_phase(NET * net, int phase)
 {
   THD * thd;
   thd = (THD *)(net->vio->dest_thd);
@@ -99,7 +85,9 @@ lib_connection_phase(NET * net, int phase)
     }
   }
 }
-}
+} /* extern "C" */
+
+
 void start_embedded_conn1(NET * net)
 {
   THD * thd = new THD;
@@ -660,16 +648,14 @@ void mysql_thread_end()
 
 void start_embedded_connection(NET * net)
 {
-    start_embedded_conn1(net);
+  start_embedded_conn1(net);
 }
-//====================================================================
-}
+
+} /* extern "C" */
+
 int embedded_do_command(NET * net)
 {
-    THD * thd = (THD *) net ->vio;
-    do_command(thd);	
-    return 0;
+  THD * thd = (THD *) net ->vio;
+  do_command(thd);	
+  return 0;
 }
-
-
-
