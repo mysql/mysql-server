@@ -577,21 +577,21 @@ public:
    * @param  Label   label to jump to
    * @return -1 if unsuccessful
    */
-  int branch_col_eq(Uint32 ColId, const char * val, Uint32 len, 
+  int branch_col_eq(Uint32 ColId, const void * val, Uint32 len, 
 		    bool nopad, Uint32 Label);
-  int branch_col_ne(Uint32 ColId, const char * val, Uint32 len, 
+  int branch_col_ne(Uint32 ColId, const void * val, Uint32 len, 
 		    bool nopad, Uint32 Label);
-  int branch_col_lt(Uint32 ColId, const char * val, Uint32 len, 
+  int branch_col_lt(Uint32 ColId, const void * val, Uint32 len, 
 		    bool nopad, Uint32 Label);
-  int branch_col_le(Uint32 ColId, const char * val, Uint32 len, 
+  int branch_col_le(Uint32 ColId, const void * val, Uint32 len, 
 		    bool nopad, Uint32 Label);
-  int branch_col_gt(Uint32 ColId, const char * val, Uint32 len, 
+  int branch_col_gt(Uint32 ColId, const void * val, Uint32 len, 
 		    bool nopad, Uint32 Label);
-  int branch_col_ge(Uint32 ColId, const char * val, Uint32 len, 
+  int branch_col_ge(Uint32 ColId, const void * val, Uint32 len, 
 		    bool nopad, Uint32 Label);
-  int branch_col_like(Uint32 ColId, const char *, Uint32 len, 
+  int branch_col_like(Uint32 ColId, const void *, Uint32 len, 
 		      bool nopad, Uint32 Label);
-  int branch_col_notlike(Uint32 ColId, const char *, Uint32 len, 
+  int branch_col_notlike(Uint32 ColId, const void *, Uint32 len, 
 			 bool nopad, Uint32 Label);
   
   /**
@@ -822,7 +822,7 @@ protected:
   int read_attr(const NdbColumnImpl* anAttrObject, Uint32 RegDest);
   int write_attr(const NdbColumnImpl* anAttrObject, Uint32 RegSource);
   int branch_reg_reg(Uint32 type, Uint32, Uint32, Uint32);
-  int branch_col(Uint32 type, Uint32, const char *, Uint32, bool, Uint32 Label);
+  int branch_col(Uint32 type, Uint32, const void *, Uint32, bool, Uint32 Label);
   int branch_col_null(Uint32 type, Uint32 col, Uint32 Label);
   
   // Handle ATTRINFO signals   
