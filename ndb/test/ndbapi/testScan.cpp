@@ -65,7 +65,7 @@ int runDropAllTablesExceptTestTable(NDBT_Context* ctx, NDBT_Step* step){
     }
 	    
     int res = GETNDB(step)->getDictionary()->dropTable(tab->getName());
-    if(res != -1){
+    if(res == -1){
       return NDBT_FAILED;
     }
   }
