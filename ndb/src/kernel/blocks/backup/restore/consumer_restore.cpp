@@ -105,9 +105,8 @@ BackupRestore::~BackupRestore()
 bool
 BackupRestore::table(const TableS & table){
   if (!m_restore_meta) 
-  {
     return true;
-  }
+
   NdbDictionary::Dictionary* dict = m_ndb->getDictionary();
   if (dict->createTable(*table.m_dictTable) == -1) 
   {
@@ -320,13 +319,14 @@ BackupRestore::tuple_free()
   if (!m_restore)
     return;
 
-  // Send all transactions to NDB 
-  if (m_transactions > 0)
+  if (m_transactions > 0) {
+    // Send all transactions to NDB 
     m_ndb->sendPreparedTransactions(0);
 
-  // Poll all transactions
-  while (m_transactions > 0)
-    m_ndb->pollNdb(3000, m_transactions);
+    // Poll all transactions
+    while (m_transactions > 0)
+      m_ndb->pollNdb(3000, m_transactions);
+  }
 }
 
 void
@@ -375,12 +375,12 @@ BackupRestore::logEntry(const LogEntry & tup)
     exit(-1);
   }
   
-  for (int i = 0; i < tup.m_values.size(); i++) 
+  for (int i = 0; i < tup.size(); i++) 
   {
-    const AttributeS * attr = tup.m_values[i];
+    const AttributeS * attr = tup[i];
     int size = attr->Desc->size;
     int arraySize = attr->Desc->arraySize;
-    const char * dataPtr = attr->Data->string_value;
+    const char * dataPtr = attr->Data.string_value;
     
     const Uint32 length = (size / 8) * arraySize;
     if (attr->Desc->m_column->getPrimaryKey()) 
@@ -389,19 +389,27 @@ BackupRestore::logEntry(const LogEntry & tup)
       op->setValue(attr->Desc->attrId, dataPtr, length);
   }
   
-#if 1
-  trans->execute(Commit);
-#else
   const int ret = trans->execute(Commit);
-  // Both insert update and delete can fail during log running
-  // and it's ok
-  
   if (ret != 0)
   {
-    err << "execute failed: " << trans->getNdbError() << endl;
-    exit(-1);
+    // Both insert update and delete can fail during log running
+    // and it's ok
+    // TODO: check that the error is either tuple exists or tuple does not exist?
+    switch(tup.m_type)
+    {
+    case LogEntry::LE_INSERT:
+      break;
+    case LogEntry::LE_UPDATE:
+      break;
+    case LogEntry::LE_DELETE:
+      break;
+    }
+    if (false)
+    {
+      err << "execute failed: " << trans->getNdbError() << endl;
+      exit(-1);
+    }
   }
-#endif
   
   m_ndb->closeTransaction(trans);
   m_logCount++;
@@ -410,11 +418,11 @@ BackupRestore::logEntry(const LogEntry & tup)
 void
 BackupRestore::endOfLogEntrys()
 {
-  if (m_restore) 
-  {
-    info << "Restored " << m_dataCount << " tuples and "
-	 << m_logCount << " log entries" << endl;
-  }
+  if (!m_restore)
+    return;
+
+  info << "Restored " << m_dataCount << " tuples and "
+       << m_logCount << " log entries" << endl;
 }
 
 /*
@@ -471,7 +479,7 @@ BackupRestore::tuple(const TupleS & tup)
       const AttributeS * attr = tup[i];
       int size = attr->Desc->size;
       int arraySize = attr->Desc->arraySize;
-      const char * dataPtr = attr->Data->string_value;
+      const char * dataPtr = attr->Data.string_value;
       
       const Uint32 length = (size * arraySize) / 8;
       if (attr->Desc->m_column->getPrimaryKey()) 
@@ -483,11 +491,11 @@ BackupRestore::tuple(const TupleS & tup)
       const AttributeS * attr = tup[i];
       int size = attr->Desc->size;
       int arraySize = attr->Desc->arraySize;
-      const char * dataPtr = attr->Data->string_value;
+      const char * dataPtr = attr->Data.string_value;
       
       const Uint32 length = (size * arraySize) / 8;
       if (!attr->Desc->m_column->getPrimaryKey())
-	if (attr->Data->null)
+	if (attr->Data.null)
 	  op->setValue(i, NULL, 0);
 	else
 	  op->setValue(i, dataPtr, length);

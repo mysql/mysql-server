@@ -85,7 +85,7 @@ public:
 
 struct AttributeS {
   const AttributeDesc * Desc;
-  AttributeData * Data;
+  AttributeData Data;
 };
 
 class TupleS {
@@ -97,7 +97,10 @@ private:
   bool prepareRecord(const TableS &);
   
 public:
-  TupleS() {};
+  TupleS() {
+    m_currentTable= 0;
+    allAttrData= 0;
+  };
   ~TupleS()
   {
     if (allAttrData)
@@ -129,17 +132,13 @@ class TableS {
   Uint32 m_nullBitmaskSize;
 
   int pos;
-  char create_string[2048];
-  /*
-  char mysqlTableName[1024];
-  char mysqlDatabaseName[1024];
-  */
 
   void createAttr(NdbDictionary::Column *column);
 
 public:
   class NdbDictionary::Table* m_dictTable;
   TableS (class NdbTableImpl* dictTable);
+  ~TableS();
 
   Uint32 getTableId() const { 
     return m_dictTable->getTableId(); 
@@ -192,18 +191,26 @@ protected:
   BackupFormat::FileHeader m_expectedFileHeader;
   
   Uint32 m_nodeId;
-  Uint32 * m_buffer;
-  Uint32 m_bufferSize;
-  Uint32 * createBuffer(Uint32 bytes);
   
+  void * m_buffer;
+  void * m_buffer_ptr;
+  Uint32 m_buffer_sz;
+  Uint32 m_buffer_data_left;
+  void (* free_data_callback)();
+
   bool openFile();
   void setCtlFile(Uint32 nodeId, Uint32 backupId, const char * path);
   void setDataFile(const BackupFile & bf, Uint32 no);
   void setLogFile(const BackupFile & bf, Uint32 no);
   
+  Uint32 buffer_get_ptr(void **p_buf_ptr, Uint32 size, Uint32 nmemb);
+  Uint32 buffer_read(void *ptr, Uint32 size, Uint32 nmemb);
+  Uint32 buffer_get_ptr_ahead(void **p_buf_ptr, Uint32 size, Uint32 nmemb);
+  Uint32 buffer_read_ahead(void *ptr, Uint32 size, Uint32 nmemb);
+
   void setName(const char * path, const char * name);
 
-  BackupFile();
+  BackupFile(void (* free_data_callback)() = 0);
   ~BackupFile();
 public:
   bool readHeader();
@@ -231,14 +238,11 @@ class RestoreMetaData : public BackupFile {
   bool parseTableDescriptor(const Uint32 * data, Uint32 len);
 
 public:
-
   RestoreMetaData(const char * path, Uint32 nodeId, Uint32 bNo);
-  ~RestoreMetaData();
+  virtual ~RestoreMetaData();
   
   int loadContent();
 		  
-		
-  
   Uint32 getNoOfTables() const { return allTables.size();}
   
   const TableS * operator[](int i) const { return allTables[i];}
@@ -254,23 +258,15 @@ class RestoreDataIterator : public BackupFile {
   const TableS* m_currentTable;
   TupleS m_tuple;
 
-  void * m_buffer;
-  void * m_buffer_ptr;
-  Uint32 m_buffer_sz;
-  Uint32 m_buffer_data_left;
-  void (* free_data_callback)();
 public:
 
   // Constructor
   RestoreDataIterator(const RestoreMetaData &, void (* free_data_callback)());
-  ~RestoreDataIterator();
+  ~RestoreDataIterator() {};
   
   // Read data file fragment header
   bool readFragmentHeader(int & res);
   bool validateFragmentFooter();
-
-  Uint32 get_buffer_ptr(void **p_buf_ptr, Uint32 size, Uint32 nmemb, FILE *stream);
-  Uint32 fread_buffer(void *ptr, Uint32 size, Uint32 nmemb, FILE *stream);
 
   const TupleS *getNextTuple(int & res);
 };
@@ -285,8 +281,34 @@ public:
   EntryType m_type;
   const TableS * m_table;  
   myVector<AttributeS*> m_values;
-  
-
+  myVector<AttributeS*> m_values_e;
+  AttributeS *add_attr() {
+    AttributeS * attr;
+    if (m_values_e.size() > 0) {
+      attr = m_values_e[m_values_e.size()-1];
+      m_values_e.pop_back();
+    }
+    else
+    {
+      attr = new AttributeS;
+    }
+    m_values.push_back(attr);
+    return attr;
+  }
+  void clear() {
+    for(int i= 0; i < m_values.size(); i++)
+      m_values_e.push_back(m_values[i]);
+    m_values.clear();
+  }
+  ~LogEntry()
+  {
+    for(int i= 0; i< m_values.size(); i++)
+      delete m_values[i];
+    for(int i= 0; i< m_values_e.size(); i++)
+      delete m_values_e[i];
+  }
+  int size() const { return m_values.size(); }
+  const AttributeS * operator[](int i) const { return m_values[i];}
 };
 
 class RestoreLogIterator : public BackupFile {
@@ -297,7 +319,8 @@ private:
   LogEntry m_logEntry;
 public:
   RestoreLogIterator(const RestoreMetaData &);
-  
+  virtual ~RestoreLogIterator() {};
+
   const LogEntry * getNextLogEntry(int & res);
 };
 

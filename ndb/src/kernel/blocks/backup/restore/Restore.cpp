@@ -122,7 +122,8 @@ RestoreMetaData::readMetaTableList() {
   
   Uint32 sectionInfo[2];
   
-  if (fread(&sectionInfo, sizeof(sectionInfo), 1, m_file) != 1){
+  if (buffer_read(&sectionInfo, sizeof(sectionInfo), 1) != 1){
+    err << "readMetaTableList read header error" << endl;
     return 0;
   }
   sectionInfo[0] = ntohl(sectionInfo[0]);
@@ -130,11 +131,9 @@ RestoreMetaData::readMetaTableList() {
 
   const Uint32 tabCount = sectionInfo[1] - 2;
 
-  const Uint32 len = 4 * tabCount;
-  if(createBuffer(len) == 0)
-    abort();
-
-  if (fread(m_buffer, 1, len, m_file) != len){
+  void *tmp;
+  if (buffer_get_ptr(&tmp, 4, tabCount) != tabCount){
+    err << "readMetaTableList read tabCount error" << endl;
     return 0;
   }
   
@@ -147,7 +146,7 @@ RestoreMetaData::readMetaTableDesc() {
   Uint32 sectionInfo[2];
   
   // Read section header 
-  if (fread(&sectionInfo, sizeof(sectionInfo), 1, m_file) != 1){
+  if (buffer_read(&sectionInfo, sizeof(sectionInfo), 1) != 1){
     err << "readMetaTableDesc read header error" << endl;
     return false;
   } // if
@@ -156,20 +155,15 @@ RestoreMetaData::readMetaTableDesc() {
   
   assert(sectionInfo[0] == BackupFormat::TABLE_DESCRIPTION);
   
-  // Allocate temporary storage for dictTabInfo buffer
-  const Uint32 len = (sectionInfo[1] - 2);
-  if (createBuffer(4 * (len+1)) == NULL) {
-    err << "readMetaTableDesc allocation error" << endl;
-    return false;
-  } // if
-  
   // Read dictTabInfo buffer
-  if (fread(m_buffer, 4, len, m_file) != len){
+  const Uint32 len = (sectionInfo[1] - 2);
+  void *ptr;
+  if (buffer_get_ptr(&ptr, 4, len) != len){
     err << "readMetaTableDesc read error" << endl;
     return false;
   } // if
   
-  return parseTableDescriptor(m_buffer, len);	     
+  return parseTableDescriptor((Uint32*)ptr, len);	     
 }
 
 bool
@@ -177,11 +171,10 @@ RestoreMetaData::readGCPEntry() {
 
   Uint32 data[4];
   
-  
   BackupFormat::CtlFile::GCPEntry * dst = 
     (BackupFormat::CtlFile::GCPEntry *)&data[0];
   
-  if(fread(dst, 4, 4, m_file) != 4){
+  if(buffer_read(dst, 4, 4) != 4){
     err << "readGCPEntry read error" << endl;
     return false;
   }
@@ -210,6 +203,12 @@ TableS::TableS(NdbTableImpl* tableImpl)
 
   for (int i = 0; i < tableImpl->getNoOfColumns(); i++)
     createAttr(tableImpl->getColumn(i));
+}
+
+TableS::~TableS()
+{
+  for (int i = 0; i < allAttributesDesc.size(); i++)
+    delete allAttributesDesc[i];
 }
 
 // Parse dictTabInfo buffer and pushback to to vector storage 
@@ -247,31 +246,18 @@ RestoreMetaData::parseTableDescriptor(const Uint32 * data, Uint32 len)
 
 // Constructor
 RestoreDataIterator::RestoreDataIterator(const RestoreMetaData & md, void (* _free_data_callback)())
-  : m_metaData(md), free_data_callback(_free_data_callback)
+  : BackupFile(_free_data_callback), m_metaData(md)
 {
   debug << "RestoreDataIterator constructor" << endl;
   setDataFile(md, 0);
-
-  m_buffer_sz = 64*1024;
-  m_buffer = malloc(m_buffer_sz);
-  m_buffer_ptr = m_buffer;
-  m_buffer_data_left = 0;
-}
-
-RestoreDataIterator::~RestoreDataIterator()
-{
-  if (m_buffer)
-    free(m_buffer);
 }
 
 TupleS & TupleS::operator=(const TupleS& tuple)
 {
   prepareRecord(*tuple.m_currentTable);
 
-  if (allAttrData) {
-    allAttrData= new AttributeData[getNoOfAttributes()];
+  if (allAttrData)
     memcpy(allAttrData, tuple.allAttrData, getNoOfAttributes()*sizeof(AttributeData));
-  }
   
   return *this;
 };
@@ -296,53 +282,22 @@ AttributeData * TupleS::getData(int i) const{
 bool
 TupleS::prepareRecord(const TableS & tab){
   if (allAttrData) {
+    if (getNoOfAttributes() == tab.getNoOfAttributes())
+    {
+      m_currentTable = &tab;
+      return true;
+    }
     delete [] allAttrData;
     m_currentTable= 0;
   }
   
   allAttrData = new AttributeData[tab.getNoOfAttributes()];
-  
   if (allAttrData == 0)
     return false;
   
   m_currentTable = &tab;
-  
+
   return true;
-}
-
-Uint32 RestoreDataIterator::get_buffer_ptr(void **p_buf_ptr, Uint32 size, Uint32 nmemb, FILE *stream)
-{
-  Uint32 sz = size*nmemb;
-  if (sz > m_buffer_data_left) {
-
-    if (free_data_callback)
-      (*free_data_callback)();
-
-    memcpy(m_buffer, m_buffer_ptr, m_buffer_data_left);
-
-    size_t r = fread(((char *)m_buffer) + m_buffer_data_left, 1, m_buffer_sz - m_buffer_data_left, stream);
-    m_buffer_data_left += r;
-    m_buffer_ptr = m_buffer;
-
-    if (sz > m_buffer_data_left)
-      sz = size * (m_buffer_data_left / size);
-  }
-
-  *p_buf_ptr = m_buffer_ptr;
-
-  m_buffer_ptr = ((char*)m_buffer_ptr)+sz;
-  m_buffer_data_left -= sz;
-
-  return sz/size;
-}
-
-Uint32 RestoreDataIterator::fread_buffer(void *ptr, Uint32 size, Uint32 nmemb, FILE *stream)
-{
-  void *buf_ptr;
-  Uint32 r = get_buffer_ptr(&buf_ptr, size, nmemb, stream);
-  memcpy(ptr, buf_ptr, r*size);
-
-  return r;
 }
 
 const TupleS *
@@ -350,7 +305,7 @@ RestoreDataIterator::getNextTuple(int  & res)
 {
   Uint32  dataLength = 0;
   // Read record length
-  if (fread_buffer(&dataLength, sizeof(dataLength), 1, m_file) != 1){
+  if (buffer_read(&dataLength, sizeof(dataLength), 1) != 1){
     err << "getNextTuple:Error reading length  of data part" << endl;
     res = -1;
     return NULL;
@@ -370,7 +325,7 @@ RestoreDataIterator::getNextTuple(int  & res)
 
   // Read tuple data
   void *_buf_ptr;
-  if (get_buffer_ptr(&_buf_ptr, 1, dataLenBytes, m_file) != dataLenBytes) {
+  if (buffer_get_ptr(&_buf_ptr, 1, dataLenBytes) != dataLenBytes) {
     err << "getNextTuple:Read error: " << endl;
     res = -1;
     return NULL;
@@ -468,12 +423,17 @@ RestoreDataIterator::getNextTuple(int  & res)
   return &m_tuple;
 } // RestoreDataIterator::getNextTuple
 
-BackupFile::BackupFile(){
+BackupFile::BackupFile(void (* _free_data_callback)()) 
+  : free_data_callback(_free_data_callback)
+{
   m_file = 0;
   m_path[0] = 0;
   m_fileName[0] = 0;
-  m_buffer = 0;
-  m_bufferSize = 0;
+
+  m_buffer_sz = 64*1024;
+  m_buffer = malloc(m_buffer_sz);
+  m_buffer_ptr = m_buffer;
+  m_buffer_data_left = 0;
 }
 
 BackupFile::~BackupFile(){
@@ -494,15 +454,54 @@ BackupFile::openFile(){
   return m_file != 0;
 }
 
-Uint32 *
-BackupFile::createBuffer(Uint32 bytes){
-  if(bytes > m_bufferSize){
-    if(m_buffer != 0)
-      free(m_buffer);
-    m_bufferSize = m_bufferSize + 2 * bytes;
-    m_buffer = (Uint32*)malloc(m_bufferSize);
+Uint32 BackupFile::buffer_get_ptr_ahead(void **p_buf_ptr, Uint32 size, Uint32 nmemb)
+{
+  Uint32 sz = size*nmemb;
+  if (sz > m_buffer_data_left) {
+
+    if (free_data_callback)
+      (*free_data_callback)();
+
+    memcpy(m_buffer, m_buffer_ptr, m_buffer_data_left);
+
+    size_t r = fread(((char *)m_buffer) + m_buffer_data_left, 1, m_buffer_sz - m_buffer_data_left, m_file);
+    m_buffer_data_left += r;
+    m_buffer_ptr = m_buffer;
+
+    if (sz > m_buffer_data_left)
+      sz = size * (m_buffer_data_left / size);
   }
-  return m_buffer;
+
+  *p_buf_ptr = m_buffer_ptr;
+
+  return sz/size;
+}
+Uint32 BackupFile::buffer_get_ptr(void **p_buf_ptr, Uint32 size, Uint32 nmemb)
+{
+  Uint32 r = buffer_get_ptr_ahead(p_buf_ptr, size, nmemb);
+
+  m_buffer_ptr = ((char*)m_buffer_ptr)+(r*size);
+  m_buffer_data_left -= (r*size);
+
+  return r;
+}
+
+Uint32 BackupFile::buffer_read_ahead(void *ptr, Uint32 size, Uint32 nmemb)
+{
+  void *buf_ptr;
+  Uint32 r = buffer_get_ptr_ahead(&buf_ptr, size, nmemb);
+  memcpy(ptr, buf_ptr, r*size);
+
+  return r;
+}
+
+Uint32 BackupFile::buffer_read(void *ptr, Uint32 size, Uint32 nmemb)
+{
+  void *buf_ptr;
+  Uint32 r = buffer_get_ptr(&buf_ptr, size, nmemb);
+  memcpy(ptr, buf_ptr, r*size);
+
+  return r;
 }
 
 void
@@ -563,7 +562,7 @@ BackupFile::readHeader(){
     return false;
   }
   
-  if(fread(&m_fileHeader, sizeof(m_fileHeader), 1, m_file) != 1){
+  if(buffer_read(&m_fileHeader, sizeof(m_fileHeader), 1) != 1){
     err << "readDataFileHeader: Error reading header" << endl;
     return false;
   }
@@ -611,14 +610,13 @@ BackupFile::validateFooter(){
   return true;
 }
 
-bool
-RestoreDataIterator::readFragmentHeader(int & ret)
+bool RestoreDataIterator::readFragmentHeader(int & ret)
 {
   BackupFormat::DataFile::FragmentHeader Header;
   
   debug << "RestoreDataIterator::getNextFragment" << endl;
   
-  if (fread_buffer(&Header, sizeof(Header), 1, m_file) != 1){
+  if (buffer_read(&Header, sizeof(Header), 1) != 1){
     ret = 0;
     return false;
   } // if
@@ -663,7 +661,7 @@ bool
 RestoreDataIterator::validateFragmentFooter() {
   BackupFormat::DataFile::FragmentFooter footer;
   
-  if (fread_buffer(&footer, sizeof(footer), 1, m_file) != 1){
+  if (buffer_read(&footer, sizeof(footer), 1) != 1){
     err << "getFragmentFooter:Error reading fragment footer" << endl;
     return false;
   } 
@@ -771,45 +769,32 @@ RestoreLogIterator::getNextLogEntry(int & res) {
   // Read record length
   typedef BackupFormat::LogFile::LogEntry LogE;
 
-  Uint32 gcp = 0;
-  LogE * logE = 0;
-  Uint32 len = ~0;
+  Uint32 gcp= 0;
+  LogE * logE= 0;
+  Uint32 len= ~0;
   const Uint32 stopGCP = m_metaData.getStopGCP();
   do {
-    
-    if(createBuffer(4) == 0) {
-      res = -1;
-      return NULL;
+    if (buffer_read_ahead(&len, sizeof(Uint32), 1) != 1){
+      res= -1;
+      return 0;
     }
-     
+    len= ntohl(len);
 
-    if (fread(m_buffer, sizeof(Uint32), 1, m_file) != 1){
-      res = -1;
-      return NULL;
+    Uint32 data_len = sizeof(Uint32) + len*4;
+    if (buffer_get_ptr((void **)(&logE), 1, data_len) != data_len) {
+      res= -2;
+      return 0;
     }
     
-    m_buffer[0] = ntohl(m_buffer[0]);
-    len = m_buffer[0];
     if(len == 0){
-      res = 0;
+      res= 0;
       return 0;
     }
 
-    if(createBuffer(4 * (len + 1)) == 0){
-      res = -1;
-      return NULL;
-    }
+    logE->TableId= ntohl(logE->TableId);
+    logE->TriggerEvent= ntohl(logE->TriggerEvent);
     
-    if (fread(&m_buffer[1], 4, len, m_file) != len) {
-      res = -1;
-      return NULL;
-    }
-    
-    logE = (LogE *)&m_buffer[0];
-    logE->TableId = ntohl(logE->TableId);
-    logE->TriggerEvent = ntohl(logE->TriggerEvent);
-    
-    const bool hasGcp = (logE->TriggerEvent & 0x10000) != 0;
+    const bool hasGcp= (logE->TriggerEvent & 0x10000) != 0;
     logE->TriggerEvent &= 0xFFFF;
     
     if(hasGcp){
@@ -818,9 +803,6 @@ RestoreLogIterator::getNextLogEntry(int & res) {
     }
   } while(gcp > stopGCP + 1);
 
-  for(int i=0; i<m_logEntry.m_values.size();i++)
-    delete m_logEntry.m_values[i];
-  m_logEntry.m_values.clear();
   m_logEntry.m_table = m_metaData.getTable(logE->TableId);
   switch(logE->TriggerEvent){
   case TriggerEvent::TE_INSERT:
@@ -838,35 +820,36 @@ RestoreLogIterator::getNextLogEntry(int & res) {
   }
 
   const TableS * tab = m_logEntry.m_table;
+  m_logEntry.clear();
 
   AttributeHeader * ah = (AttributeHeader *)&logE->Data[0];
   AttributeHeader *end = (AttributeHeader *)&logE->Data[len - 2];
   AttributeS *  attr;
   while(ah < end){
-    attr = new AttributeS;
+    attr= m_logEntry.add_attr();
     if(attr == NULL) {
       ndbout_c("Restore: Failed to allocate memory");
       res = -1;
-      return NULL;
+      return 0;
     }
+
     attr->Desc = (* tab)[ah->getAttributeId()];
     assert(attr->Desc != 0);
 
     const Uint32 sz = ah->getDataSize();
     if(sz == 0){
-      attr->Data->null = true;
-      attr->Data->void_value = NULL;
+      attr->Data.null = true;
+      attr->Data.void_value = NULL;
     } else {
-      attr->Data->null = false;
-      attr->Data->void_value = ah->getDataPtr();
+      attr->Data.null = false;
+      attr->Data.void_value = ah->getDataPtr();
     }
     
-    Twiddle(attr->Desc, attr->Data);
-    m_logEntry.m_values.push_back(attr);
+    Twiddle(attr->Desc, &(attr->Data));
     
     ah = ah->getNext();
   }
-  
+
   m_count ++;
   res = 0;
   return &m_logEntry;
@@ -874,7 +857,7 @@ RestoreLogIterator::getNextLogEntry(int & res) {
 
 NdbOut &
 operator<<(NdbOut& ndbout, const AttributeS& attr){
-  const AttributeData & data = *(attr.Data);
+  const AttributeData & data = attr.Data;
   const AttributeDesc & desc = *(attr.Desc);
 
   if (data.null)
@@ -899,7 +882,7 @@ operator<<(NdbOut& ndbout, const TupleS& tuple)
   {
     AttributeData * attr_data = tuple.getData(i);
     const AttributeDesc * attr_desc = tuple.getDesc(i);
-    const AttributeS attr = {attr_desc, attr_data};
+    const AttributeS attr = {attr_desc, *attr_data};
     debug << i << " " << attr_desc->m_column->getName();
     ndbout << attr;
     
@@ -928,12 +911,12 @@ operator<<(NdbOut& ndbout, const LogEntry& logE)
     ndbout << "Unknown log entry type (not insert, delete or update)" ;
   }
   
-  for (int i = 0; i < logE.m_values.size();i++) 
+  for (int i = 0; i < logE.size();i++) 
   {
-    const AttributeS * attr = logE.m_values[i];
+    const AttributeS * attr = logE[i];
     ndbout << attr->Desc->m_column->getName() << "=";
     ndbout << (* attr);
-    if (i < (logE.m_values.size() - 1))
+    if (i < (logE.size() - 1))
       ndbout << ", ";
   }
   return ndbout;
