@@ -84,6 +84,8 @@ NdbEventOperationImpl::NdbEventOperationImpl(NdbEventOperation &N,
 
   m_eventImpl = &myEvnt->m_impl;
 
+  m_eventId = m_eventImpl->m_eventId;
+
   m_bufferHandle = m_ndb->getGlobalEventBufferHandle();
   if (m_bufferHandle->m_bufferL > 0) 
     m_bufferL =m_bufferHandle->m_bufferL;
@@ -947,6 +949,7 @@ NdbGlobalEventBuffer::real_prepareAddSubscribeEvent
   int bufferId= -1;
   Uint32 eventId= eventOp->m_eventId;
 
+  DBUG_PRINT("enter",("eventId: %u", eventId));
   //  add_drop_lock(); // only one thread can do add or drop at a time
 
   // Find place where eventId already set
