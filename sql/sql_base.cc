@@ -1516,8 +1516,8 @@ TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
   {
     tmp_table->next=thd->temporary_tables;
     thd->temporary_tables=tmp_table;
-    if(thd->slave_thread)
-      ++slave_open_temp_tables;
+    if (thd->slave_thread)
+      slave_open_temp_tables++;
   }
   DBUG_RETURN(tmp_table);
 }

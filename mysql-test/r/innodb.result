@@ -858,7 +858,7 @@ insert into test_$1.t3 values(1);
 commit;
 drop database test_$1;
 show tables from test_$1;
-Can't read dir of './test_$1/' (Errcode: 2)
+Got one of the listed errors
 create table t1 (a int not null) type= innodb;
 insert into t1 values(1),(2);
 truncate table t1;

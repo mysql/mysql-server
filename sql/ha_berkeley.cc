@@ -1879,13 +1879,14 @@ int ha_berkeley::delete_table(const char *name)
 {
   int error;
   char name_buff[FN_REFLEN];
+  DBUG_ENTER("delete_table");
   if ((error=db_create(&file, db_env, 0)))
     my_errno=error; /* purecov: inspected */
   else
     error=file->remove(file,fn_format(name_buff,name,"",ha_berkeley_ext,2 | 4),
 		       NULL,0);
   file=0;					// Safety
-  return error;
+  DBUG_RETURN(error);
 }
 
 /*

@@ -544,13 +544,14 @@ innobase_init(void)
 	  When using the embedded server, the datadirectory is not
 	  in the current directory.
 	*/
-	if (!mysql_embedded)
+	if (mysql_embedded)
 	  default_path=mysql_real_data_home;
 	else
 	{
 	  /* It's better to use current lib, to keep path's short */
 	  current_lib[0]=FN_CURLIB;
 	  current_lib[1]=FN_LIBCHAR;
+	  current_lib[2]=0;
 	  default_path=current_lib;
 	}
 
