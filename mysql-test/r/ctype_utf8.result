@@ -644,3 +644,19 @@ INSERT INTO t1 VALUES ('test');
 SELECT a FROM t1 WHERE a LIKE '%te';
 a
 DROP TABLE t1;
+SET NAMES utf8;
+CREATE TABLE t1 (
+subject varchar(255) character set utf8 collate utf8_unicode_ci,
+p varchar(15) character set utf8
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t1 VALUES ('谷川俊二と申しますが、インターネット予約の会員登録をしましたところ、メールアドレスを間違えてしまい会員ＩＤが受け取ることが出来ませんでした。間違えアドレスはtani-shun@n.vodafone.ne.jpを書き込みました。どうすればよいですか？ その他、住所等は間違えありません。連絡ください。よろしくお願いします。m(__)m','040312-000057');
+INSERT INTO t1 VALUES ('aaa','bbb');
+SELECT length(subject) FROM t1;
+length(subject)
+432
+3
+SELECT length(subject) FROM t1 ORDER BY 1;
+length(subject)
+3
+432
+DROP TABLE t1;
