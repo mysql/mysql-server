@@ -999,6 +999,7 @@ public:
        join_key(0), ft_handler(0), table(0), master(0), concat(0) { }
   void cleanup()
   {
+    DBUG_ENTER("Item_func_match");
     if (!master && ft_handler)
     {
       ft_handler->please->close_search(ft_handler);
@@ -1009,6 +1010,7 @@ public:
     }
     if (concat)
       delete concat;
+    DBUG_VOID_RETURN;
   }
   enum Functype functype() const { return FT_FUNC; }
   const char *func_name() const { return "match"; }
