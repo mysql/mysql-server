@@ -1,5 +1,5 @@
-drop table if exists t1,t2,v1,v2,v3,v4,v5,v6;
-drop view if exists t1,t2,v1,v2,v3,v4,v5,v6;
+drop table if exists t1,t2,`t1a``b`,v1,v2,v3,v4,v5,v6;
+drop view if exists t1,t2,`t1a``b`,v1,v2,v3,v4,v5,v6;
 drop database if exists mysqltest;
 use test;
 create view v1 (c,d) as select a,b from t1;
@@ -956,3 +956,12 @@ select * from v1, t1;
 a	t_column
 drop view v1;
 drop table t1;
+create table `t1a``b` (col1 char(2));
+create view v1 as select * from `t1a``b`;
+select * from v1;
+col1
+describe v1;
+Field	Type	Null	Key	Default	Extra
+col1	char(2)	YES		NULL	
+drop view v1;
+drop table `t1a``b`;

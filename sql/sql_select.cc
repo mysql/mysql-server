@@ -11250,37 +11250,32 @@ void st_table_list::print(THD *thd, String *str)
   }
   else if (view_name.str)
   {
-    str->append('`');
-    str->append(view_db.str, view_db.length);
-    str->append("`.`", 3);
-    str->append(view_name.str, view_name.length);
+    append_identifier(thd, str, view_db.str, view_db.length);
+    str->append('.');
+    append_identifier(thd, str, view_name.str, view_name.length);
     if (my_strcasecmp(table_alias_charset, view_name.str, alias))
     {
-      str->append("` `", 3);
-      str->append(alias);
+      str->append(' ');
+      append_identifier(thd, str, alias, strlen(alias));
     }
-    str->append('`');
   }
   else if (derived)
   {
     str->append('(');
     derived->print(str);
-    str->append(") `", 3);
-    str->append(alias);
-    str->append('`');
+    str->append(") ", 2);
+    append_identifier(thd, str, alias, strlen(alias));
   }
   else
   {
-    str->append('`');
-    str->append(db);
-    str->append("`.`", 3);
-    str->append(real_name);
+    append_identifier(thd, str, db, db_length);
+    str->append('.');
+    append_identifier(thd, str, real_name, real_name_length);
     if (my_strcasecmp(table_alias_charset, real_name, alias))
     {
-      str->append("` `", 3);
-      str->append(alias);
+      str->append(' ');
+      append_identifier(thd, str, alias, strlen(alias));
     }
-    str->append('`');
   }
 }
 
