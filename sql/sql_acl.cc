@@ -2849,6 +2849,16 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
 }
 
 
+uint get_mqh(const char *user, const char *host)
+{
+  if (!initialized) return 0;
+
+  ACL_USER *acl_user;
+  acl_user= find_acl_user(host,user);
+  return (acl_user) ? acl_user->questions : 0;
+}
+
+
 /*****************************************************************************
 ** Instantiate used templates
 *****************************************************************************/
