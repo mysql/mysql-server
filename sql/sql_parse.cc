@@ -2703,8 +2703,8 @@ mysql_execute_command(THD *thd)
       TABLE_LIST *walk;
       for (walk= (TABLE_LIST*) tables; walk; walk= walk->next)
       {
-	if (!strcmp(auxi->real_name, walk->alias) &&
-	    !strcmp(walk->db, auxi->db))
+	if (!my_strcasecmp(table_alias_charset, auxi->alias, walk->alias) &&
+	    !my_strcasecmp(table_alias_charset, walk->db, auxi->db))
 	  break;
       }
       if (!walk)
