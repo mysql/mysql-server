@@ -23395,13 +23395,14 @@ The binary logging is done immediately after a query completes but before
 any locks are released or any commit is done. This ensures that the log
 will be logged in the execution order.
 
-All updates (@code{UPDATE}, @code{DELETE} or @code{INSERT}) that change
-a transactional table (like BDB tables) are cached until a @code{COMMIT}.
-Any updates to a non-transactional table are stored in the binary log at
-once.  Every thread will, on start, allocate a buffer of
-@code{binlog_cache_size} to buffer queries.  If a query is bigger than
-this, the thread will open a temporary file to handle the bigger cache.
-The temporary file will be deleted when the thread ends.
+Updates to non-transactional tables are stored in the binary log
+immediately after execution.  For transactional tables such as @code{BDB}
+or @code{InnoDB} tables, all updates (@code{UPDATE}, @code{DELETE}
+or @code{INSERT}) that change tables are cached until a @code{COMMIT}.
+Every thread will, on start, allocate a buffer of @code{binlog_cache_size}
+to buffer queries.  If a query is bigger than this, the thread will open
+a temporary file to handle the bigger cache.  The temporary file will
+be deleted when the thread ends.
 
 The @code{max_binlog_cache_size} can be used to restrict the total size used
 to cache a multi-query transaction.
