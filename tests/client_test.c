@@ -9031,6 +9031,168 @@ static void test_xjoin()
   myquery(rc);
 }
 
+static void test_bug3035()
+{
+  MYSQL_STMT *stmt;
+  int rc;
+
+  MYSQL_BIND bind_array[8];
+  int8 int8_val;
+  uint8 uint8_val;
+  int16 int16_val;
+  uint16 uint16_val;
+  int32 int32_val;
+  uint32 uint32_val;
+  longlong int64_val;
+  ulonglong uint64_val;
+
+  /* mins and maxes */
+  const int8 int8_min= -128;
+  const int8 int8_max= 127;
+  const uint8 uint8_min= 0;
+  const uint8 uint8_max= 255;
+  
+  const int16 int16_min= -32768;
+  const int16 int16_max= 32767;
+  const uint16 uint16_min= 0;
+  const uint16 uint16_max= 65535;
+
+  const int32 int32_max= 2147483647L;
+  const int32 int32_min= -int32_max - 1;
+  const uint32 uint32_min= 0;
+  const uint32 uint32_max= 4294967295U;
+
+  /* it might not work okay everyplace */
+  const longlong int64_max= 9223372036854775807LL;
+  const longlong int64_min= -int64_max - 1;
+
+  const ulonglong uint64_min= 0U;
+  const ulonglong uint64_max= 18446744073709551615ULL;
+  
+  const char *stmt_text;
+  
+  myheader("test_bug3035");
+  
+  stmt_text= "DROP TABLE IF EXISTS t1";
+  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  myquery(rc);
+
+  stmt_text= "CREATE TABLE t1 (i8 TINYINT, ui8 TINYINT UNSIGNED, "
+                              "i16 SMALLINT, ui16 SMALLINT UNSIGNED, "
+                              "i32 INT, ui32 INT UNSIGNED, "
+                              "i64 BIGINT, ui64 BIGINT UNSIGNED, "
+                              "id INTEGER NOT NULL PRIMARY KEY AUTO_INCREMENT)";
+  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  myquery(rc);
+
+  bzero(bind_array, sizeof(bind_array));
+
+  bind_array[0].buffer_type= MYSQL_TYPE_TINY;
+  bind_array[0].buffer= (char*) &int8_val;
+
+  bind_array[1].buffer_type= MYSQL_TYPE_TINY;
+  bind_array[1].buffer= (char*) &uint8_val;
+  bind_array[1].is_unsigned= 1;
+
+  bind_array[2].buffer_type= MYSQL_TYPE_SHORT;
+  bind_array[2].buffer= (char*) &int16_val;
+  
+  bind_array[3].buffer_type= MYSQL_TYPE_SHORT;
+  bind_array[3].buffer= (char*) &uint16_val;
+  bind_array[3].is_unsigned= 1;
+
+  bind_array[4].buffer_type= MYSQL_TYPE_LONG;
+  bind_array[4].buffer= (char*) &int32_val;
+
+  bind_array[5].buffer_type= MYSQL_TYPE_LONG;
+  bind_array[5].buffer= (char*) &uint32_val;
+  bind_array[5].is_unsigned= 1;
+
+  bind_array[6].buffer_type= MYSQL_TYPE_LONGLONG;
+  bind_array[6].buffer= (char*) &int64_val;
+  
+  bind_array[7].buffer_type= MYSQL_TYPE_LONGLONG;
+  bind_array[7].buffer= (char*) &uint64_val;
+  bind_array[7].is_unsigned= 1;
+
+  stmt= mysql_stmt_init(mysql);
+
+  mystmt_init(stmt);
+
+  stmt_text= "INSERT INTO t1 (i8, ui8, i16, ui16, i32, ui32, i64, ui64) "
+                     "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  mystmt(stmt, rc);
+
+  mysql_stmt_bind_param(stmt, bind_array);
+
+  int8_val= int8_min;
+  uint8_val= uint8_min;
+  int16_val= int16_min;
+  uint16_val= uint16_min;
+  int32_val= int32_min;
+  uint32_val= uint32_min;
+  int64_val= int64_min;
+  uint64_val= uint64_min;
+
+  rc= mysql_stmt_execute(stmt);
+  mystmt(stmt, rc);
+  
+  int8_val= int8_max;
+  uint8_val= uint8_max;
+  int16_val= int16_max;
+  uint16_val= uint16_max;
+  int32_val= int32_max;
+  uint32_val= uint32_max;
+  int64_val= int64_max;
+  uint64_val= uint64_max;
+
+  mysql_stmt_execute(stmt);
+  mystmt(stmt, rc);
+
+  stmt_text= "SELECT i8, ui8, i16, ui16, i32, ui32, i64, ui64 "
+             "FROM t1 ORDER BY id ASC";
+
+  mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  mystmt(stmt, rc);
+
+  mysql_stmt_execute(stmt);
+  mystmt(stmt, rc);
+
+  mysql_stmt_bind_result(stmt, bind_array);
+
+  rc= mysql_stmt_fetch(stmt);
+  mystmt(stmt, rc);
+
+  assert(int8_val == int8_min);
+  assert(uint8_val == uint8_min);
+  assert(int16_val == int16_min);
+  assert(uint16_val == uint16_min);
+  assert(int32_val == int32_min);
+  assert(uint32_val == uint32_min);
+  assert(int64_val == int64_min);
+  assert(uint64_val == uint64_min);
+
+  rc= mysql_stmt_fetch(stmt);
+  mystmt(stmt, rc);
+  
+  assert(int8_val == int8_max);
+  assert(uint8_val == uint8_max);
+  assert(int16_val == int16_max);
+  assert(uint16_val == uint16_max);
+  assert(int32_val == int32_max);
+  assert(uint32_val == uint32_max);
+  assert(int64_val == int64_max);
+  assert(uint64_val == uint64_max);
+
+  rc= mysql_stmt_fetch(stmt);
+  assert(rc == MYSQL_NO_DATA); 
+
+  mysql_stmt_close(stmt);
+
+  stmt_text= "DROP TABLE t1";
+  mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+}
 
 /*
   Read and parse arguments and MySQL options from my.cnf
@@ -9303,6 +9465,7 @@ int main(int argc, char **argv)
     test_bind_nagative();   /* bind negative to unsigned BUG#3223 */
     test_derived();	    /* derived table with parameter BUG#3020 */
     test_xjoin();	    /* complex join test */
+    test_bug3035();         /* inserts of INT32_MAX/UINT32_MAX */
 
     end_time= time((time_t *)0);
     total_time+= difftime(end_time, start_time);
