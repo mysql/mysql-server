@@ -272,3 +272,4 @@
 "End-label without match"
 "Referring to uninitialized variable"
 "SELECT in a stored procedure must have INTO"
+"RETURN is only allowed in a stored FUNCTION"

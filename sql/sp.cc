@@ -19,48 +19,158 @@
 #include "sp.h"
 #include "sp_head.h"
 
-// Finds the SP 'name'. Currently this always reads from the database
-// and prepares (parse) it, but in the future it will first look in
-// the in-memory cache for SPs. (And store newly prepared SPs there of
-// course.)
-sp_head *
-sp_find_procedure(THD *thd, Item_string *iname)
+/*
+ *
+ * DB storage of Stored PROCEDUREs and FUNCTIONs
+ *
+ */
+
+static int
+db_find_routine_aux(THD *thd, int type, char *name, uint namelen,
+		    enum thr_lock_type ltype, TABLE **tablep)
 {
-  DBUG_ENTER("sp_find_procedure");
-  extern int yyparse(void *thd);
-  LEX *tmplex;
+  DBUG_ENTER("db_find_routine_aux");
+  DBUG_PRINT("enter", ("type: %d name: %*s", type, namelen, name));
   TABLE *table;
   TABLE_LIST tables;
-  const char *defstr;
-  String *name;
-  sp_head *sp = NULL;
+  byte key[65];			// We know name is 64 and the enum is 1 byte
+  uint keylen;
+  int ret;
 
-  name = iname->const_string();
-  DBUG_PRINT("enter", ("name: %*s", name->length(), name->c_ptr()));
+  // Put the key together
+  keylen= namelen;
+  if (keylen > sizeof(key)-1)
+    keylen= sizeof(key)-1;
+  memcpy(key, name, keylen);
+  memset(key+keylen, (int)' ', sizeof(key)-1 - keylen);	// Pad with space
+  key[sizeof(key)-1]= type;
+  keylen= sizeof(key);
+
   memset(&tables, 0, sizeof(tables));
   tables.db= (char*)"mysql";
   tables.real_name= tables.alias= (char*)"proc";
-  if (! (table= open_ltable(thd, &tables, TL_READ)))
-    DBUG_RETURN(NULL);
+  if (! (table= open_ltable(thd, &tables, ltype)))
+    DBUG_RETURN(SP_OPEN_TABLE_FAILED);
 
   if (table->file->index_read_idx(table->record[0], 0,
-				  (byte*)name->c_ptr(), name->length(),
+				  key, keylen,
 				  HA_READ_KEY_EXACT))
-    goto done;
+  {
+    close_thread_tables(thd);
+    DBUG_RETURN(SP_KEY_NOT_FOUND);
+  }
+  *tablep= table;
 
-  if ((defstr= get_field(&thd->mem_root, table->field[1])) == NULL)
-    goto done;
+  DBUG_RETURN(SP_OK);
+}
+
+static int
+db_find_routine(THD *thd, int type, char *name, uint namelen, sp_head **sphp)
+{
+  DBUG_ENTER("db_find_routine");
+  DBUG_PRINT("enter", ("type: %d name: %*s", type, namelen, name));
+  extern int yyparse(void *thd);
+  LEX *tmplex;
+  TABLE *table;
+  const char *defstr;
+  int ret;
 
   // QQ Set up our own mem_root here???
+  ret= db_find_routine_aux(thd, type, name, namelen, TL_READ, &table);
+  if (ret != SP_OK)
+    goto done;
+  if ((defstr= get_field(&thd->mem_root, table->field[2])) == NULL)
+  {
+    ret= SP_GET_FIELD_FAILED;
+    goto done;
+  }
+
   tmplex= lex_start(thd, (uchar*)defstr, strlen(defstr));
   if (yyparse(thd) || thd->is_fatal_error || tmplex->sphead == NULL)
-    goto done;			// Error
+    ret= SP_PARSE_ERROR;
   else
-    sp = tmplex->sphead;
+    *sphp= tmplex->sphead;
 
  done:
-  if (table)
+  if (ret == SP_OK && table)
     close_thread_tables(thd);
+  DBUG_RETURN(ret);
+}
+
+static int
+db_create_routine(THD *thd, int type,
+		  char *name, uint namelen, char *def, uint deflen)
+{
+  DBUG_ENTER("db_create_routine");
+  DBUG_PRINT("enter", ("type: %d name: %*s def: %*s", type, namelen, name, deflen, def));
+  int ret;
+  TABLE *table;
+  TABLE_LIST tables;
+
+  memset(&tables, 0, sizeof(tables));
+  tables.db= (char*)"mysql";
+  tables.real_name= tables.alias= (char*)"proc";
+
+  if (! (table= open_ltable(thd, &tables, TL_WRITE)))
+    ret= SP_OPEN_TABLE_FAILED;
+  else
+  {
+    restore_record(table, 2);	// Get default values for fields
+
+    table->field[0]->store(name, namelen, default_charset_info);
+    table->field[1]->store((longlong)type);
+    table->field[2]->store(def, deflen, default_charset_info);
+
+    if (table->file->write_row(table->record[0]))
+      ret= SP_WRITE_ROW_FAILED;
+    else
+      ret= SP_OK;
+  }
+
+  if (ret == SP_OK && table)
+    close_thread_tables(thd);
+  DBUG_RETURN(ret);
+}
+
+static int
+db_drop_routine(THD *thd, int type, char *name, uint namelen)
+{
+  DBUG_ENTER("db_drop_routine");
+  DBUG_PRINT("enter", ("type: %d name: %*s", type, namelen, name));
+  TABLE *table;
+  int ret;
+
+  ret= db_find_routine_aux(thd, type, name, namelen, TL_WRITE, &table);
+  if (ret == SP_OK)
+  {
+    if (table->file->delete_row(table->record[0]))
+      ret= SP_DELETE_ROW_FAILED;
+  }
+
+  if (ret == SP_OK && table)
+    close_thread_tables(thd);
+  DBUG_RETURN(ret);
+}
+
+
+/*
+ *
+ * PROCEDURE
+ *
+ */
+
+sp_head *
+sp_find_procedure(THD *thd, LEX_STRING *name)
+{
+  DBUG_ENTER("sp_find_procedure");
+  sp_head *sp;
+
+  DBUG_PRINT("enter", ("name: %*s", name->length, name->str));
+
+  if (db_find_routine(thd, TYPE_ENUM_PROCEDURE,
+		      name->str, name->length, &sp) != SP_OK)
+    sp= NULL;
+
   DBUG_RETURN(sp);
 }
 
@@ -69,29 +179,10 @@ sp_create_procedure(THD *thd, char *name, uint namelen, char *def, uint deflen)
 {
   DBUG_ENTER("sp_create_procedure");
   DBUG_PRINT("enter", ("name: %*s def: %*s", namelen, name, deflen, def));
-  int ret= 0;
-  TABLE *table;
-  TABLE_LIST tables;
+  int ret;
 
-  memset(&tables, 0, sizeof(tables));
-  tables.db= (char*)"mysql";
-  tables.real_name= tables.alias= (char*)"proc";
-  /* Allow creation of procedures even if we can't open proc table */
-  if (! (table= open_ltable(thd, &tables, TL_WRITE)))
-  {
-    ret= -1;
-    goto done;
-  }
+  ret= db_create_routine(thd, TYPE_ENUM_PROCEDURE, name, namelen, def, deflen);
 
-  restore_record(table, 2);	// Get default values for fields
-
-  table->field[0]->store(name, namelen, default_charset_info);
-  table->field[1]->store(def, deflen, default_charset_info);
-
-  ret= table->file->write_row(table->record[0]);
-
- done:
-  close_thread_tables(thd);
   DBUG_RETURN(ret);
 }
 
@@ -100,26 +191,55 @@ sp_drop_procedure(THD *thd, char *name, uint namelen)
 {
   DBUG_ENTER("sp_drop_procedure");
   DBUG_PRINT("enter", ("name: %*s", namelen, name));
-  TABLE *table;
-  TABLE_LIST tables;
+  int ret;
 
-  tables.db= (char *)"mysql";
-  tables.real_name= tables.alias= (char *)"proc";
-  if (! (table= open_ltable(thd, &tables, TL_WRITE)))
-    goto err;
-  if (! table->file->index_read_idx(table->record[0], 0,
-				    (byte *)name, namelen,
-				    HA_READ_KEY_EXACT))
-  {
-    int error;
+  ret= db_drop_routine(thd, TYPE_ENUM_PROCEDURE, name, namelen);
 
-    if ((error= table->file->delete_row(table->record[0])))
-      table->file->print_error(error, MYF(0));
-  }
-  close_thread_tables(thd);
-  DBUG_RETURN(0);
+  DBUG_RETURN(ret);
+}
 
- err:
-  close_thread_tables(thd);
-  DBUG_RETURN(-1);
+
+/*
+ *
+ * FUNCTION
+ *
+ */
+
+sp_head *
+sp_find_function(THD *thd, LEX_STRING *name)
+{
+  DBUG_ENTER("sp_find_function_i");
+  sp_head *sp;
+
+  DBUG_PRINT("enter", ("name: %*s", name->length, name->str));
+
+  if (db_find_routine(thd, TYPE_ENUM_FUNCTION,
+		      name->str, name->length, &sp) != SP_OK)
+    sp= NULL;
+
+  DBUG_RETURN(sp);
+}
+
+int
+sp_create_function(THD *thd, char *name, uint namelen, char *def, uint deflen)
+{
+  DBUG_ENTER("sp_create_function");
+  DBUG_PRINT("enter", ("name: %*s def: %*s", namelen, name, deflen, def));
+  int ret;
+
+  ret= db_create_routine(thd, TYPE_ENUM_FUNCTION, name, namelen, def, deflen);
+
+  DBUG_RETURN(ret);
+}
+
+int
+sp_drop_function(THD *thd, char *name, uint namelen)
+{
+  DBUG_ENTER("sp_drop_function");
+  DBUG_PRINT("enter", ("name: %*s", namelen, name));
+  int ret;
+
+  ret= db_drop_routine(thd, TYPE_ENUM_FUNCTION, name, namelen);
+
+  DBUG_RETURN(ret);
 }

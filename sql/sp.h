@@ -18,11 +18,17 @@
 #ifndef _SP_H_
 #define _SP_H_
 
-//
-// Finds a stored procedure given its name. Returns NULL if not found.
-//
+// Return codes from sp_create_* and sp_drop_*:
+#define SP_OK                 0
+#define SP_KEY_NOT_FOUND     -1
+#define SP_OPEN_TABLE_FAILED -2
+#define SP_WRITE_ROW_FAILED  -3
+#define SP_DELETE_ROW_FAILED -4
+#define SP_GET_FIELD_FAILED  -5
+#define SP_PARSE_ERROR       -6
+
 sp_head *
-sp_find_procedure(THD *thd, Item_string *name);
+sp_find_procedure(THD *thd, LEX_STRING *name);
 
 int
 sp_create_procedure(THD *thd, char *name, uint namelen, char *def, uint deflen);
@@ -30,15 +36,14 @@ sp_create_procedure(THD *thd, char *name, uint namelen, char *def, uint deflen);
 int
 sp_drop_procedure(THD *thd, char *name, uint namelen);
 
-#if 0
+
 sp_head *
-sp_find_function(THD *thd, Item_string *name);
+sp_find_function(THD *thd, LEX_STRING *name);
 
 int
 sp_create_function(THD *thd, char *name, uint namelen, char *def, uint deflen);
 
 int
 sp_drop_function(THD *thd, char *name, uint namelen);
-#endif
 
 #endif /* _SP_H_ */

@@ -24,6 +24,11 @@
 
 #include <stddef.h>
 
+// Values for the type enum. This reflects the order of the enum declaration
+// in the CREATE TABLE command.
+#define TYPE_ENUM_FUNCTION  1
+#define TYPE_ENUM_PROCEDURE 2
+
 struct sp_label;
 
 class sp_instr;
@@ -35,8 +40,10 @@ class sp_head : public Sql_alloc
 
 public:
 
+  int m_type;			// TYPE_ENUM_FUNCTION or TYPE_ENUM_PROCEDURE
+  enum enum_field_types m_returns; // For FUNCTIONs only
   my_bool m_simple_case;	// TRUE if parsing simple case, FALSE otherwise
-  List<Item_string> m_calls;	// Called procedures.
+  List<char *> m_calls;		// Called procedures.
   List<char *> m_tables;	// Used tables.
 
   static void *operator new(size_t size)
@@ -87,6 +94,15 @@ public:
   void
   backpatch(struct sp_label *);
 
+  char *name(uint *lenp = 0) const
+  {
+    String *n= m_name->const_string();
+
+    if (lenp)
+      *lenp= n->length();
+    return n->c_ptr();
+  }
+
 private:
 
   Item_string *m_name;
@@ -99,7 +115,7 @@ private:
     struct sp_label *lab;
     sp_instr *instr;
   } bp_t;
-  List<bp_t> m_backpatch;	// Instructions needing backpaching
+  List<bp_t> m_backpatch;	// Instructions needing backpatching
 
   inline sp_instr *
   get_instr(uint i)

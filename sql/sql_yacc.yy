@@ -366,9 +366,10 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	FUNC_ARG1
 %token	FUNC_ARG2
 %token	FUNC_ARG3
-%token	UDF_RETURNS_SYM
+%token	RETURN_SYM
+%token	RETURNS_SYM
 %token	UDF_SONAME_SYM
-%token	UDF_SYM
+%token	FUNCTION_SYM
 %token	UNCOMMITTED_SYM
 %token	UNDERSCORE_CHARSET
 %token	UNICODE_SYM
@@ -902,27 +903,23 @@ create:
 	    lex->name=$4.str;
             lex->create_info.options=$3;
 	  }
-	| CREATE udf_func_type UDF_SYM IDENT
+	| CREATE udf_func_type FUNCTION_SYM IDENT
 	  {
 	    LEX *lex=Lex;
-	    lex->sql_command = SQLCOM_CREATE_FUNCTION;
 	    lex->udf.name = $4;
 	    lex->udf.type= $2;
 	  }
-	  UDF_RETURNS_SYM udf_type UDF_SONAME_SYM TEXT_STRING
-	  {
-	    LEX *lex=Lex;
-	    lex->udf.returns=(Item_result) $7;
-	    lex->udf.dl=$9.str;
-	  }
+	  create_function_tail
+	  {}
 	| CREATE PROCEDURE ident
 	  {
 	    LEX *lex= Lex;
 
-	    lex->spcont = new sp_pcontext();
-	    lex->sphead = new sp_head(&$3, lex);
+	    lex->spcont= new sp_pcontext();
+	    lex->sphead= new sp_head(&$3, lex);
+	    lex->sphead->m_type= TYPE_ENUM_PROCEDURE;
 	  }
-          '(' sp_dparam_list ')'
+          '(' sp_pdparam_list ')'
 	  {
 	    Lex->spcont->set_params();
 	  }
@@ -932,15 +929,43 @@ create:
 	  } 
 	;
 
+create_function_tail:
+	  RETURNS_SYM udf_type UDF_SONAME_SYM TEXT_STRING
+	  {
+	    LEX *lex=Lex;
+	    lex->sql_command = SQLCOM_CREATE_FUNCTION;
+	    lex->udf.returns=(Item_result) $2;
+	    lex->udf.dl=$4.str;
+	  }
+	| '('
+	  {
+	    LEX *lex= Lex;
+
+	    lex->sql_command = SQLCOM_CREATE_PROCEDURE;
+	    lex->spcont= new sp_pcontext();
+	    lex->sphead= new sp_head(&lex->udf.name, lex);
+	    lex->sphead->m_type= TYPE_ENUM_FUNCTION;
+	  }
+          sp_fdparam_list ')'
+	  {
+	    Lex->spcont->set_params();
+	  }
+	  RETURNS_SYM type
+	  {
+	    Lex->sphead->m_returns= (enum enum_field_types)$7;
+	  }
+	  sp_proc_stmt
+	  {}
+	;
+
 call:
 	  CALL_SYM ident
 	  {
 	    LEX *lex = Lex;
 
 	    lex->sql_command= SQLCOM_CALL;
+	    lex->udf.name= $2;
 	    lex->value_list.empty();
-	    lex->value_list.push_back(
-	     (Item*)new Item_string($2.str, $2.length, default_charset_info));
 	  }
           '(' sp_cparam_list ')' {}
 	;
@@ -962,18 +987,36 @@ sp_cparams:
 	  }
 	;
 
-/* SP parameter declaration list */
-sp_dparam_list:
+/* Stored FUNCTION parameter declaration list */
+sp_fdparam_list:
 	  /* Empty */
-	| sp_dparams
+	| sp_fdparams
 	;
 
-sp_dparams:
-	  sp_dparams ',' sp_dparam
-	| sp_dparam
+sp_fdparams:
+	  sp_fdparams ',' sp_fdparam
+	| sp_fdparam
 	;
 
-sp_dparam:
+sp_fdparam:
+	  ident type sp_opt_locator
+	  {
+	    Lex->spcont->push(&$1, (enum enum_field_types)$2, sp_param_in);
+	  }
+	;
+
+/* Stored PROCEDURE parameter declaration list */
+sp_pdparam_list:
+	  /* Empty */
+	| sp_pdparams
+	;
+
+sp_pdparams:
+	  sp_pdparams ',' sp_pdparam
+	| sp_pdparam
+	;
+
+sp_pdparam:
 	  sp_opt_inout ident type sp_opt_locator
 	  {
 	    Lex->spcont->push(&$2,
@@ -1068,6 +1111,20 @@ sp_proc_stmt:
 	      lex->sphead->restore_lex(YYTHD);
 	    }
           }
+	| RETURN_SYM expr
+	  {
+	    LEX *lex= Lex;
+
+	    if (lex->sphead->m_type == TYPE_ENUM_PROCEDURE)
+	    {
+	      send_error(YYTHD, ER_SP_BADRETURN);
+	      YYABORT;
+	    }
+	    else
+	    {
+	      /* QQ nothing yet */
+	    }
+	  }
 	| IF sp_if END IF {}
 	| CASE_SYM WHEN_SYM
 	  {
@@ -1886,7 +1943,7 @@ alter:
 	    lex->sql_command=SQLCOM_ALTER_DB;
 	    lex->name=$3.str;
 	  }
-	| ALTER PROCEDURE opt_specific ident
+	| ALTER PROCEDURE ident
 	  /* QQ Characteristics missing for now */
 	  opt_restrict
 	  {
@@ -1895,16 +1952,8 @@ alter:
 	    /* This is essensially an no-op right now, since we haven't
 	       put the characteristics in yet. */
 	    lex->sql_command= SQLCOM_ALTER_PROCEDURE;
-	    lex->value_list.empty();
-	    lex->value_list.push_back(
-	      (Item*)new Item_string($4.str, $4.length, default_charset_info));
+	    lex->udf.name= $3;
 	  }
-	;
-
-opt_specific:
-	/* Empty */
-	|
-	SPECIFIC_SYM
 	;
 
 alter_list:
@@ -3540,22 +3589,19 @@ drop:
 	    lex->drop_if_exists=$3;
 	    lex->name=$4.str;
 	 }
-	| DROP UDF_SYM IDENT
+	| DROP FUNCTION_SYM IDENT opt_restrict
 	  {
 	    LEX *lex=Lex;
 	    lex->sql_command = SQLCOM_DROP_FUNCTION;
-	    lex->udf.name = $3;
+	    lex->udf.name= $3;
 	  }
 	| DROP PROCEDURE ident opt_restrict
 	  {
 	    LEX *lex=Lex;
 	    lex->sql_command = SQLCOM_DROP_PROCEDURE;
-	    lex->value_list.empty();
-	    lex->value_list.push_back(
-	     (Item*)new Item_string($3.str, $3.length, default_charset_info));
+	    lex->udf.name= $3;
 	  }
 	;
-
 
 table_list:
 	table_name
@@ -4583,7 +4629,7 @@ keyword:
 	| TIMESTAMP		{}
 	| TIME_SYM		{}
 	| TYPE_SYM		{}
-	| UDF_SYM		{}
+	| FUNCTION_SYM		{}
 	| UNCOMMITTED_SYM	{}
 	| UNICODE_SYM		{}
 	| USE_FRM		{}

@@ -375,4 +375,20 @@ create table test.t2 select * from test.t1;
 insert into test.t2 values (concat(x, "2"), y+2);
 end;
 drop procedure create_select;
+create function foo returns real soname "foo.so";
+Can't open shared library 'foo.so' (errno: 22 foo.so: cannot open shared object file: No such file or director)
+create function e() returns double
+return 2.7182818284590452354;
+drop function e;
+create function fac(n int unsigned) returns bigint unsigned
+begin
+declare f bigint unsigned;
+set f = 1;
+while n > 1 do
+set f = f * n;
+set n = n - 1;
+end while;
+return f;
+end;
+drop function fac;
 drop table t1;
