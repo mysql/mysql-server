@@ -1,26 +1,29 @@
-Stored Procedures implemented 2003-02-02:
+Stored Procedures implemented 2003-03-07:
 
 
 Summary of Not Yet Implemented:
 
-  - Routine characteristics
+  - SQL queries (like SELECT, INSERT, UPDATE etc) in FUNCTION bodies
   - External languages
   - Access control
+  - Routine characteristics (mostly used for external languages)
   - Prepared SP caching; SPs are fetched and reparsed at each call
   - SQL-99 COMMIT (related to BEGIN/END)
   - DECLARE CURSOR ...
   - FOR-loops (as it requires cursors)
   - CASCADE/RESTRICT for ALTER and DROP
   - ALTER/DROP METHOD (as it implies User Defined Types)
+  - CONDITIONs, HANDLERs, SIGNAL and RESIGNAL (will probably not be implemented)
 
 
 Summary of what's implemented:
 
-  - SQL PROCEDURES (CREATE/DROP)
+  - SQL PROCEDUREs/FUNCTIONs (CREATE/DROP)
   - CALL
   - DECLARE of local variables
   - BEGIN/END, SET, CASE, IF, LOOP, WHILE, REPEAT, ITERATE, LEAVE
   - SELECT INTO local variables
+  - "Non-query" FUNCTIONs only
 
 
 List of what's implemented:
@@ -52,7 +55,8 @@ List of what's implemented:
       Note: Multiple statements requires a client that can send bodies
             containing ";". This is handled in the CLI clients mysql and
 	    mysqltest with the "delimiter" command. Changing the end-of-query
-	    delimiter ";" to for instance "|" allows 
+	    delimiter ";" to for instance "|" allows ";" to be used in the
+	    routine body.
     - SET of local variables
       Implemented as part of the pre-existing SET syntax. This allows an
       extended syntax of "SET a=x, b=y, ..." where different variable types
@@ -65,6 +69,12 @@ List of what's implemented:
     - SELECT ... INTO local variables (as well as global session variables)
       is implemented. (Note: This is not SQL-99 feature, but common in other
       databases.)
+    - A FUNCTION can have flow control contructs, but must not contain
+      an SQL query, like SELECT, INSERT, UPDATE, etc. The reason is that it's
+      hard to allow this is that a FUNCTION is executed as part of another
+      query (unlike a PROCEDURE, which is called as a statement). The table
+      locking scheme used makes it difficult to allow "subqueries" during
+      FUNCTION invokation.
 
 
 Closed questions:
@@ -87,17 +97,3 @@ Open questions/issues:
     any type checking, since this is the way MySQL works. I still don't know
     if we should keep it this way, or implement type checking. Possibly we
     should have optional, uset-settable, type checking.
-
-  - FUNCTIONs do not work correctly in all circumstances yet.
-    For instance a function like:
-      create function s() returns int
-      begin
-        declare s int;
-        select sum(test.t.y) into s from test.t;
-        return s;
-      end
-    do not work. Invoking this in queries like "SELECT * FROM t2 WHERE x = s()"
-    will make things very complicated. And, in fact, even "SET @s=s()" and
-    "SELECT s()" fail, although the exact reasons in these cases are a bit
-    obscure; part of the problem might be the way the lex structure is
-    bit-copied (a not completely sound thing to do).
