@@ -2432,9 +2432,9 @@ bool add_field_to_list(char *field_name, enum_field_types type,
   uint sign_len=type_modifier & UNSIGNED_FLAG ? 0 : 1;
 
   if (new_field->length && new_field->decimals &&
-      new_field->length < new_field->decimals+2 &&
+      new_field->length < new_field->decimals+1 &&
       new_field->decimals != NOT_FIXED_DEC)
-    new_field->length=new_field->decimals+2; /* purecov: inspected */
+    new_field->length=new_field->decimals+1; /* purecov: inspected */
 
   switch (type) {
   case FIELD_TYPE_TINY:

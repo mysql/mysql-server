@@ -46857,7 +46857,7 @@ users use this code as the rest of the code and because of this we are
 not yet 100% confident in this code.
 
 @menu
-* News-3.23.51::                
+* News-3.23.51::                Changes in release 3.23.51
 * News-3.23.50::                Changes in release 3.23.50
 * News-3.23.49::                Changes in release 3.23.49
 * News-3.23.48::                Changes in release 3.23.48
@@ -46915,6 +46915,10 @@ not yet 100% confident in this code.
 @node News-3.23.51, News-3.23.50, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.51
 @itemize @bullet
+@item
+Fixed the @code{FLOAT(X+1,X)} is not converted to @code{FLOAT(X+2,X)}.
+(This also affected @code{DECIMAL}, @code{DOUBLE} and @code{REAL} types)
+@item
 Fixed the result from @code{IF()} is case in-sensitive if the 2 and
 third arguments are case sensitive.
 @end itemize
