@@ -873,7 +873,7 @@ start_slave()
           --slave-load-tmpdir=$SLAVE_LOAD_TMPDIR \
           --report-host=127.0.0.1 --report-user=root \
           --report-port=$slave_port \
-          --master-retry-count=5 \
+          --master-retry-count=10 \
           -O slave_net_timeout=10 \
            $SMALL_SERVER \
            $EXTRA_SLAVE_OPT $EXTRA_SLAVE_MYSQLD_OPT"
