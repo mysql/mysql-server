@@ -215,8 +215,8 @@ typedef struct st_table_list
   LEX_STRING	view_name;		/* save view name */
   LEX_STRING	timestamp;		/* GMT time stamp of last operation */
   ulonglong	file_version;		/* version of file's field set */
+  ulonglong     updatable_view;        /* VIEW can be updated */
   ulonglong	revision;		/* revision control number */
-  ulonglong	updatable;		/* Is VIEW updateable */
   ulonglong	algorithm;		/* 0 any, 1 tmp tables , 2 merging */
   uint          effective_algorithm;    /* which algorithm was really used */
   GRANT_INFO	grant;
@@ -224,6 +224,7 @@ typedef struct st_table_list
   uint		outer_join;		/* Which join type */
   uint		shared;			/* Used in multi-upd */
   uint32        db_length, real_name_length;
+  bool          updatable;		/* VIEW/TABLE can be updated now */
   bool		straight;		/* optimize with prev table */
   bool          updating;               /* for replicate-do/ignore table */
   bool		force_index;		/* prefer index over table scan */
