@@ -512,7 +512,7 @@ String *Item_null::val_str(String *str)
 void Item_param::set_null()
 {
   DBUG_ENTER("Item_param::set_null");
-  maybe_null= null_value= 1;
+  maybe_null= null_value= value_is_set= 1;
   DBUG_VOID_RETURN;
 }
 
@@ -521,6 +521,7 @@ void Item_param::set_int(longlong i)
   DBUG_ENTER("Item_param::set_int");
   int_value= (longlong)i;
   item_type= INT_ITEM;
+  value_is_set= 1;
   DBUG_PRINT("info", ("integer: %lld", int_value));
   DBUG_VOID_RETURN;
 }
@@ -530,6 +531,7 @@ void Item_param::set_double(double value)
   DBUG_ENTER("Item_param::set_double");
   real_value=value;
   item_type= REAL_ITEM;
+  value_is_set= 1;
   DBUG_PRINT("info", ("double: %lg", real_value));
   DBUG_VOID_RETURN;
 }
@@ -540,6 +542,7 @@ void Item_param::set_value(const char *str, uint length)
   DBUG_ENTER("Item_param::set_value");
   str_value.copy(str,length,default_charset());
   item_type= STRING_ITEM;
+  value_is_set= 1;
   DBUG_PRINT("info", ("string: %s", str_value.ptr()));
   DBUG_VOID_RETURN;
 }
@@ -561,6 +564,7 @@ void Item_param::set_time(TIME *tm, timestamp_type type)
   
   item_is_time= true;
   item_type= STRING_ITEM;
+  value_is_set= 1;
 }
 
 
@@ -568,6 +572,7 @@ void Item_param::set_longdata(const char *str, ulong length)
 {  
   str_value.append(str,length);
   long_data_supplied= 1;
+  value_is_set= 1;
 }
 
 
