@@ -418,6 +418,8 @@ foreach my $rdb ( @db_desc ) {
 	else {
 	    mkdir($tgt_dirpath, 0750) or die "Can't create '$tgt_dirpath': $!\n"
 		unless -d $tgt_dirpath;
+	    my @f_info= stat "$datadir/$rdb->{src}";
+	    chown $f_info[4], $f_info[5], $tgt_dirpath;
 	}
     }
 }
