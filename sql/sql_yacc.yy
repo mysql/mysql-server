@@ -1138,7 +1138,7 @@ alter_list_item:
 	     LEX *lex=Lex;
 	     lex->change= $3.str; lex->simple_alter=0;
 	  }
-          field_spec
+          field_spec opt_place
 	| MODIFY_SYM opt_column field_ident
 	  {
 	    LEX *lex=Lex;
@@ -1157,6 +1157,7 @@ alter_list_item:
 	     YYABORT;
              lex->simple_alter=0;
 	  }
+	  opt_place
 	| DROP opt_column field_ident opt_restrict
 	  {
 	    LEX *lex=Lex;
@@ -2831,6 +2832,7 @@ keyword:
 	| BACKUP_SYM		{}
 	| BEGIN_SYM		{}
 	| BERKELEY_DB_SYM	{}
+	| BINLOG_SYM		{}
 	| BIT_SYM		{}
 	| BOOL_SYM		{}
 	| BOOLEAN_SYM		{}
@@ -2857,6 +2859,7 @@ keyword:
 	| END			{}
 	| ENUM			{}
 	| ESCAPE_SYM		{}
+	| EVENTS_SYM		{}
 	| EXTENDED_SYM		{}
 	| FAST_SYM		{}
 	| FULL			{}

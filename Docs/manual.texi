@@ -880,52 +880,12 @@ version, with the exception of the bugs listed in the bugs section, which
 are things that are design-related.  @xref{Bugs}.
 
 MySQL is written in multiple layers and different independent
-modules.  These modules are listed below with an indication of how
+modules.  Some of the new modules are listed below with an indication of how
 well-tested each of them is:
 
 @cindex modules, list of
 
 @table @strong
-@item The ISAM table handler --- Stable
-This manages storage and retrieval of all data in MySQL Version 3.22
-and earlier.  In all MySQL releases there hasn't been a single 
-(reported) bug in this code. The only known way to get a corrupted table 
-is to kill the server in the middle of an update.  Even that is unlikely 
-to destroy any data beyond rescue, because all data are flushed to disk 
-between each query.  There hasn't been a single bug report about lost data 
-because of bugs in MySQL.
-
-@cindex ISAM table handler
-@cindex storing, data
-@cindex retrieving, data
-@cindex data, ISAM table handler
-
-@item The MyISAM table handler --- Stable
-This is new in MySQL Version 3.23.  It's largely based on the ISAM
-table code but has a lot of new and very useful features.
-
-@item The parser and lexical analyser --- Stable
-There hasn't been a single reported bug in this system for a long time.
-
-@item The C client code --- Stable
-No known problems.  In early Version 3.20 releases, there were some limitations
-in the send/receive buffer size.  As of Version 3.21, the buffer size is now
-dynamic up to a default of 16M.
-
-@item Standard client programs --- Stable
-These include @code{mysql}, @code{mysqladmin}, @code{mysqlshow},
-@code{mysqldump}, and @code{mysqlimport}.
-
-@item Basic SQL --- Stable
-The basic SQL function system and string classes and dynamic memory
-handling.  Not a single reported bug in this system.
-
-@item Query optimizer --- Stable
-
-@item Range optimizer --- Stable
-
-@item Join optimizer --- Stable
-
 @item Locking --- Gamma
 This is very system-dependent.  On some systems there are big problems
 using standard OS locking (@code{fcntl()}).  In these cases, you should run the
@@ -933,78 +893,32 @@ MySQL daemon with the @code{--skip-locking} flag.  Problems are known
 to occur on some Linux systems, and on SunOS when using NFS-mounted file
 systems.
 
-@item Linux threads --- Stable
-The major problem found has been with the @code{fcntl()} call, which is
-fixed by using the @w{@code{--skip-locking}} option to
-@code{mysqld}.  Some people have reported lockup problems with Version 0.5.
-LinuxThreads will need to be recompiled if you plan to use
-1000+ concurrent connections.  Although it is possible to run that many
-connections with the default LinuxThreads (however, you will never go
-above 1021), the default stack spacing of 2 MB makes the application
-unstable, and we have been able to reproduce a coredump after creating
-1021 idle connections.  @xref{Linux}.
-
-@item Solaris 2.5+ pthreads --- Stable
-We use this for all our production work.
-
-@item MIT-pthreads (Other systems) --- Stable
-There have been no reported bugs since Version 3.20.15 and no known bugs since
-Version 3.20.16.  On some systems, there is a ``misfeature'' where some
-operations are quite slow (a 1/20 second sleep is done between each query).
-Of course, MIT-pthreads may slow down everything a bit, but index-based
-@code{SELECT} statements are usually done in one time frame so there shouldn't
-be a mutex locking/thread juggling.
-
-@item Other thread implementions --- Beta - Gamma
-The ports to other systems are still very new and may have bugs, possibly
-in MySQL, but most often in the thread implementation itself.
-
-@item @code{LOAD DATA ...}, @code{INSERT ... SELECT} --- Stable
-Some people thought they had found bugs here, but these usually have
-turned out to be misunderstandings.  Please check the manual before reporting
-problems!
-
-@item @code{ALTER TABLE} --- Stable
-Small changes in Version 3.22.12.
-
-@item DBD --- Stable
-Now maintained by Jochen Wiedmann 
-(@email{wiedmann@@neckar-alb.de}).  Thanks!
-
-@item @code{mysqlaccess} --- Stable
-Written and maintained by Yves Carlier 
-(@email{Yves.Carlier@@rug.ac.be}). Thanks!
-
-@item @code{GRANT} --- Stable
-Big changes made in MySQL Version 3.22.12.
-
-@item @strong{MyODBC} (uses ODBC SDK 2.5) --- Gamma
+@item @strong{MyODBC 2.50} (uses ODBC SDK 2.5) --- Gamma
 It seems to work well with some programs.
 
-@item Replication -- Beta / Gamma
+@item Replication -- Gamma
 We are still working on replication, so don't expect this to be rock
 solid yet.  On the other hand, some MySQL users are already
 using this with good results.
 
-@item BDB Tables -- Beta
+@item BDB Tables -- Gamma
 The Berkeley DB code is very stable, but we are still improving the interface
 between MySQL and BDB tables, so it will take some time before this
 is tested as well as the other table types.
 
-@item InnoDB Tables -- Beta
+@item InnoDB Tables -- Gamma
 This is a recent addition to @code{MySQL}. They appear to work well and
 can be used after some initial testing.
 
-@item Automatic recovery of MyISAM tables - Beta
+@item Automatic recovery of MyISAM tables - Gamma
 This only affects the new code that checks if the table was closed properly
 on open and executes an automatic check/repair of the table if it wasn't.
 
-@item MERGE tables -- Beta / Gamma
-The usage of keys on @code{MERGE} tables is still not well tested.  The
-other parts of the @code{MERGE} code are quite well tested.
-
 @item FULLTEXT -- Beta
 Text search seems to work, but is still not widely used.
+
+@item Bulk-insert - Alpha
+New feature in MyISAM in MySQL 4.0 for faster insert of many rows.
 
 @end table
 
@@ -9504,6 +9418,13 @@ or
 @example
 shell> mysqladmin -h 'your-host-name' variables
 @end example
+
+If you get @code{Errcode 13}, which means @code{Permission denied}, when
+starting @code{mysqld} this means that you didn't have the right to
+read/create files in the MySQL database or log directory. In this case
+you should either start @code{mysqld} as the root user or change the
+permissions for the involved files and directories so that you have the
+right to use them. 
 
 If @code{safe_mysqld} starts the server but you can't connect to it,
 you should make sure you have an entry in @file{/etc/hosts} that looks like
@@ -20984,11 +20905,12 @@ names will be case-insensitive.
 
 @item @code{max_allowed_packet}
 The maximum size of one packet. The message buffer is initialized to
-@code{net_buffer_length} bytes, but can grow up to @code{max_allowed_packet}
-bytes when needed.  This value by default is small, to catch big (possibly
-wrong) packets.  You must increase this value if you are using big
-@code{BLOB} columns. It should be as big as the biggest @code{BLOB} you want
-to use.  The current protocol limits @code{max_allowed_packet} to 16M.
+@code{net_buffer_length} bytes, but can grow up to
+@code{max_allowed_packet} bytes when needed.  This value by default is
+small, to catch big (possibly wrong) packets.  You must increase this
+value if you are using big @code{BLOB} columns. It should be as big as
+the biggest @code{BLOB} you want to use.  The protocol limiits for
+@code{max_allowed_packet} is 16M in MySQL 3.23 and 4G in MySQL 4.0.
 
 @item @code{max_binlog_cache_size}
 If a multi-statement transaction requires more than this amount of memory,
@@ -23869,22 +23791,32 @@ argument).
 @cindex error messages, displaying
 @cindex perror
 
-@code{perror} can be used to print error message(s). @code{perror} can
-be invoked like this:
+@cindex errno
+@cindex Errcode
+
+For most system errors MySQL will, in addition to a internal text message,
+also print the system error code in one of the following styles:
+@code{message ... (errno: #)} or @code{message ... (Errcode: #)}.
+
+You can find out what the error code means by either examining the
+documentation for your system or use the @code{perror} utility.
+
+@code{perror} prints a description for a system error code, or an MyISAM/ISAM
+table handler error code.
+
+@code{perror} is invoked like this:
 
 @example
 shell> perror [OPTIONS] [ERRORCODE [ERRORCODE...]]
 
-For example:
+Example:
 
-shell> perror 64 79
+shell> perror 13 64
+Error code  13:  Permission decided
 Error code  64:  Machine is not on the network
-Error code  79:  Can not access a needed shared library
 @end example
 
-@code{perror} can be used to display a description for a system error
-code, or an MyISAM/ISAM table handler error code. The error messages
-are mostly system dependent.
+Note that the error messages are mostly system dependent!
 
 
 @node Batch Commands,  , perror, Client-Side Scripts
@@ -26179,8 +26111,8 @@ Constant condition removal (needed because of constant folding):
 Constant expressions used by indexes are evaluated only once.
 @item
 @code{COUNT(*)} on a single table without a @code{WHERE} is retrieved
-directly from the table information.  This is also done for any @code{NOT NULL}
-expression when used with only one table.
+directly from the table information for MyISAM and HEAP tables.  This is
+also done for any @code{NOT NULL} expression when used with only one table.
 @item
 Early detection of invalid constant expressions. MySQL quickly
 detects that some @code{SELECT} statements are impossible and returns no rows.
@@ -26389,7 +26321,7 @@ key value changes.  In this case @code{LIMIT #} will not calculate any
 unnecessary @code{GROUP BY}'s.
 @item
 As soon as MySQL has sent the first @code{#} rows to the client, it
-will abort the query.
+will abort the query (If you are not using @code{SQL_CALC_FOUND_ROWS}).
 @item
 @code{LIMIT 0} will always quickly return an empty set.  This is useful
 to check the query and to get the column types of the result columns.
@@ -26445,7 +26377,7 @@ If you are inserting a lot of rows from different clients, you can get
 higher speed by using the @code{INSERT DELAYED} statement. @xref{INSERT,
 , @code{INSERT}}.
 @item
-Note that with @code{MyISAM} you can insert rows at the same time
+Note that with @code{MyISAM} tables you can insert rows at the same time
 @code{SELECT}s are running if there are no deleted rows in the tables.
 @item
 When loading a table from a text file, use @code{LOAD DATA INFILE}. This
@@ -26487,8 +26419,11 @@ Execute a @code{FLUSH TABLES} statement or the shell command @code{mysqladmin
 flush-tables}.
 @end enumerate
 
-This procedure will be built into @code{LOAD DATA INFILE} in some future
-version of MySQL.
+Note that @code{LOAD DATA INFILE} also does the above optimization if
+you insert into an empty table; The main difference with the above
+procedure is that you can let myisamchk allocate much more temporary
+memory for the index creation that you may want MySQL to allocate for
+every index recreation.
 
 Since @strong{MySQL 4.0} you can also use
 @code{ALTER TABLE tbl_name DISABLE KEYS} instead of
@@ -26497,7 +26432,8 @@ Since @strong{MySQL 4.0} you can also use
 @code{myisamchk -r -q /path/to/db/tbl_name}. This way you can also skip
 @code{FLUSH TABLES} steps.
 @item
-You can speed up insertions by locking your tables:
+You can speed up insertions that is done over multiple statements by
+locking your tables:
 
 @example
 mysql> LOCK TABLES a WRITE;
@@ -26511,6 +26447,9 @@ once, after all @code{INSERT} statements have completed. Normally there would
 be as many index buffer flushes as there are different @code{INSERT}
 statements. Locking is not needed if you can insert all rows with a single
 statement.
+
+For transactional tables, you should use @code{BEGIN/COMMIT} instead of
+@code{LOCK TABLES} to get a speedup.
 
 Locking will also lower the total time of multi-connection tests, but the
 maximum wait time for some threads will go up (because they wait for
@@ -26589,7 +26528,7 @@ Always check that all your queries really use the indexes you have created
 in the tables. In MySQL you can do this with the @code{EXPLAIN}
 command. @xref{EXPLAIN, Explain, Explain, manual}.
 @item
-Try to avoid complex @code{SELECT} queries on tables that are updated a
+Try to avoid complex @code{SELECT} queries on MyISAM tables that are updated a
 lot. This is to avoid problems with table locking.
 @item
 The new @code{MyISAM} tables can insert rows in a table without deleted
@@ -35518,7 +35457,7 @@ using @code{myisampack}. @xref{Compressed format}.
 ALTER [IGNORE] TABLE tbl_name alter_spec [, alter_spec ...]
 
 alter_specification:
-        ADD [COLUMN] create_definition [FIRST | AFTER column_name ]
+        ADD [COLUMN] create_definition [FIRST | AFTER column_name]
   or    ADD [COLUMN] (create_definition, create_definition,...)
   or    ADD INDEX [index_name] (index_col_name,...)
   or    ADD PRIMARY KEY (index_col_name,...)
@@ -35527,8 +35466,8 @@ alter_specification:
   or	ADD [CONSTRAINT symbol] FOREIGN KEY index_name (index_col_name,...)
             [reference_definition]
   or    ALTER [COLUMN] col_name @{SET DEFAULT literal | DROP DEFAULT@}
-  or    CHANGE [COLUMN] old_col_name create_definition
-  or    MODIFY [COLUMN] create_definition
+  or    CHANGE [COLUMN] old_col_name create_definition [FIRST | AFTER column_name]
+  or    MODIFY [COLUMN] create_definition [FIRST | AFTER column_name]
   or    DROP [COLUMN] col_name
   or    DROP PRIMARY KEY
   or    DROP INDEX index_name
@@ -45552,26 +45491,38 @@ more on the server).
 @node Packet too large, Communication errors, Out of memory, Common errors
 @appendixsubsec @code{Packet too large} Error
 
+A communication packet is a single SQL statement sent to the MySQL server
+or a single row that is sent to the client.
+
 When a MySQL client or the @code{mysqld} server gets a packet bigger
-than @code{max_allowed_packet} bytes, it issues a @code{Packet too large}
-error and closes the connection.
+than @code{max_allowed_packet} bytes, it issues a @code{Packet too
+large} error and closes the connection.  With some clients, you may also
+get @code{Lost connection to MySQL server during query} error if the
+communication packet is too big.
 
-If you are using the @code{mysql} client, you may specify a bigger buffer by
-starting the client with @code{mysql --set-variable=max_allowed_packet=8M}.
+Note that both the client and the server has it's own
+@code{max_allowed_packet} variable. If you want to handle big packets,
+you have to increase this variable both in the client and in the server.
 
-If you are using other clients that do not allow you to specify the maximum
-packet size (such as @code{DBI}), you need to set the packet size when you
-start the server.  You cau use a command-line option to @code{mysqld} to set
-@code{max_allowed_packet} to a larger size.  For example, if you are
-expecting to store the full length of a @code{BLOB} into a table, you'll need
-to start the server with the @code{--set-variable=max_allowed_packet=16M}
-option.
+It's safe to increase this variable as memory is only allocated when
+needed; This variable is more a precaution to catch wrong packets
+between the client/server and also to ensure that you don't accidently
+use big packets so that you run out of memory.
+
+If you are using the @code{mysql} client, you may specify a bigger
+buffer by starting the client with @code{mysql --set-variable=max_allowed_packet=8M}.  Other clients have different methods to set this variable.
+
+You can use the option file to set @code{max_allowed_packet} to a larger
+size in @code{mysqld}.  For example, if you are expecting to store the
+full length of a @code{MEDIUMBLOB} into a table, you'll need to start
+the server with the @code{set-variable=max_allowed_packet=16M} option.
 
 You can also get strange problems with large packets if you are using
 big blobs, but you haven't given @code{mysqld} access to enough memory
 to handle the query.  If you suspect this is the case, try adding
 @code{ulimit -d 256000} to the beginning of the @code{safe_mysqld} script
 and restart @code{mysqld}.
+
 
 @node Communication errors, Full table, Packet too large, Common errors
 @appendixsubsec Communication Errors / Aborted Connection
@@ -48706,6 +48657,9 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 @itemize @bullet
 @item
 Added boolean fulltext search code. It should be considered early alpha.
+@item
+Extended @code{MODIFY} and @code{CHANGE} in @code{ALTER TABLE} to accept
+the @code{AFTER} keyword.
 @end itemize
 
 @node News-4.0.0,  , News-4.0.1, News-4.0.x

@@ -190,6 +190,8 @@ static int _mi_find_writepos(MI_INFO *info,
       my_errno=HA_ERR_RECORD_FILE_FULL;
       DBUG_RETURN(-1);
     }
+    if (*length > MI_MAX_BLOCK_LENGTH)
+      *length=MI_MAX_BLOCK_LENGTH;
     info->state->data_file_length+= *length;
     info->s->state.split++;
     info->update|=HA_STATE_WRITE_AT_END;
@@ -370,19 +372,30 @@ int _mi_write_part_record(MI_INFO *info,
 	info->s->state.dellink : info->state->data_file_length;
     if (*flag == 0)				/* First block */
     {
-      head_length=5+8+long_block*2;
-      temp[0]=5+(uchar) long_block;
-      if (long_block)
+      if (*reclength > MI_MAX_BLOCK_LENGTH)
       {
-	mi_int3store(temp+1,*reclength);
+	head_length= 16;
+	temp[0]=13;
+	mi_int4store(temp+1,*reclength);
 	mi_int3store(temp+4,length-head_length);
-	mi_sizestore((byte*) temp+7,next_filepos);
+	mi_sizestore((byte*) temp+8,next_filepos);
       }
       else
       {
-	mi_int2store(temp+1,*reclength);
-	mi_int2store(temp+3,length-head_length);
-	mi_sizestore((byte*) temp+5,next_filepos);
+	head_length=5+8+long_block*2;
+	temp[0]=5+(uchar) long_block;
+	if (long_block)
+	{
+	  mi_int3store(temp+1,*reclength);
+	  mi_int3store(temp+4,length-head_length);
+	  mi_sizestore((byte*) temp+7,next_filepos);
+	}
+	else
+	{
+	  mi_int2store(temp+1,*reclength);
+	  mi_int2store(temp+3,length-head_length);
+	  mi_sizestore((byte*) temp+5,next_filepos);
+	}
       }
     }
     else
@@ -1433,10 +1446,10 @@ uint _mi_get_block_info(MI_BLOCK_INFO *info, File file, my_off_t filepos)
   }
   else
   {
-    if (info->header[0] > 6)
+    if (info->header[0] > 6 && info->header[0] != 13)
       return_val=BLOCK_SYNC_ERROR;
   }
-  info->next_filepos= HA_OFFSET_ERROR; /* Dummy ifall no next block */
+  info->next_filepos= HA_OFFSET_ERROR; /* Dummy if no next block */
 
   switch (info->header[0]) {
   case 0:
@@ -1469,6 +1482,14 @@ uint _mi_get_block_info(MI_BLOCK_INFO *info, File file, my_off_t filepos)
     info->rec_len=info->data_len=info->block_len=mi_uint3korr(header+1);
     info->filepos=filepos+4;
     return return_val | BLOCK_FIRST | BLOCK_LAST;
+
+  case 13:
+    info->rec_len=mi_uint4korr(header+1);
+    info->block_len=info->data_len=mi_uint3korr(header+5);
+    info->next_filepos=mi_sizekorr(header+8);
+    info->second_read=1;
+    info->filepos=filepos+16;
+    return return_val | BLOCK_FIRST;
 
   case 3:
     info->rec_len=info->data_len=mi_uint2korr(header+1);
