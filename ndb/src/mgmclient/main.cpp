@@ -138,7 +138,7 @@ int main(int argc, char** argv){
   NDB_INIT(argv[0]);
   const char *_host = 0;
   int _port = 0;
-  const char *load_default_groups[]= { "ndb_mgm",0 };
+  const char *load_default_groups[]= { "mysql_cluster","ndb_mgm",0 };
 
   load_defaults("my",load_default_groups,&argc,&argv);
   int ho_error;
