@@ -11,7 +11,7 @@ BIN_TARGET_ARCHIVES := mgmapi \
 	error \
         trace     \
         signaldataprint \
-	mgmsrvcommon \
+	mgmsrvcommon mgmapi \
 	portlib      \
         logger       \
 	general 

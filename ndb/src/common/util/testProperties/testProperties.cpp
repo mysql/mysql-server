@@ -63,12 +63,6 @@ readFromFile(Properties & p, const char *fname, bool uu = true){
   return res;
 }
 
-Property defs[] = {
-  Property("Rolf", 123)
-  ,Property("Keso", "Kent")
-};
-
-  
 void putALot(Properties & tmp){
   int i = 123;
   tmp.put("LockPagesInMainMemory", i++);
@@ -124,7 +118,6 @@ main(void){
   p.put("Ank4", "anka");
   putALot(p);
 
-  //p.put(defs, 2);
   Properties tmp;
   tmp.put("Type", "TCP");
   tmp.put("OwnNodeId", 1);
@@ -136,8 +129,8 @@ main(void){
   tmp.put("Compression", (Uint32)false);
   tmp.put("Checksum", 1);
   
-  tmp.put("SendBufferSize", 2000);
-  tmp.put("MaxReceiveSize", 1000);
+  tmp.put64("SendBufferSize", 2000);
+  tmp.put64("MaxReceiveSize", 1000);
   
   tmp.put("PortNumber", 1233);
   putALot(tmp);

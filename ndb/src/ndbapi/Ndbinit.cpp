@@ -137,7 +137,7 @@ Ndb::Ndb( const char* aDataBase , const char* aDataBaseSchema) :
   
   TransporterFacade * m_facade = 0;
   if(theNoOfNdbObjects == 0){
-    if ((m_facade = TransporterFacade::start_instance(0,ndbConnectString)) == 0)
+    if ((m_facade = TransporterFacade::start_instance(ndbConnectString)) == 0)
       theInitState = InitConfigError;
   } else {
     m_facade = TransporterFacade::instance();

@@ -15,7 +15,7 @@ LIB_TARGET := MGM_API
 LIB_TARGET_ARCHIVES := $(ARCHIVE_TARGET) general portlib
 
 # Source files of non-templated classes (.C files)
-SOURCES = mgmapi.cpp
+SOURCES = mgmapi.cpp mgmapi_configuration.cpp
 
 CCFLAGS_LOC += -I$(call fixpath,$(NDB_TOP)/include/mgmapi) \
                -I$(call fixpath,$(NDB_TOP)/src/common/mgmcommon)
