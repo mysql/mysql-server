@@ -32,18 +32,6 @@ static void my_coll_agg_error(DTCollation &c1, DTCollation &c2, const char *fnam
 	   fname);
 }
 
-static void my_coll_agg3_error(DTCollation &c1, 
-			       DTCollation &c2,
-			       DTCollation &c3,
-			       const char *fname)
-{
-  my_error(ER_CANT_AGGREGATE_3COLLATIONS,MYF(0),
-  	   c1.collation->name,c1.derivation_name(),
-	   c2.collation->name,c2.derivation_name(),
-	   c3.collation->name,c3.derivation_name(),
-	   fname);
-}
-
 Item_bool_func2* Item_bool_func2::eq_creator(Item *a, Item *b)
 {
   return new Item_func_eq(a, b);
@@ -572,18 +560,9 @@ void Item_func_between::fix_length_and_dec()
            item_cmp_type(args[1]->result_type(),
                          args[2]->result_type()));
 
-  if (cmp_type == STRING_RESULT)
-  {
-    cmp_collation.set(args[0]->collation);
-    if (!cmp_collation.aggregate(args[1]->collation))
-      cmp_collation.aggregate(args[2]->collation);
-    if (cmp_collation.derivation == DERIVATION_NONE)
-    {
-      my_coll_agg3_error(args[0]->collation, args[1]->collation, 
-			 args[2]->collation, func_name());
-      return;
-    }
-  }
+  if (cmp_type == STRING_RESULT &&
+      agg_arg_collations_for_comparison(cmp_collation, args, 3))
+    return;
 
   /*
     Make a special case of compare with date/time and longlong fields.
@@ -691,8 +670,8 @@ Item_func_ifnull::fix_length_and_dec()
 					  args[1]->result_type())) !=
       REAL_RESULT)
     decimals= 0;
-  if (collation.set(args[0]->collation,args[1]->collation))
-    my_coll_agg_error(args[0]->collation, args[1]->collation, func_name());
+  if (cached_result_type == STRING_RESULT)
+    agg_arg_collations(collation, args, arg_count);
 }
 
 
@@ -768,11 +747,8 @@ Item_func_if::fix_length_and_dec()
   else if (arg1_type == STRING_RESULT || arg2_type == STRING_RESULT)
   {
     cached_result_type = STRING_RESULT;
-    if (collation.set(args[1]->collation, args[2]->collation))
-    {
-      my_coll_agg_error(args[0]->collation, args[1]->collation, func_name());
+    if (agg_arg_collations(collation, args+1, 2))
       return;
-    }
   }
   else
   {
@@ -1972,11 +1948,8 @@ Item_func_regex::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   max_length= 1;
   decimals= 0;
 
-  if (cmp_collation.set(args[0]->collation, args[1]->collation))
-  {
-    my_coll_agg_error(args[0]->collation, args[1]->collation, func_name());
+  if (agg_arg_collations(cmp_collation, args, 2))
     return 1;
-  }
 
   used_tables_cache=args[0]->used_tables() | args[1]->used_tables();
   const_item_cache=args[0]->const_item() && args[1]->const_item();

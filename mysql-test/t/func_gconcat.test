@@ -93,3 +93,9 @@ select group_concat(sum(a)) from t1 group by grp;
 select grp,group_concat(c order by 2) from t1 group by grp;
 
 drop table t1;
+
+create table t1 (id int, name varchar(16));
+insert into t1 values (1,'longername'),(1,'evenlongername');
+select ifnull(group_concat(concat(t1.id, ':', t1.name)), 'shortname') as 'without distinct: how it should be' from t1;
+select distinct ifnull(group_concat(concat(t1.id, ':', t1.name)), 'shortname') as 'with distinct: cutoff at length of shortname' from t1;
+drop table t1;
