@@ -251,7 +251,7 @@ static struct option long_options[] =
 
 static void print_version(void)
 {
-  printf("%s  Ver 1.9 for %s on %s\n",my_progname,SYSTEM_TYPE,MACHINE_TYPE);
+  printf("%s  Ver 1.10 for %s on %s\n",my_progname,SYSTEM_TYPE,MACHINE_TYPE);
 }
 
 static void usage(void)
@@ -1670,7 +1670,7 @@ static int compress_isam_file(MRG_INFO *mrg, HUFF_COUNTS *huff_counts)
       max_calc_length+=huff_counts[i].tree->height;
     else if (huff_counts[i].field_type == FIELD_BLOB ||
 	     huff_counts[i].field_type == FIELD_VARCHAR)
-      max_calc_length=huff_counts[i].tree->height*huff_counts[i].max_length + huff_counts[i].length_bits +1;
+      max_calc_length+=huff_counts[i].tree->height*huff_counts[i].max_length + huff_counts[i].length_bits +1;
     else
       max_calc_length+=
 	(huff_counts[i].field_length - huff_counts[i].max_zero_fill)*
