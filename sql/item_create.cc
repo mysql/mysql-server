@@ -352,11 +352,6 @@ Item *create_func_to_days(Item* a)
   return new Item_func_to_days(a);
 }
 
-Item *create_func_truncate (Item *a, Item *b)
-{
-  return new Item_func_round(a,b,1);
-}
-
 Item *create_func_ucase(Item* a)
 {
   return new Item_func_ucase(a);

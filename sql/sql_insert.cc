@@ -571,7 +571,7 @@ static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list)
       thread_count++;
       pthread_mutex_unlock(&LOCK_thread_count);
       if (!(tmp->thd.db=my_strdup(table_list->db,MYF(MY_WME))) ||
-	  !(tmp->thd.query=my_strdup(table_list->real_name,MYF(MY_FAE))))
+	  !(tmp->thd.query=my_strdup(table_list->real_name,MYF(MY_WME))))
       {
 	delete tmp;
 	thd->fatal_error=1;
@@ -1325,7 +1325,8 @@ bool select_create::send_eof()
   {
     VOID(pthread_mutex_lock(&LOCK_open));
     mysql_unlock_tables(thd, lock);
-    hash_delete(&open_cache,(byte*) table);
+    if (!table->tmp_table)
+      hash_delete(&open_cache,(byte*) table);
     lock=0; table=0;
     VOID(pthread_mutex_unlock(&LOCK_open));
   }
@@ -1343,7 +1344,8 @@ void select_create::abort()
   if (table)
   {
     enum db_type table_type=table->db_type;
-    hash_delete(&open_cache,(byte*) table);
+    if (!table->tmp_table)
+      hash_delete(&open_cache,(byte*) table);
     quick_rm_table(table_type,db,name);
     table=0;
   }

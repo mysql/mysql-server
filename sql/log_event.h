@@ -65,9 +65,9 @@ public:
   int valid_exec_time; // if false, the exec time setting is bogus 
   uint32 server_id;
 
-  int write(FILE* file);
-  int write_header(FILE* file);
-  virtual int write_data(FILE* file __attribute__((unused))) { return 0; }
+  int write(IO_CACHE* file);
+  int write_header(IO_CACHE* file);
+  virtual int write_data(IO_CACHE* file __attribute__((unused))) { return 0; }
   virtual Log_event_type get_type_code() = 0;
   Log_event(time_t when_arg, ulong exec_time_arg = 0,
 	    int valid_exec_time_arg = 0, uint32 server_id = 0): when(when_arg),
@@ -92,11 +92,11 @@ public:
   void print_header(FILE* file);
 
   // if mutex is 0, the read will proceed without mutex
-  static Log_event* read_log_event(FILE* file, pthread_mutex_t* log_lock);
+  static Log_event* read_log_event(IO_CACHE* file, pthread_mutex_t* log_lock);
   static Log_event* read_log_event(const char* buf, int event_len);
 
 #ifndef MYSQL_CLIENT
-  static int read_log_event(FILE* file, String* packet,
+  static int read_log_event(IO_CACHE* file, String* packet,
 			    pthread_mutex_t* log_lock);
 #endif
   
@@ -132,18 +132,18 @@ public:
   }
 #endif
 
-  Query_log_event(FILE* file, time_t when, uint32 server_id);
+  Query_log_event(IO_CACHE* file, time_t when, uint32 server_id);
   Query_log_event(const char* buf, int event_len);
   ~Query_log_event()
   {
     if (data_buf)
     {
-      my_free((gptr)data_buf, MYF(0));
+      my_free((gptr) data_buf, MYF(0));
     }
   }
   Log_event_type get_type_code() { return QUERY_EVENT; }
-  int write(FILE* file);
-  int write_data(FILE* file); // returns 0 on success, -1 on error
+  int write(IO_CACHE* file);
+  int write_data(IO_CACHE* file); // returns 0 on success, -1 on error
   int get_data_size()
   {
     return q_len + db_len + 2 +
@@ -183,6 +183,8 @@ class Load_log_event: public Log_event
 {
 protected:
   char* data_buf;
+  void Load_log_event::copy_log_event(const char *buf, ulong data_len);
+
 public:
   int thread_id;
   uint32 table_name_len;
@@ -272,17 +274,17 @@ public:
   void set_fields(List<Item> &fields);
 #endif
 
-  Load_log_event(FILE* file, time_t when, uint32 server_id);
+  Load_log_event(IO_CACHE * file, time_t when, uint32 server_id);
   Load_log_event(const char* buf, int event_len);
   ~Load_log_event()
   {
     if (data_buf)
     {
-      my_free((gptr)data_buf, MYF(0));
+      my_free((gptr) data_buf, MYF(0));
     }
   }
   Log_event_type get_type_code() { return LOAD_EVENT; }
-  int write_data(FILE* file); // returns 0 on success, -1 on error
+  int write_data(IO_CACHE* file); // returns 0 on success, -1 on error
   int get_data_size()
   {
     return table_name_len + 2 + db_len + 2 + fname_len
@@ -311,30 +313,26 @@ public:
     created = (uint32) when;
     memcpy(server_version, ::server_version, sizeof(server_version));
   }
-  Start_log_event(FILE* file, time_t when_arg, uint32 server_id) :
+  Start_log_event(IO_CACHE* file, time_t when_arg, uint32 server_id) :
     Log_event(when_arg, 0, 0, server_id)
   {
     char buf[sizeof(server_version) + sizeof(binlog_version) +
-	    sizeof(created)];
-    my_fseek(file, 4L, MY_SEEK_CUR, MYF(MY_WME)); // skip the event length
-    if (my_fread(file, (byte*) buf, sizeof(buf), MYF(MY_NABP | MY_WME)))
+	    sizeof(created)+4];
+    if (my_b_read(file, (byte*) buf, sizeof(buf)))
       return;				
-    binlog_version = uint2korr(buf);
-    memcpy(server_version, buf + 2, sizeof(server_version));
-    created = uint4korr(buf + 2 + sizeof(server_version));
+    binlog_version = uint2korr(buf+4);
+    memcpy(server_version, buf + 6, sizeof(server_version));
+    created = uint4korr(buf + 6 + sizeof(server_version));
   }
   Start_log_event(const char* buf);
   
   ~Start_log_event() {}
   Log_event_type get_type_code() { return START_EVENT;}
-  int write_data(FILE* file)
+  int write_data(IO_CACHE* file)
   {
-    if(my_fwrite(file, (byte*) &binlog_version, sizeof(binlog_version),
-		 MYF(MY_NABP | MY_WME)) ||
-       my_fwrite(file, (byte*) server_version, sizeof(server_version),
-		 MYF(MY_NABP | MY_WME)) ||
-       my_fwrite(file, (byte*) &created, sizeof(created),
-		 MYF(MY_NABP | MY_WME)))
+    if (my_b_write(file, (byte*) &binlog_version, sizeof(binlog_version)) ||
+	my_b_write(file, (byte*) server_version, sizeof(server_version)) ||
+	my_b_write(file, (byte*) &created, sizeof(created)))
       return -1;
     return 0;
   }
@@ -354,12 +352,12 @@ public:
   Intvar_log_event(uchar type_arg, ulonglong val_arg)
     :Log_event(time(NULL)),val(val_arg),type(type_arg)
   {}
-  Intvar_log_event(FILE* file, time_t when, uint32 server_id);
+  Intvar_log_event(IO_CACHE* file, time_t when, uint32 server_id);
   Intvar_log_event(const char* buf);
   ~Intvar_log_event() {}
   Log_event_type get_type_code() { return INTVAR_EVENT;}
   int get_data_size() { return  sizeof(type) + sizeof(val);}
-  int write_data(FILE* file);
+  int write_data(IO_CACHE* file);
   
   
   void print(FILE* file, bool short_form = 0);
@@ -370,10 +368,11 @@ class Stop_log_event: public Log_event
 public:
   Stop_log_event() :Log_event(time(NULL))
   {}
-  Stop_log_event(FILE* file, time_t when_arg, uint32 server_id):
+  Stop_log_event(IO_CACHE* file, time_t when_arg, uint32 server_id):
     Log_event(when_arg,0,0,server_id)
   {
-    my_fseek(file, 4L, MY_SEEK_CUR, MYF(MY_WME)); // skip the event length
+    char skip[4];
+    my_b_read(file, skip, sizeof(skip));	// skip the event length
   }
   Stop_log_event(const char* buf):Log_event(buf)
   {
@@ -397,7 +396,7 @@ public:
     alloced(0)
   {}
   
-  Rotate_log_event(FILE* file, time_t when, uint32 server_id) ;
+  Rotate_log_event(IO_CACHE* file, time_t when, uint32 server_id) ;
   Rotate_log_event(const char* buf, int event_len);
   ~Rotate_log_event()
   {
@@ -406,7 +405,7 @@ public:
   }
   Log_event_type get_type_code() { return ROTATE_EVENT;}
   int get_data_size() { return  ident_len;}
-  int write_data(FILE* file);
+  int write_data(IO_CACHE* file);
   
   void print(FILE* file, bool short_form = 0);
 };

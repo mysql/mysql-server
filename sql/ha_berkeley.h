@@ -91,7 +91,8 @@ class ha_berkeley: public handler
   uint max_keys()          const { return MAX_KEY-1; }
   uint max_key_parts()     const { return MAX_REF_PARTS; }
   uint max_key_length()    const { return MAX_KEY_LENGTH; }
-  uint extra_rec_buf_length() { return BDB_HIDDEN_PRIMARY_KEY_LENGTH; }
+  uint extra_rec_buf_length()	 { return BDB_HIDDEN_PRIMARY_KEY_LENGTH; }
+  ha_rows estimate_number_of_rows();
   bool fast_key_read()	   { return 1;}
   bool has_transactions()  { return 1;}
 

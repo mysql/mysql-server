@@ -28,7 +28,7 @@
 #include <stdarg.h>
 #include <getopt.h>
 
-static my_string host=0,password=0,user=0;
+static my_string host=0,opt_password=0,user=0;
 static my_bool opt_show_keys=0,opt_compress=0,opt_status=0;
 
 static void get_options(int *argc,char ***argv);
@@ -88,15 +88,13 @@ int main(int argc, char **argv)
     mysql_ssl_set(&mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
 		  opt_ssl_capath);
 #endif
-  if (!(mysql_real_connect(&mysql,host,user,password,
+  if (!(mysql_real_connect(&mysql,host,user,opt_password,
 			   argv[0],opt_mysql_port,opt_mysql_unix_port,
 			   0)))
   {
     fprintf(stderr,"%s: %s\n",my_progname,mysql_error(&mysql));
     exit(1);
   }
-  /*  if (!(mysql_connect(&mysql,host,user,password))) */
-
 
   switch (argc)
   {
@@ -111,11 +109,12 @@ int main(int argc, char **argv)
     if (opt_status && ! wild)
       error=list_table_status(&mysql,argv[0],argv[1]);
     else
-      error=list_fields(&mysql,argv[0],argv[1],wild); break;
+      error=list_fields(&mysql,argv[0],argv[1],wild);
+    break;
   }
   mysql_close(&mysql);			/* Close & free connection */
-  if (password)
-    my_free(password,MYF(0));
+  if (opt_password)
+    my_free(opt_password,MYF(0));
   my_end(0);
   exit(error ? 1 : 0);
   return 0;				/* No compiler warnings */
@@ -223,9 +222,12 @@ get_options(int *argc,char ***argv)
     case 'p':
       if (optarg)
       {
-	my_free(password,MYF(MY_ALLOW_ZERO_PTR));
-	password=my_strdup(optarg,MYF(MY_FAE));
+	char *start=optarg;
+	my_free(opt_password,MYF(MY_ALLOW_ZERO_PTR));
+	opt_password=my_strdup(optarg,MYF(MY_FAE));
 	while (*optarg) *optarg++= 'x';		/* Destroy argument */
+	if (*start)
+	  start[1]=0;				/* Cut length of argument */
       }
       else
 	tty_password=1;
@@ -266,7 +268,7 @@ get_options(int *argc,char ***argv)
   (*argc)-=optind;
   (*argv)+=optind;
   if (tty_password)
-    password=get_tty_password(NullS);
+    opt_password=get_tty_password(NullS);
   return;
 }
 

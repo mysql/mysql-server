@@ -100,16 +100,16 @@ public:
   bool set(ulonglong num);
   bool set(double num,uint decimals=2);
   inline void free()
+  {
+    if (alloced)
     {
-      if (alloced)
-      {
-	alloced=0;
-	Alloced_length=0;
-	my_free(Ptr,MYF(0));
-	Ptr=0;
-      }
+      alloced=0;
+      Alloced_length=0;
+      my_free(Ptr,MYF(0));
+      Ptr=0;
+      str_length=0;				/* Safety */
     }
-
+  }
   inline bool alloc(uint32 arg_length)
   {
     if (arg_length < Alloced_length)
@@ -152,7 +152,7 @@ public:
   bool copy(const char *s,uint32 arg_length);	// Allocate new string
   bool append(const String &s);
   bool append(const char *s,uint32 arg_length=0);
-  bool append(FILE* file, uint32 arg_length, myf my_flags);
+  bool append(IO_CACHE* file, uint32 arg_length);
   int strstr(const String &search,uint32 offset=0); // Returns offset to substring or -1
   int strrstr(const String &search,uint32 offset=0); // Returns offset to substring or -1
   bool replace(uint32 offset,uint32 arg_length,const String &to);

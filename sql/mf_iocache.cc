@@ -32,17 +32,19 @@
 
 #define MAP_TO_USE_RAID
 #include "mysql_priv.h"
-#include <mysys_err.h>
 #ifdef HAVE_AIOWAIT
+#include <mysys_err.h>
 #include <errno.h>
 static void my_aiowait(my_aio_result *result);
 #endif
 
-	/* if cachesize == 0 then use default cachesize (from s-file) */
-	/* returns 0 if we have enough memory */
-
 extern "C" {
 
+	/*
+	** if cachesize == 0 then use default cachesize (from s-file)
+	** if file == -1 then real_open_cached_file() will be called.
+	** returns 0 if ok
+	*/
 
 int init_io_cache(IO_CACHE *info, File file, uint cachesize,
 		  enum cache_type type, my_off_t seek_offset,
@@ -60,20 +62,26 @@ int init_io_cache(IO_CACHE *info, File file, uint cachesize,
   min_cache=use_async_io ? IO_SIZE*4 : IO_SIZE*2;
   if (type == READ_CACHE)
   {						/* Assume file isn't growing */
-    my_off_t file_pos,end_of_file;
-    if ((file_pos=my_tell(file,MYF(0)) == MY_FILEPOS_ERROR))
-      DBUG_RETURN(1);
-    end_of_file=my_seek(file,0L,MY_SEEK_END,MYF(0));
-    if (end_of_file < seek_offset)
-      end_of_file=seek_offset;
-    VOID(my_seek(file,file_pos,MY_SEEK_SET,MYF(0)));
-    if ((my_off_t) cachesize > end_of_file-seek_offset+IO_SIZE*2-1)
+    if (cache_myflags & MY_DONT_CHECK_FILESIZE)
     {
-      cachesize=(uint) (end_of_file-seek_offset)+IO_SIZE*2-1;
-      use_async_io=0;				/* No nead to use async */
+      cache_myflags &= ~MY_DONT_CHECK_FILESIZE;
+    }
+    else
+    {
+      my_off_t file_pos,end_of_file;
+      if ((file_pos=my_tell(file,MYF(0)) == MY_FILEPOS_ERROR))
+	DBUG_RETURN(1);
+      end_of_file=my_seek(file,0L,MY_SEEK_END,MYF(0));
+      if (end_of_file < seek_offset)
+	end_of_file=seek_offset;
+      VOID(my_seek(file,file_pos,MY_SEEK_SET,MYF(0)));
+      if ((my_off_t) cachesize > end_of_file-seek_offset+IO_SIZE*2-1)
+      {
+	cachesize=(uint) (end_of_file-seek_offset)+IO_SIZE*2-1;
+	use_async_io=0;				/* No nead to use async */
+      }
     }
   }
-
   if ((int) type < (int) READ_NET)
   {
     for (;;)
@@ -167,7 +175,8 @@ my_bool reinit_io_cache(IO_CACHE *info, enum cache_type type,
   DBUG_ENTER("reinit_io_cache");
 
   info->seek_not_done= test(info->file >= 0);	/* Seek not done */
-  if (!clear_cache && seek_offset >= info->pos_in_file &&
+  if (! clear_cache &&
+      seek_offset >= info->pos_in_file &&
       seek_offset <= info->pos_in_file +
       (uint) (info->rc_end - info->rc_request_pos))
   {						/* use current buffer */
@@ -231,6 +240,7 @@ int _my_b_read(register IO_CACHE *info, byte *Buffer, uint Count)
 {
   uint length,diff_length,left_length;
   my_off_t max_length, pos_in_file;
+
   memcpy(Buffer,info->rc_pos,
 	 (size_t) (left_length=(uint) (info->rc_end-info->rc_pos)));
   Buffer+=left_length;
@@ -607,7 +617,9 @@ int flush_io_cache(IO_CACHE *info)
       length=(uint) (info->rc_pos - info->buffer);
       if (info->seek_not_done)
       {					/* File touched, do seek */
-	VOID(my_seek(info->file,info->pos_in_file,MY_SEEK_SET,MYF(0)));
+	if (my_seek(info->file,info->pos_in_file,MY_SEEK_SET,MYF(0)) ==
+	    MY_FILEPOS_ERROR)
+	  DBUG_RETURN((info->error= -1));
 	info->seek_not_done=0;
       }
       info->rc_pos=info->buffer;
@@ -644,4 +656,4 @@ int end_io_cache(IO_CACHE *info)
   DBUG_RETURN(error);
 } /* end_io_cache */
 
-}
+} /* extern "C" */

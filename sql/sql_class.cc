@@ -115,11 +115,17 @@ THD::THD()
   ull=0;
   system_thread=0;
   bzero((char*) &mem_root,sizeof(mem_root));
+#if defined(HAVE_BDB) || defined(HAVE_INNOBASE) || defined(HAVE_GEMENI)
+  if (open_cached_file(&transactions.trans_log,
+		       mysql_tempdir,LOG_PREFIX,0,MYF(MY_WME)))
+    killed=1;
+  transaction.bdb_lock_count=0;
+#endif
+  transaction.bdb_tid=0;
+
 #ifdef	__WIN__
   real_id = 0 ;
 #endif
-  transaction.bdb_lock_count=0;
-  transaction.bdb_tid=0;
 }
 
 THD::~THD()
@@ -138,6 +144,9 @@ THD::~THD()
     close_thread_tables(this);
   }
   close_temporary_tables(this);
+#if defined(HAVE_BDB) || defined(HAVE_INNOBASE) || defined(HAVE_GEMENI)
+  close_cached_file(transactions.trans_log);
+#endif
   if (global_read_lock)
   {
     pthread_mutex_lock(&LOCK_open);

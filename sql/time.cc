@@ -413,16 +413,6 @@ ulong convert_month_to_period(ulong month)
   return year*100+month%12+1;
 }
 
-#ifdef NOT_NEEDED
-
-ulong add_to_period(ulong period,int months)
-{
-  if (period == 0L)
-    return 0L;
-  return convert_month_to_period(convert_period_to_month(period)+months);
-}
-#endif
-
 
 /*****************************************************************************
 ** convert a timestamp string to a TIME value.

@@ -21,74 +21,49 @@
 #include <stdarg.h>
 #include <m_ctype.h>
 
-
-
-int my_vsnprintf(char* str, size_t n, const char* fmt, va_list ap)
+int my_vsnprintf(char *to, size_t n, const char* fmt, va_list ap)
 {
-  uint		olen = 0, plen;
-  const char *tpos;
-  reg1 char	*endpos;
-  reg2 char		* par;
-  char* ebuff = str;
-  
-  endpos=ebuff;
-  tpos = fmt;
+  char *start=to, *end=to+n-1;
 
-  while (*tpos)
+  for (; *fmt ; fmt++)
   {
-    if (tpos[0] != '%')
+    if (fmt[0] != '%')
     {
-      if(olen + 1 >= n)
+      if (to == end)			/* End of buffer */
 	break;
-      
-      *endpos++= *tpos++;	/* Copy ordinary char */
-      olen++;
+      *to++= *fmt;			/* Copy ordinary char */
       continue;
     }
-    if (*++tpos == '%')		/* test if %% */
+    /* Skipp if max size is used (to be compatible with printf) */
+    while (isdigit(*fmt) || *fmt == '.' || *fmt == '-')
+      fmt++;
+    if (*fmt == 's')				/* String parameter */
     {
-      olen--;
-    }
-    else
-    {
-      /* Skipp if max size is used (to be compatible with printf) */
-      while (isdigit(*tpos) || *tpos == '.' || *tpos == '-')
-	tpos++;
-      if (*tpos == 's')				/* String parameter */
+      reg2 char	*par = va_arg(ap, char *);
+      uint plen = (uint) strlen(par);
+      if ((uint) (end-to) > plen)	/* Replace if possible */
       {
-	par = va_arg(ap, char *);
-	plen = (uint) strlen(par);
-	if (olen + plen < n)		/* Replace if possible */
-	{
-	  endpos=strmov(endpos,par);
-	  tpos++;
-	  olen+=plen;
-	  continue;
-	}
-      }
-      else if (*tpos == 'd' || *tpos == 'u')	/* Integer parameter */
-      {
-	register int iarg;
-	iarg = va_arg(ap, int);
-	if(olen + 16 >= n) break;
-	
-	if (*tpos == 'd')
-	  plen= (uint) (int2str((long) iarg,endpos, -10) - endpos);
-	else
-	  plen= (uint) (int2str((long) (uint) iarg,endpos,10)- endpos);
-	if (olen + plen < n) /* Replace parameter if possible */
-	{
-	  endpos+=plen;
-	  tpos++;
-	  olen+=plen;
-	  continue;
-	}
+	to=strmov(to,par);
+	continue;
       }
     }
-    *endpos++='%';		/* % used as % or unknown code */
+    else if (*fmt == 'd' || *fmt == 'u')	/* Integer parameter */
+    {
+      register int iarg;
+      if ((uint) (end-to) < 16)
+	break;
+      iarg = va_arg(ap, int);
+      if (*fmt == 'd')
+	to=int10_to_str((long) iarg,to, -10);
+      else
+	to=int10_to_str((long) (uint) iarg,to,10);
+      continue;
+    }
+    /* We come here on '%%', unknown code or too long parameter */
+    if (to == end)
+      break;
+    *to++='%';				/* % used as % or unknown code */
   }
-  *endpos='\0';
-  /* End of errmessage */
- return olen;
+  *to='\0';				/* End of errmessage */
+  return (uint) (to - start);
 }
-
