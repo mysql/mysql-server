@@ -48,7 +48,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
   ulong reclength, real_reclength,min_pack_length;
   char filename[FN_REFLEN],linkname[FN_REFLEN], *linkname_ptr;
   ulong pack_reclength;
-  ulonglong tot_length,max_rows;
+  ulonglong tot_length,max_rows, tmp;
   enum en_fieldtype type;
   MYISAM_SHARE share;
   MI_KEYDEF *keydef,tmp_keydef;
@@ -464,10 +464,15 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
   share.state.auto_increment=ci->auto_increment;
   share.options=options;
   share.base.rec_reflength=pointer;
+  /* Get estimate for index file length (this may be wrong for FT keys) */
+  tmp= (tot_length + max_key_block_length * keys *
+	MI_INDEX_BLOCK_MARGIN) / MI_MIN_KEY_BLOCK_LENGTH;
+  /*
+    use maximum of key_file_length we calculated and key_file_length value we
+    got from MYI file header (see also myisampack.c:save_state)
+  */
   share.base.key_reflength=
-    mi_get_pointer_length((tot_length + max_key_block_length * keys *
-			   MI_INDEX_BLOCK_MARGIN) / MI_MIN_KEY_BLOCK_LENGTH,
-			  3);
+    mi_get_pointer_length(max(ci->key_file_length,tmp),3);
   share.base.keys= share.state.header.keys= keys;
   share.state.header.uniques= uniques;
   share.state.header.fulltext_keys= fulltext_keys;

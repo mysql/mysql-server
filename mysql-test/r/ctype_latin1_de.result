@@ -280,6 +280,20 @@ word	word2
 ß	ß
 drop table t1;
 CREATE TABLE t1 (
+autor varchar(80) NOT NULL default '',
+PRIMARY KEY  (autor)
+);
+INSERT INTO t1 VALUES ('Powell, B.'),('Powell, Bud.'),('Powell, L. H.'),('Power, H.'),
+('Poynter, M. A. L. Lane'),('Poynting, J. H. und J. J. Thomson.'),('Pozzi, S(amuel-Jean).'),
+('Pozzi, Samuel-Jean.'),('Pozzo, A.'),('Pozzoli, Serge.');
+SELECT * FROM t1 WHERE autor LIKE 'Poz%' ORDER BY autor;
+autor
+Pozzi, S(amuel-Jean).
+Pozzi, Samuel-Jean.
+Pozzo, A.
+Pozzoli, Serge.
+DROP TABLE t1;
+CREATE TABLE t1 (
 s1 CHAR(5) CHARACTER SET latin1 COLLATE latin1_german2_ci
 );
 show create table t1;

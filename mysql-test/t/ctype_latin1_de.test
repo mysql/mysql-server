@@ -86,6 +86,24 @@ select * from t1 where word like binary 0xDF;
 select * from t1 where word like CAST(0xDF as CHAR);
 drop table t1;
 
+#
+# Bug #5447 Select does not find records
+#
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (
+  autor varchar(80) NOT NULL default '',
+  PRIMARY KEY  (autor)
+);
+INSERT INTO t1 VALUES ('Powell, B.'),('Powell, Bud.'),('Powell, L. H.'),('Power, H.'),
+('Poynter, M. A. L. Lane'),('Poynting, J. H. und J. J. Thomson.'),('Pozzi, S(amuel-Jean).'),
+('Pozzi, Samuel-Jean.'),('Pozzo, A.'),('Pozzoli, Serge.');
+SELECT * FROM t1 WHERE autor LIKE 'Poz%' ORDER BY autor;
+DROP TABLE t1;
+
+#
+# Test of special character in german collation
+#
+
 CREATE TABLE t1 (
 s1 CHAR(5) CHARACTER SET latin1 COLLATE latin1_german2_ci
 );

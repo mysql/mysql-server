@@ -316,6 +316,11 @@ NULL	NULL	1	1	n
 two	'two'	0	0	'two'
 four	'four'	0	0	'four'
 drop table t1;
+select trim(trailing 'foo' from 'foo');
+trim(trailing 'foo' from 'foo')
+
+select trim(leading 'foo' from 'foo');
+trim(leading 'foo' from 'foo')
 select 1=_latin1'1';
 1=_latin1'1'
 1

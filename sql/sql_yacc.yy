@@ -4163,12 +4163,14 @@ update:
 	  lex->lock_option= TL_UNLOCK; 	/* Will be set later */
         }
         opt_low_priority opt_ignore join_table_list
-	SET update_list where_clause opt_order_clause delete_limit_clause
+	SET update_list
 	{
 	  LEX *lex= Lex;
-	  Select->set_lock_for_tables($3);
           if (lex->select_lex.table_list.elements > 1)
+	  {
             lex->sql_command= SQLCOM_UPDATE_MULTI;
+	    lex->lock_option= $3;
+	  }
 	  else if (lex->select_lex.get_table_list()->derived)
 	  {
 	    /* it is single table update and it is update of derived table */
@@ -4176,7 +4178,10 @@ update:
 		       lex->select_lex.get_table_list()->alias, "UPDATE");
 	    YYABORT;
 	  }
+	  else
+	    Select->set_lock_for_tables($3);
 	}
+	where_clause opt_order_clause delete_limit_clause {}
 	;
 
 update_list:
