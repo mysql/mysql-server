@@ -1166,6 +1166,42 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     0,
     MAX_INT_RNIL },
 
+  {
+    CFG_MAX_SCAN_BATCH_SIZE,
+    "MaxScanBatchSize",
+    "API",
+    "The maximum collective batch size for one scan",
+    ConfigInfo::USED,
+    false,
+    ConfigInfo::INT,
+    MAX_SCAN_BATCH_SIZE,
+    32768,
+    (1024*1024*16) },
+
+  {
+    CFG_BATCH_BYTE_SIZE,
+    "BatchByteSize",
+    "API",
+    "The default batch size in bytes",
+    ConfigInfo::USED,
+    false,
+    ConfigInfo::INT,
+    SCAN_BATCH_SIZE,
+    1024,
+    (1024*1024) },
+
+  {
+    CFG_BATCH_SIZE,
+    "BatchSize",
+    "API",
+    "The default batch size in number of records",
+    ConfigInfo::USED,
+    false,
+    ConfigInfo::INT,
+    DEF_BATCH_SIZE,
+    1,
+    MAX_PARALLEL_OP_PER_SCAN },
+
   /****************************************************************************
    * MGM
    ***************************************************************************/

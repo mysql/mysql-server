@@ -550,6 +550,9 @@ TransporterFacade::TransporterFacade() :
   theArbitMgr = NULL;
   theStartNodeId = 1;
   m_open_count = 0;
+  m_scan_batch_size= MAX_SCAN_BATCH_SIZE;
+  m_batch_byte_size= SCAN_BATCH_SIZE;
+  m_batch_size= DEF_BATCH_SIZE;
 }
 
 bool
@@ -593,7 +596,18 @@ TransporterFacade::init(Uint32 nodeId, const ndb_mgm_configuration* props)
       iter.get(CFG_NODE_ARBIT_DELAY, &delay);
       theArbitMgr->setDelay(delay);
     }
-    
+    Uint32 scan_batch_size= 0;
+    if (!iter.get(CFG_MAX_SCAN_BATCH_SIZE, &scan_batch_size)) {
+      m_scan_batch_size= scan_batch_size;
+    }
+    Uint32 batch_byte_size= 0;
+    if (!iter.get(CFG_BATCH_BYTE_SIZE, &batch_byte_size)) {
+      m_batch_byte_size= batch_byte_size;
+    }
+    Uint32 batch_size= 0;
+    if (!iter.get(CFG_BATCH_SIZE, &batch_size)) {
+      m_batch_size= batch_size;
+    }
 #if 0
   }
 #endif
