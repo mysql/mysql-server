@@ -5812,3 +5812,30 @@ void Field::set_warning(const uint level, const uint code)
 			code, ER(code), field_name, thd->row_count);
   }
 }
+
+/*
+  maximum possible display length for blob
+
+  SYNOPSIS
+    Field_blob::max_length()
+
+  RETURN
+    length
+*/
+uint32 Field_blob::max_length()
+{
+  switch (packlength)
+  {
+  case 1:
+    return 255;
+  case 2:
+    return 65535;
+  case 3:
+    return 16777215;
+  case 4:
+    return (uint32)4294967295;
+  default:
+    DBUG_ASSERT(0); // we should never go here
+    return 0;
+  }
+}

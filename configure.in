@@ -378,7 +378,7 @@ then
   # mysqld doesn't use run-time-type-checking, so we disable it.
   CXXFLAGS="$CXXFLAGS -fno-implicit-templates -fno-exceptions -fno-rtti"
   # ndb cannot be compiled with -fno-implicit-templaces
-  ndb_cxxflags_fix=-fimplicit-templates
+  ndb_cxxflags_fix="$ndb_cxxflags_fix -fimplicit-templates"
 
   # If you are using 'gcc' 3.0 (not g++) to compile C++ programs on Linux,
   # we will gets some problems when linking static programs.
@@ -1032,6 +1032,7 @@ case $SYSTEM_TYPE in
       CXXFLAGS="$CXXFLAGS +O2"
       MAX_C_OPTIMIZE=""
       MAX_CXX_OPTIMIZE=""
+      ndb_cxxflags_fix="$ndb_cxxflags_fix -Aa"
     fi
     ;;
   *rhapsody*)

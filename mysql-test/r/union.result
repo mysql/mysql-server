@@ -546,7 +546,7 @@ aa
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` char(2) NOT NULL default ''
+  `a` char(20) NOT NULL default ''
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 SELECT 12 as a UNION select 12.2 as a;
@@ -557,7 +557,7 @@ a
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` double(4,1) NOT NULL default '0.0'
+  `a` double(53,1) NOT NULL default '0.0'
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t2 (it1 tinyint, it2 tinyint not null, i int not null, ib bigint, f float, d double, y year, da date, dt datetime, sc char(10), sv varchar(10), b blob, tx text);
@@ -647,7 +647,7 @@ f
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f` binary(12) default NULL
+  `f` binary(24) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 SELECT y from t2 UNION select da from t2;
@@ -795,7 +795,7 @@ select * from t1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `1` bigint(1) NOT NULL default '0'
+  `1` bigint(20) NOT NULL default '0'
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 select _latin1"test" union select _latin2"testt" ;
@@ -953,3 +953,10 @@ CREATE TABLE t2 (i int(11) default NULL,c char(1) default NULL,KEY i (i));
 explain (select * from t1) union (select * from t2) order by not_existing_column;
 ERROR 42S22: Unknown column 'not_existing_column' in 'order clause'
 drop table t1, t2;
+CREATE TABLE t1 (uid int(1));
+INSERT INTO t1 SELECT 150;
+SELECT 'a' UNION SELECT uid FROM t1;
+a
+a
+150
+drop table t1;
