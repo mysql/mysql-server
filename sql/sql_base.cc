@@ -2424,7 +2424,7 @@ fill_record(List<Item> &fields,List<Item> &values, bool ignore_errors)
     TABLE *table= rfield->table;
     if (rfield == table->next_number_field)
       table->auto_increment_field_not_null= true;
-    if (value->save_in_field(rfield, 0) > 0 && !ignore_errors)
+    if ((value->save_in_field(rfield, 0) < 0) && !ignore_errors)
       DBUG_RETURN(1);
   }
   DBUG_RETURN(0);
@@ -2445,7 +2445,7 @@ fill_record(Field **ptr,List<Item> &values, bool ignore_errors)
     TABLE *table= field->table;
     if (field == table->next_number_field)
       table->auto_increment_field_not_null= true;
-    if (value->save_in_field(field, 0) == 1 && !ignore_errors)
+    if ((value->save_in_field(field, 0) < 0) && !ignore_errors)
       DBUG_RETURN(1);
   }
   DBUG_RETURN(0);
