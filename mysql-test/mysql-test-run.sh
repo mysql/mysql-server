@@ -171,6 +171,8 @@ while test $# -gt 0; do
       ;;  
     --big*)			# Actually --big-test
       EXTRA_MYSQL_TEST_OPT="$EXTRA_MYSQL_TEST_OPT $1" ;;
+    --compress)
+      EXTRA_MYSQL_TEST_OPT="$EXTRA_MYSQL_TEST_OPT $1" ;;
     --sleep=*)
       EXTRA_MYSQL_TEST_OPT="$EXTRA_MYSQL_TEST_OPT $1"
       SLEEP_TIME=`$ECHO "$1" | $SED -e "s;--sleep=;;"`

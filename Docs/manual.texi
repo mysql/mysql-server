@@ -770,9 +770,11 @@ databases that contain 50,000,000 records and we know of users that
 uses MySQL with 60,000 tables and about 5,000,000,000 rows
 
 @item
-All columns have default values.  You can use @code{INSERT} to insert a
-subset of a table's columns; those columns that are not explicitly given
-values are set to their default values.
+@cindex default values
+All columns have default values.
+You can use @code{INSERT} to insert a subset of a table's columns; those
+columns that are not explicitly given values are set to their default
+values.
 
 @item
 Uses GNU Automake, Autoconf, and Libtool for portability.
@@ -7905,8 +7907,11 @@ The initial download of the source tree may take a while, depending on the
 speed of your connection; be patient.
 
 @item
-You will need GNU @code{autoconf}, @code{automake}, @code{libtool}, and
-@code{m4} to run the next set of commands.
+You will need GNU @code{autoconf 2.13}, @code{automake 1.4},
+@code{libtool}, and @code{m4} to run the next set of commands.
+Note that the new versions of @code{autoconf} (2.52) and @code{automake}
+(1.5) do not work.
+
 If you get some strange error during this stage, check that you really
 have @code{libtool} installed!
 
@@ -24278,6 +24283,37 @@ takes more effort and hardware.
 We are also working on some extensions to solve this problem for some
 common application niches.
 
+MySQL can work with both transactional and not transactional tables.  To
+be able to work smoothly with not transactional tables (which can't
+rollback if something goes wrong), MySQL has the following rules:
+
+@cindex default values
+@itemize @bullet
+@item
+All columns has default values.
+@item
+If you insert a 'wrong' value in a column like a @code{NULL} in a
+@code{NOT NULL} column or a too big numerical value in a numerical
+column, MySQL will instead of giving an error instead set the column to
+the 'best possible value'.  For numerical values this is 0, the smallest
+possible values or the largest possible value. For strings this is
+either the empty string or the longest possible string that can be in
+the column.
+@item
+All calculated expressions returns a value that can be used instead of
+signaling an error condition. For example 1/0 returns @code{NULL}
+@end itemize
+
+The reason for the above rules is that we can't check these conditions
+before the query starts to execute.  If we encounter a problem after
+updating a few rows, we can't just rollback as the table type may not
+support this.  We can't stop because in that case the update would be
+'half done' which is probably the worst possible scenario.  In this case
+it's better to 'do the best you can' and then continue as if nothing
+happened.
+
+The above means that one should not use MySQL to check fields content,
+but one should do this in the application.
 
 @node Portability, Internal use, Design Limitations, Optimize Overview
 @subsection Portability
@@ -32550,11 +32586,18 @@ If you specify no column list for @code{INSERT ... VALUES} or @code{INSERT
 the columns in the table, use @code{DESCRIBE tbl_name} to find out.
 
 @item
+@cindex default values
 Any column not explicitly given a value is set to its default value.  For
 example, if you specify a column list that doesn't name all the columns in
 the table, unnamed columns are set to their default values.  Default value
 assignment is described in @ref{CREATE TABLE, , @code{CREATE TABLE}}.
 
+MySQL always has a default value for all fields. This is something
+that is imposed on MySQL to be able to work with both transactional
+and not transactional tables.
+
+Our view is that checking of fields content should be done in the
+application and not in the database server.
 @item
 An @code{expression} may refer to any column that was set earlier in a value
 list.  For example, you can say this:
@@ -33795,6 +33838,7 @@ as setting it to @code{NULL}, because @code{0} is a valid @code{TIMESTAMP}
 value.
 
 @item
+@cindex default values
 If no @code{DEFAULT} value is specified for a column, MySQL
 automatically assigns one.
 
@@ -53360,7 +53404,7 @@ in the @code{mysql} mail archive, you should report the bug to
 online at the @uref{http://www.mysql.com/documentation/, MySQL
 documentation page}.
 
-If you have started @code{mysqld} with @code{--with-myisam-recover},
+If you have started @code{mysqld} with @code{myisam-recover},
 MySQL will automatically check and try to repair @code{MyISAM}
 tables if they are marked as 'not closed properly' or 'crashed'.  If
 this happens, MySQL will write an entry in the
