@@ -17,7 +17,15 @@
 #ifndef NDB_IMPL_HPP
 #define NDB_IMPL_HPP
 
-#include <Vector.hpp>
+#include <Ndb.hpp>
+#include <NdbError.hpp>
+#include <NdbCondition.h>
+#include <NdbReceiver.hpp>
+#include <NdbOperation.hpp>
+#include <kernel/ndb_limits.h>
+
+#include <NdbTick.h>
+
 #include "ObjectMap.hpp"
 
 /**
@@ -25,19 +33,20 @@
  */
 class NdbImpl {
 public:
-  Vector<class NdbTableImpl *> m_invalidTables;
+  NdbImpl();
+  ~NdbImpl();
 
-  void checkErrorCode(Uint32 i);
-  void checkInvalidTable(class NdbDictionaryImpl * dict);
+  // Ensure good distribution of connects
+  Uint32 theCurrentConnectIndex;
+
+  NdbObjectIdMap theNdbObjectIdMap;
+
+  Uint32 theNoOfDBnodes; // The number of DB nodes  
+  Uint8 theDBnodes[MAX_NDB_NODES]; // The node number of the DB nodes
+
+ // 1 indicates to release all connections to node 
+  Uint32 the_release_ind[MAX_NDB_NODES];
 };
-
-#include <Ndb.hpp>
-#include <NdbError.hpp>
-#include <NdbCondition.h>
-#include <NdbReceiver.hpp>
-#include <NdbOperation.hpp>
-
-#include <NdbTick.h>
 
 #ifdef VM_TRACE
 #define TRACE_DEBUG(x) ndbout << x << endl;
@@ -57,7 +66,7 @@ public:
 inline
 void *
 Ndb::int2void(Uint32 val){
-  return theNdbObjectIdMap->getObject(val);
+  return theImpl->theNdbObjectIdMap.getObject(val);
 }
 
 inline

@@ -83,7 +83,7 @@ NdbConnection::NdbConnection( Ndb* aNdb ) :
 {
   theListState = NotInList;
   theError.code = 0;
-  theId = theNdb->theNdbObjectIdMap->map(this);
+  theId = theNdb->theImpl->theNdbObjectIdMap.map(this);
 
 #define CHECK_SZ(mask, sz) assert((sizeof(mask)/sizeof(mask[0])) == sz)
 
@@ -99,7 +99,7 @@ Remark:        Deletes the connection object.
 NdbConnection::~NdbConnection()
 {
   DBUG_ENTER("NdbConnection::~NdbConnection");
-  theNdb->theNdbObjectIdMap->unmap(theId, this);
+  theNdb->theImpl->theNdbObjectIdMap.unmap(theId, this);
   DBUG_VOID_RETURN;
 }//NdbConnection::~NdbConnection()
 
