@@ -8,6 +8,9 @@ create table t1 (a int not null, key(a)) engine=innodb;
 create table t2 (a int not null, key(a)) engine=innodb;
 create table t3 (a int) engine=innodb;
 create table t4 (a int) engine=innodb;
+show variables like 'slave_transaction_retries';
+Variable_name	Value
+slave_transaction_retries	10
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -20,6 +23,9 @@ t2	CREATE TABLE `t2` (
   `a` int(11) NOT NULL,
   KEY `a` (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
+show variables like 'slave_transaction_retries';
+Variable_name	Value
+slave_transaction_retries	2
 stop slave;
 begin;
 insert into t3 select * from t2 for update;
