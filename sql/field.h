@@ -1230,7 +1230,7 @@ public:
   int cmp(const char *a, const char *b)
   { return cmp_binary(a, b); }
   int key_cmp(const byte *a, const byte *b)
-  { return cmp_binary(a, b); }
+  { return cmp_binary((char *) a, (char *) b); }
   int key_cmp(const byte *str, uint length);
   int cmp_offset(uint row_offset);
   void get_key_image(char *buff, uint length, imagetype type);

@@ -370,13 +370,14 @@ Item *create_func_space(Item *a)
   {
     uint dummy_errors;
     sp= new Item_string("",0,cs);
-    sp->str_value.copy(" ", 1, &my_charset_latin1, cs, &dummy_errors);
+    if (sp)
+      sp->str_value.copy(" ", 1, &my_charset_latin1, cs, &dummy_errors);
   }
   else
   {
     sp= new Item_string(" ",1,cs);
   }
-  return new Item_func_repeat(sp, a);
+  return sp ? new Item_func_repeat(sp, a) : 0;
 }
 
 Item *create_func_soundex(Item* a)
