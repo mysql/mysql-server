@@ -244,7 +244,6 @@ static int fill_uint16(uint16 *a,uint size,const char *str, uint len)
 {
   uint i=0;
   const char *s, *b, *e=str+len;
-  char buf[6];
   for (s=str ; s<e ; i++)
   { 
     for ( ; (s<e) && strchr(" \t\r\n",s[0]); s++);
@@ -254,7 +253,6 @@ static int fill_uint16(uint16 *a,uint size,const char *str, uint len)
       break;
     if (i>size)
       break;
-    mstr(buf,b,6,s-b);
     a[i]=my_strntol(my_charset_latin1,b,s-b,NULL,16);
   }
   return 0;
