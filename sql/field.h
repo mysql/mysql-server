@@ -357,7 +357,7 @@ public:
   uint size_of() const { return sizeof(*this); }
   CHARSET_INFO *charset(void) const { return field_charset; }
   void set_charset(CHARSET_INFO *charset) { field_charset=charset; }
-  bool binary() const { return field_charset->state & MY_CS_BINSORT ? 1 : 0; }
+  bool binary() const { return field_charset == &my_charset_bin; }
   uint32 max_length() { return field_length; }
   friend class create_field;
 };
