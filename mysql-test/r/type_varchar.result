@@ -376,3 +376,10 @@ explain select * from t1 where v like 'S%' order by v;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	v	v	13	NULL	2	Using where; Using filesort
 drop table t1;
+create table t1 (pkcol varchar(16), othercol varchar(16), primary key (pkcol));
+insert into t1 values ('test', 'something');
+update t1 set othercol='somethingelse' where pkcol='test';
+select * from t1;
+pkcol	othercol
+test	somethingelse
+drop table t1;
