@@ -18,6 +18,7 @@
 #define NODE_STATE_HPP
 
 #include <NdbOut.hpp>
+#include <NodeBitmask.hpp>
 
 class NodeState {
 public:
@@ -99,7 +100,7 @@ public:
   /**
    * Length in 32-bit words
    */
-  static const Uint32 DataLength = 8;
+  static const Uint32 DataLength = 8 + NdbNodeBitmask::Size;
   
   /**
    * Constructor(s)
@@ -146,6 +147,8 @@ public:
   Uint32 singleUserMode;
   Uint32 singleUserApi;          //the single user node
 
+  BitmaskPOD<NdbNodeBitmask::Size> m_connected_nodes;
+
   void setDynamicId(Uint32 dynamic);
   void setNodeGroup(Uint32 group);
   void setSingleUser(Uint32 s);
@@ -182,6 +185,7 @@ NodeState::NodeState(){
   dynamicId = 0xFFFFFFFF;
   singleUserMode = 0;
   singleUserApi = 0xFFFFFFFF;
+  m_connected_nodes.clear();
 }
 
 inline

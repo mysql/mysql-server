@@ -80,15 +80,13 @@ class ApiRegConf {
   friend class ClusterMgr;
 
 public:
-  STATIC_CONST( SignalLength = 3 + NodeState::DataLength +
-		NdbNodeBitmask::Size );
+  STATIC_CONST( SignalLength = 3 + NodeState::DataLength );
 private:
   
   Uint32 qmgrRef;
   Uint32 version; // Version of NDB node
   Uint32 apiHeartbeatFrequency;
   NodeState nodeState;
-  Bitmask<NdbNodeBitmask::Size>::Data connected_nodes;
 };
 
 #endif

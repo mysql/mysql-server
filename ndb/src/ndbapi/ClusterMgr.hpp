@@ -78,7 +78,6 @@ public:
   
   const Node &  getNodeInfo(NodeId) const;
   Uint32        getNoOfConnectedNodes() const;
-  NodeBitmask   m_connected_nodes;
   
 private:
   Uint32        noOfConnectedNodes;

@@ -36,6 +36,7 @@ private:
   InputStream *m_input;
   OutputStream *m_output;
   Parser_t *m_parser;
+  MgmtSrvr::Allocated_resources *m_allocated_resources;
 
   void getConfig_common(Parser_t::Context &ctx,
 			const class Properties &args,
@@ -43,6 +44,7 @@ private:
 
 public:
   MgmApiSession(class MgmtSrvr & mgm, NDB_SOCKET_TYPE sock);  
+  virtual ~MgmApiSession();
   void runSession();
 
   void getStatPort(Parser_t::Context &ctx, const class Properties &args);

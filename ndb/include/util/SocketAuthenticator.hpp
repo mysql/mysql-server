@@ -28,9 +28,9 @@ public:
 class SocketAuthSimple : public SocketAuthenticator
 {
   const char *m_passwd;
-  char *m_buf;
+  const char *m_username;
 public:
-  SocketAuthSimple(const char *passwd);
+  SocketAuthSimple(const char *username, const char *passwd);
   virtual ~SocketAuthSimple();
   virtual bool client_authenticate(int sockfd);
   virtual bool server_authenticate(int sockfd);

@@ -167,8 +167,9 @@ NDB_MAIN(mgmsrv){
   glob.cluster_config = 0;
   glob.localNodeId= glob.mgmObject->getOwnNodeId();
 
-  if (glob.localNodeId == 0)
+  if (glob.localNodeId == 0) {
     goto error_end;
+  }
 
   glob.port= glob.mgmObject->getPort();
 
@@ -244,8 +245,8 @@ NDB_MAIN(mgmsrv){
   ndbout_c(msg);
   g_EventLogger.info(msg);
 
-  snprintf(msg, 256, "Command port: %d, Statistics port: %d",
-	   glob.port, glob.port_stats);
+  snprintf(msg, 256, "Id: %d, Command port: %d, Statistics port: %d",
+	   glob.localNodeId, glob.port, glob.port_stats);
   ndbout_c(msg);
   g_EventLogger.info(msg);
   

@@ -1180,7 +1180,7 @@ TransporterRegistry::start_service(SocketServer& socket_server)
   }
 #endif
 
-  m_transporter_service = new TransporterService(new SocketAuthSimple("ndbd passwd"));
+  m_transporter_service = new TransporterService(new SocketAuthSimple("ndbd", "ndbd passwd"));
 
   if (nodeIdSpecified != true) {
     ndbout_c("TransporterRegistry::startReceiving: localNodeId not specified");
