@@ -52,7 +52,7 @@ ndbapi.html: $(noinst_HEADERS)
 	@PERL@ $(DOXYDIR)/predoxy.pl; \
 	mv footer.html $(DOXYTMP); \
 	(cd $(DOXYTMP) ; @DOXYGEN@ ../$(DOXYDIR)/Doxyfile.ndbapi); \
-	@PERL@ $(DOXYDIR)/postdoxy.pl $(DOXYOUT)/ndbapi.latex "NDB API Programmer Guide"; \
+	@PERL@ $(DOXYDIR)/postdoxy.pl $(DOXYOUT)/ndbapi.latex "MySQL Cluster NDB API Programmer Guide"; \
 	(cd $(DOXYOUT) && \
 		find ndbapi.html -print | cpio -pdm ..); \
 
@@ -78,7 +78,7 @@ mgmapi.html: $(noinst_HEADERS)
 	@PERL@ $(DOXYDIR)/predoxy.pl; \
 	mv footer.html $(DOXYTMP); \
 	(cd $(DOXYTMP) ; @DOXYGEN@ ../$(DOXYDIR)/Doxyfile.mgmapi); \
-	@PERL@ $(DOXYDIR)/postdoxy.pl $(DOXYOUT)/mgmapi.latex "NDB Cluster MGM API Guide"; \
+	@PERL@ $(DOXYDIR)/postdoxy.pl $(DOXYOUT)/mgmapi.latex "MySQL Cluster MGM API Guide"; \
 	(cd $(DOXYOUT) && \
 		find mgmapi.html -print | cpio -pdm ..); \
 
