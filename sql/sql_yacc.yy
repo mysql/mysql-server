@@ -167,6 +167,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	SUPER_SYM
 %token	TRUNCATE_SYM
 %token	UNLOCK_SYM
+%token	UNTIL_SYM 
 %token	UPDATE_SYM
 
 %token	ACTION
@@ -665,7 +666,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	query verb_clause create change select do drop insert replace insert2
 	insert_values update delete truncate rename
 	show describe load alter optimize preload flush
-	reset purge begin commit rollback slave master_def master_defs
+	reset purge begin commit rollback slave master_def 
+	master_defs master_file_def
 	repair restore backup analyze check start
 	field_list field_list_item field_spec kill column_def key_def
 	preload_list preload_keys
@@ -801,31 +803,9 @@ master_def:
 	 Lex->mi.password = $3.str;
        }
        |
-       MASTER_LOG_FILE_SYM EQ TEXT_STRING_sys
-       {
-	 Lex->mi.log_file_name = $3.str;
-       }
-       |
        MASTER_PORT_SYM EQ ULONG_NUM
        {
 	 Lex->mi.port = $3;
-       }
-       |
-       MASTER_LOG_POS_SYM EQ ulonglong_num
-       {
-	 Lex->mi.pos = $3;
-         /* 
-            If the user specified a value < BIN_LOG_HEADER_SIZE, adjust it
-            instead of causing subsequent errors. 
-            We need to do it in this file, because only there we know that 
-            MASTER_LOG_POS has been explicitely specified. On the contrary
-            in change_master() (sql_repl.cc) we cannot distinguish between 0
-            (MASTER_LOG_POS explicitely specified as 0) and 0 (unspecified),
-            whereas we want to distinguish (specified 0 means "read the binlog
-            from 0" (4 in fact), unspecified means "don't change the position
-            (keep the preceding value)").
-         */
-         Lex->mi.pos = max(BIN_LOG_HEADER_SIZE, Lex->mi.pos);
        }
        |
        MASTER_CONNECT_RETRY_SYM EQ ULONG_NUM
@@ -833,19 +813,41 @@ master_def:
 	 Lex->mi.connect_retry = $3;
        }
        |
-       RELAY_LOG_FILE_SYM EQ TEXT_STRING_sys
-       {
-	 Lex->mi.relay_log_name = $3.str;
-       }
-       |
-       RELAY_LOG_POS_SYM EQ ULONG_NUM
-       {
-	 Lex->mi.relay_log_pos = $3;
-         /* Adjust if < BIN_LOG_HEADER_SIZE (same comment as Lex->mi.pos) */
-         Lex->mi.relay_log_pos = max(BIN_LOG_HEADER_SIZE, Lex->mi.relay_log_pos);
-       }
+       master_file_def
        ;
 
+master_file_def:
+       MASTER_LOG_FILE_SYM EQ TEXT_STRING_sys
+       {
+	 Lex->mi.log_file_name = $3.str;
+       }
+       | MASTER_LOG_POS_SYM EQ ulonglong_num
+         {
+           Lex->mi.pos = $3;
+           /* 
+              If the user specified a value < BIN_LOG_HEADER_SIZE, adjust it
+              instead of causing subsequent errors. 
+              We need to do it in this file, because only there we know that 
+              MASTER_LOG_POS has been explicitely specified. On the contrary
+              in change_master() (sql_repl.cc) we cannot distinguish between 0
+              (MASTER_LOG_POS explicitely specified as 0) and 0 (unspecified),
+              whereas we want to distinguish (specified 0 means "read the binlog
+              from 0" (4 in fact), unspecified means "don't change the position
+              (keep the preceding value)").
+           */
+           Lex->mi.pos = max(BIN_LOG_HEADER_SIZE, Lex->mi.pos);
+         }
+       | RELAY_LOG_FILE_SYM EQ TEXT_STRING_sys
+         {
+           Lex->mi.relay_log_name = $3.str;
+         }
+       | RELAY_LOG_POS_SYM EQ ULONG_NUM
+         {
+           Lex->mi.relay_log_pos = $3;
+           /* Adjust if < BIN_LOG_HEADER_SIZE (same comment as Lex->mi.pos) */
+           Lex->mi.relay_log_pos = max(BIN_LOG_HEADER_SIZE, Lex->mi.relay_log_pos);
+         }
+       ;
 
 /* create a table */
 
@@ -1694,12 +1696,16 @@ opt_to:
 */
 
 slave:
-	START_SYM SLAVE slave_thread_opts
-        {
-	  LEX *lex=Lex;
-          lex->sql_command = SQLCOM_SLAVE_START;
-	  lex->type = 0;
-        }
+	  START_SYM SLAVE slave_thread_opts 
+          {
+	    LEX *lex=Lex;
+            lex->sql_command = SQLCOM_SLAVE_START;
+	    lex->type = 0;
+	    /* We'll use mi structure for UNTIL options */
+	    bzero((char*) &lex->mi, sizeof(lex->mi));
+          }
+          slave_until
+          {}
         | STOP_SYM SLAVE slave_thread_opts
           {
 	    LEX *lex=Lex;
@@ -1716,6 +1722,7 @@ start:
 slave_thread_opts:
 	{ Lex->slave_thd_opt= 0; }
 	slave_thread_opt_list
+        {}
 	;
 
 slave_thread_opt_list:
@@ -1728,6 +1735,28 @@ slave_thread_opt:
 	| SQL_THREAD	{ Lex->slave_thd_opt|=SLAVE_SQL; }
 	| RELAY_THREAD 	{ Lex->slave_thd_opt|=SLAVE_IO; }
 	;
+
+slave_until:
+	/*empty*/	{}
+	| UNTIL_SYM slave_until_opts
+          {
+            LEX *lex=Lex;
+            if ((lex->mi.log_file_name || lex->mi.pos) &&
+                (lex->mi.relay_log_name || lex->mi.relay_log_pos) ||
+                !((lex->mi.log_file_name && lex->mi.pos) ||
+                  (lex->mi.relay_log_name && lex->mi.relay_log_pos)))
+            {
+               send_error(lex->thd, ER_BAD_SLAVE_UNTIL_COND);
+               YYABORT;
+            }
+
+          }
+	;
+
+slave_until_opts:
+       master_file_def
+       | slave_until_opts ',' master_file_def ;
+
 
 restore:
 	RESTORE_SYM table_or_tables
@@ -4520,6 +4549,7 @@ keyword:
 	| UDF_SYM		{}
 	| UNCOMMITTED_SYM	{}
 	| UNICODE_SYM		{}
+	| UNTIL_SYM		{}
 	| USER			{}
 	| USE_FRM		{}
 	| VARIABLES		{}

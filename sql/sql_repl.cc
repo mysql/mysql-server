@@ -632,7 +632,7 @@ Increase max_allowed_packet on master";
 
 int start_slave(THD* thd , MASTER_INFO* mi,  bool net_report)
 {
-  int slave_errno;
+  int slave_errno= 0;
   if (!thd)
     thd = current_thd;
   int thread_mask;
@@ -656,21 +656,88 @@ int start_slave(THD* thd , MASTER_INFO* mi,  bool net_report)
     if (init_master_info(mi,master_info_file,relay_log_info_file, 0))
       slave_errno=ER_MASTER_INFO;
     else if (server_id_supplied && *mi->host)
-      slave_errno = start_slave_threads(0 /*no mutex */,
+    {
+      /* 
+         If we will start SQL thread we will care about UNTIL options 
+         If not and they are specified we will ignore them and warn user 
+         about this fact.
+      */
+      if (thread_mask & SLAVE_SQL)
+      {
+        pthread_mutex_lock(&mi->rli.data_lock);
+
+        if (thd->lex.mi.pos)
+        {
+          mi->rli.until_condition= RELAY_LOG_INFO::UNTIL_MASTER_POS;
+          mi->rli.until_log_pos= thd->lex.mi.pos;
+          /* 
+             We don't check thd->lex.mi.log_file_name for NULL here 
+             since it is checked in sql_yacc.yy
+          */
+          strmake(mi->rli.until_log_name, thd->lex.mi.log_file_name,
+              sizeof(mi->rli.until_log_name)-1);
+        } 
+        else if (thd->lex.mi.relay_log_pos)
+        {
+          mi->rli.until_condition= RELAY_LOG_INFO::UNTIL_RELAY_POS;
+          mi->rli.until_log_pos= thd->lex.mi.relay_log_pos;
+          strmake(mi->rli.until_log_name, thd->lex.mi.relay_log_name,
+              sizeof(mi->rli.until_log_name)-1);
+        }
+        else
+          clear_until_condition(&mi->rli);
+
+        if (mi->rli.until_condition != RELAY_LOG_INFO::UNTIL_NONE)
+        {
+          /* Preparing members for effective until condition checking */
+          const char *p= fn_ext(mi->rli.until_log_name);
+          char *p_end;
+          if (*p)
+          {
+            //p points to '.'
+            mi->rli.until_log_name_extension= strtoul(++p,&p_end, 10);
+            /*
+              p_end points to the first invalid character. If it equals
+              to p, no digits were found, error. If it contains '\0' it
+              means  conversion went ok.
+            */ 
+            if(p_end==p || *p_end)
+              slave_errno=ER_BAD_SLAVE_UNTIL_COND;
+          }
+          else
+            slave_errno=ER_BAD_SLAVE_UNTIL_COND;
+          
+          /* mark the cached result of the UNTIL comparison as "undefined" */
+          mi->rli.until_log_names_cmp_result= 
+            RELAY_LOG_INFO::UNTIL_LOG_NAMES_CMP_UNKNOWN;
+
+          /* Issuing warning then started without --skip-slave-start */
+          if (!opt_skip_slave_start)
+            push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE, ER_MISSING_SKIP_SLAVE, 
+                         ER(ER_MISSING_SKIP_SLAVE));
+        }
+        
+        pthread_mutex_unlock(&mi->rli.data_lock);
+      }
+      else if (thd->lex.mi.pos || thd->lex.mi.relay_log_pos)
+        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE, ER_UNTIL_COND_IGNORED,
+            ER(ER_UNTIL_COND_IGNORED));
+        
+      
+      if(!slave_errno)
+        slave_errno = start_slave_threads(0 /*no mutex */,
 					1 /* wait for start */,
 					mi,
 					master_info_file,relay_log_info_file,
 					thread_mask);
+    }
     else
       slave_errno = ER_BAD_SLAVE;
   }
   else
-  {
     //no error if all threads are already started, only a warning
-    slave_errno= 0;
     push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE, ER_SLAVE_WAS_RUNNING,
                  ER(ER_SLAVE_WAS_RUNNING));
-  }
   
   unlock_slave_threads(mi);
   
@@ -777,6 +844,7 @@ int reset_slave(THD *thd, MASTER_INFO* mi)
   // Clear master's log coordinates (only for good display of SHOW SLAVE STATUS)
   mi->master_log_name[0]= 0;
   mi->master_log_pos= BIN_LOG_HEADER_SIZE;
+  clear_until_condition(&mi->rli);
   // close master_info_file, relay_log_info_file, set mi->inited=rli->inited=0
   end_master_info(mi);
   // and delete these two files
@@ -943,6 +1011,7 @@ int change_master(THD* thd, MASTER_INFO* mi)
 
   pthread_mutex_lock(&mi->rli.data_lock);
   mi->rli.abort_pos_wait++;
+  clear_until_condition(&mi->rli);
   pthread_cond_broadcast(&mi->data_cond);
   pthread_mutex_unlock(&mi->rli.data_lock);
 
