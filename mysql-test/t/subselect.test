@@ -922,3 +922,13 @@ insert into t2 values(1,0,0),(2,0,0);
 insert into t1 values(1,0),(1,0),(1,0),(1,12),(1,15),(1,123),(1,12312),(1,12312),(1,123),(2,0),(2,0),(2,1),(2,2);
 select userid,pmtotal,pmnew, (select count(rd) from t1 where toid=t2.userid) calc_total, (select count(rd) from t1 where rd=0 and toid=t2.userid) calc_new from t2 where userid in (select distinct toid from t1);
 drop table t1, t2;
+
+#
+# row union
+#
+create table t1 (s1 char(5));
+-- error 1240
+select (select 'a','b' from t1 union select 'a','b' from t1) from t1;
+insert into t1 values ('tttt');
+select * from t1 where ('a','b')=(select 'a','b' from t1 union select 'a','b' from t1);
+drop table t1;
