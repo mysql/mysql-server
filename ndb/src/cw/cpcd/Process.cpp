@@ -237,6 +237,7 @@ set_ulimit(const BaseString & pair){
   } else if(list[0] == "t"){
     _RLIMIT_FIX(RLIMIT_CPU);
   } else {
+    res= -11;
     errno = EINVAL;
   }
   if(res){
@@ -313,7 +314,7 @@ CPCD::Process::do_exec() {
   }
 
   /* Close all filedescriptors */
-  for(i = STDERR_FILENO+1; i < getdtablesize(); i++)
+  for(i = STDERR_FILENO+1; (int)i < getdtablesize(); i++)
     close(i);
 
   execv(m_path.c_str(), argv);
