@@ -122,10 +122,29 @@ Item_func::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 	  Set return character set to first argument if we are returning a
 	  string.
 	*/
-	if (args == arg)
-	  set_charset(args[0]->charset());
-	else if ((*arg)->binary() || (charset() != (*arg)->charset()) )
-          set_charset(&my_charset_bin);
+	if ((*arg)->binary())
+	{
+	  set_charset(&my_charset_bin);
+	  coercibility= COER_NOCOLL;
+	}
+	else if (coercibility== COER_NOCOLL)
+	{
+	  coercibility= (*arg)->coercibility;
+	  set_charset((*arg)->charset());
+	}
+	else if ((*arg)->coercibility > coercibility)
+	{
+	  if (strcmp(charset()->csname,(*arg)->charset()->csname))
+	  {
+	    set_charset(&my_charset_bin);
+	    coercibility= COER_NOCOLL;
+	  }
+	  else
+	  {
+	    coercibility= (*arg)->coercibility;
+	    set_charset((*arg)->charset());
+	  }
+	}
       }
       with_sum_func= with_sum_func || (*arg)->with_sum_func;
       used_tables_cache|=(*arg)->used_tables();
