@@ -364,16 +364,16 @@ int handle_options(int *argc, char ***argv,
 		}
 		else
 		{
+                  if (optp->arg_type == OPT_ARG)
+                  {
+                    if (optp->var_type == GET_BOOL)
+                      *((my_bool*) optp->value)= (my_bool) 1;
+                    get_one_option(optp->id, optp, argument);
+                    continue;
+                  }
 		  /* Check if there are more arguments after this one */
 		  if (!pos[1])
 		  {
-                    if (optp->arg_type == OPT_ARG)
-                    {
-                      if (optp->var_type == GET_BOOL)
-                        *((my_bool*) optp->value)= (my_bool) 1;
-                      get_one_option(optp->id, optp, argument);
-                      continue;
-                    }
                     if (my_getopt_print_errors)
                       fprintf(stderr,
                               "%s: option '-%c' requires an argument\n",
