@@ -105,10 +105,6 @@ const EventLoggerBase::EventRepLogLevelMatrix EventLoggerBase::matrix[] = {
   { EventReport::CreateLogBytes,    LogLevel::llInfo, 11, Logger::LL_INFO },
   { EventReport::InfoEvent,         LogLevel::llInfo,  2, Logger::LL_INFO },
 
-  //Global replication
-  { EventReport::GrepSubscriptionInfo,  LogLevel::llGrep, 7, Logger::LL_INFO},
-  { EventReport::GrepSubscriptionAlert, LogLevel::llGrep, 7, Logger::LL_ALERT},
-
   // Backup
   { EventReport::BackupStarted, LogLevel::llBackup, 7, Logger::LL_INFO },
   { EventReport::BackupCompleted, LogLevel::llBackup, 7, Logger::LL_INFO },
