@@ -60,9 +60,11 @@ err:
   DBUG_RETURN(my_errno);
 }
 
+
 /*
-Remove one key from rb-tree
+  Remove one key from rb-tree
 */
+
 int hp_rb_delete_key(HP_INFO *info, register HP_KEYDEF *keyinfo,
 		   const byte *record, byte *recpos, int flag)
 {
@@ -82,11 +84,25 @@ int hp_rb_delete_key(HP_INFO *info, register HP_KEYDEF *keyinfo,
   return res;
 }
 
-	/* Remove one key from hash-table */
-	/* Flag is set if we want's to correct info->current_ptr */
+
+/*
+  Remove one key from hash-table
+
+  SYNPOSIS
+    hp_delete_key()
+    info		Hash handler
+    keyinfo		key definition of key that we want to delete
+    record		row data to be deleted
+    recpos		Pointer to heap record in memory
+    flag		Is set if we want's to correct info->current_ptr
+
+  RETURN
+    0	ok
+    #	error number
+*/
 
 int hp_delete_key(HP_INFO *info, register HP_KEYDEF *keyinfo,
-		   const byte *record, byte *recpos, int flag)
+		  const byte *record, byte *recpos, int flag)
 {
   ulong blength,pos2,pos_hashnr,lastpos_hashnr;
   HASH_INFO *lastpos,*gpos,*pos,*pos3,*empty,*last_ptr;

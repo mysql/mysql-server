@@ -4715,18 +4715,26 @@ void Field_blob::get_key_image(char *buff,uint length,
 #ifdef HAVE_SPATIAL
   if (type == itMBR)
   {
-    if (!blob_length)
-      return;
-    get_ptr(&blob);
-
+    const char *dummy;
     MBR mbr;
     Geometry gobj;
+
+    if (blob_length < SRID_SIZE)
+    {
+      bzero(buff, SIZEOF_STORED_DOUBLE*4);
+      return;
+    }
+    get_ptr(&blob);
     gobj.create_from_wkb(blob + SRID_SIZE, blob_length - SRID_SIZE);
-    gobj.get_mbr(&mbr);
-    float8store(buff,    mbr.xmin);
-    float8store(buff+8,  mbr.xmax);
-    float8store(buff+16, mbr.ymin);
-    float8store(buff+24, mbr.ymax);
+    if (gobj.get_mbr(&mbr, &dummy))
+      bzero(buff, SIZEOF_STORED_DOUBLE*4);
+    else
+    {
+      float8store(buff,    mbr.xmin);
+      float8store(buff+8,  mbr.xmax);
+      float8store(buff+16, mbr.ymin);
+      float8store(buff+24, mbr.ymax);
+    }
     return;
   }
 #endif /*HAVE_SPATIAL*/
@@ -4939,6 +4947,7 @@ uint Field_blob::max_packed_col_length(uint max_length)
   return (max_length > 255 ? 2 : 1)+max_length;
 }
 
+
 #ifdef HAVE_SPATIAL
 
 void Field_geom::get_key_image(char *buff, uint length, CHARSET_INFO *cs,
@@ -4947,17 +4956,26 @@ void Field_geom::get_key_image(char *buff, uint length, CHARSET_INFO *cs,
   length-= HA_KEY_BLOB_LENGTH;
   ulong blob_length= get_length(ptr);
   char *blob;
-  get_ptr(&blob);
-
+  const char *dummy;
   MBR mbr;
+
+  if (blob_length < SRID_SIZE)
+  {
+    bzero(buff, SIZEOF_STORED_DOUBLE*4);
+    return;
+  }
+  get_ptr(&blob);
   Geometry gobj;
   gobj.create_from_wkb(blob + SRID_SIZE, blob_length - SRID_SIZE);
-  gobj.get_mbr(&mbr);
-  float8store(buff, mbr.xmin);
-  float8store(buff + 8, mbr.xmax);
-  float8store(buff + 16, mbr.ymin);
-  float8store(buff + 24, mbr.ymax);
-  return;
+  if (gobj.get_mbr(&mbr, &dummy))
+    bzero(buff, SIZEOF_STORED_DOUBLE*4);
+  else
+  {
+    float8store(buff, mbr.xmin);
+    float8store(buff + 8, mbr.xmax);
+    float8store(buff + 16, mbr.ymin);
+    float8store(buff + 24, mbr.ymax);
+  }
 }
 
 
@@ -5001,16 +5019,16 @@ void Field_geom::sql_type(String &res) const
 int Field_geom::store(const char *from, uint length, CHARSET_INFO *cs)
 {
   if (!length)
-  {
     bzero(ptr, Field_blob::pack_length());
-  }
   else
   {
-    // Should check given WKB
-    if (length < 4 + 1 + 4 + 8 + 8)		// SRID + WKB_HEADER + X + Y
-      return 1;
-    uint32 wkb_type= uint4korr(from + 5);
-    if (wkb_type < 1 || wkb_type > 7)
+    // Check given WKB
+    uint32 wkb_type;
+    if (length < SRID_SIZE + WKB_HEADER_SIZE + SIZEOF_STORED_DOUBLE*2)
+      goto err;
+    wkb_type= uint4korr(from + WKB_HEADER_SIZE);
+    if (wkb_type < (uint32) Geometry::wkbPoint ||
+	wkb_type > (uint32) Geometry::wkb_end)
       return 1;
     Field_blob::store_length(length);
     if (table->copy_blobs || length <= MAX_FIELD_WIDTH)
@@ -5021,6 +5039,10 @@ int Field_geom::store(const char *from, uint length, CHARSET_INFO *cs)
     bmove(ptr + packlength, (char*) &from, sizeof(char*));
   }
   return 0;
+
+err:
+  bzero(ptr, Field_blob::pack_length());  
+  return 1;
 }
 
 #endif /*HAVE_SPATIAL*/

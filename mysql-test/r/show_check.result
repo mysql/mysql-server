@@ -359,9 +359,9 @@ delete from t2 where b=3;
 delete from t3 where a=3;
 show table status;
 Name	Type	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	HEAP	Fixed	4	5	39904	249415	105	5	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+t1	HEAP	Fixed	4	5	39904	249415	89	5	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
 t2	HEAP	Fixed	4	5	39904	249415	39904	5	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
-t3	HEAP	Fixed	4	9	33072	248103	22153	9	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+t3	HEAP	Fixed	4	9	33072	248103	22137	9	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
 delete from t1;
 delete from t2;
 delete from t3;
@@ -383,7 +383,7 @@ delete from t2 where b=5;
 delete from t3 where a=5;
 show table status;
 Name	Type	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	HEAP	Fixed	0	5	39904	249415	21	5	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+t1	HEAP	Fixed	0	5	39904	249415	5	5	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
 t2	HEAP	Fixed	0	5	39904	249415	39904	5	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
-t3	HEAP	Fixed	0	9	33072	248103	22069	9	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+t3	HEAP	Fixed	0	9	33072	248103	22053	9	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
 drop table t1, t2, t3;
