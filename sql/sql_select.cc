@@ -5199,7 +5199,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit)
       retrieving all rows through an index.
     */
     if (select_limit >= table->file->records)
-      keys&= table->used_keys;
+      keys&= (table->used_keys | table->file->keys_to_use_for_scanning());
 
     for (nr=0; keys ; keys>>=1, nr++)
     {
@@ -5213,6 +5213,11 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit)
 				    join_init_read_last_with_key);
 	  table->file->index_init(nr);
 	  tab->type=JT_NEXT;	// Read with index_first(), index_next()
+	  if (table->used_keys & ((key_map) 1 << nr))
+	  {
+	    table->key_read=1;
+	    table->file->extra(HA_EXTRA_KEYREAD);
+	  }
 	  DBUG_RETURN(1);
 	}
       }
