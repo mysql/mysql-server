@@ -1,3 +1,4 @@
+set @org_mode=@@sql_mode;
 set @@sql_mode='ansi,traditional';
 select @@sql_mode;
 @@sql_mode
@@ -209,8 +210,12 @@ INSERT INTO t1 (col1) VALUES(STR_TO_DATE('0.10.2004 15.30','%d.%m.%Y %H.%i'));
 ERROR 22007: Incorrect date value: '2004-10-00 15:30:00' for column 'col1' at row 1
 INSERT INTO t1 (col1) VALUES(STR_TO_DATE('31.9.2004 15.30','%d.%m.%Y %H.%i'));
 ERROR 22007: Incorrect date value: '2004-09-31 15:30:00' for column 'col1' at row 1
+INSERT INTO t1 (col1) VALUES(STR_TO_DATE('32.10.2004 15.30','%d.%m.%Y %H.%i'));
+ERROR HY000: Incorrect datetime value: '32.10.2004 15.30' for function str_to_time
 INSERT INTO t1 (col1) VALUES(STR_TO_DATE('29.02.2003 15.30','%d.%m.%Y %H.%i'));
 ERROR 22007: Incorrect date value: '2003-02-29 15:30:00' for column 'col1' at row 1
+INSERT INTO t1 (col1) VALUES(STR_TO_DATE('15.13.2004 15.30','%d.%m.%Y %H.%i'));
+ERROR HY000: Incorrect datetime value: '15.13.2004 15.30' for function str_to_time
 INSERT INTO t1 (col1) VALUES(STR_TO_DATE('00.00.0000','%d.%m.%Y'));
 ERROR 22007: Incorrect date value: '0000-00-00' for column 'col1' at row 1
 INSERT INTO t1 (col2) VALUES(STR_TO_DATE('31.10.0000 15.30','%d.%m.%Y %H.%i'));
@@ -220,8 +225,14 @@ INSERT INTO t1 (col2) VALUES(STR_TO_DATE('0.10.2004 15.30','%d.%m.%Y %H.%i'));
 ERROR 22007: Incorrect datetime value: '2004-10-00 15:30:00' for column 'col2' at row 1
 INSERT INTO t1 (col2) VALUES(STR_TO_DATE('31.9.2004 15.30','%d.%m.%Y %H.%i'));
 ERROR 22007: Incorrect datetime value: '2004-09-31 15:30:00' for column 'col2' at row 1
+INSERT INTO t1 (col2) VALUES(STR_TO_DATE('32.10.2004 15.30','%d.%m.%Y %H.%i'));
+ERROR HY000: Incorrect datetime value: '32.10.2004 15.30' for function str_to_time
 INSERT INTO t1 (col2) VALUES(STR_TO_DATE('29.02.2003 15.30','%d.%m.%Y %H.%i'));
 ERROR 22007: Incorrect datetime value: '2003-02-29 15:30:00' for column 'col2' at row 1
+INSERT INTO t1 (col2) VALUES(STR_TO_DATE('15.13.2004 15.30','%d.%m.%Y %H.%i'));
+ERROR HY000: Incorrect datetime value: '15.13.2004 15.30' for function str_to_time
+INSERT INTO t1 (col2) VALUES(STR_TO_DATE('00.00.0000','%d.%m.%Y'));
+ERROR 22007: Incorrect datetime value: '0000-00-00' for column 'col2' at row 1
 INSERT INTO t1 (col3) VALUES(STR_TO_DATE('31.10.0000 15.30','%d.%m.%Y %H.%i'));
 ERROR 22007: Incorrect datetime value: '0000-10-31 15:30:00' for column 'col3' at row 1
 INSERT INTO t1 (col3) VALUES(STR_TO_DATE('31.0.2004 15.30','%d.%m.%Y %H.%i'));
@@ -230,8 +241,12 @@ INSERT INTO t1 (col3) VALUES(STR_TO_DATE('0.10.2004 15.30','%d.%m.%Y %H.%i'));
 ERROR 22007: Incorrect datetime value: '2004-10-00 15:30:00' for column 'col3' at row 1
 INSERT INTO t1 (col3) VALUES(STR_TO_DATE('31.9.2004 15.30','%d.%m.%Y %H.%i'));
 ERROR 22007: Incorrect datetime value: '2004-09-31 15:30:00' for column 'col3' at row 1
+INSERT INTO t1 (col3) VALUES(STR_TO_DATE('32.10.2004 15.30','%d.%m.%Y %H.%i'));
+ERROR HY000: Incorrect datetime value: '32.10.2004 15.30' for function str_to_time
 INSERT INTO t1 (col3) VALUES(STR_TO_DATE('29.02.2003 15.30','%d.%m.%Y %H.%i'));
 ERROR 22007: Incorrect datetime value: '2003-02-29 15:30:00' for column 'col3' at row 1
+INSERT INTO t1 (col3) VALUES(STR_TO_DATE('15.13.2004 15.30','%d.%m.%Y %H.%i'));
+ERROR HY000: Incorrect datetime value: '15.13.2004 15.30' for function str_to_time
 INSERT INTO t1 (col3) VALUES(STR_TO_DATE('00.00.0000','%d.%m.%Y'));
 ERROR 22007: Incorrect datetime value: '0000-00-00' for column 'col3' at row 1
 drop table t1;
@@ -1030,3 +1045,48 @@ ERROR 22001: Data too long for column 'tinyblobcol' at row 1
 select * from t1;
 charcol	varcharcol	binarycol	varbinarycol	tinytextcol	tinyblobcol
 drop table t1;
+set sql_mode='traditional';
+create table t1 (col1 datetime);
+insert into t1 values(STR_TO_DATE('31.10.2004 15.30 abc','%d.%m.%Y %H.%i'));
+ERROR 22007: Truncated incorrect datetime value: '31.10.2004 15.30 abc'
+insert into t1 values(STR_TO_DATE('32.10.2004 15.30','%d.%m.%Y %H.%i'));
+ERROR HY000: Incorrect datetime value: '32.10.2004 15.30' for function str_to_time
+insert into t1 values(STR_TO_DATE('2004.12.12 22:22:33 AM','%Y.%m.%d %r'));
+ERROR HY000: Incorrect time value: '22:22:33 AM' for function str_to_time
+insert into t1 values(STR_TO_DATE('2004.12.12 abc','%Y.%m.%d %T'));
+ERROR HY000: Incorrect time value: 'abc' for function str_to_time
+set sql_mode='';
+insert into t1 values(STR_TO_DATE('31.10.2004 15.30 abc','%d.%m.%Y %H.%i'));
+Warnings:
+Warning	1292	Truncated incorrect datetime value: '31.10.2004 15.30 abc'
+insert into t1 values(STR_TO_DATE('32.10.2004 15.30','%d.%m.%Y %H.%i'));
+Warnings:
+Error	1411	Incorrect datetime value: '32.10.2004 15.30' for function str_to_time
+insert into t1 values(STR_TO_DATE('2004.12.12 22:22:33 AM','%Y.%m.%d %r'));
+Warnings:
+Error	1411	Incorrect time value: '22:22:33 AM' for function str_to_time
+insert into t1 values(STR_TO_DATE('2004.12.12 abc','%Y.%m.%d %T'));
+Warnings:
+Error	1411	Incorrect time value: 'abc' for function str_to_time
+insert into t1 values(STR_TO_DATE('31.10.2004 15.30','%d.%m.%Y %H.%i'));
+insert into t1 values(STR_TO_DATE('2004.12.12 11:22:33 AM','%Y.%m.%d %r'));
+insert into t1 values(STR_TO_DATE('2004.12.12 10:22:59','%Y.%m.%d %T'));
+select * from t1;
+col1
+2004-10-31 15:30:00
+NULL
+NULL
+NULL
+2004-10-31 15:30:00
+2004-12-12 11:22:33
+2004-12-12 10:22:59
+set sql_mode='traditional';
+select count(*) from t1 where STR_TO_DATE('2004.12.12 10:22:61','%Y.%m.%d %T') IS NULL;
+count(*)
+7
+Warnings:
+Error	1411	Incorrect datetime value: '2004.12.12 10:22:61' for function str_to_time
+Error	1411	Incorrect datetime value: '2004.12.12 10:22:61' for function str_to_time
+Error	1411	Incorrect datetime value: '2004.12.12 10:22:61' for function str_to_time
+drop table t1;
+set sql_mode=@org_mode;
