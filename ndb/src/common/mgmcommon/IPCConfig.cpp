@@ -339,12 +339,13 @@ IPCConfig::getNodeType(NodeId id) const {
   return out;
 }
 
+#include <mgmapi.h>
 Uint32
 IPCConfig::configureTransporters(Uint32 nodeId,
 				 const class ndb_mgm_configuration & config,
 				 class TransporterRegistry & tr){
 
-  Uint32 noOfTransportersCreated = 0;
+  Uint32 noOfTransportersCreated= 0, server_port= 0;
   ndb_mgm_configuration_iterator iter(config, CFG_SECTION_CONNECTION);
   
   for(iter.first(); iter.valid(); iter.next()){
@@ -440,6 +441,14 @@ IPCConfig::configureTransporters(Uint32 nodeId,
 	}
       }
       
+      if (nodeId <= nodeId1 && nodeId <= nodeId2) {
+	if (server_port && server_port != conf.port) {
+	  ndbout << "internal error in config setup of server ports line= " << __LINE__ << endl;
+	  exit(-1);
+	}
+	server_port= conf.port;
+      }
+
       conf.localNodeId    = nodeId;
       conf.remoteNodeId   = remoteNodeId;
       conf.localHostName  = (nodeId == nodeId1 ? host1 : host2);
@@ -490,6 +499,8 @@ IPCConfig::configureTransporters(Uint32 nodeId,
     }
   }
   
+  tr.m_service_port= server_port;
+
   return noOfTransportersCreated;
 }
   

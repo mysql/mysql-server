@@ -83,9 +83,6 @@ ConfigInfo::m_SectionRules[] = {
   { "SCI",  transformConnection, 0 },
   { "OSE",  transformConnection, 0 },
 
-  { "TCP",  fixPortNumber, 0 },
-  //{ "SHM",  fixShmKey, 0 },
-
   { "DB",   fixNodeHostname, 0 },
   { "API",  fixNodeHostname, 0 },
   { "MGM",  fixNodeHostname, 0 },
@@ -105,6 +102,9 @@ ConfigInfo::m_SectionRules[] = {
   { "TCP",  fixHostname, "HostName2" },
   { "OSE",  fixHostname, "HostName1" },
   { "OSE",  fixHostname, "HostName2" },
+
+  { "TCP",  fixPortNumber, 0 }, // has to come after fixHostName
+  //{ "SHM",  fixShmKey, 0 },
 
   /**
    * fixExtConnection must be after fixNodeId
@@ -146,13 +146,17 @@ const int ConfigInfo::m_NoOfRules = sizeof(m_SectionRules)/sizeof(SectionRule);
 /****************************************************************************
  * Config Rules declarations
  ****************************************************************************/
-bool addNodeConnections(Vector<ConfigInfo::ConfigRuleSection>&sections, 
-			struct InitConfigFileParser::Context &ctx, 
-			const char * ruleData);
+bool add_node_connections(Vector<ConfigInfo::ConfigRuleSection>&sections, 
+			  struct InitConfigFileParser::Context &ctx, 
+			  const char * rule_data);
+bool add_server_ports(Vector<ConfigInfo::ConfigRuleSection>&sections, 
+		      struct InitConfigFileParser::Context &ctx, 
+		      const char * rule_data);
 
 const ConfigInfo::ConfigRule 
 ConfigInfo::m_ConfigRules[] = {
-  { addNodeConnections, 0 },
+  { add_node_connections, 0 },
+  { add_server_ports, 0 },
   { 0, 0 }
 };
 	  
@@ -325,6 +329,18 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     0,
     0x7FFFFFFF },
 
+  {
+    CFG_SYS_PORT_BASE,
+    "PortBase",
+    "SYSTEM",
+    "Base port for system",
+    ConfigInfo::USED,
+    false,
+    ConfigInfo::INT,
+    NDB_BASE_PORT+2,
+    0,
+    0x7FFFFFFF },
+
   /***************************************************************************
    * DB
    ***************************************************************************/
@@ -375,6 +391,18 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     MANDATORY,
     1,
     (MAX_NODES - 1) },
+
+  {
+    KEY_INTERNAL,
+    "ServerPort",
+    "DB",
+    "Port used to setup transporter",
+    ConfigInfo::USED,
+    false,
+    ConfigInfo::INT,
+    UNDEFINED,
+    1,
+    65535 },
 
   {
     CFG_DB_NO_REPLICAS,
@@ -1231,7 +1259,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::STRING,
-    MANDATORY,
+    0,
     0,
     0x7FFFFFFF },
 
@@ -1330,7 +1358,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::STRING,
-    MANDATORY,
+    0,
     0,
     0x7FFFFFFF },
   
@@ -1354,7 +1382,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
-    2200,
+    NDB_BASE_PORT,
     0,
     0x7FFFFFFF },
 
@@ -1538,7 +1566,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
-    2202,
+    NDB_BASE_PORT+2,
     0,
     0x7FFFFFFF },
 
@@ -2489,11 +2517,27 @@ transformNode(InitConfigFileParser::Context & ctx, const char * data){
 
   Uint32 id;
   if(!ctx.m_currentSection->get("Id", &id)){
+    Uint32 nextNodeId= 1;
+    ctx.m_userProperties.get("NextNodeId", &nextNodeId);
+    id= nextNodeId;
+    while (ctx.m_userProperties.get("AllocatedNodeId_", id, &id))
+      id++;
+    ctx.m_userProperties.put("NextNodeId", id+1, true);
+    ctx.m_currentSection->put("Id", id);
+#if 0
     ctx.reportError("Mandatory parameter Id missing from section "
 		    "[%s] starting at line: %d",
 		    ctx.fname, ctx.m_sectionLineno);
     return false;
+#endif
+  } else if(ctx.m_userProperties.get("AllocatedNodeId_", id, &id)) {
+    ctx.reportError("Duplicate Id in section "
+		    "[%s] starting at line: %d",
+		    ctx.fname, ctx.m_sectionLineno);
+    return false;
   }
+
+  ctx.m_userProperties.put("AllocatedNodeId_", id, id);
   snprintf(ctx.pname, sizeof(ctx.pname), "Node_%d", id);
   
   ctx.m_currentSection->put("Type", ctx.fname);
@@ -2510,10 +2554,25 @@ fixNodeHostname(InitConfigFileParser::Context & ctx, const char * data){
   
   const char * compId;
   if(!ctx.m_currentSection->get("ExecuteOnComputer", &compId)){
+    require(ctx.m_currentSection->put("HostName", ""));
+
+    const char * type;
+    if(ctx.m_currentSection->get("Type", &type) &&
+       strcmp(type,"DB") == 0) 
+    {
+      ctx.reportError("Parameter \"ExecuteOnComputer\" missing from DB section "
+			"[%s] starting at line: %d",
+			ctx.fname, ctx.m_sectionLineno);
+      return false;
+    }
+
+    return true;
+#if 0
     ctx.reportError("Parameter \"ExecuteOnComputer\" missing from section "
 		    "[%s] starting at line: %d",
 		    ctx.fname, ctx.m_sectionLineno);
     return false;
+#endif
   }
   
   const Properties * computer;
@@ -2870,18 +2929,44 @@ fixHostname(InitConfigFileParser::Context & ctx, const char * data){
 bool
 fixPortNumber(InitConfigFileParser::Context & ctx, const char * data){
 
-  if(!ctx.m_currentSection->contains("PortNumber")){
-    Uint32 adder = 0;
-    ctx.m_userProperties.get("PortNumberAdder", &adder);
+  Uint32 id1= 0, id2= 0;
+  require(ctx.m_currentSection->get("NodeId1", &id1));
+  require(ctx.m_currentSection->get("NodeId2", &id2));
+
+  id1 = id1 < id2 ? id1 : id2;
+
+  const Properties * node;
+  require(ctx.m_config->get("Node", id1, &node));
+  BaseString hostname;
+  require(node->get("HostName", hostname));
+  
+  if (hostname.c_str()[0] == 0) {
+    ctx.reportError("Hostname required on nodeid %d since it will act as server.", id1);
+    return false;
+  }
+
+  Uint32 port= 0;
+  if (!node->get("ServerPort", &port) && !ctx.m_userProperties.get("ServerPort_", id1, &port)) {
+    hostname.append("_ServerPortAdder");
+    Uint32 adder= 0;
+    ctx.m_userProperties.get(hostname.c_str(), &adder);
+    ctx.m_userProperties.put(hostname.c_str(), adder+1, true);
+    
     Uint32 base = 0;
     if(!(ctx.m_userDefaults && ctx.m_userDefaults->get("PortNumber", &base)) &&
        !ctx.m_systemDefaults->get("PortNumber", &base)){
       return false;
     }
-    ctx.m_currentSection->put("PortNumber", base + adder);
-    adder++;
-    ctx.m_userProperties.put("PortNumberAdder", adder, true);
+    port= base + adder;
+    ctx.m_userProperties.put("ServerPort_", id1, port);
   }
+
+  if(ctx.m_currentSection->contains("PortNumber")) {
+    ndbout << "PortNumber should no longer be specificied per connection, please remove from config. Will be changed to " << port << endl;
+  }
+
+  ctx.m_currentSection->put("PortNumber", port);
+
   return true;
 }
 
@@ -3158,9 +3243,9 @@ saveInConfigValues(InitConfigFileParser::Context & ctx, const char * data){
 }
 
 bool
-addNodeConnections(Vector<ConfigInfo::ConfigRuleSection>&sections, 
+add_node_connections(Vector<ConfigInfo::ConfigRuleSection>&sections, 
 		   struct InitConfigFileParser::Context &ctx, 
-		   const char * ruleData)
+		   const char * rule_data)
 {
   Properties * props= ctx.m_config;
   Properties p_connections;
@@ -3241,3 +3326,42 @@ addNodeConnections(Vector<ConfigInfo::ConfigRuleSection>&sections,
 
   return true;
 }
+bool add_server_ports(Vector<ConfigInfo::ConfigRuleSection>&sections, 
+		      struct InitConfigFileParser::Context &ctx, 
+		      const char * rule_data)
+{
+#if 0
+  Properties * props= ctx.m_config;
+  Properties computers;
+  Uint32 port_base = NDB_BASE_PORT+2;
+
+  Uint32 nNodes;
+  ctx.m_userProperties.get("NoOfNodes", &nNodes);
+
+  for (Uint32 i= 0, n= 0; n < nNodes; i++){
+    Properties * tmp;
+    if(!props->get("Node", i, &tmp)) continue;
+    n++;
+
+    const char * type;
+    if(!tmp->get("Type", &type)) continue;
+
+    Uint32 port;
+    if (tmp->get("ServerPort", &port)) continue;
+
+    Uint32 computer;
+    if (!tmp->get("ExecuteOnComputer", &computer)) continue;
+
+    Uint32 adder= 0;
+    computers.get("",computer, &adder);
+
+    if (strcmp(type,"DB") == 0) {
+      adder++;
+      tmp->put("ServerPort", port_base+adder);
+      computers.put("",computer, adder);
+    }
+  }
+#endif
+  return true;
+}
+

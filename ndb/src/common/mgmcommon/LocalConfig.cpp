@@ -17,10 +17,12 @@
 #include "LocalConfig.hpp"
 #include <NdbEnv.h>
 #include <NdbConfig.h>
+#include <NdbAutoPtr.hpp>
 
 LocalConfig::LocalConfig(){
   ids = 0; size = 0; items = 0;
   error_line = 0; error_msg[0] = 0;
+  _ownNodeId= 0;
 }
 
 bool
@@ -68,10 +70,10 @@ LocalConfig::init(bool onlyNodeId,
   //4. Check Ndb.cfg in NDB_HOME
   {
     bool fopenError;
-    char buf[256];
-    if(readFile(NdbConfig_NdbCfgName(buf, sizeof(buf), 1 /*true*/), fopenError, onlyNodeId)){
+    char *buf= NdbConfig_NdbCfgName(1 /*true*/);
+    NdbAutoPtr<char> tmp_aptr(buf);
+    if(readFile(buf, fopenError, onlyNodeId))
       return true;
-    }
     if (!fopenError)
       return false;
   }
@@ -79,20 +81,27 @@ LocalConfig::init(bool onlyNodeId,
   //5. Check Ndb.cfg in cwd
   {
     bool fopenError;
-    char buf[256];
-    if(readFile(NdbConfig_NdbCfgName(buf, sizeof(buf), 0 /*false*/), fopenError, onlyNodeId)){
+    char *buf= NdbConfig_NdbCfgName(0 /*false*/);
+    NdbAutoPtr<char> tmp_aptr(buf);
+    if(readFile(buf, fopenError, onlyNodeId))
       return true;
-    }
     if (!fopenError)
       return false;
   }
 
   //6. Check defaultConnectString
   if(defaultConnectString != 0) {
-    if(readConnectString(defaultConnectString, onlyNodeId)){
+    if(readConnectString(defaultConnectString, onlyNodeId))
       return true;
-    }
     return false;
+  }
+
+  //7. Check
+  {
+    char buf[256];
+    snprintf(buf, sizeof(buf), "host=localhost:%u", NDB_BASE_PORT);
+    if(readConnectString(buf, onlyNodeId))
+      return true;
   }
 
   setError(0, "");
@@ -144,12 +153,12 @@ void LocalConfig::printUsage() const {
   ndbout << "1. Put a Ndb.cfg file in the directory where you start"<<endl 
 	 << "   the node. "<< endl
 	 << "   Ex: Ndb.cfg" << endl
-	 << "   | nodeid=11;host=localhost:2200"<<endl<<endl;
+	 << "   | host=localhost:"<<NDB_BASE_PORT<<endl;
     
   ndbout << "2. Use the environment variable NDB_CONNECTSTRING to "<<endl
 	 << "   provide this information." <<endl
 	 << "   Ex: " << endl
-	 << "   >export NDB_CONNECTSTRING=\"nodeid=11;host=localhost:2200\""
+	 << "   >export NDB_CONNECTSTRING=\"host=localhost:"<<NDB_BASE_PORT<<"\""
 	 <<endl<<endl;
 }
   

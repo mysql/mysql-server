@@ -81,7 +81,7 @@ public:
 			    const char* theNameOfTheTraceFile,
 			    char* messptr);
 
-  static void formatTraceFileName(char* theName, int maxLen);
+  static int get_trace_no();
   
   static const char* formatTimeStampString();
   

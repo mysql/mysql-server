@@ -39,6 +39,7 @@
 #endif
 
 //#define REPORT_TRANSPORTER
+//#define API_TRACE;
 
 #if defined DEBUG_TRANSPORTER
 #define TRP_DEBUG(t) ndbout << __FILE__ << ":" << __LINE__ << ":" << t << endl;
@@ -47,7 +48,7 @@
 #endif
 
 TransporterFacade* TransporterFacade::theFacadeInstance = NULL;
-
+ConfigRetriever *TransporterFacade::s_config_retriever= 0;
 
 
 /*****************************************************************************
@@ -332,11 +333,15 @@ atexit_stop_instance(){
  * 
  * Which is protected by a mutex
  */
+
+
 TransporterFacade* 
 TransporterFacade::start_instance(const char * connectString){
 
   // TransporterFacade used from API get config from mgmt srvr
-  ConfigRetriever configRetriever;
+  s_config_retriever= new ConfigRetriever;
+
+  ConfigRetriever &configRetriever= *s_config_retriever;
   configRetriever.setConnectString(connectString);
   ndb_mgm_configuration * props = configRetriever.getConfig(NDB_VERSION, 
 							    NODE_TYPE_API);
@@ -389,6 +394,14 @@ TransporterFacade::start_instance(int nodeId,
   return tf;
 }
 
+void
+TransporterFacade::close_configuration(){
+  if (s_config_retriever) {
+    delete s_config_retriever;
+    s_config_retriever= 0;
+  }
+}
+
 /**
  * Note that this function need no locking since its
  * only called from the destructor of Ndb (the NdbObject)
@@ -397,6 +410,9 @@ TransporterFacade::start_instance(int nodeId,
  */
 void
 TransporterFacade::stop_instance(){
+
+  close_configuration();
+
   if(theFacadeInstance == NULL){
     /**
      * We are called from atexit function
@@ -440,7 +456,17 @@ runSendRequest_C(void * me)
 
 void TransporterFacade::threadMainSend(void)
 {
+  SocketServer socket_server;
+
   theTransporterRegistry->startSending();
+  if (!theTransporterRegistry->start_service(socket_server))
+    NDB_ASSERT(0, "Unable to start theTransporterRegistry->start_service");
+
+  if (!theTransporterRegistry->start_clients())
+    NDB_ASSERT(0, "Unable to start theTransporterRegistry->start_clients");
+
+  socket_server.startServer();
+
   while(!theStopReceive) {
     NdbSleep_MilliSleep(10);
     NdbMutex_Lock(theMutexPtr);
@@ -451,6 +477,11 @@ void TransporterFacade::threadMainSend(void)
     NdbMutex_Unlock(theMutexPtr);
   }
   theTransporterRegistry->stopSending();
+
+  socket_server.stopServer();
+  socket_server.stopSessions();
+
+  theTransporterRegistry->stop_clients();
 }
 
 extern "C" 
@@ -466,7 +497,7 @@ void TransporterFacade::threadMainReceive(void)
 {
   theTransporterRegistry->startReceiving();
   NdbMutex_Lock(theMutexPtr);
-  theTransporterRegistry->checkConnections();
+  theTransporterRegistry->update_connections();
   NdbMutex_Unlock(theMutexPtr);
   while(!theStopReceive) {
     for(int i = 0; i<10; i++){
@@ -478,7 +509,7 @@ void TransporterFacade::threadMainReceive(void)
       }
     }
     NdbMutex_Lock(theMutexPtr);
-    theTransporterRegistry->checkConnections();
+    theTransporterRegistry->update_connections();
     NdbMutex_Unlock(theMutexPtr);
   }//while
   theTransporterRegistry->stopReceiving();
@@ -875,13 +906,13 @@ TransporterFacade::sendFragmentedSignalUnCond(NdbApiSignal* aSignal,
 void
 TransporterFacade::doConnect(int aNodeId){
   theTransporterRegistry->setIOState(aNodeId, NoHalt);
-  theTransporterRegistry->setPerformState(aNodeId, PerformConnect);
+  theTransporterRegistry->do_connect(aNodeId);
 }
 
 void
 TransporterFacade::doDisconnect(int aNodeId)
 {
-  theTransporterRegistry->setPerformState(aNodeId, PerformDisconnect);
+  theTransporterRegistry->do_disconnect(aNodeId);
 }
 
 void
@@ -906,7 +937,7 @@ TransporterFacade::ownId() const
 
 bool
 TransporterFacade::isConnected(NodeId aNodeId){
-  return theTransporterRegistry->performState(aNodeId) == PerformIO;
+  return theTransporterRegistry->is_connected(aNodeId);
 }
 
 NodeId

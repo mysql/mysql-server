@@ -14,24 +14,25 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#ifndef NDB_CONFIG_H
-#define NDB_CONFIG_H
+#ifndef SOCKET_CLIENT_HPP
+#define SOCKET_CLIENT_HPP
 
-#ifdef	__cplusplus
-extern "C" {
-#endif
+#include <NdbTCP.h>
+class SocketAuthenticator;
 
-char* NdbConfig_NdbCfgName(int with_ndb_home);
-char* NdbConfig_ErrorFileName(int node_id);
-char* NdbConfig_ClusterLogFileName(int node_id);
-char* NdbConfig_SignalLogFileName(int node_id);
-char* NdbConfig_TraceFileName(int node_id, int file_no);
-char* NdbConfig_NextTraceFileName(int node_id);
-char* NdbConfig_PidFileName(int node_id);
-char* NdbConfig_StdoutFileName(int node_id);
+class SocketClient
+{
+  NDB_SOCKET_TYPE m_sockfd;
+  struct sockaddr_in m_servaddr;
+  unsigned short m_port;
+  char *m_server_name;
+  SocketAuthenticator *m_auth;
+public:
+  SocketClient(const char *server_name, unsigned short port, SocketAuthenticator *sa = 0);
+  ~SocketClient();
+  bool init();
+  NDB_SOCKET_TYPE connect();
+  bool close();
+};
 
-#ifdef	__cplusplus
-}
-#endif
-
-#endif
+#endif // SOCKET_ClIENT_HPP

@@ -147,8 +147,8 @@ void ThreadConfig::ipControlLoop()
 // plus checking for any received messages.
 //--------------------------------------------------------------------
     if (i++ >= 20) {
+      globalTransporterRegistry.update_connections();
       globalData.incrementWatchDogCounter(5);
-      globalTransporterRegistry.checkConnections();
       i = 0;
     }//if
 

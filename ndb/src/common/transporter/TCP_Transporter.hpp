@@ -14,24 +14,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-//****************************************************************************
-//
-//  AUTHOR
-//      Åsa Fransson
-//
-//  NAME
-//      TCP_Transporter
-//
-//  DESCRIPTION
-//      A TCP_Transporter instance is created when TCP/IP-communication 
-//      shall be used (user specified). It handles connect, disconnect, 
-//      send and receive.
-//
-//
-//
-//***************************************************************************/
-#ifndef TCP_Transporter_H
-#define TCP_Transporter_H
+#ifndef TCP_TRANSPORTER_HPP
+#define TCP_TRANSPORTER_HPP
 
 #include "Transporter.hpp"
 #include "SendBuffer.hpp"
@@ -61,11 +45,13 @@ class TCP_Transporter : public Transporter {
   friend class TransporterRegistry;
 private:
   // Initialize member variables
-  TCP_Transporter(int sendBufferSize, int maxReceiveSize,
-		  int port, 
-		  const char *rHostName, 
+  TCP_Transporter(TransporterRegistry&,
+		  int sendBufferSize, int maxReceiveSize,
 		  const char *lHostName,
-		  NodeId rHostId, NodeId lHostId,
+		  const char *rHostName, 
+		  int r_port, 
+		  NodeId lHostId,
+		  NodeId rHostId,
 		  int byteorder,
 		  bool compression, bool checksum, bool signalId,
 		  Uint32 reportFreq = 4096);
@@ -121,12 +107,14 @@ protected:
    * A client connects to the remote server
    * A server accepts any new connections
    */
-  bool connectImpl(Uint32 timeOutMillis);
+  virtual bool connect_server_impl(NDB_SOCKET_TYPE sockfd);
+  virtual bool connect_client_impl(NDB_SOCKET_TYPE sockfd);
+  bool connect_common(NDB_SOCKET_TYPE sockfd);
   
   /**
    * Disconnects a TCP/IP node. Empty send and receivebuffer.
    */
-  void disconnectImpl();
+  virtual void disconnectImpl();
   
 private:
   /**
@@ -134,21 +122,11 @@ private:
    */
   SendBuffer m_sendBuffer;
   
-  const bool isServer;
-  const unsigned int port;
-
   // Sending/Receiving socket used by both client and server
   NDB_SOCKET_TYPE theSocket;   
   
   Uint32 maxReceiveSize;
   
-  /**
-   * Remote host name/and address
-   */
-  char remoteHostName[256];
-  struct in_addr remoteHostAddress;
-  struct in_addr localHostAddress;
-
   /**
    * Socket options
    */
@@ -163,43 +141,6 @@ private:
   
   bool sendIsPossible(struct timeval * timeout);
 
-  /**
-   * startTCPServer - None blocking
-   *
-   *   create a server socket
-   *   bind
-   *   listen
-   *
-   * Note: Does not call accept
-   */
-  bool startTCPServer();
-
-  /**
-   * acceptClient - Blocking
-   *
-   *   Accept a connection
-   *   checks if "right" client has connected
-   *   if so
-   *      close server socket
-   *   else
-   *      close newly created socket and goto begin
-   */
-  bool acceptClient(struct timeval * timeout);
-  
-  /**
-   * Creates a client socket
-   *
-   * Note does not call connect
-   */
-  bool createClientSocket();
-  
-  /**
-   * connectClient - Blocking
-   *
-   *   connects to remote host 
-   */
-  bool connectClient(struct timeval * timeout);
-  
   /**
    * Statistics
    */

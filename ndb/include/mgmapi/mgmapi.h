@@ -49,6 +49,8 @@
  *  @{
  */
 
+#include "mgmapi_config_parameters.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -81,10 +83,10 @@ extern "C" {
    */
   enum ndb_mgm_node_type {
     NDB_MGM_NODE_TYPE_UNKNOWN = -1,         /*/< Node type not known*/
-    NDB_MGM_NODE_TYPE_API     = 0,          /*/< An application node (API)*/
-    NDB_MGM_NODE_TYPE_NDB     = 1,          /*/< A database node (DB)*/
-    NDB_MGM_NODE_TYPE_MGM     = 2,          /*/< A management server node (MGM)*/
-    NDB_MGM_NODE_TYPE_REP     = 3,          ///< A replication node
+    NDB_MGM_NODE_TYPE_API     = NODE_TYPE_API,          /*/< An application node (API)*/
+    NDB_MGM_NODE_TYPE_NDB     = NODE_TYPE_DB,          /*/< A database node (DB)*/
+    NDB_MGM_NODE_TYPE_MGM     = NODE_TYPE_MGM,          /*/< A management server node (MGM)*/
+    NDB_MGM_NODE_TYPE_REP     = NODE_TYPE_REP,          ///< A replication node
 
     NDB_MGM_NODE_TYPE_MIN     = 0,          /*/< Min valid value*/
     NDB_MGM_NODE_TYPE_MAX     = 3           /*/< Max valid value*/
@@ -666,6 +668,11 @@ extern "C" {
    */
   struct ndb_mgm_configuration * ndb_mgm_get_configuration(NdbMgmHandle handle,
 							   unsigned version);
+
+  int ndb_mgm_alloc_nodeid(NdbMgmHandle handle,
+			   unsigned version,
+			   unsigned *pnodeid,
+			   int nodetype);
   /**
    * Config iterator
    */

@@ -29,19 +29,9 @@
 #define TransporterRegistry_H
 
 #include "TransporterDefinitions.hpp"
+#include <SocketServer.hpp>
 
 #include <NdbTCP.h>
-
-// A transporter is always in a PerformState.
-// PerformIO is used initially and as long as any of the events 
-// PerformConnect, ... 
-enum PerformState {
-  PerformNothing    = 4, // Does nothing
-  PerformIO         = 0, // Is connected
-  PerformConnect    = 1, // Is trying to connect
-  PerformDisconnect = 2, // Trying to disconnect
-  RemoveTransporter = 3  // Will be removed
-};
 
 // A transporter is always in an IOState.
 // NoHalt is used initially and as long as it is no restrictions on
@@ -60,11 +50,36 @@ enum TransporterType {
   tt_OSE_TRANSPORTER = 4
 };
 
+static const char *performStateString[] = 
+  { "is connected",
+    "is trying to connect",
+    "does nothing",
+    "is trying to disconnect" };
+
 class Transporter;
 class TCP_Transporter;
 class SCI_Transporter;
 class SHM_Transporter;
 class OSE_Transporter;
+
+class TransporterRegistry;
+class SocketAuthenticator;
+
+class TransporterService : public SocketServer::Service {
+  SocketAuthenticator * m_auth;
+  TransporterRegistry * m_transporter_registry;
+public:
+  TransporterService(SocketAuthenticator *auth= 0)
+  {
+    m_auth= auth;
+    m_transporter_registry= 0;
+  }
+  void setTransporterRegistry(TransporterRegistry *t)
+  {
+    m_transporter_registry= t;
+  }
+  SocketServer::Session * newSession(NDB_SOCKET_TYPE socket);
+};
 
 /**
  * @class TransporterRegistry
@@ -72,6 +87,8 @@ class OSE_Transporter;
  */
 class TransporterRegistry {
   friend class OSE_Receiver;
+  friend class Transporter;
+  friend class TransporterService;
 public:
  /**
   * Constructor
@@ -98,6 +115,12 @@ public:
    */
   ~TransporterRegistry();
 
+  bool start_service(SocketServer& server);
+  bool start_clients();
+  bool stop_clients();
+  void start_clients_thread();
+  void update_connections();
+
   /**
    * Start/Stop receiving
    */
@@ -110,16 +133,26 @@ public:
   void startSending();
   void stopSending();
 
+  // A transporter is always in a PerformState.
+  // PerformIO is used initially and as long as any of the events 
+  // PerformConnect, ... 
+  enum PerformState {
+    CONNECTED         = 0,
+    CONNECTING        = 1,
+    DISCONNECTED      = 2,
+    DISCONNECTING     = 3
+  };
+  const char *getPerformStateString(NodeId nodeId) const
+  { return performStateString[(unsigned)performStates[nodeId]]; };
+
   /**
    * Get and set methods for PerformState
    */
-  PerformState performState(NodeId nodeId);
-  void setPerformState(NodeId nodeId, PerformState state);
-  
-  /**
-   * Set perform state for all transporters
-   */
-  void setPerformState(PerformState state);
+  void do_connect(NodeId node_id);
+  void do_disconnect(NodeId node_id);
+  bool is_connected(NodeId node_id) { return performStates[node_id] == CONNECTED; };
+  void report_connect(NodeId node_id);
+  void report_disconnect(NodeId node_id, int errnum);
   
   /**
    * Get and set methods for IOState
@@ -174,8 +207,6 @@ public:
   void performReceive();
   void performSend();
   
-  void checkConnections();
-  
   /**
    * Force sending if more than or equal to sendLimit
    * number have asked for send. Returns 0 if not sending
@@ -187,10 +218,17 @@ public:
   void printState();
 #endif
   
+  unsigned short      m_service_port;
+
 protected:
   
 private:
   void * callbackObj;
+
+  TransporterService *m_transporter_service;
+  char               *m_interface_name;
+  struct NdbThread   *m_start_clients_thread;
+  bool                m_run_start_clients_thread;
 
   int sendCounter;
   NodeId localNodeId;
@@ -202,11 +240,6 @@ private:
   int nSHMTransporters;
   int nOSETransporters;
 
-  int m_ccCount;
-  int m_ccIndex;
-  int m_ccStep;
-  int m_nTransportersPerformConnect;
-  bool m_ccReady;
   /**
    * Arrays holding all transporters in the order they are created
    */
