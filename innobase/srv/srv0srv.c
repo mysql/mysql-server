@@ -2448,7 +2448,7 @@ srv_sprintf_innodb_monitor(
 		       "----------------------\n");
 	buf += sprintf(buf,
 	"Total memory allocated " ULINTPF
-	"; in additional pool allocated" ULINTPF "\n",
+	"; in additional pool allocated " ULINTPF "\n",
 				ut_total_allocated_memory,
 				mem_pool_get_reserved(mem_comm_pool));
 
