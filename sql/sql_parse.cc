@@ -857,8 +857,7 @@ bool do_command(THD *thd)
   old_timeout=net->read_timeout;
   // Wait max for 8 hours
   net->read_timeout=(uint) thd->variables.net_wait_timeout;
-  net->last_error[0]=0;				// Clear error message
-  net->last_errno=0;
+  thd->clear_error();				// Clear error message
 
   net_new_transaction(net);
   if ((packet_length=my_net_read(net)) == packet_error)
