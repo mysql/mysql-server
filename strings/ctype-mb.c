@@ -565,7 +565,7 @@ static int my_wildcmp_mb_bin(CHARSET_INFO *cs,
           if (str++ == str_end) return (-1);
         }
 	{
-	  int tmp=my_wildcmp_mb(cs,str,str_end,wildstr,wildend,escape,w_one,w_many);
+	  int tmp=my_wildcmp_mb_bin(cs,str,str_end,wildstr,wildend,escape,w_one,w_many);
 	  if (tmp <= 0)
 	    return (tmp);
 	}

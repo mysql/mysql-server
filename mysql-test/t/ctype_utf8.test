@@ -492,3 +492,10 @@ INSERT INTO t1 VALUES ('str2');
 select * from t1 where str='str';
 drop table t1;
 
+#
+# Bug #5397: Crash with varchar binary and LIKE
+#
+CREATE TABLE t1 (a varchar(32) BINARY) CHARACTER SET utf8;
+INSERT INTO t1 VALUES ('test');
+SELECT a FROM t1 WHERE a LIKE '%te';
+DROP TABLE t1;
