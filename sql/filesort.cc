@@ -1187,7 +1187,7 @@ sortlength(SORT_FIELD *sortorder, uint s_length, bool *multi_byte_charset)
 	{
 	  sortorder->need_strxnfrm= 1;
 	  *multi_byte_charset= 1;
-	  sortorder->length= sortorder->length*cs->strxfrm_multiply;
+          sortorder->length= cs->coll->strnxfrmlen(cs, sortorder->length);
 	}
       }
       if (sortorder->field->maybe_null())
@@ -1200,7 +1200,7 @@ sortlength(SORT_FIELD *sortorder, uint s_length, bool *multi_byte_charset)
 	sortorder->length=sortorder->item->max_length;
 	if (use_strnxfrm((cs=sortorder->item->collation.collation)))
 	{ 
-	  sortorder->length= sortorder->length*cs->strxfrm_multiply;
+          sortorder->length= cs->coll->strnxfrmlen(cs, sortorder->length);
 	  sortorder->need_strxnfrm= 1;
 	  *multi_byte_charset= 1;
 	}
