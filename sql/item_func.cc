@@ -597,7 +597,8 @@ void Item_func_neg::fix_length_and_dec()
 {
   decimals=args[0]->decimals;
   max_length=args[0]->max_length;
-  hybrid_type= args[0]->result_type() == INT_RESULT ? INT_RESULT : REAL_RESULT;
+  hybrid_type= args[0]->result_type() == INT_RESULT && !args[0]->unsigned_flag ?
+    INT_RESULT : REAL_RESULT;
 }
 
 double Item_func_abs::val()
