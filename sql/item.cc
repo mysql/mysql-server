@@ -1488,14 +1488,13 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 		   "forward reference in item list");
 	  return -1;
 	}
-
 	Item_ref *rf= (place == IN_HAVING ?
                        new Item_ref(last->ref_pointer_array + counter,
                                     (char *)table_name,
-                                    (char *)field_name) :
+                                    (char *)field_name, this) :
                        new Item_direct_ref(last->ref_pointer_array + counter,
                                            (char *)table_name,
-                                           (char *)field_name));
+                                           (char *)field_name, this));
 	if (!rf)
 	  return 1;
         thd->change_item_tree(ref, rf);
