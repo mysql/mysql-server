@@ -33003,7 +33003,7 @@ As AES is a block level algorithm, padding is used to encode uneven length
 strings and so the result string length may be calculated as
 16*(trunc(string_length/16)+1).
 
-If @code{AES_DECRYPT()} detects invalid data or incorrect padding, it will
+If @code{AES_DECRYPT()} detects invalid data or incorrect padding, it
 will return @code{NULL}. However, it is possible for @code{AES_DECRYPT()}
 to return a non-@code{NULL} value (possibly garbage) if the input data or
 the key was invalid.
