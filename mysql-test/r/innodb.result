@@ -909,4 +909,5 @@ Table handler for 't1' doesn't have this option
 handler t1 read t first;
 Unknown table 't1' in HANDLER
 handler t1 close;
+Unknown table 't1' in HANDLER
 drop table t1;
