@@ -424,7 +424,6 @@ int ha_berkeley::open(const char *name, int mode, uint test_if_locked)
   if ((primary_key=table->primary_key) >= MAX_KEY)
   {						// No primary key
     primary_key=table->keys;
-    fixed_length_primary_key=1;
     ref_length=hidden_primary_key=BDB_HIDDEN_PRIMARY_KEY_LENGTH;
   }
   key_used_on_scan=primary_key;
@@ -457,6 +456,7 @@ int ha_berkeley::open(const char *name, int mode, uint test_if_locked)
   thr_lock_data_init(&share->lock,&lock,(void*) 0);
   key_file = share->key_file;
   key_type = share->key_type;
+  bzero((char*) &current_row,sizeof(current_row));
 
   /* Fill in shared structure, if needed */
   pthread_mutex_lock(&share->mutex);
@@ -489,10 +489,9 @@ int ha_berkeley::open(const char *name, int mode, uint test_if_locked)
       DBUG_RETURN(1);
     }
 
-    /* Open other keys */
+    /* Open other keys;  These are part of the share structure */
     key_file[primary_key]=file;
     key_type[primary_key]=DB_NOOVERWRITE;
-    bzero((char*) &current_row,sizeof(current_row));
 
     DB **ptr=key_file;
     for (uint i=0, used_keys=0; i < table->keys ; i++, ptr++)
@@ -522,6 +521,7 @@ int ha_berkeley::open(const char *name, int mode, uint test_if_locked)
       }
     }
     /* Calculate pack_length of primary key */
+    share->fixed_length_primary_key=1;
     if (!hidden_primary_key)
     {
       ref_length=0;
@@ -529,18 +529,19 @@ int ha_berkeley::open(const char *name, int mode, uint test_if_locked)
       KEY_PART_INFO *end=key_part+table->key_info[primary_key].key_parts;
       for ( ; key_part != end ; key_part++)
 	ref_length+= key_part->field->max_packed_col_length(key_part->length);
-      fixed_length_primary_key=
+      share->fixed_length_primary_key=
 	(ref_length == table->key_info[primary_key].key_length);
       share->status|=STATUS_PRIMARY_KEY_INIT;
     }    
+    share->ref_length=ref_length;
   }
+  ref_length=share->ref_length;			// If second open
   pthread_mutex_unlock(&share->mutex);
 
   transaction=0;
   cursor=0;
   key_read=0;
-  fixed_length_row=!(table->db_create_options & HA_OPTION_PACK_RECORD);
-
+  share->fixed_length_row=!(table->db_create_options & HA_OPTION_PACK_RECORD);
 
   get_status();
   info(HA_STATUS_NO_LOCK | HA_STATUS_VARIABLE | HA_STATUS_CONST);
@@ -598,7 +599,7 @@ ulong ha_berkeley::max_row_length(const byte *buf)
 int ha_berkeley::pack_row(DBT *row, const byte *record, bool new_row)
 {
   bzero((char*) row,sizeof(*row));
-  if (fixed_length_row)
+  if (share->fixed_length_row)
   {
     row->data=(void*) record;
     row->size=table->reclength+hidden_primary_key;
@@ -640,7 +641,7 @@ int ha_berkeley::pack_row(DBT *row, const byte *record, bool new_row)
 
 void ha_berkeley::unpack_row(char *record, DBT *row)
 {
-  if (fixed_length_row)
+  if (share->fixed_length_row)
     memcpy(record,(char*) row->data,table->reclength+hidden_primary_key);
   else
   {
@@ -1486,7 +1487,7 @@ DBT *ha_berkeley::get_pos(DBT *to, byte *pos)
   bzero((char*) to,sizeof(*to));
 
   to->data=pos;
-  if (fixed_length_primary_key)
+  if (share->fixed_length_primary_key)
     to->size=ref_length;
   else
   {
