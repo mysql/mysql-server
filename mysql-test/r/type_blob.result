@@ -4,7 +4,7 @@ show columns from t1;
 Field	Type	Null	Key	Default	Extra
 a	blob	YES		NULL	
 b	text	YES		NULL	
-c	blob	YES		NULL	
+c	tinyblob	YES		NULL	
 d	mediumtext	YES		NULL	
 e	longtext	YES		NULL	
 CREATE TABLE t2 (a char(257), b varbinary(70000), c varchar(70000000));

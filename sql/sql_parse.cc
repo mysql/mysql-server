@@ -4404,7 +4404,7 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
       /* The user has given a length to the blob column */
       if (new_field->length < 256)
 	type= FIELD_TYPE_TINY_BLOB;
-      if (new_field->length < 65536)
+      else if (new_field->length < 65536)
 	type= FIELD_TYPE_BLOB;
       else if (new_field->length < 256L*256L*256L)
 	type= FIELD_TYPE_MEDIUM_BLOB;
