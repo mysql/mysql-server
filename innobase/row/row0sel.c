@@ -2364,7 +2364,9 @@ row_sel_field_store_in_mysql_format(
 
 		ut_a(templ->mbmaxlen > templ->mbminlen
 			|| templ->mysql_col_len == len);
-		ut_a(!templ->mbmaxlen
+		/* The following assertion would fail for old tables
+		containing UTF-8 ENUM columns due to Bug #9526. */
+		ut_ad(!templ->mbmaxlen
 			|| !(templ->mysql_col_len % templ->mbmaxlen));
 		ut_a(len * templ->mbmaxlen >= templ->mysql_col_len);
 
