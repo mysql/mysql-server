@@ -56,7 +56,7 @@ int rtree_add_key(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key,
   }
 
   return (rtree_split_page(info, keyinfo, page_buf, key, key_length,
-			   new_page) ? -1 : 0);
+			   new_page) ? -1 : 1);
 }
 
 /*
