@@ -153,3 +153,29 @@ select * from t1 where a=_latin1'×ÁÓÑ';
 drop table t1;
 set names latin1;
 
+#
+# Check more automatic conversion
+#
+set names koi8r;
+create table t1 (c1 char(10) character set cp1251);
+insert into t1 values ('ß');
+select c1 from t1 where c1 between 'ß' and 'ß';
+select ifnull(c1,'ß'), ifnull(null,c1) from t1;
+select if(1,c1,'ö'), if(0,c1,'ö') from t1;
+select coalesce('ö',c1), coalesce(null,c1) from t1;
+select least(c1,'ö'), greatest(c1,'ö') from t1;
+select locate(c1,'ß'), locate('ß',c1) from t1;
+select field(c1,'ß'),field('ß',c1) from t1;
+select concat(c1,'ö'), concat('ö',c1) from t1;
+select concat_ws(c1,'ö','ß'), concat_ws('ö',c1,'ß') from t1;
+select replace(c1,'ß','ö'), replace('ß',c1,'ö') from t1;
+select substring_index(c1,'öößß',2) from t1;
+select elt(1,c1,'ö'),elt(1,'ö',c1) from t1;
+select make_set(3,c1,'ö'), make_set(3,'ö',c1) from t1;
+select insert(c1,1,2,'ö'),insert('ö',1,2,c1) from t1;
+select trim(c1 from 'ß'),trim('ß' from c1) from t1;
+select lpad(c1,3,'ö'), lpad('ö',3,c1) from t1;
+select rpad(c1,3,'ö'), rpad('ö',3,c1) from t1;
+# TODO
+#select case c1 when 'ß' then 'ß' when 'ö' then 'ö' else 'c' end from t1;
+#select export_set(5,c1,'ö'), export_set(5,'ö',c1) from t1;
