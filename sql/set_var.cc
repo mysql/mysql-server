@@ -116,6 +116,8 @@ sys_var_character_set_client  sys_character_set_client("character_set_client");
 sys_var_character_set_connection  sys_character_set_connection("character_set_connection");
 sys_var_character_set_results sys_character_set_results("character_set_results");
 sys_var_collation_connection sys_collation_connection("collation_connection");
+sys_var_collation_database sys_collation_database("collation_database");
+sys_var_collation_server sys_collation_server("collation_server");
 sys_var_bool_ptr	sys_concurrent_insert("concurrent_insert",
 					      &myisam_concurrent_insert);
 sys_var_long_ptr	sys_connect_timeout("connect_timeout",
@@ -381,6 +383,8 @@ sys_var *sys_variables[]=
   &sys_character_set_connection,
   &sys_character_set_results,
   &sys_collation_connection,
+  &sys_collation_database,
+  &sys_collation_server,
   &sys_concurrent_insert,
   &sys_connect_timeout,
   &sys_default_week_format,
@@ -509,6 +513,8 @@ struct show_var_st init_vars[]= {
   {sys_character_set_connection.name,(char*) &sys_character_set_connection,SHOW_SYS},
   {sys_character_set_results.name,(char*) &sys_character_set_results, SHOW_SYS},
   {sys_collation_connection.name,(char*) &sys_collation_connection, SHOW_SYS},
+  {sys_collation_database.name,(char*) &sys_collation_database,     SHOW_SYS},
+  {sys_collation_server.name,(char*) &sys_collation_server,         SHOW_SYS},
   {sys_concurrent_insert.name,(char*) &sys_concurrent_insert,       SHOW_SYS},
   {sys_connect_timeout.name,  (char*) &sys_connect_timeout,         SHOW_SYS},
   {"datadir",                 mysql_real_data_home,                 SHOW_CHAR},
@@ -1422,20 +1428,19 @@ CHARSET_INFO **
 sys_var_character_set_server::ci_ptr(THD *thd, enum_var_type type)
 {
   if (type == OPT_GLOBAL)
-    return &global_system_variables.character_set_server;
+    return &global_system_variables.collation_server;
   else
-    return &thd->variables.character_set_server;
+    return &thd->variables.collation_server;
 }
 
 
 void sys_var_character_set_server::set_default(THD *thd, enum_var_type type)
 {
  if (type == OPT_GLOBAL)
-   global_system_variables.character_set_server= default_charset_info;
+   global_system_variables.collation_server= default_charset_info;
  else
  {
-   thd->variables.character_set_server= (global_system_variables.
-					 character_set_server);
+   thd->variables.collation_server= global_system_variables.collation_server;
    thd->update_charset();
  }
 }
@@ -1445,19 +1450,19 @@ CHARSET_INFO ** sys_var_character_set_database::ci_ptr(THD *thd,
 						       enum_var_type type)
 {
   if (type == OPT_GLOBAL)
-    return &global_system_variables.character_set_database;
+    return &global_system_variables.collation_database;
   else
-    return &thd->variables.character_set_database;
+    return &thd->variables.collation_database;
 }
 
 
 void sys_var_character_set_database::set_default(THD *thd, enum_var_type type)
 {
  if (type == OPT_GLOBAL)
-    global_system_variables.character_set_database= default_charset_info;
+    global_system_variables.collation_database= default_charset_info;
   else
   {
-    thd->variables.character_set_database= thd->db_charset;
+    thd->variables.collation_database= thd->db_charset;
     thd->update_charset();
   }
 }
@@ -1494,6 +1499,77 @@ void sys_var_collation_connection::set_default(THD *thd, enum_var_type type)
  {
    thd->variables.collation_connection= (global_system_variables.
 					 collation_connection);
+   thd->update_charset();
+ }
+}
+
+bool sys_var_collation_database::update(THD *thd, set_var *var)
+{
+  if (var->type == OPT_GLOBAL)
+    global_system_variables.collation_database= var->save_result.charset;
+  else
+  {
+    thd->variables.collation_database= var->save_result.charset;
+    thd->update_charset();
+  }
+  return 0;
+}
+
+
+byte *sys_var_collation_database::value_ptr(THD *thd, enum_var_type type,
+					      LEX_STRING *base)
+{
+  CHARSET_INFO *cs= ((type == OPT_GLOBAL) ?
+		  global_system_variables.collation_database :
+		  thd->variables.collation_database);
+  return cs ? (byte*) cs->name : (byte*) "NULL";
+}
+
+
+void sys_var_collation_database::set_default(THD *thd, enum_var_type type)
+{
+ if (type == OPT_GLOBAL)
+   global_system_variables.collation_database= default_charset_info;
+ else
+ {
+   thd->variables.collation_database= (global_system_variables.
+					 collation_database);
+   thd->update_charset();
+ }
+}
+
+
+bool sys_var_collation_server::update(THD *thd, set_var *var)
+{
+  if (var->type == OPT_GLOBAL)
+    global_system_variables.collation_server= var->save_result.charset;
+  else
+  {
+    thd->variables.collation_server= var->save_result.charset;
+    thd->update_charset();
+  }
+  return 0;
+}
+
+
+byte *sys_var_collation_server::value_ptr(THD *thd, enum_var_type type,
+					      LEX_STRING *base)
+{
+  CHARSET_INFO *cs= ((type == OPT_GLOBAL) ?
+		  global_system_variables.collation_server :
+		  thd->variables.collation_server);
+  return cs ? (byte*) cs->name : (byte*) "NULL";
+}
+
+
+void sys_var_collation_server::set_default(THD *thd, enum_var_type type)
+{
+ if (type == OPT_GLOBAL)
+   global_system_variables.collation_server= default_charset_info;
+ else
+ {
+   thd->variables.collation_server= (global_system_variables.
+					 collation_server);
    thd->update_charset();
  }
 }

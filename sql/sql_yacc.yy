@@ -914,7 +914,7 @@ create:
 	  bzero((char*) &lex->create_info,sizeof(lex->create_info));
 	  lex->create_info.options=$2 | $4;
 	  lex->create_info.db_type= (enum db_type) lex->thd->variables.table_type;
-	  lex->create_info.table_charset= thd->variables.character_set_database;
+	  lex->create_info.table_charset= thd->variables.collation_database;
 	  lex->name=0;
 	}
 	create2
@@ -1632,7 +1632,7 @@ alter:
 	  lex->select_lex.db=lex->name=0;
 	  bzero((char*) &lex->create_info,sizeof(lex->create_info));
 	  lex->create_info.db_type= DB_TYPE_DEFAULT;
-	  lex->create_info.table_charset= thd->variables.character_set_database;
+	  lex->create_info.table_charset= thd->variables.collation_database;
 	  lex->create_info.row_type= ROW_TYPE_NOT_USED;
           lex->alter_keys_onoff=LEAVE_AS_IS;
           lex->simple_alter=1;
@@ -4737,7 +4737,7 @@ option_value:
 	  THD *thd= YYTHD;
 	  LEX *lex= Lex;
 	  $2= $2 ? $2: global_system_variables.character_set_client;
-	  lex->var_list.push_back(new set_var_collation_client($2,thd->variables.character_set_database,$2));
+	  lex->var_list.push_back(new set_var_collation_client($2,thd->variables.collation_database,$2));
 	}
 	| NAMES_SYM charset_name_or_default opt_collate
 	{

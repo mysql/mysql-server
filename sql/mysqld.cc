@@ -2094,11 +2094,11 @@ static int init_common_variables(const char *conf_file_name, int argc,
     }
     default_charset_info= default_collation;
   }
-  global_system_variables.character_set_server= default_charset_info;
-  global_system_variables.character_set_database= default_charset_info;
+  global_system_variables.collation_server= default_charset_info;
+  global_system_variables.collation_database= default_charset_info;
+  global_system_variables.collation_connection= default_charset_info;
   global_system_variables.character_set_results= default_charset_info;
   global_system_variables.character_set_client= default_charset_info;
-  global_system_variables.collation_connection= default_charset_info;
 
   if (use_temp_pool && bitmap_init(&temp_pool,1024,1))
     return 1;
@@ -4825,11 +4825,11 @@ static void mysql_init_variables(void)
 
 
   /* Set default values for some option variables */
-  global_system_variables.character_set_server= default_charset_info;
-  global_system_variables.character_set_database= default_charset_info;
+  global_system_variables.collation_server= default_charset_info;
+  global_system_variables.collation_database= default_charset_info;
+  global_system_variables.collation_connection= default_charset_info;
   global_system_variables.character_set_results= default_charset_info;
   global_system_variables.character_set_client= default_charset_info;
-  global_system_variables.collation_connection= default_charset_info;
   global_system_variables.table_type=   DB_TYPE_MYISAM;
   global_system_variables.tx_isolation= ISO_REPEATABLE_READ;
   global_system_variables.select_limit= (ulonglong) HA_POS_ERROR;
