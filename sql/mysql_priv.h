@@ -369,7 +369,8 @@ bool do_command(THD *thd);
 bool dispatch_command(enum enum_server_command command, THD *thd,
 		      char* packet, uint packet_length);
 bool check_stack_overrun(THD *thd,char *dummy);
-bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables);
+bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables, 
+                          bool *write_to_binlog);
 void table_cache_init(void);
 void table_cache_free(void);
 uint cached_tables(void);
