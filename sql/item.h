@@ -774,6 +774,7 @@ public:
   {
     save_in_field(result_field, no_conversions);
   }
+  void cleanup();
 };
 
 
