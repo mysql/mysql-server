@@ -2119,10 +2119,17 @@ get_best_combination(JOIN *join)
 	j->type=JT_REF;				/* Must read with repeat */
       else if (ref_key == j->ref.key_copy)
       {						/* Should never be reached */
-	j->type=JT_CONST;			/* purecov: deadcode */
+	/*
+	  This happen if we are using a constant expression in the ON part
+	  of an LEFT JOIN.
+	  SELECT * FROM a LEFT JOIN b ON b.key=30
+	  Here we should not mark the table as a 'const' as a field may
+	  have a 'normal' value or a NULL value.
+	*/
+	j->type=JT_CONST;
 	if (join->const_tables == tablenr)
 	{
-	  join->const_tables++;			/* purecov: deadcode */
+	  join->const_tables++;
 	  join->const_table_map|=form->map;
 	}
       }
@@ -2251,7 +2258,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
       used_tables|=current_map;
 
       if (tab->type == JT_REF && tab->quick &&
-	  tab->ref.key == tab->quick->index &&
+	  (uint) tab->ref.key == tab->quick->index &&
 	  tab->ref.key_length < tab->quick->max_used_key_length)
       {
 	/* Range uses longer key;  Use this instead of ref on key */
@@ -2689,8 +2696,8 @@ static void update_depend_map(JOIN *join, ORDER *order)
 
 
 /*
-**  simple_order is set to 1 if sort_order only uses fields from head table
-**  and the head table is not a LEFT JOIN table
+  simple_order is set to 1 if sort_order only uses fields from head table
+  and the head table is not a LEFT JOIN table
 */
 
 static ORDER *
@@ -4331,8 +4338,11 @@ join_read_const(JOIN_TAB *tab)
     }
     store_record(table,1);
   }
-  else if (!table->status)			// Only happens with left join
+  else if (!(table->status & ~STATUS_NULL_ROW))	// Only happens with left join
+  {
+    table->status=0;
     restore_record(table,1);			// restore old record
+  }
   table->null_row=0;
   return table->status ? -1 : 0;
 }

@@ -303,10 +303,9 @@ int _mi_readinfo(register MI_INFO *info, int lock_type, int check_keybuffer)
   {
     if (!share->r_locks && !share->w_locks)
     {
-      if ((info->tmp_lock_type=lock_type) != F_RDLCK)
-	if (my_lock(share->kfile,lock_type,0L,F_TO_EOF,
-		    info->lock_wait | MY_SEEK_NOT_DONE))
-	  DBUG_RETURN(1);
+      if (my_lock(share->kfile,lock_type,0L,F_TO_EOF,
+		  info->lock_wait | MY_SEEK_NOT_DONE))
+	DBUG_RETURN(1);
       if (mi_state_info_read_dsk(share->kfile, &share->state, 1))
       {
 	int error=my_errno ? my_errno : -1;
