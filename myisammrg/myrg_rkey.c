@@ -44,7 +44,6 @@ int myrg_rkey(MYRG_INFO *info,byte *record,int inx, const byte *key,
   MYRG_TABLE *table;
   MI_INFO *mi;
   int err;
-  byte *buf=((search_flag == HA_READ_KEY_EXACT) ? record: 0);
   LINT_INIT(key_buff);
   LINT_INIT(pack_key_length);
 
@@ -57,14 +56,14 @@ int myrg_rkey(MYRG_INFO *info,byte *record,int inx, const byte *key,
 
     if (table == info->open_tables)
     {
-      err=mi_rkey(mi,buf,inx,key,key_len,search_flag);
+      err=mi_rkey(mi,0,inx,key,key_len,search_flag);
       key_buff=(byte*) mi->lastkey+mi->s->base.max_key_length;
       pack_key_length=mi->last_rkey_length;
     }
     else
     {
       mi->use_packed_key=1;
-      err=mi_rkey(mi,buf,inx,key_buff,pack_key_length,search_flag);
+      err=mi_rkey(mi,0,inx,key_buff,pack_key_length,search_flag);
       mi->use_packed_key=0;
     }
     info->last_used_table=table+1;
@@ -78,12 +77,6 @@ int myrg_rkey(MYRG_INFO *info,byte *record,int inx, const byte *key,
     /* adding to queue */
     queue_insert(&(info->by_key),(byte *)table);
 
-    /* if looking for KEY_EXACT, return first matched now */
-    if (buf)
-    {
-      info->current_table=table;
-      return 0;
-    }
   }
 
   if (!info->by_key.elements)
