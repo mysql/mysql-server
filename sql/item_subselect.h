@@ -46,6 +46,8 @@ protected:
   bool have_to_be_excluded;
 
 public:
+  enum trans_res {OK, REDUCE, ERROR};
+
   Item_subselect();
   Item_subselect(Item_subselect *item)
   {
@@ -71,7 +73,7 @@ public:
   {
     null_value= 1;
   }
-  virtual void select_transformer(THD *thd, st_select_lex_unit *unit);
+  virtual trans_res select_transformer(THD *thd, JOIN *join);
   bool assigned() { return value_assigned; }
   void assigned(bool a) { value_assigned= a; }
   enum Type type() const;
@@ -83,6 +85,13 @@ public:
   bool fix_fields(THD *thd, TABLE_LIST *tables, Item **ref);
   virtual void fix_length_and_dec();
   table_map used_tables() const;
+  void print(String *str)
+  {
+    if (name)
+      str->append(name);
+    else
+      str->append("-subselect-");
+  }
 
   friend class select_subselect;
   friend class Item_in_optimizer;
@@ -105,7 +114,7 @@ public:
     decimals= item->decimals;
   }
   void reset();
-  void select_transformer(THD *thd, st_select_lex_unit *unit);
+  trans_res select_transformer(THD *thd, JOIN *join);
   void store(uint i, Item* item);
   double val();
   longlong val_int ();
@@ -161,25 +170,35 @@ class Item_in_subselect :public Item_exists_subselect
 {
 protected:
   Item * left_expr;
+  /*
+    expr & optinizer used in subselect rewriting to store Item for
+    all JOIN in UNION
+  */
+  Item *expr;
+  Item_in_optimizer *optimizer;
   bool was_null;
+  bool abort_on_null;
 public:
   Item_in_subselect(THD *thd, Item * left_expr, st_select_lex *select_lex);
   Item_in_subselect(Item_in_subselect *item);
-  Item_in_subselect(): Item_exists_subselect() {}
+  Item_in_subselect(): Item_exists_subselect(),  abort_on_null(0)  {}
   void reset() 
   {
     value= 0;
     null_value= 0;
     was_null= 0;
   }
-  virtual void select_transformer(THD *thd, st_select_lex_unit *unit);
-  void single_value_transformer(THD *thd, st_select_lex_unit *unit,
-				Item *left_expr, compare_func_creator func);
-  void row_value_transformer(THD *thd, st_select_lex_unit *unit,
-			     Item *left_expr);
+  trans_res select_transformer(THD *thd, JOIN *join);
+  trans_res single_value_transformer(THD *thd, JOIN *join,
+				     Item *left_expr,
+				     compare_func_creator func);
+  trans_res row_value_transformer(THD *thd, JOIN * join,
+				  Item *left_expr);
   longlong val_int();
   double val();
   String *val_str(String*);
+  void top_level_item() { abort_on_null=1; }
+  bool test_limit(st_select_lex_unit *unit);
 
   friend class Item_asterisk_remover;
   friend class Item_ref_null_helper;
@@ -196,7 +215,7 @@ public:
   Item_allany_subselect(THD *thd, Item * left_expr, compare_func_creator f,
 		     st_select_lex *select_lex);
   Item_allany_subselect(Item_allany_subselect *item);
-  virtual void select_transformer(THD *thd, st_select_lex_unit *unit);
+  trans_res select_transformer(THD *thd, JOIN *join);
 };
 
 class subselect_engine: public Sql_alloc

@@ -1328,17 +1328,15 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
     }
   }
 
-/*
- * The following conditional is changed as to correctly identify 
- * incorrect references in group functions or forward references 
- * with sub-select's / derived tables, while it prevents this 
- * check when Item_ref is created in an expression involving 
- * summing function, which is to be placed in the user variable.
- *
- */
- 
+  /*
+    The following conditional is changed as to correctly identify 
+    incorrect references in group functions or forward references 
+    with sub-select's / derived tables, while it prevents this 
+    check when Item_ref is created in an expression involving 
+    summing function, which is to be placed in the user variable.
+  */
   if (((*ref)->with_sum_func && name &&
-       (depended_from || 
+       (depended_from ||
 	!(thd->lex.current_select->linkage != GLOBAL_OPTIONS_TYPE &&
 	  thd->lex.current_select->select_lex()->having_fix_field))) ||
       !(*ref)->fixed)
