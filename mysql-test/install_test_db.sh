@@ -190,8 +190,11 @@ then
   c_c="$c_c   comment='Column privileges';"
 fi
 
-if $execdir/mysqld --no-defaults --bootstrap --skip-grant-tables \
-    --basedir=$basedir --datadir=$ldata --skip-innodb --skip-bdb --skip-gemini $EXTRA_ARG << END_OF_DATA
+mysqld_boot=" $execdir/mysqld --no-defaults --bootstrap --skip-grant-tables \
+    --basedir=$basedir --datadir=$ldata --skip-innodb --skip-bdb --skip-gemini $EXTRA_ARG"
+echo "running $mysqld_boot"
+
+if $mysqld_boot << END_OF_DATA
 use mysql;
 $c_d
 $i_d
@@ -211,5 +214,6 @@ END_OF_DATA
 then
     exit 0
 else
+    echo "Error executing mysqld --boostrap"
     exit 1
 fi
