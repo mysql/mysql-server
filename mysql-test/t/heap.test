@@ -161,3 +161,14 @@ CREATE TABLE `job_titles` (
 SELECT MAX(job_title_id) FROM job_titles;
 
 DROP TABLE job_titles;
+
+#
+# Bug #6878: a problem with small length records
+#
+
+create table t1(a char(2)) type=heap;
+insert into t1 values (NULL), (NULL);
+delete from t1 where a is null;
+insert into t1 values ('2'), ('3');
+select * from t1;
+drop table t1;

@@ -41,6 +41,13 @@ HP_INFO *heap_open(const char *name, int mode, uint keys, HP_KEYDEF *keydef,
   {
     DBUG_PRINT("info",("Initializing new table"));
     implicit_emptied= 1;
+
+    /*
+      We have to store sometimes byte* del_link in records,
+      so the record length should be at least sizeof(byte*)
+    */
+    set_if_bigger(reclength, sizeof (byte*));
+
     for (i=key_segs=max_length=0 ; i < keys ; i++)
     {
       key_segs+= keydef[i].keysegs;
