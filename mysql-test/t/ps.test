@@ -507,3 +507,36 @@ SELECT FOUND_ROWS();
 execute stmt;                                                                   
 SELECT FOUND_ROWS();                                                            
 deallocate prepare stmt;
+
+#
+# Bug#8115: equality propagation and prepared statements
+#
+
+create table t1 (a char(3) not null, b char(3) not null,
+                 c char(3) not null, primary key  (a, b, c));
+create table t2 like t1;
+
+# reduced query
+prepare stmt from
+  "select t1.a from (t1 left outer join t2 on t2.a=1 and t1.b=t2.b)
+  where t1.a=1";
+execute stmt;
+execute stmt;
+execute stmt;
+
+# original query
+prepare stmt from
+"select t1.a, t1.b, t1.c, t2.a, t2.b, t2.c from
+(t1 left outer join t2 on t2.a=? and t1.b=t2.b)
+left outer join t2 t3 on t3.a=? where t1.a=?";
+
+set @a:=1, @b:=1, @c:=1;
+
+execute stmt using @a, @b, @c;
+execute stmt using @a, @b, @c;
+execute stmt using @a, @b, @c;
+
+deallocate prepare stmt;
+
+drop table t1,t2;
+

@@ -1095,6 +1095,12 @@ public:
   predicates that can not be used to access tables in the investigated
   plan for those, obtained by substitution of some fields for equal fields,
   that can be used.     
+
+  Prepared Statements/Stored Procedures note: instances of class
+  Item_equal are created only at the time a PS/SP is executed and
+  are deleted in the end of execution. All changes made to these
+  objects need not be registered in the list of changes of the parse
+  tree and do not harm PS/SP re-execution.
 */
 
 class Item_equal: public Item_bool_func
