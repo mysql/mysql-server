@@ -86,6 +86,8 @@ client_libs='@CLIENT_LIBS@'
 
 libs="$ldflags -L'$pkglibdir' -lmysqlclient $client_libs"
 libs=`echo $libs | sed -e 's; +;;'`
+libs_r="$ldflags -L'$pkglibdir' -lmysqlclient_r $client_libs"
+libs_r=`echo $libs_r | sed -e 's; +;;'`
 cflags="-I'$pkgincludedir'"
 embedded_libs="$ldflags -L'$pkglibdir' -lmysqld @LIBS@ @innodb_system_libs@"
 
@@ -95,6 +97,7 @@ Usage: $0 [OPTIONS]
 Options:
         --cflags         [$cflags]
         --libs           [$libs]
+        --libs_r         [$libs_r]
         --socket         [$socket]
         --port           [$port]
         --version        [$version]
@@ -109,6 +112,7 @@ while test $# -gt 0; do
         case $1 in
         --cflags)  echo "$cflags" ;;
         --libs)    echo "$libs" ;;
+        --libs_r)  echo "$libs_r" ;;
         --socket)  echo "$socket" ;;
         --port)    echo "$port" ;;
         --version) echo "$version" ;;
