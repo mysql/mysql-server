@@ -79,8 +79,8 @@ row_sel_sec_rec_is_for_clust_rec(
         ulint           i;
 	dtype_t*	cur_type;
 	mem_heap_t*	heap		= NULL;
-	ulint		clust_offsets_[100];
-	ulint		sec_offsets_[10];
+	ulint		clust_offsets_[REC_OFFS_NORMAL_SIZE];
+	ulint		sec_offsets_[REC_OFFS_SMALL_SIZE];
 	ulint*		clust_offs	= clust_offsets_;
 	ulint*		sec_offs	= sec_offsets_;
 	ibool		is_equal	= TRUE;
@@ -626,7 +626,7 @@ row_sel_get_clust_rec(
 	rec_t*		old_vers;
 	ulint		err;
 	mem_heap_t*	heap		= NULL;
-	ulint		offsets_[100];
+	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
 	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
@@ -992,7 +992,7 @@ row_sel_try_search_shortcut(
 	dict_index_t*	index;
 	rec_t*		rec;
 	mem_heap_t*	heap		= NULL;
-	ulint		offsets_[100];
+	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
 	ulint		ret;
 	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
@@ -1118,7 +1118,7 @@ row_sel(
 	ulint		found_flag;
 	ulint		err;
 	mem_heap_t*	heap				= NULL;
-	ulint		offsets_[100];
+	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets				= offsets_;
 	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
@@ -3039,7 +3039,7 @@ row_search_for_mysql(
 	ulint		next_offs;
 	mtr_t		mtr;
 	mem_heap_t*	heap				= NULL;
-	ulint		offsets_[100];
+	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets				= offsets_;
 	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 

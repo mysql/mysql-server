@@ -567,7 +567,7 @@ btr_page_get_father_for_rec(
 	btr_cur_t	cursor;
 	rec_t*		node_ptr;
 	dict_index_t*	index;
-	ulint		offsets_[100];
+	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets	= offsets_;
 	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
@@ -2099,7 +2099,7 @@ btr_compress(
 		btr_node_ptr_delete(tree, page, mtr);
 	} else {
 		mem_heap_t*	heap		= NULL;
-		ulint		offsets_[100];
+		ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 		*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 		/* Replace the address of the old child node (= page) with the 
 		address of the merge page to the right */
@@ -2389,7 +2389,7 @@ btr_print_tree(
 	mtr_t		mtr;
 	page_t*		root;
 	mem_heap_t*	heap	= NULL;
-	ulint		offsets_[100];
+	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets	= offsets_;
 	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
@@ -2491,7 +2491,7 @@ btr_index_rec_validate(
 	ulint		i;
 	page_t*		page;
 	mem_heap_t*	heap	= NULL;
-	ulint		offsets_[100];
+	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets	= offsets_;
 	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 

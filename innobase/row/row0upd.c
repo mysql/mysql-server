@@ -706,7 +706,7 @@ row_upd_build_sec_rec_difference_binary(
 	upd_t*		update;
 	ulint		n_diff;
 	ulint		i;
-	ulint		offsets_[10];
+	ulint		offsets_[REC_OFFS_SMALL_SIZE];
 	const ulint*	offsets;
 	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
@@ -784,7 +784,7 @@ row_upd_build_difference_binary(
 	ulint		trx_id_pos;
 	ibool		extern_bit;
 	ulint		i;
-	ulint		offsets_[100];
+	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	const ulint*	offsets;
 	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
@@ -1195,7 +1195,7 @@ row_upd_store_row(
 	upd_t*		update;
 	rec_t*		rec;
 	mem_heap_t*	heap		= NULL;
-	ulint		offsets_[100];
+	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	const ulint*	offsets;
 	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
@@ -1396,7 +1396,7 @@ row_upd_clust_rec_by_insert(
 	btr_cur	= btr_pcur_get_btr_cur(pcur);
 	
 	if (node->state != UPD_NODE_INSERT_CLUSTERED) {
-		ulint	offsets_[100];
+		ulint	offsets_[REC_OFFS_NORMAL_SIZE];
 		*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
 		err = btr_cur_del_mark_set_clust_rec(BTR_NO_LOCKING_FLAG,
@@ -1537,7 +1537,7 @@ row_upd_clust_rec(
 
 	if (err == DB_SUCCESS && big_rec) {
 		mem_heap_t*	heap		= NULL;
-		ulint		offsets_[100];
+		ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 		rec_t*		rec;
 		*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
@@ -1637,7 +1637,7 @@ row_upd_clust_step(
 	mtr_t		mtr_buf;
 	rec_t*		rec;
 	mem_heap_t*	heap		= NULL;
-	ulint		offsets_[100];
+	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	const ulint*	offsets;
 	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
@@ -1995,7 +1995,7 @@ row_upd_in_place_in_select(
 	btr_cur_t*	btr_cur;
 	ulint		err;
 	mem_heap_t*	heap		= NULL;
-	ulint		offsets_[100];
+	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
 	ut_ad(sel_node->select_will_do_update);
