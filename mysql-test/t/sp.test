@@ -1397,7 +1397,6 @@ drop procedure bug3426|
 #
 --disable_warnings
 drop table if exists t3, t4|
---enable_warnings
 
 create table t3 (
   a int primary key, 
@@ -1408,6 +1407,7 @@ create table t4 (
   b int  primary key , 
   bch char(1)
 ) engine = innodb|
+--enable_warnings
 
 insert into t3 values (1 , 'aCh1' ) , ('2' , 'aCh2')|
 insert into t4 values (1 , 'bCh1' )|
