@@ -63,10 +63,14 @@ class MYSQL_LOG {
   char time_buff[20],db[NAME_LEN+1];
   char log_file_name[FN_REFLEN],index_file_name[FN_REFLEN];
   bool write_error,inited;
+  uint32 log_seq; // current event sequence number
+  // needed this for binlog
   bool no_rotate; // for binlog - if log name can never change
   // we should not try to rotate it or write any rotation events
   // the user should use FLUSH MASTER instead of FLUSH LOGS for
   // purging
+
+  friend class Log_event;
 
 public:
   MYSQL_LOG();
@@ -243,6 +247,7 @@ public:
   struct st_my_thread_var *mysys_var;
   enum enum_server_command command;
   uint32 server_id;
+  uint32 log_seq;
   const char *where;
   time_t  start_time,time_after_lock,user_time;
   time_t  connect_time,thr_create_time; // track down slow pthread_create

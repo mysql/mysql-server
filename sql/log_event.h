@@ -34,20 +34,79 @@
 #define LOG_READ_TOO_LARGE -7
 
 #define LOG_EVENT_OFFSET 4
-#define BINLOG_VERSION    1
+#define BINLOG_VERSION    2
 
-#define LOG_EVENT_HEADER_LEN 13
-#define QUERY_HEADER_LEN     (sizeof(uint32) + sizeof(uint32) + \
- sizeof(uchar) + sizeof(uint16))
-#define LOAD_HEADER_LEN      (sizeof(uint32) + sizeof(uint32) + \
-  + sizeof(uint32) + 2 + sizeof(uint32))
-#define EVENT_LEN_OFFSET     9
+/* we could have used SERVER_VERSION_LENGTH, but this introduces an
+   obscure dependency - if somebody decided to change SERVER_VERSION_LENGTH
+   this would have broke the replication protocol
+*/
+#define ST_SERVER_VER_LEN 50
+
+/* Binary log consists of events. Each event has a fixed length header,
+   followed by possibly variable ( depending on the type of event) length
+   data body. The data body consists of an optional fixed length segment
+   (post-header), and an optional variable length segment. See #defines and
+   comments below for the format specifics
+*/
+
+/* event-specific post-header sizes */
+#define LOG_EVENT_HEADER_LEN 19
+#define QUERY_HEADER_LEN     (4 + 4 + 1 + 2)
+#define LOAD_HEADER_LEN      (4 + 4 + 4 + 1 +1 + 4)
+#define START_HEADER_LEN     (2 + ST_SERVER_VER_LEN + 4)
+
+/* event header offsets */
+
 #define EVENT_TYPE_OFFSET    4
+#define SERVER_ID_OFFSET     5
+#define EVENT_LEN_OFFSET     9
+#define LOG_SEQ_OFFSET       13
+#define FLAGS_OFFSET         17
+
+/* start event post-header */
+
+#define ST_BINLOG_VER_OFFSET  0
+#define ST_SERVER_VER_OFFSET  2
+#define ST_CREATED_OFFSET     (ST_SERVER_VER_OFFSET + ST_SERVER_VER_LEN)
+
+/* slave event post-header */
+
+#define SL_MASTER_PORT_OFFSET   12
+#define SL_MASTER_POS_OFFSET    4
+#define SL_MASTER_HOST_OFFSET   14
+
+/* query event post-header */
+
+#define Q_THREAD_ID_OFFSET   0
+#define Q_EXEC_TIME_OFFSET   4
+#define Q_DB_LEN_OFFSET      8
+#define Q_ERR_CODE_OFFSET    9
+#define Q_DATA_OFFSET    QUERY_HEADER_LEN
+
+/* Intvar event post-header */
+
+#define I_TYPE_OFFSET        0
+#define I_VAL_OFFSET         1
+
+/* Load event post-header */
+
+#define L_THREAD_ID_OFFSET   0
+#define L_EXEC_TIME_OFFSET   4
+#define L_SKIP_LINES_OFFSET  8
+#define L_DB_LEN_OFFSET      12
+#define L_TBL_LEN_OFFSET     13
+#define L_NUM_FIELDS_OFFSET  14
+#define L_DATA_OFFSET    LOAD_HEADER_LEN
+
+
 #define QUERY_EVENT_OVERHEAD  (LOG_EVENT_HEADER_LEN+QUERY_HEADER_LEN)
+#define QUERY_DATA_OFFSET (LOG_EVENT_HEADER_LEN+QUERY_HEADER_LEN)
 #define ROTATE_EVENT_OVERHEAD LOG_EVENT_HEADER_LEN
 #define LOAD_EVENT_OVERHEAD   (LOG_EVENT_HEADER_LEN+LOAD_HEADER_LEN+sizeof(sql_ex_info))
 
 #define BINLOG_MAGIC        "\xfe\x62\x69\x6e"
+
+#define LOG_EVENT_TIME_F           0x1
 
 enum Log_event_type { START_EVENT = 1, QUERY_EVENT =2,
 		      STOP_EVENT=3, ROTATE_EVENT = 4, INTVAR_EVENT=5,
@@ -57,6 +116,8 @@ enum Int_event_type { INVALID_INT_EVENT = 0, LAST_INSERT_ID_EVENT = 1, INSERT_ID
 
 #ifndef MYSQL_CLIENT
 class String;
+class MYSQL_LOG;
+class THD;
 #endif
 
 extern uint32 server_id;
@@ -68,8 +129,9 @@ class Log_event
 public:
   time_t when;
   ulong exec_time;
-  int valid_exec_time; // if false, the exec time setting is bogus 
   uint32 server_id;
+  uint32 log_seq;
+  uint16 flags;
 
   static void *operator new(size_t size)
   {
@@ -86,17 +148,22 @@ public:
   virtual int write_data(IO_CACHE* file __attribute__((unused))) { return 0; }
   virtual Log_event_type get_type_code() = 0;
   Log_event(time_t when_arg, ulong exec_time_arg = 0,
-	    int valid_exec_time_arg = 0, uint32 server_id_arg = 0):
+	    int valid_exec_time = 0, uint32 server_id_arg = 0,
+	    uint32 log_seq_arg = 0, uint16 flags_arg = 0):
     when(when_arg), exec_time(exec_time_arg),
-    valid_exec_time(valid_exec_time_arg)
+    log_seq(log_seq_arg),flags(0)
   {
     server_id = server_id_arg ? server_id_arg : (::server_id);
+    if(valid_exec_time)
+      flags |= LOG_EVENT_TIME_F;
   }
 
-  Log_event(const char* buf): valid_exec_time(0)
+  Log_event(const char* buf)
   {
    when = uint4korr(buf);
-   server_id = uint4korr(buf + 5);
+   server_id = uint4korr(buf + SERVER_ID_OFFSET);
+   log_seq = uint4korr(buf + LOG_SEQ_OFFSET);
+   flags = uint2korr(buf + FLAGS_OFFSET);
   }
 
   virtual ~Log_event() {}
@@ -114,6 +181,7 @@ public:
 #ifndef MYSQL_CLIENT
   static int read_log_event(IO_CACHE* file, String* packet,
 			    pthread_mutex_t* log_lock);
+  void set_log_seq(THD* thd, MYSQL_LOG* log);
 #endif
   
 };
@@ -136,7 +204,8 @@ public:
   THD* thd;
   bool cache_stmt;
   Query_log_event(THD* thd_arg, const char* query_arg, bool using_trans=0):
-    Log_event(thd_arg->start_time,0,1,thd_arg->server_id), data_buf(0),
+    Log_event(thd_arg->start_time,0,1,thd_arg->server_id,thd_arg->log_seq),
+    data_buf(0),
     query(query_arg),  db(thd_arg->db), q_len(thd_arg->query_length),
     error_code(thd_arg->killed ? ER_SERVER_SHUTDOWN: thd_arg->net.last_errno),
     thread_id(thd_arg->thread_id), thd(thd_arg),
@@ -150,7 +219,6 @@ public:
   }
 #endif
 
-  Query_log_event(IO_CACHE* file, time_t when, uint32 server_id_arg);
   Query_log_event(const char* buf, int event_len);
   ~Query_log_event()
   {
@@ -192,7 +260,6 @@ public:
 #endif
   
   Slave_log_event(const char* buf, int event_len);
-  Slave_log_event(IO_CACHE* file, time_t when, uint32 server_id_arg);
   ~Slave_log_event();
   int get_data_size();
   Log_event_type get_type_code() { return SLAVE_EVENT; }
@@ -263,7 +330,6 @@ public:
     time_t end_time;
     time(&end_time);
     exec_time = (ulong) (end_time  - thd->start_time);
-    valid_exec_time = 1;
     db_len = (db) ? (uint32) strlen(db) : 0;
     table_name_len = (table_name) ? (uint32) strlen(table_name) : 0;
     fname_len = (fname) ? (uint) strlen(fname) : 0;
@@ -319,7 +385,6 @@ public:
   void set_fields(List<Item> &fields_arg);
 #endif
 
-  Load_log_event(IO_CACHE * file, time_t when, uint32 server_id_arg);
   Load_log_event(const char* buf, int event_len);
   ~Load_log_event()
   {
@@ -351,23 +416,12 @@ class Start_log_event: public Log_event
 public:
   uint32 created;
   uint16 binlog_version;
-  char server_version[50];
+  char server_version[ST_SERVER_VER_LEN];
   
   Start_log_event() :Log_event(time(NULL)),binlog_version(BINLOG_VERSION)
   {
     created = (uint32) when;
-    memcpy(server_version, ::server_version, sizeof(server_version));
-  }
-  Start_log_event(IO_CACHE* file, time_t when_arg, uint32 server_id_arg) :
-    Log_event(when_arg, 0, 0, server_id_arg)
-  {
-    char buf[sizeof(server_version) + 2 + 4 + 4];
-    if (my_b_read(file, (byte*) buf, sizeof(buf)))
-      return;				
-    binlog_version = uint2korr(buf+4);
-    memcpy(server_version, buf + 6, sizeof(server_version));
-    server_version[sizeof(server_version)-1]=0;
-    created = uint4korr(buf + 6 + sizeof(server_version));
+    memcpy(server_version, ::server_version, ST_SERVER_VER_LEN);
   }
   Start_log_event(const char* buf);
   
@@ -376,8 +430,7 @@ public:
   int write_data(IO_CACHE* file);
   int get_data_size()
   {
-    // sizeof(binlog_version) + sizeof(server_version) sizeof(created)
-    return 2 + sizeof(server_version) + 4;
+    return START_HEADER_LEN;
   }
   void print(FILE* file, bool short_form = 0, char* last_db = 0);
 };
@@ -390,7 +443,6 @@ public:
   Intvar_log_event(uchar type_arg, ulonglong val_arg)
     :Log_event(time(NULL)),val(val_arg),type(type_arg)
   {}
-  Intvar_log_event(IO_CACHE* file, time_t when, uint32 server_id_arg);
   Intvar_log_event(const char* buf);
   ~Intvar_log_event() {}
   Log_event_type get_type_code() { return INTVAR_EVENT;}
@@ -406,12 +458,6 @@ class Stop_log_event: public Log_event
 public:
   Stop_log_event() :Log_event(time(NULL))
   {}
-  Stop_log_event(IO_CACHE* file, time_t when_arg, uint32 server_id_arg):
-    Log_event(when_arg,0,0,server_id_arg)
-  {
-    byte skip[4];
-    my_b_read(file, skip, sizeof(skip));	// skip the event length
-  }
   Stop_log_event(const char* buf):Log_event(buf)
   {
   }
@@ -434,7 +480,6 @@ public:
     alloced(0)
   {}
   
-  Rotate_log_event(IO_CACHE* file, time_t when, uint32 server_id_arg) ;
   Rotate_log_event(const char* buf, int event_len);
   ~Rotate_log_event()
   {

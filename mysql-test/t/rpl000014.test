@@ -25,7 +25,7 @@ create table foo (n int);
 insert into foo values (1),(2),(3);
 save_master_pos;
 connection slave;
-change master to master_log_pos=73;
+change master to master_log_pos=79;
 sync_with_master;
 select * from foo;
 connection master;
