@@ -824,7 +824,7 @@ void ha_ndbcluster::release_metadata()
 
 int ha_ndbcluster::get_ndb_lock_type(enum thr_lock_type type)
 {
-  if (type == TL_WRITE_ALLOW_WRITE)
+  if (type >= TL_WRITE_ALLOW_WRITE)
     return NdbOperation::LM_Exclusive;
   else if (uses_blob_value(retrieve_all_fields))
     /*
@@ -1161,7 +1161,7 @@ inline int ha_ndbcluster::next_result(byte *buf)
      If this an update or delete, call nextResult with false
      to process any records already cached in NdbApi
   */
-  bool contact_ndb= m_lock.type != TL_WRITE_ALLOW_WRITE;
+  bool contact_ndb= m_lock.type < TL_WRITE_ALLOW_WRITE;
   do {
     DBUG_PRINT("info", ("Call nextResult, contact_ndb: %d", contact_ndb));
     /*
@@ -2731,6 +2731,9 @@ THR_LOCK_DATA **ha_ndbcluster::store_lock(THD *thd,
     /* If we are not doing a LOCK TABLE, then allow multiple
        writers */
     
+    /* Since NDB does not currently have table locks
+       this is treated as a ordinary lock */
+
     if ((lock_type >= TL_WRITE_ALLOW_WRITE &&
          lock_type <= TL_WRITE) && !thd->in_lock_tables)      
       lock_type= TL_WRITE_ALLOW_WRITE;
