@@ -52,7 +52,6 @@ typedef enum ndb_index_type {
 typedef struct ndb_index_data {
   NDB_INDEX_TYPE type;
   void *index;
-  const char * unique_name;
   void *unique_index;
 } NDB_INDEX_DATA;
 
@@ -180,8 +179,6 @@ class ha_ndbcluster: public handler
   int build_index_list(TABLE *tab, enum ILBP phase);
   int get_metadata(const char* path);
   void release_metadata();
-  const char* get_index_name(uint idx_no) const;
-  const char* get_unique_index_name(uint idx_no) const;
   NDB_INDEX_TYPE get_index_type(uint idx_no) const;
   NDB_INDEX_TYPE get_index_type_from_table(uint index_no) const;
   
