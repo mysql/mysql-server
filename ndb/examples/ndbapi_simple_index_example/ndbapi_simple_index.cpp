@@ -143,7 +143,7 @@ int main()
     if (myTransaction == NULL) APIERROR(myNdb->getNdbError());
     
     NdbIndexOperation *myIndexOperation=
-      myTransaction->getNdbIndexOperation("MYINDEXNAME$unique","MYTABLENAME");
+      myTransaction->getNdbIndexOperation("MYINDEXNAME","MYTABLENAME");
     if (myIndexOperation == NULL) APIERROR(myTransaction->getNdbError());
     
     myIndexOperation->readTuple(NdbOperation::LM_Read);
@@ -166,7 +166,7 @@ int main()
     if (myTransaction == NULL) APIERROR(myNdb->getNdbError());
     
     NdbIndexOperation *myIndexOperation=
-      myTransaction->getNdbIndexOperation("MYINDEXNAME$unique", "MYTABLENAME");
+      myTransaction->getNdbIndexOperation("MYINDEXNAME", "MYTABLENAME");
     if (myIndexOperation == NULL) APIERROR(myTransaction->getNdbError());
     
     myIndexOperation->updateTuple();
@@ -187,7 +187,7 @@ int main()
     if (myTransaction == NULL) APIERROR(myNdb->getNdbError());
   
     NdbIndexOperation *myIndexOperation=
-      myTransaction->getNdbIndexOperation("MYINDEXNAME$unique", "MYTABLENAME");
+      myTransaction->getNdbIndexOperation("MYINDEXNAME", "MYTABLENAME");
     if (myIndexOperation == NULL) APIERROR(myTransaction->getNdbError());
   
     myIndexOperation->deleteTuple();
