@@ -215,7 +215,7 @@ extern char *strstr(const char *, const char *);
 #endif
 extern int is_prefix(const char *, const char *);
 
-/* Conversion rutins */
+/* Conversion routines */
 
 #ifdef USE_MY_ITOA
 extern char *my_itoa(int val,char *dst,int radix);
