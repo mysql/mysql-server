@@ -957,8 +957,8 @@ Comments on porting to other systems
 @end detailmenu
 @end menu
 
-@cindex Overview
-@cindex General Information
+@cindex overview
+@cindex general information
 @node Introduction, Questions, Top, Top
 @chapter General Information About MySQL
 
@@ -1043,6 +1043,11 @@ For source distributions, the @code{mysqlbug} script can be found in the
 @file{scripts} directory.  For binary distributions, @code{mysqlbug} can
 be found in the @file{bin} directory.
 
+@cindex errors,reporting
+@cindex reporting, errors
+@cindex mailing list address
+@cindex mysqlbug script, location
+
 If you have any suggestions concerning additions or corrections to this
 manual, please send them to the manual team at
 (@email{docs@@mysql.com}).
@@ -1068,6 +1073,8 @@ such as @strong{MySQL}. Since computers are very good at handling large
 amounts of data, database management plays a central role in computing,
 as stand-alone utilities, or as parts of other applications.
 
+@cindex databases, defined
+
 @item @strong{MySQL} is a relational database management system.
 
 A relational database stores data in separate tables rather than putting
@@ -1088,6 +1095,9 @@ may and may not do with the software in different situations. If you
 feel uncomfortable with the GPL or need to embed @strong{MySQL} into a
 commercial application you can buy a commercially licensed version from
 us.
+
+@cindex open source, defined
+@cindex General Public License
 
 @item Why use @strong{MySQL}?
 
@@ -1118,10 +1128,13 @@ application/language already supports @strong{MySQL}.
 
 @end table
 
-@cindex How to pronounce @strong{MySQL}
-@cindex @strong{MySQL}, how to pronounce
+@cindex pronounciation, @strong{MySQL}
+@cindex @strong{MySQL}, pronouniation
+@cindex goals of MySQL
 The official way to pronounce @strong{MySQL} is ``My Ess Que Ell'' (not
 MY-SEQUEL). But we try to avoid correcting people who say MY-SEQUEL.
+
+
 
 @strong{MySQL} core values
 
@@ -1159,7 +1172,6 @@ Are a virtual company, networking with others
 Work against software patents
 @end itemize
 
-@cindex Manual information
 @node Manual-info, History, What-is, Introduction
 @section About This Manual
 
@@ -1174,6 +1186,9 @@ The HTML version is produced automatically using a modified version of
  @code{makeinfo}. The Postscript version is produced using @code{texi2dvi} 
 and @code{dvips}. The PDF version is produced with @code{pdftex}.
 
+@cindex manual, available formats
+@cindex Texinfo
+
 This manual is written and maintained by David Axmark, Michael (Monty)
 Widenius, Jeremy Cole, and Paul DuBois. For other contributors,
 see @ref{Credits}.
@@ -1182,6 +1197,9 @@ see @ref{Credits}.
 @subsection Conventions Used in This Manual
 
 This manual uses certain typographical conventions:
+
+@cindex manual, typographical conventions
+@cindex typographical conventions
 
 @table @asis
 @item @code{constant}
@@ -1228,6 +1246,9 @@ looks like this in Bourne shell syntax:
 @example
 shell> VARNAME=value some_command
 @end example
+
+@cindex shell syntax
+@cindex command syntax
 
 For @code{csh}, you would execute the sequence like this:
 
@@ -1296,6 +1317,8 @@ alternatives are listed within braces (@samp{@{} and @samp{@}}):
 @end example
 
 @cindex @strong{MySQL} version
+@cindex @strong{MySQL} history
+@cindex history of @strong{MySQL} 
 @node History, MySQL-Books, Manual-info, Introduction
 @section History of MySQL
 
@@ -1314,6 +1337,9 @@ still a mystery, even for us.
 
 @node MySQL-Books, Features, History, Introduction
 @section Books About MySQL
+
+@cindex books, about @strong{MySQL}
+@cindex manuals, about @strong{MySQL}
 
 While this manual is still the right place for up to date techical
 information, its primary goal is to contain everything there is to know
@@ -1470,6 +1496,9 @@ No description available.
 
 @node Features, Stability, MySQL-Books, Introduction
 @section The Main Features of MySQL
+
+@cindex main features of @strong {MySQL}
+@cindex features of @strong {MySQL}
 
 The following list describes some of the important characteristics
 of @strong{MySQL}:
@@ -1658,6 +1687,8 @@ which are things that are design-related.  @xref{Bugs}.
 modules.  These modules are listed below with an indication of how
 well-tested each of them is:
 
+@cindex modules, list of
+
 @table @strong
 @item The ISAM table handler --- Stable
 This manages storage and retrieval of all data in @strong{MySQL} Version 3.22
@@ -1667,6 +1698,12 @@ corrupted table is to kill the server in the middle of an update.  Even
 that is unlikely to destroy any data beyond rescue, because all data are
 flushed to disk between each query.  There hasn't been a single bug
 report about lost data because of bugs in @strong{MySQL}.
+
+@cindex ISAM table handler
+@cindex storing data
+@cindex retrieving data
+@cindex data, ISAM table handler
+
 
 @item The MyISAM table handler --- Gamma
 This is new in @strong{MySQL} Version 3.23. It's largely based on the ISAM 
@@ -1894,7 +1931,12 @@ http://www.geocities.com/SiliconValley/Vista/2207/sql1.html.
 Apart from the following links, you can find and download a lot of
 @strong{MySQL} programs, tools and APIs from the
 @uref{http://www.mysql.com/Contrib/, Contrib directory}.
+@cindex Contrib directory
 
+
+@cindex URLs to @strong{MySQL} information
+@cindex related information URLs
+@strong{MySQL}
 @subheading Tutorials and Manuals
 @itemize @bullet
 
@@ -2220,6 +2262,7 @@ Client libraries for the Macintosh.
 SCMDB - an add-on for SCM that ports the mysql C library to scheme (SCM).
 With this library scheme developers can make connections to a mySQL
 database and use embedded SQL in their programs.
+@cindex SCMDB
 @end itemize
 
 @subheading Other @strong{MySQL}-related Links
@@ -2407,7 +2450,7 @@ There are also many Web pages that use
 @strong{MySQL} logo somewhere to be added (It is okay to have it on a 
 ``used tools'' page or something similar.)
 
-@cindex Reporting errors
+@cindex reporting errors
 @cindex @strong{MySQL} mailing lists
 @node Questions, Licensing and Support, Introduction, Top
 @chapter MySQL Mailing Lists
@@ -2421,6 +2464,9 @@ There are also many Web pages that use
 
 @node Mailing-list, Asking questions, Questions, Questions
 @section The MySQL Mailing Lists
+
+@cindex mailing lists
+@cindex email lists
 
 To subscribe to the main @strong{MySQL} mailing list, send a message to the
 electronic mail address @email{mysql-subscribe@@lists.mysql.com}.
@@ -2543,7 +2589,9 @@ unsubscribe from the @code{myodbc} list, send a message to
 @email{myodbc-subscribe@@lists.mysql.com} or
 @email{myodbc-unsubscribe@@lists.mysql.com}.
 
-@cindex Net etiquette
+@cindex net etiquette
+@cindex mailing lists, archive location
+@cindex searching, @strong{MySQL} webpages
 @node Asking questions, Bug reports, Mailing-list, Questions
 @section Asking Questions or Reporting Bugs
 
@@ -2574,8 +2622,13 @@ local @strong{MySQL} expert. If you still can't find an answer to your
 question, go ahead and read the next section about how to send mail to
 @email{mysql@@lists.mysql.com}.
 
-@cindex Bug reports
-@cindex Reporting bugs
+@cindex bugs, reporting
+@cindex reporting, bugs
+@cindex problems, reporting
+@cindex errors, reporting
+@cindex mysqlbug script
+@cindex creating, bug reports
+@cindex scripts, mysqlbug
 @node Bug reports, Answering questions, Asking questions, Questions
 @section How to Report Bugs or Problems
 
@@ -2666,6 +2719,7 @@ for output that would exceed the available width for such a display
 example below).
 
 Please include the following information in your report:
+@cindex bug reports, criteria for
 
 @itemize @bullet
 @item
@@ -2852,6 +2906,10 @@ If you are a support customer, please cross-post the bug report to
 @email{mysql-support@@mysql.com} for higher priority treatment, as well as to
 the appropriate mailing list to see if someone else has experienced (and
 perhaps solved) the problem.
+@cindex technical support, mailing address
+@cindex support, mailing address
+@cindex customer support, mailing address
+@cindex mailing address, customer support
 
 For information on reporting bugs in @strong{MyODBC}, see @ref{ODBC
 Problems}.
@@ -2863,7 +2921,10 @@ it is considered good etiquette to summarize the answers and send the
 summary to the mailing list so that others may have the benefit of
 responses you received that helped you solve your problem!
 
-@cindex Net etiquette
+@cindex net etiquette
+@cindex questions, answering
+@cindex answering questions, etiquette
+@cindex mailing lists, guidelines 
 @node Answering questions,  , Bug reports, Questions
 @section Guidelines for Answering Question on the Mailing List
 
@@ -2879,8 +2940,8 @@ obliged to quote the entire original message.
 Please don't post mail messages from your browser with HTML mode turned on!
 Many users don't read mail with a browser!
 
-@cindex Licensing terms
-@cindex Support terms
+@cindex licensing terms
+@cindex support terms
 @node Licensing and Support, Installing, Questions, Top
 @chapter MySQL Licensing and Support
 
@@ -2989,7 +3050,7 @@ is to use the license form on @strong{MySQL}'s secure server at
 https://order.mysql.com/license.htmy. Other forms of payment are
 discussed in @ref{Payment information}.
 
-@cindex Copyright
+@cindex copyrights
 @node Copyright, Licensing examples, Licensing policy, Licensing and Support
 @section Copyrights Used by MySQL
 
@@ -3024,6 +3085,8 @@ One goal is that the SQL client library should be free enough that it is
 possible to add @strong{MySQL} support into commercial products
 without a license. For this reason, we chose the LGPL license for the
 client code.
+@cindex licensing, free
+@cindex free licensing
 
 This means that you can use @strong{MySQL} for free with any program that uses
 any of the free software licenses.  @strong{MySQL} is also free for any end
@@ -3047,6 +3110,10 @@ license. See the documentation for that version for more information.
 * ISP::                         ISP @strong{MySQL} services
 * Web server::                  Running a web server using @strong{MySQL}.
 @end menu
+
+@cindex licensing, examples
+@cindex selling products
+@cindex products, selling
 
 This section describes some situations illustrating whether or not you
 must license the @strong{MySQL} server.  Generally these examples
@@ -3103,6 +3170,11 @@ don't need a license.
 @node ISP, Web server, Products that use MySQL, Licensing examples
 @subsection ISP @strong{MySQL} Services
 
+@cindex ISP services
+@cindex services, ISP
+@cindex services, web
+@cindex Internet Service Providers
+
 Internet Service Providers (ISPs) often host @strong{MySQL} servers for
 their customers. With the GPL license this does not require a license.
 
@@ -3133,9 +3205,10 @@ version yourself. However, in this case we would like you to purchase
 @strong{MySQL} support, because @strong{MySQL} is helping your
 enterprise.
 
-@cindex Costs, licensing and support
-@cindex Licensing costs
-@cindex Support costs
+@cindex costs, licensing and support
+@cindex licensing costs
+@cindex support costs
+@cindex prices, licensing and support
 @node Cost, Support, Licensing examples, Licensing and Support
 @section @strong{MySQL} Licensing and Support Costs
 
@@ -3208,7 +3281,7 @@ You may upgrade from any
 lower level of support to a higher level of support for the difference
 in price between the two support levels.
 
-@cindex Payment information
+@cindex payment information
 @node Payment information, Contact information, Cost, Cost
 @subsection Payment information
 
@@ -3254,7 +3327,12 @@ us'' in the comment field.  You can also mail a message to
 @email{sales@@mysql.com} (@strong{not} @code{mysql@@lists.mysql.com}!)
 with your company information and ask us to bill you.
 
-@cindex Contact information
+@cindex contact information
+@cindex licensing, contact information
+@cindex partnering, with @strong{MySQL}
+@cindex employment with @strong{MySQL}
+@cindex jobs at @strong{MySQL}
+
 @node Contact information,  , Payment information, Cost
 @subsection Contact Information
 
@@ -3285,8 +3363,9 @@ you to @uref{https://order.mysql.com/, order} one of our
 For questions or comments about the workings or content of this Web site,
 please send e-mail to @email{webmaster@@mysql.com}.
 
-@cindex Support, types
-@cindex Types of support
+@cindex support, types
+@cindex types, of support
+@cindex commercial support, types
 @node Support,  , Cost, Licensing and Support
 @section Types of Commercial Support
 
@@ -3486,6 +3565,7 @@ encounter per year, but we are always very flexible towards our customers!
 
 @node Installing, Compatibility, Licensing and Support, Top
 @chapter Installing MySQL
+@cindex installing, overview
 
 @menu
 * Getting MySQL::               How to get @strong{MySQL}
@@ -3533,10 +3613,12 @@ procedures apply whether you install @strong{MySQL} using a binary or
 source distribution.
 @end itemize
 
-@cindex Downloading
+@cindex downloading
 @cindex @strong{MySQL} version
-@cindex Version, latest
-@cindex Getting @strong{MySQL}
+@cindex version, latest
+@cindex getting @strong{MySQL}
+@cindex mirror sites
+@cindex URLS for downloading @strong{MySQL}
 @node Getting MySQL, Which OS, Installing, Installing
 @section How to Get MySQL
 
@@ -4243,9 +4325,9 @@ Win95, Win98, NT, and Win2000. @xref{Windows}.
 
 @cindex @strong{MySQL} binary distribution
 @cindex @strong{MySQL} source distribution
-@cindex Release numbers
-@cindex Version, choosing
-@cindex Choosing version
+@cindex release numbers
+@cindex version, choosing
+@cindex choosing, a @strong{MySQL} version
 @node Which version, Many versions, Which OS, Installing
 @section Which MySQL Version to Use
 
@@ -4287,6 +4369,9 @@ If you want to read (and/or modify) the C and C++ code that makes up
 always the ultimate manual. Source distributions also contain more
 tests and examples than binary distributions.
 @end itemize
+
+@cindex naming, releases of @strong{MySQL}
+@cindex releases, naming scheme
 
 The @strong{MySQL} naming scheme uses release numbers that consist of three
 numbers and a suffix.  For example, a release name like
@@ -4348,6 +4433,8 @@ All versions of @strong{MySQL} are run through our standard tests and
 benchmarks to ensure that they are relatively safe to use.  Because the
 standard tests are extended over time to check for all previously found bugs,
 the test suite keeps getting better.
+@cindex releases, testing
+@cindex testing, of @strong{MySQL} releases
 
 Note that all releases have been tested at least with:
 
@@ -4432,6 +4519,11 @@ already working.''
 @node Installation layouts, Installing binary, Many versions, Installing
 @section Installation Layouts
 
+@cindex installation layouts
+@cindex layout, of installation
+@cindex directory structure, default
+@cindex default installation location
+
 This section describes the default layout of the directories created by
 installing binary and source distributions.
 
@@ -4509,7 +4601,7 @@ A reasonable @code{tar} to unpack the distribution. GNU @code{tar} is
 known to work. Sun @code{tar} is known to have problems.
 @end itemize
 
-@cindex RPM
+@cindex RPM, defined
 @cindex RedHat Package Manager
 An alternative installation method under Linux is to use RPM (RedHat Package
 Manager) distributions. @xref{Linux-RPM}.
@@ -4522,6 +4614,7 @@ solve your problem.  By not using @code{mysqlbug}, you lessen the likelihood
 of getting a solution to your problem!  You will find @code{mysqlbug} in the
 @file{bin} directory after you unpack the distribution.  @xref{Bug reports}.
 
+@cindex commands, for binary distribution
 The basic commands you must execute to install and use a @strong{MySQL}
 binary distribution are:
 
@@ -4537,6 +4630,10 @@ shell> chown -R mysql /usr/local/mysql
 shell> chgrp -R mysql /usr/local/mysql
 shell> bin/safe_mysqld --user=mysql &
 @end example
+
+@cindex adding, new users
+@cindex new users, adding
+@cindex users, adding
 
 You can add new users using the @code{bin/mysql_setpermission} script if
 you install the @code{DBI} and @code{Msql-Mysql-modules} Perl modules.
@@ -4685,7 +4782,7 @@ shell> bin/safe_mysqld --user=mysql &
 
 @xref{Post-installation}.
 
-@cindex RPM
+@cindex RPM file
 @cindex RedHat Package Manager
 @c This node name is special
 @node Linux-RPM, Building clients, Installing binary, Installing binary
@@ -4761,8 +4858,10 @@ If something goes wrong, you can find more information in the binary
 installation chapter. @xref{Installing binary}.
 
 
-@cindex Client programs, building
-@cindex Linking
+@cindex client programs, building
+@cindex linking
+@cindex building, client programs
+@cindex programs, client
 @node Building clients, Binary install system issues, Linux-RPM, Installing binary
 @subsection Building Client Programs
 
@@ -5241,6 +5340,8 @@ other than the default location (normally in the directory @file{/tmp} or
 shell> ./configure --with-unix-socket-path=/usr/local/mysql/tmp/mysql.sock
 @end example
 Note that the given file must be an absolute pathname!
+@cindex socket location
+
 
 @item
 If you want to compile statically linked programs (for example, to make a 
@@ -5251,6 +5352,7 @@ RedHat distributions), run @code{configure} like this:
 shell> ./configure --with-client-ldflags=-all-static \
            --with-mysqld-ldflags=-all-static
 @end example
+@cindex statistically-linked programs
 
 @item
 If you are using @code{gcc} and don't have @code{libg++} or @code{libstdc++}
@@ -5264,6 +5366,9 @@ compiler:
 @example
 shell> CC=gcc CXX=gcc ./configure
 @end example
+@cindex gcc
+@cindex C++ complier, gcc
+@cindex compiler, C++ gcc
 
 When you use @code{gcc} as your C++ compiler, it will not attempt to link in
 @code{libg++} or @code{libstdc++}.
@@ -5287,6 +5392,9 @@ non-@code{NULL} value.  To suppress use of default values, run
 @example
 shell> CXXFLAGS=-DDONT_USE_DEFAULT_FIELDS ./configure
 @end example
+@cindex default values, suppression
+@cindex suppression, default values
+
 
 @item
 By default, @strong{MySQL} uses the ISO-8859-1 (Latin1) character set. To
@@ -5301,6 +5409,8 @@ shell> ./configure --with-charset=CHARSET
 @code{latin2}, @code{sjis}, @code{swe7}, @code{tis620}, @code{ujis}, 
 @code{usa7}, or @code{win1251ukr}.
 @xref{Character sets}.
+@cindex character set
+@findex CHARSET
 
 If you want to convert characters between the server and the client,
 you should take a look at the @code{SET OPTION CHARACTER SET} command.
@@ -5728,6 +5838,9 @@ Look under the heading
 
 @node ActiveState Perl, Windows Perl, Perl installation, Perl support
 @subsection Installing ActiveState Perl on Windows
+@cindex installing, Perl on Windows
+@cindex Perl, installing on Windows
+@cindex ActiveState Perl
 
 To install the @strong{MySQL} @code{DBD} module with ActiveState Perl on
 Windows, you should do the following:
@@ -7171,6 +7284,7 @@ If you want to use @code{gcc}, you must use @code{gcc} 2.95.2 or newer.
 
 @node IBM-AIX, HP-UX 10.20, SCO Unixware, Source install system issues
 @subsection IBM-AIX notes
+@cindex problems, installing on IBM-AIX
 
 Automatic detection of @code{xlC} is missing from Autoconf, so a
 @code{configure} command something like this is needed when compiling
@@ -7577,6 +7691,9 @@ The last version gives you a debug trace in @file{C:\mysqld.trace}.
 @node Windows running, Windows and SSH, NT start, Windows
 @subsection Running MySQL on Windows
 
+@cindex TCP/IP
+@cindex named pipes
+
 @strong{MySQL} supports TCP/IP on all Windows platforms and named pipes on NT.
 The default is to use named pipes for local connections on NT and TCP/IP for
 all other cases if the client has TCP/IP installed.  The host name specifies
@@ -7693,8 +7810,9 @@ having problems with SSH conflicting with my Win95 network and Wingate -
 but that'll be the topic of a posting on another software company's
 usegroup!
 
-@findex Symbolic links
-@findex Using multiple disks to start data
+@cindex symbolic links
+@cindex using multiple disks to start data
+@cindex disks, splitting data across
 @node Windows symbolic links, Windows compiling, Windows and SSH, Windows
 @subsection Splitting Data Across Different Disks Under Windows
 
@@ -7856,6 +7974,8 @@ following information:
 
 Here are some open issues for anyone who might want to help us with the Windows
 release:
+
+@cindex Windows, open issues
 
 @itemize @bullet
 @item
@@ -8058,6 +8178,8 @@ starts up and shuts down.
 
 Normally you install the grant tables and start the server like this
 for installation from a source distribution:
+@cindex starting, the server
+@cindex server, starting
 
 @example
 shell> ./scripts/mysql_install_db
@@ -8077,6 +8199,7 @@ Testing is most easily done from the top-level directory of the @strong{MySQL}
 distribution.  For a binary distribution, this is your installation directory
 (typically something like @file{/usr/local/mysql}).  For a source
 distribution, this is the main directory of your @strong{MySQL} source tree.
+@cindex testing, the server
 
 In the commands shown below in this section and in the following
 subsections, @code{BINDIR} is the path to the location in which programs
@@ -8091,6 +8214,7 @@ installed.  For a binary distribution, this is the same as
 @file{/usr/local/libexec}.
 
 Testing is described in detail below:
+@cindex testing, installation
 
 @enumerate
 @item
@@ -8206,6 +8330,8 @@ invoke it with the @code{--help} option.
 
 @item
 Verify that you can shut down the server:
+@cindex server, shutdown
+@cindex shutting down, the server
 
 @example
 shell> BINDIR/mysqladmin -u root shutdown
@@ -8214,6 +8340,9 @@ shell> BINDIR/mysqladmin -u root shutdown
 @item
 Verify that you can restart the server.  Do this using @code{safe_mysqld} or
 by invoking @code{mysqld} directly.  For example:
+
+@cindex server, restart
+@cindex restarting, the server
 
 @example
 shell> BINDIR/safe_mysqld --log &
@@ -8288,6 +8417,9 @@ The expected results are shown in the @file{./tests/auto_increment.res} file.
 
 @node mysql_install_db, Starting server, Post-installation, Post-installation
 @subsection Problems running @code{mysql_install_db}
+@cindex mysql_install_db script
+@cindex scripts, mysql_install_db
+
 
 The purpose of the @code{mysql_install_db} script is to generate new
 @strong{MySQL} privilege tables.  It will not affect any other data!
@@ -8362,6 +8494,9 @@ with different sockets and ports.  For example, it could invoke
 and @code{--basedir} options for each invocation.
 
 @item You don't have write access to @file{/tmp}
+@cindex write access, tmp
+@cindex temporary file, write access
+@cindex files, tmp
 
 If you don't have write access to create a socket file at the default place
 (in @file{/tmp}) or permission to create temporary files in @file{/tmp,}
@@ -8416,6 +8551,8 @@ reload the grant tables.
 
 @node Starting server, Automatic start, mysql_install_db, Post-installation
 @subsection Problems starting the MySQL server
+@cindex server, starting problems
+@cindex problems, starting the server
 
 Generally, you start the @code{mysqld} server in one of three ways:
 
@@ -8598,6 +8735,9 @@ problems. @xref{Windows}.
 
 @node Automatic start, Command-line options, Starting server, Post-installation
 @subsection Starting and stopping MySQL automatically
+@cindex starting, the server automatically
+@cindex stopping, the server
+@cindex server, starting and stopping
 
 The @code{mysql.server} script can be used to start or stop the server,
 by invoking it with @code{start} or @code{stop} arguments:
@@ -8657,7 +8797,8 @@ The @code{mysql.server} script uses the following variables:
 
 @xref{Option files}.
 
-@cindex Command-line options
+@findex command-line options
+@cindex options, command-line
 @node Command-line options, Option files, Automatic start, Post-installation
 @subsection Command-line options
 
@@ -8856,8 +8997,10 @@ output version information and exit
 
 @end table
 
-@cindex Default options
-@cindex Option files
+@cindex default options
+@cindex option files
+@cindex creating, default startup options
+@cindex startup options, default
 @node Option files,  , Command-line options, Post-installation
 @subsection Option files
 
@@ -9003,6 +9146,8 @@ how to do this.
 
 @node Upgrade,  , Post-installation, Installing
 @section Is there anything special to do when upgrading/downgrading MySQL?
+@cindex upgrading
+@cindex downgrading
 
 You can always move the @strong{MySQL} form and data files between
 different versions on the same architecture as long as you have the same
@@ -9045,7 +9190,8 @@ dumping core after you upgrade @strong{MySQL}.
 * Upgrading-to-arch::           Upgrading to another architecture
 @end menu
 
-@cindex Compatibility, between MySQL versions
+@cindex compatibility, between @strong{MySQL} versions
+@cindex upgrading, 3.22 to 3.23
 @node Upgrading-from-3.22, Upgrading-from-3.21, Upgrade, Upgrade
 @subsection Upgrading from a 3.22 version to 3.23
 
@@ -9123,9 +9269,10 @@ New restricted words: @code{CASE, THEN, WHEN, ELSE, END and RIGHT}
 on an @code{AND/OR} expression as @code{NOT NULL} = @code{NULL}.
 @end itemize
 
-@cindex Compatibility, between MySQL versions
+@cindex compatibility, between MySQL versions
 @node Upgrading-from-3.21, Upgrading-from-3.20, Upgrading-from-3.22, Upgrade
 @subsection Upgrading from a 3.21 version to 3.22
+@cindex upgrading, 3.21 to 3.22
 
 Nothing that affects compatibility has changed between 3.21 and 3.22.  The
 only pitfall is that new tables that are created with @code{DATE} type
@@ -9154,6 +9301,7 @@ startup files.
 
 @node Upgrading-from-3.20, Upgrading-to-arch, Upgrading-from-3.21, Upgrade
 @subsection Upgrading from a 3.20 version to 3.21
+@cindex upgrading, 3.202 to 3.21
 
 If you are running a version older than 3.20.28 and want to
 switch to 3.21.x, you need to do the following:
@@ -9222,6 +9370,7 @@ There are some new reserved words. The most notable are @code{DATE},
 
 @node Upgrading-to-arch,  , Upgrading-from-3.20, Upgrade
 @subsection Upgrading to another architecture
+@cindex upgrading, different architecture
 
 If you are using @strong{MySQL} 3.23, you can copy the @code{.frm}, the
 @code{.MYI} and the @code{.MYD} files between different architectures
@@ -9313,7 +9462,10 @@ After you import the @code{mysql} database on the new machine, execute
 @code{mysqladmin flush-privileges} so that the server reloads the grant table
 information.
 
-@cindex Compatibility, with ANSI SQL
+@cindex compatibility, with ANSI SQL
+@cindex standards compatibility
+@cindex extensions, to ANSI SQL
+@cindex ANSI SQL92, extensions to
 @node Compatibility, Privilege system, Installing, Top
 @chapter How standards-compatible is MySQL?
 
@@ -9570,6 +9722,8 @@ SELECT @@t1:=(@@t2:=1)+@@t3:=4,@@t1,@@t2,@@t3;
 
 @node Ansi mode, Differences from ANSI, Extensions to ANSI, Compatibility
 @section Running MySQL in ANSI mode
+@cindex running, ANSI mode
+@cindex ANSI mode, running
 
 If you start mysqld with the @code{--ansi} option, the following behaviour
 of @strong{MySQL} changes.
@@ -9616,6 +9770,8 @@ extra conditions in this case.
 
 @node Missing functions, Standards, Differences from ANSI, Compatibility
 @section Functionality missing from MySQL
+@cindex missing functionality
+@cindex functionality, missing
 
 The following functionality is missing in the current version of
 @strong{MySQL}.  For a prioritized list indicating when new extensions may be
@@ -9636,6 +9792,7 @@ this manual. @xref{TODO}.
 
 @node Missing Sub-selects, Missing SELECT INTO TABLE, Missing functions, Missing functions
 @subsection Sub-selects
+@cindex sub-selects
 
 The following will not yet work in @strong{MySQL}:
 
@@ -9690,6 +9847,7 @@ other contexts, however.
 
 @node Missing SELECT INTO TABLE, Missing Transactions, Missing Sub-selects, Missing functions
 @subsection @code{SELECT INTO TABLE}
+@findex SELECT INTO TABLE
 
 @strong{MySQL} doesn't yet support the Oracle SQL extension:
 @code{SELECT ... INTO TABLE ...}.  @strong{MySQL} supports instead the
@@ -9701,6 +9859,7 @@ TABLE ... SELECT} to solve your problem.
 
 @node Missing Transactions, Missing Triggers, Missing SELECT INTO TABLE, Missing functions
 @subsection Transactions
+@cindex transactions, support
 
 As @strong{MySQL} does nowadays support transactions, the following
 discussion is only valid if you are only using the non-transaction-safe
@@ -9814,6 +9973,10 @@ operations, non-transactional, paradigm. Stay tuned.
 
 @node Missing Triggers, Missing Foreign Keys, Missing Transactions, Missing functions
 @subsection Stored procedures and triggers
+@cindex stored procedures and triggers, defined
+@cindex procedures, stored
+@cindex triggers, stored
+
 
 A stored procedure is a set of SQL commands that can be compiled and stored
 in the server. Once this has been done, clients don't need to keep reissuing
@@ -9836,6 +9999,8 @@ To see when @strong{MySQL} might get stored procedures, see @ref{TODO}.
 
 @node Missing Foreign Keys, Missing Views, Missing Triggers, Missing functions
 @subsection Foreign Keys
+@cindex foreign keys
+@cindex keys, foreign
 
 Note that foreign keys in SQL are not used to join tables, but are used
 mostly for checking referential integrity.  If you want to get results from
@@ -9874,6 +10039,7 @@ and may be retrieved by @code{mysqldump} and ODBC.
 
 @node Broken Foreign KEY,  , Missing Foreign Keys, Missing Foreign Keys
 @subsubsection Reasons NOT to use foreign keys
+@cindex foreign keys, reasons not to use
 
 There are so many problems with @code{FOREIGN KEY}s that we don't
 know where to start:
@@ -9919,11 +10085,14 @@ made. The current @file{.frm} file format does not have any place for it.
 
 @node Missing Views, Missing comments, Missing Foreign Keys, Missing functions
 @subsection Views
+@cindex views
 
 @strong{MySQL} doesn't support views, but this is on the TODO.
 
 @node Missing comments,  , Missing Views, Missing functions
 @subsection @samp{--} as the start of a comment
+@cindex comments, starting
+@cindex starting, comments
 
 Some other SQL databases use @samp{--} to start comments. @strong{MySQL}
 has @samp{#} as the start comment character, even if the @code{mysql}
@@ -9987,6 +10156,13 @@ Entry level SQL92. ODBC levels 0-2.
 
 @node Commit-rollback,  , Standards, Compatibility
 @section How to cope without @code{COMMIT}/@code{ROLLBACK}
+@findex COMMIT
+@findex ROLLBACK
+@cindex transaction safe tables
+@cindex tables, updating
+@cindex updating, tables
+@cindex BDB tables
+
 
 The following mostly apply only for @code{ISAM}, @code{MyISAM} and
 @code{HEAP} tables; If you only use transaction safe tables (@code{BDB}
@@ -10116,6 +10292,12 @@ UPDATE tbl_name SET row_flag=1 WHERE id=ID and row_flag <> 1;
 
 @node Privilege system, Reference, Compatibility, Top
 @chapter The MySQL access privilege system
+@cindex system, security
+@cindex access privileges
+@cindex privleges, access
+@cindex security system
+@cindex ACLs
+
 
 @strong{MySQL} has an advanced but non-standard security/privilege
 system.  This section describes how it works.
@@ -10316,6 +10498,8 @@ consult with a security expert.
 
 @node Security, What Privileges, General security, Privilege system
 @section How to make MySQL secure against crackers
+@cindex crackers, security against
+@cindex security, against crackers
 
 When you connect to a @strong{MySQL} server, you normally should use a
 password.  The password is not transmitted in clear text over the
@@ -10442,6 +10626,10 @@ support Unix sockets.
 
 @node What Privileges, User names, Security, Privilege system
 @section What the privilege system does
+@cindex system, privilege
+@cindex privilege system
+@cindex passwords, security
+
 
 The primary function of the @strong{MySQL} privilege system is to
 authenticate a user connecting from a given host, and to associate that user
@@ -10454,6 +10642,9 @@ DATA INFILE} and administrative operations.
 
 @node User names, Connecting, What Privileges, Privilege system
 @section MySQL user names and passwords
+@cindex user names, and passwords
+@cindex passwords, for users
+
 
 There are several distinctions between the way user names and passwords are
 used by @strong{MySQL}, and the way they are used by Unix or Windows:
@@ -10490,6 +10681,10 @@ the the @strong{MySQL} server !
 
 @node Connecting, Password security, User names, Privilege system
 @section Connecting to the MySQL server
+@cindex connecting, to the server
+@cindex default hostname
+@cindex hostname, default
+@cindex server, connecting to
 
 @strong{MySQL} client programs generally require that you specify connection
 parameters when you want to access a @strong{MySQL} server: the host you want
@@ -10597,6 +10792,8 @@ but there is still a brief interval during which the value is visible.)
 Use a @code{-p} or @code{--password} option (with no @code{your_pass} value
 specified).  In this case, the client program solicits the password from
 the terminal:
+@findex -p option
+@findex -password option
 
 @example
 shell> mysql -u user_name -p
@@ -10645,6 +10842,7 @@ file.
 
 @node Privileges provided, Privileges, Password security, Privilege system
 @section Privileges provided by MySQL
+@cindex privilege information, location
 
 Privilege information is stored in the @code{user}, @code{db}, @code{host},
 @code{tables_priv} and @code{columns_priv} tables in the @code{mysql}
@@ -10792,6 +10990,7 @@ in a database but not to create or drop the database itself.
 
 @node Privileges, Connection access, Privileges provided, Privilege system
 @section How the privilege system works
+@cindex privilege system, described
 
 The @strong{MySQL} privilege system ensures that all users may do exactly the
 things that they are supposed to be allowed to do.  When you connect to a
@@ -10993,6 +11192,10 @@ privileges.
 
 @node Connection access, Request access, Privileges, Privilege system
 @section Access control, stage 1: Connection verification
+@cindex access control
+@cindex control access
+@cindex connecting, verification
+@cindex testing, connection to the server
 
 When you attempt to connect to a @strong{MySQL} server, the server accepts or
 rejects the connection based on your identity and whether or not you can
