@@ -50720,6 +50720,9 @@ Small portability fixes.
 
 @itemize @bullet
 @item
+Renamed @code{FLUSH MASTER} and @code{FLUSH SLAVE} to @code{RESET MASTER}
+and @code{RESET SLAVE}.
+@item
 Fixed @code{<>} to work properly with @code{NULL}.
 @item
 Fixed a problem with @code{SUBSTRING_INDEX()} and @code{REPLACE()}.
