@@ -2242,13 +2242,15 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   KEY *key_info=table->key_info;
   for (uint i=0 ; i < table->keys ; i++,key_info++)
   {
-    if (drop_primary && (key_info->flags & HA_NOSAME))
+    char *key_name= key_info->name;
+
+    if (drop_primary && !my_strcasecmp(system_charset_info, key_name,
+                                       "PRIMARY"))
     {
-      drop_primary=0;
+      drop_primary= 0;
       continue;
     }
 
-    char *key_name=key_info->name;
     Alter_drop *drop;
     drop_it.rewind();
     while ((drop=drop_it++))
