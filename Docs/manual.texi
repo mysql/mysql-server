@@ -48918,6 +48918,11 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
+Fixed @code[SIGINT] and @code[SIGQUIT] problems in mysql.cc
+@item
+Fixed bug in convert.cc, which is caused by having a wrong net_store_length 
+linked in CONVERT::store method
+@item
 @code{DOUBLE} and @code{FLOAT} columns are now honoring the
 @code{UNSIGNED} flag on storage.
 @item
