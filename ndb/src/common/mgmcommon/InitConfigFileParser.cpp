@@ -222,7 +222,7 @@ bool InitConfigFileParser::parseNameValuePair(Context& ctx, const char* line) {
   char tmpLine[MAX_LINE_LENGTH];
   char fname[MAX_LINE_LENGTH], rest[MAX_LINE_LENGTH];
   char* t;
-  const char *separator_list[]= {":", "="};
+  const char *separator_list[]= {":", "=", 0};
   const char *separator= 0;
 
   if (ctx.m_currentSection == NULL){
@@ -235,7 +235,7 @@ bool InitConfigFileParser::parseNameValuePair(Context& ctx, const char* line) {
   // *************************************
   //  Check if a separator exists in line 
   // *************************************
-  for(int i= 0; i < sizeof(separator_list); i++) {
+  for(int i= 0; separator_list[i] != 0; i++) {
     if(strchr(tmpLine, separator_list[i][0])) {
       separator= separator_list[i];
       break;
@@ -522,7 +522,7 @@ InitConfigFileParser::parseDefaultSectionHeader(const char* line) const {
   if (no != 2) return NULL;
 
   // Not correct keyword at end
-  if (!strcmp(token2, "DEFAULT") == 0) return NULL;
+  if (!strcasecmp(token2, "DEFAULT") == 0) return NULL;
 
   if(m_info->getInfo(token1)){
     return strdup(token1);
