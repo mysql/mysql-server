@@ -1885,7 +1885,7 @@ void Item_func_rpad::fix_length_and_dec()
   
   if (args[1]->const_item())
   {
-    uint32 length= (uint32) args[1]->val_int();
+    uint32 length= (uint32) args[1]->val_int() * collation.collation->mbmaxlen;
     max_length=max(args[0]->max_length,length);
     if (max_length >= MAX_BLOB_WIDTH)
     {
@@ -1903,36 +1903,46 @@ void Item_func_rpad::fix_length_and_dec()
 
 String *Item_func_rpad::val_str(String *str)
 {
-  uint32 res_length,length_pad;
+  uint32 res_byte_length,res_char_length,pad_char_length,pad_byte_length;
   char *to;
   const char *ptr_pad;
   int32 count= (int32) args[1]->val_int();
+  int32 byte_count= count * collation.collation->mbmaxlen;
   String *res =args[0]->val_str(str);
   String *rpad = args[2]->val_str(str);
 
   if (!res || args[1]->null_value || !rpad || count < 0)
     goto err;
   null_value=0;
-  if (count <= (int32) (res_length=res->length()))
+  if (count <= (int32) (res_char_length=res->numchars()))
   {						// String to pad is big enough
-    res->length(count);				// Shorten result if longer
+    res->length(res->charpos(count));		// Shorten result if longer
     return (res);
   }
-  length_pad= rpad->length();
-  if ((ulong) count > current_thd->variables.max_allowed_packet ||
-      args[2]->null_value || !length_pad)
+  pad_char_length= rpad->numchars();
+  if ((ulong) byte_count > current_thd->variables.max_allowed_packet ||
+      args[2]->null_value || !pad_char_length)
     goto err;
-  if (!(res= alloc_buffer(res,str,&tmp_value,count)))
+  res_byte_length= res->length();	/* Must be done before alloc_buffer */
+  if (!(res= alloc_buffer(res,str,&tmp_value,byte_count)))
     goto err;
 
-  to= (char*) res->ptr()+res_length;
+  to= (char*) res->ptr()+res_byte_length;
   ptr_pad=rpad->ptr();
-  for (count-= res_length; (uint32) count > length_pad; count-= length_pad)
+  pad_byte_length= rpad->length();
+  count-= res_char_length;
+  for ( ; (uint32) count > pad_char_length; count-= pad_char_length)
   {
-    memcpy(to,ptr_pad,length_pad);
-    to+= length_pad;
+    memcpy(to,ptr_pad,pad_byte_length);
+    to+= pad_byte_length;
   }
-  memcpy(to,ptr_pad,(size_t) count);
+  if (count)
+  {
+    pad_byte_length= rpad->charpos(count);
+    memcpy(to,ptr_pad,(size_t) pad_byte_length);
+    to+= pad_byte_length;
+  }
+  res->length(to- (char*) res->ptr());
   return (res);
 
  err:
@@ -1951,7 +1961,7 @@ void Item_func_lpad::fix_length_and_dec()
   
   if (args[1]->const_item())
   {
-    uint32 length= (uint32) args[1]->val_int();
+    uint32 length= (uint32) args[1]->val_int() * collation.collation->mbmaxlen;
     max_length=max(args[0]->max_length,length);
     if (max_length >= MAX_BLOB_WIDTH)
     {
@@ -1969,57 +1979,52 @@ void Item_func_lpad::fix_length_and_dec()
 
 String *Item_func_lpad::val_str(String *str)
 {
-  uint32 res_length,length_pad;
-  char *to;
-  const char *ptr_pad;
-  ulong count= (long) args[1]->val_int();
-  String *res= args[0]->val_str(str);
-  String *lpad= args[2]->val_str(str);
+  uint32 res_byte_length,res_char_length,pad_byte_length,pad_char_length;
+  ulong count= (long) args[1]->val_int(), byte_count;
+  String a1,a3;
+  String *res= args[0]->val_str(&a1);
+  String *pad= args[2]->val_str(&a3);
 
-  if (!res || args[1]->null_value || !lpad)
+  if (!res || args[1]->null_value || !pad)
     goto err;
+
   null_value=0;
-  if (count <= (res_length=res->length()))
-  {						// String to pad is big enough
-    res->length(count);				// Shorten result if longer
-    return (res);
+  res_byte_length= res->length();
+  res_char_length= res->numchars();
+
+  if (count <= res_char_length)
+  {
+    res->length(res->charpos(count));
+    return res;
   }
-  length_pad= lpad->length();
-  if (count > current_thd->variables.max_allowed_packet ||
-      args[2]->null_value || !length_pad)
+  
+  pad_byte_length= pad->length();
+  pad_char_length= pad->numchars();
+  byte_count= count * collation.collation->mbmaxlen;
+  
+  if (byte_count > current_thd->variables.max_allowed_packet ||
+      args[2]->null_value || !pad_char_length || str->alloc(byte_count))
     goto err;
-
-  if (res->alloced_length() < count)
+  
+  str->length(0);
+  str->set_charset(collation.collation);
+  count-= res_char_length;
+  while (count >= pad_char_length)
   {
-    if (str->alloced_length() >= count)
-    {
-      memcpy((char*) str->ptr()+(count-res_length),res->ptr(),res_length);
-      res=str;
-    }
-    else
-    {
-      if (tmp_value.alloc(count))
-	goto err;
-      memcpy((char*) tmp_value.ptr()+(count-res_length),res->ptr(),res_length);
-      res=&tmp_value;
-    }
+    str->append(*pad);
+    count-= pad_char_length;
   }
-  else
-    bmove_upp((char*) res->ptr()+count,res->ptr()+res_length,res_length);
-  res->length(count);
-
-  to= (char*) res->ptr();
-  ptr_pad= lpad->ptr();
-  for (count-= res_length; count > length_pad; count-= length_pad)
+  if (count > 0)
   {
-    memcpy(to,ptr_pad,length_pad);
-    to+= length_pad;
+    pad->length(pad->charpos(count));
+    str->append(*pad);
   }
-  memcpy(to,ptr_pad,(size_t) count);
-  return (res);
+  str->append(*res);
+  null_value= 0;
+  return str;
 
- err:
-  null_value=1;
+err:
+  null_value= 1;
   return 0;
 }
 
