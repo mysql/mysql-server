@@ -247,6 +247,8 @@ int Arg_comparator::compare_e_int()
 int Arg_comparator::compare_row()
 {
   int res= 0;
+  (*a)->bring_value();
+  (*b)->bring_value();
   uint n= (*a)->cols();
   for (uint i= 0; i<n; i++)
   {
@@ -261,6 +263,8 @@ int Arg_comparator::compare_row()
 int Arg_comparator::compare_e_row()
 {
   int res= 0;
+  (*a)->bring_value();
+  (*b)->bring_value();
   uint n= (*a)->cols();
   for (uint i= 0; i<n; i++)
   {
@@ -270,13 +274,54 @@ int Arg_comparator::compare_e_row()
   return 1;
 }
 
+bool Item_in_optimizer::preallocate_row()
+{
+  if ((cache= Item_cache::get_cache(ROW_RESULT)))
+    return 0;
+  my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
+  current_thd->fatal_error= 1;
+  return 1;
+}
+
+bool Item_in_optimizer::fix_fields(THD *thd, struct st_table_list *tables,
+				   Item ** ref)
+{
+  if (args[0]->fix_fields(thd, tables, args))
+    return 1;
+  if (args[0]->maybe_null)
+    maybe_null=1;
+  if (args[0]->binary())
+	set_charset(my_charset_bin);
+  with_sum_func= args[0]->with_sum_func;
+  used_tables_cache= args[0]->used_tables();
+  const_item_cache= args[0]->const_item();
+  if (!cache && !(cache= Item_cache::get_cache(args[0]->result_type())))
+  {
+    my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
+    thd->fatal_error= 1;
+    return 1;
+  }
+  cache->setup(args[0]);
+  if (args[1]->fix_fields(thd, tables, args))
+    return 1;
+  Item_in_subselect * sub= (Item_in_subselect *)args[1];
+  if (args[0]->cols() != sub->engine->cols())
+  {
+    my_error(ER_CARDINALITY_COL, MYF(0), args[0]->cols());
+    return 1;
+  }
+  if (args[1]->maybe_null)
+    maybe_null=1;
+  with_sum_func= with_sum_func || args[1]->with_sum_func;
+  used_tables_cache|= args[1]->used_tables();
+  const_item_cache&= args[1]->const_item();
+  return 0;
+}
+
 longlong Item_in_optimizer::val_int()
 {
-  int_cache_ok= 1;
-  flt_cache_ok= 0;
-  str_cache_ok= 0;
-  int_cache= args[0]->val_int_result();
-  if (args[0]->null_value)
+  cache->store(args[0]);
+  if (cache->null_value)
   {
     null_value= 1;
     return 0;
@@ -286,44 +331,10 @@ longlong Item_in_optimizer::val_int()
   return tmp;
 }
 
-longlong Item_in_optimizer::get_cache_int()
+bool Item_in_optimizer::is_null()
 {
-  if (!int_cache_ok)
-  {
-    int_cache_ok= 1;
-    flt_cache_ok= 0;
-    str_cache_ok= 0;
-    int_cache= args[0]->val_int_result();
-    null_value= args[0]->null_value;
-  }
-  return int_cache;
-}
-
-double Item_in_optimizer::get_cache()
-{
-  if (!flt_cache_ok)
-  {
-    flt_cache_ok= 1;
-    int_cache_ok= 0;
-    str_cache_ok= 0;
-    flt_cache= args[0]->val_result();
-    null_value= args[0]->null_value;
-  }
-  return flt_cache;
-}
-
-String *Item_in_optimizer::get_cache_str(String *s)
-{
-  if (!str_cache_ok)
-  {
-    str_cache_ok= 1;
-    int_cache_ok= 0;
-    flt_cache_ok= 0;
-    str_value.set(buffer, sizeof(buffer), s->charset());
-    str_cache= args[0]->str_result(&str_value);
-    null_value= args[0]->null_value;
-  }
-  return str_cache;
+  cache->store(args[0]);
+  return (null_value= (cache->null_value || args[1]->is_null()));
 }
 
 longlong Item_func_eq::val_int()
@@ -1217,8 +1228,9 @@ void cmp_item_row::store_value(Item *item)
 {
   THD *thd= current_thd;
   n= item->cols();
-  if ((comparators= (cmp_item **) thd->alloc(sizeof(cmp_item *)*n)))
+  if ((comparators= (cmp_item **) thd->calloc(sizeof(cmp_item *)*n)))
   {
+    item->bring_value();
     item->null_value= 0;
     for (uint i=0; i < n; i++)
       if ((comparators[i]= cmp_item::get_comparator(item->el(i))))
@@ -1252,6 +1264,7 @@ void cmp_item_row::store_value_by_template(cmp_item *t, Item *item)
   n= tmpl->n;
   if ((comparators= (cmp_item **) sql_alloc(sizeof(cmp_item *)*n)))
   {
+    item->bring_value();
     item->null_value= 0;
     for (uint i=0; i < n; i++)
       if ((comparators[i]= tmpl->comparators[i]->make_same()))
@@ -1284,6 +1297,7 @@ int cmp_item_row::cmp(Item *arg)
     return 1;
   }
   bool was_null= 0;
+  arg->bring_value();
   for (uint i=0; i < n; i++)
     if (comparators[i]->cmp(arg->el(i)))
     {

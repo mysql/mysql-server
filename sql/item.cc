@@ -47,11 +47,6 @@ Item::Item():
   loop_id= 0;
 }
 
-Item_ref_in_optimizer::Item_ref_in_optimizer(Item_in_optimizer *master,
-					     char *table_name_par,
-					     char *field_name_par):
-  Item_ref(master->args, table_name_par, field_name_par), owner(master) {}
-
 
 bool Item::check_loop(uint id)
 {
@@ -437,20 +432,6 @@ String *Item_copy_string::val_str(String *str)
   return &str_value;
 }
 
-double Item_ref_in_optimizer::val()
-{
-  return owner->get_cache();
-}
-longlong Item_ref_in_optimizer::val_int()
-{
-  return owner->get_cache_int();
-}
-String* Item_ref_in_optimizer::val_str(String* s)
-{
-  return owner->get_cache_str(s);
-}
-
-
 /*
   Functions to convert item to field (for send_fields)
 */
@@ -462,18 +443,6 @@ bool Item::fix_fields(THD *thd,
 {
   fixed= 1;
   return 0;
-}
-
-bool Item_outer_select_context_saver::fix_fields(THD *thd,
-						 struct st_table_list *list,
-						 Item ** ref)
-{
-  DBUG_ENTER("Item_outer_select_context_saver::fix_fields");
-  bool res= item->fix_fields(thd,
-			     0, // do not show current subselect fields
-			     &item);
-  *ref= item;
-  DBUG_RETURN(res);
 }
 
 bool Item_asterisk_remover::fix_fields(THD *thd,
@@ -527,6 +496,27 @@ bool Item_asterisk_remover::fix_fields(THD *thd,
   else
     thd->fatal_error= 1; // no item given => out of memory
   DBUG_RETURN(res);
+}
+
+bool Item_ref_on_list_position::fix_fields(THD *thd,
+					   struct st_table_list *tables,
+					   Item ** reference)
+{
+  ref= 0;
+  List_iterator<Item> li(list);
+  Item *item;
+  uint i= 0;
+  for (; (item= li++) && i < pos; i++);
+  if (i == pos)
+  {
+    ref= li.ref();
+    return Item_ref_null_helper::fix_fields(thd, tables, reference);
+  }
+  else
+  {
+    my_error(ER_CARDINALITY_COL, MYF(0), pos);
+    return 1;
+  }
 }
 
 double Item_ref_null_helper::val()
@@ -1221,6 +1211,148 @@ bool field_is_equal_to_item(Field *field,Item *item)
   return result == field->val_real();
 }
 
+Item_cache* Item_cache::get_cache(Item_result type)
+{
+  switch (type)
+  {
+  case INT_RESULT:
+    return new Item_cache_int();
+  case REAL_RESULT:
+    return new Item_cache_real();
+  case STRING_RESULT:
+    return new Item_cache_str();
+  case ROW_RESULT:
+    return new Item_cache_row();
+  default:
+    // should never be in real life
+    DBUG_ASSERT(0);
+    return 0;
+  }
+}
+
+void Item_cache_str::store(Item *item)
+{
+  str_value.set(buffer, sizeof(buffer), item->charset());
+  value= item->str_result(&str_value);
+  if ((null_value= item->null_value))
+    value= 0;
+  else if (value != &str_value)
+  {
+    /*
+      We copy string value to avoid changing value if 'item' is table field
+      in queries like following (where t1.c is varchar):
+      select a, 
+             (select a,b,c from t1 where t1.a=t2.a) = ROW(a,2,'a'),
+             (select c from t1 where a=t2.a)
+        from t2;
+    */
+    str_value.copy(*value);
+    value= &str_value;
+  }
+
+}
+double Item_cache_str::val()
+{ 
+  if (value)
+    return my_strntod(value->charset(), value->ptr(),
+		      value->length(), (char**)0);
+  else
+    return (double)0;
+}
+longlong Item_cache_str::val_int()
+{
+  if (value)
+    return my_strntoll(value->charset(), value->ptr(),
+		       value->length(), (char**) 0, 10);
+  else
+    return (longlong)0;
+}
+
+bool Item_cache_row::allocate(uint num)
+{
+  n= num;
+  THD *thd= current_thd;
+  if (!(values= (Item_cache **) thd->calloc(sizeof(Item_cache *)*n)))
+  {
+    my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
+    thd->fatal_error= 1;
+    return 1;
+  }
+  return 0;
+}
+
+bool Item_cache_row::setup(Item * item)
+{
+  if (!values && allocate(item->cols()))
+    return 1;
+  for(uint i= 0; i < n; i++)
+  {
+    if (!(values[i]= Item_cache::get_cache(item->el(i)->result_type())))
+    {
+      my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
+      current_thd->fatal_error= 1;
+      return 1;
+    }
+    values[i]->setup(item->el(i));
+  }
+  return 0;
+}
+
+void Item_cache_row::store(Item * item)
+{
+  null_value= 0;
+  item->bring_value();
+  for(uint i= 0; i < n; i++)
+  {
+    values[i]->store(item->el(i));
+    null_value|= values[i]->null_value;
+  }
+}
+
+void Item_cache_row::illegal_method_call(const char *method)
+{
+  DBUG_ENTER("Item_cache_row::illegal_method_call");
+  DBUG_PRINT("error", ("!!! %s method was called for row item", method));
+  DBUG_ASSERT(0);
+  my_error(ER_CARDINALITY_COL, MYF(0), 1);
+  DBUG_VOID_RETURN;
+}
+
+bool Item_cache_row::check_cols(uint c)
+{
+  if (c != n)
+  {
+    my_error(ER_CARDINALITY_COL, MYF(0), c);
+    return 1;
+  }
+  return 0;
+}
+
+bool Item_cache_row::null_inside()
+{
+  for (uint i= 0; i < n; i++)
+  {
+    if (values[i]->cols() > 1)
+    {
+      if (values[i]->null_inside())
+	return 1;
+    }
+    else
+    {
+      values[i]->val_int();
+      if (values[i]->null_value)
+	return 1;
+    }
+  }
+  return 0;
+}
+
+void Item_cache_row::bring_value()
+{
+  for (uint i= 0; i < n; i++)
+    values[i]->bring_value();
+  return;
+}
 
 /*****************************************************************************
 ** Instantiate templates
