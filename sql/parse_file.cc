@@ -269,8 +269,8 @@ sql_create_definition_file(const LEX_STRING *dir, const LEX_STRING *file_name,
 	}
       }
 
-      my_snprintf(path_to, FN_REFLEN, "%s/%s-%04lld",
-		  path_arc, file_name->str, old_version);
+      my_snprintf(path_to, FN_REFLEN, "%s/%s-%04lu",
+		  path_arc, file_name->str, (ulong) old_version);
       if (my_rename(path, path_to, MYF(MY_WME)))
       {
 	DBUG_RETURN(TRUE);
@@ -279,9 +279,9 @@ sql_create_definition_file(const LEX_STRING *dir, const LEX_STRING *file_name,
       // remove very old version
       if (old_version > max_versions)
       {
-	my_snprintf(path_to, FN_REFLEN, "%s/%s-%04lld",
+	my_snprintf(path_to, FN_REFLEN, "%s/%s-%04lu",
 		    path_arc, file_name->str,
-		    old_version - max_versions);
+		    (ulong)(old_version - max_versions));
 	if (!access(path_arc, F_OK) && my_delete(path_to, MYF(MY_WME)))
 	{
 	  DBUG_RETURN(TRUE);
