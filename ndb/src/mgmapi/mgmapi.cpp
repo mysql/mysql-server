@@ -2054,7 +2054,7 @@ ndb_mgm_set_connection_int_parameter(NdbMgmHandle handle,
 				     int node1,
 				     int node2,
 				     int param,
-				     unsigned value,
+				     int value,
 				     struct ndb_mgm_reply* mgmreply){
   DBUG_ENTER("ndb_mgm_set_connection_int_parameter");
   CHECK_HANDLE(handle, 0);
@@ -2064,7 +2064,7 @@ ndb_mgm_set_connection_int_parameter(NdbMgmHandle handle,
   args.put("node1", node1);
   args.put("node2", node2);
   args.put("param", param);
-  args.put("value", value);
+  args.put("value", (Uint32)value);
   
   const ParserRow<ParserDummy> reply[]= {
     MGM_CMD("set connection parameter reply", NULL, ""),
@@ -2097,7 +2097,7 @@ ndb_mgm_get_connection_int_parameter(NdbMgmHandle handle,
 				     int node1,
 				     int node2,
 				     int param,
-				     Uint32 *value,
+				     int *value,
 				     struct ndb_mgm_reply* mgmreply){
   DBUG_ENTER("ndb_mgm_get_connection_int_parameter");
   CHECK_HANDLE(handle, -1);
@@ -2129,7 +2129,7 @@ ndb_mgm_get_connection_int_parameter(NdbMgmHandle handle,
     res= 0;
   } while(0);
 
-  if(!prop->get("value",value)){
+  if(!prop->get("value",(Uint32*)value)){
     ndbout_c("Unable to get value");
     res = -4;
   }
