@@ -1000,6 +1000,18 @@ select bug2674()|
 bug2674()
 262136
 drop function bug2674|
+create procedure bug3259_1 () begin end|
+create procedure BUG3259_2 () begin end|
+create procedure Bug3259_3 () begin end|
+call BUG3259_1()|
+call BUG3259_1()|
+call bug3259_2()|
+call Bug3259_2()|
+call bug3259_3()|
+call bUG3259_3()|
+drop procedure bUg3259_1|
+drop procedure BuG3259_2|
+drop procedure BUG3259_3|
 drop table if exists fac|
 create table fac (n int unsigned not null primary key, f bigint unsigned)|
 create procedure ifac(n int unsigned)

@@ -637,6 +637,7 @@ sp_drop_db_routines(THD *thd, char *db)
       else
       {
 	ret= SP_DELETE_ROW_FAILED;
+	nxtres= 0;
 	break;
       }
     } while (! (nxtres= table->file->index_next_same(table->record[0],
