@@ -251,7 +251,7 @@ void _ftb_climb_the_tree(FTB_WORD *ftbw, my_off_t curdoc)
     {
      /* NOTE: special sort function of queue assures that all yn<0
       * events for every particular subexpression will
-      * "auto-magically" happen BEFORE all yn>=0 events. So no
+      * "auto-magically" happen BEFORE all the yn>=0 events. So no
       * already matched expression can become not-matched again.
       */
       ++ftbe->nos;
