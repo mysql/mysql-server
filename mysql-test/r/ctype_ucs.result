@@ -74,8 +74,8 @@ RPAD(_ucs2 X'0420',10,_ucs2 X'0421') r;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `l` char(10) character set ucs2 NOT NULL default '',
-  `r` char(10) character set ucs2 NOT NULL default ''
+  `l` varchar(10) character set ucs2 NOT NULL default '',
+  `r` varchar(10) character set ucs2 NOT NULL default ''
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 DROP TABLE t1;
 create table t2(f1 Char(30));
@@ -93,10 +93,10 @@ create table t1 (a varchar(10) character set ucs2, key(a));
 insert into t1 values ("a"),("abc"),("abcd"),("hello"),("test");
 explain select * from t1 where a like 'abc%';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	a	a	21	NULL	5	Using where; Using index
+1	SIMPLE	t1	range	a	a	23	NULL	1	Using where; Using index
 explain select * from t1 where a like concat('abc','%');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	a	a	21	NULL	5	Using where; Using index
+1	SIMPLE	t1	range	a	a	23	NULL	1	Using where; Using index
 select * from t1 where a like "abc%";
 a
 abc
@@ -321,7 +321,7 @@ aardvark	0
 aardvarz	0
 EXPLAIN SELECT word FROM t1 ORDER BY word;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	NULL	PRIMARY	128	NULL	6	Using index
+1	SIMPLE	t1	index	NULL	PRIMARY	130	NULL	6	Using index
 SELECT word FROM t1 ORDER by word;
 word
 a
@@ -345,7 +345,7 @@ INSERT INTO t1 (word) VALUES ("aardvara");
 INSERT INTO t1 (word) VALUES ("aardvarz");
 EXPLAIN SELECT * FROM t1 ORDER BY WORD;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	NULL	PRIMARY	128	NULL	6	Using index
+1	SIMPLE	t1	index	NULL	PRIMARY	130	NULL	6	Using index
 SELECT * FROM t1 ORDER BY word;
 word
 a

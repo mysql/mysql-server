@@ -442,9 +442,9 @@ t2	CREATE TABLE `t2` (
   `ifnull(j,j)` date default NULL,
   `ifnull(k,k)` datetime NOT NULL default '0000-00-00 00:00:00',
   `ifnull(l,l)` datetime default NULL,
-  `ifnull(m,m)` char(1) default NULL,
-  `ifnull(n,n)` char(3) default NULL,
-  `ifnull(o,o)` char(10) default NULL
+  `ifnull(m,m)` varchar(1) default NULL,
+  `ifnull(n,n)` varchar(3) default NULL,
+  `ifnull(o,o)` varchar(10) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1,t2;
 create table t1(str varchar(10) default 'def',strnull varchar(10),intg int default '10',rel double default '3.14');

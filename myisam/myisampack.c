@@ -747,7 +747,8 @@ static int get_statistic(PACK_MRG_INFO *mrg,HUFF_COUNTS *huff_counts)
   static_row_size=1;
   for (count=huff_counts ; count < end_count ; count++)
   {
-    if (count->field_type == FIELD_BLOB || count->field_type == FIELD_VARCHAR)
+    if (count->field_type == FIELD_BLOB ||
+        count->field_type == FIELD_VARCHAR)
     {
       static_row_size=0;
       break;

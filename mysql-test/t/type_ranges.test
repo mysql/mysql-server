@@ -127,9 +127,9 @@ select t1.auto,t2.auto from t1,t2 where t1.auto=t2.auto and not (t1.string<=>t2.
 
 drop table t2;
 
-create table t2 (primary key (auto)) select auto+1 as auto,1 as t1, "a" as t2, repeat("a",256) as t3, binary repeat("b",256) as t4 from t1;
+create table t2 (primary key (auto)) select auto+1 as auto,1 as t1, 'a' as t2, repeat('a',256) as t3, binary repeat('b',256) as t4, repeat('a',4096) as t5, binary repeat('b',4096) as t6, '' as t7, binary '' as t8 from t1;
 show full columns from t2;
-select * from t2;
+select t1,t2,length(t3),length(t4),length(t5),length(t6),t7,t8 from t2;
 drop table t1,t2;
 
 create table t1 (c int);

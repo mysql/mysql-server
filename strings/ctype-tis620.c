@@ -562,7 +562,7 @@ int my_strnncollsp_tis620(CHARSET_INFO * cs __attribute__((unused)),
 			  const uchar *b0, uint b_length,
                           my_bool diff_if_only_endspace_difference)
 {
-  uchar	buf[80], *end, *a, *b, alloced= NULL;
+  uchar	buf[80], *end, *a, *b, *alloced= NULL;
   uint length;
   int res= 0;
 

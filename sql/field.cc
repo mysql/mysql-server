@@ -429,7 +429,9 @@ uint Field::fill_cache_field(CACHE_FIELD *copy)
     copy->length-=table->blob_ptr_size;
     return copy->length;
   }
-  else if (!zero_pack() && (type() == FIELD_TYPE_STRING && copy->length >= 4))
+  else if (!zero_pack() &&
+           (type() == MYSQL_TYPE_STRING && copy->length >= 4 &&
+            copy->length < 256))
     copy->strip=1;				/* Remove end space */
   else
     copy->strip=0;
@@ -6075,7 +6077,7 @@ uint32 calc_pack_length(enum_field_types type,uint32 length)
 {
   switch (type) {
   case MYSQL_TYPE_VAR_STRING:
-  case FIELD_TYPE_STRING:
+  case MYSQL_TYPE_STRING:
   case FIELD_TYPE_DECIMAL:     return (length);
   case MYSQL_TYPE_VARCHAR:     return (length+HA_KEY_BLOB_LENGTH);
   case FIELD_TYPE_YEAR:
@@ -6294,7 +6296,7 @@ create_field::create_field(Field *old_field,Field *orig_field)
     length=(length+charset->mbmaxlen-1) / charset->mbmaxlen;
     key_length/= charset->mbmaxlen;
     break;
-  case FIELD_TYPE_STRING:
+  case MYSQL_TYPE_STRING:
     /* Change CHAR -> VARCHAR if dynamic record length */
     if (old_field->type() == MYSQL_TYPE_VAR_STRING)
       sql_type= MYSQL_TYPE_VARCHAR;

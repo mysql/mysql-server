@@ -272,8 +272,7 @@ explain select count(*) from t1 where v between 'a' and 'a ' and v between 'a  '
 
 --error 1062
 alter table t1 add unique(v);
-alter table t1 add key(v);
-select concat('*',v,'*',c,'*',t,'*') as qq from t1 where v='a';
+select concat('*',v,'*',c,'*',t,'*') as qq from t1 where v='a' order by length(concat('*',v,'*',c,'*',t,'*'));
 explain select * from t1 where v='a';
 
 # GROUP BY
@@ -360,8 +359,7 @@ explain select count(*) from t1 where v between 'a' and 'a ' and v between 'a  '
 
 --error 1062
 alter table t1 add unique(v);
-alter table t1 add key(v);
-select concat('*',v,'*',c,'*',t,'*') as qq from t1 where v='a';
+select concat('*',v,'*',c,'*',t,'*') as qq from t1 where v='a' order by length(concat('*',v,'*',c,'*',t,'*'));
 explain select * from t1 where v='a';
 
 drop table t1;

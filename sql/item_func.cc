@@ -481,6 +481,7 @@ bool Item_func::eq(const Item *item, bool binary_cmp) const
   return 1;
 }
 
+
 Field *Item_func::tmp_table_field(TABLE *t_arg)
 {
   Field *res;
@@ -499,10 +500,7 @@ Field *Item_func::tmp_table_field(TABLE *t_arg)
     res= new Field_double(max_length, maybe_null, name, t_arg, decimals);
     break;
   case STRING_RESULT:
-    if (max_length > 255)
-      res= new Field_blob(max_length, maybe_null, name, t_arg, collation.collation);
-    else
-      res= new Field_string(max_length, maybe_null, name, t_arg, collation.collation);
+    res= make_string_field(t_arg);
     break;
   case ROW_RESULT:
   default:
@@ -3565,6 +3563,7 @@ Item_func_sp::execute(Item **itp)
   DBUG_RETURN(res);
 }
 
+
 enum enum_field_types
 Item_func_sp::field_type() const
 {
@@ -3578,8 +3577,9 @@ Item_func_sp::field_type() const
     DBUG_RETURN(m_sp->m_returns);
   }
   my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "FUNCTION", m_name->m_qname.str);
-  DBUG_RETURN(MYSQL_TYPE_STRING);
+  DBUG_RETURN(MYSQL_TYPE_VARCHAR);
 }
+
 
 Item_result
 Item_func_sp::result_type() const

@@ -2009,7 +2009,7 @@ innobase_mysql_cmp(
 
 	switch (mysql_tp) {
 
-	case FIELD_TYPE_STRING:
+	case MYSQL_TYPE_STRING:
 	case MYSQL_TYPE_VAR_STRING:
 	case FIELD_TYPE_TINY_BLOB:
 	case FIELD_TYPE_MEDIUM_BLOB:
@@ -2085,7 +2085,7 @@ get_innobase_type_from_mysql_type(
 					} else {
 						return(DATA_VARMYSQL);
 					}
-		case FIELD_TYPE_STRING: if (field->binary()) {
+		case MYSQL_TYPE_STRING: if (field->binary()) {
 
 						return(DATA_FIXBINARY);
 					} else if (strcmp(
