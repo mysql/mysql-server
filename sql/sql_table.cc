@@ -2271,6 +2271,13 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
 	break;
       }
     }
+    if (error==HA_ERR_WRONG_COMMAND)
+    {
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+                          ER_ILLEGAL_HA, ER(ER_ILLEGAL_HA),
+                          table->table_name);
+      error=0;
+    }
     if (!error)
     {
       mysql_update_log.write(thd, thd->query, thd->query_length);
@@ -2866,7 +2873,6 @@ copy_data_between_tables(TABLE *from,TABLE *to,
     DBUG_RETURN(-1);				/* purecov: inspected */
 
   to->file->external_lock(thd,F_WRLCK);
-  to->file->extra(HA_EXTRA_WRITE_CACHE);
   from->file->info(HA_STATUS_VARIABLE);
   to->file->start_bulk_insert(from->file->records);
 
@@ -2951,17 +2957,15 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   end_read_record(&info);
   free_io_cache(from);
   delete [] copy;				// This is never 0
-  uint tmp_error;
-  if ((tmp_error=to->file->extra(HA_EXTRA_NO_CACHE)))
+
+  if (to->file->end_bulk_insert() && !error)
   {
-    to->file->print_error(tmp_error,MYF(0));
+    to->file->print_error(my_errno,MYF(0));
     error=1;
   }
   to->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
-  if (to->file->end_bulk_insert())
-    error=1;
 
-  tmp_error = ha_recovery_logging(thd,TRUE);
+  ha_recovery_logging(thd,TRUE);
   /*
     Ensure that the new table is saved properly to disk so that we
     can do a rename

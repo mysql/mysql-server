@@ -810,7 +810,8 @@ int ha_myisam::preload_keys(THD* thd, HA_CHECK_OPT *check_opt)
   }
 }
 
-/* disable indexes, making it persistent if requested
+/*
+  disable indexes, making it persistent if requested
   SYNOPSIS
     disable_indexes(all, save)
     all         disable all indexes
@@ -863,11 +864,16 @@ int ha_myisam::enable_indexes()
 
 void ha_myisam::start_bulk_insert(ha_rows rows)
 {
+  THD *thd=current_thd;
+  ulong size= min(thd->variables.read_buff_size, table->avg_row_length*rows);
+
+  mi_extra(file, HA_EXTRA_WRITE_CACHE, (void*)&size);
+
+  can_enable_indexes= (file->s->state.key_map ==
+                       set_bits(ulonglong, file->s->base.keys));
+
   if (!(specialflag & SPECIAL_SAFE_MODE))
   {
-    can_enable_indexes= (file->s->state.key_map ==
-                                set_bits(ulonglong, file->s->base.keys));
-
     /*
       Only disable old index if the table was empty and we are inserting
       a lot of rows.
@@ -881,18 +887,16 @@ void ha_myisam::start_bulk_insert(ha_rows rows)
     if (!file->bulk_insert &&
         (!rows || rows >= MI_MIN_ROWS_TO_USE_BULK_INSERT))
     {
-      mi_init_bulk_insert(file,
-                          current_thd->variables.bulk_insert_buff_size,
-                          rows);
+      mi_init_bulk_insert(file, thd->variables.bulk_insert_buff_size, rows);
     }
   }
 }
 
-
 int ha_myisam::end_bulk_insert()
 {
   mi_end_bulk_insert(file);
-  return can_enable_indexes ? enable_indexes() : 0;
+  int err=mi_extra(file, HA_EXTRA_NO_CACHE, 0);
+  return err ? err : can_enable_indexes ? enable_indexes() : 0;
 }
 
 

@@ -3098,8 +3098,7 @@ longlong Field_timestamp::val_int(void)
 }
 
 
-String *Field_timestamp::val_str(String *val_buffer,
-				 String *val_ptr __attribute__((unused)))
+String *Field_timestamp::val_str(String *val_buffer, String *val_ptr)
 {
   uint32 temp, temp2;
   time_t time_arg;
@@ -3119,8 +3118,8 @@ String *Field_timestamp::val_str(String *val_buffer,
 
   if (temp == 0L)
   {				      /* Zero time is "000000" */
-    val_buffer->set("0000-00-00 00:00:00", 19, &my_charset_bin);
-    return val_buffer;
+    val_ptr->set("0000-00-00 00:00:00", 19, &my_charset_bin);
+    return val_ptr;
   }
   val_buffer->set_charset(&my_charset_bin);	// Safety
   time_arg=(time_t) temp;

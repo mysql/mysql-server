@@ -1,6 +1,6 @@
 #
 # Test of --lower-case-table-names=2
-# (User has case insensitive file system and want's to preserve case of
+# (User has case insensitive file system and wants to preserve case of
 # table names)
 #
 --source include/have_innodb.inc
