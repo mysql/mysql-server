@@ -124,7 +124,8 @@ ErrorBundle ErrorCodes[] = {
   { 217,  TR, "217" },
   { 218,  TR, "218" },
   { 219,  TR, "219" },
-  { 233,  TR, "Out of operation records in transaction coordinator" },
+  { 233,  TR,
+    "Out of operation records in transaction coordinator (increase MaxNoOfConcurrentOperations)" },
   { 275,  TR, "275" },
   { 279,  TR, "Out of transaction markers in transaction coordinator" },
   { 414,  TR, "414" },
@@ -137,7 +138,7 @@ ErrorBundle ErrorCodes[] = {
   { 830,  TR, "Out of add fragment operation records" },
   { 873,  TR, "Out of attrinfo records for scan in tuple manager" },
   { 1217, TR, "1217" },
-  { 1219, TR, "Out of operation records in local data manager" },
+  { 1219, TR, "Out of operation records in local data manager (increase MaxNoOfLocalOperations)" },
   { 1220, TR, "1220" },
   { 1222, TR, "Out of transaction markers in LQH" },
   { 4021, TR, "Out of Send Buffer space in NDB API" },
@@ -149,9 +150,10 @@ ErrorBundle ErrorCodes[] = {
    */
   { 623,  IS, "623" },
   { 624,  IS, "624" },
-  { 625,  IS, "Out of memory in Ndb Kernel, index part" },
+  { 625,  IS, "Out of memory in Ndb Kernel, index part (increase IndexMemory)" },
+  { 800,  IS, "Too many ordered indexes (increase MaxNoOfOrderedIndexes)" },
   { 826,  IS, "Too many tables and attributes (increase MaxNoOfAttributes)" },
-  { 827,  IS, "Out of memory in Ndb Kernel, data part" },
+  { 827,  IS, "Out of memory in Ndb Kernel, data part (increase DataMemory)" },
   { 832,  IS, "832" },
 
   /**
@@ -168,10 +170,10 @@ ErrorBundle ErrorCodes[] = {
    * OverloadError
    */
   { 410,  OL, "Out of log file space temporarily" },
-  { 677,  OL, "Index UNDO buffers overloaded" },
-  { 891,  OL, "Data UNDO buffers overloaded" },
-  { 1221, OL, "REDO log buffers overloaded" },
-  { 4006, OL, "Connect failure - out of connection objects" }, 
+  { 677,  OL, "Index UNDO buffers overloaded (increase UndoIndexBuffer)" },
+  { 891,  OL, "Data UNDO buffers overloaded (increase UndoDataBuffer)" },
+  { 1221, OL, "REDO log buffers overloaded (increase RedoBuffer)" },
+  { 4006, OL, "Connect failure - out of connection objects (increase MaxNoOfConcurrentTransactions)" }, 
 
 
   
@@ -241,9 +243,9 @@ ErrorBundle ErrorCodes[] = {
   { 884,  AE, "Stack overflow in interpreter" },
   { 885,  AE, "Stack underflow in interpreter" },
   { 886,  AE, "More than 65535 instructions executed in interpreter" },
-  { 4256,  AE, "Must call Ndb::init() before this function" },
+  { 4256, AE, "Must call Ndb::init() before this function" },
   { 880,  AE, "Tried to read too much - too many getValue calls" },
-  { 4257,  AE, "Tried to read too much - too many getValue calls" },
+  { 4257, AE, "Tried to read too much - too many getValue calls" },
 
   /** 
    * Scan application errors
