@@ -575,6 +575,10 @@ enum myisam_log_commands {
 #define myisam_log_command(a,b,c,d,e) if (myisam_log_file >= 0) _myisam_log_command(a,b,c,d,e)
 #define myisam_log_record(a,b,c,d,e) if (myisam_log_file >= 0) _myisam_log_record(a,b,c,d,e)
 
+#ifdef	__cplusplus
+extern "C" {
+#endif
+
 extern uint _mi_get_block_info(MI_BLOCK_INFO *,File, my_off_t);
 extern uint _mi_rec_pack(MI_INFO *info,byte *to,const byte *from);
 extern uint _mi_pack_get_block_info(MI_INFO *mysql, MI_BLOCK_INFO *, File,
@@ -630,9 +634,6 @@ int mi_open_datafile(MI_INFO *info, MYISAM_SHARE *share);
 int mi_open_keyfile(MYISAM_SHARE *share);
 
 /* Functions needed by mi_check */
-#ifdef	__cplusplus
-extern "C" {
-#endif
 void mi_check_print_error _VARARGS((MI_CHECK *param, const char *fmt,...));
 void mi_check_print_warning _VARARGS((MI_CHECK *param, const char *fmt,...));
 void mi_check_print_info _VARARGS((MI_CHECK *param, const char *fmt,...));
