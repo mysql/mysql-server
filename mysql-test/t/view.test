@@ -1482,3 +1482,18 @@ create view v2 as select * from v1 with cascaded check option;
 insert into v2 values (0);
 drop view v2, v1;
 drop table t1;
+
+#
+# inserting single value with check option failed always get error
+#
+create table t1 (s1 int);
+create view v1 as select * from t1 where s1 < 5 with check option;
+#single value
+-- error 1369
+insert ignore into v1 values (6);
+#several values
+insert ignore into v1 values (6),(3);
+select * from t1;
+drop view v1;
+drop table t1;
+
