@@ -2634,9 +2634,6 @@ static struct option long_options[] = {
   {"temp-pool",             no_argument,       0, (int) OPT_TEMP_POOL},
   {"tmpdir",                required_argument, 0, 't'},
   {"use-locking",           no_argument,       0, (int) OPT_USE_LOCKING},
-#ifdef USE_SYMDIR
-  {"use-symbolic-links",    no_argument,       0, 's'},
-#endif
   {"user",                  required_argument, 0, 'u'},
   {"version",               no_argument,       0, 'V'},
   {0, 0, 0, 0}
@@ -3087,9 +3084,6 @@ static void usage(void)
   --remove		Remove mysqld from the service list (NT)\n\
   --standalone		Dummy option to start as a standalone program (NT)\
 ");
-#ifdef USE_SYMDIR
-  puts("--use-symbolic-links	Enable symbolic link support");
-#endif
   puts("");
 #endif
 #ifdef HAVE_BERKELEY_DB
@@ -3212,6 +3206,8 @@ static void get_options(int argc,char **argv)
   int c,option_index=0;
 
   myisam_delay_key_write=1;			// Allow use of this
+  my_use_symdir=1;				// Use internal symbolic links
+
   while ((c=getopt_long(argc,argv,"ab:C:h:#::T::?l::L:O:P:sS::t:u:noVvI?",
 			long_options, &option_index)) != EOF)
   {
@@ -3270,11 +3266,6 @@ static void get_options(int argc,char **argv)
     case 'r':
       mysqld_chroot=optarg;
       break;
-#ifdef USE_SYMDIR
-    case 's':
-      my_use_symdir=1;			/* Use internal symbolic links */
-      break;
-#endif
     case 't':
       mysql_tmpdir=optarg;
       break;
@@ -3456,6 +3447,7 @@ static void get_options(int argc,char **argv)
       myisam_concurrent_insert=0;
       myisam_recover_options= HA_RECOVER_NONE;
       my_disable_symlinks=1;
+      my_use_symdir=0;
       have_symlink=SHOW_OPTION_DISABLED;
       ha_open_options&= ~HA_OPEN_ABORT_IF_CRASHED;
       break;
@@ -3515,6 +3507,7 @@ static void get_options(int argc,char **argv)
       break;
     case (int) OPT_SKIP_SYMLINK:
       my_disable_symlinks=1;
+      my_use_symdir=0;
       have_symlink=SHOW_OPTION_DISABLED;
       break;
     case (int) OPT_BIND_ADDRESS:
