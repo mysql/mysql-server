@@ -86,6 +86,19 @@ show binlog events;
 drop table t1, t2;
 drop table if exists t1, t2;
 
+# Verify that a partly-completed CREATE TABLE .. SELECT does not
+# get into the binlog (Bug #6682)
+create table t1(a int);
+insert into t1 values(1),(1);
+reset master;
+--error 1062
+create table t2(unique(a)) select a from t1;
+# The above should produce an error, *and* not appear in the binlog
+let $VERSION=`select version()`;
+--replace_result $VERSION VERSION
+show binlog events;
+drop table t1;
+
 #
 # Test of insert ... select from same table
 #
