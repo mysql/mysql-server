@@ -2931,13 +2931,13 @@ struct my_option my_long_options[] =
 #endif /* HAVE_BERKELEY_DB */
   {"skip-bdb", OPT_BDB_SKIP, "Don't use berkeley db (will save memory)",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"big-tables", OPT_BIG_TABLES, 
+  {"big-tables", OPT_BIG_TABLES,
    "Allow big result sets by saving all temporary sets on file (Solves most 'table full' errors)",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"binlog-do-db", OPT_BINLOG_DO_DB,
    "Tells the master it should log updates for the specified database, and exclude all others not explicitly mentioned.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"binlog-ignore-db", OPT_BINLOG_IGNORE_DB, 
+  {"binlog-ignore-db", OPT_BINLOG_IGNORE_DB,
    "Tells the master that updates to the given database should not be logged tothe binary log",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"bind-address", OPT_BIND_ADDRESS, "IP address to bind to",
@@ -3306,12 +3306,18 @@ struct my_option my_long_options[] =
 #ifdef HAVE_OPENSSL
 #include "sslopt-longopts.h"
 #endif
-  {"temp-pool", OPT_TEMP_POOL, 
+  {"temp-pool", OPT_TEMP_POOL,
    "Using this option will cause most temporary files created to use a small set of names, rather than a unique name for each new file.",
    (gptr*) &use_temp_pool, (gptr*) &use_temp_pool, 0, GET_BOOL, NO_ARG, 1,
    0, 0, 0, 0, 0},
   {"tmpdir", 't',
-   "Path for temporary files. Several paths may be specified, separated by a colon (:), in this case they are used in a round-robin fashion.",
+   "Path for temporary files. Several paths may be specified, separated by a "
+#if defined( __WIN__) || defined(OS2)
+   "semicolon (;)"
+#else
+   "colon (:)"
+#endif
+   ", in this case they are used in a round-robin fashion.",
    (gptr*) &opt_mysql_tmpdir,
    (gptr*) &opt_mysql_tmpdir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"transaction-isolation", OPT_TX_ISOLATION,

@@ -17,7 +17,12 @@
 #include "mysys_priv.h"
 #include <m_string.h>
 
+#if defined( __WIN__) || defined(OS2)
+#define DELIM ';'
+#else
 #define DELIM ':'
+#endif
+
 my_bool init_tmpdir(MY_TMPDIR *tmpdir, const char *pathlist)
 {
   char *end, *copy;
@@ -45,13 +50,13 @@ my_bool init_tmpdir(MY_TMPDIR *tmpdir, const char *pathlist)
     convert_dirname(buff, pathlist, end);
     if (!(copy=my_strdup(buff, MYF(MY_WME))))
       return TRUE;
-    if (insert_dynamic(&t_arr, &copy))
+    if (insert_dynamic(&t_arr, (gptr)&copy))
       return TRUE;
     pathlist=end+1;
   }
   while (*end);
   freeze_size(&t_arr);
-  tmpdir->list=t_arr.buffer;
+  tmpdir->list=(char **)t_arr.buffer;
   tmpdir->max=t_arr.elements-1;
   tmpdir->cur=0;
   return FALSE;
@@ -72,7 +77,7 @@ void free_tmpdir(MY_TMPDIR *tmpdir)
   uint i;
   for (i=0; i<=tmpdir->max; i++)
     my_free(tmpdir->list[i], MYF(0));
-  my_free(tmpdir->list, MYF(0));
+  my_free((gptr)tmpdir->list, MYF(0));
   pthread_mutex_destroy(&tmpdir->mutex);
 }
 
