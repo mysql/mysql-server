@@ -205,6 +205,7 @@ public:
   inline bool is_open() { return log_type != LOG_CLOSED; }
   inline char* get_index_fname() { return index_file_name;}
   inline char* get_log_fname() { return log_file_name; }
+  inline char* get_name() { return name; }
   inline pthread_mutex_t* get_log_lock() { return &LOCK_log; }
   inline IO_CACHE* get_log_file() { return &log_file; }
 
