@@ -1,0 +1,25 @@
+source t/include/master-slave.inc;
+connection master;
+drop table if exists x;
+create table x(n int);
+create temporary table t(n int);
+insert into t values(1),(2),(3);
+insert into x select * from t;
+connection master1;
+create temporary table t (n int);
+insert into t values (4),(5);
+insert into x select * from t;
+disconnect master;
+connection master1;
+insert into x values(6);
+disconnect master1;
+connection slave;
+let $1=12;
+while ($1)
+{
+ !slave start;
+ sleep 0.2;
+ dec $1;
+}
+@r/3.23/rpl000013.result select * from x;
+@r/3.23/rpl000013.status.result show status like 'Slave_open_temp_tables';

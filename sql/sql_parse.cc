@@ -462,7 +462,7 @@ pthread_handler_decl(handle_bootstrap,arg)
 
   thd->proc_info=0;
   thd->version=refresh_version;
-  thd->priv_user=thd->user="boot";
+  thd->priv_user=thd->user=(char*)"boot";
 
   buff= (char*) thd->net.buff;
   init_sql_alloc(&thd->mem_root,8192,8192);

@@ -8,7 +8,7 @@ drop table if exists foo;
 create table foo(n int);
 insert into foo values(1),(2);
 connection slave;
-sleep 3;
+sleep 2;
 use test;
 @r/3.23/rpl000001.a.result select * from foo;
 @r/3.23/rpl000001.b.result select sum(length(word)) from words;
