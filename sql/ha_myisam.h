@@ -71,7 +71,7 @@ class ha_myisam: public handler
   int index_first(byte * buf);
   int index_last(byte * buf);
   int index_next_same(byte *buf, const byte *key, uint keylen);
-  int index_init(uint idx);
+  int index_end() { ft_handler=NULL; return 0; }
   int ft_init()
          { if(!ft_handler) return 1; ft_reinit_search(ft_handler); return 0; }
   void *ft_init_ext(uint inx,const byte *key, uint keylen, bool presort)
