@@ -190,7 +190,7 @@ static struct option long_options[] =
 
 static void print_version(void)
 {
-  printf("%s  Ver 1.28 for %s at %s\n",my_progname,SYSTEM_TYPE,
+  printf("%s  Ver 1.29 for %s at %s\n",my_progname,SYSTEM_TYPE,
 	 MACHINE_TYPE);
 }
 
@@ -520,7 +520,9 @@ static int myisamchk(MI_CHECK *param, my_string filename)
     We are using --fast and the table is closed properly
     We are using --check-only-changed-tables and the table hasn't changed
   */
-  if ((param->testflag & T_CHECK_ONLY_CHANGED) && !share->state.changed ||
+  if (((param->testflag & T_CHECK_ONLY_CHANGED) &&
+      (share->state.changed & (STATE_CHANGED | STATE_CRASHED |
+			       STATE_CRASHED_ON_REPAIR))) ||
       (param->testflag & T_FAST) && share->state.open_count == 0)
   {
     if (!(param->testflag & T_SILENT) || param->testflag & T_INFO)
@@ -687,7 +689,8 @@ static int myisamchk(MI_CHECK *param, my_string filename)
       if (!error && param->testflag & T_SORT_INDEX)
 	error=mi_sort_index(param,info,fixed_name);
       if (!error)
-	share->state.changed=0;
+	share->state.changed&= ~(STATE_CHANGED | STATE_CRASHED |
+				 STATE_CRASHED_ON_REPAIR);
       else
 	mi_mark_crashed(info);
     }
@@ -734,9 +737,11 @@ static int myisamchk(MI_CHECK *param, my_string filename)
       }
       if (!error)
       {
-	if (share->state.changed && (param->testflag & T_UPDATE_STATE))
+	if ((share->state.changed & STATE_CHANGED) &&
+	    (param->testflag & T_UPDATE_STATE))
 	  info->update|=HA_STATE_CHANGED | HA_STATE_ROW_CHANGED;
-	share->state.changed=0;
+	share->state.changed&= ~(STATE_CHANGED | STATE_CRASHED |
+				 STATE_CRASHED_ON_REPAIR);
       }
       else if (!mi_is_crashed(info) &&
 	       (param->testflag & T_UPDATE_STATE))
@@ -815,7 +820,7 @@ static void descript(MI_CHECK *param, register MI_INFO *info, my_string name)
   reg3 MI_KEYDEF *keyinfo;
   reg2 MI_KEYSEG *keyseg;
   reg4 const char *text;
-  char buff[40],length[10],*pos,*end;
+  char buff[160],length[10],*pos,*end;
   enum en_fieldtype type;
   MYISAM_SHARE *share=info->s;
   char llbuff[22],llbuff2[22];
@@ -847,10 +852,26 @@ static void descript(MI_CHECK *param, register MI_INFO *info, my_string name)
       get_date(buff,1,share->state.check_time);
       printf("Recover time:        %s\n",buff);
     }
-    printf("Status:              %s\n",
-	   share->state.changed & 2 ? "crashed" :
-	   share->state.open_count ? "open" :
-	   share->state.changed ? "changed" : "checked");
+    pos=buff;
+    if (share->state.changed & STATE_CRASHED)
+      strmov(buff,"crashed");
+    else
+    {
+      if (share->state.open_count)
+	pos=strmov(pos,"open,");
+      if (share->state.changed & STATE_CHANGED)
+	pos=strmov(pos,"changed,");
+      else
+	pos=strmov(pos,"checked,");
+      if (!(share->state.changed & STATE_NOT_ANALYZED))
+	pos=strmov(pos,"analyzed,");
+      if (!(share->state.changed & STATE_NOT_OPTIMIZED_KEYS))
+	pos=strmov(pos,"optimized keys,");
+      if (!(share->state.changed & STATE_NOT_SORTED_PAGES))
+	pos=strmov(pos,"sorted index pages,");
+      pos[-1]=0;				/* Remove extra ',' */
+    }      
+    printf("Status:              %s\n",buff);
     if (share->base.auto_key)
     {
       printf("Auto increment key:  %13d  Last value:         %13s\n",

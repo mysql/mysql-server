@@ -205,7 +205,7 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function)
 	share->base.keystart;
       if (!share->changed)
       {
-	share->state.changed|=1;
+	share->state.changed|= STATE_CHANGED | STATE_NOT_ANALYZED;
 	share->changed=1;			/* Update on close */
 	if (!share->global_changed)
 	{

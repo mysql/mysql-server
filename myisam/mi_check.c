@@ -1055,7 +1055,8 @@ int mi_repair(MI_CHECK *param, register MI_INFO *info,
   DBUG_ENTER("mi_repair");
 
   start_records=info->state->records;
-  new_header_length=(param->testflag & T_UNPACK) ? 0L : share->pack.header_length;
+  new_header_length=(param->testflag & T_UNPACK) ? 0L :
+    share->pack.header_length;
   got_error=1;
   new_file= -1;
   if (!(param->testflag & T_SILENT))
@@ -1252,8 +1253,9 @@ err:
     share->pack.header_length=0;
     share->data_file_type=sort_info->new_data_file_type;
   }
+  share->state.changed|=STATE_NOT_OPTIMIZED_KEYS | STATE_NOT_SORTED_PAGES;
   DBUG_RETURN(got_error);
-} /* rep */
+}
 
 
 /* Uppate keyfile when doing repair */
@@ -1431,6 +1433,7 @@ int mi_sort_index(MI_CHECK *param, register MI_INFO *info, my_string name)
   for (key=0 ; key < info->s->state.header.max_block_size ; key++)
     info->s->state.key_del[key]=  HA_OFFSET_ERROR;
 
+  info->s->state.changed&= ~STATE_NOT_SORTED_PAGES;
   DBUG_RETURN(0);
 
 err:
@@ -1879,6 +1882,10 @@ err:
     mi_mark_crashed_on_repair(info);
     info->update|= HA_STATE_CHANGED;
   }
+  else if (key_map == share->state.key_map)
+    share->state.changed&= ~STATE_NOT_OPTIMIZED_KEYS;
+  share->state.changed|=STATE_NOT_SORTED_PAGES;
+
   my_free((gptr) sort_info->key_block,MYF(MY_ALLOW_ZERO_PTR));
   my_free(sort_info->record,MYF(MY_ALLOW_ZERO_PTR));
   my_free(sort_info->buff,MYF(MY_ALLOW_ZERO_PTR));
@@ -1891,7 +1898,7 @@ err:
     share->pack.header_length=0;
   }
   DBUG_RETURN(got_error);
-} /* rep_by_sort */
+}
 
 
 	/* Read next record and return next key */
@@ -2813,6 +2820,7 @@ int update_state_info(MI_CHECK *param, MI_INFO *info,uint update)
     memcpy((char*) share->state.rec_per_key_part,
 	   (char*) param->rec_per_key_part,
 	   sizeof(*param->rec_per_key_part)*key_parts);
+    share->state.changed&= ~STATE_NOT_ANALYZED;
   }
   if (update & (UPDATE_STAT | UPDATE_SORT | UPDATE_TIME | UPDATE_AUTO_INC))
   {

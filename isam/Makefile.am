@@ -49,3 +49,6 @@ OMIT_DEPENDENCIES =	pthread.h stdio.h __stdio.h stdlib.h __stdlib.h math.h\
 # Move to automake rules ?
 prolint:;	plparse -b -u -hF1 "-width(0,0)" "-format=%f:%l:\s%t:%n\s%m" \
 		"-elib(????)" "+elib(?3??)" my.lnt $(nisam_SOURCES)
+
+# Don't update the files from bitkeeper
+%::SCCS/s.%

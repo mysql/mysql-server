@@ -35,13 +35,14 @@ dist-hook:
 	mkdir -p $(distdir)/Data/ATIS $(distdir)/Data/Wisconsin \
 		 $(distdir)/Results $(distdir)/Results-linux \
 		 $(distdir)/Results-win32 \
-		 $(distdir)/limits
+		 $(distdir)/limits @(distdir)/Comments
 	cp -pr $(srcdir)/Data/ATIS $(distdir)/Data
 	cp -pr $(srcdir)/Data/Wisconsin $(distdir)/Data
 	cp -pr $(srcdir)/Results $(distdir)/
 	cp -pr $(srcdir)/Results-linux $(distdir)/
 	cp -pr $(srcdir)/Results-win32 $(distdir)/
 	cp -pr $(srcdir)/limits $(distdir)/
+	cp -pr $(srcdir)/Comments $(distdir)/
 
 install-data-local:
 	$(mkinstalldirs) \
@@ -51,7 +52,8 @@ install-data-local:
 		 $(DESTDIR)$(benchdir)/Results \
 		 $(DESTDIR)$(benchdir)/Results-linux \
 		 $(DESTDIR)$(benchdir)/Results-win32 \
-		 $(DESTDIR)$(benchdir)/limits
+		 $(DESTDIR)$(benchdir)/limits \
+		 $(DESTDIR)$(benchdir)/Comments
 	cp -p  $(srcdir)/README  $(DESTDIR)$(benchdir)
 	cp -pr $(srcdir)/Data/ATIS  $(DESTDIR)$(benchdir)/Data
 	cp -pr $(srcdir)/Data/Wisconsin  $(DESTDIR)$(benchdir)/Data
@@ -59,6 +61,7 @@ install-data-local:
 	cp -pr $(srcdir)/Results-linux  $(DESTDIR)$(benchdir)
 	cp -pr $(srcdir)/Results-win32  $(DESTDIR)$(benchdir)
 	cp -pr $(srcdir)/limits  $(DESTDIR)$(benchdir)
+	cp -pr $(srcdir)/Comments  $(DESTDIR)$(benchdir)
 
 SUFFIXES = .sh
 
