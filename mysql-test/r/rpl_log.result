@@ -1,10 +1,10 @@
-slave stop;
+stop slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 reset master;
 reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-slave start;
-slave stop;
+start slave;
+stop slave;
 reset master;
 reset slave;
 reset master;
@@ -36,9 +36,9 @@ show binlog events from 79 limit 2,1;
 Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
 master-bin.001	200	Query	1	200	use `test`; insert into t1 values (NULL)
 flush logs;
-slave start;
+start slave;
 flush logs;
-slave stop;
+stop slave;
 create table t1 (n int);
 insert into t1 values (1);
 drop table t1;
@@ -59,12 +59,12 @@ Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
 master-bin.002	4	Query	1	4	use `test`; create table t1 (n int)
 master-bin.002	62	Query	1	62	use `test`; insert into t1 values (1)
 master-bin.002	122	Query	1	122	use `test`; drop table t1
-show master logs;
+show binary logs;
 Log_name
 master-bin.001
 master-bin.002
-slave start;
-show master logs;
+start slave;
+show binary logs;
 Log_name
 slave-bin.001
 slave-bin.002

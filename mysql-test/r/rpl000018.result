@@ -1,6 +1,6 @@
 reset slave;
-slave start;
-show master logs;
+start slave;
+show binary logs;
 Log_name
 master-bin.001
 master-bin.002

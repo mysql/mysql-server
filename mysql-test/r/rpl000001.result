@@ -1,9 +1,9 @@
-slave stop;
+stop slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 reset master;
 reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-slave start;
+start slave;
 drop table if exists t1,t2,t3;
 create table t1 (word char(20) not null);
 load data infile '../../std_data/words.dat' into table t1;
@@ -30,9 +30,9 @@ abandoned
 abandoning
 abandonment
 abandons
-slave stop;
+stop slave;
 set password for root@"localhost" = password('foo');
-slave start;
+start slave;
 set password for root@"localhost" = password('');
 create table t3(n int);
 insert into t3 values(1),(2);
@@ -45,13 +45,13 @@ sum(length(word))
 141
 drop table t1,t3;
 reset master;
-slave stop;
+stop slave;
 reset slave;
 create table t1(n int);
 select get_lock("hold_slave",10);
 get_lock("hold_slave",10)
 1
-slave start;
+start slave;
 select release_lock("hold_slave");
 release_lock("hold_slave")
 1
@@ -68,7 +68,7 @@ kill @id;
 drop table t2;
 Server shutdown in progress
 set global sql_slave_skip_counter=1;
-slave start;
+start slave;
 select count(*) from t1;
 count(*)
 5000

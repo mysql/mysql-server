@@ -12,11 +12,11 @@ select * from t1;
 save_master_pos;
 connection slave;
 sync_with_master;
-slave stop;
+stop slave;
 connection master;
 set password for root@"localhost" = password('foo');
 connection slave;
-slave start;
+start slave;
 connection master;
 #
 # Give slave time to do at last one failed connect retry
@@ -43,7 +43,7 @@ sync_with_master;
 connection master;
 reset master;
 connection slave;
-slave stop;
+stop slave;
 reset slave;
 
 connection master;
@@ -62,7 +62,7 @@ enable_query_log;
 # Try to cause a large relay log lag on the slave 
 connection slave;
 select get_lock("hold_slave",10);
-slave start;
+start slave;
 #hope this is long enough for I/O thread to fetch over 16K relay log data
 sleep 3;
 select release_lock("hold_slave");
@@ -100,7 +100,7 @@ wait_for_slave_to_stop;
 # show slave status;
 
 set global sql_slave_skip_counter=1;
-slave start;
+start slave;
 select count(*) from t1;
 connection master1;
 drop table t1;
