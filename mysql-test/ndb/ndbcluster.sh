@@ -146,7 +146,7 @@ fi
 rm -f "$cfgfile" 2>&1 | cat > /dev/null
 rm -f "$fs_ndb/$cfgfile" 2>&1 | cat > /dev/null
 
-if ( cd "$fs_ndb" ; $exec_mgmtsrvr -c config.ini ) ; then :; else
+if ( cd "$fs_ndb" ; $exec_mgmtsrvr -f config.ini ) ; then :; else
   echo "Unable to start $exec_mgmtsrvr from `pwd`"
   exit 1
 fi
