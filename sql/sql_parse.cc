@@ -1232,10 +1232,34 @@ bool do_command(THD *thd)
 		       command_name[command]));
   }
   net->read_timeout=old_timeout;		// restore it
+  /*
+    packet_length contains length of data, as it was stored in packet
+    header. In case of malformed header, packet_length can be zero.
+    If packet_length is not zero, my_net_read ensures that this number
+    of bytes was actually read from network. Additionally my_net_read
+    sets packet[packet_length]= 0 (thus if packet_length == 0,
+    command == packet[0] == COM_SLEEP).
+    In dispatch_command packet[packet_length] points beyond the end of packet.
+  */
   DBUG_RETURN(dispatch_command(command,thd, packet+1, (uint) packet_length));
 }
 #endif  /* EMBEDDED_LIBRARY */
 
+/*
+   Perform one connection-level (COM_XXXX) command.
+  SYNOPSIS
+    dispatch_command()
+    thd             connection handle
+    command         type of command to perform 
+    packet          data for the command, packet is always null-terminated
+    packet_length   length of packet + 1 (to show that data is
+                    null-terminated) except for COM_SLEEP, where it
+                    can be zero.
+  RETURN VALUE
+    0   ok
+    1   request of thread shutdown, i. e. if command is
+        COM_QUIT/COM_SHUTDOWN
+*/
 
 bool dispatch_command(enum enum_server_command command, THD *thd,
 		      char* packet, uint packet_length)

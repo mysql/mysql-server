@@ -8470,8 +8470,6 @@ int main(int argc, char **argv)
    
     start_time= time((time_t *)0);
 
-    test_subqueries();
-
     client_query();         /* simple client query test */
 #if NOT_YET_WORKING
     /* Used for internal new development debugging */
