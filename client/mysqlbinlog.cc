@@ -613,7 +613,13 @@ Could not read entry at offset %s : Error in log format or read error",
             continue; // next
           }
         }
-	ce->print(result_file, short_form, last_db,true);
+        /*
+          We print the event, but with a leading '#': this is just to inform the
+          user of the original command; the command we want to execute will be a
+          derivation of this original command (we will change the filename and
+          use LOCAL), prepared in the 'case EXEC_LOAD_EVENT' below.
+        */
+	ce->print(result_file, short_form, last_db, true);
 	load_processor.process(ce);
 	ev= 0;
 	break;
