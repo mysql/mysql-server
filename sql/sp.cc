@@ -334,6 +334,22 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
 }
 
 
+static void
+sp_returns_type(THD *thd, String &result, sp_head *sp)
+{
+  struct {
+    TABLE table;
+    TABLE_SHARE share;
+  } dummy;
+  Field *field;
+  bzero(&dummy, sizeof(dummy));
+  dummy.table.in_use= thd;
+  dummy.table.s = &dummy.share;
+  field= sp->make_field(0, 0, &dummy.table);
+  field->sql_type(result);
+  delete field;
+}
+
 static int
 db_create_routine(THD *thd, int type, sp_head *sp)
 {
@@ -388,9 +404,13 @@ db_create_routine(THD *thd, int type, sp_head *sp)
 	store((longlong)sp->m_chistics->suid);
     table->field[MYSQL_PROC_FIELD_PARAM_LIST]->
       store(sp->m_params.str, sp->m_params.length, system_charset_info);
-    if (sp->m_retstr.str)
+    if (sp->m_type == TYPE_ENUM_FUNCTION)
+    {
+      String retstr(64);
+      sp_returns_type(thd, retstr, sp);
       table->field[MYSQL_PROC_FIELD_RETURNS]->
-	store(sp->m_retstr.str, sp->m_retstr.length, system_charset_info);
+	store(retstr.ptr(), retstr.length(), system_charset_info);
+    }
     table->field[MYSQL_PROC_FIELD_BODY]->
       store(sp->m_body.str, sp->m_body.length, system_charset_info);
     table->field[MYSQL_PROC_FIELD_DEFINER]->
