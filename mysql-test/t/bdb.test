@@ -767,3 +767,19 @@ select INFO_NOTE from t1 where STR_DATE = '20010610';
 select INFO_NOTE from t1 where STR_DATE < '20010610';
 select INFO_NOTE from t1 where STR_DATE > '20010610';
 drop table t1;
+
+#
+# Test problem with multi table delete which quickly shows up with bdb tables.
+#
+
+create table t1 (a int not null, b int, primary key (a)) type =bdb;
+create table t2 (a int not null, b int, primary key (a)) type =bdb;
+insert into t1 values (2, 3),(1, 7),(10, 7);
+insert into t2 values (2, 3),(1, 7),(10, 7);
+select * from t1;
+select * from t2;
+delete t1, t2 from t1, t2 where t1.a = t2.a;
+select * from t1;
+select * from t2;
+select * from t2;
+drop table t1,t2;

@@ -86,6 +86,7 @@ void init_read_record(READ_RECORD *info,THD *thd, TABLE *table,
   }
   else if (table->record_pointers)
   {
+    DBUG_PRINT("info",("using record_pointers"));
     table->file->rnd_init(0);
     info->cache_pos=table->record_pointers;
     info->cache_end=info->cache_pos+ table->found_records*info->ref_length;

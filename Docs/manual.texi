@@ -48135,6 +48135,13 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
+Fixed bug in multi table delete.
+@item
+Fixed bug in @code{SELECT CONCAT(argument-list) ... GROUP BY 1}.
+@item
+@code{SELECT .. INSERT} did a full rollback in case of an error. Fixed
+so that we only rollback the last statement.
+@item
 Fixed bug with empty expression for boolean fulltext search.
 @item
 Fixed core dump bug in updating fulltext key from/to @code{NULL}.
