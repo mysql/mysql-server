@@ -133,6 +133,8 @@ int ha_init()
     int error;
     if ((error=berkeley_init()))
       return error;
+    if (!berkeley_skip)				// If we couldn't use handler
+      opt_using_transactions=1;
   }
 #endif
 #ifdef HAVE_INNOBASE_DB
@@ -140,6 +142,8 @@ int ha_init()
   {
     if (innobase_init())
       return -1;
+    if (!innobase_skip)				// If we couldn't use handler
+      opt_using_transactions=1;
   }
 #endif
   return 0;
@@ -190,13 +194,16 @@ int ha_autocommit_or_rollback(THD *thd, int error)
 {
   DBUG_ENTER("ha_autocommit_or_rollback");
 #ifdef USING_TRANSACTIONS
-  if (!error)
+  if (opt_using_transactions)
   {
-    if (ha_commit_stmt(thd))
-      error=1;
+    if (!error)
+    {
+      if (ha_commit_stmt(thd))
+	error=1;
+    }
+    else
+      (void) ha_rollback_stmt(thd);
   }
-  else
-    (void) ha_rollback_stmt(thd);
 #endif
   DBUG_RETURN(error);
 }
@@ -207,73 +214,80 @@ int ha_commit_trans(THD *thd, THD_TRANS* trans)
   int error=0;
   DBUG_ENTER("ha_commit");
 #ifdef USING_TRANSACTIONS
-  /* Update the binary log if we have cached some queries */
-  if (trans == &thd->transaction.all && mysql_bin_log.is_open() &&
-      my_b_tell(&thd->transaction.trans_log))
+  if (opt_using_transactions)
   {
-    mysql_bin_log.write(&thd->transaction.trans_log);
-    reinit_io_cache(&thd->transaction.trans_log,
-		    WRITE_CACHE, (my_off_t) 0, 0, 1);
-    thd->transaction.trans_log.end_of_file= max_binlog_cache_size;
-  }
-#ifdef HAVE_BERKELEY_DB
-  if (trans->bdb_tid)
-  {
-    if ((error=berkeley_commit(thd,trans->bdb_tid)))
+    /* Update the binary log if we have cached some queries */
+    if (trans == &thd->transaction.all && mysql_bin_log.is_open() &&
+	my_b_tell(&thd->transaction.trans_log))
     {
-      my_error(ER_ERROR_DURING_COMMIT, MYF(0), error);
-      error=1;
+      mysql_bin_log.write(&thd->transaction.trans_log);
+      reinit_io_cache(&thd->transaction.trans_log,
+		      WRITE_CACHE, (my_off_t) 0, 0, 1);
+      thd->transaction.trans_log.end_of_file= max_binlog_cache_size;
     }
-    trans->bdb_tid=0;
-  }
+#ifdef HAVE_BERKELEY_DB
+    if (trans->bdb_tid)
+    {
+      if ((error=berkeley_commit(thd,trans->bdb_tid)))
+      {
+	my_error(ER_ERROR_DURING_COMMIT, MYF(0), error);
+	error=1;
+      }
+      trans->bdb_tid=0;
+    }
 #endif
 #ifdef HAVE_INNOBASE_DB
-  if (trans->innobase_tid)
-  {
-    if ((error=innobase_commit(thd,trans->innobase_tid)))
+    if (trans->innobase_tid)
     {
-      my_error(ER_ERROR_DURING_COMMIT, MYF(0), error);
-      error=1;
+      if ((error=innobase_commit(thd,trans->innobase_tid)))
+      {
+	my_error(ER_ERROR_DURING_COMMIT, MYF(0), error);
+	error=1;
+      }
     }
-  }
 #endif
-  if (error && trans == &thd->transaction.all && mysql_bin_log.is_open())
-    sql_print_error("Error: Got error during commit;  Binlog is not up to date!");
+    if (error && trans == &thd->transaction.all && mysql_bin_log.is_open())
+      sql_print_error("Error: Got error during commit;  Binlog is not up to date!");
+  }
 #endif // using transactions
   DBUG_RETURN(error);
 }
+
 
 int ha_rollback_trans(THD *thd, THD_TRANS *trans)
 {
   int error=0;
   DBUG_ENTER("ha_rollback");
-#ifdef HAVE_BERKELEY_DB
-  if (trans->bdb_tid)
+#ifdef USING_TRANSACTIONS
+  if (opt_using_transactions)
   {
-    if ((error=berkeley_rollback(thd, trans->bdb_tid)))
+#ifdef HAVE_BERKELEY_DB
+    if (trans->bdb_tid)
     {
-      my_error(ER_ERROR_DURING_ROLLBACK, MYF(0), error);
-      error=1;
+      if ((error=berkeley_rollback(thd, trans->bdb_tid)))
+      {
+	my_error(ER_ERROR_DURING_ROLLBACK, MYF(0), error);
+	error=1;
+      }
+      trans->bdb_tid=0;
     }
-    trans->bdb_tid=0;
-  }
 #endif
 #ifdef HAVE_INNOBASE_DB
-  if (trans->innobase_tid)
-  {
-    if ((error=innobase_rollback(thd, trans->innobase_tid)))
+    if (trans->innobase_tid)
     {
-      my_error(ER_ERROR_DURING_ROLLBACK, MYF(0), error);
-      error=1;
+      if ((error=innobase_rollback(thd, trans->innobase_tid)))
+      {
+	my_error(ER_ERROR_DURING_ROLLBACK, MYF(0), error);
+	error=1;
+      }
     }
+#endif
+    if (trans == &thd->transaction.all)
+      reinit_io_cache(&thd->transaction.trans_log,
+		      WRITE_CACHE, (my_off_t) 0, 0, 1);
+    thd->transaction.trans_log.end_of_file= max_binlog_cache_size;
   }
-#endif
-#ifdef USING_TRANSACTIONS
-  if (trans == &thd->transaction.all)
-    reinit_io_cache(&thd->transaction.trans_log,
-		    WRITE_CACHE, (my_off_t) 0, 0, 1);
-  thd->transaction.trans_log.end_of_file= max_binlog_cache_size;
-#endif
+#endif /* USING_TRANSACTIONS */
   DBUG_RETURN(error);
 }
 
@@ -493,7 +507,10 @@ void handler::update_auto_increment()
   THD *thd;
   DBUG_ENTER("update_auto_increment");
   if (table->next_number_field->val_int() != 0)
+  {
+    auto_increment_column_changed=0;
     DBUG_VOID_RETURN;
+  }
   thd=current_thd;
   if ((nr=thd->next_insert_id))
     thd->next_insert_id=0;			// Clear after use
@@ -501,6 +518,7 @@ void handler::update_auto_increment()
     nr=get_auto_increment();
   thd->insert_id((ulonglong) nr);
   table->next_number_field->store(nr);
+  auto_increment_column_changed=1;
   DBUG_VOID_RETURN;
 }
 

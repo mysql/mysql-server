@@ -221,6 +221,37 @@ THR_LOCK_DATA **ha_myisammrg::store_lock(THD *thd,
   return to;
 }
 
+void ha_myisammrg::update_create_info(HA_CREATE_INFO *create_info)
+{
+  DBUG_ENTER("ha_myisammrg::update_create_info");
+  if (!(create_info->used_fields & HA_CREATE_USED_UNION))
+  {
+    MYRG_TABLE *table;
+    THD *thd=current_thd;
+    create_info->merge_list.next= &create_info->merge_list.first;
+
+    for (table=file->open_tables ; table != file->end_table ; table++)
+    {
+      char *name=table->table->s->filename;
+      char buff[FN_REFLEN];
+      TABLE_LIST *ptr;
+      if (!(ptr = (TABLE_LIST *) thd->calloc(sizeof(TABLE_LIST))))
+	goto err;
+      fn_format(buff,name,"","",3);
+      if (!(ptr->real_name=thd->strdup(buff)))
+	goto err;
+      (*create_info->merge_list.next) = (byte*) ptr;
+      create_info->merge_list.next= (byte**) &ptr->next;
+    }
+    *create_info->merge_list.next=0;
+  }
+  DBUG_VOID_RETURN;
+
+err:
+  create_info->merge_list.elements=0;
+  create_info->merge_list.first=0;
+  DBUG_VOID_RETURN;
+}
 
 int ha_myisammrg::create(const char *name, register TABLE *form,
 			 HA_CREATE_INFO *create_info)

@@ -346,6 +346,14 @@ int write_record(TABLE *table,COPY_INFO *info)
 	error=HA_WRITE_SKIPP;			/* Database can't find key */
 	goto err;
       }
+      /*
+	Don't allow REPLACE to replace a row when a auto_increment column
+	was used.  This ensures that we don't get a problem when the
+	whole range of the key has been used.
+      */
+      if (table->next_number_field && key_nr == table->next_number_index &&
+	  table->file->auto_increment_column_changed)
+	goto err;
       if (table->file->option_flag() & HA_DUPP_POS)
       {
 	if (table->file->rnd_pos(table->record[1],table->file->dupp_ref))

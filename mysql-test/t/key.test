@@ -144,3 +144,19 @@ INSERT INTO t1 VALUES (1, 1, 1, 1, 'a');
 INSERT INTO t1 VALUES (1, 1, 1, 1, 'b'); 
 !$1062 INSERT INTO t1 VALUES (1, 1, 1, 1, 'a');
 drop table t1;
+
+#
+# Test with blob + tinyint key
+# (Failed for Greg Valure)
+#
+
+CREATE TABLE t1 (
+  a tinytext NOT NULL,
+  b tinyint(3) unsigned NOT NULL default '0',
+  PRIMARY KEY (a(32),b)
+) TYPE=MyISAM;
+INSERT INTO t1 VALUES ('a',1),('a',2);
+SELECT * FROM t1 WHERE a='a' AND b=2;
+SELECT * FROM t1 WHERE a='a' AND b in (2);
+SELECT * FROM t1 WHERE a='a' AND b in (1,2);
+drop table t1;
