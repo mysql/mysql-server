@@ -37,7 +37,7 @@ WARNING: THIS PROGRAM IS STILL IN BETA. Comments/patches welcome.
 
 # Documentation continued at end of file
 
-my $VERSION = "1.19";
+my $VERSION = "1.20";
 
 my $opt_tmpdir = $ENV{TMPDIR} || "/tmp";
 
@@ -235,10 +235,15 @@ else
 
 # --- resolve database names from regexp ---
 if ( defined $opt{regexp} ) {
+    my $t_regex = '.*';
+    if ( $opt{regexp} =~ s{^/(.+)/\./(.+)/$}{$1} ) {
+        $t_regex = $2;
+    }
+
     my $sth_dbs = $dbh->prepare("show databases");
     $sth_dbs->execute;
     while ( my ($db_name) = $sth_dbs->fetchrow_array ) {
-	push @db_desc, { 'src' => $db_name } if ( $db_name =~ m/$opt{regexp}/o );
+	push @db_desc, { 'src' => $db_name, 't_regex' => $t_regex } if ( $db_name =~ m/$opt{regexp}/o );
     }
 }
 
@@ -937,6 +942,14 @@ server in a mutual replication setup.
 =item --regexp pattern
 
 Copy all databases with names matching the pattern
+
+=item --regexp /pattern1/./pattern2/
+
+Copy all tables with names matching pattern2 from all databases with
+names matching pattern1. For example, to select all tables which
+names begin with 'bar' from all databases which names end with 'foo':
+
+   mysqlhotcopy --indices --method=cp --regexp /foo$/./^bar/
 
 =item db_name./pattern/
 
