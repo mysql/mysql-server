@@ -2402,7 +2402,7 @@ dnl you must also create strings/ctype-$charset_name.c
 AC_DIVERT_PUSH(0)
 
 define(CHARSETS_AVAILABLE0,binary)
-define(CHARSETS_AVAILABLE1,ascii armscii8 ascii big5 cp1250 cp1251 cp1256 cp1257)
+define(CHARSETS_AVAILABLE1,armscii8 ascii big5 cp1250 cp1251 cp1256 cp1257)
 define(CHARSETS_AVAILABLE2,cp850 cp852 cp866 dec8 euckr gb2312 gbk geostd8)
 define(CHARSETS_AVAILABLE3,greek hebrew hp8 keybcs2 koi8r koi8u)
 define(CHARSETS_AVAILABLE4,latin1 latin2 latin5 latin7 macce macroman)
