@@ -3196,10 +3196,14 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
     const NodeId tcNodeId  = refToNode(sig5);
     markerPtr.p->tcNodeId = tcNodeId;
     
+    CommitAckMarkerPtr tmp;
+#ifdef VM_TRACE
+    ndbrequire(!m_commitAckMarkerHash.find(tmp, * markerPtr.p));
+#endif
     m_commitAckMarkerHash.add(markerPtr);
     regTcPtr->commitAckMarker = markerPtr.i;
-  }
-
+  } 
+  
   regTcPtr->reqinfo = Treqinfo;
   regTcPtr->lastReplicaNo = LqhKeyReq::getLastReplicaNo(Treqinfo);
   regTcPtr->lockType      = LqhKeyReq::getLockType(Treqinfo);
@@ -7850,27 +7854,10 @@ void Dblqh::scanTupkeyConfLab(Signal* signal)
   }//if
   if (scanptr.p->scanKeyinfoFlag) {
     jam();
-    DatabufPtr TdataBuf;
-    TdataBuf.i = tcConnectptr.p->firstTupkeybuf;
-    const Uint32 keyLen = tcConnectptr.p->primKeyLen;
-    const Uint32 dataBufSz = cdatabufFileSize;
-    
-    /**
-     * Note that this code requires signal->theData to be big enough for
-     * a entire key
-     */
-    ndbrequire(keyLen * 4 <= sizeof(signal->theData));
-    KeyInfo20 * keyInfo = (KeyInfo20*)&signal->theData[0];
-    for(Uint32 i = 0; i < keyLen; i += 4){ 
-      ptrCheckGuard(TdataBuf, dataBufSz, databuf);
-      keyInfo->keyData[i + 0] = TdataBuf.p->data[0];
-      keyInfo->keyData[i + 1] = TdataBuf.p->data[1];
-      keyInfo->keyData[i + 2] = TdataBuf.p->data[2];
-      keyInfo->keyData[i + 3] = TdataBuf.p->data[3];
-      TdataBuf.i = TdataBuf.p->nextDatabuf;
-    }
     sendKeyinfo20(signal, scanptr.p, tcConnectptr.p);
     releaseOprec(signal);
+
+    tdata4 += tcConnectptr.p->primKeyLen;// Inform API about keyinfo len aswell
   }//if
   ndbrequire(scanptr.p->scanCompletedOperations < MAX_PARALLEL_OP_PER_SCAN);
   scanptr.p->scanOpLength[scanptr.p->scanCompletedOperations] = tdata4;
@@ -8306,7 +8293,8 @@ void Dblqh::initScanTc(Signal* signal,
   tcConnectptr.p->opExec = 1;
   tcConnectptr.p->operation = ZREAD;
   tcConnectptr.p->listState = TcConnectionrec::NOT_IN_LIST;
-  
+  tcConnectptr.p->commitAckMarker = RNIL;
+
   tabptr.p->usageCount++;
 }//Dblqh::initScanTc()
 
@@ -8410,72 +8398,119 @@ void Dblqh::sendKeyinfo20(Signal* signal,
   ndbrequire(scanP->scanCompletedOperations < MAX_PARALLEL_OP_PER_SCAN);
   KeyInfo20 * keyInfo = (KeyInfo20 *)&signal->theData[0];
   
+  DatabufPtr TdataBuf;
+  TdataBuf.i = tcConP->firstTupkeybuf;
+  Uint32 keyLen = tcConP->primKeyLen;
+  const Uint32 dataBufSz = cdatabufFileSize;
+  
+  /**
+   * Note that this code requires signal->theData to be big enough for
+   * a entire key
+   */
+  ndbrequire(keyLen * 4 <= sizeof(signal->theData));
+  const BlockReference ref = scanP->scanApiBlockref;
   const Uint32 scanOp = scanP->scanCompletedOperations;
+  const Uint32 nodeId = refToNode(ref);
+  const bool connectedToNode = getNodeInfo(nodeId).m_connected;
+  const Uint32 type = getNodeInfo(nodeId).m_type;
+  const bool is_api = (type >= NodeInfo::API && type <= NodeInfo::REP);
+  const bool old_dest = (getNodeInfo(nodeId).m_version < MAKE_VERSION(3,5,0));
+  const bool longable = is_api && !old_dest;
+
+  Uint32 * dst = keyInfo->keyData;
+  dst += nodeId == getOwnNodeId() ? 0 : KeyInfo20::DataLength;
+
+  /**
+   * Copy keydata from data buffer into signal
+   * 
+   */
+  for(Uint32 i = 0; i < keyLen; i += 4){ 
+    ptrCheckGuard(TdataBuf, dataBufSz, databuf);
+    * dst++ = TdataBuf.p->data[0];
+    * dst++ = TdataBuf.p->data[1];
+    * dst++ = TdataBuf.p->data[2];
+    * dst++ = TdataBuf.p->data[3];
+    TdataBuf.i = TdataBuf.p->nextDatabuf;
+  }
+  
   keyInfo->clientOpPtr   = scanP->scanApiOpPtr[scanOp];
-  keyInfo->keyLen        = tcConP->primKeyLen;
+  keyInfo->keyLen        = keyLen;
   keyInfo->scanInfo_Node = KeyInfo20::setScanInfo(scanOp,
                                                   scanP->scanNumber)+
                                                   (getOwnNodeId() << 16);
-
   keyInfo->transId1 = tcConP->transid[0];
   keyInfo->transId2 = tcConP->transid[1];
-
-  const BlockReference ref = scanP->scanApiBlockref;
-  const Uint32 keyLen = tcConP->primKeyLen;
-  if(refToNode(ref) == getOwnNodeId()){
+  
+  Uint32 * src = signal->theData+25;
+  if(connectedToNode){
     jam();
-    EXECUTE_DIRECT(refToBlock(ref), GSN_KEYINFO20, signal, 5 + keyLen);
+    
+    if(nodeId != getOwnNodeId()){
+      jam();
+      
+      if(keyLen <= KeyInfo20::DataLength || !longable) {
+	while(keyLen > KeyInfo20::DataLength){
+	  jam();
+	  MEMCOPY_NO_WORDS(keyInfo->keyData, src, KeyInfo20::DataLength);
+	  sendSignal(ref, GSN_KEYINFO20, signal, 25, JBB);
+	  src += KeyInfo20::DataLength;;
+	  keyLen -= KeyInfo20::DataLength;
+	} while(keyLen >= KeyInfo20::DataLength);
+	
+	MEMCOPY_NO_WORDS(keyInfo->keyData, src, keyLen);
+	sendSignal(ref, GSN_KEYINFO20, signal, 
+		   KeyInfo20::HeaderLength+keyLen, JBB);
+	return;
+      }
+      
+      LinearSectionPtr ptr[3];
+      ptr[0].p = src;
+      ptr[0].sz = keyLen;
+      sendSignal(ref, GSN_KEYINFO20, signal, KeyInfo20::HeaderLength, 
+		 JBB, ptr, 1);
+      return;
+    }
+    
+    EXECUTE_DIRECT(refToBlock(ref), GSN_KEYINFO20, signal, 3 + keyLen);
     jamEntry();
     return;
-  } 
-
-  bool connectedToNode = getNodeInfo(refToNode(ref)).m_connected;
-
-  if (ERROR_INSERTED(5029)){
-    // Use error insert to turn routing on
-    jam();
-    connectedToNode = false;    
   }
   
-  if (connectedToNode){
+  /** 
+   * If this node does not have a direct connection 
+   * to the receiving node we want to send the signals 
+   * routed via the node that controls this read
+   */
+  Uint32 routeBlockref = tcConP->clientBlockref;
+  
+  if(keyLen < KeyInfo20::DataLength || !longable){
     jam();
-    Uint32 keyLenLeft = keyLen;
-    Uint32 keyDataIndex = 20;
-    for(; keyLenLeft > 20; keyLenLeft -= 20, keyDataIndex += 20){
-      jam();
-      sendSignal(ref, GSN_KEYINFO20, signal, 25, JBB);
-      for(Uint32 i = 0; i<20; i++)
-	keyInfo->keyData[i] = keyInfo->keyData[keyDataIndex + i];
-    }//for
-    sendSignal(ref, GSN_KEYINFO20, signal, 5 + keyLenLeft, JBB);
-  } else {
-    /** 
-     * If this node does not have a direct connection 
-     * to the receiving node we want to send the signals 
-     * routed via the control node
-     */
-    jam();
-    Uint32 keyLenLeft = keyLen;
-    Uint32 keyDataIndex = 19;
-    BlockReference routeBlockref = tcConP->clientBlockref;
     
-    for(; keyLenLeft > 19; keyLenLeft -= 19, keyDataIndex += 19){
-      jam();
-      // store final destination, but save original value
-      Uint32 saveOne = keyInfo->keyData[19];
-      keyInfo->keyData[19] = ref;    
+    while (keyLen > (KeyInfo20::DataLength - 1)) {
+      jam();      
+      MEMCOPY_NO_WORDS(keyInfo->keyData, src, KeyInfo20::DataLength - 1);
+      keyInfo->keyData[KeyInfo20::DataLength-1] = ref;
       sendSignal(routeBlockref, GSN_KEYINFO20_R, signal, 25, JBB);
-      keyInfo->keyData[19] = saveOne;    
-      for(Uint32 i = 0; i<19; i++){
-	keyInfo->keyData[i] = keyInfo->keyData[keyDataIndex + i];
-      }
-    }//for
-    keyInfo->keyData[keyLenLeft] = ref;    
-    sendSignal(routeBlockref, GSN_KEYINFO20_R, signal, 5 + keyLenLeft + 1, JBB);
+      src += KeyInfo20::DataLength - 1;
+      keyLen -= KeyInfo20::DataLength - 1;
+    }
+
+    MEMCOPY_NO_WORDS(keyInfo->keyData, src, keyLen);
+    keyInfo->keyData[keyLen] = ref;  
+    sendSignal(routeBlockref, GSN_KEYINFO20_R, signal, 
+	       KeyInfo20::HeaderLength+keyLen+1, JBB);    
+    return;
   }
 
-}//Dblqh::sendKeyinfo20()
-
+  keyInfo->keyData[0] = ref;
+  LinearSectionPtr ptr[3];
+  ptr[0].p = src;
+  ptr[0].sz = keyLen;
+  sendSignal(routeBlockref, GSN_KEYINFO20_R, signal, 
+	     KeyInfo20::HeaderLength+1, JBB, ptr, 1);
+  return;
+}
+  
 /* ------------------------------------------------------------------------
  * -------        SEND SCAN_FRAGCONF TO TC THAT CONTROLS THE SCAN   ------- 
  *
@@ -8856,7 +8891,7 @@ void Dblqh::execTRANSID_AI(Signal* signal)
   ndbrequire(tcConnectptr.p->transactionState == TcConnectionrec::COPY_TUPKEY);
   Uint32 * src = &signal->theData[3];
   while(length > 22){
-    if (saveTupattrbuf(signal, &signal->theData[3], 22) == ZOK) {
+    if (saveTupattrbuf(signal, src, 22) == ZOK) {
       ;
     } else {
       jam();

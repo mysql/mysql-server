@@ -254,6 +254,7 @@ Dbdih::Dbdih(const class Configuration & config):
   addRecSignal(GSN_UPDATE_TOCONF, &Dbdih::execUPDATE_TOCONF);
 
   addRecSignal(GSN_PREP_DROP_TAB_REQ, &Dbdih::execPREP_DROP_TAB_REQ);
+  addRecSignal(GSN_WAIT_DROP_TAB_REF, &Dbdih::execWAIT_DROP_TAB_REF);
   addRecSignal(GSN_WAIT_DROP_TAB_CONF, &Dbdih::execWAIT_DROP_TAB_CONF);
   addRecSignal(GSN_DROP_TAB_REQ, &Dbdih::execDROP_TAB_REQ);
 

@@ -950,9 +950,6 @@ typedef Ptr<TableDescriptor> TableDescriptorPtr;
 
 struct HostBuffer {
   bool  inPackedList;
-  Uint32 packetLenRC;
-  Uint32 noOfPacketsRC;
-  Uint32 packetBufferRC[29];
   Uint32 packetLenTA;
   Uint32 noOfPacketsTA;
   Uint32 packetBufferTA[30];
@@ -1637,11 +1634,7 @@ private:
 
 //------------------------------------------------------------------
 //------------------------------------------------------------------
-  void bufferREADCONF(Signal* signal, BlockReference aRef, Uint32* buffer, Uint32 Tlen);
-
-//------------------------------------------------------------------
-//------------------------------------------------------------------
-  void bufferTRANSID_AI(Signal* signal, BlockReference aRef, Uint32* buffer, Uint32 Tlen);
+  void bufferTRANSID_AI(Signal* signal, BlockReference aRef, Uint32 Tlen);
 
 //------------------------------------------------------------------
 // Trigger handling routines
