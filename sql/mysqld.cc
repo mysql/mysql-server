@@ -300,7 +300,7 @@ char* log_error_file_ptr= log_error_file;
 char mysql_real_data_home[FN_REFLEN],
      language[LIBLEN],reg_ext[FN_EXTLEN], mysql_charsets_dir[FN_REFLEN],
      max_sort_char,*mysqld_user,*mysqld_chroot, *opt_init_file;
-char *language_ptr, *default_collation_name;
+char *language_ptr, *default_collation_name, *default_character_set_name;
 char mysql_data_home_buff[2], *mysql_data_home=mysql_real_data_home;
 char server_version[SERVER_VERSION_LENGTH]=MYSQL_SERVER_VERSION;
 char *mysql_unix_port, *opt_mysql_tmpdir;
@@ -2028,7 +2028,7 @@ static int init_common_variables(const char *conf_file_name, int argc,
 #ifdef USE_REGEX
   regex_init(&my_charset_latin1);
 #endif
-  if (!(default_charset_info= get_charset_by_csname(sys_charset.value, 
+  if (!(default_charset_info= get_charset_by_csname(default_character_set_name,
 						    MY_CS_PRIMARY,
 						    MYF(MY_WME))))
     return 1;
@@ -2046,6 +2046,8 @@ static int init_common_variables(const char *conf_file_name, int argc,
     }
     default_charset_info= default_collation;
   }
+  global_system_variables.character_set_server= default_charset_info;
+  global_system_variables.character_set_database= default_charset_info;
   global_system_variables.character_set_results= NULL;
   global_system_variables.character_set_client= default_charset_info;
   global_system_variables.collation_connection= default_charset_info;
@@ -3542,8 +3544,8 @@ Disable with --skip-bdb (will save memory)",
    0, 0, 0, 0, 0, 0},
 #endif /* HAVE_OPENSSL */
   {"default-character-set", 'C', "Set the default character set",
-   (gptr*) &sys_charset.value, (gptr*) &sys_charset.value, 0, GET_STR,
-   REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+   (gptr*) &default_character_set_name, (gptr*) &default_character_set_name, 
+   0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   {"default-collation", OPT_DEFAULT_COLLATION, "Set the default collation",
    (gptr*) &default_collation_name, (gptr*) &default_collation_name,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
@@ -4538,7 +4540,7 @@ static void use_help(void)
 
 static void usage(void)
 {
-  if (!(default_charset_info= get_charset_by_csname(sys_charset.value,
+  if (!(default_charset_info= get_charset_by_csname(default_character_set_name,
 					           MY_CS_PRIMARY,
 						   MYF(MY_WME))))
     exit(1);
@@ -4642,7 +4644,6 @@ static void mysql_init_variables(void)
   pidfile_name_ptr= pidfile_name;
   log_error_file_ptr= log_error_file;
   language_ptr= language;
-  default_collation_name= (char*) MYSQL_DEFAULT_COLLATION_NAME;
   mysql_data_home= mysql_real_data_home;
   thd_startup_options= (OPTION_UPDATE_LOG | OPTION_AUTO_IS_NULL |
 			OPTION_BIN_LOG | OPTION_QUOTE_SHOW_CREATE);
@@ -4681,10 +4682,13 @@ static void mysql_init_variables(void)
 
   /* Variables in libraries */
   charsets_dir= 0;
-  sys_charset.value= (char*) MYSQL_DEFAULT_CHARSET_NAME;
+  default_character_set_name= (char*) MYSQL_DEFAULT_CHARSET_NAME;
+  default_collation_name= (char*) MYSQL_DEFAULT_COLLATION_NAME;
   sys_charset_system.value= (char*) system_charset_info->csname;
 
   /* Set default values for some option variables */
+  global_system_variables.character_set_server= default_charset_info;
+  global_system_variables.character_set_database= default_charset_info;
   global_system_variables.character_set_results= NULL;
   global_system_variables.character_set_client= default_charset_info;
   global_system_variables.collation_connection= default_charset_info;

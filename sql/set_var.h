@@ -441,7 +441,10 @@ SHOW_TYPE type() { return SHOW_CHAR; }
     return type != STRING_RESULT;		/* Only accept strings */
   }
   bool check_default(enum_var_type type) { return 0; }
+  bool update(THD *thd, set_var *var);
+  byte *value_ptr(THD *thd, enum_var_type type);
   virtual void set_default(THD *thd, enum_var_type type)= 0;
+  virtual CHARSET_INFO **ci_ptr(THD *thd, enum_var_type type)= 0;
 };
 
 class sys_var_character_set_client :public sys_var_character_set
@@ -449,9 +452,8 @@ class sys_var_character_set_client :public sys_var_character_set
 public:
   sys_var_character_set_client(const char *name_arg) :
     sys_var_character_set(name_arg) {}
-  bool update(THD *thd, set_var *var);
   void set_default(THD *thd, enum_var_type type);
-  byte *value_ptr(THD *thd, enum_var_type type);
+  CHARSET_INFO **ci_ptr(THD *thd, enum_var_type type);
 };
 
 class sys_var_character_set_results :public sys_var_character_set
@@ -459,9 +461,26 @@ class sys_var_character_set_results :public sys_var_character_set
 public:
   sys_var_character_set_results(const char *name_arg) :
     sys_var_character_set(name_arg) {}
-  bool update(THD *thd, set_var *var);
   void set_default(THD *thd, enum_var_type type);
-  byte *value_ptr(THD *thd, enum_var_type type);
+  CHARSET_INFO **ci_ptr(THD *thd, enum_var_type type);
+};
+
+class sys_var_character_set_server :public sys_var_character_set
+{
+public:
+  sys_var_character_set_server(const char *name_arg) :
+    sys_var_character_set(name_arg) {}
+  void set_default(THD *thd, enum_var_type type);
+  CHARSET_INFO **ci_ptr(THD *thd, enum_var_type type);
+};
+
+class sys_var_character_set_database :public sys_var_character_set
+{
+public:
+  sys_var_character_set_database(const char *name_arg) :
+    sys_var_character_set(name_arg) {}
+  void set_default(THD *thd, enum_var_type type);
+  CHARSET_INFO **ci_ptr(THD *thd, enum_var_type type);
 };
 
 class sys_var_collation_connection :public sys_var_collation
@@ -606,6 +625,5 @@ sys_var *find_sys_var(const char *str, uint length=0);
 int sql_set_variables(THD *thd, List<set_var_base> *var_list);
 void fix_delay_key_write(THD *thd, enum_var_type type);
 
-extern sys_var_str sys_charset;
 extern sys_var_str sys_charset_system;
 CHARSET_INFO *get_old_charset_by_name(const char *old_name);
