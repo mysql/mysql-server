@@ -1,0 +1,17 @@
+#
+# Testing if SET and similar functions
+#
+
+select interval(55,10,20,30,40,50,60,70,80,90,100),interval(3,1,1+1,1+1+1+1),field("IBM","NCA","ICL","SUN","IBM","DIGITAL"),field("A","B","C"),elt(2,"ONE","TWO","THREE"),interval(0,1,2,3,4),elt(1,1,2,3)|0,elt(1,1.1,1.2,1.3)+0;
+select find_in_set("b","a,b,c"),find_in_set("c","a,b,c"),find_in_set("dd","a,bbb,dd"),find_in_set("bbb","a,bbb,dd");
+select find_in_set("d","a,b,c"),find_in_set("dd","a,bbb,d"),find_in_set("bb","a,bbb,dd");
+select make_set(0,'a','b','c'),make_set(-1,'a','b','c'),make_set(1,'a','b','c'),make_set(2,'a','b','c'),make_set(1+2,concat('a','b'),'c');
+select make_set(NULL,'a','b','c'),make_set(1|4,'a',NULL,'c'),make_set(1+2,'a',NULL,'c');
+select export_set(9,"Y","N","-",5),export_set(9,"Y","N"),export_set(9,"Y","N","");
+
+#
+# Wrong usage of functions
+#
+select elt(2,1),field(NULL,"a","b","c");
+select find_in_set("","a,b,c"),find_in_set("","a,b,c,"),find_in_set("",",a,b,c");
+select find_in_set("abc","abc"),find_in_set("ab","abc"),find_in_set("abcd","abc");

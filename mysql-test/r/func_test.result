@@ -1,0 +1,36 @@
+0=0	1>0	1>=1	1<0	1<=0	1!=0	strcmp("abc","abcd")	strcmp("b","a")	strcmp("a","a")
+1	1	1	0	0	1	-1	1	0
+"a"<"b"	"a"<="b"	"b">="a"	"b">"a"	"a"="A"	"a"<>"b"
+1	1	1	1	1	1
+"a "="A"	"A "="a"	"a  " <= "A b"
+1	1	1
+"abc" like "a%"	"abc" not like "%d%"	"a%" like "a\%"	"abc%" like "a%\%"	"abcd" like "a%b_%d"	"a" like "%%a"	"abcde" like "a%_e"	"abc" like "abc%"
+1	1	1	1	1	1	1	1
+"a" like "%%b"	"a" like "%%ab"	"ab" like "a\%"	"ab" like "_"	"ab" like "ab_"	"abc" like "%_d"	"abc" like "abc%d"
+0	0	0	0	0	0	0
+'?' like '|%'	'?' like '|%' ESCAPE '|'	'%' like '|%'	'%' like '|%' ESCAPE '|'	'%' like '%'
+0	0	0	1	1
+'abc' like '%c'	'abcabc' like '%c'	"ab" like ""	"ab" like "a"	"ab" like "ab"
+1	1	0	0	1
+"Det här är svenska" regexp "h[[:alpha:]]+r"	"aba" regexp "^(a|b)*$"
+1	1
+"aba" regexp concat("^","a")
+1
+!0	NOT 0=1	!(0=0)	1 AND 1	1 && 0	0 OR 1	1 || NULL	1=1 or 1=1 and 1=0
+1	1	0	1	0	1	1	1
+IF(0,"ERROR","this")	IF(1,"is","ERROR")	IF(NULL,"ERROR","a")	IF(1,2,3)|0	IF(1,2.0,3.0)+0
+this	is	a	2	2.0
+2 between 1 and 3	"monty" between "max" and "my"	2=2 and "monty" between "max" and "my" and 3=3
+1	1	1
+'b' between 'a' and 'c'	'B' between 'a' and 'c'
+1	1
+2 in (3,2,5,9,5,1)	"monty" in ("david","monty","allan")	1.2 in (1.4,1.2,1.0)
+1	1	1
+-1.49 or -1.49	0.6 or 0.6
+1	1
+5 between 0 and 10 between 0 and 1	(5 between 0 and 10) between 0 and 1
+0	1
+1 and 2 between 2 and 10	2 between 2 and 10 and 1
+1	1
+1 and 0 or 2	2 or 1 and 0
+1	1

@@ -1,0 +1,289 @@
+last_insert_id()
+3
+nr	b	str	nr	b	str
+1	a	A	1	a	A
+2	bbb	BBB	1	a	A
+3	ccc	CCC	1	a	A
+1	a	A	2	bbb	BBB
+2	bbb	BBB	2	bbb	BBB
+3	ccc	CCC	2	bbb	BBB
+1	a	A	3	ccc	CCC
+2	bbb	BBB	3	ccc	CCC
+3	ccc	CCC	3	ccc	CCC
+a
+Where
+Field	Type	Null	Key	Default	Extra	Privileges
+t	text	YES		NULL		select,insert,update,references
+c	varchar(10)	YES		NULL		select,insert,update,references
+b	blob	YES		NULL		select,insert,update,references
+d	varchar(10) binary	YES		NULL		select,insert,update,references
+Field	Type	Null	Key	Default	Extra	Privileges
+t	text	YES		NULL		select,insert,update,references
+c	varchar(10)	YES		NULL		select,insert,update,references
+b	blob	YES		NULL		select,insert,update,references
+d	varchar(10) binary	YES		NULL		select,insert,update,references
+t
+hello
+HELLO
+c
+hello
+HELLO
+b
+hello
+d
+hello
+c
+hello
+HELLO
+d
+hello
+t
+hello
+HELLO
+HELLO MY
+c
+hello
+HELLO
+HELLO MY
+b
+HELLO
+HELLO MY
+d
+HELLO
+HELLO MY
+c
+hello
+HELLO
+HELLO MY
+d
+HELLO
+HELLO MY
+t
+NULL
+NULL
+
+1
+a
+hello
+HELLO
+HELLO MY
+c
+NULL
+NULL
+
+
+a
+hello
+HELLO
+HELLO MY
+b
+NULL
+NULL
+NULL
+
+HELLO
+HELLO MY
+a
+hello
+d
+NULL
+NULL
+
+1
+HELLO
+HELLO MY
+a
+hello
+t
+NULL
+
+hello
+HELLO MY
+a
+1
+b
+NULL
+
+hello
+HELLO
+HELLO MY
+a
+t
+NULL
+
+1
+a
+hello
+HELLO MY
+b
+NULL
+
+HELLO
+HELLO MY
+a
+hello
+t
+NULL
+
+1
+a
+hello
+HELLO MY
+b
+NULL
+
+HELLO
+HELLO MY
+a
+hello
+t
+NULL
+
+hello
+HELLO MY
+a
+1
+b
+NULL
+
+hello
+HELLO
+HELLO MY
+a
+t
+NULL
+
+1
+a
+hello
+HELLO MY
+b
+NULL
+
+HELLO
+HELLO MY
+a
+hello
+c
+NULL
+
+hello
+HELLO MY
+a
+d
+NULL
+
+hello
+HELLO
+HELLO MY
+a
+1
+c
+NULL
+
+a
+hello
+HELLO MY
+d
+NULL
+
+1
+HELLO
+HELLO MY
+a
+hello
+c
+NULL
+
+a
+hello
+HELLO MY
+d
+NULL
+
+1
+HELLO
+HELLO MY
+a
+hello
+t	c	b	d
+NULL	NULL	NULL	NULL
+			
+hello	hello	hello	hello
+HELLO	HELLO	HELLO	HELLO
+HELLO MY	HELLO MY	HELLO MY	HELLO MY
+a	a	a	a
+1		NULL	1
+t	count(*)
+NULL	2
+	1
+1	1
+a	1
+hello	2
+HELLO MY	1
+b	count(*)
+NULL	3
+	1
+HELLO	1
+HELLO MY	1
+a	1
+hello	1
+c	count(*)
+NULL	2
+	2
+a	1
+hello	2
+HELLO MY	1
+d	count(*)
+NULL	2
+	1
+1	1
+HELLO	1
+HELLO MY	1
+a	1
+hello	1
+_field_140	min(t3._field_131)	min(t3._field_135)	min(t3._field_139)	min(t3._field_137)	min(link_alias_142._field_165)	min(link_alias_133._field_72)	min(t3._field_145)	min(link_alias_148._field_156)	min(t3._field_140)	t3_id
+test
+job
+1	test job 1	0000-00-00 00:00:00	1999-02-25 22:43:32	0	High	admin	0	tomato	test
+job
+1	1
+stamp
+19990402000000
+stamp
+19990402000000
+date_format(a,"%Y %y")	year(a)	year(now())
+2000 00	2000	2000
+ix
+19991101000000
+19990102030405
+19990630232922
+19990601000000
+19990930232922
+19990531232922
+19990501000000
+19991101000000
+19990501000000
+date	date_time	time_stamp
+1998-12-31	1998-12-31 23:59:59	19981231235959
+1999-01-01	1999-01-01 00:00:00	19990101000000
+1999-09-09	1999-09-09 23:59:59	19990909235959
+2000-01-01	2000-01-01 00:00:00	20000101000000
+2000-02-28	2000-02-28 00:00:00	20000228000000
+2000-02-29	2000-02-29 00:00:00	20000229000000
+2000-03-01	2000-03-01 00:00:00	20000301000000
+2000-12-31	2000-12-31 23:59:59	20001231235959
+2001-01-01	2001-01-01 00:00:00	20010101000000
+2004-12-31	2004-12-31 23:59:59	20041231235959
+2005-01-01	2005-01-01 00:00:00	20050101000000
+2030-01-01	2030-01-01 00:00:00	20300101000000
+2050-01-01	2050-01-01 00:00:00	20131126000036
+a	reverse(a)
+empty	ytpme
+	
+a
+hello
+hello
+hello word
+count(*)
+2

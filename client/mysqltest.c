@@ -20,10 +20,10 @@
  * Written by:
  *   Sasha Pachev <sasha@mysql.com>
  *   Matt Wagner  <matt@mysql.com>
- *
+ *   Monty
  **/
 
-#define MTEST_VERSION "1.1"
+#define MTEST_VERSION "1.2"
 
 #include "global.h"
 #include "my_sys.h"
@@ -41,7 +41,7 @@
 #include <unistd.h>
 #include <errno.h>
 
-#define MAX_QUERY  16384
+#define MAX_QUERY  65536
 #define PAD_SIZE	128
 #define MAX_CONS   1024
 #define MAX_INCLUDE_DEPTH 16
@@ -51,15 +51,17 @@
 #define BLOCK_STACK_DEPTH  32
 
 int record = 0, verbose = 0, silent = 0;
-const char* record_mode = "r";
 static char *db = 0, *pass=0;
 const char* user = 0, *host = 0, *unix_sock = 0;
 int port = 0;
+static uint start_lineno, *lineno;
+
 static const char *load_default_groups[]= { "mysqltest","client",0 };
 
 FILE* file_stack[MAX_INCLUDE_DEPTH];
 FILE** cur_file;
 FILE** file_stack_end;
+uint lineno_stack[MAX_INCLUDE_DEPTH];
 
 int block_stack[BLOCK_STACK_DEPTH];
 int *cur_block, *block_stack_end;
@@ -182,7 +184,7 @@ static void verbose_msg(const char* fmt, ...)
 
   va_start(args, fmt);
 
-  fprintf(stderr, "%s: ", my_progname);
+  fprintf(stderr, "%s: At line %u: ", my_progname, start_lineno);
   vfprintf(stderr, fmt, args);
   fprintf(stderr, "\n");
   va_end(args);
@@ -365,6 +367,7 @@ int open_file(const char* name)
     die("Source directives are nesting too deep");
   if (!(*cur_file = my_fopen(name, O_RDONLY, MYF(MY_WME))))
     die("Could not read '%s': errno %d\n", name, errno);
+  *++lineno=1;
 
   return 0;
 }
@@ -751,6 +754,7 @@ int read_line(char* buf, int size)
 	R_ESC_SLASH_Q1, R_ESC_SLASH_Q2,
 	R_Q2, R_COMMENT, R_LINE_START} state = R_LINE_START;
 
+  start_lineno= *lineno;
   for (; p < buf_end ;)
   {
     no_save = 0;
@@ -764,15 +768,15 @@ int read_line(char* buf, int size)
       else
       {
 	cur_file--;
+	lineno--;
 	continue;
       }
     }
 
     switch(state) {
     case R_NORMAL:
-      if (c == ';' || c == '{') /*  '{' allows some interesting syntax
-				 *  but we don't care, as long as the
-				 *  correct sytnax gets parsed right */
+      /*  Only accept '{' in the beginning of a line */
+      if (c == ';')
       {
 	*p = 0;
 	return 0;
@@ -782,13 +786,16 @@ int read_line(char* buf, int size)
       else if (c == '"')
 	state = R_Q2;
       else if (c == '\n')
+      {
 	state = R_LINE_START;
-
+	(*lineno)++;
+      }
       break;
     case R_COMMENT:
       if (c == '\n')
       {
 	*p=0;
+	(*lineno)++;
 	return 0;
       }
       break;
@@ -798,7 +805,11 @@ int read_line(char* buf, int size)
 	state = R_COMMENT;
       }
       else if (isspace(c))
+      {
+	if (c == '\n')
+	  start_lineno= ++*lineno;		/* Query hasn't started yet */
 	no_save = 1;
+      }
       else if (c == '}')
       {
 	*buf++ = '}';
@@ -828,6 +839,8 @@ int read_line(char* buf, int size)
       }
       if (c != '\'')
 	state = R_NORMAL;
+      else
+	state = R_Q1;
       break;
     case R_ESC_SLASH_Q1:
       state = R_Q1;
@@ -847,6 +860,8 @@ int read_line(char* buf, int size)
       }
       if (c != '"')
 	state = R_NORMAL;
+      else
+	state = R_Q2;
       break;
     case R_ESC_SLASH_Q2:
       state = R_Q2;
@@ -860,12 +875,14 @@ int read_line(char* buf, int size)
   return feof(*cur_file);
 }
 
+static char read_query_buf[MAX_QUERY];
+
 int read_query(struct query** q_ptr)
 {
-  char buf[MAX_QUERY];
-  char* p = buf,* p1 ;
+  char* p = read_query_buf, * p1 ;
   int c, expected_errno;
   struct query* q;
+
   if (parser.current_line < parser.read_lines)
   {
     get_dynamic(&q_lines, (gptr)q_ptr, parser.current_line) ;
@@ -882,7 +899,7 @@ int read_query(struct query** q_ptr)
   q->first_word_len = 0;
   q->expected_errno = 0;
   q->type = Q_UNKNOWN;
-  if (read_line(buf, sizeof(buf)))
+  if (read_line(read_query_buf, sizeof(read_query_buf)))
     return 1;
 
   if (*p == '#')
@@ -961,7 +978,7 @@ static void print_version(void)
 void usage()
 {
   print_version();
-  printf("MySQL AB, by Sasha & Matt\n");
+  printf("MySQL AB, by Sasha, Matt & Monty\n");
   printf("This software comes with ABSOLUTELY NO WARRANTY\n\n");
   printf("Runs a test against the mysql server and compares output with a results file.\n\n");
   printf("Usage: %s [OPTIONS] [database] < test_file\n", my_progname);
@@ -975,7 +992,7 @@ void usage()
   -P, --port=...           Port number to use for connection.\n\
   -S, --socket=...         Socket file to use for connection.\n\
   -r, --record             Record output of test_file into result file.\n\
-  -R, --result-file=...    Store result in this file\n\
+  -R, --result-file=...    Read/Store result from/in this file\n\
   -v, --verbose            Write more.\n\
   -q, --quiet, --silent    Suppress all normal output.\n\
   -V, --version            Output version information and exit.\n\n");
@@ -997,7 +1014,6 @@ int parse_args(int argc, char **argv)
 	  break;
 	case 'r':
 	  record = 1;
-	  record_mode = "w";
 	  break;
 	case 'u':
 	  user = optarg;
@@ -1069,7 +1085,8 @@ char* safe_str_append(char* buf, const char* str, int size)
 void str_to_file(const char* fname, char* str, int size)
 {
   int fd;
-  if ((fd = my_open(fname, O_WRONLY|O_CREAT, MYF(MY_WME | MY_FFNF))) < 0)
+  if ((fd = my_open(fname, O_WRONLY | O_CREAT | O_TRUNC,
+		    MYF(MY_WME | MY_FFNF))) < 0)
     die("Could not open %s: errno = %d", fname, errno);
   if (my_write(fd, (byte*)str, size, MYF(MY_WME|MY_FNABP)))
     die("write failed");
@@ -1079,8 +1096,6 @@ void str_to_file(const char* fname, char* str, int size)
 void reject_dump(const char* record_file, char* buf, int size)
 {
   char reject_file[FN_REFLEN];
-  char* p;
-
   if (strlen(record_file) >= FN_REFLEN-8)
     die("too long path name for reject");
   strmov(strmov(reject_file, record_file),".reject");
@@ -1111,7 +1126,8 @@ int run_query(MYSQL* mysql, struct query* q)
     if (q->require_file)
       abort_not_supported_test();
     if (q->abort_on_error)
-      die("query '%s' failed: %s", q->q, mysql_error(mysql));
+      die("At line %u: query '%s' failed: %d: %s", start_lineno, q->q,
+	  mysql_errno(mysql), mysql_error(mysql));
     else
     {
       if (q->expected_errno)
@@ -1123,7 +1139,8 @@ int run_query(MYSQL* mysql, struct query* q)
 	goto end;
       }
 
-      verbose_msg("query '%s' failed: %s", q->q, mysql_error(mysql));
+      verbose_msg("query '%s' failed: %d: %s", q->q, mysql_errno(mysql),
+		  mysql_error(mysql));
       /* if we do not abort on error, failure to run the query does
 	 not fail the whole test case
       */
@@ -1145,10 +1162,12 @@ int run_query(MYSQL* mysql, struct query* q)
     if (q->require_file)
       abort_not_supported_test();
     if (q->abort_on_error)
-      die("failed in mysql_store_result for query '%s'", q->q);
+      die("At line %u: Failed in mysql_store_result for query '%s' (%d)",
+	  start_lineno, q->q, mysql_errno(mysql));
     else
     {
-      verbose_msg("failed in mysql_store_result for query '%s'", q->q);
+      verbose_msg("failed in mysql_store_result for query '%s' (%d)", q->q,
+		  mysql_errno(mysql));
       error = 1;
       goto end;
     }
@@ -1193,7 +1212,7 @@ int run_query(MYSQL* mysql, struct query* q)
   if (record)
   {
     if (!q->record_file[0] && !result_file)
-      die("Missing result file");
+      die("At line %u: Missing result file", start_lineno);
     if (!result_file)
       str_to_file(q->record_file, ds->str, ds->len);
   }
@@ -1247,6 +1266,7 @@ int main(int argc, char** argv)
   memset(file_stack, 0, sizeof(file_stack));
   file_stack_end = file_stack + MAX_INCLUDE_DEPTH;
   cur_file = file_stack;
+  lineno   = lineno_stack;
   init_dynamic_array(&q_lines, sizeof(struct query*), INIT_Q_LINES,
 		     INIT_Q_LINES);
   memset(block_stack, 0, sizeof(block_stack));
@@ -1256,7 +1276,7 @@ int main(int argc, char** argv)
   parse_args(argc, argv);
   if (!*cur_file)
     *cur_file = stdin;
-
+  *lineno=1;
 
   if (!( mysql_init(&cur_con->mysql)))
     die("Failed in mysql_init()");

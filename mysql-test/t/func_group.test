@@ -1,0 +1,100 @@
+#
+# simple test of all group functions
+#
+
+create table t1 (grp int, a bigint unsigned, c char(10) not null);
+insert into t1 values (1,1,"a");
+insert into t1 values (2,2,"b");
+insert into t1 values (2,3,"c");
+insert into t1 values (3,4,"E");
+insert into t1 values (3,5,"C");
+insert into t1 values (3,6,"D");
+
+# Test of MySQL field extension with and without matching records.
+select a,c,sum(a) from t1 group by a;
+select a,c,sum(a) from t1 where a > 10 group by a;
+select sum(a) from t1 where a > 10;
+select a from t1 order by rand(10);
+select distinct a from t1 order by rand(10);
+select count(distinct a),count(distinct grp) from t1;
+insert into t1 values (null,null,'');
+select count(distinct a),count(distinct grp) from t1;
+
+select sum(a),count(a),avg(a),std(a),bit_or(a),bit_and(a),min(a),max(a),min(c),max(c) from t1;
+select grp, sum(a),count(a),avg(a),std(a),bit_or(a),bit_and(a),min(a),max(a),min(c),max(c) from t1 group by grp;
+select grp, sum(a)+count(a)+avg(a)+std(a)+bit_or(a)+bit_and(a)+min(a)+max(a)+min(c)+max(c) as sum from t1 group by grp;
+
+create table t2 (grp int, a bigint unsigned, c char(10));
+insert into t2 select grp,max(a)+max(grp),max(c) from t1 group by grp;
+replace into t2 select grp, a, c from t1 limit 2,1;
+select * from t2;
+
+drop table t1,t2;
+
+#
+# Problem with std()
+#
+
+CREATE TABLE t1 (id int(11),value1 float(10,2));
+INSERT INTO t1 VALUES (1,0.00),(1,1.00), (1,2.00), (2,10.00), (2,11.00), (2,12.00); 
+CREATE TABLE t2 (id int(11),name char(20)); 
+INSERT INTO t2 VALUES (1,'Set One'),(2,'Set Two'); 
+select id, avg(value1), std(value1) from t1 group by id;
+select name, avg(value1), std(value1) from t1, t2 where t1.id = t2.id group by t1.id;
+drop table t1,t2;
+
+#
+# Test of bug in left join & avg
+#
+
+create table t1 (id int not null);
+create table t2 (id int not null,rating int null);
+insert into t1 values(1),(2),(3);
+insert into t2 values(1, 3),(2, NULL),(2, NULL),(3, 2),(3, NULL);
+select t1.id, avg(rating) from t1 left join t2 on ( t1.id = t2.id ) group by t1.id;
+drop table t1,t2;
+
+#
+# test of count
+#
+create table t1 (a smallint(6) primary key, c char(10), b text);
+INSERT INTO t1 VALUES (1,'1','1');
+INSERT INTO t1 VALUES (2,'2','2');
+INSERT INTO t1 VALUES (4,'4','4');
+
+select count(*) from t1;
+select count(*) from t1 where a = 1;
+select count(*) from t1 where a = 100;
+select count(*) from t1 where a >= 10;
+select count(a) from t1 where a = 1;
+select count(a) from t1 where a = 100;
+select count(a) from t1 where a >= 10;
+select count(b) from t1 where b >= 2;
+select count(b) from t1 where b >= 10;
+select count(c) from t1 where c = 10;
+drop table t1;
+
+#
+# Test of bug in COUNT(i)*(i+0)
+#
+
+CREATE TABLE t1 (d DATETIME, i INT);
+INSERT INTO t1 VALUES (NOW(), 1);
+SELECT COUNT(i), i, COUNT(i)*i FROM t1 GROUP BY i;
+SELECT COUNT(i), (i+0), COUNT(i)*(i+0) FROM t1 GROUP BY i; 
+DROP TABLE t1;
+
+#
+# Another SUM() problem with 3.23.2
+#
+
+create table t1 (
+        num float(5,2),
+        user char(20)
+);
+insert into t1 values (10.3,'nem'),(20.53,'monty'),(30.23,'sinisa');
+insert into t1 values (30.13,'nem'),(20.98,'monty'),(10.45,'sinisa');
+insert into t1 values (5.2,'nem'),(8.64,'monty'),(11.12,'sinisa');
+select sum(num) from t1;
+select sum(num) from t1 group by user;
+drop table t1;

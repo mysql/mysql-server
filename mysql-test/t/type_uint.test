@@ -1,0 +1,10 @@
+#
+# test of unsigned int
+#
+
+drop table if exists t1;
+create table t1 (this int unsigned);
+insert into t1 values (1);
+insert into t1 values (-1);
+select * from t1;
+drop table t1;

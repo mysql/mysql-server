@@ -1,0 +1,15 @@
+#
+# Test of math functions
+#
+
+select floor(5.5),floor(-5.5);
+select ceiling(5.5),ceiling(-5.5);
+select truncate(52.64,1),truncate(52.64,2),truncate(52.64,-1),truncate(52.64,-2);
+select round(5.5),round(-5.5);
+select round(5.64,1),round(5.64,2),round(5.64,-1),round(5.64,-2);
+select abs(-10), sign(-5), sign(5), sign(0);
+select log(exp(10)),exp(log(sqrt(10))*2);
+select pow(10,log10(10)),power(2,4);
+select rand(999999),rand();
+select pi(),sin(pi()/2),cos(pi()/2),tan(pi()),cot(1),asin(1),acos(0),atan(1);
+select degrees(pi()),radians(360);

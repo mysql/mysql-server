@@ -1,0 +1,66 @@
+10	10.0	10.	.1e+2	100.0e-1
+10	10.0	10	10	10
+6e-05	-6e-05	--6e-05	-6e-05+1.000000
+6e-05	-6e-05	6e-05	0.99994
+Field	Type	Null	Key	Default	Extra	Privileges
+f1	float	YES		NULL		select,insert,update,references
+f2	double	YES		NULL		select,insert,update,references
+f1	f2
+10	10
+100000	100000
+1.23457e+09	1234567890
+1e+10	10000000000
+1e+15	1e+15
+1e+20	1e+20
+3.40282e+38	1e+50
+3.40282e+38	1e+150
+-10	-10
+1e-05	1e-05
+1e-10	1e-10
+1e-15	1e-15
+1e-20	1e-20
+0	1e-50
+0	1e-150
+datum
+0.5
+1
+1.5
+2
+2.5
+datum
+0.5
+1
+datum
+2
+2.5
+datum
+1.5
+a
+-0.010
+-0.002
+-0.000
+0.000
+1.000
+min(a)
+-0.010
+Field	Type	Null	Key	Default	Extra	Privileges
+f	float	YES		NULL		select,insert,update,references
+f2	float	YES		NULL		select,insert,update,references
+f3	float(6,2)	YES		NULL		select,insert,update,references
+d	double	YES		NULL		select,insert,update,references
+d2	double	YES		NULL		select,insert,update,references
+d3	double(10,3)	YES		NULL		select,insert,update,references
+de	decimal(10,0)	YES		NULL		select,insert,update,references
+de2	decimal(6,0)	YES		NULL		select,insert,update,references
+de3	decimal(5,2)	YES		NULL		select,insert,update,references
+n	decimal(10,0)	YES		NULL		select,insert,update,references
+n2	decimal(8,0)	YES		NULL		select,insert,update,references
+n3	decimal(8,6)	YES		NULL		select,insert,update,references
+a
+-0.010
+-0.002
+-0.000
+0.000
+1.000
+min(a)
+-0.010

@@ -9,6 +9,7 @@
 DB=test
 DBUSER=test
 DBPASSWD=
+VERBOSE=""
 
 # Are we on source or binary distribution?
 
@@ -140,6 +141,7 @@ while test $# -gt 0; do
   case "$1" in
     --force ) FORCE=1 ;;
     --record ) RECORD=1 ;;
+    --verbose) MYSQL_TEST="$MYSQL_TEST -v";;
     --gcov )
       if [ x$BINARY_DIST = x1 ] ; then
 	echo "Cannot do coverage test without the source - please use source dist"
@@ -447,7 +449,7 @@ run_testcase ()
      < $tf 2> $TIMEFILE`
     res=$?
 
-    if [ $res != 1 ]; then
+    if [ $res == 0 ]; then
 	mytime=`$CAT $TIMEFILE | $TR '\n' '-'`
 
 	USERT=`$ECHO $mytime | $CUT -d - -f 2 | $CUT -d ' ' -f 2`
@@ -503,7 +505,7 @@ run_testcase ()
 
 [ "$DO_GCOV" ] && gcov_prepare 
 
-echo "Installing  test databases"
+echo "Installing test databases"
 mysql_install_db
 
 #do not automagically start deamons if we are in gdb or running only one test
@@ -546,7 +548,7 @@ fi
 $ECHO $DASH72
 $ECHO
 $ECHO  "Ending Tests for MySQL daemon"
-$RM $TIMEFILE
+$RM -f $TIMEFILE
 
 if [ -z "$DO_GDB" ] ;
 then
