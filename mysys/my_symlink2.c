@@ -87,13 +87,13 @@ int my_delete_with_symlink(const char *name, myf MyFlags)
 
 int my_rename_with_symlink(const char *from, const char *to, myf MyFlags)
 {
-#ifdef HAVE_READLINK
+#ifndef HAVE_READLINK
   return my_rename(from, to, MyFlags);
 #else
   char link_name[FN_REFLEN], tmp_name[FN_REFLEN];
   int was_symlink= (!my_disable_symlinks &&
-		    !my_readlink(link_name, name, MYF(0)));
-  int result;
+		    !my_readlink(link_name, from, MYF(0)));
+  int result=0;
   DBUG_ENTER("my_rename_with_symlink");
 
   if (!was_symlink)
@@ -105,7 +105,7 @@ int my_rename_with_symlink(const char *from, const char *to, myf MyFlags)
 
   /* Create new symlink */
   if (my_symlink(tmp_name, to, MyFlags))
-    DBUG_RETURN(-1);
+    DBUG_RETURN(1);
 
   /*
     Rename symlinked file if the base name didn't change.
@@ -115,18 +115,23 @@ int my_rename_with_symlink(const char *from, const char *to, myf MyFlags)
 
   if (strcmp(link_name, tmp_name) && my_rename(link_name, tmp_name, MyFlags))
   {
+    int save_errno=my_errno;
     my_delete(to, MyFlags);			/* Remove created symlink */
-    DBUG_RETURN(-1);
+    my_errno=save_errno;
+    DBUG_RETURN(1);
   }
 
   /* Remove original symlink */
   if (my_delete(from, MyFlags))
   {
+    int save_errno=my_errno;
     /* Remove created link */
     my_delete(to, MyFlags);
     /* Rename file back */
     if (strcmp(link_name, tmp_name))
       (void) my_rename(tmp_name, link_name, MyFlags);
+    my_errno=save_errno;
+    result= 1;
   }
   DBUG_RETURN(result);
 #endif /* HAVE_READLINK */
