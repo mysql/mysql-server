@@ -56,7 +56,19 @@ enum ha_rkey_function {
   HA_READ_AFTER_KEY,			/* Find next rec. after key-record */
   HA_READ_BEFORE_KEY,			/* Find next rec. before key-record */
   HA_READ_PREFIX,			/* Key which as same prefix */
-  HA_READ_PREFIX_LAST			/* Last key with the same prefix */			
+  HA_READ_PREFIX_LAST,			/* Last key with the same prefix */
+  HA_READ_MBR_CONTAIN,
+  HA_READ_MBR_INTERSECT,
+  HA_READ_MBR_WITHIN,
+  HA_READ_MBR_DISJOINT,
+  HA_READ_MBR_EQUAL
+};
+
+	/* Key algorithm types */
+
+enum ha_key_alg {			
+  HA_KEY_ALG_BTREE=0,			/* B-tree, default one          */
+  HA_KEY_ALG_RTREE=1			/* R-tree, for spatial searches */
 };
 
 	/* The following is parameter to ha_extra() */
@@ -136,6 +148,8 @@ enum ha_base_keytype {
 #define HA_BINARY_PACK_KEY	 32	/* Packing of all keys to prev key */
 #define HA_FULLTEXT		128     /* SerG: for full-text search */
 #define HA_UNIQUE_CHECK		256	/* Check the key for uniqueness */
+#define HA_SPATIAL		1024    /* Alex Barkov: for spatial search */
+
 
 	/* Automatic bits in key-flag */
 
@@ -239,6 +253,12 @@ enum ha_base_keytype {
 #define SEARCH_UPDATE	64
 #define SEARCH_PREFIX	128
 #define SEARCH_LAST	256
+#define MBR_CONTAIN     512
+#define MBR_INTERSECT   1024
+#define MBR_WITHIN      2048
+#define MBR_DISJOINT    4096
+#define MBR_EQUAL       8192
+#define MBR_DATA        16384
 
 	/* bits in opt_flag */
 #define QUICK_USED	1

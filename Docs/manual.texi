@@ -5393,6 +5393,10 @@ You will need the following:
 A Windows 32 bits Operational System of the family Win9x, ME,
 NT and Win 2000. The NT family permits running the MySQL server
 as a service. @xref{NT start}.
+
+If you want to use tables bigger than 4G, you should install MySQL
+on NTFS or newer file system. Don't forget to use @code{MAX_ROWS} and
+@code{AVG_ROW_LENGTH} when you create the table. @xref{CREATE TABLE}.
 @item
 TCP/IP protocol support.
 @item
@@ -32218,6 +32222,25 @@ returns immediately. The return value is the number of log events it had to
 wait to get to the specified position, or NULL in case of error. Useful for
 control of master-slave synchronisation, but was originally written to
 facilitate replication testing.
+
+@findex FOUND_ROWS()
+@findex LIMIT
+@item FOUND_ROWS()
+Returns the number of rows that the last @code{SELECT CALC_FOUND_ROWS ...}
+command would have returned, if wasn't restricted with @code{LIMIT}.
+
+@example
+SELECT CALC_FOUND_ROWS * FROM table_name WHERE id > 100 LIMIT 10;
+SELECT FOUND_ROWS();
+@end example
+
+The second select will return how many rows the SELECT should have
+returned if we would remove the @code{LIMIT} clause.
+
+Note that if you are using @code{SELECT CALC_FOUND_ROWS ...} MySQL has
+to calculate all rows in the result set.  This is however faster than
+if you would not use @code{LIMIT} as the result set doesn't have to be sent
+to the client.
 @end table
 
 
@@ -32404,7 +32427,7 @@ mysql> SELECT id,FLOOR(value/100) FROM tbl_name ORDER BY RAND();
 @c help SELECT
 @example
 SELECT [STRAIGHT_JOIN] [SQL_SMALL_RESULT] [SQL_BIG_RESULT] [SQL_BUFFER_RESULT]
-       [SQL_CACHE | SQL_NO_CACHE] [HIGH_PRIORITY]
+       [SQL_CACHE | SQL_NO_CACHE] [CALC_FOUND_ROWS] [HIGH_PRIORITY]
        [DISTINCT | DISTINCTROW | ALL]
     select_expression,...
     [INTO @{OUTFILE | DUMPFILE@} 'file_name' export_options]
@@ -32560,6 +32583,12 @@ with @code{GROUP BY} or @code{DISTINCT} to tell the optimiser that the
 result set will be small.  In this case, MySQL will use fast
 temporary tables to store the resulting table instead of using sorting. In
 MySQL Version 3.23 this shouldn't normally be needed.
+
+@item
+@code{CALC_FOUND_ROWS} tells MySQL to calculate how many rows there
+would be in the result, disregarding any @code{LIMIT} clause. The number
+of rows can be obtained with @code{SELECT
+FOUND_ROWS()}. @xref{Miscellaneous functions}.
 
 @item
 @code{SQL_CACHE} tells MySQL to store the query result in the query cache
@@ -34493,12 +34522,14 @@ original tables, MySQL will not allow concurrent inserts during
 @item
 The @code{RAID_TYPE} option will help you to break the 2G/4G limit for
 the MyISAM data file (not the index file) on operating systems that
-don't support big files.
-You can get more speed from the I/O bottleneck by putting
-@code{RAID} directories on different physical disks. @code{RAID_TYPE}
-will work on any OS, as long as you have configured MySQL with
-@code{--with-raid}.  For now the only allowed @code{RAID_TYPE} is
-@code{STRIPED} (@code{1} and @code{RAID0} are aliases for this).
+don't support big files. Note that this option is not recommended for
+file system that supports big files!
+
+You can get more speed from the I/O bottleneck by putting @code{RAID}
+directories on different physical disks. @code{RAID_TYPE} will work on
+any OS, as long as you have configured MySQL with @code{--with-raid}.
+For now the only allowed @code{RAID_TYPE} is @code{STRIPED} (@code{1}
+and @code{RAID0} are aliases for this).
 
 If you specify @code{RAID_TYPE=STRIPED} for a @code{MyISAM} table,
 @code{MyISAM} will create @code{RAID_CHUNKS} subdirectories named 00,
@@ -43274,7 +43305,8 @@ No UDF functions.
 @item
 No stack trace on core dump.
 @item
-No internal RAID support.
+No internal RAID support. (This is not normally needed as most OS has
+nowadays support for big files).
 @item
 You can set this up as a server or a master (no replication).
 @item
@@ -47995,6 +48027,8 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 @appendixsubsec Changes in release 4.0.2
 
 @itemize @bullet
+@item
+Fixed bug in @code{FLUSH QUERY CACHE}.
 @item
 Added @code{CAST()} and @code{CONVERT()} functions.
 @item

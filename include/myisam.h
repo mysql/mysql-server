@@ -126,6 +126,7 @@ typedef struct st_mi_keydef		/* Key definition with open & info */
   uint16 keysegs;			/* Number of key-segment */
   uint16 flag;				/* NOSAME, PACK_USED */
 
+  uint8  key_alg;			/* BTREE, RTREE */
   uint16 block_length;			/* Length of keyblock (auto) */
   uint16 underflow_block_length;	/* When to execute underflow */
   uint16 keylength;			/* Tot length of keyparts (auto) */
