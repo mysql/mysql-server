@@ -909,37 +909,37 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
 	
 	// sanity check to make sure the master did not get a really bad
 	// error on the query
-	if(!check_expected_error(thd, (expected_error = qev->error_code)))
+	if (!check_expected_error(thd, (expected_error = qev->error_code)))
+	{
+	  mysql_parse(thd, thd->query, q_len);
+	  if (expected_error !=
+	      (actual_error = thd->net.last_errno) && expected_error)
 	  {
-	    mysql_parse(thd, thd->query, q_len);
-	    if (expected_error !=
-		(actual_error = thd->net.last_errno) && expected_error)
-	      {
-		const char* errmsg = "Slave: did not get the expected error\
+	    const char* errmsg = "Slave: did not get the expected error\
  running query from master - expected: '%s'(%d), got '%s'(%d)"; 
-		sql_print_error(errmsg, ER(expected_error), expected_error,
-				actual_error ? thd->net.last_error:"no error",
-				actual_error
-				);
-		thd->query_error = 1;
-	      }
-	    else if (expected_error == actual_error)
-	      {
-		thd->query_error = 0;
-		*last_slave_error = 0;
-		last_slave_errno = 0;
-	      }
+	    sql_print_error(errmsg, ER_SAFE(expected_error),
+			    expected_error,
+			    actual_error ? thd->net.last_error:"no error",
+			    actual_error);
+	    thd->query_error = 1;
 	  }
-	else // master could be inconsistent, abort and tell DBA to
-	  //    check/fix it
+	  else if (expected_error == actual_error)
 	  {
-	    thd->db = thd->query = 0;
-	    thd->convert_set = 0;
-	    close_thread_tables(thd);
-            free_root(&thd->mem_root,0);
-	    delete ev;
-	    return 1;
+	    thd->query_error = 0;
+	    *last_slave_error = 0;
+	    last_slave_errno = 0;
 	  }
+	}
+	else
+	{
+	  // master could be inconsistent, abort and tell DBA to check/fix it
+	  thd->db = thd->query = 0;
+	  thd->convert_set = 0;
+	  close_thread_tables(thd);
+	  free_root(&thd->mem_root,0);
+	  delete ev;
+	  return 1;
+	}
       }
       thd->db = 0;				// prevent db from being freed
       thd->query = 0;				// just to be sure
