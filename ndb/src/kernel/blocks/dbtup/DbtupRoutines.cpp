@@ -1000,11 +1000,14 @@ Dbtup::read_psuedo(Uint32 attrId, Uint32* outBuffer){
   case AttributeHeader::FRAGMENT:
     * outBuffer = operPtr.p->fragId >> 1; // remove "hash" bit
     return 1;
+  case AttributeHeader::ROW_SIZE:
+    * outBuffer = tabptr.p->tupheadsize << 2;
+    return 1;
   case AttributeHeader::ROW_COUNT:
   case AttributeHeader::COMMIT_COUNT:
     signal->theData[0] = operPtr.p->userpointer;
     signal->theData[1] = attrId;
-
+    
     EXECUTE_DIRECT(DBLQH, GSN_READ_PSUEDO_REQ, signal, 2);
     outBuffer[0] = signal->theData[0];
     outBuffer[1] = signal->theData[1];
@@ -1021,14 +1024,8 @@ Dbtup::readBitsNotNULL(Uint32* outBuffer,
 		       Uint32  attrDes2)
 {
   Tablerec* const regTabPtr = tabptr.p;
+  Uint32 pos = AttributeOffset::getNullFlagPos(attrDes2);
   Uint32 bitCount = AttributeDescriptor::getArraySize(attrDescriptor);
-  Uint32 offsetInTuple = AttributeOffset::getNullFlagOffset(attrDes2);
-  Uint32 offsetInWord = AttributeOffset::getNullFlagBitOffset(attrDes2);
-  ndbrequire(offsetInTuple < regTabPtr->tupNullWords);
-  offsetInTuple += regTabPtr->tupNullIndex;
-  ndbrequire(offsetInTuple < tCheckOffset);
-
-  Uint32 pos = offsetInTuple << 5 + offsetInWord;
   Uint32 indexBuf = tOutBufIndex;
   Uint32 newIndexBuf = indexBuf + ((bitCount + 31) >> 5);
   Uint32 maxRead = tMaxRead;
@@ -1059,17 +1056,12 @@ Dbtup::readBitsNULLable(Uint32* outBuffer,
 			Uint32  attrDes2)
 {
   Tablerec* const regTabPtr = tabptr.p;
+  Uint32 pos = AttributeOffset::getNullFlagPos(attrDes2);
   Uint32 bitCount = AttributeDescriptor::getArraySize(attrDescriptor);
-  Uint32 offsetInTuple = AttributeOffset::getNullFlagOffset(attrDes2);
-  Uint32 offsetInWord = AttributeOffset::getNullFlagBitOffset(attrDes2);
-  ndbrequire(offsetInTuple < regTabPtr->tupNullWords);
-  offsetInTuple += regTabPtr->tupNullIndex;
-  ndbrequire(offsetInTuple < tCheckOffset);
-
+  
   Uint32 indexBuf = tOutBufIndex;
-  Uint32 newIndexBuf = indexBuf + (bitCount + 31) >> 5;
+  Uint32 newIndexBuf = indexBuf + ((bitCount + 31) >> 5);
   Uint32 maxRead = tMaxRead;
-  Uint32 pos = offsetInWord << 5 + offsetInTuple;
   
   if(BitmaskImpl::get(regTabPtr->tupNullWords,
 		      tTupleHeader+regTabPtr->tupNullIndex,
@@ -1108,15 +1100,9 @@ Dbtup::updateBitsNotNULL(Uint32* inBuffer,
   Uint32 inBufLen = tInBufLen;
   AttributeHeader ahIn(inBuffer[indexBuf]);
   Uint32 nullIndicator = ahIn.isNULL();
+  Uint32 pos = AttributeOffset::getNullFlagPos(attrDes2);
   Uint32 bitCount = AttributeDescriptor::getArraySize(attrDescriptor);
   Uint32 newIndex = indexBuf + 1 + ((bitCount + 31) >> 5);
-  Uint32 nullFlagOffset = AttributeOffset::getNullFlagOffset(attrDes2);
-  Uint32 nullFlagBitOffset = AttributeOffset::getNullFlagBitOffset(attrDes2);
-  Uint32 nullWordOffset = nullFlagOffset + regTabPtr->tupNullIndex;
-  ndbrequire((nullFlagOffset < regTabPtr->tupNullWords) &&
-             (nullWordOffset < tCheckOffset));
-  Uint32 nullBits = tTupleHeader[nullWordOffset];
-  Uint32 pos = (nullFlagOffset << 5) + nullFlagBitOffset;
   
   if (newIndex <= inBufLen) {
     if (!nullIndicator) {
@@ -1149,15 +1135,9 @@ Dbtup::updateBitsNULLable(Uint32* inBuffer,
   AttributeHeader ahIn(inBuffer[tInBufIndex]);
   Uint32 indexBuf = tInBufIndex;
   Uint32 nullIndicator = ahIn.isNULL();
-  Uint32 nullFlagOffset = AttributeOffset::getNullFlagOffset(attrDes2);
-  Uint32 nullFlagBitOffset = AttributeOffset::getNullFlagBitOffset(attrDes2);
-  Uint32 nullWordOffset = nullFlagOffset + regTabPtr->tupNullIndex;
-  ndbrequire((nullFlagOffset < regTabPtr->tupNullWords) &&
-             (nullWordOffset < tCheckOffset));
-  Uint32 nullBits = tTupleHeader[nullWordOffset];
-  Uint32 bitCount = AttributeDescriptor::getArraySize(attrDescriptor);  
-  Uint32 pos = (nullFlagOffset << 5) + nullFlagBitOffset;
-
+  Uint32 pos = AttributeOffset::getNullFlagPos(attrDes2);
+  Uint32 bitCount = AttributeDescriptor::getArraySize(attrDescriptor);
+  
   if (!nullIndicator) {
     BitmaskImpl::clear(regTabPtr->tupNullWords,
 		       tTupleHeader+regTabPtr->tupNullIndex,
@@ -1167,7 +1147,7 @@ Dbtup::updateBitsNULLable(Uint32* inBuffer,
 			  pos+1,
 			  bitCount,
 			  inBuffer+indexBuf+1);
-
+    
     Uint32 newIndex = indexBuf + 1 + ((bitCount + 31) >> 5);
     tInBufLen = newIndex;
     return true;
