@@ -934,8 +934,9 @@ point. If you are sure that your master is ok, run this query manually on the\
 
 static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
 {
+  const char *error_msg;
   Log_event * ev = Log_event::read_log_event((const char*)net->read_pos + 1,
-					     event_len);
+					     event_len, &error_msg);
   if (ev)
   {
     int type_code = ev->get_type_code();

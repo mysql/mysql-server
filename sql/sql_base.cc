@@ -160,7 +160,7 @@ OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *wild)
     if (table)
       continue;
     if (!(*start_list = (OPEN_TABLE_LIST *)
-	  sql_alloc(sizeof(OPEN_TABLE_LIST)+entry->key_length)))
+	  sql_alloc(sizeof(*start_list)+entry->key_length)))
     {
       open_list=0;				// Out of memory
       break;
@@ -172,6 +172,7 @@ OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *wild)
     (*start_list)->locked= entry->locked_by_name ? 1 : 0;
     start_list= &(*start_list)->next;
   }
+  *start_list=0;
   VOID(pthread_mutex_unlock(&LOCK_open));
   DBUG_RETURN(open_list);
 }
@@ -1579,13 +1580,7 @@ Field *find_field_in_table(THD *thd,TABLE *table,const char *name,uint length,
     {
       field->query_id=thd->query_id;
       table->used_fields++;
-      if (field->part_of_key)
-      {
-	if (!(field->part_of_key & table->ref_primary_key))
-	  table->used_keys&=field->part_of_key;
-      }
-      else
-	table->used_keys=0;
+      table->used_keys&=field->part_of_key;
     }
     else
       thd->dupp_field=field;
@@ -1655,7 +1650,8 @@ find_field_in_tables(THD *thd,Item_field *item,TABLE_LIST *tables)
   for (; tables ; tables=tables->next)
   {
     Field *field=find_field_in_table(thd,tables->table,name,length,
-				     grant_option && !thd->master_access, allow_rowid);
+				     grant_option &&
+				     !thd->master_access, allow_rowid);
     if (field)
     {
       if (field == WRONG_GRANT)
@@ -1879,14 +1875,7 @@ insert_fields(THD *thd,TABLE_LIST *tables, const char *db_name,
 	if (field->query_id == thd->query_id)
 	  thd->dupp_field=field;
 	field->query_id=thd->query_id;
-
-	if (field->part_of_key)
-	{
-	  if (!(field->part_of_key & table->ref_primary_key))
-	    table->used_keys&=field->part_of_key;
-	}
-	else
-	  table->used_keys=0;
+	table->used_keys&=field->part_of_key;
       }
       /* All fields are used */
       table->used_fields=table->fields;
@@ -1967,20 +1956,8 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
 	    /* Mark field used for table cache */
 	    t1->field[i]->query_id=t2->field[j]->query_id=thd->query_id;
 	    cond_and->list.push_back(tmp);
-	    if ((tmp_map=t1->field[i]->part_of_key))
-	    {
-	      if (!(tmp_map & t1->ref_primary_key))
-		t1->used_keys&=tmp_map;
-	    }
-	    else
-	      t1->used_keys=0;
-	    if ((tmp_map=t2->field[j]->part_of_key))
-	    {
-	      if (!(tmp_map & t2->ref_primary_key))
-		t2->used_keys&=tmp_map;
-	    }
-	    else
-	      t2->used_keys=0;
+	    t1->used_keys&= t1->field[i]->part_of_key;
+	    t2->used_keys&= t2->field[j]->part_of_key;
 	    break;
 	  }
 	}

@@ -14,7 +14,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/* open a MYMERGE_-database */
+/* open a MyISAM MERGE table */
 
 #include "mymrgdef.h"
 #include <stddef.h>
@@ -23,17 +23,14 @@
 #include "mrg_static.c"
 #endif
 
-/*	open a MYMERGE_-database.
-
+/*	
+	open a MyISAM MERGE table
 	if handle_locking is 0 then exit with error if some database is locked
 	if handle_locking is 1 then wait if database is locked
 */
 
 
-MYRG_INFO *myrg_open(
-const char *name,
-int mode,
-int handle_locking)
+MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking)
 {
   int save_errno,i,errpos;
   uint files,dir_length,length,options;
@@ -63,25 +60,34 @@ int handle_locking)
   {
     if ((end=buff+length)[-1] == '\n')
       end[-1]='\0';
-    if (buff[0] && buff[0] != '#')	/* Skipp empty lines and comments */
+    if (!buff[0])
+      continue;		/* Skip empty lines */
+    if (buff[0] == '#')
     {
-      if (!test_if_hard_path(buff))
-      {
-	VOID(strmake(name_buff+dir_length,buff,
-		     sizeof(name_buff)-1-dir_length));
-	VOID(cleanup_dirname(buff,name_buff));
+      if( !strncmp(buff+1,"INSERT_METHOD=",14))
+      {			/* Lookup insert method */
+	int tmp=find_type(buff+15,&merge_insert_method,2);
+	info.merge_insert_method = (uint) (tmp >= 0 ? tmp : 0);
       }
-      if (!(isam=mi_open(buff,mode,test(handle_locking))))
-	goto err;
-      files++;
-      last_isam=isam;
-      if (info.reclength && info.reclength != isam->s->base.reclength)
-      {
-	my_errno=HA_ERR_WRONG_IN_RECORD;
-	goto err;
-      }
-      info.reclength=isam->s->base.reclength;
+      continue;		/* Skip comments */
     }
+    
+    if (!test_if_hard_path(buff))
+    {
+      VOID(strmake(name_buff+dir_length,buff,
+                   sizeof(name_buff)-1-dir_length));
+      VOID(cleanup_dirname(buff,name_buff));
+    }
+    if (!(isam=mi_open(buff,mode,test(handle_locking))))
+	goto err;
+    files++;
+    last_isam=isam;
+    if (info.reclength && info.reclength != isam->s->base.reclength)
+    {
+      my_errno=HA_ERR_WRONG_IN_RECORD;
+      goto err;
+    }
+    info.reclength=isam->s->base.reclength;
   }
   if (!(m_info= (MYRG_INFO*) my_malloc(sizeof(MYRG_INFO)+
 				       files*sizeof(MYRG_TABLE),

@@ -46,19 +46,15 @@
 #define MTEST_VERSION "1.10"
 
 #include <my_global.h>
+#include <mysql_embed.h>
 #include <my_sys.h>
 #include <m_string.h>
 #include <mysql.h>
 #include <mysql_version.h>
+#include <mysqld_error.h>
 #include <m_ctype.h>
-#ifdef OS2
-#include <config-os2.h>
-#else
- #include <my_config.h>
-#endif
 #include <my_dir.h>
 #include <hash.h>
-#include <mysqld_error.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <getopt.h>
@@ -1067,18 +1063,18 @@ int close_connection(struct st_query* q)
     p++;
   *p = 0;
 
-  for(con = cons; con < next_con; con++)
+  for (con = cons; con < next_con; con++)
   {
     if (!strcmp(con->name, name))
     {
-      if(q->type == Q_DIRTY_CLOSE)
+      if (q->type == Q_DIRTY_CLOSE)
+      {
+	if (con->mysql.net.vio)
 	{
-	  if(con->mysql.net.vio)
-	    {
-	      vio_delete(con->mysql.net.vio);
-	      con->mysql.net.vio = 0;
-	    }
+	  vio_delete(con->mysql.net.vio);
+	  con->mysql.net.vio = 0;
 	}
+      }
 		
       mysql_close(&con->mysql);
       DBUG_RETURN(0);

@@ -690,8 +690,7 @@ fi
 
 AC_DEFUN(MYSQL_CHECK_VIO, [
   AC_ARG_WITH([vio],
-              [\
-  --with-vio          Include the Virtual IO support],
+              [  --with-vio          Include the Virtual IO support],
               [vio="$withval"],
               [vio=no])
 
@@ -712,8 +711,7 @@ AC_DEFUN(MYSQL_CHECK_VIO, [
 AC_DEFUN(MYSQL_CHECK_OPENSSL, [
 AC_MSG_CHECKING(for OpenSSL)
   AC_ARG_WITH([openssl],
-              [\
-  --with-openssl          Include the OpenSSL support],
+              [  --with-openssl          Include the OpenSSL support],
               [openssl="$withval"],
               [openssl=no])
 
@@ -722,7 +720,7 @@ AC_MSG_CHECKING(for OpenSSL)
     if test -n "$vio_dir"
     then
       AC_MSG_RESULT(yes)
-      openssl_libs="-lssl -lcrypto -L/usr/local/ssl/lib"
+      openssl_libs="-L/usr/local/ssl/lib -lssl -lcrypto"
       openssl_includes="-I/usr/local/ssl/include"
     else
       AC_MSG_ERROR([OpenSSL requires Virtual IO support (--with-vio)])
@@ -1152,8 +1150,7 @@ dnl echo "DBG_GEM1: gemini='$gemini'"
       gemini_libs="\
  ../gemini/api/libapi.a\
  ../gemini/db/libdb.a\
- ../gemini/dbut/libdbut.a\
- ../gemini/vst/libvst.a"
+ ../gemini/dbut/libdbut.a"
       AC_MSG_RESULT([Using Gemini DB])
       ;;
   esac

@@ -298,12 +298,20 @@ bool Item::fix_fields(THD *thd,
 
 bool Item_field::fix_fields(THD *thd,TABLE_LIST *tables)
 {
-  if (!field)
+  if (!field)					// If field is not checked
   {
     Field *tmp;
     if (!(tmp=find_field_in_tables(thd,this,tables)))
       return 1;
     set_field(tmp);
+  }
+  else if (thd && thd->set_query_id && field->query_id != thd->query_id)
+  {
+    /* We only come here in unions */
+    TABLE *table=field->table;
+    field->query_id=thd->query_id;
+    table->used_fields++;
+    table->used_keys&=field->part_of_key;
   }
   return 0;
 }
