@@ -1450,7 +1450,7 @@ bool flush_master_info(MASTER_INFO* mi)
   DBUG_PRINT("enter",("master_pos: %ld", (long) mi->master_log_pos));
 
   my_b_seek(file, 0L);
-  my_b_printf(file, "%s\n%s\n%s\n%s\n%s\n%d\n%d\n%d\n",
+  my_b_printf(file, "%s\n%s\n%s\n%s\n%s\n%d\n%d\n",
 	      mi->master_log_name, llstr(mi->master_log_pos, lbuf),
 	      mi->host, mi->user,
 	      mi->password, mi->port, mi->connect_retry
@@ -1732,7 +1732,7 @@ int check_expected_error(THD* thd, RELAY_LOG_INFO* rli, int expected_error)
 		"Slave: query '%s' partially completed on the master \
 and was aborted. There is a chance that your master is inconsistent at this \
 point. If you are sure that your master is ok, run this query manually on the\
- slave and then restart the slave with SET SQL_SLAVE_SKIP_COUNTER=1;\
+ slave and then restart the slave with SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;\
  SLAVE START;", thd->query);
     rli->last_slave_errno = expected_error;
     sql_print_error("%s",rli->last_slave_error);

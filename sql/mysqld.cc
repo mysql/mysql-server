@@ -274,7 +274,7 @@ static char* pidfile_name_ptr= pidfile_name;
 static pthread_t select_thread;
 static my_bool opt_noacl=0, opt_bootstrap=0, opt_myisam_log=0;
 my_bool opt_safe_user_create = 0, opt_no_mix_types = 0;
-my_bool opt_safe_show_db=0, lower_case_table_names, opt_old_rpl_compat;
+my_bool lower_case_table_names, opt_old_rpl_compat;
 my_bool opt_show_slave_auth_info, opt_sql_bin_update = 0;
 my_bool opt_log_slave_updates= 0;
 
@@ -858,6 +858,9 @@ void clean_up(bool print_message)
   bitmap_free(&temp_pool);
   free_max_user_conn();
   end_slave_list();
+#ifdef USE_REGEX
+  regex_end();
+#endif
 
 #if !defined(__WIN__) && !defined(EMBEDDED_LIBRARY)
   if (!opt_bootstrap)
@@ -1894,8 +1897,6 @@ int main(int argc, char **argv)
     if (!ssl_acceptor_fd)
       opt_use_ssl = 0;
   }
-  if (des_key_file)
-    load_des_key_file(des_key_file);
 #endif /* HAVE_OPENSSL */
 
 #ifdef HAVE_LIBWRAP
@@ -1968,6 +1969,10 @@ int main(int argc, char **argv)
   reset_floating_point_exceptions();
   init_thr_lock();
   init_slave_list();
+#ifdef HAVE_OPENSSL
+  if (des_key_file)
+    load_des_key_file(des_key_file);
+#endif /* HAVE_OPENSSL */
 
   /* Setup log files */
   if (opt_log)
@@ -2032,7 +2037,7 @@ int main(int argc, char **argv)
     exit(1);
   }
   start_signal_handler();				// Creates pidfile
-  if (acl_init(opt_noacl))
+  if (acl_init((THD*) 0, opt_noacl))
   {
     abort_loop=1;
     select_thread_in_use=0;
@@ -2044,7 +2049,7 @@ int main(int argc, char **argv)
     exit(1);
   }
   if (!opt_noacl)
-    (void) grant_init();
+    (void) grant_init((THD*) 0);
   init_max_user_conn();
   init_update_queries();
 
@@ -3226,8 +3231,7 @@ struct my_option my_long_options[] =
 #ifndef TO_BE_DELETED
   {"safe-show-database", OPT_SAFE_SHOW_DB,
    "Deprecated option; One should use GRANT SHOW DATABASES instead...",
-   (gptr*) &opt_safe_show_db, (gptr*) &opt_safe_show_db, 0, GET_BOOL, NO_ARG,
-   0, 0, 0, 0, 0, 0},
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"safe-user-create", OPT_SAFE_USER_CREATE,
    "Don't allow new user creation by the user who has no write privileges to the mysql.user table",
@@ -3879,7 +3883,7 @@ static void set_options(void)
 
   /* Set default values for some variables */
   global_system_variables.table_type=DB_TYPE_MYISAM;
-  global_system_variables.tx_isolation=ISO_READ_COMMITTED;
+  global_system_variables.tx_isolation=ISO_REPEATABLE_READ;
   global_system_variables.select_limit= (ulong) HA_POS_ERROR;
   max_system_variables.select_limit= (ulong) HA_POS_ERROR;
   global_system_variables.max_join_size= (ulong) HA_POS_ERROR;
@@ -4351,7 +4355,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     }
     global_system_variables.tx_isolation= ((opt_sql_mode & MODE_SERIALIZABLE) ?
 					   ISO_SERIALIZABLE :
-					   ISO_READ_COMMITTED);
+					   ISO_REPEATABLE_READ);
     break;
   }
   case OPT_MASTER_PASSWORD:

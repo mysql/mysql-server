@@ -168,7 +168,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	CAST_SYM
 %token	CHECKSUM_SYM
 %token	CHECK_SYM
-%token	CIPHER
 %token	COMMITTED_SYM
 %token	COLUMNS
 %token	COLUMN_SYM
@@ -222,7 +221,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	IN_SYM
 %token	ISOLATION
 %token	ISAM_SYM
-%token	ISSUER
 %token	JOIN_SYM
 %token	KEYS
 %token	KEY_SYM
@@ -242,7 +240,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	MASTER_USER_SYM
 %token	MASTER_LOG_FILE_SYM
 %token	MASTER_LOG_POS_SYM
-%token	MASTER_LOG_SEQ_SYM
 %token	MASTER_PASSWORD_SYM
 %token	MASTER_PORT_SYM
 %token	MASTER_CONNECT_RETRY_SYM
@@ -263,7 +260,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	NEW_SYM
 %token	NCHAR_SYM
 %token	NOT
-%token  NO_FOREIGN_KEY_CHECKS
 %token	NO_SYM
 %token	NULL_SYM
 %token	NUM
@@ -293,7 +289,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	REAL_NUM
 %token	REFERENCES
 %token	REGEXP
-%token  RELAXED_UNIQUE_CHECKS
 %token	RELOAD
 %token	RENAME
 %token	REPEATABLE_SYM
@@ -595,7 +590,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	opt_mi_check_type opt_to mi_check_types normal_join
 	table_to_table_list table_to_table opt_table_list opt_as
 	handler_rkey_function handler_read_or_scan
-	single_multi table_wild_list table_wild_one opt_wild union union_list
+	single_multi table_wild_list table_wild_one opt_wild opt_union union_list
 	precision union_option opt_and
 END_OF_INPUT
 
@@ -667,7 +662,7 @@ change:
         {
 	  LEX *lex = Lex;
 	  lex->sql_command = SQLCOM_CHANGE_MASTER;
-	  memset(&lex->mi, 0, sizeof(lex->mi));
+	  bzero((char*) &lex->mi, sizeof(lex->mi));
         } master_defs;
 
 master_defs:
@@ -793,7 +788,7 @@ create3:
 	    lex->lock_option= (using_update_log) ? TL_READ_NO_INSERT : TL_READ;
 	    mysql_init_select(lex);
           }
-          select_options select_item_list opt_select_from union {};
+          select_options select_item_list opt_select_from opt_union {};
 
 opt_as:
 	/* empty */ {}
@@ -1429,7 +1424,7 @@ select:
 	select_init { Lex->sql_command=SQLCOM_SELECT; };
 
 select_init:
-	SELECT_SYM select_part2 { Select->braces=false;	} union
+	SELECT_SYM select_part2 { Select->braces=false;	} opt_union
 	|
 	'(' SELECT_SYM 	select_part2 ')' { Select->braces=true;} union_opt;
 
@@ -2501,7 +2496,7 @@ insert_values:
 	    mysql_init_select(lex);
 	  }
 	  select_options select_item_list select_from select_lock_type
-          union {};
+          opt_union {};
 
 values_list:
 	values_list ','  no_braces
@@ -3747,7 +3742,7 @@ rollback:
 */
 
 
-union:	
+opt_union:	
 	/* empty */ {}
 	| union_list;
 
@@ -3774,11 +3769,14 @@ union_list:
 	;
 
 union_opt:
-	union {}
+	union_list {}
 	| optional_order_or_limit {};
 
 optional_order_or_limit:
-	/* empty */ {}
+      	/* empty 
+           intentional reduce/reduce conflict here !!!
+           { code } below should not be executed
+           when neither ORDER BY nor LIMIT are used */ {}
 	|
 	  {
     	    LEX *lex=Lex;

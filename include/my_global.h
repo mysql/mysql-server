@@ -119,7 +119,16 @@
 #define _H_STRINGS
 #define _SYS_STREAM_H
 /* #define _AIX32_CURSES */	/* XXX: this breaks AIX 4.3.3 (others?). */
+#define ulonglong2double(A) my_ulonglong2double(A)
+#define my_off_t2double(A)  my_ulonglong2double(A)
+#ifdef	__cplusplus
+extern "C" {
 #endif
+double my_ulonglong2double(unsigned long long A);
+#ifdef	__cplusplus
+}
+#endif
+#endif /* _AIX */
 
 #ifdef HAVE_BROKEN_SNPRINTF	/* HPUX 10.20 don't have this defined */
 #undef HAVE_SNPRINTF

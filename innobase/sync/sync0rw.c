@@ -663,7 +663,8 @@ rw_lock_own(
 /*========*/
 					/* out: TRUE if locked */
 	rw_lock_t*	lock,		/* in: rw-lock */
-	ulint		lock_type)	/* in: lock type */
+	ulint		lock_type)	/* in: lock type: RW_LOCK_SHARED,
+					RW_LOCK_EX */
 {
 	rw_lock_debug_t*	info;
 
