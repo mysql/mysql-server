@@ -11,4 +11,5 @@ test.t1	repair	error	The handler for the table doesn't support repair
 drop table t1;
 repair table t1 use_frm;
 Table	Op	Msg_type	Msg_text
-t1	repair	error	table is read-only or does not exists
+test.t1	repair	error	Table 'test.t1' doesn't exist
+create table t1 type=myisam SELECT 1,"table 1";

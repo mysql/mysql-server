@@ -114,8 +114,10 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
     errpos=1;
     if (my_read(kfile,(char*) share->state.header.file_version,head_length,
 		MYF(MY_NABP)))
+    {
+      my_errno= HA_ERR_NOT_A_TABLE;
       goto err;
-
+    }
     if (memcmp((byte*) share->state.header.file_version,
 	       (byte*) myisam_file_magic, 4))
     {
@@ -165,7 +167,10 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
     }
     errpos=3;
     if (my_read(kfile,disk_cache,info_length,MYF(MY_NABP)))
+    {
+      my_errno=HA_ERR_CRASHED;
       goto err;
+    }
     len=mi_uint2korr(share->state.header.state_info_length);
     keys=    (uint) share->state.header.keys;
     uniques= (uint) share->state.header.uniques;

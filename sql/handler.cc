@@ -830,7 +830,8 @@ void handler::print_error(int error, myf errflag)
   DBUG_VOID_RETURN;
 }
 
-	/* Return key if error because of duplicated keys */
+
+/* Return key if error because of duplicated keys */
 
 uint handler::get_dup_key(int error)
 {
@@ -840,6 +841,7 @@ uint handler::get_dup_key(int error)
     info(HA_STATUS_ERRKEY | HA_STATUS_NO_LOCK);
   DBUG_RETURN(table->file->errkey);
 }
+
 
 int handler::delete_table(const char *name)
 {
@@ -867,9 +869,10 @@ int handler::rename_table(const char * from, const char * to)
   DBUG_RETURN(0);
 }
 
-/* Tell the handler to turn on or off logging to the handler's
-   recovery log
+/*
+  Tell the handler to turn on or off logging to the handler's recovery log
 */
+
 int ha_recovery_logging(THD *thd, bool on)
 {
   int error=0;
@@ -914,7 +917,6 @@ int handler::delete_all_rows()
 
 int ha_create_table(const char *name, HA_CREATE_INFO *create_info,
 		    bool update_create_info)
-
 {
   int error;
   TABLE table;
