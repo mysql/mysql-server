@@ -1672,8 +1672,9 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
     if (!head->used_keys.is_clear_all())
     {
       int key_for_use= find_shortest_key(head, &head->used_keys);
-      double key_read_time= get_index_only_read_time(&param, records,
-                                                     key_for_use);
+      double key_read_time= (get_index_only_read_time(&param, records,
+                                                     key_for_use) +
+                             (double) records / TIME_FOR_COMPARE);
       DBUG_PRINT("info",  ("'all'+'using index' scan will be using key %d, "
                            "read time %g", key_for_use, key_read_time));
       if (key_read_time < read_time)
@@ -2176,6 +2177,12 @@ skip_to_ror_scan:
     assumed that each time we read the next key from the index, the handler
     performs a random seek, thus the cost is proportional to the number of
     blocks read.
+
+  TODO:
+    Move this to handler->read_time() by adding a flag 'index-only-read' to
+    this call. The reason for doing this is that the current function doesn't
+    handle the case when the row is stored in the b-tree (like in innodb
+    clustered index)
 */
 
 inline double get_index_only_read_time(const PARAM* param, ha_rows records,
@@ -2189,6 +2196,7 @@ inline double get_index_only_read_time(const PARAM* param, ha_rows records,
              (double) keys_per_block);
   return read_time;
 }
+
 
 typedef struct st_ror_scan_info
 {
@@ -3056,22 +3064,24 @@ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
         tree->n_ror_scans++;
         tree->ror_scans_map.set_bit(idx);
       }
+      double cpu_cost= (double) found_records / TIME_FOR_COMPARE;
       if (found_records != HA_POS_ERROR && found_records > 2 &&
           read_index_only &&
           (param->table->file->index_flags(keynr, param->max_key_part,1) &
            HA_KEYREAD_ONLY) &&
           !(pk_is_clustered && keynr == param->table->primary_key))
         /* We can resolve this by only reading through this key. */
-        found_read_time= get_index_only_read_time(param,found_records,keynr);
+        found_read_time= get_index_only_read_time(param,found_records,keynr) +
+                         cpu_cost;
       else
         /*
           cost(read_through_index) = cost(disk_io) + cost(row_in_range_checks)
           The row_in_range check is in QUICK_RANGE_SELECT::cmp_next function.
         */
-	found_read_time= (param->table->file->read_time(keynr,
-						        param->range_count,
-						        found_records)+
-			  (double) found_records / TIME_FOR_COMPARE);
+	found_read_time= param->table->file->read_time(keynr,
+                                                       param->range_count,
+                                                       found_records) +
+			 cpu_cost;
 
       DBUG_PRINT("info",("read_time: %g  found_read_time: %g",
                          read_time, found_read_time));
@@ -3424,6 +3434,7 @@ get_mm_leaf(PARAM *param, COND *conf_func, Field *field, KEY_PART *key_part,
 {
   uint maybe_null=(uint) field->real_maybe_null(), copies;
   uint field_length=field->pack_length()+maybe_null;
+  bool optimize_range;
   SEL_ARG *tree;
   char *str, *str2;
   DBUG_ENTER("get_mm_leaf");
@@ -3454,6 +3465,9 @@ get_mm_leaf(PARAM *param, COND *conf_func, Field *field, KEY_PART *key_part,
       ((Field_str*)field)->charset() != conf_func->compare_collation())
     DBUG_RETURN(0);
 
+  optimize_range= field->optimize_range(param->real_keynr[key_part->key],
+                                        key_part->part);
+
   if (type == Item_func::LIKE_FUNC)
   {
     bool like_error;
@@ -3461,8 +3475,7 @@ get_mm_leaf(PARAM *param, COND *conf_func, Field *field, KEY_PART *key_part,
     String tmp(buff1,sizeof(buff1),value->collation.collation),*res;
     uint length,offset,min_length,max_length;
 
-    if (!field->optimize_range(param->real_keynr[key_part->key],
-                               key_part->part))
+    if (!optimize_range)
       DBUG_RETURN(0);				// Can't optimize this
     if (!(res= value->val_str(&tmp)))
       DBUG_RETURN(&null_element);
@@ -3527,8 +3540,7 @@ get_mm_leaf(PARAM *param, COND *conf_func, Field *field, KEY_PART *key_part,
     DBUG_RETURN(new SEL_ARG(field,min_str,max_str));
   }
 
-  if (!field->optimize_range(param->real_keynr[key_part->key],
-                             key_part->part) &&
+  if (!optimize_range &&
       type != Item_func::EQ_FUNC &&
       type != Item_func::EQUAL_FUNC)
     DBUG_RETURN(0);				// Can't optimize this
@@ -3542,7 +3554,7 @@ get_mm_leaf(PARAM *param, COND *conf_func, Field *field, KEY_PART *key_part,
       field->cmp_type() != value->result_type())
     DBUG_RETURN(0);
 
-  if (value->save_in_field(field, 1) < 0)
+  if (value->save_in_field_no_warnings(field, 1) < 0)
   {
     /* This happens when we try to insert a NULL field in a not null column */
     DBUG_RETURN(&null_element);			// cmp with NULL is never TRUE
@@ -3736,14 +3748,15 @@ tree_and(PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
       if (*key2 && !(*key2)->simple_key())
 	flag|=CLONE_KEY2_MAYBE;
       *key1=key_and(*key1,*key2,flag);
-      if ((*key1)->type == SEL_ARG::IMPOSSIBLE)
+      if (*key1 && (*key1)->type == SEL_ARG::IMPOSSIBLE)
       {
 	tree1->type= SEL_TREE::IMPOSSIBLE;
         DBUG_RETURN(tree1);
       }
       result_keys.set_bit(key1 - tree1->keys);
 #ifdef EXTRA_DEBUG
-      (*key1)->test_use_count(*key1);
+      if (*key1)
+        (*key1)->test_use_count(*key1);
 #endif
     }
   }
@@ -3974,6 +3987,13 @@ key_and(SEL_ARG *key1,SEL_ARG *key2,uint clone_flag)
     return key1;
   }
 
+  if ((key1->min_flag | key2->min_flag) & GEOM_FLAG)
+  {
+    key1->free_tree();
+    key2->free_tree();
+    return 0;					// Can't optimize this
+  }
+
   key1->use_count--;
   key2->use_count--;
   SEL_ARG *e1=key1->first(), *e2=key2->first(), *new_tree=0;
@@ -4056,7 +4076,8 @@ key_or(SEL_ARG *key1,SEL_ARG *key2)
   key1->use_count--;
   key2->use_count--;
 
-  if (key1->part != key2->part)
+  if (key1->part != key2->part || 
+      (key1->min_flag | key2->min_flag) & GEOM_FLAG)
   {
     key1->free_tree();
     key2->free_tree();
@@ -4716,7 +4737,7 @@ void SEL_ARG::test_use_count(SEL_ARG *root)
       ulong count=count_key_part_usage(root,pos->next_key_part);
       if (count > pos->next_key_part->use_count)
       {
-	sql_print_error("Note: Use_count: Wrong count for key at %lx, %lu should be %lu",
+	sql_print_error("Note: Use_count: Wrong count for key at 0x%lx, %lu should be %lu",
 			pos,pos->next_key_part->use_count,count);
 	return;
       }
@@ -4724,7 +4745,7 @@ void SEL_ARG::test_use_count(SEL_ARG *root)
     }
   }
   if (e_count != elements)
-    sql_print_error("Warning: Wrong use count: %u (should be %u) for tree at %lx",
+    sql_print_error("Warning: Wrong use count: %u (should be %u) for tree at 0x%lx",
 		    e_count, elements, (gptr) this);
 }
 
