@@ -1960,14 +1960,15 @@ int fill_schema_shemata(THD *thd, TABLE_LIST *tables, COND *cond)
   bool with_i_schema;
   HA_CREATE_INFO create;
   TABLE *table= tables->table;
+  DBUG_ENTER("fill_schema_shemata");
 
   get_index_field_values(thd->lex, &idx_field_vals);
   /* information schema name always is first in list */
   if (schema_db_add(thd, &files, idx_field_vals.db_value, &with_i_schema))
-    return 1;
+    DBUG_RETURN(1);
   if (mysql_find_files(thd, &files, NullS, mysql_data_home,
                        idx_field_vals.db_value, 1))
-    return 1;
+    DBUG_RETURN(1);
   List_iterator_fast<char> it(files);
   while ((file_name=it++))
   {
@@ -2000,7 +2001,7 @@ int fill_schema_shemata(THD *thd, TABLE_LIST *tables, COND *cond)
                            create.default_table_charset->csname);
     }
   }
-  return 0;
+  DBUG_RETURN(0);
 }
 
 
@@ -3335,11 +3336,13 @@ int make_schema_select(THD *thd, SELECT_LEX *sel,
 
 bool get_schema_tables_result(JOIN *join)
 {
-  DBUG_ENTER("get_schema_tables_result");
   JOIN_TAB *tmp_join_tab= join->join_tab+join->tables;
   THD *thd= join->thd;
   LEX *lex= thd->lex;
   bool result= 0;
+  DBUG_ENTER("get_schema_tables_result");
+
+  thd->no_warnings_for_error= 1;
   for (JOIN_TAB *tab= join->join_tab; tab < tmp_join_tab; tab++)
   {  
     if (!tab->table || !tab->table->pos_in_table_list)
@@ -3376,6 +3379,7 @@ bool get_schema_tables_result(JOIN *join)
       lex->query_tables_last= query_tables_last;
     }
   }
+  thd->no_warnings_for_error= 0;
   DBUG_RETURN(result);
 }
 
