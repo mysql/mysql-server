@@ -33,7 +33,7 @@ SUBSELECT TODO:
 #include "sql_select.h"
 
 Item_subselect::Item_subselect():
-  Item(), engine_owner(1), value_assigned(0)
+  Item_result_field(), engine_owner(1), value_assigned(0)
 {
   assign_null();
   /*
@@ -89,6 +89,7 @@ void Item_subselect::make_field (Send_field *tmp_field)
 
 bool Item_subselect::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
+  char const *save_where= thd->where;
   int res= engine->prepare();
   if (!res)
   {
@@ -100,7 +101,18 @@ bool Item_subselect::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     }
     fix_length_and_dec();
   }
+  fixed= 1;
+  thd->where= save_where;
   return res;
+}
+
+bool Item_subselect::check_loop(uint id)
+{
+  DBUG_ENTER("Item_subselect::check_loop");
+  if (Item_result_field::check_loop(id))
+    DBUG_RETURN(1);
+  
+  DBUG_RETURN(engine->check_loop(id));
 }
 
 void Item_subselect::fix_length_and_dec()
@@ -339,6 +351,7 @@ subselect_single_select_engine::subselect_single_select_engine(THD *thd,
     thd->fatal_error= 1;
     my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
   } 
+  unit->item= item;
   this->select_lex= select_lex;
 }
 
@@ -412,11 +425,13 @@ void subselect_union_engine::fix_length_and_dec()
 int subselect_single_select_engine::exec()
 {
   DBUG_ENTER("subselect_single_select_engine::exec");
+  char const *save_where= join->thd->where;
   if (!optimized)
   {
     optimized=1;
     if (join->optimize())
     {
+      join->thd->where= save_where;
       executed= 1;
       DBUG_RETURN(join->error?join->error:1);
     }
@@ -424,7 +439,10 @@ int subselect_single_select_engine::exec()
   if (select_lex->dependent && executed)
   {
     if (join->reinit())
+    {
+      join->thd->where= save_where;
       DBUG_RETURN(1);
+    }
     item->assign_null();
     item->assigned((executed= 0));
   }
@@ -435,14 +453,19 @@ int subselect_single_select_engine::exec()
     join->exec();
     join->thd->lex.current_select= save_select;
     executed= 1;
+    join->thd->where= save_where;
     DBUG_RETURN(join->error||thd->fatal_error);
   }
+  join->thd->where= save_where;
   DBUG_RETURN(0);
 }
 
 int subselect_union_engine::exec()
 {
-  return unit->exec();
+  char const *save_where= unit->thd->where;
+  int res= unit->exec();
+  unit->thd->where= save_where;
+  return res;
 }
 
 uint subselect_single_select_engine::cols()
@@ -463,4 +486,19 @@ bool subselect_single_select_engine::depended()
 bool subselect_union_engine::depended()
 {
   return unit->dependent;
+}
+
+bool subselect_single_select_engine::check_loop(uint id)
+{
+  DBUG_ENTER("subselect_single_select_engine::check_loop");
+  DBUG_RETURN(join->check_loop(id));
+}
+
+bool subselect_union_engine::check_loop(uint id)
+{
+  DBUG_ENTER("subselect_union_engine::check_loop");
+  for (SELECT_LEX *sl= unit->first_select(); sl; sl= sl->next_select())
+    if (sl->join && sl->join->check_loop(id))
+      DBUG_RETURN(1);
+  DBUG_RETURN(0);
 }

@@ -152,6 +152,11 @@ static FILE *PAGER, *OUTFILE;
 static MEM_ROOT hash_mem_root;
 static uint prompt_counter;
 
+#ifdef HAVE_SMEM
+static char *shared_memory_base_name=0;
+#endif
+static uint opt_protocol=0;
+			   
 #include "sslopt-vars.h"
 
 #ifndef DBUG_OFF
@@ -425,6 +430,9 @@ sig_handler mysql_end(int sig)
   my_free(full_username,MYF(MY_ALLOW_ZERO_PTR));
   my_free(part_username,MYF(MY_ALLOW_ZERO_PTR));
   my_free(default_prompt,MYF(MY_ALLOW_ZERO_PTR));
+#ifdef HAVE_SMEM
+  my_free(shared_memory_base_name,MYF(MY_ALLOW_ZERO_PTR));
+#endif
   my_free(current_prompt,MYF(MY_ALLOW_ZERO_PTR));
   mysql_server_end();
   free_defaults(defaults_argv);
@@ -532,6 +540,8 @@ static struct my_option my_long_options[] =
   {"prompt", OPT_PROMPT, "Set the mysql prompt to this value.",
    (gptr*) &current_prompt, (gptr*) &current_prompt, 0, GET_STR_ALLOC,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"protocol", OPT_MYSQL_PROTOCOL, "The protocol of connection (tcp,socket,pipe,memory)",
+   0, 0, 0, GET_STR,  REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"quick", 'q',
    "Don't cache result, print it row by row. This may slow down the server if the output is suspended. Doesn't use history file. ",
    (gptr*) &quick, (gptr*) &quick, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -540,6 +550,11 @@ static struct my_option my_long_options[] =
    0, 0, 0},
   {"silent", 's', "Be more silent.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0,
    0, 0},
+#ifdef HAVE_SMEM
+  {"shared_memory_base_name", OPT_SHARED_MEMORY_BASE_NAME,
+   "Base name of shared memory", (gptr*) &shared_memory_base_name, (gptr*) &shared_memory_base_name, 
+   0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#endif
   {"socket", 'S', "Socket file to use for connection.",
    (gptr*) &opt_mysql_unix_port, (gptr*) &opt_mysql_unix_port, 0, GET_STR_ALLOC,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -644,6 +659,15 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case OPT_NOPAGER:
     printf("WARNING: option deprecated; use --disable-pager instead.\n");
     opt_nopager= 1;
+  case OPT_MYSQL_PROTOCOL:
+  {
+    if ((opt_protocol = find_type(argument, &sql_protocol_typelib,0)) == ~(ulong) 0)
+    {
+      fprintf(stderr, "Unknown option to protocol: %s\n", argument);
+      exit(1);
+    }
+    break;
+  }
     break;
   case 'A':
     rehash= 0;
@@ -706,7 +730,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   case 'W':
 #ifdef __WIN__
-    opt_mysql_unix_port= my_strdup(MYSQL_NAMEDPIPE, MYF(0));
+    opt_protocol = MYSQL_PROTOCOL_PIPE;
 #endif
     break;
 #include <sslopt-case.h>
@@ -952,7 +976,7 @@ static bool add_line(String &buffer,char *line,char *in_string)
       }
       if ((com=find_command(NullS,(char) inchar)))
       {
-	const String tmp(line,(uint) (out-line));
+	const String tmp(line,(uint) (out-line), system_charset_info);
 	buffer.append(tmp);
 	if ((*com->func)(&buffer,pos-1) > 0)
 	  return 1;				// Quit
@@ -1025,8 +1049,8 @@ static bool add_line(String &buffer,char *line,char *in_string)
 
 #ifdef HAVE_READLINE
 
-static char *new_command_generator(char *text, int);
-static char **new_mysql_completion (char *text, int start, int end);
+static char *new_command_generator(const char *text, int);
+static char **new_mysql_completion (const char *text, int start, int end);
 
 /*
   Tell the GNU Readline library how to complete.  We want to try to complete
@@ -1034,8 +1058,8 @@ static char **new_mysql_completion (char *text, int start, int end);
   if not.
 */
 
-char **no_completion (char *text __attribute__ ((unused)),
-		      char *word __attribute__ ((unused)))
+char *no_completion (const char *text __attribute__ ((unused)),
+		      int )
 {
   return 0;					/* No filename completion */
 }
@@ -1046,9 +1070,13 @@ static void initialize_readline (char *name)
   rl_readline_name = name;
 
   /* Tell the completer that we want a crack first. */
-  /* rl_attempted_completion_function = (CPPFunction *)mysql_completion;*/
-  rl_attempted_completion_function = (CPPFunction *) new_mysql_completion;
-  rl_completion_entry_function=(Function *) no_completion;
+#if RL_READLINE_VERSION > 0x0400
+  rl_attempted_completion_function = &new_mysql_completion;
+  rl_completion_entry_function= &no_completion;
+#else
+  rl_attempted_completion_function =(CPPFunction *)new_mysql_completion;
+  rl_completion_entry_function= (Function *)no_completion;
+#endif
 }
 
 /*
@@ -1058,17 +1086,21 @@ static void initialize_readline (char *name)
   array of matches, or NULL if there aren't any.
 */
 
-static char **new_mysql_completion (char *text,
+static char **new_mysql_completion (const char *text,
 				    int start __attribute__((unused)),
 				    int end __attribute__((unused)))
 {
   if (!status.batch && !quick)
-    return completion_matches(text, (CPFunction*) new_command_generator);
+#if RL_READLINE_VERSION > 0x0400
+    return rl_completion_matches(text, new_command_generator);
+#else
+    return completion_matches((char *)text, (CPFunction *)new_command_generator);
+#endif
   else
     return (char**) 0;
 }
 
-static char *new_command_generator(char *text,int state)
+static char *new_command_generator(const char *text,int state)
 {
   static int textlen;
   char *ptr;
@@ -1709,7 +1741,7 @@ print_table_data(MYSQL_RES *result)
     print_field_types(result);
     mysql_field_seek(result,0);
   }
-  separator.copy("+",1);
+  separator.copy("+",1,system_charset_info);
   while ((field = mysql_fetch_field(result)))
   {
     uint length= column_names ? (uint) strlen(field->name) : 0;
@@ -2349,6 +2381,12 @@ sql_real_connect(char *host,char *database,char *user,char *password,
   if (opt_use_ssl)
     mysql_ssl_set(&mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
 		  opt_ssl_capath, opt_ssl_cipher);
+#endif
+  if (opt_protocol)
+    mysql_options(&mysql,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
+#ifdef HAVE_SMEM
+  if (shared_memory_base_name)
+    mysql_options(&mysql,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
 #endif
   if (safe_updates)
   {

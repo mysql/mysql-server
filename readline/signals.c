@@ -7,7 +7,7 @@
 
    The GNU Readline Library is free software; you can redistribute it
    and/or modify it under the terms of the GNU General Public License
-   as published by the Free Software Foundation; either version 1, or
+   as published by the Free Software Foundation; either version 2, or
    (at your option) any later version.
 
    The GNU Readline Library is distributed in the hope that it will be
@@ -18,7 +18,7 @@
    The GNU General Public License is often shipped with GNU software, and
    is generally kept in a file called COPYING or LICENSE.  If you do not
    have a copy of the license, write to the Free Software Foundation,
-   675 Mass Ave, Cambridge, MA 02139, USA. */
+   59 Temple Place, Suite 330, Boston, MA 02111 USA. */
 #define READLINE_LIBRARY
 
 #if defined (HAVE_CONFIG_H)
@@ -40,14 +40,12 @@
 #  include <sys/ioctl.h>
 #endif /* GWINSZ_IN_SYS_IOCTL */
 
-#if defined (__GO32__)
-#  undef HANDLE_SIGNALS
-#endif /* __GO32__ */
-
 #if defined (HANDLE_SIGNALS)
 /* Some standard library routines. */
 #include "readline.h"
 #include "history.h"
+
+#include "rlprivate.h"
 
 #if !defined (RETSIGTYPE)
 #  if defined (VOID_SIGHANDLER)
@@ -63,23 +61,20 @@
 #  define SIGHANDLER_RETURN return (0)
 #endif
 
-/* This typedef is equivalant to the one for Function; it allows us
+/* This typedef is equivalent to the one for Function; it allows us
    to say SigHandler *foo = signal (SIGKILL, SIG_IGN); */
 typedef RETSIGTYPE SigHandler ();
 
-extern int readline_echoing_p;
-extern int rl_pending_input;
-extern int _rl_meta_flag;
+#if defined (HAVE_POSIX_SIGNALS)
+typedef struct sigaction sighandler_cxt;
+#  define rl_sigaction(s, nh, oh)	sigaction(s, nh, oh)
+#else
+typedef struct { SigHandler *sa_handler; int sa_mask, sa_flags; } sighandler_cxt;
+#  define sigemptyset(m)
+#endif /* !HAVE_POSIX_SIGNALS */
 
-extern void free_undo_list ();
-extern void _rl_get_screen_size ();
-extern void _rl_redisplay_after_sigwinch ();
-extern void _rl_clean_up_for_exit ();
-extern void _rl_kill_kbd_macro ();
-extern void _rl_init_argument ();
-extern void rl_deprep_terminal (), rl_prep_terminal ();
-
-static SigHandler *rl_set_sighandler ();
+static SigHandler *rl_set_sighandler PARAMS((int, SigHandler *, sighandler_cxt *));
+static void rl_maybe_set_sighandler PARAMS((int, SigHandler *, sighandler_cxt *));
 
 /* Exported variables for use by applications. */
 
@@ -100,14 +95,6 @@ static int sigwinch_set_flag;
 /*			   Signal Handling                          */
 /*								    */
 /* **************************************************************** */
-
-#if defined (HAVE_POSIX_SIGNALS)
-typedef struct sigaction sighandler_cxt;
-#  define rl_sigaction(s, nh, oh)	sigaction(s, nh, oh)
-#else
-typedef struct { SigHandler *sa_handler; int sa_mask, sa_flags; } sighandler_cxt;
-#  define sigemptyset(m)
-#endif /* !HAVE_POSIX_SIGNALS */
 
 static sighandler_cxt old_int, old_term, old_alrm, old_quit;
 #if defined (SIGTSTP)
@@ -132,6 +119,8 @@ rl_signal_handler (sig)
   sighandler_cxt dummy_cxt;	/* needed for rl_set_sighandler call */
 #  endif /* !HAVE_BSD_SIGNALS */
 #endif /* !HAVE_POSIX_SIGNALS */
+
+  RL_SETSTATE(RL_STATE_SIGHANDLER);
 
 #if !defined (HAVE_BSD_SIGNALS) && !defined (HAVE_POSIX_SIGNALS)
   /* Since the signal will not be blocked while we are in the signal
@@ -165,6 +154,10 @@ rl_signal_handler (sig)
 #  endif /* HAVE_BSD_SIGNALS */
 #endif /* !HAVE_POSIX_SIGNALS */
 
+#if defined (__EMX__)
+      signal (sig, SIG_ACK);
+#endif
+
       kill (getpid (), sig);
 
       /* Let the signal that we just sent through.  */
@@ -179,6 +172,7 @@ rl_signal_handler (sig)
       rl_reset_after_signal ();
     }
 
+  RL_UNSETSTATE(RL_STATE_SIGHANDLER);
   SIGHANDLER_RETURN;
 }
 
@@ -199,6 +193,7 @@ rl_sigwinch_handler (sig)
   rl_set_sighandler (SIGWINCH, rl_sigwinch_handler, &dummy_winch);
 #endif
 
+  RL_SETSTATE(RL_STATE_SIGHANDLER);
   rl_resize_terminal ();
 
   /* If another sigwinch handler has been installed, call it. */
@@ -206,6 +201,7 @@ rl_sigwinch_handler (sig)
   if (oh &&  oh != (SigHandler *)SIG_IGN && oh != (SigHandler *)SIG_DFL)
     (*oh) (sig);
 
+  RL_UNSETSTATE(RL_STATE_SIGHANDLER);
   SIGHANDLER_RETURN;
 }
 #endif  /* SIGWINCH */
@@ -232,17 +228,25 @@ rl_set_sighandler (sig, handler, ohandler)
      SigHandler *handler;
      sighandler_cxt *ohandler;
 {
+  sighandler_cxt old_handler;
 #if defined (HAVE_POSIX_SIGNALS)
   struct sigaction act;
 
   act.sa_handler = handler;
-  act.sa_flags = 0;
+  act.sa_flags = 0;	/* XXX - should we set SA_RESTART for SIGWINCH? */
   sigemptyset (&act.sa_mask);
   sigemptyset (&ohandler->sa_mask);
-  sigaction (sig, &act, ohandler);
+  sigaction (sig, &act, &old_handler);
 #else
-  ohandler->sa_handler = (SigHandler *)signal (sig, handler);
+  old_handler.sa_handler = (SigHandler *)signal (sig, handler);
 #endif /* !HAVE_POSIX_SIGNALS */
+
+  /* XXX -- assume we have memcpy */
+  /* If rl_set_signals is called twice in a row, don't set the old handler to
+     rl_signal_handler, because that would cause infinite recursion. */
+  if (handler != rl_signal_handler || old_handler.sa_handler != rl_signal_handler)
+    memcpy (ohandler, &old_handler, sizeof (sighandler_cxt));
+
   return (ohandler->sa_handler);
 }
 
@@ -360,7 +364,7 @@ rl_cleanup_after_signal ()
   _rl_clean_up_for_exit ();
   (*rl_deprep_term_function) ();
   rl_clear_signals ();
-  rl_pending_input = 0;
+  rl_clear_pending_input ();
 }
 
 /* Reset the terminal and readline state after a signal handler returns. */
@@ -380,7 +384,7 @@ rl_free_line_state ()
 {
   register HIST_ENTRY *entry;
 
-  free_undo_list ();
+  rl_free_undo_list ();
 
   entry = current_history ();
   if (entry)

@@ -610,11 +610,10 @@ int my_strxfrm_tis620(uchar * dest, const uchar * src, int len)
    thai2sortable string. min_str and max_str will be use for comparison and
    converted there. */
 #define max_sort_chr ((char) 255)
-#define wild_one '_'
-#define wild_many '%'
 
 my_bool my_like_range_tis620(CHARSET_INFO *cs __attribute__((unused)),
-                       const char *ptr, uint ptr_length, pchar escape,
+                       const char *ptr, uint ptr_length,
+                       int escape, int w_one, int w_many,
 		       uint res_length, char *min_str, char *max_str,
 		       uint *min_length, uint *max_length)
 {
@@ -630,13 +629,13 @@ my_bool my_like_range_tis620(CHARSET_INFO *cs __attribute__((unused)),
       *min_str++= *max_str++ = *ptr;
       continue;
     }
-    if (*ptr == wild_one)			/* '_' in SQL */
+    if (*ptr == w_one)			/* '_' in SQL */
     {
       *min_str++='\0';				/* This should be min char */
       *max_str++=max_sort_chr;
       continue;
     }
-    if (*ptr == wild_many)			/* '%' in SQL */
+    if (*ptr == w_many)			/* '%' in SQL */
     {
       *min_length= (uint) (min_str - min_org);
       *max_length=res_length;
@@ -688,10 +687,10 @@ void ThNormalize(uchar* ptr, uint field_length, const uchar* from, uint length)
 
 CHARSET_INFO my_charset_tis620 =
 {
-    18,			/* number */
-    MY_CS_COMPILED,	/* state      */
-    "tis620",		/* name */
-    "",			/* comment    */
+    18,			/* number    */
+    MY_CS_COMPILED,	/* state     */
+    "tis620",		/* name      */
+    "",			/* comment   */
     ctype_tis620,
     to_lower_tis620,
     to_upper_tis620,
@@ -702,22 +701,29 @@ CHARSET_INFO my_charset_tis620 =
     my_strnncoll_tis620,
     my_strnxfrm_tis620,
     my_like_range_tis620,
-    0,			/* mbmaxlen  */
+    my_wildcmp_8bit,	/* wildcmp   */
+    1,			/* mbmaxlen  */
     NULL,		/* ismbchar  */
     NULL,		/* ismbhead  */
     NULL,		/* mbcharlen */
-    my_mb_wc_8bit,	/* mb_wc   */
-    my_wc_mb_8bit,	/* wc_mb   */
+    my_mb_wc_8bit,	/* mb_wc     */
+    my_wc_mb_8bit,	/* wc_mb     */
     my_caseup_str_8bit,
     my_casedn_str_8bit,
     my_caseup_8bit,
     my_casedn_8bit,
-    NULL,		/* tosort      */
+    NULL,		/* tosort    */
     my_strcasecmp_8bit,
     my_strncasecmp_8bit,
     my_hash_caseup_simple,
     my_hash_sort_simple,
-    0
+    0,
+    my_snprintf_8bit,
+    my_strtol_8bit,
+    my_strtoul_8bit,
+    my_strtoll_8bit,
+    my_strtoull_8bit,
+    my_strtod_8bit
 };
 
 

@@ -220,7 +220,7 @@ int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
     if (!thd->query)				// Only in replication
     {
       query= 	     path;
-      query_length= (uint) (strxmov(path,"create database ", db, NullS) -
+      query_length= (uint) (strxmov(path,"create database `", db, "`", NullS) -
 			    path);
     }
     else
@@ -231,7 +231,7 @@ int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
     mysql_update_log.write(thd, query, query_length);
     if (mysql_bin_log.is_open())
     {
-      Query_log_event qinfo(thd, query, query_length);
+      Query_log_event qinfo(thd, query, query_length, 0);
       mysql_bin_log.write(&qinfo);
     }
     send_ok(thd, result);
@@ -282,7 +282,7 @@ int mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
   mysql_update_log.write(thd,thd->query, thd->query_length);
   if (mysql_bin_log.is_open())
   {
-    Query_log_event qinfo(thd, thd->query, thd->query_length);
+    Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
     mysql_bin_log.write(&qinfo);
   }
   send_ok(thd, result);
@@ -346,22 +346,25 @@ int mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
     query_cache_invalidate1(db);  
     if (!silent)
     {
+      const char *query;
+      ulong query_length;
       if (!thd->query)
       {
-	thd->query = path;
-	thd->query_length = (uint) (strxmov(path,"drop database ", db, NullS)-
-				    path);
+	/* The client used the old obsolete mysql_drop_db() call */
+	query= path;
+	query_length = (uint) (strxmov(path,"drop database `", db, "`",
+				       NullS)- path);
       }
-      mysql_update_log.write(thd, thd->query, thd->query_length);
+      else
+      {
+	query=thd->query;
+	query_length=thd->query_length;
+      }
+      mysql_update_log.write(thd, query, query_length);
       if (mysql_bin_log.is_open())
       {
-	Query_log_event qinfo(thd, thd->query, thd->query_length);
+	Query_log_event qinfo(thd, query, query_length, 0);
 	mysql_bin_log.write(&qinfo);
-      }
-      if (thd->query == path)
-      {
-	thd->query = 0; // just in case
-	thd->query_length = 0;
       }
       send_ok(thd,(ulong) deleted);
     }

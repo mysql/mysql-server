@@ -65,6 +65,24 @@ a field stored to another page: */
 
 #define REC_2BYTE_EXTERN_MASK	0x4000
 
+/****************************************************************
+Return field length or UNIV_SQL_NULL. */
+UNIV_INLINE
+ulint
+rec_get_nth_field_len(
+/*==================*/
+ 			/* out: length of the field; UNIV_SQL_NULL if SQL
+			null */
+ 	rec_t*	rec, 	/* in: record */
+ 	ulint	n)	/* in: index of the field */
+{
+	ulint	len;
+
+	rec_get_nth_field(rec, n, &len);
+
+	return(len);
+}
+
 /***************************************************************
 Sets the value of the ith field SQL null bit. */
 

@@ -62,9 +62,8 @@ int myrg_rkey(MYRG_INFO *info,byte *record,int inx, const byte *key,
     }
     else
     {
-      mi->use_packed_key=1;
+      mi->once_flags|= USE_PACKED_KEYS;
       err=mi_rkey(mi,0,inx,key_buff,pack_key_length,search_flag);
-      mi->use_packed_key=0;
     }
     info->last_used_table=table+1;
 
@@ -83,5 +82,6 @@ int myrg_rkey(MYRG_INFO *info,byte *record,int inx, const byte *key,
     return HA_ERR_KEY_NOT_FOUND;
 
   mi=(info->current_table=(MYRG_TABLE *)queue_top(&(info->by_key)))->table;
+  mi->once_flags|= RRND_PRESERVE_LASTINX;
   return mi_rrnd(mi,record,mi->lastpos);
 }

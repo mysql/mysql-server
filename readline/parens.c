@@ -7,7 +7,7 @@
 
    The GNU Readline Library is free software; you can redistribute it
    and/or modify it under the terms of the GNU General Public License
-   as published by the Free Software Foundation; either version 1, or
+   as published by the Free Software Foundation; either version 2, or
    (at your option) any later version.
 
    The GNU Readline Library is distributed in the hope that it will be
@@ -18,22 +18,10 @@
    The GNU General Public License is often shipped with GNU software, and
    is generally kept in a file called COPYING or LICENSE.  If you do not
    have a copy of the license, write to the Free Software Foundation,
-   675 Mass Ave, Cambridge, MA 02139, USA. */
+   59 Temple Place, Suite 330, Boston, MA 02111 USA. */
 #define READLINE_LIBRARY
 
 #include "rlconf.h"
-
-#if !defined (PAREN_MATCHING)
-extern int rl_insert ();
-
-int
-rl_insert_close (count, invoking_key)
-     int count, invoking_key;
-{
-  return (rl_insert (count, invoking_key));
-}
-
-#else /* PAREN_MATCHING */
 
 #if defined (HAVE_CONFIG_H)
 #  include <config.h>
@@ -41,6 +29,10 @@ rl_insert_close (count, invoking_key)
 
 #include <stdio.h>
 #include <sys/types.h>
+
+#if defined (HAVE_UNISTD_H)
+#  include <unistd.h>
+#endif
 
 #if defined (FD_SET) && !defined (HAVE_SELECT)
 #  define HAVE_SELECT
@@ -64,8 +56,9 @@ extern char *strchr (), *strrchr ();
 #endif /* !strchr && !__STDC__ */
 
 #include "readline.h"
+#include "rlprivate.h"
 
-extern int rl_explicit_arg;
+static int find_matching_open PARAMS((char *, int, int));
 
 /* Non-zero means try to blink the matching open parenthesis when the
    close parenthesis is inserted. */
@@ -75,14 +68,46 @@ int rl_blink_matching_paren = 1;
 int rl_blink_matching_paren = 0;
 #endif /* !HAVE_SELECT */
 
-static int find_matching_open ();
+static int _paren_blink_usec = 500000;
+
+/* Change emacs_standard_keymap to have bindings for paren matching when
+   ON_OR_OFF is 1, change them back to self_insert when ON_OR_OFF == 0. */
+void
+_rl_enable_paren_matching (on_or_off)
+     int on_or_off;
+{
+  if (on_or_off)
+    {	/* ([{ */
+      rl_bind_key_in_map (')', rl_insert_close, emacs_standard_keymap);
+      rl_bind_key_in_map (']', rl_insert_close, emacs_standard_keymap);
+      rl_bind_key_in_map ('}', rl_insert_close, emacs_standard_keymap);
+    }
+  else
+    {	/* ([{ */
+      rl_bind_key_in_map (')', rl_insert, emacs_standard_keymap);
+      rl_bind_key_in_map (']', rl_insert, emacs_standard_keymap);
+      rl_bind_key_in_map ('}', rl_insert, emacs_standard_keymap);
+    }
+}
+
+int
+rl_set_paren_blink_timeout (u)
+     int u;
+{
+  int o;
+
+  o = _paren_blink_usec;
+  if (u > 0)
+    _paren_blink_usec = u;
+  return (o);
+}
 
 int
 rl_insert_close (count, invoking_key)
      int count, invoking_key;
 {
   if (rl_explicit_arg || !rl_blink_matching_paren)
-    rl_insert (count, invoking_key);
+    _rl_insert_char (count, invoking_key);
   else
     {
 #if defined (HAVE_SELECT)
@@ -90,7 +115,7 @@ rl_insert_close (count, invoking_key)
       struct timeval timer;
       fd_set readfds;
 
-      rl_insert (1, invoking_key);
+      _rl_insert_char (1, invoking_key);
       (*rl_redisplay_function) ();
       match_point =
 	find_matching_open (rl_line_buffer, rl_point - 2, invoking_key);
@@ -102,7 +127,7 @@ rl_insert_close (count, invoking_key)
       FD_ZERO (&readfds);
       FD_SET (fileno (rl_instream), &readfds);
       timer.tv_sec = 0;
-      timer.tv_usec = 500000;
+      timer.tv_usec = _paren_blink_usec;
 
       orig_point = rl_point;
       rl_point = match_point;
@@ -110,7 +135,7 @@ rl_insert_close (count, invoking_key)
       ready = select (1, &readfds, (fd_set *)NULL, (fd_set *)NULL, &timer);
       rl_point = orig_point;
 #else /* !HAVE_SELECT */
-      rl_insert (count, invoking_key);
+      _rl_insert_char (count, invoking_key);
 #endif /* !HAVE_SELECT */
     }
   return 0;
@@ -152,5 +177,3 @@ find_matching_open (string, from, closer)
     }
   return (i);
 }
-
-#endif /* PAREN_MATCHING */

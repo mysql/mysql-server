@@ -76,7 +76,7 @@ inline int lex_casecmp(const char *s, const char *t, uint len)
 
 #include "lex_hash.h"
 
-static uchar state_map[256];
+static uchar state_map[256], ident_map[256];
 
 
 void lex_init(void)
@@ -91,7 +91,7 @@ void lex_init(void)
   VOID(pthread_key_create(&THR_LEX,NULL));
 
   /* Fill state_map with states to get a faster parser */
-  for (i=0; i < 256 ; i++)
+  for (i=0; i < sizeof(state_map) ; i++)
   {
     if (my_isalpha(system_charset_info,i))
       state_map[i]=(uchar) STATE_IDENT;
@@ -126,6 +126,20 @@ void lex_init(void)
   {
     state_map[(uchar) '"'] = STATE_USER_VARIABLE_DELIMITER;
   }
+
+  /*
+    Create a second map to make it faster to find identifiers
+  */
+  for (i=0; i < sizeof(ident_map) ; i++)
+  {
+    ident_map[i]= (uchar) (state_map[i] == STATE_IDENT ||
+			   state_map[i] == STATE_NUMBER_IDENT);
+  }
+
+  /* Special handling of hex and binary strings */
+  state_map[(uchar)'x']= state_map[(uchar)'X']= (uchar) STATE_IDENT_OR_HEX;
+  state_map[(uchar)'b']= state_map[(uchar)'b']= (uchar) STATE_IDENT_OR_BIN;
+
   DBUG_VOID_RETURN;
 }
 
@@ -149,11 +163,13 @@ LEX *lex_start(THD *thd, uchar *buf,uint length)
   lex->select_lex.expr_list.empty();
   lex->select_lex.ftfunc_list_alloc.empty();
   lex->select_lex.ftfunc_list= &lex->select_lex.ftfunc_list_alloc;
+  lex->current_select= &lex->select_lex;
   lex->convert_set= (lex->thd= thd)->variables.convert_set;
   lex->yacc_yyss=lex->yacc_yyvs=0;
   lex->ignore_space=test(thd->sql_mode & MODE_IGNORE_SPACE);
   lex->slave_thd_opt=0;
   lex->sql_command=SQLCOM_END;
+  lex->safe_to_cache_query= 1;
   bzero(&lex->mi,sizeof(lex->mi));
   return lex;
 }
@@ -182,7 +198,7 @@ static int find_keyword(LEX *lex, uint len, bool function)
   udf_func *udf;
   if (function && using_udf_functions && (udf=find_udf((char*) tok, len)))
   {
-    lex->thd->safe_to_cache_query=0;
+    lex->safe_to_cache_query=0;
     lex->yylval->udf=udf;
     switch (udf->returns) {
     case STRING_RESULT:
@@ -459,7 +475,7 @@ int yylex(void *arg)
       }
     case STATE_CHAR:			// Unknown or single char token
     case STATE_SKIP:			// This should not happen
-      yylval->lex_str.str=(char*) (lex->ptr=lex->tok_start);// Set to first char
+      yylval->lex_str.str=(char*) (lex->ptr=lex->tok_start);// Set to first chr
       yylval->lex_str.length=1;
       c=yyGet();
       if (c != ')')
@@ -468,12 +484,15 @@ int yylex(void *arg)
 	lex->tok_start=lex->ptr;	// Let tok_start point at next item
       return((int) c);
 
-    case STATE_IDENT:			// Incomplete keyword or ident
-      if ((c == 'x' || c == 'X') && yyPeek() == '\'')
+    case STATE_IDENT_OR_HEX:
+      if (yyPeek() == '\'')
       {					// Found x'hex-number'
-	state=STATE_HEX_NUMBER;
+	state= STATE_HEX_NUMBER;
 	break;
       }
+      /* Fall through */
+    case STATE_IDENT_OR_BIN:		// TODO: Add binary string handling
+    case STATE_IDENT:
 #if defined(USE_MB) && defined(USE_MB_IDENT)
       if (use_mb(system_charset_info))
       {
@@ -488,8 +507,7 @@ int yylex(void *arg)
           }
           lex->ptr += l - 1;
         }
-        while (state_map[c=yyGet()] == STATE_IDENT ||
-               state_map[c] == STATE_NUMBER_IDENT)
+        while (ident_map[c=yyGet()])
         {
           if (my_ismbhead(system_charset_info, c))
           {
@@ -504,15 +522,13 @@ int yylex(void *arg)
       }
       else
 #endif
-        while (state_map[c=yyGet()] == STATE_IDENT ||
-               state_map[c] == STATE_NUMBER_IDENT) ;
+        while (ident_map[c=yyGet()]) ;
       length= (uint) (lex->ptr - lex->tok_start)-1;
       if (lex->ignore_space)
       {
 	for (; state_map[c] == STATE_SKIP ; c= yyGet());
       }
-      if (c == '.' && (state_map[yyPeek()] == STATE_IDENT ||
-		       state_map[yyPeek()] == STATE_NUMBER_IDENT))
+      if (c == '.' && ident_map[yyPeek()])
 	lex->next_state=STATE_IDENT_SEP;
       else
       {					// '(' must follow directly if function
@@ -550,7 +566,7 @@ int yylex(void *arg)
 
     case STATE_NUMBER_IDENT:		// number or ident which num-start
       while (my_isdigit(system_charset_info,(c = yyGet()))) ;
-      if (state_map[c] != STATE_IDENT)
+      if (!ident_map[c])
       {					// Can't be identifier
 	state=STATE_INT_OR_REAL;
 	break;
@@ -575,7 +591,7 @@ int yylex(void *arg)
 	  lex->tok_start[0] == '0' )
       {						// Varbinary
 	while (my_isxdigit(system_charset_info,(c = yyGet()))) ;
-	if ((lex->ptr - lex->tok_start) >= 4 && state_map[c] != STATE_IDENT)
+	if ((lex->ptr - lex->tok_start) >= 4 && !ident_map[c])
 	{
 	  yylval->lex_str=get_token(lex,yyLength());
 	  yylval->lex_str.str+=2;		// Skip 0x
@@ -602,8 +618,7 @@ int yylex(void *arg)
           }
           lex->ptr += l - 1;
         }
-        while (state_map[c=yyGet()] == STATE_IDENT ||
-               state_map[c] == STATE_NUMBER_IDENT)
+        while (ident_map[c=yyGet()])
         {
           if (my_ismbhead(system_charset_info, c))
           {
@@ -618,11 +633,9 @@ int yylex(void *arg)
       }
       else
 #endif
-        while (state_map[c = yyGet()] == STATE_IDENT ||
-               state_map[c] == STATE_NUMBER_IDENT) ;
+        while (ident_map[c = yyGet()]) ;
 
-      if (c == '.' && (state_map[yyPeek()] == STATE_IDENT ||
-		       state_map[yyPeek()] == STATE_NUMBER_IDENT))
+      if (c == '.' && ident_map[yyPeek()])
 	lex->next_state=STATE_IDENT_SEP;// Next is '.'
       // fall through
 
@@ -855,9 +868,8 @@ int yylex(void *arg)
     case STATE_END:
       lex->next_state=STATE_END;
       return(0);			// We found end of input last time
-
-      // Actually real shouldn't start
-      // with . but allow them anyhow
+      
+      /* Actually real shouldn't start with . but allow them anyhow */
     case STATE_REAL_OR_POINT:
       if (my_isdigit(system_charset_info,yyPeek()))
 	state = STATE_REAL;		// Real
@@ -901,8 +913,7 @@ int yylex(void *arg)
 	[(global | local | session) .]variable_name
       */
 
-      while (state_map[c=yyGet()] == STATE_IDENT ||
-	     state_map[c] == STATE_NUMBER_IDENT) ;
+      while (ident_map[c=yyGet()]) ;
       if (c == '.')
 	lex->next_state=STATE_IDENT_SEP;
       length= (uint) (lex->ptr - lex->tok_start)-1;
@@ -961,6 +972,8 @@ void st_select_lex::init_query()
   table_list.next= (byte**) &table_list.first;
   item_list.empty();
   join= 0;
+  olap= UNSPECIFIED_OLAP_TYPE;
+  having_fix_field= 0;
 }
 
 void st_select_lex::init_select()
@@ -978,7 +991,6 @@ void st_select_lex::init_select()
   ftfunc_list_alloc.empty();
   ftfunc_list= &ftfunc_list_alloc;
   linkage= UNSPECIFIED_TYPE;
-  having_fix_field= 0;
 }
 
 /*
@@ -1182,7 +1194,6 @@ bool st_select_lex_unit::create_total_list_n_last_return(THD *thd, st_lex *lex,
 	if (!cursor)
 	{
 	  /* Add not used table to the total table list */
-	  aux->lock_type= lex->lock_option;
 	  if (!(cursor= (TABLE_LIST *) thd->memdup((char*) aux,
 						   sizeof(*aux))))
 	  {
@@ -1285,4 +1296,7 @@ List<String>* st_select_lex::get_ignore_index()
   return ignore_index_ptr;
 }
 
-// There are st_select_lex::add_table_to_list in sql_parse.cc
+/*
+  There are st_select_lex::add_table_to_list & 
+  st_select_lex::set_lock_for_tables in sql_parse.cc
+*/

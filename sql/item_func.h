@@ -128,6 +128,7 @@ public:
   bool is_null() { (void) val_int(); return null_value; }
   friend class udf_handler;
   Field *tmp_table_field(TABLE *t_arg);
+  bool check_loop(uint id);
 };
 
 
@@ -249,6 +250,18 @@ public:
   double val();
   longlong val_int();
   const char *func_name() const { return "/"; }
+  void fix_length_and_dec();
+};
+
+
+class Item_func_int_div :public Item_num_op
+{
+public:
+  Item_func_int_div(Item *a,Item *b) :Item_num_op(a,b)
+  { hybrid_type=INT_RESULT; }
+  double val() { return (double) val_int(); }
+  longlong val_int();
+  const char *func_name() const { return "DIV"; }
   void fix_length_and_dec();
 };
 
@@ -606,6 +619,13 @@ public:
     const_item_cache&=  item->const_item();
     with_sum_func= with_sum_func || item->with_sum_func;
   }
+  bool check_loop(uint id)
+  {
+    DBUG_ENTER("Item_func_field::check_loop");
+    if (Item_int_func::check_loop(id))
+      DBUG_RETURN(1);
+    DBUG_RETURN(item->check_loop(id));
+  }
 };
 
 
@@ -734,6 +754,7 @@ public:
     bool res= udf.fix_fields(thd, tables, this, arg_count, args);
     used_tables_cache= udf.used_tables_cache;
     const_item_cache= udf.const_item_cache;
+    fixed= 1;
     return res;
   }
   Item_result result_type () const { return udf.result_type(); }
@@ -898,7 +919,7 @@ public:
 class Item_func_get_user_var :public Item_func
 {
   LEX_STRING name;
-  user_var_entry *entry;
+  user_var_entry *var_entry;
   bool const_var_flag;
 
 public:
@@ -971,6 +992,7 @@ public:
 
   bool fix_index();
   void init_search(bool no_order);
+  bool check_loop(uint id);
 };
 
 
@@ -1102,5 +1124,5 @@ public:
 enum Item_cast
 {
   ITEM_CAST_BINARY, ITEM_CAST_SIGNED_INT, ITEM_CAST_UNSIGNED_INT,
-  ITEM_CAST_DATE, ITEM_CAST_TIME, ITEM_CAST_DATETIME
+  ITEM_CAST_DATE, ITEM_CAST_TIME, ITEM_CAST_DATETIME, ITEM_CAST_CHAR
 };

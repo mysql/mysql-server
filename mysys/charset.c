@@ -376,6 +376,8 @@ static CHARSET_INFO *add_charset(CHARSET_INFO *cs, myf flags)
 	 sizeof(tmp_sort_order));
   memcpy((char*) cs->tab_to_uni, (char*) tmp_to_uni, sizeof(tmp_to_uni));
 
+  cs->like_range  = my_like_range_simple;
+  cs->wildcmp     = my_wildcmp_8bit;
   cs->strnncoll   = my_strnncoll_simple;
   cs->caseup_str  = my_caseup_str_8bit;
   cs->casedn_str  = my_casedn_str_8bit;
@@ -388,6 +390,12 @@ static CHARSET_INFO *add_charset(CHARSET_INFO *cs, myf flags)
   cs->wc_mb       = my_wc_mb_8bit;
   cs->hash_caseup = my_hash_caseup_simple;
   cs->hash_sort   = my_hash_sort_simple;
+  cs->snprintf	  = my_snprintf_8bit;
+  cs->strtol      = my_strtol_8bit;
+  cs->strtoul     = my_strtoul_8bit;
+  cs->strtoll     = my_strtoll_8bit;
+  cs->strtoull     = my_strtoull_8bit;
+  cs->mbmaxlen    = 1;
   
   set_max_sort_char(cs);
   create_fromuni(cs);

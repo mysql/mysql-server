@@ -179,10 +179,13 @@ static char szPipeName [ 257 ];
 static SECURITY_ATTRIBUTES saPipeSecurity;
 static SECURITY_DESCRIPTOR sdPipeDescriptor;
 static HANDLE hPipe = INVALID_HANDLE_VALUE;
-static pthread_cond_t COND_handler_count;
 static uint handler_count;
+static bool opt_enable_named_pipe = 0;
 #endif
 #ifdef __WIN__
+static bool opt_console=0,start_mode=0;
+static pthread_cond_t COND_handler_count;
+static uint handler_count;
 static bool opt_console=0, start_mode=0, use_opt_args;
 static int opt_argc;
 static char **opt_argv;
@@ -276,7 +279,7 @@ static char* pidfile_name_ptr= pidfile_name;
 static pthread_t select_thread;
 static my_bool opt_noacl=0, opt_bootstrap=0, opt_myisam_log=0;
 my_bool opt_safe_user_create = 0, opt_no_mix_types = 0;
-my_bool opt_safe_show_db=0, lower_case_table_names, opt_old_rpl_compat;
+my_bool lower_case_table_names, opt_old_rpl_compat;
 my_bool opt_show_slave_auth_info, opt_sql_bin_update = 0;
 my_bool opt_log_slave_updates= 0;
 
@@ -335,13 +338,18 @@ ulong query_cache_limit=0;
 Query_cache query_cache;
 #endif
 
+#ifdef HAVE_SMEM
+static char *shared_memory_base_name=default_shared_memory_base_name;
+static bool opt_enable_shared_memory = 0;
+#endif
+
 volatile ulong cached_thread_count=0;
 
 // replication parameters, if master_host is not NULL, we are a slave
 my_string master_user = (char*) "test", master_password = 0, master_host=0,
   master_info_file = (char*) "master.info",
   relay_log_info_file = (char*) "relay-log.info",
-  master_ssl_key=0, master_ssl_cert=0;
+  master_ssl_key=0, master_ssl_cert=0, master_ssl_capath=0, master_ssl_cipher=0;
 my_string report_user = 0, report_password = 0, report_host=0;
  
 const char *localhost=LOCAL_HOST;
@@ -406,8 +414,12 @@ time_t start_time;
 
 ulong opt_sql_mode = 0L;
 const char *sql_mode_names[] =
-{ "REAL_AS_FLOAT", "PIPES_AS_CONCAT", "ANSI_QUOTES", "IGNORE_SPACE",
-  "SERIALIZE","ONLY_FULL_GROUP_BY", "NO_UNSIGNED_SUBTRACTION",NullS };
+{
+  "REAL_AS_FLOAT", "PIPES_AS_CONCAT", "ANSI_QUOTES", "IGNORE_SPACE",
+  "SERIALIZE", "ONLY_FULL_GROUP_BY", "NO_UNSIGNED_SUBTRACTION",
+  "POSTGRESQL", "ORACLE", "MSSQL", "SAPDB",
+  NullS
+};
 TYPELIB sql_mode_typelib= {array_elements(sql_mode_names)-1,"",
 			   sql_mode_names};
 
@@ -446,20 +458,23 @@ pthread_cond_t eventShutdown;
 #endif
 
 static void start_signal_handler(void);
-static void *signal_hand(void *arg);
+extern "C" pthread_handler_decl(signal_hand, arg);
 static void set_options(void);
 static void get_options(int argc,char **argv);
 static char *get_relative_path(const char *path);
 static void fix_paths(void);
-static pthread_handler_decl(handle_connections_sockets,arg);
-static pthread_handler_decl(kill_server_thread,arg);
+extern "C" pthread_handler_decl(handle_connections_sockets,arg);
+extern "C" pthread_handler_decl(kill_server_thread,arg);
 static int bootstrap(FILE *file);
 static void close_server_sock();
 static bool read_init_file(char *file_name);
 #ifdef __NT__
-static pthread_handler_decl(handle_connections_namedpipes,arg);
+extern "C" pthread_handler_decl(handle_connections_namedpipes,arg);
 #endif
-extern pthread_handler_decl(handle_slave,arg);
+#ifdef HAVE_SMEM
+static pthread_handler_decl(handle_connections_shared_memory,arg);
+#endif
+extern "C" pthread_handler_decl(handle_slave,arg);
 #ifdef SET_RLIMIT_NOFILE
 static uint set_maximum_open_files(uint max_file_limit);
 #endif
@@ -766,14 +781,14 @@ static void __cdecl kill_server(int sig_ptr)
   if (sig != MYSQL_KILL_SIGNAL && sig != 0)
     unireg_abort(1);				/* purecov: inspected */
   else
-    unireg_end(0);
+    unireg_end();
   pthread_exit(0);				/* purecov: deadcode */
   RETURN_FROM_KILL_SERVER;
 }
 
 
 #ifdef USE_ONE_SIGNAL_HAND
-static pthread_handler_decl(kill_server_thread,arg __attribute__((unused)))
+extern "C" pthread_handler_decl(kill_server_thread,arg __attribute__((unused)))
 {
   SHUTDOWN_THD;
   my_thread_init();				// Initialize new thread
@@ -788,7 +803,7 @@ static pthread_handler_decl(kill_server_thread,arg __attribute__((unused)))
 #define sigset signal
 #endif
 
-static sig_handler print_signal_warning(int sig)
+extern "C" sig_handler print_signal_warning(int sig)
 {
   if (!DBUG_IN_USE)
   {
@@ -805,16 +820,33 @@ static sig_handler print_signal_warning(int sig)
 #endif
 }
 
+/*
+  cleanup all memory and end program nicely
 
-void unireg_end(int signal_number __attribute__((unused)))
+  SYNOPSIS
+    unireg_end()
+
+  NOTES
+    This function never returns.
+
+    If SIGNALS_DONT_BREAK_READ is defined, this function is called
+    by the main thread. To get MySQL to shut down nicely in this case
+    (Mac OS X) we have to call exit() instead if pthread_exit().
+*/
+
+void unireg_end(void)
 {
   clean_up();
   my_thread_end();
+#ifdef SIGNALS_DONT_BREAK_READ
+  exit(0);
+#else
   pthread_exit(0);				// Exit is in main thread
+#endif
 }
 
 
-void unireg_abort(int exit_code)
+extern "C" void unireg_abort(int exit_code)
 {
   DBUG_ENTER("unireg_abort");
   if (exit_code)
@@ -860,6 +892,9 @@ void clean_up(bool print_message)
   bitmap_free(&temp_pool);
   free_max_user_conn();
   end_slave_list();
+#ifdef USE_REGEX
+  regex_end();
+#endif
 
 #if !defined(__WIN__) && !defined(EMBEDDED_LIBRARY)
   if (!opt_bootstrap)
@@ -1161,7 +1196,7 @@ void close_connection(NET *net,uint errcode,bool lock)
 	/* Called when a thread is aborted */
 	/* ARGSUSED */
 
-sig_handler end_thread_signal(int sig __attribute__((unused)))
+extern "C" sig_handler end_thread_signal(int sig __attribute__((unused)))
 {
   THD *thd=current_thd;
   DBUG_ENTER("end_thread_signal");
@@ -1252,7 +1287,7 @@ void flush_thread_cache()
 */
 
 #ifdef THREAD_SPECIFIC_SIGPIPE
-static sig_handler abort_thread(int sig __attribute__((unused)))
+extern "C" sig_handler abort_thread(int sig __attribute__((unused)))
 {
   THD *thd=current_thd;
   DBUG_ENTER("abort_thread");
@@ -1326,7 +1361,7 @@ static void start_signal_handler(void)
 #define UNSAFE_DEFAULT_LINUX_THREADS 200
 #endif
 
-static sig_handler handle_segfault(int sig)
+extern "C" sig_handler handle_segfault(int sig)
 {
   THD *thd=current_thd;
   /*
@@ -1403,7 +1438,11 @@ information that should help you find out what is causing the crash.\n");
 #endif /* HAVE_STACKTRACE */
 
  if (test_flags & TEST_CORE_ON_SIGNAL)
+ {
+   fprintf(stderr, "Writing a core file\n");
+   fflush(stderr);
    write_core(sig);
+ }
  exit(1);
 }
 
@@ -1511,7 +1550,7 @@ static void start_signal_handler(void)
 /* This threads handles all signals and alarms */
 
 /* ARGSUSED */
-static void *signal_hand(void *arg __attribute__((unused)))
+extern "C" void *signal_hand(void *arg __attribute__((unused)))
 {
   sigset_t set;
   int sig;
@@ -1639,8 +1678,8 @@ static void *signal_hand(void *arg __attribute__((unused)))
 
 
 /* ARGSUSED */
-static int my_message_sql(uint error, const char *str,
-			  myf MyFlags __attribute__((unused)))
+extern "C" int my_message_sql(uint error, const char *str,
+			      myf MyFlags __attribute__((unused)))
 {
   THD *thd;
   DBUG_ENTER("my_message_sql");
@@ -1660,6 +1699,17 @@ static int my_message_sql(uint error, const char *str,
   DBUG_RETURN(0);
 }
 
+
+/*
+  Forget last error message (if we got one)
+*/
+
+void clear_error_message(THD *thd)
+{
+  thd->net.last_error[0]= 0;
+}
+
+
 #ifdef __WIN__
 
 struct utsname
@@ -1675,7 +1725,7 @@ int uname(struct utsname *a)
 
 
 #ifdef __WIN__
-pthread_handler_decl(handle_shutdown,arg)
+extern "C" pthread_handler_decl(handle_shutdown,arg)
 {
   MSG msg;
   SHUTDOWN_THD;
@@ -1703,7 +1753,7 @@ int __stdcall handle_kill(ulong ctrl_type)
 #endif
 
 #ifdef OS2
-pthread_handler_decl(handle_shutdown,arg)
+extern "C" pthread_handler_decl(handle_shutdown,arg)
 {
   SHUTDOWN_THD;
   my_thread_init();
@@ -1887,8 +1937,6 @@ int main(int argc, char **argv)
     if (!ssl_acceptor_fd)
       opt_use_ssl = 0;
   }
-  if (des_key_file)
-    load_des_key_file(des_key_file);
 #endif /* HAVE_OPENSSL */
 
 #ifdef HAVE_LIBWRAP
@@ -1961,6 +2009,10 @@ int main(int argc, char **argv)
   reset_floating_point_exceptions();
   init_thr_lock();
   init_slave_list();
+#ifdef HAVE_OPENSSL
+  if (des_key_file)
+    load_des_key_file(des_key_file);
+#endif /* HAVE_OPENSSL */
 
   /* Setup log files */
   if (opt_log)
@@ -1987,6 +2039,8 @@ int main(int argc, char **argv)
   if (ha_init())
   {
     sql_print_error("Can't init databases");
+    if (unix_sock != INVALID_SOCKET)
+      unlink(mysql_unix_port);
     exit(1);
   }
   ha_key_cache();
@@ -2022,10 +2076,12 @@ int main(int argc, char **argv)
       pthread_key_create(&THR_MALLOC,NULL))
   {
     sql_print_error("Can't create thread-keys");
+    if (unix_sock != INVALID_SOCKET)
+      unlink(mysql_unix_port);
     exit(1);
   }
   start_signal_handler();				// Creates pidfile
-  if (acl_init(opt_noacl))
+  if (acl_init((THD*) 0, opt_noacl))
   {
     abort_loop=1;
     select_thread_in_use=0;
@@ -2034,10 +2090,12 @@ int main(int argc, char **argv)
     if (!opt_bootstrap)
       (void) my_delete(pidfile_name,MYF(MY_WME));	// Not needed anymore
 #endif
+    if (unix_sock != INVALID_SOCKET)
+      unlink(mysql_unix_port);
     exit(1);
   }
   if (!opt_noacl)
-    (void) grant_init();
+    (void) grant_init((THD*) 0);
   init_max_user_conn();
   init_update_queries();
 
@@ -2123,21 +2181,24 @@ The server will not act as a slave.");
 
   printf(ER(ER_READY),my_progname,server_version,"");
   fflush(stdout);
-
+#if defined(__NT__) || defined(HAVE_SMEM)
 #ifdef __NT__
   if (hPipe == INVALID_HANDLE_VALUE &&
-      (!have_tcpip || opt_disable_networking))
+     (!have_tcpip || opt_disable_networking) &&
+      !opt_enable_shared_memory)
   {
-    sql_print_error("TCP/IP or --enable-named-pipe should be configured on NT OS");
+    sql_print_error("TCP/IP,--shared-memory or --named-pipe should be configured on NT OS");
 	unireg_abort(1);
   }
   else
+#endif
   {
     pthread_mutex_lock(&LOCK_thread_count);
     (void) pthread_cond_init(&COND_handler_count,NULL);
     {
       pthread_t hThread;
       handler_count=0;
+#ifdef __NT__
       if (hPipe != INVALID_HANDLE_VALUE && opt_enable_named_pipe)
       {
 	handler_count++;
@@ -2148,18 +2209,33 @@ The server will not act as a slave.");
 	  handler_count--;
 	}
       }
+#endif
+#ifdef HAVE_SMEM
+      if (opt_enable_shared_memory)
+      {
+        handler_count++;
+        if (pthread_create(&hThread,&connection_attrib,
+                            handle_connections_shared_memory, 0))
+        {
+          sql_print_error("Warning: Can't create thread to handle shared memory");
+          handler_count--;
+        }
+      }
+#endif
       if (have_tcpip && !opt_disable_networking)
       {
 	handler_count++;
 	if (pthread_create(&hThread,&connection_attrib,
 			   handle_connections_sockets, 0))
 	{
-	  sql_print_error("Warning: Can't create thread to handle named pipes");
+	  sql_print_error("Warning: Can't create thread to handle tcp/ip");
 	  handler_count--;
 	}
       }
       while (handler_count > 0)
+      {
 	pthread_cond_wait(&COND_handler_count,&LOCK_thread_count);
+      }
     }
     pthread_mutex_unlock(&LOCK_thread_count);
   }
@@ -2488,7 +2564,7 @@ inline void kill_broken_server()
 
 	/* Handle new connections and spawn new process to handle them */
 
-pthread_handler_decl(handle_connections_sockets,arg __attribute__((unused)))
+extern "C" pthread_handler_decl(handle_connections_sockets,arg __attribute__((unused)))
 {
   my_socket sock,new_sock;
   uint error_count=0;
@@ -2524,7 +2600,7 @@ pthread_handler_decl(handle_connections_sockets,arg __attribute__((unused)))
   while (!abort_loop)
   {
     readFDs=clientFDs;
-#ifdef HPUX
+#ifdef HPUX10
     if (select(max_used_connection,(int*) &readFDs,0,0,0) < 0)
       continue;
 #else
@@ -2538,7 +2614,7 @@ pthread_handler_decl(handle_connections_sockets,arg __attribute__((unused)))
       MAYBE_BROKEN_SYSCALL
       continue;
     }
-#endif	/* HPUX */
+#endif	/* HPUX10 */
     if (abort_loop)
     {
       MAYBE_BROKEN_SYSCALL;
@@ -2695,7 +2771,7 @@ pthread_handler_decl(handle_connections_sockets,arg __attribute__((unused)))
 
 
 #ifdef __NT__
-pthread_handler_decl(handle_connections_namedpipes,arg)
+extern "C" pthread_handler_decl(handle_connections_namedpipes,arg)
 {
   HANDLE hConnectedPipe;
   BOOL fConnected;
@@ -2777,6 +2853,219 @@ pthread_handler_decl(handle_connections_namedpipes,arg)
 }
 #endif /* __NT__ */
 
+/* 
+  Thread of shared memory's service
+
+  SYNOPSIS
+    pthread_handler_decl()
+    handle_connections_shared_memory Thread handle
+    arg                              Arguments of thread
+*/
+#ifdef HAVE_SMEM
+pthread_handler_decl(handle_connections_shared_memory,arg)
+{
+/*  
+  event_connect_request is event object for start connection actions 
+  event_connect_answer is event object for confirm, that server put data
+  handle_connect_file_map is file-mapping object, use for create shared memory  
+  handle_connect_map is pointer on shared memory
+  handle_map is pointer on shared memory for client
+  event_server_wrote,
+  event_server_read,
+  event_client_wrote,
+  event_client_read are events for transfer data between server and client
+  handle_file_map is file-mapping object, use for create shared memory
+*/
+  HANDLE handle_connect_file_map = NULL;
+  char  *handle_connect_map = NULL;
+  HANDLE event_connect_request = NULL;
+  HANDLE event_connect_answer = NULL;
+  ulong smem_buffer_length = shared_memory_buffer_length + 4;
+  ulong connect_number = 1;
+  my_bool error_allow;
+  THD *thd;
+  char tmp[63];
+  char *suffix_pos;
+  char connect_number_char[22], *p;
+  
+  my_thread_init();
+  DBUG_ENTER("handle_connections_shared_memorys");
+  DBUG_PRINT("general",("Waiting for allocated shared memory."));
+
+
+/*
+  The name of event and file-mapping events create agree next rule:
+            shared_memory_base_name+unique_part
+  Where:
+    shared_memory_base_name is unique value for each server
+    unique_part is unique value for each object (events and file-mapping)
+*/
+  suffix_pos = strxmov(tmp,shared_memory_base_name,"_",NullS);
+  strmov(suffix_pos, "CONNECT_REQUEST");  
+  if ((event_connect_request = CreateEvent(NULL,FALSE,FALSE,tmp)) == 0) 
+  {
+    sql_perror("Can't create shared memory service ! The request event don't create.");
+    goto error;
+  }
+  strmov(suffix_pos, "CONNECT_ANSWER");  
+  if ((event_connect_answer = CreateEvent(NULL,FALSE,FALSE,tmp)) == 0) 
+  {
+    sql_perror("Can't create shared memory service ! The answer event don't create.");
+    goto error;
+  }
+  strmov(suffix_pos, "CONNECT_DATA");  
+  if ((handle_connect_file_map = CreateFileMapping(INVALID_HANDLE_VALUE,NULL,PAGE_READWRITE,
+                                 0,sizeof(connect_number),tmp)) == 0) 
+  {
+    sql_perror("Can't create shared memory service ! File mapping don't create.");
+    goto error;
+  }
+  if ((handle_connect_map = (char *)MapViewOfFile(handle_connect_file_map,FILE_MAP_WRITE,0,0,
+                            sizeof(DWORD))) == 0) 
+  {
+    sql_perror("Can't create shared memory service ! Map of memory don't create.");
+    goto error;
+  }
+
+
+  while (!abort_loop)
+  {
+/*
+ Wait a request from client
+*/
+    WaitForSingleObject(event_connect_request,INFINITE);  
+    error_allow = FALSE;
+
+    HANDLE handle_client_file_map = NULL;
+    char  *handle_client_map = NULL;
+    HANDLE event_client_wrote = NULL;
+    HANDLE event_client_read = NULL;
+    HANDLE event_server_wrote = NULL;
+    HANDLE event_server_read = NULL;
+
+    p = int2str(connect_number, connect_number_char, 10);
+/*
+  The name of event and file-mapping events create agree next rule:
+    shared_memory_base_name+unique_part+number_of_connection
+  Where:
+    shared_memory_base_name is uniquel value for each server
+    unique_part is unique value for each object (events and file-mapping)
+    number_of_connection is number of connection between server and client
+*/
+    suffix_pos = strxmov(tmp,shared_memory_base_name,"_",connect_number_char,"_",NullS);
+    strmov(suffix_pos, "DATA");
+    if ((handle_client_file_map = CreateFileMapping(INVALID_HANDLE_VALUE,NULL,
+                                  PAGE_READWRITE,0,smem_buffer_length,tmp)) == 0) 
+    {
+      sql_perror("Can't create connection with client in shared memory service ! File mapping don't create.");
+      error_allow = TRUE;
+      goto errorconn;
+    }
+    if ((handle_client_map = (char*)MapViewOfFile(handle_client_file_map,FILE_MAP_WRITE,0,0,smem_buffer_length)) == 0) 
+    {
+      sql_perror("Can't create connection with client in shared memory service ! Map of memory don't create.");
+      error_allow = TRUE;
+      goto errorconn;
+    }
+
+    strmov(suffix_pos, "CLIENT_WROTE");
+    if ((event_client_wrote = CreateEvent(NULL,FALSE,FALSE,tmp)) == 0) 
+    {
+      sql_perror("Can't create connection with client in shared memory service ! CW event don't create.");
+      error_allow = TRUE;
+      goto errorconn;
+    }
+
+    strmov(suffix_pos, "CLIENT_READ");
+    if ((event_client_read = CreateEvent(NULL,FALSE,FALSE,tmp)) == 0) 
+    {
+      sql_perror("Can't create connection with client in shared memory service ! CR event don't create.");
+      error_allow = TRUE;
+      goto errorconn;
+    }
+
+    strmov(suffix_pos, "SERVER_READ");
+    if ((event_server_read = CreateEvent(NULL,FALSE,FALSE,tmp)) == 0) 
+    {
+      sql_perror("Can't create connection with client in shared memory service ! SR event don't create.");
+      error_allow = TRUE;
+      goto errorconn;
+    }
+
+    strmov(suffix_pos, "SERVER_WROTE");
+    if ((event_server_wrote = CreateEvent(NULL,FALSE,FALSE,tmp)) == 0) 
+    {
+      sql_perror("Can't create connection with client in shared memory service ! SW event don't create.");
+      error_allow = TRUE;
+      goto errorconn;
+    }
+
+    if (abort_loop) break;
+    if ( !(thd = new THD))
+    {
+      error_allow = TRUE;
+      goto errorconn;
+    }
+
+/*
+Send number of connection to client
+*/
+    int4store(handle_connect_map, connect_number);
+      
+/*
+  Send number of connection to client
+*/
+    if (!SetEvent(event_connect_answer)) 
+    {
+      sql_perror("Can't create connection with client in shared memory service ! Can't send answer event.");
+      error_allow = TRUE;
+      goto errorconn;
+    }
+
+/*
+  Set event that client should receive data
+*/
+    if (!SetEvent(event_client_read))
+    {
+      sql_perror("Can't create connection with client in shared memory service ! Can't set client to read's mode.");
+      error_allow = TRUE;
+      goto errorconn;
+    }
+    if (!(thd->net.vio = vio_new_win32shared_memory(&thd->net,handle_client_file_map,handle_client_map,event_client_wrote,
+                         event_client_read,event_server_wrote,event_server_read)) ||
+                          my_net_init(&thd->net, thd->net.vio))
+    {
+      close_connection(&thd->net,ER_OUT_OF_RESOURCES);
+      delete thd;
+      error_allow = TRUE;
+    }
+    /* host name is unknown */
+errorconn:
+    if (error_allow)
+    {
+      if (!handle_client_map) UnmapViewOfFile(handle_client_map);
+      if (!handle_client_file_map) CloseHandle(handle_client_file_map);
+      if (!event_server_wrote) CloseHandle(event_server_wrote);
+      if (!event_server_read) CloseHandle(event_server_read);
+      if (!event_client_wrote) CloseHandle(event_client_wrote);
+      if (!event_client_read) CloseHandle(event_client_read);
+      continue;
+    }
+    thd->host = my_strdup(localhost,MYF(0)); /* Host is unknown */
+    create_new_thread(thd);
+    uint4korr(connect_number++);
+  }
+error:
+  if (!handle_connect_map) UnmapViewOfFile(handle_connect_map);
+  if (!handle_connect_file_map) CloseHandle(handle_connect_file_map);
+  if (!event_connect_answer) CloseHandle(event_connect_answer);
+  if (!event_connect_request) CloseHandle(event_connect_request);
+  pthread_mutex_lock(&LOCK_thread_count);
+  pthread_mutex_unlock(&LOCK_thread_count);
+  DBUG_RETURN(0);
+}
+#endif /* HAVE_SMEM */
+
 
 /******************************************************************************
 ** handle start options
@@ -2807,8 +3096,9 @@ enum options {
   OPT_MASTER_PASSWORD,         OPT_MASTER_PORT,
   OPT_MASTER_INFO_FILE,        OPT_MASTER_CONNECT_RETRY,
   OPT_MASTER_RETRY_COUNT,
-  OPT_MASTER_SSL,             OPT_MASTER_SSL_KEY,
-  OPT_MASTER_SSL_CERT,            
+  OPT_MASTER_SSL,              OPT_MASTER_SSL_KEY,
+  OPT_MASTER_SSL_CERT,         OPT_MASTER_SSL_CAPATH,
+  OPT_MASTER_SSL_CIPHER,
   OPT_SQL_BIN_UPDATE_SAME,     OPT_REPLICATE_DO_DB,      
   OPT_REPLICATE_IGNORE_DB,     OPT_LOG_SLAVE_UPDATES,
   OPT_BINLOG_DO_DB,            OPT_BINLOG_IGNORE_DB,
@@ -2886,7 +3176,9 @@ enum options {
   OPT_INNODB_FORCE_RECOVERY,
   OPT_BDB_CACHE_SIZE,
   OPT_BDB_LOG_BUFFER_SIZE,
-  OPT_BDB_MAX_LOCK
+  OPT_BDB_MAX_LOCK,
+  OPT_ENABLE_SHARED_MEMORY,
+  OPT_SHARED_MEMORY_BASE_NAME
 };
 
 
@@ -2993,6 +3285,11 @@ struct my_option my_long_options[] =
   {"enable-pstack", OPT_DO_PSTACK, "Print a symbolic stack trace on failure",
    (gptr*) &opt_do_pstack, (gptr*) &opt_do_pstack, 0, GET_BOOL, NO_ARG, 0, 0,
    0, 0, 0, 0},
+#ifdef HAVE_SMEM
+  {"shared-memory", OPT_ENABLE_SHARED_MEMORY,
+   "Enable the shared memory.",(gptr*) &opt_enable_shared_memory, (gptr*) &opt_enable_shared_memory,
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+#endif   
   {"exit-info", 'T', "Used for debugging;  Use at your own risk!", 0, 0, 0,
    GET_LONG, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"flush", OPT_FLUSH, "Flush tables to disk between SQL commands", 0, 0, 0,
@@ -3118,6 +3415,14 @@ struct my_option my_long_options[] =
    "Master SSL certificate file name. Only applies if you have enabled master-ssl.",
    (gptr*) &master_ssl_cert, (gptr*) &master_ssl_cert, 0, GET_STR, OPT_ARG,
    0, 0, 0, 0, 0, 0},
+  {"master-ssl-capath", OPT_MASTER_SSL_CAPATH,
+   "Master SSL CA path. Only applies if you have enabled master-ssl.",
+   (gptr*) &master_ssl_capath, (gptr*) &master_ssl_capath, 0, GET_STR, OPT_ARG,
+   0, 0, 0, 0, 0, 0},
+  {"master-ssl-cipher", OPT_MASTER_SSL_CIPHER,
+   "Master SSL cipher. Only applies if you have enabled master-ssl.",
+   (gptr*) &master_ssl_cipher, (gptr*) &master_ssl_capath, 0, GET_STR, OPT_ARG,
+   0, 0, 0, 0, 0, 0},
   {"myisam-recover", OPT_MYISAM_RECOVER,
    "Syntax: myisam-recover[=option[,option...]], where option can be DEFAULT, BACKUP or FORCE.",
    (gptr*) &myisam_recover_options_str, (gptr*) &myisam_recover_options_str, 0,
@@ -3207,7 +3512,7 @@ struct my_option my_long_options[] =
    (gptr*) &report_port, (gptr*) &report_port, 0, GET_UINT, REQUIRED_ARG,
    MYSQL_PORT, 0, 0, 0, 0, 0},
   {"rpl-recovery-rank", OPT_RPL_RECOVERY_RANK, "Undocumented",
-   (gptr*) &rpl_recovery_rank, (gptr*) &rpl_recovery_rank, 0, GET_UINT,
+   (gptr*) &rpl_recovery_rank, (gptr*) &rpl_recovery_rank, 0, GET_ULONG,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"relay-log", OPT_RELAY_LOG, "Undocumented",
    (gptr*) &opt_relay_logname, (gptr*) &opt_relay_logname, 0,
@@ -3220,8 +3525,7 @@ struct my_option my_long_options[] =
 #ifndef TO_BE_DELETED
   {"safe-show-database", OPT_SAFE_SHOW_DB,
    "Deprecated option; One should use GRANT SHOW DATABASES instead...",
-   (gptr*) &opt_safe_show_db, (gptr*) &opt_safe_show_db, 0, GET_BOOL, NO_ARG,
-   0, 0, 0, 0, 0, 0},
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"safe-user-create", OPT_SAFE_USER_CREATE,
    "Don't allow new user creation by the user who has no write privileges to the mysql.user table",
@@ -3234,6 +3538,11 @@ struct my_option my_long_options[] =
   {"set-variable", 'O',
    "Change the value of a variable. Please note that this option is deprecated;you can set variables directly with --variable-name=value.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#ifdef HAVE_SMEM
+  {"shared_memory_base_name",OPT_SHARED_MEMORY_BASE_NAME,
+   "Base name of shared memory", (gptr*) &shared_memory_base_name, (gptr*) &shared_memory_base_name, 
+   0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#endif
   {"show-slave-auth-info", OPT_SHOW_SLAVE_AUTH_INFO,
    "Show user and password in SHOW SLAVE STATUS",
    (gptr*) &opt_show_slave_auth_info, (gptr*) &opt_show_slave_auth_info, 0,
@@ -3771,6 +4080,7 @@ struct show_var_st status_vars[]= {
   {"Qcache_queries_in_cache",  (char*) &query_cache.queries_in_cache, SHOW_LONG_CONST},
   {"Qcache_inserts",           (char*) &query_cache.inserts,    SHOW_LONG},
   {"Qcache_hits",              (char*) &query_cache.hits,       SHOW_LONG},
+  {"Qcache_lowmem_prunes",     (char*) &query_cache.lowmem_prunes, SHOW_LONG},
   {"Qcache_not_cached",        (char*) &query_cache.refused,    SHOW_LONG},
   {"Qcache_free_memory",       (char*) &query_cache.free_memory, 
    SHOW_LONG_CONST},
@@ -3891,11 +4201,11 @@ static void set_options(void)
 
   /* Set default values for some variables */
   global_system_variables.table_type=DB_TYPE_MYISAM;
-  global_system_variables.tx_isolation=ISO_READ_COMMITTED;
-  global_system_variables.select_limit= (ulong) HA_POS_ERROR;
+  global_system_variables.tx_isolation=ISO_REPEATABLE_READ;
+  global_system_variables.select_limit= (ulonglong) HA_POS_ERROR;
   max_system_variables.select_limit= (ulong) HA_POS_ERROR;
-  global_system_variables.max_join_size= (ulong) HA_POS_ERROR;
-  max_system_variables.max_join_size= (ulong) HA_POS_ERROR;
+  global_system_variables.max_join_size= (ulonglong) HA_POS_ERROR;
+  max_system_variables.max_join_size= (ulonglong) HA_POS_ERROR;
 
 #ifdef __WIN__
   /* Allow Win32 users to move MySQL anywhere */
@@ -3918,7 +4228,7 @@ static void set_options(void)
 }
 
 
-static my_bool
+extern "C" my_bool
 get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 	       char *argument)
 {
@@ -3931,8 +4241,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   case 'a':
     opt_sql_mode = (MODE_REAL_AS_FLOAT | MODE_PIPES_AS_CONCAT |
-		    MODE_ANSI_QUOTES | MODE_IGNORE_SPACE | MODE_SERIALIZABLE
-		    | MODE_ONLY_FULL_GROUP_BY);
+		    MODE_ANSI_QUOTES | MODE_IGNORE_SPACE | MODE_SERIALIZABLE |
+		    MODE_ONLY_FULL_GROUP_BY);
     global_system_variables.tx_isolation= ISO_SERIALIZABLE;
     break;
   case 'b':
@@ -4188,7 +4498,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     else
     {
       struct hostent *ent;
-      if (!argument || !argument[0])
+      if (argument || argument[0])
 	ent=gethostbyname(argument);
       else
       {
@@ -4363,7 +4673,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     }
     global_system_variables.tx_isolation= ((opt_sql_mode & MODE_SERIALIZABLE) ?
 					   ISO_SERIALIZABLE :
-					   ISO_READ_COMMITTED);
+					   ISO_REPEATABLE_READ);
     break;
   }
   case OPT_MASTER_PASSWORD:
@@ -4377,7 +4687,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   }
   return 0;
 }
-
 	/* Initiates DEBUG - but no debugging here ! */
 
 static void get_options(int argc,char **argv)
@@ -4461,9 +4770,17 @@ fn_format_relative_to_data_home(my_string to, const char *name,
 
 static void fix_paths(void)
 {
-  char buff[FN_REFLEN];
-  (void) fn_format(mysql_home,mysql_home,"","",16); // Remove symlinks
+  char buff[FN_REFLEN],*pos;
   convert_dirname(mysql_home,mysql_home,NullS);
+  /* Resolve symlinks to allow 'mysql_home' to be a relative symlink */
+  my_realpath(mysql_home,mysql_home,MYF(0));
+  /* Ensure that mysql_home ends in FN_LIBCHAR */
+  pos=strend(mysql_home);
+  if (pos[-1] != FN_LIBCHAR)
+  {
+    pos[0]= FN_LIBCHAR;
+    pos[1]= 0;
+  }
   convert_dirname(mysql_real_data_home,mysql_real_data_home,NullS);
   convert_dirname(language,language,NullS);
   (void) my_load_path(mysql_home,mysql_home,""); // Resolve current dir

@@ -375,13 +375,12 @@ static int my_strnxfrm_czech(CHARSET_INFO *cs __attribute__((unused)),
 
 #define min_sort_char ' '
 #define max_sort_char '9'
-#define wild_one '_'
-#define wild_many '%'
 
 #define EXAMPLE
 
 static my_bool my_like_range_czech(CHARSET_INFO *cs __attribute__((unused)),
-                            const char *ptr,uint ptr_length,pchar escape,
+                            const char *ptr,uint ptr_length,
+                            int escape, int w_one, int w_many,
 		            uint res_length, char *min_str,char *max_str,
 		            uint *min_length,uint *max_length)
 {
@@ -393,9 +392,9 @@ static my_bool my_like_range_czech(CHARSET_INFO *cs __attribute__((unused)),
 
   for (; ptr != end && min_str != min_end ; ptr++)
   {
-    if (*ptr == wild_one)		/* '_' in SQL */
+    if (*ptr == w_one)		/* '_' in SQL */
     { break; }
-    if (*ptr == wild_many)		/* '%' in SQL */
+    if (*ptr == w_many)		/* '%' in SQL */
     { break; }
 
     if (*ptr == escape && ptr+1 != end)
@@ -610,7 +609,8 @@ CHARSET_INFO my_charset_czech =
     my_strnncoll_czech,
     my_strnxfrm_czech,
     my_like_range_czech,
-    0,			/* mbmaxlen  */
+    my_wildcmp_8bit,
+    1,			/* mbmaxlen  */
     NULL,		/* ismbchar  */
     NULL,		/* ismbhead  */
     NULL,		/* mbcharlen */
@@ -625,7 +625,13 @@ CHARSET_INFO my_charset_czech =
     my_strncasecmp_8bit,
     my_hash_caseup_simple,
     my_hash_sort_simple,
-    0
+    0,
+    my_snprintf_8bit,
+    my_strtol_8bit,
+    my_strtoul_8bit,
+    my_strtoll_8bit,
+    my_strtoull_8bit,
+    my_strtod_8bit
 };
 
 #endif

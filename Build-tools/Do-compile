@@ -8,13 +8,13 @@ use Getopt::Long;
 $opt_distribution=$opt_user=$opt_config_env="";
 $opt_dbd_options=$opt_perl_options=$opt_config_options=$opt_make_options=$opt_suffix="";
 $opt_tmp=$opt_version_suffix="";
-$opt_help=$opt_delete=$opt_debug=$opt_stage=$opt_no_test=$opt_no_perl=$opt_with_low_memory=$opt_fast_benchmark=$opt_static_client=$opt_static_server=$opt_static_perl=$opt_sur=$opt_with_small_disk=$opt_local_perl=$opt_tcpip=$opt_build_thread=$opt_use_old_distribution=$opt_enable_shared=$opt_no_crash_me=$opt_no_strip=0;
+$opt_help=$opt_delete=$opt_debug=$opt_stage=$opt_no_test=$opt_no_perl=$opt_with_low_memory=$opt_fast_benchmark=$opt_static_client=$opt_static_server=$opt_static_perl=$opt_sur=$opt_with_small_disk=$opt_local_perl=$opt_tcpip=$opt_build_thread=$opt_use_old_distribution=$opt_enable_shared=$opt_no_crash_me=$opt_no_strip=$opt_with_debug=0;
 $opt_innodb=$opt_bdb=$opt_raid=$opt_libwrap=0;
 
 GetOptions(
 	"bdb",
 	"build-thread=i",
-	"config-env=s",
+	"config-env=s" => \@config_env,
 	"config-options=s" => \@config_options,
 	"dbd-options=s",
 	"debug",
@@ -45,6 +45,7 @@ GetOptions(
 	"use-old-distribution",
 	"user=s",
 	"version-suffix=s",
+	"with-debug",
 	"with-low-memory",
 	"with-other-libc=s",
 	"with-small-disk",
@@ -52,11 +53,6 @@ GetOptions(
 
 usage() if ($opt_help);
 usage() if (!$opt_distribution);
-
-if ($opt_bdb && $opt_version_suffix eq "")
-{
-  $opt_version_suffix="-max";
-}
 
 if (@make_options > 0)
 {
@@ -68,6 +64,18 @@ if (@config_options > 0)
 {
 	chomp(@config_options);
 	$opt_config_options= join(" ", @config_options);
+}
+
+if (@config_env > 0)
+{
+	chomp(@config_env);
+	$opt_config_env= join(" ", @config_env);
+}
+
+if (@config_env > 0)
+{
+	chomp(@config_env);
+	$opt_config_env= join(" ", @config_env);
 }
 
 chomp($host=`hostname`);
@@ -208,6 +216,7 @@ if ($opt_stage <= 1)
   $opt_config_options.= " --disable-shared" if (!$opt_enable_shared); # Default for binary versions
   $opt_config_options.= " --with-berkeley-db" if ($opt_bdb);
   $opt_config_options.= " --with-client-ldflags=-all-static" if ($opt_static_client);
+	$opt_config_options.= " --with-debug" if ($opt_with_debug);
   $opt_config_options.= " --with-libwrap" if ($opt_libwrap);
   $opt_config_options.= " --with-low-memory" if ($opt_with_low_memory);
   $opt_config_options.= " --with-mysqld-ldflags=-all-static" if ($opt_static_server);
@@ -258,7 +267,7 @@ if ($opt_stage <= 3)
   log_system("rm -fr mysql-3* mysql-4* $pwd/$host/*.tar.gz");
   log_system("nm -n sql/mysqld | gzip -9 -v 2>&1 > sql/mysqld.sym.gz | cat");
 
-  $flags.= "--no-strip" if ($opt_no_strip);
+  $flags.= "--no-strip" if ($opt_no_strip || $opt_with_debug);
   check_system("scripts/make_binary_distribution --tmp=$opt_tmp --suffix=$opt_suffix $flags",".tar.gz created");
   safe_system("mv mysql*.tar.gz $pwd/$host");
   if (-f "client/.libs/mysqladmin")
@@ -381,13 +390,15 @@ if ($opt_stage <= 9 && !$opt_no_test)
   log_system("rm -f output/*");
   $tmp= $opt_fast_benchmark ? "--fast --user root --small-test" : "";
   check_system("perl ./run-all-tests --log --die-on-errors $connect_option $tmp","RUN-mysql");
+	# Run additional fast test with dynamic-row tables
+  check_system("perl ./run-all-tests --log --suffix=\"_dynamic_rows\" --die-on-errors $connect_option --fast --user=root --small-test --create-options=\"row_format=dynamic\"","RUN-mysql");
   if ($opt_innodb)
   {
-    check_system("perl ./run-all-tests --log --suffix=\"_innodb\" --die-on-errors $connect_option $tmp --create-option=\"type=innodb\"","RUN-mysql");
+    check_system("perl ./run-all-tests --log --suffix=\"_innodb\" --die-on-errors $connect_option $tmp --create-options=\"type=innodb\"","RUN-mysql");
   }
   if ($opt_bdb)
   {
-    check_system("perl ./run-all-tests --log --suffix=\"_bdb\" --die-on-errors $connect_option $tmp --create-option=\"type=bdb\"","RUN-mysql");
+    check_system("perl ./run-all-tests --log --suffix=\"_bdb\" --die-on-errors $connect_option $tmp --create-options=\"type=bdb\"","RUN-mysql");
   }
 }
 
@@ -498,6 +509,9 @@ If user is empty then no mail is sent.
 --version-suffix suffix
 Set name suffix (e.g. 'com' or '-max') for a distribution
 
+--with-debug
+Build binaries with debug information (implies "--no-strip")
+
 --with-low-memory
 Use less memory when compiling.
 
@@ -528,7 +542,7 @@ sub abort
     print TMP "To: $email\n";
     print TMP "Subject: $ver$opt_version_suffix compilation failed\n\n";
     close TMP;
-    system("tail -40 $log > $log.mail");
+    system("tail -n 40 $log > $log.mail");
     system("cat $mail_header_file $log.mail | $sendmail -t -f $email");
     unlink($mail_header_file);
     unlink("$log.mail");
@@ -604,7 +618,7 @@ sub which
   my(@progs)=@_;
   foreach $prog (@progs)
   {
-    chomp($found=`which $prog | head -1`);
+    chomp($found=`which $prog | head -n 1`);
     if ($? == 0 && $found ne "" && index($found," ") == -1)
     {
       $found =~ s|/+|/|g;	# Make nicer output

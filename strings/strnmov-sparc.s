@@ -25,16 +25,16 @@ strnmov:
 	orcc	%g0,%o2,%g0
 	be,a	.end
 	nop
-	ldsb	[%o1],%g2
+	ldsb	[%o1],%o3
 .loop:	
-	stb	%g2,[%o0]
-	cmp	%g2,0
+	stb	%o3,[%o0]
+	cmp	%o3,0
 	be	.end		! Jump to end on end of string
 	add	%o1,1,%o1
 	add	%o0,1,%o0
 	subcc	%o2,1,%o2
 	bne,a	.loop
-	ldsb	[%o1],%g2
+	ldsb	[%o1],%o3
 .end:
 	retl
 	nop

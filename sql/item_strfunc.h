@@ -105,6 +105,13 @@ public:
 	    || Item_func::fix_fields(thd, tlist, ref));
   }
  const char *func_name() const { return "concat_ws"; }
+ bool check_loop(uint id)
+ {
+   DBUG_ENTER("Item_func_concat_ws::check_loop");
+   if (Item_str_func::check_loop(id))
+     DBUG_RETURN(1);
+   DBUG_RETURN(separator->check_loop(id));
+ }
 };
 
 class Item_func_reverse :public Item_str_func
@@ -310,7 +317,11 @@ class Item_func_database :public Item_str_func
 public:
   Item_func_database() {}
   String *val_str(String *);
-  void fix_length_and_dec() { max_length= MAX_FIELD_NAME; }
+  void fix_length_and_dec() 
+  { 
+    max_length= MAX_FIELD_NAME * thd_charset()->mbmaxlen; 
+    set_charset(thd_charset());
+  }
   const char *func_name() const { return "database"; }
 };
 
@@ -319,7 +330,11 @@ class Item_func_user :public Item_str_func
 public:
   Item_func_user() {}
   String *val_str(String *);
-  void fix_length_and_dec() { max_length= USERNAME_LENGTH+HOSTNAME_LENGTH+1; }
+  void fix_length_and_dec() 
+  { 
+    max_length= (USERNAME_LENGTH+HOSTNAME_LENGTH+1)*thd_charset()->mbmaxlen; 
+    set_charset(thd_charset());
+  }
   const char *func_name() const { return "user"; }
 };
 
@@ -353,6 +368,13 @@ public:
   void fix_length_and_dec();
   void update_used_tables();
   const char *func_name() const { return "elt"; }
+  bool check_loop(uint id)
+  {
+    DBUG_ENTER("Item_func_elt::check_loop");
+    if (Item_str_func::check_loop(id))
+      DBUG_RETURN(1);
+    DBUG_RETURN(item->check_loop(id));
+  }
 };
 
 
@@ -373,6 +395,13 @@ public:
   void fix_length_and_dec();
   void update_used_tables();
   const char *func_name() const { return "make_set"; }
+  bool check_loop(uint id)
+  {
+    DBUG_ENTER("Item_func_make_set::check_loop");
+    if (Item_str_func::check_loop(id))
+      DBUG_RETURN(1);
+    DBUG_RETURN(item->check_loop(id));
+  }
 };
 
 
@@ -465,8 +494,9 @@ public:
   {
     String *tmp=args[0]->val_str(a);
     null_value=args[0]->null_value;
+    tmp->set_charset(my_charset_bin);
     return tmp;
-   }
+  }
   void fix_length_and_dec() 
   { 
     set_charset(my_charset_bin); 
@@ -567,7 +597,8 @@ public:
   const char *func_name() const { return "charset"; }
   void fix_length_and_dec() 
   {
-     max_length=20; // should be enough
+     max_length=40; // should be enough
+     set_charset(thd_charset());
   };
 };
 

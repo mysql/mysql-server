@@ -206,6 +206,7 @@ insert into t2 select * from t1; # 2584
 insert into t1 select * from t2; # 4181
 
 show status like "Qcache_hits";
+show status like "Qcache_lowmem_prunes";
 disable_result_log;
 select a as a1, a as a2 from t1;
 select a as a2, a as a3 from t1;
@@ -215,6 +216,7 @@ select a as a1, a as a2 from t1;
 enable_result_log;
 show status like "Qcache_hits";
 show status like "Qcache_queries_in_cache";
+show status like "Qcache_lowmem_prunes";
 reset query cache;
 #
 # Query bigger then query_cache_limit

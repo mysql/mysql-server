@@ -320,7 +320,7 @@ and you are welcome to modify and redistribute it under the GPL license\n");
   my_print_help(my_long_options);
 }
 
-static my_bool
+extern "C" my_bool
 get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 	       char *argument __attribute__((unused)))
 {

@@ -39,8 +39,8 @@ static key_map get_key_map_from_key_list(TABLE *table,
 					 List<String> *index_list);
 
 
-static byte *cache_key(const byte *record,uint *length,
-		       my_bool not_used __attribute__((unused)))
+extern "C" byte *table_cache_key(const byte *record,uint *length,
+				 my_bool not_used __attribute__((unused)))
 {
   TABLE *entry=(TABLE*) record;
   *length=entry->key_length;
@@ -50,8 +50,8 @@ static byte *cache_key(const byte *record,uint *length,
 void table_cache_init(void)
 {
   VOID(hash_init(&open_cache,system_charset_info,
-		 table_cache_size+16,0,0,cache_key,
-		 (void (*)(void*)) free_cache_entry,0));
+		 table_cache_size+16,0,0,table_cache_key,
+		 (hash_free_key) free_cache_entry,0));
   mysql_rm_tmp_tables();
 }
 
@@ -536,14 +536,14 @@ bool close_cached_tables(THD *thd, bool if_wait_for_refresh,
     if (!found)
       if_wait_for_refresh=0;			// Nothing to wait for
   }
+  if (!tables)
+    kill_delayed_threads();
   if (if_wait_for_refresh)
   {
     /*
       If there is any table that has a lower refresh_version, wait until
       this is closed (or this thread is killed) before returning
     */
-    if (!tables)
-      kill_delayed_threads();
     thd->mysys_var->current_mutex= &LOCK_open;
     thd->mysys_var->current_cond= &COND_refresh;
     thd->proc_info="Flushing tables";
@@ -699,26 +699,20 @@ void close_temporary_tables(THD *thd)
 {
   TABLE *table,*next;
   char *query, *end;
-  const uint init_query_buf_size = 11;		// "drop table "
   uint query_buf_size; 
   bool found_user_tables = 0;
 
+  if (!thd->temporary_tables)
+    return;
+  
   LINT_INIT(end);
-  query_buf_size = init_query_buf_size;
+  query_buf_size= 50;   // Enough for DROP ... TABLE
 
   for (table=thd->temporary_tables ; table ; table=table->next)
-  {
     query_buf_size += table->key_length;
-  }
-
-  if (query_buf_size == init_query_buf_size)
-    return; // no tables to close
 
   if ((query = alloc_root(&thd->mem_root, query_buf_size)))
-  {
-    memcpy(query, "drop table ", init_query_buf_size);
-    end = query + init_query_buf_size;
-  }
+    end=strmov(query, "DROP /*!40005 TEMPORARY */ TABLE ");
 
   for (table=thd->temporary_tables ; table ; table=next)
   {
@@ -727,12 +721,14 @@ void close_temporary_tables(THD *thd)
       // skip temporary tables not created directly by the user
       if (table->real_name[0] != '#')
       {
-	end = strxmov(end,table->table_cache_key,".",
-		      table->real_name,",", NullS);
-	// here we assume table_cache_key always starts
-	// with \0 terminated db name
+	/*
+	  Here we assume table_cache_key always starts
+	  with \0 terminated db name
+	*/
 	found_user_tables = 1;
       }
+      end = strxmov(end,table->table_cache_key,".",
+		    table->real_name,",", NullS);
     }
     next=table->next;
     close_temporary(table);
@@ -740,7 +736,7 @@ void close_temporary_tables(THD *thd)
   if (query && found_user_tables && mysql_bin_log.is_open())
   {
     /* The -1 is to remove last ',' */
-    Query_log_event qinfo(thd, query, (ulong)(end-query)-1);
+    Query_log_event qinfo(thd, query, (ulong)(end-query)-1, 0);
     qinfo.error_code=0;
     mysql_bin_log.write(&qinfo);
   }
@@ -1435,7 +1431,7 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
   int error;
   DBUG_ENTER("open_unireg_entry");
 
-  (void) sprintf(path,"%s/%s/%s",mysql_data_home,db,name);
+  strxmov(path, mysql_data_home, "/", db, "/", name, NullS);
   if (openfrm(path,alias,
 	       (uint) (HA_OPEN_KEYFILE | HA_OPEN_RNDFILE | HA_GET_INDEX |
 		       HA_TRY_READ_ONLY),
@@ -1564,6 +1560,61 @@ int open_tables(THD *thd,TABLE_LIST *start)
 }
 
 
+/*
+  Check that lock is ok for tables; Call start stmt if ok
+
+  SYNOPSIS
+    check_lock_and_start_stmt()
+    thd			Thread handle
+    table_list		Table to check
+    lock_type		Lock used for table
+
+  RETURN VALUES
+  0	ok
+  1	error
+*/
+
+static bool check_lock_and_start_stmt(THD *thd, TABLE *table,
+				      thr_lock_type lock_type)
+{
+  int error;
+  DBUG_ENTER("check_lock_and_start_stmt");
+
+  if ((int) lock_type >= (int) TL_WRITE_ALLOW_READ &&
+      (int) table->reginfo.lock_type < (int) TL_WRITE_ALLOW_READ)
+  {
+    my_printf_error(ER_TABLE_NOT_LOCKED_FOR_WRITE,
+		    ER(ER_TABLE_NOT_LOCKED_FOR_WRITE),
+		    MYF(0),table->table_name);
+    DBUG_RETURN(1);
+  }
+  if ((error=table->file->start_stmt(thd)))
+  {
+    table->file->print_error(error,MYF(0));
+    DBUG_RETURN(1);
+  }
+  DBUG_RETURN(0);
+}
+
+
+/*
+  Open and lock one table
+
+  SYNOPSIS
+    open_ltable()
+    thd			Thread handler
+    table_list		Table to open is first table in this list
+    lock_type		Lock to use for open
+
+  RETURN VALUES
+    table		Opened table
+    0			Error
+  
+    If ok, the following are also set:
+      table_list->lock_type 	lock_type
+      table_list->table		table
+*/
+
 TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type)
 {
   TABLE *table;
@@ -1574,10 +1625,9 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type)
   while (!(table=open_table(thd,table_list->db,
 			    table_list->real_name,table_list->alias,
 			    &refresh)) && refresh) ;
+
   if (table)
   {
-    int error;
-
 #if defined( __WIN__) || defined(OS2)
     /* Win32 can't drop a file that is open */
     if (lock_type == TL_WRITE_ALLOW_READ)
@@ -1585,39 +1635,29 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type)
       lock_type= TL_WRITE;
     }
 #endif /* __WIN__ || OS2 */
-
-    table_list->table=table;
+    table_list->lock_type= lock_type;
+    table_list->table=	   table;
     table->grant= table_list->grant;
     if (thd->locked_tables)
     {
-      thd->proc_info=0;
-      if ((int) lock_type >= (int) TL_WRITE_ALLOW_READ &&
-	  (int) table->reginfo.lock_type < (int) TL_WRITE_ALLOW_READ)
-      {
-	my_printf_error(ER_TABLE_NOT_LOCKED_FOR_WRITE,
-			ER(ER_TABLE_NOT_LOCKED_FOR_WRITE),
-			MYF(0),table_list->alias);
-	table=0;
-      }
-      else if ((error=table->file->start_stmt(thd)))
-      {
-	table->file->print_error(error,MYF(0));
-	table=0;
-      }
-      thd->proc_info=0;
-      DBUG_RETURN(table);
+      if (check_lock_and_start_stmt(thd, table, lock_type))
+	table= 0;
     }
-    if ((table->reginfo.lock_type=lock_type) != TL_UNLOCK)
-      if (!(thd->lock=mysql_lock_tables(thd,&table_list->table,1)))
-	  DBUG_RETURN(0);
+    else
+    {
+      if ((table->reginfo.lock_type= lock_type) != TL_UNLOCK)
+	if (!(thd->lock=mysql_lock_tables(thd,&table_list->table,1)))
+	  table= 0;
+    }
   }
   thd->proc_info=0;
   DBUG_RETURN(table);
 }
 
+
 /*
-** Open all tables in list and locks them for read.
-** The lock will automaticly be freed by the close_thread_tables
+  Open all tables in list and locks them for read.
+  The lock will automaticly be freed by close_thread_tables()
 */
 
 int open_and_lock_tables(THD *thd,TABLE_LIST *tables)
@@ -1627,10 +1667,27 @@ int open_and_lock_tables(THD *thd,TABLE_LIST *tables)
   return 0;
 }
 
+
+/*
+  Lock all tables in list
+
+  SYNOPSIS
+    lock_tables()
+    thd			Thread handler
+    tables		Tables to lock
+
+  RETURN VALUES
+   0	ok
+   -1	Error
+*/
+
 int lock_tables(THD *thd,TABLE_LIST *tables)
 {
   TABLE_LIST *table;
-  if (tables && !thd->locked_tables)
+  if (!tables)
+    return 0;
+
+  if (!thd->locked_tables)
   {
     uint count=0;
     for (table = tables ; table ; table=table->next)
@@ -1647,10 +1704,9 @@ int lock_tables(THD *thd,TABLE_LIST *tables)
   {
     for (table = tables ; table ; table=table->next)
     {
-      int error;
-      if ((error=table->table->file->start_stmt(thd)))
+      if (check_lock_and_start_stmt(thd, table->table, table->lock_type))
       {
-	table->table->file->print_error(error,MYF(0));
+	ha_rollback_stmt(thd);
 	return -1;
       }
     }
@@ -1658,10 +1714,11 @@ int lock_tables(THD *thd,TABLE_LIST *tables)
   return 0;
 }
 
+
 /*
-** Open a single table without table caching and don't set it in open_list
-** Used by alter_table to open a temporary table and when creating
-** a temporary table with CREATE TEMPORARY ...
+  Open a single table without table caching and don't set it in open_list
+  Used by alter_table to open a temporary table and when creating
+  a temporary table with CREATE TEMPORARY ...
 */
 
 TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
@@ -1670,11 +1727,13 @@ TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
   TABLE *tmp_table;
   DBUG_ENTER("open_temporary_table");
 
-  // the extra size in my_malloc() is for table_cache_key
-  //  4 bytes for master thread id if we are in the slave
-  //  1 byte to terminate db
-  //  1 byte to terminate table_name
-  // total of 6 extra bytes in my_malloc in addition to table/db stuff
+  /*
+    The extra size in my_malloc() is for table_cache_key
+    4 bytes for master thread id if we are in the slave
+    1 byte to terminate db
+    1 byte to terminate table_name
+    total of 6 extra bytes in my_malloc in addition to table/db stuff
+  */
   if (!(tmp_table=(TABLE*) my_malloc(sizeof(*tmp_table)+(uint) strlen(db)+
 				     (uint) strlen(table_name)+6,
 				     MYF(MY_WME))))
@@ -1748,7 +1807,9 @@ Field *find_field_in_table(THD *thd,TABLE *table,const char *name,uint length,
   }
   else
   {
-    Field **ptr=table->field;
+    Field **ptr;
+    if (!(ptr=table->field))
+      return (Field *)0;
     while ((field = *ptr++))
     {
       if (!my_strcasecmp(system_charset_info, field->field_name, name))
@@ -1801,7 +1862,7 @@ const Field *not_found_field= (Field*) 0x1;
 */
 
 Field *
-find_field_in_tables(THD *thd, Item_field *item, TABLE_LIST *tables,
+find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
 		     bool report_error)
 {
   Field *found=0;
@@ -2001,9 +2062,9 @@ int setup_fields(THD *thd, TABLE_LIST *tables, List<Item> &fields,
     if (item->type() == Item::FIELD_ITEM &&
 	((Item_field*) item)->field_name[0] == '*')
     {
-      uint elem=fields.elements;
+      uint elem= fields.elements;
       if (insert_fields(thd,tables,((Item_field*) item)->db_name,
-			((Item_field*) item)->table_name,&it))
+			((Item_field*) item)->table_name, &it))
 	DBUG_RETURN(-1); /* purecov: inspected */
       if (sum_func_list)
       {
@@ -2019,6 +2080,7 @@ int setup_fields(THD *thd, TABLE_LIST *tables, List<Item> &fields,
     {
       if (item->fix_fields(thd, tables, it.ref()))
 	DBUG_RETURN(-1); /* purecov: inspected */
+      item= *(it.ref()); //Item can be chenged in fix fields
       if (item->with_sum_func && item->type() != Item::SUM_FUNC_ITEM &&
 	  sum_func_list)
 	item->split_sum_func(*sum_func_list);
@@ -2069,6 +2131,7 @@ bool setup_tables(TABLE_LIST *tables)
 	DBUG_RETURN(1);
       table->keys_in_use_for_query &= ~map;
     }
+    table->used_keys &= table->keys_in_use_for_query;
     if (table_list->shared)
     {
       /* Clear query_id that may have been set by previous select */
@@ -2164,8 +2227,8 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
 {
   DBUG_ENTER("setup_conds");
   thd->set_query_id=1;
-  thd->cond_count=0;
-  thd->allow_sum_func=0;
+  
+  thd->cond_count= 0;
   if (*conds)
   {
     thd->where="where clause";
@@ -2200,6 +2263,7 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
       Item_cond_and *cond_and=new Item_cond_and();
       if (!cond_and)				// If not out of memory
 	DBUG_RETURN(1);
+      cond_and->top_level_item();
 
       uint i,j;
       for (i=0 ; i < t1->fields ; i++)

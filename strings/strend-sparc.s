@@ -22,12 +22,12 @@
 	.type	 strend,#function
 	.proc	0102
 strend:
-	ldsb	[%o0], %g2		! Handle first char differently to make
+	ldsb	[%o0], %o3		! Handle first char differently to make
 .loop:					! a faster loop
 	add	%o0, 1, %o0
-	cmp	%g2, 0
+	cmp	%o3, 0
 	bne,a	.loop
-	ldsb	[%o0], %g2
+	ldsb	[%o0], %o3
 	retl
 	sub	%o0,1,%o0
 .strend_end:
