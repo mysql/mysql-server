@@ -52,7 +52,7 @@ class ha_berkeley: public handler
   u_int32_t *key_type;
   DBC *cursor;
   BDB_SHARE *share;
-  ulong int_option_flag;
+  ulong int_table_flags;
   ulong alloced_rec_buff_length;
   ulong changed_rows;
   uint primary_key,last_dup_key, hidden_primary_key, version;
@@ -86,13 +86,12 @@ class ha_berkeley: public handler
 
  public:
   ha_berkeley(TABLE *table): handler(table), alloc_ptr(0),rec_buff(0), file(0),
-    int_option_flag(HA_READ_NEXT | HA_READ_PREV |
-		    HA_REC_NOT_IN_SEQ |
-		    HA_KEYPOS_TO_RNDPOS | HA_READ_ORDER | HA_LASTKEY_ORDER |
-		    HA_NULL_KEY | HA_HAVE_KEY_READ_ONLY |
-		    HA_BLOB_KEY | HA_NOT_EXACT_COUNT |
-		    HA_PRIMARY_KEY_IN_READ_INDEX | HA_DROP_BEFORE_CREATE |
-		    HA_AUTO_PART_KEY | HA_TABLE_SCAN_ON_INDEX),
+    int_table_flags(HA_REC_NOT_IN_SEQ |
+		     HA_KEYPOS_TO_RNDPOS | HA_LASTKEY_ORDER |
+		     HA_NULL_KEY | HA_HAVE_KEY_READ_ONLY |
+		     HA_BLOB_KEY | HA_NOT_EXACT_COUNT |
+		     HA_PRIMARY_KEY_IN_READ_INDEX | HA_DROP_BEFORE_CREATE |
+		     HA_AUTO_PART_KEY | HA_TABLE_SCAN_ON_INDEX),
     changed_rows(0),last_dup_key((uint) -1),version(0),using_ignore(0)
   {
   }
@@ -100,7 +99,7 @@ class ha_berkeley: public handler
   const char *table_type() const { return "BerkeleyDB"; }
   const char *index_type(uint key_number) { return "BTREE"; }
   const char **bas_ext() const;
-  ulong option_flag() const { return int_option_flag; }
+  ulong table_flags(void) const { return int_table_flags; }
   uint max_record_length() const { return HA_MAX_REC_LENGTH; }
   uint max_keys()	   const { return MAX_KEY-1; }
   uint max_key_parts()	   const { return MAX_REF_PARTS; }

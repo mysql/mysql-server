@@ -595,7 +595,7 @@ int SQL_SELECT::test_quick_select(key_map keys_to_use, table_map prev_tables,
   if (!cond || (specialflag & SPECIAL_SAFE_MODE) && ! force_quick_range ||
       !limit)
     DBUG_RETURN(0); /* purecov: inspected */
-  if (!((basflag= head->file->option_flag()) & HA_KEYPOS_TO_RNDPOS) &&
+  if (!((basflag= head->file->table_flags()) & HA_KEYPOS_TO_RNDPOS) &&
       keys_to_use == (uint) ~0 || !keys_to_use)
     DBUG_RETURN(0);				/* Not smart database */
   records=head->file->records;
@@ -692,7 +692,7 @@ int SQL_SELECT::test_quick_select(key_map keys_to_use, table_map prev_tables,
 	    found_records=check_quick_select(&param,idx, *key);
 	    if (found_records != HA_POS_ERROR && found_records > 2 &&
 		head->used_keys & ((table_map) 1 << param.real_keynr[idx]) &&
-		(head->file->option_flag() & HA_HAVE_KEY_READ_ONLY))
+		(head->file->table_flags() & HA_HAVE_KEY_READ_ONLY))
 	    {
 	      /*
 	      ** We can resolve this by only reading through this key
@@ -929,7 +929,7 @@ get_mm_leaf(PARAM *param, Field *field, KEY_PART *key_part,
     String tmp(buff1,sizeof(buff1)),*res;
     uint length,offset,min_length,max_length;
 
-    if (!field->optimize_range())
+    if (!field->optimize_range((uint) key_part->key))
       DBUG_RETURN(0);				// Can't optimize this
     if (!(res= value->val_str(&tmp)))
       DBUG_RETURN(&null_element);
@@ -1010,7 +1010,8 @@ get_mm_leaf(PARAM *param, Field *field, KEY_PART *key_part,
     DBUG_RETURN(tree);
   }
 
-  if (!field->optimize_range() && type != Item_func::EQ_FUNC &&
+  if (!field->optimize_range((uint) key_part->key) &&
+      type != Item_func::EQ_FUNC &&
       type != Item_func::EQUAL_FUNC)
     DBUG_RETURN(0);				// Can't optimize this
 
@@ -2535,7 +2536,7 @@ int QUICK_SELECT::cmp_next(QUICK_RANGE *range)
 QUICK_SELECT_DESC::QUICK_SELECT_DESC(QUICK_SELECT *q, uint used_key_parts)
   : QUICK_SELECT(*q), rev_it(rev_ranges)
 {
-  bool not_read_after_key = file->option_flag() & HA_NOT_READ_AFTER_KEY;
+  bool not_read_after_key = file->table_flags() & HA_NOT_READ_AFTER_KEY;
   QUICK_RANGE *r;
 
   it.rewind();

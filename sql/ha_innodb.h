@@ -54,7 +54,7 @@ class ha_innobase: public handler
   					to Innodb format */
 	uint		ref_stored_len;	/* length of the key value stored to
 					'ref' buffer of the handle, if any */
-  	ulong 		int_option_flag;
+  	ulong 		int_table_flags;
   	uint 		primary_key;
 	uint		last_dup_key;
 	ulong		start_of_scan;	/* this is set to 1 when we are
@@ -75,15 +75,14 @@ class ha_innobase: public handler
 	/* Init values for the class: */
  public:
   	ha_innobase(TABLE *table): handler(table),
-	  int_option_flag(HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER |
-			  HA_REC_NOT_IN_SEQ |
+	  int_table_flags(HA_REC_NOT_IN_SEQ |
 			  HA_KEYPOS_TO_RNDPOS | HA_LASTKEY_ORDER |
-			  HA_HAVE_KEY_READ_ONLY | HA_READ_NOT_EXACT_KEY |
+			  HA_HAVE_KEY_READ_ONLY |
 			  HA_NULL_KEY |
 			  HA_NOT_EXACT_COUNT |
 			  HA_NO_WRITE_DELAYED |
 			  HA_PRIMARY_KEY_IN_READ_INDEX |
-			  HA_DROP_BEFORE_CREATE | HA_NOT_READ_PREFIX_LAST |
+			  HA_DROP_BEFORE_CREATE |
 			  HA_NO_PREFIX_CHAR_KEYS |
 			  HA_TABLE_SCAN_ON_INDEX),
 	  last_dup_key((uint) -1),
@@ -95,7 +94,12 @@ class ha_innobase: public handler
   	const char* table_type() const { return("InnoDB");}
 	const char *index_type(uint key_number) { return "BTREE"; }
   	const char** bas_ext() const;
- 	ulong option_flag() const { return int_option_flag; }
+ 	ulong table_flags() const { return int_table_flags; }
+	ulong index_flags(uint idx) const
+	{
+	  return (HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER |
+		  HA_NOT_READ_PREFIX_LAST);
+	}
   	uint max_record_length() const { return HA_MAX_REC_LENGTH; }
   	uint max_keys()          const { return MAX_KEY; }
   	uint max_key_parts()     const { return MAX_REF_PARTS; }

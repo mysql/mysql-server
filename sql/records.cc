@@ -102,7 +102,7 @@ void init_read_record(READ_RECORD *info,THD *thd, TABLE *table,
 	(int) table->reginfo.lock_type <= (int) TL_READ_HIGH_PRIORITY ||
 	!(table->db_options_in_use & HA_OPTION_PACK_RECORD) ||
 	(use_record_cache < 0 &&
-	 !(table->file->option_flag() & HA_NOT_DELETE_WITH_CACHE)))
+	 !(table->file->table_flags() & HA_NOT_DELETE_WITH_CACHE)))
       VOID(table->file->extra(HA_EXTRA_CACHE));	// Cache reads
   }
   DBUG_VOID_RETURN;

@@ -46,7 +46,8 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
   reg2 uchar *strpos;
   int	 j,error;
   uint	 rec_buff_length,n_length,int_length,records,key_parts,keys,
-    interval_count,interval_parts,read_length,db_create_options;
+         interval_count,interval_parts,read_length,db_create_options;
+  uint	 key_info_length;
   ulong  pos;
   char	 index_file[FN_REFLEN], *names,*keynames;
   uchar  head[288],*disk_buff,new_field_pack_flag;
@@ -127,8 +128,9 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
   outparam->min_rows=uint4korr(head+22);
 
   /* Read keyinformation */
+  key_info_length= (uint) uint2korr(head+28);
   VOID(my_seek(file,(ulong) uint2korr(head+6),MY_SEEK_SET,MYF(0)));
-  if (read_string(file,(gptr*) &disk_buff,(uint) uint2korr(head+28)))
+  if (read_string(file,(gptr*) &disk_buff,key_info_length))
     goto err_not_open; /* purecov: inspected */
   outparam->keys=keys=   disk_buff[0];
   outparam->keys_in_use= set_bits(key_map, keys);
@@ -187,8 +189,16 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
     if (keyinfo->flags & HA_NOSAME)
       set_if_bigger(outparam->max_unique_length,keyinfo->key_length);
   }
-
-  (void) strmov(keynames= (char *) key_part,(char *) strpos);
+  keynames=(char*) key_part;
+  strpos+= (strmov(keynames, (char *) strpos) - keynames)+1;
+  /* Test if new 4.0 format */
+  if ((uint) (strpos - disk_buff) < key_info_length)
+  {
+    /* Read key types */
+    keyinfo=outparam->key_info;
+    for (i=0 ; i < keys ; i++, keyinfo++)
+      keyinfo->algorithm= (enum ha_key_alg) *(strpos++);
+  }
   outparam->reclength = uint2korr((head+16));
   if (*(head+26) == 1)
     outparam->system=1;				/* one-record-database */
@@ -369,7 +379,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
   {
     uint primary_key=(uint) (find_type((char*) "PRIMARY",&outparam->keynames,
 				       3)-1);
-    uint ha_option=outparam->file->option_flag();
+    uint ha_option=outparam->file->table_flags();
     keyinfo=outparam->key_info;
     key_part=keyinfo->key_part;
 
@@ -442,8 +452,10 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 		(!(ha_option & HA_KEY_READ_WRONG_STR) &&
 		 !(keyinfo->flags & HA_FULLTEXT)))
 	      field->part_of_key|= ((key_map) 1 << key);
-	    if (field->key_type() != HA_KEYTYPE_TEXT ||
-		!(keyinfo->flags & HA_FULLTEXT))
+	    if ((field->key_type() != HA_KEYTYPE_TEXT ||
+		 !(keyinfo->flags & HA_FULLTEXT)) &&
+		!(outparam->file->index_flags(key) &
+		  HA_WRONG_ASCII_ORDER))
 	      field->part_of_sortkey|= ((key_map) 1 << key);
 	  }
 	  if (!(key_part->key_part_flag & HA_REVERSE_SORT) &&

@@ -476,7 +476,6 @@ err:
     
     pthread_mutex_lock(&rli->log_space_lock);
     rli->log_space_total -= s.st_size;
-    fprintf(stderr,"purge_first_log: %ld\n", rli->log_space_total);
     pthread_mutex_unlock(&rli->log_space_lock);
     // ok to broadcast after the critical region as there is no risk of
     // the mutex being destroyed by this thread later - this helps save

@@ -678,7 +678,7 @@ mysqld_show_keys(THD *thd, TABLE_LIST *table_list)
       net_store_data(packet,convert,
 		     key_part->field ? key_part->field->field_name :
                      "?unknown field?");
-      if (table->file->option_flag() & HA_READ_ORDER)
+      if (table->file->index_flags(i) & HA_READ_ORDER)
         net_store_data(packet,convert,
 		       ((key_part->key_part_flag & HA_REVERSE_SORT) ?
 			"D" : "A"), 1);
