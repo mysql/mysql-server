@@ -1153,13 +1153,16 @@ TransporterRegistry::start_clients_thread()
 						     &mgm_reply);
 	    DBUG_PRINT("info",("Got dynamic port %u for %d -> %d (ret: %d)",
 			       server_port,t->getRemoteNodeId(),
-			       t->getLocalNodeId()));
+			       t->getLocalNodeId(),res));
 	    if(res>=0)
 	      t->set_r_port(server_port);
 	    else
 	      ndbout_c("Failed to get dynamic port to connect to.");
 	  }
-	  t->connect_client();
+	  if(t->get_r_port()>0)
+	    t->connect_client();
+	  else
+	    NdbSleep_MilliSleep(400);
 	}
 	break;
       case DISCONNECTING:
@@ -1215,7 +1218,7 @@ TransporterRegistry::add_transporter_interface(NodeId remoteNodeId,
   for (unsigned i= 0; i < m_transporter_interface.size(); i++)
   {
     Transporter_interface &tmp= m_transporter_interface[i];
-    if (port != tmp.m_service_port)
+    if (port != tmp.m_service_port || tmp.m_service_port==0)
       continue;
     if (interf != 0 && tmp.m_interface != 0 &&
 	strcmp(interf, tmp.m_interface) == 0)
@@ -1248,14 +1251,11 @@ TransporterRegistry::start_service(SocketServer& socket_server)
   for (unsigned i= 0; i < m_transporter_interface.size(); i++)
   {
     Transporter_interface &t= m_transporter_interface[i];
-    if (t.m_service_port == 0)
-    {
-      continue;
-    }
+
     TransporterService *transporter_service =
       new TransporterService(new SocketAuthSimple("ndbd", "ndbd passwd"));
     if(!socket_server.setup(transporter_service,
-			    t.m_service_port, t.m_interface))
+			    &t.m_service_port, t.m_interface))
     {
       ndbout_c("Unable to setup transporter service port: %s:%d!\n"
 	       "Please check if the port is already used,\n"
