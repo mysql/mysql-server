@@ -17,6 +17,7 @@
 #include <global.h>
 #include "stacktrace.h"
 #include <signal.h>
+#include <my_pthread.h>
 
 #ifdef HAVE_STACKTRACE
 #include <unistd.h>

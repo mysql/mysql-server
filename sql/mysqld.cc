@@ -1241,6 +1241,12 @@ information that should help you find out what is causing the crash\n");
  exit(1);
 }
 
+#ifndef SA_RESETHAND
+#define SA_RESETHAND 0
+#endif
+#ifndef SA_NODEFER
+#define SA_NODEFER 0
+#endif
 
 static void init_signals(void)
 {

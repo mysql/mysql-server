@@ -1462,7 +1462,7 @@ longlong Item_func_get_lock::val_int()
   struct timespec abstime;
   THD *thd=current_thd;
   ULL *ull;
-  int error;
+  int error=0;
 
   pthread_mutex_lock(&LOCK_user_locks);
 
