@@ -9,14 +9,39 @@
 -- this sql script.
 -- On windows you should do 'mysql --force mysql < mysql_fix_privilege_tables.sql'
 
-ALTER TABLE user type=MyISAM, CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin;
-ALTER TABLE db type=MyISAM, CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin;
-ALTER TABLE host type=MyISAM, CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin;
-ALTER TABLE func type=MyISAM, CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin;
-ALTER TABLE columns_priv type=MyISAM, CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin;
-ALTER TABLE tables_priv type=MyISAM, CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin;
+-- Convert all tables to UTF-8 with binary collation
+-- and reset all char columns to correct width
+ALTER TABLE user
+  MODIFY Host char(60) NOT NULL default '',
+  MODIFY User char(16) NOT NULL default '',
+  MODIFY Password char(41) NOT NULL default '',
+  ENGINE=MyISAM, CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin;
+ALTER TABLE db
+  MODIFY Host char(60) NOT NULL default '',
+  MODIFY Db char(64) NOT NULL default '',
+  MODIFY User char(16) NOT NULL default '',
+  ENGINE=MyISAM, CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin;
+ALTER TABLE host
+  MODIFY Host char(60) NOT NULL default '',
+  MODIFY Db char(64) NOT NULL default '',
+  ENGINE=MyISAM, CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin;
+ALTER TABLE func
+  ENGINE=MyISAM, CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin;
+ALTER TABLE columns_priv
+  MODIFY Host char(60) NOT NULL default '',
+  MODIFY Db char(64) NOT NULL default '',
+  MODIFY User char(16) NOT NULL default '',
+  MODIFY Table_name char(64) NOT NULL default '',
+  MODIFY Column_name char(64) NOT NULL default '',
+  ENGINE=MyISAM, CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin;
+ALTER TABLE tables_priv
+  MODIFY Host char(60) NOT NULL default '',
+  MODIFY Db char(64) NOT NULL default '',
+  MODIFY User char(16) NOT NULL default '',
+  MODIFY Table_name char(64) NOT NULL default '',
+  MODIFY Grantor char(77) NOT NULL default '',
+  ENGINE=MyISAM, CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin;
 ALTER TABLE procs_priv type=MyISAM, CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin;
-ALTER TABLE user change Password Password char(41) binary not null default '';
 ALTER TABLE user add File_priv enum('N','Y') NOT NULL;
 CREATE TABLE IF NOT EXISTS func (
   name char(64) binary DEFAULT '' NOT NULL,
@@ -132,12 +157,8 @@ ALTER TABLE host
 ADD Create_tmp_table_priv enum('N','Y') DEFAULT 'N' NOT NULL,
 ADD Lock_tables_priv enum('N','Y') DEFAULT 'N' NOT NULL;
 
-alter table db change Db Db char(64) binary DEFAULT '' NOT NULL;
-alter table host change Db Db char(64) binary DEFAULT '' NOT NULL;
 alter table user change max_questions max_questions int(11) unsigned DEFAULT 0  NOT NULL;
-alter table tables_priv change Db Db char(64) binary DEFAULT '' NOT NULL, change Host Host char(60) binary DEFAULT '' NOT NULL, change User User char(16) binary DEFAULT '' NOT NULL, change Table_name Table_name char(64) binary DEFAULT '' NOT NULL;
 alter table tables_priv add KEY Grantor (Grantor);
-alter table columns_priv change Db Db char(64) binary DEFAULT '' NOT NULL, change Host Host char(60) binary DEFAULT '' NOT NULL, change User User char(16) binary DEFAULT '' NOT NULL, change Table_name Table_name char(64) binary DEFAULT '' NOT NULL, change Column_name Column_name char(64) binary DEFAULT '' NOT NULL;
 
 alter table db comment='Database privileges';
 alter table host comment='Host privileges;  Merged with database privileges';
