@@ -418,7 +418,8 @@ MgmApiSession::get_nodeid(Parser_t::Context &,
 				&addr, &addrlen, error_string)){
       const char *alias;
       const char *str;
-      alias= ndb_mgm_get_node_type_alias_string((enum ndb_mgm_node_type)nodetype, &str);
+      alias= ndb_mgm_get_node_type_alias_string((enum ndb_mgm_node_type)
+						nodetype, &str);
       m_output->println(cmd);
       m_output->println("result: %s", error_string.c_str());
       m_output->println("");

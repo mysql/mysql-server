@@ -15,6 +15,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
+#include <ndb_global.h>
 #include <NdbMutex.h>
 #include <NdbTCP.h>
 
@@ -27,22 +28,25 @@ static NdbMutex LOCK_gethostbyname = NDB_MUTEX_INITIALIZER;
 extern "C"
 int 
 Ndb_getInAddr(struct in_addr * dst, const char *address) {
+  DBUG_ENTER("Ndb_getInAddr");
   struct hostent * hostPtr;
   NdbMutex_Lock(&LOCK_gethostbyname);
   hostPtr = gethostbyname(address);
   if (hostPtr != NULL) {
     dst->s_addr = ((struct in_addr *) *hostPtr->h_addr_list)->s_addr;
     NdbMutex_Unlock(&LOCK_gethostbyname);
-    return 0;
+    DBUG_RETURN(0);
   }
   NdbMutex_Unlock(&LOCK_gethostbyname);
   
   /* Try it as aaa.bbb.ccc.ddd. */
   dst->s_addr = inet_addr(address);
   if (dst->s_addr != INADDR_NONE) {
-    return 0;
+    DBUG_RETURN(0);
   }
-  return -1;
+  DBUG_PRINT("error",("inet_addr(%s) - %d - %s",
+		      address, errno, strerror(errno)));
+  DBUG_RETURN(-1);
 }
 
 #if 0

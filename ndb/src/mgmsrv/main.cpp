@@ -82,6 +82,7 @@ struct MgmGlobals {
   SocketServer * socketServer;
 };
 
+int g_no_nodeid_checks= 0;
 static MgmGlobals glob;
 
 
@@ -118,7 +119,9 @@ struct getargs args[] = {
     "Specify configuration file connect string (will default use Ndb.cfg if available)",
     "filename" },
   { "interactive", 0, arg_flag, &glob.interactive,
-    "Run interactive. Not supported but provided for testing purposes", "" },
+   "Run interactive. Not supported but provided for testing purposes", "" },
+  { "no-nodeid-checks", 0, arg_flag, &g_no_nodeid_checks,
+    "Do not provide any node id checks", "" },
   { "nodaemon", 0, arg_flag, &glob.non_interactive,
     "Don't run as daemon, but don't read from stdin", "non-interactive" }
 };
@@ -336,17 +339,12 @@ MgmGlobals::~MgmGlobals(){
  * @fn      readLocalConfig
  * @param   glob : Global variables
  * @return  true if success, false otherwise.
- *
- * How to get LOCAL CONFIGURATION FILE:
- * 1. Use local config file name (-l)
- * 2. Use environment NDB_HOME + Ndb.cfg
- *    If NDB_HOME is not set this results in reading from local dir
  */
 static bool
 readLocalConfig(){
   // Read local config file
   LocalConfig lc;
-  if(!lc.init(glob.local_config_filename)){
+  if(!lc.init(0,glob.local_config_filename)){
     lc.printError();
     return false;
   }
@@ -360,10 +358,6 @@ readLocalConfig(){
  * @fn      readGlobalConfig
  * @param   glob : Global variables
  * @return  true if success, false otherwise.
- *
- * How to get the GLOBAL CONFIGURATION:
- * 1. Use config file name (this is a text file)(-c)
- * 2. Use name from line 2 of local config file, ex: file:///c/ndb/Ndb_cfg.bin
  */
 static bool
 readGlobalConfig() {
