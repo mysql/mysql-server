@@ -34,8 +34,6 @@ Created 10/8/1995 Heikki Tuuri
 #include "sync0sync.h"
 #include "sync0ipm.h"
 #include "thr0loc.h"
-#include "com0com.h"
-#include "com0shm.h"
 #include "que0que.h"
 #include "srv0que.h"
 #include "log0recv.h"
@@ -235,9 +233,6 @@ int     srv_query_thread_priority = 0;
 ulint	srv_n_spin_wait_rounds	= 20;
 ulint	srv_spin_wait_delay	= 5;
 ibool	srv_priority_boost	= TRUE;
-char	srv_endpoint_name[COM_MAX_ADDR_LEN];
-ulint	srv_n_com_threads	= ULINT_MAX;
-ulint	srv_n_worker_threads	= ULINT_MAX;
 
 ibool	srv_print_thread_releases	= FALSE;
 ibool	srv_print_lock_waits		= FALSE;
@@ -245,14 +240,14 @@ ibool	srv_print_buf_io		= FALSE;
 ibool	srv_print_log_io		= FALSE;
 ibool	srv_print_latch_waits		= FALSE;
 
-ulint	srv_n_rows_inserted		= 0;
-ulint	srv_n_rows_updated		= 0;
-ulint	srv_n_rows_deleted		= 0;
-ulint	srv_n_rows_read			= 0;
-ulint	srv_n_rows_inserted_old		= 0;
-ulint	srv_n_rows_updated_old		= 0;
-ulint	srv_n_rows_deleted_old		= 0;
-ulint	srv_n_rows_read_old		= 0;
+ulint		srv_n_rows_inserted		= 0;
+ulint		srv_n_rows_updated		= 0;
+ulint		srv_n_rows_deleted		= 0;
+ulint		srv_n_rows_read			= 0;
+static ulint	srv_n_rows_inserted_old		= 0;
+static ulint	srv_n_rows_updated_old		= 0;
+static ulint	srv_n_rows_deleted_old		= 0;
+static ulint	srv_n_rows_read_old		= 0;
 
 /*
   Set the following to 0 if you want InnoDB to write messages on

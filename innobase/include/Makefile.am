@@ -18,8 +18,7 @@
 noinst_HEADERS = btr0btr.h btr0btr.ic btr0cur.h btr0cur.ic \
         btr0pcur.h btr0pcur.ic btr0sea.h btr0sea.ic btr0types.h \
         buf0buf.h buf0buf.ic buf0flu.h buf0flu.ic buf0lru.h \
-        buf0lru.ic buf0rea.h buf0types.h com0com.h com0com.ic \
-        com0shm.h com0shm.ic data0data.h data0data.ic data0type.h \
+        buf0lru.ic buf0rea.h buf0types.h data0data.h data0data.ic data0type.h \
         data0type.ic data0types.h db0err.h dict0boot.h \
         dict0boot.ic dict0crea.h dict0crea.ic dict0dict.h \
         dict0dict.ic dict0load.h dict0load.ic dict0mem.h \
