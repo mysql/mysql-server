@@ -2315,7 +2315,7 @@ uint get_column_grant(THD *thd, TABLE_LIST *table, Field *field)
 static const char *command_array[]=
 {"SELECT", "INSERT","UPDATE","DELETE","CREATE", "DROP","RELOAD","SHUTDOWN",
  "PROCESS","FILE","GRANT","REFERENCES","INDEX","ALTER"};
-static int command_lengths[]={6,6,6,6,6,4,6,8,7,4,5,9,5,5};
+static int command_lengths[]={6,6,6,6,6,4,6,8,7,4,5,10,5,5};
 
 int mysql_show_grants(THD *thd,LEX_USER *lex_user) 
 {
