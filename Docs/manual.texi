@@ -37304,7 +37304,8 @@ of the form @code{SELECT * FROM AUTOINCREMENT_FIELD IS NULL}
 However, @code{FOUND ROWS()} will return the correct value,
 even if the preceding query was fetched from the cache.
 
-Queries that don't use any tables or if the user has a column privilege for
+Queries that don't use any tables, queries that use temporary tables
+or if the user has a column privilege for
 any of the involved tables are not cached.
 
 Before a query is fetched from the query cache, MySQL will check that
