@@ -10,7 +10,7 @@
 # started and shut down when the systems goes down.
 
 # Comments to support chkconfig on RedHat Linux
-# chkconfig: 2345 90 90
+# chkconfig: 2345 90 20
 # description: A very fast and reliable SQL database engine.
 
 # Comments to support LSB init script conventions
@@ -18,8 +18,8 @@
 # Provides: mysql
 # Required-Start: $local_fs $network $remote_fs
 # Required-Stop: $local_fs $network $remote_fs
-# Default-Start:  3 5
-# Default-Stop: 3 5
+# Default-Start:  2 3 4 5
+# Default-Stop: 2 3 4 5
 # Short-Description: start and stop MySQL
 # Description: MySQL is a very fast and reliable SQL database engine.
 ### END INIT INFO
