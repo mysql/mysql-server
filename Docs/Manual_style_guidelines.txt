@@ -1,0 +1,140 @@
+MySQL Manual style guidelines
+
+Paul DuBois <paul@snake.net>
+
+The following list of guidelines contains items that I've been jotting
+down over time as style questions have come up in relation to the
+MySQL manual. I wouldn't say they're exactly "official", but they
+do reflect current working practice. Arjen asked me to post this
+on the list some time ago so that it can be discussed with a view
+to adding it (or something like it) to the source tree. So here it is!
+
+MySQL Reference Manual Style Guidelines
+
+The manual is written in UK English, not American English. This means:
+
+colour, not color
+behaviour, not behavior
+authorise, not authorize
+optimise, not optimize
+etc.
+
+Write MySQL, not @strong{MySQL} (the manual used to use the latter, but no
+more).
+
+Write Unix, not UNIX.
+
+Use uppercase for SQL keywords, functions names, etc., when writing
+SQL statement examples.
+
+To write a list of items, add commas after all items preceding the last one:
+Correct: Features, products, and services
+Incorrect: Features, products and services
+
+How to pluralize keywords that are enclosed in @code:
+Correct: @code{SELECT}s
+Incorrect: @code{SELECTs} or @code{SELECT}'s or @code{SELECT}:s
+
+Use "its" and "it's" correctly. These words are exceptions to
+the normal use of "'s" to indicate possession:
+
+it's = it is (e.g., "one of the strengths of MySQL is that it's fast")
+its = possession (e.g., "MySQL is fast, which is one of its strengths")
+
+"a lot" is two words. "alot" is rebarbative.
+
+Write lowercase, not lower case
+Write uppercase, not upper case
+Write lettercase, not letter case
+
+Write "web site" (two words), not "website", and "web page" rather
+than "webpage".
+
+The word "data" is problematic. It's commonly used both in plural and in
+singular form. The manual uses it as plural, which means you use "data are"
+rather than "data is". It's unfortunate that no matter which form we use, it
+will look incorrect to some people. But we can at least be internally
+consistent.
+
+Write "press Enter", not "hit Return" or "hit Enter".
+
+When reproducing program output, reproduce it exactly, even if it contains
+typos. Don't "fix" it. (If the output is produced by a MySQL program, then
+fix the source for the program to write the output correctly without the
+typo, then update the manual to match.)
+
+Use "okay" rather than "ok" or "Ok" or "OK" in sentences.
+Exceptions:
+- When describing instructions for a GUI with buttons that say
+"OK", then use "OK". That is, use the label that the GUI uses.
+- When showing the output from a program, show the output exactly;
+don't change "ok" to "okay", etc.
+
+Write "Open Source", not "open source".
+
+To put something in quotes, do it ``like this,'' not "like this"
+or 'like this.' In the latter two cases, the quotes will come
+out looking rotten in printed formats.
+Exception: quotes in code examples should be written using whatever
+contention the program language requires.
+
+Table types should be written using @code{}; write @code{MyISAM}, not
+MyISAM.
+
+When possible, use table names that are singular, not plural.
+For example, use "item" rather than "items", or "person" rather than
+"people". Sometimes you can add "_list" (as in "item_list") to make it
+more clear that the name refers to a collection of items.
+
+Some commonly occurring misspelling:
+
+Correct         Incorrect
+---------------------------
+publicly        publically
+statically      staticly
+dynamically     dynamicly
+automatically   automaticly
+
+There is no hyphen after "ly" words. Write statically linked, not
+statically-linked.
+
+To refer to ASCII codes, use ASCII n, not ASCII(n), unless you're
+referring to the ASCII() function, which case you use @code{ASCII()}.
+
+ASCII 13             indicates ASCII character code 13
+@code{ASCII(13)}     indicates a function call
+
+backup is a noun or adjective (as in "a backup file"), back up is a verb
+(as in "to back up a database")
+rollback is a noun or adjective (as in "a rollback operation"), roll back
+is a verb (as in "roll back a transaction")
+
+core dump is a noun or a verb (as in "a core dump file" or "a program
+core dumps when it fails"). In the latter case, however, it's better say
+say "a program dumps core when it fails").
+
+Write character set names in @code{}, e.g., @code{latin1}, @code{win1251}.
+
+To prevent problems with various output formats, there should be no link
+titles in a @uref{}. So @uref{url} is allowed, @uref{url,blabla} is not.
+Use this format:
+		@uref{url} (WWW)
+Not this format:
+		@uref{url, WWW}
+Similarly for FTP sites.
+
+URLs ending in a domain name or directory should have a "/" at the end.
+(For example, the URLs for all mirror sites should be written that way.)
+
+Privilege names are written using @strong and lowercase, as in "the
+@strong{process} privilege". Column names in the grant tables are
+written using @code and the lettercase found in the table definition,
+as in "the @code{Process_priv} column".
+
+Write "e-mail", not "email". Exceptions are the @email{} construct, and
+the Email attribute name in X509 certificate strings.
+
+Write thread-safe, transaction-safe, replication-safe, not thread safe,
+transaction safe, replication safe.
+
+Write wildcard, not wild card or wild-card.
