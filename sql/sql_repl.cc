@@ -68,11 +68,6 @@ static int fake_rotate_event(NET* net, String* packet, char* log_file_name,
   int4store(header + LOG_POS_OFFSET, 0);
   
   packet->append(header, sizeof(header));
-  /* 
-     An old comment said talked about a need for splitting the int8store below
-     into 2 int4store because of a problem with cxx; I can't understand that as
-     we already use int8store in Rotatel_log_event::write_data().
-  */
   int8store(buf+R_POS_OFFSET,position);
   packet->append(buf, ROTATE_HEADER_LEN);
   packet->append(p,ident_len);
