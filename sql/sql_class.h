@@ -169,6 +169,8 @@ public:
   int purge_first_log(struct st_relay_log_info* rli, bool included); 
   bool reset_logs(THD* thd);
   void close(uint exiting);
+  bool cut_spurious_tail();
+  void report_pos_in_innodb();
 
   // iterating through the log index file
   int find_log_pos(LOG_INFO* linfo, const char* log_name,

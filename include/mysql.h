@@ -55,6 +55,7 @@ typedef int my_socket;
 #endif /* _global_h */
 
 #include "mysql_com.h"
+#include "mysql_time.h"
 #include "mysql_version.h"
 #include "typelib.h"
 
@@ -301,7 +302,6 @@ typedef struct st_mysql_res {
 #endif
 
 
-
 typedef struct st_mysql_manager
 {
   NET net;
@@ -322,7 +322,7 @@ typedef struct st_mysql_parameters
   unsigned long *p_net_buffer_length;
 } MYSQL_PARAMETERS;
 
-#if !defined(MYSQL_CLIENT) && !defined(MYSQL_SERVER) && !defined(EMBEDDED_LIBRARY)
+#if !defined(MYSQL_SERVER) && !defined(EMBEDDED_LIBRARY)
 #define max_allowed_packet (*mysql_get_parameters()->p_max_allowed_packet)
 #define net_buffer_length (*mysql_get_parameters()->p_net_buffer_length)
 #endif
@@ -533,30 +533,13 @@ enum enum_mysql_stmt_state
   MYSQL_STMT_FETCH_DONE
 };
 
-/* 
-  client TIME structure to handle TIME, DATE and TIMESTAMP directly in 
-  binary protocol 
-*/
-enum mysql_st_timestamp_type { MYSQL_TIMESTAMP_NONE, MYSQL_TIMESTAMP_DATE, 
-                               MYSQL_TIMESTAMP_FULL, MYSQL_TIMESTAMP_TIME };
-
-typedef struct mysql_st_time 
-{
-  unsigned int  year,month,day,hour,minute,second;
-  unsigned long second_part;  
-  my_bool       neg;
-
-  enum mysql_st_timestamp_type time_type;
-  
-} MYSQL_TIME;
-
 
 /* bind structure */
 typedef struct st_mysql_bind
 {
   unsigned long	*length;          /* output length pointer */
   my_bool       *is_null;	  /* Pointer to null indicators */
-  char		*buffer;	  /* buffer to get/put data */
+  void		*buffer;	  /* buffer to get/put data */
   enum enum_field_types buffer_type;	/* buffer type */
   unsigned long buffer_length;    /* buffer length, must be set for str/binary */  
 

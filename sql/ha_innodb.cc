@@ -407,7 +407,7 @@ innobase_mysql_print_thd(
 					May 14, 2004 probably no race any more,
 					but better be safe */
 		}
-		
+
                 /* Use strmake to reduce the timeframe
                    for a race, compared to fwrite() */
 		i= (uint) (strmake(buf, s, len) - buf);
@@ -1436,9 +1436,6 @@ ha_innobase::open(
 
 	last_query_id = (ulong)-1;
 
-	active_index = 0;
-	active_index_before_scan = (uint)-1; /* undefined value */
-
 	if (!(share=get_share(name))) {
 
 		DBUG_RETURN(1);
@@ -1580,15 +1577,6 @@ ha_innobase::open(
   	info(HA_STATUS_NO_LOCK | HA_STATUS_VARIABLE | HA_STATUS_CONST);
 
   	DBUG_RETURN(0);
-}
-
-/*********************************************************************
-Does nothing. */
-
-void
-ha_innobase::initialize(void)
-/*=========================*/
-{
 }
 
 /**********************************************************************
@@ -2660,7 +2648,7 @@ ha_innobase::index_end(void)
 {
 	int 	error	= 0;
   	DBUG_ENTER("index_end");
-
+        active_index=MAX_KEY;
   	DBUG_RETURN(error);
 }
 
@@ -3131,8 +3119,6 @@ ha_innobase::rnd_init(
 	/* Store the active index value so that we can restore the original
 	value after a scan */
 
-	active_index_before_scan = active_index;
-
 	if (prebuilt->clust_index_was_generated) {
 		err = change_active_index(MAX_KEY);
 	} else {
@@ -3152,19 +3138,7 @@ ha_innobase::rnd_end(void)
 /*======================*/
 				/* out: 0 or error number */
 {
-	/* Restore the old active_index back; MySQL may assume that a table
-	scan does not change active_index. We only restore the value if
-	MySQL has called rnd_init before: sometimes MySQL seems to call
-	rnd_end WITHOUT calling rnd_init. */
-
-	if (active_index_before_scan != (uint)-1) {
-
-		change_active_index(active_index_before_scan);
-
-		active_index_before_scan = (uint)-1;
-	}
-
-  	return(index_end());
+	return(index_end());
 }
 
 /*********************************************************************
@@ -5213,4 +5187,19 @@ innobase_store_binlog_offset_and_flush_log(
 	/* Syncronous flush of the log buffer to disk */
 	log_buffer_flush_to_disk();
 }
+
+char *ha_innobase::get_mysql_bin_log_name()
+{
+  return trx_sys_mysql_bin_log_name;
+}
+
+ulonglong ha_innobase::get_mysql_bin_log_pos()
+{
+  /*
+    trx... is ib_longlong, which is a typedef for a 64-bit integer (__int64 or
+    longlong) so it's ok to cast it to ulonglong.
+  */
+  return trx_sys_mysql_bin_log_pos;
+}
+
 #endif /* HAVE_INNOBASE_DB */

@@ -1071,3 +1071,13 @@ enum Cast_target
   ITEM_CAST_BINARY, ITEM_CAST_SIGNED_INT, ITEM_CAST_UNSIGNED_INT,
   ITEM_CAST_DATE, ITEM_CAST_TIME, ITEM_CAST_DATETIME, ITEM_CAST_CHAR
 };
+
+
+class Item_func_found_rows :public Item_int_func
+{
+public:
+  Item_func_found_rows() :Item_int_func() {}
+  longlong val_int();
+  const char *func_name() const { return "found_rows"; }
+  void fix_length_and_dec() { decimals= 0; maybe_null=0; }
+};
