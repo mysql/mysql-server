@@ -185,7 +185,8 @@ class Item_sum_count_distinct :public Item_sum_int
     :Item_sum_int(list),table(0),used_table_cache(~(table_map) 0),
      tmp_table_param(0),use_tree(0),always_null(0)
   { quick_group=0; }
-  ~Item_sum_count_distinct();
+  ~Item_sum_count_distinct() { no_rows_in_result(); }
+
   table_map used_tables() const { return used_table_cache; }
   enum Sumfunctype sum_func () const { return COUNT_DISTINCT_FUNC; }
   void reset();
@@ -195,7 +196,8 @@ class Item_sum_count_distinct :public Item_sum_int
   void update_field(int offset) { return ; }	// Never called
   const char *func_name() const { return "count_distinct"; }
   bool setup(THD *thd);
-  unsigned int size_of() { return sizeof(*this);}  
+  void no_rows_in_result();
+  unsigned int size_of() { return sizeof(*this);}
 };
 
 

@@ -43,3 +43,12 @@ insert into t1 values (1);
 create table t2 (f1 int,f2 int);
 select t1.f1,count(distinct t2.f2),count(distinct 1,NULL) from t1 left join t2 on t1.f1=t2.f1 group by t1.f1;
 drop table t1,t2;
+
+
+#
+# Empty tables
+#
+create table t1 (f int);
+select count(distinct f) from t1;
+drop table t1;
+

@@ -918,7 +918,7 @@ int dump_leaf(byte* key, uint32 count __attribute__((unused)),
 }
 
 
-Item_sum_count_distinct::~Item_sum_count_distinct()
+void Item_sum_count_distinct::no_rows_in_result()
 {
   if (table)
     free_tmp_table(current_thd, table);
@@ -926,7 +926,6 @@ Item_sum_count_distinct::~Item_sum_count_distinct()
   if (use_tree)
     delete_tree(&tree);
 }
-
 
 bool Item_sum_count_distinct::fix_fields(THD *thd,TABLE_LIST *tables)
 {
