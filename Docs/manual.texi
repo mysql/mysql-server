@@ -254,7 +254,7 @@ System-specific issues
 * Solaris x86::                 Solaris x86 notes
 * SunOS::                       SunOS 4 notes
 * Linux::                       Linux notes (all Linux versions)
-* Alpha-DEC-Unix::              Alpha-DEC-Unix notes
+* Alpha-DEC-UNIX::              Alpha-DEC-UNIX notes
 * Alpha-DEC-OSF1::              Alpha-DEC-OSF1 notes
 * SGI-Irix::                    SGI-Irix notes
 * FreeBSD::                     FreeBSD notes
@@ -2885,9 +2885,9 @@ Many users don't read mail with a browser!
 @chapter MySQL Licensing and Support
 
 @menu
-* Licensing Policy::            @strong{MySQL} licensing policy
+* Licensing policy::            @strong{MySQL} licensing policy
 * Copyright::                   Copyrights used by @strong{MySQL}
-* Licensing Examples::          Example licensing situations
+* Licensing examples::          Example licensing situations
 * Cost::                        @strong{MySQL} licensing and support costs
 * Support::                     Types of commercial support
 @end menu
@@ -2994,7 +2994,7 @@ discussed in @ref{Payment information}.
 @section Copyrights Used by MySQL
 
 @menu
-* Copyright Changes::           Possible future copyright changes
+* Copyright changes::           Possible future copyright changes
 @end menu
 
 There are several different copyrights on the @strong{MySQL} distribution:
@@ -3137,7 +3137,7 @@ enterprise.
 @cindex Licensing costs
 @cindex Support costs
 @node Cost, Support, Licensing examples, Licensing and Support
-@section @strong{MySQL} licensing and support costs
+@section @strong{MySQL} Licensing and Support Costs
 
 @menu
 * Payment information::         Payment information
@@ -5872,7 +5872,7 @@ Finally, you should install this new Perl.  Again, the output of @code{make
 perl} indicates the command to use.
 
 @node Source install system issues, Windows, Perl support, Installing
-@section System-specific issues
+@section System-specific Issues
 
 The following sections indicate some of the issues that have been observed to
 occur on particular systems when installing @strong{MySQL} from a source
@@ -5901,7 +5901,7 @@ distribution.
 @end menu
 
 @node Solaris, Solaris 2.7, Source install system issues, Source install system issues
-@subsection Solaris notes
+@subsection Solaris Notes
 
 On Solaris, you may run into trouble even before you get the @strong{MySQL}
 distribution unpacked!  Solaris @code{tar} can't handle long file names, so
@@ -5916,9 +5916,9 @@ In this case, you must use GNU @code{tar} (@code{gtar}) to unpack the
 distribution.  You can find a precompiled copy for Solaris at
 @uref{http://www.mysql.com/Downloads/}.
 
-Sun native threads work only on Solaris 2.5 and higher. For 2.4 and
-earlier versions, @strong{MySQL} will automatically use
-MIT-pthreads. @xref{MIT-pthreads}.
+Sun native threads work only on Solaris 2.5 and higher. For Version 2.4 and
+earlier, @strong{MySQL} will automatically use MIT-pt threads. 
+@xref{MIT-pthreads}.
 
 If you get the following error from configure:
 
@@ -5927,7 +5927,7 @@ checking for restartable system calls... configure: error can not run test
 programs while cross compiling
 @end example
 
-This means that you have something wrong with your compiler installation!
+this means that you have something wrong with your compiler installation!
 In this case you should upgrade your compiler to a newer version.  You may
 also be able to solve this problem by inserting the following row into the
 @code{config.cache} file:
@@ -5985,7 +5985,7 @@ libc internal error: _rmutex_unlock: rmutex not held
 Add @code{-mt} to @code{CFLAGS} and @code{CXXFLAGS} and try again.
 
 If you get the following error when compiling @strong{MySQL} with @code{gcc},
-it means that your @code{gcc} is not configured for your version of Solaris!
+it means that your @code{gcc} is not configured for your version of Solaris:
 
 @example
 shell> gcc -O3 -g -O2 -DDBUG_OFF  -o thr_alarm ...
@@ -6054,7 +6054,7 @@ you don't have @code{zlib} installed, you have two options:
 If you want to be able to use the compressed communication protocol,
 you need to get and install zlib from ftp.gnu.org.
 @item
-Configure with @code{--with-named-z-libs=no}
+Configure with @code{--with-named-z-libs=no}.
 @end itemize
 
 If you are using gcc and have problems with loading @code{UDF} functions
@@ -6066,14 +6066,13 @@ If you would like @strong{MySQL} to start automatically, you can copy
 symbolic link to it named @code{/etc/rc3.d/S99mysql.server}.
 
 @node Solaris 2.7, Solaris x86, Solaris, Source install system issues
-@subsection Solaris 2.7 / 2.8 notes
+@subsection Solaris 2.7/2.8 Notes
 
 You can normally use a Solaris 2.6 binary on Solaris 2.7 and 2.8.  Most
 of the Solaris 2.6 issues also apply for Solaris 2.7 and 2.8.
 
-Note that @strong{MySQL} 3.23.4 and above should be able to autodetect
-new versions of Solaris and enable workarounds for the following
-problems!
+Note that @strong{MySQL} Version 3.23.4 and above should be able to autodetect
+new versions of Solaris and enable workarounds for the following problems!
 
 Solaris 2.7 / 2.8 has some bugs in the include files. You may see the
 following error when you use @code{gcc}:
@@ -6103,7 +6102,7 @@ way, after you make the fix, you should remove @file{config.cache} and run
 
 If you get errors like this when you run @code{make}, it's because
 @code{configure} didn't detect the @file{curses.h} file (probably
-because of the error in @code{/usr/include/widec.h}:
+because of the error in @code{/usr/include/widec.h}):
 
 @example
 In file included from mysql.cc:50:
@@ -6111,13 +6110,13 @@ In file included from mysql.cc:50:
 /usr/include/term.h:1081: syntax error before `;'
 @end example
 
-The solution to this is to do one of the following steps:
+The solution to this is to do one of the following:
 
 @itemize @bullet
 @item
-Configure with @code{CFLAGS=-DHAVE_CURSES_H CXXFLAGS=-DHAVE_CURSES_H ./configure}
+Configure with @code{CFLAGS=-DHAVE_CURSES_H CXXFLAGS=-DHAVE_CURSES_H ./configure}.
 @item
-Edit @file{/usr/include/widec.h} as indicted above and rerun configure
+Edit @file{/usr/include/widec.h} as indicted above and rerun configure.
 @item
 Remove the @code{#define HAVE_TERM} line from @file{config.h} file and
 run @code{make} again.
@@ -6130,9 +6129,9 @@ following methods:
 
 @itemize @bullet
 @item
-Add @file{/usr/local/lib} to @code{LD_LIBRARY_PATH}
+Add @file{/usr/local/lib} to @code{LD_LIBRARY_PATH}.
 @item
-Add a link to @code{libz.so} from @code{/lib}
+Add a link to @code{libz.so} from @code{/lib}.
 @item
 If you are using Solaris 8, you can install the optional zlib from your
 Solaris 8 CD distribution.
@@ -6141,7 +6140,7 @@ configure @strong{MySQL} with the @code{--with-named-z-libs=no} option.
 @end itemize
 
 @node Solaris x86, SunOS, Solaris 2.7, Source install system issues
-@subsection Solaris x86 notes
+@subsection Solaris x86 Notes
 
 If you are using @code{gcc} or @code{egcs} on Solaris x86 and you
 experience problems with core dumps under load, you should use the
@@ -6161,7 +6160,7 @@ If this doesn't help, you should compile a debug version and run
 it with a trace file or under @code{gdb}.  @xref{Debugging server}.
 
 @node SunOS, Linux, Solaris x86, Source install system issues
-@subsection SunOS 4 notes
+@subsection SunOS 4 Notes
 
 On SunOS 4, MIT-pthreads is needed to compile @strong{MySQL}, which in turn
 means you will need GNU @code{make}.
@@ -6181,23 +6180,23 @@ When compiling @code{mysqld}, there will be some @code{implicit declaration
 of function} warnings. These may be ignored.
 
 @node Linux, Alpha-DEC-UNIX, SunOS, Source install system issues
-@subsection Linux notes (all Linux versions)
+@subsection Linux Notes (All Linux Versions)
 
 @strong{MySQL} uses LinuxThreads on Linux.  If you are using an old
 Linux version that doesn't have @code{glibc2}, you must install
 LinuxThreads before trying to compile
 @strong{MySQL}. @uref{http://www.mysql.com/Downloads/Linux}
 
-Note that @code{glibc} versions before and including 2.1.1 has a fatal
+Note that @code{glibc} versions before and including Version 2.1.1 have a fatal
 bug in @code{pthread_mutex_timedwait} handling, which is used when you
 do @code{INSERT DELAYED}. If you are using @code{INSERT DELAYED}, you
 @strong{MUST} add the following patch to your glibc library:
-@uref{http://www.mysql.com/Downloads/Patches/glibc-pthread_cond_timedwait.patch}.
-@strong{MySQL} 3.23.7 and the @strong{MySQL} 3.22.32 contains a
-temporary workaround for this bug.
+@uref{http://www.mysql.com/Downloads/Patches/glibc-pthread_cond_timedwait.patch}. 
+@strong{MySQL} Versions 3.23.7 and 3.22.32 contain a temporary 
+workaround for this bug.
 
 If you plan to have 1000+ concurrent connections, you will need to make
-some changes to LinuxThreads, recompile it, and re-link MySQL against
+some changes to LinuxThreads, recompile it, and relink MySQL against
 the new @file{libpthread.a}. Increase @code{PTHREAD_THREADS_MAX} in
 @file{sysdeps/unix/sysv/linux/bits/local_lim.h} to 4096 and decrease 
 @code{STACK_SIZE} in @file{internals.h} to 256 KB. Note that MySQL 
@@ -6207,39 +6206,39 @@ is the default of 2 MB.
 If you have glibc 2.1.3-65 or newer, you don't have to increase STACK_SIZE;
 You can instead just change the @code{thread_stack} value for @code{mysqld}.
 
-If you use a lot of concurrent connections, you may suffer from a 2.2
+If you use a lot of concurrent connections, you may suffer from a Version 2.2
 kernel "feature" that penalizes a process for forking or cloning a child
 in an attempt to prevent a fork bomb attack. This will cause MySQL not
 to scale well as you increase the number of concurrent clients. On
 single CPU systems, we have seen this manifested in a very slow thread
-creation - which means it may take a long time to connect to MySQL ( as
+creation - which means it may take a long time to connect to MySQL (as
 long as 1 minute), and it may take just as long to shut it down. On
 multiple CPU systems, we have observed a gradual drop in query speed as
 the number of clients increases. In the process of trying to find a
 solution, we have received a kernel patch from one of our users, who
 claimed it made a lot of difference for his site. We have done some
 limited testing in which the patch greatly improved the scalabitility of
-MySQL. The patch is available
-@uref{http://www.mysql.com/Downloads/Patches/linux-fork.patch,here} - be
+MySQL. The patch is available here 
+(@uref{http://www.mysql.com/Downloads/Patches/linux-fork.patch}). Be
 warned, though, that we assume no reponsibility for any damage that this
-patch could do - use at your own risk. We have also been told by the
-Linux kernel developers that this problem is fixed in 2.4, although we
-have not yet done any testing.
+patch could do. Use it at your own risk. We have also been told by the
+Linux kernel developers that this problem is fixed in Version 2.4, although
+we have not yet done any testing.
 
-We have also tested @strong{MySQL} on Linux 2.4 on a 2 CPU machine and
+We have also tested @strong{MySQL} on Linux Version 2.4 on a 2 CPU machine and
 @strong{MySQL} scales MUCH better on this!  If your plan to set up a
-dedicated Linux SMP machine to run @code{MySQL} under heavy, we
-recommend that you give 2.4 a try!
+dedicated Linux SMP machine to run @code{MySQL} under heavy load, we
+recommend that you give Version 2.4 a try!
 
 The current implementation of mutex in Linuxthreads is also very bad for
-programs with many threads that only holds the mutex for a short time.
+programs with many threads that only hold the mutex for a short time.
 We have made a patch available for glibc 2.1,
 @uref{http://www.mysql.com/Downloads/Linux/linuxthreads-2.1-patch,linuxthreads-2.1-patch}
 and for glibc 2.2,
 @uref{http://www.mysql.com/Downloads/Linux/linuxthreads-2.2-patch,linuxthreads-2.2-patch}.
 
-If you apply the patches, you are doing this at your own risk; We can
-only say that they appear to work excellent for us!.
+If you apply the patches, you are doing this at your own risk. We can
+only say that they appear to work well for us!.
 
 If you can't start @code{mysqld} or if @code{mysql_install_db} doesn't work,
 please continue reading!  This only happens on Linux system with problems in
@@ -6251,7 +6250,7 @@ would compile yourself!  @xref{Compile and link options}.
 
 One known problem with the binary distribution is that with older Linux
 systems that use @code{libc} (like RedHat 4.x or Slackware), you will get
-some non-fatal problems with hostname resolution
+some non-fatal problems with hostname resolution.
 @xref{Binary notes-Linux}.
 
 @code{myisamchk} hangs with @code{libc.so.5.3.12}. Upgrading to the newest
@@ -6269,16 +6268,16 @@ connections to MySQL on a unpatched system.  The page
 go around this limit.
 
 If you see a dead @code{mysqld} daemon process with @code{ps}, this usually
-means that you have found a bug in @strong{MySQL} or you have got a corrupted
+means that you have found a bug in @strong{MySQL} or you have a corrupted
 table. @xref{Crashing}.
 
-If you want to get a core dump on Linux if mysqld dies with a SIGSEGV
+To get a core dump on Linux if mysqld dies with a SIGSEGV
 signal, you can start mysqld with the @code{--core-file} option.  Note
 that you also probably need to raise the @code{core file size} with
 @code{ulimit}!
 
 If you are using LinuxThreads and @code{mysqladmin shutdown} doesn't work,
-you must upgrade to LinuxThreads 0.7.1 or newer.
+you must upgrade to LinuxThreads Version 0.7.1 or newer.
 
 If you are using RedHat, you might get errors like this:
 
@@ -6291,7 +6290,7 @@ If you are using RedHat, you might get errors like this:
 If so, you should upgrade your version of @code{rpm} to
 @file{rpm-2.4.11-1.i386.rpm} and @file{rpm-devel-2.4.11-1.i386.rpm} (or later).
 
-You can get the upgrades of libraries to RedHat 4.2 from
+You can get the upgrades of libraries to RedHat Version 4.2 from
 @uref{ftp://ftp.redhat.com/updates/4.2/i386}. Or
 @uref{http://www.sunsite.unc.edu/pub/Linux/distributions/redhat/code/rpm/}
 for other distributions.
@@ -6302,7 +6301,7 @@ If you are linking your own @strong{MySQL} client and get the error:
 ld.so.1: ./my: fatal: libmysqlclient.so.4: open failed: No such file or directory
 @end example
 
-when executing them, the problem can be avoided by one of the following
+When executing them, the problem can be avoided by one of the following
 methods:
 
 @itemize @bullet
@@ -6340,12 +6339,12 @@ CC=fcc CFLAGS="-O -K fast -K lib -K omitfp -Kpreex -D_GNU_SOURCE -DCONST=const -
 @end menu
 
 @node Linux-x86, Linux-RedHat50, Linux, Linux
-@subsubsection Linux-x86 notes
+@subsubsection Linux-x86 Notes
 
-@strong{MySQL} requires @code{libc} version 5.4.12 or newer. It's known to
-work with @code{libc} 5.4.46. @code{glibc} version 2.0.6 and later should
+@strong{MySQL} requires @code{libc} Version 5.4.12 or newer. It's known to
+work with @code{libc} 5.4.46. @code{glibc} Version 2.0.6 and later should
 also work. There have been some problems with the @code{glibc} RPMs from
-RedHat so if you have problems, check whether or not there are any updates!
+RedHat, so if you have problems, check whether or not there are any updates!
 The @code{glibc} 2.0.7-19 and 2.0.7-29 RPMs are known to work.
 
 On some older Linux distributions, @code{configure} may produce an error
@@ -6378,14 +6377,14 @@ shell> /usr/sbin/update-rc.d mysql.server defaults 99
 @end example
 
 @code{mysql.server} can be found in the @file{share/mysql} directory
-under the @strong{MySQL} installation directory, or in the
+under the @strong{MySQL} installation directory or in the
 @file{support-files} directory of the @strong{MySQL} source tree.
 
 If @code{mysqld} always core dumps when it starts up, the problem may be that
 you have an old @file{/lib/libc.a}.  Try renaming it, then remove
 @file{sql/mysqld} and do a new @code{make install} and try again.  This
-problem has been reported on some Slackware installations. RedHat 5.0 has
-also a similar problem with some new @code{glibc} versions.
+problem has been reported on some Slackware installations. RedHat Version 5.0 
+also has a similar problem with some new @code{glibc} versions.
 @xref{Linux-RedHat50}.
 
 If you get the following error when linking @code{mysqld},
@@ -6403,7 +6402,7 @@ shell> CXX=gcc ./configure
 @end example
 
 @node Linux-RedHat50, Linux-RedHat51, Linux-x86, Linux
-@subsubsection RedHat 5.0 notes
+@subsubsection RedHat Version 5.0 Notes
 
 If you have any problems with @strong{MySQL} on RedHat, you should start by
 upgrading @code{glibc} to the newest possible version!
@@ -6415,7 +6414,7 @@ any trouble!
 
 The updates are needed because there is a bug in @code{glibc} 2.0.5 in how
 @code{pthread_key_create} variables are freed. With @code{glibc} 2.0.5, you
-must use a statically-linked @strong{MySQL} binary distribution. If you
+must use a statically linked @strong{MySQL} binary distribution. If you
 want to compile from source, you must install the corrected version of
 LinuxThreads from @uref{http://www.mysql.com/Downloads/Linux} or upgrade your
 @code{glibc}.
@@ -6432,8 +6431,8 @@ like this:
 shell> ./configure --with-mysqld-ldflags=-all-static
 @end example
 
-On Redhat 5.0, the easy way out is to install the @code{glibc} 2.0.7-19 RPM
-and run @code{configure} @strong{without} the
+On Redhat Version 5.0, the easy way out is to install the @code{glibc} 
+2.0.7-19 RPM and run @code{configure} @strong{without} the
 @code{--with-mysqld-ldflags=-all-static} option.
 
 For the source distribution of @code{glibc} 2.0.7, a patch that is easy to
@@ -6453,13 +6452,13 @@ wide range of different problems.
 @xref{Debugging server}.
 
 @node Linux-RedHat51, Linux-SPARC, Linux-RedHat50, Linux
-@subsubsection RedHat 5.1 notes
+@subsubsection RedHat Version 5.1 notes
 
-The @code{glibc} of RedHat 5.1 (@code{glibc} 2.0.7-13) has a memory leak, so
-to get a stable @strong{MySQL} version, you must upgrade @code{glibc} to
-2.0.7-19, downgrade @code{glibc} or use a binary version of @code{mysqld}. If
-you don't do this, you will encounter memory problems (out of memory, etc.,
-etc.).  The most common error in this case is:
+The @code{glibc} of RedHat Version 5.1 (@code{glibc} 2.0.7-13) has a memory 
+leak, so to get a stable @strong{MySQL} version, you must upgrade @code{glibc},
+to 2.0.7-19, downgrade @code{glibc} or use a binary version of @code{mysqld}.
+If you don't do this, you will encounter memory problems (out of memory, etc.).
+The most common error in this case is:
 
 @example
 Can't create a new thread (errno 11). If you are not out of available
@@ -6478,7 +6477,7 @@ than your Linux kernel is configured for.  In this case you should raise
 the limits in @file{include/linux/tasks.h} and recompile your kernel!
 
 @node Linux-SPARC, Linux-Alpha, Linux-RedHat51, Linux
-@subsubsection Linux-SPARC notes
+@subsubsection Linux-SPARC Notes
 
 In some implementations, @code{readdir_r()} is broken.  The symptom is that
 @code{SHOW DATABASES} always returns an empty set.  This
@@ -6491,14 +6490,12 @@ be found at
 against the Linux distribution @file{sparclinux-2.0.30.tar.gz} that is
 available at @code{vger.rutgers.edu} (a version of Linux that was
 never merged with the official 2.0.30).  You must also install
-LinuxThreads 0.6 or newer.
-
-Thanks to @email{jacques@@solucorp.qc.ca} for this information.
+LinuxThreads Version 0.6 or newer.
 
 @node Linux-Alpha, MKLinux, Linux-SPARC, Linux
-@subsubsection Linux-Alpha notes
+@subsubsection Linux-Alpha Notes
 
-@strong{MySQL} 3.23.12 is the first @strong{MySQL} version that is
+@strong{MySQL} Version 3.23.12 is the first @strong{MySQL} version that is
 tested on Linux-Alpha.  If you plan to use @strong{MySQL} on
 Linux-Alpha, you should ensure that you have this version or newer.
 
@@ -6507,7 +6504,7 @@ it appears to work nicely.  The main thing we haven't yet had time to test
 is how things works with many concurrent users.
 
 When we compiled @strong{MySQL} we where using SuSE 6.3, kernel 2.2.13-SMP,
-egcs 1.1.2 and libc-2.1.2-28.
+egcs 1.1.2, and libc-2.1.2-28.
 
 We used the following configure line:
 
@@ -6560,13 +6557,13 @@ effect that you can't kill clients that are ``sleeping'' on a connection with
 will die when it issues its next command.
 
 @node MKLinux, Qube2, Linux-Alpha, Linux
-@subsubsection MkLinux notes
+@subsubsection MkLinux Notes
 
 @strong{MySQL} should work on MkLinux with the newest @code{glibc} package
 (tested with @code{glibc} 2.0.7).
 
 @node Qube2, Linux-Ia64, MKLinux, Linux
-@subsubsection Qube2 Linux notes
+@subsubsection Qube2 Linux Notes
 
 To get @strong{MySQL} to work on Qube2, (Linux Mips), you need the
 newest @code{glibc} libraries (@code{glibc-2.0.7-29C2} is known to
@@ -6575,7 +6572,7 @@ work). You must also use the @code{egcs} C++ compiler
 
 
 @node Linux-Ia64,  , Qube2, Linux
-@subsubsection Linux Ia64 notes
+@subsubsection Linux IA64 Notes
 
 To get @strong{MySQL} to compile on Linux Ia64, we had to do the following
 (we assume that this will be easier when next gcc version for ia64 is
@@ -6602,7 +6599,7 @@ make_install
 and @strong{mysqld} should be ready to run.
 
 @node Alpha-DEC-UNIX, Alpha-DEC-OSF1, Linux, Source install system issues
-@subsection Alpha-DEC-UNIX notes (Tru64)
+@subsection Alpha-DEC-UNIX Notes (Tru64)
 
 If you are using egcs 1.1.2 on Digital UNIX, you should upgrade to gcc
 2.95.2, as egcs on DEC has some serious bugs!
@@ -6680,7 +6677,7 @@ scripts/mysql_install_db
 @end example
 
 @node Alpha-DEC-OSF1, SGI-Irix, Alpha-DEC-UNIX, Source install system issues
-@subsection Alpha-DEC-OSF1 notes
+@subsection Alpha-DEC-OSF1 Notes
 
 If you have problems compiling and have DEC @code{CC} and @code{gcc}
 installed, try running @code{configure} like this:
@@ -6742,7 +6739,7 @@ shell> CFLAGS=-D_PTHREAD_USE_D4 CXX=gcc CXXFLAGS=-O3 ./configure ....
 @end example
 
 If you have problems with signals (@strong{MySQL} dies unexpectedly
-under high load) you may have found an OS bug with threads and
+under high load), you may have found an OS bug with threads and
 signals. In this case you can tell @strong{MySQL} not to use signals by
 configuring with:
 
@@ -6764,17 +6761,17 @@ sql_acl.cc:1456: Internal compiler error in `scan_region', at except.c:2566
 Please submit a full bug report.
 @end example
 
-To fix this you should change to the @code{sql} directory and do a 'cut
-and paste' of the last @code{gcc} line, but change @code{-O3} to
+To fix this you should change to the @code{sql} directory and do a ``cut
+and paste'' of the last @code{gcc} line, but change @code{-O3} to
 @code{-O0} (or add @code{-O0} immediately after @code{gcc} if you don't
-have any @code{-O} option on your compile line. After this is done you
-can just change back to the top level directly and run @code{make}
+have any @code{-O} option on your compile line.) After this is done you
+can just change back to the top-level directly and run @code{make}
 again.
 
 @node SGI-Irix, FreeBSD, Alpha-DEC-OSF1, Source install system issues
-@subsection SGI-Irix notes
+@subsection SGI-Irix Notes
 
-If you are using Irix 6.5.3 or newer @code{mysqld} will only be able to
+If you are using Irix Version 6.5.3 or newer @code{mysqld} will only be able to
 create threads if you run it as a user with @code{CAP_SCHED_MGT}
 privileges (like @code{root}) or give the @code{mysqld} server this privilege
 with the following shell command:
@@ -6810,7 +6807,7 @@ If you get the something like the following error when compiling
 "/usr/include/curses.h", line 82: error(1084): invalid combination of type
 @end example
 
-Then type the following in the top-level directory of your @strong{MySQL}
+then type the following in the top-level directory of your @strong{MySQL}
 source tree:
 
 @example
@@ -6821,7 +6818,7 @@ shell> make
 There have also been reports of scheduling problems.  If only one thread is
 running, things go slow. Avoid this by starting another client. This may lead
 to a 2-to-10-fold increase in execution speed thereafter for the other
-thread.  This is a poorly-understood problem with Irix threads; you may have
+thread.  This is a poorly understood problem with Irix threads; you may have
 to improvise to find solutions until this can be fixed.
 
 If you are compiling with @code{gcc}, you can use the following
@@ -6833,14 +6830,14 @@ shell> CC=gcc CXX=gcc CXXFLAGS=-O3 \
 @end example
 
 @node FreeBSD, NetBSD, SGI-Irix, Source install system issues
-@subsection FreeBSD notes
+@subsection FreeBSD Notes
 
-FreeBSD 3.x is recommended for running @strong{MySQL} since it the thread package
+FreeBSD 3.x is recommended for running @strong{MySQL} since the thread package
 is much more integrated.
 
 The easiest and therefor the preferred way to install is to use the
 mysql-server and mysql-client ports available on
-@uref{http://www.freebsd.org}
+@uref{http://www.freebsd.org}.
 
 Using these gives you:
 @itemize @bullet
@@ -6850,15 +6847,15 @@ of FreeBSD enabled.
 @item
 Automatic configuration and build.
 @item
-Startup scripts installed in /usr/local/etc/rc.d
+Startup scripts installed in /usr/local/etc/rc.d.
 @item
 Ability to see which files that are installed with pkg_info -L. And to
 remove them all with pkg_delete if you no longer want @strong{MySQL} on that
 machine.
 @end itemize
 
-It is recomended to use MIT-pthreads on FreeBSD 2.x and native threads on
-versions 3 and up. It is possible to run with with native threads on some late
+It is recomended you use MIT-pthreads on FreeBSD 2.x and native threads on
+Versions 3 and up. It is possible to run with with native threads on some late
 2.2.x versions but you may encounter problems shutting down mysqld.
 
 Be sure to have your name resolver setup correct. Otherwise you may
@@ -6891,8 +6888,8 @@ The behavior of FreeBSD @code{make} is slightly different from that of GNU
 FreeBSD is also known to have a very low default file handle limit.
 @xref{Not enough file handles}. Uncomment the ulimit -n section in
 safe_mysqld or raise the limits for the mysqld user in /etc/login.conf
-(and rebuild it witg cap_mkdb /etc/login.conf) also be sure you set the
-appropriate Class for this user in the password file if you are not
+(and rebuild it witg cap_mkdb /etc/login.conf.) Also be sure you set the
+appropriate class for this user in the password file if you are not
 using the default (use: chpass mysqld-user-name)
 
 If you get problems with the current date in @strong{MySQL}, setting the
@@ -6908,17 +6905,17 @@ To compile on NetBSD you need GNU @code{make}. Otherwise the compile will crash
 when @code{make} tries to run @code{lint} on C++ files.
 
 @node OpenBSD, BSDI, NetBSD, Source install system issues
-@subsection OpenBSD 2.5 notes
+@subsection OpenBSD 2.5 Notes
 
-On OpenBSD 2.5, you can compile @strong{MySQL} with native threads with the
-following options:
+On OpenBSD Version 2.5, you can compile @strong{MySQL} with native threads 
+with the following options:
 
 @example
 CFLAGS=-pthread CXXFLAGS=-pthread ./configure --with-mit-threads=no
 @end example
 
 @node BSDI, SCO, OpenBSD, Source install system issues
-@subsection BSD/OS notes
+@subsection BSD/OS Notes
 
 @menu
 * BSDI2::                       BSD/OS 2.x notes
@@ -6927,7 +6924,7 @@ CFLAGS=-pthread CXXFLAGS=-pthread ./configure --with-mit-threads=no
 @end menu
 
 @node BSDI2, BSDI3, BSDI, BSDI
-@subsubsection BSD/OS 2.x notes
+@subsubsection BSD/OS Version 2.x Notes
 
 If you get the following error when compiling @strong{MySQL}, your
 @code{ulimit} value for virtual memory is too low:
@@ -6951,9 +6948,10 @@ If you get problems with the current date in @strong{MySQL}, setting the
 @code{TZ} variable will probably help. @xref{Environment variables}.
 
 @node BSDI3, BSDI4, BSDI2, BSDI
-@subsubsection BSD/OS 3.x notes
+@subsubsection BSD/OS Version 3.x Notes
 
-Upgrade to BSD/OS 3.1. If that is not possible, install BSDIpatch M300-038.
+Upgrade to BSD/OS Version 3.1. If that is not possible, install 
+BSDIpatch M300-038.
 
 Use the following command when configuring @strong{MySQL}:
 
@@ -6980,7 +6978,7 @@ defaults by not specifying any locations.
 
 If you have problems with performance under heavy load, try using the
 @code{--skip-thread-priority} option to @code{safe_mysqld}!  This will run
-all threads with the same priority; on BSDI 3.1, this gives better
+all threads with the same priority; on BSDI Version 3.1, this gives better
 performance (at least until BSDI fixes their thread scheduler).
 
 If you get the error @code{virtual memory exhausted} while compiling,
@@ -6990,19 +6988,19 @@ If this doesn't work and you are using @code{bash}, try switching to
 @code{bash} and @code{ulimit}.
 
 @node BSDI4,  , BSDI3, BSDI
-@subsubsection BSD/OS 4.x notes
+@subsubsection BSD/OS Version 4.x Notes
 
-BSDI 4.x has some thread related bugs.  If you want to use @strong{MySQL}
-on this, you should install all thread related patches. At least
+BSDI Version 4.x has some thread-related bugs.  If you want to use 
+@strong{MySQL} on this, you should install all thread-related patches. At least
 M400-023 should be installed.
 
-On some BSDI 4.x systems, you may get problems with shared libraries. The
-symptom is that you can't execute any client programs, like for example
+On some BSDI Version 4.x systems, you may get problems with shared libraries.
+The symptom is that you can't execute any client programs, for example,
 @code{mysqladmin}.  In this case you need to reconfigure not to use
 shared libraries with the @code{--disable-shared} option to configure.
 
 @node SCO, SCO Unixware, BSDI, Source install system issues
-@subsection SCO notes
+@subsection SCO Notes
 
 The current port is tested only on a ``sco3.2v5.0.4'' and
 ``sco3.2v5.0.5'' system.  There has also been a lot of progress on a
@@ -7027,7 +7025,7 @@ to execute the following command:
 shell> cp -p /usr/include/pthread/stdtypes.h /usr/local/lib/gcc-lib/i386-pc-sco3.2v5.0.5/egcs-2.91.66/include/pthread/
 @end example
 @item
-You need the port of GCC 2.5.? for this product and the Development
+You need the port of GCC 2.5.x for this product and the Development
 system.  They are required on this version of SCO UNIX.  You cannot
 just use the GCC Dev system.
 @item
@@ -7039,14 +7037,14 @@ You can also get a precompiled package from
 @item
 FSU Pthreads can be compiled with SCO UNIX 4.2 with tcpip.  Or
 OpenServer 3.0 or Open Desktop 3.0 (OS 3.0 ODT 3.0), with the SCO
-Development System installed using a good port of GCC 2.5.X ODT or OS
-3.0 you will need a good port of GCC 2.5.? There are a lot of problems
+Development System installed using a good port of GCC 2.5.x ODT or OS
+3.0 you will need a good port of GCC 2.5.x There are a lot of problems
 without a good port.  The port for this product requires the SCO UNIX
 Development system.  Without it, you are missing the libraries and the
 linker that is needed.
 @item
 To build FSU Pthreads on your system, do the following:
-@enumerate
+@enumerate a
 @item
 Run @code{./configure} in the @file{threads/src} directory and select
 the SCO OpenServer option. This command copies @file{Makefile.SCO5} to
@@ -7066,7 +7064,7 @@ default 110 open files per process.  @code{mysqld} will write a note about this
 in the log file.
 @item
 With SCO 3.2V5.0.5, you should use FSU Pthreads version 3.5c or newer.
-You should also use gcc 2.95.2 or newer !
+You should also use gcc 2.95.2 or newer!
 
 The following @code{configure} command should work:
 @example
@@ -7096,10 +7094,10 @@ SCO development notes:
 @strong{MySQL} should automatically detect FSU Pthreads and link @code{mysqld}
 with @code{-lgthreads -lsocket -lgthreads}.
 @item
-The SCO development libraries are reentrant in FSU Pthreads. SCO claims
-that its libraries' functions are reentrant, so they must be reentrant with
+The SCO development libraries are re-entrant in FSU Pthreads. SCO claims
+that its libraries' functions are re-entrant, so they must be reentrant with
 FSU Pthreads. FSU Pthreads on OpenServer tries to use the SCO scheme to
-make reentrant library.
+make re-entrant libraries.
 @item
 FSU Pthreads (at least the version at @uref{http://www.mysql.com/}) comes linked with
 GNU @code{malloc}.  If you encounter problems with memory usage, make sure that
@@ -7108,13 +7106,13 @@ is included in @file{libgthreads.a} and @file{libgthreads.so}.
 @item
 In FSU Pthreads, the following system calls are pthreads-aware: @code{read()},
 @code{write()}, @code{getmsg()}, @code{connect()}, @code{accept()},
-@code{select()} and @code{wait()}.
+@code{select()}, and @code{wait()}.
 @end itemize
 
-If you want to install DBI on SCO, you have to edit the @file{Makefiles} in
-DBI-xxx and each subdirectory:
+If you want to install DBI on SCO, you have to edit the @file{Makefile} in
+DBI-xxx and each subdirectory.
 
-Note that the following assumes gcc 2.95.2 or newer!
+Note that the following assumes gcc 2.95.2 or newer:
 
 @example
 OLD:                                  NEW:
@@ -7127,7 +7125,7 @@ LDDLFLAGS = -G -L/usr/local/lib       LDDLFLAGS = -L/usr/local/lib
 LDFLAGS = -belf -L/usr/local/lib      LDFLAGS = -L/usr/local/lib
 
 LD = ld                               LD = gcc -G -fpic
-OPTIMISE = -Od         		      OPTIMISE = -O1
+OPTIMISE = -Od                        OPTIMISE = -O1
 
 OLD:
 CCCFLAGS = -belf -dy -w0 -U M_XENIX -DPERL_SCO5 -I/usr/local/include
@@ -7142,13 +7140,13 @@ if they were compiled with @code{icc} or @code{cc}.
 Perl works best when compiled with @code{cc}.
 
 @node SCO Unixware, IBM-AIX, SCO, Source install system issues
-@subsection SCO Unixware 7.0 notes
+@subsection SCO Unixware Version 7.0 Notes
 
-You must use a version of @strong{MySQL} at least as recent as 3.22.13, because
-that version fixes some portability problems under Unixware.
+You must use a version of @strong{MySQL} at least as recent as Version 3.22.13
+because that version fixes some portability problems under Unixware.
 
 We have been able to compile @strong{MySQL} with the following @code{configure}
-command on UnixWare 7.0.1:
+command on Unixware Version 7.0.1:
 
 @example
 shell> CC=cc CXX=CC ./configure --prefix=/usr/local/mysql
@@ -7161,7 +7159,7 @@ If you want to use @code{gcc}, you must use @code{gcc} 2.95.2 or newer.
 
 Automatic detection of @code{xlC} is missing from Autoconf, so a
 @code{configure} command something like this is needed when compiling
-@strong{MySQL}: (The example uses the IBM compiler)
+@strong{MySQL} (The example uses the IBM compiler):
 
 @example
 export CC="xlc_r -ma -O3 -qstrict -qoptimize=3 -qmaxmem=8192 " 
@@ -7180,7 +7178,7 @@ export CXXFLAGS=$CFLAGS
 		--enable-large-files
 @end example
 
-The above is the options used to compile the @strong{MySQL} distribution that
+Above are the options used to compile the @strong{MySQL} distribution that
 can be found at @uref{http://www-frec.bull.com/, www-frec.bull.com}.
 
 If you change the @code{-O3} to @code{-O2} in the above configure line,
@@ -7190,7 +7188,7 @@ the IBM C compiler).
 If you are using @code{gcc} or @code{egcs} to compile @strong{MySQL}, you
 @strong{MUST} use the @code{-fno-exceptions} flag, as the exception
 handling in @code{gcc}/@code{egcs} is not thread-safe!  (This is tested with
-@code{egcs} 1.1.).  There is also some known problems with IBM's assembler
+@code{egcs} 1.1.).  There are also some known problems with IBM's assembler,
 which may cause it to generate bad code when used with gcc.
 
 We recommend the following @code{configure} line with @code{egcs} and
@@ -7204,10 +7202,10 @@ shell> CC="gcc -pipe -mcpu=power2 -Wa,-many" \
 @end example
 
 The @code{-Wa,-many} is necessary for the compile to be successful. IBM is
-aware of this problem but is in to hurry to fix because of the
+aware of this problem but is in to hurry to fix it because of the
 workaround available.  We don't know if the @code{-fno-exceptions} is required
 with @code{gcc 2.95}, but as @strong{MySQL} doesn't use exceptions and the
-above option generates faster code we recommend that one should always use
+above option generates faster code, we recommend that you should always use
 this option with @code{egcs / gcc}.
 
 If you have problems with signals (@strong{MySQL} dies unexpectedly
@@ -7226,20 +7224,21 @@ effect that you can't kill clients that are ``sleeping'' on a connection with
 @code{mysqladmin kill} or @code{mysqladmin shutdown}.  Instead, the client
 will die when it issues its next command.
 
-On some versions of AIX, linking with @code{libbind.a} makes @code{getservbyname} core
-dump. This is an AIX bug and should be reported to IBM.
+On some versions of AIX, linking with @code{libbind.a} makes 
+@code{getservbyname} core dump. This is an AIX bug and should be reported 
+to IBM.
 
 @node HP-UX 10.20, HP-UX 11.x, IBM-AIX, Source install system issues
-@subsection HP-UX 10.20 notes
+@subsection HP-UX Version 10.20 Notes
 
-There are a couple of ``small'' problems when compiling @strong{MySQL} on
+There are a couple of small problems when compiling @strong{MySQL} on
 HP-UX.  We recommend that you use @code{gcc} instead of the HP-UX native
 compiler, because @code{gcc} produces better code!
 
-We recommend one to use gcc 2.95 on HP-UX.  Don't use high optimization
+We recommend using gcc 2.95 on HP-UX.  Don't use high optimization
 flags (like -O6) as this may not be safe on HP-UX.
 
-Note that MIT-pthreads can't be compiled with the HP-UX compiler,
+Note that MIT-pthreads can't be compiled with the HP-UX compiler
 because it can't compile @code{.S} (assembler) files.
 
 The following configure line should work:
@@ -7255,22 +7254,20 @@ packages you will get a @code{mysqld} to which you cannot connect.  Remove
 the DCE libraries while you compile @code{gcc} 2.95!
 
 @node HP-UX 11.x, Mac OS X, HP-UX 10.20, Source install system issues
-@subsection HP-UX 11.x notes
+@subsection HP-UX Version 11.x Notes
 
-For HPUX 11.x we recommend @strong{MySQL} 3.23.15 or later.
+For HPUX Version 11.x we recommend @strong{MySQL} 3.23.15 or later.
 
-If you are using @code{gcc} 2.95.1 on a unpatched HPUX 11.x system you will
-get the error:
+If you are using @code{gcc} 2.95.1 on a unpatched HPUX Versiib 11.x system,
+you will get the error:
 
 @example
 In file included from /usr/include/unistd.h:11,
                  from ../include/global.h:125,
                  from mysql_priv.h:15,
                  from item.cc:19:
-/usr/include/sys/unistd.h:184: declaration of C function `int pthread_atfork(void (*)(...), void (*)
-(...), void (*)(...))' conflicts with
-/usr/include/sys/pthread.h:440: previous declaration `int pthread_atfork(void (*)(), void (*)(), voi
-d (*)())' here
+/usr/include/sys/unistd.h:184: declaration of C function ...
+/usr/include/sys/pthread.h:440: previous declaration ...
 In file included from item.h:306,
                  from mysql_priv.h:158,
                  from item.cc:19:
@@ -7288,10 +7285,10 @@ the definition in @file{pthread.h}.  Here's the diff:
 @example
 183,184c183,184
 <      extern int pthread_atfork(void (*prepare)(), void (*parent)(),
-<                                                                  void (*child)());
+<                                                void (*child)());
 ---
 >      extern int pthread_atfork(void (*prepare)(void), void (*parent)(void),
->                                                                  void (*child)(void));
+>                                                void (*child)(void));
 @end example
 
 After this, the following configure line should work:
@@ -7300,11 +7297,9 @@ After this, the following configure line should work:
 CFLAGS="-fomit-frame-pointer -O6 -fpic" CXX=gcc CXXFLAGS="-felide-constructors -fno-exceptions -fno-rtti -O6" ./configure --prefix=/usr/local/mysql --disable-shared
 @end example
 
-Here is some information that a HPUX 11.x user sent us about compile
-@strong{MySQL} with HPUX:x compiler
+Here is some information that a HPUX Version 11.x user sent us about compiling
+@strong{MySQL} with HPUX:x compiler:
 
-@itemize @bullet
-@item
 @example
  Environment:
       proper compilers.
@@ -7320,32 +7315,30 @@ Here is some information that a HPUX 11.x user sent us about compile
      cpp.ansi: HP92453-01 A.11.02.00 HP C Preprocessor (ANSI)
      ccom: HP92453-01 A.11.01.00 HP C Compiler
      cc: "/tmp/empty.c", line 1: warning 501: Empty source file.
-@end example
-@item
-@example
+
   configuration:
      ./configure  --with-pthread        \
      --prefix=/source-control/mysql     \
      --with-named-thread-libs=-lpthread \
      --with-low-memory
-@end example
-@item
+
     added '#define _CTYPE_INCLUDED' to include/m_ctype.h. This
     symbol is the one defined in HP's /usr/include/ctype.h:
 
-@example
      /* Don't include std ctype.h when this is included */
      #define _CTYPE_H
      #define __CTYPE_INCLUDED
      #define _CTYPE_INCLUDED
      #define _CTYPE_USING   /* Don't put names in global namespace. */
 @end example
+
+@itemize @bullet
 @item
 I had to use the compile-time flag @code{-D_REENTRANT} to get the
 compiler to recognize the prototype for
 @code{localtime_r}. Alternatively I could have supplied the prototype
 for @code{localtime_r}. But I wanted to catch other bugs without needing
-to run into them. I wasn't sure where I needed it so I added it to all
+to run into them. I wasn't sure where I needed it, so I added it to all
 flags.
 @item
 The optimization flags used by @strong{MySQL} (-O3) are not recognized
@@ -7353,40 +7346,39 @@ by HP's compilers. I did not change the flags.
 @end itemize
 
 @node Mac OS X, BEOS, HP-UX 11.x, Source install system issues
-@subsection Mac OS X notes
+@subsection Mac OS X Notes
 
 You can get @strong{MySQL} to work on Mac OS X by following the links to
 the Mac OS X ports. @xref{Useful Links}.
 
-@strong{MySQL} 3.23.7 should include all patches necessary to configure
-it on Mac OS X. You must however first install the pthread package from
-@uref{http://www.prnet.de/RegEx/mysql.html,MySql for MacOSX Server}
-before configuring @strong{MySQL}.
+@strong{MySQL} Version 3.23.7 should include all patches necessary to configure
+it on Mac OS X. You must, however, first install the pthread package from
+@uref{http://www.prnet.de/RegEx/mysql.html} before configuring @strong{MySQL}.
 
 You might want to also add aliases to your shell's resource file to
-access @code{mysql} and @code{mysqladmin} from the command line.
+access @code{mysql} and @code{mysqladmin} from the command line:
 
 @example
 alias mysql '/usr/local/mysql/bin/mysql'
-alias mysqladmin '/usr/local/mysql/libexec/mysqladmin'
+alias mysqladmin '/usr/local/mysql/bin/mysqladmin'
 @end example
 
 @node BEOS,  , Mac OS X, Source install system issues
-@subsection BeOS notes
+@subsection BeOS Notes
 
 We are really interested in getting @strong{MySQL} to work on BeOS, but
-unfortunately we don't have any person that knows BeOS or have
+unfortunately we don't have any person who knows BeOS or has
 time to do a port.
 
-We are interested to find someone to do a port and we will help them
+We are interested in finding someone to do a port, and we will help them
 with any techincal questions they may have while doing the port.
 
 We have previously talked with some BeOS developers that have said that
-@strong{MySQL} is '80% ported to BeOS', but we haven't heard from these
+@strong{MySQL} is 80% ported to BeOS, but we haven't heard from these
 in a while.
 
 @node Windows, OS/2, Source install system issues, Installing
-@section Windows notes
+@section Windows Notes
 
 This section describes installation and use of @strong{MySQL} on Windows.  This
 is also described in the @file{README} file that comes with the
@@ -7407,14 +7399,13 @@ is also described in the @file{README} file that comes with the
 @node Windows installation, Win95 start, Windows, Windows
 @subsection Installing MySQL on Windows
 
-If you don't have a registered version of @strong{MySQL}, you should first
-download the shareware version from:
-
-@uref{http://www.mysql.com/mysql_w32.htmy,@strong{MySQL} 3.22.x}
+If you don't have a copy of the MySQL distribution, you should first download
+one from @uref{http://www.mysql.com/}.
 
 If you plan to connect to @strong{MySQL} from some other program, you will
 probably also need the @strong{MyODBC} driver. You can find this at the
-@uref{http://www.mysql.com/downloads/api-myodbc.html,@strong{MyODBC} download page}.
+@strong{MyODBC} download page 
+(@uref{http://www.mysql.com/downloads/api-myodbc.html}).
 
 To install either distribution, unzip it in some empty directory and run the
 @code{Setup.exe} program.
@@ -7432,16 +7423,16 @@ With all newer @strong{MySQL} versions, you can also create a
 @file{C:\my.cnf} file that holds any default options for the
 @strong{MySQL} server.  Copy the file @file{\mysql\my-xxxxx.cnf} to
 @file{C:\my.cnf} and edit this to suit your setup.  Note that you should
-specify all paths with @code{/} instead of @code{\}. If you use
-@code{\}, you need to specify this twice, as @code{\} is the escape
+specify all paths with @samp{/} instead of @samp{\}. If you use
+@samp{\}, you need to specify this twice, as @samp{\} is the escape
 character in @strong{MySQL}.  @xref{Option files}.
 
 @node Win95 start, NT start, Windows installation, Windows
-@subsection Starting MySQL on Win95 / Win98
+@subsection Starting MySQL on Windows 95 or Windows 98
 
 @strong{MySQL} uses TCP/IP to connect a client to a server. (This will
 allow any machine on your network to connect to your @strong{MySQL}
-server). Because of this, you must install TCP/IP on your machine before
+server.) Because of this, you must install TCP/IP on your machine before
 starting @strong{MySQL}.  You can find TCP/IP on your Windows CD-ROM.
 
 Note that if you are using an old Win95 release (for example OSR2), it's
@@ -7452,7 +7443,7 @@ Winsock 2 library, so the above doesn't apply for Win98.
 
 There are 2 different @strong{MySQL} servers you can use:
 
-@multitable @columnfractions .15 .85
+@multitable @columnfractions .25 .75
 @item @code{mysqld} @tab Compiled with full debugging and automatic memory allocation checking
 @item @code{mysqld-opt} @tab Optimized for a Pentium processor.
 @end multitable
@@ -7477,7 +7468,7 @@ Note that Win95/Win98 don't support creation of named pipes.  On
 Win95/Win98, you can only use named pipes to connect to a remote
 @strong{MySQL} running on an NT server.
 
-If @code{mysqld} doesn't start please check whether or not the
+If @code{mysqld} doesn't start, please check whether or not the
 @file{\mysql\mysql.err} file contains any reason for this.  You can also
 try to start it with @code{mysqld --standalone};  In this case you may
 get some useful information on the screen that may help solve this.
@@ -7485,22 +7476,22 @@ get some useful information on the screen that may help solve this.
 The last option is to start @code{mysqld} with @code{--debug}.  In this
 case @code{mysqld} will write a log file in @file{\mysqld.trace}
 that should contain the reason why @code{mysqld} doesn't start.  If you
-make a bug report about this, please only send the lines where something
-seams to go wrong to the mailing list!
+make a bug report about this, please only send the lines  to the mailing list
+where something seems to go wrong!
 
 @node NT start, Windows running, Win95 start, Windows
-@subsection Starting MySQL on NT / Win200
+@subsection Starting MySQL on NT or Windows 2000
 
-The Win95/Win98 section also applies to @strong{MySQL} on NT / Win2000, with
+The Win95/Win98 section also applies to @strong{MySQL} on NT/Win2000, with
 the following differences:
 
 To get @strong{MySQL} to work with TCP/IP on NT, you must install
 service pack 3 (or newer)!
 
-Note that everything in the following that applies for NT, also applies
+Note that everything in the following that applies for NT also applies
 for Win2000!
 
-For NT / Win2000, the server name is @code{mysqld-nt}.  Normally you
+For NT/Win2000, the server name is @code{mysqld-nt}.  Normally you
 should install @strong{MySQL} as a service on NT/Win2000:
 
 @example
@@ -7519,14 +7510,14 @@ NET STOP mysql
 
 Note that in this case you can't use any other options for @code{mysqld-nt}!
 
-You can also run @code{mysqld-nt} as a standalone program on NT if you need
+You can also run @code{mysqld-nt} as a stand-alone program on NT if you need
 to start @code{mysqld-nt} with any options!  If you start @code{mysqld-nt}
 without options on NT, @code{mysqld-nt} tries to starts itself as a service
 with the default service options.  If you have stopped @code{mysqld-nt}, you
 have to start it with @code{NET START mysql}.
 
 The service is installed with the name @code{MySql}. Once installed, it must
-be started using Services Control Manager (SCM) Utility (found in Control
+be started using the Services Control Manager (SCM) Utility (found in Control
 Panel) or by using the @code{NET START MySQL} command. If any options are
 desired, they must be specified as "Startup parameters" in the SCM utility
 before you start the @strong{MySQL} service.  Once running, @code{mysqld-nt}
@@ -7539,8 +7530,8 @@ messages can be seen.
 On NT you can get the following service error messages:
 
 @multitable @columnfractions .3 .7
-@item Permission Denied @tab Means that it cannot find @code{mysqld-nt.exe}
-@item Cannot Register   @tab Means that the path is incorrect
+@item Permission Denied @tab Means that it cannot find @code{mysqld-nt.exe}.
+@item Cannot Register   @tab Means that the path is incorrect.
 @end multitable
 
 If you have problems installing @code{mysqld-nt} as a service, try starting
@@ -7577,7 +7568,7 @@ all other cases if the client has TCP/IP installed.  The host name specifies
 which protocol is used:
 
 @multitable @columnfractions .3 .7
-@strong{Host name} @tab @strong{protocol}
+@strong{Host name} @tab @strong{Protocol}
 @item NULL (none) @tab  On NT, try named pipes first; if that doesn't work, use TCP/IP. On Win95/Win98, TCP/IP is used.
 @item . @tab Named pipes
 @item localhost @tab TCP/IP to current host
@@ -7606,10 +7597,9 @@ the @strong{MySQL} grant tables.  You can also avoid DNS when connecting to a
 @code{--pipe} argument to specify use of named pipes.  This works for most
 @strong{MySQL} clients.
 
-There are two versions of the @strong{MySQL} command line tool:
-@multitable @columnfractions .15 .85
-@item @code{mysql} @tab Compiled on native Windows, which offers very limited text
-editing capabilities.
+There are two versions of the @strong{MySQL} command-line tool:
+@multitable @columnfractions .25 .75
+@item @code{mysql} @tab Compiled on native Windows, which offers very limited text editing capabilities.
 @item @code{mysqlc} @tab Compiled with the Cygnus GNU compiler and libraries, which offers @code{readline} editing.
 @end multitable
 
@@ -7623,9 +7613,9 @@ should set a password for all users and remove the row in the
 @code{mysql.user} table that has @code{Host='localhost'} and
 @code{User=''}.
 
-You should also add a password for the @code{root} user:
+You should also add a password for the @code{root} user.
 (The following example starts by removing the anonymous user, that allows
-anyone to access the 'test' database)
+anyone to access the 'test' database.):
 
 @example
 C:\mysql\bin\mysql mysql
@@ -7642,22 +7632,22 @@ server, you can do so using this command:
 mysqladmin --user=root --password=your_password shutdown
 @end example
 
-If you are using the old shareware version of @strong{MySQL} 3.21 under
-Windows, the above command will fail with an error: @code{parse error
+If you are using the old shareware version of @strong{MySQL} Version 3.21 
+under Windows, the above command will fail with an error: @code{parse error
 near 'SET OPTION password'}.  This is because the old shareware version,
-which is based on @strong{MySQL} 3.21, doesn't have the @code{SET PASSWORD}
-command.  The fix is in this case is to upgrade to the 3.22 shareware
-version.
+which is based on @strong{MySQL} Version 3.21, doesn't have the 
+@code{SET PASSWORD} command.  The fix is in this case to upgrade to 
+the Version 3.22 shareware.
 
 With the newer @strong{MySQL} versions you can easily add new users
 and change privileges with @code{GRANT} and @code{REVOKE} commands.
 @xref{GRANT}.
 
 @node Windows and SSH, Windows symbolic links, Windows running, Windows
-@subsection Connecting to a remote MySQL from Windows with SSH
+@subsection Connecting to a Remote MySQL from Windows with SSH
 
 Here is a note about how to connect to get a secure connection to remote MySQL
-server with SSH (by David Carlson).
+server with SSH (by David Carlson):
 
 @itemize @bullet
 @item
@@ -7668,16 +7658,16 @@ Other useful links:
 @uref{http://www.npaci.edu/Security/samples/ssh32_windows/index.html}.
 @item
 Start SSH. Set Host Name = yourmysqlserver name or IP address. Set
-userid=your userid to log in to your server
+userid=your userid to log in to your server.
 @item
 Click on "local forwards". Set @code{local port: 3306},
-@code{host: localhost}, @code{remote port: 3306}
+@code{host: localhost}, @code{remote port: 3306}.
 @item
 Save everything, otherwise you'll have to redo it the next time.
 @item
 Log in to your server with SSH.
 @item
-Start some ODBC application (for example Access)
+Start some ODBC application (for example Access).
 @item
 Create a new file and link to mySQL using the ODBC driver the same way
 you normally do except for server, user "localhost".
@@ -7691,9 +7681,9 @@ usegroup!
 @findex Symbolic links
 @findex Using multiple disks to start data
 @node Windows symbolic links, Windows compiling, Windows and SSH, Windows
-@subsection Splitting data across different disks under Windows
+@subsection Splitting Data Across Different Disks Under Windows
 
-On windows @strong{MySQL} 3.23.16 and above is compiled with the
+On windows @strong{MySQL} Version 3.23.16 and above is compiled with the
 @code{-DUSE_SYMDIR} option.  This allows you to put a database on
 different disk by adding a symbolic link to it (in a similar manner that
 symbolic links works on Unix).
@@ -7704,13 +7694,13 @@ the @code{mysql_data} directory under the filename @code{database.sym}.
 Note that the symbolic link will only be used if the directory
 @code{mysql_data_dir\database} doesn't exist.
 
-For example if you want to have database @code{foo} on @file{D:\data\foo} you
-should create the file @file{C:\mysql\data\foo.sym} that should contains the
+For example, if you want to have database @code{foo} on @file{D:\data\foo}, you
+should create the file @file{C:\mysql\data\foo.sym} that contains the
 text @code{D:\data\foo}.  After this, all tables created in the database
 @code{foo} will be created in @file{D:\data\foo}.
 
 @node Windows compiling, Windows and BDB tables., Windows symbolic links, Windows
-@subsection Compiling MySQL clients on Windows.
+@subsection Compiling MySQL Clients on Windows
 
 In your source files, you should include @file{windows.h} before you include
 @code{mysql.h}:
@@ -7730,17 +7720,17 @@ Note that as the mysqlclient libraries are compiled as threaded libraries,
 you should also compile your code to be multi-threaded!
 
 @node Windows and BDB tables., Windows vs Unix, Windows compiling, Windows
-@subsection Windows and BDB tables.
+@subsection Windows and BDB Tables
 
 We are working on removing the requirement that one must have a primary
-key in a BDB table; As soon as this is fixed we will throughly test the
-BDB interface by running the @strong{MySQL} benchmark + our internal
-test suite on it.  When the above is done we will start release binary
-distributions (for windows and Unix) of @strong{MySQL} that will include
+key in a BDB table. As soon as this is fixed we will throughly test the
+BDB interface by running the @strong{MySQL} benchmark and our internal
+test suite on it.  When the above is done we will start to release binary
+distributions (for Windows and UNIX) of @strong{MySQL} that will include
 support for BDB tables.
 
 @node Windows vs Unix,  , Windows and BDB tables., Windows
-@subsection MySQL-Windows compared to Unix MySQL
+@subsection MySQL-Windows Compared to UNIX MySQL
 
 @strong{MySQL}-Windows has by now proven itself to be very stable. This version
 of @strong{MySQL} has the same features as the corresponding Unix version
@@ -7756,7 +7746,7 @@ a new thread!  WinNT and Win98 don't suffer from this bug.
 @item Concurrent reads
 @strong{MySQL} depends on the @code{pread()} and @code{pwrite()} calls to be
 able to mix @code{INSERT} and @code{SELECT}. Currently we use mutexes
-to emulate @code{pread()}/@code{pwrite()}.  We will in the long run
+to emulate @code{pread()}/@code{pwrite()}.  We will, in the long run,
 replace the file level interface with a virtual interface so that we can
 use the @code{readfile()}/@code{writefile()} interface on NT to get more speed.
 
@@ -7767,10 +7757,10 @@ This means that:
 @itemize @bullet
 @item
 A connection will not be disconnected automatically after 8 hours, as happens
-with the Unix version of @strong{MySQL}.
+with the UNIX version of @strong{MySQL}.
 
 @item
-If a connection ``hangs,'' it's impossible to break it without killing
+If a connection hangs, it's impossible to break it without killing
 @strong{MySQL}.
 
 @item
@@ -7782,10 +7772,10 @@ connections.
 @end itemize
 
 We plan to fix this when our windows developers have figured out a nice
-workaround for this :)
+workaround for this.
 
 @item UDF functions
-For the moment, @strong{MySQL}-Windows does not support user definable
+For the moment, @strong{MySQL}-Windows does not support user-definable
 functions.
 
 @item @code{DROP DATABASE}
@@ -7807,17 +7797,17 @@ SELECT * FROM my_table WHERE MY_TABLE.col=1;
 @end example
 
 @item The @samp{\} directory character
-Pathname components in Win95 are separated by @samp{\} characters, which is
+Pathname components in Win95 are separated by the @samp{\} character, which is
 also the escape character in @strong{MySQL}.  If you are using @code{LOAD
 DATA INFILE} or @code{SELECT ... INTO OUTFILE}, you must double the @samp{\}
-character or use Unix style filenames @samp{/} characters:
+character or use UNIX style filenames @samp{/} characters:
 @example
 LOAD DATA INFILE "C:\\tmp\\skr.txt" INTO TABLE skr;
 SELECT * INTO OUTFILE 'C:/tmp/skr.txt' FROM skr;
 @end example
 
 @item @code{Can't open named pipe} error
-If you use an MySQL 3.22 version on NT with the newest mysql-clients you
+If you use a MySQL 3.22 version on NT with the newest mysql-clients you
 will get the following error:
 
 @example
@@ -7854,20 +7844,20 @@ release:
 
 @itemize @bullet
 @item
-Make a single user @code{MYSQL.DLL} server.  This should include everything in
+Make a single-user @code{MYSQL.DLL} server.  This should include everything in
 a standard @strong{MySQL} server, except thread creation.  This will make
 @strong{MySQL} much easier to use in applications that don't need a true
 client/server and don't need to access the server from other hosts.
 
 @item
-Add some nice ``start'' and ``shutdown'' icons to the @strong{MySQL} installation.
+Add some nice start and shutdown icons to the @strong{MySQL} installation.
 
 @item
 Create a tool to manage registry entries for the @strong{MySQL} startup
 options.  The registry entry reading is already coded into @code{mysqld.cc},
-but it should be recoded to be more ``parameter'' oriented.
+but it should be recoded to be more parameter oriented.
 The tool should also be able to update the @file{\my.cnf} file if the user
-would prefer to use this instead of the registry.
+prefers to use this instead of the registry.
 
 @item
 When registering @code{mysqld} as a service with @code{--install} (on NT)
@@ -7878,7 +7868,7 @@ instead.
 @item
 When you suspend a laptop running Win95, the @code{mysqld}
 daemon doesn't accept new connections when the laptop is resumed.
-We don't know if this is a problem with Win95, TCP/IP or @strong{MySQL}.
+We don't know if this is a problem with Win95, TCP/IP, or @strong{MySQL}.
 
 @item
 It would be real nice to be able to kill @code{mysqld} from the
@@ -7892,27 +7882,18 @@ GUI versions of the standard @strong{MySQL} clients (@code{mysql},
 @code{mysqlshow}, @code{mysqladmin}, and @code{mysqldump}) would be nice.
 
 @item
-It would be nice if the socket ``read'' and ``write'' functions in
+It would be nice if the socket read and write functions in
 @file{net.c} were interruptible. This would make it possible to kill open
 threads with @code{mysqladmin kill} on Windows.
 
 @item
 Documentation of which Windows programs work with
-@strong{MySQL}-Windows/@strong{MyODBC} and what must be done to get them working.
+@strong{MySQL}-Windows/@strong{MyODBC} and what must be done to get them 
+working.
 
 @item
 @code{mysqld} always starts in the "C" locale and not in the default locale.
 We would like to have @code{mysqld} use the current locale for the sort order.
-
-@item
-Port @code{sqlclient} to Windows (almost done) and add more features to it!
-
-@item
-Add more options to MysqlManager.
-
-@item
-Change the communication protocol between the server and client to use Windows
-internal communication instead of sockets and TCP/IP.
 
 @item
 Implement UDF functions with @code{.DLL}s.
@@ -7923,11 +7904,11 @@ provided by Windows.
 
 @end itemize
 
-Other Windows-specific issues are described in the @file{README} file that comes
-with the @strong{MySQL}-Windows distribution.
+Other Windows-specific issues are described in the @file{README} file that
+comes with the @strong{MySQL}-Windows distribution.
 
 @node OS/2, MySQL binaries, Windows, Installing
-@section OS/2 notes
+@section OS/2 Notes
 
 @strong{MySQL} uses quite a few open files. Because of this, you
 should add something like the following to your @file{CONFIG.SYS} file:
@@ -7945,18 +7926,18 @@ File 'xxxx' not found (Errcode: 24)
 When using @strong{MySQL} with OS/2 Warp 3, FixPack 29 or above is
 required.  With OS/2 Warp 4, FixPack 4 or above is required. This is a
 requirement of the Pthreads library.  @strong{MySQL} must be installed
-in a partition that supports long file names such as HPFS, FAT32, etc.
+in a partition that supports long filenames such as HPFS, FAT32, etc.
 
 The @file{INSTALL.CMD} script must be run from OS/2's own @file{CMD.EXE}
 and may not work with replacement shells such as @file{4OS2.EXE}.
 
-The @file{scripts/mysql-install-db} script has been renamed: it is now called
-@file{install.cmd} and is a REXX script which will set up the default
+The @file{scripts/mysql-install-db} script has been renamed. It is now called
+@file{install.cmd} and is a REXX script, which will set up the default
 @strong{MySQL} security settings and create the WorkPlace Shell icons
 for @strong{MySQL}.
 
 Dynamic module support is compiled in but not fully tested. Dynamic
-modules should be compiled using the Pthreads runtime library.
+modules should be compiled using the Pthreads run-time library.
 
 @example
 gcc -Zdll -Zmt -Zcrtdll=pthrdrtl -I../include -I../regex -I.. \
@@ -7969,7 +7950,7 @@ exceed 8 characters. Modules are stored in the @file{/mysql2/udf}
 directory; the @code{safe-mysqld.cmd} script will put this directory in
 the @code{BEGINLIBPATH} environment variable. When using UDF modules,
 specified extensions are ignored --- it is assumed to be @file{.udf}.
-For example, in Unix, the shared module might be named @file{example.so}
+For example, in UNIX, the shared module might be named @file{example.so}
 and you would load a function from it like this:
 
 @example
@@ -7984,7 +7965,7 @@ CREATE FUNCTION metaphon RETURNS STRING SONAME "example";
 @end example
 
 @node MySQL binaries, Post-installation, OS/2, Installing
-@section MySQL binaries
+@section MySQL Binaries
 
 As a service, we at MySQL AB provides a set of binary distributions of
 @strong{MySQL} that are compiled at our site or at sites where customers
@@ -8036,15 +8017,15 @@ Anyone who has more optimal options for any of the configurations listed
 above can always mail them to the developer's mailing list at
 @email{developer@@lists.mysql.com}.
 
-RPM distributions prior to @strong{MySQL} 3.22 are user-contributed.
-Beginning with 3.22, some RPMs are generated by us at MySQL AB.
+RPM distributions prior to @strong{MySQL} Version 3.22 are user-contributed.
+Beginning with Version 3.22, some RPMs are generated by us at MySQL AB.
 
 If you want to compile a debug version of @strong{MySQL}, you should add
 @code{--with-debug} or @code{--with-debug=full} to the above configure lines
 and remove any @code{-fomit-frame-pointer} options.
 
 @node Post-installation, Upgrade, MySQL binaries, Installing
-@section Post-installation setup and testing
+@section Post-installation Setup and Testing
 
 @menu
 * mysql_install_db::            Problems running @code{mysql_install_db}
@@ -8055,7 +8036,7 @@ and remove any @code{-fomit-frame-pointer} options.
 @end menu
 
 Once you've installed @strong{MySQL} (from either a binary or source
-distribution), you need to initialize the grant tables, start the server
+distribution), you need to initialize the grant tables, start the server,
 and make sure that the server works okay.  You may also wish to arrange
 for the server to be started and stopped automatically when your system
 starts up and shuts down.
@@ -8111,10 +8092,10 @@ Typically, @code{mysql_install_db} needs to be run only the first time you
 install @strong{MySQL}.  Therefore, if you are upgrading an existing
 installation, you can skip this step. (However, @code{mysql_install_db} is
 quite safe to use and will not update any tables that already exist, so if
-you are unsure what to do, you can always run @code{mysql_install_db}.)
+you are unsure of what to do, you can always run @code{mysql_install_db}.)
 
 @code{mysql_install_db} creates six tables (@code{user}, @code{db},
-@code{host}, @code{tables_priv}, @code{columns_priv} and @code{func}) in the
+@code{host}, @code{tables_priv}, @code{columns_priv}, and @code{func}) in the
 @code{mysql} database.  A description of the initial privileges is given in
 @ref{Default privileges}.  Briefly, these privileges allow the @strong{MySQL}
 @code{root} user to do anything, and allow anybody to create or use databases
@@ -8128,7 +8109,7 @@ log file when you start the server:
 mysqld: Can't find file: 'host.frm'
 @end example
 
-The above may also happens with a binary @strong{MySQL} distribution if you
+The above may also happen with a binary @strong{MySQL} distribution if you
 don't start @strong{MySQL} by executing exactly @code{./bin/safe_mysqld}!
 
 You might need to run @code{mysql_install_db} as @code{root}.  However,
@@ -8160,9 +8141,9 @@ connect to the grant tables as the @strong{MySQL} @code{root} user and issue
 SQL statements to modify the grant tables directly.
 
 @item
-It is possible to recreate the grant tables completely after they have
+It is possible to re-create the grant tables completely after they have
 already been created.  You might want to do this if you've already installed
-the tables but then want to recreate them after editing
+the tables but then want to re-create them after editing
 @code{mysql_install_db}.
 @end itemize
 
