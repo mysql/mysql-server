@@ -1373,28 +1373,17 @@ create_total_list_n_last_return(THD *thd_arg,
       {
 	TABLE_LIST *cursor;
 	next_table= aux->next;
-	for (cursor= **result_arg; cursor; cursor= cursor->next)
-	  if (!strcmp(cursor->db, aux->db) &&
-	      !strcmp(cursor->real_name, aux->real_name) &&
-	      !strcmp(cursor->alias, aux->alias))
-	    break;
-	if (!cursor)
+	/* Add not used table to the total table list */
+	if (!(cursor= (TABLE_LIST *) thd->memdup((char*) aux,
+						 sizeof(*aux))))
 	{
-	  /* Add not used table to the total table list */
-	  if (!(cursor= (TABLE_LIST *) thd->memdup((char*) aux,
-						   sizeof(*aux))))
-	  {
-	    send_error(thd,0);
-	    return 1;
-	  }
-	  *new_table_list= cursor;
-	  cursor->table_list= aux; //to be able mark this table as shared
-	  new_table_list= &cursor->next;
-	  *new_table_list= 0;			// end result list
+	  send_error(thd,0);
+	  return 1;
 	}
-	else
-	  // Mark that it's used twice
-	  cursor->table_list->shared= aux->shared= 1;
+	*new_table_list= cursor;
+	cursor->table_list= aux;
+	new_table_list= &cursor->next;
+	*new_table_list= 0;			// end result list
 	aux->table_list= cursor;
       }
     }

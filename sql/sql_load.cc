@@ -123,7 +123,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   else
   {						// Part field list
     thd->dupp_field=0;
-    if (setup_tables(table_list, 0) ||
+    if (setup_tables(table_list) ||
 	setup_fields(thd, 0, table_list, fields, 1, 0, 0))
       DBUG_RETURN(-1);
     if (thd->dupp_field)

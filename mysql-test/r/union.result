@@ -539,7 +539,7 @@ aa
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` char(2) default NULL
+  `a` char(2) NOT NULL default ''
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 SELECT 12 as a UNION select "aa" as a;
@@ -550,7 +550,7 @@ aa
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` char(2) default NULL
+  `a` char(2) NOT NULL default ''
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 SELECT 12 as a UNION select 12.2 as a;
@@ -561,7 +561,7 @@ a
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` double(4,1) default NULL
+  `a` double(4,1) NOT NULL default '0.0'
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t2 (it1 tinyint, it2 tinyint not null, i int not null, ib bigint, f float, d double, y year, da date, dt datetime, sc char(10), sv varchar(10), b blob, tx text);
@@ -585,7 +585,7 @@ it2
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `it2` int(11) default NULL
+  `it2` int(11) NOT NULL default '0'
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 SELECT i from t2 UNION select f from t2;
@@ -799,7 +799,7 @@ select * from t1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `1` bigint(1) default NULL
+  `1` bigint(1) NOT NULL default '0'
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 select _latin1"test" union select _latin2"testt" ;
@@ -808,7 +808,7 @@ create table t1 select _latin2"test" union select _latin2"testt" ;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `test` char(5) character set latin2 default NULL
+  `test` char(5) character set latin2 NOT NULL default ''
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 (s char(200));
@@ -856,7 +856,7 @@ Variable_name	Value
 Slow_queries	1
 select count(*) from t1 where b=13 union select count(*) from t1 where a=7;
 count(*)
-0
+10
 26
 show status like 'Slow_queries';
 Variable_name	Value
@@ -878,4 +878,32 @@ b	222	NULL	NULL
 d	444	d	454
 NULL	NULL	f	666
 NULL	NULL	g	777
+drop  table t1;
+create table t1 (col1 tinyint unsigned, col2 tinyint unsigned);
+insert into t1 values (1,2),(3,4),(5,6),(7,8),(9,10);
+select col1 n from t1 union select col2 n from t1 order by n;
+n
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+alter table t1 add index myindex (col2);
+select col1 n from t1 union select col2 n from t1 order by n;
+n
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
 drop  table t1;
