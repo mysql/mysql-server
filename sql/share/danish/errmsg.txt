@@ -306,3 +306,4 @@ character-set=latin1
 "Modtog temporary fejl %d '%-.100s' fra %s",
 "Unknown or incorrect time zone: '%-.64s'",
 "Invalid TIMESTAMP value in column '%s' at row %ld",
+"Data truncated by function '%s' do to max_allowed_packet"
