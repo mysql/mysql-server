@@ -17,7 +17,14 @@
 #ifndef _mysql_time_h_
 #define _mysql_time_h_
 
-/* Time declarations shared between server and client library */
+/*
+  Time declarations shared between the server and client API:
+  you should not add anything to this header unless it's used
+  (and hence should be visible) in mysql.h.
+  If you're looking for a place to add new time-related declaration,
+  it's most likely my_time.h. See also "C API Handling of Date
+  and Time Values" chapter in documentation.
+*/
 
 enum enum_mysql_timestamp_type
 {
@@ -33,14 +40,5 @@ typedef struct st_mysql_time
   my_bool       neg;
   enum enum_mysql_timestamp_type time_type;
 } MYSQL_TIME;
-
-
-/* 
-  Portable time_t replacement. 
-  Should be signed and hold seconds for 1902-2038 range.
-*/
-typedef long my_time_t;
-#define MY_TIME_T_MAX LONG_MAX
-#define MY_TIME_T_MIN LONG_MIN
 
 #endif /* _mysql_time_h_ */
