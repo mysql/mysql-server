@@ -164,12 +164,7 @@ bool Item_subselect::fix_fields(THD *thd_param, TABLE_LIST *tables, Item **ref)
       thd->where= "checking transformed subquery";
       if (!(*ref)->fixed)
 	ret= (*ref)->fix_fields(thd, tables, ref);
-      // We can't substitute aggregate functions like "SELECT (max(i))"
-      if (substype() == SINGLEROW_SUBS && (*ref)->with_sum_func)
-      {
-	my_error(ER_INVALID_GROUP_FUNC_USE, MYF(0));
-	return 1;
-      }
+      thd->where= save_where;
       return ret;
     }
     // Is it one field subselect?
@@ -322,6 +317,7 @@ Item_singlerow_subselect::select_transformer(JOIN *join)
   if (!select_lex->master_unit()->first_select()->next_select() &&
       !select_lex->table_list.elements &&
       select_lex->item_list.elements == 1 &&
+      !select_lex->item_list.head()->with_sum_func &&
       /*
 	We cant change name of Item_field or Item_ref, because it will
 	prevent it's correct resolving, but we should save name of
@@ -330,7 +326,13 @@ Item_singlerow_subselect::select_transformer(JOIN *join)
 	TODO: solve above problem
       */
       !(select_lex->item_list.head()->type() == FIELD_ITEM ||
-	select_lex->item_list.head()->type() == REF_ITEM)
+	select_lex->item_list.head()->type() == REF_ITEM) &&
+      /*
+        switch off this optimisation for prepare statement,
+        because we do not rollback this changes
+        TODO: make rollback for it, or special name resolving mode in 5.0.
+      */
+      !arena->is_stmt_prepare()
       )
   {
 
@@ -352,9 +354,6 @@ Item_singlerow_subselect::select_transformer(JOIN *join)
     if (join->conds || join->having)
     {
       Item *cond;
-      if (arena->is_stmt_prepare())
-	thd->set_n_backup_item_arena(arena, &backup);
-
       if (!join->having)
 	cond= join->conds;
       else if (!join->conds)
@@ -365,16 +364,12 @@ Item_singlerow_subselect::select_transformer(JOIN *join)
       if (!(substitution= new Item_func_if(cond, substitution,
 					   new Item_null())))
 	goto err;
-      if (arena->is_stmt_prepare())
-        thd->restore_backup_item_arena(arena, &backup);
-    }
+   }
     return RES_REDUCE;
   }
   return RES_OK;
 
 err:
-  if (arena->is_stmt_prepare())
-    thd->restore_backup_item_arena(arena, &backup);
   return RES_ERROR;
 }
 
@@ -401,6 +396,13 @@ void Item_singlerow_subselect::fix_length_and_dec()
     engine->fix_length_and_dec(row);
     value= *row;
   }
+  /*
+    If there are not tables in subquery then ability to have NULL value
+    depends on SELECT list (if single row subquery have tables then it
+    always can be NULL if there are not records fetched).
+  */
+  if (engine->no_tables())
+    maybe_null= engine->may_be_null();
 }
 
 uint Item_singlerow_subselect::cols()
@@ -644,6 +646,7 @@ Item_subselect::trans_res
 Item_in_subselect::single_value_transformer(JOIN *join,
 					    Comp_creator *func)
 {
+  const char *save_where= thd->where;
   DBUG_ENTER("Item_in_subselect::single_value_transformer");
 
   if (changed)
@@ -899,6 +902,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 ok:
   if (arena->is_stmt_prepare())
     thd->restore_backup_item_arena(arena, &backup);
+  thd->where= save_where;
   DBUG_RETURN(RES_OK);
 
 err:
@@ -911,6 +915,7 @@ err:
 Item_subselect::trans_res
 Item_in_subselect::row_value_transformer(JOIN *join)
 {
+  const char *save_where= thd->where;
   DBUG_ENTER("Item_in_subselect::row_value_transformer");
 
   if (changed)
@@ -1003,6 +1008,7 @@ Item_in_subselect::row_value_transformer(JOIN *join)
   }
   if (arena->is_stmt_prepare())
     thd->restore_backup_item_arena(arena, &backup);
+  thd->where= save_where;
   DBUG_RETURN(RES_OK);
 
 err:
@@ -1561,4 +1567,59 @@ int subselect_uniquesubquery_engine::change_item(Item_subselect *si,
 {
   DBUG_ASSERT(0);
   return -1;
+}
+
+
+/*
+  Report about presence of tables in subquery
+
+  SINOPSYS
+    subselect_single_select_engine::no_tables()
+
+  RETURN
+    TRUE  there are not tables used in subquery
+    FALSE there are some tables in subquery
+*/
+bool subselect_single_select_engine::no_tables()
+{
+  return(select_lex->table_list.elements == 0);
+}
+
+
+/*
+  Report about presence of tables in subquery
+
+  SINOPSYS
+    subselect_union_engine::no_tables()
+
+  RETURN
+    TRUE  there are not tables used in subquery
+    FALSE there are some tables in subquery
+*/
+bool subselect_union_engine::no_tables()
+{
+  for (SELECT_LEX *sl= unit->first_select(); sl; sl= sl->next_select())
+  {
+    if (sl->table_list.elements)
+      return FALSE;
+  }
+  return TRUE;
+}
+
+
+/*
+  Report about presence of tables in subquery
+
+  SINOPSYS
+    subselect_uniquesubquery_engine::no_tables()
+
+  RETURN
+    TRUE  there are not tables used in subquery
+    FALSE there are some tables in subquery
+*/
+
+bool subselect_uniquesubquery_engine::no_tables()
+{
+  /* returning value is correct, but this method should never be called */
+  return 0;
 }
