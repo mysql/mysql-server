@@ -699,9 +699,9 @@ int main()
   AC_MSG_RESULT($atom_ops)
 
   AC_ARG_WITH(pstack,
-    [  --without-pstack        Do not use the pstack backtrace library],
-    [USE_PSTACK=$withval],
-    [USE_PSTACK=yes])
+    [  --with-pstack         Use the pstack backtrace library],
+    [ USE_PSTACK=$withval ],
+    [ USE_PSTACK=no ])
   pstack_libs=
   pstack_dirs=
   if test "$USE_PSTACK" = yes -a "$IS_LINUX" = "true" -a "$BASE_MACHINE_TYPE" = "i386" -a "$with_mit_threads" = "no"
@@ -717,7 +717,9 @@ dnl I have no idea if this is a good test - can not find docs for libiberty
     if test x"$have_libiberty" = xyes -a x"$have_libbfd" = xyes
     then
       pstack_dirs='$(top_srcdir)'/pstack
-      pstack_libs="$pstack_dirs/libpstack.a -lbfd -liberty"
+      pstack_libs="../pstack/libpstack.a -lbfd -liberty"
+      # We must link staticly when using pstack
+      with_mysqld_ldflags="-all-static"
       AC_SUBST([pstack_dirs])
       AC_SUBST([pstack_libs])
       AC_DEFINE([USE_PSTACK])

@@ -24,7 +24,7 @@ INCLUDES =		@MT_INCLUDES@ \
 			@bdb_includes@ @innodb_includes@ @gemini_includes@ \
 			-I$(srcdir)/../include \
 			-I$(srcdir)/../regex \
-			-I$(srcdir) -I../include $(openssl_includes)
+			-I$(srcdir) -I../include -I. $(openssl_includes)
 WRAPLIBS=		@WRAPLIBS@
 SUBDIRS =		share
 libexec_PROGRAMS =	mysqld
