@@ -771,7 +771,7 @@ AC_MSG_CHECKING(for OpenSSL)
 
 AC_DEFUN(MYSQL_CHECK_MYSQLFS, [
   AC_ARG_WITH([mysqlfs],
-              [\
+              [
   --with-mysqlfs          Include the corba-based MySQL file system],
               [mysqlfs="$withval"],
               [mysqlfs=no])
@@ -821,7 +821,7 @@ AC_SUBST(orbit_idl)
 ])
 
 AC_DEFUN([MYSQL_CHECK_ISAM], [
-  AC_ARG_WITH([isam], [\
+  AC_ARG_WITH([isam], [
   --without-isam          Disable the ISAM table type],
     [with_isam="$withval"],
     [with_isam=yes])
