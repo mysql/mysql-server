@@ -431,3 +431,25 @@ a	concat(b,'.')
 1	a.
 3	a  .
 drop table t1;
+create table t1 (a int not null);
+create table t2 (a int not null, primary key (a));
+insert into t1 values (1);
+insert into t2 values (1),(2);
+select sql_big_result distinct t1.a from t1,t2 order by t2.a;
+a
+1
+select distinct t1.a from t1,t2 order by t2.a;
+a
+1
+select sql_big_result distinct t1.a from t1,t2;
+a
+1
+explain select sql_big_result distinct t1.a from t1,t2 order by t2.a;
+table	type	possible_keys	key	key_len	ref	rows	Extra
+t1	system	NULL	NULL	NULL	NULL	1	Using temporary
+t2	index	NULL	PRIMARY	4	NULL	2	Using index; Distinct
+explain select distinct t1.a from t1,t2 order by t2.a;
+table	type	possible_keys	key	key_len	ref	rows	Extra
+t1	system	NULL	NULL	NULL	NULL	1	Using temporary
+t2	index	NULL	PRIMARY	4	NULL	2	Using index; Distinct
+drop table t1,t2;
