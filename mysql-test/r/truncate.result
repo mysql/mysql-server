@@ -20,3 +20,5 @@ truncate table t1;
 select * from t1;
 n
 drop table t1;
+truncate non_existing_table;
+Table 'test.non_existing_table' doesn't exist
