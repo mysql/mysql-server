@@ -581,12 +581,10 @@ public:
 
 class Item_func_set_collation :public Item_str_func
 {
-  CHARSET_INFO *set_collation;
 public:
-  Item_func_set_collation(Item *a, CHARSET_INFO *cs) :Item_str_func(a) 
-  { set_collation=cs; }
-  bool fix_fields(THD *thd,struct st_table_list *tables, Item **ref);
+  Item_func_set_collation(Item *a, Item *b) :Item_str_func(a,b) {};
   String *val_str(String *);
+  bool fix_fields(THD *thd,struct st_table_list *tables, Item **ref);
   void fix_length_and_dec() 
   { max_length = args[0]->max_length; }
   bool eq(const Item *item, bool binary_cmp) const;
