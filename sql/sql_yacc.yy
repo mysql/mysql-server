@@ -2155,8 +2155,10 @@ join_table:
         | '(' SELECT_SYM select_part3 ')' opt_table_alias 
 	{
 	  LEX *lex=Lex;
+	  SELECT_LEX *select_to_execute= lex->select;
 	  lex->select=lex->select->prev;
-	  if (!($$=add_table_to_list(new Table_ident(Lex->last_select),$5,0,TL_UNLOCK)))
+	  if (!($$=add_table_to_list(new Table_ident(select_to_execute),
+	                             $5,0,TL_UNLOCK)))
 	    YYABORT;
 	}
 
