@@ -55,7 +55,7 @@ select v1.b from v1;
 # view with different algorithms (explain out put are differ)
 explain extended select c from v1;
 create algorithm=temptable view v2 (c) as select b+1 from t1;
-show create table v2;
+show create view v2;
 select c from v2;
 explain extended select c from v2;
 
@@ -268,19 +268,19 @@ show columns from mysqltest.v2;
 -- error 1345
 explain select c from mysqltest.v1;
 -- error 1142
-show create table mysqltest.v1;
+show create view mysqltest.v1;
 -- error 1345
 explain select c from mysqltest.v2;
 -- error 1142
-show create table mysqltest.v2;
+show create view mysqltest.v2;
 -- error 1345
 explain select c from mysqltest.v3;
 -- error 1142
-show create table mysqltest.v3;
+show create view mysqltest.v3;
 -- error 1345
 explain select c from mysqltest.v4;
 -- error 1142
-show create table mysqltest.v4;
+show create view mysqltest.v4;
 
 # allow to see one of underlaing table
 connection root;
@@ -289,32 +289,32 @@ connection user1;
 # EXPLAIN of view on above table works
 explain select c from mysqltest.v1;
 -- error 1142
-show create table mysqltest.v1;
+show create view mysqltest.v1;
 explain select c from mysqltest.v2;
 -- error 1142
-show create table mysqltest.v2;
+show create view mysqltest.v2;
 # but other EXPLAINs do not
 -- error 1345
 explain select c from mysqltest.v3;
 -- error 1142
-show create table mysqltest.v3;
+show create view mysqltest.v3;
 -- error 1345
 explain select c from mysqltest.v4;
 -- error 1142
-show create table mysqltest.v4;
+show create view mysqltest.v4;
 
 # allow to see any view in mysqltest database
 connection root;
 grant show view on mysqltest.* to mysqltest_1@localhost;
 connection user1;
 explain select c from mysqltest.v1;
-show create table mysqltest.v1;
+show create view mysqltest.v1;
 explain select c from mysqltest.v2;
-show create table mysqltest.v2;
+show create view mysqltest.v2;
 explain select c from mysqltest.v3;
-show create table mysqltest.v3;
+show create view mysqltest.v3;
 explain select c from mysqltest.v4;
-show create table mysqltest.v4;
+show create view mysqltest.v4;
 
 connection root;
 revoke all privileges on mysqltest.* from mysqltest_1@localhost;
@@ -1280,7 +1280,7 @@ create view v1 as select a from t1 where a > 1;
 select * from t1 left join (t2 as t, v1) on v1.a=t1.a;
 select * from t1 left join (t2 as t, t2) on t2.a=t1.a;
 drop view v1;
-drop table t1;
+drop table t1, t2;
 
 #
 # Collation with view update
@@ -1295,3 +1295,16 @@ update v1,t1 set v1.s1='c' where t1.s1=v1.s1;
 select * from v1;
 drop view v1;
 drop table t1;
+
+#
+# test view with LOCK TABLES (work around)
+#
+create table t1 (a int);
+create table t2 (a int);
+create view v1 as select * from t1;
+lock tables t1 read, v1 read;
+select * from v1;
+-- error 1100
+select * from t2;
+drop view v1;
+drop table t1, t2;

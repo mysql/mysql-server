@@ -906,6 +906,36 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
 	goto reset;
       }
     }
+    /*
+      is it view?
+      (it is work around to allow to open view with locked tables,
+      real fix will be made after definition cache will be made)
+    */
+    {
+      char path[FN_REFLEN];
+      strxnmov(path, FN_REFLEN, mysql_data_home, "/", table_list->db, "/",
+               table_list->real_name, reg_ext, NullS);
+      (void) unpack_filename(path, path);
+      if (mysql_frm_type(path) == FRMTYPE_VIEW)
+      {
+        VOID(pthread_mutex_lock(&LOCK_open));
+        if (open_unireg_entry(thd, table, table_list->db,
+                              table_list->real_name,
+                              alias, table_list, mem_root))
+        {
+          table->next=table->prev=table;
+          free_cache_entry(table);
+        }
+        else
+        {
+          DBUG_ASSERT(table_list->view);
+          my_free((gptr)table, MYF(0));
+          VOID(pthread_mutex_unlock(&LOCK_open));
+          DBUG_RETURN(0); // VIEW
+        }
+        VOID(pthread_mutex_unlock(&LOCK_open));
+      }
+    }
     my_printf_error(ER_TABLE_NOT_LOCKED,ER(ER_TABLE_NOT_LOCKED),MYF(0),alias);
     DBUG_RETURN(0);
   }
