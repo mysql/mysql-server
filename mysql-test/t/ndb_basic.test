@@ -17,7 +17,7 @@ CREATE TABLE t1 (
   attr1 INT NOT NULL
 ) ENGINE=ndbcluster;
 
-INSERT INTO t1 VALUES (9410,9412);
+INSERT INTO t1 VALUES (9410,9412),(9411,9413);
   
 SELECT pk1 FROM t1;
 SELECT * FROM t1;
@@ -27,9 +27,14 @@ SELECT t1.* FROM t1;
 UPDATE t1 SET attr1=1 WHERE pk1=9410;
 SELECT * FROM t1;
 
-# Can't UPDATE PK! Test that correct error is returned
--- error 1112
+# Update pk
 UPDATE t1 SET pk1=2 WHERE attr1=1;
+SELECT * FROM t1;
+
+# Try to set same pk
+# 1022: Can't write; duplicate key in table 't1'
+-- error 1022
+UPDATE t1 SET pk1=2 WHERE attr1=9413;
 SELECT * FROM t1;
 
 # Delete the record
