@@ -2271,13 +2271,18 @@ void Field_longlong::sql_type(String &res) const
 int Field_float::store(const char *from,uint len,CHARSET_INFO *cs)
 {
   int err;
-  Field_float::store(my_strntod(cs,(char*) from,len,(char**)NULL,&err));
-  if (err || current_thd->count_cuted_fields && !test_if_real(from,len,cs))
+  char *end;
+  double nr= my_strntod(cs,(char*) from,len,&end,&err);
+  if (!err && (!current_thd->count_cuted_fields || end-from==len))
+  {
+    return Field_float::store(nr);
+  }
+  else
   {
     set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_TRUNCATED);
+    Field_float::store(nr);
     return 1;
   }
-  return (err) ? 1 : 0;
 }
 
 
@@ -2285,28 +2290,41 @@ int Field_float::store(double nr)
 {
   float j;
   int error= 0;
-  if (dec < NOT_FIXED_DEC)
-    nr=floor(nr*log_10[dec]+0.5)/log_10[dec]; // To fixed point
-  if (unsigned_flag && nr < 0)
+
+  if (isnan(nr) || unsigned_flag && nr < 0)
   {
-    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE);
-    nr=0;
-    error= 1;
-  }
-  if (nr < -FLT_MAX)
-  {
-    j= -FLT_MAX;
-    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE);
-    error= 1;
-  }
-  else if (nr > FLT_MAX)
-  {
-    j=FLT_MAX;
+    j= 0;
     set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE);
     error= 1;
   }
   else
-    j= (float) nr;
+  {
+    double max_value;
+    if (dec >= NOT_FIXED_DEC)
+    {
+      max_value= FLT_MAX;
+    }
+    else
+    {
+      max_value= (log_10[field_length]-1)/log_10[dec];
+      nr= floor(nr*log_10[dec]+0.5)/log_10[dec];
+    }
+    if (nr < -max_value)
+    {
+      j= (float)-max_value;
+      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE);
+      error= 1;
+    }
+    else if (nr > max_value)
+    {
+      j= (float)max_value;
+      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE);
+      error= 1;
+    }
+    else
+      j= (float) nr;
+  }
+  
 #ifdef WORDS_BIGENDIAN
   if (table->db_low_byte_first)
   {
@@ -2544,41 +2562,57 @@ void Field_float::sql_type(String &res) const
 int Field_double::store(const char *from,uint len,CHARSET_INFO *cs)
 {
   int err;
-  double j= my_strntod(cs,(char*) from,len,(char**)0,&err);
-  if (err || current_thd->count_cuted_fields && !test_if_real(from,len,cs))
+  char *end;
+  double nr= my_strntod(cs,(char*) from,len,&end,&err);  
+  if (!err && (!current_thd->count_cuted_fields || end-from==len))
   {
-    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_TRUNCATED);
-    err= 1;
-  }
-  if (unsigned_flag && j < 0)
-  {
-    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE);
-    j=0;
-    err= 1;
-  }
-#ifdef WORDS_BIGENDIAN
-  if (table->db_low_byte_first)
-  {
-    float8store(ptr,j);
+    return Field_double::store(nr);
   }
   else
-#endif
-    doublestore(ptr,j);
-  return err;
+  {
+    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_TRUNCATED);
+    Field_double::store(nr);
+    return 1;
+  }
 }
 
 
 int Field_double::store(double nr)
 {
   int error= 0;
-  if (dec < NOT_FIXED_DEC)
-    nr=floor(nr*log_10[dec]+0.5)/log_10[dec]; // To fixed point
-  if (unsigned_flag && nr < 0)
+
+  if (isnan(nr) || unsigned_flag && nr < 0)
   {
+    nr= 0;
     set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE);
-    nr=0;
     error= 1;
   }
+  else 
+  {
+    double max_value;
+    if (dec >= NOT_FIXED_DEC)
+    {
+      max_value= DBL_MAX;
+    }
+    else
+    {
+      max_value= (log_10[field_length]-1)/log_10[dec];
+      nr= floor(nr*log_10[dec]+0.5)/log_10[dec];
+    }
+    if (nr < -max_value)
+    {
+      nr= -max_value;
+      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE);
+      error= 1;
+    }
+    else if (nr > max_value)
+    {
+      nr= max_value;
+      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE);
+      error= 1;
+    }
+  }
+
 #ifdef WORDS_BIGENDIAN
   if (table->db_low_byte_first)
   {
