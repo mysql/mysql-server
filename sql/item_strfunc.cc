@@ -235,8 +235,6 @@ String *Item_func_concat::val_str(String *str)
   use_as_buff= &tmp_value;
   for (i=1 ; i < arg_count ; i++)
   {
-    if (args[i]->binary())
-      set_charset(&my_charset_bin);
     if (res->length() == 0)
     {
       if (!(res=args[i]->val_str(str)))
@@ -265,7 +263,6 @@ String *Item_func_concat::val_str(String *str)
 	  str->append(*res2);
 	}
 	res=str;
-	res->set_charset(charset());
       }
       else if (res == &tmp_value)
       {
@@ -277,7 +274,6 @@ String *Item_func_concat::val_str(String *str)
 	if (tmp_value.replace(0,0,*res))
 	  goto null;
 	res= &tmp_value;
-	res->set_charset(charset());
 	use_as_buff=str;			// Put next arg here
       }
       else if (tmp_value.is_alloced() && res2->ptr() >= tmp_value.ptr() &&
@@ -296,7 +292,6 @@ String *Item_func_concat::val_str(String *str)
 			      *res))
 	  goto null;
 	res= &tmp_value;
-	res->set_charset(charset());
 	use_as_buff=str;			// Put next arg here
       }
       else
@@ -306,11 +301,11 @@ String *Item_func_concat::val_str(String *str)
 	    tmp_value.append(*res2))
 	  goto null;
 	res= &tmp_value;
-	res->set_charset(charset());
 	use_as_buff=str;
       }
     }
   }
+  res->set_charset(charset());
   return res;
 
 null:
@@ -602,6 +597,7 @@ String *Item_func_concat_ws::val_str(String *str)
       use_as_buff=str;
     }
   }
+  res->set_charset(charset());
   return res;
 
 null:
@@ -626,9 +622,18 @@ void Item_func_concat_ws::split_sum_func(Item **ref_pointer_array,
 
 void Item_func_concat_ws::fix_length_and_dec()
 {
+  set_charset(separator->charset(),separator->coercibility);
   max_length=separator->max_length*(arg_count-1);
   for (uint i=0 ; i < arg_count ; i++)
+  {
     max_length+=args[i]->max_length;
+    if (set_charset(charset(), coercibility,
+		args[i]->charset(), args[i]->coercibility))
+    {
+      my_error(ER_WRONG_ARGUMENTS,MYF(0),func_name());
+      break;
+    }
+  }
   if (max_length > MAX_BLOB_WIDTH)
   {
     max_length=MAX_BLOB_WIDTH;
@@ -1587,10 +1592,22 @@ void Item_func_elt::fix_length_and_dec()
 {
   max_length=0;
   decimals=0;
-  for (uint i=1 ; i < arg_count ; i++)
+  
+  for (uint i=0 ; i < arg_count ; i++)
   {
     set_if_bigger(max_length,args[i]->max_length);
     set_if_bigger(decimals,args[i]->decimals);
+    if (i == 0)
+      set_charset(args[i]->charset(),args[i]->coercibility);
+    else
+    {
+      if (set_charset(charset(), coercibility,
+		      args[i]->charset(), args[i]->coercibility))
+      {
+        my_error(ER_WRONG_ARGUMENTS,MYF(0),func_name());
+        break;
+      }
+    }
   }
   maybe_null=1;					// NULL if wrong first arg
   with_sum_func= with_sum_func || item->with_sum_func;
@@ -1651,13 +1668,16 @@ longlong Item_func_elt::val_int()
 String *Item_func_elt::val_str(String *str)
 {
   uint tmp;
+  String *res;
   if ((tmp=(uint) item->val_int()) == 0 || tmp > arg_count)
   {
     null_value=1;
     return NULL;
   }
   null_value=0;
-  return args[tmp-1]->val_str(str);
+  res= args[tmp-1]->val_str(str);
+  res->set_charset(charset());
+  return res;
 }
 
 
