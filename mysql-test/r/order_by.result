@@ -471,3 +471,38 @@ table	type	possible_keys	key	key_len	ref	rows	Extra
 t1	ALL	NULL	NULL	NULL	NULL	6	Using temporary; Using filesort
 t3	eq_ref	PRIMARY	PRIMARY	2	t1.skr	1	where used
 drop table t1,t2,t3;
+CREATE TABLE t1 (
+`titre` char(80) NOT NULL default '',
+`numeropost` mediumint(8) unsigned NOT NULL auto_increment,
+`date` datetime NOT NULL default '0000-00-00 00:00:00',
+`auteur` char(35) NOT NULL default '',
+`icone` tinyint(2) unsigned NOT NULL default '0',
+`lastauteur` char(35) NOT NULL default '',
+`nbrep` smallint(6) unsigned NOT NULL default '0',
+`dest` char(35) NOT NULL default '',
+`lu` tinyint(1) unsigned NOT NULL default '0',
+`vue` mediumint(8) unsigned NOT NULL default '0',
+`ludest` tinyint(1) unsigned NOT NULL default '0',
+`ouvert` tinyint(1) unsigned NOT NULL default '1',
+PRIMARY KEY  (`numeropost`),
+KEY `date` (`date`),
+KEY `dest` (`dest`,`ludest`),
+KEY `auteur` (`auteur`,`lu`),
+KEY `auteur_2` (`auteur`,`date`),
+KEY `dest_2` (`dest`,`date`)
+) CHECKSUM=1;
+CREATE TABLE t2 (
+`numeropost` mediumint(8) unsigned NOT NULL default '0',
+`pseudo` char(35) NOT NULL default '',
+PRIMARY KEY  (`numeropost`,`pseudo`),
+KEY `pseudo` (`pseudo`)
+);
+INSERT INTO t1 (titre,auteur,dest) VALUES ('test','joce','bug');
+INSERT INTO t2 (numeropost,pseudo) VALUES (1,'joce'),(1,'bug');
+SELECT titre,t1.numeropost,auteur,icone,nbrep,0,date,vue,ouvert,lastauteur,dest FROM t2 LEFT JOIN t1 USING(numeropost) WHERE t2.pseudo='joce' ORDER BY date DESC LIMIT 0,30;
+titre	numeropost	auteur	icone	nbrep	0	date	vue	ouvert	lastauteur	dest
+test	1	joce	0	0	0	0000-00-00 00:00:00	0	1		bug
+SELECT titre,t1.numeropost,auteur,icone,nbrep,'0',date,vue,ouvert,lastauteur,dest FROM t2 LEFT JOIN t1 USING(numeropost) WHERE t2.pseudo='joce' ORDER BY date DESC LIMIT 0,30;
+titre	numeropost	auteur	icone	nbrep	0	date	vue	ouvert	lastauteur	dest
+test	1	joce	0	0	0	0000-00-00 00:00:00	0	1		bug
+drop table t1,t2;

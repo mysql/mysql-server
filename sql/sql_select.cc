@@ -639,7 +639,8 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
     DBUG_PRINT("info",("Creating tmp table"));
     thd->proc_info="Creating tmp table";
 
-    join.tmp_table_param.hidden_field_count=  all_fields.elements- fields.elements;
+    join.tmp_table_param.hidden_field_count= (all_fields.elements -
+					      fields.elements);
     if (!(tmp_table =
 	  create_tmp_table(thd,&join.tmp_table_param,all_fields,
 			   ((!simple_group && !procedure &&
@@ -3598,7 +3599,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   List_iterator_fast<Item> li(fields);
   Item *item;
   Field **tmp_from_field=from_field;
-  for(uint field_no=0; ((item=li++)); field_no++)
+  while ((item=li++))
   {
     Item::Type type=item->type();
     if (not_all_columns)
@@ -3613,7 +3614,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 	param->using_indirect_summary_function=1;
 	continue;
       }
-      if (item->const_item() && field_no >= hidden_field_count)
+      if (item->const_item() && (int) hidden_field_count <= 0)
         continue; // We don't have to store this
     }
     if (type == Item::SUM_FUNC_ITEM && !group && !save_sum_fields)
@@ -3669,6 +3670,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     if (!--hidden_field_count)
       hidden_null_count=null_count;
   }
+  DBUG_ASSERT(field_count >= (uint) (reg_field - table->field));
   field_count= (uint) (reg_field - table->field);
 
   /* If result table is small; use a heap */
