@@ -229,6 +229,7 @@ struct st_myisam_info {
   char *filename;			/* parameter to open filename */
   uchar *buff,				/* Temp area for key */
 	*lastkey,*lastkey2;		/* Last used search key */
+  uchar *first_mbr_key;			/* Searhed spatial key */ 
   byte	*rec_buff;			/* Tempbuff for recordpack */
   uchar *int_keypos,			/* Save position for next/previous */
         *int_maxpos;			/*  -""-  */

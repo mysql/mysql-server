@@ -508,6 +508,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
 		       &info.buff,(share->base.max_key_block_length*2+
 				   share->base.max_key_length),
 		       &info.lastkey,share->base.max_key_length*3+1,
+		       &info.first_mbr_key, share->base.max_key_length,
 		       &info.filename,strlen(org_name)+1,
 		       &info.rtree_recursion_state,have_rtree ? 1024 : 0,
 		       NullS))
