@@ -375,7 +375,7 @@ public:
   ulong init_prepare_fake_select_lex(THD *thd);
   int change_result(select_subselect *result, select_subselect *old_result);
 
-  friend void mysql_init_query(THD *thd);
+  friend void mysql_init_query(THD *thd, uchar *buf, uint length);
   friend int subselect_union_engine::exec();
 private:
   bool create_total_list_n_last_return(THD *thd, st_lex *lex,
@@ -514,7 +514,7 @@ public:
   
   bool test_limit();
 
-  friend void mysql_init_query(THD *thd);
+  friend void mysql_init_query(THD *thd, uchar *buf, uint length);
   st_select_lex() {}
   void make_empty_select()
   {
@@ -664,7 +664,7 @@ typedef struct st_lex
 
 void lex_init(void);
 void lex_free(void);
-LEX *lex_start(THD *thd, uchar *buf,uint length);
+void lex_start(THD *thd, uchar *buf,uint length);
 void lex_end(LEX *lex);
 
 extern pthread_key(LEX*,THR_LEX);

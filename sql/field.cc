@@ -5625,8 +5625,11 @@ bool Field_enum::eq_def(Field *field)
   if (typelib->count < from_lib->count)
     return 0;
   for (uint i=0 ; i < from_lib->count ; i++)
-    if (my_strcasecmp(field_charset,
-                      typelib->type_names[i],from_lib->type_names[i]))
+    if (my_strnncoll(field_charset,
+                     (const uchar*)typelib->type_names[i],
+                     strlen(typelib->type_names[i]),
+                     (const uchar*)from_lib->type_names[i],
+                     strlen(from_lib->type_names[i])))
       return 0;
   return 1;
 }
