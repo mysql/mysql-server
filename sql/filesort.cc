@@ -1127,7 +1127,7 @@ sortlength(SORT_FIELD *sortorder, uint s_length, bool *multi_byte_charset)
       else
       {
 	sortorder->length=sortorder->field->pack_length();
-	if (use_strnxfrm((cs=sortorder->field->charset())))
+	if (use_strnxfrm((cs=sortorder->field->sort_charset())))
 	{
 	  sortorder->need_strxnfrm= 1;
 	  *multi_byte_charset= 1;

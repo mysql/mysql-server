@@ -29,6 +29,12 @@ a
 A
 a,A
 a,A
+select s from t1 order by concat(s);
+s
+A
+a
+a,A
+a,A
 drop table t1;
 CREATE TABLE t1 (c set('ae','oe','ue','ss') collate latin1_german2_ci);
 INSERT INTO t1 VALUES ('ä'),('ö'),('ü'),('ß');
@@ -47,4 +53,16 @@ ss
 ss
 ae,oe,ue,ss
 ae,oe,ue,ss
+SELECT c FROM t1 ORDER BY concat(c);
+c
+ae
+ae
+ae,oe,ue,ss
+ae,oe,ue,ss
+oe
+oe
+ss
+ss
+ue
+ue
 DROP TABLE t1;
