@@ -56,8 +56,9 @@ class udf_handler :public Sql_alloc
  public:
   table_map used_tables_cache;
   bool const_item_cache;
+  bool not_original;
   udf_handler(udf_func *udf_arg) :u_d(udf_arg), buffers(0), error(0),
-    is_null(0), initialized(0)
+    is_null(0), initialized(0), not_original(0)
   {}
   ~udf_handler();
   const char *name() const { return u_d ? u_d->name.str : "?"; }
