@@ -129,11 +129,12 @@ static int binlog_rollback(THD *thd, bool all)
   IO_CACHE *trans_log= (IO_CACHE*)thd->ha_data[binlog_hton.slot];
   DBUG_ENTER("binlog_rollback");
   /*
-    first two conditions here are guaranteed - see trans_register_ha()
-    call below. The third one must be true. If it is not, we're registering
+    First assert is guaranteed - see trans_register_ha() call below.
+    The second must be true. If it is not, we're registering
     unnecessary, doing extra work. The cause should be found and eliminated
   */
-  DBUG_ASSERT(all && mysql_bin_log.is_open() && my_b_tell(trans_log));
+  DBUG_ASSERT(all || !(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)));
+  DBUG_ASSERT(mysql_bin_log.is_open() && my_b_tell(trans_log));
   /*
      Update the binary log with a BEGIN/ROLLBACK block if we have
      cached some queries and we updated some non-transactional
