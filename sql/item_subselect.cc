@@ -825,8 +825,6 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 						select_lex->ref_pointer_array,
 						(char *)"<ref>",
 						this->full_name()));
-    if (!abort_on_null && left_expr->maybe_null)
-      item= new Item_cond_or(new Item_func_isnull(left_expr), item); 
     /*
       AND and comparison functions can't be changed during fix_fields()
       we can assign select_lex->having here, and pass 0 as last
@@ -872,8 +870,6 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 	select_lex->having_fix_field= 0;
 	item= new Item_cond_or(item,
 			       new Item_func_isnull(orig_item));
-        if (left_expr->maybe_null)
-          item= new Item_cond_or(new Item_func_isnull(left_expr), item);
       }
       item->name= (char *)in_additional_cond;
       /*
@@ -894,13 +890,12 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 	  we can assign select_lex->having here, and pass 0 as last
 	  argument (reference) to fix_fields()
 	*/
-        item= func->create(expr, 
-		           new Item_null_helper(this, item,
+	select_lex->having=
+	  join->having=
+	  func->create(expr,
+		       new Item_null_helper(this, item,
 					    (char *)"<no matter>",
 					    (char *)"<result>"));
-        if (!abort_on_null && left_expr->maybe_null)
-          item= new Item_cond_or(new Item_func_isnull(left_expr), item);
-	select_lex->having= join->having= item;   
 	select_lex->having_fix_field= 1;
 	if (join->having->fix_fields(thd, join->tables_list,
 				     0))
