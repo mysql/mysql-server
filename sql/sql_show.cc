@@ -786,7 +786,8 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
           protocol->store("CURRENT_TIMESTAMP", system_charset_info);
         }
         else if (field->unireg_check != Field::NEXT_NUMBER &&
-                 !field->is_null())
+                 !field->is_null() &&
+                 !(field->flags & NO_DEFAULT_VALUE_FLAG))
         {                                               // Not null by default
           /*
             Note: we have to convert the default value into
@@ -1396,6 +1397,7 @@ store_create_info(THD *thd, TABLE *table, String *packet)
                      field->unireg_check != Field::TIMESTAMP_UN_FIELD;
     
     has_default= (field->type() != FIELD_TYPE_BLOB &&
+                  !(field->flags & NO_DEFAULT_VALUE_FLAG) &&
 		  field->unireg_check != Field::NEXT_NUMBER &&
                   !((foreign_db_mode || limited_mysql_mode) &&
                     has_now_default));

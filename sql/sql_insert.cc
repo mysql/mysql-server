@@ -249,9 +249,10 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
   /*
     Count warnings for all inserts.
     For single line insert, generate an error if try to set a NOT NULL field
-    to NULL
+    to NULL.
   */
-  thd->count_cuted_fields= ((values_list.elements == 1) ?
+  thd->count_cuted_fields= ((values_list.elements == 1 &&
+                             duplic != DUP_IGNORE) ?
 			    CHECK_FIELD_ERROR_FOR_NULL :
 			    CHECK_FIELD_WARN);
   thd->cuted_fields = 0L;
@@ -279,7 +280,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
                            (MODE_STRICT_TRANS_TABLES |
                             MODE_STRICT_ALL_TABLES)));
 
-  if (check_that_all_fields_are_given_values(thd, table))
+  if (fields.elements && check_that_all_fields_are_given_values(thd, table))
   {
     /* thd->net.report_error is now set, which will abort the next loop */
     error= 1;
@@ -463,6 +464,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
   }
   free_underlaid_joins(thd, &thd->lex->select_lex);
   table->insert_values=0;
+  thd->abort_on_warning= 0;
   DBUG_RETURN(0);
 
 abort:
@@ -805,13 +807,11 @@ err:
 
 /******************************************************************************
   Check that all fields with arn't null_fields are used
-  If DONT_USE_DEFAULT_FIELDS isn't defined use default value for not set
-  fields.
 ******************************************************************************/
 
 int check_that_all_fields_are_given_values(THD *thd, TABLE *entry)
 {
-  if (!thd->abort_on_warning)
+  if (!thd->abort_on_warning)                   // No check if not strict mode
     return 0;
 
   for (Field **field=entry->field ; *field ; field++)
@@ -1707,7 +1707,8 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
                           (thd->variables.sql_mode &
                            (MODE_STRICT_TRANS_TABLES |
                             MODE_STRICT_ALL_TABLES)));
-  DBUG_RETURN(check_that_all_fields_are_given_values(thd, table));
+  DBUG_RETURN(fields->elements &&
+              check_that_all_fields_are_given_values(thd, table));
 }
 
 

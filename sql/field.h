@@ -1272,6 +1272,7 @@ int set_field_to_null_with_conversions(Field *field, bool no_conversions);
 #define FIELDFLAG_LEFT_FULLSCREEN	8192
 #define FIELDFLAG_RIGHT_FULLSCREEN	16384
 #define FIELDFLAG_FORMAT_NUMBER		16384	// predit: ###,,## in output
+#define FIELDFLAG_NO_DEFAULT		16384   /* sql */
 #define FIELDFLAG_SUM			((uint) 32768)// predit: +#fieldflag
 #define FIELDFLAG_MAYBE_NULL		((uint) 32768)// sql
 #define FIELDFLAG_PACK_SHIFT		3
@@ -1279,8 +1280,6 @@ int set_field_to_null_with_conversions(Field *field, bool no_conversions);
 #define FIELDFLAG_MAX_DEC		31
 #define FIELDFLAG_NUM_SCREEN_TYPE	0x7F01
 #define FIELDFLAG_ALFA_SCREEN_TYPE	0x7800
-
-#define FIELD_SORT_REVERSE		16384
 
 #define MTYP_TYPENR(type) (type & 127)	/* Remove bits from type */
 
@@ -1299,3 +1298,4 @@ int set_field_to_null_with_conversions(Field *field, bool no_conversions);
 #define f_is_equ(x)		((x) & (1+2+FIELDFLAG_PACK+31*256))
 #define f_settype(x)		(((int) x) << FIELDFLAG_PACK_SHIFT)
 #define f_maybe_null(x)		(x & FIELDFLAG_MAYBE_NULL)
+#define f_no_default(x)		(x & FIELDFLAG_NO_DEFAULT)

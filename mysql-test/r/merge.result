@@ -172,7 +172,7 @@ a	b
 show create table t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `a` int(11) NOT NULL default '0',
+  `a` int(11) NOT NULL,
   `b` char(20) default NULL,
   KEY `a` (`a`)
 ) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 UNION=(`t1`,`t2`)
@@ -187,7 +187,7 @@ create table t5 (a int not null, b char(20), key(a)) engine=MERGE UNION=(test.t1
 show create table t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `a` int(11) NOT NULL default '0',
+  `a` int(11) NOT NULL,
   `b` char(20) default NULL,
   KEY `a` (`a`)
 ) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 UNION=(`t1`,`mysqltest`.`t6`)
@@ -260,16 +260,16 @@ ENGINE=MERGE UNION=(t1,t2);
 show create table t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `incr` int(11) NOT NULL default '0',
-  `othr` int(11) NOT NULL default '0',
+  `incr` int(11) NOT NULL,
+  `othr` int(11) NOT NULL,
   PRIMARY KEY  (`incr`)
 ) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 UNION=(`t1`,`t2`)
 alter table t3 drop primary key;
 show create table t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `incr` int(11) NOT NULL default '0',
-  `othr` int(11) NOT NULL default '0'
+  `incr` int(11) NOT NULL,
+  `othr` int(11) NOT NULL
 ) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 UNION=(`t1`,`t2`)
 drop table t3,t2,t1;
 create table t1 (a int not null, key(a)) engine=merge;
@@ -296,28 +296,28 @@ create table t6 (a int not null, b int not null auto_increment, primary key(a,b)
 show create table t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `a` int(11) NOT NULL default '0',
-  `b` int(11) NOT NULL default '0',
+  `a` int(11) NOT NULL,
+  `b` int(11) NOT NULL,
   KEY `a` (`a`,`b`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 show create table t4;
 Table	Create Table
 t4	CREATE TABLE `t4` (
-  `a` int(11) NOT NULL default '0',
-  `b` int(11) NOT NULL default '0',
+  `a` int(11) NOT NULL,
+  `b` int(11) NOT NULL,
   KEY `a` (`a`,`b`)
 ) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 UNION=(`t1`,`t2`)
 show create table t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `a` int(11) NOT NULL default '0',
+  `a` int(11) NOT NULL,
   `b` int(11) NOT NULL auto_increment,
   PRIMARY KEY  (`a`,`b`)
 ) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 INSERT_METHOD=FIRST UNION=(`t1`,`t2`)
 show create table t6;
 Table	Create Table
 t6	CREATE TABLE `t6` (
-  `a` int(11) NOT NULL default '0',
+  `a` int(11) NOT NULL,
   `b` int(11) NOT NULL auto_increment,
   PRIMARY KEY  (`a`,`b`)
 ) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 INSERT_METHOD=LAST UNION=(`t1`,`t2`)
@@ -382,8 +382,8 @@ alter table t4 UNION=(t1,t2,t3);
 show create table t4;
 Table	Create Table
 t4	CREATE TABLE `t4` (
-  `a` int(11) NOT NULL default '0',
-  `b` int(11) NOT NULL default '0',
+  `a` int(11) NOT NULL,
+  `b` int(11) NOT NULL,
   KEY `a` (`a`,`b`)
 ) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 UNION=(`t1`,`t2`,`t3`)
 select * from t4 order by a,b;
@@ -408,8 +408,8 @@ alter table t4 INSERT_METHOD=FIRST;
 show create table t4;
 Table	Create Table
 t4	CREATE TABLE `t4` (
-  `a` int(11) NOT NULL default '0',
-  `b` int(11) NOT NULL default '0',
+  `a` int(11) NOT NULL,
+  `b` int(11) NOT NULL,
   KEY `a` (`a`,`b`)
 ) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 INSERT_METHOD=FIRST UNION=(`t1`,`t2`,`t3`)
 insert into t4 values (4,1),(4,2);
