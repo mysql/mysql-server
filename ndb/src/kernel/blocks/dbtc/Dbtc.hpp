@@ -235,7 +235,6 @@ public:
   enum ReturnSignal {
     RS_NO_RETURN = 0,
     RS_TCKEYCONF = 1,
-    RS_TCKEYREF = 2,
     RS_TC_COMMITCONF = 3,
     RS_TCROLLBACKCONF = 4,
     RS_TCROLLBACKREP = 5
@@ -699,7 +698,7 @@ public:
     UintR lqhkeyreqrec;
     AbortState abortState;
     Uint32 buddyPtr;
-    Uint8 unused;
+    Uint8 m_exec_flag;
     Uint8 unused2;
     Uint8 takeOverRec;
     Uint8 currentReplicaNo;

@@ -204,11 +204,14 @@ runOp(HugoOperations & hugoOps,
   } else if(strcmp(op, "DELETE") == 0){
     C2(hugoOps.pkDeleteRecord(pNdb, 1, 1) == 0);      
   } else if(strcmp(op, "SCAN") == 0){
-    C2(hugoOps.scanReadRecords(pNdb) == 0);
+    abort();
+    //C2(hugoOps.scanReadRecords(pNdb) == 0);
   } else if(strcmp(op, "SCAN-HL") == 0){
-    C2(hugoOps.scanReadRecords(pNdb, 240, HugoOperations::SL_ReadHold) == 0);
+    abort();
+    //C2(hugoOps.scanReadRecords(pNdb, 240, HugoOperations::SL_ReadHold)== 0);
   } else if(strcmp(op, "SCAN-EX") == 0){
-    C2(hugoOps.scanReadRecords(pNdb, 240, HugoOperations::SL_Exclusive) == 0);
+    abort();
+    //C2(hugoOps.scanReadRecords(pNdb, 240, HugoOperations::SL_Exclusive)== 0);
   } else {
     g_err << __FILE__ << " - " << __LINE__ 
 	  << ": Unknown operation" << op << endl;
