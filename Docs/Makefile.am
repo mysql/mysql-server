@@ -202,10 +202,10 @@ INSTALL-BINARY:	mysql.info $(GT)
 	perl -w $(GT) mysql.info "Installing binary" "Installing source" > $@
 
 ../COPYING:		mysql.info $(GT)
-	perl -w $(GT) mysql.info "GPL license" "MySQL FOSS License Exception" > $@
+	perl -w $(GT) mysql.info "GPL license" "MySQL FLOSS License Exception" > $@
 
 ../EXCEPTIONS: mysql.info $(GT)
-	perl -w $(GT) mysql.info "MySQL FOSS License Exception" "Function Index" > $@
+	perl -w $(GT) mysql.info "MySQL FLOSS License Exception" "Function Index" > $@
 
 ../support-files/MacOSX/ReadMe.txt:	mysql.info $(GT)
 	perl -w $(GT) mysql.info "Mac OS X installation" "NetWare installation" > $@
