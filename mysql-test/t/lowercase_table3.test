@@ -31,7 +31,7 @@ flush tables;
 # storing things in lower case.
 #
 
-CREATE TABLE t1 (a int) type=INNODB;
+CREATE TABLE t1 (a int) ENGINE=INNODB;
 --error 1016
 SELECT * from T1;
 drop table t1;
