@@ -41,7 +41,3 @@ my_bool send_file_to_server(MYSQL *mysql, const char *filename);
 #define reset_sigpipe(mysql)
 #endif
 
-#define CLI_MYSQL_USE_RESULT cli_mysql_use_result
-
-MYSQL_RES * STDCALL cli_mysql_use_result(MYSQL *mysql);
-
