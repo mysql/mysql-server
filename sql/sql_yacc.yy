@@ -1315,10 +1315,7 @@ alter:
 	  lex->col_list.empty();
 	  lex->drop_list.empty();
 	  lex->alter_list.empty();
-          lex->select_lex.order_list.elements=0;
-          lex->select_lex.order_list.first=0;
-          lex->select_lex.order_list.next= 
-            (byte**) &lex->select_lex.order_list.first;
+          lex->select_lex.init_order();
 	  lex->select_lex.db=lex->name=0;
     	  bzero((char*) &lex->create_info,sizeof(lex->create_info));
 	  lex->create_info.db_type= DB_TYPE_DEFAULT;
@@ -2902,10 +2899,7 @@ update:
 	{ 
 	  LEX *lex= Lex;
           lex->sql_command= SQLCOM_UPDATE;
-          lex->select_lex.order_list.elements= 0;
-          lex->select_lex.order_list.first= 0;
-          lex->select_lex.order_list.next= (byte**)
-	    &lex->select_lex.order_list.first;
+          lex->select_lex.init_order();
         }
         opt_low_priority opt_ignore join_table_list SET update_list where_clause opt_order_clause delete_limit_clause;
 
@@ -2934,10 +2928,7 @@ delete:
 	  lex->sql_command= SQLCOM_DELETE;
 	  lex->select_lex.options= 0;
 	  lex->lock_option= lex->thd->update_lock_default;
-	  lex->select_lex.order_list.elements= 0;
-	  lex->select_lex.order_list.first= 0;
-	  lex->select_lex.order_list.next= (byte**)
-	    &lex->select_lex.order_list.first;
+	  lex->select_lex.init_order();
 	}
 	opt_delete_options single_multi	{};
 
@@ -2987,11 +2978,8 @@ truncate:
 	  LEX* lex= Lex;
 	  lex->sql_command= SQLCOM_TRUNCATE;
 	  lex->select_lex.options= 0;
-	  lex->select_lex.order_list.elements= 0;
-          lex->select_lex.order_list.first= 0;
-          lex->select_lex.order_list.next= (byte**)
-	    &lex->select_lex.order_list.first;
-	  lex->lock_option= current_thd->update_lock_default; };
+	  lex->select_lex.init_order();
+	  lex->lock_option= lex->thd->update_lock_default; };
 
 opt_table_sym:
 	/* empty */
