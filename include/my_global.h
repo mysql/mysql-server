@@ -153,6 +153,13 @@ C_MODE_END
 #undef HAVE_INITGROUPS
 #endif
 
+/* gcc/egcs issues */
+
+#if defined(__GNUC) && defined(__EXCEPTIONS)
+#error "Please add -fno-exceptions to CXXFLAGS and reconfigure/recompile"
+#endif
+
+
 /* Fix a bug in gcc 2.8.0 on IRIX 6.2 */
 #if SIZEOF_LONG == 4 && defined(__LONG_MAX__)
 #undef __LONG_MAX__             /* Is a longlong value in gcc 2.8.0 ??? */

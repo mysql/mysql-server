@@ -770,7 +770,7 @@ static void *kill_server(void *sig_ptr)
 #define RETURN_FROM_KILL_SERVER DBUG_RETURN(0)
 #else
 static void __cdecl kill_server(int sig_ptr)
-#define RETURN_FROM_KILL_SERVER DBUG_RETURN
+#define RETURN_FROM_KILL_SERVER DBUG_VOID_RETURN
 #endif
 {
   int sig=(int) (long) sig_ptr;			// This is passed a int

@@ -1331,8 +1331,8 @@ int Load_log_event::copy_log_event(const char *buf, ulong event_len,
 				   bool old_format)
 {
   uint data_len;
-  uint header_len= old_format ? OLD_HEADER_LEN : LOG_EVENT_HEADER_LEN;
   char* buf_end = (char*)buf + event_len;
+  uint header_len= old_format ? OLD_HEADER_LEN : LOG_EVENT_HEADER_LEN;
   const char* data_head = buf + header_len;
   thread_id = uint4korr(data_head + L_THREAD_ID_OFFSET);
   exec_time = uint4korr(data_head + L_EXEC_TIME_OFFSET);
