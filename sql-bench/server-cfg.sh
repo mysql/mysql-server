@@ -3467,7 +3467,7 @@ sub version
       && $row[0] =~ /([\d\.]+)/)
   {
     $version=$row[0];
-    $verson =~ s/KERNEL/SAP DB/i; 
+    $version =~ s/KERNEL/SAP DB/i; 
   }
   $sth->finish;
   $dbh->disconnect;
@@ -3528,7 +3528,6 @@ sub create
     }else{
       my @fields = split(' ',$ind);
       my $query="CREATE INDEX $fields[1] ON $table_name $fields[2]";
-      print "$query \n";
       push(@index,$query);
     }
   }
