@@ -117,15 +117,17 @@ SELECT (SELECT 1.5,2,'a') = ROW(1.5,2,'a');
 SELECT (SELECT 1.5,2,'a') = ROW(1.5,2,'b');
 (SELECT 1.5,2,'a') = ROW(1.5,2,'b')
 0
-SELECT (SELECT 1.5,2,'a') = ROW('b',2,'b');
-(SELECT 1.5,2,'a') = ROW('b',2,'b')
+SELECT (SELECT 1.5,2,'a') = ROW('1.5b',2,'b');
+(SELECT 1.5,2,'a') = ROW('1.5b',2,'b')
 0
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: '1.5b'
 SELECT (SELECT 'b',2,'a') = ROW(1.5,2,'a');
 (SELECT 'b',2,'a') = ROW(1.5,2,'a')
 0
-SELECT (SELECT 1.5,2,'a') = ROW(1.5,'c','a');
-(SELECT 1.5,2,'a') = ROW(1.5,'c','a')
-0
+SELECT (SELECT 1.5,2,'a') = ROW(1.5,'2','a');
+(SELECT 1.5,2,'a') = ROW(1.5,'2','a')
+1
 SELECT (SELECT 1.5,'c','a') = ROW(1.5,2,'a');
 (SELECT 1.5,'c','a') = ROW(1.5,2,'a')
 0

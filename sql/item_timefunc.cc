@@ -2181,39 +2181,47 @@ String *Item_char_typecast::val_str(String *str)
   res->set_charset(cast_cs);
 
   /*
-     Cut the tail if cast with length
-     and the result is longer than cast length, e.g.
-     CAST('string' AS CHAR(1))
+    Cut the tail if cast with length
+    and the result is longer than cast length, e.g.
+    CAST('string' AS CHAR(1))
   */
   if (cast_length >= 0 &&
       (res->length() > (length= (uint32) res->charpos(cast_length))))
   {						// Safe even if const arg
+    char char_type[40];
+    my_snprintf(char_type, sizeof(char_type), "CHAR(%lu)", length);
+
     if (!res->alloced_length())
     {						// Don't change const str
       str_value= *res;				// Not malloced string
       res= &str_value;
     }
+    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                        ER_TRUNCATED_WRONG_VALUE,
+                        ER(ER_TRUNCATED_WRONG_VALUE), char_type,
+                        res->c_ptr());
     res->length((uint) length);
   }
   null_value= 0;
   return res;
 }
 
+
 void Item_char_typecast::fix_length_and_dec()
 {
   uint32 char_length;
-  /* 
-     We always force character set conversion if cast_cs
-     is a multi-byte character set. It garantees that the
-     result of CAST is a well-formed string.
-     For single-byte character sets we allow just to copy
-     from the argument. A single-byte character sets string
-     is always well-formed. 
+  /*
+    We always force character set conversion if cast_cs is a
+    multi-byte character set. It garantees that the result of CAST is
+    a well-formed string.  For single-byte character sets we allow
+    just to copy from the argument. A single-byte character sets
+    string is always well-formed.
   */
-  charset_conversion= (cast_cs->mbmaxlen > 1) ||
-                      !my_charset_same(args[0]->collation.collation, cast_cs) &&
-                      args[0]->collation.collation != &my_charset_bin &&
-                      cast_cs != &my_charset_bin;
+  charset_conversion= ((cast_cs->mbmaxlen > 1) ||
+                       !my_charset_same(args[0]->collation.collation,
+                                        cast_cs) &&
+                       args[0]->collation.collation != &my_charset_bin &&
+                       cast_cs != &my_charset_bin);
   collation.set(cast_cs, DERIVATION_IMPLICIT);
   char_length= (cast_length >= 0) ? cast_length : 
 	       args[0]->max_length/args[0]->collation.collation->mbmaxlen;

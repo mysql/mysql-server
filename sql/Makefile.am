@@ -49,7 +49,7 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			mysql_priv.h item_geofunc.h sql_bitmap.h \
 			procedure.h sql_class.h sql_lex.h sql_list.h \
 			sql_manager.h sql_map.h sql_string.h unireg.h \
-			field.h handler.h mysqld_suffix.h \
+			sql_error.h field.h handler.h mysqld_suffix.h \
 			ha_myisammrg.h\
 			ha_heap.h ha_myisam.h ha_berkeley.h ha_innodb.h \
 			ha_ndbcluster.h opt_range.h protocol.h \
