@@ -30378,6 +30378,9 @@ stored into a temporary table) is calculated in MySQL Version
 @item expr2 or expr3 returns an integer @tab integer
 @end multitable
 
+If expr2 and expr3 are strings, then the result is case sensitive if
+both strings are case sensitive. (Starting from 3.23.51)
+
 @findex CASE
 @item CASE value WHEN [compare-value] THEN result [WHEN [compare-value] THEN result ...] [ELSE result] END
 @item CASE WHEN [condition] THEN result [WHEN [condition] THEN result ...] [ELSE result] END
@@ -49420,18 +49423,31 @@ not yet 100% confident in this code.
 
 @node News-3.23.51, News-3.23.50, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.51
-
 @itemize @bullet
-@item
-Fixed @code{SIGINT} and @code{SIGQUIT} problems in @code{mysql}.
-@item
-Fixed bug in character table converts when used with big ( > 64K) strings.
+Fixed the result from @code{IF()} is case in-sensitive if the 2 and
+third arguments are case sensitive.
 @end itemize
 
 @node News-3.23.50, News-3.23.49, News-3.23.51, News-3.23.x
 @appendixsubsec Changes in release 3.23.50
-
 @itemize @bullet
+@item
+Fixed problem with @code{crash-me} and gcc 3.0.4.
+@item
+Fixed that @code{@@@@unknown_variable} doesn't hang server.
+@item
+Added @code{@@@@VERSION} as a synonym for @code{VERSION()}.
+@item
+@code{SHOW VARIABLES LIKE 'xxx'} is now case insensitive.
+@item
+Fixed timeout for @code{GET_LOCK()} on HPUX with DCE threads.
+@item
+Fixed memory allocation bug in the glibc library used to build Linux
+binaries, which caused mysqld to die in 'free()'.
+@item
+Fixed @code{SIGINT} and @code{SIGQUIT} problems in @code{mysql}.
+@item
+Fixed bug in character table converts when used with big ( > 64K) strings.
 @item
 @code{InnoDB} now retains foreign key constraints through @code{ALTER TABLE}
 and @code{CREATE/DROP INDEX}.

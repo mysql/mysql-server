@@ -71,6 +71,9 @@ trx_create(
 	trx->type = TRX_USER;
 	trx->conc_state = TRX_NOT_STARTED;
 
+	trx->check_foreigns = TRUE;
+	trx->check_unique_secondary = TRUE;
+
 	trx->dict_operation = FALSE;
 
 	trx->mysql_thd = NULL;
@@ -113,6 +116,7 @@ trx_create(
 	trx->lock_heap = mem_heap_create_in_buffer(256);
 	UT_LIST_INIT(trx->trx_locks);
 
+	trx->has_dict_foreign_key_check_lock = FALSE;
 	trx->has_search_latch = FALSE;
 	trx->search_latch_timeout = BTR_SEA_TIMEOUT;
 
@@ -703,8 +707,7 @@ trx_commit_off_kernel(
 
 		/*-------------------------------------*/
 
-		/* Only in some performance tests the variable srv_flush..
-		will be set to FALSE: */
+		/* Most MySQL users run with srv_flush.. set to FALSE: */
 
 		if (srv_flush_log_at_trx_commit) {
 		
