@@ -30,6 +30,12 @@ Y-N-N-Y-N	Y,N,N,Y,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,
 select elt(2,1),field(NULL,"a","b","c");
 elt(2,1)	field(NULL,"a","b","c")
 NULL	0
+select field("b","a",NULL),field(1,0,NULL)+0,field(1.0,0.0,NULL)+0.0,field(1.0e1,0.0e1,NULL)+0.0e1;
+field("b","a",NULL)	field(1,0,NULL)+0	field(1.0,0.0,NULL)+0.0	field(1.0e1,0.0e1,NULL)+0.0e1
+0	0	0.0	0
+select field(NULL,"a",NULL),field(NULL,0,NULL)+0,field(NULL,0.0,NULL)+0.0,field(NULL,0.0e1,NULL)+0.0e1;
+field(NULL,"a",NULL)	field(NULL,0,NULL)+0	field(NULL,0.0,NULL)+0.0	field(NULL,0.0e1,NULL)+0.0e1
+0	0	0.0	0
 select find_in_set("","a,b,c"),find_in_set("","a,b,c,"),find_in_set("",",a,b,c");
 find_in_set("","a,b,c")	find_in_set("","a,b,c,")	find_in_set("",",a,b,c")
 0	4	1

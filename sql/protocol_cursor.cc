@@ -104,15 +104,15 @@ bool Protocol_cursor::write()
   byte *to;
 
   new_record= (MYSQL_ROWS *)alloc_root(alloc, 
-    sizeof(MYSQL_ROWS) + (field_count + 1)*sizeof(char *) + packet->length());
+    sizeof(MYSQL_ROWS) + (field_count + 2)*sizeof(char *) + packet->length());
   if (!new_record)
     goto err;
   data_tmp= (byte **)(new_record + 1);
   new_record->data= (char **)data_tmp;
 
-  to= (byte *)data_tmp + (field_count + 1)*sizeof(char *);
+  to= (byte *)data_tmp + (field_count + 2)*sizeof(char *);
 
-  for (; cur_field < fields_end; ++cur_field, ++data_tmp)
+  for (; cur_field < fields_end; cur_field++, data_tmp++)
   {
     if ((len= net_field_length((uchar **)&cp)) == 0 ||
 	len == NULL_LENGTH)
@@ -135,7 +135,8 @@ bool Protocol_cursor::write()
 	cur_field->max_length=len;
     }
   }
-  *data_tmp= 0;
+  data_tmp[0]= to;                              // Pointer to last used byte
+  data_tmp[1]= 0;
 
   *prev_record= new_record;
   prev_record= &new_record->next;
