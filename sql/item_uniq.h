@@ -50,7 +50,7 @@ public:
     fixed= 1;
     return 0;
   }
-  Item_sum *copy_or_same(THD* thd)
+  Item *copy_or_same(THD* thd)
   {
     return new Item_sum_unique_users(thd, *this);
   }

@@ -1913,7 +1913,7 @@ int Field_longlong::store(const char *from,uint len,CHARSET_INFO *cs)
   char *end;
   
   tmp= cs->scan(cs, from, from+len, MY_SEQ_SPACES);
-  len-= tmp;
+  len-= (uint)tmp;
   from+= tmp;
   my_errno=0;
   if (unsigned_flag)
