@@ -847,7 +847,7 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
   table_count=join->tables;
   stat=(JOIN_TAB*) join->thd->calloc(sizeof(JOIN_TAB)*table_count);
   stat_ref=(JOIN_TAB**) join->thd->alloc(sizeof(JOIN_TAB*)*MAX_TABLES);
-  table_vector=(TABLE**) join->thd->alloc(sizeof(TABLE**)*(table_count*2));
+  table_vector=(TABLE**) join->thd->alloc(sizeof(TABLE*)*(table_count*2));
   if (!stat || !stat_ref || !table_vector)
     DBUG_RETURN(1);				// Eom /* purecov: inspected */
   select=0;
