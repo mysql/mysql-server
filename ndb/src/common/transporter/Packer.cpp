@@ -21,6 +21,7 @@
 #include <TransporterCallback.hpp>
 #include <RefConvert.hpp>
 
+#define MAX_RECEIVED_SIGNALS 1024
 Uint32
 TransporterRegistry::unpack(Uint32 * readPtr,
 			    Uint32 sizeOfData,
@@ -30,12 +31,15 @@ TransporterRegistry::unpack(Uint32 * readPtr,
   LinearSectionPtr ptr[3];
   
   Uint32 usedData   = 0;
-  
+  Uint32 loop_count = 0; 
+ 
   if(state == NoHalt || state == HaltOutput){
-    while(sizeOfData >= 4 + sizeof(Protocol6)){
+    while ((sizeOfData >= 4 + sizeof(Protocol6)) &&
+           (loop_count < MAX_RECEIVED_SIGNALS)) {
       Uint32 word1 = readPtr[0];
       Uint32 word2 = readPtr[1];
       Uint32 word3 = readPtr[2];
+      loop_count++;
       
 #if 0
       if(Protocol6::getByteOrder(word1) != MY_OWN_BYTE_ORDER){
@@ -112,10 +116,12 @@ TransporterRegistry::unpack(Uint32 * readPtr,
   } else {
     /** state = HaltIO || state == HaltInput */
 
-    while(sizeOfData >= 4 + sizeof(Protocol6)){
+    while ((sizeOfData >= 4 + sizeof(Protocol6)) &&
+           (loop_count < MAX_RECEIVED_SIGNALS)) {
       Uint32 word1 = readPtr[0];
       Uint32 word2 = readPtr[1];
       Uint32 word3 = readPtr[2];
+      loop_count++;
       
 #if 0
       if(Protocol6::getByteOrder(word1) != MY_OWN_BYTE_ORDER){
@@ -208,12 +214,13 @@ TransporterRegistry::unpack(Uint32 * readPtr,
 			    IOState state) {
   static SignalHeader signalHeader;
   static LinearSectionPtr ptr[3];
+  Uint32 loop_count = 0;
   if(state == NoHalt || state == HaltOutput){
-    while(readPtr < eodPtr){
+    while ((readPtr < eodPtr) && (loop_count < MAX_RECEIVED_SIGNALS)) {
       Uint32 word1 = readPtr[0];
       Uint32 word2 = readPtr[1];
       Uint32 word3 = readPtr[2];
-      
+      loop_count++; 
 #if 0
       if(Protocol6::getByteOrder(word1) != MY_OWN_BYTE_ORDER){
 	//Do funky stuff
@@ -280,11 +287,11 @@ TransporterRegistry::unpack(Uint32 * readPtr,
   } else {
     /** state = HaltIO || state == HaltInput */
 
-    while(readPtr < eodPtr){
+    while ((readPtr < eodPtr) && (loop_count < MAX_RECEIVED_SIGNALS)) {
       Uint32 word1 = readPtr[0];
       Uint32 word2 = readPtr[1];
       Uint32 word3 = readPtr[2];
-      
+      loop_count++; 
 #if 0
       if(Protocol6::getByteOrder(word1) != MY_OWN_BYTE_ORDER){
 	//Do funky stuff

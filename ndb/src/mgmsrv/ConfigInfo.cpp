@@ -129,11 +129,14 @@ ConfigInfo::m_SectionRules[] = {
   
   { "TCP",  fixHostname, "HostName1" },
   { "TCP",  fixHostname, "HostName2" },
+  { "SCI",  fixHostname, "HostName1" },
+  { "SCI",  fixHostname, "HostName2" },
   { "OSE",  fixHostname, "HostName1" },
   { "OSE",  fixHostname, "HostName2" },
 
   { "TCP",  fixPortNumber, 0 }, // has to come after fixHostName
   { "SHM",  fixPortNumber, 0 }, // has to come after fixHostName
+  { "SCI",  fixPortNumber, 0 }, // has to come after fixHostName
   //{ "SHM",  fixShmKey, 0 },
 
   /**
@@ -163,6 +166,8 @@ ConfigInfo::m_SectionRules[] = {
 
   { "TCP",  checkTCPConstraints, "HostName1" },
   { "TCP",  checkTCPConstraints, "HostName2" },
+  { "SCI",  checkTCPConstraints, "HostName1" },
+  { "SCI",  checkTCPConstraints, "HostName2" },
   
   { "*",    checkMandatory, 0 },
   
@@ -1808,7 +1813,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "Id of node ("DB_TOKEN_PRINT", "API_TOKEN_PRINT" or "MGM_TOKEN_PRINT") on one side of the connection",
     ConfigInfo::USED,
     false,
-    ConfigInfo::INT,
+    ConfigInfo::STRING,
     MANDATORY,
     "0",
     STR_VALUE(MAX_INT_RNIL) },
@@ -1820,16 +1825,50 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "Id of node ("DB_TOKEN_PRINT", "API_TOKEN_PRINT" or "MGM_TOKEN_PRINT") on one side of the connection",
     ConfigInfo::USED,
     false,
-    ConfigInfo::INT,
+    ConfigInfo::STRING,
     MANDATORY,
     "0",
     STR_VALUE(MAX_INT_RNIL) },
 
   {
-    CFG_SCI_ID_0,
-    "SciId0",
+    CFG_SCI_HOSTNAME_1,
+    "HostName1",
     "SCI",
-    "Local SCI-node id for adapter 0 (a computer can have two adapters)",
+    "Name/IP of computer on one side of the connection",
+    ConfigInfo::INTERNAL,
+    false,
+    ConfigInfo::STRING,
+    UNDEFINED,
+    0, 0 },
+
+  {
+    CFG_SCI_HOSTNAME_2,
+    "HostName2",
+    "SCI",
+    "Name/IP of computer on one side of the connection",
+    ConfigInfo::INTERNAL,
+    false,
+    ConfigInfo::STRING,
+    UNDEFINED,
+    0, 0 },
+
+  {
+    CFG_CONNECTION_SERVER_PORT,
+    "PortNumber",
+    "SCI",
+    "Port used for this transporter",
+    ConfigInfo::USED,
+    false,
+    ConfigInfo::INT,
+    MANDATORY,
+    "0", 
+    STR_VALUE(MAX_INT_RNIL) },
+
+  {
+    CFG_SCI_HOST1_ID_0,
+    "Host1SciId0",
+    "SCI",
+    "SCI-node id for adapter 0 on Host1 (a computer can have two adapters)",
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
@@ -1838,14 +1877,38 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     STR_VALUE(MAX_INT_RNIL) },
 
   {
-    CFG_SCI_ID_1,
-    "SciId1",
+    CFG_SCI_HOST1_ID_1,
+    "Host1SciId1",
     "SCI",
-    "Local SCI-node id for adapter 1 (a computer can have two adapters)",
+    "SCI-node id for adapter 1 on Host1 (a computer can have two adapters)",
+    ConfigInfo::USED,
+    false,
+    ConfigInfo::INT,
+    "0",
+    "0",
+    STR_VALUE(MAX_INT_RNIL) },
+
+  {
+    CFG_SCI_HOST2_ID_0,
+    "Host2SciId0",
+    "SCI",
+    "SCI-node id for adapter 0 on Host2 (a computer can have two adapters)",
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
     MANDATORY,
+    "0",
+    STR_VALUE(MAX_INT_RNIL) },
+
+  {
+    CFG_SCI_HOST2_ID_1,
+    "Host2SciId1",
+    "SCI",
+    "SCI-node id for adapter 1 on Host2 (a computer can have two adapters)",
+    ConfigInfo::USED,
+    false,
+    ConfigInfo::INT,
+    "0",
     "0",
     STR_VALUE(MAX_INT_RNIL) },
 
@@ -1881,9 +1944,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
-    "2K",
-    "512",
-    STR_VALUE(MAX_INT_RNIL) },
+    "8K",
+    "128",
+    "32K" },
 
   {
     CFG_SCI_BUFFER_MEM,
@@ -1894,7 +1957,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::INT,
     "1M",
-    "256K",
+    "64K",
     STR_VALUE(MAX_INT_RNIL) },
 
   {
