@@ -56,7 +56,7 @@ sqlsources = convert.cc derror.cc field.cc field_conv.cc filesort.cc \
 	sql_update.cc sql_yacc.cc table.cc thr_malloc.cc time.cc \
 	unireg.cc uniques.cc stacktrace.c sql_union.cc hash_filo.cc \
 	spatial.cc gstream.cc sql_help.cc \
-	sp_head.cc sp_pcontext.cc sp.cc
+	sp_head.cc sp_pcontext.cc sp.cc sp_cache.cc
 
 EXTRA_DIST = lib_vio.c
 

@@ -18,12 +18,7 @@
 #include "mysql_priv.h"
 #include "sp.h"
 #include "sp_head.h"
-
-static sp_head *
-sp_find_cached_function(THD *thd, char *name, uint namelen);
-
-static sp_head *
-sp_find_cached_procedure(THD *thd, char *name, uint namelen);
+#include "sp_cache.h"
 
 /*
  *
@@ -102,7 +97,7 @@ db_find_routine(THD *thd, int type, char *name, uint namelen, sp_head **sphp)
   char *ptr;
   uint length;
   char buff[65];
-  String str(buff,sizeof(buff),&my_charset_bin);
+  String str(buff, sizeof(buff), &my_charset_bin);
 
   // QQ Set up our own mem_root here???
   ret= db_find_routine_aux(thd, type, name, namelen, TL_READ, &table, &opened);
@@ -132,10 +127,10 @@ db_find_routine(THD *thd, int type, char *name, uint namelen, sp_head **sphp)
   if (ptr[0] == 'N')
     suid= 0;
 
-  table->field[7]->val_str(&str,&str);
+  table->field[7]->val_str(&str, &str);
   ptr= 0;
   if ((length= str.length()))
-    ptr= strmake_root(&thd->mem_root, str.ptr(),length);
+    ptr= strmake_root(&thd->mem_root, str.ptr(), length);
 
   if (opened)
   {
@@ -166,7 +161,7 @@ db_find_routine(THD *thd, int type, char *name, uint namelen, sp_head **sphp)
     {
       *sphp= thd->lex->sphead;
       (*sphp)->sp_set_info((char *) creator, (uint) strlen(creator),
-			   created, modified, suid, 
+			   created, modified, suid,
 			   ptr, length);
     }
     thd->lex->sql_command= oldcmd;
@@ -204,10 +199,10 @@ db_create_routine(THD *thd, int type,
     table->field[0]->store(name, namelen, system_charset_info);
     table->field[1]->store((longlong)type);
     table->field[2]->store(def, deflen, system_charset_info);
-    table->field[3]->store(creator, (uint) strlen(creator), system_charset_info);
-    ((Field_timestamp*) table->field[5])->set_time();
+    table->field[3]->store(creator, (uint)strlen(creator), system_charset_info);
+    ((Field_timestamp *)table->field[5])->set_time();
     if (suid)
-      table->field[6]->store((longlong) suid);
+      table->field[6]->store((longlong)suid);
     if (comment)
       table->field[7]->store(comment, commentlen, system_charset_info);
 
@@ -257,15 +252,13 @@ sp_find_procedure(THD *thd, LEX_STRING *name)
 
   DBUG_PRINT("enter", ("name: %*s", name->length, name->str));
 
-  sp= sp_find_cached_procedure(thd, name->str, name->length);
+  sp= thd->sp_proc_cache->lookup(name->str, name->length);
   if (! sp)
   {
     if (db_find_routine(thd, TYPE_ENUM_PROCEDURE,
 			name->str, name->length, &sp) == SP_OK)
     {
-      HASH *phash= thd->sp_hash+TYPE_ENUM_PROCEDURE-1;
-
-      hash_insert(phash, (const byte*)sp);
+      thd->sp_proc_cache->insert(sp);
     }
   }
 
@@ -294,12 +287,10 @@ sp_drop_procedure(THD *thd, char *name, uint namelen)
   sp_head *sp;
   int ret;
 
-  sp= sp_find_cached_procedure(thd, name, namelen);
+  sp= thd->sp_proc_cache->lookup(name, namelen);
   if (sp)
   {
-    HASH *phash= thd->sp_hash+TYPE_ENUM_PROCEDURE-1;
-
-    hash_delete(phash, (byte*)sp);
+    thd->sp_proc_cache->remove(sp);
     delete sp;
   }
   ret= db_drop_routine(thd, TYPE_ENUM_PROCEDURE, name, namelen);
@@ -322,7 +313,7 @@ sp_find_function(THD *thd, LEX_STRING *name)
 
   DBUG_PRINT("enter", ("name: %*s", name->length, name->str));
 
-  sp= sp_find_cached_function(thd, name->str, name->length);
+  sp= thd->sp_func_cache->lookup(name->str, name->length);
   if (! sp)
   {
     if (db_find_routine(thd, TYPE_ENUM_FUNCTION,
@@ -354,12 +345,10 @@ sp_drop_function(THD *thd, char *name, uint namelen)
   sp_head *sp;
   int ret;
 
-  sp= sp_find_cached_function(thd, name, namelen);
+  sp= thd->sp_func_cache->lookup(name, namelen);
   if (sp)
   {
-    HASH *fhash= thd->sp_hash+TYPE_ENUM_FUNCTION-1;
-
-    hash_delete(fhash, (byte*)sp);
+    thd->sp_func_cache->remove(sp);
     delete sp;
   }
   ret= db_drop_routine(thd, TYPE_ENUM_FUNCTION, name, namelen);
@@ -375,7 +364,7 @@ sp_function_exists(THD *thd, LEX_STRING *name)
   bool ret= FALSE;
   bool opened= FALSE;
 
-  if (sp_find_cached_function(thd, name->str, name->length) ||
+  if (thd->sp_func_cache->lookup(name->str, name->length) ||
       db_find_routine_aux(thd, TYPE_ENUM_FUNCTION,
 			  name->str, name->length, TL_READ,
 			  &table, &opened) == SP_OK)
@@ -434,14 +423,13 @@ sp_cache_functions(THD *thd, LEX *lex)
   char *fn;
   enum_sql_command cmd= lex->sql_command;
   int ret= 0;
-  HASH *fhash= thd->sp_hash+TYPE_ENUM_FUNCTION-1;
 
   while ((fn= li++))
   {
     sp_head *sp;
     int len= strlen(fn);
 
-    if (hash_search(fhash,(const byte*)fn,len)) 
+    if (thd->sp_func_cache->lookup(fn, len))
       continue;
 
     if (db_find_routine(thd, TYPE_ENUM_FUNCTION, fn, len, &sp) == SP_OK)
@@ -449,7 +437,7 @@ sp_cache_functions(THD *thd, LEX *lex)
       ret= sp_cache_functions(thd, thd->lex);
       if (ret)
 	break;
-      hash_insert(fhash,(const byte*)sp);
+      thd->sp_func_cache->insert(sp);
     }
     else
     {
@@ -459,25 +447,4 @@ sp_cache_functions(THD *thd, LEX *lex)
   }
   lex->sql_command= cmd;
   return ret;
-}
-
-byte *
-hash_get_key_for_sp_head(const byte *ptr, uint *plen,
-			       my_bool first)
-{
-  return ((sp_head*)ptr)->name(plen);
-}
-
-static sp_head *
-sp_find_cached_function(THD *thd, char *name, uint namelen)
-{
-  return (sp_head*)hash_search(thd->sp_hash+TYPE_ENUM_FUNCTION-1,
-			       (const byte*)name,namelen);
-}
-
-static sp_head *
-sp_find_cached_procedure(THD *thd, char *name, uint namelen)
-{
-  return (sp_head*)hash_search(thd->sp_hash+TYPE_ENUM_PROCEDURE-1,
-			       (const byte*)name,namelen);
 }
