@@ -408,7 +408,7 @@ pthread_handler_decl(handle_one_connection,arg)
     {
       sql_print_error(ER(ER_NEW_ABORTING_CONNECTION),
 		      thd->thread_id,(thd->db ? thd->db : "unconnected"),
-		      thd->user,
+		      thd->user ? thd->user : "unauthenticated",
 		      (thd->host ? thd->host : thd->ip ? thd->ip : "unknown"),
 		      (net->last_errno ? ER(net->last_errno) :
 		       ER(ER_UNKNOWN_ERROR)));

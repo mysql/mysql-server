@@ -61,6 +61,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <errno.h>
+#include <violite.h>
 
 #define MAX_QUERY  65536
 #define PAD_SIZE	128
@@ -71,6 +72,8 @@
 #define MIN_VAR_ALLOC	  32
 #define BLOCK_STACK_DEPTH  32
 #define MAX_EXPECTED_ERRORS 10
+#define QUERY_SEND  1
+#define QUERY_REAP  2
 
 static int record = 0, verbose = 0, silent = 0, opt_sleep=0;
 static char *db = 0, *pass=0;
@@ -147,14 +150,14 @@ struct st_query
 	 Q_SLEEP, Q_INC, Q_DEC,Q_SOURCE,
 	 Q_DISCONNECT,Q_LET, Q_ECHO, Q_WHILE, Q_END_BLOCK,
 	 Q_SYSTEM, Q_RESULT, Q_REQUIRE, Q_SAVE_MASTER_POS,
-	 Q_SYNC_WITH_MASTER, Q_ERROR,
+	 Q_SYNC_WITH_MASTER, Q_ERROR, Q_SEND, Q_REAP, Q_DIRTY_CLOSE,
 	 Q_UNKNOWN, Q_COMMENT, Q_COMMENT_WITH_COMMAND} type;
 };
 
 const char *command_names[] = {
 "connection", "query","connect","sleep","inc","dec","source","disconnect",
 "let","echo","while","end","system","result", "require", "save_master_pos",
- "sync_with_master", "error", 0
+ "sync_with_master", "error", "send", "reap", "dirty_close", 0
 };
 
 TYPELIB command_typelib= {array_elements(command_names),"",
@@ -661,6 +664,15 @@ int close_connection(struct st_query* q)
   {
     if (!strcmp(con->name, name))
     {
+      if(q->type == Q_DIRTY_CLOSE)
+	{
+	  if(con->mysql.net.vio)
+	    {
+	      vio_delete(con->mysql.net.vio);
+	      con->mysql.net.vio = 0;
+	    }
+	}
+		
       mysql_close(&con->mysql);
       DBUG_RETURN(0);
     }
@@ -1211,7 +1223,7 @@ void reject_dump(const char* record_file, char* buf, int size)
 }
 
 
-int run_query(MYSQL* mysql, struct st_query* q)
+int run_query(MYSQL* mysql, struct st_query* q, int flags)
 {
   MYSQL_RES* res = 0;
   MYSQL_FIELD* fields;
@@ -1220,6 +1232,7 @@ int run_query(MYSQL* mysql, struct st_query* q)
   unsigned long* lengths;
   char* val;
   int len;
+  int q_error = 0 ;
   DYNAMIC_STRING *ds;
   DYNAMIC_STRING ds_tmp;
   DBUG_ENTER("run_query");
@@ -1231,8 +1244,14 @@ int run_query(MYSQL* mysql, struct st_query* q)
   }
   else
     ds= &ds_res;
-
-  if (mysql_query(mysql, q->query))
+  
+  if((flags & QUERY_SEND) &&
+    (q_error = mysql_send_query(mysql, q->query)))
+    die("At line %u: unable to send query '%s'", start_lineno, q->query);
+  if(!(flags & QUERY_REAP))
+    return 0;
+  
+  if (mysql_reap_query(mysql))
   {
     if (q->require_file)
       abort_not_supported_test();
@@ -1416,7 +1435,9 @@ int main(int argc, char** argv)
       switch (q->type) {
       case Q_CONNECT: do_connect(q); break;
       case Q_CONNECTION: select_connection(q); break;
-      case Q_DISCONNECT: close_connection(q); break;
+      case Q_DISCONNECT:
+      case Q_DIRTY_CLOSE:	
+	close_connection(q); break;
       case Q_SOURCE: do_source(q); break;
       case Q_SLEEP: do_sleep(q); break;
       case Q_INC: do_inc(q); break;
@@ -1425,15 +1446,25 @@ int main(int argc, char** argv)
       case Q_SYSTEM: do_system(q); break;
       case Q_LET: do_let(q); break;
       case Q_QUERY:
+      case Q_REAP:	
       {
+	int flags = QUERY_REAP;
+	if(q->type == Q_QUERY)
+	  flags |= QUERY_SEND;
+	
 	if (save_file[0])
 	{
 	  strmov(q->record_file,save_file);
 	  q->require_file=require_file;
 	  save_file[0]=0;
 	}
-	error |= run_query(&cur_con->mysql, q); break;
+	error |= run_query(&cur_con->mysql, q, QUERY_SEND|QUERY_REAP);
+	break;
       }
+      case Q_SEND:
+	q->query += q->first_word_len;
+	error |= run_query(&cur_con->mysql, q, QUERY_SEND);
+	break;
       case Q_RESULT:
 	get_file_name(save_file,q);
 	require_file=0;
