@@ -1608,7 +1608,7 @@ find_field_in_tables(THD *thd,Item_field *item,TABLE_LIST *tables)
     for (; tables ; tables=tables->next)
     {
       if (!strcmp(tables->name,table_name) &&
-	  (!db || !strcmp(db,tables->db)))
+	  (!db || !tables->db || !strcmp(db,tables->db)))
       {
 	found_table=1;
 	Field *find=find_field_in_table(thd,tables->table,name,length,
