@@ -2472,7 +2472,7 @@ dict_scan_id(
 		my_isspace(). Only after that, convert id names to UTF-8. */
 
 		b = (byte*)(*id);
-		id_len = strlen(b);
+		id_len = strlen((char*) b);
 		
 		if (id_len >= 3 && b[id_len - 1] == 0xA0
 			       && b[id_len - 2] == 0xC2) {

@@ -430,7 +430,7 @@ row_build_row_ref(
 				dfield_set_len(dfield,
 				  dtype_get_at_most_n_mbchars(
 					dfield_get_type(dfield),
-					clust_col_prefix_len, len, field));
+					clust_col_prefix_len, len, (char*) field));
 			}
 		}
 	}
@@ -525,7 +525,7 @@ row_build_row_ref_in_tuple(
 				dfield_set_len(dfield,
 				  dtype_get_at_most_n_mbchars(
 					dfield_get_type(dfield),
-					clust_col_prefix_len, len, field));
+					clust_col_prefix_len, len, (char*) field));
 			}
 		}
 	}

@@ -2594,8 +2594,6 @@ ha_innobase::write_row(
   	int 		error;
 	longlong	auto_inc;
 	longlong	dummy;
-	ibool           incremented_auto_inc_for_stat = FALSE;
-	ibool           incremented_auto_inc_counter = FALSE;
 	ibool           auto_inc_used= FALSE;
 
   	DBUG_ENTER("ha_innobase::write_row");
@@ -5098,17 +5096,16 @@ ha_innobase::get_foreign_key_list(THD *thd, List<FOREIGN_KEY_INFO> *f_key_list)
     while (tmp_buff[i] != '/')
       i++;
     tmp_buff+= i + 1;
-    f_key_info.forein_id= make_lex_string(thd, f_key_info.forein_id,
+    f_key_info.forein_id= make_lex_string(thd, 0,
                                           tmp_buff, strlen(tmp_buff), 1);
     tmp_buff= foreign->referenced_table_name;
     i= 0;
     while (tmp_buff[i] != '/')
       i++;
-    f_key_info.referenced_db= make_lex_string(thd, f_key_info.referenced_db,
+    f_key_info.referenced_db= make_lex_string(thd, 0,
                                               tmp_buff, i, 1);
     tmp_buff+= i + 1;
-    f_key_info.referenced_table= make_lex_string(thd, 
-                                                 f_key_info.referenced_table,
+    f_key_info.referenced_table= make_lex_string(thd, 0,
                                                  tmp_buff, strlen(tmp_buff), 1);
 
     for (i= 0;;)
@@ -5717,15 +5714,12 @@ innodb_mutex_show_status(
   Protocol        *protocol= thd->protocol;
   List<Item> field_list;
   mutex_t*  mutex;
-  const char* file_name;
-  ulint   line;
   ulint   rw_lock_count= 0;
   ulint   rw_lock_count_spin_loop= 0;
   ulint   rw_lock_count_spin_rounds= 0;
   ulint   rw_lock_count_os_wait= 0;
   ulint   rw_lock_count_os_yield= 0;
   ulonglong rw_lock_wait_time= 0;
-
   DBUG_ENTER("innodb_mutex_show_status");
 
   field_list.push_back(new Item_empty_string("Mutex", FN_REFLEN));

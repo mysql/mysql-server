@@ -1940,7 +1940,6 @@ Cursor::close()
   {
     DBUG_ASSERT(lock || open_tables || derived_tables);
 
-    TABLE *tmp_open_tables= thd->open_tables;
     TABLE *tmp_derived_tables= thd->derived_tables;
     MYSQL_LOCK *tmp_lock= thd->lock;
 
@@ -7743,7 +7742,6 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
   case Item::SUM_FUNC_ITEM:
   {
     Item_sum *item_sum=(Item_sum*) item;
-    bool maybe_null=item_sum->maybe_null;
     Field *result= item_sum->create_tmp_field(group, table, convert_blob_length);
     if (!result)
       thd->fatal_error();
@@ -8884,12 +8882,10 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
   int error;
   JOIN_TAB *first_unmatched;
   JOIN_TAB *tab;
-  bool found= 0;
   /* Cache variables for faster loop */
   COND *select_cond= join_tab->select_cond;
-  JOIN_TAB *first_inner_tab= join_tab->first_inner;
-   
   my_bool *report_error= &(join->thd->net.report_error);
+
   join->return_tab= join_tab;
 
   if (join_tab->last_inner)

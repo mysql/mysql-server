@@ -372,7 +372,7 @@ static int my_strnxfrm_ucs2(CHARSET_INFO *cs,
     dst+=res;
   }
   if (dst < de)
-    cs->cset->fill(cs, dst, de - dst, ' ');
+    cs->cset->fill(cs, (char*) dst, de - dst, ' ');
   return dstlen;
 }
 
@@ -1385,7 +1385,7 @@ int my_strnxfrm_ucs2_bin(CHARSET_INFO *cs __attribute__((unused)),
   if (dst != src)
     memcpy(dst,src,srclen= min(dstlen,srclen));
   if (dstlen > srclen)
-    cs->cset->fill(cs, dst + srclen, dstlen - srclen, ' ');
+    cs->cset->fill(cs, (char*) dst + srclen, dstlen - srclen, ' ');
   return dstlen;
 }
 

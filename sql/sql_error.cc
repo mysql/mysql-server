@@ -106,8 +106,9 @@ MYSQL_ERROR *push_warning(THD *thd, MYSQL_ERROR::enum_warning_level level,
   MYSQL_ERROR *err= 0;
   DBUG_ENTER("push_warning");
 
-  if (level == MYSQL_ERROR::WARN_LEVEL_NOTE && !(thd->options & OPTION_SQL_NOTES))
-    return(0);
+  if (level == MYSQL_ERROR::WARN_LEVEL_NOTE &&
+      !(thd->options & OPTION_SQL_NOTES))
+    DBUG_RETURN(0);
 
   if (thd->query_id != thd->warn_id)
     mysql_reset_errors(thd);
@@ -126,9 +127,14 @@ MYSQL_ERROR *push_warning(THD *thd, MYSQL_ERROR::enum_warning_level level,
   if ((int) level >= (int) MYSQL_ERROR::WARN_LEVEL_WARN &&
       thd->really_abort_on_warning())
   {
+    /* Avoid my_message() calling push_warning */
+    bool no_warnings_for_error= thd->no_warnings_for_error;
+    thd->no_warnings_for_error= 1;
     thd->killed= THD::KILL_BAD_DATA;
     my_message(code, msg, MYF(0));
-    DBUG_RETURN(NULL);
+    thd->no_warnings_for_error= no_warnings_for_error;
+    /* Store error in error list (as my_message() didn't do it in this case */
+    level= MYSQL_ERROR::WARN_LEVEL_ERROR;
   }
 
   if (thd->warn_list.elements < thd->variables.max_error_count)

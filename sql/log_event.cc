@@ -673,7 +673,7 @@ Log_event* Log_event::read_log_event(IO_CACHE* file,
 #endif
 {
   DBUG_ENTER("Log_event::read_log_event(IO_CACHE *, Format_description_log_event *");
-  DBUG_ASSERT(description_event);
+  DBUG_ASSERT(description_event != 0);
   char head[LOG_EVENT_MINIMAL_HEADER_LEN];
   /*
     First we only want to read at most LOG_EVENT_MINIMAL_HEADER_LEN, just to
@@ -741,7 +741,7 @@ err:
   UNLOCK_MUTEX;
   if (!res)
   {
-    DBUG_ASSERT(error);
+    DBUG_ASSERT(error != 0);
     sql_print_error("Error in Log_event::read_log_event(): "
                     "'%s', data_len: %d, event_type: %d",
 		    error,data_len,head[EVENT_TYPE_OFFSET]);
@@ -772,7 +772,7 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
 {
   Log_event* ev;
   DBUG_ENTER("Log_event::read_log_event(char*,...)");
-  DBUG_ASSERT(description_event);
+  DBUG_ASSERT(description_event != 0);
   DBUG_PRINT("info", ("binlog_version: %d", description_event->binlog_version));
   if (event_len < EVENT_LEN_OFFSET ||
       (uint) event_len != uint4korr(buf+EVENT_LEN_OFFSET))
