@@ -228,7 +228,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
   if (uniques)
   {
     max_key_block_length= myisam_block_size;
-    max_key_length= 	  MI_UNIQUE_HASH_LENGTH;
+    max_key_length=	  MI_UNIQUE_HASH_LENGTH;
   }
 
   for (i=0, keydef=keydefs ; i < keys ; i++ , keydef++)
@@ -396,6 +396,9 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
     uniquedef->key=keys+i;
     unique_key_parts+=uniquedef->keysegs;
     share.state.key_root[keys+i]= HA_OFFSET_ERROR;
+    tot_length+= (max_rows/(ulong) (((uint) myisam_block_size-5)/
+                         ((MI_UNIQUE_HASH_LENGTH + pointer)*2)))*
+                         (ulong) myisam_block_size;
   }
   keys+=uniques;				/* Each unique has 1 key */
   key_segs+=uniques;				/* Each unique has 1 key seg */
@@ -579,8 +582,8 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
     tmp_keydef.block_length=	myisam_block_size;
     tmp_keydef.keylength=	MI_UNIQUE_HASH_LENGTH + pointer;
     tmp_keydef.minlength=tmp_keydef.maxlength=tmp_keydef.keylength;
-    tmp_keyseg.type= 		MI_UNIQUE_HASH_TYPE;
-    tmp_keyseg.length= 		MI_UNIQUE_HASH_LENGTH;
+    tmp_keyseg.type=		MI_UNIQUE_HASH_TYPE;
+    tmp_keyseg.length=		MI_UNIQUE_HASH_LENGTH;
     tmp_keyseg.start=		offset;
     offset+=			MI_UNIQUE_HASH_LENGTH;
     if (mi_keydef_write(file,&tmp_keydef) ||
