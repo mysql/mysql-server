@@ -2097,47 +2097,50 @@ int Bank::increaseSystemValue(SystemValueId sysValId, Uint64 &value){
    *
    */
 
+  DBUG_ENTER("Bank::increaseSystemValue");
+
   int check;
     
   NdbConnection* pTrans = m_ndb.startTransaction();
   if (pTrans == NULL){
     ERR(m_ndb.getNdbError());
-    return NDBT_FAILED;
+    DBUG_RETURN(NDBT_FAILED);
   }
     
   NdbOperation* pOp = pTrans->getNdbOperation("SYSTEM_VALUES");
   if (pOp == NULL) {
     ERR(pTrans->getNdbError());
     m_ndb.closeTransaction(pTrans);
-    return NDBT_FAILED;
+    DBUG_RETURN(NDBT_FAILED);
   }
     
   check = pOp->readTupleExclusive();
+  //  check = pOp->readTuple();
   if( check == -1 ) {
     ERR(pTrans->getNdbError());
     m_ndb.closeTransaction(pTrans);
-    return NDBT_FAILED;
+    DBUG_RETURN(NDBT_FAILED);
   }
     
   check = pOp->equal("SYSTEM_VALUES_ID", sysValId);
   if( check == -1 ) {
     ERR(pTrans->getNdbError());
     m_ndb.closeTransaction(pTrans);
-    return NDBT_FAILED;
+    DBUG_RETURN(NDBT_FAILED);
   }
     
   NdbRecAttr* valueRec = pOp->getValue("VALUE");
   if( valueRec ==NULL ) {
     ERR(pTrans->getNdbError());
     m_ndb.closeTransaction(pTrans);
-    return NDBT_FAILED;
+    DBUG_RETURN(NDBT_FAILED);
   }
     
   check = pTrans->execute(NoCommit);
   if( check == -1 ) {
     ERR(pTrans->getNdbError());
     m_ndb.closeTransaction(pTrans);
-    return NDBT_FAILED;
+    DBUG_RETURN(NDBT_FAILED);
   }
     
   value = valueRec->u_64_value();
@@ -2147,49 +2150,56 @@ int Bank::increaseSystemValue(SystemValueId sysValId, Uint64 &value){
   if (pOp2 == NULL) {
     ERR(pTrans->getNdbError());
     m_ndb.closeTransaction(pTrans);
-    return NDBT_FAILED;
+    DBUG_RETURN(NDBT_FAILED);
   }
     
   check = pOp2->updateTuple();
   if( check == -1 ) {
     ERR(pTrans->getNdbError());
     m_ndb.closeTransaction(pTrans);
-    return NDBT_FAILED;
+    DBUG_RETURN(NDBT_FAILED);
   }
     
   check = pOp2->equal("SYSTEM_VALUES_ID", sysValId);
   if( check == -1 ) {
     ERR(pTrans->getNdbError());
     m_ndb.closeTransaction(pTrans);
-    return NDBT_FAILED;
+    DBUG_RETURN(NDBT_FAILED);
   }
     
   check = pOp2->setValue("VALUE", value);
   if( check == -1 ) {
     ERR(pTrans->getNdbError());
     m_ndb.closeTransaction(pTrans);
-    return NDBT_FAILED;
+    DBUG_RETURN(NDBT_FAILED);
+  }
+
+  check = pTrans->execute(NoCommit);
+  if( check == -1 ) {
+    ERR(pTrans->getNdbError());
+    m_ndb.closeTransaction(pTrans);
+    DBUG_RETURN(NDBT_FAILED);
   }
 
   NdbOperation* pOp3 = pTrans->getNdbOperation("SYSTEM_VALUES");
   if (pOp3 == NULL) {
     ERR(pTrans->getNdbError());
     m_ndb.closeTransaction(pTrans);
-    return NDBT_FAILED;
+    DBUG_RETURN(NDBT_FAILED);
   }
 
   check = pOp3->readTuple();
   if( check == -1 ) {
     ERR(pTrans->getNdbError());
     m_ndb.closeTransaction(pTrans);
-    return NDBT_FAILED;
+    DBUG_RETURN(NDBT_FAILED);
   }
     
   check = pOp3->equal("SYSTEM_VALUES_ID", sysValId);
   if( check == -1 ) {
     ERR(pTrans->getNdbError());
     m_ndb.closeTransaction(pTrans);
-    return NDBT_FAILED;
+    DBUG_RETURN(NDBT_FAILED);
   }
 
   // Read new value
@@ -2197,28 +2207,31 @@ int Bank::increaseSystemValue(SystemValueId sysValId, Uint64 &value){
   if( valueNewRec ==NULL ) {
     ERR(pTrans->getNdbError());
     m_ndb.closeTransaction(pTrans);
-    return NDBT_FAILED;
+    DBUG_RETURN(NDBT_FAILED);
   }
 
   check = pTrans->execute(Commit);
   if( check == -1 ) {
     ERR(pTrans->getNdbError());
     m_ndb.closeTransaction(pTrans);
-    return NDBT_FAILED;
+    DBUG_RETURN(NDBT_FAILED);
   }
 
   // Check that value updated equals the value we read after the update
   if (valueNewRec->u_64_value() != value){
+
+    printf("value actual=%lld\n", valueNewRec->u_64_value());
+    printf("value expected=%lld actual=%lld\n", value, valueNewRec->u_64_value());
+
+    DBUG_PRINT("info", ("value expected=%ld actual=%ld", value, valueNewRec->u_64_value()));
     g_err << "getNextTransactionId: value was not updated" << endl;
     m_ndb.closeTransaction(pTrans);
-    return NDBT_FAILED;
+    DBUG_RETURN(NDBT_FAILED);
   }
 
   m_ndb.closeTransaction(pTrans);
-    
 
-  return 0;
-
+  DBUG_RETURN(0);
 }
 
 int Bank::increaseSystemValue2(SystemValueId sysValId, Uint64 &value){
