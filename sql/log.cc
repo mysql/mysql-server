@@ -1269,9 +1269,23 @@ COLLATION_CONNECTION=%lu,COLLATION_DATABASE=%lu,COLLATION_SERVER=%lu",
 	if (e.write(file))
 	  goto err;
       }
+      /*
+        We use the same ONE_SHOT trick for making replication of time zones 
+        working in 4.1. Again in 5.0 we have better means for doing this.
+      */
+      if (thd->time_zone_used &&
+          thd->variables.time_zone != global_system_variables.time_zone)
+      {
+        char buf[MAX_TIME_ZONE_NAME_LENGTH + 26];
+        char *buf_end= strxmov(buf, "SET ONE_SHOT TIME_ZONE='", 
+                               thd->variables.time_zone->get_name()->ptr(),
+                               "'", NullS);
+        Query_log_event e(thd, buf, buf_end - buf, 0);
+        e.set_log_pos(this);
+        if (e.write(file))
+          goto err;
+      }
 #endif
-
-      /* Add logging of timezones here */
 
       if (thd->last_insert_id_used)
       {
