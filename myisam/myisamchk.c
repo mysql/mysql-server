@@ -194,6 +194,9 @@ static struct my_option my_long_options[] =
   {"force", 'f',
    "Restart with -r if there are any errors in the table. States will be updated as with --update-state.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"HELP", 'H',
+   "Display this help and exit.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"help", '?',
    "Display this help and exit.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -624,6 +627,9 @@ get_one_option(int optid,
     check_param.start_check_pos= strtoull(argument, NULL, 0);
     break;
 #endif
+  case 'H':
+    my_print_help(my_long_options);
+    exit(0);
   case '?':
     usage();
     exit(0);
