@@ -137,6 +137,7 @@ struct st_table {
 typedef struct st_table_list {
   struct	st_table_list *next;
   char		*db,*name,*real_name;
+  uint32        db_length, real_name_length;
   Item		*on_expr;			/* Used with outer join */
   struct st_table_list *natural_join;		/* natural join on this table*/
   List<String>	*use_index,*ignore_index;
@@ -148,6 +149,12 @@ typedef struct st_table_list {
   bool          updating;     /* for replicate-do/ignore table */
   bool		shared;				/* Used twice in union */
 } TABLE_LIST;
+
+typedef struct st_changed_table_list {
+  struct	st_changed_table_list *next;
+  char		*key, *table_name;
+  uint32        key_length;
+} CHANGED_TABLE_LIST;
 
 typedef struct st_open_table_list
 {
