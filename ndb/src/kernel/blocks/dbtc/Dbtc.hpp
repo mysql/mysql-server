@@ -1184,7 +1184,11 @@ public:
     Uint32 scanTableref;
 
     // Number of operation records per scanned fragment
+    // Number of operations in first batch
+    // Max number of bytes per batch
     Uint16 noOprecPerFrag;
+    Uint16 first_batch_size;
+    Uint32 batch_byte_size;
 
     // Shall the locks be held until the application have read the 
     // records
@@ -1417,17 +1421,13 @@ private:
                            UintR anApiConnectPtr);
   void handleScanStop(Signal* signal, UintR aFailedNode);
   void initScanTcrec(Signal* signal);
-  void initScanApirec(Signal* signal, 
-		      Uint32 buddyPtr,
-		      UintR transid1, 
-		      UintR transid2);
-  void initScanrec(ScanRecordPtr, const class ScanTabReq*,
+  void initScanrec(ScanRecordPtr,  const class ScanTabReq*,
 		   const UintR scanParallel, 
 		   const UintR noOprecPerFrag);
   void initScanfragrec(Signal* signal);
   void releaseScanResources(ScanRecordPtr);
   ScanRecordPtr seizeScanrec(Signal* signal);
-  void sendScanFragReq(Signal* signal, ScanRecord*, ScanFragRec*);
+  void sendScanFragReq(Signal*, ScanRecord*, ScanFragRec*);
   void sendScanTabConf(Signal* signal, ScanRecord*);
   void close_scan_req(Signal*, ScanRecordPtr, bool received_req);
   void close_scan_req_send_conf(Signal*, ScanRecordPtr);

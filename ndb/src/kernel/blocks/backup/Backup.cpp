@@ -3324,20 +3324,16 @@ Backup::execBACKUP_FRAGMENT_REQ(Signal* signal)
     req->requestInfo = 0;
     req->savePointId = 0;
     req->tableId = table.tableId;
-    ScanFragReq::setConcurrency(req->requestInfo, parallelism);
+    //ScanFragReq::setConcurrency(req->requestInfo, parallelism);
     ScanFragReq::setLockMode(req->requestInfo, 0);
     ScanFragReq::setHoldLockFlag(req->requestInfo, 0);
     ScanFragReq::setKeyinfoFlag(req->requestInfo, 1);
     ScanFragReq::setAttrLen(req->requestInfo,attrLen); 
     req->transId1 = 0;
     req->transId2 = (BACKUP << 20) + (getOwnNodeId() << 8);
-
-    Uint32 i;
-    for(i = 0; i<parallelism; i++) {
-      jam();
-      req->clientOpPtr[i] = filePtr.i;
-    }//for
-    sendSignal(DBLQH_REF, GSN_SCAN_FRAGREQ, signal, 25, JBB);
+    req->clientOpPtr= filePtr.i;
+    sendSignal(DBLQH_REF, GSN_SCAN_FRAGREQ, signal,
+               ScanFragReq::SignalLength, JBB);
     
     signal->theData[0] = filePtr.i;
     signal->theData[1] = 0;
@@ -3351,6 +3347,7 @@ Backup::execBACKUP_FRAGMENT_REQ(Signal* signal)
     signal->theData[7] = 0;
     
     Uint32 dataPos = 8;
+    Uint32 i;
     for(i = 0; i<table.noOfAttributes; i++) {
       jam();
       AttributePtr attr;
@@ -3655,7 +3652,7 @@ Backup::execSCAN_FRAGCONF(Signal* signal)
   c_backupFilePool.getPtr(filePtr, filePtrI);
 
   OperationRecord & op = filePtr.p->operation;
-  op.scanConf(conf->completedOps, conf->opReturnDataLen);
+  //op.scanConf(conf->completedOps, conf->opReturnDataLen);
 
   const Uint32 completed = conf->fragmentCompleted;
   if(completed != 2) {
