@@ -1013,3 +1013,4 @@ BLOCK_FUNCTIONS(Ndbfs);
 template class Vector<AsyncFile*>;
 template class Vector<OpenFiles::OpenFileItem>;
 template class MemoryChannel<Request>;
+template class Pool<Request>;
