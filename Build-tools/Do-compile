@@ -12,7 +12,7 @@ GetOptions("Information","help","distribution=s","user=s","result=s","delete","n
 usage() if ($opt_help || $opt_Information);
 usage() if (!$opt_distribution);
 
-if (($opt_innodb || $opt_bdb) && $opt_version_suffix eq "")
+if ($opt_bdb && $opt_version_suffix eq "")
 {
   $opt_version_suffix="-max";
 }
