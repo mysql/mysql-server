@@ -33,6 +33,131 @@ static void mark_as_dependent(THD *thd,
 
 const String my_null_string("NULL", 4, default_charset_info);
 
+/****************************************************************************/
+
+/* Hybrid_type_traits {_real} */
+
+void Hybrid_type_traits::fix_length_and_dec(Item *item, Item *arg) const
+{
+  item->decimals= NOT_FIXED_DEC;
+  item->max_length= item->float_length(arg->decimals);
+}
+
+
+const Hybrid_type_traits *Hybrid_type_traits::instance()
+{
+  const static Hybrid_type_traits real_traits;
+  return &real_traits;
+}
+
+
+my_decimal *
+Hybrid_type_traits::val_decimal(Hybrid_type *val, my_decimal *to) const
+{
+  double2my_decimal(E_DEC_FATAL_ERROR, val->real, val->dec_buf);
+  return val->dec_buf;
+}
+
+
+String *
+Hybrid_type_traits::val_str(Hybrid_type *val, String *to, uint8 decimals) const
+{
+  to->set(val->real, decimals, &my_charset_bin);
+  return to;
+}
+
+/* Hybrid_type_traits_decimal */
+
+const Hybrid_type_traits_decimal *Hybrid_type_traits_decimal::instance()
+{
+  const static Hybrid_type_traits_decimal decimal_traits;
+  return &decimal_traits;
+}
+
+
+void
+Hybrid_type_traits_decimal::fix_length_and_dec(Item *item, Item *arg) const
+{
+  item->decimals= arg->decimals;
+  item->max_length= min(arg->max_length + DECIMAL_LONGLONG_DIGITS,
+                        DECIMAL_MAX_LENGTH);
+}
+
+
+void Hybrid_type_traits_decimal::set_zero(Hybrid_type *val) const
+{
+  my_decimal_set_zero(&val->dec_buf[0]);
+  val->used_dec_buf_no= 0;
+}
+
+
+void Hybrid_type_traits_decimal::add(Hybrid_type *val, Field *f) const
+{
+  my_decimal_add(E_DEC_FATAL_ERROR,
+                 &val->dec_buf[val->used_dec_buf_no ^ 1],
+                 &val->dec_buf[val->used_dec_buf_no],
+                 f->val_decimal(&val->dec_buf[2]));
+  val->used_dec_buf_no^= 1;
+}
+
+
+void Hybrid_type_traits_decimal::div(Hybrid_type *val, ulonglong u) const
+{
+  int2my_decimal(E_DEC_FATAL_ERROR, u, TRUE, &val->dec_buf[2]);
+  /* XXX: what is '4' for scale? */
+  my_decimal_div(E_DEC_FATAL_ERROR,
+                 &val->dec_buf[val->used_dec_buf_no ^ 1],
+                 &val->dec_buf[val->used_dec_buf_no],
+                 &val->dec_buf[2], 4);
+  val->used_dec_buf_no^= 1;
+}
+
+
+longlong
+Hybrid_type_traits_decimal::val_int(Hybrid_type *val, bool unsigned_flag) const
+{
+  longlong result;
+  my_decimal2int(E_DEC_FATAL_ERROR, &val->dec_buf[val->used_dec_buf_no],
+                 unsigned_flag, &result);
+  return result;
+}
+
+
+double
+Hybrid_type_traits_decimal::val_real(Hybrid_type *val) const
+{
+  my_decimal2double(E_DEC_FATAL_ERROR, &val->dec_buf[val->used_dec_buf_no],
+                    &val->real);
+  return val->real;
+}
+
+
+String *
+Hybrid_type_traits_decimal::val_str(Hybrid_type *val, String *to,
+                                    uint8 decimals) const
+{
+  my_decimal_round(E_DEC_FATAL_ERROR, &val->dec_buf[val->used_dec_buf_no],
+                   decimals, FALSE, &val->dec_buf[2]);
+  my_decimal2string(E_DEC_FATAL_ERROR, &val->dec_buf[2], 0, 0, 0, to);
+  return to;
+}
+
+/* Hybrid_type_traits_integer */
+
+const Hybrid_type_traits_integer *Hybrid_type_traits_integer::instance()
+{
+  const static Hybrid_type_traits_integer integer_traits;
+  return &integer_traits;
+}
+
+void
+Hybrid_type_traits_integer::fix_length_and_dec(Item *item, Item *arg) const
+{
+  item->decimals= 0;
+  item->max_length= 21;
+  item->unsigned_flag= 0;
+}
+
 /*****************************************************************************
 ** Item functions
 *****************************************************************************/

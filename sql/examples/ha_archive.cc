@@ -137,6 +137,7 @@ static HASH archive_open_tables;
 
 /* dummy handlerton - only to have something to return from archive_db_init */
 static handlerton archive_hton = {
+  "archive",
   0,       /* slot */
   0,       /* savepoint size. */
   0,       /* close_connection */

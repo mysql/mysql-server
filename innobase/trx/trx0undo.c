@@ -596,7 +596,7 @@ trx_undo_read_xid(
 }
 
 /*******************************************************************
-Adds the XA XID after an undo log old-style header. */
+Adds space for the XA XID after an undo log old-style header. */
 static
 void
 trx_undo_header_add_space_for_xid(
@@ -1488,6 +1488,7 @@ trx_undo_create(
 /*============*/
 				/* out: undo log object, NULL if did not
 				succeed: out of space */
+	trx_t*		trx,	/* in: transaction */
 	trx_rseg_t*	rseg,	/* in: rollback segment memory copy */
 	ulint		type,	/* in: type of the log: TRX_UNDO_INSERT or
 				TRX_UNDO_UPDATE */
@@ -1530,7 +1531,10 @@ trx_undo_create(
 	
 	offset = trx_undo_header_create(undo_page, trx_id, mtr);
 
-	trx_undo_header_add_space_for_xid(undo_page, undo_page + offset, mtr);
+	if (trx->support_xa) {
+		trx_undo_header_add_space_for_xid(undo_page,
+					undo_page + offset, mtr);
+	}
 
 	undo = trx_undo_mem_create(rseg, id, type, trx_id, xid,
 							page_no, offset);
@@ -1547,6 +1551,7 @@ trx_undo_reuse_cached(
 /*==================*/
 				/* out: the undo log memory object, NULL if
 				none cached */
+	trx_t*		trx,	/* in: transaction */
 	trx_rseg_t*	rseg,	/* in: rollback segment memory object */
 	ulint		type,	/* in: type of the log: TRX_UNDO_INSERT or
 				TRX_UNDO_UPDATE */
@@ -1597,16 +1602,22 @@ trx_undo_reuse_cached(
 
 	if (type == TRX_UNDO_INSERT) {
 		offset = trx_undo_insert_header_reuse(undo_page, trx_id, mtr);
-		trx_undo_header_add_space_for_xid(undo_page, undo_page + offset,
-									mtr);
+		
+		if (trx->support_xa) {
+			trx_undo_header_add_space_for_xid(undo_page,
+						undo_page + offset, mtr);
+		}
 	} else {
 		ut_a(mach_read_from_2(undo_page + TRX_UNDO_PAGE_HDR
 					+ TRX_UNDO_PAGE_TYPE)
 						== TRX_UNDO_UPDATE);
 
 		offset = trx_undo_header_create(undo_page, trx_id, mtr);
-		trx_undo_header_add_space_for_xid(undo_page, undo_page + offset,
-									mtr);
+
+		if (trx->support_xa) {
+			trx_undo_header_add_space_for_xid(undo_page,
+						undo_page + offset, mtr);
+		}
 	}
 	
 	trx_undo_mem_init_for_reuse(undo, trx_id, xid, offset);
@@ -1674,11 +1685,11 @@ trx_undo_assign_undo(
 #endif /* UNIV_SYNC_DEBUG */
 	mutex_enter(&(rseg->mutex));
 
-	undo = trx_undo_reuse_cached(rseg, type, trx->id, &trx->xid, &mtr);
-
+	undo = trx_undo_reuse_cached(trx, rseg, type, trx->id, &trx->xid,
+									&mtr);
 	if (undo == NULL) {
-		undo = trx_undo_create(rseg, type, trx->id, &trx->xid, &mtr);
-
+		undo = trx_undo_create(trx, rseg, type, trx->id, &trx->xid,
+									&mtr);
 		if (undo == NULL) {
 			/* Did not succeed */
 
