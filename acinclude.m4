@@ -712,7 +712,7 @@ AC_DEFUN(MYSQL_FIND_OPENSSL, [
   incs="$1"
   libs="$2"
   case "$incs---$libs" in
-    default---default )
+    ---)
       for d in /usr/ssl/include /usr/local/ssl/include /usr/include \
 /usr/include/ssl /opt/ssl/include /opt/openssl/include \
 /usr/local/ssl/include /usr/local/include ; do
@@ -728,7 +728,7 @@ AC_DEFUN(MYSQL_FIND_OPENSSL, [
       fi
       done
       ;;
-    default---* | *---default )
+    ---* | *---)
       AC_MSG_ERROR([if either 'includes' or 'libs' is specified, both must be specified])
       ;;
     * )
@@ -774,14 +774,14 @@ AC_MSG_CHECKING(for OpenSSL)
   --with-openssl-includes=DIR
                           Find OpenSSL headers in DIR],
               [openssl_includes="$withval"],
-              [openssl_includes=default])
+              [openssl_includes=""])
 
   AC_ARG_WITH([openssl-libs],
               [
   --with-openssl-libs=DIR
                           Find OpenSSL libraries in DIR],
               [openssl_libs="$withval"],
-              [openssl_libs=default])
+              [openssl_libs=""])
 
   if test "$openssl" = "yes"
   then
