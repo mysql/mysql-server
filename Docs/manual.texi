@@ -38352,7 +38352,7 @@ The following persons have helped us make MySQL what it's today
 @appendixsubsec Developers at MySQL AB
 
 Developers that are or have been employed by MySQL AB to work on MySQL.
-(In roughly the order they started to work with us)
+(Roughly in the order they started to work with us.)
 
 @table @asis
 @item Michael (Monty) Widenius
@@ -38381,15 +38381,16 @@ also Unireg, a curses-based application tool with many utilities.
 Porting of @code{mSQL} tools like @code{msqlperl}, @code{DBD}/@code{DBI} and
 @code{DB2mysql}.
 @item
-Most parts of crash-me and the foundation for the @strong{MySQL} benchmarks.
+Most of crash-me and the foundation for the @strong{MySQL} benchmarks.
 @end itemize
 
 @item David Axmark
 @itemize @bullet
 @item
-Coordinator and intial main writer for the @strong{Reference Manual},
-including enhancements to @code{texi2html}. Also automatic website
-updating from this manual.
+Coordinator and initial main writer of the @strong{Reference Manual},
+including enhancements to @code{texi2html}. 
+@item
+Automatic website updating from the manual.
 @item
 Inital Autoconf, Automake and @code{libtool} support.
 @item
@@ -38418,13 +38419,13 @@ that new feature to work. :-)
 @item
 A lot of extensions to the @code{mysql} client.
 @item
-@code{procedure analyse}
+@code{procedure analyse()}
 @end itemize
 
 @item Sinisa Milivojevic
 @itemize @bullet
 @item
-Compression (with @code{zlib}) to the client/server protocol.
+Compression (with @code{zlib}) in the client/server protocol.
 @item
 Perfect hashing for the lexical analyzer phase.
 @item
@@ -38433,7 +38434,7 @@ The MySQLGUI client.
 Maintainer of mysql++.
 @end itemize
 
-@item Tõnu Samual
+@item Tõnu Samuel
 @itemize @bullet
 @item
 Our security expert.
@@ -38478,7 +38479,7 @@ Dynamic character support.
 Responsible for @strong{MySQL} configure.
 @end itemize
 
-@item Sergei A. Golubchick
+@item Sergei A. Golubchik
 @itemize @bullet
 @item
 Text search
@@ -38491,7 +38492,7 @@ Added keys to the @code{MERGE} library.
 @item
 Proofreading and editing this fine manual.
 @item
-@code{ALTER TABLE ... ORDER BY}
+@code{ALTER TABLE ... ORDER BY ...}.
 @end itemize
 
 @item John Dean
@@ -38506,7 +38507,7 @@ Designer/programmer of our web interface.
 @end itemize
 @end table
 
-The following non-developers are also working in/with MySQL AB
+The following non-developers are also working in/with MySQL AB:
 
 @table @asis
 @item
@@ -38700,9 +38701,9 @@ For sponsoring the optimize section in this manual.
 
 Other contributors, bugfinders and testers: James H. Thompson, Maurizio
 Menghini, Wojciech Tryc, Luca Berra, Zarko Mocnik, Wim Bonis, Elmar
-Haneke, @email{jehamby@@lightside}, @email{psmith@@BayNetworks.COM},
+Haneke, @email{jehamby@@lightside}, @email{psmith@@BayNetworks.com},
 @email{duane@@connect.com.au}, Ted Deppner @email{ted@@psyber.com},
-Mike Simons, Jaakko Hyv@"atti.
+Mike Simons, Jaakko Hyvatti.
 
 And lots of bug report/patches from the folks on the mailing list.
 
