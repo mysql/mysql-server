@@ -197,9 +197,211 @@ int execute_no_commit_ie(ha_ndbcluster *h, NdbConnection *trans)
 }
 
 /*
+  CPDH condition storage support
+*/
+Ndb_item::Ndb_item(NDB_ITEM_TYPE item_type, 
+		   NDB_ITEM_QUALIFICATION item_qualification,
+		   const Item *item_value) 
+  : type(item_type), qualification(item_qualification)
+{ 
+  switch(item_type) {
+  case(NDB_VALUE):
+  {
+    switch(item_qualification.value_type) {
+    case(Item::STRING_ITEM): {
+      Ndb_item_string_value *string_value = new Ndb_item_string_value();
+      Item_string *string_item= (Item_string *)item_value;
+      string_value->s= string_item->str_value;
+      string_value->c= string_item->collation.collation;
+      value.string_value= string_value;
+      break;
+    }
+    case(Item::INT_ITEM): {
+      value.int_value= ((Item_int *)item_value)->val_int();
+      break;
+    }
+    case(Item::REAL_ITEM): {
+      value.real_value= ((Item_real *)item_value)->val_real();
+      break;
+    }
+    case(Item::NULL_ITEM):
+      break;
+    case(Item::VARBIN_ITEM): {
+      Ndb_item_string_value *string_value = new Ndb_item_string_value();
+      Item_varbinary *varbin_item= (Item_varbinary *)item_value;
+      string_value->s= varbin_item->str_value;
+      string_value->c= varbin_item->collation.collation;
+      value.string_value= string_value;
+      break;
+    }
+    default:
+      break;
+    }
+  }
+  break;
+  case(NDB_FIELD): {
+    NDB_ITEM_FIELD_VALUE *field_value= new NDB_ITEM_FIELD_VALUE();
+    Item_field *field_item= (Item_field *) item_value;
+    field_value->field= field_item->field;
+    field_value->column_no= -1; // Will be fetched at scan filter generation
+    value.field_value= field_value;
+    break;
+  }
+  case(NDB_FUNCTION):
+    break;
+  }
+}
+ 
+Ndb_item::Ndb_item(longlong int_value) : type(NDB_VALUE)
+{
+  qualification.value_type= Item::INT_ITEM;
+  value.int_value= int_value; 
+}
+
+Ndb_item::Ndb_item(double real_value) : type(NDB_VALUE)
+{
+  qualification.value_type= Item::REAL_ITEM;
+  value.real_value= real_value; 
+}
+
+Ndb_item::Ndb_item(): type(NDB_VALUE)
+{
+  qualification.value_type= Item::NULL_ITEM;
+}
+
+Ndb_item::Ndb_item(Field *field, int column_no) : type(NDB_FIELD)
+{
+    NDB_ITEM_FIELD_VALUE *field_value= new NDB_ITEM_FIELD_VALUE();
+    qualification.field_type= field->type();
+    field_value->field= field;
+    field_value->column_no= column_no;
+    value.field_value= field_value;
+}
+
+Ndb_item::Ndb_item(Item_func::Functype func_type) : type(NDB_FUNCTION)
+{
+  qualification.function_type= func_type;
+}
+
+Ndb_item::~Ndb_item() 
+{ 
+  if (type == NDB_VALUE && 
+      (qualification.value_type == Item::STRING_ITEM ||
+       qualification.value_type == Item::VARBIN_ITEM))
+  {
+    delete value.string_value;
+    value.string_value= NULL;
+  }
+  else if (type == NDB_FIELD)
+  {
+    delete value.field_value;
+    value.field_value= NULL;
+  }
+}
+
+void Ndb_item::print(String* str)
+{
+  switch(type) {
+  case(NDB_VALUE):
+    str->append("[#NDB_VALUE ");
+    switch(qualification.value_type) {
+    case (Item::INT_ITEM): {
+      String tmp;
+      tmp.set(value.int_value, &my_charset_bin);
+      str->append(tmp);
+      break;
+    }
+    case (Item::REAL_ITEM): {
+      String tmp;
+      tmp.set(value.real_value, 4 , &my_charset_bin);
+      str->append(tmp);
+      break;
+    }
+    case (Item::STRING_ITEM): {
+      str->append(value.string_value->s.ptr());
+      break;
+    }
+    case (Item::VARBIN_ITEM): {
+      str->append(value.string_value->s.ptr());
+      break;
+    }
+    case (Item::NULL_ITEM):
+      str->append("NULL");
+      break;
+    default:
+      str->append("ILLEGAL VALUE");
+    }
+    str->append("]");
+    break;
+  case(NDB_FIELD):  
+    str->append("[#NDB_FIELD ");
+    str->append(value.field_value->field->field_name);
+    str->append("]");
+    break;
+  case(NDB_FUNCTION):
+    str->append("[#NDB_FUNCTION ");
+    switch(qualification.function_type) {
+    case(Item_func::UNKNOWN_FUNC): {
+      str->append("UNKNOWN]");
+      break;
+    }
+    case(Item_func::EQ_FUNC): {
+      str->append("=]");
+      break;
+    }
+    case(Item_func::NE_FUNC): {
+      str->append("!=]");
+      break;
+    }
+    case(Item_func::LT_FUNC): {
+      str->append("<]");
+      break;
+    }
+    case(Item_func::LE_FUNC): {
+      str->append("<=]");
+      break;
+    }
+    case(Item_func::GE_FUNC): {
+      str->append(">=]");
+      break;
+    }
+    case(Item_func::GT_FUNC): {
+      str->append(">]");
+      break;
+    }
+    case(Item_func::LIKE_FUNC): {
+      str->append("like]");
+      break;
+    }
+    case(Item_func::NOTLIKE_FUNC): {
+      str->append("notlike]");
+      break;
+    }
+    case(Item_func::ISNULL_FUNC): {
+      str->append("isnull]");
+      break;
+    }
+    case(Item_func::ISNOTNULL_FUNC): {
+      str->append("isnotnull]");
+      break;
+    }
+    case(Item_func::COND_AND_FUNC): {
+      str->append("and]");
+      break;
+    }
+    case(Item_func::COND_OR_FUNC): {
+      str->append("or]");
+      break;
+    }
+    default:
+      str->append("UNSUPPORTED]");
+    }
+  }
+}
+
+/*
   Place holder for ha_ndbcluster thread specific data
 */
-
 Thd_ndb::Thd_ndb()
 {
   ndb= new Ndb(g_ndb_cluster_connection, "");
@@ -1701,7 +1903,7 @@ int ha_ndbcluster::full_table_scan(byte *buf)
       op->readTuples(lm, 0, parallelism))
     ERR_RETURN(trans->getNdbError());
   m_active_cursor= op;
-  
+  generate_scan_filter(m_cond_stack, op);
   if((res= define_read_attrs(buf, op)))
     DBUG_RETURN(res);
 
@@ -2723,6 +2925,8 @@ int ha_ndbcluster::extra(enum ha_extra_function operation)
     break;
   case HA_EXTRA_RESET:                 /* Reset database to after open */
     DBUG_PRINT("info", ("HA_EXTRA_RESET"));
+    DBUG_PRINT("info", ("Clearing condition stack"));
+    cond_clear();
     break;
   case HA_EXTRA_CACHE:                 /* Cash record in HA_rrnd() */
     DBUG_PRINT("info", ("HA_EXTRA_CACHE"));
@@ -2913,14 +3117,6 @@ int ha_ndbcluster::extra_opt(enum ha_extra_function operation, ulong cache_size)
   DBUG_ENTER("extra_opt");
   DBUG_PRINT("enter", ("cache_size: %lu", cache_size));
   DBUG_RETURN(extra(operation));
-}
-
-
-int ha_ndbcluster::reset()
-{
-  DBUG_ENTER("reset");
-  // Reset what?
-  DBUG_RETURN(1);
 }
 
 
@@ -3832,7 +4028,8 @@ ha_ndbcluster::ha_ndbcluster(TABLE *table_arg):
   m_force_send(TRUE),
   m_autoincrement_prefetch(32),
   m_transaction_on(TRUE),
-  m_use_local_query_cache(FALSE)
+  m_use_local_query_cache(FALSE),
+  m_cond_stack(NULL)
 { 
   int i;
   
@@ -3876,6 +4073,10 @@ ha_ndbcluster::~ha_ndbcluster()
   if (m_active_trans) {
   }
   DBUG_ASSERT(m_active_trans == NULL);
+
+  // Discard the condition stack
+  DBUG_PRINT("info", ("Clearing condition stack"));
+  cond_clear();
 
   DBUG_VOID_RETURN;
 }
@@ -5140,5 +5341,584 @@ ha_ndbcluster::setup_recattr(const NdbRecAttr* curr)
   DBUG_RETURN(0);
 }
 #endif
+
+/*
+  Condition pushdown
+*/
+const 
+COND* 
+ha_ndbcluster::cond_push(const COND *cond) 
+{ 
+  THD *thd= current_thd;
+  Ndb_cond_stack *ndb_cond = new Ndb_cond_stack();
+  DBUG_ENTER("cond_push");
+
+  if (thd->variables.ndb_condition_pushdown)
+  {
+    DBUG_EXECUTE("where",print_where((COND *)cond, m_tabname););
+    if (m_cond_stack)
+      ndb_cond->next= m_cond_stack;
+    else
+      ndb_cond->next= NULL;
+    m_cond_stack= ndb_cond;
+    
+    if (serialize_cond(cond, ndb_cond))
+    {
+      DBUG_RETURN(NULL);
+    }
+    else
+    {
+      cond_pop();
+    }
+  }
+  DBUG_RETURN(cond); 
+}
+
+inline
+void 
+ha_ndbcluster::cond_pop() 
+{ 
+  Ndb_cond_stack *ndb_cond_stack= m_cond_stack;  
+  if (ndb_cond_stack)
+  {
+    m_cond_stack= ndb_cond_stack->next;
+    delete ndb_cond_stack;
+  }
+};
+
+void
+ha_ndbcluster::cond_clear()
+{
+  DBUG_ENTER("cond_clear");
+  while (m_cond_stack)
+    cond_pop();
+
+  DBUG_VOID_RETURN;
+}
+
+void ndb_serialize_cond(const Item *item, void *arg)
+{
+  Ndb_cond_traverse_context *context= (Ndb_cond_traverse_context *) arg;
+  DBUG_ENTER("ndb_serialize_cond");  
+
+  if (*context->supported_ptr)
+  {
+    Ndb_cond_stack *ndb_stack= context->stack_ptr;
+    Ndb_cond *prev_cond= context->cond_ptr;
+    Ndb_cond *curr_cond= context->cond_ptr= new Ndb_cond();
+    if (!ndb_stack->ndb_cond)
+      ndb_stack->ndb_cond= curr_cond;
+    curr_cond->prev= prev_cond;
+    if (prev_cond) prev_cond->next= curr_cond;
+    
+    switch(item->type()) {
+    case(Item::FIELD_ITEM): {
+      Item_field *field_item= (Item_field *) item;
+      Field *field= field_item->field;
+      /*
+	Check that the field is part of the table of the handler
+	instance and that we expect a field with of this result type.
+      */
+      if (context->table == field->table)
+      {	
+	const NDBTAB *tab= (const NDBTAB *) context->ndb_table;
+	const NDBCOL *col= tab->getColumn(field->field_name);
+	DBUG_ASSERT(col);
+	DBUG_PRINT("info", ("FIELD_ITEM"));
+	DBUG_PRINT("info", ("table %s", tab->getName()));
+	DBUG_PRINT("info", ("column %s", field->field_name));
+	
+	if(context->expecting(Item::FIELD_ITEM) &&
+	   context->expecting_field_result(field->result_type()))
+	{
+	  // Currently only support for unsigned int
+	  if (field->result_type() == INT_RESULT  &&
+	      (field->type() != MYSQL_TYPE_LONG ||
+	       !(field->flags & UNSIGNED_FLAG)))
+	    *context->supported_ptr= FALSE;  
+	  else
+	  {
+	    curr_cond->ndb_item= new Ndb_item(field, col->getColumnNo());
+	    context->dont_expect(Item::FIELD_ITEM);
+	    context->expect_no_field_result();
+	    break;
+	  }
+	}
+      }
+      *context->supported_ptr= FALSE;
+      break;
+    }
+    case(Item::FUNC_ITEM): {
+      Item_func *func_item= (Item_func *) item;
+
+      context->expect_nothing();
+      switch(func_item->functype()) {
+      case(Item_func::UNKNOWN_FUNC): {
+	DBUG_PRINT("info", ("UNKNOWN_FUNC"));      
+	DBUG_PRINT("info", ("value %d", func_item->val_int()));
+	break;
+      }
+      case(Item_func::EQ_FUNC): {
+	DBUG_PRINT("info", ("EQ_FUNC"));      
+	curr_cond->ndb_item= new Ndb_item(func_item->functype());      
+	context->expect(Item::FIELD_ITEM);
+	context->expect_field_result(INT_RESULT);
+	context->expect(Item::INT_ITEM);
+	break;
+      }
+      case(Item_func::NE_FUNC): {
+	DBUG_PRINT("info", ("NE_FUNC"));      
+	curr_cond->ndb_item= new Ndb_item(func_item->functype());      
+	context->expect(Item::FIELD_ITEM);
+	context->expect_field_result(INT_RESULT);
+	context->expect(Item::INT_ITEM);
+	break;
+      }
+      case(Item_func::LT_FUNC): {
+	DBUG_PRINT("info", ("LT_FUNC"));      
+	curr_cond->ndb_item= new Ndb_item(func_item->functype());      
+	context->expect(Item::FIELD_ITEM);
+	context->expect_field_result(INT_RESULT);
+	context->expect(Item::INT_ITEM);
+	break;
+      }
+      case(Item_func::LE_FUNC): {
+	DBUG_PRINT("info", ("LE_FUNC"));      
+	curr_cond->ndb_item= new Ndb_item(func_item->functype());      
+	context->expect(Item::FIELD_ITEM);
+	context->expect_field_result(INT_RESULT);
+	context->expect(Item::INT_ITEM);
+	break;
+      }
+      case(Item_func::GE_FUNC): {
+	DBUG_PRINT("info", ("GE_FUNC"));      
+	curr_cond->ndb_item= new Ndb_item(func_item->functype());      
+	context->expect(Item::FIELD_ITEM);
+	context->expect_field_result(INT_RESULT);
+	context->expect(Item::INT_ITEM);
+	break;
+      }
+      case(Item_func::GT_FUNC): {
+	DBUG_PRINT("info", ("GT_FUNC"));      
+	curr_cond->ndb_item= new Ndb_item(func_item->functype());      
+	context->expect(Item::FIELD_ITEM);
+	context->expect_field_result(INT_RESULT);
+	context->expect(Item::INT_ITEM);
+	break;
+      }
+      case(Item_func::LIKE_FUNC): {
+	DBUG_PRINT("info", ("LIKE_FUNC"));      
+	curr_cond->ndb_item= new Ndb_item(func_item->functype());      
+	context->expect(Item::STRING_ITEM);
+	*context->supported_ptr= FALSE; // Currently not supported
+	break;
+      }
+      case(Item_func::NOTLIKE_FUNC): {
+	DBUG_PRINT("info", ("NOTLIKE_FUNC"));      
+	curr_cond->ndb_item= new Ndb_item(func_item->functype());      
+	context->expect(Item::STRING_ITEM);
+	*context->supported_ptr= FALSE; // Currently not supported
+	break;
+      }
+      case(Item_func::ISNULL_FUNC): {
+	DBUG_PRINT("info", ("ISNULL_FUNC"));      
+	curr_cond->ndb_item= new Ndb_item(func_item->functype());      
+	context->expect(Item::FIELD_ITEM);
+	context->expect_field_result(STRING_RESULT);
+	context->expect_field_result(REAL_RESULT);
+	context->expect_field_result(INT_RESULT);
+	break;
+      }
+      case(Item_func::ISNOTNULL_FUNC): {
+	DBUG_PRINT("info", ("ISNOTNULL_FUNC"));      
+	curr_cond->ndb_item= new Ndb_item(func_item->functype());     
+	context->expect(Item::FIELD_ITEM);
+	context->expect_field_result(STRING_RESULT);
+	context->expect_field_result(REAL_RESULT);
+	context->expect_field_result(INT_RESULT);
+	break;
+      }
+      default: {
+	DBUG_PRINT("info", ("Found func_item of type %d", 
+			    func_item->functype()));
+	*context->supported_ptr= FALSE;
+      }
+      }
+      break;
+    }
+    case(Item::STRING_ITEM):
+      if (context->expecting(Item::STRING_ITEM)) 
+      {
+	char buff[256];
+	String str(buff,(uint32) sizeof(buff), system_charset_info);
+	str.length(0);
+	Item_string *string_item= (Item_string *) item;      
+	DBUG_PRINT("info", ("STRING_ITEM")); 
+	DBUG_PRINT("info", ("value \"%s\"", 
+			    string_item->val_str(&str)->ptr()));
+	NDB_ITEM_QUALIFICATION q;
+	q.value_type= Item::STRING_ITEM;
+	curr_cond->ndb_item= new Ndb_item(NDB_VALUE, q, item);      
+	context->dont_expect(Item::STRING_ITEM);
+      }
+      else
+	*context->supported_ptr= FALSE;
+      break;
+    case(Item::INT_ITEM): 
+      if (context->expecting(Item::INT_ITEM)) 
+      {
+	Item_int *int_item= (Item_int *) item;      
+	DBUG_PRINT("info", ("INT_ITEM"));
+	DBUG_PRINT("info", ("value %d", int_item->value));
+	curr_cond->ndb_item= new Ndb_item(int_item->value);
+	context->dont_expect(Item::INT_ITEM);
+      }
+      else
+	*context->supported_ptr= FALSE;
+      break;
+    case(Item::REAL_ITEM):
+      if (context->expecting(Item::REAL_ITEM)) 
+      {
+	Item_real *real_item= (Item_real *) item;      
+	DBUG_PRINT("info", ("REAL_ITEM %s"));
+	DBUG_PRINT("info", ("value %f", real_item->value));
+	curr_cond->ndb_item= new Ndb_item(real_item->value);
+	context->dont_expect(Item::REAL_ITEM);
+	*context->supported_ptr= FALSE; // Currently not supported
+      }
+      else
+	*context->supported_ptr= FALSE;
+      break;
+    case(Item::COND_ITEM): {
+      Item_cond *cond_item= (Item_cond *) item;
+      switch(cond_item->functype()) {
+      case(Item_func::COND_AND_FUNC):
+	DBUG_PRINT("info", ("COND_AND_FUNC"));
+	curr_cond->ndb_item= new Ndb_item(cond_item->functype());      
+	break;
+      case(Item_func::COND_OR_FUNC):
+	DBUG_PRINT("info", ("COND_OR_FUNC"));
+	curr_cond->ndb_item= new Ndb_item(cond_item->functype());      
+	break;
+      default:
+	DBUG_PRINT("info", ("COND_ITEM %d", cond_item->functype()));
+	*context->supported_ptr= FALSE;
+	break;
+      }
+      break;
+    }
+    default: {
+      DBUG_PRINT("info", ("Found item of type %d", item->type()));
+      *context->supported_ptr= FALSE;
+    }
+    }
+  }
+
+  DBUG_VOID_RETURN;
+}
+
+bool
+ha_ndbcluster::serialize_cond(const COND *cond, Ndb_cond_stack *ndb_cond)
+{
+  DBUG_ENTER("serialize_cond");
+  Item *item= (Item *) cond;
+  bool supported= TRUE;
+  Ndb_cond_traverse_context context(table, (void *)m_table, 
+				    &supported, ndb_cond);
+  item->traverse_cond(&ndb_serialize_cond, (void *) &context, Item::PREFIX);
+  DBUG_PRINT("info", ("The pushed condition is %ssupported", (supported)?"":"not "));
+
+  DBUG_RETURN(supported);
+}
+
+Ndb_cond *
+ha_ndbcluster::build_scan_filter_predicate(Ndb_cond *cond, 
+					   NdbScanFilter *filter)
+{
+  DBUG_ENTER("build_scan_filter_predicate");  
+  switch(cond->ndb_item->type) {
+  case(NDB_FUNCTION): {
+    if (!cond->next)
+      break;
+    Ndb_item *a= cond->next->ndb_item;
+    switch(cond->ndb_item->qualification.function_type) {
+    case(Item_func::EQ_FUNC): {
+      if (!cond->next->next)
+	break;
+      Ndb_item *b= cond->next->next->ndb_item;
+      Ndb_item *value= 
+	(a->type == NDB_VALUE)? a
+	: (b->type == NDB_VALUE)? b
+	: NULL;
+      Ndb_item *field= 
+	(a->type == NDB_FIELD)? a
+	: (b->type == NDB_FIELD)? b
+	: NULL;
+      if (!value || !field) break;
+      DBUG_PRINT("info", ("Generating EQ filter"));
+      filter->eq(field->getFieldNo(),
+		 (Uint32) value->getIntValue());
+      DBUG_RETURN(cond->next->next->next);
+    }
+    case(Item_func::NE_FUNC): {
+      if (!cond->next->next)
+	break;
+      Ndb_item *b= cond->next->next->ndb_item;
+      Ndb_item *value= 
+	(a->type == NDB_VALUE)? a
+	: (b->type == NDB_VALUE)? b
+	: NULL;
+      Ndb_item *field= 
+	(a->type == NDB_FIELD)? a
+	: (b->type == NDB_FIELD)? b
+	: NULL;
+      if (!value || !field) break;
+      DBUG_PRINT("info", ("Generating NE filter"));
+      filter->ne(field->getFieldNo(),
+		 (Uint32) value->getIntValue());
+      DBUG_RETURN(cond->next->next->next);
+    }
+    case(Item_func::LT_FUNC): {
+      if (!cond->next->next)
+	break;
+      Ndb_item *b= cond->next->next->ndb_item;
+      Ndb_item *value= 
+	(a->type == NDB_VALUE)? a
+	: (b->type == NDB_VALUE)? b
+	: NULL;
+      Ndb_item *field= 
+	(a->type == NDB_FIELD)? a
+	: (b->type == NDB_FIELD)? b
+	: NULL;
+      if (!value || !field) break;
+      DBUG_PRINT("info", ("Generating LT filter"));
+      if (a == field)
+	filter->lt(field->getFieldNo(),
+		   (Uint32) value->getIntValue());
+      else
+	filter->gt(field->getFieldNo(),
+		   (Uint32) value->getIntValue());
+      DBUG_RETURN(cond->next->next->next);
+    }
+    case(Item_func::LE_FUNC): {
+      if (!cond->next->next)
+	break;
+      Ndb_item *b= cond->next->next->ndb_item;
+      Ndb_item *value= 
+	(a->type == NDB_VALUE)? a
+	: (b->type == NDB_VALUE)? b
+	: NULL;
+      Ndb_item *field= 
+	(a->type == NDB_FIELD)? a
+	: (b->type == NDB_FIELD)? b
+	: NULL;
+      if (!value || !field) break;
+      DBUG_PRINT("info", ("Generating LE filter"));
+      if (a == field)
+	filter->le(field->getFieldNo(),
+		   (Uint32) value->getIntValue());
+      else
+	filter->ge(field->getFieldNo(),
+		   (Uint32) value->getIntValue());
+      DBUG_RETURN(cond->next->next->next);
+    }
+    case(Item_func::GE_FUNC): {
+      if (!cond->next->next)
+	break;
+      Ndb_item *b= cond->next->next->ndb_item;
+      Ndb_item *value= 
+	(a->type == NDB_VALUE)? a
+	: (b->type == NDB_VALUE)? b
+	: NULL;
+      Ndb_item *field= 
+	(a->type == NDB_FIELD)? a
+	: (b->type == NDB_FIELD)? b
+	: NULL;
+      if (!value || !field) break;
+      DBUG_PRINT("info", ("Generating GE filter"));
+      if (a == field)
+	filter->ge(field->getFieldNo(),
+		   (Uint32) value->getIntValue());
+      else
+	filter->le(field->getFieldNo(),
+		   (Uint32) value->getIntValue());
+      DBUG_RETURN(cond->next->next->next);
+    }
+    case(Item_func::GT_FUNC): {
+      if (!cond->next->next)
+	break;
+      Ndb_item *b= cond->next->next->ndb_item;
+      Ndb_item *value= 
+	(a->type == NDB_VALUE)? a
+	: (b->type == NDB_VALUE)? b
+	: NULL;
+      Ndb_item *field= 
+	(a->type == NDB_FIELD)? a
+	: (b->type == NDB_FIELD)? b
+	: NULL;
+      if (!value || !field) break;
+      DBUG_PRINT("info", ("Generating GT filter"));
+      if (a == field)
+	filter->gt(field->getFieldNo(),
+		   (Uint32) value->getIntValue());
+      else
+	filter->lt(field->getFieldNo(),
+		   (Uint32) value->getIntValue());
+      DBUG_RETURN(cond->next->next->next);
+    }
+    case(Item_func::LIKE_FUNC): {
+      if (!cond->next->next)
+	break;
+      Ndb_item *b= cond->next->next->ndb_item;
+      Ndb_item *value= 
+	(a->type == NDB_VALUE)? a
+	: (b->type == NDB_VALUE)? b
+	: NULL;
+      Ndb_item *field= 
+	(a->type == NDB_FIELD)? a
+	: (b->type == NDB_FIELD)? b
+	: NULL;
+      if (!value || !field) break;
+      if (value->qualification.value_type != Item::STRING_ITEM) break;
+      String *str= value->getStringValue();
+      DBUG_PRINT("info", ("Generating LIKE filter: like(%d,%s,%d)", field->getFieldNo(), str->ptr(), str->length()));
+      filter->like(field->getFieldNo(),
+		   str->ptr(), str->length(), TRUE);
+      DBUG_RETURN(cond->next->next->next);
+    }
+    case(Item_func::NOTLIKE_FUNC): {
+      if (!cond->next->next)
+	break;
+      Ndb_item *b= cond->next->next->ndb_item;
+      Ndb_item *value= 
+	(a->type == NDB_VALUE)? a
+	: (b->type == NDB_VALUE)? b
+	: NULL;
+      Ndb_item *field= 
+	(a->type == NDB_FIELD)? a
+	: (b->type == NDB_FIELD)? b
+	: NULL;
+      if (!value || !field) break;
+      if (value->qualification.value_type != Item::STRING_ITEM) break;
+      String *str= value->getStringValue();
+      DBUG_PRINT("info", ("Generating NOTLIKE filter: notlike(%d,%s,%d)", field->getFieldNo(), str->ptr(), str->length()));
+      filter->notlike(field->getFieldNo(),
+		      str->ptr(), str->length());
+      DBUG_RETURN(cond->next->next->next);
+    }
+    case(Item_func::ISNULL_FUNC):
+      if (a->type == NDB_FIELD) {
+	DBUG_PRINT("info", ("Generating ISNULL filter"));
+	filter->isnull(a->getFieldNo());
+      }
+      DBUG_RETURN(cond->next->next);
+    case(Item_func::ISNOTNULL_FUNC): {
+      if (a->type == NDB_FIELD) {
+	DBUG_PRINT("info", ("Generating ISNOTNULL filter"));
+	filter->isnotnull(a->getFieldNo());
+      }
+      DBUG_RETURN(cond->next->next);
+    }
+    default:
+      break;
+    }
+    break;
+  }
+  default:
+    break;
+  }
+  DBUG_PRINT("info", ("Found illegal condition"));
+  DBUG_RETURN(NULL);
+}
+
+Ndb_cond *
+ha_ndbcluster::build_scan_filter_group(Ndb_cond *cond, NdbScanFilter *filter)
+{
+  DBUG_ENTER("build_scan_filter_group");
+  switch(cond->ndb_item->type) {
+  case(NDB_FUNCTION):
+    switch(cond->ndb_item->qualification.function_type) {
+    case(Item_func::COND_AND_FUNC): {
+      DBUG_PRINT("info", ("Generating AND group"));
+      filter->begin(NdbScanFilter::AND);
+      cond= cond->next;
+      cond= build_scan_filter_group(cond, filter);
+      cond= build_scan_filter_group(cond, filter);
+      filter->end();
+      break;
+    }
+    case(Item_func::COND_OR_FUNC): {
+      DBUG_PRINT("info", ("Generating OR group"));
+      filter->begin(NdbScanFilter::OR);
+      cond= cond->next;
+      cond= build_scan_filter_group(cond, filter);
+      cond= build_scan_filter_group(cond, filter);
+      filter->end();
+      break;
+    }
+    default:
+      cond= build_scan_filter_predicate(cond, filter);     
+    }
+    break;
+  default: {
+    DBUG_PRINT("info", ("Illegal scan filter"));
+  }
+  }
+  
+  DBUG_RETURN(cond);
+}
+
+void 
+ha_ndbcluster::build_scan_filter(Ndb_cond *cond, NdbScanFilter *filter)
+{
+  bool simple_cond= TRUE;
+  DBUG_ENTER("build_scan_filter");  
+
+  switch(cond->ndb_item->type) {
+  case(Item_func::COND_AND_FUNC):
+    simple_cond= FALSE;
+    break;
+  case(Item_func::COND_OR_FUNC):
+    simple_cond= FALSE;
+    break;
+  default:
+    break;
+  }
+  if (simple_cond) filter->begin();
+  build_scan_filter_group(cond, filter);
+  if (simple_cond) filter->end();
+
+  DBUG_VOID_RETURN;
+}
+
+void
+ha_ndbcluster::generate_scan_filter(Ndb_cond_stack *ndb_cond_stack,
+				    NdbScanOperation *op)
+{
+  DBUG_ENTER("generate_scan_filter");
+  if (ndb_cond_stack)
+  {
+    NdbScanFilter filter(op);
+    bool multiple_cond= FALSE;
+    // Wrap an AND group around multiple conditions
+    if (ndb_cond_stack->next) {
+      multiple_cond= TRUE;
+      filter.begin();
+    }
+    for (Ndb_cond_stack *stack= ndb_cond_stack; 
+	 (stack); 
+	 stack= stack->next)
+      {
+	build_scan_filter(stack->ndb_cond, &filter);
+      }
+    if (multiple_cond) filter.end();
+  }
+  else
+  {  
+    DBUG_PRINT("info", ("Empty stack"));
+  }
+
+  DBUG_VOID_RETURN;
+}
 
 #endif /* HAVE_NDBCLUSTER_DB */
