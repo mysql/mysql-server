@@ -1353,10 +1353,10 @@ longlong Item_sum_count_distinct::val_int()
 
 #ifdef HAVE_DLOPEN
 
-bool Item_udf_sum::reset()
+bool Item_udf_sum::clear()
 {
   DBUG_ENTER("Item_udf_sum::reset");
-  udf.reset(&null_value);
+  udf.clear();
   DBUG_RETURN(0);
 }
 

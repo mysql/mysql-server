@@ -1,0 +1,8 @@
+#! /bin/sh
+
+path=`dirname $0`
+. "$path/SETUP.sh"
+
+just_clean=1;
+
+. "$path/FINISH.sh"
