@@ -1056,3 +1056,7 @@ include/mysqld_ername.h
 include/mysqld_error.h
 include/sql_state.h
 support-files/ndb-config-2-node.ini
+client/decimal.c
+client/my_decimal.cc
+client/my_decimal.h
+libmysqld/my_decimal.cc

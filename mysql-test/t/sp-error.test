@@ -163,18 +163,9 @@ end loop bar|
 create procedure foo()
   return 42|
 
-# Doesn't allow queries in FUNCTIONs (for now :-( )
---error 1314
-create function foo() returns int
-begin
-  declare x int;
-  select max(c) into x from test.t;
-  return x;
-end|
-
 # Wrong number of arguments
 create procedure p(x int)
-  insert into test.t1 values (x)|
+  set @x = x|
 create function f(x int) returns int
   return x+42|
 
@@ -440,14 +431,6 @@ drop procedure bug1965|
 select 1 into a|
 
 #
-# BUG#1654
-#
---error 1314
-create function bug1654()
-  returns int
-return (select sum(t.data) from test.t2 t)|
-
-#
 # BUG#1653
 #
 --disable_warnings
@@ -475,7 +458,7 @@ drop table t3|
 create procedure bug2259()
 begin
   declare v1 int;
-  declare c1 cursor for select s1 from t10;
+  declare c1 cursor for select s1 from t1;
 
   fetch c1 into v1;
 end|
@@ -628,8 +611,10 @@ create procedure bug3294()
 begin
   declare continue handler for sqlexception drop table t5;
   drop table t5;
+  drop table t5;
 end|
 
+create table t5 (x int)|
 --error 1051
 call bug3294()|
 drop procedure bug3294|

@@ -120,15 +120,8 @@ ERROR 42000: End-label bar without match
 create procedure foo()
 return 42|
 ERROR 42000: RETURN is only allowed in a FUNCTION
-create function foo() returns int
-begin
-declare x int;
-select max(c) into x from test.t;
-return x;
-end|
-ERROR 0A000: Statements like SELECT, INSERT, UPDATE (and others) are not allowed in a FUNCTION
 create procedure p(x int)
-insert into test.t1 values (x)|
+set @x = x|
 create function f(x int) returns int
 return x+42|
 call p()|
@@ -336,10 +329,6 @@ ERROR 42S22: Unknown column 'valname' in 'order clause'
 drop procedure bug1965|
 select 1 into a|
 ERROR 42000: Undeclared variable: a
-create function bug1654()
-returns int
-return (select sum(t.data) from test.t2 t)|
-ERROR 0A000: Statements like SELECT, INSERT, UPDATE (and others) are not allowed in a FUNCTION
 drop table if exists t3|
 create table t3 (column_1_0 int)|
 create procedure bug1653()
@@ -354,7 +343,7 @@ drop table t3|
 create procedure bug2259()
 begin
 declare v1 int;
-declare c1 cursor for select s1 from t10;
+declare c1 cursor for select s1 from t1;
 fetch c1 into v1;
 end|
 call bug2259()|
@@ -458,7 +447,9 @@ create procedure bug3294()
 begin
 declare continue handler for sqlexception drop table t5;
 drop table t5;
+drop table t5;
 end|
+create table t5 (x int)|
 call bug3294()|
 ERROR 42S02: Unknown table 't5'
 drop procedure bug3294|

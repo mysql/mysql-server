@@ -462,5 +462,5 @@ rout int(11) default '0'
 INSERT INTO t1 VALUES ('1',1,0);
 SELECT DISTINCT html,SUM(rout)/(SUM(rin)+1) as 'prod' FROM t1 GROUP BY rin;
 html	prod
-1	0.00
+1	0.00000
 drop table t1;

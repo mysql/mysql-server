@@ -368,8 +368,8 @@ show create table t1;
 drop table t1;
 #
 # What types and widths have variables?
-set @arg00= 8, @arg01= 8.8, @arg02= 'a string';
-create table t1 as select @arg00 as c1, @arg01 as c2, @arg02 as c3;
+set @arg00= 8, @arg01= 8.8, @arg02= 'a string', @arg03= 0.2e0;
+create table t1 as select @arg00 as c1, @arg01 as c2, @arg02 as c3, @arg03 as c4;
 show create table t1;
 drop table t1;
 
