@@ -33,12 +33,12 @@ t
 show binlog events;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	4	Format_desc	1	96	Server ver: VERSION, Binlog ver: 4
-master-bin.000001	96	Query	1	182	use `test`; create table t1 (t timestamp)
-master-bin.000001	182	Query	1	267	use `test`; create table t2 (t char(32))
-master-bin.000001	267	Query	1	352	use `test`; SET ONE_SHOT TIME_ZONE='UTC'
-master-bin.000001	352	Query	1	469	use `test`; insert into t1 values ('20040101000000'), ('20040611093902')
-master-bin.000001	469	Query	1	540	use `test`; delete from t1
-master-bin.000001	540	Query	1	657	use `test`; insert into t1 values ('20040101000000'), ('20040611093902')
+master-bin.000001	96	Query	1	189	use `test`; create table t1 (t timestamp)
+master-bin.000001	189	Query	1	281	use `test`; create table t2 (t char(32))
+master-bin.000001	281	Query	1	373	use `test`; SET ONE_SHOT TIME_ZONE='UTC'
+master-bin.000001	373	Query	1	497	use `test`; insert into t1 values ('20040101000000'), ('20040611093902')
+master-bin.000001	497	Query	1	575	use `test`; delete from t1
+master-bin.000001	575	Query	1	699	use `test`; insert into t1 values ('20040101000000'), ('20040611093902')
 set time_zone='MET';
 insert into t2 (select t from t1);
 select * from t1;

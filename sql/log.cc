@@ -64,14 +64,11 @@ static handlerton binlog_hton = {
   this function is mostly a placeholder.
   conceptually, binlog initialization (now mostly done in MYSQL_LOG::open)
   should be moved here.
-
-  for now, we fail if binlog is closed (mysql_bin_log.open() failed for some
-  reason) - it'll make mysqld to shutdown.
 */
 
 handlerton *binlog_init()
 {
-  return mysql_bin_log.is_open() : &binlog_hton : 0;
+  return &binlog_hton;
 }
 
 static int binlog_close_connection(THD *thd)
