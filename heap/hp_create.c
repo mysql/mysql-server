@@ -140,6 +140,7 @@ int heap_create(const char *name, uint keys, HP_KEYDEF *keydef,
     share->auto_key= create_info->auto_key;
     share->auto_key_type= create_info->auto_key_type;
     share->auto_increment= create_info->auto_increment;
+    /* Must be allocated separately for rename to work */
     if (!(share->name= my_strdup(name,MYF(0))))
     {
       my_free((gptr) share,MYF(0));
