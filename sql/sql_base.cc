@@ -412,7 +412,6 @@ void close_thread_tables(THD *thd, bool locked)
     DBUG_VOID_RETURN;				// LOCK TABLES in use
   }
 
-  TABLE *table,*next;
   bool found_old_table=0;
 
   if (thd->lock)

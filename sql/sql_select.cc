@@ -4859,7 +4859,7 @@ end_write(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	  DBUG_RETURN(1);			// Not a table_is_full error
 	table->uniques=0;			// To ensure rows are the same
       }
-      if (++join->send_records >= join->tmp_table_param.end_write_records &
+      if (++join->send_records >= join->tmp_table_param.end_write_records &&
 	  join->do_send_rows)
       {
 	if (!(join->select_options & OPTION_FOUND_ROWS))

@@ -211,9 +211,8 @@ bool select_union::send_eof()
 
 bool select_union::flush()
 {
-  int error,error2;
-  error=table->file->extra(HA_EXTRA_NO_CACHE);
-  if (error)
+  int error;
+  if ((error=table->file->extra(HA_EXTRA_NO_CACHE)))
   {
     table->file->print_error(error,MYF(0));
     ::send_error(&thd->net);

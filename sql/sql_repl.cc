@@ -51,7 +51,7 @@ static uint32* slave_list_key(SLAVE_INFO* si, uint* len,
 
 static void slave_info_free(void *s)
 {
-  my_free((byte*)s, MYF(MY_WME));
+  my_free((gptr) s, MYF(MY_WME));
 }
 
 void init_slave_list()
@@ -109,7 +109,6 @@ static int fake_rotate_event(NET* net, String* packet, char* log_file_name,
 
 int register_slave(THD* thd, uchar* packet, uint packet_length)
 {
-  uint len;
   SLAVE_INFO *si, *old_si;
   int res = 1;
   uchar* p = packet, *p_end = packet + packet_length;
@@ -138,7 +137,7 @@ int register_slave(THD* thd, uchar* packet, uint packet_length)
 
 err:
   if (si)
-    my_free((byte*)si, MYF(MY_WME));
+    my_free((gptr) si, MYF(MY_WME));
   return res;
 }
 
@@ -935,7 +934,7 @@ int translate_master(THD* thd, LEX_MASTER_INFO* mi, char* errmsg)
 {
   LOG_INFO linfo;
   char search_file_name[FN_REFLEN],last_log_name[FN_REFLEN];
-  IO_CACHE log, last_log;
+  IO_CACHE log;
   File file = -1, last_file = -1;
   pthread_mutex_t *log_lock;
   const char* errmsg_p;
@@ -1149,7 +1148,7 @@ int show_binlog_events(THD* thd)
     uint event_count, limit_start, limit_end;
     const char* log_file_name = lex_mi->log_file_name;
     Log_event* ev;
-    ulong pos = (ulong) lex_mi->pos;
+    my_off_t pos = lex_mi->pos;
 
     limit_start = thd->lex.select->offset_limit;
     limit_end = thd->lex.select->select_limit + limit_start;
@@ -1258,7 +1257,7 @@ int show_slave_hosts(THD* thd)
       net_store_data(packet, si->user);
       net_store_data(packet, si->password);
     }
-    net_store_data(packet, (uint)si->port);
+    net_store_data(packet, (uint32) si->port);
     if (my_net_write(net, (char*)packet->ptr(), packet->length()))
     {
       pthread_mutex_unlock(&LOCK_slave_list);
@@ -1466,7 +1465,6 @@ int load_master_data(THD* thd)
   {
     MYSQL_RES *db_res, **table_res, **table_res_end, **cur_table_res;
     uint num_dbs;
-    MYSQL_ROW row;
 
     if (mc_mysql_query(&mysql, "show databases", 0) ||
 	!(db_res = mc_mysql_store_result(&mysql)))
@@ -1476,7 +1474,7 @@ int load_master_data(THD* thd)
       goto err;
     }
 
-    if (!(num_dbs = mc_mysql_num_rows(db_res)))
+    if (!(num_dbs = (uint) mc_mysql_num_rows(db_res)))
       goto err;
     // in theory, the master could have no databases at all
     // and run with skip-grant
@@ -1511,7 +1509,6 @@ int load_master_data(THD* thd)
       // since we know how many rows we have, this can never be NULL
       MYSQL_ROW row = mc_mysql_fetch_row(db_res);
       char* db = row[0];
-      int drop_error;
 
       /*
 	Do not replicate databases excluded by rules
@@ -1615,15 +1612,15 @@ int log_loaded_block(IO_CACHE* file)
   lf_info->last_pos_in_file = file->pos_in_file;
   if (lf_info->wrote_create_file)
   {
-    Append_block_log_event a(lf_info->thd, file->buffer,block_len);
+    Append_block_log_event a(lf_info->thd, (char*) file->buffer, block_len);
     mysql_bin_log.write(&a);
   }
   else
   {
     Create_file_log_event c(lf_info->thd,lf_info->ex,lf_info->db,
 			    lf_info->table_name, *lf_info->fields,
-			    lf_info->handle_dup, file->buffer,
-			     block_len);
+			    lf_info->handle_dup, (char*) file->buffer,
+			    block_len);
     mysql_bin_log.write(&c);
     lf_info->wrote_create_file = 1;
   }

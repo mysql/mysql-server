@@ -795,7 +795,7 @@ static int simple_raw_key_cmp(void* arg, byte* key1, byte* key2)
 
 static int simple_str_key_cmp(void* arg, byte* key1, byte* key2)
 {
-  return my_sortcmp(key1, key2, *(uint*) arg);
+  return my_sortcmp((char*) key1, (char*) key2, *(uint*) arg);
 }
 
 /*
@@ -832,7 +832,7 @@ int composite_key_cmp(void* arg, byte* key1, byte* key2)
 int dump_leaf(byte* key, uint32 count __attribute__((unused)),
 		     Item_sum_count_distinct* item)
 {
-  char* buf = item->table->record[0];
+  byte* buf = item->table->record[0];
   int error;
   /*
     The first item->rec_offset bytes are taken care of with

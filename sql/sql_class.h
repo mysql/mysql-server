@@ -606,7 +606,7 @@ class Unique :public Sql_alloc
   ulong max_elements, max_in_memory_size;
   IO_CACHE file;
   TREE tree;
-  char *record_pointers;
+  byte *record_pointers;
   bool flush();
 
 public:
