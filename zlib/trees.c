@@ -931,7 +931,7 @@ void _tr_flush_block(s, buf, stored_len, eof)
     if (s->level > 0) {
 
          /* Check if the file is ascii or binary */
-        if (s->data_type == Z_UNKNOWN) set_data_type(s);
+        if (s->strm->data_type == Z_UNKNOWN) set_data_type(s);
 
         /* Construct the literal and distance trees */
         build_tree(s, (tree_desc *)(&(s->l_desc)));
@@ -1131,7 +1131,7 @@ local void set_data_type(s)
     while (n < 7)        bin_freq += s->dyn_ltree[n++].Freq;
     while (n < 128)    ascii_freq += s->dyn_ltree[n++].Freq;
     while (n < LITERALS) bin_freq += s->dyn_ltree[n++].Freq;
-    s->data_type = (Byte)(bin_freq > (ascii_freq >> 2) ? Z_BINARY : Z_ASCII);
+    s->strm->data_type = bin_freq > (ascii_freq >> 2) ? Z_BINARY : Z_ASCII;
 }
 
 /* ===========================================================================
