@@ -2614,7 +2614,7 @@ executed only if the MySQL version is equal to or newer than the used
 version number:
 
 @example
-CREATE /*!32302 TEMPORARY */ TABLE (a int);
+CREATE /*!32302 TEMPORARY */ TABLE t (a int);
 @end example
 
 This means that if you have Version 3.23.02 or newer, MySQL
