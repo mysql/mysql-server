@@ -491,6 +491,11 @@ Item *create_func_as_text(Item *a)
   return new Item_func_as_text(a);
 }
 
+Item *create_func_as_wkb(Item *a)
+{
+  return new Item_func_as_wkb(a);
+}
+
 Item *create_func_srid(Item *a)
 {
   return new Item_func_srid(a);
