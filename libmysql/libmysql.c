@@ -3556,28 +3556,8 @@ static void fetch_datetime_with_conversion(MYSQL_BIND *param,
       Convert time value  to string and delegate the rest to
       fetch_string_with_conversion:
     */
-    char buff[25];
-    uint length;
-
-    switch (time->time_type) {
-    case MYSQL_TIMESTAMP_DATE:
-      length= my_sprintf(buff,(buff, "%04d-%02d-%02d",
-                               time->year, time->month, time->day));
-      break;
-    case MYSQL_TIMESTAMP_DATETIME:
-      length= my_sprintf(buff,(buff, "%04d-%02d-%02d %02d:%02d:%02d",
-                               time->year, time->month, time->day,
-                               time->hour, time->minute, time->second));
-      break;
-    case MYSQL_TIMESTAMP_TIME:
-      length= my_sprintf(buff, (buff, "%02d:%02d:%02d",
-                                time->hour, time->minute, time->second));
-      break;
-    default:
-      length= 0;
-      buff[0]='\0';
-      break;
-    }
+    char buff[MAX_DATE_STRING_REP_LENGTH];
+    uint length= my_TIME_to_str(time, buff);
     /* Resort to string conversion */
     fetch_string_with_conversion(param, (char *)buff, length);
     break;

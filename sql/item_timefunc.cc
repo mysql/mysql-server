@@ -1292,14 +1292,13 @@ String *Item_func_curtime::val_str(String *str)
 void Item_func_curtime::fix_length_and_dec()
 {
   TIME ltime;
-  String tmp((char*) buff,sizeof(buff), &my_charset_bin);
 
   decimals=0;
   collation.set(&my_charset_bin);
   store_now_in_TIME(&ltime);
   value= TIME_to_ulonglong_time(&ltime);
-  make_time((DATE_TIME_FORMAT *) 0, &ltime, &tmp);
-  max_length= buff_length= tmp.length();
+  buff_length= (uint) my_time_to_str(&ltime, buff);
+  max_length= buff_length;
 }
 
 
@@ -1341,16 +1340,14 @@ String *Item_func_now::val_str(String *str)
 
 void Item_func_now::fix_length_and_dec()
 {
-  String tmp((char*) buff,sizeof(buff),&my_charset_bin);
-
   decimals=0;
   collation.set(&my_charset_bin);
 
   store_now_in_TIME(&ltime);
   value= (longlong) TIME_to_ulonglong_datetime(&ltime);
 
-  make_datetime((DATE_TIME_FORMAT *) 0, &ltime, &tmp);
-  max_length= buff_length= tmp.length();
+  buff_length= (uint) my_datetime_to_str(&ltime, buff);
+  max_length= buff_length;
 }
 
 
