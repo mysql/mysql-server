@@ -699,8 +699,8 @@ NdbOperation::load_const_u64(Uint32 RegDest, Uint64 Constant)
     setErrorCodeAbort(4229);
     return -1;
   }
-  tTemp1 = (Uint32)(Constant & 0xFFFFFFFF);
-  tTemp2 = (Uint32)(Constant >> 32);
+  tTemp1 = (Uint32)(Constant >> 32);
+  tTemp2 = (Uint32)(Constant & 0xFFFFFFFF);
 
   // 64 bit value
   if (insertATTRINFO( Interpreter::LoadConst64(RegDest)) == -1)
