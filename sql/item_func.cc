@@ -1071,6 +1071,7 @@ static const char separator=',';
 
 longlong Item_func_find_in_set::val_int()
 {
+  bool binary_cmp= args[0]->binary || args[1]->binary;
   if (enum_value)
   {
     ulonglong tmp=(ulonglong) args[1]->val_int();
@@ -1103,12 +1104,25 @@ longlong Item_func_find_in_set::val_int()
     do
     {
       const char *pos= f_pos;
-      while (pos != f_end)
+      if (binary_cmp)
       {
-	if (toupper(*str) != toupper(*pos))
-	  goto not_found;
-	str++;
-	pos++;
+        while (pos != f_end)
+        {
+          if (*str != *pos)
+            goto not_found;
+          str++;
+          pos++;
+        }
+      }
+      else
+      {
+        while (pos != f_end)
+        {
+          if (toupper(*str) != toupper(*pos))
+            goto not_found;
+          str++;
+          pos++;
+        }
       }
       if (str == real_end || str[0] == separator)
 	return (longlong) position;
