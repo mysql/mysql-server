@@ -1,0 +1,11 @@
+use test;
+drop table if exists emails;
+drop table if exists domain;
+drop table if exists domain;
+create table emails (email varchar(50));
+insert into emails values ('sasha@mysql.com'),('monty@mysql.com'),
+('foo@hotmail.com'),('foo@aol.com'),('bar@aol.com');
+create table domain(id int not null auto_increment primary key,
+ domain varchar(50), unique(domain));
+insert into domain (domain) select distinct substring(email, locate('@', email)+1) from emails;
+@r/3.23/ins000001.result select * from domain;
