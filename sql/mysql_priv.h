@@ -316,7 +316,7 @@ int mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &list,COND *conds,
                  List<Item_func_match> &ftfuncs,
 		 ORDER *order, ORDER *group,Item *having,ORDER *proc_param,
 		 ulong select_type,select_result *result);
-int mysql_union(THD *thd,LEX *lex);
+int mysql_union(THD *thd,LEX *lex,select_result  *create_insert=(select_result *)NULL);
 Field *create_tmp_field(TABLE *table,Item *item, Item::Type type,
 			Item_result_field ***copy_func, Field **from_field,
 			bool group,bool modify_item);

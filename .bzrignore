@@ -179,6 +179,8 @@ include/my_config.h
 include/my_global.h
 include/mysql_version.h
 include/widec.h
+innobase/conftest.s1
+innobase/conftest.subs
 innobase/ib_config.h
 innobase/ib_config.h.in
 isam/isamchk
@@ -366,6 +368,7 @@ sql/share/gmon.out
 sql/share/mysql
 sql/share/norwegian-ny/errmsg.sys
 sql/share/norwegian/errmsg.sys
+sql/sql_select.cc.orig
 sql/sql_yacc.cc
 sql/sql_yacc.h
 stamp-h

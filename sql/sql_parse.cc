@@ -48,7 +48,8 @@ static void remove_escape(char *name);
 static void refresh_status(void);
 static bool append_file_to_dir(char **filename_ptr, char *table_name);
 static int create_total_list_and_check_acl(THD *thd, LEX *lex,
-					   TABLE_LIST **result);
+					   TABLE_LIST **result, bool skip_first = false);
+static int handle_create_select(THD *thd, LEX *lex, select_result *c_i);
 
 const char *any_db="*any*";	// Special symbol for check_access
 
@@ -1068,7 +1069,7 @@ mysql_execute_command(void)
   int	res=0;
   THD	*thd=current_thd;
   LEX	*lex= &thd->lex;
-  TABLE_LIST *tables=(TABLE_LIST*) lex->select->table_list.first;
+  TABLE_LIST *tables=(TABLE_LIST*) lex->select_lex.table_list.first;
   SELECT_LEX *select_lex = lex->select;
   DBUG_ENTER("mysql_execute_command");
 
@@ -1322,32 +1323,15 @@ mysql_execute_command(void)
       thd->select_limit=select_lex->select_limit+select_lex->offset_limit;
       if (thd->select_limit < select_lex->select_limit)
 	thd->select_limit= HA_POS_ERROR;		// No limit
-
-      if (!(res=open_and_lock_tables(thd,tables->next)))
-      {
-	if ((result=new select_create(tables->db ? tables->db : thd->db,
+			if ((result=new select_create(tables->db ? tables->db : thd->db,
 				      tables->real_name, &lex->create_info,
 				      lex->create_list,
 				      lex->key_list,
 				      select_lex->item_list,lex->duplicates)))
-	{
-	  res=mysql_select(thd,tables->next,select_lex->item_list,
-			   select_lex->where,
-                           select_lex->ftfunc_list,
-			   (ORDER*) select_lex->order_list.first,
-			   (ORDER*) select_lex->group_list.first,
-			   select_lex->having,
-			   (ORDER*) lex->proc_list.first,
-			   select_lex->options | thd->options,
-			   result);
-	  if (res)
-	    result->abort();
-	  delete result;
-	}
-	else
-	  res= -1;
-      }
-    }
+				res=handle_create_select(thd,lex,result);
+			else
+				res= -1;
+		}
     else // regular create
     {
       res = mysql_create_table(thd,tables->db ? tables->db : thd->db,
@@ -1612,36 +1596,76 @@ mysql_execute_command(void)
     if (thd->select_limit < select_lex->select_limit)
       thd->select_limit= HA_POS_ERROR;		// No limit
 
-    if (check_dup(thd,tables->db,tables->real_name,tables->next))
-    {
-      net_printf(&thd->net,ER_INSERT_TABLE_USED,tables->real_name);
-      DBUG_VOID_RETURN;
-    }
-    tables->lock_type=TL_WRITE;				// update first table
-    {
-      TABLE_LIST *table;
-      for (table = tables->next ; table ; table=table->next)
-	table->lock_type= lex->lock_option;
-    }
-    if (!(res=open_and_lock_tables(thd,tables)))
-    {
-      if ((result=new select_insert(tables->table,&lex->field_list,
-				    lex->sql_command == SQLCOM_REPLACE_SELECT ?
-				    DUP_REPLACE : DUP_IGNORE)))
-      {
-	res=mysql_select(thd,tables->next,select_lex->item_list,
-			 select_lex->where,
-                         select_lex->ftfunc_list,
-			 (ORDER*) select_lex->order_list.first,
-			 (ORDER*) select_lex->group_list.first,
-			 select_lex->having,
-			 (ORDER*) lex->proc_list.first,
-			 select_lex->options | thd->options,
-			 result);
-	delete result;
-      }
-      else
-	res= -1;
+		if (lex->select_lex.next)
+		{
+			TABLE_LIST *total;
+			if ((res = create_total_list_and_check_acl(thd,lex,&total)))
+				goto error;
+			if (check_dup(thd,total->db,total->real_name,total->next))
+			{
+				net_printf(&thd->net,ER_INSERT_TABLE_USED,total->real_name);
+				DBUG_VOID_RETURN;
+			}
+			total->lock_type=TL_WRITE;				// update first table
+			{
+				TABLE_LIST *table;
+				for (table = total->next ; table ; table=table->next)
+					table->lock_type= lex->lock_option;
+			}
+			if (!(res=open_and_lock_tables(thd, total)))
+			{
+				if ((result=new select_insert(total->table,&lex->field_list,
+																			lex->sql_command == SQLCOM_REPLACE_SELECT ?
+																			DUP_REPLACE : DUP_IGNORE)))
+				{
+
+					for (SELECT_LEX *sl=&lex->select_lex; sl; sl=sl->next)
+					{
+						TABLE_LIST *help=(TABLE_LIST *)sl->table_list.first;
+						if (sl==&lex->select_lex) help=help->next;
+						for (TABLE_LIST *cursor= help;
+								 cursor;
+								 cursor=cursor->next)
+							cursor->table= ((TABLE_LIST*) cursor->table)->table;
+					}
+					res=mysql_union(thd,lex,result);
+				}
+				close_thread_tables(thd);
+			}
+		}
+		else
+		{
+			if (check_dup(thd,tables->db,tables->real_name,tables->next))
+			{
+				net_printf(&thd->net,ER_INSERT_TABLE_USED,tables->real_name);
+				DBUG_VOID_RETURN;
+			}
+			tables->lock_type=TL_WRITE;				// update first table
+			{
+				TABLE_LIST *table;
+				for (table = tables->next ; table ; table=table->next)
+					table->lock_type= lex->lock_option;
+			}
+			if (!(res=open_and_lock_tables(thd,tables)))
+			{
+				if ((result=new select_insert(tables->table,&lex->field_list,
+																			lex->sql_command == SQLCOM_REPLACE_SELECT ?
+																			DUP_REPLACE : DUP_IGNORE)))
+				{
+					res=mysql_select(thd,tables->next,select_lex->item_list,
+													 select_lex->where,
+													 select_lex->ftfunc_list,
+													 (ORDER*) select_lex->order_list.first,
+													 (ORDER*) select_lex->group_list.first,
+													 select_lex->having,
+													 (ORDER*) lex->proc_list.first,
+													 select_lex->options | thd->options,
+													 result);
+					delete result;
+				}
+				else
+					res= -1;
+			}
     }
 #ifdef DELETE_ITEMS
     delete select_lex->having;
@@ -2434,6 +2458,7 @@ mysql_init_query(THD *thd)
   thd->fatal_error=0;				// Safety
   thd->last_insert_id_used=thd->query_start_used=thd->insert_id_used=0;
   thd->sent_row_count=thd->examined_row_count=0;
+	thd->lex.sql_command=SQLCOM_NONE;
   DBUG_VOID_RETURN;
 }
 
@@ -2910,14 +2935,14 @@ TABLE_LIST *add_table_to_list(Table_ident *table, LEX_STRING *alias,
 */
 
 static int create_total_list_and_check_acl(THD *thd, LEX *lex,
-					   TABLE_LIST **result)
+					   TABLE_LIST **result, bool skip_first = false)
 {
   SELECT_LEX *sl;
   TABLE_LIST **new_table_list= result, *aux;
   const char *current_db=thd->db ? thd->db : ""; // QQ;  To be removed
   
   *new_table_list=0;				// end result list
-  for (sl=&lex->select_lex; sl; sl=sl->next)
+  for (sl= &lex->select_lex; sl; sl=sl->next)
   {
     if ((lex->sql_command == SQLCOM_UNION_SELECT) &&
 	sl->order_list.first && sl->next)
@@ -2926,6 +2951,7 @@ static int create_total_list_and_check_acl(THD *thd, LEX *lex,
       return -1;
     }
     aux= (TABLE_LIST*) sl->table_list.first;
+		if (skip_first && sl == &lex->select_lex) aux=aux->next;
     if (aux)
     {
       TABLE_LIST *next;
@@ -2961,6 +2987,51 @@ static int create_total_list_and_check_acl(THD *thd, LEX *lex,
   return 0;
 }
 
+static int handle_create_select(THD *thd, LEX *lex, select_result *c_i)
+{
+	int res;
+	if (lex->select_lex.next)
+	{
+		TABLE_LIST *total;
+		if ((res = create_total_list_and_check_acl(thd,lex,&total,true)))
+			return res;
+    if (!(res=open_and_lock_tables(thd, total)))
+    {
+      for (SELECT_LEX *sl=&lex->select_lex; sl; sl=sl->next)
+      {
+				TABLE_LIST *help=(TABLE_LIST *)sl->table_list.first;
+				if (sl==&lex->select_lex) help=help->next;
+				for (TABLE_LIST *cursor= help;
+						 cursor;
+						 cursor=cursor->next)
+					cursor->table= ((TABLE_LIST*) cursor->table)->table;
+      }
+      res=mysql_union(thd,lex,c_i);
+    }
+    close_thread_tables(thd);
+	}
+	else
+	{
+		TABLE_LIST *tables=(TABLE_LIST*) lex->select_lex.table_list.first;
+		SELECT_LEX *select_lex=&lex->select_lex;
+		if (!(res=open_and_lock_tables(thd,tables->next)))
+		{
+			res=mysql_select(thd,tables->next,select_lex->item_list,
+											 select_lex->where,
+											 select_lex->ftfunc_list,
+											 (ORDER*) select_lex->order_list.first,
+											 (ORDER*) select_lex->group_list.first,
+											 select_lex->having,
+											 (ORDER*) lex->proc_list.first,
+											 select_lex->options | thd->options,
+											 c_i);
+		}
+	}
+	if (res)
+		c_i->abort();
+	delete c_i;
+	return res;
+}
 
 void add_join_on(TABLE_LIST *b,Item *expr)
 {
