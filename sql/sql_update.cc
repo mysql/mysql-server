@@ -432,7 +432,7 @@ multi_update::prepare(List<Item> &values)
     }
     if (!table_ref)
     {
-      error = 1; // A proper error message is due here 
+      net_printf(&thd->net, ER_NOT_SUPPORTED_YET, "JOIN SYNTAX WITH MULTI-TABLE UPDATES");
       DBUG_RETURN(1);
     }
     else
