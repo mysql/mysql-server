@@ -14,13 +14,14 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include "Ndb.hpp"
-#include "NdbDictionaryImpl.hpp"
-#include "NdbConnection.hpp"
-#include "NdbOperation.hpp"
-#include "NdbIndexOperation.hpp"
-#include "NdbRecAttr.hpp"
-#include "NdbBlob.hpp"
+#include <Ndb.hpp>
+#include <NdbDictionaryImpl.hpp>
+#include <NdbConnection.hpp>
+#include <NdbOperation.hpp>
+#include <NdbIndexOperation.hpp>
+#include <NdbRecAttr.hpp>
+#include <NdbBlob.hpp>
+#include <NdbScanOperation.hpp>
 
 #ifdef NDB_BLOB_DEBUG
 #define DBG(x) \
@@ -301,7 +302,7 @@ NdbBlob::getTableKeyValue(NdbOperation* anOp)
     assert(c != NULL);
     if (c->m_pk) {
       unsigned len = c->m_attrSize * c->m_arraySize;
-      if (anOp->getValue(c, (char*)&data[pos]) == NULL) {
+      if (anOp->getValue_impl(c, (char*)&data[pos]) == NULL) {
         setErrorCode(anOp);
         return -1;
       }
@@ -382,7 +383,7 @@ int
 NdbBlob::getHeadInlineValue(NdbOperation* anOp)
 {
   DBG("getHeadInlineValue");
-  theHeadInlineRecAttr = anOp->getValue(theColumn, theHeadInlineBuf.data);
+  theHeadInlineRecAttr = anOp->getValue_impl(theColumn, theHeadInlineBuf.data);
   if (theHeadInlineRecAttr == NULL) {
     setErrorCode(anOp);
     return -1;
@@ -1250,7 +1251,7 @@ NdbBlob::atNextResult()
   // get primary key
   { Uint32* data = (Uint32*)theKeyBuf.data;
     unsigned size = theTable->m_sizeOfKeysInWords;
-    if (theNdbOp->getKeyFromKEYINFO20(data, size) == -1) {
+    if (((NdbScanOperation*)theNdbOp)->getKeyFromKEYINFO20(data, size) == -1) {
       setErrorCode(ErrUsage);
       return -1;
     }

@@ -29,6 +29,7 @@
 #include <Ndb.hpp>
 #include <NdbConnection.hpp>
 #include <NdbResultSet.hpp>
+#include <NdbBlob.hpp>
 
 NdbResultSet::NdbResultSet(NdbScanOperation *owner)
 : m_operation(owner)
@@ -45,7 +46,18 @@ void  NdbResultSet::init()
 
 int NdbResultSet::nextResult(bool fetchAllowed)
 {
-  return m_operation->nextResult(fetchAllowed);
+  int res;
+  if ((res = m_operation->nextResult(fetchAllowed)) == 0) {
+    // handle blobs
+    NdbBlob* tBlob = m_operation->theBlobList;
+    while (tBlob != 0) {
+      if (tBlob->atNextResult() == -1)
+        return -1;
+      tBlob = tBlob->theNext;
+    }
+    return 0;
+  }
+  return res;
 }
 
 void NdbResultSet::close()

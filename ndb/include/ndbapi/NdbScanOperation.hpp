@@ -42,7 +42,7 @@ class NdbScanOperation : public NdbOperation {
   friend class NdbConnection;
   friend class NdbResultSet;
   friend class NdbOperation;
-
+  friend class NdbBlob;
 public:
   /**
    * Type of cursor
@@ -92,13 +92,12 @@ public:
     return readTuples(LM_Exclusive, 0, parallell);
   }
   
-protected:
-  CursorType m_cursor_type;
-
   NdbBlob* getBlobHandle(const char* anAttrName);
   NdbBlob* getBlobHandle(Uint32 anAttrId);
 
-private:
+protected:
+  CursorType m_cursor_type;
+
   NdbScanOperation(Ndb* aNdb);
   ~NdbScanOperation();
 
@@ -154,8 +153,9 @@ private:
   void receiver_completed(NdbReceiver*);
   void execCLOSE_SCAN_REP();
 
+  int getKeyFromKEYINFO20(Uint32* data, unsigned size);
   NdbOperation*	takeOverScanOp(OperationType opType, NdbConnection*);
-
+  
   Uint32 m_ordered;
 };
 

@@ -584,13 +584,14 @@ verifyBlobTable(const Bcol& b, const Bval& v, Uint32 pk1, bool exists)
   NdbRecAttr* ra_pk;
   NdbRecAttr* ra_part;
   NdbRecAttr* ra_data;
+  NdbResultSet* rs;
   CHK((g_con = g_ndb->startTransaction()) != 0);
-  CHK((g_opr = g_con->getNdbOperation(b.m_btname)) != 0);
-  CHK(g_opr->openScanRead() == 0);
-  CHK((ra_pk = g_opr->getValue("PK")) != 0);
-  CHK((ra_part = g_opr->getValue("PART")) != 0);
-  CHK((ra_data = g_opr->getValue("DATA")) != 0);
-  CHK(g_con->executeScan() == 0);
+  CHK((g_ops = g_con->getNdbScanOperation(b.m_btname)) != 0);
+  CHK((rs = g_ops->readTuples()) != 0);
+  CHK((ra_pk = g_ops->getValue("PK")) != 0);
+  CHK((ra_part = g_ops->getValue("PART")) != 0);
+  CHK((ra_data = g_ops->getValue("DATA")) != 0);
+  CHK(g_con->execute(NoCommit) == 0);
   unsigned partcount;
   if (! exists || v.m_len <= b.m_inline)
     partcount = 0;
@@ -600,7 +601,7 @@ verifyBlobTable(const Bcol& b, const Bval& v, Uint32 pk1, bool exists)
   memset(seen, 0, partcount);
   while (1) {
     int ret;
-    CHK((ret = g_con->nextScanResult()) == 0 || ret == 1);
+    CHK((ret = rs->nextResult()) == 0 || ret == 1);
     if (ret == 1)
       break;
     if (pk1 != ra_pk->u_32_value())
@@ -620,7 +621,7 @@ verifyBlobTable(const Bcol& b, const Bval& v, Uint32 pk1, bool exists)
   for (unsigned i = 0; i < partcount; i++)
     CHK(seen[i] == 1);
   g_ndb->closeTransaction(g_con);
-  g_opr = 0;
+  g_ops = 0;
   g_con = 0;
   return 0;
 }
@@ -829,9 +830,9 @@ readScan(bool rw, bool idx)
   if (! idx) {
     CHK((g_ops = g_con->getNdbScanOperation(g_opt.m_tname)) != 0);
   } else {
-    CHK((g_ops = g_con->getNdbScanOperation(g_opt.m_x2name, g_opt.m_tname)) != 0);
+    CHK((g_ops = g_con->getNdbIndexScanOperation(g_opt.m_x2name, g_opt.m_tname)) != 0);
   }
-  CHK((rs = g_ops->readTuples(240, NdbScanOperation::LM_Exclusive)) != 0);
+  CHK((rs = g_ops->readTuples(NdbScanOperation::LM_Exclusive)) != 0);
   CHK(g_ops->getValue("PK1", (char*)&tup.m_pk1) != 0);
   if (g_opt.m_pk2len != 0)
     CHK(g_ops->getValue("PK2", tup.m_pk2) != 0);
@@ -921,9 +922,9 @@ deleteScan(bool idx)
   if (! idx) {
     CHK((g_ops = g_con->getNdbScanOperation(g_opt.m_tname)) != 0);
   } else {
-    CHK((g_ops = g_con->getNdbScanOperation(g_opt.m_x2name, g_opt.m_tname)) != 0);
+    CHK((g_ops = g_con->getNdbIndexScanOperation(g_opt.m_x2name, g_opt.m_tname)) != 0);
   }
-  CHK((rs = g_ops->readTuples(240, NdbScanOperation::LM_Exclusive)) != 0);
+  CHK((rs = g_ops->readTuples(NdbScanOperation::LM_Exclusive)) != 0);
   CHK(g_ops->getValue("PK1", (char*)&tup.m_pk1) != 0);
   if (g_opt.m_pk2len != 0)
     CHK(g_ops->getValue("PK2", tup.m_pk2) != 0);
@@ -1131,7 +1132,7 @@ NDB_COMMAND(testOdbcDriver, "testBlobs", "testBlobs", "testBlobs", 65535)
     if (strcmp(arg, "-dbgall") == 0) {
       g_opt.m_dbg = true;
       g_opt.m_dbgall = true;
-      putenv("NDB_BLOB_DEBUG=1");
+      putenv(strdup("NDB_BLOB_DEBUG=1"));
       continue;
     }
     if (strcmp(arg, "-full") == 0) {

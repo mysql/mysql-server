@@ -100,9 +100,11 @@ NdbReceiver::do_get_value(NdbReceiver * org, Uint32 rows, Uint32 key_size){
     key.m_attrSize = 4;
     key.m_nullable = true; // So that receive works w.r.t KEYINFO20
   }
-
+  m_key_info = key_size;
+  
   for(Uint32 i = 0; i<rows; i++){
     NdbRecAttr * prev = theCurrentRecAttr;
+    assert(prev == 0 || i > 0);
     
     // Put key-recAttr fir on each row
     if(key_size && !getValue(&key, (char*)0)){
@@ -112,7 +114,7 @@ NdbReceiver::do_get_value(NdbReceiver * org, Uint32 rows, Uint32 key_size){
     
     NdbRecAttr* tRecAttr = org->theFirstRecAttr;
     while(tRecAttr != 0){
-      if(getValue(&NdbColumnImpl::getImpl(*tRecAttr->m_column), (char*)0))
+      if(getValue(&NdbColumnImpl::getImpl(*tRecAttr->m_column), (char*)0) != 0)
 	tRecAttr = tRecAttr->next();
       else
 	break;

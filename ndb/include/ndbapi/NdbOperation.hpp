@@ -763,10 +763,8 @@ protected:
  *	These are support methods only used locally in this class.
 ******************************************************************************/
 
-  virtual int equal_impl(const NdbColumnImpl* anAttrObject, 
-                         const char* aValue, 
-                         Uint32 len);
-  NdbRecAttr* getValue_impl(const NdbColumnImpl* anAttrObject, char* aValue = 0);
+  virtual int equal_impl(const NdbColumnImpl*,const char* aValue, Uint32 len);
+  virtual NdbRecAttr* getValue_impl(const NdbColumnImpl*, char* aValue = 0);
   int setValue(const NdbColumnImpl* anAttrObject, const char* aValue, Uint32 len);
   NdbBlob* getBlobHandle(NdbConnection* aCon, const NdbColumnImpl* anAttrObject);
   int incValue(const NdbColumnImpl* anAttrObject, Uint32 aValue);
@@ -809,7 +807,7 @@ protected:
 
   // get table or index key from prepared signals
   int getKeyFromTCREQ(Uint32* data, unsigned size);
-  int getKeyFromKEYINFO20(Uint32* data, unsigned size);
+
 /******************************************************************************
  * These are the private variables that are defined in the operation objects.
  *****************************************************************************/
