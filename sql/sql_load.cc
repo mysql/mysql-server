@@ -379,7 +379,7 @@ read_fixed_length(THD *thd,COPY_INFO &info,TABLE *table,List<Item> &fields,
   {
     if (thd->killed)
     {
-      my_error(thd->killed,MYF(0));
+      thd->send_kill_message();
       DBUG_RETURN(1);
     }
     it.rewind();
@@ -453,7 +453,7 @@ read_sep_field(THD *thd,COPY_INFO &info,TABLE *table,
   {
     if (thd->killed)
     {
-      my_error(thd->killed,MYF(0));
+      thd->send_kill_message();
       DBUG_RETURN(1);
     }
     while ((sql_field=(Item_field*) it++))

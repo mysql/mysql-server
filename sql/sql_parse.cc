@@ -1658,7 +1658,7 @@ mysql_execute_command(THD *thd)
 						  cursor)))
 	{
 	  if (res < 0 || thd->net.report_error)
-	    send_error(thd,thd->killed);
+	    send_error(thd,thd->killed_errno());
 	  DBUG_RETURN(res);
 	}
       }
@@ -3141,7 +3141,7 @@ mysql_execute_command(THD *thd)
   // We end up here if res == 0 and send_ok() has been done,
   // or res != 0 and no send_error() has yet been done.
   if (res < 0)
-    send_error(thd,thd->killed);
+    send_error(thd,thd->killed_errno());
   DBUG_RETURN(res);
 
 error:
