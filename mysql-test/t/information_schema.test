@@ -218,7 +218,8 @@ call px5()//
 call px5()//
 delimiter ;//
 
-
-
-
+create table t1 (a int not null auto_increment,b int, primary key (a));
+insert into t1 values (1,1),(NULL,3),(NULL,4);
+select AUTO_INCREMENT from information_schema.tables where table_name = 't1';
+drop table t1;
  
