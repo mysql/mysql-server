@@ -174,7 +174,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
   for (table=tables ; table ; table=table->next)
   {
     char *db=table->db ? table->db : thd->db;
-    mysql_ha_closeall(thd, table, 1);
+    mysql_ha_closeall(thd, table);
     if (!close_temporary_table(thd, db, table->real_name))
     {
       tmp_table_deleted=1;

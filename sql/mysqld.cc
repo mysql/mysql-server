@@ -760,7 +760,7 @@ void kill_mysql(void)
 
 #if defined(OS2) || defined(__NETWARE__)
 extern "C" void kill_server(int sig_ptr)
-#define RETURN_FROM_KILL_SERVER DBUG_RETURN
+#define RETURN_FROM_KILL_SERVER DBUG_VOID_RETURN
 #elif !defined(__WIN__)
 static void *kill_server(void *sig_ptr)
 #define RETURN_FROM_KILL_SERVER DBUG_RETURN(0)
@@ -777,9 +777,6 @@ static void __cdecl kill_server(int sig_ptr)
     RETURN_FROM_KILL_SERVER;
   kill_in_progress=TRUE;
   abort_loop=1;					// This should be set
-#ifdef __NETWARE__
-  ActivateScreen(getscreenhandle());		// Show the screen going down
-#endif
   signal(sig,SIG_IGN);
   if (sig == MYSQL_KILL_SIGNAL || sig == 0)
     sql_print_error(ER(ER_NORMAL_SHUTDOWN),my_progname);
@@ -1392,7 +1389,6 @@ static void check_data_home(const char *path)
 // down server event callback
 void mysql_down_server_cb(void *, void *)
 {
-  setscreenmode(SCR_AUTOCLOSE_ON_EXIT);   // auto close the screen
   kill_server(0);
 }
 
@@ -1448,26 +1444,6 @@ static void start_signal_handler(void)
 
 static void check_data_home(const char *path)
 {
-  struct volume_info vol;
-  char buff[PATH_MAX], *pos;
-
-  bzero((char*) &vol, sizeof(vol));    // clear struct
-
-  // find volume name
-  if ((pos= strchr(path, ':')))
-  {
-    uint length= (uint) (pos-path);
-    strmake(buff, path, min(length, sizeof(buff)-1));
-  }
-  else
-    strmov(buff, "SYS");     // assume SYS volume
-
-  netware_vol_info_from_name(&vol, buff);    // retrieve information
-  if ((vol.flags & VOL_NSS_PRESENT) == 0)
-  {
-    sql_print_error("Error: %s is not on an NSS volume!", path);
-    unireg_abort(-1);
-  }
 }
 
 #elif defined(__EMX__)
@@ -2004,11 +1980,6 @@ int main(int argc, char **argv)
   tzset();			// Set tzname
 
   start_time=time((time_t*) 0);
-
-#ifdef __NETWARE__
-  printf("MySQL Server %s, for %s (%s)\n", VERSION, SYSTEM_TYPE, MACHINE_TYPE);
-  fflush(stdout);
-#endif /* __NETWARE__ */
 
 #ifdef OS2
   {
@@ -2764,7 +2735,11 @@ inline void kill_broken_server()
       (!opt_disable_networking && ip_sock == INVALID_SOCKET))
   {
     select_thread_in_use = 0;
+#ifdef __NETWARE__
+    kill_server(MYSQL_KILL_SIGNAL); /* never returns */
+#else
     kill_server((void*)MYSQL_KILL_SIGNAL); /* never returns */
+#endif /* __NETWARE__ */
   }
 }
 #define MAYBE_BROKEN_SYSCALL kill_broken_server();
@@ -3181,8 +3156,7 @@ enum options {
   OPT_BDB_CACHE_SIZE,
   OPT_BDB_LOG_BUFFER_SIZE,
   OPT_BDB_MAX_LOCK,
-  OPT_ERROR_LOG_FILE,
-  OPT_AUTOCLOSE
+  OPT_ERROR_LOG_FILE
 };
 
 
@@ -3192,9 +3166,6 @@ struct my_option my_long_options[] =
 {
   {"ansi", 'a', "Use ANSI SQL syntax instead of MySQL syntax", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-#ifdef __NETWARE__
-  {"autoclose", OPT_AUTOCLOSE, "Auto close screen. (NetWare only)", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-#endif /* __NETWARE__ */
   {"basedir", 'b',
    "Path to installation directory. All paths are usually resolved relative to this.",
    (gptr*) &mysql_home_ptr, (gptr*) &mysql_home_ptr, 0, GET_STR, REQUIRED_ARG,
@@ -4526,11 +4497,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     if (opt_console)
       opt_error_log= 0;			// Force logs to stdout
     break;
-#ifdef __NETWARE__
-  case (int) OPT_AUTOCLOSE:
-    setscreenmode(SCR_AUTOCLOSE_ON_EXIT);
-    break;
-#endif
   case (int) OPT_FLUSH:
 #ifdef HAVE_ISAM
     nisam_flush=1;

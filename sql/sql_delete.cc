@@ -393,6 +393,7 @@ void multi_delete::send_error(uint errcode,const char *err)
 int multi_delete::do_deletes(bool from_send_error)
 {
   int local_error= 0, counter= 0;
+  DBUG_ENTER("do_deletes");
 
   if (from_send_error)
   {
@@ -418,7 +419,12 @@ int multi_delete::do_deletes(bool from_send_error)
     }
 
     READ_RECORD	info;
-    init_read_record(&info,thd,table,NULL,0,0);
+    init_read_record(&info,thd,table,NULL,0,1);
+    /*
+      Ignore any rows not found in reference tables as they may already have
+      been deleted by foreign key handling
+    */
+    info.ignore_not_found_rows= 1;
     while (!(local_error=info.read_record(&info)) && !thd->killed)
     {
       if ((local_error=table->file->delete_row(table->record[0])))
@@ -432,7 +438,7 @@ int multi_delete::do_deletes(bool from_send_error)
     if (local_error == -1)				// End of file
       local_error = 0;
   }
-  return local_error;
+  DBUG_RETURN(local_error);
 }
 
 

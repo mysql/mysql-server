@@ -430,7 +430,7 @@ struct tm *localtime_r(const time_t *clock, struct tm *res);
 #define pthread_kill(A,B) pthread_dummy(0)
 #undef	pthread_detach_this_thread
 #define pthread_detach_this_thread() { pthread_t tmp=pthread_self() ; pthread_detach(&tmp); }
-#else /* HAVE_PTHREAD_ATTR_CREATE && !HAVE_SIGWAIT */
+#elif !defined(__NETWARE__) /* HAVE_PTHREAD_ATTR_CREATE && !HAVE_SIGWAIT */
 #define HAVE_PTHREAD_KILL
 #endif
 
