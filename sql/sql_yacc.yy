@@ -1023,7 +1023,7 @@ create:
 	  bzero((char*) &lex->create_info,sizeof(lex->create_info));
 	  lex->create_info.options=$2 | $4;
 	  lex->create_info.db_type= (enum db_type) lex->thd->variables.table_type;
-	  lex->create_info.default_table_charset= thd->variables.collation_database;
+	  lex->create_info.default_table_charset= NULL;
 	  lex->name=0;
 	}
 	create2
@@ -1815,7 +1815,7 @@ alter:
 	  lex->select_lex.db=lex->name=0;
 	  bzero((char*) &lex->create_info,sizeof(lex->create_info));
 	  lex->create_info.db_type= DB_TYPE_DEFAULT;
-	  lex->create_info.default_table_charset= thd->variables.collation_database;
+	  lex->create_info.default_table_charset= NULL;
 	  lex->create_info.row_type= ROW_TYPE_NOT_USED;
 	  lex->alter_info.reset();          
 	  lex->alter_info.is_simple= 1;
