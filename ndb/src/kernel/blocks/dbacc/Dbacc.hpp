@@ -1192,6 +1192,7 @@ private:
 
   void reportMemoryUsage(Signal* signal, int gth);
   void lcp_write_op_to_undolog(Signal* signal);
+  void reenable_expand_after_redo_log_exection_complete(Signal*);
 
 
   // Initialisation
@@ -1561,11 +1562,9 @@ private:
   Uint32 cexcPrevforward;
   Uint32 clocalkey[32];
   Uint32 ckeys[2048];
-
+  
   Uint32 c_errorInsert3000_TableId;
   Uint32 cSrUndoRecords[5];
-
-  Uint32 c_no_fragment_allocated;
 };
 
 #endif
