@@ -1145,23 +1145,25 @@ dict_index_add_to_cache(
 	}
 
 	/* Check that the same column does not appear twice in the index.
-	   InnoDB assumes this in its algorithms, e.g., update of an index
-	   entry */
+	InnoDB assumes this in its algorithms, e.g., update of an index
+	entry */
 
 	for (i = 0; i < dict_index_get_n_fields(index); i++) {
 
-	  for (j = 0; j < i; j++) {
-	    if (dict_index_get_nth_field(index, j)->col
-		== dict_index_get_nth_field(index, i)->col) {
+		for (j = 0; j < i; j++) {
+			if (dict_index_get_nth_field(index, j)->col
+			    == dict_index_get_nth_field(index, i)->col) {
 
-	      fprintf(stderr,
-"InnoDB: Error: column %s appears twice in index %s of table %s\n"
+				ut_print_timestamp(stderr);
+
+				fprintf(stderr,
+"  InnoDB: Error: column %s appears twice in index %s of table %s\n"
 "InnoDB: This is not allowed in InnoDB.\n"
 "InnoDB: UPDATE can cause such an index to become corrupt in InnoDB.\n",
-		      dict_index_get_nth_field(index, i)->col->name,
-		      index->name, table->name);
-	    }
-	  }
+				dict_index_get_nth_field(index, i)->col->name,
+				index->name, table->name);
+			}
+		}
 	}
 	
 	/* Build the cache internal representation of the index,
@@ -2233,6 +2235,9 @@ dict_create_foreign_constraints(
 	ulint		error;
 	ulint		i;
 	ulint		j;
+	ibool		is_on_delete;
+	ulint		n_on_deletes;
+	ulint		n_on_updates;
 	dict_col_t*	columns[500];
 	char*		column_names[500];
 	ulint		column_name_lens[500];
@@ -2392,6 +2397,12 @@ col_loop2:
 		return(DB_CANNOT_ADD_CONSTRAINT);
 	}
 
+	n_on_deletes = 0;
+	n_on_updates = 0;
+	
+scan_on_conditions:
+	/* Loop here as long as we can find ON ... conditions */
+
 	ptr = dict_accept(ptr, "ON", &success);
 
 	if (!success) {
@@ -2402,23 +2413,58 @@ col_loop2:
 	ptr = dict_accept(ptr, "DELETE", &success);
 
 	if (!success) {
-		dict_foreign_free(foreign);
+		ptr = dict_accept(ptr, "UPDATE", &success);
+
+		if (!success) {
+
+			dict_foreign_free(foreign);
 		
-		return(DB_CANNOT_ADD_CONSTRAINT);
+			return(DB_CANNOT_ADD_CONSTRAINT);
+		}
+
+		is_on_delete = FALSE;
+		n_on_updates++;
+	} else {
+		is_on_delete = TRUE;
+		n_on_deletes++;
 	}
 
 	ptr = dict_accept(ptr, "RESTRICT", &success);
 
 	if (success) {
-		goto try_find_index;
+		goto scan_on_conditions;
 	}
 
 	ptr = dict_accept(ptr, "CASCADE", &success);
 
 	if (success) {
-		foreign->type = DICT_FOREIGN_ON_DELETE_CASCADE;
+		if (is_on_delete) {
+			foreign->type |= DICT_FOREIGN_ON_DELETE_CASCADE;
+		} else {
+			foreign->type |= DICT_FOREIGN_ON_UPDATE_CASCADE;
+		}
 
-		goto try_find_index;
+		goto scan_on_conditions;
+	}
+
+	ptr = dict_accept(ptr, "NO", &success);
+
+	if (success) {
+		ptr = dict_accept(ptr, "ACTION", &success);
+
+		if (!success) {
+			dict_foreign_free(foreign);
+		
+			return(DB_CANNOT_ADD_CONSTRAINT);
+		}
+
+		if (is_on_delete) {
+			foreign->type |= DICT_FOREIGN_ON_DELETE_NO_ACTION;
+		} else {
+			foreign->type |= DICT_FOREIGN_ON_UPDATE_NO_ACTION;
+		}
+
+		goto scan_on_conditions;
 	}
 
 	ptr = dict_accept(ptr, "SET", &success);
@@ -2451,20 +2497,23 @@ col_loop2:
 		}
 	}
 
-	foreign->type = DICT_FOREIGN_ON_DELETE_SET_NULL;
+	if (is_on_delete) {
+		foreign->type |= DICT_FOREIGN_ON_DELETE_SET_NULL;
+	} else {
+		foreign->type |= DICT_FOREIGN_ON_UPDATE_SET_NULL;
+	}
 	
+	goto scan_on_conditions;
+
 try_find_index:
-	/* We check that there are no superfluous words like 'ON UPDATE ...'
-	which we do not support yet. */
-
-	ptr = dict_accept(ptr, (char *) "ON", &success);
-
-	if (success) {
+	if (n_on_deletes > 1 || n_on_updates > 1) {
+		/* It is an error to define more than 1 action */
+		
 		dict_foreign_free(foreign);
 
 		return(DB_CANNOT_ADD_CONSTRAINT);
 	}
-	
+
 	/* Try to find an index which contains the columns as the first fields
 	and in the right order, and the types are the same as in
 	foreign->foreign_index */
@@ -3286,7 +3335,8 @@ dict_print_info_on_foreign_keys_in_create_format(
 /*=============================================*/
 	char*		buf,	/* in: auxiliary buffer */
 	char*		str,	/* in/out: pointer to a string */
-	ulint		len,	/* in: space in str available for info */
+	ulint		len,	/* in: str has to be a buffer at least
+				len + 5000 bytes */
 	dict_table_t*	table)	/* in: table */
 {
 
@@ -3356,12 +3406,28 @@ dict_print_info_on_foreign_keys_in_create_format(
 
 		buf2 += sprintf(buf2, ")");
 
-		if (foreign->type == DICT_FOREIGN_ON_DELETE_CASCADE) {
+		if (foreign->type & DICT_FOREIGN_ON_DELETE_CASCADE) {
 			buf2 += sprintf(buf2, " ON DELETE CASCADE");
 		}
 	
-		if (foreign->type == DICT_FOREIGN_ON_DELETE_SET_NULL) {
+		if (foreign->type & DICT_FOREIGN_ON_DELETE_SET_NULL) {
 			buf2 += sprintf(buf2, " ON DELETE SET NULL");
+		}
+
+		if (foreign->type & DICT_FOREIGN_ON_DELETE_NO_ACTION) {
+			buf2 += sprintf(buf2, " ON DELETE NO ACTION");
+		}
+
+		if (foreign->type & DICT_FOREIGN_ON_UPDATE_CASCADE) {
+			buf2 += sprintf(buf2, " ON UPDATE CASCADE");
+		}
+	
+		if (foreign->type & DICT_FOREIGN_ON_UPDATE_SET_NULL) {
+			buf2 += sprintf(buf2, " ON UPDATE SET NULL");
+		}
+
+		if (foreign->type & DICT_FOREIGN_ON_UPDATE_NO_ACTION) {
+			buf2 += sprintf(buf2, " ON UPDATE NO ACTION");
 		}
 
 		foreign = UT_LIST_GET_NEXT(foreign_list, foreign);
@@ -3453,6 +3519,22 @@ dict_print_info_on_foreign_keys(
 	
 		if (foreign->type == DICT_FOREIGN_ON_DELETE_SET_NULL) {
 			buf2 += sprintf(buf2, " ON DELETE SET NULL");
+		}
+
+		if (foreign->type & DICT_FOREIGN_ON_DELETE_NO_ACTION) {
+			buf2 += sprintf(buf2, " ON DELETE NO ACTION");
+		}
+
+		if (foreign->type & DICT_FOREIGN_ON_UPDATE_CASCADE) {
+			buf2 += sprintf(buf2, " ON UPDATE CASCADE");
+		}
+	
+		if (foreign->type & DICT_FOREIGN_ON_UPDATE_SET_NULL) {
+			buf2 += sprintf(buf2, " ON UPDATE SET NULL");
+		}
+
+		if (foreign->type & DICT_FOREIGN_ON_UPDATE_NO_ACTION) {
+			buf2 += sprintf(buf2, " ON UPDATE NO ACTION");
 		}
 
 		foreign = UT_LIST_GET_NEXT(foreign_list, foreign);

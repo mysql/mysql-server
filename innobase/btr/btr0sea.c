@@ -19,6 +19,9 @@ Created 2/17/1996 Heikki Tuuri
 #include "btr0btr.h"
 #include "ha0ha.h"
 
+ulint	btr_search_this_is_zero = 0;	/* A dummy variable to fool the
+					compiler */
+
 ulint	btr_search_n_succ	= 0;
 ulint	btr_search_n_hash_fail	= 0;
 
@@ -56,16 +59,20 @@ before hash index building is started */
 
 /************************************************************************
 Builds a hash index on a page with the given parameters. If the page already
-has a hash index with different parameters, the old hash index is removed. */
+has a hash index with different parameters, the old hash index is removed.
+If index is non-NULL, this function checks if n_fields and n_bytes are
+sensible values, and does not build a hash index if not. */
 static
 void
 btr_search_build_page_hash_index(
 /*=============================*/
-	page_t*	page,		/* in: index page, s- or x-latched */
-	ulint	n_fields,	/* in: hash this many full fields */
-	ulint	n_bytes,	/* in: hash this many bytes from the next
+	dict_index_t*	index,	/* in: index for which to build, or NULL if
+				not known */
+	page_t*		page,	/* in: index page, s- or x-latched */
+	ulint		n_fields,/* in: hash this many full fields */
+	ulint		n_bytes,/* in: hash this many bytes from the next
 				field */
-	ulint	side);		/* in: hash for searches from this side */
+	ulint		side);	/* in: hash for searches from this side */
 
 /*********************************************************************
 This function should be called before reserving any btr search mutex, if
@@ -173,7 +180,9 @@ btr_search_info_create(
 }
 
 /*************************************************************************
-Updates the search info of an index about hash successes. */
+Updates the search info of an index about hash successes. NOTE that info
+is NOT protected by any semaphore, to save CPU time! Do not assume its fields
+are consistent. */
 static
 void
 btr_search_info_update_hash(
@@ -295,7 +304,9 @@ set_new_recomm:
 }
 	
 /*************************************************************************
-Updates the block search info on hash successes. */
+Updates the block search info on hash successes. NOTE that info and
+block->n_hash_helps, n_fields, n_bytes, side are NOT protected by any
+semaphore, to save CPU time! Do not assume the fields are consistent. */
 static
 ibool
 btr_search_update_block_hash_info(
@@ -425,11 +436,18 @@ btr_search_info_update_slow(
 {
 	buf_block_t*	block;
 	ibool		build_index;
-
+	ulint*		params;
+	ulint*		params2;
+	
 	ut_ad(!rw_lock_own(&btr_search_latch, RW_LOCK_SHARED)
 			&& !rw_lock_own(&btr_search_latch, RW_LOCK_EX));
 
 	block = buf_block_align(btr_cur_get_rec(cursor));
+
+	/* NOTE that the following two function calls do NOT protect
+	info or block->n_fields etc. with any semaphore, to save CPU time!
+	We cannot assume the fields are consistent when we return from
+	those functions! */
 
 	btr_search_info_update_hash(info, cursor);
 
@@ -439,7 +457,7 @@ btr_search_info_update_slow(
 
 		btr_search_check_free_space_in_heap();
 	}
-		
+	
 	if (cursor->flag == BTR_CUR_HASH_FAIL) {
 		/* Update the hash node reference, if appropriate */
 
@@ -453,10 +471,30 @@ btr_search_info_update_slow(
 	}
 
 	if (build_index) {
-		btr_search_build_page_hash_index(block->frame,
-						block->n_fields,
-						block->n_bytes,
-						block->side);
+		/* Note that since we did not protect block->n_fields etc.
+		with any semaphore, the values can be inconsistent. We have
+		to check inside the function call that they make sense. We
+		also malloc an array and store the values there to make sure
+		the compiler does not let the function call parameters change
+		inside the called function. It might be that the compiler
+		would optimize the call just to pass pointers to block. */
+
+		params = mem_alloc(3 * sizeof(ulint));
+		params[0] = block->n_fields;
+		params[1] = block->n_bytes;
+		params[2] = block->side;
+
+		/* Make sure the compiler cannot deduce the values and do
+		optimizations */
+
+		params2 = params + btr_search_this_is_zero;
+		
+		btr_search_build_page_hash_index(cursor->index,
+						block->frame,
+						params2[0],
+						params2[1],
+						params2[2]);
+		mem_free(params);
 	}
 }
 
@@ -974,16 +1012,20 @@ btr_search_drop_page_hash_when_freed(
 
 /************************************************************************
 Builds a hash index on a page with the given parameters. If the page already
-has a hash index with different parameters, the old hash index is removed. */
+has a hash index with different parameters, the old hash index is removed.
+If index is non-NULL, this function checks if n_fields and n_bytes are
+sensible values, and does not build a hash index if not. */
 static
 void
 btr_search_build_page_hash_index(
 /*=============================*/
-	page_t*	page,		/* in: index page, s- or x-latched */
-	ulint	n_fields,	/* in: hash this many full fields */
-	ulint	n_bytes,	/* in: hash this many bytes from the next
+	dict_index_t*	index,	/* in: index for which to build, or NULL if
+				not known */
+	page_t*		page,	/* in: index page, s- or x-latched */
+	ulint		n_fields,/* in: hash this many full fields */
+	ulint		n_bytes,/* in: hash this many bytes from the next
 				field */
-	ulint	side)		/* in: hash for searches from this side */
+	ulint		side)	/* in: hash for searches from this side */
 {
 	hash_table_t*	table;
 	buf_block_t*	block;
@@ -1026,9 +1068,17 @@ btr_search_build_page_hash_index(
 		return;
 	}
 
+	/* Check that the values for hash index build are sensible */
+	
 	if (n_fields + n_bytes == 0) {
 
-	        return;
+		return;
+	}
+
+	if (index && (dict_index_get_n_unique_in_tree(index) < n_fields
+		      || (dict_index_get_n_unique_in_tree(index) == n_fields
+		          && n_bytes > 0))) {
+		return;
 	}
 
 	/* Calculate and cache fold values and corresponding records into
@@ -1187,8 +1237,8 @@ btr_search_move_or_delete_hash_entries(
 
 		ut_a(n_fields + n_bytes > 0);
 		
-		btr_search_build_page_hash_index(new_page, n_fields, n_bytes,
-									side);
+		btr_search_build_page_hash_index(NULL, new_page, n_fields,
+							n_bytes, side);
 		ut_a(n_fields == block->curr_n_fields);
 		ut_a(n_bytes == block->curr_n_bytes);
 		ut_a(side == block->curr_side);
