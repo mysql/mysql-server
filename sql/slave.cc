@@ -2021,7 +2021,9 @@ improper_arguments: %d  timed_out: %d",
 static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
 {
   DBUG_ENTER("init_slave_thread");
-  thd->system_thread = thd->bootstrap = 1;
+  thd->system_thread = (thd_type == SLAVE_THD_SQL) ?
+    SYSTEM_THREAD_SLAVE_SQL : SYSTEM_THREAD_SLAVE_IO; 
+  thd->bootstrap= 1;
   thd->host_or_ip= "";
   thd->client_capabilities = 0;
   my_net_init(&thd->net, 0);
