@@ -203,7 +203,7 @@ select parameter_style, sql_data_access, dtd_identifier
 from information_schema.routines;
 parameter_style	sql_data_access	dtd_identifier
 SQL	CONTAINS SQL	NULL
-SQL	CONTAINS SQL	int
+SQL	CONTAINS SQL	int(11)
 show procedure status;
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment
 test	sel2	PROCEDURE	root@localhost	#	#	DEFINER	
