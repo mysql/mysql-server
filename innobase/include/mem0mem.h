@@ -61,58 +61,41 @@ mem_init(
 /******************************************************************
 Use this macro instead of the corresponding function! Macro for memory
 heap creation. */
-#ifdef UNIV_MEM_DEBUG
+
 #define mem_heap_create(N)    mem_heap_create_func(\
 						(N), NULL, MEM_HEAP_DYNAMIC,\
 						IB__FILE__, __LINE__)
-#else
-#define mem_heap_create(N)    mem_heap_create_func(N, NULL, MEM_HEAP_DYNAMIC)
-#endif
 /******************************************************************
 Use this macro instead of the corresponding function! Macro for memory
 heap creation. */
-#ifdef UNIV_MEM_DEBUG
+
 #define mem_heap_create_in_buffer(N)	mem_heap_create_func(\
 						(N), NULL, MEM_HEAP_BUFFER,\
 						IB__FILE__, __LINE__)
-#else
-#define mem_heap_create_in_buffer(N)	mem_heap_create_func(N, NULL,\
-						MEM_HEAP_BUFFER)
-#endif
 /******************************************************************
 Use this macro instead of the corresponding function! Macro for memory
 heap creation. */
-#ifdef UNIV_MEM_DEBUG
+
 #define mem_heap_create_in_btr_search(N) mem_heap_create_func(\
 					(N), NULL, MEM_HEAP_BTR_SEARCH |\
 						MEM_HEAP_BUFFER,\
 						IB__FILE__, __LINE__)
-#else
-#define mem_heap_create_in_btr_search(N) mem_heap_create_func(N, NULL,\
-				MEM_HEAP_BTR_SEARCH | MEM_HEAP_BUFFER)
-#endif
 /******************************************************************
 Use this macro instead of the corresponding function! Macro for fast
 memory heap creation. An initial block of memory B is given by the
 caller, N is its size, and this memory block is not freed by
 mem_heap_free. See the parameter comment in mem_heap_create_func below. */
-#ifdef UNIV_MEM_DEBUG
+
 #define mem_heap_fast_create(N, B)	mem_heap_create_func(\
 						(N), (B), MEM_HEAP_DYNAMIC,\
 						IB__FILE__, __LINE__)
-#else
-#define mem_heap_fast_create(N, B)    	mem_heap_create_func(N, (B),\
-						MEM_HEAP_DYNAMIC)
-#endif
+
 /******************************************************************
 Use this macro instead of the corresponding function! Macro for memory
 heap freeing. */
-#ifdef  UNIV_MEM_DEBUG
+
 #define mem_heap_free(heap) mem_heap_free_func(\
 					  (heap), IB__FILE__, __LINE__)
-#else
-#define mem_heap_free(heap) mem_heap_free_func(heap)
-#endif
 /*********************************************************************
 NOTE: Use the corresponding macros instead of this function. Creates a
 memory heap which allocates memory from dynamic space. For debugging
@@ -139,11 +122,9 @@ mem_heap_create_func(
 				block is not unintentionally erased
 				(if allocated in the stack), before
 				the memory heap is explicitly freed. */
-	ulint	type		/* in: MEM_HEAP_DYNAMIC or MEM_HEAP_BUFFER */ 
-	#ifdef UNIV_MEM_DEBUG
-	,char*  file_name,	/* in: file name where created */
+	ulint	type,		/* in: MEM_HEAP_DYNAMIC or MEM_HEAP_BUFFER */ 
+	char*   file_name,	/* in: file name where created */
 	ulint	line		/* in: line where created */
-	#endif
 	);
 /*********************************************************************
 NOTE: Use the corresponding macro instead of this function.
@@ -152,11 +133,9 @@ UNIV_INLINE
 void
 mem_heap_free_func(
 /*===============*/
-	mem_heap_t*   heap  	/* in, own: heap to be freed */
-	#ifdef UNIV_MEM_DEBUG
-	,char*  file_name,      /* in: file name where freed */
-	ulint   line            /* in: line where freed */
-	#endif
+	mem_heap_t*   	heap,		/* in, own: heap to be freed */
+	char*  		file_name,	/* in: file name where freed */
+	ulint   	line		/* in: line where freed */
 );
 /*******************************************************************
 Allocates n bytes of memory from a memory heap. */
@@ -220,25 +199,18 @@ UNIV_INLINE
 ulint
 mem_heap_get_size(
 /*==============*/
-	mem_heap_t*   heap);  	/* in: heap */
+	mem_heap_t*	heap);  	/* in: heap */
 /******************************************************************
 Use this macro instead of the corresponding function!
 Macro for memory buffer allocation */
-#ifdef UNIV_MEM_DEBUG
-#define mem_alloc(N)    mem_alloc_func(\
-					  (N), IB__FILE__, __LINE__)
-#else
-#define mem_alloc(N)    mem_alloc_func(N)
-#endif
+
+#define mem_alloc(N)    mem_alloc_func((N), IB__FILE__, __LINE__)
 /******************************************************************
 Use this macro instead of the corresponding function!
 Macro for memory buffer allocation */
-#ifdef UNIV_MEM_DEBUG
+
 #define mem_alloc_noninline(N)    mem_alloc_func_noninline(\
 					  (N), IB__FILE__, __LINE__)
-#else
-#define mem_alloc_noninline(N)    mem_alloc_func_noninline(N)
-#endif
 /*******************************************************************
 NOTE: Use the corresponding macro instead of this function.
 Allocates a single buffer of memory from the dynamic memory of
@@ -250,11 +222,9 @@ mem_alloc_func(
 /*===========*/
 				/* out, own: free storage, NULL
 				if did not succeed */
-	ulint    n              /* in: desired number of bytes */
-	#ifdef UNIV_MEM_DEBUG
-	,char*  file_name,      /* in: file name where created */
-	ulint    line            /* in: line where created */
-	#endif
+	ulint 	n,              /* in: desired number of bytes */
+	char*  	file_name,  	/* in: file name where created */
+	ulint 	line            /* in: line where created */
 );
 /*******************************************************************
 NOTE: Use the corresponding macro instead of this function.
@@ -267,21 +237,15 @@ mem_alloc_func_noninline(
 /*=====================*/
 				/* out, own: free storage, NULL if did not
 				succeed */
-	ulint   n              	/* in: desired number of bytes */
-	#ifdef UNIV_MEM_DEBUG
-	,char*  file_name,	/* in: file name where created */
+	ulint   n,              /* in: desired number of bytes */
+	char*  	file_name,	/* in: file name where created */
 	ulint   line		/* in: line where created */
-	#endif
 	);
 /******************************************************************
 Use this macro instead of the corresponding function!
 Macro for memory buffer freeing */
-#ifdef  UNIV_MEM_DEBUG
-#define mem_free(PTR)   mem_free_func(\
-					  (PTR), IB__FILE__, __LINE__)
-#else
-#define mem_free(PTR)   mem_free_func(PTR)
-#endif
+
+#define mem_free(PTR)   mem_free_func((PTR), IB__FILE__, __LINE__)
 /*******************************************************************
 NOTE: Use the corresponding macro instead of this function.
 Frees a single buffer of storage from
@@ -290,11 +254,9 @@ UNIV_INLINE
 void
 mem_free_func(
 /*==========*/
-	void*   ptr             /* in, own: buffer to be freed */
-	#ifdef UNIV_MEM_DEBUG
-	,char*  file_name,      /* in: file name where created */
-	ulint    line            /* in: line where created */
-	#endif
+	void*   ptr,    	/* in, own: buffer to be freed */
+	char*  	file_name,  	/* in: file name where created */
+	ulint 	line            /* in: line where created */
 );
 /*******************************************************************
 Implements realloc. */
@@ -304,7 +266,9 @@ mem_realloc(
 /*========*/
 			/* out, own: free storage, NULL if did not succeed */
 	void*	buf,	/* in: pointer to an old buffer */
-	ulint   n);	/* in: desired number of bytes */
+	ulint   n,	/* in: desired number of bytes */
+	char*  	file_name,/* in: file name where called */
+	ulint 	line);  /* in: line where called */
 
 
 /*#######################################################################*/
@@ -336,7 +300,12 @@ struct mem_block_info_struct {
 			free block to the heap, if we need more space;
 			otherwise, this is NULL */
 	ulint   magic_n;/* magic number for debugging */
+	char	file_name[8];/* file name where the mem heap was created */
+	ulint	line;	/* line number where the mem heap was created */
 };
+
+#define MEM_BLOCK_MAGIC_N	764741555
+#define MEM_FREED_BLOCK_MAGIC_N	547711122
 
 /* Header size for a memory heap block */
 #define MEM_BLOCK_HEADER_SIZE   ut_calc_align(sizeof(mem_block_info_t),\

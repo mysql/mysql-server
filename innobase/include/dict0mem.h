@@ -307,6 +307,12 @@ struct dict_table_struct{
 	ulint		mem_fix;/* count of how many times the table 
 				and its indexes has been fixed in memory;
 				currently NOT used */
+	ulint		n_mysql_handles_opened;
+				/* count of how many handles MySQL has opened
+				to this table; dropping of the table is
+				NOT allowed until this count gets to zero;
+				MySQL does NOT itself check the number of
+				open handles at drop */
 	ibool		cached;	/* TRUE if the table object has been added
 				to the dictionary cache */
 	lock_t*		auto_inc_lock;/* a buffer for an auto-inc lock

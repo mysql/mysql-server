@@ -327,6 +327,8 @@ mutex with the exceptions named below */
 
 struct que_thr_struct{
 	que_common_t	common;		/* type: QUE_NODE_THR */
+	ulint		magic_n;	/* magic number to catch memory
+					corruption */
 	que_node_t*	child;		/* graph child node */
 	que_t*		graph;		/* graph where this node belongs */
 	ibool		is_active;	/* TRUE if the thread has been set
@@ -356,6 +358,9 @@ struct que_thr_struct{
 	ulint		resource;	/* resource usage of the query thread
 					thus far */
 };
+
+#define QUE_THR_MAGIC_N		8476583
+#define QUE_THR_MAGIC_FREED	123461526
 
 /* Query graph fork node: its fields are protected by the kernel mutex */
 struct que_fork_struct{

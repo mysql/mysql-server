@@ -76,6 +76,9 @@ trx_create(
 	trx->n_mysql_tables_in_use = 0;
 	trx->mysql_n_tables_locked = 0;
 
+	trx->mysql_log_file_name = NULL;
+	trx->mysql_log_offset = 0;
+	
 	trx->ignore_duplicates_in_insert = FALSE;
 
 	mutex_create(&(trx->undo_mutex));
@@ -110,6 +113,9 @@ trx_create(
 
 	trx->has_search_latch = FALSE;
 	trx->search_latch_timeout = BTR_SEA_TIMEOUT;
+
+	trx->declared_to_be_inside_innodb = FALSE;
+	trx->n_tickets_to_enter_innodb = 0;
 
 	trx->auto_inc_lock = NULL;
 	
@@ -568,6 +574,13 @@ trx_commit_off_kernel(
 
 		mutex_exit(&(rseg->mutex));
 
+		/* Update the latest MySQL binlog name and offset info
+		in trx sys header if MySQL binlogging is on */
+
+		if (trx->mysql_log_file_name) {
+			trx_sys_update_mysql_binlog_offset(trx, &mtr);
+		}
+		
 		/* If we did not take the shortcut, the following call
 		commits the mini-transaction, making the whole transaction
 		committed in the file-based world at this log sequence number;

@@ -815,7 +815,7 @@ innobase_start_or_create_for_mysql(void)
 			fprintf(stderr, 
 		"InnoDB: Cannot initialize created log files because\n"
 		"InnoDB: data files were not in sync with each other\n"
-		"InnoDB: or the data files are corrupt./n");
+		"InnoDB: or the data files are corrupt.\n");
 
 			return(DB_ERROR);
 		}

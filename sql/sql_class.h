@@ -103,10 +103,12 @@ public:
   bool write(THD *thd, const char *query, uint query_length,
 	     time_t query_start=0);
   bool write(Log_event* event_info); // binary log write
-  bool write(IO_CACHE *cache);
+  bool write(THD *thd, IO_CACHE *cache);
 
-  //v stands for vector
-  //invoked as appendv(buf1,len1,buf2,len2,...,bufn,lenn,0)
+  /*
+    v stands for vector
+    invoked as appendv(buf1,len1,buf2,len2,...,bufn,lenn,0)
+  */
   bool appendv(const char* buf,uint len,...);
   bool append(Log_event* ev);
   

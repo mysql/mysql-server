@@ -221,6 +221,44 @@ int ha_autocommit_or_rollback(THD *thd, int error)
   DBUG_RETURN(error);
 }
 
+/* This function is called when MySQL writes the log segment of a transaction
+to the binlog. It is called when the LOCK_log mutex is reserved. Here we
+communicate to transactional table handlers whta binlog position corresponds
+to the current transaction. The handler can store it and in recovery print
+to the user, so that the user knows from what position in the binlog to
+start possible roll-forward, for example, if the crashed server was a slave
+in replication. This function also calls the commit of the table handler,
+because the order of trasnactions in the log of the table handler must be
+the same as in the binlog. */
+
+int ha_report_binlog_offset_and_commit(
+       THD      *thd,           /* in: user thread */
+       char     *log_file_name, /* in: latest binlog file name */
+       my_off_t  end_offset)    /* in: the offset in the binlog file
+				   up to which we wrote */
+{
+  THD_TRANS *trans;
+  int        error  = 0;
+
+  trans = &thd->transaction.all;
+
+#ifdef HAVE_INNOBASE_DB
+  if (trans->innobase_tid)
+  {
+    if ((error=innobase_report_binlog_offset_and_commit(thd,
+							trans->innobase_tid,
+							log_file_name,
+							end_offset)))
+    {
+      my_error(ER_ERROR_DURING_COMMIT, MYF(0), error);
+      error=1;
+    }
+    trans->innodb_active_trans=0;
+  }
+#endif
+
+  return error;
+}
 
 int ha_commit_trans(THD *thd, THD_TRANS* trans)
 {
@@ -233,7 +271,7 @@ int ha_commit_trans(THD *thd, THD_TRANS* trans)
     if (trans == &thd->transaction.all && mysql_bin_log.is_open() &&
 	my_b_tell(&thd->transaction.trans_log))
     {
-      mysql_bin_log.write(&thd->transaction.trans_log);
+      mysql_bin_log.write(thd, &thd->transaction.trans_log);
       reinit_io_cache(&thd->transaction.trans_log,
 		      WRITE_CACHE, (my_off_t) 0, 0, 1);
       thd->transaction.trans_log.end_of_file= max_binlog_cache_size;

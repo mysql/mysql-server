@@ -51,6 +51,8 @@ recv_sys_t*	recv_sys = NULL;
 ibool		recv_recovery_on = FALSE;
 ibool		recv_recovery_from_backup_on = FALSE;
 
+ibool		recv_needed_recovery = FALSE;
+
 /* If the following is TRUE, the buffer pool file pages must be invalidated
 after recovery and no ibuf operations are allowed; this becomes TRUE if
 the log record hash table becomes too full, and log records must be merged
@@ -1020,7 +1022,7 @@ loop:
 				if (!has_printed) {
 					fprintf(stderr, 
 "InnoDB: Starting an apply batch of log records to the database...\n"
-"InnoDB: Progress in percents:");
+"InnoDB: Progress in percents: ");
 					has_printed = TRUE;
 				}
 				
@@ -2032,12 +2034,16 @@ recv_recovery_from_checkpoint_start(
 		if (ut_dulint_cmp(checkpoint_lsn, max_flushed_lsn) != 0
 	    	   || ut_dulint_cmp(checkpoint_lsn, min_flushed_lsn) != 0) {
 
+	    	   	recv_needed_recovery = TRUE;
+	    	   
+			ut_print_timestamp(stderr);
+
 	    		fprintf(stderr,
-			"InnoDB: Database was not shut down normally.\n"
-	    		"InnoDB: Starting recovery from log files...\n");
+			  "  InnoDB: Database was not shut down normally.\n"
+	    		  "InnoDB: Starting recovery from log files...\n");
 			fprintf(stderr, 
-	"InnoDB: Starting log scan based on checkpoint at\n"
-	"InnoDB: log sequence number %lu %lu\n",
+			  "InnoDB: Starting log scan based on checkpoint at\n"
+			  "InnoDB: log sequence number %lu %lu\n",
 		 			ut_dulint_get_high(checkpoint_lsn),
 					ut_dulint_get_low(checkpoint_lsn));
 		}
@@ -2197,6 +2203,10 @@ recv_recovery_from_checkpoint_finish(void)
 	if (log_debug_writes) {
 		fprintf(stderr,
 		"InnoDB: Log records applied to the database\n");
+	}
+
+	if (recv_needed_recovery) {
+		trx_sys_print_mysql_binlog_offset();
 	}
 
 	/* Free the resources of the recovery system */

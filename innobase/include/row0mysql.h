@@ -323,11 +323,18 @@ struct mysql_row_templ_struct {
 /* After fetching this many rows, we start caching them in fetch_cache */
 #define MYSQL_FETCH_CACHE_THRESHOLD	4
 
+#define ROW_PREBUILT_ALLOCATED	78540783
+#define ROW_PREBUILT_FREED	26423527
 
 /* A struct for (sometimes lazily) prebuilt structures in an Innobase table
 handle used within MySQL; these are used to save CPU time. */
 
 struct row_prebuilt_struct {
+	ulint		magic_n;	/* this magic number is set to
+					ROW_PREBUILT_ALLOCATED when created
+					and to ROW_PREBUILT_FREED when the
+					struct has been freed; used in
+					debugging */
 	dict_table_t*	table;		/* Innobase table handle */
 	trx_t*		trx;		/* current transaction handle */
 	ibool		sql_stat_start;	/* TRUE when we start processing of
