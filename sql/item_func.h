@@ -145,7 +145,8 @@ public:
   bool agg_arg_collations_for_comparison(DTCollation &c,
                                          Item **items, uint nitems,
                                          uint flags= 0);
-
+  bool agg_arg_charsets(DTCollation &c, Item **items, uint nitems,
+                        uint flags= 0);
   bool walk(Item_processor processor, byte *arg);
 };
 

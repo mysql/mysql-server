@@ -173,89 +173,11 @@ void Item_bool_func2::fix_length_and_dec()
   if (!args[0] || !args[1])
     return;
 
-  /* 
-    We allow to apply automatic character set conversion in some cases.
-    The conditions when conversion is possible are:
-    - arguments A and B have different charsets
-    - A wins according to coercibility rules
-      (i.e. a column is stronger than a string constant,
-       an explicit COLLATE clause is stronger than a column)
-    - character set of A is either superset for character set of B,
-      or B is a string constant which can be converted into the
-      character set of A without data loss.
-    
-    If all of the above is true, then it's possible to convert
-    B into the character set of A, and then compare according
-    to the collation of A.
-  */
-
-  uint32 dummy_offset;
   DTCollation coll;
-
   if (args[0]->result_type() == STRING_RESULT &&
       args[1]->result_type() == STRING_RESULT &&
-      String::needs_conversion(0, args[0]->collation.collation,
-                                  args[1]->collation.collation,
-                                  &dummy_offset) &&
-      !coll.set(args[0]->collation, args[1]->collation,
-                MY_COLL_ALLOW_SUPERSET_CONV | 
-                MY_COLL_ALLOW_COERCIBLE_CONV))
-  {
-    Item* conv= 0;
-    Item_arena *arena= thd->current_arena, backup;
-    uint strong= coll.strong;
-    uint weak= strong ? 0 : 1;
-    /*
-      In case we're in statement prepare, create conversion item
-      in its memory: it will be reused on each execute.
-    */
-    if (arena->is_stmt_prepare())
-        thd->set_n_backup_item_arena(arena, &backup);
-    if (args[weak]->type() == STRING_ITEM)
-    {
-      uint conv_errors; 
-      String tmp, cstr, *ostr= args[weak]->val_str(&tmp);
-      cstr.copy(ostr->ptr(), ostr->length(), ostr->charset(), 
-                args[strong]->collation.collation, &conv_errors);
-      if (conv_errors)
-      {
-        /* 
-          We could not convert a string into the character set
-          of the stronger side of the operation without data loss.
-          It can happen if we tried to combine a column with a string
-          constant, and the column charset does not cover all the
-          characters from the string. Operation cannot be done
-          correctly. Return an error.
-        */
-        my_coll_agg_error(args[0]->collation, args[1]->collation,
-                          func_name());
-        return;
-      }
-      conv= new Item_string(cstr.ptr(),cstr.length(),cstr.charset(),
-                            args[weak]->collation.derivation);
-      ((Item_string*)conv)->str_value.copy();
-    }
-    else
-    {
-      if (!(coll.collation->state & MY_CS_UNICODE))
-      {
-        /*
-          Don't allow automatic conversion to non-Unicode charsets,
-          as it potentially loses data.
-        */
-        my_coll_agg_error(args[0]->collation, args[1]->collation,
-                          func_name());
-        return;
-      }
-      conv= new Item_func_conv_charset(args[weak],
-                                       args[strong]->collation.collation);
-      conv->collation.set(args[weak]->collation.derivation);
-      conv->fix_fields(thd, 0, &conv);
-    }
-    if (arena->is_stmt_prepare())
-      thd->restore_backup_item_arena(arena, &backup);
-    args[weak]= conv ? conv : args[weak];
-  }
+      agg_arg_charsets(coll, args, 2, MY_COLL_CMP_CONV))
+    return;
   
   // Make a special case of compare with fields to get nicer DATE comparisons
 
@@ -871,7 +793,7 @@ void Item_func_between::fix_length_and_dec()
     return;
   agg_cmp_type(&cmp_type, args, 3);
   if (cmp_type == STRING_RESULT &&
-      agg_arg_collations_for_comparison(cmp_collation, args, 3))
+      agg_arg_charsets(cmp_collation, args, 3, MY_COLL_CMP_CONV))
     return;
 
   /*
@@ -987,7 +909,7 @@ Item_func_ifnull::fix_length_and_dec()
   decimals=max(args[0]->decimals,args[1]->decimals);
   agg_result_type(&cached_result_type, args, 2);
   if (cached_result_type == STRING_RESULT)
-    agg_arg_collations(collation, args, arg_count);
+    agg_arg_charsets(collation, args, arg_count, MY_COLL_CMP_CONV);
   else if (cached_result_type != REAL_RESULT)
     decimals= 0;
   
@@ -1083,7 +1005,7 @@ Item_func_if::fix_length_and_dec()
     agg_result_type(&cached_result_type, args+1, 2);
     if (cached_result_type == STRING_RESULT)
     {
-      if (agg_arg_collations(collation, args+1, 2))
+      if (agg_arg_charsets(collation, args+1, 2, MY_COLL_ALLOW_CONV))
       return;
     }
     else
@@ -1354,7 +1276,7 @@ void Item_func_case::fix_length_and_dec()
   
   agg_result_type(&cached_result_type, agg, nagg);
   if ((cached_result_type == STRING_RESULT) &&
-      agg_arg_collations(collation, agg, nagg))
+      agg_arg_charsets(collation, agg, nagg, MY_COLL_ALLOW_CONV))
     return;
   
   
@@ -1370,7 +1292,7 @@ void Item_func_case::fix_length_and_dec()
     nagg++;
     agg_cmp_type(&cmp_type, agg, nagg);
     if ((cmp_type == STRING_RESULT) &&
-        agg_arg_collations_for_comparison(cmp_collation, agg, nagg))
+        agg_arg_charsets(cmp_collation, agg, nagg, MY_COLL_CMP_CONV))
     return;
   }
   
@@ -1477,7 +1399,7 @@ void Item_func_coalesce::fix_length_and_dec()
     set_if_bigger(decimals,args[i]->decimals);
   }
   if (cached_result_type == STRING_RESULT)
-    agg_arg_collations(collation, args, arg_count);
+    agg_arg_charsets(collation, args, arg_count, MY_COLL_ALLOW_CONV);
   else if (cached_result_type != REAL_RESULT)
     decimals= 0;
 }
@@ -2423,7 +2345,7 @@ Item_func_regex::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   max_length= 1;
   decimals= 0;
 
-  if (agg_arg_collations(cmp_collation, args, 2))
+  if (agg_arg_charsets(cmp_collation, args, 2, MY_COLL_CMP_CONV))
     return 1;
 
   used_tables_cache=args[0]->used_tables() | args[1]->used_tables();

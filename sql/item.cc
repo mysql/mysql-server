@@ -205,6 +205,41 @@ bool Item::eq(const Item *item, bool binary_cmp) const
 }
 
 
+Item *Item::safe_charset_converter(CHARSET_INFO *tocs)
+{
+  /*
+    Don't allow automatic conversion to non-Unicode charsets,
+    as it potentially loses data.
+  */
+  if (!(tocs->state & MY_CS_UNICODE))
+    return NULL; // safe conversion is not possible
+  return new Item_func_conv_charset(this, tocs);
+}
+
+
+Item *Item_string::safe_charset_converter(CHARSET_INFO *tocs)
+{
+  Item_string *conv;
+  uint conv_errors;
+  String tmp, cstr, *ostr= val_str(&tmp);
+  cstr.copy(ostr->ptr(), ostr->length(), ostr->charset(), tocs, &conv_errors);
+  if (conv_errors || !(conv= new Item_string(cstr.ptr(), cstr.length(),
+                                             cstr.charset(),
+                                             collation.derivation)))
+  {
+    /*
+      Safe conversion is not possible (or EOM).
+      We could not convert a string into the requested character set
+      without data loss. The target charset does not cover all the
+      characters from the string. Operation cannot be done correctly.
+    */
+    return NULL;
+  }
+  conv->str_value.copy();
+  return conv;
+}
+
+
 bool Item_string::eq(const Item *item, bool binary_cmp) const
 {
   if (type() == item->type())
@@ -722,6 +757,12 @@ String *Item_null::val_str(String *str)
   return 0;
 }
 
+
+Item *Item_null::safe_charset_converter(CHARSET_INFO *tocs)
+{
+  collation.set(tocs);
+  return this;
+}
 
 /*********************** Item_param related ******************************/
 
