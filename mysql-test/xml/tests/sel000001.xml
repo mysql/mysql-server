@@ -1,0 +1,20 @@
+<?xml version="1.0" standalone="no"?>
+
+<!-- This file is maintained by matt@mysql.com -->
+
+<test name="sel000001">
+
+   <version value="3.22"/>
+   <version value="3.23"/>
+
+   <description>This test is just a simple select.</description>
+
+   <sql>DROP TABLE IF EXISTS t</sql>
+   <sql>CREATE TABLE t (s CHAR(20) PRIMARY KEY, id INT)</sql>
+   <sql>INSERT INTO t VALUES ('cat', 1), ('mouse', 3), ('dog', 2), ('snake', 77)</sql>
+
+   <resultfile name="r/3.23/sel000001.result">
+        <sql>SELECT s, id FROM t WHERE s = 'mouse'</sql>
+   </resultfile>
+
+</test>
