@@ -134,6 +134,21 @@ rollback;
 drop table t1;
 
 #
+# Test for commit and FLUSH TABLES WITH READ LOCK
+#
+
+create table t1 (n int not null primary key) type=innodb;
+start transaction;
+insert into t1 values (4);
+flush tables with read lock;
+--error 1223;
+commit;
+unlock tables;
+commit;
+select * from t1;
+drop table t1;
+
+#
 # Testing transactions
 #
 
