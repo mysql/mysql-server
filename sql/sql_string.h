@@ -181,6 +181,7 @@ public:
 	    CHARSET_INFO *csto);
   bool append(const String &s);
   bool append(const char *s,uint32 arg_length=0);
+  bool append(const char *s,uint32 arg_length, CHARSET_INFO *cs);
   bool append(IO_CACHE* file, uint32 arg_length);
   int strstr(const String &search,uint32 offset=0); // Returns offset to substring or -1
   int strstr_case(const String &s,uint32 offset=0);

@@ -632,11 +632,24 @@ public:
 Spatial functions
 ********************************************************/
 
+#define SRID_SIZE sizeof(uint32)
+
 class Item_func_geometry_from_text :public Item_str_func
 {
 public:
   Item_func_geometry_from_text(Item *a) :Item_str_func(a) {}
+  Item_func_geometry_from_text(Item *a, Item *srid) :Item_str_func(a, srid) {}
   const char *func_name() const { return "geometryfromtext"; }
+  String *val_str(String *);
+  void fix_length_and_dec();
+};
+
+class Item_func_geometry_from_wkb: public Item_str_func
+{
+public:
+  Item_func_geometry_from_wkb(Item *a) :Item_str_func(a) {}
+  Item_func_geometry_from_wkb(Item *a, Item *srid) :Item_str_func(a, srid) {}
+  const char *func_name() const { return "geometryfromwkb"; }
   String *val_str(String *);
   void fix_length_and_dec();
 };
@@ -683,7 +696,8 @@ public:
 class Item_func_point :public Item_str_func
 {
 public:
-  Item_func_point(Item *a,Item *b) :Item_str_func(a,b) {}
+  Item_func_point(Item *a, Item *b) :Item_str_func(a, b) {}
+  Item_func_point(Item *a, Item *b, Item *srid) :Item_str_func(a, b, srid) {}
   const char *func_name() const { return "point"; }
   String *val_str(String *);
   void fix_length_and_dec(){max_length=MAX_BLOB_WIDTH;}

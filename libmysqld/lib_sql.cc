@@ -504,6 +504,7 @@ bool Protocol::net_store_data(const char *from, uint length)
   return false;
 }
 
+#if 0
 /* The same as Protocol::net_store_data but does the converstion
 */
 bool Protocol::convert_str(const char *from, uint length)
@@ -519,3 +520,4 @@ bool Protocol::convert_str(const char *from, uint length)
 
   return false;
 }
+#endif
