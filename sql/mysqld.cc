@@ -921,6 +921,8 @@ void clean_up(bool print_message)
   free_max_user_conn();
   end_slave_list();
 #ifdef HAVE_OPENSSL
+  if (ssl_acceptor_fd)
+    my_free((gptr) ssl_acceptor_fd, MYF(MY_ALLOW_ZERO_PTR));
   free_des_key_file();
 #endif /* HAVE_OPENSSL */
 #ifdef USE_REGEX
