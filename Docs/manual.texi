@@ -41654,6 +41654,8 @@ not yet 100 % confident in this code.
 @appendixsubsec Changes in release 3.23.34
 @itemize @bullet
 @item
+Improved error diagnostic for slave thread exit
+@item
 Fixed bug in @code{ALTER TABLE ... ORDER BY}.
 @item
 Added option @code{max_user_connections} to @code{mysqld}.
