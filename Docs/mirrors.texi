@@ -180,6 +180,11 @@ FTP (@uref{ftp://ftp.dn.ru/pub/MySQL/})
 FTP (@uref{ftp://ftp.chg.ru/pub/databases/mysql/})
 
 @item
+@image{Flags/spain} Spain [GMC Control Systems] @@
+WWW (@uref{http://mysql.neptuno2000.com/})
+FTP (@uref{ftp://ftp.neptuno2000.com/pub/mysql/})
+
+@item
 @image{Flags/sweden} Sweden [Sunet] @@
 WWW (@uref{http://ftp.sunet.se/pub/unix/databases/relational/mysql/})
 FTP (@uref{ftp://ftp.sunet.se/pub/unix/databases/relational/mysql/})
