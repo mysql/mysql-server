@@ -535,11 +535,19 @@ public:
   void close_active_vio();
 #endif  
   void awake(bool prepare_to_die);
+  /*
+    For enter_cond() / exit_cond() to work the mutex must be got before
+    enter_cond() but released before exit_cond() (in 4.1, assertions will soon
+    ensure this). Use must be:
+    lock mutex; enter_cond(); ...; unlock mutex; exit_cond().
+    If you don't do it this way, you will get a deadlock if another thread is
+    doing a THD::awake() on you.
+    
+  */
   inline const char* enter_cond(pthread_cond_t *cond, pthread_mutex_t* mutex,
 			  const char* msg)
   {
     const char* old_msg = proc_info;
-    safe_mutex_assert_owner(mutex);
     mysys_var->current_mutex = mutex;
     mysys_var->current_cond = cond;
     proc_info = msg;
