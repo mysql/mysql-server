@@ -333,7 +333,7 @@ public:
 class Item_func_database :public Item_str_func
 {
 public:
-  Item_func_database() {}
+  Item_func_database() { coercibility= COER_IMPLICIT; }
   String *val_str(String *);
   void fix_length_and_dec() 
   { 
@@ -346,7 +346,7 @@ public:
 class Item_func_user :public Item_str_func
 {
 public:
-  Item_func_user() {}
+  Item_func_user() { coercibility= COER_IMPLICIT; }
   String *val_str(String *);
   void fix_length_and_dec() 
   { 
