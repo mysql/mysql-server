@@ -48,12 +48,12 @@ public:
 
   enum BinaryCondition 
   {
-    LE = 0,        ///< lower bound
-    LT = 1,        ///< lower bound, strict
-    GE = 2,        ///< upper bound
-    GT = 3,        ///< upper bound, strict
-    EQ = 4,        ///< equality
-    NE = 5
+    COND_LE = 0,        ///< lower bound
+    COND_LT = 1,        ///< lower bound, strict
+    COND_GE = 2,        ///< upper bound
+    COND_GT = 3,        ///< upper bound, strict
+    COND_EQ = 4,        ///< equality
+    COND_NE = 5
   };
 
   /** 
@@ -97,53 +97,53 @@ public:
   /** Compare column value with integer for equal   
    *  ®return  0 if successful, -1 otherwize
    */
-  int eq(int ColId, Uint32 value) { return cmp(EQ, ColId, &value, 4);}
+  int eq(int ColId, Uint32 value) { return cmp(COND_EQ, ColId, &value, 4);}
 
   /** Compare column value with integer for not equal.
    *  ®return  0 if successful, -1 otherwize 
    */
-  int ne(int ColId, Uint32 value) { return cmp(NE, ColId, &value, 4);}  
+  int ne(int ColId, Uint32 value) { return cmp(COND_NE, ColId, &value, 4);}  
   /** Compare column value with integer for less than.
    *  ®return  0 if successful, -1 otherwize 
    */
-  int lt(int ColId, Uint32 value) { return cmp(LT, ColId, &value, 4);}
+  int lt(int ColId, Uint32 value) { return cmp(COND_LT, ColId, &value, 4);}
   /** Compare column value with integer for less than or equal. 
    *  ®return  0 if successful, -1 otherwize
    */
-  int le(int ColId, Uint32 value) { return cmp(LE, ColId, &value, 4);}
+  int le(int ColId, Uint32 value) { return cmp(COND_LE, ColId, &value, 4);}
   /** Compare column value with integer for greater than. 
    *  ®return  0 if successful, -1 otherwize
    */
-  int gt(int ColId, Uint32 value) { return cmp(GT, ColId, &value, 4);} 
+  int gt(int ColId, Uint32 value) { return cmp(COND_GT, ColId, &value, 4);} 
   /** Compare column value with integer for greater than or equal.
    *  ®return  0 if successful, -1 otherwize
    */
-  int ge(int ColId, Uint32 value) { return cmp(GE, ColId, &value, 4);}
+  int ge(int ColId, Uint32 value) { return cmp(COND_GE, ColId, &value, 4);}
 
   /** Compare column value with integer for equal. 64-bit.  
    *  ®return  0 if successful, -1 otherwize
    */
-  int eq(int ColId, Uint64 value) { return cmp(EQ, ColId, &value, 8);}
+  int eq(int ColId, Uint64 value) { return cmp(COND_EQ, ColId, &value, 8);}
   /** Compare column value with integer for not equal. 64-bit.
    *  ®return  0 if successful, -1 otherwize
    */
-  int ne(int ColId, Uint64 value) { return cmp(NE, ColId, &value, 8);}
+  int ne(int ColId, Uint64 value) { return cmp(COND_NE, ColId, &value, 8);}
   /** Compare column value with integer for less than. 64-bit.
    *  ®return  0 if successful, -1 otherwize
    */
-  int lt(int ColId, Uint64 value) { return cmp(LT, ColId, &value, 8);}  
+  int lt(int ColId, Uint64 value) { return cmp(COND_LT, ColId, &value, 8);}  
   /** Compare column value with integer for less than or equal. 64-bit.
    *  ®return  0 if successful, -1 otherwize
    */
-  int le(int ColId, Uint64 value) { return cmp(LE, ColId, &value, 8);}
+  int le(int ColId, Uint64 value) { return cmp(COND_LE, ColId, &value, 8);}
   /** Compare column value with integer for greater than. 64-bit.
    *  ®return  0 if successful, -1 otherwize
    */
-  int gt(int ColId, Uint64 value) { return cmp(GT, ColId, &value, 8);}
+  int gt(int ColId, Uint64 value) { return cmp(COND_GT, ColId, &value, 8);}
   /** Compare column value with integer for greater than or equal. 64-bit.
    *  ®return  0 if successful, -1 otherwize
    */
-  int ge(int ColId, Uint64 value) { return cmp(GE, ColId, &value, 8);}
+  int ge(int ColId, Uint64 value) { return cmp(COND_GE, ColId, &value, 8);}
   /** @} *********************************************************************/
 
   /** Check if column value is NULL */
