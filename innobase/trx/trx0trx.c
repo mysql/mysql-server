@@ -22,6 +22,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "read0read.h"
 #include "srv0srv.h"
 #include "thr0loc.h"
+#include "btr0sea.h"
 
 /* Dummy session used currently in MySQL interface */
 sess_t*		trx_dummy_sess = NULL;
@@ -63,6 +64,7 @@ trx_create(
 	trx->dict_operation = FALSE;
 
 	trx->n_mysql_tables_in_use = 0;
+	trx->mysql_n_tables_locked = 0;
 
 	trx->ignore_duplicates_in_insert = FALSE;
 
@@ -95,6 +97,8 @@ trx_create(
 
 	trx->lock_heap = mem_heap_create_in_buffer(256);
 	UT_LIST_INIT(trx->trx_locks);
+
+	trx->has_search_latch = FALSE;
 
 	trx->read_view_heap = mem_heap_create(256);
 	trx->read_view = NULL;
@@ -133,6 +137,21 @@ trx_allocate_for_mysql(void)
 }
 
 /************************************************************************
+Releases the search latch if trx has reserved it. */
+
+void
+trx_search_latch_release_if_reserved(
+/*=================================*/
+        trx_t*     trx) /* in: transaction */
+{
+  if (trx->has_search_latch) {
+    rw_lock_s_unlock(&btr_search_latch);
+
+    trx->has_search_latch = FALSE;
+  }
+}
+
+/************************************************************************
 Frees a transaction object. */
 
 void
@@ -149,6 +168,7 @@ trx_free(
 	ut_a(trx->update_undo == NULL); 
 
 	ut_a(trx->n_mysql_tables_in_use == 0);
+	ut_a(trx->mysql_n_tables_locked == 0);
 	
 	if (trx->undo_no_arr) {
 		trx_undo_arr_free(trx->undo_no_arr);
@@ -159,6 +179,8 @@ trx_free(
 
 	ut_a(trx->wait_lock == NULL);
 	ut_a(UT_LIST_GET_LEN(trx->wait_thrs) == 0);
+
+	ut_a(!trx->has_search_latch);
 
 	if (trx->lock_heap) {
 		mem_heap_free(trx->lock_heap);

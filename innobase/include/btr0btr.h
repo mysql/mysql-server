@@ -376,9 +376,10 @@ btr_print_tree(
 /******************************************************************
 Checks the consistency of an index tree. */
 
-void
+ibool
 btr_validate_tree(
 /*==============*/
+				/* out: TRUE if ok */
 	dict_tree_t*	tree);	/* in: tree */
 
 #define BTR_N_LEAF_PAGES 	1

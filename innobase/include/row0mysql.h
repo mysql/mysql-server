@@ -229,6 +229,15 @@ row_rename_table_for_mysql(
 	char*	old_name,	/* in: old table name */
 	char*	new_name,	/* in: new table name */
 	trx_t*	trx);		/* in: transaction handle */
+/*************************************************************************
+Checks a table for corruption. */
+
+ulint
+row_check_table_for_mysql(
+/*======================*/
+					/* out: DB_ERROR or DB_SUCCESS */
+	row_prebuilt_t*	prebuilt);	/* in: prebuilt struct in MySQL
+					handle */
 
 /* A struct describing a place for an individual column in the MySQL
 row format which is presented to the table handler in ha_innobase.
@@ -281,7 +290,8 @@ struct row_prebuilt_struct {
 					is set to TRUE */
 	dict_index_t*	index;		/* current index for a search, if any */
 	ulint		template_type;	/* ROW_MYSQL_WHOLE_ROW, 
-					ROW_MYSQL_REC_FIELDS or
+					ROW_MYSQL_REC_FIELDS,
+					ROW_MYSQL_DUMMY_TEMPLATE, or
 					ROW_MYSQL_NO_TEMPLATE */
 	ulint		n_template;	/* number of elements in the
 					template */
@@ -359,6 +369,8 @@ struct row_prebuilt_struct {
 #define ROW_MYSQL_WHOLE_ROW	0
 #define ROW_MYSQL_REC_FIELDS	1
 #define ROW_MYSQL_NO_TEMPLATE	2
+#define ROW_MYSQL_DUMMY_TEMPLATE 3	/* dummy template used in
+					row_scan_and_check_index */
 
 #ifndef UNIV_NONINL
 #include "row0mysql.ic"

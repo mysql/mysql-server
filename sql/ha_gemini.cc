@@ -19,11 +19,7 @@
 #pragma implementation				// gcc: Class implementation
 #endif
 
-#include <string.h>
-
 #include "mysql_priv.h"
-#include "my_pthread.h"
-
 #ifdef HAVE_GEMINI_DB
 #include "ha_gemini.h"
 #include "dbconfig.h"
@@ -33,6 +29,7 @@
 
 #include <m_ctype.h>
 #include <myisampack.h>
+#include <m_string.h>
 #include <assert.h>
 #include <hash.h>
 #include <stdarg.h>

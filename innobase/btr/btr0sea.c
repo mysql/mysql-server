@@ -601,7 +601,12 @@ btr_search_guess_on_hash(
 	btr_search_t*	info,		/* in: index search info */
 	dtuple_t*	tuple,		/* in: logical record */
 	ulint		mode,		/* in: PAGE_CUR_L, ... */
-	ulint		latch_mode, 	/* in: BTR_SEARCH_LEAF, ... */
+	ulint		latch_mode, 	/* in: BTR_SEARCH_LEAF, ...;
+					NOTE that only if has_search_latch
+					is 0, we will have a latch set on
+					the cursor page, otherwise we assume
+					the caller uses his search latch
+					to protect the record! */
 	btr_cur_t*	cursor, 	/* out: tree cursor */
 	ulint		has_search_latch,/* in: latch mode the caller
 					currently has on btr_search_latch:
@@ -722,7 +727,9 @@ btr_search_guess_on_hash(
 	}
 	
 	if (!success) {
-		btr_leaf_page_release(page, latch_mode, mtr);
+		if (!has_search_latch) {
+		          btr_leaf_page_release(page, latch_mode, mtr);
+		}
 
 		goto failure;
 	}
