@@ -160,7 +160,7 @@ class Item_maxmin_subselect :public Item_singlerow_subselect
 {
 protected:
   bool max;
-  bool was_values;  // was checked at least some values
+  bool was_values;  // Set if we have found at least one row
 public:
   Item_maxmin_subselect(Item_subselect *parent,
 			st_select_lex *select_lex, bool max);

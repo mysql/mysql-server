@@ -402,7 +402,7 @@ class Item_sum_hybrid :public Item_sum
   enum_field_types hybrid_field_type;
   int cmp_sign;
   table_map used_table_cache;
-  bool was_values;  // was checked at least some values (for max/min only)
+  bool was_values;  // Set if we have found at least one row (for max/min only)
 
   public:
   Item_sum_hybrid(Item *item_par,int sign)
