@@ -313,6 +313,8 @@ public:
   virtual void append_create_info(String *packet) {}
   virtual char* get_foreign_key_create_info()
   { return(NULL);}  /* gets foreign key create string from InnoDB */
+  virtual void init_table_handle_for_HANDLER()
+  { return; }       /* prepare InnoDB for HANDLER */  
   virtual void free_foreign_key_create_info(char* str) {} 
   /* The following can be called without an open handler */
   virtual const char *table_type() const =0;
