@@ -413,11 +413,14 @@ MgmApiSession::get_nodeid(Parser_t::Context &,
 
   NodeId tmp= nodeid;
   if(tmp == 0 || !m_allocated_resources->is_reserved(tmp)){
+    BaseString error_string;
     if (!m_mgmsrv.alloc_node_id(&tmp, (enum ndb_mgm_node_type)nodetype, 
-				&addr, &addrlen)){
+				&addr, &addrlen, error_string)){
+      const char *alias;
+      const char *str;
+      alias= ndb_mgm_get_node_type_alias_string((enum ndb_mgm_node_type)nodetype, &str);
       m_output->println(cmd);
-      m_output->println("result: no free nodeid %d for nodetype %d",
-			nodeid, nodetype);
+      m_output->println("result: %s", error_string.c_str());
       m_output->println("");
       return;
     }
