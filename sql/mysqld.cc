@@ -3563,6 +3563,7 @@ static void get_options(int argc,char **argv)
       break;
     case OPT_LOW_PRIORITY_UPDATES:
       thd_startup_options|=OPTION_LOW_PRIORITY_UPDATES;
+      thr_upgraded_concurrent_insert_lock= TL_WRITE_LOW_PRIORITY;
       low_priority_updates=1;
       break;
     case OPT_BOOTSTRAP:

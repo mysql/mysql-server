@@ -65,6 +65,7 @@ enum thr_lock_type { TL_IGNORE=-1,
 
 extern ulong max_write_lock_count;
 extern my_bool thr_lock_inited;
+extern enum thr_lock_type thr_upgraded_concurrent_insert_lock;
 
 typedef struct st_thr_lock_data {
   pthread_t thread;
