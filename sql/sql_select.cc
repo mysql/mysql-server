@@ -1648,8 +1648,8 @@ static ha_rows get_quick_record_count(THD *thd, SQL_SELECT *select,
   {
     select->head=table;
     table->reginfo.impossible_range=0;
-    if ((error=select->test_quick_select(thd, *(key_map *)keys,(table_map) 0,limit))
-	== 1)
+    if ((error=select->test_quick_select(thd, *(key_map *)keys,(table_map) 0,
+					 limit)) == 1)
       DBUG_RETURN(select->quick->records);
     if (error == -1)
     {
@@ -2700,22 +2700,35 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 	  do
 	  {
             uint keypart=keyuse->keypart;
-	    uint found_part_ref_or_null= KEY_OPTIMIZE_REF_OR_NULL;
+            table_map best_part_found_ref= 0;
+            double best_prev_record_reads= DBL_MAX;
 	    do
 	    {
 	      if (!(rest_tables & keyuse->used_tables) &&
 		  !(found_ref_or_null & keyuse->optimize))
 	      {
 		found_part|=keyuse->keypart_map;
-		found_ref|= keyuse->used_tables;
+                double tmp= prev_record_reads(join,
+					      (found_ref |
+					       keyuse->used_tables));
+                if (tmp < best_prev_record_reads)
+                {
+                  best_part_found_ref= keyuse->used_tables;
+                  best_prev_record_reads= tmp;
+                }
 		if (rec > keyuse->ref_table_rows)
 		  rec= keyuse->ref_table_rows;
-		found_part_ref_or_null&= keyuse->optimize;
+		/*
+		  If there is one 'key_column IS NULL' expression, we can
+		  use this ref_or_null optimsation of this field
+		*/
+		found_ref_or_null|= (keyuse->optimize &
+				     KEY_OPTIMIZE_REF_OR_NULL);
               }
 	      keyuse++;
-	      found_ref_or_null|= found_part_ref_or_null;
 	    } while (keyuse->table == table && keyuse->key == key &&
 		     keyuse->keypart == keypart);
+	    found_ref|= best_part_found_ref;
 	  } while (keyuse->table == table && keyuse->key == key);
 
 	  /*
@@ -7203,9 +7216,12 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
     table->file->info(HA_STATUS_VARIABLE);	// Get record count
   table->sort.found_records=filesort(thd, table,sortorder, length,
                                      select, filesort_limit, &examined_rows);
-  tab->records=table->sort.found_records;		// For SQL_CALC_ROWS
-  delete select;
-  tab->select=0;
+  tab->records= table->sort.found_records;	// For SQL_CALC_ROWS
+  if (select)
+  {
+    select->cleanup();				// filesort did select
+    tab->select= 0;
+  }
   tab->select_cond=0;
   tab->type=JT_ALL;				// Read with normal read_record
   tab->read_first_record= join_init_read_record;

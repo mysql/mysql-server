@@ -22,9 +22,6 @@
   */
 
 #include "myisamdef.h"
-#ifdef	__WIN__
-#include <errno.h>
-#endif
 
 	/* lock table by F_UNLCK, F_RDLCK or F_WRLCK */
 

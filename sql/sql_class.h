@@ -962,41 +962,45 @@ public:
 };
 
 
-class select_export :public select_result {
-  sql_exchange *exchange;
-  File file;
-  IO_CACHE cache;
-  ha_rows row_count;
-  uint field_term_length;
-  int field_sep_char,escape_char,line_sep_char;
-  bool fixed_row_size;
-public:
-  select_export(sql_exchange *ex) :exchange(ex),file(-1),row_count(0L) {}
-  ~select_export();
-  int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
-  bool send_fields(List<Item> &list,
-		   uint flag) { return 0; }
-  bool send_data(List<Item> &items);
-  void send_error(uint errcode,const char *err);
-  bool send_eof();
-};
-
-
-class select_dump :public select_result {
+class select_to_file :public select_result {
+protected:
   sql_exchange *exchange;
   File file;
   IO_CACHE cache;
   ha_rows row_count;
   char path[FN_REFLEN];
+
 public:
-  select_dump(sql_exchange *ex) :exchange(ex),file(-1),row_count(0L)
+  select_to_file(sql_exchange *ex) :exchange(ex), file(-1),row_count(0L)
   { path[0]=0; }
-  ~select_dump();
-  int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
-  bool send_fields(List<Item> &list,
-		   uint flag) { return 0; }
-  bool send_data(List<Item> &items);
+  ~select_to_file();
+  bool send_fields(List<Item> &list, uint flag) { return 0; }
   void send_error(uint errcode,const char *err);
+};
+
+
+class select_export :public select_to_file {
+  uint field_term_length;
+  int field_sep_char,escape_char,line_sep_char;
+  bool fixed_row_size;
+public:
+  select_export(sql_exchange *ex) :select_to_file(ex) {}
+  ~select_export();
+  int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
+  bool send_data(List<Item> &items);
+  bool send_eof();
+};
+
+
+class select_dump :public select_to_file {
+  sql_exchange *exchange;
+  File file;
+  IO_CACHE cache;
+  ha_rows row_count;
+public:
+  select_dump(sql_exchange *ex) :select_to_file(ex) {}
+  int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
+  bool send_data(List<Item> &items);
   bool send_eof();
 };
 
