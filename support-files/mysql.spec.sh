@@ -311,7 +311,7 @@ fi
 %attr(755, root, root) /usr/bin/safe_mysqld
 %attr(755, root, root) /usr/bin/my_print_defaults
 
-%attr(644, root, root) /usr/info/mysql.info
+%attr(644, root, root) /usr/info/mysql.info*
 
 %attr(755, root, root) /usr/sbin/mysqld
 
@@ -331,7 +331,7 @@ fi
 %attr(755, root, root) /usr/bin/mysqlshow
 %attr(755, root, root) /usr/bin/mysqlbinlog
 
-%attr(644, root, man) %doc /usr/man/man1/mysql.1
+%attr(644, root, man) %doc /usr/man/man1/mysql.1*
 
 %post shared
 /sbin/ldconfig
