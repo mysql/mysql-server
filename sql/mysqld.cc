@@ -175,7 +175,9 @@ static uint handler_count;
 static bool opt_enable_named_pipe = 0;
 #endif
 #ifdef __WIN__
-static bool opt_console=0,start_mode=0;
+static bool opt_console=0,start_mode=0, use_opt_args;
+static int opt_argc;
+static char **opt_argv;
 #endif
 
 /* Set prefix for windows binary */
@@ -381,6 +383,7 @@ enum db_type default_table_type=DB_TYPE_MYISAM;
 #undef	 getpid
 #include <process.h>
 HANDLE hEventShutdown;
+static char *event_name;
 #include "nt_servc.h"
 static	 NTService  Service;	      // Service object for WinNT
 #endif
@@ -2120,63 +2123,126 @@ The server will not act as a slave.");
 }
 
 
-#ifdef __WIN__
-/* ------------------------------------------------------------------------
-   main and thread entry function for Win32
-   (all this is needed only to run mysqld as a service on WinNT)
- -------------------------------------------------------------------------- */
+#if defined(__WIN__)
 int mysql_service(void *p)
 {
-  win_main(Service.my_argc, Service.my_argv);
+  if (use_opt_args)
+    win_main(opt_argc, opt_argv);
+  else
+    win_main(Service.my_argc, Service.my_argv);
   return 0;
 }
 
+/*
+  Handle basic handling of services, like installation and removal
+
+  SYNOPSIS
+    default_service_handling()
+    argv		Pointer to argument list 
+    servicename		Internal name of service
+    displayname		Display name of service (in taskbar ?)
+    file_path		Path to this program
+
+  RETURN VALUES
+    0		option handled
+    1		Could not handle option
+ */
+
+bool default_service_handling(char **argv,
+			      const char *servicename,
+			      const char *displayname,
+			      const char *file_path)
+{
+  if (Service.got_service_option(argv, "install"))
+  {
+    Service.Install(1, servicename, displayname, file_path);
+    return 0;
+  }
+  if (Service.got_service_option(argv, "install-manual"))
+  {
+    Service.Install(0, servicename, displayname, file_path);
+    return 0;
+  }
+  if (Service.got_service_option(argv, "remove"))
+  {
+    Service.Remove(servicename);
+    return 0;
+  }
+  return 1;
+}
+
+
 int main(int argc, char **argv)
 {
-  // check  environment variable OS
-  if (Service.GetOS())	// "OS" defined; Should be NT
+  if (Service.GetOS())	/* true NT family */
   {
-    if (argc == 2)
-    {
-      char path[FN_REFLEN];
-      my_path(path, argv[0], "");		   // Find name in path
-      fn_format(path,argv[0],path,"",1+4+16);    // Force use of full path
+    char file_path[FN_REFLEN];
+    my_path(file_path, argv[0], "");		      /* Find name in path */
+    fn_format(file_path,argv[0],file_path,"",1+4+16); /* Force full path */
 
-      if (!strcmp(argv[1],"-install") || !strcmp(argv[1],"--install"))
-      {
-	Service.Install(1,MYSQL_SERVICENAME,MYSQL_SERVICENAME,path);
+    if (argc == 2)
+    {	
+      if (!default_service_handling(argv,MYSQL_SERVICENAME, MYSQL_SERVICENAME,
+				   file_path))
 	return 0;
-      }
-      else if (!strcmp(argv[1],"-install-manual") || !strcmp(argv[1],"--install-manual"))
+      if (Service.IsService(argv[1]))
       {
-        Service.Install(0,MYSQL_SERVICENAME,MYSQL_SERVICENAME,path);
+        /* start an optional service */
+        event_name=		argv[1];
+	load_default_groups[0]= argv[1];
+        start_mode= 1;
+        Service.Init(event_name, mysql_service);
+        return 0;
+      }
+    }
+    else if (argc == 3) /* install or remove any optional service */
+    {
+      /* Add service name after filename */
+      uint length=strlen(file_path);
+      *strxnmov(file_path + length, sizeof(file_path)-length-2, " ",
+		argv[2], NullS)= '\0';
+
+      if (!default_service_handling(argv, argv[2], argv[2], file_path))
 	return 0;
-      }
-      else if (!strcmp(argv[1],"-remove") || !strcmp(argv[1],"--remove"))
+      if (Service.IsService(argv[2]))
       {
-	Service.Remove(MYSQL_SERVICENAME);
+	/* start an optional service */
+	use_opt_args=1;
+	opt_argc=argc;
+	opt_argv=argv;
+	event_name= argv[2];
+	start_mode= 1;
+	Service.Init(event_name, mysql_service);
 	return 0;
       }
     }
-    else if (argc == 1)		   // No arguments; start as a service
+    else if (argc == 4)
     {
-      // init service
-      start_mode = 1;
-      long tmp=Service.Init(MYSQL_SERVICENAME,mysql_service);
+      /*
+	Install an optional service with optional config file
+	mysqld --install-manual mysqldopt --defaults-file=c:\miguel\my.ini
+      */
+      uint length=strlen(file_path);
+      *strxnmov(file_path + length, sizeof(file_path)-length-2, " ",
+		argv[3], " ", argv[2], NullS)= '\0';
+      if (!default_service_handling(argv, argv[2], argv[2], file_path))
+	return 0;
+    }
+    else if (argc == 1 && Service.IsService(MYSQL_SERVICENAME))
+    {
+      /* start the default service */
+      start_mode= 1;
+      event_name= "MySqlShutdown";
+      Service.Init(MYSQL_SERVICENAME, mysql_service);
       return 0;
     }
   }
-
-  // This is a WIN95 machine or a start of mysqld as a standalone program
-  // we have to pass the arguments, in case of NT-service this will be done
-  // by ServiceMain()
-
+  /* Start as standalone server */
   Service.my_argc=argc;
   Service.my_argv=argv;
   mysql_service(NULL);
   return 0;
 }
-/* ------------------------------------------------------------------------ */
 #endif
 
 

@@ -52,7 +52,9 @@ class NTService
 		    LPCSTR szAccountName=NULL,LPCSTR szPassword=NULL);
     BOOL SeekStatus(LPCSTR szInternName, int OperationType);
     BOOL Remove(LPCSTR szInternName);
-
+    BOOL IsService(LPCSTR ServiceName);
+    BOOL got_service_option(char **argv, char *service_option);
+    BOOL is_super_user();
     void Stop(void); //to be called from app. to stop service
 
   protected:
