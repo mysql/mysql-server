@@ -9340,7 +9340,6 @@ void Dbtc::execSCAN_NEXTREQ(Signal* signal)
     /*********************************************************************
      * APPLICATION IS CLOSING THE SCAN.
      **********************************************************************/
-    ndbrequire(len == 0);
     close_scan_req(signal, scanptr, true);
     return;
   }//if
@@ -9468,7 +9467,7 @@ Dbtc::close_scan_req(Signal* signal, ScanRecordPtr scanPtr, bool req_received){
       ndbrequire(curr.p->scanFragState == ScanFragRec::DELIVERED);
       delivered.remove(curr);
       
-      if(curr.p->m_ops > 0){
+      if(curr.p->m_ops > 0 && curr.p->m_scan_frag_conf_status == 0){
 	jam();
 	running.add(curr);
 	curr.p->scanFragState = ScanFragRec::LQH_ACTIVE;
