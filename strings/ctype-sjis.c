@@ -232,9 +232,12 @@ static int my_strnncoll_sjis_internal(CHARSET_INFO *cs,
 
 static int my_strnncoll_sjis(CHARSET_INFO *cs __attribute__((unused)),
 			      const uchar *a, uint a_length, 
-			      const uchar *b, uint b_length)
+			      const uchar *b, uint b_length,
+                              my_bool b_is_prefix)
 {
   int res= my_strnncoll_sjis_internal(cs, &a, a_length, &b, b_length);
+  if (b_is_prefix && a_length > b_length)
+    a_length= b_length;
   return res ? res : (int) (a_length - b_length);
 }
 
@@ -4586,9 +4589,10 @@ CHARSET_INFO my_charset_sjis_japanese_ci=
     to_lower_sjis,
     to_upper_sjis,
     sort_order_sjis,
+    NULL,		/* contractions */
+    NULL,		/* sort_order_big*/
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
-    NULL,		/* sort_order_big*/
     NULL,		/* state_map    */
     NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */
@@ -4612,9 +4616,10 @@ CHARSET_INFO my_charset_sjis_bin=
     to_lower_sjis,
     to_upper_sjis,
     sort_order_sjis,
+    NULL,		/* contractions */
+    NULL,		/* sort_order_big*/
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
-    NULL,		/* sort_order_big*/
     NULL,		/* state_map    */
     NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */

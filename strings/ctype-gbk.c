@@ -2614,11 +2614,12 @@ int my_strnncoll_gbk_internal(const uchar **a_res, const uchar **b_res,
 
 int my_strnncoll_gbk(CHARSET_INFO *cs __attribute__((unused)),
 		     const uchar *a, uint a_length,
-		     const uchar *b, uint b_length)
+                     const uchar *b, uint b_length,
+                     my_bool b_is_prefix)
 {
   uint length= min(a_length, b_length);
   int res= my_strnncoll_gbk_internal(&a, &b, length);
-  return res ? res : (int) (a_length - b_length);
+  return res ? res : (int) ((b_is_prefix ? length : a_length) - b_length);
 }
 
 
@@ -9969,9 +9970,10 @@ CHARSET_INFO my_charset_gbk_chinese_ci=
     to_lower_gbk,
     to_upper_gbk,
     sort_order_gbk,
+    NULL,		/* contractions */
+    NULL,		/* sort_order_big*/
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
-    NULL,		/* sort_order_big*/
     NULL,		/* state_map    */
     NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */
@@ -9995,9 +9997,10 @@ CHARSET_INFO my_charset_gbk_bin=
     to_lower_gbk,
     to_upper_gbk,
     sort_order_gbk,
+    NULL,		/* contractions */
+    NULL,		/* sort_order_big*/
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
-    NULL,		/* sort_order_big*/
     NULL,		/* state_map    */
     NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */

@@ -1808,7 +1808,8 @@ static void my_casedn_str_utf8(CHARSET_INFO *cs, char * s)
 
 static int my_strnncoll_utf8(CHARSET_INFO *cs, 
 			     const uchar *s, uint slen,
-			     const uchar *t, uint tlen)
+                             const uchar *t, uint tlen,
+                             my_bool t_is_prefix)
 {
   int s_res,t_res;
   my_wc_t s_wc,t_wc;
@@ -1839,7 +1840,7 @@ static int my_strnncoll_utf8(CHARSET_INFO *cs,
     s+=s_res;
     t+=t_res;
   }
-  return ( (se-s) - (te-t) );
+  return t_is_prefix ? t-te : ((se-s) - (te-t));
 }
 
 
@@ -2056,7 +2057,7 @@ static MY_COLLATION_HANDLER my_collation_ci_handler =
     my_hash_sort_utf8
 };
 
-static MY_CHARSET_HANDLER my_charset_handler=
+MY_CHARSET_HANDLER my_charset_utf8_handler=
 {
     NULL,		/* init */
     my_ismbchar_utf8,
@@ -2097,9 +2098,10 @@ CHARSET_INFO my_charset_utf8_general_ci=
     to_lower_utf8,	/* to_lower     */
     to_upper_utf8,	/* to_upper     */
     to_upper_utf8,	/* sort_order   */
+    NULL,		/* contractions */
+    NULL,		/* sort_order_big*/
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
-    NULL,		/* sort_order_big*/
     NULL,		/* state_map    */
     NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */
@@ -2107,7 +2109,7 @@ CHARSET_INFO my_charset_utf8_general_ci=
     3,			/* mbmaxlen     */
     0,			/* min_sort_char */
     255,		/* max_sort_char */
-    &my_charset_handler,
+    &my_charset_utf8_handler,
     &my_collation_ci_handler
 };
 
@@ -2124,9 +2126,10 @@ CHARSET_INFO my_charset_utf8_bin=
     to_lower_utf8,	/* to_lower     */
     to_upper_utf8,	/* to_upper     */
     to_upper_utf8,	/* sort_order   */
+    NULL,		/* contractions */
+    NULL,		/* sort_order_big*/
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
-    NULL,		/* sort_order_big*/
     NULL,		/* state_map    */
     NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */
@@ -2134,13 +2137,12 @@ CHARSET_INFO my_charset_utf8_bin=
     3,			/* mbmaxlen     */
     0,			/* min_sort_char */
     255,		/* max_sort_char */
-    &my_charset_handler,
+    &my_charset_utf8_handler,
     &my_collation_mb_bin_handler
 };
 
 
 #ifdef MY_TEST_UTF8
-
 #include <stdio.h>
 
 static void test_mb(CHARSET_INFO *cs, uchar *s)
@@ -2172,7 +2174,7 @@ int main()
   
   test_mb(cs,(uchar*)str);
   
-  pr1;2cintf("orig      :'%s'\n",str);
+  printf("orig      :'%s'\n",str);
   
   my_caseup_utf8(cs,str,15);
   printf("caseup    :'%s'\n",str);

@@ -448,20 +448,25 @@ static struct wordvalue doubles[] = {
 
 static int my_strnncoll_win1250ch(CHARSET_INFO *cs __attribute__((unused)), 
 				  const uchar * s1, uint len1,
-				  const uchar * s2, uint len2)
+                                  const uchar * s2, uint len2,
+                                  my_bool s2_is_prefix)
 {
   int v1, v2;
   const uchar * p1, * p2;
   int pass1 = 0, pass2 = 0;
   int diff;
 
+  if (s2_is_prefix && len1 > len2)
+    len1=len2;
+
   p1 = s1;	p2 = s2;
 
-  do {
+  do
+  {
     NEXT_CMP_VALUE(s1, p1, pass1, v1, (int)len1);
     NEXT_CMP_VALUE(s2, p2, pass2, v2, (int)len2);
-    diff = v1 - v2;
-    if (diff != 0)		return diff;
+    if ((diff = v1 - v2))
+      return diff;
   } while (v1);
   return 0;
 }
@@ -478,7 +483,7 @@ int my_strnncollsp_win1250ch(CHARSET_INFO * cs,
 {
   for ( ; slen && s[slen-1] == ' ' ; slen--);
   for ( ; tlen && t[tlen-1] == ' ' ; tlen--);
-  return my_strnncoll_win1250ch(cs,s,slen,t,tlen);
+  return my_strnncoll_win1250ch(cs,s,slen,t,tlen,0);
 }
 
 
@@ -629,6 +634,7 @@ CHARSET_INFO my_charset_cp1250_czech_ci =
   to_lower_win1250ch,
   to_upper_win1250ch,
   sort_order_win1250ch,
+  NULL,				/* contractions */
   NULL,				/* sort_order_big*/
   tab_cp1250_uni,		/* tab_to_uni   */
   idx_uni_cp1250,		/* tab_from_uni */
