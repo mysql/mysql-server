@@ -907,6 +907,12 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
 					     event_len);
   char llbuff[22];
   
+  mi->event_len = event_len; /* Added by Heikki: InnoDB internally stores the
+				master log position it has processed so far;
+				position to store is really
+				mi->pos + mi->pending + mi->event_len
+				since we must store the pos of the END of the
+				current log event */
   if (ev)
   {
     int type_code = ev->get_type_code();
@@ -1017,7 +1023,16 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
       delete ev;
 
       mi->inc_pos(event_len);
-      flush_master_info(mi);
+      
+      if (!(thd->options & (OPTION_NOT_AUTO_COMMIT | OPTION_BEGIN))) {
+
+      	/* We only flush the master info position to the master.info file if
+        the transaction is not open any more: an incomplete transaction will
+      	be rolled back automatically in crash recovery in transactional
+      	table handlers */
+
+        flush_master_info(mi);
+      }
       break;
     }
 	  
@@ -1139,9 +1154,15 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
       }
 
       mi->inc_pos(event_len);
-      flush_master_info(mi);
+
+      if (!(thd->options & (OPTION_NOT_AUTO_COMMIT | OPTION_BEGIN)))
+        flush_master_info(mi);
+
       break;
     }
+
+    /* Question: in a START or STOP event, what happens if we have transaction
+    open? */
 
     case START_EVENT:
       mi->inc_pos(event_len);
@@ -1168,7 +1189,9 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
       mi->pos = 4; // skip magic number
       pthread_cond_broadcast(&mi->cond);
       pthread_mutex_unlock(&mi->lock);
-      flush_master_info(mi);
+
+      if (!(thd->options & (OPTION_NOT_AUTO_COMMIT | OPTION_BEGIN)))
+        flush_master_info(mi);
 #ifndef DBUG_OFF
       if(abort_slave_event_count)
 	++events_till_abort;
