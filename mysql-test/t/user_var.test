@@ -71,3 +71,31 @@ select @a:=0; select @a, @a:=@a+count(*), count(*), @a from t1 group by i;
 select @a:=0; select @a+0, @a:=@a+0+count(*), count(*), @a+0 from t1 group by i;
 drop table t1;
 
+#
+# Bug #2244: User variables didn't copy collation and derivation
+# attributes from values they were initialized to.
+#
+
+set @a=_latin2'test';
+select charset(@a),collation(@a),coercibility(@a);
+select @a=_latin2'TEST';
+select @a=_latin2'TEST' collate latin2_bin;
+
+set @a=_latin2'test' collate latin2_general_ci;
+select charset(@a),collation(@a),coercibility(@a);
+select @a=_latin2'TEST';
+--error 1266
+select @a=_latin2'TEST' collate latin2_bin;
+
+#
+# Check the same invoking Item_set_user_var
+#
+select charset(@a:=_latin2'test');
+select collation(@a:=_latin2'test');
+select coercibility(@a:=_latin2'test');
+select collation(@a:=_latin2'test' collate latin2_bin);
+select coercibility(@a:=_latin2'test' collate latin2_bin);
+select (@a:=_latin2'test' collate latin2_bin) = _latin2'TEST';
+select charset(@a),collation(@a),coercibility(@a);
+--error 1266
+select (@a:=_latin2'test' collate latin2_bin) = _latin2'TEST' collate latin2_general_ci;
