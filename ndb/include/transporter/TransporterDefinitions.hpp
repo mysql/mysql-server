@@ -69,6 +69,7 @@ struct TCP_TransporterConfiguration {
  * SHM Transporter Configuration
  */
 struct SHM_TransporterConfiguration {
+  Uint32 port; 
   NodeId remoteNodeId;
   NodeId localNodeId;
   bool compression;

@@ -29,20 +29,19 @@
 #endif
 
 
-SHM_Transporter::SHM_Transporter(NodeId lNodeId,
+SHM_Transporter::SHM_Transporter(TransporterRegistry &t_reg,
+				 const char *lHostName,
+				 const char *rHostName, 
+				 int r_port,
+				 NodeId lNodeId,
 				 NodeId rNodeId, 
-				 key_t _shmKey,
-				 Uint32 _shmSize,
 				 bool compression, 
 				 bool checksum, 
-				 bool signalId) :
-  Transporter(lNodeId,
-	      rNodeId,
-	      0,
-	      compression,
-	      checksum,
-	      signalId),
-  isServer(lNodeId < rNodeId),
+				 bool signalId,
+				 key_t _shmKey,
+				 Uint32 _shmSize) :
+  Transporter(t_reg, lHostName, rHostName, r_port, lNodeId, rNodeId,
+	      0, compression, checksum, signalId),
   shmKey(_shmKey),
   shmSize(_shmSize)
 {
@@ -68,16 +67,6 @@ SHM_Transporter::initTransporter(){
   return true;
 }
     
-bool
-SHM_Transporter::connectImpl(Uint32 timeOutMillis){
-  bool res;
-  if(isServer)
-    res = connectServer(timeOutMillis);
-  else
-    res = connectClient(timeOutMillis);
-  return res;
-}
-
 void
 SHM_Transporter::setupBuffers(){
   Uint32 sharedSize = 0;
