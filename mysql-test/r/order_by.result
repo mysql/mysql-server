@@ -580,3 +580,7 @@ FieldKey	LongVal	StringVal
 3	2	1
 3	3	3
 DROP TABLE t1;
+CREATE TABLE t1 (a INT, b INT);
+SET @id=0;
+UPDATE t1 SET a=0 ORDER BY (a=@id), b;
+DROP TABLE t1;
