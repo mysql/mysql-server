@@ -520,6 +520,7 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
 my_bool
 mysql_make_view(File_parser *parser, TABLE_LIST *table)
 {
+  bool include_proc_table= 0;
   DBUG_ENTER("mysql_make_view");
 
   if (table->view)
@@ -612,10 +613,25 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
                            table->belong_to_view :
                            table);
 
-    /* move SP to main LEX */
-    sp_merge_funs(old_lex, lex);
-    if (lex->spfuns.array.buffer)
-      hash_free(&lex->spfuns);
+    if (lex->spfuns.records)
+    {
+      /* move SP to main LEX */
+      sp_merge_funs(old_lex, lex);
+      if (lex->spfuns.array.buffer)
+        hash_free(&lex->spfuns);
+      if (old_lex->proc_table == 0 &&
+          (old_lex->proc_table=
+           (TABLE_LIST*)thd->calloc(sizeof(TABLE_LIST))) != 0)
+      {
+        TABLE_LIST *table= old_lex->proc_table;
+        table->db= (char*)"mysql";
+        table->db_length= 5;
+        table->real_name= table->alias= (char*)"proc";
+        table->real_name_length= 4;
+        table->cacheable_table= 1;
+        include_proc_table= 1;
+      }
+    }
 
     old_next= table->next_global;
     if ((table->next_global= lex->query_tables))
@@ -741,6 +757,17 @@ ok:
   old_lex->all_selects_list= lex->all_selects_list;
   lex->all_selects_list->link_prev=
     (st_select_lex_node**)&old_lex->all_selects_list;
+
+  if (include_proc_table)
+  {
+    TABLE_LIST *proc= old_lex->proc_table;
+    if((proc->next_global= table->next_global))
+    {
+      table->next_global->prev_global= &proc->next_global;
+    }
+    proc->prev_global= &table->next_global;
+    table->next_global= proc;
+  }
 
   thd->lex= old_lex;
   DBUG_RETURN(0);
